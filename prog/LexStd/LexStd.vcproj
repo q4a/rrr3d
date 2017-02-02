@@ -109,7 +109,7 @@
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
 				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)\header&quot;;&quot;$(SolutionDir)Third Party\include\dx&quot;"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)\header&quot;;&quot;$(SolutionDir)Third Party\include\dx&quot;;&quot;$(SolutionDir)Third Party\include&quot;"
 				PreprocessorDefinitions="_LIB; NDEBUG; NOMINMAX"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"

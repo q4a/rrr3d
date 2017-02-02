@@ -119,7 +119,7 @@
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
 				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)header\&quot;;&quot;$(ProjectDir)include\&quot;;&quot;$(SolutionDir)LexStd\header\&quot;;&quot;$(SolutionDir)Rock3dEngine\header\&quot;;&quot;$(ProjectDir)&quot;;&quot;$(SolutionDir)\libvorbis\include&quot;;&quot;$(SolutionDir)\libogg\include&quot;;&quot;$(SolutionDir)NetLib\include\&quot;;&quot;$(SolutionDir)Third Party\include\dx&quot;;&quot;$(SolutionDir)Third Party\include\px\Cooking\include&quot;;&quot;$(SolutionDir)Third Party\include\px\Foundation\include&quot;;&quot;$(SolutionDir)Third Party\include\px\Physics\include&quot;;&quot;$(SolutionDir)Third Party\include\px\PhysXLoader\include&quot;;&quot;$(SolutionDir)Third Party\include\steam&quot;"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)header\&quot;;&quot;$(ProjectDir)include\&quot;;&quot;$(SolutionDir)LexStd\header\&quot;;&quot;$(SolutionDir)Rock3dEngine\header\&quot;;&quot;$(ProjectDir)&quot;;&quot;$(SolutionDir)\libvorbis\include&quot;;&quot;$(SolutionDir)\libogg\include&quot;;&quot;$(SolutionDir)NetLib\include\&quot;;&quot;$(SolutionDir)Third Party\include\dx&quot;;&quot;$(SolutionDir)Third Party\include\px\Cooking\include&quot;;&quot;$(SolutionDir)Third Party\include\px\Foundation\include&quot;;&quot;$(SolutionDir)Third Party\include\px\Physics\include&quot;;&quot;$(SolutionDir)Third Party\include\px\PhysXLoader\include&quot;;&quot;$(SolutionDir)Third Party\include\steam&quot;;&quot;$(SolutionDir)Third Party\include&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;ROCK3DGAME_EXPORTS;NOMINMAX;_CRT_SECURE_NO_WARNINGS"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
