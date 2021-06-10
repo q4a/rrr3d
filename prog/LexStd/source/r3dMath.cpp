@@ -698,8 +698,10 @@ void BoundBox::ToAABB(AABB& aabb) const
 	aabb.max = v[7];
 }
 
+Frustum::Frustum()
+{
 
-
+}
 
 void Frustum::CalculateCorners(Corners& pPoints, const D3DXMATRIX& invViewProj)
 {

@@ -225,8 +225,8 @@ HRESULT CVMR9::AddToGraph(IGraphBuilder *pGraph, HWND hwnd)
 	hr = pGraph->QueryInterface(IID_PPV_ARGS(&_videoWindow));
 	if (FAILED(hr))
 	{
-		SafeRelease(m_pWindowless);
-		SafeRelease(_videoWindow);
+		SafeRelease(&m_pWindowless);
+		SafeRelease(&_videoWindow);
 	}
 
 	return hr;

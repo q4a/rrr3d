@@ -4,7 +4,7 @@
 //
 // $NoKeywords: $
 //=============================================================================
-#pragma once;
+#pragma once
 
 #ifdef STEAM_SERVICE
 

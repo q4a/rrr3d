@@ -168,6 +168,8 @@ struct Frustum
 
 	enum SpaceContains {scNoOverlap, scContainsFully, scContainsPartially};
 
+	Frustum();
+
 	static void CalculateCorners(Corners& pPoints, const D3DXMATRIX& invViewProj);
 
 	void Refresh(const D3DXMATRIX& viewProjMat);

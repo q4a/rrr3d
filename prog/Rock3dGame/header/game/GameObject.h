@@ -12,7 +12,7 @@ namespace game
 class Proj;
 class GameCar;
 
-class GameObject: public lsl::Component, public GameObjListener, public px::ActorUser, IFrameEvent, IProgressEvent, ILateProgressEvent, IFixedStepEvent
+class GameObject: public lsl::Component, public GameObjListener, public px::ActorUser, IFrameEvent, IProgressEvent, ILateProgressEvent, IFixedStepEvent, public virtual IGameEvent
 {
 	friend class MapObj;
 	friend class PxActorUser;
