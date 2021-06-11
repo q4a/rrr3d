@@ -1,0 +1,27 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build-windows:
+    runs-on: windows-2019
+    strategy:
+      fail-fast: false
+      matrix:
+        Configuration: [Release, Debug]
+        Platform: [Win32]
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Install Windows libs
+      shell: cmd
+      run: |
+        curl -LJO https://github.com/q4a/rrr3d/releases/download/1.3.1-dev/prog.7z
+        7z x prog.7z
+        dir prog
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: MSBuild
+      working-directory: prog
+      run: msbuild /p:Configuration="${{ matrix.Configuration }}" /p:Platform="${{ matrix.Platform }}" RRR3d.sln
