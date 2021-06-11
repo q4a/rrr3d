@@ -1,40 +1,19 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Rock3dGame", "Rock3dGame\Rock3dGame.vcproj", "{92455CFE-558A-4A03-B557-17B514692ECB}"
-	ProjectSection(ProjectDependencies) = postProject
-		{E42AA766-6DE0-4EC8-B673-9984A3DE64D5} = {E42AA766-6DE0-4EC8-B673-9984A3DE64D5}
-		{E898EAA7-F30C-46D1-A12A-5DD41F285046} = {E898EAA7-F30C-46D1-A12A-5DD41F285046}
-		{5B204CC0-A877-4388-B2C1-7F5E69242305} = {5B204CC0-A877-4388-B2C1-7F5E69242305}
-	EndProjectSection
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31129.286
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Rock3dGame", "Rock3dGame\Rock3dGame.vcxproj", "{92455CFE-558A-4A03-B557-17B514692ECB}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MapEditor", "MapEditor\MapEditor.vcproj", "{46AD4B7F-96B2-451B-96F2-2EC82ED84DE4}"
-	ProjectSection(ProjectDependencies) = postProject
-		{E42AA766-6DE0-4EC8-B673-9984A3DE64D5} = {E42AA766-6DE0-4EC8-B673-9984A3DE64D5}
-		{E898EAA7-F30C-46D1-A12A-5DD41F285046} = {E898EAA7-F30C-46D1-A12A-5DD41F285046}
-		{5B204CC0-A877-4388-B2C1-7F5E69242305} = {5B204CC0-A877-4388-B2C1-7F5E69242305}
-		{92455CFE-558A-4A03-B557-17B514692ECB} = {92455CFE-558A-4A03-B557-17B514692ECB}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MapEditor", "MapEditor\MapEditor.vcxproj", "{46AD4B7F-96B2-451B-96F2-2EC82ED84DE4}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Rock3dEngine", "Rock3dEngine\Rock3dEngine.vcproj", "{5B204CC0-A877-4388-B2C1-7F5E69242305}"
-	ProjectSection(ProjectDependencies) = postProject
-		{E898EAA7-F30C-46D1-A12A-5DD41F285046} = {E898EAA7-F30C-46D1-A12A-5DD41F285046}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Rock3dEngine", "Rock3dEngine\Rock3dEngine.vcxproj", "{5B204CC0-A877-4388-B2C1-7F5E69242305}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RRR3d", "RRR3d\RRR3d.vcproj", "{C8E97297-8D2C-4252-A11E-B936E2D40F2D}"
-	ProjectSection(ProjectDependencies) = postProject
-		{E42AA766-6DE0-4EC8-B673-9984A3DE64D5} = {E42AA766-6DE0-4EC8-B673-9984A3DE64D5}
-		{E898EAA7-F30C-46D1-A12A-5DD41F285046} = {E898EAA7-F30C-46D1-A12A-5DD41F285046}
-		{5B204CC0-A877-4388-B2C1-7F5E69242305} = {5B204CC0-A877-4388-B2C1-7F5E69242305}
-		{92455CFE-558A-4A03-B557-17B514692ECB} = {92455CFE-558A-4A03-B557-17B514692ECB}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RRR3d", "RRR3d\RRR3d.vcxproj", "{C8E97297-8D2C-4252-A11E-B936E2D40F2D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LexStd", "LexStd\LexStd.vcproj", "{E898EAA7-F30C-46D1-A12A-5DD41F285046}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LexStd", "LexStd\LexStd.vcxproj", "{E898EAA7-F30C-46D1-A12A-5DD41F285046}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NetLib", "NetLib\NetLib.vcproj", "{E42AA766-6DE0-4EC8-B673-9984A3DE64D5}"
-	ProjectSection(ProjectDependencies) = postProject
-		{E898EAA7-F30C-46D1-A12A-5DD41F285046} = {E898EAA7-F30C-46D1-A12A-5DD41F285046}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NetLib", "NetLib\NetLib.vcxproj", "{E42AA766-6DE0-4EC8-B673-9984A3DE64D5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -71,8 +50,9 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		AMDCaPersistentConfig = Debug|Win32
-		AMDCaPersistentStartup = MapEditor
 		AMDCaProjectFile = C:\Games\Develop\My Programms\RRR3d\CodeAnalyst\RRR3d.caw
+		AMDCaPersistentStartup = MapEditor
+		AMDCaPersistentConfig = Debug|Win32
+		SolutionGuid = {D4F96159-8CCC-43DD-9759-8053654A6AC7}
 	EndGlobalSection
 EndGlobal
