@@ -1,3 +1,22 @@
+.vs
+*.vcxproj.*
+
+prog/Debug/
+prog/LexStd/Debug/
+prog/MapEditor/Debug/
+prog/NetLib/Debug/
+prog/Rock3dEngine/Debug/
+prog/Rock3dGame/Debug/
+prog/RRR3d/Debug/
+
+prog/Release/
+prog/LexStd/Release/
+prog/MapEditor/Release/
+prog/NetLib/Release/
+prog/Rock3dEngine/Release/
+prog/Rock3dGame/Release/
+prog/RRR3d/Release/
+
 # Compiled Object files
 *.slo
 *.lo
