@@ -1,8 +1,8 @@
 #ifndef LSL_MATH
 #define LSL_MATH
 
+#include "MathCommon.h"
 #include "lslCommon.h"
-
 #include "lslException.h"
 
 //namespace r3d

@@ -15,7 +15,6 @@
 
 #include <map>
 #include <iostream>
-#include "d3d\d3dx9math.h"
 
 #ifdef DEBUG_MEMORY
 	#define new new( _NORMAL_BLOCK, __FILE__, __LINE__)
@@ -25,7 +24,6 @@
 #include <algorithm>
 #include <sstream>
 #include <cstdlib>
-#include <Unknwn.h>
 #include <string>
 #include <bitset>
 #include <vector>

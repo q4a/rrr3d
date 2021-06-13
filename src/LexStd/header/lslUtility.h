@@ -4,9 +4,9 @@
 #include "lslCommon.h"
 #include "lslObject.h"
 #include "lslException.h"
-#include "lslMath.h"
-#include "lslVariant.h"
 #include "lslContainer.h"
+#include "lslContainer.h"
+#include <windows.h>
 
 namespace lsl
 {

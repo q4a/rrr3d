@@ -2,6 +2,7 @@
 #define R3D_GRAPH_SHADER
 
 #include "Engine.h"
+#include "lslVariant.h"
 
 namespace r3d
 {
@@ -24,7 +25,7 @@ private:
 		D3DXInclude(Shader* owner);
 	};
 public:
-	typedef lsl::VariantVec Value;
+	typedef VariantVec Value;
 	typedef std::map<std::string, Value> Values;
 	typedef std::map<std::string, TexResource*> Textures;
 

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <tchar.h>
 
+#include "MathCommon.h"
 #include "lslCommon.h"
 #include "lslUtility.h"
 #include "lslException.h"
