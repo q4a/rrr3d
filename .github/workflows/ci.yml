@@ -3,13 +3,12 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  build-windows:
+  win:
     runs-on: windows-2019
     strategy:
       fail-fast: false
       matrix:
-        Configuration: [Release, Debug]
-        Platform: [Win32]
+        configuration: [msvc-x86-debug, msvc-x86-release]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -17,11 +16,17 @@ jobs:
     - name: Install Windows libs
       shell: cmd
       run: |
-        curl -LJO https://github.com/q4a/rrr3d/releases/download/1.3.1-dev/prog.7z
-        7z x prog.7z
-        dir prog
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
-    - name: MSBuild
-      working-directory: prog
-      run: msbuild /p:Configuration="${{ matrix.Configuration }}" /p:Platform="${{ matrix.Platform }}" RRR3d.sln
+        curl -LJO https://github.com/q4a/rrr3d/releases/download/1.3.1-dev2/extern.7z
+        7z x extern.7z
+        dir
+    - uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x86
+    - name: Configure with CMakeSettings.json and build
+      uses: lukka/run-cmake@v3
+      with:
+        cmakeListsOrSettingsJson: CMakeSettingsJson
+        cmakeSettingsJsonPath: '${{ github.workspace }}/CMakeSettings.json'
+        useVcpkgToolchainFile: false
+        buildDirectory: '${{ github.workspace }}/build'
+        configurationRegexFilter: '${{ matrix.configuration }}'
