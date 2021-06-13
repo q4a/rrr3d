@@ -3,13 +3,13 @@
 #include <stdio.h>
 #include <tchar.h>
 
+#include "lslRender.h"
 #include "lslCommon.h"
 #include "lslUtility.h"
 #include "lslException.h"
 #include "lslContainer.h"
 #include "lslClassList.h"
 #include "lslSDK.h"
-#include "d3d\d3dx9math.h"
 
 #define NETLIB_DYNAMIC_LINK
 

@@ -1,9 +1,10 @@
 #ifndef LSL_MATH
 #define LSL_MATH
 
+#include "stdafx.h"
+
 #include "lslCommon.h"
 #include "lslException.h"
-#include "d3d\d3dx9math.h"
 
 //namespace r3d
 //{

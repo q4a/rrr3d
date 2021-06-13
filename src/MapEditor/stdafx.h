@@ -46,6 +46,7 @@
 #pragma push_macro("malloc")
 #pragma push_macro("free")
 
+#include "lslRender.h"
 #include "Rock3dGame.h"
 
 #pragma pop_macro("new")
