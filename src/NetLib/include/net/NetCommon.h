@@ -9,6 +9,7 @@
 #include "lslContainer.h"
 #include "lslClassList.h"
 #include "lslSDK.h"
+#include "d3d\d3dx9math.h"
 
 #define NETLIB_DYNAMIC_LINK
 

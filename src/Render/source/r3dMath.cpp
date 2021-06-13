@@ -1,5 +1,3 @@
-#include "stdafx.h"
-
 #include "r3dMath.h"
 
 //namespace r3d

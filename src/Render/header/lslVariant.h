@@ -4,8 +4,8 @@
 #include "lslCommon.h"
 #include "lslMath.h"
 
-namespace lsl
-{
+//namespace lsl
+//{
 
 class Variant
 {
@@ -665,6 +665,6 @@ inline bool VariantVec::operator!=(const VariantVec& value) const
 	return _MyBase::operator!=(value);
 }
 
-}
+//}
 
 #endif

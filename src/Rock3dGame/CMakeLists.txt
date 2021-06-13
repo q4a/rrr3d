@@ -30,6 +30,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     header
     include
     ${CMAKE_SOURCE_DIR}/src/LexStd/header
+    ${CMAKE_SOURCE_DIR}/src/Render/header
     ${CMAKE_SOURCE_DIR}/src/NetLib/include
     ${CMAKE_SOURCE_DIR}/src/Rock3dEngine/header
     ${CMAKE_SOURCE_DIR}/extern/ogg/include
@@ -43,6 +44,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     LexStd
+    Render
     NetLib
     Rock3dEngine
     libogg_static.lib

@@ -2,8 +2,8 @@
 #define LSL_MATH
 
 #include "lslCommon.h"
-
 #include "lslException.h"
+#include "d3d\d3dx9math.h"
 
 //namespace r3d
 //{

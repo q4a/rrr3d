@@ -373,16 +373,6 @@ bool Engine::BeginScene()
 	return true;	
 }
 
-void precision_sleep(double timeout)
-{
-	double startTime = lsl::GetTimeDbl();
-	while (lsl::GetTimeDbl() - startTime < timeout)
-	{
-		//for (int i = 0; i < 500; ++i)
-		//	YieldProcessor();
-	}
-}
-
 bool Engine::EndScene()
 {
 	LSL_ASSERT(_beginScene);
