@@ -82,7 +82,7 @@ graph::IVBMeshNode* DataBase::AddMeshNode(MapObj* mapObj, const std::string& mes
 	return AddMeshNode(&mapObj->GetGameObj().GetGrActor(), mesh, meshId);
 }
 
-graph::Sprite* DataBase::AddSprite(game::MapObj* mapObj, bool fixDir, const D3DXVECTOR2& sizes)
+graph::Sprite* DataBase::AddSprite(game::MapObj* mapObj, bool fixDir, const glm::vec2& sizes)
 {
 	graph::Sprite* node = &mapObj->GetGameObj().GetGrActor().GetNodes().Add<graph::Sprite>();
 	node->fixDirection = fixDir;
@@ -91,7 +91,7 @@ graph::Sprite* DataBase::AddSprite(game::MapObj* mapObj, bool fixDir, const D3DX
 	return node;
 }
 
-graph::Sprite* DataBase::AddFxSprite(game::MapObj* mapObj, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, bool autoRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame, bool dir, const D3DXVECTOR2& sizes)
+graph::Sprite* DataBase::AddFxSprite(game::MapObj* mapObj, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, bool autoRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame, bool dir, const glm::vec2& sizes)
 {
 	graph::Sprite* node = &mapObj->GetGameObj().GetGrActor().GetNodes().Add<graph::Sprite>();
 	node->fixDirection = dir;
@@ -113,7 +113,7 @@ graph::Sprite* DataBase::AddFxSprite(game::MapObj* mapObj, const std::string& li
 	return node;
 }
 
-graph::PlaneNode* DataBase::AddPlaneNode(game::MapObj* mapObj, const D3DXVECTOR2& sizes)
+graph::PlaneNode* DataBase::AddPlaneNode(game::MapObj* mapObj, const glm::vec2& sizes)
 {
 	graph::PlaneNode* node = &mapObj->GetGameObj().GetGrActor().GetNodes().Add<graph::PlaneNode>();
 	node->SetSize(sizes);
@@ -121,7 +121,7 @@ graph::PlaneNode* DataBase::AddPlaneNode(game::MapObj* mapObj, const D3DXVECTOR2
 	return node;
 }
 
-graph::PlaneNode* DataBase::AddFxPlane(game::MapObj* mapObj, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame, const D3DXVECTOR2& sizes)
+graph::PlaneNode* DataBase::AddFxPlane(game::MapObj* mapObj, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame, const glm::vec2& sizes)
 {
 	graph::PlaneNode* node = &mapObj->GetGameObj().GetGrActor().GetNodes().Add<graph::PlaneNode>();
 	node->SetSize(sizes);
@@ -778,7 +778,7 @@ void DataBase::LoadFxFlow(const std::string& name, const std::string& libMat, gr
 	SaveMapObj(mapObj, MapObjLib::ctEffects, name);
 }
 
-void DataBase::LoadFxSprite(const std::string& name, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, bool autoRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame, float timeLife, bool dir, const D3DXVECTOR2& sizes, GraphType graphType, bool morph)
+void DataBase::LoadFxSprite(const std::string& name, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, bool autoRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame, float timeLife, bool dir, const glm::vec2& sizes, GraphType graphType, bool morph)
 {
 	game::MapObj* mapObj = NewMapObj();
 	AddToGraph(mapObj, graphType, true, morph);
@@ -789,7 +789,7 @@ void DataBase::LoadFxSprite(const std::string& name, const std::string& libMat, 
 	SaveMapObj(mapObj, MapObjLib::ctEffects, name);
 }
 
-void DataBase::LoadFxPlane(const std::string& name, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame, float timeLife, const D3DXVECTOR2& sizes, GraphType graphType)
+void DataBase::LoadFxPlane(const std::string& name, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame, float timeLife, const glm::vec2& sizes, GraphType graphType)
 {
 	game::MapObj* mapObj = NewMapObj();
 	AddToGraph(mapObj, graphType, true);
@@ -1229,44 +1229,44 @@ void DataBase::LoadEffects()
 	//flare4
 	LoadFxSprite("flare4", "Effect\\flare4", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0);
 	//flare5	
-	LoadFxSprite("flare5", "Effect\\flare5", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0, false, D3DXVECTOR2(0.8f, 0.8f));
+	LoadFxSprite("flare5", "Effect\\flare5", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0, false, glm::vec2(0.8f, 0.8f));
 	//flare6
-	LoadFxSprite("flare6", "Effect\\flare6", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0.15f, false, D3DXVECTOR2(2.0f, 2.0f));
+	LoadFxSprite("flare6", "Effect\\flare6", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0.15f, false, glm::vec2(2.0f, 2.0f));
 	//firePatron
-	LoadFxSprite("firePatron", "Effect\\firePatron", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0, false, D3DXVECTOR2(2.0f, 2.0f));
+	LoadFxSprite("firePatron", "Effect\\firePatron", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0, false, glm::vec2(2.0f, 2.0f));
 	//lens1
-	LoadFxSprite("lens1", "Effect\\lens1", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0, false, D3DXVECTOR2(3.0f, 0.75f));	
+	LoadFxSprite("lens1", "Effect\\lens1", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0, false, glm::vec2(3.0f, 0.75f));	
 	//death1
 	LoadFxSprite("death1", "Effect\\gunEff2", NullVector, Vec3Range(NullVector, IdentityVector * 10.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.25f, 0.0f, 0.25f);
 	//engine1
-	LoadFxSprite("engine1", "Effect\\engine1", NullVector, Vec3Range(IdentityVector * 2.0f, NullVector), NullQuaternion, false, graph::SceneNode::amRepeat, 0.5f, 0.0f, 0.0f, true, D3DXVECTOR2(2.0f, 0.75f));
+	LoadFxSprite("engine1", "Effect\\engine1", NullVector, Vec3Range(IdentityVector * 2.0f, NullVector), NullQuaternion, false, graph::SceneNode::amRepeat, 0.5f, 0.0f, 0.0f, true, glm::vec2(2.0f, 0.75f));
 	//explosionRay
-	LoadFxSprite("explosionRay", "Effect\\ExplosionRay", NullVector, Vec3Range(IdentityVector, IdentityVector * 6.0f), NullQuaternion, false, graph::SceneNode::amOnce, 1.0f, 0.0f, 1.0f, false, D3DXVECTOR2(2.0f, 2.0f));
+	LoadFxSprite("explosionRay", "Effect\\ExplosionRay", NullVector, Vec3Range(IdentityVector, IdentityVector * 6.0f), NullQuaternion, false, graph::SceneNode::amOnce, 1.0f, 0.0f, 1.0f, false, glm::vec2(2.0f, 2.0f));
 	//laserBlue
-	LoadFxSprite("laserBlue", "Effect\\laser3-blue", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, true, graph::SceneNode::amNone, 0.0f, 0.0f, 0.0f, true, D3DXVECTOR2(5.0f, 2.0f));	
+	LoadFxSprite("laserBlue", "Effect\\laser3-blue", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, true, graph::SceneNode::amNone, 0.0f, 0.0f, 0.0f, true, glm::vec2(5.0f, 2.0f));	
 	//ExplosionRing
-	LoadFxSprite("explosionRing", "Effect\\ExplosionRing", NullVector, Vec3Range(IdentityVector, IdentityVector * 16.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.5f, 0.0f, 0.0f, false, D3DXVECTOR2(1.0f, 1.0f));
+	LoadFxSprite("explosionRing", "Effect\\ExplosionRing", NullVector, Vec3Range(IdentityVector, IdentityVector * 16.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.5f, 0.0f, 0.0f, false, glm::vec2(1.0f, 1.0f));
 	//protonRay
-	LoadFxSprite("protonRay", "Effect\\protonRay", NullVector, Vec3Range(IdentityVector, IdentityVector * 25.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.7f, 0.0f, 0.0f, false, D3DXVECTOR2(1.0f, 1.0f));
+	LoadFxSprite("protonRay", "Effect\\protonRay", NullVector, Vec3Range(IdentityVector, IdentityVector * 25.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.7f, 0.0f, 0.0f, false, glm::vec2(1.0f, 1.0f));
 	//protonRing
-	LoadFxPlane("protonRing", "Effect\\protonRing", NullVector, Vec3Range(IdentityVector, IdentityVector * 25.0f), NullQuaternion, graph::SceneNode::amOnce, 0.5f, 0.0f, 0.0f, D3DXVECTOR2(1.0f, 1.0f));
+	LoadFxPlane("protonRing", "Effect\\protonRing", NullVector, Vec3Range(IdentityVector, IdentityVector * 25.0f), NullQuaternion, graph::SceneNode::amOnce, 0.5f, 0.0f, 0.0f, glm::vec2(1.0f, 1.0f));
 	//phaseRing
-	LoadFxSprite("phaseRing", "Effect\\phaseRing", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, true, graph::SceneNode::amNone, 0, 0.0f, 0.0f, true, D3DXVECTOR2(3.0f, 1.5f));
+	LoadFxSprite("phaseRing", "Effect\\phaseRing", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, true, graph::SceneNode::amNone, 0, 0.0f, 0.0f, true, glm::vec2(3.0f, 1.5f));
 	//shotEff1
-	LoadFxSprite("shotEff1", "Effect\\rad_add", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0.15f, false, D3DXVECTOR2(2.0f, 2.0f));
+	LoadFxSprite("shotEff1", "Effect\\rad_add", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0.15f, false, glm::vec2(2.0f, 2.0f));
 	//shotEff2
-	LoadFxSprite("shotEff2", "Effect\\flash1", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0.15f, false, D3DXVECTOR2(2.0f, 2.0f));
+	LoadFxSprite("shotEff2", "Effect\\flash1", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0.15f, false, glm::vec2(2.0f, 2.0f));
 	//shotEff3
-	LoadFxSprite("shotEff3", "Effect\\flash2", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0.15f, true, D3DXVECTOR2(2.0f, 1.0f));
+	LoadFxSprite("shotEff3", "Effect\\flash2", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0.15f, true, glm::vec2(2.0f, 1.0f));
 	//laserRay
-	LoadFxSprite("laserRay", "Effect\\laserRay", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amOnce, 1.0f, 0, 0.0f, true, D3DXVECTOR2(1.0f, 0.3f), gtEffect, true);
+	LoadFxSprite("laserRay", "Effect\\laserRay", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amOnce, 1.0f, 0, 0.0f, true, glm::vec2(1.0f, 0.3f), gtEffect, true);
 	//frostRay
-	LoadFxSprite("frostRay", "Effect\\frostRay", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amTwoSide, 1.0f, 0, 0.0f, true, D3DXVECTOR2(1.0f, 0.5f), gtEffect, true);
+	LoadFxSprite("frostRay", "Effect\\frostRay", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amTwoSide, 1.0f, 0, 0.0f, true, glm::vec2(1.0f, 0.5f), gtEffect, true);
 	//frostShot
 	{
 		D3DXQUATERNION lineRot1;
 		D3DXQuaternionRotationAxis(&lineRot1, &ZVector, D3DX_PI);
-		LoadFxSprite("frostShot", "Effect\\frostLine", NullVector, Vec3Range(IdentityVector, NullVector), QuatRange(NullQuaternion, lineRot1), false, graph::SceneNode::amTwoSide, 1.0f, 0, 1.0f, false, D3DXVECTOR2(4.0f, 4.0f));
+		LoadFxSprite("frostShot", "Effect\\frostLine", NullVector, Vec3Range(IdentityVector, NullVector), QuatRange(NullQuaternion, lineRot1), false, graph::SceneNode::amTwoSide, 1.0f, 0, 1.0f, false, glm::vec2(4.0f, 4.0f));
 	}
 
 	//fire1
@@ -1849,7 +1849,7 @@ void DataBase::LoadEffects()
 		game::MapObj* mapObj = NewMapObj();
 		AddToGraph(mapObj, gtEffect, true);
 
-		AddFxSprite(mapObj, "Effect\\blaster2", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, true, graph::SceneNode::amNone, 0, 0, true, D3DXVECTOR2(6.0f, 0.5f));
+		AddFxSprite(mapObj, "Effect\\blaster2", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, true, graph::SceneNode::amNone, 0, 0, true, glm::vec2(6.0f, 0.5f));
 
 		MapObj* ring = NewChildMapObj(mapObj, MapObjLib::ctEffects, "hyperRing");
 		ring->GetGameObj().SetPos(XVector * 3.0f);
@@ -1862,7 +1862,7 @@ void DataBase::LoadEffects()
 		game::MapObj* mapObj = NewMapObj();
 		AddToGraph(mapObj, gtEffect, true);
 
-		AddFxPlane(mapObj, "Effect\\crater", NullVector, Vec3Range(IdentityVector * 8.0f, NullVector), NullQuaternion, graph::SceneNode::amOnce, 5.0f, 0, D3DXVECTOR2(1.0f, 1.0f));
+		AddFxPlane(mapObj, "Effect\\crater", NullVector, Vec3Range(IdentityVector * 8.0f, NullVector), NullQuaternion, graph::SceneNode::amOnce, 5.0f, 0, glm::vec2(1.0f, 1.0f));
 
 		graph::FxParticleSystem* fxSystem = AddFxSystem(mapObj, _fxSpriteManager);
 		AddLibMat(&fxSystem->material, "Effect\\fire2");
@@ -2253,7 +2253,7 @@ void DataBase::LoadMisc()
 		game::MapObj* mapObj = NewMapObj();
 		AddToGraph(mapObj, gtEffect, true);
 
-		graph::Sprite* node = AddSprite(mapObj, true, D3DXVECTOR2(2.0f, 0.5f));
+		graph::Sprite* node = AddSprite(mapObj, true, glm::vec2(2.0f, 0.5f));
 		AddLibMat(&node->material, "Effect\\bullet");
 
 		{

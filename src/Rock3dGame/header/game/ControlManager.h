@@ -16,7 +16,7 @@ struct MouseClick
 	//оконные координаты
 	lsl::Point coord;
 	//проекционные координаты в видовом пространстве, [-1.0..1.0]
-	D3DXVECTOR2 projCoord;
+	glm::vec2 projCoord;
 
 	//экранный луч в мировом пространстве
 	D3DXVECTOR3 scrRayPos;
@@ -31,7 +31,7 @@ struct MouseMove
 	//оконные координаты
 	Point coord;
 	//проекционные координаты в видовом пространстве, [-1.0..1.0]
-	D3DXVECTOR2 projCoord;
+	glm::vec2 projCoord;
 	//Разность между текущим и предыдущим значением координаты
 	Point dtCoord;
 	//Разность между текущим значением координаты и координатой при клике
@@ -170,7 +170,7 @@ public:
 	AsyncKey IsMouseDown(MouseKey key);	
 
 	lsl::Point GetMousePos();
-	D3DXVECTOR2 GetMouseVec();
+	glm::vec2 GetMouseVec();
 
 	const ControllerState& GetControllerState(ControllerType controller);
 	void GetGameAction(ControllerType controller, VirtualKey key, GameActions& gameActions);

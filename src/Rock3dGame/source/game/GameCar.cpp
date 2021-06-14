@@ -1007,10 +1007,10 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 	_bodyContact = true;
 	bool springBorders = GetLogic() && GetLogic()->GetRace()->GetSpringBorders();
 
-	D3DXVECTOR2 touchBorderDamage = GetLogic() ? GetLogic()->GetTouchBorderDamage() : NullVec2;
-	D3DXVECTOR2 touchBorderDamageForce = GetLogic() ? GetLogic()->GetTouchBorderDamageForce() : NullVec2;
-	D3DXVECTOR2 touchCarDamage = GetLogic() ? GetLogic()->GetTouchCarDamage() : NullVec2;
-	D3DXVECTOR2 touchCarDamageForce = GetLogic() ? GetLogic()->GetTouchCarDamageForce() : NullVec2;
+	glm::vec2 touchBorderDamage = GetLogic() ? GetLogic()->GetTouchBorderDamage() : NullVec2;
+	glm::vec2 touchBorderDamageForce = GetLogic() ? GetLogic()->GetTouchBorderDamageForce() : NullVec2;
+	glm::vec2 touchCarDamage = GetLogic() ? GetLogic()->GetTouchCarDamage() : NullVec2;
+	glm::vec2 touchCarDamageForce = GetLogic() ? GetLogic()->GetTouchCarDamageForce() : NullVec2;
 
 	GameObject* target = GetGameObjFromActor(contact.actor);
 	int targetPlayerId = target && target->GetMapObj() && target->GetMapObj()->GetPlayer() ? target->GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;

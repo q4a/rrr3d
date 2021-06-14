@@ -56,7 +56,7 @@ private:
 	gui::Button* _upArrow;	
 
 	void UpdateGrid();
-	void AdjustGrid(const D3DXVECTOR2& vpSize);
+	void AdjustGrid(const glm::vec2& vpSize);
 	void ScrollGrid(int step);
 
 	void StartWaiting(bool start, StringValue hint = svNull);
@@ -64,7 +64,7 @@ private:
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 
 	virtual void OnPingComplete();
@@ -87,7 +87,7 @@ private:
 	void PushLine(std::string text);
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 	virtual bool OnHandleInput(const InputMessage& msg);
@@ -112,7 +112,7 @@ private:
 	gui::Button* _upArrow;	
 
 	void UpdateGrid();
-	void AdjustGrid(const D3DXVECTOR2& vpSize);
+	void AdjustGrid(const glm::vec2& vpSize);
 	void ScrollGrid(int step);
 
 	void StartWaiting(bool start, StringValue hint = svNull);
@@ -120,7 +120,7 @@ private:
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);		
 
 	virtual void OnProcessEvent(unsigned id, EventData* data);
@@ -143,7 +143,7 @@ private:
 	gui::Button* _upArrow;	
 
 	void UpdateGrid();
-	void AdjustGrid(const D3DXVECTOR2& vpSize);
+	void AdjustGrid(const glm::vec2& vpSize);
 	void ScrollGrid(int step);
 
 	void StartWaiting(bool start, StringValue hint = svNull);
@@ -151,7 +151,7 @@ private:
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);		
 
 	virtual void OnProcessEvent(unsigned id, EventData* data);
@@ -174,7 +174,7 @@ private:
 	gui::Button* _upArrow;	
 
 	void UpdateGrid();
-	void AdjustGrid(const D3DXVECTOR2& vpSize);
+	void AdjustGrid(const glm::vec2& vpSize);
 	void ScrollGrid(int step);
 
 	void StartWaiting(bool start, StringValue hint = svNull);
@@ -182,7 +182,7 @@ private:
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);		
 
 	virtual void OnProcessEvent(unsigned id, EventData* data);
@@ -254,7 +254,7 @@ public:
 	NetworkFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent);
 	virtual ~NetworkFrame();
 
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 };
 
 class TournamentFrame: public MenuFrame
@@ -281,7 +281,7 @@ private:
 	gui::Label* _label;
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
 	CreditsFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent);
@@ -302,13 +302,13 @@ private:
 	gui::Button* _downArrow;
 	gui::Button* _upArrow;	
 
-	void AdjustGrid(const D3DXVECTOR2& vpSize);
+	void AdjustGrid(const glm::vec2& vpSize);
 	void ScrollGrid(int step);
 	void UpdateGrid();
 protected:	
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
@@ -375,7 +375,7 @@ private:
 #endif
 
 	void ApplyState(State state);
-	void AdjustMenuItems(const D3DXVECTOR2& vpSize);
+	void AdjustMenuItems(const glm::vec2& vpSize);
 
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 
@@ -387,7 +387,7 @@ public:
 	MainMenu(Menu* menu, gui::Widget* parent);
 	virtual ~MainMenu();
 
-	void AdjustLayout(const D3DXVECTOR2& vpSize);
+	void AdjustLayout(const glm::vec2& vpSize);
 	void Show(bool value);
 	void OnProgress(float deltaTime);
 

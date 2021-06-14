@@ -30,13 +30,13 @@ private:
 	gui::StepperBox* _steppers[cStepperEnd];	
 	gui::PlaneFon* _itemsBg[cLabelEnd];
 
-	void AdjustGrid(const D3DXVECTOR2& vpSize);
+	void AdjustGrid(const glm::vec2& vpSize);
 	void ScrollGrid(int step);
 
 	void LoadCfg();	
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
@@ -63,7 +63,7 @@ private:
 	void LoadCfg();
 protected:	
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 public:
 	MediaFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent);
@@ -92,7 +92,7 @@ private:
 	void ApplyVolume(bool revertChanges);
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
@@ -128,13 +128,13 @@ private:
 
 	gui::PlaneFon* _controllerIcons[cControllerTypeEnd];
 
-	void AdjustGrid(const D3DXVECTOR2& vpSize);
+	void AdjustGrid(const glm::vec2& vpSize);
 	void ScrollGrid(int step);
 
 	void LoadCfg();	
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
@@ -204,7 +204,7 @@ public:
 	gui::StepperBox* CreateStepper(const StringList& items, gui::Widget* parent, gui::Widget::Event* guiEvent);
 	gui::VolumeBar* CreateVolumeBar(gui::Widget* parent, gui::Widget::Event* guiEvent);
 
-	void AdjustLayout(const D3DXVECTOR2& vpSize);
+	void AdjustLayout(const glm::vec2& vpSize);
 	void Show(bool value);
 
 	void OnProgress(float deltaTime);
@@ -235,7 +235,7 @@ private:
 	void LoadCfg();
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	

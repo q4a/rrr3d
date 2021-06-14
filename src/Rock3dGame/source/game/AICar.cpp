@@ -139,7 +139,7 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 		if (edgeDist < car.size)
 		{
 			float tileWidth = nextTile->GetPoint()->GetSize() / cTrackCnt;
-			D3DXVECTOR2 targPnt = nextTile->GetPos2() + nextTile->GetTile().GetEdgeNorm() * tileWidth * static_cast<float>(cTrackCnt)/2.0f - car.pos;
+			glm::vec2 targPnt = nextTile->GetPos2() + nextTile->GetTile().GetEdgeNorm() * tileWidth * static_cast<float>(cTrackCnt)/2.0f - car.pos;
 			float proj = D3DXVec2Dot(&curTile->GetTile().GetDir(), &targPnt);
 
 			if (proj < car.size)			
@@ -199,8 +199,8 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 
 	//расчет траектории движения
 	{
-		D3DXVECTOR2 dir = movNode->GetTile().GetDir();
-		D3DXVECTOR2 target = car.pos + dir * dirArea;
+		glm::vec2 dir = movNode->GetTile().GetDir();
+		glm::vec2 target = car.pos + dir * dirArea;
 		target += movNode->GetTile().ComputeTrackNormOff(target, newTrack);
 		
 		moveDir = target - car.pos;

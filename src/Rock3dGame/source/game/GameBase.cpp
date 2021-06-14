@@ -1181,22 +1181,22 @@ void SoundMotor::SetSndRPM(snd::Sound* value)
 	}
 }
 
-const D3DXVECTOR2& SoundMotor::GetRPMVolumeRange() const
+const glm::vec2& SoundMotor::GetRPMVolumeRange() const
 {
 	return _rpmVolumeRange;
 }
 
-void SoundMotor::SetRPMVolumeRange(const D3DXVECTOR2& value)
+void SoundMotor::SetRPMVolumeRange(const glm::vec2& value)
 {
 	_rpmVolumeRange = value;
 }
 
-const D3DXVECTOR2& SoundMotor::GetRPMFreqRange() const
+const glm::vec2& SoundMotor::GetRPMFreqRange() const
 {
 	return _rpmFreqRange;
 }
 
-void SoundMotor::SetRPMFreqRange(const D3DXVECTOR2& value)
+void SoundMotor::SetRPMFreqRange(const glm::vec2& value)
 {
 	_rpmFreqRange = value;
 }

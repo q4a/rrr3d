@@ -314,7 +314,7 @@ SpaceshipFrame::SpaceshipFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* pare
 
 		graph::PlaneNode* spaceSprite = &((graph::PlaneNode&)_spaceMapObj->GetGameObj().GetGrActor().GetNodes().front());		
 
-		D3DXVECTOR2 imageSize = static_cast<graph::Sampler2d&>(spaceSprite->material.Get()->samplers.front()).GetSize();
+		glm::vec2 imageSize = static_cast<graph::Sampler2d&>(spaceSprite->material.Get()->samplers.front()).GetSize();
 		float aspect = imageSize.x/imageSize.y;
 		spaceSprite->SetPos(center);
 		spaceSprite->SetScale(D3DXVECTOR3(aspect * 70.0f, 70.0f, 1.0f));
@@ -440,13 +440,13 @@ GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 	_damageBar->SetAlign(gui::Widget::waLeftTop);
 
 	_armorBarValue = menu->CreateLabel("", _armorBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_armorBarValue->SetPos(D3DXVECTOR2(_armorBar->GetSize().x - 4.0f, 1.0f));
+	_armorBarValue->SetPos(glm::vec2(_armorBar->GetSize().x - 4.0f, 1.0f));
 
 	_damageBarValue = menu->CreateLabel("", _damageBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_damageBarValue->SetPos(D3DXVECTOR2(_damageBar->GetSize().x - 4.0f, 1.0f));
+	_damageBarValue->SetPos(glm::vec2(_damageBar->GetSize().x - 4.0f, 1.0f));
 
 	_speedBarValue = menu->CreateLabel("", _speedBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_speedBarValue->SetPos(D3DXVECTOR2(_speedBar->GetSize().x - 4.0f, 1.0f));
+	_speedBarValue->SetPos(glm::vec2(_speedBar->GetSize().x - 4.0f, 1.0f));
 
 	_menuItems[miExit] = _raceMenu->CreateMenuButton2(svBack, _bottomPanel, color2, this);
 	_menuItems[miExit]->SetAlign(gui::Widget::waLeftTop);
@@ -531,7 +531,7 @@ void GarageFrame::UpdateCarList(gui::Grid* grid)
 {
 	_cars.clear();
 	grid->DeleteAllChildren();
-	D3DXVECTOR2 size = NullVec2;
+	glm::vec2 size = NullVec2;
 
 	Garage::Cars avCars;
 	Garage::Cars secretCars;
@@ -591,7 +591,7 @@ void GarageFrame::UpdateCarList(gui::Grid* grid)
 		size = plane->GetSize();
 	}
 
-	grid->cellSize(size + D3DXVECTOR2(0.0f, 0.0f));
+	grid->cellSize(size + glm::vec2(0.0f, 0.0f));
 	grid->Reposition();
 }
 
@@ -606,14 +606,14 @@ GarageFrame::Cars::const_iterator GarageFrame::FindCar(Garage::Car* car)
 
 void GarageFrame::AdjustCarList()
 {
-	D3DXVECTOR2 vpSize = uiRoot()->GetVPSize();
+	glm::vec2 vpSize = uiRoot()->GetVPSize();
 
 	float carGridSpace = 10;
 	int totalCars = _carGrid->GetChildren().size();
 	int numCars = static_cast<int>((vpSize.x - carGridSpace) / _carGrid->cellSize().x);
 
 	carGridSpace = (vpSize.x - numCars * _carGrid->cellSize().x)/2.0f;
-	_carGrid->SetPos(D3DXVECTOR2(-vpSize.x/2 + carGridSpace, 25.0f));
+	_carGrid->SetPos(glm::vec2(-vpSize.x/2 + carGridSpace, 25.0f));
 
 	int selIndex = -1;
 	int i = 0;
@@ -688,7 +688,7 @@ gui::Widget* GarageFrame::AddColor(gui::Grid* grid, const D3DXCOLOR& color)
 void GarageFrame::UpdateColorList(gui::Grid* grid, const D3DXCOLOR colors[], unsigned count)
 {
 	grid->DeleteAllChildren();
-	D3DXVECTOR2 size = NullVec2;
+	glm::vec2 size = NullVec2;
 
 	for (unsigned i = 0; i < count; ++i)
 	{
@@ -696,7 +696,7 @@ void GarageFrame::UpdateColorList(gui::Grid* grid, const D3DXCOLOR colors[], uns
 		size = plane->GetSize();
 	}
 
-	grid->cellSize(size + D3DXVECTOR2(12.0f, 12.0f));
+	grid->cellSize(size + glm::vec2(12.0f, 12.0f));
 	grid->Reposition();
 }
 
@@ -725,18 +725,18 @@ void GarageFrame::SelectColor(const D3DXCOLOR& value)
 	menu()->SetCarColor(value);
 }
 
-void GarageFrame::ShowMessage(StringValue message, gui::Widget* sender, const D3DXVECTOR2& slotSize)
+void GarageFrame::ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize)
 {
-	D3DXVECTOR2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize/4;
 	cellOffs.y = -cellOffs.y;
 
 	//menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, 0.0f);
 	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
 }
 
-void GarageFrame::ShowAccept(const std::string& message, gui::Widget* sender, const D3DXVECTOR2& slotSize)
+void GarageFrame::ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize)
 {
-	D3DXVECTOR2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize/4;
 	cellOffs.y = -cellOffs.y;
 
 	//menu()->ShowAccept(message, GetString(svYes), GetString(svNo), sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, this);
@@ -837,38 +837,38 @@ void GarageFrame::OnShow(bool value)
 	}
 }
 
-void GarageFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void GarageFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	D3DXVECTOR2 size = menu()->GetImageSize(_topPanel->GetMaterial());
+	glm::vec2 size = menu()->GetImageSize(_topPanel->GetMaterial());
 	//23.0f
 	_topPanel->SetSize(size.x, size.y);
 	_topPanel->SetPos(vpSize.x/2, 0.0f);
 
-	_rightPanel->SetPos(D3DXVECTOR2(vpSize.x + 1, (_topPanel->GetSize().y + vpSize.y - _bottomPanel->GetSize().y + 0.0f)/2.0f));
-	_leftPanel->SetPos(D3DXVECTOR2(-1, (_topPanel->GetSize().y + vpSize.y - _bottomPanel->GetSize().y + 0.0f)/2.0f));
-	_headerBg->SetPos(D3DXVECTOR2(0.0f, _topPanel->GetSize().y - 5));
-	_moneyBg->SetPos(D3DXVECTOR2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 38));
-	_stateBg->SetPos(D3DXVECTOR2(418.0f, -_bottomPanel->GetSize().y + 60));
+	_rightPanel->SetPos(glm::vec2(vpSize.x + 1, (_topPanel->GetSize().y + vpSize.y - _bottomPanel->GetSize().y + 0.0f)/2.0f));
+	_leftPanel->SetPos(glm::vec2(-1, (_topPanel->GetSize().y + vpSize.y - _bottomPanel->GetSize().y + 0.0f)/2.0f));
+	_headerBg->SetPos(glm::vec2(0.0f, _topPanel->GetSize().y - 5));
+	_moneyBg->SetPos(glm::vec2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 38));
+	_stateBg->SetPos(glm::vec2(418.0f, -_bottomPanel->GetSize().y + 60));
 
-	_damageBar->SetPos(D3DXVECTOR2(48.0f, 3.0f));
-	_armorBar->SetPos(D3DXVECTOR2(48.0f, 41.0f));
-	_speedBar->SetPos(D3DXVECTOR2(48.0f, 78.0f));
+	_damageBar->SetPos(glm::vec2(48.0f, 3.0f));
+	_armorBar->SetPos(glm::vec2(48.0f, 41.0f));
+	_speedBar->SetPos(glm::vec2(48.0f, 78.0f));
 
-	_menuItems[miExit]->SetPos(D3DXVECTOR2(-vpSize.x/2, -_bottomPanel->GetSize().y - 8.0f));
-	_menuItems[miBuy]->SetPos(D3DXVECTOR2(15.0f, -_bottomPanel->GetSize().y));
+	_menuItems[miExit]->SetPos(glm::vec2(-vpSize.x/2, -_bottomPanel->GetSize().y - 8.0f));
+	_menuItems[miBuy]->SetPos(glm::vec2(15.0f, -_bottomPanel->GetSize().y));
 
-	_leftArrow->SetPos(D3DXVECTOR2(_leftPanel->GetSize().x + 45.0f, vpSize.y/2));
-	_rightArrow->SetPos(D3DXVECTOR2(vpSize.x - _rightPanel->GetSize().x - 45.0f, vpSize.y/2));
+	_leftArrow->SetPos(glm::vec2(_leftPanel->GetSize().x + 45.0f, vpSize.y/2));
+	_rightArrow->SetPos(glm::vec2(vpSize.x - _rightPanel->GetSize().x - 45.0f, vpSize.y/2));
 
-	_leftColorGrid->SetPos(D3DXVECTOR2(-20.0f, 0.0f));
-	_rightColorGrid->SetPos(D3DXVECTOR2(-20.0f, 0.0f));	
+	_leftColorGrid->SetPos(glm::vec2(-20.0f, 0.0f));
+	_rightColorGrid->SetPos(glm::vec2(-20.0f, 0.0f));	
 	
-	_labels[mlCarName]->SetPos(D3DXVECTOR2(10.0f, -155.0f));
-	_labels[mlMoney]->SetPos(D3DXVECTOR2(-53.0f, -29.0f));
-	_labels[mlPrice]->SetPos(D3DXVECTOR2(-523.0f, -80.0f));
+	_labels[mlCarName]->SetPos(glm::vec2(10.0f, -155.0f));
+	_labels[mlMoney]->SetPos(glm::vec2(-53.0f, -29.0f));
+	_labels[mlPrice]->SetPos(glm::vec2(-523.0f, -80.0f));
 
-	_labels[mlCarInfo]->SetPos(D3DXVECTOR2(0.0f, -60.0f));
-	_labels[mlCarInfo]->SetSize(D3DXVECTOR2(800.0f, 105.0f));
+	_labels[mlCarInfo]->SetPos(glm::vec2(0.0f, -60.0f));
+	_labels[mlCarInfo]->SetSize(glm::vec2(800.0f, 105.0f));
 
 	AdjustCarList();
 }
@@ -1051,27 +1051,27 @@ WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	_damageBarBonus->SetSize(_damageBar->GetSize());
 
 	_armorBarValue = menu->CreateLabel("", _armorBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_armorBarValue->SetPos(D3DXVECTOR2(_armorBar->GetSize().x - 4.0f, 1.0f));
+	_armorBarValue->SetPos(glm::vec2(_armorBar->GetSize().x - 4.0f, 1.0f));
 
 	_damageBarValue = menu->CreateLabel("", _damageBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_damageBarValue->SetPos(D3DXVECTOR2(_damageBar->GetSize().x - 4.0f, 1.0f));
+	_damageBarValue->SetPos(glm::vec2(_damageBar->GetSize().x - 4.0f, 1.0f));
 
 	_speedBarValue = menu->CreateLabel("", _speedBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_speedBarValue->SetPos(D3DXVECTOR2(_speedBar->GetSize().x - 4.0f, 1.0f));
+	_speedBarValue->SetPos(glm::vec2(_speedBar->GetSize().x - 4.0f, 1.0f));
 
 	_goodGrid = menu->CreateGrid(_leftPanel, this, gui::Grid::gsHorizontal, IdentityVec2, 3);
 	_goodGrid->SetAlign(gui::Widget::waLeft);
 
 	_downArrow = _raceMenu->CreateArrow(_leftPanel, this);
 	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = _raceMenu->CreateArrow(_leftPanel, this);
 	_upArrow->SetRot(D3DX_PI/2);
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 
 	const std::string slotIcons[Player::cSlotTypeEnd] = {"", "", "", "", "GUI\\hyperSlot.png", "GUI\\mineSlot.png", "GUI\\wpnSlot.png", "GUI\\wpnSlot.png", "GUI\\wpnSlot.png", "GUI\\wpnSlot.png"};
@@ -1186,7 +1186,7 @@ void WorkshopFrame::UpdateGoods()
 	SetOverGood(NULL);
 	SetOverGood2(NULL);
 	_goodGrid->DeleteAllChildren();
-	D3DXVECTOR2 size = IdentityVec2;
+	glm::vec2 size = IdentityVec2;
 
 	struct Pred
 	{
@@ -1221,12 +1221,12 @@ void WorkshopFrame::UpdateGoods()
 		size = viewPort->GetSize();
 	}
 
-	_goodGrid->cellSize(size + D3DXVECTOR2(22.0f, 22.0f));
+	_goodGrid->cellSize(size + glm::vec2(22.0f, 22.0f));
 }
 
 void WorkshopFrame::AdjustGood()
 {
-	_goodGrid->SetPos(D3DXVECTOR2(22.0f, 11.0f));
+	_goodGrid->SetPos(glm::vec2(22.0f, 11.0f));
 
 	int i = 0;
 	for (gui::Widget::Children::const_iterator iter = _goodGrid->GetChildren().begin(); iter != _goodGrid->GetChildren().end(); ++iter)
@@ -1327,7 +1327,7 @@ bool WorkshopFrame::IsDragItem()
 	return _dragItem.slot != NULL;
 }
 
-void WorkshopFrame::UpdateDragPos(const D3DXVECTOR2& pos)
+void WorkshopFrame::UpdateDragPos(const glm::vec2& pos)
 {
 	_dragItem.viewport->SetPos(pos);
 }
@@ -1428,7 +1428,7 @@ bool WorkshopFrame::UpgradeSlot(gui::Widget* sender, Player::SlotType type, int 
 {
 	Slot* slot = player()->GetSlotInst(type);
 	bool isOk = false;
-	D3DXVECTOR2 slotSize = sender->GetSize();
+	glm::vec2 slotSize = sender->GetSize();
 
 	WeaponItem* weapon = slot ? slot->GetItem().IsWeaponItem() : 0;
 	if (weapon)
@@ -1611,7 +1611,7 @@ void WorkshopFrame::UpdateMoney()
 	_labels[mlMoney]->SetText(menu()->FormatCurrency(player()->GetMoney()));
 }
 
-void WorkshopFrame::ShowInfo(Slot* slot, int cost, gui::Widget* sender, const D3DXVECTOR2& slotSize, int infoId)
+void WorkshopFrame::ShowInfo(Slot* slot, int cost, gui::Widget* sender, const glm::vec2& slotSize, int infoId)
 {
 	_infoId = infoId;
 
@@ -1620,13 +1620,13 @@ void WorkshopFrame::ShowInfo(Slot* slot, int cost, gui::Widget* sender, const D3
 	if (wpn)
 		damage = lsl::StrFmt("%0.0f", wpn->GetDamage());
 
-	D3DXVECTOR2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize/4;
 	cellOffs.y = -cellOffs.y;
 
 	menu()->ShowWeaponDialog(GetString(slot->GetItem().GetName()), GetString(slot->GetItem().GetInfo()), menu()->FormatCurrency(cost), damage, sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, 0.0f);
 }
 
-void WorkshopFrame::ShowInfo(Slot* slot, gui::Widget* sender, const D3DXVECTOR2& slotSize, int infoId)
+void WorkshopFrame::ShowInfo(Slot* slot, gui::Widget* sender, const glm::vec2& slotSize, int infoId)
 {
 	ShowInfo(slot, slot->GetItem().GetCost(), sender, slotSize, infoId);
 }
@@ -1703,21 +1703,21 @@ void WorkshopFrame::UpdateBonusStats(Player::SlotType type, Slot* slot)
 	}
 }
 
-void WorkshopFrame::ShowMessage(StringValue message, gui::Widget* sender, const D3DXVECTOR2& slotSize)
+void WorkshopFrame::ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize)
 {
 	HideInfo(cUndefInfo);
 
-	D3DXVECTOR2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize/4;
 	cellOffs.y = -cellOffs.y;
 
 	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, 0.0f);
 }
 
-void WorkshopFrame::ShowAccept(const std::string& message, gui::Widget* sender, const D3DXVECTOR2& slotSize, Slot* slot)
+void WorkshopFrame::ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize, Slot* slot)
 {
 	HideInfo(cUndefInfo);
 
-	D3DXVECTOR2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize/4;
 	cellOffs.y = -cellOffs.y;
 	SetOverGood2(sender);
 
@@ -1746,30 +1746,30 @@ void WorkshopFrame::OnShow(bool value)
 	}
 }
 
-void WorkshopFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void WorkshopFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	_leftPanel->SetPos(D3DXVECTOR2(30, (_topPanel->GetSize().y - 30.0f + vpSize.y - _bottomPanel->GetSize().y)/2));
-	_moneyBg->SetPos(D3DXVECTOR2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 5));
-	//_stateBg->SetPos(D3DXVECTOR2(418.0f, -_bottomPanel->GetSize().y + 25.0f));	
-	_stateBg->SetPos(D3DXVECTOR2(vpSize.x/2 - _stateBg->GetSize().x - 15.0f, -_bottomPanel->GetSize().y + 25.0f));
+	_leftPanel->SetPos(glm::vec2(30, (_topPanel->GetSize().y - 30.0f + vpSize.y - _bottomPanel->GetSize().y)/2));
+	_moneyBg->SetPos(glm::vec2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 5));
+	//_stateBg->SetPos(glm::vec2(418.0f, -_bottomPanel->GetSize().y + 25.0f));	
+	_stateBg->SetPos(glm::vec2(vpSize.x/2 - _stateBg->GetSize().x - 15.0f, -_bottomPanel->GetSize().y + 25.0f));
 
-	_damageBarBonus->SetPos(D3DXVECTOR2(48.0f, 3.0f));
-	_armorBarBonus->SetPos(D3DXVECTOR2(48.0f, 41.0f));
-	_speedBarBonus->SetPos(D3DXVECTOR2(48.0f, 78.0f));
+	_damageBarBonus->SetPos(glm::vec2(48.0f, 3.0f));
+	_armorBarBonus->SetPos(glm::vec2(48.0f, 41.0f));
+	_speedBarBonus->SetPos(glm::vec2(48.0f, 78.0f));
 
-	_upArrow->SetPos(D3DXVECTOR2(_leftPanel->GetSize().x/2, -_leftPanel->GetSize().y/2 + 65.0f));
-	_downArrow->SetPos(D3DXVECTOR2(_leftPanel->GetSize().x/2, _leftPanel->GetSize().y/2 - 42.0f));
+	_upArrow->SetPos(glm::vec2(_leftPanel->GetSize().x/2, -_leftPanel->GetSize().y/2 + 65.0f));
+	_downArrow->SetPos(glm::vec2(_leftPanel->GetSize().x/2, _leftPanel->GetSize().y/2 - 42.0f));
 
 	AdjustGood();
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
-		_menuItems[i]->SetPos(D3DXVECTOR2(-vpSize.x/2, -_bottomPanel->GetSize().y + 40.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
+		_menuItems[i]->SetPos(glm::vec2(-vpSize.x/2, -_bottomPanel->GetSize().y + 40.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
 
-	_labels[mlHeader]->SetPos(D3DXVECTOR2(20.0f, 40.0f));
-	_labels[mlMoney]->SetPos(D3DXVECTOR2(-53.0f, -29.0f));
+	_labels[mlHeader]->SetPos(glm::vec2(20.0f, 40.0f));
+	_labels[mlMoney]->SetPos(glm::vec2(-53.0f, -29.0f));
 
-	_labels[mlHint]->SetPos(D3DXVECTOR2((_menuItems[miExit]->GetPos().x + _menuItems[miExit]->GetSize().x + _stateBg->GetPos().x)/2, -72.0f));
-	_labels[mlHint]->SetSize(D3DXVECTOR2(800.0f, 105.0f));
+	_labels[mlHint]->SetPos(glm::vec2((_menuItems[miExit]->GetPos().x + _menuItems[miExit]->GetSize().x + _stateBg->GetPos().x)/2, -72.0f));
+	_labels[mlHint]->SetSize(glm::vec2(800.0f, 105.0f));
 	
 	float scale = vpSize.y/720.0f;
 	float centerX = vpSize.x * 0.63f;
@@ -1779,20 +1779,20 @@ void WorkshopFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 	float topOffset = std::max(centerY - 180.0f * scale, _topPanel->GetSize().y + 65.0f);
 	float bottomOffset = std::min(centerY + 180.0f * scale, vpSize.y - _bottomPanel->GetSize().y - 65.0f);
 
-	D3DXVECTOR2 slotSize = _slots[0].plane->GetSize();
+	glm::vec2 slotSize = _slots[0].plane->GetSize();
 	float slotSpace = 15.0f;
 
-	D3DXVECTOR2 slotOffset[Player::cSlotTypeEnd] = {
-		D3DXVECTOR2(leftOffset, centerY + slotSize.y/2 + slotSpace), 
-		D3DXVECTOR2(leftOffset, centerY - slotSize.y/2 - slotSpace), 
-		D3DXVECTOR2(centerX - slotSize.x/2 - 6.0f * slotSpace, bottomOffset), 
-		D3DXVECTOR2(centerX + slotSize.x/2 + 6.0f * slotSpace, bottomOffset), 
-		D3DXVECTOR2(rightOffset, centerY - slotSize.y/2 - slotSpace), 
-		D3DXVECTOR2(rightOffset, centerY + slotSize.y/2 + slotSpace),
-		D3DXVECTOR2(centerX - (slotSize.x + 4.5f * slotSpace) * 1.5f, topOffset),
-		D3DXVECTOR2(centerX - (slotSize.x + 4.5f * slotSpace) * 0.5f, topOffset),
-		D3DXVECTOR2(centerX + (slotSize.x + 4.5f * slotSpace) * 0.5f, topOffset),
-		D3DXVECTOR2(centerX + (slotSize.x + 4.5f * slotSpace) * 1.5f, topOffset),
+	glm::vec2 slotOffset[Player::cSlotTypeEnd] = {
+		glm::vec2(leftOffset, centerY + slotSize.y/2 + slotSpace), 
+		glm::vec2(leftOffset, centerY - slotSize.y/2 - slotSpace), 
+		glm::vec2(centerX - slotSize.x/2 - 6.0f * slotSpace, bottomOffset), 
+		glm::vec2(centerX + slotSize.x/2 + 6.0f * slotSpace, bottomOffset), 
+		glm::vec2(rightOffset, centerY - slotSize.y/2 - slotSpace), 
+		glm::vec2(rightOffset, centerY + slotSize.y/2 + slotSpace),
+		glm::vec2(centerX - (slotSize.x + 4.5f * slotSpace) * 1.5f, topOffset),
+		glm::vec2(centerX - (slotSize.x + 4.5f * slotSpace) * 0.5f, topOffset),
+		glm::vec2(centerX + (slotSize.x + 4.5f * slotSpace) * 0.5f, topOffset),
+		glm::vec2(centerX + (slotSize.x + 4.5f * slotSpace) * 1.5f, topOffset),
 	};
 
 	for (int i = 0; i < Player::cSlotTypeEnd; ++i)
@@ -2018,7 +2018,7 @@ bool WorkshopFrame::OnMouseMove(gui::Widget* sender, const gui::MouseMove& mMove
 	if (sender == root())
 	{
 		if (_dragItem.slot)
-			UpdateDragPos(D3DXVECTOR2(static_cast<float>(mMove.worldCoord.x), static_cast<float>(mMove.worldCoord.y)));
+			UpdateDragPos(glm::vec2(static_cast<float>(mMove.worldCoord.x), static_cast<float>(mMove.worldCoord.y)));
 	}
 
 	return false;
@@ -2194,29 +2194,29 @@ int GamersFrame::GetPrevPlanetIndex(int sIndex)
 	return -1;
 }
 
-void GamersFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void GamersFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	float planetRadius = (vpSize.y - _bottomPanel->GetSize().y)/2;
-	D3DXVECTOR2 planetPos = D3DXVECTOR2(vpSize.x/2 - 25.0f, planetRadius);
+	glm::vec2 planetPos = glm::vec2(vpSize.x/2 - 25.0f, planetRadius);
 
 	menu()->StretchImage(_space->GetMaterial(), vpSize, true, true);
 
-	_photo->SetPos(D3DXVECTOR2(-30.0f, -18.0f));
-	_photoLight->SetPos(D3DXVECTOR2(-30.0f, -100.0f));
+	_photo->SetPos(glm::vec2(-30.0f, -18.0f));
+	_photoLight->SetPos(glm::vec2(-30.0f, -100.0f));
 
-	_leftArrow->SetPos(D3DXVECTOR2(planetPos.x - planetRadius - 40.0f + 3.0f, planetPos.y));
-	_rightArrow->SetPos(D3DXVECTOR2(planetPos.x + planetRadius + 40.0f + 3.0f, planetPos.y));
-	_nextArrow->SetPos(D3DXVECTOR2(400.0f, -100.0f));
+	_leftArrow->SetPos(glm::vec2(planetPos.x - planetRadius - 40.0f + 3.0f, planetPos.y));
+	_rightArrow->SetPos(glm::vec2(planetPos.x + planetRadius + 40.0f + 3.0f, planetPos.y));
+	_nextArrow->SetPos(glm::vec2(400.0f, -100.0f));
 
 	_viewport->SetPos(planetPos);
 	planetRadius = std::min(planetRadius, 300.0f);
 	_viewport->SetSize(planetRadius * 3.1f, planetRadius * 3.1f);
 
-	_labels[mlName]->SetPos(D3DXVECTOR2(-25.0f, -_bottomPanel->GetSize().y + 23.0f));
-	_labels[mlBonus]->SetPos(D3DXVECTOR2(245.0f, -105.0f));
+	_labels[mlName]->SetPos(glm::vec2(-25.0f, -_bottomPanel->GetSize().y + 23.0f));
+	_labels[mlBonus]->SetPos(glm::vec2(245.0f, -105.0f));
 
-	_labels[mlInfo]->SetPos(D3DXVECTOR2(-390.0f, -100.0f));
-	_labels[mlInfo]->SetSize(D3DXVECTOR2(475.0f, 160.0f));
+	_labels[mlInfo]->SetPos(glm::vec2(-390.0f, -100.0f));
+	_labels[mlInfo]->SetSize(glm::vec2(475.0f, 160.0f));
 }
 
 void GamersFrame::OnShow(bool value)
@@ -2250,7 +2250,7 @@ void GamersFrame::OnInvalidate()
 	_mesh3d->GetMaterial()->GetSampler().SetTex(planet->GetTexture());
 
 	_photo->GetMaterial().GetSampler().SetTex(planet->GetBoss().photo);
-	_photo->SetSize(menu()->StretchImage(_photo->GetMaterial(), D3DXVECTOR2(190.0f, 190.0f), true, false, true, false));
+	_photo->SetSize(menu()->StretchImage(_photo->GetMaterial(), glm::vec2(190.0f, 190.0f), true, false, true, false));
 
 	_leftArrow->SetVisible(GetPrevPlanetIndex(_planetIndex) != -1);
 	_rightArrow->SetVisible(GetNextPlanetIndex(_planetIndex) != -1);
@@ -2418,7 +2418,7 @@ AngarFrame::PlanetBox& AngarFrame::AddPlanet(Planet* planet, int index)
 		box->viewport->SetRot3dSpeed(quat);
 		D3DXQuaternionRotationAxis(&quat, &XVector, D3DX_PI/2.0f);
 		box->viewport->GetBox()->SetRot(quat);
-		box->viewport->SetSize(D3DXVECTOR2(180.0f, 180.0f));
+		box->viewport->SetSize(glm::vec2(180.0f, 180.0f));
 		gui::Mesh3d* mesh3d = static_cast<gui::Mesh3d*>(box->viewport->GetBox()->GetChildren().front());
 		mesh3d->GetMaterial()->GetSampler().SetFiltering(graph::BaseSampler::sfAnisotropic);
 
@@ -2426,7 +2426,7 @@ AngarFrame::PlanetBox& AngarFrame::AddPlanet(Planet* planet, int index)
 
 		box->slotClip = menu()->CreateDummy(box->slot, NULL);
 		box->slotClip->SetFlag(gui::Widget::wfClientClip, true);
-		box->slotClip->SetSize(box->slot->GetSize() - D3DXVECTOR2(8.0f, 8.0f));
+		box->slotClip->SetSize(box->slot->GetSize() - glm::vec2(8.0f, 8.0f));
 
 		box->doorDown = menu()->CreatePlane(box->slotClip, NULL, "GUI\\doorDown.png", true, IdentityVec2, gui::Material::bmTransparency);
 		box->doorDown->SetAlign(gui::Widget::waTop);
@@ -2480,7 +2480,7 @@ void AngarFrame::UpdatePlanets()
 		_planets.erase(_planets.begin() + index, _planets.end());
 	}
 
-	_planetGrid->cellSize(D3DXVECTOR2(224.0f, 130.0f));
+	_planetGrid->cellSize(glm::vec2(224.0f, 130.0f));
 	_planetGrid->Reposition();
 
 	_planetGridBg->cellSize(_planetGrid->cellSize());
@@ -2508,22 +2508,22 @@ void AngarFrame::SetDoorPos(PlanetBox& planet, float alpha)
 		alpha = 0.0f;
 
 	float doorOffset = 16.0f * alpha;
-	planet.doorDown->SetPos(D3DXVECTOR2(-1.0f, -4.0f + doorOffset));
-	planet.doorUp->SetPos(D3DXVECTOR2(-1.0f, 4.0f - doorOffset));
+	planet.doorDown->SetPos(glm::vec2(-1.0f, -4.0f + doorOffset));
+	planet.doorUp->SetPos(glm::vec2(-1.0f, 4.0f - doorOffset));
 }
 
-void AngarFrame::ShowMessage(StringValue message, gui::Widget* sender, const D3DXVECTOR2& slotSize)
+void AngarFrame::ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize)
 {
-	D3DXVECTOR2 cellOffs = slotSize/2;
+	glm::vec2 cellOffs = slotSize/2;
 	cellOffs.y = -cellOffs.y;
 	cellOffs.x = 0;
 
 	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), sender->GetWorldPos() + cellOffs, gui::Widget::waBottom, 0.0f);
 }
 
-void AngarFrame::ShowAccept(const std::string& message, gui::Widget* sender, const D3DXVECTOR2& slotSize, lsl::Object* data)
+void AngarFrame::ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize, lsl::Object* data)
 {
-	D3DXVECTOR2 cellOffs = slotSize/2;
+	glm::vec2 cellOffs = slotSize/2;
 	cellOffs.y = -cellOffs.y;
 	cellOffs.x = 0;
 
@@ -2603,31 +2603,31 @@ void AngarFrame::OnShow(bool value)
 	}
 }
 
-void AngarFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void AngarFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	_bottomPanelBg->SetPos(vpSize.x/2, vpSize.y - 20.0f);	
-	_planetGrid->SetPos(D3DXVECTOR2(-_bottomPanel->GetSize().x/2 + 35.0f, -_bottomPanel->GetSize().y/2));
-	_planetGridBg->SetPos(_planetGrid->GetPos() + D3DXVECTOR2(0.0f, -124.0f));
+	_planetGrid->SetPos(glm::vec2(-_bottomPanel->GetSize().x/2 + 35.0f, -_bottomPanel->GetSize().y/2));
+	_planetGridBg->SetPos(_planetGrid->GetPos() + glm::vec2(0.0f, -124.0f));
 
 	if (_planetIndex != -1)
 	{
-		D3DXVECTOR2 pos = _planets[_planetIndex].slot->GetPos() + D3DXVECTOR2(0.0f, -37.0f) + _planetGridBg->GetPos();
+		glm::vec2 pos = _planets[_planetIndex].slot->GetPos() + glm::vec2(0.0f, -37.0f) + _planetGridBg->GetPos();
 		pos.x = lsl::ClampValue(pos.x, -vpSize.x/2 + _planetInfo->GetSize().x/2, -vpSize.x/2 + vpSize.x - _planetInfo->GetSize().x/2);
 		_planetInfo->SetPos(pos);
 	}
-	_planetInfoClose->SetPos(D3DXVECTOR2(180.0f, -265.0f));
-	_planetBoss->SetPos(D3DXVECTOR2(107.0f, -191.0f));
+	_planetInfoClose->SetPos(glm::vec2(180.0f, -265.0f));
+	_planetBoss->SetPos(glm::vec2(107.0f, -191.0f));
 
-	_planetBossCar->SetPos(D3DXVECTOR2(107.0f, -78.0f));
-	_planetBossCar->SetSize(D3DXVECTOR2(110.0f, 110.0f));
+	_planetBossCar->SetPos(glm::vec2(107.0f, -78.0f));
+	_planetBossCar->SetSize(glm::vec2(110.0f, 110.0f));
 
-	_labels[mlPlanetName]->SetPos(D3DXVECTOR2(0, -269.0f));
-	_labels[mlBossName]->SetPos(D3DXVECTOR2(-60.0f, -238.0f));
-	_labels[mlBossInfo]->SetPos(D3DXVECTOR2(-_planetInfo->GetSize().x/2 + 15, -222.0f));
+	_labels[mlPlanetName]->SetPos(glm::vec2(0, -269.0f));
+	_labels[mlBossName]->SetPos(glm::vec2(-60.0f, -238.0f));
+	_labels[mlBossInfo]->SetPos(glm::vec2(-_planetInfo->GetSize().x/2 + 15, -222.0f));
 	_labels[mlBossInfo]->SetSize(225.0f, 200.0f);
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
-		_menuItems[i]->SetPos(D3DXVECTOR2(0.0f, 30.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
+		_menuItems[i]->SetPos(glm::vec2(0.0f, 30.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
 }
 
 void AngarFrame::OnInvalidate()
@@ -2639,7 +2639,7 @@ void AngarFrame::OnInvalidate()
 		_planetInfo->SetVisible(true);
 
 		_planetBoss->GetMaterial().GetSampler().SetTex(planet->GetBoss().photo);
-		_planetBoss->SetSize(menu()->StretchImage(_planetBoss->GetMaterial(), D3DXVECTOR2(110.0f, 85.0f), true, false, true, false));
+		_planetBoss->SetSize(menu()->StretchImage(_planetBoss->GetMaterial(), glm::vec2(110.0f, 85.0f), true, false, true, false));
 
 		if (planet->GetBoss().cars.size() > 0)
 			_raceMenu->CreateCar(_planetBossCar, garage().FindCar(planet->GetBoss().cars.front().record), clrWhite, NULL);
@@ -2876,7 +2876,7 @@ AchievmentFrame::~AchievmentFrame()
 	menu()->ReleaseWidget(_bg);
 }
 
-const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned index, const std::string& lockImg, const std::string& img, const D3DXVECTOR2& pos, Achievment* model)
+const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned index, const std::string& lockImg, const std::string& img, const glm::vec2& pos, Achievment* model)
 {
 	LSL_ASSERT(model);
 
@@ -2906,7 +2906,7 @@ const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned in
 
 	box->price->SetVisible(model->state() == Achievment::asUnlocked);
 	box->price->SetText(lsl::StrFmt("%d", model->price()));
-	box->price->SetPos(D3DXVECTOR2(0.0f, box->image->GetSize().y/2 - 25.0f));
+	box->price->SetPos(glm::vec2(0.0f, box->image->GetSize().y/2 - 25.0f));
 
 	if (model->state() == Achievment::asLocked)
 		box->button->GetOrCreateFon()->GetSampler().SetTex(GetTexture("GUI\\closeBut.png"));
@@ -2929,7 +2929,7 @@ const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned in
 	else
 		box->button->SetSel(NULL);
 
-	box->button->SetPos(box->image->GetSize()/2 - D3DXVECTOR2(15.0f, 25.0f));
+	box->button->SetPos(box->image->GetSize()/2 - glm::vec2(15.0f, 25.0f));
 
 	return box;
 }
@@ -2947,7 +2947,7 @@ void AchievmentFrame::UpdateAchievments()
 	const std::string nameList[cMenuBoxEnd] = {AchievmentModel::cViper, AchievmentModel::cBuggi, AchievmentModel::cAirblade, AchievmentModel::cReflector, AchievmentModel::cDroid, AchievmentModel::cTankchetti, AchievmentModel::cPhaser, AchievmentModel::cMustang, AchievmentModel::cArmor4};
 	const std::string lockImgList[cMenuBoxEnd] = {"GUI\\Rewards\\viperLock.png", "GUI\\Rewards\\buggiLock.png", "GUI\\Rewards\\airbladeLock.png", "GUI\\Rewards\\reflectorLock.png", "GUI\\Rewards\\droidLock.png", "GUI\\Rewards\\tankchettiLock.png", "GUI\\Rewards\\phaserLock.png", "GUI\\Rewards\\mustangLock.png", "GUI\\Rewards\\musicTrackLock.png"};
 	const std::string imgList[cMenuBoxEnd] = {"GUI\\Rewards\\viper.png", "GUI\\Rewards\\buggi.png", "GUI\\Rewards\\airblade.png", "GUI\\Rewards\\reflector.png", "GUI\\Rewards\\droid.png", "GUI\\Rewards\\tankchetti.png", "GUI\\Rewards\\phaser.png", "GUI\\Rewards\\mustang.png", "GUI\\Rewards\\musicTrack.png"};
-	const D3DXVECTOR2 posList[cMenuBoxEnd] = {D3DXVECTOR2(200.0f, 105.0f), D3DXVECTOR2(405.0f, 155.0f), D3DXVECTOR2(0.0f, 245.0f), D3DXVECTOR2(-190.0f, 125.0f), D3DXVECTOR2(-380.0f, 95.0f), D3DXVECTOR2(-325.0f, 265.0f), D3DXVECTOR2(-190.0f, 400.0f), D3DXVECTOR2(205.0f, 375.0f), D3DXVECTOR2(445.0f, 315.0f)};
+	const glm::vec2 posList[cMenuBoxEnd] = {glm::vec2(200.0f, 105.0f), glm::vec2(405.0f, 155.0f), glm::vec2(0.0f, 245.0f), glm::vec2(-190.0f, 125.0f), glm::vec2(-380.0f, 95.0f), glm::vec2(-325.0f, 265.0f), glm::vec2(-190.0f, 400.0f), glm::vec2(205.0f, 375.0f), glm::vec2(445.0f, 315.0f)};
 
 	const Box sortBox[cMenuBoxEnd] = {mbMusicTrack, mbBuggi, mbViper, mbPhaser, mbMustang, mbAirblade, mbReflector, mbDroid, mbTankchetti};
 
@@ -2961,7 +2961,7 @@ void AchievmentFrame::UpdateAchievments()
 		Achievment* model = achievment().Get(nameList[box]);
 		if (model)
 		{
-			achievments[box] = *AddAchievment(count++, lockImgList[box], imgList[box], posList[box] + D3DXVECTOR2(-30.0f, 0.0f), model);
+			achievments[box] = *AddAchievment(count++, lockImgList[box], imgList[box], posList[box] + glm::vec2(-30.0f, 0.0f), model);
 		}
 	}
 
@@ -3055,7 +3055,7 @@ void AchievmentFrame::OnShow(bool value)
 	}
 }
 
-void AchievmentFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void AchievmentFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	_bottomPanel->SetPos(vpSize.x/2, vpSize.y - 80.0f);
 	_bottomPanel->SetSize(vpSize.x, _bottomPanel->GetSize().y);
@@ -3065,11 +3065,11 @@ void AchievmentFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 	float scale = std::min(vpSize.x/1090.0f, vpSize.y/720.0f);
 	_panel->SetScale(scale, scale);
 
-	_labels[mlPoints]->SetPos(D3DXVECTOR2(0, 40.0f));
-	_labels[mlRewards]->SetPos(D3DXVECTOR2(0.0f, 555.0f));
+	_labels[mlPoints]->SetPos(glm::vec2(0, 40.0f));
+	_labels[mlRewards]->SetPos(glm::vec2(0.0f, 555.0f));
 	
 	for (int i = 0; i < cMenuItemEnd; ++i)
-		_menuItems[i]->SetPos(D3DXVECTOR2(0.0f, _bottomPanel->GetPos().y + 17.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
+		_menuItems[i]->SetPos(glm::vec2(0.0f, _bottomPanel->GetPos().y + 17.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
 }
 
 void AchievmentFrame::OnInvalidate()
@@ -3175,13 +3175,13 @@ RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	_damageBar = menu->CreateBar(_stateBg, NULL, "GUI\\statBar.png", "");
 
 	_armorBarValue = menu->CreateLabel("", _armorBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaCenter, color1);
-	_armorBarValue->SetPos(D3DXVECTOR2(_armorBar->GetSize().x/2 - 15.0f, 0.0f));
+	_armorBarValue->SetPos(glm::vec2(_armorBar->GetSize().x/2 - 15.0f, 0.0f));
 
 	_damageBarValue = menu->CreateLabel("", _damageBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaCenter, color1);
-	_damageBarValue->SetPos(D3DXVECTOR2(_damageBar->GetSize().x/2 - 15.0f, 0.0f));
+	_damageBarValue->SetPos(glm::vec2(_damageBar->GetSize().x/2 - 15.0f, 0.0f));
 
 	_speedBarValue = menu->CreateLabel("", _speedBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaCenter, color1);
-	_speedBarValue->SetPos(D3DXVECTOR2(_speedBar->GetSize().x/2 - 15.0f, 0.0f));
+	_speedBarValue->SetPos(glm::vec2(_speedBar->GetSize().x/2 - 15.0f, 0.0f));
 
 	_viewportCar = menu->CreateViewPort3d(_topPanel, NULL, "", gui::ViewPort3d::msAnim);	
 	D3DXQUATERNION quat;
@@ -3211,7 +3211,7 @@ RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	for (int i = 0; i < 6; ++i)
 	{
 		_slots[i] = menu->CreateMesh3dBox(_topPanel, NULL, NULL, NULL, gui::ViewPort3d::msAnim);
-		_slots[i]->SetSize(D3DXVECTOR2(50.0f, 50.0f));
+		_slots[i]->SetSize(glm::vec2(50.0f, 50.0f));
 
 		D3DXQUATERNION quat;
 		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
@@ -3314,24 +3314,24 @@ void RaceMainFrame::AdjustPlayer(PlayerBox* box, bool invert)
 
 	box->bg->SetRot(invert ? D3DX_PI : 0.0f);
 
-	box->photo->SetSize(menu()->StretchImage(box->photo->GetMaterial(), D3DXVECTOR2(100.0f, 97.0f), true, false, true, false));
-	box->photo->SetPos(D3DXVECTOR2(-60.0f * dir, 0.0f));
+	box->photo->SetSize(menu()->StretchImage(box->photo->GetMaterial(), glm::vec2(100.0f, 97.0f), true, false, true, false));
+	box->photo->SetPos(glm::vec2(-60.0f * dir, 0.0f));
 
-	box->name->SetPos(D3DXVECTOR2(0.0f * dir, -70.0f));
+	box->name->SetPos(glm::vec2(0.0f * dir, -70.0f));
 	box->name->SetAlign(gui::Widget::waCenter);
 	box->name->SetHorAlign(gui::Text::haCenter);
 	
-	box->readyLabel->SetPos(D3DXVECTOR2(0.0f * dir, 68.0f));
+	box->readyLabel->SetPos(glm::vec2(0.0f * dir, 68.0f));
 	box->readyLabel->SetAlign(gui::Widget::waCenter);
 	box->readyLabel->SetHorAlign(gui::Text::haCenter);
 
 	box->readyState->SetSize(menu()->GetImageSize(box->readyState->GetMaterial()));
-	box->readyState->SetPos(D3DXVECTOR2(128.0f * dir, 68.0f));	
+	box->readyState->SetPos(glm::vec2(128.0f * dir, 68.0f));	
 
-	box->kick->SetPos(D3DXVECTOR2(128.0f * dir, -68.0f));
+	box->kick->SetPos(glm::vec2(128.0f * dir, -68.0f));
 
-	box->viewportCar->SetSize(D3DXVECTOR2(130.0f, 130.0f));
-	box->viewportCar->SetPos(D3DXVECTOR2(72.0f * dir, 0.0f));
+	box->viewportCar->SetSize(glm::vec2(130.0f, 130.0f));
+	box->viewportCar->SetPos(glm::vec2(72.0f * dir, 0.0f));
 }
 
 void RaceMainFrame::UpdatePlayers()
@@ -3376,20 +3376,20 @@ void RaceMainFrame::OnShow(bool value)
 	menu()->SetNavElements(_menuItems[miStartRace], value, elements, ARRAY_LENGTH(elements));
 }
 
-void RaceMainFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void RaceMainFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	const float menuItemSpaceX = 50.0f;
 
-	_moneyBg->SetPos(D3DXVECTOR2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 5));
-	_stateBg->SetPos(D3DXVECTOR2(-vpSize.x/2 - 1, -_bottomPanel->GetSize().y + 5));
+	_moneyBg->SetPos(glm::vec2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 5));
+	_stateBg->SetPos(glm::vec2(-vpSize.x/2 - 1, -_bottomPanel->GetSize().y + 5));
 
-	_damageBar->SetPos(D3DXVECTOR2(128.0f, -98.0f));
-	_armorBar->SetPos(D3DXVECTOR2(150.0f, -61.0f));
-	_speedBar->SetPos(D3DXVECTOR2(173.0f, -23.0f));
+	_damageBar->SetPos(glm::vec2(128.0f, -98.0f));
+	_armorBar->SetPos(glm::vec2(150.0f, -61.0f));
+	_speedBar->SetPos(glm::vec2(173.0f, -23.0f));
 
-	_labels[mlMoney]->SetPos(D3DXVECTOR2(-53.0f, -29.0f));
-	_labels[mlPassInfo]->SetPos(D3DXVECTOR2(-377.0f, 86.0f));
-	_labels[mlTournamentInfo]->SetPos(D3DXVECTOR2(-102, 86.0f));	
+	_labels[mlMoney]->SetPos(glm::vec2(-53.0f, -29.0f));
+	_labels[mlPassInfo]->SetPos(glm::vec2(-377.0f, 86.0f));
+	_labels[mlTournamentInfo]->SetPos(glm::vec2(-102, 86.0f));	
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
 	{
@@ -3404,9 +3404,9 @@ void RaceMainFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 
 	const float frameImagesPos[3] = {-550.0f, 475.0f, 590.0f};
 	for (int i = 0; i < 3; ++i)
-		_photoImages[i]->SetPos(D3DXVECTOR2(frameImagesPos[i], 87));
+		_photoImages[i]->SetPos(glm::vec2(frameImagesPos[i], 87));
 
-	_wheater->SetPos(D3DXVECTOR2(-282.0f, 112.0f));
+	_wheater->SetPos(glm::vec2(-282.0f, 112.0f));
 
 	int chargeIndex = 0;
 	float width = 0;	
@@ -3414,13 +3414,13 @@ void RaceMainFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 		if (_chargeBars[i]->GetVisible())
 		{
 			width = chargeIndex * (_chargeBars[i]->GetSize().x + 40.0f);
-			_chargeBars[i]->SetPos(D3DXVECTOR2(257.0f + width, 120));
+			_chargeBars[i]->SetPos(glm::vec2(257.0f + width, 120));
 			++chargeIndex;
 		}
 	for (int i = 0; i < 6; ++i)
 		if (_chargeBars[i]->GetVisible())
 		{
-			D3DXVECTOR2 pos = _chargeBars[i]->GetPos();
+			glm::vec2 pos = _chargeBars[i]->GetPos();
 			pos.x = pos.x + _chargeBars[i]->GetSize().x/2 + (vpSize.x - width)/2 - vpSize.x/2;
 			_chargeBars[i]->SetPos(pos);
 			_slots[i]->SetPos(pos.x, 65.0f);
@@ -3428,13 +3428,13 @@ void RaceMainFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 
 	_netInfo->SetPos(-vpSize.x/2 + 20.0f, _topPanel->GetSize().y + 20.0f);
 
-	_viewportCar->SetPos(D3DXVECTOR2(605.0f, 87.0f));	
+	_viewportCar->SetPos(glm::vec2(605.0f, 87.0f));	
 	_viewportCar->SetSize(menu()->StretchImage(IdentityVec2, _frameImages[2]->GetSize(), true, true));
 
 	float leftSpace = vpSize.y - _topPanel->GetSize().y - _bottomPanel->GetSize().y - _stateBg->GetSize().y;	
 	for (int i = 0; i < (int)_players.size(); ++i)
 	{
-		D3DXVECTOR2 size = _players[i].bg->GetSize();
+		glm::vec2 size = _players[i].bg->GetSize();
 		float space = 25.0f;
 
 		int leftCount = Floor<int>(leftSpace / (size.y + space * 0.5f));
@@ -3442,15 +3442,15 @@ void RaceMainFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 		int row = i - leftCount * col;
 
 		AdjustPlayer(&_players[i], col > 0);
-		_players[i].bgRoot->SetPos(D3DXVECTOR2(size.x/2 + 8.0f + col * (vpSize.x - size.x - 16.0f), size.y/2 + (size.y + space) * row));
+		_players[i].bgRoot->SetPos(glm::vec2(size.x/2 + 8.0f + col * (vpSize.x - size.x - 16.0f), size.y/2 + (size.y + space) * row));
 	}
-	_playerGrid->SetPos(D3DXVECTOR2(-1, _topPanel->GetSize().y + 30.0f));
+	_playerGrid->SetPos(glm::vec2(-1, _topPanel->GetSize().y + 30.0f));
 
-	menu()->GetUserChat()->inputPos(D3DXVECTOR2(_stateBg->GetSize().x, vpSize.y - _bottomPanel->GetSize().y - 10.0f));
-	menu()->GetUserChat()->inputSize(D3DXVECTOR2(vpSize.x - _stateBg->GetSize().x - _moneyBg->GetSize().x, 300.0f));
+	menu()->GetUserChat()->inputPos(glm::vec2(_stateBg->GetSize().x, vpSize.y - _bottomPanel->GetSize().y - 10.0f));
+	menu()->GetUserChat()->inputSize(glm::vec2(vpSize.x - _stateBg->GetSize().x - _moneyBg->GetSize().x, 300.0f));
 
-	menu()->GetUserChat()->linesPos(D3DXVECTOR2(vpSize.x - 10.0f, _topPanel->GetSize().y));
-	menu()->GetUserChat()->linesSize(D3DXVECTOR2(vpSize.x/3, vpSize.y - _topPanel->GetSize().y - _bottomPanel->GetSize().y - _moneyBg->GetSize().y));
+	menu()->GetUserChat()->linesPos(glm::vec2(vpSize.x - 10.0f, _topPanel->GetSize().y));
+	menu()->GetUserChat()->linesSize(glm::vec2(vpSize.x/3, vpSize.y - _topPanel->GetSize().y - _bottomPanel->GetSize().y - _moneyBg->GetSize().y));
 }
 
 void RaceMainFrame::OnInvalidate()
@@ -3899,7 +3899,7 @@ void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Player* player)
 	CreateCar(viewport, car, player != NULL ? player->GetColor() : clrWhite, slots);
 }
 
-void RaceMenu::AdjustLayout(const D3DXVECTOR2& vpSize)
+void RaceMenu::AdjustLayout(const glm::vec2& vpSize)
 {
 	_carFrame->AdjustLayout(vpSize);
 	_spaceshipFrame->AdjustLayout(vpSize);

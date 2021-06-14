@@ -953,8 +953,8 @@ void Player::CarState::Update(float deltaTime)
 	nxActor->getGlobalOrientationQuat().getXYZW(rot3);
 	Vec3Rotate(XVector, rot3, dir3);
 
-	pos = D3DXVECTOR2(pos3);
-	dir = D3DXVECTOR2(dir3);
+	pos = glm::vec2(pos3);
+	dir = glm::vec2(dir3);
 	speed = GameCar::GetSpeed(nxActor, dir3);
 	D3DXVec2Normalize(&dir, &dir);	
 
@@ -1246,10 +1246,10 @@ void Player::CreateNightLights(MapObj* mapObj)
 	if (mapObj == NULL)
 		return;
 
-	//{D3DXVECTOR3(1.7f, 0.4f, 0.02f), D3DXVECTOR2(1.5f, 1.5f), true},
-	//{D3DXVECTOR3(1.7f, -0.4f, 0.02f), D3DXVECTOR2(1.5f, 1.5f), true},
-	//{D3DXVECTOR3(-1.57f, 0.45f, 0.28f), D3DXVECTOR2(1.0f, 1.0f), false},
-	//{D3DXVECTOR3(-1.57f, -0.45f, 0.28f), D3DXVECTOR2(1.0f, 1.0f), false}
+	//{D3DXVECTOR3(1.7f, 0.4f, 0.02f), glm::vec2(1.5f, 1.5f), true},
+	//{D3DXVECTOR3(1.7f, -0.4f, 0.02f), glm::vec2(1.5f, 1.5f), true},
+	//{D3DXVECTOR3(-1.57f, 0.45f, 0.28f), glm::vec2(1.0f, 1.0f), false},
+	//{D3DXVECTOR3(-1.57f, -0.45f, 0.28f), glm::vec2(1.0f, 1.0f), false}
 
 	Garage::Car* car = _race->GetGarage().FindCar(_car.record);
 	if (car == NULL)
@@ -1716,7 +1716,7 @@ void Player::ResetCar()
 	if (lastNode && _car.mapObj)
 	{
 		/*D3DXVECTOR3 pos = lastNode->GetTile().GetPoint(_car.lastNodeCoordX) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;	
-		D3DXVECTOR2 dir2 = lastNode->GetTile().GetDir();
+		glm::vec2 dir2 = lastNode->GetTile().GetDir();
 
 		NxRay nxRay(NxVec3(pos), NxVec3(-ZVector));
 		NxRaycastHit hit;		
@@ -1726,7 +1726,7 @@ void Player::ResetCar()
 			pos = lastNode->GetTile().GetPoint(0.0f) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;*/
 
 		D3DXVECTOR3 pos = NullVector;
-		D3DXVECTOR2 dir2 = NullVec2;
+		glm::vec2 dir2 = NullVec2;
 
 		WayNode* node = lastNode;
 		float distX = node->GetTile().ComputeLength(_car.lastNodeCoordX);
@@ -1736,7 +1736,7 @@ void Player::ResetCar()
 		for (int i = 0; i < 5; ++i)
 		{
 			D3DXVECTOR3 newPos;
-			D3DXVECTOR2 newDir2;
+			glm::vec2 newDir2;
 			bool isFind = false;			
 
 			for (int j = 0; j < 3; ++j)

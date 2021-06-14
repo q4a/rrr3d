@@ -766,7 +766,7 @@ void GameMode::FreeIntro()
 
 void GameMode::AdjustGameStartup()
 {
-	D3DXVECTOR2 size = _world->GetGraph()->GetGUI().GetVPSize();
+	glm::vec2 size = _world->GetGraph()->GetGUI().GetVPSize();
 
 	if (_guiLogo)
 	{

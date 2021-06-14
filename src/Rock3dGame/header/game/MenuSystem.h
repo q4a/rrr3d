@@ -21,7 +21,7 @@ private:
 	gui::Dummy* _root;
 protected:
 	virtual void OnShow(bool value) {}
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize) {}
+	virtual void OnAdjustLayout(const glm::vec2& vpSize) {}
 	virtual void OnInvalidate() {}
 
 	graph::Tex2DResource* GetTexture(const std::string& name);
@@ -54,10 +54,10 @@ public:
 	void ShowModal(bool value, int level = cTopmostModal);
 	bool visible() const;
 
-	void AdjustLayout(const D3DXVECTOR2& vpSize);
+	void AdjustLayout(const glm::vec2& vpSize);
 	void Invalidate();
 
-	void SetPos(const D3DXVECTOR2& pos, gui::Widget::Anchor align, const D3DXVECTOR2& size);
+	void SetPos(const glm::vec2& pos, gui::Widget::Anchor align, const glm::vec2& size);
 };
 
 }

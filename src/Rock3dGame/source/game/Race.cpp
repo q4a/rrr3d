@@ -3279,10 +3279,10 @@ void Garage::Load(lsl::SReader* reader)
 		}
 	}
 
-	D3DXVECTOR2 touchBorderDamage = NullVec2;
-	D3DXVECTOR2 touchBorderDamageForce = NullVec2;
-	D3DXVECTOR2 touchCarDamage = NullVec2;
-	D3DXVECTOR2 touchCarDamageForce = NullVec2;
+	glm::vec2 touchBorderDamage = NullVec2;
+	glm::vec2 touchBorderDamageForce = NullVec2;
+	glm::vec2 touchCarDamage = NullVec2;
+	glm::vec2 touchCarDamageForce = NullVec2;
 
 	lsl::SReadValue(reader, "touchBorderDamage", touchBorderDamage);
 	lsl::SReadValue(reader, "touchBorderDamageForce", touchBorderDamageForce);
@@ -7509,8 +7509,8 @@ void Race::ResetCarPos()
 
 		if (node)
 		{
-			D3DXVECTOR2 dir2 = node->GetTile().GetDir();
-			D3DXVECTOR2 norm2 = node->GetTile().GetNorm();
+			glm::vec2 dir2 = node->GetTile().GetDir();
+			glm::vec2 norm2 = node->GetTile().GetNorm();
 
 			dirVec = D3DXVECTOR3(dir2.x, dir2.y, 0);
 			lineVec = D3DXVECTOR3(norm2.x, norm2.y, 0);

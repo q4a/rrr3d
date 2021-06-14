@@ -123,11 +123,11 @@ private:
 	void RefreshColorList();
 	void SelectColor(const D3DXCOLOR& value);
 
-	void ShowMessage(StringValue message, gui::Widget* sender, const D3DXVECTOR2& slotSize);
-	void ShowAccept(const std::string& message, gui::Widget* sender, const D3DXVECTOR2& slotSize);
+	void ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize);
+	void ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize);
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
 
@@ -214,7 +214,7 @@ private:
 	bool StopDrag(bool dropOut, bool intoGood);
 	void ResetDrag();
 	bool IsDragItem();
-	void UpdateDragPos(const D3DXVECTOR2& pos);
+	void UpdateDragPos(const glm::vec2& pos);
 
 	void SetSlotActive(Player::SlotType type, bool active, bool enabled);
 	void UpdateSlot(Player::SlotType type, Slot* slot);
@@ -230,19 +230,19 @@ private:
 	void InstalSlot(Player::SlotType type, Slot* slot, int chargeCount);
 	void UpdateMoney();
 
-	void ShowInfo(Slot* slot, int cost, gui::Widget* sender, const D3DXVECTOR2& slotSize, int infoId);
-	void ShowInfo(Slot* slot, gui::Widget* sender, const D3DXVECTOR2& slotSize, int infoId);
+	void ShowInfo(Slot* slot, int cost, gui::Widget* sender, const glm::vec2& slotSize, int infoId);
+	void ShowInfo(Slot* slot, gui::Widget* sender, const glm::vec2& slotSize, int infoId);
 	void HideInfo(int infoId);
 	bool UpdateSlotInfo(gui::Widget* sender, const SlotBox& slotBox, Slot* slot, Player::SlotType type);	
 
 	void UpdateStats();
 	void UpdateBonusStats(Player::SlotType type, Slot* slot);
 
-	void ShowMessage(StringValue message, gui::Widget* sender, const D3DXVECTOR2& slotSize);
-	void ShowAccept(const std::string& message, gui::Widget* sender, const D3DXVECTOR2& slotSize, Slot* slot);
+	void ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize);
+	void ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize, Slot* slot);
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
@@ -286,7 +286,7 @@ private:
 	int GetNextPlanetIndex(int sIndex);
 	int GetPrevPlanetIndex(int sIndex);
 protected:	
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
@@ -337,11 +337,11 @@ private:
 	void SelectPlanet(int index);
 	void SetDoorPos(PlanetBox& planet, float alpha);
 
-	void ShowMessage(StringValue message, gui::Widget* sender, const D3DXVECTOR2& slotSize);
-	void ShowAccept(const std::string& message, gui::Widget* sender, const D3DXVECTOR2& slotSize, lsl::Object* data);
+	void ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize);
+	void ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize, lsl::Object* data);
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 	virtual void OnFocusChanged(gui::Widget* sender);
@@ -381,7 +381,7 @@ private:
 	gui::PlaneFon* _panel;
 	Achievments _achievments;
 
-	const AchievmentBox* AddAchievment(unsigned index, const std::string& lockImg, const std::string& img, const D3DXVECTOR2& pos, Achievment* model);
+	const AchievmentBox* AddAchievment(unsigned index, const std::string& lockImg, const std::string& img, const glm::vec2& pos, Achievment* model);
 	const AchievmentBox* GetAchievment(Achievment* model);
 	void UpdateAchievments();
 	void UpdateSelection(gui::Widget* sender, bool select);
@@ -390,7 +390,7 @@ private:
 	void ShowAccept(const std::string& message, gui::Widget* sender, Achievment* achievment);
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
@@ -455,7 +455,7 @@ private:
 	void UpdatePlayers();
 protected:	
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
@@ -508,7 +508,7 @@ public:
 	void CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const D3DXCOLOR& color, Slot* slots[Player::cSlotTypeEnd]);
 	void CreateCar(gui::ViewPort3d* viewport, Player* player);
 
-	void AdjustLayout(const D3DXVECTOR2& vpSize);
+	void AdjustLayout(const glm::vec2& vpSize);
 	void Show(bool value);
 	void UpdateStats(Garage::Car* car, Player* player, gui::ProgressBar* armorBar, gui::ProgressBar* speedBar, gui::ProgressBar* damageBar, gui::Label* armorBarValue, gui::Label* damageBarValue, gui::Label* speedBarValue);
 

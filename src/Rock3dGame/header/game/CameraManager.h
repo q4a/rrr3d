@@ -70,7 +70,7 @@ public:
 
 	//z - координата глубины относительно zNear. [0..1] <--> [zNear..zFar]
 	D3DXVECTOR3 ScreenToWorld(const lsl::Point& coord, float z);
-	D3DXVECTOR2 WorldToScreen(const D3DXVECTOR3& coord);
+	glm::vec2 WorldToScreen(const D3DXVECTOR3& coord);
 	void ScreenToRay(const lsl::Point& coord, D3DXVECTOR3& rayStart, D3DXVECTOR3& rayVec);
 	bool ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, D3DXVECTOR3& outVec);
 
@@ -114,7 +114,7 @@ public:
 	GraphManager::LightSrc* GetLight();
 	void SetLight(GraphManager::LightSrc* value);
 
-	void GetObserverCoord(const D3DXVECTOR3& targetPos, float targetDist, D3DXVECTOR3* pos, D3DXQUATERNION& rot, const D3DXVECTOR2& dMPos, float deltaTime, bool dragX, bool dragY, bool restoreY, D3DXVECTOR3* camPos, D3DXQUATERNION* camQuat, float* dir);
+	void GetObserverCoord(const D3DXVECTOR3& targetPos, float targetDist, D3DXVECTOR3* pos, D3DXQUATERNION& rot, const glm::vec2& dMPos, float deltaTime, bool dragX, bool dragY, bool restoreY, D3DXVECTOR3* camPos, D3DXQUATERNION* camQuat, float* dir);
 };
 
 }

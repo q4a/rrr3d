@@ -24,13 +24,13 @@ namespace
 
 gui::Label* _dbgInfo = NULL;
 
-void AdjustDbgInfo(const D3DXVECTOR2& size)
+void AdjustDbgInfo(const glm::vec2& size)
 {
 	if (_dbgInfo == 0)
 		return;
 
-	_dbgInfo->SetPos(D3DXVECTOR2(size.x - 20, 250));
-	_dbgInfo->SetSize(D3DXVECTOR2(200.0f, size.y));
+	_dbgInfo->SetPos(glm::vec2(size.x - 20, 250));
+	_dbgInfo->SetSize(glm::vec2(200.0f, size.y));
 }
 
 }

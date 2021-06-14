@@ -1522,7 +1522,7 @@ void ResourceManager::LoadEffects()
 	LoadImage2dLibMat("Effect\\boomSpark2", "Effect\\szikra_group_7.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\fire1", "Effect\\fire1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), ColorRange(clrWhite, clrRed), Vec2Range(NullVec2, IdentityVec2), Point2U(4, 3));
 	LoadImage2dLibMat("Effect\\fire2", "Effect\\fire2.dds", true, graph::Material::bmAdditive, 1.0f, ColorRange(clrWhite, clrRed), Vec2Range(NullVec2, IdentityVec2), Point2U(5, 5));
-	LoadImage2dLibMat("Effect\\gunEff2", "Effect\\gunEff2.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), clrWhite, Vec2Range(NullVec2, D3DXVECTOR2(1.0f, 0.25f)), Point2U(4, 1));
+	LoadImage2dLibMat("Effect\\gunEff2", "Effect\\gunEff2.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), clrWhite, Vec2Range(NullVec2, glm::vec2(1.0f, 0.25f)), Point2U(4, 1));
 	LoadImage2dLibMat("Effect\\engine1", "Effect\\engine1.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(5, 2));
 	LoadImage2dLibMat("Effect\\shield1", "Effect\\shield1.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f), clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(5, 2));	
 	LoadImage2dLibMatAnim("Effect\\shield2", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 0.4f, clrWhite, Vec3Range(NullVector, IdentityVector)).SetAnisoFlt();

@@ -743,42 +743,42 @@ void Logic::Mute(SndCategory category, bool value)
 
 }
 
-const D3DXVECTOR2& Logic::GetTouchBorderDamage() const
+const glm::vec2& Logic::GetTouchBorderDamage() const
 {
 	return _touchBorderDamage;
 }
 
-void Logic::SetTouchBorderDamage(const D3DXVECTOR2& value)
+void Logic::SetTouchBorderDamage(const glm::vec2& value)
 {
 	_touchBorderDamage = value;
 }
 
-const D3DXVECTOR2& Logic::GetTouchBorderDamageForce() const
+const glm::vec2& Logic::GetTouchBorderDamageForce() const
 {
 	return _touchBorderDamageForce;
 }
 
-void Logic::SetTouchBorderDamageForce(const D3DXVECTOR2& value)
+void Logic::SetTouchBorderDamageForce(const glm::vec2& value)
 {
 	_touchBorderDamageForce = value;
 }
 
-const D3DXVECTOR2& Logic::GetTouchCarDamage() const
+const glm::vec2& Logic::GetTouchCarDamage() const
 {
 	return _touchCarDamage;
 }
 
-void Logic::SetTouchCarDamage(const D3DXVECTOR2& value)
+void Logic::SetTouchCarDamage(const glm::vec2& value)
 {
 	_touchCarDamage = value;
 }
 
-const D3DXVECTOR2& Logic::GetTouchCarDamageForce() const
+const glm::vec2& Logic::GetTouchCarDamageForce() const
 {
 	return _touchCarDamageForce;
 }
 
-void Logic::SetTouchCarDamageForce(const D3DXVECTOR2& value)
+void Logic::SetTouchCarDamageForce(const glm::vec2& value)
 {
 	_touchCarDamageForce = value;
 }

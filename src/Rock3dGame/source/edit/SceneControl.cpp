@@ -111,7 +111,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 
 	INodeRef selNode = _owner->_selNode;
 
-	D3DXVECTOR2 offCoord(static_cast<float>(mMove.offCoord.x), static_cast<float>(mMove.offCoord.y));
+	glm::vec2 offCoord(static_cast<float>(mMove.offCoord.x), static_cast<float>(mMove.offCoord.y));
 	
 	//Нажата левая кнопка мыши
 	if (mMove.click.key == lsl::mkLeft && mMove.click.state == lsl::ksDown)
@@ -210,7 +210,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 					_clStScale = clStScale;	
 				}
 
-			D3DXVECTOR2 fS(offCoord.x, -offCoord.y);
+			glm::vec2 fS(offCoord.x, -offCoord.y);
 			fS /= 100.0f;
 			switch (_clScDirMove)
 			{					
