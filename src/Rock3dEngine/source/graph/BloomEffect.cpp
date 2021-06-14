@@ -8,7 +8,7 @@ namespace r3d
 namespace graph
 {
 
-void GetSamplesDownScale4x4(DWORD dwWidth, DWORD dwHeight, D3DXVECTOR2 avSampleOffsets[16])
+void GetSamplesDownScale4x4(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[16])
 {
 	float tU = 1.0f / dwWidth;
     float tV = 1.0f / dwHeight;
@@ -35,7 +35,7 @@ inline float GaussianDistribution( float x, float y, float rho )
     return g;
 }
 
-void CompGaussianHorizVertBlur(D3DXVECTOR2 texSize, D3DXVECTOR2 texOffsets[16], D3DXVECTOR2 colorWeights[16], float fDeviation, float fMultiplier)
+void CompGaussianHorizVertBlur(glm::vec2 texSize, glm::vec2 texOffsets[16], glm::vec2 colorWeights[16], float fDeviation, float fMultiplier)
 {
 	//Horizontal
 	float tu = 1.0f / texSize.x;
@@ -99,7 +99,7 @@ Tex2DResource* BloomRender::CreateRT()
 
 void BloomRender::Render(Engine& engine)
 {
-	D3DXVECTOR2 samplerOffsets4x4[16];
+	glm::vec2 samplerOffsets4x4[16];
 	float  samplerWeights4x4[16];
 
 	//Синхонизация c RT
@@ -125,15 +125,15 @@ void BloomRender::Render(Engine& engine)
 
 
 	//Blur pass	
-	D3DXVECTOR2 offsets4x4[16];
-	D3DXVECTOR2 weights4x4[16];
+	glm::vec2 offsets4x4[16];
+	glm::vec2 weights4x4[16];
 
-	CompGaussianHorizVertBlur(D3DXVECTOR2((float)GetRT()->GetData()->GetWidth(), (float)GetRT()->GetData()->GetHeight()), offsets4x4, weights4x4, 3.0f, 1.25f);
+	CompGaussianHorizVertBlur(glm::vec2((float)GetRT()->GetData()->GetWidth(), (float)GetRT()->GetData()->GetHeight()), offsets4x4, weights4x4, 3.0f, 1.25f);
 
 	//Horizontal
 	for (int i = 0; i < 16; ++i)
 	{
-		samplerOffsets4x4[i] = D3DXVECTOR2(offsets4x4[i].x, 0);
+		samplerOffsets4x4[i] = glm::vec2(offsets4x4[i].x, 0);
 		samplerWeights4x4[i] = weights4x4[i].x;
 	}
 	shader.SetValueDir("sampleOffsets4x4", samplerOffsets4x4, sizeof(samplerOffsets4x4));
@@ -153,7 +153,7 @@ void BloomRender::Render(Engine& engine)
 	//Vertical
 	for (int i = 0; i < 16; ++i)
 	{
-		samplerOffsets4x4[i] = D3DXVECTOR2(0.0f, offsets4x4[i].y);
+		samplerOffsets4x4[i] = glm::vec2(0.0f, offsets4x4[i].y);
 		samplerWeights4x4[i] = weights4x4[i].y;
 	}
 	shader.SetValueDir("sampleOffsets4x4", samplerOffsets4x4, sizeof(samplerOffsets4x4));
