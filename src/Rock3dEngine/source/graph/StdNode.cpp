@@ -805,7 +805,7 @@ void PlaneNode::Load(lsl::SReader* reader)
 {
 	_MyBase::Load(reader);
 
-	D3DXVECTOR2 size;
+	glm::vec2 size;
 	lsl::SReadValue(reader, "size", size);
 	SetSize(size);
 
@@ -819,12 +819,12 @@ void PlaneNode::OnFixUp(const FixUpNames& fixUpNames)
 	material.OnFixUp(fixUpNames, this);
 }
 
-const D3DXVECTOR2& PlaneNode::GetSize() const
+const glm::vec2& PlaneNode::GetSize() const
 {
 	return _size;
 }
 
-void PlaneNode::SetSize(const D3DXVECTOR2& value)
+void PlaneNode::SetSize(const glm::vec2& value)
 {
 	if (_size != value)
 	{
@@ -981,9 +981,6 @@ void Cylinder::SetColor(const D3DXCOLOR& value)
 	UpdateMesh();
 }
 
-
-
-
 Sprite::Sprite(): sizes(IdentityVec2), fixDirection(false)
 {	
 }
@@ -1009,14 +1006,14 @@ AABB Sprite::LocalDimensions() const
 		return AABB(-max, max);
 	}
 	else	
-		return AABB(1.0f * D3DXVec2Length(&sizes));
+		return AABB(1.0f * glm::length(sizes));
 }
 
 void Sprite::Save(lsl::SWriter* writer)
 {
 	_MyBase::Save(writer);
 	
-	writer->WriteValue("sizes", sizes, 2);
+	writer->WriteValue("sizes", reinterpret_cast<const float *>(&sizes.x), 2);
 	writer->WriteValue("fixDirection", fixDirection);
 		
 	material.Save(writer, this);
@@ -1026,7 +1023,7 @@ void Sprite::Load(lsl::SReader* reader)
 {
 	_MyBase::Load(reader);
 
-	reader->ReadValue("sizes", sizes, 2);
+	reader->ReadValue("sizes", reinterpret_cast<float *>(&sizes.x), 2);
 	reader->ReadValue("fixDirection", fixDirection);
 	
 	material.Load(reader, this);
@@ -1036,9 +1033,6 @@ void Sprite::OnFixUp(const FixUpNames& fixUpNames)
 {
 	material.OnFixUp(fixUpNames, this);
 }
-
-
-
 
 ScreenSprite::ScreenSprite(): quadVertex(0, 0, 1, 1), uvVertex(0, 0, 1, 1)
 {
@@ -1426,12 +1420,12 @@ void FillDataPlane(res::VertexData& vb, float width, float height, float u, floa
 	float y = height / 2.0f;
 
 	res::VertexPNT* vertex = reinterpret_cast<res::VertexPNT*>(vb.GetData());
-	vertex[0] = res::VertexPNT(D3DXVECTOR3(-x, -y, 0.0f), ZVector, D3DXVECTOR2(0.0f,  0.0f));
-	vertex[1] = res::VertexPNT(D3DXVECTOR3( x, -y, 0.0f), ZVector, D3DXVECTOR2(u,     0.0f));
-	vertex[2] = res::VertexPNT(D3DXVECTOR3( x,  y, 0.0f), ZVector, D3DXVECTOR2(u,     v));
-	vertex[3] = res::VertexPNT(D3DXVECTOR3(-x, -y, 0.0f), ZVector, D3DXVECTOR2(0.0f,  0.0f));
-	vertex[4] = res::VertexPNT(D3DXVECTOR3( x,  y, 0.0f), ZVector, D3DXVECTOR2(u,     v));
-	vertex[5] = res::VertexPNT(D3DXVECTOR3(-x,  y, 0.0f), ZVector, D3DXVECTOR2(0.0f,  v));
+	vertex[0] = res::VertexPNT(D3DXVECTOR3(-x, -y, 0.0f), ZVector, glm::vec2(0.0f,  0.0f));
+	vertex[1] = res::VertexPNT(D3DXVECTOR3( x, -y, 0.0f), ZVector, glm::vec2(u,     0.0f));
+	vertex[2] = res::VertexPNT(D3DXVECTOR3( x,  y, 0.0f), ZVector, glm::vec2(u,     v));
+	vertex[3] = res::VertexPNT(D3DXVECTOR3(-x, -y, 0.0f), ZVector, glm::vec2(0.0f,  0.0f));
+	vertex[4] = res::VertexPNT(D3DXVECTOR3( x,  y, 0.0f), ZVector, glm::vec2(u,     v));
+	vertex[5] = res::VertexPNT(D3DXVECTOR3(-x,  y, 0.0f), ZVector, glm::vec2(0.0f,  v));
 	vb.Update();
 }
 

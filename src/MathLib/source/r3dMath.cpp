@@ -38,54 +38,56 @@ AABB2::AABB2(float size)
 	min = -max;
 }
 
-AABB2::AABB2(const D3DXVECTOR2& size)
+AABB2::AABB2(const glm::vec2& size)
 {
 	max = size/2.0f;
 	min = -max;
 }
 
-AABB2::AABB2(const D3DXVECTOR2& mMin, const D3DXVECTOR2& mMax): min(mMin), max(mMax)
+AABB2::AABB2(const glm::vec2& mMin, const glm::vec2& mMax): min(mMin), max(mMax)
 {
 }
 
-void AABB2::Transform(const AABB2& aabb, const D3DXMATRIX& m, AABB2& rOut)
+//void AABB2::Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut)
+void AABB2::Transform(const AABB2 &aabb, const D3DXMATRIX &mIn, AABB2 &rOut)
 {
-	D3DXVECTOR2 oldMin = aabb.min;
-	D3DXVECTOR2 oldMax = aabb.max;
-	D3DXVec2TransformCoord(&rOut.min, &oldMin, &m);	
+    auto m = d3dMatrixToGLM(mIn); // remove after D3DXMATRIX replacement
+	glm::vec2 oldMin = aabb.min;
+	glm::vec2 oldMax = aabb.max;
+	rOut.min = Vec2TransformCoord(oldMin, m);
 	rOut.max = rOut.min;
 
-	rOut.Include(Vec2TransformCoord(D3DXVECTOR2(oldMin.x, oldMin.y), m));
-	rOut.Include(Vec2TransformCoord(D3DXVECTOR2(oldMin.x, oldMax.y), m));
-	rOut.Include(Vec2TransformCoord(D3DXVECTOR2(oldMax.x, oldMin.y), m));
-	rOut.Include(Vec2TransformCoord(D3DXVECTOR2(oldMax.x, oldMax.y), m));
+	rOut.Include(Vec2TransformCoord(glm::vec2(oldMin.x, oldMin.y), m));
+	rOut.Include(Vec2TransformCoord(glm::vec2(oldMin.x, oldMax.y), m));
+	rOut.Include(Vec2TransformCoord(glm::vec2(oldMax.x, oldMin.y), m));
+	rOut.Include(Vec2TransformCoord(glm::vec2(oldMax.x, oldMax.y), m));
 	rOut.Include(Vec2TransformCoord(oldMax, m));
 }
 
-void AABB2::Include(const AABB2& aabb, const D3DXVECTOR2& vec, AABB2& rOut)
+void AABB2::Include(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut)
 {
-	D3DXVec2Minimize(&rOut.min, &aabb.min, &vec);
-	D3DXVec2Maximize(&rOut.max, &aabb.max, &vec);
+    rOut.min = Vec2Minimize(aabb.min, vec);
+    rOut.max = Vec2Maximize(aabb.max, vec);
 }
 
 void AABB2::Add(const AABB2& aabb1, const AABB2& aabb2, AABB2& rOut)
 {
-	D3DXVec2Minimize(&rOut.min, &aabb1.min, &aabb2.min);
-	D3DXVec2Maximize(&rOut.max, &aabb1.max, &aabb2.max);
+    rOut.min = Vec2Minimize(aabb1.min, aabb2.min);
+    rOut.max = Vec2Maximize(aabb1.max, aabb2.max);
 }
 
-void AABB2::Offset(const AABB2& aabb, const D3DXVECTOR2& vec, AABB2& rOut)
+void AABB2::Offset(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut)
 {
 	rOut.min = aabb.min + vec;
 	rOut.max = aabb.max + vec;
 }
 
-void AABB2::Transform(const D3DXMATRIX& m)
+void AABB2::Transform(const D3DXMATRIX &m)
 {
 	Transform(*this, m, *this);
 }
 
-void AABB2::Include(const D3DXVECTOR2& vec)
+void AABB2::Include(const glm::vec2& vec)
 {
 	Include(*this, vec, *this);
 }
@@ -95,12 +97,12 @@ void AABB2::Add(const AABB2& aabb)
 	Add(*this, aabb, *this);
 }
 
-void AABB2::Offset(const D3DXVECTOR2& vec)
+void AABB2::Offset(const glm::vec2& vec)
 {
 	Offset(*this, vec, *this);
 }
 
-bool AABB2::ContainsPoint(const D3DXVECTOR2& point) const
+bool AABB2::ContainsPoint(const glm::vec2& point) const
 {
 	return (point.x > min.x && point.y > min.y &&
 			point.x < max.x && point.y < max.y);
@@ -127,12 +129,12 @@ AABB2::SpaceContains AABB2::ContainsAABB(const AABB2& test) const
 		return scNoOverlap;
 }
 
-D3DXVECTOR2 AABB2::GetCenter() const
+glm::vec2 AABB2::GetCenter() const
 {
 	return (min + max) / 2.0f;
 }
 
-D3DXVECTOR2 AABB2::GetSize() const
+glm::vec2 AABB2::GetSize() const
 {
 	return max - min;
 }
@@ -852,7 +854,7 @@ bool RayCastIntersectSquare(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayV
 		return false;
 }
 
-void GetSampleOffsetsDownScale3x3(DWORD dwWidth, DWORD dwHeight, D3DXVECTOR2 avSampleOffsets[9])
+void GetSampleOffsetsDownScale3x3(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[9])
 {
 	float tU = 1.0f / dwWidth;
 	float tV = 1.0f / dwHeight;
@@ -869,7 +871,7 @@ void GetSampleOffsetsDownScale3x3(DWORD dwWidth, DWORD dwHeight, D3DXVECTOR2 avS
         }
 }
 
-void GetSampleOffsetsDownScale4x4(DWORD dwWidth, DWORD dwHeight, D3DXVECTOR2 avSampleOffsets[16])
+void GetSampleOffsetsDownScale4x4(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[16])
 {
 	float tU = 1.0f / dwWidth;
     float tV = 1.0f / dwHeight;

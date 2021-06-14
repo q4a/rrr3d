@@ -76,9 +76,9 @@ CameraCI::CameraCI(): _idState(0), _frustChanged(true)
 	_invMatChanged.set();
 }
 
-D3DXVECTOR2 CameraCI::ViewToProj(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize)
+glm::vec2 CameraCI::ViewToProj(const glm::vec2& coord, const glm::vec2& viewSize)
 {
-	D3DXVECTOR2 projVec(coord.x / viewSize.x, coord.y / viewSize.y);
+	glm::vec2 projVec(coord.x / viewSize.x, coord.y / viewSize.y);
 	//Приводим к диапазону [-1, 1]
 	projVec = projVec * 2.0f - IdentityVec2;
 	//Ось Y у экрана и у заднего буфера(или иначе говоря экранной D3D поверхности) не совпадают
@@ -99,9 +99,9 @@ D3DXVECTOR2 CameraCI::ViewToProj(const D3DXVECTOR2& coord, const D3DXVECTOR2& vi
 	return screenVec;*/
 }
 
-D3DXVECTOR2 CameraCI::ProjToView(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize)
+glm::vec2 CameraCI::ProjToView(const glm::vec2& coord, const glm::vec2& viewSize)
 {
-	D3DXVECTOR2 projVec = coord;
+	glm::vec2 projVec = coord;
 	projVec.y = -projVec.y;
 	projVec = projVec * 0.5f + IdentityVec2 * 0.5f;
 
@@ -431,9 +431,9 @@ void CameraCI::SetProjMat(const D3DXMATRIX& value)
 	ProjMatChanged();
 }
 
-D3DXVECTOR3 CameraCI::ScreenToWorld(const D3DXVECTOR2& coord, float z, const D3DXVECTOR2& viewSize) const 
+D3DXVECTOR3 CameraCI::ScreenToWorld(const glm::vec2& coord, float z, const glm::vec2& viewSize) const 
 {
-	D3DXVECTOR2 projCoord = ViewToProj(coord, viewSize);
+	glm::vec2 projCoord = ViewToProj(coord, viewSize);
 	D3DXVECTOR3 screenVec(projCoord.x, projCoord.y, z);
 	//Переводим в мировое пространство(домножая на инв. матрицу), что соотв. точке на near плоскости камеры
 	D3DXVec3TransformCoord(&screenVec, &screenVec, &GetInvViewProj());
@@ -441,11 +441,11 @@ D3DXVECTOR3 CameraCI::ScreenToWorld(const D3DXVECTOR2& coord, float z, const D3D
 	return screenVec;
 }
 
-D3DXVECTOR2 CameraCI::WorldToScreen(const D3DXVECTOR3& coord, const D3DXVECTOR2& viewSize) const
+glm::vec2 CameraCI::WorldToScreen(const D3DXVECTOR3& coord, const glm::vec2& viewSize) const
 {
 	D3DXVECTOR3 screenVec;
 	D3DXVec3TransformCoord(&screenVec, &coord, &GetViewProj());	
-	D3DXVECTOR2 vec = screenVec;
+	glm::vec2 vec(screenVec.x, screenVec.y);
 
 	return ProjToView(vec, viewSize);
 }
@@ -499,7 +499,7 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 			case csViewPort:
 			case csViewPortInv:
 			{
-				D3DXVECTOR2 viewSize = D3DXVECTOR2(_desc.width, _desc.width / _desc.aspect);
+				glm::vec2 viewSize = glm::vec2(_desc.width, _desc.width / _desc.aspect);
 				D3DXMATRIX viewMat;
 				D3DXMatrixTranslation(&viewMat, -1.0f, _desc.style == csViewPortInv ? -1.0f : 1.0f, 0.0f);
 				D3DXMATRIX matScale;

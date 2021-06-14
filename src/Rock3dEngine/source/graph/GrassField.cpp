@@ -83,23 +83,23 @@ void GrassField::BuildField()
 				pos.y += _disp * Random();
 
 				*data[vert + 0].Pos4() = D3DXVECTOR4(pos, 0);
-				*data[vert + 0].Tex0() = D3DXVECTOR2(tex[0], tex[1]);
+				*data[vert + 0].Tex0() = glm::vec2(tex[0], tex[1]);
 
 				*data[vert + 1].Pos4() = D3DXVECTOR4(pos, 1);
-				*data[vert + 1].Tex0() = D3DXVECTOR2(tex[2], tex[1]);
+				*data[vert + 1].Tex0() = glm::vec2(tex[2], tex[1]);
 
 				*data[vert + 2].Pos4() = D3DXVECTOR4(pos, 2);
-				*data[vert + 2].Tex0() = D3DXVECTOR2(tex[2], tex[3]);
+				*data[vert + 2].Tex0() = glm::vec2(tex[2], tex[3]);
 
 				//
 				*data[vert + 3].Pos4() = D3DXVECTOR4(pos, 0);
-				*data[vert + 3].Tex0() = D3DXVECTOR2(tex[0], tex[1]);
+				*data[vert + 3].Tex0() = glm::vec2(tex[0], tex[1]);
 
 				*data[vert + 4].Pos4() = D3DXVECTOR4(pos, 2);
-				*data[vert + 4].Tex0() = D3DXVECTOR2(tex[2], tex[3]);
+				*data[vert + 4].Tex0() = glm::vec2(tex[2], tex[3]);
 
 				*data[vert + 5].Pos4() = D3DXVECTOR4(pos, 3);
-				*data[vert + 5].Tex0() = D3DXVECTOR2(tex[0], tex[3]);
+				*data[vert + 5].Tex0() = glm::vec2(tex[0], tex[3]);
 			}
 
 			spriteOff += numSprites;
@@ -147,7 +147,7 @@ void GrassField::Rebuild()
 	float square = _width * _height;
 	float aspect = _width / _height;
 
-	int grassSz = sizeof(D3DXVECTOR4) * sizeof(D3DXVECTOR2);
+	int grassSz = sizeof(D3DXVECTOR4) * sizeof(glm::vec2);
 	float grassCnt = square * _density;
 	float fieldSz = cMaxBufSize / static_cast<float>(grassSz);
 	float fieldCnt = grassCnt / fieldSz;

@@ -601,12 +601,12 @@ void TexResource::SetLevelCnt(unsigned value)
 	}
 }
 
-const D3DXVECTOR2& TexResource::GetScreenScale() const
+const glm::vec2& TexResource::GetScreenScale() const
 {
 	return _screenScale;
 }
 
-void TexResource::SetScreenScale(D3DXVECTOR2 value)
+void TexResource::SetScreenScale(glm::vec2 value)
 {
 	if (_screenScale != value)
 	{
@@ -837,13 +837,13 @@ IDirect3DTexture9* Tex2DResource::GetTex()
 	return _texture;
 }
 
-D3DXVECTOR2 Tex2DResource::GetSize()
+glm::vec2 Tex2DResource::GetSize()
 {
 	LSL_ASSERT(_data);
 
 	LoadData();
 
-	return D3DXVECTOR2(static_cast<float>(_data->GetWidth()), static_cast<float>(_data->GetHeight()));
+	return glm::vec2(static_cast<float>(_data->GetWidth()), static_cast<float>(_data->GetHeight()));
 }
 
 
@@ -1146,12 +1146,12 @@ void RenderTargetResource::SetMultisampleQuality(unsigned value)
 	}
 }
 
-const D3DXVECTOR2& RenderTargetResource::GetScreenScale() const
+const glm::vec2& RenderTargetResource::GetScreenScale() const
 {
 	return _screenScale;
 }
 
-void RenderTargetResource::SetScreenScale(D3DXVECTOR2 value)
+void RenderTargetResource::SetScreenScale(glm::vec2 value)
 {
 	if (_screenScale != value)
 	{
@@ -1265,12 +1265,12 @@ void DepthStencilSurfaceResource::SetMultisampleQuality(unsigned value)
 	}
 }
 
-const D3DXVECTOR2& DepthStencilSurfaceResource::GetScreenScale() const
+const glm::vec2& DepthStencilSurfaceResource::GetScreenScale() const
 {
 	return _screenScale;
 }
 
-void DepthStencilSurfaceResource::SetScreenScale(D3DXVECTOR2 value)
+void DepthStencilSurfaceResource::SetScreenScale(glm::vec2 value)
 {
 	if (_screenScale != value)
 	{

@@ -440,7 +440,7 @@ void GraphManager::InitWaterPlane()
 		_reflRender = new graph::ReflRender();
 		graph::Tex2DResource* reflTex = _reflRender->GetOrCreateRT();
 		reflTex->GetOrCreateData()->SetFormat(_engine->GetParams().BackBufferFormat);
-		reflTex->SetScreenScale(D3DXVECTOR2(1.0f, 1.0f));
+		reflTex->SetScreenScale(glm::vec2(1.0f, 1.0f));
 		reflTex->Init(*_engine);
 
 		_waterTexNorm = new graph::Tex2DResource();
@@ -521,14 +521,18 @@ void GraphManager::UpdateWaterPlane()
 	{
 		_waterPlaneActor->SetPos(_groundAABB.GetCenter());
 		_waterPlaneActor->SetScale(scale);
-		_waterNode->SetSize(D3DXVECTOR2(_groundAABB.GetSizes()) / scale);
+		//_waterNode->SetSize(glm::vec2(_groundAABB.GetSizes()) / scale);
+        _waterNode->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
+                            scale); // remove after D3DXVECTOR3 replacement
 	}
 
 	if (_waterPlane)
 	{
 		_waterPlane->SetPos(_groundAABB.GetCenter());
 		_waterPlane->SetScale(scale);
-		_waterPlane->SetSize(D3DXVECTOR2(_groundAABB.GetSizes()) / scale);		
+		//_waterPlane->SetSize(glm::vec2(_groundAABB.GetSizes()) / scale);		
+		_waterPlane->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
+                             scale); // remove after D3DXVECTOR3 replacement		
 	}
 }
 
@@ -612,7 +616,9 @@ void GraphManager::UpdateGrassPlane()
 {
 	D3DXVECTOR3 pos = _groundAABB.GetCenter();
 	pos.x = 0;
-	D3DXVECTOR2 size = D3DXVECTOR2(_groundAABB.GetSizes());
+	//glm::vec2 size = glm::vec2(_groundAABB.GetSizes());
+    glm::vec2 size =
+        glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y); // remove after D3DXVECTOR3 replacement
 
 	if (_grassPlane)
 	{
@@ -634,7 +640,7 @@ void GraphManager::InitDepthSurface()
 	if (_depthSurfaceRef == 1)
 	{
 		_depthSurface = new graph::DepthStencilSurfaceResource(); 
-		_depthSurface->SetScreenScale(D3DXVECTOR2(1.0f, 1.0f));
+		_depthSurface->SetScreenScale(glm::vec2(1.0f, 1.0f));
 		_depthSurface->SetFormat(_engine->GetParams().AutoDepthStencilFormat);
 		_depthSurface->Init(*_engine);
 	}
@@ -657,7 +663,7 @@ void GraphManager::InitScRenderTex()
 		_scRenderTex = new graph::RenderToTexture();
 		graph::Tex2DResource* tex =  _scRenderTex->GetOrCreateRT();
 		tex->GetOrCreateData()->SetFormat(D3DFMT_A16B16G16R16F);		
-		tex->SetScreenScale(D3DXVECTOR2(1.0f, 1.0f));		
+		tex->SetScreenScale(glm::vec2(1.0f, 1.0f));		
 		tex->Init(*_engine);
 
 		ApplyMultisampling();
@@ -683,7 +689,7 @@ void GraphManager::InitCleanScTex()
 		_cleanScTex = new graph::RenderToTexture();
 		graph::Tex2DResource* tex =  _cleanScTex->GetOrCreateRT();
 		tex->GetOrCreateData()->SetFormat(D3DFMT_A16B16G16R16F);
-		tex->SetScreenScale(D3DXVECTOR2(1.0f, 1.0f));		
+		tex->SetScreenScale(glm::vec2(1.0f, 1.0f));		
 		tex->Init(*_engine);
 	}
 }
@@ -727,7 +733,7 @@ void GraphManager::InitScDepthMap()
 		_scDepthMap = new graph::DepthMapRender();
 		graph::Tex2DResource* tex = _scDepthMap->GetOrCreateRT();
 		tex->GetOrCreateData()->SetFormat(D3DFMT_R32F);
-		tex->SetScreenScale(D3DXVECTOR2(1.0f, 1.0f));
+		tex->SetScreenScale(glm::vec2(1.0f, 1.0f));
 		tex->Init(*_engine);
 
 		_scDepthMap->shader.GetOrCreateData()->LoadFromFile("Data\\Shaders\\sunDepthMap.fx");
@@ -937,7 +943,7 @@ void GraphManager::SetLightShadow(LightSrc* light)
 			shadowMap = new graph::ShadowMapRender();
 
 			graph::Tex2DResource* tex = shadowMap->GetOrCreateRT();
-			tex->SetScreenScale(D3DXVECTOR2(1.0f, 1.0f));
+			tex->SetScreenScale(glm::vec2(1.0f, 1.0f));
 			tex->Init(*_engine);
 
 			shadowMap->shader.GetOrCreateData()->LoadFromFile("Data\\Shaders\\ShadowMap.fx");
@@ -1104,7 +1110,7 @@ void GraphManager::InitPlanarRefl()
 		_planarReflRender = new graph::ReflRender();
 		graph::Tex2DResource* reflTex = _planarReflRender->GetOrCreateRT();
 		reflTex->GetOrCreateData()->SetFormat(_engine->GetParams().BackBufferFormat);
-		reflTex->SetScreenScale(D3DXVECTOR2(1.0f, 1.0f));
+		reflTex->SetScreenScale(glm::vec2(1.0f, 1.0f));
 		reflTex->Init(*_engine);
 
 		_planarReflShader = new graph::PlanarReflMappShader();
@@ -1176,7 +1182,7 @@ void GraphManager::FreeFog()
 	--_fogRef;
 }
 
-void GraphManager::InitPlaneFog(lsl::string texture, const D3DXVECTOR2& tileScale, float speed, GraphQuality quality)
+void GraphManager::InitPlaneFog(lsl::string texture, const glm::vec2& tileScale, float speed, GraphQuality quality)
 {
 	if (_cloudsTex == NULL)
 	{
@@ -1272,7 +1278,9 @@ void GraphManager::UpdateFogPlane()
 	{		
 		_fogPlane->SetPos(pos);
 		_fogPlane->SetScale(D3DXVECTOR3(_tileScale.x, _tileScale.y, 1.0f));
-		_fogPlane->SetSize(D3DXVECTOR2(_groundAABB.GetSizes()) / _tileScale);
+		//_fogPlane->SetSize(glm::vec2(_groundAABB.GetSizes()) / _tileScale);
+        _fogPlane->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
+                           _tileScale); // remove after D3DXVECTOR3 replacement
 	}
 
 	if (_fogPlaneActor)
@@ -1280,7 +1288,10 @@ void GraphManager::UpdateFogPlane()
 		_fogPlaneActor->SetPos(_groundAABB.GetCenter());
 		_fogPlaneActor->SetScale(D3DXVECTOR3(_tileScale.x, _tileScale.y, 1));
 
-		static_cast<graph::PlaneNode&>(_fogPlaneActor->GetNodes().front()).SetSize(D3DXVECTOR2(_groundAABB.GetSizes()) / _tileScale);
+		//static_cast<graph::PlaneNode&>(_fogPlaneActor->GetNodes().front()).SetSize(glm::vec2(_groundAABB.GetSizes()) / _tileScale);
+        static_cast<graph::PlaneNode &>(_fogPlaneActor->GetNodes().front())
+            .SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
+                     _tileScale); // remove after D3DXVECTOR3 replacement
 	}
 }
 
@@ -1331,7 +1342,7 @@ void GraphManager::ApplyMultisampling()
 		if (_msRT == NULL)
 		{
 			_msRT = new graph::RenderTargetResource(); 
-			_msRT->SetScreenScale(D3DXVECTOR2(1.0f, 1.0f));
+			_msRT->SetScreenScale(glm::vec2(1.0f, 1.0f));
 			_msRT->SetFormat(_scRenderTex->GetRT()->GetData()->GetFormat());
 		}
 		_msRT->SetMultisampleType(msType);
@@ -1343,7 +1354,7 @@ void GraphManager::ApplyMultisampling()
 			InitDepthSurface();
 
 			_msDS = new graph::DepthStencilSurfaceResource(); 
-			_msDS->SetScreenScale(D3DXVECTOR2(1.0f, 1.0f));
+			_msDS->SetScreenScale(glm::vec2(1.0f, 1.0f));
 			_msDS->SetFormat(_engine->GetParams().AutoDepthStencilFormat);
 		}
 		_msDS->SetMultisampleType(msType);
@@ -2450,7 +2461,7 @@ void GraphManager::BuildOctree()
 			else
 				aabb.Add((*iter)->GetAABB());
 
-			D3DXVECTOR2 texDiffK = D3DXVECTOR2((*iter)->GetActor()->vec3().y, (*iter)->GetActor()->vec3().z);
+			glm::vec2 texDiffK = glm::vec2((*iter)->GetActor()->vec3().y, (*iter)->GetActor()->vec3().z);
 
 			if ((abs(texDiffK.x) + abs(texDiffK.y)) > 0.0f && _lightList.size() > 0 && _lightList.front()->GetSource()->GetType() == D3DLIGHT_DIRECTIONAL)
 			{	
@@ -2649,11 +2660,11 @@ void GraphManager::SetGraphOption(GraphOption option, bool value, GraphQuality q
 			break;
 
 		case goPlaneFog:
-			value ? InitPlaneFog("Data\\Effect\\clouds.dds", D3DXVECTOR2(50.0f, 50.0f), 0.02f, quality) : FreePlaneFog();
+			value ? InitPlaneFog("Data\\Effect\\clouds.dds", glm::vec2(50.0f, 50.0f), 0.02f, quality) : FreePlaneFog();
 			break;
 
 		case goMagma:
-			value ? InitPlaneFog("Data\\Effect\\magma.dds", D3DXVECTOR2(25.0f, 25.0f), 0.01f, quality) : FreePlaneFog();
+			value ? InitPlaneFog("Data\\Effect\\magma.dds", glm::vec2(25.0f, 25.0f), 0.01f, quality) : FreePlaneFog();
 			break;
 		}
 	}

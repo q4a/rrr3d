@@ -260,7 +260,7 @@ void ShadowMapRender::BeginShadowMapp(Engine& engine)
 							          0.0f,       0.0f,       1.0f,   0.0f,
 							          fTexOffset, fTexOffset, 0.0f,   1.0f);
 
-		shader.SetValue("sizeShadow", D3DXVECTOR2(mapSz, 1.0f / mapSz));
+		shader.SetValue("sizeShadow", glm::vec2(mapSz, 1.0f / mapSz));
 
 		ApplyRT(engine, _beginFlags);
 		engine.GetDriver().GetDevice()->GetViewport(&_oldViewPort);

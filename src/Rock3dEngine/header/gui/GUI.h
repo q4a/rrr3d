@@ -26,9 +26,9 @@ struct MouseClick
 	bool shift1;
 	
 	//локальные координаты
-	D3DXVECTOR2 coord;
+	glm::vec2 coord;
 	//мировые координаты
-	D3DXVECTOR2 worldCoord;
+	glm::vec2 worldCoord;
 };
 
 struct MouseMove
@@ -37,13 +37,13 @@ struct MouseMove
 
 	bool shift1;
 	//локальные координаты
-	D3DXVECTOR2 coord;
+	glm::vec2 coord;
 	//–азность между текущим и предыдущим значением координаты
-	D3DXVECTOR2 dtCoord;
+	glm::vec2 dtCoord;
 	//–азность между текущим значением координаты и координатой при клике
-	D3DXVECTOR2 offCoord;
+	glm::vec2 offCoord;
 	//мировые координаты
-	D3DXVECTOR2 worldCoord;
+	glm::vec2 worldCoord;
 
 	//—осто€ние последнего клика мыши
 	MouseClick click;
@@ -63,7 +63,7 @@ private:
 public:
 	Material();
 
-	D3DXVECTOR2 GetImageSize();
+	glm::vec2 GetImageSize();
 	
 	const D3DXCOLOR& GetColor() const;
 	void SetColor(const D3DXCOLOR& value);
@@ -86,8 +86,8 @@ class Graphic: public Object
 	friend Context;
 private:
 	Context* _context;
-	D3DXVECTOR2 _pos;
-	D3DXVECTOR2 _size;
+	glm::vec2 _pos;
+	glm::vec2 _size;
 	bool _active;
 	float _alpha;
 
@@ -103,11 +103,11 @@ public:
 
 	Context& GetContext();
 
-	const D3DXVECTOR2& GetPos() const;
-	void SetPos(const D3DXVECTOR2& value);
+	const glm::vec2& GetPos() const;
+	void SetPos(const glm::vec2& value);
 	//
-	const D3DXVECTOR2& GetSize() const;
-	void SetSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSize() const;
+	void SetSize(const glm::vec2& value);
 
 	//Ѕез материала Graphic не рисуетс€
 	Material* GetOrCreateMaterial();
@@ -345,7 +345,7 @@ class Plane3d: public Graphic3d
 	friend Context;
 	typedef Graphic3d _MyBase;
 private:
-	D3DXVECTOR2 _size;
+	glm::vec2 _size;
 protected:
 	Plane3d(Context* context);
 	
@@ -353,8 +353,8 @@ protected:
 public:
 	virtual void Draw();
 
-	const D3DXVECTOR2& GetSize();
-	void SetSize(const D3DXVECTOR2 value);
+	const glm::vec2& GetSize();
+	void SetSize(const glm::vec2 value);
 };
 
 class View3d: public Graphic
@@ -391,7 +391,7 @@ private:
 
 	graph::CameraCI _camera;
 	bool _invertY;
-	D3DXVECTOR2 _vpSize;
+	glm::vec2 _vpSize;
 
 	void InsertGraphic(Graphic* value);
 	void RemoveGraphic(Graphic* value);
@@ -445,8 +445,8 @@ public:
 	bool GetInvertY() const;
 	void SetInvertY(bool value);
 
-	const D3DXVECTOR2& GetVPSize();
-	void SetVPSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetVPSize();
+	void SetVPSize(const glm::vec2& value);
 };
 
 //элемент управлени€ включающий контейнер Graphic, обработку событий, ввода, св€зь родитель-потомок
@@ -530,9 +530,9 @@ private:
 
 	Anchor _anchor;
 	Anchor _align;
-	mutable D3DXVECTOR2 _anchorVP;
-	mutable D3DXVECTOR2 _pos;
-	D3DXVECTOR2 _scale;
+	mutable glm::vec2 _anchorVP;
+	mutable glm::vec2 _pos;
+	glm::vec2 _scale;
 	float _rot;	
 
 	bool _coord3d;
@@ -541,7 +541,7 @@ private:
 	mutable D3DXMATRIX _matrix[cMatrixChangeEnd];
 	mutable MatrixChanges _matrixChanges;
 	
-	D3DXVECTOR2 _size;
+	glm::vec2 _size;
 	mutable AABB2 _localAABB;
 	mutable AABB2 _worldAABB;
 	mutable AABB2 _childAABB;
@@ -627,11 +627,11 @@ public:
 	void ClearGraphics();
 	void DeleteAllGraphics();
 
-	D3DXVECTOR2 LocalToWorldCoord(const D3DXVECTOR2& value) const;
-	D3DXVECTOR2 WorldToLocalCoord(const D3DXVECTOR2& value) const;
+	glm::vec2 LocalToWorldCoord(const glm::vec2& value) const;
+	glm::vec2 WorldToLocalCoord(const glm::vec2& value) const;
 	//
-	D3DXVECTOR2 LocalToWorldNorm(const D3DXVECTOR2& value) const;
-	D3DXVECTOR2 WorldToLocalNorm(const D3DXVECTOR2& value) const;
+	glm::vec2 LocalToWorldNorm(const glm::vec2& value) const;
+	glm::vec2 WorldToLocalNorm(const glm::vec2& value) const;
 
 	Manager& GetManager();
 	Context& GetContext();
@@ -682,14 +682,14 @@ public:
 	bool GetEnabled() const;
 	void SetEnabled(bool value);
 
-	D3DXVECTOR2 GetAlignPos() const;
+	glm::vec2 GetAlignPos() const;
 
-	const D3DXVECTOR2& GetPos() const;
-	void SetPos(const D3DXVECTOR2& value);
+	const glm::vec2& GetPos() const;
+	void SetPos(const glm::vec2& value);
 	void SetPos(float x, float y);
 
-	const D3DXVECTOR2& GetScale() const;
-	void SetScale(const D3DXVECTOR2& value);
+	const glm::vec2& GetScale() const;
+	void SetScale(const glm::vec2& value);
 	void SetScale(float x, float y);
 
 	float GetRot() const;
@@ -701,8 +701,8 @@ public:
 	const D3DXVECTOR3& GetPos3d() const;
 	void SetPos3d(const D3DXVECTOR3& value);
 
-	D3DXVECTOR2 GetWorldPos() const;
-	void SetWorldPos(const D3DXVECTOR2& value);
+	glm::vec2 GetWorldPos() const;
+	void SetWorldPos(const glm::vec2& value);
 
 	const D3DXMATRIX& GetMat() const;
 	const D3DXMATRIX& GetWorldMat() const;
@@ -710,8 +710,8 @@ public:
 	const D3DXMATRIX& GetInvWorldMat() const;
 
 	//размер относительно центра localAABB
-	const D3DXVECTOR2& GetSize() const;
-	void SetSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSize() const;
+	void SetSize(const glm::vec2& value);
 	void SetSize(float szX, float szY);
 
 	const AABB2& GetLocalAABB(bool includeChild) const;
@@ -725,7 +725,7 @@ public:
 	Object* GetData();
 	void SetData(Object* value);
 
-	static D3DXVECTOR2 GetAlignPos(const D3DXVECTOR2& size, Anchor align);
+	static glm::vec2 GetAlignPos(const glm::vec2& size, Anchor align);
 };
 
 class Dummy: public Widget
@@ -827,7 +827,7 @@ public:
 	enum Style {bsSimple, bsSelAnim};
 private:
 	Style _style;
-	D3DXVECTOR2 _selSize;
+	glm::vec2 _selSize;
 	bool _selected;
 
 	Plane* _fon;
@@ -881,8 +881,8 @@ public:
 	const std::string& GetText() const;
 	void SetText(const std::string& value);
 
-	const D3DXVECTOR2& GetSelSize() const;
-	void SetSelSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSelSize() const;
+	void SetSelSize(const glm::vec2& value);
 
 	Style GetStyle() const;
 	void SetStyle(Style value);
@@ -995,7 +995,7 @@ private:
 	void ShowItems(bool value);
 	void SelectItem(const std::string& item);
 
-	Text* FindSelTextItem(const D3DXVECTOR2& point, bool deselect);
+	Text* FindSelTextItem(const glm::vec2& point, bool deselect);
 protected:
 	DropBox(Manager* manager);
 	virtual ~DropBox();
@@ -1033,7 +1033,7 @@ private:
 	bool _grag;
 	float _dragOff;
 
-	float ComputeBarPos(const D3DXVECTOR2& point) const;
+	float ComputeBarPos(const glm::vec2& point) const;
 protected:
 	TrackBar(Manager* manager);
 	virtual ~TrackBar();
@@ -1112,9 +1112,9 @@ private:
 	Dummy* _clip;
 	Dummy* _box;
 
-	D3DXVECTOR2 _arrowSize;
-	D3DXVECTOR2 _arrowSpace;
-	D3DXVECTOR2 _arrowScrollStep;
+	glm::vec2 _arrowSize;
+	glm::vec2 _arrowSpace;
+	glm::vec2 _arrowScrollStep;
 	Material* _arrowMat;
 	Material* _arrowSelMat;
 	Button* _scrollBut[cScrollDirEnd];
@@ -1138,19 +1138,19 @@ public:
 	bool GetOption(Option option) const;
 	void SetOption(Option option, bool value);
 
-	const D3DXVECTOR2& GetArrowSize() const;
-	void SetArrowSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetArrowSize() const;
+	void SetArrowSize(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetArrowSpace() const;
-	void SetArrowSpace(const D3DXVECTOR2& value);
+	const glm::vec2& GetArrowSpace() const;
+	void SetArrowSpace(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetArrowScrollStep() const;
-	void SetArrowScrollStep(const D3DXVECTOR2& value);
+	const glm::vec2& GetArrowScrollStep() const;
+	void SetArrowScrollStep(const glm::vec2& value);
 
-	D3DXVECTOR2 GetMaxScroll() const;
+	glm::vec2 GetMaxScroll() const;
 
-	D3DXVECTOR2 GetScroll();
-	void SetScroll(const D3DXVECTOR2& value);
+	glm::vec2 GetScroll();
+	void SetScroll(const glm::vec2& value);
 
 	Material& GetArrowMaterial();
 	Material& GetArrowSelMaterial();
@@ -1198,8 +1198,8 @@ private:
 	Items _items;
 	MyEvent* _event;
 
-	D3DXVECTOR2 _itemSize;
-	D3DXVECTOR2 _itemSpace;	
+	glm::vec2 _itemSize;
+	glm::vec2 _itemSpace;	
 	Item* _selItem;
 
 	Plane* _fon;
@@ -1223,21 +1223,21 @@ public:
 	void DelItem(Item* item);
 	void ClearItems();
 
-	Item* PickItem(const D3DXVECTOR2& worldCoord);
-	bool PickItems(const D3DXVECTOR2& worldCoord);
+	Item* PickItem(const glm::vec2& worldCoord);
+	bool PickItems(const glm::vec2& worldCoord);
 	Item* FindItemByData(Widget* data);
 
 	Item* GetSelItem();
 	void SelectItem(Item* item);
-	void AlignSizeByItems(const D3DXVECTOR2& size);
+	void AlignSizeByItems(const glm::vec2& size);
 
 	const Items& GetItems() const;
 
-	const D3DXVECTOR2& GetItemSize() const;
-	void SetItemSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetItemSize() const;
+	void SetItemSize(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetItemSpace() const;
-	void SetItemSpace(const D3DXVECTOR2& value);
+	const glm::vec2& GetItemSpace() const;
+	void SetItemSpace(const glm::vec2& value);
 
 	Material& GetOrCreateFon();
 	void FreeFon();
@@ -1248,16 +1248,16 @@ public:
 	Material& GetArrowMaterial();
 	Material& GetArrowSelMaterial();
 
-	const D3DXVECTOR2& GetArrowSize() const;
-	void SetArrowSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetArrowSize() const;
+	void SetArrowSize(const glm::vec2& value);
 
-	D3DXVECTOR2 GetScroll() const;
-	void SetScroll(const D3DXVECTOR2& value);
+	glm::vec2 GetScroll() const;
+	void SetScroll(const glm::vec2& value);
 
-	D3DXVECTOR2 GetMaxScroll() const;
+	glm::vec2 GetMaxScroll() const;
 
-	D3DXVECTOR2 GetItemPlaceSize() const;
-	D3DXVECTOR2 GetScrollSpace() const;
+	glm::vec2 GetItemPlaceSize() const;
+	glm::vec2 GetScrollSpace() const;
 };
 
 class ProgressBar: public Widget
@@ -1349,7 +1349,7 @@ private:
 	Button* _up;
 	StreakBar* _bar;
 
-	D3DXVECTOR2 _space;
+	glm::vec2 _space;
 
 	void AdjustLayout();
 protected:
@@ -1365,8 +1365,8 @@ public:
 
 	Button* GetUpButton();
 
-	const D3DXVECTOR2& GetSpace() const;
-	void SetSpace(const D3DXVECTOR2& value);
+	const glm::vec2& GetSpace() const;
+	void SetSpace(const glm::vec2& value);
 
 	unsigned GetChargeMax();
 	void SetChargeMax(unsigned value);
@@ -1451,7 +1451,7 @@ private:
 	D3DXCOLOR _color;
 	bool _select;
 
-	D3DXVECTOR2 WinToLocal(const D3DXVECTOR2& vec) const;
+	glm::vec2 WinToLocal(const glm::vec2& vec) const;
 
 	void ApplyColor();
 	void ApplySelect();
@@ -1474,7 +1474,7 @@ public:
 	bool GetSelect() const;
 	void SetSelect(bool value);
 
-	D3DXVECTOR2 GetColorBoxSize() const;
+	glm::vec2 GetColorBoxSize() const;
 	AABB2 GetBoxAABB() const;
 	AABB2 GetCheckAABB() const;
 };
@@ -1513,7 +1513,7 @@ private:
 	MyEvent* _myEvent;
 	Colors _colors;
 	MyCol _select;
-	D3DXVECTOR2 _space;
+	glm::vec2 _space;
 
 	Material* _frame;
 	Material* _box;
@@ -1542,8 +1542,8 @@ public:
 
 	const Colors& GetColors() const;
 
-	const D3DXVECTOR2& GetSpace() const;
-	void SetSpace(const D3DXVECTOR2& value);
+	const glm::vec2& GetSpace() const;
+	void SetSpace(const glm::vec2& value);
 };
 
 class Grid: public Widget
@@ -1554,7 +1554,7 @@ public:
 	enum Style {gsHorizontal, gsVertical};
 private:
 	Style _style;
-	D3DXVECTOR2 _cellSize;
+	glm::vec2 _cellSize;
 	int _maxCellsOnLine;
 	bool _hideInvisible;
 protected:
@@ -1566,8 +1566,8 @@ public:
 	Style style() const;
 	void style(Style value);
 
-	D3DXVECTOR2 cellSize() const;
-	void cellSize(const D3DXVECTOR2& value);
+	glm::vec2 cellSize() const;
+	void cellSize(const glm::vec2& value);
 
 	int maxCellsOnLine() const;
 	void maxCellsOnLine(int value);
@@ -1628,8 +1628,8 @@ public:
 	graph::Camera* GetCamera3d();
 	void SetCamera3d(graph::Camera* value);
 
-	D3DXVECTOR2 ScreenToView(const Point& point);
-	D3DXVECTOR2 WorldToView( const D3DXVECTOR3& coord);
+	glm::vec2 ScreenToView(const Point& point);
+	glm::vec2 WorldToView( const D3DXVECTOR3& coord);
 
 	MouseClick GetMouseClick(Widget* widget) const;
 	MouseMove GetMouseMove(Widget* widget) const;
@@ -1661,8 +1661,8 @@ public:
 	Context& GetContext();
 	Dummy* GetRoot();
 
-	D3DXVECTOR2 GetVPSize();
-	D3DXVECTOR2 GetMousePos();
+	glm::vec2 GetVPSize();
+	glm::vec2 GetMousePos();
 };
 
 }

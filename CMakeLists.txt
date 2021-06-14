@@ -6,4 +6,6 @@ project(rrr3d VERSION ${RRR3D_VERSION} LANGUAGES CXX)
 
 include(${PROJECT_SOURCE_DIR}/cmake/utils.cmake)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
 add_subdirectory(src)

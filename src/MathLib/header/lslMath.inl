@@ -136,18 +136,45 @@ inline D3DXVECTOR3 MatGetPos(const D3DXMATRIX& mat)
 	return res;
 }
 
-
-
-
-inline D3DXVECTOR2 Vec2TransformCoord(const D3DXVECTOR2& vec, const D3DXMATRIX& mat)
+inline glm::mat4 d3dMatrixToGLM(const D3DXMATRIX &mat)
 {
-	D3DXVECTOR2 res;
-	D3DXVec2TransformCoord(&res, &vec, &mat);
-	return res;
+    glm::mat4 mat4glm(mat._11, mat._21, mat._31, mat._41,
+                      mat._12, mat._22, mat._32, mat._42,
+                      mat._13, mat._23, mat._33, mat._43,
+                      mat._14, mat._24, mat._34, mat._44);
+    return mat4glm;
+}
+
+inline glm::vec2 Vec2Minimize(const glm::vec2 &vec1, const glm::vec2 &vec2)
+{
+    glm::vec2 pOut;
+    pOut.x = vec1.x < vec2.x ? vec1.x : vec2.x;
+    pOut.y = vec1.y < vec2.y ? vec1.y : vec2.y;
+    return pOut;
+}
+
+inline glm::vec2 Vec2Maximize(const glm::vec2 &vec1, const glm::vec2 &vec2)
+{
+    glm::vec2 pOut;
+    pOut.x = vec1.x > vec2.x ? vec1.x : vec2.x;
+    pOut.y = vec1.y > vec2.y ? vec1.y : vec2.y;
+    return pOut;
+}
+
+inline glm::vec2 Vec2TransformCoord(const glm::vec2 &vec, const glm::mat4 &mat)
+{
+    glm::vec4 res4 = glm::vec4(vec.x, vec.y, 0, 1) * mat;
+    return glm::vec2(res4.x, res4.y);
+}
+
+inline glm::vec2 Vec2TransformNormal(const glm::vec2 &vec, const glm::mat4 &mat)
+{
+    glm::vec4 res4 = glm::vec4(vec.x, vec.y, 0, 0) * mat;
+    return glm::vec2(res4.x, res4.y);
 }
 
 //Поворот вектора на 90 градуос против часовой стрелки, иначе говоря его нормаль
-inline void Vec2NormCCW(const D3DXVECTOR2& vec, D3DXVECTOR2& outVec)
+inline void Vec2NormCCW(const glm::vec2& vec, glm::vec2& outVec)
 {
 	//На случай если &vec2 == &outVec
 	float tmpX = vec.x;
@@ -156,15 +183,15 @@ inline void Vec2NormCCW(const D3DXVECTOR2& vec, D3DXVECTOR2& outVec)
 	outVec.y = tmpX;
 }
 
-inline D3DXVECTOR2 Vec2NormCCW(const D3DXVECTOR2& vec2)
+inline glm::vec2 Vec2NormCCW(const glm::vec2& vec2)
 {
-	D3DXVECTOR2 res;
+	glm::vec2 res;
 	Vec2NormCCW(vec2, res);
 	return res;
 }
 
 //Поворот вектора на 90 градуос по часовой стрелки, иначе говоря его нормаль
-inline void Vec2NormCW(const D3DXVECTOR2& vec, D3DXVECTOR2& outVec)
+inline void Vec2NormCW(const glm::vec2& vec, glm::vec2& outVec)
 {
 	//На случай если &vec2 == &outVec
 	float tmpX = vec.x;
@@ -173,34 +200,34 @@ inline void Vec2NormCW(const D3DXVECTOR2& vec, D3DXVECTOR2& outVec)
 	outVec.y = -tmpX;
 }
 
-inline float Vec2Proj(const D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2)
+inline float Vec2Proj(const glm::vec2& vec1, const glm::vec2& vec2)
 {
-	return D3DXVec2Dot(&vec1, &vec2) / D3DXVec2Length(&vec2);
+    return (vec1.x * vec2.x + vec1.y * vec2.y) / glm::length(vec2);
 }
 
-inline void operator*=(D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2)
+inline void operator*=(glm::vec2& vec1, const glm::vec2& vec2)
 {
 	vec1.x *= vec2.x;
 	vec1.y *= vec2.y;
 }
 
-inline D3DXVECTOR2 operator*(const D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2)
+inline glm::vec2 operator*(const glm::vec2& vec1, const glm::vec2& vec2)
 {
-	D3DXVECTOR2 res = vec1;
+	glm::vec2 res = vec1;
 	res *= vec2;
 
 	return res;	
 }
 
-inline void operator/=(D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2)
+inline void operator/=(glm::vec2& vec1, const glm::vec2& vec2)
 {
 	vec1.x /= vec2.x;
 	vec1.y /= vec2.y;
 }
 
-inline D3DXVECTOR2 operator/(const D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2)
+inline glm::vec2 operator/(const glm::vec2& vec1, const glm::vec2& vec2)
 {
-	D3DXVECTOR2 res = vec1;
+	glm::vec2 res = vec1;
 	res /= vec2;
 
 	return res;
@@ -209,7 +236,7 @@ inline D3DXVECTOR2 operator/(const D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2)
 
 
 
-inline D3DXVECTOR3 Vec3FromVec2(const D3DXVECTOR2& vec)
+inline D3DXVECTOR3 Vec3FromVec2(const glm::vec2& vec)
 {
 	return D3DXVECTOR3(vec.x, vec.y, 0.0f);
 }
@@ -324,7 +351,7 @@ inline bool operator<(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
 
 
 
-inline D3DXVECTOR4 Vec4FromVec2(const D3DXVECTOR2& vec)
+inline D3DXVECTOR4 Vec4FromVec2(const glm::vec2& vec)
 {
 	return D3DXVECTOR4(vec.x, vec.y, 0, 0);
 }
@@ -431,85 +458,85 @@ inline const D3DXVECTOR3& QuatRotateVec3(D3DXVECTOR3& res, const D3DXVECTOR3& ve
 
 
 
-inline void Line2FromNorm(const D3DXVECTOR2& norm, const D3DXVECTOR2& point, D3DXVECTOR3& outLine)
+inline void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, D3DXVECTOR3& outLine)
 {
 	//Уравнение разделяющей прямой через нормаль и точку
 	//(N,X) + D = 0
 	//Нормаль
 	outLine.x = norm.x;
 	outLine.y = norm.y;
-	outLine.z = -D3DXVec2Dot(&norm, &point);
+    outLine.z = -(norm.x * point.x + norm.y * point.y);
 }
 
-inline D3DXVECTOR3 Line2FromNorm(const D3DXVECTOR2& norm, const D3DXVECTOR2& point)
+inline D3DXVECTOR3 Line2FromNorm(const glm::vec2& norm, const glm::vec2& point)
 {
 	D3DXVECTOR3 res;
 	Line2FromNorm(norm, point, res);	
 	return res;
 }
 
-inline void Line2FromDir(const D3DXVECTOR2& dir, const D3DXVECTOR2& point, D3DXVECTOR3& outLine)
+inline void Line2FromDir(const glm::vec2& dir, const glm::vec2& point, D3DXVECTOR3& outLine)
 {
-	D3DXVECTOR2 norm;
+	glm::vec2 norm;
 	Vec2NormCW(dir, norm);
 	Line2FromNorm(norm, point, outLine);
 }
 
-inline D3DXVECTOR3 Line2FromDir(const D3DXVECTOR2& dir, const D3DXVECTOR2& point)
+inline D3DXVECTOR3 Line2FromDir(const glm::vec2& dir, const glm::vec2& point)
 {
 	D3DXVECTOR3 res;
 	Line2FromDir(dir, point, res);
 	return res;
 }
 
-inline void Line2GetNorm(const D3DXVECTOR3& line, D3DXVECTOR2& norm)
+inline void Line2GetNorm(const D3DXVECTOR3& line, glm::vec2& norm)
 {
 	norm.x = line.x;
 	norm.y = line.y;
 }
 
-inline void Line2GetDir(const D3DXVECTOR3& line, D3DXVECTOR2& dir)
+inline void Line2GetDir(const D3DXVECTOR3& line, glm::vec2& dir)
 {
 	dir.x = line.x;
 	dir.y = line.y;
 	Vec2NormCCW(dir, dir);
 }
 
-inline void Line2GetRadiusVec(const D3DXVECTOR3& line, D3DXVECTOR2& outVec)
+inline void Line2GetRadiusVec(const D3DXVECTOR3& line, glm::vec2& outVec)
 {
 	outVec.x = -line.z * line.x;
 	outVec.y = -line.z * line.y;
 }
 
-inline D3DXVECTOR2 Line2GetRadiusVec(const D3DXVECTOR3& line)
+inline glm::vec2 Line2GetRadiusVec(const D3DXVECTOR3& line)
 {
-	D3DXVECTOR2 res;
+	glm::vec2 res;
 	Line2GetRadiusVec(line, res);
 	return res;
 }
 
-inline D3DXVECTOR2 Line2GetNorm(const D3DXVECTOR3& line)
+inline glm::vec2 Line2GetNorm(const D3DXVECTOR3& line)
 {
-	D3DXVECTOR2 res;
+	glm::vec2 res;
 	Line2GetNorm(line, res);
 	return res;
 }
 
-inline float Line2DistToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point)
+inline float Line2DistToPoint(const D3DXVECTOR3& line, const glm::vec2& point)
 {
 	return D3DXVec3Dot(&line,  &D3DXVECTOR3(point.x, point.y, 1.0f));
 }
 
-inline void Line2NormVecToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point, D3DXVECTOR2& outNormVec)
+inline void Line2NormVecToPoint(const D3DXVECTOR3& line, const glm::vec2& point, glm::vec2& outNormVec)
 {
-	D3DXVECTOR2 lineNorm = Line2GetNorm(line);
+	glm::vec2 lineNorm = Line2GetNorm(line);
 	float dist = Line2DistToPoint(line, point);
 	outNormVec = lineNorm * dist;
 }
 
-inline D3DXVECTOR2 Line2NormVecToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point)
+inline glm::vec2 Line2NormVecToPoint(const D3DXVECTOR3& line, const glm::vec2& point)
 {
-	D3DXVECTOR2 res;
+	glm::vec2 res;
 	Line2NormVecToPoint(line, point, res);
 	return res;
 }

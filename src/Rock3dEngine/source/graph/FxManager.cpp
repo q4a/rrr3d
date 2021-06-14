@@ -1160,9 +1160,9 @@ void FxTrailManager::BuildVertexLine(res::VertexPT* vertex, const D3DXVECTOR3& p
 	}
 
 	vertex[0].pos = yVec * _trailWidth + pos;
-	vertex[0].tex = D3DXVECTOR2(xTex, 0);
+	vertex[0].tex = glm::vec2(xTex, 0);
 	vertex[1].pos = -yVec * _trailWidth + pos;
-	vertex[1].tex = D3DXVECTOR2(xTex, 1.0f);
+	vertex[1].tex = glm::vec2(xTex, 1.0f);
 }
 
 void FxTrailManager::DrawPath(graph::Engine& engine, FxParticleSystem* system, FxParticleGroup* group, res::VertexPT* vBuf, unsigned primCnt, unsigned sPrim)

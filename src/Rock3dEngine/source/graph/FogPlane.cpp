@@ -11,7 +11,7 @@ namespace graph
 FogPlane::FogPlane(): _depthTex(0), _cloudsMat(0), _color(clrWhite), _cloudIntens(0.1f), _speed(0.02f), _curTime(0)
 {
 	_plane.SetParent(this);
-	SetSize(D3DXVECTOR2(4.0f, 4.0f));
+	SetSize(glm::vec2(4.0f, 4.0f));
 	SetScale(100.0f);
 
 	shader.SetTech("techVolumeFog");
@@ -118,12 +118,12 @@ void FogPlane::SetSpeed(float value)
 	_speed = value;
 }
 
-const D3DXVECTOR2& FogPlane::GetSize() const
+const glm::vec2& FogPlane::GetSize() const
 {
 	return _plane.GetSize();
 }
 
-void FogPlane::SetSize(const D3DXVECTOR2& value)
+void FogPlane::SetSize(const glm::vec2& value)
 {
 	_plane.SetSize(value);
 }
