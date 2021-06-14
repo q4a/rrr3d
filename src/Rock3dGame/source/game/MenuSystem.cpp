@@ -139,7 +139,7 @@ bool MenuFrame::visible() const
 	return _root->GetVisible();
 }
 
-void MenuFrame::AdjustLayout(const D3DXVECTOR2& vpSize)
+void MenuFrame::AdjustLayout(const glm::vec2& vpSize)
 {
 	if (visible())
 		OnAdjustLayout(vpSize);
@@ -151,11 +151,11 @@ void MenuFrame::Invalidate()
 	AdjustLayout(menu()->GetGUI()->GetVPSize());
 }
 
-void MenuFrame::SetPos(const D3DXVECTOR2& pos, gui::Widget::Anchor align, const D3DXVECTOR2& size)
+void MenuFrame::SetPos(const glm::vec2& pos, gui::Widget::Anchor align, const glm::vec2& size)
 {
-	D3DXVECTOR2 alignPos = gui::Widget::GetAlignPos(size, align);
+	glm::vec2 alignPos = gui::Widget::GetAlignPos(size, align);
 
-	D3DXVECTOR2 pos2 = pos + alignPos;
+	glm::vec2 pos2 = pos + alignPos;
 	pos2.x = lsl::ClampValue(pos2.x, size.x/2 + 15.0f, root()->GetManager().GetVPSize().x - size.x/2 - 15.0f);
 	pos2.y = lsl::ClampValue(pos2.y, size.y/2 + 15.0f, root()->GetManager().GetVPSize().y - size.y/2 - 15.0f);
 

@@ -93,7 +93,7 @@ PlayerStateFrame::~PlayerStateFrame()
 
 void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bonusType, int targetPlayerId, bool kill)
 {
-	const D3DXVECTOR2 photoSize = D3DXVECTOR2(50.0f, 50.0f);
+	const glm::vec2 photoSize = glm::vec2(50.0f, 50.0f);
 	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;	
 
 	string image;	
@@ -162,7 +162,7 @@ void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bo
 
 		item.photo = menu()->CreatePlane(item.image, NULL, "", true, IdentityVec2, gui::Material::bmTransparency);
 		item.photo->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
-		item.photo->SetPos(D3DXVECTOR2(-40.0f, 0.0f));
+		item.photo->SetPos(glm::vec2(-40.0f, 0.0f));
 		
 		item.label = menu()->CreateLabel(svNull, item.photo, "Small", NullVec2, gui::Text::haLeft, gui::Text::vaCenter, color2);
 		item.label->SetAlign(gui::Widget::waLeft);
@@ -172,7 +172,7 @@ void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bo
 	item.time = 0;
 	item.image->SetVisible(true);
 	item.image->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
-	item.pos = _hudMenu->GetPickItemsPos() + D3DXVECTOR2(item.image->GetSize().x/2, 0);
+	item.pos = _hudMenu->GetPickItemsPos() + glm::vec2(item.image->GetSize().x/2, 0);
 	item.image->SetPos(item.pos);
 
 	item.photo->SetVisible(photo ? true : false);	
@@ -217,8 +217,8 @@ void PlayerStateFrame::ProccessPickItems(float deltaTime)
 				alpha = 1.0f - lerp;
 			}
 
-			D3DXVECTOR2 pos = item.pos + D3DXVECTOR2(30, index * 85.0f + dPosY);
-			D3DXVECTOR2 curPos = item.image->GetPos();
+			glm::vec2 pos = item.pos + glm::vec2(30, index * 85.0f + dPosY);
+			glm::vec2 curPos = item.image->GetPos();
 			if (abs(pos.x - curPos.x) > 0.001f || abs(pos.y - curPos.y) > 0.001f)
 			{	
 				curPos.x = std::min(curPos.x + 90.0f * deltaTime, pos.x);
@@ -248,7 +248,7 @@ void PlayerStateFrame::NewAchievment(AchievmentCondition::MyEventData* data)
 	std::string image = "GUI\\Achievments\\" + data->condition->name() + ".png";	
 	std::string pointsImage = lsl::StrFmt("GUI\\Achievments\\points%d.png", data->condition->reward());
 	std::string pointsImageK = diff == gdHard ? "GUI\\Achievments\\points1_5.png" : "GUI\\Achievments\\points1_2.png";
-	D3DXVECTOR2 vpSize = menu()->GetGUI()->GetVPSize();
+	glm::vec2 vpSize = menu()->GetGUI()->GetVPSize();
 
 	AchievmentItem item;
 
@@ -269,28 +269,28 @@ void PlayerStateFrame::NewAchievment(AchievmentCondition::MyEventData* data)
 		item.image = menu()->CreatePlane(root(), NULL, image, true, IdentityVec2, gui::Material::bmTransparency);
 
 		item.points = menu()->CreatePlane(item.image, NULL, pointsImage, true, IdentityVec2, gui::Material::bmTransparency);
-		item.points->SetPos(D3DXVECTOR2(0.0f, item.image->GetSize().y/2 + 15.0f));
-		item.slotSize = D3DXVECTOR2(std::max(item.image->GetSize().x, item.points->GetSize().x), item.image->GetSize().y + item.points->GetSize().y + 15.0f);
+		item.points->SetPos(glm::vec2(0.0f, item.image->GetSize().y/2 + 15.0f));
+		item.slotSize = glm::vec2(std::max(item.image->GetSize().x, item.points->GetSize().x), item.image->GetSize().y + item.points->GetSize().y + 15.0f);
 
 		if (diff != gdEasy)
 		{
 			item.pointsK = menu()->CreatePlane(item.points, NULL, pointsImageK, true, IdentityVec2, gui::Material::bmTransparency);
-			item.pointsK->SetPos(D3DXVECTOR2(95.0f, -3.0f));
+			item.pointsK->SetPos(glm::vec2(95.0f, -3.0f));
 		}
 		else
 			item.pointsK = NULL;
 	}
 
-	const D3DXVECTOR2 startPos[8] = {			
-		D3DXVECTOR2(0 - item.slotSize.x * 2, 1 * vpSize.y / 4),
-		D3DXVECTOR2(0 - item.slotSize.x, 2 * vpSize.y / 4),
-		D3DXVECTOR2(0 - item.slotSize.x, 3 * vpSize.y / 4),
-		D3DXVECTOR2(0, vpSize.y + item.slotSize.y),
+	const glm::vec2 startPos[8] = {			
+		glm::vec2(0 - item.slotSize.x * 2, 1 * vpSize.y / 4),
+		glm::vec2(0 - item.slotSize.x, 2 * vpSize.y / 4),
+		glm::vec2(0 - item.slotSize.x, 3 * vpSize.y / 4),
+		glm::vec2(0, vpSize.y + item.slotSize.y),
 
-		D3DXVECTOR2(vpSize.x + item.slotSize.y * 2, 1 * vpSize.y / 4),
-		D3DXVECTOR2(vpSize.x + item.slotSize.y, 2 * vpSize.y / 4),
-		D3DXVECTOR2(vpSize.x + item.slotSize.y, 3 * vpSize.y / 4),
-		D3DXVECTOR2(vpSize.x, vpSize.y + item.slotSize.y)
+		glm::vec2(vpSize.x + item.slotSize.y * 2, 1 * vpSize.y / 4),
+		glm::vec2(vpSize.x + item.slotSize.y, 2 * vpSize.y / 4),
+		glm::vec2(vpSize.x + item.slotSize.y, 3 * vpSize.y / 4),
+		glm::vec2(vpSize.x, vpSize.y + item.slotSize.y)
 	};
 
 	item.time = 0;
@@ -338,7 +338,7 @@ void PlayerStateFrame::ProccessAchievments(float deltaTime)
 				}
 			}
 
-			D3DXVECTOR2 pos = myThis->_hudMenu->GetAchievmentItemsPos();
+			glm::vec2 pos = myThis->_hudMenu->GetAchievmentItemsPos();
 			pos.y += fIndex * item.slotSize.y + item.image->GetSize().y/2;
 
 			float flyAlpha = ClampValue(item.time/0.3f, 0.0f, 1.0f);
@@ -349,7 +349,7 @@ void PlayerStateFrame::ProccessAchievments(float deltaTime)
 			D3DXVec2Lerp(&pos, &item.image->GetPos(), &pos, flyAlpha);
 			item.image->SetPos(pos);
 
-			D3DXVECTOR2 imgSize = myThis->menu()->GetImageSize(item.image->GetMaterial());
+			glm::vec2 imgSize = myThis->menu()->GetImageSize(item.image->GetMaterial());
 			D3DXVec2Lerp(&imgSize, &imgSize, &(2.0f * imgSize), pingAlpha);
 			item.image->SetSize(imgSize);
 
@@ -438,7 +438,7 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		D3DXVECTOR3 pos = _carLifes[i].target->GetCar().gameObj->GetPos() + D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 		D3DXVECTOR4 projVec;
 		D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
-		D3DXVECTOR2 vec = projVec / projVec.w;
+		glm::vec2 vec = projVec / projVec.w;
 
 		if (projVec.z < 0)
 		{		
@@ -451,12 +451,12 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		if ((abs(vec.x) == 1.0f || abs(vec.y) == 1.0f))
 			targetAlpha = 0;
 
-		D3DXVECTOR2 vpSize = menu()->GetGUI()->GetVPSize();
+		glm::vec2 vpSize = menu()->GetGUI()->GetVPSize();
 		vec = graph::CameraCI::ProjToView(vec, vpSize);
 		vec.x = lsl::ClampValue(vec.x, 0.0f, vpSize.x - _carLifes[i].back->GetSize().x);
 		vec.y = lsl::ClampValue(vec.y, _carLifes[i].back->GetSize().y, vpSize.y);
 
-		_carLifes[i].back->SetPos(vec + D3DXVECTOR2(_carLifes[i].back->GetSize().x/2, -_carLifes[i].back->GetSize().y/2));
+		_carLifes[i].back->SetPos(vec + glm::vec2(_carLifes[i].back->GetSize().x/2, -_carLifes[i].back->GetSize().y/2));
 
 		float alpha = _carLifes[i].back->GetMaterial().GetColor().a;
 		_carLifes[i].back->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, StepLerp(alpha, targetAlpha, deltaTime/0.3f)));
@@ -494,7 +494,7 @@ void PlayerStateFrame::InsertSlot(WeaponType type, Slot* slot)
 			
 	_weaponBox[type].view = menu()->CreateViewPort3d(slotParent, 0, "");
 	float sizeX = 60;
-	_weaponBox[type].view->SetSize(D3DXVECTOR2(sizeX, sizeX));	
+	_weaponBox[type].view->SetSize(glm::vec2(sizeX, sizeX));	
 
 	_weaponBox[type].mesh = menu()->CreateMesh3d(_weaponBox[type].view, slot->GetItem().GetMesh(), slot->GetItem().GetTexture());	
 	_weaponBox[type].mesh->AddRef();
@@ -502,7 +502,7 @@ void PlayerStateFrame::InsertSlot(WeaponType type, Slot* slot)
 
 	_weaponBox[type].label = menu()->CreateLabel(svNull, slotParent, "Small", NullVec2, gui::Text::haCenter, gui::Text::vaCenter, clrWhite);
 	_weaponBox[type].label->SetText("0/0");
-	_weaponBox[type].label->SetSize(D3DXVECTOR2(30.0f, 30.0f));
+	_weaponBox[type].label->SetSize(glm::vec2(30.0f, 30.0f));
 }
 
 void PlayerStateFrame::ClearSlot(WeaponType type)
@@ -687,7 +687,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			D3DXVECTOR3 pos = opponent.player->GetCar().gameObj->GetWorldPos() + D3DXVECTOR3(1.0f, -0.5f, 0);
 			D3DXVECTOR4 projVec;
 			D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
-			D3DXVECTOR2 vec = projVec / projVec.w;
+			glm::vec2 vec = projVec / projVec.w;
 
 			if (projVec.z < 0)
 			{		
@@ -701,7 +701,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			if ((abs(vec.x) == 1.0f || abs(vec.y) == 1.0f) || carLife != NULL)
 				targetAlpha = std::max(opponent.point->GetMaterial().GetColor().a - 4.0f * deltaTime, 0.0f);
 
-			D3DXVECTOR2 vpSize = menu()->GetGUI()->GetVPSize();
+			glm::vec2 vpSize = menu()->GetGUI()->GetVPSize();
 			vec = graph::CameraCI::ProjToView(vec, vpSize);
 			vec.x = lsl::ClampValue(vec.x, 0.0f, vpSize.x - opponent.point->GetSize().x);
 			vec.y = lsl::ClampValue(vec.y, -opponent.label->GetPos().y - aabb.min.y, vpSize.y);
@@ -731,12 +731,12 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 	}
 }
 
-void PlayerStateFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void PlayerStateFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	//_raceState->SetPos(_raceState->GetSize().x/2, _raceState->GetSize().y/2);
 
-	D3DXVECTOR2 subWeaponPos[2] = {_hudMenu->GetWeaponPosHyper(), _hudMenu->GetWeaponPosMine()};
-	D3DXVECTOR2 subWeaponLabelPos[2] = {_hudMenu->GetWeaponPosHyperLabel(), _hudMenu->GetWeaponPosMineLabel()};
+	glm::vec2 subWeaponPos[2] = {_hudMenu->GetWeaponPosHyper(), _hudMenu->GetWeaponPosMine()};
+	glm::vec2 subWeaponLabelPos[2] = {_hudMenu->GetWeaponPosHyperLabel(), _hudMenu->GetWeaponPosMineLabel()};
 
 	int ind = 0;
 	for (int i = wtHyper; i <= wtMine; ++i)
@@ -754,8 +754,8 @@ void PlayerStateFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 	{
 		if (_weaponBox[i].slot)
 		{
-			D3DXVECTOR2 size = _weaponBox[i].box->GetSize();
-			_weaponBox[i].box->SetPos(_hudMenu->GetWeaponPos() + D3DXVECTOR2(size.x/2 + ind * (size.x - 25), size.y/2));
+			glm::vec2 size = _weaponBox[i].box->GetSize();
+			_weaponBox[i].box->SetPos(_hudMenu->GetWeaponPos() + glm::vec2(size.x/2 + ind * (size.x - 25), size.y/2));
 			_weaponBox[i].view->SetPos(_hudMenu->GetWeaponBoxPos());
 			_weaponBox[i].label->SetPos(_hudMenu->GetWeaponLabelPos());
 			++ind;
@@ -766,11 +766,11 @@ void PlayerStateFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 
 	_place->SetPos(_hudMenu->GetPlacePos());
 
-	menu()->GetUserChat()->inputPos(D3DXVECTOR2(300.0f, vpSize.y - 10.0f));
-	menu()->GetUserChat()->inputSize(D3DXVECTOR2(vpSize.x - 600.0f, 300.0f));
+	menu()->GetUserChat()->inputPos(glm::vec2(300.0f, vpSize.y - 10.0f));
+	menu()->GetUserChat()->inputSize(glm::vec2(vpSize.x - 600.0f, 300.0f));
 
-	menu()->GetUserChat()->linesPos(D3DXVECTOR2(vpSize.x - 10.0f, _hudMenu->GetMiniMapRect().GetSize().y));
-	menu()->GetUserChat()->linesSize(D3DXVECTOR2(vpSize.x/3, vpSize.y - _hudMenu->GetMiniMapRect().GetSize().y));
+	menu()->GetUserChat()->linesPos(glm::vec2(vpSize.x - 10.0f, _hudMenu->GetMiniMapRect().GetSize().y));
+	menu()->GetUserChat()->linesSize(glm::vec2(vpSize.x/3, vpSize.y - _hudMenu->GetMiniMapRect().GetSize().y));
 }
 
 void PlayerStateFrame::OnInvalidate()
@@ -790,7 +790,7 @@ void PlayerStateFrame::OnProgress(float deltaTime)
 
 	if (_guiTimer[4]->GetVisible())
 	{
-		const D3DXVECTOR2 speedSize(200.0f, 200.0f);
+		const glm::vec2 speedSize(200.0f, 200.0f);
 		float alpha = _guiTimer[4]->GetMaterial().GetAlpha() - deltaTime/1.5f;
 
 		if (alpha > 0)
@@ -852,7 +852,7 @@ void PlayerStateFrame::OnProcessEvent(unsigned id, EventData* data)
 
 	if (raceTimerInd != -1)
 	{
-		D3DXVECTOR2 pos = menu()->GetGUI()->GetVPSize()/2.0f;
+		glm::vec2 pos = menu()->GetGUI()->GetVPSize()/2.0f;
 
 		for (int i = 0; i < 5; ++i)
 		{
@@ -945,7 +945,7 @@ void MiniMapFrame::ComputeNode(Nodes::iterator sIter, Nodes::iterator eIter, Nod
 
 void MiniMapFrame::AlignNode(const Node& src, Node& dest, float cosErr, float sizeErr)
 {
-	D3DXVECTOR2 dir = dest.pos - src.pos;
+	glm::vec2 dir = dest.pos - src.pos;
 	D3DXVec2Normalize(&dir, &dir);
 
 	if (abs(dir.x) > cosErr)
@@ -964,7 +964,7 @@ void MiniMapFrame::AlignNode(const Node& src, Node& dest, float cosErr, float si
 
 void MiniMapFrame::AlignMidNodes(Node& node1, Node& node2, float cosErr, float sizeErr)
 {
-	D3DXVECTOR2 dir = node2.pos - node1.pos;
+	glm::vec2 dir = node2.pos - node1.pos;
 	D3DXVec2Normalize(&dir, &dir);
 
 	if (abs(dir.x) > cosErr)
@@ -1014,7 +1014,7 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 		if (nextIter == nodes.end()) break;
 		Node& nextNode = *nextIter;
 
-		D3DXVECTOR2 dir = nextNode.pos - node.pos;
+		glm::vec2 dir = nextNode.pos - node.pos;
 		D3DXVec2Normalize(&dir, &dir);
 		
 		if (nextIter != --nodes.end())
@@ -1034,8 +1034,8 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 			float cosAlpha2 = sqrt(1 - node.sinAlpha2 * node.sinAlpha2);
 			float size = iter->size;
 
-			D3DXVECTOR2 smPos = node.pos + smRadius / cosAlpha2 * node.edgeNorm;
-			D3DXVECTOR2 smVec = -node.edgeNorm;
+			glm::vec2 smPos = node.pos + smRadius / cosAlpha2 * node.edgeNorm;
+			glm::vec2 smVec = -node.edgeNorm;
 			float alpha2 = asin(node.sinAlpha2);
 			bool ccw = node.ccw;
 
@@ -1047,7 +1047,7 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 				D3DXQuaternionRotationAxis(&rot, &ZVector, ccw ? dAlpha : -dAlpha);
 				D3DXMATRIX rotMat;
 				D3DXMatrixRotationQuaternion(&rotMat, &rot);
-				D3DXVECTOR2 vec;
+				glm::vec2 vec;
 				D3DXVec2TransformNormal(&vec, &smVec, &rotMat);
 
 				Node newNode;
@@ -1077,15 +1077,15 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 		ComputeNode(nodes.begin(), nodes.end(), iter);
 		Node node = *iter;
 
-		D3DXVECTOR2 pos[2];
+		glm::vec2 pos[2];
 		pos[0] = node.pos + node.midNorm * node.nodeRadius;
 		pos[1] = node.pos - node.midNorm * node.nodeRadius;
 
 		*pVert.Pos3() = D3DXVECTOR3(pos[0].x, pos[0].y, 0.0f);
-		*pVert.Tex0() = D3DXVECTOR2(static_cast<float>(i % 2), 0.0f);
+		*pVert.Tex0() = glm::vec2(static_cast<float>(i % 2), 0.0f);
 		++pVert;
 		*pVert.Pos3() = D3DXVECTOR3(pos[1].x, pos[1].y, 0.0f);
-		*pVert.Tex0() = D3DXVECTOR2(static_cast<float>(i % 2), 1.0f);
+		*pVert.Tex0() = glm::vec2(static_cast<float>(i % 2), 1.0f);
 		++pVert;
 	}
 
@@ -1101,7 +1101,7 @@ void MiniMapFrame::CreatePlayers()
 	for (Race::PlayerList::const_iterator iter = _menu->GetRace()->GetPlayerList().begin(); iter != _menu->GetRace()->GetPlayerList().end(); ++iter)
 	{
 		gui::Plane3d* plane = _menu->GetGUI()->GetContext().CreatePlane3d();		
-		plane->SetSize(D3DXVECTOR2(10.0f, 10.0f));
+		plane->SetSize(glm::vec2(10.0f, 10.0f));
 		_map->GetBox()->InsertChild(plane);
 
 		plane->GetMaterial()->SetColor(color[_players.size() % 4]);
@@ -1194,7 +1194,7 @@ void MiniMapFrame::UpdateMap()
 	D3DXQUATERNION rot;
 	QuatShortestArc(XVector, D3DXVECTOR3(node->GetTile().GetDir().x, node->GetTile().GetDir().y, 0.0f), rot);
 	start->SetRot(rot);
-	start->SetSize(D3DXVECTOR2(node->GetSize()/4.0f, node->GetSize()/2.0f));
+	start->SetSize(glm::vec2(node->GetSize()/4.0f, node->GetSize()/2.0f));
 }
 
 Trace* MiniMapFrame::GetTrace()
@@ -1202,7 +1202,7 @@ Trace* MiniMapFrame::GetTrace()
 	return _menu->GetTrace();
 }
 
-void MiniMapFrame::AdjustLayout(const D3DXVECTOR2& vpSize)
+void MiniMapFrame::AdjustLayout(const glm::vec2& vpSize)
 {
 	AABB2 mapRect = _hudMenu->GetMiniMapRect();
 
@@ -1210,8 +1210,8 @@ void MiniMapFrame::AdjustLayout(const D3DXVECTOR2& vpSize)
 	_map->SetSize(mapRect.GetSize());
 	_map->SetPos(vpSize.x - mapRect.max.x, -mapRect.min.y);
 
-	_lapBack->SetPos(_hudMenu->GetLapPos() + D3DXVECTOR2(_lapBack->GetSize().x/2, 0));
-	_lap->SetPos(D3DXVECTOR2(_lapBack->GetPos().x - 10, _hudMenu->GetLapPos().y + 1));
+	_lapBack->SetPos(_hudMenu->GetLapPos() + glm::vec2(_lapBack->GetSize().x/2, 0));
+	_lap->SetPos(glm::vec2(_lapBack->GetPos().x - 10, _hudMenu->GetLapPos().y + 1));
 }
 
 void MiniMapFrame::Show(bool value)
@@ -1342,7 +1342,7 @@ bool HudMenu::OnHandleInput(const InputMessage& msg)
 	return false;
 }
 
-void HudMenu::AdjustLayout(const D3DXVECTOR2& vpSize)
+void HudMenu::AdjustLayout(const glm::vec2& vpSize)
 {
 	_miniMapFrame->AdjustLayout(vpSize);
 	_playerStateFrame->AdjustLayout(vpSize);
@@ -1388,74 +1388,74 @@ void HudMenu::SetState(State value)
 
 AABB2 HudMenu::GetMiniMapRect()
 {
-	D3DXVECTOR2 size(320.0f, 320.0f);
+	glm::vec2 size(320.0f, 320.0f);
 
 	return AABB2(size);
 }
 
-D3DXVECTOR2 HudMenu::GetWeaponPos()
+glm::vec2 HudMenu::GetWeaponPos()
 {
-	return D3DXVECTOR2(155.0f, 50.0f);
+	return glm::vec2(155.0f, 50.0f);
 }
 
-D3DXVECTOR2 HudMenu::GetWeaponBoxPos()
+glm::vec2 HudMenu::GetWeaponBoxPos()
 {
-	return D3DXVECTOR2(5.0f, -15.0f);
+	return glm::vec2(5.0f, -15.0f);
 }
 
-D3DXVECTOR2 HudMenu::GetWeaponLabelPos()
+glm::vec2 HudMenu::GetWeaponLabelPos()
 {
-	return D3DXVECTOR2(-10.0f, 26.0f);
+	return glm::vec2(-10.0f, 26.0f);
 }
 
-D3DXVECTOR2 HudMenu::GetWeaponPosMine()
+glm::vec2 HudMenu::GetWeaponPosMine()
 {
-	return D3DXVECTOR2(30.0f, 140.0f);
+	return glm::vec2(30.0f, 140.0f);
 }
 
-D3DXVECTOR2 HudMenu::GetWeaponPosMineLabel()
+glm::vec2 HudMenu::GetWeaponPosMineLabel()
 {
-	return D3DXVECTOR2(105.0f, 159.0f);
+	return glm::vec2(105.0f, 159.0f);
 }
 
-D3DXVECTOR2 HudMenu::GetWeaponPosHyper()
+glm::vec2 HudMenu::GetWeaponPosHyper()
 {
-	return D3DXVECTOR2(30.0f, 32.0f);
+	return glm::vec2(30.0f, 32.0f);
 }
 
-D3DXVECTOR2 HudMenu::GetWeaponPosHyperLabel()
+glm::vec2 HudMenu::GetWeaponPosHyperLabel()
 {
-	return D3DXVECTOR2(105.0f, 15.0f);
+	return glm::vec2(105.0f, 15.0f);
 }
 
-D3DXVECTOR2 HudMenu::GetPlacePos()
+glm::vec2 HudMenu::GetPlacePos()
 {
-	return D3DXVECTOR2(105, 88);
+	return glm::vec2(105, 88);
 }
 
-D3DXVECTOR2 HudMenu::GetLapPos()
+glm::vec2 HudMenu::GetLapPos()
 {
-	return D3DXVECTOR2(0, 200);
+	return glm::vec2(0, 200);
 }
 
-D3DXVECTOR2 HudMenu::GetLifeBarPos()
+glm::vec2 HudMenu::GetLifeBarPos()
 {
-	return D3DXVECTOR2(165.0f, 0.0f);
+	return glm::vec2(165.0f, 0.0f);
 }
 
-D3DXVECTOR2 HudMenu::GetPickItemsPos()
+glm::vec2 HudMenu::GetPickItemsPos()
 {
-	return D3DXVECTOR2(0.0f, 255.0f);
+	return glm::vec2(0.0f, 255.0f);
 }
 
-D3DXVECTOR2 HudMenu::GetAchievmentItemsPos()
+glm::vec2 HudMenu::GetAchievmentItemsPos()
 {
-	return D3DXVECTOR2((100.0f + _menu->GetGUI()->GetVPSize().x)/2, 15.0f);
+	return glm::vec2((100.0f + _menu->GetGUI()->GetVPSize().x)/2, 15.0f);
 }
 
-D3DXVECTOR2 HudMenu::GetCarLifeBarPos()
+glm::vec2 HudMenu::GetCarLifeBarPos()
 {
-	return D3DXVECTOR2(4.0f, -10.0f);
+	return glm::vec2(4.0f, -10.0f);
 }
 
 }

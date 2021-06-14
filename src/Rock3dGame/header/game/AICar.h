@@ -50,7 +50,7 @@ private:
 		//зона охвата по направлению движения машины
 		float dirArea;
 		//результирующее направление движения относительно машины
-		D3DXVECTOR2 moveDir;
+		glm::vec2 moveDir;
 		bool _break;
 
 		const unsigned cTrackCnt;

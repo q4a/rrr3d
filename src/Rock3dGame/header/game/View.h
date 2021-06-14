@@ -32,15 +32,15 @@ public:
 	const Desc& GetDesc();
 	float GetAspect() const;
 	lsl::Point GetWndSize() const;	
-	D3DXVECTOR2 GetVPSize() const;
+	glm::vec2 GetVPSize() const;
 
 	//из экранного в пространство ViewPort
 	//в терминах движка, пространство ViewPort и будет далее являться экранным
 	lsl::Point ScreenToView(const lsl::Point& point);
 	//из ViewPort в проекционноое пространство
-	D3DXVECTOR2 ViewToProj(const lsl::Point& point);
+	glm::vec2 ViewToProj(const lsl::Point& point);
 	//
-	D3DXVECTOR2 ProjToView(const D3DXVECTOR2& coord);
+	glm::vec2 ProjToView(const glm::vec2& coord);
 
 	float GetCameraAspect() const;
 	void SetCameraAspect(float value);

@@ -482,14 +482,14 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 
 	case csAutoObserver:
 	{
-		D3DXVECTOR2 mPos = control->GetMouseVec();
-		D3DXVECTOR2 dMPos = mPos - D3DXVECTOR2(_staticVec1.x, _staticVec1.y);
+		glm::vec2 mPos = control->GetMouseVec();
+		glm::vec2 dMPos = mPos - glm::vec2(_staticVec1.x, _staticVec1.y);
 		_staticVec1 = D3DXVECTOR3(mPos.x, mPos.y, 0);
 		bool leftDown = control->IsMouseDown(mkLeft) == akDown;
 
 		if (leftDown && _staticVec2.z == 0.0f)
 		{
-			D3DXVECTOR2 dMPos2 = mPos - D3DXVECTOR2(_staticVec2.x, _staticVec2.y);
+			glm::vec2 dMPos2 = mPos - glm::vec2(_staticVec2.x, _staticVec2.y);
 			if (D3DXVec2Length(&dMPos2) > 15.0f)
 				_staticVec2.z = 1.0f;
 			else
@@ -591,10 +591,10 @@ void CameraManager::Control::TargetChanged()
 
 D3DXVECTOR3 CameraManager::ScreenToWorld(const lsl::Point& coord, float z)
 {
-	return _camera->GetContextInfo().ScreenToWorld(D3DXVECTOR2(static_cast<float>(coord.x), static_cast<float>(coord.y)), z, _world->GetView()->GetVPSize());
+	return _camera->GetContextInfo().ScreenToWorld(glm::vec2(static_cast<float>(coord.x), static_cast<float>(coord.y)), z, _world->GetView()->GetVPSize());
 }
 
-D3DXVECTOR2 CameraManager::WorldToScreen(const D3DXVECTOR3& coord)
+glm::vec2 CameraManager::WorldToScreen(const D3DXVECTOR3& coord)
 {
 	return _camera->GetContextInfo().WorldToScreen(coord, _world->GetView()->GetVPSize());
 }
@@ -825,7 +825,7 @@ void CameraManager::SetLight(GraphManager::LightSrc* value)
 		_light = value;
 }
 
-void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetDist, D3DXVECTOR3* pos, D3DXQUATERNION& rot, const D3DXVECTOR2& dMPos, float deltaTime, bool dragX, bool dragY, bool restoreY, D3DXVECTOR3* camPos, D3DXQUATERNION* camRot, float* dir)
+void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetDist, D3DXVECTOR3* pos, D3DXQUATERNION& rot, const glm::vec2& dMPos, float deltaTime, bool dragX, bool dragY, bool restoreY, D3DXVECTOR3* camPos, D3DXQUATERNION* camRot, float* dir)
 {
 	float camDist = targetDist;
 

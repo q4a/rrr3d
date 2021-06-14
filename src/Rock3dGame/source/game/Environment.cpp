@@ -509,7 +509,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 1.5f;
 		hdrParams.gaussianScalar = 30.0f;
 		hdrParams.exposure = 15.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -528,7 +528,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 1.9f;
 		hdrParams.gaussianScalar = 30.0f;
 		hdrParams.exposure = 8.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -547,7 +547,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 4.5f;
 		hdrParams.gaussianScalar = 20.0f;
 		hdrParams.exposure = 3.0f;		
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -566,7 +566,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 1.9f;
 		hdrParams.gaussianScalar = 30.0f;
 		hdrParams.exposure = 8.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -585,7 +585,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 1.3f;
 		hdrParams.gaussianScalar = 30.0f;
 		hdrParams.exposure = 15.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -604,7 +604,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 1.9f;
 		hdrParams.gaussianScalar = 30.0f;
 		hdrParams.exposure = 8.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -637,7 +637,7 @@ void Environment::ApplyWorldType()
 		hdrParams.gaussianScalar = 25.0f;
 		hdrParams.exposure = 2.0f;
 
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -658,7 +658,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 3.5f;
 		hdrParams.gaussianScalar = 20.0f;
 		hdrParams.exposure = 5.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}

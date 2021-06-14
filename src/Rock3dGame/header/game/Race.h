@@ -149,7 +149,7 @@ public:
 		{
 			bool head;
 			D3DXVECTOR3 pos;
-			D3DXVECTOR2 size;			
+			glm::vec2 size;			
 		};
 		typedef lsl::Vector<NightLight> NightLights;
 	private:

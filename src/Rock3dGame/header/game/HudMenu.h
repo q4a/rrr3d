@@ -31,7 +31,7 @@ private:
 		gui::PlaneFon* point;
 		gui::Label* label;		
 
-		D3DXVECTOR2 center;
+		glm::vec2 center;
 		float radius;
 	};
 
@@ -44,7 +44,7 @@ private:
 		gui::Label* label;
 
 		float time;
-		D3DXVECTOR2 pos;
+		glm::vec2 pos;
 	};
 
 	typedef List<PickItem> PickItems;
@@ -58,7 +58,7 @@ private:
 		float time;
 		int lastIndex;
 		float indexTime;
-		D3DXVECTOR2 slotSize;
+		glm::vec2 slotSize;
 	};
 
 	typedef List<AchievmentItem> AchievmentItems;
@@ -117,7 +117,7 @@ private:
 
 	void UpdateState(float deltaTime);
 
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);	
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);	
 	virtual void OnInvalidate();
 public:
 	PlayerStateFrame(Menu* menu, HudMenu* hudMenu, gui::Widget* parent);
@@ -141,21 +141,21 @@ private:
 	struct Node
 	{
 		Node() {}
-		Node(const D3DXVECTOR2& mPos, float mSize): pos(mPos), size(mSize) {}
+		Node(const glm::vec2& mPos, float mSize): pos(mPos), size(mSize) {}
 		Node(const D3DXVECTOR3& mPos, float mSize): pos(mPos), size(mSize) {}
 
-		D3DXVECTOR2 pos;
+		glm::vec2 pos;
 		float size;
 
-		D3DXVECTOR2 prevDir;
-		D3DXVECTOR2 dir;
-		D3DXVECTOR2 midDir;
-		D3DXVECTOR2 midNorm;
+		glm::vec2 prevDir;
+		glm::vec2 dir;
+		glm::vec2 midDir;
+		glm::vec2 midNorm;
 		float cosDelta;
 		float sinAlpha2;
 		float nodeRadius;
 		bool ccw;
-		D3DXVECTOR2 edgeNorm;		
+		glm::vec2 edgeNorm;		
 	};
 	typedef std::list<Node> Nodes;
 private:
@@ -185,7 +185,7 @@ public:
 	MiniMapFrame(Menu* menu, HudMenu* hudMenu, gui::Widget* parent);
 	virtual ~MiniMapFrame();
 
-	void AdjustLayout(const D3DXVECTOR2& vpSize);
+	void AdjustLayout(const glm::vec2& vpSize);
 	void Show(bool value);
 	bool IsVisible() const;
 
@@ -218,7 +218,7 @@ public:
 	HudMenu(Menu* menu, gui::Widget* parent, Player* player);
 	virtual ~HudMenu();
 
-	void AdjustLayout(const D3DXVECTOR2& vpSize);
+	void AdjustLayout(const glm::vec2& vpSize);
 	void Show(bool value);
 
 	void OnProgress(float deltaTime);
@@ -231,21 +231,21 @@ public:
 
 	AABB2 GetMiniMapRect();
 
-	D3DXVECTOR2 GetWeaponPos();
-	D3DXVECTOR2 GetWeaponBoxPos();
-	D3DXVECTOR2 GetWeaponLabelPos();
+	glm::vec2 GetWeaponPos();
+	glm::vec2 GetWeaponBoxPos();
+	glm::vec2 GetWeaponLabelPos();
 
-	D3DXVECTOR2 GetWeaponPosMine();
-	D3DXVECTOR2 GetWeaponPosMineLabel();
-	D3DXVECTOR2 GetWeaponPosHyper();
-	D3DXVECTOR2 GetWeaponPosHyperLabel();
+	glm::vec2 GetWeaponPosMine();
+	glm::vec2 GetWeaponPosMineLabel();
+	glm::vec2 GetWeaponPosHyper();
+	glm::vec2 GetWeaponPosHyperLabel();
 
-	D3DXVECTOR2 GetPlacePos();
-	D3DXVECTOR2 GetLapPos();
-	D3DXVECTOR2 GetLifeBarPos();
-	D3DXVECTOR2 GetPickItemsPos();
-	D3DXVECTOR2 GetAchievmentItemsPos();
-	D3DXVECTOR2 GetCarLifeBarPos();
+	glm::vec2 GetPlacePos();
+	glm::vec2 GetLapPos();
+	glm::vec2 GetLifeBarPos();
+	glm::vec2 GetPickItemsPos();
+	glm::vec2 GetAchievmentItemsPos();
+	glm::vec2 GetCarLifeBarPos();
 };
 
 }

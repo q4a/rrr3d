@@ -868,7 +868,7 @@ GameObject* Proj::LaserUpdate(float deltaTime, bool distort)
 	if (_model)
 	{
 		graph::Sprite* sprite = (graph::Sprite*)&_model->GetGameObj().GetGrActor().GetNodes().front();	
-		D3DXVECTOR2 size = D3DXVECTOR2(scaleLaser, _desc.size.y);
+		glm::vec2 size = glm::vec2(scaleLaser, _desc.size.y);
 
 		if (distort)
 		{

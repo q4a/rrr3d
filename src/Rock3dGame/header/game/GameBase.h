@@ -390,8 +390,8 @@ private:
 	float _curRPM;
 	snd::Source3d* _srcIdle;
 	snd::Source3d* _srcRPM;
-	D3DXVECTOR2 _rpmVolumeRange;
-	D3DXVECTOR2 _rpmFreqRange;
+	glm::vec2 _rpmVolumeRange;
+	glm::vec2 _rpmFreqRange;
 
 	void Init();
 	void Free();
@@ -413,11 +413,11 @@ public:
 	snd::Sound* GetSndRPM();
 	void SetSndRPM(snd::Sound* value);
 
-	const D3DXVECTOR2& GetRPMVolumeRange() const;
-	void SetRPMVolumeRange(const D3DXVECTOR2& value);
+	const glm::vec2& GetRPMVolumeRange() const;
+	void SetRPMVolumeRange(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetRPMFreqRange() const;
-	void SetRPMFreqRange(const D3DXVECTOR2& value);
+	const glm::vec2& GetRPMFreqRange() const;
+	void SetRPMFreqRange(const glm::vec2& value);
 };
 
 class GusenizaAnim: public Behavior

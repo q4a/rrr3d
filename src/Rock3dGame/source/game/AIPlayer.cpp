@@ -411,7 +411,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		
 		if (car)
 		{
-			D3DXVECTOR2 moveDir = aiPlayer->GetCar()->_path.moveDir;
+			glm::vec2 moveDir = aiPlayer->GetCar()->_path.moveDir;
 
 			res::VertexPD lines[2];
 			D3DXVECTOR3 worldPos = car->GetGameObj().GetWorldPos();
@@ -432,10 +432,10 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 
 		if (car && nextNode)
 		{
-			D3DXVECTOR2 moveDir = _debug->_aiPlayer->_car->_path.moveDir;			
+			glm::vec2 moveDir = _debug->_aiPlayer->_car->_path.moveDir;			
 
 			float dist = Line2DistToPoint(nextNode->GetTile().GetEdgeLine(), _debug->_aiPlayer->_car->GetCar().pos);
-			D3DXVECTOR2 dir = nextNode->GetTile().GetEdgeNorm();
+			glm::vec2 dir = nextNode->GetTile().GetEdgeNorm();
 
 			res::VertexPD lines[2];
 			D3DXVECTOR3 worldPos = car->GetGameObj().GetWorldPos();

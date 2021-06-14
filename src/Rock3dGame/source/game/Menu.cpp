@@ -10,9 +10,9 @@ namespace game
 {
 
 const D3DXCOLOR Menu::cTextColor = D3DXCOLOR(176.0f, 205.0f, 249.0f, 255.0f)/255.0f;
-const D3DXVECTOR2 Menu::cWinSize(1280.0f, 1024.0f);
-const D3DXVECTOR2 Menu::cMinWinSize(800.0f, 600.0f);
-const D3DXVECTOR2 Menu::cMaxWinSize(3072.0f, 1536.0f);
+const glm::vec2 Menu::cWinSize(1280.0f, 1024.0f);
+const glm::vec2 Menu::cMinWinSize(800.0f, 600.0f);
+const glm::vec2 Menu::cMaxWinSize(3072.0f, 1536.0f);
 
 
 
@@ -290,12 +290,12 @@ void Menu::SoundSheme::focused(snd::Sound* value)
 		_focused = value;
 }
 
-D3DXVECTOR2 Menu::GetImageSize(gui::Material& material)
+glm::vec2 Menu::GetImageSize(gui::Material& material)
 {
 	return material.GetSampler().GetSize();
 }
 
-D3DXVECTOR2 Menu::GetAspectSize(const D3DXVECTOR2& curSize, const D3DXVECTOR2& newSize)
+glm::vec2 Menu::GetAspectSize(const glm::vec2& curSize, const glm::vec2& newSize)
 {
 	float wScale = newSize.x / curSize.x;
 	float hScale = newSize.y / curSize.y;
@@ -304,17 +304,17 @@ D3DXVECTOR2 Menu::GetAspectSize(const D3DXVECTOR2& curSize, const D3DXVECTOR2& n
 	return curSize * minScale;
 }
 
-D3DXVECTOR2 Menu::GetImageAspectSize(gui::Material& material, const D3DXVECTOR2& newSize)
+glm::vec2 Menu::GetImageAspectSize(gui::Material& material, const glm::vec2& newSize)
 {
 	return GetAspectSize(GetImageSize(material), newSize);
 }
 
-D3DXVECTOR2 Menu::StretchImage(D3DXVECTOR2 imageSize, const D3DXVECTOR2& size, bool keepAspect, bool fillRect, bool scaleDown, bool scaleUp)
+glm::vec2 Menu::StretchImage(glm::vec2 imageSize, const glm::vec2& size, bool keepAspect, bool fillRect, bool scaleDown, bool scaleUp)
 {
 	imageSize.x = std::max(imageSize.x, 1.0f);
 	imageSize.y = std::max(imageSize.y, 1.0f);
 
-	D3DXVECTOR2 scale = IdentityVec2;
+	glm::vec2 scale = IdentityVec2;
 
 	if (keepAspect)
 	{
@@ -343,7 +343,7 @@ D3DXVECTOR2 Menu::StretchImage(D3DXVECTOR2 imageSize, const D3DXVECTOR2& size, b
 	return scale * imageSize;
 }
 
-D3DXVECTOR2 Menu::StretchImage(gui::Material& material, const D3DXVECTOR2& size, bool keepAspect, bool fillRect, bool scaleDown, bool scaleUp)
+glm::vec2 Menu::StretchImage(gui::Material& material, const glm::vec2& size, bool keepAspect, bool fillRect, bool scaleDown, bool scaleUp)
 {
 	return StretchImage(GetImageSize(material), size, keepAspect, fillRect, scaleDown, scaleUp);
 }
@@ -647,7 +647,7 @@ void Menu::OnProcessNetEvent(unsigned id, NetEventData* data)
 
 bool Menu::OnMouseMoveEvent(const MouseMove& mMove)
 {
-	D3DXVECTOR2 pos = GetGUI()->ScreenToView(mMove.coord);
+	glm::vec2 pos = GetGUI()->ScreenToView(mMove.coord);
 
 	pos.x += _cursor->GetSize().x/2;
 
@@ -827,11 +827,11 @@ World* Menu::GetWorld()
 	return _game->GetWorld();
 }
 
-D3DXVECTOR2 Menu::WinToLocal(const D3DXVECTOR2& vec, bool centUnscacle)
+glm::vec2 Menu::WinToLocal(const glm::vec2& vec, bool centUnscacle)
 {
 	if (centUnscacle)
 	{
-		D3DXVECTOR2 off = 0.5f * (cWinSize - GetGUI()->GetVPSize());
+		glm::vec2 off = 0.5f * (cWinSize - GetGUI()->GetVPSize());
 		off.y = -off.y;
 		return off + vec;
 	}
@@ -841,7 +841,7 @@ D3DXVECTOR2 Menu::WinToLocal(const D3DXVECTOR2& vec, bool centUnscacle)
 	}
 }
 
-void Menu::AdjustLayout(const D3DXVECTOR2& vpSize)
+void Menu::AdjustLayout(const glm::vec2& vpSize)
 {
 	if (_screenFon)
 	{
@@ -923,7 +923,7 @@ void Menu::OnResetView()
 
 void Menu::OnFinishClose()
 {
-	D3DXVECTOR2 pos = GetGUI()->GetVPSize()/2;
+	glm::vec2 pos = GetGUI()->GetVPSize()/2;
 	SetState(msRace2);
 	_game->OnFinishFrameClose();
 
@@ -976,7 +976,7 @@ bool Menu::IsCursorVisible() const
 	return _cursor->GetVisible();
 }
 
-void Menu::ShowAccept(const std::string& message, const std::string& yesText, const std::string& noText, const D3DXVECTOR2& pos, gui::Widget::Anchor align, gui::Widget::Event* guiEvent, Object* data, bool maxButtonsSize, bool maxMode, bool disableFocus)
+void Menu::ShowAccept(const std::string& message, const std::string& yesText, const std::string& noText, const glm::vec2& pos, gui::Widget::Anchor align, gui::Widget::Event* guiEvent, Object* data, bool maxButtonsSize, bool maxMode, bool disableFocus)
 {
 	_acceptDlg->Show(message, yesText, noText, pos, align, guiEvent, data, maxButtonsSize, maxMode, disableFocus);
 
@@ -1003,7 +1003,7 @@ Object* Menu::GetAcceptData()
 	return _acceptDlg->data();
 }
 
-void Menu::ShowWeaponDialog(const std::string& title, const std::string& message, const std::string& moneyText, const std::string& damageText, const D3DXVECTOR2& pos, gui::Widget::Anchor align, float timeDelay)
+void Menu::ShowWeaponDialog(const std::string& title, const std::string& message, const std::string& moneyText, const std::string& damageText, const glm::vec2& pos, gui::Widget::Anchor align, float timeDelay)
 {
 	_weaponDlg->Show(title, message, moneyText, damageText, pos, align);
 
@@ -1020,7 +1020,7 @@ void Menu::HideWeaponDialog()
 	_weaponTime = -1.0f;
 }
 
-void Menu::ShowMessage(const std::string& title, const std::string& message, const std::string& okText, const D3DXVECTOR2& pos, gui::Widget::Anchor align, const float timeDelay, gui::Widget::Event* guiEvent, bool okButton)
+void Menu::ShowMessage(const std::string& title, const std::string& message, const std::string& okText, const glm::vec2& pos, gui::Widget::Anchor align, const float timeDelay, gui::Widget::Event* guiEvent, bool okButton)
 {
 	_messageDlg->Show(title, message, okText, pos, align, guiEvent, NULL, okButton);
 
@@ -1566,7 +1566,7 @@ gui::Dummy* Menu::CreateDummy(gui::Widget* parent, gui::Widget::Event* guiEvent,
 	return node;
 }
 
-gui::PlaneFon* Menu::CreatePlane(gui::Widget* parent, gui::Widget::Event* guiEven, graph::Tex2DResource* image, bool imageSize, const D3DXVECTOR2& size, gui::Material::Blending blend, SoundShemeType soundSheme)
+gui::PlaneFon* Menu::CreatePlane(gui::Widget* parent, gui::Widget::Event* guiEven, graph::Tex2DResource* image, bool imageSize, const glm::vec2& size, gui::Material::Blending blend, SoundShemeType soundSheme)
 {
 	gui::PlaneFon* plane = GetGUI()->CreatePlaneFon();
 	plane->SetParent(parent);
@@ -1587,12 +1587,12 @@ gui::PlaneFon* Menu::CreatePlane(gui::Widget* parent, gui::Widget::Event* guiEve
 	return plane;
 }
 
-gui::PlaneFon* Menu::CreatePlane(gui::Widget* parent, gui::Widget::Event* guiEven, const std::string& image, bool imageSize, const D3DXVECTOR2& size, gui::Material::Blending blend, SoundShemeType soundSheme)
+gui::PlaneFon* Menu::CreatePlane(gui::Widget* parent, gui::Widget::Event* guiEven, const std::string& image, bool imageSize, const glm::vec2& size, gui::Material::Blending blend, SoundShemeType soundSheme)
 {
 	return CreatePlane(parent, guiEven, !image.empty() ? GetTexture(image) : 0, imageSize, size, blend, soundSheme);
 }
 
-gui::Button* Menu::CreateArrowButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size)
+gui::Button* Menu::CreateArrowButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size)
 {
 	gui::Button* button = GetGUI()->CreateButton();
 	button->SetParent(parent);
@@ -1611,7 +1611,7 @@ gui::Button* Menu::CreateArrowButton(gui::Widget* parent, gui::Widget::Event* gu
 	return button;
 }
 
-gui::Button* Menu::CreateSpaceArrowButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size)
+gui::Button* Menu::CreateSpaceArrowButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size)
 {
 	gui::Button* button = GetGUI()->CreateButton();
 	button->SetParent(parent);
@@ -1630,13 +1630,13 @@ gui::Button* Menu::CreateSpaceArrowButton(gui::Widget* parent, gui::Widget::Even
 	return button;
 }
 
-gui::Button* Menu::CreateMenuButton(const lsl::string& name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size, gui::Button::Style style, const D3DXCOLOR& textColor, SoundShemeType soundSheme)
+gui::Button* Menu::CreateMenuButton(const lsl::string& name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, gui::Button::Style style, const D3DXCOLOR& textColor, SoundShemeType soundSheme)
 {
 	gui::Button* button = GetGUI()->CreateButton();
 	button->SetParent(parent);
 	button->SetStyle(style);
 
-	D3DXVECTOR2 normSize = size;
+	glm::vec2 normSize = size;
 	if (norm != "")
 	{
 		gui::Material* fonMat = button->GetOrCreateFon();
@@ -1671,19 +1671,19 @@ gui::Button* Menu::CreateMenuButton(const lsl::string& name, const std::string& 
 	return button;
 }
 
-gui::Button* Menu::CreateMenuButton(StringValue name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size, gui::Button::Style style, const D3DXCOLOR& textColor, SoundShemeType soundSheme)
+gui::Button* Menu::CreateMenuButton(StringValue name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, gui::Button::Style style, const D3DXCOLOR& textColor, SoundShemeType soundSheme)
 {
 	return CreateMenuButton(GetString(name), font, norm, sel, parent, guiEvent, size, style, textColor, soundSheme);	
 }
 
-gui::Button* Menu::CreateMenuButton(const std::string& name, gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size, SoundShemeType soundSheme)
+gui::Button* Menu::CreateMenuButton(const std::string& name, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, SoundShemeType soundSheme)
 {
 	gui::Button* but = CreateMenuButton(svNull, "Header", "GUI\\buttonBig.tga", "GUI\\buttonBigSel.tga", parent, guiEvent, size, gui::Button::bsSimple, cTextColor, soundSheme);
 	but->SetText(name);
 	return but;
 }
 
-gui::Button* Menu::CreateMenuButton(StringValue name, gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size, SoundShemeType soundSheme)
+gui::Button* Menu::CreateMenuButton(StringValue name, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, SoundShemeType soundSheme)
 {
 	return CreateMenuButton(GetString(name), parent, guiEvent, size, soundSheme);
 }
@@ -1701,7 +1701,7 @@ gui::Button* Menu::CreateArrow(gui::Widget* parent, gui::Widget::Event* guiEvent
 	return CreateMenuButton(svNull, "", "GUI\\arrow1.png", "GUI\\arrowSel1.png", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim);
 }
 
-gui::Label* Menu::CreateLabel(const std::string& name, gui::Widget* parent, const std::string& font, const D3DXVECTOR2& size, gui::Text::HorAlign horAlign, gui::Text::VertAlign vertAlign, const D3DXCOLOR& color)
+gui::Label* Menu::CreateLabel(const std::string& name, gui::Widget* parent, const std::string& font, const glm::vec2& size, gui::Text::HorAlign horAlign, gui::Text::VertAlign vertAlign, const D3DXCOLOR& color)
 {
 	gui::Label* label = GetGUI()->CreateLabel();
 	label->SetParent(parent);
@@ -1717,7 +1717,7 @@ gui::Label* Menu::CreateLabel(const std::string& name, gui::Widget* parent, cons
 	return label;
 }
 
-gui::Label* Menu::CreateLabel(StringValue name, gui::Widget* parent, const std::string& font, const D3DXVECTOR2& size, gui::Text::HorAlign horAlign, gui::Text::VertAlign vertAlign, const D3DXCOLOR& color)
+gui::Label* Menu::CreateLabel(StringValue name, gui::Widget* parent, const std::string& font, const glm::vec2& size, gui::Text::HorAlign horAlign, gui::Text::VertAlign vertAlign, const D3DXCOLOR& color)
 {
 	return CreateLabel(GetString(name), parent, font, size, horAlign, vertAlign, color);	
 }
@@ -1726,7 +1726,7 @@ gui::DropBox* Menu::CreateDropBox(gui::Widget* parent, gui::Widget::Event* guiEv
 {
 	gui::DropBox* dropBox = GetGUI()->CreateDropBox();
 	dropBox->SetParent(parent);
-	dropBox->SetSize(D3DXVECTOR2(150.0f, 25.0f));
+	dropBox->SetSize(glm::vec2(150.0f, 25.0f));
 	dropBox->SetEvent(guiEvent);
 
 	dropBox->SetFont(GetFont("Small"));
@@ -1740,7 +1740,7 @@ gui::DropBox* Menu::CreateDropBox(gui::Widget* parent, gui::Widget::Event* guiEv
 	return dropBox;
 }
 
-gui::TrackBar* Menu::CreateTrackBar(gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size)
+gui::TrackBar* Menu::CreateTrackBar(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size)
 {
 	gui::TrackBar* trackBar = GetGUI()->CreateTrackBar();
 	trackBar->SetParent(parent);
@@ -1754,7 +1754,7 @@ gui::TrackBar* Menu::CreateTrackBar(gui::Widget* parent, gui::Widget::Event* gui
 	return trackBar;
 }
 
-gui::ListBox* Menu::CreateListBox(gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size, const D3DXVECTOR2& itemSize, const D3DXVECTOR2& itemSpace)
+gui::ListBox* Menu::CreateListBox(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, const glm::vec2& itemSize, const glm::vec2& itemSpace)
 {
 	gui::ListBox* listBox = GetGUI()->CreateListBox();
 	listBox->SetParent(parent);
@@ -1782,7 +1782,7 @@ gui::ProgressBar* Menu::CreateBar(gui::Widget* parent, gui::Widget::Event* guiEv
 {
 	gui::ProgressBar* bar = GetGUI()->CreateProgressBar();	
 	bar->SetParent(parent);
-	bar->SetPos(D3DXVECTOR2(0, 0));	
+	bar->SetPos(glm::vec2(0, 0));	
 	bar->GetFront().GetSampler().SetTex(GetTexture(front));
 	bar->SetSize(GetImageSize(bar->GetFront()));
 	bar->GetFront().SetBlending(gui::Material::bmTransparency);
@@ -1824,12 +1824,12 @@ gui::ChargeBar* Menu::CreateChargeBar(gui::Widget* parent, gui::Widget::Event* g
 	return chargeBar;
 }
 
-gui::ColorList* Menu::CreateColorList(gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size)
+gui::ColorList* Menu::CreateColorList(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size)
 {
 	gui::ColorList* colorList = GetGUI()->CreateColorList();
 	colorList->SetParent(parent);
 	colorList->SetSize(size);
-	colorList->SetSpace(D3DXVECTOR2(0.0f, 10.0f));
+	colorList->SetSpace(glm::vec2(0.0f, 10.0f));
 	colorList->SetEvent(guiEvent);
 
 	colorList->GetFrame().GetSampler().SetTex(GetTexture("GUI\\colorFrame.tga"));
@@ -1866,7 +1866,7 @@ gui::ViewPort3d* Menu::CreateItemBox(gui::Widget* parent, gui::Widget::Event* gu
 	return viewPort;
 }
 
-gui::Button* Menu::CreateCloseButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size)
+gui::Button* Menu::CreateCloseButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size)
 {
 	gui::Button* button = GetGUI()->CreateButton();
 	button->SetParent(parent);
@@ -1887,7 +1887,7 @@ gui::Button* Menu::CreateCloseButton(gui::Widget* parent, gui::Widget::Event* gu
 	return button;
 }
 
-gui::ScrollBox* Menu::CreateScrollBox(gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size)
+gui::ScrollBox* Menu::CreateScrollBox(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size)
 {
 	gui::ScrollBox* scrollBox = GetGUI()->CreateScrollBox();
 	scrollBox->SetParent(parent);
@@ -1902,7 +1902,7 @@ gui::ScrollBox* Menu::CreateScrollBox(gui::Widget* parent, gui::Widget::Event* g
 	return scrollBox;
 }
 
-gui::Grid* Menu::CreateGrid(gui::Widget* parent, gui::Widget::Event* guiEvent, gui::Grid::Style style, const D3DXVECTOR2& cellSize, unsigned maxCellsOnLine)
+gui::Grid* Menu::CreateGrid(gui::Widget* parent, gui::Widget::Event* guiEvent, gui::Grid::Style style, const glm::vec2& cellSize, unsigned maxCellsOnLine)
 {
 	gui::Grid* grid = GetGUI()->CreateGrid();
 	grid->SetParent(parent);
@@ -1943,12 +1943,12 @@ gui::StepperBox* Menu::CreateStepper(const StringList& items, gui::Widget* paren
 	return stepper;
 }
 
-gui::ViewPort3d* Menu::CreateViewPort3d(gui::Widget* parent, gui::Widget::Event* guiEvent, const std::string& fon, gui::ViewPort3d::Style style, bool isoRot, bool fonSize, const D3DXVECTOR2& size, SoundShemeType soundSheme)
+gui::ViewPort3d* Menu::CreateViewPort3d(gui::Widget* parent, gui::Widget::Event* guiEvent, const std::string& fon, gui::ViewPort3d::Style style, bool isoRot, bool fonSize, const glm::vec2& size, SoundShemeType soundSheme)
 {
 	gui::ViewPort3d* viewPort = GetGUI()->CreateViewPort3d();
 	viewPort->SetParent(parent);
 
-	D3DXVECTOR2 viewSize = size;
+	glm::vec2 viewSize = size;
 	if (!fon.empty())
 	{
 		gui::Plane* plane = GetGUI()->GetContext().CreatePlane();
@@ -1995,7 +1995,7 @@ gui::ViewPort3d* Menu::CreateMesh3dBox(gui::Widget* parent, gui::Widget::Event* 
 	return viewPort;
 }
 
-gui::Plane3d* Menu::CreatePlane3d(gui::ViewPort3d* parent, const std::string& fon, const D3DXVECTOR2& size)
+gui::Plane3d* Menu::CreatePlane3d(gui::ViewPort3d* parent, const std::string& fon, const glm::vec2& size)
 {
 	gui::Plane3d* plane3d = parent->GetContext().CreatePlane3d();
 	plane3d->SetSize(size);
@@ -2063,9 +2063,9 @@ void Menu::OnProgress(float deltaTime)
 		const float cMusicLife = 3.0f;		
 
 		float offset = ClampValue((_musicTime - 0.0f)/cMusicDelay, 0.0f, 1.0f) - ClampValue((_musicTime - cMusicDelay - cMusicLife)/cMusicDelay, 0.0f, 1.0f);
-		D3DXVECTOR2 size = _musicDlg->size();
-		D3DXVECTOR2 vpSize = GetGUI()->GetVPSize();
-		D3DXVECTOR2 pos = D3DXVECTOR2(-5.0f + (40.0f + size.x) * offset, vpSize.y - 30.0f) - size/2;
+		glm::vec2 size = _musicDlg->size();
+		glm::vec2 vpSize = GetGUI()->GetVPSize();
+		glm::vec2 pos = glm::vec2(-5.0f + (40.0f + size.x) * offset, vpSize.y - 30.0f) - size/2;
 
 		_musicDlg->root()->SetPos(pos);
 
@@ -2199,7 +2199,7 @@ void Menu::SetVolume(Logic::SndCategory cat, float value)
 	_game->GetWorld()->GetLogic()->SetVolume(cat, value);
 }
 
-D3DXVECTOR2 Menu::GetAspectSize()
+glm::vec2 Menu::GetAspectSize()
 {
 	return GetAspectSize(Menu::cWinSize, GetGUI()->GetVPSize());
 }

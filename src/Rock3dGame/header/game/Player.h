@@ -418,8 +418,8 @@ public:
 		D3DXQUATERNION rot3;
 		D3DXMATRIX worldMat;		
 
-		D3DXVECTOR2 pos;
-		D3DXVECTOR2 dir;
+		glm::vec2 pos;
+		glm::vec2 dir;
 		float speed;
 		//Диаметр ограничивающей сферы
 		float size;

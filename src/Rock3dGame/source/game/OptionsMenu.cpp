@@ -84,14 +84,14 @@ GameFrame::GameFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent):
 
 	_downArrow = menu->CreateArrow(root(), this);
 	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
 	_upArrow->SetRot(D3DX_PI/2);
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 
 	LoadCfg();
@@ -114,10 +114,10 @@ GameFrame::~GameFrame()
 	menu()->ReleaseWidget(_grid);
 }
 
-void GameFrame::AdjustGrid(const D3DXVECTOR2& vpSize)
+void GameFrame::AdjustGrid(const glm::vec2& vpSize)
 {
 	_grid->SetPos(-235.0f, -178.0f);
-	_grid->cellSize(D3DXVECTOR2(0, 50.0f));
+	_grid->cellSize(glm::vec2(0, 50.0f));
 
 	int i = 0;
 	int cellsOnLine = 1;
@@ -204,7 +204,7 @@ void GameFrame::OnShow(bool value)
 	}
 }
 
-void GameFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void GameFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	AdjustGrid(vpSize);
 
@@ -419,7 +419,7 @@ void MediaFrame::OnShow(bool value)
 	}
 }
 
-void MediaFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void MediaFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	for (int i = 0; i < cLabelEnd; ++i)
 	{
@@ -589,7 +589,7 @@ void NetworkTab::OnShow(bool value)
 		_optionsMenu->RegNavElements(_steppers, cStepperEnd, _volumeBars, cVolumeBarEnd);
 }
 
-void NetworkTab::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void NetworkTab::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	for (int i = 0; i < cLabelEnd; ++i)
 	{
@@ -680,14 +680,14 @@ ControlsFrame::ControlsFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* 
 
 	_downArrow = menu->CreateArrow(root(), this);
 	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
 	_upArrow->SetRot(D3DX_PI/2);
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 
 	for (int i = 0; i < cControllerTypeEnd; ++i)
@@ -710,7 +710,7 @@ ControlsFrame::~ControlsFrame()
 	menu()->ReleaseWidget(_grid);
 }
 
-void ControlsFrame::AdjustGrid(const D3DXVECTOR2& vpSize)
+void ControlsFrame::AdjustGrid(const glm::vec2& vpSize)
 {
 	_grid->SetPos(-235.0f, -130.0f);
 
@@ -765,7 +765,7 @@ void ControlsFrame::ScrollGrid(int step)
 
 void ControlsFrame::LoadCfg()
 {		
-	D3DXVECTOR2 cellSize = NullVec2;	
+	glm::vec2 cellSize = NullVec2;	
 	unsigned itemCount = 0;
 	InputBoxes::iterator iter = _boxes.begin();
 
@@ -817,7 +817,7 @@ void ControlsFrame::LoadCfg()
 		_boxes.erase(--_boxes.end());
 	}
 
-	_grid->cellSize(cellSize + D3DXVECTOR2(0, 7.0f));
+	_grid->cellSize(cellSize + glm::vec2(0, 7.0f));
 }
 
 void ControlsFrame::OnShow(bool value)
@@ -842,7 +842,7 @@ void ControlsFrame::OnShow(bool value)
 	}
 }
 
-void ControlsFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void ControlsFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	for (int i = 0; i < cControllerTypeEnd; ++i)
 	{
@@ -1340,7 +1340,7 @@ gui::VolumeBar* OptionsMenu::CreateVolumeBar(gui::Widget* parent, gui::Widget::E
 	return volumeBar;
 }
 
-void OptionsMenu::AdjustLayout(const D3DXVECTOR2& vpSize)
+void OptionsMenu::AdjustLayout(const glm::vec2& vpSize)
 {
 	_menuBgMask->SetSize(vpSize);
 
@@ -1526,9 +1526,9 @@ void StartOptionsMenu::OnShow(bool value)
 		menu()->UnregNavElements(_menuItems[miApply]);
 }
 
-void StartOptionsMenu::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void StartOptionsMenu::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	D3DXVECTOR2 offs = D3DXVECTOR2(-160.0f, 45.0f);
+	glm::vec2 offs = glm::vec2(-160.0f, 45.0f);
 
 	_menuBgMask->SetSize(vpSize);
 

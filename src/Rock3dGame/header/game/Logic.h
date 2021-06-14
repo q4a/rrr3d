@@ -226,10 +226,10 @@ private:
 	bool _mute[cSndCategoryEnd];
 	bool _initSndCat;
 
-	D3DXVECTOR2 _touchBorderDamage;
-	D3DXVECTOR2 _touchBorderDamageForce;
-	D3DXVECTOR2 _touchCarDamage;
-	D3DXVECTOR2 _touchCarDamageForce;
+	glm::vec2 _touchBorderDamage;
+	glm::vec2 _touchBorderDamageForce;
+	glm::vec2 _touchCarDamage;
+	glm::vec2 _touchCarDamageForce;
 
 	void InitSndCat();
 	void FreeSndCat();	
@@ -270,17 +270,17 @@ public:
 	void AutodetectVolume();
 	void Mute(SndCategory category, bool value);
 
-	const D3DXVECTOR2& GetTouchBorderDamage() const;
-	void SetTouchBorderDamage(const D3DXVECTOR2& value);
+	const glm::vec2& GetTouchBorderDamage() const;
+	void SetTouchBorderDamage(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetTouchBorderDamageForce() const;
-	void SetTouchBorderDamageForce(const D3DXVECTOR2& value);
+	const glm::vec2& GetTouchBorderDamageForce() const;
+	void SetTouchBorderDamageForce(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetTouchCarDamage() const;
-	void SetTouchCarDamage(const D3DXVECTOR2& value);
+	const glm::vec2& GetTouchCarDamage() const;
+	void SetTouchCarDamage(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetTouchCarDamageForce() const;
-	void SetTouchCarDamageForce(const D3DXVECTOR2& value);
+	const glm::vec2& GetTouchCarDamageForce() const;
+	void SetTouchCarDamageForce(const glm::vec2& value);
 
 	void OnProgress(float deltaTime);
 

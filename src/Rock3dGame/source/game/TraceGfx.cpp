@@ -108,7 +108,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 		D3DXVECTOR3 pos1 = _pointLink->GetPoint()->GetPos();
 		D3DXVECTOR3 pos2 = _pointLink->GetPos();
 		D3DXVECTOR3 dir = pos1 - pos2;
-		D3DXVECTOR2 sizes(D3DXVec3Length(&dir), _pointLink->GetPoint()->GetSize());
+		glm::vec2 sizes(D3DXVec3Length(&dir), _pointLink->GetPoint()->GetSize());
 		D3DXVec3Normalize(&dir, &dir);
 
 		_sprite->SetPos((pos1 + pos2) / 2.0f);

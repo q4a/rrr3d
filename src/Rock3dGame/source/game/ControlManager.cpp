@@ -608,10 +608,10 @@ lsl::Point ControlManager::GetMousePos()
 	return _world->GetView()->ScreenToView(lsl::Point(0, 0));
 }
 
-D3DXVECTOR2 ControlManager::GetMouseVec()
+glm::vec2 ControlManager::GetMouseVec()
 {
 	lsl::Point mPnt = GetMousePos();
-	return D3DXVECTOR2(static_cast<float>(mPnt.x), static_cast<float>(mPnt.y));
+	return glm::vec2(static_cast<float>(mPnt.x), static_cast<float>(mPnt.y));
 }
 
 const ControllerState& ControlManager::GetControllerState(ControllerType controller)

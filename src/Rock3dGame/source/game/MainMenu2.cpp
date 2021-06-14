@@ -149,14 +149,14 @@ NetBrowserFrame::NetBrowserFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* pa
 
 	_downArrow = menu->CreateArrow(root(), this);
 	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
 	_upArrow->SetRot(D3DX_PI/2);
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 }
 
@@ -174,7 +174,7 @@ NetBrowserFrame::~NetBrowserFrame()
 void NetBrowserFrame::UpdateGrid()
 {
 	_gridScroll = 0;
-	D3DXVECTOR2 cellSize = NullVec2;
+	glm::vec2 cellSize = NullVec2;
 	unsigned count = net()->netService().endpointList().size();		
 	gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin();
 	lsl::Vector<Menu::NavElement> navElements;
@@ -245,7 +245,7 @@ void NetBrowserFrame::UpdateGrid()
 	menu()->SetNavElements(_mainMenu->GetItem(miBack), true, &navElements[0], navElements.size());
 }
 
-void NetBrowserFrame::AdjustGrid(const D3DXVECTOR2& vpSize)
+void NetBrowserFrame::AdjustGrid(const glm::vec2& vpSize)
 {
 	_grid->SetPos(vpSize.x/2, vpSize.y/2 - 90.0f);
 
@@ -326,9 +326,9 @@ void NetBrowserFrame::OnInvalidate()
 	UpdateGrid();
 }
 
-void NetBrowserFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void NetBrowserFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	_info->SetPos(D3DXVECTOR2(vpSize.x/2, vpSize.y/2));
+	_info->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2));
 
 	AdjustGrid(vpSize);
 
@@ -467,12 +467,12 @@ void NetIPAddressFrame::OnShow(bool value)
 	}
 }
 
-void NetIPAddressFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void NetIPAddressFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	_labels[mlInfo]->SetSize(D3DXVECTOR2(325.0f, 50.0f));
-	_labels[mlInfo]->SetPos(D3DXVECTOR2(vpSize.x/2, vpSize.y/2 + 15));
+	_labels[mlInfo]->SetSize(glm::vec2(325.0f, 50.0f));
+	_labels[mlInfo]->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2 + 15));
 
-	_labels[mlIPAdress]->SetPos(D3DXVECTOR2(vpSize.x/2, vpSize.y/2 + 45.0f));
+	_labels[mlIPAdress]->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2 + 45.0f));
 }
 
 bool NetIPAddressFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
@@ -556,14 +556,14 @@ LobbyFrame::LobbyFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): Men
 
 	_downArrow = menu->CreateArrow(root(), this);
 	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
 	_upArrow->SetRot(D3DX_PI/2);
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 }
 
@@ -581,7 +581,7 @@ LobbyFrame::~LobbyFrame()
 void LobbyFrame::UpdateGrid()
 {
 	_gridScroll = 0;
-	D3DXVECTOR2 cellSize = NullVec2;	
+	glm::vec2 cellSize = NullVec2;	
 	unsigned count = steamService()->lobby()->GetLobbyMembers().size();
 	gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin();
 	lsl::Vector<Menu::NavElement> navElements;
@@ -659,7 +659,7 @@ void LobbyFrame::UpdateGrid()
 		focusedItem->SetFocused(true, true);
 }
 
-void LobbyFrame::AdjustGrid(const D3DXVECTOR2& vpSize)
+void LobbyFrame::AdjustGrid(const glm::vec2& vpSize)
 {
 	_grid->SetPos(vpSize.x/2, vpSize.y/2 - 50.0f);
 
@@ -743,9 +743,9 @@ void LobbyFrame::OnInvalidate()
 	menu()->SetButtonEnabled(_mainMenu->GetItem(miStart), steamService()->lobby()->lobbyCreated());
 }
 
-void LobbyFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void LobbyFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	_info->SetPos(D3DXVECTOR2(vpSize.x/2, vpSize.y/2));
+	_info->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2));
 
 	AdjustGrid(vpSize);
 
@@ -822,14 +822,14 @@ MatchmakingFrame::MatchmakingFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* 
 
 	_downArrow = menu->CreateArrow(root(), this);
 	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
 	_upArrow->SetRot(D3DX_PI/2);
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 }
 
@@ -847,7 +847,7 @@ MatchmakingFrame::~MatchmakingFrame()
 void MatchmakingFrame::UpdateGrid()
 {
 	_gridScroll = 0;
-	D3DXVECTOR2 cellSize = NullVec2;
+	glm::vec2 cellSize = NullVec2;
 	unsigned count = steamService()->lobby()->GetLobbyList().size();
 	gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin();
 	lsl::Vector<Menu::NavElement> navElements;
@@ -925,7 +925,7 @@ void MatchmakingFrame::UpdateGrid()
 		focusedItem->SetFocused(true, true);
 }
 
-void MatchmakingFrame::AdjustGrid(const D3DXVECTOR2& vpSize)
+void MatchmakingFrame::AdjustGrid(const glm::vec2& vpSize)
 {
 	_grid->SetPos(vpSize.x/2, vpSize.y/2 - 90.0f);
 
@@ -1006,9 +1006,9 @@ void MatchmakingFrame::OnInvalidate()
 	UpdateGrid();
 }
 
-void MatchmakingFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void MatchmakingFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	_info->SetPos(D3DXVECTOR2(vpSize.x/2, vpSize.y/2));
+	_info->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2));
 
 	AdjustGrid(vpSize);
 
@@ -1091,14 +1091,14 @@ SteamBrowserFrame::SteamBrowserFrame(Menu* menu, MainMenu* mainMenu, gui::Widget
 
 	_downArrow = menu->CreateArrow(root(), this);
 	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
 	_upArrow->SetRot(D3DX_PI/2);
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 }
 
@@ -1116,7 +1116,7 @@ SteamBrowserFrame::~SteamBrowserFrame()
 void SteamBrowserFrame::UpdateGrid()
 {
 	_gridScroll = 0;
-	D3DXVECTOR2 cellSize = NullVec2;
+	glm::vec2 cellSize = NullVec2;
 	unsigned count = steamService()->server()->hostList().size();
 	gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin();
 	lsl::Vector<Menu::NavElement> navElements;
@@ -1194,7 +1194,7 @@ void SteamBrowserFrame::UpdateGrid()
 		focusedItem->SetFocused(true, true);
 }
 
-void SteamBrowserFrame::AdjustGrid(const D3DXVECTOR2& vpSize)
+void SteamBrowserFrame::AdjustGrid(const glm::vec2& vpSize)
 {
 	_grid->SetPos(vpSize.x/2, vpSize.y/2 - 90.0f);
 
@@ -1283,9 +1283,9 @@ void SteamBrowserFrame::OnInvalidate()
 	UpdateGrid();
 }
 
-void SteamBrowserFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void SteamBrowserFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	_info->SetPos(D3DXVECTOR2(vpSize.x/2, vpSize.y/2));
+	_info->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2));
 
 	AdjustGrid(vpSize);
 
@@ -1579,9 +1579,9 @@ bool NetworkFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	return false;
 }
 
-void NetworkFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void NetworkFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {	
-	_labels[mlIPAdress]->SetPos(D3DXVECTOR2(vpSize.x/2, vpSize.y/2 + 75.0f));
+	_labels[mlIPAdress]->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2 + 75.0f));
 }
 
 
@@ -1674,9 +1674,9 @@ void CreditsFrame::OnShow(bool value)
 	}
 }
 
-void CreditsFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void CreditsFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	_label->SetPos(D3DXVECTOR2(vpSize.x/2, vpSize.y/2 - 115.0f));
+	_label->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2 - 115.0f));
 }
 
 bool CreditsFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
@@ -1716,14 +1716,14 @@ ProfileFrame::ProfileFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent):
 
 	_downArrow = menu->CreateArrow(root(), this);
 	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
 	_upArrow->SetRot(D3DX_PI/2);
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 }
 
@@ -1734,7 +1734,7 @@ ProfileFrame::~ProfileFrame()
 	menu()->ReleaseWidget(_grid);
 }
 
-void ProfileFrame::AdjustGrid(const D3DXVECTOR2& vpSize)
+void ProfileFrame::AdjustGrid(const glm::vec2& vpSize)
 {
 	_grid->SetPos(vpSize.x/2, vpSize.y/2 - 90.0f);
 
@@ -1771,7 +1771,7 @@ void ProfileFrame::ScrollGrid(int step)
 
 void ProfileFrame::UpdateGrid()
 {
-	D3DXVECTOR2 cellSize = NullVec2;
+	glm::vec2 cellSize = NullVec2;
 	unsigned count = menu()->GetRace()->GetProfiles().size();
 	unsigned itemCount = 0;
 	gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin();
@@ -1797,9 +1797,9 @@ void ProfileFrame::UpdateGrid()
 			item->SetText(profile->GetName());
 			cellSize = item->GetSize();
 
-			gui::Button* closeBut = menu()->CreateMenuButton(svNull, "", "GUI\\buttonBg6.png", "GUI\\buttonBgSel6.png", item, this, D3DXVECTOR2(1.8f, 1.8f), gui::Button::bsSelAnim, clrWhite);
+			gui::Button* closeBut = menu()->CreateMenuButton(svNull, "", "GUI\\buttonBg6.png", "GUI\\buttonBgSel6.png", item, this, glm::vec2(1.8f, 1.8f), gui::Button::bsSelAnim, clrWhite);
 			closeBut->SetAlign(gui::Widget::waLeft);
-			closeBut->SetPos(D3DXVECTOR2(cellSize.x/2 - 40.0f, 0.0f));
+			closeBut->SetPos(glm::vec2(cellSize.x/2 - 40.0f, 0.0f));
 
 			gridItems.push_back(std::make_pair(item, closeBut));
 			int index = itemCount;
@@ -1877,7 +1877,7 @@ void ProfileFrame::OnInvalidate()
 {	
 }
 
-void ProfileFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void ProfileFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	AdjustGrid(vpSize);
 
@@ -2119,7 +2119,7 @@ void MainMenu::ApplyState(State state)
 #endif
 }
 
-void MainMenu::AdjustMenuItems(const D3DXVECTOR2& vpSize)
+void MainMenu::AdjustMenuItems(const glm::vec2& vpSize)
 {
 	if (_menuItems.size() > 0)
 	{
@@ -2234,13 +2234,13 @@ void MainMenu::OnDisconnectedPlayer(NetPlayer* sender)
 	_menu->HideMessage();
 }
 
-void MainMenu::AdjustLayout(const D3DXVECTOR2& vpSize)
+void MainMenu::AdjustLayout(const glm::vec2& vpSize)
 {
 	AdjustMenuItems(vpSize);
 
-	_topPanel->SetPos(D3DXVECTOR2(vpSize.x/2, (0 + vpSize.y/2 - 150.0f)/2.0f));
+	_topPanel->SetPos(glm::vec2(vpSize.x/2, (0 + vpSize.y/2 - 150.0f)/2.0f));
 
-	_version->SetPos(D3DXVECTOR2(vpSize.x - 25.0f, vpSize.y - 25.0f));
+	_version->SetPos(glm::vec2(vpSize.x - 25.0f, vpSize.y - 25.0f));
 
 	_mainFrame->AdjustLayout(vpSize);
 	_gameMode->AdjustLayout(vpSize);
