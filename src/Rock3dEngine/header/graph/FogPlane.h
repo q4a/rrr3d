@@ -42,8 +42,8 @@ public:
 	float GetSpeed() const;
 	void SetSpeed(float value);
 
-	const D3DXVECTOR2& GetSize() const;
-	void SetSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSize() const;
+	void SetSize(const glm::vec2& value);
 
 	Shader shader;
 };

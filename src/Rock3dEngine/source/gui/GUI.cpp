@@ -21,7 +21,7 @@ Material::Material(): _color(clrWhite), _blending(bmOpaque), _alphaTest(asNone)
 	_sampler.SetAlphaMode(graph::Sampler2d::tmModulate);
 }
 
-D3DXVECTOR2 Material::GetImageSize()
+glm::vec2 Material::GetImageSize()
 {
 	return GetSampler().GetSize();
 }
@@ -89,23 +89,23 @@ Context& Graphic::GetContext()
 	return *_context;
 }
 
-const D3DXVECTOR2& Graphic::GetPos() const
+const glm::vec2& Graphic::GetPos() const
 {
 	return _pos;
 }
 
-void Graphic::SetPos(const D3DXVECTOR2& value)
+void Graphic::SetPos(const glm::vec2& value)
 {
 	_pos = value;
 	TransformChanged();
 }
 
-const D3DXVECTOR2& Graphic::GetSize() const
+const glm::vec2& Graphic::GetSize() const
 {
 	return _size;
 }
 
-void Graphic::SetSize(const D3DXVECTOR2& value)
+void Graphic::SetSize(const glm::vec2& value)
 {
 	_size = value;
 	TransformChanged();
@@ -606,9 +606,6 @@ void VBuf3d::SetMesh(graph::VBMesh* value)
 	}
 }
 
-
-
-
 Mesh3d::Mesh3d(Context* context): _MyBase(context), _mesh(0), _meshId(-1)
 {
 }
@@ -658,7 +655,7 @@ void Mesh3d::SetMeshId(int value)
 
 
 
-Plane3d::Plane3d(Context* context): _MyBase(context), _size(IdentityVector)
+Plane3d::Plane3d(Context *context) : _MyBase(context), _size(IdentityVector.x, IdentityVector.y)
 {
 }
 
@@ -672,12 +669,12 @@ void Plane3d::Draw()
 	GetContext().DrawPlane3d(*this);
 }
 
-const D3DXVECTOR2& Plane3d::GetSize()
+const glm::vec2& Plane3d::GetSize()
 {
 	return _size;
 }
 
-void Plane3d::SetSize(const D3DXVECTOR2 value)
+void Plane3d::SetSize(const glm::vec2 value)
 {
 	_size = value;
 	StructureChanged();
@@ -881,14 +878,16 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 	format |= text.GetWordWrap() ? DT_WORDBREAK : 0;
 	format |= text.GetClipEnable() ? 0 : DT_NOCLIP;
 
-	D3DXVECTOR2 pos = text.GetPos();
+	glm::vec2 pos = text.GetPos();
 	if (aabb)
 	{
 		pos += NullVec2;
 	}
 	else
 	{
-		pos += D3DXVECTOR2(MatGetPos(GetCI().GetWorldMat()));
+		//pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()));
+        pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()).x,
+                         MatGetPos(GetCI().GetWorldMat()).y); // remove after D3DXVECTOR3 replacement
 		//ќси y не совпадают
 		if (_invertY)
 			pos.y = GetVPSize().y - (pos.y + text.GetVScroll());
@@ -896,8 +895,8 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 			pos.y = pos.y + text.GetVScroll();
 	}	
 
-	D3DXVECTOR2 size = text.GetSize();
-	size = size / 2;
+	glm::vec2 size = text.GetSize();
+    size = size / 2.0f;
 	Point left(Floor<int>(pos.x - size.x - 0.5f), Floor<int>(pos.y - size.y - 0.5f));
 	Point right(Ceil<int>(pos.x + size.x + 0.5f), Ceil<int>(pos.y + size.y + 0.5f));
 	Rect rect(left.x, left.y, right.x, right.y);
@@ -905,8 +904,8 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 	if (aabb)
 	{
 		text.GetFont()->DrawText(text.GetText(), rect, format | DT_CALCRECT, 0);
-		aabb->min = D3DXVECTOR2(static_cast<float>(rect.left), static_cast<float>(rect.top));
-		aabb->max = D3DXVECTOR2(static_cast<float>(rect.right), static_cast<float>(rect.bottom));
+		aabb->min = glm::vec2(static_cast<float>(rect.left), static_cast<float>(rect.top));
+		aabb->max = glm::vec2(static_cast<float>(rect.right), static_cast<float>(rect.bottom));
 	}
 	else
 	{
@@ -933,7 +932,7 @@ graph::ContextInfo& Context::GetCI()
 
 void Context::BeginDraw()
 {
-	D3DXVECTOR2 vpSize = GetVPSize();
+	glm::vec2 vpSize = GetVPSize();
 
 	graph::CameraDesc desc;
 	desc.style = _invertY ? graph::csViewPortInv : graph::csViewPort;
@@ -968,22 +967,22 @@ void Context::SetTransform(const D3DXMATRIX& value)
 void Context::DrawPlane(Plane& plane)
 {
 	D3DXVECTOR3 pos3(Vec3FromVec2(plane.GetPos()));
-	D3DXVECTOR2 size = plane.GetSize()/2.0f;
+	glm::vec2 size = plane.GetSize()/2.0f;
 
 	res::VertexPT planeBuf[4];
 	if (_invertY)
 	{
-		planeBuf[0] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), D3DXVECTOR2(1.0f, 1.0f));
-		planeBuf[1] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), D3DXVECTOR2(1.0f, 0.0f));
-		planeBuf[2] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), D3DXVECTOR2(0.0f, 1.0f));
-		planeBuf[3] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), D3DXVECTOR2(0.0f, 0.0f));
+		planeBuf[0] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 1.0f));
+		planeBuf[1] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 0.0f));
+		planeBuf[2] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 1.0f));
+		planeBuf[3] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 0.0f));
 	}
 	else
 	{
-		planeBuf[0] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), D3DXVECTOR2(1.0f, 0.0f));		
-		planeBuf[1] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), D3DXVECTOR2(0.0f, 0.0f));
-		planeBuf[2] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), D3DXVECTOR2(1.0f, 1.0f));		
-		planeBuf[3] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), D3DXVECTOR2(0.0f, 1.0f));
+		planeBuf[0] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 0.0f));		
+		planeBuf[1] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 0.0f));
+		planeBuf[2] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 1.0f));		
+		planeBuf[3] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 1.0f));
 	};
 
 	BeginDrawGraphic(plane);
@@ -1030,14 +1029,14 @@ void Context::DrawMesh3d(Mesh3d& mesh3d)
 
 void Context::DrawPlane3d(Plane3d& plane3d)
 {
-	D3DXVECTOR2 size = plane3d.GetSize();
+	glm::vec2 size = plane3d.GetSize();
 
 	const res::VertexPT planeBuf[4] = 
 	{
-		res::VertexPT(D3DXVECTOR3(size.x, -size.y, 0), D3DXVECTOR2(1.0f, 1.0f)),
-		res::VertexPT(D3DXVECTOR3(size.x, size.y, 0), D3DXVECTOR2(1.0f, 0.0f)),
-		res::VertexPT(D3DXVECTOR3(-size.x, -size.y, 0), D3DXVECTOR2(0.0f, 1.0f)),
-		res::VertexPT(D3DXVECTOR3(-size.x, size.y, 0), D3DXVECTOR2(0.0f, 0.0f))
+		res::VertexPT(D3DXVECTOR3(size.x, -size.y, 0), glm::vec2(1.0f, 1.0f)),
+		res::VertexPT(D3DXVECTOR3(size.x, size.y, 0), glm::vec2(1.0f, 0.0f)),
+		res::VertexPT(D3DXVECTOR3(-size.x, -size.y, 0), glm::vec2(0.0f, 1.0f)),
+		res::VertexPT(D3DXVECTOR3(-size.x, size.y, 0), glm::vec2(0.0f, 0.0f))
 	};
 
 	GetDriver().GetDevice()->SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
@@ -1172,12 +1171,12 @@ void Context::SetInvertY(bool value)
 	_invertY = value;
 }
 
-const D3DXVECTOR2& Context::GetVPSize()
+const glm::vec2& Context::GetVPSize()
 {
 	return _vpSize;
 }
 
-void Context::SetVPSize(const D3DXVECTOR2& value)
+void Context::SetVPSize(const glm::vec2& value)
 {
 	_vpSize = value;
 }
@@ -1323,9 +1322,9 @@ void Widget::BuildLocalAABB() const
 	{
 		_aabbChanges.reset(acLocalAABB);
 
-		D3DXVECTOR2 center = GetAlignPos();
-		D3DXVECTOR2 size = GetSize();
-		_localAABB = AABB2(center - size/2, center + size/2);
+		glm::vec2 center = GetAlignPos();
+		glm::vec2 size = GetSize();
+        _localAABB = AABB2(center - size / 2.0f, center + size / 2.0f);
 	}
 }
 
@@ -1440,7 +1439,7 @@ void Widget::ApplyAlign() const
 		localRect.Transform(GetMat());
 
 		AABB2 newRect = localRect;
-		D3DXVECTOR2 newSize = newRect.GetSize();
+		glm::vec2 newSize = newRect.GetSize();
 		if (_flags[wfAlignLeft])
 		{
 			newRect.min.x = rect.min.x;
@@ -1464,8 +1463,8 @@ void Widget::ApplyAlign() const
 			newRect.max.y = newRect.min.y + newSize.y;
 		}
 		
-		D3DXVECTOR2 size = newRect.GetSize();
-		D3DXVECTOR2 pos = newRect.GetCenter();
+		glm::vec2 size = newRect.GetSize();
+		glm::vec2 pos = newRect.GetCenter();
 
 		//¬ виде исключени€
 		Widget* mThis = const_cast<Widget*>(this);
@@ -1718,36 +1717,24 @@ void Widget::DeleteAllGraphics()
 	_graphics.clear();
 }
 
-D3DXVECTOR2 Widget::LocalToWorldCoord(const D3DXVECTOR2& value) const
+glm::vec2 Widget::LocalToWorldCoord(const glm::vec2& value) const
 {
-	D3DXVECTOR2 res;
-	D3DXVec2TransformCoord(&res, &value, &GetWorldMat());
-
-	return res;
+    return Vec2TransformCoord(value, d3dMatrixToGLM(GetWorldMat()));
 }
 
-D3DXVECTOR2 Widget::WorldToLocalCoord(const D3DXVECTOR2& value) const
+glm::vec2 Widget::WorldToLocalCoord(const glm::vec2& value) const
 {
-	D3DXVECTOR2 res;
-	D3DXVec2TransformCoord(&res, &value, &GetInvWorldMat());
-
-	return res;
+	return Vec2TransformCoord(value, d3dMatrixToGLM(GetInvWorldMat()));
 }
 
-D3DXVECTOR2 Widget::LocalToWorldNorm(const D3DXVECTOR2& value) const
+glm::vec2 Widget::LocalToWorldNorm(const glm::vec2& value) const
 {
-	D3DXVECTOR2 res;
-	D3DXVec2TransformNormal(&res, &value, &GetWorldMat());
-
-	return res;
+	return Vec2TransformNormal(value, d3dMatrixToGLM(GetWorldMat()));
 }
 
-D3DXVECTOR2 Widget::WorldToLocalNorm(const D3DXVECTOR2& value) const
+glm::vec2 Widget::WorldToLocalNorm(const glm::vec2& value) const
 {
-	D3DXVECTOR2 res;
-	D3DXVec2TransformNormal(&res, &value, &GetInvWorldMat());
-
-	return res;
+	return Vec2TransformNormal(value, d3dMatrixToGLM(GetInvWorldMat()));
 }
 
 Manager& Widget::GetManager()
@@ -2030,19 +2017,19 @@ void Widget::SetEnabled(bool value)
 	OnEnabled(value);
 }
 
-D3DXVECTOR2 Widget::GetAlignPos() const
+glm::vec2 Widget::GetAlignPos() const
 {
 	return GetAlignPos(_size, _align);
 }
 
-const D3DXVECTOR2& Widget::GetPos() const
+const glm::vec2& Widget::GetPos() const
 {
 	ApplyAlign();
 
 	return _pos;
 }
 
-void Widget::SetPos(const D3DXVECTOR2& value)
+void Widget::SetPos(const glm::vec2& value)
 {
 	_pos = value;
 	
@@ -2051,15 +2038,15 @@ void Widget::SetPos(const D3DXVECTOR2& value)
 
 void Widget::SetPos(float x, float y)
 {
-	SetPos(D3DXVECTOR2(x, y));
+	SetPos(glm::vec2(x, y));
 }
 
-const D3DXVECTOR2& Widget::GetScale() const
+const glm::vec2& Widget::GetScale() const
 {
 	return _scale;
 }
 
-void Widget::SetScale(const D3DXVECTOR2& value)
+void Widget::SetScale(const glm::vec2& value)
 {
 	_scale = value;
 
@@ -2068,7 +2055,7 @@ void Widget::SetScale(const D3DXVECTOR2& value)
 
 void Widget::SetScale(float x, float y)
 {
-	SetScale(D3DXVECTOR2(x, y));
+	SetScale(glm::vec2(x, y));
 }
 
 float Widget::GetRot() const
@@ -2106,12 +2093,13 @@ void Widget::SetPos3d(const D3DXVECTOR3& value)
 	TransformChanged();
 }
 
-D3DXVECTOR2 Widget::GetWorldPos() const
+glm::vec2 Widget::GetWorldPos() const
 {
-	return D3DXVECTOR2(GetWorldMat().m[3]);
+	//return glm::vec2(GetWorldMat().m[3]); // TTEST: m[3] - matrix replacement
+    return glm::vec2(GetWorldMat()._41, GetWorldMat()._42); // remove after D3DXMATRIX replacement
 }
 
-void Widget::SetWorldPos(const D3DXVECTOR2& value)
+void Widget::SetWorldPos(const glm::vec2& value)
 {
 	SetPos(_parent ? _parent->WorldToLocalCoord(value) : value);
 }
@@ -2146,14 +2134,14 @@ const D3DXMATRIX& Widget::GetInvWorldMat() const
 	return _matrix[mcInvWorld];
 }
 
-const D3DXVECTOR2& Widget::GetSize() const
+const glm::vec2& Widget::GetSize() const
 {
 	ApplyAlign();
 
 	return _size;
 }
 
-void Widget::SetSize(const D3DXVECTOR2& value)
+void Widget::SetSize(const glm::vec2& value)
 {
 	_size = value;
 	StructureChanged(scLocal);
@@ -2161,7 +2149,7 @@ void Widget::SetSize(const D3DXVECTOR2& value)
 
 void Widget::SetSize(float szX, float szY)
 {
-	SetSize(D3DXVECTOR2(szX, szY));
+	SetSize(glm::vec2(szX, szY));
 }
 
 const AABB2& Widget::GetLocalAABB(bool includeChild) const
@@ -2220,29 +2208,29 @@ void Widget::SetData(Object* value)
 		_data = value;
 }
 
-D3DXVECTOR2 Widget::GetAlignPos(const D3DXVECTOR2& size, Anchor align)
+glm::vec2 Widget::GetAlignPos(const glm::vec2& size, Anchor align)
 {
-	D3DXVECTOR2 half = size/2;
+	glm::vec2 half = size / 2.0f;
 
 	switch (align)
 	{
 	case waLeft:
-		return D3DXVECTOR2(half.x, 0);
+		return glm::vec2(half.x, 0);
 	case waRight:
-		return D3DXVECTOR2(-half.x, 0);
+		return glm::vec2(-half.x, 0);
 	case waTop:
-		return D3DXVECTOR2(0, half.y);
+		return glm::vec2(0, half.y);
 	case waBottom:
-		return D3DXVECTOR2(0, -half.y);
+		return glm::vec2(0, -half.y);
 
 	case waLeftTop:
-		return D3DXVECTOR2(half.x, half.y);
+		return glm::vec2(half.x, half.y);
 	case waLeftBottom:
-		return D3DXVECTOR2(half.x, -half.y);
+		return glm::vec2(half.x, -half.y);
 	case waRightTop:
-		return D3DXVECTOR2(-half.x, half.y);
+		return glm::vec2(-half.x, half.y);
 	case waRightBottom:
-		return D3DXVECTOR2(-half.x, -half.y);
+		return glm::vec2(-half.x, -half.y);
 
 	default:
 		return NullVec2;
@@ -2571,7 +2559,7 @@ Button::Button(Manager* manager): _MyBase(manager), _style(bsSimple), _selSize(0
 	_text->AddRef();
 	InsertGraphic(_text);
 
-	SetSize(D3DXVECTOR2(100.0f, 25.0f));
+	SetSize(glm::vec2(100.0f, 25.0f));
 
 	RegProgress();
 }
@@ -2855,12 +2843,12 @@ void Button::SetText(const std::string& value)
 	StructureChanged();
 }
 
-const D3DXVECTOR2& Button::GetSelSize() const
+const glm::vec2& Button::GetSelSize() const
 {
 	return _selSize;
 }
 
-void Button::SetSelSize(const D3DXVECTOR2& value)
+void Button::SetSelSize(const glm::vec2& value)
 {
 	_selSize = value;
 	StructureChanged();
@@ -2993,7 +2981,7 @@ void StepperBox::StructureChanged(StructChange change)
 
 	if (change == scLocal)
 	{
-		D3DXVECTOR2 pos = GetAlignPos();
+		glm::vec2 pos = GetAlignPos();
 
 		_planeBg->SetSize(GetSize());
 		_planeBg->SetPos(pos);
@@ -3010,10 +2998,10 @@ void StepperBox::StructureChanged(StructChange change)
 			_right->SetSelSize(_left->GetSelSize());
 		}
 
-		_left->SetPos(D3DXVECTOR2(-GetSize().x/2, 0.0f) + pos);
-		_right->SetPos(D3DXVECTOR2(GetSize().x/2, 0.0f) + pos);
+		_left->SetPos(glm::vec2(-GetSize().x/2, 0.0f) + pos);
+		_right->SetPos(glm::vec2(GetSize().x/2, 0.0f) + pos);
 
-		_textField->SetSize(D3DXVECTOR2(GetSize().x - _left->GetSize().x - _right->GetSize().x, GetSize().y));
+		_textField->SetSize(glm::vec2(GetSize().x - _left->GetSize().x - _right->GetSize().x, GetSize().y));
 		_textField->SetPos(pos);
 	}
 }
@@ -3211,7 +3199,7 @@ bool DropBox::ItemsEvent::OnMouseDown(Widget* sender, const MouseClick& mClick)
 {
 	if (sender == _dropBox->_itemsFon && mClick.key == mkLeft && mClick.state == ksUp)
 	{
-		D3DXVECTOR2 localCoord = _dropBox->_itemsFon->WorldToLocalCoord(mClick.worldCoord);
+		glm::vec2 localCoord = _dropBox->_itemsFon->WorldToLocalCoord(mClick.worldCoord);
 		if (Text* text = _dropBox->FindSelTextItem(localCoord, false))
 		{
 			_dropBox->SetSelItem(text->GetText());
@@ -3230,7 +3218,7 @@ void DropBox::ShowItems(bool value)
 {
 	if (_showItems != value)
 	{
-		D3DXVECTOR2 size = GetSize();
+		glm::vec2 size = GetSize();
 
 		if (_showItems)
 		{
@@ -3257,7 +3245,7 @@ void DropBox::ShowItems(bool value)
 				item->SetText(*iter);
 				item->SetFont(_selItem->GetFont());
 				item->SetSize(_selItem->GetSize());
-				item->SetPos(D3DXVECTOR2(size.y/2.0f, -(i - _items.size()/2.0f + 0.5f) * size.y));
+				item->SetPos(glm::vec2(size.y/2.0f, -(i - _items.size()/2.0f + 0.5f) * size.y));
 				item->SetHorAlign(Text::haLeft);
 				item->SetMaterial(_textMaterial);
 				
@@ -3283,7 +3271,7 @@ void DropBox::SelectItem(const std::string& item)
 	_selInd = -1;	
 }
 
-Text* DropBox::FindSelTextItem(const D3DXVECTOR2& point, bool deselect)
+Text* DropBox::FindSelTextItem(const glm::vec2& point, bool deselect)
 {
 	Text* res = 0;
 
@@ -3315,17 +3303,17 @@ void DropBox::StructureChanged(StructChange change)
 
 	if (change == scLocal)
 	{
-		D3DXVECTOR2 size = GetSize();
+		glm::vec2 size = GetSize();
 
 		_fon->SetSize(size);
-		D3DXVECTOR2 itemsSize = D3DXVECTOR2(size.x - size.y, size.y * _items.size());
+		glm::vec2 itemsSize = glm::vec2(size.x - size.y, size.y * _items.size());
 		_itemsFon->SetSize(itemsSize);
-		_itemsFon->SetPos(D3DXVECTOR2(-size.y/2.0f, -itemsSize.y/2.0f - size.y/2.0f));
+		_itemsFon->SetPos(glm::vec2(-size.y/2.0f, -itemsSize.y/2.0f - size.y/2.0f));
 
-		_button->SetPos(D3DXVECTOR2(size.x/2.0f - size.y/2.0f, 0.0f));
-		_button->SetSize(D3DXVECTOR2(size.y, size.y));
+		_button->SetPos(glm::vec2(size.x/2.0f - size.y/2.0f, 0.0f));
+		_button->SetSize(glm::vec2(size.y, size.y));
 
-		_selItem->SetSize(D3DXVECTOR2(size.x - size.y, size.y));
+		_selItem->SetSize(glm::vec2(size.x - size.y, size.y));
 
 		ShowItems(false);
 	}
@@ -3445,7 +3433,7 @@ TrackBar::~TrackBar()
 	_bar->Release();
 }
 
-float TrackBar::ComputeBarPos(const D3DXVECTOR2& point) const
+float TrackBar::ComputeBarPos(const glm::vec2& point) const
 {
 	return point.x/GetSize().x + 0.5f;
 }
@@ -3456,10 +3444,10 @@ void TrackBar::StructureChanged(StructChange change)
 
 	if (change == scLocal)
 	{
-		D3DXVECTOR2 size = GetSize();
+		glm::vec2 size = GetSize();
 
 		_bar->SetSize(size);
-		_button->SetSize(D3DXVECTOR2(size.y, size.y));
+		_button->SetSize(glm::vec2(size.y, size.y));
 	}
 }
 
@@ -3469,7 +3457,7 @@ bool TrackBar::OnMouseDown(const MouseClick& mClick)
 
 	if (mClick.state == ksDown)
 	{
-		D3DXVECTOR2 localCoord = WorldToLocalCoord(mClick.worldCoord);
+		glm::vec2 localCoord = WorldToLocalCoord(mClick.worldCoord);
 		AABB2 aabb(_button->GetSize());
 		aabb.Offset(_button->GetPos());
 
@@ -3490,7 +3478,7 @@ bool TrackBar::OnMouseMove(const MouseMove& mMove)
 
 	if (_grag)
 	{
-		D3DXVECTOR2 localCoord = WorldToLocalCoord(mMove.worldCoord);		
+		glm::vec2 localCoord = WorldToLocalCoord(mMove.worldCoord);		
 		SetBarPos(ComputeBarPos(localCoord) + _dragOff);
 
 		OnDrag(mMove);
@@ -3506,7 +3494,7 @@ float TrackBar::GetBarPos() const
 
 void TrackBar::SetBarPos(float value)
 {
-	_button->SetPos(D3DXVECTOR2((ClampValue(value, 0.0f, 1.0f) - 0.5f) * GetSize().x, 0.0f));
+	_button->SetPos(glm::vec2((ClampValue(value, 0.0f, 1.0f) - 0.5f) * GetSize().x, 0.0f));
 }
 
 Material& TrackBar::GetBarMaterial()
@@ -3703,13 +3691,13 @@ void ScrollBox::MyEvent::OnStructureChanged(Widget* sender, StructChange change)
 
 bool ScrollBox::MyEvent::OnClick(Widget* sender, const MouseClick& mClick)
 {
-	D3DXVECTOR2 scrollUp = _scrollBox->GetScroll() - _scrollBox->_arrowScrollStep;
+	glm::vec2 scrollUp = _scrollBox->GetScroll() - _scrollBox->_arrowScrollStep;
 	scrollUp /= _scrollBox->_arrowScrollStep;
 	scrollUp.x = Round(scrollUp.x);
 	scrollUp.y = Round(scrollUp.y);
 	scrollUp *= _scrollBox->_arrowScrollStep;
 
-	D3DXVECTOR2 scrollDown = _scrollBox->GetScroll() + _scrollBox->_arrowScrollStep;
+	glm::vec2 scrollDown = _scrollBox->GetScroll() + _scrollBox->_arrowScrollStep;
 	scrollDown /= _scrollBox->_arrowScrollStep;
 	scrollDown.x = Round(scrollDown.x);
 	scrollDown.y = Round(scrollDown.y);
@@ -3723,14 +3711,14 @@ bool ScrollBox::MyEvent::OnClick(Widget* sender, const MouseClick& mClick)
 			return true;
 		
 		case sdDown:
-			_scrollBox->SetScroll(D3DXVECTOR2(_scrollBox->GetScroll().x, scrollDown.y));
+			_scrollBox->SetScroll(glm::vec2(_scrollBox->GetScroll().x, scrollDown.y));
 			return true;
 			
 		case sdRight:
 			return true;
 			
 		case sdUp:
-			_scrollBox->SetScroll(D3DXVECTOR2(_scrollBox->GetScroll().x, scrollUp.y));
+			_scrollBox->SetScroll(glm::vec2(_scrollBox->GetScroll().x, scrollUp.y));
 			return true;
 		}
 
@@ -3786,8 +3774,8 @@ void ScrollBox::ApplyOptions()
 
 void ScrollBox::AdjustLayout()
 {
-	const D3DXVECTOR2 dim = GetSize()/2.0f - _arrowSize/2.0f;
-	const D3DXVECTOR2 arrowPos[cScrollDirEnd] = {D3DXVECTOR2(-dim.x, 0.0f), D3DXVECTOR2(0, -dim.y), D3DXVECTOR2(dim.x, 0.0f), D3DXVECTOR2(0, dim.y)};
+	const glm::vec2 dim = GetSize()/2.0f - _arrowSize/2.0f;
+	const glm::vec2 arrowPos[cScrollDirEnd] = {glm::vec2(-dim.x, 0.0f), glm::vec2(0, -dim.y), glm::vec2(dim.x, 0.0f), glm::vec2(0, dim.y)};
 
 	for (int i = 0; i < cScrollDirEnd; ++i)
 		if (_scrollBut[i])
@@ -3796,7 +3784,7 @@ void ScrollBox::AdjustLayout()
 			_scrollBut[i]->SetPos(arrowPos[i]);
 		}
 
-	D3DXVECTOR2 scrollSz = GetSize();
+	glm::vec2 scrollSz = GetSize();
 	if (_options[soHor])
 		scrollSz.x -= 2.0f * _arrowSize.x + _arrowSpace.x;
 	if (_options[soVert])
@@ -3842,59 +3830,59 @@ void ScrollBox::SetOption(Option option, bool value)
 	ApplyOptions();
 }
 
-const D3DXVECTOR2& ScrollBox::GetArrowSize() const
+const glm::vec2& ScrollBox::GetArrowSize() const
 {
 	return _arrowSize;
 }
 
-void ScrollBox::SetArrowSize(const D3DXVECTOR2& value)
+void ScrollBox::SetArrowSize(const glm::vec2& value)
 {
 	_arrowSize = value;
 	StructureChanged();
 }
 
-const D3DXVECTOR2& ScrollBox::GetArrowSpace() const
+const glm::vec2& ScrollBox::GetArrowSpace() const
 {
 	return _arrowSpace;
 }
 
-void ScrollBox::SetArrowSpace(const D3DXVECTOR2& value)
+void ScrollBox::SetArrowSpace(const glm::vec2& value)
 {
 	_arrowSpace = value;
 	StructureChanged();
 }
 
-const D3DXVECTOR2& ScrollBox::GetArrowScrollStep() const
+const glm::vec2& ScrollBox::GetArrowScrollStep() const
 {
 	return _arrowScrollStep;
 }
 
-void ScrollBox::SetArrowScrollStep(const D3DXVECTOR2& value)
+void ScrollBox::SetArrowScrollStep(const glm::vec2& value)
 {
 	_arrowScrollStep = value;
 }
 
-D3DXVECTOR2 ScrollBox::GetMaxScroll() const
+glm::vec2 ScrollBox::GetMaxScroll() const
 {
 	return _box->GetChildAABB().GetSize();
 }
 
-D3DXVECTOR2 ScrollBox::GetScroll()
+glm::vec2 ScrollBox::GetScroll()
 {
 	return _box->GetPos() - _box->GetChildAABB().max + _box->GetSize()/2.0f;
 }
 
-void ScrollBox::SetScroll(const D3DXVECTOR2& value)
+void ScrollBox::SetScroll(const glm::vec2& value)
 {	
-	D3DXVECTOR2 boxSize = _box->GetChildAABB().GetSize();
+	glm::vec2 boxSize = _box->GetChildAABB().GetSize();
 
 	//корректируем чтобы максимальной прокруткой был размер страницы
-	D3DXVECTOR2 clampSize(boxSize.x, std::max(boxSize.y - _clip->GetSize().y, 0.0f));
-	D3DXVECTOR2 scroll = value;
-	D3DXVec2Maximize(&scroll, &scroll, &NullVec2);
-	D3DXVec2Minimize(&scroll, &scroll, &clampSize);
+	glm::vec2 clampSize(boxSize.x, std::max(boxSize.y - _clip->GetSize().y, 0.0f));
+	glm::vec2 scroll = value;
+    scroll = Vec2Maximize(scroll, NullVec2);
+    scroll = Vec2Minimize(scroll, clampSize);
 
-	D3DXVECTOR2 pos = scroll + _box->GetChildAABB().max - _box->GetSize()/2.0f;
+	glm::vec2 pos = scroll + _box->GetChildAABB().max - _box->GetSize()/2.0f;
 	if (_box->GetSize().x > boxSize.x)
 		pos.x = 0;
 	if (_box->GetSize().y > boxSize.y)
@@ -4081,21 +4069,21 @@ void ListBox::FreeItem(Item* item)
 
 void ListBox::AlignItems()
 {
-	D3DXVECTOR2 size = _scrollBox->GetBox()->GetSize();
+	glm::vec2 size = _scrollBox->GetBox()->GetSize();
 
 	int i = 0;
 	for (Items::iterator iter = _items.begin(); iter != _items.end(); ++iter, ++i)
 	{
-		D3DXVECTOR2 itemStep = _itemSize + _itemSpace;
+		glm::vec2 itemStep = _itemSize + _itemSpace;
 		float stripLen = itemStep.x * i;
-		D3DXVECTOR2 clientSize = size / itemStep;
+		glm::vec2 clientSize = size / itemStep;
 		clientSize.x = floor(clientSize.x);
 		clientSize.y = floor(clientSize.y);
 		clientSize *= itemStep;
 		//необходимо учитывать дополнительный пробел _itemSpace
-		D3DXVECTOR2 fracSize = size - clientSize + _itemSpace;
+		glm::vec2 fracSize = size - clientSize + _itemSpace;
 
-		D3DXVECTOR2 index(0, 0);
+		glm::vec2 index(0, 0);
 		if (abs(clientSize.x > 0.001f) && abs(itemStep.x > 0.001f))
 			index.x = floor(fmod(stripLen, clientSize.x) / itemStep.x);
 		if (abs(clientSize.x > 0.001f))
@@ -4111,7 +4099,7 @@ void ListBox::AlignItems()
 				frame->SetPos(data->GetLocalAABB(true).GetCenter());
 			}
 
-			D3DXVECTOR2 pos = -size/2.0f + D3DXVECTOR2(fracSize.x/2.0f, 0) + index * itemStep + _itemSize/2.0f;
+			glm::vec2 pos = -size/2.0f + glm::vec2(fracSize.x/2.0f, 0) + index * itemStep + _itemSize/2.0f;
 			pos.y = -pos.y;
 
 			data->SetPos(pos);
@@ -4125,7 +4113,7 @@ void ListBox::StructureChanged(StructChange change)
 
 	if (change == scLocal)
 	{
-		D3DXVECTOR2 size = GetSize();
+		glm::vec2 size = GetSize();
 		if (_fon)
 			_fon->SetSize(size);
 		_scrollBox->SetSize(size - IdentityVec2 * 10.0f);
@@ -4191,7 +4179,7 @@ void ListBox::ClearItems()
 	DelItem(_items.begin(), _items.end());
 }
 
-ListBox::Item* ListBox::PickItem(const D3DXVECTOR2& worldCoord)
+ListBox::Item* ListBox::PickItem(const glm::vec2& worldCoord)
 {
 	if (!_scrollBox->GetClip()->GetWorldAABB(false).ContainsPoint(worldCoord))
 		return 0;
@@ -4203,7 +4191,7 @@ ListBox::Item* ListBox::PickItem(const D3DXVECTOR2& worldCoord)
 	return 0;
 }
 
-bool ListBox::PickItems(const D3DXVECTOR2& worldCoord)
+bool ListBox::PickItems(const glm::vec2& worldCoord)
 {
 	return _scrollBox->GetClip()->GetWorldAABB(false).ContainsPoint(worldCoord);
 }
@@ -4230,9 +4218,9 @@ void ListBox::SelectItem(Item* item)
 	}
 }
 
-void ListBox::AlignSizeByItems(const D3DXVECTOR2& size)
+void ListBox::AlignSizeByItems(const glm::vec2& size)
 {
-	D3DXVECTOR2 newSize = size;
+	glm::vec2 newSize = size;
 	newSize = (newSize - GetScrollSpace()) / GetItemPlaceSize();
 	//ѕои оси X не зачем выравнивать, поскольку прокрутка только вертикальна€ (и может привести к погрешности)
 	//newSize.x = floor(newSize.x);
@@ -4248,23 +4236,23 @@ const ListBox::Items& ListBox::GetItems() const
 	return _items;
 }
 
-const D3DXVECTOR2& ListBox::GetItemSize() const
+const glm::vec2& ListBox::GetItemSize() const
 {
 	return _itemSize;
 }
 
-void ListBox::SetItemSize(const D3DXVECTOR2& value)
+void ListBox::SetItemSize(const glm::vec2& value)
 {
 	_itemSize = value;
 	StructureChanged();
 }
 
-const D3DXVECTOR2& ListBox::GetItemSpace() const
+const glm::vec2& ListBox::GetItemSpace() const
 {
 	return _itemSpace;
 }
 
-void ListBox::SetItemSpace(const D3DXVECTOR2& value)
+void ListBox::SetItemSpace(const glm::vec2& value)
 {
 	_itemSpace = value;
 	StructureChanged();
@@ -4333,37 +4321,37 @@ Material& ListBox::GetArrowSelMaterial()
 	return _scrollBox->GetArrowSelMaterial();
 }
 
-const D3DXVECTOR2& ListBox::GetArrowSize() const
+const glm::vec2& ListBox::GetArrowSize() const
 {
 	return _scrollBox->GetArrowSize();
 }
 
-void ListBox::SetArrowSize(const D3DXVECTOR2& value)
+void ListBox::SetArrowSize(const glm::vec2& value)
 {
 	_scrollBox->SetArrowSize(value);
 }
 
-D3DXVECTOR2 ListBox::GetScroll() const
+glm::vec2 ListBox::GetScroll() const
 {
 	return _scrollBox->GetScroll();
 }
 
-void ListBox::SetScroll(const D3DXVECTOR2& value)
+void ListBox::SetScroll(const glm::vec2& value)
 {
 	_scrollBox->SetScroll(value);
 }
 
-D3DXVECTOR2 ListBox::GetMaxScroll() const
+glm::vec2 ListBox::GetMaxScroll() const
 {
 	return _scrollBox->GetMaxScroll();
 }
 
-D3DXVECTOR2 ListBox::GetItemPlaceSize() const
+glm::vec2 ListBox::GetItemPlaceSize() const
 {
 	return _itemSize + _itemSpace;
 }
 
-D3DXVECTOR2 ListBox::GetScrollSpace() const
+glm::vec2 ListBox::GetScrollSpace() const
 {
 	return 2.0f * GetArrowSize() + _itemSpace;
 }
@@ -4397,7 +4385,7 @@ void ProgressBar::StructureChanged(StructChange change)
 
 	if (change == scLocal)
 	{
-		D3DXVECTOR2 pos = GetAlignPos();
+		glm::vec2 pos = GetAlignPos();
 
 		_back->SetSize(GetSize());
 		_back->SetPos(pos);
@@ -4407,16 +4395,16 @@ void ProgressBar::StructureChanged(StructChange change)
 		case psHorizontal:
 		{
 			float barSize = GetSize().x * _progress;
-			_front->SetSize(D3DXVECTOR2(barSize, GetSize().y));
-			_front->SetPos(pos + D3DXVECTOR2(-GetSize().x/2.0f + barSize/2.0f, 0));
+			_front->SetSize(glm::vec2(barSize, GetSize().y));
+			_front->SetPos(pos + glm::vec2(-GetSize().x/2.0f + barSize/2.0f, 0));
 			_front->GetMaterial()->GetSampler().SetScale(D3DXVECTOR3(_progress, 1, 1));
 			break;
 		}
 		case psVertical:
 		{
 			float barSize = GetSize().y * _progress;
-			_front->SetSize(D3DXVECTOR2(GetSize().x, barSize));
-			_front->SetPos(pos + D3DXVECTOR2(0, GetSize().y/2.0f - barSize/2.0f));
+			_front->SetSize(glm::vec2(GetSize().x, barSize));
+			_front->SetPos(pos + glm::vec2(0, GetSize().y/2.0f - barSize/2.0f));
 			_front->GetMaterial()->GetSampler().SetScale(D3DXVECTOR3(1, _progress, 1));
 			break;
 		}
@@ -4503,8 +4491,8 @@ void StreakBar::UpdateStreaks()
 {
 	ClearStreaks();
 
-	D3DXVECTOR2 size = GetSize();
-	D3DXVECTOR2 streakSize(size.x / _streakMax, size.y);
+	glm::vec2 size = GetSize();
+	glm::vec2 streakSize(size.x / _streakMax, size.y);
 
 	for (unsigned i = 0; i < _streakCount; ++i)
 	{
@@ -4512,7 +4500,7 @@ void StreakBar::UpdateStreaks()
 		plane->AddRef();
 		plane->SetMaterial(_streak);
 		plane->SetSize(streakSize);
-		plane->SetPos(D3DXVECTOR2(-size.x/2.0f + (i + 0.5f) * streakSize.x, 0.0f));
+		plane->SetPos(glm::vec2(-size.x/2.0f + (i + 0.5f) * streakSize.x, 0.0f));
 
 		InsertGraphic(plane);
 		_streaks.push_back(plane);
@@ -4643,15 +4631,15 @@ bool ChargeBar::MyEvent::OnClick(Widget* sender, const MouseClick& mClick)
 
 void ChargeBar::AdjustLayout()
 {
-	D3DXVECTOR2 size = GetSize();
+	glm::vec2 size = GetSize();
 
 	_frame->SetSize(size);
 
 	_up->SetSize(size.y, size.y);
-	_up->SetPos(D3DXVECTOR2(size.x/2.0f - size.y/2.0f, 0.0f));
+	_up->SetPos(glm::vec2(size.x/2.0f - size.y/2.0f, 0.0f));
 
 	_bar->SetSize(size.x - size.y - _space.x/2.0f, size.y - _space.y);
-	_bar->SetPos(D3DXVECTOR2((-size.y + _space.x/2.0f)/2.0f, 0.0f));
+	_bar->SetPos(glm::vec2((-size.y + _space.x/2.0f)/2.0f, 0.0f));
 }
 
 void ChargeBar::StructureChanged(StructChange change)
@@ -4687,12 +4675,12 @@ Button* ChargeBar::GetUpButton()
 	return _up;
 }
 
-const D3DXVECTOR2& ChargeBar::GetSpace() const
+const glm::vec2& ChargeBar::GetSpace() const
 {
 	return _space;
 }
 
-void ChargeBar::SetSpace(const D3DXVECTOR2& value)
+void ChargeBar::SetSpace(const glm::vec2& value)
 {
 	_space = value;
 }
@@ -4790,7 +4778,7 @@ void VolumeBar::StructureChanged(StructChange change)
 
 	if (change == scLocal)
 	{
-		D3DXVECTOR2 pos = GetAlignPos();
+		glm::vec2 pos = GetAlignPos();
 
 		_planeBg->SetSize(GetSize());
 		_planeBg->SetPos(pos);
@@ -4807,10 +4795,10 @@ void VolumeBar::StructureChanged(StructChange change)
 			_right->SetSelSize(_left->GetSelSize());
 		}
 
-		_left->SetPos(D3DXVECTOR2(-GetSize().x/2, 0.0f) + pos);
-		_right->SetPos(D3DXVECTOR2(GetSize().x/2, 0.0f) + pos);
+		_left->SetPos(glm::vec2(-GetSize().x/2, 0.0f) + pos);
+		_right->SetPos(glm::vec2(GetSize().x/2, 0.0f) + pos);
 
-		//_bar->SetSize(D3DXVECTOR2(GetSize().x - _left->GetSize().x - _right->GetSize().x - 30.0f, GetSize().y));
+		//_bar->SetSize(glm::vec2(GetSize().x - _left->GetSize().x - _right->GetSize().x - 30.0f, GetSize().y));
 		_bar->SetSize(_bar->GetFront().GetImageSize());
 		_bar->SetPos(pos);
 	}
@@ -4970,10 +4958,10 @@ ColorBox::~ColorBox()
 	_frame->Release();
 }
 
-D3DXVECTOR2 ColorBox::WinToLocal(const D3DXVECTOR2& vec) const
+glm::vec2 ColorBox::WinToLocal(const glm::vec2& vec) const
 {
-	D3DXVECTOR2 size = GetColorBoxSize();
-	D3DXVECTOR2 newSize = GetSize();
+	glm::vec2 size = GetColorBoxSize();
+	glm::vec2 newSize = GetSize();
 
 	float wScale = newSize.x / size.x;
 	float hScale = newSize.y / size.y;
@@ -5003,7 +4991,7 @@ void ColorBox::ApplySelect()
 
 void ColorBox::AdjustLayout()
 {
-	D3DXVECTOR2 size = GetSize();
+	glm::vec2 size = GetSize();
 	AABB2 boxAABB = GetBoxAABB();
 	AABB2 checkAABB = GetCheckAABB();
 
@@ -5069,17 +5057,17 @@ void ColorBox::SetSelect(bool value)
 	ApplySelect();
 }
 
-D3DXVECTOR2 ColorBox::GetColorBoxSize() const
+glm::vec2 ColorBox::GetColorBoxSize() const
 {
-	D3DXVECTOR2 size(190.0f, 40.0f);
+	glm::vec2 size(190.0f, 40.0f);
 	
 	return size;
 }
 
 AABB2 ColorBox::GetBoxAABB() const
 {
-	D3DXVECTOR2 size(90.0f, 33.0f);
-	D3DXVECTOR2 pos(-25.0f, 0.0f);
+	glm::vec2 size(90.0f, 33.0f);
+	glm::vec2 pos(-25.0f, 0.0f);
 
 	AABB2 aabb(size);
 	aabb.Offset(pos);
@@ -5089,8 +5077,8 @@ AABB2 ColorBox::GetBoxAABB() const
 
 AABB2 ColorBox::GetCheckAABB() const
 {
-	D3DXVECTOR2 size(34.0f, 34.0f);
-	D3DXVECTOR2 pos(75.0f, 0.0f);
+	glm::vec2 size(34.0f, 34.0f);
+	glm::vec2 pos(75.0f, 0.0f);
 
 	AABB2 aabb(size);
 	aabb.Offset(pos);
@@ -5143,14 +5131,14 @@ bool ColorList::MyEvent::OnClick(Widget* sender, const MouseClick& mClick)
 
 void ColorList::ApplyChanges()
 {
-	D3DXVECTOR2 size = GetSize();
-	D3DXVECTOR2 boxSize = D3DXVECTOR2(size.x, size.y / _colors.size());
+	glm::vec2 size = GetSize();
+	glm::vec2 boxSize = glm::vec2(size.x, size.y / _colors.size());
 
 	int i = 0;
 	for (Colors::iterator iter = _colors.begin(); iter != _colors.end(); ++iter, ++i)
 	{
 		iter->box->SetSize(boxSize - _space);
-		iter->box->SetPos(D3DXVECTOR2(0.0f, size.y/2.0f - (i + 0.5f) * boxSize.y));
+		iter->box->SetPos(glm::vec2(0.0f, size.y/2.0f - (i + 0.5f) * boxSize.y));
 		
 		iter->box->SetFrame(_frame);
 		
@@ -5286,12 +5274,12 @@ const ColorList::Colors& ColorList::GetColors() const
 	return _colors;
 }
 
-const D3DXVECTOR2& ColorList::GetSpace() const
+const glm::vec2& ColorList::GetSpace() const
 {
 	return _space;
 }
 
-void ColorList::SetSpace(const D3DXVECTOR2& value)
+void ColorList::SetSpace(const glm::vec2& value)
 {
 	_space = value;
 	ApplyChanges();
@@ -5320,7 +5308,7 @@ void Grid::Reposition()
 		++childCount;
 	}
 
-	D3DXVECTOR2 size = D3DXVECTOR2(_maxCellsOnLine != 0 ? std::min(childCount, _maxCellsOnLine) : (float)childCount,
+	glm::vec2 size = glm::vec2(_maxCellsOnLine != 0 ? std::min(childCount, _maxCellsOnLine) : (float)childCount,
 		_maxCellsOnLine != 0 ? ceil(childCount / (float)_maxCellsOnLine) : std::min(childCount, 1));
 
 	switch (_style)
@@ -5345,7 +5333,7 @@ void Grid::Reposition()
 		int x = _maxCellsOnLine != 0 ? i % _maxCellsOnLine : i;
 		int y = _maxCellsOnLine != 0 ? i / _maxCellsOnLine : 0;
 
-		D3DXVECTOR2 pos = NullVec2;
+		glm::vec2 pos = NullVec2;
 
 		switch (_style)
 		{
@@ -5359,7 +5347,7 @@ void Grid::Reposition()
 			break;
 		}
 
-		child->SetPos(-size/2 + _cellSize/2 + pos + GetAlignPos());
+		child->SetPos(-size/2.0f + _cellSize/2.0f + pos + GetAlignPos());
 		++i;
 	}
 }
@@ -5374,12 +5362,12 @@ void Grid::style(Style value)
 	_style = value;
 }
 
-D3DXVECTOR2 Grid::cellSize() const
+glm::vec2 Grid::cellSize() const
 {
 	return _cellSize;
 }
 
-void Grid::cellSize(const D3DXVECTOR2& value)
+void Grid::cellSize(const glm::vec2& value)
 {
 	_cellSize = value;
 }
@@ -5680,20 +5668,20 @@ void Manager::SetCamera3d(graph::Camera* value)
 		_camera3d = value;
 }
 
-D3DXVECTOR2 Manager::ScreenToView(const Point& point)
+glm::vec2 Manager::ScreenToView(const Point& point)
 {
 	if (_invertY)
-		return D3DXVECTOR2(static_cast<float>(point.x), static_cast<float>(GetVPSize().y - point.y));
+		return glm::vec2(static_cast<float>(point.x), static_cast<float>(GetVPSize().y - point.y));
 	else
-		return D3DXVECTOR2(static_cast<float>(point.x), static_cast<float>(point.y));
+		return glm::vec2(static_cast<float>(point.x), static_cast<float>(point.y));
 }
 
-D3DXVECTOR2 Manager::WorldToView(const D3DXVECTOR3& coord)
+glm::vec2 Manager::WorldToView(const D3DXVECTOR3& coord)
 {
 	if (_camera3d == NULL)
 		return NullVec2;
 
-	D3DXVECTOR2 vec = GetVPSize();
+	glm::vec2 vec = GetVPSize();
 	vec = _camera3d->GetContextInfo().WorldToScreen(coord, vec);
 
 	if (_invertY)
@@ -5725,7 +5713,7 @@ bool Manager::OnMouseClickEvent(MouseKey key, KeyState state, const Point& coord
 	BeginSafeMode();
 	try
 	{
-		D3DXVECTOR2 vpSize = GetVPSize();
+		glm::vec2 vpSize = GetVPSize();
 
 		_mClick.key = key;
 		_mClick.state = state;
@@ -5762,8 +5750,8 @@ bool Manager::OnMouseMoveEvent(const Point& coord, bool shift, bool ctrl)
 	BeginSafeMode();
 	try
 	{
-		D3DXVECTOR2 vpSize = GetVPSize();
-		D3DXVECTOR2 fCoord = ScreenToView(coord);
+		glm::vec2 vpSize = GetVPSize();
+		glm::vec2 fCoord = ScreenToView(coord);
 
 		_mMove.shift1 = shift;
 		_mMove.dtCoord = fCoord - _mMove.coord;
@@ -5948,12 +5936,12 @@ Dummy* Manager::GetRoot()
 	return _root;
 }
 
-D3DXVECTOR2 Manager::GetVPSize()
+glm::vec2 Manager::GetVPSize()
 {
-	return D3DXVECTOR2(static_cast<float>(_engine->GetParams().BackBufferWidth), static_cast<float>(_engine->GetParams().BackBufferHeight));
+	return glm::vec2(static_cast<float>(_engine->GetParams().BackBufferWidth), static_cast<float>(_engine->GetParams().BackBufferHeight));
 }
 
-D3DXVECTOR2 Manager::GetMousePos()
+glm::vec2 Manager::GetMousePos()
 {
 	return _mMove.coord;
 }

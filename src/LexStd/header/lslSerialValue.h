@@ -23,17 +23,17 @@ template<class _Value> struct SerialValue
 	}
 };
 
-template<> struct SerialValue<D3DXVECTOR2>
+template<> struct SerialValue<glm::vec2>
 {
-	typedef D3DXVECTOR2 _Value;
+	typedef glm::vec2 _Value;
 
 	static void Write(SWriter* writer, const char* name, const _Value& value)
 	{
-		writer->WriteValue(name, value, 2);
+        writer->WriteValue(name, reinterpret_cast<const float *>(&value.x), 2);
 	}
 	static SReader* Read(SReader* reader, const char* name, _Value& value)
 	{
-		return reader->ReadValue(name, value, 2);
+        return reader->ReadValue(name, reinterpret_cast<float *>(&value.x), 2);
 	}
 };
 

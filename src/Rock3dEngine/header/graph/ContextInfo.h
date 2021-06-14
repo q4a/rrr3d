@@ -231,8 +231,8 @@ class CameraCI: public virtual lsl::Object
 public:
 	enum Transform {ctView = 0, ctProj, ctWorldView, ctViewProj, ctWVP, cTransformEnd};
 
-	static public D3DXVECTOR2 ViewToProj(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize);
-	static public D3DXVECTOR2 ProjToView(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize);
+	static public glm::vec2 ViewToProj(const glm::vec2& coord, const glm::vec2& viewSize);
+	static public glm::vec2 ProjToView(const glm::vec2& coord, const glm::vec2& viewSize);
 private:
 	CameraDesc _desc;
 	
@@ -267,8 +267,8 @@ public:
 	void GetWVPPerspective(D3DXMATRIX& mat) const;
 	void SetProjMat(const D3DXMATRIX& value);
 
-	D3DXVECTOR3 ScreenToWorld(const D3DXVECTOR2& coord, float z, const D3DXVECTOR2& viewSize) const;
-	D3DXVECTOR2 WorldToScreen(const D3DXVECTOR3& coord, const D3DXVECTOR2& viewSize) const;
+	D3DXVECTOR3 ScreenToWorld(const glm::vec2& coord, float z, const glm::vec2& viewSize) const;
+	glm::vec2 WorldToScreen(const D3DXVECTOR3& coord, const glm::vec2& viewSize) const;
 
 	const CameraDesc& GetDesc() const;
 	void SetDesc(const CameraDesc& value);

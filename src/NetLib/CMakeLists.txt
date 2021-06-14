@@ -24,6 +24,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/MathLib/header
     ${CMAKE_SOURCE_DIR}/src/XPlatform/header
     ${CMAKE_SOURCE_DIR}/extern/boost/include
+    ${CMAKE_SOURCE_DIR}/extern/glm/include
     ${CMAKE_SOURCE_DIR}/extern/directx/include
 )
 

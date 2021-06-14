@@ -40,6 +40,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/extern/physx/include/Physics
     ${CMAKE_SOURCE_DIR}/extern/physx/include/PhysXLoader
     ${CMAKE_SOURCE_DIR}/extern/vorbis/include
+    ${CMAKE_SOURCE_DIR}/extern/glm/include
     ${CMAKE_SOURCE_DIR}/extern/directx/include
 )
 

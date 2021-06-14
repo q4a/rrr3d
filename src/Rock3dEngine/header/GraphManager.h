@@ -140,7 +140,7 @@ public:
 		float brightThreshold;
 		float gaussianScalar;
 		float exposure;
-		D3DXVECTOR2 colorCorrection;
+		glm::vec2 colorCorrection;
 	};
 
 	enum ReflMappMode { rmColorLayer, rmLackLayer };
@@ -243,7 +243,7 @@ private:
 	graph::FogPlane* _fogPlane;
 	graph::Tex2DResource* _cloudsTex;
 	graph::LibMaterial* _cloudsMat;
-	D3DXVECTOR2 _tileScale;
+	glm::vec2 _tileScale;
 	graph::Actor* _fogPlaneActor;
 
 	D3DXCOLOR _sceneAmbient;
@@ -326,7 +326,7 @@ private:
 	void InitFog();
 	void FreeFog();
 
-	void InitPlaneFog(lsl::string texture, const D3DXVECTOR2& tileScale, float speed, GraphQuality quality);
+	void InitPlaneFog(lsl::string texture, const glm::vec2& tileScale, float speed, GraphQuality quality);
 	void FreePlaneFog();
 	void UpdateFogPlane();
 

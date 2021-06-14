@@ -290,29 +290,29 @@ Sampler2d::Sampler2d(): _MyBase(st2d)
 {
 }
 
-void Sampler2d::BuildAnimByOff(const Vec2Range& texCoord, const Point2U& tileCnt, const D3DXVECTOR2& pixOff)
+void Sampler2d::BuildAnimByOff(const Vec2Range& texCoord, const Point2U& tileCnt, const glm::vec2& pixOff)
 {
-	D3DXVECTOR2 fTileCnt(static_cast<float>(tileCnt.x), static_cast<float>(tileCnt.y));
+	glm::vec2 fTileCnt(static_cast<float>(tileCnt.x), static_cast<float>(tileCnt.y));
 
-	D3DXVECTOR2 coordOff(pixOff.x / GetWidth(), pixOff.y / GetHeight());
-	D3DXVECTOR2 coordLen(texCoord.GetMax() - texCoord.GetMin());
-	D3DXVECTOR2 tileSize((coordLen - 2 * coordOff) / fTileCnt);	
+	glm::vec2 coordOff(pixOff.x / GetWidth(), pixOff.y / GetHeight());
+	glm::vec2 coordLen(texCoord.GetMax() - texCoord.GetMin());
+	glm::vec2 tileSize((coordLen - coordOff * 2.0f) / fTileCnt);	
 
-	D3DXVECTOR2 stTile(texCoord.GetMin() + coordOff);
-	D3DXVECTOR2 endTile(tileSize * (fTileCnt - IdentityVec2) + stTile);
+	glm::vec2 stTile(texCoord.GetMin() + coordOff);
+	glm::vec2 endTile(tileSize * (fTileCnt - IdentityVec2) + stTile);
 
 	SetScale(D3DXVECTOR3(tileSize.x, tileSize.y, 1.0f));
 	SetOffset(Vec3Range(D3DXVECTOR3(stTile.x, stTile.y, 0), D3DXVECTOR3(endTile.x, endTile.y, 0), Vec3Range::vdVolume, Point3U(tileCnt.x, tileCnt.y, 1)));
 }
 
-void Sampler2d::BuildAnimByTile(const Vec2Range& texCoord, const Point2U& tileCnt, const D3DXVECTOR2& tileSize)
+void Sampler2d::BuildAnimByTile(const Vec2Range& texCoord, const Point2U& tileCnt, const glm::vec2& tileSize)
 {
-	D3DXVECTOR2 fTileCnt(static_cast<float>(tileCnt.x), static_cast<float>(tileCnt.y));
+	glm::vec2 fTileCnt(static_cast<float>(tileCnt.x), static_cast<float>(tileCnt.y));
 
-	D3DXVECTOR2 coordLen(texCoord.GetMax() - texCoord.GetMin());
-	D3DXVECTOR2 imgSize(coordLen.x * GetWidth(), coordLen.y * GetHeight());
+	glm::vec2 coordLen(texCoord.GetMax() - texCoord.GetMin());
+	glm::vec2 imgSize(coordLen.x * GetWidth(), coordLen.y * GetHeight());
 	
-	D3DXVECTOR2 pixOff = tileSize/2 - ((fTileCnt + IdentityVec2) * tileSize - imgSize) / 2;
+	glm::vec2 pixOff = tileSize / 2.0f - ((fTileCnt + IdentityVec2) * tileSize - imgSize) / 2.0f;
 
 	BuildAnimByOff(texCoord, tileCnt, pixOff);
 }
@@ -337,7 +337,7 @@ unsigned Sampler2d::GetFormat() const
 	return GetTex() ? GetTex()->GetData()->GetFormat() : 0;
 }
 
-D3DXVECTOR2 Sampler2d::GetSize()
+glm::vec2 Sampler2d::GetSize()
 {
 	return GetTex() ? GetTex()->GetSize() : NullVec2;
 }
@@ -919,16 +919,16 @@ void DrawScreenQuad(Engine& engine, const D3DXVECTOR4& quadVert, float fLeftU, f
 	res::ScreenVertex svQuad[4];
 
 	svQuad[0].pos = D3DXVECTOR4(fPosX, fPosY, 0.5f, 1.0f);
-	svQuad[0].tex = D3DXVECTOR2(fLeftU, fTopV);
+	svQuad[0].tex = glm::vec2(fLeftU, fTopV);
 
 	svQuad[1].pos = D3DXVECTOR4(fWidth5, fPosY, 0.5f, 1.0f);
-	svQuad[1].tex = D3DXVECTOR2(fRightU, fTopV);
+	svQuad[1].tex = glm::vec2(fRightU, fTopV);
 
 	svQuad[2].pos = D3DXVECTOR4(fPosX, fHeight5, 0.5f, 1.0f); 
-	svQuad[2].tex = D3DXVECTOR2(fLeftU, fBottomV);
+	svQuad[2].tex = glm::vec2(fLeftU, fBottomV);
 
 	svQuad[3].pos = D3DXVECTOR4(fWidth5, fHeight5, 0.5f, 1.0f);
-	svQuad[3].tex = D3DXVECTOR2(fRightU, fBottomV);
+	svQuad[3].tex = glm::vec2(fRightU, fBottomV);
 
 	if (!disableZBuf)
 	{

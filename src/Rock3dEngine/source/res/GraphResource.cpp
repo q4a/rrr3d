@@ -14,8 +14,8 @@ const int VertexData::cElementSize[cElementEnd] =
 	sizeof(D3DXVECTOR4),
 	sizeof(D3DXVECTOR3), 
 	sizeof(D3DCOLOR),
-	sizeof(D3DXVECTOR2),
-	sizeof(D3DXVECTOR2),
+	sizeof(glm::vec2),
+	sizeof(glm::vec2),
 	sizeof(D3DXVECTOR3),
 	sizeof(D3DXVECTOR3)
 };
@@ -64,7 +64,7 @@ VertexPT::VertexPT()
 {
 }
 
-VertexPT::VertexPT(D3DXVECTOR3 position, D3DXVECTOR2 texCoord): pos(position), tex(texCoord)
+VertexPT::VertexPT(D3DXVECTOR3 position, glm::vec2 texCoord): pos(position), tex(texCoord)
 {
 }
 
@@ -75,7 +75,7 @@ VertexPNT::VertexPNT()
 {
 }
 
-VertexPNT::VertexPNT(const D3DXVECTOR3& position, const D3DXVECTOR3& normal, const D3DXVECTOR2& texCoord): pos(position), norm(normal), tex(texCoord)
+VertexPNT::VertexPNT(const D3DXVECTOR3& position, const D3DXVECTOR3& normal, const glm::vec2& texCoord): pos(position), norm(normal), tex(texCoord)
 {
 }
 
@@ -86,7 +86,7 @@ ScreenVertex::ScreenVertex()
 {
 }
 
-ScreenVertex::ScreenVertex(const D3DXVECTOR4& position, const D3DXVECTOR2& texCoord): pos(position), tex(texCoord)
+ScreenVertex::ScreenVertex(const D3DXVECTOR4& position, const glm::vec2& texCoord): pos(position), tex(texCoord)
 {
 }
 
@@ -362,14 +362,14 @@ D3DCOLOR* VertexIter::Color()
 	return reinterpret_cast<D3DCOLOR*>(_owner->GetVertex(_index, VertexData::vtColor));
 }
 
-D3DXVECTOR2* VertexIter::Tex0()
+glm::vec2* VertexIter::Tex0()
 {
-	return reinterpret_cast<D3DXVECTOR2*>(_owner->GetVertex(_index, VertexData::vtTex0));
+	return reinterpret_cast<glm::vec2*>(_owner->GetVertex(_index, VertexData::vtTex0));
 }
 
-D3DXVECTOR2* VertexIter::Tex1()
+glm::vec2* VertexIter::Tex1()
 {
-	return reinterpret_cast<D3DXVECTOR2*>(_owner->GetVertex(_index, VertexData::vtTex1));
+	return reinterpret_cast<glm::vec2*>(_owner->GetVertex(_index, VertexData::vtTex1));
 }
 
 D3DXVECTOR3* VertexIter::Normal()
@@ -557,12 +557,12 @@ MeshData::~MeshData()
 	Free();
 }
 
-void CalcTangentBasis(const D3DXVECTOR3 &p1, const D3DXVECTOR3 &p2, const D3DXVECTOR3 &p3, const D3DXVECTOR2 &t1, const D3DXVECTOR2 &t2, const D3DXVECTOR2 &t3, D3DXVECTOR3& tangent, D3DXVECTOR3& binormal)
+void CalcTangentBasis(const D3DXVECTOR3 &p1, const D3DXVECTOR3 &p2, const D3DXVECTOR3 &p3, const glm::vec2 &t1, const glm::vec2 &t2, const glm::vec2 &t3, D3DXVECTOR3& tangent, D3DXVECTOR3& binormal)
 {
 	D3DXVECTOR3 e1  = p2 - p1;
 	D3DXVECTOR3 e2  = p3 - p1;
-	D3DXVECTOR2 et1 = t2 - t1;
-	D3DXVECTOR2 et2 = t3 - t1;
+	glm::vec2 et1 = t2 - t1;
+	glm::vec2 et2 = t3 - t1;
 	
 	float tmp = 0.0;
 	if (fabsf(et1.x*et2.y - et1.y*et2.x)<0.0001f)

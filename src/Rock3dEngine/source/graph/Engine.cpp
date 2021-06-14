@@ -181,10 +181,10 @@ void Engine::UpdateScreenQuad()
 
 	res::ScreenVertex vertBuf[4] = 
 	{
-		res::ScreenVertex(D3DXVECTOR4(fPosX, fPosY, 0.5f, 1.0f), D3DXVECTOR2(fLeftU, fTopV)),
-		res::ScreenVertex(D3DXVECTOR4(fWidth5, fPosY, 0.5f, 1.0f), D3DXVECTOR2(fRightU, fTopV)),
-		res::ScreenVertex(D3DXVECTOR4(fPosX, fHeight5, 0.5f, 1.0f), D3DXVECTOR2(fLeftU, fBottomV)),
-		res::ScreenVertex(D3DXVECTOR4(fWidth5, fHeight5, 0.5f, 1.0f), D3DXVECTOR2(fRightU, fBottomV))
+		res::ScreenVertex(D3DXVECTOR4(fPosX, fPosY, 0.5f, 1.0f), glm::vec2(fLeftU, fTopV)),
+		res::ScreenVertex(D3DXVECTOR4(fWidth5, fPosY, 0.5f, 1.0f), glm::vec2(fRightU, fTopV)),
+		res::ScreenVertex(D3DXVECTOR4(fPosX, fHeight5, 0.5f, 1.0f), glm::vec2(fLeftU, fBottomV)),
+		res::ScreenVertex(D3DXVECTOR4(fWidth5, fHeight5, 0.5f, 1.0f), glm::vec2(fRightU, fBottomV))
 	};
 
 	res::VertexData* data = _meshScreenQuad.GetOrCreateData();
@@ -203,10 +203,10 @@ void Engine::InitResources()
 	{
 		res::VertexPT vertBuf[4] = 
 		{
-			res::VertexPT(D3DXVECTOR3(0.5f, -0.5f, 0.0f), D3DXVECTOR2(1, 1)),
-			res::VertexPT(D3DXVECTOR3(0.5f, 0.5f, 0.0f), D3DXVECTOR2(1, 0)),
-			res::VertexPT(D3DXVECTOR3(-0.5f, -0.5f, 0.0f), D3DXVECTOR2(0, 1)),
-			res::VertexPT(D3DXVECTOR3(-0.5f, 0.5f, 0.0f), D3DXVECTOR2(0, 0))
+			res::VertexPT(D3DXVECTOR3(0.5f, -0.5f, 0.0f), glm::vec2(1, 1)),
+			res::VertexPT(D3DXVECTOR3(0.5f, 0.5f, 0.0f), glm::vec2(1, 0)),
+			res::VertexPT(D3DXVECTOR3(-0.5f, -0.5f, 0.0f), glm::vec2(0, 1)),
+			res::VertexPT(D3DXVECTOR3(-0.5f, 0.5f, 0.0f), glm::vec2(0, 0))
 		};
 
 		res::VertexData* data = _meshPlanePT.GetOrCreateData();

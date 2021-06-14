@@ -155,7 +155,7 @@ class PlaneNode: public BaseSceneNode
 	typedef BaseSceneNode _MyBase;	
 private:
 	graph::VBMesh _mesh;
-	D3DXVECTOR2 _size;
+	glm::vec2 _size;
  
 	void DrawPlane(Engine& engine);
 	void UpdateMesh();
@@ -170,8 +170,8 @@ public:
 	PlaneNode();
 	virtual ~PlaneNode();
 
-	const D3DXVECTOR2& GetSize() const;
-	void SetSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSize() const;
+	void SetSize(const glm::vec2& value);
 
 	MaterialNode material;
 };
@@ -231,7 +231,7 @@ public:
 
 	MaterialNode material;
 
-	D3DXVECTOR2 sizes;
+	glm::vec2 sizes;
 	//Зафиксировать направление, по умолчанию false
 	bool fixDirection;
 };

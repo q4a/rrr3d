@@ -98,8 +98,8 @@ class Sampler2d: public Sampler<Tex2DResource>
 public:
 	Sampler2d();
 
-	void BuildAnimByOff(const Vec2Range& texCoord, const Point2U& tileCnt, const D3DXVECTOR2& pixOff = D3DXVECTOR2(0.5f, 0.5f));
-	void BuildAnimByTile(const Vec2Range& texCoord, const Point2U& tileCnt, const D3DXVECTOR2& tileSize);
+	void BuildAnimByOff(const Vec2Range& texCoord, const Point2U& tileCnt, const glm::vec2& pixOff = glm::vec2(0.5f, 0.5f));
+	void BuildAnimByTile(const Vec2Range& texCoord, const Point2U& tileCnt, const glm::vec2& tileSize);
 
 	IDirect3DTexture9* GetTexSrc();
 
@@ -107,7 +107,7 @@ public:
 	unsigned GetHeight() const;
 	unsigned GetFormat() const;
 
-	D3DXVECTOR2 GetSize();
+	glm::vec2 GetSize();
 };
 
 class SamplerCube: public Sampler<TexCubeResource>

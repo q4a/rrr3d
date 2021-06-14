@@ -18,6 +18,7 @@ add_library(${PROJECT_NAME} STATIC
 target_include_directories(${PROJECT_NAME} PRIVATE
     header
     ${CMAKE_SOURCE_DIR}/src/LexStd/header
+    ${CMAKE_SOURCE_DIR}/extern/glm/include
     ${CMAKE_SOURCE_DIR}/extern/directx/include
 )
 

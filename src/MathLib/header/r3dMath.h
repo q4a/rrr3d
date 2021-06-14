@@ -13,27 +13,28 @@ struct AABB2
 
 	AABB2();
 	explicit AABB2(float size);
-	explicit AABB2(const D3DXVECTOR2& size);
-	AABB2(const D3DXVECTOR2& mMin, const D3DXVECTOR2& mMax);
+	explicit AABB2(const glm::vec2& size);
+	AABB2(const glm::vec2& mMin, const glm::vec2& mMax);
 
-	static void Transform(const AABB2& aabb, const D3DXMATRIX& m, AABB2& rOut);
-	static void Include(const AABB2& aabb, const D3DXVECTOR2& vec, AABB2& rOut);
+	//static void Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut);
+    static void Transform(const AABB2 &aabb, const D3DXMATRIX &m, AABB2 &rOut);
+	static void Include(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut);
 	static void Add(const AABB2& aabb1, const AABB2& aabb2, AABB2& rOut);
-	static void Offset(const AABB2& aabb, const D3DXVECTOR2& vec, AABB2& rOut);
+	static void Offset(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut);
 
-	void Transform(const D3DXMATRIX& m);
-	void Include(const D3DXVECTOR2& vec);
+	void Transform(const D3DXMATRIX &m);
+	void Include(const glm::vec2& vec);
 	void Add(const AABB2& aabb);
-	void Offset(const D3DXVECTOR2& vec);
+	void Offset(const glm::vec2& vec);
 
-	bool ContainsPoint(const D3DXVECTOR2& point) const;
+	bool ContainsPoint(const glm::vec2& point) const;
 	SpaceContains ContainsAABB(const AABB2& test) const;
 
-	D3DXVECTOR2 GetCenter() const;
-	D3DXVECTOR2 GetSize() const;
+	glm::vec2 GetCenter() const;
+	glm::vec2 GetSize() const;
 
-	D3DXVECTOR2 min;
-	D3DXVECTOR2 max;
+	glm::vec2 min;
+	glm::vec2 max;
 };
 
 struct BoundBox;
@@ -199,8 +200,8 @@ bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVe
 bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXPLANE& plane, D3DXVECTOR3& outVec);
 //Погрешность 10%
 bool RayCastIntersectSquare(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& min, const D3DXVECTOR3& max, const D3DXPLANE& plane, float* outT, D3DXVECTOR3* outVec, const float error = 0);
-void GetSampleOffsetsDownScale3x3(DWORD dwWidth, DWORD dwHeight, D3DXVECTOR2 avSampleOffsets[9]);
-void GetSampleOffsetsDownScale4x4(DWORD dwWidth, DWORD dwHeight, D3DXVECTOR2 avSampleOffsets[16]);
+void GetSampleOffsetsDownScale3x3(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[9]);
+void GetSampleOffsetsDownScale4x4(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[16]);
 
 const D3DXCOLOR clrBlack    (0.0f,  0.0f,  0.0f , 1.0f);
 const D3DXCOLOR clrGray05   (0.05f, 0.05f, 0.05f, 1.0f);

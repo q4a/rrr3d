@@ -31,18 +31,18 @@ void MatGetPos(const D3DXMATRIX& mat, D3DXVECTOR3& outPos);
 D3DXVECTOR3 MatGetPos(const D3DXMATRIX& mat);
 
 //
-D3DXVECTOR2 Vec2TransformCoord(const D3DXVECTOR2& vec, const D3DXMATRIX& mat);
-void Vec2NormCCW(const D3DXVECTOR2& vec2, D3DXVECTOR2& outVec);
-D3DXVECTOR2 Vec2NormCCW(const D3DXVECTOR2& vec2);
-void Vec2NormCW(const D3DXVECTOR2& vec2, D3DXVECTOR2& outVec);
+glm::vec2 Vec2TransformCoord(const glm::vec2 &vec, const glm::mat4 &mat);
+void Vec2NormCCW(const glm::vec2& vec2, glm::vec2& outVec);
+glm::vec2 Vec2NormCCW(const glm::vec2& vec2);
+void Vec2NormCW(const glm::vec2& vec2, glm::vec2& outVec);
 //Длина проекции vec1 на vec2
-float Vec2Proj(const D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2);
-void operator*=(D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2);
-D3DXVECTOR2 operator*(const D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2);
-void operator/=(D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2);
-D3DXVECTOR2 operator/(const D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2);
+float Vec2Proj(const glm::vec2& vec1, const glm::vec2& vec2);
+void operator*=(glm::vec2& vec1, const glm::vec2& vec2);
+glm::vec2 operator*(const glm::vec2& vec1, const glm::vec2& vec2);
+void operator/=(glm::vec2& vec1, const glm::vec2& vec2);
+glm::vec2 operator/(const glm::vec2& vec1, const glm::vec2& vec2);
 
-D3DXVECTOR3 Vec3FromVec2(const D3DXVECTOR2& vec);
+D3DXVECTOR3 Vec3FromVec2(const glm::vec2& vec);
 void Vec3Invert(const D3DXVECTOR3& vec, D3DXVECTOR3& rOut);
 D3DXVECTOR3 Vec3Invert(const D3DXVECTOR3& vec);
 D3DXVECTOR3 Vec3TransformCoord(const D3DXVECTOR3& vec, const D3DXMATRIX& mat);
@@ -58,25 +58,25 @@ bool operator<(const D3DXVECTOR3& vec1, float scalar);
 bool operator>(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
 bool operator<(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
 
-D3DXVECTOR4 Vec4FromVec2(const D3DXVECTOR2& vec);
+D3DXVECTOR4 Vec4FromVec2(const glm::vec2& vec);
 D3DXVECTOR4 Vec4FromVec3(const D3DXVECTOR3& vec);
 
 //Линия из нормали и точки
-void Line2FromNorm(const D3DXVECTOR2& norm, const D3DXVECTOR2& point, D3DXVECTOR3& outLine);
-D3DXVECTOR3 Line2FromNorm(const D3DXVECTOR2& norm, const D3DXVECTOR2& point);
+void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, D3DXVECTOR3& outLine);
+D3DXVECTOR3 Line2FromNorm(const glm::vec2& norm, const glm::vec2& point);
 //Линия из направляющей и точки
-void Line2FromDir(const D3DXVECTOR2& dir, const D3DXVECTOR2& point, D3DXVECTOR3& outLine);
-D3DXVECTOR3 Line2FromDir(const D3DXVECTOR2& dir, const D3DXVECTOR2& point);
-void Line2GetNorm(const D3DXVECTOR3& line, D3DXVECTOR2& norm);
-void Line2GetDir(const D3DXVECTOR3& line, D3DXVECTOR2& dir);
-void Line2GetRadiusVec(const D3DXVECTOR3& line, D3DXVECTOR2& outVec);
-D3DXVECTOR2 Line2GetRadiusVec(const D3DXVECTOR3& line);
-D3DXVECTOR2 Line2GetNorm(const D3DXVECTOR3& line);
+void Line2FromDir(const glm::vec2& dir, const glm::vec2& point, D3DXVECTOR3& outLine);
+D3DXVECTOR3 Line2FromDir(const glm::vec2& dir, const glm::vec2& point);
+void Line2GetNorm(const D3DXVECTOR3& line, glm::vec2& norm);
+void Line2GetDir(const D3DXVECTOR3& line, glm::vec2& dir);
+void Line2GetRadiusVec(const D3DXVECTOR3& line, glm::vec2& outVec);
+glm::vec2 Line2GetRadiusVec(const D3DXVECTOR3& line);
+glm::vec2 Line2GetNorm(const D3DXVECTOR3& line);
 //Расстояние от прямой до точки по направлению нормали. Если точка лежит за линией по направлению нормали то результат положительный, иначе отрицательный
-float Line2DistToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point);
+float Line2DistToPoint(const D3DXVECTOR3& line, const glm::vec2& point);
 //Возвращает нормальный вектор до точки, этот вектор в общем случае неединичный
-void Line2NormVecToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point, D3DXVECTOR2& outNormVec);
-D3DXVECTOR2 Line2NormVecToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point);
+void Line2NormVecToPoint(const D3DXVECTOR3& line, const glm::vec2& point, glm::vec2& outNormVec);
+glm::vec2 Line2NormVecToPoint(const D3DXVECTOR3& line, const glm::vec2& point);
 
 bool RayCastIntersectSphere(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& spherePos, float sphereRadius, float* t = 0);
 float PlaneDistToPoint(const D3DXPLANE& plane, const D3DXVECTOR3& point);
@@ -89,10 +89,10 @@ const D3DXMATRIX       IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
 const D3DXVECTOR3      XVector(1.0f, 0.0f, 0.0f);
 const D3DXVECTOR3      YVector(0.0f, 1.0f, 0.0f);
 const D3DXVECTOR3      ZVector(0.0f, 0.0f, 1.0f);
-const D3DXVECTOR2      NullVec2(0.0f, 0.0f);
+const glm::vec2        NullVec2(0.0f, 0.0f);
 const D3DXVECTOR3      NullVector(0.0f, 0.0f, 0.0f);
 const D3DXVECTOR4      NullVec4(0.0f, 0.0f, 0.0f, 0.0f);
-const D3DXVECTOR2      IdentityVec2(1.0f, 1.0f);
+const glm::vec2        IdentityVec2(1.0f, 1.0f);
 const D3DXVECTOR3      IdentityVector(1.0f, 1.0f, 1.0f);
 const D3DXVECTOR4      IdentityVec4(1.0f, 1.0f, 1.0f, 1.0f);
 const D3DXVECTOR3      IdentityHalfVec (0.5f, 0.5f, 0.5f);
@@ -400,7 +400,7 @@ private:
 	//Объем фигуры
 	unsigned _volume;
 	//Шаг в интерполирвоанном значении относительно каждой ячейки
-	D3DXVECTOR2 _step;
+	glm::vec2 _step;
 	//
 	D3DXVECTOR3 _minAngle;
 	D3DXVECTOR3 _maxAngle;
@@ -413,7 +413,7 @@ private:
 			
 			LSL_ASSERT(_volume > 0);
 			
-			D3DXVECTOR2 leng = _max - _min;
+			glm::vec2 leng(_max.x - _min.x, _max.y - _min.y);
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
 
@@ -536,7 +536,7 @@ public:
 };
 
 typedef ValueRange<float> FloatRange;
-typedef ValueRange<D3DXVECTOR2> Vec2Range;
+typedef ValueRange<glm::vec2> Vec2Range;
 typedef ValueRange<D3DXVECTOR4> Vec4Range;
 typedef ValueRange<D3DXQUATERNION> QuatRange;
 typedef ValueRange<D3DXCOLOR> ColorRange;

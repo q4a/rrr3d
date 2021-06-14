@@ -188,7 +188,7 @@ class TexResource: public MemPoolResource
 {
 private:
 	unsigned _levelCnt;
-	D3DXVECTOR2 _screenScale;
+	glm::vec2 _screenScale;
 protected:
 	virtual IDirect3DBaseTexture9* GetBaseTex() = 0;
 public:
@@ -200,8 +200,8 @@ public:
 	//value = 0 - генерация последовательности mip уровней до 1x1
 	void SetLevelCnt(unsigned value);
 
-	const D3DXVECTOR2& GetScreenScale() const;
-	void SetScreenScale(D3DXVECTOR2 value);
+	const glm::vec2& GetScreenScale() const;
+	void SetScreenScale(glm::vec2 value);
 };
 
 class Tex2DResource: public TexResource
@@ -236,7 +236,7 @@ public:
 	void SetData(res::ImageResource* value);
 
 	IDirect3DTexture9* GetTex();
-	D3DXVECTOR2 GetSize();
+	glm::vec2 GetSize();
 };
 
 class TexCubeResource: public TexResource
@@ -278,7 +278,7 @@ private:
 	D3DMULTISAMPLE_TYPE _multisampleType;
 	unsigned _multisampleQuality;
 
-	D3DXVECTOR2 _screenScale;
+	glm::vec2 _screenScale;
 protected:
 	virtual void DoInit();
 	virtual void DoFree();
@@ -307,8 +307,8 @@ public:
 	unsigned GetMultisampleQuality() const;
 	void SetMultisampleQuality(unsigned value);
 
-	const D3DXVECTOR2& GetScreenScale() const;
-	void SetScreenScale(D3DXVECTOR2 value);
+	const glm::vec2& GetScreenScale() const;
+	void SetScreenScale(glm::vec2 value);
 };
 
 class DepthStencilSurfaceResource: public VideoResource
@@ -323,7 +323,7 @@ private:
 	D3DMULTISAMPLE_TYPE _multisampleType;
 	unsigned _multisampleQuality;
 
-	D3DXVECTOR2 _screenScale;
+	glm::vec2 _screenScale;
 protected:
 	virtual void DoInit();
 	virtual void DoFree();
@@ -352,8 +352,8 @@ public:
 	unsigned GetMultisampleQuality() const;
 	void SetMultisampleQuality(unsigned value);
 
-	const D3DXVECTOR2& GetScreenScale() const;
-	void SetScreenScale(D3DXVECTOR2 value);
+	const glm::vec2& GetScreenScale() const;
+	void SetScreenScale(glm::vec2 value);
 };
 
 class TextFont: public VideoResource

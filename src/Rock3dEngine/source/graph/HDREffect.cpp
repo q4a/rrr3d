@@ -48,8 +48,8 @@ void HDRRender::MeasureLuminance(Engine& engine)
 {
 	LSL_ASSERT(_colorTex);
 
-	D3DXVECTOR2 sampleOffsets3x3[9];
-	D3DXVECTOR2 sampleOffsets4x4[16];
+	glm::vec2 sampleOffsets3x3[9];
+	glm::vec2 sampleOffsets4x4[16];
 
 	GetSampleOffsetsDownScale3x3(_colorTex->GetData()->GetWidth(), _colorTex->GetData()->GetHeight(), sampleOffsets3x3);
 	shader.SetTextureDir("lumTex", _colorTex);

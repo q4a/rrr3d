@@ -64,10 +64,10 @@ struct VertexPT
 	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_TEX1;
 
 	D3DXVECTOR3 pos;
-	D3DXVECTOR2 tex;
+	glm::vec2 tex;
 
 	VertexPT();
-	VertexPT(D3DXVECTOR3 position, D3DXVECTOR2 texCoord);
+	VertexPT(D3DXVECTOR3 position, glm::vec2 texCoord);
 };
 
 struct VertexPNT
@@ -76,10 +76,10 @@ struct VertexPNT
 
 	D3DVECTOR pos;	
 	D3DVECTOR norm;
-	D3DXVECTOR2 tex;
+	glm::vec2 tex;
 
 	VertexPNT();
-	VertexPNT(const D3DXVECTOR3& position, const D3DXVECTOR3& normal, const D3DXVECTOR2& texCoord);
+	VertexPNT(const D3DXVECTOR3& position, const D3DXVECTOR3& normal, const glm::vec2& texCoord);
 };
 
 struct ScreenVertex
@@ -87,10 +87,10 @@ struct ScreenVertex
 	static const DWORD fvf = D3DFVF_XYZRHW | D3DFVF_TEX1;
 
 	D3DXVECTOR4 pos;
-	D3DXVECTOR2 tex;
+	glm::vec2 tex;
 
 	ScreenVertex();
-	ScreenVertex(const D3DXVECTOR4& position, const D3DXVECTOR2& texCoord);
+	ScreenVertex(const D3DXVECTOR4& position, const glm::vec2& texCoord);
 };
 
 struct VertexIter;
@@ -169,8 +169,8 @@ struct VertexIter
 	D3DXVECTOR3* Pos3();
 	D3DXVECTOR4* Pos4();
 	D3DCOLOR* Color();
-	D3DXVECTOR2* Tex0();
-	D3DXVECTOR2* Tex1();
+	glm::vec2* Tex0();
+	glm::vec2* Tex1();
 	D3DXVECTOR3* Normal();
 	D3DXVECTOR3* Tangent();
 	D3DXVECTOR3* Binormal();
