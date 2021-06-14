@@ -195,7 +195,7 @@ public:
 	NETLIB_API void Serialize(double& value, float err = cFloatErr);
 
 	NETLIB_API void Serialize(float value[], int count, float err = cFloatErr);
-	NETLIB_API void Serialize(D3DXVECTOR2& value, float err = cFloatErr);
+	NETLIB_API void Serialize(glm::vec2& value, float err = cFloatErr);
 	NETLIB_API void Serialize(D3DXVECTOR3& value, float err = cFloatErr);
 	NETLIB_API void Serialize(D3DXVECTOR4& value, float err = cFloatErr);
 	NETLIB_API void Serialize(D3DXQUATERNION& value, float err = cFloatErr);

@@ -48,7 +48,7 @@ void GaussianBlurShader::DoApplyTech(Engine& engine)
 	}
 
 	GetEffect()->SetTexture(_colorTex, engine.GetTexture(0));
-	GetEffect()->SetFloatArray(_colorTexSizes, D3DXVECTOR2(fWidth, fHeight), 2);
+	GetEffect()->SetFloatArray(_colorTexSizes, glm::vec2(fWidth, fHeight), 2);
 	GetEffect()->SetTechnique(_techGaussianBlur);
 	GetEffect()->Begin(&_cntPass, 0);
 }
