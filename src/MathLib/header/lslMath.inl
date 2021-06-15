@@ -52,9 +52,6 @@ inline float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMAT
 	return scalar < 0 ? -len : len;
 }
 
-
-
-
 inline void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const D3DXQUATERNION& rot, D3DXMATRIX& outMat)
 {
 	D3DXMATRIX scaleMat;
@@ -173,6 +170,24 @@ inline glm::vec2 Vec2TransformNormal(const glm::vec2 &vec, const glm::mat4 &mat)
     return glm::vec2(res4.x, res4.y);
 }
 
+inline float Vec2Dot(const glm::vec2 &vec1, const glm::vec2 &vec2)
+{
+    return vec1.x * vec2.x + vec1.y * vec2.y;
+}
+
+inline glm::vec2 Vec2Lerp(const glm::vec2 &vec1, const glm::vec2 &vec2, float scalar)
+{
+    glm::vec2 res;
+    res.x = vec1.x + scalar * (vec2.x - vec1.x);
+    res.y = vec1.y + scalar * (vec2.y - vec1.y);
+    return res;
+}
+
+inline float Vec2CCW(const glm::vec2 &vec1, const glm::vec2 &vec2)
+{
+    return vec1.x * vec2.y - vec1.y * vec2.x;
+}
+
 //Поворот вектора на 90 градуос против часовой стрелки, иначе говоря его нормаль
 inline void Vec2NormCCW(const glm::vec2& vec, glm::vec2& outVec)
 {
@@ -202,7 +217,7 @@ inline void Vec2NormCW(const glm::vec2& vec, glm::vec2& outVec)
 
 inline float Vec2Proj(const glm::vec2& vec1, const glm::vec2& vec2)
 {
-    return (vec1.x * vec2.x + vec1.y * vec2.y) / glm::length(vec2);
+    return Vec2Dot(vec1, vec2) / glm::length(vec2);
 }
 
 inline void operator*=(glm::vec2& vec1, const glm::vec2& vec2)
@@ -232,9 +247,6 @@ inline glm::vec2 operator/(const glm::vec2& vec1, const glm::vec2& vec2)
 
 	return res;
 }
-
-
-
 
 inline D3DXVECTOR3 Vec3FromVec2(const glm::vec2& vec)
 {
@@ -348,9 +360,6 @@ inline bool operator<(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
 		   vec1.z < vec2.z;
 }
 
-
-
-
 inline D3DXVECTOR4 Vec4FromVec2(const glm::vec2& vec)
 {
 	return D3DXVECTOR4(vec.x, vec.y, 0, 0);
@@ -360,9 +369,6 @@ inline D3DXVECTOR4 Vec4FromVec3(const D3DXVECTOR3& vec)
 {
 	return D3DXVECTOR4(vec.x, vec.y, vec.z, 0);
 }
-
-
-
 
 inline void operator*=(D3DXCOLOR& vec1, const D3DXCOLOR& vec2)
 {
@@ -379,9 +385,6 @@ inline D3DXCOLOR operator*(const D3DXCOLOR& vec1, const D3DXCOLOR& vec2)
 
 	return res;	
 }
-
-
-
 
 inline void QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to, D3DXQUATERNION& outQuat)
 {
@@ -455,9 +458,6 @@ inline const D3DXVECTOR3& QuatRotateVec3(D3DXVECTOR3& res, const D3DXVECTOR3& ve
 	return res;
 }
 
-
-
-
 inline void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, D3DXVECTOR3& outLine)
 {
 	//Уравнение разделяющей прямой через нормаль и точку
@@ -465,7 +465,7 @@ inline void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, D3DXVEC
 	//Нормаль
 	outLine.x = norm.x;
 	outLine.y = norm.y;
-    outLine.z = -(norm.x * point.x + norm.y * point.y);
+    outLine.z = -Vec2Dot(norm, point);
 }
 
 inline D3DXVECTOR3 Line2FromNorm(const glm::vec2& norm, const glm::vec2& point)
@@ -559,9 +559,6 @@ inline Vec3Range operator*(const Vec3Range& val1, const D3DXVECTOR3& val2)
 
 	return res;
 }
-
-
-
 
 //ray = rayPos + t * rayVec
 //return t

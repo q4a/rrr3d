@@ -346,11 +346,11 @@ void PlayerStateFrame::ProccessAchievments(float deltaTime)
 			float pointsAlpha = ClampValue((item.time - 0.8f)/0.15f, 0.0f, 1.0f);
 			float pingAlpha = ClampValue((item.time - 0.2f)/0.1f, 0.0f, 1.0f) - ClampValue((item.time - 0.3f)/0.1f, 0.0f, 1.0f);
 
-			D3DXVec2Lerp(&pos, &item.image->GetPos(), &pos, flyAlpha);
+			pos = Vec2Lerp(item.image->GetPos(), pos, flyAlpha);
 			item.image->SetPos(pos);
 
 			glm::vec2 imgSize = myThis->menu()->GetImageSize(item.image->GetMaterial());
-			D3DXVec2Lerp(&imgSize, &imgSize, &(2.0f * imgSize), pingAlpha);
+            imgSize = Vec2Lerp(imgSize, imgSize * 2.0f, pingAlpha);
 			item.image->SetSize(imgSize);
 
 			item.image->GetMaterial().SetAlpha(1.0f - outAlpha);
@@ -438,11 +438,12 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		D3DXVECTOR3 pos = _carLifes[i].target->GetCar().gameObj->GetPos() + D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 		D3DXVECTOR4 projVec;
 		D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
-		glm::vec2 vec = projVec / projVec.w;
+		//glm::vec2 vec = projVec / projVec.w;
+        glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
 
 		if (projVec.z < 0)
 		{		
-			D3DXVec2Normalize(&vec, &vec);
+			vec = glm::normalize(vec);
 			vec = vec * sqrt(2.0f);
 		}
 		vec.x = lsl::ClampValue(vec.x, -1.0f, 1.0f);
@@ -687,11 +688,13 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			D3DXVECTOR3 pos = opponent.player->GetCar().gameObj->GetWorldPos() + D3DXVECTOR3(1.0f, -0.5f, 0);
 			D3DXVECTOR4 projVec;
 			D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
-			glm::vec2 vec = projVec / projVec.w;
+			//glm::vec2 vec = projVec / projVec.w;
+            glm::vec2 vec =
+                glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
 
 			if (projVec.z < 0)
 			{		
-				D3DXVec2Normalize(&vec, &vec);
+				vec = glm::normalize(vec);
 				vec = vec * sqrt(2.0f);
 			}
 			vec.x = lsl::ClampValue(vec.x, -1.0f, 1.0f);
@@ -719,7 +722,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			for (Opponents::iterator iter2 = _opponents.begin(); iter2 != iter; ++iter2)
 			{
 				float rad = opponent.radius + iter2->radius;
-				float dist = D3DXVec2Length(&(iter2->center - opponent.center));
+				float dist = glm::length(iter2->center - opponent.center);
 				alpha = std::min(rad != 0 ? dist / rad : 0, alpha);				
 			}
 
@@ -762,7 +765,7 @@ void PlayerStateFrame::OnAdjustLayout(const glm::vec2& vpSize)
 		}
 	}
 
-	_lifeBack->SetPos(_hudMenu->GetLifeBarPos() + _lifeBack->GetSize()/2);	
+	_lifeBack->SetPos(_hudMenu->GetLifeBarPos() + _lifeBack->GetSize()/2.0f);
 
 	_place->SetPos(_hudMenu->GetPlacePos());
 
@@ -917,26 +920,25 @@ void MiniMapFrame::ComputeNode(Nodes::iterator sIter, Nodes::iterator eIter, Nod
 		iter->dir = nextIter->pos - iter->pos;
 	else
 		iter->dir = iter->pos - prevIter->pos;
-	D3DXVec2Normalize(&iter->dir, &iter->dir);
+    iter->dir = glm::normalize(iter->dir);
 	//вычисляем prevDir
 	if (prevIter != eIter)
 		iter->prevDir = iter->pos - prevIter->pos;
 	else
 		iter->prevDir = iter->dir;
-	D3DXVec2Normalize(&iter->prevDir, &iter->prevDir);
+    iter->prevDir = glm::normalize(iter->prevDir);
 	//вычисляем midDir
-	iter->midDir = (iter->prevDir + iter->dir);
-	D3DXVec2Normalize(&iter->midDir, &iter->midDir);
+	iter->midDir = glm::normalize(iter->prevDir + iter->dir);
 	//вычисляем midNorm
 	Vec2NormCCW(iter->midDir, iter->midNorm);
 
 	//Вычисляем _nodeRadius
-	iter->cosDelta = abs(D3DXVec2Dot(&iter->dir, &iter->prevDir));
+	iter->cosDelta = abs(Vec2Dot(iter->dir, iter->prevDir));
 	//sinA/2 = sin(180 - D/2) = cos(D/2) = №(1 + cosD)/2
 	iter->sinAlpha2 = sqrt((1.0f + iter->cosDelta) / 2.0f);
 	iter->nodeRadius = 0.5f*iter->size / iter->sinAlpha2;
 
-	iter->ccw = D3DXVec2CCW(&iter->prevDir, &iter->dir) > 0;
+	iter->ccw = Vec2CCW(iter->prevDir, iter->dir) > 0;
 	if (iter->ccw)
 		Vec2NormCCW(iter->midDir, iter->edgeNorm);
 	else
@@ -945,8 +947,7 @@ void MiniMapFrame::ComputeNode(Nodes::iterator sIter, Nodes::iterator eIter, Nod
 
 void MiniMapFrame::AlignNode(const Node& src, Node& dest, float cosErr, float sizeErr)
 {
-	glm::vec2 dir = dest.pos - src.pos;
-	D3DXVec2Normalize(&dir, &dir);
+	glm::vec2 dir = glm::normalize(dest.pos - src.pos);
 
 	if (abs(dir.x) > cosErr)
 	{
@@ -964,8 +965,7 @@ void MiniMapFrame::AlignNode(const Node& src, Node& dest, float cosErr, float si
 
 void MiniMapFrame::AlignMidNodes(Node& node1, Node& node2, float cosErr, float sizeErr)
 {
-	glm::vec2 dir = node2.pos - node1.pos;
-	D3DXVec2Normalize(&dir, &dir);
+	glm::vec2 dir = glm::normalize(node2.pos - node1.pos);
 
 	if (abs(dir.x) > cosErr)
 	{
@@ -1014,8 +1014,7 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 		if (nextIter == nodes.end()) break;
 		Node& nextNode = *nextIter;
 
-		glm::vec2 dir = nextNode.pos - node.pos;
-		D3DXVec2Normalize(&dir, &dir);
+		glm::vec2 dir = glm::normalize(nextNode.pos - node.pos);
 		
 		if (nextIter != --nodes.end())
 		{
@@ -1047,8 +1046,8 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 				D3DXQuaternionRotationAxis(&rot, &ZVector, ccw ? dAlpha : -dAlpha);
 				D3DXMATRIX rotMat;
 				D3DXMatrixRotationQuaternion(&rotMat, &rot);
-				glm::vec2 vec;
-				D3DXVec2TransformNormal(&vec, &smVec, &rotMat);
+                auto rotMatGLM = d3dMatrixToGLM(rotMat); // remove after D3DXMATRIX replacement
+                glm::vec2 vec = Vec2TransformNormal(smVec, rotMatGLM);
 
 				Node newNode;
 				newNode.pos = smPos + vec * smRadius;

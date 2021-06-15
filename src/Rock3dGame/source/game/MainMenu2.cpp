@@ -1946,7 +1946,7 @@ bool ProfileFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 
 		if (sender->GetParent() == item)
 		{
-			menu()->ShowAccept(GetString("svHintDeleteProfile"), GetString(svYes), GetString(svNo), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, this, profile);
+			menu()->ShowAccept(GetString("svHintDeleteProfile"), GetString(svYes), GetString(svNo), uiRoot()->GetVPSize()/2.0f, gui::Widget::waCenter, this, profile);
 			return true;
 		}
 	}
@@ -2206,7 +2206,7 @@ void MainMenu::OnDisconnected(net::INetConnection* sender)
 	_steamConnecting = false;
 	_menu->HideMessage();	
 
-	_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintHostConnectionFailed), _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+	_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintHostConnectionFailed), _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2.0f, gui::Widget::waCenter, 0.0f);
 }
 
 void MainMenu::OnConnectionFailed(net::INetConnection* sender, unsigned error)
@@ -2214,7 +2214,7 @@ void MainMenu::OnConnectionFailed(net::INetConnection* sender, unsigned error)
 	_steamConnecting = false;
 	_menu->HideMessage();
 
-	_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintHostConnectionFailed), _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+	_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintHostConnectionFailed), _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2.0f, gui::Widget::waCenter, 0.0f);
 }
 
 void MainMenu::OnConnectedPlayer(NetPlayer* sender)
