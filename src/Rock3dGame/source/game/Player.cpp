@@ -953,10 +953,12 @@ void Player::CarState::Update(float deltaTime)
 	nxActor->getGlobalOrientationQuat().getXYZW(rot3);
 	Vec3Rotate(XVector, rot3, dir3);
 
-	pos = glm::vec2(pos3);
-	dir = glm::vec2(dir3);
+	//pos = glm::vec2(pos3);
+    pos = glm::vec2(pos3.x, pos3.y); // remove after D3DXVECTOR3 replacement
+	//dir = glm::vec2(dir3);
+    dir = glm::vec2(dir3.x, dir3.y); // remove after D3DXVECTOR3 replacement
 	speed = GameCar::GetSpeed(nxActor, dir3);
-	D3DXVec2Normalize(&dir, &dir);	
+    dir = glm::normalize(dir);
 
 	dirLine = Line2FromDir(dir, pos);
 	normLine = Line2FromNorm(dir, pos);	
@@ -1004,7 +1006,7 @@ void Player::CarState::Update(float deltaTime)
 		owner->OnLapPass();
 
 	//инверсия движения
-	if (curTile && D3DXVec2Dot(&curTile->GetTile().GetDir(), &dir) < 0)
+	if (curTile && Vec2Dot(curTile->GetTile().GetDir(), dir) < 0)
 	{
 		if (moveInverseStart < 0)
 		{

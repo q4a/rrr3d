@@ -727,20 +727,22 @@ void GarageFrame::SelectColor(const D3DXCOLOR& value)
 
 void GarageFrame::ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize)
 {
-	glm::vec2 cellOffs = slotSize/4;
+    glm::vec2 cellOffs = slotSize / 4.0f;
 	cellOffs.y = -cellOffs.y;
 
 	//menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, 0.0f);
-	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+    menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), uiRoot()->GetVPSize() / 2.0f,
+                        gui::Widget::waCenter, 0.0f);
 }
 
 void GarageFrame::ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize)
 {
-	glm::vec2 cellOffs = slotSize/4;
+    glm::vec2 cellOffs = slotSize / 4.0f;
 	cellOffs.y = -cellOffs.y;
 
 	//menu()->ShowAccept(message, GetString(svYes), GetString(svNo), sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, this);
-	menu()->ShowAccept(message, GetString(svYes), GetString(svNo), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, this);
+    menu()->ShowAccept(message, GetString(svYes), GetString(svNo), uiRoot()->GetVPSize() / 2.0f, gui::Widget::waCenter,
+                       this);
 }
 
 void GarageFrame::OnShow(bool value)
@@ -1620,7 +1622,7 @@ void WorkshopFrame::ShowInfo(Slot* slot, int cost, gui::Widget* sender, const gl
 	if (wpn)
 		damage = lsl::StrFmt("%0.0f", wpn->GetDamage());
 
-	glm::vec2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize / 4.0f;
 	cellOffs.y = -cellOffs.y;
 
 	menu()->ShowWeaponDialog(GetString(slot->GetItem().GetName()), GetString(slot->GetItem().GetInfo()), menu()->FormatCurrency(cost), damage, sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, 0.0f);
@@ -1707,7 +1709,7 @@ void WorkshopFrame::ShowMessage(StringValue message, gui::Widget* sender, const 
 {
 	HideInfo(cUndefInfo);
 
-	glm::vec2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize / 4.0f;
 	cellOffs.y = -cellOffs.y;
 
 	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, 0.0f);
@@ -1717,7 +1719,7 @@ void WorkshopFrame::ShowAccept(const std::string& message, gui::Widget* sender, 
 {
 	HideInfo(cUndefInfo);
 
-	glm::vec2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize / 4.0f;
 	cellOffs.y = -cellOffs.y;
 	SetOverGood2(sender);
 
@@ -2326,7 +2328,8 @@ void GamersFrame::OnProcessNetEvent(unsigned id, NetEventData* data)
 
 			if (data->failed)
 			{
-				menu()->ShowMessage(GetString(svWarning), GetString(svHintSetGamerFailed), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+                menu()->ShowMessage(GetString(svWarning), GetString(svHintSetGamerFailed), GetString(svOk),
+                                    uiRoot()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f);
 			}
 			else
 				_raceMenu->SetState(RaceMenu::msGarage);
@@ -2514,7 +2517,7 @@ void AngarFrame::SetDoorPos(PlanetBox& planet, float alpha)
 
 void AngarFrame::ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize)
 {
-	glm::vec2 cellOffs = slotSize/2;
+    glm::vec2 cellOffs = slotSize / 2.0f;
 	cellOffs.y = -cellOffs.y;
 	cellOffs.x = 0;
 
@@ -2523,11 +2526,13 @@ void AngarFrame::ShowMessage(StringValue message, gui::Widget* sender, const glm
 
 void AngarFrame::ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize, lsl::Object* data)
 {
-	glm::vec2 cellOffs = slotSize/2;
+    glm::vec2 cellOffs = slotSize / 2.0f;
 	cellOffs.y = -cellOffs.y;
 	cellOffs.x = 0;
 
-	menu()->ShowAccept(message, GetString(svYes), GetString(svNo), (sender ? sender->GetWorldPos() : uiRoot()->GetVPSize()/2) + cellOffs, gui::Widget::waBottom, this, data);
+	menu()->ShowAccept(message, GetString(svYes), GetString(svNo),
+                       (sender ? sender->GetWorldPos() : uiRoot()->GetVPSize() / 2.0f) + cellOffs,
+                       gui::Widget::waBottom, this, data);
 }
 
 void AngarFrame::OnShow(bool value)
@@ -2929,7 +2934,7 @@ const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned in
 	else
 		box->button->SetSel(NULL);
 
-	box->button->SetPos(box->image->GetSize()/2 - glm::vec2(15.0f, 25.0f));
+	box->button->SetPos(box->image->GetSize() / 2.0f - glm::vec2(15.0f, 25.0f));
 
 	return box;
 }
@@ -3032,12 +3037,14 @@ void AchievmentFrame::UpdateSelection(gui::Widget* sender, bool select)
 
 void AchievmentFrame::ShowMessage(StringValue message, gui::Widget* sender)
 {
-	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+    menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), uiRoot()->GetVPSize() / 2.0f,
+                        gui::Widget::waCenter, 0.0f);
 }
 
 void AchievmentFrame::ShowAccept(const std::string& message, gui::Widget* sender, Achievment* achievment)
 {
-	menu()->ShowAccept(message, GetString(svYes), GetString(svNo), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, this, achievment);
+    menu()->ShowAccept(message, GetString(svYes), GetString(svNo), uiRoot()->GetVPSize() / 2.0f, gui::Widget::waCenter,
+                       this, achievment);
 }
 
 void AchievmentFrame::OnShow(bool value)
@@ -3575,12 +3582,14 @@ bool RaceMainFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 				if (net()->AllPlayersReady() && net()->netOpponents().size() > 0)
 				{
 					if (net()->race()->GetLeaverList().size() > 0)
-						menu()->ShowAccept(GetString(svHintLeaversWillBeRemoved), GetString(svYes), GetString(svNo), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, this);
+                        menu()->ShowAccept(GetString(svHintLeaversWillBeRemoved), GetString(svYes), GetString(svNo),
+                                           uiRoot()->GetVPSize() / 2.0f, gui::Widget::waCenter, this);
 					else
 						menu()->StartRace();
 				}
 				else
-					menu()->ShowMessage(GetString(svWarning), GetString(svHintPlayersIsNotReady), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+                    menu()->ShowMessage(GetString(svWarning), GetString(svHintPlayersIsNotReady), GetString(svOk),
+                                        uiRoot()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f);
 			}
 			else
 				RaceRady(!net()->player()->IsRaceReady());
@@ -3782,7 +3791,8 @@ void RaceMenu::OnProcessNetEvent(unsigned id, NetEventData* data)
 	if (id == cNetPlayerSetColor && data->failed)
 	{
 		_carFrame->SetCarColor(_menu->GetPlayer()->GetColor());
-		_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintSetColorFailed), _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+        _menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintSetColorFailed), _menu->GetString(svOk),
+                           _menu->GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f);
 	}
 }
 

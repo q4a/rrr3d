@@ -142,7 +142,8 @@ private:
 	{
 		Node() {}
 		Node(const glm::vec2& mPos, float mSize): pos(mPos), size(mSize) {}
-		Node(const D3DXVECTOR3& mPos, float mSize): pos(mPos), size(mSize) {}
+		//Node(const D3DXVECTOR3& mPos, float mSize): pos(mPos), size(mSize) {}
+		Node(const D3DXVECTOR3& mPos, float mSize): pos(mPos.x, mPos.y), size(mSize) {} // remove after D3DXVECTOR3 replacement
 
 		glm::vec2 pos;
 		float size;

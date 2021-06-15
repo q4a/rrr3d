@@ -894,7 +894,7 @@ bool ControlsFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	{
 		static_cast<gui::Button*>(sender)->Select(true, true);
 
-		menu()->ShowAccept(menu()->GetString("svPressKey"), menu()->GetString("svDeleteKey"), menu()->GetString(svCancel), menu()->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, this, NULL, true, false, true);
+		menu()->ShowAccept(menu()->GetString("svPressKey"), menu()->GetString("svDeleteKey"), menu()->GetString(svCancel), menu()->GetGUI()->GetVPSize()/2.0f, gui::Widget::waCenter, this, NULL, true, false, true);
 	}
 
 	return false;
@@ -1065,11 +1065,12 @@ bool OptionsMenu::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 				message = _menu->GetString("svSyncFrameWarningNeedReload");
 			else
 				message = _menu->GetString("svSyncFrameWarning");
-			_menu->ShowMessage(_menu->GetString(svWarning), message, _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f, this);
+			_menu->ShowMessage(_menu->GetString(svWarning), message, _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2.0f, gui::Widget::waCenter, 0.0f, this);
 		}
 		else if (needReload)
 		{
-			_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintNeedReload), _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f, this);
+            _menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintNeedReload), _menu->GetString(svOk),
+                               _menu->GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f, this);
 		}
 		else
 			_menu->ShowOptions(false);
@@ -1588,11 +1589,13 @@ bool StartOptionsMenu::OnClick(gui::Widget* sender, const gui::MouseClick& mClic
 				message = menu()->GetString("svSyncFrameWarningNeedReload");
 			else
 				message = menu()->GetString("svSyncFrameWarning");
-			menu()->ShowMessage(menu()->GetString(svWarning), message, menu()->GetString(svOk), menu()->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f, this);
+            menu()->ShowMessage(menu()->GetString(svWarning), message, menu()->GetString(svOk),
+                                menu()->GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f, this);
 		}
 		else if (needReload)
 		{
-			menu()->ShowMessage(menu()->GetString(svWarning), GetString(svHintNeedReload), GetString(svOk), menu()->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f, this);
+            menu()->ShowMessage(menu()->GetString(svWarning), GetString(svHintNeedReload), GetString(svOk),
+                                menu()->GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f, this);
 		}
 		else
 		{

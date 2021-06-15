@@ -160,12 +160,14 @@ void WayNode::Tile::ApplyChanges() const
 	{
 		_changed = false;
 
-		glm::vec2 sPos = GetPos();
+		//glm::vec2 sPos = GetPos();
+        glm::vec2 sPos = glm::vec2(GetPos().x, GetPos().y); // remove after D3DXVECTOR3 replacement
 		if (_node->GetNext())
 		{
-			_dir = glm::vec2(GetNextPos()) - sPos;
-			_dirLength = D3DXVec2Length(&_dir);
-			D3DXVec2Normalize(&_dir, &_dir);
+			//_dir = glm::vec2(GetNextPos()) - sPos;
+            _dir = glm::vec2(GetNextPos().x, GetNextPos().y) - sPos; // remove after D3DXVECTOR3 replacement
+            _dirLength = glm::length(_dir);
+            _dir = glm::normalize(_dir);
 		}
 		else
 		{
@@ -179,19 +181,19 @@ void WayNode::Tile::ApplyChanges() const
 
 		//вычисляем и нормализуем поскольку лубая из составляющих _midDir могла оказаться близкой к нулю
 		_midDir = (_dir + GetPrevDir()) / 2.0f;
-		D3DXVec2Normalize(&_midDir, &_midDir);
+        _midDir = glm::normalize(_midDir);
 		//линии через node
 		Line2FromNorm(_midDir, sPos, _midNormLine);
 		//Вычисляем _midNorm
 		Line2GetDir(_midNormLine, _midNorm);
 
 		//Вычисляем _nodeRadius
-		float cosDelta = D3DXVec2Dot(&_dir, &GetPrevDir());
+		float cosDelta = Vec2Dot(_dir, GetPrevDir());
 		//sinA/2 = sin(180 - D/2) = cos(D/2) = №(1 + cosD)/2
 		_nodeRadius = GetHeight() / sqrt((1.0f + cosDelta) / 2.0f);
 
 		//Вычисляем _edgeNorm
-		if (D3DXVec2CCW(&GetPrevDir(), &_dir) > 0)
+		if (Vec2CCW(GetPrevDir(), _dir) > 0)
 			Vec2NormCCW(_midDir, _edgeNorm);
 		else
 			Vec2NormCW(_midDir, _edgeNorm);
@@ -199,7 +201,7 @@ void WayNode::Tile::ApplyChanges() const
 
 		//Вычисляем turnAngle
 		if (_node->GetPrev())
-			_turnAngle = acos(D3DXVec2Dot(&GetPrevDir(), &_dir));
+			_turnAngle = acos(Vec2Dot(GetPrevDir(), _dir));
 		else
 			_turnAngle = 0.0f;
 
@@ -365,7 +367,8 @@ bool WayNode::Tile::IsContains(const D3DXVECTOR3& point, bool lengthClamp, float
 	D3DXVECTOR3 pos2 = GetNextPos();
 
 	//Расстояние в 2д плоскости
-	glm::vec2 point2 = point;
+	//glm::vec2 point2 = point;
+    glm::vec2 point2 = glm::vec2(point.x, point.y); // remove after D3DXVECTOR3 replacement
 	float dist1 = Line2DistToPoint(_midNormLine, point2);
 	float dist2 = Line2DistToPoint(GetNextNormLine(), point2);
 	float dirDist = Line2DistToPoint(_dirLine, point2);
@@ -389,7 +392,8 @@ bool WayNode::Tile::IsZLevelContains(const D3DXVECTOR3& point, float* dist) cons
 {
 	ApplyChanges();
 
-	glm::vec2 pos = glm::vec2(point);
+	//glm::vec2 pos = glm::vec2(point);
+    glm::vec2 pos = glm::vec2(point.x, point.y); // remove after D3DXVECTOR3 replacement
 	float height = GetHeight(pos);
 	float coordZ = GetZCoord(pos);
 
@@ -603,7 +607,8 @@ bool WayNode::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, floa
 
 bool WayNode::IsContains2(const glm::vec2& point, float* dist) const
 {
-	float midDist = D3DXVec2Length(&(point - glm::vec2(_point->GetPos())));
+	//float midDist = D3DXVec2Length(&(point - glm::vec2(_point->GetPos())));
+	float midDist = glm::length(point - glm::vec2(_point->GetPos().x, _point->GetPos().y)); // remove after D3DXVECTOR3 replacement
 	if (dist)
 		*dist = midDist;
 
@@ -653,7 +658,8 @@ const D3DXVECTOR3& WayNode::GetPos() const
 
 glm::vec2 WayNode::GetPos2() const
 {
-	return glm::vec2(GetPos());
+	//return glm::vec2(GetPos());
+    return glm::vec2(GetPos().x, GetPos().y); // remove after D3DXVECTOR3 replacement
 }
 
 float WayNode::GetSize() const

@@ -520,10 +520,7 @@ void InfoMenu::SetState(State value)
 	}
 }
 
-
-
-
-UserChat::UserChat(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _inputPos(NullVector), _linesPos(NullVector), _inputSize(300.0f, 300.0f), _linesSize(300.0f, 300.0f)
+UserChat::UserChat(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _inputPos(NullVec2), _linesPos(NullVec2), _inputSize(300.0f, 300.0f), _linesSize(300.0f, 300.0f)
 {	
 	_input = AddLine(L"", L"", clrWhite, false);
 	_input.name->SetVisible(false);
