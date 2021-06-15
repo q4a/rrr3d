@@ -30,3 +30,8 @@ jobs:
         useVcpkgToolchainFile: false
         buildDirectory: '${{ github.workspace }}/build'
         configurationRegexFilter: '${{ matrix.configuration }}'
+    - name: Upload artifact
+      uses: actions/upload-artifact@main
+      with:
+        name: rrr3d.${{ matrix.configuration }}
+        path: bin
