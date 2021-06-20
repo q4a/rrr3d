@@ -122,7 +122,7 @@ private:
 	mutable float _rollAngle;
 	mutable float _pitchAngle;
 	mutable float _turnAngle;
-	mutable D3DXQUATERNION _rot;
+	mutable glm::quat _rot;
 
 	//Матрицы являются промежуточными переменными, и хранятся в полях объекта для оптимизации расчетов. Для вывода коорректных данных(если перерасчет матриц ещё не произошел) о самих матрицах и связных данных используется mutable для const
 	mutable D3DXMATRIX _rotMat;
@@ -253,8 +253,8 @@ public:
 	float GetTurnAngle() const;
 	void SetTurnAngle(float value);
 	//Поворот по кватерниону
-	const D3DXQUATERNION& GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	const glm::quat& GetRot() const;
+	void SetRot(const glm::quat& value);
 
 	//Локальные матрицы
 	D3DXMATRIX GetScaleMat() const;
@@ -275,8 +275,8 @@ public:
 	//Мировые координаты
 	D3DXVECTOR3 GetWorldPos() const;
 	void SetWorldPos(const D3DXVECTOR3& value);
-	D3DXQUATERNION GetWorldRot() const;
-	void SetWorldRot(const D3DXQUATERNION& value);
+	glm::quat GetWorldRot() const;
+	void SetWorldRot(const glm::quat& value);
 	//Невозможно представить мировое масштабирование с помощью одного вектора поскольку направление масштабирования зависит от поворота. Поэтому представляется в виде матрицы
 	D3DXMATRIX GetWorldScale() const;
 	//
@@ -323,7 +323,7 @@ public:
 
 	D3DXVECTOR3 speedPos;
 	D3DXVECTOR3 speedScale;
-	D3DXQUATERNION speedRot;
+	glm::quat speedRot;
 	bool autoRot;
 
 #ifdef _DEBUG

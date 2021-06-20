@@ -21,7 +21,7 @@ private:
 
 	D3DXVECTOR3 _offset;
 	D3DXVECTOR3 _scale;
-	D3DXQUATERNION _rotate;
+	glm::quat _rotate;
 	D3DCULL _cullMode;
 
 	mutable D3DXMATRIX _matrix;
@@ -75,8 +75,8 @@ public:
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(const D3DXVECTOR3& value);
 
-	const D3DXQUATERNION& GetRotate() const;
-	void SetRotate(const D3DXQUATERNION& value);
+	const glm::quat& GetRotate() const;
+	void SetRotate(const glm::quat& value);
 
 	D3DCULL GetCullMode() const;
 	void SetCullMode(D3DCULL value);

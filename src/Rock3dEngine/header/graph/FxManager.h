@@ -20,7 +20,7 @@ class FxParticle: public lsl::Object
 {
 private:
 	D3DXVECTOR3 _pos;
-	D3DXQUATERNION _rot;
+	glm::quat _rot;
 	D3DXVECTOR3 _scale;
 	
 	mutable D3DXMATRIX _worldMat;
@@ -41,8 +41,8 @@ public:
 	const D3DXVECTOR3& GetPos();
 	void SetPos(const D3DXVECTOR3& value);
 
-	const D3DXQUATERNION& GetRot();
-	void SetRot(const D3DXQUATERNION& value);
+	const glm::quat& GetRot();
+	void SetRot(const glm::quat& value);
 
 	const D3DXVECTOR3& GetScale();
 	void SetScale(const D3DXVECTOR3& value);
@@ -441,7 +441,7 @@ class FxFlowParticle: public FxParticle
 {
 public:
 	D3DXVECTOR3 speedPos;
-	D3DXQUATERNION speedRot;
+	glm::quat speedRot;
 	D3DXVECTOR3 speedScale;
 	D3DXVECTOR3 acceleration;
 };

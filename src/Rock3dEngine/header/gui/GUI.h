@@ -230,7 +230,7 @@ private:
 	bool _active;
 
 	D3DXVECTOR3 _pos;
-	D3DXQUATERNION _rot;
+	glm::quat _rot;
 	D3DXVECTOR3 _scale;
 
 	Material* _material;
@@ -257,8 +257,8 @@ public:
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
 
-	D3DXQUATERNION GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	glm::quat GetRot() const;
+	void SetRot(const glm::quat& value);
 
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(const D3DXVECTOR3& value);
@@ -1059,7 +1059,7 @@ public:
 private:
 	View3d* _view3d;
 	Style _style;
-	D3DXQUATERNION _rot3dSpeed;
+	glm::quat _rot3dSpeed;
 	bool _setProgress;
 
 	void AnimProgress(float deltaTime);
@@ -1075,8 +1075,8 @@ protected:
 public:
 	Graphic3d* GetBox();
 
-	const D3DXQUATERNION& GetRot3dSpeed() const;
-	void SetRot3dSpeed(const D3DXQUATERNION& value);
+	const glm::quat& GetRot3dSpeed() const;
+	void SetRot3dSpeed(const glm::quat& value);
 
 	Style GetStyle() const;
 	void SetStyle(Style value);

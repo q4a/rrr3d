@@ -37,7 +37,7 @@ const D3DXMATRIX& BaseSampler::GetMatrix(float frame) const
 
 		D3DXVECTOR3 offset = _offset.GetValue(_matFrame);
 		D3DXVECTOR3 scale = _scale.GetValue(_matFrame);
-		D3DXQUATERNION rotate = _rotate.GetValue(_matFrame);
+		glm::quat rotate = _rotate.GetValue(_matFrame);
 
 		_defMat = offset == NullVector && scale == IdentityVector && rotate == NullQuaternion;
 
