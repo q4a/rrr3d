@@ -38,7 +38,7 @@ void FxParticle::BuildWorldMat() const
 		D3DXMATRIX scaleMat, rotMat, transMat;
 
 		D3DXMatrixScaling(&scaleMat, _scale.x, _scale.y, _scale.z);
-		D3DXMatrixRotationQuaternion(&rotMat, &_rot);
+		rotMat = Matrix4GlmToDx(glm::toMat4(_rot));
 		D3DXMatrixTranslation(&transMat, _pos.x, _pos.y, _pos.z);
 
 		_worldMat = scaleMat * rotMat * transMat;
@@ -1034,9 +1034,6 @@ void FxPointSpritesManager::RenderSystem(graph::Engine& engine, FxParticleSystem
 	engine.GetContext().RestoreRenderState(graph::rsZWriteEnable);
 }
 
-
-
-
 FxSpritesManager::FxSpritesManager(): dirSprite(false)
 {
 }
@@ -1058,9 +1055,8 @@ void FxSpritesManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, Fx
 		}
 		else
 		{
-			D3DXVECTOR3 axe;
-			float angle;
-			D3DXQuaternionToAxisAngle(&particle->GetRot(), &axe, &angle);
+			D3DXVECTOR3 axe = Vec3GlmToDx(glm::axis(particle->GetRot()));
+			float angle = glm::angle(particle->GetRot());
 			
 			engine.RenderSpritePT(emitter->GetWorldPos(particle), particle->GetScale(), angle, 0, IdentityMatrix);
 		}
@@ -1068,9 +1064,6 @@ void FxSpritesManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, Fx
 
 	engine.EndMeshPT();
 }
-
-
-
 
 FxPlaneManager::FxPlaneManager()
 {
@@ -1084,9 +1077,8 @@ void FxPlaneManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, FxPa
 	{
 		FxParticle* particle = *iter;
 
-		D3DXVECTOR3 axe;
-		float angle;
-		D3DXQuaternionToAxisAngle(&particle->GetRot(), &axe, &angle);
+		D3DXVECTOR3 axe = Vec3GlmToDx(glm::axis(particle->GetRot()));
+		float angle = glm::angle(particle->GetRot());
 
 		D3DXMATRIX worldMat = particle->GetMatrix() * emitter->GetMatrix();
 		engine.GetContext().SetWorldMat(worldMat);
@@ -1096,9 +1088,6 @@ void FxPlaneManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, FxPa
 
 	engine.EndMeshPT();
 }
-
-
-
 
 FxNodeManager::FxNodeManager()
 {
@@ -1358,11 +1347,9 @@ void FxFlowEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 		}
 		else
 		{
-			D3DXVECTOR3 rotAxe;
-			float rotAngle;
-			glm::quat rotDt;
-			D3DXQuaternionToAxisAngle(&particle->speedRot, &rotAxe, &rotAngle);
-			D3DXQuaternionRotationAxis(&rotDt, &rotAxe, rotAngle * dTime);
+			glm::vec3 rotAxe = glm::axis(particle->speedRot);
+			float rotAngle = glm::angle(particle->speedRot);
+			glm::quat rotDt = glm::angleAxis(rotAngle * dTime, rotAxe);
 			particle->SetRot(particle->GetRot() * rotDt);
 		}
 

@@ -2304,9 +2304,10 @@ bool GraphManager::Render(float deltaTime, bool pause)
 				D3DXVec3Normalize(&radVec, &(lightPos - _actorManager->GetWorldAABB().GetCenter()));
 				D3DXVec3Cross(&radVec, &D3DXVECTOR3(0, 0, 1), &radVec);
 				if (D3DXVec3Length(&radVec) < 0.1f)
+				{
 					radVec = D3DXVECTOR3(1, 0, 0);
-				glm::quat radQuat;
-				D3DXQuaternionRotationAxis(&radQuat, &radVec, D3DX_PI/2.5f);
+				}
+				glm::quat radQuat = glm::angleAxis(D3DX_PI / 2.5f, Vec3DxToGlm(radVec));
 				Vec3Rotate(D3DXVECTOR3(0, 0, 1), radQuat, radVec);
 				radVec = radVec * 1000.0f;
 
