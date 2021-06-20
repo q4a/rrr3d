@@ -90,7 +90,7 @@ void Map::Load(lsl::SReader* reader)
 	if (lsl::SReadValue(reader, "sunPos", sunPos))
 		_world->GetEnv()->SetSunPos(sunPos);
 
-	D3DXQUATERNION sunRot;
+	glm::quat sunRot;
 	if (lsl::SReadValue(reader, "sunRot", sunRot))
 		_world->GetEnv()->SetSunRot(sunRot);
 }

@@ -40,8 +40,8 @@ void CarFrame::OnProgress(float deltaTime)
 {
 	if (_secretMapObj->GetGameObj().GetGrActor().GetVisible())
 	{
-		D3DXQUATERNION rot = _secretMapObj->GetGameObj().GetRot();
-		D3DXQUATERNION dRot;
+		glm::quat rot = _secretMapObj->GetGameObj().GetRot();
+		glm::quat dRot;
 		D3DXQuaternionRotationAxis(&dRot, &ZVector, 2.0f * D3DX_PI * deltaTime * 0.1f);
 		_secretMapObj->GetGameObj().SetRot(dRot * rot);
 	}
@@ -63,12 +63,12 @@ void CarFrame::OnShow(bool value)
 		SetCamStyle(csCar, true);
 
 		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(-0.94673467f, 3.0021181f, 2.9447727f), 0);
-		menu()->GetEnv()->SetLampRot(D3DXQUATERNION(0.19748747f, 0.34095559f, -0.46066701f, 0.79532242f), 0);
+		menu()->GetEnv()->SetLampRot(glm::quat(0.79532242f, 0.19748747f, 0.34095559f, -0.46066701f), 0);
 		menu()->GetEnv()->SetLampColor(clrWhite, 0);
 		menu()->GetEnv()->SwitchOnLamp(0, true);
 
 		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(6.0344887f, -5.2521329f, 1.6322796f), 1);
-		menu()->GetEnv()->SetLampRot(D3DXQUATERNION(-0.17059785f, 0.045529708f, 0.95100683f, 0.25379914f), 1);
+		menu()->GetEnv()->SetLampRot(glm::quat(0.25379914f, -0.17059785f, 0.045529708f, 0.95100683f), 1);
 		menu()->GetEnv()->SetLampColor(clrWhite, 1);
 		menu()->GetEnv()->SwitchOnLamp(1, true);
 	}
@@ -103,7 +103,7 @@ void CarFrame::SetCar(Garage::Car* value, const D3DXCOLOR& color, bool secret)
 
 				if ((*iter)->invertWheel)
 				{
-					D3DXQUATERNION rot;
+					glm::quat rot;
 					D3DXQuaternionRotationAxis(&rot, &D3DXVECTOR3(0, 0, 1), D3DX_PI);
 					(*iter)->SetRot(rot);
 				}
@@ -206,7 +206,7 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 	_camStyle = value;
 
 	D3DXVECTOR3 pos = NullVector;
-	D3DXQUATERNION rot = NullQuaternion;
+	glm::quat rot = NullQuaternion;
 	CameraManager* camera = menu()->GetRace()->GetWorld()->GetCamera();
 	graph::Camera* cameraInst = menu()->GetRace()->GetWorld()->GetGraph()->GetCamera();	
 
@@ -224,7 +224,7 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 		else
 		{
 			pos = D3DXVECTOR3(2.9176455f, 3.8489482f, 1.2934232f);
-			rot = D3DXQUATERNION(0.11683256f, 0.058045074f, -0.88791621f, 0.44111854f);
+			rot = glm::quat(0.44111854f, 0.11683256f, 0.058045074f, -0.88791621f);
 		}
 
 		camera->SetTarget(D3DXVECTOR4(0, 0, 0, 5.0f));
@@ -247,18 +247,18 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 			D3DXVECTOR3(-7.4102926f, 0.61909121f, 1.1492375f)
 		};
 
-		D3DXQUATERNION rotList[8] = {
-			D3DXQUATERNION(0.021078700f, 0.10266567f, -0.20001189f, 0.97417259f),
-			D3DXQUATERNION(0.093931124f, 0.099822313f, -0.67882264f, 0.72140080f),
-			D3DXQUATERNION(0.098612130f, 0.053653944f, -0.87284911f, 0.47491166f),
-			D3DXQUATERNION(0.10475823f, 0.0032271212f, -0.99402952f, 0.030623097f),
-			D3DXQUATERNION(0.10137362f, -0.026610103f, -0.96191424f, -0.25249690f),
-			D3DXQUATERNION(0.070100352f, -0.063905962f, -0.73568070f, -0.67066783f),
-			D3DXQUATERNION(0.041057255f, -0.077143900f, -0.46803388f, -0.87939179f),
-			D3DXQUATERNION(0.0077582477f, -0.092043117f, -0.083636492f, -0.99221748f)
+		glm::quat rotList[8] = {
+			glm::quat(0.97417259f, 0.021078700f, 0.10266567f, -0.20001189f),
+			glm::quat(0.72140080f, 0.093931124f, 0.099822313f, -0.67882264f),
+			glm::quat(0.47491166f, 0.098612130f, 0.053653944f, -0.87284911f),
+			glm::quat(0.030623097f, 0.10475823f, 0.0032271212f, -0.99402952f),
+			glm::quat(-0.25249690f, 0.10137362f, -0.026610103f, -0.96191424f),
+			glm::quat(-0.67066783f, 0.070100352f, -0.063905962f, -0.73568070f),
+			glm::quat(-0.87939179f, 0.041057255f, -0.077143900f, -0.46803388f),
+			glm::quat(-0.99221748f, 0.0077582477f, -0.092043117f, -0.083636492f)
 		};
 
-		D3DXQUATERNION camRot = cameraInst->GetRot();
+		glm::quat camRot = cameraInst->GetRot();
 		float minAngle;
 
 		for (int i = 0; i < 8; ++i)
@@ -310,9 +310,9 @@ SpaceshipFrame::SpaceshipFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* pare
 
 		MapObjRec* record =  menu->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\space2");
 		_spaceMapObj = &menu->GetRace()->GetMap()->AddMapObj(record);
-		_spaceMapObj->GetGameObj().GetGrActor().SetVisible(false);		
+		_spaceMapObj->GetGameObj().GetGrActor().SetVisible(false);
 
-		graph::PlaneNode* spaceSprite = &((graph::PlaneNode&)_spaceMapObj->GetGameObj().GetGrActor().GetNodes().front());		
+		graph::PlaneNode* spaceSprite = &((graph::PlaneNode&)_spaceMapObj->GetGameObj().GetGrActor().GetNodes().front());
 
 		glm::vec2 imageSize = static_cast<graph::Sampler2d&>(spaceSprite->material.Get()->samplers.front()).GetSize();
 		float aspect = imageSize.x/imageSize.y;
@@ -362,17 +362,17 @@ void SpaceshipFrame::OnShow(bool value)
 		menu()->GetEnv()->StartScene();
 
 		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(22.169474f, -5.9075522f, 35.802311f), 0);
-		menu()->GetEnv()->SetLampRot(D3DXQUATERNION(-0.47304764f, 0.077942163f, 0.86590993f, 0.14267041f), 0);
+		menu()->GetEnv()->SetLampRot(glm::quat(0.14267041f, -0.47304764f, 0.077942163f, 0.86590993f), 0);
 		menu()->GetEnv()->SetLampColor(clrWhite, 0);
 		menu()->GetEnv()->SwitchOnLamp(0, true);
 
 		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(-20.881384f, -21.184746f, 26.121809f), 1);
-		menu()->GetEnv()->SetLampRot(D3DXQUATERNION(-0.16464995f, 0.34524971f, 0.39772648f, 0.83397770f), 1);
+		menu()->GetEnv()->SetLampRot(glm::quat(0.83397770f, -0.16464995f, 0.34524971f, 0.39772648f), 1);
 		menu()->GetEnv()->SetLampColor(clrRed * 0.8f, 1);
 		menu()->GetEnv()->SwitchOnLamp(1, false);
 
 		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(52.307316f, 24.327570f, 32.772705f), 2);
-		menu()->GetEnv()->SetLampRot(D3DXQUATERNION(0.21948183f, 0.18329506f, -0.73549527f, 0.61423278f), 2);
+		menu()->GetEnv()->SetLampRot(glm::quat(0.61423278f, 0.21948183f, 0.18329506f, -0.73549527f), 2);
 		menu()->GetEnv()->SetLampColor(D3DXCOLOR(0xff88fefe), 2);
 		menu()->GetEnv()->SwitchOnLamp(2, true);
 
@@ -381,7 +381,7 @@ void SpaceshipFrame::OnShow(bool value)
 
 		camera->StopFly();
 		cameraInst->SetPos(D3DXVECTOR3(-43.756214f, -11.786510f, 21.129881f));
-		cameraInst->SetRot(D3DXQUATERNION(-0.028391786f, 0.21455817f, 0.12807286f, 0.96786171f));
+		cameraInst->SetRot(glm::quat(0.96786171f, -0.028391786f, 0.21455817f, 0.12807286f));
 		camera->ChangeStyle(CameraManager::csAutoObserver);
 
 		camera->SetTarget(D3DXVECTOR4(0, 0, 0, 50.0f));
@@ -1095,7 +1095,7 @@ WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 		float size = std::min(slot.plane->GetSize().x, slot.plane->GetSize().y);
 		slot.viewport->SetSize(size, size);
 
-		D3DXQUATERNION quat;
+		glm::quat quat;
 		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
 		slot.viewport->SetRot3dSpeed(quat);
 
@@ -1167,7 +1167,7 @@ gui::ViewPort3d* WorkshopFrame::AddGood(Slot* slot, int index, int count)
 		gui::Mesh3d* mesh3d = static_cast<gui::Mesh3d*>(viewPort->GetBox()->GetChildren().front());
 		mesh3d->GetOrCreateMaterial()->GetSampler().SetFiltering(graph::BaseSampler::sfAnisotropic);
 
-		D3DXQUATERNION quat;
+		glm::quat quat;
 		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
 		viewPort->SetRot3dSpeed(quat);
 		D3DXQuaternionRotationAxis(&quat, &ZVector, 2.0f * D3DX_PI * index / count);
@@ -2099,7 +2099,7 @@ GamersFrame::GamersFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 	_space->SetAnchor(gui::Widget::waCenter);
 
 	_viewport = menu->CreateViewPort3d(root(), NULL, "", gui::ViewPort3d::msAnim, false);	
-	D3DXQUATERNION quat;
+	glm::quat quat;
 	D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/24.0f);
 	_viewport->SetRot3dSpeed(quat);
 	D3DXQuaternionRotationAxis(&quat, &XVector, D3DX_PI/2.0f);
@@ -2373,7 +2373,7 @@ AngarFrame::AngarFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): Men
 	_planetBoss = menu->CreatePlane(_planetInfo, this, "", true, IdentityVec2, gui::Material::bmTransparency);	
 
 	_planetBossCar = menu->CreateViewPort3d(_planetInfo, NULL, "", gui::ViewPort3d::msAnim);	
-	D3DXQUATERNION quat;
+	glm::quat quat;
 	D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
 	_planetBossCar->SetRot3dSpeed(quat);
 
@@ -2416,7 +2416,7 @@ AngarFrame::PlanetBox& AngarFrame::AddPlanet(Planet* planet, int index)
 		box = &_planets.back();
 
 		box->viewport = menu()->CreateMesh3dBox(_planetGrid, this, planet->GetMesh(), planet->GetTexture(), gui::ViewPort3d::msStatic, Menu::ssButton5);
-		D3DXQUATERNION quat;
+		glm::quat quat;
 		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/24.0f);
 		box->viewport->SetRot3dSpeed(quat);
 		D3DXQuaternionRotationAxis(&quat, &XVector, D3DX_PI/2.0f);
@@ -3191,7 +3191,7 @@ RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	_speedBarValue->SetPos(glm::vec2(_speedBar->GetSize().x/2 - 15.0f, 0.0f));
 
 	_viewportCar = menu->CreateViewPort3d(_topPanel, NULL, "", gui::ViewPort3d::msAnim);	
-	D3DXQUATERNION quat;
+	glm::quat quat;
 	D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
 	_viewportCar->SetRot3dSpeed(quat);
 
@@ -3220,7 +3220,7 @@ RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 		_slots[i] = menu->CreateMesh3dBox(_topPanel, NULL, NULL, NULL, gui::ViewPort3d::msAnim);
 		_slots[i]->SetSize(glm::vec2(50.0f, 50.0f));
 
-		D3DXQUATERNION quat;
+		glm::quat quat;
 		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
 		_slots[i]->SetRot3dSpeed(quat);
 
@@ -3288,7 +3288,7 @@ RaceMainFrame::PlayerBox* RaceMainFrame::AddPlayer(NetPlayer* netPlayer, unsigne
 		newBox.readyState = menu()->CreatePlane(newBox.bgRoot, NULL, "", false, IdentityVec2, gui::Material::bmTransparency);
 
 		newBox.viewportCar = menu()->CreateViewPort3d(newBox.bgRoot, NULL, "", gui::ViewPort3d::msAnim);
-		D3DXQUATERNION quat;
+		glm::quat quat;
 		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
 		newBox.viewportCar->SetRot3dSpeed(quat);
 
@@ -3877,7 +3877,7 @@ void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const D3DX
 					continue;
 
 				D3DXVECTOR3 pos = placeSlot.pos + placeItem->offset;
-				D3DXQUATERNION rot = placeItem ? placeItem->rot : NullQuaternion;
+				glm::quat rot = placeItem ? placeItem->rot : NullQuaternion;
 
 				gui::Mesh3d* carMesh = _menu->CreateMesh3d(viewport, slot->GetItem().GetMesh(), slot->GetItem().GetTexture());
 				carMesh->GetMaterial()->GetSampler().SetFiltering(graph::BaseSampler::sfAnisotropic);

@@ -535,7 +535,7 @@ struct Listener
 	Listener(): pos(NullVector), rot(NullQuaternion) {}
 
 	D3DXVECTOR3 pos;
-	D3DXQUATERNION rot;
+	glm::quat rot;
 };
 
 class Engine: public lsl::Component

@@ -200,12 +200,12 @@ void SlotItem::SetPos(const D3DXVECTOR3& value)
 	TransformChanged();
 }
 
-const D3DXQUATERNION& SlotItem::GetRot() const
+const glm::quat& SlotItem::GetRot() const
 {
 	return _rot;
 }
 
-void SlotItem::SetRot(const D3DXQUATERNION& value)
+void SlotItem::SetRot(const glm::quat& value)
 {
 	_rot = value;
 	TransformChanged();
@@ -1194,7 +1194,7 @@ void Player::ClearBonusProjs()
 		RemoveBonusProj(_bonusProjs.begin());
 }
 
-void Player::InitLight(HeadLight headLight, const D3DXVECTOR3& pos, const D3DXQUATERNION& rot)
+void Player::InitLight(HeadLight headLight, const D3DXVECTOR3& pos, const glm::quat& rot)
 {
 	if (!_lights[headLight])
 	{
@@ -1918,15 +1918,15 @@ void Player::SetHeadlight(HeadLightMode value)
 
 			case hlmOne:
 			{
-				InitLight(hlFirst, D3DXVECTOR3(0.3f, 0.0f, 3.190f), D3DXQUATERNION(0.0009f, 0.344f, -0.029f, 0.939f));
+				InitLight(hlFirst, D3DXVECTOR3(0.3f, 0.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
 				FreeLight(hlSecond);
 				break;
 			}
 				
 			case hlmTwo:
 			{
-				InitLight(hlFirst, D3DXVECTOR3(0.3f, 1.0f, 3.190f), D3DXQUATERNION(0.0009f, 0.344f, -0.029f, 0.939f));
-				InitLight(hlSecond, D3DXVECTOR3(0.3f, -1.0f, 3.190f), D3DXQUATERNION(0.0009f, 0.344f, -0.029f, 0.939f));
+				InitLight(hlFirst, D3DXVECTOR3(0.3f, 1.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
+				InitLight(hlSecond, D3DXVECTOR3(0.3f, -1.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
 				break;
 			}
 		}
@@ -1974,7 +1974,7 @@ Record* Player::GetSlot(SlotType type)
 	return _slot[type] ? _slot[type]->GetRecord() : 0;
 }
 
-void Player::SetSlot(SlotType type, Record* record, const D3DXVECTOR3& pos, const D3DXQUATERNION& rot)
+void Player::SetSlot(SlotType type, Record* record, const D3DXVECTOR3& pos, const glm::quat& rot)
 {
 	lsl::SafeDelete(_slot[type]);
 

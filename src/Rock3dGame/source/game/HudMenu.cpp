@@ -46,7 +46,7 @@ PlayerStateFrame::PlayerStateFrame(Menu* menu, HudMenu* hudMenu, gui::Widget* pa
 	}
 
 	menu->ShowChat(true);
-	menu->RegUser(this);	
+	menu->RegUser(this);
 }
 	
 PlayerStateFrame::~PlayerStateFrame()
@@ -56,7 +56,7 @@ PlayerStateFrame::~PlayerStateFrame()
 
 	for (int i = 0; i < 5; ++i)
 	{
-		menu()->GetGUI()->ReleaseWidget(_guiTimer[i]);		
+		menu()->GetGUI()->ReleaseWidget(_guiTimer[i]);
 	}
 
 	for (int i = 0; i < cCarLifeEnd; ++i)
@@ -96,7 +96,7 @@ void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bo
 	const glm::vec2 photoSize = glm::vec2(50.0f, 50.0f);
 	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;	
 
-	string image;	
+	string image;
 	graph::Tex2DResource* photo = NULL;
 	string name;
 
@@ -130,7 +130,7 @@ void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bo
 			default:
 				image = "GUI\\pickWeapon.png";
 				break;
-			}		
+			}
 			break;
 		}
 
@@ -157,7 +157,7 @@ void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bo
 		_pickItemsBuffer.pop_back();
 	}
 	else
-	{	
+	{
 		item.image = menu()->CreatePlane(root(), NULL, image, true, IdentityVec2, gui::Material::bmTransparency);
 
 		item.photo = menu()->CreatePlane(item.image, NULL, "", true, IdentityVec2, gui::Material::bmTransparency);
@@ -175,8 +175,8 @@ void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bo
 	item.pos = _hudMenu->GetPickItemsPos() + glm::vec2(item.image->GetSize().x/2, 0);
 	item.image->SetPos(item.pos);
 
-	item.photo->SetVisible(photo ? true : false);	
-	item.photo->GetMaterial().GetSampler().SetTex(photo);	
+	item.photo->SetVisible(photo ? true : false);
+	item.photo->GetMaterial().GetSampler().SetTex(photo);
 	item.photo->SetSize(menu()->StretchImage(item.photo->GetMaterial(), photoSize, true, false, true, false));
 
 	item.label->SetText(name);
@@ -208,7 +208,7 @@ void PlayerStateFrame::ProccessPickItems(float deltaTime)
 			if (item.time < 0.3f)
 			{
 				float lerp = ClampValue(item.time / 0.3f, 0.0f, 1.0f);
-				alpha = lerp;				
+				alpha = lerp;
 			}
 			else if (item.time > 4.7f)
 			{
@@ -220,7 +220,7 @@ void PlayerStateFrame::ProccessPickItems(float deltaTime)
 			glm::vec2 pos = item.pos + glm::vec2(30, index * 85.0f + dPosY);
 			glm::vec2 curPos = item.image->GetPos();
 			if (abs(pos.x - curPos.x) > 0.001f || abs(pos.y - curPos.y) > 0.001f)
-			{	
+			{
 				curPos.x = std::min(curPos.x + 90.0f * deltaTime, pos.x);
 				curPos.y = std::min(curPos.y + 120.0f * deltaTime, pos.y);
 				item.image->SetPos(curPos);
@@ -245,7 +245,7 @@ void PlayerStateFrame::ProccessPickItems(float deltaTime)
 void PlayerStateFrame::NewAchievment(AchievmentCondition::MyEventData* data)
 {
 	Difficulty diff = menu()->GetRace()->GetProfile()->difficulty();
-	std::string image = "GUI\\Achievments\\" + data->condition->name() + ".png";	
+	std::string image = "GUI\\Achievments\\" + data->condition->name() + ".png";
 	std::string pointsImage = lsl::StrFmt("GUI\\Achievments\\points%d.png", data->condition->reward());
 	std::string pointsImageK = diff == gdHard ? "GUI\\Achievments\\points1_5.png" : "GUI\\Achievments\\points1_2.png";
 	glm::vec2 vpSize = menu()->GetGUI()->GetVPSize();
@@ -350,7 +350,7 @@ void PlayerStateFrame::ProccessAchievments(float deltaTime)
 			item.image->SetPos(pos);
 
 			glm::vec2 imgSize = myThis->menu()->GetImageSize(item.image->GetMaterial());
-            imgSize = Vec2Lerp(imgSize, imgSize * 2.0f, pingAlpha);
+			imgSize = Vec2Lerp(imgSize, imgSize * 2.0f, pingAlpha);
 			item.image->SetSize(imgSize);
 
 			item.image->GetMaterial().SetAlpha(1.0f - outAlpha);
@@ -1042,11 +1042,11 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 			for (float i = -smSlice; i <= smSlice; ++i)
 			{
 				float dAlpha = i/smSlice * alpha2;
-				D3DXQUATERNION rot;
+				glm::quat rot;
 				D3DXQuaternionRotationAxis(&rot, &ZVector, ccw ? dAlpha : -dAlpha);
 				D3DXMATRIX rotMat;
 				D3DXMatrixRotationQuaternion(&rotMat, &rot);
-                auto rotMatGLM = d3dMatrixToGLM(rotMat); // remove after D3DXMATRIX replacement
+                auto rotMatGLM = Matrix4DxToGlm(rotMat); // remove after D3DXMATRIX replacement
                 glm::vec2 vec = Vec2TransformNormal(smVec, rotMatGLM);
 
 				Node newNode;
@@ -1190,7 +1190,7 @@ void MiniMapFrame::UpdateMap()
 	gui::Plane3d* start = _menu->CreatePlane3d(_map, "GUI\\start.png", IdentityVec2);
 	start->SetPos(node->GetPos());
 
-	D3DXQUATERNION rot;
+	glm::quat rot;
 	QuatShortestArc(XVector, D3DXVECTOR3(node->GetTile().GetDir().x, node->GetTile().GetDir().y, 0.0f), rot);
 	start->SetRot(rot);
 	start->SetSize(glm::vec2(node->GetSize()/4.0f, node->GetSize()/2.0f));

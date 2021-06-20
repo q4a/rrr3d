@@ -25,7 +25,7 @@ private:
 		D3DXVECTOR3 _staticVec1;
 		D3DXVECTOR3 _staticVec2;
 		D3DXVECTOR3 _staticVec3;
-		D3DXQUATERNION _staticQuat1;		
+		glm::quat _staticQuat1;		
 
 		bool OnMouseMoveEvent(const MouseMove& mMove);
 		bool OnHandleInput(const InputMessage& msg);
@@ -48,12 +48,12 @@ private:
 	D3DXVECTOR3 _angleSpeed;
 	D3DXVECTOR3 _stableAngle;
 	D3DXVECTOR3 _lastFreePos;
-	D3DXQUATERNION _lastFreeRot;
+	glm::quat _lastFreeRot;
 
 	D3DXVECTOR3 _flySPos;
-	D3DXQUATERNION _flySRot;
+	glm::quat _flySRot;
 	D3DXVECTOR3 _flyPos;
-	D3DXQUATERNION _flyRot;
+	glm::quat _flyRot;
 	float _flyCurTime;
 	float _flyTime;
 
@@ -74,7 +74,7 @@ public:
 	void ScreenToRay(const lsl::Point& coord, D3DXVECTOR3& rayStart, D3DXVECTOR3& rayVec);
 	bool ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, D3DXVECTOR3& outVec);
 
-	void FlyTo(const D3DXVECTOR3& pos, const D3DXQUATERNION& rot, float time);
+	void FlyTo(const D3DXVECTOR3& pos, const glm::quat& rot, float time);
 	void StopFly();
 	bool InFly();
 
@@ -114,7 +114,7 @@ public:
 	GraphManager::LightSrc* GetLight();
 	void SetLight(GraphManager::LightSrc* value);
 
-	void GetObserverCoord(const D3DXVECTOR3& targetPos, float targetDist, D3DXVECTOR3* pos, D3DXQUATERNION& rot, const glm::vec2& dMPos, float deltaTime, bool dragX, bool dragY, bool restoreY, D3DXVECTOR3* camPos, D3DXQUATERNION* camQuat, float* dir);
+	void GetObserverCoord(const D3DXVECTOR3& targetPos, float targetDist, D3DXVECTOR3* pos, glm::quat& rot, const glm::vec2& dMPos, float deltaTime, bool dragX, bool dragY, bool restoreY, D3DXVECTOR3* camPos, glm::quat* camQuat, float* dir);
 };
 
 }

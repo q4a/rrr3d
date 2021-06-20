@@ -101,10 +101,10 @@ public:
 	struct PlaceItem
 	{
 		PlaceItem(): slot(0), rot(NullQuaternion) {}
-		PlaceItem(Slot* mSlot, const D3DXQUATERNION& mRot = NullQuaternion, const D3DXVECTOR3& mOffset = NullVector): slot(mSlot), rot(mRot), offset(mOffset) {}
+		PlaceItem(Slot* mSlot, const glm::quat& mRot = NullQuaternion, const D3DXVECTOR3& mOffset = NullVector): slot(mSlot), rot(mRot), offset(mOffset) {}
 
 		Slot* slot;
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		D3DXVECTOR3 offset;
 	};
 	typedef lsl::List<PlaceItem> PlaceItems;

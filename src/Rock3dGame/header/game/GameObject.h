@@ -85,7 +85,7 @@ private:
 	D3DXVECTOR3 _posSyncDir;
 	float _posSyncLength;
 
-	D3DXQUATERNION _rotSync;
+	glm::quat _rotSync;
 	D3DXVECTOR3 _rotSyncAxis;
 	float _rotSyncAngle;
 
@@ -94,17 +94,17 @@ private:
 	float _posSyncDist2;
 	float _posSyncLength2;
 
-	D3DXQUATERNION _rotSync2;
+	glm::quat _rotSync2;
 	D3DXVECTOR3 _rotSyncAxis2;
 	float _rotSyncAngle2;
 	float _rotSyncLength2;
 
 	D3DXVECTOR3 _pxPosLerp;
-	D3DXQUATERNION _pxRotLerp;
+	glm::quat _pxRotLerp;
 	D3DXVECTOR3 _pxVelocityLerp;
 
 	D3DXVECTOR3 _pxPrevPos;
-	D3DXQUATERNION _pxPrevRot;
+	glm::quat _pxPrevRot;
 	D3DXVECTOR3 _pxPrevVelocity;
 
 	void SetSyncFrameEvent(bool value);
@@ -221,15 +221,15 @@ public:
 	virtual void SetScale(const D3DXVECTOR3& value);
 	void SetScale(float value);
 	//Поворот
-	const D3DXQUATERNION& GetRot() const;
-	virtual void SetRot(const D3DXQUATERNION& value);	
+	const glm::quat& GetRot() const;
+	virtual void SetRot(const glm::quat& value);	
 	//Абсолютные трансформации
 	//Позиция
 	D3DXVECTOR3 GetWorldPos() const;
 	virtual void SetWorldPos(const D3DXVECTOR3& value);
 	//Поворот
-	D3DXQUATERNION GetWorldRot() const;
-	virtual void SetWorldRot(const D3DXQUATERNION& value);
+	glm::quat GetWorldRot() const;
+	virtual void SetWorldRot(const glm::quat& value);
 	
 	void SetWorldDir(const D3DXVECTOR3& value);
 	void SetWorldUp(const D3DXVECTOR3& value);
@@ -237,21 +237,21 @@ public:
 	const D3DXVECTOR3& GetPosSync() const;
 	void SetPosSync(const D3DXVECTOR3& value);
 
-	const D3DXQUATERNION& GetRotSync() const;
-	void SetRotSync(const D3DXQUATERNION& value);
+	const glm::quat& GetRotSync() const;
+	void SetRotSync(const glm::quat& value);
 
 	const D3DXVECTOR3& GetPosSync2() const;
 	void SetPosSync2(const D3DXVECTOR3& curSync, const D3DXVECTOR3& newSync);
 
-	const D3DXQUATERNION& GetRotSync2() const;
-	void SetRotSync2(const D3DXQUATERNION& curSync, const D3DXQUATERNION& newSync);
+	const glm::quat& GetRotSync2() const;
+	void SetRotSync2(const glm::quat& curSync, const glm::quat& newSync);
 
 	const D3DXVECTOR3& GetPxPosLerp() const;
-	const D3DXQUATERNION& GetPxRotLerp() const;
+	const glm::quat& GetPxRotLerp() const;
 	const D3DXVECTOR3& GetPxVelocityLerp() const;
 
 	const D3DXVECTOR3& GetPxPrevPos() const;
-	const D3DXQUATERNION& GetPxPrevRot() const;
+	const glm::quat& GetPxPrevRot() const;
 	const D3DXVECTOR3& GetPxPrevVelocity() const;
 
 	LiveState GetLiveState() const;

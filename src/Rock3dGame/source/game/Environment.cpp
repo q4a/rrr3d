@@ -66,9 +66,9 @@ Environment::Environment(World* world): _world(world), _wheater(ewClody), _world
 	for (int i = 0; i < 4; ++i)
 		_lampSwitchOn[i] = true;
 
-	D3DXQUATERNION rot1;
+	glm::quat rot1;
 	D3DXQuaternionRotationAxis(&rot1, &YVector, D3DX_PI/4.0f);
-	D3DXQUATERNION rot2;
+	glm::quat rot2;
 	D3DXQuaternionRotationAxis(&rot2, &ZVector, -D3DX_PI/4.0f);	
 	_sunRot = rot1 * rot2;
 
@@ -769,7 +769,7 @@ void Environment::SetSunPos(const D3DXVECTOR3& value)
 		_sun->GetSource()->SetPos(_sunPos);
 }
 
-const D3DXQUATERNION& Environment::GetSunRot() const
+const glm::quat& Environment::GetSunRot() const
 {
 	if (_sun)
 		_sunRot = _sun->GetSource()->GetRot();
@@ -777,7 +777,7 @@ const D3DXQUATERNION& Environment::GetSunRot() const
 	return _sunRot;
 }
 
-void Environment::SetSunRot(const D3DXQUATERNION& value)
+void Environment::SetSunRot(const glm::quat& value)
 {
 	_sunRot = value;
 
@@ -798,12 +798,12 @@ void Environment::SetLampPos(const D3DXVECTOR3& value, int index)
 		_lamp[index]->GetSource()->SetPos(value);
 }
 
-const D3DXQUATERNION& Environment::GetLampRot(int index) const
+const glm::quat& Environment::GetLampRot(int index) const
 {
 	return _lampRot[index];
 }
 
-void Environment::SetLampRot(const D3DXQUATERNION& value, int index)
+void Environment::SetLampRot(const glm::quat& value, int index)
 {
 	_lampRot[index] = value;
 

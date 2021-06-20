@@ -524,7 +524,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 		return;
 
 	D3DXVECTOR3 pos = car->GetPxActor().GetPos();
-	D3DXQUATERNION rot = car->GetPxActor().GetRot();	
+	glm::quat rot = car->GetPxActor().GetRot();	
 	D3DXVECTOR3 linVel = car->GetNxActor()->getLinearMomentum().get();
 	D3DXVECTOR3 angVel = car->GetNxActor()->getAngularMomentum().get();
 	BYTE moveState = car->GetMoveCar();
@@ -581,7 +581,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 			car->SetPosSync(dPos);
 		}*/
 
-		D3DXQUATERNION dRot;
+		glm::quat dRot;
 		QuatRotation(dRot, car->GetGrActor().GetRot(), rot);
 		D3DXVECTOR3 dRotAxis;
 		float dRotAngle;

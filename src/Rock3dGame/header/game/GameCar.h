@@ -48,7 +48,7 @@ private:
 	D3DXVECTOR3 _offset;
 
 	D3DXVECTOR3 _pxPrevPos;
-	D3DXQUATERNION _pxPrevRot;
+	glm::quat _pxPrevRot;
 protected:
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);

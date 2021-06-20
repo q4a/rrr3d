@@ -844,7 +844,7 @@ void DataBase::LoadEffects()
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 1.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
-		D3DXQUATERNION spRot1, spRot2;
+		glm::quat spRot1, spRot2;
 		D3DXQuaternionRotationAxis(&spRot1, &(-IdentityVector), D3DX_PI);
 		D3DXQuaternionRotationAxis(&spRot2, &IdentityVector, 2.0f * D3DX_PI);
 		descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
@@ -866,7 +866,7 @@ void DataBase::LoadEffects()
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 4.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
-		D3DXQUATERNION spRot1, spRot2;
+		glm::quat spRot1, spRot2;
 		D3DXQuaternionRotationAxis(&spRot1, &(-IdentityVector), D3DX_PI);
 		D3DXQuaternionRotationAxis(&spRot2, &IdentityVector, 2.0f * D3DX_PI);
 		descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
@@ -1016,9 +1016,9 @@ void DataBase::LoadEffects()
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
 		desc.startScale = Vec3Range(D3DXVECTOR3(0.8f, 0.8f, 0.8f), D3DXVECTOR3(1.1f, 1.1f, 1.1f));
 
-		D3DXQUATERNION rot1;
+		glm::quat rot1;
 		D3DXQuaternionRotationAxis(&rot1, &D3DXVECTOR3(0.0f, 0.0f, 1.0f), 0.0f);
-		D3DXQUATERNION rot2;
+		glm::quat rot2;
 		D3DXQuaternionRotationAxis(&rot2, &D3DXVECTOR3(0.0f, 0.0f, 1.0f), 2*D3DX_PI);		
 		desc.startRot = QuatRange(rot1, rot2, QuatRange::vdVolume);
 
@@ -1054,7 +1054,7 @@ void DataBase::LoadEffects()
 		desc.density = 1.0f;
 		desc.startPos = Vec3Range(IdentityVector * (-0.1f), IdentityVector * 0.1f, Vec3Range::vdVolume);
 		desc.startScale = Vec3Range(IdentityVector * 0.7f, IdentityVector * 1.3f, Vec3Range::vdVolume);
-		desc.startRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * 2.0f;
@@ -1073,7 +1073,7 @@ void DataBase::LoadEffects()
 		desc.density = 10.0f;
 		desc.startPos = Vec3Range(IdentityVector * (-0.6f), IdentityVector * 0.6f, Vec3Range::vdVolume);
 		desc.startScale = Vec3Range(IdentityVector * 0.7f, IdentityVector * 1.1f, Vec3Range::vdVolume);
-		desc.startRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * 3.0f;
@@ -1094,7 +1094,7 @@ void DataBase::LoadEffects()
 		desc.density = 1.0f;
 		desc.startPos = Vec3Range(IdentityVector * (-0.1f), IdentityVector * 0.1f, Vec3Range::vdVolume);
 		desc.startScale = Vec3Range(IdentityVector * 0.5f, IdentityVector * 0.7f, Vec3Range::vdVolume);
-		desc.startRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * 1.0f;
@@ -1113,7 +1113,7 @@ void DataBase::LoadEffects()
 		desc.density = 1.0f;
 		desc.startPos = NullVector;
 		desc.startScale = IdentityVector * 0.7f;
-		desc.startRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * 4.0f;
@@ -1131,7 +1131,7 @@ void DataBase::LoadEffects()
 		desc.startTime = FloatRange(1.0f);
 		desc.density = FloatRange(1.0f, 1.0f);
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.2f, -0.2f, -0.2f), D3DXVECTOR3(0.2f, 0.2f, 0.2f), Vec3Range::vdVolume);
-		desc.startRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 		desc.startScale = D3DXVECTOR3(IdentityVector) * 1.5f;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
@@ -1156,7 +1156,7 @@ void DataBase::LoadEffects()
 		desc.startTime = FloatRange(1.0f);
 		desc.density = 1.0f;
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.2f, -0.2f, -0.2f), D3DXVECTOR3(0.2f, 0.2f, 0.2f), Vec3Range::vdVolume);
-		desc.startRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 		desc.startScale = D3DXVECTOR3(IdentityVector) * 1.5f;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
@@ -1178,7 +1178,7 @@ void DataBase::LoadEffects()
 		desc.density = 1.0f;
 		desc.startPos = NullVector;
 		desc.startScale = IdentityVector * 0.7f;
-		desc.startRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * 4.0f;
@@ -1264,7 +1264,7 @@ void DataBase::LoadEffects()
 	LoadFxSprite("frostRay", "Effect\\frostRay", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amTwoSide, 1.0f, 0, 0.0f, true, glm::vec2(1.0f, 0.5f), gtEffect, true);
 	//frostShot
 	{
-		D3DXQUATERNION lineRot1;
+		glm::quat lineRot1;
 		D3DXQuaternionRotationAxis(&lineRot1, &ZVector, D3DX_PI);
 		LoadFxSprite("frostShot", "Effect\\frostLine", NullVector, Vec3Range(IdentityVector, NullVector), QuatRange(NullQuaternion, lineRot1), false, graph::SceneNode::amTwoSide, 1.0f, 0, 1.0f, false, glm::vec2(4.0f, 4.0f));
 	}
@@ -1282,7 +1282,7 @@ void DataBase::LoadEffects()
 		desc.startTime = FloatRange(0.1f, 0.2f);
 		desc.density = FloatRange(2.0f, 3.0f);
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.5f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		D3DXQUATERNION spRot1, spRot2;
+		glm::quat spRot1, spRot2;
 		D3DXQuaternionRotationAxis(&spRot1, &(-ZVector), D3DX_PI);
 		D3DXQuaternionRotationAxis(&spRot2, &ZVector, 2.0f * D3DX_PI);
 		desc.startRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume);
@@ -1314,7 +1314,7 @@ void DataBase::LoadEffects()
 		desc.density = 1.0f;
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.0f, -0.2f, -0.2f), D3DXVECTOR3(0.0f, 0.2f, 0.2f), Vec3Range::vdVolume);
 		desc.startScale = D3DXVECTOR3(0.7f, 0.7f, 0.7f);
-		desc.startRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(11.0f, -0.5f, 0.0f), D3DXVECTOR3(13.0f, 0.5f, 0.1f), Vec3Range::vdVolume);
@@ -1361,7 +1361,7 @@ void DataBase::LoadEffects()
 			graph::FxFlowEmitter::FlowDesc descFlow;
 			descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 2.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
 			//
-			D3DXQUATERNION spRot1, spRot2;
+			glm::quat spRot1, spRot2;
 			D3DXQuaternionRotationAxis(&spRot1, &(-IdentityVector), D3DX_PI);
 			D3DXQuaternionRotationAxis(&spRot2, &IdentityVector, 2.0f * D3DX_PI);
 			descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
@@ -1609,10 +1609,10 @@ void DataBase::LoadEffects()
 		desc.life = 1.0f;
 		desc.startPos = NullVector;
 		desc.startScale = IdentityVector * 2.0f;
-		desc.rangeRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.rangeRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		descFlow.speedRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		LoadFxFlow("flareLaser1", "Effect\\flareLaser1", _fxSpriteManager, desc, descFlow, false, 1.0f);
 	}
@@ -1628,7 +1628,7 @@ void DataBase::LoadEffects()
 		desc.life = FloatRange(0.15f, 0.5f);
 		desc.startPos = NullVector;
 		desc.startScale = Vec3Range(IdentityVector * 1.25f, IdentityVector * 2.0f);
-		desc.rangeRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.rangeRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;		
 
@@ -1733,7 +1733,7 @@ void DataBase::LoadEffects()
 		desc.startTime = FloatRange(0.7f);
 		desc.density = FloatRange(1.0f, 1.0f);
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.6f, -0.6f, -0.6f), D3DXVECTOR3(0.6f, 0.6f, 0.6f), Vec3Range::vdVolume);
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		D3DXQuaternionRotationAxis(&rot, &ZVector, D3DX_PI);
 		desc.startRot = QuatRange(NullQuaternion, rot, QuatRange::vdLinear);
 		desc.startScale = D3DXVECTOR3(IdentityVector) * 4.0f;
@@ -1764,7 +1764,7 @@ void DataBase::LoadEffects()
 		desc.startTime = 0.5f;
 		desc.density = FloatRange(1.0f, 1.0f);
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.3f, -0.3f, -0.3f), D3DXVECTOR3(0.3f, 0.3f, 0.3f), Vec3Range::vdVolume);
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		D3DXQuaternionRotationAxis(&rot, &ZVector, D3DX_PI);
 		desc.startRot = QuatRange(NullQuaternion, rot, QuatRange::vdLinear);
 		desc.startScale = D3DXVECTOR3(IdentityVector) * 1.5f;
@@ -1805,7 +1805,7 @@ void DataBase::LoadEffects()
 		desc.density = 1.0f;
 		desc.startPos = Vec3Range(IdentityVector * (-0.1f), IdentityVector * 0.1f, Vec3Range::vdVolume);
 		desc.startScale = Vec3Range(IdentityVector * 0.5f, IdentityVector * 0.6f, Vec3Range::vdVolume);
-		desc.startRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
+		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * 0.5f;
@@ -1875,7 +1875,7 @@ void DataBase::LoadEffects()
 		desc.startTime = 0;
 		desc.density = 5.0f;
 		desc.startPos = Vec3Range(D3DXVECTOR3(-2.0f, -2.0f, 0.0f), D3DXVECTOR3(2.0f, 2.0f, 0.0f), Vec3Range::vdVolume);
-		D3DXQUATERNION rot1, rot2;
+		glm::quat rot1, rot2;
 		D3DXQuaternionRotationAxis(&rot1, &ZVector, -D3DX_PI/3);
 		D3DXQuaternionRotationAxis(&rot2, &ZVector, D3DX_PI/3);
 		desc.startRot = QuatRange(rot1, rot2, QuatRange::vdLinear);
@@ -2690,7 +2690,7 @@ void DataBase::LoadMisc()
 		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::PlaneNode* node = AddPlaneNode(mapObj, IdentityVec2);
-		//D3DXQUATERNION rot;
+		//glm::quat rot;
 		//D3DXQuaternionRotationAxis(&rot, &ZVector, -D3DX_PI/2);
 		//node->SetRot(rot);
 		node->SetScale(D3DXVECTOR3(4.0f, 3.0f, 1.0f));

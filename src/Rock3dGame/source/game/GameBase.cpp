@@ -128,7 +128,7 @@ void ResurrectObj::Resurrect()
 		owner->LockDestr();
 		
 		D3DXVECTOR3 pos = gameObj->GetWorldPos();
-		D3DXQUATERNION rot = gameObj->GetWorldRot();
+		glm::quat rot = gameObj->GetWorldRot();
 
 		owner->Delete(mapObj);
 		gameObj->SetParent(0);
@@ -1268,7 +1268,7 @@ void PodushkaAnim::OnProgress(float deltaTime)
 	if (abs(linSpeed) > 1.0f)
 	{
 		D3DXMATRIX localMat = _target->GetMat();
-		D3DXQUATERNION rotQuat;
+		glm::quat rotQuat;
 		D3DXQuaternionRotationAxis(&rotQuat, &XVector, D3DX_PI * deltaTime * linSpeed * 0.1f);
 		D3DXMATRIX rotMat;
 		D3DXMatrixRotationQuaternion(&rotMat, &rotQuat);

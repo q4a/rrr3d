@@ -271,12 +271,12 @@ void Trace::NodeControl::SetPos(const D3DXVECTOR3& value)
 	_wayPoint->SetPos(value);
 }
 
-D3DXQUATERNION Trace::NodeControl::GetRot() const
+glm::quat Trace::NodeControl::GetRot() const
 {
 	return NullQuaternion;
 }
 
-void Trace::NodeControl::SetRot(const D3DXQUATERNION& value)
+void Trace::NodeControl::SetRot(const glm::quat& value)
 {
 	//Nothing
 }

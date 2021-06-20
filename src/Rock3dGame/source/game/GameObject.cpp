@@ -307,7 +307,7 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 				_rotSyncAngle = std::max(_rotSyncAngle - 1.3f * D3DX_PI * deltaTime, 0.0f);
 			else
 				_rotSyncAngle = std::min(_rotSyncAngle + 1.3f * D3DX_PI * deltaTime, 0.0f);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			D3DXQuaternionRotationAxis(&rot, &_rotSyncAxis, -_rotSyncAngle);
 			_grActor->SetRot(_grActor->GetRot() * rot);
 		}
@@ -330,7 +330,7 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 			else
 				_rotSyncAngle2 = std::min(_rotSyncAngle2 + 1.3f * D3DX_PI * deltaTime, 0.0f);
 
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			D3DXQuaternionRotationAxis(&rot, &_rotSyncAxis2, -_rotSyncAngle2);
 			_grActor->SetRot(_grActor->GetRot() * _rotSync2 * rot);
 		}
@@ -387,7 +387,7 @@ void GameObject::LoadProxy(lsl::SReader* reader)
 {
 	D3DXVECTOR3 pos;
 	D3DXVECTOR3 scale;
-	D3DXQUATERNION rot;
+	glm::quat rot;
 
 	reader->ReadValue("pos", pos, 3);
 	reader->ReadValue("scale", scale, 3);
@@ -766,12 +766,12 @@ void GameObject::SetScale(float value)
 	SetScale(D3DXVECTOR3(value, value, value));
 }
 
-const D3DXQUATERNION& GameObject::GetRot() const
+const glm::quat& GameObject::GetRot() const
 {
 	return _grActor->GetRot();
 }
 
-void GameObject::SetRot(const D3DXQUATERNION& value)
+void GameObject::SetRot(const glm::quat& value)
 {
 	_grActor->SetRot(value);
 	_pxActor->SetRot(value);
@@ -790,12 +790,12 @@ void GameObject::SetWorldPos(const D3DXVECTOR3& value)
 	_pxPrevPos = _grActor->GetPos();
 }
 
-D3DXQUATERNION GameObject::GetWorldRot() const
+glm::quat GameObject::GetWorldRot() const
 {
 	return _grActor->GetWorldRot();
 }
 
-void GameObject::SetWorldRot(const D3DXQUATERNION& value)
+void GameObject::SetWorldRot(const glm::quat& value)
 {
 	_grActor->SetWorldRot(value);
 	_pxActor->SetRot(_grActor->GetRot());
@@ -838,12 +838,12 @@ void GameObject::SetPosSync(const D3DXVECTOR3& value)
 	SetSyncFrameEvent(true);
 }
 
-const D3DXQUATERNION& GameObject::GetRotSync() const
+const glm::quat& GameObject::GetRotSync() const
 {
 	return _rotSync;
 }
 
-void GameObject::SetRotSync(const D3DXQUATERNION& value)
+void GameObject::SetRotSync(const glm::quat& value)
 {
 	_rotSync = value;
 	D3DXQuaternionToAxisAngle(&_rotSync, &_rotSyncAxis, &_rotSyncAngle);
@@ -872,15 +872,14 @@ void GameObject::SetPosSync2(const D3DXVECTOR3& curSync, const D3DXVECTOR3& newS
 	SetSyncFrameEvent(true);
 }
 
-const D3DXQUATERNION& GameObject::GetRotSync2() const
+const glm::quat& GameObject::GetRotSync2() const
 {
 	return _rotSync2;
 }
 
-void GameObject::SetRotSync2(const D3DXQUATERNION& curSync, const D3DXQUATERNION& newSync)
+void GameObject::SetRotSync2(const glm::quat& curSync, const glm::quat& newSync)
 {
-	D3DXQUATERNION dRot;
-	QuatRotation(dRot, newSync, curSync);
+	glm::quat dRot = QuatRotation(newSync, curSync);
 	D3DXQuaternionToAxisAngle(&dRot, &_rotSyncAxis2, &_rotSyncAngle2);
 
 	float angle = abs(_rotSyncAngle2);
@@ -899,7 +898,7 @@ const D3DXVECTOR3& GameObject::GetPxPosLerp() const
 	return !_bodyProgressEvent && _parent ? _parent->GetPxPosLerp() : _pxPosLerp;
 }
 
-const D3DXQUATERNION& GameObject::GetPxRotLerp() const
+const glm::quat& GameObject::GetPxRotLerp() const
 {
 	return !_bodyProgressEvent && _parent ? _parent->GetPxRotLerp() : _pxRotLerp;
 }
@@ -914,7 +913,7 @@ const D3DXVECTOR3& GameObject::GetPxPrevPos() const
 	return _pxPrevPos;
 }
 
-const D3DXQUATERNION& GameObject::GetPxPrevRot() const
+const glm::quat& GameObject::GetPxPrevRot() const
 {
 	return _pxPrevRot;
 }
