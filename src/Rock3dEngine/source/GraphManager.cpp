@@ -2305,7 +2305,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 				D3DXVec3Cross(&radVec, &D3DXVECTOR3(0, 0, 1), &radVec);
 				if (D3DXVec3Length(&radVec) < 0.1f)
 					radVec = D3DXVECTOR3(1, 0, 0);
-				D3DXQUATERNION radQuat;
+				glm::quat radQuat;
 				D3DXQuaternionRotationAxis(&radQuat, &radVec, D3DX_PI/2.5f);
 				Vec3Rotate(D3DXVECTOR3(0, 0, 1), radQuat, radVec);
 				radVec = radVec * 1000.0f;

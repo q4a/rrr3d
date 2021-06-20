@@ -73,12 +73,12 @@ void FxParticle::SetPos(const D3DXVECTOR3& value)
 	TransformChanged();	
 }
 
-const D3DXQUATERNION& FxParticle::GetRot()
+const glm::quat& FxParticle::GetRot()
 {
 	return _rot;
 }
 
-void FxParticle::SetRot(const D3DXQUATERNION& value)
+void FxParticle::SetRot(const glm::quat& value)
 {
 	_rot = value;
 	TransformChanged();
@@ -273,7 +273,7 @@ void FxEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 	{
 		D3DXVECTOR3 pos = _particleDesc.startPos.GetValue();
 		D3DXVECTOR3 scale = _particleDesc.startScale.GetValue();
-		D3DXQUATERNION rot = _particleDesc.startRot.GetValue();
+		glm::quat rot = _particleDesc.startRot.GetValue();
 
 		pos += _particleDesc.rangePos.GetValue(CompRangeFrame(value->index));
 		scale += _particleDesc.rangeScale.GetValue(CompRangeFrame(value->index));
@@ -1352,7 +1352,7 @@ void FxFlowEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 		{
 			D3DXVECTOR3 dir;
 			D3DXVec3Normalize(&dir, &speed);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			QuatShortestArc(XVector, dir, rot);
 			particle->SetRot(rot * particle->speedRot);
 		}
@@ -1360,7 +1360,7 @@ void FxFlowEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 		{
 			D3DXVECTOR3 rotAxe;
 			float rotAngle;
-			D3DXQUATERNION rotDt;
+			glm::quat rotDt;
 			D3DXQuaternionToAxisAngle(&particle->speedRot, &rotAxe, &rotAngle);
 			D3DXQuaternionRotationAxis(&rotDt, &rotAxe, rotAngle * dTime);
 			particle->SetRot(particle->GetRot() * rotDt);

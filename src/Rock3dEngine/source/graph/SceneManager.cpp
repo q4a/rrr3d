@@ -463,7 +463,7 @@ void BaseSceneNode::OnProgress(float deltaTime)
 		{
 			D3DXVECTOR3 dir;
 			D3DXVec3Normalize(&dir, &speedPos);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			QuatShortestArc(XVector, dir, rot);
 			SetRot(rot * speedRot);
 		}
@@ -471,7 +471,7 @@ void BaseSceneNode::OnProgress(float deltaTime)
 		{
 			D3DXVECTOR3 rotAxe;
 			float rotAngle;
-			D3DXQUATERNION rotDt;
+			glm::quat rotDt;
 			D3DXQuaternionToAxisAngle(&speedRot, &rotAxe, &rotAngle);
 			D3DXQuaternionRotationAxis(&rotDt, &rotAxe, rotAngle * deltaTime);
 			SetRot(GetRot() * rotDt);
@@ -869,13 +869,13 @@ void BaseSceneNode::SetTurnAngle(float value)
 	ChangedRotation(rsEulerAngles);
 }
 
-const D3DXQUATERNION& BaseSceneNode::GetRot() const
+const glm::quat& BaseSceneNode::GetRot() const
 {
 	ExtractRotation(rsQuaternion);
 	return _rot;
 }
 
-void BaseSceneNode::SetRot(const D3DXQUATERNION& value)
+void BaseSceneNode::SetRot(const glm::quat& value)
 {
 	_rot = value;
 	ChangedRotation(rsQuaternion);
@@ -1062,16 +1062,16 @@ void BaseSceneNode::SetWorldPos(const D3DXVECTOR3& value)
 		SetPos(value);
 }
 
-D3DXQUATERNION BaseSceneNode::GetWorldRot() const
+glm::quat BaseSceneNode::GetWorldRot() const
 {
-	D3DXQUATERNION res = GetRot();
+	glm::quat res = GetRot();
 	const BaseSceneNode* curObj = this;
 	while (curObj = curObj->GetParent())
 		res *= curObj->GetRot();
 	return res;
 }
 
-void BaseSceneNode::SetWorldRot(const D3DXQUATERNION& value)
+void BaseSceneNode::SetWorldRot(const glm::quat& value)
 {
 	if (_parent)
 		return SetRot(value * _parent->GetWorldRot());

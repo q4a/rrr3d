@@ -403,12 +403,12 @@ void Graphic3d::SetPos(const D3DXVECTOR3& value)
 	TransformChanged();
 }
 
-D3DXQUATERNION Graphic3d::GetRot() const
+glm::quat Graphic3d::GetRot() const
 {
 	return _rot;
 }
 
-void Graphic3d::SetRot(const D3DXQUATERNION& value)
+void Graphic3d::SetRot(const glm::quat& value)
 {
 	_rot = value;
 	TransformChanged();
@@ -1293,7 +1293,7 @@ void Widget::BuildMatrix(MatrixChange change) const
 				_pos = _parent->WorldToLocalCoord(_pos);
 		}
 
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		D3DXQuaternionRotationAxis(&rot, &ZVector, GetRot());
 
 		D3DXVECTOR3 pos = Vec3FromVec2(GetPos());
@@ -1719,22 +1719,22 @@ void Widget::DeleteAllGraphics()
 
 glm::vec2 Widget::LocalToWorldCoord(const glm::vec2& value) const
 {
-    return Vec2TransformCoord(value, d3dMatrixToGLM(GetWorldMat()));
+    return Vec2TransformCoord(value, Matrix4DxToGlm(GetWorldMat()));
 }
 
 glm::vec2 Widget::WorldToLocalCoord(const glm::vec2& value) const
 {
-	return Vec2TransformCoord(value, d3dMatrixToGLM(GetInvWorldMat()));
+	return Vec2TransformCoord(value, Matrix4DxToGlm(GetInvWorldMat()));
 }
 
 glm::vec2 Widget::LocalToWorldNorm(const glm::vec2& value) const
 {
-	return Vec2TransformNormal(value, d3dMatrixToGLM(GetWorldMat()));
+	return Vec2TransformNormal(value, Matrix4DxToGlm(GetWorldMat()));
 }
 
 glm::vec2 Widget::WorldToLocalNorm(const glm::vec2& value) const
 {
-	return Vec2TransformNormal(value, d3dMatrixToGLM(GetInvWorldMat()));
+	return Vec2TransformNormal(value, Matrix4DxToGlm(GetInvWorldMat()));
 }
 
 Manager& Widget::GetManager()
@@ -3528,7 +3528,7 @@ ViewPort3d::~ViewPort3d()
 
 void ViewPort3d::AnimProgress(float deltaTime)
 {
-	D3DXQUATERNION rot;
+	glm::quat rot;
 	D3DXQuaternionSlerp(&rot, &GetBox()->GetRot(), &(_rot3dSpeed * GetBox()->GetRot()), deltaTime);
 
 	GetBox()->SetRot(rot);
@@ -3574,7 +3574,7 @@ bool ViewPort3d::OnMouseOver(const MouseMove& mMove)
 			SetRot3d(GetRot3d() * rotY * rotX);*/
 			
 			//Вращение по одной оси, совпадающией с up mesh
-			D3DXQUATERNION rotZ;
+			glm::quat rotZ;
 			D3DXQuaternionRotationAxis(&rotZ, &ZVector, D3DX_PI * mMove.dtCoord.x/200.0f);
 			GetBox()->SetRot(rotZ * GetBox()->GetRot());
 		}
@@ -3603,12 +3603,12 @@ Graphic3d* ViewPort3d::GetBox()
 	return _view3d->GetBox();
 }
 
-const D3DXQUATERNION& ViewPort3d::GetRot3dSpeed() const
+const glm::quat& ViewPort3d::GetRot3dSpeed() const
 {
 	return _rot3dSpeed;
 }
 
-void ViewPort3d::SetRot3dSpeed(const D3DXQUATERNION& value)
+void ViewPort3d::SetRot3dSpeed(const glm::quat& value)
 {
 	_rot3dSpeed = value;
 }

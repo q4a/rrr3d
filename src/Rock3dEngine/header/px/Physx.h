@@ -252,7 +252,7 @@ private:
 	NxShape* _nxShape;
 
 	D3DXVECTOR3 _pos;
-	D3DXQUATERNION _rot;
+	glm::quat _rot;
 	D3DXVECTOR3 _scale;
 	unsigned _materialIndex;
 	float _density;
@@ -290,8 +290,8 @@ public:
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
 
-	const D3DXQUATERNION& GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	const glm::quat& GetRot() const;
+	void SetRot(const glm::quat& value);
 
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(D3DXVECTOR3& value);
@@ -628,7 +628,7 @@ private:
 
 	//координаты кэшируется, отностиельно _nxActor
 	mutable D3DXVECTOR3 _pos;
-	mutable D3DXQUATERNION _rot;
+	mutable glm::quat _rot;
 	mutable D3DXVECTOR3 _scale;
 protected:
 	//Динамическая инициализация shape 
@@ -700,8 +700,8 @@ public:
 	//Локальные координаты в пространстве родителя. По концепции методы возращают текущие кординаты nxActor-a, если его не существуюет то кэшированные координаты Actor-a. Упрощенная реализация, пока пододит только для двухуровненной иерархии
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
-	const D3DXQUATERNION& GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	const glm::quat& GetRot() const;
+	void SetRot(const glm::quat& value);
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(const D3DXVECTOR3& value);
 

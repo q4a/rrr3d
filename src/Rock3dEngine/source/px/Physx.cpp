@@ -717,12 +717,12 @@ void Shape::SetPos(const D3DXVECTOR3& value)
 		SyncPos();
 }
 
-const D3DXQUATERNION& Shape::GetRot() const
+const glm::quat& Shape::GetRot() const
 {
 	return _rot;
 }
 
-void Shape::SetRot(const D3DXQUATERNION& value)
+void Shape::SetRot(const glm::quat& value)
 {
 	_rot = value;
 	if (_nxShape)
@@ -2160,7 +2160,7 @@ void Actor::SetPos(const D3DXVECTOR3& value)
 	}
 }
 
-const D3DXQUATERNION& Actor::GetRot() const
+const glm::quat& Actor::GetRot() const
 {
 	if (!_parent && _nxActor)
 		_nxActor->getGlobalOrientationQuat().getXYZW(_rot);
@@ -2168,7 +2168,7 @@ const D3DXQUATERNION& Actor::GetRot() const
 	return _rot;
 }
 
-void Actor::SetRot(const D3DXQUATERNION& value)
+void Actor::SetRot(const glm::quat& value)
 {
 	_rot = value;
 	if (_nxActor)

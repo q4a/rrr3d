@@ -306,12 +306,12 @@ void MaterialNode::SetScale(const D3DXVECTOR3& value)
 	TransformationChanged();
 }
 
-const D3DXQUATERNION& MaterialNode::GetRotate() const
+const glm::quat& MaterialNode::GetRotate() const
 {
 	return _rotate;
 }
 
-void MaterialNode::SetRotate(const D3DXQUATERNION& value)
+void MaterialNode::SetRotate(const glm::quat& value)
 {
 	_rotate = value;
 	TransformationChanged();
