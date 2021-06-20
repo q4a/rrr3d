@@ -44,6 +44,36 @@ inline float NumAbsAdd(float absVal, float addVal)
 	return absVal > 0 ? absVal + addVal : absVal - addVal;
 }
 
+inline glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
+{
+    glm::mat4 mat4glm(mat._11, mat._21, mat._31, mat._41,
+                      mat._12, mat._22, mat._32, mat._42,
+                      mat._13, mat._23, mat._33, mat._43,
+                      mat._14, mat._24, mat._34, mat._44);
+    return mat4glm;
+}
+
+inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
+{
+    D3DXMATRIX matrix(mat[0].x, mat[0].y, mat[0].z, mat[0].w,
+                      mat[1].x, mat[1].y, mat[1].z, mat[1].w,
+                      mat[2].x, mat[2].y, mat[2].z, mat[2].w,
+                      mat[3].x, mat[3].y, mat[3].z, mat[3].w);
+    return matrix;
+}
+
+inline glm::vec3 Vec3DxToGlm(D3DXVECTOR3 v3)
+{
+    glm::vec3 v3glm(v3.x, v3.y, v3.z);
+    return v3glm;
+}
+
+inline D3DXVECTOR3 Vec3GlmToDx(glm::vec3 v3)
+{
+    D3DXVECTOR3 v3dx(v3.x, v3.y, v3.z);
+    return v3dx;
+}
+
 inline float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMATRIX& mat)
 {
 	D3DXVECTOR3 res;
@@ -52,13 +82,12 @@ inline float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMAT
 	return scalar < 0 ? -len : len;
 }
 
-inline void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const D3DXQUATERNION& rot, D3DXMATRIX& outMat)
+inline void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const glm::quat& rot, D3DXMATRIX& outMat)
 {
 	D3DXMATRIX scaleMat;
 	D3DXMatrixScaling(&scaleMat, scale.x, scale.y, scale.z);	
 
-	D3DXMATRIX rotMat;
-	D3DXMatrixRotationQuaternion(&rotMat, &rot);
+	D3DXMATRIX rotMat = Matrix4GlmToDx(glm::toMat4(rot));
 
 	D3DXMATRIX transMat;
 	D3DXMatrixTranslation(&transMat, pos.x, pos.y, pos.z);
@@ -66,7 +95,7 @@ inline void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, c
 	outMat = scaleMat * rotMat * transMat;
 }
 
-inline D3DXMATRIX BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const D3DXQUATERNION& rot)
+inline D3DXMATRIX BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const glm::quat& rot)
 {
 	D3DXMATRIX res;
 	BuildWorldMatrix(pos, scale, rot, res);
@@ -131,15 +160,6 @@ inline D3DXVECTOR3 MatGetPos(const D3DXMATRIX& mat)
 	D3DXVECTOR3 res;
 	MatGetPos(mat, res);
 	return res;
-}
-
-inline glm::mat4 d3dMatrixToGLM(const D3DXMATRIX &mat)
-{
-    glm::mat4 mat4glm(mat._11, mat._21, mat._31, mat._41,
-                      mat._12, mat._22, mat._32, mat._42,
-                      mat._13, mat._23, mat._33, mat._43,
-                      mat._14, mat._24, mat._34, mat._44);
-    return mat4glm;
 }
 
 inline glm::vec2 Vec2Minimize(const glm::vec2 &vec1, const glm::vec2 &vec2)
@@ -288,18 +308,18 @@ inline D3DXVECTOR3 Vec3Abs(const D3DXVECTOR3& vec)
 	return res;
 }
 
-inline void Vec3Rotate(const D3DXVECTOR3& v, const D3DXQUATERNION& quat, D3DXVECTOR3& outVec)
+inline void Vec3Rotate(const D3DXVECTOR3& v, const glm::quat& quat, D3DXVECTOR3& outVec)
 {
-	D3DXQUATERNION q(v.x * quat.w + v.z * quat.y - v.y * quat.z,
-                	 v.y * quat.w + v.x * quat.z - v.z * quat.x,
-					 v.z * quat.w + v.y * quat.x - v.x * quat.y,
-					 v.x * quat.x + v.y * quat.y + v.z * quat.z);
+    glm::quat q(v.x * quat.x + v.y * quat.y + v.z * quat.z,
+				v.x * quat.w + v.z * quat.y - v.y * quat.z,
+				v.y * quat.w + v.x * quat.z - v.z * quat.x,
+				v.z * quat.w + v.y * quat.x - v.x * quat.y);
 
 	outVec.x = quat.w * q.x + quat.x * q.w + quat.y * q.z - quat.z * q.y;
 	outVec.y = quat.w * q.y + quat.y * q.w + quat.z * q.x - quat.x * q.z;
 	outVec.z = quat.w * q.z + quat.z * q.w + quat.x * q.y - quat.y * q.x;
 
-	outVec /= D3DXQuaternionLengthSq(&quat);
+	outVec /= glm::length2(quat);
 }
 
 inline void operator*=(D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
@@ -386,7 +406,7 @@ inline D3DXCOLOR operator*(const D3DXCOLOR& vec1, const D3DXCOLOR& vec2)
 	return res;	
 }
 
-inline void QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to, D3DXQUATERNION& outQuat)
+inline void QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to, glm::quat& outQuat)
 {
 	float angle = D3DXVec3Dot(&from, &to);
 	if (abs(angle) > 1.0f)
@@ -401,8 +421,8 @@ inline void QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to, D3DX
 	{
 		D3DXVECTOR3 axe;
 		D3DXVec3Cross(&axe, &from, &to);
-		D3DXQUATERNION rot;
-		D3DXQuaternionRotationAxis(&outQuat, &axe, angle);
+		glm::quat rot;
+        outQuat = glm::angleAxis(angle, Vec3DxToGlm(axe));
 	}
 	else
 		outQuat = NullQuaternion;
@@ -424,32 +444,31 @@ inline void QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to, D3DX
 	D3DXQuaternionNormalize(&outQuat, &outQuat);*/
 }
 
-inline D3DXQUATERNION QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to)
+inline glm::quat QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to)
 {
-	D3DXQUATERNION outQuat;
+	glm::quat outQuat;
 	QuatShortestArc(from, to, outQuat);
 
 	return outQuat;
 }
 
-inline float QuatAngle(const D3DXQUATERNION& quat1, const D3DXQUATERNION& quat2)
+inline float QuatAngle(const glm::quat& quat1, const glm::quat& quat2)
 {
-	return acos(abs(D3DXQuaternionDot(&quat1, &quat2)/(D3DXQuaternionLength(&quat1) * D3DXQuaternionLength(&quat2)))) * 2;
+	return acos(abs(glm::dot(quat1, quat2) / (glm::length(quat1) * glm::length(quat2)))) * 2;
 }
 
-inline const D3DXQUATERNION& QuatRotation(D3DXQUATERNION& quat, const D3DXQUATERNION& quat1, const D3DXQUATERNION& quat2)
+inline glm::quat QuatRotation(const glm::quat& quat1, const glm::quat& quat2)
 {
-	quat = (*D3DXQuaternionInverse(&quat, &quat1)) * quat2;
-	return quat;
+	return glm::inverse(quat1) * quat2;
 }
 
-inline const D3DXVECTOR3& QuatRotateVec3(D3DXVECTOR3& res, const D3DXVECTOR3& vec, const D3DXQUATERNION& quat)
+inline const D3DXVECTOR3& QuatRotateVec3(D3DXVECTOR3& res, const D3DXVECTOR3& vec, const glm::quat& quat)
 {
-	D3DXQUATERNION q(vec.x * quat.w + vec.z * quat.y - vec.y * quat.z,
-		vec.y * quat.w + vec.x * quat.z - vec.z * quat.x,
-		vec.z * quat.w + vec.y * quat.x - vec.x * quat.y,
-		vec.x * quat.x + vec.y * quat.y + vec.z * quat.z);
-	float norm = D3DXQuaternionLengthSq(&quat);
+	glm::quat q(vec.x * quat.x + vec.y * quat.y + vec.z * quat.z,
+				vec.x * quat.w + vec.z * quat.y - vec.y * quat.z,
+				vec.y * quat.w + vec.x * quat.z - vec.z * quat.x,
+				vec.z * quat.w + vec.y * quat.x - vec.x * quat.y);
+	float norm = glm::length2(quat);
 
 	res = D3DXVECTOR3(quat.w * q.x + quat.x * q.w + quat.y * q.z - quat.z * q.y,
 		quat.w * q.y + quat.y * q.w + quat.z * q.x - quat.x * q.z,
@@ -540,9 +559,6 @@ inline glm::vec2 Line2NormVecToPoint(const D3DXVECTOR3& line, const glm::vec2& p
 	Line2NormVecToPoint(line, point, res);
 	return res;
 }
-
-
-
 
 inline Vec3Range operator*(const Vec3Range& val1, float val2)
 {

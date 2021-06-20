@@ -51,7 +51,7 @@ AABB2::AABB2(const glm::vec2& mMin, const glm::vec2& mMax): min(mMin), max(mMax)
 //void AABB2::Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut)
 void AABB2::Transform(const AABB2 &aabb, const D3DXMATRIX &mIn, AABB2 &rOut)
 {
-    auto m = d3dMatrixToGLM(mIn); // remove after D3DXMATRIX replacement
+    auto m = Matrix4DxToGlm(mIn); // remove after D3DXMATRIX replacement
 	glm::vec2 oldMin = aabb.min;
 	glm::vec2 oldMax = aabb.max;
 	rOut.min = Vec2TransformCoord(oldMin, m);
