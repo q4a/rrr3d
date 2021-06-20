@@ -123,7 +123,7 @@ public:
 	}
 	void SetMin(const _Value& value)
 	{
-		_min = value;		
+		_min = value;
 	}
 
 	const _Value& GetMax() const
@@ -132,7 +132,7 @@ public:
 	};
 	void SetMax(const _Value& value)
 	{
-		_max = value;		
+		_max = value;
 	}
 
 	Distribution GetDistrib() const
@@ -141,7 +141,7 @@ public:
 	}
 	void SetDistrib(Distribution value)
 	{
-		_distrib = value;		
+		_distrib = value;
 	}
 
 	//[0..1]
@@ -156,7 +156,7 @@ public:
 			LSL_ASSERT(false);
 			
 			return _min;
-		}		
+		}
 	}
 
 	_Value GetValue() const
@@ -171,7 +171,7 @@ public:
 	bool operator!=(const MyClass& value) const
 	{
 		return !operator==(value);
-	}	
+	}
 };
 
 template<class _Value> const char* ValueRange<_Value>::cDistributionStr[ValueRange<_Value>::cDistributionEnd] = {"vdLinear", "vdCubic"};
@@ -200,7 +200,7 @@ struct Point2U
 	}
 
 	unsigned x;
-	unsigned y;	
+	unsigned y;
 };
 typedef Point2U UPoint;
 
@@ -310,7 +310,7 @@ public:
 
 	const Point3U& GetFreq() const
 	{
-		return _freq;		
+		return _freq;
 	}
 	void SetFreq(const Point3U& value)
 	{
@@ -343,14 +343,14 @@ public:
 			value.y = _min.y + _step.y * cell.y;
 			value.z = _min.z + _step.z * cell.z;
 
-			return value;			
+			return value;
 		}
 
 		default:
 			LSL_ASSERT(false);
 			
 			return _min;
-		}		
+		}
 	}
 	_Value GetValue() const
 	{
@@ -429,10 +429,10 @@ private:
 	}
 public:
 	ValueRange(): _distrib(vdLinear), _freq(100, 100)
-	{			
+	{
 	}
 	ValueRange(const _Value& value): _min(value), _max(value), _distrib(vdLinear), _freq(100, 100)
-	{			
+	{
 	}
 	ValueRange(const _Value& min, const _Value& max, Distribution distrib = vdLinear, const Point2U& freq = Point2U(100, 100)): _min(min), _max(max), _distrib(distrib), _freq(freq)
 	{
@@ -471,7 +471,7 @@ public:
 
 	const Point2U& GetFreq() const
 	{
-		return _freq;		
+		return _freq;
 	}
 	void SetFreq(const Point2U& value)
 	{
@@ -498,7 +498,7 @@ public:
 			//Разделяем номер ячейки на секции по осям
 			Point2U cell;
 			cell.x = num % _freq.x;
-			cell.y = (num / _freq.x) % _freq.y;			
+			cell.y = (num / _freq.x) % _freq.y;
 
 			//Итоговый результат
 			D3DXVECTOR3 value;
@@ -517,7 +517,7 @@ public:
 			LSL_ASSERT(false);
 			
 			return _min;
-		}		
+		}
 	}
 	_Value GetValue() const
 	{
