@@ -1293,8 +1293,7 @@ void Widget::BuildMatrix(MatrixChange change) const
 				_pos = _parent->WorldToLocalCoord(_pos);
 		}
 
-		glm::quat rot;
-		D3DXQuaternionRotationAxis(&rot, &ZVector, GetRot());
+		glm::quat rot = glm::angleAxis(GetRot(), Vec3DxToGlm(ZVector));
 
 		D3DXVECTOR3 pos = Vec3FromVec2(GetPos());
 
@@ -3478,7 +3477,7 @@ bool TrackBar::OnMouseMove(const MouseMove& mMove)
 
 	if (_grag)
 	{
-		glm::vec2 localCoord = WorldToLocalCoord(mMove.worldCoord);		
+		glm::vec2 localCoord = WorldToLocalCoord(mMove.worldCoord);
 		SetBarPos(ComputeBarPos(localCoord) + _dragOff);
 
 		OnDrag(mMove);
@@ -3507,16 +3506,13 @@ Material& TrackBar::GetButMaterial()
 	return *_button->GetOrCreateMaterial();
 }
 
-
-
-
 ViewPort3d::ViewPort3d(Manager* manager): _MyBase(manager), _style(msStatic), _setProgress(false)
 {
 	_view3d = GetContext().CreateView3d();
 	_view3d->AddRef();
 	InsertGraphic(_view3d);
 
-	D3DXQuaternionRotationAxis(&_rot3dSpeed, &ZVector, 3.0f * D3DX_PI/4.0f);
+	_rot3dSpeed = glm::angleAxis(3.0f * D3DX_PI / 4.0f, Vec3DxToGlm(ZVector));
 }
 
 ViewPort3d::~ViewPort3d()
@@ -3528,8 +3524,7 @@ ViewPort3d::~ViewPort3d()
 
 void ViewPort3d::AnimProgress(float deltaTime)
 {
-	glm::quat rot;
-	D3DXQuaternionSlerp(&rot, &GetBox()->GetRot(), &(_rot3dSpeed * GetBox()->GetRot()), deltaTime);
+	glm::quat rot = glm::mix(GetBox()->GetRot(), _rot3dSpeed * GetBox()->GetRot(), deltaTime);
 
 	GetBox()->SetRot(rot);
 }
@@ -3574,8 +3569,7 @@ bool ViewPort3d::OnMouseOver(const MouseMove& mMove)
 			SetRot3d(GetRot3d() * rotY * rotX);*/
 			
 			//Вращение по одной оси, совпадающией с up mesh
-			glm::quat rotZ;
-			D3DXQuaternionRotationAxis(&rotZ, &ZVector, D3DX_PI * mMove.dtCoord.x/200.0f);
+			glm::quat rotZ = glm::angleAxis(D3DX_PI * mMove.dtCoord.x / 200.0f, Vec3DxToGlm(ZVector));
 			GetBox()->SetRot(rotZ * GetBox()->GetRot());
 		}
 	}

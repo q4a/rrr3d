@@ -623,7 +623,7 @@ void Shape::SyncRot()
 	LSL_ASSERT(_nxShape);
 
 	NxQuat quat;
-	quat.setXYZW(_rot);
+	quat.setXYZW(reinterpret_cast<const float *>(&_rot.x));
 	_nxShape->setLocalOrientation(NxMat33(quat));
 }
 
@@ -634,7 +634,7 @@ void Shape::SyncScale()
 void Shape::Save(lsl::SWriter* writer)
 {
 	writer->WriteValue("pos", _pos, 3);
-	writer->WriteValue("rot", _rot, 4);
+	writer->WriteValue("rot", reinterpret_cast<const float *>(&_rot.x), 4);
 	writer->WriteValue("scale", _scale, 3);
 
 	writer->WriteValue("materialIndex", _materialIndex);
@@ -646,7 +646,7 @@ void Shape::Save(lsl::SWriter* writer)
 void Shape::Load(lsl::SReader* reader)
 {
 	reader->ReadValue("pos", _pos, 3);
-	reader->ReadValue("rot", _rot, 4);
+	reader->ReadValue("rot", reinterpret_cast<float *>(&_rot.x), 4);
 	reader->ReadValue("scale", _scale, 3);
 
 	reader->ReadValue("materialIndex", _materialIndex);
@@ -661,7 +661,7 @@ void Shape::AssignFromDesc(const NxShapeDesc& desc, bool reloadShape)
 	//
 	NxQuat quat;
 	desc.localPose.M.toQuat(quat);
-	quat.getXYZW(_rot);
+	quat.getXYZW(reinterpret_cast<float *>(&_rot.x));
 
 	_materialIndex = desc.materialIndex;
 	_density = desc.density;
@@ -676,7 +676,7 @@ void Shape::AssignToDesc(NxShapeDesc& desc)
 	desc.localPose.t.set(_pos);
 	//
 	NxQuat quat;
-	quat.setXYZW(_rot);
+	quat.setXYZW(reinterpret_cast<const float *>(&_rot.x));
 	desc.localPose.M.fromQuat(quat);
 
 	desc.materialIndex = _materialIndex;
@@ -1814,7 +1814,7 @@ void Actor::InitRootNxActor()
 
 		actorDesc.globalPose.t.set(_pos);
 		NxQuat rot;
-		rot.setXYZW(_rot);
+		rot.setXYZW(reinterpret_cast<const float *>(&_rot.x));
 		actorDesc.globalPose.M.fromQuat(rot);
 		actorDesc.body = _body ? &_body->GetDesc() : 0;
 
@@ -1924,7 +1924,7 @@ void Actor::Save(lsl::SWriter* writer)
 	if (storeCoords)
 	{
 		writer->WriteValue("pos", GetPos(), 3);
-		writer->WriteValue("rot", GetRot(), 4);
+		writer->WriteValue("rot", reinterpret_cast<const float *>(&GetRot().x), 4);
 		writer->WriteValue("scale", GetScale(), 3);
 	}
 
@@ -1949,7 +1949,7 @@ void Actor::Load(lsl::SReader* reader)
 	if (storeCoords)
 	{
 		reader->ReadValue("pos", _pos, 3);
-		reader->ReadValue("rot", _rot, 4);
+		reader->ReadValue("rot", reinterpret_cast<float *>(&_rot.x), 4);
 		reader->ReadValue("scale", _scale, 3);
 	}
 
@@ -2163,7 +2163,7 @@ void Actor::SetPos(const D3DXVECTOR3& value)
 const glm::quat& Actor::GetRot() const
 {
 	if (!_parent && _nxActor)
-		_nxActor->getGlobalOrientationQuat().getXYZW(_rot);
+		_nxActor->getGlobalOrientationQuat().getXYZW(reinterpret_cast<float *>(&_rot.x));
 
 	return _rot;
 }
@@ -2176,7 +2176,7 @@ void Actor::SetRot(const glm::quat& value)
 		if (!_parent)
 		{
 			NxQuat quat;
-			quat.setXYZW(value);
+			quat.setXYZW(reinterpret_cast<const float *>(&value.x));
 			_nxActor->setGlobalOrientationQuat(quat);
 		}
 		else
