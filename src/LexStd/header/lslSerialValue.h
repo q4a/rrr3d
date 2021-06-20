@@ -65,9 +65,9 @@ template<> struct SerialValue<D3DXVECTOR4>
 	}
 };
 
-template<> struct SerialValue<D3DXQUATERNION>
+template<> struct SerialValue<glm::quat>
 {
-	typedef D3DXQUATERNION _Value;
+	typedef glm::quat _Value;
 
 	static void Write(SWriter* writer, const char* name, const _Value& value)
 	{
@@ -179,9 +179,9 @@ template<> struct SerialValue<ValueRange<D3DXVECTOR3>>
 	}
 };
 
-template<> struct SerialValue<ValueRange<D3DXQUATERNION>>
+template<> struct SerialValue<ValueRange<glm::quat>>
 {
-	typedef D3DXQUATERNION _Value;
+	typedef glm::quat _Value;
 	typedef ValueRange<_Value> MyRange;
 	typedef SerialValue<Point2U> MyPoint2U;
 

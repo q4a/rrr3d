@@ -20,8 +20,8 @@ int RandomRange(int from, int to);
 float NumAbsAdd(float absVal, float addVal);
 float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMATRIX& mat);
 
-void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const D3DXQUATERNION& rot, D3DXMATRIX& outMat);
-D3DXMATRIX BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const D3DXQUATERNION& rot);
+void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const glm::quat& rot, D3DXMATRIX& outMat);
+D3DXMATRIX BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const glm::quat& rot);
 void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, D3DXMATRIX& matOut);
 void MatrixSetTranslation(const D3DXVECTOR3& vec, D3DXMATRIX& outMat);
 void MatrixTranslate(const D3DXVECTOR3& vec, D3DXMATRIX& outMat);
@@ -29,6 +29,9 @@ void MatrixSetScale(const D3DXVECTOR3& vec, D3DXMATRIX& outMat);
 void MatrixScale(const D3DXVECTOR3& vec, D3DXMATRIX& outMat);
 void MatGetPos(const D3DXMATRIX& mat, D3DXVECTOR3& outPos);
 D3DXVECTOR3 MatGetPos(const D3DXMATRIX& mat);
+
+glm::vec3 Vec3DxToGlm(D3DXVECTOR3 v3);
+D3DXVECTOR3 Vec3GlmToDx(glm::vec3 v3);
 
 //
 glm::vec2 Vec2TransformCoord(const glm::vec2 &vec, const glm::mat4 &mat);
@@ -48,7 +51,7 @@ D3DXVECTOR3 Vec3Invert(const D3DXVECTOR3& vec);
 D3DXVECTOR3 Vec3TransformCoord(const D3DXVECTOR3& vec, const D3DXMATRIX& mat);
 void Vec3Abs(const D3DXVECTOR3& vec, D3DXVECTOR3& rOut);
 D3DXVECTOR3 Vec3Abs(const D3DXVECTOR3& vec);
-void Vec3Rotate(const D3DXVECTOR3& v, const D3DXQUATERNION& quat, D3DXVECTOR3& outVec);
+void Vec3Rotate(const D3DXVECTOR3& v, const glm::quat& quat, D3DXVECTOR3& outVec);
 void operator*=(D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
 D3DXVECTOR3 operator*(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
 void operator/=(D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
@@ -96,7 +99,7 @@ const glm::vec2        IdentityVec2(1.0f, 1.0f);
 const D3DXVECTOR3      IdentityVector(1.0f, 1.0f, 1.0f);
 const D3DXVECTOR4      IdentityVec4(1.0f, 1.0f, 1.0f, 1.0f);
 const D3DXVECTOR3      IdentityHalfVec (0.5f, 0.5f, 0.5f);
-const D3DXQUATERNION   NullQuaternion(0.0f, 0.0f, 0.0f, 1.0f);
+const glm::quat        NullQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
 
 template<class _Value> struct ValueRange
 {
@@ -382,11 +385,11 @@ Vec3Range operator*(const Vec3Range& val1, float val2);
 Vec3Range operator*(const Vec3Range& val1, const D3DXVECTOR3& val2);
 
 //ќбъемна€ интерпол€ци€ пока схожа к кубической, хот€ на самом деле нужна сферическа€.  огда поверхность сферы ограничиваетс€ окружностью(двум€ радиус векторами, которые определ€ют димаетр окружности на манер как сделано в BB), котора€ разбиваетс€ на сектора через углы. 
-template<> struct ValueRange<D3DXQUATERNION>
+template<> struct ValueRange<glm::quat>
 {
 public:
-	typedef ValueRange<D3DXQUATERNION> MyClass;
-	typedef D3DXQUATERNION _Value;
+	typedef ValueRange<glm::quat> MyClass;
+	typedef glm::quat _Value;
 
 	enum Distribution {vdLinear = 0, vdVolume, cDistributionEnd};
 	static const char* cDistributionStr[cDistributionEnd];
@@ -417,12 +420,11 @@ private:
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
 
-			float tmp;
-			D3DXQuaternionToAxisAngle(&_min, &_minAngle, &tmp);
-			_minAngle.z = tmp;
+			_minAngle = Vec3GlmToDx(glm::axis(_min));
+			_minAngle.z = glm::angle(_min);
 			//
-			D3DXQuaternionToAxisAngle(&_max, &_maxAngle, &tmp);
-			_maxAngle.z = tmp;
+			_maxAngle = Vec3GlmToDx(glm::axis(_max));
+			_maxAngle.z = glm::angle(_max);
 		}
 	}
 public:
@@ -483,9 +485,7 @@ public:
 		{
 		case vdLinear:
 		{
-			_Value res;
-			D3DXQuaternionSlerp(&res, &_min, &_max, range);
-			
+			_Value res = glm::mix(_min, _max, range);
 			return res;
 		}
 
@@ -508,8 +508,7 @@ public:
 			if (range > 0.5f)
 				value.z = -value.z;
 
-			D3DXQUATERNION res;
-			D3DXQuaternionRotationAxis(&res, &value, _minAngle.z + (_maxAngle.z - _minAngle.z) * range);
+			glm::quat res = glm::angleAxis(_minAngle.z + (_maxAngle.z - _minAngle.z) * range, Vec3DxToGlm(value));
 
 			return res;
 		}
@@ -538,7 +537,7 @@ public:
 typedef ValueRange<float> FloatRange;
 typedef ValueRange<glm::vec2> Vec2Range;
 typedef ValueRange<D3DXVECTOR4> Vec4Range;
-typedef ValueRange<D3DXQUATERNION> QuatRange;
+typedef ValueRange<glm::quat> QuatRange;
 typedef ValueRange<D3DXCOLOR> ColorRange;
 
 //}
