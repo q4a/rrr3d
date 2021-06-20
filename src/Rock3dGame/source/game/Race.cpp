@@ -2555,7 +2555,7 @@ void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, c
 			if (hyperDrive)
 			{
 				place.show = true;
-				D3DXQUATERNION rot;
+				glm::quat rot;
 				D3DXQuaternionRotationAxis(&rot, &ZVector, D3DX_PI);
 				place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperdrive"), rot, *hyperDrive));
 			}				
@@ -2727,7 +2727,7 @@ void Garage::LoadCars()
 			place.active = true;
 			place.show = true;
 			place.pos = D3DXVECTOR3(0.0f, 1.0f, 0.3f);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			D3DXVECTOR3 offset;
 			
 			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/3.0f);
@@ -2749,7 +2749,7 @@ void Garage::LoadCars()
 			place.active = true;
 			place.show = true;
 			place.pos = D3DXVECTOR3(0.0f, -1.0f, 0.3f);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			D3DXVECTOR3 offset;
 			
 			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/3.0f);
@@ -2806,7 +2806,7 @@ void Garage::LoadCars()
 			place.active = true;
 			place.show = true;
 			place.pos = D3DXVECTOR3(0.0f, 1.4f, 0.0f);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			D3DXVECTOR3 offset;
 
 			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
@@ -2843,7 +2843,7 @@ void Garage::LoadCars()
 			place.active = true;
 			place.show = true;
 			place.pos = D3DXVECTOR3(0.0f, -1.4f, 0.0f);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			D3DXVECTOR3 offset;
 
 			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
@@ -2913,7 +2913,7 @@ void Garage::LoadCars()
 			place.active = true;
 			place.show = true;
 			place.pos = D3DXVECTOR3(0.2f, 0.6f, 0.25f);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			D3DXVECTOR3 offset;
 
 			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/3.0f);
@@ -2949,7 +2949,7 @@ void Garage::LoadCars()
 			place.active = true;
 			place.show = true;
 			place.pos = D3DXVECTOR3(0.2f, -0.6f, 0.25f);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			D3DXVECTOR3 offset;
 
 			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/3.0f);
@@ -3012,7 +3012,7 @@ void Garage::LoadCars()
 			place.active = true;
 			place.show = true;
 			place.pos = D3DXVECTOR3(0.3f, 0.8f, 0.4f);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			D3DXVECTOR3 offset;
 
 			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
@@ -3048,7 +3048,7 @@ void Garage::LoadCars()
 			place.active = true;
 			place.show = true;
 			place.pos = D3DXVECTOR3(0.3f, -0.8f, 0.4f);
-			D3DXQUATERNION rot;
+			glm::quat rot;
 			D3DXVECTOR3 offset;
 
 			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
@@ -3085,7 +3085,7 @@ void Garage::LoadCars()
 			place.show = true;
 			place.pos = D3DXVECTOR3(1.4f, 0.0f, 0.6f);
 			D3DXVECTOR3 offset;
-			D3DXQUATERNION rot;
+			glm::quat rot;
 
 			place.items.push_back(&GetShop().GetSlot("rocketLauncher"));
 
@@ -3358,7 +3358,7 @@ Slot* Garage::InstalSlot(Player* player, Player::SlotType type, Car* car, Slot* 
 	LSL_ASSERT(car->GetRecord() == player->GetCar().record);
 
 	D3DXVECTOR3 pos;
-	D3DXQUATERNION rot = NullQuaternion;
+	glm::quat rot = NullQuaternion;
 	if (slot)
 	{
 		const PlaceSlot& place = car->GetSlot(type);

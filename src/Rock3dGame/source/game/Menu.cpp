@@ -348,13 +348,13 @@ glm::vec2 Menu::StretchImage(gui::Material& material, const glm::vec2& size, boo
 	return StretchImage(GetImageSize(material), size, keepAspect, fillRect, scaleDown, scaleUp);
 }
 
-D3DXQUATERNION Menu::GetIsoRot()
+glm::quat Menu::GetIsoRot()
 {
-	D3DXQUATERNION rotZ;
+	glm::quat rotZ;
 	D3DXQuaternionRotationAxis(&rotZ, &ZVector, -2.0f * D3DX_PI/3.0f);
-	D3DXQUATERNION rotY;
+	glm::quat rotY;
 	D3DXQuaternionRotationAxis(&rotY, &YVector, 0);
-	D3DXQUATERNION rotX;
+	glm::quat rotX;
 	D3DXQuaternionRotationAxis(&rotX, &XVector, -D3DX_PI/3.0f);
 
 	return rotZ * rotY * rotX;

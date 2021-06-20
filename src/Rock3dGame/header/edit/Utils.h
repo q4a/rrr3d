@@ -24,8 +24,8 @@ public:
 	virtual D3DXVECTOR3 GetPos() const;
 	virtual void SetPos(const D3DXVECTOR3& value);
 	//
-	virtual D3DXQUATERNION GetRot() const;
-	virtual void SetRot(const D3DXQUATERNION& value);
+	virtual glm::quat GetRot() const;
+	virtual void SetRot(const glm::quat& value);
 	//
 	virtual D3DXVECTOR3 GetScale() const;
 	virtual void SetScale(const D3DXVECTOR3& value);

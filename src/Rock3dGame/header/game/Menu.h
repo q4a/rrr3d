@@ -137,7 +137,7 @@ public:
 	static glm::vec2 GetImageAspectSize(gui::Material& material, const glm::vec2& newSize);
 	static glm::vec2 StretchImage(glm::vec2 imageSize, const glm::vec2& size, bool keepAspect = true, bool fillRect = false, bool scaleDown = true, bool scaleUp = true);
 	static glm::vec2 StretchImage(gui::Material& material, const glm::vec2& size, bool keepAspect = true, bool fillRect = false, bool scaleDown = true, bool scaleUp = true);
-	static D3DXQUATERNION GetIsoRot();
+	static glm::quat GetIsoRot();
 private:
 	GameMode* _game;	
 	MyControlEvent* _controlEvent;

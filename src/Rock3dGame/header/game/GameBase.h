@@ -166,7 +166,7 @@ protected:
 		EffectDesc(): pos(NullVector), rot(NullQuaternion), child(true), parent(NULL) {}
 
 		D3DXVECTOR3 pos;
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		//дочерний
 		//true - время жизни совпадает с врменем жизни EventEffect, локальная система координат
 		//false - за удаление отвечает Logic, мировая система координат

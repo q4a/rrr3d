@@ -92,8 +92,8 @@ private:
 		D3DXVECTOR3 GetPos() const;
 		void SetPos(const D3DXVECTOR3& value);
 		//
-		D3DXQUATERNION GetRot() const;
-		void SetRot(const D3DXQUATERNION& value);	
+		glm::quat GetRot() const;
+		void SetRot(const glm::quat& value);	
 		//
 		D3DXVECTOR3 GetScale() const;
 		void SetScale(const D3DXVECTOR3& value);

@@ -31,7 +31,7 @@ private:
 		D3DXVECTOR3 _clStScale;
 		//
 		bool _clRotating;
-		D3DXQUATERNION _clStartRot;		
+		glm::quat _clStartRot;		
 	public:
 		Control(SceneControl* owner);
 		void ResetState();

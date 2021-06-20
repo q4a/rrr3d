@@ -166,7 +166,7 @@ public:
 		//Локальная позиция снаряда
 		D3DXVECTOR3 pos;
 		//Локальный поворот снаряда
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		//размер и смещение бокса снаряда
 		D3DXVECTOR3 size;
 		D3DXVECTOR3 sizeAddPx;

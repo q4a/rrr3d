@@ -27,8 +27,8 @@ public:
 	D3DXVECTOR3 GetScale() const;
 	void SetScale(const D3DXVECTOR3& value);
 
-	D3DXQUATERNION GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	glm::quat GetRot() const;
+	void SetRot(const glm::quat& value);
 
 	game::Map::MapObjList::const_iterator mapIter;
 };

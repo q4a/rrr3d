@@ -48,12 +48,12 @@ void MapObj::SetScale(const D3DXVECTOR3& value)
 	GetInst()->GetGameObj().SetScale(value);
 }
 
-D3DXQUATERNION MapObj::GetRot() const
+glm::quat MapObj::GetRot() const
 {
 	return GetInst()->GetGameObj().GetRot();
 }
 
-void MapObj::SetRot(const D3DXQUATERNION& value)
+void MapObj::SetRot(const glm::quat& value)
 {
 	GetInst()->GetGameObj().SetRot(value);
 }

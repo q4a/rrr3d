@@ -31,7 +31,7 @@ private:
 	graph::Tex2DResource* _texture;
 
 	D3DXVECTOR3 _pos;
-	D3DXQUATERNION _rot;
+	glm::quat _rot;
 protected:
 	void RegProgressEvent();
 	void UnregProgressEvent();
@@ -79,8 +79,8 @@ public:
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
 
-	const D3DXQUATERNION& GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	const glm::quat& GetRot() const;
+	void SetRot(const glm::quat& value);
 };
 
 class MobilityItem: public SlotItem
@@ -415,7 +415,7 @@ public:
 		//Координаты актера
 		D3DXVECTOR3 pos3;
 		D3DXVECTOR3 dir3;
-		D3DXQUATERNION rot3;
+		glm::quat rot3;
 		D3DXMATRIX worldMat;		
 
 		glm::vec2 pos;
@@ -523,7 +523,7 @@ private:
 	void RemoveBonusProj(Proj* proj);
 	void ClearBonusProjs();
 
-	void InitLight(HeadLight headLight, const D3DXVECTOR3& pos, const D3DXQUATERNION& rot);
+	void InitLight(HeadLight headLight, const D3DXVECTOR3& pos, const glm::quat& rot);
 	void FreeLight(HeadLight headLight);
 	void SetLightParent(GraphManager::LightSrc* light, MapObj* mapObj);
 	void CreateNightLights(MapObj* mapObj);
@@ -586,7 +586,7 @@ public:
 	void SetReflScene(bool value);
 
 	Record* GetSlot(SlotType type);
-	void SetSlot(SlotType type, Record* record, const D3DXVECTOR3& pos = NullVector, const D3DXQUATERNION& rot = NullQuaternion);
+	void SetSlot(SlotType type, Record* record, const D3DXVECTOR3& pos = NullVector, const glm::quat& rot = NullQuaternion);
 	Slot* GetSlotInst(SlotType type);
 	Slot* GetSlotInst(Slot::Type type);
 

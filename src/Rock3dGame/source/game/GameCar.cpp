@@ -192,15 +192,15 @@ void CarWheel::PxSyncWheel(float alpha)
 	if (s && wcd.contactForce > -1000)
 		st = wcd.contactPosition - r;
 
-	D3DXQUATERNION quat1;
-	D3DXQUATERNION quat2 = NullQuaternion;
+	glm::quat quat1;
+	glm::quat quat2 = NullQuaternion;
 	D3DXQuaternionRotationAxis(&quat1, &ZVector, _steerAngle);
 	D3DXQuaternionRotationAxis(&quat2, &YVector, _summAngle);
 
-	D3DXQUATERNION resRot = quat2 * quat1;
+	glm::quat resRot = quat2 * quat1;
 	if (invertWheel)
 	{
-		D3DXQUATERNION invRot;
+		glm::quat invRot;
 		D3DXQuaternionRotationAxis(&invRot, &ZVector, D3DX_PI);
 		resRot = invRot * resRot;
 	}
@@ -646,7 +646,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 		NxQuat worldRot = nxActor->getGlobalOrientationQuat();
 		NxQuatRotation(fixRot, fixRot, worldRot);
 
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		fixRot.getXYZW(rot);
 		D3DXVECTOR3 xAxis;
 		D3DXQuaternionToAxisAngle(&rot, &xAxis, &dFixAngle);

@@ -38,7 +38,7 @@ void Proj::LocateProj(GameObject* weapon, bool pos, bool rot, const D3DXVECTOR3*
 
 	if (rot)
 	{
-		D3DXQUATERNION rot = _desc.rot;
+		glm::quat rot = _desc.rot;
 
 		if (speed && D3DXVec3Length(speed) > 1.0f)
 		{
@@ -790,7 +790,7 @@ void Proj::TorpedaUpdate(float deltaTime)
 		else
 			dir = this->GetGrActor().GetDir();
 		
-		D3DXQUATERNION rot, rot1;
+		glm::quat rot, rot1;
 		QuatShortestArc(XVector, dir, rot1);
 		if (_desc.angleSpeed > 0)
 			D3DXQuaternionSlerp(&rot, &this->GetRot(), &rot1, deltaTime * _desc.angleSpeed);
@@ -958,7 +958,7 @@ void Proj::DrobilkaUpdate(float deltaTime)
 		SetWorldPos(pos);
 		SetWorldRot(_weapon->GetWorldRot());
 
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		D3DXQuaternionRotationAxis(&rot, &XVector, _desc.angleSpeed * deltaTime);
 		_weapon->SetRot(_weapon->GetRot() * rot);
 	}
@@ -993,7 +993,7 @@ bool Proj::SpringPrepare(GameObject* weapon)
 
 	if (car && car->IsWheelsContact())
 	{
-		//static D3DXQUATERNION testRot;
+		//static glm::quat testRot;
 		//_time1 = 0.0f;
 		//_state1 = false;
 		//_vec1.x = 0.0f;
@@ -1033,7 +1033,7 @@ void Proj::SpringUpdate(float deltaTime)
 
 		_vec1.x = _vec1.x + (dAngle - _vec1.x) * lsl::ClampValue(deltaTime * 6.0f, 0.0f, 1.0f);
 
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		D3DXQuaternionRotationAxis(&rot, &YVector, _vec1.x);
 		car->SetRot(rot * car->GetRot());
 	}
@@ -1053,7 +1053,7 @@ void Proj::SpringUpdate(float deltaTime)
 		float alpha = lsl::ClampValue(_time1/1.0f, 0.0f, 1.0f);
 		angle = -D3DX_PI/6 + (D3DX_PI/6 - (-D3DX_PI/6)) * alpha;
 
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		D3DXQuaternionRotationAxis(&rot, &YVector, angle);
 		car->SetRot(rot * testRot);
 
@@ -1224,7 +1224,7 @@ void Proj::ResonanseUpdate(float deltaTime)
 {
 	RocketUpdate(deltaTime);
 
-	D3DXQUATERNION dRot;
+	glm::quat dRot;
 	D3DXQuaternionRotationAxis(&dRot, &XVector, _desc.angleSpeed * deltaTime);
 
 	SetRot(dRot * GetRot());
@@ -1635,7 +1635,7 @@ void AutoProj::InitProj()
 		_prepare = true;
 
 		D3DXVECTOR3 pos = GetPos();
-		D3DXQUATERNION rot = GetRot();
+		glm::quat rot = GetRot();
 
 		Proj::ShotContext ctx;
 		ctx.logic = GetLogic();

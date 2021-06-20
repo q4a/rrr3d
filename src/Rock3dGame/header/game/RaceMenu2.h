@@ -22,7 +22,7 @@ private:
 	Garage::Car* _car;
 	CamStyle _camStyle;
 	D3DXVECTOR3 _camLastPos;
-	D3DXQUATERNION _camLastRot;
+	glm::quat _camLastRot;
 
 	MapObj* _garageMapObj;
 	MapObj* _carMapObj;
