@@ -581,11 +581,9 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 			car->SetPosSync(dPos);
 		}*/
 
-		glm::quat dRot;
-		QuatRotation(dRot, car->GetGrActor().GetRot(), rot);
-		D3DXVECTOR3 dRotAxis;
-		float dRotAngle;
-		D3DXQuaternionToAxisAngle(&dRot, &dRotAxis, &dRotAngle);
+		glm::quat dRot = QuatRotation(car->GetGrActor().GetRot(), rot);
+		D3DXVECTOR3 dRotAxis = Vec3GlmToDx(glm::axis(dRot));
+		float dRotAngle = glm::angle(dRot);
 		if (abs(dRotAngle) > D3DX_PI/24)
 		{
 			car->GetPxActor().SetRot(rot);

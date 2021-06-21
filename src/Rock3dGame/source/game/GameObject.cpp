@@ -236,7 +236,7 @@ void GameObject::OnPxSync(float alpha)
 	if (alpha < 1.0f)
 	{
 		D3DXVec3Lerp(&_pxPosLerp, &_pxPrevPos, &_pxActor->GetPos(), alpha);
-		D3DXQuaternionSlerp(&_pxRotLerp, &_pxPrevRot, &_pxActor->GetRot(), alpha);
+		_pxRotLerp = glm::mix(_pxPrevRot, _pxActor->GetRot(), alpha);
 		D3DXVec3Lerp(&_pxVelocityLerp, &_pxPrevVelocity, &pxVelocityLerp, alpha);
 	}
 	else
@@ -304,11 +304,14 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 		if (_rotSyncAngle != 0)
 		{		
 			if (_rotSyncAngle > 0)
+			{
 				_rotSyncAngle = std::max(_rotSyncAngle - 1.3f * D3DX_PI * deltaTime, 0.0f);
+			}
 			else
+			{
 				_rotSyncAngle = std::min(_rotSyncAngle + 1.3f * D3DX_PI * deltaTime, 0.0f);
-			glm::quat rot;
-			D3DXQuaternionRotationAxis(&rot, &_rotSyncAxis, -_rotSyncAngle);
+			}
+			glm::quat rot = glm::angleAxis(-_rotSyncAngle, Vec3DxToGlm(_rotSyncAxis));
 			_grActor->SetRot(_grActor->GetRot() * rot);
 		}
 
@@ -326,12 +329,15 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 		if (_rotSyncAngle2 != 0)
 		{
 			if (_rotSyncAngle2 > 0)
+			{
 				_rotSyncAngle2 = std::max(_rotSyncAngle2 - 1.3f * D3DX_PI * deltaTime, 0.0f);
+			}
 			else
+			{
 				_rotSyncAngle2 = std::min(_rotSyncAngle2 + 1.3f * D3DX_PI * deltaTime, 0.0f);
+			}
 
-			glm::quat rot;
-			D3DXQuaternionRotationAxis(&rot, &_rotSyncAxis2, -_rotSyncAngle2);
+			glm::quat rot = glm::angleAxis(-_rotSyncAngle2, Vec3DxToGlm(_rotSyncAxis2));
 			_grActor->SetRot(_grActor->GetRot() * _rotSync2 * rot);
 		}
 		else if (_rotSyncLength2 != 0)
@@ -372,7 +378,7 @@ void GameObject::SaveProxy(lsl::SWriter* writer)
 {
 	writer->WriteValue("pos", GetPos(), 3);
 	writer->WriteValue("scale", GetScale(), 3);
-	writer->WriteValue("rot", GetRot(), 4);
+	writer->WriteValue("rot", reinterpret_cast<const float *>(&GetRot().x), 4);
 
 	writer->WriteValue("life", _life);
 	writer->WriteValue("maxTimeLife", _maxTimeLife);
@@ -391,7 +397,7 @@ void GameObject::LoadProxy(lsl::SReader* reader)
 
 	reader->ReadValue("pos", pos, 3);
 	reader->ReadValue("scale", scale, 3);
-	reader->ReadValue("rot", rot, 4);
+	reader->ReadValue("rot", reinterpret_cast<float *>(&rot.x), 4);
 
 	reader->ReadValue("life", _life);
 	reader->ReadValue("maxTimeLife", _maxTimeLife);
@@ -846,11 +852,14 @@ const glm::quat& GameObject::GetRotSync() const
 void GameObject::SetRotSync(const glm::quat& value)
 {
 	_rotSync = value;
-	D3DXQuaternionToAxisAngle(&_rotSync, &_rotSyncAxis, &_rotSyncAngle);
+	_rotSyncAxis = Vec3GlmToDx(glm::axis(_rotSync));
+	_rotSyncAngle = glm::angle(_rotSync);
 	float angle = abs(_rotSyncAngle);
 	
 	if (angle > D3DX_PI)
+	{
 		_rotSyncAngle = (2 * D3DX_PI - angle) * (_rotSyncAngle > 0 ? -1.0f : 1.0f);
+	}
 
 	SetSyncFrameEvent(true);
 }
@@ -880,15 +889,18 @@ const glm::quat& GameObject::GetRotSync2() const
 void GameObject::SetRotSync2(const glm::quat& curSync, const glm::quat& newSync)
 {
 	glm::quat dRot = QuatRotation(newSync, curSync);
-	D3DXQuaternionToAxisAngle(&dRot, &_rotSyncAxis2, &_rotSyncAngle2);
+	_rotSyncAxis2 = Vec3GlmToDx(glm::axis(dRot));
+	_rotSyncAngle2 = glm::angle(dRot);
 
 	float angle = abs(_rotSyncAngle2);
 	if (angle > D3DX_PI)
+	{
 		_rotSyncAngle2 = (2 * D3DX_PI - angle) * (_rotSyncAngle2 > 0 ? -1.0f : 1.0f);
+	}
 
 	_rotSync2 = newSync;
-	D3DXVECTOR3 axis;
-	D3DXQuaternionToAxisAngle(&_rotSync2, &axis, &_rotSyncLength2);
+	D3DXVECTOR3 axis = Vec3GlmToDx(glm::axis(_rotSync2));
+	_rotSyncLength2 = glm::angle(_rotSync2);
 
 	SetSyncFrameEvent(true);
 }

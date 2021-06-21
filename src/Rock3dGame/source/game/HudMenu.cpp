@@ -1042,12 +1042,10 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 			for (float i = -smSlice; i <= smSlice; ++i)
 			{
 				float dAlpha = i/smSlice * alpha2;
-				glm::quat rot;
-				D3DXQuaternionRotationAxis(&rot, &ZVector, ccw ? dAlpha : -dAlpha);
-				D3DXMATRIX rotMat;
-				D3DXMatrixRotationQuaternion(&rotMat, &rot);
-                auto rotMatGLM = Matrix4DxToGlm(rotMat); // remove after D3DXMATRIX replacement
-                glm::vec2 vec = Vec2TransformNormal(smVec, rotMatGLM);
+				glm::quat rot = glm::angleAxis(ccw ? dAlpha : -dAlpha, Vec3DxToGlm(ZVector));
+				D3DXMATRIX rotMat = Matrix4GlmToDx(glm::toMat4(rot));
+				auto rotMatGLM = Matrix4DxToGlm(rotMat); // remove after D3DXMATRIX replacement
+				glm::vec2 vec = Vec2TransformNormal(smVec, rotMatGLM);
 
 				Node newNode;
 				newNode.pos = smPos + vec * smRadius;

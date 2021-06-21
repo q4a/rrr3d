@@ -131,7 +131,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 					D3DXVECTOR3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, dmView, _clDragOff);
 					selNode->OnDrag(pos, mMove.scrRayPos, mMove.scrRayVec);
 				}
-			}			
+			}	
 			break;
 
 		case smMove:
@@ -159,7 +159,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 
 				return true;
 			}
-			return false;			
+			return false;
 		}
 		
 		case smRotate:
@@ -174,7 +174,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 
 					_shiftAction = true;
 					_clRotating = clRotating;
-					_clStartRot = clStartRot;	
+					_clStartRot = clStartRot;
 				}
 
 				//
@@ -184,10 +184,8 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				float angleY = -offCoord.y  / 400.0f * 2 * D3DX_PI;
 				angleY = ceil(angleY / (D3DX_PI/12.0f)) * (D3DX_PI/12.0f);
 
-				glm::quat rotZ;
-				D3DXQuaternionRotationAxis(&rotZ, &ZVector, angleZ);
-				glm::quat rotY;
-				D3DXQuaternionRotationAxis(&rotY, &_owner->_edit->GetWorld()->GetCamera()->GetRight(), angleY);
+				glm::quat rotZ = glm::angleAxis(angleZ, Vec3DxToGlm(ZVector));
+				glm::quat rotY = glm::angleAxis(angleY, Vec3DxToGlm(_owner->_edit->GetWorld()->GetCamera()->GetRight()));
 				glm::quat rot = abs(angleZ) > abs(angleY) ? rotZ : rotY;
 					
 				selNode->SetRot(_clStartRot * rot);
@@ -207,13 +205,13 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 
 					_shiftAction = true;
 					_clScDirMove = clScDirMove;
-					_clStScale = clStScale;	
+					_clStScale = clStScale;
 				}
 
 			glm::vec2 fS(offCoord.x, -offCoord.y);
 			fS /= 100.0f;
 			switch (_clScDirMove)
-			{					
+			{
 			case graph::ScaleCoordSys::dmXYZ:
 				selNode->SetScale(_clStScale + D3DXVECTOR3(fS.y, fS.y, fS.y));
 				break;
@@ -265,7 +263,7 @@ bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorl
 		game::MapObj* mapObj = iter->second;
 		graph::BaseSceneNode* testSc = &(mapObj->GetGameObj().GetGrActor());
 		if (!ignore->Compare(IMapObjRef(new MapObj(mapObj), this)))
-		{			
+		{
 			AABB test = testSc->GetLocalAABB(true);
 			
 			float dist;
@@ -274,7 +272,7 @@ bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorl
 			{
 				res = true;
 				outDistOff = dist;
-			}		
+			}
 		}
 	}
 
@@ -457,7 +455,7 @@ D3DXVECTOR3 SceneControl::ComputePoint(const D3DXVECTOR3& curPos, const D3DXVECT
 	{
 		newPos = NullVector;
 
-		D3DXPlaneFromPointNormal(&plane, &pos, &XVector);		
+		D3DXPlaneFromPointNormal(&plane, &pos, &XVector);
 		if (dirMove == dmZ && abs(D3DXVec3Dot(&XVector, &rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
 			newPos = NullVector;
 	}
@@ -497,10 +495,10 @@ void SceneControl::SelectNode(const INodeRef& value)
 		{
 			_selNode->Select(false);
 		}
-		_selNode = value;		
+		_selNode = value;
 		if (_selNode)
 		{
-			_selNode->Select(true);			
+			_selNode->Select(true);
 		}
 
 		ApplySelMode();
@@ -520,7 +518,7 @@ void SceneControl::SetSelMode(SelMode value)
 		_control->ResetState();
 
 		_selMode = value;
-		ApplySelMode();		
+		ApplySelMode();
 	}
 }
 
