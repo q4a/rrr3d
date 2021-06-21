@@ -134,7 +134,7 @@ void CClassView::UpdateList()
 		r3d::IRecordNodeRef node;
 		node.Assign(lib);
 		
-		InsertItem(node, 0);		
+		InsertItem(node, 0);
 	}	
 }
 
@@ -159,8 +159,7 @@ void CClassView::SelectItem(const D3DXVECTOR3& mapObjPos)
 			}
 			if (_autoRot)
 			{
-				D3DXQUATERNION rot;
-				D3DXQuaternionRotationYawPitchRoll(&rot, D3DX_PI/12 * RandomRange(-1.0f, 1.0f), D3DX_PI/12 * RandomRange(-1.0f, 1.0f), D3DX_PI/12 * RandomRange(-1.0f, 1.0f));
+				glm::quat rot = glm::quat(glm::vec3(D3DX_PI/12 * RandomRange(-1.0f, 1.0f), D3DX_PI/12 * RandomRange(-1.0f, 1.0f), D3DX_PI/12 * RandomRange(-1.0f, 1.0f)));
 				_newMapObj->SetRot(rot);
 			}
 
