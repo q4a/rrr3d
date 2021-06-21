@@ -192,23 +192,24 @@ void CarWheel::PxSyncWheel(float alpha)
 	if (s && wcd.contactForce > -1000)
 		st = wcd.contactPosition - r;
 
-	glm::quat quat1;
-	glm::quat quat2 = NullQuaternion;
-	D3DXQuaternionRotationAxis(&quat1, &ZVector, _steerAngle);
-	D3DXQuaternionRotationAxis(&quat2, &YVector, _summAngle);
+	glm::quat quat1 = glm::angleAxis(_steerAngle, Vec3DxToGlm(ZVector));
+	glm::quat quat2 = glm::angleAxis(_summAngle, Vec3DxToGlm(YVector)); // NullQuaternion;
 
 	glm::quat resRot = quat2 * quat1;
 	if (invertWheel)
 	{
-		glm::quat invRot;
-		D3DXQuaternionRotationAxis(&invRot, &ZVector, D3DX_PI);
+		glm::quat invRot = glm::angleAxis(D3DX_PI, Vec3DxToGlm(ZVector));
 		resRot = invRot * resRot;
 	}
 
 	if (alpha < 1.0f)
-		D3DXQuaternionSlerp(&resRot, &_pxPrevRot, &resRot, alpha);
+	{
+		resRot = glm::mix(_pxPrevRot, resRot, alpha);
+	}
 	else
+	{
 		_pxPrevRot = resRot;
+	}
 	GetGrActor().SetRot(resRot);
 
 	D3DXVECTOR3 resPos((t - dir * st).get());
