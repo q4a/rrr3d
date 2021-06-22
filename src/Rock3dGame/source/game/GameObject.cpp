@@ -312,7 +312,7 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 				_rotSyncAngle = std::min(_rotSyncAngle + 1.3f * D3DX_PI * deltaTime, 0.0f);
 			}
 			glm::quat rot = glm::angleAxis(-_rotSyncAngle, Vec3DxToGlm(_rotSyncAxis));
-			_grActor->SetRot(_grActor->GetRot() * rot);
+			_grActor->SetRot(rot * _grActor->GetRot());
 		}
 
 		if (_posSyncDist2 > 0 && _posSyncDist2 < 5.0f)
@@ -338,12 +338,12 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 			}
 
 			glm::quat rot = glm::angleAxis(-_rotSyncAngle2, Vec3DxToGlm(_rotSyncAxis2));
-			_grActor->SetRot(_grActor->GetRot() * _rotSync2 * rot);
+			_grActor->SetRot(rot * _rotSync2 * _grActor->GetRot());
 		}
 		else if (_rotSyncLength2 != 0)
 		{
 			_rotSyncAngle2 = 0.0f;
-			_grActor->SetRot(_grActor->GetRot() * _rotSync2);
+			_grActor->SetRot(_rotSync2 * _grActor->GetRot());
 		}
 	}
 }

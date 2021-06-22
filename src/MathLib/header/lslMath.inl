@@ -458,7 +458,7 @@ inline float QuatAngle(const glm::quat& quat1, const glm::quat& quat2)
 
 inline glm::quat QuatRotation(const glm::quat& quat1, const glm::quat& quat2)
 {
-	return glm::inverse(quat1) * quat2;
+	return quat2 * glm::inverse(quat1);
 }
 
 inline const D3DXVECTOR3& QuatRotateVec3(D3DXVECTOR3& res, const D3DXVECTOR3& vec, const glm::quat& quat)

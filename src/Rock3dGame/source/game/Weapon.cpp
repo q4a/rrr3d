@@ -44,10 +44,10 @@ void Proj::LocateProj(GameObject* weapon, bool pos, bool rot, const D3DXVECTOR3*
 		{
 			D3DXVECTOR3 dir;
 			D3DXVec3Normalize(&dir, speed);
-			rot = rot * weapon->GetRot() * QuatShortestArc(XVector, dir);
+			rot = QuatShortestArc(XVector, dir) * weapon->GetRot() * rot;
 		}
 		else if (weapon)
-			rot = rot * weapon->GetWorldRot();
+			rot = weapon->GetWorldRot() * rot;
 
 		this->SetRot(rot);
 	}
@@ -963,7 +963,7 @@ void Proj::DrobilkaUpdate(float deltaTime)
 		SetWorldRot(_weapon->GetWorldRot());
 
 		glm::quat rot = glm::angleAxis(_desc.angleSpeed * deltaTime, Vec3DxToGlm(XVector));
-		_weapon->SetRot(_weapon->GetRot() * rot);
+		_weapon->SetRot(rot * _weapon->GetRot());
 	}
 
 	if (_model && _model->GetGameObj().GetLiveState() != lsDeath && (_time1 -= deltaTime) <= 0)
@@ -1229,7 +1229,7 @@ void Proj::ResonanseUpdate(float deltaTime)
 
 	glm::quat dRot = glm::angleAxis(_desc.angleSpeed * deltaTime, Vec3DxToGlm(XVector));
 
-	SetRot(dRot * GetRot());
+	SetRot(GetRot() * dRot);
 }
 
 void Proj::OnDestroy(GameObject* sender)

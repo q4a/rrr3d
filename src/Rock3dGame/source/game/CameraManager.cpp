@@ -85,7 +85,7 @@ bool CameraManager::Control::OnMouseMoveEvent(const MouseMove& mMove)
 		{
 			glm::quat quatZ = glm::angleAxis(0.005f * (-mMove.dtCoord.x), Vec3DxToGlm(ZVector));
 			glm::quat quatRight = glm::angleAxis(0.005f * mMove.dtCoord.y, Vec3DxToGlm(right));
-			rot = rot * quatRight * quatZ;
+			rot = quatZ * quatRight * rot;
 
 			camera->SetRot(rot);
 			_manager->SyncLight();
@@ -224,7 +224,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 	glm::quat isoRotY = glm::angleAxis(cIsoAngY, Vec3DxToGlm(YVector));
 	glm::quat isoRotZ = glm::angleAxis(cIsoAngZ, Vec3DxToGlm(ZVector));
 	//
-	glm::quat cIsoRot = isoRotY * isoRotZ;
+	glm::quat cIsoRot = isoRotZ * isoRotY;
 
 	const float speedMove = 20.0f * deltaTime;
 	const float angleSpeed = D3DX_PI / 2.0f * deltaTime;
@@ -342,6 +342,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		D3DXMATRIX velMat;
 		MatrixRotationFromAxis(xVec, yVec, zVec, velMat);
 		glm::quat velRot = glm::quat_cast(Matrix4DxToGlm(velMat));
+		//velRot = glm::quat(-velRot.w, velRot.x, velRot.y, velRot.z);
 
 		//
 		glm::quat camQuat1 = rot;
@@ -374,7 +375,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		D3DXVec3Lerp(&camPos, &camPos1, &camPos2, 8.0f * deltaTime);*/
 
 		glm::quat yRot = glm::angleAxis(D3DX_PI * 12.0f, glm::vec3(0, 1, 0));
-		camQuat = yRot * camQuat;
+		camQuat = camQuat * yRot;
 
 		pos = camPos;
 		rot = camQuat;
@@ -834,7 +835,7 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 		}
 
 		glm::quat dRotZ = glm::angleAxis(dAngZ, Vec3DxToGlm(ZVector));
-		rot = rot * dRotZ;
+		rot = dRotZ * rot;
 
 		if (_clampAngle.x != 0 || _clampAngle.y != 0)
 		{
@@ -880,6 +881,7 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 				D3DXMATRIX rotMat;
 				MatrixRotationFromAxis(xAxis, yAxis, zAxis, rotMat);
 				rot = glm::quat_cast(Matrix4DxToGlm(rotMat));
+				//rot = glm::quat(-rot.w, rot.x, rot.y, rot.z);
 
 				if (dir != NULL)
 				{
@@ -912,7 +914,7 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 			angUp = _clampAngle.w;
 
 			dRotY = glm::angleAxis(dAngY, Vec3DxToGlm(yAxis));
-			rot = rot * dRotY;
+			rot = dRotY * rot;
 		}
 
 		D3DXVECTOR3 xAxis;
@@ -948,6 +950,7 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 			D3DXMATRIX rotMat;
 			MatrixRotationFromAxis(xAxis, yAxis, zAxis, rotMat);
 			rot = glm::quat_cast(Matrix4DxToGlm(rotMat));
+			//rot = glm::quat(-rot.w, rot.x, rot.y, rot.z);
 		}
 	}
 

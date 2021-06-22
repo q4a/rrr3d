@@ -3524,7 +3524,7 @@ ViewPort3d::~ViewPort3d()
 
 void ViewPort3d::AnimProgress(float deltaTime)
 {
-	glm::quat rot = glm::mix(GetBox()->GetRot(), _rot3dSpeed * GetBox()->GetRot(), deltaTime);
+	glm::quat rot = glm::mix(GetBox()->GetRot(), GetBox()->GetRot() * _rot3dSpeed, deltaTime);
 
 	GetBox()->SetRot(rot);
 }
@@ -3570,7 +3570,7 @@ bool ViewPort3d::OnMouseOver(const MouseMove& mMove)
 			
 			//Вращение по одной оси, совпадающией с up mesh
 			glm::quat rotZ = glm::angleAxis(D3DX_PI * mMove.dtCoord.x / 200.0f, Vec3DxToGlm(ZVector));
-			GetBox()->SetRot(rotZ * GetBox()->GetRot());
+			GetBox()->SetRot(GetBox()->GetRot() * rotZ);
 		}
 	}
 
