@@ -354,7 +354,10 @@ glm::quat Menu::GetIsoRot()
 	glm::quat rotY = glm::angleAxis(0.0f, Vec3DxToGlm(YVector));
 	glm::quat rotX = glm::angleAxis(-D3DX_PI / 3.0f, Vec3DxToGlm(XVector));
 
-	return rotZ * rotY * rotX;
+	//return rotZ * rotY * rotX;
+	return rotX * rotY * rotZ;
+	//return rotX * (rotY * rotZ);
+	//return (rotY * rotZ) * rotX;
 }
 
 void Menu::SetScreenFon(bool init)

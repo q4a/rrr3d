@@ -188,7 +188,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				glm::quat rotY = glm::angleAxis(angleY, Vec3DxToGlm(_owner->_edit->GetWorld()->GetCamera()->GetRight()));
 				glm::quat rot = abs(angleZ) > abs(angleY) ? rotZ : rotY;
 					
-				selNode->SetRot(_clStartRot * rot);
+				selNode->SetRot(rot * _clStartRot);
 
 				return true;
 			}

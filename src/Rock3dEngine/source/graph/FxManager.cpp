@@ -1343,14 +1343,14 @@ void FxFlowEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 			D3DXVec3Normalize(&dir, &speed);
 			glm::quat rot;
 			QuatShortestArc(XVector, dir, rot);
-			particle->SetRot(rot * particle->speedRot);
+			particle->SetRot(particle->speedRot * rot);
 		}
 		else
 		{
 			glm::vec3 rotAxe = glm::axis(particle->speedRot);
 			float rotAngle = glm::angle(particle->speedRot);
 			glm::quat rotDt = glm::angleAxis(rotAngle * dTime, rotAxe);
-			particle->SetRot(particle->GetRot() * rotDt);
+			particle->SetRot(rotDt * particle->GetRot());
 		}
 
 		particle->SetScale(particle->GetScale() + particle->speedScale * dTime);

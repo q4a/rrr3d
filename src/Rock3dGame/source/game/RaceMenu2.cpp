@@ -42,7 +42,7 @@ void CarFrame::OnProgress(float deltaTime)
 	{
 		glm::quat rot = _secretMapObj->GetGameObj().GetRot();
 		glm::quat dRot = glm::angleAxis(2.0f * D3DX_PI * deltaTime * 0.1f, Vec3DxToGlm(ZVector));
-		_secretMapObj->GetGameObj().SetRot(dRot * rot);
+		_secretMapObj->GetGameObj().SetRot(rot * dRot);
 	}
 }
 
@@ -1167,7 +1167,7 @@ gui::ViewPort3d* WorkshopFrame::AddGood(Slot* slot, int index, int count)
 		glm::quat quat = glm::angleAxis(D3DX_PI / 2.0f, Vec3DxToGlm(ZVector));
 		viewPort->SetRot3dSpeed(quat);
 		quat = glm::angleAxis(2.0f * D3DX_PI * index / count, Vec3DxToGlm(ZVector));
-		viewPort->GetBox()->SetRot(quat * viewPort->GetBox()->GetRot());
+		viewPort->GetBox()->SetRot(viewPort->GetBox()->GetRot() * quat);
 	}
 
 	gui::PlaneFon* box = menu()->CreatePlane(viewPort, NULL, "GUI\\slot2Frame.png", true, IdentityVec2, gui::Material::bmTransparency);
@@ -3216,7 +3216,7 @@ RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 		_slots[i]->SetRot3dSpeed(quat);
 
 		quat = glm::angleAxis(2.0f * D3DX_PI * i / 6.0f, Vec3DxToGlm(ZVector));
-		_slots[i]->GetBox()->SetRot(quat * _slots[i]->GetBox()->GetRot());
+		_slots[i]->GetBox()->SetRot(_slots[i]->GetBox()->GetRot() * quat);
 	}
 
 	for (int i = 0; i < cMenuItemEnd; ++i)

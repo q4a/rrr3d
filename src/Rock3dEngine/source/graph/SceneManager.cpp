@@ -133,6 +133,7 @@ void BaseSceneNode::ExtractRotation(_RotationStyle style) const
 				 
 		case rsQuaternion:
 			_rot = glm::quat_cast(Matrix4DxToGlm(_rotMat));
+			//_rot = glm::quat(-_rot.w, _rot.x, _rot.y, _rot.z);
 			break;
 
 		case rsVectors:

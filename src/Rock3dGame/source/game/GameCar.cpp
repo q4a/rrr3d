@@ -195,11 +195,11 @@ void CarWheel::PxSyncWheel(float alpha)
 	glm::quat quat1 = glm::angleAxis(_steerAngle, Vec3DxToGlm(ZVector));
 	glm::quat quat2 = glm::angleAxis(_summAngle, Vec3DxToGlm(YVector)); // NullQuaternion;
 
-	glm::quat resRot = quat2 * quat1;
+	glm::quat resRot = quat1 * quat2;
 	if (invertWheel)
 	{
 		glm::quat invRot = glm::angleAxis(D3DX_PI, Vec3DxToGlm(ZVector));
-		resRot = invRot * resRot;
+		resRot = resRot * invRot;
 	}
 
 	if (alpha < 1.0f)

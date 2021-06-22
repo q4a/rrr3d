@@ -68,7 +68,7 @@ Environment::Environment(World* world): _world(world), _wheater(ewClody), _world
 
 	glm::quat rot1 = glm::angleAxis(D3DX_PI / 4.0f, Vec3DxToGlm(YVector));
 	glm::quat rot2 = glm::angleAxis(-D3DX_PI / 4.0f, Vec3DxToGlm(ZVector));
-	_sunRot = rot1 * rot2;
+	_sunRot = rot2 * rot1;
 
 	//текстура по умолчанию. ќб€зательно должна быть!
 	GetGraph()->SetSkyTex("Data\\World1\\Texture\\skyTex1.dds");	
