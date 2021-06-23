@@ -120,7 +120,7 @@ public:
 	}
 	void SetMin(const _Value& value)
 	{
-		_min = value;		
+		_min = value;
 	}
 
 	const _Value& GetMax() const
@@ -129,7 +129,7 @@ public:
 	};
 	void SetMax(const _Value& value)
 	{
-		_max = value;		
+		_max = value;
 	}
 
 	Distribution GetDistrib() const
@@ -138,7 +138,7 @@ public:
 	}
 	void SetDistrib(Distribution value)
 	{
-		_distrib = value;		
+		_distrib = value;
 	}
 
 	//[0..1]
@@ -148,12 +148,12 @@ public:
 		{
 		case vdLinear:
 			return _min + (_max - _min) * range;
-		
+
 		default:
 			LSL_ASSERT(false);
-			
+
 			return _min;
-		}		
+		}
 	}
 
 	_Value GetValue() const
@@ -168,7 +168,7 @@ public:
 	bool operator!=(const MyClass& value) const
 	{
 		return !operator==(value);
-	}	
+	}
 };
 
 template<class _Value> const char* ValueRange<_Value>::cDistributionStr[ValueRange<_Value>::cDistributionEnd] = {"vdLinear", "vdCubic"};
@@ -197,7 +197,7 @@ struct Point2U
 	}
 
 	unsigned x;
-	unsigned y;	
+	unsigned y;
 };
 typedef Point2U UPoint;
 
@@ -254,9 +254,9 @@ private:
 		if (_distrib == vdVolume)
 		{
 			_volume = _freq.x * _freq.y * _freq.z;
-			
+
 			LSL_ASSERT(_volume > 0);
-			
+
 			D3DXVECTOR3 leng = _max - _min;
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
@@ -307,7 +307,7 @@ public:
 
 	const Point3U& GetFreq() const
 	{
-		return _freq;		
+		return _freq;
 	}
 	void SetFreq(const Point3U& value)
 	{
@@ -340,14 +340,14 @@ public:
 			value.y = _min.y + _step.y * cell.y;
 			value.z = _min.z + _step.z * cell.z;
 
-			return value;			
+			return value;
 		}
 
 		default:
 			LSL_ASSERT(false);
-			
+
 			return _min;
-		}		
+		}
 	}
 	_Value GetValue() const
 	{
@@ -381,7 +381,7 @@ typedef ValueRange<D3DXVECTOR3> Vec3Range;
 Vec3Range operator*(const Vec3Range& val1, float val2);
 Vec3Range operator*(const Vec3Range& val1, const D3DXVECTOR3& val2);
 
-//Объемная интерполяция пока схожа к кубической, хотя на самом деле нужна сферическая. Когда поверхность сферы ограничивается окружностью(двумя радиус векторами, которые определяют димаетр окружности на манер как сделано в BB), которая разбивается на сектора через углы. 
+//Объемная интерполяция пока схожа к кубической, хотя на самом деле нужна сферическая. Когда поверхность сферы ограничивается окружностью(двумя радиус векторами, которые определяют димаетр окружности на манер как сделано в BB), которая разбивается на сектора через углы.
 template<> struct ValueRange<D3DXQUATERNION>
 {
 public:
@@ -410,9 +410,9 @@ private:
 		if (_distrib == vdVolume)
 		{
 			_volume = _freq.x * _freq.y;
-			
+
 			LSL_ASSERT(_volume > 0);
-			
+
 			glm::vec2 leng(_max.x - _min.x, _max.y - _min.y);
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
@@ -427,10 +427,10 @@ private:
 	}
 public:
 	ValueRange(): _distrib(vdLinear), _freq(100, 100)
-	{			
+	{
 	}
 	ValueRange(const _Value& value): _min(value), _max(value), _distrib(vdLinear), _freq(100, 100)
-	{			
+	{
 	}
 	ValueRange(const _Value& min, const _Value& max, Distribution distrib = vdLinear, const Point2U& freq = Point2U(100, 100)): _min(min), _max(max), _distrib(distrib), _freq(freq)
 	{
@@ -469,7 +469,7 @@ public:
 
 	const Point2U& GetFreq() const
 	{
-		return _freq;		
+		return _freq;
 	}
 	void SetFreq(const Point2U& value)
 	{
@@ -485,7 +485,7 @@ public:
 		{
 			_Value res;
 			D3DXQuaternionSlerp(&res, &_min, &_max, range);
-			
+
 			return res;
 		}
 
@@ -498,7 +498,7 @@ public:
 			//Разделяем номер ячейки на секции по осям
 			Point2U cell;
 			cell.x = num % _freq.x;
-			cell.y = (num / _freq.x) % _freq.y;			
+			cell.y = (num / _freq.x) % _freq.y;
 
 			//Итоговый результат
 			D3DXVECTOR3 value;
@@ -516,9 +516,9 @@ public:
 
 		default:
 			LSL_ASSERT(false);
-			
+
 			return _min;
-		}		
+		}
 	}
 	_Value GetValue() const
 	{

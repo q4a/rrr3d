@@ -55,7 +55,7 @@ inline float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMAT
 inline void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const D3DXQUATERNION& rot, D3DXMATRIX& outMat)
 {
 	D3DXMATRIX scaleMat;
-	D3DXMatrixScaling(&scaleMat, scale.x, scale.y, scale.z);	
+	D3DXMatrixScaling(&scaleMat, scale.x, scale.y, scale.z);
 
 	D3DXMATRIX rotMat;
 	D3DXMatrixRotationQuaternion(&rotMat, &rot);
@@ -231,7 +231,7 @@ inline glm::vec2 operator*(const glm::vec2& vec1, const glm::vec2& vec2)
 	glm::vec2 res = vec1;
 	res *= vec2;
 
-	return res;	
+	return res;
 }
 
 inline void operator/=(glm::vec2& vec1, const glm::vec2& vec2)
@@ -348,15 +348,15 @@ inline bool operator<(const D3DXVECTOR3& vec1, float scalar)
 
 inline bool operator>(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
 {
-	return vec1.x > vec2.x && 
-		   vec1.y > vec2.y && 
+	return vec1.x > vec2.x &&
+		   vec1.y > vec2.y &&
 		   vec1.z > vec2.z;
 }
 
 inline bool operator<(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
 {
-	return vec1.x < vec2.x && 
-		   vec1.y < vec2.y && 
+	return vec1.x < vec2.x &&
+		   vec1.y < vec2.y &&
 		   vec1.z < vec2.z;
 }
 
@@ -383,7 +383,7 @@ inline D3DXCOLOR operator*(const D3DXCOLOR& vec1, const D3DXCOLOR& vec2)
 	D3DXCOLOR res = vec1;
 	res *= vec2;
 
-	return res;	
+	return res;
 }
 
 inline void QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to, D3DXQUATERNION& outQuat)
@@ -471,7 +471,7 @@ inline void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, D3DXVEC
 inline D3DXVECTOR3 Line2FromNorm(const glm::vec2& norm, const glm::vec2& point)
 {
 	D3DXVECTOR3 res;
-	Line2FromNorm(norm, point, res);	
+	Line2FromNorm(norm, point, res);
 	return res;
 }
 
@@ -565,7 +565,7 @@ inline Vec3Range operator*(const Vec3Range& val1, const D3DXVECTOR3& val2)
 inline bool RayCastIntersectSphere(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& spherePos, float sphereRadius, float* t)
 {
 	D3DXVECTOR3 v = rayPos - spherePos;
-	
+
 	float b = 2.0f * D3DXVec3Dot(&rayVec, &v);
 	float c = D3DXVec3Dot(&v, &v) - sphereRadius * sphereRadius;
 

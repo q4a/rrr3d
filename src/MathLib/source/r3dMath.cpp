@@ -117,8 +117,8 @@ AABB2::SpaceContains AABB2::ContainsAABB(const AABB2& test) const
 		test.min[1] < max[1])
 
 		if (test.min[0] >= min[0] &&
-			test.min[1] >= min[1] &&			
-			
+			test.min[1] >= min[1] &&
+
 			test.max[0] <= max[0] &&
 			test.max[1] <= max[1])
 
@@ -147,7 +147,7 @@ AABB::AABB()
 }
 
 AABB::AABB(float size)
-{	
+{
 	float maxS = std::max(size / 2.0f, 0.0f);
 	float minS = -maxS;
 	min = D3DXVECTOR3(minS, minS, minS);
@@ -167,7 +167,7 @@ inline void AABB::Transform(const AABB& aabb, const D3DXMATRIX& m, AABB& rOut)
 {
 	D3DXVECTOR3 oldMin = aabb.min;
 	D3DXVECTOR3 oldMax = aabb.max;
-	D3DXVec3TransformCoord(&rOut.min, &oldMin, &m);	
+	D3DXVec3TransformCoord(&rOut.min, &oldMin, &m);
 	rOut.max = rOut.min;
 
 	rOut.Include(Vec3TransformCoord(D3DXVECTOR3(oldMin[0], oldMin[1], oldMax[2]), m));
@@ -261,7 +261,7 @@ void AABB::ExtractCorners(Corners& corners) const
 	corners[4] = D3DXVECTOR3(max[0], min[1], min[2]);
 	corners[5] = D3DXVECTOR3(max[0], min[1], max[2]);
 	corners[6] = D3DXVECTOR3(max[0], max[1], min[2]);
-	corners[7] = D3DXVECTOR3(max[0], max[1], max[2]); 
+	corners[7] = D3DXVECTOR3(max[0], max[1], max[2]);
 }
 
 bool AABB::ContainsPoint(const D3DXVECTOR3& point) const
@@ -282,7 +282,7 @@ AABB::SpaceContains AABB::ContainsAABB(const AABB& test) const
 		if (test.min[0] >= min[0] &&
 			test.min[1] >= min[1] &&
 			test.min[2] >= min[2] &&
-			
+
 			test.max[0] <= max[0] &&
 			test.max[1] <= max[1] &&
 			test.max[2] <= max[2])
@@ -320,7 +320,7 @@ bool AABB::LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECTOR3& li
 		farVec = lineStart + lineVec * tFar;
 		return true;
 	}
-	return false;	
+	return false;
 }
 
 unsigned AABB::RayCastIntersect(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, float& tNear, float& tFar) const
@@ -366,7 +366,7 @@ bool AABB::AABBLineCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, fl
 		{
 			float t = AbsMin(tNear, tFar);
 			minDist = (res) ? AbsMin(minDist, t) : t;
-			res = true;			
+			res = true;
 		}
 		//Обратное направление
 		curV = GetVertex(i);
@@ -424,7 +424,7 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, cons
 		{
 			float t = AbsMin(tNear, tFar);
 			minDist = (res) ? AbsMin(minDist, t) : t;
-			res = true;			
+			res = true;
 		}
 		if (start.LineCastIntersect(testBB.v[i], -vec, tNear, tFar))
 		{
@@ -474,7 +474,7 @@ bool AABB::AABBRayCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, flo
 		if (RayCastIntersect(curV, rayVec, tNear, tFar))
 		{
 			minDist = (res) ? AbsMin(minDist, tNear) : tNear;
-			res = true;			
+			res = true;
 		}
 		//Обратное направление
 		curV = GetVertex(i);
@@ -527,7 +527,7 @@ D3DXVECTOR3 AABB::GetVertex(unsigned index) const
 	switch (index)
 	{
 	case 0:
-		return min;		
+		return min;
 
 	case 1:
 		return D3DXVECTOR3(max.x, min.y, min.z);
@@ -553,7 +553,7 @@ D3DXVECTOR3 AABB::GetVertex(unsigned index) const
 	default:
 		LSL_ASSERT(false);
 		return NullVector;
-	}	
+	}
 }
 
 D3DXPLANE AABB::GetPlane(unsigned index) const
@@ -592,19 +592,19 @@ D3DXPLANE AABB::GetPlane(unsigned index) const
 D3DXVECTOR3 AABB::GetPlaneVert(unsigned index, unsigned vertex) const
 {
 	/*D3DXPLANE plane = GetPlane(index);
-	D3DXVECTOR3 norm(plane);	
-	D3DXVECTOR3 invNorm = IdentityVector - D3DXVECTOR3(abs(norm.x), abs(norm.y), abs(norm.z));	
-	
+	D3DXVECTOR3 norm(plane);
+	D3DXVECTOR3 invNorm = IdentityVector - D3DXVECTOR3(abs(norm.x), abs(norm.y), abs(norm.z));
+
 	D3DXVECTOR3 fixCoord;
 	D3DXVec3Scale(norm, GetSizes()/2, fixCoord);
 	D3DXVECTOR3 fixCenter;
 	D3DXVec3Scale(norm, GetCenter(), fixCenter);
 	fixCoord += fixCenter;
-	
+
 	D3DXVECTOR3 res;
 	switch (vertex)
 	{
-	case 0:		
+	case 0:
 		D3DXVec3Scale(min, invNorm, res);
 		return res + fixCoord;
 
@@ -651,7 +651,7 @@ D3DXVECTOR3 AABB::GetPlaneVert(unsigned index, unsigned vertex) const
 		break;
 
 	default:
-		LSL_ASSERT(false);		
+		LSL_ASSERT(false);
 	}
 
 	return GetVertex(bufInd[vertex]);
@@ -685,8 +685,8 @@ void BoundBox::Transform(const BoundBox& bb, const D3DXMATRIX& m, BoundBox& rOut
 
 void BoundBox::SetPlan(const int numPlan, const float valeur)
 {
-	for (int i = 0; i < 4; ++i)	
-		v[cBBPlans[numPlan][i]][cDirPlan[numPlan]] = valeur;	
+	for (int i = 0; i < 4; ++i)
+		v[cBBPlans[numPlan][i]][cDirPlan[numPlan]] = valeur;
 }
 
 void BoundBox::Transform(const D3DXMATRIX& m)
@@ -781,12 +781,12 @@ Frustum::SpaceContains Frustum::ContainsAABB(const AABB& aabb) const
 		inCount = 8;
 		PointIn = true;
 
-		for (int iCorner = 0; iCorner < 8; ++iCorner)				
+		for (int iCorner = 0; iCorner < 8; ++iCorner)
 			if (D3DXPlaneDotCoord(&planes[iPlane], &corners[iCorner]) < 0)
 			{
 				PointIn = false;
 				--inCount;
-			}	
+			}
 
 		if (!inCount)
 			return scNoOverlap;
@@ -808,7 +808,7 @@ bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVe
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &rayVec);	
+	float d = D3DXPlaneDotNormal(&plane, &rayVec);
 	if (abs(d) > EPSILON)
 	{
 		outT = -D3DXPlaneDotCoord(&plane, &rayStart) / d;
@@ -861,7 +861,7 @@ void GetSampleOffsetsDownScale3x3(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSam
 
 	// Sample from the 9 surrounding points.
     int index = 0;
-    for (int y = -1; y <= 1; ++y)    
+    for (int y = -1; y <= 1; ++y)
         for (int x = -1; x <= 1; ++x)
         {
             avSampleOffsets[index].x = x * tU;
@@ -876,7 +876,7 @@ void GetSampleOffsetsDownScale4x4(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSam
 	float tU = 1.0f / dwWidth;
     float tV = 1.0f / dwHeight;
 
-    // Sample from 4 surrounding points. 
+    // Sample from 4 surrounding points.
     int index = 0;
     for( int y = -1; y < 3; y++ )
     {

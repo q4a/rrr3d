@@ -170,9 +170,9 @@ void BaseSampler::SetColorMode(Mode value)
 	case tmModulate:
 		stageStates.Set(tssColorOp, D3DTOP_MODULATE);
 		stageStates.Set(tssColorArg1, D3DTA_TEXTURE);
-		stageStates.Set(tssColorArg2, D3DTA_CURRENT);			
+		stageStates.Set(tssColorArg2, D3DTA_CURRENT);
 		break;
-	
+
 	case tmReplace:
 		stageStates.Set(tssColorOp, D3DTOP_SELECTARG1);
 		stageStates.Set(tssColorArg1, D3DTA_TEXTURE);
@@ -197,7 +197,7 @@ void BaseSampler::SetColorMode(Mode value)
 }
 
 void BaseSampler::SetAlphaMode(Mode value)
-{		
+{
 	switch (value)
 	{
 	case tmDecal:
@@ -209,9 +209,9 @@ void BaseSampler::SetAlphaMode(Mode value)
 	case tmModulate:
 		stageStates.Set(tssAlphaOp, D3DTOP_MODULATE);
 		stageStates.Set(tssAlphaArg1, D3DTA_TEXTURE);
-		stageStates.Set(tssAlphaArg2, D3DTA_CURRENT);			
+		stageStates.Set(tssAlphaArg2, D3DTA_CURRENT);
 		break;
-	
+
 	case tmReplace:
 		stageStates.Set(tssAlphaOp, D3DTOP_SELECTARG1);
 		stageStates.Set(tssAlphaArg1, D3DTA_TEXTURE);
@@ -296,7 +296,7 @@ void Sampler2d::BuildAnimByOff(const Vec2Range& texCoord, const Point2U& tileCnt
 
 	glm::vec2 coordOff(pixOff.x / GetWidth(), pixOff.y / GetHeight());
 	glm::vec2 coordLen(texCoord.GetMax() - texCoord.GetMin());
-	glm::vec2 tileSize((coordLen - coordOff * 2.0f) / fTileCnt);	
+	glm::vec2 tileSize((coordLen - coordOff * 2.0f) / fTileCnt);
 
 	glm::vec2 stTile(texCoord.GetMin() + coordOff);
 	glm::vec2 endTile(tileSize * (fTileCnt - IdentityVec2) + stTile);
@@ -311,7 +311,7 @@ void Sampler2d::BuildAnimByTile(const Vec2Range& texCoord, const Point2U& tileCn
 
 	glm::vec2 coordLen(texCoord.GetMax() - texCoord.GetMin());
 	glm::vec2 imgSize(coordLen.x * GetWidth(), coordLen.y * GetHeight());
-	
+
 	glm::vec2 pixOff = tileSize / 2.0f - ((fTileCnt + IdentityVec2) * tileSize - imgSize) / 2.0f;
 
 	BuildAnimByOff(texCoord, tileCnt, pixOff);
@@ -390,7 +390,7 @@ Samplers::~Samplers()
 void Samplers::InitClassList()
 {
 	static bool initClassList = false;
-	
+
 	if (!initClassList)
 	{
 		initClassList = true;
@@ -426,7 +426,7 @@ SamplerCube& Samplers::AddCube(TexCubeResource* tex)
 
 Samplers::iterator Samplers::Delete(iterator iter)
 {
-	BaseSampler* sampler = *iter;	
+	BaseSampler* sampler = *iter;
 	iterator res = _cont.erase(iter);
 
 	delete sampler;
@@ -589,7 +589,7 @@ void Material::ApplyAlphaTest(AlphaTest mode)
 
 	default:
 		LSL_ASSERT(false);
-	}	
+	}
 }
 
 void Material::Apply(Engine& engine)
@@ -614,14 +614,14 @@ void Material::Apply(Engine& engine)
 	}
 	//Без освещения
 	else
-	{		
+	{
 		//Direct3d не поддерживает материал отдельно от освещения, поэтому делается через emissive
 		d3dMat.ambient = d3dMat.diffuse = d3dMat.specular = clrBlack;
 		d3dMat.diffuse.a = alpha;
 		d3dMat.emissive = _diffuse.GetValue(frame);
 	}
 
-	if (engine.GetContext().IsCullOpacity())	
+	if (engine.GetContext().IsCullOpacity())
 		d3dMat.diffuse.a *= engine.GetContext().GetCullOpacity();
 
 	engine.GetContext().SetMaterial(d3dMat);
@@ -782,15 +782,15 @@ void Material::SetOption(Option option, bool value)
 			//Direct3d не поддерживает материал отдельно от освещения, поэтому обходной путь
 			//renderStates.Set(graph::rsLighting, false);
 			break;
-			
+
 		case moZWrite:
 			renderStates.Set(graph::rsZWriteEnable, value);
 			break;
-			
+
 		case moZTest:
 			renderStates.Set(graph::rsZEnable, value);
 			break;
-			
+
 		case moIgnoreFog:
 			_ignoreFog = value;
 			break;
@@ -809,11 +809,11 @@ Material::FaceCulling Material::GetFaceCulling() const
 void Material::SetFaceCulling(FaceCulling value)
 {
 	const D3DCULL cullMode[cFaceCullingEnd] = {D3DCULL_CW, D3DCULL_CCW, D3DCULL_NONE};
-	
+
 	if (_faceCulling != value)
 	{
 		_faceCulling = value;
-		
+
 		renderStates.Set(graph::rsFillMode, cullMode[_faceCulling]);
 	}
 }
@@ -863,7 +863,7 @@ void LibMaterial::Apply(Engine& engine)
 		for (unsigned i = 0; i < samplers.Size(); ++i)
 			samplers[i].Apply(engine, i);
 
-		if (_shader)		
+		if (_shader)
 			_shader->Apply(engine);
 	}
 }
@@ -872,7 +872,7 @@ void LibMaterial::UnApply(Engine& engine)
 {
 	if (!engine.GetContext().GetIgnoreMaterial())
 	{
-		if (_shader)		
+		if (_shader)
 			_shader->UnApply(engine);
 
 		for (unsigned i = 0; i < samplers.Size(); ++i)
@@ -904,7 +904,7 @@ graph::LibMaterial& LibMaterial::SetAnisoFlt()
 void DrawScreenQuad(Engine& engine, const D3DXVECTOR4& quadVert, float fLeftU, float fTopV, float fRightU, float fBottomV, bool disableZBuf)
 {
 	D3DSURFACE_DESC surfDesc;
-	IDirect3DSurface9* curRTSurf; 
+	IDirect3DSurface9* curRTSurf;
 	engine.GetDriver().GetDevice()->GetRenderTarget(0, &curRTSurf);
 	curRTSurf->GetDesc(&surfDesc);
 	curRTSurf->Release();
@@ -924,7 +924,7 @@ void DrawScreenQuad(Engine& engine, const D3DXVECTOR4& quadVert, float fLeftU, f
 	svQuad[1].pos = D3DXVECTOR4(fWidth5, fPosY, 0.5f, 1.0f);
 	svQuad[1].tex = glm::vec2(fRightU, fTopV);
 
-	svQuad[2].pos = D3DXVECTOR4(fPosX, fHeight5, 0.5f, 1.0f); 
+	svQuad[2].pos = D3DXVECTOR4(fPosX, fHeight5, 0.5f, 1.0f);
 	svQuad[2].tex = glm::vec2(fLeftU, fBottomV);
 
 	svQuad[3].pos = D3DXVECTOR4(fWidth5, fHeight5, 0.5f, 1.0f);

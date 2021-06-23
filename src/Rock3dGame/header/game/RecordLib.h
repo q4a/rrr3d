@@ -80,7 +80,7 @@ protected:
 public:
 	Record* AddRecord(const std::string& name);
 	void DelRecord(Record* value);
-	
+
 	RecordNode* AddNode(const std::string& name);
 	void DelNode(RecordNode* value);
 
@@ -88,7 +88,7 @@ public:
 	Record* FindRecord(const std::string& path);
 	RecordNode* FindNode(const std::string& path);
 
-	void Clear();	
+	void Clear();
 	void SrcSync();
 
 	RecordLib* GetLib();
@@ -106,7 +106,7 @@ class RecordLib: public RecordNode, public Component
 	friend Record;
 	friend RecordNode;
 private:
-	typedef RecordNode _MyBase;	
+	typedef RecordNode _MyBase;
 public:
 	typedef RecordLib Lib;
 
@@ -144,7 +144,7 @@ private:
 	typedef lsl::Container<_Record> _MyCont;
 protected:
 	virtual void Save(lsl::SWriter* writer);
-	virtual void Load(lsl::SReader* reader);	
+	virtual void Load(lsl::SReader* reader);
 };
 
 

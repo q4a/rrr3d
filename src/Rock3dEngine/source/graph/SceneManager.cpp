@@ -45,8 +45,8 @@ BaseSceneNode::~BaseSceneNode()
 	if (_parent)
 		_parent->GetChildren().Remove(this);
 	ClearSceneList();
-	
-	delete _proxyList;	
+
+	delete _proxyList;
 	delete _children;
 
 #ifdef _DEBUG
@@ -65,34 +65,34 @@ void BaseSceneNode::RenderBB(graph::Engine& engine, const AABB& aabb, const D3DX
 	BoundBox box(aabb);
 
 	VertexPD lines[36];
-	lines[0] = VertexPD(box.v[0], linesColor);					
-	lines[1] = VertexPD(box.v[1], linesColor);					
-	lines[2] = VertexPD(box.v[1], linesColor);					
+	lines[0] = VertexPD(box.v[0], linesColor);
+	lines[1] = VertexPD(box.v[1], linesColor);
+	lines[2] = VertexPD(box.v[1], linesColor);
 	lines[3] = VertexPD(box.v[2], linesColor);
-						
-	lines[4] = VertexPD(box.v[2], linesColor);					
-	lines[5] = VertexPD(box.v[3], linesColor);					
-	lines[6] = VertexPD(box.v[3], linesColor);					
+
+	lines[4] = VertexPD(box.v[2], linesColor);
+	lines[5] = VertexPD(box.v[3], linesColor);
+	lines[6] = VertexPD(box.v[3], linesColor);
 	lines[7] = VertexPD(box.v[0], linesColor);
 
 	//near plane
 	lines[8] = VertexPD(box.v[0], linesColor);
-	lines[9] = VertexPD(box.v[4], linesColor);					
-	lines[10] = VertexPD(box.v[1], linesColor);					
+	lines[9] = VertexPD(box.v[4], linesColor);
+	lines[10] = VertexPD(box.v[1], linesColor);
 	lines[11] = VertexPD(box.v[5], linesColor);
-	lines[12] = VertexPD(box.v[2], linesColor);					
-	lines[13] = VertexPD(box.v[6], linesColor);					
-	lines[14] = VertexPD(box.v[3], linesColor);					
+	lines[12] = VertexPD(box.v[2], linesColor);
+	lines[13] = VertexPD(box.v[6], linesColor);
+	lines[14] = VertexPD(box.v[3], linesColor);
 	lines[15] = VertexPD(box.v[7], linesColor);
 
 	//far plane
 	lines[16] = VertexPD(box.v[4], linesColor);
-	lines[17] = VertexPD(box.v[5], linesColor);					
-	lines[18] = VertexPD(box.v[5], linesColor);					
+	lines[17] = VertexPD(box.v[5], linesColor);
+	lines[18] = VertexPD(box.v[5], linesColor);
 	lines[19] = VertexPD(box.v[6], linesColor);
-	lines[20] = VertexPD(box.v[6], linesColor);					
-	lines[21] = VertexPD(box.v[7], linesColor);					
-	lines[22] = VertexPD(box.v[7], linesColor);					
+	lines[20] = VertexPD(box.v[6], linesColor);
+	lines[21] = VertexPD(box.v[7], linesColor);
+	lines[22] = VertexPD(box.v[7], linesColor);
 	lines[23] = VertexPD(box.v[4], linesColor);
 
 	for (int i = 0; i < 6; ++i)
@@ -100,7 +100,7 @@ void BaseSceneNode::RenderBB(graph::Engine& engine, const AABB& aabb, const D3DX
 		lines[24 + i * 2] = VertexPD(aabb.GetPlaneVert(i, 0), linesColor);
 		lines[24 + i * 2 + 1] = VertexPD(aabb.GetPlaneVert(i, 1), linesColor);
 	}
-	
+
 
 
 
@@ -120,18 +120,18 @@ void BaseSceneNode::ExtractRotation(_RotationStyle style) const
 	//Проверка, корректны ли на данный момент данные в полях
 	if (_rotInvalidate.test(style))
 	{
-		ApplyTransformationChanged();  
-		EulerAngles eulAng; 
-		switch (style)   
-		{			
-		case rsEulerAngles:	
-			eulAng = Eul_FromHMatrix(_rotMat.m, EulOrdXYZs);				
+		ApplyTransformationChanged();
+		EulerAngles eulAng;
+		switch (style)
+		{
+		case rsEulerAngles:
+			eulAng = Eul_FromHMatrix(_rotMat.m, EulOrdXYZs);
 			_rollAngle = -eulAng.x;
 			_pitchAngle = -eulAng.y;
 			_turnAngle = -eulAng.z;
 			break;
-				 
-		case rsQuaternion:			
+
+		case rsQuaternion:
 			D3DXQuaternionRotationMatrix(&_rot, &_rotMat);
 			break;
 
@@ -236,19 +236,19 @@ void BaseSceneNode::SetDynBB(bool value)
 }
 
 void BaseSceneNode::BuildMatrix() const
-{	
+{
 	//Поворот не влияет на локальное направление перемещения
 	//Растяжение не влияет на локальное перемещение, т.е. единица длины одна и таже
 	_localMat = GetScaleMat() * GetRotMat() * GetTransMat();
-	D3DXMatrixInverse(&_invLocalMat, 0, &_localMat);		
+	D3DXMatrixInverse(&_invLocalMat, 0, &_localMat);
 }
 
 void BaseSceneNode::BuildWorldMatrix() const
 {
 	if (_parent)
 	{
-		const D3DXMATRIX& mat = _parent->GetWorldMat();		
-		D3DXMatrixMultiply(&_worldMat, &_localMat, &mat);	
+		const D3DXMATRIX& mat = _parent->GetWorldMat();
+		D3DXMatrixMultiply(&_worldMat, &_localMat, &mat);
 		D3DXMatrixInverse(&_invWorldMat, 0, &_worldMat);
 	}
 	else
@@ -263,17 +263,17 @@ void BaseSceneNode::ApplyTransformationChanged() const
 	if (_changes.test(ocTransformation))
 	{
 		_changes.reset(ocTransformation);
-		BuildMatrix();		
-	}		
+		BuildMatrix();
+	}
 	if (_changes.test(ocWorldTransformation))
 	{
 		_changes.reset(ocWorldTransformation);
-		BuildWorldMatrix();		
+		BuildWorldMatrix();
 	}
 }
 
 void BaseSceneNode::WorldTransformationChanged()
-{	
+{
 	if (!_changes.test(ocWorldTransformation))
 	{
 		_changes.set(ocWorldTransformation);
@@ -286,7 +286,7 @@ void BaseSceneNode::WorldTransformationChanged()
 
 void BaseSceneNode::TransformationChanged()
 {
-	if (!_changes.test(ocTransformation)) 
+	if (!_changes.test(ocTransformation))
 	{
 		_changes.set(ocTransformation);
 		WorldTransformationChanged();
@@ -321,7 +321,7 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 	{
 		writer->WriteValue("pos", GetPos(), 3);
 		writer->WriteValue("scale", GetScale(), 3);
-		writer->WriteValue("rot", GetRot(), 4);		
+		writer->WriteValue("rot", GetRot(), 4);
 	}
 
 	writer->WriteValue("invertCullFace", invertCullFace);
@@ -329,7 +329,7 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 	if (!_sceneList.empty())
 	{
 		std::stringstream stream;
-		for (SceneList::iterator iter = _sceneList.begin(); iter != _sceneList.end(); ++iter)					
+		for (SceneList::iterator iter = _sceneList.begin(); iter != _sceneList.end(); ++iter)
 		{
 			if (iter != _sceneList.begin())
 				stream << " ";
@@ -342,8 +342,8 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 	writer->WriteValue("tag", _tag);
 
 	writer->WriteValue("animMode", _animMode);
-	writer->WriteValue("animDuration", animDuration);	
-	writer->WriteValue("frame", frame);	
+	writer->WriteValue("animDuration", animDuration);
+	writer->WriteValue("frame", frame);
 
 	writer->WriteValue("speedPos", speedPos, 3);
 	writer->WriteValue("speedScale", speedScale, 3);
@@ -387,7 +387,7 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 	animMode(AnimMode(val));
 
 	reader->ReadValue("animDuration", animDuration);
-	reader->ReadValue("frame", frame);	
+	reader->ReadValue("frame", frame);
 
 	reader->ReadValue("speedPos", speedPos, 3);
 	reader->ReadValue("speedScale", speedScale, 3);
@@ -446,7 +446,7 @@ void BaseSceneNode::Render(graph::Engine& engine, const D3DXMATRIX& worldMat)
 }
 
 void BaseSceneNode::Render(graph::Engine& engine)
-{	
+{
 	Render(engine, GetWorldMat());
 }
 
@@ -478,7 +478,7 @@ void BaseSceneNode::OnProgress(float deltaTime)
 		}
 
 		SetScale(GetScale() + speedScale * deltaTime);
-	}	
+	}
 }
 
 void BaseSceneNode::StructureChanged()
@@ -500,9 +500,9 @@ void BaseSceneNode::MoveAroundTarget(const D3DXVECTOR3& worldTarget, float pitch
 {
 	// normalT2C points away from the direction the camera is looking
 	D3DXVECTOR3 originalT2C = GetWorldPos() - worldTarget;
-	D3DXVECTOR3 normalT2C = originalT2C;		
+	D3DXVECTOR3 normalT2C = originalT2C;
 	float dist = D3DXVec3Length(&normalT2C);
-	D3DXVec3Normalize(&normalT2C, &normalT2C);	
+	D3DXVec3Normalize(&normalT2C, &normalT2C);
 	// normalRight points to the camera's right
 	// the camera is pitching around this axis.
 	D3DXVECTOR3 normalCameraRight;
@@ -513,8 +513,8 @@ void BaseSceneNode::MoveAroundTarget(const D3DXVECTOR3& worldTarget, float pitch
 	else
 		D3DXVec3Normalize(&normalCameraRight, &normalCameraRight);
 	// calculate the current pitch.
-	// 0 is looking down and PI is looking up		
-	float pitchNow = acos(D3DXVec3Dot(&worldUp, &normalT2C));		
+	// 0 is looking down and PI is looking up
+	float pitchNow = acos(D3DXVec3Dot(&worldUp, &normalT2C));
 	pitchNow = lsl::ClampValue(pitchNow + pitchDelta, 0 + 0.025f, D3DX_PI - 0.025f);
 	// create a new vector pointing up and then rotate it down
 	// into the new position
@@ -523,14 +523,14 @@ void BaseSceneNode::MoveAroundTarget(const D3DXVECTOR3& worldTarget, float pitch
 
 	normalT2C = GetWorldUp();
 	D3DXMatrixRotationAxis(&pitchMat, &normalCameraRight, pitchNow);
-	D3DXMatrixRotationAxis(&turnMat, &worldUp, -turnDelta);		
+	D3DXMatrixRotationAxis(&turnMat, &worldUp, -turnDelta);
 	D3DXVec3TransformNormal(&normalT2C, &normalT2C, &pitchMat);
 	D3DXVec3TransformNormal(&normalT2C, &normalT2C, &turnMat);
 	normalT2C *= dist;
 	D3DXVECTOR3 newPos = GetWorldPos() + (normalT2C - originalT2C);
 	if (_parent)
-		_parent->WorldToLocalCoord(newPos, newPos);	
-	SetPos(newPos);	
+		_parent->WorldToLocalCoord(newPos, newPos);
+	SetPos(newPos);
 }
 
 void BaseSceneNode::AdjustDistToTarget(const D3DXVECTOR3& worldTarget, float distance)
@@ -591,7 +591,7 @@ unsigned BaseSceneNode::RayCastIntersBB(const D3DXVECTOR3& wRayPos, const D3DXVE
 	float tNear, tFar;
 	AABB aabb = GetLocalAABB(includeChild);
 
-	return aabb.RayCastIntersect(rayPos, rayVec, tNear, tFar);	
+	return aabb.RayCastIntersect(rayPos, rayVec, tNear, tFar);
 }
 
 unsigned BaseSceneNode::RayCastIntersBB(const D3DXVECTOR3& wRayPos, const D3DXVECTOR3& wRayVec, D3DXVECTOR3& wNearVec, D3DXVECTOR3& wFarVec, bool includeChild) const
@@ -657,7 +657,7 @@ void BaseSceneNode::SetScene(SceneManager* scene, bool set)
 	LSL_ASSERT(scene);
 
 	bool find = std::find(_sceneList.begin(), _sceneList.end(), scene) != _sceneList.end();
-	if (set && !find)	
+	if (set && !find)
 		InsertToScene(scene);
 	else
 		if (!set && find)
@@ -680,7 +680,7 @@ void BaseSceneNode::SetParent(BaseSceneNode* value)
 	{
 		if (_parent)
 			_parent->_children->Remove(this);
-		if (value)					
+		if (value)
 			value->_children->Insert(this);
 		//Если задается нулевой родитель то авт. к корн. узлу
 		//else
@@ -761,7 +761,7 @@ void BaseSceneNode::SetDir(const D3DXVECTOR3& value)
 		D3DXVec3Normalize(&_direction, &value);
 
 	D3DXVECTOR3 right = GetRight();
-	if (D3DXVec3Length(&right) < floatErrComp)	
+	if (D3DXVec3Length(&right) < floatErrComp)
 	{
 		D3DXVec3Cross(&right, &ZVector, &_up);
 		if (D3DXVec3Length(&right) < floatErrComp)
@@ -776,7 +776,7 @@ void BaseSceneNode::SetDir(const D3DXVECTOR3& value)
 D3DXVECTOR3 BaseSceneNode::GetRight() const
 {
 	ExtractRotation(rsVectors);
-	D3DXVECTOR3 tmp;		
+	D3DXVECTOR3 tmp;
 	D3DXVec3Cross(&tmp, &_up, &_direction);
 	return tmp;
 }
@@ -805,7 +805,7 @@ void BaseSceneNode::SetRight(const D3DXVECTOR3& value)
 }
 
 const D3DXVECTOR3& BaseSceneNode::GetUp() const
-{	
+{
 	ExtractRotation(rsVectors);
 	return _up;
 }
@@ -815,10 +815,10 @@ void BaseSceneNode::SetUp(const D3DXVECTOR3& value)
 	ExtractRotation(rsVectors);
 
 	if (D3DXVec3Length(&value) == 0)
-		_up = ZVector;		
+		_up = ZVector;
 	D3DXVec3Normalize(&_up, &value);
 	D3DXVECTOR3 right = GetRight();
-	if (D3DXVec3Length(&right) < floatErrComp)	
+	if (D3DXVec3Length(&right) < floatErrComp)
 	{
 		D3DXVec3Cross(&right, &ZVector, &_up);
 		if (D3DXVec3Length(&right) < floatErrComp)
@@ -831,13 +831,13 @@ void BaseSceneNode::SetUp(const D3DXVECTOR3& value)
 }
 
 float BaseSceneNode::GetRollAngle() const
-{	
+{
 	ExtractRotation(rsEulerAngles);
 	return _rollAngle;
 }
 
 void BaseSceneNode::SetRollAngle(float value)
-{		
+{
 	ExtractRotation(rsEulerAngles);
 	_rollAngle = value;
 	ChangedRotation(rsEulerAngles);
@@ -845,12 +845,12 @@ void BaseSceneNode::SetRollAngle(float value)
 
 float BaseSceneNode::GetPitchAngle() const
 {
-	ExtractRotation(rsEulerAngles);	
+	ExtractRotation(rsEulerAngles);
 	return _pitchAngle;
 }
 
 void BaseSceneNode::SetPitchAngle(float value)
-{			
+{
 	ExtractRotation(rsEulerAngles);
 	_pitchAngle = value;
 	ChangedRotation(rsEulerAngles);
@@ -858,7 +858,7 @@ void BaseSceneNode::SetPitchAngle(float value)
 
 float BaseSceneNode::GetTurnAngle() const
 {
-	ExtractRotation(rsEulerAngles);	
+	ExtractRotation(rsEulerAngles);
 	return _turnAngle;
 }
 
@@ -924,14 +924,14 @@ D3DXMATRIX BaseSceneNode::GetRotMat() const
 			D3DXMatrixRotationQuaternion(&_rotMat, &_rot);
 		else
 			if (!_rotInvalidate.test(rsEulerAngles))
-			{				
+			{
 				EulerAngles eulAng = Eul_(-_rollAngle, -_pitchAngle, -_turnAngle, EulOrdXYZs);
 				Eul_ToHMatrix(eulAng, _rotMat.m);
 				//D3DXMatrixRotationYawPitchRoll(&_rotMat, _pitchAngle, _rollAngle, _turnAngle);
 			}
 			else
 				D3DXMatrixIdentity(&_rotMat);
-	
+
 	_rotChanged = false;
 	return _rotMat;
 }
@@ -940,7 +940,7 @@ D3DXMATRIX BaseSceneNode::GetTransMat() const
 {
 	D3DXMATRIX transMat;
 	D3DXMatrixTranslation(&transMat, _position.x, _position.y, _position.z);
-	return transMat;	
+	return transMat;
 }
 
 const D3DXMATRIX& BaseSceneNode::GetMat() const
@@ -953,7 +953,7 @@ void BaseSceneNode::SetLocalMat(const D3DXMATRIX& value)
 {
 	_direction = value.m[0];
 	D3DXVECTOR3 right = value.m[1];
-	_up = value.m[2];	
+	_up = value.m[2];
 	_position = value.m[3];
 
 	D3DXVec3Normalize(&_direction, &_direction);
@@ -965,7 +965,7 @@ void BaseSceneNode::SetLocalMat(const D3DXMATRIX& value)
 
 const D3DXMATRIX& BaseSceneNode::GetInvMat() const
 {
-	ApplyTransformationChanged();		
+	ApplyTransformationChanged();
 	return _invLocalMat;
 }
 
@@ -977,7 +977,7 @@ const D3DXMATRIX& BaseSceneNode::GetWorldMat() const
 
 const D3DXMATRIX& BaseSceneNode::GetInvWorldMat() const
 {
-	ApplyTransformationChanged();		
+	ApplyTransformationChanged();
 	return _invWorldMat;
 }
 
@@ -987,10 +987,10 @@ D3DXMATRIX BaseSceneNode::GetCombMat(CombMatType type) const
 	{
 	case cmtScaleTrans:
 		return GetScaleMat() * GetTransMat();
-		
+
 	case cmtScaleRot:
 		return GetScaleMat() * GetTransMat();
-		
+
 	case cmtRotTrans:
 		return GetRotMat() * GetTransMat();
 
@@ -1009,14 +1009,14 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 		D3DXVECTOR3 vec;
 
 		D3DXMATRIX scaleMat = GetWorldScale();
-		
+
 		D3DXMATRIX transMat;
 		vec = GetWorldPos();
 		D3DXMatrixTranslation(&transMat, vec.x, vec.y, vec.z);
 
 		return scaleMat * transMat;
 	}
-		
+
 	case cmtScaleRot:
 	{
 		D3DXMATRIX scaleMat = GetWorldScale();
@@ -1082,7 +1082,7 @@ void BaseSceneNode::SetWorldRot(const D3DXQUATERNION& value)
 D3DXMATRIX BaseSceneNode::GetWorldScale() const
 {
 	D3DXMATRIX res = IdentityMatrix;
-	D3DXMatrixMultiply(&res, &res, &GetInvWorldMat());	
+	D3DXMatrixMultiply(&res, &res, &GetInvWorldMat());
 
 	const BaseSceneNode* node = this;
 	do
@@ -1090,10 +1090,10 @@ D3DXMATRIX BaseSceneNode::GetWorldScale() const
 		//Применяем опреацию масштабирования
 		D3DXMatrixMultiply(&res, &res, &node->GetScaleMat());
 		//Переводим на уровень трансформации пониже
-		D3DXMatrixMultiply(&res, &res, &node->GetMat());		
+		D3DXMatrixMultiply(&res, &res, &node->GetMat());
 
 		node = node->GetParent();
-			
+
 	}
 	while (node);
 
@@ -1141,11 +1141,11 @@ bool AABBAreEqual(const AABB& bb1, const AABB& bb2)
 const AABB& BaseSceneNode::GetLocalAABB(bool includeChild) const
 {
 	if (_bbChanges.test(bbcStructure) || IsBBDyn())
-	{		
+	{
 		_aabbLocal = LocalDimensions();
-		_bbChanges.reset(bbcStructure);		
+		_bbChanges.reset(bbcStructure);
 	}
-	
+
 	if (includeChild)
 	{
 		if (_bbChanges.test(bbcIncludeChild) || IsNodeBBDyn())
@@ -1202,7 +1202,7 @@ const AABB& BaseSceneNode::GetAABBOfChildren() const
 					childBB.Transform(child->GetMat());
 					_aabbOfChildren.Add(childBB);
 				}
-			}	
+			}
 		}
 		_bbChanges.reset(bbcChild);
 	}
@@ -1259,7 +1259,7 @@ float BaseSceneNode::GetFrame(float time) const
 		return std::min(frame, 1.0f);
 
 	case amRepeat:
-		return frame - static_cast<int>(frame);		
+		return frame - static_cast<int>(frame);
 
 	case amTile:
 		return frame;
@@ -1321,7 +1321,7 @@ void SceneDummy::DoRender(graph::Engine& engine)
 
 
 Camera::Camera(): _changedCI(true)
-{	
+{
 }
 
 void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj, const D3DXCOLOR& colorBB)
@@ -1333,34 +1333,34 @@ void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj,
 	D3DCOLOR linesColor = colorBB;
 
 	VertexPD lines[24];
-	lines[0] = VertexPD(frustumV[0], linesColor);					
-	lines[1] = VertexPD(frustumV[1], linesColor);					
-	lines[2] = VertexPD(frustumV[2], linesColor);					
+	lines[0] = VertexPD(frustumV[0], linesColor);
+	lines[1] = VertexPD(frustumV[1], linesColor);
+	lines[2] = VertexPD(frustumV[2], linesColor);
 	lines[3] = VertexPD(frustumV[3], linesColor);
-						
-	lines[4] = VertexPD(frustumV[4], linesColor);					
-	lines[5] = VertexPD(frustumV[5], linesColor);					
-	lines[6] = VertexPD(frustumV[6], linesColor);					
+
+	lines[4] = VertexPD(frustumV[4], linesColor);
+	lines[5] = VertexPD(frustumV[5], linesColor);
+	lines[6] = VertexPD(frustumV[6], linesColor);
 	lines[7] = VertexPD(frustumV[7], linesColor);
 
 	//near plane
 	lines[8] = VertexPD(frustumV[1], linesColor);
-	lines[9] = VertexPD(frustumV[3], linesColor);					
-	lines[10] = VertexPD(frustumV[3], linesColor);					
+	lines[9] = VertexPD(frustumV[3], linesColor);
+	lines[10] = VertexPD(frustumV[3], linesColor);
 	lines[11] = VertexPD(frustumV[7], linesColor);
-	lines[12] = VertexPD(frustumV[7], linesColor);					
-	lines[13] = VertexPD(frustumV[5], linesColor);					
-	lines[14] = VertexPD(frustumV[5], linesColor);					
+	lines[12] = VertexPD(frustumV[7], linesColor);
+	lines[13] = VertexPD(frustumV[5], linesColor);
+	lines[14] = VertexPD(frustumV[5], linesColor);
 	lines[15] = VertexPD(frustumV[1], linesColor);
 
 	//far plane
 	lines[16] = VertexPD(frustumV[0], linesColor);
-	lines[17] = VertexPD(frustumV[2], linesColor);					
-	lines[18] = VertexPD(frustumV[2], linesColor);					
+	lines[17] = VertexPD(frustumV[2], linesColor);
+	lines[18] = VertexPD(frustumV[2], linesColor);
 	lines[19] = VertexPD(frustumV[6], linesColor);
-	lines[20] = VertexPD(frustumV[6], linesColor);					
-	lines[21] = VertexPD(frustumV[4], linesColor);					
-	lines[22] = VertexPD(frustumV[4], linesColor);					
+	lines[20] = VertexPD(frustumV[6], linesColor);
+	lines[21] = VertexPD(frustumV[4], linesColor);
+	lines[22] = VertexPD(frustumV[4], linesColor);
 	lines[23] = VertexPD(frustumV[0], linesColor);
 
 	engine.GetContext().SetWorldMat(IdentityMatrix);
@@ -1368,9 +1368,9 @@ void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj,
 	engine.GetContext().SetRenderState(graph::rsLighting, false);
 	engine.GetDriver().GetDevice()->SetFVF(VertexPD::fvf);
 
-	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 12, lines, sizeof(VertexPD));	
-	
-	engine.GetContext().RestoreRenderState(graph::rsDiffuseMaterialSource);					
+	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 12, lines, sizeof(VertexPD));
+
+	engine.GetContext().RestoreRenderState(graph::rsDiffuseMaterialSource);
 	engine.GetContext().RestoreRenderState(graph::rsLighting);
 }
 
@@ -1421,7 +1421,7 @@ void Camera::AdjustNearFarPlane(const AABB& aabb, float nearDist, float farDist)
 {
 	BuildContextInfo();
 
-	_contextInfo.AdjustNearFarPlane(aabb, nearDist, farDist);	
+	_contextInfo.AdjustNearFarPlane(aabb, nearDist, farDist);
 	_desc.nearDist = _contextInfo.GetDesc().nearDist;
 	_desc.farDist = _contextInfo.GetDesc().farDist;
 
@@ -1523,7 +1523,7 @@ void Camera::SetStyle(CameraStyle value)
 
 
 LightSource::LightSource(): _changedCI(true)
-{	
+{
 }
 
 LightSource::~LightSource()
@@ -1705,7 +1705,7 @@ void LightSource::SetShadowMap(graph::Tex2DResource* value)
 
 
 SceneManager::SceneManager(): _sceneRender(0)
-{	
+{
 }
 
 SceneManager::~SceneManager()
@@ -1721,7 +1721,7 @@ void SceneManager::Render(graph::Engine& engine)
 	if (_sceneRender)
 		_sceneRender->Render(engine, this);
 	//Рендерим сами, по Forward алгоритму
-	else	
+	else
 		for (Objects::iterator iter = _objects.begin(); iter != _objects.end(); ++iter)
 			(*iter)->Render(engine);
 }
@@ -1754,7 +1754,7 @@ void SceneManager::SetSceneRender(SceneRender* value)
 {
 	if (_sceneRender != value)
 	{
-		if (_sceneRender)		
+		if (_sceneRender)
 			_sceneRender->RemoveScene(this);
 		if (value)
 			value->InsertScene(this);

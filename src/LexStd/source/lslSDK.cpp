@@ -110,7 +110,7 @@ Profiler* Profiler::_i;
 void Win32ThreadPool::QueueWork(UserWork* value, Object* arg, Flags flags)
 {
 	DWORD dwFlags = 0;
-	
+
 	//tfBackground эмулируется с помощью tfLongFunc
 	if (flags.test(tfLongFunc) || flags.test(tfBackground))
 		dwFlags |= WT_EXECUTELONGFUNCTION;
@@ -234,7 +234,7 @@ void Win32SDK::Lock(LockedObj* obj)
 
 void Win32SDK::Unlock(LockedObj* obj)
 {
-	LeaveCriticalSection(reinterpret_cast<RTL_CRITICAL_SECTION*>(GetDataFrom(obj)));	
+	LeaveCriticalSection(reinterpret_cast<RTL_CRITICAL_SECTION*>(GetDataFrom(obj)));
 }
 
 ThreadEvent* Win32SDK::CreateThreadEvent(bool manualReset, bool open, const std::string& name)
@@ -257,7 +257,7 @@ double Win32SDK::GetTimeDbl()
 	__int64 gTime, freq;
 	QueryPerformanceCounter((LARGE_INTEGER*)&gTime);  // Get current count
 	QueryPerformanceFrequency((LARGE_INTEGER*)&freq); // Get processor freq
-	
+
 	return gTime/static_cast<double>(freq);
 }
 
@@ -277,11 +277,11 @@ void Profiler::ResetSample(SampleData& data)
 	data.summDt = 0;
 	data.maxDt = 0.0f;
 	data.minDt = FLT_MAX;
-	data.updated = false;	
+	data.updated = false;
 }
 
 void Profiler::Begin(const lsl::string& name)
-{	
+{
 	Samples::iterator iter = _samples.find(name);
 	if (iter == _samples.end())
 	{
@@ -310,7 +310,7 @@ void Profiler::End()
 
 	iter->second.updated = true;
 	iter->second.dt = dt;
-	iter->second.summDt += dt;	
+	iter->second.summDt += dt;
 	++iter->second.frames;
 
 	if (iter->second.maxDt < dt)

@@ -149,7 +149,7 @@ public:
 	using _MyBase::CheckType;
 	using _MyBase::IsType;
 	using _MyBase::AsType;
-	using _MyBase::Convert;	
+	using _MyBase::Convert;
 
 	using _MyBase::GetData;
 	void SetData(const void* value, unsigned size);
@@ -280,7 +280,7 @@ inline void Variant::AssignData(const void* value, Type type, unsigned count, un
 	_type = type;
 	_count = count;
 }
-	
+
 inline void Variant::AssignData(const void* value, Type type, unsigned count)
 {
 	AssignData(value, type, count, _data ? cTypeSize[_type] : 0, cTypeSize[type]);
@@ -393,7 +393,7 @@ template<class _Type> inline void Variant::Convert(_Type* outVal, unsigned index
 		case vtUInt:
 			outVal[i] = static_cast<const _Type>(IsType<unsigned>()[i + index]);
 			break;
-		
+
 		case vtFloat:
 			outVal[i] = static_cast<const _Type>(IsType<float>()[i + index]);
 			break;

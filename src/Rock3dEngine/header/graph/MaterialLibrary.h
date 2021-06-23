@@ -14,13 +14,13 @@ namespace graph
 class BaseSampler
 {
 public:
-	enum Mode {tmDecal, tmModulate, tmReplace, tmLight, tmDefault};	
+	enum Mode {tmDecal, tmModulate, tmReplace, tmLight, tmDefault};
 	enum Type {st2d = 0, stCube, cSamplerTypeEnd};
 	enum Filtering {sfDefault, sfPoint, sfLinear, sfAnisotropic};
 private:
 	Type _type;
 	lsl::AutoRef<TexResource> _tex;
-	bool _disabled;	
+	bool _disabled;
 	Filtering _filtering;
 	unsigned _filteringLevel;
 
@@ -47,8 +47,8 @@ public:
 	void Apply(Engine& engine, DWORD stage);
 	void UnApply(Engine& engine, DWORD stage);
 
-	Type GetType() const;	
-	
+	Type GetType() const;
+
 	TexResource* GetTex();
 	const TexResource* GetTex() const;
 	IDirect3DBaseTexture9* GetTexSrc();
@@ -83,7 +83,7 @@ private:
 	bool _createTex;
 protected:
 	Sampler(Type type);
-public:	
+public:
 	virtual ~Sampler();
 
 	_Tex* GetTex();
@@ -129,7 +129,7 @@ class Samplers
 {
 private:
 	typedef std::vector<BaseSampler*> Cont;
-	typedef BaseSampler::Type SamplerType;		
+	typedef BaseSampler::Type SamplerType;
 public:
 	typedef lsl::ClassList<SamplerType, BaseSampler, void> ClassList;
 	static ClassList classList;
@@ -186,7 +186,7 @@ public:
 	enum Blending
 	{
 		bmOpaque = 0,
-		bmTransparency, 
+		bmTransparency,
 		bmAdditive
 	};
 	enum AlphaTest
@@ -221,7 +221,7 @@ private:
 	void ApplyBlending(Blending value);
 	void ApplyAlphaTest(AlphaTest mode);
 public:
-	Material();	
+	Material();
 
 	void Apply(Engine& engine);
 	void UnApply(Engine& engine);
@@ -229,7 +229,7 @@ public:
 	const ColorRange& GetAmbient() const;
 	void SetAmbient(const ColorRange& value);
 	const ColorRange& GetDiffuse() const;
-	void SetDiffuse(const ColorRange& value);	
+	void SetDiffuse(const ColorRange& value);
 	const ColorRange& GetEmissive() const;
 	void SetEmissive(const ColorRange& value);
 	const ColorRange& GetSpecular() const;
@@ -325,7 +325,7 @@ template<class _Tex> _Tex* Sampler<_Tex>::GetOrCreateTex()
 		_createTex = true;
 	}
 
-	return GetTex();	
+	return GetTex();
 }
 
 template<class _Tex> void Sampler<_Tex>::SetTex(_Tex* value)

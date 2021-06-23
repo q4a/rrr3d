@@ -13,7 +13,7 @@ void GetSamplesDownScale4x4(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOff
 	float tU = 1.0f / dwWidth;
     float tV = 1.0f / dwHeight;
 
-    // Sample from 4 surrounding points. 
+    // Sample from 4 surrounding points.
     int index = 0;
     for( int y = -1; y < 3; y++ )
     {
@@ -104,7 +104,7 @@ void BloomRender::Render(Engine& engine)
 
 	//Синхонизация c RT
 	_bloomTex.SyncFrom(GetRT());
-	_bloomTex.Init(engine);	
+	_bloomTex.Init(engine);
 
 
 
@@ -114,17 +114,17 @@ void BloomRender::Render(Engine& engine)
 
 	shader.SetValueDir("sampleOffsets4x4", samplerOffsets4x4, sizeof(samplerOffsets4x4));
 	shader.SetTextureDir("colorTex", _colorTex);
-	
+
 	ApplyRT(engine, RtFlags(0, 0));
 	shader.Apply(engine, GetLumTex() ? "techDown4x4BrightPass" :"techDown4x4BrightPassNoLum", 0);
 	DrawScreenQuad(engine);
-	shader.UnApply(engine);	
+	shader.UnApply(engine);
 	UnApplyRT(engine);
-	
-		
 
 
-	//Blur pass	
+
+
+	//Blur pass
 	glm::vec2 offsets4x4[16];
 	glm::vec2 weights4x4[16];
 
@@ -139,13 +139,13 @@ void BloomRender::Render(Engine& engine)
 	shader.SetValueDir("sampleOffsets4x4", samplerOffsets4x4, sizeof(samplerOffsets4x4));
 	shader.SetValueDir("sampleWeights4x4", samplerWeights4x4, sizeof(samplerWeights4x4));
 	shader.SetTextureDir("colorTex", GetRT());
-	
+
 	IDirect3DSurface9* rtSurf;
 	_bloomTex.GetTex()->GetSurfaceLevel(0, &rtSurf);
 	engine.GetDriver().GetDevice()->SetRenderTarget(0, rtSurf);
 
 	shader.Apply(engine, "techBloom", 0);
-	DrawScreenQuad(engine);		
+	DrawScreenQuad(engine);
 	shader.UnApply(engine);
 
 	rtSurf->Release();
@@ -157,17 +157,17 @@ void BloomRender::Render(Engine& engine)
 		samplerWeights4x4[i] = weights4x4[i].y;
 	}
 	shader.SetValueDir("sampleOffsets4x4", samplerOffsets4x4, sizeof(samplerOffsets4x4));
-	shader.SetValueDir("sampleWeights4x4", samplerWeights4x4, sizeof(samplerWeights4x4));	
+	shader.SetValueDir("sampleWeights4x4", samplerWeights4x4, sizeof(samplerWeights4x4));
 	shader.SetTextureDir("colorTex", &_bloomTex);
-	
+
 	GetRT()->GetTex()->GetSurfaceLevel(0, &rtSurf);
 	engine.GetDriver().GetDevice()->SetRenderTarget(0, rtSurf);
 
 	shader.Apply(engine, "techBloom", 0);
-	DrawScreenQuad(engine);		
+	DrawScreenQuad(engine);
 	shader.UnApply(engine);
-	
-	rtSurf->Release();	
+
+	rtSurf->Release();
 }
 
 Tex2DResource* BloomRender::GetColorTex()
@@ -177,7 +177,7 @@ Tex2DResource* BloomRender::GetColorTex()
 
 void BloomRender::SetColorTex(Tex2DResource* value)
 {
-	if (ReplaceRef(_colorTex, value))	
+	if (ReplaceRef(_colorTex, value))
 		_colorTex = value;
 }
 

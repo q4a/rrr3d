@@ -190,7 +190,7 @@ void NetGame::CreateHost(net::INetAcceptorImpl* impl)
 	_isHost = true;
 
 	lsl::appLog.fileName = "appLog.txt";
-	
+
 	netService().StartServer(_port, impl);
 	netPlayer()->MakeModel<NetRace>();
 }
@@ -233,7 +233,7 @@ void NetGame::Close()
 
 	_race = NULL;
 
-	netService().Close();	
+	netService().Close();
 
 	_isHost = false;
 	_isClient = false;

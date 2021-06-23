@@ -22,14 +22,14 @@ namespace game
 class IWorld: public Object
 {
 public:
-	virtual void MainProgress() = 0;	
+	virtual void MainProgress() = 0;
 
 	virtual void ResetInput(bool reset = true) = 0;
 	virtual bool InputWasReset() const = 0;
 
 	virtual void RunGame() = 0;
 	virtual void ExitGame() = 0;
-	
+
 	virtual void RunWorldEdit() = 0;
 	virtual void ExitWorldEdit() = 0;
 

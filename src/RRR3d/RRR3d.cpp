@@ -52,7 +52,7 @@ DWORD GetWndStyles(bool fullScreen)
 	else
 	{
 		return WS_OVERLAPPEDWINDOW | WS_VISIBLE;
-	}	
+	}
 }
 
 DWORD GetExtWndStyles(bool fullScreen)
@@ -71,7 +71,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 {
 	switch (message)
 	{
-	case WM_DESTROY: 
+	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
 
@@ -84,7 +84,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		return 0;
 	}
 
-	case WM_KEYUP:	
+	case WM_KEYUP:
 		OnKeyEvent(wParam, lsl::ksUp, false);
 		return 0;
 
@@ -135,11 +135,11 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 
 		OnMouseMoveEvent(lsl::Point(points.x, points.y), (wParam & MK_SHIFT) ? true : false, (wParam & MK_CONTROL) ? true : false);
 		return 0;
-	}	
+	}
 
 	case WM_SETCURSOR:
 		// Turn off window cursor
-#ifndef _DEBUG	
+#ifndef _DEBUG
 		SetCursor(0);
 #endif
 		return 0;
@@ -171,7 +171,7 @@ int MainLoop()
 	int resetInputFrames = 0;
 
 	while (true)
-	{	
+	{
 		bool inputWasReset = rock3dWorld->InputWasReset();
 
 		if (inputWasReset && (++resetInputFrames) >= 3)
@@ -261,8 +261,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 		wc.lpszClassName = _T("Rock3D");
 		wc.hIconSm       = LoadIcon(hInstance, MAKEINTRESOURCE(108));
 		RegisterClassEx(&wc);
-		mainWindow = CreateWindowEx(GetExtWndStyles(fullScreen), _T("Rock3D"), _T(""), GetWndStyles(fullScreen), pnt.x, pnt.y, rect.right - rect.left, rect.bottom - rect.top, 0, 0, hInstance, 0);		
-				
+		mainWindow = CreateWindowEx(GetExtWndStyles(fullScreen), _T("Rock3D"), _T(""), GetWndStyles(fullScreen), pnt.x, pnt.y, rect.right - rect.left, rect.bottom - rect.top, 0, 0, hInstance, 0);
+
 		r3d::IView::Desc desc;
 		desc.fullscreen = fullScreen;
 		desc.handle = mainWindow;
@@ -270,9 +270,9 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 		rock3dWorld = r3d::CreateWorld(desc, true);
 		rock3dWorld->RunGame();
-		
+
 		lsl::appLog.Append("Run...");
-		
+
 		exitResult = MainLoop();
 
 		lsl::appLog.Append("Terminate...");
@@ -282,7 +282,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	//lsl искл. Автоматически записывается в лог и делает assert
 	catch (const lsl::Error& err)
 	{
-		ErrMessage(err.what());		
+		ErrMessage(err.what());
 	}
 //отключаем стд исключения чтобы точнее поймать их место в дебагере
 #ifndef _DEBUG
@@ -307,7 +307,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	lsl::appLog.Append("Exit");
 	lsl::FileSystem::Release();
 
-#ifdef DEBUG_MEMORY	
+#ifdef DEBUG_MEMORY
 	_CrtMemDumpAllObjectsSince(&_ms);
 	//_CrtDumpMemoryLeaks();
 #endif

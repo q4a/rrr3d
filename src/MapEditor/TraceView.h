@@ -23,7 +23,7 @@ private:
 		CTraceView* _view;
 	public:
 		DelDataFunc(CTraceView* view): _view(view) {}
-		
+
 		bool operator()(HTREEITEM item) const
 		{
 			PntItemData* data = _view->GetPointItemData(item);
@@ -41,7 +41,7 @@ private:
 		r3d::IWayPointRef _point;
 	public:
 		FindItemByPointFunc(CTraceView* view, const r3d::IWayPointRef& point): _view(view), _point(point) {}
-		
+
 		bool operator()(HTREEITEM item) const
 		{
 			PntItemData* data = _view->GetPointItemData(item);
@@ -65,7 +65,7 @@ private:
 		CTraceView* _view;
 	public:
 		DelPathDataFunc(CTraceView* view): _view(view) {}
-		
+
 		bool operator()(HTREEITEM item) const
 		{
 			PathItemData* data = _view->GetPathItemData(item);
@@ -83,7 +83,7 @@ private:
 		r3d::IWayPathRef _path;
 	public:
 		FindItemByPathFunc(CTraceView* view, const r3d::IWayPathRef& path): _view(view), _path(path) {}
-		
+
 		bool operator()(HTREEITEM item) const
 		{
 			PathItemData* data = _view->GetPathItemData(item);
@@ -133,7 +133,7 @@ private:
 		}
 	};
 private:
-	CMapEditorDoc* _mapDoc;	
+	CMapEditorDoc* _mapDoc;
 	MapDocEvent* _mapDocEvent;
 
 	//Функции обновления вида
@@ -148,11 +148,11 @@ private:
 	//
 	void ClearPointList();
 	void UpdatePointList();
-	
+
 	//Список путей
 	void ReleasePathItem(HTREEITEM item);
 	void ReleasePathItems();
-	//	
+	//
 	void InsertNodeItem(const r3d::IWayNodeRef& node, HTREEITEM parent);
 	void InsertPathItem(r3d::IWayPathRef path);
 	void RemovePathItem(HTREEITEM item);
@@ -160,7 +160,7 @@ private:
 	//
 	void ClearPathList();
 	void UpdatePathList();
-	
+
 	//Общие функции
 	void ClearList();
 	void UpdateList();
@@ -177,7 +177,7 @@ private:
 	void SelectPath(HTREEITEM item);
 	void SelectPath(const r3d::IWayPathRef& path);
 	//
-	void SelectNode(HTREEITEM item);	
+	void SelectNode(HTREEITEM item);
 
 	r3d::ITrace* GetTrace();
 	//

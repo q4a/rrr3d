@@ -80,7 +80,7 @@ private:
 
 	typedef std::list<CarData> Cars;
 private:
-	RaceMenu* _raceMenu;	
+	RaceMenu* _raceMenu;
 	int _lastCarIndex;
 	Cars _cars;
 	CarData _carData;
@@ -95,7 +95,7 @@ private:
 	gui::PlaneFon* _headerBg;
 	gui::PlaneFon* _moneyBg;
 	gui::PlaneFon* _stateBg;
-	
+
 	gui::ProgressBar* _speedBar;
 	gui::ProgressBar* _armorBar;
 	gui::ProgressBar* _damageBar;
@@ -129,7 +129,7 @@ protected:
 	virtual void OnShow(bool value);
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 
 	Garage::Car* car();
 	D3DXCOLOR color();
@@ -158,7 +158,7 @@ private:
 		gui::PlaneFon* chargeBox;
 		gui::ProgressBar* chargeBar;
 		gui::Button* chargeButton;
-		gui::PlaneFon* slotIcon;		
+		gui::PlaneFon* slotIcon;
 	};
 
 	struct DragItem
@@ -172,7 +172,7 @@ private:
 
 	static const int cUndefInfo = -1;
 	static const int cGoodInfo = 0;
-	static const int cSlotInfo = 1;	
+	static const int cSlotInfo = 1;
 private:
 	RaceMenu* _raceMenu;
 	int _goodScroll;
@@ -181,19 +181,19 @@ private:
 	gui::Widget* _overGood;
 	gui::Widget* _overGood2;
 	int _infoId;
-	int _numSelectedSlots;	
+	int _numSelectedSlots;
 
 	gui::Button* _menuItems[cMenuItemEnd];
 	gui::Label* _labels[cLabelEnd];
 
 	gui::PlaneFon* _bottomPanel;
 	gui::PlaneFon* _topPanel;
-	gui::PlaneFon* _leftPanel;	
+	gui::PlaneFon* _leftPanel;
 	gui::PlaneFon* _moneyBg;
-	gui::PlaneFon* _stateBg;	
+	gui::PlaneFon* _stateBg;
 	gui::Grid* _goodGrid;
 	gui::Button* _downArrow;
-	gui::Button* _upArrow;	
+	gui::Button* _upArrow;
 
 	gui::ProgressBar* _speedBar;
 	gui::ProgressBar* _armorBar;
@@ -208,7 +208,7 @@ private:
 	gui::ViewPort3d* AddGood(Slot* slot, int index, int count);
 	void UpdateGoods();
 	void AdjustGood();
-	void ScrollGood(int step);	
+	void ScrollGood(int step);
 
 	void StartDrag(Slot* slot, Player::SlotType slotType, int chargeCount);
 	bool StopDrag(bool dropOut, bool intoGood);
@@ -233,7 +233,7 @@ private:
 	void ShowInfo(Slot* slot, int cost, gui::Widget* sender, const glm::vec2& slotSize, int infoId);
 	void ShowInfo(Slot* slot, gui::Widget* sender, const glm::vec2& slotSize, int infoId);
 	void HideInfo(int infoId);
-	bool UpdateSlotInfo(gui::Widget* sender, const SlotBox& slotBox, Slot* slot, Player::SlotType type);	
+	bool UpdateSlotInfo(gui::Widget* sender, const SlotBox& slotBox, Slot* slot, Player::SlotType type);
 
 	void UpdateStats();
 	void UpdateBonusStats(Player::SlotType type, Slot* slot);
@@ -261,12 +261,12 @@ public:
 
 class GamersFrame: public MenuFrame, IGameUser
 {
-private:	
+private:
 	enum Label {mlInfo, mlName, mlBonus, cLabelEnd};
 private:
 	RaceMenu* _raceMenu;
 	int _planetIndex;
-	
+
 	gui::Label* _labels[cLabelEnd];
 
 	gui::PlaneFon* _bottomPanel;
@@ -285,7 +285,7 @@ private:
 	void NextPlanet();
 	int GetNextPlanetIndex(int sIndex);
 	int GetPrevPlanetIndex(int sIndex);
-protected:	
+protected:
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
@@ -306,15 +306,15 @@ private:
 
 	struct PlanetBox
 	{
-		gui::ViewPort3d* viewport;		
+		gui::ViewPort3d* viewport;
 		gui::Button* slot;
 		gui::Dummy* slotClip;
 		gui::PlaneFon* doorDown;
-		gui::PlaneFon* doorUp;		
+		gui::PlaneFon* doorUp;
 	};
 	typedef std::vector<PlanetBox> Planets;
 private:
-	RaceMenu* _raceMenu;	
+	RaceMenu* _raceMenu;
 	int _planetIndex;
 	int _planetPrevIndex;
 	float _doorTime;
@@ -323,14 +323,14 @@ private:
 	gui::Label* _labels[cLabelEnd];
 
 	gui::Dummy* _bottomPanelBg;
-	gui::PlaneFon* _bottomPanel;	
+	gui::PlaneFon* _bottomPanel;
 	gui::Grid* _planetGridBg;
 	gui::Grid* _planetGrid;
 	gui::PlaneFon* _planetInfo;
 	gui::Button* _planetInfoClose;
-	gui::PlaneFon* _planetBoss;	
+	gui::PlaneFon* _planetBoss;
 	gui::ViewPort3d* _planetBossCar;
-	Planets _planets;	
+	Planets _planets;
 
 	PlanetBox& AddPlanet(Planet* car, int index);
 	void UpdatePlanets();
@@ -371,8 +371,8 @@ private:
 
 	typedef std::vector<AchievmentBox> Achievments;
 private:
-	RaceMenu* _raceMenu;	
-	
+	RaceMenu* _raceMenu;
+
 	gui::Button* _menuItems[cMenuItemEnd];
 	gui::Label* _labels[cLabelEnd];
 
@@ -405,7 +405,7 @@ class RaceMainFrame: public MenuFrame
 {
 private:
 	enum MenuItem {miStartRace = 0, miWorkshop, miGarage, miSpace, miAchivments, miOptions, miExit, cMenuItemEnd};
-	enum Label {mlPlayer = 0, mlPassing, mlTournamet, mlWeapons, mlBoss, mlMoney, mlPassInfo, mlTournamentInfo, cLabelEnd};	
+	enum Label {mlPlayer = 0, mlPassing, mlTournamet, mlWeapons, mlBoss, mlMoney, mlPassInfo, mlTournamentInfo, cLabelEnd};
 
 	struct PlayerBox
 	{
@@ -414,7 +414,7 @@ private:
 		gui::PlaneFon* photo;
 		gui::Label* name;
 		gui::Label* readyLabel;
-		gui::Button* kick;		
+		gui::Button* kick;
 		gui::PlaneFon* readyState;
 		gui::ViewPort3d* viewportCar;
 
@@ -448,17 +448,17 @@ private:
 	gui::Dummy* _playerGrid;
 	Players _players;
 
-	void RaceRady(bool ready);	
+	void RaceRady(bool ready);
 
 	PlayerBox* AddPlayer(NetPlayer* netPlayer, unsigned index);
 	void AdjustPlayer(PlayerBox* box, bool invert);
 	void UpdatePlayers();
-protected:	
+protected:
 	virtual void OnShow(bool value);
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
 	RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent);
 	virtual ~RaceMainFrame();
@@ -471,7 +471,7 @@ public:
 class RaceMenu: INetGameUser, gui::Widget::Event, IGameUser
 {
 public:
-	enum State {msMain = 0, msGarage, msWorkshop, msGamers, msAngar, msAchievments, cStateEnd};	
+	enum State {msMain = 0, msGarage, msWorkshop, msGamers, msAngar, msAchievments, cStateEnd};
 private:
 	Menu* _menu;
 	Player* _player;
@@ -488,7 +488,7 @@ private:
 	GamersFrame* _gamers;
 	AngarFrame* _angarFrame;
 	AchievmentFrame* _achievmentFrame;
-	
+
 	void ApplyState(State state);
 protected:
 	virtual void OnProcessEvent(unsigned id, EventData* data);
@@ -516,7 +516,7 @@ public:
 
 	Player* GetPlayer();
 	gui::Widget* GetRoot();
-	
+
 	State GetState() const;
 	void SetState(State value);
 

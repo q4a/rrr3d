@@ -59,7 +59,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 
 CMapEditorApp::CMapEditorApp(): _activeView(0), _world(0), _enableRender(true)
 {
-	m_bHiColorIcons = TRUE;	
+	m_bHiColorIcons = TRUE;
 }
 
 void CMapEditorApp::InitR3D(CView* view)
@@ -67,7 +67,7 @@ void CMapEditorApp::InitR3D(CView* view)
 	r3d::IView::Desc desc;
 	desc.fullscreen = false;
 	desc.handle = view->GetSafeHwnd();
-	desc.resolution = r3d::Point(800, 600);	
+	desc.resolution = r3d::Point(800, 600);
 
 	if (!_world)
 	{

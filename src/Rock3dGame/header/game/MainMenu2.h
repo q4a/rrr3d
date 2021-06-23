@@ -15,7 +15,7 @@ class MainMenu;
 
 class GameModeFrame: public MenuFrame
 {
-private:	
+private:
 	enum MenuItem {miChampionship = 0, miSkirmish, miBack, cMenuItemEnd};
 private:
 	MainMenu* _mainMenu;
@@ -23,7 +23,7 @@ protected:
 	virtual void OnShow(bool value);
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
-	GameModeFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent);	
+	GameModeFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent);
 };
 
 class DifficultyFrame: public MenuFrame, IGameUser
@@ -38,13 +38,13 @@ protected:
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:
-	DifficultyFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent);	
+	DifficultyFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent);
 	virtual ~DifficultyFrame();
 };
 
 class NetBrowserFrame: public MenuFrame, INetGameUser
 {
-private:	
+private:
 	enum MenuItem {miBack, cMenuItemEnd};
 private:
 	MainMenu* _mainMenu;
@@ -53,7 +53,7 @@ private:
 	gui::Label* _info;
 	gui::Grid* _grid;
 	gui::Button* _downArrow;
-	gui::Button* _upArrow;	
+	gui::Button* _upArrow;
 
 	void UpdateGrid();
 	void AdjustGrid(const glm::vec2& vpSize);
@@ -75,7 +75,7 @@ public:
 
 class NetIPAddressFrame: public MenuFrame, ControlEvent
 {
-private:	
+private:
 	enum MenuItem {miConnect, miBack, cMenuItemEnd};
 	enum Label {mlIPAdress, mlInfo, cLabelEnd};
 private:
@@ -100,7 +100,7 @@ public:
 
 class LobbyFrame: public MenuFrame, IGameUser
 {
-private:	
+private:
 	enum MenuItem {miStart, miBack, cMenuItemEnd};
 private:
 	MainMenu* _mainMenu;
@@ -109,7 +109,7 @@ private:
 	gui::Label* _info;
 	gui::Grid* _grid;
 	gui::Button* _downArrow;
-	gui::Button* _upArrow;	
+	gui::Button* _upArrow;
 
 	void UpdateGrid();
 	void AdjustGrid(const glm::vec2& vpSize);
@@ -121,7 +121,7 @@ protected:
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);		
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:
@@ -131,7 +131,7 @@ public:
 
 class MatchmakingFrame: public MenuFrame, IGameUser
 {
-private:	
+private:
 	enum MenuItem {miBack, cMenuItemEnd};
 private:
 	MainMenu* _mainMenu;
@@ -140,7 +140,7 @@ private:
 	gui::Label* _info;
 	gui::Grid* _grid;
 	gui::Button* _downArrow;
-	gui::Button* _upArrow;	
+	gui::Button* _upArrow;
 
 	void UpdateGrid();
 	void AdjustGrid(const glm::vec2& vpSize);
@@ -152,7 +152,7 @@ protected:
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);		
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:
@@ -162,7 +162,7 @@ public:
 
 class SteamBrowserFrame: public MenuFrame, IGameUser, INetGameUser
 {
-private:	
+private:
 	enum MenuItem {miBack, cMenuItemEnd};
 private:
 	MainMenu* _mainMenu;
@@ -171,7 +171,7 @@ private:
 	gui::Label* _info;
 	gui::Grid* _grid;
 	gui::Button* _downArrow;
-	gui::Button* _upArrow;	
+	gui::Button* _upArrow;
 
 	void UpdateGrid();
 	void AdjustGrid(const glm::vec2& vpSize);
@@ -183,7 +183,7 @@ protected:
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);		
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 
@@ -200,8 +200,8 @@ public:
 
 class ServerTypeFrame: public MenuFrame
 {
-private:	
-	enum MenuItem {miLocal = 0, 
+private:
+	enum MenuItem {miLocal = 0,
 #ifdef STEAM_SERVICE
 	#ifndef _RETAIL
 		miSteam,
@@ -215,13 +215,13 @@ protected:
 	virtual void OnShow(bool value);
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
-	ServerTypeFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent);	
+	ServerTypeFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent);
 };
 
 class ClientTypeFrame: public MenuFrame
 {
-private:	
-	enum MenuItem {miConnectLan, miConnectIP, 
+private:
+	enum MenuItem {miConnectLan, miConnectIP,
 #ifdef STEAM_SERVICE
 	#ifndef _RETAIL
 		miConnectSteam, miConnectSteamLan,
@@ -240,7 +240,7 @@ public:
 
 class NetworkFrame: public MenuFrame
 {
-private:	
+private:
 	enum MenuItem {miCreate = 0, miConnect, miBack, cMenuItemEnd};
 	enum Label {mlIPAdress, cLabelEnd};
 private:
@@ -248,8 +248,8 @@ private:
 
 	gui::Label* _labels[cLabelEnd];
 protected:
-	virtual void OnShow(bool value);		
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);		
+	virtual void OnShow(bool value);
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
 	NetworkFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent);
 	virtual ~NetworkFrame();
@@ -259,7 +259,7 @@ public:
 
 class TournamentFrame: public MenuFrame
 {
-private:	
+private:
 	enum MenuItem {miContinue = 0, miNewGame, miLoad, miBack, cMenuItemEnd};
 private:
 	MainMenu* _mainMenu;
@@ -272,7 +272,7 @@ public:
 
 class CreditsFrame: public MenuFrame
 {
-private:	
+private:
 	enum MenuItem {miBack, cMenuItemEnd};
 private:
 	MainMenu* _mainMenu;
@@ -292,7 +292,7 @@ public:
 
 class ProfileFrame: public MenuFrame
 {
-private:	
+private:
 	enum MenuItem {miBack, cMenuItemEnd};
 private:
 	MainMenu* _mainMenu;
@@ -300,12 +300,12 @@ private:
 
 	gui::Grid* _grid;
 	gui::Button* _downArrow;
-	gui::Button* _upArrow;	
+	gui::Button* _upArrow;
 
 	void AdjustGrid(const glm::vec2& vpSize);
 	void ScrollGrid(int step);
 	void UpdateGrid();
-protected:	
+protected:
 	virtual void OnShow(bool value);
 	virtual void OnInvalidate();
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
@@ -318,11 +318,11 @@ public:
 
 class MainFrame: public MenuFrame
 {
-private:	
+private:
 	enum MenuItem {miSingle = 0, miNetwork, miOptions, miAuthors, miExit, cMenuItemEnd};
 private:
 	MainMenu* _mainMenu;
-protected:	
+protected:
 	virtual void OnShow(bool value);
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
@@ -356,12 +356,12 @@ private:
 	Race::Profile* _steamHostProfile;
 	bool _steamHostStarting;
 	bool _steamConnecting;
-	
+
 	MainFrame* _mainFrame;
 	GameModeFrame* _gameMode;
 	NetBrowserFrame* _netBrowser;
 	NetworkFrame* _network;
-	ProfileFrame* _profile;	
+	ProfileFrame* _profile;
 	TournamentFrame* _tournament;
 	CreditsFrame* _credits;
 	DifficultyFrame* _difficultyFrame;
@@ -382,7 +382,7 @@ private:
 	virtual void OnDisconnected(net::INetConnection* sender);
 	virtual void OnConnectionFailed(net::INetConnection* sender, unsigned error);
 	virtual void OnConnectedPlayer(NetPlayer* sender);
-	virtual void OnDisconnectedPlayer(NetPlayer* sender);	
+	virtual void OnDisconnectedPlayer(NetPlayer* sender);
 public:
 	MainMenu(Menu* menu, gui::Widget* parent);
 	virtual ~MainMenu();

@@ -13,7 +13,7 @@ class GameObject;
 class MapObj;
 class Player;
 
-enum GameObjType 
+enum GameObjType
 {
 	gotGameObj = 0,
 
@@ -77,7 +77,7 @@ public:
 private:
 	Category _category;
 protected:
-	virtual Record* CreateRecord(const Record::Desc& desc);	
+	virtual Record* CreateRecord(const Record::Desc& desc);
 public:
 	MapObjLib(Category category, lsl::SerialNode* rootSrc);
 
@@ -117,7 +117,7 @@ private:
 
 	MapObjRec* _record;
 	//Указывает что загрузка ведется из деск установленного в SetDesc, т.е. загружаться должна уже source часть
-	bool _loadFromRecord;	
+	bool _loadFromRecord;
 
 	void CreateGameObj();
 protected:
@@ -184,7 +184,7 @@ private:
 	void UnlockCont();
 	bool IsContLocked() const;
 
-	void SpecialListChanged(const Value& value, bool remove);	
+	void SpecialListChanged(const Value& value, bool remove);
 protected:
 	virtual void InsertItem(const Value& value);
 	virtual void RemoveItem(const Value& value);
@@ -196,7 +196,7 @@ public:
 	MapObjects(GameObject* owner);
 
 	void Death(int damageType, GameObject* target);
-	
+
 	void OnProgress(float deltaTime);
 	void OnProgressSpecial(float deltaTime);
 
@@ -209,7 +209,7 @@ public:
 		MapObj::ClassList::MyClassInst* classInst = MapObj::classList.FindByClass<_Class>();
 		if (!classInst)
 			throw lsl::Error("MapObject& Add(const std::string& name)");
-		
+
 		return Add(classInst->GetKey(), baseName);
 	}
 
@@ -237,11 +237,11 @@ template<class _Class> _Class& MapObj::GetGameObj()
 template<class _Class> _Class& MapObj::SetGameObj()
 {
 	LSL_ASSERT(_classList);
-	
+
 	ClassList::MyClassInst* classInst = _classList->FindByClass<_Class>();
 	if (!classInst)
 		throw lsl::Error("MapObject::SetGameObj()");
-		
+
 	return lsl::StaticCast<_Class&>(SetGameObj(classInst->GetKey()));
 }
 

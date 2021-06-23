@@ -5,7 +5,7 @@ namespace r3d
 
 namespace edit
 {
-	
+
 class IMapContr: public Object
 {
 public:

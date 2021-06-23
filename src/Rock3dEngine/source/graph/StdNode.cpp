@@ -54,7 +54,7 @@ const D3DXMATRIX& MaterialNode::GetMatrix() const
 
 void MaterialNode::Begin(Engine& engine)
 {
-	engine.GetContext().SetColor(_color);	
+	engine.GetContext().SetColor(_color);
 
 	if (!_defMat)
 		engine.GetContext().PushTextureTransform(0, GetMatrix());
@@ -346,7 +346,7 @@ void IVBMeshNode::DoRender(Engine& engine)
 	//engine.GetContext().SetRenderState(graph::rsFillMode, D3DFILL_WIREFRAME);
 
 	_mesh->Init(engine);
-	
+
 	int curMeshId = engine.GetContext().GetMeshId() != -1 ? engine.GetContext().GetMeshId() : _meshId;
 	int meshIgnore = (curMeshId != -1 && (curMeshId & ContextInfo::cMeshIdIgnore)) ? (curMeshId & ~ContextInfo::cMeshIdIgnore) : -1;
 	if (meshIgnore >= 0)
@@ -385,7 +385,7 @@ void IVBMeshNode::DoRender(Engine& engine)
 		do
 		{
 			engine.BeginDraw();
-			
+
 			if (meshId < 0)
 			{
 				if (meshIgnore < 0)
@@ -403,7 +403,7 @@ void IVBMeshNode::DoRender(Engine& engine)
 				if (meshId < 0 && i == cntPass - 1)
 					for (int j = i + 1; j < numFaceGr; ++j)
 						_mesh->DrawSubset(j);
-			}			
+			}
 		}
 		while (!engine.EndDraw(true));
 
@@ -426,7 +426,7 @@ void IVBMeshNode::Save(lsl::SWriter* writer)
 
 void IVBMeshNode::Load(lsl::SReader* reader)
 {
-	_MyBase::Load(reader);	
+	_MyBase::Load(reader);
 
 	reader->ReadRef("mesh", true, this, 0);
 	reader->ReadValue("meshId", _meshId);
@@ -440,7 +440,7 @@ void IVBMeshNode::OnFixUp(const FixUpNames& fixUpNames)
 
 	for (FixUpNames::const_iterator iter = fixUpNames.begin(); iter != fixUpNames.end(); ++iter)
 	{
-		if (iter->name == "mesh")	
+		if (iter->name == "mesh")
 		{
 			SetMesh(static_cast<graph::IndexedVBMesh*>(iter->collItem));
 			break;
@@ -467,7 +467,7 @@ AABB IVBMeshNode::LocalDimensions() const
 
 	D3DXVECTOR3 min = NullVector;
 	D3DXVECTOR3 max = NullVector;
-	if (_meshId < 0)	
+	if (_meshId < 0)
 	{
 		min = _mesh->GetMinPos();
 		max = _mesh->GetMaxPos();
@@ -481,7 +481,7 @@ AABB IVBMeshNode::LocalDimensions() const
 
 		bool bMin = false;
 		bool bMax = false;
-		for (int i = 0; i < fg.faceCnt; ++i)		
+		for (int i = 0; i < fg.faceCnt; ++i)
 			for (int j = 0; j < 3; ++j)
 			{
 				unsigned ind = _mesh->GetData()->fb.GetIndex(fg.sFace + i, j);
@@ -611,7 +611,7 @@ void MeshXNode::DoRender(Engine& engine)
 				if (meshId < 0 && i == cntPass - 1)
 					for (int j = i + 1; j < numFaceGr; ++j)
 						_mesh->DrawSubset(j);
-			}			
+			}
 		}
 		while (!engine.EndDraw(true));
 
@@ -634,7 +634,7 @@ void MeshXNode::Save(lsl::SWriter* writer)
 
 void MeshXNode::Load(lsl::SReader* reader)
 {
-	_MyBase::Load(reader);	
+	_MyBase::Load(reader);
 
 	reader->ReadRef("mesh", true, this, 0);
 	reader->ReadValue("meshId", _meshId);
@@ -673,7 +673,7 @@ AABB MeshXNode::LocalDimensions() const
 
 	D3DXVECTOR3 min = NullVector;
 	D3DXVECTOR3 max = NullVector;
-	if (_meshId < 0)	
+	if (_meshId < 0)
 	{
 		min = _mesh->GetMinPos();
 		max = _mesh->GetMaxPos();
@@ -687,7 +687,7 @@ AABB MeshXNode::LocalDimensions() const
 
 		bool bMin = false;
 		bool bMax = false;
-		for (int i = 0; i < fg.faceCnt; ++i)		
+		for (int i = 0; i < fg.faceCnt; ++i)
 			for (int j = 0; j < 3; ++j)
 			{
 				unsigned ind = _mesh->GetData()->fb.GetIndex(fg.sFace + i, j);
@@ -763,7 +763,7 @@ PlaneNode::PlaneNode(): _size(1.0f, 1.0f)
 }
 
 PlaneNode::~PlaneNode()
-{	
+{
 }
 
 void PlaneNode::UpdateMesh()
@@ -795,9 +795,9 @@ AABB PlaneNode::LocalDimensions() const
 void PlaneNode::Save(lsl::SWriter* writer)
 {
 	_MyBase::Save(writer);
-	
+
 	lsl::SWriteValue(writer, "size", _size);
-	
+
 	material.Save(writer, this);
 }
 
@@ -842,12 +842,12 @@ Box::Box()
 
 void Box::RenderBox(Engine& engine)
 {
-	D3DXVECTOR3 vertBuf[72] = 
+	D3DXVECTOR3 vertBuf[72] =
 	{
 		//
 		D3DXVECTOR3(-0.5f, -0.5f, -0.5f), -ZVector,
 		D3DXVECTOR3(0.5f, 0.5f, -0.5f),   -ZVector,
-		D3DXVECTOR3(0.5f, -0.5f, -0.5f),  -ZVector,		
+		D3DXVECTOR3(0.5f, -0.5f, -0.5f),  -ZVector,
 		D3DXVECTOR3(-0.5f, -0.5f, -0.5f), -ZVector,
 		D3DXVECTOR3(-0.5f, 0.5f, -0.5f),  -ZVector,
 		D3DXVECTOR3(0.5f, 0.5f, -0.5f),   -ZVector,
@@ -855,7 +855,7 @@ void Box::RenderBox(Engine& engine)
 		//
 		D3DXVECTOR3(-0.5f, -0.5f, 0.5f), ZVector,
 		D3DXVECTOR3(0.5f, -0.5f, 0.5f),  ZVector,
-		D3DXVECTOR3(0.5f, 0.5f, 0.5f),   ZVector,		
+		D3DXVECTOR3(0.5f, 0.5f, 0.5f),   ZVector,
 		D3DXVECTOR3(-0.5f, -0.5f, 0.5f), ZVector,
 		D3DXVECTOR3(0.5f, 0.5f, 0.5f),   ZVector,
 		D3DXVECTOR3(-0.5f, 0.5f, 0.5f),  ZVector,
@@ -863,7 +863,7 @@ void Box::RenderBox(Engine& engine)
 		//
 		D3DXVECTOR3(-0.5f, -0.5f, -0.5f), -YVector,
 		D3DXVECTOR3(0.5f, -0.5f, -0.5f),  -YVector,
-		D3DXVECTOR3(0.5f, -0.5f, 0.5f),   -YVector,		
+		D3DXVECTOR3(0.5f, -0.5f, 0.5f),   -YVector,
 		D3DXVECTOR3(-0.5f, -0.5f, -0.5f), -YVector,
 		D3DXVECTOR3(0.5f, -0.5f, 0.5f),   -YVector,
 		D3DXVECTOR3(-0.5f, -0.5f, 0.5f),  -YVector,
@@ -871,14 +871,14 @@ void Box::RenderBox(Engine& engine)
 		//
 		D3DXVECTOR3(0.5f, 0.5f, -0.5f),  YVector,
 		D3DXVECTOR3(-0.5f, 0.5f, -0.5f), YVector,
-		D3DXVECTOR3(-0.5f, 0.5f, 0.5f),  YVector,		
+		D3DXVECTOR3(-0.5f, 0.5f, 0.5f),  YVector,
 		D3DXVECTOR3(0.5f, 0.5f, -0.5f),  YVector,
 		D3DXVECTOR3(-0.5f, 0.5f, 0.5f),  YVector,
 		D3DXVECTOR3(0.5f, 0.5f, 0.5f),  YVector,
 
 		D3DXVECTOR3(-0.5f, 0.5f, -0.5f),  -XVector,
 		D3DXVECTOR3(-0.5f, -0.5f, -0.5f), -XVector,
-		D3DXVECTOR3(-0.5f, -0.5f, 0.5f),  -XVector,		
+		D3DXVECTOR3(-0.5f, -0.5f, 0.5f),  -XVector,
 		D3DXVECTOR3(-0.5f, 0.5f, -0.5f),  -XVector,
 		D3DXVECTOR3(-0.5f, -0.5f, 0.5f),  -XVector,
 		D3DXVECTOR3(-0.5f, 0.5f, 0.5f),   -XVector,
@@ -886,7 +886,7 @@ void Box::RenderBox(Engine& engine)
 		//
 		D3DXVECTOR3(0.5f, -0.5f, -0.5f), XVector,
 		D3DXVECTOR3(0.5f, 0.5f, -0.5f),  XVector,
-		D3DXVECTOR3(0.5f, 0.5f, 0.5f),   XVector,		
+		D3DXVECTOR3(0.5f, 0.5f, 0.5f),   XVector,
 		D3DXVECTOR3(0.5f, -0.5f, -0.5f), XVector,
 		D3DXVECTOR3(0.5f, 0.5f, 0.5f),   XVector,
 		D3DXVECTOR3(0.5f, -0.5f, 0.5f),  XVector
@@ -918,7 +918,7 @@ AABB Box::LocalDimensions() const
 void Box::Save(lsl::SWriter* writer)
 {
 	_MyBase::Save(writer);
-	
+
 	material.Save(writer, this);
 }
 
@@ -982,7 +982,7 @@ void Cylinder::SetColor(const D3DXCOLOR& value)
 }
 
 Sprite::Sprite(): sizes(IdentityVec2), fixDirection(false)
-{	
+{
 }
 
 void Sprite::DoRender(Engine& engine)
@@ -994,7 +994,7 @@ void Sprite::DoRender(Engine& engine)
 
 	material.UnApply(engine);
 }
-	
+
 AABB Sprite::LocalDimensions() const
 {
 	if (fixDirection)
@@ -1005,17 +1005,17 @@ AABB Sprite::LocalDimensions() const
 
 		return AABB(-max, max);
 	}
-	else	
+	else
 		return AABB(1.0f * glm::length(sizes));
 }
 
 void Sprite::Save(lsl::SWriter* writer)
 {
 	_MyBase::Save(writer);
-	
+
 	writer->WriteValue("sizes", reinterpret_cast<const float *>(&sizes.x), 2);
 	writer->WriteValue("fixDirection", fixDirection);
-		
+
 	material.Save(writer, this);
 }
 
@@ -1025,7 +1025,7 @@ void Sprite::Load(lsl::SReader* reader)
 
 	reader->ReadValue("sizes", reinterpret_cast<float *>(&sizes.x), 2);
 	reader->ReadValue("fixDirection", fixDirection);
-	
+
 	material.Load(reader, this);
 }
 
@@ -1091,7 +1091,7 @@ MovCoordSys::MovCoordSys(): _curMove(dmNone)
 
 MovCoordSys::~MovCoordSys()
 {
-	for (int i = 0; i < 3; ++i)	
+	for (int i = 0; i < 3; ++i)
 		delete _arrows[i];
 }
 
@@ -1148,7 +1148,7 @@ void MovCoordSys::DoRender(Engine& engine)
 	typedef D3DXVECTOR3 AxePlane[4];
 
 	const DirMove planeMoves[3] = {dmXY, dmXZ, dmYZ};
-	
+
 	//Вершины плоскости
 	const AxePlane cXYPlaneV = {NullVector, XVector, XVector + YVector, YVector};
 	const AxePlane cXZPlaneV = {NullVector, XVector, XVector + ZVector, ZVector};
@@ -1160,7 +1160,7 @@ void MovCoordSys::DoRender(Engine& engine)
 		D3DXCOLOR col1;
 		D3DXCOLOR col2;
 	} cPlanes[3] = {{&cXYPlaneV, clrRed, clrGreen}, {&cXZPlaneV, clrRed, clrBlue}, {&cYZPlaneV, clrGreen, clrBlue}};
-	
+
 	//Выеделенные оси
 	const bool isAxe[3] = {_curMove == dmXY || _curMove == dmXZ || _curMove == dmX, _curMove == dmXY || _curMove == dmYZ || _curMove == dmY, _curMove == dmXZ || _curMove == dmYZ || _curMove == dmZ};
 
@@ -1204,7 +1204,7 @@ void MovCoordSys::DoRender(Engine& engine)
 	engine.GetContext().SetRenderState(graph::rsZWriteEnable, false);
 	engine.GetContext().SetRenderState(graph::rsZEnable, false);
 	engine.GetContext().SetRenderState(graph::rsLighting, false);
-	
+
 	//Рисуем линии
 	engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 9, lines, sizeof(res::VertexPD));
@@ -1225,7 +1225,7 @@ void MovCoordSys::DoRender(Engine& engine)
 	}
 
 	//Рисуем конусы осей
-	for (int i = 0; i < 3; ++i)	
+	for (int i = 0; i < 3; ++i)
 		_arrows[i]->Render(engine);
 
 	engine.GetContext().RestoreRenderState(graph::rsLighting);
@@ -1273,7 +1273,7 @@ ScaleCoordSys::~ScaleCoordSys()
 
 void ScaleCoordSys::CompBBPlanes(const D3DXVECTOR3& camPos, D3DXVECTOR3* bbPlanes)
 {
-	for (int i = 0; i < 3; ++i)	
+	for (int i = 0; i < 3; ++i)
 		bbPlanes[i] = camPos[i] > 0 ? arUp[i] : -arUp[i];
 }
 
@@ -1325,7 +1325,7 @@ void ScaleCoordSys::DoRender(Engine& engine)
 
 	D3DXVECTOR3 bbPlanes[3];
 	CompBBPlanes(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos(), bbPlanes);
-	
+
 	D3DXVECTOR3 plLine[3];
 	for (int i = 0; i < 3; ++i)
 		plLine[i] = bbPlanes[i] * plSize;
@@ -1334,7 +1334,7 @@ void ScaleCoordSys::DoRender(Engine& engine)
 	for (int i = 0; i < 3; ++i)
 		plCol[i] = (_curMove == axeMoves[i]) ? colSel : arCol[i];
 
-	const res::VertexPD lines[18] = 
+	const res::VertexPD lines[18] =
 	{
 		//Линии осей
 		res::VertexPD(NullVector, plCol[0]), res::VertexPD(bbPlanes[0] * arSize, plCol[0]),
@@ -1349,14 +1349,14 @@ void ScaleCoordSys::DoRender(Engine& engine)
 		res::VertexPD(plLine[2], arCol[2]), res::VertexPD(0.5f * (plLine[2] + plLine[0]), arCol[2])
 	};
 	//Вершины размерной плоскости
-	const res::VertexPD plVertex[3] = 
+	const res::VertexPD plVertex[3] =
 	{
 		res::VertexPD(plLine[0], colSel),
 		res::VertexPD(plLine[1], colSel),
 		res::VertexPD(plLine[2], colSel)
 	};
 	//Позиции спрайтов
-	for (int i = 0; i < 3; ++i)	
+	for (int i = 0; i < 3; ++i)
 		_arrows[i]->SetPos(bbPlanes[i] * arSize);
 
 	engine.GetContext().SetRenderState(graph::rsZWriteEnable, false);
@@ -1379,7 +1379,7 @@ void ScaleCoordSys::DoRender(Engine& engine)
 	engine.GetContext().RestoreRenderState(graph::rsLighting);
 
 	//Рисуем конусы осей
-	for (int i = 0; i < 3; ++i)	
+	for (int i = 0; i < 3; ++i)
 		_arrows[i]->Render(engine);
 
 	engine.GetContext().RestoreRenderState(graph::rsZWriteEnable);
@@ -1441,18 +1441,18 @@ void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, flo
 	unsigned topVCnt = isTop * slices + 1;
 	unsigned botFCnt = isBot * slices;
 	unsigned topFCnt = isTop * slices;
-	
+
 	unsigned sz = sizeof(res::VertexPD);
 	mesh.vb.SetFormat(res::VertexData::vtPos3);
 	mesh.vb.SetFormat(res::VertexData::vtColor);
-	
+
 	mesh.vb.SetVertexCount(botVCnt + topVCnt);
 	mesh.vb.Init();
 	res::VertexPD* vertex = reinterpret_cast<res::VertexPD*>(mesh.vb.GetData());
 
 	mesh.fb.SetIndexFormat(D3DFMT_INDEX16);
 	mesh.fb.SetFaceCount(slices * (1 + (isTop && isBot)) + botFCnt + topFCnt);
-	mesh.fb.Init();	
+	mesh.fb.Init();
 	res::TriFace16* indices = reinterpret_cast<res::TriFace16*>(mesh.fb.GetData());
 
 	//Нижняя грань
@@ -1478,7 +1478,7 @@ void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, flo
 
 	//Верхняя грань
 	unsigned centTopInd = botVCnt + topVCnt - 1;
-	if (isTop)	
+	if (isTop)
 		for (unsigned i = 0; i < slices; ++i)
 		{
 			vertex[botVCnt + i].pos.x = cos(aStep * i) * topRadius;
@@ -1526,7 +1526,7 @@ void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, flo
 	mesh.vb.Update();
 	mesh.fb.Update();
 
-	mesh.Init();	
+	mesh.Init();
 }
 
 

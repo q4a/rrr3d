@@ -7,7 +7,7 @@ namespace game
 {
 
 class Menu;
-		
+
 class MenuFrame: public gui::Widget::Event
 {
 public:

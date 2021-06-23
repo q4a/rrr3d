@@ -15,7 +15,7 @@ NetConnection::NetConnection(NetService* net, unsigned id, INetConnectionUser* u
 NetConnection::~NetConnection()
 {
 	_impl->UnRegUser(this);
-	_user = NULL;	
+	_user = NULL;
 	Close();
 
 	_net->acceptorImpl()->ReleaseConnection(_impl);
@@ -39,7 +39,7 @@ void NetConnection::CmdWrite()
 	{
 		_cmdIsWrite = true;
 
-		NetDatagramHeader datagramHeader;		
+		NetDatagramHeader datagramHeader;
 		datagramHeader.time = _net->time();
 		unsigned datagramSize = sizeof(datagramHeader);
 		buffer_copy(_outputCmd.prepare(datagramSize), buffer(&datagramHeader, datagramSize), datagramSize);
@@ -165,9 +165,9 @@ void NetConnection::OnSend(unsigned numBytes, bool success)
 	_bytesSend += numBytes;
 	_outputCmd.consume(numBytes);
 	_cmdIsWrite = false;
-	
+
 	if (!success)
-	{		
+	{
 		OnDisconnected();
 		return;
 	}
@@ -209,7 +209,7 @@ void NetConnection::SendCmd(const NetCmdHeader& header, const streambuf::const_b
 }
 
 void NetConnection::Process(unsigned time)
-{	
+{
 	if (IsOpen())
 	{
 		CmdRead();

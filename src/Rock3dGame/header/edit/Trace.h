@@ -69,7 +69,7 @@ private:
 		game::TraceGfx::PointLink* _link;
 		D3DXVECTOR3 _dragRayPos;
 		D3DXVECTOR3 _dragRayVec;
-		
+
 		void Reset(game::WayPoint* wayPoint);
 
 		void NewLink(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
@@ -88,12 +88,12 @@ private:
 		virtual void OnDrag(const D3DXVECTOR3& pos, const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
 		//
 		virtual void OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
-		
+
 		D3DXVECTOR3 GetPos() const;
 		void SetPos(const D3DXVECTOR3& value);
 		//
 		D3DXQUATERNION GetRot() const;
-		void SetRot(const D3DXQUATERNION& value);	
+		void SetRot(const D3DXQUATERNION& value);
 		//
 		D3DXVECTOR3 GetScale() const;
 		void SetScale(const D3DXVECTOR3& value);
@@ -104,11 +104,11 @@ private:
 
 		D3DXMATRIX GetMat() const;
 		AABB GetAABB() const;
-	};	
+	};
 private:
 	Edit* _edit;
 	game::TraceGfx* _traceGfx;
-	
+
 	IWayPathRef _selPath;
 	IWayNodeRef _selNode;
 	bool _enableVisualize;

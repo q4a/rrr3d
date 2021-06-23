@@ -357,7 +357,7 @@ void Graphic3d::InsertChild(Graphic3d* value)
 void Graphic3d::RemoveChild(Children::const_iterator iter)
 {
 	LSL_ASSERT((*iter)->_parent == this);
-	
+
 	(*iter)->_parent = 0;
 	_children.erase(iter);
 }
@@ -371,7 +371,7 @@ void Graphic3d::MoveChildTo(Graphic3d* graphic, Children::const_iterator pos)
 {
 	Children::iterator newIter = _children.insert(pos, 0);
 	Children::iterator oldIter = _children.Find(graphic);
-	
+
 	*newIter = graphic;
 	RemoveChild(oldIter);
 }
@@ -444,7 +444,7 @@ AABB Graphic3d::GetChildAABB()
 	for (Children::const_iterator iter = _children.begin(); iter != _children.end(); ++iter)
 	{
 		Graphic3d* child = *iter;
-		AABB aabb = child->GetLocalAABB(true);		
+		AABB aabb = child->GetLocalAABB(true);
 		aabb.Transform(child->GetMat());
 
 		childAABB.Add(aabb);
@@ -457,7 +457,7 @@ AABB Graphic3d::GetLocalAABB(bool includeChild)
 {
 	AABB aabb = LocalAABB();
 
-	if (includeChild)	
+	if (includeChild)
 		aabb.Add(GetChildAABB());
 
 	return aabb;
@@ -556,7 +556,7 @@ void Dummy3d::Draw()
 
 
 VBuf3d::VBuf3d(Context* context): _MyBase(context), _mesh(0), _createMesh(false)
-{	
+{
 }
 
 VBuf3d::~VBuf3d()
@@ -624,7 +624,7 @@ AABB Mesh3d::LocalAABB() const
 }
 
 void Mesh3d::Draw()
-{	
+{
 	GetContext().DrawMesh3d(*this);
 }
 
@@ -719,7 +719,7 @@ void View3d::SetAlign(bool value)
 
 
 Context::Context(graph::Engine* engine): _engine(engine), _invertY(false), _vpSize(0, 0)
-{	
+{
 }
 
 Context::~Context()
@@ -856,7 +856,7 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 {
 	if (!text.GetFont())
 		return;
-	
+
 	/*Plane plane(this);
 	plane.SetSize(text.GetSize());
 	plane.SetPos(text.GetPos());
@@ -893,7 +893,7 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 			pos.y = GetVPSize().y - (pos.y + text.GetVScroll());
 		else
 			pos.y = pos.y + text.GetVScroll();
-	}	
+	}
 
 	glm::vec2 size = text.GetSize();
     size = size / 2.0f;
@@ -979,9 +979,9 @@ void Context::DrawPlane(Plane& plane)
 	}
 	else
 	{
-		planeBuf[0] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 0.0f));		
+		planeBuf[0] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 0.0f));
 		planeBuf[1] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 0.0f));
-		planeBuf[2] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 1.0f));		
+		planeBuf[2] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 1.0f));
 		planeBuf[3] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 1.0f));
 	};
 
@@ -1031,7 +1031,7 @@ void Context::DrawPlane3d(Plane3d& plane3d)
 {
 	glm::vec2 size = plane3d.GetSize();
 
-	const res::VertexPT planeBuf[4] = 
+	const res::VertexPT planeBuf[4] =
 	{
 		res::VertexPT(D3DXVECTOR3(size.x, -size.y, 0), glm::vec2(1.0f, 1.0f)),
 		res::VertexPT(D3DXVECTOR3(size.x, size.y, 0), glm::vec2(1.0f, 0.0f)),
@@ -1047,7 +1047,7 @@ void Context::DrawView3d(View3d& view3d)
 {
 	//отстраиваем размер относительно локального AABB. “рансформации GetBox() примен€ютс€ при DrawGraphic3d
 	AABB aabb = view3d.GetBox()->GetLocalAABB(true);
-	
+
 	/*Plane plane(this);
 	plane.SetSize(view3d.GetSize());
 	plane.SetPos(view3d.GetPos());
@@ -1088,7 +1088,7 @@ void Context::DrawView3d(View3d& view3d)
 	DrawGraphic3d(view3d.GetBox(), localMat * worldMat);
 
 	GetCI().SetRenderState(graph::rsZWriteEnable, false);
-	GetCI().SetRenderState(graph::rsZEnable, false);	
+	GetCI().SetRenderState(graph::rsZEnable, false);
 
 	GetCI().SetWorldMat(worldMat);
 }
@@ -1241,7 +1241,7 @@ void Widget::BuildMatrix(MatrixChange change) const
 			_pos = _manager->WorldToView(_pos3d);
 			if (_parent)
 				_pos = _parent->WorldToLocalCoord(_pos);
-		} 
+		}
 		else if (_anchor != waNone)
 		{
 			_anchorVP = _manager->GetVPSize();
@@ -1305,11 +1305,11 @@ void Widget::BuildMatrix(MatrixChange change) const
 	case mcWorld:
 		_matrix[mcWorld] = _parent ? GetMat() * _parent->GetWorldMat() : GetMat();
 		break;
-		
+
 	case mcInvLocal:
 		D3DXMatrixInverse(&_matrix[mcInvLocal], 0, &GetMat());
 		break;
-		
+
 	case mcInvWorld:
 		D3DXMatrixInverse(&_matrix[mcInvWorld], 0, &GetWorldMat());
 		break;
@@ -1348,10 +1348,10 @@ void Widget::BuildChildAABB() const
 		for (Children::const_iterator iter = _children.begin(); iter != _children.end(); ++iter)
 		{
 			Widget* child = *iter;
-			
+
 			AABB2 childAABB = child->GetLocalAABB(true);
 			childAABB.Transform(child->GetMat());
-			
+
 			_childAABB.Add(childAABB);
 		}
 	}
@@ -1388,12 +1388,12 @@ void Widget::AABBChanged(StructChange change)
 		_aabbChanges.set(acLocalChildAABB);
 		_aabbChanges.set(acWorldChildAABB);
 		break;
-		
+
 	case scWorld:
 		_aabbChanges.set(acWorldAABB);
 		_aabbChanges.set(acWorldChildAABB);
 		break;
-		
+
 	case scChild:
 		_aabbChanges.set(acChildAABB);
 		_aabbChanges.set(acLocalChildAABB);
@@ -1415,7 +1415,7 @@ bool Widget::ApplyMouseEnter(bool wasReset)
 			return OnMouseEnter(_manager->GetMouseMove(this));
 		}
 		else
-		{			
+		{
 			OnMouseLeave(wasReset);
 			return true;
 		}
@@ -1462,7 +1462,7 @@ void Widget::ApplyAlign() const
 			newRect.min.y = rect.min.y;
 			newRect.max.y = newRect.min.y + newSize.y;
 		}
-		
+
 		glm::vec2 size = newRect.GetSize();
 		glm::vec2 pos = newRect.GetCenter();
 
@@ -1505,8 +1505,8 @@ void Widget::WorldTransformChanged()
 		_matrixChanges.set(mcInvWorld);
 
 		AABBChanged(scWorld);
-		
-		for (Children::iterator iter = _children.begin(); iter != _children.end(); ++iter)		
+
+		for (Children::iterator iter = _children.begin(); iter != _children.end(); ++iter)
 			(*iter)->WorldTransformChanged();
 	}
 }
@@ -1535,7 +1535,7 @@ void Widget::StructureChanged(StructChange change)
 
 		AlignChanged();
 		break;
-		
+
 	case scChild:
 		AABBChanged(change);
 
@@ -1544,8 +1544,8 @@ void Widget::StructureChanged(StructChange change)
 		break;
 	}
 
-	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))	
-		(*iter)->OnStructureChanged(this, change);	
+	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))
+		(*iter)->OnStructureChanged(this, change);
 }
 
 void Widget::FlagChanged(Flag flag, bool value)
@@ -1560,7 +1560,7 @@ bool Widget::OnMouseClick(const MouseClick& mClick)
 	bool mouseDown = mClick.key == mkLeft && mClick.state == ksDown;
 	_isMouseDown = true;
 
-	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))	
+	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))
 		res |= (*iter)->OnMouseClick(this, mClick);
 
 	res |= mouseDown && _flags[wfMouseOnClick] && OnClick(mClick);
@@ -1575,7 +1575,7 @@ bool Widget::OnMouseOver(const MouseMove& mMove)
 {
 	bool res = false;
 
-	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))	
+	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))
 		res |= (*iter)->OnMouseOver(this, mMove);
 
 	if (!_isMouseOver)
@@ -1589,9 +1589,9 @@ bool Widget::OnMouseOver(const MouseMove& mMove)
 
 bool Widget::OnMouseEnter(const MouseMove& mMove)
 {
-	bool res = false;	
+	bool res = false;
 
-	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))	
+	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))
 		res |= (*iter)->OnMouseEnter(this, mMove);
 
 	return res | _flags[wfCathMouseMessages];
@@ -1599,7 +1599,7 @@ bool Widget::OnMouseEnter(const MouseMove& mMove)
 
 void Widget::OnMouseLeave(bool wasReset)
 {
-	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))	
+	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))
 		(*iter)->OnMouseLeave(this, wasReset);
 }
 
@@ -1607,7 +1607,7 @@ bool Widget::OnMouseDown(const MouseClick& mClick)
 {
 	bool res = false;
 
-	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))	
+	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))
 		res |= (*iter)->OnMouseDown(this, mClick);
 
 	return res;
@@ -1617,13 +1617,13 @@ bool Widget::OnMouseMove(const MouseMove& mMove)
 {
 	bool res = false;
 
-	if (_isMouseOver && !GetWorldAABB(false).ContainsPoint(mMove.worldCoord))	
+	if (_isMouseOver && !GetWorldAABB(false).ContainsPoint(mMove.worldCoord))
 	{
 		_isMouseOver = false;
 		ApplyMouseEnter(false);
 	}
 
-	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))	
+	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))
 		res |= (*iter)->OnMouseMove(this, mMove);
 
 	return res;
@@ -1633,7 +1633,7 @@ bool Widget::OnClick(const MouseClick& mClick)
 {
 	bool res = false;
 
-	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))	
+	for (EventList::Position pos = _events.First(); Event** iter = _events.Current(pos); _events.Next(pos))
 		res |= (*iter)->OnClick(this, mClick);
 
 	return res;
@@ -1855,7 +1855,7 @@ void Widget::SetEvent(Event* value)
 void Widget::ClearEvents()
 {
 	for (EventList::const_iterator iter = _events.begin(); iter != _events.end(); ++iter)
-		(*iter)->Release();	
+		(*iter)->Release();
 	_events.Clear();
 }
 
@@ -2032,7 +2032,7 @@ const glm::vec2& Widget::GetPos() const
 void Widget::SetPos(const glm::vec2& value)
 {
 	_pos = value;
-	
+
 	TransformChanged();
 }
 
@@ -2075,7 +2075,7 @@ bool Widget::GetCoord3d() const
 }
 
 void Widget::SetCoord3d(bool value)
-{	
+{
 	_coord3d = value;
 
 	TransformChanged();
@@ -2109,28 +2109,28 @@ const D3DXMATRIX& Widget::GetMat() const
 	ApplyAlign();
 
 	BuildMatrix(mcLocal);
-	
+
 	return _matrix[mcLocal];
 }
 
 const D3DXMATRIX& Widget::GetWorldMat() const
 {
 	BuildMatrix(mcWorld);
-	
+
 	return _matrix[mcWorld];
 }
 
 const D3DXMATRIX& Widget::GetInvMat() const
 {
 	BuildMatrix(mcInvLocal);
-	
+
 	return _matrix[mcInvLocal];
 }
 
 const D3DXMATRIX& Widget::GetInvWorldMat() const
 {
 	BuildMatrix(mcInvWorld);
-	
+
 	return _matrix[mcInvWorld];
 }
 
@@ -2306,7 +2306,7 @@ void PlaneFon::SetMaterial(Material* value)
 
 
 Label::Label(Manager* manager): _MyBase(manager), _font(0), _horAlign(Text::haCenter), _vertAlign(Text::vaCenter), _wordWrap(false), _text(0), _textW(0), _baseText(0), _vScroll(0)
-{	
+{
 	_material = new Material();
 }
 
@@ -2328,7 +2328,7 @@ void Label::CreateText()
 	if (_text)
 		return;
 	DeleteText();
-	
+
 	_text = GetContext().CreateText();
 	_text->AddRef();
 	InsertGraphic(_text);
@@ -2365,7 +2365,7 @@ void Label::DeleteText()
 }
 
 void Label::ApplyText()
-{	
+{
 	if (_baseText)
 	{
 		_baseText->SetSize(GetSize());
@@ -2414,8 +2414,8 @@ void Label::SetFont(graph::TextFont* value)
 		{
 			_baseText->SetFont(_font);
 			StructureChanged();
-		}		
-	}	
+		}
+	}
 }
 
 Material& Label::GetMaterial()
@@ -2487,8 +2487,8 @@ void Label::SetHorAlign(Text::HorAlign value)
 		{
 			_baseText->SetHorAlign(_horAlign);
 			StructureChanged();
-		}		
-	}	
+		}
+	}
 }
 
 Text::VertAlign Label::GetVertAlign() const
@@ -2603,7 +2603,7 @@ void Button::ApplySelection(bool instant)
 				_fadeIn = instant ? 1.0f : 0;
 			else
 				_fadeOut = instant ? 1.0f : 0;
-			break;	
+			break;
 		}
 	}
 }
@@ -2639,9 +2639,9 @@ void Button::OnProgress(float deltaTime)
 {
 	if (_fadeIn >= 0)
 	{
-		float alpha = lsl::ClampValue(_fadeIn / 0.25f, 0.0f, 1.0f);		
+		float alpha = lsl::ClampValue(_fadeIn / 0.25f, 0.0f, 1.0f);
 		if (_sel)
-			_sel->SetAlpha(alpha);		
+			_sel->SetAlpha(alpha);
 
 		if (alpha == 1.0f)
 			_fadeIn = -1.0f;
@@ -2653,7 +2653,7 @@ void Button::OnProgress(float deltaTime)
 	{
 		float alpha = lsl::ClampValue(_fadeOut / 0.25f, 0.0f, 1.0f);
 		if (_sel)
-			_sel->SetAlpha(1.0f - alpha);		
+			_sel->SetAlpha(1.0f - alpha);
 
 		if (alpha == 1.0f)
 			_fadeOut = -1.0f;
@@ -2703,7 +2703,7 @@ void Button::SetFon(Material* value)
 
 		if (_createFon)
 		{
-			_createFon = false;			
+			_createFon = false;
 			delete _fonMaterial;
 		}
 		_fonMaterial = value;
@@ -2736,7 +2736,7 @@ void Button::SetSel(Material* value)
 
 		if (_createSel)
 		{
-			_createSel = false;			
+			_createSel = false;
 			delete _selMaterial;
 		}
 
@@ -2773,7 +2773,7 @@ void Button::SetTextMaterial(Material* value)
 
 		if (_createText)
 		{
-			_createText = false;			
+			_createText = false;
 			delete _textMaterial;
 		}
 
@@ -2811,7 +2811,7 @@ void Button::SetTextSelMaterial(Material* value)
 
 		if (_createTextSel)
 		{
-			_createTextSel = false;			
+			_createTextSel = false;
 			delete _textSelMaterial;
 		}
 
@@ -2964,7 +2964,7 @@ void StepperBox::ApplySelection()
 	{
 		_left->SetEnabled(_selIndex > 0 && (unsigned)_selIndex < _items.size() && GetEnabled());
 		_right->SetEnabled(_selIndex >= 0 && (unsigned)_selIndex + 1 < _items.size() && GetEnabled());
-	}	
+	}
 }
 
 void StepperBox::OnEnabled(bool value)
@@ -3149,7 +3149,7 @@ DropBox::DropBox(Manager* manager): _MyBase(manager), _showItems(false), _fonMat
 	_button = GetContext().CreatePlane();
 	_button->AddRef();
 	InsertGraphic(_button);
-	
+
 	_selItem = GetContext().CreateText();
 	_selItem->AddRef();
 	InsertGraphic(_selItem);
@@ -3205,9 +3205,9 @@ bool DropBox::ItemsEvent::OnMouseDown(Widget* sender, const MouseClick& mClick)
 			_dropBox->SetSelItem(text->GetText());
 			_dropBox->OnSelect(0);
 		}
-		
+
 		_dropBox->ShowItems(false);
-		
+
 		return true;
 	}
 
@@ -3223,7 +3223,7 @@ void DropBox::ShowItems(bool value)
 		if (_showItems)
 		{
 			for (TextItems::iterator iter = _textItems.begin(); iter != _textItems.end(); ++iter)
-			{			
+			{
 				(*iter)->Release();
 				_itemsFon->RemoveGraphic(*iter);
 				GetContext().ReleaseGraphic(*iter);
@@ -3248,7 +3248,7 @@ void DropBox::ShowItems(bool value)
 				item->SetPos(glm::vec2(size.y/2.0f, -(i - _items.size()/2.0f + 0.5f) * size.y));
 				item->SetHorAlign(Text::haLeft);
 				item->SetMaterial(_textMaterial);
-				
+
 				_textItems.push_back(item);
 			}
 		}
@@ -3268,7 +3268,7 @@ void DropBox::SelectItem(const std::string& item)
 			_selInd = i;
 			return;
 		}
-	_selInd = -1;	
+	_selInd = -1;
 }
 
 Text* DropBox::FindSelTextItem(const glm::vec2& point, bool deselect)
@@ -3284,7 +3284,7 @@ Text* DropBox::FindSelTextItem(const glm::vec2& point, bool deselect)
 		if (aabb.ContainsPoint(point))
 		{
 			res = item;
-			
+
 			if (!deselect)
 				return res;
 
@@ -3405,7 +3405,7 @@ Material& DropBox::GetTextMaterial()
 
 Material& DropBox::GetSelMaterial()
 {
-	if (!_selMaterial)	
+	if (!_selMaterial)
 		_selMaterial = new Material();
 
 	return *_selMaterial;
@@ -3478,7 +3478,7 @@ bool TrackBar::OnMouseMove(const MouseMove& mMove)
 
 	if (_grag)
 	{
-		glm::vec2 localCoord = WorldToLocalCoord(mMove.worldCoord);		
+		glm::vec2 localCoord = WorldToLocalCoord(mMove.worldCoord);
 		SetBarPos(ComputeBarPos(localCoord) + _dragOff);
 
 		OnDrag(mMove);
@@ -3568,11 +3568,11 @@ bool ViewPort3d::OnMouseOver(const MouseMove& mMove)
 		{
 			//¬ращение по двум ос€м
 			/*D3DXQUATERNION rotY;
-			D3DXQuaternionRotationAxis(&rotY, &YVector, D3DX_PI * mMove.dtCoord.x/100.0f);	
+			D3DXQuaternionRotationAxis(&rotY, &YVector, D3DX_PI * mMove.dtCoord.x/100.0f);
 			D3DXQUATERNION rotX;
 			D3DXQuaternionRotationAxis(&rotX, &XVector, -D3DX_PI * mMove.dtCoord.y/100.0f);
 			SetRot3d(GetRot3d() * rotY * rotX);*/
-			
+
 			//¬ращение по одной оси, совпадающией с up mesh
 			D3DXQUATERNION rotZ;
 			D3DXQuaternionRotationAxis(&rotZ, &ZVector, D3DX_PI * mMove.dtCoord.x/200.0f);
@@ -3652,7 +3652,7 @@ ScrollBox::ScrollBox(Manager* manager): _MyBase(manager), _arrowSize(20.0f, 20.0
 
 	_clip = GetManager().CreateDummy();
 	_clip->AddRef();
-	_clip->SetFlag(wfClientClip, true);	
+	_clip->SetFlag(wfClientClip, true);
 	_clip->SetParent(this);
 
 	_box = GetManager().CreateDummy();
@@ -3680,7 +3680,7 @@ ScrollBox::~ScrollBox()
 }
 
 ScrollBox::MyEvent::MyEvent(ScrollBox* scrollBox): _scrollBox(scrollBox)
-{	
+{
 }
 
 void ScrollBox::MyEvent::OnStructureChanged(Widget* sender, StructChange change)
@@ -3709,14 +3709,14 @@ bool ScrollBox::MyEvent::OnClick(Widget* sender, const MouseClick& mClick)
 		{
 		case sdLeft:
 			return true;
-		
+
 		case sdDown:
 			_scrollBox->SetScroll(glm::vec2(_scrollBox->GetScroll().x, scrollDown.y));
 			return true;
-			
+
 		case sdRight:
 			return true;
-			
+
 		case sdUp:
 			_scrollBox->SetScroll(glm::vec2(_scrollBox->GetScroll().x, scrollUp.y));
 			return true;
@@ -3727,7 +3727,7 @@ bool ScrollBox::MyEvent::OnClick(Widget* sender, const MouseClick& mClick)
 
 Button* ScrollBox::NewArrow()
 {
-	Button* arrow = GetManager().CreateButton(); 
+	Button* arrow = GetManager().CreateButton();
 	arrow->AddRef();
 	arrow->SetParent(this);
 	arrow->SetEvent(_myEvent);
@@ -3752,7 +3752,7 @@ void ScrollBox::ApplyOptions()
 {
 	FreeArrows();
 
-	for (int i = 0; i < cOptionEnd; ++i) if (_options[i])	
+	for (int i = 0; i < cOptionEnd; ++i) if (_options[i])
 		switch (i)
 		{
 		case soVert:
@@ -3760,7 +3760,7 @@ void ScrollBox::ApplyOptions()
 			_scrollBut[sdUp] = NewArrow();
 			_scrollBut[sdUp]->SetRot(D3DX_PI);
 			break;
-			
+
 		case soHor:
 			_scrollBut[sdLeft] = NewArrow();
 			_scrollBut[sdLeft]->SetRot(-D3DX_PI/2.0f);
@@ -3873,7 +3873,7 @@ glm::vec2 ScrollBox::GetScroll()
 }
 
 void ScrollBox::SetScroll(const glm::vec2& value)
-{	
+{
 	glm::vec2 boxSize = _box->GetChildAABB().GetSize();
 
 	//корректируем чтобы максимальной прокруткой был размер страницы
@@ -3888,7 +3888,7 @@ void ScrollBox::SetScroll(const glm::vec2& value)
 	if (_box->GetSize().y > boxSize.y)
 		pos.y = 0;
 
-	_box->SetPos(pos);	
+	_box->SetPos(pos);
 
 	if (_scrollBut[sdUp])
 		_scrollBut[sdUp]->SetVisible(abs(scroll.y) > 0.001f);
@@ -3910,7 +3910,7 @@ Material& ScrollBox::GetArrowSelMaterial()
 
 
 ListBox::ListBox(Manager* manager): _MyBase(manager), _itemSize(30.0f, 30.0f), _itemSpace(5.0f, 5.0f), _selItem(0), _fon(0), _frameMaterial(0)
-{	
+{
 	_event = new MyEvent(this);
 
 	_scrollBox = GetManager().CreateScrollBox();
@@ -3954,7 +3954,7 @@ void ListBox::Item::ApplyFrame()
 	{
 		LSL_ASSERT(!_data->GetGraphics().IsFind(_frame));
 
-		_data->InsertGraphic(_frame, _data->GetGraphics().begin());		
+		_data->InsertGraphic(_frame, _data->GetGraphics().begin());
 	}
 }
 
@@ -3965,7 +3965,7 @@ void ListBox::Item::RemoveFrame()
 		Widget::Graphics::const_iterator iter = _data->GetGraphics().Find(_frame);
 
 		LSL_ASSERT(iter != _data->GetGraphics().end());
-		
+
 		_data->RemoveGraphic(iter);
 	}
 }
@@ -4064,7 +4064,7 @@ void ListBox::FreeItem(Item* item)
 		GetManager().ReleaseWidget(data);
 	}
 
-	FreeItemFrame(item);	
+	FreeItemFrame(item);
 }
 
 void ListBox::AlignItems()
@@ -4199,7 +4199,7 @@ bool ListBox::PickItems(const glm::vec2& worldCoord)
 ListBox::Item* ListBox::FindItemByData(Widget* data)
 {
 	for (Items::iterator iter = _items.begin(); iter != _items.end(); ++iter)
-		if ((*iter)->GetData() == data)		
+		if ((*iter)->GetData() == data)
 			return *iter;
 
 	return 0;
@@ -4207,7 +4207,7 @@ ListBox::Item* ListBox::FindItemByData(Widget* data)
 
 ListBox::Item* ListBox::GetSelItem()
 {
-	return _selItem; 
+	return _selItem;
 }
 
 void ListBox::SelectItem(Item* item)
@@ -4265,11 +4265,11 @@ Material& ListBox::GetOrCreateFon()
 		_fon = GetContext().CreatePlane();
 		_fon->AddRef();
 		InsertGraphic(_fon);
-		
+
 		StructureChanged();
 	}
 
-	return *_fon->GetOrCreateMaterial();	
+	return *_fon->GetOrCreateMaterial();
 }
 
 void ListBox::FreeFon()
@@ -4362,7 +4362,7 @@ glm::vec2 ListBox::GetScrollSpace() const
 ProgressBar::ProgressBar(Manager* manager): _MyBase(manager), _style(psHorizontal), _progress(1.0f), _backEnabled(false)
 {
 	_back = GetContext().CreatePlane();
-	_back->AddRef();	
+	_back->AddRef();
 	SetBackEnabled(true);
 
 	_front = GetContext().CreatePlane();
@@ -4408,7 +4408,7 @@ void ProgressBar::StructureChanged(StructChange change)
 			_front->GetMaterial()->GetSampler().SetScale(D3DXVECTOR3(1, _progress, 1));
 			break;
 		}
-		}		
+		}
 	}
 }
 
@@ -4504,7 +4504,7 @@ void StreakBar::UpdateStreaks()
 
 		InsertGraphic(plane);
 		_streaks.push_back(plane);
-	}	
+	}
 }
 
 void StreakBar::ClearStreaks()
@@ -4535,7 +4535,7 @@ Material* StreakBar::GetOrCreateStreak()
 		_streak->AddRef();
 		_createStreak = true;
 	}
-	return _streak;	
+	return _streak;
 }
 
 Material* StreakBar::GetStreak()
@@ -4616,7 +4616,7 @@ ChargeBar::~ChargeBar()
 }
 
 ChargeBar::MyEvent::MyEvent(ChargeBar* bar): _bar(bar)
-{	
+{
 }
 
 bool ChargeBar::MyEvent::OnClick(Widget* sender, const MouseClick& mClick)
@@ -4667,7 +4667,7 @@ Material& ChargeBar::GetUp()
 
 Material& ChargeBar::GetUpSel()
 {
-	return *_up->GetOrCreateSel();	
+	return *_up->GetOrCreateSel();
 }
 
 Button* ChargeBar::GetUpButton()
@@ -4687,7 +4687,7 @@ void ChargeBar::SetSpace(const glm::vec2& value)
 
 unsigned ChargeBar::GetChargeMax()
 {
-	return _bar->GetStreakMax();	
+	return _bar->GetStreakMax();
 }
 
 void ChargeBar::SetChargeMax(unsigned value)
@@ -4966,7 +4966,7 @@ glm::vec2 ColorBox::WinToLocal(const glm::vec2& vec) const
 	float wScale = newSize.x / size.x;
 	float hScale = newSize.y / size.y;
 	float minScale = std::min(wScale, hScale);
-	
+
 	return minScale * vec;
 }
 
@@ -5060,7 +5060,7 @@ void ColorBox::SetSelect(bool value)
 glm::vec2 ColorBox::GetColorBoxSize() const
 {
 	glm::vec2 size(190.0f, 40.0f);
-	
+
 	return size;
 }
 
@@ -5092,7 +5092,7 @@ AABB2 ColorBox::GetCheckAABB() const
 ColorList::ColorList(Manager* manager): _MyBase(manager), _space(NullVec2)
 {
 	_myEvent = new MyEvent(this);
-	
+
 	_frame = new Material();
 	_box = new Material();
 	_check = new Material();
@@ -5126,7 +5126,7 @@ bool ColorList::MyEvent::OnClick(Widget* sender, const MouseClick& mClick)
 			return true;
 		}
 
-	return false;	
+	return false;
 }
 
 void ColorList::ApplyChanges()
@@ -5139,9 +5139,9 @@ void ColorList::ApplyChanges()
 	{
 		iter->box->SetSize(boxSize - _space);
 		iter->box->SetPos(glm::vec2(0.0f, size.y/2.0f - (i + 0.5f) * boxSize.y));
-		
+
 		iter->box->SetFrame(_frame);
-		
+
 		iter->box->GetBox().GetSampler().SetTex(_box->GetSampler().GetTex());
 		iter->box->GetBox().SetBlending(_box->GetBlending());
 
@@ -5511,7 +5511,7 @@ void Manager::DoDrawWidget(Widget* widget)
 
 		_engine->GetContext().SetRenderState(graph::rsScissorTestEnable, true);
 		RECT rc;
-		rc.left = static_cast<int>(aabb.min.x);		
+		rc.left = static_cast<int>(aabb.min.x);
 		rc.right = static_cast<int>(aabb.max.x);
 		if (_invertY)
 		{
@@ -5575,7 +5575,7 @@ void Manager::DrawWidget(Widget* widget)
 	if (widget->GetFlag(Widget::wfTopmost) || widget->modal())
 		return;
 
-	DoDrawWidget(widget);	
+	DoDrawWidget(widget);
 }
 
 bool Manager::OnWidgetMouseDown(Widget* widget, const MouseClick& mClick)
@@ -5588,7 +5588,7 @@ bool Manager::OnWidgetMouseDown(Widget* widget, const MouseClick& mClick)
 	if (widget->GetFlag(Widget::wfClientClip) && !widget->GetWorldAABB(false).ContainsPoint(mClick.coord))
 		return false;
 
-	for (Widget::Children::const_reverse_iterator iter = widget->GetChildren().rbegin(); iter != widget->GetChildren().rend(); ++iter)	
+	for (Widget::Children::const_reverse_iterator iter = widget->GetChildren().rbegin(); iter != widget->GetChildren().rend(); ++iter)
 		if (OnWidgetMouseDown(*iter, mClick))
 			return true;
 
@@ -5631,7 +5631,7 @@ void Manager::Draw()
 	_context->SetInvertY(_invertY);
 	_context->SetVPSize(GetVPSize());
 	_context->BeginDraw();
-	
+
 	DrawWidget(_root);
 
 	for (Widgets::iterator iter = _topmostWidgets.begin(); iter != _topmostWidgets.end(); ++iter)
@@ -5916,7 +5916,7 @@ void Manager::ReleaseWidget(Widget* widget)
 		_widgetList.Remove(iter);
 		widget->Dispose();
 
-		if (IsSafeMode())	
+		if (IsSafeMode())
 			_safeList.Insert(widget);
 		else
 		{

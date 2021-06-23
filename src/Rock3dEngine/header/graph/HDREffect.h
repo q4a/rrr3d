@@ -30,7 +30,7 @@ public:
 	virtual ~HDRRender();
 
 	virtual void Render(Engine& engine);
-	
+
 	Tex2DResource* GetColorTex();
 	void SetColorTex(Tex2DResource* value);
 

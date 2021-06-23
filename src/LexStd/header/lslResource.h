@@ -12,7 +12,7 @@ namespace lsl
 template<class _Resource> class IOResource
 {
 public:
-	typedef _Resource Resource;	
+	typedef _Resource Resource;
 public:
 	virtual ~IOResource() {}
 
@@ -28,7 +28,7 @@ private:
 	static std::auto_ptr<FileSystem> _instance;
 public:
 	enum OpenMode {omText, omBinary};
-	
+
 	static const DWORD cAppend   = 0x1 << 0;
 	static const DWORD cTruncate = 0x1 << 1;
 
@@ -40,7 +40,7 @@ private:
 	template<class _T> std::basic_istream<_T, std::char_traits<_T>>* NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags);
 	template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags);
 public:
-	FileSystem(const std::wstring& appPath);	
+	FileSystem(const std::wstring& appPath);
 
 	std::istream* NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags);
 	std::wistream* NewInStreamW(const std::string& fileName, OpenMode openMode, DWORD flags);
@@ -48,7 +48,7 @@ public:
 	std::ostream* NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags);
 	std::wostream* NewOutStreamW(const std::string& fileName, OpenMode openMode, DWORD flags);
 
-	void FreeStream(std::ios_base* stream);	
+	void FreeStream(std::ios_base* stream);
 
 	bool FileExists(const std::string& fileName);
 
@@ -106,7 +106,7 @@ public:
 	void Reload();
 	//Обновление ресурса без пересоздания. Обычно загрузка данных из внешнего источника либо обновление состояния из-за изменившихся данных
 	void Update();
-	
+
 	//Состояние инициализации
 	bool IsInit() const;
 
@@ -125,7 +125,7 @@ class FileResource: public Resource
 private:
 	std::string _fileName;
 protected:
-	virtual void DoLoadFromStream(std::istream& stream, const std::string& fileExt);	
+	virtual void DoLoadFromStream(std::istream& stream, const std::string& fileExt);
 public:
 	void LoadFromStream(std::istream& stream, const std::string& fileExt);
 	void SaveToStream(std::ostream& stream, const std::string& fileExt);
@@ -194,7 +194,7 @@ inline std::wstring GetAppPath()
 {
 	wchar_t buf[1024];
 	unsigned size = GetModuleFileNameW(NULL, buf, 1024);
-	
+
 	std::wstring res(buf, size);
 	lsl::ExtractFilePath(res, res);
 

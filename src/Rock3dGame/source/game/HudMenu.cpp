@@ -18,7 +18,7 @@ PlayerStateFrame::PlayerStateFrame(Menu* menu, HudMenu* hudMenu, gui::Widget* pa
 	UpdateOpponents();
 
 	for (int i = 0; i < cCarLifeEnd; ++i)
-	{	
+	{
 		_carLifes[i].target = NULL;
 		_carLifes[i].timer = -1;
 		_carLifes[i].timeMax = 4;
@@ -33,7 +33,7 @@ PlayerStateFrame::PlayerStateFrame(Menu* menu, HudMenu* hudMenu, gui::Widget* pa
 	_raceState = menu->CreatePlane(root(), 0, "GUI\\placeMineHyper.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_raceState->SetAlign(gui::Widget::waLeftTop);
 
-	_place = menu->CreateLabel(svNull, _raceState, "Header", NullVec2, gui::Text::haCenter, gui::Text::vaCenter, clrWhite);	
+	_place = menu->CreateLabel(svNull, _raceState, "Header", NullVec2, gui::Text::haCenter, gui::Text::vaCenter, clrWhite);
 
 	_lifeBack = menu->CreatePlane(_raceState, 0, "GUI\\lifeBarBack.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_lifeBar = menu->CreateBar(_lifeBack, NULL, "GUI\\lifeBar.png", "");
@@ -46,9 +46,9 @@ PlayerStateFrame::PlayerStateFrame(Menu* menu, HudMenu* hudMenu, gui::Widget* pa
 	}
 
 	menu->ShowChat(true);
-	menu->RegUser(this);	
+	menu->RegUser(this);
 }
-	
+
 PlayerStateFrame::~PlayerStateFrame()
 {
 	menu()->ShowChat(false);
@@ -56,7 +56,7 @@ PlayerStateFrame::~PlayerStateFrame()
 
 	for (int i = 0; i < 5; ++i)
 	{
-		menu()->GetGUI()->ReleaseWidget(_guiTimer[i]);		
+		menu()->GetGUI()->ReleaseWidget(_guiTimer[i]);
 	}
 
 	for (int i = 0; i < cCarLifeEnd; ++i)
@@ -84,7 +84,7 @@ PlayerStateFrame::~PlayerStateFrame()
 
 	ClearOpponents();
 	ClearSlots();
-	
+
 	menu()->GetGUI()->ReleaseWidget(_lifeBar);
 	menu()->GetGUI()->ReleaseWidget(_lifeBack);
 	menu()->GetGUI()->ReleaseWidget(_place);
@@ -94,9 +94,9 @@ PlayerStateFrame::~PlayerStateFrame()
 void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bonusType, int targetPlayerId, bool kill)
 {
 	const glm::vec2 photoSize = glm::vec2(50.0f, 50.0f);
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;	
+	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
 
-	string image;	
+	string image;
 	graph::Tex2DResource* photo = NULL;
 	string name;
 
@@ -130,7 +130,7 @@ void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bo
 			default:
 				image = "GUI\\pickWeapon.png";
 				break;
-			}		
+			}
 			break;
 		}
 
@@ -157,13 +157,13 @@ void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bo
 		_pickItemsBuffer.pop_back();
 	}
 	else
-	{	
+	{
 		item.image = menu()->CreatePlane(root(), NULL, image, true, IdentityVec2, gui::Material::bmTransparency);
 
 		item.photo = menu()->CreatePlane(item.image, NULL, "", true, IdentityVec2, gui::Material::bmTransparency);
 		item.photo->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 		item.photo->SetPos(glm::vec2(-40.0f, 0.0f));
-		
+
 		item.label = menu()->CreateLabel(svNull, item.photo, "Small", NullVec2, gui::Text::haLeft, gui::Text::vaCenter, color2);
 		item.label->SetAlign(gui::Widget::waLeft);
 		item.label->SetPos(photoSize.x/2 + 0.0f, 0.0f);
@@ -175,8 +175,8 @@ void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bo
 	item.pos = _hudMenu->GetPickItemsPos() + glm::vec2(item.image->GetSize().x/2, 0);
 	item.image->SetPos(item.pos);
 
-	item.photo->SetVisible(photo ? true : false);	
-	item.photo->GetMaterial().GetSampler().SetTex(photo);	
+	item.photo->SetVisible(photo ? true : false);
+	item.photo->GetMaterial().GetSampler().SetTex(photo);
 	item.photo->SetSize(menu()->StretchImage(item.photo->GetMaterial(), photoSize, true, false, true, false));
 
 	item.label->SetText(name);
@@ -208,7 +208,7 @@ void PlayerStateFrame::ProccessPickItems(float deltaTime)
 			if (item.time < 0.3f)
 			{
 				float lerp = ClampValue(item.time / 0.3f, 0.0f, 1.0f);
-				alpha = lerp;				
+				alpha = lerp;
 			}
 			else if (item.time > 4.7f)
 			{
@@ -220,7 +220,7 @@ void PlayerStateFrame::ProccessPickItems(float deltaTime)
 			glm::vec2 pos = item.pos + glm::vec2(30, index * 85.0f + dPosY);
 			glm::vec2 curPos = item.image->GetPos();
 			if (abs(pos.x - curPos.x) > 0.001f || abs(pos.y - curPos.y) > 0.001f)
-			{	
+			{
 				curPos.x = std::min(curPos.x + 90.0f * deltaTime, pos.x);
 				curPos.y = std::min(curPos.y + 120.0f * deltaTime, pos.y);
 				item.image->SetPos(curPos);
@@ -245,7 +245,7 @@ void PlayerStateFrame::ProccessPickItems(float deltaTime)
 void PlayerStateFrame::NewAchievment(AchievmentCondition::MyEventData* data)
 {
 	Difficulty diff = menu()->GetRace()->GetProfile()->difficulty();
-	std::string image = "GUI\\Achievments\\" + data->condition->name() + ".png";	
+	std::string image = "GUI\\Achievments\\" + data->condition->name() + ".png";
 	std::string pointsImage = lsl::StrFmt("GUI\\Achievments\\points%d.png", data->condition->reward());
 	std::string pointsImageK = diff == gdHard ? "GUI\\Achievments\\points1_5.png" : "GUI\\Achievments\\points1_2.png";
 	glm::vec2 vpSize = menu()->GetGUI()->GetVPSize();
@@ -265,7 +265,7 @@ void PlayerStateFrame::NewAchievment(AchievmentCondition::MyEventData* data)
 		_achievmentsBuffer.pop_back();
 	}
 	else
-	{	
+	{
 		item.image = menu()->CreatePlane(root(), NULL, image, true, IdentityVec2, gui::Material::bmTransparency);
 
 		item.points = menu()->CreatePlane(item.image, NULL, pointsImage, true, IdentityVec2, gui::Material::bmTransparency);
@@ -281,7 +281,7 @@ void PlayerStateFrame::NewAchievment(AchievmentCondition::MyEventData* data)
 			item.pointsK = NULL;
 	}
 
-	const glm::vec2 startPos[8] = {			
+	const glm::vec2 startPos[8] = {
 		glm::vec2(0 - item.slotSize.x * 2, 1 * vpSize.y / 4),
 		glm::vec2(0 - item.slotSize.x, 2 * vpSize.y / 4),
 		glm::vec2(0 - item.slotSize.x, 3 * vpSize.y / 4),
@@ -299,7 +299,7 @@ void PlayerStateFrame::NewAchievment(AchievmentCondition::MyEventData* data)
 
 	item.image->SetVisible(true);
 	item.image->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 1));
-	item.points->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));	
+	item.points->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
 	if (item.pointsK)
 		item.pointsK->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
 	item.points->SetVisible(menu()->IsCampaign());
@@ -375,7 +375,7 @@ void PlayerStateFrame::ProccessAchievments(float deltaTime)
 }
 
 void PlayerStateFrame::ShowCarLifeBar(CarLifeE type, int targetPlayerId, float carLifeTimeMax)
-{	
+{
 	Player* targetPlayer = menu()->GetRace()->GetPlayerById(targetPlayerId);
 
 	if (targetPlayer == NULL)
@@ -413,7 +413,7 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		if (_carLifes[i].timer < 0 || _carLifes[i].target == NULL)
 			continue;
 
-		float targetAlpha = 1.0f;	
+		float targetAlpha = 1.0f;
 
 		if ((_carLifes[i].timer += deltaTime) > _carLifes[i].timeMax || _carLifes[i].target->GetCar().gameObj == NULL)
 		{
@@ -442,7 +442,7 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
         glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
 
 		if (projVec.z < 0)
-		{		
+		{
 			vec = glm::normalize(vec);
 			vec = vec * sqrt(2.0f);
 		}
@@ -492,12 +492,12 @@ void PlayerStateFrame::InsertSlot(WeaponType type, Slot* slot)
 	}
 
 	gui::Widget* slotParent = _weaponBox[type].box ? (gui::Widget*)_weaponBox[type].box : _raceState;
-			
+
 	_weaponBox[type].view = menu()->CreateViewPort3d(slotParent, 0, "");
 	float sizeX = 60;
-	_weaponBox[type].view->SetSize(glm::vec2(sizeX, sizeX));	
+	_weaponBox[type].view->SetSize(glm::vec2(sizeX, sizeX));
 
-	_weaponBox[type].mesh = menu()->CreateMesh3d(_weaponBox[type].view, slot->GetItem().GetMesh(), slot->GetItem().GetTexture());	
+	_weaponBox[type].mesh = menu()->CreateMesh3d(_weaponBox[type].view, slot->GetItem().GetMesh(), slot->GetItem().GetTexture());
 	_weaponBox[type].mesh->AddRef();
 	_weaponBox[type].mesh->GetMaterial()->GetSampler().SetFiltering(graph::Sampler2d::sfAnisotropic);
 
@@ -512,7 +512,7 @@ void PlayerStateFrame::ClearSlot(WeaponType type)
 	{
 		menu()->GetGUI()->ReleaseWidget(_weaponBox[type].label);
 		_weaponBox[type].label = 0;
-		
+
 		_weaponBox[type].mesh->Release();
 		_weaponBox[type].mesh = 0;
 
@@ -546,7 +546,7 @@ void PlayerStateFrame::UpdateSlots()
 		if (slot && slot->GetItem().IsWeaponItem() && slot->GetItem().IsWeaponItem()->GetMapObj())
 			InsertSlot(WeaponType(i - Player::stHyper), slot);
 	}
-}	
+}
 
 void PlayerStateFrame::UpdateOpponents()
 {
@@ -564,13 +564,13 @@ void PlayerStateFrame::UpdateOpponents()
 		opponent.player->AddRef();
 
 		opponent.dummy = menu()->GetGUI()->CreateDummy();
-		opponent.dummy->SetParent(root());		
+		opponent.dummy->SetParent(root());
 
 		opponent.point = menu()->CreatePlane(opponent.dummy, NULL, "GUI\\playerPoint.png", true, IdentityVec2, gui::Material::bmTransparency);
 		opponent.point->SetPos(opponent.point->GetSize().x/2, -opponent.point->GetSize().y/2);
 
 		opponent.label = menu()->CreateLabel(svNull, opponent.dummy, "VerySmall", NullVec2, gui::Text::haCenter, gui::Text::vaCenter, clrWhite);
-		opponent.label->SetPos(opponent.point->GetSize().x/2, -opponent.point->GetSize().y);		
+		opponent.label->SetPos(opponent.point->GetSize().x/2, -opponent.point->GetSize().y);
 
 		_opponents.push_back(opponent);
 	}
@@ -665,7 +665,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			for (Opponents::const_iterator iter = _opponents.begin(); iter != _opponents.end(); ++iter)
 			{
 				if (_carLifes[i].target == iter->player)
-				{				
+				{
 					Opponent opponent = *iter;
 					_opponents.erase(iter);
 					_opponents.insert(_opponents.begin(), opponent);
@@ -693,7 +693,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
                 glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
 
 			if (projVec.z < 0)
-			{		
+			{
 				vec = glm::normalize(vec);
 				vec = vec * sqrt(2.0f);
 			}
@@ -723,7 +723,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			{
 				float rad = opponent.radius + iter2->radius;
 				float dist = glm::length(iter2->center - opponent.center);
-				alpha = std::min(rad != 0 ? dist / rad : 0, alpha);				
+				alpha = std::min(rad != 0 ? dist / rad : 0, alpha);
 			}
 
 			alpha = std::min(alpha, targetAlpha);
@@ -883,7 +883,7 @@ MiniMapFrame::MiniMapFrame(Menu* menu, HudMenu* hudMenu, gui::Widget* parent): _
 
 	_map = _menu->CreateViewPort3d(_root, 0, "", gui::ViewPort3d::msStatic, false);
 
-	_lapBack = _menu->CreatePlane(_root, 0, "GUI\\lap.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_lapBack = _menu->CreatePlane(_root, 0, "GUI\\lap.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_lap = _menu->CreateLabel(svNull, _root, "Small", NullVec2, gui::Text::haCenter, gui::Text::vaCenter, clrWhite);
 
 	UpdateMap();
@@ -892,7 +892,7 @@ MiniMapFrame::MiniMapFrame(Menu* menu, HudMenu* hudMenu, gui::Widget* parent): _
 	_lapBack->SetVisible(menu->enableHUD());
 	_lap->SetVisible(menu->enableHUD());
 }
-	
+
 MiniMapFrame::~MiniMapFrame()
 {
 	ClearPlayers();
@@ -987,10 +987,10 @@ void MiniMapFrame::AlignMidNodes(Node& node1, Node& node2, float cosErr, float s
 void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 {
 	const float cosErr = cos(20.0f * D3DX_PI/180);
-	const float sizeErr = 2.0f;	
+	const float sizeErr = 2.0f;
 	const float smRadius = 10.0f;
 	const int smSlice = 2;
-	
+
 	Nodes nodes;
 
 	if (path.GetCount() < 2)
@@ -1015,7 +1015,7 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 		Node& nextNode = *nextIter;
 
 		glm::vec2 dir = glm::normalize(nextNode.pos - node.pos);
-		
+
 		if (nextIter != --nodes.end())
 		{
 			AlignNode(node, nextNode, cosErr, sizeErr);
@@ -1099,7 +1099,7 @@ void MiniMapFrame::CreatePlayers()
 
 	for (Race::PlayerList::const_iterator iter = _menu->GetRace()->GetPlayerList().begin(); iter != _menu->GetRace()->GetPlayerList().end(); ++iter)
 	{
-		gui::Plane3d* plane = _menu->GetGUI()->GetContext().CreatePlane3d();		
+		gui::Plane3d* plane = _menu->GetGUI()->GetContext().CreatePlane3d();
 		plane->SetSize(glm::vec2(10.0f, 10.0f));
 		_map->GetBox()->InsertChild(plane);
 
@@ -1164,11 +1164,11 @@ void MiniMapFrame::UpdateMap()
 	for (Trace::Pathes::const_iterator iter = GetTrace()->GetPathes().begin(); iter != GetTrace()->GetPathes().end(); ++iter)
 	{
 		WayPath* path = *iter;
-		
+
 		if (path->GetCount() > 1)
 		{
 			gui::VBuf3d* buf3d = _menu->GetGUI()->GetContext().CreateVBuf3d();
-			
+
 			buf3d->GetOrCreateMesh();
 			buf3d->GetMesh()->primitiveType = D3DPT_TRIANGLESTRIP;
 			res::VertexData& data = *buf3d->GetMesh()->GetOrCreateData();
@@ -1182,7 +1182,7 @@ void MiniMapFrame::UpdateMap()
 			_map->GetBox()->InsertChild(buf3d);
 		}
 	}
-	
+
 	_map->SetAlign(true);
 
 	WayNode* node = GetTrace()->GetPathes().front()->GetFirst();
@@ -1252,11 +1252,11 @@ HudMenu::HudMenu(Menu* menu, gui::Widget* parent, Player* player): _menu(menu), 
 {
 	LSL_ASSERT(menu && _player);
 
-	_player->AddRef();	
+	_player->AddRef();
 
 	_root = _menu->GetGUI()->CreateDummy();
 	_root->SetParent(parent);
-	
+
 	_miniMapFrame = new MiniMapFrame(menu, this, _root);
 	_playerStateFrame = new PlayerStateFrame(menu, this, _root);
 
@@ -1265,7 +1265,7 @@ HudMenu::HudMenu(Menu* menu, gui::Widget* parent, Player* player): _menu(menu), 
 	_menu->GetNet()->RegUser(this);
 	_menu->GetControl()->InsertEvent(this);
 }
-	
+
 HudMenu::~HudMenu()
 {
 	_menu->GetControl()->RemoveEvent(this);
@@ -1273,7 +1273,7 @@ HudMenu::~HudMenu()
 
 	delete _playerStateFrame;
 	delete _miniMapFrame;
-	
+
 	_menu->GetGUI()->ReleaseWidget(_root);
 
 	_player->Release();
@@ -1296,11 +1296,11 @@ bool HudMenu::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	if (sender == _menu->GetAcceptSender())
 	{
 		_menu->ShowCursor(false);
-		_menu->Pause(false);		
+		_menu->Pause(false);
 
 		if (_menu->GetAcceptResultYes())
 		{
-			Menu* menu = _menu;			
+			Menu* menu = _menu;
 
 			if (menu->IsNetGame() && menu->GetNet()->isClient())
 			{

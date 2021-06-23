@@ -35,7 +35,7 @@ Tex2DResource* RenderTarget<Tex2DResource>::CreateRT()
 	Tex2DResource* tex = new Tex2DResource();
 	tex->SetDynamic(true);
 	tex->SetUsage(D3DUSAGE_RENDERTARGET);
-	
+
 	return tex;
 }
 
@@ -62,7 +62,7 @@ bool RenderTarget<Tex2DResource>::IsApplyRT() const
 
 Tex2DResource* RenderTarget<Tex2DResource>::GetRT()
 {
-	return _texture;	
+	return _texture;
 }
 
 Tex2DResource* RenderTarget<Tex2DResource>::GetOrCreateRT()
@@ -133,7 +133,7 @@ bool RenderTarget<TexCubeResource>::IsApplyRT() const
 
 TexCubeResource* RenderTarget<TexCubeResource>::GetRT()
 {
-	return _texture;	
+	return _texture;
 }
 
 TexCubeResource* RenderTarget<TexCubeResource>::GetOrCreateRT()
@@ -204,33 +204,33 @@ void RenderToCubeTex::BeginCubeSurf(Engine& engine)
 		camDesc.up = D3DXVECTOR3( 0.0f, -1.0f, 0.0f );
 		break;
 
-	case D3DCUBEMAP_FACE_NEGATIVE_X:			
-		camDesc.dir = D3DXVECTOR3(1.0f, 0.0f, 0.0f );			
+	case D3DCUBEMAP_FACE_NEGATIVE_X:
+		camDesc.dir = D3DXVECTOR3(1.0f, 0.0f, 0.0f );
 		camDesc.up = D3DXVECTOR3( 0.0f, -1.0f, 0.0f );
-		break; 
+		break;
 
-	case D3DCUBEMAP_FACE_POSITIVE_Y:			
+	case D3DCUBEMAP_FACE_POSITIVE_Y:
 		camDesc.dir = D3DXVECTOR3( 0.0f, -1.0f, 0.0f );
 		camDesc.up = D3DXVECTOR3( 0.0f, 0.0f, 1.0f );
 		break;
-			
-	case D3DCUBEMAP_FACE_NEGATIVE_Y:			
+
+	case D3DCUBEMAP_FACE_NEGATIVE_Y:
 		camDesc.dir = D3DXVECTOR3( 0.0f, 1.0f, 0.0f );
 		camDesc.up = D3DXVECTOR3( 0.0f, 0.0f, -1.0f );
-		break;				
-			
+		break;
+
 	case D3DCUBEMAP_FACE_POSITIVE_Z:
 		camDesc.dir = D3DXVECTOR3( 0.0f, 0.0f, -1.0f );
 		camDesc.up = D3DXVECTOR3( 0.0f, -1.0f, 0.0f );
-		break;				
-	
+		break;
+
 	case D3DCUBEMAP_FACE_NEGATIVE_Z:
 		camDesc.dir = D3DXVECTOR3( 0.0f, 0.0f, 1.0f );
 		camDesc.up = D3DXVECTOR3( 0.0f, -1.0f, 0.0f );
 		break;
 	}
 
-	_myCamera.SetDesc(camDesc);	
+	_myCamera.SetDesc(camDesc);
 	engine.GetContext().ApplyCamera(&_myCamera);
 
 	ApplyRT(engine, _flags);

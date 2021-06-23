@@ -23,7 +23,7 @@ private:
 
 	struct Slide
 	{
-		gui::PlaneFon* plane;		
+		gui::PlaneFon* plane;
 	};
 	typedef lsl::Vector<Slide> Slides;
 private:

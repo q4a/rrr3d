@@ -36,11 +36,11 @@ public:
 	static std::pair<GraphManager::GraphOption, Quality> cEnvGraphMap[];
 private:
 	World* _world;
-	
+
 	Wheater _wheater;
 	WorldType _worldType;
 	SyncFrameRate _syncFrameRate;
-	
+
 	Quality _shadowQuality;
 	Quality _lightQuality;
 	Quality _postEffQuality;
@@ -63,7 +63,7 @@ private:
 
 	bool _enableRain;
 	bool _isoRain;
-	MapObj* _rain;	
+	MapObj* _rain;
 
 	void CreateRain();
 	void FreeRain();
@@ -71,7 +71,7 @@ private:
 
 	void EnableSun(bool enable, bool enableShadow = true);
 	void EnableLamp(bool enable, int index, float farDist = 20.0f);
-	void EnableLamps(bool enable);	
+	void EnableLamps(bool enable);
 	void EnableWater(bool enable);
 	void EnablePlanarRefl(bool enable);
 	void EnableGrass(bool enable);
@@ -85,7 +85,7 @@ private:
 
 	void ApplyCloudColor();
 	void ApplyWheater();
-	void ApplyWorldType();	
+	void ApplyWorldType();
 
 	GraphManager* GetGraph();
 	CameraManager* GetCamera();
@@ -119,7 +119,7 @@ public:
 
 	Wheater GetWheater() const;
 	void SetWheater(Wheater value);
-	
+
 	WorldType GetWorldType() const;
 	void SetWorldType(WorldType value);
 

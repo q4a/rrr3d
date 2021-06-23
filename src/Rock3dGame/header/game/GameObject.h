@@ -34,7 +34,7 @@ public:
 	};
 
 	struct MyEventData: public EventData
-	{		
+	{
 		int targetPlayerId;
 		GameObject* target;
 		float damage;
@@ -45,16 +45,16 @@ public:
 	};
 private:
 	MapObj* _mapObj;
-	Logic* _logic;	
-	
+	Logic* _logic;
+
 	graph::Actor* _grActor;
-	px::Actor* _pxActor;	
+	px::Actor* _pxActor;
 
 	GameObject* _parent;
 	Children _children;
 	IncludeList* _includeList;
 	ListenerList _listenerList;
-	Behaviors* _behaviors;	
+	Behaviors* _behaviors;
 
 	LiveState _liveState;
 	//Начальное количество здоровья
@@ -108,7 +108,7 @@ private:
 	D3DXVECTOR3 _pxPrevVelocity;
 
 	void SetSyncFrameEvent(bool value);
-	void SetBodyProgressEvent(bool value);	
+	void SetBodyProgressEvent(bool value);
 protected:
 	void Destroy();
 
@@ -132,7 +132,7 @@ protected:
 	virtual void LogicInited() {};
 
 	virtual bool OnContactModify(const px::Scene::OnContactModifyEvent& contact) {return true;}
-	virtual void OnContact(const px::Scene::OnContactEvent& contact);	
+	virtual void OnContact(const px::Scene::OnContactEvent& contact);
 	virtual void OnWake();
 	virtual void OnSleep();
 
@@ -210,7 +210,7 @@ public:
 
 	virtual Proj* IsProj();
 	virtual GameCar* IsCar();
-	
+
 	//Интерфейс пользователя для изменения трансформации
 	//Локальные трансформации
 	//Позиция
@@ -222,7 +222,7 @@ public:
 	void SetScale(float value);
 	//Поворот
 	const D3DXQUATERNION& GetRot() const;
-	virtual void SetRot(const D3DXQUATERNION& value);	
+	virtual void SetRot(const D3DXQUATERNION& value);
 	//Абсолютные трансформации
 	//Позиция
 	D3DXVECTOR3 GetWorldPos() const;
@@ -230,7 +230,7 @@ public:
 	//Поворот
 	D3DXQUATERNION GetWorldRot() const;
 	virtual void SetWorldRot(const D3DXQUATERNION& value);
-	
+
 	void SetWorldDir(const D3DXVECTOR3& value);
 	void SetWorldUp(const D3DXVECTOR3& value);
 
@@ -255,7 +255,7 @@ public:
 	const D3DXVECTOR3& GetPxPrevVelocity() const;
 
 	LiveState GetLiveState() const;
-	
+
 	float GetMaxLife() const;
 	void SetMaxLife(float value);
 

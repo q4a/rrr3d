@@ -29,7 +29,7 @@ private:
 		float duration;
 		int plrId;
 	};
-	
+
 	static const int cBoxCount = 3;
 private:
 	Box _boxes[cBoxCount];

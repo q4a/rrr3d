@@ -20,7 +20,7 @@ OctreeSort::Node::Node(unsigned numGroups, const AABB& aabb, Node* parent): cNum
 	_userMap = new UserMap[cNumGroups];
 }
 
-OctreeSort::Node::~Node() 
+OctreeSort::Node::~Node()
 {
 	LSL_ASSERT(_refCnt == 0 && _lockCnt == 0);
 
@@ -68,7 +68,7 @@ void OctreeSort::Node::DoInsertUser(UserNode* value, unsigned group)
 
 void OctreeSort::Node::DoRemoveUser(UserNode* value, unsigned group)
 {
-	_leaf[group].Remove(value);	
+	_leaf[group].Remove(value);
 	RemoveFromUserMap(value, group);
 
 	--_userCnt;
@@ -86,7 +86,7 @@ void OctreeSort::Node::InsertUser(const UserList& value)
 {
 	LSL_ASSERT(_nodeList.empty());
 
-	for (UserList::const_iterator iter = value.begin(); iter != value.end(); ++iter)	
+	for (UserList::const_iterator iter = value.begin(); iter != value.end(); ++iter)
 		for (unsigned i = 0; i < cNumGroups; ++i)
 			if ((*iter)->GetGroup(i))
 				InsertUser(*iter, i);
@@ -111,7 +111,7 @@ void OctreeSort::Node::ClearUser(unsigned group)
 
 	if (!_leaf[group].empty())
 	{
-		_leaf[group].clear();	
+		_leaf[group].clear();
 	}
 }
 
@@ -124,7 +124,7 @@ void OctreeSort::Node::ClearUser()
 OctreeSort::Node& OctreeSort::Node::AddNode(const AABB& aabb)
 {
 	Node* res = new Node(cNumGroups, aabb, this);
-	_nodeList.push_back(res);	
+	_nodeList.push_back(res);
 
 	return *res;
 }
@@ -210,7 +210,7 @@ OctreeSort::UserNode::~UserNode()
 
 void OctreeSort::UserNode::DoInsertToNode(const NodeMap::iterator& iter)
 {
-	if (iter->second == 0)	
+	if (iter->second == 0)
 		iter->first->AddRef();
 	++(iter->second);
 }
@@ -264,7 +264,7 @@ OctreeSort::UserNode::NodeMap::iterator OctreeSort::UserNode::RemoveFromNode(con
 		if (_groups[i])
 		{
 			iter->first->DoRemoveUser(this, i);
-			res = DoRemoveFromNode(iter);	
+			res = DoRemoveFromNode(iter);
 		}
 
 	return res;
@@ -330,7 +330,7 @@ void OctreeSort::UserNode::Move(const AABB& aabb)
 		if (node->GetAABB().ContainsAABB(aabb) == AABB::spNoOverloap)
 		{
 			while (node->GetParent())
-		}			
+		}
 	}
 }*/
 
@@ -354,7 +354,7 @@ bool OctreeSort::UserNode::GetGroup(unsigned group) const
 	_groups.at(group);
 
 	for (NodeMap::iterator iter = _nodeMap.begin(); iter != _nodeMap.end();)
-		if (_groups[group] != value)		
+		if (_groups[group] != value)
 			SetGroup(iter, group, value);
 
 
@@ -372,7 +372,7 @@ const lsl::BoolVec& OctreeSort::UserNode::GetGroups() const
 
 	for (NodeMap::iterator iter = _nodeMap.begin(); iter != _nodeMap.end();)
 		for (unsigned i = 0; i < value.size(); ++i)
-			if (_groups[i] != value[i])			
+			if (_groups[i] != value[i])
 				iter = SetGroup(iter, i, value[i]);
 
 	_groups = value;
@@ -394,12 +394,12 @@ void OctreeSort::UserNode::SetData(lsl::Object* value)
 
 OctreeSort::OctreeSort(unsigned numGroups): cNumGroups(numGroups), _root(0), _idPass(0)
 {
-	_users = new Users(this);	
+	_users = new Users(this);
 
 	int numNode = 0;
 	for (float i =-1; i < 2; i += 2.0f)
 		for (float j =-1; j < 2; j += 2.0f)
-			for (float k =-1; k < 2; k += 2.0f, ++numNode)			
+			for (float k =-1; k < 2; k += 2.0f, ++numNode)
 				_nodeOff[numNode] = D3DXVECTOR3(i, j, k);
 }
 
@@ -449,11 +449,11 @@ bool OctreeSort::IsBuildOctree() const
 }
 
 void OctreeSort::InsertUser(UserNode* user)
-{	
+{
 }
 
 void OctreeSort::RemoveUser(UserNode* user)
-{	
+{
 }
 
 bool OctreeSort::DoCulling(const Frustum& frustum, Frustum::SpaceContains spaceCont, Node& node, Position& pos)
@@ -462,7 +462,7 @@ bool OctreeSort::DoCulling(const Frustum& frustum, Frustum::SpaceContains spaceC
 	{
 
 	//Узел полностью в камере
-	case Frustum::scContainsFully:		
+	case Frustum::scContainsFully:
 		return true;
 
 	//Узел частично в камере
@@ -472,7 +472,7 @@ bool OctreeSort::DoCulling(const Frustum& frustum, Frustum::SpaceContains spaceC
 		if (node.GetNodeList().empty())
 			return true;
 
-		NodeCull* children = new NodeCull[node.GetNodeList().size()];		
+		NodeCull* children = new NodeCull[node.GetNodeList().size()];
 		//Узел имеет дочерей, следовательно проверяем их всех и если хотя бы один не может быть добавлен полностью разделяем узел
 		int i = 0;
 		for (NodeList::const_iterator iter = node.GetNodeList().begin(); iter != node.GetNodeList().end(); ++iter, ++i)
@@ -532,7 +532,7 @@ void OctreeSort::RebuildOctree(const AABB& worldAABB)
 
 	UserList userList;
 	userList.insert(userList.end(), _users->begin(), _users->end());
-	BuildOctree(*_root, userList);	
+	BuildOctree(*_root, userList);
 }
 
 OctreeSort::Position OctreeSort::Culling(const Frustum& frustum)
@@ -542,7 +542,7 @@ OctreeSort::Position OctreeSort::Culling(const Frustum& frustum)
 	Position res(this);
 	DoCulling(frustum, *_root, res);
 
-	return res;	
+	return res;
 }
 
 void OctreeSort::RenderNode(graph::Engine& engine, const Frustum& frustum, const Node& node)
@@ -550,7 +550,7 @@ void OctreeSort::RenderNode(graph::Engine& engine, const Frustum& frustum, const
 	//for (NodeList::const_iterator iter = node.GetNodeList().begin(); iter != node.GetNodeList().end(); ++iter)
 	//	RenderNode(engine, frustum, **iter);
 
-	//if (node.GetUserCnt() && frustum.ContainsAABB(node.GetAABB()) && &node != _root)	
+	//if (node.GetUserCnt() && frustum.ContainsAABB(node.GetAABB()) && &node != _root)
 		BaseSceneNode::RenderBB(engine, node.GetAABB(), node.GetUserCnt() ? clrBlue : clrRed);
 }
 

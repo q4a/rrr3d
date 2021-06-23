@@ -34,7 +34,7 @@ private:
 	typedef std::vector<CmdInst> CmdList;
 public:
 	typedef lsl::Vector<NetConnection*> Connections;
-private:	
+private:
 	unsigned _port;
 	bool _started;
 	unsigned _lastModelId;
@@ -47,7 +47,7 @@ private:
 
 	void NewConnection(NetConnection* connection);
 	void ReleaseConnection(NetConnection* connection);
-protected:	
+protected:
 	void ProcessCmd(const NetMessage& msg, const NetCmdHeader& header, const streambuf::const_buffers_type& bufs);
 	virtual void SendCmd(const NetCmdHeader& header, const streambuf::const_buffers_type& bufs);
 	virtual void OnProcessCmd(const NetMessage& msg, const NetCmdHeader& header, streambuf& streambuf, std::istream& stream);
@@ -58,7 +58,7 @@ protected:
 	virtual void OnDisconnected(NetConnection* sender);
 	virtual void OnConnectionFailed(NetConnection* sender, const error_code& error);
 
-	virtual void OnReceiveCmd(const NetMessage& msg, const NetCmdHeader& header, const streambuf::const_buffers_type& bufs);		
+	virtual void OnReceiveCmd(const NetMessage& msg, const NetCmdHeader& header, const streambuf::const_buffers_type& bufs);
 
 	virtual void OnProcess(unsigned time);
 	virtual void OnDispatch();

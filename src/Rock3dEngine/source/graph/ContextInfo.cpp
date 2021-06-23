@@ -93,7 +93,7 @@ glm::vec2 CameraCI::ViewToProj(const glm::vec2& coord, const glm::vec2& viewSize
 	float height = static_cast<float>(GetWndHeight());
 
 	D3DXVECTOR3 screenVec(coord.x / width * viewPort.Width, coord.y / height * viewPort.Height, z);
-	
+
 	D3DXVec3Unproject(&screenVec, &screenVec, &viewPort, &_curCamera->GetContextInfo().GetProjMat(),  &_curCamera->GetContextInfo().GetViewMat(), &IdentityMatrix);
 
 	return screenVec;*/
@@ -163,7 +163,7 @@ Intersect FrustumAABBIntersect(const Frustum& frustum, bool incZ, const AABB& aa
 {
 	Intersect ret = fiInside;
 	int ePlane = incZ ? 6 : 4;
-	
+
 	for (int i = 0; i < ePlane; ++i)
 	{
 		D3DXVECTOR3 normal(frustum.planes[i].a, frustum.planes[i].b, frustum.planes[i].c);
@@ -173,7 +173,7 @@ Intersect FrustumAABBIntersect(const Frustum& frustum, bool incZ, const AABB& aa
 		{
 			vMin.x = aabb.min.x;
 			vMax.x = aabb.max.x;
-		} 
+		}
 		else
 		{
 			vMin.x = aabb.max.x;
@@ -217,7 +217,7 @@ bool LineCastIntersPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec,
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &rayVec);	
+	float d = D3DXPlaneDotNormal(&plane, &rayVec);
 	if (abs(d) > EPSILON)
 	{
 		outT = -D3DXPlaneDotCoord(&plane, &rayStart) / d;
@@ -274,7 +274,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	BoundBox::Transform(box, GetViewProj(), projBox);
 
 	//поиск по вершинам aabb
-	for (int i = 0; i < 8; ++i)	
+	for (int i = 0; i < 8; ++i)
 		//лежит ли точка в боксе
 		if (abs(projBox.v[i].x) < 1.0f && abs(projBox.v[i].y) < 1.0f)
 		{
@@ -282,7 +282,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 
 			if (z > maxZ || !res)
 				maxZ = z;
-			if (z < minZ || !res)			
+			if (z < minZ || !res)
 				minZ = z;
 
 			res = true;
@@ -291,7 +291,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	//поиск через лучи из направл€ющих ребер фрустума
 	D3DXVECTOR3 rayVec[4] = {D3DXVECTOR3(-1.0f, -1.0f, 1.0f), D3DXVECTOR3(1.0f, -1.0f, 1.0f), D3DXVECTOR3(-1.0f, 1.0f, 1.0f), D3DXVECTOR3(1.0f, 1.0f, 1.0f)};
 	D3DXVECTOR3 rayPos[4] = {D3DXVECTOR3(-1.0f, -1.0f, 0.0f), D3DXVECTOR3(1.0f, -1.0f, 0.0f), D3DXVECTOR3(-1.0f, 1.0f, 0.0f), D3DXVECTOR3(1.0f, 1.0f, 0.0f)};
-	
+
 	for (int i = 0; i < 4; ++i)
 	{
 		D3DXVec3TransformCoord(&rayVec[i], &rayVec[i], &GetInvViewProj());
@@ -305,8 +305,8 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 			tFar = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tFar));
 
 			if (tNear < minZ || !res)
-				minZ = tNear;			
-			if (tFar > maxZ || !res)			
+				minZ = tNear;
+			if (tFar > maxZ || !res)
 				maxZ = tFar;
 
 			res = true;
@@ -368,8 +368,8 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 					minZ = z;
 				if (z > maxZ || !res)
 					maxZ = z;
-				
-				res = true;				
+
+				res = true;
 			}
 		}
 	}
@@ -385,7 +385,7 @@ void CameraCI::AdjustNearFarPlane(const AABB& aabb, float minNear, float maxFar)
 
 	_desc.nearDist = std::max(fMinZ, minNear);
 	_desc.farDist = std::min(fMaxZ, maxFar);
-	
+
 	DescChanged();
 }
 
@@ -431,7 +431,7 @@ void CameraCI::SetProjMat(const D3DXMATRIX& value)
 	ProjMatChanged();
 }
 
-D3DXVECTOR3 CameraCI::ScreenToWorld(const glm::vec2& coord, float z, const glm::vec2& viewSize) const 
+D3DXVECTOR3 CameraCI::ScreenToWorld(const glm::vec2& coord, float z, const glm::vec2& viewSize) const
 {
 	glm::vec2 projCoord = ViewToProj(coord, viewSize);
 	D3DXVECTOR3 screenVec(projCoord.x, projCoord.y, z);
@@ -444,7 +444,7 @@ D3DXVECTOR3 CameraCI::ScreenToWorld(const glm::vec2& coord, float z, const glm::
 glm::vec2 CameraCI::WorldToScreen(const D3DXVECTOR3& coord, const glm::vec2& viewSize) const
 {
 	D3DXVECTOR3 screenVec;
-	D3DXVec3TransformCoord(&screenVec, &coord, &GetViewProj());	
+	D3DXVec3TransformCoord(&screenVec, &coord, &GetViewProj());
 	glm::vec2 vec(screenVec.x, screenVec.y);
 
 	return ProjToView(vec, viewSize);
@@ -480,7 +480,7 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 			default:
 				//»спользуетс€ правосторонн€ система координат (как в 3dMax-e)
 				D3DXMatrixLookAtRH(&_matrices[transform], &_desc.pos, &(_desc.pos + _desc.dir), &_desc.up);
-			}			
+			}
 			break;
 
 		case ctProj:
@@ -622,14 +622,14 @@ void LightCI::AdjustNearFarPlane(const AABB& aabb, float minNear, float maxFar)
 	BoundBox viewBox, projBox;
 	BoundBox::Transform(box, _camera.GetView(), viewBox);
 	BoundBox::Transform(box, _camera.GetViewProj(), projBox);
-	
-	for (int i = 0; i < 8; ++i)	
+
+	for (int i = 0; i < 8; ++i)
 		{
 			float z = -viewBox.v[i].z;
 
-			if (z > maxZ || !res)			
-				maxZ = z;			
-			if (z < minZ || !res)			
+			if (z > maxZ || !res)
+				maxZ = z;
+			if (z < minZ || !res)
 				minZ = z;
 
 			res = true;
@@ -695,7 +695,7 @@ ContextInfo::ContextInfo(RenderDriver* driver): _driver(driver), _enableShadow(f
 	std::memcpy(_renderStates, defaultRenderStates, sizeof(defaultRenderStates));
 
 	for (int i = 0; i < cMaxTexSamplers; ++i)
-	{		
+	{
 		std::memcpy(_samplerStates[i], defaultSamplerStates, sizeof(defaultSamplerStates));
 		std::memcpy(_textureStageStates[i], defaultTextureStageStates, sizeof(defaultTextureStageStates));
 	}
@@ -717,7 +717,7 @@ DWORD ContextInfo::InvertCullFace(DWORD curFace)
 		break;
 	case D3DCULL_CCW:
 		return D3DCULL_CW;
-		break;	
+		break;
 	}
 	return curFace;
 }
@@ -753,7 +753,7 @@ void ContextInfo::SetLight(LightCI* light, DWORD lightIndex)
 	d3dLight.Specular = light->_desc.specular;
 	d3dLight.Theta = light->_desc.theta;
 	d3dLight.Type = light->_desc.type;
-	
+
 	_driver->GetDevice()->SetLight(lightIndex, &d3dLight);
 }
 
@@ -840,12 +840,12 @@ void ContextInfo::AddLight(LightCI* value)
 	LSL_ASSERT(value && value->_owner == 0);
 
 	unsigned id = (_lastLight == _lightList.end()) ? _lightList.size() : (*_lastLight)->_id + 1;
-	
+
 	Lights::const_iterator iter = _lastLight = _lightList.insert(_lastLight, value);
 	value->_owner = this;
 	value->_id = id;
 	++iter;
-	//ћеста нет, берем конец списка	
+	//ћеста нет, берем конец списка
 	if (!(iter != _lightList.end() && (*iter)->_id - id > 1))
 		_lastLight = _lightList.end();
 
@@ -878,7 +878,7 @@ bool ContextInfo::GetLightEnable(LightCI* light) const
 
 void ContextInfo::SetLightEnable(LightCI* light, bool value)
 {
-	if (_lightEnable.Push(light, value))	
+	if (_lightEnable.Push(light, value))
 		SetLightEnable(light->_id, value);
 }
 
@@ -993,7 +993,7 @@ void ContextInfo::SetRenderState(RenderState type, DWORD value)
 	if (type == rsCullMode && _invertingCullFace)
 		value = InvertCullFace(value);
 	if (_renderStates[type] != value)
-	{		
+	{
 		_renderStates[type] = value;
 		_driver->SetRenderState(type, value);
 	}
@@ -1010,7 +1010,7 @@ IDirect3DBaseTexture9* ContextInfo::GetTexture(DWORD sampler)
 }
 
 void ContextInfo::SetTexture(DWORD sampler, IDirect3DBaseTexture9* value)
-{	
+{
 	if (_textures[sampler] != value)
 	{
 		_textures[sampler] = value;
@@ -1065,7 +1065,7 @@ void ContextInfo::SetTextureStageState(DWORD sampler, TextureStageState type, DW
 	{
 		_textureStageStates[sampler][type] = value;
 		if (!_ignoreMaterial)
-			_driver->SetTextureStageState(sampler, type, value);	
+			_driver->SetTextureStageState(sampler, type, value);
 	}
 }
 

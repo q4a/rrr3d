@@ -29,7 +29,7 @@ void ActorManager::User::InitOctree()
 	{
 		_octreeUser = &_owner->_octree.GetUsers().Add(GetAABB(), _desc.scenes);
 		_octreeUser->AddRef();
-		_octreeUser->SetData(this);				
+		_octreeUser->SetData(this);
 	}
 }
 
@@ -63,7 +63,7 @@ void ActorManager::User::SetGroup(Group* value)
 		if (_group)
 			_owner->AddRefGroup(_group);
 	}
-}	
+}
 
 AABB ActorManager::User::GetAABB() const
 {
@@ -129,8 +129,8 @@ ActorManager::CameraCache::iterator ActorManager::CameraCull(const graph::Camera
 		iterCamera = _cameraCache.insert(iterCamera, CameraCache::value_type(camera, CacheValue()));
 		compCull = true;
 	}
-	else 	
-		compCull = iterCamera->second.idState != camera->IdState();	
+	else
+		compCull = iterCamera->second.idState != camera->IdState();
 	if (compCull)
 	{
 		iterCamera->second.pos = _octree.Culling(frustum);
@@ -204,7 +204,7 @@ void ActorManager::RemoveActor(User* value)
 			if (value->GetDesc().scenes[i])
 				_dynUserList[i].Remove(value);
 	}
-	
+
 	_userList.Remove(value);
 	RemoveRayUser(value);
 
@@ -322,8 +322,8 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 		float dist = abs(testPlane.d - plane.d);
 		float angle = abs(D3DXPlaneDotNormal(&testPlane, &D3DXVECTOR3(plane)));
 
-		if (dist < 0.5f && angle > 0.99f 
-			//&& (planarIter == _planars.end() || 
+		if (dist < 0.5f && angle > 0.99f
+			//&& (planarIter == _planars.end() ||
 			//(minDist >= dist && minAngle - angle < 0.002f) ||
 			//(minDist - dist > -0.1f && minAngle <= angle))
 			)
@@ -398,7 +398,7 @@ void ActorManager::Render(Engine& engine, unsigned scene, const graph::CameraCI*
 		{
 			User* myUser = *iter;
 
-			myUser->GetActor()->Render(engine);			
+			myUser->GetActor()->Render(engine);
 		}
 }
 
@@ -410,7 +410,7 @@ void ActorManager::Render(Engine& engine, unsigned scene, bool ignoreRayUsers)
 void ActorManager::RenderRayUsers(Engine& engine, float opacity)
 {
 	const float cSpeedOpacity = 0.25f;
-	
+
 	for (RayUsers::iterator iter = _rayUsers.begin(); iter != _rayUsers.end();)
 	{
 		User* user = iter->first;
@@ -425,7 +425,7 @@ void ActorManager::RenderRayUsers(Engine& engine, float opacity)
 		}
 		rayUser.draw = false;
 
-		if (rayUser.overloap)			
+		if (rayUser.overloap)
 			rayUser.time = lsl::ClampValue(rayUser.time + engine.GetDt(), 0.0f, cSpeedOpacity);
 		else
 			rayUser.time -= engine.GetDt();

@@ -17,8 +17,8 @@ const D3DXCOLOR Map::bbColor(clrRed);
 const D3DXCOLOR Map::selColor(clrGreen);
 
 
-			
-	
+
+
 MapObj::MapObj(Inst* inst): ExternImpl<Inst>(inst)
 {
 }
@@ -78,15 +78,15 @@ Map::Map(Edit* edit): _edit(edit), _showBB(true)
 
 Map::~Map()
 {
-	delete _trace;	
+	delete _trace;
 }
 
 Map::NodeControl::NodeControl(game::MapObj* mapObj, Map* map, const ControlEventRef& mEvent): _MyBase(&mapObj->GetGameObj().GetGrActor()), _mapObj(mapObj), _map(map), _event(mEvent)
-{	
+{
 }
 
 Map::NodeControl::~NodeControl()
-{	
+{
 }
 
 void Map::NodeControl::Select(bool active)
@@ -102,18 +102,18 @@ void Map::NodeControl::OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVEC
 	Reset(&_mapObj->GetGameObj().GetGrActor());
 	Select(true);
 
-	if (_event)	
+	if (_event)
 	{
 		MapObj* mapObj = new MapObj(_mapObj);
-		_event->OnAddAndSelMapObj(IMapObjRef(mapObj, mapObj));		
+		_event->OnAddAndSelMapObj(IMapObjRef(mapObj, mapObj));
 	}
 }
 
 game::MapObj* Map::PickInstMapObj(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec)
 {
 	float minDist = 0;
-	game::MapObj* mapObj = 0;	
-	
+	game::MapObj* mapObj = 0;
+
 	for (Inst::Objects::const_iterator iter = GetInst()->GetObjects().begin(); iter != GetInst()->GetObjects().end(); ++iter)
 	{
 		D3DXVECTOR3 nearVec;
@@ -230,8 +230,8 @@ IMapObjRef Map::GetFirst(unsigned i)
 
 void Map::GetNext(unsigned cat, IMapObjRef& ref)
 {
-	MapObj* mapObj = ref->GetImpl<MapObj>();	
-	
+	MapObj* mapObj = ref->GetImpl<MapObj>();
+
 	if (++(mapObj->mapIter) != GetInst()->GetMapObjList(game::MapObjLib::Category(cat)).end())
 	{
 		MapObj* newMapObj = new MapObj(*mapObj->mapIter);

@@ -38,7 +38,7 @@ void FinalMenu::AddLineBox(const lsl::string& caption, const lsl::string& text)
 {
 	LineBox line;
 
-	line.caption = menu()->CreateLabel(caption, _linesRoot, "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop, 0xFFDC0000);	
+	line.caption = menu()->CreateLabel(caption, _linesRoot, "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop, 0xFFDC0000);
 	line.caption->SetAlign(gui::Widget::waTop);
 	line.caption->SetWordWrap(true);
 
@@ -71,7 +71,7 @@ void FinalMenu::DeleteAll()
 }
 
 void FinalMenu::OnShow(bool value)
-{	
+{
 	if (value)
 	{
 		//menu()->ShowMessage("", GetString("svFinalMessage"), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 1.0f);
@@ -206,9 +206,9 @@ void FinalMenu::OnProgress(float deltaTime)
 	_bg->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 
 	gui::Widget* labelsParent[cLabelEnd] = {root()};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
-	
+
 	_labels[mlCredits]->SetAlign(gui::Widget::waBottom);
 	_labels[mlCredits]->SetAnchor(gui::Widget::waBottom);
 	_labels[mlCredits]->SetFlag(gui::Widget::wfClientClip, true);
@@ -229,7 +229,7 @@ FinalMenu::~FinalMenu()
 }
 
 void FinalMenu::OnShow(bool value)
-{	
+{
 	if (value)
 	{
 		menu()->ShowMessage("", GetString("svFinalMessage"), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 1.0f);
@@ -246,14 +246,14 @@ void FinalMenu::OnAdjustLayout(const glm::vec2& vpSize)
 
 	_labels[mlCredits]->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2 - 115.0f));
 	_labels[mlCredits]->SetSize(500.0f, vpSize.y);
-	
+
 	for (int i = 0; i < cMenuItemEnd; ++i)
 		_menuItems[i]->SetPos(glm::vec2(_menuItems[i]->GetSize().x/2, vpSize.y - 60.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
 }
 
 void FinalMenu::OnInvalidate()
 {
-	
+
 }
 
 bool FinalMenu::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)

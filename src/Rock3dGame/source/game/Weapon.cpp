@@ -9,9 +9,9 @@ namespace r3d
 
 namespace game
 {
- 
+
 Proj::Proj(): _pxBox(0), _ignoreContactProj(false), _model(0), _model2(0), _weapon(0), _playerId(cUndefPlayerId), _sprite(0), _tick1(0), _time1(0), _state1(false), _vec1(NullVector)
-{	
+{
 }
 
 Proj::~Proj()
@@ -74,8 +74,8 @@ void Proj::FreeModel(bool remove)
 		if (remove)
 			GetIncludeList().Delete(_model);
 
-		lsl::SafeRelease(_model);		
-	}	
+		lsl::SafeRelease(_model);
+	}
 }
 
 void Proj::InitModel2()
@@ -140,7 +140,7 @@ void Proj::InsertProjToGraph(GraphManager* graph)
 	desc.order = graph::Actor::goEffect;
 	desc.props.set(graph::Actor::gpColor);
 	desc.props.set(graph::Actor::gpDynamic);
-	//desc.props.set(graph::Actor::gpMorph);	
+	//desc.props.set(graph::Actor::gpMorph);
 
 	GetGrActor().SetGraph(graph, desc);
 }
@@ -158,7 +158,7 @@ AABB Proj::ComputeAABB(bool onlyModel)
 		}
 
 		aabb.Add(_model->GetGameObj().GetGrActor().GetLocalAABB(false));
-	} 
+	}
 	else if (onlyModel)
 		aabb = AABB(IdentityVector * 0.1f);
 	else
@@ -210,7 +210,7 @@ void Proj::SetWeapon(GameObject* weapon)
 		if (_weapon)
 		{
 			weapon->InsertListener(this);
-			
+
 			GameObject* car = _weapon->GetParent() ? _weapon->GetParent() : NULL;
 			_playerId = car && car->GetMapObj() && car->GetMapObj()->GetPlayer() ? car->GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;
 		}
@@ -236,14 +236,14 @@ void Proj::SetShot(const ShotDesc& value)
 {
 	if (_shot.GetTargetMapObj())
 	{
-		_shot.GetTargetMapObj()->GetGameObj().RemoveListener(this);		
+		_shot.GetTargetMapObj()->GetGameObj().RemoveListener(this);
 	}
 
 	_shot = value;
 
 	if (_shot.GetTargetMapObj())
 	{
-		_shot.GetTargetMapObj()->GetGameObj().InsertListener(this);		
+		_shot.GetTargetMapObj()->GetGameObj().InsertListener(this);
 	}
 }
 
@@ -298,7 +298,7 @@ void Proj::EnableFilter(GameObject* target, unsigned mask)
 		NxShape* shape = target->GetPxActor().GetNxActor()->getShapes()[i];
 		shape->setGroupsMask(nxMask);
 	}
-	
+
 	target->GetPxActor().GetScene()->GetNxScene()->setFilterOps(NX_FILTEROP_OR, NX_FILTEROP_OR, NX_FILTEROP_AND);
 }
 
@@ -333,7 +333,7 @@ D3DXVECTOR3 Proj::CalcSpeed(GameObject* weapon)
 		speed = std::max(speed, _desc.speedRelativeMin + std::max(D3DXVec3Dot(&dir, &weapon->GetPxVelocityLerp()), 0.0f));
 	}
 
-	float cosa = abs(D3DXVec3Dot(&dir, &D3DXVECTOR3(0, 0, 1)));	
+	float cosa = abs(D3DXVec3Dot(&dir, &D3DXVECTOR3(0, 0, 1)));
 	if (cosa < 0.707f)
 	{
 		dir.z = 0;
@@ -391,9 +391,9 @@ void Proj::RocketContact(const px::Scene::OnContactEvent& contact)
 			dir /= dirLength;
 
 			D3DXVECTOR3 contactDir = GetContactPoint(contact);
-			//D3DXVec3Normalize(&contactDir, &contactDir);	
+			//D3DXVec3Normalize(&contactDir, &contactDir);
 			D3DXVec3Cross(&contactDir, &contactDir, &dir);
-			
+
 			//NxVec3 vec3(RandomRange(-1.0f, 1.0f), 0, RandomRange(-1.0f, 1.0f));
 			NxVec3 vec3(contactDir);
 			if (vec3.magnitude() > 0.01f)
@@ -415,10 +415,10 @@ void Proj::RocketUpdate(float deltaTime)
 	const float cTrackHeight = 4.0f;
 
 	D3DXVECTOR3 size = _pxBox->GetDimensions();
-	NxVec3 pos = GetPxActor().GetNxActor()->getGlobalPosition(); 
+	NxVec3 pos = GetPxActor().GetNxActor()->getGlobalPosition();
 	NxRay nxRay(pos + NxVec3(0, 0, cTrackHeight), NxVec3(0, 0, -1.0f));
 
-	NxRaycastHit hit;			
+	NxRaycastHit hit;
 	NxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, NX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT);
 
 	if (hitShape)
@@ -568,7 +568,7 @@ bool Proj::MinePrepare(const ShotContext& ctx, bool lockMine)
 
 	AABB aabb = ComputeAABB(true);
 	GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
-	_time1 = 0.0f;	
+	_time1 = 0.0f;
 
 	if (ctx.projMat)
 	{
@@ -588,7 +588,7 @@ bool Proj::MinePrepare(const ShotContext& ctx, bool lockMine)
 
 		if (hitShape && hitShape->getGroup() != px::Scene::cdgShotTrack) //&& hit.distance < _desc.projMaxDist)
 		{
-			float offs = std::max(-aabb.min.z, 0.01f);			
+			float offs = std::max(-aabb.min.z, 0.01f);
 			D3DXVECTOR3 normal = hit.worldNormal.get();
 
 			SetWorldPos(D3DXVECTOR3(hit.worldImpact.get()) + ZVector * offs);
@@ -639,7 +639,7 @@ float Proj::MineUpdate(float deltaTime, float delay)
 bool Proj::MasloPrepare(const ShotContext& ctx)
 {
 	if (MinePrepare(ctx, true))
-	{		
+	{
 		_model->GetGameObj().SetScale(0.0f);
 		return true;
 	}
@@ -784,12 +784,12 @@ void Proj::TorpedaUpdate(float deltaTime)
 		D3DXVECTOR3 pos = this->GetWorldPos();
 
 		D3DXVECTOR3 dir = targPos - pos;
-		float dist = D3DXVec3Length(&dir);				
+		float dist = D3DXVec3Length(&dir);
 		if (dist > 1.0f)
 			D3DXVec3Normalize(&dir, &dir);
 		else
 			dir = this->GetGrActor().GetDir();
-		
+
 		D3DXQUATERNION rot, rot1;
 		QuatShortestArc(XVector, dir, rot1);
 		if (_desc.angleSpeed > 0)
@@ -812,7 +812,7 @@ void Proj::TorpedaUpdate(float deltaTime)
 		}
 
 		_vec1 = dir * speed;
-		
+
 		this->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(dir * std::max(_desc.speed, speed)));
 	}
 }
@@ -846,7 +846,7 @@ GameObject* Proj::LaserUpdate(float deltaTime, bool distort)
 	nxMask.bits2 = 0;
 	nxMask.bits3 = 0;
 
-	NxRaycastHit rayhit;	
+	NxRaycastHit rayhit;
 	NxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(NxRay(NxVec3(shotPos + _desc.sizeAddPx), NxVec3(shotDir)), NX_ALL_SHAPES, rayhit, (1 << px::Scene::cdgDefault) | (1 << px::Scene::cdgShotTransparency) | (1 << px::Scene::cdgTrackPlane), _desc.maxDist, NX_RAYCAST_SHAPE | NX_RAYCAST_DISTANCE, &nxMask);
 	GameObject* rayHitActor = hitShape ? GetGameObjFromShape(hitShape) : NULL;
 
@@ -867,12 +867,12 @@ GameObject* Proj::LaserUpdate(float deltaTime, bool distort)
 
 	if (_model)
 	{
-		graph::Sprite* sprite = (graph::Sprite*)&_model->GetGameObj().GetGrActor().GetNodes().front();	
+		graph::Sprite* sprite = (graph::Sprite*)&_model->GetGameObj().GetGrActor().GetNodes().front();
 		glm::vec2 size = glm::vec2(scaleLaser, _desc.size.y);
 
 		if (distort)
 		{
-			float alpha = lsl::ClampValue(GetTimeLife() / GetMaxTimeLife(), 0.0f, 1.0f);	
+			float alpha = lsl::ClampValue(GetTimeLife() / GetMaxTimeLife(), 0.0f, 1.0f);
 			//alpha = lsl::ClampValue((alpha - 0.0f)/0.5f + 0.5f, 0.0f, 1.5f) - lsl::ClampValue((alpha - 0.7f)/0.3f * 1.5f, 0.0f, 1.5f);
 			alpha = lsl::ClampValue((alpha - 0.0f)/0.5f * 1.5f + 0.5f, 0.0f, 2.0f) - lsl::ClampValue((alpha - 0.6f)/0.4f * 2.0f, 0.0f, 2.0f);
 
@@ -940,12 +940,12 @@ void Proj::DrobilkaContact(const px::Scene::OnContactEvent& contact)
 		_time1 = 0.5f;
 		InitModel();
 		if (_model)
-		{		
+		{
 			D3DXVECTOR3 pnt = GetContactPoint(contact);
 			_model->GetGameObj().SetWorldPos(pnt);
 		}
 
-		DamageTarget(target, _desc.damage * contact.deltaTime);	
+		DamageTarget(target, _desc.damage * contact.deltaTime);
 	}
 }
 
@@ -1042,7 +1042,7 @@ void Proj::SpringUpdate(float deltaTime)
 		Death();
 		return;
 	}*/
-	
+
 	/*GameCar* car = _weapon->GetParent()->IsCar();
 
 	if (car && !car->IsAnyWheelContact())
@@ -1076,7 +1076,7 @@ void Proj::FrostRayUpdate(float deltaTime)
 {
 	GameObject* target = LaserUpdate(deltaTime, false);
 	SlowEffect* slow = target ? target->GetBehaviors().Find<SlowEffect>() : 0;
-	
+
 	if (target && target->IsCar() && slow == 0)
 	{
 		slow = &target->GetBehaviors().Add<SlowEffect>();
@@ -1135,7 +1135,7 @@ void Proj::ImpulseContact(const px::Scene::OnContactEvent& contact)
 				this->Death(dtEnergy, contactActor);
 				return;
 			}
-			
+
 			ShotDesc shot = _shot;
 			shot.SetTargetMapObj(taget);
 			SetShot(shot);
@@ -1173,7 +1173,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 
 	NxVec3 velocity = GetPxActor().GetNxActor()->getLinearVelocity();
 	NxContactStreamIterator contIter(contact.stream);
-	
+
 	if (ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency) && velocity.magnitude() > 5.0f)
 	{
 		_time1 = 0.1f;
@@ -1184,7 +1184,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 
 		NxVec3 velNorm = velocity;
 		velNorm.normalize();
-		float angle = velNorm.dot(norm);		
+		float angle = velNorm.dot(norm);
 		if (abs(angle) > 0.1f)
 		{
 			D3DXPLANE plane;
@@ -1207,7 +1207,7 @@ void Proj::ThunderUpdate(float deltaTime)
 {
 	RocketUpdate(deltaTime);
 
-	_time1 -= deltaTime;	
+	_time1 -= deltaTime;
 }
 
 bool Proj::ResonansePrepare(GameObject* weapon)
@@ -1263,7 +1263,7 @@ void Proj::OnContact(const px::Scene::OnContactEvent& contact)
 		{
 		case ptRocket:
 			RocketContact(contact);
-			break;	
+			break;
 
 		case ptTorpeda:
 			TorpedaContact(contact);
@@ -1272,11 +1272,11 @@ void Proj::OnContact(const px::Scene::OnContactEvent& contact)
 		case ptMedpack:
 			MedpackContact(contact);
 			break;
-			
+
 		case ptCharge:
 			ChargeContact(contact);
 			break;
-			
+
 		case ptMoney:
 			MoneyContact(contact);
 			break;
@@ -1345,14 +1345,14 @@ void Proj::OnContact(const px::Scene::OnContactEvent& contact)
 			ResonanseContact(contact);
 			break;
 		}
-	}			
+	}
 }
 
 void Proj::SaveSource(lsl::SWriter* writer)
 {
 	_MyBase::SaveSource(writer);
 
-	lsl::SWriter* proj = writer->NewDummyNode("proj");	
+	lsl::SWriter* proj = writer->NewDummyNode("proj");
 	_desc.SaveTo(proj, this);
 }
 
@@ -1360,7 +1360,7 @@ void Proj::LoadSource(lsl::SReader* reader)
 {
 	_MyBase::LoadSource(reader);
 
-	lsl::SReader* proj = reader->ReadValue("proj");	
+	lsl::SReader* proj = reader->ReadValue("proj");
 	_desc.LoadFrom(proj, this);
 }
 
@@ -1415,7 +1415,7 @@ void Proj::OnProgress(float deltaTime)
 
 	case ptMineRip:
 		MineRipUpdate(deltaTime);
-		break;	
+		break;
 
 	case ptMineProton:
 		MineProtonUpdate(deltaTime);
@@ -1444,7 +1444,7 @@ void Proj::OnProgress(float deltaTime)
 	case ptResonanse:
 		ResonanseUpdate(deltaTime);
 		break;
-	}		
+	}
 }
 
 bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
@@ -1458,7 +1458,7 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 		timeLife = _desc.maxDist / _desc.speed;
 	SetMaxTimeLife(std::max(timeLife, _desc.minTimeLife.GetValue()));
 
-	bool res = true;	
+	bool res = true;
 	switch (_desc.type)
 	{
 	case ptRocket:
@@ -1480,11 +1480,11 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 	case ptMedpack:
 		res = MedpackPrepare(weapon);
 		break;
-		
+
 	case ptCharge:
 		res = ChargePrepare(weapon);
 		break;
-		
+
 	case ptMoney:
 		res = MoneyPrepare(weapon);
 		break;
@@ -1507,7 +1507,7 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 
 	case ptMine:
 		res = MinePrepare(ctx, true);
-		break;	
+		break;
 
 	case ptMineRip:
 		res = MineRipPrepare(ctx);
@@ -1515,11 +1515,11 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 
 	case ptMinePiece:
 		res = MinePiecePrepare(ctx);
-		break;	
+		break;
 
 	case ptMineProton:
 		res = MineProtonPrepare(ctx);
-		break;	
+		break;
 
 	case ptFire:
 		res = FirePrepare(weapon);
@@ -1575,7 +1575,7 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 
 	//Игнорируем контакты снаряда с родителем (т.е. с самим собой)
 	if (_ignoreContactProj && weapon && weapon->GetPxActor().GetNxActor())
-	{		
+	{
 		GetPxActor().GetScene()->GetNxScene()->setActorPairFlags(*weapon->GetPxActor().GetNxActor(), *GetPxActor().GetNxActor(), NX_IGNORE_PAIR);
 	}
 
@@ -1593,7 +1593,7 @@ void Proj::MineContact(GameObject* target, const D3DXVECTOR3& point)
 	}
 
 	DamageTarget(target, _desc.damage, dtMine);
-	AddContactForce(target, point, D3DXVECTOR3(0.0f, 0.0f, _desc.speed), NX_IMPULSE);	
+	AddContactForce(target, point, D3DXVECTOR3(0.0f, 0.0f, _desc.speed), NX_IMPULSE);
 }
 
 const Proj::Desc& Proj::GetDesc() const
@@ -1702,7 +1702,7 @@ void Weapon::LoadSource(lsl::SReader* reader)
 	_MyBase::LoadSource(reader);
 
 	Desc desc;
-	desc.LoadFrom(reader, this);	
+	desc.LoadFrom(reader, this);
 	SetDesc(desc);
 }
 
@@ -1722,7 +1722,7 @@ void Weapon::OnProgress(float deltaTime)
 
 bool Weapon::Shot(const ShotDesc& shotDesc, ProjList* projList)
 {
-	Proj::ShotContext ctx;	
+	Proj::ShotContext ctx;
 	ctx.logic = GetLogic();
 	ctx.shot = shotDesc;
 
@@ -1786,7 +1786,7 @@ bool Weapon::CreateShot(Weapon* weapon, const Weapon::Desc& desc, const Proj::Sh
 
 	for (ProjDescList::const_iterator iter = desc.projList.begin(); iter != desc.projList.end(); ++iter)
 	{
-		if (weapon == NULL && 
+		if (weapon == NULL &&
 			(iter->type == Proj::ptRocket ||
 			iter->type == Proj::ptHyper ||
 			iter->type == Proj::ptTorpeda ||

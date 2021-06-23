@@ -13,11 +13,11 @@ namespace game
 DataBase::DataBase(World* world, const std::string& name): _world(world), _initMapObjLib(false), _rootNode(0)
 {
 	SetName(name);
-	SetOwner(world);	
+	SetOwner(world);
 }
 
 DataBase::~DataBase()
-{	
+{
 }
 
 void DataBase::InitMapObjLib()
@@ -44,7 +44,7 @@ void DataBase::FreeMapObjLib()
 
 		for (int i = 0; i < MapObjLib::cCategoryEnd; ++i)
 			delete _mapObjLib[i];
-	}	
+	}
 }
 
 MapObj* DataBase::NewMapObj()
@@ -241,7 +241,7 @@ void DataBase::AddToGraph(graph::Actor& grActor, GraphType type, bool dynamic, b
 		desc.props.set(IActor::gpColor);
 		break;
 
-	case gtRefrEffect:	
+	case gtRefrEffect:
 		LSL_ASSERT(dynamic);
 
 		desc.lighting = IActor::glRefr;
@@ -283,7 +283,7 @@ px::BoxShape* DataBase::AddPxBox(MapObj* mapObj, const AABB& aabb)
 px::BoxShape* DataBase::AddPxBox(MapObj* mapObj)
 {
 	AABB aabb = mapObj->GetGameObj().GetGrActor().GetLocalAABB(false);
-	
+
 	return AddPxBox(mapObj, aabb);
 }
 
@@ -375,7 +375,7 @@ CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& me
 	wheel->SetLead(lead);
 	wheel->SetSteer(steer);
 	wheel->SetPos(pos);
-	//wheel->invertWheel = pos.y < 0;	
+	//wheel->invertWheel = pos.y < 0;
 
 	float meshRadius = 0.0f;
 	if (!meshName.empty())
@@ -383,7 +383,7 @@ CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& me
 		graph::IVBMeshNode* meshNode = AddMeshNode(&wheel->GetGrActor(), meshName);
 		graph::LibMaterial* meshMat = AddLibMat(meshNode, !carDesc.wheelMat.empty() ? carDesc.wheelMat : matName);
 		if (carDesc.wheelOffsetModel.size() > 0)
-			wheel->SetOffset(index < carDesc.wheelOffsetModel.size() ? carDesc.wheelOffsetModel[index] : carDesc.wheelOffsetModel[carDesc.wheelOffsetModel.size() - 1]);		
+			wheel->SetOffset(index < carDesc.wheelOffsetModel.size() ? carDesc.wheelOffsetModel[index] : carDesc.wheelOffsetModel[carDesc.wheelOffsetModel.size() - 1]);
 
 		if (pos.y < 0)
 		{
@@ -426,7 +426,7 @@ CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& me
 	descShapeWheel.localPose.M.fromQuat(q);
 
 	wheel->GetShape()->AssignFromDesc(descShapeWheel);
-	
+
 	//if (master)
 	//{
 	//	wheel->GetPxActor().SetMasterSer(&master->GetPxActor());
@@ -549,7 +549,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 	}
 
 	AddPxBody(mapObj, carDesc.mass, &carDesc.centerMassPos);
-	
+
 	AABB aabb = carDesc.bodyAABB;
 
 	if (D3DXVec3Length(&aabb.GetSizes()) < 0.001f)
@@ -558,13 +558,13 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 	aabb.Scale(carDesc.bodyScale);
 	aabb.Offset(carDesc.bodyOffset);
 	px::BoxShape* carShape = AddPxBox(mapObj, aabb);
-	
+
 	carShape->SetMaterialIndex(carDesc.wakeFrictionModel ? _nxCarMaterial2->getMaterialIndex() : _nxCarMaterial1->getMaterialIndex());
 
 	std::vector<D3DXVECTOR3> posWheels;
 	CarWheels::LoadPosTo("Data\\" + wheelCoords, posWheels);
 
-	for (unsigned i = 0; i < posWheels.size(); ++i)	
+	for (unsigned i = 0; i < posWheels.size(); ++i)
 	{
 		bool backWheel = i >= 2;
 		bool lead = (carDesc.frontWheelDrive && i <= 1) || (carDesc.backWheelDrive && backWheel);
@@ -576,7 +576,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 				PxWheelSlipEffect& slipEffect = wheel->GetBehaviors().Add<PxWheelSlipEffect>();
 				slipEffect.SetEffect(GetRecord(MapObjLib::ctEffects, "trail"));
 				slipEffect.SetPos(ZVector * 0.01f);
-				
+
 				//для одного колеса
 				if (i == 0)
 					slipEffect.SetSound(&GetSound("Sounds\\SkidAsphalt.ogg"));
@@ -591,9 +591,9 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 	gameObj->SetKSteerControl(0.12f);
 	gameObj->SetSteerSpeed(carDesc.steerSpeed);
 	gameObj->SetSteerRot(carDesc.steerRot);
-	gameObj->SetFlyYTourque(carDesc.flyYTorque);	
-	gameObj->SetClampXTourque(carDesc.clampXTorque);	
-	gameObj->SetClampYTourque(carDesc.clampYTorque);	
+	gameObj->SetFlyYTourque(carDesc.flyYTorque);
+	gameObj->SetClampXTourque(carDesc.clampXTorque);
+	gameObj->SetClampYTourque(carDesc.clampYTorque);
 	gameObj->SetAngDamping(carDesc.angDamping);
 	gameObj->SetGravEngine(carDesc.gravEngine);
 	gameObj->SetClutchImmunity(carDesc.clutchImmunity);
@@ -611,7 +611,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 	}
 	{
 		DeathEffect& deathEffect1 = gameObj->GetBehaviors().Add<DeathEffect>();
-		deathEffect1.SetEffect(GetRecord(MapObjLib::ctEffects, "death2"));		
+		deathEffect1.SetEffect(GetRecord(MapObjLib::ctEffects, "death2"));
 		deathEffect1.SetIgnoreRot(true);
 	}
 	if (!carDesc.bodyDestr.empty())
@@ -706,7 +706,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 
 		for (int i = 0; i < 2; ++i)
 		{
-			graph::IVBMeshNode* meshNode = AddMeshNode(childObj, mesh, i + 1);			
+			graph::IVBMeshNode* meshNode = AddMeshNode(childObj, mesh, i + 1);
 			meshNode->tag(i + 1);
 			graph::LibMaterial* libMat = AddLibMat(meshNode, "Car\\podushka");
 			childObj->GetGameObj().GetBehaviors().Add<PodushkaAnim>().targetTag(i + 1);
@@ -758,7 +758,7 @@ void DataBase::LoadCrushObj(const std::string& name, const std::string& mesh, co
 				shape->SetSkinWidth(0.1f);
 
 				AddPxBody(&part, mass, 0);
-			}			
+			}
 		}
 		SaveMapObj(mapObj, MapObjLib::ctDecoration, name);
 	}
@@ -806,14 +806,14 @@ void DataBase::LoadSndSources()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		mapObj->GetGameObj().SetMaxTimeLife(2.0f);
-		
+
 		{
 			LifeEffect& effect = mapObj->GetGameObj().GetBehaviors().Add<LifeEffect>();
 			effect.SetSound(&GetSound("Sounds\\klicka5.ogg"));
 		}
 
 		SaveMapObj(mapObj, MapObjLib::ctEffects, "Snd\\klicka5");
-	}	
+	}
 
 	//shieldOn
 	{
@@ -826,7 +826,7 @@ void DataBase::LoadSndSources()
 		}
 
 		SaveMapObj(mapObj, MapObjLib::ctEffects, "Snd\\shieldOn");
-	}	
+	}
 }
 
 void DataBase::LoadEffects()
@@ -862,7 +862,7 @@ void DataBase::LoadEffects()
 		desc.density = 1.0f;
 		desc.life = 0;
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume, Point3U(100, 100, 100));
-		desc.startScale = Vec3Range(IdentityVector * 0.9f, IdentityVector * 1.1f);		
+		desc.startScale = Vec3Range(IdentityVector * 0.9f, IdentityVector * 1.1f);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 4.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
@@ -885,12 +885,12 @@ void DataBase::LoadEffects()
 		desc.life = 1.0f;
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
 		desc.startScale = Vec3Range(D3DXVECTOR3(1.0f, 0.70f, 0.70f), D3DXVECTOR3(1.5f, 1.0f, 1.0f));
-				
+
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-12.0f, -12.0f, 0.0f), D3DXVECTOR3(12.0f, 12.0f, 12.0f), Vec3Range::vdVolume);
 		descFlow.autoRot = true;
 		descFlow.gravitation = D3DXVECTOR3(0, 0, -5.0f);
-		
+
 		LoadFxFlow("spark1", "Effect\\spark1", _fxDirSpriteManager, desc, descFlow, true, 1.0f);
 	}
 
@@ -910,7 +910,7 @@ void DataBase::LoadEffects()
 		desc.life = FloatRange(0.3f, 0.7f);
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
 		desc.startScale = Vec3Range(D3DXVECTOR3(0.2f, 0.40f, 0.40f), D3DXVECTOR3(0.9f, 0.5f, 0.5f));
-				
+
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-6.0f, -6.0f, -6.0f), D3DXVECTOR3(6.0f, 6.0f, 6.0f), Vec3Range::vdVolume);
 		descFlow.autoRot = true;
@@ -1000,7 +1000,7 @@ void DataBase::LoadEffects()
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-10.0f, -10.0f, -10.0f), D3DXVECTOR3(10.0f, 10.0f, 10.0f), Vec3Range::vdVolume);
 		//descFlow.speedScale = Vec3Range(D3DXVECTOR3(13.5f, 0.0f, 0.0f), D3DXVECTOR3(16.5f, 0.0f, 0.0f));
-		descFlow.autoRot = true;		
+		descFlow.autoRot = true;
 
 		LoadFxFlow("blink", "Effect\\blink", _fxSpriteManager, desc, descFlow, true, 0.5f);
 	}
@@ -1019,7 +1019,7 @@ void DataBase::LoadEffects()
 		D3DXQUATERNION rot1;
 		D3DXQuaternionRotationAxis(&rot1, &D3DXVECTOR3(0.0f, 0.0f, 1.0f), 0.0f);
 		D3DXQUATERNION rot2;
-		D3DXQuaternionRotationAxis(&rot2, &D3DXVECTOR3(0.0f, 0.0f, 1.0f), 2*D3DX_PI);		
+		D3DXQuaternionRotationAxis(&rot2, &D3DXVECTOR3(0.0f, 0.0f, 1.0f), 2*D3DX_PI);
 		desc.startRot = QuatRange(rot1, rot2, QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
@@ -1036,11 +1036,11 @@ void DataBase::LoadEffects()
 		desc.density = FloatRange(1.0f, 3.0f);
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
 		desc.startScale = D3DXVECTOR3(IdentityVector) / 2;
-		
+
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = D3DXVECTOR3(1.0f, 1.0f, 1.0f);
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-0.5f, -0.5f, 2.0f), D3DXVECTOR3(0.5f, 0.5f, 2.0f), Vec3Range::vdVolume, Point3U(100, 100, 100));
-		
+
 		LoadFxFlow("smoke1", "Effect\\smoke1", _fxSpriteManager, desc, descFlow, true);
 	}
 
@@ -1059,7 +1059,7 @@ void DataBase::LoadEffects()
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * 2.0f;
 		descFlow.speedPos = -XVector;
-		
+
 		LoadFxFlow("smoke2", "Effect\\smoke2", _fxSpriteManager, desc, descFlow, true);
 	}
 
@@ -1195,11 +1195,11 @@ void DataBase::LoadEffects()
 		desc.startDuration = 1.0f;
 		desc.startPos = NullVector;
 		desc.startScale = IdentityVector * 1.0f;
-		desc.density = 2.0f;		
+		desc.density = 2.0f;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * (-0.25f);
-		descFlow.speedPos = XVector * 3.0f;		
+		descFlow.speedPos = XVector * 3.0f;
 
 		LoadFxFlow("accelEff", "Effect\\flare3", _fxSpriteManager, desc, descFlow, false, 1.5f);
 	}
@@ -1228,14 +1228,14 @@ void DataBase::LoadEffects()
 	LoadFxSprite("flare3", "Effect\\flare3", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amNone, 0);
 	//flare4
 	LoadFxSprite("flare4", "Effect\\flare4", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0);
-	//flare5	
+	//flare5
 	LoadFxSprite("flare5", "Effect\\flare5", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0, false, glm::vec2(0.8f, 0.8f));
 	//flare6
 	LoadFxSprite("flare6", "Effect\\flare6", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0.15f, false, glm::vec2(2.0f, 2.0f));
 	//firePatron
 	LoadFxSprite("firePatron", "Effect\\firePatron", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0, false, glm::vec2(2.0f, 2.0f));
 	//lens1
-	LoadFxSprite("lens1", "Effect\\lens1", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0, false, glm::vec2(3.0f, 0.75f));	
+	LoadFxSprite("lens1", "Effect\\lens1", NullVector, IdentityVector, NullQuaternion, false, graph::SceneNode::amNone, 0, 0, 0, false, glm::vec2(3.0f, 0.75f));
 	//death1
 	LoadFxSprite("death1", "Effect\\gunEff2", NullVector, Vec3Range(NullVector, IdentityVector * 10.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.25f, 0.0f, 0.25f);
 	//engine1
@@ -1243,7 +1243,7 @@ void DataBase::LoadEffects()
 	//explosionRay
 	LoadFxSprite("explosionRay", "Effect\\ExplosionRay", NullVector, Vec3Range(IdentityVector, IdentityVector * 6.0f), NullQuaternion, false, graph::SceneNode::amOnce, 1.0f, 0.0f, 1.0f, false, glm::vec2(2.0f, 2.0f));
 	//laserBlue
-	LoadFxSprite("laserBlue", "Effect\\laser3-blue", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, true, graph::SceneNode::amNone, 0.0f, 0.0f, 0.0f, true, glm::vec2(5.0f, 2.0f));	
+	LoadFxSprite("laserBlue", "Effect\\laser3-blue", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, true, graph::SceneNode::amNone, 0.0f, 0.0f, 0.0f, true, glm::vec2(5.0f, 2.0f));
 	//ExplosionRing
 	LoadFxSprite("explosionRing", "Effect\\ExplosionRing", NullVector, Vec3Range(IdentityVector, IdentityVector * 16.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.5f, 0.0f, 0.0f, false, glm::vec2(1.0f, 1.0f));
 	//protonRay
@@ -1273,7 +1273,7 @@ void DataBase::LoadEffects()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		AddToGraph(mapObj, gtEffect, true);
-		
+
 		graph::FxParticleSystem* fxSystem = AddFxSystem(mapObj, _fxSpriteManager);
 		AddLibMat(&fxSystem->material, "Effect\\fire1");
 
@@ -1290,7 +1290,7 @@ void DataBase::LoadEffects()
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1, -1, 7), D3DXVECTOR3(1, 1, 7), Vec3Range::vdVolume) * 0.4f;
 
-		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);		
+		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);
 		NewChildMapObj(mapObj, MapObjLib::ctEffects, "smoke1")->GetGameObj().SetPos(D3DXVECTOR3(0.0f, 0.0f, 0.5f));
 
 		SaveMapObj(mapObj, MapObjLib::ctEffects, "fire1");
@@ -1326,12 +1326,12 @@ void DataBase::LoadEffects()
 
 		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);
 
-		mapObj->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();	
+		mapObj->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 		mapObj->GetGameObj().GetBehaviors().Add<FxSystemSrcSpeed>();
 
 		SaveMapObj(mapObj, MapObjLib::ctEffects, "fire2");
 	}
-	
+
 	//Death2
 	{
 		game::MapObj* mapObj = NewMapObj();
@@ -1348,7 +1348,7 @@ void DataBase::LoadEffects()
 		//debris
 		{
 			graph::FxParticleSystem* fxSystem = AddFxSystem(mapObj, _fxPiecesManager, graph::FxParticleSystem::csUnique);
-			
+
 			graph::FxEmitter::ParticleDesc desc;
 			desc.maxNum = 3;
 			desc.maxNumAction = graph::FxEmitter::mnaWaitingFree;
@@ -1356,8 +1356,8 @@ void DataBase::LoadEffects()
 			desc.density = 3;
 			desc.life = 0;
 			desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume, Point3U(100, 100, 100));
-			desc.startScale = Vec3Range(IdentityVector * 0.9f, IdentityVector * 1.1f);			
-				
+			desc.startScale = Vec3Range(IdentityVector * 0.9f, IdentityVector * 1.1f);
+
 			graph::FxFlowEmitter::FlowDesc descFlow;
 			descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 2.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
 			//
@@ -1369,7 +1369,7 @@ void DataBase::LoadEffects()
 			descFlow.gravitation = D3DXVECTOR3(0, 0, -9.80f);
 
 			AddFxFlowEmitter(fxSystem, desc, descFlow, true);
-			
+
 			//smoke debr
 			{
 				graph::FxParticleSystem* smokeSys = AddFxSystem(&fxSystem->GetChild(), _fxPSpriteManager);
@@ -1387,7 +1387,7 @@ void DataBase::LoadEffects()
 				graph::FxFlowEmitter::FlowDesc descFlow = smoke->GetFlowDesc();
 				descFlow.speedScale = IdentityVector * 3.0f;
 				descFlow.speedPos = Vec3Range(D3DXVECTOR3(-0.5f, -0.5f, 2.0f), D3DXVECTOR3(0.5f, 0.5f, 2.0f), Vec3Range::vdVolume, Point3U(100, 100, 100));
-				
+
 				AddFxFlowEmitter(smokeSys, desc, descFlow, true);
 			}
 		}
@@ -1398,7 +1398,7 @@ void DataBase::LoadEffects()
 		}
 
 		SaveMapObj(mapObj, MapObjLib::ctEffects, "death2");
-	}	
+	}
 
 	//Death3
 	{
@@ -1447,7 +1447,7 @@ void DataBase::LoadEffects()
 
 	//Death5
 	{
-		game::MapObj* mapObj = NewMapObj();		
+		game::MapObj* mapObj = NewMapObj();
 		mapObj->GetGameObj().SetMaxTimeLife(0.7f);
 		AddToGraph(mapObj, gtEffect, true);
 
@@ -1459,7 +1459,7 @@ void DataBase::LoadEffects()
 
 	//Death6
 	{
-		game::MapObj* mapObj = NewMapObj();		
+		game::MapObj* mapObj = NewMapObj();
 		mapObj->GetGameObj().SetMaxTimeLife(0.7f);
 		AddToGraph(mapObj, gtEffect, true);
 
@@ -1483,7 +1483,7 @@ void DataBase::LoadEffects()
 		desc.startTime = 1.0f;
 		desc.density = 1.0f;
 		desc.startPos = NullVector;
-		desc.startType = graph::FxEmitter::sotDist;			
+		desc.startType = graph::FxEmitter::sotDist;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = NullVector;
@@ -1522,7 +1522,7 @@ void DataBase::LoadEffects()
 	//resonanseBolt
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::GameObject& gameObj = mapObj->GetGameObj();		
+		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::IVBMeshNode* mesh = AddMeshNode(mapObj, "Effect\\sphere.r3d");
 		AddLibMat(mesh, "Effect\\gravBall");
@@ -1530,7 +1530,7 @@ void DataBase::LoadEffects()
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		{
-			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "heatTrail");	
+			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "heatTrail");
 		}
 
 		SaveMapObj(mapObj, MapObjLib::ctEffects, "resonanseBolt");
@@ -1554,7 +1554,7 @@ void DataBase::LoadEffects()
 		desc.density = 1.0f;
 		desc.startPos = NullVector;
 		desc.startScale = IdentityVector * 0.6f;
-		desc.startRot = NullQuaternion;		
+		desc.startRot = NullQuaternion;
 		desc.rangeLife = FloatRange(0.0f, -0.6f);
 		desc.rangePos = Vec3Range(D3DXVECTOR3(1.0f, 0, 0), D3DXVECTOR3(-1.0f, 0, 0));
 
@@ -1601,7 +1601,7 @@ void DataBase::LoadEffects()
 	//flareLaser1
 	{
 		graph::FxEmitter::ParticleDesc desc;
-		desc.maxNum = 3;		
+		desc.maxNum = 3;
 		desc.maxNumAction = graph::FxEmitter::mnaWaitingFree;
 		desc.startType = graph::FxEmitter::sotTime;
 		desc.startTime = 2.0f;
@@ -1630,7 +1630,7 @@ void DataBase::LoadEffects()
 		desc.startScale = Vec3Range(IdentityVector * 1.25f, IdentityVector * 2.0f);
 		desc.rangeRot = QuatRange(D3DXQUATERNION(-1, -1, -1, -1), D3DXQUATERNION(1, 1, 1, 1), QuatRange::vdVolume);
 
-		graph::FxFlowEmitter::FlowDesc descFlow;		
+		graph::FxFlowEmitter::FlowDesc descFlow;
 
 		LoadFxFlow("flareLaser3", "Effect\\flareLaser3", _fxSpriteManager, desc, descFlow, false);
 	}
@@ -1668,14 +1668,14 @@ void DataBase::LoadEffects()
 		graph::FxEmitter::ParticleDesc desc;
 		desc.maxNum = 0;
 		desc.maxNumAction = graph::FxEmitter::mnaWaitingFree;
-		desc.life = FloatRange(1.0f, 2.0f);		
+		desc.life = FloatRange(1.0f, 2.0f);
 		desc.startTime = FloatRange(0.05f, 0.1f);
 		desc.startDuration = 0.0f;
 		desc.startType = graph::FxEmitter::sotTime;
 		desc.density = FloatRange(20.0f, 30.0f);
 		desc.startPos = Vec3Range(D3DXVECTOR3(-6.0f, -8.0f, 2.0f), D3DXVECTOR3(6.0f, 4.0f, 3.0f), Vec3Range::vdVolume);
 		desc.startScale = D3DXVECTOR3(1.0f, 0.1f, 1.0f);
-		desc.startRot = NullQuaternion;		
+		desc.startRot = NullQuaternion;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(0.0f, 4.0f, -12.0f), D3DXVECTOR3(0.0f, 2.0f, -12.0f), Vec3Range::vdVolume);
@@ -1698,14 +1698,14 @@ void DataBase::LoadEffects()
 		graph::FxEmitter::ParticleDesc desc;
 		desc.maxNum = 0;
 		desc.maxNumAction = graph::FxEmitter::mnaWaitingFree;
-		desc.life = FloatRange(1.0f, 2.0f);		
+		desc.life = FloatRange(1.0f, 2.0f);
 		desc.startTime = FloatRange(0.05f, 0.1f);
 		desc.startDuration = 0.0f;
 		desc.startType = graph::FxEmitter::sotTime;
 		desc.density = FloatRange(20.0f, 25.0f);
 		desc.startPos = Vec3Range(D3DXVECTOR3(40.0f, 1.0f, 17.0f), D3DXVECTOR3(-2.4f, 22.05f, 13.0f), Vec3Range::vdVolume);
 		desc.startScale = Vec3Range(D3DXVECTOR3(3.0f, 0.3f, 1.0f), D3DXVECTOR3(3.5f, 0.25f, 1.0f), Vec3Range::vdVolume);
-		desc.startRot = NullQuaternion;		
+		desc.startRot = NullQuaternion;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(0.0f, 15.0f, -45.0f), D3DXVECTOR3(0.0f, 7.5f, -45.0f), Vec3Range::vdVolume);
@@ -1737,7 +1737,7 @@ void DataBase::LoadEffects()
 		D3DXQuaternionRotationAxis(&rot, &ZVector, D3DX_PI);
 		desc.startRot = QuatRange(NullQuaternion, rot, QuatRange::vdLinear);
 		desc.startScale = D3DXVECTOR3(IdentityVector) * 4.0f;
-		
+
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = -IdentityVector * 1.0f;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-0.5f, -0.5f, 3.0f), D3DXVECTOR3(0.5f, 0.5f, 3.5f), Vec3Range::vdVolume);
@@ -1853,7 +1853,7 @@ void DataBase::LoadEffects()
 
 		MapObj* ring = NewChildMapObj(mapObj, MapObjLib::ctEffects, "hyperRing");
 		ring->GetGameObj().SetPos(XVector * 3.0f);
-		
+
 		SaveMapObj(mapObj, MapObjLib::ctEffects, "hyperBlaster");
 	}
 
@@ -1892,10 +1892,10 @@ void DataBase::LoadEffects()
 	//mortiraBallDeath
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();		
+		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
 
 		game::AutoProj::Desc projDesc;
-		
+
 		projDesc.type = Proj::ptCrater;
 		projDesc.SetModel(GetRecord(MapObjLib::ctEffects, "crater"));
 		projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.1f);
@@ -1906,13 +1906,13 @@ void DataBase::LoadEffects()
 		projDesc.mass = 100.0f;
 		projDesc.damage = 10.0f;
 		projDesc.minTimeLife = 3.0f;
-				
+
 		gameObj.SetDesc(projDesc);
 		gameObj.GetPxActor().SetScene(_world->GetPxScene());
 
 		MapObj* death = NewChildMapObj(mapObj, MapObjLib::ctEffects, "death3");
 		death->GetGameObj().SetPos(ZVector * 1.0f);
-		
+
 		SaveMapObj(mapObj, MapObjLib::ctEffects, "mortiraBallDeath");
 	}
 
@@ -2016,7 +2016,7 @@ void DataBase::LoadWorld2()
 	LoadDecor("World2\\haus1", "World2\\haus1.r3d", "World2\\haus1");
 	LoadDecor("World2\\haus1_2", "World2\\haus1_2.r3d", "World2\\haus1");
 	LoadDecor("World2\\haus3", "World2\\haus3.r3d", "World2\\Haus3");
-	LoadDecor("World2\\machineFactory", "World2\\machineFactory.r3d", "World2\\machineFactory");	
+	LoadDecor("World2\\machineFactory", "World2\\machineFactory.r3d", "World2\\machineFactory");
 	LoadDecor("World2\\metal1_1", "World2\\metal1_1.r3d", "World2\\metal1");
 	LoadDecor("World2\\metal1_2", "World2\\metal1_2.r3d", "World2\\metal1");
 	LoadDecor("World2\\naves1_1", "World2\\naves1_1.r3d", "World2\\naves1", gtDefFixPipe, false, true, false);
@@ -2025,10 +2025,10 @@ void DataBase::LoadWorld2()
 	LoadDecor("World2\\poplar1_2", "World2\\poplar1_2.r3d", "World2\\poplar1");
 	LoadDecor("World2\\pregrada", "World2\\pregrada.r3d", "World2\\pregrada", gtDefFixPipe, false, false, false);
 	LoadDecor("World2\\projector", "World2\\projector.r3d", "World2\\projektor", gtDefFixPipe, false, false, false);
-	LoadDecor("World2\\pumpjack", "World2\\pumpjack.r3d", "World2\\pumpjack");	
+	LoadDecor("World2\\pumpjack", "World2\\pumpjack.r3d", "World2\\pumpjack");
 	LoadDecor("World2\\skelet1_1", "World2\\skelet1_1.r3d", "World2\\skelet1");
 	LoadDecor("World2\\skelet1_2", "World2\\skelet1_2.r3d", "World2\\skelet1");
-	LoadDecor("World2\\skelet1_3", "World2\\skelet1_3.r3d", "World2\\skelet1");	
+	LoadDecor("World2\\skelet1_3", "World2\\skelet1_3.r3d", "World2\\skelet1");
 	LoadDecor("World2\\strelka1_1", "World2\\strelka1_1.r3d", "World2\\strelka1", gtDefFixPipe, false, false, false);
 	LoadDecor("World2\\strelka1_2", "World2\\strelka1_2.r3d", "World2\\strelka1", gtDefFixPipe, false, false, false);
 	LoadDecor("World2\\tramplin1", "World2\\tramplin1.r3d", "World2\\tramplin1", gtDef, true, false, false);
@@ -2061,18 +2061,18 @@ void DataBase::LoadWorld2()
 	D3DXVECTOR4 vec1 = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.10f, 0.0f);
-	
+
 	LoadTrack("World2\\jump", "World2\\Track\\jump.r3d", "World2\\Track\\track1", true, true, true);
 	LoadTrack("World2\\most", "World2\\Track\\most.r3d", "World2\\Track\\most", true, true, true, false, "", true);
 	LoadTrack("World2\\track1", "World2\\Track\\track1.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTrack1.r3d");
 	LoadTrack("World2\\track2", "World2\\Track\\track2.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTrack2.r3d");
 	LoadTrack("World2\\track3", "World2\\Track\\track3.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTrack3.r3d", false, vec1, NullVec4, vec3);
-	LoadTrack("World2\\track4", "World2\\Track\\track4.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTrack4.r3d");	
-	LoadTrack("World2\\track6", "World2\\Track\\track6.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTrack6.r3d");	
+	LoadTrack("World2\\track4", "World2\\Track\\track4.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTrack4.r3d");
+	LoadTrack("World2\\track6", "World2\\Track\\track6.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTrack6.r3d");
 	LoadTrack("World2\\tramp1", "World2\\Track\\tramp1.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTramp1.r3d");
-	LoadTrack("World2\\tramp2", "World2\\Track\\tramp2.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTramp2.r3d", false, vec1, NullVec4, vec3);	
-	LoadTrack("World2\\jumper1", "World2\\Track\\jumper1.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTramp1.r3d");	
-	LoadTrack("World2\\jumper2", "World2\\Track\\jumper2.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTramp2.r3d", false, vec1, NullVec4, vec3);	
+	LoadTrack("World2\\tramp2", "World2\\Track\\tramp2.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTramp2.r3d", false, vec1, NullVec4, vec3);
+	LoadTrack("World2\\jumper1", "World2\\Track\\jumper1.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTramp1.r3d");
+	LoadTrack("World2\\jumper2", "World2\\Track\\jumper2.r3d", "World2\\Track\\track1", true, true, true, false, "World2\\Track\\pxTramp2.r3d", false, vec1, NullVec4, vec3);
 
 	//{
 	//	MapObj* mapObj = NewMapObj();
@@ -2090,7 +2090,7 @@ void DataBase::LoadWorld2()
 	//		AddPxMesh(mapObj, "World2\\Track\\pxTrack2.r3d", 1)->SetGroup(px::Scene::cdgShotTransparency);
 	//	AddToGraph(mapObj, gtBumb, false);
 	//	SaveMapObj(mapObj, MapObjLib::ctTrack, "World2\\track2");
-	//}	
+	//}
 }
 
 void DataBase::LoadWorld3()
@@ -2139,7 +2139,7 @@ void DataBase::LoadWorld4()
 	LoadDecor("World4\\gora1", "World4\\gora1.r3d", "World4\\gora1");
 	LoadDecor("World4\\gora2", "World4\\gora2.r3d", "World4\\gora2");
 	LoadDecor("World4\\kolba", "World4\\kolba.r3d", "World4\\kolba");
-	LoadDecor("World4\\lavaplace1", "World4\\lavaplace1.r3d", "World4\\lavaplace");		
+	LoadDecor("World4\\lavaplace1", "World4\\lavaplace1.r3d", "World4\\lavaplace");
 	LoadDecor("World4\\lavaplace2", "World4\\lavaplace2.r3d", "World4\\lavaplace");
 	LoadDecor("World4\\lavaplace3", "World4\\lavaplace3.r3d", "World4\\lavaplace");
 	LoadDecor("World4\\lavaplace4", "World4\\lavaplace4.r3d", "World4\\lavaplace");
@@ -2154,7 +2154,7 @@ void DataBase::LoadWorld4()
 	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	D3DXVECTOR4 vec1 = plane;
 
-	D3DXVECTOR4 vec3(0.0f, -0.25f, 0.25f, 0.0f);	
+	D3DXVECTOR4 vec3(0.0f, -0.25f, 0.25f, 0.0f);
 
 	LoadTrack("World4\\most", "World4\\Track\\most.r3d", "World4\\Track\\track1", true, true, false, false, "World4\\Track\\pxMost.r3d", true);
 	LoadTrack("World4\\most2", "World4\\Track\\most2.r3d", "World4\\Track\\most2", true, true, false, false, "World4\\Track\\pxMost2.r3d", true);
@@ -2194,7 +2194,7 @@ void DataBase::LoadWorld5()
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
-	LoadTrack("World5\\most", "World5\\Track\\most.r3d", "World5\\Track\\most", true, true, false, false, "", true);	
+	LoadTrack("World5\\most", "World5\\Track\\most.r3d", "World5\\Track\\most", true, true, false, false, "", true);
 	LoadTrack("World5\\trackVentil", "World5\\Track\\trackVentil.r3d", "World5\\Track\\track1");
 	LoadTrack("World5\\track1", "World5\\Track\\track1.r3d", "World5\\Track\\track1", true, true, false, true, "World5\\Track\\PXtrack1.r3d", false, plane1, NullVec4, vec3);
 	LoadTrack("World5\\track2", "World5\\Track\\track2.r3d", "World5\\Track\\track1", true, true, false, true, "World5\\Track\\PXtrack2.r3d", false, plane1);
@@ -2213,8 +2213,8 @@ void DataBase::LoadWorld6()
 	LoadDecor("World6\\haus2", "World6\\haus2.r3d", "World6\\haus2");
 	LoadDecor("World6\\haus3", "World6\\haus3.r3d", "World6\\haus3");
 	LoadDecor("World6\\haus4", "World6\\haus4.r3d", "World6\\haus4");
-	LoadDecor("World6\\naves", "World6\\naves.r3d", "World6\\naves", gtDefFixPipe, false, true, false);	
-	LoadDecor("World6\\nuke", "World6\\nuke.r3d", "World6\\nuke");	
+	LoadDecor("World6\\naves", "World6\\naves.r3d", "World6\\naves", gtDefFixPipe, false, true, false);
+	LoadDecor("World6\\nuke", "World6\\nuke.r3d", "World6\\nuke");
 	LoadDecor("World6\\stone1", "World6\\stone1.r3d", "World6\\stone");
 	LoadDecor("World6\\stone2", "World6\\stone2.r3d", "World6\\stone");
 	LoadDecor("World6\\stone3", "World6\\stone3.r3d", "World6\\stone");
@@ -2234,16 +2234,16 @@ void DataBase::LoadWorld6()
 	LoadTrack("World6\\track2", "World6\\Track\\track2.r3d", "World6\\Track\\track1", true, true, false, false, "");
 	LoadTrack("World6\\track3", "World6\\Track\\track3.r3d", "World6\\Track\\track1", true, true, false, false, "");
 	LoadTrack("World6\\track4", "World6\\Track\\track4.r3d", "World6\\Track\\track1", true, true, false, false, "");
-	LoadTrack("World6\\track5", "World6\\Track\\track5.r3d", "World6\\Track\\track1", true, true, false, false, "");			
+	LoadTrack("World6\\track5", "World6\\Track\\track5.r3d", "World6\\Track\\track1", true, true, false, false, "");
 	LoadTrack("World6\\entertunnel", "World6\\Track\\entertunnel.r3d", "World6\\Track\\track1", true, true, false, false, "World6\\Track\\pxEnterTunnel.r3d");
 	LoadTrack("World6\\tunnel", "World6\\Track\\tunnel.r3d", "World6\\Track\\tonnel", true, true, false, false, "World6\\Track\\pxTunel.r3d");
 	LoadTrack("World6\\podjem1", "World6\\Track\\podjem1.r3d", "World6\\Track\\track1", false, false, false, false, "");
 
 	LoadTrack("World6\\tramp1", "World6\\Track\\tramp1.r3d", "World6\\Track\\tramplin3", false, false, false, false, "");
-	LoadTrack("World6\\tramp2", "World6\\Track\\tramp2.r3d", "World6\\Track\\tramplin3", false, false, false, false, "");	
+	LoadTrack("World6\\tramp2", "World6\\Track\\tramp2.r3d", "World6\\Track\\tramplin3", false, false, false, false, "");
 	LoadTrack("World6\\jump", "World6\\Track\\jump.r3d", "World6\\Track\\track1", false, false, false, false, "");
 	LoadTrack("World6\\block1", "World6\\Track\\block1.r3d", "World6\\Track\\track1", false, false, false, false, "");
-	LoadTrack("World6\\block2", "World6\\Track\\block2.r3d", "World6\\Track\\track1", false, false, false, false, "");	
+	LoadTrack("World6\\block2", "World6\\Track\\block2.r3d", "World6\\Track\\track1", false, false, false, false, "");
 }
 
 void DataBase::LoadMisc()
@@ -2257,8 +2257,8 @@ void DataBase::LoadMisc()
 		AddLibMat(&node->material, "Effect\\bullet");
 
 		{
-			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();			
-			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));			
+			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
+			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));
 			deathEff.SetTargetChild(true);
 		}
 
@@ -2278,10 +2278,10 @@ void DataBase::LoadMisc()
 			AddToGraph(child, gtEffect, true);
 			child->GetGameObj().SetPos(D3DXVECTOR3(-0.4f, 0.0f, 0.0f));
 
-			
+
 			{
 				graph::FxParticleSystem* fxSystem = AddFxSystem(child, _fxSpriteManager);
-				AddLibMat(&fxSystem->material, "Effect\\dust_smoke_06");			
+				AddLibMat(&fxSystem->material, "Effect\\dust_smoke_06");
 
 				graph::FxEmitter::ParticleDesc desc;
 				desc.maxNum = 100;
@@ -2289,7 +2289,7 @@ void DataBase::LoadMisc()
 				desc.life = 0.5f;
 				desc.startTime = 0.25f;
 				desc.density = 1.0f;
-				desc.startScale = IdentityVector * 0.7f;		
+				desc.startScale = IdentityVector * 0.7f;
 
 				graph::FxFlowEmitter::FlowDesc descFlow;
 				descFlow.speedPos = -XVector * 5.0f;
@@ -2302,8 +2302,8 @@ void DataBase::LoadMisc()
 		}
 
 		{
-			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();			
-			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death6"));			
+			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
+			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death6"));
 			deathEff.SetTargetChild(true);
 		}
 
@@ -2313,7 +2313,7 @@ void DataBase::LoadMisc()
 	//blaster
 	{
 		game::MapObj* mapObj = NewMapObj();
-		AddToGraph(mapObj, gtEffect, true);	
+		AddToGraph(mapObj, gtEffect, true);
 
 		graph::FxParticleSystem* fxSystem = AddFxSystem(mapObj, _fxSpriteManager);
 		AddLibMat(&fxSystem->material, "Effect\\blaster");
@@ -2334,8 +2334,8 @@ void DataBase::LoadMisc()
 		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);
 
 		{
-			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();			
-			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death6"));			
+			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
+			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death6"));
 			deathEff.SetTargetChild(true);
 		}
 
@@ -2346,12 +2346,12 @@ void DataBase::LoadMisc()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::GameObject& gameObj = mapObj->GetGameObj();
-		
+
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\rocket.r3d");
 		node->SetScale(0.8f);
 		AddLibMat(node, "Weapon\\rocket");
 		AddToGraph(mapObj, gtDefFixPipe, true);
-		
+
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "smoke2");
 			eff->GetGameObj().SetPos(D3DXVECTOR3(-0.5f, 0.0f, 0.0f));
@@ -2366,10 +2366,10 @@ void DataBase::LoadMisc()
 		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "engine1");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(-2.3f, 0.0f, 0.05f));	
+			eff->GetGameObj().SetPos(D3DXVECTOR3(-2.3f, 0.0f, 0.05f));
 		}
 		{
-			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();			
+			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
 			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));
 			deathEff.SetTargetChild(true);
 		}
@@ -2382,7 +2382,7 @@ void DataBase::LoadMisc()
 		game::MapObj* mapObj = NewMapObj();
 		game::GameObject& gameObj = mapObj->GetGameObj();
 
-		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\rocketAir.r3d");		
+		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\rocketAir.r3d");
 		AddLibMat(node, "Weapon\\rocketAir");
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
@@ -2398,11 +2398,11 @@ void DataBase::LoadMisc()
 		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "engine1");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(-2.3f, 0.0f, 0.05f));	
+			eff->GetGameObj().SetPos(D3DXVECTOR3(-2.3f, 0.0f, 0.05f));
 		}
 		{
-			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();			
-			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));			
+			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
+			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));
 			deathEff.SetTargetChild(true);
 		}
 
@@ -2425,11 +2425,11 @@ void DataBase::LoadMisc()
 			eff->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 		}
 		{
-			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flare1");			
+			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flare1");
 			eff->GetGameObj().SetScale(1.5f);
-		}		
+		}
 		{
-			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();			
+			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
 			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death6"));
 			deathEff.SetTargetChild(true);
 		}
@@ -2440,7 +2440,7 @@ void DataBase::LoadMisc()
 	//phaserBolt
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::GameObject& gameObj = mapObj->GetGameObj();		
+		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::IVBMeshNode* mesh = AddMeshNode(mapObj, "Effect\\sphere.r3d");
 		AddLibMat(mesh, "Effect\\phaserBolt");
@@ -2455,11 +2455,11 @@ void DataBase::LoadMisc()
 			eff->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 		}
 		{
-			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flare1");			
+			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flare1");
 			eff->GetGameObj().SetScale(1.5f);
-		}		
+		}
 		{
-			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();			
+			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
 			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death6"));
 			deathEff.SetTargetChild(true);
 		}
@@ -2482,12 +2482,12 @@ void DataBase::LoadMisc()
 			eff->GetGameObj().SetScale(2.0f);
 		}
 		{
-			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();			
-			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));			
+			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
+			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));
 			deathEff.SetTargetChild(true);
 		}
 		{
-			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "heatTrail");	
+			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "heatTrail");
 		}
 
 		SaveMapObj(mapObj, MapObjLib::ctDecoration, "Misc\\torpeda");
@@ -2510,8 +2510,8 @@ void DataBase::LoadMisc()
 			eff->GetGameObj().SetPos(D3DXVECTOR3(0.0f, -0.5f, 0.0f));
 		}
 		{
-			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();			
-			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));			
+			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
+			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));
 			deathEff.SetTargetChild(true);
 		}
 
@@ -2599,12 +2599,12 @@ void DataBase::LoadMisc()
 		{
 			MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "ringWay");
 			eff->GetGameObj().SetPos(ZVector * 0.1f);
-		}	
+		}
 
 		DeathEffect& deathEffect = gameObj.GetBehaviors().Add<DeathEffect>();
 		deathEffect.SetEffect(GetRecord(MapObjLib::ctEffects, "death4"));
 		deathEffect.SetIgnoreRot(true);
-		
+
 		SaveMapObj(mapObj, MapObjLib::ctDecoration, "Misc\\mine3");
 	}
 
@@ -2784,17 +2784,17 @@ void DataBase::LoadMisc()
 		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "lens1");
-		}				
+		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "lightning1");
-		}					
+		}
 		{
 			DeathEffect& deathEffect = gameObj.GetBehaviors().Add<DeathEffect>();
-			deathEffect.SetEffect(GetRecord(MapObjLib::ctEffects, "blink"));	
+			deathEffect.SetEffect(GetRecord(MapObjLib::ctEffects, "blink"));
 			deathEffect.SetSound(&GetSound("Sounds\\spherePulseDeath.ogg"));
 			deathEffect.SetTargetChild(true);
 		}
-		
+
 
 		SaveMapObj(mapObj, MapObjLib::ctDecoration, "Misc\\spherePulse");
 	}
@@ -2811,14 +2811,14 @@ void DataBase::LoadMisc()
 
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "fireTrail");
-			eff->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();			
+			eff->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 		}
 		{
-			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "firePatron");		
-		}		
+			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "firePatron");
+		}
 		{
-			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();			
-			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));			
+			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
+			deathEff.SetEffect(GetRecord(MapObjLib::ctEffects, "death5"));
 			deathEff.SetTargetChild(true);
 		}
 
@@ -2860,7 +2860,7 @@ void DataBase::LoadMisc()
 	{
 		MapObj* mapObj = NewMapObj();
 
-		graph::PlaneNode* node = AddPlaneNode(mapObj, IdentityVec2);		
+		graph::PlaneNode* node = AddPlaneNode(mapObj, IdentityVec2);
 		AddLibMat(&node->material, "GUI\\space2");
 		AddToGraph(mapObj, gtDefFixPipe, false);
 
@@ -2898,7 +2898,7 @@ void DataBase::LoadCrush()
 	//bochka
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::GameObject& gameObj = mapObj->GetGameObj();	
+		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::IVBMeshNode* mesh = AddMeshNode(mapObj, "Crush\\bochka.r3d");
 		AddLibMat(mesh, "Crush\\bochka");
@@ -2912,13 +2912,13 @@ void DataBase::LoadCrush()
 
 		mapObj->GetGameObj().GetPxActor().SetScene(_world->GetPxScene());
 
-		SaveMapObj(mapObj, MapObjLib::ctDecoration, "Crush\\bochka");		
+		SaveMapObj(mapObj, MapObjLib::ctDecoration, "Crush\\bochka");
 	}
 
 	//znak
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::GameObject& gameObj = mapObj->GetGameObj();	
+		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::IVBMeshNode* mesh = AddMeshNode(mapObj, "Crush\\znak.r3d");
 		AddLibMat(mesh, "Crush\\znak");
@@ -2931,7 +2931,7 @@ void DataBase::LoadCrush()
 
 		mapObj->GetGameObj().GetPxActor().SetScene(_world->GetPxScene());
 
-		SaveMapObj(mapObj, MapObjLib::ctDecoration, "Crush\\znak");		
+		SaveMapObj(mapObj, MapObjLib::ctDecoration, "Crush\\znak");
 	}
 }
 
@@ -2983,7 +2983,7 @@ void DataBase::LoadBonus()
 		gameObj.GetPxActor().SetScene(_world->GetPxScene());
 
 		SaveMapObj(mapObj, MapObjLib::ctBonus, "mineRipKern");
-	}	
+	}
 	//mineRipPiece
 	{
 		game::MapObj* mapObj = NewMapObj();
@@ -3007,7 +3007,7 @@ void DataBase::LoadBonus()
 		gameObj.GetPxActor().SetScene(_world->GetPxScene());
 
 		SaveMapObj(mapObj, MapObjLib::ctBonus, "mineRipPiece");
-	}	
+	}
 	//mineProton
 	{
 		game::MapObj* mapObj = NewMapObj();
@@ -3070,7 +3070,7 @@ void DataBase::LoadBonus()
 		desc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
 		desc.modelSize = true;
 		desc.damage = 2000.0f;
-		desc.maxDist = 0.0f;		
+		desc.maxDist = 0.0f;
 
 		gameObj.SetDesc(desc);
 		gameObj.GetPxActor().SetScene(_world->GetPxScene());
@@ -3092,7 +3092,7 @@ void DataBase::LoadBonus()
 		desc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
 		desc.modelSize = true;
 		desc.damage = 1.0f;
-		desc.maxDist = 0.0f;		
+		desc.maxDist = 0.0f;
 
 		gameObj.SetDesc(desc);
 		gameObj.GetPxActor().SetScene(_world->GetPxScene());
@@ -3242,7 +3242,7 @@ void DataBase::LoadWeapons()
 		//shotEff
 		{
 			ShotEffect& effect = gameObj.GetBehaviors().Add<ShotEffect>();
-			effect.SetEffect(GetRecord(MapObjLib::ctEffects, "shotEff1"));		
+			effect.SetEffect(GetRecord(MapObjLib::ctEffects, "shotEff1"));
 			effect.SetSound(&GetSound("Sounds\\phalanx_shot_a.ogg"));
 		}
 
@@ -3252,8 +3252,8 @@ void DataBase::LoadWeapons()
 	//rifleWeapon
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
-		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
+
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\rifleWeapon.r3d");
 		AddLibMat(node, "Weapon\\rifleWeapon");
 		AddToGraph(mapObj, gtDefFixPipe, true);
@@ -3264,14 +3264,14 @@ void DataBase::LoadWeapons()
 			effect.SetEffect(GetRecord(MapObjLib::ctEffects, "shotEff2"));
 			effect.SetSound(&GetSound("Sounds\\cluster_rocket.ogg"));
 		}
-		
+
 		SaveMapObj(mapObj, MapObjLib::ctWeapon, "rifleWeapon");
 	}
 
 	//airWeapon
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
 
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\airWeapon.r3d");
 		AddLibMat(node, "Weapon\\airWeapon");
@@ -3290,8 +3290,8 @@ void DataBase::LoadWeapons()
 	//blasterGun
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
-		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
+
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\blasterGun.r3d");
 		AddLibMat(node, "Weapon\\blasterGun");
 		AddToGraph(mapObj, gtDefFixPipe, true);
@@ -3302,15 +3302,15 @@ void DataBase::LoadWeapons()
 			effect.SetEffect(GetRecord(MapObjLib::ctEffects, "shotEff2"));
 			effect.SetSound(&GetSound("Sounds\\icon_rail.ogg"));
 		}
-		
+
 		SaveMapObj(mapObj, MapObjLib::ctWeapon, "blasterGun");
 	}
-	
+
 	//rocketLauncher
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
-		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
+
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\rocketLauncher.r3d");
 		AddLibMat(node, "Weapon\\rocketLauncher");
 		AddToGraph(mapObj, gtDefFixPipe, true);
@@ -3320,7 +3320,7 @@ void DataBase::LoadWeapons()
 			ShotEffect& effect = gameObj.GetBehaviors().Add<ShotEffect>();
 			effect.SetSound(&GetSound("Sounds\\missile_launch.ogg"));
 		}
-		
+
 		SaveMapObj(mapObj, MapObjLib::ctWeapon, "rocketLauncher");
 	}
 
@@ -3338,7 +3338,7 @@ void DataBase::LoadWeapons()
 			ShotEffect& effect = gameObj.GetBehaviors().Add<ShotEffect>();
 			effect.SetSound(&GetSound("Sounds\\missile_launch.ogg"));
 		}
-		
+
 		SaveMapObj(mapObj, MapObjLib::ctWeapon, "torpedaWeapon");
 	}
 
@@ -3371,11 +3371,11 @@ void DataBase::LoadWeapons()
 
 		//shotEff
 		{
-			ShotEffect& effect = gameObj.GetBehaviors().Add<ShotEffect>();			
+			ShotEffect& effect = gameObj.GetBehaviors().Add<ShotEffect>();
 			effect.SetEffect(GetRecord(MapObjLib::ctEffects, "laserShot"));
 			effect.SetSound(&GetSound("Sounds\\laserGuseniza.ogg"));
 		}
-		
+
 		SaveMapObj(mapObj, MapObjLib::ctWeapon, "tankLaser");
 	}
 
@@ -3395,7 +3395,7 @@ void DataBase::LoadWeapons()
 			effect.SetSound(&GetSound("Sounds\\frost_ray.ogg"));
 		}
 
-		SaveMapObj(mapObj, MapObjLib::ctWeapon, "asyncFrost");	
+		SaveMapObj(mapObj, MapObjLib::ctWeapon, "asyncFrost");
 	}
 
 	//asyncFrost2
@@ -3414,7 +3414,7 @@ void DataBase::LoadWeapons()
 			effect.SetSound(&GetSound("Sounds\\frost_ray.ogg"));
 		}
 
-		SaveMapObj(mapObj, MapObjLib::ctWeapon, "asyncFrost2");	
+		SaveMapObj(mapObj, MapObjLib::ctWeapon, "asyncFrost2");
 	}
 
 	//masloWeapon
@@ -3487,7 +3487,7 @@ void DataBase::LoadWeapons()
 			ShotEffect& effect = gameObj.GetBehaviors().Add<ShotEffect>();
 			effect.SetSound(&GetSound("Sounds\\exhaust_b_heavy.ogg"));
 		}
-		
+
 		SaveMapObj(mapObj, MapObjLib::ctWeapon, "hyperdrive");
 	}
 
@@ -3512,7 +3512,7 @@ void DataBase::LoadWeapons()
 	//pulsator
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
 
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\pulsator.r3d");
 		AddLibMat(node, "Weapon\\pulsator");
@@ -3530,7 +3530,7 @@ void DataBase::LoadWeapons()
 	//hyperBlaster
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
 
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\hyperBlaster.r3d");
 		AddLibMat(node, "Weapon\\hyperBlaster");
@@ -3549,7 +3549,7 @@ void DataBase::LoadWeapons()
 	//sphereGun
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
 
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\sphereGun.r3d");
 		AddLibMat(node, "Car\\podushka");
@@ -3567,7 +3567,7 @@ void DataBase::LoadWeapons()
 	//drobilka
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
 
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\drobilka.r3d");
 		AddLibMat(node, "Weapon\\drobilka");
@@ -3579,11 +3579,11 @@ void DataBase::LoadWeapons()
 	//sonar
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
 
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\sonar.r3d");
 		AddLibMat(node, "Car\\devildriver");
-		AddToGraph(mapObj, gtDefFixPipe, true);	
+		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		//shotEff
 		{
@@ -3597,7 +3597,7 @@ void DataBase::LoadWeapons()
 	//turel
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
 
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\turel.r3d");
 		AddLibMat(node, "Weapon\\turel");
@@ -3617,12 +3617,12 @@ void DataBase::LoadWeapons()
 	//mortira
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
 
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\mortira.r3d");
 		AddLibMat(node, "Weapon\\mortira");
 		AddToGraph(mapObj, gtDefFixPipe, true);
-		
+
 		//shotEff
 		{
 			ShotEffect& effect = gameObj.GetBehaviors().Add<ShotEffect>();
@@ -3642,7 +3642,7 @@ void DataBase::LoadWeapons()
 		//shotEff
 		{
 			ShotEffect& effect = gameObj.GetBehaviors().Add<ShotEffect>();
-			effect.SetSound(&GetSound("Sounds\\missile_launch.ogg"));			
+			effect.SetSound(&GetSound("Sounds\\missile_launch.ogg"));
 		}
 
 		SaveMapObj(mapObj, MapObjLib::ctWeapon, "spring");
@@ -3651,7 +3651,7 @@ void DataBase::LoadWeapons()
 	//rezonator
 	{
 		game::MapObj* mapObj = NewMapObj();
-		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();		
+		game::Weapon& gameObj = mapObj->SetGameObj<game::Weapon>();
 
 		graph::IVBMeshNode* node = AddMeshNode(mapObj, "Weapon\\rezonator.r3d");
 		AddLibMat(node, "Weapon\\rezonator");
@@ -3783,7 +3783,7 @@ void DataBase::LoadCars()
 		desc.bodyScale = D3DXVECTOR3(0.95f, 1.0f, 1.0f);
 		desc.bodyOffset = D3DXVECTOR3(-0.2f, 0.0f, 0.0f);
 		desc.centerMassPos = D3DXVECTOR3(0.0f, 0, -0.55f);
-		
+
 		desc.wheelRadius = 0.34159720f;
 		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.22f, 0, -0.01f));
 		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.22f, 0, -0.01f));
@@ -3842,7 +3842,7 @@ void DataBase::LoadCars()
 		LoadCar("airblade", "Car\\airblade.r3d", "Car\\airbladeWheel.r3d", "Car\\airblade", "Car\\airbladeWheel.txt", desc);
 	}
 
-	{	
+	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
 		desc.bodyAABB = AABB(D3DXVECTOR3(-1.72021f, -1.43783f, -0.435831f), D3DXVECTOR3(1.71345f, 1.43783f, 0.441906f));
@@ -3876,7 +3876,7 @@ void DataBase::LoadCars()
 		LoadCar("guseniza", "Car\\guseniza.r3d", "", "Car\\guseniza", "Car\\gusenizaWheel.txt", desc);
 	}
 
-	{	
+	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
 		desc.bodyAABB = AABB(D3DXVECTOR3(-1.72021f, -1.43783f, -0.435831f), D3DXVECTOR3(1.71345f, 1.43783f, 0.441906f));
@@ -4050,7 +4050,7 @@ void DataBase::LoadCars()
 		LoadCar("monstertruckBoss", "Car\\monstertruckBoss.r3d", "Car\\monstertruckBossWheel.r3d", "Car\\monstertruckBoss", "Car\\monstertruckWheel.txt", desc);
 	}
 
-	{	
+	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
 		desc.bodyScale = D3DXVECTOR3(0.9f, 0.85f, 0.9f);
@@ -4085,7 +4085,7 @@ void DataBase::LoadCars()
 		LoadCar("devildriver", "Car\\devildriver.r3d", "", "Car\\devildriver", "Car\\devildriverWheel.txt", desc);
 	}
 
-	{	
+	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
 		desc.bodyScale = D3DXVECTOR3(0.9f, 0.85f, 0.9f);
@@ -4150,7 +4150,7 @@ void DataBase::LoadCars()
 
 	{
 		CarDesc desc;
-		desc.mass = 2000.0f;	
+		desc.mass = 2000.0f;
 		desc.bodyScale = D3DXVECTOR3(0.9f, 0.85f, 0.9f);
 		desc.bodyOffset = D3DXVECTOR3(0.15f, 0.0f, 0.08f);
 		desc.centerMassPos = D3DXVECTOR3(0.1f, 0, -0.45f);
@@ -4289,7 +4289,7 @@ void DataBase::Init()
 
 	_fxPlaneManager = new graph::FxPlaneManager();
 	_fxPlaneManager->SetName("fxPlaneManager");
-	_fxPlaneManager->SetOwner(this);	
+	_fxPlaneManager->SetOwner(this);
 
 	_fxWheelManager = new graph::FxNodeManager();
 	_fxWheelManager->SetName("fxWheelManager");
@@ -4317,7 +4317,7 @@ void DataBase::Init()
 
 	_fxTrailManager = new graph::FxTrailManager();
 	_fxTrailManager->SetName("fxTrailManager");
-	_fxTrailManager->SetOwner(this);	
+	_fxTrailManager->SetOwner(this);
 	_fxTrailManager->SetTrailWidth(0.3f);
 	_fxTrailManager->fixedUp = true;
 	_fxTrailManager->fixedUpVec = ZVector;
@@ -4364,7 +4364,7 @@ void DataBase::Init()
 	NxMaterialDesc borderMaterialDesc;
 	borderMaterialDesc.staticFriction = 0.1f;
 	borderMaterialDesc.dynamicFriction = 4.0f;
-	borderMaterialDesc.restitution = 0.0f;	
+	borderMaterialDesc.restitution = 0.0f;
 	borderMaterialDesc.frictionCombineMode = NX_CM_MAX;
 	_borderMaterial = _world->GetPxScene()->GetNxScene()->createMaterial(borderMaterialDesc);
 
@@ -4422,7 +4422,7 @@ void DataBase::ResetDB(const std::string& fileName)
 
 void DataBase::ClearDB()
 {
-	for (int i = 0; i < MapObjLib::cCategoryEnd; ++i)	
+	for (int i = 0; i < MapObjLib::cCategoryEnd; ++i)
 		_mapObjLib[i]->Clear();
 }
 

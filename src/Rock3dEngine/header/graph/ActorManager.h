@@ -32,7 +32,7 @@ public:
 			scenes.clear();
 			scenes.resize(numScenes);
 
-			dynamic = false;			
+			dynamic = false;
 			culling = true;
 		}
 
@@ -109,7 +109,7 @@ private:
 	{
 		OctreeSort::Position pos;
 		unsigned idState;
-	};	
+	};
 	typedef lsl::List<Group*> GroupList;
 	typedef std::map<const CameraCI*, CacheValue> CameraCache;
 
@@ -123,7 +123,7 @@ private:
 	};
 	typedef std::map<User*, RayUser> RayUsers;
 public:
-	typedef lsl::List<User*> UserList;	
+	typedef lsl::List<User*> UserList;
 private:
 	//Список рендеров для актеров
 	GroupList _groupList;
@@ -135,7 +135,7 @@ private:
 	OctreeSort _octree;
 	//
 	Planars _planars;
-	
+
 	AnyGroup* _defGroup;
 	CameraCache _cameraCache;
 	RayUsers _rayUsers;
@@ -145,8 +145,8 @@ private:
 	void ReleaseGroup(Group* value);
 
 	CameraCache::iterator CameraCull(const graph::CameraCI* camera);
-	
-	bool PullInRayTargetGroup(User* user, unsigned scene, const graph::CameraCI* camera, const D3DXVECTOR3& rayTarget, float rayTargetSize);	
+
+	bool PullInRayTargetGroup(User* user, unsigned scene, const graph::CameraCI* camera, const D3DXVECTOR3& rayTarget, float rayTargetSize);
 	void RemoveRayUser(User* user);
 public:
 	ActorManager(unsigned sceneCnt);

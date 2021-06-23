@@ -268,7 +268,7 @@ template<class _Value> SWriter* SWriteValueRange(SWriter* writer, const char* na
 	typedef SerialValue<_Value> MyVal;
 
 	SWriter* child = writer->NewDummyNode(name);
-		
+
 	MyVal::Write(child, "min", value.GetMin());
 	MyVal::Write(child, "max", value.GetMax());
 	child->WriteValue("distrib", MyRange::cDistributionStr[value.GetDistrib()]);
@@ -286,12 +286,12 @@ template<class _Value> SReader* SReadValueRange(SReader* reader, const char* nam
 	{
 		_Value tmp;
 		std::string str;
-		
+
 		if (MyVal::Read(child, "min", tmp))
 			value.SetMin(tmp);
 		if (MyVal::Read(child, "max", tmp))
 			value.SetMax(tmp);
-		
+
 		if (child->ReadValue("distrib", str))
 		{
 			int res = lsl::ConvStrToEnum(str.c_str(), MyRange::cDistributionStr, MyRange::cDistributionEnd);

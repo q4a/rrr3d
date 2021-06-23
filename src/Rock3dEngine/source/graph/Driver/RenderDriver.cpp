@@ -44,7 +44,7 @@ bool RenderDriver::FindNearMode(const lsl::Point& resolution, DisplayMode& mode,
 
 		for (unsigned i = 0; i < GetDisplayModes().size(); ++i)
 		{
-			DisplayMode dispMode = GetDisplayModes()[i];			
+			DisplayMode dispMode = GetDisplayModes()[i];
 			float newAspect = dispMode.height != 0 ? dispMode.width /(float)dispMode.height : 0.0f;
 
 			if (newAspect != 0 && (abs(minAspect - aspect) > abs(aspect - newAspect) || minAspect == 0.0f))

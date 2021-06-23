@@ -19,7 +19,7 @@ private:
 		SceneControl* _owner;
 
 		bool _shiftAction;
-		
+
 		bool _clDrag;
 		bool _startDrag;
 		D3DXVECTOR3 _clDragOff;
@@ -31,7 +31,7 @@ private:
 		D3DXVECTOR3 _clStScale;
 		//
 		bool _clRotating;
-		D3DXQUATERNION _clStartRot;		
+		D3DXQUATERNION _clStartRot;
 	public:
 		Control(SceneControl* owner);
 		void ResetState();
@@ -41,7 +41,7 @@ private:
 	};
 private:
 	Edit* _edit;
-	
+
 	SelMode _selMode;
 	INodeRef _selNode;
 	bool _linkBB;

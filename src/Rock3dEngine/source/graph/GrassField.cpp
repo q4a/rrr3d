@@ -33,9 +33,9 @@ void GrassField::BuildField()
 
 	//Вычисляем карту позиций
 	int numX = static_cast<int>(_fieldWidth * _density);
-	int numY = static_cast<int>(_fieldHeight * _density);	
+	int numY = static_cast<int>(_fieldHeight * _density);
 	//Общее число спрайтов
-	int maxSprites = numX * numY;	
+	int maxSprites = numX * numY;
 	//Шаг размещения
 	D3DXVECTOR3 step(_fieldWidth/numX, _fieldHeight/numY, 0.0f);
 	//Заполняем
@@ -48,8 +48,8 @@ void GrassField::BuildField()
 
 	//Суммарный вес
 	float summWeight = 0;
-	for (unsigned i = 0; i < _grassList.size(); ++i)	
-		for (unsigned j = 0; j < _grassList[i].tiles.size(); ++j)		
+	for (unsigned i = 0; i < _grassList.size(); ++i)
+		for (unsigned j = 0; j < _grassList[i].tiles.size(); ++j)
 			summWeight += _grassList[i].tiles[j].weight;
 	float spritesPerWeight = maxSprites / summWeight;
 
@@ -105,9 +105,9 @@ void GrassField::BuildField()
 			spriteOff += numSprites;
 			//Т.к. плоскость образуют два треугольника...
 			_batchList[i].primCnt += numSprites * 2;
-		}		
+		}
 	}
-	data.Update();	
+	data.Update();
 }
 
 void GrassField::DrawField(graph::Engine& engine, const Field& field)
@@ -137,7 +137,7 @@ void GrassField::DrawField(graph::Engine& engine, const Field& field)
 }
 
 void GrassField::Rebuild()
-{	
+{
 	if (_width <=0 || _height <= 0 || _grassList.empty())
 	{
 		_fieldList.clear();
@@ -162,9 +162,9 @@ void GrassField::Rebuild()
 		for (int j = 0; j < fieldNumY; ++j)
 		{
 			int ind = i * fieldNumY + j;
-			_fieldList[ind].pos = D3DXVECTOR3((i + 0.5f) * _fieldWidth - _width / 2.0f, (j + 0.5f) * _fieldHeight - _height / 2.0f, 0.0f);			
+			_fieldList[ind].pos = D3DXVECTOR3((i + 0.5f) * _fieldWidth - _width / 2.0f, (j + 0.5f) * _fieldHeight - _height / 2.0f, 0.0f);
 		}
-	
+
 	BuildField();
 }
 
@@ -172,18 +172,18 @@ AABB GrassField::LocalDimensions() const
 {
 	return AABB(D3DXVECTOR3(GetWidth(), GetHeight(), 2.0f));
 }
-	
+
 void GrassField::DoRender(graph::Engine& engine)
 {
 	shader.Init(engine);
-	
+
 	shader.SetValueDir("wvpMatrix", engine.GetContext().GetCamera().GetWVP());
 	shader.SetValueDir("viewMatInv", engine.GetContext().GetCamera().GetInvView());
 	shader.SetValueDir("matWorldView", engine.GetContext().GetCamera().GetTransform(CameraCI::ctWorldView));
 
 	engine.GetContext().SetRenderState(graph::rsAlphaRef, 17);
 	engine.GetContext().SetRenderState(graph::rsAlphaFunc, D3DCMP_GREATEREQUAL);
-	engine.GetContext().SetRenderState(graph::rsAlphaTestEnable, true);	
+	engine.GetContext().SetRenderState(graph::rsAlphaTestEnable, true);
 
 	D3DXVECTOR3 fogParamsVec = D3DXVECTOR3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
 	if (fogParamsVec.z != 0)
@@ -204,7 +204,7 @@ void GrassField::DoRender(graph::Engine& engine)
 
 	shader.Apply(engine);
 	for (unsigned i = 0; i < _fieldList.size(); ++i)
-		DrawField(engine, _fieldList[i]);			
+		DrawField(engine, _fieldList[i]);
 	shader.UnApply(engine);
 
 	engine.GetContext().RestoreRenderState(graph::rsAlphaRef);
@@ -275,10 +275,10 @@ const GrassField::GrassList& GrassField::GetGrassList()
 
 void GrassField::SetGrassList(const GrassList& value)
 {
-	for (GrassList::iterator iter = _grassList.begin(); iter != _grassList.end(); ++iter)	
+	for (GrassList::iterator iter = _grassList.begin(); iter != _grassList.end(); ++iter)
 		iter->libMat->Release();
 	_grassList = value;
-	for (GrassList::iterator iter = _grassList.begin(); iter != _grassList.end(); ++iter)	
+	for (GrassList::iterator iter = _grassList.begin(); iter != _grassList.end(); ++iter)
 		iter->libMat->AddRef();
 
 	Rebuild();

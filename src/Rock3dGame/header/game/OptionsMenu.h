@@ -27,13 +27,13 @@ private:
 	gui::Button* _upArrow;
 
 	gui::Label* _labels[cLabelEnd];
-	gui::StepperBox* _steppers[cStepperEnd];	
+	gui::StepperBox* _steppers[cStepperEnd];
 	gui::PlaneFon* _itemsBg[cLabelEnd];
 
 	void AdjustGrid(const glm::vec2& vpSize);
 	void ScrollGrid(int step);
 
-	void LoadCfg();	
+	void LoadCfg();
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
@@ -50,18 +50,18 @@ public:
 
 class MediaFrame: public MenuFrame
 {
-private:	
-	enum Label {mlResolution = 0, mlFiltering, mlMultisampling, mlShadow, mlEnv, mlLight, mlPostProcess, mlWindowMode, cLabelEnd};
-	enum Stepper {dbResolution = 0, dbFiltering, dbMultisampling, dbShadow, dbEnv, dbLight, dbPostProcess, dbWindowMode, cStepperEnd};	
 private:
-	OptionsMenu* _optionsMenu;	
+	enum Label {mlResolution = 0, mlFiltering, mlMultisampling, mlShadow, mlEnv, mlLight, mlPostProcess, mlWindowMode, cLabelEnd};
+	enum Stepper {dbResolution = 0, dbFiltering, dbMultisampling, dbShadow, dbEnv, dbLight, dbPostProcess, dbWindowMode, cStepperEnd};
+private:
+	OptionsMenu* _optionsMenu;
 
 	gui::Label* _labels[cLabelEnd];
-	gui::StepperBox* _steppers[cStepperEnd];	
+	gui::StepperBox* _steppers[cStepperEnd];
 	gui::PlaneFon* _itemsBg[cLabelEnd];
 
 	void LoadCfg();
-protected:	
+protected:
 	virtual void OnShow(bool value);
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
@@ -88,14 +88,14 @@ private:
 	gui::VolumeBar* _volumeBars[cVolumeBarEnd];
 	gui::PlaneFon* _itemsBg[cLabelEnd];
 
-	void LoadCfg();	
+	void LoadCfg();
 	void ApplyVolume(bool revertChanges);
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
 	NetworkTab(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent);
 	virtual ~NetworkTab();
@@ -131,7 +131,7 @@ private:
 	void AdjustGrid(const glm::vec2& vpSize);
 	void ScrollGrid(int step);
 
-	void LoadCfg();	
+	void LoadCfg();
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
@@ -165,7 +165,7 @@ public:
 		ButtonLR* operator->() {return this;}
 	};
 private:
-	Menu* _menu;	
+	Menu* _menu;
 	State _state;
 
 	gui::Dummy* _root;
@@ -173,7 +173,7 @@ private:
 	gui::Button* _menuItems[cMenuItemEnd];
 	gui::Button* _stateItems[cStateEnd];
 	gui::PlaneFon* _menuBgMask;
-	gui::PlaneFon* _menuBg;	
+	gui::PlaneFon* _menuBg;
 
 	MediaFrame* _mediaFrame;
 	GameFrame* _gameFrame;
@@ -187,7 +187,7 @@ private:
 	//true - if need reload
 	bool ApplyChanges();
 protected:
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 	virtual bool OnMouseEnter(gui::Widget* sender, const gui::MouseMove& mMove);
 	virtual void OnMouseLeave(gui::Widget* sender, bool wasReset);
 	virtual void OnFocusChanged(gui::Widget* sender);
@@ -226,7 +226,7 @@ private:
 	gui::PlaneFon* _menuBg;
 
 	gui::Label* _labels[cLabelEnd];
-	gui::StepperBox* _steppers[cStepperEnd];	
+	gui::StepperBox* _steppers[cStepperEnd];
 	gui::PlaneFon* _itemsBg[cLabelEnd];
 	gui::Button* _menuItems[cMenuItemEnd];
 
@@ -238,7 +238,7 @@ protected:
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 	virtual bool OnSelect(gui::Widget* sender, Object* item);
 public:
 	StartOptionsMenu(Menu* menu, gui::Widget* parent);

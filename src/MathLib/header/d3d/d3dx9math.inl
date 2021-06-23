@@ -81,7 +81,7 @@ D3DXVECTOR2::D3DXVECTOR2( CONST D3DXFLOAT16 *pf )
         return;
 #endif
 
-    D3DXFloat16To32Array(&x, pf, 2);    
+    D3DXFloat16To32Array(&x, pf, 2);
 }
 
 D3DXINLINE
@@ -250,13 +250,13 @@ D3DXVECTOR2_16F::operator CONST D3DXFLOAT16* () const
 
 
 // binary operators
-D3DXINLINE BOOL 
+D3DXINLINE BOOL
 D3DXVECTOR2_16F::operator == ( CONST D3DXVECTOR2_16F &v ) const
 {
     return *((DWORD *) &x) == *((DWORD *) &v.x);
 }
 
-D3DXINLINE BOOL 
+D3DXINLINE BOOL
 D3DXVECTOR2_16F::operator != ( CONST D3DXVECTOR2_16F &v ) const
 {
     return *((DWORD *) &x) != *((DWORD *) &v.x);
@@ -481,14 +481,14 @@ D3DXVECTOR3_16F::operator CONST D3DXFLOAT16* () const
 
 
 // binary operators
-D3DXINLINE BOOL 
+D3DXINLINE BOOL
 D3DXVECTOR3_16F::operator == ( CONST D3DXVECTOR3_16F &v ) const
 {
     return *((DWORD *) &x) == *((DWORD *) &v.x) &&
            *((WORD  *) &z) == *((WORD  *) &v.z);
 }
 
-D3DXINLINE BOOL 
+D3DXINLINE BOOL
 D3DXVECTOR3_16F::operator != ( CONST D3DXVECTOR3_16F &v ) const
 {
     return *((DWORD *) &x) != *((DWORD *) &v.x) ||
@@ -722,14 +722,14 @@ D3DXVECTOR4_16F::operator CONST D3DXFLOAT16* () const
 
 
 // binary operators
-D3DXINLINE BOOL 
+D3DXINLINE BOOL
 D3DXVECTOR4_16F::operator == ( CONST D3DXVECTOR4_16F &v ) const
 {
     return *((DWORD *) &x) == *((DWORD *) &v.x) &&
            *((DWORD *) &z) == *((DWORD *) &v.z);
 }
 
-D3DXINLINE BOOL 
+D3DXINLINE BOOL
 D3DXVECTOR4_16F::operator != ( CONST D3DXVECTOR4_16F &v ) const
 {
     return *((DWORD *) &x) != *((DWORD *) &v.x) ||
@@ -953,20 +953,20 @@ D3DXMATRIX::operator != ( CONST D3DXMATRIX& mat ) const
 //--------------------------
 
 D3DXINLINE
-_D3DXMATRIXA16::_D3DXMATRIXA16( CONST FLOAT* f ) : 
-    D3DXMATRIX( f ) 
+_D3DXMATRIXA16::_D3DXMATRIXA16( CONST FLOAT* f ) :
+    D3DXMATRIX( f )
 {
 }
 
 D3DXINLINE
-_D3DXMATRIXA16::_D3DXMATRIXA16( CONST D3DMATRIX& m ) : 
-    D3DXMATRIX( m ) 
+_D3DXMATRIXA16::_D3DXMATRIXA16( CONST D3DMATRIX& m ) :
+    D3DXMATRIX( m )
 {
 }
 
 D3DXINLINE
-_D3DXMATRIXA16::_D3DXMATRIXA16( CONST D3DXFLOAT16* f ) : 
-    D3DXMATRIX( f ) 
+_D3DXMATRIXA16::_D3DXMATRIXA16( CONST D3DXFLOAT16* f ) :
+    D3DXMATRIX( f )
 {
 }
 
@@ -978,7 +978,7 @@ _D3DXMATRIXA16::_D3DXMATRIXA16( FLOAT _11, FLOAT _12, FLOAT _13, FLOAT _14,
     D3DXMATRIX(_11, _12, _13, _14,
                _21, _22, _23, _24,
                _31, _32, _33, _34,
-               _41, _42, _43, _44) 
+               _41, _42, _43, _44)
 {
 }
 
@@ -986,7 +986,7 @@ _D3DXMATRIXA16::_D3DXMATRIXA16( FLOAT _11, FLOAT _12, FLOAT _13, FLOAT _14,
 #define SIZE_MAX ((SIZE_T)-1)
 #endif
 
-D3DXINLINE void* 
+D3DXINLINE void*
 _D3DXMATRIXA16::operator new( size_t s )
 {
     if (s > (SIZE_MAX-16))
@@ -1001,7 +1001,7 @@ _D3DXMATRIXA16::operator new( size_t s )
     return p;
 }
 
-D3DXINLINE void* 
+D3DXINLINE void*
 _D3DXMATRIXA16::operator new[]( size_t s )
 {
     if (s > (SIZE_MAX-16))
@@ -1016,7 +1016,7 @@ _D3DXMATRIXA16::operator new[]( size_t s )
     return p;
 }
 
-D3DXINLINE void 
+D3DXINLINE void
 _D3DXMATRIXA16::operator delete(void* p)
 {
     if(p)
@@ -1027,7 +1027,7 @@ _D3DXMATRIXA16::operator delete(void* p)
     }
 }
 
-D3DXINLINE void 
+D3DXINLINE void
 _D3DXMATRIXA16::operator delete[](void* p)
 {
     if(p)
@@ -1038,7 +1038,7 @@ _D3DXMATRIXA16::operator delete[](void* p)
     }
 }
 
-D3DXINLINE _D3DXMATRIXA16& 
+D3DXINLINE _D3DXMATRIXA16&
 _D3DXMATRIXA16::operator=(CONST D3DXMATRIX& rhs)
 {
     memcpy(&_11, &rhs, sizeof(D3DXMATRIX));
