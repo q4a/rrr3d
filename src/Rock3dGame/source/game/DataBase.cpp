@@ -103,7 +103,7 @@ graph::Sprite* DataBase::AddFxSprite(game::MapObj* mapObj, const std::string& li
 	node->SetPos(speedPos.GetMin());
 	node->speedPos = speedPos.GetMax();
 	node->SetRot(speedRot.GetMin());
-	node->speedRot = speedRot.GetMax();
+	node->speedRot = QuatDxToGlm(speedRot.GetMax());
 	node->SetScale(speedScale.GetMin());
 	node->speedScale = speedScale.GetMax();
 
@@ -132,7 +132,7 @@ graph::PlaneNode* DataBase::AddFxPlane(game::MapObj* mapObj, const std::string& 
 	node->SetPos(speedPos.GetMin());
 	node->speedPos = speedPos.GetMax();
 	node->SetRot(speedRot.GetMin());
-	node->speedRot = speedRot.GetMax();
+	node->speedRot = QuatDxToGlm(speedRot.GetMax());
 	node->SetScale(speedScale.GetMin());
 	node->speedScale = speedScale.GetMax();
 

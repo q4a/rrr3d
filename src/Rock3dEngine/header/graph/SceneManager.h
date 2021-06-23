@@ -325,7 +325,7 @@ public:
 
 	D3DXVECTOR3 speedPos;
 	D3DXVECTOR3 speedScale;
-	D3DXQUATERNION speedRot;
+	glm::quat speedRot;
 	bool autoRot;
 
 #ifdef _DEBUG

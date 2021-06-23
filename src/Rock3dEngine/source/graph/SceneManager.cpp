@@ -14,7 +14,12 @@ namespace r3d
 namespace graph
 {
 
-BaseSceneNode::BaseSceneNode(): _parent(0), _proxyMaster(0), _visible(true), _time(0), _rotInvalidate(0), _rotChanged(true), _position(NullVector), _scale(IdentityVector), _direction(XVector), _up(ZVector), _rollAngle(0), _pitchAngle(0), _turnAngle(0), _rot(NullQuaternion), colorBB(clrRed), storeCoords(true), invertCullFace(false), _tag(0), _animMode(amNone), animDuration(1.0f), frame(0), speedPos(NullVector), speedScale(NullVector), speedRot(NullQuaternion), autoRot(false), _nodeDynRef(0)
+BaseSceneNode::BaseSceneNode()
+	: _parent(0), _proxyMaster(0), _visible(true), _time(0), _rotInvalidate(0), _rotChanged(true),
+	  _position(NullVector), _scale(IdentityVector), _direction(XVector), _up(ZVector), _rollAngle(0), _pitchAngle(0),
+	  _turnAngle(0), _rot(NullQuaternion), colorBB(clrRed), storeCoords(true), invertCullFace(false), _tag(0),
+	  _animMode(amNone), animDuration(1.0f), frame(0), speedPos(NullVector), speedScale(NullVector),
+	  speedRot(QuatDxToGlm(NullQuaternion)), autoRot(false), _nodeDynRef(0)
 
 #ifdef _DEBUG
 		, showBB(false),
@@ -132,8 +137,8 @@ void BaseSceneNode::ExtractRotation(_RotationStyle style) const
 			break;
 
 		case rsQuaternion:
-			glm::quat rotG = glm::quat_cast(Matrix4DxToGlm(_rotMat));
-			_rot = D3DXQUATERNION(rotG.x, rotG.y, rotG.z, -rotG.w);
+			_rot = QuatGlmToDx(glm::quat_cast(Matrix4DxToGlm(_rotMat)));
+			_rot = QuatGlmToDx(glm::quat(-_rot.w, _rot.x, _rot.y, _rot.z));
 			break;
 
 		case rsVectors:
@@ -348,7 +353,7 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 
 	writer->WriteValue("speedPos", speedPos, 3);
 	writer->WriteValue("speedScale", speedScale, 3);
-	writer->WriteValue("speedRot", speedRot, 4);
+	writer->WriteValue("speedRot", QuatGlmToDx(speedRot), 4);
 
 	//writer->WriteValue("options", _options.to_string());
 }
@@ -363,7 +368,7 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 	{
 		reader->ReadValue("pos", _position, 3);
 		reader->ReadValue("scale", _scale, 3);
-		reader->ReadValue("rot", _rot, 4);
+		reader->ReadValue("rot", QuatGlmToDx(QuatDxToGlm(_rot)), 4);
 	}
 
 	reader->ReadValue("invertCullFace", invertCullFace);
@@ -392,7 +397,7 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 
 	reader->ReadValue("speedPos", speedPos, 3);
 	reader->ReadValue("speedScale", speedScale, 3);
-	reader->ReadValue("speedRot", speedRot, 4);
+	reader->ReadValue("speedRot", QuatGlmToDx(speedRot), 4);
 
 	//std::string optsStr;
 	//reader->ReadValue("options", optsStr);
@@ -466,12 +471,12 @@ void BaseSceneNode::OnProgress(float deltaTime)
 			D3DXVec3Normalize(&dir, &speedPos);
 			D3DXQUATERNION rot;
 			QuatShortestArc(XVector, dir, rot);
-			SetRot(rot * speedRot);
+			SetRot(rot * QuatGlmToDx(speedRot));
 		}
 		else
 		{
-			glm::vec3 rotAxe = glm::axis(QuatDxToGlm(speedRot));
-			float rotAngle = glm::angle(QuatDxToGlm(speedRot));
+			glm::vec3 rotAxe = glm::axis(speedRot);
+			float rotAngle = glm::angle(speedRot);
 			glm::quat rotDt = glm::angleAxis(rotAngle * deltaTime, rotAxe);
 			SetRot(QuatGlmToDx(rotDt * QuatDxToGlm(GetRot())));
 		}
@@ -871,12 +876,12 @@ void BaseSceneNode::SetTurnAngle(float value)
 const D3DXQUATERNION& BaseSceneNode::GetRot() const
 {
 	ExtractRotation(rsQuaternion);
-	return _rot;
+	return QuatGlmToDx(QuatDxToGlm(_rot));
 }
 
 void BaseSceneNode::SetRot(const D3DXQUATERNION& value)
 {
-	_rot = value;
+	_rot = QuatGlmToDx(QuatDxToGlm(value));
 	ChangedRotation(rsQuaternion);
 }
 
@@ -919,9 +924,13 @@ D3DXMATRIX BaseSceneNode::GetRotMat() const
 		_rotMat._44 = 1.0f;
 	}
 	else
+	{
 		if (!_rotInvalidate.test(rsQuaternion))
-			D3DXMatrixRotationQuaternion(&_rotMat, &_rot);
+		{
+			D3DXMatrixRotationQuaternion(&_rotMat, &QuatGlmToDx(QuatDxToGlm(_rot)));
+		}
 		else
+		{
 			if (!_rotInvalidate.test(rsEulerAngles))
 			{
 				EulerAngles eulAng = Eul_(-_rollAngle, -_pitchAngle, -_turnAngle, EulOrdXYZs);
@@ -930,6 +939,8 @@ D3DXMATRIX BaseSceneNode::GetRotMat() const
 			}
 			else
 				D3DXMatrixIdentity(&_rotMat);
+		}
+	}
 
 	_rotChanged = false;
 	return _rotMat;

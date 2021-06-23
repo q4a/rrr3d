@@ -210,6 +210,7 @@ void CarWheel::PxSyncWheel(float alpha)
 	else
 		_pxPrevRot = resRot;
 	GetGrActor().SetRot(resRot);
+	//LSL_LOG(lsl::StrFmt("resRot.x=%f; resRot.y=%f; resRot.z=%f; resRot.w=%f", resRot.x, resRot.y, resRot.z, resRot.w));
 
 	D3DXVECTOR3 resPos((t - dir * st).get());
 	if (alpha < 1.0f)
