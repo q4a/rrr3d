@@ -8,9 +8,9 @@ namespace r3d
 {
 
 const VertexPNT PlanePNT[4] = {VertexPNT(D3DXVECTOR3(-0.5f, -0.5f, 0.0f), ZVector, glm::vec2(0.0f, 0.0f)),
-                               VertexPNT(D3DXVECTOR3(0.5f, -0.5f, 0.0f), ZVector, glm::vec2(1.0f, 0.0f)),
-                               VertexPNT(D3DXVECTOR3(0.5f, 0.5f, 0.0f), ZVector, glm::vec2(1.0f, 1.0f)),
-                               VertexPNT(D3DXVECTOR3(-0.5f, 0.5f, 0.0f), ZVector, glm::vec2(0.0f, 1.0f))};
+							   VertexPNT(D3DXVECTOR3(0.5f, -0.5f, 0.0f), ZVector, glm::vec2(1.0f, 0.0f)),
+							   VertexPNT(D3DXVECTOR3(0.5f, 0.5f, 0.0f), ZVector, glm::vec2(1.0f, 1.0f)),
+							   VertexPNT(D3DXVECTOR3(-0.5f, 0.5f, 0.0f), ZVector, glm::vec2(0.0f, 1.0f))};
 
 }
 

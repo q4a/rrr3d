@@ -524,33 +524,33 @@ bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
 	const unsigned MAX_TRIES = 3;
 
 	IP_ADAPTER_ADDRESSES* addresses = NULL;
-    unsigned long outBufLen = WORKING_BUFFER_SIZE;
+	unsigned long outBufLen = WORKING_BUFFER_SIZE;
 	unsigned dwRetVal = 0;
 	unsigned Iterations = 0;
 
 	// Allocate a 15 KB buffer to start with.
-    do
+	do
 	{
-        addresses = (IP_ADAPTER_ADDRESSES *)malloc(outBufLen);
+		addresses = (IP_ADAPTER_ADDRESSES *)malloc(outBufLen);
 
-        if (addresses == NULL) {
+		if (addresses == NULL) {
 			LSL_LOG("Memory allocation failed for IP_ADAPTER_ADDRESSES struct");
 			return false;
-        }
+		}
 
-        dwRetVal = GetAdaptersAddresses(AF_INET, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST, NULL, addresses, &outBufLen);
+		dwRetVal = GetAdaptersAddresses(AF_INET, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST, NULL, addresses, &outBufLen);
 
-        if (dwRetVal == ERROR_BUFFER_OVERFLOW)
+		if (dwRetVal == ERROR_BUFFER_OVERFLOW)
 		{
-            free(addresses);
-            addresses = NULL;
-        }
+			free(addresses);
+			addresses = NULL;
+		}
 		else
-            break;
+			break;
 
-        Iterations++;
+		Iterations++;
 
-    }
+	}
 	while ((dwRetVal == ERROR_BUFFER_OVERFLOW) && (Iterations < MAX_TRIES));
 
 	if (addresses == NULL)

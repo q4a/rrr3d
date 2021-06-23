@@ -17,7 +17,7 @@ struct AABB2
 	AABB2(const glm::vec2& mMin, const glm::vec2& mMax);
 
 	//static void Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut);
-    static void Transform(const AABB2 &aabb, const D3DXMATRIX &m, AABB2 &rOut);
+	static void Transform(const AABB2 &aabb, const D3DXMATRIX &m, AABB2 &rOut);
 	static void Include(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut);
 	static void Add(const AABB2& aabb1, const AABB2& aabb2, AABB2& rOut);
 	static void Offset(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut);
@@ -49,17 +49,17 @@ struct AABB
 	static const unsigned cFrontPlane  = 5; //Z
 
 	//Edges are stored in this way:
-    //                Y
+	//                Y
 	//      Z        /|
 	//     /|\       /
 	//      | /7---------/6(max)
-    //      |/  |  /    / |
-    //      |   | /    /  |
-    //      4---------5   |
-    //      |   3- - -| -2
-    //      |  /      |  /
-    //      |/        | /
-    //      0(min)----1/----->X
+	//      |/  |  /    / |
+	//      |   | /    /  |
+	//      4---------5   |
+	//      |   3- - -| -2
+	//      |  /      |  /
+	//      |/        | /
+	//      0(min)----1/----->X
 	//
 
 	typedef D3DXVECTOR3 Corners[8];
@@ -136,17 +136,17 @@ typedef int DirPlan[6];
 struct BoundBox
 {
 	//Edges are stored in this way:
-    //                Y
+	//                Y
 	//      Z        /|
 	//     /|\       /
 	//      | /7---------/6(max)
-    //      |/  |  /    / |
-    //      |   | /    /  |
-    //      4---------5   |
-    //      |   3- - -| -2
-    //      |  /      |  /
-    //      |/        | /
-    //      0(min)----1/----->X
+	//      |/  |  /    / |
+	//      |   | /    /  |
+	//      4---------5   |
+	//      |   3- - -| -2
+	//      |  /      |  /
+	//      |/        | /
+	//      0(min)----1/----->X
 	//
 
 	static void Transform(const BoundBox& bb, const D3DXMATRIX& m, BoundBox& rOut);

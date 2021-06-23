@@ -490,7 +490,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		if (leftDown && _staticVec2.z == 0.0f)
 		{
 			glm::vec2 dMPos2 = mPos - glm::vec2(_staticVec2.x, _staticVec2.y);
-            if (glm::length(dMPos2) > 15.0f)
+			if (glm::length(dMPos2) > 15.0f)
 				_staticVec2.z = 1.0f;
 			else
 				leftDown = false;

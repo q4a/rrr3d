@@ -29,11 +29,11 @@ template<> struct SerialValue<glm::vec2>
 
 	static void Write(SWriter* writer, const char* name, const _Value& value)
 	{
-        writer->WriteValue(name, reinterpret_cast<const float *>(&value.x), 2);
+		writer->WriteValue(name, reinterpret_cast<const float *>(&value.x), 2);
 	}
 	static SReader* Read(SReader* reader, const char* name, _Value& value)
 	{
-        return reader->ReadValue(name, reinterpret_cast<float *>(&value.x), 2);
+		return reader->ReadValue(name, reinterpret_cast<float *>(&value.x), 2);
 	}
 };
 

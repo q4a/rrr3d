@@ -83,9 +83,9 @@ float PlaneDistToPoint(const D3DXPLANE& plane, const D3DXVECTOR3& point);
 
 const float floatErrComp = 0.00001f;
 const D3DXMATRIX       IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
-                                      0.0f, 1.0f, 0.0f, 0.0f,
-                                      0.0f, 0.0f, 1.0f, 0.0f,
-                                      0.0f, 0.0f, 0.0f, 1.0f);
+									  0.0f, 1.0f, 0.0f, 0.0f,
+									  0.0f, 0.0f, 1.0f, 0.0f,
+									  0.0f, 0.0f, 0.0f, 1.0f);
 const D3DXVECTOR3      XVector(1.0f, 0.0f, 0.0f);
 const D3DXVECTOR3      YVector(0.0f, 1.0f, 0.0f);
 const D3DXVECTOR3      ZVector(0.0f, 0.0f, 1.0f);

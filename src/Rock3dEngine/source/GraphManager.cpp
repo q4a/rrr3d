@@ -522,8 +522,8 @@ void GraphManager::UpdateWaterPlane()
 		_waterPlaneActor->SetPos(_groundAABB.GetCenter());
 		_waterPlaneActor->SetScale(scale);
 		//_waterNode->SetSize(glm::vec2(_groundAABB.GetSizes()) / scale);
-        _waterNode->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
-                            scale); // remove after D3DXVECTOR3 replacement
+		_waterNode->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
+		                    scale); // remove after D3DXVECTOR3 replacement
 	}
 
 	if (_waterPlane)
@@ -532,7 +532,7 @@ void GraphManager::UpdateWaterPlane()
 		_waterPlane->SetScale(scale);
 		//_waterPlane->SetSize(glm::vec2(_groundAABB.GetSizes()) / scale);
 		_waterPlane->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
-                             scale); // remove after D3DXVECTOR3 replacement
+		                     scale); // remove after D3DXVECTOR3 replacement
 	}
 }
 
@@ -617,8 +617,8 @@ void GraphManager::UpdateGrassPlane()
 	D3DXVECTOR3 pos = _groundAABB.GetCenter();
 	pos.x = 0;
 	//glm::vec2 size = glm::vec2(_groundAABB.GetSizes());
-    glm::vec2 size =
-        glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y); // remove after D3DXVECTOR3 replacement
+	glm::vec2 size =
+		glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y); // remove after D3DXVECTOR3 replacement
 
 	if (_grassPlane)
 	{
@@ -1279,8 +1279,8 @@ void GraphManager::UpdateFogPlane()
 		_fogPlane->SetPos(pos);
 		_fogPlane->SetScale(D3DXVECTOR3(_tileScale.x, _tileScale.y, 1.0f));
 		//_fogPlane->SetSize(glm::vec2(_groundAABB.GetSizes()) / _tileScale);
-        _fogPlane->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
-                           _tileScale); // remove after D3DXVECTOR3 replacement
+		_fogPlane->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
+		                   _tileScale); // remove after D3DXVECTOR3 replacement
 	}
 
 	if (_fogPlaneActor)
@@ -1288,10 +1288,11 @@ void GraphManager::UpdateFogPlane()
 		_fogPlaneActor->SetPos(_groundAABB.GetCenter());
 		_fogPlaneActor->SetScale(D3DXVECTOR3(_tileScale.x, _tileScale.y, 1));
 
-		//static_cast<graph::PlaneNode&>(_fogPlaneActor->GetNodes().front()).SetSize(glm::vec2(_groundAABB.GetSizes()) / _tileScale);
-        static_cast<graph::PlaneNode &>(_fogPlaneActor->GetNodes().front())
-            .SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
-                     _tileScale); // remove after D3DXVECTOR3 replacement
+		// static_cast<graph::PlaneNode&>(_fogPlaneActor->GetNodes().front()).SetSize(glm::vec2(_groundAABB.GetSizes())
+		// / _tileScale);
+		static_cast<graph::PlaneNode &>(_fogPlaneActor->GetNodes().front())
+			.SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
+		             _tileScale); // remove after D3DXVECTOR3 replacement
 	}
 }
 

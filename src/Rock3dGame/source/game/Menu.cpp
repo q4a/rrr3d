@@ -358,6 +358,7 @@ D3DXQUATERNION Menu::GetIsoRot()
 	D3DXQuaternionRotationAxis(&rotX, &XVector, -D3DX_PI/3.0f);
 
 	return rotZ * rotY * rotX;
+
 }
 
 void Menu::SetScreenFon(bool init)
@@ -1040,8 +1041,8 @@ void Menu::ShowMessage(const std::string& title, const std::string& message, con
 
 void Menu::ShowMessageLoading()
 {
-    ShowMessage(GetString(svWarning), GetString(svHintPleaseWait), GetString(svOk), GetGUI()->GetVPSize() / 2.0f,
-                gui::Widget::waCenter, 0.0f, NULL, false);
+	ShowMessage(GetString(svWarning), GetString(svHintPleaseWait), GetString(svOk), GetGUI()->GetVPSize() / 2.0f,
+	            gui::Widget::waCenter, 0.0f, NULL, false);
 }
 
 void Menu::HideMessage()
@@ -1074,20 +1075,20 @@ void Menu::HideMusicInfo()
 
 void Menu::ShowDiscreteVideoCardMessage()
 {
-    ShowAccept(GetString("svDiscreteVideoDetection"), GetString("svActivate"), GetString("svIgnore"),
-               GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, _syncModeEvent, NULL, true, true);
+	ShowAccept(GetString("svDiscreteVideoDetection"), GetString("svActivate"), GetString("svIgnore"),
+	           GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, _syncModeEvent, NULL, true, true);
 }
 
 void Menu::ShowSteamErrorMessage()
 {
-    ShowMessage(GetString("svWarning"), GetString("svSteamErrorMessage"), GetString("svOk"),
-                GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f, _steamErrorEvent, true);
+	ShowMessage(GetString("svWarning"), GetString("svSteamErrorMessage"), GetString("svOk"),
+	            GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f, _steamErrorEvent, true);
 }
 
 void Menu::ShowSteamSavingMessage()
 {
-    ShowAccept(GetString("svSteamSavingMessage"), GetString("svExit"), GetString("svCancel"),
-               GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, _steamSavingEvent, NULL, true, true);
+	ShowAccept(GetString("svSteamSavingMessage"), GetString("svExit"), GetString("svCancel"),
+	           GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, _steamSavingEvent, NULL, true, true);
 }
 
 void Menu::ShowChat(bool show)
@@ -2069,7 +2070,7 @@ void Menu::OnProgress(float deltaTime)
 		float offset = ClampValue((_musicTime - 0.0f)/cMusicDelay, 0.0f, 1.0f) - ClampValue((_musicTime - cMusicDelay - cMusicLife)/cMusicDelay, 0.0f, 1.0f);
 		glm::vec2 size = _musicDlg->size();
 		glm::vec2 vpSize = GetGUI()->GetVPSize();
-        glm::vec2 pos = glm::vec2(-5.0f + (40.0f + size.x) * offset, vpSize.y - 30.0f) - size / 2.0f;
+		glm::vec2 pos = glm::vec2(-5.0f + (40.0f + size.x) * offset, vpSize.y - 30.0f) - size / 2.0f;
 
 		_musicDlg->root()->SetPos(pos);
 

@@ -27,23 +27,23 @@ enum TransformStateType {tstWorld, tstView, tstProj, tstTexture0, tstTexture1, t
 struct PresentParameters
 {
 	UINT                BackBufferWidth;
-    UINT                BackBufferHeight;
-    D3DFORMAT           BackBufferFormat;
-    UINT                BackBufferCount;
+	UINT                BackBufferHeight;
+	D3DFORMAT           BackBufferFormat;
+	UINT                BackBufferCount;
 
-    D3DMULTISAMPLE_TYPE MultiSampleType;
-    DWORD               MultiSampleQuality;
+	D3DMULTISAMPLE_TYPE MultiSampleType;
+	DWORD               MultiSampleQuality;
 
-    D3DSWAPEFFECT       SwapEffect;
-    HWND                hDeviceWindow;
-    BOOL                Windowed;
-    BOOL                EnableAutoDepthStencil;
-    D3DFORMAT           AutoDepthStencilFormat;
-    DWORD               Flags;
+	D3DSWAPEFFECT       SwapEffect;
+	HWND                hDeviceWindow;
+	BOOL                Windowed;
+	BOOL                EnableAutoDepthStencil;
+	D3DFORMAT           AutoDepthStencilFormat;
+	DWORD               Flags;
 
-    /* FullScreen_RefreshRateInHz must be zero for Windowed mode */
-    UINT                FullScreen_RefreshRateInHz;
-    UINT                PresentationInterval;
+	/* FullScreen_RefreshRateInHz must be zero for Windowed mode */
+	UINT                FullScreen_RefreshRateInHz;
+	UINT                PresentationInterval;
 };
 
 struct DisplayMode
