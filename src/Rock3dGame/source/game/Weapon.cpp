@@ -797,7 +797,7 @@ void Proj::TorpedaUpdate(float deltaTime)
 		else
 			rot = rot1;
 
-		Vec3Rotate(XVector, rot, dir);
+		Vec3Rotate(XVector, QuatDxToGlm(rot), dir);
 		this->SetRot(rot);
 
 		float speed = 0.0f;

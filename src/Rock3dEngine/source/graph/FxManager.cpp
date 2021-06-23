@@ -1052,7 +1052,7 @@ void FxSpritesManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, Fx
 		if (dirSprite)
 		{
 			D3DXVECTOR3 dir;
-			Vec3Rotate(XVector, particle->GetRot(), dir);
+			Vec3Rotate(XVector, QuatDxToGlm(particle->GetRot()), dir);
 
 			engine.RenderSpritePT(emitter->GetWorldPos(particle), particle->GetScale(), 0, &dir, IdentityMatrix);
 		}
@@ -1118,7 +1118,7 @@ void FxNodeManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, FxPar
 		FxParticle* particle = *iter;
 
 		_node->SetPos(particle->GetPos());
-  		_node->SetRot(particle->GetRot());
+		_node->SetRot(particle->GetRot());
 		_node->SetScale(particle->GetScale());
 
 		_node->Render(engine);

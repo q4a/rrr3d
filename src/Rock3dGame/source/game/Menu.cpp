@@ -350,15 +350,11 @@ glm::vec2 Menu::StretchImage(gui::Material& material, const glm::vec2& size, boo
 
 D3DXQUATERNION Menu::GetIsoRot()
 {
-	D3DXQUATERNION rotZ;
-	D3DXQuaternionRotationAxis(&rotZ, &ZVector, -2.0f * D3DX_PI/3.0f);
-	D3DXQUATERNION rotY;
-	D3DXQuaternionRotationAxis(&rotY, &YVector, 0);
-	D3DXQUATERNION rotX;
-	D3DXQuaternionRotationAxis(&rotX, &XVector, -D3DX_PI/3.0f);
+	glm::quat rotZ = glm::angleAxis(-2.0f * D3DX_PI / 3.0f, Vec3DxToGlm(ZVector));
+	glm::quat rotY = glm::angleAxis(0.0f, Vec3DxToGlm(YVector));
+	glm::quat rotX = glm::angleAxis(-D3DX_PI / 3.0f, Vec3DxToGlm(XVector));
 
-	return rotZ * rotY * rotX;
-
+	return QuatGlmToDx(rotX * rotY * rotZ);
 }
 
 void Menu::SetScreenFon(bool init)

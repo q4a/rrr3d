@@ -343,16 +343,14 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		D3DXVec3Normalize(&zVec, &zVec);
 
 		D3DXMATRIX velMat;
-		D3DXQUATERNION velRot;
 		MatrixRotationFromAxis(xVec, yVec, zVec, velMat);
-		D3DXQuaternionRotationMatrix(&velRot, &velMat);
+		glm::quat velRot = glm::quat_cast(Matrix4DxToGlm(velMat));
+		velRot = glm::quat(-velRot.w, velRot.x, velRot.y, velRot.z);
 
-		//
-		D3DXQUATERNION camQuat;
-		D3DXQUATERNION camQuat1 = rot;
-		D3DXQUATERNION camQuat2 = velRot;
-		D3DXQuaternionSlerp(&camQuat, &camQuat1, &camQuat2, 6.0f * deltaTime);
-
+		//glm::quat camQuat1 = rot;
+		//glm::quat camQuat2 = velRot;
+		glm::quat camQuat = glm::slerp(QuatDxToGlm(rot), velRot, 6.0f * deltaTime);
+		
 		/*D3DXVECTOR3 camPos;
 		Vec3Rotate(cCamTargetOff, camQuat, camPos);
 		camPos += targetPos;*/
@@ -378,12 +376,11 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		camPos2 += targetPos;
 		D3DXVec3Lerp(&camPos, &camPos1, &camPos2, 8.0f * deltaTime);*/
 
-		D3DXQUATERNION yRot;
-		D3DXQuaternionRotationAxis(&yRot, &D3DXVECTOR3(0, 1, 0), D3DX_PI * 12.0f);
-		camQuat = yRot * camQuat;
+		glm::quat yRot = glm::angleAxis(D3DX_PI * 12.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+		camQuat = camQuat * yRot;
 
 		pos = camPos;
-		rot = camQuat;
+		rot = QuatGlmToDx(camQuat);
 
 		break;
 	}
@@ -397,12 +394,11 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		D3DXVECTOR4 camBorder = D3DXVECTOR4(cIsoBorder, cIsoBorder, cIsoBorder/camera->GetAspect(), cIsoBorder/camera->GetAspect());
 
 		//Обратный поворот
-		D3DXQUATERNION cIsoInvRot;
-		D3DXQuaternionInverse(&cIsoInvRot, &cIsoRot);
+		glm::quat cIsoInvRot = glm::inverse(QuatDxToGlm(cIsoRot));
 
 		//Направление камеры в мировом пространстве
 		D3DXVECTOR3 isoDir;
-		Vec3Rotate(XVector, cIsoRot, isoDir);
+		Vec3Rotate(XVector, QuatDxToGlm(cIsoRot), isoDir);
 
 		//Преобразуем в пространство камеры, чтобы вычислять смещение отностиельно центра экрана. Для перспективной проекции это дает артефакт удаления-приближения камеры, поэтому может быть опущено
 		D3DXVECTOR3 targOff = targetDir;
@@ -447,7 +443,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		targOff.x = 0.0f;
 
 		//Обратное преобразование в мировое пространство
-		Vec3Rotate(targOff, cIsoRot, targOff);
+		Vec3Rotate(targOff, QuatDxToGlm(cIsoRot), targOff);
 
 		//Планва интерполяция смещения
 		D3DXVec3Lerp(&_staticVec1, &_staticVec1, &targOff, deltaTime);
@@ -840,9 +836,8 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 			dAngZ = lsl::ClampValue(dMPos.x * D3DX_PI * 0.001f, -D3DX_PI/2, D3DX_PI/2);
 		}
 
-		D3DXQUATERNION dRotZ;
-		D3DXQuaternionRotationAxis(&dRotZ, &ZVector, dAngZ);
-		rot = rot * dRotZ;
+		glm::quat dRotZ = glm::angleAxis(dAngZ, Vec3DxToGlm(ZVector));
+		rot = QuatGlmToDx(dRotZ * QuatDxToGlm(rot));
 
 		if (_clampAngle.x != 0 || _clampAngle.y != 0)
 		{
@@ -869,8 +864,8 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 
 			if (angClamp)
 			{
-				D3DXQuaternionRotationAxis(&dRotZ, &norm, ang);
-				QuatRotateVec3(yAxis, YVector, dRotZ);
+				dRotZ = glm::angleAxis(ang, Vec3DxToGlm(norm));
+				QuatRotateVec3(yAxis, YVector, QuatGlmToDx(dRotZ));
 				D3DXVec3Normalize(&yAxis, &yAxis);
 
 				D3DXVECTOR3 zAxis;
@@ -878,9 +873,8 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 				D3DXVec3Normalize(&zAxis, &zAxis);
 
 				ang = acos(D3DXVec3Dot(&ZVector, &zAxis));
-				D3DXQUATERNION dRotY;
-				D3DXQuaternionRotationAxis(&dRotY, &yAxis, ang);
-				QuatRotateVec3(zAxis, ZVector, dRotY);
+				glm::quat dRotY = glm::angleAxis(ang, Vec3DxToGlm(yAxis));
+				QuatRotateVec3(zAxis, ZVector, QuatGlmToDx(dRotY));
 
 				D3DXVECTOR3 xAxis;
 				D3DXVec3Cross(&xAxis, &yAxis, &zAxis);
@@ -888,7 +882,8 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 
 				D3DXMATRIX rotMat;
 				MatrixRotationFromAxis(xAxis, yAxis, zAxis, rotMat);
-				D3DXQuaternionRotationMatrix(&rot, &rotMat);
+				rot = QuatGlmToDx(glm::quat_cast(Matrix4DxToGlm(rotMat)));
+				rot = D3DXQUATERNION(rot.x, rot.y, rot.z, -rot.w);
 
 				if (dir != NULL)
 				{
@@ -952,14 +947,15 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 			D3DXVec3Normalize(&zAxis, &zAxis);
 			D3DXMATRIX rotMat;
 			MatrixRotationFromAxis(xAxis, yAxis, zAxis, rotMat);
-			D3DXQuaternionRotationMatrix(&rot, &rotMat);
+			rot = QuatGlmToDx(glm::quat_cast(Matrix4DxToGlm(rotMat)));
+			rot = D3DXQUATERNION(rot.x, rot.y, rot.z, -rot.w);
 		}
 	}
 
 	if (pos != NULL)
 	{
 		D3DXVECTOR3 camDir;
-		Vec3Rotate(XVector, rot, camDir);
+		Vec3Rotate(XVector, QuatDxToGlm(rot), camDir);
 		*pos = targetPos - camDir * camDist;
 	}
 
@@ -971,7 +967,7 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 	if (camPos != NULL && camRot != NULL)
 	{
 		D3DXVECTOR3 camDir;
-		Vec3Rotate(XVector, *camRot, camDir);
+		Vec3Rotate(XVector, QuatDxToGlm(*camRot), camDir);
 		*camPos = targetPos - camDir * camDist;
 	}
 }

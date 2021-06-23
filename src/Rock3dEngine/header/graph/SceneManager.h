@@ -276,7 +276,9 @@ public:
 	D3DXVECTOR3 GetWorldPos() const;
 	void SetWorldPos(const D3DXVECTOR3& value);
 	D3DXQUATERNION GetWorldRot() const;
-	void SetWorldRot(const D3DXQUATERNION& value);
+	glm::quat GetWorldRotG() const;
+	void SetWorldRot(const D3DXQUATERNION &value);
+	void SetWorldRot(const glm::quat &value);
 	//Невозможно представить мировое масштабирование с помощью одного вектора поскольку направление масштабирования зависит от поворота. Поэтому представляется в виде матрицы
 	D3DXMATRIX GetWorldScale() const;
 	//

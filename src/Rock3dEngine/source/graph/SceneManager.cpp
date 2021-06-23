@@ -132,7 +132,8 @@ void BaseSceneNode::ExtractRotation(_RotationStyle style) const
 			break;
 
 		case rsQuaternion:
-			D3DXQuaternionRotationMatrix(&_rot, &_rotMat);
+			glm::quat rotG = glm::quat_cast(Matrix4DxToGlm(_rotMat));
+			_rot = D3DXQUATERNION(rotG.x, rotG.y, rotG.z, -rotG.w);
 			break;
 
 		case rsVectors:
@@ -469,12 +470,10 @@ void BaseSceneNode::OnProgress(float deltaTime)
 		}
 		else
 		{
-			D3DXVECTOR3 rotAxe;
-			float rotAngle;
-			D3DXQUATERNION rotDt;
-			D3DXQuaternionToAxisAngle(&speedRot, &rotAxe, &rotAngle);
-			D3DXQuaternionRotationAxis(&rotDt, &rotAxe, rotAngle * deltaTime);
-			SetRot(GetRot() * rotDt);
+			glm::vec3 rotAxe = glm::axis(QuatDxToGlm(speedRot));
+			float rotAngle = glm::angle(QuatDxToGlm(speedRot));
+			glm::quat rotDt = glm::angleAxis(rotAngle * deltaTime, rotAxe);
+			SetRot(QuatGlmToDx(rotDt * QuatDxToGlm(GetRot())));
 		}
 
 		SetScale(GetScale() + speedScale * deltaTime);
@@ -1020,17 +1019,14 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 	case cmtScaleRot:
 	{
 		D3DXMATRIX scaleMat = GetWorldScale();
-
-		D3DXMATRIX rotMat;
-		D3DXMatrixRotationQuaternion(&rotMat, &GetWorldRot());
+		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::toMat4(QuatDxToGlm(GetWorldRot())));
 
 		return scaleMat * rotMat;
 	}
 
 	case cmtRotTrans:
 	{
-		D3DXMATRIX rotMat;
-		D3DXMatrixRotationQuaternion(&rotMat, &GetWorldRot());
+		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::toMat4(QuatDxToGlm(GetWorldRot())));
 
 		D3DXMATRIX transMat;
 		D3DXVECTOR3 pos = GetWorldPos();
@@ -1064,10 +1060,15 @@ void BaseSceneNode::SetWorldPos(const D3DXVECTOR3& value)
 
 D3DXQUATERNION BaseSceneNode::GetWorldRot() const
 {
-	D3DXQUATERNION res = GetRot();
+	return QuatGlmToDx(GetWorldRotG());
+}
+
+glm::quat BaseSceneNode::GetWorldRotG() const
+{
+	glm::quat res = QuatDxToGlm(GetRot());
 	const BaseSceneNode* curObj = this;
 	while (curObj = curObj->GetParent())
-		res *= curObj->GetRot();
+		res = QuatDxToGlm(curObj->GetRot()) * res;
 	return res;
 }
 
@@ -1077,6 +1078,14 @@ void BaseSceneNode::SetWorldRot(const D3DXQUATERNION& value)
 		return SetRot(value * _parent->GetWorldRot());
 	else
 		return SetRot(value);
+}
+
+void BaseSceneNode::SetWorldRot(const glm::quat &value)
+{
+	if (_parent)
+		return SetRot(QuatGlmToDx(QuatDxToGlm(_parent->GetWorldRot()) * value));
+	else
+		return SetRot(QuatGlmToDx(value));
 }
 
 D3DXMATRIX BaseSceneNode::GetWorldScale() const

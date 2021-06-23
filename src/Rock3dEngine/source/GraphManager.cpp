@@ -2308,7 +2308,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 					radVec = D3DXVECTOR3(1, 0, 0);
 				D3DXQUATERNION radQuat;
 				D3DXQuaternionRotationAxis(&radQuat, &radVec, D3DX_PI/2.5f);
-				Vec3Rotate(D3DXVECTOR3(0, 0, 1), radQuat, radVec);
+				Vec3Rotate(D3DXVECTOR3(0, 0, 1), QuatDxToGlm(radQuat), radVec);
 				radVec = radVec * 1000.0f;
 
 				_sunShaft->SetSunPos(radVec);

@@ -951,7 +951,7 @@ void Player::CarState::Update(float deltaTime)
 
 	pos3 = mat34.t.get();
 	nxActor->getGlobalOrientationQuat().getXYZW(rot3);
-	Vec3Rotate(XVector, rot3, dir3);
+	Vec3Rotate(XVector, QuatDxToGlm(rot3), dir3);
 
 	//pos = glm::vec2(pos3);
 	pos = glm::vec2(pos3.x, pos3.y); // remove after D3DXVECTOR3 replacement

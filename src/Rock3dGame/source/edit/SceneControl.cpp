@@ -184,13 +184,11 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				float angleY = -offCoord.y  / 400.0f * 2 * D3DX_PI;
 				angleY = ceil(angleY / (D3DX_PI/12.0f)) * (D3DX_PI/12.0f);
 
-				D3DXQUATERNION rotZ;
-				D3DXQuaternionRotationAxis(&rotZ, &ZVector, angleZ);
-				D3DXQUATERNION rotY;
-				D3DXQuaternionRotationAxis(&rotY, &_owner->_edit->GetWorld()->GetCamera()->GetRight(), angleY);
-				D3DXQUATERNION rot = abs(angleZ) > abs(angleY) ? rotZ : rotY;
+				glm::quat rotZ = glm::angleAxis(angleZ, Vec3DxToGlm(ZVector));
+				glm::quat rotY = glm::angleAxis(angleY, Vec3DxToGlm(_owner->_edit->GetWorld()->GetCamera()->GetRight()));
+				glm::quat rot = abs(angleZ) > abs(angleY) ? rotZ : rotY;
 
-				selNode->SetRot(_clStartRot * rot);
+				selNode->SetRot(QuatGlmToDx(rot * QuatDxToGlm(_clStartRot)));
 
 				return true;
 			}
