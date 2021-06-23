@@ -17,7 +17,7 @@ namespace graph
 BaseSceneNode::BaseSceneNode()
 	: _parent(0), _proxyMaster(0), _visible(true), _time(0), _rotInvalidate(0), _rotChanged(true),
 	  _position(NullVector), _scale(IdentityVector), _direction(XVector), _up(ZVector), _rollAngle(0), _pitchAngle(0),
-	  _turnAngle(0), _rot(NullQuaternion), colorBB(clrRed), storeCoords(true), invertCullFace(false), _tag(0),
+	  _turnAngle(0), _rot(QuatDxToGlm(NullQuaternion)), colorBB(clrRed), storeCoords(true), invertCullFace(false), _tag(0),
 	  _animMode(amNone), animDuration(1.0f), frame(0), speedPos(NullVector), speedScale(NullVector),
 	  speedRot(QuatDxToGlm(NullQuaternion)), autoRot(false), _nodeDynRef(0)
 
@@ -137,8 +137,8 @@ void BaseSceneNode::ExtractRotation(_RotationStyle style) const
 			break;
 
 		case rsQuaternion:
-			_rot = QuatGlmToDx(glm::quat_cast(Matrix4DxToGlm(_rotMat)));
-			_rot = QuatGlmToDx(glm::quat(-_rot.w, _rot.x, _rot.y, _rot.z));
+			_rot = glm::quat_cast(Matrix4DxToGlm(_rotMat));
+			_rot = glm::quat(-_rot.w, _rot.x, _rot.y, _rot.z);
 			break;
 
 		case rsVectors:
@@ -368,7 +368,7 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 	{
 		reader->ReadValue("pos", _position, 3);
 		reader->ReadValue("scale", _scale, 3);
-		reader->ReadValue("rot", QuatGlmToDx(QuatDxToGlm(_rot)), 4);
+		reader->ReadValue("rot", QuatGlmToDx(_rot), 4);
 	}
 
 	reader->ReadValue("invertCullFace", invertCullFace);
@@ -876,12 +876,12 @@ void BaseSceneNode::SetTurnAngle(float value)
 const D3DXQUATERNION& BaseSceneNode::GetRot() const
 {
 	ExtractRotation(rsQuaternion);
-	return QuatGlmToDx(QuatDxToGlm(_rot));
+	return QuatGlmToDx(_rot);
 }
 
 void BaseSceneNode::SetRot(const D3DXQUATERNION& value)
 {
-	_rot = QuatGlmToDx(QuatDxToGlm(value));
+	_rot = QuatDxToGlm(value);
 	ChangedRotation(rsQuaternion);
 }
 
@@ -927,7 +927,7 @@ D3DXMATRIX BaseSceneNode::GetRotMat() const
 	{
 		if (!_rotInvalidate.test(rsQuaternion))
 		{
-			D3DXMatrixRotationQuaternion(&_rotMat, &QuatGlmToDx(QuatDxToGlm(_rot)));
+			D3DXMatrixRotationQuaternion(&_rotMat, &QuatGlmToDx(_rot));
 		}
 		else
 		{

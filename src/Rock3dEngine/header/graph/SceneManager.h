@@ -122,7 +122,7 @@ private:
 	mutable float _rollAngle;
 	mutable float _pitchAngle;
 	mutable float _turnAngle;
-	mutable D3DXQUATERNION _rot;
+	mutable glm::quat _rot;
 
 	//Матрицы являются промежуточными переменными, и хранятся в полях объекта для оптимизации расчетов. Для вывода коорректных данных(если перерасчет матриц ещё не произошел) о самих матрицах и связных данных используется mutable для const
 	mutable D3DXMATRIX _rotMat;
