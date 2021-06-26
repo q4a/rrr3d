@@ -886,8 +886,8 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 	else
 	{
 		//pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()));
-        pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()).x,
-                         MatGetPos(GetCI().GetWorldMat()).y); // remove after D3DXVECTOR3 replacement
+		pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()).x,
+		                 MatGetPos(GetCI().GetWorldMat()).y); // remove after D3DXVECTOR3 replacement
 		//Оси y не совпадают
 		if (_invertY)
 			pos.y = GetVPSize().y - (pos.y + text.GetVScroll());
@@ -896,7 +896,7 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 	}
 
 	glm::vec2 size = text.GetSize();
-    size = size / 2.0f;
+	size = size / 2.0f;
 	Point left(Floor<int>(pos.x - size.x - 0.5f), Floor<int>(pos.y - size.y - 0.5f));
 	Point right(Ceil<int>(pos.x + size.x + 0.5f), Ceil<int>(pos.y + size.y + 0.5f));
 	Rect rect(left.x, left.y, right.x, right.y);
@@ -1323,7 +1323,7 @@ void Widget::BuildLocalAABB() const
 
 		glm::vec2 center = GetAlignPos();
 		glm::vec2 size = GetSize();
-        _localAABB = AABB2(center - size / 2.0f, center + size / 2.0f);
+		_localAABB = AABB2(center - size / 2.0f, center + size / 2.0f);
 	}
 }
 
@@ -1718,7 +1718,7 @@ void Widget::DeleteAllGraphics()
 
 glm::vec2 Widget::LocalToWorldCoord(const glm::vec2& value) const
 {
-    return Vec2TransformCoord(value, Matrix4DxToGlm(GetWorldMat()));
+	return Vec2TransformCoord(value, Matrix4DxToGlm(GetWorldMat()));
 }
 
 glm::vec2 Widget::WorldToLocalCoord(const glm::vec2& value) const
@@ -2095,7 +2095,7 @@ void Widget::SetPos3d(const D3DXVECTOR3& value)
 glm::vec2 Widget::GetWorldPos() const
 {
 	//return glm::vec2(GetWorldMat().m[3]); // TTEST: m[3] - matrix replacement
-    return glm::vec2(GetWorldMat()._41, GetWorldMat()._42); // remove after D3DXMATRIX replacement
+	return glm::vec2(GetWorldMat()._41, GetWorldMat()._42); // remove after D3DXMATRIX replacement
 }
 
 void Widget::SetWorldPos(const glm::vec2& value)
@@ -3873,8 +3873,8 @@ void ScrollBox::SetScroll(const glm::vec2& value)
 	//корректируем чтобы максимальной прокруткой был размер страницы
 	glm::vec2 clampSize(boxSize.x, std::max(boxSize.y - _clip->GetSize().y, 0.0f));
 	glm::vec2 scroll = value;
-    scroll = Vec2Maximize(scroll, NullVec2);
-    scroll = Vec2Minimize(scroll, clampSize);
+	scroll = Vec2Maximize(scroll, NullVec2);
+	scroll = Vec2Minimize(scroll, clampSize);
 
 	glm::vec2 pos = scroll + _box->GetChildAABB().max - _box->GetSize()/2.0f;
 	if (_box->GetSize().x > boxSize.x)

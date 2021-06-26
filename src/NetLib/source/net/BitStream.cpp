@@ -312,7 +312,7 @@ void BitStream::Serialize(float value[], int count, float err)
 
 void BitStream::Serialize(glm::vec2& value, float err)
 {
-    Serialize((float *)(&value), 2, err);
+	Serialize((float *)(&value), 2, err);
 }
 
 void BitStream::Serialize(D3DXVECTOR3& value, float err)

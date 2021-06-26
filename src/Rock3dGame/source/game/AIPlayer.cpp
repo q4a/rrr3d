@@ -373,14 +373,14 @@ AIDebug::~AIDebug()
 AIDebug::GrActor::GrActor(AIDebug* debug): _debug(debug)
 {
 	HDC hDC;
-    //HFONT hFont;
-    int nHeight;
-    int nPointSize = 9;
-    //char strFontName[] = "Arial";
-    hDC = GetDC(NULL);
-    nHeight = -( MulDiv( nPointSize, GetDeviceCaps(hDC, LOGPIXELSY), 72 ) );
-    ReleaseDC( NULL, hDC );
-    // Create a font for statistics and help output
+	//HFONT hFont;
+	int nHeight;
+	int nPointSize = 9;
+	//char strFontName[] = "Arial";
+	hDC = GetDC(NULL);
+	nHeight = -( MulDiv( nPointSize, GetDeviceCaps(hDC, LOGPIXELSY), 72 ) );
+	ReleaseDC( NULL, hDC );
+	// Create a font for statistics and help output
 	HRESULT hr = D3DXCreateFont(_debug->GetWorld()->GetGraph()->GetEngine().GetDriver().GetDevice(), nHeight, 0, FW_BOLD, 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, TEXT("Arial"), &_font);
 }
 

@@ -144,10 +144,10 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 	float fOffsetY = -0.5f * (fMaxY + fMinY) * fScaleY;
 	float fOffsetZ = -fMinZ * fScaleZ;
 
-	D3DXMATRIX mCropView(fScaleX,     0.0f,  0.0f,   0.0f,
-                            0.0f,  fScaleY,  0.0f,   0.0f,
-                            0.0f,     0.0f,  fScaleZ,   0.0f,
-                        fOffsetX, fOffsetY,  fOffsetZ,   1.0f);
+	D3DXMATRIX mCropView(fScaleX,     0.0f,     0.0f,   0.0f,
+	                        0.0f,  fScaleY,     0.0f,   0.0f,
+	                        0.0f,     0.0f,  fScaleZ,   0.0f,
+	                    fOffsetX, fOffsetY, fOffsetZ,   1.0f);
 
 	// multiply the projection matrix with it
 	//Итоговое значение глубины в z буффере будет линейным, в диапазоне от 0 до 1 (near; far), которое можно вычислить как:

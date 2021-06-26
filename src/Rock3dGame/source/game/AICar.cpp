@@ -204,7 +204,7 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 		target += movNode->GetTile().ComputeTrackNormOff(target, newTrack);
 
 		moveDir = target - car.pos;
-        moveDir = glm::normalize(moveDir);
+		moveDir = glm::normalize(moveDir);
 	}
 }
 
@@ -433,7 +433,7 @@ void AICar::AttackState::PlaceMine(AICar* owner, const CarState& car, const Path
 		if (summPart > 0.0f && summPart < 1.0f)
 		{
 			//Цель сзади, +30% мин
-            if (backTarget && glm::length(backTarget->GetCar().pos - car.pos) < 30.0f)
+			if (backTarget && glm::length(backTarget->GetCar().pos - car.pos) < 30.0f)
 				summPart += 0.3f;
 			summPart = ClampValue(summPart + placeMineRandom, 0.0f, 1.0f);
 		}

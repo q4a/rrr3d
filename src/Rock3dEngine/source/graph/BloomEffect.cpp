@@ -11,28 +11,28 @@ namespace graph
 void GetSamplesDownScale4x4(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[16])
 {
 	float tU = 1.0f / dwWidth;
-    float tV = 1.0f / dwHeight;
+	float tV = 1.0f / dwHeight;
 
-    // Sample from 4 surrounding points.
-    int index = 0;
-    for( int y = -1; y < 3; y++ )
-    {
-        for( int x = -1; x < 3; x++ )
-        {
-            avSampleOffsets[index].x = (x - 0.5f) * tU;
-            avSampleOffsets[index].y = (y - 0.5f) * tV;
+	// Sample from 4 surrounding points.
+	int index = 0;
+	for( int y = -1; y < 3; y++ )
+	{
+		for( int x = -1; x < 3; x++ )
+		{
+			avSampleOffsets[index].x = (x - 0.5f) * tU;
+			avSampleOffsets[index].y = (y - 0.5f) * tV;
 
-            index++;
-        }
-    }
+			index++;
+		}
+	}
 }
 
 inline float GaussianDistribution( float x, float y, float rho )
 {
-    float g = 1.0f / sqrtf( 2.0f * D3DX_PI * rho * rho );
-    g *= expf( -( x * x + y * y ) / ( 2 * rho * rho ) );
+	float g = 1.0f / sqrtf( 2.0f * D3DX_PI * rho * rho );
+	g *= expf( -( x * x + y * y ) / ( 2 * rho * rho ) );
 
-    return g;
+	return g;
 }
 
 void CompGaussianHorizVertBlur(glm::vec2 texSize, glm::vec2 texOffsets[16], glm::vec2 colorWeights[16], float fDeviation, float fMultiplier)
@@ -54,21 +54,12 @@ void CompGaussianHorizVertBlur(glm::vec2 texSize, glm::vec2 texOffsets[16], glm:
 	}
 
 	//Copy to the left side
-    for (int i = 8; i < 15; ++i)
-    {
+	for (int i = 8; i < 15; ++i)
+	{
 		texOffsets[i] = -texOffsets[i - 7];
 		colorWeights[i] = colorWeights[i - 7];
 	}
 }
-
-
-
-
-
-
-
-
-
 
 BloomRender::BloomRender(): _colorTex(0)
 {
@@ -106,9 +97,6 @@ void BloomRender::Render(Engine& engine)
 	_bloomTex.SyncFrom(GetRT());
 	_bloomTex.Init(engine);
 
-
-
-
 	//Bright pass
 	GetSamplesDownScale4x4(GetRT()->GetData()->GetWidth(), GetRT()->GetData()->GetHeight(), samplerOffsets4x4);
 
@@ -120,9 +108,6 @@ void BloomRender::Render(Engine& engine)
 	DrawScreenQuad(engine);
 	shader.UnApply(engine);
 	UnApplyRT(engine);
-
-
-
 
 	//Blur pass
 	glm::vec2 offsets4x4[16];

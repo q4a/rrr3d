@@ -78,7 +78,7 @@ class CFlatFrameWnd : public CFrameWnd
 {
 	DECLARE_DYNAMIC(CFlatFrameWnd);
 
-    virtual BOOL PreCreateWindow(CREATESTRUCT& cs)
+	virtual BOOL PreCreateWindow(CREATESTRUCT &cs)
 	{
 		CFrameWnd::PreCreateWindow(cs);
 		cs.dwExStyle &= ~WS_EX_CLIENTEDGE;
