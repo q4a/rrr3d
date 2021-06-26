@@ -87,7 +87,7 @@ inline void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, c
 	D3DXMATRIX scaleMat;
 	D3DXMatrixScaling(&scaleMat, scale.x, scale.y, scale.z);
 
-	D3DXMATRIX rotMat = Matrix4GlmToDx(glm::toMat4(rot));
+	D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rot)));
 
 	D3DXMATRIX transMat;
 	D3DXMatrixTranslation(&transMat, pos.x, pos.y, pos.z);

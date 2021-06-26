@@ -342,7 +342,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		D3DXMATRIX velMat;
 		MatrixRotationFromAxis(xVec, yVec, zVec, velMat);
 		glm::quat velRot = glm::quat_cast(Matrix4DxToGlm(velMat));
-		//velRot = glm::quat(-velRot.w, velRot.x, velRot.y, velRot.z);
+		velRot = glm::quat(-velRot.w, velRot.x, velRot.y, velRot.z);
 
 		//
 		glm::quat camQuat1 = rot;
@@ -881,7 +881,7 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 				D3DXMATRIX rotMat;
 				MatrixRotationFromAxis(xAxis, yAxis, zAxis, rotMat);
 				rot = glm::quat_cast(Matrix4DxToGlm(rotMat));
-				//rot = glm::quat(-rot.w, rot.x, rot.y, rot.z);
+				rot = glm::quat(-rot.w, rot.x, rot.y, rot.z);
 
 				if (dir != NULL)
 				{
@@ -950,7 +950,7 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 			D3DXMATRIX rotMat;
 			MatrixRotationFromAxis(xAxis, yAxis, zAxis, rotMat);
 			rot = glm::quat_cast(Matrix4DxToGlm(rotMat));
-			//rot = glm::quat(-rot.w, rot.x, rot.y, rot.z);
+			rot = glm::quat(-rot.w, rot.x, rot.y, rot.z);
 		}
 	}
 
