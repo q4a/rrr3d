@@ -80,9 +80,6 @@ const ActorManager::UserDesc& ActorManager::User::GetDesc() const
 	return _desc;
 }
 
-
-
-
 ActorManager::ActorManager(unsigned sceneCnt): cNumScenes(sceneCnt), _octree(sceneCnt)
 {
 	_dynUserList = new UserList[cNumScenes];

@@ -873,9 +873,6 @@ void PlayerStateFrame::OnDisconnectedPlayer(NetPlayer* sender)
 	RemoveOpponent(sender->model());
 }
 
-
-
-
 MiniMapFrame::MiniMapFrame(Menu* menu, HudMenu* hudMenu, gui::Widget* parent): _menu(menu), _hudMenu(hudMenu)
 {
 	_root = _menu->GetGUI()->CreateDummy();
@@ -1003,9 +1000,6 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 		node = node->GetNext();
 	}
 
-
-
-
 	for (Nodes::iterator iter = nodes.begin(); iter != nodes.end();)
 	{
 		Node& node = *iter;
@@ -1057,9 +1051,6 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 		else
 			iter = nextIter;
 	}
-
-
-
 
 	data.SetFormat(res::VertexData::vtPos3, true);
 	data.SetFormat(res::VertexData::vtTex0, true);
@@ -1242,9 +1233,6 @@ gui::Dummy* MiniMapFrame::GetRoot()
 {
 	return _root;
 }
-
-
-
 
 HudMenu::HudMenu(Menu* menu, gui::Widget* parent, Player* player): _menu(menu), _player(player), _state(msMain)
 {

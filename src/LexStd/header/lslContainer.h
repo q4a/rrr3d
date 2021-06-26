@@ -186,9 +186,6 @@ public:
 	_MyClass& operator=(const _MyClass& value);
 };
 
-
-
-
 template<class _Item> Container<_Item>::Container(Duplicates duplicates): _safeCont(0), _duplicates(duplicates)
 {
 }

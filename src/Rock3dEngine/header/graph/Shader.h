@@ -331,9 +331,6 @@ public:
 	void SetMacro(MacroBlock* value);
 };
 
-
-
-
 template<class _Type> bool Shader::GetValue(const std::string& name, _Type& outVal) const
 {
 	Value tmp;

@@ -35,9 +35,6 @@ const std::string AchievmentModel::cSurvival = "survival";
 const std::string AchievmentModel::cFirstBlood = "firstBlood";
 const std::string AchievmentModel::cArmored = "armored";
 
-
-
-
 Achievment::Achievment(const Desc& desc): _state(asLocked), _price(0)
 {
 	_owner = desc.owner;
@@ -138,9 +135,6 @@ Race* Achievment::race() const
 	return _owner->race();
 }
 
-
-
-
 AchievmentMapObj::AchievmentMapObj(const Desc& desc): Achievment(desc)
 {
 }
@@ -195,9 +189,6 @@ const AchievmentMapObj::Records& AchievmentMapObj::GetRecords() const
 	return _records;
 }
 
-
-
-
 AchievmentGamer::AchievmentGamer(const Desc& desc): Achievment(desc), _gamerId(0)
 {
 }
@@ -225,9 +216,6 @@ void AchievmentGamer::SetGamerId(int value)
 {
 	_gamerId = value;
 }
-
-
-
 
 AchievmentCondition::AchievmentCondition(const Desc& desc): _reward(0), _iterNum(0), _iterCount(1)
 {
@@ -336,9 +324,6 @@ void AchievmentCondition::reward(int value)
 	_reward = value;
 }
 
-
-
-
 AchievmentConditionBonus::AchievmentConditionBonus(const Desc& desc): AchievmentCondition(desc), _bonusCount(0), _bonusTotalCount(0)
 {
 }
@@ -402,9 +387,6 @@ void AchievmentConditionBonus::bonusType(GameObject::BonusType value)
 {
 	_bonusType = value;
 }
-
-
-
 
 AchievmentConditionSpeedKill::AchievmentConditionSpeedKill(const Desc& desc): AchievmentCondition(desc), _time(0), _curKills(0), _killsNum(0), _killsTime(0)
 {
@@ -489,9 +471,6 @@ void AchievmentConditionSpeedKill::killsTime(float value)
 	_killsTime = value;
 }
 
-
-
-
 AchievmentConditionRaceKill::AchievmentConditionRaceKill(const Desc& desc): AchievmentCondition(desc), _curKills(0), _killsNum(0)
 {
 }
@@ -543,9 +522,6 @@ void AchievmentConditionRaceKill::killsNum(int value)
 {
 	_killsNum = value;
 }
-
-
-
 
 AchievmentConditionLapPass::AchievmentConditionLapPass(const Desc& desc): AchievmentCondition(desc), _place(1), _lapCount(0)
 {
@@ -603,9 +579,6 @@ void AchievmentConditionLapPass::place(int value)
 	_place = value;
 }
 
-
-
-
 AchievmentConditionDodge::AchievmentConditionDodge(const Desc& desc): AchievmentCondition(desc), _damage(0)
 {
 }
@@ -648,9 +621,6 @@ void AchievmentConditionDodge::OnProcessEvent(unsigned id, EventData* data)
 	}
 }
 
-
-
-
 AchievmentConditionLapBreak::AchievmentConditionLapBreak(const Desc& desc): AchievmentCondition(desc), _place(0)
 {
 }
@@ -680,9 +650,6 @@ void AchievmentConditionLapBreak::OnProcessEvent(unsigned id, EventData* data)
 		}
 	}
 }
-
-
-
 
 AchievmentConditionSurvival::AchievmentConditionSurvival(const Desc& desc): AchievmentCondition(desc), _curDeaths(0)
 {
@@ -715,9 +682,6 @@ void AchievmentConditionSurvival::OnProcessEvent(unsigned id, EventData* data)
 	}
 }
 
-
-
-
 AchievmentConditionFirstKill::AchievmentConditionFirstKill(const Desc& desc): AchievmentCondition(desc), _curKills(0)
 {
 }
@@ -741,9 +705,6 @@ void AchievmentConditionFirstKill::OnProcessEvent(unsigned id, EventData* data)
 	}
 }
 
-
-
-
 AchievmentConditionTouchKill::AchievmentConditionTouchKill(const Desc& desc): AchievmentCondition(desc)
 {
 }
@@ -761,9 +722,6 @@ void AchievmentConditionTouchKill::OnProcessEvent(unsigned id, EventData* data)
 		}
 	}
 }
-
-
-
 
 AchievmentModel::AchievmentModel(Race* race, const lsl::string& name): _race(race), _points(0)
 {

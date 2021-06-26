@@ -76,7 +76,6 @@ private:
 		float placeMineRandom;
 	};
 
-
 	//Состояние контроля за машиной с учетом пути, обгона, стрельбы
 	struct ControlState
 	{

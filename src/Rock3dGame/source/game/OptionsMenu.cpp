@@ -310,9 +310,6 @@ void GameFrame::CancelChanges()
 {
 }
 
-
-
-
 MediaFrame::MediaFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu)
 {
 	StringValue gfxLevel[] = {svLow, svMiddle, svHigh};
@@ -494,9 +491,6 @@ void MediaFrame::CancelChanges()
 {
 }
 
-
-
-
 NetworkTab::NetworkTab(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu)
 {
 	D3DXCOLOR color1(0xffafafaf);
@@ -667,9 +661,6 @@ void NetworkTab::CancelChanges()
 {
 	ApplyVolume(true);
 }
-
-
-
 
 ControlsFrame::ControlsFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu), _gridScroll(0)
 {
@@ -931,9 +922,6 @@ bool ControlsFrame::ApplyChanges()
 void ControlsFrame::CancelChanges()
 {
 }
-
-
-
 
 OptionsMenu::OptionsMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msGame)
 {
@@ -1389,9 +1377,6 @@ void OptionsMenu::SetState(State value)
 		ApplyState();
 	}
 }
-
-
-
 
 StartOptionsMenu::StartOptionsMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _lastCameraIndex(-1)
 {

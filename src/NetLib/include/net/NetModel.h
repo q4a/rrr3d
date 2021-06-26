@@ -97,9 +97,6 @@ protected:
 	virtual void CallRPC(const NetMessage& msg, const NetCmdHeader& header, std::istream& stream);
 };
 
-
-
-
 template<class _Class> NetModelRPC<_Class>::NetModelRPC(const Desc& desc): NetModel(desc), _rpcCount(0)
 {
 }
@@ -138,6 +135,5 @@ template<class _Class> void NetModelRPC<_Class>::CallRPC(const NetMessage& msg, 
 	if (method)
 		((_Class*)this->*method)(msg, header, stream);
 }
-
 
 }

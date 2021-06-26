@@ -29,9 +29,6 @@ BEGIN_MESSAGE_MAP(CFileView, CViewPane)
 	ON_NOTIFY(NM_KEYDOWN, FILE_TREE_VIEW, OnViewKeyDown)
 END_MESSAGE_MAP()
 
-
-
-
 CFileView::CFileView(): _mapDoc(0)
 {
 	_mapDocEvent = new MapDocEvent(this);
@@ -255,7 +252,6 @@ void CFileView::FillFileView()
 	m_wndFileView.Expand(hSrc, TVE_EXPAND);
 	m_wndFileView.Expand(hInc, TVE_EXPAND);
 }
-
 
 int CFileView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {

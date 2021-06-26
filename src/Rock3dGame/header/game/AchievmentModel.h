@@ -379,9 +379,6 @@ public:
 	CondClasses& condClasses();
 };
 
-
-
-
 template<class _Type> _Type* AchievmentModel::Add(const std::string& name)
 {
 	return lsl::StaticCast<_Type*>(Add(_classes.GetByClass<_Type>().GetKey(), name));

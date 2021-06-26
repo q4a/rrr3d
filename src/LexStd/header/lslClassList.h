@@ -136,9 +136,6 @@ template<class _Key, class _BaseClass, class _Arg = void> class ClassList: publi
 {
 };
 
-
-
-
 template<class _Key, class _BaseClass, class _Arg> BaseClassList<_Key, _BaseClass, _Arg>::~BaseClassList()
 {
 	Clear();

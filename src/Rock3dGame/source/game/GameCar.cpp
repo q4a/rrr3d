@@ -12,9 +12,6 @@ namespace game
 
 const float GameCar::cMaxSteerAngle = D3DX_PI / 6;
 
-
-
-
 CarMotorDesc::CarMotorDesc(): maxRPM(7000), idlingRPM(1000), maxTorque(2000.0f), SEM(0.7f), gearDiff(3.42f), autoGear(true), brakeTorque(7500), restTorque(400.0f)
 {
 	//задн€€
@@ -45,9 +42,6 @@ float CarMotorDesc::CalcTorque(float rpm, unsigned curGear) const
 
 	return maxTorque * gears[curGear] * gearDiff * SEM * cGameK;
 }
-
-
-
 
 CarWheel::CarWheel(CarWheels* owner): _owner(owner), _wheelShape(0), _summAngle(0), _trailEff(0), _actTrail(0), invertWheel(false), _steerAngle(0), _lead(false), _steer(false), _offset(NullVector), _pxPrevPos(NullVector), _pxPrevRot(NullQuaternion)
 {
@@ -326,7 +320,6 @@ void CarWheel::SetLead(bool value)
 	}
 }
 
-
 bool CarWheel::GetSteer() const
 {
 	return _steer;
@@ -355,9 +348,6 @@ void CarWheel::SetOffset(const D3DXVECTOR3& value)
 {
 	_offset = value;
 }
-
-
-
 
 CarWheels::CarWheels(GameCar* owner): _owner(owner), _steerContactModify(0)
 {
@@ -458,9 +448,6 @@ void CarWheels::SetSteerContactModify(ContactModify* value)
 		}
 	}
 }
-
-
-
 
 GameCar::GameCar(): _clutchStrength(0), _clutchTime(0.0f), _springTime(0), _mineTime(0), _curGear(-1), _moveCar(mcNone), _steerWheel(swNone), _kSteerControl(1.0f), _steerSpeed(D3DX_PI/2.0f), _steerRot(D3DX_PI), _angDamping(IdentityVector), _flyYTorque(D3DX_PI/1.6f), _clampXTorque(0), _clampYTorque(0), _motorTorqueK(1), _wheelSteerK(1), _gravEngine(false), _clutchImmunity(false), _maxSpeed(0), _tireSpring(0), _disableColor(false), _steerAngle(0), _anyWheelContact(false), _wheelsContact(false), _bodyContact(false)
 {
@@ -1524,9 +1511,6 @@ float GameCar::GetSpeed(NxActor* nxActor, const D3DXVECTOR3& dir)
 
 	return 0.0f;
 }
-
-
-
 
 DestrObj::DestrObj(): _checkDestruction(false)
 {

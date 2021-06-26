@@ -7,9 +7,6 @@ namespace net
 
 const float BitStream::cFloatErr = 0.001f;
 
-
-
-
 BitStream::BitStream(): _pos(0), _time(0), _deltaTime(0), _isWriting(false), _isReading(false), _changedCount(0), _updatedCount(0), _isSleeping(true)
 {
 }

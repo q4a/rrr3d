@@ -15,9 +15,6 @@ namespace graph
 
 bool Engine::_d3dxUse = true;
 
-
-
-
 Engine::Engine(HWND window, lsl::Point resolution, bool fullScreen, unsigned multisampling): _reset(true), _lost(false), _restart(true), _beginScene(false), _beginDraw(false), _dt(0), _pause(false), _filtering(0), _multisampling(0), _d3dQueryEvent(NULL)
 {
 	ZeroMemory(&_d3dpp, sizeof(_d3dpp));
@@ -103,7 +100,6 @@ void Engine::DrawFPS()
 {
 	static __int64 gTime, gLastTime;
 	float deltaTime = CalcDeltaTime(gTime, gLastTime);
-
 
 	static double nTimeOfLastFPSUpdate = 0.0;
 	static int nFrameCount = 0;
@@ -701,9 +697,6 @@ void Engine::ToMultisampling(unsigned level, D3DMULTISAMPLE_TYPE& type, unsigned
 	}
 }
 
-
-
-
 void RenderStateManager::Apply(Engine& engine)
 {
 	for (iterator iter = begin(); iter != end(); ++iter)
@@ -716,9 +709,6 @@ void RenderStateManager::UnApply(Engine& engine)
 		engine.GetContext().RestoreRenderState(iter->first);
 }
 
-
-
-
 void SamplerStateManager::Apply(Engine& engine, DWORD stage)
 {
 	for (iterator iter = begin(); iter != end(); ++iter)
@@ -730,9 +720,6 @@ void SamplerStateManager::UnApply(Engine& engine, DWORD stage)
 	for (iterator iter = begin(); iter != end(); ++iter)
 		engine.GetContext().RestoreSamplerState(stage, iter->first);
 }
-
-
-
 
 DWORD TextureStageStateManager::Get(TextureStageState state) const
 {

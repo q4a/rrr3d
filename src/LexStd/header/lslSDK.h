@@ -165,9 +165,6 @@ public:
 SDK* GetSDK();
 void ReleaseSDK();
 
-
-
-
 inline void SpinWait(DWORD time)
 {
 	DWORD tick = GetTickCount();

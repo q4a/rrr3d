@@ -24,9 +24,6 @@ template<class _Value> _Value AbsMax(const _Value& val1, const _Value& val2)
 	return abs(val1) < abs(val2) ? val2 : val1;
 }
 
-
-
-
 AABB2::AABB2()
 {
 }
@@ -138,9 +135,6 @@ glm::vec2 AABB2::GetSize() const
 {
 	return max - min;
 }
-
-
-
 
 AABB::AABB()
 {
@@ -657,9 +651,6 @@ D3DXVECTOR3 AABB::GetPlaneVert(unsigned index, unsigned vertex) const
 	return GetVertex(bufInd[vertex]);
 }
 
-
-
-
 BoundBox::BoundBox()
 {
 }
@@ -800,9 +791,6 @@ Frustum::SpaceContains Frustum::ContainsAABB(const AABB& aabb) const
 	else
 		return scContainsPartially;
 }
-
-
-
 
 bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXPLANE& plane, float& outT)
 {

@@ -15,9 +15,6 @@ const float AICar::cMaxTimeBlocking = 1.0f;
 
 const float AICar::cMaxVisibleDistShot = 100.0f;
 
-
-
-
 AICar::AICar(Player* player): _path(_player->GetMap()->GetTrace().cTrackCnt), _player(player), _enbAI(true)
 {
 	_player->GetRace()->GetGame()->RegUser(this);

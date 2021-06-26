@@ -9,9 +9,6 @@ namespace lsl
 
 const char* Component::cDefItemName = "item";
 
-
-
-
 Component::Component(): _owner(0), storeName(true)
 {
 	_elements = new Elements(this);
@@ -206,9 +203,6 @@ Component::Elements& Component::GetElements() const
 {
 	return *_elements;
 }
-
-
-
 
 bool CheckDisabledChar(const char& item)
 {

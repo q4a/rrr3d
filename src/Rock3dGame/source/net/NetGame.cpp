@@ -11,9 +11,6 @@ namespace game
 
 NetGame* NetGame::_i;
 
-
-
-
 NetGame::NetGame(GameMode* game): _game(game), _race(NULL), _port(58213), _started(false), _isHost(false), _isClient(false), _player(NULL)
 {
 	_i = this;

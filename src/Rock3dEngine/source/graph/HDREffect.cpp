@@ -12,7 +12,6 @@ HDRRender::HDRRender(): _restart(true), _colorTex(0)
 {
 	const unsigned toneMapSz[cToneMapTexNum] = {1, 4, 16, 64};
 
-
 	for (int i = 0; i < cToneMapTexNum; ++i)
 	{
 		Tex2DResource& tex = _toneMapTex.Add();

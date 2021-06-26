@@ -64,9 +64,6 @@ AICar* AIPlayer::GetCar()
 	return _car;
 }
 
-
-
-
 AISystem::AISystem(Race* race): _race(race), _aiDebug(0)
 {
 }
@@ -224,7 +221,6 @@ void AISystem::ComputeTracks(float deltaTime)
 		//LSL_ASSERT(!tChain->empty() && tChain->size() <= cTrackCnt);
 		LSL_ASSERT(!tChain->empty());
 
-
 		struct Pred: public std::binary_function<Link*, Link*, bool>
 		{
 			bool operator()(Link* link1, Link* link2)
@@ -335,9 +331,6 @@ void AISystem::FreeDebug()
 	lsl::SafeDelete(_aiDebug);
 }
 
-
-
-
 AIDebug::AIDebug(AISystem* ai, AIPlayer* aiPlayer): _ai(ai), _aiPlayer(aiPlayer)
 {
 	_aiPlayer->AddRef();
@@ -393,9 +386,6 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 {
 	if (!_debug->_aiPlayer->_car)
 		return;
-
-
-
 
 	AISystem* ai = _debug->_ai;
 
@@ -518,9 +508,6 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	engine.GetContext().RestoreRenderState(graph::rsZEnable);
 	engine.GetContext().RestoreRenderState(graph::rsLighting);
 
-
-
-
 	std::stringstream sstream;
 	std::stringstream sstream2;
 
@@ -537,12 +524,6 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		}
 		sstream << '\n';
 	}
-
-
-
-
-
-
 
 	static bool speed100 = false;
 	static bool speed150 = false;
@@ -687,7 +668,6 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	sstream2 << "9. kSteer = " << kSteer << '\n';
 	sstream2 << '\n';
 
-
 	//
 	sstream2 << "slip wheels" << '\n';
 	int ind = 0;
@@ -717,8 +697,6 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		numPage = std::min(numPage + 1, 1);
 	if (GetAsyncKeyState(VK_NEXT))
 		numPage = std::max(numPage - 1, 0);
-
-
 
 	int addVal = 0;
 	if (GetAsyncKeyState(VK_ADD))

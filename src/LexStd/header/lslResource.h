@@ -177,18 +177,12 @@ protected:
 	virtual void InsertItem(const Value& value);
 };
 
-
-
-
 template<class _Resource, class _IdType, class _Arg, class _ArgThis> void ResourceCollection<_Resource, _IdType, _Arg, _ArgThis>::InsertItem(const Value& value)
 {
 	_MyBase::InsertItem(value);
 
 	SetItemResTraits(value, this);
 }
-
-
-
 
 inline std::wstring GetAppPath()
 {

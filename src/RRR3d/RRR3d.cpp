@@ -16,9 +16,6 @@ const lsl::Point cResolution(1280, 720);
 HWND mainWindow;
 r3d::IWorld* rock3dWorld;
 
-
-
-
 void OnKeyEvent(unsigned key, lsl::KeyState state, bool repeat)
 {
 	if (rock3dWorld)
@@ -210,9 +207,6 @@ void ErrMessage(const std::string& message)
 }
 
 }
-
-
-
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {

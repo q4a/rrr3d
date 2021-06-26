@@ -104,9 +104,6 @@ FreeStaticData freeStaticData;
 
 Profiler* Profiler::_i;
 
-
-
-
 void Win32ThreadPool::QueueWork(UserWork* value, Object* arg, Flags flags)
 {
 	DWORD dwFlags = 0;
@@ -142,9 +139,6 @@ void Win32ThreadPool::SetMaxThreads(unsigned value)
 {
 }
 
-
-
-
 void* SDK::GetDataFrom(LockedObj* obj)
 {
 	return obj->_data;
@@ -154,9 +148,6 @@ void SDK::SetDataTo(LockedObj* obj, void* data)
 {
 	obj->_data = data;
 }
-
-
-
 
 Win32ThreadEvent::Win32ThreadEvent(bool manualReset, bool open, const std::string& name)
 {
@@ -182,9 +173,6 @@ void Win32ThreadEvent::Reset()
 {
 	ResetEvent(_event);
 }
-
-
-
 
 Win32SDK::Win32SDK(): _threadPool(0)
 {
@@ -260,9 +248,6 @@ double Win32SDK::GetTimeDbl()
 
 	return gTime/static_cast<double>(freq);
 }
-
-
-
 
 Profiler::Profiler()
 {
@@ -345,9 +330,6 @@ Profiler& Profiler::I()
 
 	return *_i;
 }
-
-
-
 
 SDK* GetSDK()
 {

@@ -21,9 +21,6 @@ const float ScaleCoordSys::plSize = 1.5f;
 const D3DXCOLOR ScaleCoordSys::arCol[3] = {clrRed, clrGreen, clrBlue};
 const D3DXCOLOR ScaleCoordSys::colSel = clrYellow;
 
-
-
-
 MaterialNode::MaterialNode(): _libMat(0), _color(clrWhite), _offset(NullVector), _scale(IdentityVector), _rotate(NullQuaternion), _matChanged(true), _defMat(true), _cullMode((D3DCULL)0)
 {
 }
@@ -327,9 +324,6 @@ void MaterialNode::SetCullMode(D3DCULL value)
 	_cullMode = value;
 }
 
-
-
-
 IVBMeshNode::IVBMeshNode(): _mesh(0), _meshId(-1)
 {
 }
@@ -548,9 +542,6 @@ MaterialNode* IVBMeshNode::GetMaterial()
 	return &material;
 }
 
-
-
-
 MeshXNode::MeshXNode(): _mesh(0), _meshId(-1)
 {
 }
@@ -754,9 +745,6 @@ MaterialNode* MeshXNode::GetMaterial()
 	return &material;
 }
 
-
-
-
 PlaneNode::PlaneNode(): _size(1.0f, 1.0f)
 {
 	UpdateMesh();
@@ -832,9 +820,6 @@ void PlaneNode::SetSize(const glm::vec2& value)
 		UpdateMesh();
 	}
 }
-
-
-
 
 Box::Box()
 {
@@ -935,9 +920,6 @@ void Box::Load(lsl::SReader* reader)
 
 	material.Load(reader, this);
 }
-
-
-
 
 Cylinder::Cylinder(): _color(clrWhite)
 {
@@ -1074,9 +1056,6 @@ void ScreenSprite::OnFixUp(const FixUpNames& fixUpNames)
 	material.OnFixUp(fixUpNames, this);
 }
 
-
-
-
 MovCoordSys::MovCoordSys(): _curMove(dmNone)
 {
 	for (int i = 0; i < 3; ++i)
@@ -1164,9 +1143,6 @@ void MovCoordSys::DoRender(Engine& engine)
 	//Выеделенные оси
 	const bool isAxe[3] = {_curMove == dmXY || _curMove == dmXZ || _curMove == dmX, _curMove == dmXY || _curMove == dmYZ || _curMove == dmY, _curMove == dmXZ || _curMove == dmYZ || _curMove == dmZ};
 
-
-
-
 	//Скалим перед рендером чтобы не было дерганий
 	float dist = D3DXVec3Length(&(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos()));
 	float scaleF = dist / 15.0f;
@@ -1197,9 +1173,6 @@ void MovCoordSys::DoRender(Engine& engine)
 		if (isPlane)
 			planeVert = cPlanes[i].plane;
 	}
-
-
-
 
 	engine.GetContext().SetRenderState(graph::rsZWriteEnable, false);
 	engine.GetContext().SetRenderState(graph::rsZEnable, false);
@@ -1247,9 +1220,6 @@ MovCoordSys::DirMove MovCoordSys::OnMouseClick(const D3DXVECTOR3& rayStart, cons
 {
 	return CompDirMove(rayStart, rayVec);
 }
-
-
-
 
 ScaleCoordSys::ScaleCoordSys(): _curMove(dmNone)
 {
@@ -1405,9 +1375,6 @@ ScaleCoordSys::DirMove ScaleCoordSys::OnMouseClick(const D3DXVECTOR3& rayStart, 
 	return CompDirMove(rayStart, rayVec, camPos - GetWorldPos());
 }
 
-
-
-
 void FillDataPlane(res::VertexData& vb, float width, float height, float u, float v)
 {
 	vb.SetVertexCount(6);
@@ -1528,7 +1495,6 @@ void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, flo
 
 	mesh.Init();
 }
-
 
 }
 

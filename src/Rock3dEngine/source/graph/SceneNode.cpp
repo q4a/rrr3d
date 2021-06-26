@@ -12,9 +12,6 @@ const char* SceneNode::cNodeTypeStr[cNodeTypeEnd] = {"ntNode", "ntIVBMesh", "ntP
 
 SceneNode::ClassList SceneNode::classList;
 
-
-
-
 SceneNode::SceneNode()
 {
 	InitClassList();

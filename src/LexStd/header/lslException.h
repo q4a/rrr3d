@@ -63,9 +63,6 @@ void Assert(const char* expression, const char* filePath, int line);
 
 extern AppLog appLog;
 
-
-
-
 template<class _Value> void AppLog::Write(const _Value& value)
 {
 	if (_destroy)
@@ -104,9 +101,6 @@ template<class _Value> inline AppLog& operator<<(AppLog& log, const _Value& valu
 	log.Write(value);
 	return log;
 }
-
-
-
 
 template<typename _To, typename _From> inline _To StaticCast(_From& x)
 {

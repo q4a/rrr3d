@@ -224,7 +224,6 @@ struct Point
 	Point() {}
 	Point(int mX, int mY): x(mX), y(mY) {};
 
-
 	Point& operator+=(const Point& value)
 	{
 		x += value.x;
@@ -273,9 +272,6 @@ public:
 };
 
 typedef std::vector<std::string> StringList;
-
-
-
 
 template<class _Pnt> inline void SafeRelease(_Pnt& pnt)
 {
@@ -366,9 +362,6 @@ inline int ConvStrToEnum(const std::string& str, const StringList& strList)
 	return -1;
 }
 
-
-
-
 template<class _Key, class _BaseClass> ClassMapList<_Key, _BaseClass>::~ClassMapList()
 {
 	Clear();
@@ -421,9 +414,6 @@ template<class _Key, class _BaseClass> _BaseClass& ClassMapList<_Key, _BaseClass
 		throw lsl::Error("template<class _Key, class _BaseClass> _BaseClass& ClassMapList<_Key, _BaseClass>::GetInstance(const _Key& key) const");
 }
 
-
-
-
 template<class _Class, class _ClassMapList> RegisterMapClass<_Class, _ClassMapList>::RegisterMapClass(_ClassMapList& mapList, typename _ClassMapList::Key key)
 {
 	mapList.Add<_Class>(key);
@@ -432,9 +422,6 @@ template<class _Class, class _ClassMapList> RegisterMapClass<_Class, _ClassMapLi
 template<class _Class, class _ClassMapList> void RegisterMapClass<_Class, _ClassMapList>::Test()
 {
 }
-
-
-
 
 static Point& operator+(const Point& value1, const Point& value2)
 {
@@ -450,9 +437,6 @@ static Point& operator-(const Point& value1, const Point& value2)
 	return res -= value2;
 }
 
-
-
-
 inline double GetTimeDbl()
 {
 	__int64 gTime, freq;
@@ -461,9 +445,6 @@ inline double GetTimeDbl()
 
 	return gTime/static_cast<double>(freq);
 }
-
-
-
 
 #pragma warning(disable:4996)
 

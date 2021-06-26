@@ -185,9 +185,6 @@ void FinalMenu::OnProgress(float deltaTime)
 	}
 }
 
-
-
-
 /*FinalMenu::FinalMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _scrollTime(0)
 {
 	D3DXCOLOR color1(0xffafafaf);

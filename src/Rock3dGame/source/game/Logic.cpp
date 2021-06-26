@@ -11,9 +11,6 @@ namespace game
 
 LogicBehaviors::ClassList LogicBehaviors::classList;
 
-
-
-
 LogicBehavior::LogicBehavior(LogicBehaviors* owner): _owner(owner)
 {
 }
@@ -42,9 +39,6 @@ Map* LogicBehavior::GetMap()
 {
 	return GetLogic()->GetMap();
 }
-
-
-
 
 LogicEventEffect::LogicEventEffect(LogicBehaviors* owner): _MyBase(owner), _effect(0), _pos(NullVector)
 {
@@ -157,9 +151,6 @@ void LogicEventEffect::SetPos(const D3DXVECTOR3& value)
 {
 	_pos = value;
 }
-
-
-
 
 PairPxContactEffect::PairPxContactEffect(LogicBehaviors* owner): _MyBase(owner)
 {
@@ -389,9 +380,6 @@ const PairPxContactEffect::Sounds& PairPxContactEffect::GetSounds() const
 	return _sounds;
 }
 
-
-
-
 LogicBehaviors::LogicBehaviors(Logic* logic): _logic(logic)
 {
 	InitClassList();
@@ -426,9 +414,6 @@ Logic* LogicBehaviors::GetLogic()
 {
 	return _logic;
 }
-
-
-
 
 Logic::Logic(World* world): _world(world), _initSndCat(false), _touchBorderDamage(0, 0), _touchBorderDamageForce(0, 0), _touchCarDamage(0, 0), _touchCarDamageForce(0, 0)
 {

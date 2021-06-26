@@ -38,9 +38,6 @@ public:
 	virtual unsigned netIndex() const = 0;
 };
 
-
-
-
 template<class _Type> std::ostream& INetPlayer::NewModel()
 {
 	return NewModel(net()->modelClasses().GetByClass<_Type>().GetKey());

@@ -29,9 +29,6 @@ const lsl::string SteamServer::cGameDir = "motor rock";
 bool SteamService::_init = false;
 const float SteamService::cSyncWaitTime = 60.0f;
 
-
-
-
 //-----------------------------------------------------------------------------
 // Purpose: callback hook for debug text emitted from the Steam API
 //-----------------------------------------------------------------------------
@@ -48,9 +45,6 @@ extern "C" void __cdecl SteamAPIDebugTextHook( int nSeverity, const char *pchDeb
 		x = x;
 	}
 }
-
-
-
 
 NetConnectionSteam::NetConnectionSteam(NetAcceptorSteam* owner): _owner(owner), _isOpen(false)
 {
@@ -203,9 +197,6 @@ SteamService* NetConnectionSteam::service()
 	return _owner->service();
 }
 
-
-
-
 NetChannelSteam::NetChannelSteam(NetAcceptorSteam* owner): _owner(owner), _isOpen(false), _isBind(false)
 {
 }
@@ -348,9 +339,6 @@ SteamService* NetChannelSteam::service()
 {
 	return _owner->service();
 }
-
-
-
 
 NetAcceptorSteam::NetAcceptorSteam(SteamService* service): _service(service), _isOpen(false)
 {
@@ -511,9 +499,6 @@ SteamService* NetAcceptorSteam::service()
 {
 	return _service;
 }
-
-
-
 
 SteamStats::SteamStats(SteamService* service): _service(service), _userStatsLoading(false), _userStatsSaving(false), _raceNumShots(0),
 	_callbackUserStatsReceived( this, &SteamStats::OnUserStatsReceived ),
@@ -782,9 +767,6 @@ GameMode* SteamStats::game()
 	return _service->game();
 }
 
-
-
-
 SteamLeaderboard::SteamLeaderboard(SteamService* service): _service(service), _leadersLoading(false), _userStatsUploading(0)
 {
 }
@@ -880,9 +862,6 @@ GameMode* SteamLeaderboard::game()
 {
 	return _service->game();
 }
-
-
-
 
 SteamLobby::SteamLobby(SteamService* service): _service(service), _lobbyListLoading(false), _lobbyLoading(false), _matchStarting(false), _lobbyCreated(false),
 	_callbackLobbyDataUpdated(this, &SteamLobby::OnLobbyDataUpdatedCallback),
@@ -1248,9 +1227,6 @@ GameMode* SteamLobby::game()
 	return _service->game();
 }
 
-
-
-
 SteamServer::SteamServer(SteamService* service): _service(service), _serverListRequest(NULL), _serverConnecting(false), _hostInit(false), _internetListLoading(false),
 	_callbackSteamServersConnected( this, &SteamServer::OnSteamServersConnected ),
 	_callbackSteamServersDisconnected( this, &SteamServer::OnSteamServersDisconnected ),
@@ -1542,7 +1518,6 @@ void SteamServer::OnAuthCompleted( bool bAuthSuccessful, uint32 iPendingAuthInde
 		return;
 	}
 
-
 	bool bAddedOk = false;
 
 	for( uint32 i = 0; i < cMaxPlayers; ++i )
@@ -1625,7 +1600,6 @@ void SteamServer::OnP2PSessionRequest( P2PSessionRequest_t *pCallback )
 	// we'll accept a connection from anyone
 	SteamGameServerNetworking()->AcceptP2PSessionWithUser( pCallback->m_steamIDRemote );
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: Handle clients disconnecting
@@ -1923,9 +1897,6 @@ CSteamID SteamServer::steamId()
 {
 	return _hostInit ? SteamGameServer()->GetSteamID() : CSteamID();
 }
-
-
-
 
 SteamService::SteamService(GameMode* game): _game(game), _syncStage(cSyncStageEnd), _syncWaitTime(-1.0f), _initiatingConnection(false), _connected(false)
 {

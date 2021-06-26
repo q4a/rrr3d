@@ -162,9 +162,6 @@ public:
 	bool operator!=(const VariantVec& value) const;
 };
 
-
-
-
 inline Variant::Variant(): _data(0)
 {
 }
@@ -464,9 +461,6 @@ inline bool Variant::operator!=(const Variant& value) const
 	return !operator==(value);
 }
 
-
-
-
 inline VariantVec::VariantVec()
 {
 }
@@ -515,7 +509,6 @@ inline VariantVec::VariantVec(const glm::vec2* value, unsigned count)
 {
 	AssignData(value, count);
 }
-
 
 inline VariantVec::VariantVec(const D3DXVECTOR3* value, unsigned count)
 {
@@ -571,7 +564,6 @@ inline VariantVec::VariantVec(const glm::vec2& value)
 {
 	AssignData(&value, 1);
 }
-
 
 inline VariantVec::VariantVec(const D3DXVECTOR3& value)
 {

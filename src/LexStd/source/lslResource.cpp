@@ -10,9 +10,6 @@ namespace lsl
 
 std::auto_ptr<FileSystem> FileSystem::_instance;
 
-
-
-
 FileSystem::FileSystem(const std::wstring& appPath): _appPath(appPath)
 {
 }
@@ -131,16 +128,10 @@ const std::wstring& FileSystem::appPath() const
 	return _appPath;
 }
 
-
-
-
 void ResourcesTraits::SetItemResTraits(Resource* item, ResourcesTraits* value)
 {
 	item->_resTraits = value;
 }
-
-
-
 
 Resource::Resource(): _resTraits(0), _init(false), _dynamic(false)
 {
@@ -231,9 +222,6 @@ void Resource::SetDynamic(bool value)
 	_dynamic = value;
 }
 
-
-
-
 void FileResource::DoLoadFromStream(std::istream& stream, const std::string& fileExt)
 {
 	//свидетельствует о том что загрузчик не существует
@@ -284,9 +272,6 @@ void FileResource::SetFileName(const std::string& value)
 	_fileName = value;
 }
 
-
-
-
 BufferResource::~BufferResource()
 {
 	Free();
@@ -333,9 +318,6 @@ const char* BufferResource::GetData() const
 {
 	return _data;
 }
-
-
-
 
 BinaryResource::BinaryResource(): _size(0)
 {

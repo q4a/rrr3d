@@ -12,9 +12,6 @@ namespace edit
 
 const SceneControl::DirMove DMCoordMoveToSC[graph::MovCoordSys::cDirMoveEnd] = {SceneControl::dmNone, SceneControl::dmX, SceneControl::dmY, SceneControl::dmZ, SceneControl::dmXY, SceneControl::dmXZ, SceneControl::dmYZ};
 
-
-
-
 SceneControl::SceneControl(Edit* edit): _edit(edit), _selMode(smNone), _selNode(0), _linkBB(false), _actor(0), _movCoordSys(0), _scaleCoordSys(0)
 {
 	_control = new Control(this);
@@ -283,7 +280,6 @@ void SceneControl::ComputeLink(INode* node, const D3DXVECTOR3& pos, D3DXVECTOR3&
 {
 	D3DXVECTOR3 oldPos = node->GetPos();
 	D3DXVECTOR3 offset = pos - oldPos;
-
 
 	D3DXVECTOR3 newOff = offset;
 	bool repeat = false;

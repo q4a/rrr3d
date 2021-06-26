@@ -26,9 +26,6 @@ const D3DXCOLOR Player::cRightColors[Player::cColorsCount] = {D3DXCOLOR(0xff06af
 
 Slot::ClassList Slot::classList;
 
-
-
-
 SlotItem::SlotItem(Slot* slot): _name(_SC(svNull)), _info(_SC(svNull)), _slot(slot), _cost(0), _mesh(0), _texture(0), _pos(NullVector), _rot(NullQuaternion)
 {
 }
@@ -211,9 +208,6 @@ void SlotItem::SetRot(const glm::quat& value)
 	TransformChanged();
 }
 
-
-
-
 MobilityItem::MobilityItem(Slot* slot): _MyBase(slot)
 {
 }
@@ -309,29 +303,17 @@ float MobilityItem::CalcLife(const CarFunc& func)
 	return func.life;
 }
 
-
-
-
 WheelItem::WheelItem(Slot* slot): _MyBase(slot)
 {
 }
-
-
-
 
 MotorItem::MotorItem(Slot* slot): _MyBase(slot)
 {
 }
 
-
-
-
 TrubaItem::TrubaItem(Slot* slot): _MyBase(slot)
 {
 }
-
-
-
 
 ArmorItem::ArmorItem(Slot* slot): _MyBase(slot), _armor4Installed(false)
 {
@@ -404,9 +386,6 @@ void ArmorItem::InstalArmor4(bool instal)
 {
 	_armor4Installed = instal;
 }
-
-
-
 
 WeaponItem::WeaponItem(Slot* slot): _MyBase(slot), _mapObj(0), _inst(0), _maxCharge(0), _cntCharge(0), _curCharge(0), _chargeStep(1), _damage(0), _chargeCost(0)
 {
@@ -632,22 +611,13 @@ Weapon::Desc WeaponItem::GetDesc()
 	return GetWeapon() ? GetWeapon()->GetDesc() : _wpnDesc;
 }
 
-
-
-
 HyperItem::HyperItem(Slot* slot): _MyBase(slot)
 {
 }
 
-
-
-
 MineItem::MineItem(Slot* slot): _MyBase(slot)
 {
 }
-
-
-
 
 DroidItem::DroidItem(Slot* slot): WeaponItem(slot), _repairValue(5.0f), _repairPeriod(1.0f), _time(0.0f)
 {
@@ -727,9 +697,6 @@ void DroidItem::SetRepairPeriod(float value)
 	_repairPeriod = value;
 }
 
-
-
-
 ReflectorItem::ReflectorItem(Slot* slot): WeaponItem(slot), _reflectValue(0.25f)
 {
 }
@@ -766,9 +733,6 @@ float ReflectorItem::Reflect(float damage)
 {
 	return damage * lsl::ClampValue(1.0f - _reflectValue, 0.0f, 1.0f);
 }
-
-
-
 
 Slot::Slot(Player* player): _player(player), _type(cTypeEnd), _item(0), _record(0)
 {
@@ -879,9 +843,6 @@ void Slot::SetRecord(Record* value)
 	}
 }
 
-
-
-
 Player::Player(Race* race): cTimeRestoreCar(2.0f), _race(race), _carMaxSpeedBase(0), _carTireSpringBase(0), _timeRestoreCar(0), _headLight(hlmNone), _reflScene(true), _money(0), _points(0), _pickMoney(0), _id(cUndefPlayerId), _gamerId(-1), _netSlot(Race::cDefaultNetSlot), _netName(""), _place(0), _finished(false), _cheatEnable(cCheatDisable), _nextBonusProjId(cBonusProjUndef + 1), _nightFlare(NULL), _block(-1.0f)
 {
 	ZeroMemory(_lights, sizeof(_lights));
@@ -954,11 +915,11 @@ void Player::CarState::Update(float deltaTime)
 	Vec3Rotate(XVector, rot3, dir3);
 
 	//pos = glm::vec2(pos3);
-    pos = glm::vec2(pos3.x, pos3.y); // remove after D3DXVECTOR3 replacement
+	pos = glm::vec2(pos3.x, pos3.y); // remove after D3DXVECTOR3 replacement
 	//dir = glm::vec2(dir3);
-    dir = glm::vec2(dir3.x, dir3.y); // remove after D3DXVECTOR3 replacement
+	dir = glm::vec2(dir3.x, dir3.y); // remove after D3DXVECTOR3 replacement
 	speed = GameCar::GetSpeed(nxActor, dir3);
-    dir = glm::normalize(dir);
+	dir = glm::normalize(dir);
 
 	dirLine = Line2FromDir(dir, pos);
 	normLine = Line2FromNorm(dir, pos);

@@ -25,7 +25,6 @@ void OctreeRender::Render(graph::Engine& engine, unsigned index)
 		(*iter)->Render(engine);
 }
 
-
 OctreeRender::Group& OctreeRender::AddGroup()
 {
 	Group* group = new Group();

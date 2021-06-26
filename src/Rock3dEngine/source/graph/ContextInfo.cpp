@@ -50,9 +50,6 @@ DWORD ContextInfo::GetDefTextureStageState(int stage, TextureStageState state)
 	return ContextInfo::defaultTextureStageStates[state];
 }
 
-
-
-
 CameraDesc::CameraDesc()
 {
 	aspect = 1.0f;
@@ -66,9 +63,6 @@ CameraDesc::CameraDesc()
 	dir = XVector;
 	up = ZVector;
 }
-
-
-
 
 CameraCI::CameraCI(): _idState(0), _frustChanged(true)
 {
@@ -335,7 +329,6 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 
 	return res;*/
 
-
 	const Frustum& frustum = GetFrustum();
 	for (int i = 0; i < 4; ++i)
 	{
@@ -598,9 +591,6 @@ const D3DXMATRIX& CameraCI::GetInvWVP() const
 	return GetInvTransform(ctWVP);
 }
 
-
-
-
 LightCI::LightCI(): _changed(true), _owner(0)
 {
 }
@@ -685,9 +675,6 @@ const CameraCI& LightCI::GetCamera() const
 {
 	return _camera;
 }
-
-
-
 
 ContextInfo::ContextInfo(RenderDriver* driver): _driver(driver), _enableShadow(false), _texDiffK(1.0f), _invertingCullFace(false), _ignoreMaterial(false), _cullOpacity(1.0f), _color(clrWhite), _meshId(-1), _maxTextureStage(-1)
 {

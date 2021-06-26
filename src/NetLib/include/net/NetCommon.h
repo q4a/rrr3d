@@ -48,7 +48,7 @@ private:
 	mutable bool _discard;
 public:
 	unsigned sender;
-	unsigned time;
+	unsigned time;	
 
 	NetMessage(): _discard(false), sender(cUndefPlayer), time(0) {}
 	NetMessage(unsigned mSender, unsigned mTime): _discard(false), sender(mSender), time(mTime) {}
@@ -97,7 +97,7 @@ struct Endpoint
 {
 	std::string address;
 	unsigned addressLong;
-	unsigned port;
+	unsigned port;		
 
 	Endpoint() {}
 	Endpoint(const std::string& mAddress, unsigned mPort): addressLong(0), address(mAddress), port(mPort) {}
@@ -177,9 +177,6 @@ template<class _T> unsigned Read(std::istream& stream, std::basic_string<_T>& va
 
 template<class _T> unsigned Write(std::ostream& stream, const std::basic_string<_T>& value);
 template<class _T> unsigned Read(std::istream& stream, std::basic_string<_T>& value);
-
-
-
 
 inline unsigned Write(std::ostream& stream, const void* data, unsigned size)
 {
@@ -357,7 +354,7 @@ template<class _T> inline unsigned Write(std::ostream& stream, const std::basic_
 
 template<class _T> inline unsigned Read(std::istream& stream, std::basic_string<_T>& value, unsigned size)
 {
-	value.resize(size);
+	value.resize(size);	
 	Read(stream, const_cast<std::basic_string<_T>::pointer>(value.data()), sizeof(std::basic_string<_T>::value_type) * size);
 	return size;
 }

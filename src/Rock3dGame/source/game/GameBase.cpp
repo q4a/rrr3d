@@ -19,9 +19,6 @@ const std::string GameObjListener::cBonusTypeStr[cBonusTypeEnd] = {"btMoney", "b
 
 Behaviors::ClassList Behaviors::classList;
 
-
-
-
 Behavior::Behavior(Behaviors* owner): _owner(owner), _removed(false)
 {
 }
@@ -89,9 +86,6 @@ Logic* Behavior::GetLogic()
 	return GetGameObj()->GetLogic();
 }
 
-
-
-
 TouchDeath::TouchDeath(Behaviors* owner): _MyBase(owner)
 {
 	SetPxNotify(pxContact, true);
@@ -104,9 +98,6 @@ void TouchDeath::OnContact(const px::Scene::OnContactEvent& contact)
 	if (target)
 		target->Death(dtDeathPlane);
 }
-
-
-
 
 ResurrectObj::ResurrectObj(Behaviors* owner): _MyBase(owner), _resurrect(false)
 {
@@ -157,9 +148,6 @@ bool ResurrectObj::IsResurrect() const
 	return _resurrect;
 }
 
-
-
-
 FxSystemWaitingEnd::FxSystemWaitingEnd(Behaviors* owner): _MyBase(owner)
 {
 }
@@ -193,9 +181,6 @@ void FxSystemWaitingEnd::OnProgress(float deltaTime)
 	}
 }
 
-
-
-
 FxSystemSrcSpeed::FxSystemSrcSpeed(Behaviors* owner): _MyBase(owner)
 {
 }
@@ -218,9 +203,6 @@ void FxSystemSrcSpeed::OnProgress(float deltaTime)
 			fxSystem->SetSrcSpeed(speed);
 		}
 }
-
-
-
 
 EventEffect::EventEffect(Behaviors* owner): _MyBase(owner), _effect(0), _pos(NullVector), _impulse(NullVector), _ignoreRot(false), _makeEffect(0)
 {
@@ -584,9 +566,6 @@ void EventEffect::SetIgnoreRot(bool value)
 	_ignoreRot = value;
 }
 
-
-
-
 LowLifePoints::LowLifePoints(Behaviors* owner): _MyBase(owner), _lifeLevel(0.35f)
 {
 }
@@ -631,9 +610,6 @@ void LowLifePoints::SetLifeLevel(float value)
 {
 	_lifeLevel = value;
 }
-
-
-
 
 DamageEffect::DamageEffect(Behaviors* owner): _MyBase(owner), _damageType(dtSimple)
 {
@@ -686,9 +662,6 @@ void DamageEffect::SetDamageType(DamageType value)
 {
 	_damageType = value;
 }
-
-
-
 
 DeathEffect::DeathEffect(Behaviors* owner): _MyBase(owner), _effectPxIgnoreSenderCar(false), _targetChild(false)
 {
@@ -764,9 +737,6 @@ void DeathEffect::SetTargetChild(bool value)
 	_targetChild = value;
 }
 
-
-
-
 LifeEffect::LifeEffect(Behaviors* owner): _MyBase(owner), _play(false)
 {
 }
@@ -788,9 +758,6 @@ void LifeEffect::OnProgress(float deltaTime)
 		}
 	}
 }
-
-
-
 
 PxWheelSlipEffect::PxWheelSlipEffect(Behaviors* owner): _MyBase(owner)
 {
@@ -857,9 +824,6 @@ void PxWheelSlipEffect::OnProgress(float deltaTime)
 #endif
 }
 
-
-
-
 ShotEffect::ShotEffect(Behaviors* owner): _MyBase(owner)
 {
 }
@@ -882,9 +846,6 @@ void ShotEffect::OnShot(const D3DXVECTOR3& pos)
 		source->Play();
 	}
 }
-
-
-
 
 ImmortalEffect::ImmortalEffect(Behaviors* owner): _MyBase(owner), _fadeInTime(-1.0f), _fadeOutTime(-1.0f), _dmgTime(-1.0f), _scale(IdentityVector), _scaleK(IdentityVector)
 {
@@ -947,7 +908,6 @@ void ImmortalEffect::LoadSource(lsl::SReader* reader)
 	lsl::SReadValue(reader, "scaleK", _scaleK);
 }
 
-
 void ImmortalEffect::OnProgress(float deltaTime)
 {
 	MapObj* mapObj = GetMakeEffect();
@@ -1004,9 +964,6 @@ void ImmortalEffect::SetScaleK(const D3DXVECTOR3& value)
 	_scaleK = value;
 }
 
-
-
-
 SlowEffect::SlowEffect(Behaviors* owner): _MyBase(owner)
 {
 }
@@ -1034,9 +991,6 @@ void SlowEffect::OnProgress(float deltaTime)
 			target->setLinearVelocity(linSpeed * 20);
 	}
 }
-
-
-
 
 SoundMotor::SoundMotor(Behaviors* owner): _MyBase(owner), _sndIdle(0), _sndRPM(0), _init(false), _srcIdle(0), _srcRPM(0), _rpmVolumeRange(0.0f, 1.0f), _rpmFreqRange(0.0f, 1.0f)
 {
@@ -1201,9 +1155,6 @@ void SoundMotor::SetRPMFreqRange(const glm::vec2& value)
 	_rpmFreqRange = value;
 }
 
-
-
-
 GusenizaAnim::GusenizaAnim(Behaviors* owner): _MyBase(owner), _xAnimOff(0)
 {
 }
@@ -1233,9 +1184,6 @@ void GusenizaAnim::OnProgress(float deltaTime)
 
 	mat->SetOffset(offset);
 }
-
-
-
 
 PodushkaAnim::PodushkaAnim(Behaviors* owner): _MyBase(owner), _targetTag(0), _target(NULL)
 {
@@ -1294,9 +1242,6 @@ void PodushkaAnim::targetTag(int value)
 	_targetTag = value;
 	_target = NULL;
 }
-
-
-
 
 Behaviors::Behaviors(GameObject* gameObj): _gameObj(gameObj), storeProxy(true), storeSource(true)
 {

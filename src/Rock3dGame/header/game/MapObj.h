@@ -221,9 +221,6 @@ public:
 	using _MyBase::UnlockDestr;
 };
 
-
-
-
 template<class _Class> _Class& MapObj::GetGameObj()
 {
 	LSL_ASSERT(_classList);

@@ -463,9 +463,6 @@ public:
 	bool IsNight() const;
 };
 
-
-
-
 template<class _State, class _Value, _Value _defValue[]> _Value StateManager<_State, _Value, _defValue>::Get(_State state) const
 {
 	_States::const_iterator iter = _states.find(state);

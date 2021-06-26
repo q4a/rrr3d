@@ -15,9 +15,6 @@ const D3DXMATRIX skyFromLeftToRightCS(1.0f,  0.0f,  0.0f,  0.0f,
 									  0.0f,  -1.0f, 0.0f,  0.0f,
 									  0.0f,  0.0f,  0.0f,  1.0f);
 
-
-
-
 SkyBox::SkyBox(): _coordSystem(csLeft)
 {
 	_mesh.GetOrCreateData()->SetVertexCount(6);

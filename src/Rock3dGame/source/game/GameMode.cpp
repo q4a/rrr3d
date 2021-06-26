@@ -14,9 +14,6 @@ namespace game
 const char* GameMode::cBusyActionStr[cBusyActionEnd] = {"baSkip", "baQueue", "baReplace"};
 const lsl::string GameMode::cPrefCameraStr[GameMode::cPrefCameraEnd] = {"pcThirdPerson", "pcIsometric"};
 
-
-
-
 GameMode::GameMode(World* world): _world(world), _musicReport(0), _fadeMusic(1.0f), _fadeSpeedMusic(0.0f), _startUpTime(-1), _movieTime(-1), _movieFileName(""), _guiLogo(0), _guiLogo2(NULL), _guiStartup(0), _semaphore(NULL), _startRace(-1), _prepareGame(false), _startGame(false), _goRaceTime(-1), _finishTime(-1), _menu(0), _race(0), _netGame(0), _maxPlayers(6), _maxComputers(5), _upgradeMaxLevel(Garage::cUpgMaxLevel), _weaponMaxLevel(Garage::cWeaponMaxLevel), _springBorders(true), _lapsCount(4), _enableHUD(true), _enableMineBug(true), _disableVideo(false), _prefCamera(pcIsometric), _cameraDistance(1.25f), _discreteVideoChanged(false), _prefCameraAutodetect(false)
 #ifdef STEAM_SERVICE
 	, _steamService(NULL)

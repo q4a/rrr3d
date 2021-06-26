@@ -131,7 +131,6 @@ void CVMR7::SetFullScreen(bool value)
 {
 }
 
-
 // Initialize the VMR-7 for windowless mode.
 
 HRESULT InitWindowlessVMR(
@@ -187,7 +186,6 @@ done:
 	SafeRelease(&pWC);
 	return hr;
 }
-
 
 /// VMR-9 Wrapper
 
@@ -262,7 +260,6 @@ done:
 	return hr;
 }
 
-
 HRESULT CVMR9::UpdateVideoWindow(HWND hwnd, const LPRECT prc)
 {
 	if (m_pWindowless == NULL)
@@ -321,7 +318,6 @@ void CVMR9::SetFullScreen(bool value)
 	_videoWindow->put_FullScreenMode(value);
 }
 
-
 // Initialize the VMR-9 for windowless mode.
 
 HRESULT InitWindowlessVMR9(
@@ -377,7 +373,6 @@ done:
 	SafeRelease(&pWC);
 	return hr;
 }
-
 
 /// EVR Wrapper
 
