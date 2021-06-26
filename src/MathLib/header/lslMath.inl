@@ -44,13 +44,13 @@ inline float NumAbsAdd(float absVal, float addVal)
 	return absVal > 0 ? absVal + addVal : absVal - addVal;
 }
 
-inline D3DXQUATERNION QuatGlmToDx(glm::quat quatIn)
+inline D3DXQUATERNION QuatGlmToDx(const glm::quat &quatIn)
 {
 	D3DXQUATERNION quatOut(quatIn.x, quatIn.y, quatIn.z, quatIn.w);
 	return quatOut;
 }
 
-inline glm::quat QuatDxToGlm(D3DXQUATERNION quatIn)
+inline glm::quat QuatDxToGlm(const D3DXQUATERNION &quatIn)
 {
 	glm::quat quatOut(quatIn.w, quatIn.x, quatIn.y, quatIn.z);
 	return quatOut;
@@ -74,13 +74,13 @@ inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
 	return matrix;
 }
 
-inline glm::vec3 Vec3DxToGlm(D3DXVECTOR3 v3)
+inline glm::vec3 Vec3DxToGlm(const D3DXVECTOR3 &v3)
 {
 	glm::vec3 v3glm(v3.x, v3.y, v3.z);
 	return v3glm;
 }
 
-inline D3DXVECTOR3 Vec3GlmToDx(glm::vec3 v3)
+inline D3DXVECTOR3 Vec3GlmToDx(const glm::vec3 &v3)
 {
 	D3DXVECTOR3 v3dx(v3.x, v3.y, v3.z);
 	return v3dx;

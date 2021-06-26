@@ -798,7 +798,9 @@ D3DXQUATERNION GameObject::GetWorldRot() const
 void GameObject::SetWorldRot(const D3DXQUATERNION& value)
 {
 	_grActor->SetWorldRot(value);
-	_pxActor->SetRot(_grActor->GetRot());
+	//_pxActor->SetRot(_grActor->GetRot()); // restore after D3DXQUATERNION replacement
+	D3DXQUATERNION grActorRot = _grActor->GetRot();
+	_pxActor->SetRot(grActorRot);
 	_pxPrevRot = _grActor->GetRot();
 }
 

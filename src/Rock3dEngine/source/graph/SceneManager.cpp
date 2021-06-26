@@ -1071,7 +1071,12 @@ void BaseSceneNode::SetWorldPos(const D3DXVECTOR3& value)
 
 D3DXQUATERNION BaseSceneNode::GetWorldRot() const
 {
-	return QuatGlmToDx(GetWorldRotG());
+	D3DXQUATERNION res = GetRot();
+	const BaseSceneNode *curObj = this;
+	while (curObj = curObj->GetParent())
+		res *= curObj->GetRot();
+	return res;
+	//return QuatGlmToDx(GetWorldRotG());
 }
 
 glm::quat BaseSceneNode::GetWorldRotG() const
