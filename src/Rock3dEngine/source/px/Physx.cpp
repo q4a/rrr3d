@@ -2170,6 +2170,9 @@ const D3DXQUATERNION& Actor::GetRot() const
 
 void Actor::SetRot(const D3DXQUATERNION& value)
 {
+#ifdef _DEBUG
+	LSL_ASSERT(!isnan(value.w));
+#endif
 	_rot = value;
 	if (_nxActor)
 	{

@@ -822,7 +822,9 @@ void GameObject::SetWorldUp(const D3DXVECTOR3& value)
 		_grActor->GetParent()->WorldToLocalNorm(vec3, vec3);
 
 	_grActor->SetUp(vec3);
-	_pxActor->SetRot(_grActor->GetRot());
+	//_pxActor->SetRot(_grActor->GetRot()); // restore after D3DXQUATERNION replacement
+	D3DXQUATERNION grActorRot = _grActor->GetRot();
+	_pxActor->SetRot(grActorRot);
 	_pxPrevRot = _grActor->GetRot();
 }
 
