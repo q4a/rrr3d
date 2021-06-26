@@ -33,7 +33,7 @@ GraphManager::LightSrc::LightSrc(const LightDesc& desc): _enable(true), _shadowM
 
 GraphManager::LightSrc::~LightSrc()
 {
-	SetShadowMap(0);			
+	SetShadowMap(0);
 
 	delete _source;
 }
@@ -47,7 +47,7 @@ void GraphManager::LightSrc::SetShadowMap(graph::ShadowMapRender* value)
 {
 	if (ReplaceRef(_shadowMap, value))
 	{
-		if (_shadowMap)		
+		if (_shadowMap)
 			_source->SetShadowMap(0);
 
 		_shadowMap = value;
@@ -81,7 +81,7 @@ bool GraphManager::LightSrc::GetEnable() const
 
 void GraphManager::LightSrc::SetEnable(bool value)
 {
-	_enable = value;	
+	_enable = value;
 }
 
 
@@ -106,8 +106,8 @@ GraphManager::GraphManager(HWND window, lsl::Point resolution, bool fullScreen):
 	_trueRefl = false;
 
 	_planarReflRender = NULL;
-	_planarReflShader = NULL;	
-		
+	_planarReflShader = NULL;
+
 	_bumpMapShader = 0;
 
 	_skyTex = "";
@@ -257,8 +257,8 @@ void GraphManager::DetectCapabilities()
 
 			LSL_LOG(lsl::StrFmt("dxgi adapter id=%d \n -desc=%s \n -vendorId=%d \n -deviceId=%d \n -subSysId=%d \n -revision=%d \n -videoMem=%d \n -sysMem=%d \n -sharedMem=%d \n -remote=%d", i, lsl::ConvertStrWToA(desc.Description).c_str(), desc.VendorId, desc.DeviceId, desc.SubSysId, desc.Revision, desc.DedicatedVideoMemory, desc.DedicatedSystemMemory, desc.SharedSystemMemory, (desc.Flags & DXGI_ADAPTER_FLAG_REMOTE) != 0));
 
-			VideoAdapter adapter;			
-			adapter.primary = false;			
+			VideoAdapter adapter;
+			adapter.primary = false;
 			adapter.desc = lsl::ConvertStrWToA(desc.Description);
 			adapter.id = lsl::StrFmt("%d&%d&%d&%d", desc.VendorId, desc.DeviceId, desc.SubSysId, desc.Revision);
 			adapter.vendorId = desc.VendorId;
@@ -342,14 +342,14 @@ void GraphManager::DetectCapabilities()
 
 		LSL_LOG(lsl::StrFmt("adapter id=%d \n -driver=%s \n -desc=%s \n -name=%s \n -whql=%d \n -vendorId=%d \n -deviceId=%d \n -subSysId=%d \n -revision=%d", i, adapter.Driver, adapter.Description, adapter.DeviceName, adapter.WHQLLevel != 0, adapter.VendorId, adapter.DeviceId, adapter.SubSysId, adapter.Revision));
 	}
-	
+
 	LSL_LOG(lsl::StrFmt("MaxAnisotropy = %d", caps.MaxAnisotropy));
 	LSL_LOG(lsl::StrFmt("MaxUserClipPlanes = %d", caps.MaxUserClipPlanes));
 	LSL_LOG(lsl::StrFmt("MaxTextureWidth = %d", caps.MaxTextureWidth));
 	LSL_LOG(lsl::StrFmt("MaxTextureHeight = %d", caps.MaxTextureHeight));
 	LSL_LOG(lsl::StrFmt("MaxTextureAspectRatio = %d", caps.MaxTextureAspectRatio));
 	LSL_LOG(lsl::StrFmt("MaxTextureBlendStages = %d", caps.MaxTextureBlendStages));
-	LSL_LOG(lsl::StrFmt("MaxSimultaneousTextures = %d", caps.MaxSimultaneousTextures));	
+	LSL_LOG(lsl::StrFmt("MaxSimultaneousTextures = %d", caps.MaxSimultaneousTextures));
 	LSL_LOG(lsl::StrFmt("MaxPrimitiveCount = %d", caps.MaxPrimitiveCount));
 	LSL_LOG(lsl::StrFmt("MaxVertexIndex = %d", caps.MaxVertexIndex));
 	LSL_LOG(lsl::StrFmt("MaxVertexShader30InstructionSlots = %d", caps.MaxVertexShader30InstructionSlots));
@@ -472,7 +472,7 @@ void GraphManager::InitWaterPlane()
 		desc.props.set(graph::Actor::gpColor);
 		desc.props.set(graph::Actor::gpDynamic);
 		//desc.order = graph::Actor::goEffect;
-		_waterPlaneActor->SetGraph(this, desc);	
+		_waterPlaneActor->SetGraph(this, desc);
 
 		_waterColor = new graph::Tex2DResource();
 		_waterColor->GetOrCreateData()->SetFileName("Data\\Effect\\waterColor.dds");
@@ -530,9 +530,9 @@ void GraphManager::UpdateWaterPlane()
 	{
 		_waterPlane->SetPos(_groundAABB.GetCenter());
 		_waterPlane->SetScale(scale);
-		//_waterPlane->SetSize(glm::vec2(_groundAABB.GetSizes()) / scale);		
+		//_waterPlane->SetSize(glm::vec2(_groundAABB.GetSizes()) / scale);
 		_waterPlane->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
-                             scale); // remove after D3DXVECTOR3 replacement		
+                             scale); // remove after D3DXVECTOR3 replacement
 	}
 }
 
@@ -573,7 +573,7 @@ void GraphManager::InitGrassField()
 
 		_grassMat = new graph::LibMaterial();
 		_grassMat->samplers.Add2d(_grassTex).SetFiltering(graph::BaseSampler::sfAnisotropic);
-		
+
 		graph::GrassField::GrassList list;
 		graph::GrassField::GrassDesc desc(_grassMat);
 		desc.tiles.clear();
@@ -605,7 +605,7 @@ void GraphManager::FreeGrassField()
 
 	if (_grassField)
 	{
-		lsl::SafeDelete(_grassField);	
+		lsl::SafeDelete(_grassField);
 
 		delete _grassMat;
 		delete _grassTex;
@@ -639,7 +639,7 @@ void GraphManager::InitDepthSurface()
 
 	if (_depthSurfaceRef == 1)
 	{
-		_depthSurface = new graph::DepthStencilSurfaceResource(); 
+		_depthSurface = new graph::DepthStencilSurfaceResource();
 		_depthSurface->SetScreenScale(glm::vec2(1.0f, 1.0f));
 		_depthSurface->SetFormat(_engine->GetParams().AutoDepthStencilFormat);
 		_depthSurface->Init(*_engine);
@@ -650,7 +650,7 @@ void GraphManager::FreeDepthSurface()
 {
 	LSL_ASSERT(_depthSurfaceRef > 0);
 
-	if (--_depthSurfaceRef == 0)	
+	if (--_depthSurfaceRef == 0)
 		delete _depthSurface;
 }
 
@@ -662,8 +662,8 @@ void GraphManager::InitScRenderTex()
 	{
 		_scRenderTex = new graph::RenderToTexture();
 		graph::Tex2DResource* tex =  _scRenderTex->GetOrCreateRT();
-		tex->GetOrCreateData()->SetFormat(D3DFMT_A16B16G16R16F);		
-		tex->SetScreenScale(glm::vec2(1.0f, 1.0f));		
+		tex->GetOrCreateData()->SetFormat(D3DFMT_A16B16G16R16F);
+		tex->SetScreenScale(glm::vec2(1.0f, 1.0f));
 		tex->Init(*_engine);
 
 		ApplyMultisampling();
@@ -674,7 +674,7 @@ void GraphManager::FreeScRenderTex()
 {
 	LSL_ASSERT(_scRenderTexRef > 0);
 
-	if (--_scRenderTexRef == 0)	
+	if (--_scRenderTexRef == 0)
 	{
 		delete _scRenderTex;
 
@@ -689,7 +689,7 @@ void GraphManager::InitCleanScTex()
 		_cleanScTex = new graph::RenderToTexture();
 		graph::Tex2DResource* tex =  _cleanScTex->GetOrCreateRT();
 		tex->GetOrCreateData()->SetFormat(D3DFMT_A16B16G16R16F);
-		tex->SetScreenScale(glm::vec2(1.0f, 1.0f));		
+		tex->SetScreenScale(glm::vec2(1.0f, 1.0f));
 		tex->Init(*_engine);
 	}
 }
@@ -698,7 +698,7 @@ void GraphManager::FreeCleanScTex()
 {
 	LSL_ASSERT(_cleanScTexRef > 0);
 
-	if (--_cleanScTexRef == 0)	
+	if (--_cleanScTexRef == 0)
 		delete _cleanScTex;
 }
 
@@ -708,9 +708,9 @@ void GraphManager::InitScRenderCubeTex()
 	{
 		_scRenderCubeTex = new graph::RenderToCubeTex();
 		graph::TexCubeResource* tex =  _scRenderCubeTex->GetOrCreateRT();
-		tex->GetOrCreateData()->SetFormat(_engine->GetParams().BackBufferFormat);		
+		tex->GetOrCreateData()->SetFormat(_engine->GetParams().BackBufferFormat);
 		tex->GetData()->SetWidth(512 * 6);
-		tex->Init(*_engine);		
+		tex->Init(*_engine);
 	}
 
 	++_scRenderCubeTexRef;
@@ -767,7 +767,7 @@ void GraphManager::InitRefrEff()
 		_refrShader->GetOrCreateData()->LoadFromFile("Data\\Shaders\\refract.fx");
 		_refrShader->Init(*_engine);
 
-		_refrShader->SetTexture("sceneTex", _cleanScTex->GetRT());		
+		_refrShader->SetTexture("sceneTex", _cleanScTex->GetRT());
 	}
 }
 
@@ -821,7 +821,7 @@ void GraphManager::InitToneMap()
 		_toneMap = new graph::ToneMapping();
 		_toneMap->SetRT(_scRenderTex->GetRT());
 		_toneMap->SetColorTex(_scRenderTex->GetRT());
-		
+
 		_toneMap->shader.GetOrCreateData()->LoadFromFile("Data\\Shaders\\toneMapping.fx");
 		_toneMap->shader.Init(*_engine);
 	}
@@ -971,7 +971,7 @@ void GraphManager::FreeLightShadow(LightSrc* light)
 		graph::ShadowMapRender* shadowMap = light->GetShadowMap();
 
 		light->SetShadowMap(0);
-		
+
 		delete shadowMap;
 	}
 }
@@ -1116,11 +1116,11 @@ void GraphManager::InitPlanarRefl()
 		_planarReflShader = new graph::PlanarReflMappShader();
 		_planarReflShader->GetOrCreateData()->LoadFromFile("Data\\Shaders\\planarReflMapp.fx");
 		_planarReflShader->Init(*_engine);
-		_planarReflShader->SetReflTex(reflTex);		
+		_planarReflShader->SetReflTex(reflTex);
 
 #ifdef PLANAR_REFL_DEBUG
 		_planarActor = new graph::Actor();
-		graph::PlaneNode* planeNode = &_planarActor->GetNodes().Add<graph::PlaneNode>();		
+		graph::PlaneNode* planeNode = &_planarActor->GetNodes().Add<graph::PlaneNode>();
 		planeNode->SetScale(100.0f);
 
 		graph::Actor::GraphDesc desc;
@@ -1229,12 +1229,12 @@ void GraphManager::InitPlaneFog(lsl::string texture, const glm::vec2& tileScale,
 		{
 			InitScDepthMap();
 
-			_fogPlane = new graph::FogPlane();		
-				
+			_fogPlane = new graph::FogPlane();
+
 			_fogPlane->SetDepthTex(_scDepthMap->GetRT());
 			_fogPlane->SetCloudsMat(_cloudsMat);
 			_fogPlane->SetColor(_cloudColor);
-			_fogPlane->SetCloudIntens(_cloudIntensivity);			
+			_fogPlane->SetCloudIntens(_cloudIntensivity);
 			_fogPlane->shader.GetOrCreateData()->LoadFromFile("Data\\Shaders\\fogPlane.fx");
 			_fogPlane->shader.Init(*_engine);
 		}
@@ -1242,12 +1242,12 @@ void GraphManager::InitPlaneFog(lsl::string texture, const glm::vec2& tileScale,
 		_fogPlane->SetSpeed(speed);
 	}
 	else if (_fogPlane != NULL)
-	{	
+	{
 		lsl::SafeDelete(_fogPlane);
 		FreeScDepthMap();
 	}
 
-	_tileScale = tileScale;	
+	_tileScale = tileScale;
 
 	UpdateFogPlane();
 }
@@ -1275,7 +1275,7 @@ void GraphManager::UpdateFogPlane()
 	pos.z = _cloudHeight;
 
 	if (_fogPlane)
-	{		
+	{
 		_fogPlane->SetPos(pos);
 		_fogPlane->SetScale(D3DXVECTOR3(_tileScale.x, _tileScale.y, 1.0f));
 		//_fogPlane->SetSize(glm::vec2(_groundAABB.GetSizes()) / _tileScale);
@@ -1321,8 +1321,8 @@ void GraphManager::ApplyFog()
 
 void GraphManager::UnApplyFog()
 {
-	if (_fogRef)		
-		_engine->GetContext().RestoreRenderState(graph::rsFogEnable);	
+	if (_fogRef)
+		_engine->GetContext().RestoreRenderState(graph::rsFogEnable);
 }
 
 void GraphManager::ApplyMultisampling()
@@ -1341,7 +1341,7 @@ void GraphManager::ApplyMultisampling()
 
 		if (_msRT == NULL)
 		{
-			_msRT = new graph::RenderTargetResource(); 
+			_msRT = new graph::RenderTargetResource();
 			_msRT->SetScreenScale(glm::vec2(1.0f, 1.0f));
 			_msRT->SetFormat(_scRenderTex->GetRT()->GetData()->GetFormat());
 		}
@@ -1353,7 +1353,7 @@ void GraphManager::ApplyMultisampling()
 		{
 			InitDepthSurface();
 
-			_msDS = new graph::DepthStencilSurfaceResource(); 
+			_msDS = new graph::DepthStencilSurfaceResource();
 			_msDS->SetScreenScale(glm::vec2(1.0f, 1.0f));
 			_msDS->SetFormat(_engine->GetParams().AutoDepthStencilFormat);
 		}
@@ -1403,7 +1403,7 @@ void GraphManager::PrepareActor(graph::Actor* actor, graph::ActorManager::UserDe
 	resDesc.dynamic = actor->GetGraphDesc().props.test(Actor::gpDynamic);
 
 	for (unsigned ind = 0; ind < cOctreeSceneEnd; ++ind)
-	{	
+	{
 		switch (ind)
 		{
 		case osReflWater:
@@ -1493,7 +1493,7 @@ void GraphManager::PrepareActor(graph::Actor* actor, graph::ActorManager::UserDe
 void GraphManager::InsertActor(graph::Actor* value)
 {
 	graph::ActorManager::UserDesc desc(cOctreeSceneEnd);
-	PrepareActor(value, desc); 
+	PrepareActor(value, desc);
 
 	_actorManager->InsertActor(desc);
 }
@@ -1507,7 +1507,7 @@ bool LineCastIntersPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec,
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &rayVec);	
+	float d = D3DXPlaneDotNormal(&plane, &rayVec);
 	if (abs(d) > EPSILON)
 	{
 		outT = -D3DXPlaneDotCoord(&plane, &rayStart) / d;
@@ -1561,7 +1561,7 @@ bool ComputeZBounds(graph::Engine& engine, const graph::CameraCI& camera, const 
 
 	D3DXVECTOR3 rayVec[4] = {D3DXVECTOR3(-1.0f, -1.0f, 1.0f), D3DXVECTOR3(1.0f, -1.0f, 1.0f), D3DXVECTOR3(-1.0f, 1.0f, 1.0f), D3DXVECTOR3(1.0f, 1.0f, 1.0f)};
 	D3DXVECTOR3 rayPos[4] = {D3DXVECTOR3(-1.0f, -1.0f, 0.0f), D3DXVECTOR3(1.0f, -1.0f, 0.0f), D3DXVECTOR3(-1.0f, 1.0f, 0.0f), D3DXVECTOR3(1.0f, 1.0f, 0.0f)};
-	
+
 	for (int i = 0; i < 4; ++i)
 	{
 		D3DXVec3TransformCoord(&rayVec[i], &rayVec[i], &camera.GetInvViewProj());
@@ -1575,8 +1575,8 @@ bool ComputeZBounds(graph::Engine& engine, const graph::CameraCI& camera, const 
 			tFar = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tFar));
 
 			if (tNear < minZ || !res)
-				minZ = tNear;			
-			if (tFar > maxZ || !res)			
+				minZ = tNear;
+			if (tFar > maxZ || !res)
 				maxZ = tFar;
 
 			res = true;
@@ -1633,7 +1633,7 @@ void GraphManager::RenderDebug()
 		_engine->GetContext().SetTexture(0, _hdrEff->GetRT()->GetTex());
 		DrawScreenQuad(*_engine, D3DXVECTOR4(0.0f, 0.6f, 0.2f, 0.8f));
 	}*/
-	
+
 	/*if (_shadowRef)
 	{
 		unsigned i = 0;
@@ -1836,7 +1836,7 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 			aabb.min.x += border.x;
 			aabb.min.y += border.z;
 			aabb.min.z = pos.z + (height + aabb.min.x * sinb) / cosb;
-			aabb.max.x += border.y;			
+			aabb.max.x += border.y;
 			aabb.max.y += border.w;
 			aabb.max.z = pos.z + (height + aabb.max.x * sinb) / cosb;
 			AABB localAABB = aabb;
@@ -1893,7 +1893,7 @@ void GraphManager::RenderEnvReflScene(graph::CameraCI& camera)
 			_reflShader->Apply(*_engine);
 
 			for (ActorList::const_iterator iter = actors.begin(); iter != actors.end(); ++iter)
-			{			
+			{
 				(*iter)->Render(*_engine);
 
 				if ((*iter)->vec3().x != 0.0f)
@@ -1922,7 +1922,7 @@ void GraphManager::RenderEnvReflScene(graph::CameraCI& camera)
 void GraphManager::RenderScenes(graph::CameraCI& camera)
 {
 	ApplyFog();
-	
+
 	if (_pixLightShader)
 		_pixLightShader->SetViewPos(_camera->GetPos());
 	if (_bumpMapShader)
@@ -1933,7 +1933,7 @@ void GraphManager::RenderScenes(graph::CameraCI& camera)
 		_reflBumpShader->SetViewPos(_camera->GetPos());
 	if (_planarReflShader)
 		_planarReflShader->SetViewPos(_camera->GetPos());
-	
+
 	RenderWithShader(osColorPix, true, _pixLightShader, true, true);
 
 	if (!RenderWithShader(osColorBump, true, _bumpMapShader, true, false))
@@ -1957,7 +1957,7 @@ void GraphManager::RenderScenes(graph::CameraCI& camera)
 		_waterPlane->Render(*_engine);
 
 	OctreeRender(osColorOpacity, false);
-	
+
 	//Рендерим с отключенной запись
 	_engine->GetContext().SetRenderState(graph::rsZWriteEnable, false);
 
@@ -1965,8 +1965,8 @@ void GraphManager::RenderScenes(graph::CameraCI& camera)
 	_actorManager->RenderRayUsers(*_engine, 0.3f);
 	//Спецэффекты в обязательо порядке с откл. записью
 	OctreeRender(osColorEffect, false);
-	
-	_engine->GetContext().RestoreRenderState(graph::rsZWriteEnable);	
+
+	_engine->GetContext().RestoreRenderState(graph::rsZWriteEnable);
 
 	OctreeRender(osColorLast, false);
 
@@ -1993,7 +1993,7 @@ void GraphManager::AdjustViewOrtho(graph::CameraCI& camera)
 		float maxZ = 0;
 
 		bool computeView = false;
-		if (_actorManager->IsBuildOctree())	
+		if (_actorManager->IsBuildOctree())
 		{
 			AABB aabb = _actorManager->GetWorldAABB();
 			aabb.Add(_groundAABB);
@@ -2025,7 +2025,7 @@ void GraphManager::RenderShadow(graph::CameraCI& camera)
 
 	if (_shadowRef && !_lightList.empty())
 	{
-		graph::CameraDesc camDesc = camera.GetDesc();		
+		graph::CameraDesc camDesc = camera.GetDesc();
 
 		bool disableCrop = true;
 		for (LightList::iterator iter = _lightList.begin(); iter != _lightList.end(); ++iter)
@@ -2042,13 +2042,13 @@ void GraphManager::RenderShadow(graph::CameraCI& camera)
 			camera.AdjustNearFarPlane(_actorManager->GetWorldAABB(), camDesc.nearDist, camDesc.farDist);
 
 		_engine->GetContext().ApplyCamera(&camera);
-		
+
 		for (LightList::iterator iter = _lightList.begin(); iter != _lightList.end(); ++iter)
 		{
 			LightSrc* light = *iter;
 
 			graph::ShadowMapRender* shadowMap = light->GetShadowMap();
-			
+
 			if (light->GetEnable() && shadowMap)
 			{
 				shadowMap->SetSplitSchemeLambda(camDesc.style == graph::csOrtho ? 0.1f : 0.7f);
@@ -2064,13 +2064,13 @@ void GraphManager::RenderShadow(graph::CameraCI& camera)
 
 				if (_actorManager->IsBuildOctree() && !disableCrop)
 					light->GetSource()->AdjustNearFarPlane(_actorManager->GetWorldAABB(), light->GetDesc().nearDist, light->GetDesc().farDist);
-					
+
 				light->GetSource()->Apply(*_engine, 0);
 
 				shadowMap->iLight = 0;
-					
+
 				shadowMap->BeginRT(*_engine, RtFlags(0, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, 0xFFFFFFFF));
-					
+
 				shadowMap->BeginShadowCaster(*_engine);
 				do
 				{
@@ -2085,18 +2085,18 @@ void GraphManager::RenderShadow(graph::CameraCI& camera)
 					OctreeRender(osShadowMapp, true);
 				}
 				while (!shadowMap->EndShadowMapp(*_engine, true));
-					
+
 				shadowMap->EndRT(*_engine);
-				
+
 				light->GetSource()->UnApply(*_engine, 0);
 				light->GetSource()->SetNear(light->GetDesc().nearDist);
 				light->GetSource()->SetFar(light->GetDesc().farDist);
 			}
 		}
-		
-		_engine->GetContext().UnApplyCamera(&camera);		
-		
-		//При рендере сцены не требуется оптмизированный фрустум, наоборот он может вызывать артефакты с небом, дождем... 
+
+		_engine->GetContext().UnApplyCamera(&camera);
+
+		//При рендере сцены не требуется оптмизированный фрустум, наоборот он может вызывать артефакты с небом, дождем...
 		if (camDesc.style != graph::csOrtho)
 			camera.SetDesc(camDesc);
 	}
@@ -2115,7 +2115,7 @@ void GraphManager::RenderCubeMap(graph::CameraCI& camera)
 		_scRenderCubeTex->BeginCubeSurf(*_engine);
 		do
 		{
-			OctreeRender(osViewCubeMap, 0);	
+			OctreeRender(osViewCubeMap, 0);
 		}
 		while (!_scRenderCubeTex->EndCubeSurf(*_engine, true));
 		_scRenderCubeTex->EndRT(*_engine);
@@ -2152,7 +2152,7 @@ void GraphManager::RenderDepthScene(graph::CameraCI& camera)
 
 		OctreeRender(osViewDepth, 0);
 
-		_scDepthMap->EndRT(*_engine);	
+		_scDepthMap->EndRT(*_engine);
 	}
 }
 
@@ -2211,13 +2211,13 @@ bool GraphManager::Render(float deltaTime, bool pause)
 		RenderShadow(camera);
 
 		_engine->GetContext().ApplyCamera(&camera);
-		
+
 		//Осветляем сцену для спец. эффектов (например для четкого кубемапа)
 		_engine->GetContext().SetRenderState(graph::rsAmbient, clrWhite);
 		//Рендер кубемапы сцены
 		RenderCubeMap(camera);
 		//Рендер текстуры водных отражений
-		RenderWaterRef(camera);		
+		RenderWaterRef(camera);
 		//Рендер глубины сцены
 		RenderDepthScene(camera);
 
@@ -2225,7 +2225,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 
 		//Глобальное фоновое освещение, если включены тени то для объектов он расчитывается через рендер теней в лихт мапе(чтобы скрывать артефакты в тенях)
 		_engine->GetContext().SetRenderState(graph::rsAmbient, _sceneAmbient);
-		
+
 		//
 		unsigned i = 0;
 		for (LightList::iterator iter = _lightList.begin(); iter != _lightList.end(); ++iter, ++i)
@@ -2252,11 +2252,11 @@ bool GraphManager::Render(float deltaTime, bool pause)
 			{
 				IDirect3DSurface9* surf1;
 				IDirect3DSurface9* surf2;
-				
+
 				if (_msRT)
 					surf1 = _msRT->GetSurface();
 				else
-					_scRenderTex->GetRT()->GetTex()->GetSurfaceLevel(0, &surf1);					
+					_scRenderTex->GetRT()->GetTex()->GetSurfaceLevel(0, &surf1);
 				_cleanScTex->GetRT()->GetTex()->GetSurfaceLevel(0, &surf2);
 
 				_engine->GetDriver().GetDevice()->StretchRect(surf1, 0, surf2, 0, D3DTEXF_NONE);
@@ -2322,7 +2322,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 
 			_nodeScene->Render(*_engine);
 			//RenderDebug();
-			_gui->Draw();			
+			_gui->Draw();
 
 			_engine->EndBackBufOut();
 		}
@@ -2336,7 +2336,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 			_preNodeScene->Render(*_engine);
 
 			RenderScenes(camera);
-			
+
 			_nodeScene->Render(*_engine);
 			_gui->Draw();
 			//RenderDebug();
@@ -2451,7 +2451,7 @@ void GraphManager::BuildOctree()
 	AABB aabb;
 	bool setAABB = false;
 
-	for (graph::ActorManager::UserList::const_iterator iter = _actorManager->GetUserList().begin(); iter != _actorManager->GetUserList().end(); ++iter)	
+	for (graph::ActorManager::UserList::const_iterator iter = _actorManager->GetUserList().begin(); iter != _actorManager->GetUserList().end(); ++iter)
 		if ((*iter)->GetActor() != _waterPlaneActor && (*iter)->GetActor() != _grassPlane && (*iter)->GetActor() != _fogPlaneActor)
 		{
 			if (!setAABB)
@@ -2465,7 +2465,7 @@ void GraphManager::BuildOctree()
 			glm::vec2 texDiffK = glm::vec2((*iter)->GetActor()->vec3().y, (*iter)->GetActor()->vec3().z);
 
 			if ((abs(texDiffK.x) + abs(texDiffK.y)) > 0.0f && _lightList.size() > 0 && _lightList.front()->GetSource()->GetType() == D3DLIGHT_DIRECTIONAL)
-			{	
+			{
 				D3DXVECTOR3 norm = (*iter)->GetActor()->vec1();
 				D3DXVECTOR3 lightDir = _lightList.front()->GetSource()->GetDir();
 				float dot = D3DXVec3Dot(&norm, &ZVector);
@@ -2531,7 +2531,7 @@ D3DXVECTOR3 GraphManager::ScreenToWorld(const lsl::Point& coord, const float z)
 	float height = static_cast<float>(GetWndHeight());
 
 	D3DXVECTOR3 screenVec(coord.x / width * viewPort.Width, coord.y / height * viewPort.Height, z);
-	
+
 	D3DXVec3Unproject(&screenVec, &screenVec, &viewPort, &_camera->GetContextInfo().GetProjMat(),  &_camera->GetContextInfo().GetViewMat(), &IdentityMatrix);
 
 	return screenVec;*/
@@ -2624,7 +2624,7 @@ void GraphManager::SetGraphOption(GraphOption option, bool value, GraphQuality q
 			value ? InitHDREff() : FreeHDREff();
 			break;
 
-		case goShadow:			
+		case goShadow:
 			value ? InitShadowMap() : FreeShadowMap();
 			break;
 
@@ -2632,11 +2632,11 @@ void GraphManager::SetGraphOption(GraphOption option, bool value, GraphQuality q
 			value ? InitGrassField() : FreeGrassField();
 			break;
 
-		case goRefl:			
+		case goRefl:
 			value ? InitRefl() : FreeRefl();
 			break;
-			
-		case goTrueRefl:			
+
+		case goTrueRefl:
 			value ? InitTrueRefl() : FreeTrueRefl();
 			break;
 
@@ -2645,7 +2645,7 @@ void GraphManager::SetGraphOption(GraphOption option, bool value, GraphQuality q
 			break;
 
 		case goPixelLighting:
-			value ? InitPixLight() : FreePixLight();			
+			value ? InitPixLight() : FreePixLight();
 			break;
 
 		case goBumpMap:
@@ -2783,7 +2783,7 @@ void GraphManager::SetMultisampling(unsigned value)
 		LSL_LOG(lsl::StrFmt("GraphManager::SetMultisampling value=%d", value).c_str());
 
 		_multisampling = value;
-		ApplyMultisampling();		
+		ApplyMultisampling();
 	}
 }
 
@@ -2851,7 +2851,7 @@ float GraphManager::GetFogIntensivity() const
 
 void GraphManager::SetFogIntensivity(float value)
 {
-	if (_fogIntensivity != value)	
+	if (_fogIntensivity != value)
 		_fogIntensivity = value;
 }
 
@@ -2877,7 +2877,7 @@ float GraphManager::GetCloudIntensivity() const
 
 void GraphManager::SetCloudIntensivity(float value)
 {
-	_cloudIntensivity = value;	
+	_cloudIntensivity = value;
 
 	if (_fogPlane)
 		_fogPlane->SetCloudIntens(_cloudIntensivity);
@@ -2927,7 +2927,7 @@ const D3DXVECTOR3& GraphManager::GetCubeViewPos() const
 
 void GraphManager::SetCubeViewPos(const D3DXVECTOR3& value)
 {
-	_cubeViewPos = value;	
+	_cubeViewPos = value;
 }
 
 const GraphManager::OrthoTarget& GraphManager::GetOrthoTarget() const
@@ -3014,7 +3014,7 @@ bool GraphManager::discreteVideoCard() const
 /*void Test()
 {
 	HDEVINFO deviceInfoSet;
-	GUID *guidDev = (GUID*) &GUID_DEVCLASS_DISPLAY; 
+	GUID *guidDev = (GUID*) &GUID_DEVCLASS_DISPLAY;
 	deviceInfoSet = SetupDiGetClassDevs(guidDev, NULL, NULL, DIGCF_PRESENT | DIGCF_PROFILE);
 	TCHAR buffer [4000];
 	DWORD buffersize =4000;
@@ -3038,7 +3038,7 @@ bool GraphManager::discreteVideoCard() const
 		for (int i = 0; i < nSize; ++i)
 		{
 			DEVPROPTYPE type;
-			SetupDiGetDeviceProperty(deviceInfoSet, &deviceInfoData, keys[i], &type, 
+			SetupDiGetDeviceProperty(deviceInfoSet, &deviceInfoData, keys[i], &type,
 		}
 
 		//_tprintf (_T("%s\n"), buffer);

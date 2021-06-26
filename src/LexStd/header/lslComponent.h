@@ -44,7 +44,7 @@ public:
 	};
 
 	static const char* cDefItemName;
-private:	
+private:
 	std::string _name;
 
 	//При восстановлении сслыки испольузется адресация пути по иерархиям(ссылки можно восстаналвивать только на компоненты)

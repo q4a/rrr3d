@@ -40,10 +40,10 @@ NetPlayer::Cmd& NetPlayer::DoNewCmd(unsigned id, unsigned target, unsigned rpc)
 	LSL_ASSERT(_cmdIndex < cCmdMax);
 
 	Cmd& cmd = _cmdBuf[_cmdIndex];
-	++_cmdIndex;	
+	++_cmdIndex;
 
 	cmd.header.size = 0;
-	cmd.header.id = id;	
+	cmd.header.id = id;
 	cmd.header.target = target;
 	cmd.header.rpc = rpc;
 
@@ -74,7 +74,7 @@ void NetPlayer::ProcessCmd(const NetMessage& msg, const NetCmdHeader& header, co
 				Read(stream, &header2, sizeof(header2));
 
 				LSL_LOG(lsl::StrFmt("cNewModelRPC modelId=%d id=%d, ownerId=%d", header2.modelId, header2.id, header2.ownerId));
-				
+
 				NetModel* model = NewModel(header2.modelId, header2.id, header2.ownerId == id(), header2.ownerId, stream);
 				if (streambuf.size() > 0)
 				{
@@ -101,7 +101,7 @@ void NetPlayer::ProcessCmd(const NetMessage& msg, const NetCmdHeader& header, co
 					DeleteModel(model, true);
 				break;
 			}
-		}	
+		}
 
 		return;
 	}
@@ -172,7 +172,7 @@ void NetPlayer::CloseCmd()
 
 	Cmd& cmd = _cmdBuf[_cmdIndex - 1];
 	unsigned size = cmd.streambuf.size();
-	cmd.header.size = size;	
+	cmd.header.size = size;
 
 	SendCmd(cmd.header, cmd.streambuf.data());
 	cmd.streambuf.consume(size);
@@ -238,7 +238,7 @@ void NetPlayer::Process(unsigned time, bool syncRate)
 	std::ostream stream(&streambuf);
 
 	for (SyncModels::iterator iter = _syncModels.begin(); iter != _syncModels.end(); ++iter)
-	{	
+	{
 		SyncModel& syncModel = iter->second;
 		if (!syncModel.model->owner() || (syncModel.model->syncStatePriority() == cSyncStatePriorityDef && !syncRate))
 			continue;
@@ -273,7 +273,7 @@ void NetPlayer::Dispatch()
 
 	for (SyncModels::iterator iter = _syncModels.begin(); iter != _syncModels.end(); ++iter)
 	{
-		SyncModel& synModel = iter->second;		
+		SyncModel& synModel = iter->second;
 		if (synModel.model->owner() || !synModel.bitStream.isUpdated())
 			continue;
 

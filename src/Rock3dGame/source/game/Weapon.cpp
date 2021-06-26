@@ -9,7 +9,7 @@ namespace r3d
 
 namespace game
 {
- 
+
 Proj::Proj(): _pxBox(0), _ignoreContactProj(false), _model(0), _model2(0), _weapon(0), _playerId(cUndefPlayerId), _sprite(0), _tick1(0), _time1(0), _state1(false), _vec1(NullVector)
 {
 }
@@ -158,7 +158,7 @@ AABB Proj::ComputeAABB(bool onlyModel)
 		}
 
 		aabb.Add(_model->GetGameObj().GetGrActor().GetLocalAABB(false));
-	} 
+	}
 	else if (onlyModel)
 		aabb = AABB(IdentityVector * 0.1f);
 	else
@@ -210,7 +210,7 @@ void Proj::SetWeapon(GameObject* weapon)
 		if (_weapon)
 		{
 			weapon->InsertListener(this);
-			
+
 			GameObject* car = _weapon->GetParent() ? _weapon->GetParent() : NULL;
 			_playerId = car && car->GetMapObj() && car->GetMapObj()->GetPlayer() ? car->GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;
 		}
@@ -298,7 +298,7 @@ void Proj::EnableFilter(GameObject* target, unsigned mask)
 		NxShape* shape = target->GetPxActor().GetNxActor()->getShapes()[i];
 		shape->setGroupsMask(nxMask);
 	}
-	
+
 	target->GetPxActor().GetScene()->GetNxScene()->setFilterOps(NX_FILTEROP_OR, NX_FILTEROP_OR, NX_FILTEROP_AND);
 }
 
@@ -393,7 +393,7 @@ void Proj::RocketContact(const px::Scene::OnContactEvent& contact)
 			D3DXVECTOR3 contactDir = GetContactPoint(contact);
 			//D3DXVec3Normalize(&contactDir, &contactDir);
 			D3DXVec3Cross(&contactDir, &contactDir, &dir);
-			
+
 			//NxVec3 vec3(RandomRange(-1.0f, 1.0f), 0, RandomRange(-1.0f, 1.0f));
 			NxVec3 vec3(contactDir);
 			if (vec3.magnitude() > 0.01f)
@@ -415,7 +415,7 @@ void Proj::RocketUpdate(float deltaTime)
 	const float cTrackHeight = 4.0f;
 
 	D3DXVECTOR3 size = _pxBox->GetDimensions();
-	NxVec3 pos = GetPxActor().GetNxActor()->getGlobalPosition(); 
+	NxVec3 pos = GetPxActor().GetNxActor()->getGlobalPosition();
 	NxRay nxRay(pos + NxVec3(0, 0, cTrackHeight), NxVec3(0, 0, -1.0f));
 
 	NxRaycastHit hit;
@@ -789,7 +789,7 @@ void Proj::TorpedaUpdate(float deltaTime)
 			D3DXVec3Normalize(&dir, &dir);
 		else
 			dir = this->GetGrActor().GetDir();
-		
+
 		glm::quat rot, rot1;
 		QuatShortestArc(XVector, dir, rot1);
 		if (_desc.angleSpeed > 0)
@@ -816,7 +816,7 @@ void Proj::TorpedaUpdate(float deltaTime)
 		}
 
 		_vec1 = dir * speed;
-		
+
 		this->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(dir * std::max(_desc.speed, speed)));
 	}
 }
@@ -1045,7 +1045,7 @@ void Proj::SpringUpdate(float deltaTime)
 		Death();
 		return;
 	}*/
-	
+
 	/*GameCar* car = _weapon->GetParent()->IsCar();
 
 	if (car && !car->IsAnyWheelContact())
@@ -1079,7 +1079,7 @@ void Proj::FrostRayUpdate(float deltaTime)
 {
 	GameObject* target = LaserUpdate(deltaTime, false);
 	SlowEffect* slow = target ? target->GetBehaviors().Find<SlowEffect>() : 0;
-	
+
 	if (target && target->IsCar() && slow == 0)
 	{
 		slow = &target->GetBehaviors().Add<SlowEffect>();
@@ -1138,7 +1138,7 @@ void Proj::ImpulseContact(const px::Scene::OnContactEvent& contact)
 				this->Death(dtEnergy, contactActor);
 				return;
 			}
-			
+
 			ShotDesc shot = _shot;
 			shot.SetTargetMapObj(taget);
 			SetShot(shot);
@@ -1176,7 +1176,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 
 	NxVec3 velocity = GetPxActor().GetNxActor()->getLinearVelocity();
 	NxContactStreamIterator contIter(contact.stream);
-	
+
 	if (ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency) && velocity.magnitude() > 5.0f)
 	{
 		_time1 = 0.1f;
@@ -1274,11 +1274,11 @@ void Proj::OnContact(const px::Scene::OnContactEvent& contact)
 		case ptMedpack:
 			MedpackContact(contact);
 			break;
-			
+
 		case ptCharge:
 			ChargeContact(contact);
 			break;
-			
+
 		case ptMoney:
 			MoneyContact(contact);
 			break;
@@ -1482,11 +1482,11 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 	case ptMedpack:
 		res = MedpackPrepare(weapon);
 		break;
-		
+
 	case ptCharge:
 		res = ChargePrepare(weapon);
 		break;
-		
+
 	case ptMoney:
 		res = MoneyPrepare(weapon);
 		break;
@@ -1788,7 +1788,7 @@ bool Weapon::CreateShot(Weapon* weapon, const Weapon::Desc& desc, const Proj::Sh
 
 	for (ProjDescList::const_iterator iter = desc.projList.begin(); iter != desc.projList.end(); ++iter)
 	{
-		if (weapon == NULL && 
+		if (weapon == NULL &&
 			(iter->type == Proj::ptRocket ||
 			iter->type == Proj::ptHyper ||
 			iter->type == Proj::ptTorpeda ||

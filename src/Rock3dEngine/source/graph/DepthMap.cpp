@@ -75,7 +75,7 @@ void DepthMapRender::EndRT(Engine& engine)
 
 	shader.UnApply(engine);
 
-	UnApplyRT(engine);	
+	UnApplyRT(engine);
 }
 
 const D3DXMATRIX& DepthMapRender::GetViewProjMat() const

@@ -48,7 +48,7 @@ Map* LogicBehavior::GetMap()
 
 LogicEventEffect::LogicEventEffect(LogicBehaviors* owner): _MyBase(owner), _effect(0), _pos(NullVector)
 {
-	_gameObjEvent = new GameObjEvent(this);	
+	_gameObjEvent = new GameObjEvent(this);
 }
 
 LogicEventEffect::~LogicEventEffect()
@@ -150,7 +150,7 @@ void LogicEventEffect::SetEffect(MapObjRec* value)
 
 const D3DXVECTOR3& LogicEventEffect::GetPos() const
 {
-	return _pos;	
+	return _pos;
 }
 
 void LogicEventEffect::SetPos(const D3DXVECTOR3& value)
@@ -191,7 +191,7 @@ PairPxContactEffect::ContactMap::iterator PairPxContactEffect::GetOrCreateContac
 			index = lsl::ClampValue<unsigned>(index, 0, _sounds.size() - 1);
 
 			node->source = GetLogic()->CreateSndSource3d(Logic::scEffects);
-			node->source->SetSound(_sounds[index]);			
+			node->source->SetSound(_sounds[index]);
 		}
 	}
 
@@ -201,13 +201,13 @@ PairPxContactEffect::ContactMap::iterator PairPxContactEffect::GetOrCreateContac
 void PairPxContactEffect::InsertContact(ContactMap::iterator iter, NxShape* shape1, NxShape* shape2, const D3DXVECTOR3& point)
 {
 	ContactNode* node = iter->second;
-	
+
 	if (node->last == node->list.end())
 	{
 		if (node->list.size() >= 2)
 			return;
 
-		node->last = node->list.insert(node->list.end(), Contact());		
+		node->last = node->list.insert(node->list.end(), Contact());
 	}
 	//effect может быть удален из вне, например в RemoveContactByEffect
 	if (!node->last->effect)
@@ -271,14 +271,14 @@ void PairPxContactEffect::ReleaseContacts(bool death)
 {
 	for (ContactMap::iterator iter = _contactMap.begin(); iter != _contactMap.end();)
 		iter = ReleaseContact(iter, iter->second->list.begin(), iter->second->list.end(), death);
-	
+
 	LSL_ASSERT(_contactMap.empty());
 }
 
 void PairPxContactEffect::RemoveContactByEffect(MapObj* effect)
 {
 	for (ContactMap::iterator iter = _contactMap.begin(); iter != _contactMap.end(); ++iter)
-		for (ContactList::iterator cIter = iter->second->list.begin(); cIter != iter->second->list.end(); ++cIter)	
+		for (ContactList::iterator cIter = iter->second->list.begin(); cIter != iter->second->list.end(); ++cIter)
 			if (cIter->effect == effect)
 			{
 				lsl::SafeRelease(cIter->effect);
@@ -378,7 +378,7 @@ void PairPxContactEffect::RemoveSound(snd::Sound* sound)
 
 void PairPxContactEffect::ClearSounds()
 {
-	for (Sounds::iterator iter = _sounds.begin(); iter != _sounds.end(); ++iter)	
+	for (Sounds::iterator iter = _sounds.begin(); iter != _sounds.end(); ++iter)
 		(*iter)->Release();
 
 	_sounds.clear();
@@ -403,7 +403,7 @@ LogicBehaviors::~LogicBehaviors()
 {
 	Clear();
 }
-	
+
 void LogicBehaviors::InitClassList()
 {
 	static bool initClassList = false;
@@ -569,7 +569,7 @@ void Logic::Shot(Player* player, MapObj* target, Player::SlotType type)
 		ctx.shot.SetTargetMapObj(target);
 
 		WeaponItem* wpn = player->GetSlotInst(type) ? player->GetSlotInst(type)->GetItem().IsWeaponItem() : NULL;
-		if (wpn && wpn->IsReadyShot())			
+		if (wpn && wpn->IsReadyShot())
 			player->Shot(ctx, type, player->GetNextBonusProjId());
 	}
 
@@ -585,7 +585,7 @@ void Logic::Shot(Player* player, MapObj* target)
 		if (netPlayer)
 			netPlayer->Shot(target);
 	}
-	else 
+	else
 	{
 		Proj::ShotContext ctx;
 		ctx.logic = this;

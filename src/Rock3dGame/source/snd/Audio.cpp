@@ -42,14 +42,14 @@ bool Sound::Buffer::Load(seek_pos pos)
 		ov_pcm_seek(&_sound->_oggFile, _pos);
 
 		int ret = 1;
-		int sec = 0;	
+		int sec = 0;
 		while (ret && _dataSize < cBufferSize)
 		{
 			ret = ov_read(&_sound->_oggFile, _data + _dataSize, cBufferSize - _dataSize, 0, 2, 1, &sec);
 			_dataSize += ret;
 		}
 
-		_endPos = ov_pcm_tell(&_sound->_oggFile);		
+		_endPos = ov_pcm_tell(&_sound->_oggFile);
 
 		return _dataSize > 0;
 	}
@@ -62,7 +62,7 @@ void Sound::Buffer::Free()
 	if (_data)
 	{
 		free(_data);
-		_data = 0;		
+		_data = 0;
 	}
 }
 
@@ -74,7 +74,7 @@ bool Sound::Buffer::IsEndBuffer() const
 void Sound::Buffer::AddRef() const
 {
 	_MyBase::AddRef();
-	
+
 	if (GetRefCnt() == 1)
 		_sound->RemoveUnusedBuf(const_cast<Buffer*>(this));
 }
@@ -137,8 +137,8 @@ void Sound::RemoveUnusedBuf(BufferList::const_iterator iter)
 
 void Sound::RemoveUnusedBuf(Buffer* buffer)
 {
-	BufferList::iterator iter = _unusedBuffers.Find(buffer); 
-	if (iter != _unusedBuffers.end())	
+	BufferList::iterator iter = _unusedBuffers.Find(buffer);
+	if (iter != _unusedBuffers.end())
 		RemoveUnusedBuf(iter);
 }
 
@@ -162,11 +162,11 @@ void Sound::OptimizeUnusedBufs()
 void Sound::DoInit()
 {
 	LSL_ASSERT(_buffers.empty());
-	
+
 	if (_wfopen_s(&_file, GetAppFilePath(_fileName).c_str(), L"rb") != 0)
 		throw lsl::Error("void Sound::DoInit() " + _fileName);
 
-	if (ov_open_callbacks(_file, &_oggFile, 0, 0, OV_CALLBACKS_DEFAULT) < 0)	
+	if (ov_open_callbacks(_file, &_oggFile, 0, 0, OV_CALLBACKS_DEFAULT) < 0)
 		throw lsl::Error("void Sound::DoInit(). ov_open_callbacks");
 
 	if (ov_seekable(&_oggFile) == 0)
@@ -281,7 +281,7 @@ void Sound::ReleaseBuffer(Buffer* buffer)
 	buffer->Release();
 
 	if (!_isLoad)
-		OptimizeUnusedBufs();	
+		OptimizeUnusedBufs();
 }
 
 bool Sound::IsEndBuffer(Buffer* buffer) const
@@ -307,7 +307,7 @@ Sound::Buffer* Sound::PrevBuffer(Buffer* pos)
 	seek_pos prevPos = GetPrevBuffer(pos);
 	if (prevPos >= 0)
 		return FindBufferByPos(prevPos);
-	return NULL;	
+	return NULL;
 }
 
 Sound::Buffer* Sound::FindBufferByPos(seek_pos pos, Buffers::iterator* nearRes)
@@ -318,13 +318,13 @@ Sound::Buffer* Sound::FindBufferByPos(seek_pos pos, Buffers::iterator* nearRes)
 	if (iter != _buffers.end() && iter->second->ContainPos(pos))
 	{
 		buffer = iter->second;
-		
+
 		LSL_ASSERT(buffer);
 	}
 	else if (iter != _buffers.begin() && (--iter)->second->ContainPos(pos))
 	{
 		buffer = iter->second;
-		
+
 		LSL_ASSERT(buffer);
 	}
 
@@ -441,7 +441,7 @@ SoundLib::SoundLib(Engine* engine): _engine(engine)
 }
 
 SoundLib::~SoundLib()
-{	
+{
 	Clear();
 }
 
@@ -463,7 +463,7 @@ Engine* SoundLib::GetEngine()
 Voice::Voice(Engine* engine): _engine(engine), _outMatrix(0), _srcChannels(0), _destChannels(0)
 {
 }
-	
+
 Voice::~Voice()
 {
 	DoClearReceivers();
@@ -487,14 +487,14 @@ void Voice::SendReceivers(IXAudio2Voice* voice)
 {
 	LSL_ASSERT(voice);
 
-	HRESULT hr;	
+	HRESULT hr;
 
 	if (!_receivers.empty())
 	{
 		XAUDIO2_VOICE_SENDS sends;
 
 		sends.SendCount = _receivers.size();
-		sends.pSends = new XAUDIO2_SEND_DESCRIPTOR[_receivers.size()];		
+		sends.pSends = new XAUDIO2_SEND_DESCRIPTOR[_receivers.size()];
 
 		int i = 0;
 		for (VoiceList::iterator iter = _receivers.begin(); iter != _receivers.end(); ++iter, ++i)
@@ -678,7 +678,7 @@ SubmixVoice::SubmixVoice(Engine* engine): _MyBase(engine), _xVoice(0)
 		LSL_LOG("Error create SubmixVoice");
 	}
 }
-	
+
 SubmixVoice::~SubmixVoice()
 {
 	if (_xVoice)
@@ -712,11 +712,11 @@ MasteringVoice::MasteringVoice(Engine* engine): _MyBase(engine), _xVoice(0)
 		LSL_LOG("Error create MasteringVoice");
 	}
 }
-	
+
 MasteringVoice::~MasteringVoice()
 {
 	if (_xVoice)
-		_xVoice->DestroyVoice();	
+		_xVoice->DestroyVoice();
 }
 
 void MasteringVoice::ChangedReceivers()
@@ -740,14 +740,14 @@ IXAudio2Voice* MasteringVoice::GetXVoice()
 
 
 Proxy::Proxy(Engine* engine): _MyBase(engine), _init(false), _sound(0), _pos(0), _playMode(pmOnce), _volume(1.0f), _frequencyRatio(1.0f), _onStreamEnd(false), _onTerminate(false), _xVoice(0), _run(false), _streaming(NULL)
-{	
+{
 }
-	
+
 Proxy::~Proxy()
 {
 	Free();
 
-	for (ReportList::iterator iter = _reportList.begin(); iter != _reportList.end(); ++iter)	
+	for (ReportList::iterator iter = _reportList.begin(); iter != _reportList.end(); ++iter)
 		(*iter)->Release();
 	_reportList.Clear();
 
@@ -766,7 +766,7 @@ void Proxy::VoiceCallback::OnStreamEnd()
 		_proxy->Stop();
 		_proxy->SetPos(0);
 		break;
-		
+
 	case pmCycle:
 		_proxy->SetPos(-1);
 		break;
@@ -775,7 +775,7 @@ void Proxy::VoiceCallback::OnStreamEnd()
 		_proxy->SetPos(-1);
 		break;
 	}
-	
+
 	_proxy->OnStreamEnd();
 }
 
@@ -849,7 +849,7 @@ bool Proxy::Streaming::RemoveBuffer(Buffer* buffer)
 
 	for (Buffers::iterator iter = _buffers.begin(); iter != _buffers.end(); ++iter)
 		if (*iter == buffer)
-		{			
+		{
 			if (RemoveBuffer(iter, cnt == 0))
 				return true;
 
@@ -903,7 +903,7 @@ bool Proxy::Streaming::ApplyPosChanged()
 	if (_posChanged)
 	{
 		_posChanged = false;
-		
+
 		_proxy->_sound->Lock();
 		try
 		{
@@ -926,7 +926,7 @@ bool Proxy::Streaming::RemoveUnusedBufs()
 	{
 		if (_unusedBuffers.empty())
 		{
-			res = false;			
+			res = false;
 		}
 		else
 		{
@@ -965,7 +965,7 @@ bool Proxy::Streaming::DoStream()
 		minBufSize += _cacheSize;
 		//переход в состояние кеширования только при дополнительном превышении _proxy->_cacheSize
 		_cached = _dataSizeBuffers >= minBufSize;
-	}	
+	}
 
 	bool work = _buffers.size() < XAUDIO2_MAX_QUEUED_BUFFERS && _dataSizeBuffers < minBufSize;
 
@@ -982,7 +982,7 @@ bool Proxy::Streaming::DoStream()
 				buffer = _proxy->_sound->CreateBufferAfter(_buffers.back());
 			}
 			else
-			{	
+			{
 				buffer = _proxy->_sound->CreateBuffer(_pos);
 				if (buffer)
 					offs = _pos - buffer->GetPos();
@@ -999,7 +999,7 @@ bool Proxy::Streaming::DoStream()
 			PushBackBuffer(firstBuffer, firstBuffer == _buffers.back(), 0);
 		}
 
-		work = buffer != 0;		
+		work = buffer != 0;
 	}
 
 	return work;
@@ -1059,7 +1059,7 @@ void Proxy::Streaming::Terminate()
 
 	_MyBase::Terminate();
 
-	Changed();	
+	Changed();
 }
 
 void Proxy::Streaming::WaitTerminate()
@@ -1095,7 +1095,7 @@ void Proxy::Streaming::ReleaseBuffer(Buffer* buffer)
 {
 	GetSDK()->Lock(_unusedBufsLock);
 	try
-	{	
+	{
 		_unusedBuffers.push_back(buffer);
 	}
 	LSL_FINALLY(GetSDK()->Unlock(_unusedBufsLock);)
@@ -1124,7 +1124,7 @@ void Proxy::Streaming::SetPos(seek_pos pos)
 
 void Proxy::OnStreamEnd()
 {
-	_onStreamEnd = true;	
+	_onStreamEnd = true;
 }
 
 void Proxy::OnTerminate()
@@ -1145,7 +1145,7 @@ void Proxy::SendReports()
 				report->OnTerminate(this);
 		}
 	}
-	LSL_FINALLY(_onStreamEnd = false; _onTerminate = false;)	
+	LSL_FINALLY(_onStreamEnd = false; _onTerminate = false;)
 }
 
 void Proxy::ChangedReceivers()
@@ -1294,7 +1294,7 @@ void Proxy::RegReport(Report* report)
 	{
 		_reportList.Insert(report);
 		report->AddRef();
-	}	
+	}
 }
 
 void Proxy::UnregReport(Report* report)
@@ -1352,7 +1352,7 @@ void Proxy::SetSound(Sound* value)
 
 bool Proxy::IsSoundCompilant(Sound* value) const
 {
-	if (IsInit())	
+	if (IsInit())
 		return _sound == value || (_sound->GetVorbisInfo().channels == value->GetVorbisInfo().channels && _sound->GetVorbisInfo().rate == value->GetVorbisInfo().rate);
 	else
 		return false;
@@ -1448,7 +1448,7 @@ void Source::ClearReportList()
 	{
 		if (_proxy)
 			_proxy->UnregReport(*iter);
-		(*iter)->Release();	
+		(*iter)->Release();
 	}
 	_reportList.clear();
 }
@@ -1472,7 +1472,7 @@ void Source::Init()
 		_sound->Init();
 
 		_proxy = GetEngine()->AllocProxy(_sound);
-		_proxy->AddRef();		
+		_proxy->AddRef();
 
 		_proxy->SetPos(_pos);
 		_proxy->SetPlayMode(_playMode);
@@ -1481,7 +1481,7 @@ void Source::Init()
 
 		_proxy->InsertReceiver(GetReceivers());
 		for (ReportList::const_iterator iter = _reportList.begin(); iter != _reportList.end(); ++iter)
-			_proxy->RegReport(*iter);		
+			_proxy->RegReport(*iter);
 
 		int nSrcChannels = _sound->GetVorbisInfo().channels;
 		int nDestChannels = GetEngine()->GetDevCaps().OutputFormat.Format.nChannels;
@@ -1493,7 +1493,7 @@ void Source::Init()
 		DoInit();
 	}
 }
-	
+
 void Source::Free(bool unload)
 {
 	if (_proxy)
@@ -1505,7 +1505,7 @@ void Source::Free(bool unload)
 		for (ReportList::const_iterator iter = _reportList.begin(); iter != _reportList.end(); ++iter)
 			_proxy->UnregReport(*iter);
 		_proxy->ClearReceivers();
-		
+
 		_proxy->Release();
 		GetEngine()->ReleaseProxy(_proxy, unload);
 		_proxy = 0;
@@ -1538,7 +1538,7 @@ bool Source::IsPlaying() const
 void Source::RegReport(Report* report)
 {
 	report->AddRef();
-	_reportList.push_back(report);	
+	_reportList.push_back(report);
 
 	if (_proxy)
 		_proxy->RegReport(report);
@@ -1550,7 +1550,7 @@ void Source::UnregReport(Report* report)
 		_proxy->UnregReport(report);
 
 	report->Release();
-	_reportList.Remove(report);	
+	_reportList.Remove(report);
 }
 
 Sound* Source::GetSound()
@@ -1661,7 +1661,7 @@ void Source3d::ApplyX3dEffect()
 	const Listener* listener = GetEngine()->GetListener();
 
 	if (!(GetProxy() && listener && _play))
-		return;	
+		return;
 
 	D3DXVECTOR3 listDist = _pos3d - listener->pos;
 	float listDistLen = D3DXVec3Length(&listDist);
@@ -1671,9 +1671,9 @@ void Source3d::ApplyX3dEffect()
 		this->GetProxy()->Stop();
 		return;
 	}
-	
+
 	CleanUpX3d();
-	
+
 	int nSrcChannels = GetSound()->GetVorbisInfo().channels;
 	int nDestChannels = GetEngine()->GetDevCaps().OutputFormat.Format.nChannels;
 
@@ -1708,12 +1708,12 @@ void Source3d::ApplyX3dEffect()
 			_dspSettings.pMatrixCoefficients = new float[nSrcChannels * nDestChannels];
 
 			X3DAudioCalculate(*GetEngine()->GetX3dAudio(), &xList, &_xEmitter, X3DAUDIO_CALCULATE_MATRIX, &_dspSettings);
-			
+
 			SetOutputMatrix(nSrcChannels, nDestChannels, _dspSettings.pMatrixCoefficients);
-			
+
 			break;
 		}
-			
+
 		case Engine::m3dFlat:
 		{
 			SetDefOutputMatrix(nSrcChannels, nDestChannels, lsl::ClampValue(1.0f - listDistLen / distScaller, 0.0f, 1.0f));
@@ -1828,7 +1828,7 @@ void Source3d::SetDistScaler(float value)
 
 Engine::Engine(): _mainVoice(0), _xAudio(0), _initX3dAudio(false), _listener(0), _distScaler(30.0f), _mode3d(m3dFlat), _changed3d(false), _poolMaxSize(20), _isComputing(false)
 {
-	ZeroMemory(&_xDevCaps, sizeof(_xDevCaps));	
+	ZeroMemory(&_xDevCaps, sizeof(_xDevCaps));
 }
 
 Engine::~Engine()
@@ -1930,7 +1930,7 @@ void Engine::OptimizePool()
 	{
 		Proxy* proxy = *_srcPool.begin();
 		RemovePool(_srcPool.begin());
-		
+
 		DeleteProxy(proxy);
 	}
 }
@@ -1938,19 +1938,19 @@ void Engine::OptimizePool()
 void Engine::InsertCache(Proxy* proxy)
 {
 	_srcCache.push_back(proxy);
-	proxy->AddRef();	
+	proxy->AddRef();
 }
 
 Engine::ProxyList::iterator Engine::RemoveCache(ProxyList::iterator iter)
 {
-	(*iter)->Release();	
+	(*iter)->Release();
 
-	return _srcCache.erase(iter);	
+	return _srcCache.erase(iter);
 }
 
 Engine::ProxyList::iterator Engine::RemoveCache(Proxy* proxy)
 {
-	return RemoveCache(_srcCache.Find(proxy));	
+	return RemoveCache(_srcCache.Find(proxy));
 }
 
 void Engine::ClearCache()
@@ -1958,7 +1958,7 @@ void Engine::ClearCache()
 	for (ProxyList::iterator iter = _srcCache.begin(); iter != _srcCache.end(); ++iter)
 		(*iter)->Release();
 
-	_srcCache.clear();	
+	_srcCache.clear();
 }
 
 Proxy* Engine::FlushCache(Sound* sound)
@@ -1999,10 +1999,10 @@ Proxy* Engine::AllocProxy(Sound* sound)
 {
 	Proxy* proxy = 0;
 
-	if (sound)	
+	if (sound)
 	{
 		//поиск в пуле
-		for (ProxyList::iterator iter = _srcPool.begin(); iter != _srcPool.end(); ++iter)		
+		for (ProxyList::iterator iter = _srcPool.begin(); iter != _srcPool.end(); ++iter)
 			if ((*iter)->IsSoundCompilant(sound))
 			{
 				proxy = *iter;
@@ -2010,7 +2010,7 @@ Proxy* Engine::AllocProxy(Sound* sound)
 				break;
 			}
 
-		//поиск в кеше, с предварительной очисткой		
+		//поиск в кеше, с предварительной очисткой
 		if (!proxy)
 		{
 			OptimizePool();
@@ -2019,7 +2019,7 @@ Proxy* Engine::AllocProxy(Sound* sound)
 	}
 
 	//не надено, создаем
-	if (!proxy)	
+	if (!proxy)
 		proxy = CreateProxy();
 	else
 		//выполянем дополнительную итерацию расчета на случай если прокси лежат в пуле очень мало и его прошлый владелец не успел его обсчитать
@@ -2032,7 +2032,7 @@ Proxy* Engine::AllocProxy(Sound* sound)
 }
 
 void Engine::ReleaseProxy(Proxy* proxy, bool unload)
-{	
+{
 	if (proxy->IsInit() && !unload)
 	{
 		proxy->Terminate();
@@ -2057,7 +2057,7 @@ void Engine::InitX3dAudio()
 	{
 		_initX3dAudio = true;
 
-		X3DAudioInitialize(_xDevCaps.OutputFormat.dwChannelMask, X3DAUDIO_SPEED_OF_SOUND, _x3dAudio);		
+		X3DAudioInitialize(_xDevCaps.OutputFormat.dwChannelMask, X3DAUDIO_SPEED_OF_SOUND, _x3dAudio);
 	}
 }
 
@@ -2092,7 +2092,7 @@ void Engine::Init()
 {
 	HRESULT hr = S_OK;
 
-	if (FAILED(hr = XAudio2Create(&_xAudio, 0, XAUDIO2_DEFAULT_PROCESSOR)))	
+	if (FAILED(hr = XAudio2Create(&_xAudio, 0, XAUDIO2_DEFAULT_PROCESSOR)))
 	{
 		LSL_LOG("Error create _xAudio");
 
@@ -2136,7 +2136,7 @@ void Engine::Compute(float deltaTime)
 		_deleteProxyList.clear();
 
 		for (ProxyList::iterator iter = _proxyList.begin(); iter != _proxyList.end(); ++iter)
-			ComputeProxy(*iter);		
+			ComputeProxy(*iter);
 
 		for (Source3dList::iterator iter = _proxy3dList.begin(); iter != _proxy3dList.end(); ++iter)
 		{
@@ -2239,7 +2239,7 @@ void Engine::SetListener(const Listener* value)
 	if (value)
 	{
 		_listener = new Listener(*value);
-		InitX3dAudio();		
+		InitX3dAudio();
 	}
 
 	Changed3d();

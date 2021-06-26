@@ -44,7 +44,7 @@ void SunShaftRender::Render(Engine& engine)
 	_blurVec[0]->GetTex()->GetSurfaceLevel(0, &blurSurf);
 	engine.GetDriver().GetDevice()->SetRenderTarget(0, blurSurf);
 	blurSurf->Release();
-	
+
 	shader.Apply(engine, "techPrepareShafts", 0);
 	DrawScreenQuad(engine);
 	shader.UnApply(engine);
@@ -98,8 +98,8 @@ void SunShaftRender::Render(Engine& engine)
 	}
 	else
 		sunPos.w = 0.0f;
-	shader.SetValueDir("sunPos", sunPos);	
-	
+	shader.SetValueDir("sunPos", sunPos);
+
 	ApplyRT(engine, RtFlags(0, 0));
 
 	shader.Apply(engine, "techGenShafts", 0);

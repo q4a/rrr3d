@@ -32,7 +32,7 @@ private:
 			//Объект может быть уничтожен!
 			CMapEditorDoc* doc = _doc;
 
-			for (ObserverList::Position pos = doc->_observerList.First(); MapDocObserver** iter = doc->_observerList.Current(pos); doc->_observerList.Next(pos))	
+			for (ObserverList::Position pos = doc->_observerList.First(); MapDocObserver** iter = doc->_observerList.Current(pos); doc->_observerList.Next(pos))
 			{
 				(*iter)->OnAddMapObj(mapObj);
 				(*iter)->OnSelectMapObj(mapObj);
@@ -59,7 +59,7 @@ protected:
 	virtual BOOL OnNewDocument();
 	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
 	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
-	virtual void OnCloseDocument();	
+	virtual void OnCloseDocument();
 public:
 	virtual ~CMapEditorDoc();
 

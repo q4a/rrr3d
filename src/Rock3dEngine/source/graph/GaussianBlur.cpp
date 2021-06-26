@@ -16,7 +16,7 @@ void GaussianBlurShader::DoInit()
 
 	_colorTex = GetEffect()->GetParameterByName(0, "colorTex");
 	_colorTexSizes = GetEffect()->GetParameterByName(0, "colorTexSizes");
-	_techGaussianBlur = GetEffect()->GetTechniqueByName("techGaussianBlur");	
+	_techGaussianBlur = GetEffect()->GetTechniqueByName("techGaussianBlur");
 }
 
 void GaussianBlurShader::DoUpdate()
@@ -57,7 +57,7 @@ void GaussianBlurShader::DoApplyTech(Engine& engine)
 
 
 GaussianBlurRender::GaussianBlurRender(): _shader(0), _colorTex(0)
-{	
+{
 }
 
 GaussianBlurRender::~GaussianBlurRender()
@@ -95,7 +95,7 @@ void GaussianBlurRender::Render(Engine& engine, IDirect3DSurface9* backBuffer, I
 	engine.EndDraw();
 
 	_shader->UnApply(engine);
-	engine.SetTexture(0, 0);	
+	engine.SetTexture(0, 0);
 }
 
 Tex2DResource* GaussianBlurRender::GetColorTex()
@@ -107,10 +107,10 @@ void GaussianBlurRender::SetColorTex(Tex2DResource* value)
 {
 	if (_colorTex != value)
 	{
-		if (_colorTex)				
+		if (_colorTex)
 			_colorTex->Release();
 		_colorTex = value;
-		if (_colorTex)		
+		if (_colorTex)
 			_colorTex->AddRef();
 	}
 }
@@ -124,10 +124,10 @@ void GaussianBlurRender::SetShader(GaussianBlurShader* value)
 {
 	if (_shader != value)
 	{
-		if (_shader)				
+		if (_shader)
 			_shader->Release();
 		_shader = value;
-		if (_shader)		
+		if (_shader)
 			_shader->AddRef();
 	}
 }

@@ -29,10 +29,10 @@ void ShadowMapShader::DoBeginDraw(Engine& engine)
 
 ShadowMapRender::ShadowMapRender(): _numSplits(0), _splitSchemeLambda(0.7f), _disableCropLight(false), _maxFar(0), _curNumSplit(0), _beginShadowCaster(false), _beginShadowMapp(false), _beginFlags(0, 0), iLight(0), _lastDepthSurface(NULL)
 {
-	_depthSurface = new graph::DepthStencilSurfaceResource(); 
+	_depthSurface = new graph::DepthStencilSurfaceResource();
 	_depthSurface->SetWidth(cShadowMapSize);
 	_depthSurface->SetHeight(cShadowMapSize);
-	_depthSurface->SetFormat(D3DFMT_D24X8);	
+	_depthSurface->SetFormat(D3DFMT_D24X8);
 
 	SetNumSplits(4);
 }
@@ -48,12 +48,12 @@ ShadowMapRender::~ShadowMapRender()
 void ShadowMapRender::CalculateSplitDistances(const CameraCI& camera)
 {
 	// Practical split scheme:
- 	// 
-	// CLi = n*(f/n)^(i/numsplits)  
-	// CUi = n + (f-n)*(i/numsplits)  
-	// Ci = CLi*(lambda) + CUi*(1-lambda)  
-	// 
-	// lambda scales between logarithmic and uniform 
+ 	//
+	// CLi = n*(f/n)^(i/numsplits)
+	// CUi = n + (f-n)*(i/numsplits)
+	// Ci = CLi*(lambda) + CUi*(1-lambda)
+	//
+	// lambda scales between logarithmic and uniform
 	//
 	float fCameraNear = camera.GetDesc().nearDist;
 	float fCameraFar = camera.GetDesc().farDist;
@@ -64,7 +64,7 @@ void ShadowMapRender::CalculateSplitDistances(const CameraCI& camera)
 	{
 		float fIDM = i / static_cast<float>(_numSplits);
 		float fLog = fCameraNear * powf((fCameraFar / fCameraNear), fIDM);
-		float fUniform = fCameraNear + (fCameraFar - fCameraNear) * fIDM;    
+		float fUniform = fCameraNear + (fCameraFar - fCameraNear) * fIDM;
 		_splitDistances[i] = fLog * _splitSchemeLambda + fUniform * (1 - _splitSchemeLambda);
 	}
 	// make sure border values are right
@@ -82,7 +82,7 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 	float fMinZ = FLT_MAX;
 
 	const D3DXMATRIX& mLightViewProj = light.GetCamera().GetViewProj();
-	float fLightNear = light.GetCamera().GetDesc().nearDist;	
+	float fLightNear = light.GetCamera().GetDesc().nearDist;
 
 	// for each corner point
 	for (int i = 0; i < 8; ++i)
@@ -97,7 +97,7 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 
 		// find min and max values
 		if (vTransformed.x > fMaxX) fMaxX = vTransformed.x;
-		if (vTransformed.y > fMaxY) fMaxY = vTransformed.y;		
+		if (vTransformed.y > fMaxY) fMaxY = vTransformed.y;
 		if (vTransformed.y < fMinY) fMinY = vTransformed.y;
 		if (vTransformed.x < fMinX) fMinX = vTransformed.x;
 
@@ -125,7 +125,7 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 		fMinY = -1.0f;
 	}
 
-	// Use default near-plane value 
+	// Use default near-plane value
 	fMinZ = 0.0f;
 	// Adjust the far plane of the light to be at the farthest
 	// point of the frustum split. Some bias may be necessary.
@@ -225,7 +225,7 @@ bool ShadowMapRender::EndShadowCaster(Engine& engine, bool nextPass)
 	LSL_ASSERT(_beginShadowCaster);
 
 	_beginShadowCaster = false;
-	
+
 	depthRender.EndRT(engine);
 	engine.GetContext().UnApplyCamera(&_myCamera);
 
@@ -242,7 +242,7 @@ bool ShadowMapRender::EndShadowCaster(Engine& engine, bool nextPass)
 		lsl::SafeRelease(_lastDepthSurface);
 
 		return true;
-	}		
+	}
 }
 
 void ShadowMapRender::BeginShadowMapp(Engine& engine)
@@ -273,11 +273,11 @@ void ShadowMapRender::BeginShadowMapp(Engine& engine)
 
 	// Since the near and far planes are different for each
 	// rendered split, we need to change the depth value range
-	// to avoid rendering over previous splits				
+	// to avoid rendering over previous splits
 	// as long as ranges are in order and don't overlap it should be all good...
 	D3DVIEWPORT9 cameraViewport = _oldViewPort;
 	cameraViewport.MinZ = _curNumSplit / static_cast<float>(_numSplits);
-	cameraViewport.MaxZ = (_curNumSplit + 1) / static_cast<float>(_numSplits);	
+	cameraViewport.MaxZ = (_curNumSplit + 1) / static_cast<float>(_numSplits);
 	engine.GetDriver().GetDevice()->SetViewport(&cameraViewport);
 
 	CameraDesc desc = engine.GetContext().GetCamera().GetDesc();
@@ -297,7 +297,7 @@ bool ShadowMapRender::EndShadowMapp(Engine& engine, bool nextPass)
 	_beginShadowMapp = false;
 
 	engine.GetContext().UnApplyCamera(&_myCamera);
-	
+
 	if (nextPass && ++_curNumSplit < _numSplits)
 	{
 		BeginShadowMapp(engine);
@@ -347,7 +347,7 @@ void ShadowMapRender::RenderDebug(Engine& engine)
 	_myCamera.SetDesc(desc);
 
 	Camera::RenderFrustum(engine, _myCamera.GetInvViewProj(), clrGreen);
-	
+
 }
 
 unsigned ShadowMapRender::GetNumSplits() const
@@ -366,11 +366,11 @@ void ShadowMapRender::SetNumSplits(unsigned value)
 		_lightDist.resize(_numSplits);
 		_splitLightProjMat.resize(_numSplits);
 
-		//удаление всех текстур		
+		//удаление всех текстур
 		_shadowMaps.Clear();
 		//
 		_shadowVec.clear();
-		//создание		
+		//создание
 		for (unsigned i = 0; i < _numSplits; ++i)
 		{
 			Tex2DResource& tex = _shadowMaps.Add();
@@ -388,7 +388,7 @@ void ShadowMapRender::SetNumSplits(unsigned value)
 
 float ShadowMapRender::GetSplitSchemeLambda() const
 {
-	return _splitSchemeLambda;	
+	return _splitSchemeLambda;
 }
 
 void ShadowMapRender::SetSplitSchemeLambda(float value)
@@ -490,7 +490,7 @@ void MappingLightMap::Render(Engine& engine)
 
 	ApplyRT(engine, RtFlags(0, 0));
 	DrawScreenQuad(engine);
-	UnApplyRT(engine);	
+	UnApplyRT(engine);
 
 	shader.UnApply(engine);
 }

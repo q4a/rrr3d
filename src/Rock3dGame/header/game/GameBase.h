@@ -33,7 +33,7 @@ public:
 		dtEnergy,
 		dtMine,
 		dtTouch,
-		dtDeathPlane		
+		dtDeathPlane
 	};
 
 	enum BonusType
@@ -238,7 +238,7 @@ public:
 
 	void AddSound(snd::Sound* sound);
 	void ClearSounds();
-	const SoundList& GetSounds();	
+	const SoundList& GetSounds();
 
 	snd::Sound* GetSound();
 	void SetSound(snd::Sound* value);
@@ -320,7 +320,7 @@ class LifeEffect: public EventEffect
 private:
 	bool _play;
 public:
-	LifeEffect(Behaviors* owner);	
+	LifeEffect(Behaviors* owner);
 
 	virtual void OnProgress(float deltaTime);
 };
@@ -374,7 +374,7 @@ class SlowEffect: public EventEffect
 protected:
 	virtual void OnDestroyEffect(MapObj* sender);
 public:
-	SlowEffect(Behaviors* owner);	
+	SlowEffect(Behaviors* owner);
 
 	virtual void OnProgress(float deltaTime);
 };
@@ -385,7 +385,7 @@ class SoundMotor: public Behavior
 private:
 	snd::Sound* _sndIdle;
 	snd::Sound* _sndRPM;
-	
+
 	bool _init;
 	float _curRPM;
 	snd::Source3d* _srcIdle;
@@ -423,8 +423,8 @@ public:
 class GusenizaAnim: public Behavior
 {
 	typedef Behavior _MyBase;
-private:	
-	float _xAnimOff;	
+private:
+	float _xAnimOff;
 public:
 	GusenizaAnim(Behaviors* owner);
 	virtual ~GusenizaAnim();
@@ -435,7 +435,7 @@ public:
 class PodushkaAnim: public Behavior
 {
 	typedef Behavior _MyBase;
-private:	
+private:
 	int _targetTag;
 	graph::IVBMeshNode* _target;
 protected:

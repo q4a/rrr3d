@@ -221,6 +221,6 @@ double MemoryReadBuffer::readDouble() const
 
 void MemoryReadBuffer::readBuffer(void* dest, NxU32 size) const
 	{
-	memcpy(dest, buffer, size); 
-	buffer += size; 
+	memcpy(dest, buffer, size);
+	buffer += size;
 	}

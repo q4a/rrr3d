@@ -24,7 +24,7 @@ struct MouseClick
 	MouseKey key;
 	KeyState state;
 	bool shift1;
-	
+
 	//локальные координаты
 	glm::vec2 coord;
 	//мировые координаты
@@ -58,13 +58,13 @@ private:
 	D3DXCOLOR _color;
 	Blending _blending;
 	AlphaTest _alphaTest;
-	
+
 	graph::Sampler2d _sampler;
 public:
 	Material();
 
 	glm::vec2 GetImageSize();
-	
+
 	const D3DXCOLOR& GetColor() const;
 	void SetColor(const D3DXCOLOR& value);
 
@@ -151,7 +151,7 @@ private:
 	AABB2 _textAABB;
 	bool _textAABBChanged;
 
-	void BuildTextAABB();	
+	void BuildTextAABB();
 protected:
 	BaseText(Context* context);
 	virtual ~BaseText();
@@ -196,7 +196,7 @@ private:
 	std::string _text;
 protected:
 	Text(Context* context);
-	
+
 	virtual void DrawText(AABB2* aabb);
 public:
 	const std::string& GetText() const;
@@ -211,7 +211,7 @@ private:
 	std::wstring _text;
 protected:
 	TextW(Context* context);
-	
+
 	virtual void DrawText(AABB2* aabb);
 public:
 	const std::wstring& GetText() const;
@@ -348,7 +348,7 @@ private:
 	glm::vec2 _size;
 protected:
 	Plane3d(Context* context);
-	
+
 	virtual AABB LocalAABB() const;
 public:
 	virtual void Draw();
@@ -400,7 +400,7 @@ private:
 	void InsertGraphic3d(Graphic3d* value);
 	void RemoveGraphic3d(Graphic3d* value);
 	void DeleteAllGraphics3d();
-	
+
 	void ApplyMaterial(Material& material, float alpha);
 	void UnApplyMaterial(Material& material);
 
@@ -412,7 +412,7 @@ private:
 
 	graph::Engine& GetEngine();
 	graph::RenderDriver& GetDriver();
-	graph::ContextInfo& GetCI();	
+	graph::ContextInfo& GetCI();
 public:
 	Context(graph::Engine* engine);
 	virtual ~Context();
@@ -453,7 +453,7 @@ public:
 class Widget: public Object, protected graph::IProgressUser
 {
 	friend Manager;
-protected:	
+protected:
 	enum MatrixChange {mcLocal = 0, mcWorld, mcInvLocal, mcInvWorld, cMatrixChangeEnd};
 	typedef lsl::Bitset<cMatrixChangeEnd> MatrixChanges;
 
@@ -461,11 +461,11 @@ protected:
 	typedef lsl::Bitset<cAABBChangeEnd> AABBChanges;
 
 	enum StructChange {scLocal = 0, scWorld, scChild};
-public:	
+public:
 	typedef lsl::List<Graphic*> Graphics;
-	typedef lsl::List<Widget*> Children;	
+	typedef lsl::List<Widget*> Children;
 
-	enum Flag 
+	enum Flag
 	{
 		//Всегда перехватывать сообщения от мыши если они зоне охвата. Установлен по умлочанию
 		wfCathMouseMessages = 0,
@@ -487,7 +487,7 @@ public:
 	};
 	typedef lsl::Bitset<cFlagEnd> Flags;
 
-	enum Anchor {waNone, waCenter, waLeft, waRight, waTop, waBottom, waLeftTop, waLeftBottom, waRightTop, waRightBottom};	
+	enum Anchor {waNone, waCenter, waLeft, waRight, waTop, waBottom, waLeftTop, waLeftBottom, waRightTop, waRightBottom};
 public:
 	class Event: public lsl::ObjReference
 	{
@@ -510,7 +510,7 @@ public:
 		virtual bool OnMouseDown(Widget* sender, const MouseClick& mClick) {return false;}
 		virtual bool OnMouseMove(Widget* sender, const MouseMove& mMove) {return false;}
 	};
-	
+
 	typedef lsl::Container<Event*> EventList;
 private:
 	Manager* _manager;
@@ -533,14 +533,14 @@ private:
 	mutable glm::vec2 _anchorVP;
 	mutable glm::vec2 _pos;
 	glm::vec2 _scale;
-	float _rot;	
+	float _rot;
 
 	bool _coord3d;
 	D3DXVECTOR3 _pos3d;
 
 	mutable D3DXMATRIX _matrix[cMatrixChangeEnd];
 	mutable MatrixChanges _matrixChanges;
-	
+
 	glm::vec2 _size;
 	mutable AABB2 _localAABB;
 	mutable AABB2 _worldAABB;
@@ -549,7 +549,7 @@ private:
 	mutable AABB2 _worldChildAABB;
 	mutable AABBChanges _aabbChanges;
 
-	mutable int _alignChanged;	
+	mutable int _alignChanged;
 	bool _isMouseDown;
 	bool _isMouseOver;
 	bool _isMouseEnter;
@@ -568,7 +568,7 @@ private:
 	void AABBChanged(StructChange change = scLocal);
 
 	bool ApplyMouseEnter(bool wasReset);
-	
+
 	//выравнивание
 	//условия выравнивания: локальные координаты, локальный AABB, родительский AABB
 	//корректировка только локальных координат согласно выравниванию
@@ -576,7 +576,7 @@ private:
 	//условия для выравнивания изменились
 	void AlignChanged();
 	//
-	bool IsAligned() const;	
+	bool IsAligned() const;
 protected:
 	//Уведомления об изменениях
 	//Локальные координаты
@@ -599,10 +599,10 @@ protected:
 
 	//временной прогресс, для анимации
 	virtual void OnProgress(float deltaTime) {}
-	
+
 	//События от менеджера
 	//return true если событие обрабатывается
-	//перемещение мыши, 
+	//перемещение мыши,
 	virtual bool OnMouseDown(const MouseClick& mClick);
 	virtual bool OnMouseMove(const MouseMove& mMove);
 
@@ -647,7 +647,7 @@ public:
 
 	void ShowModal(bool show);
 	bool modal() const;
-	
+
 	void RegEvent(Event* value);
 	void UnregEvent(Event* value);
 	void SetEvent(Event* value);
@@ -780,7 +780,7 @@ private:
 
 	BaseText* _baseText;
 	Text* _text;
-	TextW* _textW;	
+	TextW* _textW;
 
 	void CreateText();
 	void CreateTextW();
@@ -790,7 +790,7 @@ protected:
 	Label(Manager* manager);
 	virtual ~Label();
 
-	virtual void StructureChanged(StructChange change = scLocal);	
+	virtual void StructureChanged(StructChange change = scLocal);
 public:
 	AABB2 GetTextAABB();
 	void AdjustSizeByText();
@@ -851,7 +851,7 @@ private:
 	void UpdateSelection(bool instant);
 protected:
 	Button(Manager* manager);
-	virtual ~Button();	
+	virtual ~Button();
 
 	virtual void StructureChanged(StructChange change = scLocal);
 	virtual void OnProgress(float deltaTime);
@@ -982,7 +982,7 @@ private:
 	Plane* _button;
 	int _selInd;
 	Text* _selItem;
-	
+
 	PlaneFon* _itemsFon;
 	TextItems _textItems;
 
@@ -1002,7 +1002,7 @@ protected:
 
 	virtual void StructureChanged(StructChange change = scLocal);
 
-	virtual bool OnClick(const MouseClick& mClick);	
+	virtual bool OnClick(const MouseClick& mClick);
 public:
 	const StringList& GetItems() const;
 	void SetItems(const StringList& value);
@@ -1174,7 +1174,7 @@ public:
 
 		void ApplyFrame();
 		void RemoveFrame();
-	public:		
+	public:
 		ListBox* GetListBox();
 
 		Widget* GetData();
@@ -1199,7 +1199,7 @@ private:
 	MyEvent* _event;
 
 	glm::vec2 _itemSize;
-	glm::vec2 _itemSpace;	
+	glm::vec2 _itemSpace;
 	Item* _selItem;
 
 	Plane* _fon;
@@ -1388,7 +1388,7 @@ private:
 
 		virtual bool OnClick(Widget* sender, const MouseClick& mClick);
 	};
-private:	
+private:
 	float _volume;
 	int _stepCount;
 	ChildEvent* _childEvent;
@@ -1467,7 +1467,7 @@ public:
 
 	Material& GetBox();
 	Material& GetCheck();
-	
+
 	const D3DXCOLOR& GetColor() const;
 	void SetColor(const D3DXCOLOR& value);
 
@@ -1496,7 +1496,7 @@ private:
 		bool operator!=(const MyCol& val) const {return box != val.box;}
 
 		ColorBox* box;
-	};	
+	};
 public:
 	typedef lsl::List<MyCol> Colors;
 
@@ -1591,14 +1591,14 @@ private:
 	WidgetList _widgetList;
 	Widgets _topmostWidgets;
 	Widgets _modalWidgets;
-	Dummy* _root;	
+	Dummy* _root;
 
 	MouseClick _mClick;
 	MouseMove _mMove;
 	Widget* _clipWidget;
 
 	bool _safeMode;
-	WidgetList _safeList;	
+	WidgetList _safeList;
 
 	void BeginSafeMode();
 	void EndSafeMode();

@@ -13,7 +13,7 @@ CameraManager::CameraManager(World* world): _world(world), _player(0), _target(0
 {
 	_camera = new graph::Camera();
 	_camera->SetPos(D3DXVECTOR3(50.0f, 50.0f, 50.0f));
-	_camera->SetDir(-IdentityVector);	
+	_camera->SetDir(-IdentityVector);
 	_lastFreePos = _camera->GetPos();
 	_lastFreeRot = _camera->GetRot();
 
@@ -31,7 +31,7 @@ CameraManager::~CameraManager()
 	_world->GetControl()->RemoveEvent(_control);
 	delete _control;
 	_world->GetGraph()->SetCamera(0);
-	delete _camera;	
+	delete _camera;
 }
 
 void CameraManager::OrthoCullOffset()
@@ -40,7 +40,7 @@ void CameraManager::OrthoCullOffset()
 	{
 		float minZ = 0;
 		float maxZ = 0;
-		
+
 		if (_world->GetGraph()->ComputeViewZBound(_camera->GetContextInfo(), minZ, maxZ))
 		{
 			float offZ = std::min(minZ - _near, 0.0f);
@@ -64,7 +64,7 @@ void CameraManager::SyncLight()
 }
 
 CameraManager::Control::Control(CameraManager* manager): _manager(manager), _staticVec1(NullVector), _staticVec2(NullVector), _staticVec3(NullVector), _staticFloat1(0)
-{	
+{
 }
 
 bool CameraManager::Control::OnMouseMoveEvent(const MouseMove& mMove)
@@ -93,7 +93,7 @@ bool CameraManager::Control::OnMouseMoveEvent(const MouseMove& mMove)
 			return true;
 		}
 	}
-	
+
 	return false;
 }
 
@@ -117,11 +117,11 @@ bool CameraManager::Control::OnHandleInput(const InputMessage& msg)
 				styleMap[i] = cStyleEnd;
 			styleMap[0] = csIsoView;
 			styleMap[3] = csFreeView;
-			styleMap[4] = csLights;			
+			styleMap[4] = csLights;
 		}
 #endif
 
-		if (_manager->_style != cStyleEnd && 
+		if (_manager->_style != cStyleEnd &&
 			(_manager->_world->GetEdit() ||
 			_manager->_world->GetGame() && _manager->_world->GetGame()->IsStartRace()))
 		{
@@ -233,11 +233,11 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 	const D3DXVECTOR3 cCamTargetOff(-4.6f, 0.0f, 2.4f);
 
 	ControlManager* control = _manager->_world->GetControl();
-	
+
 	D3DXVECTOR3 pos = camera->GetPos();
 	glm::quat rot = camera->GetRot();
-	D3DXVECTOR3 dir = camera->GetDir();	
-	D3DXVECTOR3 right = camera->GetRight();	
+	D3DXVECTOR3 dir = camera->GetDir();
+	D3DXVECTOR3 right = camera->GetRight();
 
 	D3DXVECTOR3 targetPos = NullVector;
 	D3DXVECTOR3 targetDir = XVector;
@@ -245,8 +245,8 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 	float targetSize = 0.0f;
 	D3DXVECTOR3 targetVel = NullVector;
 	float targetDrivenSpeed = 0.0f;
-	
-	Player* player = _manager->_player;	
+
+	Player* player = _manager->_player;
 	if (player)
 	{
 		targetSize = player->GetCar().size;
@@ -285,7 +285,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		pos = _manager->_light->GetSource()->GetPos();
 		dir = _manager->_light->GetSource()->GetDir();
 		right = _manager->_light->GetSource()->GetRight();
-		rot = _manager->_light->GetSource()->GetRot();		
+		rot = _manager->_light->GetSource()->GetRot();
 	}
 
 	switch (_manager->_style)
@@ -307,7 +307,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 			pos += dir * speedMove;
 		if (control->GetAsyncKey('A'))
 			pos += right * speedMove;
-		if (control->GetAsyncKey('S'))	
+		if (control->GetAsyncKey('S'))
 			pos -= dir * speedMove;
 		if (control->GetAsyncKey('D'))
 			pos -= right * speedMove;
@@ -354,7 +354,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		camPos += targetPos;*/
 
 		D3DXVECTOR3 camDir;
-		Vec3Rotate(XVector, camQuat, camDir);		
+		Vec3Rotate(XVector, camQuat, camDir);
 		const float minSpeed = 0.0f;
 		const float maxSpeed = 150.0f * 1000.0f / 3600.0f;
 		float speedK = lsl::ClampValue((velocityLen - minSpeed) / (maxSpeed - minSpeed), 0.0f, 1.0f);
@@ -362,7 +362,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		const float maxDist = 1.5f;
 		float distTarget = minDist + speedK * speedK * (maxDist - minDist);
 		_staticFloat1 = _staticFloat1 + (distTarget - _staticFloat1) * lsl::ClampValue(deltaTime * 5.0f, 0.0f, 1.0f);
-		
+
 		D3DXVECTOR3 camOff;
 		Vec3Rotate(cCamTargetOff + D3DXVECTOR3(-1.0f, 0.0f, 0.0f), camQuat, camOff);
 		D3DXVECTOR3 camPos = targetPos - camDir * _staticFloat1 + camOff;
@@ -397,7 +397,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		//Направление камеры в мировом пространстве
 		D3DXVECTOR3 isoDir;
 		Vec3Rotate(XVector, cIsoRot, isoDir);
-		
+
 		//Преобразуем в пространство камеры, чтобы вычислять смещение отностиельно центра экрана. Для перспективной проекции это дает артефакт удаления-приближения камеры, поэтому может быть опущено
 		D3DXVECTOR3 targOff = targetDir;
 		targOff.z = 0.0f;
@@ -443,7 +443,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		//Обратное преобразование в мировое пространство
 		Vec3Rotate(targOff, cIsoRot, targOff);
 
-		//Планва интерполяция смещения		
+		//Планва интерполяция смещения
 		D3DXVec3Lerp(&_staticVec1, &_staticVec1, &targOff, deltaTime);
 		//_staticVec1 = targOff;
 		//Позиция камеры
@@ -459,7 +459,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 			//только если это первый скачок
 			_staticFloat2 = _staticFloat1 == 0.0f ? dTargetLength / 0.5f : _staticFloat2;
 			_staticFloat1 = dTargetLength;
-			_staticVec3 = dTargetPos / dTargetLength;			
+			_staticVec3 = dTargetPos / dTargetLength;
 		}
 
 		if (_staticFloat1 > 0.0f)
@@ -539,7 +539,7 @@ void CameraManager::Control::StyleChanged(Style style, Style newStyle)
 	{
 		lsl::Point pos = _manager->_world->GetControl()->GetMousePos();
 		_staticVec2 = _staticVec1 = D3DXVECTOR3(static_cast<float>(pos.x), static_cast<float>(pos.y), 0);
-	}		
+	}
 	else if (newStyle == csIsometric)
 	{
 		TargetChanged();
@@ -618,7 +618,7 @@ void CameraManager::FlyTo(const D3DXVECTOR3& pos, const glm::quat& rot, float ti
 
 	_flyTime = time;
 	_flyCurTime = 0;
-	
+
 	_control->FlyStart();
 }
 
@@ -675,7 +675,7 @@ void CameraManager::ChangeStyle(Style value)
 		_lastFreeRot = _camera->GetRot();
 	}
 
-	Style prevStyle = _style;	
+	Style prevStyle = _style;
 	_style = value;
 	_control->StyleChanged(prevStyle, value);
 	_world->ResetCamera();
@@ -733,7 +733,7 @@ void CameraManager::ChangeStyle(Style value)
 
 	_world->GetGraph()->SetReflMappMode((_style == csIsometric || _style == csThirdPerson) ? GraphManager::rmColorLayer : GraphManager::rmLackLayer);
 	_world->GetGraph()->SetShadowMaxFar(_style == csThirdPerson ? 60.0f : (_style == csIsometric ? 55.0f : 0.0f));
-	
+
 }
 
 float CameraManager::GetAspect() const
@@ -769,7 +769,7 @@ float CameraManager::GetNear() const
 void CameraManager::SetNear(float value)
 {
 	_near = value;
-	_camera->SetNear(value);	
+	_camera->SetNear(value);
 }
 
 float CameraManager::GetFar() const
@@ -924,7 +924,7 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 		D3DXVECTOR3 norm;
 		D3DXVec3Cross(&norm, &(-ZVector), &yAxis);
 		D3DXVec3Normalize(&norm, &norm);
-		float ang = 0;		
+		float ang = 0;
 		bool angClamp = false;
 
 		if (D3DXVec3Dot(&norm, &xAxis) < 0)

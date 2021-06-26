@@ -32,7 +32,7 @@ private:
 	IDirect3DSurface9* _surfRT;
 protected:
 	virtual Tex2DResource* CreateRT();
-	
+
 	void ApplyRT(Engine& engine, const RtFlags& flags);
 	void UnApplyRT(Engine& engine);
 	bool IsApplyRT() const;
@@ -65,7 +65,7 @@ private:
 	IDirect3DSurface9* _surfRT;
 protected:
 	virtual TexCubeResource* CreateRT();
-	
+
 	void ApplyRT(Engine& engine, const RtFlags& flags);
 	void UnApplyRT(Engine& engine);
 	bool IsApplyRT() const;
@@ -92,15 +92,15 @@ public:
 	virtual void BeginRT(Engine& engine, const RtFlags& flags)
 	{
 		LSL_ASSERT(!_isBeginRT);
-		
-		_isBeginRT = true;	
+
+		_isBeginRT = true;
 	}
 
 	virtual void EndRT(Engine& engine)
 	{
 		LSL_ASSERT(_isBeginRT);
-		
-		_isBeginRT = false;	
+
+		_isBeginRT = false;
 	}
 
 	bool IsBeginRT() const

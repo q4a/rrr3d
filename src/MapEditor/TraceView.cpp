@@ -31,7 +31,7 @@ protected:
 		Invalidate();
 	}
 
-	virtual void OnDraw(CDC* pDC) 
+	virtual void OnDraw(CDC* pDC)
 	{
 		if (GetParentFrame()->GetActiveView() == this)
 		{
@@ -44,7 +44,7 @@ protected:
 	afx_msg void OnSize(UINT nType, int cx, int cy)
 	{
 		_MyBase::OnSize(nType, cx, cy);
-		
+
 		if (GetSafeHwnd() == NULL || _srcWnd == 0 || _srcWnd->GetSafeHwnd() == 0)
 			return;
 
@@ -65,7 +65,7 @@ protected:
 public:
 	CTraceSplitView(): _srcWnd(0) {}
 	virtual ~CTraceSplitView() {}
-	
+
 	CWnd* GetSrcWnd() {return _srcWnd;}
 	void SetSrcWnd(CWnd* value) {_srcWnd = value;}
 };
@@ -74,7 +74,7 @@ BEGIN_MESSAGE_MAP(CTraceSplitView, CView)
 END_MESSAGE_MAP()
 IMPLEMENT_DYNCREATE(CTraceSplitView, CView)
 
-class CFlatFrameWnd : public CFrameWnd 
+class CFlatFrameWnd : public CFrameWnd
 {
 	DECLARE_DYNAMIC(CFlatFrameWnd);
 
@@ -99,7 +99,7 @@ BEGIN_MESSAGE_MAP(CTraceView, CViewPane)
 	ON_COMMAND(IDTB_EDITMAP_NONE, OnEditMapToolBarCommand)
 
 	ON_NOTIFY(TVN_SELCHANGED, TRACE_TREEWP_VIEW, OnPointViewSelChanged)
-	ON_NOTIFY(TVN_SELCHANGED, TRACE_TREEPATH_VIEW, OnPathViewSelChanged)	
+	ON_NOTIFY(TVN_SELCHANGED, TRACE_TREEPATH_VIEW, OnPathViewSelChanged)
 END_MESSAGE_MAP()
 
 
@@ -130,11 +130,11 @@ int CTraceView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	ccc.m_pNewDocTemplate = NULL;
 	ccc.m_pLastView       = NULL;
 	ccc.m_pCurrentFrame   = NULL;
-	// Because the CFRameWnd needs a window class, we will create a new one. 
+	// Because the CFRameWnd needs a window class, we will create a new one.
 	CString strMyClass = AfxRegisterWndClass(CS_VREDRAW | CS_HREDRAW, ::LoadCursor(NULL, IDC_ARROW), (HBRUSH) ::GetStockObject(WHITE_BRUSH), ::LoadIcon(NULL, IDI_APPLICATION));
 	//
 	_flatFrame = new CFlatFrameWnd;
-	_flatFrame->Create(strMyClass, _T(""), WS_CHILD | WS_VISIBLE, rectDummy, this);	
+	_flatFrame->Create(strMyClass, _T(""), WS_CHILD | WS_VISIBLE, rectDummy, this);
 
 	_splitter.CreateStatic(_flatFrame, 2, 1);
 	_splitter.ModifyStyleEx(WS_EX_CLIENTEDGE, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
@@ -178,9 +178,9 @@ int CTraceView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 
 	CBitmap bmp;
-	bmp.LoadBitmap(IDB_CLASS_VIEW_24);	
+	bmp.LoadBitmap(IDB_CLASS_VIEW_24);
 	BITMAP bmpObj;
-	bmp.GetBitmap(&bmpObj);	
+	bmp.GetBitmap(&bmpObj);
 	_images.Create(16, bmpObj.bmHeight, ILC_MASK | ILC_COLOR24, 0, 0);
 	_images.Add(&bmp, RGB(255, 0, 0));
 	//
@@ -214,7 +214,7 @@ void CTraceView::InsertPointItem(r3d::IWayPointRef waypoint)
 	CString strId;
 	strId.Format(_T("wp %d"), waypoint->GetId());
 	HTREEITEM item = _pointView.InsertItem(strId, 1, 1, 0);
-	SetPointItemData(item, new PntItemData(waypoint));	
+	SetPointItemData(item, new PntItemData(waypoint));
 }
 
 void CTraceView::RemovePointItem(HTREEITEM item)
@@ -223,7 +223,7 @@ void CTraceView::RemovePointItem(HTREEITEM item)
 	//При удалении последнего item, странно, но выделение не меняется (Событие OnChangedSelectedItem). Поэтому меняем вручную
 	if (_pointView.GetCount() == 1)
 		_pointView.SelectItem(0);
-	_pointView.DeleteItem(item);	
+	_pointView.DeleteItem(item);
 }
 
 HTREEITEM CTraceView::FindPointItem(const r3d::IWayPointRef& point)
@@ -395,10 +395,10 @@ void CTraceView::DelSelPath()
 		PathItemData* data = GetPathItemData(item);
 		r3d::IWayPathRef path = data ? data->path : 0;
 		r3d::IWayNodeRef node = data ? data->node : 0;
-		RemovePathItem(item);		
+		RemovePathItem(item);
 		if (path)
 			GetTrace()->DelPath(path);
-		if (node)		
+		if (node)
 			node->GetPath()->Delete(node);
 	}
 }
@@ -474,7 +474,7 @@ void CTraceView::SetPathItemData(HTREEITEM item, PathItemData* value)
 
 void CTraceView::AdjustLayout()
 {
-	if (GetSafeHwnd() == NULL)	
+	if (GetSafeHwnd() == NULL)
 		return;
 
 	CRect rectClient;
@@ -482,7 +482,7 @@ void CTraceView::AdjustLayout()
 
 	int cyTlb = _toolBar.CalcFixedLayout(FALSE, TRUE).cy;
 
-	_toolBar.SetWindowPos(NULL, rectClient.left, rectClient.top, rectClient.Width(), cyTlb, SWP_NOACTIVATE | SWP_NOZORDER);	
+	_toolBar.SetWindowPos(NULL, rectClient.left, rectClient.top, rectClient.Width(), cyTlb, SWP_NOACTIVATE | SWP_NOZORDER);
 	_flatFrame->SetWindowPos(NULL, rectClient.left, rectClient.top + cyTlb, rectClient.Width(), rectClient.Height() - cyTlb, SWP_NOACTIVATE | SWP_NOZORDER);
 }
 
@@ -521,7 +521,7 @@ void CTraceView::OnSetFocus(CWnd* pOldWnd)
 
 void CTraceView::OnCommandNew()
 {
-	if (IsActiveTreeView(&_pointView))	
+	if (IsActiveTreeView(&_pointView))
 		AddPoint();
 
 	if (IsActiveTreeView(&_pathView))
@@ -605,7 +605,7 @@ void CTraceView::SetMapDoc(CMapEditorDoc* value)
 		if (_mapDoc)
 		{
 			_mapDoc->RegObserver(_mapDocEvent);
-			UpdateList();	
+			UpdateList();
 		}
 	}
 }

@@ -368,15 +368,15 @@ inline bool operator<(const D3DXVECTOR3& vec1, float scalar)
 
 inline bool operator>(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
 {
-	return vec1.x > vec2.x && 
-		   vec1.y > vec2.y && 
+	return vec1.x > vec2.x &&
+		   vec1.y > vec2.y &&
 		   vec1.z > vec2.z;
 }
 
 inline bool operator<(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
 {
-	return vec1.x < vec2.x && 
-		   vec1.y < vec2.y && 
+	return vec1.x < vec2.x &&
+		   vec1.y < vec2.y &&
 		   vec1.z < vec2.z;
 }
 
@@ -580,7 +580,7 @@ inline Vec3Range operator*(const Vec3Range& val1, const D3DXVECTOR3& val2)
 inline bool RayCastIntersectSphere(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& spherePos, float sphereRadius, float* t)
 {
 	D3DXVECTOR3 v = rayPos - spherePos;
-	
+
 	float b = 2.0f * D3DXVec3Dot(&rayVec, &v);
 	float c = D3DXVec3Dot(&v, &v) - sphereRadius * sphereRadius;
 

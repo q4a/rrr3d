@@ -80,7 +80,7 @@ enum GameAction {
 	gaBreak,
 	gaWheelLeft,
 	gaWheelRight,
-	
+
 	gaShot,
 	gaShot1,
 	gaShot2,
@@ -122,10 +122,10 @@ struct InputMessage
 };
 
 class ControlEvent: public Object
-{	
+{
 public:
 	virtual bool OnMouseClickEvent(const MouseClick& mClick) {return false;}
-	virtual bool OnMouseMoveEvent(const MouseMove& mMove) {return false;}	
+	virtual bool OnMouseMoveEvent(const MouseMove& mMove) {return false;}
 	virtual bool OnHandleInput(const InputMessage& msg) {return false;}
 
 	virtual void OnInputProgress(float deltaTime) {}
@@ -140,7 +140,7 @@ private:
 	typedef lsl::Vector<GameAction> GameActions;
 private:
 	World* _world;
-	EventList _eventList;	
+	EventList _eventList;
 
 	ControllerState* _controllerStates[cControllerTypeEnd];
 	VirtualKey _gameKeys[cControllerTypeEnd][cGameActionEnd];
@@ -166,8 +166,8 @@ public:
 	void InsertEvent(ControlEvent* value);
 	void RemoveEvent(ControlEvent* value);
 
-	AsyncKey GetAsyncKey(unsigned key);	
-	AsyncKey IsMouseDown(MouseKey key);	
+	AsyncKey GetAsyncKey(unsigned key);
+	AsyncKey IsMouseDown(MouseKey key);
 
 	lsl::Point GetMousePos();
 	glm::vec2 GetMouseVec();

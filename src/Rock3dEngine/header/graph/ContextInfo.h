@@ -23,7 +23,7 @@ template<class _State, class _Value, _Value _defValue[]> class StateManager
 private:
 	typedef std::map<_State, _Value> _States;
 public:
-	typedef typename _States::iterator iterator;	
+	typedef typename _States::iterator iterator;
 private:
 	_States _states;
 public:
@@ -72,7 +72,7 @@ public:
 	bool Push(const _State& state, const _Value& value)
 	{
 		States::iterator iter = _states.find(state);
-		if (iter == _states.end())		
+		if (iter == _states.end())
 			iter = _states.insert(_states.end(), States::value_type(state, ValueStatck()));
 
 		bool res = !iter->second.empty() && iter->second.top().value == value;
@@ -89,7 +89,7 @@ public:
 	bool Pop(const _State& state)
 	{
 		States::iterator iter = _states.find(state);
-		
+
 		LSL_ASSERT(iter != _states.end());
 
 		bool res = iter->second.top().Release() == 0;
@@ -134,7 +134,7 @@ public:
 
 //Экранный, внеэкранный буффер
 class RenderBuffer: public virtual lsl::Object
-{	
+{
 public:
 	virtual void Render(Engine& engine, IDirect3DSurface9* backBuffer, IDirect3DSurface9* dsSurface) = 0;
 };
@@ -182,7 +182,7 @@ struct LightDesc
 		ambient = clrBlack;
 		diffuse = clrWhite;
 		specular = clrWhite;
-		
+
 		aspect = 1.0f;
 		nearDist = 1.0f;
 		range = 100.0f;
@@ -191,7 +191,7 @@ struct LightDesc
 		attenuation1 = 0;
 		attenuation2 = 0;
 		phi = D3DX_PI/2.0f;
-		theta = D3DX_PI/4.0f;		
+		theta = D3DX_PI/4.0f;
 
 		pos = NullVector;
 		dir = XVector;
@@ -203,7 +203,7 @@ struct LightDesc
 	D3DXCOLOR ambient;
     D3DXCOLOR diffuse;
     D3DXCOLOR specular;
-	
+
 	//Соотношение сторон фрустума отдельного направления точечного, направленного источника света. Для конусного игнорируется.
 	float aspect;
 	float nearDist;
@@ -214,13 +214,13 @@ struct LightDesc
     float attenuation2;
     float theta;
     float phi;
-	
+
 	D3DXVECTOR3 pos;
     D3DXVECTOR3 dir;
 	D3DXVECTOR3 up;
 
 	//Карта теней в пространстве текущей камеры
-	Tex2DResource* shadowMap;	
+	Tex2DResource* shadowMap;
 };
 
 class ContextInfo;
@@ -235,7 +235,7 @@ public:
 	static public glm::vec2 ProjToView(const glm::vec2& coord, const glm::vec2& viewSize);
 private:
 	CameraDesc _desc;
-	
+
 	D3DXMATRIX _worldMat;
 	mutable D3DXMATRIX _matrices[cTransformEnd];
 	mutable D3DXMATRIX _invMatrices[cTransformEnd];
@@ -260,7 +260,7 @@ public:
 	unsigned IdState() const;
 
 	bool ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const;
-	void AdjustNearFarPlane(const AABB& aabb, float minNear, float maxFar);	
+	void AdjustNearFarPlane(const AABB& aabb, float minNear, float maxFar);
 
 	void GetProjPerspective(D3DXMATRIX& mat) const;
 	void GetViewProjPerspective(D3DXMATRIX& mat) const;
@@ -285,7 +285,7 @@ public:
 	const D3DXMATRIX& GetInvView() const;
 	const D3DXMATRIX& GetInvProj() const;
 	const D3DXMATRIX& GetInvViewProj() const;
-	const D3DXMATRIX& GetInvWVP() const;	
+	const D3DXMATRIX& GetInvWVP() const;
 };
 
 class LightCI: public lsl::Object
@@ -309,7 +309,7 @@ public:
 	const LightDesc& GetDesc() const;
 	void SetDesc(const LightDesc& value);
 
-	const CameraCI& GetCamera() const;	
+	const CameraCI& GetCamera() const;
 };
 
 class BaseShader
@@ -323,7 +323,7 @@ class ContextInfo
 {
 public:
 	static const unsigned cMaxTexSamplers = 8;
-	
+
 	static const TransformStateType ContextInfo::cTexTransform[8];
 	static DWORD defaultRenderStates[RENDER_STATE_END];
 	static DWORD defaultSamplerStates[SAMPLER_STATE_END];
@@ -341,21 +341,21 @@ public:
 private:
 	RenderDriver* _driver;
 
-	D3DXMATRIX _worldMat;	
+	D3DXMATRIX _worldMat;
 
 	std::vector<D3DXMATRIX> _textureMatStack[cMaxTexSamplers];
-	IDirect3DBaseTexture9* _textures[cMaxTexSamplers];	
+	IDirect3DBaseTexture9* _textures[cMaxTexSamplers];
 	int _maxTextureStage;
 
 	MaterialDesc _material;
-	DWORD _renderStates[RENDER_STATE_END];	
+	DWORD _renderStates[RENDER_STATE_END];
 	DWORD _samplerStates[cMaxTexSamplers][SAMPLER_STATE_END];
 	DWORD _textureStageStates[cMaxTexSamplers][TEXTURE_STAGE_STATE_END];
 
 	bool _enableShadow;
 	float _texDiffK;
 	bool _invertingCullFace;
-	bool _ignoreMaterial;	
+	bool _ignoreMaterial;
 
 	CameraStack _cameraStack;
 	ShaderStack _shaderStack;
@@ -434,7 +434,7 @@ public:
 	void SetInvertingCullFace(bool value);
 
 	bool GetIgnoreMaterial();
-	void SetIgnoreMaterial(bool value);	
+	void SetIgnoreMaterial(bool value);
 
 	const ShaderStack& GetShaderStack() const;
 

@@ -74,7 +74,7 @@ bool SceneControl::Control::OnMouseClickEvent(const game::MouseClick& mClick)
 			_clDirOff = _owner->ComputePos(selNode, mClick.scrRayPos, mClick.scrRayVec, DMCoordMoveToSC[_clDirMove], NullVector);
 			_clDirOff = _clDirOff - selNode->GetPos();
 			return _clDirMove != graph::MovCoordSys::dmNone;
-			
+
 		case smRotate:
 			_clRotating = selNode->RayCastInters(mClick.scrRayPos, mClick.scrRayVec);
 			_clStartRot = selNode->GetRot();
@@ -112,7 +112,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 	INodeRef selNode = _owner->_selNode;
 
 	glm::vec2 offCoord(static_cast<float>(mMove.offCoord.x), static_cast<float>(mMove.offCoord.y));
-	
+
 	//Нажата левая кнопка мыши
 	if (mMove.click.key == lsl::mkLeft && mMove.click.state == lsl::ksDown)
 	{
@@ -131,7 +131,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 					D3DXVECTOR3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, dmView, _clDragOff);
 					selNode->OnDrag(pos, mMove.scrRayPos, mMove.scrRayVec);
 				}
-			}	
+			}
 			break;
 
 		case smMove:
@@ -161,7 +161,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 			}
 			return false;
 		}
-		
+
 		case smRotate:
 			if (_clRotating)
 			{
@@ -187,7 +187,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				glm::quat rotZ = glm::angleAxis(angleZ, Vec3DxToGlm(ZVector));
 				glm::quat rotY = glm::angleAxis(angleY, Vec3DxToGlm(_owner->_edit->GetWorld()->GetCamera()->GetRight()));
 				glm::quat rot = abs(angleZ) > abs(angleY) ? rotZ : rotY;
-					
+
 				selNode->SetRot(rot * _clStartRot);
 
 				return true;
@@ -258,14 +258,14 @@ bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorl
 	outDistOff = distLink;
 	game::Map* map = _edit->GetWorld()->GetMap();
 
-	for (game::Map::Objects::const_iterator iter = map->GetObjects().begin(); iter != map->GetObjects().end(); ++iter)	
+	for (game::Map::Objects::const_iterator iter = map->GetObjects().begin(); iter != map->GetObjects().end(); ++iter)
 	{
 		game::MapObj* mapObj = iter->second;
 		graph::BaseSceneNode* testSc = &(mapObj->GetGameObj().GetGrActor());
 		if (!ignore->Compare(IMapObjRef(new MapObj(mapObj), this)))
 		{
 			AABB test = testSc->GetLocalAABB(true);
-			
+
 			float dist;
 			//Вычисляем двухсторонее пересечение test-а боксом aabb. Выбираем  наименьшее значение длины проникновения, начиная с distLink.
 			if (test.AABBLineCastIntersect(aabb, normOff, aabbToWorld * testSc->GetInvWorldMat(), testSc->GetWorldMat() * worldToAABB, dist) && abs(dist) < abs(outDistOff))
@@ -399,7 +399,7 @@ void SceneControl::ApplySelMode()
 
 	if (!_selNode)
 		return;
-	
+
 	switch (_selMode)
 	{
 	case smMove:
@@ -472,7 +472,7 @@ D3DXVECTOR3 SceneControl::ComputePoint(const D3DXVECTOR3& curPos, const D3DXVECT
 D3DXVECTOR3 SceneControl::ComputePos(INode* node, const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, DirMove dirMove, const D3DXVECTOR3& centerOff)
 {
 	D3DXVECTOR3 newPos = ComputePoint(node->GetPos(), rayStart, rayVec, dirMove, centerOff);
-	
+
 	if (_linkBB)
 		ComputeLink(node, newPos, newPos);
 

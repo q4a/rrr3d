@@ -48,7 +48,7 @@ void SceneNode::InitClassList()
 		classList.Add<graph::WaterPlane>(ntWaterPlane);
 		classList.Add<graph::GrassField>(ntGrassField);
 		classList.Add<graph::FxParticleSystem>(ntParticleSystem);
-		classList.Add<graph::MovCoordSys>(ntMovCoordSys);		
+		classList.Add<graph::MovCoordSys>(ntMovCoordSys);
 		classList.Add<graph::ScaleCoordSys>(ntScaleCoordSys);
 	}
 }
@@ -78,7 +78,7 @@ AABB SceneNode::LocalDimensions() const
 {
 	AABB res = NullAABB;
 	bool bRes = false;
-	for (Nodes::iterator iter = _nodes->begin(); iter != _nodes->end(); ++iter)	
+	for (Nodes::iterator iter = _nodes->begin(); iter != _nodes->end(); ++iter)
 	{
 		AABB aabb = (*iter)->GetLocalAABB(false);
 		aabb.Transform((*iter)->GetMat());

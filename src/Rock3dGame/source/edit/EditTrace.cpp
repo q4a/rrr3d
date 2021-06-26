@@ -105,7 +105,7 @@ Trace::NodeControl::NodeControl(Trace* trace, game::WayPoint* wayPoint, const Co
 
 	_wayPoint->AddRef();
 }
-	
+
 Trace::NodeControl::~NodeControl()
 {
 	FreeLink();
@@ -137,7 +137,7 @@ void Trace::NodeControl::FreeLink()
 			_trace->_traceGfx->SetPointLink(0);
 		lsl::SafeDelete(_link);
 	}
-	
+
 }
 
 bool Trace::NodeControl::CreateWay(game::WayNode* curNode, game::WayPoint* point, game::WayNode* node)
@@ -321,8 +321,8 @@ AABB Trace::NodeControl::GetAABB() const
 game::WayPoint* Trace::PickInstPoint(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec)
 {
 	float minDist = 0;
-	game::WayPoint* point = 0;	
-	
+	game::WayPoint* point = 0;
+
 	for (Inst::Points::const_iterator iter = GetInst()->GetPoints().begin(); iter != GetInst()->GetPoints().end(); ++iter)
 	{
 		float t;
@@ -441,7 +441,7 @@ IWayPointRef Trace::FirstPoint()
 void Trace::NextPoint(IWayPointRef& ref)
 {
 	WayPoint* point = ref->GetImpl<WayPoint>();
-	
+
 	if (++(point->traceIter) != GetInst()->GetPoints().end())
 	{
 		WayPoint* newPoint = new WayPoint(static_cast<game::WayPoint*>(*point->traceIter));
@@ -468,7 +468,7 @@ IWayPathRef Trace::FirstPath()
 void Trace::NextPath(IWayPathRef& ref)
 {
 	WayPath* path = ref->GetImpl<WayPath>();
-	
+
 	if (++(path->traceIter) != GetInst()->GetPathes().end())
 	{
 		WayPath* newPath = new WayPath(static_cast<game::WayPath*>(*path->traceIter));
@@ -489,7 +489,7 @@ void Trace::EnableVisualize(bool value)
 	if (_enableVisualize != value)
 	{
 		if (_enableVisualize)
-			_edit->GetWorld()->GetGraph()->RemoveScNode(_traceGfx);	
+			_edit->GetWorld()->GetGraph()->RemoveScNode(_traceGfx);
 		_enableVisualize = value;
 		if (_enableVisualize)
 			_edit->GetWorld()->GetGraph()->InsertScNode(_traceGfx);

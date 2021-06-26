@@ -15,14 +15,14 @@ class View: public IView
 {
 private:
 	World* _world;
-	Desc _desc;	
+	Desc _desc;
 
 	MouseClick _mClick;
 	MouseMove _mMove;
 public:
 	View(World* world, const Desc& desc);
 
-	void Reset(const Desc& desc);	
+	void Reset(const Desc& desc);
 
 	bool OnMouseClickEvent(MouseKey key, KeyState state, const Point& coord, bool shift, bool ctrl);
 	bool OnMouseMoveEvent(const Point& coord, bool shift, bool ctrl);
@@ -31,7 +31,7 @@ public:
 
 	const Desc& GetDesc();
 	float GetAspect() const;
-	lsl::Point GetWndSize() const;	
+	lsl::Point GetWndSize() const;
 	glm::vec2 GetVPSize() const;
 
 	//из экранного в пространство ViewPort

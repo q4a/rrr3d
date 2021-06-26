@@ -11,7 +11,7 @@ namespace net
 
 class INetServiceUser
 {
-public:	
+public:
 	virtual bool OnConnected(INetConnection* sender) {return true;}
 	virtual void OnDisconnected(INetConnection* sender) {}
 	virtual void OnConnectionFailed(INetConnection* sender, unsigned error) {}
@@ -33,7 +33,7 @@ public:
 };
 
 class INetService
-{	
+{
 public:
 	typedef lsl::ClassList<int, NetModel, NetModel::Desc> ModelClasses;
 	typedef std::vector<Endpoint> EndpointList;
@@ -64,7 +64,7 @@ public:
 
 	virtual INetChannel* channel() = 0;
 
-	virtual INetPlayer* player() = 0;	
+	virtual INetPlayer* player() = 0;
 	virtual bool isServer() const = 0;
 	virtual bool isClient() const = 0;
 

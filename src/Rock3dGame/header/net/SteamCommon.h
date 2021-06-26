@@ -38,16 +38,16 @@ enum EMessage
 	k_EMsgClientPing = k_EMsgClientBegin+5,
 
 	// P2P authentication messages
-	k_EMsgP2PBegin = 600, 
+	k_EMsgP2PBegin = 600,
 	k_EMsgP2PSendingTicket = k_EMsgP2PBegin+1,
 
 	// voice chat messages
-	k_EMsgVoiceChatBegin = 700, 
+	k_EMsgVoiceChatBegin = 700,
 	k_EMsgVoiceChatPing = k_EMsgVoiceChatBegin+1,	// just a keep alive message
 	k_EMsgVoiceChatData = k_EMsgVoiceChatBegin+2,	// voice data from another player
 
 	// force 32-bit size enum so the wire protocol doesn't get outgrown later
-	k_EForceDWORD  = 0x7fffffff, 
+	k_EForceDWORD  = 0x7fffffff,
 };
 
 // Msg from client to server when trying to connect
@@ -106,7 +106,7 @@ struct MsgClientBeginAuthentication_t
 
 private:
 	const DWORD m_dwMessageType;
-	
+
 	uint32 m_uTokenLen;
 	char m_rgchToken[1024];
 	uint64 m_ulSteamID;

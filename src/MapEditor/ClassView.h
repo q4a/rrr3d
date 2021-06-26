@@ -26,7 +26,7 @@ private:
 		CClassView* _view;
 	public:
 		DelDataFunc(CClassView* view): _view(view) {}
-		
+
 		bool operator()(HTREEITEM item) const
 		{
 			ItemData* data = _view->GetItemData(item);
@@ -58,7 +58,7 @@ private:
 	void ReleaseItem(HTREEITEM item);
 	void ReleaseItems();
 	void InsertItem(const r3d::IRecordNodeRef& node, HTREEITEM parent);
-	void DelItem(HTREEITEM node);	
+	void DelItem(HTREEITEM node);
 	void ClearList();
 	void UpdateList();
 
@@ -88,9 +88,9 @@ protected:
 	afx_msg void OnClassProperties();
 	afx_msg void OnNewFolder();
 	afx_msg void OnPaint();
-	afx_msg void OnSetFocus(CWnd* pOldWnd);	
+	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	afx_msg void OnSort(UINT id);
-	afx_msg void OnUpdateSort(CCmdUI* pCmdUI);	
+	afx_msg void OnUpdateSort(CCmdUI* pCmdUI);
 
 	afx_msg void OnViewSelChanged(NMHDR* arg, LRESULT* res);
 	virtual void OnChangeActiveTab(bool active);

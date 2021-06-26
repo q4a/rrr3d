@@ -151,7 +151,7 @@ void CMapEditorDoc::UnregObserver(MapDocObserver* observer)
 r3d::IMapObjRef CMapEditorDoc::AddMapObj(const r3d::IMapObjRecRef& record)
 {
 	r3d::IMapObjRef res = GetMap()->AddMapObj(record);
-	
+
 	for (ObserverList::iterator iter = _observerList.begin(); iter != _observerList.end(); ++iter)
 		(*iter)->OnAddMapObj(res);
 
@@ -224,7 +224,7 @@ void CMapEditorDoc::SelectWayPoint(const r3d::IWayPointRef& point, const r3d::IT
 	if (_selWayPoint != point && (!_selWayPoint || !_selWayPoint->Equal(point.Pnt())))
 	{
 		ClearSelection();
-		
+
 		_selWayPoint = point;
 		r3d::IScNodeContRef control = _selWayPoint ? GetTrace()->GetPointControl(_selWayPoint, mEvent) : 0;
 		GetScControl()->SelectNode(control);

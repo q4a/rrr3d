@@ -26,8 +26,8 @@ namespace game
 //-----------------------------------------------------------------------------
 // Purpose: constructor
 //-----------------------------------------------------------------------------
-CNetworkTransport::CNetworkTransport() 
-: 
+CNetworkTransport::CNetworkTransport()
+:
 	m_CallbackP2PSessionRequest( this, &CNetworkTransport::OnP2PSessionRequest ),
 	m_CallbackP2PSessionConnectFail( this, &CNetworkTransport::OnP2PSessionConnectFail )
 {

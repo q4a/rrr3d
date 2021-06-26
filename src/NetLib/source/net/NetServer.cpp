@@ -5,7 +5,7 @@
 
 namespace net
 {
-	
+
 NetServer::NetServer(NetService* net): NetPlayer(net, cServerPlayer), _started(false), _port(0), _lastModelId(0), _processCmdRef(0), _newConnection(NULL)
 {
 }
@@ -21,7 +21,7 @@ void NetServer::NewConnection(NetConnection* connection)
 	if (_newConnection == NULL)
 		_newConnection = _net->NewConnection(cUndefPlayer, this);
 
-	_newConnection->Accept();	
+	_newConnection->Accept();
 }
 
 void NetServer::ReleaseConnection(NetConnection* connection)
@@ -35,7 +35,7 @@ void NetServer::ReleaseConnection(NetConnection* connection)
 }
 
 void NetServer::ProcessCmd(const NetMessage& msg, const NetCmdHeader& header, const streambuf::const_buffers_type& bufs)
-{	
+{
 	++_processCmdRef;
 	int pos = _processCmdList.size();
 
@@ -78,7 +78,7 @@ void NetServer::ProcessCmd(const NetMessage& msg, const NetCmdHeader& header, co
 }
 
 void NetServer::SendCmd(const NetCmdHeader& header, const streambuf::const_buffers_type& bufs)
-{	
+{
 	ProcessCmd(NetMessage(id(), _net->time()), header, bufs);
 }
 
@@ -93,7 +93,7 @@ void NetServer::OnProcessCmd(const NetMessage& msg, const NetCmdHeader& header, 
 				BYTE modelId;
 				net::Read(stream, modelId);
 				unsigned dataSize = streambuf.size();
-				const void* data = dataSize > 0 ? buffer_cast<const void*>(streambuf.data()) : NULL;				
+				const void* data = dataSize > 0 ? buffer_cast<const void*>(streambuf.data()) : NULL;
 
 				ModelHeader header2;
 				header2.id = ++_lastModelId;
@@ -125,7 +125,7 @@ void NetServer::SendState(const NetStateHeader& header, const streambuf::const_b
 		NetConnection* connection = *iter;
 		if (!connection->IsOpen() || !TestTarget(target, connection->id(), id()))
 			continue;
-		
+
 		endpointList.push_back(connection->remoteEndpoint());
 	}
 
@@ -154,7 +154,7 @@ void NetServer::OnConnected(NetConnection* sender)
 			break;
 		}
 	}
-	
+
 	sender->id(newId);
 
 	if (_connections.size() < cPlayerMaxCount && _net->OnConnected(sender))
@@ -197,12 +197,12 @@ void NetServer::OnConnected(NetConnection* sender)
 				continue;
 
 			syncModel.bitStream.Write(stream, false, false, false);
-		
+
 			NetStateHeader header;
 			header.id = iter->first;
 			header.size = streambuf.size();
 			SendState(header, streambuf.data(), sender->id());
-		
+
 			streambuf.consume(streambuf.size());
 		}
 
@@ -250,7 +250,7 @@ void NetServer::OnProcess(unsigned time)
 	std::ostream stream(&streambuf);
 
 	for (SyncModels::iterator iter = _syncModels.begin(); iter != _syncModels.end(); ++iter)
-	{	
+	{
 		SyncModel& syncModel = iter->second;
 		if (syncModel.model->owner())
 			continue;
@@ -337,7 +337,7 @@ unsigned NetServer::port() const
 void NetServer::Disconnect(NetConnection* connection)
 {
 	connection->Close();
-	DeleteModels(connection->id(), false);	
+	DeleteModels(connection->id(), false);
 
 	ReleaseConnection(connection);
 }

@@ -66,7 +66,7 @@ Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0)
 	//
 	_nxScene->setGroupCollisionFlag(cdgShotTrack, cdgShot, false);
 	_nxScene->setGroupCollisionFlag(cdgShotTrack, cdgShotBorder, false);
-	_nxScene->setGroupCollisionFlag(cdgShotTrack, cdgShotTrack, false);		
+	_nxScene->setGroupCollisionFlag(cdgShotTrack, cdgShotTrack, false);
 	//
 	_nxScene->setGroupCollisionFlag(cdgShotTransparency, cdgShot, false);
 	//
@@ -96,8 +96,8 @@ Scene::ContactModify::ContactModify(Scene* scene): _scene(scene)
 
 bool Scene::ContactModify::onContactConstraint(NxU32& changeFlags, const NxShape* shape0, const NxShape* shape1, const NxU32 featureIndex0, const NxU32 featureIndex1, NxContactCallbackData& data)
 {
-	OnContactModifyEvent contactEvent;	
-	
+	OnContactModifyEvent contactEvent;
+
 	contactEvent.shape0 = shape0;
 	contactEvent.shape1 = shape1;
 	contactEvent.featureIndex0 = featureIndex0;
@@ -260,7 +260,7 @@ NxScene* Scene::GetNxScene()
 Manager::Manager()
 {
 	InitSDK();
-	px::Shapes::RegisterClasses();	
+	px::Shapes::RegisterClasses();
 }
 
 Manager::~Manager()
@@ -308,7 +308,7 @@ void Manager::InitSDK()
 		Manager::_nxCooking->NxInitCooking();
 	}
 
-	
+
 }
 
 void Manager::ReleaseSDK()
@@ -328,7 +328,7 @@ void Manager::ReleaseSDK()
 void Manager::Compute(float deltaTime)
 {
 	for (SceneList::iterator iter = _sceneList.begin(); iter != _sceneList.end(); ++iter)
-		(*iter)->Compute(deltaTime);	
+		(*iter)->Compute(deltaTime);
 }
 
 Scene* Manager::AddScene()
@@ -398,7 +398,7 @@ void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc
 	int sFace = id < 0 ? 0 : _meshData->faceGroups[id].sFace;
 	int faceCnt = id < 0 ? _meshData->fb.GetFaceCount() : _meshData->faceGroups[id].faceCnt;
 
-	D3DXVECTOR3* vertices = new D3DXVECTOR3[vertCnt];	
+	D3DXVECTOR3* vertices = new D3DXVECTOR3[vertCnt];
 	//Если в формате вершины только позиция, то копируется буффер целиком
 	if (_meshData->vb.GetVertexSize() == sizeof(D3DXVECTOR3))
 	{
@@ -408,7 +408,7 @@ void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc
 				vertices[i] *= scale;
 	}
 	//Иначе копируется только часть вершины соответствующая позиции
-	else		
+	else
 		for (int i = 0; i < vertCnt; ++i)
 		{
 			vertices[i] = *_meshData->vb[sVertex + i].Pos3();
@@ -420,7 +420,7 @@ void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc
 	desc.pointStrideBytes     = sizeof(D3DXVECTOR3);
 	desc.points               = vertices;
 	desc.numTriangles         = faceCnt;
-	desc.triangleStrideBytes  = _meshData->fb.GetFaceSize();		
+	desc.triangleStrideBytes  = _meshData->fb.GetFaceSize();
 	desc.triangles            = _meshData->fb.GetData() + _meshData->fb.GetFaceSize() * sFace;
 	desc.flags                = 0;
 }
@@ -439,7 +439,7 @@ TriangleMesh::MeshList::iterator TriangleMesh::GetOrCreateMesh(const D3DXVECTOR3
 	if (findIter == _meshList.end())
 	{
 		_meshList.push_back(val);
-		findIter = --_meshList.end();		
+		findIter = --_meshList.end();
 	}
 	++findIter->sumRef;
 
@@ -461,7 +461,7 @@ NxTriangleMesh* TriangleMesh::GetOrCreateTri(const D3DXVECTOR3& scale, int id)
 	MeshList::iterator mesh = GetOrCreateMesh(scale, id);
 	++(mesh->triRef);
 
-	if (mesh->tri)	
+	if (mesh->tri)
 		return mesh->tri;
 
 	NxTriangleMeshDesc desc;
@@ -504,7 +504,7 @@ NxConvexMesh* TriangleMesh::GetOrCreateConvex(const D3DXVECTOR3& scale, int id)
 	MeshList::iterator mesh = GetOrCreateMesh(scale, id);
 	++(mesh->convexRef);
 
-	if (mesh->convex)	
+	if (mesh->convex)
 		return mesh->convex;
 
 	NxTriangleMeshDesc desc;
@@ -860,8 +860,8 @@ const D3DXVECTOR3& PlaneShape::GetNormal() const
 void PlaneShape::SetNormal(const D3DXVECTOR3& value)
 {
 	_normal = value;
-	
-	if (GetNxShape())	
+
+	if (GetNxShape())
 		GetNxShape()->setPlane(NxVec3(value), _dist);
 }
 
@@ -873,8 +873,8 @@ float PlaneShape::GetDist() const
 void PlaneShape::SetDist(float value)
 {
 	_dist = value;
-	
-	if (GetNxShape())	
+
+	if (GetNxShape())
 		GetNxShape()->setPlane(NxVec3(value), _dist);
 }
 
@@ -937,7 +937,7 @@ void BoxShape::SetDimensions(const D3DXVECTOR3& value)
 	if (_dimensions != value)
 	{
 		_dimensions = value;
-		
+
 		if (GetNxShape())
 		{
 			NxVec3 vec3;
@@ -959,8 +959,8 @@ NxShapeDesc* SphereShape::CreateDesc()
 {
 	NxSphereShapeDesc* desc = new NxSphereShapeDesc();
 	AssignToDesc(*desc);
-	
-	return desc;	
+
+	return desc;
 }
 
 void SphereShape::Save(lsl::SWriter* writer)
@@ -974,20 +974,20 @@ void SphereShape::Load(lsl::SReader* reader)
 {
 	_MyBase::Load(reader);
 
-	reader->ReadValue("radius", _radius);	
+	reader->ReadValue("radius", _radius);
 }
 
 void SphereShape::AssignFromDesc(const NxSphereShapeDesc& desc, bool reloadShape)
 {
 	_radius = desc.radius;
-	
+
 	_MyBase::AssignFromDesc(desc, reloadShape);
 }
 
 void SphereShape::AssignToDesc(NxSphereShapeDesc& desc)
 {
 	desc.radius = _radius;
-	
+
 	_MyBase::AssignToDesc(desc);
 }
 
@@ -1006,7 +1006,7 @@ void SphereShape::SetRadius(float value)
 	_radius = value;
 
 	if (GetNxShape())
-		GetNxShape()->setRadius(value);		
+		GetNxShape()->setRadius(value);
 }
 
 
@@ -1021,8 +1021,8 @@ NxShapeDesc* CapsuleShape::CreateDesc()
 {
 	NxCapsuleShapeDesc* desc = new NxCapsuleShapeDesc();
 	AssignToDesc(*desc);
-	
-	return desc;	
+
+	return desc;
 }
 
 void CapsuleShape::Save(lsl::SWriter* writer)
@@ -1076,7 +1076,7 @@ void CapsuleShape::SetRadius(float value)
 	_radius = value;
 
 	if (GetNxShape())
-		GetNxShape()->setRadius(value);		
+		GetNxShape()->setRadius(value);
 }
 
 float CapsuleShape::GetHeight() const
@@ -1360,7 +1360,7 @@ void WheelShape::Save(lsl::SWriter* writer)
 	_MyBase::Save(writer);
 
 	writer->WriteValue("radius", _radius);
-	writer->WriteValue("suspensionTravel", _suspensionTravel);	
+	writer->WriteValue("suspensionTravel", _suspensionTravel);
 	{
 		lsl::SWriter* child = writer->NewDummyNode("suspension");
 		child->WriteValue("damper", _suspension.damper);
@@ -1388,14 +1388,14 @@ void WheelShape::Load(lsl::SReader* reader)
 	reader->ReadValue("radius", _radius);
 	reader->ReadValue("suspensionTravel", _suspensionTravel);
 	if (lsl::SReader* child = reader->ReadValue("suspension"))
-	{		
+	{
 		child->ReadValue("damper", _suspension.damper);
 		child->ReadValue("spring", _suspension.spring);
 		child->ReadValue("targetValue", _suspension.targetValue);
 	}
-	if (lsl::SReader* child = reader->ReadValue("longitudalTireForceFunction"))	
+	if (lsl::SReader* child = reader->ReadValue("longitudalTireForceFunction"))
 		LoadTireForceFunction(child, _longitudalTireForceFunction);
-	if (lsl::SReader* child = reader->ReadValue("lateralTireForceFunction"))	
+	if (lsl::SReader* child = reader->ReadValue("lateralTireForceFunction"))
 		LoadTireForceFunction(child, _lateralTireForceFunction);
 	reader->ReadValue("inverseWheelMass", _inverseWheelMass);
 	reader->ReadValue("wheelFlags", _wheelFlags);
@@ -1449,7 +1449,7 @@ void WheelShape::SetRadius(float value)
 	if (_radius != value)
 	{
 		_radius = value;
-		if (GetNxShape())		
+		if (GetNxShape())
 			GetNxShape()->setRadius(value);
 	}
 }
@@ -1464,7 +1464,7 @@ void WheelShape::SetSuspensionTravel(float value)
 	if (_suspensionTravel != value)
 	{
 		_suspensionTravel = value;
-		if (GetNxShape())		
+		if (GetNxShape())
 			GetNxShape()->setSuspensionTravel(value);
 	}
 }
@@ -1477,8 +1477,8 @@ const NxSpringDesc& WheelShape::GetSuspension() const
 void WheelShape::SetSuspension(const NxSpringDesc& value)
 {
 	_suspension = value;
-	if (GetNxShape())		
-		GetNxShape()->setSuspension(value);	
+	if (GetNxShape())
+		GetNxShape()->setSuspension(value);
 }
 
 const NxTireFunctionDesc& WheelShape::GetLongitudalTireForceFunction() const
@@ -1489,8 +1489,8 @@ const NxTireFunctionDesc& WheelShape::GetLongitudalTireForceFunction() const
 void WheelShape::SetLongitudalTireForceFunction(const NxTireFunctionDesc& value)
 {
 	_longitudalTireForceFunction = value;
-	if (GetNxShape())		
-		GetNxShape()->setLongitudalTireForceFunction(value);	
+	if (GetNxShape())
+		GetNxShape()->setLongitudalTireForceFunction(value);
 }
 
 const NxTireFunctionDesc& WheelShape::GetLateralTireForceFunction() const
@@ -1501,8 +1501,8 @@ const NxTireFunctionDesc& WheelShape::GetLateralTireForceFunction() const
 void WheelShape::SetLateralTireForceFunction(const NxTireFunctionDesc& value)
 {
 	_lateralTireForceFunction = value;
-	if (GetNxShape())		
-		GetNxShape()->setLateralTireForceFunction(value);	
+	if (GetNxShape())
+		GetNxShape()->setLateralTireForceFunction(value);
 }
 
 float WheelShape::GetInverseWheelMass() const
@@ -1515,7 +1515,7 @@ void WheelShape::SetInverseWheelMass(float value)
 	if (_inverseWheelMass != value)
 	{
 		_inverseWheelMass = value;
-		if (GetNxShape())		
+		if (GetNxShape())
 			GetNxShape()->setInverseWheelMass(value);
 	}
 }
@@ -1530,7 +1530,7 @@ void WheelShape::SetWheelFlags(UINT value)
 	if (_wheelFlags != value)
 	{
 		_wheelFlags = value;
-		if (GetNxShape())		
+		if (GetNxShape())
 			GetNxShape()->setWheelFlags(value);
 	}
 }
@@ -1545,7 +1545,7 @@ void WheelShape::SetMotorTorque(float value)
 	if (_motorTorque != value)
 	{
 		_motorTorque = value;
-		if (GetNxShape())		
+		if (GetNxShape())
 			GetNxShape()->setMotorTorque(value);
 	}
 }
@@ -1560,7 +1560,7 @@ void WheelShape::SetSteerAngle(float value)
 	if (_steerAngle != value)
 	{
 		_steerAngle = value;
-		if (GetNxShape())		
+		if (GetNxShape())
 			GetNxShape()->setSteerAngle(value);
 	}
 }
@@ -1589,7 +1589,7 @@ Body::Body(Actor* actor): _actor(actor)
 
 void Body::Save(lsl::SWriter* writer)
 {
-	writer->WriteValue("mass", _desc.mass);	
+	writer->WriteValue("mass", _desc.mass);
 
 	D3DXVECTOR3 massLocalPose[4];
 	for (int i = 0; i < 3; ++i)
@@ -1607,7 +1607,7 @@ void Body::Save(lsl::SWriter* writer)
 void Body::Load(lsl::SReader* reader)
 {
 	reader->ReadValue("mass", _desc.mass);
-	
+
 	D3DXVECTOR3 massLocalPose[4];
 	if (reader->ReadValue("massLocalPose", massLocalPose[0], 12))
 	{
@@ -1658,14 +1658,14 @@ void Shapes::RegisterClasses()
 	classList.Add<CapsuleShape>();
 	classList.Add<SphereShape>();
 	classList.Add<TriangleMeshShape>();
-	classList.Add<ConvexShape>();	
+	classList.Add<ConvexShape>();
 	classList.Add<WheelShape>();
 }
 
 void Shapes::InsertItem(const Value& value)
 {
 	_MyBase::InsertItem(value);
-	
+
 	//По идее все условия соотв. тому что фигура не будет создана к этому моменту, но однако при нескольких sender-ах может произойти преждевременный вызов ReloadNxActor() !!!!. На самом деле если объеденить все эвенты в один то здесь проверка не нужна, но пока...
 	if (_owner->_nxActor && !value->GetNxShape())
 		_owner->CreateNxShape(value);
@@ -1697,11 +1697,11 @@ Actor::~Actor()
 	LSL_ASSERT(_children.size() == 0);
 
 	if (_parent)
-		_parent->RemoveChild(this);	
+		_parent->RemoveChild(this);
 	SetScene(0);
 
 	SetBody(0);
-	delete _shapes;	
+	delete _shapes;
 }
 
 void Actor::CreateNxShape(Shape* shape)
@@ -1713,7 +1713,7 @@ void Actor::CreateNxShape(Shape* shape)
 	LocalToWorldPos(D3DXVECTOR3(shapeDesc->localPose.t.get()), pos, true);
 	shapeDesc->localPose.t.set(pos);
 
-	//not all conditions is completed to create nxShape (neccesary params will be set next, NxTriangleMesh for example)		
+	//not all conditions is completed to create nxShape (neccesary params will be set next, NxTriangleMesh for example)
 	if (shapeDesc->isValid())
 		shape->SetNxShape(_nxActor->createShape(*shapeDesc));
 	else
@@ -1769,7 +1769,7 @@ void Actor::FillShapeDescListIncludeChildren(_NxShapeDescList& shapeList)
 void Actor::UnpackActorShapeList(NxShape*const* begin, NxShape*const* end)
 {
 	Shapes::iterator pShape = _shapes->begin();
-	for (NxShape*const* iter = begin; iter != end; ++iter, ++pShape)	
+	for (NxShape*const* iter = begin; iter != end; ++iter, ++pShape)
 		(*pShape)->SetNxShape(*iter);
 }
 
@@ -1779,10 +1779,10 @@ unsigned Actor::UnpackActorShapeListIncludeChildren(NxShape*const* shape, unsign
 	if (!GetShapes().Empty())
 	{
 		LSL_ASSERT(curShape < numShapes);
-		
+
 		unsigned endInd = curShape + GetShapes().Size();
 		UnpackActorShapeList(&shape[curShape], &shape[endInd]);
-		
+
 		nextInd = endInd;
 	}
 	for (Children::iterator iter = _children.begin(); iter != _children.end(); ++iter)
@@ -1880,7 +1880,7 @@ void Actor::InitChildNxActor()
 
 void Actor::FreeChildNxActor()
 {
-	if (_nxActor)	
+	if (_nxActor)
 	{
 		for (Shapes::iterator iter = _shapes->begin(); iter != _shapes->end(); ++iter)
 			DestroyNxShape(*iter);
@@ -1890,17 +1890,17 @@ void Actor::FreeChildNxActor()
 
 void Actor::InitNxActor()
 {
-	if (_parent)	
+	if (_parent)
 		InitChildNxActor();
-	else	
+	else
 		InitRootNxActor();
 }
 
 void Actor::FreeNxActor()
 {
-	if (_parent)	
+	if (_parent)
 		FreeChildNxActor();
-	else	
+	else
 		FreeRootNxActor();
 }
 
@@ -1929,7 +1929,7 @@ void Actor::Save(lsl::SWriter* writer)
 	}
 
 	writer->WriteValue("shapes", _shapes);
-	writer->WriteRef("scene", _scene);	
+	writer->WriteRef("scene", _scene);
 }
 
 void Actor::Load(lsl::SReader* reader)
@@ -1968,12 +1968,12 @@ void Actor::OnFixUp(const FixUpNames& fixUpNames)
 void Actor::InsertChild(Actor* child)
 {
 	LSL_ASSERT(!child->_parent);
-	
+
 	child->FreeNxActor();
 	//
 	child->_parent = this;
 	_children.push_back(child);
-	child->SetScene(_scene);	
+	child->SetScene(_scene);
 	//
 	child->InitNxActor();
 }
@@ -2047,8 +2047,8 @@ void Actor::SetScene(Scene* value)
 
 		for (Children::iterator iter = _children.begin(); iter != _children.end(); ++iter)
 			(*iter)->SetScene(value);
-		if (_parent)		
-			_parent->SetScene(value);		
+		if (_parent)
+			_parent->SetScene(value);
 	}
 }
 

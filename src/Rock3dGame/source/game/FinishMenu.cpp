@@ -11,7 +11,7 @@ namespace game
 
 namespace n
 {
-	
+
 FinishMenu::FinishMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _time(-1.0f), _playerCount(0)
 {
 	D3DXCOLOR color1(0xffe9a73f);
@@ -28,8 +28,8 @@ FinishMenu::FinishMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 	{
 		_boxes[i].leftFrame = menu->CreatePlane(root(), this, "GUI\\playerLeftFrame.png", true);
 		_boxes[i].leftFrame->SetAlign(gui::Widget::waLeftTop);
-		
-		_boxes[i].rightFrame = menu->CreatePlane(_boxes[i].leftFrame, this, "GUI\\playerRightFrame.png", true);		
+
+		_boxes[i].rightFrame = menu->CreatePlane(_boxes[i].leftFrame, this, "GUI\\playerRightFrame.png", true);
 		_boxes[i].rightFrame->SetAlign(gui::Widget::waLeftTop);
 
 		_boxes[i].lineFrame = menu->CreatePlane(_boxes[i].leftFrame, this, "GUI\\playerLineFrame.png", true);
@@ -40,7 +40,7 @@ FinishMenu::FinishMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 
 		_boxes[i].photo = menu->CreatePlane(_boxes[i].leftFrame, this, "", true, IdentityVec2, gui::Material::bmTransparency);
 
-		for (int j = 0; j < cLabelEnd; ++j)	
+		for (int j = 0; j < cLabelEnd; ++j)
 			_boxes[i].labels[j] = menu->CreateLabel(strLabels[j], _boxes[i].leftFrame, fontLabels[j], NullVec2, horLabels[j], vertLabels[j], colorLabels[j]);
 		_boxes[i].labels[mlPriceInfo]->SetText(menu->GetString(svMoney) + "\n" + menu->GetString(svPoints));
 

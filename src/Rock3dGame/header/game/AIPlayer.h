@@ -78,17 +78,17 @@ private:
 	private:
 		AIDebug* _debug;
 
-		virtual bool OnHandleInput(const InputMessage& msg);		
+		virtual bool OnHandleInput(const InputMessage& msg);
 	public:
 		Control(AIDebug* _debug);
 	};
 private:
 	AISystem* _ai;
 	AIPlayer* _aiPlayer;
-	
+
 	TraceGfx* _traceGfx;
 	GrActor* _grActor;
-	Control* _control;	
+	Control* _control;
 public:
 	AIDebug(AISystem* ai, AIPlayer* aiPlayer);
 	~AIDebug();

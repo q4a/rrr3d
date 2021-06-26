@@ -44,8 +44,8 @@ GameObject::~GameObject()
 
 	delete _includeList;
 
-	delete _pxActor;	
-	delete _grActor;	
+	delete _pxActor;
+	delete _grActor;
 }
 
 void GameObject::SetSyncFrameEvent(bool value)
@@ -85,8 +85,8 @@ void GameObject::Destroy()
 	if (!_destroy)
 	{
 		_destroy = true;
-		
-		for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))	
+
+		for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))
 			(*iter)->OnDestroy(this);
 	}
 }
@@ -158,7 +158,7 @@ D3DXVECTOR3 GameObject::GetContactPoint(const px::Scene::OnContactEvent& contact
 	while (contIter.goNextPair())
 		while (contIter.goNextPatch())
 			while (contIter.goNextPoint())
-			{				
+			{
 				return contIter.getPoint().get();
 			}
 
@@ -180,7 +180,7 @@ bool GameObject::ContainsContactGroup(NxContactStreamIterator& contIter, unsigne
 
 void GameObject::OnContact(const px::Scene::OnContactEvent& contact)
 {
-	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))	
+	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))
 		(*iter)->OnContact(contact);
 }
 
@@ -221,7 +221,7 @@ void GameObject::SendDeath(DamageType damageType, GameObject* target)
 {
 	OnDeath(this, damageType, target);
 
-	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))	
+	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))
 		(*iter)->OnDeath(this, damageType, target);
 }
 
@@ -256,7 +256,7 @@ void GameObject::OnProgress(float deltaTime)
 
 	if (_immortalTime > 0)
 	{
-		_immortalTime -= deltaTime;		
+		_immortalTime -= deltaTime;
 		if (_immortalTime <= 0)
 		{
 			_immortalTime = 0;
@@ -302,7 +302,7 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 			_posSyncLength = 0.0f;
 
 		if (_rotSyncAngle != 0)
-		{		
+		{
 			if (_rotSyncAngle > 0)
 			{
 				_rotSyncAngle = std::max(_rotSyncAngle - 1.3f * D3DX_PI * deltaTime, 0.0f);
@@ -357,7 +357,7 @@ void GameObject::SaveSource(lsl::SWriter* writer)
 	writer->WriteValue("grActor", _grActor);
 	writer->WriteValue("pxActor", _pxActor);
 
-	writer->WriteValue("maxLife", _maxLife);	
+	writer->WriteValue("maxLife", _maxLife);
 
 	//Внешний родитель, сохр. ссылку. Пока нет необходимости в таком функционале
 	//if (GetOwner() != GetParent())
@@ -366,11 +366,11 @@ void GameObject::SaveSource(lsl::SWriter* writer)
 
 void GameObject::LoadSource(lsl::SReader* reader)
 {
-	reader->ReadValue("grActor", _grActor);	
+	reader->ReadValue("grActor", _grActor);
 	reader->ReadValue("pxActor", _pxActor);
 
 	reader->ReadValue("maxLife", _maxLife);
-	
+
 	//reader->ReadRef("parent", false, this, 0);
 }
 
@@ -409,7 +409,7 @@ void GameObject::LoadProxy(lsl::SReader* reader)
 
 	_behaviors->storeSource = true;
 	_behaviors->storeProxy = true;
-	reader->ReadValue("behaviors", _behaviors);	
+	reader->ReadValue("behaviors", _behaviors);
 }
 
 void GameObject::Save(lsl::SWriter* writer)
@@ -424,7 +424,7 @@ void GameObject::Save(lsl::SWriter* writer)
 }
 
 void GameObject::Load(lsl::SReader* reader)
-{	
+{
 	if (storeSource)
 		LoadSource(reader);
 	if (storeProxy)
@@ -507,7 +507,7 @@ void GameObject::ClearListenerList()
 {
 	for (ListenerList::const_iterator iter = _listenerList.begin(); iter != _listenerList.end(); ++iter)
 		(*iter)->Release();
-	
+
 	_listenerList.Clear();
 }
 
@@ -535,7 +535,7 @@ void GameObject::Resc()
 void GameObject::Damage(int senderPlayerId, float value, float newLife, bool death, DamageType damageType)
 {
 	MyEventData data;
-	data.target = this;	
+	data.target = this;
 	data.targetPlayerId = GetMapObj() && GetMapObj()->GetPlayer() ? GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;
 	data.damage = value;
 	data.damageType = damageType;
@@ -544,8 +544,8 @@ void GameObject::Damage(int senderPlayerId, float value, float newLife, bool dea
 
 	if (_liveState != lsDeath)
 	{
-		for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))	
-			(*iter)->OnDamage(this, value, damageType);	
+		for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))
+			(*iter)->OnDamage(this, value, damageType);
 
 		if (senderPlayerId != cUndefPlayerId)
 		{
@@ -598,7 +598,7 @@ void GameObject::LowLife(Behavior* behavior)
 {
 	OnLowLife(this, behavior);
 
-	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))	
+	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))
 		(*iter)->OnLowLife(this, behavior);
 }
 
@@ -656,9 +656,9 @@ void GameObject::SetLogic(Logic* value)
 
 			LogicReleased();
 		}
-		
+
 		_logic = value;
-		
+
 		for (Children::iterator iter = _children.begin(); iter != _children.end(); ++iter)
 			(*iter)->SetLogic(value);
 
@@ -683,7 +683,7 @@ void GameObject::SendEvent(unsigned id, int playerId, MyEventData* data)
 	if (_logic == NULL || GetMapObj() == NULL)
 		return;
 
-	GameMode* game = _logic->GetMap()->GetWorld()->GetGame();		
+	GameMode* game = _logic->GetMap()->GetWorld()->GetGame();
 
 	if (data)
 		data->playerId = playerId;
@@ -855,7 +855,7 @@ void GameObject::SetRotSync(const glm::quat& value)
 	_rotSyncAxis = Vec3GlmToDx(glm::axis(_rotSync));
 	_rotSyncAngle = glm::angle(_rotSync);
 	float angle = abs(_rotSyncAngle);
-	
+
 	if (angle > D3DX_PI)
 	{
 		_rotSyncAngle = (2 * D3DX_PI - angle) * (_rotSyncAngle > 0 ? -1.0f : 1.0f);

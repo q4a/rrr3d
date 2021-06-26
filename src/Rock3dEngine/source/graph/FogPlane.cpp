@@ -20,7 +20,7 @@ FogPlane::FogPlane(): _depthTex(0), _cloudsMat(0), _color(clrWhite), _cloudInten
 FogPlane::~FogPlane()
 {
 	SetCloudsMat(0);
-	SetDepthTex(0);	
+	SetDepthTex(0);
 }
 
 void FogPlane::DoRender(graph::Engine& engine)
@@ -85,7 +85,7 @@ graph::LibMaterial* FogPlane::GetCloudsMat()
 void FogPlane::SetCloudsMat(graph::LibMaterial* value)
 {
 	if (ReplaceRef(_cloudsMat, value))
-		_cloudsMat = value;	
+		_cloudsMat = value;
 }
 
 const D3DXCOLOR& FogPlane::GetColor() const

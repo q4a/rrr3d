@@ -15,7 +15,7 @@ struct SIOTraits
 {
 public:
 	enum ValType {vtUnknown, vtInt, vtUInt, vtFloat, vtDouble, vtBool, vtChar};
-	
+
 	struct ValueDesc
 	{
 	public:
@@ -106,7 +106,7 @@ public:
 				case vtFloat:
 					outVal[i] = static_cast<_Type>(ToFloat()[i]);
 					break;
-				
+
 				case vtDouble:
 					outVal[i] = static_cast<_Type>(ToDouble()[i]);
 					break;
@@ -124,7 +124,7 @@ public:
 		{
 			int* tmp = new int[cnt];
 			CastTo<int>(tmp, cnt);
-			for (int i = 0; i < cnt; ++i)			
+			for (int i = 0; i < cnt; ++i)
 				outVal[i] = static_cast<_Type>(tmp[i]);
 			delete[] tmp;
 		}
@@ -136,7 +136,7 @@ public:
 			//Для булевых значений
 			sstream.setf(std::ios_base::boolalpha);
 
-			if (type == vtChar)		
+			if (type == vtChar)
 				sstream.write(ToChar(), cnt);
 			else
 				for (int i = 0; i < cnt; ++i)
@@ -156,7 +156,7 @@ public:
 					case vtFloat:
 						sstream << ToFloat()[i];
 						break;
-					
+
 					case vtDouble:
 						sstream << ToDouble()[i];
 						break;
@@ -182,7 +182,7 @@ public:
 		//Размер в байтах, если:
 		//=0  - значение value = 0
 		//>0  - массив размером count, причем count - это количество элементов valType, если valType = vtUnknown, то количество байтов
-		int count;		
+		int count;
 	};
 
 	class Value: public ValueDesc
@@ -200,7 +200,7 @@ public:
 		}
 
 		template<class _Type> bool AnalizeStream(const std::string& str)
-		{	
+		{
 			FreeMem();
 			std::stringstream stream(str);
 			//Для булевых значений
@@ -208,7 +208,7 @@ public:
 
 			_Type* pValue = 0;
 			int cnt = 0;
-			
+
 			while (!stream.eof())
 			{
 				pValue = static_cast<_Type*>(realloc(pValue, (++cnt) * sizeof(_Type)));
@@ -220,7 +220,7 @@ public:
 					return false;
 				}
 			}
-			
+
 			value = pValue;
 			count = cnt;
 			return true;
@@ -259,7 +259,7 @@ public:
 				char* newMem = static_cast<char*>(malloc(memSize));
 				memcpy(newMem, desc.value, memSize);
 				value = newMem;
-			}			
+			}
 		}
 
 		void AssignFromString(const std::string& str)
@@ -336,19 +336,19 @@ private:
 	_FixUpNames _fixUpNames;
 
 	bool ResolveFixUp(_FixUpName& inOutName);
-	void FixUp();	
+	void FixUp();
 protected:
 	SReader();
 public:
 	//Операции с узлом
 	//чтение аттрибутов узла
 	virtual const ValueDesc* ReadAttr(const char* name) = 0;
-	
+
 	//Запрос на восстановление ссылки:
 	//path - путь до искомого компонента, включая его имя
 	//collItem - имя элемента коллекции, указывается если ищется
 	//target - вызвавший узел, отправитель запроса. Он же будет получателем
-	//target != 0 - отложенный fixUp; 
+	//target != 0 - отложенный fixUp;
 	//target == 0 - fixUp в месте вызова, fixUpName не должен равняться нулю
 	//fixUpName - информация о восстановлении
 	bool AddFixUp(const std::string& path, const std::string& collItem, Serializable* target, _FixUpName* fixUpName);
@@ -466,7 +466,7 @@ public:
 	void DelAttribute(Attributes::iterator value);
 	void ClearAttributes();
 	void Clear();
-	
+
 	SerialNode* FindChild(const std::string& name);
 	SerialNode* FindNode(const std::string& name);
 
@@ -486,8 +486,8 @@ public:
 	virtual lsl::Component* GetRoot();
 	virtual SerialNode* GetRootNode();
 	SerialNode* GetOwner();
-	Elements& GetElements();	
-	const Attributes& GetAttributes() const;	
+	Elements& GetElements();
+	const Attributes& GetAttributes() const;
 };
 
 class SerialNodes
@@ -497,7 +497,7 @@ private:
 	typedef CollectionTraits _MyBase;
 public:
 	typedef _List::iterator iterator;
-	typedef _List::const_iterator const_iterator;	
+	typedef _List::const_iterator const_iterator;
 private:
 	_List _list;
 	SerialNode* _owner;

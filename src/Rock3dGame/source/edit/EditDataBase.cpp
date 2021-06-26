@@ -58,7 +58,7 @@ IMapObjRecRef RecordNode::FirstRecord()
 void RecordNode::NextRecord(IMapObjRecRef& ref)
 {
 	MapObjRec* rec = ref->GetImpl<MapObjRec>();
-	
+
 	if (++(rec->libIter) != GetInst()->GetRecordList().end())
 	{
 		MapObjRec* newRec = new MapObjRec(static_cast<game::MapObjRec*>(*rec->libIter));
@@ -85,7 +85,7 @@ IRecordNodeRef RecordNode::FirstNode()
 void RecordNode::NextNode(IRecordNodeRef& ref)
 {
 	RecordNode* node = ref->GetImpl<RecordNode>();
-	
+
 	if (++(node->libIter) != GetInst()->GetNodeList().end())
 	{
 		RecordNode* newNode = new RecordNode(*node->libIter);

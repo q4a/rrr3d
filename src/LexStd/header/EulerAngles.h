@@ -1,7 +1,7 @@
 /**** EulerAngles.h - Support for 24 angle schemes ****/
 /* Ken Shoemake, 1993 */
 #ifndef _H_EulerAngles
-#define _H_EulerAngles 
+#define _H_EulerAngles
 
 /**** QuatTypes.h - Basic type declarations ****/
 #ifndef _H_QuatTypes
@@ -11,7 +11,7 @@ typedef struct {float x, y, z, w;} Quat; /* Quaternion */
 enum QuatPart {X, Y, Z, W};
 typedef float HMatrix[4][4]; /* Right-handed, for column vectors */
 typedef Quat EulerAngles;    /* (x,y,z)=ang 1,2,3, w=order code  */
-#endif 
+#endif
 
 /*** Order type constants, constructors, extractors ***/
     /* There are 24 possible conventions, designated by:    */
@@ -26,8 +26,8 @@ typedef Quat EulerAngles;    /* (x,y,z)=ang 1,2,3, w=order code  */
     /* {a,b,c,ord} means Rz(c)Ry(b)Rx(a), where Rz(c)v	    */
     /* rotates v around Z by c radians.			    */
 #define EulFrmS	     0
-#define EulFrmR	     1 
-#define EulFrm(ord)  ((unsigned)(ord)&1)  
+#define EulFrmR	     1
+#define EulFrm(ord)  ((unsigned)(ord)&1)
 #define EulRepNo     0
 #define EulRepYes    1
 #define EulRep(ord)  (((unsigned)(ord)>>1)&1)
@@ -77,4 +77,4 @@ Quat Eul_ToQuat(EulerAngles ea);
 void Eul_ToHMatrix(EulerAngles ea, HMatrix M);
 EulerAngles Eul_FromHMatrix(HMatrix M, int order);
 EulerAngles Eul_FromQuat(Quat q, int order);
-#endif 
+#endif

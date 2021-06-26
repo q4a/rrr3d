@@ -21,7 +21,7 @@ class LogicBehavior: public lsl::Object, public Serializable, protected IProgres
 {
 	friend class LogicBehaviors;
 private:
-	LogicBehaviors* _owner;	
+	LogicBehaviors* _owner;
 protected:
 	void RegProgressEvent();
 	void UnregProgressEvent();
@@ -79,7 +79,7 @@ protected:
 	virtual void DeleteEffect(MapObj* mapObj);
 
 	virtual void OnDestroyEffect(MapObj* sender) {}
-	
+
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
@@ -108,7 +108,7 @@ private:
 		{
 			//альтернатива, некорректна
 			//return (unsigned)actor1 + (unsigned)actor2 < (unsigned)key.actor1 + (unsigned)key.actor2;
-			
+
 			//с учетом перемены мест слагаемое не должно изменяться
 			return actor1 == key.actor1 ? actor2 < key.actor2 : actor1 < key.actor1;
 		}
@@ -124,7 +124,7 @@ private:
 
 		NxShape* shape1;
 		NxShape* shape2;
-		D3DXVECTOR3 point;		
+		D3DXVECTOR3 point;
 
 		MapObj* effect;
 		float time;
@@ -156,7 +156,7 @@ private:
 	ContactMap::iterator ReleaseContact(ContactMap::iterator iter, ContactList::iterator cIter1, ContactList::iterator cIter2, bool death, float deltaTime = 0.0f, float cRelTime = -1.0f);
 	void ReleaseContacts(bool death);
 
-	void RemoveContactByEffect(MapObj* effect);	
+	void RemoveContactByEffect(MapObj* effect);
 protected:
 	virtual void OnDestroyEffect(MapObj* sender);
 	virtual void OnContact(const px::Scene::OnContactEvent& contact1, const px::Scene::OnContactEvent& contact2);
@@ -164,7 +164,7 @@ protected:
 public:
 	PairPxContactEffect(LogicBehaviors* owner);
 	virtual ~PairPxContactEffect();
-	
+
 	void InsertSound(snd::Sound* value);
 	Sounds::iterator RemoveSound(Sounds::const_iterator iter);
 	void RemoveSound(snd::Sound* sound);
@@ -204,7 +204,7 @@ class Logic: public lsl::Object, public Serializable
 public:
 	enum SndCategory {scMusic = 0, scEffects, scVoice, cSndCategoryEnd};
 private:
-	typedef lsl::List<GameObject*> GameObjList;	
+	typedef lsl::List<GameObject*> GameObjList;
 
 	class PxSceneUser: public px::SceneUser
 	{
@@ -232,7 +232,7 @@ private:
 	glm::vec2 _touchCarDamageForce;
 
 	void InitSndCat();
-	void FreeSndCat();	
+	void FreeSndCat();
 protected:
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
@@ -264,7 +264,7 @@ public:
 	snd::Source* CreateSndSource(SndCategory category);
 	snd::Source3d* CreateSndSource3d(SndCategory category);
 	void ReleaseSndSource(snd::Source* source);
-	
+
 	float GetVolume(SndCategory category);
 	void SetVolume(SndCategory category, float value);
 	void AutodetectVolume();
@@ -291,7 +291,7 @@ public:
 	NetGame* GetNet();
 	px::Scene* GetPxScene();
 	snd::Engine* GetAudio();
-	LogicBehaviors& GetBehaviors();	
+	LogicBehaviors& GetBehaviors();
 };
 
 }

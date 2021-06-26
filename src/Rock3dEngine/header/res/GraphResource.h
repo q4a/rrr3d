@@ -56,7 +56,7 @@ struct VertexPN
 	D3DXVECTOR3 norm;
 
 	VertexPN();
-	VertexPN(D3DXVECTOR3 position, D3DXVECTOR3 normal);	
+	VertexPN(D3DXVECTOR3 position, D3DXVECTOR3 normal);
 };
 
 struct VertexPT
@@ -71,10 +71,10 @@ struct VertexPT
 };
 
 struct VertexPNT
-{	
+{
 	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
 
-	D3DVECTOR pos;	
+	D3DVECTOR pos;
 	D3DVECTOR norm;
 	glm::vec2 tex;
 
@@ -108,7 +108,7 @@ public:
 	typedef VertexIter iterator;
 private:
 	unsigned _vertexCount;
-	Format _format;	
+	Format _format;
 	bool _screenRHW;
 
 	unsigned _vertexSize;
@@ -119,7 +119,7 @@ private:
 	void CalcDimensions();
 protected:
 	virtual void DoUpdate();
-public:	
+public:
 	VertexData();
 
 	void Assign(const VertexData& value);
@@ -192,14 +192,14 @@ struct VertexIter
 class IndexData: public lsl::BufferResource
 {
 private:
-	unsigned _indexCount;	
+	unsigned _indexCount;
 	D3DFORMAT _indexFormat;
-public:	
+public:
 	IndexData();
 
 	unsigned GetIndexSize() const;
 	unsigned GetIndexCount() const;
-	void SetIndexCount(unsigned value);	
+	void SetIndexCount(unsigned value);
 	D3DFORMAT GetIndexFormat() const;
 	void SetIndexFormat(D3DFORMAT value);
 	virtual unsigned GetSize() const;
@@ -210,7 +210,7 @@ class TriFaceData: public lsl::BufferResource
 private:
 	unsigned _faceCount;
 	D3DFORMAT _indexFormat;
-public:	
+public:
 	TriFaceData();
 
 	unsigned GetFaceCount() const;
@@ -219,7 +219,7 @@ public:
 	void SetIndexFormat(D3DFORMAT value);
 
 	unsigned GetIndex(unsigned face, unsigned indTri) const;
-	
+
 	virtual unsigned GetSize() const;
 	unsigned GetFaceSize() const;
 };
@@ -328,4 +328,3 @@ template<class _IndexType> TriFace<_IndexType>::TriFace(_IndexType vert1, _Index
 }
 
 #endif
-	

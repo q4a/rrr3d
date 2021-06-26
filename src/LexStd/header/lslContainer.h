@@ -121,7 +121,7 @@ public:
 		dupError,
 		dupIgnore,
 		dupAccept
-	};	
+	};
 
 	typedef _Item Item;
 	typedef typename _Cont::iterator iterator;
@@ -131,7 +131,7 @@ public:
 	typedef typename _Cont::reverse_iterator reverse_iterator;
 	typedef typename _Cont::const_reverse_iterator const_reverse_iterator;
 private:
-	Duplicates _duplicates;	
+	Duplicates _duplicates;
 
 	_Cont _cont;
 	_SafeCont* _safeCont;
@@ -145,12 +145,12 @@ public:
 	Container(Duplicates duplicates = dupError);
 	Container(const _MyClass& ref);
 	~Container();
-	
+
 	void Insert(const _Item& item);
 	void Remove(iterator iter);
 	void Remove(const Position& pos);
-	void Remove(const _Item& item);	
-	void Remove(iterator sIter, iterator eIter);	
+	void Remove(const _Item& item);
+	void Remove(iterator sIter, iterator eIter);
 	void Clear();
 
 	bool CheckDuplicate(const _Item& item) const;
@@ -164,7 +164,7 @@ public:
 	iterator begin();
 	iterator end();
 
-	const_iterator begin() const;	
+	const_iterator begin() const;
 	const_iterator end() const;
 
 	reverse_iterator rbegin();
@@ -176,7 +176,7 @@ public:
 	_Item& front();
 	_Item& back();
 
-	const _Item& front() const;	
+	const _Item& front() const;
 	const _Item& back() const;
 
 	Position First();
@@ -276,7 +276,7 @@ template<class _Item> void Container<_Item>::Remove(iterator sIter, iterator eIt
 template<class _Item> void Container<_Item>::Clear()
 {
 	bool safe = !(_safeCont && !_safeCont->SafeClear());
-	
+
 	if (safe)
 		Remove(begin(), end());
 }
@@ -289,7 +289,7 @@ template<class _Item> bool Container<_Item>::CheckDuplicate(const _Item& item) c
 	switch (_duplicates)
 	{
 	case dupError:
-		LSL_ASSERT(!isFind);		
+		LSL_ASSERT(!isFind);
 		return !isFind;
 
 	case dupIgnore:

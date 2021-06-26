@@ -14,14 +14,14 @@ NetRace::NetRace(const Desc& desc): NetModelRPC(desc), _net(NetGame::I())
 	RegRPC(&NetRace::OnStartMatch);
 	RegRPC(&NetRace::OnExitMatch);
 	RegRPC(&NetRace::OnSetPlanet);
-	RegRPC(&NetRace::OnSetTrack);	
+	RegRPC(&NetRace::OnSetTrack);
 	RegRPC(&NetRace::OnStartRace);
 	RegRPC(&NetRace::OnExitRace);
 	RegRPC(&NetRace::OnRaceGo);
 	RegRPC(&NetRace::OnPause);
 	RegRPC(&NetRace::OnDamage1);
 	RegRPC(&NetRace::OnDamage2);
-	RegRPC(&NetRace::OnSetUpgradeMaxLevel);	
+	RegRPC(&NetRace::OnSetUpgradeMaxLevel);
 	RegRPC(&NetRace::OnSetWeaponMaxLevel);
 	RegRPC(&NetRace::OnSetCurrentDifficulty);
 	RegRPC(&NetRace::OnSetLapsCount);
@@ -38,7 +38,7 @@ NetRace::NetRace(const Desc& desc): NetModelRPC(desc), _net(NetGame::I())
 	_net->RegUser(this);
 	_net->game()->RegUser(this);
 	_maxPlayers = _net->game()->maxPlayers();
-	_maxComputers = _net->game()->maxComputers();	
+	_maxComputers = _net->game()->maxComputers();
 }
 
 NetRace::~NetRace()
@@ -101,7 +101,7 @@ void NetRace::WriteMatch(std::ostream& stream)
 	net::Write(stream, race()->GetTournament().GetCurTrackIndex());
 	net::Write(stream, (int)race()->GetTournament().GetWheater());
 
-	race()->GetProfile()->SaveGame(stream);	
+	race()->GetProfile()->SaveGame(stream);
 }
 
 void NetRace::DoStartMatch(Race::Mode mode, Difficulty difficulty, Race::Profile* profile)
@@ -128,7 +128,7 @@ void NetRace::DoExitMatch()
 	NetGame::NetPlayers players = _net->players();
 	for (NetGame::NetPlayers::const_iterator iter = players.begin(); iter != players.end(); ++iter)
 		this->player()->DeleteModel(*iter, true);
-	
+
 	game()->ExitMatch(_net->isHost());
 }
 
@@ -206,7 +206,7 @@ void NetRace::OnSetTrack(const net::NetMessage& msg, const net::NetCmdHeader& he
 
 void NetRace::OnStartRace(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
 {
-	DoStartRace();	
+	DoStartRace();
 }
 
 void NetRace::OnExitRace(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
@@ -219,7 +219,7 @@ void NetRace::OnExitRace(const net::NetMessage& msg, const net::NetCmdHeader& he
 
 	net::Read(stream, trackIndex);
 	net::Read(stream, wheater);
-	net::Read(stream, count);	
+	net::Read(stream, count);
 
 	for (unsigned i = 0; i < count; ++i)
 	{
@@ -426,8 +426,8 @@ void NetRace::Damage1(NetPlayer* sender, NetPlayer* target, float value, GameObj
 	BYTE death = 0;
 
 	if (netTarget != net::cNetTargetAll)
-	{		
-		gameObj->Damage(sender ? sender->model()->GetId() : cUndefPlayerId, value, damageType);	
+	{
+		gameObj->Damage(sender ? sender->model()->GetId() : cUndefPlayerId, value, damageType);
 		targetLife = gameObj->GetLife();
 		death = gameObj->GetLiveState() == GameObject::lsDeath;
 	}
@@ -451,7 +451,7 @@ void NetRace::Damage2(NetPlayer* sender, MapObj* target, float value, GameObject
 	BYTE death = 0;
 
 	if (netTarget != net::cNetTargetAll)
-	{		
+	{
 		gameObj.Damage(sender ? sender->model()->GetId() : cUndefPlayerId, value, damageType);
 		targetLife = gameObj.GetLife();
 		death = gameObj.GetLiveState() == GameObject::lsDeath;
@@ -520,7 +520,7 @@ void NetRace::OnProcessNetEvent(unsigned id, NetEventData* data)
 
 		case cNetPlayerFinish:
 		{
-			CheckFinish();			
+			CheckFinish();
 			return;
 		}
 	}
@@ -573,7 +573,7 @@ void NetRace::OnStateWrite(const net::NetMessage& msg, std::ostream& stream)
 }
 
 void NetRace::Process(float deltaTime)
-{	
+{
 }
 
 void NetRace::StartMatch(Race::Mode mode, Difficulty difficulty, Race::Profile* profile)
@@ -630,7 +630,7 @@ void NetRace::StartRace()
 	int humanCount = _net->netPlayers().size();
 	int maxComputers = race()->IsCampaign() ? lsl::ClampValue((int)_net->game()->maxComputers(), Race::cComputerCount - 1, Race::cCampaignMaxPlayers - 1) : _net->game()->maxComputers();
 	int maxPlayers = race()->IsCampaign() ? lsl::ClampValue((int)_net->game()->maxPlayers(), humanCount + maxComputers, maxComputers + Race::cCampaignMaxHumans) : _net->game()->maxPlayers();
-	
+
 	int computerCount = std::min(maxComputers, std::max(maxPlayers - humanCount, 0));
 	int curComputerCount = _net->aiPlayers().size();
 
@@ -645,7 +645,7 @@ void NetRace::StartRace()
 			player()->DeleteModel(_net->aiPlayers().back(), false);
 	}
 
-	MakeRPC(net::cNetTargetOthers, &NetRace::OnStartRace);	
+	MakeRPC(net::cNetTargetOthers, &NetRace::OnStartRace);
 
 	DoStartRace();
 }
@@ -683,7 +683,7 @@ void NetRace::ExitRace()
 		net::Write(stream, result.points);
 		net::Write(stream, result.voiceNameDur);
 	}
-	
+
 	CloseRPC();
 }
 
@@ -763,7 +763,7 @@ void NetRace::SetWeaponMaxLevel(int value)
 	if (_net->isHost() && _net->game()->weaponMaxLevel() != value)
 	{
 		_net->game()->weaponMaxLevel(value);
-			
+
 		std::ostream& stream = NewRPC(net::cNetTargetOthers, &NetRace::OnSetWeaponMaxLevel);
 		net::Write(stream, value);
 		CloseRPC();
@@ -797,7 +797,7 @@ void NetRace::SetLapsCount(unsigned value)
 	if (_net->isHost() && _net->game()->lapsCount() != value)
 	{
 		_net->game()->lapsCount(value);
-			
+
 		std::ostream& stream = NewRPC(net::cNetTargetOthers, &NetRace::OnSetLapsCount);
 		net::Write(stream, value);
 		CloseRPC();

@@ -46,10 +46,10 @@ public:
 	unsigned Release() const
 	{
 		LSL_ASSERT(_refCnt > 0);
-		
+
 		return --_refCnt;
 	}
-	
+
 	unsigned GetRefCnt() const
 	{
 		return _refCnt;

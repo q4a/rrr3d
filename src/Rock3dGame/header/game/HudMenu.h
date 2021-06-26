@@ -20,7 +20,7 @@ private:
 		gui::ViewPort3d* view;
 		Slot* slot;
 		gui::Mesh3d* mesh;
-		gui::Label* label;		
+		gui::Label* label;
 	};
 
 	struct Opponent
@@ -29,7 +29,7 @@ private:
 
 		gui::Widget* dummy;
 		gui::PlaneFon* point;
-		gui::Label* label;		
+		gui::Label* label;
 
 		glm::vec2 center;
 		float radius;
@@ -84,7 +84,7 @@ private:
 	gui::Label* _place;
 	gui::ProgressBar* _lifeBar;
 	gui::PlaneFon* _lifeBack;
-	Opponents _opponents;	
+	Opponents _opponents;
 
 	gui::PlaneFon* _guiTimer[5];
 	CarLife _carLifes[cCarLifeEnd];
@@ -107,7 +107,7 @@ private:
 
 	void InsertSlot(WeaponType type, Slot* slot);
 	void ClearSlot(WeaponType type);
-	void ClearSlots();	
+	void ClearSlots();
 	void UpdateSlots();
 
 	void UpdateOpponents();
@@ -117,7 +117,7 @@ private:
 
 	void UpdateState(float deltaTime);
 
-	virtual void OnAdjustLayout(const glm::vec2& vpSize);	
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 public:
 	PlayerStateFrame(Menu* menu, HudMenu* hudMenu, gui::Widget* parent);
@@ -156,7 +156,7 @@ private:
 		float sinAlpha2;
 		float nodeRadius;
 		bool ccw;
-		glm::vec2 edgeNorm;		
+		glm::vec2 edgeNorm;
 	};
 	typedef std::list<Node> Nodes;
 private:
@@ -179,7 +179,7 @@ private:
 	void AlignNode(const Node& src, Node& dest, float cosErr, float sizeErr);
 	void AlignMidNodes(Node& node1, Node& node2, float cosErr, float sizeErr);
 	void BuildPath(WayPath& path, res::VertexData& data);
-	void UpdateMap();	
+	void UpdateMap();
 
 	Trace* GetTrace();
 public:
@@ -202,14 +202,14 @@ public:
 	enum State {msMain = 0, cStateEnd};
 private:
 	Menu* _menu;
-	Player* _player;	
-	State _state;	
+	Player* _player;
+	State _state;
 
 	gui::Dummy* _root;
-	
+
 	MiniMapFrame* _miniMapFrame;
 	PlayerStateFrame* _playerStateFrame;
-	
+
 	void ApplyState(State state);
 protected:
 	virtual void OnDisconnectedPlayer(NetPlayer* sender);
@@ -223,10 +223,10 @@ public:
 	void Show(bool value);
 
 	void OnProgress(float deltaTime);
-	
-	Player* GetPlayer();	
+
+	Player* GetPlayer();
 	gui::Widget* GetRoot();
-	
+
 	State GetState() const;
 	void SetState(State value);
 

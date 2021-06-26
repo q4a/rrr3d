@@ -148,7 +148,7 @@ void CMapEditorView::OnSize(UINT nType, int cx, int cy)
 		r3d::IView::Desc desc;
 		desc.fullscreen = false;
 		desc.resolution = lsl::Point(cx, cy);
-		desc.handle = GetSafeHwnd();		
+		desc.handle = GetSafeHwnd();
 		GetR3DView()->Reset(desc);
 
 		//GetR3DView()->SetCameraAspect(static_cast<float>(cx) / cy);

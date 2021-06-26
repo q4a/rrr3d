@@ -115,7 +115,7 @@ private:
 		const D3DXVECTOR3& GetNextNormLine() const;
 		float GetNextNodeRadius() const;
 
-		D3DXPLANE GetWayPlane() const;		
+		D3DXPLANE GetWayPlane() const;
 	public:
 		Tile(WayNode* node);
 

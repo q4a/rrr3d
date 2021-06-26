@@ -37,7 +37,7 @@ private:
 	MyContactModify* _myContactModify;
 	px::WheelShape* _wheelShape;
 	float _summAngle;
-	MapObjRec* _trailEff;	
+	MapObjRec* _trailEff;
 
 	_Trails* _trails;
 	MapObj* _actTrail;
@@ -52,10 +52,10 @@ private:
 protected:
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
-	
+
 	void CreateWheelShape();
 	void CreateWheelShape(const NxWheelShapeDesc& desc);
-	void DestroyWheelShape();	
+	void DestroyWheelShape();
 public:
 	CarWheel(CarWheels* owner);
 	virtual ~CarWheel();
@@ -84,7 +84,7 @@ public:
 	const D3DXVECTOR3& GetOffset() const;
 	void SetOffset(const D3DXVECTOR3& value);
 
-	bool invertWheel;	
+	bool invertWheel;
 	float _nReac;
 };
 
@@ -155,7 +155,7 @@ private:
 	int _curGear;
 	CarMotorDesc _motor;
 	MoveCarState _moveCar;
-	SteerWheelState _steerWheel;	
+	SteerWheelState _steerWheel;
 	float _kSteerControl;
 	float _steerSpeed;
 	float _steerRot;
@@ -166,7 +166,7 @@ private:
 	float _wheelSteerK;
 	D3DXVECTOR3 _angDamping;
 	bool _gravEngine;
-	bool _clutchImmunity;	
+	bool _clutchImmunity;
 	float _maxSpeed;
 	float _tireSpring;
 	bool _disableColor;
@@ -195,10 +195,10 @@ public:
 	GameCar();
 	virtual ~GameCar();
 
-	virtual void OnPxSync(float alpha);	
+	virtual void OnPxSync(float alpha);
 	virtual void OnProgress(float deltaTime);
 	virtual void OnFixedStep(float deltaTime);
-	
+
 	virtual GameCar* IsCar();
 
 	void LockClutch(float strength);
@@ -289,7 +289,7 @@ public:
 	bool IsWheelsContact() const;
 	bool IsBodyContact() const;
 
-	Wheels& GetWheels();	
+	Wheels& GetWheels();
 
 	//struct Contact
 	//{
@@ -298,7 +298,7 @@ public:
 	//	const NxShape* shape0;
 	//	const NxShape* shape1;
 	//};
-	//typedef lsl::List<Contact> ContactList;	
+	//typedef lsl::List<Contact> ContactList;
 	//ContactList contactList;
 
 	static float GetSpeed(NxActor* nxActor, const D3DXVECTOR3& dir);

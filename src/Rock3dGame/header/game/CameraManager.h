@@ -9,7 +9,7 @@ namespace r3d
 
 namespace game
 {
-	
+
 class CameraManager: public ICameraManager
 {
 	friend class World;
@@ -25,7 +25,7 @@ private:
 		D3DXVECTOR3 _staticVec1;
 		D3DXVECTOR3 _staticVec2;
 		D3DXVECTOR3 _staticVec3;
-		glm::quat _staticQuat1;		
+		glm::quat _staticQuat1;
 
 		bool OnMouseMoveEvent(const MouseMove& mMove);
 		bool OnHandleInput(const InputMessage& msg);
@@ -57,13 +57,13 @@ private:
 	float _flyCurTime;
 	float _flyTime;
 
-	graph::Camera* _camera;	
+	graph::Camera* _camera;
 	Player* _player;
-	GraphManager::LightSrc* _light;	
+	GraphManager::LightSrc* _light;
 	D3DXVECTOR4 _target;
 
 	void OrthoCullOffset();
-	void SyncLight();	
+	void SyncLight();
 public:
 	CameraManager(World* world);
 	~CameraManager();
@@ -89,7 +89,7 @@ public:
 	const D3DXVECTOR3& GetStableAngle();
 	void SetStableAngle(const D3DXVECTOR3& value);
 
-	Style GetStyle() const;	
+	Style GetStyle() const;
 	void ChangeStyle(Style value);
 
 	float GetAspect() const;

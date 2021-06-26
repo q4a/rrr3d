@@ -129,7 +129,7 @@ public:
 	//минимально-поддерживаемое
 	static const glm::vec2 cMinWinSize;
 	//максимально-поддерживаемое
-	static const glm::vec2 cMaxWinSize;	
+	static const glm::vec2 cMaxWinSize;
 
 	static glm::vec2 GetImageSize(gui::Material& material);
 	//масштабирование до newSize с сохранением форматного соотношения Aspect
@@ -139,14 +139,14 @@ public:
 	static glm::vec2 StretchImage(gui::Material& material, const glm::vec2& size, bool keepAspect = true, bool fillRect = false, bool scaleDown = true, bool scaleUp = true);
 	static glm::quat GetIsoRot();
 private:
-	GameMode* _game;	
+	GameMode* _game;
 	MyControlEvent* _controlEvent;
 	MyDisconnectEvent* _disconnectEvent;
 	MySyncModeEvent* _syncModeEvent;
 	MySteamErrorEvent* _steamErrorEvent;
 	MySteamSavingEvent* _steamSavingEvent;
 	snd::Source* _audioSource;
-	SoundSheme* _soundShemes[cSoundShemeTypeEnd];	
+	SoundSheme* _soundShemes[cSoundShemeTypeEnd];
 	NavElementsList _navElementsList;
 
 	State _state;
@@ -154,7 +154,7 @@ private:
 	bool _optionsVisible;
 	bool _startOptionsVisible;
 
-	gui::PlaneFon* _screenFon;	
+	gui::PlaneFon* _screenFon;
 	gui::PlaneFon* _cursor;
 
 	n::MainMenu* _mainMenu2;
@@ -172,10 +172,10 @@ private:
 	n::MusicDialog* _musicDlg;
 	n::UserChat* _userChat;
 	float _weaponTime;
-	float _messageTime;	
+	float _messageTime;
 	float _musicTime;
 
-	void SetScreenFon(bool init);	
+	void SetScreenFon(bool init);
 	void SetMainMenu2(bool init);
 	void SetRaceMenu2(bool init);
 	void SetHudMenu(bool init);
@@ -312,13 +312,13 @@ public:
 
 	//race
 	void StartRace();
-	void ExitRace();	
+	void ExitRace();
 
 	void RegUser(IGameUser* user);
 	void UnregUser(IGameUser* user);
 	void SendEvent(unsigned id, EventData* data = NULL);
 	virtual void OnProcessEvent(unsigned id, EventData* data);
-	
+
 	gui::Dummy* CreateDummy(gui::Widget* parent, gui::Widget::Event* guiEvent, SoundShemeType soundSheme = cSoundShemeTypeEnd);
 	gui::PlaneFon* CreatePlane(gui::Widget* parent, gui::Widget::Event* guiEven, graph::Tex2DResource* image, bool imageSize, const glm::vec2& size = IdentityVec2, gui::Material::Blending blend = gui::Material::bmOpaque, SoundShemeType soundSheme = cSoundShemeTypeEnd);
 	gui::PlaneFon* CreatePlane(gui::Widget* parent, gui::Widget::Event* guiEven, const std::string& image, bool imageSize, const glm::vec2& size = IdentityVec2, gui::Material::Blending blend = gui::Material::bmOpaque, SoundShemeType soundSheme = cSoundShemeTypeEnd);
@@ -326,7 +326,7 @@ public:
 	gui::Button* CreateSpaceArrowButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2);
 	//
 	gui::Button* Menu::CreateMenuButton(const lsl::string& name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, gui::Button::Style style, const D3DXCOLOR& textColor, SoundShemeType soundSheme);
-	gui::Button* CreateMenuButton(StringValue name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2, gui::Button::Style style = gui::Button::bsSimple, const D3DXCOLOR& textColor = clrWhite, SoundShemeType soundSheme = ssButton1);	
+	gui::Button* CreateMenuButton(StringValue name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2, gui::Button::Style style = gui::Button::bsSimple, const D3DXCOLOR& textColor = clrWhite, SoundShemeType soundSheme = ssButton1);
 	gui::Button* CreateMenuButton(const std::string& name, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2, SoundShemeType soundSheme = ssButton1);
 	gui::Button* CreateMenuButton(StringValue name, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2, SoundShemeType soundSheme = ssButton1);
 	gui::Button* CreateMenuButton2(StringValue name, gui::Widget* parent, gui::Widget::Event* guiEvent);
@@ -338,7 +338,7 @@ public:
 	gui::TrackBar* CreateTrackBar(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size);
 	gui::ListBox* CreateListBox(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = glm::vec2(200.0f, 600.0f), const glm::vec2& itemSize = glm::vec2(75.0f, 75.0f), const glm::vec2& itemSpace = glm::vec2(10.0f, 10.0f));
 	gui::ProgressBar* CreateBar(gui::Widget* parent, gui::Widget::Event* guiEvent, const std::string& front, const std::string& back, gui::ProgressBar::Style style = gui::ProgressBar::psHorizontal);
-	gui::ChargeBar* CreateChargeBar(gui::Widget* parent, gui::Widget::Event* guiEvent, unsigned maxCharge, unsigned curCharge);	
+	gui::ChargeBar* CreateChargeBar(gui::Widget* parent, gui::Widget::Event* guiEvent, unsigned maxCharge, unsigned curCharge);
 	gui::ColorList* CreateColorList(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size);
 	gui::ViewPort3d* CreateItemBox(gui::Widget* parent, gui::Widget::Event* guiEvent, graph::IndexedVBMesh* mesh, graph::Tex2DResource* meshTex);
 	gui::Button* CreateCloseButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2);
@@ -349,7 +349,7 @@ public:
 	gui::ViewPort3d* CreateViewPort3d(gui::Widget* parent, gui::Widget::Event* guiEvent, const std::string& fon, gui::ViewPort3d::Style style = gui::ViewPort3d::msStatic, bool isoRot = true, bool fonSize = true, const glm::vec2& size = IdentityVec2, SoundShemeType soundSheme = cSoundShemeTypeEnd);
 	gui::Mesh3d* CreateMesh3d(gui::ViewPort3d* parent, graph::IndexedVBMesh* mesh, graph::Tex2DResource* meshTex, int meshId = -1);
 	gui::ViewPort3d* CreateMesh3dBox(gui::Widget* parent, gui::Widget::Event* guiEvent, graph::IndexedVBMesh* mesh, graph::Tex2DResource* meshTex, gui::ViewPort3d::Style style = gui::ViewPort3d::msStatic, SoundShemeType soundSheme = cSoundShemeTypeEnd);
-	gui::Plane3d* CreatePlane3d(gui::ViewPort3d* parent, const std::string& fon, const glm::vec2& size);	
+	gui::Plane3d* CreatePlane3d(gui::ViewPort3d* parent, const std::string& fon, const glm::vec2& size);
 
 	void ReleaseWidget(gui::Widget* widget);
 
@@ -384,7 +384,7 @@ public:
 
 	float GetVolume(Logic::SndCategory cat);
 	void SetVolume(Logic::SndCategory cat, float value);
-	
+
 	graph::Tex2DResource* GetTexture(const std::string& name, bool ifNullThrow = true);
 	graph::IndexedVBMesh* GetMesh(const std::string& name);
 	graph::TextFont* GetFont(const std::string& name);
@@ -395,7 +395,7 @@ public:
 	bool HasString(StringValue value);
 	bool HasString(const std::string& value);
 	lsl::string FormatCurrency(int val, lsl::string unit = "");
-	
+
 	glm::vec2 GetAspectSize();
 
 	const graph::DisplayModes& GetDisplayModes();
@@ -411,7 +411,7 @@ public:
 	void SetDisableVideo(bool value);
 
 	void SaveGameOpt();
-	
+
 	const lsl::string& GetLanguage() const;
 	void SetLanguage(const lsl::string& value);
 	const Language* GetLanguageParam() const;
@@ -431,7 +431,7 @@ public:
 	void PlayMovie(const std::string& name);
 	bool IsMoviePlaying() const;
 
-	void RegNavElements(gui::Widget* key, const NavElements& value);	
+	void RegNavElements(gui::Widget* key, const NavElements& value);
 	void UnregNavElements(gui::Widget* key);
 	void SetNavElements(gui::Widget* key, bool reg, NavElement elements[], int count);
 	NavElementsList::iterator GetNavElements(gui::Widget* key);

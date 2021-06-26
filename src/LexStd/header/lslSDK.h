@@ -22,19 +22,19 @@ public:
 		cFlagEnd
 	};
 	typedef lsl::Bitset<cFlagEnd> Flags;
-	
+
 	class UserWork: public virtual lsl::Object
 	{
 	private:
 		std::string _name;
 
 		volatile bool _execution;
-		volatile bool _terminating;		
+		volatile bool _terminating;
 	public:
 		UserWork(const std::string& name = ""): _name(name), _execution(false), _terminating(false) {}
-		
+
 		virtual void Execute(Object* arg) = 0;
-		
+
 		const std::string& GetName() const
 		{
 			return _name;
@@ -76,11 +76,11 @@ public:
 	virtual unsigned GetMinThreads() = 0;
 	virtual void SetMinThreads(unsigned value) = 0;
 
-	virtual unsigned GetMaxThreads() = 0;	
+	virtual unsigned GetMaxThreads() = 0;
 	virtual void SetMaxThreads(unsigned value) = 0;
 };
 
-class LockedObj: public lsl::Object 
+class LockedObj: public lsl::Object
 {
 	friend class SDK;
 private:
@@ -116,7 +116,7 @@ private:
 
 		__int64 time;
 		bool updated;
-	};	
+	};
 	typedef std::stack<lsl::string> SampleStack;
 public:
 	typedef std::map<lsl::string, SampleData> Samples;
@@ -147,7 +147,7 @@ protected:
 public:
 	//
 	virtual ThreadPool* GetThreadPool() = 0;
-	//Многопоточная блокировка некоторой секции. Только один поток может получить доступ к ней	
+	//Многопоточная блокировка некоторой секции. Только один поток может получить доступ к ней
 	virtual LockedObj* CreateLockedObj() = 0;
 	virtual void DestroyLockedObj(LockedObj* value) = 0;
 	virtual void Lock(LockedObj* obj) = 0;

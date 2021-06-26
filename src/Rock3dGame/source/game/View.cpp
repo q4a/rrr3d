@@ -8,7 +8,7 @@ namespace r3d
 
 namespace game
 {
-	
+
 View::View(World* world, const Desc& desc): _world(world), _desc(desc)
 {
 }
@@ -46,7 +46,7 @@ void View::Reset(const Desc& desc2)
 		if (_world->GetGraph()->FindNearMode(resolution, mode))
 			_desc.resolution = resolution = lsl::Point(mode.width, mode.height);
 	}
-	
+
 	if (_world->GetEdit() == NULL)
 	{
 		SetWindowLong(_desc.handle, GWL_STYLE, _desc.fullscreen ? WS_POPUP | WS_VISIBLE : WS_OVERLAPPEDWINDOW | WS_VISIBLE);
@@ -90,11 +90,11 @@ bool View::OnMouseMoveEvent(const Point& coord, bool shift, bool ctrl)
 	_mMove.projCoord = ViewToProj(_mMove.coord);
 
 	_mMove.click = _mClick;
-	_world->GetCamera()->ScreenToRay(coord, _mMove.scrRayPos, _mMove.scrRayVec);	
+	_world->GetCamera()->ScreenToRay(coord, _mMove.scrRayPos, _mMove.scrRayVec);
 
 	return _world->OnMouseMoveEvent(_mMove);
 }
-	
+
 bool View::OnKeyEvent(unsigned key, KeyState state, bool repeat)
 {
 	if (!_world->GetGraph())
@@ -141,7 +141,7 @@ lsl::Point View::ScreenToView(const lsl::Point& point)
 {
 	lsl::Point wndRc = GetWndSize();
 	const D3DPRESENT_PARAMETERS& params = _world->GetGraph()->GetEngine().GetParams();
-	glm::vec2 wndSize = glm::vec2(static_cast<float>(wndRc.x), static_cast<float>(wndRc.y));	
+	glm::vec2 wndSize = glm::vec2(static_cast<float>(wndRc.x), static_cast<float>(wndRc.y));
 
 	glm::vec2 viewSize = GetVPSize();
 
@@ -180,7 +180,7 @@ void View::SetWindowSize(HWND handle, const lsl::Point& size, bool fullScreen)
 	if (!fullScreen)
 	{
 		WINDOWINFO wndInfo;
-		GetWindowInfo(handle, &wndInfo);		
+		GetWindowInfo(handle, &wndInfo);
 
 		RECT rect;
 		rect.left = rect.top = 0;

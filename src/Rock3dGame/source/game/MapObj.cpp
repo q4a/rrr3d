@@ -142,14 +142,14 @@ void MapObj::InitClassList()
 	if (!initClassList)
 	{
 		initClassList = true;
-			
+
 		classList.Add<GameObject>(gotGameObj);
-		
+
 		classList.Add<GameCar>(gotGameCar);
 		classList.Add<RockCar>(gotRockCar);
 		classList.Add<AutoProj>(gotProj);
 		classList.Add<Weapon>(gotWeapon);
-		classList.Add<DestrObj>(gotDestrObj);		
+		classList.Add<DestrObj>(gotDestrObj);
 	}
 }
 
@@ -270,7 +270,7 @@ MapObj::ClassList* MapObj::GetOrCreateClassList()
 	}
 	return _classList;
 }
-	
+
 void MapObj::SetClassList(ClassList* value)
 {
 	if (ReplaceRef(_classList, value))
@@ -317,7 +317,7 @@ const MapObj::GameObj& MapObj::GetGameObj() const
 MapObj::GameObj& MapObj::SetGameObj(Type type)
 {
 	SetType(type);
-	
+
 	return *_gameObj;
 }
 
@@ -351,7 +351,7 @@ void MapObj::SetRecord(MapObjRec* value)
 	if (ReplaceRef(_record, value))
 	{
 		_record = value;
-		
+
 		if (_record)
 			try
 			{
@@ -435,7 +435,7 @@ void MapObjects::InsertItem(const Value& value)
 
 	value->GetGameObj().storeName = false;
 	value->GetGameObj().SetOwner(_root);
-	value->SetParent(_owner);	
+	value->SetParent(_owner);
 
 	SpecialListChanged(value, false);
 }
@@ -453,7 +453,7 @@ void MapObjects::SaveItem(lsl::SWriter* writer, iterator pItem, const std::strin
 {
 	lsl::SWriter* child = writer->NewDummyNode((*pItem)->GetName().c_str());
 	//Переходим напрямую к методам сохранения поскольку mapObj является промежуточным звеном и только делегирует вызовы
-	(*pItem)->Save(child);	
+	(*pItem)->Save(child);
 }
 
 void MapObjects::LoadItem(lsl::SReader* reader)

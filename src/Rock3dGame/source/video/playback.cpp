@@ -14,7 +14,7 @@
 #include "video\video.h"
 
 DShowPlayer::DShowPlayer(HWND hwnd, UINT windowMsg):
-	m_state(STATE_NO_GRAPH),	
+	m_state(STATE_NO_GRAPH),
 	m_hwnd(hwnd),
 	m_windowMsg(windowMsg),
 	m_pGraph(NULL),
@@ -145,9 +145,9 @@ HRESULT DShowPlayer::Stop()
 
 // EVR/VMR functionality
 
-BOOL DShowPlayer::HasVideo() const 
-{ 
-	return (m_pVideo && m_pVideo->HasVideo()); 
+BOOL DShowPlayer::HasVideo() const
+{
+	return (m_pVideo && m_pVideo->HasVideo());
 }
 
 // Sets the destination rectangle for the video.
@@ -208,13 +208,13 @@ void DShowPlayer::SetFullScreen(bool value)
 
 // Graph building
 
-// Create a new filter graph. 
+// Create a new filter graph.
 HRESULT DShowPlayer::InitializeGraph()
 {
 	TearDownGraph();
 
 	// Create the Filter Graph Manager.
-	HRESULT hr = CoCreateInstance(CLSID_FilterGraph, NULL, 
+	HRESULT hr = CoCreateInstance(CLSID_FilterGraph, NULL,
 		CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_pGraph));
 	if (FAILED(hr))
 	{
@@ -305,7 +305,7 @@ HRESULT DShowPlayer::CreateVideoRenderer()
 }
 
 
-// Render the streams from a source filter. 
+// Render the streams from a source filter.
 
 HRESULT DShowPlayer::RenderStreams(IBaseFilter *pSource)
 {
@@ -328,7 +328,7 @@ HRESULT DShowPlayer::RenderStreams(IBaseFilter *pSource)
 	}
 
 	// Add the DSound Renderer to the graph.
-	hr = AddFilterByCLSID(m_pGraph, CLSID_DSoundRender, 
+	hr = AddFilterByCLSID(m_pGraph, CLSID_DSoundRender,
 		&pAudioRenderer, L"Audio Renderer");
 	if (FAILED(hr))
 	{
@@ -345,8 +345,8 @@ HRESULT DShowPlayer::RenderStreams(IBaseFilter *pSource)
 	// Loop through all the pins
 	IPin *pPin;
 	while (S_OK == pEnum->Next(1, &pPin, NULL))
-	{           
-		// Try to render this pin. 
+	{
+		// Try to render this pin.
 		// It's OK if we fail some pins, if at least one pin renders.
 		HRESULT hr2 = pGraph2->RenderEx(pPin, AM_RENDEREX_RENDERTOEXISTINGRENDERERS, NULL);
 
@@ -372,7 +372,7 @@ done:
 	SafeRelease(&pAudioRenderer);
 	SafeRelease(&pGraph2);
 
-	// If we succeeded to this point, make sure we rendered at least one 
+	// If we succeeded to this point, make sure we rendered at least one
 	// stream.
 	if (SUCCEEDED(hr))
 	{
