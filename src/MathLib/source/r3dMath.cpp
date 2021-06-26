@@ -46,9 +46,8 @@ AABB2::AABB2(const glm::vec2& mMin, const glm::vec2& mMax): min(mMin), max(mMax)
 }
 
 //void AABB2::Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut)
-void AABB2::Transform(const AABB2 &aabb, const glm::mat4 &mIn, AABB2 &rOut)
+void AABB2::Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut)
 {
-	auto m = Matrix4DxToGlm(mIn); // remove after glm::mat4 replacement
 	glm::vec2 oldMin = aabb.min;
 	glm::vec2 oldMax = aabb.max;
 	rOut.min = Vec2TransformCoord(oldMin, m);
@@ -161,7 +160,7 @@ inline void AABB::Transform(const AABB& aabb, const glm::mat4& m, AABB& rOut)
 {
 	D3DXVECTOR3 oldMin = aabb.min;
 	D3DXVECTOR3 oldMax = aabb.max;
-	D3DXVec3TransformCoord(&rOut.min, &oldMin, &m);
+	Vec3TransformCoord(oldMin, m, rOut.min);
 	rOut.max = rOut.min;
 
 	rOut.Include(Vec3TransformCoord(D3DXVECTOR3(oldMin[0], oldMin[1], oldMax[2]), m));
@@ -406,7 +405,7 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, cons
 	testBB.Transform(localToStart);
 
 	D3DXVECTOR3 localVec;
-	D3DXVec3TransformNormal(&localVec, &vec, &startTolocal);
+	Vec3TransformNormal(vec, startTolocal, localVec);
 
 	bool res = false;
 	for (int i = 0; i < 8; ++i)
@@ -433,8 +432,8 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, cons
 	D3DXVECTOR3 centerFar;
 	if (start.LineCastIntersect(start.GetCenter(), vec, centerNear, centerFar))
 	{
-		D3DXVec3TransformCoord(&centerNear, &centerNear, &startTolocal);
-		D3DXVec3TransformCoord(&centerFar, &centerFar, &startTolocal);
+		Vec3TransformCoord(centerNear, startTolocal, centerNear);
+		Vec3TransformCoord(centerFar, startTolocal, centerFar);
 		float tNear;
 		float tFar;
 		//Ближняя проекция
@@ -671,7 +670,7 @@ BoundBox::BoundBox(const AABB& aabb)
 void BoundBox::Transform(const BoundBox& bb, const glm::mat4& m, BoundBox& rOut)
 {
 	for (int i = 0; i < 8; ++i)
-		D3DXVec3TransformCoord(&rOut.v[i], &bb.v[i], &m);
+		Vec3TransformCoord(bb.v[i], m, rOut.v[i]);
 }
 
 void BoundBox::SetPlan(const int numPlan, const float valeur)
@@ -703,52 +702,52 @@ void Frustum::CalculateCorners(Corners& pPoints, const glm::mat4& invViewProj)
 	for (float fy = -1.0f; fy <= 1.0f; fy += 2.0f)
 	for (float fz = 0.0f; fz <= 1.0f; fz += 1.0f, ++i)
 	{
-		D3DXVec3TransformCoord(&pPoints[i], &D3DXVECTOR3(fx, fy, fz), &invViewProj);
+		Vec3TransformCoord(D3DXVECTOR3(fx, fy, fz), invViewProj, pPoints[i]);
 	}
 }
 
 void Frustum::Refresh(const glm::mat4& viewProjMat)
 {
 	//extract left plane
-	left.a = viewProjMat._14 - viewProjMat._12;
-	left.b = viewProjMat._24 - viewProjMat._22;
-	left.c = viewProjMat._34 - viewProjMat._32;
-	left.d = viewProjMat._44 - viewProjMat._42;
+	left.a = viewProjMat[3].x - viewProjMat[1].x;
+	left.b = viewProjMat[3].y - viewProjMat[1].y;
+	left.c = viewProjMat[3].z - viewProjMat[1].z;
+	left.d = viewProjMat[3].w - viewProjMat[1].w;
 	D3DXPlaneNormalize(&left, &left);
 
 	//extract top plane
-	top.a = viewProjMat._14 + viewProjMat._11;
-	top.b = viewProjMat._24 + viewProjMat._21;
-	top.c = viewProjMat._34 + viewProjMat._31;
-	top.d = viewProjMat._44 + viewProjMat._41;
+	top.a = viewProjMat[3].x + viewProjMat[0].x;
+	top.b = viewProjMat[3].y + viewProjMat[0].y;
+	top.c = viewProjMat[3].z + viewProjMat[0].z;
+	top.d = viewProjMat[3].w + viewProjMat[0].w;
 	D3DXPlaneNormalize(&top, &top);
 
 	//extract right plane
-	right.a = viewProjMat._14 + viewProjMat._12;
-	right.b = viewProjMat._24 + viewProjMat._22;
-	right.c = viewProjMat._34 + viewProjMat._32;
-	right.d = viewProjMat._44 + viewProjMat._42;
+	right.a = viewProjMat[3].x + viewProjMat[1].x;
+	right.b = viewProjMat[3].y + viewProjMat[1].y;
+	right.c = viewProjMat[3].z + viewProjMat[1].z;
+	right.d = viewProjMat[3].w + viewProjMat[1].w;
 	D3DXPlaneNormalize(&right, &right);
 
 	//extract bottom plane
-	bottom.a = viewProjMat._14 - viewProjMat._11;
-	bottom.b = viewProjMat._24 - viewProjMat._21;
-	bottom.c = viewProjMat._34 - viewProjMat._31;
-	bottom.d = viewProjMat._44 - viewProjMat._41;
+	bottom.a = viewProjMat[3].x - viewProjMat[0].x;
+	bottom.b = viewProjMat[3].y - viewProjMat[0].y;
+	bottom.c = viewProjMat[3].z - viewProjMat[0].z;
+	bottom.d = viewProjMat[3].w - viewProjMat[0].w;
 	D3DXPlaneNormalize(&bottom, &bottom);
 
 	//extract near plane
-	pNear.a = viewProjMat._13;
-	pNear.b = viewProjMat._23;
-	pNear.c = viewProjMat._33;
-	pNear.d = viewProjMat._43;
+	pNear.a = viewProjMat[2].x;
+	pNear.b = viewProjMat[2].y;
+	pNear.c = viewProjMat[2].z;
+	pNear.d = viewProjMat[2].w;
 	D3DXPlaneNormalize(&pNear, &pNear);
 
 	//extract far plane
-	pFar.a = viewProjMat._14 - viewProjMat._13;
-	pFar.b = viewProjMat._24 - viewProjMat._23;
-	pFar.c = viewProjMat._34 - viewProjMat._33;
-	pFar.d = viewProjMat._44 - viewProjMat._43;
+	pFar.a = viewProjMat[3].x - viewProjMat[2].x;
+	pFar.b = viewProjMat[3].y - viewProjMat[2].y;
+	pFar.c = viewProjMat[3].z - viewProjMat[2].z;
+	pFar.d = viewProjMat[3].w - viewProjMat[2].w;
 	D3DXPlaneNormalize(&pFar, &pFar);
 }
 
