@@ -43,7 +43,7 @@ typedef std::map<unsigned, NetState> NetStates;
 
 class INetChannelUser
 {
-public:	
+public:
 	virtual void OnReceiveState(const NetMessage& msg, const NetStateHeader& header, const streambuf::const_buffers_type& bufs, const Endpoint& remoteEndpoint) {}
 	virtual void OnSend(std::size_t numBytes) {}
 	virtual void OnIOFailed(const error_code& error) {}
@@ -73,8 +73,8 @@ private:
 	bool _dataIsWrite;
 	streambuf _outputData;
 	NetStates _outputStates;
-	
-	void DataRead(bool fromOutput);	
+
+	void DataRead(bool fromOutput);
 	void DataWrite();
 	void DataSend(const Endpoint& endpoint, const streambuf::const_buffers_type& bufs);
 	void DataSend(const EndpointList& endpointList, const streambuf::const_buffers_type& bufs);
@@ -98,13 +98,13 @@ public:
 
 	void SendState(const EndpointList& endpointList, const NetStateHeader& header, const streambuf::const_buffers_type& bufs);
 	void SendState(const Endpoint& endpoint, const NetStateHeader& header, const streambuf::const_buffers_type& bufs);
-	
+
 	void StartReceiveResponseOut();
 	void StopReceiveResponseOut();
 
 	void Process(unsigned time);
-	void Dispatch();	
-	
+	void Dispatch();
+
 	unsigned ping() const;
 	unsigned pingTime() const;
 	unsigned bytesSend() const;

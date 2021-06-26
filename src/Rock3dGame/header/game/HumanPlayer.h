@@ -14,7 +14,7 @@ private:
 	class Control: public ControlEvent
 	{
 	private:
-		HumanPlayer* _owner;		
+		HumanPlayer* _owner;
 
 		bool _accelDown;
 		bool _backDown;
@@ -30,7 +30,7 @@ public:
 	enum WeaponType {stHyper = 0, stMine, stWeapon1, stWeapon2, stWeapon3, stWeapon4, cWeaponTypeEnd};
 private:
 	Player* _player;
-	Control* _control;	
+	Control* _control;
 	int _curWeapon;
 public:
 	HumanPlayer(Player* player);
@@ -39,8 +39,8 @@ public:
 	void Shot(WeaponType weapon, MapObj* target);
 	void Shot(WeaponType weapon);
 	void ShotCurrent();
-	void Shot(MapObj* target);	
-	void Shot();	
+	void Shot(MapObj* target);
+	void Shot();
 
 	void ResetCar();
 

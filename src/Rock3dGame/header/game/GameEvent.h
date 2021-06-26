@@ -120,7 +120,7 @@ enum GameEvent {
 	cSteamUpdateLobbyMembers,
 	cSteamLobbyGameCreated,
 	cSteamHostCreated,
-	cSteamHostDisconnected,	
+	cSteamHostDisconnected,
 	cSteamHostList,
 	cSteamAuthEnded,
 
@@ -149,7 +149,7 @@ static const std::string cEventNameMap[cEventEnd] = {
 
 	//player
 	"playerOverboard",
-	"playerDeathMine",	
+	"playerDeathMine",
 	"playerMoveInverse",
 	"playerLostControl",
 	"playerLeadFinish",
@@ -187,7 +187,7 @@ static const std::string cEventNameMap[cEventEnd] = {
 	"steamUpdateLobbyMembers",
 	"steamLobbyGameCreated",
 	"steamHostCreated",
-	"steamHostDisconnected",	
+	"steamHostDisconnected",
 	"steamHostList",
 	"steamAuthEnded"
 

@@ -15,7 +15,7 @@ class NetConnection;
 
 class INetConnectionUser
 {
-public:	
+public:
 	virtual void OnConnected(NetConnection* sender) {}
 	virtual void OnDisconnected(NetConnection* sender) {}
 	virtual void OnConnectionFailed(NetConnection* sender, const error_code& error) {}
@@ -23,7 +23,7 @@ public:
 };
 
 class NetConnection: public INetConnection, INetConnectionImplUser
-{	
+{
 private:
 	NetService* _net;
 	unsigned _id;
@@ -36,7 +36,7 @@ private:
 	unsigned _bytesReceived;
 
 	bool _cmdIsWrite;
-	bool _cmdIsRead;	
+	bool _cmdIsRead;
 	NetDatagramHeader _inputDatagram;
 	NetCmdHeader _inputCmdHeader;
 	streambuf _inputCmd;
@@ -44,7 +44,7 @@ private:
 
 	//async model
 	//same for rpc
-	
+
 	void CmdRead();
 	void CmdWrite();
 	//template<typename MutableBufferSequence> bool CmdReceive(const MutableBufferSequence& bufs, bool (NetConnection::*handler)(unsigned numBytes, bool success));
@@ -66,7 +66,7 @@ public:
 	bool Connect(const Endpoint& endpoint);
 	void Close();
 	bool IsOpen() const;
-	
+
 	void SendCmd(const streambuf::const_buffers_type& bufs, unsigned size);
 	void SendCmd(const NetCmdHeader& header, const streambuf::const_buffers_type& bufs);
 

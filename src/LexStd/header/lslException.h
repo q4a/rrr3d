@@ -73,7 +73,7 @@ template<class _Value> void AppLog::Write(const _Value& value)
 
 	std::ostream* stream = CreateStream();
 
-	*stream << value;	
+	*stream << value;
 
 #ifdef _CONSOLE
 	std::cout << value;

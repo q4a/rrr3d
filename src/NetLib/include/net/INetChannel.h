@@ -5,7 +5,7 @@ namespace net
 
 class INetChannel
 {
-public:	
+public:
 	virtual unsigned ping() const = 0;
 	virtual unsigned pingTime() const = 0;
 	virtual unsigned bytesSend() const = 0;

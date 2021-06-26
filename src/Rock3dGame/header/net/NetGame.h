@@ -11,7 +11,7 @@ namespace game
 {
 
 class NetGame: net::INetServiceUser
-{	
+{
 	friend NetPlayer;
 	friend NetRace;
 private:
@@ -34,14 +34,14 @@ private:
 	int _port;
 	bool _started;
 	bool _isHost;
-	bool _isClient;	
+	bool _isClient;
 
 	void RegPlayer(NetPlayer* player);
 	void UnregPlayer(NetPlayer* player);
 
 	void RegRace(NetRace* race);
 	void UnregRace(NetRace* race);
-protected:	
+protected:
 	virtual bool OnConnected(net::INetConnection* sender);
 	virtual void OnDisconnected(net::INetConnection* sender);
 	virtual void OnConnectionFailed(net::INetConnection* sender, unsigned error);
@@ -68,9 +68,9 @@ public:
 	int port() const;
 	bool isStarted() const;
 	bool isHost() const;
-	bool isClient() const;	
+	bool isClient() const;
 
-	void Process(unsigned time, float deltaTime);	
+	void Process(unsigned time, float deltaTime);
 	void SendEvent(unsigned id, NetEventData* data = NULL);
 
 	void DisconnectPlayer(NetPlayer* player);
@@ -86,7 +86,7 @@ public:
 	const NetPlayers& players() const;
 	const NetPlayers& netPlayers() const;
 	const NetPlayers& netOpponents() const;
-	const NetPlayers& aiPlayers() const;	
+	const NetPlayers& aiPlayers() const;
 
 	GameMode* game();
 	NetRace* race();

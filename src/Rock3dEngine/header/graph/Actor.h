@@ -18,7 +18,7 @@ class Actor: public IActor, public SceneNode
 	friend GraphManager;
 	friend class ActorManager;
 private:
-	typedef SceneNode _MyBase;	
+	typedef SceneNode _MyBase;
 private:
 	GraphManager* _graph;
 	GraphDesc _graphDesc;
@@ -43,7 +43,7 @@ public:
 	GraphManager* GetGraph();
 
 	const GraphDesc& GetGraphDesc() const;
-	void SetGraph(GraphManager* graph, const GraphDesc& desc);	
+	void SetGraph(GraphManager* graph, const GraphDesc& desc);
 
 	//planar refl plane(norm(x, y, z), d(w))
 	//if not null then it is a track

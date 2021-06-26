@@ -47,7 +47,7 @@ protected:
 	virtual BOOL OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult);
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 
-	virtual void OnChangeActiveTab(bool active);	
+	virtual void OnChangeActiveTab(bool active);
 	virtual bool OnMapViewMouseClickEvent(lsl::MouseKey key, lsl::KeyState state, const lsl::Point& coord) {return false;}
 	virtual bool OnMapViewMouseMoveEvent(const lsl::Point& coord) {return false;}
 	virtual bool OnMapViewKeyEvent(unsigned key, lsl::KeyState state) {return false;}

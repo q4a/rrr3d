@@ -24,7 +24,7 @@ void Actor::DoRender(graph::Engine& engine)
 {
 	engine.GetContext().SetLightShadow(_graphDesc.props.test(gpShadowApp));
 	engine.GetContext().SetTexDiffK(_texDiffK);
-	
+
 	if (_graphDesc.lighting == glNone)
 		engine.GetContext().SetRenderState(graph::rsLighting, false);
 
@@ -41,7 +41,7 @@ void Actor::Save(lsl::SWriter* writer)
 	_MyBase::Save(writer);
 
 	writer->WriteRef("graph", _graph);
-	
+
 	writer->WriteValue("graphLighting", cLightingStr[_graphDesc.lighting]);
 
 	std::stringstream stream;

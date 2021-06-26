@@ -20,7 +20,7 @@ END_MESSAGE_MAP()
 
 static UINT indicators[] =
 {
-	ID_SEPARATOR,           
+	ID_SEPARATOR,
 	ID_INDICATOR_CAPS,
 	ID_INDICATOR_NUM,
 	ID_INDICATOR_SCRL,
@@ -85,7 +85,7 @@ BOOL CMainFrame::CreateDockingWindows()
 	//Create Trace View
 	CString strTraceName;
 	bNameValid = strTraceName.LoadString(IDS_TRACEVIEW);
-	ASSERT(bNameValid);		
+	ASSERT(bNameValid);
 	if (!_traceView.Create(strTraceName, this, CRect(0, 0, 200, 200), TRUE, ID_VIEW_TRACEVIEW, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI))
 	{
 		TRACE0("Failed to create Trace View window\n");
@@ -144,7 +144,7 @@ void CMainFrame::ViewSetFocus(CViewPane* view)
 	if (_activeViewPane != view)
 	{
 		_activeViewPane = view;
-		
+
 		for (ViewPaneList::iterator iter = _viewPaneList.begin(); iter != _viewPaneList.end(); ++iter)
 			(*iter)->OnChangeActiveTab(*iter == view);
 	}
@@ -251,7 +251,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		bNameValid = toolBarName.LoadString(IDS_EDITMAP);
 		ASSERT(bNameValid);
 		_editMapToolBar.SetWindowText(toolBarName);
-		
+
 		CString strCustomize;
 		bNameValid = strCustomize.LoadString(IDS_TOOLBAR_CUSTOMIZE);
 		ASSERT(bNameValid);
@@ -371,7 +371,7 @@ void CMainFrame::OnEditMapToolBarUpdateCommandUI(CCmdUI* pCmdUI)
 
 	case IDTB_EDITMAP_SCALE:
 		check = GetMapDoc()->GetSelMode() == r3d::ISceneControl::smScale;
-		break;	
+		break;
 
 	case IDTB_EDITMAP_SHOWBB:
 		check = theApp.GetWorld()->GetEdit()->GetMap()->GetShowBBox();

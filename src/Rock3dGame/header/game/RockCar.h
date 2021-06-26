@@ -69,7 +69,7 @@ public:
 		{
 			return _mines;
 		}
-	};	
+	};
 private:
 	Weapons* _weapons;
 protected:
@@ -81,7 +81,7 @@ protected:
 public:
 	RockCar();
 	virtual ~RockCar();
-	
+
 	virtual void OnProgress(float deltaTime);
 
 	Weapons& GetWeapons();

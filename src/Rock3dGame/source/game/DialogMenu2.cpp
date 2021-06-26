@@ -29,12 +29,12 @@ AcceptDialog::AcceptDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, par
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter};
 	D3DXCOLOR colorLabels[cLabelEnd] = {color1};
 
-	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame1.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame1.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_menuBg};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
-	_labels[mlInfo]->SetWordWrap(true);	
+	_labels[mlInfo]->SetWordWrap(true);
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
 	{
@@ -78,7 +78,7 @@ void AcceptDialog::OnShow(bool value)
 }
 
 void AcceptDialog::OnAdjustLayout(const glm::vec2& vpSize)
-{	
+{
 }
 
 void AcceptDialog::OnInvalidate()
@@ -102,7 +102,7 @@ bool AcceptDialog::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 			guiEvent->OnClick(root(), mClick);
 
 		_data = NULL;
-		
+
 		return true;
 	}
 
@@ -130,12 +130,12 @@ void AcceptDialog::Show(const std::string& message, const std::string& yesText, 
 	glm::vec2 infoPos = glm::vec2(0.0f, -25.0f);
 	glm::vec2 posYes = glm::vec2(-70.0f, 32.0f);
 	glm::vec2 posNo = glm::vec2(70.0f, 32.0f);
-	glm::vec2 sizeYesNo = _menuItems[miNo]->GetFon()->GetSampler().GetSize();	
+	glm::vec2 sizeYesNo = _menuItems[miNo]->GetFon()->GetSampler().GetSize();
 	lsl::string infoFont = "Item";
 	if (maxMode)
 	{
 		bgSize = bgSize * 1.7f;
-		infoSize = infoSize * 1.7f;		
+		infoSize = infoSize * 1.7f;
 		sizeYesNo.x = sizeYesNo.x * 1.5f;
 		posYes = glm::vec2(-100.0f, 72.0f);
 		posNo = glm::vec2(100.0f, 72.0f);
@@ -215,16 +215,16 @@ WeaponDialog::WeaponDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, par
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter};
 	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color2, color2, color2};
 
-	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame3.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame3.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_menuBg, _menuBg, _menuBg, _menuBg};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
-	_labels[mlInfo]->SetWordWrap(true);	
+	_labels[mlInfo]->SetWordWrap(true);
 }
 
 WeaponDialog::~WeaponDialog()
-{	
+{
 	for (int i = 0; i < cLabelEnd; ++i)
 		menu()->ReleaseWidget(_labels[i]);
 
@@ -289,10 +289,10 @@ InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter};
 	D3DXCOLOR colorLabels[cLabelEnd] = {color2, color1};
 
-	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame4.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame4.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_menuBg, _menuBg};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 	_labels[mlInfo]->SetWordWrap(true);
 
@@ -303,11 +303,11 @@ InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 }
 
 InfoDialog::~InfoDialog()
-{	
+{
 	menu()->UnregNavElements(_menuItems[miOk]);
 
 	_data = NULL;
-	lsl::SafeRelease(_guiEvent);	
+	lsl::SafeRelease(_guiEvent);
 
 	for (int i = 0; i < cLabelEnd; ++i)
 		menu()->ReleaseWidget(_labels[i]);
@@ -366,9 +366,9 @@ bool InfoDialog::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 void InfoDialog::Show(const std::string& titleText, const std::string& message, const std::string& okText, const glm::vec2& pos, gui::Widget::Anchor align, gui::Widget::Event* guiEvent, Object* data, bool okButton)
 {
 	_labels[mlTitle]->SetText(titleText);
-	_labels[mlInfo]->SetText(message);	
+	_labels[mlInfo]->SetText(message);
 	_menuItems[miOk]->SetText(okText);
-	_menuItems[miOk]->SetVisible(okButton);	
+	_menuItems[miOk]->SetVisible(okButton);
 
 	ShowModal(true, cTopmostModal);
 
@@ -403,10 +403,10 @@ MusicDialog::MusicDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, paren
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter};
 	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color2};
 
-	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame2.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame2.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_menuBg, _menuBg};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 	{
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 		_labels[i]->SetAlign(gui::Widget::waLeft);
@@ -416,7 +416,7 @@ MusicDialog::MusicDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, paren
 }
 
 MusicDialog::~MusicDialog()
-{	
+{
 	for (int i = 0; i < cLabelEnd; ++i)
 		menu()->ReleaseWidget(_labels[i]);
 
@@ -448,7 +448,7 @@ void MusicDialog::Show(const std::string& title, const std::string& message)
 {
 	_labels[mlTitle]->SetText(title);
 	_labels[mlInfo]->SetText(message);
-	
+
 	MenuFrame::Show(true);
 	root()->SetFlag(gui::Widget::wfTopmost, true);
 	root()->SetTopmostLevel(MenuFrame::cTopmostPopup);
@@ -475,7 +475,7 @@ InfoMenu::InfoMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msLoadi
 	_loadingFrame = _menu->CreatePlane(_root, 0, "GUI\\loadingFrame.dds", true);
 	_loadingFrame->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 	_loadingFrame->SetFlag(gui::Widget::wfTopmost, true);
-	_loadingFrame->SetTopmostLevel(MenuFrame::cTopmostLoading);	
+	_loadingFrame->SetTopmostLevel(MenuFrame::cTopmostLoading);
 
 	ApplyState(_state);
 }
@@ -521,7 +521,7 @@ void InfoMenu::SetState(State value)
 }
 
 UserChat::UserChat(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _inputPos(NullVec2), _linesPos(NullVec2), _inputSize(300.0f, 300.0f), _linesSize(300.0f, 300.0f)
-{	
+{
 	_input = AddLine(L"", L"", clrWhite, false);
 	_input.name->SetVisible(false);
 }
@@ -540,27 +540,27 @@ UserChat::Line UserChat::AddLine(const lsl::stringW& name, const lsl::stringW& t
 
 	line.name = menu()->CreateLabel("", root(), "Small", NullVec2, right ? gui::Text::haRight : gui::Text::haLeft, right ? gui::Text::vaTop : gui::Text::vaBottom, nameColor);
 	line.name->SetTextW(name);
-	line.name->SetAlign(right ? gui::Widget::waRightTop : gui::Widget::waLeftBottom);	
+	line.name->SetAlign(right ? gui::Widget::waRightTop : gui::Widget::waLeftBottom);
 
 	line.text = menu()->CreateLabel("", root(), "Small", NullVec2, right ? gui::Text::haRight : gui::Text::haLeft, right ? gui::Text::vaTop : gui::Text::vaBottom, clrWhite);
 	line.text->SetTextW(text);
 	line.text->SetAlign(right ? gui::Widget::waRightTop : gui::Widget::waLeftBottom);
 	line.text->SetParent(line.name);
-	line.text->SetWordWrap(true);	
+	line.text->SetWordWrap(true);
 
 	return line;
 }
 
 void UserChat::OnShow(bool value)
-{	
+{
 }
 
 void UserChat::OnAdjustLayout(const glm::vec2& vpSize)
-{	
+{
 	AABB2 nameAABB = _input.name->GetTextAABB();
 
 	_input.name->SetPos(_inputPos);
-	_input.text->SetPos(glm::vec2(nameAABB.GetSize().x, 0.0f));	
+	_input.text->SetPos(glm::vec2(nameAABB.GetSize().x, 0.0f));
 	_input.text->SetSize(_inputSize - glm::vec2(_input.text->GetPos().x, 0.0f));
 }
 

@@ -16,14 +16,14 @@ void R3DMeshFile::RegistredFile()
 
 
 
-void R3DMeshFile::LoadFromStream(Resource& outData, std::istream& stream)	
+void R3DMeshFile::LoadFromStream(Resource& outData, std::istream& stream)
 {
 	int version;
 	bool leftCoordSys;
-	bool storedTexCoord;	
+	bool storedTexCoord;
 	int numVerts;
 	int numFaces;
-	int numMaterials;	
+	int numMaterials;
 
 	//header
 	stream.read((char*)&version, sizeof(int));
@@ -35,7 +35,7 @@ void R3DMeshFile::LoadFromStream(Resource& outData, std::istream& stream)
 	vertFormat.set(VertexData::vtTex0, storedTexCoord);
 
 	//Vertex buffer
-	stream.read((char*)&numVerts, sizeof(int));	
+	stream.read((char*)&numVerts, sizeof(int));
 	outData.vb.SetFormat(vertFormat);
 	outData.vb.SetVertexCount(numVerts);
 	outData.vb.Init();
@@ -45,7 +45,7 @@ void R3DMeshFile::LoadFromStream(Resource& outData, std::istream& stream)
 	//Index buffer
 	stream.read((char*)&numFaces, sizeof(int));
 	outData.fb.SetIndexFormat(D3DFMT_INDEX32);
-	outData.fb.SetFaceCount(numFaces); 	
+	outData.fb.SetFaceCount(numFaces);
 	outData.fb.Init();
 	stream.read(outData.fb.GetData(), outData.fb.GetSize());
 	outData.fb.Update();

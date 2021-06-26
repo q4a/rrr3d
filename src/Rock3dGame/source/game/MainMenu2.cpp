@@ -13,7 +13,7 @@ namespace n
 {
 
 GameModeFrame::GameModeFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
-{	
+{
 }
 
 void GameModeFrame::OnShow(bool value)
@@ -33,13 +33,13 @@ bool GameModeFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	{
 		_mainMenu->PushState(MainMenu::msTournament);
 		return true;
-	}	
+	}
 
 	if (sender == _mainMenu->GetItem(miSkirmish))
 	{
 		_mainMenu->PushState(MainMenu::msDifficulty);
 		return true;
-	}	
+	}
 
 	if (sender == _mainMenu->GetItem(miBack))
 	{
@@ -175,7 +175,7 @@ void NetBrowserFrame::UpdateGrid()
 {
 	_gridScroll = 0;
 	glm::vec2 cellSize = NullVec2;
-	unsigned count = net()->netService().endpointList().size();		
+	unsigned count = net()->netService().endpointList().size();
 	gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin();
 	lsl::Vector<Menu::NavElement> navElements;
 	lsl::Vector<gui::Widget*> gridItems;
@@ -187,7 +187,7 @@ void NetBrowserFrame::UpdateGrid()
 		gui::Button* item = iter != _grid->GetChildren().end() ? static_cast<gui::Button*>(*iter) : NULL;
 		if (item == NULL)
 		{
-			item = _mainMenu->CreateMenuButton(svNull, _grid, this);			
+			item = _mainMenu->CreateMenuButton(svNull, _grid, this);
 			iter = _grid->GetChildren().end();
 		}
 		else
@@ -204,7 +204,7 @@ void NetBrowserFrame::UpdateGrid()
 		{
 			Menu::NavElement navElement = {gridItems[index - 1], {NULL, NULL, gridItems[index - 2], gridItems[index]}, {cVirtualKeyEnd, cVirtualKeyEnd}};
 			navElements.push_back(navElement);
-		}	
+		}
 
 		if (i + 1 == count)
 		{
@@ -219,14 +219,14 @@ void NetBrowserFrame::UpdateGrid()
 		}
 	}
 
-	gui::Widget::Children children = _grid->GetChildren();	
+	gui::Widget::Children children = _grid->GetChildren();
 	while (children.size() > count)
-	{		
+	{
 		menu()->ReleaseWidget(children.back());
 		children.erase(--children.end());
 	}
 
-	_grid->cellSize(cellSize);	
+	_grid->cellSize(cellSize);
 
 	int itemCount = gridItems.size();
 	{
@@ -295,7 +295,7 @@ void NetBrowserFrame::StartWaiting(bool start, StringValue hint)
 	_grid->SetVisible(!start);
 
 	_info->SetVisible(hint != svNull);
-	_info->SetText(GetString(hint));	
+	_info->SetText(GetString(hint));
 }
 
 void NetBrowserFrame::Refresh()
@@ -310,7 +310,7 @@ void NetBrowserFrame::OnShow(bool value)
 
 	if (value)
 	{
-		_mainMenu->SetItems(menuItemsStr, cMenuItemEnd, false, this);		
+		_mainMenu->SetItems(menuItemsStr, cMenuItemEnd, false, this);
 
 		StartWaiting(false);
 		net()->RegUser(this);
@@ -339,7 +339,7 @@ void NetBrowserFrame::OnAdjustLayout(const glm::vec2& vpSize)
 bool NetBrowserFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 {
 	//if (sender == _mainMenu->GetItem(miRefresh))
-	//{		
+	//{
 	//	return true;
 	//}
 
@@ -365,7 +365,7 @@ bool NetBrowserFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 	}
 
 	unsigned i = 0;
-	for (gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin(); iter != _grid->GetChildren().end(); ++iter, ++i)	
+	for (gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin(); iter != _grid->GetChildren().end(); ++iter, ++i)
 	{
 		gui::Button* item = static_cast<gui::Button*>(*iter);
 
@@ -396,7 +396,7 @@ void NetBrowserFrame::OnPingComplete()
 
 
 NetIPAddressFrame::NetIPAddressFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
-{	
+{
 	//D3DXCOLOR color1(0xffafafaf);
 	D3DXCOLOR color1 = Menu::cTextColor;
 
@@ -408,14 +408,14 @@ NetIPAddressFrame::NetIPAddressFrame(Menu* menu, MainMenu* mainMenu, gui::Widget
 
 	gui::Widget* labelsParent[cLabelEnd] = {root(), root()};
 
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 	_labels[mlInfo]->SetWordWrap(true);
 }
 
 NetIPAddressFrame::~NetIPAddressFrame()
 {
-	menu()->GetControl()->RemoveEvent(this);	
+	menu()->GetControl()->RemoveEvent(this);
 
 	for (int i = 0; i < cLabelEnd; ++i)
 		menu()->ReleaseWidget(_labels[i]);
@@ -459,11 +459,11 @@ void NetIPAddressFrame::OnShow(bool value)
 		PushLine("");
 		StartWaiting(false);
 
-		menu()->GetControl()->InsertEvent(this);		
+		menu()->GetControl()->InsertEvent(this);
 	}
 	else
 	{
-		menu()->GetControl()->RemoveEvent(this);		
+		menu()->GetControl()->RemoveEvent(this);
 	}
 }
 
@@ -492,7 +492,7 @@ bool NetIPAddressFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mCli
 
 	if (sender == _mainMenu->GetItem(miBack))
 	{
-		net()->Close();		
+		net()->Close();
 
 		_mainMenu->BackState();
 		return true;
@@ -581,7 +581,7 @@ LobbyFrame::~LobbyFrame()
 void LobbyFrame::UpdateGrid()
 {
 	_gridScroll = 0;
-	glm::vec2 cellSize = NullVec2;	
+	glm::vec2 cellSize = NullVec2;
 	unsigned count = steamService()->lobby()->GetLobbyMembers().size();
 	gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin();
 	lsl::Vector<Menu::NavElement> navElements;
@@ -595,7 +595,7 @@ void LobbyFrame::UpdateGrid()
 		gui::Button* item = iter != _grid->GetChildren().end() ? static_cast<gui::Button*>(*iter) : NULL;
 		if (item == NULL)
 		{
-			item = _mainMenu->CreateMenuButton(svNull, _grid, this);			
+			item = _mainMenu->CreateMenuButton(svNull, _grid, this);
 			iter = _grid->GetChildren().end();
 		}
 		else
@@ -612,7 +612,7 @@ void LobbyFrame::UpdateGrid()
 		{
 			Menu::NavElement navElement = {gridItems[index - 1], {NULL, NULL, gridItems[index - 2], gridItems[index]}, {cVirtualKeyEnd, cVirtualKeyEnd}};
 			navElements.push_back(navElement);
-		}	
+		}
 
 		if (i + 1 == count)
 		{
@@ -630,14 +630,14 @@ void LobbyFrame::UpdateGrid()
 			focusedItem = item;
 	}
 
-	gui::Widget::Children children = _grid->GetChildren();	
+	gui::Widget::Children children = _grid->GetChildren();
 	while (children.size() > count)
-	{		
+	{
 		menu()->ReleaseWidget(children.back());
 		children.erase(--children.end());
 	}
 
-	_grid->cellSize(cellSize);	
+	_grid->cellSize(cellSize);
 
 	int itemCount = gridItems.size();
 	{
@@ -709,7 +709,7 @@ void LobbyFrame::StartWaiting(bool start, StringValue hint)
 	_grid->SetVisible(!start);
 
 	_info->SetVisible(hint != svNull);
-	_info->SetText(GetString(hint));	
+	_info->SetText(GetString(hint));
 }
 
 void LobbyFrame::Refresh()
@@ -724,7 +724,7 @@ void LobbyFrame::OnShow(bool value)
 
 	if (value)
 	{
-		_mainMenu->SetItems(menuItemsStr, cMenuItemEnd, false, this);		
+		_mainMenu->SetItems(menuItemsStr, cMenuItemEnd, false, this);
 
 		menu()->RegUser(this);
 
@@ -784,7 +784,7 @@ bool LobbyFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	}
 
 	unsigned i = 0;
-	for (gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin(); iter != _grid->GetChildren().end(); ++iter, ++i)	
+	for (gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin(); iter != _grid->GetChildren().end(); ++iter, ++i)
 	{
 		gui::Button* item = static_cast<gui::Button*>(*iter);
 
@@ -861,7 +861,7 @@ void MatchmakingFrame::UpdateGrid()
 		gui::Button* item = iter != _grid->GetChildren().end() ? static_cast<gui::Button*>(*iter) : NULL;
 		if (item == NULL)
 		{
-			item = _mainMenu->CreateMenuButton(svNull, _grid, this);			
+			item = _mainMenu->CreateMenuButton(svNull, _grid, this);
 			iter = _grid->GetChildren().end();
 		}
 		else
@@ -878,7 +878,7 @@ void MatchmakingFrame::UpdateGrid()
 		{
 			Menu::NavElement navElement = {gridItems[index - 1], {NULL, NULL, gridItems[index - 2], gridItems[index]}, {cVirtualKeyEnd, cVirtualKeyEnd}};
 			navElements.push_back(navElement);
-		}	
+		}
 
 		if (i + 1 == count)
 		{
@@ -896,14 +896,14 @@ void MatchmakingFrame::UpdateGrid()
 			focusedItem = item;
 	}
 
-	gui::Widget::Children children = _grid->GetChildren();	
+	gui::Widget::Children children = _grid->GetChildren();
 	while (children.size() > count)
-	{		
+	{
 		menu()->ReleaseWidget(children.back());
 		children.erase(--children.end());
 	}
 
-	_grid->cellSize(cellSize);	
+	_grid->cellSize(cellSize);
 
 	int itemCount = gridItems.size();
 	{
@@ -975,7 +975,7 @@ void MatchmakingFrame::StartWaiting(bool start, StringValue hint)
 	_grid->SetVisible(!start);
 
 	_info->SetVisible(hint != svNull);
-	_info->SetText(GetString(hint));	
+	_info->SetText(GetString(hint));
 }
 
 void MatchmakingFrame::Refresh()
@@ -990,7 +990,7 @@ void MatchmakingFrame::OnShow(bool value)
 
 	if (value)
 	{
-		_mainMenu->SetItems(menuItemsStr, cMenuItemEnd, false, this);		
+		_mainMenu->SetItems(menuItemsStr, cMenuItemEnd, false, this);
 
 		StartWaiting(false);
 		menu()->RegUser(this);
@@ -1037,7 +1037,7 @@ bool MatchmakingFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClic
 	}
 
 	unsigned i = 0;
-	for (gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin(); iter != _grid->GetChildren().end(); ++iter, ++i)	
+	for (gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin(); iter != _grid->GetChildren().end(); ++iter, ++i)
 	{
 		gui::Button* item = static_cast<gui::Button*>(*iter);
 
@@ -1130,7 +1130,7 @@ void SteamBrowserFrame::UpdateGrid()
 		gui::Button* item = iter != _grid->GetChildren().end() ? static_cast<gui::Button*>(*iter) : NULL;
 		if (item == NULL)
 		{
-			item = _mainMenu->CreateMenuButton(svNull, _grid, this);			
+			item = _mainMenu->CreateMenuButton(svNull, _grid, this);
 			iter = _grid->GetChildren().end();
 		}
 		else
@@ -1147,7 +1147,7 @@ void SteamBrowserFrame::UpdateGrid()
 		{
 			Menu::NavElement navElement = {gridItems[index - 1], {NULL, NULL, gridItems[index - 2], gridItems[index]}, {cVirtualKeyEnd, cVirtualKeyEnd}};
 			navElements.push_back(navElement);
-		}	
+		}
 
 		if (i + 1 == count)
 		{
@@ -1165,14 +1165,14 @@ void SteamBrowserFrame::UpdateGrid()
 			focusedItem = item;
 	}
 
-	gui::Widget::Children children = _grid->GetChildren();	
+	gui::Widget::Children children = _grid->GetChildren();
 	while (children.size() > count)
-	{		
+	{
 		menu()->ReleaseWidget(children.back());
 		children.erase(--children.end());
 	}
 
-	_grid->cellSize(cellSize);	
+	_grid->cellSize(cellSize);
 
 	int itemCount = gridItems.size();
 	{
@@ -1244,7 +1244,7 @@ void SteamBrowserFrame::StartWaiting(bool start, StringValue hint)
 	_grid->SetVisible(!start);
 
 	_info->SetVisible(hint != svNull);
-	_info->SetText(GetString(hint));	
+	_info->SetText(GetString(hint));
 }
 
 void SteamBrowserFrame::Refresh()
@@ -1263,7 +1263,7 @@ void SteamBrowserFrame::OnShow(bool value)
 
 	if (value)
 	{
-		_mainMenu->SetItems(menuItemsStr, cMenuItemEnd, false, this);		
+		_mainMenu->SetItems(menuItemsStr, cMenuItemEnd, false, this);
 
 		StartWaiting(false);
 		menu()->RegUser(this);
@@ -1314,7 +1314,7 @@ bool SteamBrowserFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mCli
 	}
 
 	unsigned i = 0;
-	for (gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin(); iter != _grid->GetChildren().end(); ++iter, ++i)	
+	for (gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin(); iter != _grid->GetChildren().end(); ++iter, ++i)
 	{
 		gui::Button* item = static_cast<gui::Button*>(*iter);
 
@@ -1373,15 +1373,15 @@ void SteamBrowserFrame::OnDisconnectedPlayer(NetPlayer* sender)
 
 
 ServerTypeFrame::ServerTypeFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
-{	
+{
 }
 
 void ServerTypeFrame::OnShow(bool value)
 {
-	const lsl::string menuItemsStr[cMenuItemEnd] = {"svLocalServer", 
+	const lsl::string menuItemsStr[cMenuItemEnd] = {"svLocalServer",
 #ifdef STEAM_SERVICE
 	#ifndef _RETAIL
-		"svSteamServer", 
+		"svSteamServer",
 	#endif
 		"svSteamLobby",
 #endif
@@ -1400,7 +1400,7 @@ bool ServerTypeFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 		_mainMenu->SetServerType(MainMenu::stLocal);
 		_mainMenu->PushState(MainMenu::msGameMode);
 		return true;
-	}	
+	}
 
 #ifdef STEAM_SERVICE
 	#ifndef _RETAIL
@@ -1415,7 +1415,7 @@ bool ServerTypeFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 	if (sender == _mainMenu->GetItem(miLobby))
 	{
 		_mainMenu->SetServerType(MainMenu::stLobby);
-		_mainMenu->PushState(MainMenu::msGameMode);		
+		_mainMenu->PushState(MainMenu::msGameMode);
 		return true;
 	}
 #endif
@@ -1433,12 +1433,12 @@ bool ServerTypeFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 
 
 ClientTypeFrame::ClientTypeFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
-{	
+{
 }
 
 void ClientTypeFrame::OnShow(bool value)
 {
-	const lsl::string menuItemsStr[cMenuItemEnd] = {"svConnectLan", "svConnectIP", 
+	const lsl::string menuItemsStr[cMenuItemEnd] = {"svConnectLan", "svConnectIP",
 #ifdef STEAM_SERVICE
 	#ifndef _RETAIL
 		"svConnectSteam", "svConnectSteamLan",
@@ -1460,14 +1460,14 @@ bool ClientTypeFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 		_mainMenu->SetServerType(MainMenu::cServerTypeEnd);
 		_mainMenu->PushState(MainMenu::msNetBrowser);
 		return true;
-	}	
+	}
 
 	if (sender == _mainMenu->GetItem(miConnectIP))
 	{
 		_mainMenu->SetServerType(MainMenu::cServerTypeEnd);
 		_mainMenu->PushState(MainMenu::msNetIPAdress);
 		return true;
-	}	
+	}
 
 #ifdef STEAM_SERVICE
 	#ifndef _RETAIL
@@ -1519,7 +1519,7 @@ NetworkFrame::NetworkFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent):
 
 	gui::Widget* labelsParent[cLabelEnd] = {root()};
 
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 }
 
@@ -1574,13 +1574,13 @@ bool NetworkFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 		menu()->FinalizateNet();
 		_mainMenu->BackState();
 		return true;
-	}	
+	}
 
 	return false;
 }
 
 void NetworkFrame::OnAdjustLayout(const glm::vec2& vpSize)
-{	
+{
 	_labels[mlIPAdress]->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2 + 75.0f));
 }
 
@@ -1653,7 +1653,7 @@ CreditsFrame::CreditsFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent):
 {
 	_label = menu->CreateLabel(svCredits, root(), "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop, D3DXCOLOR(0xffff8a70));
 	_label->SetAlign(gui::Widget::waTop);
-	_label->SetFlag(gui::Widget::wfClientClip, true);	
+	_label->SetFlag(gui::Widget::wfClientClip, true);
 	_label->SetSize(350.0f, 265.0f);
 }
 
@@ -1777,7 +1777,7 @@ void ProfileFrame::UpdateGrid()
 	gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin();
 	bool netGame = _mainMenu->ContainsState(MainMenu::msNetwork);
 	lsl::Vector<Menu::NavElement> navElements;
-	lsl::Vector<std::pair<gui::Widget*, gui::Widget*>> gridItems;	
+	lsl::Vector<std::pair<gui::Widget*, gui::Widget*>> gridItems;
 
 	for (unsigned i = 0; i < count; ++i)
 	{
@@ -1788,7 +1788,7 @@ void ProfileFrame::UpdateGrid()
 			gui::Button* item = iter != _grid->GetChildren().end() ? static_cast<gui::Button*>(*iter) : NULL;
 			if (item == NULL)
 			{
-				item = _mainMenu->CreateMenuButton(svNull, _grid, this);			
+				item = _mainMenu->CreateMenuButton(svNull, _grid, this);
 				iter = _grid->GetChildren().end();
 			}
 			else
@@ -1813,7 +1813,7 @@ void ProfileFrame::UpdateGrid()
 				Menu::NavElement navElement2 = {gridItems[index - 1].second, {gridItems[index - 1].first, gridItems[index - 1].first, gridItems[index - 2].second, gridItems[index].second}, {cVirtualKeyEnd, cVirtualKeyEnd}};
 				navElements.push_back(navElement2);
 			}
-		}	
+		}
 
 		if (i + 1 == count)
 		{
@@ -1836,9 +1836,9 @@ void ProfileFrame::UpdateGrid()
 		}
 	}
 
-	gui::Widget::Children children = _grid->GetChildren();	
+	gui::Widget::Children children = _grid->GetChildren();
 	while (children.size() > itemCount)
-	{		
+	{
 		menu()->ReleaseWidget(children.back());
 		children.erase(--children.end());
 	}
@@ -1874,7 +1874,7 @@ void ProfileFrame::OnShow(bool value)
 }
 
 void ProfileFrame::OnInvalidate()
-{	
+{
 }
 
 void ProfileFrame::OnAdjustLayout(const glm::vec2& vpSize)
@@ -1977,13 +1977,13 @@ bool MainFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	{
 		_mainMenu->PushState(MainMenu::msGameMode);
 		return true;
-	}	
+	}
 
 	if (sender == _mainMenu->GetItem(miNetwork))
 	{
 		_mainMenu->PushState(MainMenu::msNetwork);
 		return true;
-	}	
+	}
 
 	if (sender == _mainMenu->GetItem(miOptions))
 	{
@@ -2037,12 +2037,12 @@ MainMenu::MainMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msMain)
 	_mainFrame = new MainFrame(menu, this, _root);
 	_gameMode = new GameModeFrame(menu, this, _root);
 	_network = new NetworkFrame(menu, this, _root);
-	_netBrowser = new NetBrowserFrame(menu, this, _root);		
-	_profile = new ProfileFrame(menu, this, _root);	
+	_netBrowser = new NetBrowserFrame(menu, this, _root);
+	_profile = new ProfileFrame(menu, this, _root);
 	_tournament = new TournamentFrame(menu, this, _root);
-	_credits = new CreditsFrame(menu, this, _root);	
-	_difficultyFrame = new DifficultyFrame(menu, this, _root);	
-	_netIPAddressFrame = new NetIPAddressFrame(menu, this, _root);	
+	_credits = new CreditsFrame(menu, this, _root);
+	_difficultyFrame = new DifficultyFrame(menu, this, _root);
+	_netIPAddressFrame = new NetIPAddressFrame(menu, this, _root);
 	_serverTypeFrame = new ServerTypeFrame(menu, this, _root);
 	_clientTypeFrame = new ClientTypeFrame(menu, this, _root);
 
@@ -2074,13 +2074,13 @@ MainMenu::~MainMenu()
 	delete _lobbyFrame;
 	delete _matchmakingFrame;
 #endif
-	
+
 	delete _clientTypeFrame;
-	delete _serverTypeFrame;	
+	delete _serverTypeFrame;
 	delete _netIPAddressFrame;
 	delete _difficultyFrame;
 	delete _credits;
-	delete _tournament;	
+	delete _tournament;
 	delete _profile;
 	delete _netBrowser;
 	delete _network;
@@ -2102,15 +2102,15 @@ void MainMenu::ApplyState(State state)
 
 	_mainFrame->Show(state == msMain);
 	_gameMode->Show(state == msGameMode);
-	_network->Show(state == msNetwork);	
-	_netBrowser->Show(state == msNetBrowser);	
-	_profile->Show(state == msLoad);	
+	_network->Show(state == msNetwork);
+	_netBrowser->Show(state == msNetBrowser);
+	_profile->Show(state == msLoad);
 	_tournament->Show(state == msTournament);
-	_credits->Show(state == msCredits);	
-	_difficultyFrame->Show(state == msDifficulty);	
-	_netIPAddressFrame->Show(state == msNetIPAdress);	
+	_credits->Show(state == msCredits);
+	_difficultyFrame->Show(state == msDifficulty);
+	_netIPAddressFrame->Show(state == msNetIPAdress);
 	_serverTypeFrame->Show(state == msServerType);
-	_clientTypeFrame->Show(state == msClientType);	
+	_clientTypeFrame->Show(state == msClientType);
 
 #ifdef STEAM_SERVICE
 	_matchmakingFrame->Show(state == msMatchmaking);
@@ -2204,7 +2204,7 @@ void MainMenu::OnProcessEvent(unsigned id, EventData* data)
 void MainMenu::OnDisconnected(net::INetConnection* sender)
 {
 	_steamConnecting = false;
-	_menu->HideMessage();	
+	_menu->HideMessage();
 
 	_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintHostConnectionFailed), _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2.0f, gui::Widget::waCenter, 0.0f);
 }
@@ -2246,11 +2246,11 @@ void MainMenu::AdjustLayout(const glm::vec2& vpSize)
 	_gameMode->AdjustLayout(vpSize);
 	_network->AdjustLayout(vpSize);
 	_netBrowser->AdjustLayout(vpSize);
-	_profile->AdjustLayout(vpSize);	
+	_profile->AdjustLayout(vpSize);
 	_tournament->AdjustLayout(vpSize);
-	_credits->AdjustLayout(vpSize);	
-	_difficultyFrame->AdjustLayout(vpSize);	
-	_netIPAddressFrame->AdjustLayout(vpSize);		
+	_credits->AdjustLayout(vpSize);
+	_difficultyFrame->AdjustLayout(vpSize);
+	_netIPAddressFrame->AdjustLayout(vpSize);
 	_serverTypeFrame->AdjustLayout(vpSize);
 	_clientTypeFrame->AdjustLayout(vpSize);
 
@@ -2286,7 +2286,7 @@ MainMenu::State MainMenu::GetState() const
 void MainMenu::SetState(State value)
 {
 	if (_state != value)
-	{		
+	{
 		_state = value;
 		ApplyState(_state);
 	}
@@ -2454,7 +2454,7 @@ void MainMenu::ConnectMatch(const net::Endpoint& endpoint
 		_steamConnecting = true;
 		_menu->ShowMessageLoading();
 	}
-	else 
+	else
 #endif
 		if (_menu->ConnectMatch(endpoint, true))
 		{

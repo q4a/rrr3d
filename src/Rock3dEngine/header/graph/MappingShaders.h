@@ -23,12 +23,12 @@ private:
 	D3DXVECTOR3 _viewPos;
 	float _texDiffK;
 
-	MacroBlock* _lightMacro[cLightTypeEnd][cLightPropEnd];	
+	MacroBlock* _lightMacro[cLightTypeEnd][cLightPropEnd];
 	D3DLIGHTTYPE _paramsLight;
 	bool _paramsShadow;
 
-	unsigned _curLight;	
-	D3DXCOLOR _fogColor;	
+	unsigned _curLight;
+	D3DXCOLOR _fogColor;
 
 	void InvalidateParams(D3DLIGHTTYPE value, bool shadow);
 protected:
@@ -92,7 +92,7 @@ public:
 class RefrShader: public Shader
 {
 protected:
-	virtual void DoBeginDraw(Engine& engine); 
+	virtual void DoBeginDraw(Engine& engine);
 public:
 	RefrShader();
 };

@@ -25,7 +25,7 @@ public:
 class ShadowMapRender: public GraphObjRender<Tex2DResource>
 {
 private:
-	typedef GraphObjRender<Tex2DResource> _MyBase;	
+	typedef GraphObjRender<Tex2DResource> _MyBase;
 public:
 	static const unsigned cShadowMapSize;
 
@@ -70,11 +70,11 @@ public:
 	//Рендер объектов которые создают тень
 	void BeginShadowCaster(Engine& engine);
 	bool EndShadowCaster(Engine& engine, bool nextPass);
-	
+
 	//Рендер объектов которые принимают тень
 	//Начало прохода
 	void BeginShadowMapp(Engine& engine);
-	bool EndShadowMapp(Engine& engine, bool nextPass);	
+	bool EndShadowMapp(Engine& engine, bool nextPass);
 
 	//Начать рендер эффекта
 	virtual void BeginRT(Engine& engine, const RtFlags& flags);

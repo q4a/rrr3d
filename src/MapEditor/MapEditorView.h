@@ -16,7 +16,7 @@ protected:
 	afx_msg void OnDestroy();
 	virtual void OnActivateFrame(UINT nState, CFrameWnd* pFrameWnd);
 	virtual void OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint);
-	
+
 	void OnMouseClickEvent(lsl::MouseKey key, lsl::KeyState state, const lsl::Point& coord, bool shift, bool ctrl);
 	void OnMouseMoveEvent(const lsl::Point& coord, bool shift, bool ctrl);
 	void OnKeyEvent(unsigned key, lsl::KeyState state);
@@ -44,10 +44,10 @@ public:
 #ifdef _DEBUG
 	virtual void AssertValid() const;
 	virtual void Dump(CDumpContext& dc) const;
-#endif	
+#endif
 };
 
-#ifndef _DEBUG 
+#ifndef _DEBUG
 inline CMapEditorDoc* CMapEditorView::GetDocument() const
    { return reinterpret_cast<CMapEditorDoc*>(m_pDocument); }
 #endif

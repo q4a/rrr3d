@@ -33,7 +33,7 @@ void Component::Save(SWriter* writer)
 
 void Component::Load(SReader* reader)
 {
-	if (storeName)	
+	if (storeName)
 		if (const SReader::ValueDesc* desc = reader->ReadAttr("name"))
 		{
 			std::string name;
@@ -108,18 +108,18 @@ Component* Component::FindComponent(const std::string& name)
 			++curIter;
 	}
 
-	return curComp;	
+	return curComp;
 }
 
 Component* Component::AbsoluteFindComponent(const std::string& name)
 {
 	std::string::const_iterator nextIter = std::find(name.begin(), name.end(), '\\');
-	
+
 	std::string rootName(name.begin(), nextIter);
 	if (rootName != _name)
 		throw lsl::Error("Component* Component::AbsoluteFindComponent(const std::string& name)");
 
-	std::string path(++nextIter, name.end());	
+	std::string path(++nextIter, name.end());
 	return FindComponent(path);
 }
 
@@ -150,10 +150,10 @@ std::string Component::MakeUniqueName(const std::string& base) const
 	{
 		oss.seekp(nPos);
 		oss<<cnt;
-		++cnt;		
+		++cnt;
 	}
 	while (FindChild(oss.str()));
-	
+
 	return oss.str();
 }
 
@@ -168,7 +168,7 @@ void Component::SetOwner(Component* value)
 	{
 		if (_owner)
 			_owner->_elements->Remove(this);
-		if (value)					
+		if (value)
 			value->_elements->Insert(this);
 	}
 }
@@ -197,7 +197,7 @@ void Component::SetName(const std::string& value)
 			_name = value;
 			return;
 		}
-		
+
 		LSL_ASSERT(false);
 	}
 }

@@ -7,7 +7,7 @@ namespace r3d
 
 namespace game
 {
-	
+
 WayPoint::WayPoint(Trace* trace, unsigned id): _trace(trace), _id(id), _pos(NullVector), _size(0), _off(NullVector)
 {
 	LSL_ASSERT(_trace);
@@ -197,7 +197,7 @@ void WayNode::Tile::ApplyChanges() const
 			Vec2NormCCW(_midDir, _edgeNorm);
 		else
 			Vec2NormCW(_midDir, _edgeNorm);
-		Line2FromNorm(_edgeNorm, sPos + _nodeRadius * _edgeNorm, _edgeLine);		
+		Line2FromNorm(_edgeNorm, sPos + _nodeRadius * _edgeNorm, _edgeLine);
 
 		//Вычисляем turnAngle
 		if (_node->GetPrev())
@@ -237,7 +237,7 @@ float WayNode::Tile::GetNextHeight() const
 const glm::vec2& WayNode::Tile::GetPrevDir() const
 {
 	const Tile* tile = _node->GetPrev() ? &_node->GetPrev()->GetTile() : this;
-	
+
 	tile->ApplyChanges();
 	return tile->_dir;
 }
@@ -245,7 +245,7 @@ const glm::vec2& WayNode::Tile::GetPrevDir() const
 const glm::vec2& WayNode::Tile::GetNextMidNorm() const
 {
 	const Tile* tile = _node->GetNext() ? &_node->GetNext()->GetTile() : this;
-	
+
 	tile->ApplyChanges();
 	return tile->_midNorm;
 }
@@ -253,7 +253,7 @@ const glm::vec2& WayNode::Tile::GetNextMidNorm() const
 const D3DXVECTOR3& WayNode::Tile::GetNextNormLine() const
 {
 	const Tile* tile = _node->GetNext() ? &_node->GetNext()->GetTile() : this;
-	
+
 	tile->ApplyChanges();
 	return tile->_midNormLine;
 }
@@ -295,7 +295,7 @@ unsigned WayNode::Tile::ComputeTrackInd(const glm::vec2& point) const
 	float tileWidth = GetWidth(point);
 	float trackDiv = tileWidth / cTrackCnt;
 	float trackPos = Line2DistToPoint(_dirLine, point);
-	
+
 	unsigned trackInd = static_cast<unsigned>(abs(floor(trackPos/trackDiv + cTrackCnt/2.0f)));
 	trackInd = std::max<int>(trackInd , 0);
 	trackInd = std::min<int>(trackInd , cTrackCnt - 1);
@@ -306,7 +306,7 @@ unsigned WayNode::Tile::ComputeTrackInd(const glm::vec2& point) const
 
 	float off = cTrackCnt % 2 > 0 ? 0.0f : 0.5f;
 	int trackInd = static_cast<int>(Round(trackPos / trackDiv + off));
-	
+
 	trackInd = std::max<int>(trackInd , -cTrackCnt/2);
 	trackInd = std::min<int>(trackInd , cTrackCnt/2);*/
 
@@ -372,7 +372,7 @@ bool WayNode::Tile::IsContains(const D3DXVECTOR3& point, bool lengthClamp, float
 	float dist1 = Line2DistToPoint(_midNormLine, point2);
 	float dist2 = Line2DistToPoint(GetNextNormLine(), point2);
 	float dirDist = Line2DistToPoint(_dirLine, point2);
-	
+
 	//Высота от плоскости трасы до поверхности ограничивающего цилиндра
 	float coordX = ComputeCoordX(dist1);
 	float coordZ = ComputeZCoord(coordX);
@@ -493,7 +493,7 @@ float WayNode::Tile::ComputeCoordX(const glm::vec2& point) const
 {
 	ApplyChanges();
 
-	float dist = Line2DistToPoint(_normLine, point);	
+	float dist = Line2DistToPoint(_normLine, point);
 
 	return ComputeCoordX(dist);
 }
@@ -597,7 +597,7 @@ void WayNode::Changed()
 
 		curNode->_tile->Changed();
 		curNode = curNode->_next;
-	}	
+	}
 }
 
 bool WayNode::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, float* dist) const
@@ -842,11 +842,11 @@ WayNode* WayPath::IsTileContains(const D3DXVECTOR3& point, WayNode* mWhere) cons
 	//При отсутсвии результата проверям конечные узлы
 	if (!resNode && _first && _first->IsContains(point))
 	{
-		resNode = _first;		
+		resNode = _first;
 	}
 	if (!resNode && _last && _last->IsContains(point))
 	{
-		resNode = _last;		
+		resNode = _last;
 	}
 
 	return resNode;
@@ -856,7 +856,7 @@ void WayPath::GetTriStripVBuf(res::VertexData& data, const D3DXVECTOR3* upVec)
 {
 	data.SetFormat(res::VertexData::vtPos3, true);
 
-	if (GetCount() < 2)	
+	if (GetCount() < 2)
 	{
 		data.SetVertexCount(0);
 		return;
@@ -920,7 +920,7 @@ WayPoint* Trace::AddPoint(unsigned id)
 {
 	WayPoint* point = new WayPoint(this, id);
 	_points.push_back(point);
-	
+
 	_pointId = std::max(_pointId, id + 1);
 
 	return point;
@@ -941,7 +941,7 @@ void Trace::Save(SWriter* writer)
 		SWriter* sPoint = sPoints->NewDummyNode(sstream.str().c_str());
 		sPoint->WriteAttr("id", point->GetId());
 		lsl::SWriteValue(sPoint, "pos", point->GetPos());
-		lsl::SWriteValue(sPoint, "size", point->GetSize());		
+		lsl::SWriteValue(sPoint, "size", point->GetSize());
 	}
 
 	SWriter* sPathes = writer->NewDummyNode("pathes");
@@ -961,7 +961,7 @@ void Trace::Save(SWriter* writer)
 			std::stringstream sstream;
 			sstream << "node" << iNode;
 			SWriter* sNode = sPath->WriteValue(sstream.str().c_str(), node->GetPoint()->GetId());
-			
+
 			node = node->GetNext();
 			++iNode;
 		}
@@ -1048,7 +1048,7 @@ WayPath* Trace::AddPath()
 {
 	WayPath* path = new WayPath(this);
 	_pathes.push_back(path);
-	
+
 	return path;
 }
 

@@ -12,7 +12,7 @@ namespace d3d9
 class D3D9RenderDriver: public RenderDriver
 {
 private:
-	IDirect3D9* _d3d9;	
+	IDirect3D9* _d3d9;
 	IDirect3DDevice9* _d3dDevice9;
 	IDirect3D9Ex* _d3d9Ex;
 	IDirect3DDevice9Ex* _d3dDevice9Ex;

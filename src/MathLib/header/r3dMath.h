@@ -50,7 +50,7 @@ struct AABB
 
 	//Edges are stored in this way:
     //                Y
-	//      Z        /|  
+	//      Z        /|
 	//     /|\       /
 	//      | /7---------/6(max)
     //      |/  |  /    / |
@@ -58,9 +58,9 @@ struct AABB
     //      4---------5   |
     //      |   3- - -| -2
     //      |  /      |  /
-    //      |/        | /   
+    //      |/        | /
     //      0(min)----1/----->X
-	//                      
+	//
 
 	typedef D3DXVECTOR3 Corners[8];
 	enum SpaceContains {scNoOverlap, scContainsFully, scContainsPartially};
@@ -118,7 +118,7 @@ struct AABB
 	D3DXVECTOR3 GetCenter() const;
 	D3DXVECTOR3 GetSizes() const;
 	float GetDiameter() const;
-	float GetRadius() const;	
+	float GetRadius() const;
 	D3DXVECTOR3 GetVertex(unsigned index) const;
 	D3DXPLANE GetPlane(unsigned index) const;
 	//vertex[0] - min
@@ -135,9 +135,9 @@ typedef int DirPlan[6];
 
 struct BoundBox
 {
-	//Edges are stored in this way:	
+	//Edges are stored in this way:
     //                Y
-	//      Z        /|  
+	//      Z        /|
 	//     /|\       /
 	//      | /7---------/6(max)
     //      |/  |  /    / |
@@ -145,17 +145,17 @@ struct BoundBox
     //      4---------5   |
     //      |   3- - -| -2
     //      |  /      |  /
-    //      |/        | /   
+    //      |/        | /
     //      0(min)----1/----->X
 	//
-	
-	static void Transform(const BoundBox& bb, const D3DXMATRIX& m, BoundBox& rOut);	
+
+	static void Transform(const BoundBox& bb, const D3DXMATRIX& m, BoundBox& rOut);
 
 	BoundBox();
 	explicit BoundBox(const AABB& aabb);
 
 	void SetPlan(const int numPlan, const float valeur);
-	void Transform(const D3DXMATRIX& m);	
+	void Transform(const D3DXMATRIX& m);
 
 	void ToAABB(AABB& aabb) const;
 
@@ -174,7 +174,7 @@ struct Frustum
 	static void CalculateCorners(Corners& pPoints, const D3DXMATRIX& invViewProj);
 
 	void Refresh(const D3DXMATRIX& viewProjMat);
-	
+
 	SpaceContains ContainsAABB(const AABB& aabb) const;
 
 	union
@@ -184,7 +184,7 @@ struct Frustum
 			D3DXPLANE left;
 			D3DXPLANE top;
 			D3DXPLANE right;
-			D3DXPLANE bottom;	
+			D3DXPLANE bottom;
 			D3DXPLANE pNear;
 			D3DXPLANE pFar;
 		};
@@ -229,7 +229,7 @@ const D3DXCOLOR clrGreen    (0.0f,  1.0f,  0.0f,  1.0f);
 const D3DXCOLOR clrBlue     (0.0f,  0.0f,  1.0f,  1.0f);
 const D3DXCOLOR clrYellow   (1.0f,  1.0f,  0.0f,  1.0f);
 
-const D3DXPLANE        XPlane (1.0f, 0.0f, 0.0f, 0.0f); 
+const D3DXPLANE        XPlane (1.0f, 0.0f, 0.0f, 0.0f);
 const D3DXPLANE        YPlane (0.0f, 1.0f, 0.0f, 0.0f);
 const D3DXPLANE        ZPlane (0.0f, 0.0f, 1.0f, 0.0f);
 const AABB             NullAABB(0);

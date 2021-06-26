@@ -5,7 +5,7 @@ namespace r3d
 
 namespace game
 {
-	
+
 class IView
 {
 public:
@@ -20,7 +20,7 @@ public:
 
 	virtual glm::vec2 ViewToProj(const lsl::Point& point) = 0;
 	virtual glm::vec2 ProjToView(const glm::vec2& coord) = 0;
-	
+
 	virtual bool OnMouseClickEvent(MouseKey key, KeyState state, const Point& coord, bool shift, bool ctrl) = 0;
 	virtual bool OnMouseMoveEvent(const Point& coord, bool shift, bool ctrl) = 0;
 	virtual bool OnKeyEvent(unsigned key, KeyState state, bool repeat) = 0;

@@ -15,8 +15,8 @@ void DevideStr(std::string::const_iterator sIter, std::string::const_iterator eI
 	{
 		++iter;
 
-		if (iter == eIter)		
-			outList.push_back(std::string(lastIter, iter));		
+		if (iter == eIter)
+			outList.push_back(std::string(lastIter, iter));
 		else if (*iter == dev)
 		{
 			outList.push_back(std::string(lastIter, iter));
@@ -117,7 +117,7 @@ RecordNode* RecordNode::FindNode(const lsl::StringList& strList, lsl::StringList
 	RecordNode* node = this;
 
 	for (lsl::StringList::const_iterator iter = strList.begin(); iter != strList.end(); ++iter)
-	{	
+	{
 		RecordNode* newNode = 0;
 		for (NodeList::iterator iterNode = node->_nodeList.begin(); iterNode != node->_nodeList.end(); ++iterNode)
 			if ((*iterNode)->GetName() == *iter)
@@ -131,7 +131,7 @@ RecordNode* RecordNode::FindNode(const lsl::StringList& strList, lsl::StringList
 			return node;
 		}
 
-		node = newNode;		
+		node = newNode;
 	}
 
 	return node;
@@ -252,7 +252,7 @@ void RecordNode::SrcSync()
 		const SerialNode::ValueDesc* desc = iterAttr != (*iter)->GetAttributes().end() ? iterAttr->second : 0;
 		if (desc && desc->ToBool() && *desc->ToBool())
 			AddNode((*iter)->GetName(), *iter)->SrcSync();
-		else		
+		else
 			AddRecord((*iter)->GetName(), *iter);
 	}
 }
@@ -342,7 +342,7 @@ Record* RecordLib::LoadRecordRefFrom(lsl::SReader* reader)
 		std::string path;
 		desc->CastTo(&path);
 		RecordLib* lib = lsl::StaticCast<RecordLib*>(reader->GetRoot()->AbsoluteFindComponent(path));
-		
+
 		return lib->FindRecordBySrc(node, lib);
 	}
 
@@ -350,8 +350,8 @@ Record* RecordLib::LoadRecordRefFrom(lsl::SReader* reader)
 }
 
 Record* RecordLib::LoadRecordRef(lsl::SReader* reader, const std::string& name)
-{	
-	if (lsl::SReader* child = reader->ReadValue(name.c_str()))	
+{
+	if (lsl::SReader* child = reader->ReadValue(name.c_str()))
 		return LoadRecordRefFrom(child);
 
 	return 0;
@@ -381,10 +381,10 @@ lsl::SerialNode* RecordLib::CreateSrc(const std::string& name, RecordNode* paren
 {
 	lsl::SerialNode* srcParent = parent ? parent->GetSrc() : _rootSrc;
 
-	lsl::SerialNode* src = srcParent->GetElements().Add(name);	
+	lsl::SerialNode* src = srcParent->GetElements().Add(name);
 	if (node)
 		src->AddAttribute(lsl::SerialFile::cFolder.c_str(), true);
-	
+
 	return src;
 }
 
@@ -430,10 +430,10 @@ Record* RecordLib::GetOrCreateRecord(const std::string& name)
 
 	RecordNode* node = this;
 	for (lsl::StringList::iterator iter = stringList.begin(); iter != stringList.end();)
-	{	
+	{
 		std::string str = *iter;
 		++iter;
-		
+
 		if (iter != stringList.end())
 		{
 			RecordNode* newNode = node->FindNode(str);

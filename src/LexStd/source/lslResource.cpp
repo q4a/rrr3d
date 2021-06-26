@@ -40,22 +40,22 @@ template<class _T> std::basic_istream<_T, std::char_traits<_T>>* FileSystem::New
 		break;
 	}
 	ioOpMode |= (flags & cAppend) ? std::ios::app : 0;
-	ioOpMode |= (flags & cTruncate) ? std::ios::trunc : 0;	
+	ioOpMode |= (flags & cTruncate) ? std::ios::trunc : 0;
 
 	std::wstring path = GetAppFilePath(fileName);
 
 	std::basic_ifstream<_T, std::char_traits<_T>>* fs = new std::basic_ifstream<_T, std::char_traits<_T>>(path.c_str(), ioOpMode);
 	LSL_ASSERT(fs);
 
-	if (fs->fail())	
+	if (fs->fail())
 	{
 		fs->clear();
 		fs->open(fileName.c_str(), ioOpMode);
 		if (fs->fail())
 		{
-			lsl::SafeDelete(fs);			
+			lsl::SafeDelete(fs);
 			throw EUnableToOpen(fileName);
-		}		
+		}
 	}
 
 	return fs;
@@ -79,7 +79,7 @@ template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* FileSystem::New
 	std::basic_ofstream<_T, std::char_traits<_T>>* fs = new std::basic_ofstream<_T, std::char_traits<_T>>(path.c_str(), ioOpMode);
 	LSL_ASSERT(fs);
 
-	if (fs->fail())	
+	if (fs->fail())
 	{
 		fs->clear();
 		fs->open(fileName.c_str(), ioOpMode);
@@ -87,7 +87,7 @@ template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* FileSystem::New
 		{
 			lsl::SafeDelete(fs);
 			throw Error(std::string("Unable to write file ") + fileName);
-		}		
+		}
 	}
 
 	return fs;
@@ -127,7 +127,7 @@ std::wostream* FileSystem::NewOutStreamW(const std::string& fileName, OpenMode o
 
 void FileSystem::FreeStream(std::ios_base* stream)
 {
-	if (stream)	
+	if (stream)
 		delete stream;
 }
 
@@ -181,7 +181,7 @@ unsigned Resource::Release() const
 
 	if (_resTraits)
 		_resTraits->OnReleaseItem(const_cast<Resource*>(this));
-	
+
 	return ref;
 }
 
@@ -192,7 +192,7 @@ void Resource::Init()
 		_init = true;
 
 		DoInit();
-		
+
 		if (!_dynamic)
 			DoUpdate();
 

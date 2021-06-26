@@ -110,7 +110,7 @@ Profiler* Profiler::_i;
 void Win32ThreadPool::QueueWork(UserWork* value, Object* arg, Flags flags)
 {
 	DWORD dwFlags = 0;
-	
+
 	//tfBackground эмулируется с помощью tfLongFunc
 #ifdef _WIN32 // FIX_LINUX QueueUserWorkItem
 	if (flags.test(tfLongFunc) || flags.test(tfBackground))
@@ -282,7 +282,7 @@ double Win32SDK::GetTimeDbl()
 	__int64 gTime, freq;
 	QueryPerformanceCounter((LARGE_INTEGER*)&gTime);  // Get current count
 	QueryPerformanceFrequency((LARGE_INTEGER*)&freq); // Get processor freq
-	
+
 	return gTime/static_cast<double>(freq);
 #else
 	return 0;
@@ -307,11 +307,11 @@ void Profiler::ResetSample(SampleData& data)
 	data.summDt = 0;
 	data.maxDt = 0.0f;
 	data.minDt = FLT_MAX;
-	data.updated = false;	
+	data.updated = false;
 }
 
 void Profiler::Begin(const lsl::string& name)
-{	
+{
 	Samples::iterator iter = _samples.find(name);
 	if (iter == _samples.end())
 	{
@@ -344,7 +344,7 @@ void Profiler::End()
 
 	iter->second.updated = true;
 	iter->second.dt = dt;
-	iter->second.summDt += dt;	
+	iter->second.summDt += dt;
 	++iter->second.frames;
 
 	if (iter->second.maxDt < dt)

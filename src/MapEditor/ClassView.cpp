@@ -46,7 +46,7 @@ BEGIN_MESSAGE_MAP(CClassView, CViewPane)
 	ON_WM_PAINT()
 	ON_WM_SETFOCUS()
 	ON_COMMAND_RANGE(ID_SORTING_GROUPBYTYPE, ID_SORTING_SORTBYACCESS, OnSort)
-	ON_UPDATE_COMMAND_UI_RANGE(ID_SORTING_GROUPBYTYPE, ID_SORTING_SORTBYACCESS, OnUpdateSort)	
+	ON_UPDATE_COMMAND_UI_RANGE(ID_SORTING_GROUPBYTYPE, ID_SORTING_SORTBYACCESS, OnUpdateSort)
 
 	ON_NOTIFY(TVN_SELCHANGED, CLASS_TREE_VIEW, OnViewSelChanged)
 END_MESSAGE_MAP()
@@ -69,7 +69,7 @@ CClassView::~CClassView()
 CClassView::MapDocEvent::MapDocEvent(CClassView* view): _view(view)
 {
 }
-		
+
 void CClassView::MapDocEvent::ReleaseDoc()
 {
 	_view->DeselectItem();
@@ -88,7 +88,7 @@ void CClassView::ReleaseItems()
 void CClassView::InsertItem(const r3d::IRecordNodeRef& node, HTREEITEM parent)
 {
 	HTREEITEM itemNode = m_wndClassView.InsertItem(StdStrToCString(node->GetName()), 2, 2, parent);
-	SetItemData(itemNode, new ItemData(node, 0));	
+	SetItemData(itemNode, new ItemData(node, 0));
 
 	r3d::IMapObjRecRef record = node->FirstRecord();
 	while (record)
@@ -133,9 +133,9 @@ void CClassView::UpdateList()
 		r3d::IMapObjLibRef lib = GetDB()->GetMapObjLib(i);
 		r3d::IRecordNodeRef node;
 		node.Assign(lib);
-		
+
 		InsertItem(node, 0);
-	}	
+	}
 }
 
 void CClassView::SelectItem(const D3DXVECTOR3& mapObjPos)

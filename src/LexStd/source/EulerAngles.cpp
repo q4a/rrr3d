@@ -4,7 +4,7 @@
 /* Ken Shoemake, 1993 */
 #include <math.h>
 #include <float.h>
-#include "EulerAngles.h" 
+#include "EulerAngles.h"
 
 EulerAngles Eul_(float ai, float aj, float ah, int order)
 {

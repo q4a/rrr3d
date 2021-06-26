@@ -23,13 +23,13 @@ private:
 
 	gui::PlaneFon* _menuBg;
 	gui::Label* _labels[cLabelEnd];
-	gui::Button* _menuItems[cMenuItemEnd];	
+	gui::Button* _menuItems[cMenuItemEnd];
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
 	AcceptDialog(Menu* menu, gui::Widget* parent);
 	virtual ~AcceptDialog();
@@ -46,16 +46,16 @@ public:
 class WeaponDialog: public MenuFrame
 {
 private:
-	enum Label {mlInfo, mlMoney, mlDamage, mlName, cLabelEnd};	
+	enum Label {mlInfo, mlMoney, mlDamage, mlName, cLabelEnd};
 private:
 	gui::PlaneFon* _menuBg;
-	gui::Label* _labels[cLabelEnd];	
+	gui::Label* _labels[cLabelEnd];
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
 	WeaponDialog(Menu* menu, gui::Widget* parent);
 	virtual ~WeaponDialog();
@@ -77,13 +77,13 @@ private:
 
 	gui::PlaneFon* _menuBg;
 	gui::Label* _labels[cLabelEnd];
-	gui::Button* _menuItems[cMenuItemEnd];	
+	gui::Button* _menuItems[cMenuItemEnd];
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
 	InfoDialog(Menu* menu, gui::Widget* parent);
 	virtual ~InfoDialog();
@@ -99,7 +99,7 @@ public:
 class MusicDialog: public MenuFrame
 {
 private:
-	enum Label {mlInfo, mlTitle, cLabelEnd};	
+	enum Label {mlInfo, mlTitle, cLabelEnd};
 private:
 	gui::PlaneFon* _menuBg;
 	gui::Label* _labels[cLabelEnd];
@@ -108,7 +108,7 @@ protected:
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
-	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);	
+	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 public:
 	MusicDialog(Menu* menu, gui::Widget* parent);
 	virtual ~MusicDialog();
@@ -127,12 +127,12 @@ public:
 	enum State {msLoading = 0, cStateEnd};
 private:
 	Menu* _menu;
-	State _state;	
+	State _state;
 
 	gui::Dummy* _root;
 	gui::PlaneFon* _loadingFrame;
 
-	void ApplyState(State state);	
+	void ApplyState(State state);
 public:
 	InfoMenu(Menu* menu, gui::Widget* parent);
 	virtual ~InfoMenu();
@@ -182,7 +182,7 @@ public:
 
 	void ShowInput(bool show, const lsl::stringW& name, const lsl::stringW& text, const D3DXCOLOR& nameColor);
 	void ClearInput();
-	void CharInput(wchar_t value);	
+	void CharInput(wchar_t value);
 	bool IsInputVisible() const;
 	lsl::stringW inputText() const;
 

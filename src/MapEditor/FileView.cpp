@@ -116,7 +116,7 @@ void CFileView::InsertCategory(unsigned i)
 {
 	HTREEITEM itemCat = m_wndFileView.InsertItem(StdStrToCString(_mapDoc->GetCatName(i)), 0, 0, 0);
 	SetItemData(itemCat, new ItemData(0, i));
-	
+
 	r3d::IMapObjRef mapObj = _mapDoc->GetFirst(i);
 	while (mapObj)
 	{
@@ -135,7 +135,7 @@ HTREEITEM CFileView::FindCatItem(unsigned i)
 		LSL_ASSERT(data);
 		if (data->catIndex == i)
 			return item;
-		
+
 		item = m_wndFileView.GetNextSiblingItem(item);
 	}
 
@@ -177,7 +177,7 @@ void CFileView::SelectItem(HTREEITEM item)
 		ItemData* selItem = GetItemData(item);
 		m_wndFileView.SelectItem(item);
 	}
-	else	
+	else
 		DeselectItem();
 }
 

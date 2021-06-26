@@ -164,13 +164,13 @@ private:
 	void DoRaceReady(bool ready);
 	void DoRaceGoWait(bool goWait);
 	void DoRaceFinish(bool finish);
-	
+
 	void DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordList* coordList, bool readMode);
 	void SendColor(const D3DXCOLOR& value, bool failed, unsigned target);
 	void SendGamerId(int value, bool failed, unsigned target);
 
 	void SlotsWrite(std::ostream& stream);
-	void SlotsRead(std::istream& stream);	
+	void SlotsRead(std::istream& stream);
 
 	void OnSetGamerId(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnSetColor(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
@@ -208,8 +208,8 @@ public:
 	bool CheckGamerId(int value) const;
 	int GenerateGamerId() const;
 
-	const D3DXCOLOR& GetColor() const;	
-	void SetColor(const D3DXCOLOR& value);	
+	const D3DXCOLOR& GetColor() const;
+	void SetColor(const D3DXCOLOR& value);
 	bool CheckColor(const D3DXCOLOR& value) const;
 	D3DXCOLOR GenerateColor() const;
 

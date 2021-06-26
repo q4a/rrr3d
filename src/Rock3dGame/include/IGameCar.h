@@ -24,7 +24,7 @@ public:
 	float CalcTorque(float rpm, unsigned curGear) const;
 
 	//макс. число оборотов двигателя, об/мин
-	unsigned maxRPM; 
+	unsigned maxRPM;
 	//обороты холостого хода, об/мин
 	unsigned idlingRPM;
 	//макс. момент двигателя при maxRPM, Н*м

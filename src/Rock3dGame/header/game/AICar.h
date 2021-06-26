@@ -36,7 +36,7 @@ private:
 		void Update(AICar* owner, float deltaTime, const Player::CarState& car);
 
 		void SetCurTile(WayNode* value);
-		void SetNextTile(WayNode* value);	
+		void SetNextTile(WayNode* value);
 
 		WayNode* curTile;
 		WayNode* nextTile;
@@ -46,7 +46,7 @@ private:
 		TrackVec freeTracks;
 		//«аблокированные дорожки
 		TrackVec lockTracks;
-		
+
 		//зона охвата по направлению движени€ машины
 		float dirArea;
 		//результирующее направление движени€ относительно машины
@@ -109,9 +109,9 @@ private:
 
 	AttackState _attack;
 	PathState _path;
-	ControlState _control;	
+	ControlState _control;
 
-	void UpdateAI(float deltaTime, const Player::CarState& car);	
+	void UpdateAI(float deltaTime, const Player::CarState& car);
 public:
 	AICar(Player* player);
 	virtual ~AICar();

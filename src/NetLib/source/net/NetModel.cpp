@@ -34,7 +34,7 @@ void NetModel::ProcessCmd(const NetMessage& msg, const NetCmdHeader& header, std
 
 	//__int64 time1, time2, cpu;
 	//QueryPerformanceFrequency((LARGE_INTEGER*)&cpu);
-	//QueryPerformanceCounter((LARGE_INTEGER*)&time1);	
+	//QueryPerformanceCounter((LARGE_INTEGER*)&time1);
 
 	CallRPC(msg, header, stream);
 
@@ -90,7 +90,7 @@ void NetModel::syncState(SyncState value)
 	if (_syncState != ssOff)
 		_player->UnregSyncModel(this);
 
-	_syncState = value;	
+	_syncState = value;
 
 	if (_syncState != ssOff)
 		_player->RegSyncModel(this);

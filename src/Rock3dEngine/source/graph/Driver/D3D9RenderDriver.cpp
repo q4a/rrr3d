@@ -54,7 +54,7 @@ void D3D9RenderDriver::Init(D3DPRESENT_PARAMETERS& d3dpp, bool d3dEx)
 			d3dEx = false;
 			_d3d9Ex = NULL;
 		}
-		
+
 		_d3d9 = Direct3DCreate9(D3D_SDK_VERSION);
 
 		if (_d3d9 == 0)
@@ -63,7 +63,7 @@ void D3D9RenderDriver::Init(D3DPRESENT_PARAMETERS& d3dpp, bool d3dEx)
 
 			throw EInitD3D9Failed();
 		}
-	}	
+	}
 
 	hr = _d3d9->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &_d3dCaps9);
 
@@ -91,7 +91,7 @@ void D3D9RenderDriver::Init(D3DPRESENT_PARAMETERS& d3dpp, bool d3dEx)
 
 	for (unsigned i = 0; i < _d3d9->GetAdapterModeCount(D3DADAPTER_DEFAULT, D3DFMT_X8R8G8B8); ++i)
 	{
-		D3DDISPLAYMODE d3dMode;		
+		D3DDISPLAYMODE d3dMode;
 		_d3d9->EnumAdapterModes(D3DADAPTER_DEFAULT, D3DFMT_X8R8G8B8, i, &d3dMode);
 
 		DisplayMode mode;
@@ -195,7 +195,7 @@ unsigned D3D9RenderDriver::FindPrefRate()
 {
 	const unsigned prefHZ = 60;
 	unsigned minHz = 0;
-	
+
 	for (DisplayModes::const_iterator iter = _displayModes.begin(); iter != _displayModes.end(); ++iter)
 		if (iter->refreshRate != 0 && ((iter->refreshRate >= prefHZ && minHz > iter->refreshRate) || (iter->refreshRate <= prefHZ && minHz < iter->refreshRate) || minHz == 0))
 			minHz = iter->refreshRate;

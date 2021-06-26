@@ -35,7 +35,7 @@ protected:
 	virtual _Item* CreateItem(const _IdType& key);
 	virtual void DestroyItem(_Item* value);
 
-	virtual void LoadItem(SReader* reader);	
+	virtual void LoadItem(SReader* reader);
 public:
 	virtual ~Collection();
 
@@ -54,7 +54,7 @@ protected:
 	virtual _Item* CreateItem();
 	virtual void DestroyItem(_Item* value);
 
-	virtual void LoadItem(SReader* reader);	
+	virtual void LoadItem(SReader* reader);
 public:
 	virtual ~Collection();
 
@@ -86,7 +86,7 @@ protected:
 	virtual _Item* CreateItem();
 	virtual void DestroyItem(_Item* value);
 
-	virtual void LoadItem(SReader* reader);	
+	virtual void LoadItem(SReader* reader);
 public:
 	virtual ~Collection();
 
@@ -178,7 +178,7 @@ template<class _Item, class _Arg, class _ArgThis> Collection<_Item, void, _Arg, 
 
 template<class _Item, class _Arg, class _ArgThis> _Item* Collection<_Item, void, _Arg, _ArgThis>::CreateItem()
 {
-	return new _Item(static_cast<_ArgThis>(this)); 
+	return new _Item(static_cast<_ArgThis>(this));
 }
 
 template<class _Item, class _Arg, class _ArgThis> void Collection<_Item, void, _Arg, _ArgThis>::DestroyItem(_Item* value)

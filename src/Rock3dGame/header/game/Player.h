@@ -136,7 +136,7 @@ public:
 	MobilityItem(Slot* slot);
 
 	virtual MobilityItem* IsMobilityItem();
-	
+
 	void ApplyChanges();
 
 	virtual float CalcLife(const CarFunc& func);
@@ -171,7 +171,7 @@ class ArmorItem: public MobilityItem
 private:
 	bool _armor4Installed;
 
-	Race* GetRace() const;	
+	Race* GetRace() const;
 protected:
 	virtual const std::string& DoGetName() const;
 	virtual const std::string& DoGetInfo() const;
@@ -203,9 +203,9 @@ private:
 	float _damage;
 	int _chargeCost;
 
-	virtual void TransformChanged();	
+	virtual void TransformChanged();
 	void ApplyWpnDesc();
-protected:	
+protected:
 	virtual void OnCreateCar(MapObj* car);
 	virtual void OnDestroyCar(MapObj* car);
 
@@ -224,7 +224,7 @@ public:
 	bool IsReadyShot();
 
 	MapObjRec* GetMapObj();
-	void SetMapObj(MapObjRec* value);	
+	void SetMapObj(MapObjRec* value);
 
 	//0 - бесконечно
 	//>0 - область значений
@@ -277,7 +277,7 @@ private:
 	float _time;
 protected:
 	virtual void OnCreateCar(MapObj* car);
-	virtual void OnDestroyCar(MapObj* car);	
+	virtual void OnDestroyCar(MapObj* car);
 	virtual void OnProgress(float deltaTime);
 
 	virtual void Save(SWriter* writer);
@@ -350,7 +350,7 @@ public:
 
 	Player* GetPlayer();
 	Type GetType() const;
-	
+
 	Record* GetRecord();
 	void SetRecord(Record* value);
 };
@@ -368,7 +368,7 @@ private:
 	};
 	typedef lsl::List<BonusProj> BonusProjs;
 public:
-	const float cTimeRestoreCar;	
+	const float cTimeRestoreCar;
 
 	enum HeadLightMode {hlmNone, hlmOne, hlmTwo};
 	enum HeadLight {hlFirst = 0, hlSecond, cHeadLightEnd};
@@ -384,7 +384,7 @@ public:
 		~CarState();
 
 		void Update(float deltaTime);
-		
+
 		void SetCurTile(WayNode* value);
 		void SetCurNode(WayNode* value);
 		void SetLastNode(WayNode* value);
@@ -392,7 +392,7 @@ public:
 		//
 		WayNode* GetCurTile(bool lastCorrect = false) const;
 		int GetPathIndex(bool lastCorrect = false) const;
-		bool IsMainPath(bool lastCorrect = false) const;		
+		bool IsMainPath(bool lastCorrect = false) const;
 		float GetPathLength(bool lastCorrect = false) const;
 		//текущее пройденное расстояние
 		float GetDist(bool lastCorrect = false) const;
@@ -416,7 +416,7 @@ public:
 		D3DXVECTOR3 pos3;
 		D3DXVECTOR3 dir3;
 		glm::quat rot3;
-		D3DXMATRIX worldMat;		
+		D3DXMATRIX worldMat;
 
 		glm::vec2 pos;
 		glm::vec2 dir;
@@ -488,7 +488,7 @@ public:
 	static const unsigned cCheatEnableSlower = 1 << 0;
 	static const unsigned cCheatEnableFaster = 1 << 1;
 
-	static const unsigned cColorsCount = 7;	
+	static const unsigned cColorsCount = 7;
 	static const D3DXCOLOR cLeftColors[cColorsCount];
 	static const D3DXCOLOR cRightColors[cColorsCount];
 private:
@@ -542,19 +542,19 @@ private:
 	void SetCheatK(const Player::CarState& car, float torqueK, float steerK);
 
 	GraphManager* GetGraph();
-	WayNode* GetLastNode();	
+	WayNode* GetLastNode();
 protected:
 	void SendEvent(unsigned id, EventData* data = NULL);
 
 	virtual void OnDestroy(GameObject* sender);
-	virtual void OnLowLife(GameObject* sender, Behavior* behavior);	
+	virtual void OnLowLife(GameObject* sender, Behavior* behavior);
 	virtual void OnDeath(GameObject* sender, DamageType damageType, GameObject* target);
 	void OnLapPass();
 public:
 	Player(Race* race);
 	virtual ~Player();
 
-	void OnProgress(float deltaTime);	
+	void OnProgress(float deltaTime);
 
 	//>0 искать соперников спереди машины
 	//<0 искать соперников сзади машины

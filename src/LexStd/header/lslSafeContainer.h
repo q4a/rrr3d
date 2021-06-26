@@ -22,11 +22,11 @@ private:
 		iterator _myIter;
 		//некорректный итератор (был удален).   нему нельз€ получать доступ
 		bool _invalid;
-	public:		
+	public:
 		_Position(SafeContainer* owner, const iterator& iter): _owner(owner), _myIter(iter), _invalid(false)
 		{
 			_owner->InsertPos(this);
-		}	
+		}
 		virtual ~_Position()
 		{
 			_owner->RemovePos(this);
@@ -42,7 +42,7 @@ private:
 		}
 	};
 
-	typedef std::list<_Position*> _PosList;	
+	typedef std::list<_Position*> _PosList;
 public:
 	typedef _Item Item;
 	typedef const lsl::AutoRef<_Position> Position;
@@ -97,8 +97,8 @@ public:
 		LSL_ASSERT(_safeMode);
 
 		//некооректный указатель уже указывает на следующий элемент. Ќужно только обнулить _invalid чтобы разркшить доступ
-		if (pos->_invalid)		
-			pos->_invalid = false;		
+		if (pos->_invalid)
+			pos->_invalid = false;
 		else if (pos->_myIter != _cont->end())
 			++pos->_myIter;
 	}

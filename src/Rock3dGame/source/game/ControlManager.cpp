@@ -33,14 +33,14 @@ const lsl::string cControllerTypeStr[cControllerTypeEnd] = {"ctKeyboard", "ctGam
 
 
 ControlManager::ControlManager(World* world): _world(world)
-{	
+{
 	_controllerStates[ctKeyboard] = new ControllerState();
 	_controllerStates[ctGamepad] = new XInputState();
 
 	ZeroMemory(_gameKeys, sizeof(_gameKeys));
 
 	_gameKeys[ctKeyboard][gaAccel] = vkUp;
-	_gameKeys[ctKeyboard][gaBreak] = vkDown;	
+	_gameKeys[ctKeyboard][gaBreak] = vkDown;
 	_gameKeys[ctKeyboard][gaWheelLeft] = vkLeft;
 	_gameKeys[ctKeyboard][gaWheelRight] = vkRight;
 	_gameKeys[ctKeyboard][gaResetCar] = CharToVirtualKey('R');
@@ -53,7 +53,7 @@ ControlManager::ControlManager(World* world): _world(world)
 	_gameKeys[ctKeyboard][gaMine] = CharToVirtualKey('E');
 	_gameKeys[ctKeyboard][gaHyper] = CharToVirtualKey('Q');
 	_gameKeys[ctKeyboard][gaWeaponDown] = cVirtualKeyEnd;
-	_gameKeys[ctKeyboard][gaWeaponUp] = cVirtualKeyEnd;	
+	_gameKeys[ctKeyboard][gaWeaponUp] = cVirtualKeyEnd;
 	_gameKeys[ctKeyboard][gaAction] = vkStart;
 	_gameKeys[ctKeyboard][gaEscape] = vkBack;
 	_gameKeys[ctKeyboard][gaViewSwitch] = CharToVirtualKey('C');
@@ -91,7 +91,7 @@ ControlManager::ControlManager(World* world): _world(world)
 	_gameKeys[ctGamepad][gaDebug6] = cVirtualKeyEnd;
 	_gameKeys[ctGamepad][gaDebug7] = cVirtualKeyEnd;
 }
-	
+
 ControlManager::~ControlManager()
 {
 	LSL_ASSERT(_eventList.empty());
@@ -115,7 +115,7 @@ int ControlManager::GetKeyboardKeyState(VirtualKey key)
 	case vkButtonX:
 		return GetAsyncKey(VK_BACK) == akDown;
 	case vkButtonY:
-		return GetAsyncKey(VK_SPACE) == akDown;	
+		return GetAsyncKey(VK_SPACE) == akDown;
 	case vkBack:
 		return GetAsyncKey(VK_ESCAPE) == akDown;
 	case vkStart:
@@ -208,7 +208,7 @@ int ControlManager::GetGamepadKeyState(VirtualKey key)
 	case vkTriggerRight:
 		if (xInput->state.Gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
 			return xInput->state.Gamepad.bRightTrigger;
-		break;	
+		break;
 	case vkThumbLeftPress:
 		if (xInput->state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB)
 			return 1;
@@ -270,9 +270,9 @@ void ControlManager::UpdateControllerState()
 	XInputState* state = (XInputState*)_controllerStates[ctGamepad];
 
 	for (int i = 0; i < 4; ++i)
-	{		
+	{
 		unsigned dwResult = XInputGetState(i, &state->state);
-		bool plugged = dwResult == ERROR_SUCCESS;		
+		bool plugged = dwResult == ERROR_SUCCESS;
 
 		state->plugged = plugged;
 		state->index = i;
@@ -301,7 +301,7 @@ void ControlManager::UpdateControllerState()
 
 		msg.repeat = (keystroke.Flags & XINPUT_KEYSTROKE_REPEAT) != 0;
 		msg.key = cVirtualKeyEnd;
-		msg.unicode = keystroke.Unicode;		
+		msg.unicode = keystroke.Unicode;
 		msg.controller = ctGamepad;
 
 		switch (keystroke.VirtualKey)
@@ -403,7 +403,7 @@ void ControlManager::UpdateControllerState()
 bool ControlManager::HandleInput(const InputMessage& msg)
 {
 	for (EventList::iterator iter = _eventList.begin(); iter != _eventList.end(); ++iter)
-	{		
+	{
 		if ((*iter)->OnHandleInput(msg))
 			return true;
 	}
@@ -532,18 +532,18 @@ void ControlManager::OnProgress(float deltaTime)
 {
 	UpdateControllerState();
 
-	for (EventList::iterator iter = _eventList.begin(); iter != _eventList.end(); ++iter)	
+	for (EventList::iterator iter = _eventList.begin(); iter != _eventList.end(); ++iter)
 		(*iter)->OnInputProgress(deltaTime);
 }
 
 void ControlManager::OnFrame(float deltaTime)
 {
-	for (EventList::iterator iter = _eventList.begin(); iter != _eventList.end(); ++iter)	
+	for (EventList::iterator iter = _eventList.begin(); iter != _eventList.end(); ++iter)
 		(*iter)->OnInputFrame(deltaTime);
 }
 
 void ControlManager::ResetInput(bool reset)
-{	
+{
 }
 
 void ControlManager::InsertEvent(ControlEvent* value)
@@ -586,10 +586,10 @@ AsyncKey ControlManager::IsMouseDown(MouseKey key)
 	{
 	case mkLeft:
 		return GetAsyncKey(VK_LBUTTON);
-		
+
 	case mkRight:
 		return GetAsyncKey(VK_RBUTTON);
-		
+
 	case mkMiddle:
 		return GetAsyncKey(VK_MBUTTON);
 	}
@@ -675,7 +675,7 @@ VirtualKey ControlManager::CharToVirtualKey(char unicode)
 int ControlManager::GetVirtualKeyState(ControllerType controller, VirtualKey key)
 {
 	switch (controller)
-	{	
+	{
 	case ctGamepad:
 		return GetGamepadKeyState(key);
 
@@ -692,7 +692,7 @@ int ControlManager::GetGameActionState(ControllerType controller, GameAction act
 
 float ControlManager::GetGameActionState(ControllerType controller, GameAction action, bool withAlpha)
 {
-	VirtualKeyInfo info = GetGameActionInfo(controller, action);		
+	VirtualKeyInfo info = GetGameActionInfo(controller, action);
 
 	if (withAlpha && info.alphaMax == 0)
 		return 0.0f;

@@ -19,14 +19,14 @@ class NetConnectionSteam: public net::INetConnectionImpl
 private:
 	NetAcceptorSteam* _owner;
 	CSteamID _steamId;
-	bool _isOpen;	
+	bool _isOpen;
 public:
 	NetConnectionSteam(NetAcceptorSteam* owner);
 	~NetConnectionSteam();
 
 	virtual bool Send(const void* data, unsigned size);
 	virtual bool Receive(void* data, unsigned size, unsigned& numBytes);
-	virtual bool IsAvailable(unsigned& size);	
+	virtual bool IsAvailable(unsigned& size);
 
 	virtual void Accept();
 	virtual bool Connect(const net::Endpoint& endpoint);
@@ -47,7 +47,7 @@ public:
 class NetChannelSteam: public net::INetChannelImpl
 {
 private:
-	NetAcceptorSteam* _owner;	
+	NetAcceptorSteam* _owner;
 	bool _isOpen;
 	bool _isBind;
 	net::Endpoint _bindEndpoint;
@@ -77,7 +77,7 @@ public:
 };
 
 class NetAcceptorSteam: public net::INetAcceptorImpl
-{	
+{
 public:
 	typedef lsl::List<NetConnectionSteam*> Connections;
 	typedef std::map<CSteamID, std::pair<net::IStreamBuf*, net::IStreamBuf*>> PacketMap;
@@ -124,7 +124,7 @@ class SteamStats
 {
 private:
 	struct Stat
-	{	
+	{
 		Stat(): value(0), dValue(0) {}
 
 		int value;
@@ -159,15 +159,15 @@ private:
 	lsl::List<int> _lapKills;
 
 	STEAM_CALLBACK( SteamStats, OnUserStatsReceived, UserStatsReceived_t, _callbackUserStatsReceived );
-	STEAM_CALLBACK( SteamStats, OnUserStatsStored, UserStatsStored_t, _callbackUserStatsStored );	
+	STEAM_CALLBACK( SteamStats, OnUserStatsStored, UserStatsStored_t, _callbackUserStatsStored );
 public:
 	SteamStats(SteamService* service);
 	~SteamStats();
 
 	bool GetUserStats();
-	bool StoreUserStats();	
+	bool StoreUserStats();
 
-	void AddStat(StatType type, int value);	
+	void AddStat(StatType type, int value);
 	int GetStatValue(StatType type) const;
 
 	void IndicateAchievment(AchievmentType type, int curProgress);
@@ -184,7 +184,7 @@ class SteamLeaderboard
 {
 private:
 	struct Leaders
-	{	
+	{
 		Leaders(): board(0) {}
 
 		SteamLeaderboard_t board;
@@ -201,7 +201,7 @@ private:
 	bool _leadersLoading;
 	int _userStatsUploading;
 
-	CCallResult<SteamLeaderboard, LeaderboardFindResult_t> _callResultFindLeaderboard;	
+	CCallResult<SteamLeaderboard, LeaderboardFindResult_t> _callResultFindLeaderboard;
 
 	// Called when SteamUserStats()->FindOrCreateLeaderboard() returns asynchronously
 	void OnFindLeaderboard(LeaderboardFindResult_t* pFindLeaderboardResult, bool bIOFailure);
@@ -212,7 +212,7 @@ public:
 	~SteamLeaderboard();
 
 	bool FindLeaders();
-	bool UploadUserStats();	
+	bool UploadUserStats();
 
 	SteamService* service();
 	GameMode* game();
@@ -224,7 +224,7 @@ public:
 	struct Lobby
 	{
 		CSteamID id;
-		std::string name;		
+		std::string name;
 	};
 	typedef std::vector<Lobby> LobbyList;
 
@@ -295,7 +295,7 @@ public:
 	bool StartMath();
 
 	const MemberList& GetLobbyMembers() const;
-	CSteamID currentLobby() const;	
+	CSteamID currentLobby() const;
 
 	SteamService* service();
 	GameMode* game();
@@ -347,7 +347,7 @@ private:
 	ClientConnectionData_t _rgPendingClientData[cMaxPlayers];
 
 	bool _hostInit;
-	bool _serverConnecting;	
+	bool _serverConnecting;
 	bool _internetListLoading;
 
 	// Send data to a client at the given ship index
@@ -359,7 +359,7 @@ private:
 	// Function to tell Steam about our servers details
 	void SendUpdatedServerDetailsToSteam();
 	// Checks for any incoming network data, then dispatches it
-	void ReceiveNetworkData();	
+	void ReceiveNetworkData();
 
 	// ISteamMatchmakingServerListResponse
 	void ServerResponded( HServerListRequest hReq, int iServer );
@@ -418,7 +418,7 @@ public:
 	enum InitRes { irFailed, irRestart, irSuccess };
 	enum SyncStage { ssGetUserStats, ssStoreUserStats, ssGetLeaders, ssStoreLeaders, cSyncStageEnd };
 
-	static const float cSyncWaitTime;	
+	static const float cSyncWaitTime;
 private:
 	GameMode* _game;
 	SteamLeaderboard* _leaderboard;
@@ -428,8 +428,8 @@ private:
 	NetAcceptorSteam* _acceptor;
 	// p2p game auth manager
 	//CP2PAuthedGame* _pP2PAuthedGame;
-	
-	CGameID _gameId;	
+
+	CGameID _gameId;
 	SyncStage _syncStage;
 	float _syncWaitTime;
 
@@ -456,7 +456,7 @@ private:
 	// Receive a response from the server for a connection attempt
 	void ReceiveServerAuthenticationResponse( bool bSuccess, uint32 uPlayerPosition );
 	// Checks for any incoming network data, then dispatches it
-	void ReceiveNetworkData();	
+	void ReceiveNetworkData();
 
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:

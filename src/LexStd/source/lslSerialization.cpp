@@ -95,7 +95,7 @@ SWriter* SWriter::WriteRef(const char* name, const CollectionItem* item)
 	if (item)
 	{
 		LSL_ASSERT(item->GetCollection());
-		
+
 		SWriter* writer = WriteRef(name, item->GetCollection());
 		writer->WriteAttr(lsl::Serializable::cItem, item->GetName());
 		return writer;
@@ -119,7 +119,7 @@ bool SReader::ResolveFixUp(_FixUpName& inOutName)
 	}
 
 	inOutName.component = GetRoot()->AbsoluteFindComponent(inOutName.path);
-	if (inOutName.component)		
+	if (inOutName.component)
 		if (!inOutName.nameCollItem.empty())
 		{
 			CollectionTraits* coll = inOutName.GetComponent<CollectionTraits*>();
@@ -168,7 +168,7 @@ bool SReader::AddFixUp(const std::string& path, const std::string& collItem, Ser
 	if (target)
 	{
 		_fixUpNames.push_back(fixUp);
-		return true;		
+		return true;
 	}
 	else
 	{
@@ -182,10 +182,10 @@ bool SReader::AddFixUp(const std::string& path, const std::string& collItem, Ser
 bool SReader::AddFixUp(bool collItem, Serializable* target, _FixUpName* fixUpName)
 {
 	_FixUpName fixUp;
-	if (GetRef(collItem, fixUp))	
+	if (GetRef(collItem, fixUp))
 		return AddFixUp(fixUp.path, fixUp.nameCollItem, target, fixUpName);
 
-	return false;	
+	return false;
 }
 
 bool SReader::GetRef(bool collItem, _FixUpName& fixUpName)
@@ -342,7 +342,7 @@ SReader* SerialNode::ReadRefNode(SReader* reader, const std::string& name, Seria
 {
 	*outNode = 0;
 	SReader* child = reader->ReadValue(name.c_str());
-	if (child && ReadRefNodeFrom(child, outNode))	
+	if (child && ReadRefNodeFrom(child, outNode))
 		return child;
 
 	return 0;
@@ -368,7 +368,7 @@ void SerialNode::ResolveProxyRef()
 		if (_linkSer->GetMasterSer())
 		{
 			lsl::SerialNode* root = GetRootNode();
-			
+
 			SerialNode* master = root->FindLinkSer(_linkSer->GetMasterSer());
 			if (master)
 			{
@@ -477,8 +477,8 @@ void SerialNode::SaveSerializable(Serializable* value)
 	++_linkSer->_lockCnt;
 	//}
 
-	if (value->GetMasterSer())	
-		++value->GetMasterSer()->_lockCnt;	
+	if (value->GetMasterSer())
+		++value->GetMasterSer()->_lockCnt;
 	//≈сли отсутствует мастер объект, то сохран€ем данные
 	else
 		value->Save(this);
@@ -547,7 +547,7 @@ void SerialNode::LoadSerializable(Serializable* value)
 		AddRefSerLink();
 		_linkSer = value;
 		_masterSer = masterSer;
-		_masterNode = masterNode;		
+		_masterNode = masterNode;
 	}
 }
 
@@ -671,7 +671,7 @@ SerialNode* SerialNode::FindNode(const std::string& name)
 
 SWriter* SerialNode::BeginSave()
 {
-	if (_beginSave++ == 0)	
+	if (_beginSave++ == 0)
 		Clear();
 
 	return this;
@@ -681,7 +681,7 @@ void SerialNode::EndSave()
 {
 	LSL_ASSERT(_beginSave > 0);
 
-	if (--_beginSave == 0)	
+	if (--_beginSave == 0)
 		//–азрешение и подстановка путей дл€ прокси ссылок
 		ResolveProxyRef();
 }
@@ -697,7 +697,7 @@ void SerialNode::EndLoad()
 {
 	LSL_ASSERT(_beginLoad > 0);
 
-	if (--_beginLoad == 0)	
+	if (--_beginLoad == 0)
 		//закончили чтение корневого компонента, врем€ fixUp
 		OnFixUp();
 }
@@ -708,14 +708,14 @@ void SerialNode::Save(Serializable* root)
 	try
 	{
 		//«апись напр€мую, т.е. без учета прокси ссылок
-		root->Save(this);		
+		root->Save(this);
 	}
 	LSL_FINALLY(EndSave();)
 }
 
 void SerialNode::Load(Serializable* root)
 {
-	BeginLoad();	
+	BeginLoad();
 	try
 	{
 		//чтение напр€мую, т.е. без учета прокси ссылок

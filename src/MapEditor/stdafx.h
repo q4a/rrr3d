@@ -112,7 +112,7 @@ template<class _Func> HTREEITEM ForEachTreeCtrlItem(CTreeCtrl& tree, HTREEITEM i
 		if (res)
 			return res;
 
-		child = tree.GetNextSiblingItem(child);		
+		child = tree.GetNextSiblingItem(child);
 	}
 
 	return func(item) ? item : 0;
@@ -127,7 +127,7 @@ template<class _Func> HTREEITEM ForEachTreeCtrlItem(CTreeCtrl& tree, _Func func)
 		if (res)
 			return res;
 
-		item = tree.GetNextSiblingItem(item);		
+		item = tree.GetNextSiblingItem(item);
 	}
 
 	return 0;

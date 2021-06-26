@@ -20,10 +20,10 @@ const D3DXMATRIX skyFromLeftToRightCS(1.0f,  0.0f,  0.0f,  0.0f,
 
 SkyBox::SkyBox(): _coordSystem(csLeft)
 {
-	_mesh.GetOrCreateData()->SetVertexCount(6);	
+	_mesh.GetOrCreateData()->SetVertexCount(6);
 	_mesh.GetData()->SetFormat(res::VertexData::vtPos3);
 	_mesh.GetData()->Init();
-	D3DXVECTOR3* vb = reinterpret_cast<D3DXVECTOR3*>(_mesh.GetData()->GetData());	
+	D3DXVECTOR3* vb = reinterpret_cast<D3DXVECTOR3*>(_mesh.GetData()->GetData());
 	vb[0] = D3DXVECTOR3(-1.0f, -1.0f, 1.0f);
 	vb[1] = D3DXVECTOR3(1.0f, -1.0f, 1.0f);
 	vb[2] = D3DXVECTOR3(1.0f, 1.0f, 1.0f);
@@ -45,7 +45,7 @@ void SkyBox::Render(Engine& engine)
 {
 	_mesh.Init(engine);
 
-	if (_coordSystem == csLeft)	
+	if (_coordSystem == csLeft)
 		engine.GetContext().SetWorldMat(skyFromLeftToRightCS);
 	else
 		engine.GetContext().SetWorldMat(IdentityMatrix);
@@ -60,9 +60,9 @@ void SkyBox::Render(Engine& engine)
 
 	shader.Apply(engine);
 	do
-	{	
+	{
 		engine.BeginDraw();
-		_mesh.Draw();		
+		_mesh.Draw();
 	}
 	while (!engine.EndDraw(true));
 	shader.UnApply(engine);

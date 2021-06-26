@@ -28,7 +28,7 @@ FxParticle::~FxParticle()
 {
 	SetChild(0);
 }
-	
+
 void FxParticle::BuildWorldMat() const
 {
 	if (_worldMatChanged)
@@ -70,7 +70,7 @@ const D3DXVECTOR3& FxParticle::GetPos()
 void FxParticle::SetPos(const D3DXVECTOR3& value)
 {
 	_pos = value;
-	TransformChanged();	
+	TransformChanged();
 }
 
 const glm::quat& FxParticle::GetRot()
@@ -105,7 +105,7 @@ const D3DXMATRIX& FxParticle::GetMatrix() const
 AABB FxParticle::GetAABB() const
 {
 	BuildAABB();
-	
+
 	return _aabb;
 }
 
@@ -136,16 +136,16 @@ FxEmitter::ParticleDesc::ParticleDesc()
 {
 	maxNum = 100;
 	maxNumAction = mnaWaitingFree;
-	
+
 	life = 1;
 	startTime = 1;
 	startDuration = 0;
-	startType = sotTime;	
+	startType = sotTime;
 	density = 1;
-	
+
 	startPos = NullVector;
 	startRot = NullQuaternion;
-	startScale = IdentityVector;	
+	startScale = IdentityVector;
 
 	rangeLife = 0.0f;
 	rangePos = NullVector;
@@ -278,22 +278,22 @@ void FxEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 		pos += _particleDesc.rangePos.GetValue(CompRangeFrame(value->index));
 		scale += _particleDesc.rangeScale.GetValue(CompRangeFrame(value->index));
 		rot *= _particleDesc.rangeRot.GetValue(CompRangeFrame(value->index));
-		
-		if (_worldCoordSys)		
+
+		if (_worldCoordSys)
 			_owner->LocalToWorldCoord(pos, pos);
 
 		value->SetPos(pos);
 		value->SetScale(scale);
 		value->SetRot(rot);
 
-		value->time = 0;		
+		value->time = 0;
 	}
 
 	value->time += dTime;
 }
 
 void FxEmitter::UpdateGroup(FxParticleGroup* group, float dTime, bool init)
-{	
+{
 }
 
 void FxEmitter::QueryCreateParticles(unsigned num, float deltaTime, const D3DXVECTOR3& offPos)
@@ -307,7 +307,7 @@ void FxEmitter::QueryCreateParticles(unsigned num, float deltaTime, const D3DXVE
 	unsigned crtNum = _particleDesc.maxNum == 0 ? num : std::min(_particleDesc.maxNum - _cntParticles, num);
 
 	//Проверяем, если число создаваемых частиц crtNum меньше заданного num, то пытаемся освободить для них места
-	if (crtNum < num)		
+	if (crtNum < num)
 		switch (_particleDesc.maxNumAction)
 		{
 		case mnaReplaceLatest:
@@ -318,7 +318,7 @@ void FxEmitter::QueryCreateParticles(unsigned num, float deltaTime, const D3DXVE
 			FxParticleGroup::iterator first = (*group)->begin();
 
 			DelParticle(*first, last);
-			if ((*group)->Empty())				
+			if ((*group)->Empty())
 				DelGroup(group);*/
 
 			break;
@@ -375,7 +375,7 @@ AABB FxEmitter::LocalDimensions() const
 	D3DXVECTOR3 dimens = IdentityVector / 2 * _particleDesc.startScale.GetMax();
 	AABB res(_particleDesc.startPos.GetMin() - dimens, _particleDesc.startPos.GetMax() + dimens);
 
-	return res;	
+	return res;
 }
 
 void FxEmitter::OnProgress(float deltaTime)
@@ -387,7 +387,7 @@ void FxEmitter::OnProgress(float deltaTime)
 		_lastPosQGroup = _worldCoordSys ? _owner->GetWorldPos() : _owner->GetPos();
 		_lastTimeQGroup = _curTime;
 	}
-	
+
 	//Удаление и обновление оставшихся групп и частиц
 	for (_GroupList::Position pos = _groupList.First(); FxParticleGroup** iter = _groupList.Current(pos); _groupList.Next(pos))
 	{
@@ -428,7 +428,7 @@ if (!_modeFading)
 		D3DXVECTOR3 dPos = _lastPosQGroup - (_worldCoordSys ? _owner->GetWorldPos() : _owner->GetPos());
 		float dPosTime = std::max(_curTime - _lastTimeQGroup, dTime);
 
-		unsigned numPart = 0;		
+		unsigned numPart = 0;
 		while (dTime > 0.0f)
 		{
 			QueryCreateGroup(dTime, dPos * dTime / dPosTime);
@@ -522,15 +522,15 @@ void FxEmitter::Load(lsl::SReader* reader)
 		lsl::SReadValue(child, "density", _particleDesc.density);
 		lsl::SReadValue(child, "startPos", _particleDesc.startPos);
 		lsl::SReadValue(child, "startScale", _particleDesc.startScale);
-		lsl::SReadValue(child, "startRot", _particleDesc.startRot);	
-		
+		lsl::SReadValue(child, "startRot", _particleDesc.startRot);
+
 		lsl::SReadValue(child, "rangeLife", _particleDesc.rangeLife);
 		lsl::SReadValue(child, "rangePos", _particleDesc.rangePos);
 		lsl::SReadValue(child, "rangeScale", _particleDesc.rangeScale);
 		lsl::SReadValue(child, "rangeRot", _particleDesc.rangeRot);
 	}
 
-	reader->ReadValue("worldCoordSys", _worldCoordSys);	
+	reader->ReadValue("worldCoordSys", _worldCoordSys);
 }
 
 void FxEmitter::Reset()
@@ -612,7 +612,7 @@ FxParticleSystem::FxParticleSystem(): _fxManager(0), _childStyle(csProxy), _aabb
 	_emitters = new Emitters(this);
 	_emitters->SetClassList(&classList);
 
-	_child = new SceneNode();	
+	_child = new SceneNode();
 	_child->SetName("child");
 	_child->SetOwner(this);
 	_child->SetParent(this);
@@ -664,7 +664,7 @@ void FxParticleSystem::OnCreateParticle(FxParticle* value)
 			child->SetParent(this);
 			child->AssignFromSer(_child, GetRoot());
 			value->SetChild(child);
-			break;					
+			break;
 		}
 
 		default:
@@ -681,7 +681,7 @@ void FxParticleSystem::OnDestroyParticle(FxParticle* value)
 
 		switch (_childStyle)
 		{
-		case csProxy:		
+		case csProxy:
 			_child->GetProxyList().Delete(lsl::StaticCast<SceneNode::Proxy*>(child));
 			break;
 
@@ -739,7 +739,7 @@ void FxParticleSystem::Save(lsl::SWriter* writer)
 	writer->WriteRef("fxManager", _fxManager);
 	writer->WriteValue("emitters", _emitters);
 	material.Save(writer, this);
-	
+
 	writer->WriteValue("child", _child);
 	lsl::SWriteEnum(writer, "childStyle", _childStyle, cChildStyleStr, cChildStyleEnd);
 }
@@ -764,8 +764,8 @@ void FxParticleSystem::OnFixUp(const FixUpNames& fixUpNames)
 
 	for (FixUpNames::const_iterator iter = fixUpNames.begin(); iter != fixUpNames.end(); ++iter)
 	{
-		if (iter->name == "fxManager")	
-			SetFxManager(iter->GetComponent<FxManager*>());			
+		if (iter->name == "fxManager")
+			SetFxManager(iter->GetComponent<FxManager*>());
 	}
 
 	material.OnFixUp(fixUpNames, this);
@@ -795,7 +795,7 @@ void FxParticleSystem::DoRender(graph::Engine& engine)
 					for (FxParticleGroup::iterator iter = group->begin(); iter != group->end(); ++iter)
 					{
 						LSL_ASSERT((*iter)->GetChild());
-						
+
 						(*iter)->GetChild()->Render(engine);
 					}
 				}
@@ -931,7 +931,7 @@ void FxManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 		emitter->GetSystem()->material.UnApply(engine);
 
 		engine.GetContext().PopFrame();
-	}	
+	}
 }
 
 void FxManager::RenderSystem(graph::Engine& engine, FxParticleSystem* system)
@@ -1026,7 +1026,7 @@ void FxPointSpritesManager::RenderSystem(graph::Engine& engine, FxParticleSystem
 	engine.GetContext().RestoreRenderState(graph::rsPointScaleEnable);
 	engine.GetContext().RestoreRenderState(graph::rsPointScaleA);
 	engine.GetContext().RestoreRenderState(graph::rsPointScaleB);
-	engine.GetContext().RestoreRenderState(graph::rsPointScaleC);	
+	engine.GetContext().RestoreRenderState(graph::rsPointScaleC);
 	engine.GetContext().RestoreRenderState(graph::rsPointSizeMin);
 	engine.GetContext().RestoreRenderState(graph::rsPointSizeMax);
 	//
@@ -1057,7 +1057,7 @@ void FxSpritesManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, Fx
 		{
 			D3DXVECTOR3 axe = Vec3GlmToDx(glm::axis(particle->GetRot()));
 			float angle = glm::angle(particle->GetRot());
-			
+
 			engine.RenderSpritePT(emitter->GetWorldPos(particle), particle->GetScale(), angle, 0, IdentityMatrix);
 		}
 	}
@@ -1082,7 +1082,7 @@ void FxPlaneManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, FxPa
 
 		D3DXMATRIX worldMat = particle->GetMatrix() * emitter->GetMatrix();
 		engine.GetContext().SetWorldMat(worldMat);
-		
+
 		engine.RenderPlanePT();
 	}
 
@@ -1092,7 +1092,7 @@ void FxPlaneManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, FxPa
 FxNodeManager::FxNodeManager()
 {
 	_node = new SceneNode();
-	_node->SetOwner(this);	
+	_node->SetOwner(this);
 }
 
 FxNodeManager::~FxNodeManager()
@@ -1162,7 +1162,7 @@ void FxTrailManager::DrawPath(graph::Engine& engine, FxParticleSystem* system, F
 
 	engine.GetDriver().GetDevice()->SetFVF(res::VertexPT::fvf);
 	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, primCnt * 2, &vBuf[sPrim * 2], sizeof(res::VertexPT));
-			
+
 	system->material.UnApply(engine);
 	engine.GetContext().PopFrame();
 }
@@ -1210,7 +1210,7 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 	D3DXVec3Normalize(&dir, &dir);
 	//Последняя позиция для вычисления направления
 	D3DXVECTOR3 lastPos = pos1 - dir;
-	
+
 	//Последняя частица которая была отрисована
 	unsigned lastPartDraw = 0;
 	//Текущее число частиц
@@ -1253,7 +1253,7 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 
 			lastPartDraw = numPartDraw - 1;
 		}
-	}	
+	}
 
 	//Обращаемся к последней частице в роли которой выступает сам емиттер, и также строим линию из двух вершин
 	dir = worldPos - lastPos;
@@ -1263,7 +1263,7 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 
 	//Рисуем все оставшиеся частицы. Если режим typeDraw == tdLastGroup то рисуются все частицы, иначе только последняя
 	DrawPath(engine, system, groups.back(), vertexBuf, numPartDraw - lastPartDraw - 1, lastPartDraw);
-	
+
 	delete[] vertexBuf;
 }
 
@@ -1287,7 +1287,7 @@ void FxTrailManager::SetTrailWidth(float value)
 
 
 FxFlowEmitter::FxFlowEmitter(FxParticleSystem* owner): _MyBase(owner)
-{	
+{
 }
 
 FxFlowEmitter::FlowDesc::FlowDesc()
@@ -1367,9 +1367,9 @@ void FxFlowEmitter::Save(lsl::SWriter* writer)
 		lsl::SWriteValue(child, "speedPos", _flowDesc.speedPos);
 		lsl::SWriteValue(child, "speedRot", _flowDesc.speedRot);
 		lsl::SWriteValue(child, "speedScale", _flowDesc.speedScale);
-		lsl::SWriteValue(child, "acceleration", _flowDesc.acceleration);	
+		lsl::SWriteValue(child, "acceleration", _flowDesc.acceleration);
 		lsl::SWriteValue(child, "gravitation", _flowDesc.gravitation);
-		
+
 		writer->WriteValue("autoRot", _flowDesc.autoRot);
 	}
 }
@@ -1383,7 +1383,7 @@ void FxFlowEmitter::Load(lsl::SReader* reader)
 		lsl::SReadValue(child, "speedPos", _flowDesc.speedPos);
 		lsl::SReadValue(child, "speedRot", _flowDesc.speedRot);
 		lsl::SReadValue(child, "speedScale", _flowDesc.speedScale);
-		lsl::SReadValue(child, "acceleration", _flowDesc.acceleration);		
+		lsl::SReadValue(child, "acceleration", _flowDesc.acceleration);
 		lsl::SReadValue(child, "gravitation", _flowDesc.gravitation);
 
 		reader->ReadValue("autoRot", _flowDesc.autoRot);

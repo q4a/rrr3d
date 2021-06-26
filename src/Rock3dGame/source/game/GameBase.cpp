@@ -23,7 +23,7 @@ Behaviors::ClassList Behaviors::classList;
 
 
 Behavior::Behavior(Behaviors* owner): _owner(owner), _removed(false)
-{	
+{
 }
 
 void Behavior::Save(lsl::SWriter* writer)
@@ -55,8 +55,8 @@ void Behavior::SetPxNotify(PxNotify notify, bool value)
 		{
 		case pxContact:
 			GetGameObj()->GetPxActor().SetContactReportFlag(NX_NOTIFY_ALL, value);
-			break;			
-			
+			break;
+
 		case pxContactModify:
 			GetGameObj()->GetPxActor().SetContactReportFlag(NX_NOTIFY_CONTACT_MODIFICATION, value);
 			break;
@@ -126,7 +126,7 @@ void ResurrectObj::Resurrect()
 	if (owner && parent)
 	{
 		owner->LockDestr();
-		
+
 		D3DXVECTOR3 pos = gameObj->GetWorldPos();
 		glm::quat rot = gameObj->GetWorldRot();
 
@@ -190,7 +190,7 @@ void FxSystemWaitingEnd::OnProgress(float deltaTime)
 
 		if (resCnt == 0)
 			GetGameObj()->Death();
-	}	
+	}
 }
 
 
@@ -282,7 +282,7 @@ void EventEffect::DestroyEffObj(MapObj* mapObj, bool destrWorld)
 	//удаляем только дочерний объект
 	if (mapObj->GetOwner()->GetOwner() == GetGameObj())
 	{
-		GetGameObj()->GetIncludeList().Delete(mapObj);		
+		GetGameObj()->GetIncludeList().Delete(mapObj);
 	}
 	else if (destrWorld)
 	{
@@ -342,8 +342,8 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 {
 	LSL_ASSERT(_effect);
 
-	MapObj* mapObj = 0;	
-	
+	MapObj* mapObj = 0;
+
 	//дочерний объект
 	if (desc.parent)
 	{
@@ -441,7 +441,7 @@ void EventEffect::SaveSource(lsl::SWriter* writer)
 
 	writer->WriteValue("pos", _pos, 3);
 	writer->WriteValue("impulse", _impulse, 3);
-	writer->WriteValue("ignoreRot", _ignoreRot);	
+	writer->WriteValue("ignoreRot", _ignoreRot);
 }
 
 void EventEffect::LoadSource(lsl::SReader* reader)
@@ -456,16 +456,16 @@ void EventEffect::LoadSource(lsl::SReader* reader)
 		{
 			child->AddFixUp(true, this, NULL);
 			child = child->NextValue();
-		}		
+		}
 	}
 
 	lsl::SReader* child = reader->ReadRef("sound", true, this, 0);
 
-	SetEffect(MapObjRec::Lib::LoadRecordRef(reader, "effect"));	
-	
+	SetEffect(MapObjRec::Lib::LoadRecordRef(reader, "effect"));
+
 	reader->ReadValue("pos", _pos, 3);
 	reader->ReadValue("impulse", _impulse, 3);
-	reader->ReadValue("ignoreRot", _ignoreRot);	
+	reader->ReadValue("ignoreRot", _ignoreRot);
 }
 
 void EventEffect::OnFixUp(const FixUpNames& fixUpNames)
@@ -610,7 +610,7 @@ void LowLifePoints::OnProgress(float deltaTime)
 	_MyBase::OnProgress(deltaTime);
 
 	float maxLife = GetGameObj()->GetMaxLife();
-	float life = GetGameObj()->GetLife();	
+	float life = GetGameObj()->GetLife();
 
 	if (GetGameObj()->GetLiveState() != GameObject::lsDeath && maxLife > 0.0f && life > 0 && life/maxLife < _lifeLevel)
 	{
@@ -780,7 +780,7 @@ void LifeEffect::OnProgress(float deltaTime)
 		snd::Source3d* source = GiveSource3d();
 		if (source)
 		{
-			_play = true;	
+			_play = true;
 
 			source->SetPlayMode(snd::pmOnce);
 			source->SetPos(0);
@@ -793,7 +793,7 @@ void LifeEffect::OnProgress(float deltaTime)
 
 
 PxWheelSlipEffect::PxWheelSlipEffect(Behaviors* owner): _MyBase(owner)
-{	
+{
 }
 
 PxWheelSlipEffect::~PxWheelSlipEffect()
@@ -820,10 +820,10 @@ void PxWheelSlipEffect::OnProgress(float deltaTime)
 
 	CarWheel& wheel = lsl::StaticCast<CarWheel&>(*GetGameObj());
 	snd::Source3d* source = GiveSource3d();
-	
+
 	NxWheelContactData contactDesc;
 	NxShape* contact = wheel.GetShape()->GetNxShape()->getContact(contactDesc);
-	float slip = 0.0f;		
+	float slip = 0.0f;
 	if (contact)
 		slip = std::max(abs(contactDesc.lateralSlip) - slipLat, 0.0f) + std::max(abs(contactDesc.longitudalSlip) - slipLong, 0.0f);
 
@@ -834,7 +834,7 @@ void PxWheelSlipEffect::OnProgress(float deltaTime)
 		desc.child = false;
 		if (GetMakeEffect())
 			GetMakeEffect()->GetGameObj().SetPos(GetPos() + desc.pos);
-		else		
+		else
 			MakeEffect(desc);
 
 		if (source)
@@ -897,7 +897,7 @@ void ImmortalEffect::OnImmortalStatus(bool status)
 		if (GetEffect())
 		{
 			EffectDesc desc;
-			desc.child = true;		
+			desc.child = true;
 			MakeEffect(desc);
 		}
 
@@ -921,7 +921,7 @@ void ImmortalEffect::OnImmortalStatus(bool status)
 	}
 	else
 	{
-		_fadeOutTime = 0.0f;		
+		_fadeOutTime = 0.0f;
 	}
 }
 
@@ -953,7 +953,7 @@ void ImmortalEffect::OnProgress(float deltaTime)
 	MapObj* mapObj = GetMakeEffect();
 
 	if (mapObj && _dmgTime >= 0)
-	{	
+	{
 		float alpha = ClampValue(_dmgTime / 0.25f, 0.0f, 1.0f);
 
 		const graph::Actor::Nodes& nodes = GetMakeEffect()->GetGameObj().GetGrActor().GetNodes();
@@ -973,7 +973,7 @@ void ImmortalEffect::OnProgress(float deltaTime)
 	}
 
 	if (mapObj && _fadeInTime >= 0)
-	{	
+	{
 		_fadeInTime += deltaTime;
 		float alpha = ClampValue(_fadeInTime / 0.5f, 0.0f, 1.0f);
 		mapObj->GetGameObj().SetScale(_scale * alpha);
@@ -982,7 +982,7 @@ void ImmortalEffect::OnProgress(float deltaTime)
 	}
 
 	if (mapObj && _fadeOutTime >= 0)
-	{	
+	{
 		_fadeOutTime += deltaTime;
 		float alpha = ClampValue(_fadeOutTime / 0.5f, 0.0f, 1.0f);
 		mapObj->GetGameObj().SetScale(_scale * (1.0f - alpha));
@@ -1014,7 +1014,7 @@ SlowEffect::SlowEffect(Behaviors* owner): _MyBase(owner)
 void SlowEffect::OnDestroyEffect(MapObj* sender)
 {
 	GetGameObj()->GetPxActor().GetNxActor()->setLinearDamping(0.0f);
-	Remove();	
+	Remove();
 }
 
 void SlowEffect::OnProgress(float deltaTime)
@@ -1067,7 +1067,7 @@ void SoundMotor::Init()
 		_srcRPM->SetPlayMode(snd::pmInfite);
 	}
 }
-	
+
 void SoundMotor::Free()
 {
 	if (_init)
@@ -1094,7 +1094,7 @@ void SoundMotor::OnMotor(float deltaTime, float rpm, float minRPM, float maxRPM)
 		float idleAlpha = lsl::ClampValue(0.5f * (_curRPM - minRPM)/minRPM, 0.0f, 1.0f);
 		float alpha = ClampValue((_curRPM - minRPM)/(maxRPM - minRPM), 0.0f, 1.0f);
 
-		_srcRPM->Play();		
+		_srcRPM->Play();
 		_srcRPM->SetVolume((_rpmVolumeRange.x + alpha * (_rpmVolumeRange.y - _rpmVolumeRange.x)) * idleAlpha);
 		_srcRPM->SetFrequencyRatio((_rpmFreqRange.x + alpha * (_rpmFreqRange.y - _rpmFreqRange.x)));
 
@@ -1263,7 +1263,7 @@ void PodushkaAnim::OnProgress(float deltaTime)
 	LSL_ASSERT(_target);
 
 	GameCar* car = lsl::StaticCast<game::GameCar*>(GetGameObj()->GetParent());
-	
+
 	float linSpeed = car->GetLeadWheelSpeed();
 	if (abs(linSpeed) > 1.0f)
 	{
@@ -1321,16 +1321,16 @@ void Behaviors::InitClassList()
 
 		classList.Add<TouchDeath>(btTouchDeath);
 		classList.Add<ResurrectObj>(btResurrectObj);
-		classList.Add<FxSystemWaitingEnd>(btFxSystemWaitingEnd);		
-		classList.Add<FxSystemSrcSpeed>(btFxSystemSrcSpeed);		
+		classList.Add<FxSystemWaitingEnd>(btFxSystemWaitingEnd);
+		classList.Add<FxSystemSrcSpeed>(btFxSystemSrcSpeed);
 		classList.Add<LowLifePoints>(btLowLifePoints);
 		classList.Add<DamageEffect>(btDamageEffect);
 		classList.Add<DeathEffect>(btDeathEffect);
-		classList.Add<LifeEffect>(btLifeEffect);		
+		classList.Add<LifeEffect>(btLifeEffect);
 		classList.Add<SlowEffect>(btSlowEffect);
 		classList.Add<PxWheelSlipEffect>(btPxWheelSlipEffect);
-		classList.Add<ShotEffect>(btShotEffect);	
-		classList.Add<ImmortalEffect>(btImmortalEffect);			
+		classList.Add<ShotEffect>(btShotEffect);
+		classList.Add<ImmortalEffect>(btImmortalEffect);
 		classList.Add<SoundMotor>(btSoundMotor);
 		classList.Add<GusenizaAnim>(btGusenizaAnim);
 		classList.Add<PodushkaAnim>(btPodushkaAnim);

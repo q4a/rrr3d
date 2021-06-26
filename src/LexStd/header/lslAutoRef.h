@@ -38,22 +38,22 @@ protected:
 			for (_RefList::iterator iter = _nextRefList.begin(); iter != _nextRefList.end(); ++iter)
 			{
 				(*iter)->_prevRef = 0;
-				if (_prevRef)	
+				if (_prevRef)
 				{
-					(*iter)->_prevRef = _prevRef;	
+					(*iter)->_prevRef = _prevRef;
 				}
-				else if (iter != _nextRefList.begin())	
+				else if (iter != _nextRefList.begin())
 				{
 					(*iter)->_prevRef = *_nextRefList.begin();
 				}
 
-				if ((*iter)->_prevRef)									
+				if ((*iter)->_prevRef)
 					(*iter)->_prevRef->_nextRefList.push_back(*iter);
 			}
 			_nextRefList.clear();
 
 			if (_prevRef)
-				_prevRef->_nextRefList.remove(this);		
+				_prevRef->_nextRefList.remove(this);
 		}
 
 		return false;
@@ -66,7 +66,7 @@ template<class _Ref> class AutoRef: public BaseAutoRef
 {
 	template<class> friend class AutoRef;
 private:
-	typedef AutoRef<_Ref> _MyClass;	
+	typedef AutoRef<_Ref> _MyClass;
 	typedef BaseAutoRef _MyBase;
 	typedef std::list<_MyClass*> _RefList;
 private:
@@ -83,7 +83,7 @@ private:
 	void FreeRef()
 	{
 		bool isFree = _MyBase::FreeRef(_owner);
-		
+
 		//ѕроверка на гарантированное удаление ссылки
 		LSL_ASSERT(!(isFree && _ref && _ref->GetRefCnt() > 1));
 
@@ -187,7 +187,7 @@ public:
 	bool operator!=(const _Ref* value) const
 	{
 		return _ref != value;
-	}	
+	}
 };
 
 }

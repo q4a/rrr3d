@@ -6,14 +6,14 @@ namespace r3d
 
 namespace res
 {
- 
+
 class D3DXImageFile: public lsl::IOResource<ImageResource>
 {
 public:
 	static void RegistredFile();
 
 	static graph::RenderDriver* driver;
-public:	
+public:
 	virtual void LoadFromStream(Resource& outData, std::istream& stream);
 	virtual void SaveToStream(const Resource& inData, std::ostream& stream);
 };
@@ -24,7 +24,7 @@ public:
 	static void RegistredFile();
 
 	static graph::RenderDriver* driver;
-public:	
+public:
 	virtual void LoadFromStream(Resource& outData, std::istream& stream);
 	virtual void SaveToStream(const Resource& inData, std::ostream& stream);
 };

@@ -151,10 +151,10 @@ public:
 		{
 		case vdLinear:
 			return _min + (_max - _min) * range;
-		
+
 		default:
 			LSL_ASSERT(false);
-			
+
 			return _min;
 		}
 	}
@@ -257,9 +257,9 @@ private:
 		if (_distrib == vdVolume)
 		{
 			_volume = _freq.x * _freq.y * _freq.z;
-			
+
 			LSL_ASSERT(_volume > 0);
-			
+
 			D3DXVECTOR3 leng = _max - _min;
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
@@ -348,7 +348,7 @@ public:
 
 		default:
 			LSL_ASSERT(false);
-			
+
 			return _min;
 		}
 	}
@@ -384,7 +384,7 @@ typedef ValueRange<D3DXVECTOR3> Vec3Range;
 Vec3Range operator*(const Vec3Range& val1, float val2);
 Vec3Range operator*(const Vec3Range& val1, const D3DXVECTOR3& val2);
 
-//ќбъемна€ интерпол€ци€ пока схожа к кубической, хот€ на самом деле нужна сферическа€.  огда поверхность сферы ограничиваетс€ окружностью(двум€ радиус векторами, которые определ€ют димаетр окружности на манер как сделано в BB), котора€ разбиваетс€ на сектора через углы. 
+//ќбъемна€ интерпол€ци€ пока схожа к кубической, хот€ на самом деле нужна сферическа€.  огда поверхность сферы ограничиваетс€ окружностью(двум€ радиус векторами, которые определ€ют димаетр окружности на манер как сделано в BB), котора€ разбиваетс€ на сектора через углы.
 template<> struct ValueRange<glm::quat>
 {
 public:
@@ -413,9 +413,9 @@ private:
 		if (_distrib == vdVolume)
 		{
 			_volume = _freq.x * _freq.y;
-			
+
 			LSL_ASSERT(_volume > 0);
-			
+
 			glm::vec2 leng(_max.x - _min.x, _max.y - _min.y);
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
@@ -515,7 +515,7 @@ public:
 
 		default:
 			LSL_ASSERT(false);
-			
+
 			return _min;
 		}
 	}

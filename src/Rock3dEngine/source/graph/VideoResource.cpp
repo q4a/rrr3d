@@ -74,7 +74,7 @@ void VideoResource::OnLostDevice()
 		_MyBase::Free();
 		_autoInit = true;
 	}
-	
+
 }
 
 void VideoResource::OnResetDevice()
@@ -161,7 +161,7 @@ void VBMesh::DoInit()
 {
 	LoadData();
 
-	GetEngine()->GetDriver().GetDevice()->CreateVertexBuffer(_data->GetSize(), GetUsage(), _data->GetFVF(), GetMemoryPool(), &_vb, 0);	
+	GetEngine()->GetDriver().GetDevice()->CreateVertexBuffer(_data->GetSize(), GetUsage(), _data->GetFVF(), GetMemoryPool(), &_vb, 0);
 }
 
 void VBMesh::DoFree()
@@ -265,11 +265,11 @@ IDirect3DVertexBuffer9* VBMesh::GetVB() const
 
 
 IndexedVBMesh::IndexedVBMesh(): MemPoolResource(D3DUSAGE_WRITEONLY), _data(0), _createData(false), _beginStreamCnt(0), _vb(0), _ib(0)
-{	
+{
 }
 
 IndexedVBMesh::~IndexedVBMesh()
-{	
+{
 	LSL_ASSERT(_beginStreamCnt == 0);
 
 	Free();
@@ -284,7 +284,7 @@ void IndexedVBMesh::LoadData() const
 
 void IndexedVBMesh::DoInit()
 {
-	LoadData();	
+	LoadData();
 
 	GetEngine()->GetDriver().GetDevice()->CreateVertexBuffer(_data->vb.GetSize(), GetUsage(), _data->vb.GetFVF(), GetMemoryPool(), &_vb, 0);
 	GetEngine()->GetDriver().GetDevice()->CreateIndexBuffer(_data->fb.GetSize(), GetUsage(), _data->fb.GetIndexFormat(), GetMemoryPool(), &_ib, 0);
@@ -305,7 +305,7 @@ void IndexedVBMesh::DoUpdate()
 
 	void* ibData;
 	_ib->Lock(0, 0, (void**)&ibData, 0);
-	_data->fb.CopyDataTo(ibData);	
+	_data->fb.CopyDataTo(ibData);
 	_ib->Unlock();
 }
 
@@ -316,7 +316,7 @@ void IndexedVBMesh::BeginStream(int attribId, unsigned streamNumber)
 	if (_beginStreamCnt++ == 0)
 	{
 		const res::FaceGroup& fg = _data->faceGroups.at(attribId);
-		
+
 		GetEngine()->GetDriver().GetDevice()->SetStreamSource(streamNumber, _vb, fg.sVertex * _data->vb.GetVertexSize(), _data->vb.GetVertexSize());
 		GetEngine()->GetDriver().GetDevice()->SetIndices(_ib);
 		GetEngine()->GetDriver().GetDevice()->SetFVF(_data->vb.GetFVF());
@@ -324,7 +324,7 @@ void IndexedVBMesh::BeginStream(int attribId, unsigned streamNumber)
 }
 
 void IndexedVBMesh::BeginStream()
-{	
+{
 	LSL_ASSERT(IsInit());
 
 	if (_beginStreamCnt++ == 0)
@@ -353,7 +353,7 @@ void IndexedVBMesh::DrawSubset(int attribId)
 {
 	const res::FaceGroup& fg = _data->faceGroups.at(attribId);
 
-	BeginStream(attribId);	
+	BeginStream(attribId);
 	GetEngine()->GetDriver().GetDevice()->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, fg.sVertex, fg.vertexCnt, fg.sFace * 3, fg.faceCnt);
 	EndStream();
 }
@@ -422,7 +422,7 @@ IDirect3DIndexBuffer9* IndexedVBMesh::GetIB()
 
 
 MeshX::MeshX(): MemPoolResource(D3DUSAGE_WRITEONLY), _data(0), _createData(false), _d3dxMesh(0), _beginStreamCnt(0)
-{	
+{
 }
 
 MeshX::~MeshX()
@@ -441,7 +441,7 @@ void MeshX::LoadData() const
 
 void MeshX::DoInit()
 {
-	LoadData();	
+	LoadData();
 
 	switch (_prefab)
 	{
@@ -466,7 +466,7 @@ void MeshX::DoUpdate()
 
 	//void* ibData;
 	//_ib->Lock(0, 0, (void**)&ibData, 0);
-	//_data->fb.CopyDataTo(ibData);	
+	//_data->fb.CopyDataTo(ibData);
 	//_ib->Unlock();
 }
 
@@ -485,7 +485,7 @@ void MeshX::BeginStream(int attribId, unsigned streamNumber)
 }
 
 void MeshX::BeginStream()
-{	
+{
 	LSL_ASSERT(IsInit());
 
 	if (_beginStreamCnt++ == 0)
@@ -506,10 +506,10 @@ void MeshX::EndStream()
 void MeshX::Draw()
 {
 	BeginStream();
-	
+
 	//GetEngine()->GetDriver().GetDevice()->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, _data->vb.GetVertexCount(), 0, _data->fb.GetFaceCount());
 	_d3dxMesh->DrawSubset(0);
-	
+
 	EndStream();
 }
 
@@ -517,11 +517,11 @@ void MeshX::DrawSubset(int attribId)
 {
 	//const res::FaceGroup& fg = _data->faceGroups.at(attribId);
 
-	BeginStream(attribId);	
-	
+	BeginStream(attribId);
+
 	//GetEngine()->GetDriver().GetDevice()->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, fg.sVertex, fg.vertexCnt, fg.sFace * 3, fg.faceCnt);
 	_d3dxMesh->DrawSubset(attribId);
-	
+
 	EndStream();
 }
 
@@ -579,7 +579,7 @@ const D3DXVECTOR3& MeshX::GetMaxPos() const
 
 
 TexResource::TexResource(DWORD usage): MemPoolResource(usage), _screenScale(0, 0), _levelCnt(1) //один основной уровень
-{	
+{
 }
 
 IDirect3DBaseTexture9* TexResource::GetTex()
@@ -645,7 +645,7 @@ void Tex2DResource::LoadData()
 
 	if (_data->GetFileName() != "" && Engine::d3dxUse())
 	{
-		D3DXIMAGE_INFO info;		
+		D3DXIMAGE_INFO info;
 		HRESULT hr = D3DXGetImageInfoFromFileW(lsl::GetAppFilePath(_data->GetFileName()).c_str(), &info);
 
 		if (hr == S_OK)
@@ -728,11 +728,11 @@ void Tex2DResource::DoUpdate()
 	IDirect3DTexture9* tmpTex;
 	bool _notDirAccess = GetMemoryPool() == D3DPOOL_DEFAULT && !(GetUsage() & D3DUSAGE_DYNAMIC);
 	if (_notDirAccess)
-		GetEngine()->GetDriver().GetDevice()->CreateTexture(_data->GetWidth(), _data->GetHeight(), manualFilter ? GetLevelCnt() : 1, 0, _data->GetFormat(), D3DPOOL_SYSTEMMEM, &tmpTex, 0);	
+		GetEngine()->GetDriver().GetDevice()->CreateTexture(_data->GetWidth(), _data->GetHeight(), manualFilter ? GetLevelCnt() : 1, 0, _data->GetFormat(), D3DPOOL_SYSTEMMEM, &tmpTex, 0);
 	else
 		tmpTex = _texture;
 
-	D3DLOCKED_RECT source;	
+	D3DLOCKED_RECT source;
 	tmpTex->LockRect(0, &source, 0, D3DLOCK_READONLY);
 
 	switch (_data->GetFormat())
@@ -775,7 +775,7 @@ void Tex2DResource::SyncFrom(Tex2DResource* value)
 		_data->SetWidth(value->_data->GetWidth());
 		_data->SetHeight(value->_data->GetHeight());
 		_data->SetFormat(value->_data->GetFormat());
-		
+
 		Free();
 	}
 }
@@ -826,7 +826,7 @@ void Tex2DResource::SetData(res::ImageResource* value)
 			_createData = false;
 		}
 
-		_data = value;		
+		_data = value;
 	}
 }
 
@@ -850,7 +850,7 @@ glm::vec2 Tex2DResource::GetSize()
 
 
 TexCubeResource::TexCubeResource(): TexResource(0), _texture(0), _data(0), _createData(false), _d3dxLoadUsed(false)
-{	
+{
 }
 
 TexCubeResource::~TexCubeResource()
@@ -876,7 +876,7 @@ void TexCubeResource::LoadData()
 
 	if (_data->GetFileName() != "" && Engine::d3dxUse())
 	{
-		D3DXIMAGE_INFO info;		
+		D3DXIMAGE_INFO info;
 		HRESULT hr = D3DXGetImageInfoFromFileW(lsl::GetAppFilePath(_data->GetFileName()).c_str(), &info);
 
 		if (hr == S_OK)
@@ -951,8 +951,8 @@ void TexCubeResource::DoUpdate()
 
 	IDirect3DCubeTexture9* tmpTex;
 	bool _notDirAccess = GetMemoryPool() == D3DPOOL_DEFAULT && !(GetUsage() & D3DUSAGE_DYNAMIC);
-	if (_notDirAccess)	
-		GetEngine()->GetDriver().GetDevice()->CreateCubeTexture(_data->GetWidth()/6, manualFilter ? GetLevelCnt() : 1, 0, _data->GetFormat(), D3DPOOL_SYSTEMMEM, &tmpTex, 0);	
+	if (_notDirAccess)
+		GetEngine()->GetDriver().GetDevice()->CreateCubeTexture(_data->GetWidth()/6, manualFilter ? GetLevelCnt() : 1, 0, _data->GetFormat(), D3DPOOL_SYSTEMMEM, &tmpTex, 0);
 	else
 		tmpTex = _texture;
 
@@ -1017,7 +1017,7 @@ res::CubeImageResource* TexCubeResource::GetOrCreateData()
 		_createData = true;
 	}
 
-	return _data;	
+	return _data;
 }
 
 void TexCubeResource::SetData(res::CubeImageResource* value)
@@ -1030,7 +1030,7 @@ void TexCubeResource::SetData(res::CubeImageResource* value)
 			_createData = false;
 		}
 
-		_data = value;		
+		_data = value;
 	}
 }
 
@@ -1065,7 +1065,7 @@ void RenderTargetResource::DoInit()
 
 void RenderTargetResource::DoFree()
 {
-	_surface->Release();	
+	_surface->Release();
 }
 
 void RenderTargetResource::DoUpdate()
@@ -1085,27 +1085,27 @@ unsigned RenderTargetResource::GetWidth() const
 
 void RenderTargetResource::SetWidth(unsigned value)
 {
-	_width = value;	
+	_width = value;
 }
 
 unsigned RenderTargetResource::GetHeight() const
 {
-	return _height;	
+	return _height;
 }
 
 void RenderTargetResource::SetHeight(unsigned value)
 {
-	_height = value;	
+	_height = value;
 }
 
 D3DFORMAT RenderTargetResource::GetFormat() const
 {
-	return _format;	
+	return _format;
 }
 
 void RenderTargetResource::SetFormat(D3DFORMAT value)
 {
-	_format = value;	
+	_format = value;
 }
 
 bool RenderTargetResource::GetLockable() const
@@ -1184,7 +1184,7 @@ void DepthStencilSurfaceResource::DoInit()
 
 void DepthStencilSurfaceResource::DoFree()
 {
-	_surface->Release();	
+	_surface->Release();
 }
 
 void DepthStencilSurfaceResource::DoUpdate()
@@ -1204,27 +1204,27 @@ unsigned DepthStencilSurfaceResource::GetWidth() const
 
 void DepthStencilSurfaceResource::SetWidth(unsigned value)
 {
-	_width = value;	
+	_width = value;
 }
 
 unsigned DepthStencilSurfaceResource::GetHeight() const
 {
-	return _height;	
+	return _height;
 }
 
 void DepthStencilSurfaceResource::SetHeight(unsigned value)
 {
-	_height = value;	
+	_height = value;
 }
 
 D3DFORMAT DepthStencilSurfaceResource::GetFormat() const
 {
-	return _format;	
+	return _format;
 }
 
 void DepthStencilSurfaceResource::SetFormat(D3DFORMAT value)
 {
-	_format = value;	
+	_format = value;
 }
 
 bool DepthStencilSurfaceResource::GetDiscard() const
@@ -1314,7 +1314,7 @@ void TextFont::DrawText(const std::string& text, lsl::Rect& rect, DWORD format, 
 	SetRect(&mtRect, rect.left, rect.top, rect.right, rect.bottom);
 
 	_font->DrawTextA(0, text.c_str(), text.size(), &mtRect, format, color);
-	
+
 	rect = lsl::Rect(mtRect.left, mtRect.top, mtRect.right, mtRect.bottom);
 }
 
@@ -1346,7 +1346,7 @@ const TextFont::Desc& TextFont::GetDesc() const
 void TextFont::SetDesc(const Desc& value)
 {
 	_desc = value;
-	
+
 	if (IsInit())
 		Reload();
 }

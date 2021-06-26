@@ -66,7 +66,7 @@ Menu::Menu(GameMode* game): _game(game), _state(msMain2), _loadingVisible(false)
 	_game->RegUser(this);
 	GetNet()->RegUser(this);
 }
-	
+
 Menu::~Menu()
 {
 	_game->GetWorld()->GetControl()->RemoveEvent(_controlEvent);
@@ -75,7 +75,7 @@ Menu::~Menu()
 
 	HideAccept();
 	HideMessage();
-	
+
 	SetFinalMenu(false);
 	SetFinishMenu2(false);
 	SetOptionsMenu(false);
@@ -96,7 +96,7 @@ Menu::~Menu()
 		delete _soundShemes[i];
 
 	GetWorld()->GetLogic()->ReleaseSndSource(_audioSource);
-	
+
 	GetGUI()->ReleaseWidget(_cursor);
 
 	delete _controlEvent;
@@ -366,7 +366,7 @@ void Menu::SetScreenFon(bool init)
 	{
 		_screenFon = GetGUI()->CreatePlaneFon();
 		_screenFon->GetMaterial().SetColor(clrBlack);
-	} 
+	}
 	else if (!init && _screenFon)
 	{
 		GetGUI()->ReleaseWidget(_screenFon);
@@ -381,7 +381,7 @@ void Menu::SetMainMenu2(bool init)
 		_mainMenu2 = new n::MainMenu(this, GetGUI()->GetRoot());
 		_mainMenu2->Show(true);
 		_mainMenu2->SetState(n::MainMenu::msMain);
-	} 
+	}
 	else if (!init && _mainMenu2)
 	{
 		lsl::SafeDelete(_mainMenu2);
@@ -455,7 +455,7 @@ void Menu::SetInfoMenu(bool init)
 		_infoMenu->SetState(n::InfoMenu::msLoading);
 		_infoMenu->Show(true);
 		_infoMenu->GetRoot()->ShowModal(true);
-	} 
+	}
 	else if (!init && _infoMenu)
 	{
 		lsl::SafeDelete(_infoMenu);
@@ -1251,7 +1251,7 @@ void Menu::DelProfile(int profileIndex)
 Race::Profile* Menu::GetLastProfile(bool netGame)
 {
 	Race::Profile* profile = netGame ? GetRace()->GetLastNetProfile() : GetRace()->GetLastProfile();
-	
+
 	if (profile == NULL)
 	{
 		for (Race::Profiles::const_iterator iter = GetRace()->GetProfiles().begin(); iter != GetRace()->GetProfiles().end(); ++iter)
@@ -1582,7 +1582,7 @@ gui::PlaneFon* Menu::CreatePlane(gui::Widget* parent, gui::Widget::Event* guiEve
 		plane->RegEvent(_soundShemes[soundSheme]);
 	if (guiEven)
 		plane->RegEvent(guiEven);
-	
+
 	if (imageSize)
 		plane->SetSize(GetImageSize(plane->GetMaterial()) * size);
 	else
@@ -1600,7 +1600,7 @@ gui::Button* Menu::CreateArrowButton(gui::Widget* parent, gui::Widget::Event* gu
 {
 	gui::Button* button = GetGUI()->CreateButton();
 	button->SetParent(parent);
-	
+
 	gui::Material* fonMat = button->GetOrCreateFon();
 	fonMat->GetSampler().SetTex(GetTexture("GUI\\viewArrow.tga"));
 	fonMat->SetBlending(gui::Material::bmTransparency);
@@ -1619,7 +1619,7 @@ gui::Button* Menu::CreateSpaceArrowButton(gui::Widget* parent, gui::Widget::Even
 {
 	gui::Button* button = GetGUI()->CreateButton();
 	button->SetParent(parent);
-	
+
 	gui::Material* fonMat = button->GetOrCreateFon();
 	fonMat->GetSampler().SetTex(GetTexture("GUI\\spaceArrow.tga"));
 	fonMat->SetBlending(gui::Material::bmTransparency);
@@ -1738,7 +1738,7 @@ gui::DropBox* Menu::CreateDropBox(gui::Widget* parent, gui::Widget::Event* guiEv
 	dropBox->GetButMaterial().GetSampler().SetTex(GetTexture("GUI\\dropBoxButton.tga"));
 	dropBox->GetTextMaterial().SetColor(cTextColor);
 	dropBox->GetSelMaterial().SetColor(D3DXCOLOR(250.0f, 255.0f, 0.0f, 255.0f)/255.0f);
-	
+
 	dropBox->SetItems(items);
 
 	return dropBox;
@@ -1896,7 +1896,7 @@ gui::ScrollBox* Menu::CreateScrollBox(gui::Widget* parent, gui::Widget::Event* g
 	gui::ScrollBox* scrollBox = GetGUI()->CreateScrollBox();
 	scrollBox->SetParent(parent);
 	scrollBox->SetSize(size);
-	
+
 	scrollBox->GetArrowMaterial().GetSampler().SetTex(GetTexture("GUI\\scrollArrow.tga"));
 	scrollBox->GetArrowMaterial().SetBlending(gui::Material::bmTransparency);
 	scrollBox->GetArrowSelMaterial().GetSampler().SetTex(GetTexture("GUI\\scrollArrowSel.tga"));
@@ -2004,7 +2004,7 @@ gui::Plane3d* Menu::CreatePlane3d(gui::ViewPort3d* parent, const std::string& fo
 	gui::Plane3d* plane3d = parent->GetContext().CreatePlane3d();
 	plane3d->SetSize(size);
 	parent->GetBox()->InsertChild(plane3d);
-	
+
 	if (!fon.empty())
 	{
 		plane3d->GetOrCreateMaterial()->GetSampler().SetTex(GetTexture(fon));
@@ -2060,7 +2060,7 @@ void Menu::OnProgress(float deltaTime)
 		_messageTime = -1.0f;
 		_messageDlg->root()->SetVisible(true);
 	}
-	
+
 	if (_musicTime != -1.0f)
 	{
 		const float cMusicDelay = 1.0f;
@@ -2300,7 +2300,7 @@ lsl::string Menu::FormatCurrency(int val, lsl::string unit)
 {
 	std::stringstream sstream;
 	sstream << Currency(val, unit);
-	
+
 	return sstream.str();
 }
 
