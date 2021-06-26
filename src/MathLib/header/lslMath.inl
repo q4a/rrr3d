@@ -44,24 +44,6 @@ inline float NumAbsAdd(float absVal, float addVal)
 	return absVal > 0 ? absVal + addVal : absVal - addVal;
 }
 
-inline glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
-{
-	glm::mat4 mat4glm(mat._11, mat._21, mat._31, mat._41,
-	                  mat._12, mat._22, mat._32, mat._42,
-	                  mat._13, mat._23, mat._33, mat._43,
-	                  mat._14, mat._24, mat._34, mat._44);
-	return mat4glm;
-}
-
-inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
-{
-	D3DXMATRIX matrix(mat[0].x, mat[1].x, mat[2].x, mat[3].x,
-	                  mat[0].y, mat[1].y, mat[2].y, mat[3].y,
-	                  mat[0].z, mat[1].z, mat[2].z, mat[3].z,
-	                  mat[0].w, mat[1].w, mat[2].w, mat[3].w);
-	return matrix;
-}
-
 inline glm::vec3 Vec3DxToGlm(D3DXVECTOR3 v3)
 {
 	glm::vec3 v3glm(v3.x, v3.y, v3.z);
@@ -74,7 +56,7 @@ inline D3DXVECTOR3 Vec3GlmToDx(glm::vec3 v3)
 	return v3dx;
 }
 
-inline float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMATRIX& mat)
+inline float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const glm::mat4& mat)
 {
 	D3DXVECTOR3 res;
 	D3DXVec3TransformNormal(&res, &(vec * scalar), &mat);
@@ -82,27 +64,7 @@ inline float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMAT
 	return scalar < 0 ? -len : len;
 }
 
-inline void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const glm::quat& rot, D3DXMATRIX& outMat)
-{
-	D3DXMATRIX scaleMat;
-	D3DXMatrixScaling(&scaleMat, scale.x, scale.y, scale.z);
-
-	D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rot)));
-
-	D3DXMATRIX transMat;
-	D3DXMatrixTranslation(&transMat, pos.x, pos.y, pos.z);
-
-	outMat = scaleMat * rotMat * transMat;
-}
-
-inline D3DXMATRIX BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const glm::quat& rot)
-{
-	D3DXMATRIX res;
-	BuildWorldMatrix(pos, scale, rot, res);
-	return res;
-}
-
-inline void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, D3DXMATRIX& matOut)
+inline void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, glm::mat4& matOut)
 {
 	matOut._11 = xVec.x;
 	matOut._12 = xVec.y;
@@ -122,43 +84,63 @@ inline void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& y
 	matOut._44 = 1.0f;
 }
 
-inline void MatrixSetTranslation(const D3DXVECTOR3& vec, D3DXMATRIX& outMat)
+inline void MatrixSetTranslation(const D3DXVECTOR3& vec, glm::mat4& outMat)
 {
 	outMat._41 = vec.x;
 	outMat._42 = vec.y;
 	outMat._43 = vec.z;
 }
 
-inline void MatrixTranslate(const D3DXVECTOR3& vec, D3DXMATRIX& outMat)
+inline void MatrixTranslate(const D3DXVECTOR3& vec, glm::mat4& outMat)
 {
 	outMat._41 += vec.x;
 	outMat._42 += vec.y;
 	outMat._43 += vec.z;
 }
 
-inline void MatrixSetScale(const D3DXVECTOR3& vec, D3DXMATRIX& outMat)
+inline void MatrixSetScale(const D3DXVECTOR3& vec, glm::mat4& outMat)
 {
 	outMat._11 = vec.x;
 	outMat._22 = vec.y;
 	outMat._33 = vec.z;
 }
 
-inline void MatrixScale(const D3DXVECTOR3& vec, D3DXMATRIX& outMat)
+inline void MatrixScale(const D3DXVECTOR3& vec, glm::mat4& outMat)
 {
 	outMat._11 *= vec.x;
 	outMat._22 *= vec.y;
 	outMat._33 *= vec.z;
 }
 
-inline void MatGetPos(const D3DXMATRIX& mat, D3DXVECTOR3& outPos)
+inline void MatGetPos(const glm::mat4& mat, D3DXVECTOR3& outPos)
 {
 	outPos = mat.m[3];
 }
 
-inline D3DXVECTOR3 MatGetPos(const D3DXMATRIX& mat)
+inline D3DXVECTOR3 MatGetPos(const glm::mat4& mat)
 {
 	D3DXVECTOR3 res;
 	MatGetPos(mat, res);
+	return res;
+}
+
+inline void BuildWorldMatrix(const D3DXVECTOR3 &pos, const D3DXVECTOR3 &scale, const glm::quat &rot, glm::mat4 &outMat)
+{
+	glm::mat4 scaleMat;
+	D3DXMatrixScaling(&scaleMat, scale.x, scale.y, scale.z);
+
+	glm::mat4 rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rot)));
+
+	glm::mat4 transMat;
+	D3DXMatrixTranslation(&transMat, pos.x, pos.y, pos.z);
+
+	outMat = scaleMat * rotMat * transMat;
+}
+
+inline glm::mat4 BuildWorldMatrix(const D3DXVECTOR3 &pos, const D3DXVECTOR3 &scale, const glm::quat &rot)
+{
+	glm::mat4 res;
+	BuildWorldMatrix(pos, scale, rot, res);
 	return res;
 }
 
@@ -287,7 +269,7 @@ inline D3DXVECTOR3 Vec3Invert(const D3DXVECTOR3& vec)
 	return res;
 };
 
-inline D3DXVECTOR3 Vec3TransformCoord(const D3DXVECTOR3& vec, const D3DXMATRIX& mat)
+inline D3DXVECTOR3 Vec3TransformCoord(const D3DXVECTOR3& vec, const glm::mat4& mat)
 {
 	D3DXVECTOR3 res;
 	D3DXVec3TransformCoord(&res, &vec, &mat);
