@@ -53,9 +53,6 @@ void GaussianBlurShader::DoApplyTech(Engine& engine)
 	GetEffect()->Begin(&_cntPass, 0);
 }
 
-
-
-
 GaussianBlurRender::GaussianBlurRender(): _shader(0), _colorTex(0)
 {
 }

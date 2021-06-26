@@ -9,9 +9,6 @@ namespace lsl
 const std::string SerialFile::cParse = "parse";
 const std::string SerialFile::cFolder = "folder";
 
-
-
-
 int SIOTraits::GetValTypeSize(ValType type)
 {
 	switch (type)
@@ -48,9 +45,6 @@ int SIOTraits::GetValTypeSize(ValType type)
 		throw lsl::Error("int SIOTraits::GetValTypeSize(ValType type)");
 	}
 }
-
-
-
 
 SWriter::SWriter()
 {
@@ -102,9 +96,6 @@ SWriter* SWriter::WriteRef(const char* name, const CollectionItem* item)
 	}
 	return 0;
 }
-
-
-
 
 SReader::SReader()
 {
@@ -300,9 +291,6 @@ SReader* SReader::ReadRef(const char* name, bool collItem, Serializable* target,
 	else
 		return 0;
 }
-
-
-
 
 SerialNode::SerialNode(): _value(ValueDesc()), _linkSer(0), _masterSer(0), _masterNode(0), _linkSerRefCnt(0), _proxyLoad(0), _beginSave(0), _beginLoad(0)
 {
@@ -773,9 +761,6 @@ const SerialNode::Attributes& SerialNode::GetAttributes() const
 	return _attributes;
 }
 
-
-
-
 SerialNodes::SerialNodes(SerialNode* owner): _owner(owner)
 {
 }
@@ -856,9 +841,6 @@ SerialNode* SerialNodes::GetOwner()
 {
 	return _owner;
 }
-
-
-
 
 RootNode::RootNode(const std::string& name, Component* owner)
 {

@@ -142,7 +142,6 @@ struct MsgP2PSendingTicket_t
 	MsgP2PSendingTicket_t() : m_dwMessageType( k_EMsgP2PSendingTicket ) {}
 	DWORD GetMessageType() { return m_dwMessageType; }
 
-
 	void SetToken( const char *pchToken, uint32 unLen ) { m_uTokenLen = unLen; memcpy( m_rgchToken, pchToken, std::min( unLen, sizeof( m_rgchToken ) ) ); }
 	uint32 GetTokenLen() { return m_uTokenLen; }
 	const char *GetTokenPtr() { return m_rgchToken; }

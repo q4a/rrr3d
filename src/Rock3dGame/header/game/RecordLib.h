@@ -147,9 +147,6 @@ protected:
 	virtual void Load(lsl::SReader* reader);
 };
 
-
-
-
 template<class _Record> void RecordList<_Record>::Save(lsl::SWriter* writer)
 {
 	unsigned i = 0;

@@ -714,9 +714,6 @@ public:
 static inline NxPhysicsSDK& GetSDK();
 static inline NxCookingInterface& GetCooking();
 
-
-
-
 NxPhysicsSDK& GetSDK()
 {
 	LSL_ASSERT(Manager::_nxSDK);

@@ -7,9 +7,6 @@
 
 #include <DXGI.h>
 
-
-
-
 #ifdef _DEBUG
 	#define PLANAR_REFL_DEBUG
 #endif
@@ -20,9 +17,6 @@ namespace r3d
 const std::string GraphManager::cGraphOptionStr[GraphManager::cGraphOptionEnd] = {"goSkyBox", "goWater", "goSunShaft", "goBloom", "goHDR", "goShadow", "goGrassField", "goRefl", "goTrueRefl", "goPlanarRefl", "goPixelLighting", "goBumpMap", "goRefr", "goFog", "goPlaneFog", "goMagma"};
 
 const std::string GraphManager::cGraphQualityStr[GraphManager::cGraphQualityEnd] = {"gqLow", "gqMiddle", "gqHigh"};
-
-
-
 
 GraphManager::LightSrc::LightSrc(const LightDesc& desc): _enable(true), _shadowMap(0)
 {
@@ -83,9 +77,6 @@ void GraphManager::LightSrc::SetEnable(bool value)
 {
 	_enable = value;
 }
-
-
-
 
 GraphManager::GraphManager(HWND window, lsl::Point resolution, bool fullScreen): _camera(0), _clearSurfRef(0), _skyBoxRef(0), _depthSurfaceRef(0), _scRenderTexRef(0), _cleanScTexRef(0), _scRenderCubeTexRef(0), _scDepthMapRef(0), _refrEffRef(0), _sunShaft(0), _toneMapRef(0), _bloomEff(0), _hdrEff(0), _shadowMaxFar(0.0f), _shadowRef(0), _fogRef(0), _fogPlane(NULL), _fogPlaneActor(NULL), _cloudsTex(NULL), _sceneAmbient(clrWhite), _fogColor(clrWhite), _cloudColor(clrWhite), _cloudIntensivity(0.1f), _cloudHeight(0.0f), _guiMode(false), _groundAABB(1000.0f), _multisampling(0), _msRT(NULL), _msDS(NULL), _discreteVideoCard(false)
 {
@@ -2520,9 +2511,6 @@ D3DXVECTOR3 GraphManager::ScreenToWorld(const lsl::Point& coord, const float z)
 	D3DXVec3TransformCoord(&screenVec, &screenVec, &_camera->GetContextInfo().GetInvViewProj());
 
 	return screenVec;
-
-
-
 
 	/*//Алгоритм с импользованием D3DXVec3Unproject
 	D3DVIEWPORT9 viewPort;

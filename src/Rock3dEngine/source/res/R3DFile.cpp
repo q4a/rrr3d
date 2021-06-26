@@ -13,9 +13,6 @@ void R3DMeshFile::RegistredFile()
 	MeshData::GetResFormats().Add<R3DMeshFile>(".r3d");
 }
 
-
-
-
 void R3DMeshFile::LoadFromStream(Resource& outData, std::istream& stream)
 {
 	int version;

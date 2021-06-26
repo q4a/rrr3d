@@ -112,9 +112,6 @@ void LoadChunk(SerialNode& chunk, TiXmlNode& node)
 
 }
 
-
-
-
 void SerialFileXML::SaveNode(SerialNode& root, std::ostream& stream)
 {
 	TiXmlDocument doc("SerialFileXML");

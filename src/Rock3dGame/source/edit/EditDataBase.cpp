@@ -4,7 +4,6 @@
 #include "edit\DataBase.h"
 #include "edit\Edit.h"
 
-
 namespace r3d
 {
 
@@ -34,9 +33,6 @@ void MapObjRec::SetName(const std::string& value)
 {
 	GetInst()->SetName(value);
 }
-
-
-
 
 RecordNode::RecordNode(Inst* inst): ExternImpl<Inst>(inst)
 {
@@ -101,15 +97,9 @@ const std::string& RecordNode::GetName() const
 	return GetInst()->GetName();
 }
 
-
-
-
 MapObjLib::MapObjLib(Inst* inst): RecordNode(inst)
 {
 }
-
-
-
 
 DataBase::DataBase(Edit* edit): _edit(edit)
 {

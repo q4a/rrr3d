@@ -166,9 +166,6 @@ public:
 SDK* GetSDK();
 void ReleaseSDK();
 
-
-
-
 inline void SpinWait(DWORD time)
 {
 #ifdef _WIN32 // FIX_LINUX GetTickCount

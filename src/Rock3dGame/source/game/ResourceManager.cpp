@@ -315,9 +315,6 @@ const std::string cStringValueStr[cStringValueEnd] = {
 const std::string cLangCharsetStr[cLangCharsetEnd] = {"lcDefault", "lcEastEurope", "lcRussian", "lcBaltic"};
 const DWORD cLangCharsetCode[cLangCharsetEnd] = {DEFAULT_CHARSET, EASTEUROPE_CHARSET, RUSSIAN_CHARSET, BALTIC_CHARSET};
 
-
-
-
 ComplexMesh::ComplexMesh(ComplexMeshLib* owner): _owner(owner), _tag(-1), _enableTBN(false), _mesh(0), _ivbMesh(0), _meshX(0), _pxMesh(0)
 {
 }
@@ -519,9 +516,6 @@ void ComplexMesh::SetEnableTBN(bool value)
 	_enableTBN = value;
 }
 
-
-
-
 ComplexMeshLib::ComplexMeshLib(graph::Engine* engine): _engine(engine)
 {
 	_meshLib = new _MeshLib(this);
@@ -637,9 +631,6 @@ graph::Engine* ComplexMeshLib::GetEngine()
 {
 	return _engine;
 }
-
-
-
 
 ComplexImage::ComplexImage(ComplexImageLib* owner): _owner(owner), _levelCnt(1), _gui(false), _image(0), _tex2d(0), _cubeImage(0), _cubeTex(0), _tag(-1)
 {
@@ -851,9 +842,6 @@ void ComplexImage::SetGUI(bool value)
 	_gui = value;
 }
 
-
-
-
 ComplexImageLib::ComplexImageLib(graph::Engine* engine): _engine(engine)
 {
 	_imageLib = new _ImageLib(this);
@@ -966,9 +954,6 @@ graph::Engine* ComplexImageLib::GetEngine()
 	return _engine;
 }
 
-
-
-
 ComplexMatLib::ComplexMatLib(ResourceManager* resManager): _resManager(resManager)
 {
 	LSL_ASSERT(_resManager);
@@ -1021,9 +1006,6 @@ graph::Sampler2d& ComplexMatLib::AddSampler2dTo(graph::LibMaterial& libMat, cons
 	return res;
 }
 
-
-
-
 ComplexTextFontLibrary::ComplexTextFontLibrary(ResourceManager* resManager): _resManager(resManager)
 {
 }
@@ -1052,9 +1034,6 @@ graph::TextFont& ComplexTextFontLibrary::LoadFont(const std::string& name, int h
 
 	return font;
 }
-
-
-
 
 StringLibrary::StringLibrary(ResourceManager* resManager): _resManager(resManager)
 {
@@ -1185,9 +1164,6 @@ bool StringLibrary::Has(StringValue value) const
 {
 	return Has(cStringValueStr[value]);
 }
-
-
-
 
 ResourceManager::ResourceManager(World* world): _world(world), _fontCharset(lcDefault), _worldType(Planet::cWorldTypeEnd)
 {
@@ -1376,9 +1352,6 @@ void ResourceManager::LoadEffects()
 	LoadMesh("Effect\\frost.r3d", false, true, true);
 	LoadMesh("Effect\\sphere.r3d", false, true, true);
 
-
-
-
 	LoadImage("Effect\\gunEff2.dds", 1, true, false);
 	LoadImage("Effect\\explosion1.dds", 1, true, false);
 	LoadImage("Effect\\explosion2.dds", 1, true, false);
@@ -1450,9 +1423,6 @@ void ResourceManager::LoadEffects()
 	LoadImage("Effect\\flare1_tc.dds", 1, true, false);
 	LoadImage("Effect\\flare2b.dds", 1, true, false);
 	LoadImage("Effect\\flare2a.dds", 1, true, false);
-
-
-
 
 	LoadImage2dLibMat("Effect\\wheel", "Effect\\wheel.dds");
 	LoadImage2dLibMat("Effect\\truba", "Effect\\truba.dds");
@@ -1587,9 +1557,6 @@ void ResourceManager::LoadWorld1()
 	LoadMesh("World1\\Track\\pxPodjem2.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
 	LoadMesh("World1\\Track\\pxMost.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
 
-
-
-
 	LoadImage("World1\\Texture\\berge.dds", cGenMipLevel, false, false, Planet::wtWorld1 | ImageLib::cTagInitTex2d);
 	LoadImage("World1\\Texture\\eldertree.dds", cGenMipLevel, false, false, Planet::wtWorld1 | ImageLib::cTagInitTex2d);
 	LoadImage("World1\\Texture\\lowpalma.dds", cGenMipLevel, false, false, Planet::wtWorld1 | ImageLib::cTagInitTex2d);
@@ -1605,9 +1572,6 @@ void ResourceManager::LoadWorld1()
 
 	LoadImage("World1\\Track\\Texture\\track1.dds", cGenMipLevel, false, false, Planet::wtWorld1 | ImageLib::cTagInitTex2d);
 	LoadImage("World1\\Track\\Texture\\most.dds", cGenMipLevel, false, false, Planet::wtWorld1 | ImageLib::cTagInitTex2d);
-
-
-
 
 	LoadImage2dLibMat("World1\\stone", "World1\\Texture\\stone.dds");
 	LoadImage2dLibMat("World1\\wand", "World1\\Texture\\wand.dds");
@@ -1686,9 +1650,6 @@ void ResourceManager::LoadWorld2()
 	LoadMesh("World2\\Track\\pxTramp1.r3d", false, false, false, Planet::wtWorld2 | MeshLib::cTagLoadData);
 	LoadMesh("World2\\Track\\pxTramp2.r3d", false, false, false, Planet::wtWorld2 | MeshLib::cTagLoadData);
 
-
-
-
 	LoadImage("World2\\Texture\\atom.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Texture\\bochki.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Texture\\deadtree1.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
@@ -1721,9 +1682,6 @@ void ResourceManager::LoadWorld2()
 	//LoadImage("World2\\Track\\Texture\\track2road_norm.dds", 1, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Track\\Texture\\most.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Track\\Texture\\most_norm.dds", 1, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
-
-
-
 
 	LoadImage2dLibMat("World2\\atom", "World2\\Texture\\atom.dds");
 	LoadImage2dLibMat("World2\\bochki", "World2\\Texture\\bochki.dds");
@@ -2104,9 +2062,6 @@ void ResourceManager::LoadCars()
 	LoadMesh("Car\\monstertruckCrush.r3d", false, true, true);
 	LoadMesh("Car\\podushkaCrush.r3d", false, true, true);
 
-
-
-
 	LoadImage("Car\\marauder.dds", cGenMipLevel);
 	LoadImage("Car\\buggi.dds", cGenMipLevel);
 	LoadImage("Car\\dirtdevil.dds", cGenMipLevel);
@@ -2134,9 +2089,6 @@ void ResourceManager::LoadCars()
 	LoadImage("Car\\manticoraCrush.dds", cGenMipLevel, true);
 	LoadImage("Car\\monstertruckCrush.dds", cGenMipLevel, true);
 	LoadImage("Car\\podushkaCrush.dds", cGenMipLevel, true);
-
-
-
 
 	LoadCarLibMat("Car\\marauder", "Car\\marauder.dds");
 	LoadCarLibMat("Car\\buggi", "Car\\buggi.dds");
@@ -2201,9 +2153,6 @@ void ResourceManager::LoadBonus()
 	LoadMesh("Bonus\\money.r3d", false, true, true);
 	LoadMesh("Bonus\\shield.r3d", false, true, true);
 
-
-
-
 	LoadImage("Bonus\\ammo.dds", cGenMipLevel, true, false);
 	LoadImage("Bonus\\medpack.dds", cGenMipLevel, true, false);
 	LoadImage("Bonus\\money.dds", cGenMipLevel, true, false);
@@ -2215,9 +2164,6 @@ void ResourceManager::LoadBonus()
 	LoadImage("Bonus\\hellLusha.dds", cGenMipLevel, true, false);
 	LoadImage("Bonus\\maslo.dds", cGenMipLevel, true, false);
 	LoadImage("Bonus\\maslo_top.dds", cGenMipLevel, true, false);
-
-
-
 
 	LoadImage2dLibMat("Bonus\\ammo", "Bonus\\ammo.dds");
 	LoadImage2dLibMat("Bonus\\medpack", "Bonus\\medpack.dds");
@@ -2287,9 +2233,6 @@ void ResourceManager::LoadWeapons()
 	LoadMesh("Weapon\\reflector.r3d");
 	LoadMesh("Weapon\\rezonator.r3d");
 
-
-
-
 	LoadImage("Weapon\\blaster1.dds", cGenMipLevel);
 	LoadImage("Weapon\\pulsator.dds", cGenMipLevel);
 	LoadImage("Weapon\\gun.dds", cGenMipLevel);
@@ -2315,9 +2258,6 @@ void ResourceManager::LoadWeapons()
 	LoadImage("Weapon\\reflector.dds", cGenMipLevel);
 	LoadImage("Weapon\\rezonator.dds", cGenMipLevel);
 	LoadImage("Weapon\\tankLaser.dds", cGenMipLevel);
-
-
-
 
 	LoadImage2dLibMat("Weapon\\blaster1", "Weapon\\blaster1.dds");
 	LoadImage2dLibMat("Weapon\\pulsator", "Weapon\\pulsator.dds");
@@ -2690,9 +2630,6 @@ void ResourceManager::LoadGUI()
 		libMat.material.SetOption(graph::Material::moLighting, false);
 		libMat.material.SetOption(graph::Material::moIgnoreFog, true);
 	}
-
-
-
 
 	LoadFont("Header", 44, 0, false, "Verdana");
 	//

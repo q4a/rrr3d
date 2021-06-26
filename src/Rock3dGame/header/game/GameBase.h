@@ -488,9 +488,6 @@ public:
 	bool storeSource;
 };
 
-
-
-
 template<class _Type> _Type* Behaviors::Find()
 {
 	return lsl::StaticCast<_Type*>(Find(classList.GetByClass<_Type>().GetKey()));

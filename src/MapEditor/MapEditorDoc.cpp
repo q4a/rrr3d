@@ -12,9 +12,6 @@ IMPLEMENT_DYNCREATE(CMapEditorDoc, CDocument)
 BEGIN_MESSAGE_MAP(CMapEditorDoc, CDocument)
 END_MESSAGE_MAP()
 
-
-
-
 CMapEditorDoc::CMapEditorDoc()
 {
 }

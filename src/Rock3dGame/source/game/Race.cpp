@@ -17,9 +17,6 @@ namespace game
 const float Race::cSellDiscount = 0.5f;
 const std::string Planet::cWorldTypeStr[cWorldTypeEnd] = {"wtWorld1", "wtWorld2", "wtWorld3", "wtWorld4", "wtWorld5", "wtWorld6"};
 
-
-
-
 Workshop::Workshop(Race* race): _race(race), _lib(NULL)
 {
 	_rootNode = new lsl::RootNode("workshopRoot", race);
@@ -1232,7 +1229,6 @@ void Workshop::LoadWeapons()
 			item.SetWpnDesc(desc);
 		}
 
-
 		SaveSlot(slot, "sonar");
 	}
 
@@ -2085,9 +2081,6 @@ Race* Workshop::GetRace()
 {
 	return _race;
 }
-
-
-
 
 Garage::Garage(Race* race, const std::string& name): _race(race), _upgradeMaxLevel(0), _weaponMaxLevel(0)
 {
@@ -3867,9 +3860,6 @@ void Garage::SetWeaponMaxLevel(int value)
 	}
 }
 
-
-
-
 Planet::Planet(Race* race, int index): _race(race), _index(index), _name(scNull), _info(scNull), _mesh(0), _texture(0), _state(psUnavailable), _worldType(wtWorld1), _pass(-1)
 {
 }
@@ -4785,9 +4775,6 @@ Planet::PlayerData Planet::GetBoss() const
 {
 	return _players.size() > 0 ? _players.front() : PlayerData();
 }
-
-
-
 
 Tournament::Tournament(Race* race, const std::string& name): _race(race), _curPlanet(0), _curTrack(0), _wheater(Environment::ewFair), _wheaterNightPass(false), _lapsCount(4)
 {
@@ -6167,9 +6154,6 @@ const Tournament::Planets& Tournament::GetGamers() const
 {
 	return _gamers;
 }
-
-
-
 
 Race::Race(GameMode* game, const std::string& name): _game(game), _profile(0), _lastProfile(NULL), _lastNetProfile(NULL), _startRace(false), _goRace(false), _human(0), _aiSystem(0), _lastLeadPlace(0), _lastThirdPlace(0), _planetChampion(false), _passChampion(false), _carChanged(false), _minDifficulty(cDifficultyEnd), _tutorialStage(0), _springBorders(true), _enableMineBug(true)
 {

@@ -37,9 +37,6 @@ void AdjustDbgInfo(const glm::vec2& size)
 
 #endif
 
-
-
-
 World::World(): _terminateResult(EXIT_SUCCESS), _terminate(false), _pause(false), _firstTick(0), _lastTick(0), _lastTick2(0), _lastSyncTick(0), _timeAccum(0), _lastDrawTime(0), _curTimeIter(1), _control(0), _view(0), _graph(0), _audio(0), _videoPlayer(NULL), _pxManager(0), _pxScene(0), _resManager(0), _camera(0), _db(0), _map(0), _logic(0), _env(0), _edit(0), _game(0), _syncFreq(60), _time(0), _dTimeReal(0), _inputWasReset(false), _videoMode(false), _warmIterations(0), _timeResolution(0)
 {
 	ZeroMemory(_iterBuf, sizeof(_iterBuf));

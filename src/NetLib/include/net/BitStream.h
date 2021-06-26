@@ -204,9 +204,6 @@ public:
 	NETLIB_API void Serialize(void*& data, unsigned size, bool cmp);
 };
 
-
-
-
 template<class _Type> inline void BitValue::Make(BitValue& bitVal, const _Type& val, BitType type)
 {
 	_Type* p = reinterpret_cast<_Type*>(&bitVal);
@@ -241,9 +238,6 @@ inline void BitValue::Get(BitValue& bitVal, void*& data, unsigned& size)
 {
 	bitVal.GetData(data, size);
 }
-
-
-
 
 template<class _Type> void BitStream::Serialize(_Type& value, BitType type, bool equal)
 {

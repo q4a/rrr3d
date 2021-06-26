@@ -93,9 +93,6 @@ public:
 	_Item& Add();
 };
 
-
-
-
 template<class _Item, class _IdType, class _Arg> Collection<_Item, _IdType, _Arg, void>::~Collection()
 {
 	this->Clear();
@@ -129,9 +126,6 @@ template<class _Item, class _IdType, class _Arg> template<class _Type> _Type& Co
 
 	return lsl::StaticCast<_Type&>(Add(classInst->GetKey(), arg));
 }
-
-
-
 
 template<class _Item, class _IdType> Collection<_Item, _IdType, void, void>::~Collection()
 {
@@ -167,10 +161,6 @@ template<class _Item, class _IdType> template<class _Type> _Type& Collection<_It
 	return lsl::StaticCast<_Type&>(Add(classInst->GetKey()));
 }
 
-
-
-
-
 template<class _Item, class _Arg, class _ArgThis> Collection<_Item, void, _Arg, _ArgThis>::~Collection()
 {
 	this->Clear();
@@ -196,9 +186,6 @@ template<class _Item, class _Arg, class _ArgThis> _Item& Collection<_Item, void,
 	return _MyBase::Add(CreateItem());
 }
 
-
-
-
 template<class _Item, class _Arg> Collection<_Item, void, _Arg, void>::~Collection()
 {
 	this->Clear();
@@ -223,9 +210,6 @@ template<class _Item, class _Arg> _Item& Collection<_Item, void, _Arg, void>::Ad
 {
 	return _MyBase::Add(CreateItem(arg));
 }
-
-
-
 
 template<class _Item> Collection<_Item, void, void, void>::~Collection()
 {

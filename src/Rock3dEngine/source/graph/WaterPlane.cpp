@@ -76,9 +76,6 @@ void ReflRender::SetClipPlanes(const ClipPlanes& value)
 	_clipPlanes = value;
 }
 
-
-
-
 WaterPlane::WaterPlane(): _viewPos(NullVector), _cloudIntens(0.1f)
 {
 	shader.SetValue("normalScale", 1.0f);

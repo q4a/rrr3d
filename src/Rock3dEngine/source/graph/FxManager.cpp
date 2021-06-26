@@ -17,9 +17,6 @@ const char* FxEmitter::cStartTypeStr[FxEmitter::cStartTypeEnd] = {"sotTime", "so
 FxParticleSystem::ClassList FxParticleSystem::classList;
 const char* FxParticleSystem::cChildStyleStr[cChildStyleEnd] = {"csProxy", "csUnique"};
 
-
-
-
 FxParticle::FxParticle(): _worldMatChanged(true), _aabbChanged(true), _child(0)
 {
 }
@@ -119,9 +116,6 @@ void FxParticle::SetChild(BaseSceneNode* value)
 	if (ReplaceRef(_child, value))
 		_child = value;
 }
-
-
-
 
 FxEmitter::FxEmitter(FxParticleSystem* owner): _owner(owner), _curTime(0), _lastTimeQGroup(0), _nextTimeCreate(0), _curDensParticle(0), _cntParticles(0), _numParticle(0), _worldCoordSys(true), _modeFading(false)
 {
@@ -602,9 +596,6 @@ const D3DXMATRIX& FxEmitter::GetMatrix() const
 	return _worldCoordSys ? IdentityMatrix : _owner->GetWorldMat();
 }
 
-
-
-
 FxParticleSystem::FxParticleSystem(): _fxManager(0), _childStyle(csProxy), _aabb(1.0f), _srcSpeed(NullVector)
 {
 	InitClassList();
@@ -886,9 +877,6 @@ void FxParticleSystem::SetSrcSpeed(const D3DXVECTOR3& value)
 	_srcSpeed = value;
 }
 
-
-
-
 FxManager::FxManager()
 {
 	_groupList = new _GroupList(this);
@@ -953,9 +941,6 @@ const FxManager::EmitterGroups& FxManager::GetEmitterGroups(const FxEmitter* emi
 {
 	return emitter->_groupList;
 }
-
-
-
 
 inline DWORD FtoDw(float value)
 {
@@ -1119,9 +1104,6 @@ SceneNode& FxNodeManager::GetNode()
 	return *_node;
 }
 
-
-
-
 FxTrailManager::FxTrailManager(): _trailWidth(1.0f), fixedUpVec(ZVector), fixedUp(false), typeDraw(tdPerGroup)
 {
 }
@@ -1283,9 +1265,6 @@ void FxTrailManager::SetTrailWidth(float value)
 		_trailWidth = value;
 }
 
-
-
-
 FxFlowEmitter::FxFlowEmitter(FxParticleSystem* owner): _MyBase(owner)
 {
 }
@@ -1399,9 +1378,6 @@ void FxFlowEmitter::SetFlowDesc(const FlowDesc& value)
 {
 	_flowDesc = value;
 }
-
-
-
 
 FxPhysicsEmitter::FxPhysicsEmitter(FxParticleSystem* owner): _MyBase(owner), _pxScene(0)
 {

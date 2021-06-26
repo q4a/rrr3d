@@ -102,9 +102,6 @@ BEGIN_MESSAGE_MAP(CTraceView, CViewPane)
 	ON_NOTIFY(TVN_SELCHANGED, TRACE_TREEPATH_VIEW, OnPathViewSelChanged)
 END_MESSAGE_MAP()
 
-
-
-
 CTraceView::CTraceView(): _mapDoc(0), _flatFrame(0)
 {
 	_mapDocEvent = new MapDocEvent(this);
@@ -148,9 +145,6 @@ int CTraceView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	//
 	_flatFrame->SetActiveView(pView1);
 
-
-
-
 	const DWORD dwViewStyle = WS_CHILD | WS_VISIBLE | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
 	if (!_pointView.Create(dwViewStyle | TVS_SHOWSELALWAYS, rectDummy, pView1, TRACE_TREEWP_VIEW))
 	{
@@ -173,9 +167,6 @@ int CTraceView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	_toolBar.SetOwner(this);
 	// All commands will be routed via this control , not via the parent frame:
 	_toolBar.SetRouteCommandsViaFrame(FALSE);
-
-
-
 
 	CBitmap bmp;
 	bmp.LoadBitmap(IDB_CLASS_VIEW_24);

@@ -298,9 +298,6 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 	}
 }
 
-
-
-
 SpaceshipFrame::SpaceshipFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _redLampTime(0.0f)
 {
 	{
@@ -392,9 +389,6 @@ void SpaceshipFrame::OnShow(bool value)
 	else
 		menu()->GetEnv()->ReleaseScene();
 }
-
-
-
 
 GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _lastCarIndex(-1)
 {
@@ -995,9 +989,6 @@ void GarageFrame::OnProcessNetEvent(unsigned id, NetEventData* data)
 	if (id == cNetPlayerSetColor)
 		RefreshColorList();
 }
-
-
-
 
 WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _goodScroll(0), _overGood(NULL), _overGood2(NULL), _infoId(-1), _numSelectedSlots(0)
 {
@@ -2078,9 +2069,6 @@ void WorkshopFrame::OnProcessEvent(unsigned id, EventData* data)
 	}
 }
 
-
-
-
 GamersFrame::GamersFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _planetIndex(-1)
 {
 	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
@@ -2816,9 +2804,6 @@ void AngarFrame::OnProgress(float deltaTime)
 	}
 }
 
-
-
-
 AchievmentFrame::AchievmentFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu)
 {
 	const D3DXCOLOR color = D3DXCOLOR(0xFFFA5800);
@@ -3135,9 +3120,6 @@ void AchievmentFrame::OnMouseLeave(gui::Widget* sender, bool wasReset)
 		return;*/
 	}
 }
-
-
-
 
 RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu)
 {
@@ -3650,9 +3632,6 @@ void RaceMainFrame::OnDisconnectedPlayer(NetPlayer* sender)
 {
 	Invalidate();
 }
-
-
-
 
 RaceMenu::RaceMenu(Menu* menu, gui::Widget* parent, Player* player): _menu(menu), _state(msMain), _lastState(cStateEnd), _player(player)
 {

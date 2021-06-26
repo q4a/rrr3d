@@ -312,9 +312,6 @@ unsigned GetPrimitivesCount(D3DPRIMITIVETYPE primitiveType, UINT numControlPoint
 void CopyPitchData(char* dest, unsigned destPitch, const char* src, unsigned srcPitch, unsigned srcRowSize, unsigned height);
 void operator++(D3DCUBEMAP_FACES& lvalue);
 
-
-
-
 template<class _IndexType> TriFace<_IndexType>::TriFace()
 {
 }

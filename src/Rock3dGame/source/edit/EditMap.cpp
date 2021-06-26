@@ -6,7 +6,6 @@
 
 #include "edit\Trace.h"
 
-
 namespace r3d
 {
 
@@ -15,9 +14,6 @@ namespace edit
 
 const D3DXCOLOR Map::bbColor(clrRed);
 const D3DXCOLOR Map::selColor(clrGreen);
-
-
-
 
 MapObj::MapObj(Inst* inst): ExternImpl<Inst>(inst)
 {
@@ -65,9 +61,6 @@ IMapObjRecRef MapObj::GetRecord()
 
 	return IMapObjRecRef(ext, ext);
 }
-
-
-
 
 Map::Map(Edit* edit): _edit(edit), _showBB(true)
 {

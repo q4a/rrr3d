@@ -11,9 +11,6 @@ namespace graph
 const unsigned OctreeSort::cMinNodeUserCnt = 1;
 const unsigned OctreeSort::cMinLeafSize = 100;
 
-
-
-
 OctreeSort::Node::Node(unsigned numGroups, const AABB& aabb, Node* parent): cNumGroups(numGroups), _aabb(aabb), _parent(parent), _leaf(0), _userCnt(0), _refCnt(0), _lockCnt(0)
 {
 	_leaf = new Leaf[cNumGroups];
@@ -194,9 +191,6 @@ unsigned OctreeSort::Node::GetUserCnt() const
 	return _userCnt;
 }
 
-
-
-
 OctreeSort::UserNode::UserNode(OctreeSort* owner, const AABB& aabb, const lsl::BoolVec& groups): _owner(owner), _aabb(aabb), _groups(groups), _idPass(0), _data(0)
 {
 }
@@ -321,7 +315,6 @@ void OctreeSort::UserNode::Move(const AABB& aabb)
 	for (NodeList::iterator iter = node->GetNodeList().begin(); iter != node->GetNodeList().end(); ++iter)
 		if (node->GetAABB().ContainsAABB(aabb) == AABB::spNoOverloap)
 
-
 	Node* node = _nodeMap.begin()->first;
 
 	RemoveFromAllNodes();
@@ -357,7 +350,6 @@ bool OctreeSort::UserNode::GetGroup(unsigned group) const
 		if (_groups[group] != value)
 			SetGroup(iter, group, value);
 
-
 	_groups[group] = value;
 }*/
 
@@ -388,9 +380,6 @@ void OctreeSort::UserNode::SetData(lsl::Object* value)
 	if (ReplaceRef(_data, value))
 		_data = value;
 }
-
-
-
 
 OctreeSort::OctreeSort(unsigned numGroups): cNumGroups(numGroups), _root(0), _idPass(0)
 {

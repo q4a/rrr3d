@@ -24,9 +24,6 @@ MeshData::ResFormats meshResFormats;
 ImageResource::ResFormats imageResFormats;
 CubeImageResource::ResFormats cubeImageResFormats;
 
-
-
-
 VertexP::VertexP()
 {
 }
@@ -34,9 +31,6 @@ VertexP::VertexP()
 VertexP::VertexP(const D3DXVECTOR3& mPos): pos(mPos)
 {
 }
-
-
-
 
 VertexPD::VertexPD()
 {
@@ -46,9 +40,6 @@ VertexPD::VertexPD(D3DXVECTOR3 position, D3DCOLOR diffuseColor): pos(position), 
 {
 }
 
-
-
-
 VertexPN::VertexPN()
 {
 }
@@ -56,9 +47,6 @@ VertexPN::VertexPN()
 VertexPN::VertexPN(D3DXVECTOR3 position, D3DXVECTOR3 normal): pos(position), norm(normal)
 {
 }
-
-
-
 
 VertexPT::VertexPT()
 {
@@ -68,9 +56,6 @@ VertexPT::VertexPT(D3DXVECTOR3 position, glm::vec2 texCoord): pos(position), tex
 {
 }
 
-
-
-
 VertexPNT::VertexPNT()
 {
 }
@@ -79,9 +64,6 @@ VertexPNT::VertexPNT(const D3DXVECTOR3& position, const D3DXVECTOR3& normal, con
 {
 }
 
-
-
-
 ScreenVertex::ScreenVertex()
 {
 }
@@ -89,9 +71,6 @@ ScreenVertex::ScreenVertex()
 ScreenVertex::ScreenVertex(const D3DXVECTOR4& position, const glm::vec2& texCoord): pos(position), tex(texCoord)
 {
 }
-
-
-
 
 VertexData::VertexData(): _vertexCount(0), _vertexSize(0), _screenRHW(false)
 {
@@ -331,9 +310,6 @@ VertexIter VertexData::operator[](unsigned index)
 	return VertexIter(index, this);
 }
 
-
-
-
 VertexIter::VertexIter(): _index(0), _owner(0)
 {
 }
@@ -431,9 +407,6 @@ bool VertexIter::operator!=(const VertexIter& value)
 	return _index != value._index;
 }
 
-
-
-
 IndexData::IndexData(): _indexCount(0), _indexFormat(D3DFMT_UNKNOWN)
 {
 }
@@ -469,9 +442,6 @@ unsigned IndexData::GetSize() const
 {
 	return _indexCount * GetIndexSize();
 }
-
-
-
 
 TriFaceData::TriFaceData(): _faceCount(0), _indexFormat(D3DFMT_UNKNOWN)
 {
@@ -525,10 +495,6 @@ unsigned TriFaceData::GetFaceSize() const
 	return GetElementFormatSize(_indexFormat) * 3;
 }
 
-
-
-
-
 FaceGroup::FaceGroup(): minPos(NullVector), maxPos(NullVector)
 {
 }
@@ -537,16 +503,10 @@ FaceGroup::FaceGroup(int startFace, int faceCount, int startVertex, int vertexCo
 {
 }
 
-
-
-
 MeshData::ResFormats& MeshData::GetResFormats()
 {
 	return meshResFormats;
 }
-
-
-
 
 MeshData::MeshData()
 {
@@ -703,16 +663,10 @@ void MeshData::CalcTangentSpace()
 	}
 }
 
-
-
-
 ImageResource::ResFormats& ImageResource::GetResFormats()
 {
 	return imageResFormats;
 }
-
-
-
 
 ImageResource::ImageResource(): _size(0), _width(0), _height(0), _format(D3DFMT_UNKNOWN)
 {
@@ -809,16 +763,10 @@ bool ImageResource::IsCompressed() const
 	return false;
 }
 
-
-
-
 CubeImageResource::ResFormats& CubeImageResource::GetResFormats()
 {
 	return cubeImageResFormats;
 }
-
-
-
 
 CubeImageResource::CubeImageResource()
 {
@@ -828,9 +776,6 @@ void CubeImageResource::DoLoadFromStream(std::istream& stream, const std::string
 {
 	GetResFormats().GetInstance(fileExt).LoadFromStream(*this, stream);
 }
-
-
-
 
 unsigned GetVertexFVFSize(DWORD fvf)
 {

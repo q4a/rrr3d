@@ -25,9 +25,6 @@ public:
 	unsigned maxSize() const { return _inst.max_size(); }
 };
 
-
-
-
 NetService::NetService(): _init(false), _ioService(0), _netChannel(NULL), _netServer(NULL), _netClient(NULL), _time(0), _syncRate(70), _lastSyncTime(0), _pingPort(0), _pingTime(0), _pingSendPeriod(0), _bufConnectionTick(0), _bufChannelTick(0), _user(NULL), _netAcceptorImpl(NULL), _netAcceptorImplCreated(false)
 {
 }

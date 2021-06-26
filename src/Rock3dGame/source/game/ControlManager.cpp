@@ -29,9 +29,6 @@ const lsl::string cGameActionStr[cGameActionEnd] = {"gaAccel", "gaBreak", "gaWhe
 
 const lsl::string cControllerTypeStr[cControllerTypeEnd] = {"ctKeyboard", "ctGamepad"};
 
-
-
-
 ControlManager::ControlManager(World* world): _world(world)
 {
 	_controllerStates[ctKeyboard] = new ControllerState();

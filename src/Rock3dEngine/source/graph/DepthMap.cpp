@@ -10,9 +10,6 @@ namespace graph
 
 const char* DepthMapShader::cTechniqueNames[cTechniqueTypeEnd] = {"techDepthMap", "techDepthMapAlphaTest"};
 
-
-
-
 void DepthMapShader::DoBeginDraw(Engine& engine)
 {
 	TechniqueType tech = engine.GetContext().GetRenderState(rsAlphaTestEnable) ? ttDepthMapAlphaTest : ttDepthMap;
@@ -48,9 +45,6 @@ void DepthMapShader::SetTech(TechniqueType value)
 
 	_MyBase::SetTech(cTechniqueNames[value]);
 }
-
-
-
 
 Tex2DResource* DepthMapRender::CreateRT()
 {

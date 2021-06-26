@@ -10,9 +10,6 @@ namespace graph
 
 Samplers::ClassList Samplers::classList;
 
-
-
-
 BaseSampler::BaseSampler(Type type): _type(type), _tex(0), _disabled(false), _offset(NullVector), _scale(IdentityVector), _rotate(NullQuaternion), _matChanged(true), _matFrame(0), _defMat(true), _filtering(sfDefault), _filteringLevel(0)
 {
 }
@@ -283,9 +280,6 @@ void BaseSampler::SetFiltering(Filtering value)
 	ApplyFiltering();
 }
 
-
-
-
 Sampler2d::Sampler2d(): _MyBase(st2d)
 {
 }
@@ -342,9 +336,6 @@ glm::vec2 Sampler2d::GetSize()
 	return GetTex() ? GetTex()->GetSize() : NullVec2;
 }
 
-
-
-
 SamplerCube::SamplerCube(): _MyBase(stCube)
 {
 }
@@ -368,9 +359,6 @@ unsigned SamplerCube::GetFormat() const
 {
 	return GetTex()->GetData()->GetFormat();
 }
-
-
-
 
 Samplers::Samplers()
 {
@@ -529,9 +517,6 @@ Samplers& Samplers::operator=(const Samplers& ref)
 
 	return *this;
 }
-
-
-
 
 Material::Material(): _ambient(clrWhite), _diffuse(clrWhite), _emissive(clrBlack), _specular(clrBlack), _specPower(128), _blending(bmOpaque), _alpha(1.0f), _ignoreFog(false), _lastIgnFog(true), _alphaTest(asNone), _alphaRef(1.0f), _faceCulling(fcCullCW), _polygonMode(pmFill)
 {
@@ -835,9 +820,6 @@ void Material::SetPolygonMode(PolygonMode value)
 	}
 }
 
-
-
-
 LibMaterial::LibMaterial(): _shader(0)
 {
 }
@@ -897,9 +879,6 @@ graph::LibMaterial& LibMaterial::SetAnisoFlt()
 		(*iter)->SetFiltering(BaseSampler::sfAnisotropic);
 	return *this;
 }
-
-
-
 
 void DrawScreenQuad(Engine& engine, const D3DXVECTOR4& quadVert, float fLeftU, float fTopV, float fRightU, float fBottomV, bool disableZBuf)
 {

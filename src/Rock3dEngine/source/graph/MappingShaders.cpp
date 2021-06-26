@@ -12,9 +12,6 @@ const lsl::string LightShader::cLightTypeStr[LightShader::cLightTypeEnd] = {"LIG
 const lsl::string LightShader::cLightPropStr[LightShader::cLightPropEnd] = {"", "SHADOW"};
 const lsl::string LightShader::cMyParamStr[cMyParamEnd] = {"numLights", "glAmbient", "ambLight", "diffLight", "specLight", "colorMat", "specMat", "specPower", "texDiffK", "worldMat", "worldViewMat", "wvpMat", "viewPos", "diffTex", "shadowTex", "lightPos", "lightDir", "spotParams", "fogParams", "fogColor", "reflectivity", "envTex", "alphaBlendColor", "normTex", "mWorldViewProj", "refrTex", "vScene", "reflTex"};
 
-
-
-
 LightShader::LightShader(): _curLight(0), _fogColor(clrWhite), _viewPos(NullVector), _texDiffK(1.0f), _paramsLight(D3DLIGHT_FORCE_DWORD), _paramsShadow(false)
 {
 	for (int i = 0; i < cLightTypeEnd; ++i)
@@ -221,9 +218,6 @@ void LightShader::SetTexDiffK(float value)
 	_texDiffK = value;
 }
 
-
-
-
 ReflMappShader::ReflMappShader(): _reflectivity(0.4f)
 {
 	SetTech("techReflMapp");
@@ -260,9 +254,6 @@ void ReflMappShader::SetReflectivity(float value)
 	_reflectivity = value;
 }
 
-
-
-
 ReflBumbMappShader::ReflBumbMappShader()
 {
 	SetTech("techReflMapp");
@@ -291,9 +282,6 @@ void ReflBumbMappShader::SetReflTex(graph::TexCubeResource* value)
 	SetTexture("envTex", value);
 }
 
-
-
-
 BumpMapShader::BumpMapShader()
 {
 	SetTech("techBumpMap");
@@ -306,9 +294,6 @@ void BumpMapShader::DoBeginDraw(Engine& engine)
 	SetTexParam(_params[normTex], engine.GetContext().GetTexture(1));
 }
 
-
-
-
 RefrShader::RefrShader()
 {
 	SetTech("techRefract");
@@ -320,9 +305,6 @@ void RefrShader::DoBeginDraw(Engine& engine)
 	SetTextureDir("refrTex", engine.GetContext().GetTexture(0));
 	SetValueDir("vScene", (1.0f - engine.GetContext().GetFrame()) * 1.0f);// (1.0f - engine.GetContext().frame) * 0.1f);
 }
-
-
-
 
 PlanarReflMappShader::PlanarReflMappShader()
 {

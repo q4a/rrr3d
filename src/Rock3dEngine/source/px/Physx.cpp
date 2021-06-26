@@ -32,9 +32,6 @@ unsigned Manager::_sdkRefCnt = 0;
 
 Shapes::ClassList Shapes::classList;
 
-
-
-
 Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0)
 {
 	_contactModify = new ContactModify(this);
@@ -254,9 +251,6 @@ NxScene* Scene::GetNxScene()
 	return _nxScene;
 }
 
-
-
-
 Manager::Manager()
 {
 	InitSDK();
@@ -307,7 +301,6 @@ void Manager::InitSDK()
 			throw lsl::Error("The cooking library has not been initialized");
 		Manager::_nxCooking->NxInitCooking();
 	}
-
 
 }
 
@@ -367,9 +360,6 @@ NxCookingInterface& Manager::GetCooking()
 {
 	return *_nxCooking;
 }
-
-
-
 
 TriangleMesh::TriangleMesh(): _meshData(0)
 {
@@ -519,7 +509,6 @@ NxConvexMesh* TriangleMesh::GetOrCreateConvex(const D3DXVECTOR3& scale, int id)
 	convexDesc.triangles            = desc.triangles;
 	convexDesc.flags                |= NX_CF_COMPUTE_CONVEX;
 
-
 	MemoryWriteBuffer buf;
 	if (!px::GetCooking().NxCookConvexMesh(convexDesc, buf))
 		throw lsl::Error("Error cooking TriangleMesh");
@@ -579,9 +568,6 @@ bool TriangleMesh::IsEmpty() const
 {
 	return _meshList.empty();
 }
-
-
-
 
 Shape::Shape(Shapes* owner): _owner(owner), _type(stUnknown), _nxShape(0), _pos(NullVector), _rot(NullQuaternion), _scale(IdentityVector), _materialIndex(0), _density(1.0f), _skinWidth(-1), _group(0)
 {
@@ -800,9 +786,6 @@ void Shape::SetGroup(unsigned value)
 	}
 }
 
-
-
-
 PlaneShape::PlaneShape(Shapes* owner): _MyBase(owner), _normal(ZVector), _dist(0.0f)
 {
 	SetType(Type);
@@ -878,9 +861,6 @@ void PlaneShape::SetDist(float value)
 		GetNxShape()->setPlane(NxVec3(value), _dist);
 }
 
-
-
-
 BoxShape::BoxShape(Shapes* owner): _MyBase(owner), _dimensions(NullVector)
 {
 	SetType(Type);
@@ -947,9 +927,6 @@ void BoxShape::SetDimensions(const D3DXVECTOR3& value)
 	}
 }
 
-
-
-
 SphereShape::SphereShape(Shapes* owner): _MyBase(owner), _radius(1.0f)
 {
 	SetType(Type);
@@ -1008,9 +985,6 @@ void SphereShape::SetRadius(float value)
 	if (GetNxShape())
 		GetNxShape()->setRadius(value);
 }
-
-
-
 
 CapsuleShape::CapsuleShape(Shapes* owner): _MyBase(owner), _radius(1.0f), _height(1.0f), _capsuleFlags(0)
 {
@@ -1104,9 +1078,6 @@ void CapsuleShape::SetCapsuleFlags(unsigned value)
 	if (GetNxShape())
 		ReloadNxShape();
 }
-
-
-
 
 TriangleMeshShape::TriangleMeshShape(Shapes* owner): _MyBase(owner), _mesh(0), _meshId(-1), _nxMesh(0)
 {
@@ -1213,9 +1184,6 @@ int TriangleMeshShape::GetMeshId()
 	return _meshId;
 }
 
-
-
-
 ConvexShape::ConvexShape(Shapes* owner): _MyBase(owner), _mesh(0), _meshId(-1), _nxMesh(0)
 {
 	SetType(Type);
@@ -1314,9 +1282,6 @@ int ConvexShape::GetMeshId()
 {
 	return _meshId;
 }
-
-
-
 
 WheelShape::WheelShape(Shapes* owner): _MyBase(owner), _contactModify(0)
 {
@@ -1580,9 +1545,6 @@ void WheelShape::SetContactModify(ContactModify* value)
 	}
 }
 
-
-
-
 Body::Body(Actor* actor): _actor(actor)
 {
 }
@@ -1643,9 +1605,6 @@ void Body::SetDesc(const NxBodyDesc& value)
 	}
 }
 
-
-
-
 Shapes::Shapes(Actor* owner): _owner(owner)
 {
 	SetClassList(&classList);
@@ -1683,9 +1642,6 @@ Actor* Shapes::GetActor()
 {
 	return _owner;
 }
-
-
-
 
 Actor::Actor(ActorUser* owner): _owner(owner), _nxActor(0), _scene(0), _parent(0), _body(0), _pos(NullVector), _rot(NullQuaternion), _scale(IdentityVector), storeCoords(true)
 {

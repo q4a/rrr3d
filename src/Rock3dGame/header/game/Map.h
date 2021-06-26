@@ -66,9 +66,6 @@ public:
 	game::Trace& GetTrace();
 };
 
-
-
-
 template<class _Type> MapObj& Map::AddMapObj(MapObjLib::Category category)
 {
 	return _mapObjList[category]->Add<_Type>();

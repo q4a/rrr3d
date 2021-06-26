@@ -18,9 +18,6 @@ D3DCUBEMAP_FACES operator++(D3DCUBEMAP_FACES& value)
 
 }
 
-
-
-
 RenderTarget<Tex2DResource>::RenderTarget(): _texture(0), _createTexture(false)
 {
 }
@@ -88,9 +85,6 @@ void RenderTarget<Tex2DResource>::SetRT(Tex2DResource* value)
 		_texture = value;
 	}
 }
-
-
-
 
 RenderTarget<TexCubeResource>::RenderTarget(): _texture(0), _createTexture(false)
 {
@@ -160,9 +154,6 @@ void RenderTarget<TexCubeResource>::SetRT(TexCubeResource* value)
 	}
 }
 
-
-
-
 void RenderToTexture::BeginRT(Engine& engine, const RtFlags& flags)
 {
 	ApplyRT(engine, flags);
@@ -176,9 +167,6 @@ void RenderToTexture::EndRT(Engine& engine)
 
 	_MyBase::EndRT(engine);
 }
-
-
-
 
 RenderToCubeTex::RenderToCubeTex(): _flags(static_cast<D3DCUBEMAP_FACES>(0), 0, 0), _viewPos(NullVector)
 {

@@ -17,9 +17,6 @@ BEGIN_MESSAGE_MAP(CViewPane, CDockablePane)
 	ON_WM_SETFOCUS()
 END_MESSAGE_MAP()
 
-
-
-
 CViewTree::CViewTree()
 {
 }
@@ -60,9 +57,6 @@ void CViewTree::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		GetParent()->SendMessage(WM_NOTIFY, (WPARAM)m_hWnd, (LPARAM)&nmh);
 	}
 }
-
-
-
 
 CViewPane::CViewPane(): _activeTab(false)
 {
@@ -130,7 +124,6 @@ LRESULT CViewPane::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 	}
 
 	}
-
 
 	/*char strBuf[256];
 	CFile file(_T("C:\\1.txt"), CFile::modeReadWrite);

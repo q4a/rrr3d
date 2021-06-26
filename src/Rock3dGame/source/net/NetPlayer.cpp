@@ -31,9 +31,6 @@ void NetPlayerResponse::OnSerialize(const net::NetMessage& msg, net::BitStream& 
 	_player->ResponseStream(msg, stream);
 }*/
 
-
-
-
 NetPlayer::NetPlayer(const Desc& desc): NetModelRPC(desc), _net(NetGame::I()), _player(NULL), _human(NULL), _aiPlayer(NULL), _modelOwner(false), _dAlpha(0), _raceReady(false), _raceGoWait(false), _raceFinish(false) //, _response(NULL)
 {
 	RegRPC(&NetPlayer::OnSetGamerId);

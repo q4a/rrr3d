@@ -17,9 +17,6 @@ namespace game
 
 MapObj::ClassList MapObj::classList;
 
-
-
-
 MapObjRec::MapObjRec(const Desc& desc): _MyBase(desc)
 {
 }
@@ -48,9 +45,6 @@ IMapObjLib::Category MapObjRec::GetCategory()
 {
 	return GetLib()->GetCategory();
 }
-
-
-
 
 MapObjLib::MapObjLib(Category category, lsl::SerialNode* rootSrc): _MyBase(IMapObjLib_cCategoryStr[category], rootSrc), _category(category)
 {
@@ -115,9 +109,6 @@ MapObjLib::Category MapObjLib::GetCategory() const
 {
 	return _category;
 }
-
-
-
 
 MapObj::MapObj(MapObjects* owner): _owner(owner), _player(NULL), _createClassList(false), _classList(0), _gameObj(0), _type(Type(0)), _record(0), _loadFromRecord(false), _id(0)
 {
@@ -382,9 +373,6 @@ void MapObj::SetId(unsigned value)
 {
 	_id  = value;
 }
-
-
-
 
 MapObjects::MapObjects(lsl::Component* root): _root(root), _owner(0), _lockCont(false)
 {

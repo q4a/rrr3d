@@ -11,9 +11,6 @@ namespace graph
 
 const unsigned ShadowMapRender::cShadowMapSize = 2048;
 
-
-
-
 void ShadowMapShader::DoBeginDraw(Engine& engine)
 {
 	D3DXMATRIX shadowWVP = shadowViewProj;
@@ -23,9 +20,6 @@ void ShadowMapShader::DoBeginDraw(Engine& engine)
 	SetValue("matWVP", engine.GetContext().GetCamera().GetWVP());
 	SetValue("matShadow", shadowWVP);
 }
-
-
-
 
 ShadowMapRender::ShadowMapRender(): _numSplits(0), _splitSchemeLambda(0.7f), _disableCropLight(false), _maxFar(0), _curNumSplit(0), _beginShadowCaster(false), _beginShadowMapp(false), _beginFlags(0, 0), iLight(0), _lastDepthSurface(NULL)
 {
@@ -416,9 +410,6 @@ void ShadowMapRender::SetMaxFar(float value)
 	_maxFar = value;
 }
 
-
-
-
 CombineLightMap::~CombineLightMap()
 {
 	ClearLightMapList();
@@ -480,9 +471,6 @@ const CombineLightMap::LightMapList& CombineLightMap::GetLightMapList() const
 {
 	return _lightMapList;
 }
-
-
-
 
 void MappingLightMap::Render(Engine& engine)
 {

@@ -1618,9 +1618,6 @@ GameObject* Proj::GetWeapon()
 	return _weapon;
 }
 
-
-
-
 AutoProj::AutoProj(): _prepare(false)
 {
 }
@@ -1680,9 +1677,6 @@ void AutoProj::LogicInited()
 {
 	InitProj();
 }
-
-
-
 
 Weapon::Weapon(): _shotTime(0)
 {

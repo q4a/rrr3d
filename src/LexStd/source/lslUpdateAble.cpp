@@ -24,9 +24,6 @@ UpdateAble::UpdateData::~UpdateData()
 {
 }
 
-
-
-
 UpdateAble::UpdateAble(): _updateCount(0)
 {
 }
@@ -84,9 +81,6 @@ bool UpdateAble::IsUpdating() const
 {
 	return _updateCount > 0;
 }
-
-
-
 
 UpdateAbleOwned::UpdateAbleOwned(UpdateAble* owner): _owner(owner)
 {

@@ -20,9 +20,6 @@ const unsigned RenderDriver::cMaxResHeight = 1080;
 const unsigned RenderDriver::cOptimalResWidth = 1366; //1280; //1600;
 const unsigned RenderDriver::cOptimalResHeight = 768; //720; //900;
 
-
-
-
 float RenderDriver::CalcAspect()
 {
 	IDirect3DSurface9* pBackBuffer;

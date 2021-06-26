@@ -50,9 +50,6 @@ bool GameModeFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	return false;
 }
 
-
-
-
 DifficultyFrame::DifficultyFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu), _difficulty(gdNormal)
 {
 }
@@ -135,9 +132,6 @@ void DifficultyFrame::OnProcessEvent(unsigned id, EventData* data)
 		_mainMenu->StartMatch(Race::rmChampionship, _difficulty, NULL);
 	}
 }
-
-
-
 
 NetBrowserFrame::NetBrowserFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu), _gridScroll(0)
 {
@@ -392,9 +386,6 @@ void NetBrowserFrame::OnPingComplete()
 	StartWaiting(false, _grid->GetChildren().size() == 0 ? svHintHostListEmpty : svNull);
 }
 
-
-
-
 NetIPAddressFrame::NetIPAddressFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
 {
 	//D3DXCOLOR color1(0xffafafaf);
@@ -540,9 +531,6 @@ bool NetIPAddressFrame::OnHandleInput(const InputMessage& msg)
 
 	return false;
 }
-
-
-
 
 #ifdef STEAM_SERVICE
 
@@ -809,9 +797,6 @@ void LobbyFrame::OnProcessEvent(unsigned id, EventData* data)
 	}
 }
 
-
-
-
 MatchmakingFrame::MatchmakingFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu), _gridScroll(0)
 {
 	_info = menu->CreateLabel(svNull, root(), "Small");
@@ -1077,9 +1062,6 @@ void MatchmakingFrame::OnProcessEvent(unsigned id, EventData* data)
 		break;
 	}
 }
-
-
-
 
 SteamBrowserFrame::SteamBrowserFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu), _gridScroll(0)
 {
@@ -1369,9 +1351,6 @@ void SteamBrowserFrame::OnDisconnectedPlayer(NetPlayer* sender)
 
 #endif
 
-
-
-
 ServerTypeFrame::ServerTypeFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
 {
 }
@@ -1428,9 +1407,6 @@ bool ServerTypeFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 
 	return false;
 }
-
-
-
 
 ClientTypeFrame::ClientTypeFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
 {
@@ -1494,7 +1470,6 @@ bool ClientTypeFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 	}
 #endif
 
-
 	if (sender == _mainMenu->GetItem(miBack))
 	{
 		_mainMenu->BackState();
@@ -1503,9 +1478,6 @@ bool ClientTypeFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 
 	return false;
 }
-
-
-
 
 NetworkFrame::NetworkFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
 {
@@ -1584,9 +1556,6 @@ void NetworkFrame::OnAdjustLayout(const glm::vec2& vpSize)
 	_labels[mlIPAdress]->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2 + 75.0f));
 }
 
-
-
-
 TournamentFrame::TournamentFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
 {
 }
@@ -1646,9 +1615,6 @@ bool TournamentFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 	return false;
 }
 
-
-
-
 CreditsFrame::CreditsFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu), _scrollTime(0)
 {
 	_label = menu->CreateLabel(svCredits, root(), "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop, D3DXCOLOR(0xffff8a70));
@@ -1705,9 +1671,6 @@ void CreditsFrame::OnProgress(float deltaTime)
 			_label->SetVScroll(_label->GetSize().y);
 	}
 }
-
-
-
 
 ProfileFrame::ProfileFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu), _gridScroll(0)
 {
@@ -1954,9 +1917,6 @@ bool ProfileFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	return false;
 }
 
-
-
-
 MainFrame::MainFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
 {
 }
@@ -2011,9 +1971,6 @@ bool MainFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 
 	return false;
 }
-
-
-
 
 MainMenu::MainMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msMain), _serverType(cServerTypeEnd), _steamHostMode(Race::rmChampionship), _steamHostDifficulty(gdNormal), _steamHostProfile(NULL), _steamHostStarting(false), _steamConnecting(false)
 {

@@ -14,9 +14,6 @@ namespace n
 
 const int UserChat::cMaxLines = 50;
 
-
-
-
 AcceptDialog::AcceptDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _resultYes(false), _data(NULL), _guiEvent(NULL)
 {
 	D3DXCOLOR color1(0xffafafaf);
@@ -201,9 +198,6 @@ Object* AcceptDialog::data() const
 	return _data;
 }
 
-
-
-
 WeaponDialog::WeaponDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 {
 	D3DXCOLOR color1(0xffafafaf);
@@ -272,9 +266,6 @@ void WeaponDialog::Hide()
 {
 	ShowModal(false);
 }
-
-
-
 
 InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _data(NULL), _guiEvent(NULL)
 {
@@ -389,9 +380,6 @@ Object* InfoDialog::data() const
 	return _data;
 }
 
-
-
-
 MusicDialog::MusicDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 {
 	D3DXCOLOR color1(0xffafafaf);
@@ -463,9 +451,6 @@ const glm::vec2& MusicDialog::size() const
 {
 	return _menuBg->GetSize();
 }
-
-
-
 
 InfoMenu::InfoMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msLoading)
 {

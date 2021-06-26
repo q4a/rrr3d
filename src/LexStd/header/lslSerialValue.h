@@ -207,9 +207,6 @@ template<> struct SerialValue<ValueRange<glm::quat>>
 	}
 };
 
-
-
-
 inline lsl::SWriter* SWriteEnum(lsl::SWriter* writer, const char* name, int enumVal, const char* enumStr[], int enumEnd)
 {
 	LSL_ASSERT(enumVal < enumEnd);

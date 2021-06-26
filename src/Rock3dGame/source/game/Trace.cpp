@@ -129,9 +129,6 @@ const WayPoint::Nodes& WayPoint::GetNodes() const
 	return _nodes;
 }
 
-
-
-
 WayNode::WayNode(WayPath* path, WayPoint* point): _path(path), _point(point), _prev(0), _next(0)
 {
 	LSL_ASSERT(_point);
@@ -672,9 +669,6 @@ float WayNode::GetRadius() const
 	return _point->GetSize()/2.0f;
 }
 
-
-
-
 WayPath::WayPath(Trace* trace): _trace(trace), _first(0), _last(0), _count(0)
 {
 }
@@ -903,9 +897,6 @@ float WayPath::GetLength() const
 {
 	return _first ? _first->GetTile().GetFinishDist() : 0.0f;
 }
-
-
-
 
 Trace::Trace(unsigned tracksCnt): cTrackCnt(tracksCnt), _pointId(0)
 {

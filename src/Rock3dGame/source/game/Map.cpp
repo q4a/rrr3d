@@ -34,9 +34,6 @@ void Map::MapObjList::RemoveItem(const Value& value)
 	_owner->_objects.erase(value->GetId());
 }
 
-
-
-
 Map::Map(World* world): _world(world), _lastId(cDefMapObjId)
 {
 	for (int i = 0; i < MapObjLib::cCategoryEnd; ++i)

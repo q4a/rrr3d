@@ -49,9 +49,6 @@ std::pair<GraphManager::GraphOption, Environment::Quality> Environment::cEnvGrap
 	std::make_pair(GraphManager::goMagma, Environment::eqLow)
 };
 
-
-
-
 Environment::Environment(World* world): _world(world), _wheater(ewClody), _worldType(wtWorld1), _syncFrameRate(sfrFixed), _sun(0), _shadowQuality(eqLow), _lightQuality(eqLow), _postEffQuality(eqLow), _envQuality(eqLow), _filtering(efLinear), _multisampling(emNone), _editMode(false), _startScene(false), _enableRain(false), _rain(0)
 {
 	_sunPos = D3DXVECTOR3(150, 150, 150.0f);

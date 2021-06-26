@@ -12,9 +12,6 @@ namespace res
 graph::RenderDriver* D3DXImageFile::driver;
 graph::RenderDriver* D3DXCubeImageFile::driver;
 
-
-
-
 void D3DXImageFile::RegistredFile()
 {
 	ImageResource::GetResFormats().Add<D3DXImageFile>(".jpg");
@@ -78,9 +75,6 @@ void D3DXImageFile::LoadFromStream(Resource& outData, std::istream& stream)
 void D3DXImageFile::SaveToStream(const Resource& inData, std::ostream& stream)
 {
 }
-
-
-
 
 void D3DXCubeImageFile::RegistredFile()
 {

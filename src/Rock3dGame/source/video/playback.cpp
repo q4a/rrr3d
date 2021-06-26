@@ -61,7 +61,6 @@ done:
 	return hr;
 }
 
-
 // Respond to a graph event.
 //
 // The owning window should call this method when it receives the window
@@ -142,7 +141,6 @@ HRESULT DShowPlayer::Stop()
 	return hr;
 }
 
-
 // EVR/VMR functionality
 
 BOOL DShowPlayer::HasVideo() const
@@ -177,7 +175,6 @@ HRESULT DShowPlayer::Repaint(HDC hdc)
 		return S_OK;
 	}
 }
-
 
 // Notifies the video renderer that the display mode changed.
 //
@@ -264,7 +261,6 @@ void DShowPlayer::TearDownGraph()
 	m_state = STATE_NO_GRAPH;
 }
 
-
 HRESULT DShowPlayer::CreateVideoRenderer()
 {
 	HRESULT hr = E_FAIL;
@@ -303,7 +299,6 @@ HRESULT DShowPlayer::CreateVideoRenderer()
 	}
 	return hr;
 }
-
 
 // Render the streams from a source filter.
 

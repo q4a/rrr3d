@@ -10,9 +10,6 @@ namespace snd
 
 const unsigned Sound::cBufferSize = SAFE_MIN(65536 * 20, XAUDIO2_MAX_BUFFER_BYTES);
 
-
-
-
 Sound::Sound(SoundLib* lib): _lib(lib), _cacheSize(cBufferSize * 10), _isLoad(false), _unusedBufSize(0), _volume(1.0f)
 {
 }
@@ -433,9 +430,6 @@ void Sound::SetVolume(float value)
 	_volume = value;
 }
 
-
-
-
 SoundLib::SoundLib(Engine* engine): _engine(engine)
 {
 }
@@ -456,9 +450,6 @@ Engine* SoundLib::GetEngine()
 {
 	return _engine;
 }
-
-
-
 
 Voice::Voice(Engine* engine): _engine(engine), _outMatrix(0), _srcChannels(0), _destChannels(0)
 {
@@ -666,9 +657,6 @@ void Voice::SetVolume(float value)
 		GetXVoice()->SetVolume(value);
 }
 
-
-
-
 SubmixVoice::SubmixVoice(Engine* engine): _MyBase(engine), _xVoice(0)
 {
 	HRESULT hr;
@@ -702,9 +690,6 @@ IXAudio2Voice* SubmixVoice::GetXVoice()
 	return _xVoice;
 }
 
-
-
-
 MasteringVoice::MasteringVoice(Engine* engine): _MyBase(engine), _xVoice(0)
 {
 	if (engine->GetXAudio() && FAILED(engine->GetXAudio()->CreateMasteringVoice(&_xVoice, XAUDIO2_DEFAULT_CHANNELS, XAUDIO2_DEFAULT_SAMPLERATE, 0, 0, 0)))
@@ -735,9 +720,6 @@ IXAudio2Voice* MasteringVoice::GetXVoice()
 {
 	return _xVoice;
 }
-
-
-
 
 Proxy::Proxy(Engine* engine): _MyBase(engine), _init(false), _sound(0), _pos(0), _playMode(pmOnce), _volume(1.0f), _frequencyRatio(1.0f), _onStreamEnd(false), _onTerminate(false), _xVoice(0), _run(false), _streaming(NULL)
 {
@@ -1407,9 +1389,6 @@ void Proxy::SetFrequencyRatio(float value)
 		_xVoice->SetFrequencyRatio(value);
 }
 
-
-
-
 Source::Source(Engine* engine): _MyBase(engine), _sound(0), _pos(0), _playMode(pmOnce), _volume(1.0f), _frequencyRatio(1.0f), _proxy(0)
 {
 }
@@ -1620,9 +1599,6 @@ void Source::SetFrequencyRatio(float value)
 		_proxy->SetFrequencyRatio(value);
 }
 
-
-
-
 Source3d::Source3d(Engine* engine): _MyBase(engine), _pos3d(NullVector), _distScaler(0), _changed3d(false), _play(false), _playTime(0)
 {
 	_myReport = new MyReport(this);
@@ -1822,9 +1798,6 @@ void Source3d::SetDistScaler(float value)
 	_distScaler = value;
 	Changed3d();
 }
-
-
-
 
 Engine::Engine(): _mainVoice(0), _xAudio(0), _initX3dAudio(false), _listener(0), _distScaler(30.0f), _mode3d(m3dFlat), _changed3d(false), _poolMaxSize(20), _isComputing(false)
 {

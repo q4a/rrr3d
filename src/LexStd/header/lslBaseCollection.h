@@ -255,9 +255,6 @@ public:
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> const char* const ComCollection<_Item, _IdType, _Arg, _ArgThis>::cDefItemName = "item";
 
-
-
-
 template<class _Item, class _IdType> BaseCollection<_Item, _IdType>::BaseCollection(): _safeCont(0), _lockDestr(0), _lockNotify(0)
 {
 }
@@ -525,9 +522,6 @@ template<class _Item, class _IdType> _IdType BaseCollection<_Item, _IdType>::Get
 	return FindItem(item).GetType();
 }
 
-
-
-
 template<class _Item, class _IdType, class _Arg> BaseCollectionCL<_Item, _IdType, _Arg>::BaseCollectionCL(): _classList(0), _createClassList(false)
 {
 }
@@ -617,9 +611,6 @@ template<class _Item, class _IdType, class _Arg> void BaseCollectionCL<_Item, _I
 		_classNames.push_back(value[i]);
 }
 
-
-
-
 template<class _Item, class _IdType, class _Arg, class _ArgThis> Collection<_Item, _IdType, _Arg, _ArgThis>::~Collection()
 {
 	this->Clear();
@@ -653,9 +644,6 @@ template<class _Item, class _IdType, class _Arg, class _ArgThis> template<class 
 
 	return lsl::StaticCast<_Type&>(Add(classInst->GetKey()));
 }
-
-
-
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> CollectionItem* ComCollection<_Item, _IdType, _Arg, _ArgThis>::FindItem(const std::string& name)
 {

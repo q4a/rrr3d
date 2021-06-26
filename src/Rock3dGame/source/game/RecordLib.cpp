@@ -26,9 +26,6 @@ void DevideStr(std::string::const_iterator sIter, std::string::const_iterator eI
 	}
 }
 
-
-
-
 Record::Record(const Desc& desc): _lib(desc.lib), _parent(desc.parent), _name(desc.name), _src(desc.src)
 {
 	if (_src)
@@ -81,9 +78,6 @@ void Record::SetName(const std::string& value)
 		_src->SetName(value);
 	}
 }
-
-
-
 
 RecordNode::RecordNode(const Desc& desc): _lib(desc.lib), _parent(desc.parent), _name(desc.name), _src(desc.src)
 {
@@ -293,9 +287,6 @@ void RecordNode::SetName(const std::string& value)
 		_src->SetName(value);
 	}
 }
-
-
-
 
 RecordLib::RecordLib(const std::string& name, lsl::SerialNode* rootSrc): _MyBase(Desc(name, 0, 0, 0)), _rootSrc(rootSrc)
 {

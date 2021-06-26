@@ -71,9 +71,6 @@ graph::Sampler2d& Material::GetSampler()
 	return _sampler;
 }
 
-
-
-
 Graphic::Graphic(Context* context): _context(context), _material(0), _pos(NullVec2), _size(100.0f, 100.0f), _active(true), _alpha(1.0f)
 {
 	GetOrCreateMaterial();
@@ -160,9 +157,6 @@ void Graphic::SetAlpha(float value)
 	_alpha = value;
 }
 
-
-
-
 Plane::Plane(Context* context): _MyBase(context)
 {
 }
@@ -171,9 +165,6 @@ void Plane::Draw()
 {
 	GetContext().DrawPlane(*this);
 }
-
-
-
 
 BaseText::BaseText(Context* context): _MyBase(context), _font(0), _horAlign(haCenter), _vertAlign(vaCenter), _textAABB(0.0f), _textAABBChanged(false), _wordWrap(false), _clipEnable(false), _vScroll(0)
 {
@@ -283,9 +274,6 @@ void BaseText::SetVScroll(float value)
 	_vScroll = value;
 }
 
-
-
-
 Text::Text(Context* context): _MyBase(context)
 {
 }
@@ -306,9 +294,6 @@ void Text::SetText(const std::string& value)
 	TextAABBChanged();
 }
 
-
-
-
 TextW::TextW(Context* context): _MyBase(context)
 {
 }
@@ -328,9 +313,6 @@ void TextW::SetText(const std::wstring& value)
 	_text = value;
 	TextAABBChanged();
 }
-
-
-
 
 Graphic3d::Graphic3d(Context* context): _context(context), _parent(0), _pos(NullVector), _rot(NullQuaternion), _scale(IdentityVector), _material(0), _createMat(false), invertCullFace(false), _active(true)
 {
@@ -531,9 +513,6 @@ void Graphic3d::SetActive(bool value)
 	_active = value;
 }
 
-
-
-
 Dummy3d::Dummy3d(Context* context): _MyBase(context)
 {
 }
@@ -551,9 +530,6 @@ void Dummy3d::Draw()
 {
 	//Nothing
 }
-
-
-
 
 VBuf3d::VBuf3d(Context* context): _MyBase(context), _mesh(0), _createMesh(false)
 {
@@ -652,9 +628,6 @@ void Mesh3d::SetMeshId(int value)
 	_meshId = value;
 }
 
-
-
-
 Plane3d::Plane3d(Context *context) : _MyBase(context), _size(IdentityVector.x, IdentityVector.y)
 {
 }
@@ -679,9 +652,6 @@ void Plane3d::SetSize(const glm::vec2 value)
 	_size = value;
 	StructureChanged();
 }
-
-
-
 
 View3d::View3d(Context* context): _MyBase(context), _align(false)
 {
@@ -714,9 +684,6 @@ void View3d::SetAlign(bool value)
 {
 	_align = value;
 }
-
-
-
 
 Context::Context(graph::Engine* engine): _engine(engine), _invertY(false), _vpSize(0, 0)
 {
@@ -1180,9 +1147,6 @@ void Context::SetVPSize(const glm::vec2& value)
 {
 	_vpSize = value;
 }
-
-
-
 
 Widget::Widget(Manager* manager): _manager(manager), _topmostLevel(0), _visible(true), _data(0), _parent(0), _anchor(waNone), _align(waNone), _enabled(true), _pos(NullVec2), _scale(IdentityVec2), _rot(0), _coord3d(false), _pos3d(NullVector), _size(NullVec2), _alignChanged(false), _isMouseDown(false), _isMouseOver(false), _isMouseEnter(false), _focused(false), _disposed(false), _modal(false), _tag(0)
 {
@@ -2236,16 +2200,10 @@ glm::vec2 Widget::GetAlignPos(const glm::vec2& size, Anchor align)
 	}
 }
 
-
-
-
 Dummy::Dummy(Manager* manager): _MyBase(manager)
 {
 	SetSize(IdentityVec2);
 }
-
-
-
 
 WidgetCont::WidgetCont(Manager* manager): _MyBase(manager)
 {
@@ -2264,9 +2222,6 @@ Dummy* WidgetCont::GetCont()
 {
 	return _cont;
 }
-
-
-
 
 PlaneFon::PlaneFon(Manager* manager): _MyBase(manager)
 {
@@ -2300,9 +2255,6 @@ void PlaneFon::SetMaterial(Material* value)
 {
 	_plane->SetMaterial(value);
 }
-
-
-
 
 Label::Label(Manager* manager): _MyBase(manager), _font(0), _horAlign(Text::haCenter), _vertAlign(Text::vaCenter), _wordWrap(false), _text(0), _textW(0), _baseText(0), _vScroll(0)
 {
@@ -2537,9 +2489,6 @@ void Label::SetVScroll(float value)
 	if (_baseText)
 		_baseText->SetVScroll(_vScroll);
 }
-
-
-
 
 Button::Button(Manager* manager): _MyBase(manager), _style(bsSimple), _selSize(0, 0), _selected(false), _fonMaterial(0), _selMaterial(0), _textMaterial(NULL), _textSelMaterial(NULL), _createFon(false), _createSel(false), _createText(false), _createTextSel(false), _selection(false), _fadeIn(-1), _fadeOut(-1)
 {
@@ -2879,9 +2828,6 @@ bool Button::IsSelected() const
 	return _selected;
 }
 
-
-
-
 StepperBox::StepperBox(Manager* manager): Widget(manager), _selIndex(-1), _itemsLoop(false)
 {
 	_childEvent = new ChildEvent(this);
@@ -3134,9 +3080,6 @@ void StepperBox::SetItemsLoop(bool value)
 	ApplySelection();
 }
 
-
-
-
 DropBox::DropBox(Manager* manager): _MyBase(manager), _showItems(false), _fonMaterial(0), _textMaterial(0), _selMaterial(0), _itemsFon(0), _selInd(-1)
 {
 	_itemsEvent = new ItemsEvent(this);
@@ -3341,7 +3284,6 @@ void DropBox::SetItems(const StringList& value)
 	StructureChanged();
 }
 
-
 int DropBox::GetSelInd() const
 {
 	return _selInd;
@@ -3409,9 +3351,6 @@ Material& DropBox::GetSelMaterial()
 
 	return *_selMaterial;
 }
-
-
-
 
 TrackBar::TrackBar(Manager* manager): _MyBase(manager), _dragOff(0), _grag(false)
 {
@@ -3632,9 +3571,6 @@ void ViewPort3d::SetAlign(bool value)
 	_view3d->SetAlign(value);
 }
 
-
-
-
 ScrollBox::ScrollBox(Manager* manager): _MyBase(manager), _arrowSize(20.0f, 20.0f), _arrowSpace(10.0f, 10.0f), _arrowScrollStep(20.0f, 20.0f)
 {
 	_myEvent = new MyEvent(this);
@@ -3696,7 +3632,6 @@ bool ScrollBox::MyEvent::OnClick(Widget* sender, const MouseClick& mClick)
 	scrollDown.x = Round(scrollDown.x);
 	scrollDown.y = Round(scrollDown.y);
 	scrollDown *= _scrollBox->_arrowScrollStep;
-
 
 	for (int i = 0; i < cScrollDirEnd; ++i) if (_scrollBox->_scrollBut[i] == sender)
 		switch (i)
@@ -3899,9 +3834,6 @@ Material& ScrollBox::GetArrowSelMaterial()
 {
 	return *_arrowSelMat;
 }
-
-
-
 
 ListBox::ListBox(Manager* manager): _MyBase(manager), _itemSize(30.0f, 30.0f), _itemSpace(5.0f, 5.0f), _selItem(0), _fon(0), _frameMaterial(0)
 {
@@ -4350,9 +4282,6 @@ glm::vec2 ListBox::GetScrollSpace() const
 	return 2.0f * GetArrowSize() + _itemSpace;
 }
 
-
-
-
 ProgressBar::ProgressBar(Manager* manager): _MyBase(manager), _style(psHorizontal), _progress(1.0f), _backEnabled(false)
 {
 	_back = GetContext().CreatePlane();
@@ -4466,9 +4395,6 @@ void ProgressBar::SetBackEnabled(bool value)
 	}
 }
 
-
-
-
 StreakBar::StreakBar(Manager* manager): _MyBase(manager), _streak(0), _createStreak(false), _streakMax(1), _streakCount(0)
 {
 	GetOrCreateStreak();
@@ -4577,9 +4503,6 @@ void StreakBar::SetStreakCount(unsigned value)
 	_streakCount = value;
 	UpdateStreaks();
 }
-
-
-
 
 ChargeBar::ChargeBar(Manager* manager): _MyBase(manager), _space(10.0f, 10.0f)
 {
@@ -4698,9 +4621,6 @@ void ChargeBar::SetCharge(unsigned value)
 {
 	_bar->SetStreakCount(value);
 }
-
-
-
 
 VolumeBar::VolumeBar(Manager* manager): Widget(manager), _volume(0.0f), _stepCount(10)
 {
@@ -4918,9 +4838,6 @@ void VolumeBar::SetStepCount(int value)
 	ApplyVolume();
 }
 
-
-
-
 ColorBox::ColorBox(Manager* manager): _MyBase(manager), _color(clrWhite), _select(false)
 {
 	_frame = GetContext().CreatePlane();
@@ -5079,9 +4996,6 @@ AABB2 ColorBox::GetCheckAABB() const
 
 	return aabb;
 }
-
-
-
 
 ColorList::ColorList(Manager* manager): _MyBase(manager), _space(NullVec2)
 {
@@ -5279,9 +5193,6 @@ void ColorList::SetSpace(const glm::vec2& value)
 	ApplyChanges();
 }
 
-
-
-
 Grid::Grid(Manager* manager): Widget(manager), _style(gsHorizontal), _cellSize(IdentityVec2), _maxCellsOnLine(0), _hideInvisible(true)
 {
 }
@@ -5385,9 +5296,6 @@ void Grid::hideInvisible(bool value)
 {
 	_hideInvisible = value;
 }
-
-
-
 
 Manager::Manager(graph::Engine* engine): _engine(engine), _camera3d(0), _root(0), _clipWidget(0), _safeMode(false), _invertY(true)
 {

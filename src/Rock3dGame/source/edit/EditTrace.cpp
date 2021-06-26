@@ -4,7 +4,6 @@
 #include "edit\Trace.h"
 #include "edit\Edit.h"
 
-
 namespace r3d
 {
 
@@ -35,9 +34,6 @@ void WayPoint::SetSize(float value)
 	GetInst()->SetSize(value);
 }
 
-
-
-
 WayNode::WayNode(Inst* inst): ExternImpl<game::WayNode>(inst)
 {
 }
@@ -47,9 +43,6 @@ IWayPathRef WayNode::GetPath()
 	WayPath* path = GetInst()->GetPath() ? new WayPath(GetInst()->GetPath()) : 0;
 	return IWayPathRef(path, path);
 }
-
-
-
 
 WayPath::WayPath(Inst* inst): ExternImpl<game::WayPath>(inst)
 {
@@ -79,9 +72,6 @@ void WayPath::Next(IWayNodeRef& ref)
 	WayNode* node = next ? new WayNode(next) : 0;
 	ref.Reset(node, node);
 }
-
-
-
 
 Trace::Trace(Inst* inst, Edit* edit): ExternImpl<game::Trace>(inst), _edit(edit), _enableVisualize(false)
 {

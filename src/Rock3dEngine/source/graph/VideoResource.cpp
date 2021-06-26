@@ -91,9 +91,6 @@ Engine* VideoResource::GetEngine()
 	return _engine;
 }
 
-
-
-
 MemPoolResource::MemPoolResource(DWORD usage): _memoryPool(D3DPOOL_DEFAULT), _usage(usage)
 {
 }
@@ -137,9 +134,6 @@ void MemPoolResource::SetUsage(DWORD value)
 		Free();
 	}
 }
-
-
-
 
 VBMesh::VBMesh(): MemPoolResource(D3DUSAGE_WRITEONLY), _data(0), _createData(false), _vb(0), primitiveType(D3DPT_TRIANGLELIST), _beginStream(0)
 {
@@ -260,9 +254,6 @@ IDirect3DVertexBuffer9* VBMesh::GetVB() const
 {
 	return _vb;
 }
-
-
-
 
 IndexedVBMesh::IndexedVBMesh(): MemPoolResource(D3DUSAGE_WRITEONLY), _data(0), _createData(false), _beginStreamCnt(0), _vb(0), _ib(0)
 {
@@ -418,9 +409,6 @@ IDirect3DIndexBuffer9* IndexedVBMesh::GetIB()
 	return _ib;
 }
 
-
-
-
 MeshX::MeshX(): MemPoolResource(D3DUSAGE_WRITEONLY), _data(0), _createData(false), _d3dxMesh(0), _beginStreamCnt(0)
 {
 }
@@ -575,9 +563,6 @@ const D3DXVECTOR3& MeshX::GetMaxPos() const
 	return _data->vb.GetMaxPos();
 }
 
-
-
-
 TexResource::TexResource(DWORD usage): MemPoolResource(usage), _screenScale(0, 0), _levelCnt(1) //один основной уровень
 {
 }
@@ -614,9 +599,6 @@ void TexResource::SetScreenScale(glm::vec2 value)
 		Free();
 	}
 }
-
-
-
 
 Tex2DResource::Tex2DResource(): TexResource(0), _texture(0), _data(0), _createData(false), _d3dxLoadUsed(false), _gui(false)
 {
@@ -846,9 +828,6 @@ glm::vec2 Tex2DResource::GetSize()
 	return glm::vec2(static_cast<float>(_data->GetWidth()), static_cast<float>(_data->GetHeight()));
 }
 
-
-
-
 TexCubeResource::TexCubeResource(): TexResource(0), _texture(0), _data(0), _createData(false), _d3dxLoadUsed(false)
 {
 }
@@ -1041,9 +1020,6 @@ IDirect3DCubeTexture9* TexCubeResource::GetTex()
 	return _texture;
 }
 
-
-
-
 RenderTargetResource::RenderTargetResource(): _surface(0), _width(0), _height(0), _screenScale(0, 0), _format(D3DFMT_UNKNOWN), _lockable(false), _multisampleType(D3DMULTISAMPLE_NONE), _multisampleQuality(0)
 {
 	SetDynamic(true);
@@ -1160,9 +1136,6 @@ void RenderTargetResource::SetScreenScale(glm::vec2 value)
 	}
 }
 
-
-
-
 DepthStencilSurfaceResource::DepthStencilSurfaceResource(): _surface(0), _width(0), _height(0), _screenScale(0, 0), _format(D3DFMT_UNKNOWN), _discard(true), _multisampleType(D3DMULTISAMPLE_NONE), _multisampleQuality(0)
 {
 	SetDynamic(true);
@@ -1278,9 +1251,6 @@ void DepthStencilSurfaceResource::SetScreenScale(glm::vec2 value)
 		Free();
 	}
 }
-
-
-
 
 TextFont::TextFont(): _font(0)
 {

@@ -14,9 +14,6 @@ const glm::vec2 Menu::cWinSize(1280.0f, 1024.0f);
 const glm::vec2 Menu::cMinWinSize(800.0f, 600.0f);
 const glm::vec2 Menu::cMaxWinSize(3072.0f, 1536.0f);
 
-
-
-
 Menu::Menu(GameMode* game): _game(game), _state(msMain2), _loadingVisible(false), _optionsVisible(false), _startOptionsVisible(false), _screenFon(0), _mainMenu2(0), _raceMenu2(0), _hudMenu(0), _finishMenu2(NULL), _finalMenu(NULL), _infoMenu(0), _optionsMenu(NULL), _startOptionsMenu(NULL), _weaponTime(-1), _messageTime(-1), _musicTime(-1)
 {
 	_controlEvent = new MyControlEvent(this);

@@ -24,9 +24,6 @@ BEGIN_MESSAGE_MAP(CMapEditorView, CView)
 	ON_WM_SIZE()
 END_MESSAGE_MAP()
 
-
-
-
 CMapEditorView::CMapEditorView()
 {
 }

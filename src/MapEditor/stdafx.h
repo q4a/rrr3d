@@ -23,10 +23,6 @@
 #include <afxwin.h>         // MFC core and standard components
 #include <afxext.h>         // MFC extensions
 
-
-
-
-
 #ifndef _AFX_NO_OLE_SUPPORT
 #include <afxdtctl.h>           // MFC support for Internet Explorer 4 Common Controls
 #endif
@@ -35,9 +31,6 @@
 #endif // _AFX_NO_AFXCMN_SUPPORT
 
 #include <afxcontrolbars.h>     // MFC support for ribbons and control bars
-
-
-
 
 #undef min
 #undef max
@@ -58,9 +51,6 @@
 #define max(a, b) ((a > b) ? a : b)
 #endif
 
-
-
-
 #ifdef _UNICODE
 #if defined _M_IX86
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
@@ -72,9 +62,6 @@
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #endif
 #endif
-
-
-
 
 inline CString CharToCString(const char* value)
 {
@@ -96,9 +83,6 @@ inline bool StrEq(const TCHAR* str1, const TCHAR* str2)
 {
 	return StrCmp(str1, str2) == 0;
 }
-
-
-
 
 //func - функтор типа bool()(HTREEITEM), res == true - закончить обход
 template<class _Func> HTREEITEM ForEachTreeCtrlItem(CTreeCtrl& tree, HTREEITEM item, _Func func)
