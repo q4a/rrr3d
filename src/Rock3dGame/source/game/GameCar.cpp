@@ -204,7 +204,7 @@ void CarWheel::PxSyncWheel(float alpha)
 
 	if (alpha < 1.0f)
 	{
-		resRot = glm::mix(_pxPrevRot, resRot, alpha);
+		resRot = glm::slerp(_pxPrevRot, resRot, alpha);
 	}
 	else
 	{

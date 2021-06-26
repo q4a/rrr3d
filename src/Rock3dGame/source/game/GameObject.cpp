@@ -236,7 +236,7 @@ void GameObject::OnPxSync(float alpha)
 	if (alpha < 1.0f)
 	{
 		D3DXVec3Lerp(&_pxPosLerp, &_pxPrevPos, &_pxActor->GetPos(), alpha);
-		_pxRotLerp = glm::mix(_pxPrevRot, _pxActor->GetRot(), alpha);
+		_pxRotLerp = glm::slerp(_pxPrevRot, _pxActor->GetRot(), alpha);
 		D3DXVec3Lerp(&_pxVelocityLerp, &_pxPrevVelocity, &pxVelocityLerp, alpha);
 	}
 	else

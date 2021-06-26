@@ -794,7 +794,7 @@ void Proj::TorpedaUpdate(float deltaTime)
 		QuatShortestArc(XVector, dir, rot1);
 		if (_desc.angleSpeed > 0)
 		{
-			rot = glm::mix(this->GetRot(), rot1, deltaTime * _desc.angleSpeed);
+			rot = glm::slerp(this->GetRot(), rot1, deltaTime * _desc.angleSpeed);
 		}
 		else
 		{
