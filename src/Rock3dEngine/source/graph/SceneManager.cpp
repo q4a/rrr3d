@@ -133,7 +133,7 @@ void BaseSceneNode::ExtractRotation(_RotationStyle style) const
 				 
 		case rsQuaternion:
 			_rot = glm::quat_cast(Matrix4DxToGlm(_rotMat));
-			//_rot = glm::quat(-_rot.w, _rot.x, _rot.y, _rot.z);
+			_rot = glm::quat(-_rot.w, _rot.x, _rot.y, _rot.z);
 			break;
 
 		case rsVectors:
@@ -466,14 +466,14 @@ void BaseSceneNode::OnProgress(float deltaTime)
 			D3DXVec3Normalize(&dir, &speedPos);
 			glm::quat rot;
 			QuatShortestArc(XVector, dir, rot);
-			SetRot(rot * speedRot);
+			SetRot(speedRot * rot);
 		}
 		else
 		{
 			glm::vec3 rotAxe = glm::axis(speedRot);
 			float rotAngle = glm::angle(speedRot);
 			glm::quat rotDt = glm::angleAxis(rotAngle * deltaTime, rotAxe);
-			SetRot(GetRot() * rotDt);
+			SetRot(rotDt * GetRot());
 		}
 
 		SetScale(GetScale() + speedScale * deltaTime);
@@ -922,7 +922,7 @@ D3DXMATRIX BaseSceneNode::GetRotMat() const
 	{
 		if (!_rotInvalidate.test(rsQuaternion))
 		{
-			_rotMat = Matrix4GlmToDx(glm::toMat4(_rot));
+			_rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(_rot)));
 		}
 		else
 		{
@@ -1028,14 +1028,14 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 	{
 		D3DXMATRIX scaleMat = GetWorldScale();
 
-		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::toMat4(GetWorldRot()));
+		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
 
 		return scaleMat * rotMat;
 	}
 
 	case cmtRotTrans:
 	{
-		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::toMat4(GetWorldRot()));
+		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
 
 		D3DXMATRIX transMat;
 		D3DXVECTOR3 pos = GetWorldPos();
@@ -1072,14 +1072,14 @@ glm::quat BaseSceneNode::GetWorldRot() const
 	glm::quat res = GetRot();
 	const BaseSceneNode* curObj = this;
 	while (curObj = curObj->GetParent())
-		res *= curObj->GetRot();
+		res = curObj->GetRot() * res;
 	return res;
 }
 
 void BaseSceneNode::SetWorldRot(const glm::quat& value)
 {
 	if (_parent)
-		return SetRot(value * _parent->GetWorldRot());
+		return SetRot(_parent->GetWorldRot() * value);
 	else
 		return SetRot(value);
 }
