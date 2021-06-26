@@ -3524,7 +3524,7 @@ ViewPort3d::~ViewPort3d()
 
 void ViewPort3d::AnimProgress(float deltaTime)
 {
-	glm::quat rot = glm::mix(GetBox()->GetRot(), GetBox()->GetRot() * _rot3dSpeed, deltaTime);
+	glm::quat rot = glm::slerp(GetBox()->GetRot(), GetBox()->GetRot() * _rot3dSpeed, deltaTime);
 
 	GetBox()->SetRot(rot);
 }

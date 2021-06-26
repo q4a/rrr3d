@@ -150,7 +150,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		D3DXVECTOR3 pos;
 		D3DXVec3Lerp(&pos, &_manager->_flySPos, &_manager->_flyPos, alpha);
 
-		glm::quat rot = glm::mix(_manager->_flySRot, _manager->_flyRot, alpha);
+		glm::quat rot = glm::slerp(_manager->_flySRot, _manager->_flyRot, alpha);
 
 		camera->SetPos(pos);
 		camera->SetRot(rot);
@@ -347,7 +347,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		//
 		glm::quat camQuat1 = rot;
 		glm::quat camQuat2 = velRot;
-		glm::quat camQuat = glm::mix(camQuat1, camQuat2, 6.0f * deltaTime);
+		glm::quat camQuat = glm::slerp(camQuat1, camQuat2, 6.0f * deltaTime);
 
 		/*D3DXVECTOR3 camPos;
 		Vec3Rotate(cCamTargetOff, camQuat, camPos);
@@ -484,7 +484,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		if (leftDown && _staticVec2.z == 0.0f)
 		{
 			glm::vec2 dMPos2 = mPos - glm::vec2(_staticVec2.x, _staticVec2.y);
-            if (glm::length(dMPos2) > 15.0f)
+			if (glm::length(dMPos2) > 15.0f)
 				_staticVec2.z = 1.0f;
 			else
 				leftDown = false;
@@ -963,7 +963,7 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 
 	if (camRot != NULL)
 	{
-		camRot = &glm::mix(*camRot, rot, 6.0f * deltaTime);
+		*camRot = glm::slerp(*camRot, rot, 6.0f * deltaTime);
 	}
 
 	if (camPos != NULL && camRot != NULL)
