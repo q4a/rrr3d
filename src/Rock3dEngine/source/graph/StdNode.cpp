@@ -36,7 +36,7 @@ void MaterialNode::TransformationChanged() const
 	_defMat = _offset == NullVector && _scale == IdentityVector && _rotate == NullQuaternion;
 }
 
-const D3DXMATRIX& MaterialNode::GetMatrix() const
+const glm::mat4& MaterialNode::GetMatrix() const
 {
 	if (_matChanged)
 	{

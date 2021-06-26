@@ -10,7 +10,7 @@ namespace graph
 
 //Схема
 //+y; -y; +z; -z; +x; -x
-const D3DXMATRIX skyFromLeftToRightCS(1.0f,  0.0f,  0.0f,  0.0f,
+const glm::mat4 skyFromLeftToRightCS(1.0f,  0.0f,  0.0f,  0.0f,
 									  0.0f,  0.0f,  1.0f,  0.0f,
 									  0.0f,  -1.0f, 0.0f,  0.0f,
 									  0.0f,  0.0f,  0.0f,  1.0f);
@@ -48,7 +48,7 @@ void SkyBox::Render(Engine& engine)
 		engine.GetContext().SetWorldMat(IdentityMatrix);
 
 	//Нужно обнулять 4-ую строку чтобы небо не растягивалось
-	D3DXMATRIX skyWVP = engine.GetContext().GetCamera().GetWVP();
+	glm::mat4 skyWVP = engine.GetContext().GetCamera().GetWVP();
 	skyWVP._41 = 0.0f;
 	skyWVP._42 = 0.0f;
 	skyWVP._43 = 0.0f;

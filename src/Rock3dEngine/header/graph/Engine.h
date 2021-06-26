@@ -100,7 +100,7 @@ public:
 	void BeginMeshPT();
 	void EndMeshPT();
 	void RenderPlanePT();
-	void RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, float turnAngle, const D3DXVECTOR3* fixDirection, const D3DXMATRIX& localMat);
+	void RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, float turnAngle, const D3DXVECTOR3* fixDirection, const glm::mat4& localMat);
 
 	void RenderScreenQuad(bool disableZBuf = false);
 

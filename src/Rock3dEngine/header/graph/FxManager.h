@@ -23,7 +23,7 @@ private:
 	glm::quat _rot;
 	D3DXVECTOR3 _scale;
 
-	mutable D3DXMATRIX _worldMat;
+	mutable glm::mat4 _worldMat;
 	mutable bool _worldMatChanged;
 
 	mutable AABB _aabb;
@@ -47,7 +47,7 @@ public:
 	const D3DXVECTOR3& GetScale();
 	void SetScale(const D3DXVECTOR3& value);
 
-	const D3DXMATRIX& GetMatrix() const;
+	const glm::mat4& GetMatrix() const;
 
 	AABB GetAABB() const;
 
@@ -214,7 +214,7 @@ public:
 	D3DXVECTOR3 GetLocalPos(FxParticle* particle) const;
 	D3DXVECTOR3 GetWorldPos(FxParticle* particle) const;
 
-	const D3DXMATRIX& GetMatrix() const;
+	const glm::mat4& GetMatrix() const;
 };
 
 class FxParticleSystem: public BaseSceneNode

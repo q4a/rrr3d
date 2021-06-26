@@ -169,8 +169,8 @@ unsigned Read(std::istream& stream, glm::quat& value);
 unsigned Write(std::ostream& stream, const D3DXCOLOR& value);
 unsigned Read(std::istream& stream, D3DXCOLOR& value);
 
-unsigned Write(std::ostream& stream, const D3DXMATRIX& value);
-unsigned Read(std::istream& stream, D3DXMATRIX& value);
+unsigned Write(std::ostream& stream, const glm::mat4& value);
+unsigned Read(std::istream& stream, glm::mat4& value);
 
 template<class _T> unsigned Write(std::ostream& stream, const std::basic_string<_T>& value, unsigned size);
 template<class _T> unsigned Read(std::istream& stream, std::basic_string<_T>& value, unsigned size);
@@ -334,13 +334,13 @@ inline unsigned Read(std::istream& stream, D3DXCOLOR& value)
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXMATRIX& value)
+inline unsigned Write(std::ostream& stream, const glm::mat4& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXMATRIX& value)
+inline unsigned Read(std::istream& stream, glm::mat4& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);

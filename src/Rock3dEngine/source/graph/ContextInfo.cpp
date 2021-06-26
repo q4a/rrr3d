@@ -112,7 +112,7 @@ void CameraCI::StateChanged()
 	_frustChanged = true;
 }
 
-void CameraCI::WorldMatChanged(const D3DXMATRIX& worldMat)
+void CameraCI::WorldMatChanged(const glm::mat4& worldMat)
 {
 	_worldMat = worldMat;
 
@@ -122,7 +122,7 @@ void CameraCI::WorldMatChanged(const D3DXMATRIX& worldMat)
 	_invMatChanged.set(ctWVP);
 }
 
-void CameraCI::CalcProjPerspective(D3DXMATRIX& mat) const
+void CameraCI::CalcProjPerspective(glm::mat4& mat) const
 {
 	D3DXMatrixPerspectiveFovRH(&mat, _desc.fov, _desc.aspect, _desc.nearDist, _desc.farDist);
 }
@@ -382,7 +382,7 @@ void CameraCI::AdjustNearFarPlane(const AABB& aabb, float minNear, float maxFar)
 	DescChanged();
 }
 
-void CameraCI::GetProjPerspective(D3DXMATRIX& mat) const
+void CameraCI::GetProjPerspective(glm::mat4& mat) const
 {
 	if (_desc.style == csPerspective)
 		mat = GetProj();
@@ -390,7 +390,7 @@ void CameraCI::GetProjPerspective(D3DXMATRIX& mat) const
 		return CalcProjPerspective(mat);
 }
 
-void CameraCI::GetViewProjPerspective(D3DXMATRIX& mat) const
+void CameraCI::GetViewProjPerspective(glm::mat4& mat) const
 {
 	if (_desc.style == csPerspective)
 		mat = GetViewProj();
@@ -401,7 +401,7 @@ void CameraCI::GetViewProjPerspective(D3DXMATRIX& mat) const
 	}
 }
 
-void CameraCI::GetWVPPerspective(D3DXMATRIX& mat) const
+void CameraCI::GetWVPPerspective(glm::mat4& mat) const
 {
 	if (_desc.style == csPerspective)
 		mat = GetViewProj();
@@ -412,7 +412,7 @@ void CameraCI::GetWVPPerspective(D3DXMATRIX& mat) const
 	}
 }
 
-void CameraCI::SetProjMat(const D3DXMATRIX& value)
+void CameraCI::SetProjMat(const glm::mat4& value)
 {
 	_matrices[ctProj] = value;
 
@@ -455,7 +455,7 @@ void CameraCI::SetDesc(const CameraDesc& value)
 	DescChanged();
 }
 
-const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
+const glm::mat4& CameraCI::GetTransform(Transform transform) const
 {
 	if (_matChanged.test(transform))
 	{
@@ -493,9 +493,9 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 			case csViewPortInv:
 			{
 				glm::vec2 viewSize = glm::vec2(_desc.width, _desc.width / _desc.aspect);
-				D3DXMATRIX viewMat;
+				glm::mat4 viewMat;
 				D3DXMatrixTranslation(&viewMat, -1.0f, _desc.style == csViewPortInv ? -1.0f : 1.0f, 0.0f);
-				D3DXMATRIX matScale;
+				glm::mat4 matScale;
 				D3DXMatrixScaling(&matScale, 2.0f/viewSize.x, _desc.style == csViewPortInv ? 2.0f/viewSize.y : -2.0f/viewSize.y, 1.0f);
 				matScale._33 = 1.0f/(-500.0f - 500.0f);
 				matScale._43 = -500.0f/(-500.0f - 500.0f);
@@ -529,7 +529,7 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 	return _matrices[transform];
 }
 
-const D3DXMATRIX& CameraCI::GetInvTransform(Transform transform) const
+const glm::mat4& CameraCI::GetInvTransform(Transform transform) const
 {
 	if (_invMatChanged.test(transform))
 	{
@@ -551,42 +551,42 @@ const Frustum& CameraCI::GetFrustum() const
 	return _frustum;
 }
 
-const D3DXMATRIX& CameraCI::GetView() const
+const glm::mat4& CameraCI::GetView() const
 {
 	return GetTransform(ctView);
 }
 
-const D3DXMATRIX& CameraCI::GetProj() const
+const glm::mat4& CameraCI::GetProj() const
 {
 	return GetTransform(ctProj);
 }
 
-const D3DXMATRIX& CameraCI::GetViewProj() const
+const glm::mat4& CameraCI::GetViewProj() const
 {
 	return GetTransform(ctViewProj);
 }
 
-const D3DXMATRIX& CameraCI::GetWVP() const
+const glm::mat4& CameraCI::GetWVP() const
 {
 	return GetTransform(ctWVP);
 }
 
-const D3DXMATRIX& CameraCI::GetInvView() const
+const glm::mat4& CameraCI::GetInvView() const
 {
 	return GetInvTransform(ctView);
 }
 
-const D3DXMATRIX& CameraCI::GetInvProj() const
+const glm::mat4& CameraCI::GetInvProj() const
 {
 	return GetInvTransform(ctProj);
 }
 
-const D3DXMATRIX& CameraCI::GetInvViewProj() const
+const glm::mat4& CameraCI::GetInvViewProj() const
 {
 	return GetInvTransform(ctViewProj);
 }
 
-const D3DXMATRIX& CameraCI::GetInvWVP() const
+const glm::mat4& CameraCI::GetInvWVP() const
 {
 	return GetInvTransform(ctWVP);
 }
@@ -779,7 +779,7 @@ void ContextInfo::BeginDraw()
 	for (int i = 0; i <= _maxTextureStage; ++i)
 		if (!_textureMatStack[i].empty())
 		{
-			D3DXMATRIX mat = _textureMatStack[i].front();
+			glm::mat4 mat = _textureMatStack[i].front();
 			for (unsigned j = 1; j < _textureMatStack[i].size(); ++j)
 				mat = mat * _textureMatStack[i][j];
 
@@ -922,12 +922,12 @@ bool ContextInfo::IsShaderActive() const
 	return _shaderStack.size() > 0;
 }
 
-const D3DXMATRIX& ContextInfo::GetWorldMat() const
+const glm::mat4& ContextInfo::GetWorldMat() const
 {
 	return _worldMat;
 }
 
-void ContextInfo::SetWorldMat(const D3DXMATRIX& value)
+void ContextInfo::SetWorldMat(const glm::mat4& value)
 {
 	_worldMat = value;
 	if (!_cameraStack.empty())
@@ -939,7 +939,7 @@ void ContextInfo::SetWorldMat(const D3DXMATRIX& value)
 	_driver->SetTransform(tstWorld, &_worldMat);
 }
 
-void ContextInfo::PushTextureTransform(int stage, const D3DXMATRIX& value)
+void ContextInfo::PushTextureTransform(int stage, const glm::mat4& value)
 {
 	_textureMatStack[stage].push_back(value);
 }

@@ -25,7 +25,7 @@ void BaseSampler::TransformationChanged() const
 	_defMat = _offset == NullVector && _scale == IdentityVector && _rotate == NullQuaternion;
 }
 
-const D3DXMATRIX& BaseSampler::GetMatrix(float frame) const
+const glm::mat4& BaseSampler::GetMatrix(float frame) const
 {
 	if (_matChanged || _matFrame != frame)
 	{
@@ -102,7 +102,7 @@ void BaseSampler::Apply(Engine& engine, DWORD stage)
 		engine.GetContext().SetTexture(stage, GetTexSrc());
 	}
 
-	D3DXMATRIX mat = GetMatrix(engine.GetContext().GetFrame());
+	glm::mat4 mat = GetMatrix(engine.GetContext().GetFrame());
 	if (!_defMat)
 	{
 		engine.GetContext().PushTextureTransform(stage, mat);

@@ -263,8 +263,8 @@ public:
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(const D3DXVECTOR3& value);
 
-	D3DXMATRIX GetMat();
-	D3DXMATRIX GetWorldMat();
+	glm::mat4 GetMat();
+	glm::mat4 GetWorldMat();
 	AABB GetChildAABB();
 	AABB GetLocalAABB(bool includeChild);
 	AABB GetWorldAABB(bool includeChild);
@@ -407,7 +407,7 @@ private:
 	void BeginDrawGraphic(Graphic& graphic);
 	void EndDrawGraphic(Graphic& graphic);
 
-	void DrawGraphic3d(Graphic3d* graphic, const D3DXMATRIX& worldMat);
+	void DrawGraphic3d(Graphic3d* graphic, const glm::mat4& worldMat);
 	template<class _Text> void DrawBaseText(_Text& text, AABB2* aabb);
 
 	graph::Engine& GetEngine();
@@ -420,7 +420,7 @@ public:
 	void BeginDraw();
 	void EndDraw();
 
-	void SetTransform(const D3DXMATRIX& value);
+	void SetTransform(const glm::mat4& value);
 
 	void DrawPlane(Plane& plane);
 	void DrawText(Text& text, AABB2* aabb = 0);
@@ -538,7 +538,7 @@ private:
 	bool _coord3d;
 	D3DXVECTOR3 _pos3d;
 
-	mutable D3DXMATRIX _matrix[cMatrixChangeEnd];
+	mutable glm::mat4 _matrix[cMatrixChangeEnd];
 	mutable MatrixChanges _matrixChanges;
 
 	glm::vec2 _size;
@@ -704,10 +704,10 @@ public:
 	glm::vec2 GetWorldPos() const;
 	void SetWorldPos(const glm::vec2& value);
 
-	const D3DXMATRIX& GetMat() const;
-	const D3DXMATRIX& GetWorldMat() const;
-	const D3DXMATRIX& GetInvMat() const;
-	const D3DXMATRIX& GetInvWorldMat() const;
+	const glm::mat4& GetMat() const;
+	const glm::mat4& GetWorldMat() const;
+	const glm::mat4& GetInvMat() const;
+	const glm::mat4& GetInvWorldMat() const;
 
 	//размер относительно центра localAABB
 	const glm::vec2& GetSize() const;

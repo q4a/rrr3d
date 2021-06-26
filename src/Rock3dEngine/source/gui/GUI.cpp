@@ -407,15 +407,15 @@ void Graphic3d::SetScale(const D3DXVECTOR3& value)
 	TransformChanged();
 }
 
-D3DXMATRIX Graphic3d::GetMat()
+glm::mat4 Graphic3d::GetMat()
 {
-	D3DXMATRIX mat;
+	glm::mat4 mat;
 	BuildWorldMatrix(_pos, _scale, _rot, mat);
 
 	return mat;
 }
 
-D3DXMATRIX Graphic3d::GetWorldMat()
+glm::mat4 Graphic3d::GetWorldMat()
 {
 	return _parent ? GetMat() * _parent->GetWorldMat() : GetMat();
 }
@@ -793,7 +793,7 @@ void Context::EndDrawGraphic(Graphic& graphic)
 		UnApplyMaterial(*graphic.GetMaterial());
 }
 
-void Context::DrawGraphic3d(Graphic3d* graphic, const D3DXMATRIX& worldMat)
+void Context::DrawGraphic3d(Graphic3d* graphic, const glm::mat4& worldMat)
 {
 	if (graphic->GetMaterial())
 		ApplyMaterial(*graphic->GetMaterial(), 1.0f);
@@ -926,7 +926,7 @@ void Context::EndDraw()
 	GetCI().UnApplyCamera(&_camera);
 }
 
-void Context::SetTransform(const D3DXMATRIX& value)
+void Context::SetTransform(const glm::mat4& value)
 {
 	GetCI().SetWorldMat(value);
 }
@@ -1041,10 +1041,10 @@ void Context::DrawView3d(View3d& view3d)
 	}
 
 	//мировая матрица меша
-	D3DXMATRIX worldMat = GetCI().GetWorldMat();
+	glm::mat4 worldMat = GetCI().GetWorldMat();
 	if (!_invertY)
 		worldMat._22 = -worldMat._22;
-	D3DXMATRIX localMat;
+	glm::mat4 localMat;
 	BuildWorldMatrix(-pos, scale, NullQuaternion, localMat);
 
 	//
@@ -2059,7 +2059,7 @@ void Widget::SetPos3d(const D3DXVECTOR3& value)
 glm::vec2 Widget::GetWorldPos() const
 {
 	//return glm::vec2(GetWorldMat().m[3]); // TTEST: m[3] - matrix replacement
-	return glm::vec2(GetWorldMat()._41, GetWorldMat()._42); // remove after D3DXMATRIX replacement
+	return glm::vec2(GetWorldMat()._41, GetWorldMat()._42); // remove after glm::mat4 replacement
 }
 
 void Widget::SetWorldPos(const glm::vec2& value)
@@ -2067,7 +2067,7 @@ void Widget::SetWorldPos(const glm::vec2& value)
 	SetPos(_parent ? _parent->WorldToLocalCoord(value) : value);
 }
 
-const D3DXMATRIX& Widget::GetMat() const
+const glm::mat4& Widget::GetMat() const
 {
 	ApplyAlign();
 
@@ -2076,21 +2076,21 @@ const D3DXMATRIX& Widget::GetMat() const
 	return _matrix[mcLocal];
 }
 
-const D3DXMATRIX& Widget::GetWorldMat() const
+const glm::mat4& Widget::GetWorldMat() const
 {
 	BuildMatrix(mcWorld);
 
 	return _matrix[mcWorld];
 }
 
-const D3DXMATRIX& Widget::GetInvMat() const
+const glm::mat4& Widget::GetInvMat() const
 {
 	BuildMatrix(mcInvLocal);
 
 	return _matrix[mcInvLocal];
 }
 
-const D3DXMATRIX& Widget::GetInvWorldMat() const
+const glm::mat4& Widget::GetInvWorldMat() const
 {
 	BuildMatrix(mcInvWorld);
 

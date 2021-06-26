@@ -17,8 +17,8 @@ class ShadowMapShader: public Shader
 protected:
 	virtual void DoBeginDraw(Engine& engine);
 public:
-	D3DXMATRIX mTexScale;
-	D3DXMATRIX shadowViewProj;
+	glm::mat4 mTexScale;
+	glm::mat4 shadowViewProj;
 };
 
 //Выисление карты освещенности, которая представляет собой проекционную текстуру на текстуру сцены. Т.е. накладывается постпроцессом. Содержит в себе степень освещенности (тени прикрытые диффузом) в помежутке 0..1.
@@ -41,7 +41,7 @@ private:
 
 	std::vector<float> _splitDistances;
 	std::vector<float> _lightDist;
-	std::vector<D3DXMATRIX> _splitLightProjMat;
+	std::vector<glm::mat4> _splitLightProjMat;
 
 	//
 	RtFlags _beginFlags;

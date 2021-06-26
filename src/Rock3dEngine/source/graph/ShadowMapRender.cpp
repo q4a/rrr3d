@@ -13,7 +13,7 @@ const unsigned ShadowMapRender::cShadowMapSize = 2048;
 
 void ShadowMapShader::DoBeginDraw(Engine& engine)
 {
-	D3DXMATRIX shadowWVP = shadowViewProj;
+	glm::mat4 shadowWVP = shadowViewProj;
 	D3DXMatrixMultiply(&shadowWVP, &engine.GetContext().GetWorldMat(), &shadowWVP);
 	D3DXMatrixMultiply(&shadowWVP, &shadowWVP, &mTexScale);
 
@@ -75,7 +75,7 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 	float fMinY = FLT_MAX;
 	float fMinZ = FLT_MAX;
 
-	const D3DXMATRIX& mLightViewProj = light.GetCamera().GetViewProj();
+	const glm::mat4& mLightViewProj = light.GetCamera().GetViewProj();
 	float fLightNear = light.GetCamera().GetDesc().nearDist;
 
 	// for each corner point
@@ -138,7 +138,7 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 	float fOffsetY = -0.5f * (fMaxY + fMinY) * fScaleY;
 	float fOffsetZ = -fMinZ * fScaleZ;
 
-	D3DXMATRIX mCropView(fScaleX,     0.0f,     0.0f,   0.0f,
+	glm::mat4 mCropView(fScaleX,     0.0f,     0.0f,   0.0f,
 	                        0.0f,  fScaleY,     0.0f,   0.0f,
 	                        0.0f,     0.0f,  fScaleZ,   0.0f,
 	                    fOffsetX, fOffsetY, fOffsetZ,   1.0f);
@@ -164,7 +164,7 @@ void ShadowMapRender::CalcSplitScheme(const CameraCI& camera, const LightCI& lig
 
 		if (_disableCropLight)
 		{
-			D3DXMATRIX mCropView(
+			glm::mat4 mCropView(
 				1, 0.0f,  0.0f,   0.0f,
 				0.0f, 1, 0.0f, 0.0f,
 				0.0f, 0.0f, 1.0f/(desc.farDist - desc.nearDist), 0.0f,
@@ -205,7 +205,7 @@ void ShadowMapRender::BeginShadowCaster(Engine& engine)
 		engine.GetDriver().GetDevice()->SetDepthStencilSurface(_depthSurface->GetSurface());
 	}
 
-	D3DXMATRIX viewProj = _myCamera.GetView() * _splitLightProjMat[_curNumSplit];
+	glm::mat4 viewProj = _myCamera.GetView() * _splitLightProjMat[_curNumSplit];
 	depthRender.SetViewProjMat(viewProj);
 
 	engine.GetContext().ApplyCamera(&_myCamera);
@@ -249,7 +249,7 @@ void ShadowMapRender::BeginShadowMapp(Engine& engine)
 	{
 		float mapSz = static_cast<float>(cShadowMapSize);
 		float fTexOffset = 0.5f + 0.5f / mapSz;
-		shader.mTexScale = D3DXMATRIX(0.5f,       0.0f,       0.0f,   0.0f,
+		shader.mTexScale = glm::mat4(0.5f,       0.0f,       0.0f,   0.0f,
 			                          0.0f,       -0.5f,      0.0f,   0.0f,
 							          0.0f,       0.0f,       1.0f,   0.0f,
 							          fTexOffset, fTexOffset, 0.0f,   1.0f);
