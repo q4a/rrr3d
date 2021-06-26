@@ -47,18 +47,18 @@ inline float NumAbsAdd(float absVal, float addVal)
 inline glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
 {
 	glm::mat4 mat4glm(mat._11, mat._21, mat._31, mat._41,
-					  mat._12, mat._22, mat._32, mat._42,
-					  mat._13, mat._23, mat._33, mat._43,
-					  mat._14, mat._24, mat._34, mat._44);
+	                  mat._12, mat._22, mat._32, mat._42,
+	                  mat._13, mat._23, mat._33, mat._43,
+	                  mat._14, mat._24, mat._34, mat._44);
 	return mat4glm;
 }
 
 inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
 {
 	D3DXMATRIX matrix(mat[0].x, mat[1].x, mat[2].x, mat[3].x,
-					  mat[0].y, mat[1].y, mat[2].y, mat[3].y,
-					  mat[0].z, mat[1].z, mat[2].z, mat[3].z,
-					  mat[0].w, mat[1].w, mat[2].w, mat[3].w);
+	                  mat[0].y, mat[1].y, mat[2].y, mat[3].y,
+	                  mat[0].z, mat[1].z, mat[2].z, mat[3].z,
+	                  mat[0].w, mat[1].w, mat[2].w, mat[3].w);
 	return matrix;
 }
 

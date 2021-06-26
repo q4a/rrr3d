@@ -439,7 +439,7 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		D3DXVECTOR4 projVec;
 		D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
 		//glm::vec2 vec = projVec / projVec.w;
-        glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
+		glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
 
 		if (projVec.z < 0)
 		{
@@ -689,8 +689,8 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			D3DXVECTOR4 projVec;
 			D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
 			//glm::vec2 vec = projVec / projVec.w;
-            glm::vec2 vec =
-                glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
+			glm::vec2 vec =
+				glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
 
 			if (projVec.z < 0)
 			{
@@ -920,13 +920,13 @@ void MiniMapFrame::ComputeNode(Nodes::iterator sIter, Nodes::iterator eIter, Nod
 		iter->dir = nextIter->pos - iter->pos;
 	else
 		iter->dir = iter->pos - prevIter->pos;
-    iter->dir = glm::normalize(iter->dir);
+	iter->dir = glm::normalize(iter->dir);
 	//вычисляем prevDir
 	if (prevIter != eIter)
 		iter->prevDir = iter->pos - prevIter->pos;
 	else
 		iter->prevDir = iter->dir;
-    iter->prevDir = glm::normalize(iter->prevDir);
+	iter->prevDir = glm::normalize(iter->prevDir);
 	//вычисляем midDir
 	iter->midDir = glm::normalize(iter->prevDir + iter->dir);
 	//вычисляем midNorm

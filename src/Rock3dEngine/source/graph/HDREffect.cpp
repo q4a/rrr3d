@@ -66,7 +66,7 @@ void HDRRender::MeasureLuminance(Engine& engine)
 	pSurfDest->Release();
 
 	for( int i = cToneMapTexNum - 1; i > 0; i--)
-    {
+	{
 		GetSampleOffsetsDownScale4x4(_toneVec[i - 1]->GetData()->GetWidth(), _toneVec[i - 1]->GetData()->GetHeight(), sampleOffsets4x4);
 		//≈сли i == 1 окончательный вариант прохода в текстуру 1х1
 		shader.SetTextureDir("lumTex", _toneVec[i]);
@@ -84,7 +84,7 @@ void HDRRender::MeasureLuminance(Engine& engine)
 		shader.UnApply(engine);
 
 		pSurfDest->Release();
-    }
+	}
 }
 
 void HDRRender::AdaptationLuminance(Engine& engine)

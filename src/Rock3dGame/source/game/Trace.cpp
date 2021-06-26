@@ -161,13 +161,13 @@ void WayNode::Tile::ApplyChanges() const
 		_changed = false;
 
 		//glm::vec2 sPos = GetPos();
-        glm::vec2 sPos = glm::vec2(GetPos().x, GetPos().y); // remove after D3DXVECTOR3 replacement
+		glm::vec2 sPos = glm::vec2(GetPos().x, GetPos().y); // remove after D3DXVECTOR3 replacement
 		if (_node->GetNext())
 		{
 			//_dir = glm::vec2(GetNextPos()) - sPos;
-            _dir = glm::vec2(GetNextPos().x, GetNextPos().y) - sPos; // remove after D3DXVECTOR3 replacement
-            _dirLength = glm::length(_dir);
-            _dir = glm::normalize(_dir);
+			_dir = glm::vec2(GetNextPos().x, GetNextPos().y) - sPos; // remove after D3DXVECTOR3 replacement
+			_dirLength = glm::length(_dir);
+			_dir = glm::normalize(_dir);
 		}
 		else
 		{
@@ -181,7 +181,7 @@ void WayNode::Tile::ApplyChanges() const
 
 		//вычисляем и нормализуем поскольку лубая из составляющих _midDir могла оказаться близкой к нулю
 		_midDir = (_dir + GetPrevDir()) / 2.0f;
-        _midDir = glm::normalize(_midDir);
+		_midDir = glm::normalize(_midDir);
 		//линии через node
 		Line2FromNorm(_midDir, sPos, _midNormLine);
 		//Вычисляем _midNorm
@@ -368,7 +368,7 @@ bool WayNode::Tile::IsContains(const D3DXVECTOR3& point, bool lengthClamp, float
 
 	//Расстояние в 2д плоскости
 	//glm::vec2 point2 = point;
-    glm::vec2 point2 = glm::vec2(point.x, point.y); // remove after D3DXVECTOR3 replacement
+	glm::vec2 point2 = glm::vec2(point.x, point.y); // remove after D3DXVECTOR3 replacement
 	float dist1 = Line2DistToPoint(_midNormLine, point2);
 	float dist2 = Line2DistToPoint(GetNextNormLine(), point2);
 	float dirDist = Line2DistToPoint(_dirLine, point2);
@@ -393,7 +393,7 @@ bool WayNode::Tile::IsZLevelContains(const D3DXVECTOR3& point, float* dist) cons
 	ApplyChanges();
 
 	//glm::vec2 pos = glm::vec2(point);
-    glm::vec2 pos = glm::vec2(point.x, point.y); // remove after D3DXVECTOR3 replacement
+	glm::vec2 pos = glm::vec2(point.x, point.y); // remove after D3DXVECTOR3 replacement
 	float height = GetHeight(pos);
 	float coordZ = GetZCoord(pos);
 
@@ -659,7 +659,7 @@ const D3DXVECTOR3& WayNode::GetPos() const
 glm::vec2 WayNode::GetPos2() const
 {
 	//return glm::vec2(GetPos());
-    return glm::vec2(GetPos().x, GetPos().y); // remove after D3DXVECTOR3 replacement
+	return glm::vec2(GetPos().x, GetPos().y); // remove after D3DXVECTOR3 replacement
 }
 
 float WayNode::GetSize() const

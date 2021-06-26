@@ -142,10 +142,10 @@ public:
 struct MaterialDesc
 {
 	D3DXCOLOR diffuse;
-    D3DXCOLOR ambient;
-    D3DXCOLOR specular;
-    D3DXCOLOR emissive;
-    float power;
+	D3DXCOLOR ambient;
+	D3DXCOLOR specular;
+	D3DXCOLOR emissive;
+	float power;
 };
 
 enum CameraStyle
@@ -201,22 +201,22 @@ struct LightDesc
 
 	D3DLIGHTTYPE type;
 	D3DXCOLOR ambient;
-    D3DXCOLOR diffuse;
-    D3DXCOLOR specular;
+	D3DXCOLOR diffuse;
+	D3DXCOLOR specular;
 
 	//Соотношение сторон фрустума отдельного направления точечного, направленного источника света. Для конусного игнорируется.
 	float aspect;
 	float nearDist;
 	float range;
-    float falloff;
-    float attenuation0;
-    float attenuation1;
-    float attenuation2;
-    float theta;
-    float phi;
+	float falloff;
+	float attenuation0;
+	float attenuation1;
+	float attenuation2;
+	float theta;
+	float phi;
 
 	D3DXVECTOR3 pos;
-    D3DXVECTOR3 dir;
+	D3DXVECTOR3 dir;
 	D3DXVECTOR3 up;
 
 	//Карта теней в пространстве текущей камеры

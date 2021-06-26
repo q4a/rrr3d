@@ -51,7 +51,7 @@ AABB2::AABB2(const glm::vec2& mMin, const glm::vec2& mMax): min(mMin), max(mMax)
 //void AABB2::Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut)
 void AABB2::Transform(const AABB2 &aabb, const D3DXMATRIX &mIn, AABB2 &rOut)
 {
-    auto m = Matrix4DxToGlm(mIn); // remove after D3DXMATRIX replacement
+	auto m = Matrix4DxToGlm(mIn); // remove after D3DXMATRIX replacement
 	glm::vec2 oldMin = aabb.min;
 	glm::vec2 oldMax = aabb.max;
 	rOut.min = Vec2TransformCoord(oldMin, m);
@@ -66,14 +66,14 @@ void AABB2::Transform(const AABB2 &aabb, const D3DXMATRIX &mIn, AABB2 &rOut)
 
 void AABB2::Include(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut)
 {
-    rOut.min = Vec2Minimize(aabb.min, vec);
-    rOut.max = Vec2Maximize(aabb.max, vec);
+	rOut.min = Vec2Minimize(aabb.min, vec);
+	rOut.max = Vec2Maximize(aabb.max, vec);
 }
 
 void AABB2::Add(const AABB2& aabb1, const AABB2& aabb2, AABB2& rOut)
 {
-    rOut.min = Vec2Minimize(aabb1.min, aabb2.min);
-    rOut.max = Vec2Maximize(aabb1.max, aabb2.max);
+	rOut.min = Vec2Minimize(aabb1.min, aabb2.min);
+	rOut.max = Vec2Maximize(aabb1.max, aabb2.max);
 }
 
 void AABB2::Offset(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut)
@@ -748,10 +748,10 @@ void Frustum::Refresh(const D3DXMATRIX& viewProjMat)
 
 	//extract near plane
 	pNear.a = viewProjMat._13;
-    pNear.b = viewProjMat._23;
-    pNear.c = viewProjMat._33;
-    pNear.d = viewProjMat._43;
-    D3DXPlaneNormalize(&pNear, &pNear);
+	pNear.b = viewProjMat._23;
+	pNear.c = viewProjMat._33;
+	pNear.d = viewProjMat._43;
+	D3DXPlaneNormalize(&pNear, &pNear);
 
 	//extract far plane
 	pFar.a = viewProjMat._14 - viewProjMat._13;
@@ -860,34 +860,34 @@ void GetSampleOffsetsDownScale3x3(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSam
 	float tV = 1.0f / dwHeight;
 
 	// Sample from the 9 surrounding points.
-    int index = 0;
-    for (int y = -1; y <= 1; ++y)
-        for (int x = -1; x <= 1; ++x)
-        {
-            avSampleOffsets[index].x = x * tU;
-            avSampleOffsets[index].y = y * tV;
+	int index = 0;
+	for (int y = -1; y <= 1; ++y)
+		for (int x = -1; x <= 1; ++x)
+		{
+			avSampleOffsets[index].x = x * tU;
+			avSampleOffsets[index].y = y * tV;
 
-            index++;
-        }
+			index++;
+		}
 }
 
 void GetSampleOffsetsDownScale4x4(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[16])
 {
 	float tU = 1.0f / dwWidth;
-    float tV = 1.0f / dwHeight;
+	float tV = 1.0f / dwHeight;
 
-    // Sample from 4 surrounding points.
-    int index = 0;
-    for( int y = -1; y < 3; y++ )
-    {
-        for( int x = -1; x < 3; x++ )
-        {
-            avSampleOffsets[index].x = (x - 0.5f) * tU;
-            avSampleOffsets[index].y = (y - 0.5f) * tV;
+	// Sample from 4 surrounding points.
+	int index = 0;
+	for( int y = -1; y < 3; y++ )
+	{
+		for( int x = -1; x < 3; x++ )
+		{
+			avSampleOffsets[index].x = (x - 0.5f) * tU;
+			avSampleOffsets[index].y = (y - 0.5f) * tV;
 
-            index++;
-        }
-    }
+			index++;
+		}
+	}
 }
 
 //}
