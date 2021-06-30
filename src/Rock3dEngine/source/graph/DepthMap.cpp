@@ -20,8 +20,7 @@ void DepthMapShader::DoBeginDraw(Engine& engine)
 	if (tech == ttDepthMapAlphaTest)
 		SetTextureDir("opacityTex", engine.GetContext().GetTexture(0));
 
-	glm::mat4 matWVP;
-	D3DXMatrixMultiply(&matWVP, &engine.GetContext().GetWorldMat(), &viewProjMat);
+	glm::mat4 matWVP = engine.GetContext().GetWorldMat() * viewProjMat;
 	SetValueDir("depthMatrix", matWVP);
 }
 

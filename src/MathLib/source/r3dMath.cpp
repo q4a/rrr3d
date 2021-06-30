@@ -706,48 +706,48 @@ void Frustum::CalculateCorners(Corners& pPoints, const glm::mat4& invViewProj)
 	}
 }
 
-void Frustum::Refresh(const glm::mat4& viewProjMat)
+void Frustum::Refresh(const glm::mat4 &viewProjMat)
 {
-	//extract left plane
-	left.a = viewProjMat[3].x - viewProjMat[1].x;
-	left.b = viewProjMat[3].y - viewProjMat[1].y;
-	left.c = viewProjMat[3].z - viewProjMat[1].z;
-	left.d = viewProjMat[3].w - viewProjMat[1].w;
+	// extract left plane
+	left.a = viewProjMat[3][0] - viewProjMat[1][0];
+	left.b = viewProjMat[3][1] - viewProjMat[1][1];
+	left.c = viewProjMat[3][2] - viewProjMat[1][2];
+	left.d = viewProjMat[3][3] - viewProjMat[1][3];
 	D3DXPlaneNormalize(&left, &left);
 
-	//extract top plane
-	top.a = viewProjMat[3].x + viewProjMat[0].x;
-	top.b = viewProjMat[3].y + viewProjMat[0].y;
-	top.c = viewProjMat[3].z + viewProjMat[0].z;
-	top.d = viewProjMat[3].w + viewProjMat[0].w;
+	// extract top plane
+	top.a = viewProjMat[3][0] + viewProjMat[0][0];
+	top.b = viewProjMat[3][1] + viewProjMat[0][1];
+	top.c = viewProjMat[3][2] + viewProjMat[0][2];
+	top.d = viewProjMat[3][3] + viewProjMat[0][3];
 	D3DXPlaneNormalize(&top, &top);
 
-	//extract right plane
-	right.a = viewProjMat[3].x + viewProjMat[1].x;
-	right.b = viewProjMat[3].y + viewProjMat[1].y;
-	right.c = viewProjMat[3].z + viewProjMat[1].z;
-	right.d = viewProjMat[3].w + viewProjMat[1].w;
+	// extract right plane
+	right.a = viewProjMat[3][0] + viewProjMat[1][0];
+	right.b = viewProjMat[3][1] + viewProjMat[1][1];
+	right.c = viewProjMat[3][2] + viewProjMat[1][2];
+	right.d = viewProjMat[3][3] + viewProjMat[1][3];
 	D3DXPlaneNormalize(&right, &right);
 
-	//extract bottom plane
-	bottom.a = viewProjMat[3].x - viewProjMat[0].x;
-	bottom.b = viewProjMat[3].y - viewProjMat[0].y;
-	bottom.c = viewProjMat[3].z - viewProjMat[0].z;
-	bottom.d = viewProjMat[3].w - viewProjMat[0].w;
+	// extract bottom plane
+	bottom.a = viewProjMat[3][0] - viewProjMat[0][0];
+	bottom.b = viewProjMat[3][1] - viewProjMat[0][1];
+	bottom.c = viewProjMat[3][2] - viewProjMat[0][2];
+	bottom.d = viewProjMat[3][3] - viewProjMat[0][3];
 	D3DXPlaneNormalize(&bottom, &bottom);
 
-	//extract near plane
-	pNear.a = viewProjMat[2].x;
-	pNear.b = viewProjMat[2].y;
-	pNear.c = viewProjMat[2].z;
-	pNear.d = viewProjMat[2].w;
+	// extract near plane
+	pNear.a = viewProjMat[2][0];
+	pNear.b = viewProjMat[2][1];
+	pNear.c = viewProjMat[2][2];
+	pNear.d = viewProjMat[2][3];
 	D3DXPlaneNormalize(&pNear, &pNear);
 
-	//extract far plane
-	pFar.a = viewProjMat[3].x - viewProjMat[2].x;
-	pFar.b = viewProjMat[3].y - viewProjMat[2].y;
-	pFar.c = viewProjMat[3].z - viewProjMat[2].z;
-	pFar.d = viewProjMat[3].w - viewProjMat[2].w;
+	// extract far plane
+	pFar.a = viewProjMat[3][0] - viewProjMat[2][0];
+	pFar.b = viewProjMat[3][1] - viewProjMat[2][1];
+	pFar.c = viewProjMat[3][2] - viewProjMat[2][2];
+	pFar.d = viewProjMat[3][3] - viewProjMat[2][3];
 	D3DXPlaneNormalize(&pFar, &pFar);
 }
 

@@ -49,10 +49,10 @@ void SkyBox::Render(Engine& engine)
 
 	//Нужно обнулять 4-ую строку чтобы небо не растягивалось
 	glm::mat4 skyWVP = engine.GetContext().GetCamera().GetWVP();
-	skyWVP._41 = 0.0f;
-	skyWVP._42 = 0.0f;
-	skyWVP._43 = 0.0f;
-	D3DXMatrixInverse(&skyWVP, 0, &skyWVP);
+	skyWVP[0][3] = 0.0f;
+	skyWVP[1][3] = 0.0f;
+	skyWVP[2][3] = 0.0f;
+	skyWVP = glm::inverse(skyWVP);
 	shader.SetValueDir("matInvWVP", skyWVP);
 
 	shader.Apply(engine);

@@ -56,68 +56,186 @@ inline D3DXVECTOR3 Vec3GlmToDx(glm::vec3 v3)
 	return v3dx;
 }
 
-inline void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, glm::mat4& matOut)
+inline D3DMATRIX Matrix4GlmToD3d(const glm::mat4 &mat)
 {
-	matOut[0].x = xVec.x;
-	matOut[1].x = xVec.y;
-	matOut[2].x = xVec.z;
-	matOut[3].x = 0.0f;
-	matOut[0].y = yVec.x;
-	matOut[1].y = yVec.y;
-	matOut[2].y = yVec.z;
-	matOut[3].y = 0.0f;
-	matOut[0].z = zVec.x;
-	matOut[1].z = zVec.y;
-	matOut[2].z = zVec.z;
-	matOut[3].z = 0.0f;
-	matOut[0].w = 0.0f;
-	matOut[1].w = 0.0f;
-	matOut[2].w = 0.0f;
-	matOut[3].w = 1.0f;
+	D3DMATRIX matrix(Matrix4GlmToDx(mat));
+	return matrix;
 }
 
-inline void MatrixSetTranslation(const D3DXVECTOR3& vec, glm::mat4& outMat)
+inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
 {
-	outMat[0].w = vec.x;
-	outMat[1].w = vec.y;
-	outMat[2].w = vec.z;
+	D3DXMATRIX matrix(
+		mat[0][0], mat[1][0], mat[2][0], mat[3][0],
+		mat[0][1], mat[1][1], mat[2][1], mat[3][1],
+		mat[0][2], mat[1][2], mat[2][2], mat[3][2],
+		mat[0][3], mat[1][3], mat[2][3], mat[3][3]
+	);
+	return matrix;
 }
 
-inline void MatrixTranslate(const D3DXVECTOR3& vec, glm::mat4& outMat)
+glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
 {
-	outMat[0].w += vec.x;
-	outMat[1].w += vec.y;
-	outMat[2].w += vec.z;
+	glm::mat4 mat4glm(
+		mat._11, mat._21, mat._31, mat._41,
+		mat._12, mat._22, mat._32, mat._42,
+		mat._13, mat._23, mat._33, mat._43,
+		mat._14, mat._24, mat._34, mat._44
+	);
+	return mat4glm;
 }
 
-inline void MatrixSetScale(const D3DXVECTOR3& vec, glm::mat4& outMat)
+inline void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, glm::mat4& outMat)
 {
-	outMat[0].x = vec.x;
-	outMat[1].y = vec.y;
-	outMat[2].z = vec.z;
+	outMat[0][0] = xVec.x;
+	outMat[1][0] = xVec.y;
+	outMat[2][0] = xVec.z;
+	outMat[3][0] = 0.0f;
+	outMat[0][1] = yVec.x;
+	outMat[1][1] = yVec.y;
+	outMat[2][1] = yVec.z;
+	outMat[3][1] = 0.0f;
+	outMat[0][2] = zVec.x;
+	outMat[1][2] = zVec.y;
+	outMat[2][2] = zVec.z;
+	outMat[3][2] = 0.0f;
+	outMat[0][3] = 0.0f;
+	outMat[1][3] = 0.0f;
+	outMat[2][3] = 0.0f;
+	outMat[3][3] = 1.0f;
 }
 
-inline void MatrixScale(const D3DXVECTOR3& vec, glm::mat4& outMat)
+inline void MatrixSetTranslation(float x, float y, float z, glm::mat4 &outMat)
 {
-	outMat[0].x *= vec.x;
-	outMat[1].y *= vec.y;
-	outMat[2].z *= vec.z;
+	outMat[0][3] = x;
+	outMat[1][3] = y;
+	outMat[2][3] = z;
+}
+
+inline void MatrixTranslate(float x, float y, float z, glm::mat4 &outMat)
+{
+	outMat[0][3] += x;
+	outMat[1][3] += y;
+	outMat[2][3] += z;
+}
+
+inline void MatrixSetScale(float x, float y, float z, glm::mat4 &outMat)
+{
+	outMat[0][0] = x;
+	outMat[1][1] = y;
+	outMat[2][2] = z;
+}
+
+inline void MatrixScale(float x, float y, float z, glm::mat4 &outMat)
+{
+	outMat[0][0] *= x;
+	outMat[1][1] *= y;
+	outMat[2][2] *= z;
+}
+
+inline void MatrixPerspectiveRH_ZO(float fovy, float aspect, float zNear, float zFar, glm::mat4 &outMat)
+{
+	const float tanHalfFovy = tan(fovy / 2.0f);
+
+	outMat[0][0] = 1.0f / (aspect * tanHalfFovy);
+	outMat[1][0] = 0.0f;
+	outMat[2][0] = 0.0f;
+	outMat[3][0] = 0.0f;
+	outMat[0][1] = 0.0f;
+	outMat[1][1] = 1.0f / (tanHalfFovy);
+	outMat[2][1] = 0.0f;
+	outMat[3][1] = 0.0f;
+	outMat[0][2] = 0.0f;
+	outMat[1][2] = 0.0f;
+	outMat[2][2] = zFar / (zNear - zFar);
+	outMat[3][2] = -1.0f;
+	outMat[0][3] = 0.0f;
+	outMat[1][3] = 0.0f;
+	outMat[2][3] = -(zFar * zNear) / (zFar - zNear);
+	outMat[3][3] = 0.0f;
+}
+
+inline void MatrixOrthoRH_ZO(float width, float height, float zNear, float zFar, glm::mat4 &outMat)
+{
+	outMat[0][0] = 2.0f / width;
+	outMat[1][0] = 0.0f;
+	outMat[2][0] = 0.0f;
+	outMat[3][0] = 0.0f;
+	outMat[0][1] = 0.0f;
+	outMat[1][1] = 2.0f / height;
+	outMat[2][1] = 0.0f;
+	outMat[3][1] = 0.0f;
+	outMat[0][2] = 0.0f;
+	outMat[1][2] = 0.0f;
+	outMat[2][2] = 1.0f / (zNear - zFar);
+	outMat[3][2] = 0.0f;
+	outMat[0][3] = 0.0f;
+	outMat[1][3] = 0.0f;
+	outMat[2][3] = zNear / (zNear - zFar);
+	outMat[3][3] = 1.0f;
+}
+
+void EulerAngleFromMat4XYZ(const glm::mat4 &M, float &outX, float &outY, float &outZ)
+{
+	float cy = sqrt(M[0][0] * M[0][0] + M[0][1] * M[0][1]);
+	if (cy > 16 * FLT_EPSILON)
+	{
+		outX = -atan2(M[1][2], M[2][2]);
+		outY = -atan2(-M[0][2], cy);
+		outZ = -atan2(M[0][1], M[0][0]);
+	}
+	else
+	{
+		outX = -atan2(-M[2][1], M[1][1]);
+		outY = -atan2(-M[0][2], cy);
+		outZ = 0;
+	}
+}
+
+void Mat4FromEulerAngleXYZ(float x, float y, float z, glm::mat4 &outM)
+{
+	double ti, tj, th, ci, cj, ch, si, sj, sh, cc, cs, sc, ss;
+	ti = x;
+	tj = y;
+	th = z;
+	ci = cos(ti);
+	cj = cos(tj);
+	ch = cos(th);
+	si = sin(ti);
+	sj = sin(tj);
+	sh = sin(th);
+	cc = ci * ch;
+	cs = ci * sh;
+	sc = si * ch;
+	ss = si * sh;
+
+	outM[0][0] = cj * ch;
+	outM[1][0] = sj * sc - cs;
+	outM[2][0] = sj * cc + ss;
+	outM[0][1] = cj * sh;
+	outM[1][1] = sj * ss + cc;
+	outM[2][1] = sj * cs - sc;
+	outM[0][2] = -sj;
+	outM[1][2] = cj * si;
+	outM[2][2] = cj * ci;
+
+	outM[0][3] = outM[1][3] = outM[2][3] = outM[3][0] = outM[3][1] = outM[3][2] = 0.0f;
+	outM[3][3] = 1.0f;
 }
 
 inline glm::vec2 MatGetPos(const glm::mat4 &mat)
 {
-	return glm::vec2(mat[3].x, mat[3].y);
+	return glm::vec2(mat[3][0], mat[3][1]);
 }
 
 inline void BuildWorldMatrix(const D3DXVECTOR3 &pos, const D3DXVECTOR3 &scale, const glm::quat &rot, glm::mat4 &outMat)
 {
 	glm::mat4 scaleMat(1.0f);
-	MatrixSetScale(scale, scaleMat);
+	MatrixSetScale(scale.x, scale.y, scale.z, scaleMat);
 
 	glm::mat4 rotMat = glm::transpose(glm::mat4_cast(rot));
 
 	glm::mat4 transMat(1.0f);
-	MatrixSetTranslation(pos, transMat);
+	MatrixSetTranslation(pos.x, pos.y, pos.z, transMat);
 
 	outMat = scaleMat * rotMat * transMat;
 }
@@ -253,6 +371,15 @@ inline D3DXVECTOR3 Vec3Invert(const D3DXVECTOR3& vec)
 	Vec3Invert(vec, res);
 	return res;
 };
+
+inline void Vec3Transform(const D3DXVECTOR3 &vec, const glm::mat4 &mat, D3DXVECTOR4 &outVec)
+{
+	glm::vec4 res4 = glm::vec4(vec.x, vec.y, vec.z, 1) * mat;
+	outVec.x = res4.x;
+	outVec.y = res4.y;
+	outVec.z = res4.z;
+	outVec.w = res4.w;
+}
 
 inline void Vec3TransformNormal(const D3DXVECTOR3 &vec, const glm::mat4 &mat, D3DXVECTOR3 &outVec)
 {

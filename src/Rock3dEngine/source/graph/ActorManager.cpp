@@ -144,9 +144,9 @@ bool ActorManager::PullInRayTargetGroup(User* user, unsigned scene, const graph:
 		iter->second.draw = true;
 
 	D3DXVECTOR3 vec3;
-	D3DXVec3TransformCoord(&vec3, &rayTarget, &camera->GetViewProj());
+	Vec3TransformCoord(rayTarget, camera->GetViewProj(), vec3);
 	vec3.z = 0.0f;
-	D3DXVec3TransformCoord(&vec3, &vec3, &camera->GetInvViewProj());
+	Vec3TransformCoord(vec3, camera->GetInvViewProj(), vec3);
 	D3DXVECTOR3 ray = rayTarget - vec3;
 	float rayLen = D3DXVec3Length(&ray);
 	D3DXVec3Normalize(&ray, &ray);
@@ -302,11 +302,10 @@ void ActorManager::BuildPlanar(unsigned scene)
 
 const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 {
-	glm::mat4 mat = actor->GetInvWorldMat();
-	D3DXMatrixTranspose(&mat, &mat);
+	glm::mat4 mat = glm::transpose(actor->GetInvWorldMat());
 
 	D3DXPLANE plane;
-	D3DXPlaneTransform(&plane, &D3DXPLANE(actor->vec1()), &mat);
+	D3DXPlaneTransform(&plane, &D3DXPLANE(actor->vec1()), &Matrix4GlmToDx(mat));
 	D3DXPlaneNormalize(&plane, &plane);
 
 	float minDist = 0;

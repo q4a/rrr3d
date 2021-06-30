@@ -19,17 +19,23 @@ float RandomRange(float from, float to);
 int RandomRange(int from, int to);
 float NumAbsAdd(float absVal, float addVal);
 
-void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, glm::mat4& matOut);
-void MatrixSetTranslation(const D3DXVECTOR3& vec, glm::mat4& outMat);
-void MatrixTranslate(const D3DXVECTOR3& vec, glm::mat4& outMat);
-void MatrixSetScale(const D3DXVECTOR3& vec, glm::mat4& outMat);
-void MatrixScale(const D3DXVECTOR3& vec, glm::mat4& outMat);
+glm::vec3 Vec3DxToGlm(D3DXVECTOR3 v3);
+D3DXVECTOR3 Vec3GlmToDx(glm::vec3 v3);
+D3DMATRIX Matrix4GlmToD3d(const glm::mat4 &mat);
+D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat);
+
+void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, glm::mat4& outMat);
+void MatrixSetTranslation(float x, float y, float z, glm::mat4 &outMat);
+void MatrixTranslate(float x, float y, float z, glm::mat4 &outMat);
+void MatrixSetScale(float x, float y, float z, glm::mat4 &outMat);
+void MatrixScale(float x, float y, float z, glm::mat4 &outMat);
+void MatrixPerspectiveRH_ZO(float fovy, float aspect, float zNear, float zFar, glm::mat4 &outMat);
+void MatrixOrthoRH_ZO(float width, float height, float zNear, float zFar, glm::mat4 &outMat);
+void EulerAngleFromMat4XYZ(const glm::mat4 &M, float &outX, float &outY, float &outZ);
+void Mat4FromEulerAngleXYZ(float x, float y, float z, glm::mat4 &outM);
 glm::vec2 MatGetPos(const glm::mat4 &mat);
 void BuildWorldMatrix(const D3DXVECTOR3 &pos, const D3DXVECTOR3 &scale, const glm::quat &rot, glm::mat4 &outMat);
 glm::mat4 BuildWorldMatrix(const D3DXVECTOR3 &pos, const D3DXVECTOR3 &scale, const glm::quat &rot);
-
-glm::vec3 Vec3DxToGlm(D3DXVECTOR3 v3);
-D3DXVECTOR3 Vec3GlmToDx(glm::vec3 v3);
 
 //
 glm::vec2 Vec2TransformCoord(const glm::vec2 &vec, const glm::mat4 &mat);
@@ -86,9 +92,9 @@ float PlaneDistToPoint(const D3DXPLANE& plane, const D3DXVECTOR3& point);
 
 const float floatErrComp = 0.00001f;
 const glm::mat4       IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
-                                      0.0f, 1.0f, 0.0f, 0.0f,
-                                      0.0f, 0.0f, 1.0f, 0.0f,
-                                      0.0f, 0.0f, 0.0f, 1.0f);
+                                     0.0f, 1.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 1.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f, 1.0f);
 const D3DXVECTOR3      XVector(1.0f, 0.0f, 0.0f);
 const D3DXVECTOR3      YVector(0.0f, 1.0f, 0.0f);
 const D3DXVECTOR3      ZVector(0.0f, 0.0f, 1.0f);

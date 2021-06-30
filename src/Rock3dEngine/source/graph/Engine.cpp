@@ -541,19 +541,18 @@ void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, fl
 	else
 	{
 		rotMat = camera.GetInvView();
-		rotMat._41 = rotMat._42 = rotMat._43 = 0.0f;
+		rotMat[0][3] = rotMat[1][3] = rotMat[2][3] = 0.0f;
 
 		//Локальный поворот спрайта (только для не направленных)
-		glm::mat4 rotZ;
-		D3DXMatrixRotationAxis(&rotZ, &camera.GetDesc().dir, turnAngle);
+		glm::mat4 rotZ = glm::transpose(glm::rotate(turnAngle, Vec3DxToGlm(camera.GetDesc().dir)));
 		rotMat *= rotZ;
 	}
 
 	//Результирующая матрица
 	glm::mat4 worldMat = localMat;
-	MatrixScale(scale, worldMat);
+	MatrixScale(scale.x, scale.y, scale.z, worldMat);
 	worldMat *= rotMat;
-	MatrixSetTranslation(pos, worldMat);
+	MatrixSetTranslation(pos.x, pos.y, pos.z, worldMat);
 
 	GetContext().SetWorldMat(worldMat);
 

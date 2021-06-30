@@ -124,7 +124,7 @@ void CameraCI::WorldMatChanged(const glm::mat4& worldMat)
 
 void CameraCI::CalcProjPerspective(glm::mat4& mat) const
 {
-	D3DXMatrixPerspectiveFovRH(&mat, _desc.fov, _desc.aspect, _desc.nearDist, _desc.farDist);
+	MatrixPerspectiveRH_ZO(_desc.fov, _desc.aspect, _desc.nearDist, _desc.farDist, mat);
 }
 
 void CameraCI::ProjMatChanged()
@@ -288,8 +288,8 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 
 	for (int i = 0; i < 4; ++i)
 	{
-		D3DXVec3TransformCoord(&rayVec[i], &rayVec[i], &GetInvViewProj());
-		D3DXVec3TransformCoord(&rayPos[i], &rayPos[i], &GetInvViewProj());
+		Vec3TransformCoord(rayVec[i], GetInvViewProj(), rayVec[i]);
+		Vec3TransformCoord(rayPos[i], GetInvViewProj(), rayPos[i]);
 		D3DXVec3Normalize(&rayVec[i], &(rayVec[i] - rayPos[i]));
 
 		float tNear, tFar;
@@ -397,7 +397,7 @@ void CameraCI::GetViewProjPerspective(glm::mat4& mat) const
 	else
 	{
 		CalcProjPerspective(mat);
-		D3DXMatrixMultiply(&mat, &GetView(), &mat);
+		mat = GetView() * mat;
 	}
 }
 
@@ -408,7 +408,7 @@ void CameraCI::GetWVPPerspective(glm::mat4& mat) const
 	else
 	{
 		CalcProjPerspective(mat);
-		D3DXMatrixMultiply(&mat, &GetTransform(ctWorldView), &mat);
+		mat = GetTransform(ctWorldView) * mat;
 	}
 }
 
@@ -416,10 +416,10 @@ void CameraCI::SetProjMat(const glm::mat4& value)
 {
 	_matrices[ctProj] = value;
 
-	_desc.fov = 2 * atan(1.0f / value._22);
-	_desc.aspect = value._22 / value._11;
-	_desc.nearDist = value._43 / value._33;
-	_desc.farDist = _desc.nearDist * value._33 / (1 + value._33);
+	_desc.fov = 2 * atan(1.0f / value[1][1]);
+	_desc.aspect = value[1][1] / value[0][0];
+	_desc.nearDist = value[2][3] / value[2][2];
+	_desc.farDist = _desc.nearDist * value[2][2] / (1 + value[2][2]);
 
 	ProjMatChanged();
 }
@@ -429,7 +429,7 @@ D3DXVECTOR3 CameraCI::ScreenToWorld(const glm::vec2& coord, float z, const glm::
 	glm::vec2 projCoord = ViewToProj(coord, viewSize);
 	D3DXVECTOR3 screenVec(projCoord.x, projCoord.y, z);
 	//ѕереводим в мировое пространство(домножа€ на инв. матрицу), что соотв. точке на near плоскости камеры
-	D3DXVec3TransformCoord(&screenVec, &screenVec, &GetInvViewProj());
+	Vec3TransformCoord(screenVec, GetInvViewProj(), screenVec);
 
 	return screenVec;
 }
@@ -437,7 +437,7 @@ D3DXVECTOR3 CameraCI::ScreenToWorld(const glm::vec2& coord, float z, const glm::
 glm::vec2 CameraCI::WorldToScreen(const D3DXVECTOR3& coord, const glm::vec2& viewSize) const
 {
 	D3DXVECTOR3 screenVec;
-	D3DXVec3TransformCoord(&screenVec, &coord, &GetViewProj());
+	Vec3TransformCoord(coord, GetViewProj(), screenVec);
 	glm::vec2 vec(screenVec.x, screenVec.y);
 
 	return ProjToView(vec, viewSize);
@@ -472,7 +472,7 @@ const glm::mat4& CameraCI::GetTransform(Transform transform) const
 
 			default:
 				//»спользуетс€ правосторонн€ система координат (как в 3dMax-e)
-				D3DXMatrixLookAtRH(&_matrices[transform], &_desc.pos, &(_desc.pos + _desc.dir), &_desc.up);
+				_matrices[transform] = glm::transpose(glm::lookAtRH(Vec3DxToGlm(_desc.pos), Vec3DxToGlm(_desc.pos + _desc.dir), Vec3DxToGlm(_desc.up)));
 			}
 			break;
 
@@ -486,19 +486,19 @@ const glm::mat4& CameraCI::GetTransform(Transform transform) const
 				break;
 
 			case csOrtho:
-				D3DXMatrixOrthoRH(&_matrices[transform], _desc.width, _desc.width / _desc.aspect, _desc.nearDist, _desc.farDist);
+				MatrixOrthoRH_ZO(_desc.width, _desc.width / _desc.aspect, _desc.nearDist, _desc.farDist, _matrices[transform]);
 				break;
 
 			case csViewPort:
 			case csViewPortInv:
 			{
 				glm::vec2 viewSize = glm::vec2(_desc.width, _desc.width / _desc.aspect);
-				glm::mat4 viewMat;
-				D3DXMatrixTranslation(&viewMat, -1.0f, _desc.style == csViewPortInv ? -1.0f : 1.0f, 0.0f);
-				glm::mat4 matScale;
-				D3DXMatrixScaling(&matScale, 2.0f/viewSize.x, _desc.style == csViewPortInv ? 2.0f/viewSize.y : -2.0f/viewSize.y, 1.0f);
-				matScale._33 = 1.0f/(-500.0f - 500.0f);
-				matScale._43 = -500.0f/(-500.0f - 500.0f);
+				glm::mat4 viewMat = glm::mat4(1.0f);
+				MatrixSetTranslation(-1.0f, _desc.style == csViewPortInv ? -1.0f : 1.0f, 0.0f, viewMat);
+				glm::mat4 matScale = glm::mat4(1.0f);
+				MatrixSetScale(2.0f/viewSize.x, _desc.style == csViewPortInv ? 2.0f/viewSize.y : -2.0f/viewSize.y, 1.0f, matScale);
+				matScale[2][2] = 1.0f/(-500.0f - 500.0f);
+				matScale[2][3] = -500.0f / (-500.0f - 500.0f);
 				_matrices[transform] = matScale * viewMat;
 				break;
 			}
@@ -511,15 +511,15 @@ const glm::mat4& CameraCI::GetTransform(Transform transform) const
 		}
 
 		case ctWorldView:
-			D3DXMatrixMultiply(&_matrices[transform], &_worldMat, &GetTransform(ctView));
+			_matrices[transform] = _worldMat * GetTransform(ctView);
 			break;
 
 		case ctViewProj:
-			D3DXMatrixMultiply(&_matrices[transform], &GetTransform(ctView), &GetTransform(ctProj));
+			_matrices[transform] = GetTransform(ctView) * GetTransform(ctProj);
 			break;
 
 		case ctWVP:
-			D3DXMatrixMultiply(&_matrices[transform], &_worldMat, &GetTransform(ctViewProj));
+			_matrices[transform] = _worldMat * GetTransform(ctViewProj);
 			break;
 		}
 
@@ -533,7 +533,7 @@ const glm::mat4& CameraCI::GetInvTransform(Transform transform) const
 {
 	if (_invMatChanged.test(transform))
 	{
-		D3DXMatrixInverse(&_invMatrices[transform], 0, &GetTransform(transform));
+		_invMatrices[transform] = glm::inverse(GetTransform(transform));
 		_invMatChanged.reset(transform);
 	}
 
@@ -712,8 +712,8 @@ DWORD ContextInfo::InvertCullFace(DWORD curFace)
 void ContextInfo::SetCamera(CameraCI* camera)
 {
 	camera->WorldMatChanged(_worldMat);
-	_driver->SetTransform(tstView, &camera->GetView());
-	_driver->SetTransform(tstProj, &camera->GetProj());
+	_driver->SetTransform(tstView, &Matrix4GlmToD3d(camera->GetView()));
+	_driver->SetTransform(tstProj, &Matrix4GlmToD3d(camera->GetProj()));
 }
 
 void ContextInfo::SetLight(LightCI* light, DWORD lightIndex)
@@ -783,12 +783,12 @@ void ContextInfo::BeginDraw()
 			for (unsigned j = 1; j < _textureMatStack[i].size(); ++j)
 				mat = mat * _textureMatStack[i][j];
 
-			mat._31 = mat._41;
-			mat._32 = mat._42;
-			mat._33 = mat._43;
-			mat._41 = mat._42 = mat._43 = 0;
+			mat[0][2] = mat[0][3];
+			mat[1][2] = mat[1][3];
+			mat[2][2] = mat[2][3];
+			mat[0][3] = mat[1][3] = mat[2][3] = 0;
 
-			_driver->SetTransform(cTexTransform[i], &mat);
+			_driver->SetTransform(cTexTransform[i], &Matrix4GlmToD3d(mat));
 
 			if (GetTextureStageState(i, tssTextureTransformFlags) == D3DTTFF_DISABLE)
 				SetTextureStageState(i, tssTextureTransformFlags, D3DTTFF_COUNT2);
@@ -936,7 +936,7 @@ void ContextInfo::SetWorldMat(const glm::mat4& value)
 	for (Lights::iterator iter = _lightList.begin(); iter != _lightList.end(); ++iter)
 		(*iter)->_camera.WorldMatChanged(_worldMat);
 
-	_driver->SetTransform(tstWorld, &_worldMat);
+	_driver->SetTransform(tstWorld, &Matrix4GlmToD3d(_worldMat));
 }
 
 void ContextInfo::PushTextureTransform(int stage, const glm::mat4& value)

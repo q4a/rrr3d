@@ -32,11 +32,11 @@ void FxParticle::BuildWorldMat() const
 	{
 		_worldMatChanged = false;
 
-		glm::mat4 scaleMat, rotMat, transMat;
-
-		D3DXMatrixScaling(&scaleMat, _scale.x, _scale.y, _scale.z);
-		rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(_rot)));
-		D3DXMatrixTranslation(&transMat, _pos.x, _pos.y, _pos.z);
+		glm::mat4 scaleMat(1.0f);
+		MatrixSetScale(_scale.x, _scale.y, _scale.z, scaleMat);
+		glm::mat4 rotMat = glm::transpose(glm::mat4_cast(_rot));
+		glm::mat4 transMat(1.0f);
+		MatrixSetTranslation(_pos.x, _pos.y, _pos.z, transMat);
 
 		_worldMat = scaleMat * rotMat * transMat;
 	}

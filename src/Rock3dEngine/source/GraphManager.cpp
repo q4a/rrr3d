@@ -1555,8 +1555,8 @@ bool ComputeZBounds(graph::Engine& engine, const graph::CameraCI& camera, const 
 
 	for (int i = 0; i < 4; ++i)
 	{
-		D3DXVec3TransformCoord(&rayVec[i], &rayVec[i], &camera.GetInvViewProj());
-		D3DXVec3TransformCoord(&rayPos[i], &rayPos[i], &camera.GetInvViewProj());
+		Vec3TransformCoord(rayVec[i], camera.GetInvViewProj(), rayVec[i]);
+		Vec3TransformCoord(rayPos[i], camera.GetInvViewProj(), rayPos[i]);
 		D3DXVec3Normalize(&rayVec[i], &(rayVec[i] - rayPos[i]));
 
 		float tNear, tFar;
@@ -2508,7 +2508,7 @@ D3DXVECTOR3 GraphManager::ScreenToWorld(const lsl::Point& coord, const float z)
 	screenVec.y = -screenVec.y;
 
 	 //ѕереводим в мировое пространство(домножа€ на инв. матрицу), что соотв. точке на near плоскости камеры
-	D3DXVec3TransformCoord(&screenVec, &screenVec, &_camera->GetContextInfo().GetInvViewProj());
+	Vec3TransformCoord(screenVec, _camera->GetContextInfo().GetInvViewProj(), screenVec);
 
 	return screenVec;
 

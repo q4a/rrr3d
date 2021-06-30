@@ -8,3 +8,4 @@
 #include <glm/mat4x4.hpp> // glm::mat4
 #include <glm/gtc/quaternion.hpp> // glm::quat
 #include <glm/gtx/quaternion.hpp> // glm::length2
+#include <glm/gtx/transform.hpp> // glm::rotate(angle, vec3)

@@ -1036,14 +1036,14 @@ void Context::DrawView3d(View3d& view3d)
 	//центрируем
 	if (view3d.GetAlign())
 	{
-		D3DXVec3TransformCoord(&pos, &aabb.GetCenter(), &view3d.GetBox()->GetMat());
+		Vec3TransformCoord(aabb.GetCenter(), view3d.GetBox()->GetMat(), pos);
 		pos = pos * scale;
 	}
 
 	//мировая матрица меша
 	glm::mat4 worldMat = GetCI().GetWorldMat();
 	if (!_invertY)
-		worldMat._22 = -worldMat._22;
+		worldMat[1][1] = -worldMat[1][1];
 	glm::mat4 localMat;
 	BuildWorldMatrix(-pos, scale, NullQuaternion, localMat);
 
@@ -1270,11 +1270,11 @@ void Widget::BuildMatrix(MatrixChange change) const
 		break;
 
 	case mcInvLocal:
-		D3DXMatrixInverse(&_matrix[mcInvLocal], 0, &GetMat());
+		_matrix[mcInvLocal] = glm::inverse(GetMat());
 		break;
 
 	case mcInvWorld:
-		D3DXMatrixInverse(&_matrix[mcInvWorld], 0, &GetWorldMat());
+		_matrix[mcInvWorld] = glm::inverse(GetWorldMat());
 		break;
 	}
 }
@@ -1682,22 +1682,22 @@ void Widget::DeleteAllGraphics()
 
 glm::vec2 Widget::LocalToWorldCoord(const glm::vec2& value) const
 {
-	return Vec2TransformCoord(value, Matrix4DxToGlm(GetWorldMat()));
+	return Vec2TransformCoord(value, GetWorldMat());
 }
 
 glm::vec2 Widget::WorldToLocalCoord(const glm::vec2& value) const
 {
-	return Vec2TransformCoord(value, Matrix4DxToGlm(GetInvWorldMat()));
+	return Vec2TransformCoord(value, GetInvWorldMat());
 }
 
 glm::vec2 Widget::LocalToWorldNorm(const glm::vec2& value) const
 {
-	return Vec2TransformNormal(value, Matrix4DxToGlm(GetWorldMat()));
+	return Vec2TransformNormal(value, GetWorldMat());
 }
 
 glm::vec2 Widget::WorldToLocalNorm(const glm::vec2& value) const
 {
-	return Vec2TransformNormal(value, Matrix4DxToGlm(GetInvWorldMat()));
+	return Vec2TransformNormal(value, GetInvWorldMat());
 }
 
 Manager& Widget::GetManager()
@@ -2058,8 +2058,8 @@ void Widget::SetPos3d(const D3DXVECTOR3& value)
 
 glm::vec2 Widget::GetWorldPos() const
 {
-	//return glm::vec2(GetWorldMat().m[3]); // TTEST: m[3] - matrix replacement
-	return glm::vec2(GetWorldMat()._41, GetWorldMat()._42); // remove after glm::mat4 replacement
+	glm::mat4 wMat = GetWorldMat();
+	return glm::vec2(wMat[0][3], wMat[1][3]);
 }
 
 void Widget::SetWorldPos(const glm::vec2& value)

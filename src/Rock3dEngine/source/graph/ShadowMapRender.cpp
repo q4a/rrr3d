@@ -14,8 +14,8 @@ const unsigned ShadowMapRender::cShadowMapSize = 2048;
 void ShadowMapShader::DoBeginDraw(Engine& engine)
 {
 	glm::mat4 shadowWVP = shadowViewProj;
-	D3DXMatrixMultiply(&shadowWVP, &engine.GetContext().GetWorldMat(), &shadowWVP);
-	D3DXMatrixMultiply(&shadowWVP, &shadowWVP, &mTexScale);
+	shadowWVP = engine.GetContext().GetWorldMat() * shadowWVP;
+	shadowWVP = shadowWVP * mTexScale;
 
 	SetValue("matWVP", engine.GetContext().GetCamera().GetWVP());
 	SetValue("matShadow", shadowWVP);
@@ -83,7 +83,7 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 	{
 		// transform point
 		D3DXVECTOR4 vTransformed;
-		D3DXVec3Transform(&vTransformed, &pCorners[i], &mLightViewProj);
+		Vec3Transform(pCorners[i], mLightViewProj, vTransformed);
 
 		// project x and y
 		vTransformed.x /= vTransformed.w;
@@ -279,7 +279,7 @@ void ShadowMapRender::BeginShadowMapp(Engine& engine)
 	desc.farDist = _splitDistances[_curNumSplit + 1];
 	_myCamera.SetDesc(desc);
 
-	D3DXMatrixMultiply(&shader.shadowViewProj, &engine.GetContext().GetLight(iLight).GetCamera().GetView(), &_splitLightProjMat[_curNumSplit]);
+	shader.shadowViewProj = engine.GetContext().GetLight(iLight).GetCamera().GetView() * _splitLightProjMat[_curNumSplit];
 
 	engine.GetContext().ApplyCamera(&_myCamera);
 }
