@@ -1192,7 +1192,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 		{
 			D3DXPLANE plane;
 			D3DXPlaneFromPointNormal(&plane, &NullVector, &D3DXVECTOR3(norm.get()));
-			D3DXMATRIX mat;
+			glm::mat4 mat;
 			D3DXMatrixReflect(&mat, &plane);
 
 			D3DXVECTOR3 vel(velocity.get());

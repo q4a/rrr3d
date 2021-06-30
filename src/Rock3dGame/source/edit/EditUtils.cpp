@@ -85,7 +85,7 @@ D3DXVECTOR3 ScNodeCont::GetUp() const
 	return _node->GetWorldUp();
 }
 
-D3DXMATRIX ScNodeCont::GetMat() const
+glm::mat4 ScNodeCont::GetMat() const
 {
 	return _node->GetWorldMat();
 }

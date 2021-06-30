@@ -298,7 +298,7 @@ D3DXVECTOR3 Trace::NodeControl::GetUp() const
 	return ZVector;
 }
 
-D3DXMATRIX Trace::NodeControl::GetMat() const
+glm::mat4 Trace::NodeControl::GetMat() const
 {
 	return BuildWorldMatrix(GetPos(), GetScale(), GetRot());
 }

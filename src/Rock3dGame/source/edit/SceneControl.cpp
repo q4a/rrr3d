@@ -249,7 +249,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 	return false;
 }
 
-bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorld, const D3DXMATRIX& worldToAABB, const D3DXVECTOR3& normOff, INode* ignore, float& outDistOff, const float distLink)
+bool SceneControl::ComputeAxeLink(const AABB& aabb, const glm::mat4& aabbToWorld, const glm::mat4& worldToAABB, const D3DXVECTOR3& normOff, INode* ignore, float& outDistOff, const float distLink)
 {
 	bool res = false;
 	outDistOff = distLink;
@@ -293,10 +293,10 @@ void SceneControl::ComputeLink(INode* node, const D3DXVECTOR3& pos, D3DXVECTOR3&
 		float zDist;
 		repeat = false;
 
-		D3DXMATRIX worldMat;
+		glm::mat4 worldMat;
 		D3DXMatrixTranslation(&worldMat, newOff.x, newOff.y, newOff.z);
 		worldMat = node->GetMat() * worldMat;
-		D3DXMATRIX invWorldMat;
+		glm::mat4 invWorldMat;
 		D3DXMatrixInverse(&invWorldMat, 0, &worldMat);
 		AABB aabb = node->GetAABB();
 

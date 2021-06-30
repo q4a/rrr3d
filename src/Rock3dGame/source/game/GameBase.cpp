@@ -1215,16 +1215,16 @@ void PodushkaAnim::OnProgress(float deltaTime)
 	float linSpeed = car->GetLeadWheelSpeed();
 	if (abs(linSpeed) > 1.0f)
 	{
-		D3DXMATRIX localMat = _target->GetMat();
+		glm::mat4 localMat = _target->GetMat();
 		glm::quat rotQuat = glm::angleAxis(D3DX_PI * deltaTime * linSpeed * 0.1f, Vec3DxToGlm(XVector));
-		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rotQuat)));
+		glm::mat4 rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rotQuat)));
 
 		const res::FaceGroup& fg = _target->GetMesh()->GetData()->faceGroups[_target->GetMeshId()];
 		D3DXVECTOR3 offset = (fg.minPos + fg.maxPos) / 2;
 
-		D3DXMATRIX matOffs1;
+		glm::mat4 matOffs1;
 		D3DXMatrixTranslation(&matOffs1, -offset.x, -offset.y, -offset.z);
-		D3DXMATRIX matOffs2;
+		glm::mat4 matOffs2;
 		D3DXMatrixTranslation(&matOffs2, offset.x, offset.y, offset.z);
 		localMat = localMat * matOffs1 * rotMat * matOffs2;
 

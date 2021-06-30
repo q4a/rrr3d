@@ -1037,8 +1037,8 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 			{
 				float dAlpha = i/smSlice * alpha2;
 				glm::quat rot = glm::angleAxis(ccw ? dAlpha : -dAlpha, Vec3DxToGlm(ZVector));
-				D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rot)));
-				auto rotMatGLM = Matrix4DxToGlm(rotMat); // remove after D3DXMATRIX replacement
+				glm::mat4 rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rot)));
+				auto rotMatGLM = Matrix4DxToGlm(rotMat); // remove after glm::mat4 replacement
 				glm::vec2 vec = Vec2TransformNormal(smVec, rotMatGLM);
 
 				Node newNode;

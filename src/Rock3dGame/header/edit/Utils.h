@@ -34,7 +34,7 @@ public:
 	virtual D3DXVECTOR3 GetRight() const;
 	virtual D3DXVECTOR3 GetUp() const;
 
-	virtual D3DXMATRIX GetMat() const;
+	virtual glm::mat4 GetMat() const;
 	//В локальных координатах, включая дочерние узлы
 	virtual AABB GetAABB() const;
 

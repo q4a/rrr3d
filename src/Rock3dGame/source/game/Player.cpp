@@ -905,7 +905,7 @@ void Player::CarState::Update(float deltaTime)
 
 	NxMat34 mat34 = nxActor->getGlobalPose();
 
-	worldMat = D3DXMATRIX(mat34.M(0, 0), mat34.M(0, 1), mat34.M(0, 2), 0,
+	worldMat = glm::mat4(mat34.M(0, 0), mat34.M(0, 1), mat34.M(0, 2), 0,
 		mat34.M(1, 0), mat34.M(1, 1), mat34.M(1, 2), 0,
 		mat34.M(2, 0), mat34.M(2, 1), mat34.M(2, 2), 0,
 		mat34.t[0], mat34.t[1], mat34.t[2], 1);
