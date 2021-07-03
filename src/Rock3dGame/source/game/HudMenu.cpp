@@ -437,7 +437,7 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 
 		D3DXVECTOR3 pos = _carLifes[i].target->GetCar().gameObj->GetPos() + D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 		D3DXVECTOR4 projVec;
-		D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
+		Vec3Transform(pos, menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj(), projVec);
 		//glm::vec2 vec = projVec / projVec.w;
 		glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
 
@@ -687,7 +687,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 
 			D3DXVECTOR3 pos = opponent.player->GetCar().gameObj->GetWorldPos() + D3DXVECTOR3(1.0f, -0.5f, 0);
 			D3DXVECTOR4 projVec;
-			D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
+			Vec3Transform(pos, menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj(), projVec);
 			//glm::vec2 vec = projVec / projVec.w;
 			glm::vec2 vec =
 				glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
@@ -1037,9 +1037,8 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 			{
 				float dAlpha = i/smSlice * alpha2;
 				glm::quat rot = glm::angleAxis(ccw ? dAlpha : -dAlpha, Vec3DxToGlm(ZVector));
-				glm::mat4 rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rot)));
-				auto rotMatGLM = Matrix4DxToGlm(rotMat); // remove after glm::mat4 replacement
-				glm::vec2 vec = Vec2TransformNormal(smVec, rotMatGLM);
+				glm::mat4 rotMat = glm::transpose(glm::mat4_cast(rot));
+				glm::vec2 vec = Vec2TransformNormal(smVec, rotMat);
 
 				Node newNode;
 				newNode.pos = smPos + vec * smRadius;

@@ -12,7 +12,6 @@
 #include "lslUtility.h"
 #include "lslException.h"
 #include "lslSDK.h"
-#include "EulerAngles.h"
 
 #include "GraphManager.h"
 #include "px\Physx.h"

@@ -743,12 +743,13 @@ void GameCar::StabilizeForce(float deltaTime)
 		{
 			NxQuat rot = GetPxActor().GetNxActor()->getGlobalOrientationQuat();
 
-			EulerAngles angles = Eul_FromQuat(*(Quat*)&rot, EulOrdXYZs);
+			D3DXVECTOR3 angles = EulerAngleFromQuatXYZ(rot.x, rot.y, rot.z, rot.w);
 			if (_clampXTorque > 0)
 				angles.x = lsl::ClampValue(angles.x, -_clampXTorque, _clampXTorque);
 			if (_clampYTorque > 0)
 				angles.y = lsl::ClampValue(angles.y, -_clampYTorque, _clampYTorque);
-			rot.setXYZW((float*)&Eul_ToQuat(angles));
+			glm::quat qAngles = EulerAngleToQuatXYZ(angles);
+			rot.setXYZW(reinterpret_cast<const float *>(&qAngles.x));
 
 			GetPxActor().GetNxActor()->setGlobalOrientationQuat(rot);
 		}

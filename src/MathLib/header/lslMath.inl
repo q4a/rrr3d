@@ -73,7 +73,7 @@ inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
 	return matrix;
 }
 
-glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
+inline glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
 {
 	glm::mat4 mat4glm(
 		mat._11, mat._21, mat._31, mat._41,
@@ -174,7 +174,7 @@ inline void MatrixOrthoRH_ZO(float width, float height, float zNear, float zFar,
 	outMat[3][3] = 1.0f;
 }
 
-void EulerAngleFromMat4XYZ(const glm::mat4 &M, float &outX, float &outY, float &outZ)
+inline void EulerAngleFromMat4XYZ(const glm::mat4 &M, float &outX, float &outY, float &outZ)
 {
 	float cy = sqrt(M[0][0] * M[0][0] + M[0][1] * M[0][1]);
 	if (cy > 16 * FLT_EPSILON)
@@ -191,7 +191,7 @@ void EulerAngleFromMat4XYZ(const glm::mat4 &M, float &outX, float &outY, float &
 	}
 }
 
-void Mat4FromEulerAngleXYZ(float x, float y, float z, glm::mat4 &outM)
+inline void EulerAngleToMat4XYZ(float x, float y, float z, glm::mat4 &outM)
 {
 	double ti, tj, th, ci, cj, ch, si, sj, sh, cc, cs, sc, ss;
 	ti = x;
@@ -222,9 +222,61 @@ void Mat4FromEulerAngleXYZ(float x, float y, float z, glm::mat4 &outM)
 	outM[3][3] = 1.0f;
 }
 
+/* Convert quaternion to Euler angles (in radians). */
+inline D3DXVECTOR3 EulerAngleFromQuatXYZ(float quatX, float quatY, float quatZ, float quatW)
+{
+	glm::mat4 M;
+	D3DXVECTOR3 res;
+	double Nq = quatX * quatX + quatY * quatY + quatZ * quatZ + quatW * quatW;
+	double s = (Nq > 0.0) ? (2.0 / Nq) : 0.0;
+	double xs = quatX * s,  ys = quatY * s,  zs = quatZ * s;
+	double wx = quatW * xs, wy = quatW * ys, wz = quatW * zs;
+	double xx = quatX * xs, xy = quatX * ys, xz = quatX * zs;
+	double yy = quatY * ys, yz = quatY * zs, zz = quatZ * zs;
+	M[0][0] = 1.0 - (yy + zz);
+	M[1][0] = xy - wz;
+	M[2][0] = xz + wy;
+	M[0][1] = xy + wz;
+	M[1][1] = 1.0 - (xx + zz);
+	M[2][1] = yz - wx;
+	M[0][2] = xz - wy;
+	M[1][2] = yz + wx;
+	M[2][2] = 1.0 - (xx + yy);
+	M[0][3] = M[1][3] = M[2][3] = M[3][0] = M[3][1] = M[3][2] = 0.0;
+	M[3][3] = 1.0;
+	EulerAngleFromMat4XYZ(M, res.x, res.y, res.z);
+	return res;
+}
+
+inline glm::quat EulerAngleToQuatXYZ(D3DXVECTOR3 ea)
+{
+	glm::quat qu;
+	double a[3], ti, tj, th, ci, cj, ch, si, sj, sh, cc, cs, sc, ss;
+	ti = ea.x * 0.5;
+	tj = ea.y * 0.5;
+	th = ea.z * 0.5;
+	ci = cos(ti);
+	cj = cos(tj);
+	ch = cos(th);
+	si = sin(ti);
+	sj = sin(tj);
+	sh = sin(th);
+	cc = ci * ch;
+	cs = ci * sh;
+	sc = si * ch;
+	ss = si * sh;
+
+	qu.x = cj * sc - sj * cs;
+	qu.y = cj * ss + sj * cc;
+	qu.z = cj * cs - sj * sc;
+	qu.w = cj * cc + sj * ss;
+
+	return qu;
+}
+
 inline glm::vec2 MatGetPos(const glm::mat4 &mat)
 {
-	return glm::vec2(mat[3][0], mat[3][1]);
+	return glm::vec2(mat[0][3], mat[1][3]);
 }
 
 inline void BuildWorldMatrix(const D3DXVECTOR3 &pos, const D3DXVECTOR3 &scale, const glm::quat &rot, glm::mat4 &outMat)

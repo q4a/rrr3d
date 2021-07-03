@@ -927,7 +927,7 @@ glm::mat4 BaseSceneNode::GetRotMat() const
 				//EulerAngles eulAng = Eul_(-_rollAngle, -_pitchAngle, -_turnAngle, EulOrdXYZs);
 				//Eul_ToHMatrix(eulAng, _rotMat.m);
 				//D3DXMatrixRotationYawPitchRoll(&_rotMat, _pitchAngle, _rollAngle, _turnAngle);
-				Mat4FromEulerAngleXYZ(-_rollAngle, -_pitchAngle, -_turnAngle, _rotMat);
+				EulerAngleToMat4XYZ(-_rollAngle, -_pitchAngle, -_turnAngle, _rotMat);
 			}
 			else
 			{

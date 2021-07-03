@@ -1665,9 +1665,9 @@ void Source3d::ApplyX3dEffect()
 			X3DAUDIO_LISTENER xList;
 			ZeroMemory(&xList, sizeof(xList));
 			xList.Position = listener->pos;
-			glm::mat4 rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(listener->rot)));
-			xList.OrientFront = D3DXVECTOR3(rotMat.m[0]);
-			xList.OrientTop = D3DXVECTOR3(rotMat.m[2]);
+			glm::mat4 rotMat = glm::transpose(glm::mat4_cast(listener->rot));
+			xList.OrientFront = D3DXVECTOR3(rotMat[0][0], rotMat[1][0], rotMat[2][0]);
+			xList.OrientTop = D3DXVECTOR3(rotMat[0][2], rotMat[1][2], rotMat[2][2]);
 
 			_xEmitter.ChannelCount = nSrcChannels;
 			_xEmitter.CurveDistanceScaler = distScaller;

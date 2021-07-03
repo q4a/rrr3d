@@ -852,9 +852,7 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 	}
 	else
 	{
-		//pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()));
-		pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()).x,
-		                 MatGetPos(GetCI().GetWorldMat()).y); // remove after D3DXVECTOR3 replacement
+		pos += MatGetPos(GetCI().GetWorldMat());
 		//Оси y не совпадают
 		if (_invertY)
 			pos.y = GetVPSize().y - (pos.y + text.GetVScroll());

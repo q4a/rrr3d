@@ -293,11 +293,10 @@ void SceneControl::ComputeLink(INode* node, const D3DXVECTOR3& pos, D3DXVECTOR3&
 		float zDist;
 		repeat = false;
 
-		glm::mat4 worldMat;
-		D3DXMatrixTranslation(&worldMat, newOff.x, newOff.y, newOff.z);
+		glm::mat4 worldMat(1.0f);
+		MatrixSetTranslation(newOff.x, newOff.y, newOff.z, worldMat);
 		worldMat = node->GetMat() * worldMat;
-		glm::mat4 invWorldMat;
-		D3DXMatrixInverse(&invWorldMat, 0, &worldMat);
+		glm::mat4 invWorldMat = glm::inverse(worldMat);
 		AABB aabb = node->GetAABB();
 
 		if (!repeat && ComputeAxeLink(aabb, worldMat, invWorldMat, ZVector, node, zDist))
