@@ -43,7 +43,7 @@ const D3DXMATRIX& MaterialNode::GetMatrix() const
 		_matChanged = false;
 
 		_defMat = _offset == NullVector && _scale == IdentityVector && _rotate == NullQuaternion;
-		_matrix = _defMat ? IdentityMatrix : BuildWorldMatrix(_offset, _scale, _rotate);
+		_matrix = _defMat ? Matrix4GlmToDx(IdentityMatrix) : Matrix4GlmToDx(BuildWorldMatrix(_offset, _scale, _rotate));
 	}
 
 	return _matrix;

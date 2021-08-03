@@ -264,8 +264,8 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 
 	BoundBox box(aabb);
 	BoundBox viewBox, projBox;
-	BoundBox::Transform(box, GetView(), viewBox);
-	BoundBox::Transform(box, GetViewProj(), projBox);
+	BoundBox::Transform(box, Matrix4DxToGlm(GetView()), viewBox);
+	BoundBox::Transform(box, Matrix4DxToGlm(GetViewProj()), projBox);
 
 	//поиск по вершинам aabb
 	for (int i = 0; i < 8; ++i)
@@ -467,7 +467,7 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 			{
 			case csViewPort:
 			case csViewPortInv:
-				_matrices[transform] = IdentityMatrix;
+				_matrices[transform] = Matrix4GlmToDx(IdentityMatrix);
 				break;
 
 			default:
@@ -544,7 +544,7 @@ const Frustum& CameraCI::GetFrustum() const
 {
 	if (_frustChanged)
 	{
-		_frustum.Refresh(GetTransform(ctViewProj));
+		_frustum.Refresh(Matrix4DxToGlm(GetTransform(ctViewProj)));
 		_frustChanged = false;
 	}
 

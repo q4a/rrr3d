@@ -78,7 +78,7 @@ AABB SceneNode::LocalDimensions() const
 	for (Nodes::iterator iter = _nodes->begin(); iter != _nodes->end(); ++iter)
 	{
 		AABB aabb = (*iter)->GetLocalAABB(false);
-		aabb.Transform((*iter)->GetMat());
+		aabb.Transform(Matrix4DxToGlm((*iter)->GetMat()));
 		if (!bRes)
 		{
 			res = aabb;

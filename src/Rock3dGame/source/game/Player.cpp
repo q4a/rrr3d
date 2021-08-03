@@ -870,7 +870,7 @@ Player::CarState::CarState(): owner(NULL), record(0), colorMat(0), color(clrWhit
 	rot3 = NullQuaternion;
 	dir = IdentityVec2;
 	dir3 = IdentityVector;
-	worldMat = IdentityMatrix;
+	worldMat = Matrix4GlmToDx(IdentityMatrix);
 	dirLine = Line2FromDir(dir, pos);
 	normLine = Line2FromNorm(dir, pos);
 	radius = 0.0f;
@@ -1594,7 +1594,7 @@ float Player::ComputeCarBBSize()
 	LSL_ASSERT(_car.mapObj);
 
 	AABB aabb = _car.grActor->GetLocalAABB(false);
-	aabb.Transform(_car.grActor->GetWorldScale());
+	aabb.Transform(Matrix4DxToGlm(_car.grActor->GetWorldScale()));
 
 	return D3DXVec3Length(&aabb.GetSizes());
 }

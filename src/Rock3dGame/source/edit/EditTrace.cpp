@@ -300,7 +300,7 @@ D3DXVECTOR3 Trace::NodeControl::GetUp() const
 
 D3DXMATRIX Trace::NodeControl::GetMat() const
 {
-	return BuildWorldMatrix(GetPos(), GetScale(), GetRot());
+	return Matrix4GlmToDx(BuildWorldMatrix(GetPos(), GetScale(), GetRot()));
 }
 
 AABB Trace::NodeControl::GetAABB() const

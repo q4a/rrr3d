@@ -545,7 +545,7 @@ void OctreeSort::RenderNode(graph::Engine& engine, const Frustum& frustum, const
 
 void OctreeSort::Render(graph::Engine& engine, const Frustum& frustum)
 {
-	engine.GetContext().SetWorldMat(IdentityMatrix);
+	engine.GetContext().SetWorldMat(Matrix4GlmToDx(IdentityMatrix));
 
 	RenderNode(engine, frustum, *_root);
 
@@ -555,7 +555,7 @@ void OctreeSort::Render(graph::Engine& engine, const Frustum& frustum)
 
 void OctreeSort::Render(graph::Engine& engine, const Position& pos)
 {
-	engine.GetContext().SetWorldMat(IdentityMatrix);
+	engine.GetContext().SetWorldMat(Matrix4GlmToDx(IdentityMatrix));
 
 	for (NodeCullList::const_iterator iter = pos._nodeList.begin(); iter != pos._nodeList.end(); ++iter)
 		BaseSceneNode::RenderBB(engine, (*iter)->GetAABB(), (*iter)->GetUserCnt() ? clrBlue : clrRed);

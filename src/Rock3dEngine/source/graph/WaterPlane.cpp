@@ -84,10 +84,10 @@ WaterPlane::WaterPlane(): _viewPos(NullVector), _cloudIntens(0.1f)
 
 void WaterPlane::DoRender(graph::Engine& engine)
 {
-	shader.SetValueDir("matWorld", engine.GetContext().GetWorldMat());
-	shader.SetValueDir("matWorldView", engine.GetContext().GetCamera().GetTransform(CameraCI::ctWorldView));
-	shader.SetValueDir("matWVP", engine.GetContext().GetCamera().GetWVP());
-	shader.SetValueDir("matInvProj", engine.GetContext().GetCamera().GetInvProj());
+	shader.SetValueDir("matWorld", Matrix4DxToGlm(engine.GetContext().GetWorldMat()));
+	shader.SetValueDir("matWorldView", Matrix4DxToGlm(engine.GetContext().GetCamera().GetTransform(CameraCI::ctWorldView)));
+	shader.SetValueDir("matWVP", Matrix4DxToGlm(engine.GetContext().GetCamera().GetWVP()));
+	shader.SetValueDir("matInvProj", Matrix4DxToGlm(engine.GetContext().GetCamera().GetInvProj()));
 	shader.SetValueDir("lightPos", !engine.GetContext().GetLights().empty() ? engine.GetContext().GetLight(0).GetDesc().pos : NullVector);
 	shader.SetValueDir("viewPos", _viewPos);
 

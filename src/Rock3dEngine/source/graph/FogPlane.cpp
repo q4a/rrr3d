@@ -30,9 +30,9 @@ void FogPlane::DoRender(graph::Engine& engine)
 	_curTime += engine.GetDt() * _speed;
 	_curTime = _curTime - static_cast<int>(_curTime);
 
-	shader.SetValueDir("matWVP", camera.GetWVP());
-	shader.SetValueDir("matWorldView", camera.GetTransform(CameraCI::ctWorldView));
-	shader.SetValueDir("matInvProj", camera.GetInvProj());
+	shader.SetValueDir("matWVP", Matrix4DxToGlm(camera.GetWVP()));
+	shader.SetValueDir("matWorldView", Matrix4DxToGlm(camera.GetTransform(CameraCI::ctWorldView)));
+	shader.SetValueDir("matInvProj", Matrix4DxToGlm(camera.GetInvProj()));
 
 	shader.SetValueDir("cloudColor", _color);
 	shader.SetValueDir("cloudIntens", _cloudIntens);

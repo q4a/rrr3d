@@ -45,7 +45,7 @@ void SkyBox::Render(Engine& engine)
 	if (_coordSystem == csLeft)
 		engine.GetContext().SetWorldMat(skyFromLeftToRightCS);
 	else
-		engine.GetContext().SetWorldMat(IdentityMatrix);
+		engine.GetContext().SetWorldMat(Matrix4GlmToDx(IdentityMatrix));
 
 	//Нужно обнулять 4-ую строку чтобы небо не растягивалось
 	D3DXMATRIX skyWVP = engine.GetContext().GetCamera().GetWVP();
@@ -53,7 +53,7 @@ void SkyBox::Render(Engine& engine)
 	skyWVP._42 = 0.0f;
 	skyWVP._43 = 0.0f;
 	D3DXMatrixInverse(&skyWVP, 0, &skyWVP);
-	shader.SetValueDir("matInvWVP", skyWVP);
+	shader.SetValueDir("matInvWVP", Matrix4DxToGlm(skyWVP));
 
 	shader.Apply(engine);
 	do

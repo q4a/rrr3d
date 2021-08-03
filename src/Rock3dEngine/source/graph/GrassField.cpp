@@ -114,7 +114,7 @@ void GrassField::DrawField(graph::Engine& engine, const Field& field)
 {
 	AABB aabb(D3DXVECTOR3(_fieldWidth, _fieldHeight, 2.0f));
 	aabb.Offset(field.pos);
-	aabb.Transform(GetWorldMat());
+	aabb.Transform(Matrix4DxToGlm(GetWorldMat()));
 	if (engine.GetContext().GetCamera().GetFrustum().ContainsAABB(aabb) == Frustum::scNoOverlap)
 		return;
 
@@ -177,9 +177,9 @@ void GrassField::DoRender(graph::Engine& engine)
 {
 	shader.Init(engine);
 
-	shader.SetValueDir("wvpMatrix", engine.GetContext().GetCamera().GetWVP());
-	shader.SetValueDir("viewMatInv", engine.GetContext().GetCamera().GetInvView());
-	shader.SetValueDir("matWorldView", engine.GetContext().GetCamera().GetTransform(CameraCI::ctWorldView));
+	shader.SetValueDir("wvpMatrix", Matrix4DxToGlm(engine.GetContext().GetCamera().GetWVP()));
+	shader.SetValueDir("viewMatInv", Matrix4DxToGlm(engine.GetContext().GetCamera().GetInvView()));
+	shader.SetValueDir("matWorldView", Matrix4DxToGlm(engine.GetContext().GetCamera().GetTransform(CameraCI::ctWorldView)));
 
 	engine.GetContext().SetRenderState(graph::rsAlphaRef, 17);
 	engine.GetContext().SetRenderState(graph::rsAlphaFunc, D3DCMP_GREATEREQUAL);

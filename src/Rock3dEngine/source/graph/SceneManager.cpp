@@ -1000,7 +1000,7 @@ D3DXMATRIX BaseSceneNode::GetCombMat(CombMatType type) const
 
 	default:
 		LSL_ASSERT(false);
-		return IdentityMatrix;
+		return Matrix4GlmToDx(IdentityMatrix);
 	}
 }
 
@@ -1043,7 +1043,7 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 
 	default:
 		LSL_ASSERT(false);
-		return IdentityMatrix;
+		return Matrix4GlmToDx(IdentityMatrix);
 	}
 }
 
@@ -1083,7 +1083,7 @@ void BaseSceneNode::SetWorldRot(const glm::quat& value)
 
 D3DXMATRIX BaseSceneNode::GetWorldScale() const
 {
-	D3DXMATRIX res = IdentityMatrix;
+	D3DXMATRIX res = Matrix4GlmToDx(IdentityMatrix);
 	D3DXMatrixMultiply(&res, &res, &GetInvWorldMat());	
 
 	const BaseSceneNode* node = this;
@@ -1171,7 +1171,7 @@ const AABB& BaseSceneNode::GetWorldAABB(bool includeChild) const
 		if (_bbChanges.test(bbcWorldIncludeChild) || IsBBDyn())
 		{
 			_bbChanges.reset(bbcWorldIncludeChild);
-			AABB::Transform(GetLocalAABB(true), GetWorldMat(), _aabbWorldIncludeChild);
+			AABB::Transform(GetLocalAABB(true), Matrix4DxToGlm(GetWorldMat()), _aabbWorldIncludeChild);
 		}
 
 		return _aabbWorldIncludeChild;
@@ -1181,7 +1181,7 @@ const AABB& BaseSceneNode::GetWorldAABB(bool includeChild) const
 		if (_bbChanges.test(bbcAbsStructure) || IsBBDyn())
 		{
 			_bbChanges.reset(bbcAbsStructure);
-			AABB::Transform(GetLocalAABB(false), GetWorldMat(), _aabbWorld);
+			AABB::Transform(GetLocalAABB(false), Matrix4DxToGlm(GetWorldMat()), _aabbWorld);
 		}
 
 		return _aabbWorld;
@@ -1201,7 +1201,7 @@ const AABB& BaseSceneNode::GetAABBOfChildren() const
 				AABB childBB = child->GetLocalAABB(true);
 				if (!AABBAreEqual(childBB, NullAABB))
 				{
-					childBB.Transform(child->GetMat());
+					childBB.Transform(Matrix4DxToGlm(child->GetMat()));
 					_aabbOfChildren.Add(childBB);
 				}
 			}	
@@ -1215,7 +1215,7 @@ const AABB& BaseSceneNode::GetAABBOfChildren() const
 		AABB childBB = child->GetLocalAABB(true);
 		if (!AABBAreEqual(childBB, NullAABB))
 		{
-			childBB.Transform(child->GetMat());
+			childBB.Transform(Matrix4DxToGlm(child->GetMat()));
 			_aabbOfChildren.Add(childBB);
 		}
 	}
@@ -1325,7 +1325,7 @@ void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj,
 	using res::VertexPD;
 
 	Frustum::Corners frustumV;
-	Frustum::CalculateCorners(frustumV, invViewProj);
+	Frustum::CalculateCorners(frustumV, Matrix4DxToGlm(invViewProj));
 	D3DCOLOR linesColor = colorBB;
 
 	VertexPD lines[24];
@@ -1359,7 +1359,7 @@ void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj,
 	lines[22] = VertexPD(frustumV[4], linesColor);					
 	lines[23] = VertexPD(frustumV[0], linesColor);
 
-	engine.GetContext().SetWorldMat(IdentityMatrix);
+	engine.GetContext().SetWorldMat(Matrix4GlmToDx(IdentityMatrix));
 	engine.GetContext().SetRenderState(graph::rsDiffuseMaterialSource, D3DMCS_COLOR1);
 	engine.GetContext().SetRenderState(graph::rsLighting, false);
 	engine.GetDriver().GetDevice()->SetFVF(VertexPD::fvf);

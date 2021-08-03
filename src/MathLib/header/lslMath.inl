@@ -56,6 +56,28 @@ inline D3DXVECTOR3 Vec3GlmToDx(glm::vec3 v3)
 	return v3dx;
 }
 
+inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
+{
+	D3DXMATRIX matrix(
+		mat[0][0], mat[1][0], mat[2][0], mat[3][0],
+		mat[0][1], mat[1][1], mat[2][1], mat[3][1],
+		mat[0][2], mat[1][2], mat[2][2], mat[3][2],
+		mat[0][3], mat[1][3], mat[2][3], mat[3][3]
+	);
+	return matrix;
+}
+
+inline glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
+{
+	glm::mat4 mat4glm(
+		mat._11, mat._21, mat._31, mat._41,
+		mat._12, mat._22, mat._32, mat._42,
+		mat._13, mat._23, mat._33, mat._43,
+		mat._14, mat._24, mat._34, mat._44
+	);
+	return mat4glm;
+}
+
 inline void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, glm::mat4& matOut)
 {
 	matOut[0].x = xVec.x;
@@ -106,7 +128,7 @@ inline void MatrixScale(const D3DXVECTOR3& vec, glm::mat4& outMat)
 
 inline glm::vec2 MatGetPos(const glm::mat4 &mat)
 {
-	return glm::vec2(mat[3].x, mat[3].y);
+	return glm::vec2(mat[0][3], mat[1][3]);
 }
 
 inline void BuildWorldMatrix(const D3DXVECTOR3 &pos, const D3DXVECTOR3 &scale, const glm::quat &rot, glm::mat4 &outMat)

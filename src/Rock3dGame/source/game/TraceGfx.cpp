@@ -54,7 +54,7 @@ void TraceGfx::DrawNodes(graph::Engine& engine, D3DXVECTOR3* vBuf, unsigned triC
 	_libMat->Apply(engine);
 
 	engine.BeginDraw();
-	engine.GetContext().SetWorldMat(IdentityMatrix);
+	engine.GetContext().SetWorldMat(Matrix4GlmToDx(IdentityMatrix));
 	engine.GetContext().SetRenderState(graph::rsCullMode, D3DCULL_NONE);
 
 	engine.GetDriver().GetDevice()->SetFVF(D3DFVF_XYZ);

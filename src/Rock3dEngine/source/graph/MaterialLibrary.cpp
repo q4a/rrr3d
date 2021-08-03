@@ -38,7 +38,7 @@ const D3DXMATRIX& BaseSampler::GetMatrix(float frame) const
 
 		_defMat = offset == NullVector && scale == IdentityVector && rotate == NullQuaternion;
 
-		_matrix = _defMat ? IdentityMatrix : BuildWorldMatrix(offset, scale, rotate);
+		_matrix = _defMat ? Matrix4GlmToDx(IdentityMatrix) : Matrix4GlmToDx(BuildWorldMatrix(offset, scale, rotate));
 	}
 
 	return _matrix;

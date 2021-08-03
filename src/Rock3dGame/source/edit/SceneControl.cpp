@@ -265,7 +265,7 @@ bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorl
 
 			float dist;
 			//¬ычисл€ем двухсторонее пересечение test-а боксом aabb. ¬ыбираем  наименьшее значение длины проникновени€, начина€ с distLink.
-			if (test.AABBLineCastIntersect(aabb, normOff, aabbToWorld * testSc->GetInvWorldMat(), testSc->GetWorldMat() * worldToAABB, dist) && abs(dist) < abs(outDistOff))
+			if (test.AABBLineCastIntersect(aabb, normOff, Matrix4DxToGlm(aabbToWorld * testSc->GetInvWorldMat()), Matrix4DxToGlm(testSc->GetWorldMat() * worldToAABB), dist) && abs(dist) < abs(outDistOff))
 			{
 				res = true;
 				outDistOff = dist;

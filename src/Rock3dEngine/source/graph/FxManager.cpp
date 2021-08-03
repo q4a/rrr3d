@@ -593,7 +593,7 @@ D3DXVECTOR3 FxEmitter::GetWorldPos(FxParticle* particle) const
 
 const D3DXMATRIX& FxEmitter::GetMatrix() const
 {
-	return _worldCoordSys ? IdentityMatrix : _owner->GetWorldMat();
+	return _worldCoordSys ? Matrix4GlmToDx(IdentityMatrix) : _owner->GetWorldMat();
 }
 
 FxParticleSystem::FxParticleSystem(): _fxManager(0), _childStyle(csProxy), _aabb(1.0f), _srcSpeed(NullVector)
@@ -698,7 +698,7 @@ void FxParticleSystem::OnUpdateParticle(FxEmitter* emitter, FxParticle* value, f
 
 	AABB aabb = value->GetAABB();
 	if (emitter->GetWorldCoordSys())
-		aabb.Transform(GetInvWorldMat());
+		aabb.Transform(Matrix4DxToGlm(GetInvWorldMat()));
 
 	_aabb.Add(aabb);
 }
@@ -1036,14 +1036,14 @@ void FxSpritesManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, Fx
 			D3DXVECTOR3 dir;
 			Vec3Rotate(XVector, particle->GetRot(), dir);
 
-			engine.RenderSpritePT(emitter->GetWorldPos(particle), particle->GetScale(), 0, &dir, IdentityMatrix);
+			engine.RenderSpritePT(emitter->GetWorldPos(particle), particle->GetScale(), 0, &dir, Matrix4GlmToDx(IdentityMatrix));
 		}
 		else
 		{
 			D3DXVECTOR3 axe = Vec3GlmToDx(glm::axis(particle->GetRot()));
 			float angle = glm::angle(particle->GetRot());
 
-			engine.RenderSpritePT(emitter->GetWorldPos(particle), particle->GetScale(), angle, 0, IdentityMatrix);
+			engine.RenderSpritePT(emitter->GetWorldPos(particle), particle->GetScale(), angle, 0, Matrix4GlmToDx(IdentityMatrix));
 		}
 	}
 

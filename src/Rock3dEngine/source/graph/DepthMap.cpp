@@ -22,7 +22,7 @@ void DepthMapShader::DoBeginDraw(Engine& engine)
 
 	D3DXMATRIX matWVP;
 	D3DXMatrixMultiply(&matWVP, &engine.GetContext().GetWorldMat(), &viewProjMat);
-	SetValueDir("depthMatrix", matWVP);
+	SetValueDir("depthMatrix", Matrix4DxToGlm(matWVP));
 }
 
 bool DepthMapShader::DoEndDraw(Engine& engine, bool nextPass)

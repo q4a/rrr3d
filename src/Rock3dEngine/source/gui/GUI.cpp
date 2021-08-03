@@ -409,10 +409,10 @@ void Graphic3d::SetScale(const D3DXVECTOR3& value)
 
 D3DXMATRIX Graphic3d::GetMat()
 {
-	D3DXMATRIX mat;
+	glm::mat4 mat;
 	BuildWorldMatrix(_pos, _scale, _rot, mat);
 
-	return mat;
+	return Matrix4GlmToDx(mat);
 }
 
 D3DXMATRIX Graphic3d::GetWorldMat()
@@ -427,7 +427,7 @@ AABB Graphic3d::GetChildAABB()
 	{
 		Graphic3d* child = *iter;
 		AABB aabb = child->GetLocalAABB(true);
-		aabb.Transform(child->GetMat());
+		aabb.Transform(Matrix4DxToGlm(child->GetMat()));
 
 		childAABB.Add(aabb);
 	}
@@ -448,7 +448,7 @@ AABB Graphic3d::GetLocalAABB(bool includeChild)
 AABB Graphic3d::GetWorldAABB(bool includeChild)
 {
 	AABB aabb = GetLocalAABB(includeChild);
-	aabb.Transform(GetWorldMat());
+	aabb.Transform(Matrix4DxToGlm(GetWorldMat()));
 
 	return aabb;
 }
@@ -853,8 +853,8 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 	else
 	{
 		//pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()));
-		pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()).x,
-		                 MatGetPos(GetCI().GetWorldMat()).y); // remove after D3DXVECTOR3 replacement
+		pos += glm::vec2(MatGetPos(Matrix4DxToGlm(GetCI().GetWorldMat())).x,
+		                 MatGetPos(Matrix4DxToGlm(GetCI().GetWorldMat())).y); // remove after D3DXVECTOR3 replacement
 		//Оси y не совпадают
 		if (_invertY)
 			pos.y = GetVPSize().y - (pos.y + text.GetVScroll());
@@ -908,7 +908,7 @@ void Context::BeginDraw()
 	_camera.SetDesc(desc);
 
 	GetCI().ApplyCamera(&_camera);
-	SetTransform(IdentityMatrix);
+	SetTransform(Matrix4GlmToDx(IdentityMatrix));
 
 	GetCI().SetRenderState(graph::rsZWriteEnable, false);
 	GetCI().SetRenderState(graph::rsZEnable, false);
@@ -1044,8 +1044,9 @@ void Context::DrawView3d(View3d& view3d)
 	D3DXMATRIX worldMat = GetCI().GetWorldMat();
 	if (!_invertY)
 		worldMat._22 = -worldMat._22;
-	D3DXMATRIX localMat;
-	BuildWorldMatrix(-pos, scale, NullQuaternion, localMat);
+	glm::mat4 localMatGlm;
+	BuildWorldMatrix(-pos, scale, NullQuaternion, localMatGlm);
+	D3DXMATRIX localMat = Matrix4GlmToDx(localMatGlm);
 
 	//
 	GetCI().SetRenderState(graph::rsZWriteEnable, true);
@@ -1261,7 +1262,9 @@ void Widget::BuildMatrix(MatrixChange change) const
 
 		D3DXVECTOR3 pos = Vec3FromVec2(GetPos());
 
-		BuildWorldMatrix(pos, D3DXVECTOR3(_scale.x, _scale.y, 1.0f), rot, _matrix[mcLocal]);
+		glm::mat4 mat;
+		BuildWorldMatrix(pos, D3DXVECTOR3(_scale.x, _scale.y, 1.0f), rot, mat);
+		_matrix[mcLocal] = Matrix4GlmToDx(mat);
 		break;
 	}
 
@@ -1297,7 +1300,7 @@ void Widget::BuildWorldAABB() const
 	{
 		_aabbChanges.reset(acWorldAABB);
 
-		AABB2::Transform(GetLocalAABB(false), GetWorldMat(), _worldAABB);
+		AABB2::Transform(GetLocalAABB(false), Matrix4DxToGlm(GetWorldMat()), _worldAABB);
 	}
 }
 
@@ -1313,7 +1316,7 @@ void Widget::BuildChildAABB() const
 			Widget* child = *iter;
 
 			AABB2 childAABB = child->GetLocalAABB(true);
-			childAABB.Transform(child->GetMat());
+			childAABB.Transform(Matrix4DxToGlm(child->GetMat()));
 
 			_childAABB.Add(childAABB);
 		}
@@ -1335,7 +1338,7 @@ void Widget::BuildWorldChildAABB() const
 	if (_aabbChanges[acWorldChildAABB])
 	{
 		_aabbChanges.reset(acWorldChildAABB);
-		AABB2::Transform(GetChildAABB(), GetMat(), _worldChildAABB);
+		AABB2::Transform(GetChildAABB(), Matrix4DxToGlm(GetMat()), _worldChildAABB);
 
 		_worldChildAABB.Add(GetWorldAABB(false));
 	}
@@ -1399,7 +1402,7 @@ void Widget::ApplyAlign() const
 		AABB2 rect = _parent->GetLocalAABB(false);
 		//без учета дочерей, поскольку это ведет к багу при изменении размера SetSize если дочери остаются вне его AABB (возвращается старый AABB вследствии чего изменение размера не происходит)
 		AABB2 localRect = GetLocalAABB(false);
-		localRect.Transform(GetMat());
+		localRect.Transform(Matrix4DxToGlm(GetMat()));
 
 		AABB2 newRect = localRect;
 		glm::vec2 newSize = newRect.GetSize();
@@ -5435,7 +5438,7 @@ void Manager::DoDrawWidget(Widget* widget)
 		AABB2 clip = _clipWidget->GetWorldAABB(false);
 		AABB2 widgetAABB = widget->GetWorldAABB(false);
 		AABB2 childAABB = widget->GetChildAABB();
-		childAABB.Transform(widget->GetWorldMat());
+		childAABB.Transform(Matrix4DxToGlm(widget->GetWorldMat()));
 
 		drawWidget = clip.ContainsAABB(widgetAABB) != AABB2::scNoOverlap;
 		drawChild = clip.ContainsAABB(childAABB) != AABB2::scNoOverlap;

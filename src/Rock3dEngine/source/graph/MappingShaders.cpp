@@ -138,9 +138,9 @@ void LightShader::DoBeginDraw(Engine& engine)
 	SetParam(_params[specPower], d3dMat.Power);
 	SetParam(_params[texDiffK], _texDiffK * engine.GetContext().GetTexDiffK());
 
-	SetParam(_params[worldMat], engine.GetContext().GetWorldMat());
-	SetParam(_params[worldViewMat], engine.GetContext().GetCamera().GetTransform(CameraCI::ctWorldView));
-	SetParam(_params[wvpMat], engine.GetContext().GetCamera().GetWVP());
+	SetParam(_params[worldMat], Matrix4DxToGlm(engine.GetContext().GetWorldMat()));
+	SetParam(_params[worldViewMat], Matrix4DxToGlm(engine.GetContext().GetCamera().GetTransform(CameraCI::ctWorldView)));
+	SetParam(_params[wvpMat], Matrix4DxToGlm(engine.GetContext().GetCamera().GetWVP()));
 	SetParam(_params[viewPos], _viewPos);
 
 	//register(s0)
@@ -301,7 +301,7 @@ RefrShader::RefrShader()
 
 void RefrShader::DoBeginDraw(Engine& engine)
 {
-	SetValueDir("mWorldViewProj", engine.GetContext().GetCamera().GetWVP());
+	SetValueDir("mWorldViewProj", Matrix4DxToGlm(engine.GetContext().GetCamera().GetWVP()));
 	SetTextureDir("refrTex", engine.GetContext().GetTexture(0));
 	SetValueDir("vScene", (1.0f - engine.GetContext().GetFrame()) * 1.0f);// (1.0f - engine.GetContext().frame) * 0.1f);
 }

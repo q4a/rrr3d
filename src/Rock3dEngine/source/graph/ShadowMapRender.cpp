@@ -17,8 +17,8 @@ void ShadowMapShader::DoBeginDraw(Engine& engine)
 	D3DXMatrixMultiply(&shadowWVP, &engine.GetContext().GetWorldMat(), &shadowWVP);
 	D3DXMatrixMultiply(&shadowWVP, &shadowWVP, &mTexScale);
 
-	SetValue("matWVP", engine.GetContext().GetCamera().GetWVP());
-	SetValue("matShadow", shadowWVP);
+	SetValue("matWVP", Matrix4DxToGlm(engine.GetContext().GetCamera().GetWVP()));
+	SetValue("matShadow", Matrix4DxToGlm(shadowWVP));
 }
 
 ShadowMapRender::ShadowMapRender(): _numSplits(0), _splitSchemeLambda(0.7f), _disableCropLight(false), _maxFar(0), _curNumSplit(0), _beginShadowCaster(false), _beginShadowMapp(false), _beginFlags(0, 0), iLight(0), _lastDepthSurface(NULL)
@@ -175,7 +175,7 @@ void ShadowMapRender::CalcSplitScheme(const CameraCI& camera, const LightCI& lig
 		else
 		{
 			Frustum::Corners corners;
-			Frustum::CalculateCorners(corners, tmpCamera.GetInvViewProj());
+			Frustum::CalculateCorners(corners, Matrix4DxToGlm(tmpCamera.GetInvViewProj()));
 			ComputeCropMatrix(i, light, corners);
 		}
 	}

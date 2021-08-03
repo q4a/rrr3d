@@ -535,7 +535,7 @@ void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, fl
 		D3DXVECTOR3 zVec;
 		D3DXVec3Cross(&zVec, &xVec, &yVec);
 
-		MatrixRotationFromAxis(xVec, yVec, zVec, rotMat);
+		MatrixRotationFromAxis(xVec, yVec, zVec, Matrix4DxToGlm(rotMat));
 	}
 	//Обычный спрайт
 	else
@@ -551,9 +551,9 @@ void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, fl
 
 	//Результирующая матрица
 	D3DXMATRIX worldMat = localMat;
-	MatrixScale(scale, worldMat);
+	MatrixScale(scale, Matrix4DxToGlm(worldMat));
 	worldMat *= rotMat;
-	MatrixSetTranslation(pos, worldMat);
+	MatrixSetTranslation(pos, Matrix4DxToGlm(worldMat));
 
 	GetContext().SetWorldMat(worldMat);
 
