@@ -535,7 +535,9 @@ void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, fl
 		D3DXVECTOR3 zVec;
 		D3DXVec3Cross(&zVec, &xVec, &yVec);
 
-		MatrixRotationFromAxis(xVec, yVec, zVec, Matrix4DxToGlm(rotMat));
+		glm::mat4 rotMatGlm;
+		MatrixRotationFromAxis(xVec, yVec, zVec, rotMatGlm);
+		rotMat = Matrix4GlmToDx(rotMatGlm);
 	}
 	//Обычный спрайт
 	else

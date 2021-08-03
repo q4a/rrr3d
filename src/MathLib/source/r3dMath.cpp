@@ -45,7 +45,6 @@ AABB2::AABB2(const glm::vec2& mMin, const glm::vec2& mMax): min(mMin), max(mMax)
 {
 }
 
-//void AABB2::Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut)
 void AABB2::Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut)
 {
 	glm::vec2 oldMin = aabb.min;

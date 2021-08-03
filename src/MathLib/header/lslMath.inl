@@ -78,52 +78,52 @@ inline glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
 	return mat4glm;
 }
 
-inline void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, glm::mat4& matOut)
+inline void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, glm::mat4& outMat)
 {
-	matOut[0].x = xVec.x;
-	matOut[1].x = xVec.y;
-	matOut[2].x = xVec.z;
-	matOut[3].x = 0.0f;
-	matOut[0].y = yVec.x;
-	matOut[1].y = yVec.y;
-	matOut[2].y = yVec.z;
-	matOut[3].y = 0.0f;
-	matOut[0].z = zVec.x;
-	matOut[1].z = zVec.y;
-	matOut[2].z = zVec.z;
-	matOut[3].z = 0.0f;
-	matOut[0].w = 0.0f;
-	matOut[1].w = 0.0f;
-	matOut[2].w = 0.0f;
-	matOut[3].w = 1.0f;
+	outMat[0][0] = xVec.x;
+	outMat[1][0] = xVec.y;
+	outMat[2][0] = xVec.z;
+	outMat[3][0] = 0.0f;
+	outMat[0][1] = yVec.x;
+	outMat[1][1] = yVec.y;
+	outMat[2][1] = yVec.z;
+	outMat[3][1] = 0.0f;
+	outMat[0][2] = zVec.x;
+	outMat[1][2] = zVec.y;
+	outMat[2][2] = zVec.z;
+	outMat[3][2] = 0.0f;
+	outMat[0][3] = 0.0f;
+	outMat[1][3] = 0.0f;
+	outMat[2][3] = 0.0f;
+	outMat[3][3] = 1.0f;
 }
 
-inline void MatrixSetTranslation(const D3DXVECTOR3& vec, glm::mat4& outMat)
+inline void MatrixSetTranslation(const D3DXVECTOR3 &vec, glm::mat4 &outMat)
 {
-	outMat[0].w = vec.x;
-	outMat[1].w = vec.y;
-	outMat[2].w = vec.z;
+	outMat[0][3] = vec.x;
+	outMat[1][3] = vec.y;
+	outMat[2][3] = vec.z;
 }
 
-inline void MatrixTranslate(const D3DXVECTOR3& vec, glm::mat4& outMat)
+inline void MatrixTranslate(const D3DXVECTOR3 &vec, glm::mat4 &outMat)
 {
-	outMat[0].w += vec.x;
-	outMat[1].w += vec.y;
-	outMat[2].w += vec.z;
+	outMat[0][3] += vec.x;
+	outMat[1][3] += vec.y;
+	outMat[2][3] += vec.z;
 }
 
-inline void MatrixSetScale(const D3DXVECTOR3& vec, glm::mat4& outMat)
+inline void MatrixSetScale(const D3DXVECTOR3 &vec, glm::mat4 &outMat)
 {
-	outMat[0].x = vec.x;
-	outMat[1].y = vec.y;
-	outMat[2].z = vec.z;
+	outMat[0][0] = vec.x;
+	outMat[1][1] = vec.y;
+	outMat[2][2] = vec.z;
 }
 
-inline void MatrixScale(const D3DXVECTOR3& vec, glm::mat4& outMat)
+inline void MatrixScale(const D3DXVECTOR3 &vec, glm::mat4 &outMat)
 {
-	outMat[0].x *= vec.x;
-	outMat[1].y *= vec.y;
-	outMat[2].z *= vec.z;
+	outMat[0][0] *= vec.x;
+	outMat[1][1] *= vec.y;
+	outMat[2][2] *= vec.z;
 }
 
 inline glm::vec2 MatGetPos(const glm::mat4 &mat)
