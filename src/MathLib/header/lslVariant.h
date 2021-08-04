@@ -266,8 +266,33 @@ inline void Variant::AssignData(const void* value, Type type, unsigned count, un
 	if (newTypeSize % 4 == 0)
 	{
 		int t = count * newTypeSize / 4;
-		for (int i = 0; i < t; ++i)
-			_buf[i] = ((const int*)value)[i];
+		if (type == VariantVec::vtMatrix)
+		{
+			// remove after DirectX render replacement
+			// glm::mat4 is
+			// 0 4  8 12
+			// 1 5  9 13
+			// 2 6 10 14
+			// 3 7 11 15
+			int round = 0;
+			int id = 0;
+			for (int i = 0; i < t; ++i)
+			{
+				_buf[i] = ((const int *)value)[id];
+				if (id + 4 > 15)
+				{
+					round = round + 1;
+					id = round;
+				} else{
+					id = id + 4;
+				}
+			}
+		}
+		else
+		{
+			for (int i = 0; i < t; ++i)
+				_buf[i] = ((const int*)value)[i];
+		}
 	}
 	else
 		memcpy(_buf, value, newSize);
