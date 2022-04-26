@@ -12,9 +12,6 @@ const lsl::string LightShader::cLightTypeStr[LightShader::cLightTypeEnd] = {"LIG
 const lsl::string LightShader::cLightPropStr[LightShader::cLightPropEnd] = {"", "SHADOW"};
 const lsl::string LightShader::cMyParamStr[cMyParamEnd] = {"numLights", "glAmbient", "ambLight", "diffLight", "specLight", "colorMat", "specMat", "specPower", "texDiffK", "worldMat", "worldViewMat", "wvpMat", "viewPos", "diffTex", "shadowTex", "lightPos", "lightDir", "spotParams", "fogParams", "fogColor", "reflectivity", "envTex", "alphaBlendColor", "normTex", "mWorldViewProj", "refrTex", "vScene", "reflTex"};
 
-
-
-
 LightShader::LightShader(): _curLight(0), _fogColor(clrWhite), _viewPos(NullVector), _texDiffK(1.0f), _paramsLight(D3DLIGHT_FORCE_DWORD), _paramsShadow(false)
 {
 	for (int i = 0; i < cLightTypeEnd; ++i)
@@ -54,15 +51,15 @@ void LightShader::InvalidateParams(D3DLIGHTTYPE value, bool shadow)
 	switch (value)
 	{
 	case D3DLIGHT_POINT:
-		ApplyTech("", shadow ? _lightMacro[ltPoint][lpShadow] : _lightMacro[ltPoint][lpNoShadow]);		
+		ApplyTech("", shadow ? _lightMacro[ltPoint][lpShadow] : _lightMacro[ltPoint][lpNoShadow]);
 		break;
 
 	case D3DLIGHT_DIRECTIONAL:
-		ApplyTech("", shadow ? _lightMacro[ltDir][lpShadow] : _lightMacro[ltDir][lpNoShadow]);		
+		ApplyTech("", shadow ? _lightMacro[ltDir][lpShadow] : _lightMacro[ltDir][lpNoShadow]);
 		break;
 
 	case D3DLIGHT_SPOT:
-		ApplyTech("", shadow ? _lightMacro[ltSpot][lpShadow] : _lightMacro[ltSpot][lpNoShadow]);		
+		ApplyTech("", shadow ? _lightMacro[ltSpot][lpShadow] : _lightMacro[ltSpot][lpNoShadow]);
 		break;
 
 	default:
@@ -93,7 +90,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 	//
 	_fogColor = D3DXCOLOR(engine.GetContext().GetRenderState(rsFogColor));
 	engine.GetContext().SetRenderState(rsFogColor, _fogColor / static_cast<float>(lightCnt));
-	
+
 	const LightCI& light = engine.GetContext().GetLight(_curLight);
 	bool shadow = engine.GetContext().GetLightShadow() && light.GetDesc().shadowMap;
 	D3DLIGHTTYPE lightType = light.GetDesc().type;
@@ -104,7 +101,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 	{
 	case D3DLIGHT_POINT:
 		SetParam(_params[lightPos], light.GetDesc().pos);
-		SetParam(_params[lightDir], light.GetDesc().dir);		
+		SetParam(_params[lightDir], light.GetDesc().dir);
 		break;
 
 	case D3DLIGHT_DIRECTIONAL:
@@ -112,7 +109,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 		SetParam(_params[lightDir], light.GetDesc().dir);
 		break;
 
-	case D3DLIGHT_SPOT:		
+	case D3DLIGHT_SPOT:
 	{
 		SetParam(_params[lightPos], light.GetDesc().pos);
 		SetParam(_params[lightDir], light.GetDesc().dir);
@@ -132,7 +129,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 	SetParam(_params[ambLight], light.GetDesc().ambient);
 	SetParam(_params[diffLight], light.GetDesc().diffuse);
 	SetParam(_params[specLight], light.GetDesc().specular);
-	
+
 	D3DMATERIAL9 d3dMat;
 	engine.GetDriver().GetDevice()->GetMaterial(&d3dMat);
 
@@ -221,9 +218,6 @@ void LightShader::SetTexDiffK(float value)
 	_texDiffK = value;
 }
 
-
-
-
 ReflMappShader::ReflMappShader(): _reflectivity(0.4f)
 {
 	SetTech("techReflMapp");
@@ -233,11 +227,11 @@ void ReflMappShader::DoBeginDraw(Engine& engine)
 {
 	_MyBase::DoBeginDraw(engine);
 
-	SetParam(_params[reflectivity], _reflectivity);	
+	SetParam(_params[reflectivity], _reflectivity);
 	SetParam(_params[alphaBlendColor], D3DXCOLOR(engine.GetContext().GetTextureStageState(0, tssConstant)));
 
 	if (GetReflTex())
-		SetTexParam(_params[envTex], GetReflTex()->GetTex());	
+		SetTexParam(_params[envTex], GetReflTex()->GetTex());
 }
 
 graph::TexCubeResource* ReflMappShader::GetReflTex()
@@ -260,9 +254,6 @@ void ReflMappShader::SetReflectivity(float value)
 	_reflectivity = value;
 }
 
-
-
-
 ReflBumbMappShader::ReflBumbMappShader()
 {
 	SetTech("techReflMapp");
@@ -272,11 +263,11 @@ void ReflBumbMappShader::DoBeginDraw(Engine& engine)
 {
 	_MyBase::DoBeginDraw(engine);
 
-	SetParam(_params[reflectivity], 0.4f);	
+	SetParam(_params[reflectivity], 0.4f);
 	SetParam(_params[alphaBlendColor], D3DXCOLOR(engine.GetContext().GetTextureStageState(0, tssConstant)));
 
 	if (GetReflTex())
-		SetTexParam(_params[envTex], GetReflTex()->GetTex());	
+		SetTexParam(_params[envTex], GetReflTex()->GetTex());
 
 	SetTexParam(_params[normTex], engine.GetContext().GetTexture(1));
 }
@@ -291,9 +282,6 @@ void ReflBumbMappShader::SetReflTex(graph::TexCubeResource* value)
 	SetTexture("envTex", value);
 }
 
-
-
-
 BumpMapShader::BumpMapShader()
 {
 	SetTech("techBumpMap");
@@ -305,9 +293,6 @@ void BumpMapShader::DoBeginDraw(Engine& engine)
 
 	SetTexParam(_params[normTex], engine.GetContext().GetTexture(1));
 }
-
-
-
 
 RefrShader::RefrShader()
 {
@@ -321,9 +306,6 @@ void RefrShader::DoBeginDraw(Engine& engine)
 	SetValueDir("vScene", (1.0f - engine.GetContext().GetFrame()) * 1.0f);// (1.0f - engine.GetContext().frame) * 0.1f);
 }
 
-
-
-
 PlanarReflMappShader::PlanarReflMappShader()
 {
 	SetTech("techReflMapp");
@@ -336,7 +318,7 @@ void PlanarReflMappShader::DoBeginDraw(Engine& engine)
 	SetParam(_params[reflectivity], 0.4f);
 
 	if (GetReflTex())
-		SetTexParam(_params[reflTex], GetReflTex()->GetTex());	
+		SetTexParam(_params[reflTex], GetReflTex()->GetTex());
 }
 
 graph::Tex2DResource* PlanarReflMappShader::GetReflTex()

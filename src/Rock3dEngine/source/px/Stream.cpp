@@ -105,9 +105,6 @@ NxStream& UserStream::storeBuffer(const void* buffer, NxU32 size)
 	return *this;
 	}
 
-
-
-
 MemoryWriteBuffer::MemoryWriteBuffer() : currentSize(0), maxSize(0), data(NULL)
 	{
 	}
@@ -169,7 +166,6 @@ NxStream& MemoryWriteBuffer::storeBuffer(const void* buffer, NxU32 size)
 	return *this;
 	}
 
-
 MemoryReadBuffer::MemoryReadBuffer(const NxU8* data) : buffer(data)
 	{
 	}
@@ -221,6 +217,6 @@ double MemoryReadBuffer::readDouble() const
 
 void MemoryReadBuffer::readBuffer(void* dest, NxU32 size) const
 	{
-	memcpy(dest, buffer, size); 
-	buffer += size; 
+	memcpy(dest, buffer, size);
+	buffer += size;
 	}

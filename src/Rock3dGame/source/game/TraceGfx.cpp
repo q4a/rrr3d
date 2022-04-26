@@ -13,7 +13,7 @@ TraceGfx::TraceGfx(Trace* trace): _trace(trace), _selPoint(0), _selPath(0), _sel
 	LSL_ASSERT(_trace);
 
 	_trace->AddRef();
-	
+
 	{
 		_libMat = new graph::LibMaterial();
 		graph::Material& mat = _libMat->material;
@@ -26,7 +26,7 @@ TraceGfx::TraceGfx(Trace* trace): _trace(trace), _selPoint(0), _selPath(0), _sel
 		mat.SetOption(graph::Material::moIgnoreFog, true);
 	}
 
-	_wayPnt = new graph::Box();	
+	_wayPnt = new graph::Box();
 	_wayPnt->material.Set(_libMat);
 
 	_sprite = new graph::Sprite();
@@ -62,7 +62,7 @@ void TraceGfx::DrawNodes(graph::Engine& engine, D3DXVECTOR3* vBuf, unsigned triC
 
 	engine.GetContext().RestoreRenderState(graph::rsCullMode);
 	engine.EndDraw(false);
-	
+
 	_libMat->UnApply(engine);
 }
 
@@ -74,8 +74,8 @@ void TraceGfx::DoRender(graph::Engine& engine)
 		_libMat->material.SetDiffuse(*iter == _selPoint ? clrGreen : clrRed);
 
 		_wayPnt->SetPos((*iter)->GetPos());
-		_wayPnt->SetScale((*iter)->GetSize());			
-		_wayPnt->Render(engine);		
+		_wayPnt->SetScale((*iter)->GetSize());
+		_wayPnt->Render(engine);
 	}
 
 	//Отрисовка связей между путями
@@ -83,7 +83,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 	D3DXVECTOR3 upVec = engine.GetContext().GetCamera().GetDesc().dir;
 	float iPath = 0.0f;
 	float pathCnt = static_cast<float>(_trace->GetPathes().size());
-	
+
 	for (Trace::Pathes::const_iterator iter = _trace->GetPathes().begin(); iter != _trace->GetPathes().end(); ++iter, ++iPath)
 	{
 		WayPath* path = *iter;
@@ -108,7 +108,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 		D3DXVECTOR3 pos1 = _pointLink->GetPoint()->GetPos();
 		D3DXVECTOR3 pos2 = _pointLink->GetPos();
 		D3DXVECTOR3 dir = pos1 - pos2;
-		D3DXVECTOR2 sizes(D3DXVec3Length(&dir), _pointLink->GetPoint()->GetSize());
+		glm::vec2 sizes(D3DXVec3Length(&dir), _pointLink->GetPoint()->GetSize());
 		D3DXVec3Normalize(&dir, &dir);
 
 		_sprite->SetPos((pos1 + pos2) / 2.0f);

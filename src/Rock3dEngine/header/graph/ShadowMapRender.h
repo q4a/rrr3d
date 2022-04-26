@@ -17,15 +17,15 @@ class ShadowMapShader: public Shader
 protected:
 	virtual void DoBeginDraw(Engine& engine);
 public:
-	D3DXMATRIX mTexScale;
-	D3DXMATRIX shadowViewProj;
+	glm::mat4 mTexScale;
+	glm::mat4 shadowViewProj;
 };
 
 //Выисление карты освещенности, которая представляет собой проекционную текстуру на текстуру сцены. Т.е. накладывается постпроцессом. Содержит в себе степень освещенности (тени прикрытые диффузом) в помежутке 0..1.
 class ShadowMapRender: public GraphObjRender<Tex2DResource>
 {
 private:
-	typedef GraphObjRender<Tex2DResource> _MyBase;	
+	typedef GraphObjRender<Tex2DResource> _MyBase;
 public:
 	static const unsigned cShadowMapSize;
 
@@ -41,7 +41,7 @@ private:
 
 	std::vector<float> _splitDistances;
 	std::vector<float> _lightDist;
-	std::vector<D3DXMATRIX> _splitLightProjMat;
+	std::vector<glm::mat4> _splitLightProjMat;
 
 	//
 	RtFlags _beginFlags;
@@ -70,11 +70,11 @@ public:
 	//Рендер объектов которые создают тень
 	void BeginShadowCaster(Engine& engine);
 	bool EndShadowCaster(Engine& engine, bool nextPass);
-	
+
 	//Рендер объектов которые принимают тень
 	//Начало прохода
 	void BeginShadowMapp(Engine& engine);
-	bool EndShadowMapp(Engine& engine, bool nextPass);	
+	bool EndShadowMapp(Engine& engine, bool nextPass);
 
 	//Начать рендер эффекта
 	virtual void BeginRT(Engine& engine, const RtFlags& flags);

@@ -29,7 +29,7 @@ public:
 
 	game::World* GetWorld();
 	IDataBase* GetDB();
-	IMap* GetMap();	
+	IMap* GetMap();
 	ISceneControl* GetScControl();
 };
 

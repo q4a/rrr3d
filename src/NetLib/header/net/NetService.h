@@ -20,11 +20,11 @@ private:
 
 	static const unsigned cBufTickCount = 5;
 private:
-	INetServiceUser* _user;	
+	INetServiceUser* _user;
 	INetAcceptorImpl* _netAcceptorImpl;
 	bool _netAcceptorImplCreated;
 
-	bool _init;	
+	bool _init;
 	unsigned _time;
 	unsigned _lastSyncTime;
 	unsigned _syncRate;
@@ -62,7 +62,7 @@ private:
 	void SendPing();
 
 	io_service& ioService();
-	
+
 	virtual bool OnConnected(INetConnection* sender);
 	virtual bool OnDisconnected(INetConnection* sender);
 	virtual bool OnConnectionFailed(INetConnection* sender, unsigned error);
@@ -81,7 +81,7 @@ public:
 	bool IsInit() const;
 
 	void StartServer(unsigned port, INetAcceptorImpl* acceptor);
-	bool Connect(const Endpoint& endpoint, INetAcceptorImpl* acceptor);	
+	bool Connect(const Endpoint& endpoint, INetAcceptorImpl* acceptor);
 	void Close();
 	bool IsClosed() const;
 

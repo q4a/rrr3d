@@ -24,11 +24,11 @@ struct MouseClick
 	MouseKey key;
 	KeyState state;
 	bool shift1;
-	
+
 	//локальные координаты
-	D3DXVECTOR2 coord;
+	glm::vec2 coord;
 	//мировые координаты
-	D3DXVECTOR2 worldCoord;
+	glm::vec2 worldCoord;
 };
 
 struct MouseMove
@@ -37,13 +37,13 @@ struct MouseMove
 
 	bool shift1;
 	//локальные координаты
-	D3DXVECTOR2 coord;
+	glm::vec2 coord;
 	//Разность между текущим и предыдущим значением координаты
-	D3DXVECTOR2 dtCoord;
+	glm::vec2 dtCoord;
 	//Разность между текущим значением координаты и координатой при клике
-	D3DXVECTOR2 offCoord;
+	glm::vec2 offCoord;
 	//мировые координаты
-	D3DXVECTOR2 worldCoord;
+	glm::vec2 worldCoord;
 
 	//Состояние последнего клика мыши
 	MouseClick click;
@@ -58,13 +58,13 @@ private:
 	D3DXCOLOR _color;
 	Blending _blending;
 	AlphaTest _alphaTest;
-	
+
 	graph::Sampler2d _sampler;
 public:
 	Material();
 
-	D3DXVECTOR2 GetImageSize();
-	
+	glm::vec2 GetImageSize();
+
 	const D3DXCOLOR& GetColor() const;
 	void SetColor(const D3DXCOLOR& value);
 
@@ -86,8 +86,8 @@ class Graphic: public Object
 	friend Context;
 private:
 	Context* _context;
-	D3DXVECTOR2 _pos;
-	D3DXVECTOR2 _size;
+	glm::vec2 _pos;
+	glm::vec2 _size;
 	bool _active;
 	float _alpha;
 
@@ -103,11 +103,11 @@ public:
 
 	Context& GetContext();
 
-	const D3DXVECTOR2& GetPos() const;
-	void SetPos(const D3DXVECTOR2& value);
+	const glm::vec2& GetPos() const;
+	void SetPos(const glm::vec2& value);
 	//
-	const D3DXVECTOR2& GetSize() const;
-	void SetSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSize() const;
+	void SetSize(const glm::vec2& value);
 
 	//Без материала Graphic не рисуется
 	Material* GetOrCreateMaterial();
@@ -151,7 +151,7 @@ private:
 	AABB2 _textAABB;
 	bool _textAABBChanged;
 
-	void BuildTextAABB();	
+	void BuildTextAABB();
 protected:
 	BaseText(Context* context);
 	virtual ~BaseText();
@@ -196,7 +196,7 @@ private:
 	std::string _text;
 protected:
 	Text(Context* context);
-	
+
 	virtual void DrawText(AABB2* aabb);
 public:
 	const std::string& GetText() const;
@@ -211,7 +211,7 @@ private:
 	std::wstring _text;
 protected:
 	TextW(Context* context);
-	
+
 	virtual void DrawText(AABB2* aabb);
 public:
 	const std::wstring& GetText() const;
@@ -230,7 +230,7 @@ private:
 	bool _active;
 
 	D3DXVECTOR3 _pos;
-	D3DXQUATERNION _rot;
+	glm::quat _rot;
 	D3DXVECTOR3 _scale;
 
 	Material* _material;
@@ -257,14 +257,14 @@ public:
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
 
-	D3DXQUATERNION GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	glm::quat GetRot() const;
+	void SetRot(const glm::quat& value);
 
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(const D3DXVECTOR3& value);
 
-	D3DXMATRIX GetMat();
-	D3DXMATRIX GetWorldMat();
+	glm::mat4 GetMat();
+	glm::mat4 GetWorldMat();
 	AABB GetChildAABB();
 	AABB GetLocalAABB(bool includeChild);
 	AABB GetWorldAABB(bool includeChild);
@@ -345,16 +345,16 @@ class Plane3d: public Graphic3d
 	friend Context;
 	typedef Graphic3d _MyBase;
 private:
-	D3DXVECTOR2 _size;
+	glm::vec2 _size;
 protected:
 	Plane3d(Context* context);
-	
+
 	virtual AABB LocalAABB() const;
 public:
 	virtual void Draw();
 
-	const D3DXVECTOR2& GetSize();
-	void SetSize(const D3DXVECTOR2 value);
+	const glm::vec2& GetSize();
+	void SetSize(const glm::vec2 value);
 };
 
 class View3d: public Graphic
@@ -391,7 +391,7 @@ private:
 
 	graph::CameraCI _camera;
 	bool _invertY;
-	D3DXVECTOR2 _vpSize;
+	glm::vec2 _vpSize;
 
 	void InsertGraphic(Graphic* value);
 	void RemoveGraphic(Graphic* value);
@@ -400,19 +400,19 @@ private:
 	void InsertGraphic3d(Graphic3d* value);
 	void RemoveGraphic3d(Graphic3d* value);
 	void DeleteAllGraphics3d();
-	
+
 	void ApplyMaterial(Material& material, float alpha);
 	void UnApplyMaterial(Material& material);
 
 	void BeginDrawGraphic(Graphic& graphic);
 	void EndDrawGraphic(Graphic& graphic);
 
-	void DrawGraphic3d(Graphic3d* graphic, const D3DXMATRIX& worldMat);
+	void DrawGraphic3d(Graphic3d* graphic, const glm::mat4& worldMat);
 	template<class _Text> void DrawBaseText(_Text& text, AABB2* aabb);
 
 	graph::Engine& GetEngine();
 	graph::RenderDriver& GetDriver();
-	graph::ContextInfo& GetCI();	
+	graph::ContextInfo& GetCI();
 public:
 	Context(graph::Engine* engine);
 	virtual ~Context();
@@ -420,7 +420,7 @@ public:
 	void BeginDraw();
 	void EndDraw();
 
-	void SetTransform(const D3DXMATRIX& value);
+	void SetTransform(const glm::mat4& value);
 
 	void DrawPlane(Plane& plane);
 	void DrawText(Text& text, AABB2* aabb = 0);
@@ -445,15 +445,15 @@ public:
 	bool GetInvertY() const;
 	void SetInvertY(bool value);
 
-	const D3DXVECTOR2& GetVPSize();
-	void SetVPSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetVPSize();
+	void SetVPSize(const glm::vec2& value);
 };
 
 //элемент управления включающий контейнер Graphic, обработку событий, ввода, связь родитель-потомок
 class Widget: public Object, protected graph::IProgressUser
 {
 	friend Manager;
-protected:	
+protected:
 	enum MatrixChange {mcLocal = 0, mcWorld, mcInvLocal, mcInvWorld, cMatrixChangeEnd};
 	typedef lsl::Bitset<cMatrixChangeEnd> MatrixChanges;
 
@@ -461,11 +461,11 @@ protected:
 	typedef lsl::Bitset<cAABBChangeEnd> AABBChanges;
 
 	enum StructChange {scLocal = 0, scWorld, scChild};
-public:	
+public:
 	typedef lsl::List<Graphic*> Graphics;
-	typedef lsl::List<Widget*> Children;	
+	typedef lsl::List<Widget*> Children;
 
-	enum Flag 
+	enum Flag
 	{
 		//Всегда перехватывать сообщения от мыши если они зоне охвата. Установлен по умлочанию
 		wfCathMouseMessages = 0,
@@ -487,7 +487,7 @@ public:
 	};
 	typedef lsl::Bitset<cFlagEnd> Flags;
 
-	enum Anchor {waNone, waCenter, waLeft, waRight, waTop, waBottom, waLeftTop, waLeftBottom, waRightTop, waRightBottom};	
+	enum Anchor {waNone, waCenter, waLeft, waRight, waTop, waBottom, waLeftTop, waLeftBottom, waRightTop, waRightBottom};
 public:
 	class Event: public lsl::ObjReference
 	{
@@ -510,7 +510,7 @@ public:
 		virtual bool OnMouseDown(Widget* sender, const MouseClick& mClick) {return false;}
 		virtual bool OnMouseMove(Widget* sender, const MouseMove& mMove) {return false;}
 	};
-	
+
 	typedef lsl::Container<Event*> EventList;
 private:
 	Manager* _manager;
@@ -530,18 +530,18 @@ private:
 
 	Anchor _anchor;
 	Anchor _align;
-	mutable D3DXVECTOR2 _anchorVP;
-	mutable D3DXVECTOR2 _pos;
-	D3DXVECTOR2 _scale;
-	float _rot;	
+	mutable glm::vec2 _anchorVP;
+	mutable glm::vec2 _pos;
+	glm::vec2 _scale;
+	float _rot;
 
 	bool _coord3d;
 	D3DXVECTOR3 _pos3d;
 
-	mutable D3DXMATRIX _matrix[cMatrixChangeEnd];
+	mutable glm::mat4 _matrix[cMatrixChangeEnd];
 	mutable MatrixChanges _matrixChanges;
-	
-	D3DXVECTOR2 _size;
+
+	glm::vec2 _size;
 	mutable AABB2 _localAABB;
 	mutable AABB2 _worldAABB;
 	mutable AABB2 _childAABB;
@@ -549,7 +549,7 @@ private:
 	mutable AABB2 _worldChildAABB;
 	mutable AABBChanges _aabbChanges;
 
-	mutable int _alignChanged;	
+	mutable int _alignChanged;
 	bool _isMouseDown;
 	bool _isMouseOver;
 	bool _isMouseEnter;
@@ -568,7 +568,7 @@ private:
 	void AABBChanged(StructChange change = scLocal);
 
 	bool ApplyMouseEnter(bool wasReset);
-	
+
 	//выравнивание
 	//условия выравнивания: локальные координаты, локальный AABB, родительский AABB
 	//корректировка только локальных координат согласно выравниванию
@@ -576,7 +576,7 @@ private:
 	//условия для выравнивания изменились
 	void AlignChanged();
 	//
-	bool IsAligned() const;	
+	bool IsAligned() const;
 protected:
 	//Уведомления об изменениях
 	//Локальные координаты
@@ -599,10 +599,10 @@ protected:
 
 	//временной прогресс, для анимации
 	virtual void OnProgress(float deltaTime) {}
-	
+
 	//События от менеджера
 	//return true если событие обрабатывается
-	//перемещение мыши, 
+	//перемещение мыши,
 	virtual bool OnMouseDown(const MouseClick& mClick);
 	virtual bool OnMouseMove(const MouseMove& mMove);
 
@@ -627,11 +627,11 @@ public:
 	void ClearGraphics();
 	void DeleteAllGraphics();
 
-	D3DXVECTOR2 LocalToWorldCoord(const D3DXVECTOR2& value) const;
-	D3DXVECTOR2 WorldToLocalCoord(const D3DXVECTOR2& value) const;
+	glm::vec2 LocalToWorldCoord(const glm::vec2& value) const;
+	glm::vec2 WorldToLocalCoord(const glm::vec2& value) const;
 	//
-	D3DXVECTOR2 LocalToWorldNorm(const D3DXVECTOR2& value) const;
-	D3DXVECTOR2 WorldToLocalNorm(const D3DXVECTOR2& value) const;
+	glm::vec2 LocalToWorldNorm(const glm::vec2& value) const;
+	glm::vec2 WorldToLocalNorm(const glm::vec2& value) const;
 
 	Manager& GetManager();
 	Context& GetContext();
@@ -647,7 +647,7 @@ public:
 
 	void ShowModal(bool show);
 	bool modal() const;
-	
+
 	void RegEvent(Event* value);
 	void UnregEvent(Event* value);
 	void SetEvent(Event* value);
@@ -682,14 +682,14 @@ public:
 	bool GetEnabled() const;
 	void SetEnabled(bool value);
 
-	D3DXVECTOR2 GetAlignPos() const;
+	glm::vec2 GetAlignPos() const;
 
-	const D3DXVECTOR2& GetPos() const;
-	void SetPos(const D3DXVECTOR2& value);
+	const glm::vec2& GetPos() const;
+	void SetPos(const glm::vec2& value);
 	void SetPos(float x, float y);
 
-	const D3DXVECTOR2& GetScale() const;
-	void SetScale(const D3DXVECTOR2& value);
+	const glm::vec2& GetScale() const;
+	void SetScale(const glm::vec2& value);
 	void SetScale(float x, float y);
 
 	float GetRot() const;
@@ -701,17 +701,17 @@ public:
 	const D3DXVECTOR3& GetPos3d() const;
 	void SetPos3d(const D3DXVECTOR3& value);
 
-	D3DXVECTOR2 GetWorldPos() const;
-	void SetWorldPos(const D3DXVECTOR2& value);
+	glm::vec2 GetWorldPos() const;
+	void SetWorldPos(const glm::vec2& value);
 
-	const D3DXMATRIX& GetMat() const;
-	const D3DXMATRIX& GetWorldMat() const;
-	const D3DXMATRIX& GetInvMat() const;
-	const D3DXMATRIX& GetInvWorldMat() const;
+	const glm::mat4& GetMat() const;
+	const glm::mat4& GetWorldMat() const;
+	const glm::mat4& GetInvMat() const;
+	const glm::mat4& GetInvWorldMat() const;
 
 	//размер относительно центра localAABB
-	const D3DXVECTOR2& GetSize() const;
-	void SetSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSize() const;
+	void SetSize(const glm::vec2& value);
 	void SetSize(float szX, float szY);
 
 	const AABB2& GetLocalAABB(bool includeChild) const;
@@ -725,7 +725,7 @@ public:
 	Object* GetData();
 	void SetData(Object* value);
 
-	static D3DXVECTOR2 GetAlignPos(const D3DXVECTOR2& size, Anchor align);
+	static glm::vec2 GetAlignPos(const glm::vec2& size, Anchor align);
 };
 
 class Dummy: public Widget
@@ -780,7 +780,7 @@ private:
 
 	BaseText* _baseText;
 	Text* _text;
-	TextW* _textW;	
+	TextW* _textW;
 
 	void CreateText();
 	void CreateTextW();
@@ -790,7 +790,7 @@ protected:
 	Label(Manager* manager);
 	virtual ~Label();
 
-	virtual void StructureChanged(StructChange change = scLocal);	
+	virtual void StructureChanged(StructChange change = scLocal);
 public:
 	AABB2 GetTextAABB();
 	void AdjustSizeByText();
@@ -827,7 +827,7 @@ public:
 	enum Style {bsSimple, bsSelAnim};
 private:
 	Style _style;
-	D3DXVECTOR2 _selSize;
+	glm::vec2 _selSize;
 	bool _selected;
 
 	Plane* _fon;
@@ -851,7 +851,7 @@ private:
 	void UpdateSelection(bool instant);
 protected:
 	Button(Manager* manager);
-	virtual ~Button();	
+	virtual ~Button();
 
 	virtual void StructureChanged(StructChange change = scLocal);
 	virtual void OnProgress(float deltaTime);
@@ -881,8 +881,8 @@ public:
 	const std::string& GetText() const;
 	void SetText(const std::string& value);
 
-	const D3DXVECTOR2& GetSelSize() const;
-	void SetSelSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSelSize() const;
+	void SetSelSize(const glm::vec2& value);
 
 	Style GetStyle() const;
 	void SetStyle(Style value);
@@ -982,7 +982,7 @@ private:
 	Plane* _button;
 	int _selInd;
 	Text* _selItem;
-	
+
 	PlaneFon* _itemsFon;
 	TextItems _textItems;
 
@@ -995,14 +995,14 @@ private:
 	void ShowItems(bool value);
 	void SelectItem(const std::string& item);
 
-	Text* FindSelTextItem(const D3DXVECTOR2& point, bool deselect);
+	Text* FindSelTextItem(const glm::vec2& point, bool deselect);
 protected:
 	DropBox(Manager* manager);
 	virtual ~DropBox();
 
 	virtual void StructureChanged(StructChange change = scLocal);
 
-	virtual bool OnClick(const MouseClick& mClick);	
+	virtual bool OnClick(const MouseClick& mClick);
 public:
 	const StringList& GetItems() const;
 	void SetItems(const StringList& value);
@@ -1033,7 +1033,7 @@ private:
 	bool _grag;
 	float _dragOff;
 
-	float ComputeBarPos(const D3DXVECTOR2& point) const;
+	float ComputeBarPos(const glm::vec2& point) const;
 protected:
 	TrackBar(Manager* manager);
 	virtual ~TrackBar();
@@ -1059,7 +1059,7 @@ public:
 private:
 	View3d* _view3d;
 	Style _style;
-	D3DXQUATERNION _rot3dSpeed;
+	glm::quat _rot3dSpeed;
 	bool _setProgress;
 
 	void AnimProgress(float deltaTime);
@@ -1075,8 +1075,8 @@ protected:
 public:
 	Graphic3d* GetBox();
 
-	const D3DXQUATERNION& GetRot3dSpeed() const;
-	void SetRot3dSpeed(const D3DXQUATERNION& value);
+	const glm::quat& GetRot3dSpeed() const;
+	void SetRot3dSpeed(const glm::quat& value);
 
 	Style GetStyle() const;
 	void SetStyle(Style value);
@@ -1112,9 +1112,9 @@ private:
 	Dummy* _clip;
 	Dummy* _box;
 
-	D3DXVECTOR2 _arrowSize;
-	D3DXVECTOR2 _arrowSpace;
-	D3DXVECTOR2 _arrowScrollStep;
+	glm::vec2 _arrowSize;
+	glm::vec2 _arrowSpace;
+	glm::vec2 _arrowScrollStep;
 	Material* _arrowMat;
 	Material* _arrowSelMat;
 	Button* _scrollBut[cScrollDirEnd];
@@ -1138,19 +1138,19 @@ public:
 	bool GetOption(Option option) const;
 	void SetOption(Option option, bool value);
 
-	const D3DXVECTOR2& GetArrowSize() const;
-	void SetArrowSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetArrowSize() const;
+	void SetArrowSize(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetArrowSpace() const;
-	void SetArrowSpace(const D3DXVECTOR2& value);
+	const glm::vec2& GetArrowSpace() const;
+	void SetArrowSpace(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetArrowScrollStep() const;
-	void SetArrowScrollStep(const D3DXVECTOR2& value);
+	const glm::vec2& GetArrowScrollStep() const;
+	void SetArrowScrollStep(const glm::vec2& value);
 
-	D3DXVECTOR2 GetMaxScroll() const;
+	glm::vec2 GetMaxScroll() const;
 
-	D3DXVECTOR2 GetScroll();
-	void SetScroll(const D3DXVECTOR2& value);
+	glm::vec2 GetScroll();
+	void SetScroll(const glm::vec2& value);
 
 	Material& GetArrowMaterial();
 	Material& GetArrowSelMaterial();
@@ -1174,7 +1174,7 @@ public:
 
 		void ApplyFrame();
 		void RemoveFrame();
-	public:		
+	public:
 		ListBox* GetListBox();
 
 		Widget* GetData();
@@ -1198,8 +1198,8 @@ private:
 	Items _items;
 	MyEvent* _event;
 
-	D3DXVECTOR2 _itemSize;
-	D3DXVECTOR2 _itemSpace;	
+	glm::vec2 _itemSize;
+	glm::vec2 _itemSpace;
 	Item* _selItem;
 
 	Plane* _fon;
@@ -1223,21 +1223,21 @@ public:
 	void DelItem(Item* item);
 	void ClearItems();
 
-	Item* PickItem(const D3DXVECTOR2& worldCoord);
-	bool PickItems(const D3DXVECTOR2& worldCoord);
+	Item* PickItem(const glm::vec2& worldCoord);
+	bool PickItems(const glm::vec2& worldCoord);
 	Item* FindItemByData(Widget* data);
 
 	Item* GetSelItem();
 	void SelectItem(Item* item);
-	void AlignSizeByItems(const D3DXVECTOR2& size);
+	void AlignSizeByItems(const glm::vec2& size);
 
 	const Items& GetItems() const;
 
-	const D3DXVECTOR2& GetItemSize() const;
-	void SetItemSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetItemSize() const;
+	void SetItemSize(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetItemSpace() const;
-	void SetItemSpace(const D3DXVECTOR2& value);
+	const glm::vec2& GetItemSpace() const;
+	void SetItemSpace(const glm::vec2& value);
 
 	Material& GetOrCreateFon();
 	void FreeFon();
@@ -1248,16 +1248,16 @@ public:
 	Material& GetArrowMaterial();
 	Material& GetArrowSelMaterial();
 
-	const D3DXVECTOR2& GetArrowSize() const;
-	void SetArrowSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetArrowSize() const;
+	void SetArrowSize(const glm::vec2& value);
 
-	D3DXVECTOR2 GetScroll() const;
-	void SetScroll(const D3DXVECTOR2& value);
+	glm::vec2 GetScroll() const;
+	void SetScroll(const glm::vec2& value);
 
-	D3DXVECTOR2 GetMaxScroll() const;
+	glm::vec2 GetMaxScroll() const;
 
-	D3DXVECTOR2 GetItemPlaceSize() const;
-	D3DXVECTOR2 GetScrollSpace() const;
+	glm::vec2 GetItemPlaceSize() const;
+	glm::vec2 GetScrollSpace() const;
 };
 
 class ProgressBar: public Widget
@@ -1349,7 +1349,7 @@ private:
 	Button* _up;
 	StreakBar* _bar;
 
-	D3DXVECTOR2 _space;
+	glm::vec2 _space;
 
 	void AdjustLayout();
 protected:
@@ -1365,8 +1365,8 @@ public:
 
 	Button* GetUpButton();
 
-	const D3DXVECTOR2& GetSpace() const;
-	void SetSpace(const D3DXVECTOR2& value);
+	const glm::vec2& GetSpace() const;
+	void SetSpace(const glm::vec2& value);
 
 	unsigned GetChargeMax();
 	void SetChargeMax(unsigned value);
@@ -1388,7 +1388,7 @@ private:
 
 		virtual bool OnClick(Widget* sender, const MouseClick& mClick);
 	};
-private:	
+private:
 	float _volume;
 	int _stepCount;
 	ChildEvent* _childEvent;
@@ -1451,7 +1451,7 @@ private:
 	D3DXCOLOR _color;
 	bool _select;
 
-	D3DXVECTOR2 WinToLocal(const D3DXVECTOR2& vec) const;
+	glm::vec2 WinToLocal(const glm::vec2& vec) const;
 
 	void ApplyColor();
 	void ApplySelect();
@@ -1467,14 +1467,14 @@ public:
 
 	Material& GetBox();
 	Material& GetCheck();
-	
+
 	const D3DXCOLOR& GetColor() const;
 	void SetColor(const D3DXCOLOR& value);
 
 	bool GetSelect() const;
 	void SetSelect(bool value);
 
-	D3DXVECTOR2 GetColorBoxSize() const;
+	glm::vec2 GetColorBoxSize() const;
 	AABB2 GetBoxAABB() const;
 	AABB2 GetCheckAABB() const;
 };
@@ -1496,7 +1496,7 @@ private:
 		bool operator!=(const MyCol& val) const {return box != val.box;}
 
 		ColorBox* box;
-	};	
+	};
 public:
 	typedef lsl::List<MyCol> Colors;
 
@@ -1513,7 +1513,7 @@ private:
 	MyEvent* _myEvent;
 	Colors _colors;
 	MyCol _select;
-	D3DXVECTOR2 _space;
+	glm::vec2 _space;
 
 	Material* _frame;
 	Material* _box;
@@ -1542,8 +1542,8 @@ public:
 
 	const Colors& GetColors() const;
 
-	const D3DXVECTOR2& GetSpace() const;
-	void SetSpace(const D3DXVECTOR2& value);
+	const glm::vec2& GetSpace() const;
+	void SetSpace(const glm::vec2& value);
 };
 
 class Grid: public Widget
@@ -1554,7 +1554,7 @@ public:
 	enum Style {gsHorizontal, gsVertical};
 private:
 	Style _style;
-	D3DXVECTOR2 _cellSize;
+	glm::vec2 _cellSize;
 	int _maxCellsOnLine;
 	bool _hideInvisible;
 protected:
@@ -1566,8 +1566,8 @@ public:
 	Style style() const;
 	void style(Style value);
 
-	D3DXVECTOR2 cellSize() const;
-	void cellSize(const D3DXVECTOR2& value);
+	glm::vec2 cellSize() const;
+	void cellSize(const glm::vec2& value);
 
 	int maxCellsOnLine() const;
 	void maxCellsOnLine(int value);
@@ -1591,14 +1591,14 @@ private:
 	WidgetList _widgetList;
 	Widgets _topmostWidgets;
 	Widgets _modalWidgets;
-	Dummy* _root;	
+	Dummy* _root;
 
 	MouseClick _mClick;
 	MouseMove _mMove;
 	Widget* _clipWidget;
 
 	bool _safeMode;
-	WidgetList _safeList;	
+	WidgetList _safeList;
 
 	void BeginSafeMode();
 	void EndSafeMode();
@@ -1628,8 +1628,8 @@ public:
 	graph::Camera* GetCamera3d();
 	void SetCamera3d(graph::Camera* value);
 
-	D3DXVECTOR2 ScreenToView(const Point& point);
-	D3DXVECTOR2 WorldToView( const D3DXVECTOR3& coord);
+	glm::vec2 ScreenToView(const Point& point);
+	glm::vec2 WorldToView( const D3DXVECTOR3& coord);
 
 	MouseClick GetMouseClick(Widget* widget) const;
 	MouseMove GetMouseMove(Widget* widget) const;
@@ -1661,8 +1661,8 @@ public:
 	Context& GetContext();
 	Dummy* GetRoot();
 
-	D3DXVECTOR2 GetVPSize();
-	D3DXVECTOR2 GetMousePos();
+	glm::vec2 GetVPSize();
+	glm::vec2 GetMousePos();
 };
 
 }

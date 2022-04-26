@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <tchar.h>
 
+#include "MathCommon.h"
 #include "lslCommon.h"
 #include "lslUtility.h"
 #include "lslException.h"
@@ -153,8 +154,8 @@ unsigned Read(std::istream& stream, double& value);
 unsigned Write(std::ostream& stream, bool value);
 unsigned Read(std::istream& stream, bool& value);
 
-unsigned Write(std::ostream& stream, const D3DXVECTOR2& value);
-unsigned Read(std::istream& stream, D3DXVECTOR2& value);
+unsigned Write(std::ostream& stream, const glm::vec2& value);
+unsigned Read(std::istream& stream, glm::vec2& value);
 
 unsigned Write(std::ostream& stream, const D3DXVECTOR3& value);
 unsigned Read(std::istream& stream, D3DXVECTOR3& value);
@@ -162,23 +163,20 @@ unsigned Read(std::istream& stream, D3DXVECTOR3& value);
 unsigned Write(std::ostream& stream, const D3DXVECTOR4& value);
 unsigned Read(std::istream& stream, D3DXVECTOR4& value);
 
-unsigned Write(std::ostream& stream, const D3DXQUATERNION& value);
-unsigned Read(std::istream& stream, D3DXQUATERNION& value);
+unsigned Write(std::ostream& stream, const glm::quat& value);
+unsigned Read(std::istream& stream, glm::quat& value);
 
 unsigned Write(std::ostream& stream, const D3DXCOLOR& value);
 unsigned Read(std::istream& stream, D3DXCOLOR& value);
 
-unsigned Write(std::ostream& stream, const D3DXMATRIX& value);
-unsigned Read(std::istream& stream, D3DXMATRIX& value);
+unsigned Write(std::ostream& stream, const glm::mat4& value);
+unsigned Read(std::istream& stream, glm::mat4& value);
 
 template<class _T> unsigned Write(std::ostream& stream, const std::basic_string<_T>& value, unsigned size);
 template<class _T> unsigned Read(std::istream& stream, std::basic_string<_T>& value, unsigned size);
 
 template<class _T> unsigned Write(std::ostream& stream, const std::basic_string<_T>& value);
 template<class _T> unsigned Read(std::istream& stream, std::basic_string<_T>& value);
-
-
-
 
 inline unsigned Write(std::ostream& stream, const void* data, unsigned size)
 {
@@ -276,13 +274,13 @@ inline unsigned Read(std::istream& stream, bool& value)
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXVECTOR2& value)
+inline unsigned Write(std::ostream& stream, const glm::vec2& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXVECTOR2& value)
+inline unsigned Read(std::istream& stream, glm::vec2& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);
@@ -312,13 +310,13 @@ inline unsigned Read(std::istream& stream, D3DXVECTOR4& value)
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXQUATERNION& value)
+inline unsigned Write(std::ostream& stream, const glm::quat& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXQUATERNION& value)
+inline unsigned Read(std::istream& stream, glm::quat& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);
@@ -336,13 +334,13 @@ inline unsigned Read(std::istream& stream, D3DXCOLOR& value)
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXMATRIX& value)
+inline unsigned Write(std::ostream& stream, const glm::mat4& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXMATRIX& value)
+inline unsigned Read(std::istream& stream, glm::mat4& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);

@@ -25,9 +25,6 @@ public:
 	unsigned maxSize() const { return _inst.max_size(); }
 };
 
-
-
-
 NetService::NetService(): _init(false), _ioService(0), _netChannel(NULL), _netServer(NULL), _netClient(NULL), _time(0), _syncRate(70), _lastSyncTime(0), _pingPort(0), _pingTime(0), _pingSendPeriod(0), _bufConnectionTick(0), _bufChannelTick(0), _user(NULL), _netAcceptorImpl(NULL), _netAcceptorImplCreated(false)
 {
 }
@@ -114,7 +111,7 @@ NetChannel* NetService::NewChannel(INetChannelUser* user)
 {
 	if (_channels.size() > 0 && _bufChannelTick > cBufTickCount)
 	{
-		NetChannel* channel = _channels.front();		
+		NetChannel* channel = _channels.front();
 		channel->user(user);
 		_channels.pop_front();
 		_bufChannelTick = 0;
@@ -151,7 +148,7 @@ void NetService::SendPing()
 	header.id = NetPlayer::cPing;
 	header.sender = cLocalPlayer;
 	header.size = 0;
-	
+
 	_netChannel->SendState(Endpoint(ip::address_v4::broadcast().to_ulong(), _pingPort), header, streambuf::const_buffers_type(NULL, 0));
 }
 
@@ -199,11 +196,11 @@ void NetService::OnReceiveCmd(const NetMessage& msg, const NetCmdHeader& header,
 void NetService::OnReceiveState(const NetMessage& msg, const NetStateHeader& header, const streambuf::const_buffers_type& bufs, const Endpoint& remoteEndpoint)
 {
 	//LSL_TRACE(lsl::StrFmt("NetService::OnReceiveState id=%d target=%d size=%d", header.id, header.target, header.size));
-	
+
 	if (header.id == NetPlayer::cPing)
 	{
 		tcp::endpoint tcpEndpoint;
-		GetEndpointTCP(remoteEndpoint, tcpEndpoint);		
+		GetEndpointTCP(remoteEndpoint, tcpEndpoint);
 
 		LSL_TRACE(lsl::StrFmt("NetService::OnReceiveState=cPing sender=%d address=%s port=%d", header.sender, tcpEndpoint.address().to_string().c_str(), tcpEndpoint.port()));
 
@@ -213,7 +210,7 @@ void NetService::OnReceiveState(const NetMessage& msg, const NetStateHeader& hea
 			header.id = NetPlayer::cPing;
 			header.sender = cServerPlayer;
 			header.size = 0;
-	
+
 			_netChannel->SendState(remoteEndpoint, header, streambuf::const_buffers_type(NULL, 0));
 		}
 		else if (header.sender == cServerPlayer)
@@ -245,7 +242,7 @@ void NetService::OnIOFailed(const error_code& error)
 
 void NetService::Process(unsigned time)
 {
-	_time = time;	
+	_time = time;
 
 	//receive async events (may immediately dispatched or collected depends from current async model)
 	error_code error;
@@ -264,7 +261,7 @@ void NetService::Process(unsigned time)
 	if (_netClient)
 		_netClient->Dispatch();
 	if (_netServer)
-		_netServer->Dispatch();	
+		_netServer->Dispatch();
 
 	NetPlayer* player = this->player();
 	if (player)
@@ -291,7 +288,7 @@ void NetService::Process(unsigned time)
 
 			if (_time - _pingStartTime > _pingTime)
 			{
-				CancelPing();				
+				CancelPing();
 				if (_user)
 					_user->OnPingComplete();
 			}
@@ -334,7 +331,7 @@ void NetService::StartServer(unsigned port, INetAcceptorImpl* acceptor)
 	Close();
 
 	protocolImpl(acceptor);
-	
+
 	_netServer = new NetServer(this);
 	_netServer->Start(port);
 }
@@ -377,7 +374,7 @@ void NetService::Ping(unsigned remotePort, unsigned time, unsigned sendPeriod)
 	_pingStartTime = _time;
 
 	_netChannel->StartReceiveResponseOut();
-	SendPing();	
+	SendPing();
 }
 
 void NetService::CancelPing()
@@ -523,38 +520,38 @@ bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
 	const unsigned WORKING_BUFFER_SIZE = 15000;
 	const unsigned MAX_TRIES = 3;
 
-	IP_ADAPTER_ADDRESSES* addresses = NULL;		
-    unsigned long outBufLen = WORKING_BUFFER_SIZE;
+	IP_ADAPTER_ADDRESSES* addresses = NULL;
+	unsigned long outBufLen = WORKING_BUFFER_SIZE;
 	unsigned dwRetVal = 0;
 	unsigned Iterations = 0;
 
 	// Allocate a 15 KB buffer to start with.
-    do
+	do
 	{
-        addresses = (IP_ADAPTER_ADDRESSES *)malloc(outBufLen);
+		addresses = (IP_ADAPTER_ADDRESSES *)malloc(outBufLen);
 
-        if (addresses == NULL) {
+		if (addresses == NULL) {
 			LSL_LOG("Memory allocation failed for IP_ADAPTER_ADDRESSES struct");
 			return false;
-        }
+		}
 
-        dwRetVal = GetAdaptersAddresses(AF_INET, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST, NULL, addresses, &outBufLen);
+		dwRetVal = GetAdaptersAddresses(AF_INET, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST, NULL, addresses, &outBufLen);
 
-        if (dwRetVal == ERROR_BUFFER_OVERFLOW)
+		if (dwRetVal == ERROR_BUFFER_OVERFLOW)
 		{
-            free(addresses);
-            addresses = NULL;
-        }
+			free(addresses);
+			addresses = NULL;
+		}
 		else
-            break;
+			break;
 
-        Iterations++;
+		Iterations++;
 
-    }
+	}
 	while ((dwRetVal == ERROR_BUFFER_OVERFLOW) && (Iterations < MAX_TRIES));
 
 	if (addresses == NULL)
-		return false;	
+		return false;
 
 	IP_ADAPTER_ADDRESSES* address = addresses;
 
@@ -568,7 +565,7 @@ bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
 			{
 				if (uniAddr->Address.iSockaddrLength == sizeof(sockaddr_in))
 				{
-					sockaddr_in* ad = ((sockaddr_in*)uniAddr->Address.lpSockaddr);			
+					sockaddr_in* ad = ((sockaddr_in*)uniAddr->Address.lpSockaddr);
 					addrVec.push_back(inet_ntoa(ad->sin_addr));
 				}
 

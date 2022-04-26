@@ -19,7 +19,7 @@ private:
 		SceneControl* _owner;
 
 		bool _shiftAction;
-		
+
 		bool _clDrag;
 		bool _startDrag;
 		D3DXVECTOR3 _clDragOff;
@@ -31,7 +31,7 @@ private:
 		D3DXVECTOR3 _clStScale;
 		//
 		bool _clRotating;
-		D3DXQUATERNION _clStartRot;		
+		glm::quat _clStartRot;
 	public:
 		Control(SceneControl* owner);
 		void ResetState();
@@ -41,7 +41,7 @@ private:
 	};
 private:
 	Edit* _edit;
-	
+
 	SelMode _selMode;
 	INodeRef _selNode;
 	bool _linkBB;
@@ -51,7 +51,7 @@ private:
 	graph::MovCoordSys* _movCoordSys;
 	graph::ScaleCoordSys* _scaleCoordSys;
 
-	bool ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorld, const D3DXMATRIX& worldToAABB, const D3DXVECTOR3& normOff, INode* ignore, float& outDistOff, const float distLink = 1.0f);
+	bool ComputeAxeLink(const AABB& aabb, const glm::mat4& aabbToWorld, const glm::mat4& worldToAABB, const D3DXVECTOR3& normOff, INode* ignore, float& outDistOff, const float distLink = 1.0f);
 	void ComputeLink(INode* node, const D3DXVECTOR3& pos, D3DXVECTOR3& resPos);
 
 	void CreateGraphActor();

@@ -20,9 +20,9 @@ void ReflRender::BeginRT(Engine& engine, const RtFlags& flags)
 	_MyBase::BeginRT(engine, flags);
 
 	CameraDesc desc = engine.GetContext().GetCamera().GetDesc();
-	D3DXVec3TransformCoord(&desc.pos, &desc.pos, &_reflMat);
-	D3DXVec3TransformNormal(&desc.dir, &desc.dir, &_reflMat);
-	D3DXVec3TransformNormal(&desc.up, &desc.up, &_reflMat);
+	Vec3TransformCoord(desc.pos, _reflMat, desc.pos);
+	Vec3TransformNormal(desc.dir, _reflMat, desc.dir);
+	Vec3TransformNormal(desc.up, _reflMat, desc.up);
 	desc.up = -desc.up;
 	_reflCamera.SetDesc(desc);
 	//reflCamera.AdjustFarPlane(sceneBox, maxFarDist);
@@ -63,7 +63,9 @@ const D3DXPLANE& ReflRender::GetReflPlane() const
 void ReflRender::SetReflPlane(const D3DXPLANE& value)
 {
 	_reflPlane = value;
-	D3DXMatrixReflect(&_reflMat, &_reflPlane);
+	D3DXMATRIX _reflMatDx;
+	D3DXMatrixReflect(&_reflMatDx, &_reflPlane);
+	_reflMat = Matrix4DxToGlm(_reflMatDx); // remove after D3DXPLANE replacement
 }
 
 const ReflRender::ClipPlanes& ReflRender::GetClipPlanes() const
@@ -75,9 +77,6 @@ void ReflRender::SetClipPlanes(const ClipPlanes& value)
 {
 	_clipPlanes = value;
 }
-
-
-
 
 WaterPlane::WaterPlane(): _viewPos(NullVector), _cloudIntens(0.1f)
 {

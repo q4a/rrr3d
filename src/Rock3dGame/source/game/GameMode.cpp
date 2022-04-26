@@ -14,9 +14,6 @@ namespace game
 const char* GameMode::cBusyActionStr[cBusyActionEnd] = {"baSkip", "baQueue", "baReplace"};
 const lsl::string GameMode::cPrefCameraStr[GameMode::cPrefCameraEnd] = {"pcThirdPerson", "pcIsometric"};
 
-
-
-
 GameMode::GameMode(World* world): _world(world), _musicReport(0), _fadeMusic(1.0f), _fadeSpeedMusic(0.0f), _startUpTime(-1), _movieTime(-1), _movieFileName(""), _guiLogo(0), _guiLogo2(NULL), _guiStartup(0), _semaphore(NULL), _startRace(-1), _prepareGame(false), _startGame(false), _goRaceTime(-1), _finishTime(-1), _menu(0), _race(0), _netGame(0), _maxPlayers(6), _maxComputers(5), _upgradeMaxLevel(Garage::cUpgMaxLevel), _weaponMaxLevel(Garage::cWeaponMaxLevel), _springBorders(true), _lapsCount(4), _enableHUD(true), _enableMineBug(true), _disableVideo(false), _prefCamera(pcIsometric), _cameraDistance(1.25f), _discreteVideoChanged(false), _prefCameraAutodetect(false)
 #ifdef STEAM_SERVICE
 	, _steamService(NULL)
@@ -44,7 +41,7 @@ GameMode::GameMode(World* world): _world(world), _musicReport(0), _fadeMusic(1.0
 
 	_world->GetControl()->InsertEvent(this);
 }
-	
+
 GameMode::~GameMode()
 {
 	_world->GetControl()->RemoveEvent(this);
@@ -69,7 +66,7 @@ GameMode::~GameMode()
 #ifdef STEAM_SERVICE
 	lsl::SafeDelete(_steamService);
 #endif
-	lsl::SafeDelete(_race);	
+	lsl::SafeDelete(_race);
 }
 
 GameMode::MusicCat::MusicCat(GameMode* game): _game(game), _pos(0), _pcmTotal(0)
@@ -150,7 +147,7 @@ void GameMode::MusicCat::GenRandom(int ignore)
 			unsigned slotsOffset = slots.size() - slotsCount;
 			unsigned count = std::max(node.playList.size() - 1, 1U);
 			int index = (count * slotsOffset + 2 * (slotsCount - 1) * j) / (2 * count);
-			
+
 			index = slots[index];
 			_playList[index] = node.playList[j];
 			list.push_back(index);
@@ -179,7 +176,7 @@ void GameMode::MusicCat::SaveGame(lsl::SWriter* writer)
 {
 	lsl::SWriter* tracksNode = writer->NewDummyNode("tracks");
 	for (unsigned i = 0; i < _tracks.size(); ++i)
-	{		
+	{
 		lsl::SWriter* track = tracksNode->NewDummyNode(lsl::StrFmt("sound%d", i).c_str());
 		track->WriteRef("item", _tracks[i].sound);
 		track->WriteValue("name", _tracks[i].name);
@@ -243,7 +240,7 @@ void GameMode::MusicCat::AddTrack(const Track& track)
 void GameMode::MusicCat::ClearTracks()
 {
 	_curTrack = Track();
-	_tracks.clear();	
+	_tracks.clear();
 }
 
 const GameMode::Track& GameMode::MusicCat::GetCurTrack() const
@@ -264,7 +261,7 @@ void GameMode::MusicCat::Play(bool showInfo)
 	while (!_playList.empty())
 	{
 		int ind = _playList.back();
-		_playList.pop_back();		
+		_playList.pop_back();
 
 		if (Play(ind, false, showInfo))
 			break;
@@ -336,7 +333,7 @@ GameMode::Commentator::~Commentator()
 
 	_source->Release();
 	_source->UnregReport(this);
-	_game->GetWorld()->GetLogic()->ReleaseSndSource(_source);	
+	_game->GetWorld()->GetLogic()->ReleaseSndSource(_source);
 }
 
 void GameMode::Commentator::Play(const Sounds& sounds, bool replace)
@@ -354,7 +351,7 @@ void GameMode::Commentator::Play(const Sounds& sounds, bool replace)
 		_sounds.insert(_sounds.end(), sounds.begin(), sounds.end());
 		if (!isSpeaking && Next())
 			_timeSilience = 0;
-	}	
+	}
 }
 
 bool GameMode::Commentator::Next()
@@ -425,7 +422,7 @@ void GameMode::Commentator::LoadGame(lsl::SReader* reader)
 	lsl::SReader* comment = comments ? comments->FirstChildValue() : 0;
 	while (comment)
 	{
-		Comment item;		
+		Comment item;
 		comment->ReadValue("chance", item.chance);
 		comment->ReadValue("delay", item.delay);
 		lsl::SReadEnum(comment, "busy", item.busy, cBusyActionStr, cBusyActionEnd);
@@ -627,7 +624,7 @@ const GameMode::Voice* GameMode::Commentator::Generate(const lsl::string& name, 
 {
 	const Comment* comment = FindComment(name);
 	if (comment == 0)
-		return 0;	
+		return 0;
 
 	return Generate(*comment, playerId);
 }
@@ -673,7 +670,7 @@ void GameMode::PrepareGame()
 
 	LSL_LOG("game init race");
 
-	_race = new Race(this, "race");	
+	_race = new Race(this, "race");
 
 	LSL_LOG("game init net");
 
@@ -730,14 +727,14 @@ void GameMode::StartGame()
 		if (weapon)
 			weapon->SetCntCharge(99);
 	}
-	
+
 	_race->GetTournament().SetCurPlanet(_race->GetTournament().GetPlanets()[1]);
 	_race->GetTournament().GetCurPlanet().Unlock();
 	_race->GetTournament().GetCurPlanet().Open();
 	//_race->GetTournament().GetCurPlanet().SetPass(2);
 	_race->GetTournament().SetCurTrack(_race->GetTournament().GetPlanets()[1]->GetTracks()[0]);
 	_race->GetHuman()->GetPlayer()->AddPoints(999999);
-	
+
 	StartRace();
 #endif*/
 }
@@ -766,7 +763,7 @@ void GameMode::FreeIntro()
 
 void GameMode::AdjustGameStartup()
 {
-	D3DXVECTOR2 size = _world->GetGraph()->GetGUI().GetVPSize();
+	glm::vec2 size = _world->GetGraph()->GetGUI().GetVPSize();
 
 	if (_guiLogo)
 	{
@@ -782,7 +779,7 @@ void GameMode::AdjustGameStartup()
 	{
 		_guiStartup->SetSize(Menu::GetImageAspectSize(_guiStartup->GetMaterial(), size));
 		_guiStartup->SetPos(size/2.0f);
-	}	
+	}
 }
 
 void GameMode::SetSemaphore(MapObj* value)
@@ -817,12 +814,12 @@ void GameMode::SaveGameOpt(lsl::SWriter* writer)
 {
 	lsl::SWriter* quality = writer->NewDummyNode("quality");
 	if (quality)
-	{		
+	{
 		quality->WriteValue("filtering", _world->GetEnv()->GetFiltering());
 		quality->WriteValue("msaa", _world->GetEnv()->GetMultisampling());
 		quality->WriteValue("shadow", _world->GetEnv()->GetShadowQuality());
 		quality->WriteValue("environment", _world->GetEnv()->GetEnvQuality());
-		quality->WriteValue("light", _world->GetEnv()->GetLightQuality());	
+		quality->WriteValue("light", _world->GetEnv()->GetLightQuality());
 		quality->WriteValue("postEffect", _world->GetEnv()->GetPostEffQuality());
 		lsl::SWriteEnum(quality, "frameRateMode", _world->GetEnv()->GetSyncFrameRate(), Environment::cSyncFrameRateStr, Environment::cSyncFrameRateEnd);
 	}
@@ -834,7 +831,7 @@ void GameMode::SaveGameOpt(lsl::SWriter* writer)
 	{
 		volume->WriteValue("musicVolume", _world->GetLogic()->GetVolume(Logic::scMusic));
 		volume->WriteValue("effectsVolume", _world->GetLogic()->GetVolume(Logic::scEffects));
-		volume->WriteValue("voiceVolume", _world->GetLogic()->GetVolume(Logic::scVoice));		
+		volume->WriteValue("voiceVolume", _world->GetLogic()->GetVolume(Logic::scVoice));
 	}
 
 	writer->WriteValue("maxPlayers", _maxPlayers);
@@ -892,7 +889,7 @@ void GameMode::LoadGameOpt(lsl::SReader* reader, bool discreteVideoChanges)
 		if (quality->ReadValue("light", intVal))
 			_world->GetEnv()->SetLightQuality(Environment::Quality(intVal));
 		if (quality->ReadValue("postEffect", intVal))
-			_world->GetEnv()->SetPostEffQuality(Environment::Quality(intVal));		
+			_world->GetEnv()->SetPostEffQuality(Environment::Quality(intVal));
 		if (lsl::SReadEnum(quality, "frameRateMode", syncFrameRate, Environment::cSyncFrameRateStr, Environment::cSyncFrameRateEnd))
 			_world->GetEnv()->SetSyncFrameRate(syncFrameRate);
 	}
@@ -1013,20 +1010,20 @@ void GameMode::ResetConfig()
 	_world->GetEnv()->AutodetectQuality();
 	_world->GetLogic()->AutodetectVolume();
 
-	_prefCamera = pcIsometric;	
+	_prefCamera = pcIsometric;
 	_cameraDistance = 1.25f;
 	_discreteVideoChanged = true;
 	_prefCameraAutodetect = true;
 }
 
 void GameMode::SaveGameData(lsl::SWriter* writer)
-{	
+{
 	lsl::SWriter* languages = writer->NewDummyNode("languages");
 
 	for (Languages::const_iterator iter = _languages.begin(); iter != _languages.end(); ++iter)
 	{
 		lsl::SWriter* language = languages->NewDummyNode(iter->name.c_str());
-		language->WriteValue("file", iter->file);		
+		language->WriteValue("file", iter->file);
 		language->WriteValue("locale", iter->locale);
 		lsl::SWriteEnum(language, "charset", iter->charset, cLangCharsetStr, cLangCharsetEnd);
 		language->WriteValue("primId", iter->primId);
@@ -1041,7 +1038,7 @@ void GameMode::SaveGameData(lsl::SWriter* writer)
 	}
 
 	_menuMusic->SaveGame(writer->NewDummyNode("menuMusic"));
-	_gameMusic->SaveGame(writer->NewDummyNode("gameMusic"));	
+	_gameMusic->SaveGame(writer->NewDummyNode("gameMusic"));
 	_commentator->SaveGame(writer->NewDummyNode("commentator"));
 }
 
@@ -1059,7 +1056,7 @@ void GameMode::LoadGameData(lsl::SReader* reader)
 			item.charset = lcDefault;
 
 			item.name = language->GetMyName();
-			language->ReadValue("file", item.file);				
+			language->ReadValue("file", item.file);
 			language->ReadValue("locale", item.locale);
 			lsl::SReadEnum(language, "charset", item.charset, cLangCharsetStr, cLangCharsetEnd);
 			language->ReadValue("primId", item.primId);
@@ -1122,7 +1119,7 @@ void GameMode::ResetGameData()
 	lang.primId = 22;
 	lang.locale = "portuguese";
 	lang.charset = lcEastEurope;
-	_languages.push_back(lang);	
+	_languages.push_back(lang);
 
 	_commentatorStyles.clear();
 	CommentatorStyle commentatorStyle;
@@ -1136,14 +1133,14 @@ void GameMode::ResetGameData()
 	//
 	_commentator->Add(cEventNameMap[cRaceFinish], "Voice\\finish1.ogg", 100, 0, baQueue);
 	_commentator->Add(cEventNameMap[cRaceLastLap], "Voice\\lastLap1.ogg", 100, 0, baQueue);
- 
+
 	_commentator->Add(cEventNameMap[cPlayerOverboard], "Voice\\lowLuck1.ogg", 100, 0, baSkip, true, 33, false, false, true);
 	_commentator->AddVoice(cEventNameMap[cPlayerOverboard], "Voice\\overboard1.ogg", 33, false, false, true);
 	_commentator->AddVoice(cEventNameMap[cPlayerOverboard], "Voice\\playerLostControl1.ogg", 33, true, false, true);
 	//
 	_commentator->Add(cEventNameMap[cPlayerDeathMine], "Voice\\lowLuck1.ogg", 100, 0, baSkip, true, 0, false, false, true);
 	_commentator->Add(cEventNameMap[cPlayerKill], "Voice\\playerKill1.ogg", 100, 0, baSkip, true, 0, false, false, true);
-	
+
 	_commentator->Add(cEventNameMap[cPlayerMoveInverse], "Voice\\playerMoveInverse1.ogg", 100, 0, baQueue, false, 0, true);
 	_commentator->Add(cEventNameMap[cPlayerLostControl], "Voice\\playerLostControl1.ogg", 100, 0, baSkip, true, 0, true);
 	_commentator->Add(cEventNameMap[cPlayerLeadFinish], "Voice\\leaderFinish1.ogg", 100, 0, baQueue, true, 0, true);
@@ -1158,7 +1155,7 @@ void GameMode::ResetGameData()
 	_commentator->Add("svSnake", "Voice\\snake.ogg", 100, 0);
 	_commentator->Add("svTyler", "Voice\\tailer.ogg", 100, 0);
 	_commentator->Add("svTarkvin", "Voice\\tarkvin.ogg", 100, 0);
-	
+
 	_menuMusic->ClearTracks();
 	_menuMusic->AddTrack(Track(GetSound("Music\\Track1.ogg"), "Cold Hard Bitch", "Jet"));
 	_menuMusic->AddTrack(Track(GetSound("Music\\Track14.ogg"), "Angel's wings (acoustic)", "Social Distortion"));
@@ -1201,11 +1198,11 @@ void GameMode::LoadGameData()
 
 		file.LoadNodeFromFile(node, "game.xml");
 
-		node.BeginLoad();	
+		node.BeginLoad();
 		LoadGameData(&node);
 		node.EndLoad();
 	}
-	catch (const lsl::EUnableToOpen&) 
+	catch (const lsl::EUnableToOpen&)
 	{
 		ResetGameData();
 		SaveGameData();
@@ -1221,12 +1218,12 @@ bool GameMode::OnHandleInput(const InputMessage& msg)
 	{
 		if (_startUpTime == -9)
 		{
-			_world->GetVideo()->Stop();	
+			_world->GetVideo()->Stop();
 			_startUpTime = -10;
 		}
 		else if (_movieTime == 7)
 		{
-			_world->GetVideo()->Stop();	
+			_world->GetVideo()->Stop();
 			_movieTime = 8;
 		}
 		else if (_guiLogo && _startUpTime >= 0.0f)
@@ -1252,8 +1249,8 @@ bool GameMode::OnHandleInput(const InputMessage& msg)
 		/*unsigned i = 0;
 		while (EnumDisplayDevices(NULL, i, &dd, 0))
 		{
-			LSL_LOG(lsl::StrFmt("device i=%d name=%s desc=%s primary=%d active=%d mirroring=%d removable=%d vga=%d pruned=%d", i, dd.DeviceName, dd.DeviceString, (dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0, (dd.StateFlags & DISPLAY_DEVICE_ACTIVE) != 0, (dd.StateFlags & DISPLAY_DEVICE_MIRRORING_DRIVER) != 0, (dd.StateFlags & DISPLAY_DEVICE_REMOVABLE) != 0, (dd.StateFlags & DISPLAY_DEVICE_VGA_COMPATIBLE) != 0, (dd.StateFlags & DISPLAY_DEVICE_MODESPRUNED) != 0));		
-			++i;		
+			LSL_LOG(lsl::StrFmt("device i=%d name=%s desc=%s primary=%d active=%d mirroring=%d removable=%d vga=%d pruned=%d", i, dd.DeviceName, dd.DeviceString, (dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0, (dd.StateFlags & DISPLAY_DEVICE_ACTIVE) != 0, (dd.StateFlags & DISPLAY_DEVICE_MIRRORING_DRIVER) != 0, (dd.StateFlags & DISPLAY_DEVICE_REMOVABLE) != 0, (dd.StateFlags & DISPLAY_DEVICE_VGA_COMPATIBLE) != 0, (dd.StateFlags & DISPLAY_DEVICE_MODESPRUNED) != 0));
+			++i;
 		}*/
 
 		return true;
@@ -1276,7 +1273,7 @@ bool GameMode::OnHandleInput(const InputMessage& msg)
 
 	if (msg.action == gaDebug4)
 	{
-		//_steamService->Sync();		
+		//_steamService->Sync();
 	}
 
 	if (msg.action == gaDebug5)
@@ -1368,7 +1365,7 @@ void GameMode::Run(bool playIntro)
 		_guiLogo->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
 
 		_guiLogo2 = _world->GetGraph()->GetGUI().CreatePlaneFon();
-		_guiLogo2->GetMaterial().GetSampler().GetOrCreateTex()->GetOrCreateData()->SetFileName("Data\\GUI\\laboratoria24.png");		
+		_guiLogo2->GetMaterial().GetSampler().GetOrCreateTex()->GetOrCreateData()->SetFileName("Data\\GUI\\laboratoria24.png");
 		_guiLogo2->GetMaterial().GetSampler().GetTex()->Init(_world->GetGraph()->GetEngine());
 		_guiLogo2->GetMaterial().SetBlending(gui::Material::bmTransparency);
 		_guiLogo2->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
@@ -1378,7 +1375,7 @@ void GameMode::Run(bool playIntro)
 	_guiStartup->GetMaterial().GetSampler().GetOrCreateTex()->GetOrCreateData()->SetFileName("Data\\GUI\\startLogo.dds");
 	_guiStartup->GetMaterial().GetSampler().GetTex()->Init(_world->GetGraph()->GetEngine());
 	_guiStartup->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
-	_guiStartup->GetMaterial().SetBlending(gui::Material::bmTransparency);	
+	_guiStartup->GetMaterial().SetBlending(gui::Material::bmTransparency);
 	_guiStartup->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
 
 	AdjustGameStartup();
@@ -1424,11 +1421,11 @@ void GameMode::LoadConfig(bool discreteVideoChanges)
 
 		file.LoadNodeFromFile(node, "user.xml");
 
-		node.BeginLoad();	
+		node.BeginLoad();
 		LoadConfig(&node, discreteVideoChanges);
 		node.EndLoad();
 	}
-	catch (const lsl::EUnableToOpen&) 
+	catch (const lsl::EUnableToOpen&)
 	{
 		ResetConfig();
 		SaveConfig();
@@ -1436,7 +1433,7 @@ void GameMode::LoadConfig(bool discreteVideoChanges)
 }
 
 void GameMode::SaveGame(bool saveProfile)
-{	
+{
 	if (saveProfile)
 	{
 		_race->SaveLib();
@@ -1504,7 +1501,7 @@ void GameMode::ExitMatch(bool saveGame)
 
 bool GameMode::IsMatchStarted() const
 {
-	return _race->IsMatchStarted();	
+	return _race->IsMatchStarted();
 }
 
 void GameMode::StartRace()
@@ -1513,7 +1510,7 @@ void GameMode::StartRace()
 	_goRaceTime = -1;
 	_finishTime = -1;
 
-	_menu->SetState(Menu::msInfo);	
+	_menu->SetState(Menu::msInfo);
 }
 
 void GameMode::ExitRace(bool saveGame, const Race::Results* results)
@@ -1528,7 +1525,7 @@ void GameMode::ExitRace(bool saveGame, const Race::Results* results)
 	_commentator->Stop();
 	_gameMusic->Stop();
 	SetSemaphore(NULL);
-	_race->ExitRace(results);	
+	_race->ExitRace(results);
 
 	SaveGame(saveGame);
 }
@@ -1662,7 +1659,7 @@ void GameMode::StopMusic()
 		lsl::SafeRelease(_musicReport);
 	}
 
-	_music->Stop();	
+	_music->Stop();
 
 	snd::Sound* lastSound = _music->GetSound();
 	_music->SetSound(NULL, true);
@@ -1741,7 +1738,7 @@ void GameMode::OnFinishFrameClose()
 }
 
 void GameMode::OnFrame(float deltaTime, float pxAlpha)
-{	
+{
 	const float logoDelay = 1.0f;
 	const float logoFadeTime = 1.0f;
 	const float logoTime = 3.0f;
@@ -1797,7 +1794,7 @@ void GameMode::OnFrame(float deltaTime, float pxAlpha)
 			_startUpTime = -3;
 		}
 		else if (_guiLogo)
-		{			
+		{
 			_startUpTime += deltaTime;
 			float logo2Delay = logoFadeTime + logoTime + logoFadeTime + logoDelay + logoDelay;
 
@@ -1836,7 +1833,7 @@ void GameMode::OnFrame(float deltaTime, float pxAlpha)
 		}
 		else
 			_startUpTime = -2;
-	} 
+	}
 	else if (_startGame && !IsMoviePlaying())
 	{
 		_menu->OnProgress(deltaTime);
@@ -1883,7 +1880,7 @@ void GameMode::OnFrame(float deltaTime, float pxAlpha)
 			_movieTime = 1;
 		}
 		else if (_movieTime == 1)
-		{			
+		{
 			_world->SetVideoMode(true);
 			_menuMusic->Pause(true);
 
@@ -1927,15 +1924,15 @@ void GameMode::OnFrame(float deltaTime, float pxAlpha)
 void GameMode::OnGraphEvent(HWND hwnd, long eventCode, LONG_PTR param1, LONG_PTR param2)
 {
 	switch (eventCode)
-	{		
+	{
 	case EC_COMPLETE:
 	case EC_USERABORT:
-	case EC_ERRORABORT:		
+	case EC_ERRORABORT:
 		if (_startUpTime != -1)
 			_startUpTime = -10;
 		if (_movieTime != -1)
 			_movieTime = 8;
-		break;	
+		break;
 	}
 }
 
@@ -2038,17 +2035,17 @@ void GameMode::AutodetectLanguage()
 	if (language == 0 && !_languages.empty())
 		language = &_languages.front();
 
-	if (language)		
-		SetLanguage(language->name);		
+	if (language)
+		SetLanguage(language->name);
 
 	//SetThreadUILanguage(MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
 	//SetThreadUILanguage(MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
 	//setlocale(LC_ALL, "english");
 	//_setmbcp(_MB_CP_LOCALE);
 	//SetThreadLocale(MAKELCID(MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), SORT_DEFAULT));
-	//GetSystemDefaultLCID	
-	//setlocale( LC_ALL, ".1252" ); 
-	//pt-BR	
+	//GetSystemDefaultLCID
+	//setlocale( LC_ALL, ".1252" );
+	//pt-BR
 }
 
 void GameMode::ApplyLanguage()
@@ -2173,7 +2170,7 @@ int GameMode::upgradeMaxLevel() const
 }
 
 void GameMode::upgradeMaxLevel(int value)
-{	
+{
 	_upgradeMaxLevel = value;
 
 	if (_startGame)

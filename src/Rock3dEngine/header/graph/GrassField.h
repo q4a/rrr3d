@@ -57,7 +57,7 @@ private:
 	float _fieldWidth;
 	float _fieldHeight;
 	FieldList _fieldList;
-	
+
 	void BuildField();
 	void DrawField(graph::Engine& engine, const Field& field);
 	void Rebuild();

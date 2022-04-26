@@ -19,7 +19,7 @@ struct NetEventData
 
 class INetGameUser: public Object
 {
-public:		
+public:
 	virtual bool OnConnected(net::INetConnection* sender) {return true;}
 	virtual void OnDisconnected(net::INetConnection* sender) {}
 	virtual void OnConnectionFailed(net::INetConnection* sender, unsigned error) {}

@@ -26,7 +26,7 @@ ROCK3DGAME_API IWorld* CreateWorld(const IView::Desc& viewDesc, bool steamInit)
 			switch (SteamService::Initialize())
 			{
 			case SteamService::irFailed:
-				LSL_LOG("steam initialize irFailed");		
+				LSL_LOG("steam initialize irFailed");
 				break;
 			case SteamService::irRestart:
 				LSL_LOG("steam initialize irRestart");
@@ -48,7 +48,7 @@ ROCK3DGAME_API IWorld* CreateWorld(const IView::Desc& viewDesc, bool steamInit)
 		throw;
 	}
 
-	return world;	
+	return world;
 }
 
 ROCK3DGAME_API void ReleaseWorld(IWorld* world)

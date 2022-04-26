@@ -7,6 +7,6 @@
 
 const char* ValueRange<D3DXVECTOR3>::cDistributionStr[ValueRange<D3DXVECTOR3>::cDistributionEnd] = {"vdLinear", "vdVolume"};
 
-const char* ValueRange<D3DXQUATERNION>::cDistributionStr[ValueRange<D3DXQUATERNION>::cDistributionEnd] = {"vdLinear", "vdVolume"};
+const char* ValueRange<glm::quat>::cDistributionStr[ValueRange<glm::quat>::cDistributionEnd] = {"vdLinear", "vdVolume"};
 
 //}

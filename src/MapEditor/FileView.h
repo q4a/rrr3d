@@ -26,7 +26,7 @@ private:
 		CFileView* _view;
 	public:
 		DelDataFunc(CFileView* view): _view(view) {}
-		
+
 		bool operator()(HTREEITEM item) const
 		{
 			ItemData* data = _view->GetItemData(item);
@@ -44,7 +44,7 @@ private:
 		r3d::IMapObjRef _mapObj;
 	public:
 		FindItemByMapObjFunc(CFileView* view, const r3d::IMapObjRef& mapObj): _view(view), _mapObj(mapObj) {}
-		
+
 		bool operator()(HTREEITEM item) const
 		{
 			ItemData* data = _view->GetItemData(item);

@@ -42,7 +42,7 @@ public:
 
 			_MyBase::InsertItem(item);
 
-			_owner->InsertChild(item);			
+			_owner->InsertChild(item);
 		}
 		virtual void RemoveItem(Item& item)
 		{
@@ -89,7 +89,7 @@ public:
 	static void RenderBB(graph::Engine& engine, const AABB& aabb, const D3DXCOLOR& colorBB);
 
 	enum CombMatType {cmtScaleTrans, cmtScaleRot, cmtRotTrans};
-	
+
 	enum NodeOpt {noDynStructure, NodeOptEnd};
 	typedef lsl::Bitset<NodeOptEnd> NodeOpts;
 private:
@@ -122,14 +122,14 @@ private:
 	mutable float _rollAngle;
 	mutable float _pitchAngle;
 	mutable float _turnAngle;
-	mutable D3DXQUATERNION _rot;
+	mutable glm::quat _rot;
 
 	//Матрицы являются промежуточными переменными, и хранятся в полях объекта для оптимизации расчетов. Для вывода коорректных данных(если перерасчет матриц ещё не произошел) о самих матрицах и связных данных используется mutable для const
-	mutable D3DXMATRIX _rotMat;
-	mutable D3DXMATRIX _localMat;
-	mutable D3DXMATRIX _invLocalMat;
-	mutable D3DXMATRIX _worldMat;
-	mutable D3DXMATRIX _invWorldMat;	
+	mutable glm::mat4 _rotMat;
+	mutable glm::mat4 _localMat;
+	mutable glm::mat4 _invLocalMat;
+	mutable glm::mat4 _worldMat;
+	mutable glm::mat4 _invWorldMat;
 
 	mutable AABB _aabbLocal;
 	mutable AABB _aabbWorld;
@@ -151,7 +151,7 @@ private:
 
 	void InsertChildBBDyn(BaseSceneNode* value);
 	void RemoveChildBBDyn(BaseSceneNode* value);
-	void SetDynBB(bool value);	
+	void SetDynBB(bool value);
 protected:
 	void BuildMatrix() const;
 	void BuildWorldMatrix() const;
@@ -171,7 +171,7 @@ protected:
 	//
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
-	virtual void OnFixUp(const FixUpNames& fixUpNames);	
+	virtual void OnFixUp(const FixUpNames& fixUpNames);
 public:
 	BaseSceneNode();
 	virtual ~BaseSceneNode();
@@ -181,7 +181,7 @@ public:
 	//Рендер в локальном пространстве координат
 	virtual void DoRender(graph::Engine& engine) {};
 	//Рендер в глобальном пространстве координат
-	void Render(graph::Engine& engine, const D3DXMATRIX& worldMat);
+	void Render(graph::Engine& engine, const glm::mat4& worldMat);
 	//Общая функция рендера
 	virtual void Render(graph::Engine& engine);
 	//Событие временного прогресса
@@ -241,7 +241,7 @@ public:
 	//Поворот по координатным осям
 	const D3DXVECTOR3& GetDir() const;
 	void SetDir(const D3DXVECTOR3& value);
-	D3DXVECTOR3 GetRight() const;	
+	D3DXVECTOR3 GetRight() const;
 	void SetRight(const D3DXVECTOR3& value);
 	const D3DXVECTOR3& GetUp() const;
 	void SetUp(const D3DXVECTOR3& value);
@@ -253,32 +253,32 @@ public:
 	float GetTurnAngle() const;
 	void SetTurnAngle(float value);
 	//Поворот по кватерниону
-	const D3DXQUATERNION& GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	const glm::quat& GetRot() const;
+	void SetRot(const glm::quat& value);
 
 	//Локальные матрицы
-	D3DXMATRIX GetScaleMat() const;
-	D3DXMATRIX GetRotMat() const;
-	D3DXMATRIX GetTransMat() const;
+	glm::mat4 GetScaleMat() const;
+	glm::mat4 GetRotMat() const;
+	glm::mat4 GetTransMat() const;
 	//Рез. локальная матрица
-	const D3DXMATRIX& GetMat() const;
+	const glm::mat4& GetMat() const;
 	//Матрица не должна содержать масштабирования!
-	void SetLocalMat(const D3DXMATRIX& value);
-	const D3DXMATRIX& GetInvMat() const;
+	void SetLocalMat(const glm::mat4& value);
+	const glm::mat4& GetInvMat() const;
 	//Мировая матрица
-	const D3DXMATRIX& GetWorldMat() const;
-	const D3DXMATRIX& GetInvWorldMat() const;
+	const glm::mat4& GetWorldMat() const;
+	const glm::mat4& GetInvWorldMat() const;
 	//Комбинированные матрицы
-	D3DXMATRIX GetCombMat(CombMatType type) const;
-	D3DXMATRIX GetWorldCombMat(CombMatType type) const;
+	glm::mat4 GetCombMat(CombMatType type) const;
+	glm::mat4 GetWorldCombMat(CombMatType type) const;
 
 	//Мировые координаты
 	D3DXVECTOR3 GetWorldPos() const;
 	void SetWorldPos(const D3DXVECTOR3& value);
-	D3DXQUATERNION GetWorldRot() const;
-	void SetWorldRot(const D3DXQUATERNION& value);
+	glm::quat GetWorldRot() const;
+	void SetWorldRot(const glm::quat& value);
 	//Невозможно представить мировое масштабирование с помощью одного вектора поскольку направление масштабирования зависит от поворота. Поэтому представляется в виде матрицы
-	D3DXMATRIX GetWorldScale() const;
+	glm::mat4 GetWorldScale() const;
 	//
 	D3DXVECTOR3 GetWorldDir() const;
 	D3DXVECTOR3 GetWorldRight() const;
@@ -315,15 +315,15 @@ public:
 	//Кадр анимации при animMode = amManual
 	float frame;
 
-	bool showBB;	
-	bool showBBIncludeChild;	
+	bool showBB;
+	bool showBBIncludeChild;
 	D3DXCOLOR colorBB;
 	bool storeCoords;
-	bool invertCullFace;	
+	bool invertCullFace;
 
 	D3DXVECTOR3 speedPos;
 	D3DXVECTOR3 speedScale;
-	D3DXQUATERNION speedRot;
+	glm::quat speedRot;
 	bool autoRot;
 
 #ifdef _DEBUG
@@ -342,7 +342,7 @@ class Camera: public BaseSceneNode
 private:
 	typedef BaseSceneNode _MyBase;
 public:
-	static void RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj, const D3DXCOLOR& colorBB);
+	static void RenderFrustum(graph::Engine& engine, const glm::mat4& invViewProj, const D3DXCOLOR& colorBB);
 private:
 	mutable graph::CameraDesc _desc;
 	mutable graph::CameraCI _contextInfo;
@@ -369,7 +369,7 @@ public:
 	//Длина стороны вида(плоскость проекции zNear), в пространстве камеры
 	//Пока используется только для ортографической проекции
 	float GetWidth() const;
-	void SetWidth(float value);	
+	void SetWidth(float value);
 	//Форматное отношение сторон вида
 	float GetAspect() const;
 	void SetAspect(float value);
@@ -382,13 +382,13 @@ public:
 	//
 	float GetFar() const;
 	void SetFar(float value);
-	//	
+	//
 	CameraStyle GetStyle() const;
 	void SetStyle(CameraStyle value);
 };
 
 class LightSource: public BaseSceneNode
-{	
+{
 private:
 	typedef BaseSceneNode _MyBase;
 private:
@@ -436,7 +436,7 @@ public:
 
 	float GetPhi() const;
 	void SetPhi(float value);
-	
+
 	float GetTheta() const;
 	void SetTheta(float value);
 
@@ -460,7 +460,7 @@ public:
 
 	void InsertObject(BaseSceneNode* object);
 	void RemoveObject(BaseSceneNode* object);
-	
+
 	const Objects& GetObjects() const;
 
 	SceneRender* GetSceneRender();
@@ -480,7 +480,7 @@ public:
 
 	void InsertScene(SceneManager* value);
 	void RemoveScene(SceneManager* value);
-	
+
 	const SceneList& GetSceneList() const;
 };
 

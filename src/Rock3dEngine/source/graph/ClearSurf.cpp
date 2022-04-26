@@ -22,8 +22,8 @@ void ClearSurf::ApplyMode()
 
 void ClearSurf::Render(Engine& engine)
 {
-	shader.SetValueDir("color", _color);	
-	
+	shader.SetValueDir("color", _color);
+
 	ApplyRT(engine, RtFlags(0, 0));
 
 	shader.Apply(engine);

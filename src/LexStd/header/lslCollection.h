@@ -35,7 +35,7 @@ protected:
 	virtual _Item* CreateItem(const _IdType& key);
 	virtual void DestroyItem(_Item* value);
 
-	virtual void LoadItem(SReader* reader);	
+	virtual void LoadItem(SReader* reader);
 public:
 	virtual ~Collection();
 
@@ -54,7 +54,7 @@ protected:
 	virtual _Item* CreateItem();
 	virtual void DestroyItem(_Item* value);
 
-	virtual void LoadItem(SReader* reader);	
+	virtual void LoadItem(SReader* reader);
 public:
 	virtual ~Collection();
 
@@ -86,15 +86,12 @@ protected:
 	virtual _Item* CreateItem();
 	virtual void DestroyItem(_Item* value);
 
-	virtual void LoadItem(SReader* reader);	
+	virtual void LoadItem(SReader* reader);
 public:
 	virtual ~Collection();
 
 	_Item& Add();
 };
-
-
-
 
 template<class _Item, class _IdType, class _Arg> Collection<_Item, _IdType, _Arg, void>::~Collection()
 {
@@ -130,9 +127,6 @@ template<class _Item, class _IdType, class _Arg> template<class _Type> _Type& Co
 	return lsl::StaticCast<_Type&>(Add(classInst->GetKey(), arg));
 }
 
-
-
-
 template<class _Item, class _IdType> Collection<_Item, _IdType, void, void>::~Collection()
 {
 	Clear();
@@ -167,10 +161,6 @@ template<class _Item, class _IdType> template<class _Type> _Type& Collection<_It
 	return lsl::StaticCast<_Type&>(Add(classInst->GetKey()));
 }
 
-
-
-
-
 template<class _Item, class _Arg, class _ArgThis> Collection<_Item, void, _Arg, _ArgThis>::~Collection()
 {
 	Clear();
@@ -178,7 +168,7 @@ template<class _Item, class _Arg, class _ArgThis> Collection<_Item, void, _Arg, 
 
 template<class _Item, class _Arg, class _ArgThis> _Item* Collection<_Item, void, _Arg, _ArgThis>::CreateItem()
 {
-	return new _Item(static_cast<_ArgThis>(this)); 
+	return new _Item(static_cast<_ArgThis>(this));
 }
 
 template<class _Item, class _Arg, class _ArgThis> void Collection<_Item, void, _Arg, _ArgThis>::DestroyItem(_Item* value)
@@ -195,9 +185,6 @@ template<class _Item, class _Arg, class _ArgThis> _Item& Collection<_Item, void,
 {
 	return _MyBase::Add(CreateItem());
 }
-
-
-
 
 template<class _Item, class _Arg> Collection<_Item, void, _Arg, void>::~Collection()
 {
@@ -223,9 +210,6 @@ template<class _Item, class _Arg> _Item& Collection<_Item, void, _Arg, void>::Ad
 {
 	return _MyBase::Add(CreateItem(arg));
 }
-
-
-
 
 template<class _Item> Collection<_Item, void, void, void>::~Collection()
 {

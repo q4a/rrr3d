@@ -59,15 +59,14 @@ public:
 	bool OnMapViewMouseClickEvent(lsl::MouseKey key, lsl::KeyState state, const lsl::Point& coord);
 	bool OnMapViewMouseMoveEvent(const lsl::Point& coord);
 	bool OnMapViewKeyEvent(unsigned key, lsl::KeyState state);
-	
+
 	//Устанавливает активный документ для редактирования
 	CMapEditorView* GetActiveMapView();
-	void SetActiveMapView(CMapEditorView* value);	
+	void SetActiveMapView(CMapEditorView* value);
 
 #ifdef _DEBUG
 	virtual void AssertValid() const;
 	virtual void Dump(CDumpContext& dc) const;
 #endif
 };
-
 

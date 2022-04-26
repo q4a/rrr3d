@@ -19,7 +19,7 @@ void Map::MapObjList::InsertItem(const Value& value)
 
 	//типы GameObject нельзя имзенять после добавления на карту!
 	value->GetGameObj().AddRef();
-	value->GetGameObj().SetLogic(_owner->_world->GetLogic());	
+	value->GetGameObj().SetLogic(_owner->_world->GetLogic());
 
 	unsigned id = ++(_owner->_lastId);
 	value->SetId(id);
@@ -34,17 +34,14 @@ void Map::MapObjList::RemoveItem(const Value& value)
 	_owner->_objects.erase(value->GetId());
 }
 
-
-
-
 Map::Map(World* world): _world(world), _lastId(cDefMapObjId)
 {
-	for (int i = 0; i < MapObjLib::cCategoryEnd; ++i)	
-		_mapObjList[i] = new MapObjList(this);	
-	
+	for (int i = 0; i < MapObjLib::cCategoryEnd; ++i)
+		_mapObjList[i] = new MapObjList(this);
+
 	_ground = new MapObj();
 	TouchDeath& touchDeath = _ground->GetGameObj().GetBehaviors().Add<TouchDeath>();
-	
+
 	px::PlaneShape& shape = _ground->GetGameObj().GetPxActor().GetShapes().Add<px::PlaneShape>();
 	shape.SetNormal(ZVector);
 	shape.SetDist(0.0f);
@@ -52,7 +49,7 @@ Map::Map(World* world): _world(world), _lastId(cDefMapObjId)
 	_ground->GetGameObj().GetPxActor().SetScene(_world->GetPxScene());
 
 	_trace = new game::Trace(4);
-	
+
 }
 
 Map::~Map()
@@ -70,10 +67,10 @@ void Map::Save(lsl::SWriter* writer)
 {
 	for (int i = 0; i < MapObjLib::cCategoryEnd; ++i)
 		writer->WriteValue(IMapObjLib_cCategoryStr[i], _mapObjList[i]);
-	
-	writer->WriteValue("trace", _trace);	
 
-	lsl::SWriteValue(writer, "sunPos", _world->GetEnv()->GetSunPos());	
+	writer->WriteValue("trace", _trace);
+
+	lsl::SWriteValue(writer, "sunPos", _world->GetEnv()->GetSunPos());
 	lsl::SWriteValue(writer, "sunRot", _world->GetEnv()->GetSunRot());
 }
 
@@ -83,14 +80,14 @@ void Map::Load(lsl::SReader* reader)
 
 	for (int i = 0; i < MapObjLib::cCategoryEnd; ++i)
 		reader->ReadValue(IMapObjLib_cCategoryStr[i], _mapObjList[i]);
-	
-	reader->ReadValue("trace", _trace);	
+
+	reader->ReadValue("trace", _trace);
 
 	D3DXVECTOR3 sunPos;
 	if (lsl::SReadValue(reader, "sunPos", sunPos))
 		_world->GetEnv()->SetSunPos(sunPos);
 
-	D3DXQUATERNION sunRot;
+	glm::quat sunRot;
 	if (lsl::SReadValue(reader, "sunRot", sunRot))
 		_world->GetEnv()->SetSunRot(sunRot);
 }
@@ -115,7 +112,7 @@ MapObj& Map::AddMapObj(MapObj* ref)
 	MapObj& newMapObj = AddMapObj(ref->GetRecord()->GetCategory(), ref->GetType());
 
 	RootNode* serNode = new RootNode("tmp", GetRoot());
-	
+
 	lsl::SWriter* writer = serNode->BeginSave();
 	ref->SaveTo(writer);
 	serNode->EndSave();
@@ -132,7 +129,7 @@ MapObj& Map::AddMapObj(MapObj* ref)
 
 MapObj& Map::AddMapObj(MapObjLib::Category category, MapObj::Type type)
 {
-	MapObj& mapObj =_mapObjList[category]->Add(type);	
+	MapObj& mapObj =_mapObjList[category]->Add(type);
 	return mapObj;
 }
 

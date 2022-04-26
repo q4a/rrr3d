@@ -29,9 +29,6 @@ const lsl::string SteamServer::cGameDir = "motor rock";
 bool SteamService::_init = false;
 const float SteamService::cSyncWaitTime = 60.0f;
 
-
-
-
 //-----------------------------------------------------------------------------
 // Purpose: callback hook for debug text emitted from the Steam API
 //-----------------------------------------------------------------------------
@@ -49,11 +46,8 @@ extern "C" void __cdecl SteamAPIDebugTextHook( int nSeverity, const char *pchDeb
 	}
 }
 
-
-
-
 NetConnectionSteam::NetConnectionSteam(NetAcceptorSteam* owner): _owner(owner), _isOpen(false)
-{	
+{
 }
 
 NetConnectionSteam::~NetConnectionSteam()
@@ -203,11 +197,8 @@ SteamService* NetConnectionSteam::service()
 	return _owner->service();
 }
 
-
-
-
 NetChannelSteam::NetChannelSteam(NetAcceptorSteam* owner): _owner(owner), _isOpen(false), _isBind(false)
-{	
+{
 }
 
 NetChannelSteam::~NetChannelSteam()
@@ -349,9 +340,6 @@ SteamService* NetChannelSteam::service()
 	return _owner->service();
 }
 
-
-
-
 NetAcceptorSteam::NetAcceptorSteam(SteamService* service): _service(service), _isOpen(false)
 {
 	_steam = net::GetNetService().CreateStreamBuf();
@@ -477,7 +465,7 @@ bool NetAcceptorSteam::HandleMessage(const CSteamID& steamId, EMessage msg, cons
 
 	net::IStreamBuf* stream = GetOrCreatePacket(msg, steamId);
 	unsigned headerSz = sizeof(EMessage);
-	unsigned dataSz = size - headerSz;	
+	unsigned dataSz = size - headerSz;
 
 	BYTE* dest = stream->Prepare(dataSz);
 	memmove(dest, data + headerSz, dataSz);
@@ -512,13 +500,10 @@ SteamService* NetAcceptorSteam::service()
 	return _service;
 }
 
-
-
-
 SteamStats::SteamStats(SteamService* service): _service(service), _userStatsLoading(false), _userStatsSaving(false), _raceNumShots(0),
 	_callbackUserStatsReceived( this, &SteamStats::OnUserStatsReceived ),
 	_callbackUserStatsStored( this, &SteamStats::OnUserStatsStored )
-{	
+{
 }
 
 SteamStats::~SteamStats()
@@ -537,7 +522,7 @@ void SteamStats::OnUserStatsReceived( UserStatsReceived_t *pCallback )
 
 	_userStatsLoading = false;
 	bool success = false;
-	
+
 	if ( k_EResultOK == pCallback->m_eResult )
 	{
 		int intVal = 0;
@@ -579,7 +564,7 @@ void SteamStats::OnUserStatsStored( UserStatsStored_t *pCallback )
 
 	_userStatsSaving = false;
 	bool success = false;
-	
+
 	if ( k_EResultOK == pCallback->m_eResult )
 	{
 		success = true;
@@ -639,7 +624,7 @@ bool SteamStats::StoreUserStats()
 }
 
 void SteamStats::AddStat(StatType type, int value)
-{	
+{
 	_stats[type].dValue += value;
 	unsigned total = (unsigned)GetStatValue(type);
 
@@ -674,7 +659,7 @@ void SteamStats::UnlockAchievment(AchievmentType type)
 	if (_achievments[type].unlocked || !_achievments[type].loaded)
 		return;
 
-	_achievments[type].unlocked = true;	
+	_achievments[type].unlocked = true;
 	SteamUserStats()->SetAchievement(cAchievmentName[type].c_str());
 
 	if (type != atWeAreTheChampions)
@@ -741,7 +726,7 @@ void SteamStats::OnProcessEvent(unsigned id, EventData* data)
 			Player* player = game()->GetRace()->GetPlayerById(data->playerId);
 
 			if (data->playerId != myData->targetPlayerId)
-				_lapKills.push_back(myData->targetPlayerId);			
+				_lapKills.push_back(myData->targetPlayerId);
 
 			if (player && player->GetCar().numLaps >= 3 && player->GetCar().numLaps >= game()->GetRace()->GetTournament().GetCurTrack().GetLapsCount() - 1 && _lapKills.size() >= 3)
 			{
@@ -753,7 +738,7 @@ void SteamStats::OnProcessEvent(unsigned id, EventData* data)
 		break;
 
 	case cHumanShot:
-		++_raceNumShots;		
+		++_raceNumShots;
 		break;
 
 	case cPlayerDeath:
@@ -781,9 +766,6 @@ GameMode* SteamStats::game()
 {
 	return _service->game();
 }
-
-
-
 
 SteamLeaderboard::SteamLeaderboard(SteamService* service): _service(service), _leadersLoading(false), _userStatsUploading(0)
 {
@@ -820,7 +802,7 @@ void SteamLeaderboard::OnUploadUserStats(LeaderboardScoreUploaded_t* pFindLearde
 }
 
 bool SteamLeaderboard::FindLeaders()
-{	
+{
 	if (_leadersLoading)
 		return true;
 
@@ -860,7 +842,7 @@ bool SteamLeaderboard::UploadUserStats()
 		SteamAPICall_t hSteamAPICall = SteamUserStats()->UploadLeaderboardScore(_leaders[i].board, k_ELeaderboardUploadScoreMethodKeepBest, value, NULL, 0);
 
 		if (hSteamAPICall != NULL)
-		{			
+		{
 			++_userStatsUploading;
 
 			// set the function to call when this API call has completed
@@ -881,9 +863,6 @@ GameMode* SteamLeaderboard::game()
 	return _service->game();
 }
 
-
-
-
 SteamLobby::SteamLobby(SteamService* service): _service(service), _lobbyListLoading(false), _lobbyLoading(false), _matchStarting(false), _lobbyCreated(false),
 	_callbackLobbyDataUpdated(this, &SteamLobby::OnLobbyDataUpdatedCallback),
 	_callbackPersonaStateChange(this, &SteamLobby::OnPersonaStateChange),
@@ -894,7 +873,7 @@ SteamLobby::SteamLobby(SteamService* service): _service(service), _lobbyListLoad
 }
 
 SteamLobby::~SteamLobby()
-{	
+{
 }
 
 std::string SteamLobby::GetLobbyName(CSteamID id)
@@ -1032,7 +1011,7 @@ void SteamLobby::OnLobbyCreated(LobbyCreated_t *pCallback, bool bIOFailure)
 		// success
 		_currentLobby = pCallback->m_ulSteamIDLobby;
 
-		// set the name of the lobby if it's ours		
+		// set the name of the lobby if it's ours
 		SetLobbdyName(_currentLobby, lsl::StrFmt("%s's lobby", SteamFriends()->GetPersonaName()));
 	}
 	else
@@ -1046,7 +1025,7 @@ void SteamLobby::OnLobbyCreated(LobbyCreated_t *pCallback, bool bIOFailure)
 
 void SteamLobby::OnLobbyDataUpdatedCallback( LobbyDataUpdate_t *pCallback )
 {
-	// find the lobby in our local list 
+	// find the lobby in our local list
 	LobbyList::iterator iter;
 
 	for( iter = _lobbyList.begin(); iter != _lobbyList.end(); ++iter )
@@ -1248,9 +1227,6 @@ GameMode* SteamLobby::game()
 	return _service->game();
 }
 
-
-
-
 SteamServer::SteamServer(SteamService* service): _service(service), _serverListRequest(NULL), _serverConnecting(false), _hostInit(false), _internetListLoading(false),
 	_callbackSteamServersConnected( this, &SteamServer::OnSteamServersConnected ),
 	_callbackSteamServersDisconnected( this, &SteamServer::OnSteamServersDisconnected ),
@@ -1339,7 +1315,7 @@ void SteamServer::SendUpdatedServerDetailsToSteam()
 	SteamGameServer()->SetMapName( "RRR Map" );
 
 	// game type is a special string you can use for your game to differentiate different game play types occurring on the same maps
-	// When users search for this parameter they do a sub-string search of this string 
+	// When users search for this parameter they do a sub-string search of this string
 	// (i.e if you report "abc" and a client requests "ab" they return your server)
 	//SteamGameServer()->SetGameType( "dm" );
 
@@ -1379,7 +1355,7 @@ void SteamServer::ReceiveNetworkData()
 		{
 			case k_EMsgClientInitiateConnection:
 			{
-				// We always let clients do this without even checking for room on the server since we reserve that for 
+				// We always let clients do this without even checking for room on the server since we reserve that for
 				// the authentication phase of the connection which comes next
 				MsgServerSendInfo_t msg;
 				msg.SetSteamIDServer( SteamGameServer()->GetSteamID().ConvertToUint64() );
@@ -1387,7 +1363,7 @@ void SteamServer::ReceiveNetworkData()
 
 				// You can only make use of VAC when using the Steam authentication system
 				msg.SetSecure( SteamGameServer()->BSecure() );
-				
+
 				SendData( steamIDRemote, &msg, sizeof( MsgServerSendInfo_t ) );
 				break;
 			}
@@ -1405,7 +1381,7 @@ void SteamServer::ReceiveNetworkData()
 				OnClientBeginAuthentication( steamIDRemote, (void*)pMsg->GetTokenPtr(), pMsg->GetTokenLen() );
 			}
 
-			default:				
+			default:
 				_service->acceptor()->HandleMessage(steamIDRemote, eMsg, (const BYTE*)pchRecvBuf, cubMsgSize);
 				break;
 		}
@@ -1424,7 +1400,7 @@ void SteamServer::ServerResponded( HServerListRequest hReq, int iServer )
 		return;
 
 	gameserveritem_t* pServer = SteamMatchmakingServers()->GetServerDetails( hReq, iServer );
-	
+
 	if ( pServer )
 	{
 		// Filter out servers that don't match our appid here (might get these in LAN calls since we can't put more filters on it)
@@ -1458,7 +1434,7 @@ void SteamServer::ServerFailedToRespond( HServerListRequest hReq, int iServer )
 //-----------------------------------------------------------------------------
 // Purpose: Callback from Steam telling us a refresh is complete
 //-----------------------------------------------------------------------------
-void SteamServer::RefreshComplete( HServerListRequest hReq, EMatchMakingServerResponse response ) 
+void SteamServer::RefreshComplete( HServerListRequest hReq, EMatchMakingServerResponse response )
 {
 	if (!_internetListLoading)
 		return;
@@ -1476,7 +1452,7 @@ void SteamServer::RefreshComplete( HServerListRequest hReq, EMatchMakingServerRe
 void SteamServer::OnClientBeginAuthentication( CSteamID steamIDClient, void *pToken, uint32 uTokenLen )
 {
 	// First, check this isn't a duplicate and we already have a user logged on from the same steamid
-	for( unsigned i = 0; i < cMaxPlayers; ++i ) 
+	for( unsigned i = 0; i < cMaxPlayers; ++i )
 	{
 		if ( _rgClientData[i].m_SteamIDUser == steamIDClient )
 		{
@@ -1491,7 +1467,7 @@ void SteamServer::OnClientBeginAuthentication( CSteamID steamIDClient, void *pTo
 	{
 		if ( _rgPendingClientData[i].m_bActive )
 			++nPendingOrActivePlayerCount;
-		
+
 		if ( _rgClientData[i].m_bActive )
 			++nPendingOrActivePlayerCount;
 	}
@@ -1502,9 +1478,9 @@ void SteamServer::OnClientBeginAuthentication( CSteamID steamIDClient, void *pTo
 		MsgServerFailAuthentication_t msg;
 		SteamGameServerNetworking()->SendP2PPacket( steamIDClient, &msg, sizeof( msg ), k_EP2PSendReliable );
 	}
-			
+
 	// If we get here there is room, add the player as pending
-	for( uint32 i = 0; i < cMaxPlayers; ++i ) 
+	for( uint32 i = 0; i < cMaxPlayers; ++i )
 	{
 		if ( !_rgPendingClientData[i].m_bActive )
 		{
@@ -1542,10 +1518,9 @@ void SteamServer::OnAuthCompleted( bool bAuthSuccessful, uint32 iPendingAuthInde
 		return;
 	}
 
-
 	bool bAddedOk = false;
 
-	for( uint32 i = 0; i < cMaxPlayers; ++i ) 
+	for( uint32 i = 0; i < cMaxPlayers; ++i )
 	{
 		if ( !_rgClientData[i].m_bActive )
 		{
@@ -1568,7 +1543,7 @@ void SteamServer::OnAuthCompleted( bool bAuthSuccessful, uint32 iPendingAuthInde
 	if ( bAddedOk )
 	{
 		uint32 uPlayers = 0;
-		for( uint32 i = 0; i < cMaxPlayers; ++i ) 
+		for( uint32 i = 0; i < cMaxPlayers; ++i )
 		{
 			if ( _rgClientData[i].m_bActive )
 				++uPlayers;
@@ -1601,7 +1576,7 @@ void SteamServer::OnSteamServersDisconnected( SteamServersDisconnected_t *pLogge
 
 	ShutdownHost();
 
-	_service->SendEvent(cSteamHostDisconnected, &EventData(false));	
+	_service->SendEvent(cSteamHostDisconnected, &EventData(false));
 }
 
 //-----------------------------------------------------------------------------
@@ -1614,7 +1589,7 @@ void SteamServer::OnSteamServersConnectFailure( SteamServerConnectFailure_t *pCo
 
 	ShutdownHost();
 
-	_service->SendEvent(cSteamHostCreated, &EventData(false));	
+	_service->SendEvent(cSteamHostCreated, &EventData(false));
 }
 
 //-----------------------------------------------------------------------------
@@ -1625,7 +1600,6 @@ void SteamServer::OnP2PSessionRequest( P2PSessionRequest_t *pCallback )
 	// we'll accept a connection from anyone
 	SteamGameServerNetworking()->AcceptP2PSessionWithUser( pCallback->m_steamIDRemote );
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: Handle clients disconnecting
@@ -1701,7 +1675,7 @@ bool SteamServer::CreateHost()
 		return true;
 
 	_hostInit = true;
-	_serverConnecting = true;	
+	_serverConnecting = true;
 
 	// zero the client connection data
 	memset( &_rgClientData, 0, sizeof( _rgClientData ) );
@@ -1736,14 +1710,14 @@ bool SteamServer::CreateHost()
 		// We don't support specators in our game.
 		// .... but if we did:
 		//SteamGameServer()->SetSpectatorPort( ... );
-		//SteamGameServer()->SetSpectatorServerName( ... );		
+		//SteamGameServer()->SetSpectatorServerName( ... );
 
 		// Initiate Anonymous logon.
 		// Coming soon: Logging into authenticated, persistent game server account
 		SteamGameServer()->LogOnAnonymous();
 
 		// We want to actively update the master server with our presence so players can
-		// find us via the steam matchmaking/server browser interfaces		
+		// find us via the steam matchmaking/server browser interfaces
 		SteamGameServer()->EnableHeartbeats( true );
 		//SteamGameServer()->ForceHeartbeat();
 
@@ -1764,7 +1738,7 @@ void SteamServer::ShutdownHost()
 
 	_hostInit = false;
 	_serverConnecting = false;
-	
+
 	// Notify Steam master server we are going offline
 	SteamGameServer()->EnableHeartbeats( false );
 
@@ -1810,7 +1784,7 @@ void SteamServer::FindInternetList()
 		return;
 
 	// Track that we are now in a refresh, what type of refresh, and reset our server count
-	_internetListLoading = true;	
+	_internetListLoading = true;
 	_hostList.clear();
 
 	// If another request is outstanding, make sure we release it properly
@@ -1853,7 +1827,7 @@ void SteamServer::FindLanServers()
 		return;
 
 	// Track that we are now in a refresh, what type of refresh, and reset our server count
-	_internetListLoading = true;	
+	_internetListLoading = true;
 	_hostList.clear();
 
 	// If _serverListRequest request is outstanding, make sure we release it properly
@@ -1923,9 +1897,6 @@ CSteamID SteamServer::steamId()
 {
 	return _hostInit ? SteamGameServer()->GetSteamID() : CSteamID();
 }
-
-
-
 
 SteamService::SteamService(GameMode* game): _game(game), _syncStage(cSyncStageEnd), _syncWaitTime(-1.0f), _initiatingConnection(false), _connected(false)
 {
@@ -2051,7 +2022,7 @@ void SteamService::DisconnectFromServer()
 		_hAuthTicket = k_HAuthTicketInvalid;
 
 		MsgClientLeavingServer_t msg;
-		SendData( &msg, sizeof(msg) );		
+		SendData( &msg, sizeof(msg) );
 	}
 
 	//if ( _pP2PAuthedGame )
@@ -2201,7 +2172,7 @@ void SteamService::ReceiveNetworkData()
 					}
 					MsgServerPassAuthentication_t *pMsg = (MsgServerPassAuthentication_t*)pchRecvBuf;
 
-					// Our game client doesn't really care about whether the server is secure, or what its 
+					// Our game client doesn't really care about whether the server is secure, or what its
 					// steamID is, but if it did we would pass them in here as they are part of the accept message
 					ReceiveServerAuthenticationResponse( true, pMsg->GetPlayerPosition() );
 				}
@@ -2213,25 +2184,25 @@ void SteamService::ReceiveNetworkData()
 					ReceiveServerAuthenticationResponse( false, 0 );
 				}
 				break;
-			
+
 			default:
 				_acceptor->HandleMessage( steamIDRemote, eMsg, (const BYTE*)pchRecvBuf, cubMsgSize );
 				break;
 			}
 		}
-		else 
+		else
 		{
 			if ( cubMsgSize >= sizeof( DWORD ) )
 			{
 				EMessage eMsg = (EMessage)*(DWORD*)pchRecvBuf;
 
 				_acceptor->HandleMessage( steamIDRemote, eMsg, (const BYTE*)pchRecvBuf, cubMsgSize );
-			
+
 				//if ( _pP2PAuthedGame->HandleMessage( eMsg, pchRecvBuf ) )
 				//	continue; // this was a P2P auth message
 			}
 
-			// the message is from another player			
+			// the message is from another player
 			//if ( _acceptor->HandleMessage( steamIDRemote, (BYTE*)pchRecvBuf, cubMsgSize ) )
 			//	continue; // this was a P2P auth message
 
@@ -2348,7 +2319,7 @@ bool SteamService::InitiateConnection(CSteamID steamIDGameServer)
 
 	//send the packet to the server
 	MsgClientInitiateConnection_t msg;
-	
+
 	if (SendData( &msg, sizeof( msg ) ))
 	{
 		_initiatingConnection = true;
@@ -2436,13 +2407,13 @@ NetAcceptorSteam* SteamService::acceptor()
 SteamService::InitRes SteamService::Initialize()
 {
 	if (_init)
-		return irSuccess;	
+		return irSuccess;
 
 #ifndef _RETAIL
-	const int cAppId = 263260;	
+	const int cAppId = 263260;
 	if ( SteamAPI_RestartAppIfNecessary( k_uAppIdInvalid ) )
 	{
-		// if Steam is not running or the game wasn't started through Steam, SteamAPI_RestartAppIfNecessary starts the 
+		// if Steam is not running or the game wasn't started through Steam, SteamAPI_RestartAppIfNecessary starts the
 		// local Steam client and also launches this game again.
 
 		// Once you get a public Steam AppID assigned for this game, you need to replace k_uAppIdInvalid with it and
@@ -2482,14 +2453,14 @@ SteamService::InitRes SteamService::Initialize()
 	SteamClient()->SetWarningMessageHook( &SteamAPIDebugTextHook );
 
 	// Tell Steam where it's overlay should show notification dialogs, this can be top right, top left,
-	// bottom right, bottom left. The default position is the bottom left if you don't call this.  
-	// Generally you should use the default and not call this as users will be most comfortable with 
-	// the default position.  The API is provided in case the bottom right creates a serious conflict 
+	// bottom right, bottom left. The default position is the bottom left if you don't call this.
+	// Generally you should use the default and not call this as users will be most comfortable with
+	// the default position.  The API is provided in case the bottom right creates a serious conflict
 	// with important UI in your game.
 	SteamUtils()->SetOverlayNotificationPosition( k_EPositionTopRight );
 
 	//const char *pchServerAddress, *pchLobbyID;
-	//ParseCommandLine( pchCmdLine, &pchServerAddress, &pchLobbyID );	
+	//ParseCommandLine( pchCmdLine, &pchServerAddress, &pchLobbyID );
 
 	return irSuccess;
 }

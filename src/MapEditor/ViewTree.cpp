@@ -10,15 +10,12 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 BEGIN_MESSAGE_MAP(CViewTree, CTreeCtrl)
-	ON_WM_KEYDOWN()	
+	ON_WM_KEYDOWN()
 END_MESSAGE_MAP()
 
 BEGIN_MESSAGE_MAP(CViewPane, CDockablePane)
 	ON_WM_SETFOCUS()
 END_MESSAGE_MAP()
-
-
-
 
 CViewTree::CViewTree()
 {
@@ -60,9 +57,6 @@ void CViewTree::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		GetParent()->SendMessage(WM_NOTIFY, (WPARAM)m_hWnd, (LPARAM)&nmh);
 	}
 }
-
-
-
 
 CViewPane::CViewPane(): _activeTab(false)
 {
@@ -114,7 +108,7 @@ void CViewPane::SetActive(bool active)
 
 LRESULT CViewPane::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
-	
+
 	switch (message)
 	{
 
@@ -123,14 +117,13 @@ LRESULT CViewPane::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 		NMHDR* mes = (NMHDR*)lParam;
 		UINT code = mes->code;
 		bool sf = code == NM_SETFOCUS;
-		
+
 		int m = 0;
 		++m;
 		break;
 	}
 
 	}
-
 
 	/*char strBuf[256];
 	CFile file(_T("C:\\1.txt"), CFile::modeReadWrite);

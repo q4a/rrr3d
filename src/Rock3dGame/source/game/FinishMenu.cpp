@@ -11,7 +11,7 @@ namespace game
 
 namespace n
 {
-	
+
 FinishMenu::FinishMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _time(-1.0f), _playerCount(0)
 {
 	D3DXCOLOR color1(0xffe9a73f);
@@ -28,19 +28,19 @@ FinishMenu::FinishMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 	{
 		_boxes[i].leftFrame = menu->CreatePlane(root(), this, "GUI\\playerLeftFrame.png", true);
 		_boxes[i].leftFrame->SetAlign(gui::Widget::waLeftTop);
-		
-		_boxes[i].rightFrame = menu->CreatePlane(_boxes[i].leftFrame, this, "GUI\\playerRightFrame.png", true);		
+
+		_boxes[i].rightFrame = menu->CreatePlane(_boxes[i].leftFrame, this, "GUI\\playerRightFrame.png", true);
 		_boxes[i].rightFrame->SetAlign(gui::Widget::waLeftTop);
 
 		_boxes[i].lineFrame = menu->CreatePlane(_boxes[i].leftFrame, this, "GUI\\playerLineFrame.png", true);
 		_boxes[i].lineFrame->SetAlign(gui::Widget::waLeftTop);
 
 		_boxes[i].cup = menu->CreatePlane(_boxes[i].rightFrame, this, lsl::StrFmt("GUI\\cup%d.dds", i + 1), true, IdentityVec2, gui::Material::bmTransparency);
-		_boxes[i].cup->SetSize(menu->StretchImage(_boxes[i].cup->GetMaterial(), D3DXVECTOR2(190.0f, 160.0f), true, false, true, false));
+		_boxes[i].cup->SetSize(menu->StretchImage(_boxes[i].cup->GetMaterial(), glm::vec2(190.0f, 160.0f), true, false, true, false));
 
 		_boxes[i].photo = menu->CreatePlane(_boxes[i].leftFrame, this, "", true, IdentityVec2, gui::Material::bmTransparency);
 
-		for (int j = 0; j < cLabelEnd; ++j)	
+		for (int j = 0; j < cLabelEnd; ++j)
 			_boxes[i].labels[j] = menu->CreateLabel(strLabels[j], _boxes[i].leftFrame, fontLabels[j], NullVec2, horLabels[j], vertLabels[j], colorLabels[j]);
 		_boxes[i].labels[mlPriceInfo]->SetText(menu->GetString(svMoney) + "\n" + menu->GetString(svPoints));
 
@@ -68,9 +68,9 @@ void FinishMenu::OnShow(bool value)
 		menu()->GetControl()->RemoveEvent(this);
 }
 
-void FinishMenu::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void FinishMenu::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	D3DXVECTOR2 leftSize = _boxes[0].leftFrame->GetSize();
+	glm::vec2 leftSize = _boxes[0].leftFrame->GetSize();
 	float offsetY = (vpSize.y - (cBoxCount * leftSize.y))/2.0f;
 	float leftOffsetX = (leftSize.x + vpSize.x/2)/2;
 	float rightOffsetX = (vpSize.x/2 + vpSize.x - leftSize.x)/2;
@@ -83,8 +83,8 @@ void FinishMenu::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 		_boxes[i].lineFrame->SetPos(leftSize.x, 0.0f);
 		_boxes[i].lineFrame->SetSize(vpSize.x - 2.0f * leftSize.x, leftSize.y);
 
-		_boxes[i].photo->SetPos(D3DXVECTOR2(128.0f, 116.0f));
-		_boxes[i].cup->SetPos(D3DXVECTOR2(160.0f, 115.0f));
+		_boxes[i].photo->SetPos(glm::vec2(128.0f, 116.0f));
+		_boxes[i].cup->SetPos(glm::vec2(160.0f, 115.0f));
 
 		_boxes[i].labels[mlName]->SetPos(leftOffsetX, 63.0f);
 		_boxes[i].labels[mlPriceInfo]->SetPos(leftOffsetX, 154.0f);
@@ -116,7 +116,7 @@ void FinishMenu::OnInvalidate()
 			box.leftFrame->SetVisible(_time == -1.0f);
 
 			box.photo->GetMaterial().GetSampler().SetTex(player->GetPhoto());
-			box.photo->SetSize(menu()->StretchImage(box.photo->GetMaterial(), D3DXVECTOR2(198.0f, 193.0f), true, false, true, false));
+			box.photo->SetSize(menu()->StretchImage(box.photo->GetMaterial(), glm::vec2(198.0f, 193.0f), true, false, true, false));
 
 			box.labels[mlName]->SetText(GetString(player->GetName()));
 
@@ -166,7 +166,7 @@ void FinishMenu::OnProgress(float deltaTime)
 	if (_time >= 0.0f)
 	{
 		float summDuration = 0.0f;
-		D3DXVECTOR2 vpSize = menu()->GetGUI()->GetVPSize();
+		glm::vec2 vpSize = menu()->GetGUI()->GetVPSize();
 
 		for (unsigned i = 0; i < _playerCount; ++i)
 		{
@@ -180,7 +180,7 @@ void FinishMenu::OnProgress(float deltaTime)
 				menu()->SendEvent(playerFinish[i], &EventData(box.plrId));
 			box.leftFrame->SetVisible(setVisible);
 
-			D3DXVECTOR2 vec = box.leftFrame->GetPos();
+			glm::vec2 vec = box.leftFrame->GetPos();
 			vec.x = (1.0f - alpha) * (vpSize.x + 25.0f) * (i % 2 == 1 ? 1 : -1);
 			box.leftFrame->SetPos(vec);
 		}

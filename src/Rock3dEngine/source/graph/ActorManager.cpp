@@ -29,7 +29,7 @@ void ActorManager::User::InitOctree()
 	{
 		_octreeUser = &_owner->_octree.GetUsers().Add(GetAABB(), _desc.scenes);
 		_octreeUser->AddRef();
-		_octreeUser->SetData(this);				
+		_octreeUser->SetData(this);
 	}
 }
 
@@ -63,7 +63,7 @@ void ActorManager::User::SetGroup(Group* value)
 		if (_group)
 			_owner->AddRefGroup(_group);
 	}
-}	
+}
 
 AABB ActorManager::User::GetAABB() const
 {
@@ -79,9 +79,6 @@ const ActorManager::UserDesc& ActorManager::User::GetDesc() const
 {
 	return _desc;
 }
-
-
-
 
 ActorManager::ActorManager(unsigned sceneCnt): cNumScenes(sceneCnt), _octree(sceneCnt)
 {
@@ -129,8 +126,8 @@ ActorManager::CameraCache::iterator ActorManager::CameraCull(const graph::Camera
 		iterCamera = _cameraCache.insert(iterCamera, CameraCache::value_type(camera, CacheValue()));
 		compCull = true;
 	}
-	else 	
-		compCull = iterCamera->second.idState != camera->IdState();	
+	else
+		compCull = iterCamera->second.idState != camera->IdState();
 	if (compCull)
 	{
 		iterCamera->second.pos = _octree.Culling(frustum);
@@ -147,9 +144,9 @@ bool ActorManager::PullInRayTargetGroup(User* user, unsigned scene, const graph:
 		iter->second.draw = true;
 
 	D3DXVECTOR3 vec3;
-	D3DXVec3TransformCoord(&vec3, &rayTarget, &camera->GetViewProj());
+	Vec3TransformCoord(rayTarget, camera->GetViewProj(), vec3);
 	vec3.z = 0.0f;
-	D3DXVec3TransformCoord(&vec3, &vec3, &camera->GetInvViewProj());
+	Vec3TransformCoord(vec3, camera->GetInvViewProj(), vec3);
 	D3DXVECTOR3 ray = rayTarget - vec3;
 	float rayLen = D3DXVec3Length(&ray);
 	D3DXVec3Normalize(&ray, &ray);
@@ -204,7 +201,7 @@ void ActorManager::RemoveActor(User* value)
 			if (value->GetDesc().scenes[i])
 				_dynUserList[i].Remove(value);
 	}
-	
+
 	_userList.Remove(value);
 	RemoveRayUser(value);
 
@@ -305,11 +302,10 @@ void ActorManager::BuildPlanar(unsigned scene)
 
 const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 {
-	D3DXMATRIX mat = actor->GetInvWorldMat();
-	D3DXMatrixTranspose(&mat, &mat);
+	glm::mat4 mat = glm::transpose(actor->GetInvWorldMat());
 
 	D3DXPLANE plane;
-	D3DXPlaneTransform(&plane, &D3DXPLANE(actor->vec1()), &mat);
+	D3DXPlaneTransform(&plane, &D3DXPLANE(actor->vec1()), &Matrix4GlmToDx(mat));
 	D3DXPlaneNormalize(&plane, &plane);
 
 	float minDist = 0;
@@ -322,8 +318,8 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 		float dist = abs(testPlane.d - plane.d);
 		float angle = abs(D3DXPlaneDotNormal(&testPlane, &D3DXVECTOR3(plane)));
 
-		if (dist < 0.5f && angle > 0.99f 
-			//&& (planarIter == _planars.end() || 
+		if (dist < 0.5f && angle > 0.99f
+			//&& (planarIter == _planars.end() ||
 			//(minDist >= dist && minAngle - angle < 0.002f) ||
 			//(minDist - dist > -0.1f && minAngle <= angle))
 			)
@@ -398,7 +394,7 @@ void ActorManager::Render(Engine& engine, unsigned scene, const graph::CameraCI*
 		{
 			User* myUser = *iter;
 
-			myUser->GetActor()->Render(engine);			
+			myUser->GetActor()->Render(engine);
 		}
 }
 
@@ -410,7 +406,7 @@ void ActorManager::Render(Engine& engine, unsigned scene, bool ignoreRayUsers)
 void ActorManager::RenderRayUsers(Engine& engine, float opacity)
 {
 	const float cSpeedOpacity = 0.25f;
-	
+
 	for (RayUsers::iterator iter = _rayUsers.begin(); iter != _rayUsers.end();)
 	{
 		User* user = iter->first;
@@ -425,7 +421,7 @@ void ActorManager::RenderRayUsers(Engine& engine, float opacity)
 		}
 		rayUser.draw = false;
 
-		if (rayUser.overloap)			
+		if (rayUser.overloap)
 			rayUser.time = lsl::ClampValue(rayUser.time + engine.GetDt(), 0.0f, cSpeedOpacity);
 		else
 			rayUser.time -= engine.GetDt();

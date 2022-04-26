@@ -22,28 +22,28 @@ const std::string cStringValueStr[cStringValueEnd] = {
 	"svNetCreate",
 	"svConnect",
 	"svRefresh",
-	"svLoad", 
-	"svOptions", 
-	"svControls", 
+	"svLoad",
+	"svOptions",
+	"svControls",
 	"svGame",
 	"svNetwork",
-	"svAuthors", 
+	"svAuthors",
 	"svExit",
 	"svProfile",
-	
-	"svGraphic", 
+
+	"svGraphic",
 	"svResolution",
 	"svFiltering",
 	"svMultisampling",
-	"svShadow", 
-	"svEnv", 
-	"svLight", 
+	"svShadow",
+	"svEnv",
+	"svLight",
 	"svPostProcess",
 	"svFixedFrameRate",
-	"svSound", 
-	"svMusic", 
-	"svSoundFX", 
-	"svSoundDicter", 
+	"svSound",
+	"svMusic",
+	"svSoundFX",
+	"svSoundDicter",
 	"svLanguage",
 	"svCommentator",
 	"svCamera",
@@ -60,7 +60,7 @@ const std::string cStringValueStr[cStringValueEnd] = {
 	"svSelectItem",
 	"svEnterIP",
 
-	"svChampionship", 
+	"svChampionship",
 	"svSkirmish",
 
 	"svOnePlayer",
@@ -91,13 +91,13 @@ const std::string cStringValueStr[cStringValueEnd] = {
 	"svLockedCarInfo",
 
 	"svApply",
-	"svOk", 
-	"svCancel", 
+	"svOk",
+	"svCancel",
 	"svBack",
 	"svYes",
 	"svNo",
 	"svBuy",
-	"svWarning",	
+	"svWarning",
 
 	"svLow",
 	"svMiddle",
@@ -246,7 +246,7 @@ const std::string cStringValueStr[cStringValueEnd] = {
 	"scGerry",
 	"scKJin",
 	"scMardock",
-	"scStinkle",	
+	"scStinkle",
 	"scViolet",
 	"scViper",
 
@@ -259,7 +259,7 @@ const std::string cStringValueStr[cStringValueEnd] = {
 	"scGerryInfo",
 	"scKJinInfo",
 	"scMardockInfo",
-	"scStinkleInfo",	
+	"scStinkleInfo",
 	"scVioletInfo",
 	"scViperInfo",
 
@@ -315,11 +315,8 @@ const std::string cStringValueStr[cStringValueEnd] = {
 const std::string cLangCharsetStr[cLangCharsetEnd] = {"lcDefault", "lcEastEurope", "lcRussian", "lcBaltic"};
 const DWORD cLangCharsetCode[cLangCharsetEnd] = {DEFAULT_CHARSET, EASTEUROPE_CHARSET, RUSSIAN_CHARSET, BALTIC_CHARSET};
 
-
-
-
 ComplexMesh::ComplexMesh(ComplexMeshLib* owner): _owner(owner), _tag(-1), _enableTBN(false), _mesh(0), _ivbMesh(0), _meshX(0), _pxMesh(0)
-{	
+{
 }
 
 ComplexMesh::~ComplexMesh()
@@ -367,7 +364,7 @@ res::MeshData* ComplexMesh::GetOrCreateMesh()
 	{
 		_mesh = &_owner->_meshLib->Add();
 		_mesh->SetName(_name);
-		_mesh->SetFileName(_fileName);		
+		_mesh->SetFileName(_fileName);
 	}
 
 	if (_enableTBN && !_mesh->IsInit())
@@ -391,7 +388,7 @@ graph::IndexedVBMesh* ComplexMesh::GetOrCreateIVBMesh()
 	if (!_ivbMesh)
 	{
 		_ivbMesh = &_owner->_ivbMeshLib->Add();
-		_ivbMesh->SetName(GetName());		
+		_ivbMesh->SetName(GetName());
 	}
 
 	_ivbMesh->SetData(GetOrCreateMesh());
@@ -505,8 +502,8 @@ const std::string& ComplexMesh::GetFileName() const
 void ComplexMesh::SetFileName(const std::string& value)
 {
 	_fileName = value;
-	if (_mesh)	
-		_mesh->SetFileName(value);		
+	if (_mesh)
+		_mesh->SetFileName(value);
 }
 
 bool ComplexMesh::GetEnableTBN() const
@@ -518,9 +515,6 @@ void ComplexMesh::SetEnableTBN(bool value)
 {
 	_enableTBN = value;
 }
-
-
-
 
 ComplexMeshLib::ComplexMeshLib(graph::Engine* engine): _engine(engine)
 {
@@ -565,7 +559,7 @@ void ComplexMeshLib::TagChanged(const Value& value, int prevVal, int newVal)
 		_tagList[newVal].push_back(value);
 	}
 }
-	
+
 void ComplexMeshLib::Save(lsl::SWriter* writer)
 {
 	_MyBase::Save(writer);
@@ -637,9 +631,6 @@ graph::Engine* ComplexMeshLib::GetEngine()
 {
 	return _engine;
 }
-
-
-
 
 ComplexImage::ComplexImage(ComplexImageLib* owner): _owner(owner), _levelCnt(1), _gui(false), _image(0), _tex2d(0), _cubeImage(0), _cubeTex(0), _tag(-1)
 {
@@ -713,7 +704,7 @@ graph::Tex2DResource* ComplexImage::GetOrCreateTex2d()
 			_tex2d->SetUsage(D3DUSAGE_AUTOGENMIPMAP);
 		_tex2d->SetGUI(_gui);
 
-		_tex2d->SetData(GetOrCreateImage());		
+		_tex2d->SetData(GetOrCreateImage());
 	}
 
 	return _tex2d;
@@ -731,7 +722,7 @@ res::CubeImageResource* ComplexImage::GetOrCreateCubeImage()
 	if (!_cubeImage)
 	{
 		_cubeImage = &_owner->_cubeImageLib->Add();
-		_cubeImage->SetName(_name);		
+		_cubeImage->SetName(_name);
 		_cubeImage->SetFileName(_fileName);
 	}
 
@@ -772,13 +763,13 @@ void ComplexImage::ReleaseAll()
 {
 	ReleaseCubeTex();
 	ReleaseCubeImage();
-	ReleaseTex2d();	
+	ReleaseTex2d();
 	ReleaseImage();
 }
 
 void ComplexImage::Reload()
 {
-	if (_image && _image->IsInit())	
+	if (_image && _image->IsInit())
 		_image->Reload();
 	if (_tex2d && _tex2d->IsInit())
 		_tex2d->Reload();
@@ -850,9 +841,6 @@ void ComplexImage::SetGUI(bool value)
 {
 	_gui = value;
 }
-
-
-
 
 ComplexImageLib::ComplexImageLib(graph::Engine* engine): _engine(engine)
 {
@@ -966,9 +954,6 @@ graph::Engine* ComplexImageLib::GetEngine()
 	return _engine;
 }
 
-
-
-
 ComplexMatLib::ComplexMatLib(ResourceManager* resManager): _resManager(resManager)
 {
 	LSL_ASSERT(_resManager);
@@ -991,7 +976,7 @@ graph::LibMaterial& ComplexMatLib::LoadLibMat(const std::string& name, bool spri
 	libMat.material.SetAlpha(alpha);
 	libMat.material.SetDiffuse(color);
 	libMat.material.SetAmbient(ambient);
-	
+
 	if (sprite)
 	{
 		libMat.material.SetOption(graph::Material::moLighting, false);
@@ -1014,15 +999,12 @@ graph::Sampler2d& ComplexMatLib::AddSampler2dTo(graph::LibMaterial& libMat, cons
 	if (!imgName.empty())
 		tex2d = _resManager->GetImageLib().Get(imgName).GetOrCreateTex2d();
 	graph::Sampler2d& res = libMat.samplers.Add2d(tex2d);
-	
+
 	res.SetAlphaMode(alphaMode);
 	res.SetFiltering(filtering);
 
 	return res;
 }
-
-
-
 
 ComplexTextFontLibrary::ComplexTextFontLibrary(ResourceManager* resManager): _resManager(resManager)
 {
@@ -1035,14 +1017,14 @@ graph::TextFont& ComplexTextFontLibrary::Get(const std::string& name)
 		throw lsl::Error("TextFont" + name + " does not exist");
 
 	return *font;
-} 
+}
 
 graph::TextFont& ComplexTextFontLibrary::LoadFont(const std::string& name, int height, unsigned weight, bool italic, DWORD charset, const std::string& faceName)
 {
 	graph::TextFont& font = Add();
 	font.SetName(name);
-	
-	graph::TextFont::Desc desc;	
+
+	graph::TextFont::Desc desc;
 	desc.height = height;
 	desc.weight = weight;
 	desc.italic = italic;
@@ -1052,9 +1034,6 @@ graph::TextFont& ComplexTextFontLibrary::LoadFont(const std::string& name, int h
 
 	return font;
 }
-
-
-
 
 StringLibrary::StringLibrary(ResourceManager* resManager): _resManager(resManager)
 {
@@ -1096,7 +1075,7 @@ void StringLibrary::Load(std::istream& stream)
 			if (endPos >= 0)
 				str.erase(endPos, 1);
 			else
-				while (sstream.get(cur) && cur != '\"')				
+				while (sstream.get(cur) && cur != '\"')
 					str.push_back(cur);
 
 			if (!id.empty())
@@ -1185,9 +1164,6 @@ bool StringLibrary::Has(StringValue value) const
 {
 	return Has(cStringValueStr[value]);
 }
-
-
-
 
 ResourceManager::ResourceManager(World* world): _world(world), _fontCharset(lcDefault), _worldType(Planet::cWorldTypeEnd)
 {
@@ -1312,13 +1288,13 @@ graph::LibMaterial& ResourceManager::LoadBumpLibMat(const std::string& name, con
 {
 	graph::LibMaterial& libMat = LoadLibMat(name, sprite, blending, alpha);
 	AddSampler2dTo(libMat, imgName, graph::Sampler2d::tmModulate, sprite ? graph::BaseSampler::sfLinear : graph::BaseSampler::sfAnisotropic);
-	
+
 	AddSampler2dTo(libMat, normMap);
 	libMat.samplers[1].stageStates.Set(graph::tssColorOp, D3DTOP_DISABLE);
 	libMat.samplers[1].stageStates.Set(graph::tssAlphaOp, D3DTOP_DISABLE);
 
 	libMat.material.SetSpecPower(128.0f);
-	libMat.material.SetSpecular(D3DXCOLOR(0.5f, 0.5f, 0.5f, 1.0f));	
+	libMat.material.SetSpecular(D3DXCOLOR(0.5f, 0.5f, 0.5f, 1.0f));
 
 	return libMat;
 }
@@ -1376,9 +1352,6 @@ void ResourceManager::LoadEffects()
 	LoadMesh("Effect\\frost.r3d", false, true, true);
 	LoadMesh("Effect\\sphere.r3d", false, true, true);
 
-
-
-
 	LoadImage("Effect\\gunEff2.dds", 1, true, false);
 	LoadImage("Effect\\explosion1.dds", 1, true, false);
 	LoadImage("Effect\\explosion2.dds", 1, true, false);
@@ -1420,10 +1393,10 @@ void ResourceManager::LoadEffects()
 	LoadImage("Effect\\blaster.dds", 1, true, false);
 	LoadImage("Effect\\dust_smoke_06.dds", 1, true, false);
 	LoadImage("Effect\\ExplosionRay.dds", 1, true, false);
-	LoadImage("Effect\\ExplosionRing.dds", 1, true, false);	
-	LoadImage("Effect\\lens1.dds", 1, true, false);	
+	LoadImage("Effect\\ExplosionRing.dds", 1, true, false);
+	LoadImage("Effect\\lens1.dds", 1, true, false);
 	LoadImage("Effect\\streak1.dds", 1, true, false);
-	LoadImage("Effect\\blink.dds", 1, true, false);	
+	LoadImage("Effect\\blink.dds", 1, true, false);
 	LoadImage("Effect\\lightning1.dds", 1, true, false);
 	LoadImage("Effect\\flare3.dds", 1, true, false);
 	LoadImage("Effect\\trail1.dds", 1, true, false);
@@ -1450,9 +1423,6 @@ void ResourceManager::LoadEffects()
 	LoadImage("Effect\\flare1_tc.dds", 1, true, false);
 	LoadImage("Effect\\flare2b.dds", 1, true, false);
 	LoadImage("Effect\\flare2a.dds", 1, true, false);
-	
-
-
 
 	LoadImage2dLibMat("Effect\\wheel", "Effect\\wheel.dds");
 	LoadImage2dLibMat("Effect\\truba", "Effect\\truba.dds");
@@ -1461,7 +1431,7 @@ void ResourceManager::LoadEffects()
 	LoadImage2dLibMat("Effect\\j_swell", "Effect\\j_swell.dds", true);
 	LoadImage2dLibMat("Effect\\frost", "Effect\\frost.dds", false, graph::Material::bmTransparency, FloatRange(0.5f, 0.0f));
 
-	LoadImage2dLibMat("Effect\\smoke1", "Effect\\smoke1.dds", true, graph::Material::bmTransparency, FloatRange(0.5f, 0.0f), clrWhite * 0.25f);	
+	LoadImage2dLibMat("Effect\\smoke1", "Effect\\smoke1.dds", true, graph::Material::bmTransparency, FloatRange(0.5f, 0.0f), clrWhite * 0.25f);
 	LoadImage2dLibMat("Effect\\smoke2", "Effect\\smoke2.dds", true, graph::Material::bmTransparency, FloatRange(0.8f, 0.0f), ColorRange(D3DXCOLOR(0.5f, 0.32f, 0.25f, 1.0f), D3DXCOLOR(0.25f, 0.25f, 0.25f, 1.0f)));
 	LoadImage2dLibMat("Effect\\smoke3", "Effect\\smoke3.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.0f), clrWhite);
 	LoadImage2dLibMat("Effect\\smoke7", "Effect\\smoke7.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.0f), clrWhite);
@@ -1470,12 +1440,12 @@ void ResourceManager::LoadEffects()
 	LoadAnimImage2dLibMat("Effect\\frostRay", "Effect\\frostRay.dds", Vec3Range(NullVector, -XVector * 1.0f), IdentityVector, NullQuaternion, true, graph::Material::bmTransparency, FloatRange(0.0f, 1.0f));
 	LoadImage2dLibMat("Effect\\frostSmoke", "Effect\\frostSmoke.dds", true, graph::Material::bmTransparency, FloatRange(0.0f, 0.5f));
 	LoadImage2dLibMat("Effect\\frostHit", "Effect\\frostSmoke.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.0f));
-	LoadImage2dLibMat("Effect\\crater", "Effect\\crater.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.0f));		
+	LoadImage2dLibMat("Effect\\crater", "Effect\\crater.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.0f));
 
 	LoadImage2dLibMat("Effect\\flare1", "Effect\\flare1.dds", true, graph::Material::bmAdditive, 0.5f, D3DXCOLOR(1, 0.58f, 0.36f, 1.0f));
 	LoadImage2dLibMat("Effect\\flare2", "Effect\\flare1.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f), clrRed);
 	LoadImage2dLibMat("Effect\\flare3", "Effect\\flare1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), D3DXCOLOR(1, 0.58f, 0.36f, 1.0f));
-	LoadImage2dLibMat("Effect\\flare4", "Effect\\flare2.dds", true, graph::Material::bmAdditive);	
+	LoadImage2dLibMat("Effect\\flare4", "Effect\\flare2.dds", true, graph::Material::bmAdditive);
 	LoadImage2dLibMat("Effect\\flare5", "Effect\\flare3.dds", true, graph::Material::bmAdditive);
 	LoadImage2dLibMat("Effect\\flare6", "Effect\\flare4.dds", true, graph::Material::bmAdditive);
 	LoadImage2dLibMat("Effect\\flare7Red", "Effect\\flare5.dds", true, graph::Material::bmAdditive, 1.0f, clrRed);
@@ -1485,50 +1455,50 @@ void ResourceManager::LoadEffects()
 	LoadImage2dLibMat("Effect\\heatTrail", "Effect\\heatTrail.dds", true, graph::Material::bmAdditive, FloatRange(0.8f, 0.0f), clrWhite);
 	LoadImage2dLibMat("Effect\\bullet", "Effect\\bullet.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite);
 	LoadImage2dLibMat("Effect\\rad_add", "Effect\\rad_add.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite);
-	LoadImage2dLibMat("Effect\\laser3-red2", "Effect\\laser3-red2.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f), clrWhite);	
+	LoadImage2dLibMat("Effect\\laser3-red2", "Effect\\laser3-red2.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f), clrWhite);
 	LoadImage2dLibMat("Effect\\flash1", "Effect\\flash1.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite);
 	LoadImage2dLibMat("Effect\\flash2", "Effect\\flash2.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite);
 	LoadImage2dLibMat("Effect\\dust_smoke_06", "Effect\\flare1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), D3DXCOLOR(0.2f, 0.2f, 1.0f, 1.0f));
 	LoadImage2dLibMat("Effect\\sonar", "Effect\\sonar.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\ExplosionRay", "Effect\\ExplosionRay.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), clrBlue);
 	LoadImage2dLibMat("Effect\\ExplosionRing", "Effect\\ExplosionRing.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), clrYellow);
-	LoadImage2dLibMat("Effect\\laser3-blue", "Effect\\laser3-blue.dds", true, graph::Material::bmAdditive);	
-	LoadImage2dLibMat("Effect\\lens1", "Effect\\lens1.dds", true, graph::Material::bmAdditive, 1.0f, clrBlue);	
+	LoadImage2dLibMat("Effect\\laser3-blue", "Effect\\laser3-blue.dds", true, graph::Material::bmAdditive);
+	LoadImage2dLibMat("Effect\\lens1", "Effect\\lens1.dds", true, graph::Material::bmAdditive, 1.0f, clrBlue);
 	LoadImage2dLibMat("Effect\\streak1", "Effect\\streak1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\blink", "Effect\\blink.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\lightning1", "Effect\\lightning1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\trail1", "Effect\\trail1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\ring1", "Effect\\ring1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\ring2", "Effect\\ring2.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f));
-	LoadImage2dLibMat("Effect\\frostLine", "Effect\\frostLine.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f));	
-	LoadImage2dLibMat("Effect\\firePatron", "Effect\\firePatron.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));	
+	LoadImage2dLibMat("Effect\\frostLine", "Effect\\frostLine.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f));
+	LoadImage2dLibMat("Effect\\firePatron", "Effect\\firePatron.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\fireTrail", "Effect\\fireTrail.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), ColorRange(clrWhite, clrRed));
 	LoadImage2dLibMat("Effect\\protonRay", "Effect\\protonRay.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\protonRing", "Effect\\protonRing.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\phaseRing", "Effect\\phaseRing.dds", true, graph::Material::bmAdditive);
-	LoadImage2dLibMat("Effect\\thunder1", "Effect\\thunder1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), ColorRange(D3DXCOLOR(0xFFEC008C), D3DXCOLOR(0xFF0000FF)));	
-	LoadImage2dLibMat("Effect\\flareLaser1", "Effect\\flare2b.dds", true, graph::Material::bmAdditive, FloatRange(0.7f, 0.0f));		
+	LoadImage2dLibMat("Effect\\thunder1", "Effect\\thunder1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), ColorRange(D3DXCOLOR(0xFFEC008C), D3DXCOLOR(0xFF0000FF)));
+	LoadImage2dLibMat("Effect\\flareLaser1", "Effect\\flare2b.dds", true, graph::Material::bmAdditive, FloatRange(0.7f, 0.0f));
 	LoadImage2dLibMat("Effect\\flareLaser2", "Effect\\flare1_tc.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
-	LoadImage2dLibMat("Effect\\flareLaser3", "Effect\\flare2a.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));	
-	
-	LoadImage2dLibMat("Effect\\smoke6", "Effect\\smoke6.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.1f), ColorRange(clrWhite, clrBlack), Vec2Range(NullVec2, IdentityVec2), Point2U(4, 1));	
+	LoadImage2dLibMat("Effect\\flareLaser3", "Effect\\flare2a.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
+
+	LoadImage2dLibMat("Effect\\smoke6", "Effect\\smoke6.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.1f), ColorRange(clrWhite, clrBlack), Vec2Range(NullVec2, IdentityVec2), Point2U(4, 1));
 	LoadImage2dLibMat("Effect\\explosion2", "Effect\\explosion2.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(4, 4));//.material.SetOption(graph::Material::moZTest, false);
 	LoadImage2dLibMat("Effect\\explosion3", "Effect\\explosion3.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(6, 6));
 	LoadImage2dLibMat("Effect\\explosion4", "Effect\\explosion4.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(7, 7));
 	LoadImage2dLibMat("Effect\\boom1", "Effect\\fireblast09anim2.dds", true, graph::Material::bmTransparency, 1.0f, clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(8, 4));
-	LoadImage2dLibMat("Effect\\boom2", "Effect\\blueboom1_add.dds", true, graph::Material::bmTransparency, 1.0f, clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(8, 8));	
+	LoadImage2dLibMat("Effect\\boom2", "Effect\\blueboom1_add.dds", true, graph::Material::bmTransparency, 1.0f, clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(8, 8));
 	LoadImage2dLibMat("Effect\\spark1", "Effect\\spark1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\boomSpark1", "Effect\\szikra_group_6.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\boomSpark2", "Effect\\szikra_group_7.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\fire1", "Effect\\fire1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), ColorRange(clrWhite, clrRed), Vec2Range(NullVec2, IdentityVec2), Point2U(4, 3));
 	LoadImage2dLibMat("Effect\\fire2", "Effect\\fire2.dds", true, graph::Material::bmAdditive, 1.0f, ColorRange(clrWhite, clrRed), Vec2Range(NullVec2, IdentityVec2), Point2U(5, 5));
-	LoadImage2dLibMat("Effect\\gunEff2", "Effect\\gunEff2.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), clrWhite, Vec2Range(NullVec2, D3DXVECTOR2(1.0f, 0.25f)), Point2U(4, 1));
+	LoadImage2dLibMat("Effect\\gunEff2", "Effect\\gunEff2.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), clrWhite, Vec2Range(NullVec2, glm::vec2(1.0f, 0.25f)), Point2U(4, 1));
 	LoadImage2dLibMat("Effect\\engine1", "Effect\\engine1.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(5, 2));
-	LoadImage2dLibMat("Effect\\shield1", "Effect\\shield1.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f), clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(5, 2));	
+	LoadImage2dLibMat("Effect\\shield1", "Effect\\shield1.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f), clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(5, 2));
 	LoadImage2dLibMatAnim("Effect\\shield2", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 0.4f, clrWhite, Vec3Range(NullVector, IdentityVector)).SetAnisoFlt();
 	LoadImage2dLibMatAnim("Effect\\shield2Hor", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 0.4f, clrWhite, Vec3Range(NullVector, D3DXVECTOR3(1, 0, 0))).SetAnisoFlt();
 	LoadImage2dLibMatAnim("Effect\\shield2Vert", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 0.4f, clrWhite, Vec3Range(NullVector, D3DXVECTOR3(0, 1, 0))).SetAnisoFlt();
-	LoadImage2dLibMatAnim("Effect\\phaserBolt", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite, Vec3Range(NullVector, IdentityVector)).SetAnisoFlt();	
+	LoadImage2dLibMatAnim("Effect\\phaserBolt", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite, Vec3Range(NullVector, IdentityVector)).SetAnisoFlt();
 
 	LoadLibMat("Effect\\gravBall", true, graph::Material::bmOpaque, 1.0f, clrRed);
 
@@ -1565,7 +1535,7 @@ void ResourceManager::LoadWorld1()
 	LoadMesh("World1\\zdaine2.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagInitIVB);
 
 	LoadMesh("World1\\Track\\jump.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagInitIVB);
-	LoadMesh("World1\\Track\\most.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagInitIVB);	
+	LoadMesh("World1\\Track\\most.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagInitIVB);
 	LoadMesh("World1\\Track\\track1.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagInitIVB);
 	LoadMesh("World1\\Track\\track2.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagInitIVB);
 	LoadMesh("World1\\Track\\track3.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagInitIVB);
@@ -1580,15 +1550,12 @@ void ResourceManager::LoadWorld1()
 	LoadMesh("World1\\Track\\pxTrack1.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
 	LoadMesh("World1\\Track\\pxTrack2.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
 	LoadMesh("World1\\Track\\pxTrack3.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
-	LoadMesh("World1\\Track\\pxTrack4.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);	
+	LoadMesh("World1\\Track\\pxTrack4.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
 	LoadMesh("World1\\Track\\pxTrack5.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
 	LoadMesh("World1\\Track\\pxTramp1.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
 	LoadMesh("World1\\Track\\pxTramp2.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
 	LoadMesh("World1\\Track\\pxPodjem2.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
 	LoadMesh("World1\\Track\\pxMost.r3d", false, false, false, Planet::wtWorld1 | MeshLib::cTagLoadData);
-
-
-
 
 	LoadImage("World1\\Texture\\berge.dds", cGenMipLevel, false, false, Planet::wtWorld1 | ImageLib::cTagInitTex2d);
 	LoadImage("World1\\Texture\\eldertree.dds", cGenMipLevel, false, false, Planet::wtWorld1 | ImageLib::cTagInitTex2d);
@@ -1606,11 +1573,8 @@ void ResourceManager::LoadWorld1()
 	LoadImage("World1\\Track\\Texture\\track1.dds", cGenMipLevel, false, false, Planet::wtWorld1 | ImageLib::cTagInitTex2d);
 	LoadImage("World1\\Track\\Texture\\most.dds", cGenMipLevel, false, false, Planet::wtWorld1 | ImageLib::cTagInitTex2d);
 
-
-
-
 	LoadImage2dLibMat("World1\\stone", "World1\\Texture\\stone.dds");
-	LoadImage2dLibMat("World1\\wand", "World1\\Texture\\wand.dds");	
+	LoadImage2dLibMat("World1\\wand", "World1\\Texture\\wand.dds");
 	LoadImage2dLibMat("World1\\Track\\most", "World1\\Track\\Texture\\most.dds");
 	LoadImage2dLibMat("World1\\Track\\track1", "World1\\Track\\Texture\\track1.dds");
 	LoadAlphaTestLibMat("World1\\zdanie1", "World1\\Texture\\zdanie1.dds");
@@ -1667,12 +1631,12 @@ void ResourceManager::LoadWorld2()
 	LoadMesh("World2\\isle4.r3d", false, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
 
 	LoadMesh("World2\\Track\\jump.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
-	LoadMesh("World2\\Track\\most.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);	
+	LoadMesh("World2\\Track\\most.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
 	LoadMesh("World2\\Track\\track1.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
 	LoadMesh("World2\\Track\\track2.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
 	LoadMesh("World2\\Track\\track3.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
-	LoadMesh("World2\\Track\\track4.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);	
-	LoadMesh("World2\\Track\\track6.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);	
+	LoadMesh("World2\\Track\\track4.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
+	LoadMesh("World2\\Track\\track6.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
 	LoadMesh("World2\\Track\\tramp1.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
 	LoadMesh("World2\\Track\\tramp2.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
 	LoadMesh("World2\\Track\\jumper1.r3d", true, false, false, Planet::wtWorld2 | MeshLib::cTagInitIVB);
@@ -1685,9 +1649,6 @@ void ResourceManager::LoadWorld2()
 	LoadMesh("World2\\Track\\pxTrack6.r3d", false, false, false, Planet::wtWorld2 | MeshLib::cTagLoadData);
 	LoadMesh("World2\\Track\\pxTramp1.r3d", false, false, false, Planet::wtWorld2 | MeshLib::cTagLoadData);
 	LoadMesh("World2\\Track\\pxTramp2.r3d", false, false, false, Planet::wtWorld2 | MeshLib::cTagLoadData);
-
-
-
 
 	LoadImage("World2\\Texture\\atom.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Texture\\bochki.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
@@ -1707,7 +1668,7 @@ void ResourceManager::LoadWorld2()
 	LoadImage("World2\\Texture\\pumpjack.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Texture\\semaphore.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Texture\\skelet1.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
-	LoadImage("World2\\Texture\\strelka1.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);	
+	LoadImage("World2\\Texture\\strelka1.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Texture\\tramplin1.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Texture\\truba1.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Texture\\truba2.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
@@ -1721,9 +1682,6 @@ void ResourceManager::LoadWorld2()
 	//LoadImage("World2\\Track\\Texture\\track2road_norm.dds", 1, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Track\\Texture\\most.dds", cGenMipLevel, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
 	LoadImage("World2\\Track\\Texture\\most_norm.dds", 1, false, false, Planet::wtWorld2 | ImageLib::cTagInitTex2d);
-
-
-
 
 	LoadImage2dLibMat("World2\\atom", "World2\\Texture\\atom.dds");
 	LoadImage2dLibMat("World2\\bochki", "World2\\Texture\\bochki.dds");
@@ -1745,9 +1703,9 @@ void ResourceManager::LoadWorld2()
 	LoadImage2dLibMat("World2\\truba2", "World2\\Texture\\truba2.dds");
 	LoadImage2dLibMat("World2\\truba3", "World2\\Texture\\truba3.dds");
 	LoadImage2dLibMat("World2\\truba4", "World2\\Texture\\truba4.dds");
-	LoadImage2dLibMat("World2\\isle1", "World2\\Texture\\isle1.dds");	
+	LoadImage2dLibMat("World2\\isle1", "World2\\Texture\\isle1.dds");
 
-	LoadAlphaTestLibMat("World2\\elka", "World2\\Texture\\elka.dds");	
+	LoadAlphaTestLibMat("World2\\elka", "World2\\Texture\\elka.dds");
 	LoadAlphaTestLibMat("World2\\deadtree1", "World2\\Texture\\deadtree1.dds");
 	LoadAlphaTestLibMat("World2\\deadtree2", "World2\\Texture\\deadtree2.dds");
 	LoadAlphaTestLibMat("World2\\poplar1", "World2\\Texture\\poplar1.dds");
@@ -1776,13 +1734,13 @@ void ResourceManager::LoadWorld3()
 	LoadMesh("World3\\stone2.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);
 	LoadMesh("World3\\stone3.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);
 
-	LoadMesh("World3\\Track\\most.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);	
+	LoadMesh("World3\\Track\\most.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);
 	LoadMesh("World3\\Track\\track1.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);
 	LoadMesh("World3\\Track\\track2.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);
 	LoadMesh("World3\\Track\\track3.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);
 	LoadMesh("World3\\Track\\track4.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);
 	LoadMesh("World3\\Track\\podjem1.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);
-	LoadMesh("World3\\Track\\podjem2.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);	
+	LoadMesh("World3\\Track\\podjem2.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagInitIVB);
 
 	LoadMesh("World3\\Track\\pxTrack1.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagLoadData);
 	LoadMesh("World3\\Track\\pxTrack2.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagLoadData);
@@ -1792,7 +1750,7 @@ void ResourceManager::LoadWorld3()
 	LoadMesh("World3\\Track\\pxPodjem2.r3d", false, false, false, Planet::wtWorld3 | MeshLib::cTagLoadData);
 
 	LoadImage("World3\\Texture\\fabrika.dds", cGenMipLevel, false, false, Planet::wtWorld3 | ImageLib::cTagInitTex2d);
-	LoadImage("World3\\Texture\\grass.dds", cGenMipLevel, false, false, Planet::wtWorld3 | ImageLib::cTagInitTex2d); 
+	LoadImage("World3\\Texture\\grass.dds", cGenMipLevel, false, false, Planet::wtWorld3 | ImageLib::cTagInitTex2d);
 	LoadImage("World3\\Texture\\tower.dds", cGenMipLevel, false, false, Planet::wtWorld3 | ImageLib::cTagInitTex2d);
 	LoadImage("World3\\Texture\\tower2.dds", cGenMipLevel, false, false, Planet::wtWorld3 | ImageLib::cTagInitTex2d);
 	LoadImage("World3\\Texture\\ventil1.dds", cGenMipLevel, false, false, Planet::wtWorld3 | ImageLib::cTagInitTex2d);
@@ -1811,7 +1769,7 @@ void ResourceManager::LoadWorld3()
 	LoadImage2dLibMat("World3\\ventil2", "World3\\Texture\\ventil2.dds");
 	LoadImage2dLibMat("World3\\windmil", "World3\\Texture\\windmil.dds");
 	LoadImage2dLibMat("World3\\stone", "World3\\Texture\\stone.dds");
-	LoadAlphaTestLibMat("World3\\grass", "World3\\Texture\\grass.dds");	
+	LoadAlphaTestLibMat("World3\\grass", "World3\\Texture\\grass.dds");
 
 	LoadImage2dLibMat("World3\\Track\\track", "World3\\Track\\Texture\\track1.dds");
 	LoadImage2dLibMat("World3\\Track\\most", "World3\\Track\\Texture\\most.dds");
@@ -1822,23 +1780,23 @@ void ResourceManager::LoadWorld4()
 	LSL_LOG("resourceManager load world4");
 
 	LoadMesh("World4\\architect1.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
-	LoadMesh("World4\\architect2.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\architect3_1.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\architect3_2.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\architect4.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\build.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\gora1.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\gora2.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\kolba.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\lavaplace1.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\lavaplace2.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\lavaplace3.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\lavaplace4.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
-	LoadMesh("World4\\lavaplace5.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
+	LoadMesh("World4\\architect2.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\architect3_1.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\architect3_2.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\architect4.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\build.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\gora1.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\gora2.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\kolba.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\lavaplace1.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\lavaplace2.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\lavaplace3.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\lavaplace4.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
+	LoadMesh("World4\\lavaplace5.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
 	LoadMesh("World4\\pushka.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
 	LoadMesh("World4\\naves.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
 	LoadMesh("World4\\volcano.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
-	LoadMesh("World4\\crystals.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);	
+	LoadMesh("World4\\crystals.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
 
 	LoadMesh("World4\\Track\\most.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
 	LoadMesh("World4\\Track\\most2.r3d", false, false, false, Planet::wtWorld4 | MeshLib::cTagInitIVB);
@@ -1892,7 +1850,7 @@ void ResourceManager::LoadWorld4()
 	LoadImage2dLibMat("World4\\lavaplace", "World4\\Texture\\lavaplace.dds");
 	LoadImage2dLibMat("World4\\pushka", "World4\\Texture\\pushka.dds");
 	LoadImage2dLibMat("World4\\volcano", "World4\\Texture\\volcano.dds");
-	LoadImage2dLibMat("World4\\crystals", "World4\\Texture\\crystals.dds");	
+	LoadImage2dLibMat("World4\\crystals", "World4\\Texture\\crystals.dds");
 
 	LoadImage2dLibMat("World4\\Track\\track1", "World4\\Track\\Texture\\track1.dds");
 	LoadImage2dLibMat("World4\\Track\\track2", "World4\\Track\\Texture\\track2.dds");
@@ -1913,7 +1871,7 @@ void ResourceManager::LoadWorld5()
 	LoadMesh("World5\\snowstone2.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);
 	LoadMesh("World5\\snowTree.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);
 	LoadMesh("World5\\transportship.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);
-	LoadMesh("World5\\piece.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);		
+	LoadMesh("World5\\piece.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);
 
 	LoadMesh("World5\\Track\\most.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);
 	LoadMesh("World5\\Track\\podjem1.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);
@@ -1925,7 +1883,7 @@ void ResourceManager::LoadWorld5()
 	LoadMesh("World5\\Track\\track4.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);
 	LoadMesh("World5\\Track\\trackVentil.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);
 	LoadMesh("World5\\Track\\tramp1.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);
-	LoadMesh("World5\\Track\\tramp2.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);	
+	LoadMesh("World5\\Track\\tramp2.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagInitIVB);
 
 	LoadMesh("World5\\Track\\PXpodjem1.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagLoadData);
 	LoadMesh("World5\\Track\\PXpodjem2.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagLoadData);
@@ -1933,7 +1891,7 @@ void ResourceManager::LoadWorld5()
 	LoadMesh("World5\\Track\\PXtrack1.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagLoadData);
 	LoadMesh("World5\\Track\\PXtrack2.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagLoadData);
 	LoadMesh("World5\\Track\\PXtrack3.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagLoadData);
-	LoadMesh("World5\\Track\\PXtrack4.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagLoadData);	
+	LoadMesh("World5\\Track\\PXtrack4.r3d", false, false, false, Planet::wtWorld5 | MeshLib::cTagLoadData);
 
 	LoadImage("World5\\Texture\\cannon.dds", cGenMipLevel, false, false, Planet::wtWorld5 | ImageLib::cTagInitTex2d);
 	LoadImage("World5\\Texture\\cannon2.dds", cGenMipLevel, false, false, Planet::wtWorld5 | ImageLib::cTagInitTex2d);
@@ -1953,7 +1911,7 @@ void ResourceManager::LoadWorld5()
 
 	LoadImage2dLibMat("World5\\snowPlate", "World5\\Texture\\snowPlate.dds");
 	LoadImage2dLibMat("World5\\transportship", "World5\\Texture\\transportship.dds");
-	LoadImage2dLibMat("World5\\cannon2", "World5\\Texture\\cannon2.dds");	
+	LoadImage2dLibMat("World5\\cannon2", "World5\\Texture\\cannon2.dds");
 	LoadImage2dLibMat("World5\\piece", "World5\\Texture\\piece.dds");
 	LoadImage2dLibMat("World5\\snowstone2", "World5\\Texture\\snowstone2.dds");
 
@@ -1999,7 +1957,7 @@ void ResourceManager::LoadWorld6()
 	LoadMesh("World6\\Track\\most.r3d", false, false, false, Planet::wtWorld6 | MeshLib::cTagInitIVB);
 
 	LoadMesh("World6\\Track\\pxEnterTunnel.r3d", false, false, false, Planet::wtWorld6 | MeshLib::cTagLoadData);
-	LoadMesh("World6\\Track\\pxMost.r3d", false, false, false, Planet::wtWorld6 | MeshLib::cTagLoadData);	
+	LoadMesh("World6\\Track\\pxMost.r3d", false, false, false, Planet::wtWorld6 | MeshLib::cTagLoadData);
 	LoadMesh("World6\\Track\\pxTunel.r3d", false, false, false, Planet::wtWorld6 | MeshLib::cTagLoadData);
 
 	LoadImage("World6\\Texture\\stone.dds", cGenMipLevel, false, false, Planet::wtWorld6 | ImageLib::cTagInitTex2d);
@@ -2012,7 +1970,7 @@ void ResourceManager::LoadWorld6()
 
 	LoadImage("World6\\Track\\Texture\\tonnel.dds", cGenMipLevel, false, false, Planet::wtWorld6 | ImageLib::cTagInitTex2d);
 	LoadImage("World6\\Track\\Texture\\track1.dds", cGenMipLevel, false, false, Planet::wtWorld6 | ImageLib::cTagInitTex2d);
-	LoadImage("World6\\Track\\Texture\\tramplin3.dds", cGenMipLevel, false, false, Planet::wtWorld6 | ImageLib::cTagInitTex2d);	
+	LoadImage("World6\\Track\\Texture\\tramplin3.dds", cGenMipLevel, false, false, Planet::wtWorld6 | ImageLib::cTagInitTex2d);
 
 	LoadImage2dLibMat("World6\\stone", "World6\\Texture\\stone.dds");
 	LoadImage2dLibMat("World6\\nuke", "World6\\Texture\\nuke.dds");
@@ -2072,7 +2030,7 @@ void ResourceManager::LoadCars()
 	LoadMesh("Car\\dirtdevilWheel.r3d");
 	LoadMesh("Car\\tankchetti.r3d");
 	LoadMesh("Car\\tankchettiWheel.r3d");
-	LoadMesh("Car\\manticora.r3d");	
+	LoadMesh("Car\\manticora.r3d");
 	LoadMesh("Car\\manticoraWheel.r3d");
 	LoadMesh("Car\\manticoraWheelBack.r3d");
 	LoadMesh("Car\\manticoraGun.r3d");
@@ -2097,15 +2055,12 @@ void ResourceManager::LoadCars()
 
 	LoadMesh("Car\\marauderCrush.r3d", false, true, true);
 	LoadMesh("Car\\airbladeCrush.r3d", false, true, true);
-	LoadMesh("Car\\devildriverCrush.r3d", false, true, true);	
-	LoadMesh("Car\\dirtdevilCrush.r3d", false, true, true);	
-	LoadMesh("Car\\gusenizaCrush.r3d", false, true, true);	
+	LoadMesh("Car\\devildriverCrush.r3d", false, true, true);
+	LoadMesh("Car\\dirtdevilCrush.r3d", false, true, true);
+	LoadMesh("Car\\gusenizaCrush.r3d", false, true, true);
 	LoadMesh("Car\\manticoraCrush.r3d", false, true, true);
 	LoadMesh("Car\\monstertruckCrush.r3d", false, true, true);
 	LoadMesh("Car\\podushkaCrush.r3d", false, true, true);
-
-
-
 
 	LoadImage("Car\\marauder.dds", cGenMipLevel);
 	LoadImage("Car\\buggi.dds", cGenMipLevel);
@@ -2119,9 +2074,9 @@ void ResourceManager::LoadCars()
 	LoadImage("Car\\monstertruck.dds", cGenMipLevel);
 	LoadImage("Car\\podushka.dds", cGenMipLevel);
 	LoadImage("Car\\podushkaBoss.dds", cGenMipLevel);
-	LoadImage("Car\\monstertruckBoss.dds", cGenMipLevel);	
+	LoadImage("Car\\monstertruckBoss.dds", cGenMipLevel);
 	LoadImage("Car\\manticoraBoss.dds", cGenMipLevel);
-	LoadImage("Car\\devildriver.dds", cGenMipLevel);	
+	LoadImage("Car\\devildriver.dds", cGenMipLevel);
 	LoadImage("Car\\devildriverBoss.dds", cGenMipLevel);
 	LoadImage("Car\\mustang.dds", cGenMipLevel);
 	LoadImage("Car\\xCar.dds", cGenMipLevel);
@@ -2134,9 +2089,6 @@ void ResourceManager::LoadCars()
 	LoadImage("Car\\manticoraCrush.dds", cGenMipLevel, true);
 	LoadImage("Car\\monstertruckCrush.dds", cGenMipLevel, true);
 	LoadImage("Car\\podushkaCrush.dds", cGenMipLevel, true);
-	
-
-
 
 	LoadCarLibMat("Car\\marauder", "Car\\marauder.dds");
 	LoadCarLibMat("Car\\buggi", "Car\\buggi.dds");
@@ -2144,7 +2096,7 @@ void ResourceManager::LoadCars()
 	LoadCarLibMat("Car\\tankchetti", "Car\\tankchetti.dds");
 	LoadCarLibMat("Car\\manticora", "Car\\manticora.dds");
 	LoadCarLibMat("Car\\airblade", "Car\\airblade.dds");//, "Car\\airbladeNorm.dds"
-	LoadCarLibMat("Car\\guseniza", "Car\\guseniza.dds");	
+	LoadCarLibMat("Car\\guseniza", "Car\\guseniza.dds");
 	LoadCarLibMat("Car\\gusenizaBoss", "Car\\gusenizaBoss.dds");
 	LoadCarLibMat("Car\\monstertruck", "Car\\monstertruck.dds");
 	LoadCarLibMat("Car\\podushka", "Car\\podushka.dds");
@@ -2167,7 +2119,7 @@ void ResourceManager::LoadCars()
 		libMat.samplers[0].samplerStates.Set(graph::ssAddressU, D3DTADDRESS_WRAP);
 		libMat.samplers[0].samplerStates.Set(graph::ssAddressV, D3DTADDRESS_CLAMP);
 		libMat.samplers[0].SetFiltering(graph::BaseSampler::sfAnisotropic);
-	}	
+	}
 	LoadImage2dLibMat("Car\\monstertruckWheel", "Car\\monstertruck.dds");
 	LoadImage2dLibMat("Car\\monstertruckBossWheel", "Car\\monstertruckBoss.dds");
 	LoadImage2dLibMat("Car\\manticoraBossWheel", "Car\\manticoraBoss.dds");
@@ -2201,9 +2153,6 @@ void ResourceManager::LoadBonus()
 	LoadMesh("Bonus\\money.r3d", false, true, true);
 	LoadMesh("Bonus\\shield.r3d", false, true, true);
 
-
-
-
 	LoadImage("Bonus\\ammo.dds", cGenMipLevel, true, false);
 	LoadImage("Bonus\\medpack.dds", cGenMipLevel, true, false);
 	LoadImage("Bonus\\money.dds", cGenMipLevel, true, false);
@@ -2216,26 +2165,23 @@ void ResourceManager::LoadBonus()
 	LoadImage("Bonus\\maslo.dds", cGenMipLevel, true, false);
 	LoadImage("Bonus\\maslo_top.dds", cGenMipLevel, true, false);
 
-
-
-
 	LoadImage2dLibMat("Bonus\\ammo", "Bonus\\ammo.dds");
 	LoadImage2dLibMat("Bonus\\medpack", "Bonus\\medpack.dds");
 	LoadImage2dLibMat("Bonus\\money", "Bonus\\money.dds");
 	LoadImage2dLibMat("Bonus\\shield", "Bonus\\shield.dds");
-	LoadImage2dLibMat("Bonus\\speedArrow", "Bonus\\speedArrow.dds", true, graph::Material::bmTransparency).SetAnisoFlt();	
+	LoadImage2dLibMat("Bonus\\speedArrow", "Bonus\\speedArrow.dds", true, graph::Material::bmTransparency).SetAnisoFlt();
 	LoadImage2dLibMat("Bonus\\strelkaAnim", "Bonus\\strelkaAnim.dds", true, graph::Material::bmTransparency, 1.0f, clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(3, 2)).SetAnisoFlt();
 	LoadImage2dLibMat("Bonus\\lusha", "Bonus\\lusha.dds", true, graph::Material::bmTransparency).SetAnisoFlt();
 	LoadImage2dLibMat("Bonus\\snowLusha", "Bonus\\snowLusha.dds", true, graph::Material::bmTransparency).SetAnisoFlt();
 	LoadImage2dLibMat("Bonus\\hellLusha", "Bonus\\hellLusha.dds", true, graph::Material::bmTransparency).SetAnisoFlt();
-	
+
 	//maslo
 	{
 		graph::LibMaterial* libMat = &GetMatLib().Add();
 		libMat->SetName("Bonus\\maslo");
 		libMat->material.SetSpecPower(64.0f);
 		libMat->material.SetSpecular(D3DXCOLOR(1, 1, 1, 1));
-		libMat->material.SetBlending(graph::Material::bmTransparency);		
+		libMat->material.SetBlending(graph::Material::bmTransparency);
 		libMat->material.SetOption(graph::Material::moZWrite, false);
 
 		AddSampler2dTo(*libMat, "Bonus\\maslo.dds", graph::Sampler2d::tmModulate);
@@ -2255,13 +2201,13 @@ void ResourceManager::LoadWeapons()
 	LoadMesh("Weapon\\pulsator.r3d");
 	LoadMesh("Weapon\\gun.r3d");
 	LoadMesh("Weapon\\hyperdrive.r3d");
-	LoadMesh("Weapon\\mine1.r3d");	
+	LoadMesh("Weapon\\mine1.r3d");
 	LoadMesh("Weapon\\mine2.r3d");
 	LoadMesh("Weapon\\mine3.r3d");
-	LoadMesh("Weapon\\mine2Piece.r3d");	
+	LoadMesh("Weapon\\mine2Piece.r3d");
 	LoadMesh("Weapon\\rocket.r3d");
 	LoadMesh("Weapon\\rocketAir.r3d");
-	LoadMesh("Weapon\\rocketLauncher.r3d");	
+	LoadMesh("Weapon\\rocketLauncher.r3d");
 	LoadMesh("Weapon\\hyperBlaster.r3d");
 	LoadMesh("Weapon\\torpeda.r3d");
 	LoadMesh("Weapon\\bulletGun.r3d");
@@ -2272,8 +2218,8 @@ void ResourceManager::LoadWeapons()
 	LoadMesh("Weapon\\airWeapon.r3d");
 	LoadMesh("Weapon\\maslo.r3d");
 	LoadMesh("Weapon\\fireGun.r3d");
-	LoadMesh("Weapon\\sphereGun.r3d");	
-	LoadMesh("Weapon\\drobilka.r3d");	
+	LoadMesh("Weapon\\sphereGun.r3d");
+	LoadMesh("Weapon\\drobilka.r3d");
 	LoadMesh("Weapon\\sonar.r3d");
 	LoadMesh("Weapon\\shotBall.r3d");
 	LoadMesh("Weapon\\turel.r3d");
@@ -2286,9 +2232,6 @@ void ResourceManager::LoadWeapons()
 	LoadMesh("Weapon\\droid.r3d");
 	LoadMesh("Weapon\\reflector.r3d");
 	LoadMesh("Weapon\\rezonator.r3d");
-
-
-
 
 	LoadImage("Weapon\\blaster1.dds", cGenMipLevel);
 	LoadImage("Weapon\\pulsator.dds", cGenMipLevel);
@@ -2306,8 +2249,8 @@ void ResourceManager::LoadWeapons()
 	LoadImage("Weapon\\maslo.dds", cGenMipLevel);
 	LoadImage("Weapon\\fireGun.dds", cGenMipLevel);
 	LoadImage("Weapon\\drobilka.dds", cGenMipLevel);
-	LoadImage("Weapon\\turel.dds", cGenMipLevel);	
-	LoadImage("Weapon\\spring.dds", cGenMipLevel);	
+	LoadImage("Weapon\\turel.dds", cGenMipLevel);
+	LoadImage("Weapon\\spring.dds", cGenMipLevel);
 	LoadImage("Weapon\\shotBall.dds", cGenMipLevel);
 	LoadImage("Weapon\\mortira.dds", cGenMipLevel);
 	LoadImage("Weapon\\phaseImpulse.dds", cGenMipLevel);
@@ -2315,9 +2258,6 @@ void ResourceManager::LoadWeapons()
 	LoadImage("Weapon\\reflector.dds", cGenMipLevel);
 	LoadImage("Weapon\\rezonator.dds", cGenMipLevel);
 	LoadImage("Weapon\\tankLaser.dds", cGenMipLevel);
-		
-	
-	
 
 	LoadImage2dLibMat("Weapon\\blaster1", "Weapon\\blaster1.dds");
 	LoadImage2dLibMat("Weapon\\pulsator", "Weapon\\pulsator.dds");
@@ -2335,14 +2275,14 @@ void ResourceManager::LoadWeapons()
 	LoadImage2dLibMat("Weapon\\maslo", "Weapon\\maslo.dds");
 	LoadImage2dLibMat("Weapon\\shotBall", "Weapon\\shotBall.dds");
 	LoadLibMat("Weapon\\mortiraBall", false, graph::Material::bmOpaque, 1.0f, clrBlack, clrBlack);
-	
+
 	LoadImage2dLibMat("Weapon\\bulletGun", "Car\\marauder.dds");
 	LoadImage2dLibMat("Weapon\\blasterGun", "Car\\manticora.dds");
 	LoadImage2dLibMat("Weapon\\tankLaser", "Weapon\\tankLaser.dds");
 	LoadImage2dLibMat("Weapon\\rifleWeapon", "Car\\dirtdevil.dds");
 	LoadImage2dLibMat("Weapon\\airWeapon", "Car\\airblade.dds");
-	LoadImage2dLibMat("Weapon\\fireGun", "Weapon\\fireGun.dds");	
-	LoadImage2dLibMat("Weapon\\drobilka", "Weapon\\drobilka.dds");	
+	LoadImage2dLibMat("Weapon\\fireGun", "Weapon\\fireGun.dds");
+	LoadImage2dLibMat("Weapon\\drobilka", "Weapon\\drobilka.dds");
 	LoadImage2dLibMat("Weapon\\turel", "Weapon\\turel.dds");
 	LoadImage2dLibMat("Weapon\\spring", "Weapon\\spring.dds");
 	LoadImage2dLibMat("Weapon\\asyncFrost", "Car\\monstertruck.dds");
@@ -2373,7 +2313,7 @@ void ResourceManager::LoadUpgrades()
 	LoadMesh("Upgrade\\wheel3.r3d");
 	LoadMesh("Upgrade\\truba1.r3d");
 	LoadMesh("Upgrade\\truba2.r3d");
-	LoadMesh("Upgrade\\truba3.r3d");	
+	LoadMesh("Upgrade\\truba3.r3d");
 
 	LoadImage("Upgrade\\armor1.dds", cGenMipLevel);
 	LoadImage("Upgrade\\armor2.dds", cGenMipLevel);
@@ -2398,7 +2338,7 @@ void ResourceManager::LoadGUI()
 
 	LoadMesh("GUI\\planet.r3d", false, true, true);
 	LoadMesh("GUI\\garage.r3d", false, true, true);
-	LoadMesh("GUI\\angar.r3d", false, true, true);	
+	LoadMesh("GUI\\angar.r3d", false, true, true);
 	LoadMesh("GUI\\question.r3d", false, true, true);
 
 	LoadImage("GUI\\final.dds");
@@ -2413,19 +2353,19 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\tablo1.png", 1, false, false, -1, true);
 	LoadImage("GUI\\tablo2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\tablo3.png", 1, false, false, -1, true);
-	LoadImage("GUI\\tablo4.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\tablo4.png", 1, false, false, -1, true);
 	LoadImage("GUI\\cursor.png", 1, false, false, -1, true);
-	
+
 	LoadImage("GUI\\garage1.dds", cGenMipLevel, true, false);
 	LoadImage("GUI\\garage2.dds", cGenMipLevel, true, false);
 	LoadImage("GUI\\angar1.dds", cGenMipLevel, true, false);
 	LoadImage("GUI\\angar2.dds", cGenMipLevel, true, false);
 	LoadImage("GUI\\question.png", cGenMipLevel, true, false);
-	
+
 	LoadImage("GUI\\space2.dds", cGenMipLevel);
 	LoadImage("GUI\\earth.dds", cGenMipLevel);
 	LoadImage("GUI\\intaria.dds", cGenMipLevel);
-	LoadImage("GUI\\patagonis.dds", cGenMipLevel);	
+	LoadImage("GUI\\patagonis.dds", cGenMipLevel);
 	LoadImage("GUI\\chemi5.dds", cGenMipLevel);
 	LoadImage("GUI\\inferno.dds", cGenMipLevel);
 	LoadImage("GUI\\nho.dds", cGenMipLevel);
@@ -2442,7 +2382,7 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\Chars\\gank.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Chars\\gerry.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Chars\\k-jin.png", 1, false, false, -1, true);
-	LoadImage("GUI\\Chars\\kristoph.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\Chars\\kristoph.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Chars\\mardock.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Chars\\rip.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Chars\\shred.png", 1, false, false, -1, true);
@@ -2475,7 +2415,7 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\bottomPanel.png", 1, false, false, -1, true);
 	LoadImage("GUI\\topPanel.png", 1, false, false, -1, true);
 	LoadImage("GUI\\moneyBg.png", 1, false, false, -1, true);
-	LoadImage("GUI\\statFrame.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\statFrame.png", 1, false, false, -1, true);
 	LoadImage("GUI\\buttonBg1.png", 1, false, false, -1, true);
 	LoadImage("GUI\\buttonBgSel1.png", 1, false, false, -1, true);
 	LoadImage("GUI\\icoStart.png", 1, false, false, -1, true);
@@ -2493,7 +2433,7 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\icoOptions.png", 1, false, false, -1, true);
 	LoadImage("GUI\\icoExit.png", 1, false, false, -1, true);
 
-	//race net	
+	//race net
 	LoadImage("GUI\\netPlayerFrame.png", 1, false, false, -1, true);
 	LoadImage("GUI\\netPlayerReadyState.png", 1, false, false, -1, true);
 	LoadImage("GUI\\netPlayerReadyStateSel.png", 1, false, false, -1, true);
@@ -2506,16 +2446,16 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\bottomPanel2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\rightPanel2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\statFrame2.png", 1, false, false, -1, true);
-	LoadImage("GUI\\topPanel2.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\topPanel2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\buttonBg2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\buttonBgSel2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\statBar2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\colorBox.png", 1, false, false, -1, true);
 	LoadImage("GUI\\colorBoxBg.png", 1, false, false, -1, true);
 	LoadImage("GUI\\colorBoxBgSel.png", 1, false, false, -1, true);
-	LoadImage("GUI\\carBox.png", 1, false, false, -1, true);	
-	LoadImage("GUI\\carBoxSel.png", 1, false, false, -1, true);	
-	LoadImage("GUI\\header2.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\carBox.png", 1, false, false, -1, true);
+	LoadImage("GUI\\carBoxSel.png", 1, false, false, -1, true);
+	LoadImage("GUI\\header2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\lock.png", 1, false, false, -1, true);
 	LoadImage("GUI\\buyButton_russian.png", 1, false, false, -1, true);
 	LoadImage("GUI\\buyButtonSel_russian.png", 1, false, false, -1, true);
@@ -2528,17 +2468,17 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\chargeBox.png", 1, false, false, -1, true);
 	LoadImage("GUI\\chargeButton.png", 1, false, false, -1, true);
 	LoadImage("GUI\\chargeButtonSel.png", 1, false, false, -1, true);
-	LoadImage("GUI\\leftPanel3.png", 1, false, false, -1, true);	
-	LoadImage("GUI\\slot2.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\leftPanel3.png", 1, false, false, -1, true);
+	LoadImage("GUI\\slot2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\slot2Frame.png", 1, false, false, -1, true);
 	LoadImage("GUI\\topPanel3.png", 1, false, false, -1, true);
 	LoadImage("GUI\\upLevel1.png", 1, false, false, -1, true);
 	LoadImage("GUI\\upLevel2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\upLevel3.png", 1, false, false, -1, true);
-	LoadImage("GUI\\statBar2Plus.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\statBar2Plus.png", 1, false, false, -1, true);
 	LoadImage("GUI\\mineSlot.png", 1, false, false, -1, true);
 	LoadImage("GUI\\wpnSlot.png", 1, false, false, -1, true);
-	LoadImage("GUI\\wpnSlotSel.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\wpnSlotSel.png", 1, false, false, -1, true);
 	LoadImage("GUI\\hyperSlot.png", 1, false, false, -1, true);
 
 	//cars
@@ -2553,7 +2493,7 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\Cars\\buggi.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Cars\\tankchetti.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Cars\\mustang.png", 1, false, false, -1, true);
-	LoadImage("GUI\\Cars\\manticoraBoss.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\Cars\\manticoraBoss.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Cars\\gusenizaBoss.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Cars\\podushkaBoss.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Cars\\monstertruckBoss.png", 1, false, false, -1, true);
@@ -2578,7 +2518,7 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\Rewards\\mustang.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Rewards\\mustangLock.png", 1, false, false, -1, true);
 	LoadImage("GUI\\Rewards\\musicTrack.png", 1, false, false, -1, true);
-	LoadImage("GUI\\Rewards\\musicTrackLock.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\Rewards\\musicTrackLock.png", 1, false, false, -1, true);
 
 	//achievments
 	LoadImage("GUI\\Achievments\\points1_2.png", 1, true, false, -1, true);
@@ -2603,8 +2543,8 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\Achievments\\firstBlood.png", 1, true, false, -1, true);
 
 	//gamers
-	LoadImage("GUI\\arrow2.png", 1, false, false, -1, true);	
-	LoadImage("GUI\\arrowSel2.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\arrow2.png", 1, false, false, -1, true);
+	LoadImage("GUI\\arrowSel2.png", 1, false, false, -1, true);
 	LoadImage("GUI\\bottomPanel4.png", 1, false, false, -1, true);
 	LoadImage("GUI\\wndLight4.png", 1, false, false, -1, true);
 	LoadImage("GUI\\space1.dds");
@@ -2621,18 +2561,18 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\doorUp.png", 1, false, false, -1, true);
 	LoadImage("GUI\\doorSlot.png", 1, false, false, -1, true);
 	LoadImage("GUI\\doorSlotSel.png", 1, false, false, -1, true);
-	LoadImage("GUI\\planetInfo.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\planetInfo.png", 1, false, false, -1, true);
 	LoadImage("GUI\\wndLight6.png", 1, false, false, -1, true);
 	LoadImage("GUI\\buttonBg6.png", 1, false, false, -1, true);
-	LoadImage("GUI\\buttonBgSel6.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\buttonBgSel6.png", 1, false, false, -1, true);
 
-	//options	
+	//options
 	LoadImage("GUI\\arrow3.png", 1, false, false, -1, true);
 	LoadImage("GUI\\arrowSel3.png", 1, false, false, -1, true);
 	LoadImage("GUI\\buttonBg4.png", 1, false, false, -1, true);
 	LoadImage("GUI\\buttonBgSel4.png", 1, false, false, -1, true);
 	LoadImage("GUI\\buttonBg5.png", 1, false, false, -1, true);
-	LoadImage("GUI\\optBar.png", 1, false, false, -1, true);	
+	LoadImage("GUI\\optBar.png", 1, false, false, -1, true);
 	LoadImage("GUI\\optBarBg.png", 1, false, false, -1, true);
 	LoadImage("GUI\\optionsBg.png", 1, false, false, -1, true);
 	LoadImage("GUI\\labelBg1.png", 1, false, false, -1, true);
@@ -2679,7 +2619,7 @@ void ResourceManager::LoadGUI()
 	LoadImage("GUI\\Slides\\slide7.dds");
 	LoadImage("GUI\\Slides\\slide8.dds");
 	LoadImage("GUI\\Slides\\slide9.dds");
-			
+
 	LoadSpecLibMat("GUI\\question", "GUI\\question.png");
 	LoadImage2dLibMat("GUI\\garage1", "GUI\\garage1.dds");
 	LoadImage2dLibMat("GUI\\garage2", "GUI\\garage2.dds");
@@ -2690,9 +2630,6 @@ void ResourceManager::LoadGUI()
 		libMat.material.SetOption(graph::Material::moLighting, false);
 		libMat.material.SetOption(graph::Material::moIgnoreFog, true);
 	}
-
-
-
 
 	LoadFont("Header", 44, 0, false, "Verdana");
 	//
@@ -2712,7 +2649,7 @@ void ResourceManager::LoadCarLibMat(graph::LibMaterial* libMat, graph::Tex2DReso
 
 	libMat->samplers.Clear();
 
-	graph::Sampler2d& colSampler = libMat->samplers.Add2d(tex);	
+	graph::Sampler2d& colSampler = libMat->samplers.Add2d(tex);
 	colSampler.SetFiltering(graph::BaseSampler::sfAnisotropic);
 	colSampler.SetColorMode(graph::Sampler2d::tmDecal);
 	colSampler.SetColor(color);
@@ -2760,7 +2697,7 @@ void ResourceManager::LoadMusic()
 	LoadSound("Music\\Track13.ogg");
 	LoadSound("Music\\Track14.ogg");
 	LoadSound("Music\\Track15.ogg");
-	LoadSound("Music\\TrackFinal.ogg");	
+	LoadSound("Music\\TrackFinal.ogg");
 }
 
 void ResourceManager::LoadSounds()
@@ -2777,7 +2714,7 @@ void ResourceManager::LoadSounds()
 
 	LoadSound("Sounds\\engine_player_heavy_mot.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\engine_player_heavy_tom.ogg", 1.0f, 0.0f, true);
-	LoadSound("Sounds\\Motor_high02.ogg", 1.0f, 0.0f, true);	
+	LoadSound("Sounds\\Motor_high02.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\podushka_move.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\podushka_stop.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\monstertruckstop.ogg", 1.0f, 0.0f, true);
@@ -2785,11 +2722,11 @@ void ResourceManager::LoadSounds()
 	LoadSound("Sounds\\guseniza_move.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\fazowij_izluchatel.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\spherePulseDeath.ogg", 1.0f, 0.0f, true);
-	LoadSound("Sounds\\gun_podushkat.ogg", 1.0f, 0.0f, true);	
+	LoadSound("Sounds\\gun_podushkat.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\laserGuseniza.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\mortira.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\pulsator.ogg", 1.0f, 0.0f, true);
-	LoadSound("Sounds\\turel.ogg", 1.0f, 0.0f, true);	
+	LoadSound("Sounds\\turel.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\ultrazwukovoi_blaser.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\frost_ray.ogg", 1.0f, 0.0f, true);
 
@@ -2800,14 +2737,14 @@ void ResourceManager::LoadSounds()
 	LoadSound("Sounds\\icon_rail.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\phalanx_shot_a.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\klicka5.ogg", 2.0f, 0.0f, true);
-	LoadSound("Sounds\\exhaust_b_heavy.ogg", 2.0f, 0.0f, true);	
-	LoadSound("Sounds\\fireGun.ogg", 2.0f, 0.0f, true);	
+	LoadSound("Sounds\\exhaust_b_heavy.ogg", 2.0f, 0.0f, true);
+	LoadSound("Sounds\\fireGun.ogg", 2.0f, 0.0f, true);
 	LoadSound("Sounds\\sonar.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\shieldOn.ogg", 2.0f, 0.0f, true);
 	//LoadSound("Sounds\\bullets_hp_01.ogg", 2.0f, 0.0f, true);
 	//LoadSound("Sounds\\bullets_hp_02.ogg", 2.0f, 0.0f, true);
 	//LoadSound("Sounds\\bullets_hp_03.ogg", 2.0f, 0.0f, true);
-	LoadSound("Sounds\\airBladeRocket.ogg", 1.0f, 0.0f, true);	
+	LoadSound("Sounds\\airBladeRocket.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\maslo.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\rezonator.ogg", 1.0f, 0.0f, true);
 
@@ -2818,7 +2755,7 @@ void ResourceManager::LoadSounds()
 	LoadSound("Sounds\\UI\\pickup_down.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\UI\\pickup_up.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\UI\\repaint.ogg", 1.0f, 0.0f, true);
-	LoadSound("Sounds\\UI\\acception.ogg", 1.0f, 0.0f, true);	
+	LoadSound("Sounds\\UI\\acception.ogg", 1.0f, 0.0f, true);
 	LoadSound("Sounds\\UI\\showPlanet.ogg", 1.0f, 0.0f, true);
 }
 
@@ -2832,15 +2769,15 @@ void ResourceManager::LoadCommentator(const CommentatorStyle& style)
 	LoadSound("thirdChanged1.ogg", "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 
 	for (int i = 1; i <= 4; ++i)
-		LoadSound(lsl::StrFmt("start%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);	
+		LoadSound(lsl::StrFmt("start%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	for (int i = 1; i <= 7; ++i)
 		LoadSound(lsl::StrFmt("lastLap%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	for (int i = 1; i <= 7; ++i)
-		LoadSound(lsl::StrFmt("lowLife%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);	
+		LoadSound(lsl::StrFmt("lowLife%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	for (int i = 1; i <= 3; ++i)
-		LoadSound(lsl::StrFmt("playerLostControl%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);	
+		LoadSound(lsl::StrFmt("playerLostControl%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	for (int i = 1; i <= 6; ++i)
-		LoadSound(lsl::StrFmt("leaderChanged%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);	
+		LoadSound(lsl::StrFmt("leaderChanged%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	for (int i = 1; i <= 6; ++i)
 		LoadSound(lsl::StrFmt("leaderFinish%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	for (int i = 1; i <= 3; ++i)
@@ -2850,7 +2787,7 @@ void ResourceManager::LoadCommentator(const CommentatorStyle& style)
 	for (int i = 1; i <= 5; ++i)
 		LoadSound(lsl::StrFmt("lastFinish%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	for (int i = 1; i <= 3; ++i)
-		LoadSound(lsl::StrFmt("playerKill%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);	
+		LoadSound(lsl::StrFmt("playerKill%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	for (int i = 1; i <= 7; ++i)
 		LoadSound(lsl::StrFmt("finishFirst%d.ogg", i), "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	for (int i = 1; i <= 4; ++i)
@@ -2878,8 +2815,8 @@ void ResourceManager::LoadCommentator(const CommentatorStyle& style)
 	LoadSound("stinkle.ogg", "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	LoadSound("violetta.ogg", "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 	LoadSound("viper.ogg", "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
-	LoadSound("butcher.ogg", "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);	
-	LoadSound("kjin.ogg", "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);		
+	LoadSound("butcher.ogg", "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
+	LoadSound("kjin.ogg", "Voice\\", style.name + "\\", 1.0f, 0.0f, true, true);
 }
 
 void ResourceManager::LoadWorld(int worldType)
@@ -2940,7 +2877,7 @@ void ResourceManager::Load()
 	LoadBonus();
 	LoadWeapons();
 	LoadUpgrades();
-	LoadGUI();	
+	LoadGUI();
 	LoadSounds();
 }
 

@@ -10,10 +10,7 @@ namespace r3d
 namespace game
 {
 
-const float GameCar::cMaxSteerAngle = D3DX_PI / 6;	
-
-
-
+const float GameCar::cMaxSteerAngle = D3DX_PI / 6;
 
 CarMotorDesc::CarMotorDesc(): maxRPM(7000), idlingRPM(1000), maxTorque(2000.0f), SEM(0.7f), gearDiff(3.42f), autoGear(true), brakeTorque(7500), restTorque(400.0f)
 {
@@ -31,7 +28,7 @@ float CarMotorDesc::CalcRPM(float wheelAxleSpeed, unsigned curGear) const
 {
 	if (curGear == cNeutralGear)
 		return static_cast<float>(idlingRPM);
-	else		
+	else
 	{
 		float rpm = abs(wheelAxleSpeed) * gears[curGear] * gearDiff * 60.0f / (2.0f * D3DX_PI);
 
@@ -46,13 +43,10 @@ float CarMotorDesc::CalcTorque(float rpm, unsigned curGear) const
 	return maxTorque * gears[curGear] * gearDiff * SEM * cGameK;
 }
 
-
-
-
 CarWheel::CarWheel(CarWheels* owner): _owner(owner), _wheelShape(0), _summAngle(0), _trailEff(0), _actTrail(0), invertWheel(false), _steerAngle(0), _lead(false), _steer(false), _offset(NullVector), _pxPrevPos(NullVector), _pxPrevRot(NullQuaternion)
 {
 	_myContactModify = new MyContactModify(this);
-	_trails = new _Trails(this);	
+	_trails = new _Trails(this);
 }
 
 CarWheel::~CarWheel()
@@ -69,7 +63,7 @@ CarWheel::~CarWheel()
 }
 
 CarWheel::MyContactModify::MyContactModify(CarWheel* wheel): _wheel(wheel)
-{	
+{
 }
 
 bool CarWheel::MyContactModify::onWheelContact(NxWheelShape* wheelShape, NxVec3& contactPoint, NxVec3& contactNormal, NxReal& contactPosition, NxReal& normalForce, NxShape* otherShape, NxMaterialIndex& otherShapeMaterialIndex, NxU32 otherShapeFeatureIndex)
@@ -81,11 +75,11 @@ bool CarWheel::MyContactModify::onWheelContact(NxWheelShape* wheelShape, NxVec3&
 		normalForce = 0.0f;
 	}
 	else
-	{	
+	{
 		float tireSpring = _wheel->_owner->GetOwner()->GetTireSpring();
 		float nReac = normalForce/normReaction;
 		_wheel->_nReac = nReac;
-		
+
 		//ќграничение допустимой перегрузки, чтобы машина при падении не ускор€лась в св€зи с чрезмерно больгим сцеплением. ƒопустима€ перегрузка в 1.5g.
 		if (tireSpring > 0.0f && nReac > tireSpring)
 			normalForce = 0.0f;
@@ -102,11 +96,11 @@ void CarWheel::Save(lsl::SWriter* writer)
 
 	writer->WriteValue("shape", _wheelShape->GetName());
 	MapObjRec::Lib::SaveRecordRef(writer, "trailEff", _trailEff);
-	
+
 	writer->WriteValue("lead", _lead);
 	writer->WriteValue("steer", _steer);
 	lsl::SWriteValue(writer, "offset", _offset);
-	writer->WriteValue("invertWheel", invertWheel);	
+	writer->WriteValue("invertWheel", invertWheel);
 }
 
 void CarWheel::Load(lsl::SReader* reader)
@@ -133,14 +127,14 @@ void CarWheel::Load(lsl::SReader* reader)
 	bool lead;
 	reader->ReadValue("lead", lead);
 	SetLead(lead);
-	
+
 	bool steer;
 	reader->ReadValue("steer", steer);
 	SetSteer(steer);
 
 	lsl::SReadValue(reader, "offset", _offset);
 
-	reader->ReadValue("invertWheel", invertWheel);	
+	reader->ReadValue("invertWheel", invertWheel);
 }
 
 void CarWheel::CreateWheelShape()
@@ -171,7 +165,7 @@ void CarWheel::DestroyWheelShape()
 	_wheelShape->Release();
 	GetPxActor().GetShapes().Delete(_wheelShape);
 	_wheelShape = 0;
-	
+
 }
 
 void CarWheel::PxSyncWheel(float alpha)
@@ -180,9 +174,9 @@ void CarWheel::PxSyncWheel(float alpha)
 	LSL_ASSERT(wheel);
 
 	NxReal st = wheel->getSuspensionTravel();
-	NxReal r = wheel->getRadius();			
+	NxReal r = wheel->getRadius();
 	NxMat34 localPose = wheel->getLocalPose();
-	//cast along -Y	
+	//cast along -Y
 	NxVec3 dir = localPose.M.getColumn(1);
 	NxVec3 t = localPose.t;
 
@@ -192,28 +186,29 @@ void CarWheel::PxSyncWheel(float alpha)
 	if (s && wcd.contactForce > -1000)
 		st = wcd.contactPosition - r;
 
-	D3DXQUATERNION quat1;
-	D3DXQUATERNION quat2 = NullQuaternion;
-	D3DXQuaternionRotationAxis(&quat1, &ZVector, _steerAngle);
-	D3DXQuaternionRotationAxis(&quat2, &YVector, _summAngle);
+	glm::quat quat1 = glm::angleAxis(_steerAngle, Vec3DxToGlm(ZVector));
+	glm::quat quat2 = glm::angleAxis(_summAngle, Vec3DxToGlm(YVector)); // NullQuaternion;
 
-	D3DXQUATERNION resRot = quat2 * quat1;
+	glm::quat resRot = quat1 * quat2;
 	if (invertWheel)
 	{
-		D3DXQUATERNION invRot;
-		D3DXQuaternionRotationAxis(&invRot, &ZVector, D3DX_PI);
-		resRot = invRot * resRot;
+		glm::quat invRot = glm::angleAxis(D3DX_PI, Vec3DxToGlm(ZVector));
+		resRot = resRot * invRot;
 	}
 
 	if (alpha < 1.0f)
-		D3DXQuaternionSlerp(&resRot, &_pxPrevRot, &resRot, alpha);
+	{
+		resRot = glm::slerp(_pxPrevRot, resRot, alpha);
+	}
 	else
+	{
 		_pxPrevRot = resRot;
+	}
 	GetGrActor().SetRot(resRot);
 
 	D3DXVECTOR3 resPos((t - dir * st).get());
 	if (alpha < 1.0f)
-		D3DXVec3Lerp(&resPos, &_pxPrevPos, &resPos, alpha);	
+		D3DXVec3Lerp(&resPos, &_pxPrevPos, &resPos, alpha);
 	else
 		_pxPrevPos = resPos;
 	GetGrActor().SetPos(resPos + _offset);
@@ -284,7 +279,7 @@ float CarWheel::GetLongSlip()
 
 	NxWheelContactData contactDesc;
 	NxShape* contact = GetShape()->GetNxShape()->getContact(contactDesc);
-	
+
 	return contact ? contactDesc.longitudalSlip : 0;
 }
 
@@ -292,7 +287,7 @@ float CarWheel::GetLatSlip()
 {
 	NxWheelContactData contactDesc;
 	NxShape* contact = GetShape()->GetNxShape()->getContact(contactDesc);
-	
+
 	return contact ? contactDesc.lateralSlip : 0;
 }
 
@@ -317,14 +312,13 @@ void CarWheel::SetLead(bool value)
 	{
 		if (_lead)
 			_owner->RemoveLeadWheel(this);
-		
+
 		_lead = value;
-		
+
 		if (_lead)
 			_owner->InsertLeadWheel(this);
 	}
 }
-
 
 bool CarWheel::GetSteer() const
 {
@@ -337,9 +331,9 @@ void CarWheel::SetSteer(bool value)
 	{
 		if (_steer)
 			_owner->RemoveSteerWheel(this);
-		
+
 		_steer = value;
-		
+
 		if (_steer)
 			_owner->InsertSteerWheel(this);
 	}
@@ -354,9 +348,6 @@ void CarWheel::SetOffset(const D3DXVECTOR3& value)
 {
 	_offset = value;
 }
-
-
-
 
 CarWheels::CarWheels(GameCar* owner): _owner(owner), _steerContactModify(0)
 {
@@ -458,15 +449,12 @@ void CarWheels::SetSteerContactModify(ContactModify* value)
 	}
 }
 
-
-
-
 GameCar::GameCar(): _clutchStrength(0), _clutchTime(0.0f), _springTime(0), _mineTime(0), _curGear(-1), _moveCar(mcNone), _steerWheel(swNone), _kSteerControl(1.0f), _steerSpeed(D3DX_PI/2.0f), _steerRot(D3DX_PI), _angDamping(IdentityVector), _flyYTorque(D3DX_PI/1.6f), _clampXTorque(0), _clampYTorque(0), _motorTorqueK(1), _wheelSteerK(1), _gravEngine(false), _clutchImmunity(false), _maxSpeed(0), _tireSpring(0), _disableColor(false), _steerAngle(0), _anyWheelContact(false), _wheelsContact(false), _bodyContact(false)
 {
-	_wheels = new Wheels(this);	
+	_wheels = new Wheels(this);
 
 	GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL | NX_NOTIFY_CONTACT_MODIFICATION);
-	GetPxActor().SetFlag(NX_AF_CONTACT_MODIFICATION, true);	
+	GetPxActor().SetFlag(NX_AF_CONTACT_MODIFICATION, true);
 
 	RegFixedStepEvent();
 }
@@ -490,13 +478,13 @@ void GameCar::MotorProgress(float deltaTime, float& curMotorTorque, float& curBr
 		curRPM = GetWheelRPM();
 		curBreakTorque = _motor.restTorque;
 		curMotorTorque = 0;
-		break;			
-		
+		break;
+
 	case mcBrake:
 		SetCurGear(cNeutralGear);
 		curRPM = GetWheelRPM();
 		curBreakTorque = _motor.brakeTorque;
-		curMotorTorque = 0;		
+		curMotorTorque = 0;
 		break;
 
 	case mcBack:
@@ -527,7 +515,7 @@ void GameCar::MotorProgress(float deltaTime, float& curMotorTorque, float& curBr
 		else
 		{
 			if (_curGear == cNeutralGear ||  _curGear == cBackGear)
-				SetCurGear(1);				
+				SetCurGear(1);
 
 			curRPM = GetWheelRPM();
 			curBreakTorque = _motor.restTorque;
@@ -538,7 +526,7 @@ void GameCar::MotorProgress(float deltaTime, float& curMotorTorque, float& curBr
 }
 
 inline float NxQuatAngle(const NxQuat& quat1, const NxQuat& quat2)
-{	
+{
 	return acos(abs(quat1.dot(quat2)/sqrt(quat1.magnitudeSquared() * quat2.magnitudeSquared()))) * 2;
 }
 
@@ -562,7 +550,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 
 	if (_steerWheel == smManual)
 	{
-		//nothing		
+		//nothing
 	}
 	else
 	{
@@ -589,7 +577,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 			pxWheel->setMotorTorque(motorTorque);
 		}
 		if ((*iter)->GetSteer())
-		{			
+		{
 			(*iter)->SetSteerAngle(_steerAngle);
 		}
 		if ((*iter)->GetPos().x < 0)
@@ -646,7 +634,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 		NxQuat worldRot = nxActor->getGlobalOrientationQuat();
 		NxQuatRotation(fixRot, fixRot, worldRot);
 
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		fixRot.getXYZW(rot);
 		D3DXVECTOR3 xAxis;
 		D3DXQuaternionToAxisAngle(&rot, &xAxis, &dFixAngle);
@@ -710,7 +698,7 @@ void GameCar::JumpProgress(float deltaTime)
 		//если нет контакта необходжимо машину замедл€ть и быстро приземл€ть, чтобы она не улетала на прыжках в космос
 		//nxActor->setLinearDamping(0.4f);
 		nxActor->addForce(1.0f * px::Scene::cDefGravity, NX_ACCELERATION);
-		
+
 		//наклон€ем машину вперед если она движетс€ в OXY
 		NxVec3 vel = nxActor->getLinearVelocity();
 		vel.z = 0.0f;
@@ -721,13 +709,13 @@ void GameCar::JumpProgress(float deltaTime)
 
 void GameCar::StabilizeForce(float deltaTime)
 {
-	NxVec3 angMomentum = GetPxActor().GetNxActor()->getAngularMomentum();	
-	NxMat33 mat = GetPxActor().GetNxActor()->getGlobalOrientation();	
+	NxVec3 angMomentum = GetPxActor().GetNxActor()->getAngularMomentum();
+	NxMat33 mat = GetPxActor().GetNxActor()->getGlobalOrientation();
 	NxMat33 invMat;
 
 	if ((_angDamping.x != -1 || _angDamping.y != -1 || _angDamping.z != -1 || _clampYTorque > 0 || _clampXTorque > 0 || IsClutchLocked()) && mat.getInverse(invMat))
 	{
-		angMomentum = invMat * angMomentum;		
+		angMomentum = invMat * angMomentum;
 		if (!_anyWheelContact && _clampYTorque > 0)
 		{
 			float angY = std::min(abs(angMomentum.y), GetPxActor().GetNxActor()->getMassSpaceInertiaTensor().y * _clampYTorque * 2.0f);
@@ -741,7 +729,7 @@ void GameCar::StabilizeForce(float deltaTime)
 
 		float angMomZ = angMomentum.z * _angDamping.z;
 		if (IsClutchLocked())
-		{		
+		{
 			if (_clutchStrength != 0)
 				angMomZ = _clutchStrength * GetNxActor()->getMass();
 			else
@@ -755,12 +743,13 @@ void GameCar::StabilizeForce(float deltaTime)
 		{
 			NxQuat rot = GetPxActor().GetNxActor()->getGlobalOrientationQuat();
 
-			EulerAngles angles = Eul_FromQuat(*(Quat*)&rot, EulOrdXYZs);
+			D3DXVECTOR3 angles = EulerAngleFromQuatXYZ(rot.x, rot.y, rot.z, rot.w);
 			if (_clampXTorque > 0)
 				angles.x = lsl::ClampValue(angles.x, -_clampXTorque, _clampXTorque);
 			if (_clampYTorque > 0)
 				angles.y = lsl::ClampValue(angles.y, -_clampYTorque, _clampYTorque);
-			rot.setXYZW((float*)&Eul_ToQuat(angles));
+			glm::quat qAngles = EulerAngleToQuatXYZ(angles);
+			rot.setXYZW(reinterpret_cast<const float *>(&qAngles.x));
 
 			GetPxActor().GetNxActor()->setGlobalOrientationQuat(rot);
 		}
@@ -821,15 +810,15 @@ void GameCar::SaveSource(lsl::SWriter* writer)
 		child->WriteValue("clampXTorque", _clampXTorque);
 		child->WriteValue("clampYTorque", _clampYTorque);
 		child->WriteValue("gravEngine", _gravEngine);
-		child->WriteValue("clutchImmunity", _clutchImmunity);		
+		child->WriteValue("clutchImmunity", _clutchImmunity);
 		child->WriteValue("maxSpeed", _maxSpeed);
 		child->WriteValue("tireSpring", _tireSpring);
 		child->WriteValue("disableColor", _disableColor);
 
-		lsl::SWriteValue(writer, "angDamping", _angDamping);		
+		lsl::SWriteValue(writer, "angDamping", _angDamping);
 	}
 
-	writer->WriteValue("wheels", _wheels);	
+	writer->WriteValue("wheels", _wheels);
 }
 
 void GameCar::LoadSource(lsl::SReader* reader)
@@ -840,7 +829,7 @@ void GameCar::LoadSource(lsl::SReader* reader)
 	{
 		child->ReadValue("autoGear", _motor.autoGear);
 		child->ReadValue("brakeTorque", _motor.brakeTorque);
-		child->ReadValue("gearDiff", _motor.gearDiff);		
+		child->ReadValue("gearDiff", _motor.gearDiff);
 		child->ReadValue("maxRPM", _motor.maxRPM);
 		child->ReadValue("maxTorque", _motor.maxTorque);
 		child->ReadValue("SEM", _motor.SEM);
@@ -852,7 +841,7 @@ void GameCar::LoadSource(lsl::SReader* reader)
 		child->ReadValue("clampXTorque", _clampXTorque);
 		child->ReadValue("clampYTorque", _clampYTorque);
 		child->ReadValue("gravEngine", _gravEngine);
-		child->ReadValue("clutchImmunity", _clutchImmunity);		
+		child->ReadValue("clutchImmunity", _clutchImmunity);
 		child->ReadValue("maxSpeed", _maxSpeed);
 		child->ReadValue("tireSpring", _tireSpring);
 		child->ReadValue("disableColor", _disableColor);
@@ -867,10 +856,10 @@ void GameCar::LoadSource(lsl::SReader* reader)
 
 //преобразуем в локльную систему координат тела актера
 void NxQuatFromWorldToLocal(const NxMat33& worldMat, const NxMat33& worldMatRot, NxMat33& outLocalMatRot)
-{	
+{
 	NxMat33 invWorldMat;
 	worldMat.getInverse(invWorldMat);
-	outLocalMatRot.multiply(invWorldMat, worldMatRot);	
+	outLocalMatRot.multiply(invWorldMat, worldMatRot);
 }
 
 void NxQuatFromLocalToWorld(const NxMat33& worldMat, const NxMat33& localMatRot, NxMat33& outWorldMatRot)
@@ -914,7 +903,7 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 		//если цель €вл€етс€ основным взаимодействующим лицом, то необходимо инверитровать нормаль
 		if (contact.actorIndex == 0)
 			triNorm = -triNorm;
-		
+
 		NxMat33 wFricMat = NxMat33(contact.data->localorientation0);
 		if (shapeDyn0)
 			NxQuatFromLocalToWorld(contact.shape0->getActor().getCMassGlobalPose().M, wFricMat, wFricMat);
@@ -928,13 +917,13 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 		if (firstFric.magnitude() < 0.5f)
 		{
 			firstFric = wFricMat.getColumn(1);
-			secFric = triNorm.cross(firstFric);			
+			secFric = triNorm.cross(firstFric);
 		}
 		////если firstFric совпадает с нормалью, то оставл€ем старый базис
 		if (secFric.magnitude() > 0.1f)
 		{
 			firstFric.normalize();
-			secFric.normalize();			
+			secFric.normalize();
 			//корректируем нормаль дл€ ортоганальной системы
 			triNorm = firstFric.cross(secFric);
 			triNorm.normalize();
@@ -982,7 +971,7 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 				//contact.data->dynamicFriction0 = friction;
 				//contact.data->staticFriction0 = friction - 0.05f;
 			}
-			
+
 			contact.data->dynamicFriction0 = 0;
 			contact.data->staticFriction0 = 0;
 
@@ -1007,15 +996,15 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 	_bodyContact = true;
 	bool springBorders = GetLogic() && GetLogic()->GetRace()->GetSpringBorders();
 
-	D3DXVECTOR2 touchBorderDamage = GetLogic() ? GetLogic()->GetTouchBorderDamage() : NullVec2;
-	D3DXVECTOR2 touchBorderDamageForce = GetLogic() ? GetLogic()->GetTouchBorderDamageForce() : NullVec2;
-	D3DXVECTOR2 touchCarDamage = GetLogic() ? GetLogic()->GetTouchCarDamage() : NullVec2;
-	D3DXVECTOR2 touchCarDamageForce = GetLogic() ? GetLogic()->GetTouchCarDamageForce() : NullVec2;
+	glm::vec2 touchBorderDamage = GetLogic() ? GetLogic()->GetTouchBorderDamage() : NullVec2;
+	glm::vec2 touchBorderDamageForce = GetLogic() ? GetLogic()->GetTouchBorderDamageForce() : NullVec2;
+	glm::vec2 touchCarDamage = GetLogic() ? GetLogic()->GetTouchCarDamage() : NullVec2;
+	glm::vec2 touchCarDamageForce = GetLogic() ? GetLogic()->GetTouchCarDamageForce() : NullVec2;
 
 	GameObject* target = GetGameObjFromActor(contact.actor);
 	int targetPlayerId = target && target->GetMapObj() && target->GetMapObj()->GetPlayer() ? target->GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;
-	int senderPlayerId = GetMapObj() && GetMapObj()->GetPlayer() ? GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;	
-	
+	int senderPlayerId = GetMapObj() && GetMapObj()->GetPlayer() ? GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;
+
 	NxVec3 force = contact.pair->sumNormalForce;
 	float forceLength = contact.pair->sumNormalForce.magnitude();
 
@@ -1038,7 +1027,7 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 			if (contact.actorIndex == 0)
 				norm = -norm;
 
-			NxVec3 vel = GetPxActor().GetNxActor()->getLinearVelocity();			
+			NxVec3 vel = GetPxActor().GetNxActor()->getLinearVelocity();
 			NxContactStreamIterator contIter(contact.stream);
 
 			bool borderContact = abs(norm.z) < 0.5f && ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency);
@@ -1064,7 +1053,7 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 					float dirDot2 = dir.dot(tang);
 
 					if (tangDot > 0.1f && (dirDot < 0.707f || dirDot2 < -0.707f))
-					{					
+					{
 						if (tangDot < 0.995f)
 						{
 							//binormal
@@ -1082,13 +1071,13 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 							}
 
 							tang.normalize();
-							
+
 							//tangent
 							tang = tang.cross(norm);
 						}
 						else
 							tang = NxVec3(0, 0, 0);
-					
+
 						float velN = norm.dot(vel);
 						//if (dirDot < 0.707f && dirDot2)
 							velN = lsl::ClampValue(abs(velN), 4.0f, 14.0f); //2, 12
@@ -1150,7 +1139,7 @@ void GameCar::OnProgress(float deltaTime)
 
 	for (Wheels::iterator iter = _wheels->begin(); iter != _wheels->end(); ++iter)
 	{
-		CarWheel* wheel = *iter;		
+		CarWheel* wheel = *iter;
 
 		wheel->OnProgress(deltaTime);
 	}
@@ -1167,7 +1156,7 @@ void GameCar::OnFixedStep(float deltaTime)
 	float curMotorTorque = 0;
 	float curBreakTorque = 0;
 	float curRPM = 0;
-	_anyWheelContact = false;	
+	_anyWheelContact = false;
 	_wheelsContact = true;
 	_bodyContact = false;
 
@@ -1176,13 +1165,13 @@ void GameCar::OnFixedStep(float deltaTime)
 
 	if (_mineTime > 0 && (_mineTime -= deltaTime) < 0.0f)
 		_mineTime = 0.0f;
-	
+
 	MotorProgress(deltaTime, curMotorTorque, curBreakTorque, curRPM);
 	TransmissionProgress(deltaTime, curRPM);
-	WheelsProgress(deltaTime, curMotorTorque, curBreakTorque);	
-	JumpProgress(deltaTime);	
+	WheelsProgress(deltaTime, curMotorTorque, curBreakTorque);
+	JumpProgress(deltaTime);
 
-	GetBehaviors().OnMotor(deltaTime, curRPM, static_cast<float>(_motor.idlingRPM), static_cast<float>(_motor.maxRPM));	
+	GetBehaviors().OnMotor(deltaTime, curRPM, static_cast<float>(_motor.idlingRPM), static_cast<float>(_motor.maxRPM));
 }
 
 GameCar* GameCar::IsCar()
@@ -1274,7 +1263,7 @@ GameCar::SteerWheelState GameCar::GetSteerWheel() const
 }
 
 void GameCar::SetSteerWheel(SteerWheelState value)
-{	
+{
 	_steerWheel = value;
 }
 
@@ -1310,7 +1299,7 @@ float GameCar::GetLeadWheelSpeed()
 	if (!_wheels->GetLeadGroup().empty())
 	{
 		NxWheelShape* wheel = _wheels->GetLeadGroup().front()->GetShape()->GetNxShape();
-		
+
 		float speed = wheel->getAxleSpeed() * wheel->getRadius();
 		//погрешность 0.1 м/с
 		return abs(speed) > 0.1f ? speed : 0.0f;
@@ -1332,7 +1321,7 @@ float GameCar::GetDrivenWheelSpeed()
 
 	if (wheel)
 	{
-		float speed = wheel->GetShape()->GetNxShape()->getAxleSpeed() * wheel->GetShape()->GetRadius();		
+		float speed = wheel->GetShape()->GetNxShape()->getAxleSpeed() * wheel->GetShape()->GetRadius();
 		//погрешность 0.1 м/с
 		return abs(speed) > 0.1f ? speed : 0.0f;
 	}
@@ -1524,9 +1513,6 @@ float GameCar::GetSpeed(NxActor* nxActor, const D3DXVECTOR3& dir)
 	return 0.0f;
 }
 
-
-
-
 DestrObj::DestrObj(): _checkDestruction(false)
 {
 	_destrList = new DestrList(this);
@@ -1543,7 +1529,7 @@ void DestrObj::OnDeath(GameObject* sender, DamageType damageType, GameObject* ta
 {
 	_MyBase::OnDeath(sender, damageType, target);
 
-	_checkDestruction = true;	
+	_checkDestruction = true;
 }
 
 void DestrObj::SaveSource(lsl::SWriter* writer)
@@ -1586,7 +1572,7 @@ void DestrObj::OnProgress(float deltaTime)
 		_destrList->LockNotify();
 		try
 		{
-			_destrList->Clear();	
+			_destrList->Clear();
 		}
 		LSL_FINALLY(_destrList->UnlockDestr(); _destrList->UnlockNotify();)
 	}

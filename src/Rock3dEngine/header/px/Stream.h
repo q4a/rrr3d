@@ -3,7 +3,6 @@
 
 #include "NxStream.h"
 
-
 class UserStream : public NxStream
 	{
 	public:

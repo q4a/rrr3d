@@ -23,10 +23,6 @@
 #include <afxwin.h>         // MFC core and standard components
 #include <afxext.h>         // MFC extensions
 
-
-
-
-
 #ifndef _AFX_NO_OLE_SUPPORT
 #include <afxdtctl.h>           // MFC support for Internet Explorer 4 Common Controls
 #endif
@@ -36,9 +32,6 @@
 
 #include <afxcontrolbars.h>     // MFC support for ribbons and control bars
 
-
-
-
 #undef min
 #undef max
 
@@ -46,6 +39,7 @@
 #pragma push_macro("malloc")
 #pragma push_macro("free")
 
+#include "MathCommon.h"
 #include "Rock3dGame.h"
 
 #pragma pop_macro("new")
@@ -56,9 +50,6 @@
 #define min(a, b) ((a > b) ? b : a)
 #define max(a, b) ((a > b) ? a : b)
 #endif
-
-
-
 
 #ifdef _UNICODE
 #if defined _M_IX86
@@ -71,9 +62,6 @@
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #endif
 #endif
-
-
-
 
 inline CString CharToCString(const char* value)
 {
@@ -96,9 +84,6 @@ inline bool StrEq(const TCHAR* str1, const TCHAR* str2)
 	return StrCmp(str1, str2) == 0;
 }
 
-
-
-
 //func - функтор типа bool()(HTREEITEM), res == true - закончить обход
 template<class _Func> HTREEITEM ForEachTreeCtrlItem(CTreeCtrl& tree, HTREEITEM item, _Func func)
 {
@@ -111,7 +96,7 @@ template<class _Func> HTREEITEM ForEachTreeCtrlItem(CTreeCtrl& tree, HTREEITEM i
 		if (res)
 			return res;
 
-		child = tree.GetNextSiblingItem(child);		
+		child = tree.GetNextSiblingItem(child);
 	}
 
 	return func(item) ? item : 0;
@@ -126,7 +111,7 @@ template<class _Func> HTREEITEM ForEachTreeCtrlItem(CTreeCtrl& tree, _Func func)
 		if (res)
 			return res;
 
-		item = tree.GetNextSiblingItem(item);		
+		item = tree.GetNextSiblingItem(item);
 	}
 
 	return 0;

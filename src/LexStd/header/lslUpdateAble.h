@@ -18,7 +18,7 @@ private:
 	typedef std::map<UpdateAble*, UpdateData*> _UpdateMap;
 public:
 	//допущение: аргумент Unite того же типа, что и сам класс метода
-	struct UpdateData 
+	struct UpdateData
 	{
 		static unsigned GetUniqueId();
 
@@ -33,10 +33,10 @@ public:
 		{
 			return 0;
 		}
-	};	
+	};
 private:
 	unsigned _updateCount;
-	_UpdateMap _updateMap;	
+	_UpdateMap _updateMap;
 protected:
 	//Обработка принятых сообщений от внешних отправителей (возможно и от самого себя), здесь же может происходить отправление(или пересылка) сообщений новым приемникам.
 	virtual void DoNotifyChanged(UpdateAble* sender, const UpdateData* data) = 0;

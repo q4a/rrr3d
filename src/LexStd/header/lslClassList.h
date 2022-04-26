@@ -83,7 +83,7 @@ private:
 	typedef std::map<_Key, BaseClassInst<_Key, _BaseClass, _Arg>*> _ClassList;
 public:
 	typedef BaseClassInst<_Key, _BaseClass, _Arg> MyClassInst;
-	
+
 	typedef _Key Key;
 	typedef _BaseClass BaseClass;
 	typedef _Arg Arg;
@@ -135,9 +135,6 @@ public:
 template<class _Key, class _BaseClass, class _Arg = void> class ClassList: public ArgClassList<_Key, _BaseClass, _Arg>
 {
 };
-
-
-
 
 template<class _Key, class _BaseClass, class _Arg> BaseClassList<_Key, _BaseClass, _Arg>::~BaseClassList()
 {

@@ -57,7 +57,7 @@ private:
 	{
 		osReflWater = 0,
 		osViewCubeMap,
-		osViewDepth,		
+		osViewDepth,
 
 		osShadowCast,
 		osShadowMapp,
@@ -140,14 +140,14 @@ public:
 		float brightThreshold;
 		float gaussianScalar;
 		float exposure;
-		D3DXVECTOR2 colorCorrection;
+		glm::vec2 colorCorrection;
 	};
 
 	enum ReflMappMode { rmColorLayer, rmLackLayer };
 private:
 	graph::Engine* _engine;
-	gui::Manager* _gui;	
-	
+	gui::Manager* _gui;
+
 	bool _graphOptions[cGraphOptionEnd];
 	GraphQuality _graphQuality[cGraphOptionEnd];
 
@@ -179,7 +179,7 @@ private:
 
 	graph::ReflRender* _reflRender;
 	graph::Tex2DResource* _waterColor;
-	graph::Tex2DResource* _waterTexNorm;	
+	graph::Tex2DResource* _waterTexNorm;
 	graph::WaterPlane* _waterPlane;
 	graph::PlaneNode* _waterNode;
 	graph::Actor* _waterPlaneActor;
@@ -202,7 +202,7 @@ private:
 
 	graph::RenderToCubeTex* _scRenderCubeTex;
 	unsigned _scRenderCubeTexRef;
-	
+
 	graph::DepthMapRender* _scDepthMap;
 	unsigned _scDepthMapRef;
 
@@ -234,7 +234,7 @@ private:
 	bool _trueRefl;
 
 	graph::ReflRender* _planarReflRender;
-	graph::PlanarReflMappShader* _planarReflShader;	
+	graph::PlanarReflMappShader* _planarReflShader;
 
 	graph::BumpMapShader* _bumpMapShader;
 
@@ -243,7 +243,7 @@ private:
 	graph::FogPlane* _fogPlane;
 	graph::Tex2DResource* _cloudsTex;
 	graph::LibMaterial* _cloudsMat;
-	D3DXVECTOR2 _tileScale;
+	glm::vec2 _tileScale;
 	graph::Actor* _fogPlaneActor;
 
 	D3DXCOLOR _sceneAmbient;
@@ -326,7 +326,7 @@ private:
 	void InitFog();
 	void FreeFog();
 
-	void InitPlaneFog(lsl::string texture, const D3DXVECTOR2& tileScale, float speed, GraphQuality quality);
+	void InitPlaneFog(lsl::string texture, const glm::vec2& tileScale, float speed, GraphQuality quality);
 	void FreePlaneFog();
 	void UpdateFogPlane();
 
@@ -345,7 +345,7 @@ private:
 
 	void RenderDebug();
 
-	void OctreeRender(OctreeScene scene, bool ignoreRayUsers, bool planarRefl = false);	
+	void OctreeRender(OctreeScene scene, bool ignoreRayUsers, bool planarRefl = false);
 	bool RenderWithShader(OctreeScene scene, bool ignoreRayUsers, graph::Shader* shader, bool checkLight, bool defRender);
 	void RenderPlanarReflScene(graph::CameraCI& camera);
 	void RenderEnvReflScene(graph::CameraCI& camera);
@@ -355,7 +355,7 @@ private:
 	void AdjustViewOrtho(graph::CameraCI& camera);
 	void RenderShadow(graph::CameraCI& camera);
 	void RenderCubeMap(graph::CameraCI& camera);
-	void RenderWaterRef(graph::CameraCI& camera);	
+	void RenderWaterRef(graph::CameraCI& camera);
 	void RenderDepthScene(graph::CameraCI& camera);
 public:
 	GraphManager(HWND window, lsl::Point resolution, bool fullScreen);
@@ -410,7 +410,7 @@ public:
 	bool IsFilteringSupported(unsigned value) const;
 
 	unsigned GetMultisampling() const;
-	void SetMultisampling(unsigned value);	
+	void SetMultisampling(unsigned value);
 	bool IsMultisamplingSupported(unsigned value) const;
 
 	//
@@ -438,7 +438,7 @@ public:
 	//Камера
 	graph::Camera* GetCamera();
 	void SetCamera(graph::Camera* value);
-	
+
 	const D3DXVECTOR3& GetCubeViewPos() const;
 	void SetCubeViewPos(const D3DXVECTOR3& value);
 	//
@@ -456,7 +456,7 @@ public:
 
 	bool GetGUIMode() const;
 	void SetGUIMode(bool value);
-	
+
 	graph::DisplayMode GetDisplayMode() const;
 	const graph::DisplayModes& GetDisplayModes() const;
 	bool FindNearMode(const lsl::Point& resolution, graph::DisplayMode& mode, float aspect = 0) const;

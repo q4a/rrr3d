@@ -24,21 +24,18 @@ namespace
 
 gui::Label* _dbgInfo = NULL;
 
-void AdjustDbgInfo(const D3DXVECTOR2& size)
+void AdjustDbgInfo(const glm::vec2& size)
 {
 	if (_dbgInfo == 0)
 		return;
 
-	_dbgInfo->SetPos(D3DXVECTOR2(size.x - 20, 250));
-	_dbgInfo->SetSize(D3DXVECTOR2(200.0f, size.y));
+	_dbgInfo->SetPos(glm::vec2(size.x - 20, 250));
+	_dbgInfo->SetSize(glm::vec2(200.0f, size.y));
 }
 
 }
 
 #endif
-
-
-
 
 World::World(): _terminateResult(EXIT_SUCCESS), _terminate(false), _pause(false), _firstTick(0), _lastTick(0), _lastTick2(0), _lastSyncTick(0), _timeAccum(0), _lastDrawTime(0), _curTimeIter(1), _control(0), _view(0), _graph(0), _audio(0), _videoPlayer(NULL), _pxManager(0), _pxScene(0), _resManager(0), _camera(0), _db(0), _map(0), _logic(0), _env(0), _edit(0), _game(0), _syncFreq(60), _time(0), _dTimeReal(0), _inputWasReset(false), _videoMode(false), _warmIterations(0), _timeResolution(0)
 {
@@ -48,7 +45,7 @@ World::World(): _terminateResult(EXIT_SUCCESS), _terminate(false), _pause(false)
 }
 
 World::~World()
-{	
+{
 	//SetTimeResolution(0);
 }
 
@@ -64,10 +61,10 @@ void World::Init(IView::Desc viewDesc)
 		try
 		{
 			lsl::SerialFileXML file;
-			lsl::RootNode node("root", this);			
+			lsl::RootNode node("root", this);
 
 			file.LoadNodeFromFile(node, "user.xml");
-		
+
 			node.BeginLoad();
 
 			lsl::SReadValue(&node, "resolution", viewDesc.resolution);
@@ -77,8 +74,8 @@ void World::Init(IView::Desc viewDesc)
 
 			View::SetWindowSize(viewDesc.handle, viewDesc.resolution, viewDesc.fullscreen);
 		}
-		catch (const lsl::EUnableToOpen&) 
-		{	
+		catch (const lsl::EUnableToOpen&)
+		{
 		}
 	}
 
@@ -89,7 +86,7 @@ void World::Init(IView::Desc viewDesc)
 	_graph = new GraphManager(viewDesc.handle, viewDesc.resolution, viewDesc.fullscreen);
 	_graph->SetName("graph");
 	_graph->SetOwner(this);
-	_graph->GetEngine().InsertVideoRes(this);	
+	_graph->GetEngine().InsertVideoRes(this);
 
 	LSL_LOG("view init");
 
@@ -141,7 +138,7 @@ void World::Init(IView::Desc viewDesc)
 
 	LSL_LOG("logic init");
 
-	_logic = new Logic(this);	
+	_logic = new Logic(this);
 
 	LSL_LOG("env init");
 
@@ -264,7 +261,7 @@ void World::Progress(float deltaTime)
 		}
 		else
 			++iter;
-	}		
+	}
 }
 
 void World::FixedStep(float deltaTime)
@@ -306,11 +303,11 @@ void World::FrameStep(float deltaTime, float pxAlpha)
 
 bool World::OnMouseClickEvent(const MouseClick& mClick)
 {
-	bool res = false;	
+	bool res = false;
 
 	res = res || _control->OnMouseClickEvent(mClick);
 
-	res = res || _graph->GetGUI().OnMouseClickEvent(mClick.key, mClick.state, mClick.coord, mClick.shift1, false);	
+	res = res || _graph->GetGUI().OnMouseClickEvent(mClick.key, mClick.state, mClick.coord, mClick.shift1, false);
 
 	return res;
 }
@@ -321,7 +318,7 @@ bool World::OnMouseMoveEvent(const MouseMove& mMove)
 
 	res = res || _control->OnMouseMoveEvent(mMove);
 
-	res = res || _graph->GetGUI().OnMouseMoveEvent(mMove.coord, mMove.shift1, false);	
+	res = res || _graph->GetGUI().OnMouseMoveEvent(mMove.coord, mMove.shift1, false);
 
 	return res;
 }
@@ -341,13 +338,13 @@ void World::OnReset(HWND window, lsl::Point resolution, bool fullScreen)
 	LSL_LOG("world on reset");
 
 	_graph->Reset(window, resolution, fullScreen);
-	_videoPlayer->UpdateVideoWindow(resolution);	
+	_videoPlayer->UpdateVideoWindow(resolution);
 
 	_syncFreq = _graph->GetDisplayMode().refreshRate;
-	_camera->SetAspect(_view->GetAspect());	
+	_camera->SetAspect(_view->GetAspect());
 
 	if (_game)
-		_game->OnResetView();	
+		_game->OnResetView();
 
 #ifdef DRAW_DEBUG_INFO
 	AdjustDbgInfo(_graph->GetGUI().GetVPSize());
@@ -379,16 +376,16 @@ void World::OnWMGraphEvent()
 void World::OnGraphEvent(HWND hwnd, long eventCode, LONG_PTR param1, LONG_PTR param2)
 {
 	switch (eventCode)
-	{		
+	{
 	case EC_COMPLETE:
 	case EC_USERABORT:
 		_videoPlayer->Stop();
 		break;
 
 	case EC_ERRORABORT:
-		LSL_LOG("videoPlayer EC_ERRORABORT");		
+		LSL_LOG("videoPlayer EC_ERRORABORT");
 		_videoPlayer->Stop();
-		break;	
+		break;
 	}
 
 	_game->OnGraphEvent(hwnd, eventCode, param1, param2);
@@ -408,7 +405,7 @@ void World::MainProgress()
 
 	//frame sync
 	const float syncStep = 1.0f/_syncFreq;
-	const int syncFreq = _syncFreq;	
+	const int syncFreq = _syncFreq;
 	const int syncNumFrames = 15;
 	//запас синхронизации, в с
 	const float syncUpThreshold = 0.002f;
@@ -417,7 +414,7 @@ void World::MainProgress()
 	const float iterUpThreshold = syncUpThreshold / syncStep;
 	const float iterDownThreshold = syncDownThreshold / syncStep;
 
-	bool startRace = _game && _game->IsStartgame() && _game->GetRace()->IsStartRace();	
+	bool startRace = _game && _game->IsStartgame() && _game->GetRace()->IsStartRace();
 	bool syncModeOn = true;//_env->GetSyncFrameRate() == Environment::sfrFixed;
 	bool enableSync = syncModeOn;
 	if (_warmIterations > 0)
@@ -433,10 +430,10 @@ void World::MainProgress()
 		_firstTick = newTick;
 		_lastTick2 = _lastTick = newTick;
 	}
-	_time = static_cast<unsigned>((newTick - _firstTick) * 1000 / _cpuFreq);	
+	_time = static_cast<unsigned>((newTick - _firstTick) * 1000 / _cpuFreq);
 	double deltaTime = (newTick - _lastTick) / static_cast<double>(_cpuFreq);
 	_lastTick = newTick;
-	float dt = _dTimeReal = static_cast<float>(deltaTime);	
+	float dt = _dTimeReal = static_cast<float>(deltaTime);
 
 #if !_DEBUG || DEBUG_FRAME_SYNC
 	if (enableSync)
@@ -462,7 +459,7 @@ void World::MainProgress()
 	if (!_pause && startRace)
 		Progress(dt);
 
-#ifdef DEBUG_FRAME_SYNC	
+#ifdef DEBUG_FRAME_SYNC
 	__int64 tick;
 	QueryPerformanceCounter((LARGE_INTEGER*)&tick);
 #endif
@@ -492,7 +489,7 @@ void World::MainProgress()
 	QueryPerformanceCounter((LARGE_INTEGER*)&pxTick);
 	pxTick = pxTick - tick;
 #endif
-	
+
 #ifdef DEBUG_FRAME_SYNC
 	QueryPerformanceCounter((LARGE_INTEGER*)&tick);
 #endif
@@ -540,9 +537,9 @@ void World::MainProgress()
 	if (!_graph->Render(dt, _pause))
 		return;
 
-	QueryPerformanceCounter((LARGE_INTEGER*)&newTick);	
+	QueryPerformanceCounter((LARGE_INTEGER*)&newTick);
 	float renderTime = std::min((newTick - _lastTick) / static_cast<float>(_cpuFreq), maxSimDT);
-#ifdef DEBUG_FRAME_SYNC	
+#ifdef DEBUG_FRAME_SYNC
 	__int64 renderTick = newTick - tick;
 #endif
 
@@ -551,7 +548,7 @@ void World::MainProgress()
 	BOOL inVBlank = false;
 
 	if (syncModeOn && _curTimeIter > 1)
-	{		
+	{
 		int syncIter = std::max(static_cast<int>(_curTimeIter - syncFreq * (newTick - _lastTick2) / _cpuFreq), 1);
 
 #ifdef DEBUG_FRAME_SYNC
@@ -595,10 +592,10 @@ void World::MainProgress()
 	_graph->Present();
 
 #ifdef DEBUG_FRAME_SYNC
-	Profiler::I().End();	
+	Profiler::I().End();
 #endif
 
-	_graph->GPUSync();	
+	_graph->GPUSync();
 
 	__int64 syncTick;
 	QueryPerformanceCounter((LARGE_INTEGER*)&syncTick);
@@ -618,7 +615,7 @@ void World::MainProgress()
 		//	Sleep(sleepTime);
 
 		while (syncTick - _lastTick < fixTick)
-		{			
+		{
 			QueryPerformanceCounter((LARGE_INTEGER*)&syncTick);
 		}
 
@@ -666,7 +663,7 @@ void World::MainProgress()
 
 		//увеличение числа итераций при превышении порога рассинхронизации в syncError
 		float newTimeIterMin = drawTimeMin / syncStep;
-		float newTimeIterMax = drawTimeMax / syncStep;		
+		float newTimeIterMax = drawTimeMax / syncStep;
 
 		_dtStack.back().upTimeIter = newTimeIterMax;
 		upTimeIterAvg = (upTimeIterAvg + newTimeIterMax)/_dtStack.size();
@@ -674,7 +671,7 @@ void World::MainProgress()
 		_dtStack.back().downTimeIter = newTimeIterMin;
 		downTimeIterAvg = (downTimeIterAvg + _dtStack.back().downTimeIter)/_dtStack.size();
 
-		//down	
+		//down
 		if (downTimeIterAvg > _curTimeIter + iterDownThreshold)
 		{
 			if (gpuTimeAvg > 0.004f)
@@ -695,7 +692,7 @@ void World::MainProgress()
 		}
 		//up
 		else if (upTimeIterAvg < _curTimeIter - iterUpThreshold)
-		{	
+		{
 			int upTimeIter = lsl::ClampValue(static_cast<int>(ceil(upTimeIterAvg + iterUpThreshold)), 1, cMaxSimIter);
 			for (; upTimeIter < _curTimeIter; ++upTimeIter)
 			{
@@ -706,9 +703,9 @@ void World::MainProgress()
 				}
 			}
 		}
-	}	
-#endif	
-	
+	}
+#endif
+
 #ifdef DEBUG_FRAME_SYNC
 	static int fixDbgTimeIter = 0;
 
@@ -729,14 +726,14 @@ void World::MainProgress()
 		if (_control->GetAsyncKey(VK_NUMPAD6))
 			fixDbgTimeIter = 6;
 		if (_control->GetAsyncKey(VK_DELETE))
-			fixDbgTimeIter = -1;	
+			fixDbgTimeIter = -1;
 	}
 
 	if (fixDbgTimeIter > 0)
 	{
 		_curTimeIter = fixDbgTimeIter;
 		enableSync = true;
-	}	
+	}
 	else if (fixDbgTimeIter == -1)
 		enableSync = false;
 #endif
@@ -750,15 +747,15 @@ void World::MainProgress()
 	static int minIter = 0;
 	static int maxIter = 0;
 	static float minAlpha = 0;
-	static float maxAlpha = 0;	
+	static float maxAlpha = 0;
 	static int minCurIter = 0;
-	static int maxCurIter = 0;	
+	static int maxCurIter = 0;
 	static float maxGPUTime = 0;
 	static float maxRenderTime = 0;
 	static float maxAudioTime = 0;
-	static float maxThreadTime = 0;	
-	static float maxFrameTime = 0;	
-	static float maxPxTime = 0;	
+	static float maxThreadTime = 0;
+	static float maxFrameTime = 0;
+	static float maxPxTime = 0;
 
 	float audioTime = audioTick / static_cast<float>(_cpuFreq);
 	float threadTime = threadTick / static_cast<float>(_cpuFreq);
@@ -769,23 +766,23 @@ void World::MainProgress()
 	{
 		std::string text = lsl::StrFmt((lsl::string() +
 			"dt=%0.1f min=%0.1f max=%0.1f\n"
-			"avg=%0.1f min=%0.1f max=%0.1f\n"			
-			"alpha=%0.3f min=%0.3f max=%0.3f\n"			
-			"timeIter=%d min=%d max=%d\n"			
+			"avg=%0.1f min=%0.1f max=%0.1f\n"
+			"alpha=%0.3f min=%0.3f max=%0.3f\n"
+			"timeIter=%d min=%d max=%d\n"
 			"gpuTime=%0.1f min=%0.1f max=%0.1f\n"
 			"renderTime=%0.1f min=%0.1f max=%0.1f\n"
 			"audioTime=%0.1f min=%0.1f max=%0.1f\n"
 			"threadTime=%0.1f min=%0.1f max=%0.1f\n"
 			"frameTime=%0.1f min=%0.1f max=%0.1f\n"
-			"pxTime=%0.1f min=%0.1f max=%0.1f\n"			
+			"pxTime=%0.1f min=%0.1f max=%0.1f\n"
 			"\n"
 			).c_str(),
 			deltaTime * 1000, minDt * 1000, maxDt * 1000,
-			dt * 1000, minAvg * 1000, maxAvg * 1000,			
-			alpha, minAlpha, maxAlpha,			
-			_curTimeIter, minCurIter, maxCurIter,			
+			dt * 1000, minAvg * 1000, maxAvg * 1000,
+			alpha, minAlpha, maxAlpha,
+			_curTimeIter, minCurIter, maxCurIter,
 			gpuTime * 1000, gpuTime * 1000, maxGPUTime * 1000,
-			renderTime * 1000, renderTime * 1000, maxRenderTime * 1000,	
+			renderTime * 1000, renderTime * 1000, maxRenderTime * 1000,
 			audioTime * 1000, audioTime * 1000, maxAudioTime * 1000,
 			threadTime * 1000, threadTime * 1000, maxThreadTime * 1000,
 			frameTime * 1000, frameTime * 1000, maxFrameTime * 1000,
@@ -814,9 +811,9 @@ void World::MainProgress()
 		minIter = 999;
 		maxIter = 0;
 		minAlpha = 1.0f;
-		maxAlpha = 0.0f;		
+		maxAlpha = 0.0f;
 		minCurIter = maxTimeIter;
-		maxCurIter = 0;		
+		maxCurIter = 0;
 		maxGPUTime = 0;
 		maxRenderTime = 0;
 		maxAudioTime = 0;
@@ -826,7 +823,7 @@ void World::MainProgress()
 
 		dbgDumpTime = 0.0f;
 	}
-	
+
 	if (minDt > deltaTime)
 		minDt = deltaTime;
 	if (maxDt < deltaTime)
@@ -838,29 +835,29 @@ void World::MainProgress()
 	if (minAlpha > alpha)
 		minAlpha = alpha;
 	if (maxAlpha < alpha)
-		maxAlpha = alpha;	
+		maxAlpha = alpha;
 	if (minCurIter > _curTimeIter)
 		minCurIter = _curTimeIter;
 	if (maxCurIter < _curTimeIter)
-		maxCurIter = _curTimeIter;	
+		maxCurIter = _curTimeIter;
 	if (maxGPUTime < gpuTime)
 		maxGPUTime = gpuTime;
 	if (maxRenderTime < renderTime)
 		maxRenderTime = renderTime;
 	if (maxAudioTime < audioTime)
-		maxAudioTime = audioTime;	
+		maxAudioTime = audioTime;
 	if (maxThreadTime < threadTime)
-		maxThreadTime = threadTime;		
+		maxThreadTime = threadTime;
 	if (maxFrameTime < frameTime)
-		maxFrameTime = frameTime;	
+		maxFrameTime = frameTime;
 	if (maxPxTime < pxTime)
-		maxPxTime = pxTime;		
-	
+		maxPxTime = pxTime;
+
 	dbgDumpTime += dt;
-	
+
 	/*static std::fstream fileDump;
-	static float fileDumpTime = 0.0f;	
-	static int fileDumpFrame = 0;	
+	static float fileDumpTime = 0.0f;
+	static int fileDumpFrame = 0;
 
 	if (fileDumpTime > 0)
 	{
@@ -868,8 +865,8 @@ void World::MainProgress()
 			fileDump.open("C:\\dump.txt", std::ios_base::out);
 
 		fileDump << "frame=" << fileDumpFrame << '\n';
-		fileDump << "deltaTime=" << deltaTime << '\n';		
-		fileDump << "timeAccum=" << _timeAccum << '\n';				
+		fileDump << "deltaTime=" << deltaTime << '\n';
+		fileDump << "timeAccum=" << _timeAccum << '\n';
 		fileDump << '\n';
 		fileDump << '\n';
 
@@ -901,7 +898,7 @@ void World::MainProgress()
 		static unsigned bytesReceivedLast[4] = {0, 0, 0, 0};
 
 		std::string text = "";
-		
+
 		if (net::GetNetService().isClient())
 		{
 			std::string status = "disconnected";
@@ -915,7 +912,7 @@ void World::MainProgress()
 			net::INetChannel* channel = net::GetNetService().channel();
 			if (connection)
 			{
-				framePing += 1;			
+				framePing += 1;
 				pingBuf[0] += channel->ping();
 				if ((pingTime += dt) > 0.5f)
 				{
@@ -926,7 +923,7 @@ void World::MainProgress()
 					bytesSendBuf[0] = bytesSend;
 					bytesReceivedLast[0] = bytesReceived - bytesReceivedBuf[0];
 					bytesReceivedBuf[0] = bytesReceived;
-					pingBuf[0] = 0;				
+					pingBuf[0] = 0;
 					pingTime = 0;
 					framePing = 0;
 				}
@@ -956,7 +953,7 @@ void World::MainProgress()
 				net::INetChannel* channel = net::GetNetService().channel();
 
 				framePing += 1;
-				pingBuf[i] += channel->ping();				
+				pingBuf[i] += channel->ping();
 				if (setPing)
 				{
 					unsigned bytesSend = player->bytesSend() + channel->bytesSend();
@@ -966,7 +963,7 @@ void World::MainProgress()
 					bytesSendBuf[i] = bytesSend;
 					bytesReceivedLast[i] = bytesReceived - bytesReceivedBuf[i];
 					bytesReceivedBuf[i] = bytesReceived;
-					pingBuf[i] = 0;					
+					pingBuf[i] = 0;
 					framePing = 0;
 				}
 
@@ -998,7 +995,7 @@ bool World::IsPaused() const
 void World::ResetInput(bool reset)
 {
 	_inputWasReset = reset;
-	_control->ResetInput(reset);	
+	_control->ResetInput(reset);
 }
 
 bool World::InputWasReset() const
@@ -1007,12 +1004,12 @@ bool World::InputWasReset() const
 }
 
 void World::ResetCamera()
-{	
+{
 	_curTimeIter = 1;
 	_warmIterations = 10;
 	_dtStack.clear();
 	ZeroMemory(_iterBuf, sizeof(_iterBuf));
-	
+
 	//if (_view->GetDesc().fullscreen && (_env->GetSyncFrameRate() == Environment::sfrFixed))
 	//	SetTimeResolution(1);
 	//else
@@ -1087,7 +1084,7 @@ void World::RunWorldEdit()
 	LoadRes();
 	_edit = new edit::Edit(this);
 
-	_camera->ChangeStyle(CameraManager::csFreeView);	
+	_camera->ChangeStyle(CameraManager::csFreeView);
 	_env->SetEditMode(true);
 }
 
@@ -1101,7 +1098,7 @@ void World::SaveLevel(const std::string& level)
 {
 	lsl::RootNode rootNode("root", this);
 
-	lsl::SWriter* writer = rootNode.BeginSave();	
+	lsl::SWriter* writer = rootNode.BeginSave();
 	writer->WriteValue("map", _map);
 	//writer->WriteValue("logic", _logic);
 	rootNode.EndSave();

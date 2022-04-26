@@ -36,7 +36,7 @@ private:
 		void Update(AICar* owner, float deltaTime, const Player::CarState& car);
 
 		void SetCurTile(WayNode* value);
-		void SetNextTile(WayNode* value);	
+		void SetNextTile(WayNode* value);
 
 		WayNode* curTile;
 		WayNode* nextTile;
@@ -46,11 +46,11 @@ private:
 		TrackVec freeTracks;
 		//Заблокированные дорожки
 		TrackVec lockTracks;
-		
+
 		//зона охвата по направлению движения машины
 		float dirArea;
 		//результирующее направление движения относительно машины
-		D3DXVECTOR2 moveDir;
+		glm::vec2 moveDir;
 		bool _break;
 
 		const unsigned cTrackCnt;
@@ -75,7 +75,6 @@ private:
 		Player* backTarget;
 		float placeMineRandom;
 	};
-
 
 	//Состояние контроля за машиной с учетом пути, обгона, стрельбы
 	struct ControlState
@@ -109,9 +108,9 @@ private:
 
 	AttackState _attack;
 	PathState _path;
-	ControlState _control;	
+	ControlState _control;
 
-	void UpdateAI(float deltaTime, const Player::CarState& car);	
+	void UpdateAI(float deltaTime, const Player::CarState& car);
 public:
 	AICar(Player* player);
 	virtual ~AICar();

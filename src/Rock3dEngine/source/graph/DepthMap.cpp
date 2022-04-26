@@ -10,9 +10,6 @@ namespace graph
 
 const char* DepthMapShader::cTechniqueNames[cTechniqueTypeEnd] = {"techDepthMap", "techDepthMapAlphaTest"};
 
-
-
-
 void DepthMapShader::DoBeginDraw(Engine& engine)
 {
 	TechniqueType tech = engine.GetContext().GetRenderState(rsAlphaTestEnable) ? ttDepthMapAlphaTest : ttDepthMap;
@@ -23,8 +20,7 @@ void DepthMapShader::DoBeginDraw(Engine& engine)
 	if (tech == ttDepthMapAlphaTest)
 		SetTextureDir("opacityTex", engine.GetContext().GetTexture(0));
 
-	D3DXMATRIX matWVP;
-	D3DXMatrixMultiply(&matWVP, &engine.GetContext().GetWorldMat(), &viewProjMat);
+	glm::mat4 matWVP = engine.GetContext().GetWorldMat() * viewProjMat;
 	SetValueDir("depthMatrix", matWVP);
 }
 
@@ -49,9 +45,6 @@ void DepthMapShader::SetTech(TechniqueType value)
 	_MyBase::SetTech(cTechniqueNames[value]);
 }
 
-
-
-
 Tex2DResource* DepthMapRender::CreateRT()
 {
 	Tex2DResource* tex = _MyBase::CreateRT();
@@ -75,15 +68,15 @@ void DepthMapRender::EndRT(Engine& engine)
 
 	shader.UnApply(engine);
 
-	UnApplyRT(engine);	
+	UnApplyRT(engine);
 }
 
-const D3DXMATRIX& DepthMapRender::GetViewProjMat() const
+const glm::mat4& DepthMapRender::GetViewProjMat() const
 {
 	return shader.viewProjMat;
 }
 
-void DepthMapRender::SetViewProjMat(const D3DXMATRIX& value)
+void DepthMapRender::SetViewProjMat(const glm::mat4& value)
 {
 	shader.viewProjMat = value;
 }

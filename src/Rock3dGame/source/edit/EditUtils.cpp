@@ -50,12 +50,12 @@ void ScNodeCont::SetPos(const D3DXVECTOR3& value)
 	_node->SetWorldPos(value);
 }
 
-D3DXQUATERNION ScNodeCont::GetRot() const
+glm::quat ScNodeCont::GetRot() const
 {
 	return _node->GetWorldRot();
 }
 
-void ScNodeCont::SetRot(const D3DXQUATERNION& value)
+void ScNodeCont::SetRot(const glm::quat& value)
 {
 	_node->SetWorldRot(value);
 }
@@ -85,7 +85,7 @@ D3DXVECTOR3 ScNodeCont::GetUp() const
 	return _node->GetWorldUp();
 }
 
-D3DXMATRIX ScNodeCont::GetMat() const
+glm::mat4 ScNodeCont::GetMat() const
 {
 	return _node->GetWorldMat();
 }

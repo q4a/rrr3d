@@ -81,9 +81,8 @@ public:
 	CNetworkTransport *m_pNetworkTransport;
 };
 
-
 //-----------------------------------------------------------------------------
-// Purpose: trivial wrapper on network messaging 
+// Purpose: trivial wrapper on network messaging
 //-----------------------------------------------------------------------------
 class CNetworkTransport
 {

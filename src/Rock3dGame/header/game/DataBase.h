@@ -15,7 +15,7 @@ private:
 	enum GraphType
 	{
 		gtDefFixPipe,
-		gtDef,		
+		gtDef,
 		gtRefl,
 		gtBumb,
 		gtPlanarRefl,
@@ -66,8 +66,8 @@ private:
 
 		string soundMotorIdle;
 		string soundMotorHigh;
-		D3DXVECTOR2 motorVolumeRange;
-		D3DXVECTOR2 motorFreqRange;
+		glm::vec2 motorVolumeRange;
+		glm::vec2 motorFreqRange;
 
 		bool bump;
 
@@ -97,7 +97,7 @@ private:
 	NxMaterial* _nxCarMaterial1;
 	NxMaterial* _nxCarMaterial2;
 	NxMaterial* _nxWheelMaterial;
-	NxMaterial* _trackMaterial;	
+	NxMaterial* _trackMaterial;
 	NxMaterial* _borderMaterial;
 
 	void InitMapObjLib();
@@ -110,16 +110,16 @@ private:
 	//
 	graph::IVBMeshNode* AddMeshNode(graph::SceneNode* scNode, const std::string& mesh, int meshId = -1);
 	graph::IVBMeshNode* AddMeshNode(MapObj* mapObj, const std::string& mesh, int meshId = -1);
-	graph::Sprite* AddSprite(game::MapObj* mapObj, bool fixDir, const D3DXVECTOR2& sizes);
-	graph::Sprite* AddFxSprite(game::MapObj* mapObj, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, bool autoRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame = 0.0f, bool dir = false, const D3DXVECTOR2& sizes = IdentityVec2);
-	graph::PlaneNode* AddPlaneNode(game::MapObj* mapObj, const D3DXVECTOR2& sizes);	
-	graph::PlaneNode* AddFxPlane(game::MapObj* mapObj, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame = 0.0f, const D3DXVECTOR2& sizes = IdentityVec2);
-	
+	graph::Sprite* AddSprite(game::MapObj* mapObj, bool fixDir, const glm::vec2& sizes);
+	graph::Sprite* AddFxSprite(game::MapObj* mapObj, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, bool autoRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame = 0.0f, bool dir = false, const glm::vec2& sizes = IdentityVec2);
+	graph::PlaneNode* AddPlaneNode(game::MapObj* mapObj, const glm::vec2& sizes);
+	graph::PlaneNode* AddFxPlane(game::MapObj* mapObj, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame = 0.0f, const glm::vec2& sizes = IdentityVec2);
+
 	graph::LibMaterial* AddLibMat(graph::MaterialNode* node, const std::string& libMat);
 	graph::LibMaterial* AddLibMat(graph::IVBMeshNode* node, const std::string& libMat);
 	void AddToGraph(graph::Actor& grActor, GraphType type, bool dynamic, bool morph = false, bool disableShadows = false, bool cullOpacity = false);
 	void AddToGraph(MapObj* mapObj, GraphType type, bool dynamic, bool morph = false, bool disableShadows = false, bool cullOpacity = false);
-	
+
 	//
 	px::BoxShape* AddPxBox(MapObj* mapObj, const AABB& aabb);
 	px::BoxShape* AddPxBox(MapObj* mapObj);
@@ -127,13 +127,13 @@ private:
 	px::CapsuleShape* AddPxCapsule(MapObj* mapObj);
 	px::SphereShape* AddPxSpere(MapObj* mapObj, float radius);
 	px::TriangleMeshShape* AddPxMesh(MapObj* mapObj, const std::string& meshName, int meshId = -1);
-	px::ConvexShape* AddPxConvex(MapObj* mapObj, const std::string& meshName, int meshId = -1);	
+	px::ConvexShape* AddPxConvex(MapObj* mapObj, const std::string& meshName, int meshId = -1);
 	px::Body* AddPxBody(MapObj* mapObj, const NxBodyDesc& desc);
 	px::Body* AddPxBody(MapObj* mapObj, float mass, const D3DXVECTOR3* massPos);
-	
+
 	//
 	CarWheel* AddWheel(unsigned index, GameCar& car, const std::string& meshName, const std::string& matName, const D3DXVECTOR3& pos, bool steer, bool lead, CarWheel* master, const CarDesc& carDesc);
-	
+
 	//
 	graph::FxParticleSystem* AddFxSystem(graph::SceneNode* node, graph::FxManager* manager, graph::FxParticleSystem::ChildStyle childStyle = graph::FxParticleSystem::csProxy);
 	graph::FxParticleSystem* AddFxSystem(MapObj* mapObj, graph::FxManager* manager, graph::FxParticleSystem::ChildStyle childStyle = graph::FxParticleSystem::csProxy);
@@ -148,8 +148,8 @@ private:
 
 	//
 	void LoadFxFlow(const std::string& name, const std::string& libMat, graph::FxManager* fxManager, const graph::FxEmitter::ParticleDesc& partDesc, const graph::FxFlowEmitter::FlowDesc& flowDesc, bool worldCoordSys, float timeLife = 0.0f, GraphType graphType = gtEffect);
-	void LoadFxSprite(const std::string& name, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, bool autoRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame = 0.0f, float timeLife = 0.0f, bool dir = false, const D3DXVECTOR2& sizes = IdentityVec2, GraphType graphType = gtEffect, bool morph = false);
-	void LoadFxPlane(const std::string& name, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame = 0.0f, float timeLife = 0.0f, const D3DXVECTOR2& sizes = IdentityVec2, GraphType graphType = gtEffect);
+	void LoadFxSprite(const std::string& name, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, bool autoRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame = 0.0f, float timeLife = 0.0f, bool dir = false, const glm::vec2& sizes = IdentityVec2, GraphType graphType = gtEffect, bool morph = false);
+	void LoadFxPlane(const std::string& name, const std::string& libMat, const Vec3Range& speedPos, const Vec3Range& speedScale, const QuatRange& speedRot, graph::SceneNode::AnimMode animMode, float animDuration, float frame = 0.0f, float timeLife = 0.0f, const glm::vec2& sizes = IdentityVec2, GraphType graphType = gtEffect);
 
 	void LoadSndSources();
 	void LoadEffects();
@@ -159,7 +159,7 @@ private:
 	void LoadWorld4();
 	void LoadWorld5();
 	void LoadWorld6();
-	void LoadMisc();	
+	void LoadMisc();
 	void LoadCrush();
 	void LoadBonus();
 	void LoadWeapons();

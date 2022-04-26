@@ -13,7 +13,7 @@ AIPlayer::AIPlayer(Player* player): _player(player), _car(0)
 {
 	LSL_ASSERT(_player);
 
-	_player->AddRef();	
+	_player->AddRef();
 
 	if (!_player->IsHuman())
 		_player->SetCheat(Player::cCheatEnableFaster | Player::cCheatEnableSlower);
@@ -64,9 +64,6 @@ AICar* AIPlayer::GetCar()
 	return _car;
 }
 
-
-
-
 AISystem::AISystem(Race* race): _race(race), _aiDebug(0)
 {
 }
@@ -98,7 +95,7 @@ void AISystem::ComputeTracks(float deltaTime)
 		Chain* chain;
 
 		Link(AICar* mCar, float mDirDist, Chain* mChain): car(mCar), dirDist(mDirDist), chain(mChain) {}
-		
+
 		bool operator==(const Link& link) const
 		{
 			return car == link.car;
@@ -161,7 +158,7 @@ void AISystem::ComputeTracks(float deltaTime)
 			AICar* tAICar = tLink->car;
 			const AICar::CarState& tCar = tAICar->GetCar();
 			Chain* tChain = tLink->chain;
-			
+
 			//1. —овпадающие элементы
 			//2. Ёлементы уже вход€т в одну и ту же цепь
 			if (link == tLink || (tChain && tChain == chain))
@@ -181,7 +178,7 @@ void AISystem::ComputeTracks(float deltaTime)
 					else
 					{
 						chain = new Chain();
-						chainList.push_back(chain);			
+						chainList.push_back(chain);
 					}
 
 					LSL_ASSERT(link->chain == 0);
@@ -196,7 +193,7 @@ void AISystem::ComputeTracks(float deltaTime)
 					//цель в другой цепи, необходимо объеденить еЄ с chain
 					if (tChain)
 					{
-						for (Chain::iterator iter = tChain->begin(); iter != tChain->end(); ++iter)		
+						for (Chain::iterator iter = tChain->begin(); iter != tChain->end(); ++iter)
 							(*iter)->chain = chain;
 						chain->insert(chain->end(), tChain->begin(), tChain->end());
 						chainList.Remove(tChain);
@@ -204,7 +201,7 @@ void AISystem::ComputeTracks(float deltaTime)
 					}
 					//добавление нового целевого элемента в цепь
 					else
-					{	
+					{
 						LSL_ASSERT(tLink->chain == 0);
 
 						tLink->chain = chain;
@@ -224,7 +221,6 @@ void AISystem::ComputeTracks(float deltaTime)
 		//LSL_ASSERT(!tChain->empty() && tChain->size() <= cTrackCnt);
 		LSL_ASSERT(!tChain->empty());
 
-		
 		struct Pred: public std::binary_function<Link*, Link*, bool>
 		{
 			bool operator()(Link* link1, Link* link2)
@@ -255,7 +251,7 @@ void AISystem::ComputeTracks(float deltaTime)
 			AICar* tAICar = (*tIter)->car;
 			AICar::CarState& tCar = const_cast<AICar::CarState&>(tAICar->GetCar());
 
-			//максимально допустима€ дорожка с учетом требуемых дл€ оставшихс€ целей мест			
+			//максимально допустима€ дорожка с учетом требуемых дл€ оставшихс€ целей мест
 			sTrack = ClampValue(tCar.track, std::min(sTrack, cTrackCnt - 1), cTrackCnt - (std::min(tCount, cTrackCnt) - i % cTrackCnt));
 
 			//
@@ -335,9 +331,6 @@ void AISystem::FreeDebug()
 	lsl::SafeDelete(_aiDebug);
 }
 
-
-
-
 AIDebug::AIDebug(AISystem* ai, AIPlayer* aiPlayer): _ai(ai), _aiPlayer(aiPlayer)
 {
 	_aiPlayer->AddRef();
@@ -349,7 +342,7 @@ AIDebug::AIDebug(AISystem* ai, AIPlayer* aiPlayer): _ai(ai), _aiPlayer(aiPlayer)
 	GetWorld()->GetGraph()->InsertScNode(_grActor);
 
 	_control = new Control(this);
-	GetWorld()->GetControl()->InsertEvent(_control);	
+	GetWorld()->GetControl()->InsertEvent(_control);
 
 	if (aiPlayer->_car)
 		aiPlayer->_car->_enbAI = false;
@@ -373,15 +366,15 @@ AIDebug::~AIDebug()
 AIDebug::GrActor::GrActor(AIDebug* debug): _debug(debug)
 {
 	HDC hDC;
-    //HFONT hFont;
-    int nHeight;
-    int nPointSize = 9;
-    //char strFontName[] = "Arial";
-    hDC = GetDC(NULL);
-    nHeight = -( MulDiv( nPointSize, GetDeviceCaps(hDC, LOGPIXELSY), 72 ) );
-    ReleaseDC( NULL, hDC );
-    // Create a font for statistics and help output
-	HRESULT hr = D3DXCreateFont(_debug->GetWorld()->GetGraph()->GetEngine().GetDriver().GetDevice(), nHeight, 0, FW_BOLD, 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, TEXT("Arial"), &_font);	
+	//HFONT hFont;
+	int nHeight;
+	int nPointSize = 9;
+	//char strFontName[] = "Arial";
+	hDC = GetDC(NULL);
+	nHeight = -( MulDiv( nPointSize, GetDeviceCaps(hDC, LOGPIXELSY), 72 ) );
+	ReleaseDC( NULL, hDC );
+	// Create a font for statistics and help output
+	HRESULT hr = D3DXCreateFont(_debug->GetWorld()->GetGraph()->GetEngine().GetDriver().GetDevice(), nHeight, 0, FW_BOLD, 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, TEXT("Arial"), &_font);
 }
 
 AIDebug::GrActor::~GrActor()
@@ -394,9 +387,6 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	if (!_debug->_aiPlayer->_car)
 		return;
 
-
-
-
 	AISystem* ai = _debug->_ai;
 
 	engine.GetContext().SetRenderState(graph::rsZWriteEnable, false);
@@ -408,10 +398,10 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		AIPlayer* aiPlayer = (*iter);
 		MapObj* car = aiPlayer->GetPlayer()->GetCar().mapObj;
 		RockCar* gameObj = _debug->_aiPlayer->GetPlayer()->GetCar().gameObj;
-		
+
 		if (car)
 		{
-			D3DXVECTOR2 moveDir = aiPlayer->GetCar()->_path.moveDir;
+			glm::vec2 moveDir = aiPlayer->GetCar()->_path.moveDir;
 
 			res::VertexPD lines[2];
 			D3DXVECTOR3 worldPos = car->GetGameObj().GetWorldPos();
@@ -432,10 +422,10 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 
 		if (car && nextNode)
 		{
-			D3DXVECTOR2 moveDir = _debug->_aiPlayer->_car->_path.moveDir;			
+			glm::vec2 moveDir = _debug->_aiPlayer->_car->_path.moveDir;
 
 			float dist = Line2DistToPoint(nextNode->GetTile().GetEdgeLine(), _debug->_aiPlayer->_car->GetCar().pos);
-			D3DXVECTOR2 dir = nextNode->GetTile().GetEdgeNorm();
+			glm::vec2 dir = nextNode->GetTile().GetEdgeNorm();
 
 			res::VertexPD lines[2];
 			D3DXVECTOR3 worldPos = car->GetGameObj().GetWorldPos();
@@ -458,11 +448,11 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			NxMat33 mat0(rot0);
 			if (iter->shape0->getActor().isDynamic())
 			{
-				NxMat34 bodyMat = iter->shape0->getActor().getCMassGlobalPose();				
-				bodyMat.multiply(pos0, pos0);				
+				NxMat34 bodyMat = iter->shape0->getActor().getCMassGlobalPose();
+				bodyMat.multiply(pos0, pos0);
 				mat0.multiply(bodyMat.M, mat0);
 			}
-			
+
 			D3DXVECTOR3 error(contData.error.get());
 			D3DXVECTOR3 errorNorm;
 			D3DXVec3Normalize(&errorNorm, &error);
@@ -517,13 +507,10 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	engine.GetContext().RestoreRenderState(graph::rsZWriteEnable);
 	engine.GetContext().RestoreRenderState(graph::rsZEnable);
 	engine.GetContext().RestoreRenderState(graph::rsLighting);
-	 
-
-
 
 	std::stringstream sstream;
 	std::stringstream sstream2;
-	
+
 	sstream << "Chains \n";
 	unsigned i = 0;
 	for (ChainList::iterator iter = _debug->chainList.begin(); iter != _debug->chainList.end(); ++iter, ++i)
@@ -537,12 +524,6 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		}
 		sstream << '\n';
 	}
-
-
-
-
-
-
 
 	static bool speed100 = false;
 	static bool speed150 = false;
@@ -591,7 +572,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		speed200Time += engine.GetDt();
 
 	sstream << "RPM = " << gameObj->GetRPM() << '\n';
-	sstream << "Gear = " << gameObj->GetCurGear() << '\n';	
+	sstream << "Gear = " << gameObj->GetCurGear() << '\n';
 	sstream << "Speed = " << Round(car.speed * 3600.0f / 1000.0f * 100.0f) / 100.0f << '\n';
 	sstream << "AxleSpeed = " << Round(gameObj->GetDrivenWheelSpeed() * 3600.0f / 1000.0f * 100.0f) / 100.0f << '\n';
 	sstream << "Break = " << _debug->_aiPlayer->GetCar()->_path._break << '\n';
@@ -599,9 +580,9 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	sstream << "Speed150 = " << Round(speed150Time * 100.0f) / 100.0f << '\n';
 	sstream << "Speed200 = " << Round(speed200Time * 100.0f) / 100.0f << '\n';
 	if (car.curTile)
-	{	
+	{
 		WayNode* curTile = _debug->_aiPlayer->GetCar()->GetCar().curTile;
-		sstream << "Finish = " << curTile->GetTile().GetFinishDist()/curTile->GetPath()->GetLength() << '\n';		
+		sstream << "Finish = " << curTile->GetTile().GetFinishDist()/curTile->GetPath()->GetLength() << '\n';
 	}
 	sstream << '\n';
 
@@ -628,7 +609,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		minNormReaction = 999999.0f;
 		maxNormReaction = 0;
 	}
-	dbgDumpTime += engine.GetDt();	
+	dbgDumpTime += engine.GetDt();
 
 	game::CarWheel* wheel = &gameObj->GetWheels().front();
 	px::WheelShape* pxWheel =  wheel->GetShape();
@@ -676,29 +657,28 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	//масса
 	sstream2 << "4. mass = " << mass << '\n';
 	//центр т€жести
-	sstream2 << "5. cMass = (" << cMassPos.x << ", " << cMassPos.y << ", " << cMassPos.z << ")" << '\n';	
+	sstream2 << "5. cMass = (" << cMassPos.x << ", " << cMassPos.y << ", " << cMassPos.z << ")" << '\n';
 	//motor
-	sstream2 << "6. torque = " << motor.maxTorque << '\n';		
+	sstream2 << "6. torque = " << motor.maxTorque << '\n';
 	//steerSpeed
 	sstream2 << "7. steerSpeed = " << steerSpeed << '\n';
 	//steerRot
 	sstream2 << "8. steerRot = " << steerRot << '\n';
 	//kSteer
-	sstream2 << "9. kSteer = " << kSteer << '\n';	
+	sstream2 << "9. kSteer = " << kSteer << '\n';
 	sstream2 << '\n';
-	
-	
+
 	//
 	sstream2 << "slip wheels" << '\n';
 	int ind = 0;
 	for (game::CarWheels::const_iterator iter = gameObj->GetWheels().begin(); iter != gameObj->GetWheels().end(); ++iter, ++ind)
 		sstream2 << "wheel" << ind << " lat=" << Round((*iter)->GetLatSlip() * 10.0f)/10.0f <<  " long=" << Round((*iter)->GetLongSlip() * 10.0f)/10.0f << '\n';
-	sstream2 << '\n';	
+	sstream2 << '\n';
 
 	RECT destRect;
 	RECT destRect2;
-	SetRect(&destRect, 5, 200, 0, 0);	
-	SetRect(&destRect2, 150, 160, 0, 0);	
+	SetRect(&destRect, 5, 200, 0, 0);
+	SetRect(&destRect2, 150, 160, 0, 0);
 	_font->OnResetDevice();
 	_font->DrawText(0 , sstream.str().c_str(), -1, &destRect, DT_NOCLIP, D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f));
 	_font->DrawText(0 , sstream2.str().c_str(), -1, &destRect2, DT_NOCLIP, D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f));
@@ -718,8 +698,6 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	if (GetAsyncKeyState(VK_NEXT))
 		numPage = std::max(numPage - 1, 0);
 
-
-
 	int addVal = 0;
 	if (GetAsyncKeyState(VK_ADD))
 		addVal = 1;
@@ -727,7 +705,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		addVal = -1;
 
 	if (numPage == 0)
-	switch (_numParam)	
+	switch (_numParam)
 	{
 	case 0:
 		longFunc.extremumSlip += 0.1f * engine.GetDt() * addVal;
@@ -761,7 +739,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		break;
 	}
 	if (numPage == 1)
-	switch (_numParam)	
+	switch (_numParam)
 	{
 	case 0:
 		suspension.spring += 100000.0f * engine.GetDt() * addVal;
@@ -839,7 +817,7 @@ bool AIDebug::Control::OnHandleInput(const InputMessage& msg)
 
 void AIDebug::OnProgress(float deltaTime)
 {
-	_traceGfx->SetSelNode(_aiPlayer->GetPlayer()->GetCar().curNode);	
+	_traceGfx->SetSelNode(_aiPlayer->GetPlayer()->GetCar().curNode);
 }
 
 World* AIDebug::GetWorld()

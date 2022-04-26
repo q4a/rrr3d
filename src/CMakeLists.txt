@@ -9,6 +9,7 @@ if (MSVC)
 endif()
 
 add_subdirectory(LexStd)
+add_subdirectory(MathLib)
 add_subdirectory(NetLib)
 add_subdirectory(Rock3dEngine)
 add_subdirectory(Rock3dGame)

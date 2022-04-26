@@ -38,7 +38,7 @@ void FinalMenu::AddLineBox(const lsl::string& caption, const lsl::string& text)
 {
 	LineBox line;
 
-	line.caption = menu()->CreateLabel(caption, _linesRoot, "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop, 0xFFDC0000);	
+	line.caption = menu()->CreateLabel(caption, _linesRoot, "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop, 0xFFDC0000);
 	line.caption->SetAlign(gui::Widget::waTop);
 	line.caption->SetWordWrap(true);
 
@@ -71,7 +71,7 @@ void FinalMenu::DeleteAll()
 }
 
 void FinalMenu::OnShow(bool value)
-{	
+{
 	if (value)
 	{
 		//menu()->ShowMessage("", GetString("svFinalMessage"), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 1.0f);
@@ -90,26 +90,26 @@ void FinalMenu::OnShow(bool value)
 	menu()->SetNavElements(_menuItems[miOk], value, elements, ARRAY_LENGTH(elements));
 }
 
-void FinalMenu::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void FinalMenu::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	for (int i = 0; i < cMenuItemEnd; ++i)
-		_menuItems[i]->SetPos(D3DXVECTOR2(_menuItems[i]->GetSize().x/2, vpSize.y - 60.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
+		_menuItems[i]->SetPos(glm::vec2(_menuItems[i]->GetSize().x/2, vpSize.y - 60.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
 
 	for (unsigned i = 0; i < _slides.size(); ++i)
 	{
-		_slides[i].plane->SetPos(D3DXVECTOR2((vpSize.x - 400.0f)/2.0f, vpSize.y/2));
-		_slides[i].plane->SetSize(menu()->StretchImage(_slides[i].plane->GetMaterial(), D3DXVECTOR2(vpSize.x - 500.0f, vpSize.y - 300.0f), true, false));
+		_slides[i].plane->SetPos(glm::vec2((vpSize.x - 400.0f)/2.0f, vpSize.y/2));
+		_slides[i].plane->SetSize(menu()->StretchImage(_slides[i].plane->GetMaterial(), glm::vec2(vpSize.x - 500.0f, vpSize.y - 300.0f), true, false));
 	}
 
 	_linesSizeY = 0.0f;
 
 	for (unsigned i = 0; i < _lineBoxes.size(); ++i)
 	{
-		_lineBoxes[i].caption->SetPos(D3DXVECTOR2(0.0f, _linesSizeY));
-		_lineBoxes[i].caption->SetSize(D3DXVECTOR2(480.0f, 0.0f));
+		_lineBoxes[i].caption->SetPos(glm::vec2(0.0f, _linesSizeY));
+		_lineBoxes[i].caption->SetSize(glm::vec2(480.0f, 0.0f));
 
-		_lineBoxes[i].text->SetPos(D3DXVECTOR2(0.0f, _lineBoxes[i].caption->GetTextAABB().GetSize().y + 10.0f));
-		_lineBoxes[i].text->SetSize(D3DXVECTOR2(480.0f, 0.0f));
+		_lineBoxes[i].text->SetPos(glm::vec2(0.0f, _lineBoxes[i].caption->GetTextAABB().GetSize().y + 10.0f));
+		_lineBoxes[i].text->SetSize(glm::vec2(480.0f, 0.0f));
 
 		_linesSizeY += _lineBoxes[i].caption->GetTextAABB().GetSize().y + _lineBoxes[i].text->GetTextAABB().GetSize().y + 40.0f + 10.0f;
 	}
@@ -157,12 +157,12 @@ void FinalMenu::OnProgress(float deltaTime)
 {
 	const float cDuration = 107.0f;
 
-	D3DXVECTOR2 vpSize = uiRoot()->GetVPSize();
+	glm::vec2 vpSize = uiRoot()->GetVPSize();
 
 	_time += deltaTime;
 	float alpha = lsl::ClampValue(_time / cDuration, 0.0f, 1.0f);
 
-	_linesRoot->SetPos(D3DXVECTOR2(vpSize.x - 250.0f, vpSize.y - alpha * (_linesSizeY + vpSize.y)));
+	_linesRoot->SetPos(glm::vec2(vpSize.x - 250.0f, vpSize.y - alpha * (_linesSizeY + vpSize.y)));
 
 	for (unsigned i = 0; i < _slides.size(); ++i)
 	{
@@ -185,9 +185,6 @@ void FinalMenu::OnProgress(float deltaTime)
 	}
 }
 
-
-
-
 /*FinalMenu::FinalMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _scrollTime(0)
 {
 	D3DXCOLOR color1(0xffafafaf);
@@ -206,9 +203,9 @@ void FinalMenu::OnProgress(float deltaTime)
 	_bg->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 
 	gui::Widget* labelsParent[cLabelEnd] = {root()};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
-	
+
 	_labels[mlCredits]->SetAlign(gui::Widget::waBottom);
 	_labels[mlCredits]->SetAnchor(gui::Widget::waBottom);
 	_labels[mlCredits]->SetFlag(gui::Widget::wfClientClip, true);
@@ -229,7 +226,7 @@ FinalMenu::~FinalMenu()
 }
 
 void FinalMenu::OnShow(bool value)
-{	
+{
 	if (value)
 	{
 		menu()->ShowMessage("", GetString("svFinalMessage"), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 1.0f);
@@ -240,20 +237,20 @@ void FinalMenu::OnShow(bool value)
 	}
 }
 
-void FinalMenu::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void FinalMenu::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	_bg->SetSize(menu()->StretchImage(_bg->GetMaterial(), vpSize, true, true));
 
-	_labels[mlCredits]->SetPos(D3DXVECTOR2(vpSize.x/2, vpSize.y/2 - 115.0f));
+	_labels[mlCredits]->SetPos(glm::vec2(vpSize.x/2, vpSize.y/2 - 115.0f));
 	_labels[mlCredits]->SetSize(500.0f, vpSize.y);
-	
+
 	for (int i = 0; i < cMenuItemEnd; ++i)
-		_menuItems[i]->SetPos(D3DXVECTOR2(_menuItems[i]->GetSize().x/2, vpSize.y - 60.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
+		_menuItems[i]->SetPos(glm::vec2(_menuItems[i]->GetSize().x/2, vpSize.y - 60.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
 }
 
 void FinalMenu::OnInvalidate()
 {
-	
+
 }
 
 bool FinalMenu::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)

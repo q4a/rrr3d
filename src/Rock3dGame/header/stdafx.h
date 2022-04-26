@@ -1,5 +1,6 @@
 #pragma once
 
+#include "MathCommon.h"
 #include "lslCommon.h"
 
 #include <windows.h>
@@ -11,7 +12,6 @@
 #include "lslUtility.h"
 #include "lslException.h"
 #include "lslSDK.h"
-#include "EulerAngles.h"
 
 #include "GraphManager.h"
 #include "px\Physx.h"

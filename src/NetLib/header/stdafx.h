@@ -7,7 +7,7 @@
 #include <boost/bind.hpp>
 #include <boost/thread/thread.hpp>
 
-#include "net\NetLib.h"
+#include "net/NetLib.h"
 
 namespace net
 {

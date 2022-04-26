@@ -29,9 +29,6 @@ BEGIN_MESSAGE_MAP(CFileView, CViewPane)
 	ON_NOTIFY(NM_KEYDOWN, FILE_TREE_VIEW, OnViewKeyDown)
 END_MESSAGE_MAP()
 
-
-
-
 CFileView::CFileView(): _mapDoc(0)
 {
 	_mapDocEvent = new MapDocEvent(this);
@@ -116,7 +113,7 @@ void CFileView::InsertCategory(unsigned i)
 {
 	HTREEITEM itemCat = m_wndFileView.InsertItem(StdStrToCString(_mapDoc->GetCatName(i)), 0, 0, 0);
 	SetItemData(itemCat, new ItemData(0, i));
-	
+
 	r3d::IMapObjRef mapObj = _mapDoc->GetFirst(i);
 	while (mapObj)
 	{
@@ -135,7 +132,7 @@ HTREEITEM CFileView::FindCatItem(unsigned i)
 		LSL_ASSERT(data);
 		if (data->catIndex == i)
 			return item;
-		
+
 		item = m_wndFileView.GetNextSiblingItem(item);
 	}
 
@@ -177,7 +174,7 @@ void CFileView::SelectItem(HTREEITEM item)
 		ItemData* selItem = GetItemData(item);
 		m_wndFileView.SelectItem(item);
 	}
-	else	
+	else
 		DeselectItem();
 }
 
@@ -255,7 +252,6 @@ void CFileView::FillFileView()
 	m_wndFileView.Expand(hSrc, TVE_EXPAND);
 	m_wndFileView.Expand(hInc, TVE_EXPAND);
 }
-
 
 int CFileView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {

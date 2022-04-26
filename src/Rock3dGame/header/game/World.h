@@ -54,7 +54,7 @@ private:
 	bool _terminate;
 	bool _pause;
 
-	std::deque<FrameDT> _dtStack;	
+	std::deque<FrameDT> _dtStack;
 	IterCost _iterBuf[cMaxSimIter];
 	__int64 _cpuFreq;
 	int _syncFreq;
@@ -80,7 +80,7 @@ private:
 	lsl::Profiler _profiler;
 	ControlManager* _control;
 	View* _view;
-	
+
 	GraphManager* _graph;
 	snd::Engine* _audio;
 	video::Player* _videoPlayer;
@@ -129,9 +129,9 @@ public:
 	bool IsTerminate() const;
 	int GetTerminateResult() const;
 
-	void MainProgress();	
+	void MainProgress();
 	//
-	void Pause(bool pause);	
+	void Pause(bool pause);
 	bool IsPaused() const;
 	//in ms
 	unsigned time() const;

@@ -56,7 +56,7 @@ struct VertexPN
 	D3DXVECTOR3 norm;
 
 	VertexPN();
-	VertexPN(D3DXVECTOR3 position, D3DXVECTOR3 normal);	
+	VertexPN(D3DXVECTOR3 position, D3DXVECTOR3 normal);
 };
 
 struct VertexPT
@@ -64,22 +64,22 @@ struct VertexPT
 	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_TEX1;
 
 	D3DXVECTOR3 pos;
-	D3DXVECTOR2 tex;
+	glm::vec2 tex;
 
 	VertexPT();
-	VertexPT(D3DXVECTOR3 position, D3DXVECTOR2 texCoord);
+	VertexPT(D3DXVECTOR3 position, glm::vec2 texCoord);
 };
 
 struct VertexPNT
-{	
+{
 	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
 
-	D3DVECTOR pos;	
+	D3DVECTOR pos;
 	D3DVECTOR norm;
-	D3DXVECTOR2 tex;
+	glm::vec2 tex;
 
 	VertexPNT();
-	VertexPNT(const D3DXVECTOR3& position, const D3DXVECTOR3& normal, const D3DXVECTOR2& texCoord);
+	VertexPNT(const D3DXVECTOR3& position, const D3DXVECTOR3& normal, const glm::vec2& texCoord);
 };
 
 struct ScreenVertex
@@ -87,10 +87,10 @@ struct ScreenVertex
 	static const DWORD fvf = D3DFVF_XYZRHW | D3DFVF_TEX1;
 
 	D3DXVECTOR4 pos;
-	D3DXVECTOR2 tex;
+	glm::vec2 tex;
 
 	ScreenVertex();
-	ScreenVertex(const D3DXVECTOR4& position, const D3DXVECTOR2& texCoord);
+	ScreenVertex(const D3DXVECTOR4& position, const glm::vec2& texCoord);
 };
 
 struct VertexIter;
@@ -108,7 +108,7 @@ public:
 	typedef VertexIter iterator;
 private:
 	unsigned _vertexCount;
-	Format _format;	
+	Format _format;
 	bool _screenRHW;
 
 	unsigned _vertexSize;
@@ -119,7 +119,7 @@ private:
 	void CalcDimensions();
 protected:
 	virtual void DoUpdate();
-public:	
+public:
 	VertexData();
 
 	void Assign(const VertexData& value);
@@ -169,8 +169,8 @@ struct VertexIter
 	D3DXVECTOR3* Pos3();
 	D3DXVECTOR4* Pos4();
 	D3DCOLOR* Color();
-	D3DXVECTOR2* Tex0();
-	D3DXVECTOR2* Tex1();
+	glm::vec2* Tex0();
+	glm::vec2* Tex1();
 	D3DXVECTOR3* Normal();
 	D3DXVECTOR3* Tangent();
 	D3DXVECTOR3* Binormal();
@@ -192,14 +192,14 @@ struct VertexIter
 class IndexData: public lsl::BufferResource
 {
 private:
-	unsigned _indexCount;	
+	unsigned _indexCount;
 	D3DFORMAT _indexFormat;
-public:	
+public:
 	IndexData();
 
 	unsigned GetIndexSize() const;
 	unsigned GetIndexCount() const;
-	void SetIndexCount(unsigned value);	
+	void SetIndexCount(unsigned value);
 	D3DFORMAT GetIndexFormat() const;
 	void SetIndexFormat(D3DFORMAT value);
 	virtual unsigned GetSize() const;
@@ -210,7 +210,7 @@ class TriFaceData: public lsl::BufferResource
 private:
 	unsigned _faceCount;
 	D3DFORMAT _indexFormat;
-public:	
+public:
 	TriFaceData();
 
 	unsigned GetFaceCount() const;
@@ -219,7 +219,7 @@ public:
 	void SetIndexFormat(D3DFORMAT value);
 
 	unsigned GetIndex(unsigned face, unsigned indTri) const;
-	
+
 	virtual unsigned GetSize() const;
 	unsigned GetFaceSize() const;
 };
@@ -312,9 +312,6 @@ unsigned GetPrimitivesCount(D3DPRIMITIVETYPE primitiveType, UINT numControlPoint
 void CopyPitchData(char* dest, unsigned destPitch, const char* src, unsigned srcPitch, unsigned srcRowSize, unsigned height);
 void operator++(D3DCUBEMAP_FACES& lvalue);
 
-
-
-
 template<class _IndexType> TriFace<_IndexType>::TriFace()
 {
 }
@@ -328,4 +325,3 @@ template<class _IndexType> TriFace<_IndexType>::TriFace(_IndexType vert1, _Index
 }
 
 #endif
-	

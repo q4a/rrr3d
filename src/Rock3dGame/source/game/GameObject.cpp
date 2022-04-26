@@ -44,8 +44,8 @@ GameObject::~GameObject()
 
 	delete _includeList;
 
-	delete _pxActor;	
-	delete _grActor;	
+	delete _pxActor;
+	delete _grActor;
 }
 
 void GameObject::SetSyncFrameEvent(bool value)
@@ -85,8 +85,8 @@ void GameObject::Destroy()
 	if (!_destroy)
 	{
 		_destroy = true;
-		
-		for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))	
+
+		for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))
 			(*iter)->OnDestroy(this);
 	}
 }
@@ -158,7 +158,7 @@ D3DXVECTOR3 GameObject::GetContactPoint(const px::Scene::OnContactEvent& contact
 	while (contIter.goNextPair())
 		while (contIter.goNextPatch())
 			while (contIter.goNextPoint())
-			{				
+			{
 				return contIter.getPoint().get();
 			}
 
@@ -180,7 +180,7 @@ bool GameObject::ContainsContactGroup(NxContactStreamIterator& contIter, unsigne
 
 void GameObject::OnContact(const px::Scene::OnContactEvent& contact)
 {
-	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))	
+	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))
 		(*iter)->OnContact(contact);
 }
 
@@ -221,7 +221,7 @@ void GameObject::SendDeath(DamageType damageType, GameObject* target)
 {
 	OnDeath(this, damageType, target);
 
-	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))	
+	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))
 		(*iter)->OnDeath(this, damageType, target);
 }
 
@@ -236,7 +236,7 @@ void GameObject::OnPxSync(float alpha)
 	if (alpha < 1.0f)
 	{
 		D3DXVec3Lerp(&_pxPosLerp, &_pxPrevPos, &_pxActor->GetPos(), alpha);
-		D3DXQuaternionSlerp(&_pxRotLerp, &_pxPrevRot, &_pxActor->GetRot(), alpha);
+		_pxRotLerp = glm::slerp(_pxPrevRot, _pxActor->GetRot(), alpha);
 		D3DXVec3Lerp(&_pxVelocityLerp, &_pxPrevVelocity, &pxVelocityLerp, alpha);
 	}
 	else
@@ -256,7 +256,7 @@ void GameObject::OnProgress(float deltaTime)
 
 	if (_immortalTime > 0)
 	{
-		_immortalTime -= deltaTime;		
+		_immortalTime -= deltaTime;
 		if (_immortalTime <= 0)
 		{
 			_immortalTime = 0;
@@ -302,14 +302,17 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 			_posSyncLength = 0.0f;
 
 		if (_rotSyncAngle != 0)
-		{		
+		{
 			if (_rotSyncAngle > 0)
+			{
 				_rotSyncAngle = std::max(_rotSyncAngle - 1.3f * D3DX_PI * deltaTime, 0.0f);
+			}
 			else
+			{
 				_rotSyncAngle = std::min(_rotSyncAngle + 1.3f * D3DX_PI * deltaTime, 0.0f);
-			D3DXQUATERNION rot;
-			D3DXQuaternionRotationAxis(&rot, &_rotSyncAxis, -_rotSyncAngle);
-			_grActor->SetRot(_grActor->GetRot() * rot);
+			}
+			glm::quat rot = glm::angleAxis(-_rotSyncAngle, Vec3DxToGlm(_rotSyncAxis));
+			_grActor->SetRot(rot * _grActor->GetRot());
 		}
 
 		if (_posSyncDist2 > 0 && _posSyncDist2 < 5.0f)
@@ -326,18 +329,21 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 		if (_rotSyncAngle2 != 0)
 		{
 			if (_rotSyncAngle2 > 0)
+			{
 				_rotSyncAngle2 = std::max(_rotSyncAngle2 - 1.3f * D3DX_PI * deltaTime, 0.0f);
+			}
 			else
+			{
 				_rotSyncAngle2 = std::min(_rotSyncAngle2 + 1.3f * D3DX_PI * deltaTime, 0.0f);
+			}
 
-			D3DXQUATERNION rot;
-			D3DXQuaternionRotationAxis(&rot, &_rotSyncAxis2, -_rotSyncAngle2);
-			_grActor->SetRot(_grActor->GetRot() * _rotSync2 * rot);
+			glm::quat rot = glm::angleAxis(-_rotSyncAngle2, Vec3DxToGlm(_rotSyncAxis2));
+			_grActor->SetRot(rot * _rotSync2 * _grActor->GetRot());
 		}
 		else if (_rotSyncLength2 != 0)
 		{
 			_rotSyncAngle2 = 0.0f;
-			_grActor->SetRot(_grActor->GetRot() * _rotSync2);
+			_grActor->SetRot(_rotSync2 * _grActor->GetRot());
 		}
 	}
 }
@@ -351,7 +357,7 @@ void GameObject::SaveSource(lsl::SWriter* writer)
 	writer->WriteValue("grActor", _grActor);
 	writer->WriteValue("pxActor", _pxActor);
 
-	writer->WriteValue("maxLife", _maxLife);	
+	writer->WriteValue("maxLife", _maxLife);
 
 	//Внешний родитель, сохр. ссылку. Пока нет необходимости в таком функционале
 	//if (GetOwner() != GetParent())
@@ -360,11 +366,11 @@ void GameObject::SaveSource(lsl::SWriter* writer)
 
 void GameObject::LoadSource(lsl::SReader* reader)
 {
-	reader->ReadValue("grActor", _grActor);	
+	reader->ReadValue("grActor", _grActor);
 	reader->ReadValue("pxActor", _pxActor);
 
 	reader->ReadValue("maxLife", _maxLife);
-	
+
 	//reader->ReadRef("parent", false, this, 0);
 }
 
@@ -372,7 +378,7 @@ void GameObject::SaveProxy(lsl::SWriter* writer)
 {
 	writer->WriteValue("pos", GetPos(), 3);
 	writer->WriteValue("scale", GetScale(), 3);
-	writer->WriteValue("rot", GetRot(), 4);
+	writer->WriteValue("rot", reinterpret_cast<const float *>(&GetRot().x), 4);
 
 	writer->WriteValue("life", _life);
 	writer->WriteValue("maxTimeLife", _maxTimeLife);
@@ -387,11 +393,11 @@ void GameObject::LoadProxy(lsl::SReader* reader)
 {
 	D3DXVECTOR3 pos;
 	D3DXVECTOR3 scale;
-	D3DXQUATERNION rot;
+	glm::quat rot;
 
 	reader->ReadValue("pos", pos, 3);
 	reader->ReadValue("scale", scale, 3);
-	reader->ReadValue("rot", rot, 4);
+	reader->ReadValue("rot", reinterpret_cast<float *>(&rot.x), 4);
 
 	reader->ReadValue("life", _life);
 	reader->ReadValue("maxTimeLife", _maxTimeLife);
@@ -403,7 +409,7 @@ void GameObject::LoadProxy(lsl::SReader* reader)
 
 	_behaviors->storeSource = true;
 	_behaviors->storeProxy = true;
-	reader->ReadValue("behaviors", _behaviors);	
+	reader->ReadValue("behaviors", _behaviors);
 }
 
 void GameObject::Save(lsl::SWriter* writer)
@@ -418,7 +424,7 @@ void GameObject::Save(lsl::SWriter* writer)
 }
 
 void GameObject::Load(lsl::SReader* reader)
-{	
+{
 	if (storeSource)
 		LoadSource(reader);
 	if (storeProxy)
@@ -501,7 +507,7 @@ void GameObject::ClearListenerList()
 {
 	for (ListenerList::const_iterator iter = _listenerList.begin(); iter != _listenerList.end(); ++iter)
 		(*iter)->Release();
-	
+
 	_listenerList.Clear();
 }
 
@@ -529,7 +535,7 @@ void GameObject::Resc()
 void GameObject::Damage(int senderPlayerId, float value, float newLife, bool death, DamageType damageType)
 {
 	MyEventData data;
-	data.target = this;	
+	data.target = this;
 	data.targetPlayerId = GetMapObj() && GetMapObj()->GetPlayer() ? GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;
 	data.damage = value;
 	data.damageType = damageType;
@@ -538,8 +544,8 @@ void GameObject::Damage(int senderPlayerId, float value, float newLife, bool dea
 
 	if (_liveState != lsDeath)
 	{
-		for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))	
-			(*iter)->OnDamage(this, value, damageType);	
+		for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))
+			(*iter)->OnDamage(this, value, damageType);
 
 		if (senderPlayerId != cUndefPlayerId)
 		{
@@ -592,7 +598,7 @@ void GameObject::LowLife(Behavior* behavior)
 {
 	OnLowLife(this, behavior);
 
-	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))	
+	for (ListenerList::Position pos = _listenerList.First(); GameObjListener** iter = _listenerList.Current(pos); _listenerList.Next(pos))
 		(*iter)->OnLowLife(this, behavior);
 }
 
@@ -650,9 +656,9 @@ void GameObject::SetLogic(Logic* value)
 
 			LogicReleased();
 		}
-		
+
 		_logic = value;
-		
+
 		for (Children::iterator iter = _children.begin(); iter != _children.end(); ++iter)
 			(*iter)->SetLogic(value);
 
@@ -677,7 +683,7 @@ void GameObject::SendEvent(unsigned id, int playerId, MyEventData* data)
 	if (_logic == NULL || GetMapObj() == NULL)
 		return;
 
-	GameMode* game = _logic->GetMap()->GetWorld()->GetGame();		
+	GameMode* game = _logic->GetMap()->GetWorld()->GetGame();
 
 	if (data)
 		data->playerId = playerId;
@@ -766,12 +772,12 @@ void GameObject::SetScale(float value)
 	SetScale(D3DXVECTOR3(value, value, value));
 }
 
-const D3DXQUATERNION& GameObject::GetRot() const
+const glm::quat& GameObject::GetRot() const
 {
 	return _grActor->GetRot();
 }
 
-void GameObject::SetRot(const D3DXQUATERNION& value)
+void GameObject::SetRot(const glm::quat& value)
 {
 	_grActor->SetRot(value);
 	_pxActor->SetRot(value);
@@ -790,12 +796,12 @@ void GameObject::SetWorldPos(const D3DXVECTOR3& value)
 	_pxPrevPos = _grActor->GetPos();
 }
 
-D3DXQUATERNION GameObject::GetWorldRot() const
+glm::quat GameObject::GetWorldRot() const
 {
 	return _grActor->GetWorldRot();
 }
 
-void GameObject::SetWorldRot(const D3DXQUATERNION& value)
+void GameObject::SetWorldRot(const glm::quat& value)
 {
 	_grActor->SetWorldRot(value);
 	_pxActor->SetRot(_grActor->GetRot());
@@ -838,19 +844,22 @@ void GameObject::SetPosSync(const D3DXVECTOR3& value)
 	SetSyncFrameEvent(true);
 }
 
-const D3DXQUATERNION& GameObject::GetRotSync() const
+const glm::quat& GameObject::GetRotSync() const
 {
 	return _rotSync;
 }
 
-void GameObject::SetRotSync(const D3DXQUATERNION& value)
+void GameObject::SetRotSync(const glm::quat& value)
 {
 	_rotSync = value;
-	D3DXQuaternionToAxisAngle(&_rotSync, &_rotSyncAxis, &_rotSyncAngle);
+	_rotSyncAxis = Vec3GlmToDx(glm::axis(_rotSync));
+	_rotSyncAngle = glm::angle(_rotSync);
 	float angle = abs(_rotSyncAngle);
-	
+
 	if (angle > D3DX_PI)
+	{
 		_rotSyncAngle = (2 * D3DX_PI - angle) * (_rotSyncAngle > 0 ? -1.0f : 1.0f);
+	}
 
 	SetSyncFrameEvent(true);
 }
@@ -872,24 +881,26 @@ void GameObject::SetPosSync2(const D3DXVECTOR3& curSync, const D3DXVECTOR3& newS
 	SetSyncFrameEvent(true);
 }
 
-const D3DXQUATERNION& GameObject::GetRotSync2() const
+const glm::quat& GameObject::GetRotSync2() const
 {
 	return _rotSync2;
 }
 
-void GameObject::SetRotSync2(const D3DXQUATERNION& curSync, const D3DXQUATERNION& newSync)
+void GameObject::SetRotSync2(const glm::quat& curSync, const glm::quat& newSync)
 {
-	D3DXQUATERNION dRot;
-	QuatRotation(dRot, newSync, curSync);
-	D3DXQuaternionToAxisAngle(&dRot, &_rotSyncAxis2, &_rotSyncAngle2);
+	glm::quat dRot = QuatRotation(newSync, curSync);
+	_rotSyncAxis2 = Vec3GlmToDx(glm::axis(dRot));
+	_rotSyncAngle2 = glm::angle(dRot);
 
 	float angle = abs(_rotSyncAngle2);
 	if (angle > D3DX_PI)
+	{
 		_rotSyncAngle2 = (2 * D3DX_PI - angle) * (_rotSyncAngle2 > 0 ? -1.0f : 1.0f);
+	}
 
 	_rotSync2 = newSync;
-	D3DXVECTOR3 axis;
-	D3DXQuaternionToAxisAngle(&_rotSync2, &axis, &_rotSyncLength2);
+	D3DXVECTOR3 axis = Vec3GlmToDx(glm::axis(_rotSync2));
+	_rotSyncLength2 = glm::angle(_rotSync2);
 
 	SetSyncFrameEvent(true);
 }
@@ -899,7 +910,7 @@ const D3DXVECTOR3& GameObject::GetPxPosLerp() const
 	return !_bodyProgressEvent && _parent ? _parent->GetPxPosLerp() : _pxPosLerp;
 }
 
-const D3DXQUATERNION& GameObject::GetPxRotLerp() const
+const glm::quat& GameObject::GetPxRotLerp() const
 {
 	return !_bodyProgressEvent && _parent ? _parent->GetPxRotLerp() : _pxRotLerp;
 }
@@ -914,7 +925,7 @@ const D3DXVECTOR3& GameObject::GetPxPrevPos() const
 	return _pxPrevPos;
 }
 
-const D3DXQUATERNION& GameObject::GetPxPrevRot() const
+const glm::quat& GameObject::GetPxPrevRot() const
 {
 	return _pxPrevRot;
 }

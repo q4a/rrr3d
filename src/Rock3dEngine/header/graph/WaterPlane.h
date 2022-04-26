@@ -20,7 +20,7 @@ private:
 	D3DXPLANE _reflPlane;
 	ClipPlanes _clipPlanes;
 
-	D3DXMATRIX _reflMat;
+	glm::mat4 _reflMat;
 	CameraCI _reflCamera;
 public:
 	ReflRender();

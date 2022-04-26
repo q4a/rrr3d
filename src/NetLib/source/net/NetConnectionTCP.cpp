@@ -13,7 +13,7 @@ NetAcceptorTCP::~NetAcceptorTCP()
 {
 	Close();
 }
-	
+
 void NetAcceptorTCP::Listen(const Endpoint& endpoint)
 {
 	if (_isOpen)
@@ -58,9 +58,6 @@ tcp::acceptor& NetAcceptorTCP::acceptor()
 {
 	return _acceptor;
 }
-
-	
-
 
 NetConnectionTCP::NetConnectionTCP(NetAcceptorTCP* owner): _owner(owner), _socket(owner->acceptor().get_io_service()), _isOpen(false), _beep(false), _beepCount(0), _isConnected(false)
 {
@@ -113,7 +110,7 @@ void NetConnectionTCP::OnSendCmd(const error_code& error, std::size_t numBytes)
 {
 	if (!_isOpen)
 		return;
-	
+
 	if (error)
 	{
 		LSL_LOG("OnSendCmd msg=" + error.message());
@@ -182,7 +179,7 @@ void NetConnectionTCP::Accept()
 	Close();
 
 	_isOpen = true;
-	
+
 	_owner->acceptor().async_accept(_socket, boost::bind(&NetConnectionTCP::OnAccepted, this, boost::asio::placeholders::error));
 }
 
@@ -246,9 +243,6 @@ lsl::string NetConnectionTCP::userName() const
 	return "";
 }
 
-
-
-
 NetChannelTCP::NetChannelTCP(NetAcceptorTCP* owner): _owner(owner), _socketReader(owner->acceptor().get_io_service()), _socketWriter(owner->acceptor().get_io_service()), _isOpen(false), _isBind(false), _broadcast(false)
 {
 }
@@ -281,7 +275,7 @@ void NetChannelTCP::OnSend(const error_code& error, std::size_t numBytes)
 {
 	if (!_isOpen)
 		return;
-	
+
 	if (error)
 	{
 		LSL_LOG("OnSendCmd msg=" + error.message());
@@ -346,7 +340,7 @@ void NetChannelTCP::Open(bool broadcast)
 	if (!_isOpen)
 	{
 		_isOpen = true;
-		
+
 		_broadcast = broadcast;
 
 		OpenWriter(broadcast);

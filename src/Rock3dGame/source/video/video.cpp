@@ -10,9 +10,9 @@
 #include "video\video.h"
 #include <Mfidl.h>
 
-HRESULT InitializeEVR(IBaseFilter *pEVR, HWND hwnd, IMFVideoDisplayControl ** ppWc); 
-HRESULT InitWindowlessVMR9(IBaseFilter *pVMR, HWND hwnd, IVMRWindowlessControl9 ** ppWc); 
-HRESULT InitWindowlessVMR(IBaseFilter *pVMR, HWND hwnd, IVMRWindowlessControl** ppWc); 
+HRESULT InitializeEVR(IBaseFilter *pEVR, HWND hwnd, IMFVideoDisplayControl ** ppWc);
+HRESULT InitWindowlessVMR9(IBaseFilter *pVMR, HWND hwnd, IVMRWindowlessControl9 ** ppWc);
+HRESULT InitWindowlessVMR(IBaseFilter *pVMR, HWND hwnd, IVMRWindowlessControl** ppWc);
 HRESULT FindConnectedPin(IBaseFilter *pFilter, PIN_DIRECTION PinDir, IPin **ppPin);
 
 /// VMR-7 Wrapper
@@ -27,16 +27,16 @@ CVMR7::~CVMR7()
 	SafeRelease(&m_pWindowless);
 }
 
-BOOL CVMR7::HasVideo() const 
-{ 
-	return (m_pWindowless != NULL); 
+BOOL CVMR7::HasVideo() const
+{
+	return (m_pWindowless != NULL);
 }
 
 HRESULT CVMR7::AddToGraph(IGraphBuilder *pGraph, HWND hwnd)
 {
 	IBaseFilter *pVMR = NULL;
 
-	HRESULT hr = AddFilterByCLSID(pGraph, CLSID_VideoMixingRenderer, 
+	HRESULT hr = AddFilterByCLSID(pGraph, CLSID_VideoMixingRenderer,
 		&pVMR, L"VMR-7");
 
 	if (SUCCEEDED(hr))
@@ -67,7 +67,7 @@ HRESULT CVMR7::FinalizeGraph(IGraphBuilder *pGraph)
 	BOOL bRemoved;
 	hr = RemoveUnconnectedRenderer(pGraph, pFilter, &bRemoved);
 
-	// If we removed the VMR, then we also need to release our 
+	// If we removed the VMR, then we also need to release our
 	// pointer to the VMR's windowless control interface.
 	if (bRemoved)
 	{
@@ -131,27 +131,26 @@ void CVMR7::SetFullScreen(bool value)
 {
 }
 
+// Initialize the VMR-7 for windowless mode.
 
-// Initialize the VMR-7 for windowless mode. 
-
-HRESULT InitWindowlessVMR( 
+HRESULT InitWindowlessVMR(
 	IBaseFilter *pVMR,              // Pointer to the VMR
 	HWND hwnd,                      // Clipping window
 	IVMRWindowlessControl** ppWC    // Receives a pointer to the VMR.
-	) 
-{ 
+	)
+{
 
-	IVMRFilterConfig* pConfig = NULL; 
+	IVMRFilterConfig* pConfig = NULL;
 	IVMRWindowlessControl *pWC = NULL;
 
-	// Set the rendering mode.  
-	HRESULT hr = pVMR->QueryInterface(IID_PPV_ARGS(&pConfig)); 
+	// Set the rendering mode.
+	HRESULT hr = pVMR->QueryInterface(IID_PPV_ARGS(&pConfig));
 	if (FAILED(hr))
 	{
 		goto done;
 	}
 
-	hr = pConfig->SetRenderingMode(VMRMode_Windowless); 
+	hr = pConfig->SetRenderingMode(VMRMode_Windowless);
 	if (FAILED(hr))
 	{
 		goto done;
@@ -185,9 +184,8 @@ HRESULT InitWindowlessVMR(
 done:
 	SafeRelease(&pConfig);
 	SafeRelease(&pWC);
-	return hr; 
-} 
-
+	return hr;
+}
 
 /// VMR-9 Wrapper
 
@@ -196,9 +194,9 @@ CVMR9::CVMR9() : m_pWindowless(NULL), _videoWindow(NULL)
 
 }
 
-BOOL CVMR9::HasVideo() const 
-{ 
-	return (m_pWindowless != NULL); 
+BOOL CVMR9::HasVideo() const
+{
+	return (m_pWindowless != NULL);
 }
 
 CVMR9::~CVMR9()
@@ -211,11 +209,11 @@ HRESULT CVMR9::AddToGraph(IGraphBuilder *pGraph, HWND hwnd)
 {
 	IBaseFilter *pVMR = NULL;
 
-	HRESULT hr = AddFilterByCLSID(pGraph, CLSID_VideoMixingRenderer9, 
+	HRESULT hr = AddFilterByCLSID(pGraph, CLSID_VideoMixingRenderer9,
 		&pVMR, L"VMR-9");
 	if (SUCCEEDED(hr))
 	{
-		// Set windowless mode on the VMR. This must be done before the VMR 
+		// Set windowless mode on the VMR. This must be done before the VMR
 		// is connected.
 		hr = InitWindowlessVMR9(pVMR, hwnd, &m_pWindowless);
 	}
@@ -250,7 +248,7 @@ HRESULT CVMR9::FinalizeGraph(IGraphBuilder *pGraph)
 	BOOL bRemoved;
 	hr = RemoveUnconnectedRenderer(pGraph, pFilter, &bRemoved);
 
-	// If we removed the VMR, then we also need to release our 
+	// If we removed the VMR, then we also need to release our
 	// pointer to the VMR's windowless control interface.
 	if (bRemoved)
 	{
@@ -261,7 +259,6 @@ done:
 	SafeRelease(&pFilter);
 	return hr;
 }
-
 
 HRESULT CVMR9::UpdateVideoWindow(HWND hwnd, const LPRECT prc)
 {
@@ -321,27 +318,26 @@ void CVMR9::SetFullScreen(bool value)
 	_videoWindow->put_FullScreenMode(value);
 }
 
+// Initialize the VMR-9 for windowless mode.
 
-// Initialize the VMR-9 for windowless mode. 
-
-HRESULT InitWindowlessVMR9( 
+HRESULT InitWindowlessVMR9(
 	IBaseFilter *pVMR,              // Pointer to the VMR
 	HWND hwnd,                      // Clipping window
 	IVMRWindowlessControl9** ppWC   // Receives a pointer to the VMR.
-	) 
-{ 
+	)
+{
 
-	IVMRFilterConfig9 * pConfig = NULL; 
+	IVMRFilterConfig9 * pConfig = NULL;
 	IVMRWindowlessControl9 *pWC = NULL;
 
-	// Set the rendering mode.  
-	HRESULT hr = pVMR->QueryInterface(IID_PPV_ARGS(&pConfig)); 
+	// Set the rendering mode.
+	HRESULT hr = pVMR->QueryInterface(IID_PPV_ARGS(&pConfig));
 	if (FAILED(hr))
 	{
 		goto done;
 	}
 
-	hr = pConfig->SetRenderingMode(VMR9Mode_Windowless); 
+	hr = pConfig->SetRenderingMode(VMR9Mode_Windowless);
 	if (FAILED(hr))
 	{
 		goto done;
@@ -375,9 +371,8 @@ HRESULT InitWindowlessVMR9(
 done:
 	SafeRelease(&pConfig);
 	SafeRelease(&pWC);
-	return hr; 
-} 
-
+	return hr;
+}
 
 /// EVR Wrapper
 
@@ -392,16 +387,16 @@ CEVR::~CEVR()
 	SafeRelease(&m_pVideoDisplay);
 }
 
-BOOL CEVR::HasVideo() const 
-{ 
-	return (m_pVideoDisplay != NULL); 
+BOOL CEVR::HasVideo() const
+{
+	return (m_pVideoDisplay != NULL);
 }
 
 HRESULT CEVR::AddToGraph(IGraphBuilder *pGraph, HWND hwnd)
 {
 	IBaseFilter *pEVR = NULL;
 
-	HRESULT hr = AddFilterByCLSID(pGraph, CLSID_EnhancedVideoRenderer, 
+	HRESULT hr = AddFilterByCLSID(pGraph, CLSID_EnhancedVideoRenderer,
 		&pEVR, L"EVR");
 
 	if (FAILED(hr))
@@ -496,18 +491,18 @@ void CEVR::SetFullScreen(bool value)
 	m_pVideoDisplay->SetFullscreen(value);
 }
 
-// Initialize the EVR filter. 
+// Initialize the EVR filter.
 
-HRESULT InitializeEVR( 
+HRESULT InitializeEVR(
 	IBaseFilter *pEVR,              // Pointer to the EVR
 	HWND hwnd,                      // Clipping window
 	IMFVideoDisplayControl** ppDisplayControl
-	) 
-{ 
+	)
+{
 	IMFGetService *pGS = NULL;
 	IMFVideoDisplayControl *pDisplay = NULL;
 
-	HRESULT hr = pEVR->QueryInterface(IID_PPV_ARGS(&pGS)); 
+	HRESULT hr = pEVR->QueryInterface(IID_PPV_ARGS(&pGS));
 	if (FAILED(hr))
 	{
 		goto done;
@@ -540,8 +535,8 @@ HRESULT InitializeEVR(
 done:
 	SafeRelease(&pGS);
 	SafeRelease(&pDisplay);
-	return hr; 
-} 
+	return hr;
+}
 
 // Helper functions.
 
@@ -599,7 +594,7 @@ HRESULT IsPinDirection(IPin *pPin, PIN_DIRECTION dir, BOOL *pResult)
 	return hr;
 }
 
-HRESULT FindConnectedPin(IBaseFilter *pFilter, PIN_DIRECTION PinDir, 
+HRESULT FindConnectedPin(IBaseFilter *pFilter, PIN_DIRECTION PinDir,
 						 IPin **ppPin)
 {
 	*ppPin = NULL;
@@ -648,14 +643,14 @@ HRESULT FindConnectedPin(IBaseFilter *pFilter, PIN_DIRECTION PinDir,
 	return hr;
 }
 
-HRESULT AddFilterByCLSID(IGraphBuilder *pGraph, REFGUID clsid, 
+HRESULT AddFilterByCLSID(IGraphBuilder *pGraph, REFGUID clsid,
 						 IBaseFilter **ppF, LPCWSTR wszName)
 {
 	*ppF = 0;
 
 	IBaseFilter *pFilter = NULL;
 
-	HRESULT hr = CoCreateInstance(clsid, NULL, CLSCTX_INPROC_SERVER, 
+	HRESULT hr = CoCreateInstance(clsid, NULL, CLSCTX_INPROC_SERVER,
 		IID_PPV_ARGS(&pFilter));
 	if (FAILED(hr))
 	{

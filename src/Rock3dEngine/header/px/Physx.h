@@ -1,11 +1,11 @@
 #ifndef PHYSX_LIBRARY
 #define PHYSX_LIBRARY
 
-#ifdef DEBUG_MEMORY	
+#ifdef DEBUG_MEMORY
 	#pragma push_macro("new")
 	#pragma push_macro("malloc")
 	#pragma push_macro("free")
-	
+
 	#undef new
 	#undef malloc
 	#undef free
@@ -82,7 +82,7 @@ public:
 		//внешний актер, соотв индексу 1
 		Actor* actor;
 		unsigned actorIndex;
-		
+
 		NxContactPair* pair;
 		unsigned events;
 
@@ -94,7 +94,7 @@ public:
 	struct OnContactModifyEvent
 	{
 		//внешний актер, соотв индексу 1
-		Actor* actor;	
+		Actor* actor;
 		unsigned actorIndex;
 
 		const NxShape* shape0;
@@ -152,7 +152,7 @@ public:
 
 //Необходимо разделить понятия менеджер физики(который реализует инициализацию сдк) и сцену(разделение физических пространств)
 class Manager: public lsl::Component
-{	
+{
 	friend NxPhysicsSDK& GetSDK();
 	friend NxCookingInterface& GetCooking();
 private:
@@ -164,8 +164,8 @@ public:
 
 	static void InitSDK();
 	static void ReleaseSDK();
-private:	
-	SceneList _sceneList;	
+private:
+	SceneList _sceneList;
 public:
 	Manager();
 	virtual ~Manager();
@@ -203,7 +203,7 @@ private:
 
 		NxTriangleMesh* tri;
 		NxConvexMesh* convex;
-		
+
 		unsigned sumRef;
 		unsigned triRef;
 		unsigned convexRef;
@@ -252,7 +252,7 @@ private:
 	NxShape* _nxShape;
 
 	D3DXVECTOR3 _pos;
-	D3DXQUATERNION _rot;
+	glm::quat _rot;
 	D3DXVECTOR3 _scale;
 	unsigned _materialIndex;
 	float _density;
@@ -290,8 +290,8 @@ public:
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
 
-	const D3DXQUATERNION& GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	const glm::quat& GetRot() const;
+	void SetRot(const glm::quat& value);
 
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(D3DXVECTOR3& value);
@@ -332,7 +332,7 @@ public:
 
 	const D3DXVECTOR3& GetNormal() const;
 	void SetNormal(const D3DXVECTOR3& value);
-	
+
 	float GetDist() const;
 	void SetDist(float value);
 };
@@ -369,7 +369,7 @@ private:
 public:
 	static const ShapeType Type = stSphere;
 private:
-	float _radius;	
+	float _radius;
 protected:
 	virtual NxShapeDesc* CreateDesc();
 
@@ -527,22 +527,22 @@ public:
 
 	float GetRadius() const;
 	void SetRadius(float value);
-	
+
 	float GetSuspensionTravel() const;
 	void SetSuspensionTravel(float value);
-	
+
 	const NxSpringDesc& GetSuspension() const;
 	void SetSuspension(const NxSpringDesc& value);
-	
+
 	const NxTireFunctionDesc& GetLongitudalTireForceFunction() const;
 	void SetLongitudalTireForceFunction(const NxTireFunctionDesc& value);
-	
+
 	const NxTireFunctionDesc& GetLateralTireForceFunction() const;
-	void SetLateralTireForceFunction(const NxTireFunctionDesc& value);	
-	
+	void SetLateralTireForceFunction(const NxTireFunctionDesc& value);
+
 	float GetInverseWheelMass() const;
 	void SetInverseWheelMass(float value);
-	
+
 	UINT GetWheelFlags() const;
 	void SetWheelFlags(UINT value);
 
@@ -563,7 +563,7 @@ private:
 	NxBodyDesc _desc;
 protected:
 	virtual void Save(lsl::SWriter* writer);
-	virtual void Load(lsl::SReader* reader);	
+	virtual void Load(lsl::SReader* reader);
 public:
 	Body(Actor* actor);
 
@@ -589,7 +589,7 @@ private:
 public:
 	typedef _MyBase::ClassList ClassList;
 	static ClassList classList;
-		
+
 	static void RegisterClasses();
 private:
 	Actor* _owner;
@@ -612,7 +612,7 @@ class Actor: public lsl::Object, public lsl::Serializable
 		//Жесткая связь _parent - _child реализуется с помощью shape, поэтому координаты требуется преобразовывать вручную
 private:
 	typedef NxArray<NxShapeDesc*, NxAllocatorDefault> _NxShapeDescList;
-public:	
+public:
 	typedef std::list<Actor*> Children;
 private:
 	ActorUser* _owner;
@@ -628,10 +628,10 @@ private:
 
 	//координаты кэшируется, отностиельно _nxActor
 	mutable D3DXVECTOR3 _pos;
-	mutable D3DXQUATERNION _rot;
+	mutable glm::quat _rot;
 	mutable D3DXVECTOR3 _scale;
 protected:
-	//Динамическая инициализация shape 
+	//Динамическая инициализация shape
 	void CreateNxShape(Shape* shape);
 	void DestroyNxShape(Shape* shape);
 	//Если nxShape создан, перезагружает его
@@ -700,8 +700,8 @@ public:
 	//Локальные координаты в пространстве родителя. По концепции методы возращают текущие кординаты nxActor-a, если его не существуюет то кэшированные координаты Actor-a. Упрощенная реализация, пока пододит только для двухуровненной иерархии
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
-	const D3DXQUATERNION& GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	const glm::quat& GetRot() const;
+	void SetRot(const glm::quat& value);
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(const D3DXVECTOR3& value);
 
@@ -713,9 +713,6 @@ public:
 //
 static inline NxPhysicsSDK& GetSDK();
 static inline NxCookingInterface& GetCooking();
-
-
-
 
 NxPhysicsSDK& GetSDK()
 {

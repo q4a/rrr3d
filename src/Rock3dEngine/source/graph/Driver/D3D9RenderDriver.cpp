@@ -23,9 +23,6 @@ D3DTEXTURESTAGESTATETYPE TextureStageStateToD3D9[TEXTURE_STAGE_STATE_END] = {D3D
 
 D3DTRANSFORMSTATETYPE TransformStateTypeToD3D9[TRANSFORM_STATE_TYPE_END] = {D3DTS_WORLD, D3DTS_VIEW, D3DTS_PROJECTION, D3DTS_TEXTURE0, D3DTS_TEXTURE1, D3DTS_TEXTURE2, D3DTS_TEXTURE3, D3DTS_TEXTURE4, D3DTS_TEXTURE5, D3DTS_TEXTURE6, D3DTS_TEXTURE7};
 
-
-
-
 D3D9RenderDriver::D3D9RenderDriver(D3DPRESENT_PARAMETERS& d3dpp): _d3d9(0), _d3dDevice9(0), _d3d9Ex(NULL), _d3dDevice9Ex(NULL), _frameLatencyOk(false)
 {
 	Init(d3dpp, false);
@@ -54,7 +51,7 @@ void D3D9RenderDriver::Init(D3DPRESENT_PARAMETERS& d3dpp, bool d3dEx)
 			d3dEx = false;
 			_d3d9Ex = NULL;
 		}
-		
+
 		_d3d9 = Direct3DCreate9(D3D_SDK_VERSION);
 
 		if (_d3d9 == 0)
@@ -63,7 +60,7 @@ void D3D9RenderDriver::Init(D3DPRESENT_PARAMETERS& d3dpp, bool d3dEx)
 
 			throw EInitD3D9Failed();
 		}
-	}	
+	}
 
 	hr = _d3d9->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &_d3dCaps9);
 
@@ -91,7 +88,7 @@ void D3D9RenderDriver::Init(D3DPRESENT_PARAMETERS& d3dpp, bool d3dEx)
 
 	for (unsigned i = 0; i < _d3d9->GetAdapterModeCount(D3DADAPTER_DEFAULT, D3DFMT_X8R8G8B8); ++i)
 	{
-		D3DDISPLAYMODE d3dMode;		
+		D3DDISPLAYMODE d3dMode;
 		_d3d9->EnumAdapterModes(D3DADAPTER_DEFAULT, D3DFMT_X8R8G8B8, i, &d3dMode);
 
 		DisplayMode mode;
@@ -195,7 +192,7 @@ unsigned D3D9RenderDriver::FindPrefRate()
 {
 	const unsigned prefHZ = 60;
 	unsigned minHz = 0;
-	
+
 	for (DisplayModes::const_iterator iter = _displayModes.begin(); iter != _displayModes.end(); ++iter)
 		if (iter->refreshRate != 0 && ((iter->refreshRate >= prefHZ && minHz > iter->refreshRate) || (iter->refreshRate <= prefHZ && minHz < iter->refreshRate) || minHz == 0))
 			minHz = iter->refreshRate;

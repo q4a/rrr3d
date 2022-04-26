@@ -64,7 +64,6 @@ public:
 	void SetFullScreen(bool value);
 };
 
-
 // Manages the VMR-9 video renderer filter.
 
 class CVMR9 : public CVideoRenderer
@@ -84,7 +83,6 @@ public:
 	bool GetFullScreen() const;
 	void SetFullScreen(bool value);
 };
-
 
 // Manages the EVR video renderer filter.
 

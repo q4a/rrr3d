@@ -10,20 +10,17 @@ namespace graph
 
 //Схема
 //+y; -y; +z; -z; +x; -x
-const D3DXMATRIX skyFromLeftToRightCS(1.0f,  0.0f,  0.0f,  0.0f,
+const glm::mat4 skyFromLeftToRightCS(1.0f,  0.0f,  0.0f,  0.0f,
 									  0.0f,  0.0f,  1.0f,  0.0f,
 									  0.0f,  -1.0f, 0.0f,  0.0f,
 									  0.0f,  0.0f,  0.0f,  1.0f);
 
-
-
-
 SkyBox::SkyBox(): _coordSystem(csLeft)
 {
-	_mesh.GetOrCreateData()->SetVertexCount(6);	
+	_mesh.GetOrCreateData()->SetVertexCount(6);
 	_mesh.GetData()->SetFormat(res::VertexData::vtPos3);
 	_mesh.GetData()->Init();
-	D3DXVECTOR3* vb = reinterpret_cast<D3DXVECTOR3*>(_mesh.GetData()->GetData());	
+	D3DXVECTOR3* vb = reinterpret_cast<D3DXVECTOR3*>(_mesh.GetData()->GetData());
 	vb[0] = D3DXVECTOR3(-1.0f, -1.0f, 1.0f);
 	vb[1] = D3DXVECTOR3(1.0f, -1.0f, 1.0f);
 	vb[2] = D3DXVECTOR3(1.0f, 1.0f, 1.0f);
@@ -45,24 +42,24 @@ void SkyBox::Render(Engine& engine)
 {
 	_mesh.Init(engine);
 
-	if (_coordSystem == csLeft)	
+	if (_coordSystem == csLeft)
 		engine.GetContext().SetWorldMat(skyFromLeftToRightCS);
 	else
 		engine.GetContext().SetWorldMat(IdentityMatrix);
 
 	//Нужно обнулять 4-ую строку чтобы небо не растягивалось
-	D3DXMATRIX skyWVP = engine.GetContext().GetCamera().GetWVP();
-	skyWVP._41 = 0.0f;
-	skyWVP._42 = 0.0f;
-	skyWVP._43 = 0.0f;
-	D3DXMatrixInverse(&skyWVP, 0, &skyWVP);
+	glm::mat4 skyWVP = engine.GetContext().GetCamera().GetWVP();
+	skyWVP[0][3] = 0.0f;
+	skyWVP[1][3] = 0.0f;
+	skyWVP[2][3] = 0.0f;
+	skyWVP = glm::inverse(skyWVP);
 	shader.SetValueDir("matInvWVP", skyWVP);
 
 	shader.Apply(engine);
 	do
-	{	
+	{
 		engine.BeginDraw();
-		_mesh.Draw();		
+		_mesh.Draw();
 	}
 	while (!engine.EndDraw(true));
 	shader.UnApply(engine);

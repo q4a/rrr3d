@@ -14,7 +14,7 @@ class Map: public lsl::Component
 {
 private:
 	typedef Component _MyBase;
-public:	
+public:
 	typedef std::map<unsigned, MapObj*> Objects;
 
 	static const unsigned cDefMapObjId = 0;
@@ -35,7 +35,7 @@ public:
 private:
 	World* _world;
 	Objects _objects;
-	MapObjList* _mapObjList[MapObjLib::cCategoryEnd];	
+	MapObjList* _mapObjList[MapObjLib::cCategoryEnd];
 	MapObj* _ground;
 	game::Trace* _trace;
 
@@ -65,9 +65,6 @@ public:
 	World* GetWorld();
 	game::Trace& GetTrace();
 };
-
-
-
 
 template<class _Type> MapObj& Map::AddMapObj(MapObjLib::Category category)
 {

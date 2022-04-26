@@ -6,12 +6,12 @@ namespace net
 {
 
 class INetPlayer
-{	
+{
 	friend class NetModel;
 public:
 	typedef std::map<unsigned, NetModel*> Models;
 
-	static const unsigned cDefCmd = 0;	
+	static const unsigned cDefCmd = 0;
 protected:
 	virtual void RegSyncModel(NetModel* model) = 0;
 	virtual void UnregSyncModel(NetModel* model) = 0;
@@ -37,9 +37,6 @@ public:
 	virtual unsigned id() const = 0;
 	virtual unsigned netIndex() const = 0;
 };
-
-
-
 
 template<class _Type> std::ostream& INetPlayer::NewModel()
 {

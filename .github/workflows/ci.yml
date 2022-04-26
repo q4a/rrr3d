@@ -16,7 +16,7 @@ jobs:
     - name: Install Windows libs
       shell: cmd
       run: |
-        curl -LJO https://github.com/q4a/rrr3d/releases/download/1.3.1-dev2/extern.7z
+        curl -LJO https://github.com/q4a/rrr3d/releases/download/1.3.1-dev3/extern.7z
         7z x extern.7z
         dir
     - uses: ilammy/msvc-dev-cmd@v1
@@ -30,3 +30,8 @@ jobs:
         useVcpkgToolchainFile: false
         buildDirectory: '${{ github.workspace }}/build'
         configurationRegexFilter: '${{ matrix.configuration }}'
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: rrr3d.${{ matrix.configuration }}
+        path: bin

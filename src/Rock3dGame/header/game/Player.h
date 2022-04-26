@@ -31,7 +31,7 @@ private:
 	graph::Tex2DResource* _texture;
 
 	D3DXVECTOR3 _pos;
-	D3DXQUATERNION _rot;
+	glm::quat _rot;
 protected:
 	void RegProgressEvent();
 	void UnregProgressEvent();
@@ -79,8 +79,8 @@ public:
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
 
-	const D3DXQUATERNION& GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	const glm::quat& GetRot() const;
+	void SetRot(const glm::quat& value);
 };
 
 class MobilityItem: public SlotItem
@@ -136,7 +136,7 @@ public:
 	MobilityItem(Slot* slot);
 
 	virtual MobilityItem* IsMobilityItem();
-	
+
 	void ApplyChanges();
 
 	virtual float CalcLife(const CarFunc& func);
@@ -171,7 +171,7 @@ class ArmorItem: public MobilityItem
 private:
 	bool _armor4Installed;
 
-	Race* GetRace() const;	
+	Race* GetRace() const;
 protected:
 	virtual const std::string& DoGetName() const;
 	virtual const std::string& DoGetInfo() const;
@@ -203,9 +203,9 @@ private:
 	float _damage;
 	int _chargeCost;
 
-	virtual void TransformChanged();	
+	virtual void TransformChanged();
 	void ApplyWpnDesc();
-protected:	
+protected:
 	virtual void OnCreateCar(MapObj* car);
 	virtual void OnDestroyCar(MapObj* car);
 
@@ -224,7 +224,7 @@ public:
 	bool IsReadyShot();
 
 	MapObjRec* GetMapObj();
-	void SetMapObj(MapObjRec* value);	
+	void SetMapObj(MapObjRec* value);
 
 	//0 - бесконечно
 	//>0 - область значений
@@ -277,7 +277,7 @@ private:
 	float _time;
 protected:
 	virtual void OnCreateCar(MapObj* car);
-	virtual void OnDestroyCar(MapObj* car);	
+	virtual void OnDestroyCar(MapObj* car);
 	virtual void OnProgress(float deltaTime);
 
 	virtual void Save(SWriter* writer);
@@ -350,7 +350,7 @@ public:
 
 	Player* GetPlayer();
 	Type GetType() const;
-	
+
 	Record* GetRecord();
 	void SetRecord(Record* value);
 };
@@ -368,7 +368,7 @@ private:
 	};
 	typedef lsl::List<BonusProj> BonusProjs;
 public:
-	const float cTimeRestoreCar;	
+	const float cTimeRestoreCar;
 
 	enum HeadLightMode {hlmNone, hlmOne, hlmTwo};
 	enum HeadLight {hlFirst = 0, hlSecond, cHeadLightEnd};
@@ -384,7 +384,7 @@ public:
 		~CarState();
 
 		void Update(float deltaTime);
-		
+
 		void SetCurTile(WayNode* value);
 		void SetCurNode(WayNode* value);
 		void SetLastNode(WayNode* value);
@@ -392,7 +392,7 @@ public:
 		//
 		WayNode* GetCurTile(bool lastCorrect = false) const;
 		int GetPathIndex(bool lastCorrect = false) const;
-		bool IsMainPath(bool lastCorrect = false) const;		
+		bool IsMainPath(bool lastCorrect = false) const;
 		float GetPathLength(bool lastCorrect = false) const;
 		//текущее пройденное рассто€ние
 		float GetDist(bool lastCorrect = false) const;
@@ -415,11 +415,11 @@ public:
 		// оординаты актера
 		D3DXVECTOR3 pos3;
 		D3DXVECTOR3 dir3;
-		D3DXQUATERNION rot3;
-		D3DXMATRIX worldMat;		
+		glm::quat rot3;
+		glm::mat4 worldMat;
 
-		D3DXVECTOR2 pos;
-		D3DXVECTOR2 dir;
+		glm::vec2 pos;
+		glm::vec2 dir;
 		float speed;
 		//ƒиаметр ограничивающей сферы
 		float size;
@@ -488,7 +488,7 @@ public:
 	static const unsigned cCheatEnableSlower = 1 << 0;
 	static const unsigned cCheatEnableFaster = 1 << 1;
 
-	static const unsigned cColorsCount = 7;	
+	static const unsigned cColorsCount = 7;
 	static const D3DXCOLOR cLeftColors[cColorsCount];
 	static const D3DXCOLOR cRightColors[cColorsCount];
 private:
@@ -523,7 +523,7 @@ private:
 	void RemoveBonusProj(Proj* proj);
 	void ClearBonusProjs();
 
-	void InitLight(HeadLight headLight, const D3DXVECTOR3& pos, const D3DXQUATERNION& rot);
+	void InitLight(HeadLight headLight, const D3DXVECTOR3& pos, const glm::quat& rot);
 	void FreeLight(HeadLight headLight);
 	void SetLightParent(GraphManager::LightSrc* light, MapObj* mapObj);
 	void CreateNightLights(MapObj* mapObj);
@@ -542,19 +542,19 @@ private:
 	void SetCheatK(const Player::CarState& car, float torqueK, float steerK);
 
 	GraphManager* GetGraph();
-	WayNode* GetLastNode();	
+	WayNode* GetLastNode();
 protected:
 	void SendEvent(unsigned id, EventData* data = NULL);
 
 	virtual void OnDestroy(GameObject* sender);
-	virtual void OnLowLife(GameObject* sender, Behavior* behavior);	
+	virtual void OnLowLife(GameObject* sender, Behavior* behavior);
 	virtual void OnDeath(GameObject* sender, DamageType damageType, GameObject* target);
 	void OnLapPass();
 public:
 	Player(Race* race);
 	virtual ~Player();
 
-	void OnProgress(float deltaTime);	
+	void OnProgress(float deltaTime);
 
 	//>0 искать соперников спереди машины
 	//<0 искать соперников сзади машины
@@ -586,7 +586,7 @@ public:
 	void SetReflScene(bool value);
 
 	Record* GetSlot(SlotType type);
-	void SetSlot(SlotType type, Record* record, const D3DXVECTOR3& pos = NullVector, const D3DXQUATERNION& rot = NullQuaternion);
+	void SetSlot(SlotType type, Record* record, const D3DXVECTOR3& pos = NullVector, const glm::quat& rot = NullQuaternion);
 	Slot* GetSlotInst(SlotType type);
 	Slot* GetSlotInst(Slot::Type type);
 

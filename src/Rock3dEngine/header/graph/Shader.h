@@ -2,6 +2,7 @@
 #define R3D_GRAPH_SHADER
 
 #include "Engine.h"
+#include "lslVariant.h"
 
 namespace r3d
 {
@@ -24,7 +25,7 @@ private:
 		D3DXInclude(Shader* owner);
 	};
 public:
-	typedef lsl::VariantVec Value;
+	typedef VariantVec Value;
 	typedef std::map<std::string, Value> Values;
 	typedef std::map<std::string, TexResource*> Textures;
 
@@ -67,7 +68,7 @@ public:
 				if (_effect)
 					_effect->Release();
 
-				_effect = value;				
+				_effect = value;
 			}
 		}
 
@@ -96,7 +97,7 @@ public:
 		{
 			if (param)
 				_effect->SetTexture(param, texture);
-		}		
+		}
 
 		D3DXHANDLE GetTech(const std::string& name)
 		{
@@ -188,9 +189,9 @@ public:
 				bool reload = Size() == 1 && engine;
 				if (reload)
 					_owner->Free();
-				
+
 				res = &_MyBase::AddItem(new MacroBlock(macros));
-				
+
 				if (reload)
 					_owner->Init(*engine);
 			}
@@ -217,7 +218,7 @@ public:
 	};
 private:
 	//Данные шейдера
-	lsl::BinaryResource* _data;	
+	lsl::BinaryResource* _data;
 	bool _createData;
 	//Параметры
 	Values _values;
@@ -244,11 +245,11 @@ private:
 	//Общее число внтуренних проходов текущей техники
 	unsigned _cntPass;
 	//Текущий внутренний проход
-	unsigned _numPass;	
+	unsigned _numPass;
 	//Применение эффекта
 	unsigned _apply;
 	//Применение техники
-	unsigned _applyTech;	
+	unsigned _applyTech;
 	//Применение внутреннего прохода
 	unsigned _applyPass;
 	//Пул эффектов
@@ -329,9 +330,6 @@ public:
 	MacroBlock* GetMacro();
 	void SetMacro(MacroBlock* value);
 };
-
-
-
 
 template<class _Type> bool Shader::GetValue(const std::string& name, _Type& outVal) const
 {

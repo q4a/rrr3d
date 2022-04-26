@@ -4,9 +4,9 @@
 #include "lslCommon.h"
 #include "lslObject.h"
 #include "lslException.h"
-#include "lslMath.h"
-#include "lslVariant.h"
 #include "lslContainer.h"
+#include "lslContainer.h"
+#include <windows.h>
 
 namespace lsl
 {
@@ -203,7 +203,7 @@ public:
 	void Delete(const _Key& key);
 	void Clear();
 
-	_BaseClass& GetInstance(const _Key& key) const;	
+	_BaseClass& GetInstance(const _Key& key) const;
 };
 
 template<class _Class, class _ClassMapList> class RegisterMapClass
@@ -224,7 +224,6 @@ struct Point
 	Point() {}
 	Point(int mX, int mY): x(mX), y(mY) {};
 
-
 	Point& operator+=(const Point& value)
 	{
 		x += value.x;
@@ -238,7 +237,7 @@ struct Point
 		y -= value.y;
 
 		return *this;
-	}	
+	}
 
 	operator int*()
 	{
@@ -267,15 +266,12 @@ private:
 	typedef std::bitset<_Bits> _MyBase;
 public:
 	Bitset() {}
-	
+
 	explicit Bitset(unsigned long _Val): _MyBase(_Val) {}
 	explicit Bitset(const std::string& value): _MyBase(value) {}
 };
 
 typedef std::vector<std::string> StringList;
-
-
-
 
 template<class _Pnt> inline void SafeRelease(_Pnt& pnt)
 {
@@ -336,13 +332,13 @@ template<class _Iter, class _Item> inline _Item FindItemByName(_Iter begin, _Ite
 	for (_Iter iter = begin; iter != end; ++iter)
 		if ((*iter)->GetName() == name && (*iter) != item)
 			return (*iter);
-	return 0;	
+	return 0;
 }
 
 inline int ConvStrToEnum(const char* str, const char* strList[], unsigned strListSize)
 {
 	for (unsigned i = 0; i < strListSize; ++i)
-		if (strcmp(strList[i], str) == 0)		
+		if (strcmp(strList[i], str) == 0)
 			return i;
 
 	return -1;
@@ -365,9 +361,6 @@ inline int ConvStrToEnum(const std::string& str, const StringList& strList)
 
 	return -1;
 }
-
-
-
 
 template<class _Key, class _BaseClass> ClassMapList<_Key, _BaseClass>::~ClassMapList()
 {
@@ -408,7 +401,7 @@ template<class _Key, class _BaseClass> void ClassMapList<_Key, _BaseClass>::Dele
 template<class _Key, class _BaseClass> void ClassMapList<_Key, _BaseClass>::Clear()
 {
 	for (_Map::iterator iter = _map.begin(); iter != _map.end(); ++iter)
-		delete iter->second;	
+		delete iter->second;
 	_map.clear();
 }
 
@@ -421,9 +414,6 @@ template<class _Key, class _BaseClass> _BaseClass& ClassMapList<_Key, _BaseClass
 		throw lsl::Error("template<class _Key, class _BaseClass> _BaseClass& ClassMapList<_Key, _BaseClass>::GetInstance(const _Key& key) const");
 }
 
-
-
-
 template<class _Class, class _ClassMapList> RegisterMapClass<_Class, _ClassMapList>::RegisterMapClass(_ClassMapList& mapList, typename _ClassMapList::Key key)
 {
 	mapList.Add<_Class>(key);
@@ -432,9 +422,6 @@ template<class _Class, class _ClassMapList> RegisterMapClass<_Class, _ClassMapLi
 template<class _Class, class _ClassMapList> void RegisterMapClass<_Class, _ClassMapList>::Test()
 {
 }
-
-
-
 
 static Point& operator+(const Point& value1, const Point& value2)
 {
@@ -450,20 +437,14 @@ static Point& operator-(const Point& value1, const Point& value2)
 	return res -= value2;
 }
 
-
-
-
 inline double GetTimeDbl()
 {
 	__int64 gTime, freq;
 	QueryPerformanceCounter((LARGE_INTEGER*)&gTime);  // Get current count
 	QueryPerformanceFrequency((LARGE_INTEGER*)&freq); // Get processor freq
-	
+
 	return gTime/static_cast<double>(freq);
 }
-
-
-
 
 #pragma warning(disable:4996)
 
@@ -488,7 +469,7 @@ inline string StrFmt(const TCHAR* value, ...)
 				delete[] buf;
 			buf = new TCHAR[(++bufSize) * cBufSize];
 		}
-	
+
 		res = _vsnprintf(buf, bufSize * cBufSize, value, arglist);
 	}
 
@@ -564,7 +545,7 @@ inline void StrExtractValues(const string& str, StringVec& vec, const lsl::strin
 }
 
 inline void StrExtractValues(const string& str, StringVec& vec, const TCHAR del = cStrComma)
-{	
+{
 	StrExtractValues(str, vec, lsl::string(1, del));
 }
 
@@ -577,7 +558,7 @@ inline void StrLinkValues(const StringVec& vec, string& str, const TCHAR del = c
 			str += *iter;
 			if (iter != --vec.end())
 				str += del;
-		}		
+		}
 	}
 }
 

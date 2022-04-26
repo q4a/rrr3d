@@ -10,9 +10,6 @@ const char* Serializable::cInclude = "include";
 const char* Serializable::cMaster = "master";
 const char* Serializable::cItem = "item";
 
-
-
-
 Serializable::Serializable(): _masterSer(0), _lockCnt(0)
 {
 }

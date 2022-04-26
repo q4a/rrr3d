@@ -5,7 +5,7 @@
 
 namespace r3d
 {
-	
+
 namespace graph
 {
 
@@ -24,13 +24,13 @@ public:
 
 		cLightingEnd
 	};
-	
+
 	enum GraphProp
 	{
 		gpReflWater = 0, //Отражается в воде
 		gpReflScene,     //Отражается на объектах сцены(относительно камеры)
 		gpShadowCast,    //Кастует тень
-		gpShadowApp,     //Принимает тень		
+		gpShadowApp,     //Принимает тень
 
 		gpColor,         //Видим в сцене
 

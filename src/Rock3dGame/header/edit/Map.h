@@ -27,8 +27,8 @@ public:
 	D3DXVECTOR3 GetScale() const;
 	void SetScale(const D3DXVECTOR3& value);
 
-	D3DXQUATERNION GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	glm::quat GetRot() const;
+	void SetRot(const glm::quat& value);
 
 	game::Map::MapObjList::const_iterator mapIter;
 };
@@ -57,14 +57,14 @@ private:
 		void OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
 	};
 public:
-	typedef game::Map Inst;	
+	typedef game::Map Inst;
 private:
 	Edit* _edit;
 	ITrace* _trace;
 	bool _showBB;
 
 	game::MapObj* PickInstMapObj(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec);
-	
+
 	void ApplyShowBB();
 	void OnUpdateLevel();
 
@@ -83,7 +83,7 @@ public:
 	unsigned GetCatCount();
 	//
 	IMapObjRef GetFirst(unsigned cat);
-	void GetNext(unsigned cat, IMapObjRef& ref);	
+	void GetNext(unsigned cat, IMapObjRef& ref);
 
 	bool GetShowBBox() const;
 	void SetShowBBox(bool value);

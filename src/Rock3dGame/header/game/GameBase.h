@@ -33,7 +33,7 @@ public:
 		dtEnergy,
 		dtMine,
 		dtTouch,
-		dtDeathPlane		
+		dtDeathPlane
 	};
 
 	enum BonusType
@@ -166,7 +166,7 @@ protected:
 		EffectDesc(): pos(NullVector), rot(NullQuaternion), child(true), parent(NULL) {}
 
 		D3DXVECTOR3 pos;
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		//дочерний
 		//true - время жизни совпадает с врменем жизни EventEffect, локальная система координат
 		//false - за удаление отвечает Logic, мировая система координат
@@ -238,7 +238,7 @@ public:
 
 	void AddSound(snd::Sound* sound);
 	void ClearSounds();
-	const SoundList& GetSounds();	
+	const SoundList& GetSounds();
 
 	snd::Sound* GetSound();
 	void SetSound(snd::Sound* value);
@@ -320,7 +320,7 @@ class LifeEffect: public EventEffect
 private:
 	bool _play;
 public:
-	LifeEffect(Behaviors* owner);	
+	LifeEffect(Behaviors* owner);
 
 	virtual void OnProgress(float deltaTime);
 };
@@ -374,7 +374,7 @@ class SlowEffect: public EventEffect
 protected:
 	virtual void OnDestroyEffect(MapObj* sender);
 public:
-	SlowEffect(Behaviors* owner);	
+	SlowEffect(Behaviors* owner);
 
 	virtual void OnProgress(float deltaTime);
 };
@@ -385,13 +385,13 @@ class SoundMotor: public Behavior
 private:
 	snd::Sound* _sndIdle;
 	snd::Sound* _sndRPM;
-	
+
 	bool _init;
 	float _curRPM;
 	snd::Source3d* _srcIdle;
 	snd::Source3d* _srcRPM;
-	D3DXVECTOR2 _rpmVolumeRange;
-	D3DXVECTOR2 _rpmFreqRange;
+	glm::vec2 _rpmVolumeRange;
+	glm::vec2 _rpmFreqRange;
 
 	void Init();
 	void Free();
@@ -413,18 +413,18 @@ public:
 	snd::Sound* GetSndRPM();
 	void SetSndRPM(snd::Sound* value);
 
-	const D3DXVECTOR2& GetRPMVolumeRange() const;
-	void SetRPMVolumeRange(const D3DXVECTOR2& value);
+	const glm::vec2& GetRPMVolumeRange() const;
+	void SetRPMVolumeRange(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetRPMFreqRange() const;
-	void SetRPMFreqRange(const D3DXVECTOR2& value);
+	const glm::vec2& GetRPMFreqRange() const;
+	void SetRPMFreqRange(const glm::vec2& value);
 };
 
 class GusenizaAnim: public Behavior
 {
 	typedef Behavior _MyBase;
-private:	
-	float _xAnimOff;	
+private:
+	float _xAnimOff;
 public:
 	GusenizaAnim(Behaviors* owner);
 	virtual ~GusenizaAnim();
@@ -435,7 +435,7 @@ public:
 class PodushkaAnim: public Behavior
 {
 	typedef Behavior _MyBase;
-private:	
+private:
 	int _targetTag;
 	graph::IVBMeshNode* _target;
 protected:
@@ -487,9 +487,6 @@ public:
 	bool storeProxy;
 	bool storeSource;
 };
-
-
-
 
 template<class _Type> _Type* Behaviors::Find()
 {

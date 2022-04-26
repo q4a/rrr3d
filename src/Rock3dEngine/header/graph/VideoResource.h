@@ -45,7 +45,7 @@ public:
 
 class MemPoolResource: public VideoResource
 {
-private:	
+private:
 	D3DPOOL _memoryPool;
 	DWORD _usage;
 public:
@@ -57,7 +57,7 @@ public:
 	D3DPOOL GetMemoryPool() const;
 	void SetMemoryPool(D3DPOOL value);
 	DWORD GetUsage() const;
-	void SetUsage(DWORD value);	
+	void SetUsage(DWORD value);
 };
 
 class VBMesh: public MemPoolResource
@@ -66,7 +66,7 @@ private:
 	res::VertexData* _data;
 	bool _createData;
 	unsigned _beginStream;
-	
+
 	IDirect3DVertexBuffer9* _vb;
 protected:
 	void LoadData() const;
@@ -104,14 +104,14 @@ private:
 	unsigned _beginStreamCnt;
 
 	IDirect3DVertexBuffer9* _vb;
-	IDirect3DIndexBuffer9* _ib;	
+	IDirect3DIndexBuffer9* _ib;
 protected:
 	void LoadData() const;
 
 	virtual void DoInit();
 	virtual void DoFree();
 	virtual void DoUpdate();
-public:	
+public:
 	IndexedVBMesh();
 	virtual ~IndexedVBMesh();
 
@@ -129,7 +129,7 @@ public:
 	unsigned GetSubsetCount() const;
 	const D3DXVECTOR3& GetMinPos() const;
 	const D3DXVECTOR3& GetMaxPos() const;
-	
+
 	IDirect3DVertexBuffer9* GetVB();
 	IDirect3DIndexBuffer9* GetIB();
 };
@@ -149,7 +149,7 @@ public:
 	};
 private:
 	res::MeshData* _data;
-	bool _createData;	
+	bool _createData;
 	Prefab _prefab;
 	Params _params;
 
@@ -161,7 +161,7 @@ protected:
 	virtual void DoInit();
 	virtual void DoFree();
 	virtual void DoUpdate();
-public:	
+public:
 	MeshX();
 	virtual ~MeshX();
 
@@ -188,20 +188,20 @@ class TexResource: public MemPoolResource
 {
 private:
 	unsigned _levelCnt;
-	D3DXVECTOR2 _screenScale;
+	glm::vec2 _screenScale;
 protected:
 	virtual IDirect3DBaseTexture9* GetBaseTex() = 0;
 public:
 	TexResource(DWORD usage);
 
 	IDirect3DBaseTexture9* GetTex();
-	
+
 	unsigned GetLevelCnt() const;
 	//value = 0 - генерация последовательности mip уровней до 1x1
 	void SetLevelCnt(unsigned value);
 
-	const D3DXVECTOR2& GetScreenScale() const;
-	void SetScreenScale(D3DXVECTOR2 value);
+	const glm::vec2& GetScreenScale() const;
+	void SetScreenScale(glm::vec2 value);
 };
 
 class Tex2DResource: public TexResource
@@ -236,7 +236,7 @@ public:
 	void SetData(res::ImageResource* value);
 
 	IDirect3DTexture9* GetTex();
-	D3DXVECTOR2 GetSize();
+	glm::vec2 GetSize();
 };
 
 class TexCubeResource: public TexResource
@@ -263,7 +263,7 @@ public:
 	res::CubeImageResource* GetOrCreateData();
 	void SetData(res::CubeImageResource* value);
 
-	IDirect3DCubeTexture9* GetTex();	
+	IDirect3DCubeTexture9* GetTex();
 };
 
 class RenderTargetResource: public VideoResource
@@ -278,7 +278,7 @@ private:
 	D3DMULTISAMPLE_TYPE _multisampleType;
 	unsigned _multisampleQuality;
 
-	D3DXVECTOR2 _screenScale;
+	glm::vec2 _screenScale;
 protected:
 	virtual void DoInit();
 	virtual void DoFree();
@@ -299,7 +299,7 @@ public:
 	void SetFormat(D3DFORMAT value);
 
 	bool GetLockable() const;
-	void SetLockable(bool value);	
+	void SetLockable(bool value);
 
 	D3DMULTISAMPLE_TYPE GetMultisampleType() const;
 	void SetMultisampleType(D3DMULTISAMPLE_TYPE value);
@@ -307,8 +307,8 @@ public:
 	unsigned GetMultisampleQuality() const;
 	void SetMultisampleQuality(unsigned value);
 
-	const D3DXVECTOR2& GetScreenScale() const;
-	void SetScreenScale(D3DXVECTOR2 value);
+	const glm::vec2& GetScreenScale() const;
+	void SetScreenScale(glm::vec2 value);
 };
 
 class DepthStencilSurfaceResource: public VideoResource
@@ -323,7 +323,7 @@ private:
 	D3DMULTISAMPLE_TYPE _multisampleType;
 	unsigned _multisampleQuality;
 
-	D3DXVECTOR2 _screenScale;
+	glm::vec2 _screenScale;
 protected:
 	virtual void DoInit();
 	virtual void DoFree();
@@ -344,7 +344,7 @@ public:
 	void SetFormat(D3DFORMAT value);
 
 	bool GetDiscard() const;
-	void SetDiscard(bool value);	
+	void SetDiscard(bool value);
 
 	D3DMULTISAMPLE_TYPE GetMultisampleType() const;
 	void SetMultisampleType(D3DMULTISAMPLE_TYPE value);
@@ -352,8 +352,8 @@ public:
 	unsigned GetMultisampleQuality() const;
 	void SetMultisampleQuality(unsigned value);
 
-	const D3DXVECTOR2& GetScreenScale() const;
-	void SetScreenScale(D3DXVECTOR2 value);
+	const glm::vec2& GetScreenScale() const;
+	void SetScreenScale(glm::vec2 value);
 };
 
 class TextFont: public VideoResource

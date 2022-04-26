@@ -72,23 +72,23 @@ private:
 		WayNode* _node;
 
 		//Направляющий вектор, образованный node, nextNode
-		mutable D3DXVECTOR2 _dir;
+		mutable glm::vec2 _dir;
 		//продольгая длина тайла
 		mutable float _dirLength;
 		//Нормаль к направляющему вектору
-		mutable D3DXVECTOR2 _norm;
+		mutable glm::vec2 _norm;
 		//
 		mutable D3DXVECTOR3 _normLine;
 		//направляющая линия
 		mutable D3DXVECTOR3 _dirLine;
 		//Средний направляющий вектор
-		mutable D3DXVECTOR2 _midDir;
+		mutable glm::vec2 _midDir;
 		//Нормаль к _midDir
-		mutable D3DXVECTOR2 _midNorm;
+		mutable glm::vec2 _midNorm;
 		//Нормальная ограничивающие линия через node
 		mutable D3DXVECTOR3 _midNormLine;
 		//нормаль к _midDir в направлении к внутреннему углу (наче говоря к острому углу)
-		mutable D3DXVECTOR2 _edgeNorm;
+		mutable glm::vec2 _edgeNorm;
 		//узловой радиус окружности целиком описывающий угол
 		mutable float _nodeRadius;
 		//линия через внутренний угол поворота перпендикулярно _midNorm
@@ -110,12 +110,12 @@ private:
 		//
 		const D3DXVECTOR3& GetNextPos() const;
 		float GetNextHeight() const;
-		const D3DXVECTOR2& GetPrevDir() const;
-		const D3DXVECTOR2& GetNextMidNorm() const;
+		const glm::vec2& GetPrevDir() const;
+		const glm::vec2& GetNextMidNorm() const;
 		const D3DXVECTOR3& GetNextNormLine() const;
 		float GetNextNodeRadius() const;
 
-		D3DXPLANE GetWayPlane() const;		
+		D3DXPLANE GetWayPlane() const;
 	public:
 		Tile(WayNode* node);
 
@@ -125,23 +125,23 @@ private:
 		//Работа с дорожками
 		//Номер дорожки отсчитывается начиная с 0 от крайней грани в направлении нормали GetNorm
 		//Номер из поизции
-		unsigned ComputeTrackInd(const D3DXVECTOR2& point) const;
+		unsigned ComputeTrackInd(const glm::vec2& point) const;
 		//Наикратчайший вектор смещения до соседней дорожки track относительно point
-		D3DXVECTOR2 ComputeTrackNormOff(const D3DXVECTOR2& point, unsigned track) const;
+		glm::vec2 ComputeTrackNormOff(const glm::vec2& point, unsigned track) const;
 
 		bool RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, float* dist = 0) const;
 		//lengthClamp - ограничивать ли тайл по длине
 		bool IsContains(const D3DXVECTOR3& point, bool lengthClamp = true, float* dist = 0, float widthErr = 0.0f) const;
 		bool IsZLevelContains(const D3DXVECTOR3& point, float* dist = 0) const;
 
-		const D3DXVECTOR2& GetDir() const;
+		const glm::vec2& GetDir() const;
 		float GetDirLength() const;
-		const D3DXVECTOR2& GetNorm() const;
+		const glm::vec2& GetNorm() const;
 		const D3DXVECTOR3& GetDirLine() const;
-		const D3DXVECTOR2& GetMidDir() const;
-		const D3DXVECTOR2& GetMidNorm() const;
+		const glm::vec2& GetMidDir() const;
+		const glm::vec2& GetMidNorm() const;
 		const D3DXVECTOR3& GetMidNormLine() const;
-		const D3DXVECTOR2& GetEdgeNorm() const;
+		const glm::vec2& GetEdgeNorm() const;
 		float GetNodeRadius() const;
 		const D3DXVECTOR3& GetEdgeLine() const;
 		float GetTurnAngle() const;
@@ -150,7 +150,7 @@ private:
 
 		//coordX - относительная продольная координата тайла
 		float ComputeCoordX(float dist) const;
-		float ComputeCoordX(const D3DXVECTOR2& point) const;
+		float ComputeCoordX(const glm::vec2& point) const;
 		//длина тайла
 		float ComputeLength(float coordX) const;
 		//Длина нормали в определенной точке
@@ -162,10 +162,10 @@ private:
 		//
 		D3DXVECTOR3 GetPoint(float coordX) const;
 		//
-		float GetLength(const D3DXVECTOR2& point) const;
-		float GetHeight(const D3DXVECTOR2& point) const;
-		float GetWidth(const D3DXVECTOR2& point) const;
-		float GetZCoord(const D3DXVECTOR2& point) const;
+		float GetLength(const glm::vec2& point) const;
+		float GetHeight(const glm::vec2& point) const;
+		float GetWidth(const glm::vec2& point) const;
+		float GetZCoord(const glm::vec2& point) const;
 		D3DXVECTOR3 GetCenter3() const;
 
 		const unsigned cTrackCnt;
@@ -187,7 +187,7 @@ public:
 	void Changed();
 
 	bool RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, float* dist = 0) const;
-	bool IsContains2(const D3DXVECTOR2& point, float* dist = 0) const;
+	bool IsContains2(const glm::vec2& point, float* dist = 0) const;
 	bool IsContains(const D3DXVECTOR3& point, float* dist = 0) const;
 
 	WayPath* GetPath();
@@ -199,7 +199,7 @@ public:
 	WayNode* GetNext();
 
 	const D3DXVECTOR3& GetPos() const;
-	D3DXVECTOR2 GetPos2() const;
+	glm::vec2 GetPos2() const;
 	float GetSize() const;
 	float GetRadius() const;
 };

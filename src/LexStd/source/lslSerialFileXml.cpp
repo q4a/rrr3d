@@ -87,7 +87,7 @@ void LoadChunk(SerialNode& chunk, TiXmlNode& node)
 		TiXmlPrinter printer;
 		node.FirstChild()->Accept(&printer);
 		chunk.SetValue(printer.Str());
-	}		
+	}
 	else
 	{
 		TiXmlNode* iter = node.FirstChild();
@@ -102,18 +102,15 @@ void LoadChunk(SerialNode& chunk, TiXmlNode& node)
 			}
 			else
 				//Это значение
-				if (iter->ToText())				
+				if (iter->ToText())
 					chunk.SetValue(iter->ToText()->ValueTStr());
 
 			iter = node.IterateChildren(iter);
-		}		
+		}
 	}
 }
 
 }
-
-
-
 
 void SerialFileXML::SaveNode(SerialNode& root, std::ostream& stream)
 {

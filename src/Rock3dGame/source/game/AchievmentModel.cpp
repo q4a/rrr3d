@@ -35,9 +35,6 @@ const std::string AchievmentModel::cSurvival = "survival";
 const std::string AchievmentModel::cFirstBlood = "firstBlood";
 const std::string AchievmentModel::cArmored = "armored";
 
-
-
-
 Achievment::Achievment(const Desc& desc): _state(asLocked), _price(0)
 {
 	_owner = desc.owner;
@@ -68,13 +65,13 @@ void Achievment::UnregProgressEvent()
 void Achievment::SaveTo(lsl::SWriter* writer)
 {
 	lsl::SWriteEnum(writer, "state", _state, cStateStr, cStateEnd);
-	writer->WriteValue("price", _price);	
+	writer->WriteValue("price", _price);
 }
 
 void Achievment::LoadFrom(lsl::SReader* reader)
 {
 	lsl::SReadEnum(reader, "state", _state, cStateStr, cStateEnd);
-	reader->ReadValue("price", _price);	
+	reader->ReadValue("price", _price);
 }
 
 void Achievment::Unlock()
@@ -138,9 +135,6 @@ Race* Achievment::race() const
 	return _owner->race();
 }
 
-
-
-
 AchievmentMapObj::AchievmentMapObj(const Desc& desc): Achievment(desc)
 {
 }
@@ -195,9 +189,6 @@ const AchievmentMapObj::Records& AchievmentMapObj::GetRecords() const
 	return _records;
 }
 
-
-
-
 AchievmentGamer::AchievmentGamer(const Desc& desc): Achievment(desc), _gamerId(0)
 {
 }
@@ -225,9 +216,6 @@ void AchievmentGamer::SetGamerId(int value)
 {
 	_gamerId = value;
 }
-
-
-
 
 AchievmentCondition::AchievmentCondition(const Desc& desc): _reward(0), _iterNum(0), _iterCount(1)
 {
@@ -336,9 +324,6 @@ void AchievmentCondition::reward(int value)
 	_reward = value;
 }
 
-
-
-
 AchievmentConditionBonus::AchievmentConditionBonus(const Desc& desc): AchievmentCondition(desc), _bonusCount(0), _bonusTotalCount(0)
 {
 }
@@ -352,7 +337,7 @@ void AchievmentConditionBonus::OnResetRaceState()
 void AchievmentConditionBonus::OnProcessEvent(unsigned id, EventData* data)
 {
 	Map* map = owner()->game()->GetWorld()->GetMap();
-	
+
 	switch (id)
 	{
 		case cPlayerPickItem:
@@ -363,9 +348,9 @@ void AchievmentConditionBonus::OnProcessEvent(unsigned id, EventData* data)
 
 			if (_bonusTotalCount == 0)
 				_bonusTotalCount = map->GetMapObjCount(myData->record);
-			
+
 			if (data && data->playerId == Race::cHuman)
-			{				
+			{
 				++_bonusCount;
 
 				if (_bonusCount >= _bonusTotalCount)
@@ -373,7 +358,7 @@ void AchievmentConditionBonus::OnProcessEvent(unsigned id, EventData* data)
 					CompleteIteration();
 					_bonusCount = 0;
 				}
-			}			
+			}
 			break;
 		}
 	}
@@ -402,9 +387,6 @@ void AchievmentConditionBonus::bonusType(GameObject::BonusType value)
 {
 	_bonusType = value;
 }
-
-
-
 
 AchievmentConditionSpeedKill::AchievmentConditionSpeedKill(const Desc& desc): AchievmentCondition(desc), _time(0), _curKills(0), _killsNum(0), _killsTime(0)
 {
@@ -488,9 +470,6 @@ void AchievmentConditionSpeedKill::killsTime(float value)
 {
 	_killsTime = value;
 }
-	
-
-
 
 AchievmentConditionRaceKill::AchievmentConditionRaceKill(const Desc& desc): AchievmentCondition(desc), _curKills(0), _killsNum(0)
 {
@@ -512,13 +491,13 @@ void AchievmentConditionRaceKill::OnProcessEvent(unsigned id, EventData* data)
 		{
 			if (++_curKills >= _killsNum)
 			{
-				_curKills = 0;				
+				_curKills = 0;
 				CompleteIteration();
 			}
 			break;
 		}
 	}
-}	
+}
 
 void AchievmentConditionRaceKill::SaveTo(lsl::SWriter* writer)
 {
@@ -543,9 +522,6 @@ void AchievmentConditionRaceKill::killsNum(int value)
 {
 	_killsNum = value;
 }
-
-
-
 
 AchievmentConditionLapPass::AchievmentConditionLapPass(const Desc& desc): AchievmentCondition(desc), _place(1), _lapCount(0)
 {
@@ -577,7 +553,7 @@ void AchievmentConditionLapPass::OnProcessEvent(unsigned id, EventData* data)
 			break;
 		}
 	}
-}	
+}
 
 void AchievmentConditionLapPass::SaveTo(lsl::SWriter* writer)
 {
@@ -602,9 +578,6 @@ void AchievmentConditionLapPass::place(int value)
 {
 	_place = value;
 }
-
-
-
 
 AchievmentConditionDodge::AchievmentConditionDodge(const Desc& desc): AchievmentCondition(desc), _damage(0)
 {
@@ -648,9 +621,6 @@ void AchievmentConditionDodge::OnProcessEvent(unsigned id, EventData* data)
 	}
 }
 
-
-
-
 AchievmentConditionLapBreak::AchievmentConditionLapBreak(const Desc& desc): AchievmentCondition(desc), _place(0)
 {
 }
@@ -681,9 +651,6 @@ void AchievmentConditionLapBreak::OnProcessEvent(unsigned id, EventData* data)
 	}
 }
 
-
-
-
 AchievmentConditionSurvival::AchievmentConditionSurvival(const Desc& desc): AchievmentCondition(desc), _curDeaths(0)
 {
 }
@@ -713,10 +680,7 @@ void AchievmentConditionSurvival::OnProcessEvent(unsigned id, EventData* data)
 			break;
 		}
 	}
-}	
-
-
-
+}
 
 AchievmentConditionFirstKill::AchievmentConditionFirstKill(const Desc& desc): AchievmentCondition(desc), _curKills(0)
 {
@@ -741,9 +705,6 @@ void AchievmentConditionFirstKill::OnProcessEvent(unsigned id, EventData* data)
 	}
 }
 
-
-
-
 AchievmentConditionTouchKill::AchievmentConditionTouchKill(const Desc& desc): AchievmentCondition(desc)
 {
 }
@@ -762,9 +723,6 @@ void AchievmentConditionTouchKill::OnProcessEvent(unsigned id, EventData* data)
 	}
 }
 
-
-
-
 AchievmentModel::AchievmentModel(Race* race, const lsl::string& name): _race(race), _points(0)
 {
 	_classes.Add<Achievment>(cUndef);
@@ -776,12 +734,12 @@ AchievmentModel::AchievmentModel(Race* race, const lsl::string& name): _race(rac
 	_condClasses.Add<AchievmentConditionSpeedKill>(cSpeedKill);
 	_condClasses.Add<AchievmentConditionRaceKill>(cRaceKill);
 	_condClasses.Add<AchievmentConditionLapPass>(cLapPass);
-	_condClasses.Add<AchievmentConditionDodge>(cDodge);	
+	_condClasses.Add<AchievmentConditionDodge>(cDodge);
 	_condClasses.Add<AchievmentConditionLapBreak>(cLapBreak);
 	_condClasses.Add<AchievmentConditionSurvival>(cLapSurvival);
 	_condClasses.Add<AchievmentConditionFirstKill>(cFirstKill);
-	_condClasses.Add<AchievmentConditionTouchKill>(cTouchKill);	
-	
+	_condClasses.Add<AchievmentConditionTouchKill>(cTouchKill);
+
 	SetName(name);
 	SetOwner(race);
 
@@ -790,12 +748,12 @@ AchievmentModel::AchievmentModel(Race* race, const lsl::string& name): _race(rac
 
 AchievmentModel::~AchievmentModel()
 {
-	DeleteAll();	
+	DeleteAll();
 	DeleteAllCond();
 }
 
 void AchievmentModel::GenerateLib()
-{	
+{
 	AchievmentGamer* gamer;
 	AchievmentMapObj* mapObj;
 	AchievmentConditionBonus* condBonus;
@@ -815,7 +773,7 @@ void AchievmentModel::GenerateLib()
 	const Planet::PlayerData* playerData = _race->GetTournament().GetPlayerData(_SC(scViper));
 	if (playerData)
 		gamer->SetGamerId(playerData->id);
-	gamer->Unlock();	
+	gamer->Unlock();
 
 	mapObj = Add<AchievmentMapObj>(cBuggi);
 	mapObj->price(1000);
@@ -823,11 +781,11 @@ void AchievmentModel::GenerateLib()
 	mapObj->Unlock();
 
 	mapObj = Add<AchievmentMapObj>(cAirblade);
-	mapObj->price(1000);	
+	mapObj->price(1000);
 	mapObj->AddRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "manticoraBoss"));
 	mapObj->AddRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "gusenizaBoss"));
 	mapObj->AddRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "podushkaBoss"));
-	mapObj->AddRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "monstertruckBoss"));	
+	mapObj->AddRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "monstertruckBoss"));
 	mapObj->AddRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "devildriverBoss"));
 	mapObj->Unlock();
 
@@ -848,7 +806,7 @@ void AchievmentModel::GenerateLib()
 	mapObj = Add<AchievmentMapObj>(cTankchetti);
 	mapObj->price(1300);
 	mapObj->SetRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "tankchetti"));
-	mapObj->Unlock();	
+	mapObj->Unlock();
 
 	mapObj = Add<AchievmentMapObj>(cPhaser);
 	mapObj->price(1300);
@@ -858,19 +816,19 @@ void AchievmentModel::GenerateLib()
 	mapObj = Add<AchievmentMapObj>(cMustang);
 	mapObj->price(1300);
 	mapObj->SetRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "mustang"));
-	mapObj->Unlock();	
+	mapObj->Unlock();
 
 	condBonus = AddCond<AchievmentConditionBonus>(cMedicate);
 	condBonus->bonusType(GameObject::btMedpack);
-	condBonus->reward(700);	
+	condBonus->reward(700);
 
 	condBonus = AddCond<AchievmentConditionBonus>(cMoneybags);
 	condBonus->bonusType(GameObject::btMoney);
-	condBonus->reward(700);	
+	condBonus->reward(700);
 
 	condBonus = AddCond<AchievmentConditionBonus>(cExplosivo);
 	condBonus->bonusType(GameObject::btCharge);
-	condBonus->reward(700);	
+	condBonus->reward(700);
 
 	condSpeedKill = AddCond<AchievmentConditionSpeedKill>(cDoubleKill);
 	condSpeedKill->reward(500);
@@ -913,8 +871,8 @@ void AchievmentModel::LoadLib()
 	lsl::RootNode rootNode("achievmentRoot", _race);
 
 	try
-	{		
-		SerialFileXML xml;		
+	{
+		SerialFileXML xml;
 		xml.LoadNodeFromFile(rootNode, "achievment.xml");
 
 		rootNode.Load(this);
@@ -933,13 +891,13 @@ void AchievmentModel::Save(lsl::SWriter* writer)
 {
 	writer->WriteValue("points", _points);
 
-	lsl::SWriter* items = writer->NewDummyNode("items");	
+	lsl::SWriter* items = writer->NewDummyNode("items");
 	for (Items::iterator iter = _items.begin(); iter != _items.end(); ++iter)
 	{
 		lsl::SWriter* child = items->NewDummyNode(iter->first.c_str());
-		child->WriteAttr("classId", iter->second->classId());		
+		child->WriteAttr("classId", iter->second->classId());
 
-		iter->second->SaveTo(child);		
+		iter->second->SaveTo(child);
 	}
 
 	lsl::SWriter* conditions = writer->NewDummyNode("conditions");
@@ -963,7 +921,7 @@ void AchievmentModel::Load(lsl::SReader* reader)
 	{
 		lsl::SReader* child = items->FirstChildValue();
 		while (child)
-		{	
+		{
 			const lsl::SerialNode::ValueDesc* attr = child->ReadAttr("classId");
 			LSL_ASSERT(attr);
 			unsigned classId;
@@ -981,7 +939,7 @@ void AchievmentModel::Load(lsl::SReader* reader)
 	{
 		lsl::SReader* child = conditions->FirstChildValue();
 		while (child)
-		{	
+		{
 			const lsl::SerialNode::ValueDesc* attr = child->ReadAttr("classId");
 			LSL_ASSERT(attr);
 			unsigned classId;
@@ -1028,7 +986,7 @@ Achievment* AchievmentModel::Add(unsigned classId, const std::string& name)
 void AchievmentModel::Delete(const std::string id)
 {
 	Items::const_iterator iter = _items.find(id);
-	
+
 	LSL_ASSERT(iter != _items.end());
 
 	delete iter->second;

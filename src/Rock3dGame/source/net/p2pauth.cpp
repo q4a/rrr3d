@@ -5,17 +5,12 @@
 // $NoKeywords: $
 //=============================================================================
 
-
 #include "stdafx.h"
 #include "net\p2pauth.h"
 
 #ifdef STEAM_SERVICE
 
 #include "net\SteamService.h"
-
-
-
-
 
 namespace r3d
 {
@@ -26,13 +21,12 @@ namespace game
 //-----------------------------------------------------------------------------
 // Purpose: constructor
 //-----------------------------------------------------------------------------
-CNetworkTransport::CNetworkTransport() 
-: 
+CNetworkTransport::CNetworkTransport()
+:
 	m_CallbackP2PSessionRequest( this, &CNetworkTransport::OnP2PSessionRequest ),
 	m_CallbackP2PSessionConnectFail( this, &CNetworkTransport::OnP2PSessionConnectFail )
 {
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: send ticket message to steamIDTo
@@ -45,7 +39,6 @@ bool CNetworkTransport::SendTicket( CSteamID steamIDFrom, CSteamID steamIDTo, ui
 	return SendNetMessage( steamIDTo, (void*)&msg, sizeof( msg ) );
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: actual implementation
 //-----------------------------------------------------------------------------
@@ -54,7 +47,6 @@ bool CNetworkTransport::SendNetMessage( CSteamID steamIDTo, void *pMessage, int 
 	return SteamNetworking()->SendP2PPacket( steamIDTo, pMessage, cubMessage, k_EP2PSendReliable );
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: close connection to steamID
 //-----------------------------------------------------------------------------
@@ -62,7 +54,6 @@ void CNetworkTransport::CloseConnection( CSteamID steamID )
 {
 	SteamNetworking()->CloseP2PSessionWithUser( steamID );
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: another user has sent us a packet - do we accept?
@@ -74,7 +65,6 @@ void CNetworkTransport::OnP2PSessionRequest( P2PSessionRequest_t *pP2PSessionReq
 	SteamNetworking()->AcceptP2PSessionWithUser( pP2PSessionRequest->m_steamIDRemote );
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: we send a packet to another user but it failed
 //-----------------------------------------------------------------------------
@@ -83,7 +73,6 @@ void CNetworkTransport::OnP2PSessionConnectFail( P2PSessionConnectFail_t *pP2PSe
 	// we've sent a packet to the user, but it never got through
 	// we can just use the normal timeout
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: constructor
@@ -101,7 +90,6 @@ CP2PAuthPlayer::CP2PAuthPlayer( SteamService *pGameEngine, CNetworkTransport *pN
 	m_cubTicketHeGaveMe = 0;
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: destructor
 //-----------------------------------------------------------------------------
@@ -111,7 +99,6 @@ CP2PAuthPlayer::~CP2PAuthPlayer()
 	m_pNetworkTransport->CloseConnection( SteamUser()->GetSteamID() );
 	m_pNetworkTransport = NULL;
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: the steam backend has responded
@@ -128,7 +115,6 @@ void CP2PAuthPlayer::OnBeginAuthResponse( ValidateAuthTicketResponse_t *pCallbac
 		m_eAuthSessionResponse = pCallback->m_eAuthSessionResponse;
 	}
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: internal implementation
@@ -156,7 +142,6 @@ void CP2PAuthPlayer::StartAuthPlayer()
 	// start a timer on this, if we dont get a ticket back within reasonable time, mark him timed out
 	m_ulTicketTime = GetGameTimeInSeconds();
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: is this auth ok?
@@ -206,7 +191,6 @@ bool CP2PAuthPlayer::BIsAuthOk()
 	}
 	return true;
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: the game engine is telling us about someone who left the game
@@ -267,7 +251,6 @@ bool CP2PAuthPlayer::HandleMessage( EMessage eMsg, void *pMessage )
 	return false;
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: utility wrapper
 //-----------------------------------------------------------------------------
@@ -275,7 +258,6 @@ CSteamID CP2PAuthPlayer::GetSteamID()
 {
 	return SteamUser()->GetSteamID();
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: constructor
@@ -296,7 +278,6 @@ CP2PAuthedGame::CP2PAuthedGame( SteamService *pGameEngine )
 	}
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: game with this player is over
 //-----------------------------------------------------------------------------
@@ -309,7 +290,6 @@ void CP2PAuthedGame::PlayerDisconnect( int iSlot )
 		m_rgpP2PAuthPlayer[iSlot] = NULL;
 	}
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: game is over, disconnect everyone
@@ -326,7 +306,6 @@ void CP2PAuthedGame::EndGame()
 		}
 	}
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: initialize player
@@ -356,7 +335,6 @@ void CP2PAuthedGame::InternalInitPlayer( int iSlot, CSteamID steamID, bool bStar
 	}
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: game host register this player, we wait for this player
 //			to start the auth process by sending us his ticket, then we will
@@ -368,7 +346,6 @@ void CP2PAuthedGame::RegisterPlayer( int iSlot, CSteamID steamID )
 		InternalInitPlayer( iSlot, steamID, false );
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: start the auth process by sending ticket to this player
 //			he will reciprocate
@@ -378,7 +355,6 @@ void CP2PAuthedGame::StartAuthPlayer( int iSlot, CSteamID steamID )
 	if ( iSlot < MAX_PLAYERS_PER_SERVER )
 		InternalInitPlayer( iSlot, steamID, true );
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: message handler
@@ -421,7 +397,6 @@ bool CP2PAuthedGame::HandleMessage( EMessage eMsg, void *pMessage )
 	// message didn't got handled here
 	return false;
 }
-
 
 //-----------------------------------------------------------------------------
 // Purpose: utility wrapper

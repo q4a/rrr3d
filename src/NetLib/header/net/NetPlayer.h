@@ -11,7 +11,7 @@ protected:
 	{
 		NetCmdHeader header;
 		streambuf streambuf;
-		std::ostream stream;		
+		std::ostream stream;
 
 		Cmd(): stream(&streambuf) {}
 	};
@@ -39,14 +39,14 @@ public:
 private:
 	unsigned _id;
 	Cmd _cmdBuf[cCmdMax];
-	unsigned _cmdIndex;	
+	unsigned _cmdIndex;
 
-	NetModel* NewModel(unsigned modelId, unsigned id, bool owner, unsigned ownerId, std::istream& stream);	
+	NetModel* NewModel(unsigned modelId, unsigned id, bool owner, unsigned ownerId, std::istream& stream);
 protected:
 	NetService* _net;
 	Models _models;
 	SyncModels _syncModels;
-	
+
 	void RegSyncModel(NetModel* model);
 	void UnregSyncModel(NetModel* model);
 
@@ -76,7 +76,7 @@ public:
 	bool TestTarget(unsigned target, unsigned id, unsigned sender) const;
 
 	//id = cDefCmd - default, non model target
-	//id > 0 - model id	
+	//id > 0 - model id
 	std::ostream& NewCmd(unsigned id, unsigned target, unsigned rpc);
 	std::ostream& NewModel(unsigned modelId);
 	void CloseCmd();

@@ -29,7 +29,7 @@ private:
 		float duration;
 		int plrId;
 	};
-	
+
 	static const int cBoxCount = 3;
 private:
 	Box _boxes[cBoxCount];
@@ -37,7 +37,7 @@ private:
 	float _time;
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
 	virtual bool OnMouseClickEvent(const MouseClick& mClick);

@@ -21,15 +21,15 @@ private:
 
 	D3DXVECTOR3 _offset;
 	D3DXVECTOR3 _scale;
-	D3DXQUATERNION _rotate;
+	glm::quat _rotate;
 	D3DCULL _cullMode;
 
-	mutable D3DXMATRIX _matrix;
+	mutable glm::mat4 _matrix;
 	mutable bool _matChanged;
 	mutable bool _defMat;
 
 	void TransformationChanged() const;
-	const D3DXMATRIX& GetMatrix() const;
+	const glm::mat4& GetMatrix() const;
 
 	void Begin(Engine& engine);
 	void End(Engine& engine);
@@ -75,8 +75,8 @@ public:
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(const D3DXVECTOR3& value);
 
-	const D3DXQUATERNION& GetRotate() const;
-	void SetRotate(const D3DXQUATERNION& value);
+	const glm::quat& GetRotate() const;
+	void SetRotate(const glm::quat& value);
 
 	D3DCULL GetCullMode() const;
 	void SetCullMode(D3DCULL value);
@@ -152,11 +152,11 @@ public:
 
 class PlaneNode: public BaseSceneNode
 {
-	typedef BaseSceneNode _MyBase;	
+	typedef BaseSceneNode _MyBase;
 private:
 	graph::VBMesh _mesh;
-	D3DXVECTOR2 _size;
- 
+	glm::vec2 _size;
+
 	void DrawPlane(Engine& engine);
 	void UpdateMesh();
 protected:
@@ -170,8 +170,8 @@ public:
 	PlaneNode();
 	virtual ~PlaneNode();
 
-	const D3DXVECTOR2& GetSize() const;
-	void SetSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSize() const;
+	void SetSize(const glm::vec2& value);
 
 	MaterialNode material;
 };
@@ -216,7 +216,7 @@ public:
 };
 
 class Sprite: public BaseSceneNode
-{	
+{
 private:
 	typedef BaseSceneNode _MyBase;
 protected:
@@ -231,7 +231,7 @@ public:
 
 	MaterialNode material;
 
-	D3DXVECTOR2 sizes;
+	glm::vec2 sizes;
 	//Зафиксировать направление, по умолчанию false
 	bool fixDirection;
 };
@@ -291,7 +291,7 @@ public:
 	enum DirMove {dmNone, dmX, dmY, dmZ, dmXYZ, cDirMoveEnd};
 private:
 	Sprite* _arrows[3];
-	DirMove _curMove;	
+	DirMove _curMove;
 protected:
 	void CompBBPlanes(const D3DXVECTOR3& camPos, D3DXVECTOR3* bbPlanes);
 	DirMove CompDirMove(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& camPos);

@@ -15,13 +15,10 @@ namespace graph
 
 bool Engine::_d3dxUse = true;
 
-
-
-
 Engine::Engine(HWND window, lsl::Point resolution, bool fullScreen, unsigned multisampling): _reset(true), _lost(false), _restart(true), _beginScene(false), _beginDraw(false), _dt(0), _pause(false), _filtering(0), _multisampling(0), _d3dQueryEvent(NULL)
 {
-	ZeroMemory(&_d3dpp, sizeof(_d3dpp));	
-	_d3dpp.BackBufferFormat           = D3DFMT_A8R8G8B8; 
+	ZeroMemory(&_d3dpp, sizeof(_d3dpp));
+	_d3dpp.BackBufferFormat           = D3DFMT_A8R8G8B8;
 	_d3dpp.BackBufferCount            = 1;
 	_d3dpp.SwapEffect                 = D3DSWAPEFFECT_DISCARD;
 	_d3dpp.EnableAutoDepthStencil     = true;
@@ -35,11 +32,11 @@ Engine::Engine(HWND window, lsl::Point resolution, bool fullScreen, unsigned mul
 
 	_driver = new d3d9::D3D9RenderDriver(_d3dpp);
 	_driver->GetDevice()->GetSwapChain(0, &_swapChain);
-	_driver->GetDevice()->GetDepthStencilSurface(&_dsSurf);	
+	_driver->GetDevice()->GetDepthStencilSurface(&_dsSurf);
 
 	CreateQueries();
 
-	_context = new ContextInfo(_driver);	
+	_context = new ContextInfo(_driver);
 	_context->SetDefaults();
 
 	InitResources();
@@ -104,12 +101,11 @@ void Engine::DrawFPS()
 	static __int64 gTime, gLastTime;
 	float deltaTime = CalcDeltaTime(gTime, gLastTime);
 
-
 	static double nTimeOfLastFPSUpdate = 0.0;
 	static int nFrameCount = 0;
-	static char fpsString[255] = "Frames Per Second = ";	
+	static char fpsString[255] = "Frames Per Second = ";
 	if (nTimeOfLastFPSUpdate > 1.0f) // Update once a second
-	{		
+	{
 		sprintf_s(fpsString, "FPS - %4.2f \n 'C' - переключить камеру \n"
 			"FixedFPS - %i \n", nFrameCount/nTimeOfLastFPSUpdate, (static_cast<int>(1.0f/_dt) / 10) * 10);
 		nTimeOfLastFPSUpdate = 0;
@@ -119,7 +115,7 @@ void Engine::DrawFPS()
 	++nFrameCount;
 	RECT destRect;
 	SetRect(&destRect, 505, 5, 0, 0);
-	g_pd3dxFont->DrawText(0 , fpsString, -1, &destRect, DT_NOCLIP, D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f));	
+	g_pd3dxFont->DrawText(0 , fpsString, -1, &destRect, DT_NOCLIP, D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f));
 }
 
 #endif
@@ -179,12 +175,12 @@ void Engine::UpdateScreenQuad()
 	float fWidth5 = _d3dpp.BackBufferWidth * quadVert.z - 0.5f;
 	float fHeight5 = _d3dpp.BackBufferHeight * quadVert.w - 0.5f;
 
-	res::ScreenVertex vertBuf[4] = 
+	res::ScreenVertex vertBuf[4] =
 	{
-		res::ScreenVertex(D3DXVECTOR4(fPosX, fPosY, 0.5f, 1.0f), D3DXVECTOR2(fLeftU, fTopV)),
-		res::ScreenVertex(D3DXVECTOR4(fWidth5, fPosY, 0.5f, 1.0f), D3DXVECTOR2(fRightU, fTopV)),
-		res::ScreenVertex(D3DXVECTOR4(fPosX, fHeight5, 0.5f, 1.0f), D3DXVECTOR2(fLeftU, fBottomV)),
-		res::ScreenVertex(D3DXVECTOR4(fWidth5, fHeight5, 0.5f, 1.0f), D3DXVECTOR2(fRightU, fBottomV))
+		res::ScreenVertex(D3DXVECTOR4(fPosX, fPosY, 0.5f, 1.0f), glm::vec2(fLeftU, fTopV)),
+		res::ScreenVertex(D3DXVECTOR4(fWidth5, fPosY, 0.5f, 1.0f), glm::vec2(fRightU, fTopV)),
+		res::ScreenVertex(D3DXVECTOR4(fPosX, fHeight5, 0.5f, 1.0f), glm::vec2(fLeftU, fBottomV)),
+		res::ScreenVertex(D3DXVECTOR4(fWidth5, fHeight5, 0.5f, 1.0f), glm::vec2(fRightU, fBottomV))
 	};
 
 	res::VertexData* data = _meshScreenQuad.GetOrCreateData();
@@ -201,12 +197,12 @@ void Engine::UpdateScreenQuad()
 void Engine::InitResources()
 {
 	{
-		res::VertexPT vertBuf[4] = 
+		res::VertexPT vertBuf[4] =
 		{
-			res::VertexPT(D3DXVECTOR3(0.5f, -0.5f, 0.0f), D3DXVECTOR2(1, 1)),
-			res::VertexPT(D3DXVECTOR3(0.5f, 0.5f, 0.0f), D3DXVECTOR2(1, 0)),
-			res::VertexPT(D3DXVECTOR3(-0.5f, -0.5f, 0.0f), D3DXVECTOR2(0, 1)),
-			res::VertexPT(D3DXVECTOR3(-0.5f, 0.5f, 0.0f), D3DXVECTOR2(0, 0))
+			res::VertexPT(D3DXVECTOR3(0.5f, -0.5f, 0.0f), glm::vec2(1, 1)),
+			res::VertexPT(D3DXVECTOR3(0.5f, 0.5f, 0.0f), glm::vec2(1, 0)),
+			res::VertexPT(D3DXVECTOR3(-0.5f, -0.5f, 0.0f), glm::vec2(0, 1)),
+			res::VertexPT(D3DXVECTOR3(-0.5f, 0.5f, 0.0f), glm::vec2(0, 0))
 		};
 
 		res::VertexData* data = _meshPlanePT.GetOrCreateData();
@@ -244,10 +240,10 @@ bool Engine::ResetDevice()
 
 			_context->SetDefaults();
 			_driver->GetDevice()->GetSwapChain(0, &_swapChain);
-			_driver->GetDevice()->GetDepthStencilSurface(&_dsSurf);			
+			_driver->GetDevice()->GetDepthStencilSurface(&_dsSurf);
 
 			CreateQueries();
-			
+
 			for (_VideoResList::iterator iter = _videoResList.begin(); iter != _videoResList.end(); ++iter)
 				(*iter)->OnResetDevice();
 
@@ -256,7 +252,7 @@ bool Engine::ResetDevice()
 #endif
 
 			UpdateScreenQuad();
-						
+
 			_reset = true;
 			_restart = true;
 		}
@@ -277,12 +273,12 @@ void Engine::LostDevice()
 
 		for (_VideoResList::iterator iter = _videoResList.begin(); iter != _videoResList.end(); ++iter)
 			(*iter)->OnLostDevice();
-		
+
 		lsl::SafeRelease(_swapChain);
 		lsl::SafeRelease(_dsSurf);
 
 		ReleaseQueries();
-	}	
+	}
 }
 
 void Engine::SetParams(HWND window, lsl::Point resolution, bool fullScreen, unsigned multisampling)
@@ -293,7 +289,7 @@ void Engine::SetParams(HWND window, lsl::Point resolution, bool fullScreen, unsi
 	_d3dpp.BackBufferWidth   = resolution.x;
 	_d3dpp.BackBufferHeight  = resolution.y;
 	_d3dpp.Windowed          = !fullScreen;
-	
+
 	D3DMULTISAMPLE_TYPE type;
 	unsigned quality;
 	ToMultisampling(multisampling, type, quality);
@@ -370,17 +366,7 @@ bool Engine::BeginScene()
 		return false;
 	}
 
-	return true;	
-}
-
-void precision_sleep(double timeout)
-{
-	double startTime = lsl::GetTimeDbl();
-	while (lsl::GetTimeDbl() - startTime < timeout)
-	{
-		//for (int i = 0; i < 500; ++i)
-		//	YieldProcessor();
-	}
+	return true;
 }
 
 bool Engine::EndScene()
@@ -415,18 +401,18 @@ void Engine::GPUSync()
 		// Force the driver to execute the commands from the command buffer.
 		// Empty the command buffer and wait until the GPU is idle.
 		unsigned numberOfPixelsDrawn;
-		while(S_FALSE == _d3dQueryBuf[1]->GetData( &numberOfPixelsDrawn, 
+		while(S_FALSE == _d3dQueryBuf[1]->GetData( &numberOfPixelsDrawn,
 			sizeof(DWORD), D3DGETDATA_FLUSH ))
 		{}
-	}	
+	}
 #else
 	if (IsReset() && _d3dQueryEvent)
-	{	
+	{
 		while (_d3dQueryEvent->GetData(NULL, 0, D3DGETDATA_FLUSH) == S_FALSE);
 
 		//переводим событие в состояние ресурса (issued state), как только буффер команд станет пустым событие самой перейдет в сигнальное состояние, это может произойти во время renderTime (время цпу), в результате даже если буффер снова заполнится то мы не будем ждать на цикле выше. Т.е. мы всегда имеем запас в кадр. Однако на экране будет лаг в один кадр.
 		_d3dQueryEvent->Issue(D3DISSUE_END);
-	}	
+	}
 #endif
 }
 
@@ -514,14 +500,14 @@ void Engine::RenderPlanePT()
 		BeginDraw();
 		_meshPlanePT.Draw();
 	}
-	while (!EndDraw(true));	
+	while (!EndDraw(true));
 }
 
-void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, float turnAngle, const D3DXVECTOR3* fixDirection, const D3DXMATRIX& localMat)
+void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, float turnAngle, const D3DXVECTOR3* fixDirection, const glm::mat4& localMat)
 {
 	const CameraCI& camera = GetContext().GetCamera();
 
-	D3DXMATRIX rotMat;
+	glm::mat4 rotMat;
 	//Направленный спрайт
 	if (fixDirection)
 	{
@@ -532,7 +518,7 @@ void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, fl
 		switch (GetContext().GetCamera().GetDesc().style)
 		{
 		case csPerspective:
-			viewVec = pos - camera.GetDesc().pos; 
+			viewVec = pos - camera.GetDesc().pos;
 			D3DXVec3Normalize(&viewVec, &viewVec);
 			break;
 
@@ -555,22 +541,21 @@ void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, fl
 	else
 	{
 		rotMat = camera.GetInvView();
-		rotMat._41 = rotMat._42 = rotMat._43 = 0.0f;
+		rotMat[0][3] = rotMat[1][3] = rotMat[2][3] = 0.0f;
 
 		//Локальный поворот спрайта (только для не направленных)
-		D3DXMATRIX rotZ;
-		D3DXMatrixRotationAxis(&rotZ, &camera.GetDesc().dir, turnAngle);
+		glm::mat4 rotZ = glm::transpose(glm::rotate(turnAngle, Vec3DxToGlm(camera.GetDesc().dir)));
 		rotMat *= rotZ;
 	}
 
 	//Результирующая матрица
-	D3DXMATRIX worldMat = localMat;
-	MatrixScale(scale, worldMat);
+	glm::mat4 worldMat = localMat;
+	MatrixScale(scale.x, scale.y, scale.z, worldMat);
 	worldMat *= rotMat;
-	MatrixSetTranslation(pos, worldMat);
+	MatrixSetTranslation(pos.x, pos.y, pos.z, worldMat);
 
 	GetContext().SetWorldMat(worldMat);
-	
+
 	RenderPlanePT();
 }
 
@@ -590,7 +575,7 @@ void Engine::RenderScreenQuad(bool disableZBuf)
 		_meshScreenQuad.Draw();
 	}
 	while (!EndDraw(true));
-	
+
 	GetContext().RestoreRenderState(rsCullMode);
 
 	if (!disableZBuf)
@@ -711,9 +696,6 @@ void Engine::ToMultisampling(unsigned level, D3DMULTISAMPLE_TYPE& type, unsigned
 	}
 }
 
-
-
-
 void RenderStateManager::Apply(Engine& engine)
 {
 	for (iterator iter = begin(); iter != end(); ++iter)
@@ -726,9 +708,6 @@ void RenderStateManager::UnApply(Engine& engine)
 		engine.GetContext().RestoreRenderState(iter->first);
 }
 
-
-
-
 void SamplerStateManager::Apply(Engine& engine, DWORD stage)
 {
 	for (iterator iter = begin(); iter != end(); ++iter)
@@ -740,9 +719,6 @@ void SamplerStateManager::UnApply(Engine& engine, DWORD stage)
 	for (iterator iter = begin(); iter != end(); ++iter)
 		engine.GetContext().RestoreSamplerState(stage, iter->first);
 }
-
-
-
 
 DWORD TextureStageStateManager::Get(TextureStageState state) const
 {
@@ -780,7 +756,7 @@ TextureStageStateManager::iterator TextureStageStateManager::end()
 
 void TextureStageStateManager::Apply(Engine& engine, DWORD stage)
 {
-	for (iterator iter = begin(); iter != end(); ++iter)		
+	for (iterator iter = begin(); iter != end(); ++iter)
 		engine.GetContext().SetTextureStageState(stage, iter->first, iter->second);
 }
 

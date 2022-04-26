@@ -36,11 +36,11 @@ public:
 	static std::pair<GraphManager::GraphOption, Quality> cEnvGraphMap[];
 private:
 	World* _world;
-	
+
 	Wheater _wheater;
 	WorldType _worldType;
 	SyncFrameRate _syncFrameRate;
-	
+
 	Quality _shadowQuality;
 	Quality _lightQuality;
 	Quality _postEffQuality;
@@ -53,17 +53,17 @@ private:
 
 	GraphManager::LightSrc* _sun;
 	mutable D3DXVECTOR3 _sunPos;
-	mutable D3DXQUATERNION _sunRot;
+	mutable glm::quat _sunRot;
 
 	GraphManager::LightSrc* _lamp[4];
 	D3DXVECTOR3 _lampPos[4];
-	D3DXQUATERNION _lampRot[4];
+	glm::quat _lampRot[4];
 	D3DXCOLOR _lampColor[4];
 	bool _lampSwitchOn[4];
 
 	bool _enableRain;
 	bool _isoRain;
-	MapObj* _rain;	
+	MapObj* _rain;
 
 	void CreateRain();
 	void FreeRain();
@@ -71,7 +71,7 @@ private:
 
 	void EnableSun(bool enable, bool enableShadow = true);
 	void EnableLamp(bool enable, int index, float farDist = 20.0f);
-	void EnableLamps(bool enable);	
+	void EnableLamps(bool enable);
 	void EnableWater(bool enable);
 	void EnablePlanarRefl(bool enable);
 	void EnableGrass(bool enable);
@@ -85,7 +85,7 @@ private:
 
 	void ApplyCloudColor();
 	void ApplyWheater();
-	void ApplyWorldType();	
+	void ApplyWorldType();
 
 	GraphManager* GetGraph();
 	CameraManager* GetCamera();
@@ -102,14 +102,14 @@ public:
 	const D3DXVECTOR3& GetSunPos() const;
 	void SetSunPos(const D3DXVECTOR3& value);
 
-	const D3DXQUATERNION& GetSunRot() const;
-	void SetSunRot(const D3DXQUATERNION& value);
+	const glm::quat& GetSunRot() const;
+	void SetSunRot(const glm::quat& value);
 
 	const D3DXVECTOR3& GetLampPos(int index) const;
 	void SetLampPos(const D3DXVECTOR3& value, int index);
 
-	const D3DXQUATERNION& GetLampRot(int index) const;
-	void SetLampRot(const D3DXQUATERNION& value, int index);
+	const glm::quat& GetLampRot(int index) const;
+	void SetLampRot(const glm::quat& value, int index);
 
 	const D3DXCOLOR& GetLampColor(int index) const;
 	void SetLampColor(const D3DXCOLOR& value, int index);
@@ -119,7 +119,7 @@ public:
 
 	Wheater GetWheater() const;
 	void SetWheater(Wheater value);
-	
+
 	WorldType GetWorldType() const;
 	void SetWorldType(WorldType value);
 

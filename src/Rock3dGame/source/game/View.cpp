@@ -8,7 +8,7 @@ namespace r3d
 
 namespace game
 {
-	
+
 View::View(World* world, const Desc& desc): _world(world), _desc(desc)
 {
 }
@@ -46,7 +46,7 @@ void View::Reset(const Desc& desc2)
 		if (_world->GetGraph()->FindNearMode(resolution, mode))
 			_desc.resolution = resolution = lsl::Point(mode.width, mode.height);
 	}
-	
+
 	if (_world->GetEdit() == NULL)
 	{
 		SetWindowLong(_desc.handle, GWL_STYLE, _desc.fullscreen ? WS_POPUP | WS_VISIBLE : WS_OVERLAPPEDWINDOW | WS_VISIBLE);
@@ -90,11 +90,11 @@ bool View::OnMouseMoveEvent(const Point& coord, bool shift, bool ctrl)
 	_mMove.projCoord = ViewToProj(_mMove.coord);
 
 	_mMove.click = _mClick;
-	_world->GetCamera()->ScreenToRay(coord, _mMove.scrRayPos, _mMove.scrRayVec);	
+	_world->GetCamera()->ScreenToRay(coord, _mMove.scrRayPos, _mMove.scrRayVec);
 
 	return _world->OnMouseMoveEvent(_mMove);
 }
-	
+
 bool View::OnKeyEvent(unsigned key, KeyState state, bool repeat)
 {
 	if (!_world->GetGraph())
@@ -130,30 +130,30 @@ lsl::Point View::GetWndSize() const
 	return lsl::Point(rc.right - rc.left, rc.bottom - rc.top);
 }
 
-D3DXVECTOR2 View::GetVPSize() const
+glm::vec2 View::GetVPSize() const
 {
 	graph::Engine& engine = _world->GetGraph()->GetEngine();
 
-	return D3DXVECTOR2(static_cast<float>(engine.GetParams().BackBufferWidth), static_cast<float>(engine.GetParams().BackBufferHeight));
+	return glm::vec2(static_cast<float>(engine.GetParams().BackBufferWidth), static_cast<float>(engine.GetParams().BackBufferHeight));
 }
 
 lsl::Point View::ScreenToView(const lsl::Point& point)
 {
 	lsl::Point wndRc = GetWndSize();
 	const D3DPRESENT_PARAMETERS& params = _world->GetGraph()->GetEngine().GetParams();
-	D3DXVECTOR2 wndSize = D3DXVECTOR2(static_cast<float>(wndRc.x), static_cast<float>(wndRc.y));	
+	glm::vec2 wndSize = glm::vec2(static_cast<float>(wndRc.x), static_cast<float>(wndRc.y));
 
-	D3DXVECTOR2 viewSize = GetVPSize();
+	glm::vec2 viewSize = GetVPSize();
 
 	return Point(static_cast<int>(Round(point.x * viewSize.x / wndSize.x)), static_cast<int>(Round(point.y * viewSize.y / wndSize.y)));
 }
 
-D3DXVECTOR2 View::ViewToProj(const lsl::Point& point)
+glm::vec2 View::ViewToProj(const lsl::Point& point)
 {
-	return graph::CameraCI::ViewToProj(D3DXVECTOR2(static_cast<float>(point.x), static_cast<float>(point.y)), GetVPSize());
+	return graph::CameraCI::ViewToProj(glm::vec2(static_cast<float>(point.x), static_cast<float>(point.y)), GetVPSize());
 }
 
-D3DXVECTOR2 View::ProjToView(const D3DXVECTOR2& coord)
+glm::vec2 View::ProjToView(const glm::vec2& coord)
 {
 	return graph::CameraCI::ProjToView(coord, GetVPSize());
 }
@@ -180,7 +180,7 @@ void View::SetWindowSize(HWND handle, const lsl::Point& size, bool fullScreen)
 	if (!fullScreen)
 	{
 		WINDOWINFO wndInfo;
-		GetWindowInfo(handle, &wndInfo);		
+		GetWindowInfo(handle, &wndInfo);
 
 		RECT rect;
 		rect.left = rect.top = 0;

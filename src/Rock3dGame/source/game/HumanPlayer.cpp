@@ -8,7 +8,7 @@ namespace r3d
 
 namespace game
 {
-	
+
 HumanPlayer::HumanPlayer(Player* player): _player(player), _curWeapon(0)
 {
 	LSL_ASSERT(_player);
@@ -33,7 +33,7 @@ HumanPlayer::~HumanPlayer()
 }
 
 HumanPlayer::Control::Control(HumanPlayer* owner): _owner(owner), _accelDown(false), _backDown(false), _leftDown(false), _rightDown(false)
-{	
+{
 }
 
 bool HumanPlayer::Control::OnHandleInput(const InputMessage& msg)
@@ -48,7 +48,7 @@ bool HumanPlayer::Control::OnHandleInput(const InputMessage& msg)
 			_backDown = msg.state == lsl::ksDown;
 
 		if (msg.action == gaWheelLeft)
-			_leftDown = msg.state == lsl::ksDown;	
+			_leftDown = msg.state == lsl::ksDown;
 		if (msg.action == gaWheelRight)
 			_rightDown = msg.state == lsl::ksDown;
 	}
@@ -57,7 +57,7 @@ bool HumanPlayer::Control::OnHandleInput(const InputMessage& msg)
 
 	if (player->IsBlock())
 		return false;
-	
+
 	game::MapObj* mapObj = _owner->_player->GetCar().mapObj;
 	if (mapObj == NULL)
 		return false;
@@ -126,7 +126,7 @@ bool HumanPlayer::Control::OnHandleInput(const InputMessage& msg)
 }
 
 void HumanPlayer::Control::OnInputProgress(float deltaTime)
-{	
+{
 	ControlManager* control = _owner->GetRace()->GetWorld()->GetControl();
 	Player* player = _owner->_player;
 	game::MapObj* mapObj = player->GetCar().mapObj;

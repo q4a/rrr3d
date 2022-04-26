@@ -25,7 +25,7 @@ public:
 	static const std::string cStateStr[cStateEnd];
 private:
 	AchievmentModel* _owner;
-	unsigned _classId;	
+	unsigned _classId;
 	State _state;
 	int _price;
 	std::string _name;
@@ -131,7 +131,7 @@ public:
 	virtual ~AchievmentCondition();
 
 	virtual void SaveTo(lsl::SWriter* writer);
-	virtual void LoadFrom(lsl::SReader* reader);	
+	virtual void LoadFrom(lsl::SReader* reader);
 
 	void CompleteIteration();
 	void Complete();
@@ -147,7 +147,7 @@ public:
 	int iterCount() const;
 	void iterCount(int value);
 
-	int reward() const;	
+	int reward() const;
 	void reward(int value);
 };
 
@@ -157,7 +157,7 @@ private:
 	GameObject::BonusType _bonusType;
 	int _bonusCount;
 	int _bonusTotalCount;
-protected:	
+protected:
 	virtual void OnResetRaceState();
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:
@@ -172,13 +172,13 @@ public:
 
 class AchievmentConditionSpeedKill: public AchievmentCondition
 {
-private:	
+private:
 	int _killsNum;
 	float _killsTime;
 
 	float _time;
 	int _curKills;
-protected:	
+protected:
 	virtual void OnResetRaceState();
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 	virtual void OnProgress(float deltaTime);
@@ -187,7 +187,7 @@ public:
 	virtual ~AchievmentConditionSpeedKill();
 
 	virtual void SaveTo(lsl::SWriter* writer);
-	virtual void LoadFrom(lsl::SReader* reader);	
+	virtual void LoadFrom(lsl::SReader* reader);
 
 	int killsNum() const;
 	void killsNum(int value);
@@ -198,17 +198,17 @@ public:
 
 class AchievmentConditionRaceKill: public AchievmentCondition
 {
-private:	
+private:
 	int _killsNum;
 	int _curKills;
-protected:	
+protected:
 	virtual void OnResetRaceState();
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:
 	AchievmentConditionRaceKill(const Desc& desc);
 
 	virtual void SaveTo(lsl::SWriter* writer);
-	virtual void LoadFrom(lsl::SReader* reader);	
+	virtual void LoadFrom(lsl::SReader* reader);
 
 	int killsNum() const;
 	void killsNum(int value);
@@ -216,17 +216,17 @@ public:
 
 class AchievmentConditionLapPass: public AchievmentCondition
 {
-private:		
+private:
 	int _place;
 	unsigned _lapCount;
-protected:	
+protected:
 	virtual void OnResetRaceState();
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:
 	AchievmentConditionLapPass(const Desc& desc);
 
 	virtual void SaveTo(lsl::SWriter* writer);
-	virtual void LoadFrom(lsl::SReader* reader);	
+	virtual void LoadFrom(lsl::SReader* reader);
 
 	int place() const;
 	void place(int value);
@@ -234,9 +234,9 @@ public:
 
 class AchievmentConditionDodge: public AchievmentCondition
 {
-private:		
+private:
 	int _damage;
-protected:	
+protected:
 	virtual void OnResetRaceState();
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:
@@ -245,9 +245,9 @@ public:
 
 class AchievmentConditionLapBreak: public AchievmentCondition
 {
-private:		
+private:
 	int _place;
-protected:	
+protected:
 	virtual void OnResetRaceState();
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:
@@ -256,9 +256,9 @@ public:
 
 class AchievmentConditionSurvival: public AchievmentCondition
 {
-private:		
+private:
 	int _curDeaths;
-protected:	
+protected:
 	virtual void OnResetRaceState();
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:
@@ -267,9 +267,9 @@ public:
 
 class AchievmentConditionFirstKill: public AchievmentCondition
 {
-private:		
+private:
 	int _curKills;
-protected:	
+protected:
 	virtual void OnResetRaceState();
 	virtual void OnProcessEvent(unsigned id, EventData* data);
 public:
@@ -305,7 +305,7 @@ public:
 	static const std::string cDoubleKill;
 	static const std::string cTripleKill;
 	static const std::string cDevastator;
-	static const std::string cMegaRacer;	
+	static const std::string cMegaRacer;
 	static const std::string cBulletProf;
 	static const std::string cBreakRacer;
 	static const std::string cMedicate;
@@ -338,7 +338,7 @@ private:
 	int _points;
 
 	void GenerateLib();
-	void LoadLib();	
+	void LoadLib();
 protected:
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
@@ -347,20 +347,20 @@ public:
 	~AchievmentModel();
 
 	void SaveLib();
-	void ResetRaceState();	
+	void ResetRaceState();
 
 	Achievment* Add(unsigned classId, const std::string& name);
 	template<class _Type> _Type* Add(const std::string& name);
 	void Delete(const std::string id);
 	void Delete(Achievment* item);
-	void DeleteAll();	
+	void DeleteAll();
 	Achievment* Get(const std::string& name) const;
 
 	AchievmentCondition* AddCond(unsigned classId, const std::string& name);
 	template<class _Type> _Type* AddCond(const std::string& name);
 	void DeleteCond(const std::string id);
 	void DeleteCond(Achievment* item);
-	void DeleteAllCond();	
+	void DeleteAllCond();
 	AchievmentCondition* GetCond(const std::string& name);
 
 	void AddPoints(int value);
@@ -378,9 +378,6 @@ public:
 	Classes& classes();
 	CondClasses& condClasses();
 };
-
-
-
 
 template<class _Type> _Type* AchievmentModel::Add(const std::string& name)
 {

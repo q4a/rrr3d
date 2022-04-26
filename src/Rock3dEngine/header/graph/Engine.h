@@ -26,7 +26,7 @@ private:
 	IDirect3DSwapChain9* _swapChain;
 	IDirect3DSurface9* _dsSurf;
 	IDirect3DSurface9* _backBuff;
-	_VideoResList _videoResList;	
+	_VideoResList _videoResList;
 
 	//Текущее состояние устройства
 	volatile bool _reset;
@@ -97,10 +97,10 @@ public:
 	void EndBackBufOut();
 	IDirect3DSurface9* GetDSSurf();
 
-	void BeginMeshPT();	
+	void BeginMeshPT();
 	void EndMeshPT();
 	void RenderPlanePT();
-	void RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, float turnAngle, const D3DXVECTOR3* fixDirection, const D3DXMATRIX& localMat);
+	void RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, float turnAngle, const D3DXVECTOR3* fixDirection, const glm::mat4& localMat);
 
 	void RenderScreenQuad(bool disableZBuf = false);
 
@@ -113,7 +113,7 @@ public:
 
 	static bool d3dxUse();
 	static void d3dxUse(bool value);
-	
+
 	RenderDriver& GetDriver() const;
 	const D3DPRESENT_PARAMETERS& GetParams() const;
 
@@ -143,7 +143,7 @@ class TextureStageStateManager
 private:
 	typedef std::map<TextureStageState, DWORD> _States;
 public:
-	typedef _States::iterator iterator;	
+	typedef _States::iterator iterator;
 private:
 	_States _states;
 public:

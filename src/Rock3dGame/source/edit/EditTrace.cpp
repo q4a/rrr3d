@@ -4,7 +4,6 @@
 #include "edit\Trace.h"
 #include "edit\Edit.h"
 
-
 namespace r3d
 {
 
@@ -35,9 +34,6 @@ void WayPoint::SetSize(float value)
 	GetInst()->SetSize(value);
 }
 
-
-
-
 WayNode::WayNode(Inst* inst): ExternImpl<game::WayNode>(inst)
 {
 }
@@ -47,9 +43,6 @@ IWayPathRef WayNode::GetPath()
 	WayPath* path = GetInst()->GetPath() ? new WayPath(GetInst()->GetPath()) : 0;
 	return IWayPathRef(path, path);
 }
-
-
-
 
 WayPath::WayPath(Inst* inst): ExternImpl<game::WayPath>(inst)
 {
@@ -80,9 +73,6 @@ void WayPath::Next(IWayNodeRef& ref)
 	ref.Reset(node, node);
 }
 
-
-
-
 Trace::Trace(Inst* inst, Edit* edit): ExternImpl<game::Trace>(inst), _edit(edit), _enableVisualize(false)
 {
 	game::Trace& trace = *GetInst();
@@ -105,7 +95,7 @@ Trace::NodeControl::NodeControl(Trace* trace, game::WayPoint* wayPoint, const Co
 
 	_wayPoint->AddRef();
 }
-	
+
 Trace::NodeControl::~NodeControl()
 {
 	FreeLink();
@@ -137,7 +127,7 @@ void Trace::NodeControl::FreeLink()
 			_trace->_traceGfx->SetPointLink(0);
 		lsl::SafeDelete(_link);
 	}
-	
+
 }
 
 bool Trace::NodeControl::CreateWay(game::WayNode* curNode, game::WayPoint* point, game::WayNode* node)
@@ -271,12 +261,12 @@ void Trace::NodeControl::SetPos(const D3DXVECTOR3& value)
 	_wayPoint->SetPos(value);
 }
 
-D3DXQUATERNION Trace::NodeControl::GetRot() const
+glm::quat Trace::NodeControl::GetRot() const
 {
 	return NullQuaternion;
 }
 
-void Trace::NodeControl::SetRot(const D3DXQUATERNION& value)
+void Trace::NodeControl::SetRot(const glm::quat& value)
 {
 	//Nothing
 }
@@ -308,7 +298,7 @@ D3DXVECTOR3 Trace::NodeControl::GetUp() const
 	return ZVector;
 }
 
-D3DXMATRIX Trace::NodeControl::GetMat() const
+glm::mat4 Trace::NodeControl::GetMat() const
 {
 	return BuildWorldMatrix(GetPos(), GetScale(), GetRot());
 }
@@ -321,8 +311,8 @@ AABB Trace::NodeControl::GetAABB() const
 game::WayPoint* Trace::PickInstPoint(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec)
 {
 	float minDist = 0;
-	game::WayPoint* point = 0;	
-	
+	game::WayPoint* point = 0;
+
 	for (Inst::Points::const_iterator iter = GetInst()->GetPoints().begin(); iter != GetInst()->GetPoints().end(); ++iter)
 	{
 		float t;
@@ -441,7 +431,7 @@ IWayPointRef Trace::FirstPoint()
 void Trace::NextPoint(IWayPointRef& ref)
 {
 	WayPoint* point = ref->GetImpl<WayPoint>();
-	
+
 	if (++(point->traceIter) != GetInst()->GetPoints().end())
 	{
 		WayPoint* newPoint = new WayPoint(static_cast<game::WayPoint*>(*point->traceIter));
@@ -468,7 +458,7 @@ IWayPathRef Trace::FirstPath()
 void Trace::NextPath(IWayPathRef& ref)
 {
 	WayPath* path = ref->GetImpl<WayPath>();
-	
+
 	if (++(path->traceIter) != GetInst()->GetPathes().end())
 	{
 		WayPath* newPath = new WayPath(static_cast<game::WayPath*>(*path->traceIter));
@@ -489,7 +479,7 @@ void Trace::EnableVisualize(bool value)
 	if (_enableVisualize != value)
 	{
 		if (_enableVisualize)
-			_edit->GetWorld()->GetGraph()->RemoveScNode(_traceGfx);	
+			_edit->GetWorld()->GetGraph()->RemoveScNode(_traceGfx);
 		_enableVisualize = value;
 		if (_enableVisualize)
 			_edit->GetWorld()->GetGraph()->InsertScNode(_traceGfx);

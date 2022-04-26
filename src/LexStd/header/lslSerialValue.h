@@ -23,17 +23,17 @@ template<class _Value> struct SerialValue
 	}
 };
 
-template<> struct SerialValue<D3DXVECTOR2>
+template<> struct SerialValue<glm::vec2>
 {
-	typedef D3DXVECTOR2 _Value;
+	typedef glm::vec2 _Value;
 
 	static void Write(SWriter* writer, const char* name, const _Value& value)
 	{
-		writer->WriteValue(name, value, 2);
+		writer->WriteValue(name, reinterpret_cast<const float *>(&value.x), 2);
 	}
 	static SReader* Read(SReader* reader, const char* name, _Value& value)
 	{
-		return reader->ReadValue(name, value, 2);
+		return reader->ReadValue(name, reinterpret_cast<float *>(&value.x), 2);
 	}
 };
 
@@ -65,17 +65,17 @@ template<> struct SerialValue<D3DXVECTOR4>
 	}
 };
 
-template<> struct SerialValue<D3DXQUATERNION>
+template<> struct SerialValue<glm::quat>
 {
-	typedef D3DXQUATERNION _Value;
+	typedef glm::quat _Value;
 
 	static void Write(SWriter* writer, const char* name, const _Value& value)
 	{
-		writer->WriteValue(name, value, 4);
+		writer->WriteValue(name, reinterpret_cast<const float *>(&value.x), 4);
 	}
 	static SReader* Read(SReader* reader, const char* name, _Value& value)
 	{
-		return reader->ReadValue(name, value, 4);
+		return reader->ReadValue(name, reinterpret_cast<float *>(&value.x), 4);
 	}
 };
 
@@ -179,9 +179,9 @@ template<> struct SerialValue<ValueRange<D3DXVECTOR3>>
 	}
 };
 
-template<> struct SerialValue<ValueRange<D3DXQUATERNION>>
+template<> struct SerialValue<ValueRange<glm::quat>>
 {
-	typedef D3DXQUATERNION _Value;
+	typedef glm::quat _Value;
 	typedef ValueRange<_Value> MyRange;
 	typedef SerialValue<Point2U> MyPoint2U;
 
@@ -206,9 +206,6 @@ template<> struct SerialValue<ValueRange<D3DXQUATERNION>>
 		return child;
 	}
 };
-
-
-
 
 inline lsl::SWriter* SWriteEnum(lsl::SWriter* writer, const char* name, int enumVal, const char* enumStr[], int enumEnd)
 {
@@ -268,7 +265,7 @@ template<class _Value> SWriter* SWriteValueRange(SWriter* writer, const char* na
 	typedef SerialValue<_Value> MyVal;
 
 	SWriter* child = writer->NewDummyNode(name);
-		
+
 	MyVal::Write(child, "min", value.GetMin());
 	MyVal::Write(child, "max", value.GetMax());
 	child->WriteValue("distrib", MyRange::cDistributionStr[value.GetDistrib()]);
@@ -286,12 +283,12 @@ template<class _Value> SReader* SReadValueRange(SReader* reader, const char* nam
 	{
 		_Value tmp;
 		std::string str;
-		
+
 		if (MyVal::Read(child, "min", tmp))
 			value.SetMin(tmp);
 		if (MyVal::Read(child, "max", tmp))
 			value.SetMax(tmp);
-		
+
 		if (child->ReadValue("distrib", str))
 		{
 			int res = lsl::ConvStrToEnum(str.c_str(), MyRange::cDistributionStr, MyRange::cDistributionEnd);

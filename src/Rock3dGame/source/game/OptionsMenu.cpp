@@ -71,8 +71,8 @@ GameFrame::GameFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent):
 		_itemsBg[i] = menu->CreatePlane(_grid, NULL, "GUI\\labelBg1.png", true, IdentityVec2, gui::Material::bmTransparency);
 		_itemsBg[i]->SetAlign(gui::Widget::waLeft);
 	}
-	
-	for (int i = 0; i < cLabelEnd; ++i)	
+
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(GetString(strLabels[i]), _itemsBg[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 
 	for (int i = 0; i < cStepperEnd; ++i)
@@ -84,14 +84,14 @@ GameFrame::GameFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent):
 
 	_downArrow = menu->CreateArrow(root(), this);
 	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
 	_upArrow->SetRot(D3DX_PI/2);
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 
 	LoadCfg();
@@ -114,15 +114,15 @@ GameFrame::~GameFrame()
 	menu()->ReleaseWidget(_grid);
 }
 
-void GameFrame::AdjustGrid(const D3DXVECTOR2& vpSize)
+void GameFrame::AdjustGrid(const glm::vec2& vpSize)
 {
 	_grid->SetPos(-235.0f, -178.0f);
-	_grid->cellSize(D3DXVECTOR2(0, 50.0f));
+	_grid->cellSize(glm::vec2(0, 50.0f));
 
 	int i = 0;
 	int cellsOnLine = 1;
 	int cellsGrid = 7;
-	
+
 	for (gui::Widget::Children::const_iterator iter = _grid->GetChildren().begin(); iter != _grid->GetChildren().end(); ++iter)
 	{
 		gui::Widget* child = *iter;
@@ -170,9 +170,9 @@ void GameFrame::ScrollGrid(int step)
 }
 
 void GameFrame::LoadCfg()
-{	
-	menu()->SetStepperEnabled(_steppers[dbDiff], menu()->enabledOptionDiff());	
-	menu()->SetStepperEnabled(_steppers[dbLapsCount], menu()->enabledLapsCount());	
+{
+	menu()->SetStepperEnabled(_steppers[dbDiff], menu()->enabledOptionDiff());
+	menu()->SetStepperEnabled(_steppers[dbLapsCount], menu()->enabledLapsCount());
 	menu()->SetStepperEnabled(_steppers[dbUpgradeMaxLevel], menu()->EnabledOptionUpgradeMaxLevel());
 	menu()->SetStepperEnabled(_steppers[dbWeaponMaxLevel], menu()->EnabledOptionWeaponMaxLevel());
 	menu()->SetStepperEnabled(_steppers[dbMaxPlayers], menu()->enabledMaxPlayers());
@@ -192,7 +192,7 @@ void GameFrame::LoadCfg()
 	_steppers[dbMaxComputers]->SetSelIndex(menu()->maxComputers());
 	_steppers[dbSpringBorders]->SetSelIndex(menu()->springBorders());
 	_steppers[dbEnableMineBug]->SetSelIndex(menu()->enableMineBug());
-	_steppers[dbDisableVideo]->SetSelIndex(menu()->GetDisableVideo());	
+	_steppers[dbDisableVideo]->SetSelIndex(menu()->GetDisableVideo());
 }
 
 void GameFrame::OnShow(bool value)
@@ -204,7 +204,7 @@ void GameFrame::OnShow(bool value)
 	}
 }
 
-void GameFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void GameFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	AdjustGrid(vpSize);
 
@@ -225,7 +225,7 @@ void GameFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 }
 
 void GameFrame::OnInvalidate()
-{	
+{
 }
 
 bool GameFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
@@ -273,7 +273,7 @@ bool GameFrame::ApplyChanges()
 			menu()->GetGame()->SetCameraDistance(1.0f + val * 0.25f);
 			break;
 
-		case dbUpgradeMaxLevel:			
+		case dbUpgradeMaxLevel:
 			menu()->SetUpgradeMaxLevel(val);
 			break;
 
@@ -307,11 +307,8 @@ bool GameFrame::ApplyChanges()
 }
 
 void GameFrame::CancelChanges()
-{	
+{
 }
-
-
-
 
 MediaFrame::MediaFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu)
 {
@@ -375,7 +372,7 @@ MediaFrame::MediaFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent
 	}
 
 	gui::Widget* labelsParent[cLabelEnd] = {root(), root(), root(), root(), root(), root(), root(), root()};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(GetString(strLabels[i]), labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 
 	for (int i = 0; i < cStepperEnd; ++i)
@@ -407,7 +404,7 @@ void MediaFrame::LoadCfg()
 	_steppers[dbShadow]->SetSelIndex(menu()->GetEnv()->GetShadowQuality());
 	_steppers[dbEnv]->SetSelIndex(menu()->GetEnv()->GetEnvQuality());
 	_steppers[dbLight]->SetSelIndex(menu()->GetEnv()->GetLightQuality());
-	_steppers[dbPostProcess]->SetSelIndex(menu()->GetEnv()->GetPostEffQuality());	
+	_steppers[dbPostProcess]->SetSelIndex(menu()->GetEnv()->GetPostEffQuality());
 	_steppers[dbWindowMode]->SetSelIndex(menu()->GetFullScreen() == false);
 }
 
@@ -419,7 +416,7 @@ void MediaFrame::OnShow(bool value)
 	}
 }
 
-void MediaFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void MediaFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	for (int i = 0; i < cLabelEnd; ++i)
 	{
@@ -438,7 +435,7 @@ void MediaFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 }
 
 void MediaFrame::OnInvalidate()
-{	
+{
 }
 
 bool MediaFrame::ApplyChanges()
@@ -494,9 +491,6 @@ void MediaFrame::CancelChanges()
 {
 }
 
-
-
-
 NetworkTab::NetworkTab(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu)
 {
 	D3DXCOLOR color1(0xffafafaf);
@@ -523,8 +517,8 @@ NetworkTab::NetworkTab(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent
 		_itemsBg[i] = menu->CreatePlane(root(), NULL, "GUI\\labelBg1.png", true, IdentityVec2, gui::Material::bmTransparency);
 		_itemsBg[i]->SetAlign(gui::Widget::waLeft);
 	}
-	
-	for (int i = 0; i < cLabelEnd; ++i)	
+
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 
 	for (int i = 0; i < cStepperEnd; ++i)
@@ -589,7 +583,7 @@ void NetworkTab::OnShow(bool value)
 		_optionsMenu->RegNavElements(_steppers, cStepperEnd, _volumeBars, cVolumeBarEnd);
 }
 
-void NetworkTab::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void NetworkTab::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	for (int i = 0; i < cLabelEnd; ++i)
 	{
@@ -613,12 +607,12 @@ void NetworkTab::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 }
 
 void NetworkTab::OnInvalidate()
-{	
+{
 }
 
 bool NetworkTab::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 {
-	for (int i = 0; i < cVolumeBarEnd; ++i)		
+	for (int i = 0; i < cVolumeBarEnd; ++i)
 		if (sender == _volumeBars[i])
 		{
 			ApplyVolume(false);
@@ -668,9 +662,6 @@ void NetworkTab::CancelChanges()
 	ApplyVolume(true);
 }
 
-
-
-
 ControlsFrame::ControlsFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu), _gridScroll(0)
 {
 	D3DXCOLOR color1(0xffafafaf);
@@ -680,14 +671,14 @@ ControlsFrame::ControlsFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* 
 
 	_downArrow = menu->CreateArrow(root(), this);
 	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
 	_upArrow->SetRot(D3DX_PI/2);
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 
 	for (int i = 0; i < cControllerTypeEnd; ++i)
@@ -710,14 +701,14 @@ ControlsFrame::~ControlsFrame()
 	menu()->ReleaseWidget(_grid);
 }
 
-void ControlsFrame::AdjustGrid(const D3DXVECTOR2& vpSize)
+void ControlsFrame::AdjustGrid(const glm::vec2& vpSize)
 {
 	_grid->SetPos(-235.0f, -130.0f);
 
 	int i = 0;
 	int cellsOnLine = 1;
 	int cellsGrid = 6;
-	
+
 	for (InputBoxes::const_iterator iter = _boxes.begin(); iter != _boxes.end(); ++iter)
 	{
 		const InputBox& box = *iter;
@@ -739,7 +730,7 @@ void ControlsFrame::AdjustGrid(const D3DXVECTOR2& vpSize)
 			box.keys[0]->SetEnabled(false);
 			box.keys[1]->SetEnabled(false);
 		}
-		
+
 		box.sprite->SetPos(0, 0);
 		box.label->SetPos(-box.sprite->GetSize().x/2 + 35, 0);
 
@@ -764,8 +755,8 @@ void ControlsFrame::ScrollGrid(int step)
 }
 
 void ControlsFrame::LoadCfg()
-{		
-	D3DXVECTOR2 cellSize = NullVec2;	
+{
+	glm::vec2 cellSize = NullVec2;
 	unsigned itemCount = 0;
 	InputBoxes::iterator iter = _boxes.begin();
 
@@ -779,16 +770,16 @@ void ControlsFrame::LoadCfg()
 			InputBox newItem;
 			newItem.sprite = menu()->CreatePlane(_grid, NULL, "GUI\\labelBg2.png", true, IdentityVec2, gui::Material::bmTransparency);
 			newItem.label = menu()->CreateLabel("", newItem.sprite, "Small", NullVec2, gui::Text::haLeft, gui::Text::vaCenter, 0xffafafaf);
-			
-			for (int j = 0; j < cControllerTypeEnd; ++j)			
+
+			for (int j = 0; j < cControllerTypeEnd; ++j)
 			{
 				newItem.keys[j] = menu()->CreateMenuButton(svNull, "Small", "GUI\\keyBg.png", "GUI\\keyBgSel.png", newItem.sprite, this, IdentityVec2, gui::Button::bsSimple, clrBlack, Menu::ssButton1);
 				newItem.keys[j]->GetOrCreateTextSelMaterial()->SetColor(clrWhite);
-			}	
+			}
 
 			_boxes.push_back(newItem);
 			item = &_boxes.back();
-			iter = _boxes.end();			
+			iter = _boxes.end();
 		}
 		else
 			++iter;
@@ -797,7 +788,7 @@ void ControlsFrame::LoadCfg()
 
 		for (int j = 0; j < cControllerTypeEnd; ++j)
 		{
-			ControllerType controller = (ControllerType)j;	
+			ControllerType controller = (ControllerType)j;
 			VirtualKey virtualKey = menu()->GetControl()->GetGameKey(controller, action);
 			VirtualKeyInfo info = menu()->GetControl()->GetVirtualKeyInfo(controller, virtualKey);
 
@@ -806,18 +797,18 @@ void ControlsFrame::LoadCfg()
 
 			item->virtualKeys[j] = virtualKey;
 		}
-		
+
 		cellSize = item->sprite->GetSize();
 		++itemCount;
 	}
 
 	while (_boxes.size() > itemCount)
-	{		
+	{
 		menu()->ReleaseWidget(_boxes.back().sprite);
 		_boxes.erase(--_boxes.end());
 	}
 
-	_grid->cellSize(cellSize + D3DXVECTOR2(0, 7.0f));
+	_grid->cellSize(cellSize + glm::vec2(0, 7.0f));
 }
 
 void ControlsFrame::OnShow(bool value)
@@ -842,7 +833,7 @@ void ControlsFrame::OnShow(bool value)
 	}
 }
 
-void ControlsFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void ControlsFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	for (int i = 0; i < cControllerTypeEnd; ++i)
 	{
@@ -894,7 +885,7 @@ bool ControlsFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	{
 		static_cast<gui::Button*>(sender)->Select(true, true);
 
-		menu()->ShowAccept(menu()->GetString("svPressKey"), menu()->GetString("svDeleteKey"), menu()->GetString(svCancel), menu()->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, this, NULL, true, false, true);
+		menu()->ShowAccept(menu()->GetString("svPressKey"), menu()->GetString("svDeleteKey"), menu()->GetString(svCancel), menu()->GetGUI()->GetVPSize()/2.0f, gui::Widget::waCenter, this, NULL, true, false, true);
 	}
 
 	return false;
@@ -929,11 +920,8 @@ bool ControlsFrame::ApplyChanges()
 }
 
 void ControlsFrame::CancelChanges()
-{	
+{
 }
-
-
-
 
 OptionsMenu::OptionsMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msGame)
 {
@@ -957,7 +945,7 @@ OptionsMenu::OptionsMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(m
 	_menuBgMask->GetMaterial().SetColor(D3DXCOLOR(0, 0, 0, 0.8f));
 	_menuBgMask->SetAnchor(gui::Widget::waCenter);
 
-	_menuBg = _menu->CreatePlane(_menuBgMask, this, "GUI\\optionsBg.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_menuBg = _menu->CreatePlane(_menuBgMask, this, "GUI\\optionsBg.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 	_mediaFrame = new MediaFrame(menu, this, _menuBg);
 	_gameFrame = new GameFrame(menu, this, _menuBg);
@@ -965,7 +953,7 @@ OptionsMenu::OptionsMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(m
 	_controlsFrame = new ControlsFrame(menu, this, _menuBg);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_menuBg};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
@@ -1065,11 +1053,12 @@ bool OptionsMenu::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 				message = _menu->GetString("svSyncFrameWarningNeedReload");
 			else
 				message = _menu->GetString("svSyncFrameWarning");
-			_menu->ShowMessage(_menu->GetString(svWarning), message, _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f, this);
+			_menu->ShowMessage(_menu->GetString(svWarning), message, _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2.0f, gui::Widget::waCenter, 0.0f, this);
 		}
 		else if (needReload)
 		{
-			_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintNeedReload), _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f, this);
+			_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintNeedReload), _menu->GetString(svOk),
+			                   _menu->GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f, this);
 		}
 		else
 			_menu->ShowOptions(false);
@@ -1103,7 +1092,7 @@ bool OptionsMenu::OnMouseEnter(gui::Widget* sender, const gui::MouseMove& mMove)
 {
 	if (sender->GetData() != NULL)
 	{
-		gui::Button* button = lsl::StaticCast<gui::Button*>(sender->GetData());		
+		gui::Button* button = lsl::StaticCast<gui::Button*>(sender->GetData());
 		button->Select(true, false);
 
 		gui::Label* label = static_cast<gui::Label*>(button->GetChildren().front());
@@ -1117,7 +1106,7 @@ void OptionsMenu::OnMouseLeave(gui::Widget* sender, bool wasReset)
 {
 	if (sender->GetData() != NULL)
 	{
-		gui::Button* button = lsl::StaticCast<gui::Button*>(sender->GetData());		
+		gui::Button* button = lsl::StaticCast<gui::Button*>(sender->GetData());
 
 		for (int i = 0; i < cStateEnd; ++i)
 			if (button == _stateItems[i])
@@ -1153,7 +1142,7 @@ template<class _T1, class _T2> void OptionsMenu::RegSteppers(lsl::Vector<_T2>& n
 
 			Menu::NavElement navElement2 = {steppers[i - 1]->GetRight(), {steppers[i - 1]->GetLeft(), steppers[i - 1]->GetLeft(), steppers[i - 2]->GetRight(), steppers[i]->GetRight()}, {cVirtualKeyEnd, cVirtualKeyEnd}};
 			navElements.push_back(navElement2);
-		}	
+		}
 
 		if (i + 1 == stepperCount)
 		{
@@ -1242,7 +1231,7 @@ void OptionsMenu::RegNavElements(gui::StepperBox* steppers[], int stepperCount, 
 		{
 			Menu::NavElement navElement = {_stateItems[i - 1], {_menuItems[miApply], _menuItems[miBack], _stateItems[i - 2], _stateItems[i]}, {cVirtualKeyEnd, cVirtualKeyEnd}};
 			navElements.push_back(navElement);
-		}	
+		}
 
 		if (i + 1 == cStateEnd)
 		{
@@ -1263,7 +1252,7 @@ void OptionsMenu::RegNavElements(gui::StepperBox* steppers[], int stepperCount, 
 	}
 	{
 		Menu::NavElement navElement = {_menuItems[miApply], {_menuItems[miBack], _stateItems[0], lastStepperLeft, firstStepperLeft}, {cVirtualKeyEnd, cVirtualKeyEnd}};
-		navElements.push_back(navElement);		
+		navElements.push_back(navElement);
 	}
 
 	gui::Widget* focus = NULL;
@@ -1273,7 +1262,7 @@ void OptionsMenu::RegNavElements(gui::StepperBox* steppers[], int stepperCount, 
 			focus = navElements[i].widget;
 			break;
 		}
-	
+
 	_menu->SetNavElements(_menuItems[miBack], true, &navElements[0], navElements.size());
 	if (focus)
 		focus->SetFocused(true, true);
@@ -1285,7 +1274,7 @@ gui::Button* OptionsMenu::CreateMenuButton(StringValue name, gui::Widget* parent
 }
 
 gui::Button* OptionsMenu::CreateMenuButton2(StringValue name, gui::Widget* parent, gui::Widget::Event* guiEvent)
-{	
+{
 	gui::Button* button = _menu->CreateMenuButton(svNull, "", "GUI\\buttonBg4.png", "GUI\\buttonBgSel4.png", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim, clrWhite,  Menu::ssButton1);
 	button->SetAlign(gui::Widget::waLeft);
 
@@ -1295,7 +1284,7 @@ gui::Button* OptionsMenu::CreateMenuButton2(StringValue name, gui::Widget* paren
 	label->AdjustSizeByText();
 
 	gui::Dummy* dummy = _menu->CreateDummy(button, this, Menu::ssButton1);
-	dummy->SetAlign(gui::Widget::waLeft);	
+	dummy->SetAlign(gui::Widget::waLeft);
 	dummy->SetSize(button->GetSize().x + label->GetSize().x + 10.0f, button->GetSize().y);
 	dummy->SetData(button);
 
@@ -1330,7 +1319,7 @@ gui::VolumeBar* OptionsMenu::CreateVolumeBar(gui::Widget* parent, gui::Widget::E
 	volumeBar->GetBack().GetSampler().SetTex(_menu->GetTexture("GUI\\optBarBg.png"));
 	volumeBar->GetBack().SetBlending(gui::Material::bmTransparency);
 
-	volumeBar->GetFront().GetSampler().SetTex(_menu->GetTexture("GUI\\optBar.png"));	
+	volumeBar->GetFront().GetSampler().SetTex(_menu->GetTexture("GUI\\optBar.png"));
 	volumeBar->GetFront().SetBlending(gui::Material::bmTransparency);
 
 	volumeBar->SetSize(240.0f, 45.0f);
@@ -1340,7 +1329,7 @@ gui::VolumeBar* OptionsMenu::CreateVolumeBar(gui::Widget* parent, gui::Widget::E
 	return volumeBar;
 }
 
-void OptionsMenu::AdjustLayout(const D3DXVECTOR2& vpSize)
+void OptionsMenu::AdjustLayout(const glm::vec2& vpSize)
 {
 	_menuBgMask->SetSize(vpSize);
 
@@ -1367,7 +1356,7 @@ void OptionsMenu::Show(bool value)
 }
 
 void OptionsMenu::OnProgress(float deltaTime)
-{	
+{
 }
 
 gui::Widget* OptionsMenu::GetRoot()
@@ -1388,9 +1377,6 @@ void OptionsMenu::SetState(State value)
 		ApplyState();
 	}
 }
-
-
-
 
 StartOptionsMenu::StartOptionsMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _lastCameraIndex(-1)
 {
@@ -1443,7 +1429,7 @@ StartOptionsMenu::StartOptionsMenu(Menu* menu, gui::Widget* parent): MenuFrame(m
 		_itemsBg[i]->SetAlign(gui::Widget::waLeft);
 	}
 
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 	_labels[mlInfo]->SetWordWrap(true);
 
@@ -1466,7 +1452,7 @@ StartOptionsMenu::~StartOptionsMenu()
 }
 
 void StartOptionsMenu::LoadCfg()
-{	
+{
 	_steppers[dbCamera]->SetSelIndex(_lastCameraIndex = GameMode::cPrefCameraEnd);
 	_steppers[dbResolution]->SetSelIndex(menu()->GetDisplayModeIndex());
 	_steppers[dbLanguage]->SetSelIndex(menu()->GetGame()->GetLanguageIndex());
@@ -1492,7 +1478,7 @@ void StartOptionsMenu::OnShow(bool value)
 
 				Menu::NavElement navElement2 = {_steppers[i - 1]->GetRight(), {_steppers[i - 1]->GetLeft(), NULL, _steppers[i - 2]->GetRight(), _steppers[i]->GetRight()}, {cVirtualKeyEnd, cVirtualKeyEnd}};
 				navElements.push_back(navElement2);
-			}	
+			}
 
 			if (i + 1 == cStepperEnd)
 			{
@@ -1517,7 +1503,7 @@ void StartOptionsMenu::OnShow(bool value)
 
 		{
 			Menu::NavElement navElement = {_menuItems[miApply], {NULL, NULL, _steppers[cStepperEnd - 1]->GetLeft(), _steppers[0]->GetLeft()}, {cVirtualKeyEnd, cVirtualKeyEnd}};
-			navElements.push_back(navElement);		
+			navElements.push_back(navElement);
 		}
 
 		menu()->SetNavElements(_menuItems[miApply], true, &navElements[0], navElements.size());
@@ -1526,13 +1512,13 @@ void StartOptionsMenu::OnShow(bool value)
 		menu()->UnregNavElements(_menuItems[miApply]);
 }
 
-void StartOptionsMenu::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void StartOptionsMenu::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	D3DXVECTOR2 offs = D3DXVECTOR2(-160.0f, 45.0f);
+	glm::vec2 offs = glm::vec2(-160.0f, 45.0f);
 
 	_menuBgMask->SetSize(vpSize);
 
-	int index = 0;	
+	int index = 0;
 	for (int i = 0; i < cStepperEnd; ++i)
 	{
 		if (_labels[i]->GetVisible())
@@ -1561,7 +1547,7 @@ void StartOptionsMenu::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 }
 
 void StartOptionsMenu::OnInvalidate()
-{	
+{
 }
 
 bool StartOptionsMenu::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
@@ -1588,11 +1574,13 @@ bool StartOptionsMenu::OnClick(gui::Widget* sender, const gui::MouseClick& mClic
 				message = menu()->GetString("svSyncFrameWarningNeedReload");
 			else
 				message = menu()->GetString("svSyncFrameWarning");
-			menu()->ShowMessage(menu()->GetString(svWarning), message, menu()->GetString(svOk), menu()->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f, this);
+			menu()->ShowMessage(menu()->GetString(svWarning), message, menu()->GetString(svOk),
+			                    menu()->GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f, this);
 		}
 		else if (needReload)
 		{
-			menu()->ShowMessage(menu()->GetString(svWarning), GetString(svHintNeedReload), GetString(svOk), menu()->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f, this);
+			menu()->ShowMessage(menu()->GetString(svWarning), GetString(svHintNeedReload), GetString(svOk),
+			                    menu()->GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f, this);
 		}
 		else
 		{
@@ -1601,7 +1589,7 @@ bool StartOptionsMenu::OnClick(gui::Widget* sender, const gui::MouseClick& mClic
 			menu()->ShowStartOptions(false);
 			game->CheckStartupMenu();
 		}
-		
+
 		return true;
 	}
 
@@ -1669,13 +1657,13 @@ bool StartOptionsMenu::ApplyChanges()
 			break;
 		}
 		}
-	}	
+	}
 
 	return res;
 }
 
 void StartOptionsMenu::CancelChanges()
-{	
+{
 }
 
 }
