@@ -1,3 +1,3 @@
 #pragma once
 
-#include "d3d\d3dx9math.h"
+#include "d3dx9math.h"
