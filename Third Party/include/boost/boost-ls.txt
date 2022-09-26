@@ -1,0 +1,22 @@
+User@Admin MINGW64 /c/git/rrr3d/prog/Third Party/include/boost (master)
+$ ls -l
+total 185
+-rw-r--r-- 1 User 197121  1338 Dec 11  2012 LICENSE_1_0.txt
+drwxr-xr-x 1 User 197121     0 Jun  9 17:10 asio/
+-rw-r--r-- 1 User 197121  4557 Jan 15  2012 asio.hpp
+-rw-r--r-- 1 User 197121  4120 Feb 15  2011 assert.hpp
+drwxr-xr-x 1 User 197121     0 Jun  9 17:10 bind/
+-rw-r--r-- 1 User 197121   581 Mar  2  2009 bind.hpp
+-rw-r--r-- 1 User 197121  4173 Nov 15  2007 cerrno.hpp
+drwxr-xr-x 1 User 197121     0 Jun  9 17:10 config/
+-rw-r--r-- 1 User 197121  2074 Dec 10  2012 config.hpp
+-rw-r--r-- 1 User 197121 17287 Dec 11  2012 cstdint.hpp
+-rw-r--r-- 1 User 197121  1511 Dec 10  2012 current_function.hpp
+drwxr-xr-x 1 User 197121     0 Jun  9 17:10 detail/
+-rw-r--r-- 1 User 197121  1983 Mar 29  2011 iterator.hpp
+-rw-r--r-- 1 User 197121  1014 Aug 20  2004 noncopyable.hpp
+-rw-r--r-- 1 User 197121 38818 Mar 24  2011 operators.hpp
+drwxr-xr-x 1 User 197121     0 Jun  9 17:11 system/
+drwxr-xr-x 1 User 197121     0 Jun  9 17:11 thread/
+drwxr-xr-x 1 User 197121     0 Jun  9 17:11 utility/
+-rw-r--r-- 1 User 197121  1121 Dec 11  2012 version.hpp

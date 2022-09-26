@@ -1,0 +1,128 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="source">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="source\net">
+      <UniqueIdentifier>{f92f24d9-280f-4bc6-95a9-d90496907993}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="header\net">
+      <UniqueIdentifier>{ae72ea8e-5075-4ebc-b27d-71346ecd301e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{f63aa1de-31ab-4363-8e53-cc00cd3a3bd1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\net">
+      <UniqueIdentifier>{d5259edf-e75c-4997-9023-d9d0919383c3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\stdafx.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\BitStream.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetChannel.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetChat.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetClient.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetCommon.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetConnection.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetConnectionTCP.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetLib.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetMasterServer.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetModel.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetPlayer.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetServer.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+    <ClCompile Include="source\net\NetService.cpp">
+      <Filter>source\net</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="header\stdafx.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\targetver.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\net\NetChannel.h">
+      <Filter>header\net</Filter>
+    </ClInclude>
+    <ClInclude Include="header\net\NetClient.h">
+      <Filter>header\net</Filter>
+    </ClInclude>
+    <ClInclude Include="header\net\NetConnection.h">
+      <Filter>header\net</Filter>
+    </ClInclude>
+    <ClInclude Include="header\net\NetConnectionTCP.h">
+      <Filter>header\net</Filter>
+    </ClInclude>
+    <ClInclude Include="header\net\NetMasterServer.h">
+      <Filter>header\net</Filter>
+    </ClInclude>
+    <ClInclude Include="header\net\NetPlayer.h">
+      <Filter>header\net</Filter>
+    </ClInclude>
+    <ClInclude Include="header\net\NetServer.h">
+      <Filter>header\net</Filter>
+    </ClInclude>
+    <ClInclude Include="header\net\NetService.h">
+      <Filter>header\net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\net\BitStream.h">
+      <Filter>include\net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\net\INetChannel.h">
+      <Filter>include\net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\net\INetConnection.h">
+      <Filter>include\net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\net\INetPlayer.h">
+      <Filter>include\net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\net\INetService.h">
+      <Filter>include\net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\net\NetChat.h">
+      <Filter>include\net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\net\NetCommon.h">
+      <Filter>include\net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\net\NetLib.h">
+      <Filter>include\net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\net\NetModel.h">
+      <Filter>include\net</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

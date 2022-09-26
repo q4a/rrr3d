@@ -1,0 +1,297 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="header">
+      <UniqueIdentifier>{cb5da434-d612-4851-8197-39794f9572b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\res">
+      <UniqueIdentifier>{18fd2652-fc70-4a65-a7b3-5fcff817d4b5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\px">
+      <UniqueIdentifier>{12833777-bd24-43e6-8120-59b60ab73916}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\graph">
+      <UniqueIdentifier>{5b5621e3-b46f-434a-b102-e586253165e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\graph\driver">
+      <UniqueIdentifier>{f8b002d1-9eb6-4b42-8833-a0b70a61e60a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\include">
+      <UniqueIdentifier>{8121314e-f762-450d-a89b-513a957445e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\include\graph">
+      <UniqueIdentifier>{b48d556e-c061-4cb9-af81-97775c596c9f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header\gui">
+      <UniqueIdentifier>{9706cf73-693b-40e8-b46b-40d0a2ed1a75}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source">
+      <UniqueIdentifier>{e6b9e204-c76a-4cea-8f8a-717d67bbef22}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\graph">
+      <UniqueIdentifier>{fcad4d8c-b42b-4911-a37d-194d2f8c7cf4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\graph\driver">
+      <UniqueIdentifier>{890bcc33-970a-4e80-ba9d-b08b06f8ea84}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\res">
+      <UniqueIdentifier>{1652d91f-f621-4c93-9181-26bcb867ab66}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\px">
+      <UniqueIdentifier>{97cfaafd-d551-4cd5-95d0-ddc256e808f1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\gui">
+      <UniqueIdentifier>{9d517c50-639b-461b-9590-bb8d51c8ac74}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="header\GraphManager.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\ProgressTimer.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\r3dExceptions.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\r3dGraphTypes.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\r3dMessages.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\stdafx.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\res\D3DXImageFile.h">
+      <Filter>header\res</Filter>
+    </ClInclude>
+    <ClInclude Include="header\res\GraphResource.h">
+      <Filter>header\res</Filter>
+    </ClInclude>
+    <ClInclude Include="header\res\R3DFile.h">
+      <Filter>header\res</Filter>
+    </ClInclude>
+    <ClInclude Include="header\px\Physx.h">
+      <Filter>header\px</Filter>
+    </ClInclude>
+    <ClInclude Include="header\px\Stream.h">
+      <Filter>header\px</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\Actor.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\ActorManager.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\BloomEffect.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\ClearSurf.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\ContextInfo.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\DepthMap.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\Engine.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\FogPlane.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\FxManager.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\GrassField.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\HDREffect.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\MappingShaders.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\MaterialLibrary.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\OctreeRender.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\OctreeSort.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\RenderToTexture.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\SceneManager.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\SceneNode.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\SceneRender.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\Shader.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\ShadowMapRender.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\SkyBox.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\StdNode.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\SunShaft.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\ToneMapping.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\VideoResource.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\WaterPlane.h">
+      <Filter>header\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\Driver\D3D9RenderDriver.h">
+      <Filter>header\graph\driver</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\Driver\DriverTypes.h">
+      <Filter>header\graph\driver</Filter>
+    </ClInclude>
+    <ClInclude Include="header\graph\Driver\RenderDriver.h">
+      <Filter>header\graph\driver</Filter>
+    </ClInclude>
+    <ClInclude Include="header\include\IGraphManager.h">
+      <Filter>header\include</Filter>
+    </ClInclude>
+    <ClInclude Include="header\include\graph\IActor.h">
+      <Filter>header\include\graph</Filter>
+    </ClInclude>
+    <ClInclude Include="header\gui\GUI.h">
+      <Filter>header\gui</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\GraphManager.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ProgressTimer.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\stdafx.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\Actor.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\ActorManager.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\BloomEffect.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\ClearSurf.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\ContextInfo.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\DepthMap.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\Engine.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\FogPlane.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\FxManager.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\GrassField.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\HDREffect.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\MappingShaders.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\MaterialLibrary.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\OctreeRender.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\OctreeSort.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\RenderToTexture.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\SceneManager.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\SceneNode.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\SceneRender.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\Shader.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\ShadowMapRender.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\SkyBox.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\StdNode.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\SunShaft.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\ToneMapping.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\VideoResource.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\WaterPlane.cpp">
+      <Filter>source\graph</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\Driver\D3D9RenderDriver.cpp">
+      <Filter>source\graph\driver</Filter>
+    </ClCompile>
+    <ClCompile Include="source\graph\Driver\RenderDriver.cpp">
+      <Filter>source\graph\driver</Filter>
+    </ClCompile>
+    <ClCompile Include="source\res\D3DXImageFile.cpp">
+      <Filter>source\res</Filter>
+    </ClCompile>
+    <ClCompile Include="source\res\GraphResource.cpp">
+      <Filter>source\res</Filter>
+    </ClCompile>
+    <ClCompile Include="source\res\R3DFile.cpp">
+      <Filter>source\res</Filter>
+    </ClCompile>
+    <ClCompile Include="source\px\Physx.cpp">
+      <Filter>source\px</Filter>
+    </ClCompile>
+    <ClCompile Include="source\px\Stream.cpp">
+      <Filter>source\px</Filter>
+    </ClCompile>
+    <ClCompile Include="source\gui\GUI.cpp">
+      <Filter>source\gui</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

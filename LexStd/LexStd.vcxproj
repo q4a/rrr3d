@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{E898EAA7-F30C-46D1-A12A-5DD41F285046}</ProjectGuid>
+    <RootNamespace>LexStandartLibrary</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>17.0.32203.90</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir>$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir>$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)\header;$(SolutionDir)Third Party\include\dx;$(SolutionDir)Third Party\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_LIB;_DEBUG 1;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions> /J</AdditionalOptions>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)\header;$(SolutionDir)Third Party\include\dx;$(SolutionDir)Third Party\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_LIB; NDEBUG; NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions> /J</AdditionalOptions>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="header\EulerAngles.h" />
+    <ClInclude Include="header\lslAutoRef.h" />
+    <ClInclude Include="header\lslBaseCollection.h" />
+    <ClInclude Include="header\lslClassList.h" />
+    <ClInclude Include="header\lslCollection.h" />
+    <ClInclude Include="header\lslCollectionItem.h" />
+    <ClInclude Include="header\lslCommon.h" />
+    <ClInclude Include="header\lslComponent.h" />
+    <ClInclude Include="header\lslContainer.h" />
+    <ClInclude Include="header\lslException.h" />
+    <ClInclude Include="header\lslMath.h" />
+    <ClInclude Include="header\lslObject.h" />
+    <ClInclude Include="header\lslResource.h" />
+    <ClInclude Include="header\lslSafeContainer.h" />
+    <ClInclude Include="header\lslSDK.h" />
+    <ClInclude Include="header\lslSerialFileXML.h" />
+    <ClInclude Include="header\lslSerializable.h" />
+    <ClInclude Include="header\lslSerialization.h" />
+    <ClInclude Include="header\lslSerialValue.h" />
+    <ClInclude Include="header\lslUpdateAble.h" />
+    <ClInclude Include="header\lslUtility.h" />
+    <ClInclude Include="header\lslVariant.h" />
+    <ClInclude Include="header\r3dMath.h" />
+    <ClInclude Include="header\stdafx.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="header\lslMath.inl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\EulerAngles.cpp" />
+    <ClCompile Include="source\lslCollectionItem.cpp" />
+    <ClCompile Include="source\lslComponent.cpp" />
+    <ClCompile Include="source\lslException.cpp" />
+    <ClCompile Include="source\lslMath.cpp" />
+    <ClCompile Include="source\lslResource.cpp" />
+    <ClCompile Include="source\lslSDK.cpp" />
+    <ClCompile Include="source\lslSerialFileXml.cpp" />
+    <ClCompile Include="source\lslSerializable.cpp" />
+    <ClCompile Include="source\lslSerialization.cpp" />
+    <ClCompile Include="source\lslUpdateAble.cpp" />
+    <ClCompile Include="source\lslVariant.cpp" />
+    <ClCompile Include="source\r3dMath.cpp" />
+    <ClCompile Include="source\stdafx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

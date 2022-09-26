@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="header">
+      <UniqueIdentifier>{62b36d58-b55a-4f9b-a90b-7e4aacdd2d3e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source">
+      <UniqueIdentifier>{edbf1cb4-2d84-4ef4-a490-547040d971b6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="header\EulerAngles.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslAutoRef.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslBaseCollection.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslClassList.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslCollection.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslCollectionItem.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslCommon.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslComponent.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslContainer.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslException.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslMath.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslObject.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslResource.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslSafeContainer.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslSDK.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslSerialFileXML.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslSerializable.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslSerialization.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslSerialValue.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslUpdateAble.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslUtility.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\lslVariant.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\r3dMath.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="header\stdafx.h">
+      <Filter>header</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="header\lslMath.inl">
+      <Filter>header</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\EulerAngles.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslCollectionItem.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslComponent.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslException.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslMath.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslResource.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslSDK.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslSerialFileXml.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslSerializable.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslSerialization.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslUpdateAble.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\lslVariant.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\r3dMath.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\stdafx.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
