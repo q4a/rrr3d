@@ -33,6 +33,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/MathLib/header
     ${CMAKE_SOURCE_DIR}/src/NetLib/include
     ${CMAKE_SOURCE_DIR}/src/Rock3dEngine/header
+    ${CMAKE_SOURCE_DIR}/src/XPlatform/header
     ${CMAKE_SOURCE_DIR}/extern/ogg/include
     ${CMAKE_SOURCE_DIR}/extern/physx/include/Cooking
     ${CMAKE_SOURCE_DIR}/extern/physx/include/Foundation

@@ -8,6 +8,7 @@
 namespace lsl
 {
 
+template <class _Pnt> inline void SafeDelete(_Pnt &pnt);
 typedef std::vector<bool> BoolVec;
 typedef std::map<unsigned, bool> BoolMap;
 
@@ -19,6 +20,8 @@ private:
 	using _MyBase::remove;
 	using _MyBase::remove_if;
 public:
+	typedef typename std::list<_Item>::iterator iterator;
+	typedef typename std::list<_Item>::const_iterator const_iterator;
 	//Удаляет один элемент с таким значением
 	iterator Remove(const _Item& item)
 	{
@@ -60,6 +63,8 @@ template<class _Item> class Vector: public std::vector<_Item>
 private:
 	typedef std::vector<_Item> _MyBase;
 public:
+	typedef typename std::vector<_Item>::iterator iterator;
+	typedef typename std::vector<_Item>::const_iterator const_iterator;
 	//Удаляет один элемент с таким значением
 	iterator Remove(const _Item& item)
 	{

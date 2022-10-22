@@ -1,6 +1,4 @@
-project(LexStd)
-
-add_definitions(-DNOMINMAX) # Use std::max()/std::min()
+project(XPlatform)
 
 list(APPEND PROJECT_DIRS
     "header"
@@ -16,8 +14,6 @@ add_library(${PROJECT_NAME} STATIC
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     header
-    ${CMAKE_SOURCE_DIR}/src/XPlatform/header
-    ${CMAKE_SOURCE_DIR}/extern/tinyxml/include
 )
 
 target_link_libraries(${PROJECT_NAME})

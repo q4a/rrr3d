@@ -64,7 +64,7 @@ protected:
 //В качестве owner-a может задаваться сам арuумент ссылка (Ref), тогда будет происходить самоудаление объекта
 template<class _Ref> class AutoRef: public BaseAutoRef
 {
-	template<class _Ref> friend class AutoRef;
+	template<class> friend class AutoRef;
 private:
 	typedef AutoRef<_Ref> _MyClass;	
 	typedef BaseAutoRef _MyBase;

@@ -114,7 +114,7 @@ public:
 			iterator nextIter = valIter;
 			++nextIter;
 
-			for (_PosList::iterator posIter = _posList.begin(); posIter != _posList.end(); ++posIter)
+			for (typename _PosList::iterator posIter = _posList.begin(); posIter != _posList.end(); ++posIter)
 				if ((*posIter)->_myIter == valIter)
 				{
 					(*posIter)->_myIter = nextIter;

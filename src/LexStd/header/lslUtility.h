@@ -1,11 +1,14 @@
 #ifndef LSL_UTILITY
 #define LSL_UTILITY
 
+#include <cstdarg>
+
 #include "lslCommon.h"
 #include "lslObject.h"
 #include "lslException.h"
 #include "lslContainer.h"
 #include "lslContainer.h"
+#include "xplatform.h"
 #include <windows.h>
 
 namespace lsl
@@ -109,10 +112,12 @@ public:
 	{
 		return GetImpl()->CastTo<_Class>();
 	}
+	/*
 	template<class _Class> const _Class* GetImpl() const
 	{
 		return GetImpl()->CastTo<_Class>();
 	}
+	*/
 
 	//Сравнивание интерфейсов. На практике реалзиация этих интерфейсов определяется результат
 	bool Equal(const ExternInterf* value) const
@@ -311,7 +316,7 @@ template<class _Value> inline _Value ClampValue(const _Value& value, const _Valu
 
 template<class _T> inline void ExtractFilePathBase(std::basic_string<_T>& filePath, const std::basic_string<_T>& fileName, _T del)
 {
-	std::basic_string<_T>::size_type posName = fileName.rfind(del) + 1;
+	typename std::basic_string<_T>::size_type posName = fileName.rfind(del) + 1;
 	filePath = fileName;
 	filePath.erase(posName, fileName.size() - posName);
 }
@@ -396,8 +401,8 @@ template<class _Key, class _BaseClass> template<class _Class> void ClassMapList<
 
 template<class _Key, class _BaseClass> void ClassMapList<_Key, _BaseClass>::Delete(const _Key& key)
 {
-	_Map::iterator ter = _map.find(key);
-	if (ter == _map.end())
+	typename _Map::iterator iter = _map.find(key);
+	if (iter == _map.end())
 	{
 		throw lsl::Error("template<class _Key, class _BaseClass> void ClassMapList<_Key, _BaseClass>::Delete(const _Key& key)");
 	}
@@ -407,14 +412,14 @@ template<class _Key, class _BaseClass> void ClassMapList<_Key, _BaseClass>::Dele
 
 template<class _Key, class _BaseClass> void ClassMapList<_Key, _BaseClass>::Clear()
 {
-	for (_Map::iterator iter = _map.begin(); iter != _map.end(); ++iter)
+	for (typename _Map::iterator iter = _map.begin(); iter != _map.end(); ++iter)
 		delete iter->second;	
 	_map.clear();
 }
 
 template<class _Key, class _BaseClass> _BaseClass& ClassMapList<_Key, _BaseClass>::GetInstance(const _Key& key) const
 {
-	_Map::const_iterator iter = _map.find(key);
+	typename _Map::const_iterator iter = _map.find(key);
 	if ( iter != _map.end())
 		return *iter->second;
 	else
@@ -426,7 +431,7 @@ template<class _Key, class _BaseClass> _BaseClass& ClassMapList<_Key, _BaseClass
 
 template<class _Class, class _ClassMapList> RegisterMapClass<_Class, _ClassMapList>::RegisterMapClass(_ClassMapList& mapList, typename _ClassMapList::Key key)
 {
-	mapList.Add<_Class>(key);
+	mapList.Add(key);
 }
 
 template<class _Class, class _ClassMapList> void RegisterMapClass<_Class, _ClassMapList>::Test()
@@ -455,11 +460,15 @@ static Point& operator-(const Point& value1, const Point& value2)
 
 inline double GetTimeDbl()
 {
+#ifdef _WIN32 // FIX_LINUX GetTickCount
 	__int64 gTime, freq;
 	QueryPerformanceCounter((LARGE_INTEGER*)&gTime);  // Get current count
 	QueryPerformanceFrequency((LARGE_INTEGER*)&freq); // Get processor freq
 	
 	return gTime/static_cast<double>(freq);
+#else
+    return 0.0;
+#endif
 }
 
 
@@ -489,7 +498,7 @@ inline string StrFmt(const TCHAR* value, ...)
 			buf = new TCHAR[(++bufSize) * cBufSize];
 		}
 	
-		res = _vsnprintf(buf, bufSize * cBufSize, value, arglist);
+		res = vsnprintf(buf, bufSize * cBufSize, value, arglist);
 	}
 
 	string ret(buf, res);
@@ -499,6 +508,7 @@ inline string StrFmt(const TCHAR* value, ...)
 	return ret;
 }
 
+#ifdef _WIN32
 inline stringW StrFmtW(const wchar_t* value, ...)
 {
 	va_list arglist;
@@ -530,6 +540,7 @@ inline stringW StrFmtW(const wchar_t* value, ...)
 
 	return ret;
 }
+#endif
 
 #pragma warning(default:4996)
 
@@ -593,10 +604,18 @@ inline string ExtractFileDir(const string& str, const TCHAR del = cStrLev)
 
 inline lsl::stringW ConvertStrAToW(const char* str, unsigned length, UINT codePage = CP_ACP)
 {
+#ifdef _WIN32 // FIX_LINUX MultiByteToWideChar
 	int num = MultiByteToWideChar(codePage, MB_PRECOMPOSED, str, length, 0, 0);
+#else
+	int num = mbstowcs(nullptr, str, length);
+#endif
 
 	lsl::stringW::value_type* resStr = new lsl::stringW::value_type[num];
+#ifdef _WIN32 // FIX_LINUX MultiByteToWideChar
 	MultiByteToWideChar(codePage, MB_PRECOMPOSED, str, length, resStr, num);
+#else
+	mbstowcs(resStr, str, length);
+#endif
 	lsl::stringW outStr(resStr, num);
 	delete[] resStr;
 
@@ -610,10 +629,18 @@ inline lsl::stringW ConvertStrAToW(const lsl::stringA& str, UINT codePage = CP_A
 
 inline lsl::stringA ConvertStrWToA(const wchar_t* str, unsigned length, UINT codePage = CP_ACP)
 {
+#ifdef _WIN32 // FIX_LINUX WideCharToMultiByte
 	int num = WideCharToMultiByte(codePage, WC_NO_BEST_FIT_CHARS, str, length, 0, 0, 0, 0);
+#else
+	int num = wcstombs(nullptr, str, length);
+#endif
 
 	lsl::stringA::value_type* resStr = new lsl::stringA::value_type[num];
+#ifdef _WIN32 // FIX_LINUX WideCharToMultiByte
 	WideCharToMultiByte(codePage, WC_NO_BEST_FIT_CHARS, str, length, resStr, num, 0, 0);
+#else
+	wcstombs(resStr, str, length);
+#endif
 	lsl::stringA outStr(resStr, num);
 	delete[] resStr;
 

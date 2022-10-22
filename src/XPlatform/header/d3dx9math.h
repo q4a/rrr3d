@@ -1,5 +1,4 @@
-#ifndef PERIMETER_D3DX9MATH_H
-#define PERIMETER_D3DX9MATH_H
+#pragma once
 
 //Attempt to wrap legacy D3DX9 stuff with what we got
 
@@ -26,5 +25,3 @@ D3DXMATRIX* D3DXMatrixInverse(D3DXMATRIX* out, float* determinant, const D3DXMAT
 D3DXMATRIX* D3DXMatrixTranspose(D3DXMATRIX* out, const D3DXMATRIX *pm);
 D3DXMATRIX* D3DXMatrixLookAtLH(D3DXMATRIX *out, const D3DXVECTOR3 *eye, const D3DXVECTOR3 *at, const D3DXVECTOR3 *up);
 D3DXMATRIX* D3DXMatrixPerspectiveFovLH(D3DXMATRIX *pout, float fovy, float aspect, float zn, float zf);
-
-#endif //PERIMETER_D3DX9MATH_H
