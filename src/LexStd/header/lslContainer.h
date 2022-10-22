@@ -22,6 +22,8 @@ private:
 public:
 	typedef typename std::list<_Item>::iterator iterator;
 	typedef typename std::list<_Item>::const_iterator const_iterator;
+	using std::list<_Item>::begin;
+	using std::list<_Item>::end;
 	//Удаляет один элемент с таким значением
 	iterator Remove(const _Item& item)
 	{
@@ -65,6 +67,8 @@ private:
 public:
 	typedef typename std::vector<_Item>::iterator iterator;
 	typedef typename std::vector<_Item>::const_iterator const_iterator;
+	using std::vector<_Item>::begin;
+	using std::vector<_Item>::end;
 	//Удаляет один элемент с таким значением
 	iterator Remove(const _Item& item)
 	{
@@ -240,7 +244,7 @@ template<class _Item> void Container<_Item>::Insert(const _Item& item)
 	bool safe = !(_safeCont && !_safeCont->SafeInsert(item));
 
 	if (safe && AddItem(item))
-		InsertItem(_cont.back());
+		this->InsertItem(_cont.back());
 }
 
 template<class _Item> void Container<_Item>::Remove(iterator iter)
@@ -249,7 +253,7 @@ template<class _Item> void Container<_Item>::Remove(iterator iter)
 
 	if (safe)
 	{
-		RemoveItem(*iter);
+		this->RemoveItem(*iter);
 		DeleteItem(iter);
 	}
 }
@@ -273,7 +277,7 @@ template<class _Item> void Container<_Item>::Remove(iterator sIter, iterator eIt
 	if (safe)
 	{
 		for (iterator iter = sIter; iter != eIter; ++iter)
-			RemoveItem(*iter);
+			this->RemoveItem(*iter);
 		DeleteItem(sIter, eIter);
 	}
 }

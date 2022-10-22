@@ -282,7 +282,7 @@ public:
 								if (AnalizeStream<char>(str))
 									type = vtChar;
 								else
-									throw lsl::Error("Неизвестный тип данных");
+									throw lsl::Error("Unknown data type");
 		}
 	};
 protected:
@@ -389,6 +389,8 @@ public:
 	virtual SReader* PrevValue() = 0;
 	virtual SReader* NextValue() = 0;
 };
+
+class SerialNodes;
 
 //Защищенное наследование, в котором октрывается доступ к ссылочному классу Object
 class SerialNode: protected Component, public virtual Object, public SWriter, public SReader

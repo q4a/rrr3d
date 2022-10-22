@@ -8,7 +8,7 @@
 namespace lsl
 {
 
-std::auto_ptr<FileSystem> FileSystem::_instance;
+std::unique_ptr<FileSystem> FileSystem::_instance;
 
 
 

@@ -98,12 +98,12 @@ public:
 
 template<class _Item, class _IdType, class _Arg> Collection<_Item, _IdType, _Arg, void>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item, class _IdType, class _Arg> _Item* Collection<_Item, _IdType, _Arg, void>::CreateItem(const _IdType& key, const _Arg& arg)
 {
-	return GetClassList()->CreateInst(key, arg);
+	return this->GetClassList()->CreateInst(key, arg);
 }
 
 template<class _Item, class _IdType, class _Arg> void Collection<_Item, _IdType, _Arg, void>::DestroyItem(_Item* value)
@@ -113,7 +113,7 @@ template<class _Item, class _IdType, class _Arg> void Collection<_Item, _IdType,
 
 template<class _Item, class _IdType, class _Arg> void Collection<_Item, _IdType, _Arg, void>::LoadItemFrom(SReader* reader, const _Arg& arg)
 {
-	ReadItem(reader, &Add(LoadType(reader), arg));
+	ReadItem(reader, &Add(this->LoadType(reader), arg));
 }
 
 template<class _Item, class _IdType, class _Arg> _Item& Collection<_Item, _IdType, _Arg, void>::Add(_IdType key, const _Arg& arg)
@@ -123,7 +123,7 @@ template<class _Item, class _IdType, class _Arg> _Item& Collection<_Item, _IdTyp
 
 template<class _Item, class _IdType, class _Arg> template<class _Type> _Type& Collection<_Item, _IdType, _Arg, void>::Add(const _Arg& arg)
 {
-	ClassList::MyClassInst* classInst = GetClassList()->FindByClass<_Type>();
+	auto classInst = this->GetClassList()->template FindByClass<_Type>();
 	if (!classInst)
 		throw lsl::Error("_Type& Collection::Add()");
 
@@ -135,12 +135,12 @@ template<class _Item, class _IdType, class _Arg> template<class _Type> _Type& Co
 
 template<class _Item, class _IdType> Collection<_Item, _IdType, void, void>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item, class _IdType> _Item* Collection<_Item, _IdType, void, void>::CreateItem(const _IdType& key)
 {
-	return GetClassList()->CreateInst(key);
+	return this->GetClassList()->CreateInst(key);
 }
 
 template<class _Item, class _IdType> void Collection<_Item, _IdType, void, void>::DestroyItem(_Item* value)
@@ -150,7 +150,7 @@ template<class _Item, class _IdType> void Collection<_Item, _IdType, void, void>
 
 template<class _Item, class _IdType> void Collection<_Item, _IdType, void, void>::LoadItem(SReader* reader)
 {
-	ReadItem(reader, &Add(LoadType(reader)));
+	ReadItem(reader, &Add(this->LoadType(reader)));
 }
 
 template<class _Item, class _IdType> _Item& Collection<_Item, _IdType, void, void>::Add(_IdType key)
@@ -160,7 +160,7 @@ template<class _Item, class _IdType> _Item& Collection<_Item, _IdType, void, voi
 
 template<class _Item, class _IdType> template<class _Type> _Type& Collection<_Item, _IdType, void, void>::Add()
 {
-	ClassList::MyClassInst* classInst = GetClassList()->FindByClass<_Type>();
+	auto classInst = this->GetClassList()->template FindByClass<_Type>();
 	if (!classInst)
 		throw lsl::Error("_Type& Collection::Add()");
 
@@ -173,7 +173,7 @@ template<class _Item, class _IdType> template<class _Type> _Type& Collection<_It
 
 template<class _Item, class _Arg, class _ArgThis> Collection<_Item, void, _Arg, _ArgThis>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item, class _Arg, class _ArgThis> _Item* Collection<_Item, void, _Arg, _ArgThis>::CreateItem()
@@ -201,7 +201,7 @@ template<class _Item, class _Arg, class _ArgThis> _Item& Collection<_Item, void,
 
 template<class _Item, class _Arg> Collection<_Item, void, _Arg, void>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item, class _Arg> _Item* Collection<_Item, void, _Arg, void>::CreateItem(const _Arg& arg)
@@ -229,7 +229,7 @@ template<class _Item, class _Arg> _Item& Collection<_Item, void, _Arg, void>::Ad
 
 template<class _Item> Collection<_Item, void, void, void>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item> _Item* Collection<_Item, void, void, void>::CreateItem()

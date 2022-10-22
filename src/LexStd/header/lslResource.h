@@ -5,6 +5,7 @@
 #include "lslCollection.h"
 #include "lslUtility.h"
 #include "lslObject.h"
+#include <memory>
 
 namespace lsl
 {
@@ -25,7 +26,7 @@ public:
 class FileSystem
 {
 private:
-	static std::auto_ptr<FileSystem> _instance;
+	static std::unique_ptr<FileSystem> _instance;
 public:
 	enum OpenMode {omText, omBinary};
 	
@@ -54,6 +55,8 @@ public:
 
 	const std::wstring& appPath() const;
 };
+
+class Resource;
 
 class ResourcesTraits
 {

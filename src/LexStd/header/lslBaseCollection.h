@@ -7,6 +7,7 @@
 #include "lslException.h"
 #include "lslClassList.h"
 #include "lslUtility.h"
+#include "xplatform.h"
 
 namespace lsl
 {
@@ -181,7 +182,9 @@ template<class _Item, class _IdType, class _Arg> class BaseCollectionCL: public 
 private:
 	typedef BaseCollection<_Item, _IdType> _MyBase;
 public:
-	typedef ClassList<_IdType, _Item, _Arg> ClassList;	
+	typedef ClassList<_IdType, _Item, _Arg> ClassList;
+	typedef CollectionValue<_Item, _IdType> Value;
+	typedef typename std::list<Value>::iterator iterator;
 private:
 	ClassList* _classList;
 	bool _createClassList;
@@ -233,6 +236,8 @@ private:
 	typedef ComCollection<_Item, _IdType, _Arg, _ArgThis> _MyClass;	
 public:
 	static const char* const cDefItemName;
+	typedef CollectionValue<_Item, _IdType> Value;
+	typedef typename std::list<Value>::iterator iterator;
 private:
 	virtual CollectionItem* FindItem(const std::string& name);
 protected:
@@ -617,12 +622,12 @@ template<class _Item, class _IdType, class _Arg> void BaseCollectionCL<_Item, _I
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> Collection<_Item, _IdType, _Arg, _ArgThis>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> _Item* Collection<_Item, _IdType, _Arg, _ArgThis>::CreateItem(const _IdType& key)
 {
-	return GetClassList()->CreateInst(key, static_cast<_ArgThis>(this));
+	return this->GetClassList()->CreateInst(key, static_cast<_ArgThis>(this));
 }
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> void Collection<_Item, _IdType, _Arg, _ArgThis>::DestroyItem(_Item* value)
@@ -632,7 +637,7 @@ template<class _Item, class _IdType, class _Arg, class _ArgThis> void Collection
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> void Collection<_Item, _IdType, _Arg, _ArgThis>::LoadItem(SReader* reader)
 {
-	ReadItem(reader, &Add(LoadType(reader)));
+	ReadItem(reader, &Add(this->LoadType(reader)));
 }
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> _Item& Collection<_Item, _IdType, _Arg, _ArgThis>::Add(_IdType key)
@@ -642,7 +647,7 @@ template<class _Item, class _IdType, class _Arg, class _ArgThis> _Item& Collecti
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> template<class _Type> _Type& Collection<_Item, _IdType, _Arg, _ArgThis>::Add()
 {
-	ClassList::MyClassInst* classInst = GetClassList()->FindByClass<_Type>();
+	auto classInst = this->GetClassList()->template FindByClass<_Type>();
 	if (!classInst)
 		throw lsl::Error("_Type& Collection::Add()");
 
@@ -682,7 +687,7 @@ template<class _Item, class _IdType, class _Arg, class _ArgThis> void ComCollect
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> _Item* ComCollection<_Item, _IdType, _Arg, _ArgThis>::Find(const std::string& name)
 {
-	for (iterator iter = begin(); iter != end(); ++iter)
+	for (iterator iter = this->begin(); iter != this->end(); ++iter)
 		if ((*iter)->GetName() == name)
 			return *iter;
 
