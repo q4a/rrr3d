@@ -44,7 +44,9 @@ public:
 	FileSystem(const std::wstring& appPath);	
 
 	std::istream* NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags);
+#ifdef _WIN32 // Not used at all
 	std::wistream* NewInStreamW(const std::string& fileName, OpenMode openMode, DWORD flags);
+#endif
 
 	std::ostream* NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags);
 	std::wostream* NewOutStreamW(const std::string& fileName, OpenMode openMode, DWORD flags);
@@ -177,13 +179,13 @@ template<class _Resource, class _IdType, class _Arg, class _ArgThis> class Resou
 private:
 	typedef ComCollection<_Resource, _IdType, _Arg, _ArgThis> _MyBase;
 protected:
-	virtual void InsertItem(const Value& value);
+	virtual void InsertItem(const typename _MyBase::Value &value);
 };
 
 
 
 
-template<class _Resource, class _IdType, class _Arg, class _ArgThis> void ResourceCollection<_Resource, _IdType, _Arg, _ArgThis>::InsertItem(const Value& value)
+template<class _Resource, class _IdType, class _Arg, class _ArgThis> void ResourceCollection<_Resource, _IdType, _Arg, _ArgThis>::InsertItem(const typename _MyBase::Value& value)
 {
 	_MyBase::InsertItem(value);
 
@@ -195,6 +197,7 @@ template<class _Resource, class _IdType, class _Arg, class _ArgThis> void Resour
 
 inline std::wstring GetAppPath()
 {
+#ifdef _WIN32 // FIX_LINUX GetModuleFileNameW
 	wchar_t buf[1024];
 	unsigned size = GetModuleFileNameW(NULL, buf, 1024);
 	
@@ -202,6 +205,10 @@ inline std::wstring GetAppPath()
 	lsl::ExtractFilePath(res, res);
 
 	return res;
+#else
+	std::wstring res;
+	return res;
+#endif
 }
 
 inline std::wstring GetAppFilePath(const std::string& localFileName)

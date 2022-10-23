@@ -24,10 +24,10 @@ public:
 	std::string fileName;
 };
 
-class Error: public std::exception
+class Error: public std::runtime_error
 {
 private:
-	typedef std::exception _MyBase;
+	typedef std::runtime_error _MyBase;
 private:
 	void PrintToLog();
 public:

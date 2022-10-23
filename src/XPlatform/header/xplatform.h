@@ -7,8 +7,12 @@
 
 #define PATH_SEP '/'
 
+#define FLT_MAX __FLT_MAX__
+
 #define CP_ACP        0 // Windows ANSI code page
 #define CP_THREAD_ACP 3 // ANSI code page of the current thread
+
+#define INFINITE 0xFFFFFFFF // For timeout
 
 template <size_t size> int sprintf_s(char (&buffer)[size], const char *format, ...)
 {

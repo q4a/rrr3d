@@ -508,7 +508,7 @@ inline string StrFmt(const TCHAR* value, ...)
 	return ret;
 }
 
-#ifdef _WIN32
+#ifdef _WIN32 // Not used at all
 inline stringW StrFmtW(const wchar_t* value, ...)
 {
 	va_list arglist;

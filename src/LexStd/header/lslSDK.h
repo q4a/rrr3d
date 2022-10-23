@@ -3,6 +3,7 @@
 #include "lslObject.h"
 #include "lslContainer.h"
 #include "lslUtility.h"
+#include "xplatform.h"
 #include <stack>
 
 namespace lsl
@@ -114,7 +115,7 @@ private:
 		float maxDt;
 		unsigned frames;
 
-		__int64 time;
+		uint64_t time;
 		bool updated;
 	};	
 	typedef std::stack<lsl::string> SampleStack;
@@ -123,7 +124,7 @@ public:
 private:
 	Samples _samples;
 	SampleStack _stack;
-	__int64 _cpuFreq;
+	uint64_t _cpuFreq;
 
 	void ResetSample(SampleData& data);
 public:
@@ -170,6 +171,7 @@ void ReleaseSDK();
 
 inline void SpinWait(DWORD time)
 {
+#ifdef _WIN32 // FIX_LINUX GetTickCount
 	DWORD tick = GetTickCount();
 	DWORD newTick = tick;
 
@@ -177,6 +179,7 @@ inline void SpinWait(DWORD time)
 	{
 		newTick = GetTickCount();
 	}
+#endif
 }
 
 }

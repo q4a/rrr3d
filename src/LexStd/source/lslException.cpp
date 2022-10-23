@@ -72,6 +72,7 @@ void Assert(const char* expression, const char* filePath, int line)
 	
 	//appLog << "assError: " << expression << " File: " << filePath << " Line: " << line << '\n';
 	
+#ifdef _WIN32 // FIX_LINUX MessageBox
 	switch (::MessageBox(0, sText, "ASSERT ERROR", MB_ABORTRETRYIGNORE | MB_TASKMODAL))
 	{
 	case IDIGNORE:
@@ -84,6 +85,7 @@ void Assert(const char* expression, const char* filePath, int line)
 	case IDRETRY:
 		 _CrtDbgBreak();
 	}
+#endif
 }
 
 }

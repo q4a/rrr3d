@@ -95,23 +95,35 @@ template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* FileSystem::New
 
 std::istream* FileSystem::NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
+#ifdef _WIN32 // FIX_LINUX Rewrite FS
 	return NewInStream<std::istream::_Ctype::_Elem>(fileName, openMode, flags);
+#else
+	return NewInStream(fileName, openMode, flags);
+#endif
 }
 
+#ifdef _WIN32 // Not used at all
 std::wistream* FileSystem::NewInStreamW(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
 	return NewInStream<std::wistream::_Ctype::_Elem>(fileName, openMode, flags);
 }
+#endif
 
 std::ostream* FileSystem::NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
+#ifdef _WIN32 // FIX_LINUX Rewrite FS
 	return NewOutStream<std::ostream::_Ctype::_Elem>(fileName, openMode, flags);
+#else
+	return NewOutStream(fileName, openMode, flags);
+#endif
 }
 
+#ifdef _WIN32 // Not used at all
 std::wostream* FileSystem::NewOutStreamW(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
 	return NewOutStream<std::wostream::_Ctype::_Elem>(fileName, openMode, flags);
 }
+#endif
 
 void FileSystem::FreeStream(std::ios_base* stream)
 {
@@ -121,9 +133,13 @@ void FileSystem::FreeStream(std::ios_base* stream)
 
 bool FileSystem::FileExists(const std::string& fileName)
 {
+#ifdef _WIN32 // FIX_LINUX Rewrite FS
 	DWORD dwAttrib = GetFileAttributesW(GetAppFilePath(fileName).c_str());
 
 	return (dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY) == 0);
+#else
+	return true;
+#endif
 }
 
 const std::wstring& FileSystem::appPath() const
