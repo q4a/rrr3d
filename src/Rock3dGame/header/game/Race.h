@@ -101,11 +101,11 @@ public:
 	struct PlaceItem
 	{
 		PlaceItem(): slot(0), rot(NullQuaternion) {}
-		PlaceItem(Slot* mSlot, const glm::quat& mRot = NullQuaternion, const D3DXVECTOR3& mOffset = NullVector): slot(mSlot), rot(mRot), offset(mOffset) {}
+		PlaceItem(Slot* mSlot, const glm::quat& mRot = NullQuaternion, const glm::vec3& mOffset = NullVector): slot(mSlot), rot(mRot), offset(mOffset) {}
 
 		Slot* slot;
 		glm::quat rot;
-		D3DXVECTOR3 offset;
+		glm::vec3 offset;
 	};
 	typedef lsl::List<PlaceItem> PlaceItems;
 
@@ -121,7 +121,7 @@ public:
 		//отобразить на модели
 		bool show;
 		//ккординаты
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		//итемы
 		PlaceItems items;
 		//итем по умолчанию, ставится на машину если нет других вариантов
@@ -148,7 +148,7 @@ public:
 		struct NightLight
 		{
 			bool head;
-			D3DXVECTOR3 pos;
+			glm::vec3 pos;
 			glm::vec2 size;
 		};
 		typedef lsl::Vector<NightLight> NightLights;
@@ -219,7 +219,7 @@ private:
 	int _upgradeMaxLevel;
 	int _weaponMaxLevel;
 
-	void FillStandartSlots(Car* car, const std::string& wheel, bool truba, const D3DXVECTOR3* hyperDrive, bool spring, bool maslo, bool mineSpike, bool mineRip, bool mineProton, bool lockedMax);
+	void FillStandartSlots(Car* car, const std::string& wheel, bool truba, const glm::vec3* hyperDrive, bool spring, bool maslo, bool mineSpike, bool mineRip, bool mineProton, bool lockedMax);
 
 	//записи о всех машинвх
 	Car* AddCar();

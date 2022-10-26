@@ -435,11 +435,11 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 			value = _carLifes[i].target->GetCar().gameObj->GetLife() / maxValue;
 		_carLifes[i].bar->SetProgress(value);
 
-		D3DXVECTOR3 pos = _carLifes[i].target->GetCar().gameObj->GetPos() + D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+		glm::vec3 pos = _carLifes[i].target->GetCar().gameObj->GetPos() + glm::vec3(0.0f, 0.0f, 0.0f);
 		D3DXVECTOR4 projVec;
 		D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
 		//glm::vec2 vec = projVec / projVec.w;
-		glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
+		glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after glm::vec3 replacement
 
 		if (projVec.z < 0)
 		{
@@ -685,12 +685,12 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 
 			AABB2 aabb = opponent.label->GetTextAABB();
 
-			D3DXVECTOR3 pos = opponent.player->GetCar().gameObj->GetWorldPos() + D3DXVECTOR3(1.0f, -0.5f, 0);
+			glm::vec3 pos = opponent.player->GetCar().gameObj->GetWorldPos() + glm::vec3(1.0f, -0.5f, 0);
 			D3DXVECTOR4 projVec;
 			D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
 			//glm::vec2 vec = projVec / projVec.w;
 			glm::vec2 vec =
-				glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR3 replacement
+				glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after glm::vec3 replacement
 
 			if (projVec.z < 0)
 			{
@@ -1069,10 +1069,10 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 		pos[0] = node.pos + node.midNorm * node.nodeRadius;
 		pos[1] = node.pos - node.midNorm * node.nodeRadius;
 
-		*pVert.Pos3() = D3DXVECTOR3(pos[0].x, pos[0].y, 0.0f);
+		*pVert.Pos3() = glm::vec3(pos[0].x, pos[0].y, 0.0f);
 		*pVert.Tex0() = glm::vec2(static_cast<float>(i % 2), 0.0f);
 		++pVert;
-		*pVert.Pos3() = D3DXVECTOR3(pos[1].x, pos[1].y, 0.0f);
+		*pVert.Pos3() = glm::vec3(pos[1].x, pos[1].y, 0.0f);
 		*pVert.Tex0() = glm::vec2(static_cast<float>(i % 2), 1.0f);
 		++pVert;
 	}
@@ -1138,7 +1138,7 @@ void MiniMapFrame::UpdatePlayers(float deltaTime)
 {
 	for (Players::iterator iter = _players.begin(); iter != _players.end(); ++iter)
 	{
-		D3DXVECTOR3 pos3 = iter->player->GetCar().GetMapPos();
+		glm::vec3 pos3 = iter->player->GetCar().GetMapPos();
 		pos3.z = 0.0f;
 		iter->plane->SetPos(pos3);
 		iter->plane->GetMaterial()->SetColor(iter->player->GetCar().color);
@@ -1180,7 +1180,7 @@ void MiniMapFrame::UpdateMap()
 	start->SetPos(node->GetPos());
 
 	glm::quat rot;
-	QuatShortestArc(XVector, D3DXVECTOR3(node->GetTile().GetDir().x, node->GetTile().GetDir().y, 0.0f), rot);
+	QuatShortestArc(XVector, glm::vec3(node->GetTile().GetDir().x, node->GetTile().GetDir().y, 0.0f), rot);
 	start->SetRot(rot);
 	start->SetSize(glm::vec2(node->GetSize()/4.0f, node->GetSize()/2.0f));
 }

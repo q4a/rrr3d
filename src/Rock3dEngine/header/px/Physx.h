@@ -87,8 +87,8 @@ public:
 		unsigned events;
 
 		float deltaTime;
-		D3DXVECTOR3 sumNormalForce;
-		D3DXVECTOR3 sumFrictionForce;
+		glm::vec3 sumNormalForce;
+		glm::vec3 sumFrictionForce;
 		NxConstContactStream stream;
 	};
 	struct OnContactModifyEvent
@@ -190,14 +190,14 @@ private:
 
 		bool operator==(const MeshVal& value) const
 		{
-			D3DXVECTOR3 err = scale - value.scale;
+			glm::vec3 err = scale - value.scale;
 			float maxErr = std::max(abs(err.x), std::max(abs(err.y), abs(err.z)));
 			//ошибка считается исходя что 1 - один метр, следовательно 1мм допустимая ошибка
 			return id == value.id && maxErr < 0.001f;
 		}
 
 		//Растяжение меша
-		D3DXVECTOR3 scale;
+		glm::vec3 scale;
 		//ид отдельной фигуры из меша. Если < 0 то используются все фигуры меша
 		int id;
 
@@ -214,19 +214,19 @@ private:
 	res::MeshData* _meshData;
 	MeshList _meshList;
 
-	void LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc& desc);
+	void LoadMesh(const glm::vec3& scale, int id, NxTriangleMeshDesc& desc);
 	void FreeMesh(NxTriangleMeshDesc& desc);
 
-	MeshList::iterator GetOrCreateMesh(const D3DXVECTOR3& scale, int id);
+	MeshList::iterator GetOrCreateMesh(const glm::vec3& scale, int id);
 	void ReleaseMesh(MeshList::iterator iter);
 public:
 	TriangleMesh();
 	virtual ~TriangleMesh();
 
-	NxTriangleMesh* GetOrCreateTri(const D3DXVECTOR3& scale, int id);
+	NxTriangleMesh* GetOrCreateTri(const glm::vec3& scale, int id);
 	void ReleaseTri(NxTriangleMesh* mesh);
 
-	NxConvexMesh* GetOrCreateConvex(const D3DXVECTOR3& scale, int id);
+	NxConvexMesh* GetOrCreateConvex(const glm::vec3& scale, int id);
 	void ReleaseConvex(NxConvexMesh* mesh);
 
 	res::MeshData* GetMeshData();
@@ -251,9 +251,9 @@ private:
 	Shapes* _owner;
 	NxShape* _nxShape;
 
-	D3DXVECTOR3 _pos;
+	glm::vec3 _pos;
 	glm::quat _rot;
-	D3DXVECTOR3 _scale;
+	glm::vec3 _scale;
 	unsigned _materialIndex;
 	float _density;
 	float _skinWidth;
@@ -267,7 +267,7 @@ protected:
 	virtual NxShapeDesc* CreateDesc() = 0;
 	void ReloadNxShape(bool allowInitialization = false);
 
-	D3DXVECTOR3 TransformLocalPos(const D3DXVECTOR3& inValue);
+	glm::vec3 TransformLocalPos(const glm::vec3& inValue);
 	void SyncPos();
 	void SyncRot();
 	virtual void SyncScale();
@@ -287,14 +287,14 @@ public:
 
 	NxShape* GetNxShape();
 
-	const D3DXVECTOR3& GetPos() const;
-	void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos() const;
+	void SetPos(const glm::vec3& value);
 
 	const glm::quat& GetRot() const;
 	void SetRot(const glm::quat& value);
 
-	const D3DXVECTOR3& GetScale() const;
-	void SetScale(D3DXVECTOR3& value);
+	const glm::vec3& GetScale() const;
+	void SetScale(glm::vec3& value);
 
 	NxU16 GetMaterialIndex();
 	void SetMaterialIndex(NxU16 value);
@@ -315,7 +315,7 @@ class PlaneShape: public Shape
 public:
 	static const ShapeType Type = stPlane;
 private:
-	D3DXVECTOR3 _normal;
+	glm::vec3 _normal;
 	float _dist;
 protected:
 	virtual NxShapeDesc* CreateDesc();
@@ -330,8 +330,8 @@ public:
 
 	NxPlaneShape* GetNxShape();
 
-	const D3DXVECTOR3& GetNormal() const;
-	void SetNormal(const D3DXVECTOR3& value);
+	const glm::vec3& GetNormal() const;
+	void SetNormal(const glm::vec3& value);
 
 	float GetDist() const;
 	void SetDist(float value);
@@ -344,7 +344,7 @@ private:
 public:
 	static const ShapeType Type = stBox;
 private:
-	D3DXVECTOR3 _dimensions;
+	glm::vec3 _dimensions;
 protected:
 	virtual NxShapeDesc* CreateDesc();
 
@@ -358,8 +358,8 @@ public:
 
 	NxBoxShape* GetNxShape();
 
-	const D3DXVECTOR3& GetDimensions() const;
-	void SetDimensions(const D3DXVECTOR3& value);
+	const glm::vec3& GetDimensions() const;
+	void SetDimensions(const glm::vec3& value);
 };
 
 class SphereShape: public Shape
@@ -627,9 +627,9 @@ private:
 	NxActor* _nxActor;
 
 	//координаты кэшируется, отностиельно _nxActor
-	mutable D3DXVECTOR3 _pos;
+	mutable glm::vec3 _pos;
 	mutable glm::quat _rot;
-	mutable D3DXVECTOR3 _scale;
+	mutable glm::vec3 _scale;
 protected:
 	//Динамическая инициализация shape
 	void CreateNxShape(Shape* shape);
@@ -668,8 +668,8 @@ public:
 	void InsertChild(Actor* child);
 	void RemoveChild(Actor* child);
 
-	void LocalToWorldPos(const D3DXVECTOR3& inValue, D3DXVECTOR3& outValue, bool nxActorSpace = false);
-	void WorldToLocalPos(const D3DXVECTOR3& inValue, D3DXVECTOR3& outValue, bool nxActorSpace = false);
+	void LocalToWorldPos(const glm::vec3& inValue, glm::vec3& outValue, bool nxActorSpace = false);
+	void WorldToLocalPos(const glm::vec3& inValue, glm::vec3& outValue, bool nxActorSpace = false);
 
 	BoxShape& AddBBShape(const AABB& aabb, const NxBoxShapeDesc& desc = NxBoxShapeDesc());
 
@@ -698,14 +698,14 @@ public:
 	void SetContactReportFlag(unsigned value, bool set);
 
 	//Локальные координаты в пространстве родителя. По концепции методы возращают текущие кординаты nxActor-a, если его не существуюет то кэшированные координаты Actor-a. Упрощенная реализация, пока пододит только для двухуровненной иерархии
-	const D3DXVECTOR3& GetPos() const;
-	void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos() const;
+	void SetPos(const glm::vec3& value);
 	const glm::quat& GetRot() const;
 	void SetRot(const glm::quat& value);
-	const D3DXVECTOR3& GetScale() const;
-	void SetScale(const D3DXVECTOR3& value);
+	const glm::vec3& GetScale() const;
+	void SetScale(const glm::vec3& value);
 
-	D3DXVECTOR3 GetWorldScale() const;
+	glm::vec3 GetWorldScale() const;
 
 	bool storeCoords;
 };

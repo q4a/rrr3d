@@ -389,7 +389,7 @@ OctreeSort::OctreeSort(unsigned numGroups): cNumGroups(numGroups), _root(0), _id
 	for (float i =-1; i < 2; i += 2.0f)
 		for (float j =-1; j < 2; j += 2.0f)
 			for (float k =-1; k < 2; k += 2.0f, ++numNode)
-				_nodeOff[numNode] = D3DXVECTOR3(i, j, k);
+				_nodeOff[numNode] = glm::vec3(i, j, k);
 }
 
 OctreeSort::~OctreeSort()
@@ -411,7 +411,7 @@ void OctreeSort::BuildOctree(Node& node, const UserList& userList)
 		return;
 	}
 
-	D3DXVECTOR3 nodeSize = node.GetAABB().GetSizes() / 2.0f;
+	glm::vec3 nodeSize = node.GetAABB().GetSizes() / 2.0f;
 	for (int i = 0; i < cOctNum; ++i)
 	{
 		AABB aabb(nodeSize);

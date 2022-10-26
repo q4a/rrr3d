@@ -63,7 +63,7 @@ private:
 	void UpdateList();
 
 	//Функции работы с моделью + обновление вида
-	void SelectItem(const D3DXVECTOR3& mapObjPos = D3DXVECTOR3(0, 0, 0));
+	void SelectItem(const glm::vec3& mapObjPos = glm::vec3(0, 0, 0));
 	void DeselectItem();
 
 	r3d::IDataBase* GetDB();

@@ -113,7 +113,7 @@ protected:
 
 	template<class _Type> Type GetTypeOf() const;
 	template<> Type GetTypeOf<glm::vec2>() const;
-	template<> Type GetTypeOf<D3DXVECTOR3>() const;
+	template<> Type GetTypeOf<glm::vec3>() const;
 	template<> Type GetTypeOf<D3DXVECTOR4>() const;
 	template<> Type GetTypeOf<D3DXMATRIX>() const;
 public:
@@ -128,7 +128,7 @@ public:
 	VariantVec(const char* value, unsigned count);
 	//
 	VariantVec(const glm::vec2* value, unsigned count);
-	VariantVec(const D3DXVECTOR3* value, unsigned count);
+	VariantVec(const glm::vec3* value, unsigned count);
 	VariantVec(const D3DXVECTOR4* value, unsigned count);
 	VariantVec(const D3DXCOLOR* value, unsigned count);
 	VariantVec(const D3DXMATRIX* value, unsigned count);
@@ -141,7 +141,7 @@ public:
 	VariantVec(const char& value);
 	//
 	VariantVec(const glm::vec2& value);
-	VariantVec(const D3DXVECTOR3& value);
+	VariantVec(const glm::vec3& value);
 	VariantVec(const D3DXVECTOR4& value);
 	VariantVec(const D3DXCOLOR& value);
 	VariantVec(const D3DXMATRIX& value);
@@ -510,7 +510,7 @@ inline VariantVec::VariantVec(const glm::vec2* value, unsigned count)
 	AssignData(value, count);
 }
 
-inline VariantVec::VariantVec(const D3DXVECTOR3* value, unsigned count)
+inline VariantVec::VariantVec(const glm::vec3* value, unsigned count)
 {
 	AssignData(value, count);
 }
@@ -565,7 +565,7 @@ inline VariantVec::VariantVec(const glm::vec2& value)
 	AssignData(&value, 1);
 }
 
-inline VariantVec::VariantVec(const D3DXVECTOR3& value)
+inline VariantVec::VariantVec(const glm::vec3& value)
 {
 	AssignData(&value, 1);
 }
@@ -615,7 +615,7 @@ template<> inline VariantVec::Type VariantVec::GetTypeOf<glm::vec2>() const
 	return vtVec2;
 }
 
-template<> inline VariantVec::Type VariantVec::GetTypeOf<D3DXVECTOR3>() const
+template<> inline VariantVec::Type VariantVec::GetTypeOf<glm::vec3>() const
 {
 	return vtVec3;
 }

@@ -48,7 +48,7 @@ private:
 	mutable bool _discard;
 public:
 	unsigned sender;
-	unsigned time;	
+	unsigned time;
 
 	NetMessage(): _discard(false), sender(cUndefPlayer), time(0) {}
 	NetMessage(unsigned mSender, unsigned mTime): _discard(false), sender(mSender), time(mTime) {}
@@ -97,7 +97,7 @@ struct Endpoint
 {
 	std::string address;
 	unsigned addressLong;
-	unsigned port;		
+	unsigned port;
 
 	Endpoint() {}
 	Endpoint(const std::string& mAddress, unsigned mPort): addressLong(0), address(mAddress), port(mPort) {}
@@ -157,8 +157,8 @@ unsigned Read(std::istream& stream, bool& value);
 unsigned Write(std::ostream& stream, const glm::vec2& value);
 unsigned Read(std::istream& stream, glm::vec2& value);
 
-unsigned Write(std::ostream& stream, const D3DXVECTOR3& value);
-unsigned Read(std::istream& stream, D3DXVECTOR3& value);
+unsigned Write(std::ostream& stream, const glm::vec3& value);
+unsigned Read(std::istream& stream, glm::vec3& value);
 
 unsigned Write(std::ostream& stream, const D3DXVECTOR4& value);
 unsigned Read(std::istream& stream, D3DXVECTOR4& value);
@@ -286,13 +286,13 @@ inline unsigned Read(std::istream& stream, glm::vec2& value)
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXVECTOR3& value)
+inline unsigned Write(std::ostream& stream, const glm::vec3& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXVECTOR3& value)
+inline unsigned Read(std::istream& stream, glm::vec3& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);
@@ -354,7 +354,7 @@ template<class _T> inline unsigned Write(std::ostream& stream, const std::basic_
 
 template<class _T> inline unsigned Read(std::istream& stream, std::basic_string<_T>& value, unsigned size)
 {
-	value.resize(size);	
+	value.resize(size);
 	Read(stream, const_cast<std::basic_string<_T>::pointer>(value.data()), sizeof(std::basic_string<_T>::value_type) * size);
 	return size;
 }

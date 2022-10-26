@@ -514,7 +514,7 @@ void GraphManager::UpdateWaterPlane()
 		_waterPlaneActor->SetScale(scale);
 		//_waterNode->SetSize(glm::vec2(_groundAABB.GetSizes()) / scale);
 		_waterNode->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
-		                    scale); // remove after D3DXVECTOR3 replacement
+		                    scale); // remove after glm::vec3 replacement
 	}
 
 	if (_waterPlane)
@@ -523,7 +523,7 @@ void GraphManager::UpdateWaterPlane()
 		_waterPlane->SetScale(scale);
 		//_waterPlane->SetSize(glm::vec2(_groundAABB.GetSizes()) / scale);
 		_waterPlane->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
-		                     scale); // remove after D3DXVECTOR3 replacement
+		                     scale); // remove after glm::vec3 replacement
 	}
 }
 
@@ -605,11 +605,11 @@ void GraphManager::FreeGrassField()
 
 void GraphManager::UpdateGrassPlane()
 {
-	D3DXVECTOR3 pos = _groundAABB.GetCenter();
+	glm::vec3 pos = _groundAABB.GetCenter();
 	pos.x = 0;
 	//glm::vec2 size = glm::vec2(_groundAABB.GetSizes());
 	glm::vec2 size =
-		glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y); // remove after D3DXVECTOR3 replacement
+		glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y); // remove after glm::vec3 replacement
 
 	if (_grassPlane)
 	{
@@ -618,7 +618,7 @@ void GraphManager::UpdateGrassPlane()
 	}
 	if (_grassField)
 	{
-		_grassField->SetPos(D3DXVECTOR3(pos.x, pos.y, 0.9f));
+		_grassField->SetPos(glm::vec3(pos.x, pos.y, 0.9f));
 		_grassField->SetWidth(size.x);
 		_grassField->SetHeight(size.y);
 	}
@@ -1262,27 +1262,27 @@ void GraphManager::FreePlaneFog()
 
 void GraphManager::UpdateFogPlane()
 {
-	D3DXVECTOR3 pos = _groundAABB.GetCenter();
+	glm::vec3 pos = _groundAABB.GetCenter();
 	pos.z = _cloudHeight;
 
 	if (_fogPlane)
 	{
 		_fogPlane->SetPos(pos);
-		_fogPlane->SetScale(D3DXVECTOR3(_tileScale.x, _tileScale.y, 1.0f));
+		_fogPlane->SetScale(glm::vec3(_tileScale.x, _tileScale.y, 1.0f));
 		//_fogPlane->SetSize(glm::vec2(_groundAABB.GetSizes()) / _tileScale);
 		_fogPlane->SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
-		                   _tileScale); // remove after D3DXVECTOR3 replacement
+		                   _tileScale); // remove after glm::vec3 replacement
 	}
 
 	if (_fogPlaneActor)
 	{
 		_fogPlaneActor->SetPos(_groundAABB.GetCenter());
-		_fogPlaneActor->SetScale(D3DXVECTOR3(_tileScale.x, _tileScale.y, 1));
+		_fogPlaneActor->SetScale(glm::vec3(_tileScale.x, _tileScale.y, 1));
 
 		//static_cast<graph::PlaneNode&>(_fogPlaneActor->GetNodes().front()).SetSize(glm::vec2(_groundAABB.GetSizes()) / _tileScale);
 		static_cast<graph::PlaneNode &>(_fogPlaneActor->GetNodes().front())
 			.SetSize(glm::vec2(_groundAABB.GetSizes().x, _groundAABB.GetSizes().y) /
-		             _tileScale); // remove after D3DXVECTOR3 replacement
+		             _tileScale); // remove after glm::vec3 replacement
 	}
 }
 
@@ -1494,7 +1494,7 @@ void GraphManager::RemoveActor(graph::Actor* value)
 	_actorManager->RemoveActor(value);
 }
 
-bool LineCastIntersPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXPLANE& plane, float& outT)
+bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, float& outT)
 {
 	const float EPSILON = 1.0e-10f;
 
@@ -1507,7 +1507,7 @@ bool LineCastIntersPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec,
 	return false;
 }
 
-unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, D3DXVECTOR3 points[])
+unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, glm::vec3 points[])
 {
 	//конечные вершины ребер для каждого вертекса
 	const int lines[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
@@ -1516,10 +1516,10 @@ unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, D3DXVECTOR
 
 	for (int i = 0; i < 12; ++i)
 	{
-		D3DXVECTOR3 v1 = bb.v[lines[i][0]];
-		D3DXVECTOR3 v2 = bb.v[lines[i][1]];
+		glm::vec3 v1 = bb.v[lines[i][0]];
+		glm::vec3 v2 = bb.v[lines[i][1]];
 
-		D3DXVECTOR3 vec = v2 - v1;
+		glm::vec3 vec = v2 - v1;
 		float vec3Len = D3DXVec3Length(&vec);
 		D3DXVec3Normalize(&vec, &vec);
 		float dist;
@@ -1536,7 +1536,7 @@ unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, D3DXVECTOR
 	return res;
 }
 
-unsigned PlaneAABBIntersect(const AABB& aabb, const D3DXPLANE& plane, D3DXVECTOR3 points[])
+unsigned PlaneAABBIntersect(const AABB& aabb, const D3DXPLANE& plane, glm::vec3 points[])
 {
 	BoundBox bb(aabb);
 
@@ -1550,8 +1550,8 @@ bool ComputeZBounds(graph::Engine& engine, const graph::CameraCI& camera, const 
 	D3DXPLANE posNearPlane;
 	D3DXPlaneFromPointNormal(&posNearPlane, &camera.GetDesc().pos,  &camera.GetDesc().dir);
 
-	D3DXVECTOR3 rayVec[4] = {D3DXVECTOR3(-1.0f, -1.0f, 1.0f), D3DXVECTOR3(1.0f, -1.0f, 1.0f), D3DXVECTOR3(-1.0f, 1.0f, 1.0f), D3DXVECTOR3(1.0f, 1.0f, 1.0f)};
-	D3DXVECTOR3 rayPos[4] = {D3DXVECTOR3(-1.0f, -1.0f, 0.0f), D3DXVECTOR3(1.0f, -1.0f, 0.0f), D3DXVECTOR3(-1.0f, 1.0f, 0.0f), D3DXVECTOR3(1.0f, 1.0f, 0.0f)};
+	glm::vec3 rayVec[4] = {glm::vec3(-1.0f, -1.0f, 1.0f), glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(-1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f)};
+	glm::vec3 rayPos[4] = {glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f)};
 
 	for (int i = 0; i < 4; ++i)
 	{
@@ -1752,13 +1752,13 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 			{
 				/*if (!_engine->GetContext().IsNight())
 				{
-					D3DXVECTOR3 norm = (*iter2)->vec1();
-					D3DXVECTOR3 lightDir = _engine->GetContext().GetLights().front()->GetDesc().dir;
+					glm::vec3 norm = (*iter2)->vec1();
+					glm::vec3 lightDir = _engine->GetContext().GetLights().front()->GetDesc().dir;
 					float dot = D3DXVec3Dot(&norm, &ZVector);
 
 					if (dot < 0.99f)
 					{
-						D3DXVECTOR3 right1, right2;
+						glm::vec3 right1, right2;
 						D3DXVec3Cross(&right1, &norm, &ZVector);
 						D3DXVec3Cross(&right2, &(-lightDir), &ZVector);
 
@@ -1810,12 +1810,12 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 		{
 			graph::Actor* actor = *iter;
 
-			D3DXVECTOR3 norm = actor->vec1();
+			glm::vec3 norm = actor->vec1();
 			float cosb = D3DXVec3Dot(&norm, &ZVector);
 			float sinb = sqrt(1.0f - cosb * cosb);
 			float height = -actor->vec1().w;
 			actor->LocalToWorldNorm(norm, norm);
-			D3DXVECTOR3 pos = actor->GetWorldPos();
+			glm::vec3 pos = actor->GetWorldPos();
 
 			D3DXPLANE plane;
 			D3DXPlaneFromPointNormal(&plane, &(pos + norm * height), &norm);
@@ -1833,8 +1833,8 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 			AABB localAABB = aabb;
 			actor->LocalToWorldCoord(aabb.min, aabb.min);
 			actor->LocalToWorldCoord(aabb.max, aabb.max);
-			D3DXVECTOR3 right = actor->GetWorldRight();
-			D3DXVECTOR3 dir = *D3DXVec3Cross(&dir, &right, &norm);
+			glm::vec3 right = actor->GetWorldRight();
+			glm::vec3 dir = *D3DXVec3Cross(&dir, &right, &norm);
 			graph::ReflRender::ClipPlanes clipPlanes;
 
 			D3DXPlaneFromPointNormal(&plane, &aabb.min, &dir);
@@ -1860,7 +1860,7 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 			_planarReflRender->EndRT(*_engine);
 
 #ifdef PLANAR_REFL_DEBUG
-			_planarActor->SetPos(D3DXVECTOR3(0, 0, pos.z));
+			_planarActor->SetPos(glm::vec3(0, 0, pos.z));
 			if (actor->renderBB == NULL)
 				actor->renderBB = new AABB(0.0f);
 			*actor->renderBB = localAABB;
@@ -2047,7 +2047,7 @@ void GraphManager::RenderShadow(graph::CameraCI& camera)
 				float maxFar = _shadowMaxFar;
 				if (camDesc.style == graph::csOrtho)
 				{
-					D3DXVECTOR3 pos = _camera->GetPos() + _camera->GetDir() * _shadowMaxFar;
+					glm::vec3 pos = _camera->GetPos() + _camera->GetDir() * _shadowMaxFar;
 					maxFar = std::min(D3DXVec3Length(&(pos - camDesc.pos)), camDesc.farDist);
 				}
 
@@ -2172,7 +2172,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 
 	LSL_ASSERT(_camera);
 
-	const D3DXVECTOR3* rayTarget = _camera->GetStyle() == graph::csOrtho && _actorManager->IsBuildOctree() ? &_orthoTarget.pos : 0;
+	const glm::vec3* rayTarget = _camera->GetStyle() == graph::csOrtho && _actorManager->IsBuildOctree() ? &_orthoTarget.pos : 0;
 
 	if (_engine->BeginScene())
 	{
@@ -2290,16 +2290,16 @@ bool GraphManager::Render(float deltaTime, bool pause)
 			if (_sunShaft && _engine->GetContext().GetCamera().GetDesc().style == graph::csPerspective)
 			{
 				//наложение
-				D3DXVECTOR3 lightPos = _engine->GetContext().GetLight(0).GetDesc().pos;
-				D3DXVECTOR3 radVec;
+				glm::vec3 lightPos = _engine->GetContext().GetLight(0).GetDesc().pos;
+				glm::vec3 radVec;
 				D3DXVec3Normalize(&radVec, &(lightPos - _actorManager->GetWorldAABB().GetCenter()));
-				D3DXVec3Cross(&radVec, &D3DXVECTOR3(0, 0, 1), &radVec);
+				D3DXVec3Cross(&radVec, &glm::vec3(0, 0, 1), &radVec);
 				if (D3DXVec3Length(&radVec) < 0.1f)
 				{
-					radVec = D3DXVECTOR3(1, 0, 0);
+					radVec = glm::vec3(1, 0, 0);
 				}
 				glm::quat radQuat = glm::angleAxis(D3DX_PI / 2.5f, Vec3DxToGlm(radVec));
-				Vec3Rotate(D3DXVECTOR3(0, 0, 1), radQuat, radVec);
+				Vec3Rotate(glm::vec3(0, 0, 1), radQuat, radVec);
 				radVec = radVec * 1000.0f;
 
 				_sunShaft->SetSunPos(radVec);
@@ -2457,15 +2457,15 @@ void GraphManager::BuildOctree()
 
 			if ((abs(texDiffK.x) + abs(texDiffK.y)) > 0.0f && _lightList.size() > 0 && _lightList.front()->GetSource()->GetType() == D3DLIGHT_DIRECTIONAL)
 			{
-				D3DXVECTOR3 norm = (*iter)->GetActor()->vec1();
-				D3DXVECTOR3 lightDir = _lightList.front()->GetSource()->GetDir();
+				glm::vec3 norm = (*iter)->GetActor()->vec1();
+				glm::vec3 lightDir = _lightList.front()->GetSource()->GetDir();
 				float dot = D3DXVec3Dot(&norm, &ZVector);
 
 				if (dot < 0.99f)
 				{
 					(*iter)->GetActor()->LocalToWorldNorm(norm, norm);
-					D3DXVECTOR3 right = (*iter)->GetActor()->GetWorldRight();
-					D3DXVECTOR3 binormal;
+					glm::vec3 right = (*iter)->GetActor()->GetWorldRight();
+					glm::vec3 binormal;
 					D3DXVec3Cross(&binormal, &right, &ZVector);
 
 					float d1 = D3DXVec3Dot(&binormal, &norm);
@@ -2484,15 +2484,15 @@ void GraphManager::BuildOctree()
 	_actorManager->RebuildOctree(aabb);
 	_actorManager->BuildPlanar(osColorPlanarRefl);
 
-	_groundAABB = AABB(D3DXVECTOR3(300.0f + aabb.GetSizes().x, 300.0f + aabb.GetSizes().y, 0.0f));
-	_groundAABB.Offset(D3DXVECTOR3(aabb.GetCenter().x, aabb.GetCenter().y, 0.0f));
+	_groundAABB = AABB(glm::vec3(300.0f + aabb.GetSizes().x, 300.0f + aabb.GetSizes().y, 0.0f));
+	_groundAABB.Offset(glm::vec3(aabb.GetCenter().x, aabb.GetCenter().y, 0.0f));
 
 	UpdateWaterPlane();
 	UpdateGrassPlane();
 	UpdateFogPlane();
 }
 
-D3DXVECTOR3 GraphManager::ScreenToWorld(const lsl::Point& coord, const float z)
+glm::vec3 GraphManager::ScreenToWorld(const lsl::Point& coord, const float z)
 {
 	LSL_ASSERT(_camera);
 
@@ -2500,7 +2500,7 @@ D3DXVECTOR3 GraphManager::ScreenToWorld(const lsl::Point& coord, const float z)
 	float width = static_cast<float>(GetWndRect().Width());
 	float height = static_cast<float>(GetWndRect().Height());
 
-	D3DXVECTOR3 screenVec(coord.x / width, coord.y / height, 0);
+	glm::vec3 screenVec(coord.x / width, coord.y / height, 0);
 	//Приводим к диапазону [-1, 1]
 	screenVec = screenVec * 2 - IdentityVector;
 	screenVec.z = z;
@@ -2518,19 +2518,19 @@ D3DXVECTOR3 GraphManager::ScreenToWorld(const lsl::Point& coord, const float z)
 	float width = static_cast<float>(GetWndWidth());
 	float height = static_cast<float>(GetWndHeight());
 
-	D3DXVECTOR3 screenVec(coord.x / width * viewPort.Width, coord.y / height * viewPort.Height, z);
+	glm::vec3 screenVec(coord.x / width * viewPort.Width, coord.y / height * viewPort.Height, z);
 
 	D3DXVec3Unproject(&screenVec, &screenVec, &viewPort, &_camera->GetContextInfo().GetProjMat(),  &_camera->GetContextInfo().GetViewMat(), &IdentityMatrix);
 
 	return screenVec;*/
 }
 
-lsl::Point GraphManager::WorldToScreen(const D3DXVECTOR3& coord)
+lsl::Point GraphManager::WorldToScreen(const glm::vec3& coord)
 {
 	return lsl::Point(0, 0);
 }
 
-void GraphManager::ScreenToRay(const lsl::Point& coord, D3DXVECTOR3& rayStart, D3DXVECTOR3& rayVec)
+void GraphManager::ScreenToRay(const lsl::Point& coord, glm::vec3& rayStart, glm::vec3& rayVec)
 {
 	LSL_ASSERT(_camera);
 
@@ -2539,10 +2539,10 @@ void GraphManager::ScreenToRay(const lsl::Point& coord, D3DXVECTOR3& rayStart, D
 	D3DXVec3Normalize(&rayVec, &rayVec);
 }
 
-bool GraphManager::ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, D3DXVECTOR3& outVec)
+bool GraphManager::ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, glm::vec3& outVec)
 {
-	D3DXVECTOR3 rayStart;
-	D3DXVECTOR3 rayVec;
+	glm::vec3 rayStart;
+	glm::vec3 rayVec;
 	ScreenToRay(coord, rayStart, rayVec);
 
 	return RayCastIntersectPlane(rayStart, rayVec, ZPlane, outVec);
@@ -2882,14 +2882,14 @@ void GraphManager::SetCloudHeight(float value)
 
 	if (_fogPlane)
 	{
-		D3DXVECTOR3 pos = _fogPlane->GetPos();
+		glm::vec3 pos = _fogPlane->GetPos();
 		pos.z = _cloudHeight;
 		_fogPlane->SetPos(pos);
 	}
 
 	if (_fogPlaneActor)
 	{
-		D3DXVECTOR3 pos = _fogPlaneActor->GetPos();
+		glm::vec3 pos = _fogPlaneActor->GetPos();
 		pos.z = _cloudHeight;
 		_fogPlaneActor->SetPos(pos);
 	}
@@ -2908,12 +2908,12 @@ void GraphManager::SetCamera(graph::Camera* value)
 	_gui->SetCamera3d(value);
 }
 
-const D3DXVECTOR3& GraphManager::GetCubeViewPos() const
+const glm::vec3& GraphManager::GetCubeViewPos() const
 {
 	return _cubeViewPos;
 }
 
-void GraphManager::SetCubeViewPos(const D3DXVECTOR3& value)
+void GraphManager::SetCubeViewPos(const glm::vec3& value)
 {
 	_cubeViewPos = value;
 }
@@ -2923,7 +2923,7 @@ const GraphManager::OrthoTarget& GraphManager::GetOrthoTarget() const
 	return _orthoTarget;
 }
 
-void GraphManager::SetOrthoTarget(const D3DXVECTOR3& pos, float size)
+void GraphManager::SetOrthoTarget(const glm::vec3& pos, float size)
 {
 	_orthoTarget.pos = pos;
 	_orthoTarget.size = size;

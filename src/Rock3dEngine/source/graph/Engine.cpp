@@ -199,10 +199,10 @@ void Engine::InitResources()
 	{
 		res::VertexPT vertBuf[4] =
 		{
-			res::VertexPT(D3DXVECTOR3(0.5f, -0.5f, 0.0f), glm::vec2(1, 1)),
-			res::VertexPT(D3DXVECTOR3(0.5f, 0.5f, 0.0f), glm::vec2(1, 0)),
-			res::VertexPT(D3DXVECTOR3(-0.5f, -0.5f, 0.0f), glm::vec2(0, 1)),
-			res::VertexPT(D3DXVECTOR3(-0.5f, 0.5f, 0.0f), glm::vec2(0, 0))
+			res::VertexPT(glm::vec3(0.5f, -0.5f, 0.0f), glm::vec2(1, 1)),
+			res::VertexPT(glm::vec3(0.5f, 0.5f, 0.0f), glm::vec2(1, 0)),
+			res::VertexPT(glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec2(0, 1)),
+			res::VertexPT(glm::vec3(-0.5f, 0.5f, 0.0f), glm::vec2(0, 0))
 		};
 
 		res::VertexData* data = _meshPlanePT.GetOrCreateData();
@@ -503,7 +503,7 @@ void Engine::RenderPlanePT()
 	while (!EndDraw(true));
 }
 
-void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, float turnAngle, const D3DXVECTOR3* fixDirection, const D3DXMATRIX& localMat)
+void Engine::RenderSpritePT(const glm::vec3& pos, const glm::vec3& scale, float turnAngle, const glm::vec3* fixDirection, const D3DXMATRIX& localMat)
 {
 	const CameraCI& camera = GetContext().GetCamera();
 
@@ -511,10 +511,10 @@ void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, fl
 	//Направленный спрайт
 	if (fixDirection)
 	{
-		D3DXVECTOR3 xVec = *fixDirection;
+		glm::vec3 xVec = *fixDirection;
 
 		//Видовой вектор
-		D3DXVECTOR3 viewVec;
+		glm::vec3 viewVec;
 		switch (GetContext().GetCamera().GetDesc().style)
 		{
 		case csPerspective:
@@ -528,11 +528,11 @@ void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, fl
 		}
 
 		//
-		D3DXVECTOR3 yVec;
+		glm::vec3 yVec;
 		D3DXVec3Cross(&yVec, &xVec, &viewVec);
 		D3DXVec3Normalize(&yVec, &yVec);
 		//
-		D3DXVECTOR3 zVec;
+		glm::vec3 zVec;
 		D3DXVec3Cross(&zVec, &xVec, &yVec);
 
 		MatrixRotationFromAxis(xVec, yVec, zVec, rotMat);

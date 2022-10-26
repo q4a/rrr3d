@@ -82,15 +82,15 @@ void SunShaftRender::Render(Engine& engine)
 	sunPos.y *= 0.5f;
 
 	//Стд. техника учитывающая напрявление ист. света
-	//D3DXVECTOR3 posNorm;
+	//glm::vec3 posNorm;
 	//D3DXVec3Normalize(&posNorm, &engine.GetLight()->GetDesc().pos);
 	//sunPos.w = D3DXVec3Dot(&posNorm, &engine.GetCamera()->GetDesc().dir);
 	//
 	if (sunPos.w > 0.0f)
 	{
 		//Не учитвает направление ист. света
-		//D3DXVECTOR3 posNorm;
-		//D3DXVec3Normalize(&posNorm, &D3DXVECTOR3(sunPos));
+		//glm::vec3 posNorm;
+		//D3DXVec3Normalize(&posNorm, &glm::vec3(sunPos));
 		//sunPos.w = D3DXVec3Dot(&posNorm, &engine.GetCamera()->GetDesc().up);
 		//
 		//Без затухания
@@ -129,12 +129,12 @@ void SunShaftRender::SetDepthTex(Tex2DResource* value)
 	shader.SetTexture("depthTex", value);
 }
 
-const D3DXVECTOR3& SunShaftRender::GetSunPos() const
+const glm::vec3& SunShaftRender::GetSunPos() const
 {
 	return _sunPos;
 }
 
-void SunShaftRender::SetSunPos(const D3DXVECTOR3& value)
+void SunShaftRender::SetSunPos(const glm::vec3& value)
 {
 	_sunPos = value;
 }

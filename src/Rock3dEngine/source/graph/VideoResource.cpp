@@ -236,14 +236,14 @@ void VBMesh::SetData(res::VertexData* value)
 	}
 }
 
-const D3DXVECTOR3& VBMesh::GetMinPos() const
+const glm::vec3& VBMesh::GetMinPos() const
 {
 	LoadData();
 
 	return _data->GetMinPos();
 }
 
-const D3DXVECTOR3& VBMesh::GetMaxPos() const
+const glm::vec3& VBMesh::GetMaxPos() const
 {
 	LoadData();
 
@@ -385,14 +385,14 @@ unsigned IndexedVBMesh::GetSubsetCount() const
 	return _data->faceGroups.size();
 }
 
-const D3DXVECTOR3& IndexedVBMesh::GetMinPos() const
+const glm::vec3& IndexedVBMesh::GetMinPos() const
 {
 	LoadData();
 
 	return _data->vb.GetMinPos();
 }
 
-const D3DXVECTOR3& IndexedVBMesh::GetMaxPos() const
+const glm::vec3& IndexedVBMesh::GetMaxPos() const
 {
 	LoadData();
 
@@ -549,14 +549,14 @@ unsigned MeshX::GetSubsetCount() const
 	return _data->faceGroups.size();
 }
 
-const D3DXVECTOR3& MeshX::GetMinPos() const
+const glm::vec3& MeshX::GetMinPos() const
 {
 	LoadData();
 
 	return _data->vb.GetMinPos();
 }
 
-const D3DXVECTOR3& MeshX::GetMaxPos() const
+const glm::vec3& MeshX::GetMaxPos() const
 {
 	LoadData();
 

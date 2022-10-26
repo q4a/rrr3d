@@ -62,27 +62,27 @@ inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
 	return matrix;
 }
 
-inline glm::vec3 Vec3DxToGlm(D3DXVECTOR3 v3)
+inline glm::vec3 Vec3DxToGlm(glm::vec3 v3)
 {
 	glm::vec3 v3glm(v3.x, v3.y, v3.z);
 	return v3glm;
 }
 
-inline D3DXVECTOR3 Vec3GlmToDx(glm::vec3 v3)
+inline glm::vec3 Vec3GlmToDx(glm::vec3 v3)
 {
-	D3DXVECTOR3 v3dx(v3.x, v3.y, v3.z);
+	glm::vec3 v3dx(v3.x, v3.y, v3.z);
 	return v3dx;
 }
 
-inline float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMATRIX& mat)
+inline float ScalarTransform(float scalar, const glm::vec3& vec, const D3DXMATRIX& mat)
 {
-	D3DXVECTOR3 res;
+	glm::vec3 res;
 	D3DXVec3TransformNormal(&res, &(vec * scalar), &mat);
 	float len = D3DXVec3Length(&res);
 	return scalar < 0 ? -len : len;
 }
 
-inline void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const glm::quat& rot, D3DXMATRIX& outMat)
+inline void BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot, D3DXMATRIX& outMat)
 {
 	D3DXMATRIX scaleMat;
 	D3DXMatrixScaling(&scaleMat, scale.x, scale.y, scale.z);
@@ -95,14 +95,14 @@ inline void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, c
 	outMat = scaleMat * rotMat * transMat;
 }
 
-inline D3DXMATRIX BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const glm::quat& rot)
+inline D3DXMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot)
 {
 	D3DXMATRIX res;
 	BuildWorldMatrix(pos, scale, rot, res);
 	return res;
 }
 
-inline void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, D3DXMATRIX& matOut)
+inline void MatrixRotationFromAxis(const glm::vec3& xVec, const glm::vec3& yVec, const glm::vec3& zVec, D3DXMATRIX& matOut)
 {
 	matOut._11 = xVec.x;
 	matOut._12 = xVec.y;
@@ -122,42 +122,42 @@ inline void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& y
 	matOut._44 = 1.0f;
 }
 
-inline void MatrixSetTranslation(const D3DXVECTOR3& vec, D3DXMATRIX& outMat)
+inline void MatrixSetTranslation(const glm::vec3& vec, D3DXMATRIX& outMat)
 {
 	outMat._41 = vec.x;
 	outMat._42 = vec.y;
 	outMat._43 = vec.z;
 }
 
-inline void MatrixTranslate(const D3DXVECTOR3& vec, D3DXMATRIX& outMat)
+inline void MatrixTranslate(const glm::vec3& vec, D3DXMATRIX& outMat)
 {
 	outMat._41 += vec.x;
 	outMat._42 += vec.y;
 	outMat._43 += vec.z;
 }
 
-inline void MatrixSetScale(const D3DXVECTOR3& vec, D3DXMATRIX& outMat)
+inline void MatrixSetScale(const glm::vec3& vec, D3DXMATRIX& outMat)
 {
 	outMat._11 = vec.x;
 	outMat._22 = vec.y;
 	outMat._33 = vec.z;
 }
 
-inline void MatrixScale(const D3DXVECTOR3& vec, D3DXMATRIX& outMat)
+inline void MatrixScale(const glm::vec3& vec, D3DXMATRIX& outMat)
 {
 	outMat._11 *= vec.x;
 	outMat._22 *= vec.y;
 	outMat._33 *= vec.z;
 }
 
-inline void MatGetPos(const D3DXMATRIX& mat, D3DXVECTOR3& outPos)
+inline void MatGetPos(const D3DXMATRIX& mat, glm::vec3& outPos)
 {
 	outPos = mat.m[3];
 }
 
-inline D3DXVECTOR3 MatGetPos(const D3DXMATRIX& mat)
+inline glm::vec3 MatGetPos(const D3DXMATRIX& mat)
 {
-	D3DXVECTOR3 res;
+	glm::vec3 res;
 	MatGetPos(mat, res);
 	return res;
 }
@@ -268,47 +268,47 @@ inline glm::vec2 operator/(const glm::vec2& vec1, const glm::vec2& vec2)
 	return res;
 }
 
-inline D3DXVECTOR3 Vec3FromVec2(const glm::vec2& vec)
+inline glm::vec3 Vec3FromVec2(const glm::vec2& vec)
 {
-	return D3DXVECTOR3(vec.x, vec.y, 0.0f);
+	return glm::vec3(vec.x, vec.y, 0.0f);
 }
 
-inline void Vec3Invert(const D3DXVECTOR3& vec, D3DXVECTOR3& rOut)
+inline void Vec3Invert(const glm::vec3& vec, glm::vec3& rOut)
 {
 	rOut.x = 1 / vec.x;
 	rOut.y = 1 / vec.y;
 	rOut.z = 1 / vec.z;
 };
 
-inline D3DXVECTOR3 Vec3Invert(const D3DXVECTOR3& vec)
+inline glm::vec3 Vec3Invert(const glm::vec3& vec)
 {
-	D3DXVECTOR3 res;
+	glm::vec3 res;
 	Vec3Invert(vec, res);
 	return res;
 };
 
-inline D3DXVECTOR3 Vec3TransformCoord(const D3DXVECTOR3& vec, const D3DXMATRIX& mat)
+inline glm::vec3 Vec3TransformCoord(const glm::vec3& vec, const D3DXMATRIX& mat)
 {
-	D3DXVECTOR3 res;
+	glm::vec3 res;
 	D3DXVec3TransformCoord(&res, &vec, &mat);
 	return res;
 }
 
-inline void Vec3Abs(const D3DXVECTOR3& vec, D3DXVECTOR3& rOut)
+inline void Vec3Abs(const glm::vec3& vec, glm::vec3& rOut)
 {
 	rOut.x = abs(vec.x);
 	rOut.y = abs(vec.y);
 	rOut.z = abs(vec.z);
 }
 
-inline D3DXVECTOR3 Vec3Abs(const D3DXVECTOR3& vec)
+inline glm::vec3 Vec3Abs(const glm::vec3& vec)
 {
-	D3DXVECTOR3 res;
+	glm::vec3 res;
 	Vec3Abs(vec, res);
 	return res;
 }
 
-inline void Vec3Rotate(const D3DXVECTOR3& v, const glm::quat& quat, D3DXVECTOR3& outVec)
+inline void Vec3Rotate(const glm::vec3& v, const glm::quat& quat, glm::vec3& outVec)
 {
 	glm::quat q(v.x * quat.x + v.y * quat.y + v.z * quat.z,
 				v.x * quat.w + v.z * quat.y - v.y * quat.z,
@@ -322,58 +322,58 @@ inline void Vec3Rotate(const D3DXVECTOR3& v, const glm::quat& quat, D3DXVECTOR3&
 	outVec /= glm::length2(quat);
 }
 
-inline void operator*=(D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
+inline void operator*=(glm::vec3& vec1, const glm::vec3& vec2)
 {
 	vec1.x *= vec2.x;
 	vec1.y *= vec2.y;
 	vec1.z *= vec2.z;
 }
 
-inline D3DXVECTOR3 operator*(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
+inline glm::vec3 operator*(const glm::vec3& vec1, const glm::vec3& vec2)
 {
-	D3DXVECTOR3 res = vec1;
+	glm::vec3 res = vec1;
 	res *= vec2;
 
 	return res;
 }
 
-inline void operator/=(D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
+inline void operator/=(glm::vec3& vec1, const glm::vec3& vec2)
 {
 	vec1.x /= vec2.x;
 	vec1.y /= vec2.y;
 	vec1.z /= vec2.z;
 }
 
-inline D3DXVECTOR3 operator/(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
+inline glm::vec3 operator/(const glm::vec3& vec1, const glm::vec3& vec2)
 {
-	D3DXVECTOR3 res = vec1;
+	glm::vec3 res = vec1;
 	res /= vec2;
 
 	return res;
 }
 
-inline bool operator>=(const D3DXVECTOR3& vec1, float scalar)
+inline bool operator>=(const glm::vec3& vec1, float scalar)
 {
 	return vec1.x >= scalar &&
 		   vec1.y >= scalar &&
 		   vec1.z >= scalar;
 }
 
-inline bool operator<(const D3DXVECTOR3& vec1, float scalar)
+inline bool operator<(const glm::vec3& vec1, float scalar)
 {
 	return vec1.x < scalar &&
 		   vec1.y < scalar &&
 		   vec1.z < scalar;
 }
 
-inline bool operator>(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
+inline bool operator>(const glm::vec3& vec1, const glm::vec3& vec2)
 {
 	return vec1.x > vec2.x &&
 		   vec1.y > vec2.y &&
 		   vec1.z > vec2.z;
 }
 
-inline bool operator<(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2)
+inline bool operator<(const glm::vec3& vec1, const glm::vec3& vec2)
 {
 	return vec1.x < vec2.x &&
 		   vec1.y < vec2.y &&
@@ -385,7 +385,7 @@ inline D3DXVECTOR4 Vec4FromVec2(const glm::vec2& vec)
 	return D3DXVECTOR4(vec.x, vec.y, 0, 0);
 }
 
-inline D3DXVECTOR4 Vec4FromVec3(const D3DXVECTOR3& vec)
+inline D3DXVECTOR4 Vec4FromVec3(const glm::vec3& vec)
 {
 	return D3DXVECTOR4(vec.x, vec.y, vec.z, 0);
 }
@@ -406,7 +406,7 @@ inline D3DXCOLOR operator*(const D3DXCOLOR& vec1, const D3DXCOLOR& vec2)
 	return res;
 }
 
-inline void QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to, glm::quat& outQuat)
+inline void QuatShortestArc(const glm::vec3& from, const glm::vec3& to, glm::quat& outQuat)
 {
 	float angle = D3DXVec3Dot(&from, &to);
 	if (abs(angle) > 1.0f)
@@ -419,7 +419,7 @@ inline void QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to, glm:
 
 	if (abs(angle) > 0.1f)
 	{
-		D3DXVECTOR3 axe;
+		glm::vec3 axe;
 		D3DXVec3Cross(&axe, &from, &to);
 		outQuat = glm::angleAxis(angle, Vec3DxToGlm(axe));
 	}
@@ -428,7 +428,7 @@ inline void QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to, glm:
 
 	/*const float TINY = 1e8;
 
-	D3DXVECTOR3 c;
+	glm::vec3 c;
 	D3DXVec3Cross(&c, &from, &to);
 	outQuat = D3DXQUATERNION(c.x, c.y, c.z, D3DXVec3Dot(&from, &to));
 
@@ -443,7 +443,7 @@ inline void QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to, glm:
 	D3DXQuaternionNormalize(&outQuat, &outQuat);*/
 }
 
-inline glm::quat QuatShortestArc(const D3DXVECTOR3& from, const D3DXVECTOR3& to)
+inline glm::quat QuatShortestArc(const glm::vec3& from, const glm::vec3& to)
 {
 	glm::quat outQuat;
 	QuatShortestArc(from, to, outQuat);
@@ -461,7 +461,7 @@ inline glm::quat QuatRotation(const glm::quat& quat1, const glm::quat& quat2)
 	return quat2 * glm::inverse(quat1);
 }
 
-inline const D3DXVECTOR3& QuatRotateVec3(D3DXVECTOR3& res, const D3DXVECTOR3& vec, const glm::quat& quat)
+inline const glm::vec3& QuatRotateVec3(glm::vec3& res, const glm::vec3& vec, const glm::quat& quat)
 {
 	glm::quat q(vec.x * quat.x + vec.y * quat.y + vec.z * quat.z,
 				vec.x * quat.w + vec.z * quat.y - vec.y * quat.z,
@@ -469,14 +469,14 @@ inline const D3DXVECTOR3& QuatRotateVec3(D3DXVECTOR3& res, const D3DXVECTOR3& ve
 				vec.z * quat.w + vec.y * quat.x - vec.x * quat.y);
 	float norm = glm::length2(quat);
 
-	res = D3DXVECTOR3(quat.w * q.x + quat.x * q.w + quat.y * q.z - quat.z * q.y,
+	res = glm::vec3(quat.w * q.x + quat.x * q.w + quat.y * q.z - quat.z * q.y,
 		quat.w * q.y + quat.y * q.w + quat.z * q.x - quat.x * q.z,
 		quat.w * q.z + quat.z * q.w + quat.x * q.y - quat.y * q.x) * (1.0f/norm);
 
 	return res;
 }
 
-inline void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, D3DXVECTOR3& outLine)
+inline void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, glm::vec3& outLine)
 {
 	//”равнение раздел€ющей пр€мой через нормаль и точку
 	//(N,X) + D = 0
@@ -486,73 +486,73 @@ inline void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, D3DXVEC
 	outLine.z = -Vec2Dot(norm, point);
 }
 
-inline D3DXVECTOR3 Line2FromNorm(const glm::vec2& norm, const glm::vec2& point)
+inline glm::vec3 Line2FromNorm(const glm::vec2& norm, const glm::vec2& point)
 {
-	D3DXVECTOR3 res;
+	glm::vec3 res;
 	Line2FromNorm(norm, point, res);
 	return res;
 }
 
-inline void Line2FromDir(const glm::vec2& dir, const glm::vec2& point, D3DXVECTOR3& outLine)
+inline void Line2FromDir(const glm::vec2& dir, const glm::vec2& point, glm::vec3& outLine)
 {
 	glm::vec2 norm;
 	Vec2NormCW(dir, norm);
 	Line2FromNorm(norm, point, outLine);
 }
 
-inline D3DXVECTOR3 Line2FromDir(const glm::vec2& dir, const glm::vec2& point)
+inline glm::vec3 Line2FromDir(const glm::vec2& dir, const glm::vec2& point)
 {
-	D3DXVECTOR3 res;
+	glm::vec3 res;
 	Line2FromDir(dir, point, res);
 	return res;
 }
 
-inline void Line2GetNorm(const D3DXVECTOR3& line, glm::vec2& norm)
+inline void Line2GetNorm(const glm::vec3& line, glm::vec2& norm)
 {
 	norm.x = line.x;
 	norm.y = line.y;
 }
 
-inline void Line2GetDir(const D3DXVECTOR3& line, glm::vec2& dir)
+inline void Line2GetDir(const glm::vec3& line, glm::vec2& dir)
 {
 	dir.x = line.x;
 	dir.y = line.y;
 	Vec2NormCCW(dir, dir);
 }
 
-inline void Line2GetRadiusVec(const D3DXVECTOR3& line, glm::vec2& outVec)
+inline void Line2GetRadiusVec(const glm::vec3& line, glm::vec2& outVec)
 {
 	outVec.x = -line.z * line.x;
 	outVec.y = -line.z * line.y;
 }
 
-inline glm::vec2 Line2GetRadiusVec(const D3DXVECTOR3& line)
+inline glm::vec2 Line2GetRadiusVec(const glm::vec3& line)
 {
 	glm::vec2 res;
 	Line2GetRadiusVec(line, res);
 	return res;
 }
 
-inline glm::vec2 Line2GetNorm(const D3DXVECTOR3& line)
+inline glm::vec2 Line2GetNorm(const glm::vec3& line)
 {
 	glm::vec2 res;
 	Line2GetNorm(line, res);
 	return res;
 }
 
-inline float Line2DistToPoint(const D3DXVECTOR3& line, const glm::vec2& point)
+inline float Line2DistToPoint(const glm::vec3& line, const glm::vec2& point)
 {
-	return D3DXVec3Dot(&line,  &D3DXVECTOR3(point.x, point.y, 1.0f));
+	return D3DXVec3Dot(&line,  &glm::vec3(point.x, point.y, 1.0f));
 }
 
-inline void Line2NormVecToPoint(const D3DXVECTOR3& line, const glm::vec2& point, glm::vec2& outNormVec)
+inline void Line2NormVecToPoint(const glm::vec3& line, const glm::vec2& point, glm::vec2& outNormVec)
 {
 	glm::vec2 lineNorm = Line2GetNorm(line);
 	float dist = Line2DistToPoint(line, point);
 	outNormVec = lineNorm * dist;
 }
 
-inline glm::vec2 Line2NormVecToPoint(const D3DXVECTOR3& line, const glm::vec2& point)
+inline glm::vec2 Line2NormVecToPoint(const glm::vec3& line, const glm::vec2& point)
 {
 	glm::vec2 res;
 	Line2NormVecToPoint(line, point, res);
@@ -567,7 +567,7 @@ inline Vec3Range operator*(const Vec3Range& val1, float val2)
 	return res;
 }
 
-inline Vec3Range operator*(const Vec3Range& val1, const D3DXVECTOR3& val2)
+inline Vec3Range operator*(const Vec3Range& val1, const glm::vec3& val2)
 {
 	Vec3Range res = val1;
 	res *= val2;
@@ -577,9 +577,9 @@ inline Vec3Range operator*(const Vec3Range& val1, const D3DXVECTOR3& val2)
 
 //ray = rayPos + t * rayVec
 //return t
-inline bool RayCastIntersectSphere(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& spherePos, float sphereRadius, float* t)
+inline bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& rayVec, const glm::vec3& spherePos, float sphereRadius, float* t)
 {
-	D3DXVECTOR3 v = rayPos - spherePos;
+	glm::vec3 v = rayPos - spherePos;
 
 	float b = 2.0f * D3DXVec3Dot(&rayVec, &v);
 	float c = D3DXVec3Dot(&v, &v) - sphereRadius * sphereRadius;
@@ -603,7 +603,7 @@ inline bool RayCastIntersectSphere(const D3DXVECTOR3& rayPos, const D3DXVECTOR3&
 	return tRay > 0;
 }
 
-inline float PlaneDistToPoint(const D3DXPLANE& plane, const D3DXVECTOR3& point)
+inline float PlaneDistToPoint(const D3DXPLANE& plane, const glm::vec3& point)
 {
 	return D3DXPlaneDotCoord(&plane, &point);
 };

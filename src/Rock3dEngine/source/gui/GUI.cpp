@@ -374,12 +374,12 @@ Context& Graphic3d::GetContext()
 	return *_context;
 }
 
-const D3DXVECTOR3& Graphic3d::GetPos() const
+const glm::vec3& Graphic3d::GetPos() const
 {
 	return _pos;
 }
 
-void Graphic3d::SetPos(const D3DXVECTOR3& value)
+void Graphic3d::SetPos(const glm::vec3& value)
 {
 	_pos = value;
 	TransformChanged();
@@ -396,12 +396,12 @@ void Graphic3d::SetRot(const glm::quat& value)
 	TransformChanged();
 }
 
-const D3DXVECTOR3& Graphic3d::GetScale() const
+const glm::vec3& Graphic3d::GetScale() const
 {
 	return _scale;
 }
 
-void Graphic3d::SetScale(const D3DXVECTOR3& value)
+void Graphic3d::SetScale(const glm::vec3& value)
 {
 	_scale = value;
 	TransformChanged();
@@ -634,7 +634,7 @@ Plane3d::Plane3d(Context *context) : _MyBase(context), _size(IdentityVector.x, I
 
 AABB Plane3d::LocalAABB() const
 {
-	return AABB(D3DXVECTOR3(_size.x, _size.y, 0.0));
+	return AABB(glm::vec3(_size.x, _size.y, 0.0));
 }
 
 void Plane3d::Draw()
@@ -854,7 +854,7 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 	{
 		//pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()));
 		pos += glm::vec2(MatGetPos(GetCI().GetWorldMat()).x,
-		                 MatGetPos(GetCI().GetWorldMat()).y); // remove after D3DXVECTOR3 replacement
+		                 MatGetPos(GetCI().GetWorldMat()).y); // remove after glm::vec3 replacement
 		//Оси y не совпадают
 		if (_invertY)
 			pos.y = GetVPSize().y - (pos.y + text.GetVScroll());
@@ -933,23 +933,23 @@ void Context::SetTransform(const D3DXMATRIX& value)
 
 void Context::DrawPlane(Plane& plane)
 {
-	D3DXVECTOR3 pos3(Vec3FromVec2(plane.GetPos()));
+	glm::vec3 pos3(Vec3FromVec2(plane.GetPos()));
 	glm::vec2 size = plane.GetSize()/2.0f;
 
 	res::VertexPT planeBuf[4];
 	if (_invertY)
 	{
-		planeBuf[0] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 1.0f));
-		planeBuf[1] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 0.0f));
-		planeBuf[2] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 1.0f));
-		planeBuf[3] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 0.0f));
+		planeBuf[0] = res::VertexPT(glm::vec3(Ceil<float>(size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 1.0f));
+		planeBuf[1] = res::VertexPT(glm::vec3(Ceil<float>(size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 0.0f));
+		planeBuf[2] = res::VertexPT(glm::vec3(Floor<float>(-size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 1.0f));
+		planeBuf[3] = res::VertexPT(glm::vec3(Floor<float>(-size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 0.0f));
 	}
 	else
 	{
-		planeBuf[0] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 0.0f));
-		planeBuf[1] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 0.0f));
-		planeBuf[2] = res::VertexPT(D3DXVECTOR3(Ceil<float>(size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 1.0f));
-		planeBuf[3] = res::VertexPT(D3DXVECTOR3(Floor<float>(-size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 1.0f));
+		planeBuf[0] = res::VertexPT(glm::vec3(Ceil<float>(size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 0.0f));
+		planeBuf[1] = res::VertexPT(glm::vec3(Floor<float>(-size.x + pos3.x) - 0.5f, Floor<float>(-size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 0.0f));
+		planeBuf[2] = res::VertexPT(glm::vec3(Ceil<float>(size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(1.0f, 1.0f));
+		planeBuf[3] = res::VertexPT(glm::vec3(Floor<float>(-size.x + pos3.x) - 0.5f, Ceil<float>(size.y + pos3.y) - 0.5f, 0), glm::vec2(0.0f, 1.0f));
 	};
 
 	BeginDrawGraphic(plane);
@@ -1000,10 +1000,10 @@ void Context::DrawPlane3d(Plane3d& plane3d)
 
 	const res::VertexPT planeBuf[4] =
 	{
-		res::VertexPT(D3DXVECTOR3(size.x, -size.y, 0), glm::vec2(1.0f, 1.0f)),
-		res::VertexPT(D3DXVECTOR3(size.x, size.y, 0), glm::vec2(1.0f, 0.0f)),
-		res::VertexPT(D3DXVECTOR3(-size.x, -size.y, 0), glm::vec2(0.0f, 1.0f)),
-		res::VertexPT(D3DXVECTOR3(-size.x, size.y, 0), glm::vec2(0.0f, 0.0f))
+		res::VertexPT(glm::vec3(size.x, -size.y, 0), glm::vec2(1.0f, 1.0f)),
+		res::VertexPT(glm::vec3(size.x, size.y, 0), glm::vec2(1.0f, 0.0f)),
+		res::VertexPT(glm::vec3(-size.x, -size.y, 0), glm::vec2(0.0f, 1.0f)),
+		res::VertexPT(glm::vec3(-size.x, size.y, 0), glm::vec2(0.0f, 0.0f))
 	};
 
 	GetDriver().GetDevice()->SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
@@ -1026,13 +1026,13 @@ void Context::DrawView3d(View3d& view3d)
 	if (!view3d.GetAlign())
 		maxScale += D3DXVec3Length(&aabb.GetCenter());
 	//размер поля в котором он отображается
-	D3DXVECTOR3 viewSize = D3DXVECTOR3(view3d.GetSize().x, view3d.GetSize().y, 0.0f);
+	glm::vec3 viewSize = glm::vec3(view3d.GetSize().x, view3d.GetSize().y, 0.0f);
 	//размер по оси z вычисляет с прикидкой
 	viewSize.z = (viewSize.x + viewSize.y) / 2.0f;
 
 	//растягиваем меш до размера поля
-	D3DXVECTOR3 scale = viewSize / maxScale;
-	D3DXVECTOR3 pos = NullVector;
+	glm::vec3 scale = viewSize / maxScale;
+	glm::vec3 pos = NullVector;
 	//центрируем
 	if (view3d.GetAlign())
 	{
@@ -1259,9 +1259,9 @@ void Widget::BuildMatrix(MatrixChange change) const
 
 		glm::quat rot = glm::angleAxis(GetRot(), Vec3DxToGlm(ZVector));
 
-		D3DXVECTOR3 pos = Vec3FromVec2(GetPos());
+		glm::vec3 pos = Vec3FromVec2(GetPos());
 
-		BuildWorldMatrix(pos, D3DXVECTOR3(_scale.x, _scale.y, 1.0f), rot, _matrix[mcLocal]);
+		BuildWorldMatrix(pos, glm::vec3(_scale.x, _scale.y, 1.0f), rot, _matrix[mcLocal]);
 		break;
 	}
 
@@ -2044,12 +2044,12 @@ void Widget::SetCoord3d(bool value)
 	TransformChanged();
 }
 
-const D3DXVECTOR3& Widget::GetPos3d() const
+const glm::vec3& Widget::GetPos3d() const
 {
 	return _pos3d;
 }
 
-void Widget::SetPos3d(const D3DXVECTOR3& value)
+void Widget::SetPos3d(const glm::vec3& value)
 {
 	_pos3d = value;
 
@@ -4320,7 +4320,7 @@ void ProgressBar::StructureChanged(StructChange change)
 			float barSize = GetSize().x * _progress;
 			_front->SetSize(glm::vec2(barSize, GetSize().y));
 			_front->SetPos(pos + glm::vec2(-GetSize().x/2.0f + barSize/2.0f, 0));
-			_front->GetMaterial()->GetSampler().SetScale(D3DXVECTOR3(_progress, 1, 1));
+			_front->GetMaterial()->GetSampler().SetScale(glm::vec3(_progress, 1, 1));
 			break;
 		}
 		case psVertical:
@@ -4328,7 +4328,7 @@ void ProgressBar::StructureChanged(StructChange change)
 			float barSize = GetSize().y * _progress;
 			_front->SetSize(glm::vec2(GetSize().x, barSize));
 			_front->SetPos(pos + glm::vec2(0, GetSize().y/2.0f - barSize/2.0f));
-			_front->GetMaterial()->GetSampler().SetScale(D3DXVECTOR3(1, _progress, 1));
+			_front->GetMaterial()->GetSampler().SetScale(glm::vec3(1, _progress, 1));
 			break;
 		}
 		}
@@ -5578,7 +5578,7 @@ glm::vec2 Manager::ScreenToView(const Point& point)
 		return glm::vec2(static_cast<float>(point.x), static_cast<float>(point.y));
 }
 
-glm::vec2 Manager::WorldToView(const D3DXVECTOR3& coord)
+glm::vec2 Manager::WorldToView(const glm::vec3& coord)
 {
 	if (_camera3d == NULL)
 		return NullVec2;

@@ -24,22 +24,22 @@ const std::string& MapObj::GetName() const
 	return GetInst()->GetName();
 }
 
-D3DXVECTOR3 MapObj::GetPos() const
+glm::vec3 MapObj::GetPos() const
 {
 	return GetInst()->GetGameObj().GetPos();
 }
 
-void MapObj::SetPos(const D3DXVECTOR3& value)
+void MapObj::SetPos(const glm::vec3& value)
 {
 	 GetInst()->GetGameObj().SetPos(value);
 }
 
-D3DXVECTOR3 MapObj::GetScale() const
+glm::vec3 MapObj::GetScale() const
 {
 	return GetInst()->GetGameObj().GetScale();
 }
 
-void MapObj::SetScale(const D3DXVECTOR3& value)
+void MapObj::SetScale(const glm::vec3& value)
 {
 	GetInst()->GetGameObj().SetScale(value);
 }
@@ -88,7 +88,7 @@ void Map::NodeControl::Select(bool active)
 	GetNode()->colorBB = active ? Map::selColor : Map::bbColor;
 }
 
-void Map::NodeControl::OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Map::NodeControl::OnShiftAction(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	Select(false);
 	_mapObj = &_map->GetInst()->AddMapObj(_mapObj);
@@ -102,15 +102,15 @@ void Map::NodeControl::OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVEC
 	}
 }
 
-game::MapObj* Map::PickInstMapObj(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec)
+game::MapObj* Map::PickInstMapObj(const glm::vec3& rayPos, const glm::vec3& rayVec)
 {
 	float minDist = 0;
 	game::MapObj* mapObj = 0;
 
 	for (Inst::Objects::const_iterator iter = GetInst()->GetObjects().begin(); iter != GetInst()->GetObjects().end(); ++iter)
 	{
-		D3DXVECTOR3 nearVec;
-		D3DXVECTOR3 farVec;
+		glm::vec3 nearVec;
+		glm::vec3 farVec;
 		game::MapObj* item = iter->second;
 
 		if (item->GetGameObj().GetGrActor().RayCastIntersBB(rayPos, rayVec, nearVec, farVec, true))
@@ -181,8 +181,8 @@ void Map::ClearMap()
 
 IMapObjRef Map::PickMapObj(const lsl::Point& coord)
 {
-	D3DXVECTOR3 scrRayPos;
-	D3DXVECTOR3 scrRayVec;
+	glm::vec3 scrRayPos;
+	glm::vec3 scrRayVec;
 	_edit->GetWorld()->GetCamera()->ScreenToRay(coord, scrRayPos, scrRayVec);
 	game::MapObj* mapObj = PickInstMapObj(scrRayPos, scrRayVec);
 

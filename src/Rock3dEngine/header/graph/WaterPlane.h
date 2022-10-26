@@ -40,7 +40,7 @@ class WaterPlane: public PlaneNode
 private:
 	typedef PlaneNode _MyBase;
 private:
-	D3DXVECTOR3 _viewPos;
+	glm::vec3 _viewPos;
 	float _cloudIntens;
 protected:
 	virtual void DoRender(graph::Engine& engine);
@@ -59,8 +59,8 @@ public:
 	D3DXCOLOR GetColor();
 	void SetColor(const D3DXCOLOR& value);
 
-	const D3DXVECTOR3& GetViewPos() const;
-	void SetViewPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetViewPos() const;
+	void SetViewPos(const glm::vec3& value);
 
 	float GetCloudIntens() const;
 	void SetCloudIntens(float value);

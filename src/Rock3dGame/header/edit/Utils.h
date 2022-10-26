@@ -18,21 +18,21 @@ public:
 	ScNodeCont(graph::BaseSceneNode* node);
 	virtual ~ScNodeCont();
 
-	virtual bool RayCastInters(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec) const;
+	virtual bool RayCastInters(const glm::vec3& rayPos, const glm::vec3& rayVec) const;
 	virtual bool Compare(const IMapObjRef& node) const;
 
-	virtual D3DXVECTOR3 GetPos() const;
-	virtual void SetPos(const D3DXVECTOR3& value);
+	virtual glm::vec3 GetPos() const;
+	virtual void SetPos(const glm::vec3& value);
 	//
 	virtual glm::quat GetRot() const;
 	virtual void SetRot(const glm::quat& value);
 	//
-	virtual D3DXVECTOR3 GetScale() const;
-	virtual void SetScale(const D3DXVECTOR3& value);
+	virtual glm::vec3 GetScale() const;
+	virtual void SetScale(const glm::vec3& value);
 	//
-	virtual D3DXVECTOR3 GetDir() const;
-	virtual D3DXVECTOR3 GetRight() const;
-	virtual D3DXVECTOR3 GetUp() const;
+	virtual glm::vec3 GetDir() const;
+	virtual glm::vec3 GetRight() const;
+	virtual glm::vec3 GetUp() const;
 
 	virtual D3DXMATRIX GetMat() const;
 	//В локальных координатах, включая дочерние узлы

@@ -83,7 +83,7 @@ void Map::Load(lsl::SReader* reader)
 
 	reader->ReadValue("trace", _trace);
 
-	D3DXVECTOR3 sunPos;
+	glm::vec3 sunPos;
 	if (lsl::SReadValue(reader, "sunPos", sunPos))
 		_world->GetEnv()->SetSunPos(sunPos);
 

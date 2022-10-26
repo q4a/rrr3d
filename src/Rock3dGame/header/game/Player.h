@@ -30,7 +30,7 @@ private:
 	graph::IndexedVBMesh* _mesh;
 	graph::Tex2DResource* _texture;
 
-	D3DXVECTOR3 _pos;
+	glm::vec3 _pos;
 	glm::quat _rot;
 protected:
 	void RegProgressEvent();
@@ -76,8 +76,8 @@ public:
 	graph::Tex2DResource* GetTexture() const;
 	void SetTexture(graph::Tex2DResource* value);
 
-	const D3DXVECTOR3& GetPos() const;
-	void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos() const;
+	void SetPos(const glm::vec3& value);
 
 	const glm::quat& GetRot() const;
 	void SetRot(const glm::quat& value);
@@ -400,7 +400,7 @@ public:
 		float GetLap(bool lastCorrect = false) const;
 
 		//место на карте
-		D3DXVECTOR3 GetMapPos() const;
+		glm::vec3 GetMapPos() const;
 
 		Player* owner;
 		MapObjRec* record;
@@ -413,8 +413,8 @@ public:
 		NxActor* nxActor;
 
 		// оординаты актера
-		D3DXVECTOR3 pos3;
-		D3DXVECTOR3 dir3;
+		glm::vec3 pos3;
+		glm::vec3 dir3;
 		glm::quat rot3;
 		D3DXMATRIX worldMat;
 
@@ -426,12 +426,12 @@ public:
 		float radius;
 		float kSteerControl;
 		//Ћини€ проведенна€ через pos в направлении dir актера
-		D3DXVECTOR3 dirLine;
+		glm::vec3 dirLine;
 		//Ћини€ проведенна€ через pos и перпендикул€рно dir актера
-		D3DXVECTOR3 normLine;
+		glm::vec3 normLine;
 		//
-		D3DXVECTOR3 trackDirLine;
-		D3DXVECTOR3 trackNormLine;
+		glm::vec3 trackDirLine;
+		glm::vec3 trackNormLine;
 		//
 		WayNode* curTile;
 		WayNode* curNode;
@@ -449,7 +449,7 @@ public:
 		float maxSpeed;
 		float maxSpeedTime;
 		//отслеживание резких колебаний угла направл€ющего вектора
-		D3DXVECTOR3 lastDir;
+		glm::vec3 lastDir;
 		float summAngle;
 		float summAngleTime;
 
@@ -523,7 +523,7 @@ private:
 	void RemoveBonusProj(Proj* proj);
 	void ClearBonusProjs();
 
-	void InitLight(HeadLight headLight, const D3DXVECTOR3& pos, const glm::quat& rot);
+	void InitLight(HeadLight headLight, const glm::vec3& pos, const glm::quat& rot);
 	void FreeLight(HeadLight headLight);
 	void SetLightParent(GraphManager::LightSrc* light, MapObj* mapObj);
 	void CreateNightLights(MapObj* mapObj);
@@ -586,7 +586,7 @@ public:
 	void SetReflScene(bool value);
 
 	Record* GetSlot(SlotType type);
-	void SetSlot(SlotType type, Record* record, const D3DXVECTOR3& pos = NullVector, const glm::quat& rot = NullQuaternion);
+	void SetSlot(SlotType type, Record* record, const glm::vec3& pos = NullVector, const glm::quat& rot = NullQuaternion);
 	Slot* GetSlotInst(SlotType type);
 	Slot* GetSlotInst(Slot::Type type);
 

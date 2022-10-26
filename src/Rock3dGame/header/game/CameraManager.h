@@ -22,9 +22,9 @@ private:
 
 		float _staticFloat1;
 		float _staticFloat2;
-		D3DXVECTOR3 _staticVec1;
-		D3DXVECTOR3 _staticVec2;
-		D3DXVECTOR3 _staticVec3;
+		glm::vec3 _staticVec1;
+		glm::vec3 _staticVec2;
+		glm::vec3 _staticVec3;
 		glm::quat _staticQuat1;
 
 		bool OnMouseMoveEvent(const MouseMove& mMove);
@@ -45,14 +45,14 @@ private:
 	float _near;
 	float _far;
 	D3DXVECTOR4 _clampAngle;
-	D3DXVECTOR3 _angleSpeed;
-	D3DXVECTOR3 _stableAngle;
-	D3DXVECTOR3 _lastFreePos;
+	glm::vec3 _angleSpeed;
+	glm::vec3 _stableAngle;
+	glm::vec3 _lastFreePos;
 	glm::quat _lastFreeRot;
 
-	D3DXVECTOR3 _flySPos;
+	glm::vec3 _flySPos;
 	glm::quat _flySRot;
-	D3DXVECTOR3 _flyPos;
+	glm::vec3 _flyPos;
 	glm::quat _flyRot;
 	float _flyCurTime;
 	float _flyTime;
@@ -69,12 +69,12 @@ public:
 	~CameraManager();
 
 	//z - координата глубины относительно zNear. [0..1] <--> [zNear..zFar]
-	D3DXVECTOR3 ScreenToWorld(const lsl::Point& coord, float z);
-	glm::vec2 WorldToScreen(const D3DXVECTOR3& coord);
-	void ScreenToRay(const lsl::Point& coord, D3DXVECTOR3& rayStart, D3DXVECTOR3& rayVec);
-	bool ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, D3DXVECTOR3& outVec);
+	glm::vec3 ScreenToWorld(const lsl::Point& coord, float z);
+	glm::vec2 WorldToScreen(const glm::vec3& coord);
+	void ScreenToRay(const lsl::Point& coord, glm::vec3& rayStart, glm::vec3& rayVec);
+	bool ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, glm::vec3& outVec);
 
-	void FlyTo(const D3DXVECTOR3& pos, const glm::quat& rot, float time);
+	void FlyTo(const glm::vec3& pos, const glm::quat& rot, float time);
 	void StopFly();
 	bool InFly();
 
@@ -83,11 +83,11 @@ public:
 	const D3DXVECTOR4& GetClampAngle() const;
 	void SetClampAngle(const D3DXVECTOR4& value);
 
-	const D3DXVECTOR3& GetAngleSpeed();
-	void SetAngleSpeed(const D3DXVECTOR3& value);
+	const glm::vec3& GetAngleSpeed();
+	void SetAngleSpeed(const glm::vec3& value);
 
-	const D3DXVECTOR3& GetStableAngle();
-	void SetStableAngle(const D3DXVECTOR3& value);
+	const glm::vec3& GetStableAngle();
+	void SetStableAngle(const glm::vec3& value);
 
 	Style GetStyle() const;
 	void ChangeStyle(Style value);
@@ -95,9 +95,9 @@ public:
 	float GetAspect() const;
 	void SetAspect(float value);
 
-	D3DXVECTOR3 GetPos() const;
-	D3DXVECTOR3 GetDir() const;
-	D3DXVECTOR3 GetRight() const;
+	glm::vec3 GetPos() const;
+	glm::vec3 GetDir() const;
+	glm::vec3 GetRight() const;
 
 	float GetNear() const;
 	void SetNear(float value);
@@ -114,7 +114,7 @@ public:
 	GraphManager::LightSrc* GetLight();
 	void SetLight(GraphManager::LightSrc* value);
 
-	void GetObserverCoord(const D3DXVECTOR3& targetPos, float targetDist, D3DXVECTOR3* pos, glm::quat& rot, const glm::vec2& dMPos, float deltaTime, bool dragX, bool dragY, bool restoreY, D3DXVECTOR3* camPos, glm::quat* camQuat, float* dir);
+	void GetObserverCoord(const glm::vec3& targetPos, float targetDist, glm::vec3* pos, glm::quat& rot, const glm::vec2& dMPos, float deltaTime, bool dragX, bool dragY, bool restoreY, glm::vec3* camPos, glm::quat* camQuat, float* dir);
 };
 
 }

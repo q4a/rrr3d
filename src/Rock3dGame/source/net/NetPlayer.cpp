@@ -217,7 +217,7 @@ void NetPlayer::DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordL
 			LSL_ASSERT(projList.size() > 0);
 
 			Proj* proj = projList.front();
-			D3DXVECTOR3 worldPos = proj->GetWorldPos();
+			glm::vec3 worldPos = proj->GetWorldPos();
 
 			if (!readMode)
 			{
@@ -405,7 +405,7 @@ void NetPlayer::OnShot(const net::NetMessage& msg, const net::NetCmdHeader& head
 
 	for (unsigned i = 0; i < coordCount; ++i)
 	{
-		D3DXVECTOR3 worldPos;
+		glm::vec3 worldPos;
 		net::Read(stream, &worldPos, sizeof(worldPos));
 
 		coordList.push_back(worldPos);
@@ -442,7 +442,7 @@ void NetPlayer::OnMineContact1(const net::NetMessage& msg, const net::NetCmdHead
 {
 	unsigned plrId;
 	unsigned projId;
-	D3DXVECTOR3 point;
+	glm::vec3 point;
 
 	net::Read(stream, plrId);
 	net::Read(stream, projId);
@@ -472,7 +472,7 @@ void NetPlayer::OnMineContact2(const net::NetMessage& msg, const net::NetCmdHead
 {
 	unsigned projId;
 
-	D3DXVECTOR3 point;
+	glm::vec3 point;
 
 	net::Read(stream, projId);
 	net::Read(stream, point);
@@ -520,10 +520,10 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 	if (car == NULL)
 		return;
 
-	D3DXVECTOR3 pos = car->GetPxActor().GetPos();
+	glm::vec3 pos = car->GetPxActor().GetPos();
 	glm::quat rot = car->GetPxActor().GetRot();
-	D3DXVECTOR3 linVel = car->GetNxActor()->getLinearMomentum().get();
-	D3DXVECTOR3 angVel = car->GetNxActor()->getAngularMomentum().get();
+	glm::vec3 linVel = car->GetNxActor()->getLinearMomentum().get();
+	glm::vec3 angVel = car->GetNxActor()->getAngularMomentum().get();
 	BYTE moveState = car->GetMoveCar();
 	BYTE steerState = car->GetSteerWheel();
 	float steerWheelsAngle = car->GetSteerWheelAngle();
@@ -540,7 +540,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 	{
 		_dAlpha = 1.0f;
 
-		D3DXVECTOR3 dPos = pos - car->GetPxActor().GetPos();
+		glm::vec3 dPos = pos - car->GetPxActor().GetPos();
 		float dPosLength = D3DXVec3Length(&dPos);
 		if (dPosLength > 4.0f)
 		{
@@ -550,7 +550,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 		else if (dPosLength > 0.1f)
 			linVel += dPos * 2.0f * car->GetNxActor()->getMass();
 
-		/*D3DXVECTOR3 dPos = pos - car->GetPxActor().GetPos();
+		/*glm::vec3 dPos = pos - car->GetPxActor().GetPos();
 		float dPosLength = D3DXVec3Length(&dPos);
 		if (dPosLength > 4.0f) //>2.0f
 		{
@@ -559,8 +559,8 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 		}
 		else
 		{
-			D3DXVECTOR3 dPos1 = car->GetGrActor().GetPos() - car->GetPxPosLerp();
-			D3DXVECTOR3 dPos2 = pos - car->GetPxPosLerp();
+			glm::vec3 dPos1 = car->GetGrActor().GetPos() - car->GetPxPosLerp();
+			glm::vec3 dPos2 = pos - car->GetPxPosLerp();
 			if (D3DXVec3Length(&(dPos1 - dPos2)) > 0.5f)
 				car->SetPosSync2(dPos1, dPos2);
 
@@ -570,7 +570,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 			}
 		}*/
 
-		/*D3DXVECTOR3 dPos = pos - car->GetGrActor().GetPos();
+		/*glm::vec3 dPos = pos - car->GetGrActor().GetPos();
 		float dPosLength = D3DXVec3Length(&dPos);
 		if (D3DXVec3Length(&(car->GetPxActor().GetPos() - pos)) > 1.0f)
 		{
@@ -579,7 +579,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 		}*/
 
 		glm::quat dRot = QuatRotation(car->GetGrActor().GetRot(), rot);
-		D3DXVECTOR3 dRotAxis = Vec3GlmToDx(glm::axis(dRot));
+		glm::vec3 dRotAxis = Vec3GlmToDx(glm::axis(dRot));
 		float dRotAngle = glm::angle(dRot);
 		if (abs(dRotAngle) > D3DX_PI/24)
 		{
@@ -730,7 +730,7 @@ void NetPlayer::TakeBonus(MapObj* bonus, GameObject::BonusType type, float value
 	}
 }
 
-void NetPlayer::MineContact(Proj* sender, const D3DXVECTOR3& point)
+void NetPlayer::MineContact(Proj* sender, const glm::vec3& point)
 {
 	if (owner())
 	{

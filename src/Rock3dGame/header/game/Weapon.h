@@ -164,13 +164,13 @@ public:
 		//тип снаряда
 		Type type;
 		//Локальная позиция снаряда
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		//Локальный поворот снаряда
 		glm::quat rot;
 		//размер и смещение бокса снаряда
-		D3DXVECTOR3 size;
-		D3DXVECTOR3 sizeAddPx;
-		D3DXVECTOR3 offset;
+		glm::vec3 size;
+		glm::vec3 sizeAddPx;
+		glm::vec3 offset;
 		//прибавлять к размеру размер модели снаряда
 		bool modelSize;
 		//Скорость снаряда,
@@ -233,7 +233,7 @@ public:
 			return *this;
 		}
 
-		D3DXVECTOR3 target;
+		glm::vec3 target;
 	};
 
 	struct ShotContext
@@ -261,9 +261,9 @@ private:
 	int _tick1;
 	float _time1;
 	bool _state1;
-	D3DXVECTOR3 _vec1;
+	glm::vec3 _vec1;
 
-	void LocateProj(GameObject* weapon, bool pos, bool rot, const D3DXVECTOR3* speed);
+	void LocateProj(GameObject* weapon, bool pos, bool rot, const glm::vec3* speed);
 
 	void InitModel();
 	void FreeModel(bool remove);
@@ -278,8 +278,8 @@ private:
 
 	AABB ComputeAABB(bool onlyModel);
 	void CreatePxBox(NxCollisionGroup group = px::Scene::cdgShot);
-	void AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, NxForceMode mode);
-	void AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const D3DXVECTOR3& force, NxForceMode mode);
+	void AddContactForce(GameObject* target, const glm::vec3& point, const glm::vec3& force, NxForceMode mode);
+	void AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const glm::vec3& force, NxForceMode mode);
 
 	void SetWeapon(GameObject* weapon);
 	//прилинковать к владельцу. Уничтожается вместе с ним
@@ -292,9 +292,9 @@ private:
 	void EnableFilter(GameObject* target, unsigned mask);
 	void DisableFilter(GameObject* target);
 
-	D3DXVECTOR3 CalcSpeed(GameObject* weapon);
+	glm::vec3 CalcSpeed(GameObject* weapon);
 
-	bool RocketPrepare(GameObject* weapon, bool disableGravity = true, D3DXVECTOR3* speedVec = NULL, NxCollisionGroup pxGroup = px::Scene::cdgShot);
+	bool RocketPrepare(GameObject* weapon, bool disableGravity = true, glm::vec3* speedVec = NULL, NxCollisionGroup pxGroup = px::Scene::cdgShot);
 	void RocketContact(const px::Scene::OnContactEvent& contact);
 	void RocketUpdate(float deltaTime);
 	//
@@ -394,7 +394,7 @@ public:
 	virtual void OnProgress(float deltaTime);
 	bool PrepareProj(GameObject* weapon, const ShotContext& ctx);
 
-	void MineContact(GameObject* target, const D3DXVECTOR3& point);
+	void MineContact(GameObject* target, const glm::vec3& point);
 
 	const Desc& GetDesc() const;
 	void SetDesc(const Desc& value);
@@ -531,7 +531,7 @@ public:
 	virtual void OnProgress(float deltaTime);
 
 	bool Shot(const ShotDesc& shotDesc, ProjList* projList = NULL);
-	bool Shot(const D3DXVECTOR3& target, ProjList* projList = NULL);
+	bool Shot(const glm::vec3& target, ProjList* projList = NULL);
 	bool Shot(MapObj* target, ProjList* projList = NULL);
 	bool Shot(ProjList* projList = NULL);
 

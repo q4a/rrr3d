@@ -186,12 +186,12 @@ void SlotItem::SetTexture(graph::Tex2DResource* value)
 		_texture = value;
 }
 
-const D3DXVECTOR3& SlotItem::GetPos() const
+const glm::vec3& SlotItem::GetPos() const
 {
 	return _pos;
 }
 
-void SlotItem::SetPos(const D3DXVECTOR3& value)
+void SlotItem::SetPos(const glm::vec3& value)
 {
 	_pos = value;
 	TransformChanged();
@@ -915,9 +915,9 @@ void Player::CarState::Update(float deltaTime)
 	Vec3Rotate(XVector, rot3, dir3);
 
 	//pos = glm::vec2(pos3);
-	pos = glm::vec2(pos3.x, pos3.y); // remove after D3DXVECTOR3 replacement
+	pos = glm::vec2(pos3.x, pos3.y); // remove after glm::vec3 replacement
 	//dir = glm::vec2(dir3);
-	dir = glm::vec2(dir3.x, dir3.y); // remove after D3DXVECTOR3 replacement
+	dir = glm::vec2(dir3.x, dir3.y); // remove after glm::vec3 replacement
 	speed = GameCar::GetSpeed(nxActor, dir3);
 	dir = glm::normalize(dir);
 
@@ -1099,9 +1099,9 @@ float Player::CarState::GetLap(bool lastCorectDist) const
 	return numLaps + dist/GetPathLength(lastCorectDist);
 }
 
-D3DXVECTOR3 Player::CarState::GetMapPos() const
+glm::vec3 Player::CarState::GetMapPos() const
 {
-	D3DXVECTOR3 res = NullVector;
+	glm::vec3 res = NullVector;
 	if (curTile)
 	{
 		res = curTile->GetTile().GetPoint(curTile->GetTile().ComputeCoordX(pos));
@@ -1155,7 +1155,7 @@ void Player::ClearBonusProjs()
 		RemoveBonusProj(_bonusProjs.begin());
 }
 
-void Player::InitLight(HeadLight headLight, const D3DXVECTOR3& pos, const glm::quat& rot)
+void Player::InitLight(HeadLight headLight, const glm::vec3& pos, const glm::quat& rot)
 {
 	if (!_lights[headLight])
 	{
@@ -1209,10 +1209,10 @@ void Player::CreateNightLights(MapObj* mapObj)
 	if (mapObj == NULL)
 		return;
 
-	//{D3DXVECTOR3(1.7f, 0.4f, 0.02f), glm::vec2(1.5f, 1.5f), true},
-	//{D3DXVECTOR3(1.7f, -0.4f, 0.02f), glm::vec2(1.5f, 1.5f), true},
-	//{D3DXVECTOR3(-1.57f, 0.45f, 0.28f), glm::vec2(1.0f, 1.0f), false},
-	//{D3DXVECTOR3(-1.57f, -0.45f, 0.28f), glm::vec2(1.0f, 1.0f), false}
+	//{glm::vec3(1.7f, 0.4f, 0.02f), glm::vec2(1.5f, 1.5f), true},
+	//{glm::vec3(1.7f, -0.4f, 0.02f), glm::vec2(1.5f, 1.5f), true},
+	//{glm::vec3(-1.57f, 0.45f, 0.28f), glm::vec2(1.0f, 1.0f), false},
+	//{glm::vec3(-1.57f, -0.45f, 0.28f), glm::vec2(1.0f, 1.0f), false}
 
 	Garage::Car* car = _race->GetGarage().FindCar(_car.record);
 	if (car == NULL)
@@ -1560,11 +1560,11 @@ Player* Player::FindClosestEnemy(float viewAngle, bool zTest)
 				continue;
 			}
 
-			D3DXVECTOR3 carPos = _car.pos3;
-			D3DXVECTOR3 carDir = _car.dir3;
-			D3DXVECTOR3 enemyPos = tCar.pos3;
+			glm::vec3 carPos = _car.pos3;
+			glm::vec3 carDir = _car.dir3;
+			glm::vec3 enemyPos = tCar.pos3;
 
-			D3DXVECTOR3 dir;
+			glm::vec3 dir;
 			D3DXVec3Normalize(&dir, &(enemyPos - carPos));
 			float angle = D3DXVec3Dot(&dir, &carDir);
 
@@ -1678,7 +1678,7 @@ void Player::ResetCar()
 
 	if (lastNode && _car.mapObj)
 	{
-		/*D3DXVECTOR3 pos = lastNode->GetTile().GetPoint(_car.lastNodeCoordX) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;
+		/*glm::vec3 pos = lastNode->GetTile().GetPoint(_car.lastNodeCoordX) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;
 		glm::vec2 dir2 = lastNode->GetTile().GetDir();
 
 		NxRay nxRay(NxVec3(pos), NxVec3(-ZVector));
@@ -1688,7 +1688,7 @@ void Player::ResetCar()
 		if (hitShape == NULL)
 			pos = lastNode->GetTile().GetPoint(0.0f) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;*/
 
-		D3DXVECTOR3 pos = NullVector;
+		glm::vec3 pos = NullVector;
 		glm::vec2 dir2 = NullVec2;
 
 		WayNode* node = lastNode;
@@ -1698,14 +1698,14 @@ void Player::ResetCar()
 
 		for (int i = 0; i < 5; ++i)
 		{
-			D3DXVECTOR3 newPos;
+			glm::vec3 newPos;
 			glm::vec2 newDir2;
 			bool isFind = false;
 
 			for (int j = 0; j < 3; ++j)
 			{
 				float coordX = node->GetTile().ComputeCoordX(distX + offs[j]);
-				D3DXVECTOR3 rayPos = node->GetTile().GetPoint(coordX) + ZVector * node->GetTile().ComputeHeight(0.5f) * 0.5f;
+				glm::vec3 rayPos = node->GetTile().GetPoint(coordX) + ZVector * node->GetTile().ComputeHeight(0.5f) * 0.5f;
 
 				if (i == 0 && j == 0)
 				{
@@ -1762,7 +1762,7 @@ void Player::ResetCar()
 
 		_car.gameObj->SetWorldPos(pos);
 		_car.gameObj->SetWorldRot(NullQuaternion);
-		_car.gameObj->SetWorldDir(D3DXVECTOR3(dir2.x, dir2.y, 0.0f));
+		_car.gameObj->SetWorldDir(glm::vec3(dir2.x, dir2.y, 0.0f));
 
 		_car.gameObj->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(NullVector));
 		_car.gameObj->GetPxActor().GetNxActor()->setLinearMomentum(NxVec3(NullVector));
@@ -1879,15 +1879,15 @@ void Player::SetHeadlight(HeadLightMode value)
 
 			case hlmOne:
 			{
-				InitLight(hlFirst, D3DXVECTOR3(0.3f, 0.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
+				InitLight(hlFirst, glm::vec3(0.3f, 0.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
 				FreeLight(hlSecond);
 				break;
 			}
 
 			case hlmTwo:
 			{
-				InitLight(hlFirst, D3DXVECTOR3(0.3f, 1.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
-				InitLight(hlSecond, D3DXVECTOR3(0.3f, -1.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
+				InitLight(hlFirst, glm::vec3(0.3f, 1.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
+				InitLight(hlSecond, glm::vec3(0.3f, -1.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
 				break;
 			}
 		}
@@ -1935,7 +1935,7 @@ Record* Player::GetSlot(SlotType type)
 	return _slot[type] ? _slot[type]->GetRecord() : 0;
 }
 
-void Player::SetSlot(SlotType type, Record* record, const D3DXVECTOR3& pos, const glm::quat& rot)
+void Player::SetSlot(SlotType type, Record* record, const glm::vec3& pos, const glm::quat& rot)
 {
 	lsl::SafeDelete(_slot[type]);
 

@@ -132,7 +132,7 @@ private:
 	CameraCI _myCamera;
 private:
 	RtFlags _flags;
-	D3DXVECTOR3 _viewPos;
+	glm::vec3 _viewPos;
 public:
 	RenderToCubeTex();
 
@@ -142,8 +142,8 @@ public:
 	virtual void BeginRT(Engine& engine, const RtFlags& flags);
 	virtual void EndRT(Engine& engine);
 
-	const D3DXVECTOR3& GetViewPos() const;
-	void SetViewPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetViewPos() const;
+	void SetViewPos(const glm::vec3& value);
 };
 
 }

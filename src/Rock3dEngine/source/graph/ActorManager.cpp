@@ -137,17 +137,17 @@ ActorManager::CameraCache::iterator ActorManager::CameraCull(const graph::Camera
 	return iterCamera;
 }
 
-bool ActorManager::PullInRayTargetGroup(User* user, unsigned scene, const graph::CameraCI* camera, const D3DXVECTOR3& rayTarget, float rayTargetSize)
+bool ActorManager::PullInRayTargetGroup(User* user, unsigned scene, const graph::CameraCI* camera, const glm::vec3& rayTarget, float rayTargetSize)
 {
 	RayUsers::iterator iter = _rayUsers.find(user);
 	if (iter != _rayUsers.end())
 		iter->second.draw = true;
 
-	D3DXVECTOR3 vec3;
+	glm::vec3 vec3;
 	D3DXVec3TransformCoord(&vec3, &rayTarget, &camera->GetViewProj());
 	vec3.z = 0.0f;
 	D3DXVec3TransformCoord(&vec3, &vec3, &camera->GetInvViewProj());
-	D3DXVECTOR3 ray = rayTarget - vec3;
+	glm::vec3 ray = rayTarget - vec3;
 	float rayLen = D3DXVec3Length(&ray);
 	D3DXVec3Normalize(&ray, &ray);
 
@@ -317,7 +317,7 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	{
 		const D3DXPLANE& testPlane = iter->plane;
 		float dist = abs(testPlane.d - plane.d);
-		float angle = abs(D3DXPlaneDotNormal(&testPlane, &D3DXVECTOR3(plane)));
+		float angle = abs(D3DXPlaneDotNormal(&testPlane, &glm::vec3(plane)));
 
 		if (dist < 0.5f && angle > 0.99f
 			//&& (planarIter == _planars.end() ||
@@ -343,7 +343,7 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	return _planars.back();
 }
 
-void ActorManager::PullRayUsers(unsigned scene, const graph::CameraCI* camera, const D3DXVECTOR3& rayTarget, float rayTargetSize)
+void ActorManager::PullRayUsers(unsigned scene, const graph::CameraCI* camera, const glm::vec3& rayTarget, float rayTargetSize)
 {
 	const Frustum& frustum = camera->GetFrustum();
 	CameraCache::iterator iterCamera = CameraCull(camera);

@@ -19,9 +19,9 @@ class FxManager;
 class FxParticle: public lsl::Object
 {
 private:
-	D3DXVECTOR3 _pos;
+	glm::vec3 _pos;
 	glm::quat _rot;
-	D3DXVECTOR3 _scale;
+	glm::vec3 _scale;
 
 	mutable D3DXMATRIX _worldMat;
 	mutable bool _worldMatChanged;
@@ -38,14 +38,14 @@ public:
 	FxParticle();
 	virtual ~FxParticle();
 
-	const D3DXVECTOR3& GetPos();
-	void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos();
+	void SetPos(const glm::vec3& value);
 
 	const glm::quat& GetRot();
 	void SetRot(const glm::quat& value);
 
-	const D3DXVECTOR3& GetScale();
-	void SetScale(const D3DXVECTOR3& value);
+	const glm::vec3& GetScale();
+	void SetScale(const glm::vec3& value);
 
 	const D3DXMATRIX& GetMatrix() const;
 
@@ -142,7 +142,7 @@ private:
 	float _curTime;
 	//момент создания последней группы
 	float _lastTimeQGroup;
-	D3DXVECTOR3 _lastPosQGroup;
+	glm::vec3 _lastPosQGroup;
 	//
 	float _curDensParticle;
 	unsigned _cntParticles;
@@ -165,8 +165,8 @@ private:
 	void ClearParticles(FxParticleGroup* group);
 
 	//возвращает deltaTime >=0 если необходим запрос на создание
-	float CheckTimeCreateQuery(D3DXVECTOR3& offPos);
-	float CheckDistCreateQuery(D3DXVECTOR3& offPos);
+	float CheckTimeCreateQuery(glm::vec3& offPos);
+	float CheckDistCreateQuery(glm::vec3& offPos);
 protected:
 	unsigned GetNextPartIndex() const;
 	float CompRangeFrame(unsigned index) const;
@@ -180,8 +180,8 @@ protected:
 	virtual void UpdateGroup(FxParticleGroup* group, float dTime, bool init);
 
 	//Запрос на создание num частиц с учетом условий ограничения
-	void QueryCreateParticles(unsigned num, float deltaTime, const D3DXVECTOR3& offPos);
-	void QueryCreateGroup(float deltaTime, const D3DXVECTOR3& offPos);
+	void QueryCreateParticles(unsigned num, float deltaTime, const glm::vec3& offPos);
+	void QueryCreateGroup(float deltaTime, const glm::vec3& offPos);
 
 	virtual AABB LocalDimensions() const;
 	virtual void OnProgress(float deltaTime);
@@ -211,8 +211,8 @@ public:
 	bool GetModeFading() const;
 	void SetModeFading(bool value);
 
-	D3DXVECTOR3 GetLocalPos(FxParticle* particle) const;
-	D3DXVECTOR3 GetWorldPos(FxParticle* particle) const;
+	glm::vec3 GetLocalPos(FxParticle* particle) const;
+	glm::vec3 GetWorldPos(FxParticle* particle) const;
 
 	const D3DXMATRIX& GetMatrix() const;
 };
@@ -273,7 +273,7 @@ private:
 	ChildStyle _childStyle;
 
 	AABB _aabb;
-	D3DXVECTOR3 _srcSpeed;
+	glm::vec3 _srcSpeed;
 protected:
 	void OnCreateParticle(FxParticle* value);
 	void OnDestroyParticle(FxParticle* value);
@@ -311,8 +311,8 @@ public:
 	//режим затухания
 	void SetModeFading(bool value);
 
-	const D3DXVECTOR3& GetSrcSpeed() const;
-	void SetSrcSpeed(const D3DXVECTOR3& value);
+	const glm::vec3& GetSrcSpeed() const;
+	void SetSrcSpeed(const glm::vec3& value);
 
 	MaterialNode material;
 };
@@ -417,7 +417,7 @@ public:
 private:
 	float _trailWidth;
 
-	void BuildVertexLine(res::VertexPT* vertex, const D3DXVECTOR3& pos, const D3DXVECTOR3& dir, const D3DXVECTOR3& camPos, float xTex);
+	void BuildVertexLine(res::VertexPT* vertex, const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& camPos, float xTex);
 	void DrawPath(graph::Engine& engine, FxParticleSystem* system, FxParticleGroup* group, res::VertexPT* vBuf, unsigned primCnt, unsigned sPrim);
 protected:
 	virtual void RenderGroup(graph::Engine& engine, FxEmitter* emitter, FxParticleGroup* group);
@@ -431,7 +431,7 @@ public:
 	void SetTrailWidth(float value);
 
 	//Фиксированная нормаль у следов
-	D3DXVECTOR3 fixedUpVec;
+	glm::vec3 fixedUpVec;
 	bool fixedUp;
 	//Тип отрисовки
 	TypeDraw typeDraw;
@@ -440,10 +440,10 @@ public:
 class FxFlowParticle: public FxParticle
 {
 public:
-	D3DXVECTOR3 speedPos;
+	glm::vec3 speedPos;
 	glm::quat speedRot;
-	D3DXVECTOR3 speedScale;
-	D3DXVECTOR3 acceleration;
+	glm::vec3 speedScale;
+	glm::vec3 acceleration;
 };
 
 class FxFlowEmitter: public FxEmitter
@@ -460,7 +460,7 @@ public:
 		Vec3Range speedScale;
 		Vec3Range acceleration;
 
-		D3DXVECTOR3 gravitation;
+		glm::vec3 gravitation;
 		//Автоповорот по направлению скорости перемещения
 		//true - включено
 		bool autoRot;

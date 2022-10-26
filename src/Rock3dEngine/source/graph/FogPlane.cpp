@@ -44,7 +44,7 @@ void FogPlane::DoRender(graph::Engine& engine)
 	if (_cloudsMat)
 		_cloudsMat->Apply(engine);
 
-	D3DXVECTOR3 fogParamsVec = D3DXVECTOR3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
+	glm::vec3 fogParamsVec = glm::vec3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
 	if (fogParamsVec.z != 0)
 	{
 		DWORD dwVal = engine.GetContext().GetRenderState(rsFogStart);

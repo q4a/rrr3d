@@ -142,12 +142,12 @@ void LogicEventEffect::SetEffect(MapObjRec* value)
 		_effect = value;
 }
 
-const D3DXVECTOR3& LogicEventEffect::GetPos() const
+const glm::vec3& LogicEventEffect::GetPos() const
 {
 	return _pos;
 }
 
-void LogicEventEffect::SetPos(const D3DXVECTOR3& value)
+void LogicEventEffect::SetPos(const glm::vec3& value)
 {
 	_pos = value;
 }
@@ -189,7 +189,7 @@ PairPxContactEffect::ContactMap::iterator PairPxContactEffect::GetOrCreateContac
 	return res.first;
 }
 
-void PairPxContactEffect::InsertContact(ContactMap::iterator iter, NxShape* shape1, NxShape* shape2, const D3DXVECTOR3& point)
+void PairPxContactEffect::InsertContact(ContactMap::iterator iter, NxShape* shape1, NxShape* shape2, const glm::vec3& point)
 {
 	ContactNode* node = iter->second;
 
@@ -649,7 +649,7 @@ bool Logic::TakeBonus(GameObject* sender, GameObject* bonus, GameObject::BonusTy
 	return true;
 }
 
-bool Logic::MineContact(Proj* sender, GameObject* target, const D3DXVECTOR3& point)
+bool Logic::MineContact(Proj* sender, GameObject* target, const glm::vec3& point)
 {
 	LSL_ASSERT(sender && target && target->GetMapObj());
 	if (target == NULL)

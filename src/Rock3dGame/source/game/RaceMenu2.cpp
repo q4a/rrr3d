@@ -21,7 +21,7 @@ CarFrame::CarFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFra
 
 	record = menu->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\question");
 	_secretMapObj = &menu->GetRace()->GetMap()->AddMapObj(record);
-	_secretMapObj->GetGameObj().SetWorldPos(D3DXVECTOR3(0, 0, 0.39f));
+	_secretMapObj->GetGameObj().SetWorldPos(glm::vec3(0, 0, 0.39f));
 	_secretMapObj->GetGameObj().GetGrActor().SetVisible(false);
 }
 
@@ -61,12 +61,12 @@ void CarFrame::OnShow(bool value)
 		_camStyle = cCamStyleEnd;
 		SetCamStyle(csCar, true);
 
-		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(-0.94673467f, 3.0021181f, 2.9447727f), 0);
+		menu()->GetEnv()->SetLampPos(glm::vec3(-0.94673467f, 3.0021181f, 2.9447727f), 0);
 		menu()->GetEnv()->SetLampRot(glm::quat(0.79532242f, 0.19748747f, 0.34095559f, -0.46066701f), 0);
 		menu()->GetEnv()->SetLampColor(clrWhite, 0);
 		menu()->GetEnv()->SwitchOnLamp(0, true);
 
-		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(6.0344887f, -5.2521329f, 1.6322796f), 1);
+		menu()->GetEnv()->SetLampPos(glm::vec3(6.0344887f, -5.2521329f, 1.6322796f), 1);
 		menu()->GetEnv()->SetLampRot(glm::quat(0.25379914f, -0.17059785f, 0.045529708f, 0.95100683f), 1);
 		menu()->GetEnv()->SetLampColor(clrWhite, 1);
 		menu()->GetEnv()->SwitchOnLamp(1, true);
@@ -98,7 +98,7 @@ void CarFrame::SetCar(Garage::Car* value, const D3DXCOLOR& color, bool secret)
 
 			for (GameCar::Wheels::const_iterator iter = gameCar.GetWheels().begin(); iter != gameCar.GetWheels().end(); ++iter)
 			{
-				(*iter)->SetPos((*iter)->GetPos() + D3DXVECTOR3(0, 0, -0.5f) * (*iter)->GetShape()->GetSuspensionTravel() + (*iter)->GetOffset());
+				(*iter)->SetPos((*iter)->GetPos() + glm::vec3(0, 0, -0.5f) * (*iter)->GetShape()->GetSuspensionTravel() + (*iter)->GetOffset());
 
 				if ((*iter)->invertWheel)
 				{
@@ -109,7 +109,7 @@ void CarFrame::SetCar(Garage::Car* value, const D3DXCOLOR& color, bool secret)
 				wheelOffs = abs((*iter)->GetPos().z) + (*iter)->GetShape()->GetRadius() + (*iter)->GetOffset().z;
 			}
 
-			_carMapObj->GetGameObj().SetWorldPos(D3DXVECTOR3(0, 0, wheelOffs - 0.71f));
+			_carMapObj->GetGameObj().SetWorldPos(glm::vec3(0, 0, wheelOffs - 0.71f));
 			_carMapObj->GetGameObj().GetGrActor().SetVisible(visible());
 
 			SetCarColor(color);
@@ -203,7 +203,7 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 	CamStyle lastCamStyle = _camStyle;
 	_camStyle = value;
 
-	D3DXVECTOR3 pos = NullVector;
+	glm::vec3 pos = NullVector;
 	glm::quat rot = NullQuaternion;
 	CameraManager* camera = menu()->GetRace()->GetWorld()->GetCamera();
 	graph::Camera* cameraInst = menu()->GetRace()->GetWorld()->GetGraph()->GetCamera();
@@ -221,28 +221,28 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 		}
 		else
 		{
-			pos = D3DXVECTOR3(2.9176455f, 3.8489482f, 1.2934232f);
+			pos = glm::vec3(2.9176455f, 3.8489482f, 1.2934232f);
 			rot = glm::quat(0.44111854f, 0.11683256f, 0.058045074f, -0.88791621f);
 		}
 
 		camera->SetTarget(D3DXVECTOR4(0, 0, 0, 5.0f));
 		camera->SetClampAngle(D3DXVECTOR4(0.0f, 0.0f, 25.0f * D3DX_PI/180, 80.0f * D3DX_PI/180));
-		camera->SetAngleSpeed(D3DXVECTOR3(D3DX_PI/48, 0, 0));
-		camera->SetStableAngle(D3DXVECTOR3(75.0f * D3DX_PI/180, 0, 0));
+		camera->SetAngleSpeed(glm::vec3(D3DX_PI/48, 0, 0));
+		camera->SetStableAngle(glm::vec3(75.0f * D3DX_PI/180, 0, 0));
 		break;
 	}
 
 	case csSlots:
 	{
-		D3DXVECTOR3 posList[8] = {
-			D3DXVECTOR3(-5.6156259f, 4.3894496f, 1.3072476f),
-			D3DXVECTOR3(1.0063084f, 6.9253764f, 1.7360222f),
-			D3DXVECTOR3(5.6724834f, 4.9537153f, 1.3952403f),
-			D3DXVECTOR3(7.0655332f, -1.0402107f, 1.2024049f),
-			D3DXVECTOR3(5.4610982f, -5.3067584f, 1.2650701f),
-			D3DXVECTOR3(-1.1062316f, -7.5020962f, 1.1599010f),
-			D3DXVECTOR3(-5.9399834f, -4.8825927f, 1.0367264f),
-			D3DXVECTOR3(-7.4102926f, 0.61909121f, 1.1492375f)
+		glm::vec3 posList[8] = {
+			glm::vec3(-5.6156259f, 4.3894496f, 1.3072476f),
+			glm::vec3(1.0063084f, 6.9253764f, 1.7360222f),
+			glm::vec3(5.6724834f, 4.9537153f, 1.3952403f),
+			glm::vec3(7.0655332f, -1.0402107f, 1.2024049f),
+			glm::vec3(5.4610982f, -5.3067584f, 1.2650701f),
+			glm::vec3(-1.1062316f, -7.5020962f, 1.1599010f),
+			glm::vec3(-5.9399834f, -4.8825927f, 1.0367264f),
+			glm::vec3(-7.4102926f, 0.61909121f, 1.1492375f)
 		};
 
 		glm::quat rotList[8] = {
@@ -294,14 +294,14 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 	if (lastCamStyle == csCar)
 	{
 		D3DXVECTOR4 target = camera->GetTarget();
-		camera->GetObserverCoord(D3DXVECTOR3(target.x, target.y, target.z), target.w, &_camLastPos, _camLastRot, NullVec2, 0, false, false, true, NULL, NULL, NULL);
+		camera->GetObserverCoord(glm::vec3(target.x, target.y, target.z), target.w, &_camLastPos, _camLastRot, NullVec2, 0, false, false, true, NULL, NULL, NULL);
 	}
 }
 
 SpaceshipFrame::SpaceshipFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _redLampTime(0.0f)
 {
 	{
-		D3DXVECTOR3 center = D3DXVECTOR3(63.0f, 0.0f, 23.0f);
+		glm::vec3 center = glm::vec3(63.0f, 0.0f, 23.0f);
 
 		MapObjRec* record =  menu->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\space2");
 		_spaceMapObj = &menu->GetRace()->GetMap()->AddMapObj(record);
@@ -312,7 +312,7 @@ SpaceshipFrame::SpaceshipFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* pare
 		glm::vec2 imageSize = static_cast<graph::Sampler2d&>(spaceSprite->material.Get()->samplers.front()).GetSize();
 		float aspect = imageSize.x/imageSize.y;
 		spaceSprite->SetPos(center);
-		spaceSprite->SetScale(D3DXVECTOR3(aspect * 70.0f, 70.0f, 1.0f));
+		spaceSprite->SetScale(glm::vec3(aspect * 70.0f, 70.0f, 1.0f));
 		spaceSprite->SetPitchAngle(-D3DX_PI/2);
 		spaceSprite->SetRollAngle(-D3DX_PI/2);
 	}
@@ -356,17 +356,17 @@ void SpaceshipFrame::OnShow(bool value)
 		menu()->GetEnv()->SetWheater(Environment::ewAngar);
 		menu()->GetEnv()->StartScene();
 
-		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(22.169474f, -5.9075522f, 35.802311f), 0);
+		menu()->GetEnv()->SetLampPos(glm::vec3(22.169474f, -5.9075522f, 35.802311f), 0);
 		menu()->GetEnv()->SetLampRot(glm::quat(0.14267041f, -0.47304764f, 0.077942163f, 0.86590993f), 0);
 		menu()->GetEnv()->SetLampColor(clrWhite, 0);
 		menu()->GetEnv()->SwitchOnLamp(0, true);
 
-		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(-20.881384f, -21.184746f, 26.121809f), 1);
+		menu()->GetEnv()->SetLampPos(glm::vec3(-20.881384f, -21.184746f, 26.121809f), 1);
 		menu()->GetEnv()->SetLampRot(glm::quat(0.83397770f, -0.16464995f, 0.34524971f, 0.39772648f), 1);
 		menu()->GetEnv()->SetLampColor(clrRed * 0.8f, 1);
 		menu()->GetEnv()->SwitchOnLamp(1, false);
 
-		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(52.307316f, 24.327570f, 32.772705f), 2);
+		menu()->GetEnv()->SetLampPos(glm::vec3(52.307316f, 24.327570f, 32.772705f), 2);
 		menu()->GetEnv()->SetLampRot(glm::quat(0.61423278f, 0.21948183f, 0.18329506f, -0.73549527f), 2);
 		menu()->GetEnv()->SetLampColor(D3DXCOLOR(0xff88fefe), 2);
 		menu()->GetEnv()->SwitchOnLamp(2, true);
@@ -375,14 +375,14 @@ void SpaceshipFrame::OnShow(bool value)
 		graph::Camera* cameraInst = menu()->GetRace()->GetWorld()->GetGraph()->GetCamera();
 
 		camera->StopFly();
-		cameraInst->SetPos(D3DXVECTOR3(-43.756214f, -11.786510f, 21.129881f));
+		cameraInst->SetPos(glm::vec3(-43.756214f, -11.786510f, 21.129881f));
 		cameraInst->SetRot(glm::quat(0.96786171f, -0.028391786f, 0.21455817f, 0.12807286f));
 		camera->ChangeStyle(CameraManager::csAutoObserver);
 
 		camera->SetTarget(D3DXVECTOR4(0, 0, 0, 50.0f));
 		camera->SetClampAngle(D3DXVECTOR4(40.0f * D3DX_PI/180, 30.0f * D3DX_PI/180, 45.0f * D3DX_PI/180, 80.0f * D3DX_PI/180));
-		camera->SetAngleSpeed(D3DXVECTOR3(D3DX_PI/96, 0, 0));
-		camera->SetStableAngle(D3DXVECTOR3(65.0f * D3DX_PI/180, 0, 0));
+		camera->SetAngleSpeed(glm::vec3(D3DX_PI/96, 0, 0));
+		camera->SetStableAngle(glm::vec3(65.0f * D3DX_PI/180, 0, 0));
 
 		_redLampTime = 0.0f;
 	}
@@ -3809,7 +3809,7 @@ void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const D3DX
 
 		if (!car->GetWheels().empty() && car->GetWheel())
 		{
-			std::vector<D3DXVECTOR3> wheels;
+			std::vector<glm::vec3> wheels;
 			CarWheels::LoadPosTo(car->GetWheels(), wheels);
 			for (unsigned i = 0; i < wheels.size(); ++i)
 			{
@@ -3819,7 +3819,7 @@ void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const D3DX
 				wheel->SetPos(wheels[i]);
 				if (wheels[i].y < 0)
 				{
-					wheel->SetScale(D3DXVECTOR3(1.0f, -1.0f, 1.0f));
+					wheel->SetScale(glm::vec3(1.0f, -1.0f, 1.0f));
 					wheel->invertCullFace = true;
 				}
 			}
@@ -3842,7 +3842,7 @@ void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const D3DX
 				if (wpn != NULL && wpn->GetMapObj() == NULL)
 					continue;
 
-				D3DXVECTOR3 pos = placeSlot.pos + placeItem->offset;
+				glm::vec3 pos = placeSlot.pos + placeItem->offset;
 				glm::quat rot = placeItem ? placeItem->rot : NullQuaternion;
 
 				gui::Mesh3d* carMesh = _menu->CreateMesh3d(viewport, slot->GetItem().GetMesh(), slot->GetItem().GetTexture());

@@ -37,9 +37,9 @@ template<> struct SerialValue<glm::vec2>
 	}
 };
 
-template<> struct SerialValue<D3DXVECTOR3>
+template<> struct SerialValue<glm::vec3>
 {
-	typedef D3DXVECTOR3 _Value;
+	typedef glm::vec3 _Value;
 
 	static void Write(SWriter* writer, const char* name, const _Value& value)
 	{
@@ -151,9 +151,9 @@ template<class _Value> struct SerialValue<ValueRange<_Value>>
 	}
 };
 
-template<> struct SerialValue<ValueRange<D3DXVECTOR3>>
+template<> struct SerialValue<ValueRange<glm::vec3>>
 {
-	typedef D3DXVECTOR3 _Value;
+	typedef glm::vec3 _Value;
 	typedef ValueRange<_Value> MyRange;
 	typedef SerialValue<Point3U> MyPoint3U;
 

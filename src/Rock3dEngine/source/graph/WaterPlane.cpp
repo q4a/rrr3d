@@ -98,7 +98,7 @@ void WaterPlane::DoRender(graph::Engine& engine)
 	shader.SetValueDir("time", curTime);
 	shader.SetValueDir("cloudIntens", _cloudIntens);
 
-	D3DXVECTOR3 fogParamsVec = D3DXVECTOR3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
+	glm::vec3 fogParamsVec = glm::vec3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
 	if (fogParamsVec.z != 0)
 	{
 		DWORD dwVal = engine.GetContext().GetRenderState(rsFogStart);
@@ -161,12 +161,12 @@ void WaterPlane::SetColor(const D3DXCOLOR& value)
 	shader.SetValue("waterColor", D3DXVECTOR4(value));
 }
 
-const D3DXVECTOR3& WaterPlane::GetViewPos() const
+const glm::vec3& WaterPlane::GetViewPos() const
 {
 	return _viewPos;
 }
 
-void WaterPlane::SetViewPos(const D3DXVECTOR3& value)
+void WaterPlane::SetViewPos(const glm::vec3& value)
 {
 	_viewPos = value;
 }

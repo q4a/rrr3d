@@ -79,7 +79,7 @@ private:
 		cOctreeSceneEnd
 	};
 
-	static const D3DXVECTOR3 posLights[8];
+	static const glm::vec3 posLights[8];
 public:
 	typedef std::list<graph::Actor*> ActorList;
 
@@ -128,7 +128,7 @@ public:
 
 	struct OrthoTarget
 	{
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		float size;
 	};
 
@@ -163,7 +163,7 @@ private:
 	graph::ActorManager* _actorManager;
 
 	graph::Camera* _camera;
-	D3DXVECTOR3 _cubeViewPos;
+	glm::vec3 _cubeViewPos;
 	OrthoTarget _orthoTarget;
 	AABB _groundAABB;
 	bool _guiMode;
@@ -389,10 +389,10 @@ public:
 
 	void BuildOctree();
 
-	D3DXVECTOR3 ScreenToWorld(const lsl::Point& coord, const float z);
-	lsl::Point WorldToScreen(const D3DXVECTOR3& coord);
-	void ScreenToRay(const lsl::Point& coord, D3DXVECTOR3& rayStart, D3DXVECTOR3& rayVec);
-	bool ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, D3DXVECTOR3& outVec);
+	glm::vec3 ScreenToWorld(const lsl::Point& coord, const float z);
+	lsl::Point WorldToScreen(const glm::vec3& coord);
+	void ScreenToRay(const lsl::Point& coord, glm::vec3& rayStart, glm::vec3& rayVec);
+	bool ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, glm::vec3& outVec);
 
 	graph::Engine& GetEngine();
 	gui::Manager& GetGUI();
@@ -439,11 +439,11 @@ public:
 	graph::Camera* GetCamera();
 	void SetCamera(graph::Camera* value);
 
-	const D3DXVECTOR3& GetCubeViewPos() const;
-	void SetCubeViewPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetCubeViewPos() const;
+	void SetCubeViewPos(const glm::vec3& value);
 	//
 	const OrthoTarget& GetOrthoTarget() const;
-	void SetOrthoTarget(const D3DXVECTOR3& pos, float size);
+	void SetOrthoTarget(const glm::vec3& pos, float size);
 
 	const HDRParams& GetHDRParams() const;
 	void SetHDRParams(const HDRParams& value);

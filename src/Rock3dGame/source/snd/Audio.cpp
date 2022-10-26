@@ -1639,7 +1639,7 @@ void Source3d::ApplyX3dEffect()
 	if (!(GetProxy() && listener && _play))
 		return;
 
-	D3DXVECTOR3 listDist = _pos3d - listener->pos;
+	glm::vec3 listDist = _pos3d - listener->pos;
 	float listDistLen = D3DXVec3Length(&listDist);
 
 	if (listDistLen > distScaller + stopLag)
@@ -1666,8 +1666,8 @@ void Source3d::ApplyX3dEffect()
 			ZeroMemory(&xList, sizeof(xList));
 			xList.Position = listener->pos;
 			D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(listener->rot)));
-			xList.OrientFront = D3DXVECTOR3(rotMat.m[0]);
-			xList.OrientTop = D3DXVECTOR3(rotMat.m[2]);
+			xList.OrientFront = glm::vec3(rotMat.m[0]);
+			xList.OrientTop = glm::vec3(rotMat.m[2]);
 
 			_xEmitter.ChannelCount = nSrcChannels;
 			_xEmitter.CurveDistanceScaler = distScaller;
@@ -1777,12 +1777,12 @@ bool Source3d::IsPlaying() const
 	return _play;
 }
 
-const D3DXVECTOR3& Source3d::GetPos3d()
+const glm::vec3& Source3d::GetPos3d()
 {
 	return _pos3d;
 }
 
-void Source3d::SetPos3d(const D3DXVECTOR3& value)
+void Source3d::SetPos3d(const glm::vec3& value)
 {
 	_pos3d = value;
 	Changed3d();
