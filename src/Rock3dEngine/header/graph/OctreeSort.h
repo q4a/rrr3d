@@ -375,7 +375,7 @@ private:
 	Users* _users;
 	Node* _root;
 
-	D3DXVECTOR3 _nodeOff[cOctNum];
+	glm::vec3 _nodeOff[cOctNum];
 	//”никальный идентификатор прохода
 	unsigned long _idPass;
 

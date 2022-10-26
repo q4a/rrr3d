@@ -59,14 +59,14 @@ protected:
 	{
 		EffectDesc(): pos(NullVector) {}
 
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 	};
 private:
 	GameObjEvent* _gameObjEvent;
 	MapObjRec* _effect;
 	EffObjList _effObjList;
 
-	D3DXVECTOR3 _pos;
+	glm::vec3 _pos;
 
 	void InsertEffObj(MapObj* mapObj);
 	void RemoveEffObj(MapObj* mapObj);
@@ -89,8 +89,8 @@ public:
 	MapObjRec* GetEffect();
 	void SetEffect(MapObjRec* value);
 
-	const D3DXVECTOR3& GetPos() const;
-	void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos() const;
+	void SetPos(const glm::vec3& value);
 };
 
 class PairPxContactEffect: public LogicEventEffect
@@ -124,7 +124,7 @@ private:
 
 		NxShape* shape1;
 		NxShape* shape2;
-		D3DXVECTOR3 point;
+		glm::vec3 point;
 
 		MapObj* effect;
 		float time;
@@ -152,7 +152,7 @@ private:
 	ContactMap _contactMap;
 
 	ContactMap::iterator GetOrCreateContact(const Key& key);
-	void InsertContact(ContactMap::iterator iter, NxShape* shape1, NxShape* shape2, const D3DXVECTOR3& point);
+	void InsertContact(ContactMap::iterator iter, NxShape* shape1, NxShape* shape2, const glm::vec3& point);
 	ContactMap::iterator ReleaseContact(ContactMap::iterator iter, ContactList::iterator cIter1, ContactList::iterator cIter2, bool death, float deltaTime = 0.0f, float cRelTime = -1.0f);
 	void ReleaseContacts(bool death);
 
@@ -259,7 +259,7 @@ public:
 	void Shot(Player* player, MapObj* target);
 	void Damage(GameObject* sender, int senderPlayerId, GameObject* target, float value, GameObject::DamageType damageType);
 	bool TakeBonus(GameObject* sender, GameObject* bonus, GameObject::BonusType type, float value);
-	bool MineContact(Proj* sender, GameObject* target, const D3DXVECTOR3& point);
+	bool MineContact(Proj* sender, GameObject* target, const glm::vec3& point);
 
 	snd::Source* CreateSndSource(SndCategory category);
 	snd::Source3d* CreateSndSource3d(SndCategory category);

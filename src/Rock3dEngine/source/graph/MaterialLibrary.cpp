@@ -32,8 +32,8 @@ const D3DXMATRIX& BaseSampler::GetMatrix(float frame) const
 		_matFrame = frame;
 		_matChanged = false;
 
-		D3DXVECTOR3 offset = _offset.GetValue(_matFrame);
-		D3DXVECTOR3 scale = _scale.GetValue(_matFrame);
+		glm::vec3 offset = _offset.GetValue(_matFrame);
+		glm::vec3 scale = _scale.GetValue(_matFrame);
 		glm::quat rotate = _rotate.GetValue(_matFrame);
 
 		_defMat = offset == NullVector && scale == IdentityVector && rotate == NullQuaternion;
@@ -295,8 +295,8 @@ void Sampler2d::BuildAnimByOff(const Vec2Range& texCoord, const Point2U& tileCnt
 	glm::vec2 stTile(texCoord.GetMin() + coordOff);
 	glm::vec2 endTile(tileSize * (fTileCnt - IdentityVec2) + stTile);
 
-	SetScale(D3DXVECTOR3(tileSize.x, tileSize.y, 1.0f));
-	SetOffset(Vec3Range(D3DXVECTOR3(stTile.x, stTile.y, 0), D3DXVECTOR3(endTile.x, endTile.y, 0), Vec3Range::vdVolume, Point3U(tileCnt.x, tileCnt.y, 1)));
+	SetScale(glm::vec3(tileSize.x, tileSize.y, 1.0f));
+	SetOffset(Vec3Range(glm::vec3(stTile.x, stTile.y, 0), glm::vec3(endTile.x, endTile.y, 0), Vec3Range::vdVolume, Point3U(tileCnt.x, tileCnt.y, 1)));
 }
 
 void Sampler2d::BuildAnimByTile(const Vec2Range& texCoord, const Point2U& tileCnt, const glm::vec2& tileSize)

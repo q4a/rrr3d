@@ -89,8 +89,8 @@ public:
 	res::VertexData* GetOrCreateData();
 	void SetData(res::VertexData* value);
 
-	const D3DXVECTOR3& GetMinPos() const;
-	const D3DXVECTOR3& GetMaxPos() const;
+	const glm::vec3& GetMinPos() const;
+	const glm::vec3& GetMaxPos() const;
 	IDirect3DVertexBuffer9* GetVB() const;
 
 	D3DPRIMITIVETYPE primitiveType;
@@ -127,8 +127,8 @@ public:
 	void SetData(res::MeshData* value);
 
 	unsigned GetSubsetCount() const;
-	const D3DXVECTOR3& GetMinPos() const;
-	const D3DXVECTOR3& GetMaxPos() const;
+	const glm::vec3& GetMinPos() const;
+	const glm::vec3& GetMaxPos() const;
 
 	IDirect3DVertexBuffer9* GetVB();
 	IDirect3DIndexBuffer9* GetIB();
@@ -180,8 +180,8 @@ public:
 	void SetPrefab(Prefab value);
 
 	unsigned GetSubsetCount() const;
-	const D3DXVECTOR3& GetMinPos() const;
-	const D3DXVECTOR3& GetMaxPos() const;
+	const glm::vec3& GetMinPos() const;
+	const glm::vec3& GetMaxPos() const;
 };
 
 class TexResource: public MemPoolResource

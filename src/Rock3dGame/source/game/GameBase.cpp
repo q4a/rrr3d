@@ -118,7 +118,7 @@ void ResurrectObj::Resurrect()
 	{
 		owner->LockDestr();
 
-		D3DXVECTOR3 pos = gameObj->GetWorldPos();
+		glm::vec3 pos = gameObj->GetWorldPos();
 		glm::quat rot = gameObj->GetWorldRot();
 
 		owner->Delete(mapObj);
@@ -196,7 +196,7 @@ void FxSystemSrcSpeed::OnProgress(float deltaTime)
 		{
 			graph::FxParticleSystem* fxSystem = iter->GetItem<graph::FxParticleSystem>();
 
-			D3DXVECTOR3 speed(GetGameObj()->GetPxActor().GetNxActor()->getLinearVelocity().get());
+			glm::vec3 speed(GetGameObj()->GetPxActor().GetNxActor()->getLinearVelocity().get());
 			if (GetGameObj()->GetParent())
 				GetGameObj()->GetParent()->GetGrActor().WorldToLocalNorm(speed, speed);
 
@@ -347,7 +347,7 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 	if (!_ignoreRot)
 		mapObj->GetGameObj().SetRot(desc.rot);
 
-	if (D3DXVec3Length(&_impulse) > 0.001f && mapObj->GetGameObj().GetPxActor().GetNxActor())
+	if (glm::length(_impulse) > 0.001f && mapObj->GetGameObj().GetPxActor().GetNxActor())
 		mapObj->GetGameObj().GetPxActor().GetNxActor()->addLocalForce(NxVec3(_impulse), NX_IMPULSE);
 
 	return mapObj;
@@ -536,22 +536,22 @@ void EventEffect::SetSound(snd::Sound* value)
 	AddSound(value);
 }
 
-const D3DXVECTOR3& EventEffect::GetPos() const
+const glm::vec3& EventEffect::GetPos() const
 {
 	return _pos;
 }
 
-void EventEffect::SetPos(const D3DXVECTOR3& value)
+void EventEffect::SetPos(const glm::vec3& value)
 {
 	_pos = value;
 }
 
-const D3DXVECTOR3& EventEffect::GetImpulse() const
+const glm::vec3& EventEffect::GetImpulse() const
 {
 	return _impulse;
 }
 
-void EventEffect::SetImpulse(const D3DXVECTOR3& value)
+void EventEffect::SetImpulse(const glm::vec3& value)
 {
 	_impulse = value;
 }
@@ -797,7 +797,7 @@ void PxWheelSlipEffect::OnProgress(float deltaTime)
 	if (slip > 0)
 	{
 		EffectDesc desc;
-		desc.pos = D3DXVECTOR3(contactDesc.contactPoint.get());
+		desc.pos = glm::vec3(contactDesc.contactPoint.get());
 		desc.child = false;
 		if (GetMakeEffect())
 			GetMakeEffect()->GetGameObj().SetPos(GetPos() + desc.pos);
@@ -828,7 +828,7 @@ ShotEffect::ShotEffect(Behaviors* owner): _MyBase(owner)
 {
 }
 
-void ShotEffect::OnShot(const D3DXVECTOR3& pos)
+void ShotEffect::OnShot(const glm::vec3& pos)
 {
 	if (GetEffect())
 	{
@@ -954,12 +954,12 @@ void ImmortalEffect::OnProgress(float deltaTime)
 	}
 }
 
-const D3DXVECTOR3& ImmortalEffect::GetScaleK() const
+const glm::vec3& ImmortalEffect::GetScaleK() const
 {
 	return _scaleK;
 }
 
-void ImmortalEffect::SetScaleK(const D3DXVECTOR3& value)
+void ImmortalEffect::SetScaleK(const glm::vec3& value)
 {
 	_scaleK = value;
 }
@@ -1180,7 +1180,7 @@ void GusenizaAnim::OnProgress(float deltaTime)
 	_xAnimOff -= linSpeed * deltaTime / gusLength;
 	//выделяем дробную часть
 	_xAnimOff = _xAnimOff - floor(_xAnimOff);
-	D3DXVECTOR3 offset(1.0f - _xAnimOff, 0, 0.0f);
+	glm::vec3 offset(1.0f - _xAnimOff, 0, 0.0f);
 
 	mat->SetOffset(offset);
 }
@@ -1220,7 +1220,7 @@ void PodushkaAnim::OnProgress(float deltaTime)
 		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rotQuat)));
 
 		const res::FaceGroup& fg = _target->GetMesh()->GetData()->faceGroups[_target->GetMeshId()];
-		D3DXVECTOR3 offset = (fg.minPos + fg.maxPos) / 2;
+		glm::vec3 offset = (fg.minPos + fg.maxPos) / 2;
 
 		D3DXMATRIX matOffs1;
 		D3DXMatrixTranslation(&matOffs1, -offset.x, -offset.y, -offset.z);
@@ -1315,7 +1315,7 @@ void Behaviors::OnProgress(float deltaTime)
 	}
 }
 
-void Behaviors::OnShot(const D3DXVECTOR3& pos)
+void Behaviors::OnShot(const glm::vec3& pos)
 {
 	for (iterator iter = begin(); iter != end(); ++iter)
 		(*iter)->OnShot(pos);

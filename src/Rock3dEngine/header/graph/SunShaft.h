@@ -19,7 +19,7 @@ public:
 	static const int cShaftsTexSizeY = 1024;
 	static const int cShaftsTexNum   = 2;
 private:
-	D3DXVECTOR3 _sunPos;
+	glm::vec3 _sunPos;
 public:
 	SunShaftRender();
 	virtual ~SunShaftRender();
@@ -32,8 +32,8 @@ public:
 	Tex2DResource* GetDepthTex();
 	void SetDepthTex(Tex2DResource* value);
 
-	const D3DXVECTOR3& GetSunPos() const;
-	void SetSunPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetSunPos() const;
+	void SetSunPos(const glm::vec3& value);
 
 	Shader shader;
 

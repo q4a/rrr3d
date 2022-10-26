@@ -1496,15 +1496,15 @@ void ResourceManager::LoadEffects()
 	LoadImage2dLibMat("Effect\\engine1", "Effect\\engine1.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(5, 2));
 	LoadImage2dLibMat("Effect\\shield1", "Effect\\shield1.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f), clrWhite, Vec2Range(NullVec2, IdentityVec2), Point2U(5, 2));
 	LoadImage2dLibMatAnim("Effect\\shield2", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 0.4f, clrWhite, Vec3Range(NullVector, IdentityVector)).SetAnisoFlt();
-	LoadImage2dLibMatAnim("Effect\\shield2Hor", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 0.4f, clrWhite, Vec3Range(NullVector, D3DXVECTOR3(1, 0, 0))).SetAnisoFlt();
-	LoadImage2dLibMatAnim("Effect\\shield2Vert", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 0.4f, clrWhite, Vec3Range(NullVector, D3DXVECTOR3(0, 1, 0))).SetAnisoFlt();
+	LoadImage2dLibMatAnim("Effect\\shield2Hor", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 0.4f, clrWhite, Vec3Range(NullVector, glm::vec3(1, 0, 0))).SetAnisoFlt();
+	LoadImage2dLibMatAnim("Effect\\shield2Vert", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 0.4f, clrWhite, Vec3Range(NullVector, glm::vec3(0, 1, 0))).SetAnisoFlt();
 	LoadImage2dLibMatAnim("Effect\\phaserBolt", "Effect\\shield2.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite, Vec3Range(NullVector, IdentityVector)).SetAnisoFlt();
 
 	LoadLibMat("Effect\\gravBall", true, graph::Material::bmOpaque, 1.0f, clrRed);
 
 	{
 		graph::LibMaterial& libMat = LoadImage2dLibMat("Effect\\laserRay", "Effect\\lazerbeam1_blue1_blend7b.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 1.0f));
-		libMat.samplers[0].SetOffset(Vec3Range(NullVector, D3DXVECTOR3(-3.0f/1.2f, 0.0f, 0.0f)));
+		libMat.samplers[0].SetOffset(Vec3Range(NullVector, glm::vec3(-3.0f/1.2f, 0.0f, 0.0f)));
 		libMat.samplers[0].samplerStates.Set(graph::ssAddressU, D3DTADDRESS_WRAP);
 		libMat.samplers[0].samplerStates.Set(graph::ssAddressV, D3DTADDRESS_CLAMP);
 	}

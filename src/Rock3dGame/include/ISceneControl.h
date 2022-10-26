@@ -14,30 +14,30 @@ class IScNodeCont: public Object
 public:
 	virtual void Select(bool active) = 0;
 	//Включая дочерние узлы
-	virtual bool RayCastInters(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec) const = 0;
+	virtual bool RayCastInters(const glm::vec3& rayPos, const glm::vec3& rayVec) const = 0;
 	//Сравнить с объектом сцены
 	virtual bool Compare(const IMapObjRef& node) const = 0;
 
 	//Перетягивание в режиме none
-	virtual void OnStartDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec) {};
-	virtual void OnEndDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec) {};
-	virtual void OnDrag(const D3DXVECTOR3& pos, const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec) {};
+	virtual void OnStartDrag(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec) {};
+	virtual void OnEndDrag(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec) {};
+	virtual void OnDrag(const glm::vec3& pos, const glm::vec3& scrRayPos, const glm::vec3& scrRayVec) {};
 	//Действие при нажатом shift
-	virtual void OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec) {};
+	virtual void OnShiftAction(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec) {};
 
 	//В мировых координатах
-	virtual D3DXVECTOR3 GetPos() const = 0;
-	virtual void SetPos(const D3DXVECTOR3& value) = 0;
+	virtual glm::vec3 GetPos() const = 0;
+	virtual void SetPos(const glm::vec3& value) = 0;
 	//
 	virtual glm::quat GetRot() const = 0;
 	virtual void SetRot(const glm::quat& value) = 0;
 	//
-	virtual D3DXVECTOR3 GetScale() const = 0;
-	virtual void SetScale(const D3DXVECTOR3& value) = 0;
+	virtual glm::vec3 GetScale() const = 0;
+	virtual void SetScale(const glm::vec3& value) = 0;
 	//
-	virtual D3DXVECTOR3 GetDir() const = 0;
-	virtual D3DXVECTOR3 GetRight() const = 0;
-	virtual D3DXVECTOR3 GetUp() const = 0;
+	virtual glm::vec3 GetDir() const = 0;
+	virtual glm::vec3 GetRight() const = 0;
+	virtual glm::vec3 GetUp() const = 0;
 
 	virtual D3DXMATRIX GetMat() const = 0;
 	//Включая дочерние узлы
@@ -55,8 +55,8 @@ public:
 	typedef IScNodeCont INode;
 	typedef IScNodeContRef INodeRef;
 public:
-	virtual D3DXVECTOR3 ComputePoint(const D3DXVECTOR3& curPos, const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, DirMove dirMove, const D3DXVECTOR3& centerOff) = 0;
-	virtual D3DXVECTOR3 ComputePos(INode* node, const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, DirMove dirMove, const D3DXVECTOR3& centerOff) = 0;
+	virtual glm::vec3 ComputePoint(const glm::vec3& curPos, const glm::vec3& rayStart, const glm::vec3& rayVec, DirMove dirMove, const glm::vec3& centerOff) = 0;
+	virtual glm::vec3 ComputePos(INode* node, const glm::vec3& rayStart, const glm::vec3& rayVec, DirMove dirMove, const glm::vec3& centerOff) = 0;
 
 	virtual INodeRef GetSelNode() = 0;
 	virtual void SelectNode(const INodeRef& value) = 0;

@@ -157,8 +157,8 @@ unsigned Read(std::istream& stream, bool& value);
 unsigned Write(std::ostream& stream, const glm::vec2& value);
 unsigned Read(std::istream& stream, glm::vec2& value);
 
-unsigned Write(std::ostream& stream, const D3DXVECTOR3& value);
-unsigned Read(std::istream& stream, D3DXVECTOR3& value);
+unsigned Write(std::ostream& stream, const glm::vec3& value);
+unsigned Read(std::istream& stream, glm::vec3& value);
 
 unsigned Write(std::ostream& stream, const D3DXVECTOR4& value);
 unsigned Read(std::istream& stream, D3DXVECTOR4& value);
@@ -286,13 +286,13 @@ inline unsigned Read(std::istream& stream, glm::vec2& value)
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXVECTOR3& value)
+inline unsigned Write(std::ostream& stream, const glm::vec3& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXVECTOR3& value)
+inline unsigned Read(std::istream& stream, glm::vec3& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);

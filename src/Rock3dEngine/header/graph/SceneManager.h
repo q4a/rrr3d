@@ -100,8 +100,8 @@ private:
 	BaseSceneNode* _proxyMaster;
 	ProxyList* _proxyList;
 
-	D3DXVECTOR3 _position;
-	D3DXVECTOR3 _scale;
+	glm::vec3 _position;
+	glm::vec3 _scale;
 	bool _visible;
 	NodeOpts _options;
 	int _tag;
@@ -117,8 +117,8 @@ private:
 	mutable lsl::Bitset<BB_CHANGE_END> _bbChanges;
 
 	//Различное представление поворота, эти переменные кэшируются и в случае необходимости вычисляются из локальной матрицы(поскольку существует два слабо связных способа представления) поэтому имеют mutable для const
-	mutable D3DXVECTOR3 _direction;
-	mutable D3DXVECTOR3 _up;
+	mutable glm::vec3 _direction;
+	mutable glm::vec3 _up;
 	mutable float _rollAngle;
 	mutable float _pitchAngle;
 	mutable float _turnAngle;
@@ -190,20 +190,20 @@ public:
 	//Изменение содержимого(полигональной сетки, вершин, т.е. его AABB) в локальной системе координат
 	virtual void StructureChanged();
 	//
-	void MoveAroundTarget(const D3DXVECTOR3& worldTarget, float pitchDelta, float turnDelta);
-	void AdjustDistToTarget(const D3DXVECTOR3& worldTarget, float distance);
+	void MoveAroundTarget(const glm::vec3& worldTarget, float pitchDelta, float turnDelta);
+	void AdjustDistToTarget(const glm::vec3& worldTarget, float distance);
 
 	void WorldToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const;
-	void WorldToLocalCoord(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const;
-	void WorldToLocalNorm(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const;
+	void WorldToLocalCoord(const glm::vec3& vec, glm::vec3& out) const;
+	void WorldToLocalNorm(const glm::vec3& vec, glm::vec3& out) const;
 	void LocalToWorld(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const;
-	void LocalToWorldCoord(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const;
-	void LocalToWorldNorm(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const;
+	void LocalToWorldCoord(const glm::vec3& vec, glm::vec3& out) const;
+	void LocalToWorldNorm(const glm::vec3& vec, glm::vec3& out) const;
 	void ParentToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const;
 	void LocalToParent(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const;
 
-	unsigned RayCastIntersBB(const D3DXVECTOR3& wRayPos, const D3DXVECTOR3& wRayVec, bool includeChild = false) const;
-	unsigned RayCastIntersBB(const D3DXVECTOR3& wRayPos, const D3DXVECTOR3& wRayVec, D3DXVECTOR3& wNearVec, D3DXVECTOR3& wFarVec, bool includeChild = false) const;
+	unsigned RayCastIntersBB(const glm::vec3& wRayPos, const glm::vec3& wRayVec, bool includeChild = false) const;
+	unsigned RayCastIntersBB(const glm::vec3& wRayPos, const glm::vec3& wRayVec, glm::vec3& wNearVec, glm::vec3& wFarVec, bool includeChild = false) const;
 
 	void InsertToScene(SceneManager* scene);
 	void RemoveFromScene(SceneManager* scene);
@@ -231,20 +231,20 @@ public:
 
 	//Локальные координаты
 	//Позиция
-	const D3DXVECTOR3& GetPos() const;
-	void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos() const;
+	void SetPos(const glm::vec3& value);
 	//Масштаб
-	const D3DXVECTOR3& GetScale() const;
-	void SetScale(const D3DXVECTOR3& value);
+	const glm::vec3& GetScale() const;
+	void SetScale(const glm::vec3& value);
 	void SetScale(float value);
 	//Поворот
 	//Поворот по координатным осям
-	const D3DXVECTOR3& GetDir() const;
-	void SetDir(const D3DXVECTOR3& value);
-	D3DXVECTOR3 GetRight() const;
-	void SetRight(const D3DXVECTOR3& value);
-	const D3DXVECTOR3& GetUp() const;
-	void SetUp(const D3DXVECTOR3& value);
+	const glm::vec3& GetDir() const;
+	void SetDir(const glm::vec3& value);
+	glm::vec3 GetRight() const;
+	void SetRight(const glm::vec3& value);
+	const glm::vec3& GetUp() const;
+	void SetUp(const glm::vec3& value);
 	//Поворот по углам эйлера
 	float GetRollAngle() const;
 	void SetRollAngle(float value);
@@ -273,22 +273,22 @@ public:
 	D3DXMATRIX GetWorldCombMat(CombMatType type) const;
 
 	//Мировые координаты
-	D3DXVECTOR3 GetWorldPos() const;
-	void SetWorldPos(const D3DXVECTOR3& value);
+	glm::vec3 GetWorldPos() const;
+	void SetWorldPos(const glm::vec3& value);
 	glm::quat GetWorldRot() const;
 	void SetWorldRot(const glm::quat& value);
 	//Невозможно представить мировое масштабирование с помощью одного вектора поскольку направление масштабирования зависит от поворота. Поэтому представляется в виде матрицы
 	D3DXMATRIX GetWorldScale() const;
 	//
-	D3DXVECTOR3 GetWorldDir() const;
-	D3DXVECTOR3 GetWorldRight() const;
-	D3DXVECTOR3 GetWorldUp() const;
+	glm::vec3 GetWorldDir() const;
+	glm::vec3 GetWorldRight() const;
+	glm::vec3 GetWorldUp() const;
 
 	//Ограничительный объем
 	//
-	D3DXVECTOR3 GetWorldSizes(bool includeChild) const;
+	glm::vec3 GetWorldSizes(bool includeChild) const;
 	//
-	D3DXVECTOR3 GetWorldCenterPos(bool includeChild) const;
+	glm::vec3 GetWorldCenterPos(bool includeChild) const;
 	//AABB в локальной системе координат
 	const AABB& GetLocalAABB(bool includeChild) const;
 	//AABB в абсолютной системе координат
@@ -321,8 +321,8 @@ public:
 	bool storeCoords;
 	bool invertCullFace;
 
-	D3DXVECTOR3 speedPos;
-	D3DXVECTOR3 speedScale;
+	glm::vec3 speedPos;
+	glm::vec3 speedScale;
 	glm::quat speedRot;
 	bool autoRot;
 

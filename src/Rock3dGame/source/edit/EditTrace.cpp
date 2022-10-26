@@ -111,7 +111,7 @@ void Trace::NodeControl::Reset(game::WayPoint* wayPoint)
 	LSL_ASSERT(_wayPoint);
 }
 
-void Trace::NodeControl::NewLink(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Trace::NodeControl::NewLink(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	FreeLink();
 
@@ -182,7 +182,7 @@ void Trace::NodeControl::Select(bool active)
 	_trace->_traceGfx->SetSelPoint(active ? _wayPoint : 0);
 }
 
-bool Trace::NodeControl::RayCastInters(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec) const
+bool Trace::NodeControl::RayCastInters(const glm::vec3& rayPos, const glm::vec3& rayVec) const
 {
 	return RayCastIntersectSphere(rayPos, rayVec, _wayPoint->GetPos(), _wayPoint->GetSize()/2.0f);
 }
@@ -192,7 +192,7 @@ bool Trace::NodeControl::Compare(const IMapObjRef& node) const
 	return false;
 }
 
-void Trace::NodeControl::OnStartDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Trace::NodeControl::OnStartDrag(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	NewLink(scrRayPos, scrRayVec);
 
@@ -200,7 +200,7 @@ void Trace::NodeControl::OnStartDrag(const D3DXVECTOR3& scrRayPos, const D3DXVEC
 	_dragRayVec = scrRayVec;
 }
 
-void Trace::NodeControl::OnEndDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Trace::NodeControl::OnEndDrag(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	FreeLink();
 
@@ -216,13 +216,13 @@ void Trace::NodeControl::OnEndDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTO
 	}
 }
 
-void Trace::NodeControl::OnDrag(const D3DXVECTOR3& pos, const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Trace::NodeControl::OnDrag(const glm::vec3& pos, const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	if (_link)
 		_link->SetPos(pos);
 }
 
-void Trace::NodeControl::OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Trace::NodeControl::OnShiftAction(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	game::WayPoint* newPoint = _trace->GetInst()->AddPoint();
 	newPoint->SetPos(_wayPoint->GetPos());
@@ -251,12 +251,12 @@ void Trace::NodeControl::OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXV
 	}
 }
 
-D3DXVECTOR3 Trace::NodeControl::GetPos() const
+glm::vec3 Trace::NodeControl::GetPos() const
 {
 	return _wayPoint->GetPos();
 }
 
-void Trace::NodeControl::SetPos(const D3DXVECTOR3& value)
+void Trace::NodeControl::SetPos(const glm::vec3& value)
 {
 	_wayPoint->SetPos(value);
 }
@@ -271,29 +271,29 @@ void Trace::NodeControl::SetRot(const glm::quat& value)
 	//Nothing
 }
 
-D3DXVECTOR3 Trace::NodeControl::GetScale() const
+glm::vec3 Trace::NodeControl::GetScale() const
 {
 	float radius = _wayPoint->GetSize() / sqrt(3.0f);
 
-	return D3DXVECTOR3(radius, radius, radius);
+	return glm::vec3(radius, radius, radius);
 }
 
-void Trace::NodeControl::SetScale(const D3DXVECTOR3& value)
+void Trace::NodeControl::SetScale(const glm::vec3& value)
 {
-	_wayPoint->SetSize(D3DXVec3Length(&value));
+	_wayPoint->SetSize(glm::length(value));
 }
 
-D3DXVECTOR3 Trace::NodeControl::GetDir() const
+glm::vec3 Trace::NodeControl::GetDir() const
 {
 	return XVector;
 }
 
-D3DXVECTOR3 Trace::NodeControl::GetRight() const
+glm::vec3 Trace::NodeControl::GetRight() const
 {
 	return YVector;
 }
 
-D3DXVECTOR3 Trace::NodeControl::GetUp() const
+glm::vec3 Trace::NodeControl::GetUp() const
 {
 	return ZVector;
 }
@@ -308,7 +308,7 @@ AABB Trace::NodeControl::GetAABB() const
 	return AABB(1.0f);
 }
 
-game::WayPoint* Trace::PickInstPoint(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec)
+game::WayPoint* Trace::PickInstPoint(const glm::vec3& rayPos, const glm::vec3& rayVec)
 {
 	float minDist = 0;
 	game::WayPoint* point = 0;
@@ -331,8 +331,8 @@ game::WayPoint* Trace::PickInstPoint(const D3DXVECTOR3& rayPos, const D3DXVECTOR
 
 IWayPointRef Trace::PickPoint(const lsl::Point& scrCoord)
 {
-	D3DXVECTOR3 scrRayPos;
-	D3DXVECTOR3 scrRayVec;
+	glm::vec3 scrRayPos;
+	glm::vec3 scrRayVec;
 	_edit->GetWorld()->GetCamera()->ScreenToRay(scrCoord, scrRayPos, scrRayVec);
 
 	game::WayPoint* point = PickInstPoint(scrRayPos, scrRayVec);

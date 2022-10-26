@@ -20,13 +20,13 @@ SkyBox::SkyBox(): _coordSystem(csLeft)
 	_mesh.GetOrCreateData()->SetVertexCount(6);
 	_mesh.GetData()->SetFormat(res::VertexData::vtPos3);
 	_mesh.GetData()->Init();
-	D3DXVECTOR3* vb = reinterpret_cast<D3DXVECTOR3*>(_mesh.GetData()->GetData());
-	vb[0] = D3DXVECTOR3(-1.0f, -1.0f, 1.0f);
-	vb[1] = D3DXVECTOR3(1.0f, -1.0f, 1.0f);
-	vb[2] = D3DXVECTOR3(1.0f, 1.0f, 1.0f);
-	vb[3] = D3DXVECTOR3(-1.0f, -1.0f, 1.0f);
-	vb[4] = D3DXVECTOR3(1.0f, 1.0f, 1.0f);
-	vb[5] = D3DXVECTOR3(-1.0f, 1.0f, 1.0f);
+	glm::vec3* vb = reinterpret_cast<glm::vec3*>(_mesh.GetData()->GetData());
+	vb[0] = glm::vec3(-1.0f, -1.0f, 1.0f);
+	vb[1] = glm::vec3(1.0f, -1.0f, 1.0f);
+	vb[2] = glm::vec3(1.0f, 1.0f, 1.0f);
+	vb[3] = glm::vec3(-1.0f, -1.0f, 1.0f);
+	vb[4] = glm::vec3(1.0f, 1.0f, 1.0f);
+	vb[5] = glm::vec3(-1.0f, 1.0f, 1.0f);
 	_mesh.GetData()->Update();
 
 	shader.SetTech("techSkybox");

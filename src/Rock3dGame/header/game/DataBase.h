@@ -28,16 +28,16 @@ private:
 		CarDesc(): mass(0), centerMassPos(NullVector), bodyScale(IdentityVector), bodyOffset(NullVector), bodyAABB(NullAABB), bodyOffsetModel(NullVector), bodyScaleModel(IdentityVector), wheelRadius(0), wheelScaleModel(IdentityVector), inverseWheelMass(0), maxSpeed(0), tireSpring(2.0f), steerSpeed(D3DX_PI/1.6f), steerRot(D3DX_PI), flyYTorque(D3DX_PI/2), clampXTorque(0), clampYTorque(0), angDamping(1, 1, 0), maxRPM(7000), frontWheelDrive(true), backWheelDrive(false), gravEngine(false), clutchImmunity(false), wheelEff(true), halfWheelEff(false), guseniza(false), podushka(false), wakeFrictionModel(false), suspensionTravel(0), suspensionSpring(0), suspensionDamper(0), suspensionTarget(0), soundMotorIdle(""), soundMotorHigh(""), motorVolumeRange(0, 1), motorFreqRange(0, 1), bump(false) {}
 
 		float mass;
-		D3DXVECTOR3 centerMassPos;
-		D3DXVECTOR3 bodyScale;
-		D3DXVECTOR3 bodyOffset;
+		glm::vec3 centerMassPos;
+		glm::vec3 bodyScale;
+		glm::vec3 bodyOffset;
 		AABB bodyAABB;
-		D3DXVECTOR3 bodyOffsetModel;
-		D3DXVECTOR3 bodyScaleModel;
+		glm::vec3 bodyOffsetModel;
+		glm::vec3 bodyScaleModel;
 
 		float wheelRadius;
-		std::vector<D3DXVECTOR3> wheelOffsetModel;
-		D3DXVECTOR3 wheelScaleModel;
+		std::vector<glm::vec3> wheelOffsetModel;
+		glm::vec3 wheelScaleModel;
 		float inverseWheelMass;
 		float maxSpeed;
 		float tireSpring;
@@ -46,7 +46,7 @@ private:
 		float flyYTorque;
 		float clampXTorque;
 		float clampYTorque;
-		D3DXVECTOR3 angDamping;
+		glm::vec3 angDamping;
 		int maxRPM;
 
 		bool frontWheelDrive;
@@ -123,16 +123,16 @@ private:
 	//
 	px::BoxShape* AddPxBox(MapObj* mapObj, const AABB& aabb);
 	px::BoxShape* AddPxBox(MapObj* mapObj);
-	px::CapsuleShape* AddPxCapsule(MapObj* mapObj, float radius, float height, const D3DXVECTOR3& dir, const D3DXVECTOR3& up);
+	px::CapsuleShape* AddPxCapsule(MapObj* mapObj, float radius, float height, const glm::vec3& dir, const glm::vec3& up);
 	px::CapsuleShape* AddPxCapsule(MapObj* mapObj);
 	px::SphereShape* AddPxSpere(MapObj* mapObj, float radius);
 	px::TriangleMeshShape* AddPxMesh(MapObj* mapObj, const std::string& meshName, int meshId = -1);
 	px::ConvexShape* AddPxConvex(MapObj* mapObj, const std::string& meshName, int meshId = -1);
 	px::Body* AddPxBody(MapObj* mapObj, const NxBodyDesc& desc);
-	px::Body* AddPxBody(MapObj* mapObj, float mass, const D3DXVECTOR3* massPos);
+	px::Body* AddPxBody(MapObj* mapObj, float mass, const glm::vec3* massPos);
 
 	//
-	CarWheel* AddWheel(unsigned index, GameCar& car, const std::string& meshName, const std::string& matName, const D3DXVECTOR3& pos, bool steer, bool lead, CarWheel* master, const CarDesc& carDesc);
+	CarWheel* AddWheel(unsigned index, GameCar& car, const std::string& meshName, const std::string& matName, const glm::vec3& pos, bool steer, bool lead, CarWheel* master, const CarDesc& carDesc);
 
 	//
 	graph::FxParticleSystem* AddFxSystem(graph::SceneNode* node, graph::FxManager* manager, graph::FxParticleSystem::ChildStyle childStyle = graph::FxParticleSystem::csProxy);

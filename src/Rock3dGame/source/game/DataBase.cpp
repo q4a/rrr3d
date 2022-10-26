@@ -287,9 +287,9 @@ px::BoxShape* DataBase::AddPxBox(MapObj* mapObj)
 	return AddPxBox(mapObj, aabb);
 }
 
-px::CapsuleShape* DataBase::AddPxCapsule(MapObj* mapObj, float radius, float height, const D3DXVECTOR3& dir, const D3DXVECTOR3& up)
+px::CapsuleShape* DataBase::AddPxCapsule(MapObj* mapObj, float radius, float height, const glm::vec3& dir, const glm::vec3& up)
 {
-	D3DXVECTOR3 right;
+	glm::vec3 right;
 	D3DXVec3Cross(&right, &dir, &up);
 
 	NxCapsuleShapeDesc desc;
@@ -312,7 +312,7 @@ px::CapsuleShape* DataBase::AddPxCapsule(MapObj* mapObj)
 {
 	AABB aabb = mapObj->GetGameObj().GetGrActor().GetLocalAABB(false);
 
-	return AddPxCapsule(mapObj, aabb.GetSizes().y/2.0f, aabb.GetSizes().x, D3DXVECTOR3(1, 0, 0), D3DXVECTOR3(0, 0, 1));
+	return AddPxCapsule(mapObj, aabb.GetSizes().y/2.0f, aabb.GetSizes().x, glm::vec3(1, 0, 0), glm::vec3(0, 0, 1));
 }
 
 px::SphereShape* DataBase::AddPxSpere(MapObj* mapObj, float radius)
@@ -354,7 +354,7 @@ px::Body* DataBase::AddPxBody(MapObj* mapObj, const NxBodyDesc& desc)
 	return mapObj->GetGameObj().GetPxActor().GetBody();
 }
 
-px::Body* DataBase::AddPxBody(MapObj* mapObj, float mass, const D3DXVECTOR3* massPos)
+px::Body* DataBase::AddPxBody(MapObj* mapObj, float mass, const glm::vec3* massPos)
 {
 	NxBodyDesc body;
 	body.mass = mass;
@@ -369,7 +369,7 @@ px::Body* DataBase::AddPxBody(MapObj* mapObj, float mass, const D3DXVECTOR3* mas
 	return AddPxBody(mapObj, body);
 }
 
-CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& meshName, const std::string& matName, const D3DXVECTOR3& pos, bool steer, bool lead, CarWheel* master, const CarDesc& carDesc)
+CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& meshName, const std::string& matName, const glm::vec3& pos, bool steer, bool lead, CarWheel* master, const CarDesc& carDesc)
 {
 	game::CarWheel* wheel = &car.GetWheels().Add();
 	wheel->SetLead(lead);
@@ -387,7 +387,7 @@ CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& me
 
 		if (pos.y < 0)
 		{
-			meshNode->SetScale(D3DXVECTOR3(carDesc.wheelScaleModel.x, -carDesc.wheelScaleModel.y, carDesc.wheelScaleModel.z));
+			meshNode->SetScale(glm::vec3(carDesc.wheelScaleModel.x, -carDesc.wheelScaleModel.y, carDesc.wheelScaleModel.z));
 			meshNode->material.SetCullMode(D3DCULL_CCW);
 		}
 		else
@@ -552,7 +552,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 	
 	AABB aabb = carDesc.bodyAABB;
 
-	if (D3DXVec3Length(&aabb.GetSizes()) < 0.001f)
+	if (glm::length(aabb.GetSizes()) < 0.001f)
 		aabb = mapObj->GetGameObj().GetGrActor().GetLocalAABB(false);
 
 	aabb.Scale(carDesc.bodyScale);
@@ -561,7 +561,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 	
 	carShape->SetMaterialIndex(carDesc.wakeFrictionModel ? _nxCarMaterial2->getMaterialIndex() : _nxCarMaterial1->getMaterialIndex());
 
-	std::vector<D3DXVECTOR3> posWheels;
+	std::vector<glm::vec3> posWheels;
 	CarWheels::LoadPosTo("Data\\" + wheelCoords, posWheels);
 
 	for (unsigned i = 0; i < posWheels.size(); ++i)	
@@ -621,7 +621,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 		{
 			game::MapObj* mapObj = NewMapObj();
 			AddToGraph(mapObj, gtDefFixPipe, true);
-			mapObj->GetGameObj().SetPos(D3DXVECTOR3(0, 0, 1.5f));
+			mapObj->GetGameObj().SetPos(glm::vec3(0, 0, 1.5f));
 			mapObj->GetGameObj().SetMaxTimeLife(10);
 
 			graph::IVBMeshNode* node = AddMeshNode(mapObj, carDesc.bodyDestr + ".r3d");
@@ -630,8 +630,8 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 			AddPxBox(mapObj);
 			AddPxBody(mapObj, 1200.0f, 0);
 
-			NewChildMapObj(mapObj, MapObjLib::ctEffects, "fire1")->GetGameObj().SetPos(D3DXVECTOR3(1.0f, 0.0f, 0.3f));
-			NewChildMapObj(mapObj, MapObjLib::ctEffects, "fire1")->GetGameObj().SetPos(D3DXVECTOR3(-1.0f, -0.5f, 0.5f));
+			NewChildMapObj(mapObj, MapObjLib::ctEffects, "fire1")->GetGameObj().SetPos(glm::vec3(1.0f, 0.0f, 0.3f));
+			NewChildMapObj(mapObj, MapObjLib::ctEffects, "fire1")->GetGameObj().SetPos(glm::vec3(-1.0f, -0.5f, 0.5f));
 
 			SaveMapObj(mapObj, MapObjLib::ctEffects, carDesc.bodyDestr);
 			record = GetRecord(MapObjLib::ctEffects, carDesc.bodyDestr);
@@ -644,7 +644,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 	{
 		ImmortalEffect& effect = gameObj->GetBehaviors().Add<ImmortalEffect>();
 		effect.SetEffect(GetRecord(MapObjLib::ctEffects, "shield1"));
-		effect.SetScaleK(D3DXVECTOR3(1.3f, 1.7f, 1.7f));
+		effect.SetScaleK(glm::vec3(1.3f, 1.7f, 1.7f));
 	}
 
 	{
@@ -839,15 +839,15 @@ void DataBase::LoadEffects()
 		desc.startTime = 0;
 		desc.density = 3.0f;
 		desc.life = 0;
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume, Point3U(100, 100, 100));
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume, Point3U(100, 100, 100));
 		desc.startScale = Vec3Range(IdentityVector * 0.9f, IdentityVector * 1.1f);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 1.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
+		descFlow.speedPos = Vec3Range(glm::vec3(-1.5f, -1.5f, 1.0f), glm::vec3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
 		glm::quat spRot1 = glm::angleAxis(D3DX_PI, Vec3DxToGlm(-IdentityVector));
 		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, Vec3DxToGlm(IdentityVector));
 		descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
-		descFlow.gravitation = D3DXVECTOR3(0, 0, -9.80f);
+		descFlow.gravitation = glm::vec3(0, 0, -9.80f);
 
 		LoadFxFlow("wheels1", "", _fxWheelManager, desc, descFlow, true);
 	}
@@ -860,15 +860,15 @@ void DataBase::LoadEffects()
 		desc.startTime = 0;
 		desc.density = 1.0f;
 		desc.life = 0;
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume, Point3U(100, 100, 100));
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume, Point3U(100, 100, 100));
 		desc.startScale = Vec3Range(IdentityVector * 0.9f, IdentityVector * 1.1f);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 4.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
+		descFlow.speedPos = Vec3Range(glm::vec3(-1.5f, -1.5f, 4.0f), glm::vec3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
 		glm::quat spRot1 = glm::angleAxis(D3DX_PI, Vec3DxToGlm(-IdentityVector));
 		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, Vec3DxToGlm(IdentityVector));
 		descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
-		descFlow.gravitation = D3DXVECTOR3(0, 0, -9.80f);
+		descFlow.gravitation = glm::vec3(0, 0, -9.80f);
 
 		LoadFxFlow("truba1", "", _fxTrubaManager, desc, descFlow, true);
 	}
@@ -881,13 +881,13 @@ void DataBase::LoadEffects()
 		desc.startTime = 0;
 		desc.density = 30;
 		desc.life = 1.0f;
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		desc.startScale = Vec3Range(D3DXVECTOR3(1.0f, 0.70f, 0.70f), D3DXVECTOR3(1.5f, 1.0f, 1.0f));
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
+		desc.startScale = Vec3Range(glm::vec3(1.0f, 0.70f, 0.70f), glm::vec3(1.5f, 1.0f, 1.0f));
 				
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-12.0f, -12.0f, 0.0f), D3DXVECTOR3(12.0f, 12.0f, 12.0f), Vec3Range::vdVolume);
+		descFlow.speedPos = Vec3Range(glm::vec3(-12.0f, -12.0f, 0.0f), glm::vec3(12.0f, 12.0f, 12.0f), Vec3Range::vdVolume);
 		descFlow.autoRot = true;
-		descFlow.gravitation = D3DXVECTOR3(0, 0, -5.0f);
+		descFlow.gravitation = glm::vec3(0, 0, -5.0f);
 		
 		LoadFxFlow("spark1", "Effect\\spark1", _fxDirSpriteManager, desc, descFlow, true, 1.0f);
 	}
@@ -906,13 +906,13 @@ void DataBase::LoadEffects()
 		desc.startTime = 0.1f;
 		desc.density = FloatRange(7.0f, 10.0f);
 		desc.life = FloatRange(0.3f, 0.7f);
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		desc.startScale = Vec3Range(D3DXVECTOR3(0.2f, 0.40f, 0.40f), D3DXVECTOR3(0.9f, 0.5f, 0.5f));
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
+		desc.startScale = Vec3Range(glm::vec3(0.2f, 0.40f, 0.40f), glm::vec3(0.9f, 0.5f, 0.5f));
 				
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-6.0f, -6.0f, -6.0f), D3DXVECTOR3(6.0f, 6.0f, 6.0f), Vec3Range::vdVolume);
+		descFlow.speedPos = Vec3Range(glm::vec3(-6.0f, -6.0f, -6.0f), glm::vec3(6.0f, 6.0f, 6.0f), Vec3Range::vdVolume);
 		descFlow.autoRot = true;
-		descFlow.gravitation = D3DXVECTOR3(0, 0, -2.0f);
+		descFlow.gravitation = glm::vec3(0, 0, -2.0f);
 
 		mapObj->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);
@@ -927,13 +927,13 @@ void DataBase::LoadEffects()
 		desc.startTime = 0;
 		desc.density = 30;
 		desc.life = 0.7f;
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		desc.startScale = Vec3Range(D3DXVECTOR3(0.5f, 0.4f, 0.4f), D3DXVECTOR3(0.6f, 0.5f, 0.5f));
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
+		desc.startScale = Vec3Range(glm::vec3(0.5f, 0.4f, 0.4f), glm::vec3(0.6f, 0.5f, 0.5f));
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-12.0f, -12.0f, 0.0f), D3DXVECTOR3(12.0f, 12.0f, 12.0f), Vec3Range::vdVolume);
+		descFlow.speedPos = Vec3Range(glm::vec3(-12.0f, -12.0f, 0.0f), glm::vec3(12.0f, 12.0f, 12.0f), Vec3Range::vdVolume);
 		descFlow.autoRot = true;
-		descFlow.gravitation = D3DXVECTOR3(0, 0, -5.0f);
+		descFlow.gravitation = glm::vec3(0, 0, -5.0f);
 
 		LoadFxFlow("spark3", "Effect\\spark1", _fxDirSpriteManager, desc, descFlow, true, 0.7f);
 	}
@@ -946,12 +946,12 @@ void DataBase::LoadEffects()
 		desc.startTime = 0;
 		desc.density = 15;
 		desc.life = 0.7f;
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		desc.startScale = Vec3Range(D3DXVECTOR3(1.3f, 0.4f, 0.4f), D3DXVECTOR3(1.6f, 0.4f, 0.4f));
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
+		desc.startScale = Vec3Range(glm::vec3(1.3f, 0.4f, 0.4f), glm::vec3(1.6f, 0.4f, 0.4f));
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-10.0f, -10.0f, -10.0f), D3DXVECTOR3(10.0f, 10.0f, 10.0f), Vec3Range::vdVolume);
-		descFlow.speedScale = Vec3Range(D3DXVECTOR3(7.5f, 0.0f, 0.0f), D3DXVECTOR3(10.5f, 0.0f, 0.0f));
+		descFlow.speedPos = Vec3Range(glm::vec3(-10.0f, -10.0f, -10.0f), glm::vec3(10.0f, 10.0f, 10.0f), Vec3Range::vdVolume);
+		descFlow.speedScale = Vec3Range(glm::vec3(7.5f, 0.0f, 0.0f), glm::vec3(10.5f, 0.0f, 0.0f));
 		descFlow.autoRot = true;
 
 		LoadFxFlow("streak1", "Effect\\streak1", _fxDirSpriteManager, desc, descFlow, true, 0.7f);
@@ -971,13 +971,13 @@ void DataBase::LoadEffects()
 		desc.startTime = 0.1f;
 		desc.density = FloatRange(7.0f, 10.0f);
 		desc.life = FloatRange(0.3f, 0.7f);
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		desc.startScale = Vec3Range(D3DXVECTOR3(0.4f, 0.6f, 0.6f), D3DXVECTOR3(1.1f, 0.7f, 0.7f));
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
+		desc.startScale = Vec3Range(glm::vec3(0.4f, 0.6f, 0.6f), glm::vec3(1.1f, 0.7f, 0.7f));
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-6.0f, -6.0f, -6.0f), D3DXVECTOR3(6.0f, 6.0f, 6.0f), Vec3Range::vdVolume);
+		descFlow.speedPos = Vec3Range(glm::vec3(-6.0f, -6.0f, -6.0f), glm::vec3(6.0f, 6.0f, 6.0f), Vec3Range::vdVolume);
 		descFlow.autoRot = true;
-		descFlow.gravitation = D3DXVECTOR3(0, 0, -2.0f);
+		descFlow.gravitation = glm::vec3(0, 0, -2.0f);
 
 		mapObj->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);
@@ -992,12 +992,12 @@ void DataBase::LoadEffects()
 		desc.startTime = 0;
 		desc.density = 15;
 		desc.life = 0.5f;
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		desc.startScale = Vec3Range(D3DXVECTOR3(0.5f, 0.5f, 0.5f), D3DXVECTOR3(0.7f, 0.7f, 0.7f));
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
+		desc.startScale = Vec3Range(glm::vec3(0.5f, 0.5f, 0.5f), glm::vec3(0.7f, 0.7f, 0.7f));
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-10.0f, -10.0f, -10.0f), D3DXVECTOR3(10.0f, 10.0f, 10.0f), Vec3Range::vdVolume);
-		//descFlow.speedScale = Vec3Range(D3DXVECTOR3(13.5f, 0.0f, 0.0f), D3DXVECTOR3(16.5f, 0.0f, 0.0f));
+		descFlow.speedPos = Vec3Range(glm::vec3(-10.0f, -10.0f, -10.0f), glm::vec3(10.0f, 10.0f, 10.0f), Vec3Range::vdVolume);
+		//descFlow.speedScale = Vec3Range(glm::vec3(13.5f, 0.0f, 0.0f), glm::vec3(16.5f, 0.0f, 0.0f));
 		descFlow.autoRot = true;
 
 		LoadFxFlow("blink", "Effect\\blink", _fxSpriteManager, desc, descFlow, true, 0.5f);
@@ -1011,8 +1011,8 @@ void DataBase::LoadEffects()
 		desc.startTime = 0;
 		desc.density = 1;
 		desc.life = 0.25f;
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		desc.startScale = Vec3Range(D3DXVECTOR3(0.8f, 0.8f, 0.8f), D3DXVECTOR3(1.1f, 1.1f, 1.1f));
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
+		desc.startScale = Vec3Range(glm::vec3(0.8f, 0.8f, 0.8f), glm::vec3(1.1f, 1.1f, 1.1f));
 
 		glm::quat rot1 = glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 1.0f));
 		glm::quat rot2 = glm::angleAxis(2 * D3DX_PI, glm::vec3(0.0f, 0.0f, 1.0f));
@@ -1030,12 +1030,12 @@ void DataBase::LoadEffects()
 		desc.startType = graph::FxEmitter::sotDist;
 		desc.startTime = FloatRange(1.0f, 1.1f);
 		desc.density = FloatRange(1.0f, 3.0f);
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		desc.startScale = D3DXVECTOR3(IdentityVector) / 2;
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
+		desc.startScale = glm::vec3(IdentityVector) / 2;
 		
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedScale = D3DXVECTOR3(1.0f, 1.0f, 1.0f);
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-0.5f, -0.5f, 2.0f), D3DXVECTOR3(0.5f, 0.5f, 2.0f), Vec3Range::vdVolume, Point3U(100, 100, 100));
+		descFlow.speedScale = glm::vec3(1.0f, 1.0f, 1.0f);
+		descFlow.speedPos = Vec3Range(glm::vec3(-0.5f, -0.5f, 2.0f), glm::vec3(0.5f, 0.5f, 2.0f), Vec3Range::vdVolume, Point3U(100, 100, 100));
 		
 		LoadFxFlow("smoke1", "Effect\\smoke1", _fxSpriteManager, desc, descFlow, true);
 	}
@@ -1073,9 +1073,9 @@ void DataBase::LoadEffects()
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * 3.0f;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(15.0f, -2.0f, -2.0f), D3DXVECTOR3(19.0f, 2.0f, 2.0f), Vec3Range::vdVolume);
-		descFlow.acceleration = D3DXVECTOR3(-20.0f, 0.0f, 0.0f);
-		descFlow.gravitation = D3DXVECTOR3(0, 0, 1.0f);
+		descFlow.speedPos = Vec3Range(glm::vec3(15.0f, -2.0f, -2.0f), glm::vec3(19.0f, 2.0f, 2.0f), Vec3Range::vdVolume);
+		descFlow.acceleration = glm::vec3(-20.0f, 0.0f, 0.0f);
+		descFlow.gravitation = glm::vec3(0, 0, 1.0f);
 
 		LoadFxFlow("smoke3", "Effect\\smoke1", _fxSpriteManager, desc, descFlow, true, 1.0f);
 	}
@@ -1126,13 +1126,13 @@ void DataBase::LoadEffects()
 		desc.life = FloatRange(0.2f, 0.3f);
 		desc.startTime = FloatRange(1.0f);
 		desc.density = FloatRange(1.0f, 1.0f);
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.2f, -0.2f, -0.2f), D3DXVECTOR3(0.2f, 0.2f, 0.2f), Vec3Range::vdVolume);
+		desc.startPos = Vec3Range(glm::vec3(-0.2f, -0.2f, -0.2f), glm::vec3(0.2f, 0.2f, 0.2f), Vec3Range::vdVolume);
 		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
-		desc.startScale = D3DXVECTOR3(IdentityVector) * 1.5f;
+		desc.startScale = glm::vec3(IdentityVector) * 1.5f;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * (-2.0f);
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.0f, -0.5f, 5.0f), D3DXVECTOR3(-1.3f, 0.5f, 6.0f), Vec3Range::vdVolume);
+		descFlow.speedPos = Vec3Range(glm::vec3(-1.0f, -0.5f, 5.0f), glm::vec3(-1.3f, 0.5f, 6.0f), Vec3Range::vdVolume);
 
 		LoadFxFlow("smoke6", "Effect\\smoke6", _fxSpriteManager, desc, descFlow, true);
 	}
@@ -1151,13 +1151,13 @@ void DataBase::LoadEffects()
 		desc.life = FloatRange(0.5f, 0.6f);
 		desc.startTime = FloatRange(1.0f);
 		desc.density = 1.0f;
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.2f, -0.2f, -0.2f), D3DXVECTOR3(0.2f, 0.2f, 0.2f), Vec3Range::vdVolume);
+		desc.startPos = Vec3Range(glm::vec3(-0.2f, -0.2f, -0.2f), glm::vec3(0.2f, 0.2f, 0.2f), Vec3Range::vdVolume);
 		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
-		desc.startScale = D3DXVECTOR3(IdentityVector) * 1.5f;
+		desc.startScale = glm::vec3(IdentityVector) * 1.5f;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * (3.0f);
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(0.0f, 0.0f, 0.8f), D3DXVECTOR3(0.0f, 0.0f, 1.0f));
+		descFlow.speedPos = Vec3Range(glm::vec3(0.0f, 0.0f, 0.8f), glm::vec3(0.0f, 0.0f, 1.0f));
 
 		mapObj->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);
@@ -1201,19 +1201,19 @@ void DataBase::LoadEffects()
 	}
 
 	//explosion2
-	LoadFxSprite("explosion2", "Effect\\explosion2", NullVector, Vec3Range(NullVector, D3DXVECTOR3(25.0f, 25.0f, 25.0f)), NullQuaternion, false, graph::SceneNode::amOnce, 1.0f, 0.0f, 1.0f);
+	LoadFxSprite("explosion2", "Effect\\explosion2", NullVector, Vec3Range(NullVector, glm::vec3(25.0f, 25.0f, 25.0f)), NullQuaternion, false, graph::SceneNode::amOnce, 1.0f, 0.0f, 1.0f);
 	//explosion3
-	LoadFxSprite("explosion3", "Effect\\explosion3", NullVector, D3DXVECTOR3(6.0f, 6.0f, 6.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.8f, 0.0f, 0.8f);
+	LoadFxSprite("explosion3", "Effect\\explosion3", NullVector, glm::vec3(6.0f, 6.0f, 6.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.8f, 0.0f, 0.8f);
 	//explosion4
-	LoadFxSprite("explosion4", "Effect\\explosion4", NullVector, D3DXVECTOR3(6.0f, 6.0f, 6.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.7f, 0.0f, 0.7f);
+	LoadFxSprite("explosion4", "Effect\\explosion4", NullVector, glm::vec3(6.0f, 6.0f, 6.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.7f, 0.0f, 0.7f);
 	//boom1
-	LoadFxSprite("boom1", "Effect\\boom1", NullVector, D3DXVECTOR3(1.5f, 1.5f, 1.5f), NullQuaternion, false, graph::SceneNode::amOnce, 0.7f, 0.0f, 0.7f);
+	LoadFxSprite("boom1", "Effect\\boom1", NullVector, glm::vec3(1.5f, 1.5f, 1.5f), NullQuaternion, false, graph::SceneNode::amOnce, 0.7f, 0.0f, 0.7f);
 	//boom2
-	LoadFxSprite("boom2", "Effect\\boom2", NullVector, D3DXVECTOR3(1.2f, 1.2f, 1.2f), NullQuaternion, false, graph::SceneNode::amOnce, 0.7f, 0.0f, 0.7f);
+	LoadFxSprite("boom2", "Effect\\boom2", NullVector, glm::vec3(1.2f, 1.2f, 1.2f), NullQuaternion, false, graph::SceneNode::amOnce, 0.7f, 0.0f, 0.7f);
 	//boomSpark1
-	LoadFxSprite("boomSpark1", "Effect\\boomSpark1", NullVector, Vec3Range(D3DXVECTOR3(1.0f, 1.0f, 1.0f), D3DXVECTOR3(10.0f, 10.0f, 10.0f)), NullQuaternion, false, graph::SceneNode::amOnce, 0.5f, 0.0f, 0.5f);
+	LoadFxSprite("boomSpark1", "Effect\\boomSpark1", NullVector, Vec3Range(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(10.0f, 10.0f, 10.0f)), NullQuaternion, false, graph::SceneNode::amOnce, 0.5f, 0.0f, 0.5f);
 	//boomSpark2
-	LoadFxSprite("boomSpark2", "Effect\\boomSpark2", NullVector, Vec3Range(D3DXVECTOR3(1.0f, 1.0f, 1.0f), D3DXVECTOR3(10.0f, 10.0f, 10.0f)), NullQuaternion, false, graph::SceneNode::amOnce, 0.5f, 0.0f, 0.5f);
+	LoadFxSprite("boomSpark2", "Effect\\boomSpark2", NullVector, Vec3Range(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(10.0f, 10.0f, 10.0f)), NullQuaternion, false, graph::SceneNode::amOnce, 0.5f, 0.0f, 0.5f);
 	//refr1
 	LoadFxSprite("refr1", "Effect\\j_swell", NullVector, Vec3Range(NullVector, IdentityVector * 100.0f), NullQuaternion, false, graph::SceneNode::amOnce, 0.5f, 0.0f, 0.5f, false, IdentityVec2, gtRefrEffect);
 	//flare1
@@ -1276,16 +1276,16 @@ void DataBase::LoadEffects()
 		desc.life = FloatRange(0.5f, 0.6f);
 		desc.startTime = FloatRange(0.1f, 0.2f);
 		desc.density = FloatRange(2.0f, 3.0f);
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.5f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
+		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.5f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
 		glm::quat spRot1 = glm::angleAxis(D3DX_PI, Vec3DxToGlm(-ZVector));
 		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, Vec3DxToGlm(ZVector));
 		desc.startRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1, -1, 7), D3DXVECTOR3(1, 1, 7), Vec3Range::vdVolume) * 0.4f;
+		descFlow.speedPos = Vec3Range(glm::vec3(-1, -1, 7), glm::vec3(1, 1, 7), Vec3Range::vdVolume) * 0.4f;
 
 		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);
-		NewChildMapObj(mapObj, MapObjLib::ctEffects, "smoke1")->GetGameObj().SetPos(D3DXVECTOR3(0.0f, 0.0f, 0.5f));
+		NewChildMapObj(mapObj, MapObjLib::ctEffects, "smoke1")->GetGameObj().SetPos(glm::vec3(0.0f, 0.0f, 0.5f));
 
 		SaveMapObj(mapObj, MapObjLib::ctEffects, "fire1");
 	}
@@ -1306,16 +1306,16 @@ void DataBase::LoadEffects()
 		desc.startDuration = 0.0f;
 		desc.startType = graph::FxEmitter::sotDist;
 		desc.density = 1.0f;
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.0f, -0.2f, -0.2f), D3DXVECTOR3(0.0f, 0.2f, 0.2f), Vec3Range::vdVolume);
-		desc.startScale = D3DXVECTOR3(0.7f, 0.7f, 0.7f);
+		desc.startPos = Vec3Range(glm::vec3(-0.0f, -0.2f, -0.2f), glm::vec3(0.0f, 0.2f, 0.2f), Vec3Range::vdVolume);
+		desc.startScale = glm::vec3(0.7f, 0.7f, 0.7f);
 		desc.startRot = QuatRange(glm::quat(-1, -1, -1, -1), glm::quat(1, 1, 1, 1), QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(11.0f, -0.5f, 0.0f), D3DXVECTOR3(13.0f, 0.5f, 0.1f), Vec3Range::vdVolume);
+		descFlow.speedPos = Vec3Range(glm::vec3(11.0f, -0.5f, 0.0f), glm::vec3(13.0f, 0.5f, 0.1f), Vec3Range::vdVolume);
 		descFlow.speedRot = NullQuaternion;
-		descFlow.speedScale = Vec3Range(D3DXVECTOR3(2.0f, 2.0f, 2.0f), D3DXVECTOR3(2.4f, 2.4f, 2.4f));
-		descFlow.acceleration = D3DXVECTOR3(-7.0f, 0.0f, 0.0f);
-		descFlow.gravitation = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
+		descFlow.speedScale = Vec3Range(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(2.4f, 2.4f, 2.4f));
+		descFlow.acceleration = glm::vec3(-7.0f, 0.0f, 0.0f);
+		descFlow.gravitation = glm::vec3(0.0f, 0.0f, 1.0f);
 		descFlow.autoRot = false;
 
 		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);
@@ -1329,7 +1329,7 @@ void DataBase::LoadEffects()
 	//Death2
 	{
 		game::MapObj* mapObj = NewMapObj();
-		mapObj->GetGameObj().SetPos(D3DXVECTOR3(0, 0, 1.5f));
+		mapObj->GetGameObj().SetPos(glm::vec3(0, 0, 1.5f));
 		mapObj->GetGameObj().SetMaxTimeLife(10);
 		AddToGraph(mapObj, gtEffect, true);
 
@@ -1349,17 +1349,17 @@ void DataBase::LoadEffects()
 			desc.startTime = 0;
 			desc.density = 3;
 			desc.life = 0;
-			desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume, Point3U(100, 100, 100));
+			desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume, Point3U(100, 100, 100));
 			desc.startScale = Vec3Range(IdentityVector * 0.9f, IdentityVector * 1.1f);
 				
 			graph::FxFlowEmitter::FlowDesc descFlow;
-			descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 2.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
+			descFlow.speedPos = Vec3Range(glm::vec3(-1.5f, -1.5f, 2.0f), glm::vec3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
 			//
 			glm::quat spRot1 = glm::angleAxis(D3DX_PI, Vec3DxToGlm(-IdentityVector));
 			glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, Vec3DxToGlm(IdentityVector));
 			descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
 			//
-			descFlow.gravitation = D3DXVECTOR3(0, 0, -9.80f);
+			descFlow.gravitation = glm::vec3(0, 0, -9.80f);
 
 			AddFxFlowEmitter(fxSystem, desc, descFlow, true);
 			
@@ -1374,12 +1374,12 @@ void DataBase::LoadEffects()
 				desc.startType = graph::FxEmitter::sotDist;
 				desc.startTime = FloatRange(1.0f, 1.1f);
 				desc.density = FloatRange(1.0f, 3.0f);
-				desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.1f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-				desc.startScale = D3DXVECTOR3(IdentityVector);
+				desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
+				desc.startScale = glm::vec3(IdentityVector);
 
 				graph::FxFlowEmitter::FlowDesc descFlow = smoke->GetFlowDesc();
 				descFlow.speedScale = IdentityVector * 3.0f;
-				descFlow.speedPos = Vec3Range(D3DXVECTOR3(-0.5f, -0.5f, 2.0f), D3DXVECTOR3(0.5f, 0.5f, 2.0f), Vec3Range::vdVolume, Point3U(100, 100, 100));
+				descFlow.speedPos = Vec3Range(glm::vec3(-0.5f, -0.5f, 2.0f), glm::vec3(0.5f, 0.5f, 2.0f), Vec3Range::vdVolume, Point3U(100, 100, 100));
 				
 				AddFxFlowEmitter(smokeSys, desc, descFlow, true);
 			}
@@ -1396,13 +1396,13 @@ void DataBase::LoadEffects()
 	//Death3
 	{
 		game::MapObj* mapObj = NewMapObj();
-		mapObj->GetGameObj().SetPos(D3DXVECTOR3(0, 0, 0.3f));
+		mapObj->GetGameObj().SetPos(glm::vec3(0, 0, 0.3f));
 		mapObj->GetGameObj().SetMaxTimeLife(0.7f);
 		AddToGraph(mapObj, gtEffect, true);
 
 		{
 			MapObj* child = NewChildMapObj(mapObj, MapObjLib::ctEffects, "explosion3");
-			child->GetGameObj().SetPos(D3DXVECTOR3(0.0f, 0.0f, 2.0f));
+			child->GetGameObj().SetPos(glm::vec3(0.0f, 0.0f, 2.0f));
 		}
 		NewChildMapObj(mapObj, MapObjLib::ctEffects, "explosionRing");
 		NewChildMapObj(mapObj, MapObjLib::ctEffects, "spark3");
@@ -1549,7 +1549,7 @@ void DataBase::LoadEffects()
 		desc.startScale = IdentityVector * 0.6f;
 		desc.startRot = NullQuaternion;
 		desc.rangeLife = FloatRange(0.0f, -0.6f);
-		desc.rangePos = Vec3Range(D3DXVECTOR3(1.0f, 0, 0), D3DXVECTOR3(-1.0f, 0, 0));
+		desc.rangePos = Vec3Range(glm::vec3(1.0f, 0, 0), glm::vec3(-1.0f, 0, 0));
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = XVector * 2.0f;
@@ -1633,7 +1633,7 @@ void DataBase::LoadEffects()
 		MapObj* mapObj = NewMapObj();
 		{
 			MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flareLaser1");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(0.4f, 0.0f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(0.4f, 0.0f, 0.0f));
 		}
 		SaveMapObj(mapObj, MapObjLib::ctEffects, "laserShot");
 	}
@@ -1666,12 +1666,12 @@ void DataBase::LoadEffects()
 		desc.startDuration = 0.0f;
 		desc.startType = graph::FxEmitter::sotTime;
 		desc.density = FloatRange(20.0f, 30.0f);
-		desc.startPos = Vec3Range(D3DXVECTOR3(-6.0f, -8.0f, 2.0f), D3DXVECTOR3(6.0f, 4.0f, 3.0f), Vec3Range::vdVolume);
-		desc.startScale = D3DXVECTOR3(1.0f, 0.1f, 1.0f);
+		desc.startPos = Vec3Range(glm::vec3(-6.0f, -8.0f, 2.0f), glm::vec3(6.0f, 4.0f, 3.0f), Vec3Range::vdVolume);
+		desc.startScale = glm::vec3(1.0f, 0.1f, 1.0f);
 		desc.startRot = NullQuaternion;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(0.0f, 4.0f, -12.0f), D3DXVECTOR3(0.0f, 2.0f, -12.0f), Vec3Range::vdVolume);
+		descFlow.speedPos = Vec3Range(glm::vec3(0.0f, 4.0f, -12.0f), glm::vec3(0.0f, 2.0f, -12.0f), Vec3Range::vdVolume);
 		descFlow.speedRot = NullQuaternion;
 		descFlow.speedScale = NullVector;
 		descFlow.autoRot = true;
@@ -1696,12 +1696,12 @@ void DataBase::LoadEffects()
 		desc.startDuration = 0.0f;
 		desc.startType = graph::FxEmitter::sotTime;
 		desc.density = FloatRange(20.0f, 25.0f);
-		desc.startPos = Vec3Range(D3DXVECTOR3(40.0f, 1.0f, 17.0f), D3DXVECTOR3(-2.4f, 22.05f, 13.0f), Vec3Range::vdVolume);
-		desc.startScale = Vec3Range(D3DXVECTOR3(3.0f, 0.3f, 1.0f), D3DXVECTOR3(3.5f, 0.25f, 1.0f), Vec3Range::vdVolume);
+		desc.startPos = Vec3Range(glm::vec3(40.0f, 1.0f, 17.0f), glm::vec3(-2.4f, 22.05f, 13.0f), Vec3Range::vdVolume);
+		desc.startScale = Vec3Range(glm::vec3(3.0f, 0.3f, 1.0f), glm::vec3(3.5f, 0.25f, 1.0f), Vec3Range::vdVolume);
 		desc.startRot = NullQuaternion;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(0.0f, 15.0f, -45.0f), D3DXVECTOR3(0.0f, 7.5f, -45.0f), Vec3Range::vdVolume);
+		descFlow.speedPos = Vec3Range(glm::vec3(0.0f, 15.0f, -45.0f), glm::vec3(0.0f, 7.5f, -45.0f), Vec3Range::vdVolume);
 		descFlow.speedRot = NullQuaternion;
 		descFlow.speedScale = NullVector;
 		descFlow.autoRot = true;
@@ -1725,14 +1725,14 @@ void DataBase::LoadEffects()
 		desc.life = FloatRange(1.5f, 1.6f);
 		desc.startTime = FloatRange(0.7f);
 		desc.density = FloatRange(1.0f, 1.0f);
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.6f, -0.6f, -0.6f), D3DXVECTOR3(0.6f, 0.6f, 0.6f), Vec3Range::vdVolume);
+		desc.startPos = Vec3Range(glm::vec3(-0.6f, -0.6f, -0.6f), glm::vec3(0.6f, 0.6f, 0.6f), Vec3Range::vdVolume);
 		glm::quat rot = glm::angleAxis(D3DX_PI, Vec3DxToGlm(ZVector));
 		desc.startRot = QuatRange(NullQuaternion, rot, QuatRange::vdLinear);
-		desc.startScale = D3DXVECTOR3(IdentityVector) * 4.0f;
+		desc.startScale = glm::vec3(IdentityVector) * 4.0f;
 		
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = -IdentityVector * 1.0f;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-0.5f, -0.5f, 3.0f), D3DXVECTOR3(0.5f, 0.5f, 3.5f), Vec3Range::vdVolume);
+		descFlow.speedPos = Vec3Range(glm::vec3(-0.5f, -0.5f, 3.0f), glm::vec3(0.5f, 0.5f, 3.5f), Vec3Range::vdVolume);
 		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);
 
 		mapObj->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
@@ -1755,14 +1755,14 @@ void DataBase::LoadEffects()
 		desc.life = FloatRange(0.7f, 0.9f);
 		desc.startTime = 0.5f;
 		desc.density = FloatRange(1.0f, 1.0f);
-		desc.startPos = Vec3Range(D3DXVECTOR3(-0.3f, -0.3f, -0.3f), D3DXVECTOR3(0.3f, 0.3f, 0.3f), Vec3Range::vdVolume);
+		desc.startPos = Vec3Range(glm::vec3(-0.3f, -0.3f, -0.3f), glm::vec3(0.3f, 0.3f, 0.3f), Vec3Range::vdVolume);
 		glm::quat rot = glm::angleAxis(D3DX_PI, Vec3DxToGlm(ZVector));
 		desc.startRot = QuatRange(NullQuaternion, rot, QuatRange::vdLinear);
-		desc.startScale = D3DXVECTOR3(IdentityVector) * 1.5f;
+		desc.startScale = glm::vec3(IdentityVector) * 1.5f;
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * 2.0f;
-		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-0.5f, -0.5f, 1.0f), D3DXVECTOR3(0.5f, 0.5f, 1.2f), Vec3Range::vdVolume);
+		descFlow.speedPos = Vec3Range(glm::vec3(-0.5f, -0.5f, 1.0f), glm::vec3(0.5f, 0.5f, 1.2f), Vec3Range::vdVolume);
 		graph::FxFlowEmitter* emitter = AddFxFlowEmitter(fxSystem, desc, descFlow, true);
 
 		mapObj->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
@@ -1822,7 +1822,7 @@ void DataBase::LoadEffects()
 		desc.density = FloatRange(1.0f, 1.0f);
 		desc.startPos = NullVector;
 		desc.startRot = NullQuaternion;
-		desc.startScale = D3DXVECTOR3(0.5f, 1.0f, 1.0f);
+		desc.startScale = glm::vec3(0.5f, 1.0f, 1.0f);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = IdentityVector * 2.0f;
@@ -1864,11 +1864,11 @@ void DataBase::LoadEffects()
 		desc.life = FloatRange(0.5f, 1.0f);
 		desc.startTime = 0;
 		desc.density = 5.0f;
-		desc.startPos = Vec3Range(D3DXVECTOR3(-2.0f, -2.0f, 0.0f), D3DXVECTOR3(2.0f, 2.0f, 0.0f), Vec3Range::vdVolume);
+		desc.startPos = Vec3Range(glm::vec3(-2.0f, -2.0f, 0.0f), glm::vec3(2.0f, 2.0f, 0.0f), Vec3Range::vdVolume);
 		glm::quat rot1 = glm::angleAxis(-D3DX_PI / 3.0f, Vec3DxToGlm(ZVector));
 		glm::quat rot2 = glm::angleAxis(D3DX_PI / 3.0f, Vec3DxToGlm(ZVector));
 		desc.startRot = QuatRange(rot1, rot2, QuatRange::vdLinear);
-		desc.startScale = D3DXVECTOR3(1.0f, 1.0f, 1.0f);
+		desc.startScale = glm::vec3(1.0f, 1.0f, 1.0f);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = NullVector;
@@ -1887,8 +1887,8 @@ void DataBase::LoadEffects()
 		
 		projDesc.type = Proj::ptCrater;
 		projDesc.SetModel(GetRecord(MapObjLib::ctEffects, "crater"));
-		projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.1f);
-		projDesc.size = D3DXVECTOR3(6.0f, 6.0f, 0.1f);
+		projDesc.pos = glm::vec3(0, 0.0f, 0.1f);
+		projDesc.size = glm::vec3(6.0f, 6.0f, 0.1f);
 		projDesc.modelSize = false;
 		projDesc.speed = 0.0f;
 		projDesc.maxDist = 20.0f;
@@ -1973,7 +1973,7 @@ void DataBase::LoadWorld1()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	D3DXVECTOR4 vec1 = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.075f, 0.0f);
@@ -2046,7 +2046,7 @@ void DataBase::LoadWorld2()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	D3DXVECTOR4 vec1 = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.10f, 0.0f);
@@ -2100,10 +2100,10 @@ void DataBase::LoadWorld3()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	D3DXVECTOR4 vec1 = plane;
 
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &ZVector);
+	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &ZVector);
 	D3DXVECTOR4 vec1Up = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
@@ -2140,7 +2140,7 @@ void DataBase::LoadWorld4()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	D3DXVECTOR4 vec1 = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.25f, 0.25f, 0.0f);
@@ -2174,11 +2174,11 @@ void DataBase::LoadWorld5()
 
 	D3DXPLANE plane;
 
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &ZVector);
+	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &ZVector);
 	D3DXVECTOR4 plane1 = plane;
 
 	float cosAng = cos(20.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	D3DXVECTOR4 plane2 = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
@@ -2210,10 +2210,10 @@ void DataBase::LoadWorld6()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	D3DXVECTOR4 vec1 = plane;
 
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &ZVector);
+	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &ZVector);
 	D3DXVECTOR4 vec1Up = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
@@ -2265,7 +2265,7 @@ void DataBase::LoadMisc()
 		{
 			MapObj* child = &mapObj->GetGameObj().GetIncludeList().Add(gotGameObj);
 			AddToGraph(child, gtEffect, true);
-			child->GetGameObj().SetPos(D3DXVECTOR3(-0.4f, 0.0f, 0.0f));
+			child->GetGameObj().SetPos(glm::vec3(-0.4f, 0.0f, 0.0f));
 
 			
 			{
@@ -2343,19 +2343,19 @@ void DataBase::LoadMisc()
 		
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "smoke2");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(-0.5f, 0.0f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(-0.5f, 0.0f, 0.0f));
 			eff->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 			//eff->GetGameObj().rescOnTime = 1.5f;
 			//eff->GetGameObj().sendToDeathList = true;
 		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flare1");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(-1.1f, 0.0f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(-1.1f, 0.0f, 0.0f));
 			eff->GetGameObj().SetScale(2.0f);
 		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "engine1");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(-2.3f, 0.0f, 0.05f));
+			eff->GetGameObj().SetPos(glm::vec3(-2.3f, 0.0f, 0.05f));
 		}
 		{
 			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
@@ -2377,17 +2377,17 @@ void DataBase::LoadMisc()
 
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "smoke4");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(-0.5f, 0.0f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(-0.5f, 0.0f, 0.0f));
 			eff->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flare1");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(-1.1f, 0.0f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(-1.1f, 0.0f, 0.0f));
 			eff->GetGameObj().SetScale(2.0f);
 		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "engine1");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(-2.3f, 0.0f, 0.05f));
+			eff->GetGameObj().SetPos(glm::vec3(-2.3f, 0.0f, 0.05f));
 		}
 		{
 			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
@@ -2410,7 +2410,7 @@ void DataBase::LoadMisc()
 
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "smoke5");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(0.0f, 0.0f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(0.0f, 0.0f, 0.0f));
 			eff->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 		}
 		{
@@ -2440,7 +2440,7 @@ void DataBase::LoadMisc()
 
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "smoke8");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(0.0f, 0.0f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(0.0f, 0.0f, 0.0f));
 			eff->GetGameObj().GetBehaviors().Add<FxSystemWaitingEnd>();
 		}
 		{
@@ -2467,7 +2467,7 @@ void DataBase::LoadMisc()
 
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flare3");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(-1.0f, 0.0f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(-1.0f, 0.0f, 0.0f));
 			eff->GetGameObj().SetScale(2.0f);
 		}
 		{
@@ -2492,11 +2492,11 @@ void DataBase::LoadMisc()
 
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "resonanseBolt");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(0.0f, 0.5f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(0.0f, 0.5f, 0.0f));
 		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "resonanseBolt");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(0.0f, -0.5f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(0.0f, -0.5f, 0.0f));
 		}
 		{
 			DeathEffect& deathEff = mapObj->GetGameObj().GetBehaviors().Add<DeathEffect>();
@@ -2565,7 +2565,7 @@ void DataBase::LoadMisc()
 
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flare2");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(0.0f, 0.0f, 0.25f));
+			eff->GetGameObj().SetPos(glm::vec3(0.0f, 0.0f, 0.25f));
 		}
 
 		DeathEffect& deathEffect = gameObj.GetBehaviors().Add<DeathEffect>();
@@ -2667,7 +2667,7 @@ void DataBase::LoadMisc()
 		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::PlaneNode* node = AddPlaneNode(mapObj, IdentityVec2);
-		node->SetScale(D3DXVECTOR3(5.0f, 3.0f, 1.0f));
+		node->SetScale(glm::vec3(5.0f, 3.0f, 1.0f));
 		AddLibMat(&node->material, "Bonus\\speedArrow");
 		AddToGraph(mapObj, gtEffect, true);
 
@@ -2682,7 +2682,7 @@ void DataBase::LoadMisc()
 		//glm::quat rot;
 		//D3DXQuaternionRotationAxis(&rot, &ZVector, -D3DX_PI/2);
 		//node->SetRot(rot);
-		node->SetScale(D3DXVECTOR3(4.0f, 3.0f, 1.0f));
+		node->SetScale(glm::vec3(4.0f, 3.0f, 1.0f));
 		node->animMode(graph::SceneNode::amRepeat);
 		node->animDuration = 1.0f;
 		AddLibMat(&node->material, "Bonus\\strelkaAnim");
@@ -2696,7 +2696,7 @@ void DataBase::LoadMisc()
 		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::PlaneNode* node = AddPlaneNode(mapObj, IdentityVec2);
-		node->SetScale(D3DXVECTOR3(4.5f, 4.0f, 1.0f));
+		node->SetScale(glm::vec3(4.5f, 4.0f, 1.0f));
 		AddLibMat(&node->material, "Bonus\\lusha");
 		AddToGraph(mapObj, gtEffect, true);
 
@@ -2708,7 +2708,7 @@ void DataBase::LoadMisc()
 		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::PlaneNode* node = AddPlaneNode(mapObj, IdentityVec2);
-		node->SetScale(D3DXVECTOR3(4.0f, 4.0f, 1.0f));
+		node->SetScale(glm::vec3(4.0f, 4.0f, 1.0f));
 		AddLibMat(&node->material, "Bonus\\snowLusha");
 		AddToGraph(mapObj, gtEffect, true);
 
@@ -2720,7 +2720,7 @@ void DataBase::LoadMisc()
 		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::PlaneNode* node = AddPlaneNode(mapObj, IdentityVec2);
-		node->SetScale(D3DXVECTOR3(4.0f, 4.0f, 1.0f));
+		node->SetScale(glm::vec3(4.0f, 4.0f, 1.0f));
 		AddLibMat(&node->material, "Bonus\\hellLusha");
 		AddToGraph(mapObj, gtEffect, true);
 
@@ -2732,7 +2732,7 @@ void DataBase::LoadMisc()
 		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::PlaneNode* node = AddPlaneNode(mapObj, IdentityVec2);
-		node->SetScale(D3DXVECTOR3(2.5f, 2.5f, 1.0f));
+		node->SetScale(glm::vec3(2.5f, 2.5f, 1.0f));
 		AddLibMat(&node->material, "Bonus\\maslo");
 		AddToGraph(mapObj, gtEffect, true);
 
@@ -2749,11 +2749,11 @@ void DataBase::LoadMisc()
 		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flare5");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(-2.5f, 0.0f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(-2.5f, 0.0f, 0.0f));
 		}
 		{
 			game::MapObj* eff = NewChildMapObj(mapObj, MapObjLib::ctEffects, "flare5");
-			eff->GetGameObj().SetPos(D3DXVECTOR3(2.5f, 0.0f, 0.0f));
+			eff->GetGameObj().SetPos(glm::vec3(2.5f, 0.0f, 0.0f));
 		}
 		{
 			DeathEffect& deathEffect = gameObj.GetBehaviors().Add<DeathEffect>();
@@ -2938,7 +2938,7 @@ void DataBase::LoadBonus()
 		desc.type = Proj::ptMine;
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\mine1"));
 		desc.pos = NullVector;
-		desc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+		desc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 		desc.modelSize = true;
 		desc.damage = 11.0f;
 		desc.maxDist = 0.0f;
@@ -2961,7 +2961,7 @@ void DataBase::LoadBonus()
 		desc.type = Proj::ptMine;
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\mine2Kern"));
 		desc.pos = NullVector;
-		desc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+		desc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 		desc.modelSize = true;
 		desc.damage = 10.0f;
 		desc.maxDist = 0.0f;
@@ -2985,7 +2985,7 @@ void DataBase::LoadBonus()
 		desc.type = Proj::ptMinePiece;
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\mine2Piece"));
 		desc.pos = NullVector;
-		desc.size = D3DXVECTOR3(1.0f, 1.0f, 1.7f);
+		desc.size = glm::vec3(1.0f, 1.0f, 1.7f);
 		desc.modelSize = true;
 		desc.damage = 4.0f;
 		desc.maxDist = 0.0f;
@@ -3008,8 +3008,8 @@ void DataBase::LoadBonus()
 
 		desc.type = Proj::ptMineProton;
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\mine3"));
-		desc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
-		desc.size = D3DXVECTOR3(5.0f, 5.0f, 1.7f);
+		desc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
+		desc.size = glm::vec3(5.0f, 5.0f, 1.7f);
 		desc.modelSize = false;
 		desc.damage = 25.0f;
 		desc.maxDist = 0.0f;
@@ -3034,7 +3034,7 @@ void DataBase::LoadBonus()
 		desc.type = Proj::ptMedpack;
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\medpack"));
 		desc.pos = NullVector;
-		desc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+		desc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 		desc.modelSize = true;
 		desc.damage = 0.0f;
 		desc.maxDist = 0.0f;
@@ -3056,7 +3056,7 @@ void DataBase::LoadBonus()
 		desc.type = Proj::ptMoney;
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\money"));
 		desc.pos = NullVector;
-		desc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+		desc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 		desc.modelSize = true;
 		desc.damage = 2000.0f;
 		desc.maxDist = 0.0f;
@@ -3078,7 +3078,7 @@ void DataBase::LoadBonus()
 		desc.type = Proj::ptCharge;
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\ammo"));
 		desc.pos = NullVector;
-		desc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+		desc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 		desc.modelSize = true;
 		desc.damage = 1.0f;
 		desc.maxDist = 0.0f;
@@ -3100,7 +3100,7 @@ void DataBase::LoadBonus()
 		desc.type = Proj::ptImmortal;
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\shield"));
 		desc.pos = NullVector;
-		desc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+		desc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 		desc.modelSize = true;
 		desc.damage = 10.0f;
 		desc.maxDist = 0.0f;
@@ -3123,7 +3123,7 @@ void DataBase::LoadBonus()
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\strelkaAnim"));
 		desc.pos = NullVector;
 		desc.modelSize = true;
-		desc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+		desc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 		desc.damage = 200.0f * 1000.0f / 3600;
 
 		gameObj.SetDesc(desc);
@@ -3144,7 +3144,7 @@ void DataBase::LoadBonus()
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\lusha"));
 		desc.pos = NullVector;
 		desc.modelSize = false;
-		desc.size = D3DXVECTOR3(1.25f, 1.25f, 1.7f);
+		desc.size = glm::vec3(1.25f, 1.25f, 1.7f);
 		desc.damage = 20.0f * 1000.0f / 3600;
 
 		gameObj.SetDesc(desc);
@@ -3165,7 +3165,7 @@ void DataBase::LoadBonus()
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\snowLusha"));
 		desc.pos = NullVector;
 		desc.modelSize = false;
-		desc.size = D3DXVECTOR3(1.25f, 1.25f, 1.7f);
+		desc.size = glm::vec3(1.25f, 1.25f, 1.7f);
 		desc.damage = 20.0f * 1000.0f / 3600;
 
 		gameObj.SetDesc(desc);
@@ -3186,7 +3186,7 @@ void DataBase::LoadBonus()
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\hellLusha"));
 		desc.pos = NullVector;
 		desc.modelSize = false;
-		desc.size = D3DXVECTOR3(1.25f, 1.25f, 1.7f);
+		desc.size = glm::vec3(1.25f, 1.25f, 1.7f);
 		desc.damage = 20.0f * 1000.0f / 3600;
 
 		gameObj.SetDesc(desc);
@@ -3207,7 +3207,7 @@ void DataBase::LoadBonus()
 		desc.SetModel(GetRecord(MapObjLib::ctDecoration, "Misc\\maslo"));
 		desc.pos = NullVector;
 		desc.modelSize = false;
-		desc.size = D3DXVECTOR3(1.25f, 1.25f, 1.7f);
+		desc.size = glm::vec3(1.25f, 1.25f, 1.7f);
 		desc.damage = 1.5f;
 
 		gameObj.SetDesc(desc);
@@ -3597,7 +3597,7 @@ void DataBase::LoadWeapons()
 			ShotEffect& effect = gameObj.GetBehaviors().Add<ShotEffect>();
 			effect.SetSound(&GetSound("Sounds\\turel.ogg"));
 			effect.SetEffect(GetRecord(MapObjLib::ctEffects, "powerShot1"));
-			effect.SetPos(D3DXVECTOR3(1.4f, 0.0f, 0.1f));
+			effect.SetPos(glm::vec3(1.4f, 0.0f, 0.1f));
 		}
 
 		SaveMapObj(mapObj, MapObjLib::ctWeapon, "turel");
@@ -3617,7 +3617,7 @@ void DataBase::LoadWeapons()
 			ShotEffect& effect = gameObj.GetBehaviors().Add<ShotEffect>();
 			effect.SetSound(&GetSound("Sounds\\mortira.ogg"));
 			effect.SetEffect(GetRecord(MapObjLib::ctEffects, "powerShot1"));
-			effect.SetPos(D3DXVECTOR3(1.7f, 0.0f, 0.0f));
+			effect.SetPos(glm::vec3(1.7f, 0.0f, 0.0f));
 		}
 
 		SaveMapObj(mapObj, MapObjLib::ctWeapon, "mortira");
@@ -3662,18 +3662,18 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyAABB = AABB(D3DXVECTOR3(-1.55339f, -0.793131f, -0.438524f), D3DXVECTOR3(1.79646f, 0.768305f, 0.847951f));
-		desc.bodyOffsetModel = D3DXVECTOR3(0, 0, 0);
-		desc.bodyScaleModel = D3DXVECTOR3(1.0f, 1.0f, 0.95f);
-		desc.bodyScale = D3DXVECTOR3(0.95f, 1.1f, 1.0f);
-		desc.bodyOffset = D3DXVECTOR3(-0.05f, 0.0f, -0.17f);
-		desc.centerMassPos = D3DXVECTOR3(0.1f, 0, -0.75f);
+		desc.bodyAABB = AABB(glm::vec3(-1.55339f, -0.793131f, -0.438524f), glm::vec3(1.79646f, 0.768305f, 0.847951f));
+		desc.bodyOffsetModel = glm::vec3(0, 0, 0);
+		desc.bodyScaleModel = glm::vec3(1.0f, 1.0f, 0.95f);
+		desc.bodyScale = glm::vec3(0.95f, 1.1f, 1.0f);
+		desc.bodyOffset = glm::vec3(-0.05f, 0.0f, -0.17f);
+		desc.centerMassPos = glm::vec3(0.1f, 0, -0.75f);
 
 		desc.wheelRadius = 0.42947042f;
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.05f, 0, 0));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.05f, 0, 0));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.0f, 0, 0));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.0f, 0, 0));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.05f, 0, 0));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.05f, 0, 0));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.0f, 0, 0));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.0f, 0, 0));
 		desc.inverseWheelMass = 0.1f;
 		desc.maxSpeed = 0.0f;
 		desc.tireSpring = 0.0f;
@@ -3698,13 +3698,13 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyAABB = AABB(D3DXVECTOR3(-2.08688f, -0.887617f, -0.367699f), D3DXVECTOR3(1.59955f, 0.851927f, 1.05358f));
-		desc.bodyOffsetModel = D3DXVECTOR3(-0.09f, 0.0f, 0.06f);
-		//desc.bodyOffsetModel = D3DXVECTOR3(-0.09f, 0.0f, 0.05f);
-		//desc.bodyScaleModel = D3DXVECTOR3(1.1f, 1.1f, 1.1f);
-		desc.bodyScale = D3DXVECTOR3(0.9f, 1.0f, 0.95f);
-		desc.bodyOffset = D3DXVECTOR3(0.18f, 0.0f, -0.10f);
-		desc.centerMassPos = D3DXVECTOR3(0.1f, 0, -0.60f);
+		desc.bodyAABB = AABB(glm::vec3(-2.08688f, -0.887617f, -0.367699f), glm::vec3(1.59955f, 0.851927f, 1.05358f));
+		desc.bodyOffsetModel = glm::vec3(-0.09f, 0.0f, 0.06f);
+		//desc.bodyOffsetModel = glm::vec3(-0.09f, 0.0f, 0.05f);
+		//desc.bodyScaleModel = glm::vec3(1.1f, 1.1f, 1.1f);
+		desc.bodyScale = glm::vec3(0.9f, 1.0f, 0.95f);
+		desc.bodyOffset = glm::vec3(0.18f, 0.0f, -0.10f);
+		desc.centerMassPos = glm::vec3(0.1f, 0, -0.60f);
 
 		desc.wheelRadius = 0.37786922f;
 		desc.inverseWheelMass = 0.1f;
@@ -3731,17 +3731,17 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyAABB = AABB(D3DXVECTOR3(-1.77654f, -1.21723f, -0.425364f), D3DXVECTOR3(1.92265f, 1.21507f, 0.868031f));
-		desc.bodyOffsetModel = D3DXVECTOR3(0.0f, 0.0f, 0.13f);
-		desc.bodyScale = D3DXVECTOR3(0.95f, 1.0f, 1.0f);
-		desc.bodyOffset = D3DXVECTOR3(-0.2f, 0.0f, 0.0f);
-		desc.centerMassPos = D3DXVECTOR3(0.0f, 0, -0.55f);
+		desc.bodyAABB = AABB(glm::vec3(-1.77654f, -1.21723f, -0.425364f), glm::vec3(1.92265f, 1.21507f, 0.868031f));
+		desc.bodyOffsetModel = glm::vec3(0.0f, 0.0f, 0.13f);
+		desc.bodyScale = glm::vec3(0.95f, 1.0f, 1.0f);
+		desc.bodyOffset = glm::vec3(-0.2f, 0.0f, 0.0f);
+		desc.centerMassPos = glm::vec3(0.0f, 0, -0.55f);
 
 		desc.wheelRadius = 0.34159720f;
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.22f, 0, -0.01f));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.22f, 0, -0.01f));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.09f, 0, 0.08f));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.09f, 0, 0.08f));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.22f, 0, -0.01f));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.22f, 0, -0.01f));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.09f, 0, 0.08f));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.09f, 0, 0.08f));
 		desc.inverseWheelMass = 0.1f;
 		desc.maxSpeed = 0.0f;
 		desc.tireSpring = 0.0f;
@@ -3767,17 +3767,17 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyAABB = AABB(D3DXVECTOR3(-1.77654f, -1.21723f, -0.425364f), D3DXVECTOR3(1.92265f, 1.21507f, 0.868031f));
-		desc.bodyOffsetModel = D3DXVECTOR3(0.0f, 0.0f, 0.13f);
-		desc.bodyScale = D3DXVECTOR3(0.95f, 1.0f, 1.0f);
-		desc.bodyOffset = D3DXVECTOR3(-0.2f, 0.0f, 0.0f);
-		desc.centerMassPos = D3DXVECTOR3(0.0f, 0, -0.55f);
+		desc.bodyAABB = AABB(glm::vec3(-1.77654f, -1.21723f, -0.425364f), glm::vec3(1.92265f, 1.21507f, 0.868031f));
+		desc.bodyOffsetModel = glm::vec3(0.0f, 0.0f, 0.13f);
+		desc.bodyScale = glm::vec3(0.95f, 1.0f, 1.0f);
+		desc.bodyOffset = glm::vec3(-0.2f, 0.0f, 0.0f);
+		desc.centerMassPos = glm::vec3(0.0f, 0, -0.55f);
 		
 		desc.wheelRadius = 0.34159720f;
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.22f, 0, -0.01f));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.22f, 0, -0.01f));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.09f, 0, 0.08f));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.09f, 0, 0.08f));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.22f, 0, -0.01f));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.22f, 0, -0.01f));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.09f, 0, 0.08f));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.09f, 0, 0.08f));
 		desc.inverseWheelMass = 0.1f;
 		desc.maxSpeed = 0.0f;
 		desc.tireSpring = 0.0f;
@@ -3803,9 +3803,9 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyScale = D3DXVECTOR3(0.95f, 0.85f, 0.8f);
-		desc.bodyOffset = D3DXVECTOR3(-0.056f, 0.0f, -0.2f);
-		desc.centerMassPos = D3DXVECTOR3(0, 0, -1.05f);
+		desc.bodyScale = glm::vec3(0.95f, 0.85f, 0.8f);
+		desc.bodyOffset = glm::vec3(-0.056f, 0.0f, -0.2f);
+		desc.centerMassPos = glm::vec3(0, 0, -1.05f);
 		//desc.bump = true;
 
 		desc.wheelRadius = 0.0f;
@@ -3834,9 +3834,9 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyAABB = AABB(D3DXVECTOR3(-1.72021f, -1.43783f, -0.435831f), D3DXVECTOR3(1.71345f, 1.43783f, 0.441906f));
-		desc.bodyScale = D3DXVECTOR3(1.0f, 0.85f, 1.0f);
-		desc.centerMassPos = D3DXVECTOR3(0.0f, 0, -0.47f);
+		desc.bodyAABB = AABB(glm::vec3(-1.72021f, -1.43783f, -0.435831f), glm::vec3(1.71345f, 1.43783f, 0.441906f));
+		desc.bodyScale = glm::vec3(1.0f, 0.85f, 1.0f);
+		desc.centerMassPos = glm::vec3(0.0f, 0, -0.47f);
 
 		desc.wheelRadius = 0.34f;
 		desc.inverseWheelMass = 0.1f;
@@ -3868,9 +3868,9 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyAABB = AABB(D3DXVECTOR3(-1.72021f, -1.43783f, -0.435831f), D3DXVECTOR3(1.71345f, 1.43783f, 0.441906f));
-		desc.bodyScale = D3DXVECTOR3(1.0f, 0.85f, 1.0f);
-		desc.centerMassPos = D3DXVECTOR3(0.0f, 0, -0.47f);
+		desc.bodyAABB = AABB(glm::vec3(-1.72021f, -1.43783f, -0.435831f), glm::vec3(1.71345f, 1.43783f, 0.441906f));
+		desc.bodyScale = glm::vec3(1.0f, 0.85f, 1.0f);
+		desc.centerMassPos = glm::vec3(0.0f, 0, -0.47f);
 
 		desc.wheelRadius = 0.34f;
 		desc.inverseWheelMass = 0.1f;
@@ -3899,11 +3899,11 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyAABB = AABB(D3DXVECTOR3(-1.93629f, -0.882337f, -0.554882f), D3DXVECTOR3(2.13104f, 0.885529f, 0.624387f));
-		desc.bodyOffsetModel = D3DXVECTOR3(0.0f, 0.0f, -0.09f);
-		desc.bodyScale = D3DXVECTOR3(0.9f, 0.9f, 0.9f);
-		desc.bodyOffset = D3DXVECTOR3(-0.1f, 0.0f, 0.0f);
-		desc.centerMassPos = D3DXVECTOR3(0.15f, 0, -0.52f);
+		desc.bodyAABB = AABB(glm::vec3(-1.93629f, -0.882337f, -0.554882f), glm::vec3(2.13104f, 0.885529f, 0.624387f));
+		desc.bodyOffsetModel = glm::vec3(0.0f, 0.0f, -0.09f);
+		desc.bodyScale = glm::vec3(0.9f, 0.9f, 0.9f);
+		desc.bodyOffset = glm::vec3(-0.1f, 0.0f, 0.0f);
+		desc.centerMassPos = glm::vec3(0.15f, 0, -0.52f);
 
 		desc.wheelRadius = 0.34f;
 		desc.inverseWheelMass = 0.1f;
@@ -3935,11 +3935,11 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyAABB = AABB(D3DXVECTOR3(-1.93629f, -0.882337f, -0.554882f), D3DXVECTOR3(2.13104f, 0.885529f, 0.624387f));
-		desc.bodyOffsetModel = D3DXVECTOR3(0.0f, 0.0f, -0.09f);
-		desc.bodyScale = D3DXVECTOR3(0.9f, 0.9f, 0.9f);
-		desc.bodyOffset = D3DXVECTOR3(-0.1f, 0.0f, 0.0f);
-		desc.centerMassPos = D3DXVECTOR3(0.15f, 0, -0.52f);
+		desc.bodyAABB = AABB(glm::vec3(-1.93629f, -0.882337f, -0.554882f), glm::vec3(2.13104f, 0.885529f, 0.624387f));
+		desc.bodyOffsetModel = glm::vec3(0.0f, 0.0f, -0.09f);
+		desc.bodyScale = glm::vec3(0.9f, 0.9f, 0.9f);
+		desc.bodyOffset = glm::vec3(-0.1f, 0.0f, 0.0f);
+		desc.centerMassPos = glm::vec3(0.15f, 0, -0.52f);
 
 		desc.wheelRadius = 0.34f;
 		desc.inverseWheelMass = 0.1f;
@@ -3971,18 +3971,18 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2500.0f;
-		desc.bodyScale = D3DXVECTOR3(1.0f, 1.1f, 0.9f);
-		desc.bodyOffset = D3DXVECTOR3(-0.2f, 0.0f, -0.1f);
-		desc.centerMassPos = D3DXVECTOR3(0.0f, 0, -1.2f);
-		desc.bodyOffsetModel = D3DXVECTOR3(0.0f, 0.0f, 0.1f);
+		desc.bodyScale = glm::vec3(1.0f, 1.1f, 0.9f);
+		desc.bodyOffset = glm::vec3(-0.2f, 0.0f, -0.1f);
+		desc.centerMassPos = glm::vec3(0.0f, 0, -1.2f);
+		desc.bodyOffsetModel = glm::vec3(0.0f, 0.0f, 0.1f);
 		desc.frontWheelDrive = true;
 		desc.backWheelDrive = true;
 
 		desc.wheelRadius = 0.62686455f;
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(-0.09f, 0, 0.0f));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(-0.09f, 0, 0.0f));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.24f, 0, 0.0f));
-		desc.wheelOffsetModel.push_back(D3DXVECTOR3(0.24f, 0, 0.0f));
+		desc.wheelOffsetModel.push_back(glm::vec3(-0.09f, 0, 0.0f));
+		desc.wheelOffsetModel.push_back(glm::vec3(-0.09f, 0, 0.0f));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.24f, 0, 0.0f));
+		desc.wheelOffsetModel.push_back(glm::vec3(0.24f, 0, 0.0f));
 		desc.inverseWheelMass = 0.1f;
 		desc.maxSpeed = 48.0f;
 		desc.tireSpring = 0.0f;
@@ -4009,9 +4009,9 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2500.0f;
-		desc.bodyScale = D3DXVECTOR3(1.0f, 1.1f, 0.9f);
-		desc.bodyOffset = D3DXVECTOR3(-0.2f, 0.0f, -0.1f);
-		desc.centerMassPos = D3DXVECTOR3(0.0f, 0, -1.2f);
+		desc.bodyScale = glm::vec3(1.0f, 1.1f, 0.9f);
+		desc.bodyOffset = glm::vec3(-0.2f, 0.0f, -0.1f);
+		desc.centerMassPos = glm::vec3(0.0f, 0, -1.2f);
 		desc.frontWheelDrive = true;
 		desc.backWheelDrive = true;
 
@@ -4042,8 +4042,8 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyScale = D3DXVECTOR3(0.9f, 0.85f, 0.9f);
-		desc.centerMassPos = D3DXVECTOR3(0.0f, 0, -0.75f);
+		desc.bodyScale = glm::vec3(0.9f, 0.85f, 0.9f);
+		desc.centerMassPos = glm::vec3(0.0f, 0, -0.75f);
 		desc.frontWheelDrive = true;
 		desc.backWheelDrive = true;
 		desc.gravEngine = true;
@@ -4077,8 +4077,8 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyScale = D3DXVECTOR3(0.9f, 0.85f, 0.9f);
-		desc.centerMassPos = D3DXVECTOR3(0.0f, 0, -0.75f);
+		desc.bodyScale = glm::vec3(0.9f, 0.85f, 0.9f);
+		desc.centerMassPos = glm::vec3(0.0f, 0, -0.75f);
 		desc.frontWheelDrive = true;
 		desc.backWheelDrive = true;
 		desc.gravEngine = true;
@@ -4112,9 +4112,9 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 1500.0f;
-		desc.bodyScale = D3DXVECTOR3(0.95f, 1.0f, 0.95f);
-		desc.bodyOffset = D3DXVECTOR3(0.1f, 0.0f, 0.0f);
-		desc.centerMassPos = D3DXVECTOR3(0.1f, 0, -0.55f);
+		desc.bodyScale = glm::vec3(0.95f, 1.0f, 0.95f);
+		desc.bodyOffset = glm::vec3(0.1f, 0.0f, 0.0f);
+		desc.centerMassPos = glm::vec3(0.1f, 0, -0.55f);
 
 		desc.wheelRadius = 0.0f;
 		desc.inverseWheelMass = 0.1f;
@@ -4140,9 +4140,9 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyScale = D3DXVECTOR3(0.9f, 0.85f, 0.9f);
-		desc.bodyOffset = D3DXVECTOR3(0.15f, 0.0f, 0.08f);
-		desc.centerMassPos = D3DXVECTOR3(0.1f, 0, -0.45f);
+		desc.bodyScale = glm::vec3(0.9f, 0.85f, 0.9f);
+		desc.bodyOffset = glm::vec3(0.15f, 0.0f, 0.08f);
+		desc.centerMassPos = glm::vec3(0.1f, 0, -0.45f);
 
 		desc.wheelRadius = 0.0f;
 		desc.inverseWheelMass = 0.1f;
@@ -4168,9 +4168,9 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyScale = D3DXVECTOR3(0.95f, 1.0f, 1.0f);
-		desc.bodyOffset = D3DXVECTOR3(0.17f, 0.0f, 0.0f);
-		desc.centerMassPos = D3DXVECTOR3(0.2f, 0, -0.70f);
+		desc.bodyScale = glm::vec3(0.95f, 1.0f, 1.0f);
+		desc.bodyOffset = glm::vec3(0.17f, 0.0f, 0.0f);
+		desc.centerMassPos = glm::vec3(0.2f, 0, -0.70f);
 		desc.frontWheelDrive = true;
 		desc.backWheelDrive = true;
 
@@ -4199,11 +4199,11 @@ void DataBase::LoadCars()
 	{
 		CarDesc desc;
 		desc.mass = 2000.0f;
-		desc.bodyAABB = AABB(D3DXVECTOR3(-1.93629f, -0.882337f, -0.554882f), D3DXVECTOR3(2.13104f, 0.885529f, 0.624387f));
-		desc.bodyOffsetModel = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
-		desc.bodyScale = D3DXVECTOR3(0.9f, 0.9f, 0.9f);
-		desc.bodyOffset = D3DXVECTOR3(-0.1f, 0.0f, 0.0f);
-		desc.centerMassPos = D3DXVECTOR3(0.15f, 0, -0.52f);
+		desc.bodyAABB = AABB(glm::vec3(-1.93629f, -0.882337f, -0.554882f), glm::vec3(2.13104f, 0.885529f, 0.624387f));
+		desc.bodyOffsetModel = glm::vec3(0.0f, 0.0f, 0.0f);
+		desc.bodyScale = glm::vec3(0.9f, 0.9f, 0.9f);
+		desc.bodyOffset = glm::vec3(-0.1f, 0.0f, 0.0f);
+		desc.centerMassPos = glm::vec3(0.15f, 0, -0.52f);
 
 		desc.wheelRadius = 0.34f;
 		desc.inverseWheelMass = 0.1f;

@@ -22,13 +22,13 @@ private:
 
 		bool _clDrag;
 		bool _startDrag;
-		D3DXVECTOR3 _clDragOff;
+		glm::vec3 _clDragOff;
 		//
 		graph::MovCoordSys::DirMove _clDirMove;
-		D3DXVECTOR3 _clDirOff;
+		glm::vec3 _clDirOff;
 		//
 		graph::ScaleCoordSys::DirMove _clScDirMove;
-		D3DXVECTOR3 _clStScale;
+		glm::vec3 _clStScale;
 		//
 		bool _clRotating;
 		glm::quat _clStartRot;
@@ -51,8 +51,8 @@ private:
 	graph::MovCoordSys* _movCoordSys;
 	graph::ScaleCoordSys* _scaleCoordSys;
 
-	bool ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorld, const D3DXMATRIX& worldToAABB, const D3DXVECTOR3& normOff, INode* ignore, float& outDistOff, const float distLink = 1.0f);
-	void ComputeLink(INode* node, const D3DXVECTOR3& pos, D3DXVECTOR3& resPos);
+	bool ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorld, const D3DXMATRIX& worldToAABB, const glm::vec3& normOff, INode* ignore, float& outDistOff, const float distLink = 1.0f);
+	void ComputeLink(INode* node, const glm::vec3& pos, glm::vec3& resPos);
 
 	void CreateGraphActor();
 	void ReleaseGraphActor();
@@ -66,8 +66,8 @@ public:
 	SceneControl(Edit* edit);
 	virtual ~SceneControl();
 
-	D3DXVECTOR3 ComputePoint(const D3DXVECTOR3& curPos, const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, DirMove dirMove, const D3DXVECTOR3& centerOff);
-	D3DXVECTOR3 ComputePos(INode* node, const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, DirMove dirMove, const D3DXVECTOR3& centerOff);
+	glm::vec3 ComputePoint(const glm::vec3& curPos, const glm::vec3& rayStart, const glm::vec3& rayVec, DirMove dirMove, const glm::vec3& centerOff);
+	glm::vec3 ComputePos(INode* node, const glm::vec3& rayStart, const glm::vec3& rayVec, DirMove dirMove, const glm::vec3& centerOff);
 
 	INodeRef GetSelNode();
 	void SelectNode(const INodeRef& node);

@@ -52,11 +52,11 @@ private:
 	bool _startScene;
 
 	GraphManager::LightSrc* _sun;
-	mutable D3DXVECTOR3 _sunPos;
+	mutable glm::vec3 _sunPos;
 	mutable glm::quat _sunRot;
 
 	GraphManager::LightSrc* _lamp[4];
-	D3DXVECTOR3 _lampPos[4];
+	glm::vec3 _lampPos[4];
 	glm::quat _lampRot[4];
 	D3DXCOLOR _lampColor[4];
 	bool _lampSwitchOn[4];
@@ -99,14 +99,14 @@ public:
 	void ReleaseScene();
 	void ProcessScene(float dt);
 
-	const D3DXVECTOR3& GetSunPos() const;
-	void SetSunPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetSunPos() const;
+	void SetSunPos(const glm::vec3& value);
 
 	const glm::quat& GetSunRot() const;
 	void SetSunRot(const glm::quat& value);
 
-	const D3DXVECTOR3& GetLampPos(int index) const;
-	void SetLampPos(const D3DXVECTOR3& value, int index);
+	const glm::vec3& GetLampPos(int index) const;
+	void SetLampPos(const glm::vec3& value, int index);
 
 	const glm::quat& GetLampRot(int index) const;
 	void SetLampRot(const glm::quat& value, int index);

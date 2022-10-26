@@ -10,14 +10,14 @@ namespace res
 
 const int VertexData::cElementSize[cElementEnd] =
 {
-	sizeof(D3DXVECTOR3),
+	sizeof(glm::vec3),
 	sizeof(D3DXVECTOR4),
-	sizeof(D3DXVECTOR3),
+	sizeof(glm::vec3),
 	sizeof(D3DCOLOR),
 	sizeof(glm::vec2),
 	sizeof(glm::vec2),
-	sizeof(D3DXVECTOR3),
-	sizeof(D3DXVECTOR3)
+	sizeof(glm::vec3),
+	sizeof(glm::vec3)
 };
 
 MeshData::ResFormats meshResFormats;
@@ -28,7 +28,7 @@ VertexP::VertexP()
 {
 }
 
-VertexP::VertexP(const D3DXVECTOR3& mPos): pos(mPos)
+VertexP::VertexP(const glm::vec3& mPos): pos(mPos)
 {
 }
 
@@ -36,7 +36,7 @@ VertexPD::VertexPD()
 {
 }
 
-VertexPD::VertexPD(D3DXVECTOR3 position, D3DCOLOR diffuseColor): pos(position), diffuse(diffuseColor)
+VertexPD::VertexPD(glm::vec3 position, D3DCOLOR diffuseColor): pos(position), diffuse(diffuseColor)
 {
 }
 
@@ -44,7 +44,7 @@ VertexPN::VertexPN()
 {
 }
 
-VertexPN::VertexPN(D3DXVECTOR3 position, D3DXVECTOR3 normal): pos(position), norm(normal)
+VertexPN::VertexPN(glm::vec3 position, glm::vec3 normal): pos(position), norm(normal)
 {
 }
 
@@ -52,7 +52,7 @@ VertexPT::VertexPT()
 {
 }
 
-VertexPT::VertexPT(D3DXVECTOR3 position, glm::vec2 texCoord): pos(position), tex(texCoord)
+VertexPT::VertexPT(glm::vec3 position, glm::vec2 texCoord): pos(position), tex(texCoord)
 {
 }
 
@@ -60,7 +60,7 @@ VertexPNT::VertexPNT()
 {
 }
 
-VertexPNT::VertexPNT(const D3DXVECTOR3& position, const D3DXVECTOR3& normal, const glm::vec2& texCoord): pos(position), norm(normal), tex(texCoord)
+VertexPNT::VertexPNT(const glm::vec3& position, const glm::vec3& normal, const glm::vec2& texCoord): pos(position), norm(normal), tex(texCoord)
 {
 }
 
@@ -275,12 +275,12 @@ DWORD VertexData::GetFVF() const
 	return fvf;
 }
 
-const D3DXVECTOR3& VertexData::GetMinPos() const
+const glm::vec3& VertexData::GetMinPos() const
 {
 	return _minPos;
 }
 
-const D3DXVECTOR3& VertexData::GetMaxPos() const
+const glm::vec3& VertexData::GetMaxPos() const
 {
 	return _maxPos;
 }
@@ -318,14 +318,14 @@ VertexIter::VertexIter(unsigned index, VertexData* owner): _index(index), _owner
 {
 }
 
-const D3DXVECTOR3* VertexIter::Pos3() const
+const glm::vec3* VertexIter::Pos3() const
 {
-	return reinterpret_cast<const D3DXVECTOR3*>(_owner->GetVertex(_index, VertexData::vtPos3));
+	return reinterpret_cast<const glm::vec3*>(_owner->GetVertex(_index, VertexData::vtPos3));
 }
 
-D3DXVECTOR3* VertexIter::Pos3()
+glm::vec3* VertexIter::Pos3()
 {
-	return reinterpret_cast<D3DXVECTOR3*>(_owner->GetVertex(_index, VertexData::vtPos3));
+	return reinterpret_cast<glm::vec3*>(_owner->GetVertex(_index, VertexData::vtPos3));
 }
 
 D3DXVECTOR4* VertexIter::Pos4()
@@ -348,19 +348,19 @@ glm::vec2* VertexIter::Tex1()
 	return reinterpret_cast<glm::vec2*>(_owner->GetVertex(_index, VertexData::vtTex1));
 }
 
-D3DXVECTOR3* VertexIter::Normal()
+glm::vec3* VertexIter::Normal()
 {
-	return reinterpret_cast<D3DXVECTOR3*>(_owner->GetVertex(_index, VertexData::vtNormal));
+	return reinterpret_cast<glm::vec3*>(_owner->GetVertex(_index, VertexData::vtNormal));
 }
 
-D3DXVECTOR3* VertexIter::Tangent()
+glm::vec3* VertexIter::Tangent()
 {
-	return reinterpret_cast<D3DXVECTOR3*>(_owner->GetVertex(_index, VertexData::vtTangent));
+	return reinterpret_cast<glm::vec3*>(_owner->GetVertex(_index, VertexData::vtTangent));
 }
 
-D3DXVECTOR3* VertexIter::Binormal()
+glm::vec3* VertexIter::Binormal()
 {
-	return reinterpret_cast<D3DXVECTOR3*>(_owner->GetVertex(_index, VertexData::vtBinormal));
+	return reinterpret_cast<glm::vec3*>(_owner->GetVertex(_index, VertexData::vtBinormal));
 }
 
 const char* VertexIter::GetElem(VertexData::Element element) const
@@ -517,10 +517,10 @@ MeshData::~MeshData()
 	Free();
 }
 
-void CalcTangentBasis(const D3DXVECTOR3 &p1, const D3DXVECTOR3 &p2, const D3DXVECTOR3 &p3, const glm::vec2 &t1, const glm::vec2 &t2, const glm::vec2 &t3, D3DXVECTOR3& tangent, D3DXVECTOR3& binormal)
+void CalcTangentBasis(const glm::vec3 &p1, const glm::vec3 &p2, const glm::vec3 &p3, const glm::vec2 &t1, const glm::vec2 &t2, const glm::vec2 &t3, glm::vec3& tangent, glm::vec3& binormal)
 {
-	D3DXVECTOR3 e1  = p2 - p1;
-	D3DXVECTOR3 e2  = p3 - p1;
+	glm::vec3 e1  = p2 - p1;
+	glm::vec3 e2  = p3 - p1;
 	glm::vec2 et1 = t2 - t1;
 	glm::vec2 et2 = t3 - t1;
 
@@ -533,8 +533,8 @@ void CalcTangentBasis(const D3DXVECTOR3 &p1, const D3DXVECTOR3 &p2, const D3DXVE
 	tangent  = (e1 * et2.y - e2 * et1.y) * tmp;
 	binormal = (e2 * et1.x - e1 * et2.x) * tmp;
 
-	D3DXVec3Normalize(&tangent, &tangent);
-	D3DXVec3Normalize(&binormal, &binormal);
+	tangent = glm::normalize(tangent);
+	binormal = glm::normalize(binormal);
 }
 
 void MeshData::DoInit()
@@ -569,7 +569,7 @@ void MeshData::DoUpdate()
 			{
 				int triIndex = fb.GetIndex(fg.sFace + j, k);
 				VertexIter iter = vb[triIndex];
-				const D3DXVECTOR3* pos = iter.Pos3();
+				const glm::vec3* pos = iter.Pos3();
 
 				if (j == 0 && k == 0)
 					fg.minPos = fg.maxPos = *pos;
@@ -608,7 +608,7 @@ void MeshData::CalcTangentSpace()
 		unsigned b = fb.GetIndex(i, 1);
 		unsigned c = fb.GetIndex(i, 2);
 
-		D3DXVECTOR3 bin, tan;
+		glm::vec3 bin, tan;
 		CalcTangentBasis(*vb[a].Pos3(), *vb[b].Pos3(), *vb[c].Pos3(), *vb[a].Tex0(), *vb[b].Tex0(), *vb[c].Tex0(), tan, bin);
 
 		*vb[a].Tangent() += tan;
@@ -622,22 +622,22 @@ void MeshData::CalcTangentSpace()
 
 	for (unsigned i = 0; i < vb.GetVertexCount(); ++i)
 	{
-		D3DXVec3Normalize(vb[i].Tangent(), vb[i].Tangent());
-		D3DXVec3Normalize(vb[i].Binormal(), vb[i].Binormal());
+		vb[i].Tangent() = glm::normalize(vb[i].Tangent());
+		vb[i].Binormal() = glm::normalize(vb[i].Binormal());
 
-		D3DXVECTOR3 tmpT = *vb[i].Tangent();
-		D3DXVECTOR3 tmpB = *vb[i].Binormal();
-		D3DXVECTOR3 tmpN = *vb[i].Normal();
+		glm::vec3 tmpT = *vb[i].Tangent();
+		glm::vec3 tmpB = *vb[i].Binormal();
+		glm::vec3 tmpN = *vb[i].Normal();
 
-		D3DXVECTOR3 newT = tmpT - (D3DXVec3Dot(&tmpN, &tmpT) * tmpN);
-		D3DXVECTOR3 newB = tmpB - (D3DXVec3Dot(&tmpN, &tmpB) * tmpN) - (D3DXVec3Dot(&newT, &tmpB) * newT);
-		D3DXVec3Normalize(&newT, &newT);
-		D3DXVec3Normalize(&newB, &newB);
+		glm::vec3 newT = tmpT - (D3DXVec3Dot(&tmpN, &tmpT) * tmpN);
+		glm::vec3 newB = tmpB - (D3DXVec3Dot(&tmpN, &tmpB) * tmpN) - (D3DXVec3Dot(&newT, &tmpB) * newT);
+		newT = glm::normalize(newT);
+		newB = glm::normalize(newB);
 		*vb[i].Tangent() = newT;
 		*vb[i].Binormal() = newB;
 
-		float lenT = D3DXVec3Length(&newT);
-		float lenB = D3DXVec3Length(&newB);
+		float lenT = glm::length(newT);
+		float lenB = glm::length(newB);
 
 		if (lenT <= 0.0001 || lenB <= 0.0001)
 		{
@@ -648,7 +648,7 @@ void MeshData::CalcTangentSpace()
 					D3DXVec3Cross(vb[i].Tangent(), vb[i].Binormal(), &tmpN);
 				else
 				{
-					D3DXVECTOR3 startAxis;
+					glm::vec3 startAxis;
 					if (D3DXVec3Dot(&XVector, &tmpN) < D3DXVec3Dot(&YVector, &tmpN))
 						startAxis = XVector;
 					else

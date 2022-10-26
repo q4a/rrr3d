@@ -123,7 +123,7 @@ void AISystem::ComputeTracks(float deltaTime)
 		{
 			const AICar::CarState& car = (*iter)->GetCar()->GetCar();
 
-			D3DXVECTOR3 dirLine;
+			glm::vec3 dirLine;
 			Line2FromDir(car.curTile->GetTile().GetDir(), car.curTile->GetPos2(), dirLine);
 			Link* link = new Link((*iter)->GetCar(), Line2DistToPoint(dirLine, car.pos), 0);
 
@@ -404,8 +404,8 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			glm::vec2 moveDir = aiPlayer->GetCar()->_path.moveDir;
 
 			res::VertexPD lines[2];
-			D3DXVECTOR3 worldPos = car->GetGameObj().GetWorldPos();
-			D3DXVECTOR3 newPos = worldPos + D3DXVECTOR3(moveDir.x, moveDir.y, 0.0f) * aiPlayer->GetCar()->_path.dirArea;
+			glm::vec3 worldPos = car->GetGameObj().GetWorldPos();
+			glm::vec3 newPos = worldPos + glm::vec3(moveDir.x, moveDir.y, 0.0f) * aiPlayer->GetCar()->_path.dirArea;
 			lines[0].pos = worldPos;
 			lines[1].pos = newPos;
 			lines[0].diffuse = lines[1].diffuse = clrWhite;
@@ -428,8 +428,8 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			glm::vec2 dir = nextNode->GetTile().GetEdgeNorm();
 
 			res::VertexPD lines[2];
-			D3DXVECTOR3 worldPos = car->GetGameObj().GetWorldPos();
-			D3DXVECTOR3 newPos = worldPos + (-D3DXVECTOR3(dir.x, dir.y, 0.0f)) * dist;
+			glm::vec3 worldPos = car->GetGameObj().GetWorldPos();
+			glm::vec3 newPos = worldPos + (-glm::vec3(dir.x, dir.y, 0.0f)) * dist;
 			lines[0].pos = worldPos;
 			lines[1].pos = newPos;
 			lines[0].diffuse = lines[1].diffuse = clrRed;
@@ -453,36 +453,36 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 				mat0.multiply(bodyMat.M, mat0);
 			}
 
-			D3DXVECTOR3 error(contData.error.get());
-			D3DXVECTOR3 errorNorm;
-			D3DXVec3Normalize(&errorNorm, &error);
+			glm::vec3 error(contData.error.get());
+			glm::vec3 errorNorm;
+			errorNorm = glm::normalize(error);
 			//Отрисовка error вектора
 			NxVec3 nxErrNorm = error;
 			//nxErrNorm.normalize();
 			gameObj->GetPxActor().GetNxActor()->getCMassGlobalPose().M.multiply(nxErrNorm, nxErrNorm);
-			errorNorm = D3DXVECTOR3(nxErrNorm.get());
-			lines[0].pos = D3DXVECTOR3(pos0.get());
+			errorNorm = glm::vec3(nxErrNorm.get());
+			lines[0].pos = glm::vec3(pos0.get());
 			lines[0].diffuse = clrBlack;
-			lines[1].pos = D3DXVECTOR3(pos0.get()) + errorNorm * 50.0f;
+			lines[1].pos = glm::vec3(pos0.get()) + errorNorm * 50.0f;
 			lines[1].diffuse = clrBlack;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
 
 			//Отрисовка X оси базиса
-			lines[0].pos = D3DXVECTOR3(pos0.get());
-			lines[1].pos = D3DXVECTOR3((pos0 + mat0.getColumn(0) * 5.0f).get());
+			lines[0].pos = glm::vec3(pos0.get());
+			lines[1].pos = glm::vec3((pos0 + mat0.getColumn(0) * 5.0f).get());
 			lines[0].diffuse = lines[1].diffuse = clrYellow;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
 			//Отрисовка Y оси базиса
-			lines[0].pos = D3DXVECTOR3(pos0.get());
-			lines[1].pos = D3DXVECTOR3((pos0 + mat0.getColumn(1) * 5.0f).get());
+			lines[0].pos = glm::vec3(pos0.get());
+			lines[1].pos = glm::vec3((pos0 + mat0.getColumn(1) * 5.0f).get());
 			lines[0].diffuse = lines[1].diffuse = clrGreen;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
 			//Отрисовка Z оси базиса
-			lines[0].pos = D3DXVECTOR3(pos0.get());
-			lines[1].pos = D3DXVECTOR3((pos0 + mat0.getColumn(2) * 5.0f).get());
+			lines[0].pos = glm::vec3(pos0.get());
+			lines[1].pos = glm::vec3((pos0 + mat0.getColumn(2) * 5.0f).get());
 			lines[0].diffuse = lines[1].diffuse = clrRed;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
@@ -491,9 +491,9 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			NxVec3 myNorm;
 			triData.normal(myNorm);
 			res::VertexPD triLines[4];
-			triLines[0].pos = D3DXVECTOR3(triData.verts[0].get());
-			triLines[1].pos = D3DXVECTOR3(triData.verts[1].get());
-			triLines[2].pos = D3DXVECTOR3(triData.verts[2].get());
+			triLines[0].pos = glm::vec3(triData.verts[0].get());
+			triLines[1].pos = glm::vec3(triData.verts[1].get());
+			triLines[2].pos = glm::vec3(triData.verts[2].get());
 			triLines[0].diffuse = triLines[1].diffuse = triLines[2].diffuse = abs(myNorm.x) > 0.5f ? clrRed : clrBlue;
 			triLines[3] = triLines[0];
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);

@@ -30,7 +30,7 @@ void ScNodeCont::Reset(graph::BaseSceneNode* node)
 	LSL_ASSERT(_node);
 }
 
-bool ScNodeCont::RayCastInters(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec) const
+bool ScNodeCont::RayCastInters(const glm::vec3& rayPos, const glm::vec3& rayVec) const
 {
 	return _node->RayCastIntersBB(rayPos, rayVec, true) > 0;
 }
@@ -40,12 +40,12 @@ bool ScNodeCont::Compare(const IMapObjRef& node) const
 	return &node->GetImpl<MapObj>()->GetInst()->GetGameObj().GetGrActor() == _node;
 }
 
-D3DXVECTOR3 ScNodeCont::GetPos() const
+glm::vec3 ScNodeCont::GetPos() const
 {
 	return _node->GetWorldPos();
 }
 
-void ScNodeCont::SetPos(const D3DXVECTOR3& value)
+void ScNodeCont::SetPos(const glm::vec3& value)
 {
 	_node->SetWorldPos(value);
 }
@@ -60,27 +60,27 @@ void ScNodeCont::SetRot(const glm::quat& value)
 	_node->SetWorldRot(value);
 }
 
-D3DXVECTOR3 ScNodeCont::GetScale() const
+glm::vec3 ScNodeCont::GetScale() const
 {
 	return _node->GetScale();
 }
 
-void ScNodeCont::SetScale(const D3DXVECTOR3& value)
+void ScNodeCont::SetScale(const glm::vec3& value)
 {
 	_node->SetScale(value);
 }
 
-D3DXVECTOR3 ScNodeCont::GetDir() const
+glm::vec3 ScNodeCont::GetDir() const
 {
 	return _node->GetWorldDir();
 }
 
-D3DXVECTOR3 ScNodeCont::GetRight() const
+glm::vec3 ScNodeCont::GetRight() const
 {
 	return _node->GetWorldRight();
 }
 
-D3DXVECTOR3 ScNodeCont::GetUp() const
+glm::vec3 ScNodeCont::GetUp() const
 {
 	return _node->GetWorldUp();
 }

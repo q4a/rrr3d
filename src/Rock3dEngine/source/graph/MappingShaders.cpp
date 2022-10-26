@@ -156,7 +156,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 		engine.GetContext().SetRenderState(rsSrcBlend, D3DBLEND_ONE);
 	}
 
-	D3DXVECTOR3 fogParamsVec = D3DXVECTOR3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
+	glm::vec3 fogParamsVec = glm::vec3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
 	if (fogParamsVec.z != 0)
 	{
 		DWORD dwVal = engine.GetContext().GetRenderState(rsFogStart);
@@ -198,12 +198,12 @@ bool LightShader::DoEndDraw(Engine& engine, bool nextPass)
 	return !needNextPass;
 }
 
-const D3DXVECTOR3& LightShader::GetViewPos() const
+const glm::vec3& LightShader::GetViewPos() const
 {
 	return _viewPos;
 }
 
-void LightShader::SetViewPos(const D3DXVECTOR3& value)
+void LightShader::SetViewPos(const glm::vec3& value)
 {
 	_viewPos = value;
 }

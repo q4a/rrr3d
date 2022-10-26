@@ -9,13 +9,13 @@ namespace r3d
 namespace graph
 {
 
-const D3DXVECTOR3 MovCoordSys::arUp[3] = {XVector, YVector, ZVector};
+const glm::vec3 MovCoordSys::arUp[3] = {XVector, YVector, ZVector};
 const float MovCoordSys::arSize = 2.0f;
-const D3DXVECTOR3 MovCoordSys::arPos[3] = {2 * XVector, 2 * YVector, 2 * ZVector};
+const glm::vec3 MovCoordSys::arPos[3] = {2 * XVector, 2 * YVector, 2 * ZVector};
 const D3DXCOLOR MovCoordSys::arCol[3] = {clrRed, clrGreen, clrBlue};
 const D3DXCOLOR MovCoordSys::colSel = clrYellow;
 
-const D3DXVECTOR3 ScaleCoordSys::arUp[3] = {XVector, YVector, ZVector};
+const glm::vec3 ScaleCoordSys::arUp[3] = {XVector, YVector, ZVector};
 const float ScaleCoordSys::arSize = 2.0f;
 const float ScaleCoordSys::plSize = 1.5f;
 const D3DXCOLOR ScaleCoordSys::arCol[3] = {clrRed, clrGreen, clrBlue};
@@ -281,23 +281,23 @@ void MaterialNode::SetColor(const D3DXCOLOR& value)
 	_color = value;
 }
 
-const D3DXVECTOR3& MaterialNode::GetOffset() const
+const glm::vec3& MaterialNode::GetOffset() const
 {
 	return _offset;
 }
 
-void MaterialNode::SetOffset(const D3DXVECTOR3& value)
+void MaterialNode::SetOffset(const glm::vec3& value)
 {
 	_offset = value;
 	TransformationChanged();
 }
 
-const D3DXVECTOR3& MaterialNode::GetScale() const
+const glm::vec3& MaterialNode::GetScale() const
 {
 	return _scale;
 }
 
-void MaterialNode::SetScale(const D3DXVECTOR3& value)
+void MaterialNode::SetScale(const glm::vec3& value)
 {
 	_scale = value;
 	TransformationChanged();
@@ -459,8 +459,8 @@ AABB IVBMeshNode::LocalDimensions() const
 	if (!_mesh)
 		return NullAABB;
 
-	D3DXVECTOR3 min = NullVector;
-	D3DXVECTOR3 max = NullVector;
+	glm::vec3 min = NullVector;
+	glm::vec3 max = NullVector;
 	if (_meshId < 0)
 	{
 		min = _mesh->GetMinPos();
@@ -479,7 +479,7 @@ AABB IVBMeshNode::LocalDimensions() const
 			for (int j = 0; j < 3; ++j)
 			{
 				unsigned ind = _mesh->GetData()->fb.GetIndex(fg.sFace + i, j);
-				D3DXVECTOR3 vec =  *(_mesh->GetData()->vb[ind].Pos3());
+				glm::vec3 vec =  *(_mesh->GetData()->vb[ind].Pos3());
 
 				if (!bMin)
 				{
@@ -662,8 +662,8 @@ AABB MeshXNode::LocalDimensions() const
 	if (!_mesh)
 		return NullAABB;
 
-	D3DXVECTOR3 min = NullVector;
-	D3DXVECTOR3 max = NullVector;
+	glm::vec3 min = NullVector;
+	glm::vec3 max = NullVector;
 	if (_meshId < 0)
 	{
 		min = _mesh->GetMinPos();
@@ -682,7 +682,7 @@ AABB MeshXNode::LocalDimensions() const
 			for (int j = 0; j < 3; ++j)
 			{
 				unsigned ind = _mesh->GetData()->fb.GetIndex(fg.sFace + i, j);
-				D3DXVECTOR3 vec =  *(_mesh->GetData()->vb[ind].Pos3());
+				glm::vec3 vec =  *(_mesh->GetData()->vb[ind].Pos3());
 
 				if (!bMin)
 				{
@@ -827,58 +827,58 @@ Box::Box()
 
 void Box::RenderBox(Engine& engine)
 {
-	D3DXVECTOR3 vertBuf[72] =
+	glm::vec3 vertBuf[72] =
 	{
 		//
-		D3DXVECTOR3(-0.5f, -0.5f, -0.5f), -ZVector,
-		D3DXVECTOR3(0.5f, 0.5f, -0.5f),   -ZVector,
-		D3DXVECTOR3(0.5f, -0.5f, -0.5f),  -ZVector,
-		D3DXVECTOR3(-0.5f, -0.5f, -0.5f), -ZVector,
-		D3DXVECTOR3(-0.5f, 0.5f, -0.5f),  -ZVector,
-		D3DXVECTOR3(0.5f, 0.5f, -0.5f),   -ZVector,
+		glm::vec3(-0.5f, -0.5f, -0.5f), -ZVector,
+		glm::vec3(0.5f, 0.5f, -0.5f),   -ZVector,
+		glm::vec3(0.5f, -0.5f, -0.5f),  -ZVector,
+		glm::vec3(-0.5f, -0.5f, -0.5f), -ZVector,
+		glm::vec3(-0.5f, 0.5f, -0.5f),  -ZVector,
+		glm::vec3(0.5f, 0.5f, -0.5f),   -ZVector,
 
 		//
-		D3DXVECTOR3(-0.5f, -0.5f, 0.5f), ZVector,
-		D3DXVECTOR3(0.5f, -0.5f, 0.5f),  ZVector,
-		D3DXVECTOR3(0.5f, 0.5f, 0.5f),   ZVector,
-		D3DXVECTOR3(-0.5f, -0.5f, 0.5f), ZVector,
-		D3DXVECTOR3(0.5f, 0.5f, 0.5f),   ZVector,
-		D3DXVECTOR3(-0.5f, 0.5f, 0.5f),  ZVector,
+		glm::vec3(-0.5f, -0.5f, 0.5f), ZVector,
+		glm::vec3(0.5f, -0.5f, 0.5f),  ZVector,
+		glm::vec3(0.5f, 0.5f, 0.5f),   ZVector,
+		glm::vec3(-0.5f, -0.5f, 0.5f), ZVector,
+		glm::vec3(0.5f, 0.5f, 0.5f),   ZVector,
+		glm::vec3(-0.5f, 0.5f, 0.5f),  ZVector,
 
 		//
-		D3DXVECTOR3(-0.5f, -0.5f, -0.5f), -YVector,
-		D3DXVECTOR3(0.5f, -0.5f, -0.5f),  -YVector,
-		D3DXVECTOR3(0.5f, -0.5f, 0.5f),   -YVector,
-		D3DXVECTOR3(-0.5f, -0.5f, -0.5f), -YVector,
-		D3DXVECTOR3(0.5f, -0.5f, 0.5f),   -YVector,
-		D3DXVECTOR3(-0.5f, -0.5f, 0.5f),  -YVector,
+		glm::vec3(-0.5f, -0.5f, -0.5f), -YVector,
+		glm::vec3(0.5f, -0.5f, -0.5f),  -YVector,
+		glm::vec3(0.5f, -0.5f, 0.5f),   -YVector,
+		glm::vec3(-0.5f, -0.5f, -0.5f), -YVector,
+		glm::vec3(0.5f, -0.5f, 0.5f),   -YVector,
+		glm::vec3(-0.5f, -0.5f, 0.5f),  -YVector,
 
 		//
-		D3DXVECTOR3(0.5f, 0.5f, -0.5f),  YVector,
-		D3DXVECTOR3(-0.5f, 0.5f, -0.5f), YVector,
-		D3DXVECTOR3(-0.5f, 0.5f, 0.5f),  YVector,
-		D3DXVECTOR3(0.5f, 0.5f, -0.5f),  YVector,
-		D3DXVECTOR3(-0.5f, 0.5f, 0.5f),  YVector,
-		D3DXVECTOR3(0.5f, 0.5f, 0.5f),  YVector,
+		glm::vec3(0.5f, 0.5f, -0.5f),  YVector,
+		glm::vec3(-0.5f, 0.5f, -0.5f), YVector,
+		glm::vec3(-0.5f, 0.5f, 0.5f),  YVector,
+		glm::vec3(0.5f, 0.5f, -0.5f),  YVector,
+		glm::vec3(-0.5f, 0.5f, 0.5f),  YVector,
+		glm::vec3(0.5f, 0.5f, 0.5f),  YVector,
 
-		D3DXVECTOR3(-0.5f, 0.5f, -0.5f),  -XVector,
-		D3DXVECTOR3(-0.5f, -0.5f, -0.5f), -XVector,
-		D3DXVECTOR3(-0.5f, -0.5f, 0.5f),  -XVector,
-		D3DXVECTOR3(-0.5f, 0.5f, -0.5f),  -XVector,
-		D3DXVECTOR3(-0.5f, -0.5f, 0.5f),  -XVector,
-		D3DXVECTOR3(-0.5f, 0.5f, 0.5f),   -XVector,
+		glm::vec3(-0.5f, 0.5f, -0.5f),  -XVector,
+		glm::vec3(-0.5f, -0.5f, -0.5f), -XVector,
+		glm::vec3(-0.5f, -0.5f, 0.5f),  -XVector,
+		glm::vec3(-0.5f, 0.5f, -0.5f),  -XVector,
+		glm::vec3(-0.5f, -0.5f, 0.5f),  -XVector,
+		glm::vec3(-0.5f, 0.5f, 0.5f),   -XVector,
 
 		//
-		D3DXVECTOR3(0.5f, -0.5f, -0.5f), XVector,
-		D3DXVECTOR3(0.5f, 0.5f, -0.5f),  XVector,
-		D3DXVECTOR3(0.5f, 0.5f, 0.5f),   XVector,
-		D3DXVECTOR3(0.5f, -0.5f, -0.5f), XVector,
-		D3DXVECTOR3(0.5f, 0.5f, 0.5f),   XVector,
-		D3DXVECTOR3(0.5f, -0.5f, 0.5f),  XVector
+		glm::vec3(0.5f, -0.5f, -0.5f), XVector,
+		glm::vec3(0.5f, 0.5f, -0.5f),  XVector,
+		glm::vec3(0.5f, 0.5f, 0.5f),   XVector,
+		glm::vec3(0.5f, -0.5f, -0.5f), XVector,
+		glm::vec3(0.5f, 0.5f, 0.5f),   XVector,
+		glm::vec3(0.5f, -0.5f, 0.5f),  XVector
 	};
 
 	engine.GetDriver().GetDevice()->SetFVF(D3DFVF_XYZ | D3DFVF_NORMAL);
-	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 12, vertBuf, 2 * sizeof(D3DXVECTOR3));
+	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 12, vertBuf, 2 * sizeof(glm::vec3));
 }
 
 void Box::DoRender(Engine& engine)
@@ -972,7 +972,7 @@ void Sprite::DoRender(Engine& engine)
 	//Отрисовка
 	material.Apply(engine);
 
-	engine.RenderSpritePT(GetWorldPos(), D3DXVECTOR3(sizes.x, sizes.y, 1.0f), GetTurnAngle(), fixDirection ? &GetWorldDir() : 0, GetWorldScale());
+	engine.RenderSpritePT(GetWorldPos(), glm::vec3(sizes.x, sizes.y, 1.0f), GetTurnAngle(), fixDirection ? &GetWorldDir() : 0, GetWorldScale());
 
 	material.UnApply(engine);
 }
@@ -981,9 +981,9 @@ AABB Sprite::LocalDimensions() const
 {
 	if (fixDirection)
 	{
-		D3DXVECTOR3 dir = GetDir();
-		D3DXVECTOR3 up = GetUp();
-		D3DXVECTOR3 max = dir * sizes.x/2.0f + up * sizes.y/2.0f;
+		glm::vec3 dir = GetDir();
+		glm::vec3 up = GetUp();
+		glm::vec3 max = dir * sizes.x/2.0f + up * sizes.y/2.0f;
 
 		return AABB(-max, max);
 	}
@@ -1074,14 +1074,14 @@ MovCoordSys::~MovCoordSys()
 		delete _arrows[i];
 }
 
-MovCoordSys::DirMove MovCoordSys::CompDirMove(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec)
+MovCoordSys::DirMove MovCoordSys::CompDirMove(const glm::vec3& rayStart, const glm::vec3& rayVec)
 {
 	const D3DXPLANE planes[3] = {XPlane, YPlane, ZPlane};
-	const D3DXVECTOR3 coordOff[3] = {XVector/2, YVector/2, ZVector/2};
+	const glm::vec3 coordOff[3] = {XVector/2, YVector/2, ZVector/2};
 	const DirMove moves[3] = {dmYZ, dmXZ, dmXY};
 
-	D3DXVECTOR3 localRS;
-	D3DXVECTOR3 localRV;
+	glm::vec3 localRS;
+	glm::vec3 localRV;
 	WorldToLocalCoord(rayStart, localRS);
 	WorldToLocalNorm(rayVec, localRV);
 
@@ -1094,7 +1094,7 @@ MovCoordSys::DirMove MovCoordSys::CompDirMove(const D3DXVECTOR3& rayStart, const
 		float t;
 		if (RayCastIntersectPlane(localRS, localRV, planes[i], t))
 		{
-			D3DXVECTOR3 pnt = localRS + localRV * t + coordOff[i];
+			glm::vec3 pnt = localRS + localRV * t + coordOff[i];
 			if (pnt > NullVector && pnt < IdentityVector && (!minTInit || minT > t))
 			{
 				minTInit = true;
@@ -1124,7 +1124,7 @@ MovCoordSys::DirMove MovCoordSys::CompDirMove(const D3DXVECTOR3& rayStart, const
 
 void MovCoordSys::DoRender(Engine& engine)
 {
-	typedef D3DXVECTOR3 AxePlane[4];
+	typedef glm::vec3 AxePlane[4];
 
 	const DirMove planeMoves[3] = {dmXY, dmXZ, dmYZ};
 
@@ -1144,7 +1144,7 @@ void MovCoordSys::DoRender(Engine& engine)
 	const bool isAxe[3] = {_curMove == dmXY || _curMove == dmXZ || _curMove == dmX, _curMove == dmXY || _curMove == dmYZ || _curMove == dmY, _curMove == dmXZ || _curMove == dmYZ || _curMove == dmZ};
 
 	//Скалим перед рендером чтобы не было дерганий
-	float dist = D3DXVec3Length(&(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos()));
+	float dist = glm::length((engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos()));
 	float scaleF = dist / 15.0f;
 	SetScale(scaleF);
 
@@ -1211,12 +1211,12 @@ AABB MovCoordSys::LocalDimensions() const
 	return GetAABBOfChildren();
 }
 
-MovCoordSys::DirMove MovCoordSys::OnMouseMove(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec)
+MovCoordSys::DirMove MovCoordSys::OnMouseMove(const glm::vec3& rayStart, const glm::vec3& rayVec)
 {
 	return CompDirMove(rayStart, rayVec);
 }
 
-MovCoordSys::DirMove MovCoordSys::OnMouseClick(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, lsl::KeyState state)
+MovCoordSys::DirMove MovCoordSys::OnMouseClick(const glm::vec3& rayStart, const glm::vec3& rayVec, lsl::KeyState state)
 {
 	return CompDirMove(rayStart, rayVec);
 }
@@ -1241,33 +1241,33 @@ ScaleCoordSys::~ScaleCoordSys()
 		delete _arrows[i];
 }
 
-void ScaleCoordSys::CompBBPlanes(const D3DXVECTOR3& camPos, D3DXVECTOR3* bbPlanes)
+void ScaleCoordSys::CompBBPlanes(const glm::vec3& camPos, glm::vec3* bbPlanes)
 {
 	for (int i = 0; i < 3; ++i)
 		bbPlanes[i] = camPos[i] > 0 ? arUp[i] : -arUp[i];
 }
 
-ScaleCoordSys::DirMove ScaleCoordSys::CompDirMove(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& camPos)
+ScaleCoordSys::DirMove ScaleCoordSys::CompDirMove(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec3& camPos)
 {
-	D3DXVECTOR3 localRS;
-	D3DXVECTOR3 localRV;
+	glm::vec3 localRS;
+	glm::vec3 localRV;
 	WorldToLocalCoord(rayStart, localRS);
 	WorldToLocalNorm(rayVec, localRV);
 
-	D3DXVECTOR3 bbPlanes[3];
+	glm::vec3 bbPlanes[3];
 	CompBBPlanes(camPos, bbPlanes);
 
 	//Пересечение с размерной плоскостью
-	D3DXVECTOR3 plLine[3];
+	glm::vec3 plLine[3];
 	for (int i = 0; i < 3; ++i)
 		plLine[i] = bbPlanes[i] * plSize;
 	D3DXPLANE upPlane;
 	D3DXPlaneFromPoints(&upPlane, &plLine[0], &plLine[1], &plLine[2]);
 	//
-	D3DXVECTOR3 maxVec = NullVector;
+	glm::vec3 maxVec = NullVector;
 	for (int i = 0; i < 3; ++i)
 		maxVec += plLine[i];
-	D3DXVECTOR3 pnt;
+	glm::vec3 pnt;
 	RayCastIntersectPlane(localRS, localRV, upPlane, pnt);
 	AABB aabb;
 	aabb.FromPoints(NullVector, maxVec);
@@ -1293,10 +1293,10 @@ void ScaleCoordSys::DoRender(Engine& engine)
 {
 	const float stepSzAxe = 2.2f;
 
-	D3DXVECTOR3 bbPlanes[3];
+	glm::vec3 bbPlanes[3];
 	CompBBPlanes(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos(), bbPlanes);
 
-	D3DXVECTOR3 plLine[3];
+	glm::vec3 plLine[3];
 	for (int i = 0; i < 3; ++i)
 		plLine[i] = bbPlanes[i] * plSize;
 	const DirMove axeMoves[3] = {dmX, dmY, dmZ};
@@ -1355,7 +1355,7 @@ void ScaleCoordSys::DoRender(Engine& engine)
 	engine.GetContext().RestoreRenderState(graph::rsZWriteEnable);
 	engine.GetContext().RestoreRenderState(graph::rsZEnable);
 
-	float dist = D3DXVec3Length(&(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos()));
+	float dist = glm::length((engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos()));
 	float scaleF = dist / 15.0f;
 	SetScale(scaleF);
 }
@@ -1365,12 +1365,12 @@ AABB ScaleCoordSys::LocalDimensions() const
 	return GetAABBOfChildren();
 }
 
-ScaleCoordSys::DirMove ScaleCoordSys::OnMouseMove(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& camPos)
+ScaleCoordSys::DirMove ScaleCoordSys::OnMouseMove(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec3& camPos)
 {
 	return CompDirMove(rayStart, rayVec, camPos - GetWorldPos());
 }
 
-ScaleCoordSys::DirMove ScaleCoordSys::OnMouseClick(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, lsl::KeyState state, const D3DXVECTOR3& camPos)
+ScaleCoordSys::DirMove ScaleCoordSys::OnMouseClick(const glm::vec3& rayStart, const glm::vec3& rayVec, lsl::KeyState state, const glm::vec3& camPos)
 {
 	return CompDirMove(rayStart, rayVec, camPos - GetWorldPos());
 }
@@ -1387,12 +1387,12 @@ void FillDataPlane(res::VertexData& vb, float width, float height, float u, floa
 	float y = height / 2.0f;
 
 	res::VertexPNT* vertex = reinterpret_cast<res::VertexPNT*>(vb.GetData());
-	vertex[0] = res::VertexPNT(D3DXVECTOR3(-x, -y, 0.0f), ZVector, glm::vec2(0.0f,  0.0f));
-	vertex[1] = res::VertexPNT(D3DXVECTOR3( x, -y, 0.0f), ZVector, glm::vec2(u,     0.0f));
-	vertex[2] = res::VertexPNT(D3DXVECTOR3( x,  y, 0.0f), ZVector, glm::vec2(u,     v));
-	vertex[3] = res::VertexPNT(D3DXVECTOR3(-x, -y, 0.0f), ZVector, glm::vec2(0.0f,  0.0f));
-	vertex[4] = res::VertexPNT(D3DXVECTOR3( x,  y, 0.0f), ZVector, glm::vec2(u,     v));
-	vertex[5] = res::VertexPNT(D3DXVECTOR3(-x,  y, 0.0f), ZVector, glm::vec2(0.0f,  v));
+	vertex[0] = res::VertexPNT(glm::vec3(-x, -y, 0.0f), ZVector, glm::vec2(0.0f,  0.0f));
+	vertex[1] = res::VertexPNT(glm::vec3( x, -y, 0.0f), ZVector, glm::vec2(u,     0.0f));
+	vertex[2] = res::VertexPNT(glm::vec3( x,  y, 0.0f), ZVector, glm::vec2(u,     v));
+	vertex[3] = res::VertexPNT(glm::vec3(-x, -y, 0.0f), ZVector, glm::vec2(0.0f,  0.0f));
+	vertex[4] = res::VertexPNT(glm::vec3( x,  y, 0.0f), ZVector, glm::vec2(u,     v));
+	vertex[5] = res::VertexPNT(glm::vec3(-x,  y, 0.0f), ZVector, glm::vec2(0.0f,  v));
 	vb.Update();
 }
 

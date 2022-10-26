@@ -45,9 +45,9 @@ private:
 	float _steerAngle;
 	bool _lead;
 	bool _steer;
-	D3DXVECTOR3 _offset;
+	glm::vec3 _offset;
 
-	D3DXVECTOR3 _pxPrevPos;
+	glm::vec3 _pxPrevPos;
 	glm::quat _pxPrevRot;
 protected:
 	virtual void Save(lsl::SWriter* writer);
@@ -81,8 +81,8 @@ public:
 	bool GetSteer() const;
 	void SetSteer(bool value);
 
-	const D3DXVECTOR3& GetOffset() const;
-	void SetOffset(const D3DXVECTOR3& value);
+	const glm::vec3& GetOffset() const;
+	void SetOffset(const glm::vec3& value);
 
 	bool invertWheel;
 	float _nReac;
@@ -99,7 +99,7 @@ public:
 	typedef lsl::List<CarWheel*> WheelGroup;
 	typedef px::WheelShape::ContactModify ContactModify;
 
-	static void LoadPosTo(const std::string& fileName, std::vector<D3DXVECTOR3>& pos);
+	static void LoadPosTo(const std::string& fileName, std::vector<glm::vec3>& pos);
 private:
 	GameCar* _owner;
 	ContactModify* _steerContactModify;
@@ -164,7 +164,7 @@ private:
 	float _clampYTorque;
 	float _motorTorqueK;
 	float _wheelSteerK;
-	D3DXVECTOR3 _angDamping;
+	glm::vec3 _angDamping;
 	bool _gravEngine;
 	bool _clutchImmunity;
 	float _maxSpeed;
@@ -252,8 +252,8 @@ public:
 	float GetSteerRot() const;
 	void SetSteerRot(float value);
 
-	D3DXVECTOR3 GetAngDamping() const;
-	void SetAngDamping(D3DXVECTOR3 value);
+	glm::vec3 GetAngDamping() const;
+	void SetAngDamping(glm::vec3 value);
 
 	float GetFlyYTorque() const;
 	void SetFlyYTourque(float value);
@@ -301,7 +301,7 @@ public:
 	//typedef lsl::List<Contact> ContactList;
 	//ContactList contactList;
 
-	static float GetSpeed(NxActor* nxActor, const D3DXVECTOR3& dir);
+	static float GetSpeed(NxActor* nxActor, const glm::vec3& dir);
 };
 
 class DestrObj: public GameObject

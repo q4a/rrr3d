@@ -146,7 +146,7 @@ private:
 
 	CameraCache::iterator CameraCull(const graph::CameraCI* camera);
 
-	bool PullInRayTargetGroup(User* user, unsigned scene, const graph::CameraCI* camera, const D3DXVECTOR3& rayTarget, float rayTargetSize);
+	bool PullInRayTargetGroup(User* user, unsigned scene, const graph::CameraCI* camera, const glm::vec3& rayTarget, float rayTargetSize);
 	void RemoveRayUser(User* user);
 public:
 	ActorManager(unsigned sceneCnt);
@@ -166,7 +166,7 @@ public:
 	void BuildPlanar(unsigned scene);
 	const Planar& GetPlanar(Actor* actor);
 
-	void PullRayUsers(unsigned scene, const graph::CameraCI* camera, const D3DXVECTOR3& rayTarget, float rayTargetSize);
+	void PullRayUsers(unsigned scene, const graph::CameraCI* camera, const glm::vec3& rayTarget, float rayTargetSize);
 	void Render(Engine& engine, unsigned scene, const graph::CameraCI* camera, bool ignoreRayUsers);
 	void Render(Engine& engine, unsigned scene, bool ignoreRayUsers);
 	void RenderRayUsers(Engine& engine, float opacity);

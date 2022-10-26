@@ -18,20 +18,20 @@ float Random();
 float RandomRange(float from, float to);
 int RandomRange(int from, int to);
 float NumAbsAdd(float absVal, float addVal);
-float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMATRIX& mat);
+float ScalarTransform(float scalar, const glm::vec3& vec, const D3DXMATRIX& mat);
 
-void BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const glm::quat& rot, D3DXMATRIX& outMat);
-D3DXMATRIX BuildWorldMatrix(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, const glm::quat& rot);
-void MatrixRotationFromAxis(const D3DXVECTOR3& xVec, const D3DXVECTOR3& yVec, const D3DXVECTOR3& zVec, D3DXMATRIX& matOut);
-void MatrixSetTranslation(const D3DXVECTOR3& vec, D3DXMATRIX& outMat);
-void MatrixTranslate(const D3DXVECTOR3& vec, D3DXMATRIX& outMat);
-void MatrixSetScale(const D3DXVECTOR3& vec, D3DXMATRIX& outMat);
-void MatrixScale(const D3DXVECTOR3& vec, D3DXMATRIX& outMat);
-void MatGetPos(const D3DXMATRIX& mat, D3DXVECTOR3& outPos);
-D3DXVECTOR3 MatGetPos(const D3DXMATRIX& mat);
+void BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot, D3DXMATRIX& outMat);
+D3DXMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot);
+void MatrixRotationFromAxis(const glm::vec3& xVec, const glm::vec3& yVec, const glm::vec3& zVec, D3DXMATRIX& matOut);
+void MatrixSetTranslation(const glm::vec3& vec, D3DXMATRIX& outMat);
+void MatrixTranslate(const glm::vec3& vec, D3DXMATRIX& outMat);
+void MatrixSetScale(const glm::vec3& vec, D3DXMATRIX& outMat);
+void MatrixScale(const glm::vec3& vec, D3DXMATRIX& outMat);
+void MatGetPos(const D3DXMATRIX& mat, glm::vec3& outPos);
+glm::vec3 MatGetPos(const D3DXMATRIX& mat);
 
-glm::vec3 Vec3DxToGlm(D3DXVECTOR3 v3);
-D3DXVECTOR3 Vec3GlmToDx(glm::vec3 v3);
+glm::vec3 Vec3DxToGlm(const D3DXVECTOR3 v3);
+D3DXVECTOR3 Vec3GlmToDx(const glm::vec3 v3);
 
 //
 glm::vec2 Vec2TransformCoord(const glm::vec2 &vec, const glm::mat4 &mat);
@@ -45,60 +45,60 @@ glm::vec2 operator*(const glm::vec2& vec1, const glm::vec2& vec2);
 void operator/=(glm::vec2& vec1, const glm::vec2& vec2);
 glm::vec2 operator/(const glm::vec2& vec1, const glm::vec2& vec2);
 
-D3DXVECTOR3 Vec3FromVec2(const glm::vec2& vec);
-void Vec3Invert(const D3DXVECTOR3& vec, D3DXVECTOR3& rOut);
-D3DXVECTOR3 Vec3Invert(const D3DXVECTOR3& vec);
-D3DXVECTOR3 Vec3TransformCoord(const D3DXVECTOR3& vec, const D3DXMATRIX& mat);
-void Vec3Abs(const D3DXVECTOR3& vec, D3DXVECTOR3& rOut);
-D3DXVECTOR3 Vec3Abs(const D3DXVECTOR3& vec);
-void Vec3Rotate(const D3DXVECTOR3& v, const glm::quat& quat, D3DXVECTOR3& outVec);
-void operator*=(D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
-D3DXVECTOR3 operator*(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
-void operator/=(D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
-D3DXVECTOR3 operator/(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
-bool operator>=(const D3DXVECTOR3& vec1, float scalar);
-bool operator<(const D3DXVECTOR3& vec1, float scalar);
-bool operator>(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
-bool operator<(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
+glm::vec3 Vec3FromVec2(const glm::vec2& vec);
+void Vec3Invert(const glm::vec3& vec, glm::vec3& rOut);
+glm::vec3 Vec3Invert(const glm::vec3& vec);
+glm::vec3 Vec3TransformCoord(const glm::vec3& vec, const D3DXMATRIX& mat);
+void Vec3Abs(const glm::vec3& vec, glm::vec3& rOut);
+glm::vec3 Vec3Abs(const glm::vec3& vec);
+void Vec3Rotate(const glm::vec3& v, const glm::quat& quat, glm::vec3& outVec);
+void operator*=(glm::vec3& vec1, const glm::vec3& vec2);
+glm::vec3 operator*(const glm::vec3& vec1, const glm::vec3& vec2);
+void operator/=(glm::vec3& vec1, const glm::vec3& vec2);
+glm::vec3 operator/(const glm::vec3& vec1, const glm::vec3& vec2);
+bool operator>=(const glm::vec3& vec1, float scalar);
+bool operator<(const glm::vec3& vec1, float scalar);
+bool operator>(const glm::vec3& vec1, const glm::vec3& vec2);
+bool operator<(const glm::vec3& vec1, const glm::vec3& vec2);
 
 D3DXVECTOR4 Vec4FromVec2(const glm::vec2& vec);
-D3DXVECTOR4 Vec4FromVec3(const D3DXVECTOR3& vec);
+D3DXVECTOR4 Vec4FromVec3(const glm::vec3& vec);
 
 //Линия из нормали и точки
-void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, D3DXVECTOR3& outLine);
-D3DXVECTOR3 Line2FromNorm(const glm::vec2& norm, const glm::vec2& point);
+void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, glm::vec3& outLine);
+glm::vec3 Line2FromNorm(const glm::vec2& norm, const glm::vec2& point);
 //Линия из направляющей и точки
-void Line2FromDir(const glm::vec2& dir, const glm::vec2& point, D3DXVECTOR3& outLine);
-D3DXVECTOR3 Line2FromDir(const glm::vec2& dir, const glm::vec2& point);
-void Line2GetNorm(const D3DXVECTOR3& line, glm::vec2& norm);
-void Line2GetDir(const D3DXVECTOR3& line, glm::vec2& dir);
-void Line2GetRadiusVec(const D3DXVECTOR3& line, glm::vec2& outVec);
-glm::vec2 Line2GetRadiusVec(const D3DXVECTOR3& line);
-glm::vec2 Line2GetNorm(const D3DXVECTOR3& line);
+void Line2FromDir(const glm::vec2& dir, const glm::vec2& point, glm::vec3& outLine);
+glm::vec3 Line2FromDir(const glm::vec2& dir, const glm::vec2& point);
+void Line2GetNorm(const glm::vec3& line, glm::vec2& norm);
+void Line2GetDir(const glm::vec3& line, glm::vec2& dir);
+void Line2GetRadiusVec(const glm::vec3& line, glm::vec2& outVec);
+glm::vec2 Line2GetRadiusVec(const glm::vec3& line);
+glm::vec2 Line2GetNorm(const glm::vec3& line);
 //Расстояние от прямой до точки по направлению нормали. Если точка лежит за линией по направлению нормали то результат положительный, иначе отрицательный
-float Line2DistToPoint(const D3DXVECTOR3& line, const glm::vec2& point);
+float Line2DistToPoint(const glm::vec3& line, const glm::vec2& point);
 //Возвращает нормальный вектор до точки, этот вектор в общем случае неединичный
-void Line2NormVecToPoint(const D3DXVECTOR3& line, const glm::vec2& point, glm::vec2& outNormVec);
-glm::vec2 Line2NormVecToPoint(const D3DXVECTOR3& line, const glm::vec2& point);
+void Line2NormVecToPoint(const glm::vec3& line, const glm::vec2& point, glm::vec2& outNormVec);
+glm::vec2 Line2NormVecToPoint(const glm::vec3& line, const glm::vec2& point);
 
-bool RayCastIntersectSphere(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& spherePos, float sphereRadius, float* t = 0);
-float PlaneDistToPoint(const D3DXPLANE& plane, const D3DXVECTOR3& point);
+bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& rayVec, const glm::vec3& spherePos, float sphereRadius, float* t = 0);
+float PlaneDistToPoint(const D3DXPLANE& plane, const glm::vec3& point);
 
 const float floatErrComp = 0.00001f;
 const D3DXMATRIX       IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
                                       0.0f, 1.0f, 0.0f, 0.0f,
                                       0.0f, 0.0f, 1.0f, 0.0f,
                                       0.0f, 0.0f, 0.0f, 1.0f);
-const D3DXVECTOR3      XVector(1.0f, 0.0f, 0.0f);
-const D3DXVECTOR3      YVector(0.0f, 1.0f, 0.0f);
-const D3DXVECTOR3      ZVector(0.0f, 0.0f, 1.0f);
+const glm::vec3      XVector(1.0f, 0.0f, 0.0f);
+const glm::vec3      YVector(0.0f, 1.0f, 0.0f);
+const glm::vec3      ZVector(0.0f, 0.0f, 1.0f);
 const glm::vec2        NullVec2(0.0f, 0.0f);
-const D3DXVECTOR3      NullVector(0.0f, 0.0f, 0.0f);
+const glm::vec3      NullVector(0.0f, 0.0f, 0.0f);
 const D3DXVECTOR4      NullVec4(0.0f, 0.0f, 0.0f, 0.0f);
 const glm::vec2        IdentityVec2(1.0f, 1.0f);
-const D3DXVECTOR3      IdentityVector(1.0f, 1.0f, 1.0f);
+const glm::vec3      IdentityVector(1.0f, 1.0f, 1.0f);
 const D3DXVECTOR4      IdentityVec4(1.0f, 1.0f, 1.0f, 1.0f);
-const D3DXVECTOR3      IdentityHalfVec (0.5f, 0.5f, 0.5f);
+const glm::vec3      IdentityHalfVec (0.5f, 0.5f, 0.5f);
 const glm::quat        NullQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
 
 template<class _Value> struct ValueRange
@@ -232,11 +232,11 @@ struct Point3U
 	unsigned z;
 };
 
-template<> struct ValueRange<D3DXVECTOR3>
+template<> struct ValueRange<glm::vec3>
 {
 public:
-	typedef ValueRange<D3DXVECTOR3> MyClass;
-	typedef D3DXVECTOR3 _Value;
+	typedef ValueRange<glm::vec3> MyClass;
+	typedef glm::vec3 _Value;
 
 	enum Distribution {vdLinear = 0, vdVolume, cDistributionEnd};
 	static const char* cDistributionStr[cDistributionEnd];
@@ -250,7 +250,7 @@ private:
 	//Объем фигуры
 	unsigned _volume;
 	//Шаг в интерполирвоанном значении относительно каждой ячейки
-	D3DXVECTOR3 _step;
+	glm::vec3 _step;
 
 	void CompVolume()
 	{
@@ -260,7 +260,7 @@ private:
 
 			LSL_ASSERT(_volume > 0);
 
-			D3DXVECTOR3 leng = _max - _min;
+			glm::vec3 leng = _max - _min;
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
 			_step.z = _freq.z > 1 ? leng.z / (_freq.z - 1) : 0;
@@ -338,7 +338,7 @@ public:
 			cell.z = (num / (_freq.x * _freq.y)) % _freq.z;
 
 			//Итоговый результат
-			D3DXVECTOR3 value;
+			glm::vec3 value;
 			value.x = _min.x + _step.x * cell.x;
 			value.y = _min.y + _step.y * cell.y;
 			value.z = _min.z + _step.z * cell.z;
@@ -363,7 +363,7 @@ public:
 		_max *= value;
 	}
 
-	void operator*=(const D3DXVECTOR3& value)
+	void operator*=(const glm::vec3& value)
 	{
 		_min *= value;
 		_max *= value;
@@ -379,10 +379,10 @@ public:
 	}
 };
 
-typedef ValueRange<D3DXVECTOR3> Vec3Range;
+typedef ValueRange<glm::vec3> Vec3Range;
 
 Vec3Range operator*(const Vec3Range& val1, float val2);
-Vec3Range operator*(const Vec3Range& val1, const D3DXVECTOR3& val2);
+Vec3Range operator*(const Vec3Range& val1, const glm::vec3& val2);
 
 //Объемная интерполяция пока схожа к кубической, хотя на самом деле нужна сферическая. Когда поверхность сферы ограничивается окружностью(двумя радиус векторами, которые определяют димаетр окружности на манер как сделано в BB), которая разбивается на сектора через углы.
 template<> struct ValueRange<glm::quat>
@@ -405,8 +405,8 @@ private:
 	//Шаг в интерполирвоанном значении относительно каждой ячейки
 	glm::vec2 _step;
 	//
-	D3DXVECTOR3 _minAngle;
-	D3DXVECTOR3 _maxAngle;
+	glm::vec3 _minAngle;
+	glm::vec3 _maxAngle;
 
 	void CompVolume()
 	{
@@ -420,10 +420,10 @@ private:
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
 
-			_minAngle = Vec3GlmToDx(glm::axis(_min));
+			_minAngle = glm::axis(_min);
 			_minAngle.z = glm::angle(_min);
 			//
-			_maxAngle = Vec3GlmToDx(glm::axis(_max));
+			_maxAngle = glm::axis(_max);
 			_maxAngle.z = glm::angle(_max);
 		}
 	}
@@ -501,14 +501,14 @@ public:
 			cell.y = (num / _freq.x) % _freq.y;
 
 			//Итоговый результат
-			D3DXVECTOR3 value;
+			glm::vec3 value;
 			value.x = _min.x + _step.x * cell.x;
 			value.y = _min.y + _step.y * cell.y;
 			value.z = sqrt(std::max(1.0f - value.x * value.x - value.y * value.y, 0.0f));
 			if (range > 0.5f)
 				value.z = -value.z;
 
-			glm::quat res = glm::angleAxis(_minAngle.z + (_maxAngle.z - _minAngle.z) * range, Vec3DxToGlm(value));
+			glm::quat res = glm::angleAxis(_minAngle.z + (_maxAngle.z - _minAngle.z) * range, value);
 
 			return res;
 		}

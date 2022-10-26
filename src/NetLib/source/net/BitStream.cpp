@@ -296,7 +296,7 @@ void BitStream::Serialize(float value[], int count, float err)
 		break;
 	case 3:
 		type = btVec3;
-		Serialize((D3DXVECTOR3&)*value, type, eq);
+		Serialize((glm::vec3&)*value, type, eq);
 		break;
 	case 4:
 		type = btVec4;
@@ -312,7 +312,7 @@ void BitStream::Serialize(glm::vec2& value, float err)
 	Serialize((float *)(&value), 2, err);
 }
 
-void BitStream::Serialize(D3DXVECTOR3& value, float err)
+void BitStream::Serialize(glm::vec3& value, float err)
 {
 	Serialize(value, 3, err);
 }

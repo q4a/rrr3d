@@ -45,7 +45,6 @@ AABB2::AABB2(const glm::vec2& mMin, const glm::vec2& mMax): min(mMin), max(mMax)
 {
 }
 
-//void AABB2::Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut)
 void AABB2::Transform(const AABB2 &aabb, const D3DXMATRIX &mIn, AABB2 &rOut)
 {
 	auto m = Matrix4DxToGlm(mIn); // remove after D3DXMATRIX replacement
@@ -144,36 +143,36 @@ AABB::AABB(float size)
 {
 	float maxS = std::max(size / 2.0f, 0.0f);
 	float minS = -maxS;
-	min = D3DXVECTOR3(minS, minS, minS);
-	max = D3DXVECTOR3(maxS, maxS, maxS);
+	min = glm::vec3(minS, minS, minS);
+	max = glm::vec3(maxS, maxS, maxS);
 }
 
-AABB::AABB(const D3DXVECTOR3& sizes)
+AABB::AABB(const glm::vec3& sizes)
 {
 	FromDimensions(sizes / 2.0f);
 }
 
-AABB::AABB(const D3DXVECTOR3& minPoint, const D3DXVECTOR3& maxPoint): min(minPoint), max(maxPoint)
+AABB::AABB(const glm::vec3& minPoint, const glm::vec3& maxPoint): min(minPoint), max(maxPoint)
 {
 }
 
 inline void AABB::Transform(const AABB& aabb, const D3DXMATRIX& m, AABB& rOut)
 {
-	D3DXVECTOR3 oldMin = aabb.min;
-	D3DXVECTOR3 oldMax = aabb.max;
-	D3DXVec3TransformCoord(&rOut.min, &oldMin, &m);
+	glm::vec3 oldMin = aabb.min;
+	glm::vec3 oldMax = aabb.max;
+	rOut.min = Vec3TransformCoord(oldMin, m);
 	rOut.max = rOut.min;
 
-	rOut.Include(Vec3TransformCoord(D3DXVECTOR3(oldMin[0], oldMin[1], oldMax[2]), m));
-	rOut.Include(Vec3TransformCoord(D3DXVECTOR3(oldMin[0], oldMax[1], oldMin[2]), m));
-	rOut.Include(Vec3TransformCoord(D3DXVECTOR3(oldMin[0], oldMax[1], oldMax[2]), m));
-	rOut.Include(Vec3TransformCoord(D3DXVECTOR3(oldMax[0], oldMin[1], oldMin[2]), m));
-	rOut.Include(Vec3TransformCoord(D3DXVECTOR3(oldMax[0], oldMin[1], oldMax[2]), m));
-	rOut.Include(Vec3TransformCoord(D3DXVECTOR3(oldMax[0], oldMax[1], oldMin[2]), m));
+	rOut.Include(Vec3TransformCoord(glm::vec3(oldMin[0], oldMin[1], oldMax[2]), m));
+	rOut.Include(Vec3TransformCoord(glm::vec3(oldMin[0], oldMax[1], oldMin[2]), m));
+	rOut.Include(Vec3TransformCoord(glm::vec3(oldMin[0], oldMax[1], oldMax[2]), m));
+	rOut.Include(Vec3TransformCoord(glm::vec3(oldMax[0], oldMin[1], oldMin[2]), m));
+	rOut.Include(Vec3TransformCoord(glm::vec3(oldMax[0], oldMin[1], oldMax[2]), m));
+	rOut.Include(Vec3TransformCoord(glm::vec3(oldMax[0], oldMax[1], oldMin[2]), m));
 	rOut.Include(Vec3TransformCoord(oldMax, m));
 }
 
-inline void AABB::Offset(const AABB& aabb, const D3DXVECTOR3& vec, AABB& rOut)
+inline void AABB::Offset(const AABB& aabb, const glm::vec3& vec, AABB& rOut)
 {
 	rOut.min = aabb.min + vec;
 	rOut.max = aabb.max + vec;
@@ -181,17 +180,17 @@ inline void AABB::Offset(const AABB& aabb, const D3DXVECTOR3& vec, AABB& rOut)
 
 inline void AABB::Add(const AABB& aabb1, const AABB& aabb2, AABB& rOut)
 {
-	D3DXVec3Minimize(&rOut.min, &aabb1.min, &aabb2.min);
-	D3DXVec3Maximize(&rOut.max, &aabb1.max, &aabb2.max);
+	rOut.min = glm::min(aabb1.min, aabb2.min);
+	rOut.max = glm::max(aabb1.max, aabb2.max);
 }
 
-inline void AABB::Include(const AABB& aabb, const D3DXVECTOR3& vec, AABB& rOut)
+inline void AABB::Include(const AABB& aabb, const glm::vec3& vec, AABB& rOut)
 {
-	D3DXVec3Minimize(&rOut.min, &aabb.min, &vec);
-	D3DXVec3Maximize(&rOut.max, &aabb.max, &vec);
+	rOut.min = glm::min(aabb.min, vec);
+	rOut.max = glm::max(aabb.max, vec);
 }
 
-inline void AABB::Scale(const AABB& aabb, const D3DXVECTOR3& vec, AABB& rOut)
+inline void AABB::Scale(const AABB& aabb, const glm::vec3& vec, AABB& rOut)
 {
 	rOut.min = aabb.min * vec;
 	rOut.max = aabb.max * vec;
@@ -203,15 +202,15 @@ inline void AABB::Scale(const AABB& aabb, float f, AABB& rOut)
 	rOut.max = aabb.max * f;
 }
 
-void AABB::FromPoints(const D3DXVECTOR3& pnt1, const D3DXVECTOR3& pnt2)
+void AABB::FromPoints(const glm::vec3& pnt1, const glm::vec3& pnt2)
 {
-	D3DXVec3Minimize(&min, &pnt1, &pnt2);
-	D3DXVec3Maximize(&max, &pnt1, &pnt2);
+	min = glm::min(pnt1, pnt2);
+	max = glm::max(pnt1, pnt2);
 }
 
-void AABB::FromDimensions(const D3DXVECTOR3& dimensions)
+void AABB::FromDimensions(const glm::vec3& dimensions)
 {
-	D3DXVec3Maximize(&max, &dimensions, &NullVector);
+	max = glm::max(dimensions, NullVector);
 	min = -max;
 }
 
@@ -220,7 +219,7 @@ void AABB::Transform(const D3DXMATRIX& m)
 	Transform(*this, m, *this);
 }
 
-void AABB::Offset(const D3DXVECTOR3& vec)
+void AABB::Offset(const glm::vec3& vec)
 {
 	Offset(*this, vec, *this);
 }
@@ -230,12 +229,12 @@ void AABB::Add(const AABB& aabb)
 	Add(*this, aabb, *this);
 }
 
-void AABB::Include(const D3DXVECTOR3& vec)
+void AABB::Include(const glm::vec3& vec)
 {
 	Include(*this, vec, *this);
 }
 
-void AABB::Scale(const D3DXVECTOR3& vec)
+void AABB::Scale(const glm::vec3& vec)
 {
 	Scale(*this, vec, *this);
 }
@@ -247,18 +246,18 @@ void AABB::Scale(float f)
 
 void AABB::ExtractCorners(Corners& corners) const
 {
-	corners[0] = D3DXVECTOR3(min[0], min[1], min[2]);
-	corners[1] = D3DXVECTOR3(min[0], min[1], max[2]);
-	corners[2] = D3DXVECTOR3(min[0], max[1], min[2]);
-	corners[3] = D3DXVECTOR3(min[0], max[1], max[2]);
+	corners[0] = glm::vec3(min[0], min[1], min[2]);
+	corners[1] = glm::vec3(min[0], min[1], max[2]);
+	corners[2] = glm::vec3(min[0], max[1], min[2]);
+	corners[3] = glm::vec3(min[0], max[1], max[2]);
 
-	corners[4] = D3DXVECTOR3(max[0], min[1], min[2]);
-	corners[5] = D3DXVECTOR3(max[0], min[1], max[2]);
-	corners[6] = D3DXVECTOR3(max[0], max[1], min[2]);
-	corners[7] = D3DXVECTOR3(max[0], max[1], max[2]);
+	corners[4] = glm::vec3(max[0], min[1], min[2]);
+	corners[5] = glm::vec3(max[0], min[1], max[2]);
+	corners[6] = glm::vec3(max[0], max[1], min[2]);
+	corners[7] = glm::vec3(max[0], max[1], max[2]);
 }
 
-bool AABB::ContainsPoint(const D3DXVECTOR3& point) const
+bool AABB::ContainsPoint(const glm::vec3& point) const
 {
 	return point > min && point < max;
 }
@@ -288,15 +287,15 @@ AABB::SpaceContains AABB::ContainsAABB(const AABB& test) const
 		return AABB::scNoOverlap;
 }
 
-inline bool AABB::LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECTOR3& lineVec, float& tNear, float& tFar) const
+inline bool AABB::LineCastIntersect(const glm::vec3& lineStart, const glm::vec3& lineVec, float& tNear, float& tFar) const
 {
-	D3DXVECTOR3 oMin = (min - lineStart) / lineVec;
-	D3DXVECTOR3 oMax = (max - lineStart) / lineVec;
+	glm::vec3 oMin = (min - lineStart) / lineVec;
+	glm::vec3 oMax = (max - lineStart) / lineVec;
 
-	D3DXVECTOR3 tMin;
-	D3DXVec3Minimize(&tMin, &oMin, &oMax);
-	D3DXVECTOR3 tMax;
-	D3DXVec3Maximize(&tMax, &oMin, &oMax);
+	glm::vec3 tMin;
+	tMin = glm::min(oMin, oMax);
+	glm::vec3 tMax;
+	tMax = glm::max(oMin, oMax);
 
 	tNear = std::max(tMin.x, std::max(tMin.y, tMin.z));
 	tFar = std::min(tMax.x, std::min(tMax.y, tMax.z));
@@ -304,7 +303,7 @@ inline bool AABB::LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECT
 	return tNear <= tFar;
 }
 
-bool AABB::LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECTOR3& lineVec, D3DXVECTOR3& nearVec, D3DXVECTOR3& farVec) const
+bool AABB::LineCastIntersect(const glm::vec3& lineStart, const glm::vec3& lineVec, glm::vec3& nearVec, glm::vec3& farVec) const
 {
 	float tNear;
 	float tFar;
@@ -317,13 +316,13 @@ bool AABB::LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECTOR3& li
 	return false;
 }
 
-unsigned AABB::RayCastIntersect(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, float& tNear, float& tFar) const
+unsigned AABB::RayCastIntersect(const glm::vec3& rayStart, const glm::vec3& rayVec, float& tNear, float& tFar) const
 {
 	bool rayInters = LineCastIntersect(rayStart, rayVec, tNear, tFar) && tFar > 0;
 	return rayInters ? (tNear > 0 ? 2 : 1) : 0;
 }
 
-unsigned AABB::RayCastIntersect(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, D3DXVECTOR3& nearVec, D3DXVECTOR3& farVec) const
+unsigned AABB::RayCastIntersect(const glm::vec3& rayStart, const glm::vec3& rayVec, glm::vec3& nearVec, glm::vec3& farVec) const
 {
 	float tNear;
 	float tFar;
@@ -347,12 +346,12 @@ unsigned AABB::RayCastIntersect(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& 
 	}
 }
 
-bool AABB::AABBLineCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, float& minDist) const
+bool AABB::AABBLineCastIntersect(const AABB& aabb, const glm::vec3& rayVec, float& minDist) const
 {
 	bool res = false;
 	for (int i = 0; i < 8; ++i)
 	{
-		D3DXVECTOR3 curV = aabb.GetVertex(i);
+		glm::vec3 curV = aabb.GetVertex(i);
 		float tNear;
 		float tFar;
 		//ѕр€мое направление
@@ -373,8 +372,8 @@ bool AABB::AABBLineCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, fl
 	}
 
 	/// онтроль на пересечение относительно центра. Ѕерутс€ две проекции одного центра относительно линии пересечени€ чтобы учесть все возможные случаи проникновени€
-	D3DXVECTOR3 centerNear;
-	D3DXVECTOR3 centerFar;
+	glm::vec3 centerNear;
+	glm::vec3 centerFar;
 	if (aabb.LineCastIntersect(aabb.GetCenter(), rayVec, centerNear, centerFar))
 	{
 		float tNear;
@@ -398,15 +397,14 @@ bool AABB::AABBLineCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, fl
 	return res;
 }
 
-bool AABB::AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, const D3DXMATRIX& startTolocal, const D3DXMATRIX& localToStart, float& minDist) const
+bool AABB::AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const D3DXMATRIX& startTolocal, const D3DXMATRIX& localToStart, float& minDist) const
 {
 	BoundBox startBB(start);
 	startBB.Transform(startTolocal);
 	BoundBox testBB(*this);
 	testBB.Transform(localToStart);
 
-	D3DXVECTOR3 localVec;
-	D3DXVec3TransformNormal(&localVec, &vec, &startTolocal);
+	glm::vec3 localVec = Vec3TransformNormal(vec, startTolocal);
 
 	bool res = false;
 	for (int i = 0; i < 8; ++i)
@@ -429,12 +427,12 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, cons
 	}
 
 	/// онтроль на пересечение относительно центра. Ѕерутс€ две проекции одного центра относительно линии пересечени€ чтобы учесть все возможные случаи проникновени€
-	D3DXVECTOR3 centerNear;
-	D3DXVECTOR3 centerFar;
+	glm::vec3 centerNear;
+	glm::vec3 centerFar;
 	if (start.LineCastIntersect(start.GetCenter(), vec, centerNear, centerFar))
 	{
-		D3DXVec3TransformCoord(&centerNear, &centerNear, &startTolocal);
-		D3DXVec3TransformCoord(&centerFar, &centerFar, &startTolocal);
+		centerNear = Vec3TransformCoord(centerNear, startTolocal);
+		centerFar = Vec3TransformCoord(centerFar, startTolocal);
 		float tNear;
 		float tFar;
 		//Ѕлижн€€ проекци€
@@ -456,12 +454,12 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, cons
 	return res;
 }
 
-bool AABB::AABBRayCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, float& minDist, const float error) const
+bool AABB::AABBRayCastIntersect(const AABB& aabb, const glm::vec3& rayVec, float& minDist, const float error) const
 {
 	bool res = false;
 	for (int i = 0; i < 8; ++i)
 	{
-		D3DXVECTOR3 curV = aabb.GetVertex(i);
+		glm::vec3 curV = aabb.GetVertex(i);
 		float tNear;
 		float tFar;
 		//ѕр€мое направление
@@ -480,8 +478,8 @@ bool AABB::AABBRayCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, flo
 	}
 
 	/// онтроль на пересечение относительно центра
-	D3DXVECTOR3 centerNear;
-	D3DXVECTOR3 centerFar;
+	glm::vec3 centerNear;
+	glm::vec3 centerFar;
 	if (aabb.RayCastIntersect(GetCenter(), rayVec, centerNear, centerFar))
 	{
 		float tNear;
@@ -496,19 +494,19 @@ bool AABB::AABBRayCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, flo
 	return res;
 }
 
-D3DXVECTOR3 AABB::GetCenter() const
+glm::vec3 AABB::GetCenter() const
 {
 	return (min + max) / 2.0f;
 }
 
-D3DXVECTOR3 AABB::GetSizes() const
+glm::vec3 AABB::GetSizes() const
 {
 	return max - min;
 }
 
 float AABB::GetDiameter() const
 {
-	return D3DXVec3Length(&GetSizes());
+	return glm::length(GetSizes());
 }
 
 float AABB::GetRadius() const
@@ -516,7 +514,7 @@ float AABB::GetRadius() const
 	return GetDiameter() / 2.0f;
 }
 
-D3DXVECTOR3 AABB::GetVertex(unsigned index) const
+glm::vec3 AABB::GetVertex(unsigned index) const
 {
 	switch (index)
 	{
@@ -524,25 +522,25 @@ D3DXVECTOR3 AABB::GetVertex(unsigned index) const
 		return min;
 
 	case 1:
-		return D3DXVECTOR3(max.x, min.y, min.z);
+		return glm::vec3(max.x, min.y, min.z);
 
 	case 2:
-		return D3DXVECTOR3(max.x, max.y, min.z);
+		return glm::vec3(max.x, max.y, min.z);
 
 	case 3:
-		return D3DXVECTOR3(min.x, max.y, min.z);
+		return glm::vec3(min.x, max.y, min.z);
 
 	case 4:
-		return D3DXVECTOR3(min.x, min.y, max.z);
+		return glm::vec3(min.x, min.y, max.z);
 
 	case 5:
-		return D3DXVECTOR3(max.x, min.y, max.z);
+		return glm::vec3(max.x, min.y, max.z);
 
 	case 6:
 		return max;
 
 	case 7:
-		return D3DXVECTOR3(min.x, max.y, max.z);
+		return glm::vec3(min.x, max.y, max.z);
 
 	default:
 		LSL_ASSERT(false);
@@ -556,46 +554,46 @@ D3DXPLANE AABB::GetPlane(unsigned index) const
 	switch (index)
 	{
 	case cLeftPlane:
-		D3DXPlaneFromPointNormal(&res, &min, &(-XVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(min), &Vec3GlmToDx(-XVector));
 		break;
 
 	case cTopPlane:
-		D3DXPlaneFromPointNormal(&res, &min, &(-YVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(min), &Vec3GlmToDx(-YVector));
 		break;
 
 	case cBackPlane:
-		D3DXPlaneFromPointNormal(&res, &min, &(-ZVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(min), &Vec3GlmToDx(-ZVector));
 		break;
 
 	case cRightPlane:
-		D3DXPlaneFromPointNormal(&res, &max, &(XVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(max), &Vec3GlmToDx(XVector));
 		break;
 
 	case cBottomPlane:
-		D3DXPlaneFromPointNormal(&res, &max, &(YVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(max), &Vec3GlmToDx(YVector));
 		break;
 
 	case cFrontPlane:
-		D3DXPlaneFromPointNormal(&res, &max, &(ZVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(max), &Vec3GlmToDx(ZVector));
 		break;
 	}
 
 	return res;
 }
 
-D3DXVECTOR3 AABB::GetPlaneVert(unsigned index, unsigned vertex) const
+glm::vec3 AABB::GetPlaneVert(unsigned index, unsigned vertex) const
 {
 	/*D3DXPLANE plane = GetPlane(index);
-	D3DXVECTOR3 norm(plane);
-	D3DXVECTOR3 invNorm = IdentityVector - D3DXVECTOR3(abs(norm.x), abs(norm.y), abs(norm.z));
+	glm::vec3 norm(plane);
+	glm::vec3 invNorm = IdentityVector - glm::vec3(abs(norm.x), abs(norm.y), abs(norm.z));
 
-	D3DXVECTOR3 fixCoord;
+	glm::vec3 fixCoord;
 	D3DXVec3Scale(norm, GetSizes()/2, fixCoord);
-	D3DXVECTOR3 fixCenter;
+	glm::vec3 fixCenter;
 	D3DXVec3Scale(norm, GetCenter(), fixCenter);
 	fixCoord += fixCenter;
 
-	D3DXVECTOR3 res;
+	glm::vec3 res;
 	switch (vertex)
 	{
 	case 0:
@@ -657,21 +655,21 @@ BoundBox::BoundBox()
 
 BoundBox::BoundBox(const AABB& aabb)
 {
-	const D3DXVECTOR3 vertex[2] = {aabb.min, aabb.max};
+	const glm::vec3 vertex[2] = {aabb.min, aabb.max};
 	const int index[4][2] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
 
 	for (int i = 0; i < 8; ++i)
 	{
 		int ind = i % 4;
 
-		v[i] = D3DXVECTOR3(vertex[index[ind][0]].x, vertex[index[ind][1]].y, vertex[i / 4].z);
+		v[i] = glm::vec3(vertex[index[ind][0]].x, vertex[index[ind][1]].y, vertex[i / 4].z);
 	}
 }
 
 void BoundBox::Transform(const BoundBox& bb, const D3DXMATRIX& m, BoundBox& rOut)
 {
 	for (int i = 0; i < 8; ++i)
-		D3DXVec3TransformCoord(&rOut.v[i], &bb.v[i], &m);
+		rOut.v[i] = Vec3TransformCoord(bb.v[i], m);
 }
 
 void BoundBox::SetPlan(const int numPlan, const float valeur)
@@ -703,7 +701,7 @@ void Frustum::CalculateCorners(Corners& pPoints, const D3DXMATRIX& invViewProj)
 	for (float fy = -1.0f; fy <= 1.0f; fy += 2.0f)
 	for (float fz = 0.0f; fz <= 1.0f; fz += 1.0f, ++i)
 	{
-		D3DXVec3TransformCoord(&pPoints[i], &D3DXVECTOR3(fx, fy, fz), &invViewProj);
+		pPoints[i] = Vec3TransformCoord(glm::vec3(fx, fy, fz), invViewProj);
 	}
 }
 
@@ -773,7 +771,7 @@ Frustum::SpaceContains Frustum::ContainsAABB(const AABB& aabb) const
 		PointIn = true;
 
 		for (int iCorner = 0; iCorner < 8; ++iCorner)
-			if (D3DXPlaneDotCoord(&planes[iPlane], &corners[iCorner]) < 0)
+			if (D3DXPlaneDotCoord(&planes[iPlane], &Vec3GlmToDx(corners[iCorner])) < 0)
 			{
 				PointIn = false;
 				--inCount;
@@ -792,20 +790,20 @@ Frustum::SpaceContains Frustum::ContainsAABB(const AABB& aabb) const
 		return scContainsPartially;
 }
 
-bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXPLANE& plane, float& outT)
+bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, float& outT)
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &rayVec);
+	float d = D3DXPlaneDotNormal(&plane, &Vec3GlmToDx(rayVec));
 	if (abs(d) > EPSILON)
 	{
-		outT = -D3DXPlaneDotCoord(&plane, &rayStart) / d;
+		outT = -D3DXPlaneDotCoord(&plane, &Vec3GlmToDx(rayStart)) / d;
 		return outT > 0;
 	}
 	return false;
 }
 
-bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXPLANE& plane, D3DXVECTOR3& outVec)
+bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, glm::vec3& outVec)
 {
 	float t;
 	bool res = RayCastIntersectPlane(rayStart, rayVec, plane, t);
@@ -814,21 +812,21 @@ bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVe
 	return res;
 }
 
-bool RayCastIntersectSquare(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& min, const D3DXVECTOR3& max, const D3DXPLANE& plane, float* outT, D3DXVECTOR3* outVec, const float error)
+bool RayCastIntersectSquare(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec3& min, const glm::vec3& max, const D3DXPLANE& plane, float* outT, glm::vec3* outVec, const float error)
 {
 	const float Arad45 = 0.707106781f;
 
 	float t;
 	if (RayCastIntersectPlane(rayStart, rayVec, plane, t) && t > -error)
 	{
-		D3DXVECTOR3 intPnt = rayStart + rayVec * t;
-		D3DXVECTOR3 plDiag = max - min;
-		D3DXVec3Normalize(&plDiag, &plDiag);
-		D3DXVECTOR3 intPnt1 = intPnt - min;
-		D3DXVec3Normalize(&intPnt1, &intPnt1);
-		D3DXVECTOR3 intPnt2 = intPnt - max;
-		D3DXVec3Normalize(&intPnt2, &intPnt2);
-		bool res = D3DXVec3Dot(&intPnt1, &plDiag) > Arad45 && D3DXVec3Dot(&intPnt2, &(-plDiag)) > Arad45;
+		glm::vec3 intPnt = rayStart + rayVec * t;
+		glm::vec3 plDiag = max - min;
+		plDiag = glm::normalize(plDiag);
+		glm::vec3 intPnt1 = intPnt - min;
+		intPnt1 = glm::normalize(intPnt1);
+		glm::vec3 intPnt2 = intPnt - max;
+		intPnt2 = glm::normalize(intPnt2);
+		bool res = glm::dot(intPnt1, plDiag) > Arad45 && glm::dot(intPnt2, (-plDiag)) > Arad45;
 		if (res)
 		{
 			if (outT)

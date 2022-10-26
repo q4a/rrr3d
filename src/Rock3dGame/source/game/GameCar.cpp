@@ -206,7 +206,7 @@ void CarWheel::PxSyncWheel(float alpha)
 	}
 	GetGrActor().SetRot(resRot);
 
-	D3DXVECTOR3 resPos((t - dir * st).get());
+	glm::vec3 resPos((t - dir * st).get());
 	if (alpha < 1.0f)
 		D3DXVec3Lerp(&resPos, &_pxPrevPos, &resPos, alpha);
 	else
@@ -248,7 +248,7 @@ void CarWheel::OnProgress(float deltaTime)
 				_actTrail->AddRef();
 			}
 
-			_actTrail->GetGameObj().SetWorldPos(D3DXVECTOR3(contactDesc.contactPoint.get()) + ZVector * 0.001f);
+			_actTrail->GetGameObj().SetWorldPos(glm::vec3(contactDesc.contactPoint.get()) + ZVector * 0.001f);
 			//Во время установки следа время жизни не меняется
 			_actTrail->GetGameObj().SetTimeLife(0);
 		}
@@ -339,12 +339,12 @@ void CarWheel::SetSteer(bool value)
 	}
 }
 
-const D3DXVECTOR3& CarWheel::GetOffset() const
+const glm::vec3& CarWheel::GetOffset() const
 {
 	return _offset;
 }
 
-void CarWheel::SetOffset(const D3DXVECTOR3& value)
+void CarWheel::SetOffset(const glm::vec3& value)
 {
 	_offset = value;
 }
@@ -358,14 +358,14 @@ CarWheels::~CarWheels()
 	SetSteerContactModify(0);
 }
 
-void CarWheels::LoadPosTo(const std::string& fileName, std::vector<D3DXVECTOR3>& pos)
+void CarWheels::LoadPosTo(const std::string& fileName, std::vector<glm::vec3>& pos)
 {
 	std::istream* file = lsl::FileSystem::GetInstance()->NewInStream(fileName, lsl::FileSystem::omText, 0);
 	try
 	{
 		while (*file && !file->eof())
 		{
-			D3DXVECTOR3 res;
+			glm::vec3 res;
 			*file >> res.x >> res.y >> res.z;
 			pos.push_back(res);
 		}
@@ -636,7 +636,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 
 		glm::quat rot;
 		fixRot.getXYZW(rot);
-		D3DXVECTOR3 xAxis;
+		glm::vec3 xAxis;
 		D3DXQuaternionToAxisAngle(&rot, &xAxis, &dFixAngle);
 		dFixAxis.set(xAxis);
 		dFixAxis.normalize();
@@ -1363,12 +1363,12 @@ void GameCar::SetSteerRot(float value)
 	_steerRot = value;
 }
 
-D3DXVECTOR3 GameCar::GetAngDamping() const
+glm::vec3 GameCar::GetAngDamping() const
 {
 	return _angDamping;
 }
 
-void GameCar::SetAngDamping(D3DXVECTOR3 value)
+void GameCar::SetAngDamping(glm::vec3 value)
 {
 	_angDamping = value;
 }
@@ -1497,11 +1497,11 @@ GameCar::Wheels& GameCar::GetWheels()
 	return *_wheels;
 }
 
-float GameCar::GetSpeed(NxActor* nxActor, const D3DXVECTOR3& dir)
+float GameCar::GetSpeed(NxActor* nxActor, const glm::vec3& dir)
 {
 	if (nxActor)
 	{
-		float speed = D3DXVec3Dot(&dir, &D3DXVECTOR3(nxActor->getLinearVelocity().get()));
+		float speed = D3DXVec3Dot(&dir, &glm::vec3(nxActor->getLinearVelocity().get()));
 		//погрешность 1 м/с
 		if (abs(speed) < 1.0f)
 			speed = 0.0f;

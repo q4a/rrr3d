@@ -137,19 +137,18 @@ ActorManager::CameraCache::iterator ActorManager::CameraCull(const graph::Camera
 	return iterCamera;
 }
 
-bool ActorManager::PullInRayTargetGroup(User* user, unsigned scene, const graph::CameraCI* camera, const D3DXVECTOR3& rayTarget, float rayTargetSize)
+bool ActorManager::PullInRayTargetGroup(User* user, unsigned scene, const graph::CameraCI* camera, const glm::vec3& rayTarget, float rayTargetSize)
 {
 	RayUsers::iterator iter = _rayUsers.find(user);
 	if (iter != _rayUsers.end())
 		iter->second.draw = true;
 
-	D3DXVECTOR3 vec3;
-	D3DXVec3TransformCoord(&vec3, &rayTarget, &camera->GetViewProj());
+	glm::vec3 vec3 = Vec3TransformCoord(rayTarget, camera->GetViewProj());
 	vec3.z = 0.0f;
-	D3DXVec3TransformCoord(&vec3, &vec3, &camera->GetInvViewProj());
-	D3DXVECTOR3 ray = rayTarget - vec3;
-	float rayLen = D3DXVec3Length(&ray);
-	D3DXVec3Normalize(&ray, &ray);
+	vec3 = Vec3TransformCoord(vec3, camera->GetInvViewProj());
+	glm::vec3 ray = rayTarget - vec3;
+	float rayLen = glm::length(ray);
+	ray = glm::normalize(ray);
 
 	float nearDist, farDist;
 	if (user->GetAABB().LineCastIntersect(vec3, ray, nearDist, farDist) && rayLen - farDist > rayTargetSize * 1.5f)
@@ -343,7 +342,7 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	return _planars.back();
 }
 
-void ActorManager::PullRayUsers(unsigned scene, const graph::CameraCI* camera, const D3DXVECTOR3& rayTarget, float rayTargetSize)
+void ActorManager::PullRayUsers(unsigned scene, const graph::CameraCI* camera, const glm::vec3& rayTarget, float rayTargetSize)
 {
 	const Frustum& frustum = camera->GetFrustum();
 	CameraCache::iterator iterCamera = CameraCull(camera);

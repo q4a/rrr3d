@@ -72,7 +72,7 @@ private:
 	PxNotifies _pxNotifies;
 	bool _removed;
 protected:
-	virtual void OnShot(const D3DXVECTOR3& pos) {}
+	virtual void OnShot(const glm::vec3& pos) {}
 	virtual void OnMotor(float deltaTime, float rpm, float minRPM, float maxRPM) {}
 	virtual void OnImmortalStatus(bool status) {}
 
@@ -165,7 +165,7 @@ protected:
 	{
 		EffectDesc(): pos(NullVector), rot(NullQuaternion), child(true), parent(NULL) {}
 
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		glm::quat rot;
 		//дочерний
 		//true - время жизни совпадает с врменем жизни EventEffect, локальная система координат
@@ -189,8 +189,8 @@ private:
 	MapObjRec* _effect;
 	SoundList _sounds;
 
-	D3DXVECTOR3 _pos;
-	D3DXVECTOR3 _impulse;
+	glm::vec3 _pos;
+	glm::vec3 _impulse;
 	bool _ignoreRot;
 
 	EffObjList _effObjList;
@@ -243,12 +243,12 @@ public:
 	snd::Sound* GetSound();
 	void SetSound(snd::Sound* value);
 
-	const D3DXVECTOR3& GetPos() const;
-	void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos() const;
+	void SetPos(const glm::vec3& value);
 
 	//local coordinates
-	const D3DXVECTOR3& GetImpulse() const;
-	void SetImpulse(const D3DXVECTOR3& value);
+	const glm::vec3& GetImpulse() const;
+	void SetImpulse(const glm::vec3& value);
 
 	//игнорировать родительский поворот
 	bool GetIgnoreRot() const;
@@ -339,7 +339,7 @@ class ShotEffect: public EventEffect
 {
 	typedef EventEffect _MyBase;
 protected:
-	virtual void OnShot(const D3DXVECTOR3& pos);
+	virtual void OnShot(const glm::vec3& pos);
 public:
 	ShotEffect(Behaviors* owner);
 };
@@ -351,8 +351,8 @@ private:
 	float _fadeInTime;
 	float _fadeOutTime;
 	float _dmgTime;
-	D3DXVECTOR3 _scale;
-	D3DXVECTOR3 _scaleK;
+	glm::vec3 _scale;
+	glm::vec3 _scaleK;
 protected:
 	virtual void OnImmortalStatus(bool status);
 	virtual void OnDamage(GameObject* sender, float value, DamageType damageType);
@@ -364,8 +364,8 @@ public:
 
 	virtual void OnProgress(float deltaTime);
 
-	const D3DXVECTOR3& GetScaleK() const;
-	void SetScaleK(const D3DXVECTOR3& value);
+	const glm::vec3& GetScaleK() const;
+	void SetScaleK(const glm::vec3& value);
 };
 
 class SlowEffect: public EventEffect
@@ -478,7 +478,7 @@ public:
 	void OnProgress(float deltaTime);
 	//выстрел
 	//pos - относительные координаты
-	void OnShot(const D3DXVECTOR3& pos);
+	void OnShot(const glm::vec3& pos);
 	void OnMotor(float deltaTime, float rpm, float minRPM, float maxRPM);
 	void OnImmortalStatus(bool status);
 

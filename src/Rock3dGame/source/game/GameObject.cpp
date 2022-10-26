@@ -151,7 +151,7 @@ void GameObject::UnregFixedStepEvent()
 		_logic->UnregFixedStepEvent(this);
 }
 
-D3DXVECTOR3 GameObject::GetContactPoint(const px::Scene::OnContactEvent& contact)
+glm::vec3 GameObject::GetContactPoint(const px::Scene::OnContactEvent& contact)
 {
 	NxContactStreamIterator contIter(contact.stream);
 
@@ -194,7 +194,7 @@ void GameObject::OnSleep()
 	SetBodyProgressEvent(false);
 }
 
-void GameObject::RayCastClosestActor(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayDir, NxShapesType shapesType, RayCastHit& hit, unsigned groups, unsigned mask, float maxDist)
+void GameObject::RayCastClosestActor(const glm::vec3& rayStart, const glm::vec3& rayDir, NxShapesType shapesType, RayCastHit& hit, unsigned groups, unsigned mask, float maxDist)
 {
 	NxRaycastHit nxHit;
 	hit.gameActor = 0;
@@ -231,7 +231,7 @@ void GameObject::OnPxSync(float alpha)
 	if (nxActor == NULL)
 		return;
 
-	D3DXVECTOR3 pxVelocityLerp = nxActor->getLinearVelocity().get();
+	glm::vec3 pxVelocityLerp = nxActor->getLinearVelocity().get();
 
 	if (alpha < 1.0f)
 	{
@@ -391,8 +391,8 @@ void GameObject::SaveProxy(lsl::SWriter* writer)
 
 void GameObject::LoadProxy(lsl::SReader* reader)
 {
-	D3DXVECTOR3 pos;
-	D3DXVECTOR3 scale;
+	glm::vec3 pos;
+	glm::vec3 scale;
 	glm::quat rot;
 
 	reader->ReadValue("pos", pos, 3);
@@ -742,26 +742,26 @@ GameCar* GameObject::IsCar()
 	return 0;
 }
 
-const D3DXVECTOR3& GameObject::GetPos() const
+const glm::vec3& GameObject::GetPos() const
 {
 	return _grActor->GetPos();
 }
 
-void GameObject::SetPos(const D3DXVECTOR3& value)
+void GameObject::SetPos(const glm::vec3& value)
 {
 	_grActor->SetPos(value);
 	_pxActor->SetPos(value);
 	_pxPrevPos = value;
 }
 
-const D3DXVECTOR3& GameObject::GetScale() const
+const glm::vec3& GameObject::GetScale() const
 {
 	return _grActor->GetScale();
 }
 
-void GameObject::SetScale(const D3DXVECTOR3& value)
+void GameObject::SetScale(const glm::vec3& value)
 {
-	float len = D3DXVec3Length(&value);
+	float len = glm::length(value);
 
 	_grActor->SetScale(value);
 	_pxActor->SetScale(value);
@@ -769,7 +769,7 @@ void GameObject::SetScale(const D3DXVECTOR3& value)
 
 void GameObject::SetScale(float value)
 {
-	SetScale(D3DXVECTOR3(value, value, value));
+	SetScale(glm::vec3(value, value, value));
 }
 
 const glm::quat& GameObject::GetRot() const
@@ -784,12 +784,12 @@ void GameObject::SetRot(const glm::quat& value)
 	_pxPrevRot = value;
 }
 
-D3DXVECTOR3 GameObject::GetWorldPos() const
+glm::vec3 GameObject::GetWorldPos() const
 {
 	return _grActor->GetWorldPos();
 }
 
-void GameObject::SetWorldPos(const D3DXVECTOR3& value)
+void GameObject::SetWorldPos(const glm::vec3& value)
 {
 	_grActor->SetWorldPos(value);
 	_pxActor->SetPos(_grActor->GetPos());
@@ -808,9 +808,9 @@ void GameObject::SetWorldRot(const glm::quat& value)
 	_pxPrevRot = _grActor->GetRot();
 }
 
-void GameObject::SetWorldDir(const D3DXVECTOR3& value)
+void GameObject::SetWorldDir(const glm::vec3& value)
 {
-	D3DXVECTOR3 vec3 = value;
+	glm::vec3 vec3 = value;
 	if (_grActor->GetParent())
 		_grActor->GetParent()->WorldToLocalNorm(vec3, vec3);
 
@@ -819,9 +819,9 @@ void GameObject::SetWorldDir(const D3DXVECTOR3& value)
 	_pxPrevRot = _grActor->GetRot();
 }
 
-void GameObject::SetWorldUp(const D3DXVECTOR3& value)
+void GameObject::SetWorldUp(const glm::vec3& value)
 {
-	D3DXVECTOR3 vec3 = value;
+	glm::vec3 vec3 = value;
 	if (_grActor->GetParent())
 		_grActor->GetParent()->WorldToLocalNorm(vec3, vec3);
 
@@ -830,16 +830,16 @@ void GameObject::SetWorldUp(const D3DXVECTOR3& value)
 	_pxPrevRot = _grActor->GetRot();
 }
 
-const D3DXVECTOR3& GameObject::GetPosSync() const
+const glm::vec3& GameObject::GetPosSync() const
 {
 	return _posSync;
 }
 
-void GameObject::SetPosSync(const D3DXVECTOR3& value)
+void GameObject::SetPosSync(const glm::vec3& value)
 {
 	_posSync = value;
 	D3DXVec3Normalize(&_posSyncDir, &value);
-	_posSyncLength = D3DXVec3Length(&value);
+	_posSyncLength = glm::length(value);
 
 	SetSyncFrameEvent(true);
 }
@@ -864,19 +864,19 @@ void GameObject::SetRotSync(const glm::quat& value)
 	SetSyncFrameEvent(true);
 }
 
-const D3DXVECTOR3& GameObject::GetPosSync2() const
+const glm::vec3& GameObject::GetPosSync2() const
 {
 	return _posSync2;
 }
 
-void GameObject::SetPosSync2(const D3DXVECTOR3& curSync, const D3DXVECTOR3& newSync)
+void GameObject::SetPosSync2(const glm::vec3& curSync, const glm::vec3& newSync)
 {
 	_posSyncDir2 = curSync - newSync;
-	_posSyncDist2 = D3DXVec3Length(&_posSyncDir2);
+	_posSyncDist2 = glm::length(_posSyncDir2);
 	_posSyncDir2 = _posSyncDist2 != 0.0f ? _posSyncDir2 / _posSyncDist2 : NullVector;
 
 	_posSync2 = newSync;
-	_posSyncLength2 = D3DXVec3Length(&_posSync2);
+	_posSyncLength2 = glm::length(_posSync2);
 
 	SetSyncFrameEvent(true);
 }
@@ -899,13 +899,13 @@ void GameObject::SetRotSync2(const glm::quat& curSync, const glm::quat& newSync)
 	}
 
 	_rotSync2 = newSync;
-	D3DXVECTOR3 axis = Vec3GlmToDx(glm::axis(_rotSync2));
+	glm::vec3 axis = Vec3GlmToDx(glm::axis(_rotSync2));
 	_rotSyncLength2 = glm::angle(_rotSync2);
 
 	SetSyncFrameEvent(true);
 }
 
-const D3DXVECTOR3& GameObject::GetPxPosLerp() const
+const glm::vec3& GameObject::GetPxPosLerp() const
 {
 	return !_bodyProgressEvent && _parent ? _parent->GetPxPosLerp() : _pxPosLerp;
 }
@@ -915,12 +915,12 @@ const glm::quat& GameObject::GetPxRotLerp() const
 	return !_bodyProgressEvent && _parent ? _parent->GetPxRotLerp() : _pxRotLerp;
 }
 
-const D3DXVECTOR3& GameObject::GetPxVelocityLerp() const
+const glm::vec3& GameObject::GetPxVelocityLerp() const
 {
 	return !_bodyProgressEvent && _parent ? _parent->GetPxVelocityLerp() : _pxVelocityLerp;
 }
 
-const D3DXVECTOR3& GameObject::GetPxPrevPos() const
+const glm::vec3& GameObject::GetPxPrevPos() const
 {
 	return _pxPrevPos;
 }
@@ -930,7 +930,7 @@ const glm::quat& GameObject::GetPxPrevRot() const
 	return _pxPrevRot;
 }
 
-const D3DXVECTOR3& GameObject::GetPxPrevVelocity() const
+const glm::vec3& GameObject::GetPxPrevVelocity() const
 {
 	return _pxPrevVelocity;
 }

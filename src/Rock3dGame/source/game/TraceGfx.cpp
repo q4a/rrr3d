@@ -48,7 +48,7 @@ TraceGfx::~TraceGfx()
 	_trace->Release();
 }
 
-void TraceGfx::DrawNodes(graph::Engine& engine, D3DXVECTOR3* vBuf, unsigned triCnt, const D3DXCOLOR& color)
+void TraceGfx::DrawNodes(graph::Engine& engine, glm::vec3* vBuf, unsigned triCnt, const D3DXCOLOR& color)
 {
 	_libMat->material.SetDiffuse(color);
 	_libMat->Apply(engine);
@@ -58,7 +58,7 @@ void TraceGfx::DrawNodes(graph::Engine& engine, D3DXVECTOR3* vBuf, unsigned triC
 	engine.GetContext().SetRenderState(graph::rsCullMode, D3DCULL_NONE);
 
 	engine.GetDriver().GetDevice()->SetFVF(D3DFVF_XYZ);
-	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, triCnt, vBuf, sizeof(D3DXVECTOR3));
+	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, triCnt, vBuf, sizeof(glm::vec3));
 
 	engine.GetContext().RestoreRenderState(graph::rsCullMode);
 	engine.EndDraw(false);
@@ -79,8 +79,8 @@ void TraceGfx::DoRender(graph::Engine& engine)
 	}
 
 	//Отрисовка связей между путями
-	Vec3Range resColor(D3DXVECTOR3(clrWhite / 2.0f), D3DXVECTOR3(clrWhite), Vec3Range::vdVolume);
-	D3DXVECTOR3 upVec = engine.GetContext().GetCamera().GetDesc().dir;
+	Vec3Range resColor(glm::vec3(clrWhite / 2.0f), glm::vec3(clrWhite), Vec3Range::vdVolume);
+	glm::vec3 upVec = engine.GetContext().GetCamera().GetDesc().dir;
 	float iPath = 0.0f;
 	float pathCnt = static_cast<float>(_trace->GetPathes().size());
 
@@ -97,7 +97,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 	//Для выделенного узла свой цикл отрисовки
 	if (_selNode && _selNode->GetNext())
 	{
-		D3DXVECTOR3 vBuf[4];
+		glm::vec3 vBuf[4];
 		_selNode->GetTile().GetVBuf(vBuf, 4, &upVec);
 		DrawNodes(engine, vBuf, 4 - 2, clrGreen);
 	}
@@ -105,10 +105,10 @@ void TraceGfx::DoRender(graph::Engine& engine)
 	//Отрисовка связи выделения
 	if (_pointLink)
 	{
-		D3DXVECTOR3 pos1 = _pointLink->GetPoint()->GetPos();
-		D3DXVECTOR3 pos2 = _pointLink->GetPos();
-		D3DXVECTOR3 dir = pos1 - pos2;
-		glm::vec2 sizes(D3DXVec3Length(&dir), _pointLink->GetPoint()->GetSize());
+		glm::vec3 pos1 = _pointLink->GetPoint()->GetPos();
+		glm::vec3 pos2 = _pointLink->GetPos();
+		glm::vec3 dir = pos1 - pos2;
+		glm::vec2 sizes(glm::length(dir), _pointLink->GetPoint()->GetSize());
 		D3DXVec3Normalize(&dir, &dir);
 
 		_sprite->SetPos((pos1 + pos2) / 2.0f);

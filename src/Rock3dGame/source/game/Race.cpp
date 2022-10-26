@@ -1057,8 +1057,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\bulletProj"));
-			projDesc.pos = D3DXVECTOR3(0.4f, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(2.0f, 0.25f, 1.3f);
+			projDesc.pos = glm::vec3(0.4f, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(2.0f, 0.25f, 1.3f);
 			projDesc.modelSize = false;
 			projDesc.speed = 50.0f;
 			projDesc.speedRelative = true;
@@ -1103,10 +1103,10 @@ void Workshop::LoadWeapons()
 			projDesc.mass = 100.0f;
 			projDesc.damage = 10.0f/2;
 
-			projDesc.pos = D3DXVECTOR3(0.2f, -0.7f, 0.0f);
+			projDesc.pos = glm::vec3(0.2f, -0.7f, 0.0f);
 			desc.projList.push_back(projDesc);
 
-			projDesc.pos = D3DXVECTOR3(0.2f, 0.7f, 0.0f);
+			projDesc.pos = glm::vec3(0.2f, 0.7f, 0.0f);
 			desc.projList.push_back(projDesc);
 
 			desc.shotDelay = 0.2f;
@@ -1136,8 +1136,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\blaster"));
-			projDesc.pos = D3DXVECTOR3(0.3f, -0.6f, 0.0f);
-			projDesc.size = D3DXVECTOR3(1.0f, 0.5f, 0.5f);
+			projDesc.pos = glm::vec3(0.3f, -0.6f, 0.0f);
+			projDesc.size = glm::vec3(1.0f, 0.5f, 0.5f);
 			projDesc.modelSize = false;
 			projDesc.speed = 40.0f;
 			projDesc.speedRelative = true;
@@ -1146,7 +1146,7 @@ void Workshop::LoadWeapons()
 			projDesc.damage = 12.0f/2;
 			desc.projList.push_back(projDesc);
 
-			projDesc.pos = D3DXVECTOR3(0.3f, 0.6f, 0.0f);
+			projDesc.pos = glm::vec3(0.3f, 0.6f, 0.0f);
 			desc.projList.push_back(projDesc);
 
 			desc.shotDelay = 0.2f;
@@ -1177,7 +1177,7 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptLaser;
 			projDesc.SetLibMat(_race->GetLibMat("Effect\\laser3-red2"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.0f);
 			projDesc.size = IdentityVector * 1.0f;
 			projDesc.maxDist = 100.0f;
 			projDesc.damage = 19.0f/0.5f;
@@ -1213,8 +1213,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptSonar;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "sonar"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
-			projDesc.size = D3DXVECTOR3(3.0f, 2.0f, 2.0f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
+			projDesc.size = glm::vec3(3.0f, 2.0f, 2.0f);
 			projDesc.modelSize = false;
 			projDesc.maxDist = 15.0f;
 			projDesc.mass = 75.0f;
@@ -1253,8 +1253,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\shotBall"));
-			projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(0.5f, 0.5f, 1.0f);
+			projDesc.pos = glm::vec3(0, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(0.5f, 0.5f, 1.0f);
 			projDesc.modelSize = true;
 			projDesc.speed = 45.0f;
 			projDesc.speedRelative = true;
@@ -1292,8 +1292,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptImpulse;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "phaseRing"));
-			projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.0f);
-			projDesc.size = D3DXVECTOR3(0.5f, 0.5f, 1.0f);
+			projDesc.pos = glm::vec3(0, 0.0f, 0.0f);
+			projDesc.size = glm::vec3(0.5f, 0.5f, 1.0f);
 			projDesc.modelSize = false;
 			projDesc.speed = 20.0f;
 			projDesc.speedRelative = true;
@@ -1332,8 +1332,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\rocket"));
-			projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.0f);
-			projDesc.size = D3DXVECTOR3(0.0f, 0.0f, 1.3f);
+			projDesc.pos = glm::vec3(0, 0.0f, 0.0f);
+			projDesc.size = glm::vec3(0.0f, 0.0f, 1.3f);
 			projDesc.modelSize = true;
 			projDesc.speed = 40.0f;
 			projDesc.speedRelative = true;
@@ -1370,8 +1370,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\laserPulse"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(3.5f, 0.6f, 1.8f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(3.5f, 0.6f, 1.8f);
 			projDesc.modelSize = false;
 			projDesc.speed = 40.0f;
 			projDesc.speedRelative = true;
@@ -1409,9 +1409,9 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptFire;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "fire2"));
-			projDesc.pos = D3DXVECTOR3(0.4f, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(12.0, 1.5f, 1.5f);
-			projDesc.offset = D3DXVECTOR3(6.0, 0.0f, 0.0f);
+			projDesc.pos = glm::vec3(0.4f, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(12.0, 1.5f, 1.5f);
+			projDesc.offset = glm::vec3(6.0, 0.0f, 0.0f);
 			projDesc.modelSize = false;
 			projDesc.speed = 0.0f;
 			projDesc.maxDist = 12.0f;
@@ -1448,8 +1448,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptDrobilka;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "spark2"));
-			projDesc.pos = D3DXVECTOR3(1.3f, 0.0f, 0.0f);
-			projDesc.size = D3DXVECTOR3(2.1f, 0.5f, 0.5f);
+			projDesc.pos = glm::vec3(1.3f, 0.0f, 0.0f);
+			projDesc.size = glm::vec3(2.1f, 0.5f, 0.5f);
 			projDesc.modelSize = true;
 			projDesc.maxDist = 3.0f;
 			projDesc.mass = 100.0f;
@@ -1487,8 +1487,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptTorpeda;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\spherePulse"));
-			projDesc.pos = D3DXVECTOR3(0.1f, 0.0f, 0.15f);
-			projDesc.size = D3DXVECTOR3(0.5f, 0.5f, 0.5f);
+			projDesc.pos = glm::vec3(0.1f, 0.0f, 0.15f);
+			projDesc.size = glm::vec3(0.5f, 0.5f, 0.5f);
 			projDesc.modelSize = false;
 			projDesc.speed = 30.0f;
 			projDesc.speedRelativeMin = 20;
@@ -1526,7 +1526,7 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptTorpeda;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\torpeda"));
-			projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.2f);
+			projDesc.pos = glm::vec3(0, 0.0f, 0.2f);
 			projDesc.size = NullVector;
 			projDesc.modelSize = true;
 			projDesc.speed = 30.0f;
@@ -1566,8 +1566,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptMortira;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "mortiraBall"));
-			projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(0.5f, 0.5f, 1.0f);
+			projDesc.pos = glm::vec3(0, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(0.5f, 0.5f, 1.0f);
 			projDesc.modelSize = true;
 			projDesc.speed = 40.0f;
 			projDesc.speedRelative = true;
@@ -1607,9 +1607,9 @@ void Workshop::LoadWeapons()
 			projDesc.SetLibMat(_race->GetLibMat("Effect\\frostRay"));
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "frostHit"));
 			projDesc.SetModel2(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "frost"));
-			projDesc.pos = D3DXVECTOR3(0.7f, 0.0f, 0.3f);
+			projDesc.pos = glm::vec3(0.7f, 0.0f, 0.3f);
 			projDesc.rot = glm::angleAxis(D3DX_PI / 24.0f, Vec3DxToGlm(YVector));
-			projDesc.size = D3DXVECTOR3(0.5f, 0.5f, 0.0f);
+			projDesc.size = glm::vec3(0.5f, 0.5f, 0.0f);
 			projDesc.maxDist = 100.0f;
 			projDesc.damage = 19.0f/0.5f;
 			projDesc.minTimeLife = 1.0f;
@@ -1643,8 +1643,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "hyperBlaster"));
-			projDesc.pos = D3DXVECTOR3(1.0f, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(3.5f, 0.75f, 1.0f);
+			projDesc.pos = glm::vec3(1.0f, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(3.5f, 0.75f, 1.0f);
 			projDesc.modelSize = false;
 			projDesc.speed = 40.0f;
 			projDesc.speedRelative = true;
@@ -1682,9 +1682,9 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptMaslo;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\maslo"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
 			projDesc.modelSize = false;
-			projDesc.size = D3DXVECTOR3(1.5f, 1.5f, 1.7f);
+			projDesc.size = glm::vec3(1.5f, 1.5f, 1.7f);
 			projDesc.damage = 1.5f;
 
 			desc.projList.push_back(projDesc);
@@ -1717,8 +1717,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptMine;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\mine1"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
-			projDesc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
+			projDesc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 			projDesc.modelSize = true;
 			projDesc.damage = 11.0f;
 			projDesc.maxDist = 0.0f;
@@ -1756,8 +1756,8 @@ void Workshop::LoadWeapons()
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\mine2"));
 			projDesc.SetModel2(_race->GetDB()->GetRecord(MapObjLib::ctBonus, "mineRipKern"));
 			projDesc.SetModel3(_race->GetDB()->GetRecord(MapObjLib::ctBonus, "mineRipPiece"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
-			projDesc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
+			projDesc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 			projDesc.modelSize = true;
 			projDesc.damage = 20.0f;
 			projDesc.maxDist = 0.0f;
@@ -1794,8 +1794,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptMine;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\mine3"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
-			projDesc.size = D3DXVECTOR3(5.0f, 5.0f, 1.7f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
+			projDesc.size = glm::vec3(5.0f, 5.0f, 1.7f);
 			projDesc.modelSize = false;
 			projDesc.damage = 25.0f;
 			projDesc.maxDist = 0.0f;
@@ -1865,7 +1865,7 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptHyper;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "accelEff"));
-			projDesc.pos = D3DXVECTOR3(0.4f, 0.0f, 0.0f);
+			projDesc.pos = glm::vec3(0.4f, 0.0f, 0.0f);
 			projDesc.size = NullVector;
 			projDesc.modelSize = true;
 			projDesc.speed = 10.0f;
@@ -2462,7 +2462,7 @@ void Garage::Car::SetSlot(Player::SlotType type, const PlaceSlot& value)
 		_slot[type].defItem->AddRef();
 }
 
-void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, const D3DXVECTOR3* hyperDrive, bool spring, bool maslo, bool mineSpike, bool mineRip, bool mineProton, bool lockedMax)
+void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, const glm::vec3* hyperDrive, bool spring, bool maslo, bool mineSpike, bool mineRip, bool mineProton, bool lockedMax)
 {
 	for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 	{
@@ -2565,22 +2565,22 @@ void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, c
 			if (maslo)
 			{
 				place.items.push_back(&GetShop().GetSlot("maslo"));
-				place.pos = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+				place.pos = glm::vec3(0.0f, 0.0f, 0.0f);
 			}
 			if (mineSpike)
 			{
 				place.items.push_back(&GetShop().GetSlot("mine1"));
-				place.pos = D3DXVECTOR3(-1.0f, 0.0f, 0.0f);
+				place.pos = glm::vec3(-1.0f, 0.0f, 0.0f);
 			}
 			if (mineRip)
 			{
 				place.items.push_back(&GetShop().GetSlot("mine2"));
-				place.pos = D3DXVECTOR3(-1.0f, 0.0f, 0.0f);
+				place.pos = glm::vec3(-1.0f, 0.0f, 0.0f);
 			}
 			if (mineProton)
 			{
 				place.items.push_back(&GetShop().GetSlot("mine3"));
-				place.pos = D3DXVECTOR3(-1.0f, 0.0f, 0.0f);
+				place.pos = glm::vec3(-1.0f, 0.0f, 0.0f);
 			}
 			if (!place.items.empty())
 				place.defItem = place.items.back().slot;
@@ -2640,7 +2640,7 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.65f, 0.0f, 0.7f);
+			place.pos = glm::vec3(-0.65f, 0.0f, 0.7f);
 
 			place.items.push_back(&GetShop().GetSlot("bulletGun"));
 			place.defItem = place.items.front().slot;
@@ -2667,7 +2667,7 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(1.6f, 0.0f, 0.0f);
+			place.pos = glm::vec3(1.6f, 0.0f, 0.0f);
 
 			place.items.push_back(&GetShop().GetSlot("rifleWeapon"));
 			place.defItem = place.items.front().slot;
@@ -2679,7 +2679,7 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.38f, 0.0f, 1.1f);
+			place.pos = glm::vec3(-0.38f, 0.0f, 1.1f);
 
 			place.items.push_back(&GetShop().GetSlot("rocketLauncher"));
 
@@ -2700,13 +2700,13 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\manticoraWheel.txt");
 		car->SetCost(90000);
 
-		FillStandartSlots(car, "wheel", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, true, false, false, false);
+		FillStandartSlots(car, "wheel", true, &glm::vec3(-1.5f, 0.0f, 0.35f), false, false, true, false, false, false);
 
 		{
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(1.7f, 0.0f, 0.08f);
+			place.pos = glm::vec3(1.7f, 0.0f, 0.08f);
 
 			place.items.push_back(&GetShop().GetSlot("blasterGun"));
 			place.defItem = place.items.front().slot;
@@ -2718,8 +2718,8 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.0f, 1.0f, 0.3f);
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.0f, 1.0f, 0.3f);
+			glm::vec3 offset;
 
 			glm::quat rot = glm::angleAxis(-D3DX_PI / 3.0f, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
@@ -2730,7 +2730,7 @@ void Garage::LoadCars()
 			rot = glm::angleAxis(-D3DX_PI, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
-			offset = D3DXVECTOR3(1.25f, -0.3f, 0.05f);
+			offset = glm::vec3(1.25f, -0.3f, 0.05f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			car->SetSlot(Player::stWeapon2, place);
@@ -2739,8 +2739,8 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.0f, -1.0f, 0.3f);
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.0f, -1.0f, 0.3f);
+			glm::vec3 offset;
 
 			glm::quat rot = glm::angleAxis(D3DX_PI / 3.0f, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
@@ -2750,7 +2750,7 @@ void Garage::LoadCars()
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
 
-			offset = D3DXVECTOR3(1.25f, 0.3f, 0.05f);
+			offset = glm::vec3(1.25f, 0.3f, 0.05f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			car->SetSlot(Player::stWeapon3, place);
@@ -2775,13 +2775,13 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\gusenizaWheel.txt");
 		car->SetCost(140000);
 
-		FillStandartSlots(car, "gusWheel", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.25f), false, false, false, true, false, false);
+		FillStandartSlots(car, "gusWheel", true, &glm::vec3(-1.5f, 0.0f, 0.25f), false, false, false, true, false, false);
 
 		{
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.27f, 0.0f, 0.36f);
+			place.pos = glm::vec3(-0.27f, 0.0f, 0.36f);
 
 			place.items.push_back(&GetShop().GetSlot("tankLaser"));
 
@@ -2795,8 +2795,8 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.0f, 1.4f, 0.0f);
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.0f, 1.4f, 0.0f);
+			glm::vec3 offset;
 
 			glm::quat rot = glm::angleAxis(-D3DX_PI / 2.0f, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
@@ -2807,7 +2807,7 @@ void Garage::LoadCars()
 			rot = glm::angleAxis(-D3DX_PI, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
-			offset = D3DXVECTOR3(0.85f, -0.8f, 0.0f);
+			offset = glm::vec3(0.85f, -0.8f, 0.0f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
@@ -2819,7 +2819,7 @@ void Garage::LoadCars()
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
 			rot = glm::angleAxis(-D3DX_PI / 24.0f, Vec3DxToGlm(YVector));
-			offset = D3DXVECTOR3(0.85f, -0.6f, 0.0f);
+			offset = glm::vec3(0.85f, -0.6f, 0.0f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot, offset));
 
 			rot = glm::angleAxis(-D3DX_PI / 2.0f, Vec3DxToGlm(XVector));
@@ -2831,8 +2831,8 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.0f, -1.4f, 0.0f);
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.0f, -1.4f, 0.0f);
+			glm::vec3 offset;
 
 			glm::quat rot = glm::angleAxis(D3DX_PI / 2.0f, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
@@ -2842,7 +2842,7 @@ void Garage::LoadCars()
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
 
-			offset = D3DXVECTOR3(0.85f, 0.8f, 0.0f);
+			offset = glm::vec3(0.85f, 0.8f, 0.0f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
@@ -2854,7 +2854,7 @@ void Garage::LoadCars()
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
 			rot = glm::angleAxis(-D3DX_PI / 24.0f, Vec3DxToGlm(YVector));
-			offset = D3DXVECTOR3(0.85f, 0.6f, 0.0f);
+			offset = glm::vec3(0.85f, 0.6f, 0.0f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot, offset));
 
 			rot = glm::angleAxis(D3DX_PI / 2.0f, Vec3DxToGlm(XVector));
@@ -2882,13 +2882,13 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\podushkaWheel.txt");
 		car->SetCost(165000);
 
-		FillStandartSlots(car, "", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, false, false, true, false);
+		FillStandartSlots(car, "", true, &glm::vec3(-1.5f, 0.0f, 0.35f), false, false, false, false, true, false);
 
 		{
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.27f, 0.0f, 0.65f);
+			place.pos = glm::vec3(-0.27f, 0.0f, 0.65f);
 
 			place.items.push_back(&GetShop().GetSlot("sphereGun"));
 			place.defItem = place.items.front().slot;
@@ -2900,8 +2900,8 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.2f, 0.6f, 0.25f);
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.2f, 0.6f, 0.25f);
+			glm::vec3 offset;
 
 			glm::quat rot = glm::angleAxis(-D3DX_PI / 3.0f, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
@@ -2912,7 +2912,7 @@ void Garage::LoadCars()
 			rot = glm::angleAxis(-D3DX_PI, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
-			//offset = D3DXVECTOR3(1.2f, -0.05f, -0.1f);
+			//offset = glm::vec3(1.2f, -0.05f, -0.1f);
 			//place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
@@ -2935,8 +2935,8 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.2f, -0.6f, 0.25f);
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.2f, -0.6f, 0.25f);
+			glm::vec3 offset;
 
 			glm::quat rot = glm::angleAxis(D3DX_PI / 3.0f, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
@@ -2946,7 +2946,7 @@ void Garage::LoadCars()
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
 
-			//offset = D3DXVECTOR3(1.2f, 0.05f, -0.1f);
+			//offset = glm::vec3(1.2f, 0.05f, -0.1f);
 			//place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
@@ -2978,13 +2978,13 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\monstertruckWheelGUI.txt");
 		car->SetCost(200000);
 
-		FillStandartSlots(car, "wheel", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, false, true, false, false);
+		FillStandartSlots(car, "wheel", true, &glm::vec3(-1.5f, 0.0f, 0.35f), false, false, false, true, false, false);
 
 		{
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.8f, 0.0f, 0.65f);
+			place.pos = glm::vec3(-0.8f, 0.0f, 0.65f);
 
 			place.items.push_back(&GetShop().GetSlot("asyncFrost"));
 			place.defItem = place.items.front().slot;
@@ -2997,8 +2997,8 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.3f, 0.8f, 0.4f);
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.3f, 0.8f, 0.4f);
+			glm::vec3 offset;
 
 			glm::quat rot = glm::angleAxis(-D3DX_PI / 2.0f, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
@@ -3009,7 +3009,7 @@ void Garage::LoadCars()
 			rot = glm::angleAxis(-D3DX_PI, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
-			offset = D3DXVECTOR3(0.95f, -0.1f, -0.1f);
+			offset = glm::vec3(0.95f, -0.1f, -0.1f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
@@ -3032,8 +3032,8 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.3f, -0.8f, 0.4f);
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.3f, -0.8f, 0.4f);
+			glm::vec3 offset;
 
 			glm::quat rot = glm::angleAxis(D3DX_PI / 2.0f, Vec3DxToGlm(XVector));
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
@@ -3043,7 +3043,7 @@ void Garage::LoadCars()
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
 
-			offset = D3DXVECTOR3(0.95f, 0.1f, -0.1f);
+			offset = glm::vec3(0.95f, 0.1f, -0.1f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
@@ -3067,8 +3067,8 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(1.4f, 0.0f, 0.6f);
-			//D3DXVECTOR3 offset;
+			place.pos = glm::vec3(1.4f, 0.0f, 0.6f);
+			//glm::vec3 offset;
 
 			place.items.push_back(&GetShop().GetSlot("rocketLauncher"));
 
@@ -3076,7 +3076,7 @@ void Garage::LoadCars()
 
 			//place.items.push_back(&GetShop().GetSlot("fireGun"));
 			//
-			//offset = D3DXVECTOR3(0.1f, 0.0f, -0.15f);
+			//offset = glm::vec3(0.1f, 0.0f, -0.15f);
 			//place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
@@ -3105,13 +3105,13 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\devildriverWheel.txt");
 		car->SetCost(300000);
 
-		FillStandartSlots(car, "", false, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, false, false, true, false);
+		FillStandartSlots(car, "", false, &glm::vec3(-1.5f, 0.0f, 0.35f), false, false, false, false, true, false);
 
 		{
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.27f, 0.0f, 0.65f);
+			place.pos = glm::vec3(-0.27f, 0.0f, 0.65f);
 
 			place.items.push_back(&GetShop().GetSlot("sonar"));
 			place.defItem = place.items.front().slot;
@@ -3144,7 +3144,7 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(1.2f, 0.02f, 0.53f);
+			place.pos = glm::vec3(1.2f, 0.02f, 0.53f);
 
 			place.items.push_back(&GetShop().GetSlot("bulletGun"));
 			place.defItem = place.items.front().slot;
@@ -3171,7 +3171,7 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(1.88f, 0.0f, -0.22f);
+			place.pos = glm::vec3(1.88f, 0.0f, -0.22f);
 
 			place.items.push_back(&GetShop().GetSlot("rifleWeapon"));
 			place.defItem = place.items.front().slot;
@@ -3183,7 +3183,7 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.41f, 0.08f, 1.1f);
+			place.pos = glm::vec3(-0.41f, 0.08f, 1.1f);
 
 			place.items.push_back(&GetShop().GetSlot("rocketLauncher"));
 			place.defItem = place.items.front().slot;
@@ -3340,7 +3340,7 @@ Slot* Garage::InstalSlot(Player* player, Player::SlotType type, Car* car, Slot* 
 {
 	LSL_ASSERT(car->GetRecord() == player->GetCar().record);
 
-	D3DXVECTOR3 pos;
+	glm::vec3 pos;
 	glm::quat rot = NullQuaternion;
 	if (slot)
 	{
@@ -7468,9 +7468,9 @@ void Race::ResetCarPos()
 	const unsigned cRowLength = 4;
 	const float rowSpace = 7.0f;
 
-	D3DXVECTOR3 stPos = ZVector * 7.0f;
-	D3DXVECTOR3 dirVec = XVector;
-	D3DXVECTOR3 lineVec = YVector;
+	glm::vec3 stPos = ZVector * 7.0f;
+	glm::vec3 dirVec = XVector;
+	glm::vec3 lineVec = YVector;
 	float nodeWidth = 10.0f;
 
 	if (!GetMap()->GetTrace().GetPoints().empty())
@@ -7486,8 +7486,8 @@ void Race::ResetCarPos()
 			glm::vec2 dir2 = node->GetTile().GetDir();
 			glm::vec2 norm2 = node->GetTile().GetNorm();
 
-			dirVec = D3DXVECTOR3(dir2.x, dir2.y, 0);
-			lineVec = D3DXVECTOR3(norm2.x, norm2.y, 0);
+			dirVec = glm::vec3(dir2.x, dir2.y, 0);
+			lineVec = glm::vec3(norm2.x, norm2.y, 0);
 		}
 	}
 
@@ -7523,7 +7523,7 @@ void Race::ResetCarPos()
 		if (mapObj)
 		{
 			AABB aabb = gameObj->GetGrActor().GetLocalAABB(true);
-			D3DXVECTOR3 size = aabb.GetSizes();
+			glm::vec3 size = aabb.GetSizes();
 
 			//dirVec начинается с небольшого порога чтобы машина не оказалась на последнем тайле
 			gameObj->SetWorldPos(stPos + dirVec * (0.1f - i / 4 * rowSpace) + lineVec * (-nodeWidth / 2.0f + spaceY + size.y/2.0f + stepY));

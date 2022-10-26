@@ -6,7 +6,7 @@
 //This file contains parts of WINE project source code for d3dx9math licensed under GPLv2
 
 //Implementation copied from WINE project d3dx9_36/math.c
-D3DXVECTOR3* D3DXVec3Normalize(D3DXVECTOR3* out, const D3DXVECTOR3* pv) {
+glm::vec3* D3DXVec3Normalize(glm::vec3* out, const glm::vec3* pv) {
     FLOAT norm = pv->norm();
     if (!norm) {
         out->x = 0.0f;
@@ -22,7 +22,7 @@ D3DXVECTOR3* D3DXVec3Normalize(D3DXVECTOR3* out, const D3DXVECTOR3* pv) {
 }
 
 //Implementation copied from WINE project d3dx9_36/math.c
-D3DXVECTOR4* D3DXVec3Transform(D3DXVECTOR4* out, const D3DXVECTOR3* pv, const D3DXMATRIX* pm) {
+D3DXVECTOR4* D3DXVec3Transform(D3DXVECTOR4* out, const glm::vec3* pv, const D3DXMATRIX* pm) {
     D3DXVECTOR4 result;
 
     result.x = pm->m[0][0] * pv->x + pm->m[1][0] * pv->y + pm->m[2][0] * pv->z + pm->m[3][0];
@@ -34,8 +34,8 @@ D3DXVECTOR4* D3DXVec3Transform(D3DXVECTOR4* out, const D3DXVECTOR3* pv, const D3
 }
 
 //Implementation copied from WINE project d3dx9_36/math.c
-D3DXVECTOR3* D3DXVec3TransformNormal(D3DXVECTOR3* out, const D3DXVECTOR3* pv, const D3DXMATRIX* pm) {
-    const D3DXVECTOR3 v = *pv;
+glm::vec3* D3DXVec3TransformNormal(glm::vec3* out, const glm::vec3* pv, const D3DXMATRIX* pm) {
+    const glm::vec3 v = *pv;
 
     out->x = pm->m[0][0] * v.x + pm->m[1][0] * v.y + pm->m[2][0] * v.z;
     out->y = pm->m[0][1] * v.x + pm->m[1][1] * v.y + pm->m[2][1] * v.z;
@@ -175,8 +175,8 @@ D3DXMATRIX* D3DXMatrixTranspose(D3DXMATRIX* out, const D3DXMATRIX* pm) {
 }
 
 //Implementation copied from WINE project d3dx9_36/math.c
-D3DXMATRIX * D3DXMatrixLookAtLH(D3DXMATRIX *out, const D3DXVECTOR3 *eye, const D3DXVECTOR3 *at, const D3DXVECTOR3 *up) {
-    D3DXVECTOR3 right, upn, vec;
+D3DXMATRIX * D3DXMatrixLookAtLH(D3DXMATRIX *out, const glm::vec3 *eye, const glm::vec3 *at, const glm::vec3 *up) {
+    glm::vec3 right, upn, vec;
 
     vec = *at - *eye;
     D3DXVec3Normalize(&vec, &vec);

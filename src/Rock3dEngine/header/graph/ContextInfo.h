@@ -169,9 +169,9 @@ struct CameraDesc
 	//ширина плоскости на которую проецируется изображение для csOrtho, csViewPort матриц
 	float width;
 
-	D3DXVECTOR3 pos;
-	D3DXVECTOR3 dir;
-	D3DXVECTOR3 up;
+	glm::vec3 pos;
+	glm::vec3 dir;
+	glm::vec3 up;
 };
 
 struct LightDesc
@@ -215,9 +215,9 @@ struct LightDesc
 	float theta;
 	float phi;
 
-	D3DXVECTOR3 pos;
-	D3DXVECTOR3 dir;
-	D3DXVECTOR3 up;
+	glm::vec3 pos;
+	glm::vec3 dir;
+	glm::vec3 up;
 
 	//Карта теней в пространстве текущей камеры
 	Tex2DResource* shadowMap;
@@ -267,8 +267,8 @@ public:
 	void GetWVPPerspective(D3DXMATRIX& mat) const;
 	void SetProjMat(const D3DXMATRIX& value);
 
-	D3DXVECTOR3 ScreenToWorld(const glm::vec2& coord, float z, const glm::vec2& viewSize) const;
-	glm::vec2 WorldToScreen(const D3DXVECTOR3& coord, const glm::vec2& viewSize) const;
+	glm::vec3 ScreenToWorld(const glm::vec2& coord, float z, const glm::vec2& viewSize) const;
+	glm::vec2 WorldToScreen(const glm::vec3& coord, const glm::vec2& viewSize) const;
 
 	const CameraDesc& GetDesc() const;
 	void SetDesc(const CameraDesc& value);

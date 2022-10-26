@@ -118,14 +118,14 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 		case smNone:
 			if (_clDrag)
 			{
-				if (!_startDrag && D3DXVec3Length(&_clDragOff) > 0.1f)
+				if (!_startDrag && glm::length(_clDragOff) > 0.1f)
 				{
 					_startDrag = true;
 					selNode->OnStartDrag(mMove.scrRayPos, mMove.scrRayVec);
 				}
 				if (_startDrag)
 				{
-					D3DXVECTOR3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, dmView, _clDragOff);
+					glm::vec3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, dmView, _clDragOff);
 					selNode->OnDrag(pos, mMove.scrRayPos, mMove.scrRayVec);
 				}
 			}
@@ -140,7 +140,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				if (!_shiftAction && mMove.shift1)
 				{
 					graph::MovCoordSys::DirMove dirMove = _clDirMove;
-					D3DXVECTOR3 clDirOff = _clDirOff;
+					glm::vec3 clDirOff = _clDirOff;
 
 					selNode->OnShiftAction(mMove.scrRayPos, mMove.scrRayVec);
 
@@ -150,7 +150,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 					shitMovUpdate = true;
 				}
 
-				D3DXVECTOR3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, DMCoordMoveToSC[_clDirMove], _clDirOff);
+				glm::vec3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, DMCoordMoveToSC[_clDirMove], _clDirOff);
 				selNode->SetPos(pos);
 				_owner->_movCoordSys->SetWorldPos(pos);
 
@@ -196,7 +196,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				if (!_shiftAction && mMove.shift1)
 				{
 					graph::ScaleCoordSys::DirMove clScDirMove = _clScDirMove;
-					D3DXVECTOR3 clStScale = _clStScale;
+					glm::vec3 clStScale = _clStScale;
 
 					selNode->OnShiftAction(mMove.scrRayPos, mMove.scrRayVec);
 
@@ -210,16 +210,16 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 			switch (_clScDirMove)
 			{
 			case graph::ScaleCoordSys::dmXYZ:
-				selNode->SetScale(_clStScale + D3DXVECTOR3(fS.y, fS.y, fS.y));
+				selNode->SetScale(_clStScale + glm::vec3(fS.y, fS.y, fS.y));
 				break;
 			case graph::ScaleCoordSys::dmX:
-				selNode->SetScale(_clStScale + D3DXVECTOR3(fS.x, 0, 0));
+				selNode->SetScale(_clStScale + glm::vec3(fS.x, 0, 0));
 				break;
 			case graph::ScaleCoordSys::dmY:
-				selNode->SetScale(_clStScale + D3DXVECTOR3(0, fS.x, 0));
+				selNode->SetScale(_clStScale + glm::vec3(0, fS.x, 0));
 				break;
 			case graph::ScaleCoordSys::dmZ:
-				selNode->SetScale(_clStScale + D3DXVECTOR3(0, 0, fS.y));
+				selNode->SetScale(_clStScale + glm::vec3(0, 0, fS.y));
 				break;
 			}
 			return true;
@@ -231,7 +231,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 	{
 	case smLink:
 	{
-		D3DXVECTOR3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, dmXY, NullVector);
+		glm::vec3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, dmXY, NullVector);
 		selNode->SetPos(pos);
 		break;
 	}
@@ -249,7 +249,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 	return false;
 }
 
-bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorld, const D3DXMATRIX& worldToAABB, const D3DXVECTOR3& normOff, INode* ignore, float& outDistOff, const float distLink)
+bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorld, const D3DXMATRIX& worldToAABB, const glm::vec3& normOff, INode* ignore, float& outDistOff, const float distLink)
 {
 	bool res = false;
 	outDistOff = distLink;
@@ -276,12 +276,12 @@ bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorl
 	return res;
 }
 
-void SceneControl::ComputeLink(INode* node, const D3DXVECTOR3& pos, D3DXVECTOR3& resPos)
+void SceneControl::ComputeLink(INode* node, const glm::vec3& pos, glm::vec3& resPos)
 {
-	D3DXVECTOR3 oldPos = node->GetPos();
-	D3DXVECTOR3 offset = pos - oldPos;
+	glm::vec3 oldPos = node->GetPos();
+	glm::vec3 offset = pos - oldPos;
 
-	D3DXVECTOR3 newOff = offset;
+	glm::vec3 newOff = offset;
 	bool repeat = false;
 	unsigned repCnt = 0;
 	//Перемещение раскладывается на орты в системе координат mapObj, и по каждой орте ищется возможный  link. Если их несколько то процесс продолжается пока не будет наден близкий к нулю link или пока не истечет заданное число итераций (сделано на случай неопреденных ситуаций чтобы избежать зацикливания)
@@ -408,9 +408,9 @@ void SceneControl::ApplySelMode()
 	}
 }
 
-D3DXVECTOR3 SceneControl::ComputePoint(const D3DXVECTOR3& curPos, const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, DirMove dirMove, const D3DXVECTOR3& centerOff)
+glm::vec3 SceneControl::ComputePoint(const glm::vec3& curPos, const glm::vec3& rayStart, const glm::vec3& rayVec, DirMove dirMove, const glm::vec3& centerOff)
 {
-	D3DXVECTOR3 planeNorm;
+	glm::vec3 planeNorm;
 
 	switch (dirMove)
 	{
@@ -443,10 +443,10 @@ D3DXVECTOR3 SceneControl::ComputePoint(const D3DXVECTOR3& curPos, const D3DXVECT
 		(dirMove == dmZ || dirMove == dmXZ || dirMove == dmYZ || dirMove == dmView)
 	};
 
-	D3DXVECTOR3 pos = curPos;
+	glm::vec3 pos = curPos;
 	D3DXPLANE plane;
 	D3DXPlaneFromPointNormal(&plane, &pos, &planeNorm);
-	D3DXVECTOR3 newPos;
+	glm::vec3 newPos;
 	if (abs(D3DXVec3Dot(&planeNorm, &rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
 	{
 		newPos = NullVector;
@@ -465,9 +465,9 @@ D3DXVECTOR3 SceneControl::ComputePoint(const D3DXVECTOR3& curPos, const D3DXVECT
 	return newPos;
 }
 
-D3DXVECTOR3 SceneControl::ComputePos(INode* node, const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, DirMove dirMove, const D3DXVECTOR3& centerOff)
+glm::vec3 SceneControl::ComputePos(INode* node, const glm::vec3& rayStart, const glm::vec3& rayVec, DirMove dirMove, const glm::vec3& centerOff)
 {
-	D3DXVECTOR3 newPos = ComputePoint(node->GetPos(), rayStart, rayVec, dirMove, centerOff);
+	glm::vec3 newPos = ComputePoint(node->GetPos(), rayStart, rayVec, dirMove, centerOff);
 
 	if (_linkBB)
 		ComputeLink(node, newPos, newPos);

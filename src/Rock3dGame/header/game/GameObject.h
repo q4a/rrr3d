@@ -81,31 +81,31 @@ private:
 	int _touchPlayerId;
 	float _touchPlayerTime;
 
-	D3DXVECTOR3 _posSync;
-	D3DXVECTOR3 _posSyncDir;
+	glm::vec3 _posSync;
+	glm::vec3 _posSyncDir;
 	float _posSyncLength;
 
 	glm::quat _rotSync;
-	D3DXVECTOR3 _rotSyncAxis;
+	glm::vec3 _rotSyncAxis;
 	float _rotSyncAngle;
 
-	D3DXVECTOR3 _posSync2;
-	D3DXVECTOR3 _posSyncDir2;
+	glm::vec3 _posSync2;
+	glm::vec3 _posSyncDir2;
 	float _posSyncDist2;
 	float _posSyncLength2;
 
 	glm::quat _rotSync2;
-	D3DXVECTOR3 _rotSyncAxis2;
+	glm::vec3 _rotSyncAxis2;
 	float _rotSyncAngle2;
 	float _rotSyncLength2;
 
-	D3DXVECTOR3 _pxPosLerp;
+	glm::vec3 _pxPosLerp;
 	glm::quat _pxRotLerp;
-	D3DXVECTOR3 _pxVelocityLerp;
+	glm::vec3 _pxVelocityLerp;
 
-	D3DXVECTOR3 _pxPrevPos;
+	glm::vec3 _pxPrevPos;
 	glm::quat _pxPrevRot;
-	D3DXVECTOR3 _pxPrevVelocity;
+	glm::vec3 _pxPrevVelocity;
 
 	void SetSyncFrameEvent(bool value);
 	void SetBodyProgressEvent(bool value);
@@ -124,7 +124,7 @@ protected:
 	void RegFixedStepEvent();
 	void UnregFixedStepEvent();
 
-	D3DXVECTOR3 GetContactPoint(const px::Scene::OnContactEvent& contact);
+	glm::vec3 GetContactPoint(const px::Scene::OnContactEvent& contact);
 	bool ContainsContactGroup(NxContactStreamIterator& contIter, unsigned actorIndex, px::Scene::CollDisGroup group);
 
 	//изменения ссылки на объект логки, хак
@@ -138,7 +138,7 @@ protected:
 
 	virtual void OnImmortalStatus(bool status) {}
 
-	void RayCastClosestActor(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayDir, NxShapesType shapesType, RayCastHit& hit, unsigned groups = 0xFFFFFFFF, unsigned mask = 0, float maxDist = NX_MAX_F32);
+	void RayCastClosestActor(const glm::vec3& rayStart, const glm::vec3& rayDir, NxShapesType shapesType, RayCastHit& hit, unsigned groups = 0xFFFFFFFF, unsigned mask = 0, float maxDist = NX_MAX_F32);
 
 	void DoDeath(DamageType damageType = dtSimple, GameObject* target = NULL);
 	void SendDeath(DamageType damageType = dtSimple, GameObject* target = NULL);
@@ -214,45 +214,45 @@ public:
 	//Интерфейс пользователя для изменения трансформации
 	//Локальные трансформации
 	//Позиция
-	const D3DXVECTOR3& GetPos() const;
-	virtual void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos() const;
+	virtual void SetPos(const glm::vec3& value);
 	//Растяжение
-	const D3DXVECTOR3& GetScale() const;
-	virtual void SetScale(const D3DXVECTOR3& value);
+	const glm::vec3& GetScale() const;
+	virtual void SetScale(const glm::vec3& value);
 	void SetScale(float value);
 	//Поворот
 	const glm::quat& GetRot() const;
 	virtual void SetRot(const glm::quat& value);
 	//Абсолютные трансформации
 	//Позиция
-	D3DXVECTOR3 GetWorldPos() const;
-	virtual void SetWorldPos(const D3DXVECTOR3& value);
+	glm::vec3 GetWorldPos() const;
+	virtual void SetWorldPos(const glm::vec3& value);
 	//Поворот
 	glm::quat GetWorldRot() const;
 	virtual void SetWorldRot(const glm::quat& value);
 
-	void SetWorldDir(const D3DXVECTOR3& value);
-	void SetWorldUp(const D3DXVECTOR3& value);
+	void SetWorldDir(const glm::vec3& value);
+	void SetWorldUp(const glm::vec3& value);
 
-	const D3DXVECTOR3& GetPosSync() const;
-	void SetPosSync(const D3DXVECTOR3& value);
+	const glm::vec3& GetPosSync() const;
+	void SetPosSync(const glm::vec3& value);
 
 	const glm::quat& GetRotSync() const;
 	void SetRotSync(const glm::quat& value);
 
-	const D3DXVECTOR3& GetPosSync2() const;
-	void SetPosSync2(const D3DXVECTOR3& curSync, const D3DXVECTOR3& newSync);
+	const glm::vec3& GetPosSync2() const;
+	void SetPosSync2(const glm::vec3& curSync, const glm::vec3& newSync);
 
 	const glm::quat& GetRotSync2() const;
 	void SetRotSync2(const glm::quat& curSync, const glm::quat& newSync);
 
-	const D3DXVECTOR3& GetPxPosLerp() const;
+	const glm::vec3& GetPxPosLerp() const;
 	const glm::quat& GetPxRotLerp() const;
-	const D3DXVECTOR3& GetPxVelocityLerp() const;
+	const glm::vec3& GetPxVelocityLerp() const;
 
-	const D3DXVECTOR3& GetPxPrevPos() const;
+	const glm::vec3& GetPxPrevPos() const;
 	const glm::quat& GetPxPrevRot() const;
-	const D3DXVECTOR3& GetPxPrevVelocity() const;
+	const glm::vec3& GetPxPrevVelocity() const;
 
 	LiveState GetLiveState() const;
 

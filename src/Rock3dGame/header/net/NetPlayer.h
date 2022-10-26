@@ -127,7 +127,7 @@ private:
 		}
 	};
 
-	typedef std::vector<D3DXVECTOR3> CoordList;
+	typedef std::vector<glm::vec3> CoordList;
 public:
 	struct DescData
 	{
@@ -201,7 +201,7 @@ public:
 	void Shot(MapObj* target);
 
 	void TakeBonus(MapObj* bonus, GameObject::BonusType type, float value);
-	void MineContact(Proj* sender, const D3DXVECTOR3& point);
+	void MineContact(Proj* sender, const glm::vec3& point);
 
 	int GetGamerId() const;
 	void SetGamerId(int value);

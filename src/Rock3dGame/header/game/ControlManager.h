@@ -19,8 +19,8 @@ struct MouseClick
 	glm::vec2 projCoord;
 
 	//экранный луч в мировом пространстве
-	D3DXVECTOR3 scrRayPos;
-	D3DXVECTOR3 scrRayVec;
+	glm::vec3 scrRayPos;
+	glm::vec3 scrRayVec;
 };
 
 struct MouseMove
@@ -41,8 +41,8 @@ struct MouseMove
 	MouseClick click;
 
 	//экранный луч в мировом пространстве
-	D3DXVECTOR3 scrRayPos;
-	D3DXVECTOR3 scrRayVec;
+	glm::vec3 scrRayPos;
+	glm::vec3 scrRayVec;
 };
 
 enum AsyncKey

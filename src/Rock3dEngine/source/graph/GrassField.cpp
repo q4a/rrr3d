@@ -37,13 +37,13 @@ void GrassField::BuildField()
 	//Общее число спрайтов
 	int maxSprites = numX * numY;
 	//Шаг размещения
-	D3DXVECTOR3 step(_fieldWidth/numX, _fieldHeight/numY, 0.0f);
+	glm::vec3 step(_fieldWidth/numX, _fieldHeight/numY, 0.0f);
 	//Заполняем
-	std::vector<D3DXVECTOR3> mapPos(maxSprites);
+	std::vector<glm::vec3> mapPos(maxSprites);
 	int ind = 0;
 	for (int i = -Floor<int>(numX/2.0f); i < Ceil<int>(numX/2.0f) - 1; ++i)
 		for (int j = -Floor<int>(numY/2.0f); j < Ceil<int>(numY/2.0f) - 1; ++j, ++ind)
-			mapPos[ind] = D3DXVECTOR3(step.x/2 + i * step.x, step.y/2 + j * step.y, step.z);
+			mapPos[ind] = glm::vec3(step.x/2 + i * step.x, step.y/2 + j * step.y, step.z);
 	std::random_shuffle(mapPos.begin(), mapPos.end());
 
 	//Суммарный вес
@@ -78,7 +78,7 @@ void GrassField::BuildField()
 				int ind = (spriteOff + k);
 				int vert = ind * 6;
 
-				D3DXVECTOR3 pos(mapPos[ind]);
+				glm::vec3 pos(mapPos[ind]);
 				pos.x += _disp * Random();
 				pos.y += _disp * Random();
 
@@ -112,7 +112,7 @@ void GrassField::BuildField()
 
 void GrassField::DrawField(graph::Engine& engine, const Field& field)
 {
-	AABB aabb(D3DXVECTOR3(_fieldWidth, _fieldHeight, 2.0f));
+	AABB aabb(glm::vec3(_fieldWidth, _fieldHeight, 2.0f));
 	aabb.Offset(field.pos);
 	aabb.Transform(GetWorldMat());
 	if (engine.GetContext().GetCamera().GetFrustum().ContainsAABB(aabb) == Frustum::scNoOverlap)
@@ -162,7 +162,7 @@ void GrassField::Rebuild()
 		for (int j = 0; j < fieldNumY; ++j)
 		{
 			int ind = i * fieldNumY + j;
-			_fieldList[ind].pos = D3DXVECTOR3((i + 0.5f) * _fieldWidth - _width / 2.0f, (j + 0.5f) * _fieldHeight - _height / 2.0f, 0.0f);
+			_fieldList[ind].pos = glm::vec3((i + 0.5f) * _fieldWidth - _width / 2.0f, (j + 0.5f) * _fieldHeight - _height / 2.0f, 0.0f);
 		}
 
 	BuildField();
@@ -170,7 +170,7 @@ void GrassField::Rebuild()
 
 AABB GrassField::LocalDimensions() const
 {
-	return AABB(D3DXVECTOR3(GetWidth(), GetHeight(), 2.0f));
+	return AABB(glm::vec3(GetWidth(), GetHeight(), 2.0f));
 }
 
 void GrassField::DoRender(graph::Engine& engine)
@@ -185,7 +185,7 @@ void GrassField::DoRender(graph::Engine& engine)
 	engine.GetContext().SetRenderState(graph::rsAlphaFunc, D3DCMP_GREATEREQUAL);
 	engine.GetContext().SetRenderState(graph::rsAlphaTestEnable, true);
 
-	D3DXVECTOR3 fogParamsVec = D3DXVECTOR3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
+	glm::vec3 fogParamsVec = glm::vec3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
 	if (fogParamsVec.z != 0)
 	{
 		DWORD dwVal = engine.GetContext().GetRenderState(rsFogStart);

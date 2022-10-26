@@ -20,7 +20,7 @@ protected:
 	static const lsl::string cLightPropStr[cLightPropEnd];
 	static const lsl::string cMyParamStr[cMyParamEnd];
 private:
-	D3DXVECTOR3 _viewPos;
+	glm::vec3 _viewPos;
 	float _texDiffK;
 
 	MacroBlock* _lightMacro[cLightTypeEnd][cLightPropEnd];
@@ -41,8 +41,8 @@ public:
 	LightShader();
 	virtual ~LightShader();
 
-	const D3DXVECTOR3& GetViewPos() const;
-	void SetViewPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetViewPos() const;
+	void SetViewPos(const glm::vec3& value);
 
 	float GetTexDiffK() const;
 	void SetTexDiffK(float value);

@@ -229,9 +229,9 @@ private:
 	Children _children;
 	bool _active;
 
-	D3DXVECTOR3 _pos;
+	glm::vec3 _pos;
 	glm::quat _rot;
-	D3DXVECTOR3 _scale;
+	glm::vec3 _scale;
 
 	Material* _material;
 	bool _createMat;
@@ -254,14 +254,14 @@ public:
 
 	Context& GetContext();
 
-	const D3DXVECTOR3& GetPos() const;
-	void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos() const;
+	void SetPos(const glm::vec3& value);
 
 	glm::quat GetRot() const;
 	void SetRot(const glm::quat& value);
 
-	const D3DXVECTOR3& GetScale() const;
-	void SetScale(const D3DXVECTOR3& value);
+	const glm::vec3& GetScale() const;
+	void SetScale(const glm::vec3& value);
 
 	D3DXMATRIX GetMat();
 	D3DXMATRIX GetWorldMat();
@@ -536,7 +536,7 @@ private:
 	float _rot;
 
 	bool _coord3d;
-	D3DXVECTOR3 _pos3d;
+	glm::vec3 _pos3d;
 
 	mutable D3DXMATRIX _matrix[cMatrixChangeEnd];
 	mutable MatrixChanges _matrixChanges;
@@ -698,8 +698,8 @@ public:
 	bool GetCoord3d() const;
 	void SetCoord3d(bool value);
 
-	const D3DXVECTOR3& GetPos3d() const;
-	void SetPos3d(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos3d() const;
+	void SetPos3d(const glm::vec3& value);
 
 	glm::vec2 GetWorldPos() const;
 	void SetWorldPos(const glm::vec2& value);
@@ -1629,7 +1629,7 @@ public:
 	void SetCamera3d(graph::Camera* value);
 
 	glm::vec2 ScreenToView(const Point& point);
-	glm::vec2 WorldToView( const D3DXVECTOR3& coord);
+	glm::vec2 WorldToView( const glm::vec3& coord);
 
 	MouseClick GetMouseClick(Widget* widget) const;
 	MouseMove GetMouseMove(Widget* widget) const;

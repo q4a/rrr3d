@@ -496,7 +496,7 @@ public:
 	};
 private:
 	MyReport* _myReport;
-	D3DXVECTOR3 _pos3d;
+	glm::vec3 _pos3d;
 	float _distScaler;
 
 	X3DAUDIO_EMITTER _xEmitter;
@@ -523,8 +523,8 @@ public:
 	virtual void Stop();
 	virtual bool IsPlaying() const;
 
-	const D3DXVECTOR3& GetPos3d();
-	void SetPos3d(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos3d();
+	void SetPos3d(const glm::vec3& value);
 
 	float GetDistScaler() const;
 	void SetDistScaler(float value);
@@ -534,7 +534,7 @@ struct Listener
 {
 	Listener(): pos(NullVector), rot(NullQuaternion) {}
 
-	D3DXVECTOR3 pos;
+	glm::vec3 pos;
 	glm::quat rot;
 };
 

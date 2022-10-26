@@ -51,7 +51,7 @@ std::pair<GraphManager::GraphOption, Environment::Quality> Environment::cEnvGrap
 
 Environment::Environment(World* world): _world(world), _wheater(ewClody), _worldType(wtWorld1), _syncFrameRate(sfrFixed), _sun(0), _shadowQuality(eqLow), _lightQuality(eqLow), _postEffQuality(eqLow), _envQuality(eqLow), _filtering(efLinear), _multisampling(emNone), _editMode(false), _startScene(false), _enableRain(false), _rain(0)
 {
-	_sunPos = D3DXVECTOR3(150, 150, 150.0f);
+	_sunPos = glm::vec3(150, 150, 150.0f);
 	_sunRot = NullQuaternion;
 
 	ZeroMemory(_lamp, sizeof(_lamp));
@@ -724,7 +724,7 @@ void Environment::ProcessScene(float dt)
 		graph::FxEmitter::ParticleDesc desc = em->GetParticleDesc();
 
 		bool dir = _world->GetControl()->GetAsyncKey(VK_CONTROL);
-		D3DXVECTOR3 vec = dir ? desc.startPos.GetMax() : desc.startPos.GetMin();
+		glm::vec3 vec = dir ? desc.startPos.GetMax() : desc.startPos.GetMin();
 
 		if (_world->GetControl()->GetAsyncKey('W'))
 			vec.x += 3.0f * dt;
@@ -748,7 +748,7 @@ void Environment::ProcessScene(float dt)
 	}*/
 }
 
-const D3DXVECTOR3& Environment::GetSunPos() const
+const glm::vec3& Environment::GetSunPos() const
 {
 	if (_sun)
 		_sunPos = _sun->GetSource()->GetPos();
@@ -756,7 +756,7 @@ const D3DXVECTOR3& Environment::GetSunPos() const
 	return _sunPos;
 }
 
-void Environment::SetSunPos(const D3DXVECTOR3& value)
+void Environment::SetSunPos(const glm::vec3& value)
 {
 	_sunPos = value;
 
@@ -780,12 +780,12 @@ void Environment::SetSunRot(const glm::quat& value)
 		_sun->GetSource()->SetRot(_sunRot);
 }
 
-const D3DXVECTOR3& Environment::GetLampPos(int index) const
+const glm::vec3& Environment::GetLampPos(int index) const
 {
 	return _lampPos[index];
 }
 
-void Environment::SetLampPos(const D3DXVECTOR3& value, int index)
+void Environment::SetLampPos(const glm::vec3& value, int index)
 {
 	_lampPos[index] = value;
 

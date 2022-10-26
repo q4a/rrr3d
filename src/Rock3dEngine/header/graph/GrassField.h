@@ -40,7 +40,7 @@ public:
 
 	struct Field
 	{
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 	};
 	typedef lsl::Vector<Field> FieldList;
 

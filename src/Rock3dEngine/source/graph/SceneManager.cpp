@@ -135,8 +135,8 @@ void BaseSceneNode::ExtractRotation(_RotationStyle style) const
 			break;
 
 		case rsVectors:
-			_direction = D3DXVECTOR3(_rotMat.m[0]);
-			_up = D3DXVECTOR3(_rotMat.m[2]);
+			_direction = glm::vec3(_rotMat.m[0]);
+			_up = glm::vec3(_rotMat.m[2]);
 			break;
 		}
 		_rotInvalidate.reset(style);
@@ -460,8 +460,8 @@ void BaseSceneNode::OnProgress(float deltaTime)
 
 		if (autoRot)
 		{
-			D3DXVECTOR3 dir;
-			D3DXVec3Normalize(&dir, &speedPos);
+			glm::vec3 dir;
+			dir = glm::normalize(speedPos);
 			glm::quat rot;
 			QuatShortestArc(XVector, dir, rot);
 			SetRot(speedRot * rot);
@@ -493,22 +493,22 @@ void BaseSceneNode::StructureChanged()
 	NotifyChanged(this, 0);
 }
 
-void BaseSceneNode::MoveAroundTarget(const D3DXVECTOR3& worldTarget, float pitchDelta, float turnDelta)
+void BaseSceneNode::MoveAroundTarget(const glm::vec3& worldTarget, float pitchDelta, float turnDelta)
 {
 	// normalT2C points away from the direction the camera is looking
-	D3DXVECTOR3 originalT2C = GetWorldPos() - worldTarget;
-	D3DXVECTOR3 normalT2C = originalT2C;		
-	float dist = D3DXVec3Length(&normalT2C);
-	D3DXVec3Normalize(&normalT2C, &normalT2C);	
+	glm::vec3 originalT2C = GetWorldPos() - worldTarget;
+	glm::vec3 normalT2C = originalT2C;		
+	float dist = glm::length(normalT2C);
+	normalT2C = glm::normalize(normalT2C);	
 	// normalRight points to the camera's right
 	// the camera is pitching around this axis.
-	D3DXVECTOR3 normalCameraRight;
-	D3DXVECTOR3 worldUp = GetWorldUp();
+	glm::vec3 normalCameraRight;
+	glm::vec3 worldUp = GetWorldUp();
 	D3DXVec3Cross(&normalCameraRight, &worldUp, &normalT2C);
-	if (D3DXVec3Length(&normalCameraRight) < 0.001f)
+	if (glm::length(normalCameraRight) < 0.001f)
 		normalCameraRight = XVector;
 	else
-		D3DXVec3Normalize(&normalCameraRight, &normalCameraRight);
+		normalCameraRight = glm::normalize(normalCameraRight);
 	// calculate the current pitch.
 	// 0 is looking down and PI is looking up		
 	float pitchNow = acos(D3DXVec3Dot(&worldUp, &normalT2C));		
@@ -524,13 +524,13 @@ void BaseSceneNode::MoveAroundTarget(const D3DXVECTOR3& worldTarget, float pitch
 	D3DXVec3TransformNormal(&normalT2C, &normalT2C, &pitchMat);
 	D3DXVec3TransformNormal(&normalT2C, &normalT2C, &turnMat);
 	normalT2C *= dist;
-	D3DXVECTOR3 newPos = GetWorldPos() + (normalT2C - originalT2C);
+	glm::vec3 newPos = GetWorldPos() + (normalT2C - originalT2C);
 	if (_parent)
 		_parent->WorldToLocalCoord(newPos, newPos);	
 	SetPos(newPos);	
 }
 
-void BaseSceneNode::AdjustDistToTarget(const D3DXVECTOR3& worldTarget, float distance)
+void BaseSceneNode::AdjustDistToTarget(const glm::vec3& worldTarget, float distance)
 {
 	SetWorldPos(worldTarget + GetWorldDir() * (-distance));
 }
@@ -541,12 +541,12 @@ void BaseSceneNode::WorldToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
 	D3DXVec4Transform(&out, &vec, &mat);
 }
 
-void BaseSceneNode::WorldToLocalCoord(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const
+void BaseSceneNode::WorldToLocalCoord(const glm::vec3& vec, glm::vec3& out) const
 {
 	D3DXVec3TransformCoord(&out, &vec, &GetInvWorldMat());
 }
 
-void BaseSceneNode::WorldToLocalNorm(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const
+void BaseSceneNode::WorldToLocalNorm(const glm::vec3& vec, glm::vec3& out) const
 {
 	D3DXVec3TransformNormal(&out, &vec, &GetInvWorldMat());
 }
@@ -556,12 +556,12 @@ void BaseSceneNode::LocalToWorld(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
 	D3DXVec4Transform(&out, &vec, &GetWorldMat());
 }
 
-void BaseSceneNode::LocalToWorldCoord(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const
+void BaseSceneNode::LocalToWorldCoord(const glm::vec3& vec, glm::vec3& out) const
 {
 	D3DXVec3TransformCoord(&out, &vec, &GetWorldMat());
 }
 
-void BaseSceneNode::LocalToWorldNorm(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const
+void BaseSceneNode::LocalToWorldNorm(const glm::vec3& vec, glm::vec3& out) const
 {
 	D3DXVec3TransformNormal(&out, &vec, &GetWorldMat());
 }
@@ -578,11 +578,11 @@ void BaseSceneNode::LocalToParent(const D3DXVECTOR4& vec, D3DXVECTOR4& out) cons
 	D3DXVec4Transform(&out, &vec, &mat);
 }
 
-unsigned BaseSceneNode::RayCastIntersBB(const D3DXVECTOR3& wRayPos, const D3DXVECTOR3& wRayVec, bool includeChild) const
+unsigned BaseSceneNode::RayCastIntersBB(const glm::vec3& wRayPos, const glm::vec3& wRayVec, bool includeChild) const
 {
-	D3DXVECTOR3 rayPos;
+	glm::vec3 rayPos;
 	WorldToLocalCoord(wRayPos, rayPos);
-	D3DXVECTOR3 rayVec;
+	glm::vec3 rayVec;
 	WorldToLocalNorm(wRayVec, rayVec);
 
 	float tNear, tFar;
@@ -591,11 +591,11 @@ unsigned BaseSceneNode::RayCastIntersBB(const D3DXVECTOR3& wRayPos, const D3DXVE
 	return aabb.RayCastIntersect(rayPos, rayVec, tNear, tFar);	
 }
 
-unsigned BaseSceneNode::RayCastIntersBB(const D3DXVECTOR3& wRayPos, const D3DXVECTOR3& wRayVec, D3DXVECTOR3& wNearVec, D3DXVECTOR3& wFarVec, bool includeChild) const
+unsigned BaseSceneNode::RayCastIntersBB(const glm::vec3& wRayPos, const glm::vec3& wRayVec, glm::vec3& wNearVec, glm::vec3& wFarVec, bool includeChild) const
 {
-	D3DXVECTOR3 rayPos;
+	glm::vec3 rayPos;
 	WorldToLocalCoord(wRayPos, rayPos);
-	D3DXVECTOR3 rayVec;
+	glm::vec3 rayVec;
 	WorldToLocalNorm(wRayVec, rayVec);
 
 	AABB aabb = GetLocalAABB(includeChild);
@@ -715,23 +715,23 @@ void BaseSceneNode::SetVisible(bool value)
 	//NotifyChanged(this, 0);
 }
 
-const D3DXVECTOR3& BaseSceneNode::GetPos() const
+const glm::vec3& BaseSceneNode::GetPos() const
 {
 	return _position;
 }
 
-void BaseSceneNode::SetPos(const D3DXVECTOR3& value)
+void BaseSceneNode::SetPos(const glm::vec3& value)
 {
 	_position = value;
 	TransformationChanged();
 }
 
-const D3DXVECTOR3& BaseSceneNode::GetScale() const
+const glm::vec3& BaseSceneNode::GetScale() const
 {
 	return _scale;
 }
 
-void BaseSceneNode::SetScale(const D3DXVECTOR3& value)
+void BaseSceneNode::SetScale(const glm::vec3& value)
 {
 	_scale = value;
 	TransformationChanged();
@@ -739,89 +739,89 @@ void BaseSceneNode::SetScale(const D3DXVECTOR3& value)
 
 void BaseSceneNode::SetScale(float value)
 {
-	SetScale(D3DXVECTOR3(value, value, value));
+	SetScale(glm::vec3(value, value, value));
 }
 
-const D3DXVECTOR3& BaseSceneNode::GetDir() const
+const glm::vec3& BaseSceneNode::GetDir() const
 {
 	ExtractRotation(rsVectors);
 	return _direction;
 }
 
-void BaseSceneNode::SetDir(const D3DXVECTOR3& value)
+void BaseSceneNode::SetDir(const glm::vec3& value)
 {
 	ExtractRotation(rsVectors);
 
-	if (D3DXVec3Length(&value) == 0)
+	if (glm::length(value) == 0)
 		_direction = XVector;
 	else
-		D3DXVec3Normalize(&_direction, &value);
+		_direction = glm::normalize(value);
 
-	D3DXVECTOR3 right = GetRight();
-	if (D3DXVec3Length(&right) < floatErrComp)	
+	glm::vec3 right = GetRight();
+	if (glm::length(right) < floatErrComp)	
 	{
 		D3DXVec3Cross(&right, &ZVector, &_up);
-		if (D3DXVec3Length(&right) < floatErrComp)
+		if (glm::length(right) < floatErrComp)
 			D3DXVec3Cross(&right, &XVector, &_up);
 	}
-	D3DXVec3Normalize(&right, &right);
+	right = glm::normalize(right);
 	D3DXVec3Cross(&_up, &_direction, &right);
 
 	ChangedRotation(rsVectors);
 }
 
-D3DXVECTOR3 BaseSceneNode::GetRight() const
+glm::vec3 BaseSceneNode::GetRight() const
 {
 	ExtractRotation(rsVectors);
-	D3DXVECTOR3 tmp;		
+	glm::vec3 tmp;		
 	D3DXVec3Cross(&tmp, &_up, &_direction);
 	return tmp;
 }
 
-void BaseSceneNode::SetRight(const D3DXVECTOR3& value)
+void BaseSceneNode::SetRight(const glm::vec3& value)
 {
 	ExtractRotation(rsVectors);
 
-	D3DXVECTOR3 right;
-	if (D3DXVec3Length(&value) == 0)
+	glm::vec3 right;
+	if (glm::length(value) == 0)
 		right = YVector;
 	else
-		D3DXVec3Normalize(&right, &value);
+		right = glm::normalize(value);
 
 	D3DXVec3Cross(&_up, &right, &_direction);
-	if (D3DXVec3Length(&_up) < floatErrComp)
+	if (glm::length(_up) < floatErrComp)
 	{
 		D3DXVec3Cross(&_up, &_direction, &XVector);
-		if (D3DXVec3Length(&_up) < floatErrComp)
+		if (glm::length(_up) < floatErrComp)
 			D3DXVec3Cross(&_up, &_direction, &YVector);
 	}
-	D3DXVec3Normalize(&_up, &_up);
+	_up = glm::normalize(_up);
 	D3DXVec3Cross(&_direction, &_up, &right);
 
 	ChangedRotation(rsVectors);
 }
 
-const D3DXVECTOR3& BaseSceneNode::GetUp() const
+const glm::vec3& BaseSceneNode::GetUp() const
 {	
 	ExtractRotation(rsVectors);
 	return _up;
 }
 
-void BaseSceneNode::SetUp(const D3DXVECTOR3& value)
+void BaseSceneNode::SetUp(const glm::vec3& value)
 {
 	ExtractRotation(rsVectors);
 
-	if (D3DXVec3Length(&value) == 0)
+	if (glm::length(value) == 0)
 		_up = ZVector;		
-	D3DXVec3Normalize(&_up, &value);
-	D3DXVECTOR3 right = GetRight();
-	if (D3DXVec3Length(&right) < floatErrComp)	
+	_up = glm::normalize(value);
+	glm::vec3 right = GetRight();
+	if (glm::length(right) < floatErrComp)	
 	{
 		D3DXVec3Cross(&right, &ZVector, &_up);
-		if (D3DXVec3Length(&right) < floatErrComp)
+		if (glm::length(right) < floatErrComp)
 			D3DXVec3Cross(&right, &XVector, &_up);
 	}
-	D3DXVec3Normalize(&right, &right);
+	right = glm::normalize(right);
 	D3DXVec3Cross(&_direction, &right, &_up);
 
 	ChangedRotation(rsVectors);
@@ -880,9 +880,9 @@ void BaseSceneNode::SetRot(const glm::quat& value)
 
 D3DXMATRIX BaseSceneNode::GetScaleMat() const
 {
-	D3DXVECTOR3 vec = _scale;
+	glm::vec3 vec = _scale;
 	//Если масштабирование слишком мало, то матрица может оказаться вырожденной. Поэтому подменяем на вектор самой допустимо малой длины
-	//if (D3DXVec3Length(&vec) < 0.0001f)
+	//if (glm::length(vec) < 0.0001f)
 	//	vec = IdentityVector * 0.0005f;
 
 	D3DXMATRIX scaleMat;
@@ -897,7 +897,7 @@ D3DXMATRIX BaseSceneNode::GetRotMat() const
 
 	if (!_rotInvalidate.test(rsVectors))
 	{
-		D3DXVECTOR3 right = GetRight();
+		glm::vec3 right = GetRight();
 		_rotMat._11 = _direction.x;
 		_rotMat._12 = _direction.y;
 		_rotMat._13 = _direction.z;
@@ -956,12 +956,12 @@ const D3DXMATRIX& BaseSceneNode::GetMat() const
 void BaseSceneNode::SetLocalMat(const D3DXMATRIX& value)
 {
 	_direction = value.m[0];
-	D3DXVECTOR3 right = value.m[1];
+	glm::vec3 right = value.m[1];
 	_up = value.m[2];	
 	_position = value.m[3];
 
-	D3DXVec3Normalize(&_direction, &_direction);
-	D3DXVec3Normalize(&_up, &_up);
+	_direction = glm::normalize(_direction);
+	_up = glm::normalize(_up);
 
 	ChangedRotation(rsVectors);
 	TransformationChanged();
@@ -1010,7 +1010,7 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 	{
 	case cmtScaleTrans:
 	{
-		D3DXVECTOR3 vec;
+		glm::vec3 vec;
 
 		D3DXMATRIX scaleMat = GetWorldScale();
 		
@@ -1035,7 +1035,7 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
 
 		D3DXMATRIX transMat;
-		D3DXVECTOR3 pos = GetWorldPos();
+		glm::vec3 pos = GetWorldPos();
 		D3DXMatrixTranslation(&transMat, pos.x, pos.y, pos.z);
 
 		return rotMat * transMat;
@@ -1047,16 +1047,16 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 	}
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldPos() const
+glm::vec3 BaseSceneNode::GetWorldPos() const
 {
 	return GetWorldMat().m[3];
 }
 
-void BaseSceneNode::SetWorldPos(const D3DXVECTOR3& value)
+void BaseSceneNode::SetWorldPos(const glm::vec3& value)
 {
 	if (_parent)
 	{
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		_parent->WorldToLocalCoord(value, pos);
 		SetPos(pos);
 	}
@@ -1106,30 +1106,30 @@ D3DXMATRIX BaseSceneNode::GetWorldScale() const
 	return res;
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldDir() const
+glm::vec3 BaseSceneNode::GetWorldDir() const
 {
-	D3DXVECTOR3 res;
-	D3DXVec3Normalize(&res, &D3DXVECTOR3(GetWorldMat().m[0]));
+	glm::vec3 res;
+	res = glm::normalize(glm::vec3(GetWorldMat().m[0]));
 	return res;
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldRight() const
+glm::vec3 BaseSceneNode::GetWorldRight() const
 {
 	return GetWorldMat().m[1];
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldUp() const
+glm::vec3 BaseSceneNode::GetWorldUp() const
 {
 	return GetWorldMat().m[2];
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldSizes(bool includeChild) const
+glm::vec3 BaseSceneNode::GetWorldSizes(bool includeChild) const
 {
 	const AABB& aabb = GetWorldAABB(includeChild);
 	return (aabb.max - aabb.min);
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldCenterPos(bool includeChild) const
+glm::vec3 BaseSceneNode::GetWorldCenterPos(bool includeChild) const
 {
 	const AABB& aabb = GetWorldAABB(includeChild);
 	return (aabb.min + aabb.max) / 2.0f;
@@ -1137,7 +1137,7 @@ D3DXVECTOR3 BaseSceneNode::GetWorldCenterPos(bool includeChild) const
 
 bool AABBAreEqual(const AABB& bb1, const AABB& bb2)
 {
-	return D3DXVec3Length(&(bb1.min - bb2.min)) < floatErrComp && D3DXVec3Length(&(bb1.max - bb2.max)) < floatErrComp;
+	return glm::length((bb1.min - bb2.min)) < floatErrComp && glm::length((bb1.max - bb2.max)) < floatErrComp;
 }
 
 const AABB& BaseSceneNode::GetLocalAABB(bool includeChild) const

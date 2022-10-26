@@ -21,7 +21,7 @@ private:
 	RaceMenu* _raceMenu;
 	Garage::Car* _car;
 	CamStyle _camStyle;
-	D3DXVECTOR3 _camLastPos;
+	glm::vec3 _camLastPos;
 	glm::quat _camLastRot;
 
 	MapObj* _garageMapObj;

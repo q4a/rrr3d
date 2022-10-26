@@ -21,11 +21,11 @@ public:
 	const std::string& GetName() const;
 	IMapObjRecRef MapObj::GetRecord();
 
-	D3DXVECTOR3 GetPos() const;
-	void SetPos(const D3DXVECTOR3& value);
+	glm::vec3 GetPos() const;
+	void SetPos(const glm::vec3& value);
 
-	D3DXVECTOR3 GetScale() const;
-	void SetScale(const D3DXVECTOR3& value);
+	glm::vec3 GetScale() const;
+	void SetScale(const glm::vec3& value);
 
 	glm::quat GetRot() const;
 	void SetRot(const glm::quat& value);
@@ -54,7 +54,7 @@ private:
 		virtual ~NodeControl();
 
 		void Select(bool active);
-		void OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
+		void OnShiftAction(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec);
 	};
 public:
 	typedef game::Map Inst;
@@ -63,7 +63,7 @@ private:
 	ITrace* _trace;
 	bool _showBB;
 
-	game::MapObj* PickInstMapObj(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec);
+	game::MapObj* PickInstMapObj(const glm::vec3& rayPos, const glm::vec3& rayVec);
 
 	void ApplyShowBB();
 	void OnUpdateLevel();

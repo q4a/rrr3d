@@ -16,7 +16,6 @@ struct AABB2
 	explicit AABB2(const glm::vec2& size);
 	AABB2(const glm::vec2& mMin, const glm::vec2& mMax);
 
-	//static void Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut);
 	static void Transform(const AABB2 &aabb, const D3DXMATRIX &m, AABB2 &rOut);
 	static void Include(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut);
 	static void Add(const AABB2& aabb1, const AABB2& aabb2, AABB2& rOut);
@@ -62,71 +61,71 @@ struct AABB
 	//      0(min)----1/----->X
 	//
 
-	typedef D3DXVECTOR3 Corners[8];
+	typedef glm::vec3 Corners[8];
 	enum SpaceContains {scNoOverlap, scContainsFully, scContainsPartially};
 
 	//Статические методы могут быть ползены для неконстантных операций, т.е. там где происходит преобразование объекта и результат может быть записан в другое место
 	//Эти методы в любом случае имеет смысл делать инлайновыми(и определять их в *.cpp), поскольку аналогичные унарные операции реализуются через них
 	static void Transform(const AABB& aabb, const D3DXMATRIX& m, AABB& rOut);
-	static void Offset(const AABB& aabb, const D3DXVECTOR3& vec, AABB& rOut);
+	static void Offset(const AABB& aabb, const glm::vec3& vec, AABB& rOut);
 	static void Add(const AABB& aabb1, const AABB& aabb2, AABB& rOut);
-	static void Include(const AABB& aabb, const D3DXVECTOR3& vec, AABB& rOut);
-	static void Scale(const AABB& aabb, const D3DXVECTOR3& vec, AABB& rOut);
+	static void Include(const AABB& aabb, const glm::vec3& vec, AABB& rOut);
+	static void Scale(const AABB& aabb, const glm::vec3& vec, AABB& rOut);
 	static void Scale(const AABB& aabb, float f, AABB& rOut);
 
 	AABB();
 	explicit AABB(float size);
-	explicit AABB(const D3DXVECTOR3& sizes);
-	explicit AABB(const D3DXVECTOR3& minPoint, const D3DXVECTOR3& maxPoint);
+	explicit AABB(const glm::vec3& sizes);
+	explicit AABB(const glm::vec3& minPoint, const glm::vec3& maxPoint);
 
-	void FromPoints(const D3DXVECTOR3& pnt1, const D3DXVECTOR3& pnt2);
-	void FromDimensions(const D3DXVECTOR3& dimensions);
-	void FromPlaneAndScale(const D3DXPLANE& plane, const D3DXVECTOR3& vec);
+	void FromPoints(const glm::vec3& pnt1, const glm::vec3& pnt2);
+	void FromDimensions(const glm::vec3& dimensions);
+	void FromPlaneAndScale(const D3DXPLANE& plane, const glm::vec3& vec);
 	void Transform(const D3DXMATRIX& m);
-	void Offset(const D3DXVECTOR3& vec);
+	void Offset(const glm::vec3& vec);
 	void Add(const AABB& aabb);
-	void Include(const D3DXVECTOR3& vec);
-	void Scale(const D3DXVECTOR3& vec);
+	void Include(const glm::vec3& vec);
+	void Scale(const glm::vec3& vec);
 	void Scale(float f);
 
 	void ExtractCorners(Corners& corners) const;
-	bool ContainsPoint(const D3DXVECTOR3& point) const;
+	bool ContainsPoint(const glm::vec3& point) const;
 	SpaceContains ContainsAABB(const AABB& test) const;
 
 	//Тест на пересечения с this
 	//Пересечения линией (прямой)
-	bool LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECTOR3& lineVec, float& tNear, float& tFar) const;
+	bool LineCastIntersect(const glm::vec3& lineStart, const glm::vec3& lineVec, float& tNear, float& tFar) const;
 	//Пересечения линией (прямой)
-	bool LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECTOR3& lineVec, D3DXVECTOR3& nearVec, D3DXVECTOR3& farVec) const;
+	bool LineCastIntersect(const glm::vec3& lineStart, const glm::vec3& lineVec, glm::vec3& nearVec, glm::vec3& farVec) const;
 	//Пересечение лучом
-	unsigned RayCastIntersect(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, float& tNear, float& tFar) const;
+	unsigned RayCastIntersect(const glm::vec3& rayStart, const glm::vec3& rayVec, float& tNear, float& tFar) const;
 	//Пересечение лучом
-	unsigned RayCastIntersect(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, D3DXVECTOR3& nearVec, D3DXVECTOR3& farVec) const;
+	unsigned RayCastIntersect(const glm::vec3& rayStart, const glm::vec3& rayVec, glm::vec3& nearVec, glm::vec3& farVec) const;
 
 	//Пересечение направленным объемом AABB как линией
-	bool AABBLineCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, float& minDist) const;
+	bool AABBLineCastIntersect(const AABB& aabb, const glm::vec3& rayVec, float& minDist) const;
 	//
 	//start - направленный объем
 	//vec - вектор направления в локальной мистеме координат start
 	//startTolocal - преобразование из start в локальную систему координат this
 	//localToStart - преобразование из this в локальную систему координат start
 	//minDist - выходная минимальная дистанция между this и направленным объемом start
-	bool AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, const D3DXMATRIX& startTolocal, const D3DXMATRIX& localToStart, float& minDist) const;
+	bool AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const D3DXMATRIX& startTolocal, const D3DXMATRIX& localToStart, float& minDist) const;
 	//Пересечение направленным объемом AABB как лучом
-	bool AABBRayCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, float& minDist, const float error = 0) const;
+	bool AABBRayCastIntersect(const AABB& aabb, const glm::vec3& rayVec, float& minDist, const float error = 0) const;
 
-	D3DXVECTOR3 GetCenter() const;
-	D3DXVECTOR3 GetSizes() const;
+	glm::vec3 GetCenter() const;
+	glm::vec3 GetSizes() const;
 	float GetDiameter() const;
 	float GetRadius() const;
-	D3DXVECTOR3 GetVertex(unsigned index) const;
+	glm::vec3 GetVertex(unsigned index) const;
 	D3DXPLANE GetPlane(unsigned index) const;
 	//vertex[0] - min
 	//vertex[1] - max
-	D3DXVECTOR3 GetPlaneVert(unsigned index, unsigned vertex) const;
+	glm::vec3 GetPlaneVert(unsigned index, unsigned vertex) const;
 
-	D3DXVECTOR3 min;
-	D3DXVECTOR3 max;
+	glm::vec3 min;
+	glm::vec3 max;
 };
 
 typedef int PlanIndices[4];
@@ -159,13 +158,13 @@ struct BoundBox
 
 	void ToAABB(AABB& aabb) const;
 
-	D3DXVECTOR3 v[8];
+	glm::vec3 v[8];
 };
 
 //Неопеределенность насчет допустимости конструкции...
 struct Frustum
 {
-	typedef D3DXVECTOR3 Corners[8];
+	typedef glm::vec3 Corners[8];
 
 	enum SpaceContains {scNoOverlap, scContainsFully, scContainsPartially};
 
@@ -196,10 +195,10 @@ struct Frustum
 };
 
 //error - ошибка проникновения, т.е. совпадающие координаты или координаты остающие на величину ошибки считаются нестабильными поэтому луч также проходит черех них даже если они сзади на величину error
-bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXPLANE& plane, float& outT);
-bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXPLANE& plane, D3DXVECTOR3& outVec);
+bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, float& outT);
+bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, glm::vec3& outVec);
 //Погрешность 10%
-bool RayCastIntersectSquare(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& min, const D3DXVECTOR3& max, const D3DXPLANE& plane, float* outT, D3DXVECTOR3* outVec, const float error = 0);
+bool RayCastIntersectSquare(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec3& min, const glm::vec3& max, const D3DXPLANE& plane, float* outT, glm::vec3* outVec, const float error = 0);
 void GetSampleOffsetsDownScale3x3(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[9]);
 void GetSampleOffsetsDownScale4x4(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[16]);
 
