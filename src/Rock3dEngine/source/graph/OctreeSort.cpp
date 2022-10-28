@@ -415,7 +415,7 @@ void OctreeSort::BuildOctree(Node& node, const UserList& userList)
 	for (int i = 0; i < cOctNum; ++i)
 	{
 		AABB aabb(nodeSize);
-		aabb.Offset(node.GetAABB().GetCenter() + _nodeOff[i] * nodeSize/2);
+		aabb.Offset(node.GetAABB().GetCenter() + _nodeOff[i] * nodeSize/2.0f);
 
 		UserList list;
 		//»щем подход€щих пользователей

@@ -63,8 +63,8 @@ Environment::Environment(World* world): _world(world), _wheater(ewClody), _world
 	for (int i = 0; i < 4; ++i)
 		_lampSwitchOn[i] = true;
 
-	glm::quat rot1 = glm::angleAxis(D3DX_PI / 4.0f, Vec3DxToGlm(YVector));
-	glm::quat rot2 = glm::angleAxis(-D3DX_PI / 4.0f, Vec3DxToGlm(ZVector));
+	glm::quat rot1 = glm::angleAxis(D3DX_PI / 4.0f, YVector);
+	glm::quat rot2 = glm::angleAxis(-D3DX_PI / 4.0f, ZVector);
 	_sunRot = rot2 * rot1;
 
 	//текстура по умолчанию. ќб€зательно должна быть!

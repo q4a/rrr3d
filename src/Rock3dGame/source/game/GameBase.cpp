@@ -196,7 +196,7 @@ void FxSystemSrcSpeed::OnProgress(float deltaTime)
 		{
 			graph::FxParticleSystem* fxSystem = iter->GetItem<graph::FxParticleSystem>();
 
-			glm::vec3 speed(GetGameObj()->GetPxActor().GetNxActor()->getLinearVelocity().get());
+			glm::vec3 speed = glm::make_vec3(GetGameObj()->GetPxActor().GetNxActor()->getLinearVelocity().get());
 			if (GetGameObj()->GetParent())
 				GetGameObj()->GetParent()->GetGrActor().WorldToLocalNorm(speed, speed);
 
@@ -347,8 +347,8 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 	if (!_ignoreRot)
 		mapObj->GetGameObj().SetRot(desc.rot);
 
-	if (D3DXVec3Length(&_impulse) > 0.001f && mapObj->GetGameObj().GetPxActor().GetNxActor())
-		mapObj->GetGameObj().GetPxActor().GetNxActor()->addLocalForce(NxVec3(_impulse), NX_IMPULSE);
+	if (glm::length(_impulse) > 0.001f && mapObj->GetGameObj().GetPxActor().GetNxActor())
+		mapObj->GetGameObj().GetPxActor().GetNxActor()->addLocalForce(glm::value_ptr(_impulse), NX_IMPULSE);
 
 	return mapObj;
 }
@@ -421,8 +421,8 @@ void EventEffect::SaveSource(lsl::SWriter* writer)
 		sounds->WriteRef(lsl::StrFmt("sound%d", i).c_str(), iter->sound);
 	}
 
-	writer->WriteValue("pos", _pos, 3);
-	writer->WriteValue("impulse", _impulse, 3);
+	writer->WriteValue("pos", glm::value_ptr(_pos), 3);
+	writer->WriteValue("impulse", glm::value_ptr(_impulse), 3);
 	writer->WriteValue("ignoreRot", _ignoreRot);
 }
 
@@ -445,8 +445,8 @@ void EventEffect::LoadSource(lsl::SReader* reader)
 
 	SetEffect(MapObjRec::Lib::LoadRecordRef(reader, "effect"));
 
-	reader->ReadValue("pos", _pos, 3);
-	reader->ReadValue("impulse", _impulse, 3);
+	reader->ReadValue("pos", glm::value_ptr(_pos), 3);
+	reader->ReadValue("impulse", glm::value_ptr(_impulse), 3);
 	reader->ReadValue("ignoreRot", _ignoreRot);
 }
 
@@ -797,7 +797,7 @@ void PxWheelSlipEffect::OnProgress(float deltaTime)
 	if (slip > 0)
 	{
 		EffectDesc desc;
-		desc.pos = glm::vec3(contactDesc.contactPoint.get());
+		desc.pos = glm::make_vec3(contactDesc.contactPoint.get());
 		desc.child = false;
 		if (GetMakeEffect())
 			GetMakeEffect()->GetGameObj().SetPos(GetPos() + desc.pos);
@@ -1216,11 +1216,11 @@ void PodushkaAnim::OnProgress(float deltaTime)
 	if (abs(linSpeed) > 1.0f)
 	{
 		D3DXMATRIX localMat = _target->GetMat();
-		glm::quat rotQuat = glm::angleAxis(D3DX_PI * deltaTime * linSpeed * 0.1f, Vec3DxToGlm(XVector));
+		glm::quat rotQuat = glm::angleAxis(D3DX_PI * deltaTime * linSpeed * 0.1f, XVector);
 		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rotQuat)));
 
 		const res::FaceGroup& fg = _target->GetMesh()->GetData()->faceGroups[_target->GetMeshId()];
-		glm::vec3 offset = (fg.minPos + fg.maxPos) / 2;
+		glm::vec3 offset = (fg.minPos + fg.maxPos) / 2.0f;
 
 		D3DXMATRIX matOffs1;
 		D3DXMatrixTranslation(&matOffs1, -offset.x, -offset.y, -offset.z);

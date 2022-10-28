@@ -1498,10 +1498,10 @@ bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, con
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &rayVec);
+	float d = D3DXPlaneDotNormal(&plane, &Vec3GlmToDx(rayVec));
 	if (abs(d) > EPSILON)
 	{
-		outT = -D3DXPlaneDotCoord(&plane, &rayStart) / d;
+		outT = -D3DXPlaneDotCoord(&plane, &Vec3GlmToDx(rayStart)) / d;
 		return true;
 	}
 	return false;
@@ -1520,8 +1520,8 @@ unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, glm::vec3 
 		glm::vec3 v2 = bb.v[lines[i][1]];
 
 		glm::vec3 vec = v2 - v1;
-		float vec3Len = D3DXVec3Length(&vec);
-		D3DXVec3Normalize(&vec, &vec);
+		float vec3Len = glm::length(vec);
+		vec = glm::normalize(vec);
 		float dist;
 		//есть пересечение
 		if (LineCastIntersPlane(v1, vec, plane, dist) && dist > 0.0f && dist < vec3Len)
@@ -1548,22 +1548,22 @@ bool ComputeZBounds(graph::Engine& engine, const graph::CameraCI& camera, const 
 	bool res = false;
 
 	D3DXPLANE posNearPlane;
-	D3DXPlaneFromPointNormal(&posNearPlane, &camera.GetDesc().pos,  &camera.GetDesc().dir);
+	D3DXPlaneFromPointNormal(&posNearPlane, &Vec3GlmToDx(camera.GetDesc().pos), &Vec3GlmToDx(camera.GetDesc().dir));
 
 	glm::vec3 rayVec[4] = {glm::vec3(-1.0f, -1.0f, 1.0f), glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(-1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f)};
 	glm::vec3 rayPos[4] = {glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f)};
 
 	for (int i = 0; i < 4; ++i)
 	{
-		D3DXVec3TransformCoord(&rayVec[i], &rayVec[i], &camera.GetInvViewProj());
-		D3DXVec3TransformCoord(&rayPos[i], &rayPos[i], &camera.GetInvViewProj());
-		D3DXVec3Normalize(&rayVec[i], &(rayVec[i] - rayPos[i]));
+		rayVec[i] = Vec3TransformCoord(rayVec[i], camera.GetInvViewProj());
+		rayPos[i] = Vec3TransformCoord(rayPos[i], camera.GetInvViewProj());
+		rayVec[i] = glm::normalize(rayVec[i] - rayPos[i]);
 
 		float tNear, tFar;
 		if (aabb.LineCastIntersect(rayPos[i], rayVec[i], tNear, tFar))
 		{
-			tNear = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tNear));
-			tFar = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tFar));
+			tNear = D3DXPlaneDotCoord(&posNearPlane, &Vec3GlmToDx(rayPos[i] + rayVec[i] * tNear));
+			tFar = D3DXPlaneDotCoord(&posNearPlane, &Vec3GlmToDx(rayPos[i] + rayVec[i] * tFar));
 
 			if (tNear < minZ || !res)
 				minZ = tNear;
@@ -1754,15 +1754,15 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 				{
 					glm::vec3 norm = (*iter2)->vec1();
 					glm::vec3 lightDir = _engine->GetContext().GetLights().front()->GetDesc().dir;
-					float dot = D3DXVec3Dot(&norm, &ZVector);
+					float dot = glm::dot(norm, ZVector);
 
 					if (dot < 0.99f)
 					{
 						glm::vec3 right1, right2;
-						D3DXVec3Cross(&right1, &norm, &ZVector);
-						D3DXVec3Cross(&right2, &(-lightDir), &ZVector);
+						right1 = glm::cross(norm, ZVector);
+						right2 = glm::cross((-lightDir), ZVector);
 
-						float b = D3DXVec3Dot(&right1, &right2) > 0;
+						float b = glm::dot(right1, right2) > 0;
 						dot = 1.0f + 0.25f * (-1.0f + 2.0f * b);
 
 						_planarReflShader->SetTexDiffK(dot);
@@ -1811,7 +1811,7 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 			graph::Actor* actor = *iter;
 
 			glm::vec3 norm = actor->vec1();
-			float cosb = D3DXVec3Dot(&norm, &ZVector);
+			float cosb = glm::dot(norm, ZVector);
 			float sinb = sqrt(1.0f - cosb * cosb);
 			float height = -actor->vec1().w;
 			actor->LocalToWorldNorm(norm, norm);
@@ -1834,7 +1834,7 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 			actor->LocalToWorldCoord(aabb.min, aabb.min);
 			actor->LocalToWorldCoord(aabb.max, aabb.max);
 			glm::vec3 right = actor->GetWorldRight();
-			glm::vec3 dir = *D3DXVec3Cross(&dir, &right, &norm);
+			glm::vec3 dir = *dir = glm::cross(right, norm);
 			graph::ReflRender::ClipPlanes clipPlanes;
 
 			D3DXPlaneFromPointNormal(&plane, &aabb.min, &dir);
@@ -2048,7 +2048,7 @@ void GraphManager::RenderShadow(graph::CameraCI& camera)
 				if (camDesc.style == graph::csOrtho)
 				{
 					glm::vec3 pos = _camera->GetPos() + _camera->GetDir() * _shadowMaxFar;
-					maxFar = std::min(D3DXVec3Length(&(pos - camDesc.pos)), camDesc.farDist);
+					maxFar = std::min(glm::length(pos - camDesc.pos), camDesc.farDist);
 				}
 
 				shadowMap->SetMaxFar(maxFar);
@@ -2292,13 +2292,13 @@ bool GraphManager::Render(float deltaTime, bool pause)
 				//наложение
 				glm::vec3 lightPos = _engine->GetContext().GetLight(0).GetDesc().pos;
 				glm::vec3 radVec;
-				D3DXVec3Normalize(&radVec, &(lightPos - _actorManager->GetWorldAABB().GetCenter()));
-				D3DXVec3Cross(&radVec, &glm::vec3(0, 0, 1), &radVec);
-				if (D3DXVec3Length(&radVec) < 0.1f)
+				radVec = glm::normalize(lightPos - _actorManager->GetWorldAABB().GetCenter());
+				radVec = glm::cross(glm::vec3(0, 0, 1), radVec);
+				if (glm::length(radVec) < 0.1f)
 				{
 					radVec = glm::vec3(1, 0, 0);
 				}
-				glm::quat radQuat = glm::angleAxis(D3DX_PI / 2.5f, Vec3DxToGlm(radVec));
+				glm::quat radQuat = glm::angleAxis(D3DX_PI / 2.5f, radVec);
 				Vec3Rotate(glm::vec3(0, 0, 1), radQuat, radVec);
 				radVec = radVec * 1000.0f;
 
@@ -2457,19 +2457,19 @@ void GraphManager::BuildOctree()
 
 			if ((abs(texDiffK.x) + abs(texDiffK.y)) > 0.0f && _lightList.size() > 0 && _lightList.front()->GetSource()->GetType() == D3DLIGHT_DIRECTIONAL)
 			{
-				glm::vec3 norm = (*iter)->GetActor()->vec1();
+				glm::vec3 norm = Vec4DxToGlm((*iter)->GetActor()->vec1());
 				glm::vec3 lightDir = _lightList.front()->GetSource()->GetDir();
-				float dot = D3DXVec3Dot(&norm, &ZVector);
+				float dot = glm::dot(norm, ZVector);
 
 				if (dot < 0.99f)
 				{
 					(*iter)->GetActor()->LocalToWorldNorm(norm, norm);
 					glm::vec3 right = (*iter)->GetActor()->GetWorldRight();
 					glm::vec3 binormal;
-					D3DXVec3Cross(&binormal, &right, &ZVector);
+					binormal = glm::cross(right, ZVector);
 
-					float d1 = D3DXVec3Dot(&binormal, &norm);
-					float d2 = D3DXVec3Dot(&binormal, &(-lightDir));
+					float d1 = glm::dot(binormal, norm);
+					float d2 = glm::dot(binormal, (-lightDir));
 
 					int b = (d1 > 0.0f) == (d2 > 0.0f);
 					dot = 1.0f + texDiffK[b];
@@ -2502,13 +2502,13 @@ glm::vec3 GraphManager::ScreenToWorld(const lsl::Point& coord, const float z)
 
 	glm::vec3 screenVec(coord.x / width, coord.y / height, 0);
 	//Приводим к диапазону [-1, 1]
-	screenVec = screenVec * 2 - IdentityVector;
+	screenVec = screenVec * 2.0f - IdentityVector;
 	screenVec.z = z;
 	//Ось Y у экрана и у заднего буфера(или иначе говоря экранной D3D поверхности) не совпадают
 	screenVec.y = -screenVec.y;
 
 	 //Переводим в мировое пространство(домножая на инв. матрицу), что соотв. точке на near плоскости камеры
-	D3DXVec3TransformCoord(&screenVec, &screenVec, &_camera->GetContextInfo().GetInvViewProj());
+	screenVec = Vec3TransformCoord(screenVec, _camera->GetContextInfo().GetInvViewProj());
 
 	return screenVec;
 
@@ -2536,7 +2536,7 @@ void GraphManager::ScreenToRay(const lsl::Point& coord, glm::vec3& rayStart, glm
 
 	rayStart = ScreenToWorld(coord, 0);
 	rayVec = ScreenToWorld(coord, 1) - rayStart;
-	D3DXVec3Normalize(&rayVec, &rayVec);
+	rayVec = glm::normalize(rayVec);
 }
 
 bool GraphManager::ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, glm::vec3& outVec)

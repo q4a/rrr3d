@@ -519,7 +519,7 @@ void Engine::RenderSpritePT(const glm::vec3& pos, const glm::vec3& scale, float 
 		{
 		case csPerspective:
 			viewVec = pos - camera.GetDesc().pos;
-			D3DXVec3Normalize(&viewVec, &viewVec);
+			viewVec = glm::normalize(viewVec);
 			break;
 
 		case csOrtho:
@@ -528,12 +528,10 @@ void Engine::RenderSpritePT(const glm::vec3& pos, const glm::vec3& scale, float 
 		}
 
 		//
-		glm::vec3 yVec;
-		D3DXVec3Cross(&yVec, &xVec, &viewVec);
-		D3DXVec3Normalize(&yVec, &yVec);
+		glm::vec3 yVec = glm::cross(xVec, viewVec);
+		yVec = glm::normalize(yVec);
 		//
-		glm::vec3 zVec;
-		D3DXVec3Cross(&zVec, &xVec, &yVec);
+		glm::vec3 zVec = glm::cross(xVec, yVec);
 
 		MatrixRotationFromAxis(xVec, yVec, zVec, rotMat);
 	}
@@ -545,7 +543,7 @@ void Engine::RenderSpritePT(const glm::vec3& pos, const glm::vec3& scale, float 
 
 		//Локальный поворот спрайта (только для не направленных)
 		D3DXMATRIX rotZ;
-		D3DXMatrixRotationAxis(&rotZ, &camera.GetDesc().dir, turnAngle);
+		D3DXMatrixRotationAxis(&rotZ, &Vec3GlmToDx(camera.GetDesc().dir), turnAngle);
 		rotMat *= rotZ;
 	}
 

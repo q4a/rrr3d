@@ -11,7 +11,7 @@ namespace graph
 
 const glm::vec3 MovCoordSys::arUp[3] = {XVector, YVector, ZVector};
 const float MovCoordSys::arSize = 2.0f;
-const glm::vec3 MovCoordSys::arPos[3] = {2 * XVector, 2 * YVector, 2 * ZVector};
+const glm::vec3 MovCoordSys::arPos[3] = {2.0f * XVector, 2.0f * YVector, 2.0f * ZVector};
 const D3DXCOLOR MovCoordSys::arCol[3] = {clrRed, clrGreen, clrBlue};
 const D3DXCOLOR MovCoordSys::colSel = clrYellow;
 
@@ -487,7 +487,7 @@ AABB IVBMeshNode::LocalDimensions() const
 					bMin = true;
 				}
 				else
-					D3DXVec3Minimize(&min, &min, &vec);
+					min = glm::min(min, vec);
 
 				if (!bMax)
 				{
@@ -495,7 +495,7 @@ AABB IVBMeshNode::LocalDimensions() const
 					bMax = true;
 				}
 				else
-					D3DXVec3Maximize(&max, &max, &vec);
+					max = glm::max(max, vec);
 			}
 	}
 
@@ -690,7 +690,7 @@ AABB MeshXNode::LocalDimensions() const
 					bMin = true;
 				}
 				else
-					D3DXVec3Minimize(&min, &min, &vec);
+					min = glm::min(min, vec);
 
 				if (!bMax)
 				{
@@ -698,7 +698,7 @@ AABB MeshXNode::LocalDimensions() const
 					bMax = true;
 				}
 				else
-					D3DXVec3Maximize(&max, &max, &vec);
+					max = glm::max(max, vec);
 			}
 	}
 
@@ -1077,7 +1077,7 @@ MovCoordSys::~MovCoordSys()
 MovCoordSys::DirMove MovCoordSys::CompDirMove(const glm::vec3& rayStart, const glm::vec3& rayVec)
 {
 	const D3DXPLANE planes[3] = {XPlane, YPlane, ZPlane};
-	const glm::vec3 coordOff[3] = {XVector/2, YVector/2, ZVector/2};
+	const glm::vec3 coordOff[3] = {XVector / 2.0f, YVector / 2.0f, ZVector / 2.0f};
 	const DirMove moves[3] = {dmYZ, dmXZ, dmXY};
 
 	glm::vec3 localRS;
@@ -1144,7 +1144,7 @@ void MovCoordSys::DoRender(Engine& engine)
 	const bool isAxe[3] = {_curMove == dmXY || _curMove == dmXZ || _curMove == dmX, _curMove == dmXY || _curMove == dmYZ || _curMove == dmY, _curMove == dmXZ || _curMove == dmYZ || _curMove == dmZ};
 
 	//Скалим перед рендером чтобы не было дерганий
-	float dist = D3DXVec3Length(&(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos()));
+	float dist = glm::length(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos());
 	float scaleF = dist / 15.0f;
 	SetScale(scaleF);
 
@@ -1262,7 +1262,7 @@ ScaleCoordSys::DirMove ScaleCoordSys::CompDirMove(const glm::vec3& rayStart, con
 	for (int i = 0; i < 3; ++i)
 		plLine[i] = bbPlanes[i] * plSize;
 	D3DXPLANE upPlane;
-	D3DXPlaneFromPoints(&upPlane, &plLine[0], &plLine[1], &plLine[2]);
+	D3DXPlaneFromPoints(&upPlane, &Vec3GlmToDx(plLine[0]), &Vec3GlmToDx(plLine[1]), &Vec3GlmToDx(plLine[2]));
 	//
 	glm::vec3 maxVec = NullVector;
 	for (int i = 0; i < 3; ++i)
@@ -1355,7 +1355,7 @@ void ScaleCoordSys::DoRender(Engine& engine)
 	engine.GetContext().RestoreRenderState(graph::rsZWriteEnable);
 	engine.GetContext().RestoreRenderState(graph::rsZEnable);
 
-	float dist = D3DXVec3Length(&(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos()));
+	float dist = glm::length(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos());
 	float scaleF = dist / 15.0f;
 	SetScale(scaleF);
 }

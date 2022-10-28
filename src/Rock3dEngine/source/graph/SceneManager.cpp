@@ -135,8 +135,8 @@ void BaseSceneNode::ExtractRotation(_RotationStyle style) const
 			break;
 
 		case rsVectors:
-			_direction = glm::vec3(_rotMat.m[0]);
-			_up = glm::vec3(_rotMat.m[2]);
+			_direction = glm::vec3(_rotMat.m[0][0], _rotMat.m[0][1], _rotMat.m[0][2]);
+			_up = glm::vec3(_rotMat.m[2][0], _rotMat.m[2][1], _rotMat.m[2][2]);
 			break;
 		}
 		_rotInvalidate.reset(style);
@@ -318,8 +318,8 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 
 	if (storeCoords)
 	{
-		writer->WriteValue("pos", GetPos(), 3);
-		writer->WriteValue("scale", GetScale(), 3);
+		writer->WriteValue("pos", reinterpret_cast<const float *>(&GetPos().x), 3);
+		writer->WriteValue("scale", reinterpret_cast<const float *>(&GetScale().x), 3);
 		writer->WriteValue("rot", reinterpret_cast<const float *>(&GetRot().x), 4);
 	}
 
@@ -344,8 +344,8 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 	writer->WriteValue("animDuration", animDuration);
 	writer->WriteValue("frame", frame);
 
-	writer->WriteValue("speedPos", speedPos, 3);
-	writer->WriteValue("speedScale", speedScale, 3);
+	writer->WriteValue("speedPos", reinterpret_cast<const float *>(&speedPos.x), 3);
+	writer->WriteValue("speedScale", reinterpret_cast<const float *>(&speedScale.x), 3);
 	writer->WriteValue("speedRot", reinterpret_cast<const float *>(&speedRot.x), 4);
 
 	//writer->WriteValue("options", _options.to_string());
@@ -359,8 +359,8 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 
 	if (storeCoords)
 	{
-		reader->ReadValue("pos", _position, 3);
-		reader->ReadValue("scale", _scale, 3);
+		reader->ReadValue("pos", reinterpret_cast<float *>(&_position.x), 3);
+		reader->ReadValue("scale", reinterpret_cast<float *>(&_scale.x), 3);
 		reader->ReadValue("rot", reinterpret_cast<float *>(&_rot.x), 4);
 	}
 
@@ -388,8 +388,8 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 	reader->ReadValue("animDuration", animDuration);
 	reader->ReadValue("frame", frame);
 
-	reader->ReadValue("speedPos", speedPos, 3);
-	reader->ReadValue("speedScale", speedScale, 3);
+	reader->ReadValue("speedPos", reinterpret_cast<float *>(&speedPos.x), 3);
+	reader->ReadValue("speedScale", reinterpret_cast<float *>(&speedScale.x), 3);
 	reader->ReadValue("speedRot", reinterpret_cast<float *>(&speedRot.x), 4);
 
 	//std::string optsStr;
@@ -460,8 +460,7 @@ void BaseSceneNode::OnProgress(float deltaTime)
 
 		if (autoRot)
 		{
-			glm::vec3 dir;
-			D3DXVec3Normalize(&dir, &speedPos);
+			glm::vec3 dir = glm::normalize(speedPos);
 			glm::quat rot;
 			QuatShortestArc(XVector, dir, rot);
 			SetRot(speedRot * rot);
@@ -498,20 +497,19 @@ void BaseSceneNode::MoveAroundTarget(const glm::vec3& worldTarget, float pitchDe
 	// normalT2C points away from the direction the camera is looking
 	glm::vec3 originalT2C = GetWorldPos() - worldTarget;
 	glm::vec3 normalT2C = originalT2C;
-	float dist = D3DXVec3Length(&normalT2C);
-	D3DXVec3Normalize(&normalT2C, &normalT2C);
+	float dist = glm::length(normalT2C);
+	normalT2C = glm::normalize(normalT2C);
 	// normalRight points to the camera's right
 	// the camera is pitching around this axis.
-	glm::vec3 normalCameraRight;
 	glm::vec3 worldUp = GetWorldUp();
-	D3DXVec3Cross(&normalCameraRight, &worldUp, &normalT2C);
-	if (D3DXVec3Length(&normalCameraRight) < 0.001f)
+	glm::vec3 normalCameraRight = glm::cross(worldUp, normalT2C);
+	if (glm::length(normalCameraRight) < 0.001f)
 		normalCameraRight = XVector;
 	else
-		D3DXVec3Normalize(&normalCameraRight, &normalCameraRight);
+		normalCameraRight = glm::normalize(normalCameraRight);
 	// calculate the current pitch.
-	// 0 is looking down and PI is looking up		
-	float pitchNow = acos(D3DXVec3Dot(&worldUp, &normalT2C));
+	// 0 is looking down and PI is looking up
+	float pitchNow = acos(glm::dot(worldUp, normalT2C));
 	pitchNow = lsl::ClampValue(pitchNow + pitchDelta, 0 + 0.025f, D3DX_PI - 0.025f);
 	// create a new vector pointing up and then rotate it down
 	// into the new position
@@ -519,10 +517,10 @@ void BaseSceneNode::MoveAroundTarget(const glm::vec3& worldTarget, float pitchDe
 	D3DXMATRIX turnMat;
 
 	normalT2C = GetWorldUp();
-	D3DXMatrixRotationAxis(&pitchMat, &normalCameraRight, pitchNow);
-	D3DXMatrixRotationAxis(&turnMat, &worldUp, -turnDelta);
-	D3DXVec3TransformNormal(&normalT2C, &normalT2C, &pitchMat);
-	D3DXVec3TransformNormal(&normalT2C, &normalT2C, &turnMat);
+	D3DXMatrixRotationAxis(&pitchMat, &Vec3GlmToDx(normalCameraRight), pitchNow);
+	D3DXMatrixRotationAxis(&turnMat, &Vec3GlmToDx(worldUp), -turnDelta);
+	normalT2C = Vec3TransformNormal(normalT2C, pitchMat);
+	normalT2C = Vec3TransformNormal(normalT2C, turnMat);
 	normalT2C *= dist;
 	glm::vec3 newPos = GetWorldPos() + (normalT2C - originalT2C);
 	if (_parent)
@@ -543,12 +541,12 @@ void BaseSceneNode::WorldToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
 
 void BaseSceneNode::WorldToLocalCoord(const glm::vec3& vec, glm::vec3& out) const
 {
-	D3DXVec3TransformCoord(&out, &vec, &GetInvWorldMat());
+	out = Vec3TransformCoord(vec, GetInvWorldMat());
 }
 
 void BaseSceneNode::WorldToLocalNorm(const glm::vec3& vec, glm::vec3& out) const
 {
-	D3DXVec3TransformNormal(&out, &vec, &GetInvWorldMat());
+	out = Vec3TransformNormal(vec, GetInvWorldMat());
 }
 
 void BaseSceneNode::LocalToWorld(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
@@ -558,12 +556,12 @@ void BaseSceneNode::LocalToWorld(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
 
 void BaseSceneNode::LocalToWorldCoord(const glm::vec3& vec, glm::vec3& out) const
 {
-	D3DXVec3TransformCoord(&out, &vec, &GetWorldMat());
+	out = Vec3TransformCoord(vec, GetWorldMat());
 }
 
 void BaseSceneNode::LocalToWorldNorm(const glm::vec3& vec, glm::vec3& out) const
 {
-	D3DXVec3TransformNormal(&out, &vec, &GetWorldMat());
+	out = Vec3TransformNormal(vec, GetWorldMat());
 }
 
 void BaseSceneNode::ParentToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
@@ -752,20 +750,20 @@ void BaseSceneNode::SetDir(const glm::vec3& value)
 {
 	ExtractRotation(rsVectors);
 
-	if (D3DXVec3Length(&value) == 0)
+	if (glm::length(value) == 0)
 		_direction = XVector;
 	else
-		D3DXVec3Normalize(&_direction, &value);
+		_direction = glm::normalize(value);
 
 	glm::vec3 right = GetRight();
-	if (D3DXVec3Length(&right) < floatErrComp)	
+	if (glm::length(right) < floatErrComp)
 	{
-		D3DXVec3Cross(&right, &ZVector, &_up);
-		if (D3DXVec3Length(&right) < floatErrComp)
-			D3DXVec3Cross(&right, &XVector, &_up);
+		right = glm::cross(ZVector, _up);
+		if (glm::length(right) < floatErrComp)
+			right = glm::cross(XVector, _up);
 	}
-	D3DXVec3Normalize(&right, &right);
-	D3DXVec3Cross(&_up, &_direction, &right);
+	right = glm::normalize(right);
+	_up = glm::cross(_direction, right);
 
 	ChangedRotation(rsVectors);
 }
@@ -773,8 +771,7 @@ void BaseSceneNode::SetDir(const glm::vec3& value)
 glm::vec3 BaseSceneNode::GetRight() const
 {
 	ExtractRotation(rsVectors);
-	glm::vec3 tmp;
-	D3DXVec3Cross(&tmp, &_up, &_direction);
+	glm::vec3 tmp = glm::cross(_up, _direction);
 	return tmp;
 }
 
@@ -783,20 +780,20 @@ void BaseSceneNode::SetRight(const glm::vec3& value)
 	ExtractRotation(rsVectors);
 
 	glm::vec3 right;
-	if (D3DXVec3Length(&value) == 0)
+	if (glm::length(value) == 0)
 		right = YVector;
 	else
-		D3DXVec3Normalize(&right, &value);
+		right = glm::normalize(value);
 
-	D3DXVec3Cross(&_up, &right, &_direction);
-	if (D3DXVec3Length(&_up) < floatErrComp)
+	_up = glm::cross(right, _direction);
+	if (glm::length(_up) < floatErrComp)
 	{
-		D3DXVec3Cross(&_up, &_direction, &XVector);
-		if (D3DXVec3Length(&_up) < floatErrComp)
-			D3DXVec3Cross(&_up, &_direction, &YVector);
+		_up = glm::cross(_direction, XVector);
+		if (glm::length(_up) < floatErrComp)
+			_up = glm::cross(_direction, YVector);
 	}
-	D3DXVec3Normalize(&_up, &_up);
-	D3DXVec3Cross(&_direction, &_up, &right);
+	_up = glm::normalize(_up);
+	_direction = glm::cross(_up, right);
 
 	ChangedRotation(rsVectors);
 }
@@ -811,18 +808,18 @@ void BaseSceneNode::SetUp(const glm::vec3& value)
 {
 	ExtractRotation(rsVectors);
 
-	if (D3DXVec3Length(&value) == 0)
+	if (glm::length(value) == 0)
 		_up = ZVector;
-	D3DXVec3Normalize(&_up, &value);
+	_up = glm::normalize(value);
 	glm::vec3 right = GetRight();
-	if (D3DXVec3Length(&right) < floatErrComp)	
+	if (glm::length(right) < floatErrComp)
 	{
-		D3DXVec3Cross(&right, &ZVector, &_up);
-		if (D3DXVec3Length(&right) < floatErrComp)
-			D3DXVec3Cross(&right, &XVector, &_up);
+		right = glm::cross(ZVector, _up);
+		if (glm::length(right) < floatErrComp)
+			right = glm::cross(XVector, _up);
 	}
-	D3DXVec3Normalize(&right, &right);
-	D3DXVec3Cross(&_direction, &right, &_up);
+	right = glm::normalize(right);
+	_direction = glm::cross(right, _up);
 
 	ChangedRotation(rsVectors);
 }
@@ -882,7 +879,7 @@ D3DXMATRIX BaseSceneNode::GetScaleMat() const
 {
 	glm::vec3 vec = _scale;
 	//Если масштабирование слишком мало, то матрица может оказаться вырожденной. Поэтому подменяем на вектор самой допустимо малой длины
-	//if (D3DXVec3Length(&vec) < 0.0001f)
+	//if (glm::length(vec) < 0.0001f)
 	//	vec = IdentityVector * 0.0005f;
 
 	D3DXMATRIX scaleMat;
@@ -955,13 +952,13 @@ const D3DXMATRIX& BaseSceneNode::GetMat() const
 
 void BaseSceneNode::SetLocalMat(const D3DXMATRIX& value)
 {
-	_direction = value.m[0];
-	glm::vec3 right = value.m[1];
-	_up = value.m[2];
-	_position = value.m[3];
+	_direction = glm::vec3(value.m[0][0], value.m[0][1], value.m[0][2]);
+	glm::vec3 right = glm::vec3(value.m[1][0], value.m[1][1], value.m[1][2]);
+	_up = glm::vec3(value.m[2][0], value.m[2][1], value.m[2][2]);
+	_position = glm::vec3(value.m[3][0], value.m[3][1], value.m[3][2]);
 
-	D3DXVec3Normalize(&_direction, &_direction);
-	D3DXVec3Normalize(&_up, &_up);
+	_direction = glm::normalize(_direction);
+	_up = glm::normalize(_up);
 
 	ChangedRotation(rsVectors);
 	TransformationChanged();
@@ -1049,7 +1046,8 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 
 glm::vec3 BaseSceneNode::GetWorldPos() const
 {
-	return GetWorldMat().m[3];
+	D3DXMATRIX tMat = GetWorldMat();
+	return glm::vec3(tMat.m[3][0], tMat.m[3][1], tMat.m[3][2]);
 }
 
 void BaseSceneNode::SetWorldPos(const glm::vec3& value)
@@ -1108,19 +1106,21 @@ D3DXMATRIX BaseSceneNode::GetWorldScale() const
 
 glm::vec3 BaseSceneNode::GetWorldDir() const
 {
-	glm::vec3 res;
-	D3DXVec3Normalize(&res, &glm::vec3(GetWorldMat().m[0]));
+	D3DXMATRIX tMat = GetWorldMat();
+	glm::vec3 res = glm::normalize(glm::vec3(tMat.m[0][0], tMat.m[0][1], tMat.m[0][2]));
 	return res;
 }
 
 glm::vec3 BaseSceneNode::GetWorldRight() const
 {
-	return GetWorldMat().m[1];
+	D3DXMATRIX tMat = GetWorldMat();
+	return glm::vec3(tMat.m[1][0], tMat.m[1][1], tMat.m[1][2]);
 }
 
 glm::vec3 BaseSceneNode::GetWorldUp() const
 {
-	return GetWorldMat().m[2];
+	D3DXMATRIX tMat = GetWorldMat();
+	return glm::vec3(tMat.m[2][0], tMat.m[2][1], tMat.m[2][2]);
 }
 
 glm::vec3 BaseSceneNode::GetWorldSizes(bool includeChild) const
@@ -1137,7 +1137,7 @@ glm::vec3 BaseSceneNode::GetWorldCenterPos(bool includeChild) const
 
 bool AABBAreEqual(const AABB& bb1, const AABB& bb2)
 {
-	return D3DXVec3Length(&(bb1.min - bb2.min)) < floatErrComp && D3DXVec3Length(&(bb1.max - bb2.max)) < floatErrComp;
+	return glm::length(bb1.min - bb2.min) < floatErrComp && glm::length(bb1.max - bb2.max) < floatErrComp;
 }
 
 const AABB& BaseSceneNode::GetLocalAABB(bool includeChild) const

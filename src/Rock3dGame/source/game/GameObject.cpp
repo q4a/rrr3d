@@ -159,7 +159,7 @@ glm::vec3 GameObject::GetContactPoint(const px::Scene::OnContactEvent& contact)
 		while (contIter.goNextPatch())
 			while (contIter.goNextPoint())
 			{
-				return contIter.getPoint().get();
+				return glm::make_vec3(contIter.getPoint().get());
 			}
 
 			return NullVector;
@@ -205,7 +205,7 @@ void GameObject::RayCastClosestActor(const glm::vec3& rayStart, const glm::vec3&
 	nxMask.bits2 = 0;
 	nxMask.bits3 = 0;
 
-	if (NxShape* shape = GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(NxRay(NxVec3(rayStart), NxVec3(rayDir)), shapesType, nxHit, groups, maxDist, 0xFFFFFFFF, mask > 0 ? &nxMask : 0))
+	if (NxShape* shape = GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(NxRay(glm::value_ptr(rayStart), glm::value_ptr(rayDir)), shapesType, nxHit, groups, maxDist, 0xFFFFFFFF, mask > 0 ? &nxMask : 0))
 		hit.gameActor = GetGameObjFromShape(shape);
 
 	hit.distance = nxHit.distance;
@@ -231,13 +231,13 @@ void GameObject::OnPxSync(float alpha)
 	if (nxActor == NULL)
 		return;
 
-	glm::vec3 pxVelocityLerp = nxActor->getLinearVelocity().get();
+	glm::vec3 pxVelocityLerp = glm::make_vec3(nxActor->getLinearVelocity().get());
 
 	if (alpha < 1.0f)
 	{
-		D3DXVec3Lerp(&_pxPosLerp, &_pxPrevPos, &_pxActor->GetPos(), alpha);
+		_pxPosLerp = Vec3Lerp(_pxPrevPos, _pxActor->GetPos(), alpha);
 		_pxRotLerp = glm::slerp(_pxPrevRot, _pxActor->GetRot(), alpha);
-		D3DXVec3Lerp(&_pxVelocityLerp, &_pxPrevVelocity, &pxVelocityLerp, alpha);
+		_pxVelocityLerp = Vec3Lerp(_pxPrevVelocity, pxVelocityLerp, alpha);
 	}
 	else
 	{
@@ -311,7 +311,7 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 			{
 				_rotSyncAngle = std::min(_rotSyncAngle + 1.3f * D3DX_PI * deltaTime, 0.0f);
 			}
-			glm::quat rot = glm::angleAxis(-_rotSyncAngle, Vec3DxToGlm(_rotSyncAxis));
+			glm::quat rot = glm::angleAxis(-_rotSyncAngle, _rotSyncAxis);
 			_grActor->SetRot(rot * _grActor->GetRot());
 		}
 
@@ -337,7 +337,7 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 				_rotSyncAngle2 = std::min(_rotSyncAngle2 + 1.3f * D3DX_PI * deltaTime, 0.0f);
 			}
 
-			glm::quat rot = glm::angleAxis(-_rotSyncAngle2, Vec3DxToGlm(_rotSyncAxis2));
+			glm::quat rot = glm::angleAxis(-_rotSyncAngle2, _rotSyncAxis2);
 			_grActor->SetRot(rot * _rotSync2 * _grActor->GetRot());
 		}
 		else if (_rotSyncLength2 != 0)
@@ -376,8 +376,8 @@ void GameObject::LoadSource(lsl::SReader* reader)
 
 void GameObject::SaveProxy(lsl::SWriter* writer)
 {
-	writer->WriteValue("pos", GetPos(), 3);
-	writer->WriteValue("scale", GetScale(), 3);
+	writer->WriteValue("pos", glm::value_ptr(GetPos()), 3);
+	writer->WriteValue("scale", glm::value_ptr(GetScale()), 3);
 	writer->WriteValue("rot", reinterpret_cast<const float *>(&GetRot().x), 4);
 
 	writer->WriteValue("life", _life);
@@ -395,8 +395,8 @@ void GameObject::LoadProxy(lsl::SReader* reader)
 	glm::vec3 scale;
 	glm::quat rot;
 
-	reader->ReadValue("pos", pos, 3);
-	reader->ReadValue("scale", scale, 3);
+	reader->ReadValue("pos", glm::value_ptr(pos), 3);
+	reader->ReadValue("scale", glm::value_ptr(scale), 3);
 	reader->ReadValue("rot", reinterpret_cast<float *>(&rot.x), 4);
 
 	reader->ReadValue("life", _life);
@@ -761,7 +761,7 @@ const glm::vec3& GameObject::GetScale() const
 
 void GameObject::SetScale(const glm::vec3& value)
 {
-	float len = D3DXVec3Length(&value);
+	float len = glm::length(value);
 
 	_grActor->SetScale(value);
 	_pxActor->SetScale(value);
@@ -838,8 +838,8 @@ const glm::vec3& GameObject::GetPosSync() const
 void GameObject::SetPosSync(const glm::vec3& value)
 {
 	_posSync = value;
-	D3DXVec3Normalize(&_posSyncDir, &value);
-	_posSyncLength = D3DXVec3Length(&value);
+	_posSyncDir = glm::normalize(value);
+	_posSyncLength = glm::length(value);
 
 	SetSyncFrameEvent(true);
 }
@@ -852,7 +852,7 @@ const glm::quat& GameObject::GetRotSync() const
 void GameObject::SetRotSync(const glm::quat& value)
 {
 	_rotSync = value;
-	_rotSyncAxis = Vec3GlmToDx(glm::axis(_rotSync));
+	_rotSyncAxis = glm::axis(_rotSync);
 	_rotSyncAngle = glm::angle(_rotSync);
 	float angle = abs(_rotSyncAngle);
 
@@ -872,11 +872,11 @@ const glm::vec3& GameObject::GetPosSync2() const
 void GameObject::SetPosSync2(const glm::vec3& curSync, const glm::vec3& newSync)
 {
 	_posSyncDir2 = curSync - newSync;
-	_posSyncDist2 = D3DXVec3Length(&_posSyncDir2);
+	_posSyncDist2 = glm::length(_posSyncDir2);
 	_posSyncDir2 = _posSyncDist2 != 0.0f ? _posSyncDir2 / _posSyncDist2 : NullVector;
 
 	_posSync2 = newSync;
-	_posSyncLength2 = D3DXVec3Length(&_posSync2);
+	_posSyncLength2 = glm::length(_posSync2);
 
 	SetSyncFrameEvent(true);
 }
@@ -889,7 +889,7 @@ const glm::quat& GameObject::GetRotSync2() const
 void GameObject::SetRotSync2(const glm::quat& curSync, const glm::quat& newSync)
 {
 	glm::quat dRot = QuatRotation(newSync, curSync);
-	_rotSyncAxis2 = Vec3GlmToDx(glm::axis(dRot));
+	_rotSyncAxis2 = glm::axis(dRot);
 	_rotSyncAngle2 = glm::angle(dRot);
 
 	float angle = abs(_rotSyncAngle2);
@@ -899,7 +899,7 @@ void GameObject::SetRotSync2(const glm::quat& curSync, const glm::quat& newSync)
 	}
 
 	_rotSync2 = newSync;
-	glm::vec3 axis = Vec3GlmToDx(glm::axis(_rotSync2));
+	glm::vec3 axis = glm::axis(_rotSync2);
 	_rotSyncLength2 = glm::angle(_rotSync2);
 
 	SetSyncFrameEvent(true);

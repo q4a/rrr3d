@@ -43,11 +43,11 @@ template<> struct SerialValue<glm::vec3>
 
 	static void Write(SWriter* writer, const char* name, const _Value& value)
 	{
-		writer->WriteValue(name, value, 3);
+		writer->WriteValue(name, glm::value_ptr(value), 3);
 	}
 	static SReader* Read(SReader* reader, const char* name, _Value& value)
 	{
-		return reader->ReadValue(name, value, 3);
+		return reader->ReadValue(name, glm::value_ptr(value), 3);
 	}
 };
 

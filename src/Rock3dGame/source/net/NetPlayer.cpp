@@ -198,7 +198,7 @@ void NetPlayer::DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordL
 
 			if (coordList && coordIndex < coordList->size())
 			{
-				nxMat.t = NxVec3((*coordList)[coordIndex]);
+				nxMat.t = glm::value_ptr((*coordList)[coordIndex]);
 				ctx.projMat = &nxMat;
 			}
 			else
@@ -522,8 +522,8 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 
 	glm::vec3 pos = car->GetPxActor().GetPos();
 	glm::quat rot = car->GetPxActor().GetRot();
-	glm::vec3 linVel = car->GetNxActor()->getLinearMomentum().get();
-	glm::vec3 angVel = car->GetNxActor()->getAngularMomentum().get();
+	glm::vec3 linVel = glm::make_vec3(car->GetNxActor()->getLinearMomentum().get());
+	glm::vec3 angVel = glm::make_vec3(car->GetNxActor()->getAngularMomentum().get());
 	BYTE moveState = car->GetMoveCar();
 	BYTE steerState = car->GetSteerWheel();
 	float steerWheelsAngle = car->GetSteerWheelAngle();
@@ -541,7 +541,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 		_dAlpha = 1.0f;
 
 		glm::vec3 dPos = pos - car->GetPxActor().GetPos();
-		float dPosLength = D3DXVec3Length(&dPos);
+		float dPosLength = glm::length(dPos);
 		if (dPosLength > 4.0f)
 		{
 			car->SetPosSync(pos - car->GetGrActor().GetPos());
@@ -551,7 +551,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 			linVel += dPos * 2.0f * car->GetNxActor()->getMass();
 
 		/*glm::vec3 dPos = pos - car->GetPxActor().GetPos();
-		float dPosLength = D3DXVec3Length(&dPos);
+		float dPosLength = glm::length(dPos);
 		if (dPosLength > 4.0f) //>2.0f
 		{
 			car->SetPosSync2(car->GetGrActor().GetPos() - pos, NullVector);
@@ -561,7 +561,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 		{
 			glm::vec3 dPos1 = car->GetGrActor().GetPos() - car->GetPxPosLerp();
 			glm::vec3 dPos2 = pos - car->GetPxPosLerp();
-			if (D3DXVec3Length(&(dPos1 - dPos2)) > 0.5f)
+			if (glm::length(dPos1 - dPos2) > 0.5f)
 				car->SetPosSync2(dPos1, dPos2);
 
 			if (dPosLength > 0.1f)
@@ -571,15 +571,15 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 		}*/
 
 		/*glm::vec3 dPos = pos - car->GetGrActor().GetPos();
-		float dPosLength = D3DXVec3Length(&dPos);
-		if (D3DXVec3Length(&(car->GetPxActor().GetPos() - pos)) > 1.0f)
+		float dPosLength = glm::length(dPos);
+		if (glm::length(car->GetPxActor().GetPos() - pos) > 1.0f)
 		{
 			car->GetPxActor().SetPos(pos);
 			car->SetPosSync(dPos);
 		}*/
 
 		glm::quat dRot = QuatRotation(car->GetGrActor().GetRot(), rot);
-		glm::vec3 dRotAxis = Vec3GlmToDx(glm::axis(dRot));
+		glm::vec3 dRotAxis = glm::axis(dRot);
 		float dRotAngle = glm::angle(dRot);
 		if (abs(dRotAngle) > D3DX_PI/24)
 		{
@@ -587,8 +587,8 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 			car->SetRotSync(dRot);
 		}
 
-		car->GetNxActor()->setLinearMomentum(NxVec3(linVel));
-		car->GetNxActor()->setAngularMomentum(NxVec3(angVel));
+		car->GetNxActor()->setLinearMomentum(glm::value_ptr(linVel));
+		car->GetNxActor()->setAngularMomentum(glm::value_ptr(angVel));
 
 		car->SetMoveCar((GameCar::MoveCarState)moveState);
 		car->SetSteerWheel((GameCar::SteerWheelState)steerState);

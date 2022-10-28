@@ -41,7 +41,7 @@ bool WayPoint::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, float* 
 
 bool WayPoint::IsContains(const glm::vec3& point, float* dist) const
 {
-	float midDist = D3DXVec3Length(&(point - _pos));
+	float midDist = glm::length(point - _pos);
 	if (dist)
 		*dist = midDist;
 
@@ -328,25 +328,25 @@ glm::vec2 WayNode::Tile::ComputeTrackNormOff(const glm::vec2& point, unsigned tr
 void PlaneFromDirVec(const glm::vec3& dir, const glm::vec3& norm, const glm::vec3& pos, D3DXPLANE& plane)
 {
 	glm::vec3 right, up;
-	D3DXVec3Cross(&right, &dir, &norm);
-	D3DXVec3Cross(&up, &right, &dir);
-	D3DXPlaneFromPointNormal(&plane, &pos, &up);
+	right = glm::cross(dir, norm);
+	up = glm::cross(right, dir);
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(pos), &Vec3GlmToDx(up));
 }
 
 bool WayNode::Tile::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, float* dist) const
 {
 	glm::vec3 dir = GetNextPos() - GetPos();
-	D3DXVec3Normalize(&dir, &dir);
+	dir = glm::normalize(dir);
 
 	D3DXPLANE plane;
 	//Условие неколлинеарности векторов
-	if (D3DXVec3Dot(&dir, &rayVec) > 0.001f)
+	if (glm::dot(dir, rayVec) > 0.001f)
 		//плоскость перепендикулярно лучу в центре цилиндра тайла
 		PlaneFromDirVec(dir, rayVec, GetPos(), plane);
 	//Вектора коллиниарны
 	else
 		//Строим плоскость через центр тайла перпендикулярно направлению
-		D3DXPlaneFromPointNormal(&plane, &((GetPos() + GetNextPos()) / 2.0f), &dir);
+		D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx((GetPos() + GetNextPos()) / 2.0f), &Vec3GlmToDx(dir));
 
 	float tmp;
 	bool res = RayCastIntersectPlane(rayPos, rayVec, plane, tmp) && IsContains(rayPos + rayVec * tmp);
@@ -614,7 +614,7 @@ bool WayNode::IsContains2(const glm::vec2& point, float* dist) const
 
 bool WayNode::IsContains(const glm::vec3& point, float* dist) const
 {
-	float midDist = D3DXVec3Length(&(point - _point->GetPos()));
+	float midDist = glm::length(point - _point->GetPos());
 	if (dist)
 		*dist = midDist;
 

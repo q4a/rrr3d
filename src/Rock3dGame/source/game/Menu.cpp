@@ -347,9 +347,9 @@ glm::vec2 Menu::StretchImage(gui::Material& material, const glm::vec2& size, boo
 
 glm::quat Menu::GetIsoRot()
 {
-	glm::quat rotZ = glm::angleAxis(-2.0f * D3DX_PI / 3.0f, Vec3DxToGlm(ZVector));
-	glm::quat rotY = glm::angleAxis(0.0f, Vec3DxToGlm(YVector));
-	glm::quat rotX = glm::angleAxis(-D3DX_PI / 3.0f, Vec3DxToGlm(XVector));
+	glm::quat rotZ = glm::angleAxis(-2.0f * D3DX_PI / 3.0f, ZVector);
+	glm::quat rotY = glm::angleAxis(0.0f, YVector);
+	glm::quat rotX = glm::angleAxis(-D3DX_PI / 3.0f, XVector);
 
 	//return rotZ * rotY * rotX;
 	return rotX * rotY * rotZ;

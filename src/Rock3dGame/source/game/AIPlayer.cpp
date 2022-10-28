@@ -455,7 +455,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 
 			glm::vec3 error(contData.error.get());
 			glm::vec3 errorNorm;
-			D3DXVec3Normalize(&errorNorm, &error);
+			errorNorm = glm::normalize(error);
 			//Отрисовка error вектора
 			NxVec3 nxErrNorm = error;
 			//nxErrNorm.normalize();

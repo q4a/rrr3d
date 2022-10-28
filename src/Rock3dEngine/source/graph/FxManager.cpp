@@ -366,7 +366,7 @@ void FxEmitter::QueryCreateGroup(float deltaTime, const glm::vec3& offPos)
 
 AABB FxEmitter::LocalDimensions() const
 {
-	glm::vec3 dimens = IdentityVector / 2 * _particleDesc.startScale.GetMax();
+	glm::vec3 dimens = IdentityVector / 2.0f * _particleDesc.startScale.GetMax();
 	AABB res(_particleDesc.startPos.GetMin() - dimens, _particleDesc.startPos.GetMax() + dimens);
 
 	return res;
@@ -440,7 +440,7 @@ if (!_modeFading)
 			FxParticle* particle = _groupList.back()->back();
 			glm::vec3 pos = GetLocalPos(particle);
 			glm::vec3 dist = pos;
-			float distLen = D3DXVec3Length(&dist);
+			float distLen = glm::length(dist);
 			//оставание более чем в 20 раз недопустимо
 			float dDist = std::min(distLen - _nextDistCreate, _particleDesc.startTime.GetMax() * 20.0f);
 
@@ -984,7 +984,7 @@ void FxPointSpritesManager::RenderGroup(graph::Engine& engine, FxEmitter* emitte
 			LSL_ASSERT(false);
 		}
 
-		vertex->size = D3DXVec3Length(&particle->GetScale()) * camScale;
+		vertex->size = glm::length(particle->GetScale()) * camScale;
 	}
 
 	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_POINTLIST, group->Size(), vertexBuf, sizeof(VertexPSize));
@@ -1040,7 +1040,7 @@ void FxSpritesManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, Fx
 		}
 		else
 		{
-			glm::vec3 axe = Vec3GlmToDx(glm::axis(particle->GetRot()));
+			glm::vec3 axe = glm::axis(particle->GetRot());
 			float angle = glm::angle(particle->GetRot());
 
 			engine.RenderSpritePT(emitter->GetWorldPos(particle), particle->GetScale(), angle, 0, IdentityMatrix);
@@ -1062,7 +1062,7 @@ void FxPlaneManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, FxPa
 	{
 		FxParticle* particle = *iter;
 
-		glm::vec3 axe = Vec3GlmToDx(glm::axis(particle->GetRot()));
+		glm::vec3 axe = glm::axis(particle->GetRot());
 		float angle = glm::angle(particle->GetRot());
 
 		D3DXMATRIX worldMat = particle->GetMatrix() * emitter->GetMatrix();
@@ -1118,16 +1118,16 @@ void FxTrailManager::BuildVertexLine(res::VertexPT* vertex, const glm::vec3& pos
 
 	if (fixedUp)
 	{
-		D3DXVec3Cross(&yVec, &fixedUpVec, &dir);
-		D3DXVec3Normalize(&yVec, &yVec);
+		yVec = glm::cross(fixedUpVec, dir);
+		yVec = glm::normalize(yVec);
 	}
 	else
 	{
 		glm::vec3 viewVec = pos - camPos;
-		D3DXVec3Normalize(&viewVec, &viewVec);
+		viewVec = glm::normalize(viewVec);
 
-		D3DXVec3Cross(&yVec, &dir, &viewVec);
-		D3DXVec3Normalize(&yVec, &yVec);
+		yVec = glm::cross(dir, viewVec);
+		yVec = glm::normalize(yVec);
 	}
 
 	vertex[0].pos = yVec * _trailWidth + pos;
@@ -1189,7 +1189,7 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 	else
 		pos2 = worldPos;
 	glm::vec3 dir = pos2 - pos1;
-	D3DXVec3Normalize(&dir, &dir);
+	dir = glm::normalize(dir);
 	//ѕоследн€€ позици€ дл€ вычислени€ направлени€
 	glm::vec3 lastPos = pos1 - dir;
 
@@ -1214,7 +1214,7 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 
 			//
 			dir = pos - lastPos;
-			D3DXVec3Normalize(&dir, &dir);
+			dir = glm::normalize(dir);
 			lastPos = pos;
 			//
 			if ((xTex += 1) > 1)
@@ -1239,7 +1239,7 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 
 	//ќбращаемс€ к последней частице в роли которой выступает сам емиттер, и также строим линию из двух вершин
 	dir = worldPos - lastPos;
-	D3DXVec3Normalize(&dir, &dir);
+	dir = glm::normalize(dir);
 	BuildVertexLine(vertex, worldPos, dir, camPos, xTex);
 	++numPartDraw;
 
@@ -1319,7 +1319,7 @@ void FxFlowEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 		if (_flowDesc.autoRot)
 		{
 			glm::vec3 dir;
-			D3DXVec3Normalize(&dir, &speed);
+			dir = glm::normalize(speed);
 			glm::quat rot;
 			QuatShortestArc(XVector, dir, rot);
 			particle->SetRot(particle->speedRot * rot);
@@ -1402,7 +1402,8 @@ void FxPhysicsEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 	if (init)
 	{
 		NxBoxShapeDesc boxShape;
-		boxShape.dimensions.set(IdentityVector * value->GetScale());
+		glm::vec3 tVec = IdentityVector * value->GetScale();
+		boxShape.dimensions.set(reinterpret_cast<const float *>(&tVec.x));
 		px::BoxShape& bbShape = particle->pxActor.GetShapes().Add<px::BoxShape>();
 		bbShape.AssignFromDesc(boxShape);
 

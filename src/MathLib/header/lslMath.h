@@ -30,9 +30,6 @@ void MatrixScale(const glm::vec3& vec, D3DXMATRIX& outMat);
 void MatGetPos(const D3DXMATRIX& mat, glm::vec3& outPos);
 glm::vec3 MatGetPos(const D3DXMATRIX& mat);
 
-glm::vec3 Vec3DxToGlm(glm::vec3 v3);
-glm::vec3 Vec3GlmToDx(glm::vec3 v3);
-
 //
 glm::vec2 Vec2TransformCoord(const glm::vec2 &vec, const glm::mat4 &mat);
 void Vec2NormCCW(const glm::vec2& vec2, glm::vec2& outVec);
@@ -420,10 +417,10 @@ private:
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
 
-			_minAngle = Vec3GlmToDx(glm::axis(_min));
+			_minAngle = glm::axis(_min);
 			_minAngle.z = glm::angle(_min);
 			//
-			_maxAngle = Vec3GlmToDx(glm::axis(_max));
+			_maxAngle = glm::axis(_max);
 			_maxAngle.z = glm::angle(_max);
 		}
 	}
@@ -508,7 +505,7 @@ public:
 			if (range > 0.5f)
 				value.z = -value.z;
 
-			glm::quat res = glm::angleAxis(_minAngle.z + (_maxAngle.z - _minAngle.z) * range, Vec3DxToGlm(value));
+			glm::quat res = glm::angleAxis(_minAngle.z + (_maxAngle.z - _minAngle.z) * range, value);
 
 			return res;
 		}

@@ -143,13 +143,12 @@ bool ActorManager::PullInRayTargetGroup(User* user, unsigned scene, const graph:
 	if (iter != _rayUsers.end())
 		iter->second.draw = true;
 
-	glm::vec3 vec3;
-	D3DXVec3TransformCoord(&vec3, &rayTarget, &camera->GetViewProj());
+	glm::vec3 vec3 = Vec3TransformCoord(rayTarget, camera->GetViewProj());
 	vec3.z = 0.0f;
-	D3DXVec3TransformCoord(&vec3, &vec3, &camera->GetInvViewProj());
+	vec3 = Vec3TransformCoord(vec3, camera->GetInvViewProj());
 	glm::vec3 ray = rayTarget - vec3;
-	float rayLen = D3DXVec3Length(&ray);
-	D3DXVec3Normalize(&ray, &ray);
+	float rayLen = glm::length(ray);
+	ray = glm::normalize(ray);
 
 	float nearDist, farDist;
 	if (user->GetAABB().LineCastIntersect(vec3, ray, nearDist, farDist) && rayLen - farDist > rayTargetSize * 1.5f)
@@ -317,7 +316,7 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	{
 		const D3DXPLANE& testPlane = iter->plane;
 		float dist = abs(testPlane.d - plane.d);
-		float angle = abs(D3DXPlaneDotNormal(&testPlane, &glm::vec3(plane)));
+		float angle = abs(D3DXPlaneDotNormal(&testPlane, &D3DXVECTOR3(plane)));
 
 		if (dist < 0.5f && angle > 0.99f
 			//&& (planarIter == _planars.end() ||

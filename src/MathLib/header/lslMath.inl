@@ -46,15 +46,17 @@ inline float NumAbsAdd(float absVal, float addVal)
 
 inline glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
 {
-	glm::mat4 mat4glm(mat._11, mat._21, mat._31, mat._41,
-	                  mat._12, mat._22, mat._32, mat._42,
-	                  mat._13, mat._23, mat._33, mat._43,
-	                  mat._14, mat._24, mat._34, mat._44);
+	// mat - DX, mat.m[0] 1-st row, mat.m[0][1] = mat._12 - 1-st row 2-nd column
+	glm::mat4 mat4glm(mat._11, mat._21, mat._31, mat._41, // 1-st column
+	                  mat._12, mat._22, mat._32, mat._42, // 2-nd column
+	                  mat._13, mat._23, mat._33, mat._43, // 3-rd column
+	                  mat._14, mat._24, mat._34, mat._44);// 4-th column
 	return mat4glm;
 }
 
 inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
 {
+	// mat - GLM, mat[0] 1-st column, mat[0][1] = mat[0].y - 1-st column 2-nd row
 	D3DXMATRIX matrix(mat[0].x, mat[1].x, mat[2].x, mat[3].x,
 	                  mat[0].y, mat[1].y, mat[2].y, mat[3].y,
 	                  mat[0].z, mat[1].z, mat[2].z, mat[3].z,
@@ -62,22 +64,48 @@ inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
 	return matrix;
 }
 
-inline glm::vec3 Vec3DxToGlm(glm::vec3 v3)
+inline glm::vec3 Vec3DxToGlm(const D3DXVECTOR3 v3)
 {
 	glm::vec3 v3glm(v3.x, v3.y, v3.z);
 	return v3glm;
 }
 
-inline glm::vec3 Vec3GlmToDx(glm::vec3 v3)
+inline D3DXVECTOR3 Vec3GlmToDx(const glm::vec3 v3)
 {
-	glm::vec3 v3dx(v3.x, v3.y, v3.z);
+	D3DXVECTOR3 v3dx(v3.x, v3.y, v3.z);
 	return v3dx;
+}
+
+inline glm::vec4 Vec4DxToGlm(const D3DXVECTOR4 v4)
+{
+	glm::vec4 v4glm(v4.x, v4.y, v4.z, v4.w);
+	return v4glm;
+}
+
+inline D3DXVECTOR4 Vec4GlmToDx(const glm::vec4 v4)
+{
+	D3DXVECTOR4 v4Dx(v4.x, v4.y, v4.z, v4.w);
+	return v4Dx;
+}
+
+inline glm::vec3 Vec3TransformCoord(const glm::vec3 &vec, const D3DXMATRIX &mat)
+{
+	D3DXVECTOR3 res;
+	D3DXVec3TransformCoord(&res, &Vec3GlmToDx(vec), &mat);
+	return Vec3DxToGlm(res);
+}
+
+inline glm::vec3 Vec3TransformNormal(const glm::vec3 &vec, const D3DXMATRIX &mat)
+{
+	D3DXVECTOR3 res;
+	D3DXVec3TransformNormal(&res, &Vec3GlmToDx(vec), &mat);
+	return Vec3DxToGlm(res);
 }
 
 inline float ScalarTransform(float scalar, const glm::vec3& vec, const D3DXMATRIX& mat)
 {
-	glm::vec3 res;
-	D3DXVec3TransformNormal(&res, &(vec * scalar), &mat);
+	D3DXVECTOR3 res;
+	D3DXVec3TransformNormal(&res, &Vec3GlmToDx(vec * scalar), &mat);
 	float len = D3DXVec3Length(&res);
 	return scalar < 0 ? -len : len;
 }
@@ -152,7 +180,7 @@ inline void MatrixScale(const glm::vec3& vec, D3DXMATRIX& outMat)
 
 inline void MatGetPos(const D3DXMATRIX& mat, glm::vec3& outPos)
 {
-	outPos = mat.m[3];
+	outPos = Vec3DxToGlm(mat.m[3]);
 }
 
 inline glm::vec3 MatGetPos(const D3DXMATRIX& mat)
@@ -287,13 +315,6 @@ inline glm::vec3 Vec3Invert(const glm::vec3& vec)
 	return res;
 };
 
-inline glm::vec3 Vec3TransformCoord(const glm::vec3& vec, const D3DXMATRIX& mat)
-{
-	glm::vec3 res;
-	D3DXVec3TransformCoord(&res, &vec, &mat);
-	return res;
-}
-
 inline void Vec3Abs(const glm::vec3& vec, glm::vec3& rOut)
 {
 	rOut.x = abs(vec.x);
@@ -305,6 +326,16 @@ inline glm::vec3 Vec3Abs(const glm::vec3& vec)
 {
 	glm::vec3 res;
 	Vec3Abs(vec, res);
+	return res;
+}
+
+// It's possible to use glm:mix, but it gives a bit different result for Z axe.
+inline glm::vec3 Vec3Lerp(const glm::vec3 &vec1, const glm::vec3 &vec2, float scalar)
+{
+	glm::vec3 res;
+	res.x = vec1.x + scalar * (vec2.x - vec1.x);
+	res.y = vec1.y + scalar * (vec2.y - vec1.y);
+	res.z = vec1.z + scalar * (vec2.z - vec1.z);
 	return res;
 }
 
@@ -408,7 +439,7 @@ inline D3DXCOLOR operator*(const D3DXCOLOR& vec1, const D3DXCOLOR& vec2)
 
 inline void QuatShortestArc(const glm::vec3& from, const glm::vec3& to, glm::quat& outQuat)
 {
-	float angle = D3DXVec3Dot(&from, &to);
+	float angle = glm::dot(from, to);
 	if (abs(angle) > 1.0f)
 	{
 		outQuat = NullQuaternion;
@@ -419,18 +450,16 @@ inline void QuatShortestArc(const glm::vec3& from, const glm::vec3& to, glm::qua
 
 	if (abs(angle) > 0.1f)
 	{
-		glm::vec3 axe;
-		D3DXVec3Cross(&axe, &from, &to);
-		outQuat = glm::angleAxis(angle, Vec3DxToGlm(axe));
+		glm::vec3 axe = glm::cross(from, to);
+		outQuat = glm::angleAxis(angle, axe);
 	}
 	else
 		outQuat = NullQuaternion;
 
 	/*const float TINY = 1e8;
 
-	glm::vec3 c;
-	D3DXVec3Cross(&c, &from, &to);
-	outQuat = D3DXQUATERNION(c.x, c.y, c.z, D3DXVec3Dot(&from, &to));
+	glm::vec3 c = glm::cross(from, to);
+	outQuat = D3DXQUATERNION(c.x, c.y, c.z, glm::dot(from, to));
 
 	outQuat.w += 1.0f;      // reducing angle to halfangle
 	if(outQuat.w <= TINY ) // angle close to PI
@@ -542,7 +571,7 @@ inline glm::vec2 Line2GetNorm(const glm::vec3& line)
 
 inline float Line2DistToPoint(const glm::vec3& line, const glm::vec2& point)
 {
-	return D3DXVec3Dot(&line,  &glm::vec3(point.x, point.y, 1.0f));
+	return glm::dot(line, glm::vec3(point.x, point.y, 1.0f));
 }
 
 inline void Line2NormVecToPoint(const glm::vec3& line, const glm::vec2& point, glm::vec2& outNormVec)
@@ -581,8 +610,8 @@ inline bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& ray
 {
 	glm::vec3 v = rayPos - spherePos;
 
-	float b = 2.0f * D3DXVec3Dot(&rayVec, &v);
-	float c = D3DXVec3Dot(&v, &v) - sphereRadius * sphereRadius;
+	float b = 2.0f * glm::dot(rayVec, v);
+	float c = glm::dot(v, v) - sphereRadius * sphereRadius;
 
 	// Находим дискриминант
 	float discriminant = (b * b) - (4.0f * c);
@@ -605,7 +634,7 @@ inline bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& ray
 
 inline float PlaneDistToPoint(const D3DXPLANE& plane, const glm::vec3& point)
 {
-	return D3DXPlaneDotCoord(&plane, &point);
+	return D3DXPlaneDotCoord(&plane, &Vec3GlmToDx(point));
 };
 
 //}

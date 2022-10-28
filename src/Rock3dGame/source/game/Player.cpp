@@ -910,7 +910,7 @@ void Player::CarState::Update(float deltaTime)
 		mat34.M(2, 0), mat34.M(2, 1), mat34.M(2, 2), 0,
 		mat34.t[0], mat34.t[1], mat34.t[2], 1);
 
-	pos3 = mat34.t.get();
+	pos3 = glm::make_vec3(mat34.t.get());
 	nxActor->getGlobalOrientationQuat().getXYZW(reinterpret_cast<float *>(&rot3.x));
 	Vec3Rotate(XVector, rot3, dir3);
 
@@ -1004,7 +1004,7 @@ void Player::CarState::Update(float deltaTime)
 	}
 
 	/*//контроль за направл€ющим углом
-	float dirAngle = acos(abs(D3DXVec3Dot(&lastDir, &dir3)));
+	float dirAngle = acos(abs(glm::dot(lastDir, dir3)));
 	lastDir = dir3;
 	summAngle += dirAngle;
 	summAngleTime += deltaTime;
@@ -1565,12 +1565,12 @@ Player* Player::FindClosestEnemy(float viewAngle, bool zTest)
 			glm::vec3 enemyPos = tCar.pos3;
 
 			glm::vec3 dir;
-			D3DXVec3Normalize(&dir, &(enemyPos - carPos));
-			float angle = D3DXVec3Dot(&dir, &carDir);
+			dir = glm::normalize(enemyPos - carPos);
+			float angle = glm::dot(dir, carDir);
 
 			D3DXPLANE dirPlane;
-			D3DXPlaneFromPointNormal(&dirPlane, &carPos, &carDir);
-			float dist = D3DXPlaneDotCoord(&dirPlane, &enemyPos);
+			D3DXPlaneFromPointNormal(&dirPlane, &Vec3GlmToDx(carPos), &Vec3GlmToDx(carDir));
+			float dist = D3DXPlaneDotCoord(&dirPlane, &Vec3GlmToDx(enemyPos));
 			float absDist = abs(dist);
 
 			//ќбъект ближе
@@ -1596,7 +1596,7 @@ float Player::ComputeCarBBSize()
 	AABB aabb = _car.grActor->GetLocalAABB(false);
 	aabb.Transform(_car.grActor->GetWorldScale());
 
-	return D3DXVec3Length(&aabb.GetSizes());
+	return glm::length(aabb.GetSizes());
 }
 
 void Player::CreateCar(bool newRace)
@@ -1718,7 +1718,7 @@ void Player::ResetCar()
 					newDir2 = node->GetTile().GetDir();
 				}
 
-				NxRay nxRay(NxVec3(rayPos), NxVec3(-ZVector));
+				NxRay nxRay(glm::value_ptr(rayPos), glm::value_ptr(-ZVector));
 				NxRaycastHit hit;
 				NxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_ALL_SHAPES, hit, 1 << px::Scene::cdgTrackPlane | 1 << px::Scene::cdgPlaneDeath | 1 << px::Scene::cdgDefault, NX_MAX_F32, NX_RAYCAST_SHAPE);
 				GameObject* hitGameObj = GameObject::GetGameObjFromShape(hitShape);
@@ -1764,10 +1764,10 @@ void Player::ResetCar()
 		_car.gameObj->SetWorldRot(NullQuaternion);
 		_car.gameObj->SetWorldDir(glm::vec3(dir2.x, dir2.y, 0.0f));
 
-		_car.gameObj->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setLinearMomentum(NxVec3(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setAngularMomentum(NxVec3(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setAngularVelocity(NxVec3(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setLinearVelocity(glm::value_ptr(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setLinearMomentum(glm::value_ptr(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setAngularMomentum(glm::value_ptr(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setAngularVelocity(glm::value_ptr(NullVector));
 	}
 }
 

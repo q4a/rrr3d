@@ -45,7 +45,6 @@ AABB2::AABB2(const glm::vec2& mMin, const glm::vec2& mMax): min(mMin), max(mMax)
 {
 }
 
-//void AABB2::Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut)
 void AABB2::Transform(const AABB2 &aabb, const D3DXMATRIX &mIn, AABB2 &rOut)
 {
 	auto m = Matrix4DxToGlm(mIn); // remove after D3DXMATRIX replacement
@@ -161,7 +160,7 @@ inline void AABB::Transform(const AABB& aabb, const D3DXMATRIX& m, AABB& rOut)
 {
 	glm::vec3 oldMin = aabb.min;
 	glm::vec3 oldMax = aabb.max;
-	D3DXVec3TransformCoord(&rOut.min, &oldMin, &m);
+	rOut.min = Vec3TransformCoord(oldMin, m);
 	rOut.max = rOut.min;
 
 	rOut.Include(Vec3TransformCoord(glm::vec3(oldMin[0], oldMin[1], oldMax[2]), m));
@@ -181,14 +180,14 @@ inline void AABB::Offset(const AABB& aabb, const glm::vec3& vec, AABB& rOut)
 
 inline void AABB::Add(const AABB& aabb1, const AABB& aabb2, AABB& rOut)
 {
-	D3DXVec3Minimize(&rOut.min, &aabb1.min, &aabb2.min);
-	D3DXVec3Maximize(&rOut.max, &aabb1.max, &aabb2.max);
+	rOut.min = glm::min(aabb1.min, aabb2.min);
+	rOut.max = glm::max(aabb1.max, aabb2.max);
 }
 
 inline void AABB::Include(const AABB& aabb, const glm::vec3& vec, AABB& rOut)
 {
-	D3DXVec3Minimize(&rOut.min, &aabb.min, &vec);
-	D3DXVec3Maximize(&rOut.max, &aabb.max, &vec);
+	rOut.min = glm::min(aabb.min, vec);
+	rOut.max = glm::max(aabb.max, vec);
 }
 
 inline void AABB::Scale(const AABB& aabb, const glm::vec3& vec, AABB& rOut)
@@ -205,13 +204,13 @@ inline void AABB::Scale(const AABB& aabb, float f, AABB& rOut)
 
 void AABB::FromPoints(const glm::vec3& pnt1, const glm::vec3& pnt2)
 {
-	D3DXVec3Minimize(&min, &pnt1, &pnt2);
-	D3DXVec3Maximize(&max, &pnt1, &pnt2);
+	min = glm::min(pnt1, pnt2);
+	max = glm::max(pnt1, pnt2);
 }
 
 void AABB::FromDimensions(const glm::vec3& dimensions)
 {
-	D3DXVec3Maximize(&max, &dimensions, &NullVector);
+	max = glm::max(dimensions, NullVector);
 	min = -max;
 }
 
@@ -294,9 +293,9 @@ inline bool AABB::LineCastIntersect(const glm::vec3& lineStart, const glm::vec3&
 	glm::vec3 oMax = (max - lineStart) / lineVec;
 
 	glm::vec3 tMin;
-	D3DXVec3Minimize(&tMin, &oMin, &oMax);
+	tMin = glm::min(oMin, oMax);
 	glm::vec3 tMax;
-	D3DXVec3Maximize(&tMax, &oMin, &oMax);
+	tMax = glm::max(oMin, oMax);
 
 	tNear = std::max(tMin.x, std::max(tMin.y, tMin.z));
 	tFar = std::min(tMax.x, std::min(tMax.y, tMax.z));
@@ -405,8 +404,7 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const 
 	BoundBox testBB(*this);
 	testBB.Transform(localToStart);
 
-	glm::vec3 localVec;
-	D3DXVec3TransformNormal(&localVec, &vec, &startTolocal);
+	glm::vec3 localVec = Vec3TransformNormal(vec, startTolocal);
 
 	bool res = false;
 	for (int i = 0; i < 8; ++i)
@@ -433,8 +431,8 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const 
 	glm::vec3 centerFar;
 	if (start.LineCastIntersect(start.GetCenter(), vec, centerNear, centerFar))
 	{
-		D3DXVec3TransformCoord(&centerNear, &centerNear, &startTolocal);
-		D3DXVec3TransformCoord(&centerFar, &centerFar, &startTolocal);
+		centerNear = Vec3TransformCoord(centerNear, startTolocal);
+		centerFar = Vec3TransformCoord(centerFar, startTolocal);
 		float tNear;
 		float tFar;
 		//Ближняя проекция
@@ -508,7 +506,7 @@ glm::vec3 AABB::GetSizes() const
 
 float AABB::GetDiameter() const
 {
-	return D3DXVec3Length(&GetSizes());
+	return glm::length(GetSizes());
 }
 
 float AABB::GetRadius() const
@@ -556,27 +554,27 @@ D3DXPLANE AABB::GetPlane(unsigned index) const
 	switch (index)
 	{
 	case cLeftPlane:
-		D3DXPlaneFromPointNormal(&res, &min, &(-XVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(min), &Vec3GlmToDx(-XVector));
 		break;
 
 	case cTopPlane:
-		D3DXPlaneFromPointNormal(&res, &min, &(-YVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(min), &Vec3GlmToDx(-YVector));
 		break;
 
 	case cBackPlane:
-		D3DXPlaneFromPointNormal(&res, &min, &(-ZVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(min), &Vec3GlmToDx(-ZVector));
 		break;
 
 	case cRightPlane:
-		D3DXPlaneFromPointNormal(&res, &max, &(XVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(max), &Vec3GlmToDx(XVector));
 		break;
 
 	case cBottomPlane:
-		D3DXPlaneFromPointNormal(&res, &max, &(YVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(max), &Vec3GlmToDx(YVector));
 		break;
 
 	case cFrontPlane:
-		D3DXPlaneFromPointNormal(&res, &max, &(ZVector));
+		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(max), &Vec3GlmToDx(ZVector));
 		break;
 	}
 
@@ -671,7 +669,7 @@ BoundBox::BoundBox(const AABB& aabb)
 void BoundBox::Transform(const BoundBox& bb, const D3DXMATRIX& m, BoundBox& rOut)
 {
 	for (int i = 0; i < 8; ++i)
-		D3DXVec3TransformCoord(&rOut.v[i], &bb.v[i], &m);
+		rOut.v[i] = Vec3TransformCoord(bb.v[i], m);
 }
 
 void BoundBox::SetPlan(const int numPlan, const float valeur)
@@ -703,7 +701,7 @@ void Frustum::CalculateCorners(Corners& pPoints, const D3DXMATRIX& invViewProj)
 	for (float fy = -1.0f; fy <= 1.0f; fy += 2.0f)
 	for (float fz = 0.0f; fz <= 1.0f; fz += 1.0f, ++i)
 	{
-		D3DXVec3TransformCoord(&pPoints[i], &glm::vec3(fx, fy, fz), &invViewProj);
+		pPoints[i] = Vec3TransformCoord(glm::vec3(fx, fy, fz), invViewProj);
 	}
 }
 
@@ -773,7 +771,7 @@ Frustum::SpaceContains Frustum::ContainsAABB(const AABB& aabb) const
 		PointIn = true;
 
 		for (int iCorner = 0; iCorner < 8; ++iCorner)
-			if (D3DXPlaneDotCoord(&planes[iPlane], &corners[iCorner]) < 0)
+			if (D3DXPlaneDotCoord(&planes[iPlane], &Vec3GlmToDx(corners[iCorner])) < 0)
 			{
 				PointIn = false;
 				--inCount;
@@ -796,10 +794,10 @@ bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, c
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &rayVec);
+	float d = D3DXPlaneDotNormal(&plane, &Vec3GlmToDx(rayVec));
 	if (abs(d) > EPSILON)
 	{
-		outT = -D3DXPlaneDotCoord(&plane, &rayStart) / d;
+		outT = -D3DXPlaneDotCoord(&plane, &Vec3GlmToDx(rayStart)) / d;
 		return outT > 0;
 	}
 	return false;
@@ -823,12 +821,12 @@ bool RayCastIntersectSquare(const glm::vec3& rayStart, const glm::vec3& rayVec, 
 	{
 		glm::vec3 intPnt = rayStart + rayVec * t;
 		glm::vec3 plDiag = max - min;
-		D3DXVec3Normalize(&plDiag, &plDiag);
+		plDiag = glm::normalize(plDiag);
 		glm::vec3 intPnt1 = intPnt - min;
-		D3DXVec3Normalize(&intPnt1, &intPnt1);
+		intPnt1 = glm::normalize(intPnt1);
 		glm::vec3 intPnt2 = intPnt - max;
-		D3DXVec3Normalize(&intPnt2, &intPnt2);
-		bool res = D3DXVec3Dot(&intPnt1, &plDiag) > Arad45 && D3DXVec3Dot(&intPnt2, &(-plDiag)) > Arad45;
+		intPnt2 = glm::normalize(intPnt2);
+		bool res = glm::dot(intPnt1, plDiag) > Arad45 && glm::dot(intPnt2, (-plDiag)) > Arad45;
 		if (res)
 		{
 			if (outT)

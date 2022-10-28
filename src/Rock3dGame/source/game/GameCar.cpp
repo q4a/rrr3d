@@ -186,13 +186,13 @@ void CarWheel::PxSyncWheel(float alpha)
 	if (s && wcd.contactForce > -1000)
 		st = wcd.contactPosition - r;
 
-	glm::quat quat1 = glm::angleAxis(_steerAngle, Vec3DxToGlm(ZVector));
-	glm::quat quat2 = glm::angleAxis(_summAngle, Vec3DxToGlm(YVector)); // NullQuaternion;
+	glm::quat quat1 = glm::angleAxis(_steerAngle, ZVector);
+	glm::quat quat2 = glm::angleAxis(_summAngle, YVector); // NullQuaternion;
 
 	glm::quat resRot = quat1 * quat2;
 	if (invertWheel)
 	{
-		glm::quat invRot = glm::angleAxis(D3DX_PI, Vec3DxToGlm(ZVector));
+		glm::quat invRot = glm::angleAxis(D3DX_PI, ZVector);
 		resRot = resRot * invRot;
 	}
 
@@ -206,9 +206,9 @@ void CarWheel::PxSyncWheel(float alpha)
 	}
 	GetGrActor().SetRot(resRot);
 
-	glm::vec3 resPos((t - dir * st).get());
+	glm::vec3 resPos = glm::make_vec3((t - dir * st).get());
 	if (alpha < 1.0f)
-		D3DXVec3Lerp(&resPos, &_pxPrevPos, &resPos, alpha);
+		resPos = Vec3Lerp(_pxPrevPos, resPos, alpha);
 	else
 		_pxPrevPos = resPos;
 	GetGrActor().SetPos(resPos + _offset);
@@ -248,7 +248,7 @@ void CarWheel::OnProgress(float deltaTime)
 				_actTrail->AddRef();
 			}
 
-			_actTrail->GetGameObj().SetWorldPos(glm::vec3(contactDesc.contactPoint.get()) + ZVector * 0.001f);
+			_actTrail->GetGameObj().SetWorldPos(glm::make_vec3(contactDesc.contactPoint.get()) + ZVector * 0.001f);
 			//Во время установки следа время жизни не меняется
 			_actTrail->GetGameObj().SetTimeLife(0);
 		}
@@ -540,7 +540,7 @@ inline const void NxQuatRotation(NxQuat& quat, const NxQuat& quat1, const NxQuat
 void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorque)
 {
 	NxActor* nxActor = GetPxActor().GetNxActor();
-	float speed = GetSpeed(nxActor, nxActor->getGlobalOrientationQuat().rot(NxVec3(1.0f, 0.0f, 0.0f)).get());
+	float speed = GetSpeed(nxActor, glm::make_vec3(nxActor->getGlobalOrientationQuat().rot(NxVec3(1.0f, 0.0f, 0.0f)).get()));
 	float absSpeed = GetPxActor().GetNxActor()->getLinearVelocity().magnitude();
 
 	if (_maxSpeed > 0 && absSpeed > _maxSpeed)
@@ -1501,7 +1501,7 @@ float GameCar::GetSpeed(NxActor* nxActor, const glm::vec3& dir)
 {
 	if (nxActor)
 	{
-		float speed = D3DXVec3Dot(&dir, &glm::vec3(nxActor->getLinearVelocity().get()));
+		float speed = glm::dot(dir, glm::make_vec3(nxActor->getLinearVelocity().get()));
 		//погрешность 1 м/с
 		if (abs(speed) < 1.0f)
 			speed = 0.0f;

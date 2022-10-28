@@ -198,9 +198,9 @@ Intersect FrustumAABBIntersect(const Frustum& frustum, bool incZ, const AABB& aa
 			vMax.z = aabb.min.z;
 		}
 
-		if (D3DXPlaneDotCoord(&frustum.planes[i], &vMin) > 0)
+		if (D3DXPlaneDotCoord(&frustum.planes[i], &Vec3GlmToDx(vMin)) > 0)
 			return fiOutside;
-		if (D3DXPlaneDotCoord(&frustum.planes[i], &vMax) >= 0)
+		if (D3DXPlaneDotCoord(&frustum.planes[i], &Vec3GlmToDx(vMax)) >= 0)
 			ret = fiIntersect;
 	}
 
@@ -211,10 +211,10 @@ bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, con
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &rayVec);
+	float d = D3DXPlaneDotNormal(&plane, &Vec3GlmToDx(rayVec));
 	if (abs(d) > EPSILON)
 	{
-		outT = -D3DXPlaneDotCoord(&plane, &rayStart) / d;
+		outT = -D3DXPlaneDotCoord(&plane, &Vec3GlmToDx(rayStart)) / d;
 		return true;
 	}
 	return false;
@@ -233,8 +233,8 @@ unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, glm::vec3 
 		glm::vec3 v2 = bb.v[lines[i][1]];
 
 		glm::vec3 vec = v2 - v1;
-		float vec3Len = D3DXVec3Length(&vec);
-		D3DXVec3Normalize(&vec, &vec);
+		float vec3Len = glm::length(vec);
+		vec = glm::normalize(vec);
 		float dist;
 		//есть пересечение
 		if (LineCastIntersPlane(v1, vec, plane, dist) && dist > 0.0f && dist < vec3Len)
@@ -260,7 +260,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 {
 	bool res = false;
 	D3DXPLANE posNearPlane;
-	D3DXPlaneFromPointNormal(&posNearPlane, &_desc.pos,  &_desc.dir);
+	D3DXPlaneFromPointNormal(&posNearPlane, &Vec3GlmToDx(_desc.pos),  &Vec3GlmToDx(_desc.dir));
 
 	BoundBox box(aabb);
 	BoundBox viewBox, projBox;
@@ -288,15 +288,15 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 
 	for (int i = 0; i < 4; ++i)
 	{
-		D3DXVec3TransformCoord(&rayVec[i], &rayVec[i], &GetInvViewProj());
-		D3DXVec3TransformCoord(&rayPos[i], &rayPos[i], &GetInvViewProj());
-		D3DXVec3Normalize(&rayVec[i], &(rayVec[i] - rayPos[i]));
+		rayVec[i] = Vec3TransformCoord(rayVec[i], GetInvViewProj());
+		rayPos[i] = Vec3TransformCoord(rayPos[i], GetInvViewProj());
+		rayVec[i] = glm::normalize(rayVec[i] - rayPos[i]);
 
 		float tNear, tFar;
 		if (aabb.LineCastIntersect(rayPos[i], rayVec[i], tNear, tFar))
 		{
-			tNear = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tNear));
-			tFar = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tFar));
+			tNear = D3DXPlaneDotCoord(&posNearPlane, &Vec3GlmToDx(rayPos[i] + rayVec[i] * tNear));
+			tFar = D3DXPlaneDotCoord(&posNearPlane, &Vec3GlmToDx(rayPos[i] + rayVec[i] * tFar));
 
 			if (tNear < minZ || !res)
 				minZ = tNear;
@@ -316,8 +316,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	{
 		if (abs(points[i].x) < 1.1f && abs(points[i].y) < 1.1f)
 		{
-			glm::vec3 vec;
-			D3DXVec3TransformCoord(&vec, &points[i], &GetInvProj());
+			glm::vec3 vec = Vec3TransformCoord(points[i], GetInvProj());
 
 			if (vec.z < minZ || !res)
 				minZ = vec.z;
@@ -342,7 +341,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 			for (int k = 0; k < 3; ++k)
 			{
 				int numPlane = (i + k + 1) % 4;
-				float planeDot = D3DXPlaneDotCoord(&frustum.planes[numPlane], &points[j]);
+				float planeDot = D3DXPlaneDotCoord(&frustum.planes[numPlane], &Vec3GlmToDx(points[j]));
 				if (k == 0)
 					fContain = planeDot;
 				//лежит вне
@@ -355,7 +354,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 
 			if (contain)
 			{
-				float z = D3DXPlaneDotCoord(&posNearPlane, &points[j]);
+				float z = D3DXPlaneDotCoord(&posNearPlane, &Vec3GlmToDx(points[j]));
 
 				if (z < minZ || !res)
 					minZ = z;
@@ -429,15 +428,14 @@ glm::vec3 CameraCI::ScreenToWorld(const glm::vec2& coord, float z, const glm::ve
 	glm::vec2 projCoord = ViewToProj(coord, viewSize);
 	glm::vec3 screenVec(projCoord.x, projCoord.y, z);
 	//Переводим в мировое пространство(домножая на инв. матрицу), что соотв. точке на near плоскости камеры
-	D3DXVec3TransformCoord(&screenVec, &screenVec, &GetInvViewProj());
+	screenVec = Vec3TransformCoord(screenVec, GetInvViewProj());
 
 	return screenVec;
 }
 
 glm::vec2 CameraCI::WorldToScreen(const glm::vec3& coord, const glm::vec2& viewSize) const
 {
-	glm::vec3 screenVec;
-	D3DXVec3TransformCoord(&screenVec, &coord, &GetViewProj());
+	glm::vec3 screenVec = Vec3TransformCoord(coord, GetViewProj());
 	glm::vec2 vec(screenVec.x, screenVec.y);
 
 	return ProjToView(vec, viewSize);
@@ -472,7 +470,8 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 
 			default:
 				//Используется правостороння система координат (как в 3dMax-e)
-				D3DXMatrixLookAtRH(&_matrices[transform], &_desc.pos, &(_desc.pos + _desc.dir), &_desc.up);
+				D3DXMatrixLookAtRH(&_matrices[transform], &Vec3GlmToDx(_desc.pos), &Vec3GlmToDx(_desc.pos + _desc.dir),
+				                   &Vec3GlmToDx(_desc.up));
 			}
 			break;
 
@@ -732,10 +731,10 @@ void ContextInfo::SetLight(LightCI* light, DWORD lightIndex)
 	d3dLight.Attenuation1 = light->_desc.attenuation1;
 	d3dLight.Attenuation2 = light->_desc.attenuation2;
 	d3dLight.Diffuse = light->_desc.diffuse;
-	d3dLight.Direction = light->_desc.dir;
+	d3dLight.Direction = Vec3GlmToDx(light->_desc.dir);
 	d3dLight.Falloff = light->_desc.falloff;
 	d3dLight.Phi = light->_desc.phi;
-	d3dLight.Position = light->_desc.pos;
+	d3dLight.Position = Vec3GlmToDx(light->_desc.pos);
 	d3dLight.Range = light->_desc.range;
 	d3dLight.Specular = light->_desc.specular;
 	d3dLight.Theta = light->_desc.theta;

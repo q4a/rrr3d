@@ -87,7 +87,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 	for (Trace::Pathes::const_iterator iter = _trace->GetPathes().begin(); iter != _trace->GetPathes().end(); ++iter, ++iPath)
 	{
 		WayPath* path = *iter;
-		D3DXCOLOR pathColor = path == _selPath ? clrGreen : D3DXCOLOR(resColor.GetValue(iPath / (pathCnt - 1.0f)));
+		D3DXCOLOR pathColor = path == _selPath ? clrGreen : D3DXCOLOR(Vec3GlmToDx(resColor.GetValue(iPath / (pathCnt - 1.0f))));
 		res::VertexData vBuf;
 		path->GetTriStripVBuf(vBuf, &upVec);
 		if (vBuf.IsInit())
@@ -108,8 +108,8 @@ void TraceGfx::DoRender(graph::Engine& engine)
 		glm::vec3 pos1 = _pointLink->GetPoint()->GetPos();
 		glm::vec3 pos2 = _pointLink->GetPos();
 		glm::vec3 dir = pos1 - pos2;
-		glm::vec2 sizes(D3DXVec3Length(&dir), _pointLink->GetPoint()->GetSize());
-		D3DXVec3Normalize(&dir, &dir);
+		glm::vec2 sizes(glm::length(dir), _pointLink->GetPoint()->GetSize());
+		dir = glm::normalize(dir);
 
 		_sprite->SetPos((pos1 + pos2) / 2.0f);
 		_sprite->SetDir(dir);

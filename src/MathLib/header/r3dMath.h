@@ -16,7 +16,6 @@ struct AABB2
 	explicit AABB2(const glm::vec2& size);
 	AABB2(const glm::vec2& mMin, const glm::vec2& mMax);
 
-	//static void Transform(const AABB2 &aabb, const glm::mat4 &m, AABB2 &rOut);
 	static void Transform(const AABB2 &aabb, const D3DXMATRIX &m, AABB2 &rOut);
 	static void Include(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut);
 	static void Add(const AABB2& aabb1, const AABB2& aabb2, AABB2& rOut);

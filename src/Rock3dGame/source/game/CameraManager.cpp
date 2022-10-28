@@ -83,8 +83,8 @@ bool CameraManager::Control::OnMouseMoveEvent(const MouseMove& mMove)
 
 		if (mMove.click.key == lsl::mkRight && mMove.click.state == lsl::ksDown)
 		{
-			glm::quat quatZ = glm::angleAxis(0.005f * (-mMove.dtCoord.x), Vec3DxToGlm(ZVector));
-			glm::quat quatRight = glm::angleAxis(0.005f * mMove.dtCoord.y, Vec3DxToGlm(right));
+			glm::quat quatZ = glm::angleAxis(0.005f * (-mMove.dtCoord.x), ZVector);
+			glm::quat quatRight = glm::angleAxis(0.005f * mMove.dtCoord.y, right);
 			rot = quatZ * quatRight * rot;
 
 			camera->SetRot(rot);
@@ -147,8 +147,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		alpha = _flyAlpha = _flyAlpha + std::max((alpha - _flyAlpha) * deltaTime * 4.0f, 0.001f);
 		alpha = lsl::ClampValue(alpha / _manager->_flyTime, 0.0f, 1.0f);
 
-		glm::vec3 pos;
-		D3DXVec3Lerp(&pos, &_manager->_flySPos, &_manager->_flyPos, alpha);
+		glm::vec3 pos = Vec3Lerp(_manager->_flySPos, _manager->_flyPos, alpha);
 
 		glm::quat rot = glm::slerp(_manager->_flySRot, _manager->_flyRot, alpha);
 
@@ -221,8 +220,8 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 	}
 #endif*/
 
-	glm::quat isoRotY = glm::angleAxis(cIsoAngY, Vec3DxToGlm(YVector));
-	glm::quat isoRotZ = glm::angleAxis(cIsoAngZ, Vec3DxToGlm(ZVector));
+	glm::quat isoRotY = glm::angleAxis(cIsoAngY, YVector);
+	glm::quat isoRotZ = glm::angleAxis(cIsoAngZ, ZVector);
 	//
 	glm::quat cIsoRot = isoRotZ * isoRotY;
 
@@ -297,9 +296,9 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		if (_manager->_style == csIsoView)
 		{
 			dir = glm::vec3(1, 1, 0);
-			D3DXVec3Normalize(&dir, &dir);
+			dir = glm::normalize(dir);
 			right = glm::vec3(-1, 1, 0);
-			D3DXVec3Normalize(&right, &right);
+			right = glm::normalize(right);
 			rot = cIsoRot;
 		}
 
@@ -321,23 +320,23 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 
 	case csThirdPerson:
 	{
-		float velocityLen = D3DXVec3Length(&targetVel);
+		float velocityLen = glm::length(targetVel);
 		glm::vec3 velocity = targetDir + targetVel * 0.1f;
-		D3DXVec3Normalize(&velocity, &velocity);
+		velocity = glm::normalize(velocity);
 
 		//строим матрицу поворота относительно скорости
 		glm::vec3 xVec;
-		D3DXVec3Normalize(&xVec, &velocity);
+		xVec = glm::normalize(velocity);
 		glm::vec3 yVec;
-		D3DXVec3Cross(&yVec, &ZVector, &xVec);
-		if (D3DXVec3Length(&yVec) < 0.001f)
+		yVec = glm::cross(ZVector, xVec);
+		if (glm::length(yVec) < 0.001f)
 		{
-			//D3DXVec3Cross(&yVec, &xVec, &ZVector);
+			//yVec = glm::cross(xVec, ZVector);
 		}
-		D3DXVec3Normalize(&yVec, &yVec);
+		yVec = glm::normalize(yVec);
 		glm::vec3 zVec;
-		D3DXVec3Cross(&zVec, &xVec, &yVec);
-		D3DXVec3Normalize(&zVec, &zVec);
+		zVec = glm::cross(xVec, yVec);
+		zVec = glm::normalize(zVec);
 
 		D3DXMATRIX velMat;
 		MatrixRotationFromAxis(xVec, yVec, zVec, velMat);
@@ -406,9 +405,9 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		targOff.x = targOff.y;
 		targOff.y = targOff.z;
 		targOff.z = 0.0f;
-		D3DXVec3Normalize(&targOff, &targOff);
+		targOff = glm::normalize(targOff);
 		//
-		float yTargetDot = D3DXVec3Dot(&targOff, &glm::vec3(0.0f, 1.0f, 0.0f));
+		float yTargetDot = glm::dot(targOff, glm::vec3(0.0f, 1.0f, 0.0f));
 		//Формируем вектор смещения
 		targOff *= camSize;
 
@@ -444,7 +443,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		Vec3Rotate(targOff, cIsoRot, targOff);
 
 		//Планва интерполяция смещения
-		D3DXVec3Lerp(&_staticVec1, &_staticVec1, &targOff, deltaTime);
+		_staticVec1 = Vec3Lerp(_staticVec1, targOff, deltaTime);
 		//_staticVec1 = targOff;
 		//Позиция камеры
 		glm::vec3 camPos = targetPos + (-isoDir) * targDist + _staticVec1;
@@ -452,7 +451,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		//Плавная интерполяция при скачках машины
 		glm::vec3 dTargetPos = targetPos - _staticVec2;
 		_staticVec2 = targetPos;
-		float dTargetLength = D3DXVec3Length(&dTargetPos);
+		float dTargetLength = glm::length(dTargetPos);
 
 		if (dTargetLength > 6.0f)
 		{
@@ -579,7 +578,7 @@ void CameraManager::Control::TargetChanged()
 		if (_manager->_player)
 			_staticVec2 = _manager->_player && _manager->_player->GetCar().mapObj ? _manager->_player->GetCar().grActor->GetWorldPos() : _manager->_player->GetCar().pos3;
 		else
-			_staticVec2 = glm::vec3(_manager->_target);
+			_staticVec2 = glm::vec3(Vec4DxToGlm(_manager->_target));
 	}
 }
 
@@ -597,7 +596,7 @@ void CameraManager::ScreenToRay(const lsl::Point& coord, glm::vec3& rayStart, gl
 {
 	rayStart = ScreenToWorld(coord, 0);
 	rayVec = ScreenToWorld(coord, 1) - rayStart;
-	D3DXVec3Normalize(&rayVec, &rayVec);
+	rayVec = glm::normalize(rayVec);
 }
 
 bool CameraManager::ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, glm::vec3& outVec)
@@ -834,20 +833,20 @@ void CameraManager::GetObserverCoord(const glm::vec3& targetPos, float targetDis
 			dAngZ = lsl::ClampValue(dMPos.x * D3DX_PI * 0.001f, -D3DX_PI/2, D3DX_PI/2);
 		}
 
-		glm::quat dRotZ = glm::angleAxis(dAngZ, Vec3DxToGlm(ZVector));
+		glm::quat dRotZ = glm::angleAxis(dAngZ, ZVector);
 		rot = dRotZ * rot;
 
 		if (_clampAngle.x != 0 || _clampAngle.y != 0)
 		{
 			glm::vec3 yAxis;
 			QuatRotateVec3(yAxis, YVector, rot);
-			D3DXVec3Normalize(&yAxis, &yAxis);
+			yAxis = glm::normalize(yAxis);
 
 			glm::vec3 norm;
-			D3DXVec3Cross(&norm, &YVector, &yAxis);
-			D3DXVec3Normalize(&norm, &norm);
+			norm = glm::cross(YVector, yAxis);
+			norm = glm::normalize(norm);
 
-			float ang = acos(D3DXVec3Dot(&YVector, &yAxis));
+			float ang = acos(glm::dot(YVector, yAxis));
 			bool angClamp = false;
 			if (norm.z > 0)
 			{
@@ -862,21 +861,21 @@ void CameraManager::GetObserverCoord(const glm::vec3& targetPos, float targetDis
 
 			if (angClamp)
 			{
-				dRotZ = glm::angleAxis(ang, Vec3DxToGlm(norm));
+				dRotZ = glm::angleAxis(ang, norm);
 				QuatRotateVec3(yAxis, YVector, dRotZ);
-				D3DXVec3Normalize(&yAxis, &yAxis);
+				yAxis = glm::normalize(yAxis);
 
 				glm::vec3 zAxis;
 				QuatRotateVec3(zAxis, ZVector, rot);
-				D3DXVec3Normalize(&zAxis, &zAxis);
+				zAxis = glm::normalize(zAxis);
 
-				ang = acos(D3DXVec3Dot(&ZVector, &zAxis));
-				glm::quat dRotY = glm::angleAxis(ang, Vec3DxToGlm(yAxis));
+				ang = acos(glm::dot(ZVector, zAxis));
+				glm::quat dRotY = glm::angleAxis(ang, yAxis);
 				QuatRotateVec3(zAxis, ZVector, dRotY);
 
 				glm::vec3 xAxis;
-				D3DXVec3Cross(&xAxis, &yAxis, &zAxis);
-				D3DXVec3Normalize(&xAxis, &xAxis);
+				xAxis = glm::cross(yAxis, zAxis);
+				xAxis = glm::normalize(xAxis);
 
 				D3DXMATRIX rotMat;
 				MatrixRotationFromAxis(xAxis, yAxis, zAxis, rotMat);
@@ -913,40 +912,40 @@ void CameraManager::GetObserverCoord(const glm::vec3& targetPos, float targetDis
 			angLow = _clampAngle.z;
 			angUp = _clampAngle.w;
 
-			dRotY = glm::angleAxis(dAngY, Vec3DxToGlm(yAxis));
+			dRotY = glm::angleAxis(dAngY, yAxis);
 			rot = dRotY * rot;
 		}
 
 		glm::vec3 xAxis;
 		QuatRotateVec3(xAxis, XVector, rot);
-		D3DXVec3Normalize(&xAxis, &xAxis);
+		xAxis = glm::normalize(xAxis);
 
 		glm::vec3 norm;
-		D3DXVec3Cross(&norm, &(-ZVector), &yAxis);
-		D3DXVec3Normalize(&norm, &norm);
+		norm = glm::cross((-ZVector), yAxis);
+		norm = glm::normalize(norm);
 		float ang = 0;
 		bool angClamp = false;
 
-		if (D3DXVec3Dot(&norm, &xAxis) < 0)
+		if (glm::dot(norm, xAxis) < 0)
 		{
 			angClamp = true;
 			ang = dMPos.y > 0 ? angUp : angLow;
 		}
 		else
 		{
-			ang = acos(D3DXVec3Dot(&xAxis, &(-ZVector)));
+			ang = acos(glm::dot(xAxis, (-ZVector)));
 			angClamp = ang - angLow < -0.001f || ang - angUp > 0.001f;
 		}
 
 		if (angClamp)
 		{
 			ang = ClampValue(ang, angLow, angUp);
-			dRotY = glm::angleAxis(-ang, Vec3DxToGlm(yAxis));
+			dRotY = glm::angleAxis(-ang, yAxis);
 			QuatRotateVec3(xAxis, -ZVector, dRotY);
-			D3DXVec3Normalize(&xAxis, &xAxis);
+			xAxis = glm::normalize(xAxis);
 			glm::vec3 zAxis;
-			D3DXVec3Cross(&zAxis, &xAxis, &yAxis);
-			D3DXVec3Normalize(&zAxis, &zAxis);
+			zAxis = glm::cross(xAxis, yAxis);
+			zAxis = glm::normalize(zAxis);
 			D3DXMATRIX rotMat;
 			MatrixRotationFromAxis(xAxis, yAxis, zAxis, rotMat);
 			rot = glm::quat_cast(Matrix4DxToGlm(rotMat));

@@ -280,7 +280,7 @@ glm::vec3 Trace::NodeControl::GetScale() const
 
 void Trace::NodeControl::SetScale(const glm::vec3& value)
 {
-	_wayPoint->SetSize(D3DXVec3Length(&value));
+	_wayPoint->SetSize(glm::length(value));
 }
 
 glm::vec3 Trace::NodeControl::GetDir() const

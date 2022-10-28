@@ -73,7 +73,7 @@ void SunShaftRender::Render(Engine& engine)
 	engine.GetContext().RestoreSamplerState(0, ssMinFilter);
 	engine.GetContext().RestoreSamplerState(0, ssMipFilter);
 
-	D3DXVECTOR4 sunPos(_sunPos, 1.0f);
+	D3DXVECTOR4 sunPos(Vec3GlmToDx(_sunPos), 1.0f);
 	D3DXVec4Transform(&sunPos, &sunPos, &engine.GetContext().GetCamera().GetViewProj());
 	sunPos.x /= sunPos.w;
 	sunPos.y /= sunPos.w;
@@ -83,15 +83,15 @@ void SunShaftRender::Render(Engine& engine)
 
 	//Стд. техника учитывающая напрявление ист. света
 	//glm::vec3 posNorm;
-	//D3DXVec3Normalize(&posNorm, &engine.GetLight()->GetDesc().pos);
-	//sunPos.w = D3DXVec3Dot(&posNorm, &engine.GetCamera()->GetDesc().dir);
+	//posNorm = glm::normalize(engine.GetLight()->GetDesc().pos);
+	//sunPos.w = glm::dot(posNorm, engine.GetCamera()->GetDesc().dir);
 	//
 	if (sunPos.w > 0.0f)
 	{
 		//Не учитвает направление ист. света
 		//glm::vec3 posNorm;
-		//D3DXVec3Normalize(&posNorm, &glm::vec3(sunPos));
-		//sunPos.w = D3DXVec3Dot(&posNorm, &engine.GetCamera()->GetDesc().up);
+		//posNorm = glm::normalize(glm::vec3(sunPos));
+		//sunPos.w = glm::dot(posNorm, engine.GetCamera()->GetDesc().up);
 		//
 		//Без затухания
 		sunPos.w = 1.0f;

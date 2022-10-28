@@ -290,15 +290,15 @@ px::BoxShape* DataBase::AddPxBox(MapObj* mapObj)
 px::CapsuleShape* DataBase::AddPxCapsule(MapObj* mapObj, float radius, float height, const glm::vec3& dir, const glm::vec3& up)
 {
 	glm::vec3 right;
-	D3DXVec3Cross(&right, &dir, &up);
+	right = glm::cross(dir, up);
 
 	NxCapsuleShapeDesc desc;
 	desc.radius = radius;
 	desc.height = height;
 
-	desc.localPose.M.setColumn(0, NxVec3(right));
-	desc.localPose.M.setColumn(1, NxVec3(dir));
-	desc.localPose.M.setColumn(2, NxVec3(up));
+	desc.localPose.M.setColumn(0, glm::value_ptr(right));
+	desc.localPose.M.setColumn(1, glm::value_ptr(dir));
+	desc.localPose.M.setColumn(2, glm::value_ptr(up));
 
 	px::CapsuleShape& shape = mapObj->GetGameObj().GetPxActor().GetShapes().Add<px::CapsuleShape>();
 	shape.AssignFromDesc(desc);
@@ -362,7 +362,7 @@ px::Body* DataBase::AddPxBody(MapObj* mapObj, float mass, const glm::vec3* massP
 
 	if (massPos)
 	{
-		body.massLocalPose.t.set(NxVec3(*massPos));
+		body.massLocalPose.t.set(glm::value_ptr(*massPos));
 		mapObj->GetGameObj().GetPxActor().SetFlag(NX_AF_LOCK_COM);
 	}
 
@@ -552,7 +552,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 	
 	AABB aabb = carDesc.bodyAABB;
 
-	if (D3DXVec3Length(&aabb.GetSizes()) < 0.001f)
+	if (glm::length(aabb.GetSizes()) < 0.001f)
 		aabb = mapObj->GetGameObj().GetGrActor().GetLocalAABB(false);
 
 	aabb.Scale(carDesc.bodyScale);
@@ -844,8 +844,8 @@ void DataBase::LoadEffects()
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(glm::vec3(-1.5f, -1.5f, 1.0f), glm::vec3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
-		glm::quat spRot1 = glm::angleAxis(D3DX_PI, Vec3DxToGlm(-IdentityVector));
-		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, Vec3DxToGlm(IdentityVector));
+		glm::quat spRot1 = glm::angleAxis(D3DX_PI, -IdentityVector);
+		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, IdentityVector);
 		descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
 		descFlow.gravitation = glm::vec3(0, 0, -9.80f);
 
@@ -865,8 +865,8 @@ void DataBase::LoadEffects()
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(glm::vec3(-1.5f, -1.5f, 4.0f), glm::vec3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
-		glm::quat spRot1 = glm::angleAxis(D3DX_PI, Vec3DxToGlm(-IdentityVector));
-		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, Vec3DxToGlm(IdentityVector));
+		glm::quat spRot1 = glm::angleAxis(D3DX_PI, -IdentityVector);
+		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, IdentityVector);
 		descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
 		descFlow.gravitation = glm::vec3(0, 0, -9.80f);
 
@@ -1031,7 +1031,7 @@ void DataBase::LoadEffects()
 		desc.startTime = FloatRange(1.0f, 1.1f);
 		desc.density = FloatRange(1.0f, 3.0f);
 		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.1f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		desc.startScale = glm::vec3(IdentityVector) / 2;
+		desc.startScale = glm::vec3(IdentityVector) / 2.0f;
 		
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedScale = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -1260,7 +1260,7 @@ void DataBase::LoadEffects()
 	LoadFxSprite("frostRay", "Effect\\frostRay", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amTwoSide, 1.0f, 0, 0.0f, true, glm::vec2(1.0f, 0.5f), gtEffect, true);
 	//frostShot
 	{
-		glm::quat lineRot1 = glm::angleAxis(D3DX_PI, Vec3DxToGlm(ZVector));
+		glm::quat lineRot1 = glm::angleAxis(D3DX_PI, ZVector);
 		LoadFxSprite("frostShot", "Effect\\frostLine", NullVector, Vec3Range(IdentityVector, NullVector), QuatRange(NullQuaternion, lineRot1), false, graph::SceneNode::amTwoSide, 1.0f, 0, 1.0f, false, glm::vec2(4.0f, 4.0f));
 	}
 
@@ -1277,8 +1277,8 @@ void DataBase::LoadEffects()
 		desc.startTime = FloatRange(0.1f, 0.2f);
 		desc.density = FloatRange(2.0f, 3.0f);
 		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.5f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		glm::quat spRot1 = glm::angleAxis(D3DX_PI, Vec3DxToGlm(-ZVector));
-		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, Vec3DxToGlm(ZVector));
+		glm::quat spRot1 = glm::angleAxis(D3DX_PI, -ZVector);
+		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, ZVector);
 		desc.startRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
@@ -1355,8 +1355,8 @@ void DataBase::LoadEffects()
 			graph::FxFlowEmitter::FlowDesc descFlow;
 			descFlow.speedPos = Vec3Range(glm::vec3(-1.5f, -1.5f, 2.0f), glm::vec3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
 			//
-			glm::quat spRot1 = glm::angleAxis(D3DX_PI, Vec3DxToGlm(-IdentityVector));
-			glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, Vec3DxToGlm(IdentityVector));
+			glm::quat spRot1 = glm::angleAxis(D3DX_PI, -IdentityVector);
+			glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, IdentityVector);
 			descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
 			//
 			descFlow.gravitation = glm::vec3(0, 0, -9.80f);
@@ -1726,7 +1726,7 @@ void DataBase::LoadEffects()
 		desc.startTime = FloatRange(0.7f);
 		desc.density = FloatRange(1.0f, 1.0f);
 		desc.startPos = Vec3Range(glm::vec3(-0.6f, -0.6f, -0.6f), glm::vec3(0.6f, 0.6f, 0.6f), Vec3Range::vdVolume);
-		glm::quat rot = glm::angleAxis(D3DX_PI, Vec3DxToGlm(ZVector));
+		glm::quat rot = glm::angleAxis(D3DX_PI, ZVector);
 		desc.startRot = QuatRange(NullQuaternion, rot, QuatRange::vdLinear);
 		desc.startScale = glm::vec3(IdentityVector) * 4.0f;
 		
@@ -1756,7 +1756,7 @@ void DataBase::LoadEffects()
 		desc.startTime = 0.5f;
 		desc.density = FloatRange(1.0f, 1.0f);
 		desc.startPos = Vec3Range(glm::vec3(-0.3f, -0.3f, -0.3f), glm::vec3(0.3f, 0.3f, 0.3f), Vec3Range::vdVolume);
-		glm::quat rot = glm::angleAxis(D3DX_PI, Vec3DxToGlm(ZVector));
+		glm::quat rot = glm::angleAxis(D3DX_PI, ZVector);
 		desc.startRot = QuatRange(NullQuaternion, rot, QuatRange::vdLinear);
 		desc.startScale = glm::vec3(IdentityVector) * 1.5f;
 
@@ -1865,8 +1865,8 @@ void DataBase::LoadEffects()
 		desc.startTime = 0;
 		desc.density = 5.0f;
 		desc.startPos = Vec3Range(glm::vec3(-2.0f, -2.0f, 0.0f), glm::vec3(2.0f, 2.0f, 0.0f), Vec3Range::vdVolume);
-		glm::quat rot1 = glm::angleAxis(-D3DX_PI / 3.0f, Vec3DxToGlm(ZVector));
-		glm::quat rot2 = glm::angleAxis(D3DX_PI / 3.0f, Vec3DxToGlm(ZVector));
+		glm::quat rot1 = glm::angleAxis(-D3DX_PI / 3.0f, ZVector);
+		glm::quat rot2 = glm::angleAxis(D3DX_PI / 3.0f, ZVector);
 		desc.startRot = QuatRange(rot1, rot2, QuatRange::vdLinear);
 		desc.startScale = glm::vec3(1.0f, 1.0f, 1.0f);
 
@@ -1973,7 +1973,7 @@ void DataBase::LoadWorld1()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
 	D3DXVECTOR4 vec1 = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.075f, 0.0f);
@@ -2046,7 +2046,7 @@ void DataBase::LoadWorld2()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
 	D3DXVECTOR4 vec1 = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.10f, 0.0f);
@@ -2100,10 +2100,10 @@ void DataBase::LoadWorld3()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
 	D3DXVECTOR4 vec1 = plane;
 
-	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &ZVector);
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
 	D3DXVECTOR4 vec1Up = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
@@ -2140,7 +2140,7 @@ void DataBase::LoadWorld4()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
 	D3DXVECTOR4 vec1 = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.25f, 0.25f, 0.0f);
@@ -2174,11 +2174,11 @@ void DataBase::LoadWorld5()
 
 	D3DXPLANE plane;
 
-	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &ZVector);
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
 	D3DXVECTOR4 plane1 = plane;
 
 	float cosAng = cos(20.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
 	D3DXVECTOR4 plane2 = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
@@ -2210,10 +2210,10 @@ void DataBase::LoadWorld6()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
 	D3DXVECTOR4 vec1 = plane;
 
-	D3DXPlaneFromPointNormal(&plane, &glm::vec3(0, 0, 6.2f), &ZVector);
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
 	D3DXVECTOR4 vec1Up = plane;
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);

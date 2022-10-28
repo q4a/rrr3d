@@ -74,8 +74,8 @@ struct VertexPNT
 {
 	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
 
-	D3DVECTOR pos;
-	D3DVECTOR norm;
+	glm::vec3 pos;
+	glm::vec3 norm;
 	glm::vec2 tex;
 
 	VertexPNT();

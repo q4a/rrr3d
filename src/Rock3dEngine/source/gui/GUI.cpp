@@ -1021,10 +1021,10 @@ void Context::DrawView3d(View3d& view3d)
 	DrawPlane(plane);*/
 
 	//максимальный осевой размер меша
-	float maxScale = D3DXVec3Length(&aabb.GetSizes());
+	float maxScale = glm::length(aabb.GetSizes());
 	//с учетом нецентрированности
 	if (!view3d.GetAlign())
-		maxScale += D3DXVec3Length(&aabb.GetCenter());
+		maxScale += glm::length(aabb.GetCenter());
 	//размер поля в котором он отображается
 	glm::vec3 viewSize = glm::vec3(view3d.GetSize().x, view3d.GetSize().y, 0.0f);
 	//размер по оси z вычисляет с прикидкой
@@ -1036,7 +1036,7 @@ void Context::DrawView3d(View3d& view3d)
 	//центрируем
 	if (view3d.GetAlign())
 	{
-		D3DXVec3TransformCoord(&pos, &aabb.GetCenter(), &view3d.GetBox()->GetMat());
+		pos = Vec3TransformCoord(aabb.GetCenter(), view3d.GetBox()->GetMat());
 		pos = pos * scale;
 	}
 
@@ -1257,7 +1257,7 @@ void Widget::BuildMatrix(MatrixChange change) const
 				_pos = _parent->WorldToLocalCoord(_pos);
 		}
 
-		glm::quat rot = glm::angleAxis(GetRot(), Vec3DxToGlm(ZVector));
+		glm::quat rot = glm::angleAxis(GetRot(), ZVector);
 
 		glm::vec3 pos = Vec3FromVec2(GetPos());
 
@@ -3451,7 +3451,7 @@ ViewPort3d::ViewPort3d(Manager* manager): _MyBase(manager), _style(msStatic), _s
 	_view3d->AddRef();
 	InsertGraphic(_view3d);
 
-	_rot3dSpeed = glm::angleAxis(3.0f * D3DX_PI / 4.0f, Vec3DxToGlm(ZVector));
+	_rot3dSpeed = glm::angleAxis(3.0f * D3DX_PI / 4.0f, ZVector);
 }
 
 ViewPort3d::~ViewPort3d()
@@ -3508,7 +3508,7 @@ bool ViewPort3d::OnMouseOver(const MouseMove& mMove)
 			SetRot3d(GetRot3d() * rotY * rotX);*/
 
 			//Вращение по одной оси, совпадающией с up mesh
-			glm::quat rotZ = glm::angleAxis(D3DX_PI * mMove.dtCoord.x / 200.0f, Vec3DxToGlm(ZVector));
+			glm::quat rotZ = glm::angleAxis(D3DX_PI * mMove.dtCoord.x / 200.0f, ZVector);
 			GetBox()->SetRot(GetBox()->GetRot() * rotZ);
 		}
 	}

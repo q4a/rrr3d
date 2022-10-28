@@ -85,8 +85,8 @@ void VertexData::CalcDimensions()
 		++iter;
 		for (unsigned i = 1; i < _vertexCount; ++i, ++iter)
 		{
-			D3DXVec3Minimize(&_minPos, &_minPos, iter.Pos3());
-			D3DXVec3Maximize(&_maxPos, &_maxPos, iter.Pos3());
+			_minPos = glm::min(_minPos, *iter.Pos3());
+			_maxPos = glm::max(_maxPos, *iter.Pos3());
 		}
 	}
 }
@@ -533,8 +533,8 @@ void CalcTangentBasis(const glm::vec3 &p1, const glm::vec3 &p2, const glm::vec3 
 	tangent  = (e1 * et2.y - e2 * et1.y) * tmp;
 	binormal = (e2 * et1.x - e1 * et2.x) * tmp;
 
-	D3DXVec3Normalize(&tangent, &tangent);
-	D3DXVec3Normalize(&binormal, &binormal);
+	tangent = glm::normalize(tangent);
+	binormal = glm::normalize(binormal);
 }
 
 void MeshData::DoInit()
@@ -575,8 +575,8 @@ void MeshData::DoUpdate()
 					fg.minPos = fg.maxPos = *pos;
 				else
 				{
-					D3DXVec3Minimize(&fg.minPos, &fg.minPos, pos);
-					D3DXVec3Maximize(&fg.maxPos, &fg.maxPos, pos);
+					fg.minPos = glm::min(fg.minPos, *pos);
+					fg.maxPos = glm::max(fg.maxPos, *pos);
 				}
 			}
 	}
@@ -622,44 +622,44 @@ void MeshData::CalcTangentSpace()
 
 	for (unsigned i = 0; i < vb.GetVertexCount(); ++i)
 	{
-		D3DXVec3Normalize(vb[i].Tangent(), vb[i].Tangent());
-		D3DXVec3Normalize(vb[i].Binormal(), vb[i].Binormal());
+		*vb[i].Tangent() = glm::normalize(*vb[i].Tangent());
+		*vb[i].Binormal() = glm::normalize(*vb[i].Binormal());
 
 		glm::vec3 tmpT = *vb[i].Tangent();
 		glm::vec3 tmpB = *vb[i].Binormal();
 		glm::vec3 tmpN = *vb[i].Normal();
 
-		glm::vec3 newT = tmpT - (D3DXVec3Dot(&tmpN, &tmpT) * tmpN);
-		glm::vec3 newB = tmpB - (D3DXVec3Dot(&tmpN, &tmpB) * tmpN) - (D3DXVec3Dot(&newT, &tmpB) * newT);
-		D3DXVec3Normalize(&newT, &newT);
-		D3DXVec3Normalize(&newB, &newB);
+		glm::vec3 newT = tmpT - (glm::dot(tmpN, tmpT) * tmpN);
+		glm::vec3 newB = tmpB - (glm::dot(tmpN, tmpB) * tmpN) - (glm::dot(newT, tmpB) * newT);
+		newT = glm::normalize(newT);
+		newB = glm::normalize(newB);
 		*vb[i].Tangent() = newT;
 		*vb[i].Binormal() = newB;
 
-		float lenT = D3DXVec3Length(&newT);
-		float lenB = D3DXVec3Length(&newB);
+		float lenT = glm::length(newT);
+		float lenB = glm::length(newB);
 
 		if (lenT <= 0.0001 || lenB <= 0.0001)
 		{
 			if (lenT > 0.5)
-				D3DXVec3Cross(vb[i].Binormal(), &tmpN, vb[i].Tangent());
+				*vb[i].Binormal() = glm::cross(tmpN, *vb[i].Tangent());
 			else
 				if (lenB > 0.5)
-					D3DXVec3Cross(vb[i].Tangent(), vb[i].Binormal(), &tmpN);
+				*vb[i].Tangent() = glm::cross(*vb[i].Binormal(), tmpN);
 				else
 				{
 					glm::vec3 startAxis;
-					if (D3DXVec3Dot(&XVector, &tmpN) < D3DXVec3Dot(&YVector, &tmpN))
+					if (glm::dot(XVector, tmpN) < glm::dot(YVector, tmpN))
 						startAxis = XVector;
 					else
 						startAxis = YVector;
-					D3DXVec3Cross(vb[i].Tangent(), &tmpN, &startAxis);
-					D3DXVec3Cross(vb[i].Binormal(), &tmpN, vb[i].Tangent());
+					*vb[i].Tangent() = glm::cross(tmpN, startAxis);
+					*vb[i].Binormal() = glm::cross(tmpN, *vb[i].Tangent());
 				}
 		}
 		else
-			if (D3DXVec3Dot(vb[i].Binormal(), vb[i].Tangent()) > 0.9999f)
-				D3DXVec3Cross(vb[i].Binormal(), &tmpN, vb[i].Tangent());
+			if (glm::dot(*vb[i].Binormal(), *vb[i].Tangent()) > 0.9999f)
+				*vb[i].Binormal() = glm::cross(tmpN, *vb[i].Tangent());
 	}
 }
 

@@ -118,7 +118,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 		case smNone:
 			if (_clDrag)
 			{
-				if (!_startDrag && D3DXVec3Length(&_clDragOff) > 0.1f)
+				if (!_startDrag && glm::length(_clDragOff) > 0.1f)
 				{
 					_startDrag = true;
 					selNode->OnStartDrag(mMove.scrRayPos, mMove.scrRayVec);
@@ -181,8 +181,8 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				float angleY = -offCoord.y  / 400.0f * 2 * D3DX_PI;
 				angleY = ceil(angleY / (D3DX_PI/12.0f)) * (D3DX_PI/12.0f);
 
-				glm::quat rotZ = glm::angleAxis(angleZ, Vec3DxToGlm(ZVector));
-				glm::quat rotY = glm::angleAxis(angleY, Vec3DxToGlm(_owner->_edit->GetWorld()->GetCamera()->GetRight()));
+				glm::quat rotZ = glm::angleAxis(angleZ, ZVector);
+				glm::quat rotY = glm::angleAxis(angleY, _owner->_edit->GetWorld()->GetCamera()->GetRight());
 				glm::quat rot = abs(angleZ) > abs(angleY) ? rotZ : rotY;
 
 				selNode->SetRot(rot * _clStartRot);
@@ -445,14 +445,14 @@ glm::vec3 SceneControl::ComputePoint(const glm::vec3& curPos, const glm::vec3& r
 
 	glm::vec3 pos = curPos;
 	D3DXPLANE plane;
-	D3DXPlaneFromPointNormal(&plane, &pos, &planeNorm);
+	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(pos), &Vec3GlmToDx(planeNorm));
 	glm::vec3 newPos;
-	if (abs(D3DXVec3Dot(&planeNorm, &rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
+	if (abs(glm::dot(planeNorm, rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
 	{
 		newPos = NullVector;
 
-		D3DXPlaneFromPointNormal(&plane, &pos, &XVector);
-		if (dirMove == dmZ && abs(D3DXVec3Dot(&XVector, &rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
+		D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(pos), &Vec3GlmToDx(XVector));
+		if (dirMove == dmZ && abs(glm::dot(XVector, rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
 			newPos = NullVector;
 	}
 

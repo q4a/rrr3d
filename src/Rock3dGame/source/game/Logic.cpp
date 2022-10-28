@@ -121,14 +121,14 @@ void LogicEventEffect::Save(lsl::SWriter* writer)
 {
 	MapObjRec::Lib::SaveRecordRef(writer, "effect", _effect);
 
-	writer->WriteValue("pos", _pos, 3);
+	writer->WriteValue("pos", glm::value_ptr(_pos), 3);
 }
 
 void LogicEventEffect::Load(lsl::SReader* reader)
 {
 	SetEffect(MapObjRec::Lib::LoadRecordRef(reader, "effect"));
 
-	reader->ReadValue("pos", _pos, 3);
+	reader->ReadValue("pos", glm::value_ptr(_pos), 3);
 }
 
 MapObjRec* LogicEventEffect::GetEffect()
@@ -295,7 +295,7 @@ void PairPxContactEffect::OnContact(const px::Scene::OnContactEvent& contact1, c
 		shapes[0] = !streamIter.isDeletedShape(0) ? streamIter.getShape(0) : 0;
 		shapes[1] = !streamIter.isDeletedShape(1) ? streamIter.getShape(1) : 0;
 
-		bool checkShapes = D3DXVec3Length(&contact1.sumFrictionForce) > 10000.0f;
+		bool checkShapes = glm::length(contact1.sumFrictionForce) > 10000.0f;
 		for (int i = 0; i < 2; ++i)
 		{
 			checkShapes &= shapes[i] && shapes[i]->getType() != NX_SHAPE_WHEEL;
@@ -318,12 +318,12 @@ void PairPxContactEffect::OnContact(const px::Scene::OnContactEvent& contact1, c
 			while (streamIter.goNextPatch())
 				while (streamIter.goNextPoint())
 				{
-					InsertContact(mapIter, shapes[0], shapes[1], streamIter.getPoint().get());
+					InsertContact(mapIter, shapes[0], shapes[1], glm::make_vec3(streamIter.getPoint().get()));
 
 					if (contNode->source && !activateSnd)
 					{
 						activateSnd = true;
-						contNode->source->SetPos3d(streamIter.getPoint().get());
+						contNode->source->SetPos3d(glm::make_vec3(streamIter.getPoint().get()));
 						contNode->source->Play();
 					}
 				}

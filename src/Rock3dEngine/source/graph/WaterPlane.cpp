@@ -20,9 +20,9 @@ void ReflRender::BeginRT(Engine& engine, const RtFlags& flags)
 	_MyBase::BeginRT(engine, flags);
 
 	CameraDesc desc = engine.GetContext().GetCamera().GetDesc();
-	D3DXVec3TransformCoord(&desc.pos, &desc.pos, &_reflMat);
-	D3DXVec3TransformNormal(&desc.dir, &desc.dir, &_reflMat);
-	D3DXVec3TransformNormal(&desc.up, &desc.up, &_reflMat);
+	desc.pos = Vec3TransformCoord(desc.pos, _reflMat);
+	desc.dir = Vec3TransformNormal(desc.dir, _reflMat);
+	desc.up = Vec3TransformNormal(desc.up, _reflMat);
 	desc.up = -desc.up;
 	_reflCamera.SetDesc(desc);
 	//reflCamera.AdjustFarPlane(sceneBox, maxFarDist);

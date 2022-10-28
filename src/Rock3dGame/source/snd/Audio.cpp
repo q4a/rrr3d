@@ -1640,7 +1640,7 @@ void Source3d::ApplyX3dEffect()
 		return;
 
 	glm::vec3 listDist = _pos3d - listener->pos;
-	float listDistLen = D3DXVec3Length(&listDist);
+	float listDistLen = glm::length(listDist);
 
 	if (listDistLen > distScaller + stopLag)
 	{
@@ -1664,16 +1664,16 @@ void Source3d::ApplyX3dEffect()
 
 			X3DAUDIO_LISTENER xList;
 			ZeroMemory(&xList, sizeof(xList));
-			xList.Position = listener->pos;
+			xList.Position = Vec3GlmToDx(listener->pos);
 			D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(listener->rot)));
-			xList.OrientFront = glm::vec3(rotMat.m[0]);
-			xList.OrientTop = glm::vec3(rotMat.m[2]);
+			xList.OrientFront = D3DXVECTOR3(rotMat.m[0]);
+			xList.OrientTop = D3DXVECTOR3(rotMat.m[2]);
 
 			_xEmitter.ChannelCount = nSrcChannels;
 			_xEmitter.CurveDistanceScaler = distScaller;
-			_xEmitter.Position = _pos3d;
-			_xEmitter.OrientFront = XVector;
-			_xEmitter.OrientTop = ZVector;
+			_xEmitter.Position = Vec3GlmToDx(_pos3d);
+			_xEmitter.OrientFront = Vec3GlmToDx(XVector);
+			_xEmitter.OrientTop = Vec3GlmToDx(ZVector);
 			_xEmitter.pChannelAzimuths = new float[nSrcChannels];
 			ZeroMemory(_xEmitter.pChannelAzimuths, nSrcChannels);
 			for (int i = 0; i < nSrcChannels; ++i)
