@@ -378,7 +378,7 @@ void GameObject::SaveProxy(lsl::SWriter* writer)
 {
 	writer->WriteValue("pos", glm::value_ptr(GetPos()), 3);
 	writer->WriteValue("scale", glm::value_ptr(GetScale()), 3);
-	writer->WriteValue("rot", reinterpret_cast<const float *>(&GetRot().x), 4);
+	writer->WriteValue("rot", glm::value_ptr(GetRot()), 4);
 
 	writer->WriteValue("life", _life);
 	writer->WriteValue("maxTimeLife", _maxTimeLife);
@@ -397,7 +397,7 @@ void GameObject::LoadProxy(lsl::SReader* reader)
 
 	reader->ReadValue("pos", glm::value_ptr(pos), 3);
 	reader->ReadValue("scale", glm::value_ptr(scale), 3);
-	reader->ReadValue("rot", reinterpret_cast<float *>(&rot.x), 4);
+	reader->ReadValue("rot", glm::value_ptr(rot), 4);
 
 	reader->ReadValue("life", _life);
 	reader->ReadValue("maxTimeLife", _maxTimeLife);

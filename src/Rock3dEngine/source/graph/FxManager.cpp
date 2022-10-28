@@ -1403,7 +1403,7 @@ void FxPhysicsEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 	{
 		NxBoxShapeDesc boxShape;
 		glm::vec3 tVec = IdentityVector * value->GetScale();
-		boxShape.dimensions.set(reinterpret_cast<const float *>(&tVec.x));
+		boxShape.dimensions.set(glm::value_ptr(tVec));
 		px::BoxShape& bbShape = particle->pxActor.GetShapes().Add<px::BoxShape>();
 		bbShape.AssignFromDesc(boxShape);
 

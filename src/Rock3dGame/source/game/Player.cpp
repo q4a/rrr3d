@@ -911,7 +911,7 @@ void Player::CarState::Update(float deltaTime)
 		mat34.t[0], mat34.t[1], mat34.t[2], 1);
 
 	pos3 = glm::make_vec3(mat34.t.get());
-	nxActor->getGlobalOrientationQuat().getXYZW(reinterpret_cast<float *>(&rot3.x));
+	nxActor->getGlobalOrientationQuat().getXYZW(glm::value_ptr(rot3));
 	Vec3Rotate(XVector, rot3, dir3);
 
 	//pos = glm::vec2(pos3);

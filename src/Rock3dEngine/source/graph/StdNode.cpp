@@ -995,7 +995,7 @@ void Sprite::Save(lsl::SWriter* writer)
 {
 	_MyBase::Save(writer);
 
-	writer->WriteValue("sizes", reinterpret_cast<const float *>(&sizes.x), 2);
+	writer->WriteValue("sizes", glm::value_ptr(sizes), 2);
 	writer->WriteValue("fixDirection", fixDirection);
 
 	material.Save(writer, this);
@@ -1005,7 +1005,7 @@ void Sprite::Load(lsl::SReader* reader)
 {
 	_MyBase::Load(reader);
 
-	reader->ReadValue("sizes", reinterpret_cast<float *>(&sizes.x), 2);
+	reader->ReadValue("sizes", glm::value_ptr(sizes), 2);
 	reader->ReadValue("fixDirection", fixDirection);
 
 	material.Load(reader, this);

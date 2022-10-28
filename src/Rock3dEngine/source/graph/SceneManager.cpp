@@ -318,9 +318,9 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 
 	if (storeCoords)
 	{
-		writer->WriteValue("pos", reinterpret_cast<const float *>(&GetPos().x), 3);
-		writer->WriteValue("scale", reinterpret_cast<const float *>(&GetScale().x), 3);
-		writer->WriteValue("rot", reinterpret_cast<const float *>(&GetRot().x), 4);
+		writer->WriteValue("pos", glm::value_ptr(GetPos()), 3);
+		writer->WriteValue("scale", glm::value_ptr(GetScale()), 3);
+		writer->WriteValue("rot", glm::value_ptr(GetRot()), 4);
 	}
 
 	writer->WriteValue("invertCullFace", invertCullFace);
@@ -344,9 +344,9 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 	writer->WriteValue("animDuration", animDuration);
 	writer->WriteValue("frame", frame);
 
-	writer->WriteValue("speedPos", reinterpret_cast<const float *>(&speedPos.x), 3);
-	writer->WriteValue("speedScale", reinterpret_cast<const float *>(&speedScale.x), 3);
-	writer->WriteValue("speedRot", reinterpret_cast<const float *>(&speedRot.x), 4);
+	writer->WriteValue("speedPos", glm::value_ptr(speedPos), 3);
+	writer->WriteValue("speedScale", glm::value_ptr(speedScale), 3);
+	writer->WriteValue("speedRot", glm::value_ptr(speedRot), 4);
 
 	//writer->WriteValue("options", _options.to_string());
 }
@@ -359,9 +359,9 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 
 	if (storeCoords)
 	{
-		reader->ReadValue("pos", reinterpret_cast<float *>(&_position.x), 3);
-		reader->ReadValue("scale", reinterpret_cast<float *>(&_scale.x), 3);
-		reader->ReadValue("rot", reinterpret_cast<float *>(&_rot.x), 4);
+		reader->ReadValue("pos", glm::value_ptr(_position), 3);
+		reader->ReadValue("scale", glm::value_ptr(_scale), 3);
+		reader->ReadValue("rot", glm::value_ptr(_rot), 4);
 	}
 
 	reader->ReadValue("invertCullFace", invertCullFace);
@@ -388,9 +388,9 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 	reader->ReadValue("animDuration", animDuration);
 	reader->ReadValue("frame", frame);
 
-	reader->ReadValue("speedPos", reinterpret_cast<float *>(&speedPos.x), 3);
-	reader->ReadValue("speedScale", reinterpret_cast<float *>(&speedScale.x), 3);
-	reader->ReadValue("speedRot", reinterpret_cast<float *>(&speedRot.x), 4);
+	reader->ReadValue("speedPos", glm::value_ptr(speedPos), 3);
+	reader->ReadValue("speedScale", glm::value_ptr(speedScale), 3);
+	reader->ReadValue("speedRot", glm::value_ptr(speedRot), 4);
 
 	//std::string optsStr;
 	//reader->ReadValue("options", optsStr);
