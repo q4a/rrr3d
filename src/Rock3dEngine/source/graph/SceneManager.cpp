@@ -320,7 +320,7 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 	{
 		writer->WriteValue("pos", GetPos(), 3);
 		writer->WriteValue("scale", GetScale(), 3);
-		writer->WriteValue("rot", reinterpret_cast<const float *>(&GetRot().x), 4);
+		writer->WriteValue("rot", glm::value_ptr(GetRot()), 4);
 	}
 
 	writer->WriteValue("invertCullFace", invertCullFace);
@@ -346,7 +346,7 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 
 	writer->WriteValue("speedPos", speedPos, 3);
 	writer->WriteValue("speedScale", speedScale, 3);
-	writer->WriteValue("speedRot", reinterpret_cast<const float *>(&speedRot.x), 4);
+	writer->WriteValue("speedRot", glm::value_ptr(speedRot), 4);
 
 	//writer->WriteValue("options", _options.to_string());
 }
@@ -361,7 +361,7 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 	{
 		reader->ReadValue("pos", _position, 3);
 		reader->ReadValue("scale", _scale, 3);
-		reader->ReadValue("rot", reinterpret_cast<float *>(&_rot.x), 4);
+		reader->ReadValue("rot", glm::value_ptr(_rot), 4);
 	}
 
 	reader->ReadValue("invertCullFace", invertCullFace);
@@ -390,7 +390,7 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 
 	reader->ReadValue("speedPos", speedPos, 3);
 	reader->ReadValue("speedScale", speedScale, 3);
-	reader->ReadValue("speedRot", reinterpret_cast<float *>(&speedRot.x), 4);
+	reader->ReadValue("speedRot", glm::value_ptr(speedRot), 4);
 
 	//std::string optsStr;
 	//reader->ReadValue("options", optsStr);
