@@ -319,7 +319,7 @@ void BitStream::Serialize(glm::vec3& value, float err)
 
 void BitStream::Serialize(glm::vec4& value, float err)
 {
-	Serialize(value, 4, err);
+	Serialize(glm::value_ptr(value), 4, err);
 }
 
 void BitStream::Serialize(glm::quat& value, float err)

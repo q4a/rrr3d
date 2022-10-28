@@ -73,8 +73,8 @@ void SunShaftRender::Render(Engine& engine)
 	engine.GetContext().RestoreSamplerState(0, ssMinFilter);
 	engine.GetContext().RestoreSamplerState(0, ssMipFilter);
 
-	glm::vec4 sunPos(Vec3GlmToDx(_sunPos), 1.0f);
-	D3DXVec4Transform(&sunPos, &sunPos, &engine.GetContext().GetCamera().GetViewProj());
+	glm::vec4 sunPos(_sunPos, 1.0f);
+	sunPos = Vec4Transform(sunPos, engine.GetContext().GetCamera().GetViewProj());
 	sunPos.x /= sunPos.w;
 	sunPos.y /= sunPos.w;
 	sunPos.z /= sunPos.w; //sunPos.z = 1.0f;

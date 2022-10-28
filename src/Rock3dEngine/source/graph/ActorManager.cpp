@@ -305,7 +305,7 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	D3DXMatrixTranspose(&mat, &mat);
 
 	D3DXPLANE plane;
-	D3DXPlaneTransform(&plane, &D3DXPLANE(actor->vec1()), &mat);
+	D3DXPlaneTransform(&plane, &D3DXPLANE(Vec4GlmToDx(actor->vec1())), &mat);
 	D3DXPlaneNormalize(&plane, &plane);
 
 	float minDist = 0;

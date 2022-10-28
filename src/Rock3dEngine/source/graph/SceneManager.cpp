@@ -536,7 +536,7 @@ void BaseSceneNode::AdjustDistToTarget(const glm::vec3& worldTarget, float dista
 void BaseSceneNode::WorldToLocal(const glm::vec4& vec, glm::vec4& out) const
 {
 	const D3DXMATRIX& mat = GetInvWorldMat();
-	D3DXVec4Transform(&out, &vec, &mat);
+	out = Vec4Transform(vec, mat);
 }
 
 void BaseSceneNode::WorldToLocalCoord(const glm::vec3& vec, glm::vec3& out) const
@@ -551,7 +551,7 @@ void BaseSceneNode::WorldToLocalNorm(const glm::vec3& vec, glm::vec3& out) const
 
 void BaseSceneNode::LocalToWorld(const glm::vec4& vec, glm::vec4& out) const
 {
-	D3DXVec4Transform(&out, &vec, &GetWorldMat());
+	out = Vec4Transform(vec, GetWorldMat());
 }
 
 void BaseSceneNode::LocalToWorldCoord(const glm::vec3& vec, glm::vec3& out) const
@@ -567,13 +567,13 @@ void BaseSceneNode::LocalToWorldNorm(const glm::vec3& vec, glm::vec3& out) const
 void BaseSceneNode::ParentToLocal(const glm::vec4& vec, glm::vec4& out) const
 {
 	const D3DXMATRIX& mat = GetInvMat();
-	D3DXVec4Transform(&out, &vec, &mat);
+	out = Vec4Transform(vec, mat);
 }
 
 void BaseSceneNode::LocalToParent(const glm::vec4& vec, glm::vec4& out) const
 {
 	const D3DXMATRIX& mat = GetMat();
-	D3DXVec4Transform(&out, &vec, &mat);
+	out = Vec4Transform(vec, mat);
 }
 
 unsigned BaseSceneNode::RayCastIntersBB(const glm::vec3& wRayPos, const glm::vec3& wRayVec, bool includeChild) const

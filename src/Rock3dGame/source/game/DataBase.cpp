@@ -1974,7 +1974,7 @@ void DataBase::LoadWorld1()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 vec1 = plane;
+	glm::vec4 vec1 = PlaneToVec4Glm(plane);
 
 	glm::vec4 vec3(0.0f, -0.15f, 0.075f, 0.0f);
 
@@ -2047,7 +2047,7 @@ void DataBase::LoadWorld2()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 vec1 = plane;
+	glm::vec4 vec1 = PlaneToVec4Glm(plane);
 
 	glm::vec4 vec3(0.0f, -0.15f, 0.10f, 0.0f);
 	
@@ -2101,10 +2101,10 @@ void DataBase::LoadWorld3()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 vec1 = plane;
+	glm::vec4 vec1 = PlaneToVec4Glm(plane);
 
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
-	glm::vec4 vec1Up = plane;
+	glm::vec4 vec1Up = PlaneToVec4Glm(plane);
 
 	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
@@ -2141,7 +2141,7 @@ void DataBase::LoadWorld4()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 vec1 = plane;
+	glm::vec4 vec1 = PlaneToVec4Glm(plane);
 
 	glm::vec4 vec3(0.0f, -0.25f, 0.25f, 0.0f);
 
@@ -2175,11 +2175,11 @@ void DataBase::LoadWorld5()
 	D3DXPLANE plane;
 
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
-	glm::vec4 plane1 = plane;
+	glm::vec4 plane1 = PlaneToVec4Glm(plane);
 
 	float cosAng = cos(20.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 plane2 = plane;
+	glm::vec4 plane2 = PlaneToVec4Glm(plane);
 
 	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
@@ -2211,10 +2211,10 @@ void DataBase::LoadWorld6()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 vec1 = plane;
+	glm::vec4 vec1 = PlaneToVec4Glm(plane);
 
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
-	glm::vec4 vec1Up = plane;
+	glm::vec4 vec1Up = PlaneToVec4Glm(plane);
 
 	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 

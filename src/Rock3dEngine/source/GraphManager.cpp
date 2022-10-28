@@ -2446,7 +2446,7 @@ void GraphManager::BuildOctree()
 
 			if ((abs(texDiffK.x) + abs(texDiffK.y)) > 0.0f && _lightList.size() > 0 && _lightList.front()->GetSource()->GetType() == D3DLIGHT_DIRECTIONAL)
 			{
-				glm::vec3 norm = Vec4DxToGlm((*iter)->GetActor()->vec1());
+				glm::vec3 norm = (*iter)->GetActor()->vec1();
 				glm::vec3 lightDir = _lightList.front()->GetSource()->GetDir();
 				float dot = glm::dot(norm, ZVector);
 

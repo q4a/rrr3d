@@ -578,7 +578,7 @@ void CameraManager::Control::TargetChanged()
 		if (_manager->_player)
 			_staticVec2 = _manager->_player && _manager->_player->GetCar().mapObj ? _manager->_player->GetCar().grActor->GetWorldPos() : _manager->_player->GetCar().pos3;
 		else
-			_staticVec2 = glm::vec3(Vec4DxToGlm(_manager->_target));
+			_staticVec2 = glm::vec3(_manager->_target);
 	}
 }
 

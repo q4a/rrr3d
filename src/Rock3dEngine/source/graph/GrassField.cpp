@@ -82,23 +82,23 @@ void GrassField::BuildField()
 				pos.x += _disp * Random();
 				pos.y += _disp * Random();
 
-				*data[vert + 0].Pos4() = glm::vec4(Vec3GlmToDx(pos), 0);
+				*data[vert + 0].Pos4() = glm::vec4(pos, 0);
 				*data[vert + 0].Tex0() = glm::vec2(tex[0], tex[1]);
 
-				*data[vert + 1].Pos4() = glm::vec4(Vec3GlmToDx(pos), 1);
+				*data[vert + 1].Pos4() = glm::vec4(pos, 1);
 				*data[vert + 1].Tex0() = glm::vec2(tex[2], tex[1]);
 
-				*data[vert + 2].Pos4() = glm::vec4(Vec3GlmToDx(pos), 2);
+				*data[vert + 2].Pos4() = glm::vec4(pos, 2);
 				*data[vert + 2].Tex0() = glm::vec2(tex[2], tex[3]);
 
 				//
-				*data[vert + 3].Pos4() = glm::vec4(Vec3GlmToDx(pos), 0);
+				*data[vert + 3].Pos4() = glm::vec4(pos, 0);
 				*data[vert + 3].Tex0() = glm::vec2(tex[0], tex[1]);
 
-				*data[vert + 4].Pos4() = glm::vec4(Vec3GlmToDx(pos), 2);
+				*data[vert + 4].Pos4() = glm::vec4(pos, 2);
 				*data[vert + 4].Tex0() = glm::vec2(tex[2], tex[3]);
 
-				*data[vert + 5].Pos4() = glm::vec4(Vec3GlmToDx(pos), 3);
+				*data[vert + 5].Pos4() = glm::vec4(pos, 3);
 				*data[vert + 5].Tex0() = glm::vec2(tex[0], tex[3]);
 			}
 

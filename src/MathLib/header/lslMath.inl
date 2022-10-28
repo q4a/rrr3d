@@ -88,6 +88,12 @@ inline D3DXVECTOR4 Vec4GlmToDx(const glm::vec4 v4)
 	return v4Dx;
 }
 
+inline glm::vec4 PlaneToVec4Glm(const D3DXPLANE pl)
+{
+	glm::vec4 v4(pl.a, pl.b, pl.c, pl.d);
+	return v4;
+}
+
 inline glm::vec3 Vec3TransformCoord(const glm::vec3 &vec, const D3DXMATRIX &mat)
 {
 	D3DXVECTOR3 res;
@@ -100,6 +106,21 @@ inline glm::vec3 Vec3TransformNormal(const glm::vec3 &vec, const D3DXMATRIX &mat
 	D3DXVECTOR3 res;
 	D3DXVec3TransformNormal(&res, &Vec3GlmToDx(vec), &mat);
 	return Vec3DxToGlm(res);
+}
+
+inline glm::vec4 Vec3Transform(const glm::vec3 &vec, const D3DXMATRIX &mat)
+{
+	D3DXVECTOR4 res;
+	D3DXVec3Transform(&res, &Vec3GlmToDx(vec), &mat);
+	return Vec4DxToGlm(res);
+}
+
+
+inline glm::vec4 Vec4Transform(const glm::vec4 &vec, const D3DXMATRIX &mat)
+{
+	D3DXVECTOR4 res;
+	D3DXVec4Transform(&res, &Vec4GlmToDx(vec), &mat);
+	return Vec4DxToGlm(res);
 }
 
 inline float ScalarTransform(float scalar, const glm::vec3& vec, const D3DXMATRIX& mat)
