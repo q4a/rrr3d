@@ -58,8 +58,8 @@ bool operator<(const glm::vec3& vec1, float scalar);
 bool operator>(const glm::vec3& vec1, const glm::vec3& vec2);
 bool operator<(const glm::vec3& vec1, const glm::vec3& vec2);
 
-D3DXVECTOR4 Vec4FromVec2(const glm::vec2& vec);
-D3DXVECTOR4 Vec4FromVec3(const glm::vec3& vec);
+glm::vec4 Vec4FromVec2(const glm::vec2& vec);
+glm::vec4 Vec4FromVec3(const glm::vec3& vec);
 
 //Линия из нормали и точки
 void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, glm::vec3& outLine);
@@ -82,21 +82,21 @@ bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& rayVec, co
 float PlaneDistToPoint(const D3DXPLANE& plane, const glm::vec3& point);
 
 const float floatErrComp = 0.00001f;
-const D3DXMATRIX       IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
-                                      0.0f, 1.0f, 0.0f, 0.0f,
-                                      0.0f, 0.0f, 1.0f, 0.0f,
-                                      0.0f, 0.0f, 0.0f, 1.0f);
+const D3DXMATRIX     IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
+                                    0.0f, 1.0f, 0.0f, 0.0f,
+                                    0.0f, 0.0f, 1.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 1.0f);
 const glm::vec3      XVector(1.0f, 0.0f, 0.0f);
 const glm::vec3      YVector(0.0f, 1.0f, 0.0f);
 const glm::vec3      ZVector(0.0f, 0.0f, 1.0f);
-const glm::vec2        NullVec2(0.0f, 0.0f);
+const glm::vec2      NullVec2(0.0f, 0.0f);
 const glm::vec3      NullVector(0.0f, 0.0f, 0.0f);
-const D3DXVECTOR4      NullVec4(0.0f, 0.0f, 0.0f, 0.0f);
-const glm::vec2        IdentityVec2(1.0f, 1.0f);
+const glm::vec4      NullVec4(0.0f, 0.0f, 0.0f, 0.0f);
+const glm::vec2      IdentityVec2(1.0f, 1.0f);
 const glm::vec3      IdentityVector(1.0f, 1.0f, 1.0f);
-const D3DXVECTOR4      IdentityVec4(1.0f, 1.0f, 1.0f, 1.0f);
+const glm::vec4      IdentityVec4(1.0f, 1.0f, 1.0f, 1.0f);
 const glm::vec3      IdentityHalfVec (0.5f, 0.5f, 0.5f);
-const glm::quat        NullQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
+const glm::quat      NullQuaternion(1.0f, 0.0f, 0.0f, 0.0f);
 
 template<class _Value> struct ValueRange
 {
@@ -533,7 +533,7 @@ public:
 
 typedef ValueRange<float> FloatRange;
 typedef ValueRange<glm::vec2> Vec2Range;
-typedef ValueRange<D3DXVECTOR4> Vec4Range;
+typedef ValueRange<glm::vec4> Vec4Range;
 typedef ValueRange<glm::quat> QuatRange;
 typedef ValueRange<D3DXCOLOR> ColorRange;
 

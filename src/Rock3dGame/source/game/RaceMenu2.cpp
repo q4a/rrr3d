@@ -225,8 +225,8 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 			rot = glm::quat(0.44111854f, 0.11683256f, 0.058045074f, -0.88791621f);
 		}
 
-		camera->SetTarget(D3DXVECTOR4(0, 0, 0, 5.0f));
-		camera->SetClampAngle(D3DXVECTOR4(0.0f, 0.0f, 25.0f * D3DX_PI/180, 80.0f * D3DX_PI/180));
+		camera->SetTarget(glm::vec4(0, 0, 0, 5.0f));
+		camera->SetClampAngle(glm::vec4(0.0f, 0.0f, 25.0f * D3DX_PI/180, 80.0f * D3DX_PI/180));
 		camera->SetAngleSpeed(glm::vec3(D3DX_PI/48, 0, 0));
 		camera->SetStableAngle(glm::vec3(75.0f * D3DX_PI/180, 0, 0));
 		break;
@@ -293,7 +293,7 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 
 	if (lastCamStyle == csCar)
 	{
-		D3DXVECTOR4 target = camera->GetTarget();
+		glm::vec4 target = camera->GetTarget();
 		camera->GetObserverCoord(glm::vec3(target.x, target.y, target.z), target.w, &_camLastPos, _camLastRot, NullVec2, 0, false, false, true, NULL, NULL, NULL);
 	}
 }
@@ -379,8 +379,8 @@ void SpaceshipFrame::OnShow(bool value)
 		cameraInst->SetRot(glm::quat(0.96786171f, -0.028391786f, 0.21455817f, 0.12807286f));
 		camera->ChangeStyle(CameraManager::csAutoObserver);
 
-		camera->SetTarget(D3DXVECTOR4(0, 0, 0, 50.0f));
-		camera->SetClampAngle(D3DXVECTOR4(40.0f * D3DX_PI/180, 30.0f * D3DX_PI/180, 45.0f * D3DX_PI/180, 80.0f * D3DX_PI/180));
+		camera->SetTarget(glm::vec4(0, 0, 0, 50.0f));
+		camera->SetClampAngle(glm::vec4(40.0f * D3DX_PI/180, 30.0f * D3DX_PI/180, 45.0f * D3DX_PI/180, 80.0f * D3DX_PI/180));
 		camera->SetAngleSpeed(glm::vec3(D3DX_PI/96, 0, 0));
 		camera->SetStableAngle(glm::vec3(65.0f * D3DX_PI/180, 0, 0));
 

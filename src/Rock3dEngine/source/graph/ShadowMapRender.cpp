@@ -82,7 +82,7 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 	for (int i = 0; i < 8; ++i)
 	{
 		// transform point
-		D3DXVECTOR4 vTransformed;
+		glm::vec4 vTransformed;
 		D3DXVec3Transform(&vTransformed, &Vec3GlmToDx(pCorners[i]), &mLightViewProj);
 
 		// project x and y

@@ -293,7 +293,7 @@ private:
 	typedef lsl::ComCollection<LibMaterial, void, void, void> _MyBase;
 };
 
-void DrawScreenQuad(Engine& engine,  const D3DXVECTOR4& quadVert = D3DXVECTOR4(0.0f, 0.0f, 1.0f, 1.0f), float fLeftU = 0.0f, float fTopV = 0.0f, float fRightU = 1.0f, float fBottomV = 1.0f, bool disableZBuf = false);
+void DrawScreenQuad(Engine& engine,  const glm::vec4& quadVert = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f), float fLeftU = 0.0f, float fTopV = 0.0f, float fRightU = 1.0f, float fBottomV = 1.0f, bool disableZBuf = false);
 
 template<class _Tex> Sampler<_Tex>::Sampler(Type type): _MyBase(type), _createTex(false)
 {

@@ -300,7 +300,7 @@ void BitStream::Serialize(float value[], int count, float err)
 		break;
 	case 4:
 		type = btVec4;
-		Serialize((D3DXVECTOR4&)*value, type, eq);
+		Serialize((glm::vec4&)*value, type, eq);
 		break;
 	default:
 		LSL_ASSERT("void Serialize(float[] value, int count, float err)");
@@ -317,7 +317,7 @@ void BitStream::Serialize(glm::vec3& value, float err)
 	Serialize(glm::value_ptr(value), 3, err);
 }
 
-void BitStream::Serialize(D3DXVECTOR4& value, float err)
+void BitStream::Serialize(glm::vec4& value, float err)
 {
 	Serialize(value, 4, err);
 }

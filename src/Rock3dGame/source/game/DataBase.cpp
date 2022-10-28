@@ -474,11 +474,11 @@ void DataBase::LoadDecor(const std::string& name, const std::string& mesh, const
 	SaveMapObj(mapObj, MapObjLib::ctDecoration, name);
 }
 
-void DataBase::LoadTrack(const std::string& name, const std::string& mesh, const std::string& libMat, bool pxDefGroup, bool pxShotGroup, bool bump, bool planarRefl, const std::string& pxMesh, bool cullOpacity, const D3DXVECTOR4& vec1, const D3DXVECTOR4& vec2, const D3DXVECTOR4& vec3)
+void DataBase::LoadTrack(const std::string& name, const std::string& mesh, const std::string& libMat, bool pxDefGroup, bool pxShotGroup, bool bump, bool planarRefl, const std::string& pxMesh, bool cullOpacity, const glm::vec4& vec1, const glm::vec4& vec2, const glm::vec4& vec3)
 {
 	//pxDefGroup = false;
 	//pxShotGroup = false;
-	D3DXVECTOR4 myVec3 = vec3;
+	glm::vec4 myVec3 = vec3;
 	myVec3.x = -1;
 
 	MapObj* mapObj = NewMapObj();
@@ -717,7 +717,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 
 	//x = 1.0f - bump
 	if (carDesc.bump)
-		mapObj->GetGameObj().GetGrActor().vec3(D3DXVECTOR4(1.0f, 0.0f, 0.0f, 0.0f));
+		mapObj->GetGameObj().GetGrActor().vec3(glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
 
 	SaveMapObj(mapObj, MapObjLib::ctCar, name);
 }
@@ -1974,9 +1974,9 @@ void DataBase::LoadWorld1()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	D3DXVECTOR4 vec1 = plane;
+	glm::vec4 vec1 = plane;
 
-	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.075f, 0.0f);
+	glm::vec4 vec3(0.0f, -0.15f, 0.075f, 0.0f);
 
 	LoadTrack("World1\\jump", "World1\\Track\\jump.r3d", "World1\\Track\\track1", true, true);
 	LoadTrack("World1\\most", "World1\\Track\\most.r3d", "World1\\Track\\most", true, true, false, false, "World1\\Track\\pxMost.r3d", true);
@@ -2047,9 +2047,9 @@ void DataBase::LoadWorld2()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	D3DXVECTOR4 vec1 = plane;
+	glm::vec4 vec1 = plane;
 
-	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.10f, 0.0f);
+	glm::vec4 vec3(0.0f, -0.15f, 0.10f, 0.0f);
 	
 	LoadTrack("World2\\jump", "World2\\Track\\jump.r3d", "World2\\Track\\track1", true, true, true);
 	LoadTrack("World2\\most", "World2\\Track\\most.r3d", "World2\\Track\\most", true, true, true, false, "", true);
@@ -2101,12 +2101,12 @@ void DataBase::LoadWorld3()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	D3DXVECTOR4 vec1 = plane;
+	glm::vec4 vec1 = plane;
 
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
-	D3DXVECTOR4 vec1Up = plane;
+	glm::vec4 vec1Up = plane;
 
-	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
+	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
 	LoadTrack("World3\\most", "World3\\Track\\most.r3d", "World3\\Track\\most", true, true, false, false, "", true);
 	LoadTrack("World3\\track1", "World3\\Track\\track1.r3d", "World3\\Track\\track", true, true, false, false, "World3\\Track\\pxTrack1.r3d", false, vec1Up, NullVec4, vec3);
@@ -2141,9 +2141,9 @@ void DataBase::LoadWorld4()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	D3DXVECTOR4 vec1 = plane;
+	glm::vec4 vec1 = plane;
 
-	D3DXVECTOR4 vec3(0.0f, -0.25f, 0.25f, 0.0f);
+	glm::vec4 vec3(0.0f, -0.25f, 0.25f, 0.0f);
 
 	LoadTrack("World4\\most", "World4\\Track\\most.r3d", "World4\\Track\\track1", true, true, false, false, "World4\\Track\\pxMost.r3d", true);
 	LoadTrack("World4\\most2", "World4\\Track\\most2.r3d", "World4\\Track\\most2", true, true, false, false, "World4\\Track\\pxMost2.r3d", true);
@@ -2175,13 +2175,13 @@ void DataBase::LoadWorld5()
 	D3DXPLANE plane;
 
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
-	D3DXVECTOR4 plane1 = plane;
+	glm::vec4 plane1 = plane;
 
 	float cosAng = cos(20.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	D3DXVECTOR4 plane2 = plane;
+	glm::vec4 plane2 = plane;
 
-	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
+	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
 	LoadTrack("World5\\most", "World5\\Track\\most.r3d", "World5\\Track\\most", true, true, false, false, "", true);
 	LoadTrack("World5\\trackVentil", "World5\\Track\\trackVentil.r3d", "World5\\Track\\track1");
@@ -2211,12 +2211,12 @@ void DataBase::LoadWorld6()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	D3DXVECTOR4 vec1 = plane;
+	glm::vec4 vec1 = plane;
 
 	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
-	D3DXVECTOR4 vec1Up = plane;
+	glm::vec4 vec1Up = plane;
 
-	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
+	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
 	LoadTrack("World6\\most", "World6\\Track\\most.r3d", "World6\\Track\\track1", true, true, false, false, "World6\\Track\\pxMost.r3d");
 	LoadTrack("World6\\track1", "World6\\Track\\track1.r3d", "World6\\Track\\track1", true, true, false, false, "");

@@ -44,7 +44,7 @@ private:
 	Style _style;
 	float _near;
 	float _far;
-	D3DXVECTOR4 _clampAngle;
+	glm::vec4 _clampAngle;
 	glm::vec3 _angleSpeed;
 	glm::vec3 _stableAngle;
 	glm::vec3 _lastFreePos;
@@ -60,7 +60,7 @@ private:
 	graph::Camera* _camera;
 	Player* _player;
 	GraphManager::LightSrc* _light;
-	D3DXVECTOR4 _target;
+	glm::vec4 _target;
 
 	void OrthoCullOffset();
 	void SyncLight();
@@ -80,8 +80,8 @@ public:
 
 	//x,y - minAngleZ, maxAngleZ
 	//z,w - minAngleY, maxAngleY
-	const D3DXVECTOR4& GetClampAngle() const;
-	void SetClampAngle(const D3DXVECTOR4& value);
+	const glm::vec4& GetClampAngle() const;
+	void SetClampAngle(const glm::vec4& value);
 
 	const glm::vec3& GetAngleSpeed();
 	void SetAngleSpeed(const glm::vec3& value);
@@ -108,8 +108,8 @@ public:
 	Player* GetPlayer();
 	void SetPlayer(Player* value);
 
-	const D3DXVECTOR4& GetTarget();
-	void SetTarget(const D3DXVECTOR4& value);
+	const glm::vec4& GetTarget();
+	void SetTarget(const glm::vec4& value);
 
 	GraphManager::LightSrc* GetLight();
 	void SetLight(GraphManager::LightSrc* value);

@@ -193,14 +193,14 @@ public:
 	void MoveAroundTarget(const glm::vec3& worldTarget, float pitchDelta, float turnDelta);
 	void AdjustDistToTarget(const glm::vec3& worldTarget, float distance);
 
-	void WorldToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const;
+	void WorldToLocal(const glm::vec4& vec, glm::vec4& out) const;
 	void WorldToLocalCoord(const glm::vec3& vec, glm::vec3& out) const;
 	void WorldToLocalNorm(const glm::vec3& vec, glm::vec3& out) const;
-	void LocalToWorld(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const;
+	void LocalToWorld(const glm::vec4& vec, glm::vec4& out) const;
 	void LocalToWorldCoord(const glm::vec3& vec, glm::vec3& out) const;
 	void LocalToWorldNorm(const glm::vec3& vec, glm::vec3& out) const;
-	void ParentToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const;
-	void LocalToParent(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const;
+	void ParentToLocal(const glm::vec4& vec, glm::vec4& out) const;
+	void LocalToParent(const glm::vec4& vec, glm::vec4& out) const;
 
 	unsigned RayCastIntersBB(const glm::vec3& wRayPos, const glm::vec3& wRayVec, bool includeChild = false) const;
 	unsigned RayCastIntersBB(const glm::vec3& wRayPos, const glm::vec3& wRayVec, glm::vec3& wNearVec, glm::vec3& wFarVec, bool includeChild = false) const;

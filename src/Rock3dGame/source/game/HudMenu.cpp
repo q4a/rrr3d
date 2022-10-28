@@ -436,7 +436,7 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		_carLifes[i].bar->SetProgress(value);
 
 		glm::vec3 pos = _carLifes[i].target->GetCar().gameObj->GetPos() + glm::vec3(0.0f, 0.0f, 0.0f);
-		D3DXVECTOR4 projVec;
+		glm::vec4 projVec;
 		D3DXVec3Transform(&projVec, &Vec3GlmToDx(pos), &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
 		//glm::vec2 vec = projVec / projVec.w;
 		glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR4 replacement
@@ -686,7 +686,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			AABB2 aabb = opponent.label->GetTextAABB();
 
 			glm::vec3 pos = opponent.player->GetCar().gameObj->GetWorldPos() + glm::vec3(1.0f, -0.5f, 0);
-			D3DXVECTOR4 projVec;
+			glm::vec4 projVec;
 			D3DXVec3Transform(&projVec, &Vec3GlmToDx(pos), &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
 			//glm::vec2 vec = projVec / projVec.w;
 			glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR4 replacement

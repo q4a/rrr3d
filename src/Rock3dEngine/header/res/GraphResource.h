@@ -86,11 +86,11 @@ struct ScreenVertex
 {
 	static const DWORD fvf = D3DFVF_XYZRHW | D3DFVF_TEX1;
 
-	D3DXVECTOR4 pos;
+	glm::vec4 pos;
 	glm::vec2 tex;
 
 	ScreenVertex();
-	ScreenVertex(const D3DXVECTOR4& position, const glm::vec2& texCoord);
+	ScreenVertex(const glm::vec4& position, const glm::vec2& texCoord);
 };
 
 struct VertexIter;
@@ -167,7 +167,7 @@ struct VertexIter
 
 	const glm::vec3* Pos3() const;
 	glm::vec3* Pos3();
-	D3DXVECTOR4* Pos4();
+	glm::vec4* Pos4();
 	D3DCOLOR* Color();
 	glm::vec2* Tex0();
 	glm::vec2* Tex1();

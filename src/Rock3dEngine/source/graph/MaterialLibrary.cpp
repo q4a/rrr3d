@@ -880,7 +880,7 @@ graph::LibMaterial& LibMaterial::SetAnisoFlt()
 	return *this;
 }
 
-void DrawScreenQuad(Engine& engine, const D3DXVECTOR4& quadVert, float fLeftU, float fTopV, float fRightU, float fBottomV, bool disableZBuf)
+void DrawScreenQuad(Engine& engine, const glm::vec4& quadVert, float fLeftU, float fTopV, float fRightU, float fBottomV, bool disableZBuf)
 {
 	D3DSURFACE_DESC surfDesc;
 	IDirect3DSurface9* curRTSurf;
@@ -897,16 +897,16 @@ void DrawScreenQuad(Engine& engine, const D3DXVECTOR4& quadVert, float fLeftU, f
 	// Draw the quad
 	res::ScreenVertex svQuad[4];
 
-	svQuad[0].pos = D3DXVECTOR4(fPosX, fPosY, 0.5f, 1.0f);
+	svQuad[0].pos = glm::vec4(fPosX, fPosY, 0.5f, 1.0f);
 	svQuad[0].tex = glm::vec2(fLeftU, fTopV);
 
-	svQuad[1].pos = D3DXVECTOR4(fWidth5, fPosY, 0.5f, 1.0f);
+	svQuad[1].pos = glm::vec4(fWidth5, fPosY, 0.5f, 1.0f);
 	svQuad[1].tex = glm::vec2(fRightU, fTopV);
 
-	svQuad[2].pos = D3DXVECTOR4(fPosX, fHeight5, 0.5f, 1.0f);
+	svQuad[2].pos = glm::vec4(fPosX, fHeight5, 0.5f, 1.0f);
 	svQuad[2].tex = glm::vec2(fLeftU, fBottomV);
 
-	svQuad[3].pos = D3DXVECTOR4(fWidth5, fHeight5, 0.5f, 1.0f);
+	svQuad[3].pos = glm::vec4(fWidth5, fHeight5, 0.5f, 1.0f);
 	svQuad[3].tex = glm::vec2(fRightU, fBottomV);
 
 	if (!disableZBuf)

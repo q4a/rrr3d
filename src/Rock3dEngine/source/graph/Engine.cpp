@@ -162,7 +162,7 @@ void Engine::ReleaseQueries()
 
 void Engine::UpdateScreenQuad()
 {
-	D3DXVECTOR4 quadVert = D3DXVECTOR4(0.0f, 0.0f, 1.0f, 1.0f);
+	glm::vec4 quadVert = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
 
 	float fLeftU = 0.0f;
 	float fTopV = 0.0f;
@@ -177,10 +177,10 @@ void Engine::UpdateScreenQuad()
 
 	res::ScreenVertex vertBuf[4] =
 	{
-		res::ScreenVertex(D3DXVECTOR4(fPosX, fPosY, 0.5f, 1.0f), glm::vec2(fLeftU, fTopV)),
-		res::ScreenVertex(D3DXVECTOR4(fWidth5, fPosY, 0.5f, 1.0f), glm::vec2(fRightU, fTopV)),
-		res::ScreenVertex(D3DXVECTOR4(fPosX, fHeight5, 0.5f, 1.0f), glm::vec2(fLeftU, fBottomV)),
-		res::ScreenVertex(D3DXVECTOR4(fWidth5, fHeight5, 0.5f, 1.0f), glm::vec2(fRightU, fBottomV))
+		res::ScreenVertex(glm::vec4(fPosX, fPosY, 0.5f, 1.0f), glm::vec2(fLeftU, fTopV)),
+		res::ScreenVertex(glm::vec4(fWidth5, fPosY, 0.5f, 1.0f), glm::vec2(fRightU, fTopV)),
+		res::ScreenVertex(glm::vec4(fPosX, fHeight5, 0.5f, 1.0f), glm::vec2(fLeftU, fBottomV)),
+		res::ScreenVertex(glm::vec4(fWidth5, fHeight5, 0.5f, 1.0f), glm::vec2(fRightU, fBottomV))
 	};
 
 	res::VertexData* data = _meshScreenQuad.GetOrCreateData();

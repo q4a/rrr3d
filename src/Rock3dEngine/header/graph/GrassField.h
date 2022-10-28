@@ -21,17 +21,17 @@ private:
 public:
 	struct GrassTile
 	{
-		GrassTile(float mWeight, D3DXVECTOR4 mTexCoord);
+		GrassTile(float mWeight, glm::vec4 mTexCoord);
 
 		float weight;
-		D3DXVECTOR4 texCoord;
+		glm::vec4 texCoord;
 	};
 
 	struct GrassDesc
 	{
 		typedef std::vector<GrassTile> Tiles;
 
-		GrassDesc(graph::LibMaterial* mLibMat, const GrassTile& tile = GrassTile(1, D3DXVECTOR4(0, 0, 1, 1)));
+		GrassDesc(graph::LibMaterial* mLibMat, const GrassTile& tile = GrassTile(1, glm::vec4(0, 0, 1, 1)));
 
 		graph::LibMaterial* libMat;
 		Tiles tiles;

@@ -564,10 +564,10 @@ void GraphManager::InitGrassField()
 		graph::GrassField::GrassList list;
 		graph::GrassField::GrassDesc desc(_grassMat);
 		desc.tiles.clear();
-		desc.tiles.push_back(graph::GrassField::GrassTile(2, D3DXVECTOR4(0, 0.5f, 0.5f, 0)));
-		desc.tiles.push_back(graph::GrassField::GrassTile(1, D3DXVECTOR4(0.5f, 0.5f, 1.0f, 0)));
-		desc.tiles.push_back(graph::GrassField::GrassTile(10, D3DXVECTOR4(0, 1.0f, 0.5f, 0.5f)));
-		desc.tiles.push_back(graph::GrassField::GrassTile(1, D3DXVECTOR4(0.5, 1.0f, 1.0f, 0.5f)));
+		desc.tiles.push_back(graph::GrassField::GrassTile(2, glm::vec4(0, 0.5f, 0.5f, 0)));
+		desc.tiles.push_back(graph::GrassField::GrassTile(1, glm::vec4(0.5f, 0.5f, 1.0f, 0)));
+		desc.tiles.push_back(graph::GrassField::GrassTile(10, glm::vec4(0, 1.0f, 0.5f, 0.5f)));
+		desc.tiles.push_back(graph::GrassField::GrassTile(1, glm::vec4(0.5, 1.0f, 1.0f, 0.5f)));
 		list.push_back(desc);
 
 		_grassField = new graph::GrassField();
@@ -1586,32 +1586,32 @@ void GraphManager::RenderDebug()
 	if (_scRenderTexRef > 0)
 	{
 		_engine->GetContext().SetTexture(0, _scRenderTex->GetRT()->GetTex());
-		DrawScreenQuad(*_engine, D3DXVECTOR4(0.0f, 0.0f, 0.2f, 0.2f));
+		DrawScreenQuad(*_engine, glm::vec4(0.0f, 0.0f, 0.2f, 0.2f));
 	}
 	/*if (_planarReflRender)
 	{
 		_engine->GetContext().SetTexture(0, _planarReflRender->GetRT()->GetTex());
-		DrawScreenQuad(*_engine, D3DXVECTOR4(0.0f, 0.0f, 0.4f, 0.4f));
+		DrawScreenQuad(*_engine, glm::vec4(0.0f, 0.0f, 0.4f, 0.4f));
 	}*/
 	if (_scDepthMapRef)
 	{
 		_engine->GetContext().SetTexture(0, _scDepthMap->GetRT()->GetTex());
-		DrawScreenQuad(*_engine, D3DXVECTOR4(0.2f, 0.0f, 0.4f, 0.2f));
+		DrawScreenQuad(*_engine, glm::vec4(0.2f, 0.0f, 0.4f, 0.2f));
 	}
 	/*if (_sunShaft)
 	{
 		_engine->GetContext().SetTexture(0, _sunShaft->_blurTex[0].GetTex());
-		DrawScreenQuad(*_engine, D3DXVECTOR4(0.0f, 0.2f, 0.2f, 0.4f));
+		DrawScreenQuad(*_engine, glm::vec4(0.0f, 0.2f, 0.2f, 0.4f));
 	}*/
 	/*if (_bloomEff)
 	{
 		_engine->GetContext().SetTexture(0, _bloomEff->GetRT()->GetTex());
-		DrawScreenQuad(*_engine, D3DXVECTOR4(0.0f, 0.4f, 0.2f, 0.6f));
+		DrawScreenQuad(*_engine, glm::vec4(0.0f, 0.4f, 0.2f, 0.6f));
 	}
 	if (_hdrEff)
 	{
 		_engine->GetContext().SetTexture(0, _hdrEff->GetRT()->GetTex());
-		DrawScreenQuad(*_engine, D3DXVECTOR4(0.0f, 0.6f, 0.2f, 0.8f));
+		DrawScreenQuad(*_engine, glm::vec4(0.0f, 0.6f, 0.2f, 0.8f));
 	}*/
 
 	/*if (_shadowRef)
@@ -1623,12 +1623,12 @@ void GraphManager::RenderDebug()
 				for (unsigned j = 0; j < (*iter)->GetShadowMap()->_shadowVec.size(); ++j)
 				{
 					_engine->GetContext().SetTexture(0, (*iter)->GetShadowMap()->_shadowVec[i]->GetTex());
-					DrawScreenQuad(*_engine, D3DXVECTOR4(0.0f, 0.2f * i, 0.2f,  0.2f * (i + 1)));
+					DrawScreenQuad(*_engine, glm::vec4(0.0f, 0.2f * i, 0.2f,  0.2f * (i + 1)));
 					++i;
 				}
 
 				_engine->GetContext().SetTexture(0, (*iter)->GetShadowMap()->GetRT()->GetTex());
-				DrawScreenQuad(*_engine, D3DXVECTOR4(0.0f, 0.2f * i, 0.2f,  0.2f * (i + 1)));
+				DrawScreenQuad(*_engine, glm::vec4(0.0f, 0.2f * i, 0.2f,  0.2f * (i + 1)));
 				break;
 			}
 	}*/
@@ -1636,13 +1636,13 @@ void GraphManager::RenderDebug()
 	/*if (_pixelLightRef > 0)
 	{
 		_engine->GetContext().SetTexture(0, _pixelLightMap->GetRT()->GetTex());
-		DrawScreenQuad(*_engine, D3DXVECTOR4(0.2f, 0.8f, 0.4f, 1.0f));
+		DrawScreenQuad(*_engine, glm::vec4(0.2f, 0.8f, 0.4f, 1.0f));
 	}*/
 
 	/*if (_cleanScTex)
 	{
 		_engine->GetContext().SetTexture(0, _cleanScTex->GetRT()->GetTex());
-		DrawScreenQuad(*_engine, D3DXVECTOR4(0.2f, 0.8f, 0.4f, 1.0f));
+		DrawScreenQuad(*_engine, glm::vec4(0.2f, 0.8f, 0.4f, 1.0f));
 	}*/
 
 	//_engine->GetContext().SetWorldMat(IdentityMatrix);
@@ -1811,7 +1811,7 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 
 			_planarReflRender->SetReflPlane(plane);
 
-			D3DXVECTOR4 border = actor->vec2();
+			glm::vec4 border = actor->vec2();
 			AABB aabb = actor->GetLocalAABB(true);
 			aabb.min.x += border.x;
 			aabb.min.y += border.z;

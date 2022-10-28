@@ -134,32 +134,32 @@ void Actor::SetGraph(GraphManager* graph, const GraphDesc& desc)
 		_graph->InsertActor(this);
 }
 
-const D3DXVECTOR4& Actor::vec1() const
+const glm::vec4& Actor::vec1() const
 {
 	return _vec1;
 }
 
-void Actor::vec1(const D3DXVECTOR4& value)
+void Actor::vec1(const glm::vec4& value)
 {
 	_vec1 = value;
 }
 
-const D3DXVECTOR4& Actor::vec2() const
+const glm::vec4& Actor::vec2() const
 {
 	return _vec2;
 }
 
-void Actor::vec2(const D3DXVECTOR4& value)
+void Actor::vec2(const glm::vec4& value)
 {
 	_vec2 = value;
 }
 
-const D3DXVECTOR4& Actor::vec3() const
+const glm::vec4& Actor::vec3() const
 {
 	return _vec3;
 }
 
-void Actor::vec3(const D3DXVECTOR4& value)
+void Actor::vec3(const glm::vec4& value)
 {
 	_vec3 = value;
 }

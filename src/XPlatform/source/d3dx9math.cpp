@@ -22,8 +22,8 @@ glm::vec3* D3DXVec3Normalize(glm::vec3* out, const glm::vec3* pv) {
 }
 
 //Implementation copied from WINE project d3dx9_36/math.c
-D3DXVECTOR4* D3DXVec3Transform(D3DXVECTOR4* out, const glm::vec3* pv, const D3DXMATRIX* pm) {
-    D3DXVECTOR4 result;
+glm::vec4* D3DXVec3Transform(glm::vec4* out, const glm::vec3* pv, const D3DXMATRIX* pm) {
+    glm::vec4 result;
 
     result.x = pm->m[0][0] * pv->x + pm->m[1][0] * pv->y + pm->m[2][0] * pv->z + pm->m[3][0];
     result.y = pm->m[0][1] * pv->x + pm->m[1][1] * pv->y + pm->m[2][1] * pv->z + pm->m[3][1];
@@ -45,8 +45,8 @@ glm::vec3* D3DXVec3TransformNormal(glm::vec3* out, const glm::vec3* pv, const D3
 }
 
 //Implementation copied from WINE project d3dx9_36/math.c
-D3DXVECTOR4* D3DXVec4Transform(D3DXVECTOR4 *out, const D3DXVECTOR4 *pv, const D3DXMATRIX *pm) {
-    D3DXVECTOR4 result;
+glm::vec4* D3DXVec4Transform(glm::vec4 *out, const glm::vec4 *pv, const D3DXMATRIX *pm) {
+    glm::vec4 result;
 
     result.x = pm->m[0][0] * pv->x + pm->m[1][0] * pv->y + pm->m[2][0] * pv->z + pm->m[3][0] * pv->w;
     result.y = pm->m[0][1] * pv->x + pm->m[1][1] * pv->y + pm->m[2][1] * pv->z + pm->m[3][1] * pv->w;
@@ -57,7 +57,7 @@ D3DXVECTOR4* D3DXVec4Transform(D3DXVECTOR4 *out, const D3DXVECTOR4 *pv, const D3
     return out;
 }
 
-float D3DXVec4Length(D3DXVECTOR4* v) {
+float D3DXVec4Length(glm::vec4* v) {
     return (float) sqrt(v->x * v->x + v->y * v->y + v->z * v->z + v->w * v->w);
 }
 

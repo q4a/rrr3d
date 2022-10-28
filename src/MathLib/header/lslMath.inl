@@ -411,14 +411,14 @@ inline bool operator<(const glm::vec3& vec1, const glm::vec3& vec2)
 		   vec1.z < vec2.z;
 }
 
-inline D3DXVECTOR4 Vec4FromVec2(const glm::vec2& vec)
+inline glm::vec4 Vec4FromVec2(const glm::vec2& vec)
 {
-	return D3DXVECTOR4(vec.x, vec.y, 0, 0);
+	return glm::vec4(vec.x, vec.y, 0, 0);
 }
 
-inline D3DXVECTOR4 Vec4FromVec3(const glm::vec3& vec)
+inline glm::vec4 Vec4FromVec3(const glm::vec3& vec)
 {
-	return D3DXVECTOR4(vec.x, vec.y, vec.z, 0);
+	return glm::vec4(vec.x, vec.y, vec.z, 0);
 }
 
 inline void operator*=(D3DXCOLOR& vec1, const D3DXCOLOR& vec2)

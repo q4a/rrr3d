@@ -17,7 +17,7 @@ GrassField::~GrassField()
 	SetGrassList(GrassList());
 }
 
-GrassField::GrassTile::GrassTile(float mWeight, D3DXVECTOR4 mTexCoord): weight(mWeight), texCoord(mTexCoord)
+GrassField::GrassTile::GrassTile(float mWeight, glm::vec4 mTexCoord): weight(mWeight), texCoord(mTexCoord)
 {
 }
 
@@ -71,7 +71,7 @@ void GrassField::BuildField()
 		{
 			int numSprites = static_cast<int>(Round(_grassList[i].tiles[j].weight * spritesPerWeight));
 			numSprites = std::min(maxSprites - spriteOff, numSprites);
-			D3DXVECTOR4 tex = _grassList[i].tiles[j].texCoord;
+			glm::vec4 tex = _grassList[i].tiles[j].texCoord;
 
 			for (int k = 0; k < numSprites; ++k)
 			{
@@ -82,23 +82,23 @@ void GrassField::BuildField()
 				pos.x += _disp * Random();
 				pos.y += _disp * Random();
 
-				*data[vert + 0].Pos4() = D3DXVECTOR4(Vec3GlmToDx(pos), 0);
+				*data[vert + 0].Pos4() = glm::vec4(Vec3GlmToDx(pos), 0);
 				*data[vert + 0].Tex0() = glm::vec2(tex[0], tex[1]);
 
-				*data[vert + 1].Pos4() = D3DXVECTOR4(Vec3GlmToDx(pos), 1);
+				*data[vert + 1].Pos4() = glm::vec4(Vec3GlmToDx(pos), 1);
 				*data[vert + 1].Tex0() = glm::vec2(tex[2], tex[1]);
 
-				*data[vert + 2].Pos4() = D3DXVECTOR4(Vec3GlmToDx(pos), 2);
+				*data[vert + 2].Pos4() = glm::vec4(Vec3GlmToDx(pos), 2);
 				*data[vert + 2].Tex0() = glm::vec2(tex[2], tex[3]);
 
 				//
-				*data[vert + 3].Pos4() = D3DXVECTOR4(Vec3GlmToDx(pos), 0);
+				*data[vert + 3].Pos4() = glm::vec4(Vec3GlmToDx(pos), 0);
 				*data[vert + 3].Tex0() = glm::vec2(tex[0], tex[1]);
 
-				*data[vert + 4].Pos4() = D3DXVECTOR4(Vec3GlmToDx(pos), 2);
+				*data[vert + 4].Pos4() = glm::vec4(Vec3GlmToDx(pos), 2);
 				*data[vert + 4].Tex0() = glm::vec2(tex[2], tex[3]);
 
-				*data[vert + 5].Pos4() = D3DXVECTOR4(Vec3GlmToDx(pos), 3);
+				*data[vert + 5].Pos4() = glm::vec4(Vec3GlmToDx(pos), 3);
 				*data[vert + 5].Tex0() = glm::vec2(tex[0], tex[3]);
 			}
 
@@ -147,7 +147,7 @@ void GrassField::Rebuild()
 	float square = _width * _height;
 	float aspect = _width / _height;
 
-	int grassSz = sizeof(D3DXVECTOR4) * sizeof(glm::vec2);
+	int grassSz = sizeof(glm::vec4) * sizeof(glm::vec2);
 	float grassCnt = square * _density;
 	float fieldSz = cMaxBufSize / static_cast<float>(grassSz);
 	float fieldCnt = grassCnt / fieldSz;

@@ -533,7 +533,7 @@ void BaseSceneNode::AdjustDistToTarget(const glm::vec3& worldTarget, float dista
 	SetWorldPos(worldTarget + GetWorldDir() * (-distance));
 }
 
-void BaseSceneNode::WorldToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
+void BaseSceneNode::WorldToLocal(const glm::vec4& vec, glm::vec4& out) const
 {
 	const D3DXMATRIX& mat = GetInvWorldMat();
 	D3DXVec4Transform(&out, &vec, &mat);
@@ -549,7 +549,7 @@ void BaseSceneNode::WorldToLocalNorm(const glm::vec3& vec, glm::vec3& out) const
 	out = Vec3TransformNormal(vec, GetInvWorldMat());
 }
 
-void BaseSceneNode::LocalToWorld(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
+void BaseSceneNode::LocalToWorld(const glm::vec4& vec, glm::vec4& out) const
 {
 	D3DXVec4Transform(&out, &vec, &GetWorldMat());
 }
@@ -564,13 +564,13 @@ void BaseSceneNode::LocalToWorldNorm(const glm::vec3& vec, glm::vec3& out) const
 	out = Vec3TransformNormal(vec, GetWorldMat());
 }
 
-void BaseSceneNode::ParentToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
+void BaseSceneNode::ParentToLocal(const glm::vec4& vec, glm::vec4& out) const
 {
 	const D3DXMATRIX& mat = GetInvMat();
 	D3DXVec4Transform(&out, &vec, &mat);
 }
 
-void BaseSceneNode::LocalToParent(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
+void BaseSceneNode::LocalToParent(const glm::vec4& vec, glm::vec4& out) const
 {
 	const D3DXMATRIX& mat = GetMat();
 	D3DXVec4Transform(&out, &vec, &mat);

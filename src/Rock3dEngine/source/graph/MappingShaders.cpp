@@ -114,7 +114,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 		SetParam(_params[lightPos], light.GetDesc().pos);
 		SetParam(_params[lightDir], light.GetDesc().dir);
 
-		D3DXVECTOR4 spotParamsVec(light.GetDesc().falloff, light.GetDesc().phi, light.GetDesc().theta, light.GetDesc().range);
+		glm::vec4 spotParamsVec(light.GetDesc().falloff, light.GetDesc().phi, light.GetDesc().theta, light.GetDesc().range);
 		SetParam(_params[spotParams], spotParamsVec);
 		break;
 	}

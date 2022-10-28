@@ -11,7 +11,7 @@ namespace res
 const int VertexData::cElementSize[cElementEnd] =
 {
 	sizeof(glm::vec3),
-	sizeof(D3DXVECTOR4),
+	sizeof(glm::vec4),
 	sizeof(glm::vec3),
 	sizeof(D3DCOLOR),
 	sizeof(glm::vec2),
@@ -68,7 +68,7 @@ ScreenVertex::ScreenVertex()
 {
 }
 
-ScreenVertex::ScreenVertex(const D3DXVECTOR4& position, const glm::vec2& texCoord): pos(position), tex(texCoord)
+ScreenVertex::ScreenVertex(const glm::vec4& position, const glm::vec2& texCoord): pos(position), tex(texCoord)
 {
 }
 
@@ -328,9 +328,9 @@ glm::vec3* VertexIter::Pos3()
 	return reinterpret_cast<glm::vec3*>(_owner->GetVertex(_index, VertexData::vtPos3));
 }
 
-D3DXVECTOR4* VertexIter::Pos4()
+glm::vec4* VertexIter::Pos4()
 {
-	return reinterpret_cast<D3DXVECTOR4*>(_owner->GetVertex(_index, VertexData::vtPos4));
+	return reinterpret_cast<glm::vec4*>(_owner->GetVertex(_index, VertexData::vtPos4));
 }
 
 D3DCOLOR* VertexIter::Color()

@@ -388,7 +388,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		float camHeight = camWidth / camera->GetAspect();
 		float camSize = sqrt(camWidth * camWidth + camHeight * camHeight);
 		//left, right, top, bottom
-		D3DXVECTOR4 camBorder = D3DXVECTOR4(cIsoBorder, cIsoBorder, cIsoBorder/camera->GetAspect(), cIsoBorder/camera->GetAspect());
+		glm::vec4 camBorder = glm::vec4(cIsoBorder, cIsoBorder, cIsoBorder/camera->GetAspect(), cIsoBorder/camera->GetAspect());
 
 		//Обратный поворот
 		glm::quat cIsoInvRot = glm::inverse(cIsoRot);
@@ -631,12 +631,12 @@ bool CameraManager::InFly()
 	return _flyCurTime != -1;
 }
 
-const D3DXVECTOR4& CameraManager::GetClampAngle() const
+const glm::vec4& CameraManager::GetClampAngle() const
 {
 	return _clampAngle;
 }
 
-void CameraManager::SetClampAngle(const D3DXVECTOR4& value)
+void CameraManager::SetClampAngle(const glm::vec4& value)
 {
 	_clampAngle = value;
 }
@@ -797,12 +797,12 @@ void CameraManager::SetPlayer(Player* value)
 	}
 }
 
-const D3DXVECTOR4& CameraManager::GetTarget()
+const glm::vec4& CameraManager::GetTarget()
 {
 	return _target;
 }
 
-void CameraManager::SetTarget(const D3DXVECTOR4& value)
+void CameraManager::SetTarget(const glm::vec4& value)
 {
 	_target = value;
 }

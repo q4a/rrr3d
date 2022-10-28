@@ -142,7 +142,7 @@ private:
 	//pxDefGroup - 0 px default group
 	//pxShotGroup - 1 px shot group
 	void LoadDecor(const std::string& name, const std::string& mesh, const std::string& libMat, GraphType graphType = gtDefFixPipe, bool px = false, bool cullOpacity = false, bool disableShadows = true);
-	void LoadTrack(const std::string& name, const std::string& mesh, const std::string& libMat, bool pxDefGroup = false, bool pxShotGroup = false, bool bump = false, bool planarRefl = false, const std::string& pxMesh = "", bool cullOpacity = false, const D3DXVECTOR4& vec1 = D3DXVECTOR4(0, 0, 0, 0), const D3DXVECTOR4& vec2 = D3DXVECTOR4(0, 0, 0, 0), const D3DXVECTOR4& vec3 = D3DXVECTOR4(0, 0, 0, 0));
+	void LoadTrack(const std::string& name, const std::string& mesh, const std::string& libMat, bool pxDefGroup = false, bool pxShotGroup = false, bool bump = false, bool planarRefl = false, const std::string& pxMesh = "", bool cullOpacity = false, const glm::vec4& vec1 = glm::vec4(0, 0, 0, 0), const glm::vec4& vec2 = glm::vec4(0, 0, 0, 0), const glm::vec4& vec3 = glm::vec4(0, 0, 0, 0));
 	void LoadCar(const std::string& name, const std::string& mesh, const std::string& wheelMesh, const std::string& libMat, const std::string& wheelCoords, const CarDesc& carDesc);
 	void LoadCrushObj(const std::string& name, const std::string& mesh, const std::string& libMat, float mass, int subMeshCount, int staticSubMeshes[], int staticCount, bool cullOpacity = false);
 

@@ -158,7 +158,7 @@ D3DXCOLOR WaterPlane::GetColor()
 
 void WaterPlane::SetColor(const D3DXCOLOR& value)
 {
-	shader.SetValue("waterColor", D3DXVECTOR4(value));
+	shader.SetValue("waterColor", glm::vec4(value));
 }
 
 const glm::vec3& WaterPlane::GetViewPos() const

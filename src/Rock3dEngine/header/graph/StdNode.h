@@ -249,8 +249,8 @@ public:
 
 	MaterialNode material;
 
-	D3DXVECTOR4 quadVertex;
-	D3DXVECTOR4 uvVertex;
+	glm::vec4 quadVertex;
+	glm::vec4 uvVertex;
 };
 
 class MovCoordSys: public BaseSceneNode
