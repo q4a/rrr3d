@@ -439,7 +439,7 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		D3DXVECTOR4 projVec;
 		D3DXVec3Transform(&projVec, &Vec3GlmToDx(pos), &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
 		//glm::vec2 vec = projVec / projVec.w;
-		glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after glm::vec3 replacement
+		glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR4 replacement
 
 		if (projVec.z < 0)
 		{
@@ -689,8 +689,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			D3DXVECTOR4 projVec;
 			D3DXVec3Transform(&projVec, &Vec3GlmToDx(pos), &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
 			//glm::vec2 vec = projVec / projVec.w;
-			glm::vec2 vec =
-				glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after glm::vec3 replacement
+			glm::vec2 vec = glm::vec2((projVec / projVec.w).x, (projVec / projVec.w).y); // remove after D3DXVECTOR4 replacement
 
 			if (projVec.z < 0)
 			{

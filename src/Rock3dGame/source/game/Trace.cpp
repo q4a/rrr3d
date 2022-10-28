@@ -157,12 +157,10 @@ void WayNode::Tile::ApplyChanges() const
 	{
 		_changed = false;
 
-		//glm::vec2 sPos = GetPos();
-		glm::vec2 sPos = glm::vec2(GetPos().x, GetPos().y); // remove after glm::vec3 replacement
+		glm::vec2 sPos = GetPos();
 		if (_node->GetNext())
 		{
-			//_dir = glm::vec2(GetNextPos()) - sPos;
-			_dir = glm::vec2(GetNextPos().x, GetNextPos().y) - sPos; // remove after glm::vec3 replacement
+			_dir = glm::vec2(GetNextPos()) - sPos;
 			_dirLength = glm::length(_dir);
 			_dir = glm::normalize(_dir);
 		}
@@ -364,8 +362,7 @@ bool WayNode::Tile::IsContains(const glm::vec3& point, bool lengthClamp, float* 
 	glm::vec3 pos2 = GetNextPos();
 
 	//Расстояние в 2д плоскости
-	//glm::vec2 point2 = point;
-	glm::vec2 point2 = glm::vec2(point.x, point.y); // remove after glm::vec3 replacement
+	glm::vec2 point2 = point;
 	float dist1 = Line2DistToPoint(_midNormLine, point2);
 	float dist2 = Line2DistToPoint(GetNextNormLine(), point2);
 	float dirDist = Line2DistToPoint(_dirLine, point2);
@@ -389,8 +386,7 @@ bool WayNode::Tile::IsZLevelContains(const glm::vec3& point, float* dist) const
 {
 	ApplyChanges();
 
-	//glm::vec2 pos = glm::vec2(point);
-	glm::vec2 pos = glm::vec2(point.x, point.y); // remove after glm::vec3 replacement
+	glm::vec2 pos = point;
 	float height = GetHeight(pos);
 	float coordZ = GetZCoord(pos);
 
@@ -604,8 +600,7 @@ bool WayNode::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, float* d
 
 bool WayNode::IsContains2(const glm::vec2& point, float* dist) const
 {
-	//float midDist = D3DXVec2Length(&(point - glm::vec2(_point->GetPos())));
-	float midDist = glm::length(point - glm::vec2(_point->GetPos().x, _point->GetPos().y)); // remove after glm::vec3 replacement
+	float midDist = glm::length(point - glm::vec2(_point->GetPos()));
 	if (dist)
 		*dist = midDist;
 
@@ -655,8 +650,7 @@ const glm::vec3& WayNode::GetPos() const
 
 glm::vec2 WayNode::GetPos2() const
 {
-	//return glm::vec2(GetPos());
-	return glm::vec2(GetPos().x, GetPos().y); // remove after glm::vec3 replacement
+	return glm::vec2(GetPos());
 }
 
 float WayNode::GetSize() const

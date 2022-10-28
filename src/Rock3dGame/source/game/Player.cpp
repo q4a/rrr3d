@@ -914,10 +914,8 @@ void Player::CarState::Update(float deltaTime)
 	nxActor->getGlobalOrientationQuat().getXYZW(glm::value_ptr(rot3));
 	Vec3Rotate(XVector, rot3, dir3);
 
-	//pos = glm::vec2(pos3);
-	pos = glm::vec2(pos3.x, pos3.y); // remove after glm::vec3 replacement
-	//dir = glm::vec2(dir3);
-	dir = glm::vec2(dir3.x, dir3.y); // remove after glm::vec3 replacement
+	pos = glm::vec2(pos3);
+	dir = glm::vec2(dir3);
 	speed = GameCar::GetSpeed(nxActor, dir3);
 	dir = glm::normalize(dir);
 

@@ -142,8 +142,7 @@ private:
 	{
 		Node() {}
 		Node(const glm::vec2& mPos, float mSize): pos(mPos), size(mSize) {}
-		//Node(const glm::vec3& mPos, float mSize): pos(mPos), size(mSize) {}
-		Node(const glm::vec3& mPos, float mSize): pos(mPos.x, mPos.y), size(mSize) {} // remove after glm::vec3 replacement
+		Node(const glm::vec3& mPos, float mSize): pos(mPos), size(mSize) {}
 
 		glm::vec2 pos;
 		float size;
