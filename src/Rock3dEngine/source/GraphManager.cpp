@@ -444,7 +444,7 @@ void GraphManager::InitWaterPlane()
 		_waterPlane->SetDepthTex(_scDepthMap->GetRT());
 		_waterPlane->SetReflTex(reflTex);
 		_waterPlane->SetNormTex(_waterTexNorm);
-		_waterPlane->SetColor(D3DXCOLOR(0.0f, 0.2f, 0.5f, 1.0f));
+		_waterPlane->SetColor(glm::vec4(0.0f, 0.2f, 0.5f, 1.0f));
 		_waterPlane->SetCloudIntens(0.1f);
 	}
 	else if (_waterPlane && _graphQuality[goWater] == gqLow)
@@ -2795,12 +2795,12 @@ void GraphManager::SetSkyTex(const std::string& value)
 	}
 }
 
-const D3DXCOLOR& GraphManager::GetFogColor() const
+const glm::vec4& GraphManager::GetFogColor() const
 {
 	return _fogColor;
 }
 
-void GraphManager::SetFogColor(const D3DXCOLOR& value)
+void GraphManager::SetFogColor(const glm::vec4& value)
 {
 	if (_fogColor != value)
 	{
@@ -2811,12 +2811,12 @@ void GraphManager::SetFogColor(const D3DXCOLOR& value)
 	}
 }
 
-const D3DXCOLOR& GraphManager::GetSceneAmbient()
+const glm::vec4& GraphManager::GetSceneAmbient()
 {
 	return _sceneAmbient;
 }
 
-void GraphManager::SetSceneAmbient(const D3DXCOLOR& value)
+void GraphManager::SetSceneAmbient(const glm::vec4& value)
 {
 	_sceneAmbient = value;
 }
@@ -2832,12 +2832,12 @@ void GraphManager::SetFogIntensivity(float value)
 		_fogIntensivity = value;
 }
 
-const D3DXCOLOR& GraphManager::GetCloudColor() const
+const glm::vec4& GraphManager::GetCloudColor() const
 {
 	return _cloudColor;
 }
 
-void GraphManager::SetCloudColor(const D3DXCOLOR& value)
+void GraphManager::SetCloudColor(const glm::vec4& value)
 {
 	_cloudColor = value;
 

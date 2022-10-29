@@ -535,7 +535,7 @@ typedef ValueRange<float> FloatRange;
 typedef ValueRange<glm::vec2> Vec2Range;
 typedef ValueRange<glm::vec4> Vec4Range;
 typedef ValueRange<glm::quat> QuatRange;
-typedef ValueRange<D3DXCOLOR> ColorRange;
+typedef ValueRange<glm::vec4> ColorRange;
 
 //}
 

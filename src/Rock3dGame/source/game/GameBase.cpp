@@ -923,7 +923,7 @@ void ImmortalEffect::OnProgress(float deltaTime)
 			if (material == NULL)
 				continue;
 
-			material->SetColor(D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f + 2.5f * (1.0f - alpha)));
+			material->SetColor(glm::vec4(1.0f, 1.0f, 1.0f, 1.0f + 2.5f * (1.0f - alpha)));
 		}
 
 		if (alpha >= 1.0f)

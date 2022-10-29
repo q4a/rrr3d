@@ -9,7 +9,7 @@ namespace r3d
 namespace game
 {
 
-const D3DXCOLOR Menu::cTextColor = D3DXCOLOR(176.0f, 205.0f, 249.0f, 255.0f)/255.0f;
+const glm::vec4 Menu::cTextColor = glm::vec4(176.0f, 205.0f, 249.0f, 255.0f)/255.0f;
 const glm::vec2 Menu::cWinSize(1280.0f, 1024.0f);
 const glm::vec2 Menu::cMinWinSize(800.0f, 600.0f);
 const glm::vec2 Menu::cMaxWinSize(3072.0f, 1536.0f);
@@ -1274,7 +1274,7 @@ void Menu::SetGamerId(int gamerId)
 		GetPlayer()->SetGamerId(gamerId);
 }
 
-const D3DXCOLOR& Menu::GetCarColor()
+const glm::vec4& Menu::GetCarColor()
 {
 	if (IsNetGame())
 		return GetNet()->player()->GetColor();
@@ -1282,7 +1282,7 @@ const D3DXCOLOR& Menu::GetCarColor()
 		return GetPlayer()->GetColor();
 }
 
-void Menu::SetCarColor(const D3DXCOLOR& color)
+void Menu::SetCarColor(const glm::vec4& color)
 {
 	if (IsNetGame())
 		GetNet()->player()->SetColor(color);
@@ -1631,7 +1631,7 @@ gui::Button* Menu::CreateSpaceArrowButton(gui::Widget* parent, gui::Widget::Even
 	return button;
 }
 
-gui::Button* Menu::CreateMenuButton(const lsl::string& name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, gui::Button::Style style, const D3DXCOLOR& textColor, SoundShemeType soundSheme)
+gui::Button* Menu::CreateMenuButton(const lsl::string& name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, gui::Button::Style style, const glm::vec4& textColor, SoundShemeType soundSheme)
 {
 	gui::Button* button = GetGUI()->CreateButton();
 	button->SetParent(parent);
@@ -1672,7 +1672,7 @@ gui::Button* Menu::CreateMenuButton(const lsl::string& name, const std::string& 
 	return button;
 }
 
-gui::Button* Menu::CreateMenuButton(StringValue name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, gui::Button::Style style, const D3DXCOLOR& textColor, SoundShemeType soundSheme)
+gui::Button* Menu::CreateMenuButton(StringValue name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, gui::Button::Style style, const glm::vec4& textColor, SoundShemeType soundSheme)
 {
 	return CreateMenuButton(GetString(name), font, norm, sel, parent, guiEvent, size, style, textColor, soundSheme);
 }
@@ -1691,8 +1691,8 @@ gui::Button* Menu::CreateMenuButton(StringValue name, gui::Widget* parent, gui::
 
 gui::Button* Menu::CreateMenuButton2(StringValue name, gui::Widget* parent, gui::Widget::Event* guiEvent)
 {
-	gui::Button* button = CreateMenuButton(name, "Item", "GUI\\buttonBg5.png", "", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim, D3DXCOLOR(0xffafafaf), Menu::ssButton1);
-	button->GetOrCreateTextSelMaterial()->SetColor(D3DXCOLOR(0xffeb733e));
+	gui::Button* button = CreateMenuButton(name, "Item", "GUI\\buttonBg5.png", "", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim, glm::vec4(0xffafafaf), Menu::ssButton1);
+	button->GetOrCreateTextSelMaterial()->SetColor(glm::vec4(0xffeb733e));
 
 	return button;
 }
@@ -1702,7 +1702,7 @@ gui::Button* Menu::CreateArrow(gui::Widget* parent, gui::Widget::Event* guiEvent
 	return CreateMenuButton(svNull, "", "GUI\\arrow1.png", "GUI\\arrowSel1.png", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim);
 }
 
-gui::Label* Menu::CreateLabel(const std::string& name, gui::Widget* parent, const std::string& font, const glm::vec2& size, gui::Text::HorAlign horAlign, gui::Text::VertAlign vertAlign, const D3DXCOLOR& color)
+gui::Label* Menu::CreateLabel(const std::string& name, gui::Widget* parent, const std::string& font, const glm::vec2& size, gui::Text::HorAlign horAlign, gui::Text::VertAlign vertAlign, const glm::vec4& color)
 {
 	gui::Label* label = GetGUI()->CreateLabel();
 	label->SetParent(parent);
@@ -1718,7 +1718,7 @@ gui::Label* Menu::CreateLabel(const std::string& name, gui::Widget* parent, cons
 	return label;
 }
 
-gui::Label* Menu::CreateLabel(StringValue name, gui::Widget* parent, const std::string& font, const glm::vec2& size, gui::Text::HorAlign horAlign, gui::Text::VertAlign vertAlign, const D3DXCOLOR& color)
+gui::Label* Menu::CreateLabel(StringValue name, gui::Widget* parent, const std::string& font, const glm::vec2& size, gui::Text::HorAlign horAlign, gui::Text::VertAlign vertAlign, const glm::vec4& color)
 {
 	return CreateLabel(GetString(name), parent, font, size, horAlign, vertAlign, color);
 }
@@ -1731,10 +1731,10 @@ gui::DropBox* Menu::CreateDropBox(gui::Widget* parent, gui::Widget::Event* guiEv
 	dropBox->SetEvent(guiEvent);
 
 	dropBox->SetFont(GetFont("Small"));
-	dropBox->GetFonMaterial().SetColor(D3DXCOLOR(51.0f, 83.0f, 113.0f, 255.0f)/255.0f);
+	dropBox->GetFonMaterial().SetColor(glm::vec4(51.0f, 83.0f, 113.0f, 255.0f)/255.0f);
 	dropBox->GetButMaterial().GetSampler().SetTex(GetTexture("GUI\\dropBoxButton.tga"));
 	dropBox->GetTextMaterial().SetColor(cTextColor);
-	dropBox->GetSelMaterial().SetColor(D3DXCOLOR(250.0f, 255.0f, 0.0f, 255.0f)/255.0f);
+	dropBox->GetSelMaterial().SetColor(glm::vec4(250.0f, 255.0f, 0.0f, 255.0f)/255.0f);
 
 	dropBox->SetItems(items);
 
@@ -1763,7 +1763,7 @@ gui::ListBox* Menu::CreateListBox(gui::Widget* parent, gui::Widget::Event* guiEv
 	listBox->SetItemSize(itemSize);
 	listBox->SetItemSpace(itemSpace);
 
-	listBox->GetOrCreateFon().SetColor(D3DXCOLOR(1.0f, 1.0f, 1.0f, 0.3f));
+	listBox->GetOrCreateFon().SetColor(glm::vec4(1.0f, 1.0f, 1.0f, 0.3f));
 	listBox->GetOrCreateFon().SetBlending(gui::Material::bmTransparency);
 	listBox->GetOrCreateFon().GetSampler().SetTex(GetTexture("GUI\\listBoxFon.tga"));
 
@@ -1844,13 +1844,13 @@ gui::ColorList* Menu::CreateColorList(gui::Widget* parent, gui::Widget::Event* g
 
 	colorList->InsertColor(clrBlack);
 	colorList->InsertColor(clrBlue);
-	colorList->InsertColor(D3DXCOLOR(48.0f, 139.0f, 231.0f, 255.0f)/255.0f);
+	colorList->InsertColor(glm::vec4(48.0f, 139.0f, 231.0f, 255.0f)/255.0f);
 	colorList->InsertColor(clrRed);
 	colorList->InsertColor(clrGreen);
 	colorList->InsertColor(clrYellow);
-	colorList->InsertColor(D3DXCOLOR(255.0f, 150.0f, 0.0f, 255.0f)/255.0f);
-	colorList->InsertColor(D3DXCOLOR(180.0f, 0.0f, 180.0f, 255.0f)/255.0f);
-	colorList->InsertColor(D3DXCOLOR(255.0f, 100.0f, 255.0f, 255.0f)/255.0f);
+	colorList->InsertColor(glm::vec4(255.0f, 150.0f, 0.0f, 255.0f)/255.0f);
+	colorList->InsertColor(glm::vec4(180.0f, 0.0f, 180.0f, 255.0f)/255.0f);
+	colorList->InsertColor(glm::vec4(255.0f, 100.0f, 255.0f, 255.0f)/255.0f);
 	colorList->InsertColor(clrWhite);
 
 	colorList->SelectColor(&clrRed);
@@ -1874,12 +1874,12 @@ gui::Button* Menu::CreateCloseButton(gui::Widget* parent, gui::Widget::Event* gu
 
 	gui::Material* fonMat = button->GetOrCreateFon();
 	fonMat->GetSampler().SetTex(GetTexture("GUI\\closeButton.tga"));
-	fonMat->SetColor(D3DXCOLOR(1.0f, 1.0f, 1.0f, 0.3f));
+	fonMat->SetColor(glm::vec4(1.0f, 1.0f, 1.0f, 0.3f));
 	fonMat->SetBlending(gui::Material::bmTransparency);
 
 	gui::Material* selMat = button->GetOrCreateSel();
 	selMat->GetSampler().SetTex(GetTexture("GUI\\closeButtonSel.tga"));
-	selMat->SetColor(D3DXCOLOR(1.0f, 1.0f, 1.0f, 0.75f));
+	selMat->SetColor(glm::vec4(1.0f, 1.0f, 1.0f, 0.75f));
 	selMat->SetBlending(gui::Material::bmTransparency);
 
 	button->SetSize(GetImageSize(*fonMat) * size);
@@ -1935,7 +1935,7 @@ gui::StepperBox* Menu::CreateStepper(const StringList& items, gui::Widget* paren
 	stepper->GetOrCreateArrowSel()->SetBlending(gui::Material::bmTransparency);
 
 	stepper->SetFont(GetFont("Small"));
-	stepper->GetOrCreateText()->SetColor(D3DXCOLOR(0xffafafaf));
+	stepper->GetOrCreateText()->SetColor(glm::vec4(0xffafafaf));
 
 	stepper->SetSize(240.0f, 45.0f);
 

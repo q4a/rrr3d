@@ -16,7 +16,7 @@ public:
 	enum Mode {cmColor, cmMaxDepth};
 private:
 	Mode _mode;
-	D3DXCOLOR _color;
+	glm::vec4 _color;
 
 	void ApplyMode();
 public:
@@ -27,8 +27,8 @@ public:
 	Mode GetMode() const;
 	void SetMode(Mode value);
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 
 	Shader shader;
 };

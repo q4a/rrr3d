@@ -20,9 +20,9 @@ const float Player::cHumanArmorK[cDifficultyEnd] = {2.0f, 1.75f, 1.5f};
 
 const std::string Player::cSlotTypeStr[cSlotTypeEnd] = {"stWheel", "stTruba", "stArmor", "stMotor", "stHyper", "stMine", "stWeapon1", "stWeapon2", "stWeapon3", "stWeapon4"};
 
-const D3DXCOLOR Player::cLeftColors[Player::cColorsCount] = {clrWhite, clrBlue, clrRed, clrGreen, clrYellow, D3DXCOLOR(0xffff9000), clrGray20};
+const glm::vec4 Player::cLeftColors[Player::cColorsCount] = {clrWhite, clrBlue, clrRed, clrGreen, clrYellow, glm::vec4(0xffff9000), clrGray20};
 
-const D3DXCOLOR Player::cRightColors[Player::cColorsCount] = {D3DXCOLOR(0xff06affa), D3DXCOLOR(0xffb70bae), D3DXCOLOR(0xffb1c903), D3DXCOLOR(0xffa93900), D3DXCOLOR(0xff30373d), D3DXCOLOR(0xff009f15), D3DXCOLOR(0xff70769c)};
+const glm::vec4 Player::cRightColors[Player::cColorsCount] = {glm::vec4(0xff06affa), glm::vec4(0xffb70bae), glm::vec4(0xffb1c903), glm::vec4(0xffa93900), glm::vec4(0xff30373d), glm::vec4(0xff009f15), glm::vec4(0xff70769c)};
 
 Slot::ClassList Slot::classList;
 
@@ -2068,12 +2068,12 @@ void Player::ResetPickMoney()
 	_pickMoney = 0;
 }
 
-const D3DXCOLOR& Player::GetColor() const
+const glm::vec4& Player::GetColor() const
 {
 	return _car.color;
 }
 
-void Player::SetColor(const D3DXCOLOR& value)
+void Player::SetColor(const glm::vec4& value)
 {
 	_car.color = value;
 

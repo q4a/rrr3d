@@ -58,7 +58,7 @@ private:
 	GraphManager::LightSrc* _lamp[4];
 	glm::vec3 _lampPos[4];
 	glm::quat _lampRot[4];
-	D3DXCOLOR _lampColor[4];
+	glm::vec4 _lampColor[4];
 	bool _lampSwitchOn[4];
 
 	bool _enableRain;
@@ -111,8 +111,8 @@ public:
 	const glm::quat& GetLampRot(int index) const;
 	void SetLampRot(const glm::quat& value, int index);
 
-	const D3DXCOLOR& GetLampColor(int index) const;
-	void SetLampColor(const D3DXCOLOR& value, int index);
+	const glm::vec4& GetLampColor(int index) const;
+	void SetLampColor(const glm::vec4& value, int index);
 
 	void SwitchOnLamp(int index, bool value);
 	bool IsLampSwitchOn(int index);

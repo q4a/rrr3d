@@ -28,7 +28,7 @@ private:
 	bool _paramsShadow;
 
 	unsigned _curLight;
-	D3DXCOLOR _fogColor;
+	glm::vec4 _fogColor;
 
 	void InvalidateParams(D3DLIGHTTYPE value, bool shadow);
 protected:

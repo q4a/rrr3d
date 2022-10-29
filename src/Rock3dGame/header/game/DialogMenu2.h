@@ -171,7 +171,7 @@ private:
 	glm::vec2 _linesSize;
 	glm::vec2 _inputSize;
 
-	Line AddLine(const lsl::stringW& name, const lsl::stringW& text, const D3DXCOLOR& nameColor, bool right);
+	Line AddLine(const lsl::stringW& name, const lsl::stringW& text, const glm::vec4& nameColor, bool right);
 protected:
 	virtual void OnShow(bool value);
 	virtual void OnAdjustLayout(const glm::vec2& vpSize);
@@ -180,13 +180,13 @@ public:
 	UserChat(Menu* menu, gui::Widget* parent);
 	virtual ~UserChat();
 
-	void ShowInput(bool show, const lsl::stringW& name, const lsl::stringW& text, const D3DXCOLOR& nameColor);
+	void ShowInput(bool show, const lsl::stringW& name, const lsl::stringW& text, const glm::vec4& nameColor);
 	void ClearInput();
 	void CharInput(wchar_t value);
 	bool IsInputVisible() const;
 	lsl::stringW inputText() const;
 
-	void PushLine(const lsl::stringW& name, const lsl::stringW& text, const D3DXCOLOR& nameColor);
+	void PushLine(const lsl::stringW& name, const lsl::stringW& text, const glm::vec4& nameColor);
 	Lines::iterator DelLine(const Lines::const_iterator iter);
 	void DelLines();
 	const Lines& lines() const;

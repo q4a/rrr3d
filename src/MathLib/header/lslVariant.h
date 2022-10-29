@@ -130,7 +130,7 @@ public:
 	VariantVec(const glm::vec2* value, unsigned count);
 	VariantVec(const glm::vec3* value, unsigned count);
 	VariantVec(const glm::vec4* value, unsigned count);
-	VariantVec(const D3DXCOLOR* value, unsigned count);
+	VariantVec(const glm::vec4* value, unsigned count);
 	VariantVec(const D3DXMATRIX* value, unsigned count);
 	//
 	VariantVec(const int& value);
@@ -143,7 +143,7 @@ public:
 	VariantVec(const glm::vec2& value);
 	VariantVec(const glm::vec3& value);
 	VariantVec(const glm::vec4& value);
-	VariantVec(const D3DXCOLOR& value);
+	VariantVec(const glm::vec4& value);
 	VariantVec(const D3DXMATRIX& value);
 
 	using _MyBase::CheckType;
@@ -520,7 +520,7 @@ inline VariantVec::VariantVec(const glm::vec4* value, unsigned count)
 	AssignData(value, count);
 }
 
-inline VariantVec::VariantVec(const D3DXCOLOR* value, unsigned count)
+inline VariantVec::VariantVec(const glm::vec4* value, unsigned count)
 {
 	AssignData<glm::vec4>(reinterpret_cast<const glm::vec4*>(value), count);
 }
@@ -575,7 +575,7 @@ inline VariantVec::VariantVec(const glm::vec4& value)
 	AssignData(&value, 1);
 }
 
-inline VariantVec::VariantVec(const D3DXCOLOR& value)
+inline VariantVec::VariantVec(const glm::vec4& value)
 {
 	AssignData(reinterpret_cast<const glm::vec4*>(&value), 1);
 }

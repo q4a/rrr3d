@@ -779,7 +779,7 @@ public:
 	~Race();
 
 	Player* AddPlayer(int plrId);
-	Player* AddPlayer(int plrId, int gamerId, int netSlot, const D3DXCOLOR& color);
+	Player* AddPlayer(int plrId, int gamerId, int netSlot, const glm::vec4& color);
 	void DelPlayer(PlayerList::const_iterator iter);
 	void DelPlayer(Player* plr);
 	void ClearPlayerList();

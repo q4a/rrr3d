@@ -115,7 +115,7 @@ void Engine::DrawFPS()
 	++nFrameCount;
 	RECT destRect;
 	SetRect(&destRect, 505, 5, 0, 0);
-	g_pd3dxFont->DrawText(0 , fpsString, -1, &destRect, DT_NOCLIP, D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f));
+	g_pd3dxFont->DrawText(0 , fpsString, -1, &destRect, DT_NOCLIP, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 }
 
 #endif

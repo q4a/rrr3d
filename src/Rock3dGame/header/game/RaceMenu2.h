@@ -36,11 +36,11 @@ public:
 	void OnProgress(float deltaTime);
 
 	Garage::Car* GetCar();
-	void SetCar(Garage::Car* value, const D3DXCOLOR& color, bool secret = false);
-	void SetCar(MapObjRec* value, const D3DXCOLOR& color, bool secret = false);
+	void SetCar(Garage::Car* value, const glm::vec4& color, bool secret = false);
+	void SetCar(MapObjRec* value, const glm::vec4& color, bool secret = false);
 
-	D3DXCOLOR GetCarColor();
-	void SetCarColor(const D3DXCOLOR& value);
+	glm::vec4 GetCarColor();
+	void SetCarColor(const glm::vec4& value);
 
 	void SetSlots(Player* player, bool includeDefSlots);
 
@@ -117,11 +117,11 @@ private:
 	void PrevCar();
 	void NextCar();
 
-	gui::Widget* AddColor(gui::Grid* grid, const D3DXCOLOR& color);
-	void UpdateColorList(gui::Grid* grid, const D3DXCOLOR colors[], unsigned count);
-	void RefreshColorList(gui::Grid* grid, const D3DXCOLOR colors[], unsigned count);
+	gui::Widget* AddColor(gui::Grid* grid, const glm::vec4& color);
+	void UpdateColorList(gui::Grid* grid, const glm::vec4 colors[], unsigned count);
+	void RefreshColorList(gui::Grid* grid, const glm::vec4 colors[], unsigned count);
 	void RefreshColorList();
-	void SelectColor(const D3DXCOLOR& value);
+	void SelectColor(const glm::vec4& value);
 
 	void ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize);
 	void ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize);
@@ -132,7 +132,7 @@ protected:
 	virtual bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
 
 	Garage::Car* car();
-	D3DXCOLOR color();
+	glm::vec4 color();
 public:
 	GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent);
 	virtual ~GarageFrame();
@@ -501,11 +501,11 @@ public:
 	virtual ~RaceMenu();
 
 	gui::Button* CreateMenuButton(const std::string& icon, gui::Widget* parent, gui::Widget::Event* guiEvent);
-	gui::Button* CreateMenuButton2(StringValue name, gui::Widget* parent, const D3DXCOLOR& textColor, gui::Widget::Event* guiEvent);
+	gui::Button* CreateMenuButton2(StringValue name, gui::Widget* parent, const glm::vec4& textColor, gui::Widget::Event* guiEvent);
 	gui::Button* CreateArrow(gui::Widget* parent, gui::Widget::Event* guiEvent);
 	gui::Button* CreateArrow2(gui::Widget* parent, gui::Widget::Event* guiEvent);
 	gui::Button* CreatePlusButton(gui::Widget* parent, gui::Widget::Event* guiEvent);
-	void CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const D3DXCOLOR& color, Slot* slots[Player::cSlotTypeEnd]);
+	void CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const glm::vec4& color, Slot* slots[Player::cSlotTypeEnd]);
 	void CreateCar(gui::ViewPort3d* viewport, Player* player);
 
 	void AdjustLayout(const glm::vec2& vpSize);

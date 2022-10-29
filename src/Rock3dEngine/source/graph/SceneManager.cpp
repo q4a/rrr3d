@@ -54,7 +54,7 @@ BaseSceneNode::~BaseSceneNode()
 #endif
 }
 
-void BaseSceneNode::RenderBB(graph::Engine& engine, const AABB& aabb, const D3DXCOLOR& colorBB)
+void BaseSceneNode::RenderBB(graph::Engine& engine, const AABB& aabb, const glm::vec4& colorBB)
 {
 	using res::VertexPD;
 
@@ -1320,7 +1320,7 @@ Camera::Camera(): _changedCI(true)
 {	
 }
 
-void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj, const D3DXCOLOR& colorBB)
+void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj, const glm::vec4& colorBB)
 {
 	using res::VertexPD;
 
@@ -1582,34 +1582,34 @@ const graph::LightCI& LightSource::GetContextInfo() const
 	return _contextInfo;
 }
 
-const D3DXCOLOR& LightSource::GetAmbient() const
+const glm::vec4& LightSource::GetAmbient() const
 {
 	return _desc.ambient;
 }
 
-void LightSource::SetAmbient(const D3DXCOLOR& value)
+void LightSource::SetAmbient(const glm::vec4& value)
 {
 	_desc.ambient = value;
 	ChangedCI();
 }
 
-const D3DXCOLOR& LightSource::GetDiffuse() const
+const glm::vec4& LightSource::GetDiffuse() const
 {
 	return _desc.diffuse;
 }
 
-void LightSource::SetDiffuse(const D3DXCOLOR& value)
+void LightSource::SetDiffuse(const glm::vec4& value)
 {
 	_desc.diffuse = value;
 	ChangedCI();
 }
 
-const D3DXCOLOR& LightSource::GetSpecular() const
+const glm::vec4& LightSource::GetSpecular() const
 {
 	return _desc.specular;
 }
 
-void LightSource::SetSpecular(const D3DXCOLOR& value)
+void LightSource::SetSpecular(const glm::vec4& value)
 {
 	_desc.specular = value;
 	ChangedCI();

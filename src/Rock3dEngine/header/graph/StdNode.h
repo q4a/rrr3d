@@ -17,7 +17,7 @@ public:
 private:
 	Materials _materials;
 	LibMaterial* _libMat;
-	D3DXCOLOR _color;
+	glm::vec4 _color;
 
 	glm::vec3 _offset;
 	glm::vec3 _scale;
@@ -66,8 +66,8 @@ public:
 
 	const Materials& GetList() const;
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 
 	const glm::vec3& GetOffset() const;
 	void SetOffset(const glm::vec3& value);
@@ -198,7 +198,7 @@ class Cylinder: public BaseSceneNode
 {
 private:
 	graph::IndexedVBMesh* _mesh;
-	D3DXCOLOR _color;
+	glm::vec4 _color;
 protected:
 	void UpdateMesh();
 
@@ -211,8 +211,8 @@ public:
 	Cylinder();
 	virtual ~Cylinder();
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 };
 
 class Sprite: public BaseSceneNode
@@ -259,8 +259,8 @@ private:
 	static const glm::vec3 arUp[3];
 	static const float arSize;
 	static const glm::vec3 arPos[3];
-	static const D3DXCOLOR arCol[3];
-	static const D3DXCOLOR colSel;
+	static const glm::vec4 arCol[3];
+	static const glm::vec4 colSel;
 public:
 	enum DirMove {dmNone, dmX, dmY, dmZ, dmXY, dmXZ, dmYZ, cDirMoveEnd};
 private:
@@ -285,8 +285,8 @@ private:
 	static const glm::vec3 arUp[3];
 	static const float arSize;
 	static const float plSize;
-	static const D3DXCOLOR arCol[3];
-	static const D3DXCOLOR colSel;
+	static const glm::vec4 arCol[3];
+	static const glm::vec4 colSel;
 public:
 	enum DirMove {dmNone, dmX, dmY, dmZ, dmXYZ, cDirMoveEnd};
 private:
@@ -309,7 +309,7 @@ public:
 void FillDataPlane(res::VertexData& vb, float width, float height, float u, float v);
 //0...bot = min(slices + 1, 1) - вершины нижней грани
 //bot...top = bot + min(slices + 1, 1) - вершины верхней грани
-void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, float height, unsigned slices, const D3DXCOLOR& color);
+void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, float height, unsigned slices, const glm::vec4& color);
 
 }
 

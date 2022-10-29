@@ -277,9 +277,9 @@ void Environment::SetGraphOption(GraphManager::GraphOption option, bool value)
 
 void Environment::ApplyCloudColor()
 {
-	D3DXCOLOR cloudColor = GetGraph()->GetFogColor();
+	glm::vec4 cloudColor = GetGraph()->GetFogColor();
 	if (_worldType == wtWorld3)
-		cloudColor = D3DXCOLOR(87.0f/255.0f, 81.0f/255.0f, 115.0f/255.0f, 1.0f);
+		cloudColor = glm::vec4(87.0f/255.0f, 81.0f/255.0f, 115.0f/255.0f, 1.0f);
 	else if (_worldType == wtWorld4)
 		cloudColor = clrWhite;
 
@@ -294,7 +294,7 @@ void Environment::ApplyWheater()
 	{
 	case ewFair:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
+		glm::vec4 fogColor = glm::vec4(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
@@ -315,9 +315,9 @@ void Environment::ApplyWheater()
 
 	case ewNight:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(15.0f, 25.0f, 31.0f, 255.0f)/255.0f;
+		glm::vec4 fogColor = glm::vec4(15.0f, 25.0f, 31.0f, 255.0f)/255.0f;
 
-		GetGraph()->SetSceneAmbient(D3DXCOLOR(0xFF8A90AE));
+		GetGraph()->SetSceneAmbient(glm::vec4(0xFF8A90AE));
 		GetGraph()->SetFogColor(fogColor);
 		GetGraph()->SetFogIntensivity(1.0f);
 		GetGraph()->SetSkyTex("Data\\Misc\\nightSky.dds");
@@ -336,7 +336,7 @@ void Environment::ApplyWheater()
 
 	case ewClody:
 	{
-		D3DXCOLOR fogColor = 0x00C0BDB8;
+		glm::vec4 fogColor = 0x00C0BDB8;
 
 		GetGraph()->SetSkyTex("Data\\World2\\Texture\\skyTex1.dds");
 		GetGraph()->SetSceneAmbient(clrBlack);
@@ -357,7 +357,7 @@ void Environment::ApplyWheater()
 
 	case ewRainy:
 	{
-		D3DXCOLOR fogColor = 0x00C0BDB8;
+		glm::vec4 fogColor = 0x00C0BDB8;
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
@@ -378,7 +378,7 @@ void Environment::ApplyWheater()
 
 	case ewSahara:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(87.0f/255.0f, 81.0f/255.0f, 115.0f/255.0f, 1.0f);
+		glm::vec4 fogColor = glm::vec4(87.0f/255.0f, 81.0f/255.0f, 115.0f/255.0f, 1.0f);
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
@@ -399,7 +399,7 @@ void Environment::ApplyWheater()
 
 	case ewHell:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(82.0f/255.0f, 12.0f/255.0f, 8.0f/255.0f, 1.0f);
+		glm::vec4 fogColor = glm::vec4(82.0f/255.0f, 12.0f/255.0f, 8.0f/255.0f, 1.0f);
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
@@ -420,7 +420,7 @@ void Environment::ApplyWheater()
 
 	case ewSnow:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(0xFF9CA6B5);
+		glm::vec4 fogColor = glm::vec4(0xFF9CA6B5);
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
@@ -441,7 +441,7 @@ void Environment::ApplyWheater()
 
 	case ewGarage:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
+		glm::vec4 fogColor = glm::vec4(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
 
 		GetGraph()->SetSceneAmbient(clrGray60);
 		GetGraph()->SetFogColor(fogColor);
@@ -462,7 +462,7 @@ void Environment::ApplyWheater()
 
 	case ewAngar:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
+		glm::vec4 fogColor = glm::vec4(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
 
 		GetGraph()->SetSceneAmbient(clrGray60);
 		GetGraph()->SetFogColor(fogColor);
@@ -806,12 +806,12 @@ void Environment::SetLampRot(const glm::quat& value, int index)
 		_lamp[index]->GetSource()->SetRot(value);
 }
 
-const D3DXCOLOR& Environment::GetLampColor(int index) const
+const glm::vec4& Environment::GetLampColor(int index) const
 {
 	return _lampColor[index];
 }
 
-void Environment::SetLampColor(const D3DXCOLOR& value, int index)
+void Environment::SetLampColor(const glm::vec4& value, int index)
 {
 	_lampColor[index] = value;
 

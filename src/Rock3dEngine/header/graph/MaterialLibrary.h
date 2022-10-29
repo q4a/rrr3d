@@ -56,8 +56,8 @@ public:
 	void SetColorMode(Mode value);
 	void SetAlphaMode(Mode value);
 
-	D3DXCOLOR GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	glm::vec4 GetColor() const;
+	void SetColor(const glm::vec4& value);
 
 	const Vec3Range& GetOffset() const;
 	void SetOffset(const Vec3Range& value);

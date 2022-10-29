@@ -94,7 +94,7 @@ PlayerStateFrame::~PlayerStateFrame()
 void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bonusType, int targetPlayerId, bool kill)
 {
 	const glm::vec2 photoSize = glm::vec2(50.0f, 50.0f);
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color2 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
 
 	string image;
 	graph::Tex2DResource* photo = NULL;
@@ -171,7 +171,7 @@ void PlayerStateFrame::NewPickItem(Slot::Type slotType, GameObject::BonusType bo
 
 	item.time = 0;
 	item.image->SetVisible(true);
-	item.image->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
+	item.image->GetMaterial().SetColor(glm::vec4(1, 1, 1, 0));
 	item.pos = _hudMenu->GetPickItemsPos() + glm::vec2(item.image->GetSize().x/2, 0);
 	item.image->SetPos(item.pos);
 
@@ -226,10 +226,10 @@ void PlayerStateFrame::ProccessPickItems(float deltaTime)
 				item.image->SetPos(curPos);
 			}
 
-			item.image->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, alpha));
-			item.photo->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, alpha));
+			item.image->GetMaterial().SetColor(glm::vec4(1, 1, 1, alpha));
+			item.photo->GetMaterial().SetColor(glm::vec4(1, 1, 1, alpha));
 
-			D3DXCOLOR color = item.label->GetMaterial().GetColor();
+			glm::vec4 color = item.label->GetMaterial().GetColor();
 			color.a = alpha;
 			item.label->GetMaterial().SetColor(color);
 
@@ -298,10 +298,10 @@ void PlayerStateFrame::NewAchievment(AchievmentCondition::MyEventData* data)
 	item.indexTime = -1.0f;
 
 	item.image->SetVisible(true);
-	item.image->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 1));
-	item.points->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
+	item.image->GetMaterial().SetColor(glm::vec4(1, 1, 1, 1));
+	item.points->GetMaterial().SetColor(glm::vec4(1, 1, 1, 0));
 	if (item.pointsK)
-		item.pointsK->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
+		item.pointsK->GetMaterial().SetColor(glm::vec4(1, 1, 1, 0));
 	item.points->SetVisible(menu()->IsCampaign());
 
 	item.image->SetPos(startPos[RandomRange(0, 7)]);
@@ -383,14 +383,14 @@ void PlayerStateFrame::ShowCarLifeBar(CarLifeE type, int targetPlayerId, float c
 
 	float barAlpha = _carLifes[type].bar->GetFront().GetColor().a;
 	if (barAlpha > 0.99f)
-		_carLifes[type].bar->GetFront().SetColor(D3DXCOLOR(1, 1, 1, 0));
+		_carLifes[type].bar->GetFront().SetColor(glm::vec4(1, 1, 1, 0));
 	else
-		_carLifes[type].bar->GetFront().SetColor(D3DXCOLOR(1, 1, 1, std::min(barAlpha, 0.5f)));
+		_carLifes[type].bar->GetFront().SetColor(glm::vec4(1, 1, 1, std::min(barAlpha, 0.5f)));
 
 	if (Object::ReplaceRef(_carLifes[type].target, targetPlayer))
 	{
 		_carLifes[type].target = targetPlayer;
-		_carLifes[type].back->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
+		_carLifes[type].back->GetMaterial().SetColor(glm::vec4(1, 1, 1, 0));
 	}
 
 	_carLifes[type].timer = 0;
@@ -458,10 +458,10 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		_carLifes[i].back->SetPos(vec + glm::vec2(_carLifes[i].back->GetSize().x/2, -_carLifes[i].back->GetSize().y/2));
 
 		float alpha = _carLifes[i].back->GetMaterial().GetColor().a;
-		_carLifes[i].back->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, StepLerp(alpha, targetAlpha, deltaTime/0.3f)));
+		_carLifes[i].back->GetMaterial().SetColor(glm::vec4(1, 1, 1, StepLerp(alpha, targetAlpha, deltaTime/0.3f)));
 
 		alpha = _carLifes[i].bar->GetFront().GetColor().a;
-		_carLifes[i].bar->GetFront().SetColor(D3DXCOLOR(1, 1, 1, StepLerp(alpha, targetAlpha, deltaTime/0.3f)));
+		_carLifes[i].bar->GetFront().SetColor(glm::vec4(1, 1, 1, StepLerp(alpha, targetAlpha, deltaTime/0.3f)));
 	}
 }
 
@@ -723,8 +723,8 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 
 			alpha = std::min(alpha, targetAlpha);
 
-			opponent.point->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, alpha));
-			opponent.label->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, alpha));
+			opponent.point->GetMaterial().SetColor(glm::vec4(1, 1, 1, alpha));
+			opponent.label->GetMaterial().SetColor(glm::vec4(1, 1, 1, alpha));
 		}
 	}
 }
@@ -1077,7 +1077,7 @@ void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 
 void MiniMapFrame::CreatePlayers()
 {
-	const D3DXCOLOR color[4] = {clrRed, clrGreen, clrWhite, clrYellow};
+	const glm::vec4 color[4] = {clrRed, clrGreen, clrWhite, clrYellow};
 
 	ClearPlayers();
 

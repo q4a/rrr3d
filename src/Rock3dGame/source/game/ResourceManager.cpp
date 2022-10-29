@@ -1279,7 +1279,7 @@ graph::LibMaterial& ResourceManager::LoadSpecLibMat(const std::string& name, con
 {
 	graph::LibMaterial& libMat = LoadImage2dLibMat(name, imgName, sprite);
 	libMat.material.SetSpecPower(64.0f);
-	libMat.material.SetSpecular(D3DXCOLOR(1, 1, 1, 1));
+	libMat.material.SetSpecular(glm::vec4(1, 1, 1, 1));
 
 	return libMat;
 }
@@ -1294,7 +1294,7 @@ graph::LibMaterial& ResourceManager::LoadBumpLibMat(const std::string& name, con
 	libMat.samplers[1].stageStates.Set(graph::tssAlphaOp, D3DTOP_DISABLE);
 
 	libMat.material.SetSpecPower(128.0f);
-	libMat.material.SetSpecular(D3DXCOLOR(0.5f, 0.5f, 0.5f, 1.0f));
+	libMat.material.SetSpecular(glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
 
 	return libMat;
 }
@@ -1432,7 +1432,7 @@ void ResourceManager::LoadEffects()
 	LoadImage2dLibMat("Effect\\frost", "Effect\\frost.dds", false, graph::Material::bmTransparency, FloatRange(0.5f, 0.0f));
 
 	LoadImage2dLibMat("Effect\\smoke1", "Effect\\smoke1.dds", true, graph::Material::bmTransparency, FloatRange(0.5f, 0.0f), clrWhite * 0.25f);
-	LoadImage2dLibMat("Effect\\smoke2", "Effect\\smoke2.dds", true, graph::Material::bmTransparency, FloatRange(0.8f, 0.0f), ColorRange(D3DXCOLOR(0.5f, 0.32f, 0.25f, 1.0f), D3DXCOLOR(0.25f, 0.25f, 0.25f, 1.0f)));
+	LoadImage2dLibMat("Effect\\smoke2", "Effect\\smoke2.dds", true, graph::Material::bmTransparency, FloatRange(0.8f, 0.0f), ColorRange(glm::vec4(0.5f, 0.32f, 0.25f, 1.0f), glm::vec4(0.25f, 0.25f, 0.25f, 1.0f)));
 	LoadImage2dLibMat("Effect\\smoke3", "Effect\\smoke3.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.0f), clrWhite);
 	LoadImage2dLibMat("Effect\\smoke7", "Effect\\smoke7.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.0f), clrWhite);
 	LoadImage2dLibMat("Effect\\asphaltMarks", "Effect\\asphaltMarks.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.0f), clrWhite).SetAnisoFlt();
@@ -1442,9 +1442,9 @@ void ResourceManager::LoadEffects()
 	LoadImage2dLibMat("Effect\\frostHit", "Effect\\frostSmoke.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\crater", "Effect\\crater.dds", true, graph::Material::bmTransparency, FloatRange(1.0f, 0.0f));
 
-	LoadImage2dLibMat("Effect\\flare1", "Effect\\flare1.dds", true, graph::Material::bmAdditive, 0.5f, D3DXCOLOR(1, 0.58f, 0.36f, 1.0f));
+	LoadImage2dLibMat("Effect\\flare1", "Effect\\flare1.dds", true, graph::Material::bmAdditive, 0.5f, glm::vec4(1, 0.58f, 0.36f, 1.0f));
 	LoadImage2dLibMat("Effect\\flare2", "Effect\\flare1.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f), clrRed);
-	LoadImage2dLibMat("Effect\\flare3", "Effect\\flare1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), D3DXCOLOR(1, 0.58f, 0.36f, 1.0f));
+	LoadImage2dLibMat("Effect\\flare3", "Effect\\flare1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), glm::vec4(1, 0.58f, 0.36f, 1.0f));
 	LoadImage2dLibMat("Effect\\flare4", "Effect\\flare2.dds", true, graph::Material::bmAdditive);
 	LoadImage2dLibMat("Effect\\flare5", "Effect\\flare3.dds", true, graph::Material::bmAdditive);
 	LoadImage2dLibMat("Effect\\flare6", "Effect\\flare4.dds", true, graph::Material::bmAdditive);
@@ -1458,7 +1458,7 @@ void ResourceManager::LoadEffects()
 	LoadImage2dLibMat("Effect\\laser3-red2", "Effect\\laser3-red2.dds", true, graph::Material::bmAdditive, FloatRange(0.0f, 1.0f), clrWhite);
 	LoadImage2dLibMat("Effect\\flash1", "Effect\\flash1.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite);
 	LoadImage2dLibMat("Effect\\flash2", "Effect\\flash2.dds", true, graph::Material::bmAdditive, 1.0f, clrWhite);
-	LoadImage2dLibMat("Effect\\dust_smoke_06", "Effect\\flare1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), D3DXCOLOR(0.2f, 0.2f, 1.0f, 1.0f));
+	LoadImage2dLibMat("Effect\\dust_smoke_06", "Effect\\flare1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), glm::vec4(0.2f, 0.2f, 1.0f, 1.0f));
 	LoadImage2dLibMat("Effect\\sonar", "Effect\\sonar.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\ExplosionRay", "Effect\\ExplosionRay.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), clrBlue);
 	LoadImage2dLibMat("Effect\\ExplosionRing", "Effect\\ExplosionRing.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), clrYellow);
@@ -1476,7 +1476,7 @@ void ResourceManager::LoadEffects()
 	LoadImage2dLibMat("Effect\\protonRay", "Effect\\protonRay.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\protonRing", "Effect\\protonRing.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\phaseRing", "Effect\\phaseRing.dds", true, graph::Material::bmAdditive);
-	LoadImage2dLibMat("Effect\\thunder1", "Effect\\thunder1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), ColorRange(D3DXCOLOR(0xFFEC008C), D3DXCOLOR(0xFF0000FF)));
+	LoadImage2dLibMat("Effect\\thunder1", "Effect\\thunder1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), ColorRange(glm::vec4(0xFFEC008C), glm::vec4(0xFF0000FF)));
 	LoadImage2dLibMat("Effect\\flareLaser1", "Effect\\flare2b.dds", true, graph::Material::bmAdditive, FloatRange(0.7f, 0.0f));
 	LoadImage2dLibMat("Effect\\flareLaser2", "Effect\\flare1_tc.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\flareLaser3", "Effect\\flare2a.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
@@ -2180,7 +2180,7 @@ void ResourceManager::LoadBonus()
 		graph::LibMaterial* libMat = &GetMatLib().Add();
 		libMat->SetName("Bonus\\maslo");
 		libMat->material.SetSpecPower(64.0f);
-		libMat->material.SetSpecular(D3DXCOLOR(1, 1, 1, 1));
+		libMat->material.SetSpecular(glm::vec4(1, 1, 1, 1));
 		libMat->material.SetBlending(graph::Material::bmTransparency);
 		libMat->material.SetOption(graph::Material::moZWrite, false);
 
@@ -2642,10 +2642,10 @@ void ResourceManager::LoadGUI()
 	LoadFont("VerySmallThink", 18, 0, false, "Verdana");
 }
 
-void ResourceManager::LoadCarLibMat(graph::LibMaterial* libMat, graph::Tex2DResource* tex, const D3DXCOLOR& color, const std::string& normMap)
+void ResourceManager::LoadCarLibMat(graph::LibMaterial* libMat, graph::Tex2DResource* tex, const glm::vec4& color, const std::string& normMap)
 {
 	libMat->material.SetSpecPower(64.0f);
-	libMat->material.SetSpecular(D3DXCOLOR(1, 1, 1, 1));
+	libMat->material.SetSpecular(glm::vec4(1, 1, 1, 1));
 
 	libMat->samplers.Clear();
 

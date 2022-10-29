@@ -80,7 +80,7 @@ Garage::Car* CarFrame::GetCar()
 	return _car;
 }
 
-void CarFrame::SetCar(Garage::Car* value, const D3DXCOLOR& color, bool secret)
+void CarFrame::SetCar(Garage::Car* value, const glm::vec4& color, bool secret)
 {
 	if (Object::ReplaceRef(_car, value) || (value && !secret && _carMapObj == NULL))
 	{
@@ -119,12 +119,12 @@ void CarFrame::SetCar(Garage::Car* value, const D3DXCOLOR& color, bool secret)
 	}
 }
 
-void CarFrame::SetCar(MapObjRec* value, const D3DXCOLOR& color, bool secret)
+void CarFrame::SetCar(MapObjRec* value, const glm::vec4& color, bool secret)
 {
 	SetCar(menu()->GetRace()->GetGarage().FindCar(value), color, secret);
 }
 
-D3DXCOLOR CarFrame::GetCarColor()
+glm::vec4 CarFrame::GetCarColor()
 {
 	if (_carMapObj)
 	{
@@ -134,7 +134,7 @@ D3DXCOLOR CarFrame::GetCarColor()
 	return clrWhite;
 }
 
-void CarFrame::SetCarColor(const D3DXCOLOR& value)
+void CarFrame::SetCarColor(const glm::vec4& value)
 {
 	if (_carMapObj)
 	{
@@ -368,7 +368,7 @@ void SpaceshipFrame::OnShow(bool value)
 
 		menu()->GetEnv()->SetLampPos(glm::vec3(52.307316f, 24.327570f, 32.772705f), 2);
 		menu()->GetEnv()->SetLampRot(glm::quat(0.61423278f, 0.21948183f, 0.18329506f, -0.73549527f), 2);
-		menu()->GetEnv()->SetLampColor(D3DXCOLOR(0xff88fefe), 2);
+		menu()->GetEnv()->SetLampColor(glm::vec4(0xff88fefe), 2);
 		menu()->GetEnv()->SwitchOnLamp(2, true);
 
 		CameraManager* camera = menu()->GetRace()->GetWorld()->GetCamera();
@@ -392,13 +392,13 @@ void SpaceshipFrame::OnShow(bool value)
 
 GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _lastCarIndex(-1)
 {
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color2 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
 
 	StringValue strLabels[cLabelEnd] = {svGarage, svNull, svNull, svNull, svCarCost};
 	std::string fontLabels[cLabelEnd] = {"Header", "Header", "VerySmall", "Item", "Header"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haRight, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaTop, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color2, color2, color2, clrWhite, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color2, color2, color2, clrWhite, color2};
 
 	_topPanel = menu->CreatePlane(root(), this, "GUI\\topPanel2.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_topPanel->SetAlign(gui::Widget::waTop);
@@ -666,7 +666,7 @@ void GarageFrame::NextCar()
 		SelectCar(*(++iter));
 }
 
-gui::Widget* GarageFrame::AddColor(gui::Grid* grid, const D3DXCOLOR& color)
+gui::Widget* GarageFrame::AddColor(gui::Grid* grid, const glm::vec4& color)
 {
 	gui::Widget* box = menu()->CreateMenuButton("", "", "GUI\\colorBoxBg.png", "GUI\\colorBoxBgSel.png", grid, this, IdentityVec2, gui::Button::bsSelAnim, clrWhite, Menu::ssButton4);
 
@@ -677,7 +677,7 @@ gui::Widget* GarageFrame::AddColor(gui::Grid* grid, const D3DXCOLOR& color)
 	return box;
 }
 
-void GarageFrame::UpdateColorList(gui::Grid* grid, const D3DXCOLOR colors[], unsigned count)
+void GarageFrame::UpdateColorList(gui::Grid* grid, const glm::vec4 colors[], unsigned count)
 {
 	grid->DeleteAllChildren();
 	glm::vec2 size = NullVec2;
@@ -692,7 +692,7 @@ void GarageFrame::UpdateColorList(gui::Grid* grid, const D3DXCOLOR colors[], uns
 	grid->Reposition();
 }
 
-void GarageFrame::RefreshColorList(gui::Grid* grid, const D3DXCOLOR colors[], unsigned count)
+void GarageFrame::RefreshColorList(gui::Grid* grid, const glm::vec4 colors[], unsigned count)
 {
 	gui::Widget::Children::const_iterator iter = grid->GetChildren().begin();
 
@@ -711,7 +711,7 @@ void GarageFrame::RefreshColorList()
 	RefreshColorList(_rightColorGrid, Player::cRightColors, Player::cColorsCount);
 }
 
-void GarageFrame::SelectColor(const D3DXCOLOR& value)
+void GarageFrame::SelectColor(const glm::vec4& value)
 {
 	_raceMenu->carFrame()->SetCarColor(value);
 	menu()->SetCarColor(value);
@@ -895,7 +895,7 @@ void GarageFrame::OnInvalidate()
 		bool isSel = carPlane->GetData() == car();
 		if (isSel)
 			carIndex = i;
-		carPlane->GetMaterial().SetColor(isSel ? D3DXCOLOR(255.0f, 150.0f, 0.0f, 255.0f)/255.0f : clrWhite);
+		carPlane->GetMaterial().SetColor(isSel ? glm::vec4(255.0f, 150.0f, 0.0f, 255.0f)/255.0f : clrWhite);
 		carBox->GetMaterial().GetSampler().SetTex(isSel ? GetTexture("GUI\\carBoxSel.png") : GetTexture("GUI\\carBox.png"));
 		carBox->GetMaterial().SetBlending(isSel ? gui::Material::bmAdditive : gui::Material::bmTransparency);
 	}
@@ -955,7 +955,7 @@ bool GarageFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 
 	if (sender->GetParent() && (sender->GetParent() == _leftColorGrid || sender->GetParent() == _rightColorGrid))
 	{
-		SelectColor(D3DXCOLOR(static_cast<gui::PlaneFon*>(sender->GetChildren().front())->GetMaterial().GetColor()));
+		SelectColor(glm::vec4(static_cast<gui::PlaneFon*>(sender->GetChildren().front())->GetMaterial().GetColor()));
 		return true;
 	}
 
@@ -979,7 +979,7 @@ Garage::Car* GarageFrame::car()
 	return _raceMenu->carFrame()->GetCar();
 }
 
-D3DXCOLOR GarageFrame::color()
+glm::vec4 GarageFrame::color()
 {
 	return _raceMenu->carFrame()->GetCarColor();
 }
@@ -992,7 +992,7 @@ void GarageFrame::OnProcessNetEvent(unsigned id, NetEventData* data)
 
 WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _goodScroll(0), _overGood(NULL), _overGood2(NULL), _infoId(-1), _numSelectedSlots(0)
 {
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color2 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
 	const StringValue menuItemsStr[cMenuItemEnd] = {svBack};
 
 	root()->SetEvent(this);
@@ -1001,7 +1001,7 @@ WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	std::string fontLabels[cLabelEnd] = {"Header", "Item", "VerySmall"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haRight, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaTop};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color2, clrWhite, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color2, clrWhite, color2};
 
 	_topPanel = menu->CreatePlane(root(), this, "GUI\\topPanel3.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_topPanel->SetAnchor(gui::Widget::waTop);
@@ -2071,13 +2071,13 @@ void WorkshopFrame::OnProcessEvent(unsigned id, EventData* data)
 
 GamersFrame::GamersFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _planetIndex(-1)
 {
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color2 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"VerySmall", "Header", "Item"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haCenter, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaTop, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color2, clrWhite, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color2, clrWhite, color2};
 
 	_space = menu->CreatePlane(root(), this, "GUI\\space1.dds", true);
 	_space->SetAnchor(gui::Widget::waCenter);
@@ -2323,15 +2323,15 @@ void GamersFrame::OnProcessNetEvent(unsigned id, NetEventData* data)
 
 AngarFrame::AngarFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _planetIndex(-1), _planetPrevIndex(-1), _doorTime(-1.0f)
 {
-	const D3DXCOLOR color = D3DXCOLOR(0xff76cef2);
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color = glm::vec4(0xff76cef2);
+	const glm::vec4 color2 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
 	const StringValue menuItemsStr[cMenuItemEnd] = {svBack};
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"Item", "Small", "VerySmallThink"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haCenter, gui::Text::haLeft};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaTop};
-	D3DXCOLOR colorLabels[cLabelEnd] = {clrWhite, color, color};
+	glm::vec4 colorLabels[cLabelEnd] = {clrWhite, color, color};
 
 	_bottomPanelBg = menu->CreateDummy(root(), this);
 	_bottomPanelBg->SetAlign(gui::Widget::waBottom);
@@ -2806,15 +2806,15 @@ void AngarFrame::OnProgress(float deltaTime)
 
 AchievmentFrame::AchievmentFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu)
 {
-	const D3DXCOLOR color = D3DXCOLOR(0xFFFA5800);
-	const D3DXCOLOR color2 = clrWhite;
+	const glm::vec4 color = glm::vec4(0xFFFA5800);
+	const glm::vec4 color2 = clrWhite;
 	const StringValue menuItemsStr[cMenuItemEnd] = {svBack};
 
 	StringValue strLabels[cLabelEnd] = {svNull, svRewards};
 	std::string fontLabels[cLabelEnd] = {"Header", "Header"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color, color2};
 
 	_bottomPanel = menu->CreatePlane(root(), this, "GUI\\achievmentBottomPanel.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_bottomPanel->SetAlign(gui::Widget::waBottom);
@@ -2867,7 +2867,7 @@ const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned in
 		newBox.image = menu()->CreatePlane(_panel, this, "", false, IdentityVec2, gui::Material::bmTransparency);
 		newBox.image->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 
-		newBox.price = menu()->CreateLabel(svNull, newBox.image, "Item", NullVec2, gui::Text::haCenter, gui::Text::vaCenter, D3DXCOLOR(0xFFC3C2C0));
+		newBox.price = menu()->CreateLabel(svNull, newBox.image, "Item", NullVec2, gui::Text::haCenter, gui::Text::vaCenter, glm::vec4(0xFFC3C2C0));
 		newBox.button = menu()->CreateMenuButton(svNull, "", "", "", newBox.image, this, IdentityVec2, gui::Button::bsSelAnim);
 
 		_achievments.push_back(newBox);
@@ -3123,15 +3123,15 @@ void AchievmentFrame::OnMouseLeave(gui::Widget* sender, bool wasReset)
 
 RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu)
 {
-	const D3DXCOLOR color1 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 184.0f, 164.0f, 255.0f)/255.0f;
+	const glm::vec4 color1 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color2 = glm::vec4(214.0f, 184.0f, 164.0f, 255.0f)/255.0f;
 	const std::string menuItemsIcon[cMenuItemEnd] = {"GUI\\icoStart.png", "GUI\\icoWorkshop.png", "GUI\\icoGarage.png", "GUI\\icoSpace.png", "GUI\\icoAchivment.png", "GUI\\icoOptions.png", "GUI\\icoExit.png"};
 
 	StringValue strLabels[cLabelEnd] = {svPlayer, svPassing, svTournament, svWeapons, svBossName, svNull, svPassInfo, svTournamentInfo};
 	std::string fontLabels[cLabelEnd] = {"Small", "Small", "Small", "Small", "Small", "Item", "Small", "Small"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haRight, gui::Text::haLeft, gui::Text::haLeft};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1, clrWhite, color2, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1, clrWhite, color2, color2};
 
 	_topPanel = menu->CreatePlane(root(), this, "GUI\\topPanel.png", true);
 	_topPanel->SetAnchor(gui::Widget::waTop);
@@ -3234,7 +3234,7 @@ void RaceMainFrame::RaceRady(bool ready)
 
 RaceMainFrame::PlayerBox* RaceMainFrame::AddPlayer(NetPlayer* netPlayer, unsigned index)
 {
-	const D3DXCOLOR color1 = clrWhite;
+	const glm::vec4 color1 = clrWhite;
 
 	PlayerBox* box = index < _players.size() ? &_players[index] : NULL;
 	if (box == NULL)
@@ -3771,7 +3771,7 @@ gui::Button* RaceMenu::CreateMenuButton(const std::string& icon, gui::Widget* pa
 	return button;
 }
 
-gui::Button* RaceMenu::CreateMenuButton2(StringValue name, gui::Widget* parent, const D3DXCOLOR& textColor, gui::Widget::Event* guiEvent)
+gui::Button* RaceMenu::CreateMenuButton2(StringValue name, gui::Widget* parent, const glm::vec4& textColor, gui::Widget::Event* guiEvent)
 {
 	return _menu->CreateMenuButton(name, "Header", "GUI\\buttonBg2.png", "GUI\\buttonBgSel2.png", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim, textColor, Menu::ssButton1);
 }
@@ -3791,7 +3791,7 @@ gui::Button* RaceMenu::CreatePlusButton(gui::Widget* parent, gui::Widget::Event*
 	return _menu->CreateMenuButton(svNull, "", "GUI\\chargeButton.png", "GUI\\chargeButtonSel.png", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim, clrWhite, Menu::ssButton3);
 }
 
-void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const D3DXCOLOR& color, Slot* slots[Player::cSlotTypeEnd])
+void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const glm::vec4& color, Slot* slots[Player::cSlotTypeEnd])
 {
 	viewport->GetBox()->DeleteChildren();
 

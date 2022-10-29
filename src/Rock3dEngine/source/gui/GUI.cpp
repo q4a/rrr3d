@@ -26,12 +26,12 @@ glm::vec2 Material::GetImageSize()
 	return GetSampler().GetSize();
 }
 
-const D3DXCOLOR& Material::GetColor() const
+const glm::vec4& Material::GetColor() const
 {
 	return _color;
 }
 
-void Material::SetColor(const D3DXCOLOR& value)
+void Material::SetColor(const glm::vec4& value)
 {
 	_color = value;
 }
@@ -4944,12 +4944,12 @@ Material& ColorBox::GetCheck()
 	return *_check->GetOrCreateMaterial();
 }
 
-const D3DXCOLOR& ColorBox::GetColor() const
+const glm::vec4& ColorBox::GetColor() const
 {
 	return _color;
 }
 
-void ColorBox::SetColor(const D3DXCOLOR& value)
+void ColorBox::SetColor(const glm::vec4& value)
 {
 	_color = value;
 	ApplyColor();
@@ -5101,7 +5101,7 @@ Material& ColorList::GetCheck()
 	return *_check;
 }
 
-void ColorList::InsertColor(const D3DXCOLOR& value)
+void ColorList::InsertColor(const glm::vec4& value)
 {
 	LSL_ASSERT(FindColor(value) == _colors.end());
 
@@ -5129,7 +5129,7 @@ void ColorList::RemoveColor(Colors::const_iterator iter)
 	ApplyChanges();
 }
 
-void ColorList::RemoveColor(const D3DXCOLOR& value)
+void ColorList::RemoveColor(const glm::vec4& value)
 {
 	RemoveColor(FindColor(value));
 }
@@ -5140,11 +5140,11 @@ void ColorList::ClearColors()
 		RemoveColor(_colors.begin());
 }
 
-ColorList::Colors::const_iterator ColorList::FindColor(const D3DXCOLOR& value) const
+ColorList::Colors::const_iterator ColorList::FindColor(const glm::vec4& value) const
 {
 	for (Colors::const_iterator iter = _colors.begin(); iter != _colors.end(); ++iter)
 	{
-		D3DXCOLOR vec = iter->GetVal() - value;
+		glm::vec4 vec = iter->GetVal() - value;
 		vec.r = abs(vec.r);
 		vec.g = abs(vec.g);
 		vec.b = abs(vec.b);
@@ -5157,12 +5157,12 @@ ColorList::Colors::const_iterator ColorList::FindColor(const D3DXCOLOR& value) c
 	return _colors.end();
 }
 
-const D3DXCOLOR* ColorList::GetSelColor()
+const glm::vec4* ColorList::GetSelColor()
 {
 	return _select ? &_select.GetVal() : 0;
 }
 
-void ColorList::SelectColor(const D3DXCOLOR* value)
+void ColorList::SelectColor(const glm::vec4* value)
 {
 	Colors::const_iterator iter = _colors.end();
 	if (value)

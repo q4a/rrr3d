@@ -12,14 +12,14 @@ namespace graph
 const glm::vec3 MovCoordSys::arUp[3] = {XVector, YVector, ZVector};
 const float MovCoordSys::arSize = 2.0f;
 const glm::vec3 MovCoordSys::arPos[3] = {2.0f * XVector, 2.0f * YVector, 2.0f * ZVector};
-const D3DXCOLOR MovCoordSys::arCol[3] = {clrRed, clrGreen, clrBlue};
-const D3DXCOLOR MovCoordSys::colSel = clrYellow;
+const glm::vec4 MovCoordSys::arCol[3] = {clrRed, clrGreen, clrBlue};
+const glm::vec4 MovCoordSys::colSel = clrYellow;
 
 const glm::vec3 ScaleCoordSys::arUp[3] = {XVector, YVector, ZVector};
 const float ScaleCoordSys::arSize = 2.0f;
 const float ScaleCoordSys::plSize = 1.5f;
-const D3DXCOLOR ScaleCoordSys::arCol[3] = {clrRed, clrGreen, clrBlue};
-const D3DXCOLOR ScaleCoordSys::colSel = clrYellow;
+const glm::vec4 ScaleCoordSys::arCol[3] = {clrRed, clrGreen, clrBlue};
+const glm::vec4 ScaleCoordSys::colSel = clrYellow;
 
 MaterialNode::MaterialNode(): _libMat(0), _color(clrWhite), _offset(NullVector), _scale(IdentityVector), _rotate(NullQuaternion), _matChanged(true), _defMat(true), _cullMode((D3DCULL)0)
 {
@@ -271,12 +271,12 @@ const MaterialNode::Materials& MaterialNode::GetList() const
 	return _materials;
 }
 
-const D3DXCOLOR& MaterialNode::GetColor() const
+const glm::vec4& MaterialNode::GetColor() const
 {
 	return _color;
 }
 
-void MaterialNode::SetColor(const D3DXCOLOR& value)
+void MaterialNode::SetColor(const glm::vec4& value)
 {
 	_color = value;
 }
@@ -952,12 +952,12 @@ AABB Cylinder::LocalDimensions() const
 	return AABB(_mesh->GetMinPos(), _mesh->GetMaxPos());
 }
 
-const D3DXCOLOR& Cylinder::GetColor() const
+const glm::vec4& Cylinder::GetColor() const
 {
 	return _color;
 }
 
-void Cylinder::SetColor(const D3DXCOLOR& value)
+void Cylinder::SetColor(const glm::vec4& value)
 {
 	_color = value;
 	UpdateMesh();
@@ -1136,8 +1136,8 @@ void MovCoordSys::DoRender(Engine& engine)
 	struct
 	{
 		const AxePlane* plane;
-		D3DXCOLOR col1;
-		D3DXCOLOR col2;
+		glm::vec4 col1;
+		glm::vec4 col2;
 	} cPlanes[3] = {{&cXYPlaneV, clrRed, clrGreen}, {&cXZPlaneV, clrRed, clrBlue}, {&cYZPlaneV, clrGreen, clrBlue}};
 
 	//Выеделенные оси
@@ -1160,8 +1160,8 @@ void MovCoordSys::DoRender(Engine& engine)
 		bool isPlane = _curMove == planeMoves[i];
 
 		//Цвета осей образующих плоскость
-		D3DXCOLOR col1 = isPlane ? colSel : cPlanes[i].col1;
-		D3DXCOLOR col2 = isPlane ? colSel : cPlanes[i].col2;
+		glm::vec4 col1 = isPlane ? colSel : cPlanes[i].col1;
+		glm::vec4 col2 = isPlane ? colSel : cPlanes[i].col2;
 
 		//Вычисляем линии плоскостей
 		lines[4 * i + 6 + 0] = res::VertexPD((*cPlanes[i].plane)[1], col1);
@@ -1300,7 +1300,7 @@ void ScaleCoordSys::DoRender(Engine& engine)
 	for (int i = 0; i < 3; ++i)
 		plLine[i] = bbPlanes[i] * plSize;
 	const DirMove axeMoves[3] = {dmX, dmY, dmZ};
-	D3DXCOLOR plCol[3];
+	glm::vec4 plCol[3];
 	for (int i = 0; i < 3; ++i)
 		plCol[i] = (_curMove == axeMoves[i]) ? colSel : arCol[i];
 
@@ -1396,7 +1396,7 @@ void FillDataPlane(res::VertexData& vb, float width, float height, float u, floa
 	vb.Update();
 }
 
-void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, float height, unsigned slices, const D3DXCOLOR& color)
+void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, float height, unsigned slices, const glm::vec4& color)
 {
 	bool isBot = botRadius != 0;
 	bool isTop = topRadius != 0;

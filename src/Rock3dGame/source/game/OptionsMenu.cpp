@@ -15,7 +15,7 @@ namespace n
 
 GameFrame::GameFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu), _gridScroll(0)
 {
-	D3DXCOLOR color1(0xffafafaf);
+	glm::vec4 color1(0xffafafaf);
 
 	StringList diffStr;
 	for (int i = 0; i < cDifficultyEnd; ++i)
@@ -61,7 +61,7 @@ GameFrame::GameFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent):
 	std::string fontLabels[cLabelEnd] = {"Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1, color1, color1, color1, color1, color1, color1, color1};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1, color1, color1, color1, color1, color1, color1, color1};
 
 	_grid = menu->CreateGrid(root(), NULL, gui::Grid::gsVertical);
 	_grid->SetAlign(gui::Widget::waLeftTop);
@@ -357,13 +357,13 @@ MediaFrame::MediaFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent
 
 	StringList itemsStepper[cStepperEnd] = {resolutionStr, fltLevel, msFltLevel, shadowLevel, envLevel, lightLevel, postEffLevel, onOffLevel};
 
-	D3DXCOLOR color1(0xffafafaf);
+	glm::vec4 color1(0xffafafaf);
 
 	lsl::string strLabels[cLabelEnd] = {_SC(svResolution), _SC(svFiltering), _SC(svMultisampling), _SC(svShadow), _SC(svEnv), _SC(svLight), _SC(svPostProcess), "svWindowMode"};
 	std::string fontLabels[cLabelEnd] = {"Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1, color1, color1, color1};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1, color1, color1, color1};
 
 	for (int i = 0; i < cLabelEnd; ++i)
 	{
@@ -493,7 +493,7 @@ void MediaFrame::CancelChanges()
 
 NetworkTab::NetworkTab(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu)
 {
-	D3DXCOLOR color1(0xffafafaf);
+	glm::vec4 color1(0xffafafaf);
 
 	StringList languageStr;
 	for (Languages::const_iterator iter = menu->GetGame()->GetLanguages().begin(); iter != menu->GetGame()->GetLanguages().end(); ++iter)
@@ -509,7 +509,7 @@ NetworkTab::NetworkTab(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent
 	std::string fontLabels[cLabelEnd] = {"Small", "Small", "Small", "Small", "Small"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1};
 	gui::Widget* labelsParent[cLabelEnd] = {root(), root(), root(), root(), root()};
 
 	for (int i = 0; i < cLabelEnd; ++i)
@@ -664,7 +664,7 @@ void NetworkTab::CancelChanges()
 
 ControlsFrame::ControlsFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu), _gridScroll(0)
 {
-	D3DXCOLOR color1(0xffafafaf);
+	glm::vec4 color1(0xffafafaf);
 
 	_grid = menu->CreateGrid(root(), NULL, gui::Grid::gsVertical);
 	_grid->SetAlign(gui::Widget::waLeftTop);
@@ -925,7 +925,7 @@ void ControlsFrame::CancelChanges()
 
 OptionsMenu::OptionsMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msGame)
 {
-	D3DXCOLOR color1(0xffafafaf);
+	glm::vec4 color1(0xffafafaf);
 
 	StringValue strMenuItems[cMenuItemEnd] = {svBack, svApply};
 	StringValue strStateItems[cStateEnd] = {svGame, svGraphic, svNetwork, svControls};
@@ -934,7 +934,7 @@ OptionsMenu::OptionsMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(m
 	std::string fontLabels[cLabelEnd] = {"Header"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1};
+	glm::vec4 colorLabels[cLabelEnd] = {color1};
 
 	LSL_ASSERT(menu);
 
@@ -942,7 +942,7 @@ OptionsMenu::OptionsMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(m
 	_root->SetParent(parent);
 
 	_menuBgMask = _menu->CreatePlane(_root, this, "", false, IdentityVec2, gui::Material::bmTransparency);
-	_menuBgMask->GetMaterial().SetColor(D3DXCOLOR(0, 0, 0, 0.8f));
+	_menuBgMask->GetMaterial().SetColor(glm::vec4(0, 0, 0, 0.8f));
 	_menuBgMask->SetAnchor(gui::Widget::waCenter);
 
 	_menuBg = _menu->CreatePlane(_menuBgMask, this, "GUI\\optionsBg.png", true, IdentityVec2, gui::Material::bmTransparency);
@@ -1380,7 +1380,7 @@ void OptionsMenu::SetState(State value)
 
 StartOptionsMenu::StartOptionsMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _lastCameraIndex(-1)
 {
-	D3DXCOLOR color1(0xffafafaf);
+	glm::vec4 color1(0xffafafaf);
 	StringValue strMenuItems[cMenuItemEnd] = {svApply};
 
 	const StringValue cPrefCameraStr[GameMode::cPrefCameraEnd] = {svCameraSecView, svCameraOrtho};
@@ -1413,10 +1413,10 @@ StartOptionsMenu::StartOptionsMenu(Menu* menu, gui::Widget* parent): MenuFrame(m
 	std::string fontLabels[cLabelEnd] = {"Small", "Small", "Small", "Small", "Small"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1};
 
 	_menuBgMask = menu->CreatePlane(root(), this, "", false, IdentityVec2, gui::Material::bmTransparency);
-	_menuBgMask->GetMaterial().SetColor(D3DXCOLOR(0, 0, 0, 0.8f));
+	_menuBgMask->GetMaterial().SetColor(glm::vec4(0, 0, 0, 0.8f));
 	_menuBgMask->SetAnchor(gui::Widget::waCenter);
 
 	_menuBg = menu->CreatePlane(_menuBgMask, this, "GUI\\startMenuBg.png", true, IdentityVec2, gui::Material::bmTransparency);

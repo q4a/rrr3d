@@ -53,7 +53,7 @@ void FogPlane::DoRender(graph::Engine& engine)
 		dwVal = engine.GetContext().GetRenderState(rsFogEnd);
 		fogParamsVec.y = *(float*)(&dwVal);
 
-		D3DXCOLOR fogColorVec = D3DXCOLOR(engine.GetContext().GetRenderState(rsFogColor));
+		glm::vec4 fogColorVec = glm::vec4(engine.GetContext().GetRenderState(rsFogColor));
 		shader.SetValueDir("fogColor", fogColorVec);
 	}
 	shader.SetValueDir("fogParams", fogParamsVec);
@@ -88,12 +88,12 @@ void FogPlane::SetCloudsMat(graph::LibMaterial* value)
 		_cloudsMat = value;
 }
 
-const D3DXCOLOR& FogPlane::GetColor() const
+const glm::vec4& FogPlane::GetColor() const
 {
 	return _color;
 }
 
-void FogPlane::SetColor(const D3DXCOLOR& value)
+void FogPlane::SetColor(const glm::vec4& value)
 {
 	_color = value;
 }

@@ -690,7 +690,7 @@ public:
 	ResourceManager(World* world);
 	virtual ~ResourceManager();
 
-	void LoadCarLibMat(graph::LibMaterial* libMat, graph::Tex2DResource* tex, const D3DXCOLOR& color, const std::string& normMap = "");
+	void LoadCarLibMat(graph::LibMaterial* libMat, graph::Tex2DResource* tex, const glm::vec4& color, const std::string& normMap = "");
 	void LoadCarLibMat(graph::LibMaterial* libMat, const std::string& imgName, const std::string& normMap = "");
 	graph::LibMaterial& LoadCarLibMat(const std::string& name, const std::string& imgName, const std::string& normMap = "");
 

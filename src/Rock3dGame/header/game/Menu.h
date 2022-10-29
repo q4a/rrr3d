@@ -123,7 +123,7 @@ public:
 
 	enum SoundShemeType {ssButton1 = 0, ssButton2, ssButton3, ssButton4, ssButton5, ssStepper, cSoundShemeTypeEnd};
 
-	static const D3DXCOLOR cTextColor;
+	static const glm::vec4 cTextColor;
 	//оптимальное разрешение
 	static const glm::vec2 cWinSize;
 	//минимально-поддерживаемое
@@ -270,8 +270,8 @@ public:
 
 	//match
 	void SetGamerId(int gamerId);
-	const D3DXCOLOR& GetCarColor();
-	void SetCarColor(const D3DXCOLOR& color);
+	const glm::vec4& GetCarColor();
+	void SetCarColor(const glm::vec4& color);
 	bool BuyCar(Garage::Car* car);
 	void ChangePlanet(Planet* value);
 
@@ -325,15 +325,15 @@ public:
 	gui::Button* CreateArrowButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2);
 	gui::Button* CreateSpaceArrowButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2);
 	//
-	gui::Button* Menu::CreateMenuButton(const lsl::string& name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, gui::Button::Style style, const D3DXCOLOR& textColor, SoundShemeType soundSheme);
-	gui::Button* CreateMenuButton(StringValue name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2, gui::Button::Style style = gui::Button::bsSimple, const D3DXCOLOR& textColor = clrWhite, SoundShemeType soundSheme = ssButton1);
+	gui::Button* Menu::CreateMenuButton(const lsl::string& name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size, gui::Button::Style style, const glm::vec4& textColor, SoundShemeType soundSheme);
+	gui::Button* CreateMenuButton(StringValue name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2, gui::Button::Style style = gui::Button::bsSimple, const glm::vec4& textColor = clrWhite, SoundShemeType soundSheme = ssButton1);
 	gui::Button* CreateMenuButton(const std::string& name, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2, SoundShemeType soundSheme = ssButton1);
 	gui::Button* CreateMenuButton(StringValue name, gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = IdentityVec2, SoundShemeType soundSheme = ssButton1);
 	gui::Button* CreateMenuButton2(StringValue name, gui::Widget* parent, gui::Widget::Event* guiEvent);
 	//
 	gui::Button* CreateArrow(gui::Widget* parent, gui::Widget::Event* guiEvent);
-	gui::Label* CreateLabel(const std::string& name, gui::Widget* parent, const std::string& font, const glm::vec2& size = NullVec2, gui::Text::HorAlign horAlign = gui::Text::haCenter, gui::Text::VertAlign vertAlign = gui::Text::vaCenter, const D3DXCOLOR& color = cTextColor);
-	gui::Label* CreateLabel(StringValue name, gui::Widget* parent, const std::string& font, const glm::vec2& size = NullVec2, gui::Text::HorAlign horAlign = gui::Text::haCenter, gui::Text::VertAlign vertAlign = gui::Text::vaCenter, const D3DXCOLOR& color = cTextColor);
+	gui::Label* CreateLabel(const std::string& name, gui::Widget* parent, const std::string& font, const glm::vec2& size = NullVec2, gui::Text::HorAlign horAlign = gui::Text::haCenter, gui::Text::VertAlign vertAlign = gui::Text::vaCenter, const glm::vec4& color = cTextColor);
+	gui::Label* CreateLabel(StringValue name, gui::Widget* parent, const std::string& font, const glm::vec2& size = NullVec2, gui::Text::HorAlign horAlign = gui::Text::haCenter, gui::Text::VertAlign vertAlign = gui::Text::vaCenter, const glm::vec4& color = cTextColor);
 	gui::DropBox* CreateDropBox(gui::Widget* parent, gui::Widget::Event* guiEvent, const lsl::StringList& items);
 	gui::TrackBar* CreateTrackBar(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size);
 	gui::ListBox* CreateListBox(gui::Widget* parent, gui::Widget::Event* guiEvent, const glm::vec2& size = glm::vec2(200.0f, 600.0f), const glm::vec2& itemSize = glm::vec2(75.0f, 75.0f), const glm::vec2& itemSpace = glm::vec2(10.0f, 10.0f));

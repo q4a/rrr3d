@@ -88,7 +88,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 	//Послдений проход
 	bool lastPass = _curLight >= lightCnt - 1;
 	//
-	_fogColor = D3DXCOLOR(engine.GetContext().GetRenderState(rsFogColor));
+	_fogColor = glm::vec4(engine.GetContext().GetRenderState(rsFogColor));
 	engine.GetContext().SetRenderState(rsFogColor, _fogColor / static_cast<float>(lightCnt));
 
 	const LightCI& light = engine.GetContext().GetLight(_curLight);
@@ -124,7 +124,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 	}
 
 	SetParam(_params[numLights], static_cast<float>(lightCnt));
-	SetParam(_params[glAmbient], D3DXCOLOR(engine.GetContext().GetRenderState(rsAmbient)));
+	SetParam(_params[glAmbient], glm::vec4(engine.GetContext().GetRenderState(rsAmbient)));
 
 	SetParam(_params[ambLight], light.GetDesc().ambient);
 	SetParam(_params[diffLight], light.GetDesc().diffuse);
@@ -133,8 +133,8 @@ void LightShader::DoBeginDraw(Engine& engine)
 	D3DMATERIAL9 d3dMat;
 	engine.GetDriver().GetDevice()->GetMaterial(&d3dMat);
 
-	SetParam(_params[colorMat], D3DXCOLOR(d3dMat.Diffuse));
-	SetParam(_params[specMat], D3DXCOLOR(d3dMat.Specular));
+	SetParam(_params[colorMat], glm::vec4(d3dMat.Diffuse));
+	SetParam(_params[specMat], glm::vec4(d3dMat.Specular));
 	SetParam(_params[specPower], d3dMat.Power);
 	SetParam(_params[texDiffK], _texDiffK * engine.GetContext().GetTexDiffK());
 
@@ -165,7 +165,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 		dwVal = engine.GetContext().GetRenderState(rsFogEnd);
 		fogParamsVec.y = *(float*)(&dwVal);
 
-		D3DXCOLOR fogColorVec = D3DXCOLOR(engine.GetContext().GetRenderState(rsFogColor));
+		glm::vec4 fogColorVec = glm::vec4(engine.GetContext().GetRenderState(rsFogColor));
 		SetParam(_params[fogColor], fogColorVec);
 	}
 
@@ -228,7 +228,7 @@ void ReflMappShader::DoBeginDraw(Engine& engine)
 	_MyBase::DoBeginDraw(engine);
 
 	SetParam(_params[reflectivity], _reflectivity);
-	SetParam(_params[alphaBlendColor], D3DXCOLOR(engine.GetContext().GetTextureStageState(0, tssConstant)));
+	SetParam(_params[alphaBlendColor], glm::vec4(engine.GetContext().GetTextureStageState(0, tssConstant)));
 
 	if (GetReflTex())
 		SetTexParam(_params[envTex], GetReflTex()->GetTex());
@@ -264,7 +264,7 @@ void ReflBumbMappShader::DoBeginDraw(Engine& engine)
 	_MyBase::DoBeginDraw(engine);
 
 	SetParam(_params[reflectivity], 0.4f);
-	SetParam(_params[alphaBlendColor], D3DXCOLOR(engine.GetContext().GetTextureStageState(0, tssConstant)));
+	SetParam(_params[alphaBlendColor], glm::vec4(engine.GetContext().GetTextureStageState(0, tssConstant)));
 
 	if (GetReflTex())
 		SetTexParam(_params[envTex], GetReflTex()->GetTex());

@@ -12,8 +12,8 @@ namespace r3d
 namespace edit
 {
 
-const D3DXCOLOR Map::bbColor(clrRed);
-const D3DXCOLOR Map::selColor(clrGreen);
+const glm::vec4 Map::bbColor(clrRed);
+const glm::vec4 Map::selColor(clrGreen);
 
 MapObj::MapObj(Inst* inst): ExternImpl<Inst>(inst)
 {

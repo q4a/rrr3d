@@ -56,8 +56,8 @@ public:
 	graph::Tex2DResource* GetReflTex();
 	void SetReflTex(graph::Tex2DResource* value);
 
-	D3DXCOLOR GetColor();
-	void SetColor(const D3DXCOLOR& value);
+	glm::vec4 GetColor();
+	void SetColor(const glm::vec4& value);
 
 	const glm::vec3& GetViewPos() const;
 	void SetViewPos(const glm::vec3& value);

@@ -47,12 +47,12 @@ void ClearSurf::SetMode(Mode value)
 	}
 }
 
-const D3DXCOLOR& ClearSurf::GetColor() const
+const glm::vec4& ClearSurf::GetColor() const
 {
 	return _color;
 }
 
-void ClearSurf::SetColor(const D3DXCOLOR& value)
+void ClearSurf::SetColor(const glm::vec4& value)
 {
 	_color = value;
 }

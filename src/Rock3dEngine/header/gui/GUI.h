@@ -55,7 +55,7 @@ public:
 	enum Blending {bmOpaque, bmTransparency, bmAdditive};
 	enum AlphaTest {asNone, asLessOrEq};
 private:
-	D3DXCOLOR _color;
+	glm::vec4 _color;
 	Blending _blending;
 	AlphaTest _alphaTest;
 
@@ -65,8 +65,8 @@ public:
 
 	glm::vec2 GetImageSize();
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 
 	float GetAlpha() const;
 	void SetAlpha(float value);
@@ -1448,7 +1448,7 @@ private:
 	Plane* _check;
 	Plane* _sel;
 
-	D3DXCOLOR _color;
+	glm::vec4 _color;
 	bool _select;
 
 	glm::vec2 WinToLocal(const glm::vec2& vec) const;
@@ -1468,8 +1468,8 @@ public:
 	Material& GetBox();
 	Material& GetCheck();
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 
 	bool GetSelect() const;
 	void SetSelect(bool value);
@@ -1488,8 +1488,8 @@ private:
 	{
 		MyCol(): box(0) {}
 
-		const D3DXCOLOR& GetVal() const {return box->GetColor();}
-		void SetVal(const D3DXCOLOR& value) {box->SetColor(value);}
+		const glm::vec4& GetVal() const {return box->GetColor();}
+		void SetVal(const glm::vec4& value) {box->SetColor(value);}
 
 		operator bool() {return box != 0;}
 		bool operator==(const MyCol& val) const {return box == val.box;}
@@ -1531,14 +1531,14 @@ public:
 	Material& GetBox();
 	Material& GetCheck();
 
-	void InsertColor(const D3DXCOLOR& value);
+	void InsertColor(const glm::vec4& value);
 	void RemoveColor(Colors::const_iterator iter);
-	void RemoveColor(const D3DXCOLOR& value);
+	void RemoveColor(const glm::vec4& value);
 	void ClearColors();
-	Colors::const_iterator FindColor(const D3DXCOLOR& value) const;
+	Colors::const_iterator FindColor(const glm::vec4& value) const;
 
-	const D3DXCOLOR* GetSelColor();
-	void SelectColor(const D3DXCOLOR* value);
+	const glm::vec4* GetSelColor();
+	void SelectColor(const glm::vec4* value);
 
 	const Colors& GetColors() const;
 

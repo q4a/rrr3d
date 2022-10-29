@@ -680,8 +680,8 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	SetRect(&destRect, 5, 200, 0, 0);
 	SetRect(&destRect2, 150, 160, 0, 0);
 	_font->OnResetDevice();
-	_font->DrawText(0 , sstream.str().c_str(), -1, &destRect, DT_NOCLIP, D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f));
-	_font->DrawText(0 , sstream2.str().c_str(), -1, &destRect2, DT_NOCLIP, D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f));
+	_font->DrawText(0 , sstream.str().c_str(), -1, &destRect, DT_NOCLIP, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+	_font->DrawText(0 , sstream2.str().c_str(), -1, &destRect2, DT_NOCLIP, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 	_font->OnLostDevice();
 
 	const int cParamKeysEnd = 10;

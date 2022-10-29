@@ -199,7 +199,7 @@ public:
 	NETLIB_API void Serialize(glm::vec3& value, float err = cFloatErr);
 	NETLIB_API void Serialize(glm::vec4& value, float err = cFloatErr);
 	NETLIB_API void Serialize(glm::quat& value, float err = cFloatErr);
-	NETLIB_API void Serialize(D3DXCOLOR& value, float err = cFloatErr);
+	NETLIB_API void Serialize(glm::vec4& value, float err = cFloatErr);
 
 	NETLIB_API void Serialize(void*& data, unsigned size, bool cmp);
 };

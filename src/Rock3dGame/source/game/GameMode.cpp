@@ -1362,13 +1362,13 @@ void GameMode::Run(bool playIntro)
 		_guiLogo->GetMaterial().GetSampler().GetOrCreateTex()->GetOrCreateData()->SetFileName("Data\\GUI\\yardLogo.png");
 		_guiLogo->GetMaterial().GetSampler().GetTex()->Init(_world->GetGraph()->GetEngine());
 		_guiLogo->GetMaterial().SetBlending(gui::Material::bmTransparency);
-		_guiLogo->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
+		_guiLogo->GetMaterial().SetColor(glm::vec4(1, 1, 1, 0));
 
 		_guiLogo2 = _world->GetGraph()->GetGUI().CreatePlaneFon();
 		_guiLogo2->GetMaterial().GetSampler().GetOrCreateTex()->GetOrCreateData()->SetFileName("Data\\GUI\\laboratoria24.png");
 		_guiLogo2->GetMaterial().GetSampler().GetTex()->Init(_world->GetGraph()->GetEngine());
 		_guiLogo2->GetMaterial().SetBlending(gui::Material::bmTransparency);
-		_guiLogo2->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
+		_guiLogo2->GetMaterial().SetColor(glm::vec4(1, 1, 1, 0));
 	}
 
 	_guiStartup = _world->GetGraph()->GetGUI().CreatePlaneFon();
@@ -1376,7 +1376,7 @@ void GameMode::Run(bool playIntro)
 	_guiStartup->GetMaterial().GetSampler().GetTex()->Init(_world->GetGraph()->GetEngine());
 	_guiStartup->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 	_guiStartup->GetMaterial().SetBlending(gui::Material::bmTransparency);
-	_guiStartup->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 0));
+	_guiStartup->GetMaterial().SetColor(glm::vec4(1, 1, 1, 0));
 
 	AdjustGameStartup();
 	_world->GetGraph()->SetGUIMode(true);
@@ -1537,7 +1537,7 @@ void GameMode::ExitRaceGoFinish()
 
 void GameMode::GoRace(int stage)
 {
-	D3DXCOLOR semaphoreColor = clrWhite;
+	glm::vec4 semaphoreColor = clrWhite;
 	int semaphoreIndex = 0;
 
 	switch (stage)
@@ -1790,7 +1790,7 @@ void GameMode::OnFrame(float deltaTime, float pxAlpha)
 		}
 		else if (_startUpTime == -2)
 		{
-			_guiStartup->GetMaterial().SetColor(D3DXCOLOR(1, 1, 1, 1));
+			_guiStartup->GetMaterial().SetColor(glm::vec4(1, 1, 1, 1));
 			_startUpTime = -3;
 		}
 		else if (_guiLogo)

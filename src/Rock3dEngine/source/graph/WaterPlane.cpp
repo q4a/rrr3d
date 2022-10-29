@@ -107,7 +107,7 @@ void WaterPlane::DoRender(graph::Engine& engine)
 		dwVal = engine.GetContext().GetRenderState(rsFogEnd);
 		fogParamsVec.y = *(float*)(&dwVal);
 
-		D3DXCOLOR fogColorVec = D3DXCOLOR(engine.GetContext().GetRenderState(rsFogColor));
+		glm::vec4 fogColorVec = glm::vec4(engine.GetContext().GetRenderState(rsFogColor));
 		shader.SetValueDir("fogColor", fogColorVec);
 	}
 	shader.SetValueDir("fogParams", fogParamsVec);
@@ -147,16 +147,16 @@ void WaterPlane::SetReflTex(graph::Tex2DResource* value)
 	shader.SetTexture("reflTex", value);
 }
 
-D3DXCOLOR WaterPlane::GetColor()
+glm::vec4 WaterPlane::GetColor()
 {
-	D3DXCOLOR res;
+	glm::vec4 res;
 	if (shader.GetValue("waterColor", res))
 		return res;
 	else
 		return clrBlack;
 }
 
-void WaterPlane::SetColor(const D3DXCOLOR& value)
+void WaterPlane::SetColor(const glm::vec4& value)
 {
 	shader.SetValue("waterColor", glm::vec4(value));
 }

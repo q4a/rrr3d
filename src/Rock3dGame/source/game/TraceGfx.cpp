@@ -48,7 +48,7 @@ TraceGfx::~TraceGfx()
 	_trace->Release();
 }
 
-void TraceGfx::DrawNodes(graph::Engine& engine, glm::vec3* vBuf, unsigned triCnt, const D3DXCOLOR& color)
+void TraceGfx::DrawNodes(graph::Engine& engine, glm::vec3* vBuf, unsigned triCnt, const glm::vec4& color)
 {
 	_libMat->material.SetDiffuse(color);
 	_libMat->Apply(engine);
@@ -87,7 +87,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 	for (Trace::Pathes::const_iterator iter = _trace->GetPathes().begin(); iter != _trace->GetPathes().end(); ++iter, ++iPath)
 	{
 		WayPath* path = *iter;
-		D3DXCOLOR pathColor = path == _selPath ? clrGreen : D3DXCOLOR(Vec3GlmToDx(resColor.GetValue(iPath / (pathCnt - 1.0f))));
+		glm::vec4 pathColor = path == _selPath ? clrGreen : glm::vec4(Vec3GlmToDx(resColor.GetValue(iPath / (pathCnt - 1.0f))));
 		res::VertexData vBuf;
 		path->GetTriStripVBuf(vBuf, &upVec);
 		if (vBuf.IsInit())

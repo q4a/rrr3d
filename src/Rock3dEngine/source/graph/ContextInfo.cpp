@@ -1146,12 +1146,12 @@ bool ContextInfo::IsCullOpacity() const
 	return _cullOpacity < 1.0f;
 }
 
-const D3DXCOLOR& ContextInfo::GetColor() const
+const glm::vec4& ContextInfo::GetColor() const
 {
 	return _color;
 }
 
-void ContextInfo::SetColor(const D3DXCOLOR& value)
+void ContextInfo::SetColor(const glm::vec4& value)
 {
 	_color = value;
 }

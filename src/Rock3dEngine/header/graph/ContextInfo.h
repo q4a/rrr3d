@@ -141,10 +141,10 @@ public:
 
 struct MaterialDesc
 {
-	D3DXCOLOR diffuse;
-	D3DXCOLOR ambient;
-	D3DXCOLOR specular;
-	D3DXCOLOR emissive;
+	glm::vec4 diffuse;
+	glm::vec4 ambient;
+	glm::vec4 specular;
+	glm::vec4 emissive;
 	float power;
 };
 
@@ -200,9 +200,9 @@ struct LightDesc
 	}
 
 	D3DLIGHTTYPE type;
-	D3DXCOLOR ambient;
-	D3DXCOLOR diffuse;
-	D3DXCOLOR specular;
+	glm::vec4 ambient;
+	glm::vec4 diffuse;
+	glm::vec4 specular;
 
 	//Соотношение сторон фрустума отдельного направления точечного, направленного источника света. Для конусного игнорируется.
 	float aspect;
@@ -366,7 +366,7 @@ private:
 
 	std::stack<float> _frameStack;
 	float _cullOpacity;
-	D3DXCOLOR _color;
+	glm::vec4 _color;
 	int _meshId;
 
 	DWORD InvertCullFace(DWORD curFace);
@@ -454,8 +454,8 @@ public:
 	void RestoreCullOpacity();
 	bool IsCullOpacity() const;
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 
 	int GetMeshId() const;
 	void SetMeshId(int value);

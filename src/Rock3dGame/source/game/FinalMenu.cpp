@@ -12,7 +12,7 @@ namespace game
 
 FinalMenu::FinalMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _time(0), _linesSizeY(0)
 {
-	const D3DXCOLOR color1 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color1 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
 
 	StringValue strMenuItems[cMenuItemEnd] = {svBack};
 
@@ -187,7 +187,7 @@ void FinalMenu::OnProgress(float deltaTime)
 
 /*FinalMenu::FinalMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _scrollTime(0)
 {
-	D3DXCOLOR color1(0xffafafaf);
+	glm::vec4 color1(0xffafafaf);
 
 	StringValue strMenuItems[cMenuItemEnd] = {svOk};
 
@@ -195,7 +195,7 @@ void FinalMenu::OnProgress(float deltaTime)
 	std::string fontLabels[cLabelEnd] = {"Small"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaTop};
-	D3DXCOLOR colorLabels[cLabelEnd] = {D3DXCOLOR(0xffff8a70)};
+	glm::vec4 colorLabels[cLabelEnd] = {glm::vec4(0xffff8a70)};
 
 	_bg = menu->CreatePlane(root(), this, "GUI\\final.dds", true, IdentityVec2, gui::Material::bmTransparency);
 	_bg->SetAlign(gui::Widget::waCenter);

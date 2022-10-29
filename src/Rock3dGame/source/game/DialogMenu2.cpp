@@ -16,7 +16,7 @@ const int UserChat::cMaxLines = 50;
 
 AcceptDialog::AcceptDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _resultYes(false), _data(NULL), _guiEvent(NULL)
 {
-	D3DXCOLOR color1(0xffafafaf);
+	glm::vec4 color1(0xffafafaf);
 
 	StringValue strMenuItems[cMenuItemEnd] = {svNo, svYes};
 
@@ -24,7 +24,7 @@ AcceptDialog::AcceptDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, par
 	std::string fontLabels[cLabelEnd] = {"Item"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1};
+	glm::vec4 colorLabels[cLabelEnd] = {color1};
 
 	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame1.png", true, IdentityVec2, gui::Material::bmTransparency);
 
@@ -200,14 +200,14 @@ Object* AcceptDialog::data() const
 
 WeaponDialog::WeaponDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 {
-	D3DXCOLOR color1(0xffafafaf);
-	D3DXCOLOR color2(0xFFFFFFFF);
+	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color2(0xFFFFFFFF);
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"VerySmall", "Small", "Small", "Small"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color2, color2, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color2, color2, color2};
 
 	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame3.png", true, IdentityVec2, gui::Material::bmTransparency);
 
@@ -269,8 +269,8 @@ void WeaponDialog::Hide()
 
 InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _data(NULL), _guiEvent(NULL)
 {
-	D3DXCOLOR color1(0xffafafaf);
-	D3DXCOLOR color2(0xffffffff);
+	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color2(0xffffffff);
 
 	StringValue strMenuItems[cMenuItemEnd] = {svOk};
 
@@ -278,7 +278,7 @@ InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 	std::string fontLabels[cLabelEnd] = {"Small", "Header"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color2, color1};
+	glm::vec4 colorLabels[cLabelEnd] = {color2, color1};
 
 	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame4.png", true, IdentityVec2, gui::Material::bmTransparency);
 
@@ -382,14 +382,14 @@ Object* InfoDialog::data() const
 
 MusicDialog::MusicDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 {
-	D3DXCOLOR color1(0xffafafaf);
-	D3DXCOLOR color2(0xFFFFFFFF);
+	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color2(0xFFFFFFFF);
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"Small", "Item"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haLeft};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color2};
 
 	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame2.png", true, IdentityVec2, gui::Material::bmTransparency);
 
@@ -518,7 +518,7 @@ UserChat::~UserChat()
 	DelLines();
 }
 
-UserChat::Line UserChat::AddLine(const lsl::stringW& name, const lsl::stringW& text, const D3DXCOLOR& nameColor, bool right)
+UserChat::Line UserChat::AddLine(const lsl::stringW& name, const lsl::stringW& text, const glm::vec4& nameColor, bool right)
 {
 	Line line;
 	line.time = 0.0f;
@@ -553,7 +553,7 @@ void UserChat::OnInvalidate()
 {
 }
 
-void UserChat::ShowInput(bool show, const lsl::stringW& name, const lsl::stringW& text, const D3DXCOLOR& nameColor)
+void UserChat::ShowInput(bool show, const lsl::stringW& name, const lsl::stringW& text, const glm::vec4& nameColor)
 {
 	_input.name->SetVisible(show);
 	_input.name->SetTextW(name);
@@ -592,7 +592,7 @@ lsl::stringW UserChat::inputText() const
 	return _input.text->GetTextW();
 }
 
-void UserChat::PushLine(const lsl::stringW& name, const lsl::stringW& text, const D3DXCOLOR& nameColor)
+void UserChat::PushLine(const lsl::stringW& name, const lsl::stringW& text, const glm::vec4& nameColor)
 {
 	_lines.push_front(AddLine(name, text, nameColor, true));
 }

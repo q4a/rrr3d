@@ -405,7 +405,7 @@ public:
 		Player* owner;
 		MapObjRec* record;
 		graph::LibMaterial* colorMat;
-		D3DXCOLOR color;
+		glm::vec4 color;
 
 		MapObj* mapObj;
 		RockCar* gameObj;
@@ -489,8 +489,8 @@ public:
 	static const unsigned cCheatEnableFaster = 1 << 1;
 
 	static const unsigned cColorsCount = 7;
-	static const D3DXCOLOR cLeftColors[cColorsCount];
-	static const D3DXCOLOR cRightColors[cColorsCount];
+	static const glm::vec4 cLeftColors[cColorsCount];
+	static const glm::vec4 cRightColors[cColorsCount];
 private:
 	Race* _race;
 	CarState _car;
@@ -603,8 +603,8 @@ public:
 	int GetPickMoney() const;
 	void ResetPickMoney();
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 
 	int GetId() const;
 	void SetId(int value);

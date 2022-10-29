@@ -79,9 +79,9 @@ template<> struct SerialValue<glm::quat>
 	}
 };
 
-template<> struct SerialValue<D3DXCOLOR>
+template<> struct SerialValue<glm::vec4>
 {
-	typedef D3DXCOLOR _Value;
+	typedef glm::vec4 _Value;
 
 	static void Write(SWriter* writer, const char* name, const _Value& value)
 	{

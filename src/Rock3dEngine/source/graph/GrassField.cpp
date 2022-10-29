@@ -194,13 +194,13 @@ void GrassField::DoRender(graph::Engine& engine)
 		dwVal = engine.GetContext().GetRenderState(rsFogEnd);
 		fogParamsVec.y = *(float*)(&dwVal);
 
-		D3DXCOLOR fogColorVec = D3DXCOLOR(engine.GetContext().GetRenderState(rsFogColor));
+		glm::vec4 fogColorVec = glm::vec4(engine.GetContext().GetRenderState(rsFogColor));
 		shader.SetValueDir("fogColor", fogColorVec);
 	}
 	shader.SetValueDir("fogParams", fogParamsVec);
 
 	bool isNight = engine.GetContext().IsNight();
-	shader.SetValueDir("diffLight", isNight ? D3DXCOLOR(engine.GetContext().GetRenderState(rsAmbient)) : clrWhite);
+	shader.SetValueDir("diffLight", isNight ? glm::vec4(engine.GetContext().GetRenderState(rsAmbient)) : clrWhite);
 
 	shader.Apply(engine);
 	for (unsigned i = 0; i < _fieldList.size(); ++i)

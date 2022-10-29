@@ -166,8 +166,8 @@ unsigned Read(std::istream& stream, glm::vec4& value);
 unsigned Write(std::ostream& stream, const glm::quat& value);
 unsigned Read(std::istream& stream, glm::quat& value);
 
-unsigned Write(std::ostream& stream, const D3DXCOLOR& value);
-unsigned Read(std::istream& stream, D3DXCOLOR& value);
+unsigned Write(std::ostream& stream, const glm::vec4& value);
+unsigned Read(std::istream& stream, glm::vec4& value);
 
 unsigned Write(std::ostream& stream, const D3DXMATRIX& value);
 unsigned Read(std::istream& stream, D3DXMATRIX& value);
@@ -322,13 +322,13 @@ inline unsigned Read(std::istream& stream, glm::quat& value)
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXCOLOR& value)
+inline unsigned Write(std::ostream& stream, const glm::vec4& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXCOLOR& value)
+inline unsigned Read(std::istream& stream, glm::vec4& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);

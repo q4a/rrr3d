@@ -86,7 +86,7 @@ public:
 
 	enum AnimMode {amNone, amOnce, amRepeat, amTile, amTwoSide, amManual, amInheritance};
 
-	static void RenderBB(graph::Engine& engine, const AABB& aabb, const D3DXCOLOR& colorBB);
+	static void RenderBB(graph::Engine& engine, const AABB& aabb, const glm::vec4& colorBB);
 
 	enum CombMatType {cmtScaleTrans, cmtScaleRot, cmtRotTrans};
 
@@ -317,7 +317,7 @@ public:
 
 	bool showBB;
 	bool showBBIncludeChild;
-	D3DXCOLOR colorBB;
+	glm::vec4 colorBB;
 	bool storeCoords;
 	bool invertCullFace;
 
@@ -342,7 +342,7 @@ class Camera: public BaseSceneNode
 private:
 	typedef BaseSceneNode _MyBase;
 public:
-	static void RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj, const D3DXCOLOR& colorBB);
+	static void RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj, const glm::vec4& colorBB);
 private:
 	mutable graph::CameraDesc _desc;
 	mutable graph::CameraCI _contextInfo;
@@ -413,14 +413,14 @@ public:
 
 	const graph::LightCI& GetContextInfo() const;
 
-	const D3DXCOLOR& GetAmbient() const;
-	void SetAmbient(const D3DXCOLOR& value);
+	const glm::vec4& GetAmbient() const;
+	void SetAmbient(const glm::vec4& value);
 
-	const D3DXCOLOR& GetDiffuse() const;
-	void SetDiffuse(const D3DXCOLOR& value);
+	const glm::vec4& GetDiffuse() const;
+	void SetDiffuse(const glm::vec4& value);
 
-	const D3DXCOLOR& GetSpecular() const;
-	void SetSpecular(const D3DXCOLOR& value);
+	const glm::vec4& GetSpecular() const;
+	void SetSpecular(const glm::vec4& value);
 
 	float GetNear() const;
 	void SetNear(float value);

@@ -442,7 +442,7 @@ inline glm::vec4 Vec4FromVec3(const glm::vec3& vec)
 	return glm::vec4(vec.x, vec.y, vec.z, 0);
 }
 
-inline void operator*=(D3DXCOLOR& vec1, const D3DXCOLOR& vec2)
+inline void operator*=(glm::vec4& vec1, const glm::vec4& vec2)
 {
 	vec1.r *= vec2.r;
 	vec1.g *= vec2.g;
@@ -450,9 +450,9 @@ inline void operator*=(D3DXCOLOR& vec1, const D3DXCOLOR& vec2)
 	vec1.a *= vec2.a;
 }
 
-inline D3DXCOLOR operator*(const D3DXCOLOR& vec1, const D3DXCOLOR& vec2)
+inline glm::vec4 operator*(const glm::vec4& vec1, const glm::vec4& vec2)
 {
-	D3DXCOLOR res = vec1;
+	glm::vec4 res = vec1;
 	res *= vec2;
 
 	return res;

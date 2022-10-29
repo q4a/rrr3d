@@ -14,15 +14,15 @@ namespace n
 
 FinishMenu::FinishMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _time(-1.0f), _playerCount(0)
 {
-	D3DXCOLOR color1(0xffe9a73f);
-	D3DXCOLOR color2(0xffe1e1e1);
-	D3DXCOLOR color3(0xff84bc43);
+	glm::vec4 color1(0xffe9a73f);
+	glm::vec4 color2(0xffe1e1e1);
+	glm::vec4 color3(0xff84bc43);
 
 	StringValue strLabels[cLabelEnd] = {svNull, svPrice, svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"Header", "Header", "Header", "Header"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color1, color2, color3};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color1, color2, color3};
 
 	for (int i = 0; i < cBoxCount; ++i)
 	{

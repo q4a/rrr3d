@@ -35,7 +35,7 @@ private:
 	WayNode* _selNode;
 	PointLink* _pointLink;
 
-	void DrawNodes(graph::Engine& engine, glm::vec3* vBuf, unsigned triCnt, const D3DXCOLOR& color);
+	void DrawNodes(graph::Engine& engine, glm::vec3* vBuf, unsigned triCnt, const glm::vec4& color);
 protected:
 	virtual void DoRender(graph::Engine& engine);
 public:

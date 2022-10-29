@@ -232,7 +232,7 @@ void NetPlayer::DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordL
 	}
 }
 
-void NetPlayer::SendColor(const D3DXCOLOR& value, bool failed, unsigned target)
+void NetPlayer::SendColor(const glm::vec4& value, bool failed, unsigned target)
 {
 	std::ostream& stream = NewRPC(target, &NetPlayer::OnSetColor);
 	net::Write(stream, value);
@@ -322,7 +322,7 @@ void NetPlayer::OnSetGamerId(const net::NetMessage& msg, const net::NetCmdHeader
 
 void NetPlayer::OnSetColor(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
 {
-	D3DXCOLOR color;
+	glm::vec4 color;
 	bool failed;
 
 	net::Read(stream, color);
@@ -603,7 +603,7 @@ void NetPlayer::OnDescWrite(const net::NetMessage& msg, std::ostream& stream)
 
 void NetPlayer::OnStateRead(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
 {
-	D3DXCOLOR color;
+	glm::vec4 color;
 	std::string carName;
 	int gamerId;
 
@@ -803,26 +803,26 @@ int NetPlayer::GenerateGamerId() const
 	return -1;
 }
 
-const D3DXCOLOR& NetPlayer::GetColor() const
+const glm::vec4& NetPlayer::GetColor() const
 {
 	return _player->GetColor();
 }
 
-void NetPlayer::SetColor(const D3DXCOLOR& value)
+void NetPlayer::SetColor(const glm::vec4& value)
 {
 	_player->SetColor(value);
 
 	SendColor(value, false, net::cNetTargetOthers);
 }
 
-bool NetPlayer::CheckColor(const D3DXCOLOR& value) const
+bool NetPlayer::CheckColor(const glm::vec4& value) const
 {
 	for (NetGame::NetPlayers::const_iterator iter = _net->netPlayers().begin(); iter != _net->netPlayers().end(); ++iter)
 	{
 		if (*iter == this)
 			continue;
 
-		D3DXCOLOR diff = (*iter)->GetColor() - value;
+		glm::vec4 diff = (*iter)->GetColor() - value;
 		if (abs(diff.r) < 0.001f && abs(diff.g) < 0.001f && abs(diff.b) < 0.001f && abs(diff.a) < 0.001f)
 			return false;
 	}
@@ -830,7 +830,7 @@ bool NetPlayer::CheckColor(const D3DXCOLOR& value) const
 	return true;
 }
 
-D3DXCOLOR NetPlayer::GenerateColor() const
+glm::vec4 NetPlayer::GenerateColor() const
 {
 	for (int i = 0; i < Player::cColorsCount; ++i)
 		if (CheckColor(Player::cLeftColors[i]))

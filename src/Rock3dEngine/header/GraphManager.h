@@ -152,9 +152,9 @@ private:
 	GraphQuality _graphQuality[cGraphOptionEnd];
 
 	std::string _skyTex;
-	D3DXCOLOR _fogColor;
+	glm::vec4 _fogColor;
 	float _fogIntensivity;
-	D3DXCOLOR _cloudColor;
+	glm::vec4 _cloudColor;
 	float _cloudIntensivity;
 	float _cloudHeight;
 
@@ -246,7 +246,7 @@ private:
 	glm::vec2 _tileScale;
 	graph::Actor* _fogPlaneActor;
 
-	D3DXCOLOR _sceneAmbient;
+	glm::vec4 _sceneAmbient;
 
 	unsigned _multisampling;
 	graph::RenderTargetResource* _msRT;
@@ -417,17 +417,17 @@ public:
 	const std::string& GetSkyTex() const;
 	void SetSkyTex(const std::string& value);
 	//
-	const D3DXCOLOR& GetFogColor() const;
-	void SetFogColor(const D3DXCOLOR& value);
+	const glm::vec4& GetFogColor() const;
+	void SetFogColor(const glm::vec4& value);
 	//
-	const D3DXCOLOR& GetSceneAmbient();
-	void SetSceneAmbient(const D3DXCOLOR& value);
+	const glm::vec4& GetSceneAmbient();
+	void SetSceneAmbient(const glm::vec4& value);
 	//
 	float GetFogIntensivity() const;
 	void SetFogIntensivity(float value);
 	//
-	const D3DXCOLOR& GetCloudColor() const;
-	void SetCloudColor(const D3DXCOLOR& value);
+	const glm::vec4& GetCloudColor() const;
+	void SetCloudColor(const glm::vec4& value);
 	//
 	float GetCloudIntensivity() const;
 	void SetCloudIntensivity(float value);

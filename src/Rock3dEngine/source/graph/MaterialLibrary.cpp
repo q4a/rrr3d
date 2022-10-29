@@ -226,12 +226,12 @@ void BaseSampler::SetAlphaMode(Mode value)
 	}
 }
 
-D3DXCOLOR BaseSampler::GetColor() const
+glm::vec4 BaseSampler::GetColor() const
 {
 	return stageStates.Get(tssConstant);
 }
 
-void BaseSampler::SetColor(const D3DXCOLOR& value)
+void BaseSampler::SetColor(const glm::vec4& value)
 {
 	stageStates.Set(tssConstant, value);
 }

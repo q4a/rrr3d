@@ -37,8 +37,8 @@ class Map: public IMap
 {
 	friend Edit;
 private:
-	static const D3DXCOLOR bbColor;
-	static const D3DXCOLOR selColor;
+	static const glm::vec4 bbColor;
+	static const glm::vec4 selColor;
 
 	typedef lsl::List<game::MapObj*> MapObjList;
 

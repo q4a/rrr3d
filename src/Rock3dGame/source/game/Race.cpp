@@ -6453,7 +6453,7 @@ void Race::SnProfile::LoadPlayer(Player* player, lsl::SReader* reader)
 {
 	lsl::string str;
 	lsl::Serializable::FixUpName fixUp;
-	D3DXCOLOR color;
+	glm::vec4 color;
 	int numb;
 
 	MapObjRec* carRef = MapObjLib::LoadRecordRef(reader, "car");
@@ -6981,7 +6981,7 @@ void Race::OnLateProgress(float deltaTime, bool pxStep)
 
 Player* Race::AddPlayer(int plrId)
 {
-	const D3DXCOLOR color[cMaxPlayers] = {D3DXCOLOR(0xFF5B29A5), D3DXCOLOR(0xFF9E9E9E), D3DXCOLOR(0xFFFF80C0), D3DXCOLOR(0xFF83F7CC), D3DXCOLOR(0xFF83E500), D3DXCOLOR(0xFFD8E585), D3DXCOLOR(0xFF6100B9), D3DXCOLOR(0xFF006CA4)};
+	const glm::vec4 color[cMaxPlayers] = {glm::vec4(0xFF5B29A5), glm::vec4(0xFF9E9E9E), glm::vec4(0xFFFF80C0), glm::vec4(0xFF83F7CC), glm::vec4(0xFF83E500), glm::vec4(0xFFD8E585), glm::vec4(0xFF6100B9), glm::vec4(0xFF006CA4)};
 
 	Player* player = new Player(this);
 	player->AddRef();
@@ -7002,7 +7002,7 @@ Player* Race::AddPlayer(int plrId)
 	return player;
 }
 
-Player* Race::AddPlayer(int plrId, int gamerId, int netSlot, const D3DXCOLOR& color)
+Player* Race::AddPlayer(int plrId, int gamerId, int netSlot, const glm::vec4& color)
 {
 	Player* player = AddPlayer(plrId);
 	player->SetGamerId(gamerId);
