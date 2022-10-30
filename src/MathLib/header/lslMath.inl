@@ -88,6 +88,27 @@ inline D3DXVECTOR4 Vec4GlmToDx(const glm::vec4 v4)
 	return v4Dx;
 }
 
+inline D3DCOLOR Vec4ToColor(const glm::vec4 &vec)
+{
+	return D3DCOLOR_COLORVALUE(vec.r, vec.g, vec.b, vec.a);
+}
+
+inline glm::vec4 ColorToVec4(const D3DCOLOR &col)
+{
+	glm::vec4 vec;
+	vec.r = (col >> 16 & 255) / 255.0f;
+	vec.g = (col >> 8 & 255) / 255.0f;
+	vec.b = (col & 255) / 255.0f;
+	vec.a = (col >> 24 & 255) / 255.0f;
+	return vec;
+}
+
+inline glm::vec4 ColorVToVec4(const D3DCOLORVALUE &cv)
+{
+	glm::vec4 v4glm(cv.r, cv.g, cv.b, cv.a);
+	return v4glm;
+}
+
 inline glm::vec4 PlaneToVec4Glm(const D3DXPLANE pl)
 {
 	glm::vec4 v4(pl.a, pl.b, pl.c, pl.d);
@@ -430,16 +451,6 @@ inline bool operator<(const glm::vec3& vec1, const glm::vec3& vec2)
 	return vec1.x < vec2.x &&
 		   vec1.y < vec2.y &&
 		   vec1.z < vec2.z;
-}
-
-inline glm::vec4 Vec4FromVec2(const glm::vec2& vec)
-{
-	return glm::vec4(vec.x, vec.y, 0, 0);
-}
-
-inline glm::vec4 Vec4FromVec3(const glm::vec3& vec)
-{
-	return glm::vec4(vec.x, vec.y, vec.z, 0);
 }
 
 inline void operator*=(glm::vec4& vec1, const glm::vec4& vec2)

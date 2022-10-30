@@ -368,10 +368,10 @@ void IVBMeshNode::DoRender(Engine& engine)
 		else
 		{
 			D3DMATERIAL9 mat;
-			mat.Ambient = clrWhite;
-			mat.Diffuse = clrWhite;
-			mat.Specular = clrWhite;
-			mat.Emissive = clrBlack;
+			mat.Ambient = *reinterpret_cast<const D3DCOLORVALUE *>(&clrWhite);
+			mat.Diffuse = *reinterpret_cast<const D3DCOLORVALUE *>(&clrWhite);
+			mat.Specular = *reinterpret_cast<const D3DCOLORVALUE *>(&clrWhite);
+			mat.Emissive = *reinterpret_cast<const D3DCOLORVALUE *>(&clrBlack);
 			mat.Power = 32.0f;
 			engine.GetDriver().GetDevice()->SetMaterial(&mat);
 		}
@@ -578,10 +578,10 @@ void MeshXNode::DoRender(Engine& engine)
 		else
 		{
 			D3DMATERIAL9 mat;
-			mat.Ambient = clrWhite;
-			mat.Diffuse = clrWhite;
-			mat.Specular = clrWhite;
-			mat.Emissive = clrBlack;
+			mat.Ambient = *reinterpret_cast<const D3DCOLORVALUE *>(&clrWhite);
+			mat.Diffuse = *reinterpret_cast<const D3DCOLORVALUE *>(&clrWhite);
+			mat.Specular = *reinterpret_cast<const D3DCOLORVALUE *>(&clrWhite);
+			mat.Emissive = *reinterpret_cast<const D3DCOLORVALUE *>(&clrBlack);
 			mat.Power = 32.0f;
 			engine.GetDriver().GetDevice()->SetMaterial(&mat);
 		}

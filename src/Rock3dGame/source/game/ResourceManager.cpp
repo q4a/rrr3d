@@ -1476,7 +1476,8 @@ void ResourceManager::LoadEffects()
 	LoadImage2dLibMat("Effect\\protonRay", "Effect\\protonRay.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\protonRing", "Effect\\protonRing.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\phaseRing", "Effect\\phaseRing.dds", true, graph::Material::bmAdditive);
-	LoadImage2dLibMat("Effect\\thunder1", "Effect\\thunder1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f), ColorRange(glm::vec4(0xFFEC008C), glm::vec4(0xFF0000FF)));
+	LoadImage2dLibMat("Effect\\thunder1", "Effect\\thunder1.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f),
+		ColorRange(glm::vec4(236.0f/255.0f, 0.0f, 140.0f/255.0f, 1.0f), clrBlue)); // 0xFFEC008C
 	LoadImage2dLibMat("Effect\\flareLaser1", "Effect\\flare2b.dds", true, graph::Material::bmAdditive, FloatRange(0.7f, 0.0f));
 	LoadImage2dLibMat("Effect\\flareLaser2", "Effect\\flare1_tc.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));
 	LoadImage2dLibMat("Effect\\flareLaser3", "Effect\\flare2a.dds", true, graph::Material::bmAdditive, FloatRange(1.0f, 0.0f));

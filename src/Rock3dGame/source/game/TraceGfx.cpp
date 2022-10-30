@@ -87,7 +87,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 	for (Trace::Pathes::const_iterator iter = _trace->GetPathes().begin(); iter != _trace->GetPathes().end(); ++iter, ++iPath)
 	{
 		WayPath* path = *iter;
-		glm::vec4 pathColor = path == _selPath ? clrGreen : glm::vec4(Vec3GlmToDx(resColor.GetValue(iPath / (pathCnt - 1.0f))));
+		glm::vec4 pathColor = path == _selPath ? clrGreen : glm::vec4(resColor.GetValue(iPath / (pathCnt - 1.0f)), 0.0f);
 		res::VertexData vBuf;
 		path->GetTriStripVBuf(vBuf, &upVec);
 		if (vBuf.IsInit())

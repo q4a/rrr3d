@@ -875,7 +875,7 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 	else
 	{
 		BeginDrawGraphic(text);
-		text.GetFont()->DrawText(text.GetText(), rect, format, text.GetMaterial() ? text.GetMaterial()->GetColor() : clrWhite);
+		text.GetFont()->DrawText(text.GetText(), rect, format, Vec4ToColor(text.GetMaterial() ? text.GetMaterial()->GetColor() : clrWhite));
 		EndDrawGraphic(text);
 	}
 }

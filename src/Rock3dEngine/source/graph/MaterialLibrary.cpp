@@ -228,12 +228,12 @@ void BaseSampler::SetAlphaMode(Mode value)
 
 glm::vec4 BaseSampler::GetColor() const
 {
-	return stageStates.Get(tssConstant);
+	return ColorToVec4(stageStates.Get(tssConstant));
 }
 
 void BaseSampler::SetColor(const glm::vec4& value)
 {
-	stageStates.Set(tssConstant, value);
+	stageStates.Set(tssConstant, Vec4ToColor(value));
 }
 
 const Vec3Range& BaseSampler::GetOffset() const

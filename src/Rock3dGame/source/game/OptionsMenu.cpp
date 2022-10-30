@@ -15,7 +15,7 @@ namespace n
 
 GameFrame::GameFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu), _gridScroll(0)
 {
-	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color1 = clrGrayAF;
 
 	StringList diffStr;
 	for (int i = 0; i < cDifficultyEnd; ++i)
@@ -357,7 +357,7 @@ MediaFrame::MediaFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent
 
 	StringList itemsStepper[cStepperEnd] = {resolutionStr, fltLevel, msFltLevel, shadowLevel, envLevel, lightLevel, postEffLevel, onOffLevel};
 
-	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color1 = clrGrayAF;
 
 	lsl::string strLabels[cLabelEnd] = {_SC(svResolution), _SC(svFiltering), _SC(svMultisampling), _SC(svShadow), _SC(svEnv), _SC(svLight), _SC(svPostProcess), "svWindowMode"};
 	std::string fontLabels[cLabelEnd] = {"Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small"};
@@ -493,7 +493,7 @@ void MediaFrame::CancelChanges()
 
 NetworkTab::NetworkTab(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu)
 {
-	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color1 = clrGrayAF;
 
 	StringList languageStr;
 	for (Languages::const_iterator iter = menu->GetGame()->GetLanguages().begin(); iter != menu->GetGame()->GetLanguages().end(); ++iter)
@@ -664,7 +664,7 @@ void NetworkTab::CancelChanges()
 
 ControlsFrame::ControlsFrame(Menu* menu, OptionsMenu* optionsMenu, gui::Widget* parent): MenuFrame(menu, parent), _optionsMenu(optionsMenu), _gridScroll(0)
 {
-	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color1 = clrGrayAF;
 
 	_grid = menu->CreateGrid(root(), NULL, gui::Grid::gsVertical);
 	_grid->SetAlign(gui::Widget::waLeftTop);
@@ -769,7 +769,7 @@ void ControlsFrame::LoadCfg()
 		{
 			InputBox newItem;
 			newItem.sprite = menu()->CreatePlane(_grid, NULL, "GUI\\labelBg2.png", true, IdentityVec2, gui::Material::bmTransparency);
-			newItem.label = menu()->CreateLabel("", newItem.sprite, "Small", NullVec2, gui::Text::haLeft, gui::Text::vaCenter, 0xffafafaf);
+			newItem.label = menu()->CreateLabel("", newItem.sprite, "Small", NullVec2, gui::Text::haLeft, gui::Text::vaCenter, clrGrayAF);
 
 			for (int j = 0; j < cControllerTypeEnd; ++j)
 			{
@@ -925,7 +925,7 @@ void ControlsFrame::CancelChanges()
 
 OptionsMenu::OptionsMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msGame)
 {
-	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color1 = clrGrayAF;
 
 	StringValue strMenuItems[cMenuItemEnd] = {svBack, svApply};
 	StringValue strStateItems[cStateEnd] = {svGame, svGraphic, svNetwork, svControls};
@@ -989,9 +989,9 @@ void OptionsMenu::SetSelection(State state, bool instant)
 		gui::Label* label = static_cast<gui::Label*>(_stateItems[i]->GetChildren().front());
 
 		if (selected)
-			label->GetMaterial().SetColor(0xffeb733e);
+			label->GetMaterial().SetColor(glm::vec4(235.0f/255.0f, 115.0f/255.0f, 62.0f/255.0f, 1.0f)); // 0xffeb733e
 		else
-			label->GetMaterial().SetColor(0xffafafaf);
+			label->GetMaterial().SetColor(clrGrayAF);
 	}
 }
 
@@ -1096,7 +1096,7 @@ bool OptionsMenu::OnMouseEnter(gui::Widget* sender, const gui::MouseMove& mMove)
 		button->Select(true, false);
 
 		gui::Label* label = static_cast<gui::Label*>(button->GetChildren().front());
-		label->GetMaterial().SetColor(0xffafafaf);
+		label->GetMaterial().SetColor(clrGrayAF);
 	}
 
 	return false;
@@ -1114,7 +1114,7 @@ void OptionsMenu::OnMouseLeave(gui::Widget* sender, bool wasReset)
 				button->Select(_state == i, false);
 
 				gui::Label* label = static_cast<gui::Label*>(button->GetChildren().front());
-				label->GetMaterial().SetColor(_state == i ? 0xffeb733e : 0xffafafaf);
+				label->GetMaterial().SetColor(_state == i ? glm::vec4(235.0f/255.0f, 115.0f/255.0f, 62.0f/255.0f, 1.0f) : clrGrayAF); // 0xffeb733e : clrGrayAF
 				return;
 			}
 	}
@@ -1278,7 +1278,7 @@ gui::Button* OptionsMenu::CreateMenuButton2(StringValue name, gui::Widget* paren
 	gui::Button* button = _menu->CreateMenuButton(svNull, "", "GUI\\buttonBg4.png", "GUI\\buttonBgSel4.png", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim, clrWhite,  Menu::ssButton1);
 	button->SetAlign(gui::Widget::waLeft);
 
-	gui::Label* label = _menu->CreateLabel(name, button, "Header", NullVec2, gui::Text::haLeft, gui::Text::vaCenter, 0xffafafaf);
+	gui::Label* label = _menu->CreateLabel(name, button, "Header", NullVec2, gui::Text::haLeft, gui::Text::vaCenter, clrGrayAF);
 	label->SetAlign(gui::Widget::waLeft);
 	label->SetPos(button->GetSize().x + 10.0f, 0.0f);
 	label->AdjustSizeByText();
@@ -1380,7 +1380,7 @@ void OptionsMenu::SetState(State value)
 
 StartOptionsMenu::StartOptionsMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _lastCameraIndex(-1)
 {
-	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color1 = clrGrayAF;
 	StringValue strMenuItems[cMenuItemEnd] = {svApply};
 
 	const StringValue cPrefCameraStr[GameMode::cPrefCameraEnd] = {svCameraSecView, svCameraOrtho};

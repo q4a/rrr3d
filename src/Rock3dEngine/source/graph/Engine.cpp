@@ -115,7 +115,7 @@ void Engine::DrawFPS()
 	++nFrameCount;
 	RECT destRect;
 	SetRect(&destRect, 505, 5, 0, 0);
-	g_pd3dxFont->DrawText(0 , fpsString, -1, &destRect, DT_NOCLIP, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+	g_pd3dxFont->DrawText(0, fpsString, -1, &destRect, DT_NOCLIP, D3DCOLOR_COLORVALUE(1.0f, 0.0f, 0.0f, 1.0f));
 }
 
 #endif
@@ -463,14 +463,14 @@ bool Engine::EndDraw(bool nextPass)
 	return res;
 }
 
-void Engine::BeginBackBufOut(DWORD clearFlags, D3DCOLOR color)
+void Engine::BeginBackBufOut(DWORD clearFlags, glm::vec4 color)
 {
 	_swapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backBuff);
 	_driver->GetDevice()->SetRenderTarget(0, _backBuff);
 	_driver->GetDevice()->SetDepthStencilSurface(_dsSurf);
 
 	if (clearFlags > 0)
-		_driver->GetDevice()->Clear(0, 0, clearFlags, color, 1.0f, 0);
+		_driver->GetDevice()->Clear(0, 0, clearFlags, Vec4ToColor(color), 1.0f, 0);
 }
 
 void Engine::EndBackBufOut()

@@ -13,7 +13,7 @@ const int VertexData::cElementSize[cElementEnd] =
 	sizeof(glm::vec3),
 	sizeof(glm::vec4),
 	sizeof(glm::vec3),
-	sizeof(D3DCOLOR),
+	sizeof(glm::vec4),
 	sizeof(glm::vec2),
 	sizeof(glm::vec2),
 	sizeof(glm::vec3),
@@ -36,7 +36,7 @@ VertexPD::VertexPD()
 {
 }
 
-VertexPD::VertexPD(glm::vec3 position, D3DCOLOR diffuseColor): pos(position), diffuse(diffuseColor)
+VertexPD::VertexPD(glm::vec3 position, glm::vec4 diffuseColor) : pos(position), diffuse(diffuseColor)
 {
 }
 
@@ -333,9 +333,9 @@ glm::vec4* VertexIter::Pos4()
 	return reinterpret_cast<glm::vec4*>(_owner->GetVertex(_index, VertexData::vtPos4));
 }
 
-D3DCOLOR* VertexIter::Color()
+glm::vec4* VertexIter::Color()
 {
-	return reinterpret_cast<D3DCOLOR*>(_owner->GetVertex(_index, VertexData::vtColor));
+	return reinterpret_cast<glm::vec4*>(_owner->GetVertex(_index, VertexData::vtColor));
 }
 
 glm::vec2* VertexIter::Tex0()

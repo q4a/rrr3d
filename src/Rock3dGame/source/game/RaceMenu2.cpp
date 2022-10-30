@@ -368,7 +368,7 @@ void SpaceshipFrame::OnShow(bool value)
 
 		menu()->GetEnv()->SetLampPos(glm::vec3(52.307316f, 24.327570f, 32.772705f), 2);
 		menu()->GetEnv()->SetLampRot(glm::quat(0.61423278f, 0.21948183f, 0.18329506f, -0.73549527f), 2);
-		menu()->GetEnv()->SetLampColor(glm::vec4(0xff88fefe), 2);
+		menu()->GetEnv()->SetLampColor(glm::vec4(136.0f/255.0f, 254.0f/255.0f, 254.0f/255.0f, 1.0f), 2); // 0xff88fefe
 		menu()->GetEnv()->SwitchOnLamp(2, true);
 
 		CameraManager* camera = menu()->GetRace()->GetWorld()->GetCamera();
@@ -2323,8 +2323,8 @@ void GamersFrame::OnProcessNetEvent(unsigned id, NetEventData* data)
 
 AngarFrame::AngarFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _planetIndex(-1), _planetPrevIndex(-1), _doorTime(-1.0f)
 {
-	const glm::vec4 color = glm::vec4(0xff76cef2);
-	const glm::vec4 color2 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color = glm::vec4(118.0f/255.0f, 206.0f/255.0f, 242.0f/255.0f, 1.0f); // 0xff76cef2
+	const glm::vec4 color2 = glm::vec4(214.0f/255.0f, 214.0f/255.0f, 214.0f/255.0f, 1.0f);
 	const StringValue menuItemsStr[cMenuItemEnd] = {svBack};
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull};
@@ -2806,7 +2806,7 @@ void AngarFrame::OnProgress(float deltaTime)
 
 AchievmentFrame::AchievmentFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu)
 {
-	const glm::vec4 color = glm::vec4(0xFFFA5800);
+	const glm::vec4 color = glm::vec4(250.0f/255.0f, 88.0f/255.0f, 0.0f, 1.0f); // 0xFFFA5800
 	const glm::vec4 color2 = clrWhite;
 	const StringValue menuItemsStr[cMenuItemEnd] = {svBack};
 
@@ -2867,7 +2867,8 @@ const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned in
 		newBox.image = menu()->CreatePlane(_panel, this, "", false, IdentityVec2, gui::Material::bmTransparency);
 		newBox.image->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 
-		newBox.price = menu()->CreateLabel(svNull, newBox.image, "Item", NullVec2, gui::Text::haCenter, gui::Text::vaCenter, glm::vec4(0xFFC3C2C0));
+		newBox.price = menu()->CreateLabel(svNull, newBox.image, "Item", NullVec2, gui::Text::haCenter, gui::Text::vaCenter,
+		                        glm::vec4(195.0f/255.0f, 194.0f/255.0f, 192.0f/255.0f, 1.0f)); // 0xFFC3C2C0
 		newBox.button = menu()->CreateMenuButton(svNull, "", "", "", newBox.image, this, IdentityVec2, gui::Button::bsSelAnim);
 
 		_achievments.push_back(newBox);

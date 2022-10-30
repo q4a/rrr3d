@@ -58,9 +58,6 @@ bool operator<(const glm::vec3& vec1, float scalar);
 bool operator>(const glm::vec3& vec1, const glm::vec3& vec2);
 bool operator<(const glm::vec3& vec1, const glm::vec3& vec2);
 
-glm::vec4 Vec4FromVec2(const glm::vec2& vec);
-glm::vec4 Vec4FromVec3(const glm::vec3& vec);
-
 //Линия из нормали и точки
 void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, glm::vec3& outLine);
 glm::vec3 Line2FromNorm(const glm::vec2& norm, const glm::vec2& point);

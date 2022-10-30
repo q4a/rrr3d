@@ -20,9 +20,17 @@ const float Player::cHumanArmorK[cDifficultyEnd] = {2.0f, 1.75f, 1.5f};
 
 const std::string Player::cSlotTypeStr[cSlotTypeEnd] = {"stWheel", "stTruba", "stArmor", "stMotor", "stHyper", "stMine", "stWeapon1", "stWeapon2", "stWeapon3", "stWeapon4"};
 
-const glm::vec4 Player::cLeftColors[Player::cColorsCount] = {clrWhite, clrBlue, clrRed, clrGreen, clrYellow, glm::vec4(0xffff9000), clrGray20};
+const glm::vec4 Player::cLeftColors[Player::cColorsCount] = {clrWhite, clrBlue, clrRed, clrGreen, clrYellow, glm::vec4(1.0f, 144.0f/255.0f, 0.0f, 1.0f), clrGray20}; // 0xffff9000
 
-const glm::vec4 Player::cRightColors[Player::cColorsCount] = {glm::vec4(0xff06affa), glm::vec4(0xffb70bae), glm::vec4(0xffb1c903), glm::vec4(0xffa93900), glm::vec4(0xff30373d), glm::vec4(0xff009f15), glm::vec4(0xff70769c)};
+const glm::vec4 Player::cRightColors[Player::cColorsCount] = {
+	glm::vec4(  6.0f/255.0f, 175.0f/255.0f, 250.0f/255.0f, 1.0f), // 0xff06affa
+	glm::vec4(183.0f/255.0f,  11.0f/255.0f, 174.0f/255.0f, 1.0f), // 0xffb70bae
+	glm::vec4(177.0f/255.0f, 201.0f/255.0f,   3.0f/255.0f, 1.0f), // 0xffb1c903
+	glm::vec4(169.0f/255.0f,  57.0f/255.0f,   0.0f/255.0f, 1.0f), // 0xffa93900
+	glm::vec4( 48.0f/255.0f,  55.0f/255.0f,  61.0f/255.0f, 1.0f), // 0xff30373d
+	glm::vec4(  0.0f/255.0f, 159.0f/255.0f,  21.0f/255.0f, 1.0f), // 0xff009f15
+	glm::vec4(112.0f/255.0f, 118.0f/255.0f, 156.0f/255.0f, 1.0f)  // 0xff70769c
+};
 
 Slot::ClassList Slot::classList;
 

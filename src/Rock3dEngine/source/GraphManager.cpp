@@ -1294,7 +1294,7 @@ void GraphManager::ApplyFog()
 		_engine->GetContext().SetRenderState(graph::rsFogStart, *(DWORD*)(&fogStart));
 		_engine->GetContext().SetRenderState(graph::rsFogEnd, *(DWORD*)(&(fogEnd)));
 		_engine->GetContext().SetRenderState(graph::rsFogTableMode, D3DFOG_LINEAR);
-		_engine->GetContext().SetRenderState(graph::rsFogColor, _fogColor);
+		_engine->GetContext().SetRenderState(graph::rsFogColor, Vec4ToColor(_fogColor));
 		_engine->GetContext().SetRenderState(graph::rsFogEnable, true);
 	}
 }
@@ -2193,7 +2193,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 		_engine->GetContext().ApplyCamera(&camera);
 
 		//Осветляем сцену для спец. эффектов (например для четкого кубемапа)
-		_engine->GetContext().SetRenderState(graph::rsAmbient, clrWhite);
+		_engine->GetContext().SetRenderState(graph::rsAmbient, Vec4ToColor(clrWhite));
 		//Рендер кубемапы сцены
 		RenderCubeMap(camera);
 		//Рендер текстуры водных отражений
@@ -2204,7 +2204,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 		_engine->GetContext().RestoreRenderState(graph::rsMultiSampleAntialias);
 
 		//Глобальное фоновое освещение, если включены тени то для объектов он расчитывается через рендер теней в лихт мапе(чтобы скрывать артефакты в тенях)
-		_engine->GetContext().SetRenderState(graph::rsAmbient, _sceneAmbient);
+		_engine->GetContext().SetRenderState(graph::rsAmbient, Vec4ToColor(_sceneAmbient));
 
 		//
 		unsigned i = 0;
@@ -2219,10 +2219,10 @@ bool GraphManager::Render(float deltaTime, bool pause)
 			{
 				_engine->GetDriver().GetDevice()->SetRenderTarget(0, _msRT->GetSurface());
 				_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_msDS->GetSurface());
-				_engine->GetDriver().GetDevice()->Clear(0, NULL, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor, 1.0f, 0);
+				_engine->GetDriver().GetDevice()->Clear(0, NULL, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, Vec4ToColor(_fogColor), 1.0f, 0);
 			}
 			else
-				_scRenderTex->BeginRT(*_engine, RtFlags(0, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor));
+				_scRenderTex->BeginRT(*_engine, RtFlags(0, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, Vec4ToColor(_fogColor)));
 
 			_preNodeScene->Render(*_engine);
 
@@ -2295,7 +2295,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 				_sunShaft->Render(*_engine);
 			}
 
-			_engine->BeginBackBufOut(0, 0);
+			_engine->BeginBackBufOut(0, NullVec4);
 
 			_engine->GetContext().SetTexture(0, _scRenderTex->GetRT()->GetTex());
 			DrawScreenQuad(*_engine);

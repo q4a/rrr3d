@@ -388,7 +388,6 @@ void NetBrowserFrame::OnPingComplete()
 
 NetIPAddressFrame::NetIPAddressFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu)
 {
-	//glm::vec4 color1(0xffafafaf);
 	glm::vec4 color1 = Menu::cTextColor;
 
 	StringValue strLabels[cLabelEnd] = {svNull, svEnterIP};
@@ -1617,7 +1616,8 @@ bool TournamentFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 
 CreditsFrame::CreditsFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuFrame(menu, parent), _mainMenu(mainMenu), _scrollTime(0)
 {
-	_label = menu->CreateLabel(svCredits, root(), "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop, glm::vec4(0xffff8a70));
+	_label = menu->CreateLabel(svCredits, root(), "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop,
+	                           glm::vec4(1.0f, 138.0f/255.0f, 112.0f/255.0f, 1.0f)); // 0xffff8a70
 	_label->SetAlign(gui::Widget::waTop);
 	_label->SetFlag(gui::Widget::wfClientClip, true);
 	_label->SetSize(350.0f, 265.0f);
@@ -2437,7 +2437,7 @@ Race::Profile* MainMenu::steamHostProfile() const
 
 gui::Button* MainMenu::CreateMenuButton(const lsl::string& name, gui::Widget* parent, gui::Widget::Event* guiEvent)
 {
-	const glm::vec4 color1 = glm::vec4(0xffff8a70);
+	const glm::vec4 color1(1.0f, 138.0f/255.0f, 112.0f/255.0f, 1.0f); // 0xffff8a70
 
 	gui::Button* button = _menu->CreateMenuButton(name, "Header", "", "GUI\\mainItemSel5.png", parent, guiEvent, IdentityVec2, gui::Button::bsSimple, color1, Menu::ssButton1);
 	button->SetSize(button->GetSelSize());

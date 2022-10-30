@@ -32,7 +32,7 @@ DWORD ContextInfo::defaultRenderStates[RENDER_STATE_END] = {D3DZB_TRUE, D3DFILL_
 
 DWORD ContextInfo::defaultSamplerStates[SAMPLER_STATE_END] = {D3DTADDRESS_WRAP, D3DTADDRESS_WRAP, D3DTADDRESS_WRAP, 0, D3DTEXF_POINT, D3DTEXF_POINT, D3DTEXF_NONE, 0, 0, 1, 0, 0, 0};
 
-DWORD ContextInfo::defaultTextureStageStates[TEXTURE_STAGE_STATE_END] = {D3DTOP_MODULATE, D3DTA_TEXTURE, D3DTA_CURRENT, D3DTOP_SELECTARG1, D3DTA_TEXTURE, D3DTA_CURRENT, 0, 0, 0, 0, 0, 0, 0, D3DTTFF_DISABLE,  D3DTA_CURRENT, D3DTA_CURRENT, D3DTA_CURRENT, clrWhite};
+DWORD ContextInfo::defaultTextureStageStates[TEXTURE_STAGE_STATE_END] = {D3DTOP_MODULATE, D3DTA_TEXTURE, D3DTA_CURRENT, D3DTOP_SELECTARG1, D3DTA_TEXTURE, D3DTA_CURRENT, 0, 0, 0, 0, 0, 0, 0, D3DTTFF_DISABLE,  D3DTA_CURRENT, D3DTA_CURRENT, D3DTA_CURRENT, Vec4ToColor(clrWhite)};
 
 DWORD ContextInfo::GetDefTextureStageState(int stage, TextureStageState state)
 {
@@ -726,17 +726,17 @@ void ContextInfo::SetLight(LightCI* light, DWORD lightIndex)
 	light->_camera.WorldMatChanged(_worldMat);
 
 	D3DLIGHT9 d3dLight;
-	d3dLight.Ambient = light->_desc.ambient;
+	d3dLight.Ambient = *reinterpret_cast<D3DCOLORVALUE *>(&light->_desc.ambient);
 	d3dLight.Attenuation0 = light->_desc.attenuation0;
 	d3dLight.Attenuation1 = light->_desc.attenuation1;
 	d3dLight.Attenuation2 = light->_desc.attenuation2;
-	d3dLight.Diffuse = light->_desc.diffuse;
+	d3dLight.Diffuse = *reinterpret_cast<D3DCOLORVALUE *>(&light->_desc.diffuse);
 	d3dLight.Direction = Vec3GlmToDx(light->_desc.dir);
 	d3dLight.Falloff = light->_desc.falloff;
 	d3dLight.Phi = light->_desc.phi;
 	d3dLight.Position = Vec3GlmToDx(light->_desc.pos);
 	d3dLight.Range = light->_desc.range;
-	d3dLight.Specular = light->_desc.specular;
+	d3dLight.Specular = *reinterpret_cast<D3DCOLORVALUE *>(&light->_desc.specular);
 	d3dLight.Theta = light->_desc.theta;
 	d3dLight.Type = light->_desc.type;
 
@@ -960,11 +960,11 @@ void ContextInfo::SetMaterial(const MaterialDesc& value)
 	if (!_ignoreMaterial)
 	{
 		D3DMATERIAL9 mat;
-		mat.Ambient = _material.ambient * _color;
-		mat.Diffuse = _material.diffuse * _color;
-		mat.Emissive = _material.emissive * _color;
+		mat.Ambient = *reinterpret_cast<D3DCOLORVALUE *>(&(_material.ambient * _color));
+		mat.Diffuse = *reinterpret_cast<D3DCOLORVALUE *>(&(_material.diffuse * _color));
+		mat.Emissive = *reinterpret_cast<D3DCOLORVALUE *>(&(_material.emissive * _color));
 		mat.Power = _material.power;
-		mat.Specular = _material.specular;
+		mat.Specular = *reinterpret_cast<D3DCOLORVALUE *>(&_material.specular);
 		_driver->SetMaterial(&mat);
 	}
 }

@@ -89,7 +89,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 	bool lastPass = _curLight >= lightCnt - 1;
 	//
 	_fogColor = glm::vec4(engine.GetContext().GetRenderState(rsFogColor));
-	engine.GetContext().SetRenderState(rsFogColor, _fogColor / static_cast<float>(lightCnt));
+	engine.GetContext().SetRenderState(rsFogColor, Vec4ToColor(_fogColor / static_cast<float>(lightCnt)));
 
 	const LightCI& light = engine.GetContext().GetLight(_curLight);
 	bool shadow = engine.GetContext().GetLightShadow() && light.GetDesc().shadowMap;
@@ -133,8 +133,8 @@ void LightShader::DoBeginDraw(Engine& engine)
 	D3DMATERIAL9 d3dMat;
 	engine.GetDriver().GetDevice()->GetMaterial(&d3dMat);
 
-	SetParam(_params[colorMat], glm::vec4(d3dMat.Diffuse));
-	SetParam(_params[specMat], glm::vec4(d3dMat.Specular));
+	SetParam(_params[colorMat], ColorVToVec4(d3dMat.Diffuse));
+	SetParam(_params[specMat], ColorVToVec4(d3dMat.Specular));
 	SetParam(_params[specPower], d3dMat.Power);
 	SetParam(_params[texDiffK], _texDiffK * engine.GetContext().GetTexDiffK());
 
@@ -181,7 +181,7 @@ bool LightShader::DoEndDraw(Engine& engine, bool nextPass)
 	//Нужен ли следующих проход
 	bool needNextPass = nextPass &&  lightCnt > _curLight;
 
-	engine.GetContext().SetRenderState(rsFogColor, _fogColor);
+	engine.GetContext().SetRenderState(rsFogColor, Vec4ToColor(_fogColor));
 
 	if (!needNextPass)
 	{

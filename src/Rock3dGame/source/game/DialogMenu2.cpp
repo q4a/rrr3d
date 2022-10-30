@@ -16,7 +16,7 @@ const int UserChat::cMaxLines = 50;
 
 AcceptDialog::AcceptDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _resultYes(false), _data(NULL), _guiEvent(NULL)
 {
-	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color1 = clrGrayAF;
 
 	StringValue strMenuItems[cMenuItemEnd] = {svNo, svYes};
 
@@ -200,8 +200,8 @@ Object* AcceptDialog::data() const
 
 WeaponDialog::WeaponDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 {
-	glm::vec4 color1(0xffafafaf);
-	glm::vec4 color2(0xFFFFFFFF);
+	glm::vec4 color1 = clrGrayAF;
+	glm::vec4 color2 = clrWhite;
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"VerySmall", "Small", "Small", "Small"};
@@ -269,8 +269,8 @@ void WeaponDialog::Hide()
 
 InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _data(NULL), _guiEvent(NULL)
 {
-	glm::vec4 color1(0xffafafaf);
-	glm::vec4 color2(0xffffffff);
+	glm::vec4 color1 = clrGrayAF;
+	glm::vec4 color2 = clrWhite;
 
 	StringValue strMenuItems[cMenuItemEnd] = {svOk};
 
@@ -382,8 +382,8 @@ Object* InfoDialog::data() const
 
 MusicDialog::MusicDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 {
-	glm::vec4 color1(0xffafafaf);
-	glm::vec4 color2(0xFFFFFFFF);
+	glm::vec4 color1 = clrGrayAF;
+	glm::vec4 color2 = clrWhite;
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"Small", "Item"};

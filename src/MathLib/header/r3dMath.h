@@ -216,6 +216,7 @@ const glm::vec4 clrGray50   (0.50f, 0.50f, 0.50f, 1.0f);
 const glm::vec4 clrGray55   (0.55f, 0.55f, 0.55f, 1.0f);
 const glm::vec4 clrGray60   (0.60f, 0.60f, 0.60f, 1.0f);
 const glm::vec4 clrGray65   (0.65f, 0.65f, 0.65f, 1.0f);
+const glm::vec4 clrGrayAF   (175.0f/255.0f, 175.0f/255.0f, 175.0f/255.0f, 1.0f); // AF = 175, 175/255 = 0,6862745
 const glm::vec4 clrGray70   (0.70f, 0.70f, 0.70f, 1.0f);
 const glm::vec4 clrGray75   (0.75f, 0.75f, 0.75f, 1.0f);
 const glm::vec4 clrGray80   (0.80f, 0.80f, 0.80f, 1.0f);

@@ -58,7 +58,7 @@ void BaseSceneNode::RenderBB(graph::Engine& engine, const AABB& aabb, const glm:
 {
 	using res::VertexPD;
 
-	D3DCOLOR linesColor = colorBB;
+	glm::vec4 linesColor = colorBB;
 
 	engine.GetContext().SetRenderState(graph::rsLighting, false);
 
@@ -1326,7 +1326,7 @@ void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj,
 
 	Frustum::Corners frustumV;
 	Frustum::CalculateCorners(frustumV, invViewProj);
-	D3DCOLOR linesColor = colorBB;
+	glm::vec4 linesColor = colorBB;
 
 	VertexPD lines[24];
 	lines[0] = VertexPD(frustumV[0], linesColor);

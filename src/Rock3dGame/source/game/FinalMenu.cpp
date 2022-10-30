@@ -38,11 +38,13 @@ void FinalMenu::AddLineBox(const lsl::string& caption, const lsl::string& text)
 {
 	LineBox line;
 
-	line.caption = menu()->CreateLabel(caption, _linesRoot, "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop, 0xFFDC0000);
+	line.caption = menu()->CreateLabel(caption, _linesRoot, "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop,
+	                                   glm::vec4(220.0f/255.0f, 0.0f, 0.0f, 1.0f)); // 0xFFDC0000
 	line.caption->SetAlign(gui::Widget::waTop);
 	line.caption->SetWordWrap(true);
 
-	line.text = menu()->CreateLabel(text, line.caption, "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop, 0xFFFFD6CD);
+	line.text = menu()->CreateLabel(text, line.caption, "Small", NullVec2, gui::Text::haCenter, gui::Text::vaTop,
+	                                glm::vec4(1.0f, 214.0f/255.0f, 205.0f/255.0f, 1.0f)); // 0xFFFFD6CD
 	line.text->SetAlign(gui::Widget::waTop);
 	line.text->SetWordWrap(true);
 
@@ -187,7 +189,7 @@ void FinalMenu::OnProgress(float deltaTime)
 
 /*FinalMenu::FinalMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _scrollTime(0)
 {
-	glm::vec4 color1(0xffafafaf);
+	glm::vec4 color1 = clrGrayAF;
 
 	StringValue strMenuItems[cMenuItemEnd] = {svOk};
 

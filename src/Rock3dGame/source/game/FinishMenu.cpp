@@ -14,9 +14,9 @@ namespace n
 
 FinishMenu::FinishMenu(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _time(-1.0f), _playerCount(0)
 {
-	glm::vec4 color1(0xffe9a73f);
-	glm::vec4 color2(0xffe1e1e1);
-	glm::vec4 color3(0xff84bc43);
+	glm::vec4 color1 = glm::vec4(233.0f/255.0f, 167.0f/255.0f,  63.0f/255.0f, 1.0f); // 0xffe9a73f
+	glm::vec4 color2 = glm::vec4(225.0f/255.0f, 225.0f/255.0f, 225.0f/255.0f, 1.0f); // 0xffe1e1e1
+	glm::vec4 color3 = glm::vec4(132.0f/255.0f, 188.0f/255.0f,  67.0f/255.0f, 1.0f); // 0xff84bc43
 
 	StringValue strLabels[cLabelEnd] = {svNull, svPrice, svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"Header", "Header", "Header", "Header"};

@@ -42,10 +42,10 @@ struct VertexPD
 	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_DIFFUSE;
 
 	glm::vec3 pos;
-	D3DCOLOR diffuse;
+	glm::vec4 diffuse;
 
 	VertexPD();
-	VertexPD(glm::vec3 position, D3DCOLOR diffuseColor);
+	VertexPD(glm::vec3 position, glm::vec4 diffuseColor);
 };
 
 struct VertexPN
@@ -168,7 +168,7 @@ struct VertexIter
 	const glm::vec3* Pos3() const;
 	glm::vec3* Pos3();
 	glm::vec4* Pos4();
-	D3DCOLOR* Color();
+	glm::vec4* Color();
 	glm::vec2* Tex0();
 	glm::vec2* Tex1();
 	glm::vec3* Normal();

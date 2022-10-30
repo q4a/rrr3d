@@ -93,7 +93,7 @@ public:
 	//¬озвращает false если нужен ещЄ один проход, при этом BeginDraw повторно не вызываетс€. ≈сли ожидаетс€(или возможен, разрешен) следующий проход то в арг. nextPass следует передывать true
 	bool EndDraw(bool nextPass);
 
-	void BeginBackBufOut(DWORD clearFlags, D3DCOLOR color);
+	void BeginBackBufOut(DWORD clearFlags, glm::vec4 color);
 	void EndBackBufOut();
 	IDirect3DSurface9* GetDSSurf();
 

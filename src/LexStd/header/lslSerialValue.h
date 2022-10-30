@@ -79,20 +79,6 @@ template<> struct SerialValue<glm::quat>
 	}
 };
 
-template<> struct SerialValue<glm::vec4>
-{
-	typedef glm::vec4 _Value;
-
-	static void Write(SWriter* writer, const char* name, const _Value& value)
-	{
-		writer->WriteValue(name, value, 4);
-	}
-	static SReader* Read(SReader* reader, const char* name, _Value& value)
-	{
-		return reader->ReadValue(name, value, 4);
-	}
-};
-
 template<> struct SerialValue<Point2U>
 {
 	typedef Point2U _Value;

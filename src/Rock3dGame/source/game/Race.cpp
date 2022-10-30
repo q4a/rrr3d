@@ -6981,7 +6981,16 @@ void Race::OnLateProgress(float deltaTime, bool pxStep)
 
 Player* Race::AddPlayer(int plrId)
 {
-	const glm::vec4 color[cMaxPlayers] = {glm::vec4(0xFF5B29A5), glm::vec4(0xFF9E9E9E), glm::vec4(0xFFFF80C0), glm::vec4(0xFF83F7CC), glm::vec4(0xFF83E500), glm::vec4(0xFFD8E585), glm::vec4(0xFF6100B9), glm::vec4(0xFF006CA4)};
+	const glm::vec4 color[cMaxPlayers] = {
+		glm::vec4( 91.0f/255.0f,  41.0f/255.0f, 165.0f/255.0f, 1.0f), // 0xFF5B29A5
+		glm::vec4(158.0f/255.0f, 158.0f/255.0f, 158.0f/255.0f, 1.0f), // 0xFF9E9E9E
+		glm::vec4(         1.0f, 128.0f/255.0f, 192.0f/255.0f, 1.0f), // 0xFFFF80C0
+		glm::vec4(131.0f/255.0f, 247.0f/255.0f, 204.0f/255.0f, 1.0f), // 0xFF83F7CC
+		glm::vec4(131.0f/255.0f, 229.0f/255.0f,          0.0f, 1.0f), // 0xFF83E500
+		glm::vec4(216.0f/255.0f, 229.0f/255.0f, 133.0f/255.0f, 1.0f), // 0xFFD8E585
+		glm::vec4( 97.0f/255.0f,          0.0f, 185.0f/255.0f, 1.0f), // 0xFF6100B9
+		glm::vec4(         0.0f, 108.0f/255.0f, 164.0f/255.0f, 1.0f)  // 0xFF006CA4
+	};
 
 	Player* player = new Player(this);
 	player->AddRef();

@@ -351,10 +351,7 @@ glm::quat Menu::GetIsoRot()
 	glm::quat rotY = glm::angleAxis(0.0f, YVector);
 	glm::quat rotX = glm::angleAxis(-D3DX_PI / 3.0f, XVector);
 
-	//return rotZ * rotY * rotX;
 	return rotX * rotY * rotZ;
-	//return rotX * (rotY * rotZ);
-	//return (rotY * rotZ) * rotX;
 }
 
 void Menu::SetScreenFon(bool init)
@@ -1691,8 +1688,8 @@ gui::Button* Menu::CreateMenuButton(StringValue name, gui::Widget* parent, gui::
 
 gui::Button* Menu::CreateMenuButton2(StringValue name, gui::Widget* parent, gui::Widget::Event* guiEvent)
 {
-	gui::Button* button = CreateMenuButton(name, "Item", "GUI\\buttonBg5.png", "", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim, glm::vec4(0xffafafaf), Menu::ssButton1);
-	button->GetOrCreateTextSelMaterial()->SetColor(glm::vec4(0xffeb733e));
+	gui::Button* button = CreateMenuButton(name, "Item", "GUI\\buttonBg5.png", "", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim, clrGrayAF, Menu::ssButton1);
+	button->GetOrCreateTextSelMaterial()->SetColor(glm::vec4(235.0f/255.0f, 115.0f/255.0f, 62.0f/255.0f, 1.0f)); // 0xffeb733e
 
 	return button;
 }
@@ -1935,7 +1932,7 @@ gui::StepperBox* Menu::CreateStepper(const StringList& items, gui::Widget* paren
 	stepper->GetOrCreateArrowSel()->SetBlending(gui::Material::bmTransparency);
 
 	stepper->SetFont(GetFont("Small"));
-	stepper->GetOrCreateText()->SetColor(glm::vec4(0xffafafaf));
+	stepper->GetOrCreateText()->SetColor(clrGrayAF);
 
 	stepper->SetSize(240.0f, 45.0f);
 

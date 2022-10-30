@@ -315,9 +315,9 @@ void Environment::ApplyWheater()
 
 	case ewNight:
 	{
-		glm::vec4 fogColor = glm::vec4(15.0f, 25.0f, 31.0f, 255.0f)/255.0f;
+		glm::vec4 fogColor = glm::vec4(15.0f/255.0f, 25.0f/255.0f, 31.0f/255.0f, 1.0f);
 
-		GetGraph()->SetSceneAmbient(glm::vec4(0xFF8A90AE));
+		GetGraph()->SetSceneAmbient(glm::vec4(138.0f/255.0f, 144.0f/255.0f, 174.0f/255.0f, 1.0f)); // 0xFF8A90AE
 		GetGraph()->SetFogColor(fogColor);
 		GetGraph()->SetFogIntensivity(1.0f);
 		GetGraph()->SetSkyTex("Data\\Misc\\nightSky.dds");
@@ -336,7 +336,7 @@ void Environment::ApplyWheater()
 
 	case ewClody:
 	{
-		glm::vec4 fogColor = 0x00C0BDB8;
+		glm::vec4 fogColor = glm::vec4(192.0f/255.0f, 189.0f/255.0f, 184.0f/255.0f, 0.0f); // 0x00C0BDB8;
 
 		GetGraph()->SetSkyTex("Data\\World2\\Texture\\skyTex1.dds");
 		GetGraph()->SetSceneAmbient(clrBlack);
@@ -357,7 +357,7 @@ void Environment::ApplyWheater()
 
 	case ewRainy:
 	{
-		glm::vec4 fogColor = 0x00C0BDB8;
+		glm::vec4 fogColor = glm::vec4(192.0f/255.0f, 189.0f/255.0f, 184.0f/255.0f, 0.0f); // 0x00C0BDB8;
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
@@ -420,7 +420,7 @@ void Environment::ApplyWheater()
 
 	case ewSnow:
 	{
-		glm::vec4 fogColor = glm::vec4(0xFF9CA6B5);
+		glm::vec4 fogColor = glm::vec4(156.0f/255.0f, 166.0f/255.0f, 181.0f/255.0f, 1.0f); // 0xFF9CA6B5
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
