@@ -10,7 +10,7 @@ namespace graph
 
 ReflRender::ReflRender()
 {
-	SetReflPlane(D3DXPLANE(0.0f, 0.0f, 1.0f, 0.0f));
+	SetReflPlane(glm::vec4(0.0f, 0.0f, 1.0f, 0.0f));
 }
 
 void ReflRender::BeginRT(Engine& engine, const RtFlags& flags)
@@ -55,12 +55,12 @@ void ReflRender::EndRT(Engine& engine)
 	engine.GetContext().UnApplyCamera(&_reflCamera);
 }
 
-const D3DXPLANE& ReflRender::GetReflPlane() const
+const glm::vec4& ReflRender::GetReflPlane() const
 {
 	return _reflPlane;
 }
 
-void ReflRender::SetReflPlane(const D3DXPLANE& value)
+void ReflRender::SetReflPlane(const glm::vec4& value)
 {
 	_reflPlane = value;
 	D3DXMatrixReflect(&_reflMat, &_reflPlane);

@@ -1483,7 +1483,7 @@ void GraphManager::RemoveActor(graph::Actor* value)
 	_actorManager->RemoveActor(value);
 }
 
-bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, float& outT)
+bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec4& plane, float& outT)
 {
 	const float EPSILON = 1.0e-10f;
 
@@ -1496,7 +1496,7 @@ bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, con
 	return false;
 }
 
-unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, glm::vec3 points[])
+unsigned PlaneBBIntersect(const BoundBox& bb, const glm::vec4& plane, glm::vec3 points[])
 {
 	//конечные вершины ребер для каждого вертекса
 	const int lines[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
@@ -1525,7 +1525,7 @@ unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, glm::vec3 
 	return res;
 }
 
-unsigned PlaneAABBIntersect(const AABB& aabb, const D3DXPLANE& plane, glm::vec3 points[])
+unsigned PlaneAABBIntersect(const AABB& aabb, const glm::vec4& plane, glm::vec3 points[])
 {
 	BoundBox bb(aabb);
 
@@ -1536,7 +1536,7 @@ bool ComputeZBounds(graph::Engine& engine, const graph::CameraCI& camera, const 
 {
 	bool res = false;
 
-	D3DXPLANE posNearPlane;
+	glm::vec4 posNearPlane;
 	D3DXPlaneFromPointNormal(&posNearPlane, &Vec3GlmToDx(camera.GetDesc().pos), &Vec3GlmToDx(camera.GetDesc().dir));
 
 	glm::vec3 rayVec[4] = {glm::vec3(-1.0f, -1.0f, 1.0f), glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(-1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f)};
@@ -1792,7 +1792,7 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 		ActorList tracks;
 		_actorManager->Culling(osColorPlanarRefl, &camera, tracks);
 
-		typedef std::list<D3DXPLANE> Planes;
+		typedef std::list<glm::vec4> Planes;
 		Planes planes;
 
 		for (ActorList::const_iterator iter = tracks.begin(); iter != tracks.end(); ++iter)
@@ -1806,7 +1806,7 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 			actor->LocalToWorldNorm(norm, norm);
 			glm::vec3 pos = actor->GetWorldPos();
 
-			D3DXPLANE plane;
+			glm::vec4 plane;
 			D3DXPlaneFromPointNormal(&plane, &(pos + norm * height), &norm);
 
 			_planarReflRender->SetReflPlane(plane);

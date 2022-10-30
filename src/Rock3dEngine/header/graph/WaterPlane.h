@@ -15,9 +15,9 @@ class ReflRender: public GraphObjRender<Tex2DResource>
 private:
 	typedef GraphObjRender<Tex2DResource> _MyBase;
 public:
-	typedef std::vector<D3DXPLANE> ClipPlanes;
+	typedef std::vector<glm::vec4> ClipPlanes;
 private:
-	D3DXPLANE _reflPlane;
+	glm::vec4 _reflPlane;
 	ClipPlanes _clipPlanes;
 
 	D3DXMATRIX _reflMat;
@@ -28,8 +28,8 @@ public:
 	virtual void BeginRT(Engine& engine, const RtFlags& flags);
 	virtual void EndRT(Engine& engine);
 
-	const D3DXPLANE& GetReflPlane() const;
-	void SetReflPlane(const D3DXPLANE& value);
+	const glm::vec4& GetReflPlane() const;
+	void SetReflPlane(const glm::vec4& value);
 
 	const ClipPlanes& GetClipPlanes() const;
 	void SetClipPlanes(const ClipPlanes& value);

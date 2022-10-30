@@ -80,7 +80,7 @@ struct AABB
 
 	void FromPoints(const glm::vec3& pnt1, const glm::vec3& pnt2);
 	void FromDimensions(const glm::vec3& dimensions);
-	void FromPlaneAndScale(const D3DXPLANE& plane, const glm::vec3& vec);
+	void FromPlaneAndScale(const glm::vec4& plane, const glm::vec3& vec);
 	void Transform(const D3DXMATRIX& m);
 	void Offset(const glm::vec3& vec);
 	void Add(const AABB& aabb);
@@ -119,7 +119,7 @@ struct AABB
 	float GetDiameter() const;
 	float GetRadius() const;
 	glm::vec3 GetVertex(unsigned index) const;
-	D3DXPLANE GetPlane(unsigned index) const;
+	glm::vec4 GetPlane(unsigned index) const;
 	//vertex[0] - min
 	//vertex[1] - max
 	glm::vec3 GetPlaneVert(unsigned index, unsigned vertex) const;
@@ -180,25 +180,25 @@ struct Frustum
 	{
 		struct
 		{
-			D3DXPLANE left;
-			D3DXPLANE top;
-			D3DXPLANE right;
-			D3DXPLANE bottom;
-			D3DXPLANE pNear;
-			D3DXPLANE pFar;
+			glm::vec4 left;
+			glm::vec4 top;
+			glm::vec4 right;
+			glm::vec4 bottom;
+			glm::vec4 pNear;
+			glm::vec4 pFar;
 		};
 		struct
 		{
-			D3DXPLANE planes[6];
+			glm::vec4 planes[6];
 		};
 	};
 };
 
 //error - ошибка проникновения, т.е. совпадающие координаты или координаты остающие на величину ошибки считаются нестабильными поэтому луч также проходит черех них даже если они сзади на величину error
-bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, float& outT);
-bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, glm::vec3& outVec);
+bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec4& plane, float& outT);
+bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec4& plane, glm::vec3& outVec);
 //Погрешность 10%
-bool RayCastIntersectSquare(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec3& min, const glm::vec3& max, const D3DXPLANE& plane, float* outT, glm::vec3* outVec, const float error = 0);
+bool RayCastIntersectSquare(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec3& min, const glm::vec3& max, const glm::vec4& plane, float* outT, glm::vec3* outVec, const float error = 0);
 void GetSampleOffsetsDownScale3x3(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[9]);
 void GetSampleOffsetsDownScale4x4(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOffsets[16]);
 
@@ -229,9 +229,9 @@ const glm::vec4 clrGreen    (0.0f,  1.0f,  0.0f,  1.0f);
 const glm::vec4 clrBlue     (0.0f,  0.0f,  1.0f,  1.0f);
 const glm::vec4 clrYellow   (1.0f,  1.0f,  0.0f,  1.0f);
 
-const D3DXPLANE        XPlane (1.0f, 0.0f, 0.0f, 0.0f);
-const D3DXPLANE        YPlane (0.0f, 1.0f, 0.0f, 0.0f);
-const D3DXPLANE        ZPlane (0.0f, 0.0f, 1.0f, 0.0f);
+const glm::vec4        XPlane (1.0f, 0.0f, 0.0f, 0.0f);
+const glm::vec4        YPlane (0.0f, 1.0f, 0.0f, 0.0f);
+const glm::vec4        ZPlane (0.0f, 0.0f, 1.0f, 0.0f);
 const AABB             NullAABB(0);
 
 //}

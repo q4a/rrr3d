@@ -207,7 +207,7 @@ Intersect FrustumAABBIntersect(const Frustum& frustum, bool incZ, const AABB& aa
 	return ret;
 }
 
-bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, float& outT)
+bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec4& plane, float& outT)
 {
 	const float EPSILON = 1.0e-10f;
 
@@ -220,7 +220,7 @@ bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, con
 	return false;
 }
 
-unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, glm::vec3 points[])
+unsigned PlaneBBIntersect(const BoundBox& bb, const glm::vec4& plane, glm::vec3 points[])
 {
 	//конечные вершины ребер для каждого вертекса
 	const int lines[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
@@ -249,7 +249,7 @@ unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, glm::vec3 
 	return res;
 }
 
-unsigned PlaneAABBIntersect(const AABB& aabb, const D3DXPLANE& plane, glm::vec3 points[])
+unsigned PlaneAABBIntersect(const AABB& aabb, const glm::vec4& plane, glm::vec3 points[])
 {
 	BoundBox bb(aabb);
 
@@ -259,7 +259,7 @@ unsigned PlaneAABBIntersect(const AABB& aabb, const D3DXPLANE& plane, glm::vec3 
 bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 {
 	bool res = false;
-	D3DXPLANE posNearPlane;
+	glm::vec4 posNearPlane;
 	D3DXPlaneFromPointNormal(&posNearPlane, &Vec3GlmToDx(_desc.pos),  &Vec3GlmToDx(_desc.dir));
 
 	BoundBox box(aabb);
@@ -308,7 +308,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	}
 
 	//поиск пересечений aabb с фрустумом
-	/*D3DXPLANE nearPlane;
+	/*glm::vec4 nearPlane;
 	D3DXPlaneFromPointNormal(&nearPlane, &NullVector, &ZVector);
 	glm::vec3 points[4];
 	unsigned numPoints = PlaneBBIntersect(projBox, nearPlane, points);

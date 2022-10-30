@@ -657,7 +657,7 @@ void Proj::MasloContact(const px::Scene::OnContactEvent& contact)
 		if (car == NULL || _time1 >= 0 || car->IsMineLocked())
 			return;
 
-		D3DXPLANE plane;
+		glm::vec4 plane;
 		D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(car->GetGrActor().GetWorldPos()), &Vec3GlmToDx(car->GetGrActor().GetWorldRight()));
 		float dist = PlaneDistToPoint(plane, GetWorldPos());
 
@@ -1189,7 +1189,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 		float angle = velNorm.dot(norm);
 		if (abs(angle) > 0.1f)
 		{
-			D3DXPLANE plane;
+			glm::vec4 plane;
 			D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(NullVector), &Vec3GlmToDx(glm::make_vec3(norm.get())));
 			D3DXMATRIX mat;
 			D3DXMatrixReflect(&mat, &plane);

@@ -323,7 +323,7 @@ glm::vec2 WayNode::Tile::ComputeTrackNormOff(const glm::vec2& point, unsigned tr
 	return _norm * trackOff;
 }
 
-void PlaneFromDirVec(const glm::vec3& dir, const glm::vec3& norm, const glm::vec3& pos, D3DXPLANE& plane)
+void PlaneFromDirVec(const glm::vec3& dir, const glm::vec3& norm, const glm::vec3& pos, glm::vec4& plane)
 {
 	glm::vec3 right, up;
 	right = glm::cross(dir, norm);
@@ -336,7 +336,7 @@ bool WayNode::Tile::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, fl
 	glm::vec3 dir = GetNextPos() - GetPos();
 	dir = glm::normalize(dir);
 
-	D3DXPLANE plane;
+	glm::vec4 plane;
 	//”словие неколлинеарности векторов
 	if (glm::dot(dir, rayVec) > 0.001f)
 		//плоскость перепендикул€рно лучу в центре цилиндра тайла

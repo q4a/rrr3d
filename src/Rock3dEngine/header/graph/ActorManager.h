@@ -48,7 +48,7 @@ public:
 	struct Planar
 	{
 		unsigned id;
-		D3DXPLANE plane;
+		glm::vec4 plane;
 		//ActorList actors;
 	};
 

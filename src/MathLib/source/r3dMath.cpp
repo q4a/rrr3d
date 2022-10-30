@@ -548,9 +548,9 @@ glm::vec3 AABB::GetVertex(unsigned index) const
 	}
 }
 
-D3DXPLANE AABB::GetPlane(unsigned index) const
+glm::vec4 AABB::GetPlane(unsigned index) const
 {
-	D3DXPLANE res;
+	glm::vec4 res;
 	switch (index)
 	{
 	case cLeftPlane:
@@ -583,7 +583,7 @@ D3DXPLANE AABB::GetPlane(unsigned index) const
 
 glm::vec3 AABB::GetPlaneVert(unsigned index, unsigned vertex) const
 {
-	/*D3DXPLANE plane = GetPlane(index);
+	/*glm::vec4 plane = GetPlane(index);
 	glm::vec3 norm(plane);
 	glm::vec3 invNorm = IdentityVector - glm::vec3(abs(norm.x), abs(norm.y), abs(norm.z));
 
@@ -752,7 +752,7 @@ void Frustum::Refresh(const D3DXMATRIX& viewProjMat)
 
 Frustum::SpaceContains Frustum::ContainsAABB(const AABB& aabb) const
 {
-	typedef D3DXPLANE PlaneArray[6];
+	typedef glm::vec4 PlaneArray[6];
 
 	AABB::Corners corners;
 	aabb.ExtractCorners(corners);
@@ -790,7 +790,7 @@ Frustum::SpaceContains Frustum::ContainsAABB(const AABB& aabb) const
 		return scContainsPartially;
 }
 
-bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, float& outT)
+bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec4& plane, float& outT)
 {
 	const float EPSILON = 1.0e-10f;
 
@@ -803,7 +803,7 @@ bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, c
 	return false;
 }
 
-bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const D3DXPLANE& plane, glm::vec3& outVec)
+bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec4& plane, glm::vec3& outVec)
 {
 	float t;
 	bool res = RayCastIntersectPlane(rayStart, rayVec, plane, t);
@@ -812,7 +812,7 @@ bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, c
 	return res;
 }
 
-bool RayCastIntersectSquare(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec3& min, const glm::vec3& max, const D3DXPLANE& plane, float* outT, glm::vec3* outVec, const float error)
+bool RayCastIntersectSquare(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec3& min, const glm::vec3& max, const glm::vec4& plane, float* outT, glm::vec3* outVec, const float error)
 {
 	const float Arad45 = 0.707106781f;
 

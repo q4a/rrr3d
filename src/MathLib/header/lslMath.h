@@ -76,7 +76,7 @@ void Line2NormVecToPoint(const glm::vec3& line, const glm::vec2& point, glm::vec
 glm::vec2 Line2NormVecToPoint(const glm::vec3& line, const glm::vec2& point);
 
 bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& rayVec, const glm::vec3& spherePos, float sphereRadius, float* t = 0);
-float PlaneDistToPoint(const D3DXPLANE& plane, const glm::vec3& point);
+float PlaneDistToPoint(const glm::vec4& plane, const glm::vec3& point);
 
 const float floatErrComp = 0.00001f;
 const D3DXMATRIX     IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,

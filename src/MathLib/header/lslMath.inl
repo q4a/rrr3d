@@ -109,7 +109,7 @@ inline glm::vec4 ColorVToVec4(const D3DCOLORVALUE &cv)
 	return v4glm;
 }
 
-inline glm::vec4 PlaneToVec4Glm(const D3DXPLANE pl)
+inline glm::vec4 PlaneToVec4Glm(const glm::vec4 pl)
 {
 	glm::vec4 v4(pl.a, pl.b, pl.c, pl.d);
 	return v4;
@@ -664,7 +664,7 @@ inline bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& ray
 	return tRay > 0;
 }
 
-inline float PlaneDistToPoint(const D3DXPLANE& plane, const glm::vec3& point)
+inline float PlaneDistToPoint(const glm::vec4& plane, const glm::vec3& point)
 {
 	return D3DXPlaneDotCoord(&plane, &Vec3GlmToDx(point));
 };

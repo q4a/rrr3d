@@ -1076,7 +1076,7 @@ MovCoordSys::~MovCoordSys()
 
 MovCoordSys::DirMove MovCoordSys::CompDirMove(const glm::vec3& rayStart, const glm::vec3& rayVec)
 {
-	const D3DXPLANE planes[3] = {XPlane, YPlane, ZPlane};
+	const glm::vec4 planes[3] = {XPlane, YPlane, ZPlane};
 	const glm::vec3 coordOff[3] = {XVector / 2.0f, YVector / 2.0f, ZVector / 2.0f};
 	const DirMove moves[3] = {dmYZ, dmXZ, dmXY};
 
@@ -1261,7 +1261,7 @@ ScaleCoordSys::DirMove ScaleCoordSys::CompDirMove(const glm::vec3& rayStart, con
 	glm::vec3 plLine[3];
 	for (int i = 0; i < 3; ++i)
 		plLine[i] = bbPlanes[i] * plSize;
-	D3DXPLANE upPlane;
+	glm::vec4 upPlane;
 	D3DXPlaneFromPoints(&upPlane, &Vec3GlmToDx(plLine[0]), &Vec3GlmToDx(plLine[1]), &Vec3GlmToDx(plLine[2]));
 	//
 	glm::vec3 maxVec = NullVector;
