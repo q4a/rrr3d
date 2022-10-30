@@ -88,7 +88,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 	//Послдений проход
 	bool lastPass = _curLight >= lightCnt - 1;
 	//
-	_fogColor = glm::vec4(engine.GetContext().GetRenderState(rsFogColor));
+	_fogColor = ColorToVec4(engine.GetContext().GetRenderState(rsFogColor));
 	engine.GetContext().SetRenderState(rsFogColor, Vec4ToColor(_fogColor / static_cast<float>(lightCnt)));
 
 	const LightCI& light = engine.GetContext().GetLight(_curLight);
@@ -124,7 +124,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 	}
 
 	SetParam(_params[numLights], static_cast<float>(lightCnt));
-	SetParam(_params[glAmbient], glm::vec4(engine.GetContext().GetRenderState(rsAmbient)));
+	SetParam(_params[glAmbient], ColorToVec4(engine.GetContext().GetRenderState(rsAmbient)));
 
 	SetParam(_params[ambLight], light.GetDesc().ambient);
 	SetParam(_params[diffLight], light.GetDesc().diffuse);
@@ -165,7 +165,7 @@ void LightShader::DoBeginDraw(Engine& engine)
 		dwVal = engine.GetContext().GetRenderState(rsFogEnd);
 		fogParamsVec.y = *(float*)(&dwVal);
 
-		glm::vec4 fogColorVec = glm::vec4(engine.GetContext().GetRenderState(rsFogColor));
+		glm::vec4 fogColorVec = ColorToVec4(engine.GetContext().GetRenderState(rsFogColor));
 		SetParam(_params[fogColor], fogColorVec);
 	}
 
@@ -228,7 +228,7 @@ void ReflMappShader::DoBeginDraw(Engine& engine)
 	_MyBase::DoBeginDraw(engine);
 
 	SetParam(_params[reflectivity], _reflectivity);
-	SetParam(_params[alphaBlendColor], glm::vec4(engine.GetContext().GetTextureStageState(0, tssConstant)));
+	SetParam(_params[alphaBlendColor], ColorToVec4(engine.GetContext().GetTextureStageState(0, tssConstant)));
 
 	if (GetReflTex())
 		SetTexParam(_params[envTex], GetReflTex()->GetTex());
@@ -264,7 +264,7 @@ void ReflBumbMappShader::DoBeginDraw(Engine& engine)
 	_MyBase::DoBeginDraw(engine);
 
 	SetParam(_params[reflectivity], 0.4f);
-	SetParam(_params[alphaBlendColor], glm::vec4(engine.GetContext().GetTextureStageState(0, tssConstant)));
+	SetParam(_params[alphaBlendColor], ColorToVec4(engine.GetContext().GetTextureStageState(0, tssConstant)));
 
 	if (GetReflTex())
 		SetTexParam(_params[envTex], GetReflTex()->GetTex());

@@ -53,7 +53,7 @@ void FogPlane::DoRender(graph::Engine& engine)
 		dwVal = engine.GetContext().GetRenderState(rsFogEnd);
 		fogParamsVec.y = *(float*)(&dwVal);
 
-		glm::vec4 fogColorVec = glm::vec4(engine.GetContext().GetRenderState(rsFogColor));
+		glm::vec4 fogColorVec = ColorToVec4(engine.GetContext().GetRenderState(rsFogColor));
 		shader.SetValueDir("fogColor", fogColorVec);
 	}
 	shader.SetValueDir("fogParams", fogParamsVec);
