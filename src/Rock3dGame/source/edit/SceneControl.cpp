@@ -175,11 +175,11 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				}
 
 				//
-				float angleZ = offCoord.x / 400.0f * 2 * D3DX_PI;
-				angleZ = ceil(angleZ / (D3DX_PI/12.0f)) * (D3DX_PI/12.0f);
+				float angleZ = offCoord.x / 400.0f * 2 * glm::pi<float>();
+				angleZ = ceil(angleZ / (glm::pi<float>()/12.0f)) * (glm::pi<float>()/12.0f);
 				//
-				float angleY = -offCoord.y  / 400.0f * 2 * D3DX_PI;
-				angleY = ceil(angleY / (D3DX_PI/12.0f)) * (D3DX_PI/12.0f);
+				float angleY = -offCoord.y  / 400.0f * 2 * glm::pi<float>();
+				angleY = ceil(angleY / (glm::pi<float>()/12.0f)) * (glm::pi<float>()/12.0f);
 
 				glm::quat rotZ = glm::angleAxis(angleZ, ZVector);
 				glm::quat rotY = glm::angleAxis(angleY, _owner->_edit->GetWorld()->GetCamera()->GetRight());

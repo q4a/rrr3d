@@ -156,7 +156,9 @@ void CClassView::SelectItem(const glm::vec3& mapObjPos)
 			}
 			if (_autoRot)
 			{
-				glm::quat rot = glm::quat(glm::vec3(D3DX_PI/12 * RandomRange(-1.0f, 1.0f), D3DX_PI/12 * RandomRange(-1.0f, 1.0f), D3DX_PI/12 * RandomRange(-1.0f, 1.0f)));
+				glm::quat rot = glm::quat(glm::vec3(glm::pi<float>() / 12 * RandomRange(-1.0f, 1.0f),
+				                                    glm::pi<float>() / 12 * RandomRange(-1.0f, 1.0f),
+				                                    glm::pi<float>() / 12 * RandomRange(-1.0f, 1.0f)));
 				_newMapObj->SetRot(rot);
 			}
 

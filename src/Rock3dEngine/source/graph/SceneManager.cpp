@@ -510,7 +510,7 @@ void BaseSceneNode::MoveAroundTarget(const glm::vec3& worldTarget, float pitchDe
 	// calculate the current pitch.
 	// 0 is looking down and PI is looking up
 	float pitchNow = acos(glm::dot(worldUp, normalT2C));
-	pitchNow = lsl::ClampValue(pitchNow + pitchDelta, 0 + 0.025f, D3DX_PI - 0.025f);
+	pitchNow = lsl::ClampValue(pitchNow + pitchDelta, 0 + 0.025f, glm::pi<float>() - 0.025f);
 	// create a new vector pointing up and then rotate it down
 	// into the new position
 	D3DXMATRIX pitchMat;

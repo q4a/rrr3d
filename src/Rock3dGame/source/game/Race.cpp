@@ -1455,7 +1455,7 @@ void Workshop::LoadWeapons()
 			projDesc.mass = 100.0f;
 			projDesc.damage = 60.0f/4;
 			projDesc.minTimeLife = 4.0f;
-			projDesc.angleSpeed = 4.0f * D3DX_PI;
+			projDesc.angleSpeed = 4.0f * glm::pi<float>();
 
 			desc.projList.push_back(projDesc);
 			desc.shotDelay = 4.0f;
@@ -1492,7 +1492,7 @@ void Workshop::LoadWeapons()
 			projDesc.modelSize = false;
 			projDesc.speed = 30.0f;
 			projDesc.speedRelativeMin = 20;
-			projDesc.angleSpeed = D3DX_PI * 4.0f;
+			projDesc.angleSpeed = glm::pi<float>() * 4.0f;
 			projDesc.maxDist = 150.0f;
 			projDesc.mass = 100.0f;
 			projDesc.damage = 15.0f;
@@ -1531,7 +1531,7 @@ void Workshop::LoadWeapons()
 			projDesc.modelSize = true;
 			projDesc.speed = 30.0f;
 			projDesc.speedRelativeMin = 20;
-			projDesc.angleSpeed = D3DX_PI;
+			projDesc.angleSpeed = glm::pi<float>();
 			projDesc.maxDist = 300.0f;
 			projDesc.mass = 300.0f;
 			projDesc.damage = 40.0f;
@@ -1608,7 +1608,7 @@ void Workshop::LoadWeapons()
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "frostHit"));
 			projDesc.SetModel2(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "frost"));
 			projDesc.pos = glm::vec3(0.7f, 0.0f, 0.3f);
-			projDesc.rot = glm::angleAxis(D3DX_PI / 24.0f, YVector);
+			projDesc.rot = glm::angleAxis(glm::pi<float>() / 24.0f, YVector);
 			projDesc.size = glm::vec3(0.5f, 0.5f, 0.0f);
 			projDesc.maxDist = 100.0f;
 			projDesc.damage = 19.0f/0.5f;
@@ -2548,7 +2548,7 @@ void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, c
 			if (hyperDrive)
 			{
 				place.show = true;
-				glm::quat rot = glm::angleAxis(D3DX_PI, ZVector);
+				glm::quat rot = glm::angleAxis(glm::pi<float>(), ZVector);
 				place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperdrive"), rot, *hyperDrive));
 			}
 			if (!place.items.empty())
@@ -2721,13 +2721,13 @@ void Garage::LoadCars()
 			place.pos = glm::vec3(0.0f, 1.0f, 0.3f);
 			glm::vec3 offset;
 
-			glm::quat rot = glm::angleAxis(-D3DX_PI / 3.0f, XVector);
+			glm::quat rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 3.0f, XVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI, XVector);
+			rot = glm::angleAxis(-glm::pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
 			offset = glm::vec3(1.25f, -0.3f, 0.05f);
@@ -2742,10 +2742,10 @@ void Garage::LoadCars()
 			place.pos = glm::vec3(0.0f, -1.0f, 0.3f);
 			glm::vec3 offset;
 
-			glm::quat rot = glm::angleAxis(D3DX_PI / 3.0f, XVector);
+			glm::quat rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			rot = glm::angleAxis(D3DX_PI / 3.0f, XVector);
+			rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
@@ -2798,13 +2798,13 @@ void Garage::LoadCars()
 			place.pos = glm::vec3(0.0f, 1.4f, 0.0f);
 			glm::vec3 offset;
 
-			glm::quat rot = glm::angleAxis(-D3DX_PI / 2.0f, XVector);
+			glm::quat rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI, XVector);
+			rot = glm::angleAxis(-glm::pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
 			offset = glm::vec3(0.85f, -0.8f, 0.0f);
@@ -2812,17 +2812,17 @@ void Garage::LoadCars()
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			rot = glm::angleAxis(-D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 24.0f, YVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
 			offset = glm::vec3(0.85f, -0.6f, 0.0f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot, offset));
 
-			rot = glm::angleAxis(-D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon2, place);
@@ -2834,10 +2834,10 @@ void Garage::LoadCars()
 			place.pos = glm::vec3(0.0f, -1.4f, 0.0f);
 			glm::vec3 offset;
 
-			glm::quat rot = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+			glm::quat rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			rot = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
@@ -2847,17 +2847,17 @@ void Garage::LoadCars()
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			rot = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			rot = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 24.0f, YVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
 			offset = glm::vec3(0.85f, 0.6f, 0.0f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot, offset));
 
-			rot = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon3, place);
@@ -2903,13 +2903,13 @@ void Garage::LoadCars()
 			place.pos = glm::vec3(0.2f, 0.6f, 0.25f);
 			glm::vec3 offset;
 
-			glm::quat rot = glm::angleAxis(-D3DX_PI / 3.0f, XVector);
+			glm::quat rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 3.0f, XVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI, XVector);
+			rot = glm::angleAxis(-glm::pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
 			//offset = glm::vec3(1.2f, -0.05f, -0.1f);
@@ -2917,16 +2917,16 @@ void Garage::LoadCars()
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			rot = glm::angleAxis(-D3DX_PI / 3.0f, XVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 3.0f, XVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 24.0f, YVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 3.0f, XVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon2, place);
@@ -2938,10 +2938,10 @@ void Garage::LoadCars()
 			place.pos = glm::vec3(0.2f, -0.6f, 0.25f);
 			glm::vec3 offset;
 
-			glm::quat rot = glm::angleAxis(D3DX_PI / 3.0f, XVector);
+			glm::quat rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			rot = glm::angleAxis(D3DX_PI / 3.0f, XVector);
+			rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
@@ -2951,16 +2951,16 @@ void Garage::LoadCars()
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			rot = glm::angleAxis(D3DX_PI / 3.0f, XVector);
+			rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			rot = glm::angleAxis(D3DX_PI / 3.0f, XVector);
+			rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 24.0f, YVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot));
 
-			rot = glm::angleAxis(D3DX_PI / 3.0f, XVector);
+			rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon3, place);
@@ -3000,13 +3000,13 @@ void Garage::LoadCars()
 			place.pos = glm::vec3(0.3f, 0.8f, 0.4f);
 			glm::vec3 offset;
 
-			glm::quat rot = glm::angleAxis(-D3DX_PI / 2.0f, XVector);
+			glm::quat rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI, XVector);
+			rot = glm::angleAxis(-glm::pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
 			offset = glm::vec3(0.95f, -0.1f, -0.1f);
@@ -3014,16 +3014,16 @@ void Garage::LoadCars()
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			rot = glm::angleAxis(-D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 24.0f, YVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon2, place);
@@ -3035,10 +3035,10 @@ void Garage::LoadCars()
 			place.pos = glm::vec3(0.3f, -0.8f, 0.4f);
 			glm::vec3 offset;
 
-			glm::quat rot = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+			glm::quat rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			rot = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
@@ -3048,16 +3048,16 @@ void Garage::LoadCars()
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			rot = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			rot = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			rot = glm::angleAxis(-D3DX_PI / 24.0f, YVector);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot));
 
-			rot = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon3, place);

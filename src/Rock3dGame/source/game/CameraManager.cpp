@@ -9,7 +9,7 @@ namespace r3d
 namespace game
 {
 
-CameraManager::CameraManager(World* world): _world(world), _player(0), _target(0, 0, 0, 5.0f), _light(0), _style(cStyleEnd), _near(1.0f), _far(100.0f), _clampAngle(0.0f, 0.0f, 25.0f * D3DX_PI/180, 80.0f * D3DX_PI/180), _angleSpeed(D3DX_PI/48, 0, 0), _stableAngle(75.0f * D3DX_PI/180, 0, 0), _flyCurTime(-1)
+CameraManager::CameraManager(World* world): _world(world), _player(0), _target(0, 0, 0, 5.0f), _light(0), _style(cStyleEnd), _near(1.0f), _far(100.0f), _clampAngle(0.0f, 0.0f, glm::radians(25.0f), glm::radians(80.0f)), _angleSpeed(glm::pi<float>()/48, 0, 0), _stableAngle(glm::radians(75.0f), 0, 0), _flyCurTime(-1)
 {
 	_camera = new graph::Camera();
 	_camera->SetPos(glm::vec3(50.0f, 50.0f, 50.0f));
@@ -165,8 +165,8 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 	if (_manager->_style == csBlock)
 		return;
 
-	static float cIsoAngY = 15.5f * D3DX_PI / 180;
-	const float cIsoAngZ = 45.0f * D3DX_PI / 180;
+	static float cIsoAngY = glm::radians(15.5f);
+	const float cIsoAngZ = glm::radians(45.0f);
 	const float targDist = 20.0f;
 	static float cIsoBorder = 5.0f;
 
@@ -179,13 +179,13 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 			if (tmp != 1)
 			{
 				tmp = 1;
-				cIsoAngY = 16.0f * D3DX_PI / 180;
+				cIsoAngY = glm::radians(16.0f);
 				cIsoBorder = 5.5f;
 			}
 			else
 			{
 				tmp = 0;
-				cIsoAngY = 15.5f * D3DX_PI / 180;
+				cIsoAngY = glm::radians(15.5f);
 				cIsoBorder = 5.0f;
 			}
 		}
@@ -203,17 +203,17 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 			}
 			else if (tmp == 2)
 			{
-				cIsoAngY = 16.5f * D3DX_PI / 180;
+				cIsoAngY = glm::radians(16.5f);
 				cIsoBorder = 5.5f;
 			}
 			else if (tmp == 1)
 			{
-				cIsoAngY = 16.0f * D3DX_PI / 180;
+				cIsoAngY = glm::radians(16.0f);
 				cIsoBorder = 5.5f;
 			}
 			else
 			{
-				cIsoAngY = 15.5f * D3DX_PI / 180;
+				cIsoAngY = glm::radians(15.5f);
 				cIsoBorder = 5.0f;
 			}
 		}
@@ -226,9 +226,9 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 	glm::quat cIsoRot = isoRotZ * isoRotY;
 
 	const float speedMove = 20.0f * deltaTime;
-	const float angleSpeed = D3DX_PI / 2.0f * deltaTime;
+	const float angleSpeed = glm::half_pi<float>() * deltaTime;
 	const float retAngleSpeed = angleSpeed * 2.0f;
-	const float maxAngle = D3DX_PI / 6;
+	const float maxAngle = glm::pi<float>() / 6;
 	const glm::vec3 cCamTargetOff(-4.6f, 0.0f, 2.4f);
 
 	ControlManager* control = _manager->_world->GetControl();
@@ -373,7 +373,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		camPos2 += targetPos;
 		D3DXVec3Lerp(&camPos, &camPos1, &camPos2, 8.0f * deltaTime);*/
 
-		glm::quat yRot = glm::angleAxis(D3DX_PI * 12.0f, glm::vec3(0, 1, 0));
+		glm::quat yRot = glm::angleAxis(glm::pi<float>() * 12.0f, glm::vec3(0, 1, 0));
 		camQuat = camQuat * yRot;
 
 		pos = camPos;
@@ -705,11 +705,11 @@ void CameraManager::ChangeStyle(Style value)
 	}
 
 	if (_style == csAutoObserver || _style == csBlock)
-		_camera->SetFov(60 * D3DX_PI / 180);
+		_camera->SetFov(glm::radians(60.0f));
 	else if (_style == csThirdPerson)
-		_camera->SetFov(75 * D3DX_PI / 180);
+		_camera->SetFov(glm::radians(75.0f));
 	else
-		_camera->SetFov(90 * D3DX_PI / 180);
+		_camera->SetFov(glm::radians(90.0f));
 
 	if (_style == csFreeView)
 	{
@@ -830,7 +830,7 @@ void CameraManager::GetObserverCoord(const glm::vec3& targetPos, float targetDis
 
 		if (dragX)
 		{
-			dAngZ = lsl::ClampValue(dMPos.x * D3DX_PI * 0.001f, -D3DX_PI/2, D3DX_PI/2);
+			dAngZ = lsl::ClampValue(dMPos.x * glm::pi<float>() * 0.001f, -glm::half_pi<float>(), glm::half_pi<float>());
 		}
 
 		glm::quat dRotZ = glm::angleAxis(dAngZ, ZVector);
@@ -908,7 +908,7 @@ void CameraManager::GetObserverCoord(const glm::vec3& targetPos, float targetDis
 
 		if (dragY)
 		{
-			float dAngY = lsl::ClampValue(-dMPos.y * D3DX_PI * 0.001f, -D3DX_PI/2, D3DX_PI/2);
+			float dAngY = lsl::ClampValue(-dMPos.y * glm::pi<float>() * 0.001f, -glm::half_pi<float>(), glm::half_pi<float>());
 			angLow = _clampAngle.z;
 			angUp = _clampAngle.w;
 

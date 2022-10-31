@@ -29,7 +29,7 @@ void GetSamplesDownScale4x4(DWORD dwWidth, DWORD dwHeight, glm::vec2 avSampleOff
 
 inline float GaussianDistribution( float x, float y, float rho )
 {
-	float g = 1.0f / sqrtf( 2.0f * D3DX_PI * rho * rho );
+	float g = 1.0f / sqrtf( 2.0f * glm::pi<float>() * rho * rho );
 	g *= expf( -( x * x + y * y ) / ( 2 * rho * rho ) );
 
 	return g;

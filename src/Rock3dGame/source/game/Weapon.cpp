@@ -1021,7 +1021,7 @@ void Proj::SpringUpdate(float deltaTime)
 		{
 			_time1 += deltaTime;
 			float alpha = lsl::ClampValue(_time1/0.1f, 0.0f, 1.0f);
-			dAngle = -D3DX_PI * deltaTime * 1.0f;
+			dAngle = -glm::pi<float>() * deltaTime * 1.0f;
 			_vec1.x = dAngle;
 
 			if (alpha == 1.0f)
@@ -1029,7 +1029,7 @@ void Proj::SpringUpdate(float deltaTime)
 		}
 		else
 		{
-			dAngle = D3DX_PI * deltaTime * 0.75f;
+			dAngle = glm::pi<float>() * deltaTime * 0.75f;
 		}
 
 		_vec1.x = _vec1.x + (dAngle - _vec1.x) * lsl::ClampValue(deltaTime * 6.0f, 0.0f, 1.0f);
@@ -1052,7 +1052,7 @@ void Proj::SpringUpdate(float deltaTime)
 
 		_time1 += deltaTime;
 		float alpha = lsl::ClampValue(_time1/1.0f, 0.0f, 1.0f);
-		angle = -D3DX_PI/6 + (D3DX_PI/6 - (-D3DX_PI/6)) * alpha;
+		angle = -glm::pi<float>()/6 + (glm::pi<float>()/6 - (-glm::pi<float>()/6)) * alpha;
 
 		glm::quat rot;
 		D3DXQuaternionRotationAxis(&rot, &YVector, angle);
@@ -1130,7 +1130,7 @@ void Proj::ImpulseContact(const px::Scene::OnContactEvent& contact)
 				return;
 			}
 
-			MapObj* taget = FindNextTaget(D3DX_PI/2);
+			MapObj* taget = FindNextTaget(glm::half_pi<float>());
 			if (taget == 0)
 			{
 				this->Death(dtEnergy, contactActor);

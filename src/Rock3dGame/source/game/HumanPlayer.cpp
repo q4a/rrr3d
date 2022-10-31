@@ -225,7 +225,7 @@ void HumanPlayer::Shot(WeaponType weapon, MapObj* target)
 
 void HumanPlayer::Shot(WeaponType weapon)
 {
-	float viewAngle = D3DX_PI/5.5f;
+	float viewAngle = glm::pi<float>()/5.5f;
 	WeaponItem* wpn = GetWeapon(weapon);
 	if (wpn && wpn->GetSlot()->GetRecord() && wpn->GetSlot()->GetRecord()->GetName() == "sphereGun")
 		viewAngle = 0;
@@ -248,7 +248,7 @@ void HumanPlayer::Shot()
 {
 	LSL_ASSERT(_player->GetCar().mapObj);
 
-	Player* enemy = _player->FindClosestEnemy(D3DX_PI/4, false);
+	Player* enemy = _player->FindClosestEnemy(glm::quarter_pi<float>(), false);
 	Shot(enemy ? enemy->GetCar().mapObj : 0);
 }
 

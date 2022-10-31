@@ -10,7 +10,7 @@ namespace r3d
 namespace game
 {
 
-const float GameCar::cMaxSteerAngle = D3DX_PI / 6;
+const float GameCar::cMaxSteerAngle = glm::pi<float>() / 6;
 
 CarMotorDesc::CarMotorDesc(): maxRPM(7000), idlingRPM(1000), maxTorque(2000.0f), SEM(0.7f), gearDiff(3.42f), autoGear(true), brakeTorque(7500), restTorque(400.0f)
 {
@@ -30,7 +30,7 @@ float CarMotorDesc::CalcRPM(float wheelAxleSpeed, unsigned curGear) const
 		return static_cast<float>(idlingRPM);
 	else
 	{
-		float rpm = abs(wheelAxleSpeed) * gears[curGear] * gearDiff * 60.0f / (2.0f * D3DX_PI);
+		float rpm = abs(wheelAxleSpeed) * gears[curGear] * gearDiff * 60.0f / (2.0f * glm::pi<float>());
 
 		return std::min(rpm, static_cast<float>(maxRPM));
 	}
@@ -192,7 +192,7 @@ void CarWheel::PxSyncWheel(float alpha)
 	glm::quat resRot = quat1 * quat2;
 	if (invertWheel)
 	{
-		glm::quat invRot = glm::angleAxis(D3DX_PI, ZVector);
+		glm::quat invRot = glm::angleAxis(glm::pi<float>(), ZVector);
 		resRot = resRot * invRot;
 	}
 
@@ -449,7 +449,7 @@ void CarWheels::SetSteerContactModify(ContactModify* value)
 	}
 }
 
-GameCar::GameCar(): _clutchStrength(0), _clutchTime(0.0f), _springTime(0), _mineTime(0), _curGear(-1), _moveCar(mcNone), _steerWheel(swNone), _kSteerControl(1.0f), _steerSpeed(D3DX_PI/2.0f), _steerRot(D3DX_PI), _angDamping(IdentityVector), _flyYTorque(D3DX_PI/1.6f), _clampXTorque(0), _clampYTorque(0), _motorTorqueK(1), _wheelSteerK(1), _gravEngine(false), _clutchImmunity(false), _maxSpeed(0), _tireSpring(0), _disableColor(false), _steerAngle(0), _anyWheelContact(false), _wheelsContact(false), _bodyContact(false)
+GameCar::GameCar(): _clutchStrength(0), _clutchTime(0.0f), _springTime(0), _mineTime(0), _curGear(-1), _moveCar(mcNone), _steerWheel(swNone), _kSteerControl(1.0f), _steerSpeed(glm::half_pi<float>()), _steerRot(glm::pi<float>()), _angDamping(IdentityVector), _flyYTorque(glm::pi<float>()/1.6f), _clampXTorque(0), _clampYTorque(0), _motorTorqueK(1), _wheelSteerK(1), _gravEngine(false), _clutchImmunity(false), _maxSpeed(0), _tireSpring(0), _disableColor(false), _steerAngle(0), _anyWheelContact(false), _wheelsContact(false), _bodyContact(false)
 {
 	_wheels = new Wheels(this);
 
@@ -626,8 +626,8 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 	}
 	/*else if (lastSteer != swNone)
 	{
-		//const float cFixAngleStep = 15.0f * D3DX_PI / 180.0f;
-		const float cFixAngleStep = 22.5f * D3DX_PI / 180.0f;
+		//const float cFixAngleStep = glm::radians(15.0f);
+		const float cFixAngleStep = glm::radians(22.5f);
 
 		NxQuat fixRot;
 		fixRot.fromAngleAxisFast(0, NxVec3(0, 0, 1));

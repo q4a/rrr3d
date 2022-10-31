@@ -183,7 +183,7 @@ void RenderToCubeTex::BeginCubeSurf(Engine& engine)
 	camDesc.aspect = 1;
 	camDesc.nearDist = 1.0f;
 	camDesc.farDist = 100.0f;
-	camDesc.fov = D3DX_PI/2;
+	camDesc.fov = glm::half_pi<float>();
 
 	switch(_flags.faceType)
 	{

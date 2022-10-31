@@ -2835,7 +2835,7 @@ StepperBox::StepperBox(Manager* manager): Widget(manager), _selIndex(-1), _items
 	_right->SetAlign(waLeft);
 	_right->SetEvent(_childEvent);
 	_right->SetStyle(Button::bsSelAnim);
-	_right->SetRot(D3DX_PI);
+	_right->SetRot(glm::pi<float>());
 
 	_left = manager->CreateButton();
 	_left->SetParent(this);
@@ -3449,7 +3449,7 @@ ViewPort3d::ViewPort3d(Manager* manager): _MyBase(manager), _style(msStatic), _s
 	_view3d->AddRef();
 	InsertGraphic(_view3d);
 
-	_rot3dSpeed = glm::angleAxis(3.0f * D3DX_PI / 4.0f, ZVector);
+	_rot3dSpeed = glm::angleAxis(3.0f * glm::quarter_pi<float>(), ZVector);
 }
 
 ViewPort3d::~ViewPort3d()
@@ -3500,13 +3500,13 @@ bool ViewPort3d::OnMouseOver(const MouseMove& mMove)
 		{
 			//Вращение по двум осям
 			/*D3DXQUATERNION rotY;
-			D3DXQuaternionRotationAxis(&rotY, &YVector, D3DX_PI * mMove.dtCoord.x/100.0f);
+			D3DXQuaternionRotationAxis(&rotY, &YVector, glm::pi<float>() * mMove.dtCoord.x/100.0f);
 			D3DXQUATERNION rotX;
-			D3DXQuaternionRotationAxis(&rotX, &XVector, -D3DX_PI * mMove.dtCoord.y/100.0f);
+			D3DXQuaternionRotationAxis(&rotX, &XVector, -glm::pi<float>() * mMove.dtCoord.y/100.0f);
 			SetRot3d(GetRot3d() * rotY * rotX);*/
 
 			//Вращение по одной оси, совпадающией с up mesh
-			glm::quat rotZ = glm::angleAxis(D3DX_PI * mMove.dtCoord.x / 200.0f, ZVector);
+			glm::quat rotZ = glm::angleAxis(glm::pi<float>() * mMove.dtCoord.x / 200.0f, ZVector);
 			GetBox()->SetRot(GetBox()->GetRot() * rotZ);
 		}
 	}
@@ -3685,14 +3685,14 @@ void ScrollBox::ApplyOptions()
 		case soVert:
 			_scrollBut[sdDown] = NewArrow();
 			_scrollBut[sdUp] = NewArrow();
-			_scrollBut[sdUp]->SetRot(D3DX_PI);
+			_scrollBut[sdUp]->SetRot(glm::pi<float>());
 			break;
 
 		case soHor:
 			_scrollBut[sdLeft] = NewArrow();
-			_scrollBut[sdLeft]->SetRot(-D3DX_PI/2.0f);
+			_scrollBut[sdLeft]->SetRot(-glm::half_pi<float>());
 			_scrollBut[sdRight] = NewArrow();
-			_scrollBut[sdRight]->SetRot(D3DX_PI/2.0f);
+			_scrollBut[sdRight]->SetRot(glm::half_pi<float>());
 			break;
 		}
 
@@ -4629,7 +4629,7 @@ VolumeBar::VolumeBar(Manager* manager): Widget(manager), _volume(0.0f), _stepCou
 	_right->SetAlign(waLeft);
 	_right->SetEvent(_childEvent);
 	_right->SetStyle(Button::bsSelAnim);
-	_right->SetRot(D3DX_PI);
+	_right->SetRot(glm::pi<float>());
 
 	_left = manager->CreateButton();
 	_left->SetParent(this);

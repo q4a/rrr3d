@@ -1014,7 +1014,7 @@ void Player::CarState::Update(float deltaTime)
 	lastDir = dir3;
 	summAngle += dirAngle;
 	summAngleTime += deltaTime;
-	if (dirAngle > D3DX_PI/24)
+	if (dirAngle > glm::pi<float>()/24)
 	{
 		summAngleTime = 0;
 	}
@@ -1023,7 +1023,7 @@ void Player::CarState::Update(float deltaTime)
 		summAngle = 0;
 		summAngleTime = 0;
 	}
-	if (summAngle > D3DX_PI/2 && summAngleTime <= 1.0f)
+	if (summAngle > glm::half_pi<float>() && summAngleTime <= 1.0f)
 	{
 		summAngle = 0;
 		summAngleTime = 0;
@@ -1176,8 +1176,8 @@ void Player::InitLight(HeadLight headLight, const glm::vec3& pos, const glm::qua
 		_lights[headLight]->GetSource()->SetType(D3DLIGHT_SPOT);
 		_lights[headLight]->GetSource()->SetAmbient(clrBlack);
 		_lights[headLight]->GetSource()->SetDiffuse(clrWhite * 1.0f);
-		_lights[headLight]->GetSource()->SetPhi(D3DX_PI/3.0f);
-		_lights[headLight]->GetSource()->SetTheta(D3DX_PI/6.0f);
+		_lights[headLight]->GetSource()->SetPhi(glm::pi<float>()/3.0f);
+		_lights[headLight]->GetSource()->SetTheta(glm::pi<float>()/6.0f);
 	}
 
 	_lights[headLight]->GetSource()->SetPos(pos);
@@ -1581,7 +1581,7 @@ Player* Player::FindClosestEnemy(float viewAngle, bool zTest)
 			//Объект ближе
 			bool b1 = enemy == NULL || absDist < minDist;
 			//Объект расположен с правильной стороны относительно машины
-			bool b2 = viewAngle == 0.0f || (viewAngle > 0 ? (angle >= cos(viewAngle)) : (angle <= cos(D3DX_PI/2 - viewAngle)));
+			bool b2 = viewAngle == 0.0f || (viewAngle > 0 ? (angle >= cos(viewAngle)) : (angle <= cos(glm::half_pi<float>() - viewAngle)));
 
 			if (b1 && b2)
 			{

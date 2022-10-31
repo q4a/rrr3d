@@ -25,7 +25,7 @@ private:
 
 	struct CarDesc
 	{
-		CarDesc(): mass(0), centerMassPos(NullVector), bodyScale(IdentityVector), bodyOffset(NullVector), bodyAABB(NullAABB), bodyOffsetModel(NullVector), bodyScaleModel(IdentityVector), wheelRadius(0), wheelScaleModel(IdentityVector), inverseWheelMass(0), maxSpeed(0), tireSpring(2.0f), steerSpeed(D3DX_PI/1.6f), steerRot(D3DX_PI), flyYTorque(D3DX_PI/2), clampXTorque(0), clampYTorque(0), angDamping(1, 1, 0), maxRPM(7000), frontWheelDrive(true), backWheelDrive(false), gravEngine(false), clutchImmunity(false), wheelEff(true), halfWheelEff(false), guseniza(false), podushka(false), wakeFrictionModel(false), suspensionTravel(0), suspensionSpring(0), suspensionDamper(0), suspensionTarget(0), soundMotorIdle(""), soundMotorHigh(""), motorVolumeRange(0, 1), motorFreqRange(0, 1), bump(false) {}
+		CarDesc(): mass(0), centerMassPos(NullVector), bodyScale(IdentityVector), bodyOffset(NullVector), bodyAABB(NullAABB), bodyOffsetModel(NullVector), bodyScaleModel(IdentityVector), wheelRadius(0), wheelScaleModel(IdentityVector), inverseWheelMass(0), maxSpeed(0), tireSpring(2.0f), steerSpeed(glm::pi<float>()/1.6f), steerRot(glm::pi<float>()), flyYTorque(glm::half_pi<float>()), clampXTorque(0), clampYTorque(0), angDamping(1, 1, 0), maxRPM(7000), frontWheelDrive(true), backWheelDrive(false), gravEngine(false), clutchImmunity(false), wheelEff(true), halfWheelEff(false), guseniza(false), podushka(false), wakeFrictionModel(false), suspensionTravel(0), suspensionSpring(0), suspensionDamper(0), suspensionTarget(0), soundMotorIdle(""), soundMotorHigh(""), motorVolumeRange(0, 1), motorFreqRange(0, 1), bump(false) {}
 
 		float mass;
 		glm::vec3 centerMassPos;

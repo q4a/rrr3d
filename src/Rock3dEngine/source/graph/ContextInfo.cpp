@@ -53,7 +53,7 @@ DWORD ContextInfo::GetDefTextureStageState(int stage, TextureStageState state)
 CameraDesc::CameraDesc()
 {
 	aspect = 1.0f;
-	fov = D3DX_PI/2.0f;
+	fov = glm::half_pi<float>();
 	nearDist = 1.0f;
 	farDist = 100.0f;
 	style = csPerspective;

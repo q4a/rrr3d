@@ -142,13 +142,13 @@ NetBrowserFrame::NetBrowserFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* pa
 	_grid->SetAlign(gui::Widget::waTop);
 
 	_downArrow = menu->CreateArrow(root(), this);
-	_downArrow->SetRot(-D3DX_PI/2);
+	_downArrow->SetRot(-glm::half_pi<float>());
 	glm::vec2 size = _downArrow->GetSize();
 	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
-	_upArrow->SetRot(D3DX_PI/2);
+	_upArrow->SetRot(glm::half_pi<float>());
 	size = _upArrow->GetSize();
 	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
@@ -542,13 +542,13 @@ LobbyFrame::LobbyFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): Men
 	_grid->SetAlign(gui::Widget::waTop);
 
 	_downArrow = menu->CreateArrow(root(), this);
-	_downArrow->SetRot(-D3DX_PI/2);
+	_downArrow->SetRot(-glm::half_pi<float>());
 	glm::vec2 size = _downArrow->GetSize();
 	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
-	_upArrow->SetRot(D3DX_PI/2);
+	_upArrow->SetRot(glm::half_pi<float>());
 	size = _upArrow->GetSize();
 	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
@@ -805,13 +805,13 @@ MatchmakingFrame::MatchmakingFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* 
 	_grid->SetAlign(gui::Widget::waTop);
 
 	_downArrow = menu->CreateArrow(root(), this);
-	_downArrow->SetRot(-D3DX_PI/2);
+	_downArrow->SetRot(-glm::half_pi<float>());
 	glm::vec2 size = _downArrow->GetSize();
 	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
-	_upArrow->SetRot(D3DX_PI/2);
+	_upArrow->SetRot(glm::half_pi<float>());
 	size = _upArrow->GetSize();
 	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
@@ -1071,13 +1071,13 @@ SteamBrowserFrame::SteamBrowserFrame(Menu* menu, MainMenu* mainMenu, gui::Widget
 	_grid->SetAlign(gui::Widget::waTop);
 
 	_downArrow = menu->CreateArrow(root(), this);
-	_downArrow->SetRot(-D3DX_PI/2);
+	_downArrow->SetRot(-glm::half_pi<float>());
 	glm::vec2 size = _downArrow->GetSize();
 	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
-	_upArrow->SetRot(D3DX_PI/2);
+	_upArrow->SetRot(glm::half_pi<float>());
 	size = _upArrow->GetSize();
 	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
@@ -1678,13 +1678,13 @@ ProfileFrame::ProfileFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent):
 	_grid->SetAlign(gui::Widget::waTop);
 
 	_downArrow = menu->CreateArrow(root(), this);
-	_downArrow->SetRot(-D3DX_PI/2);
+	_downArrow->SetRot(-glm::half_pi<float>());
 	glm::vec2 size = _downArrow->GetSize();
 	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = menu->CreateArrow(root(), this);
-	_upArrow->SetRot(D3DX_PI/2);
+	_upArrow->SetRot(glm::half_pi<float>());
 	size = _upArrow->GetSize();
 	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);

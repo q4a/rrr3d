@@ -305,11 +305,11 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 		{
 			if (_rotSyncAngle > 0)
 			{
-				_rotSyncAngle = std::max(_rotSyncAngle - 1.3f * D3DX_PI * deltaTime, 0.0f);
+				_rotSyncAngle = std::max(_rotSyncAngle - 1.3f * glm::pi<float>() * deltaTime, 0.0f);
 			}
 			else
 			{
-				_rotSyncAngle = std::min(_rotSyncAngle + 1.3f * D3DX_PI * deltaTime, 0.0f);
+				_rotSyncAngle = std::min(_rotSyncAngle + 1.3f * glm::pi<float>() * deltaTime, 0.0f);
 			}
 			glm::quat rot = glm::angleAxis(-_rotSyncAngle, _rotSyncAxis);
 			_grActor->SetRot(rot * _grActor->GetRot());
@@ -330,11 +330,11 @@ void GameObject::OnFrame(float deltaTime, float pxAlpha)
 		{
 			if (_rotSyncAngle2 > 0)
 			{
-				_rotSyncAngle2 = std::max(_rotSyncAngle2 - 1.3f * D3DX_PI * deltaTime, 0.0f);
+				_rotSyncAngle2 = std::max(_rotSyncAngle2 - 1.3f * glm::pi<float>() * deltaTime, 0.0f);
 			}
 			else
 			{
-				_rotSyncAngle2 = std::min(_rotSyncAngle2 + 1.3f * D3DX_PI * deltaTime, 0.0f);
+				_rotSyncAngle2 = std::min(_rotSyncAngle2 + 1.3f * glm::pi<float>() * deltaTime, 0.0f);
 			}
 
 			glm::quat rot = glm::angleAxis(-_rotSyncAngle2, _rotSyncAxis2);
@@ -856,9 +856,9 @@ void GameObject::SetRotSync(const glm::quat& value)
 	_rotSyncAngle = glm::angle(_rotSync);
 	float angle = abs(_rotSyncAngle);
 
-	if (angle > D3DX_PI)
+	if (angle > glm::pi<float>())
 	{
-		_rotSyncAngle = (2 * D3DX_PI - angle) * (_rotSyncAngle > 0 ? -1.0f : 1.0f);
+		_rotSyncAngle = (2 * glm::pi<float>() - angle) * (_rotSyncAngle > 0 ? -1.0f : 1.0f);
 	}
 
 	SetSyncFrameEvent(true);
@@ -893,9 +893,9 @@ void GameObject::SetRotSync2(const glm::quat& curSync, const glm::quat& newSync)
 	_rotSyncAngle2 = glm::angle(dRot);
 
 	float angle = abs(_rotSyncAngle2);
-	if (angle > D3DX_PI)
+	if (angle > glm::pi<float>())
 	{
-		_rotSyncAngle2 = (2 * D3DX_PI - angle) * (_rotSyncAngle2 > 0 ? -1.0f : 1.0f);
+		_rotSyncAngle2 = (2 * glm::pi<float>() - angle) * (_rotSyncAngle2 > 0 ? -1.0f : 1.0f);
 	}
 
 	_rotSync2 = newSync;

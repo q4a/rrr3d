@@ -9,7 +9,7 @@ namespace r3d
 namespace game
 {
 
-const float AICar::cSteerAngleBias = D3DX_PI/128.0f;
+const float AICar::cSteerAngleBias = glm::pi<float>()/128.0f;
 const float AICar::cMaxSpeedBlocking = 0.5f;
 const float AICar::cMaxTimeBlocking = 1.0f;
 
@@ -130,7 +130,7 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 	dirArea = 5.0f + abs(car.speed) * car.kSteerControl * 10;
 
 	// орректировка траектории движени€ относительно поворота
-	if (nextTile->GetTile().GetTurnAngle() > D3DX_PI/12)
+	if (nextTile->GetTile().GetTurnAngle() > glm::pi<float>()/12)
 	{
 		float edgeDist = Line2DistToPoint(nextTile->GetTile().GetEdgeLine(), car.pos);
 		if (edgeDist < car.size)
@@ -157,7 +157,7 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 	//Ѕерм в качестве расчетного либо активный узел либо следующий тайл
 	WayNode* curBreakTile = curNode ? curNode : nextTile;
 	//
-	if (curBreakTile->GetTile().GetTurnAngle() > D3DX_PI/12)
+	if (curBreakTile->GetTile().GetTurnAngle() > glm::pi<float>()/12)
 	{
 		float kLong = car.kSteerControl * car.kSteerControl;
 		float normDist = Line2DistToPoint(curBreakTile->GetTile().GetMidNormLine(), car.pos);
@@ -282,7 +282,7 @@ AICar::AttackState::~AttackState()
 Player* AICar::AttackState::FindEnemy(AICar* owner, const Player::CarState& car, int dir, Player* currentEnemy)
 {
 	//ищем новую или более доступную цель
-	Player* enemy = owner->_player->FindClosestEnemy(D3DX_PI/4 * dir, true);
+	Player* enemy = owner->_player->FindClosestEnemy(glm::quarter_pi<float>() * dir, true);
 
 	if (currentEnemy && currentEnemy == enemy)
 		return enemy;
@@ -390,7 +390,7 @@ void AICar::AttackState::RunHyper(AICar* owner, const CarState& car, const PathS
 
 	float distTile = car.curTile->GetTile().ComputeLength(1.0f - car.curTile->GetTile().ComputeCoordX(car.pos));
 	float maxDistHyper = hyperDrive ? (hyperDrive->GetDesc().Front().speed + car.speed) : 0.0f;
-	bool hyperDist = (path.nextTile == NULL || path.nextTile->GetTile().GetTurnAngle() < D3DX_PI/6 || distTile > maxDistHyper);
+	bool hyperDist = (path.nextTile == NULL || path.nextTile->GetTile().GetTurnAngle() < glm::pi<float>()/6 || distTile > maxDistHyper);
 
 	if (hyperDrive && car.speed > 1.0f && hyperDist && !path._break)
 	{
@@ -508,7 +508,7 @@ void AICar::ControlState::Update(AICar* owner, float deltaTime, const Player::Ca
 	//¬ычисл€ем угол между направлением машины и направл€ющей движени€
 	steerAngle = abs(acos(Vec2Dot(car.dir, path.moveDir)));
 	//учет инерционности рулевого управлени€
-	//steerAngle = std::max(0.0f, steerAngle - D3DX_PI * deltaTime * 2.0f);
+	//steerAngle = std::max(0.0f, steerAngle - glm::pi<float>() * deltaTime * 2.0f);
 	//float errorSteer =
 
 	//”гол поворота колес

@@ -844,8 +844,8 @@ void DataBase::LoadEffects()
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(glm::vec3(-1.5f, -1.5f, 1.0f), glm::vec3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
-		glm::quat spRot1 = glm::angleAxis(D3DX_PI, -IdentityVector);
-		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, IdentityVector);
+		glm::quat spRot1 = glm::angleAxis(glm::pi<float>(), -IdentityVector);
+		glm::quat spRot2 = glm::angleAxis(2.0f * glm::pi<float>(), IdentityVector);
 		descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
 		descFlow.gravitation = glm::vec3(0, 0, -9.80f);
 
@@ -865,8 +865,8 @@ void DataBase::LoadEffects()
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(glm::vec3(-1.5f, -1.5f, 4.0f), glm::vec3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
-		glm::quat spRot1 = glm::angleAxis(D3DX_PI, -IdentityVector);
-		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, IdentityVector);
+		glm::quat spRot1 = glm::angleAxis(glm::pi<float>(), -IdentityVector);
+		glm::quat spRot2 = glm::angleAxis(2.0f * glm::pi<float>(), IdentityVector);
 		descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
 		descFlow.gravitation = glm::vec3(0, 0, -9.80f);
 
@@ -1015,7 +1015,7 @@ void DataBase::LoadEffects()
 		desc.startScale = Vec3Range(glm::vec3(0.8f, 0.8f, 0.8f), glm::vec3(1.1f, 1.1f, 1.1f));
 
 		glm::quat rot1 = glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 1.0f));
-		glm::quat rot2 = glm::angleAxis(2 * D3DX_PI, glm::vec3(0.0f, 0.0f, 1.0f));
+		glm::quat rot2 = glm::angleAxis(2 * glm::pi<float>(), glm::vec3(0.0f, 0.0f, 1.0f));
 		desc.startRot = QuatRange(rot1, rot2, QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
@@ -1260,7 +1260,7 @@ void DataBase::LoadEffects()
 	LoadFxSprite("frostRay", "Effect\\frostRay", NullVector, Vec3Range(IdentityVector, NullVector), NullQuaternion, false, graph::SceneNode::amTwoSide, 1.0f, 0, 0.0f, true, glm::vec2(1.0f, 0.5f), gtEffect, true);
 	//frostShot
 	{
-		glm::quat lineRot1 = glm::angleAxis(D3DX_PI, ZVector);
+		glm::quat lineRot1 = glm::angleAxis(glm::pi<float>(), ZVector);
 		LoadFxSprite("frostShot", "Effect\\frostLine", NullVector, Vec3Range(IdentityVector, NullVector), QuatRange(NullQuaternion, lineRot1), false, graph::SceneNode::amTwoSide, 1.0f, 0, 1.0f, false, glm::vec2(4.0f, 4.0f));
 	}
 
@@ -1277,8 +1277,8 @@ void DataBase::LoadEffects()
 		desc.startTime = FloatRange(0.1f, 0.2f);
 		desc.density = FloatRange(2.0f, 3.0f);
 		desc.startPos = Vec3Range(glm::vec3(-0.1f, -0.1f, -0.5f), glm::vec3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
-		glm::quat spRot1 = glm::angleAxis(D3DX_PI, -ZVector);
-		glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, ZVector);
+		glm::quat spRot1 = glm::angleAxis(glm::pi<float>(), -ZVector);
+		glm::quat spRot2 = glm::angleAxis(2.0f * glm::pi<float>(), ZVector);
 		desc.startRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
@@ -1355,8 +1355,8 @@ void DataBase::LoadEffects()
 			graph::FxFlowEmitter::FlowDesc descFlow;
 			descFlow.speedPos = Vec3Range(glm::vec3(-1.5f, -1.5f, 2.0f), glm::vec3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
 			//
-			glm::quat spRot1 = glm::angleAxis(D3DX_PI, -IdentityVector);
-			glm::quat spRot2 = glm::angleAxis(2.0f * D3DX_PI, IdentityVector);
+			glm::quat spRot1 = glm::angleAxis(glm::pi<float>(), -IdentityVector);
+			glm::quat spRot2 = glm::angleAxis(2.0f * glm::pi<float>(), IdentityVector);
 			descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
 			//
 			descFlow.gravitation = glm::vec3(0, 0, -9.80f);
@@ -1726,7 +1726,7 @@ void DataBase::LoadEffects()
 		desc.startTime = FloatRange(0.7f);
 		desc.density = FloatRange(1.0f, 1.0f);
 		desc.startPos = Vec3Range(glm::vec3(-0.6f, -0.6f, -0.6f), glm::vec3(0.6f, 0.6f, 0.6f), Vec3Range::vdVolume);
-		glm::quat rot = glm::angleAxis(D3DX_PI, ZVector);
+		glm::quat rot = glm::angleAxis(glm::pi<float>(), ZVector);
 		desc.startRot = QuatRange(NullQuaternion, rot, QuatRange::vdLinear);
 		desc.startScale = glm::vec3(IdentityVector) * 4.0f;
 		
@@ -1756,7 +1756,7 @@ void DataBase::LoadEffects()
 		desc.startTime = 0.5f;
 		desc.density = FloatRange(1.0f, 1.0f);
 		desc.startPos = Vec3Range(glm::vec3(-0.3f, -0.3f, -0.3f), glm::vec3(0.3f, 0.3f, 0.3f), Vec3Range::vdVolume);
-		glm::quat rot = glm::angleAxis(D3DX_PI, ZVector);
+		glm::quat rot = glm::angleAxis(glm::pi<float>(), ZVector);
 		desc.startRot = QuatRange(NullQuaternion, rot, QuatRange::vdLinear);
 		desc.startScale = glm::vec3(IdentityVector) * 1.5f;
 
@@ -1865,8 +1865,8 @@ void DataBase::LoadEffects()
 		desc.startTime = 0;
 		desc.density = 5.0f;
 		desc.startPos = Vec3Range(glm::vec3(-2.0f, -2.0f, 0.0f), glm::vec3(2.0f, 2.0f, 0.0f), Vec3Range::vdVolume);
-		glm::quat rot1 = glm::angleAxis(-D3DX_PI / 3.0f, ZVector);
-		glm::quat rot2 = glm::angleAxis(D3DX_PI / 3.0f, ZVector);
+		glm::quat rot1 = glm::angleAxis(-glm::pi<float>() / 3.0f, ZVector);
+		glm::quat rot2 = glm::angleAxis(glm::pi<float>() / 3.0f, ZVector);
 		desc.startRot = QuatRange(rot1, rot2, QuatRange::vdLinear);
 		desc.startScale = glm::vec3(1.0f, 1.0f, 1.0f);
 
@@ -1971,7 +1971,7 @@ void DataBase::LoadWorld1()
 	LoadDecor("World1\\zdanie1", "World1\\zdaine1.r3d", "World1\\zdanie1");
 	LoadDecor("World1\\zdanie2", "World1\\zdaine2.r3d", "World1\\zdanie2");
 
-	float cosAng = cos(15.0f * D3DX_PI/180.0f);
+	float cosAng = cos(glm::radians(15.0f));
 	glm::vec4 vec1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	glm::vec4 vec3(0.0f, -0.15f, 0.075f, 0.0f);
 
@@ -2041,7 +2041,7 @@ void DataBase::LoadWorld2()
 		SaveMapObj(mapObj, MapObjLib::ctDecoration, "World2\\semaphore");
 	}
 
-	float cosAng = cos(15.0f * D3DX_PI/180.0f);
+	float cosAng = cos(glm::radians(15.0f));
 	glm::vec4 vec1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	glm::vec4 vec3(0.0f, -0.15f, 0.10f, 0.0f);
 	
@@ -2092,7 +2092,7 @@ void DataBase::LoadWorld3()
 	LoadDecor("World3\\stone2", "World3\\stone2.r3d", "World3\\stone");
 	LoadDecor("World3\\stone3", "World3\\stone3.r3d", "World3\\stone");
 
-	float cosAng = cos(15.0f * D3DX_PI/180.0f);
+	float cosAng = cos(glm::radians(15.0f));
 	glm::vec4 vec1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	glm::vec4 vec1Up = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), ZVector);
 	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
@@ -2127,7 +2127,7 @@ void DataBase::LoadWorld4()
 	LoadDecor("World4\\volcano", "World4\\volcano.r3d", "World4\\volcano");
 	LoadDecor("World4\\crystals", "World4\\crystals.r3d", "World4\\crystals");
 
-	float cosAng = cos(15.0f * D3DX_PI/180.0f);
+	float cosAng = cos(glm::radians(15.0f));
 	glm::vec4 vec1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	glm::vec4 vec3(0.0f, -0.25f, 0.25f, 0.0f);
 
@@ -2159,7 +2159,7 @@ void DataBase::LoadWorld5()
 	LoadDecor("World5\\piece", "World5\\piece.r3d", "World5\\piece");
 
 	glm::vec4 plane1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), ZVector);
-	float cosAng = cos(20.0f * D3DX_PI/180.0f);
+	float cosAng = cos(glm::radians(20.0f));
 	glm::vec4 plane2 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
@@ -2188,7 +2188,7 @@ void DataBase::LoadWorld6()
 	LoadDecor("World6\\stone2", "World6\\stone2.r3d", "World6\\stone");
 	LoadDecor("World6\\stone3", "World6\\stone3.r3d", "World6\\stone");
 
-	float cosAng = cos(15.0f * D3DX_PI/180.0f);
+	float cosAng = cos(glm::radians(15.0f));
 	glm::vec4 vec1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	glm::vec4 vec1Up = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), ZVector);
 	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
@@ -2655,7 +2655,7 @@ void DataBase::LoadMisc()
 
 		graph::PlaneNode* node = AddPlaneNode(mapObj, IdentityVec2);
 		//glm::quat rot;
-		//D3DXQuaternionRotationAxis(&rot, &ZVector, -D3DX_PI/2);
+		//D3DXQuaternionRotationAxis(&rot, &ZVector, -glm::half_pi<float>());
 		//node->SetRot(rot);
 		node->SetScale(glm::vec3(4.0f, 3.0f, 1.0f));
 		node->animMode(graph::SceneNode::amRepeat);
@@ -3654,9 +3654,9 @@ void DataBase::LoadCars()
 		desc.tireSpring = 0.0f;
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 3.5f;
-		desc.flyYTorque = D3DX_PI/6;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/6;
+		desc.flyYTorque = glm::pi<float>()/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/6;
 		desc.wakeFrictionModel = false;
 
 		desc.suspensionTravel = 0.30f;
@@ -3687,9 +3687,9 @@ void DataBase::LoadCars()
 		desc.tireSpring = 0.0f;
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 3.5f;
-		desc.flyYTorque = D3DX_PI/2;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/9;
+		desc.flyYTorque = glm::half_pi<float>();
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/9;
 		desc.wakeFrictionModel = false;
 
 		desc.suspensionTravel = 0.20f;
@@ -3722,9 +3722,9 @@ void DataBase::LoadCars()
 		desc.tireSpring = 0.0f;
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 3.5f;
-		desc.flyYTorque = D3DX_PI/6;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/9;
+		desc.flyYTorque = glm::pi<float>()/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/9;
 		desc.wakeFrictionModel = false;
 
 		desc.suspensionTravel = 0.25f;
@@ -3758,9 +3758,9 @@ void DataBase::LoadCars()
 		desc.tireSpring = 0.0f;
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 3.5f;
-		desc.flyYTorque = D3DX_PI/6;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/9;
+		desc.flyYTorque = glm::pi<float>()/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/9;
 		desc.wakeFrictionModel = false;
 
 		desc.suspensionTravel = 0.25f;
@@ -3789,9 +3789,9 @@ void DataBase::LoadCars()
 		desc.tireSpring = 0.0f;
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 3.5f;
-		desc.flyYTorque = D3DX_PI/3;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/6;
+		desc.flyYTorque = glm::pi<float>()/3;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/6;
 		desc.wakeFrictionModel = false;
 
 		desc.suspensionTravel = 0.25f;
@@ -3820,8 +3820,8 @@ void DataBase::LoadCars()
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 3.5f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/6;
 		desc.wakeFrictionModel = true;
 
 		desc.suspensionTravel = 0.1f;
@@ -3854,8 +3854,8 @@ void DataBase::LoadCars()
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 3.5f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/6;
 		desc.wakeFrictionModel = true;
 
 		desc.suspensionTravel = 0.1f;
@@ -3887,8 +3887,8 @@ void DataBase::LoadCars()
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 3.5f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/6;
 		desc.wakeFrictionModel = true;
 
 		desc.suspensionTravel = 0.1f;
@@ -3923,8 +3923,8 @@ void DataBase::LoadCars()
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 3.5f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/6;
 		desc.wakeFrictionModel = true;
 
 		desc.suspensionTravel = 0.1f;
@@ -3963,8 +3963,8 @@ void DataBase::LoadCars()
 		desc.tireSpring = 0.0f;
 		desc.steerSpeed = 4.0f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/9;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/9;
 		desc.maxRPM = 3750;
 		desc.wakeFrictionModel = false;
 
@@ -3996,8 +3996,8 @@ void DataBase::LoadCars()
 		desc.tireSpring = 0.0f;
 		desc.steerSpeed = 4.0f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/9;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/9;
 		desc.maxRPM = 3750;
 		desc.wakeFrictionModel = false;
 
@@ -4030,8 +4030,8 @@ void DataBase::LoadCars()
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 4.0f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/12;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/12;
 		desc.wheelEff = false;
 		desc.clutchImmunity = true;
 		desc.wakeFrictionModel = true;
@@ -4065,8 +4065,8 @@ void DataBase::LoadCars()
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 4.0f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/12;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/12;
 		desc.wheelEff = false;
 		desc.clutchImmunity = true;
 		desc.wakeFrictionModel = true;
@@ -4097,8 +4097,8 @@ void DataBase::LoadCars()
 		desc.tireSpring = 0.0f;
 		desc.steerSpeed = 4.0f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/6;
 		desc.wakeFrictionModel = false;
 
 		desc.suspensionTravel = 0.3f;
@@ -4125,8 +4125,8 @@ void DataBase::LoadCars()
 		desc.tireSpring = 0.0f;
 		desc.steerSpeed = 4.0f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/6;
 		desc.wakeFrictionModel = false;
 
 		desc.suspensionTravel = 0.2f;
@@ -4155,9 +4155,9 @@ void DataBase::LoadCars()
 		desc.tireSpring = 0.0f;
 		desc.steerSpeed = 4.0f;
 		desc.steerRot = 3.5f;
-		desc.flyYTorque = D3DX_PI/6;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/6;
+		desc.flyYTorque = glm::pi<float>()/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/6;
 		desc.wakeFrictionModel = false;
 
 		desc.suspensionTravel = 0.20f;
@@ -4187,8 +4187,8 @@ void DataBase::LoadCars()
 		desc.steerSpeed = 3.5f;
 		desc.steerRot = 3.5f;
 		desc.flyYTorque = 0;
-		desc.clampXTorque = D3DX_PI/12;
-		desc.clampYTorque = D3DX_PI/6;
+		desc.clampXTorque = glm::pi<float>()/12;
+		desc.clampYTorque = glm::pi<float>()/6;
 		desc.wakeFrictionModel = true;
 
 		desc.suspensionTravel = 0.1f;

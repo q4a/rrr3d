@@ -190,8 +190,8 @@ struct LightDesc
 		attenuation0 = 1;
 		attenuation1 = 0;
 		attenuation2 = 0;
-		phi = D3DX_PI/2.0f;
-		theta = D3DX_PI/4.0f;
+		phi = glm::half_pi<float>();
+		theta = glm::quarter_pi<float>();
 
 		pos = NullVector;
 		dir = XVector;

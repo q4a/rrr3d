@@ -978,7 +978,7 @@ void MiniMapFrame::AlignMidNodes(Node& node1, Node& node2, float cosErr, float s
 
 void MiniMapFrame::BuildPath(WayPath& path, res::VertexData& data)
 {
-	const float cosErr = cos(20.0f * D3DX_PI/180);
+	const float cosErr = cos(glm::radians(20.0f));
 	const float sizeErr = 2.0f;
 	const float smRadius = 10.0f;
 	const int smSlice = 2;
@@ -1142,7 +1142,7 @@ void MiniMapFrame::UpdatePlayers(float deltaTime)
 
 void MiniMapFrame::UpdateMap()
 {
-	const float cosErr = cos(20.0f * D3DX_PI/180);
+	const float cosErr = cos(glm::radians(20.0f));
 	const float sizeErr = 2.0f;
 
 	for (Trace::Pathes::const_iterator iter = GetTrace()->GetPathes().begin(); iter != GetTrace()->GetPathes().end(); ++iter)

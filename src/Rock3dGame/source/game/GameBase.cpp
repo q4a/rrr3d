@@ -1216,7 +1216,7 @@ void PodushkaAnim::OnProgress(float deltaTime)
 	if (abs(linSpeed) > 1.0f)
 	{
 		D3DXMATRIX localMat = _target->GetMat();
-		glm::quat rotQuat = glm::angleAxis(D3DX_PI * deltaTime * linSpeed * 0.1f, XVector);
+		glm::quat rotQuat = glm::angleAxis(glm::pi<float>() * deltaTime * linSpeed * 0.1f, XVector);
 		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rotQuat)));
 
 		const res::FaceGroup& fg = _target->GetMesh()->GetData()->faceGroups[_target->GetMeshId()];

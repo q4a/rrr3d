@@ -2286,7 +2286,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 				{
 					radVec = glm::vec3(1, 0, 0);
 				}
-				glm::quat radQuat = glm::angleAxis(D3DX_PI / 2.5f, radVec);
+				glm::quat radQuat = glm::angleAxis(glm::pi<float>() / 2.5f, radVec);
 				Vec3Rotate(glm::vec3(0, 0, 1), radQuat, radVec);
 				radVec = radVec * 1000.0f;
 

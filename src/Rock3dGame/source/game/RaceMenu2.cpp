@@ -41,7 +41,7 @@ void CarFrame::OnProgress(float deltaTime)
 	if (_secretMapObj->GetGameObj().GetGrActor().GetVisible())
 	{
 		glm::quat rot = _secretMapObj->GetGameObj().GetRot();
-		glm::quat dRot = glm::angleAxis(2.0f * D3DX_PI * deltaTime * 0.1f, ZVector);
+		glm::quat dRot = glm::angleAxis(2.0f * glm::pi<float>() * deltaTime * 0.1f, ZVector);
 		_secretMapObj->GetGameObj().SetRot(rot * dRot);
 	}
 }
@@ -102,7 +102,7 @@ void CarFrame::SetCar(Garage::Car* value, const glm::vec4& color, bool secret)
 
 				if ((*iter)->invertWheel)
 				{
-					glm::quat rot = glm::angleAxis(D3DX_PI, glm::vec3(0, 0, 1));
+					glm::quat rot = glm::angleAxis(glm::pi<float>(), glm::vec3(0, 0, 1));
 					(*iter)->SetRot(rot);
 				}
 
@@ -226,9 +226,9 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 		}
 
 		camera->SetTarget(glm::vec4(0, 0, 0, 5.0f));
-		camera->SetClampAngle(glm::vec4(0.0f, 0.0f, 25.0f * D3DX_PI/180, 80.0f * D3DX_PI/180));
-		camera->SetAngleSpeed(glm::vec3(D3DX_PI/48, 0, 0));
-		camera->SetStableAngle(glm::vec3(75.0f * D3DX_PI/180, 0, 0));
+		camera->SetClampAngle(glm::vec4(0.0f, 0.0f, glm::radians(25.0f), glm::radians(80.0f)));
+		camera->SetAngleSpeed(glm::vec3(glm::pi<float>()/48, 0, 0));
+		camera->SetStableAngle(glm::vec3(glm::radians(75.0f), 0, 0));
 		break;
 	}
 
@@ -313,8 +313,8 @@ SpaceshipFrame::SpaceshipFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* pare
 		float aspect = imageSize.x/imageSize.y;
 		spaceSprite->SetPos(center);
 		spaceSprite->SetScale(glm::vec3(aspect * 70.0f, 70.0f, 1.0f));
-		spaceSprite->SetPitchAngle(-D3DX_PI/2);
-		spaceSprite->SetRollAngle(-D3DX_PI/2);
+		spaceSprite->SetPitchAngle(-glm::half_pi<float>());
+		spaceSprite->SetRollAngle(-glm::half_pi<float>());
 	}
 
 	{
@@ -380,9 +380,9 @@ void SpaceshipFrame::OnShow(bool value)
 		camera->ChangeStyle(CameraManager::csAutoObserver);
 
 		camera->SetTarget(glm::vec4(0, 0, 0, 50.0f));
-		camera->SetClampAngle(glm::vec4(40.0f * D3DX_PI/180, 30.0f * D3DX_PI/180, 45.0f * D3DX_PI/180, 80.0f * D3DX_PI/180));
-		camera->SetAngleSpeed(glm::vec3(D3DX_PI/96, 0, 0));
-		camera->SetStableAngle(glm::vec3(65.0f * D3DX_PI/180, 0, 0));
+		camera->SetClampAngle(glm::vec4(glm::radians(40.0f), glm::radians(30.0f), glm::radians(45.0f), glm::radians(80.0f)));
+		camera->SetAngleSpeed(glm::vec3(glm::pi<float>()/96, 0, 0));
+		camera->SetStableAngle(glm::vec3(glm::radians(65.0f), 0, 0));
 
 		_redLampTime = 0.0f;
 	}
@@ -412,7 +412,7 @@ GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 
 	_leftPanel = menu->CreatePlane(root(), this, "GUI\\rightPanel2.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_leftPanel->SetAlign(gui::Widget::waRight);
-	_leftPanel->SetRot(D3DX_PI);
+	_leftPanel->SetRot(glm::pi<float>());
 
 	_headerBg = menu->CreatePlane(_topPanel, this, "GUI\\header2.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_headerBg->SetAlign(gui::Widget::waCenter);
@@ -465,7 +465,7 @@ GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 	_leftArrow->SetAlign(gui::Widget::waLeft);
 	_rightArrow = _raceMenu->CreateArrow(root(), this);
 	_rightArrow->SetAlign(gui::Widget::waLeft);
-	_rightArrow->SetRot(D3DX_PI);
+	_rightArrow->SetRot(glm::pi<float>());
 
 	gui::Widget* labelsParent[cLabelEnd] = {_headerBg, _bottomPanel, _bottomPanel, _moneyBg, _bottomPanel};
 	for (int i = 0; i < cLabelEnd; ++i)
@@ -474,7 +474,7 @@ GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 
 	_leftColorGrid = menu->CreateGrid(_leftPanel, NULL, gui::Grid::gsVertical);
 	_leftColorGrid->SetAlign(gui::Widget::waLeft);
-	_leftColorGrid->SetRot(-D3DX_PI);
+	_leftColorGrid->SetRot(-glm::pi<float>());
 	_leftColorGrid->hideInvisible(false);
 	UpdateColorList(_leftColorGrid, Player::cLeftColors, Player::cColorsCount);
 
@@ -1054,13 +1054,13 @@ WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	_goodGrid->SetAlign(gui::Widget::waLeft);
 
 	_downArrow = _raceMenu->CreateArrow(_leftPanel, this);
-	_downArrow->SetRot(-D3DX_PI/2);
+	_downArrow->SetRot(-glm::half_pi<float>());
 	glm::vec2 size = _downArrow->GetSize();
 	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = _raceMenu->CreateArrow(_leftPanel, this);
-	_upArrow->SetRot(D3DX_PI/2);
+	_upArrow->SetRot(glm::half_pi<float>());
 	size = _upArrow->GetSize();
 	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
@@ -1084,7 +1084,7 @@ WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 		float size = std::min(slot.plane->GetSize().x, slot.plane->GetSize().y);
 		slot.viewport->SetSize(size, size);
 
-		glm::quat quat = glm::angleAxis(D3DX_PI / 2.0f, ZVector);
+		glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 		slot.viewport->SetRot3dSpeed(quat);
 
 		slot.mesh3d = menu->CreateMesh3d(slot.viewport, NULL, NULL);
@@ -1155,9 +1155,9 @@ gui::ViewPort3d* WorkshopFrame::AddGood(Slot* slot, int index, int count)
 		gui::Mesh3d* mesh3d = static_cast<gui::Mesh3d*>(viewPort->GetBox()->GetChildren().front());
 		mesh3d->GetOrCreateMaterial()->GetSampler().SetFiltering(graph::BaseSampler::sfAnisotropic);
 
-		glm::quat quat = glm::angleAxis(D3DX_PI / 2.0f, ZVector);
+		glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 		viewPort->SetRot3dSpeed(quat);
-		quat = glm::angleAxis(2.0f * D3DX_PI * index / count, ZVector);
+		quat = glm::angleAxis(2.0f * glm::pi<float>() * index / count, ZVector);
 		viewPort->GetBox()->SetRot(viewPort->GetBox()->GetRot() * quat);
 	}
 
@@ -2083,9 +2083,9 @@ GamersFrame::GamersFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 	_space->SetAnchor(gui::Widget::waCenter);
 
 	_viewport = menu->CreateViewPort3d(root(), NULL, "", gui::ViewPort3d::msAnim, false);
-	glm::quat quat = glm::angleAxis(D3DX_PI / 24.0f, ZVector);
+	glm::quat quat = glm::angleAxis(glm::pi<float>() / 24.0f, ZVector);
 	_viewport->SetRot3dSpeed(quat);
-	quat = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+	quat = glm::angleAxis(glm::half_pi<float>(), XVector);
 	_viewport->GetBox()->SetRot(quat);
 
 	_mesh3d = menu->CreateMesh3d(_viewport, NULL, NULL);
@@ -2107,7 +2107,7 @@ GamersFrame::GamersFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 
 	_rightArrow = _raceMenu->CreateArrow(root(), this);
 	_rightArrow->SetAlign(gui::Widget::waRight);
-	_rightArrow->SetRot(D3DX_PI);
+	_rightArrow->SetRot(glm::pi<float>());
 
 	_nextArrow = _raceMenu->CreateArrow2(_bottomPanel, this);
 	_nextArrow->SetAlign(gui::Widget::waLeft);
@@ -2353,7 +2353,7 @@ AngarFrame::AngarFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): Men
 	_planetBoss = menu->CreatePlane(_planetInfo, this, "", true, IdentityVec2, gui::Material::bmTransparency);
 
 	_planetBossCar = menu->CreateViewPort3d(_planetInfo, NULL, "", gui::ViewPort3d::msAnim);
-	glm::quat quat = glm::angleAxis(D3DX_PI / 2.0f, ZVector);
+	glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 	_planetBossCar->SetRot3dSpeed(quat);
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
@@ -2395,9 +2395,9 @@ AngarFrame::PlanetBox& AngarFrame::AddPlanet(Planet* planet, int index)
 		box = &_planets.back();
 
 		box->viewport = menu()->CreateMesh3dBox(_planetGrid, this, planet->GetMesh(), planet->GetTexture(), gui::ViewPort3d::msStatic, Menu::ssButton5);
-		glm::quat quat = glm::angleAxis(D3DX_PI / 24.0f, ZVector);
+		glm::quat quat = glm::angleAxis(glm::pi<float>() / 24.0f, ZVector);
 		box->viewport->SetRot3dSpeed(quat);
-		quat = glm::angleAxis(D3DX_PI / 2.0f, XVector);
+		quat = glm::angleAxis(glm::half_pi<float>(), XVector);
 		box->viewport->GetBox()->SetRot(quat);
 		box->viewport->SetSize(glm::vec2(180.0f, 180.0f));
 		gui::Mesh3d* mesh3d = static_cast<gui::Mesh3d*>(box->viewport->GetBox()->GetChildren().front());
@@ -3164,7 +3164,7 @@ RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	_speedBarValue->SetPos(glm::vec2(_speedBar->GetSize().x/2 - 15.0f, 0.0f));
 
 	_viewportCar = menu->CreateViewPort3d(_topPanel, NULL, "", gui::ViewPort3d::msAnim);
-	glm::quat quat = glm::angleAxis(D3DX_PI / 2.0f, ZVector);
+	glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 	_viewportCar->SetRot3dSpeed(quat);
 
 	_playerGrid = menu->CreateDummy(root(), NULL);
@@ -3192,10 +3192,10 @@ RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 		_slots[i] = menu->CreateMesh3dBox(_topPanel, NULL, NULL, NULL, gui::ViewPort3d::msAnim);
 		_slots[i]->SetSize(glm::vec2(50.0f, 50.0f));
 
-		glm::quat quat = glm::angleAxis(D3DX_PI / 2.0f, ZVector);
+		glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 		_slots[i]->SetRot3dSpeed(quat);
 
-		quat = glm::angleAxis(2.0f * D3DX_PI * i / 6.0f, ZVector);
+		quat = glm::angleAxis(2.0f * glm::pi<float>() * i / 6.0f, ZVector);
 		_slots[i]->GetBox()->SetRot(_slots[i]->GetBox()->GetRot() * quat);
 	}
 
@@ -3259,7 +3259,7 @@ RaceMainFrame::PlayerBox* RaceMainFrame::AddPlayer(NetPlayer* netPlayer, unsigne
 		newBox.readyState = menu()->CreatePlane(newBox.bgRoot, NULL, "", false, IdentityVec2, gui::Material::bmTransparency);
 
 		newBox.viewportCar = menu()->CreateViewPort3d(newBox.bgRoot, NULL, "", gui::ViewPort3d::msAnim);
-		glm::quat quat = glm::angleAxis(D3DX_PI / 2.0f, ZVector);
+		glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 		newBox.viewportCar->SetRot3dSpeed(quat);
 
 		_players.push_back(newBox);
@@ -3289,7 +3289,7 @@ void RaceMainFrame::AdjustPlayer(PlayerBox* box, bool invert)
 {
 	float dir = invert ? -1.0f : 1.0f;
 
-	box->bg->SetRot(invert ? D3DX_PI : 0.0f);
+	box->bg->SetRot(invert ? glm::pi<float>() : 0.0f);
 
 	box->photo->SetSize(menu()->StretchImage(box->photo->GetMaterial(), glm::vec2(100.0f, 97.0f), true, false, true, false));
 	box->photo->SetPos(glm::vec2(-60.0f * dir, 0.0f));

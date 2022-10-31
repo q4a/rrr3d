@@ -1402,7 +1402,7 @@ void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, flo
 
 	LSL_ASSERT(isBot || isTop && slices > 2 && height > 0);
 
-	float aStep = 2 * D3DX_PI / slices;
+	float aStep = 2 * glm::pi<float>() / slices;
 	unsigned botVCnt = isBot * slices + 1;
 	unsigned topVCnt = isTop * slices + 1;
 	unsigned botFCnt = isBot * slices;
