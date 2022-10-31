@@ -88,6 +88,12 @@ inline D3DXVECTOR4 Vec4GlmToDx(const glm::vec4 v4)
 	return v4Dx;
 }
 
+inline D3DXPLANE Vec4ToPlane(const glm::vec4 v4)
+{
+	D3DXPLANE plane(v4.x, v4.y, v4.z, v4.w);
+	return plane;
+}
+
 inline D3DCOLOR Vec4ToColor(const glm::vec4 &vec)
 {
 	return D3DCOLOR_COLORVALUE(vec.r, vec.g, vec.b, vec.a);
@@ -107,12 +113,6 @@ inline glm::vec4 ColorVToVec4(const D3DCOLORVALUE &cv)
 {
 	glm::vec4 v4glm(cv.r, cv.g, cv.b, cv.a);
 	return v4glm;
-}
-
-inline glm::vec4 PlaneToVec4Glm(const glm::vec4 pl)
-{
-	glm::vec4 v4(pl.a, pl.b, pl.c, pl.d);
-	return v4;
 }
 
 inline glm::vec3 Vec3TransformCoord(const glm::vec3 &vec, const D3DXMATRIX &mat)
@@ -664,9 +664,59 @@ inline bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& ray
 	return tRay > 0;
 }
 
-inline float PlaneDistToPoint(const glm::vec4& plane, const glm::vec3& point)
+inline glm::vec4 PlaneNormalize(const glm::vec4 &plane)
 {
-	return D3DXPlaneDotCoord(&plane, &Vec3GlmToDx(point));
+	glm::vec4 pOut;
+	float norm = sqrt(plane.x * plane.x + plane.y * plane.y + plane.z * plane.z);
+	if (norm)
+	{
+		pOut.x = plane.x / norm;
+		pOut.y = plane.y / norm;
+		pOut.z = plane.z / norm;
+		pOut.w = plane.w / norm;
+	}
+	else
+	{
+		pOut.x = 0.0f;
+		pOut.y = 0.0f;
+		pOut.z = 0.0f;
+		pOut.w = 0.0f;
+	}
+	return pOut;
+}
+
+inline glm::vec4 PlaneTransform(const glm::vec4 &plane, const D3DXMATRIX &mat)
+{
+	glm::vec4 pOut;
+	pOut.x = mat.m[0][0] * plane.x + mat.m[1][0] * plane.y + mat.m[2][0] * plane.z + mat.m[3][0] * plane.w;
+	pOut.y = mat.m[0][1] * plane.x + mat.m[1][1] * plane.y + mat.m[2][1] * plane.z + mat.m[3][1] * plane.w;
+	pOut.z = mat.m[0][2] * plane.x + mat.m[1][2] * plane.y + mat.m[2][2] * plane.z + mat.m[3][2] * plane.w;
+	pOut.w = mat.m[0][3] * plane.x + mat.m[1][3] * plane.y + mat.m[2][3] * plane.z + mat.m[3][3] * plane.w;
+	return pOut;
+}
+
+inline glm::vec4 PlaneFromPointNormal(const glm::vec3 &point, const glm::vec3 &normal)
+{
+	return glm::vec4(normal, -glm::dot(point, normal));
+}
+
+inline glm::vec4 PlaneFromPoints(const glm::vec3 &pv1, const glm::vec3 &pv2, const glm::vec3 &pv3)
+{
+	glm::vec3 edge1 = pv2 - pv1;
+	glm::vec3 edge2 = pv3 - pv1;
+	glm::vec3 normal = glm::cross(edge1, edge2);
+	normal = glm::normalize(normal);
+	return PlaneFromPointNormal(pv1, normal);
+}
+
+inline float PlaneDotNormal(const glm::vec4 &plane, const glm::vec3 &point)
+{
+	return plane.x * point.x + plane.y * point.y + plane.z * point.z;
+}
+
+inline float PlaneDotCoord(const glm::vec4 &plane, const glm::vec3 &point)
+{
+	return plane.x * point.x + plane.y * point.y + plane.z * point.z + plane.w;
 };
 
 //}

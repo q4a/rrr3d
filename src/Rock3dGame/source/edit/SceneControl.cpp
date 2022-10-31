@@ -444,14 +444,13 @@ glm::vec3 SceneControl::ComputePoint(const glm::vec3& curPos, const glm::vec3& r
 	};
 
 	glm::vec3 pos = curPos;
-	glm::vec4 plane;
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(pos), &Vec3GlmToDx(planeNorm));
+	glm::vec4 plane = PlaneFromPointNormal(pos, planeNorm);
 	glm::vec3 newPos;
 	if (abs(glm::dot(planeNorm, rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
 	{
 		newPos = NullVector;
 
-		D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(pos), &Vec3GlmToDx(XVector));
+		plane = PlaneFromPointNormal(pos, XVector);
 		if (dirMove == dmZ && abs(glm::dot(XVector, rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
 			newPos = NullVector;
 	}

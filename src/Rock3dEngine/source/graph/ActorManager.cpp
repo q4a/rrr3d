@@ -304,9 +304,8 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	D3DXMATRIX mat = actor->GetInvWorldMat();
 	D3DXMatrixTranspose(&mat, &mat);
 
-	glm::vec4 plane;
-	D3DXPlaneTransform(&plane, &glm::vec4(Vec4GlmToDx(actor->vec1())), &mat);
-	D3DXPlaneNormalize(&plane, &plane);
+	glm::vec4 plane = PlaneTransform(actor->vec1(), mat);
+	plane = PlaneNormalize(plane);
 
 	float minDist = 0;
 	float minAngle = 0;
@@ -315,8 +314,8 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	for (Planars::iterator iter = _planars.begin(); iter != _planars.end(); ++iter)
 	{
 		const glm::vec4& testPlane = iter->plane;
-		float dist = abs(testPlane.d - plane.d);
-		float angle = abs(D3DXPlaneDotNormal(&testPlane, &D3DXVECTOR3(plane)));
+		float dist = abs(testPlane.w - plane.w);
+		float angle = abs(PlaneDotNormal(testPlane, glm::vec3(plane)));
 
 		if (dist < 0.5f && angle > 0.99f
 			//&& (planarIter == _planars.end() ||

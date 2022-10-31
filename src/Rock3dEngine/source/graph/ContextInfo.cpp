@@ -160,7 +160,7 @@ Intersect FrustumAABBIntersect(const Frustum& frustum, bool incZ, const AABB& aa
 
 	for (int i = 0; i < ePlane; ++i)
 	{
-		glm::vec3 normal(frustum.planes[i].a, frustum.planes[i].b, frustum.planes[i].c);
+		glm::vec3 normal(frustum.planes[i].x, frustum.planes[i].y, frustum.planes[i].z);
 
 		// X axis
 		if (normal.x > 0)
@@ -198,9 +198,9 @@ Intersect FrustumAABBIntersect(const Frustum& frustum, bool incZ, const AABB& aa
 			vMax.z = aabb.min.z;
 		}
 
-		if (D3DXPlaneDotCoord(&frustum.planes[i], &Vec3GlmToDx(vMin)) > 0)
+		if (PlaneDotCoord(frustum.planes[i], vMin) > 0)
 			return fiOutside;
-		if (D3DXPlaneDotCoord(&frustum.planes[i], &Vec3GlmToDx(vMax)) >= 0)
+		if (PlaneDotCoord(frustum.planes[i], vMax) >= 0)
 			ret = fiIntersect;
 	}
 
@@ -211,10 +211,10 @@ bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, con
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &Vec3GlmToDx(rayVec));
+	float d = PlaneDotNormal(plane, rayVec);
 	if (abs(d) > EPSILON)
 	{
-		outT = -D3DXPlaneDotCoord(&plane, &Vec3GlmToDx(rayStart)) / d;
+		outT = -PlaneDotCoord(plane, rayStart) / d;
 		return true;
 	}
 	return false;
@@ -259,8 +259,7 @@ unsigned PlaneAABBIntersect(const AABB& aabb, const glm::vec4& plane, glm::vec3 
 bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 {
 	bool res = false;
-	glm::vec4 posNearPlane;
-	D3DXPlaneFromPointNormal(&posNearPlane, &Vec3GlmToDx(_desc.pos),  &Vec3GlmToDx(_desc.dir));
+	glm::vec4 posNearPlane = PlaneFromPointNormal(_desc.pos, _desc.dir);
 
 	BoundBox box(aabb);
 	BoundBox viewBox, projBox;
@@ -295,8 +294,8 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 		float tNear, tFar;
 		if (aabb.LineCastIntersect(rayPos[i], rayVec[i], tNear, tFar))
 		{
-			tNear = D3DXPlaneDotCoord(&posNearPlane, &Vec3GlmToDx(rayPos[i] + rayVec[i] * tNear));
-			tFar = D3DXPlaneDotCoord(&posNearPlane, &Vec3GlmToDx(rayPos[i] + rayVec[i] * tFar));
+			tNear = PlaneDotCoord(posNearPlane, rayPos[i] + rayVec[i] * tNear);
+			tFar = PlaneDotCoord(posNearPlane, rayPos[i] + rayVec[i] * tFar);
 
 			if (tNear < minZ || !res)
 				minZ = tNear;
@@ -341,7 +340,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 			for (int k = 0; k < 3; ++k)
 			{
 				int numPlane = (i + k + 1) % 4;
-				float planeDot = D3DXPlaneDotCoord(&frustum.planes[numPlane], &Vec3GlmToDx(points[j]));
+				float planeDot = PlaneDotCoord(frustum.planes[numPlane], points[j]);
 				if (k == 0)
 					fContain = planeDot;
 				//лежит вне
@@ -354,7 +353,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 
 			if (contain)
 			{
-				float z = D3DXPlaneDotCoord(&posNearPlane, &Vec3GlmToDx(points[j]));
+				float z = PlaneDotCoord(posNearPlane, points[j]);
 
 				if (z < minZ || !res)
 					minZ = z;

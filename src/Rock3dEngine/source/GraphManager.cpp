@@ -1487,10 +1487,10 @@ bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, con
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &Vec3GlmToDx(rayVec));
+	float d = PlaneDotCoord(plane, rayVec);
 	if (abs(d) > EPSILON)
 	{
-		outT = -D3DXPlaneDotCoord(&plane, &Vec3GlmToDx(rayStart)) / d;
+		outT = -PlaneDotCoord(plane, rayStart) / d;
 		return true;
 	}
 	return false;
@@ -1536,8 +1536,7 @@ bool ComputeZBounds(graph::Engine& engine, const graph::CameraCI& camera, const 
 {
 	bool res = false;
 
-	glm::vec4 posNearPlane;
-	D3DXPlaneFromPointNormal(&posNearPlane, &Vec3GlmToDx(camera.GetDesc().pos), &Vec3GlmToDx(camera.GetDesc().dir));
+	glm::vec4 posNearPlane = PlaneFromPointNormal(camera.GetDesc().pos, camera.GetDesc().dir);
 
 	glm::vec3 rayVec[4] = {glm::vec3(-1.0f, -1.0f, 1.0f), glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(-1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f)};
 	glm::vec3 rayPos[4] = {glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f)};
@@ -1551,8 +1550,8 @@ bool ComputeZBounds(graph::Engine& engine, const graph::CameraCI& camera, const 
 		float tNear, tFar;
 		if (aabb.LineCastIntersect(rayPos[i], rayVec[i], tNear, tFar))
 		{
-			tNear = D3DXPlaneDotCoord(&posNearPlane, &Vec3GlmToDx(rayPos[i] + rayVec[i] * tNear));
-			tFar = D3DXPlaneDotCoord(&posNearPlane, &Vec3GlmToDx(rayPos[i] + rayVec[i] * tFar));
+			tNear = PlaneDotCoord(posNearPlane, rayPos[i] + rayVec[i] * tNear);
+			tFar = PlaneDotCoord(posNearPlane, rayPos[i] + rayVec[i] * tFar);
 
 			if (tNear < minZ || !res)
 				minZ = tNear;

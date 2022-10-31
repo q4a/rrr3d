@@ -657,9 +657,8 @@ void Proj::MasloContact(const px::Scene::OnContactEvent& contact)
 		if (car == NULL || _time1 >= 0 || car->IsMineLocked())
 			return;
 
-		glm::vec4 plane;
-		D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(car->GetGrActor().GetWorldPos()), &Vec3GlmToDx(car->GetGrActor().GetWorldRight()));
-		float dist = PlaneDistToPoint(plane, GetWorldPos());
+		glm::vec4 plane = PlaneFromPointNormal(car->GetGrActor().GetWorldPos(), car->GetGrActor().GetWorldRight());
+		float dist = PlaneDotCoord(plane, GetWorldPos());
 
 		if (car->GetPxActor().GetNxActor()->getLinearVelocity().magnitude() > 3.0f)
 			car->LockClutch(abs(dist) > 0.1f && dist > 0 ? -_desc.damage : _desc.damage);
@@ -1189,10 +1188,9 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 		float angle = velNorm.dot(norm);
 		if (abs(angle) > 0.1f)
 		{
-			glm::vec4 plane;
-			D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(NullVector), &Vec3GlmToDx(glm::make_vec3(norm.get())));
+			glm::vec4 plane = PlaneFromPointNormal(NullVector, glm::make_vec3(norm.get()));
 			D3DXMATRIX mat;
-			D3DXMatrixReflect(&mat, &plane);
+			D3DXMatrixReflect(&mat, &Vec4ToPlane(plane));
 
 			glm::vec3 vel = glm::make_vec3(velocity.get());
 			vel = Vec3TransformNormal(vel, mat);

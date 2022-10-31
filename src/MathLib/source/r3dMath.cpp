@@ -554,27 +554,27 @@ glm::vec4 AABB::GetPlane(unsigned index) const
 	switch (index)
 	{
 	case cLeftPlane:
-		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(min), &Vec3GlmToDx(-XVector));
+		res = PlaneFromPointNormal(min, -XVector);
 		break;
 
 	case cTopPlane:
-		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(min), &Vec3GlmToDx(-YVector));
+		res = PlaneFromPointNormal(min, -YVector);
 		break;
 
 	case cBackPlane:
-		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(min), &Vec3GlmToDx(-ZVector));
+		res = PlaneFromPointNormal(min, -ZVector);
 		break;
 
 	case cRightPlane:
-		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(max), &Vec3GlmToDx(XVector));
+		res = PlaneFromPointNormal(max, XVector);
 		break;
 
 	case cBottomPlane:
-		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(max), &Vec3GlmToDx(YVector));
+		res = PlaneFromPointNormal(max, YVector);
 		break;
 
 	case cFrontPlane:
-		D3DXPlaneFromPointNormal(&res, &Vec3GlmToDx(max), &Vec3GlmToDx(ZVector));
+		res = PlaneFromPointNormal(max, ZVector);
 		break;
 	}
 
@@ -708,46 +708,46 @@ void Frustum::CalculateCorners(Corners& pPoints, const D3DXMATRIX& invViewProj)
 void Frustum::Refresh(const D3DXMATRIX& viewProjMat)
 {
 	//extract left plane
-	left.a = viewProjMat._14 - viewProjMat._12;
-	left.b = viewProjMat._24 - viewProjMat._22;
-	left.c = viewProjMat._34 - viewProjMat._32;
-	left.d = viewProjMat._44 - viewProjMat._42;
-	D3DXPlaneNormalize(&left, &left);
+	left.x = viewProjMat._14 - viewProjMat._12;
+	left.y = viewProjMat._24 - viewProjMat._22;
+	left.z = viewProjMat._34 - viewProjMat._32;
+	left.w = viewProjMat._44 - viewProjMat._42;
+	left = PlaneNormalize(left);
 
 	//extract top plane
-	top.a = viewProjMat._14 + viewProjMat._11;
-	top.b = viewProjMat._24 + viewProjMat._21;
-	top.c = viewProjMat._34 + viewProjMat._31;
-	top.d = viewProjMat._44 + viewProjMat._41;
-	D3DXPlaneNormalize(&top, &top);
+	top.x = viewProjMat._14 + viewProjMat._11;
+	top.y = viewProjMat._24 + viewProjMat._21;
+	top.z = viewProjMat._34 + viewProjMat._31;
+	top.w = viewProjMat._44 + viewProjMat._41;
+	top = PlaneNormalize(top);
 
 	//extract right plane
-	right.a = viewProjMat._14 + viewProjMat._12;
-	right.b = viewProjMat._24 + viewProjMat._22;
-	right.c = viewProjMat._34 + viewProjMat._32;
-	right.d = viewProjMat._44 + viewProjMat._42;
-	D3DXPlaneNormalize(&right, &right);
+	right.x = viewProjMat._14 + viewProjMat._12;
+	right.y = viewProjMat._24 + viewProjMat._22;
+	right.z = viewProjMat._34 + viewProjMat._32;
+	right.w = viewProjMat._44 + viewProjMat._42;
+	right = PlaneNormalize(right);
 
 	//extract bottom plane
-	bottom.a = viewProjMat._14 - viewProjMat._11;
-	bottom.b = viewProjMat._24 - viewProjMat._21;
-	bottom.c = viewProjMat._34 - viewProjMat._31;
-	bottom.d = viewProjMat._44 - viewProjMat._41;
-	D3DXPlaneNormalize(&bottom, &bottom);
+	bottom.x = viewProjMat._14 - viewProjMat._11;
+	bottom.y = viewProjMat._24 - viewProjMat._21;
+	bottom.z = viewProjMat._34 - viewProjMat._31;
+	bottom.w = viewProjMat._44 - viewProjMat._41;
+	bottom = PlaneNormalize(bottom);
 
 	//extract near plane
-	pNear.a = viewProjMat._13;
-	pNear.b = viewProjMat._23;
-	pNear.c = viewProjMat._33;
-	pNear.d = viewProjMat._43;
-	D3DXPlaneNormalize(&pNear, &pNear);
+	pNear.x = viewProjMat._13;
+	pNear.y = viewProjMat._23;
+	pNear.z = viewProjMat._33;
+	pNear.w = viewProjMat._43;
+	pNear = PlaneNormalize(pNear);
 
 	//extract far plane
-	pFar.a = viewProjMat._14 - viewProjMat._13;
-	pFar.b = viewProjMat._24 - viewProjMat._23;
-	pFar.c = viewProjMat._34 - viewProjMat._33;
-	pFar.d = viewProjMat._44 - viewProjMat._43;
-	D3DXPlaneNormalize(&pFar, &pFar);
+	pFar.x = viewProjMat._14 - viewProjMat._13;
+	pFar.y = viewProjMat._24 - viewProjMat._23;
+	pFar.z = viewProjMat._34 - viewProjMat._33;
+	pFar.w = viewProjMat._44 - viewProjMat._43;
+	pFar = PlaneNormalize(pFar);
 }
 
 Frustum::SpaceContains Frustum::ContainsAABB(const AABB& aabb) const
@@ -771,7 +771,7 @@ Frustum::SpaceContains Frustum::ContainsAABB(const AABB& aabb) const
 		PointIn = true;
 
 		for (int iCorner = 0; iCorner < 8; ++iCorner)
-			if (D3DXPlaneDotCoord(&planes[iPlane], &Vec3GlmToDx(corners[iCorner])) < 0)
+			if (PlaneDotCoord(planes[iPlane], corners[iCorner]) < 0)
 			{
 				PointIn = false;
 				--inCount;
@@ -794,10 +794,10 @@ bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, c
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &Vec3GlmToDx(rayVec));
+	float d = PlaneDotNormal(plane, rayVec);
 	if (abs(d) > EPSILON)
 	{
-		outT = -D3DXPlaneDotCoord(&plane, &Vec3GlmToDx(rayStart)) / d;
+		outT = -PlaneDotCoord(plane, rayStart) / d;
 		return outT > 0;
 	}
 	return false;

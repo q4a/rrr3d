@@ -30,14 +30,14 @@ void ReflRender::BeginRT(Engine& engine, const RtFlags& flags)
 	engine.GetContext().ApplyCamera(&_reflCamera);
 
 	DWORD enableClipPlanes = cClipPlanes[0];
-	engine.GetDriver().GetDevice()->SetClipPlane(0, _reflPlane);
+	engine.GetDriver().GetDevice()->SetClipPlane(0, glm::value_ptr(_reflPlane));
 
 	LSL_ASSERT(_clipPlanes.size() <= 5);
 
 	for (unsigned i = 0; i < _clipPlanes.size(); ++i)
 	{
 		enableClipPlanes |= cClipPlanes[i + 1];
-		engine.GetDriver().GetDevice()->SetClipPlane(i + 1, _clipPlanes[i]);
+		engine.GetDriver().GetDevice()->SetClipPlane(i + 1, glm::value_ptr(_clipPlanes[i]));
 	}
 
 	engine.GetContext().SetRenderState(rsClipPlaneEnable, enableClipPlanes);
@@ -63,7 +63,7 @@ const glm::vec4& ReflRender::GetReflPlane() const
 void ReflRender::SetReflPlane(const glm::vec4& value)
 {
 	_reflPlane = value;
-	D3DXMatrixReflect(&_reflMat, &_reflPlane);
+	D3DXMatrixReflect(&_reflMat, &Vec4ToPlane(_reflPlane));
 }
 
 const ReflRender::ClipPlanes& ReflRender::GetClipPlanes() const

@@ -1261,8 +1261,7 @@ ScaleCoordSys::DirMove ScaleCoordSys::CompDirMove(const glm::vec3& rayStart, con
 	glm::vec3 plLine[3];
 	for (int i = 0; i < 3; ++i)
 		plLine[i] = bbPlanes[i] * plSize;
-	glm::vec4 upPlane;
-	D3DXPlaneFromPoints(&upPlane, &Vec3GlmToDx(plLine[0]), &Vec3GlmToDx(plLine[1]), &Vec3GlmToDx(plLine[2]));
+	glm::vec4 upPlane = PlaneFromPoints(plLine[0], plLine[1], plLine[2]);
 	//
 	glm::vec3 maxVec = NullVector;
 	for (int i = 0; i < 3; ++i)

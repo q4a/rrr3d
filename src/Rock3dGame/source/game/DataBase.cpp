@@ -1971,11 +1971,8 @@ void DataBase::LoadWorld1()
 	LoadDecor("World1\\zdanie1", "World1\\zdaine1.r3d", "World1\\zdanie1");
 	LoadDecor("World1\\zdanie2", "World1\\zdaine2.r3d", "World1\\zdanie2");
 
-	glm::vec4 plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 vec1 = PlaneToVec4Glm(plane);
-
+	glm::vec4 vec1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	glm::vec4 vec3(0.0f, -0.15f, 0.075f, 0.0f);
 
 	LoadTrack("World1\\jump", "World1\\Track\\jump.r3d", "World1\\Track\\track1", true, true);
@@ -2044,11 +2041,8 @@ void DataBase::LoadWorld2()
 		SaveMapObj(mapObj, MapObjLib::ctDecoration, "World2\\semaphore");
 	}
 
-	glm::vec4 plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 vec1 = PlaneToVec4Glm(plane);
-
+	glm::vec4 vec1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	glm::vec4 vec3(0.0f, -0.15f, 0.10f, 0.0f);
 	
 	LoadTrack("World2\\jump", "World2\\Track\\jump.r3d", "World2\\Track\\track1", true, true, true);
@@ -2098,14 +2092,9 @@ void DataBase::LoadWorld3()
 	LoadDecor("World3\\stone2", "World3\\stone2.r3d", "World3\\stone");
 	LoadDecor("World3\\stone3", "World3\\stone3.r3d", "World3\\stone");
 
-	glm::vec4 plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 vec1 = PlaneToVec4Glm(plane);
-
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
-	glm::vec4 vec1Up = PlaneToVec4Glm(plane);
-
+	glm::vec4 vec1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	glm::vec4 vec1Up = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), ZVector);
 	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
 	LoadTrack("World3\\most", "World3\\Track\\most.r3d", "World3\\Track\\most", true, true, false, false, "", true);
@@ -2138,11 +2127,8 @@ void DataBase::LoadWorld4()
 	LoadDecor("World4\\volcano", "World4\\volcano.r3d", "World4\\volcano");
 	LoadDecor("World4\\crystals", "World4\\crystals.r3d", "World4\\crystals");
 
-	glm::vec4 plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 vec1 = PlaneToVec4Glm(plane);
-
+	glm::vec4 vec1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	glm::vec4 vec3(0.0f, -0.25f, 0.25f, 0.0f);
 
 	LoadTrack("World4\\most", "World4\\Track\\most.r3d", "World4\\Track\\track1", true, true, false, false, "World4\\Track\\pxMost.r3d", true);
@@ -2172,15 +2158,9 @@ void DataBase::LoadWorld5()
 	LoadDecor("World5\\transportship", "World5\\transportship.r3d", "World5\\transportship");
 	LoadDecor("World5\\piece", "World5\\piece.r3d", "World5\\piece");
 
-	glm::vec4 plane;
-
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
-	glm::vec4 plane1 = PlaneToVec4Glm(plane);
-
+	glm::vec4 plane1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), ZVector);
 	float cosAng = cos(20.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 plane2 = PlaneToVec4Glm(plane);
-
+	glm::vec4 plane2 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
 	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
 	LoadTrack("World5\\most", "World5\\Track\\most.r3d", "World5\\Track\\most", true, true, false, false, "", true);
@@ -2208,14 +2188,9 @@ void DataBase::LoadWorld6()
 	LoadDecor("World6\\stone2", "World6\\stone2.r3d", "World6\\stone");
 	LoadDecor("World6\\stone3", "World6\\stone3.r3d", "World6\\stone");
 
-	glm::vec4 plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng)));
-	glm::vec4 vec1 = PlaneToVec4Glm(plane);
-
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(glm::vec3(0, 0, 6.2f)), &Vec3GlmToDx(ZVector));
-	glm::vec4 vec1Up = PlaneToVec4Glm(plane);
-
+	glm::vec4 vec1 = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), glm::vec3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
+	glm::vec4 vec1Up = PlaneFromPointNormal(glm::vec3(0, 0, 6.2f), ZVector);
 	glm::vec4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
 	LoadTrack("World6\\most", "World6\\Track\\most.r3d", "World6\\Track\\track1", true, true, false, false, "World6\\Track\\pxMost.r3d");

@@ -328,7 +328,7 @@ void PlaneFromDirVec(const glm::vec3& dir, const glm::vec3& norm, const glm::vec
 	glm::vec3 right, up;
 	right = glm::cross(dir, norm);
 	up = glm::cross(right, dir);
-	D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx(pos), &Vec3GlmToDx(up));
+	plane = PlaneFromPointNormal(pos, up);
 }
 
 bool WayNode::Tile::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, float* dist) const
@@ -344,7 +344,7 @@ bool WayNode::Tile::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, fl
 	//Вектора коллиниарны
 	else
 		//Строим плоскость через центр тайла перпендикулярно направлению
-		D3DXPlaneFromPointNormal(&plane, &Vec3GlmToDx((GetPos() + GetNextPos()) / 2.0f), &Vec3GlmToDx(dir));
+		plane = PlaneFromPointNormal((GetPos() + GetNextPos()) / 2.0f, dir);
 
 	float tmp;
 	bool res = RayCastIntersectPlane(rayPos, rayVec, plane, tmp) && IsContains(rayPos + rayVec * tmp);

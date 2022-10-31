@@ -1574,9 +1574,8 @@ Player* Player::FindClosestEnemy(float viewAngle, bool zTest)
 			dir = glm::normalize(enemyPos - carPos);
 			float angle = glm::dot(dir, carDir);
 
-			glm::vec4 dirPlane;
-			D3DXPlaneFromPointNormal(&dirPlane, &Vec3GlmToDx(carPos), &Vec3GlmToDx(carDir));
-			float dist = D3DXPlaneDotCoord(&dirPlane, &Vec3GlmToDx(enemyPos));
+			glm::vec4 dirPlane = PlaneFromPointNormal(carPos, carDir);
+			float dist = PlaneDotCoord(dirPlane, enemyPos);
 			float absDist = abs(dist);
 
 			//Объект ближе
