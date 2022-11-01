@@ -482,17 +482,15 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 				break;
 
 			case csOrtho:
-				D3DXMatrixOrthoRH(&_matrices[transform], _desc.width, _desc.width / _desc.aspect, _desc.nearDist, _desc.farDist);
+				_matrices[transform] = MatrixOrthoRH(_desc.width, _desc.width / _desc.aspect, _desc.nearDist, _desc.farDist);
 				break;
 
 			case csViewPort:
 			case csViewPortInv:
 			{
 				glm::vec2 viewSize = glm::vec2(_desc.width, _desc.width / _desc.aspect);
-				D3DXMATRIX viewMat;
-				D3DXMatrixTranslation(&viewMat, -1.0f, _desc.style == csViewPortInv ? -1.0f : 1.0f, 0.0f);
-				D3DXMATRIX matScale;
-				D3DXMatrixScaling(&matScale, 2.0f/viewSize.x, _desc.style == csViewPortInv ? 2.0f/viewSize.y : -2.0f/viewSize.y, 1.0f);
+				D3DXMATRIX viewMat = MatrixTranslation(-1.0f, _desc.style == csViewPortInv ? -1.0f : 1.0f, 0.0f);
+				D3DXMATRIX matScale = MatrixScaling(2.0f/viewSize.x, _desc.style == csViewPortInv ? 2.0f/viewSize.y : -2.0f/viewSize.y, 1.0f);
 				matScale._33 = 1.0f/(-500.0f - 500.0f);
 				matScale._43 = -500.0f/(-500.0f - 500.0f);
 				_matrices[transform] = matScale * viewMat;
@@ -529,7 +527,7 @@ const D3DXMATRIX& CameraCI::GetInvTransform(Transform transform) const
 {
 	if (_invMatChanged.test(transform))
 	{
-		D3DXMatrixInverse(&_invMatrices[transform], 0, &GetTransform(transform));
+		_invMatrices[transform] = MatrixInverse(0, GetTransform(transform));
 		_invMatChanged.reset(transform);
 	}
 

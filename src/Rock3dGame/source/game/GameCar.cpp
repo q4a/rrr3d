@@ -636,8 +636,8 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 
 		glm::quat rot;
 		fixRot.getXYZW(rot);
-		glm::vec3 xAxis;
-		D3DXQuaternionToAxisAngle(&rot, &xAxis, &dFixAngle);
+		glm::vec3 xAxis = glm::axis(rot);
+		dFixAngle = glm::angle(rot);
 		dFixAxis.set(xAxis);
 		dFixAxis.normalize();
 

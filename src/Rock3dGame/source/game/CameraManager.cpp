@@ -371,7 +371,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		glm::vec3 camPos2;
 		Vec3Rotate(cCamTargetOff, camQuat2, camPos2);
 		camPos2 += targetPos;
-		D3DXVec3Lerp(&camPos, &camPos1, &camPos2, 8.0f * deltaTime);*/
+		camPos = Vec3Lerp(camPos1, camPos2, 8.0f * deltaTime);*/
 
 		glm::quat yRot = glm::angleAxis(glm::pi<float>() * 12.0f, glm::vec3(0, 1, 0));
 		camQuat = camQuat * yRot;

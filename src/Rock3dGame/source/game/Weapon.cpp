@@ -1034,8 +1034,7 @@ void Proj::SpringUpdate(float deltaTime)
 
 		_vec1.x = _vec1.x + (dAngle - _vec1.x) * lsl::ClampValue(deltaTime * 6.0f, 0.0f, 1.0f);
 
-		glm::quat rot;
-		D3DXQuaternionRotationAxis(&rot, &YVector, _vec1.x);
+		glm::quat rot = glm::angleAxis(_vec1.x, YVector);
 		car->SetRot(rot * car->GetRot());
 	}
 	else if (_state1 || _time1 > 0.0f)
@@ -1054,8 +1053,7 @@ void Proj::SpringUpdate(float deltaTime)
 		float alpha = lsl::ClampValue(_time1/1.0f, 0.0f, 1.0f);
 		angle = -glm::pi<float>()/6 + (glm::pi<float>()/6 - (-glm::pi<float>()/6)) * alpha;
 
-		glm::quat rot;
-		D3DXQuaternionRotationAxis(&rot, &YVector, angle);
+		glm::quat rot = glm::angleAxis(angle, YVector);
 		car->SetRot(rot * testRot);
 
 		if (alpha == 1.0f)

@@ -52,7 +52,7 @@ void SkyBox::Render(Engine& engine)
 	skyWVP._41 = 0.0f;
 	skyWVP._42 = 0.0f;
 	skyWVP._43 = 0.0f;
-	D3DXMatrixInverse(&skyWVP, 0, &skyWVP);
+	skyWVP = MatrixInverse(0, skyWVP);
 	shader.SetValueDir("matInvWVP", skyWVP);
 
 	shader.Apply(engine);

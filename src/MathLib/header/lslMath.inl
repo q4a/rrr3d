@@ -174,6 +174,17 @@ inline D3DXMATRIX MatrixTranslation(float x, float y, float z)
 	return outMat;
 }
 
+inline D3DXMATRIX MatrixTranspose(const D3DXMATRIX &mat)
+{
+	D3DXMATRIX outMat;
+	int i, j;
+	for (i = 0; i < 4; ++i)
+		for (j = 0; j < 4; ++j)
+			outMat.m[i][j] = mat.m[j][i];
+
+	return outMat;
+}
+
 inline void BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot, D3DXMATRIX& outMat)
 {
 	D3DXMATRIX scaleMat = MatrixScaling(scale.x, scale.y, scale.z);
@@ -186,6 +197,77 @@ inline D3DXMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale,
 {
 	D3DXMATRIX outMat;
 	BuildWorldMatrix(pos, scale, rot, outMat);
+	return outMat;
+}
+
+inline D3DXMATRIX MatrixInverse(float *pdeterminant, const D3DXMATRIX &mat)
+{
+	D3DXMATRIX outMat;
+	float det, t[3], v[16];
+	int i, j;
+
+	t[0] = mat.m[2][2] * mat.m[3][3] - mat.m[2][3] * mat.m[3][2];
+	t[1] = mat.m[1][2] * mat.m[3][3] - mat.m[1][3] * mat.m[3][2];
+	t[2] = mat.m[1][2] * mat.m[2][3] - mat.m[1][3] * mat.m[2][2];
+	v[0] = mat.m[1][1] * t[0] - mat.m[2][1] * t[1] + mat.m[3][1] * t[2];
+	v[4] = -mat.m[1][0] * t[0] + mat.m[2][0] * t[1] - mat.m[3][0] * t[2];
+
+	t[0] = mat.m[1][0] * mat.m[2][1] - mat.m[2][0] * mat.m[1][1];
+	t[1] = mat.m[1][0] * mat.m[3][1] - mat.m[3][0] * mat.m[1][1];
+	t[2] = mat.m[2][0] * mat.m[3][1] - mat.m[3][0] * mat.m[2][1];
+	v[8] = mat.m[3][3] * t[0] - mat.m[2][3] * t[1] + mat.m[1][3] * t[2];
+	v[12] = -mat.m[3][2] * t[0] + mat.m[2][2] * t[1] - mat.m[1][2] * t[2];
+
+	det = mat.m[0][0] * v[0] + mat.m[0][1] * v[4] + mat.m[0][2] * v[8] + mat.m[0][3] * v[12];
+	if (det == 0.0f)
+		return outMat;
+	if (pdeterminant)
+		*pdeterminant = det;
+
+	t[0] = mat.m[2][2] * mat.m[3][3] - mat.m[2][3] * mat.m[3][2];
+	t[1] = mat.m[0][2] * mat.m[3][3] - mat.m[0][3] * mat.m[3][2];
+	t[2] = mat.m[0][2] * mat.m[2][3] - mat.m[0][3] * mat.m[2][2];
+	v[1] = -mat.m[0][1] * t[0] + mat.m[2][1] * t[1] - mat.m[3][1] * t[2];
+	v[5] = mat.m[0][0] * t[0] - mat.m[2][0] * t[1] + mat.m[3][0] * t[2];
+
+	t[0] = mat.m[0][0] * mat.m[2][1] - mat.m[2][0] * mat.m[0][1];
+	t[1] = mat.m[3][0] * mat.m[0][1] - mat.m[0][0] * mat.m[3][1];
+	t[2] = mat.m[2][0] * mat.m[3][1] - mat.m[3][0] * mat.m[2][1];
+	v[9] = -mat.m[3][3] * t[0] - mat.m[2][3] * t[1] - mat.m[0][3] * t[2];
+	v[13] = mat.m[3][2] * t[0] + mat.m[2][2] * t[1] + mat.m[0][2] * t[2];
+
+	t[0] = mat.m[1][2] * mat.m[3][3] - mat.m[1][3] * mat.m[3][2];
+	t[1] = mat.m[0][2] * mat.m[3][3] - mat.m[0][3] * mat.m[3][2];
+	t[2] = mat.m[0][2] * mat.m[1][3] - mat.m[0][3] * mat.m[1][2];
+	v[2] = mat.m[0][1] * t[0] - mat.m[1][1] * t[1] + mat.m[3][1] * t[2];
+	v[6] = -mat.m[0][0] * t[0] + mat.m[1][0] * t[1] - mat.m[3][0] * t[2];
+
+	t[0] = mat.m[0][0] * mat.m[1][1] - mat.m[1][0] * mat.m[0][1];
+	t[1] = mat.m[3][0] * mat.m[0][1] - mat.m[0][0] * mat.m[3][1];
+	t[2] = mat.m[1][0] * mat.m[3][1] - mat.m[3][0] * mat.m[1][1];
+	v[10] = mat.m[3][3] * t[0] + mat.m[1][3] * t[1] + mat.m[0][3] * t[2];
+	v[14] = -mat.m[3][2] * t[0] - mat.m[1][2] * t[1] - mat.m[0][2] * t[2];
+
+	t[0] = mat.m[1][2] * mat.m[2][3] - mat.m[1][3] * mat.m[2][2];
+	t[1] = mat.m[0][2] * mat.m[2][3] - mat.m[0][3] * mat.m[2][2];
+	t[2] = mat.m[0][2] * mat.m[1][3] - mat.m[0][3] * mat.m[1][2];
+	v[3] = -mat.m[0][1] * t[0] + mat.m[1][1] * t[1] - mat.m[2][1] * t[2];
+	v[7] = mat.m[0][0] * t[0] - mat.m[1][0] * t[1] + mat.m[2][0] * t[2];
+
+	v[11] = -mat.m[0][0] * (mat.m[1][1] * mat.m[2][3] - mat.m[1][3] * mat.m[2][1]) +
+	        mat.m[1][0] * (mat.m[0][1] * mat.m[2][3] - mat.m[0][3] * mat.m[2][1]) -
+	        mat.m[2][0] * (mat.m[0][1] * mat.m[1][3] - mat.m[0][3] * mat.m[1][1]);
+
+	v[15] = mat.m[0][0] * (mat.m[1][1] * mat.m[2][2] - mat.m[1][2] * mat.m[2][1]) -
+	        mat.m[1][0] * (mat.m[0][1] * mat.m[2][2] - mat.m[0][2] * mat.m[2][1]) +
+	        mat.m[2][0] * (mat.m[0][1] * mat.m[1][2] - mat.m[0][2] * mat.m[1][1]);
+
+	det = 1.0f / det;
+
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 4; j++)
+			outMat.m[i][j] = v[4 * i + j] * det;
+
 	return outMat;
 }
 
@@ -217,6 +299,16 @@ inline D3DXMATRIX MatrixLookAtRH(const glm::vec3 &eye, const glm::vec3 &at, cons
 	outMat.m[2][3] = 0.0f;
 	outMat.m[3][3] = 1.0f;
 
+	return outMat;
+}
+
+inline D3DXMATRIX MatrixOrthoRH(float w, float h, float zn, float zf)
+{
+	D3DXMATRIX outMat = IdentityMatrix;
+	outMat.m[0][0] = 2.0f / w;
+	outMat.m[1][1] = 2.0f / h;
+	outMat.m[2][2] = 1.0f / (zn - zf);
+	outMat.m[3][2] = zn / (zn - zf);
 	return outMat;
 }
 

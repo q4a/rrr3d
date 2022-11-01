@@ -1268,11 +1268,11 @@ void Widget::BuildMatrix(MatrixChange change) const
 		break;
 
 	case mcInvLocal:
-		D3DXMatrixInverse(&_matrix[mcInvLocal], 0, &GetMat());
+		_matrix[mcInvLocal] = MatrixInverse(0, GetMat());
 		break;
 
 	case mcInvWorld:
-		D3DXMatrixInverse(&_matrix[mcInvWorld], 0, &GetWorldMat());
+		_matrix[mcInvWorld] = MatrixInverse(0, GetWorldMat());
 		break;
 	}
 }
@@ -3499,10 +3499,8 @@ bool ViewPort3d::OnMouseOver(const MouseMove& mMove)
 		if (_style == msViewer)
 		{
 			//Вращение по двум осям
-			/*D3DXQUATERNION rotY;
-			D3DXQuaternionRotationAxis(&rotY, &YVector, glm::pi<float>() * mMove.dtCoord.x/100.0f);
-			D3DXQUATERNION rotX;
-			D3DXQuaternionRotationAxis(&rotX, &XVector, -glm::pi<float>() * mMove.dtCoord.y/100.0f);
+			/*glm::quat rotY = glm::angleAxis(glm::pi<float>() * mMove.dtCoord.x/100.0f, YVector);
+			glm::quat rotX = glm::angleAxis(-glm::pi<float>() * mMove.dtCoord.y/100.0f, XVector);
 			SetRot3d(GetRot3d() * rotY * rotX);*/
 
 			//Вращение по одной оси, совпадающией с up mesh

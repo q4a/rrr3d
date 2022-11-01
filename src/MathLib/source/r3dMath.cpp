@@ -588,20 +588,20 @@ glm::vec3 AABB::GetPlaneVert(unsigned index, unsigned vertex) const
 	glm::vec3 invNorm = IdentityVector - glm::vec3(abs(norm.x), abs(norm.y), abs(norm.z));
 
 	glm::vec3 fixCoord;
-	D3DXVec3Scale(norm, GetSizes()/2, fixCoord);
+	Vec3Scale(norm, GetSizes()/2, fixCoord);
 	glm::vec3 fixCenter;
-	D3DXVec3Scale(norm, GetCenter(), fixCenter);
+	Vec3Scale(norm, GetCenter(), fixCenter);
 	fixCoord += fixCenter;
 
 	glm::vec3 res;
 	switch (vertex)
 	{
 	case 0:
-		D3DXVec3Scale(min, invNorm, res);
+		Vec3Scale(min, invNorm, res);
 		return res + fixCoord;
 
 	case 1:
-		D3DXVec3Scale(max, invNorm, res);
+		Vec3Scale(max, invNorm, res);
 		return res + fixCoord;
 
 	default:

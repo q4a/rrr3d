@@ -293,8 +293,7 @@ void SceneControl::ComputeLink(INode* node, const glm::vec3& pos, glm::vec3& res
 		float zDist;
 		repeat = false;
 
-		D3DXMATRIX worldMat;
-		D3DXMatrixTranslation(&worldMat, newOff.x, newOff.y, newOff.z);
+		D3DXMATRIX worldMat = MatrixTranslation(newOff.x, newOff.y, newOff.z);
 		worldMat = node->GetMat() * worldMat;
 		D3DXMATRIX invWorldMat;
 		D3DXMatrixInverse(&invWorldMat, 0, &worldMat);

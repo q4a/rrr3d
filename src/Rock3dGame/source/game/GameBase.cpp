@@ -1222,10 +1222,8 @@ void PodushkaAnim::OnProgress(float deltaTime)
 		const res::FaceGroup& fg = _target->GetMesh()->GetData()->faceGroups[_target->GetMeshId()];
 		glm::vec3 offset = (fg.minPos + fg.maxPos) / 2.0f;
 
-		D3DXMATRIX matOffs1;
-		D3DXMatrixTranslation(&matOffs1, -offset.x, -offset.y, -offset.z);
-		D3DXMATRIX matOffs2;
-		D3DXMatrixTranslation(&matOffs2, offset.x, offset.y, offset.z);
+		D3DXMATRIX matOffs1 = MatrixTranslation(-offset.x, -offset.y, -offset.z);
+		D3DXMATRIX matOffs2 = MatrixTranslation(offset.x, offset.y, offset.z);
 		localMat = localMat * matOffs1 * rotMat * matOffs2;
 
 		_target->SetLocalMat(localMat);

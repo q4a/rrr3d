@@ -2654,8 +2654,7 @@ void DataBase::LoadMisc()
 		game::GameObject& gameObj = mapObj->GetGameObj();
 
 		graph::PlaneNode* node = AddPlaneNode(mapObj, IdentityVec2);
-		//glm::quat rot;
-		//D3DXQuaternionRotationAxis(&rot, &ZVector, -glm::half_pi<float>());
+		//glm::quat rot = glm::angleAxis(-glm::half_pi<float>(), ZVector);
 		//node->SetRot(rot);
 		node->SetScale(glm::vec3(4.0f, 3.0f, 1.0f));
 		node->animMode(graph::SceneNode::amRepeat);

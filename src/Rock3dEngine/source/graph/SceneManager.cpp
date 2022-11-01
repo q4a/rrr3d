@@ -239,7 +239,7 @@ void BaseSceneNode::BuildMatrix() const
 	//Поворот не влияет на локальное направление перемещения
 	//Растяжение не влияет на локальное перемещение, т.е. единица длины одна и таже
 	_localMat = GetScaleMat() * GetRotMat() * GetTransMat();
-	D3DXMatrixInverse(&_invLocalMat, 0, &_localMat);
+	_invLocalMat = MatrixInverse(0, _localMat);
 }
 
 void BaseSceneNode::BuildWorldMatrix() const
@@ -248,7 +248,7 @@ void BaseSceneNode::BuildWorldMatrix() const
 	{
 		const D3DXMATRIX& mat = _parent->GetWorldMat();
 		_worldMat = MatrixMultiply(_localMat, mat);
-		D3DXMatrixInverse(&_invWorldMat, 0, &_worldMat);
+		_invWorldMat = MatrixInverse(0, _worldMat);
 	}
 	else
 	{
@@ -879,8 +879,7 @@ D3DXMATRIX BaseSceneNode::GetScaleMat() const
 	//if (glm::length(vec) < 0.0001f)
 	//	vec = IdentityVector * 0.0005f;
 
-	D3DXMATRIX scaleMat;
-	D3DXMatrixScaling(&scaleMat, vec.x, vec.y, vec.z);
+	D3DXMATRIX scaleMat = MatrixScaling(vec.x, vec.y, vec.z);
 	return scaleMat;
 }
 
@@ -918,14 +917,14 @@ D3DXMATRIX BaseSceneNode::GetRotMat() const
 		else
 		{
 			if (!_rotInvalidate.test(rsEulerAngles))
-			{				
+			{
 				EulerAngles eulAng = Eul_(-_rollAngle, -_pitchAngle, -_turnAngle, EulOrdXYZs);
 				Eul_ToHMatrix(eulAng, _rotMat.m);
 				//D3DXMatrixRotationYawPitchRoll(&_rotMat, _pitchAngle, _rollAngle, _turnAngle);
 			}
 			else
 			{
-				D3DXMatrixIdentity(&_rotMat);
+				_rotMat = IdentityMatrix;
 			}
 		}
 	}
@@ -936,9 +935,7 @@ D3DXMATRIX BaseSceneNode::GetRotMat() const
 
 D3DXMATRIX BaseSceneNode::GetTransMat() const
 {
-	D3DXMATRIX transMat;
-	D3DXMatrixTranslation(&transMat, _position.x, _position.y, _position.z);
-	return transMat;
+	return MatrixTranslation(_position.x, _position.y, _position.z);
 }
 
 const D3DXMATRIX& BaseSceneNode::GetMat() const
@@ -1004,13 +1001,9 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 	{
 	case cmtScaleTrans:
 	{
-		glm::vec3 vec;
-
 		D3DXMATRIX scaleMat = GetWorldScale();
-		
-		D3DXMATRIX transMat;
-		vec = GetWorldPos();
-		D3DXMatrixTranslation(&transMat, vec.x, vec.y, vec.z);
+		glm::vec3 vec = GetWorldPos();
+		D3DXMATRIX transMat = MatrixTranslation(vec.x, vec.y, vec.z);
 
 		return scaleMat * transMat;
 	}
@@ -1027,10 +1020,8 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 	case cmtRotTrans:
 	{
 		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
-
-		D3DXMATRIX transMat;
 		glm::vec3 pos = GetWorldPos();
-		D3DXMatrixTranslation(&transMat, pos.x, pos.y, pos.z);
+		D3DXMATRIX transMat = MatrixTranslation(pos.x, pos.y, pos.z);
 
 		return rotMat * transMat;
 	}
