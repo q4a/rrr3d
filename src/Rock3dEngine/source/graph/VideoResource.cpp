@@ -1,8 +1,8 @@
 #include "stdafx.h"
 
-#include "graph\\VideoResource.h"
+#include "graph/VideoResource.h"
 
-#include "graph\\Engine.h"
+#include "graph/Engine.h"
 
 namespace r3d
 {

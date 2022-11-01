@@ -3,9 +3,9 @@
 #include "MapObj.h"
 #include "GameEvent.h"
 
-#include "graph\\Actor.h"
-#include "px\\PhysX.h"
-#include "snd\Audio.h"
+#include "graph/Actor.h"
+#include "px/PhysX.h"
+#include "snd/Audio.h"
 
 namespace r3d
 {

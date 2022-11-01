@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "game\World.h"
-#include "edit\Edit.h"
+#include "game/World.h"
+#include "edit/Edit.h"
 
 namespace r3d
 {

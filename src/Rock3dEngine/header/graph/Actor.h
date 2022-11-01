@@ -1,7 +1,7 @@
 #ifndef R3D_GRAPH_ACTOR
 #define R3D_GRAPH_ACTOR
 
-#include "include\\graph\\IActor.h"
+#include "include/graph/IActor.h"
 
 #include "SceneNode.h"
 

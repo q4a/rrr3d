@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game\GameEvent.h"
+#include "game/GameEvent.h"
 
 #ifdef STEAM_SERVICE
 

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "px\\Physx.h"
-#include "px\\Stream.h"
+#include "px/Physx.h"
+#include "px/Stream.h"
 
 #include "lslSerialValue.h"
 

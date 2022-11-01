@@ -7,7 +7,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 
 #include "stdafx.h"
-#include "video\video.h"
+#include "video/video.h"
 #include <Mfidl.h>
 
 HRESULT InitializeEVR(IBaseFilter *pEVR, HWND hwnd, IMFVideoDisplayControl ** ppWc);

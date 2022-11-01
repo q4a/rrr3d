@@ -1,10 +1,10 @@
 #include "stdafx.h"
-#include "game\\GameBase.h"
+#include "game/GameBase.h"
 
-#include "game\\GameObject.h"
-#include "game\\GameCar.h"
-#include "game\\Weapon.h"
-#include "game\\Logic.h"
+#include "game/GameObject.h"
+#include "game/GameCar.h"
+#include "game/Weapon.h"
+#include "game/Logic.h"
 
 namespace r3d
 {

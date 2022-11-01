@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\MappingShaders.h"
+#include "graph/MappingShaders.h"
 
 namespace r3d
 {

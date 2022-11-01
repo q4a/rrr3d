@@ -2,7 +2,7 @@
 #define R3D_SCENE_FXMANAGER
 
 #include "StdNode.h"
-#include "px\\Physx.h"
+#include "px/Physx.h"
 
 #include "lslSerialValue.h"
 #include "lslMath.h"

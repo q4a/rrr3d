@@ -20,7 +20,7 @@
 	#pragma pop_macro("free")
 #endif
 
-#include "res\\GraphResource.h"
+#include "res/GraphResource.h"
 #include "r3dMath.h"
 #include "lslCollection.h"
 #include "lslException.h"

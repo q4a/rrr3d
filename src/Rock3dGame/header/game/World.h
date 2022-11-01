@@ -11,8 +11,8 @@
 #include "Map.h"
 #include "Environment.h"
 #include "GameMode.h"
-#include "snd\Audio.h"
-#include "video\VideoPlayer.h"
+#include "snd/Audio.h"
+#include "video/VideoPlayer.h"
 
 namespace r3d
 {

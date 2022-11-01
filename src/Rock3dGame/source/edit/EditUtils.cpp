@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "game\World.h"
-#include "edit\Utils.h"
+#include "game/World.h"
+#include "edit/Utils.h"
 
-#include "edit\Map.h"
+#include "edit/Map.h"
 
 namespace r3d
 {

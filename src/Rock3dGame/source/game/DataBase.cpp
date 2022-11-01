@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "game\DataBase.h"
+#include "game/DataBase.h"
 
 #include "lslSerialFileXML.h"
-#include "game\World.h"
+#include "game/World.h"
 
 namespace r3d
 {

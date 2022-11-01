@@ -1,26 +1,26 @@
 #ifndef R3D_GRAPH_MANAGER
 #define R3D_GRAPH_MANAGER
 
-#include "graph\\FogPlane.h"
-#include "graph\\ClearSurf.h"
-#include "graph\\GrassField.h"
-#include "graph\\WaterPlane.h"
-#include "graph\\MappingShaders.h"
-#include "graph\\ShadowMapRender.h"
-#include "graph\\HDREffect.h"
-#include "graph\\BloomEffect.h"
-#include "graph\\ToneMapping.h"
-#include "graph\\DepthMap.h"
-#include "graph\\SunShaft.h"
-#include "graph\\SkyBox.h"
-#include "graph\\RenderToTexture.h"
+#include "graph/FogPlane.h"
+#include "graph/ClearSurf.h"
+#include "graph/GrassField.h"
+#include "graph/WaterPlane.h"
+#include "graph/MappingShaders.h"
+#include "graph/ShadowMapRender.h"
+#include "graph/HDREffect.h"
+#include "graph/BloomEffect.h"
+#include "graph/ToneMapping.h"
+#include "graph/DepthMap.h"
+#include "graph/SunShaft.h"
+#include "graph/SkyBox.h"
+#include "graph/RenderToTexture.h"
 
-#include "graph\\StdNode.h"
-#include "graph\\OctreeRender.h"
-#include "graph\\Actor.h"
-#include "graph\\ActorManager.h"
+#include "graph/StdNode.h"
+#include "graph/OctreeRender.h"
+#include "graph/Actor.h"
+#include "graph/ActorManager.h"
 
-#include "gui\\GUI.h"
+#include "gui/GUI.h"
 
 namespace r3d
 {

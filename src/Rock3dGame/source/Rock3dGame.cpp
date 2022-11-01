@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "Rock3dGame.h"
 
-#include "game\World.h"
+#include "game/World.h"
 #include <ctime>
 
 namespace r3d

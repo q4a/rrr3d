@@ -1,7 +1,7 @@
 #ifndef R3D_GRAPH_VIDEORESOURCE
 #define R3D_GRAPH_VIDEORESOURCE
 
-#include "res\\GraphResource.h"
+#include "res/GraphResource.h"
 
 namespace r3d
 {

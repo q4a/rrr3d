@@ -1,10 +1,10 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "edit\Map.h"
-#include "edit\Edit.h"
+#include "edit/Map.h"
+#include "edit/Edit.h"
 
-#include "edit\Trace.h"
+#include "edit/Trace.h"
 
 namespace r3d
 {

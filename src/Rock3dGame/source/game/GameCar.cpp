@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "game\\GameCar.h"
+#include "game/GameCar.h"
 
-#include "game\\Logic.h"
-#include "game\\Race.h"
+#include "game/Logic.h"
+#include "game/Race.h"
 
 namespace r3d
 {

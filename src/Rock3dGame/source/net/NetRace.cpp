@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "net\NetRace.h"
-#include "game\World.h"
+#include "net/NetRace.h"
+#include "game/World.h"
 
 namespace r3d
 {

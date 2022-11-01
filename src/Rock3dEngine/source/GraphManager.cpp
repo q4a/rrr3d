@@ -2,8 +2,8 @@
 
 #include "GraphManager.h"
 
-#include "res\\R3DFile.h"
-#include "res\\D3DXImageFile.h"
+#include "res/R3DFile.h"
+#include "res/D3DXImageFile.h"
 
 #include <DXGI.h>
 

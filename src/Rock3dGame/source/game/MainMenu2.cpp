@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\Menu.h"
+#include "game/Menu.h"
 
-#include "game\MainMenu2.h"
+#include "game/MainMenu2.h"
 
 namespace r3d
 {

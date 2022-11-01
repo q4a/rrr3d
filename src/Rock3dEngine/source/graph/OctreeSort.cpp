@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\OctreeSort.h"
+#include "graph/OctreeSort.h"
 
 namespace r3d
 {

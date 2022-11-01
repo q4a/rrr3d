@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\DepthMap.h"
+#include "graph/DepthMap.h"
 
 namespace r3d
 {

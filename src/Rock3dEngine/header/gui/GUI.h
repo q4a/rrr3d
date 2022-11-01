@@ -1,7 +1,7 @@
 #pragma once
 
-#include "graph\\Engine.h"
-#include "graph\\MaterialLibrary.h"
+#include "graph/Engine.h"
+#include "graph/MaterialLibrary.h"
 #include "ProgressTimer.h"
 
 namespace r3d

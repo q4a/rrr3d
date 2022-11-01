@@ -1,12 +1,12 @@
 #include "stdafx.h"
 
-#include "graph\\SceneManager.h"
+#include "graph/SceneManager.h"
 #include "EulerAngles.h"
 #include "lslUtility.h"
 #include "r3dExceptions.h"
 #include <cassert>
 
-#include "res\\GraphResource.h"
+#include "res/GraphResource.h"
 
 namespace r3d
 {

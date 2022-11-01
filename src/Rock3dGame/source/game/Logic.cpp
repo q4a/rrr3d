@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\\World.h"
+#include "game/World.h"
 
-#include "game\\Logic.h"
+#include "game/Logic.h"
 
 namespace r3d
 {

@@ -3,8 +3,8 @@
 #include "ResourceManager.h"
 #include "DataBase.h"
 #include "Race.h"
-#include "net\NetGame.h"
-#include "net\SteamService.h"
+#include "net/NetGame.h"
+#include "net/SteamService.h"
 
 #include "DialogMenu2.h"
 #include "MainMenu2.h"

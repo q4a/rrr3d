@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "gui\\GUI.h"
-#include "graph\\SceneManager.h"
+#include "gui/GUI.h"
+#include "graph/SceneManager.h"
 
 namespace r3d
 {

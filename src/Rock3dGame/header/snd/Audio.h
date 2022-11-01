@@ -4,9 +4,9 @@
 
 #include <xaudio2.h>
 #include <X3daudio.h>
-#include <vorbis\codec.h>
-#include <vorbis\vorbisfile.h>
-#include <vorbis\vorbisenc.h>
+#include <vorbis/codec.h>
+#include <vorbis/vorbisfile.h>
+#include <vorbis/vorbisenc.h>
 
 namespace r3d
 {

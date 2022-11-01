@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "net\NetService.h"
-#include "net\NetConnectionTCP.h"
+#include "net/NetService.h"
+#include "net/NetConnectionTCP.h"
 
 #include <winsock2.h>
 #include <Iphlpapi.h>

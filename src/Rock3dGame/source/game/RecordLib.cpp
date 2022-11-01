@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "game\RecordLib.h"
+#include "game/RecordLib.h"
 
 namespace r3d
 {

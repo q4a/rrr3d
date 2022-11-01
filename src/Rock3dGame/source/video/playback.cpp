@@ -10,8 +10,8 @@
 #include <new>
 #include <windows.h>
 #include <dshow.h>
-#include "video\playback.h"
-#include "video\video.h"
+#include "video/playback.h"
+#include "video/video.h"
 
 DShowPlayer::DShowPlayer(HWND hwnd, UINT windowMsg):
 	m_state(STATE_NO_GRAPH),

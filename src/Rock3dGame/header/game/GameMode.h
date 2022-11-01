@@ -2,8 +2,8 @@
 
 #include "Race.h"
 #include "Menu.h"
-#include "net\NetGame.h"
-#include "net\SteamService.h"
+#include "net/NetGame.h"
+#include "net/SteamService.h"
 
 namespace r3d
 {

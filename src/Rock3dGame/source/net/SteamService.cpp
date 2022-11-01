@@ -1,9 +1,9 @@
 #include "stdafx.h"
-#include "net\SteamService.h"
+#include "net/SteamService.h"
 
 #ifdef STEAM_SERVICE
 
-#include "game\GameMode.h"
+#include "game/GameMode.h"
 
 namespace r3d
 {

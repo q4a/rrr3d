@@ -2,8 +2,8 @@
 
 #include <stdio.h>
 
-#include "px\\Physx.h"
-#include "px\\Stream.h"
+#include "px/Physx.h"
+#include "px/Stream.h"
 
 UserStream::UserStream(const char* filename, bool load) : fp(NULL)
 	{
