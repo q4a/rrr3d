@@ -998,7 +998,7 @@ void Player::CarState::Update(float deltaTime)
 		maxSpeed = speed;
 		maxSpeedTime = 0;
 	}
-	else if (abs(maxSpeed - speed) < 5.0f)
+	else if (std::abs(maxSpeed - speed) < 5.0f)
 	{
 		maxSpeedTime = 0;
 	}
@@ -1010,7 +1010,7 @@ void Player::CarState::Update(float deltaTime)
 	}
 
 	/*//контроль за направл€ющим углом
-	float dirAngle = acos(abs(glm::dot(lastDir, dir3)));
+	float dirAngle = acos(std::abs(glm::dot(lastDir, dir3)));
 	lastDir = dir3;
 	summAngle += dirAngle;
 	summAngleTime += deltaTime;
@@ -1399,7 +1399,7 @@ void Player::CheatUpdate(float deltaTime)
 
 	if (_cheatEnable && opponent)
 	{
-		float dist = abs(_car.GetLap() - opponent->GetCar().GetLap());
+		float dist = std::abs(_car.GetLap() - opponent->GetCar().GetLap());
 		dist = dist - floor(dist);
 		dist = std::min(dist, 1.0f - dist);
 		dist = dist * _car.GetPathLength();
@@ -1441,10 +1441,10 @@ void Player::SetCheatK(const Player::CarState& car, float torqueK, float steerK)
 	if (car.gameObj == NULL)
 		return;
 
-	if (abs(car.gameObj->GetMotorTorqueK() - torqueK) > 0.01f)
+	if (std::abs(car.gameObj->GetMotorTorqueK() - torqueK) > 0.01f)
 		car.gameObj->SetMotorTorqueK(torqueK);
 
-	if (abs(car.gameObj->GetWheelSteerK() - steerK) > 0.01f)
+	if (std::abs(car.gameObj->GetWheelSteerK() - steerK) > 0.01f)
 		car.gameObj->SetWheelSteerK(steerK);
 }
 
@@ -1576,7 +1576,7 @@ Player* Player::FindClosestEnemy(float viewAngle, bool zTest)
 
 			glm::vec4 dirPlane = PlaneFromPointNormal(carPos, carDir);
 			float dist = PlaneDotCoord(dirPlane, enemyPos);
-			float absDist = abs(dist);
+			float absDist = std::abs(dist);
 
 			//ќбъект ближе
 			bool b1 = enemy == NULL || absDist < minDist;

@@ -291,7 +291,7 @@ unsigned WayNode::Tile::ComputeTrackInd(const glm::vec2& point) const
 	float trackDiv = tileWidth / cTrackCnt;
 	float trackPos = Line2DistToPoint(_dirLine, point);
 
-	unsigned trackInd = static_cast<unsigned>(abs(floor(trackPos/trackDiv + cTrackCnt/2.0f)));
+	unsigned trackInd = static_cast<unsigned>(std::abs(floor(trackPos/trackDiv + cTrackCnt/2.0f)));
 	trackInd = std::max<int>(trackInd , 0);
 	trackInd = std::min<int>(trackInd , cTrackCnt - 1);
 
@@ -379,7 +379,7 @@ bool WayNode::Tile::IsContains(const glm::vec3& point, bool lengthClamp, float* 
 	//Первое условие, ограничение по длине
 	//Второе условие, ограничение по ширине
 	//Третье условие, ограничение по высоте
-	return (!lengthClamp || dist1 * dist2 < 0) && abs(dirDist) < (halfWidth + widthErr) && abs(coordZ - point.z) < height;
+	return (!lengthClamp || dist1 * dist2 < 0) && std::abs(dirDist) < (halfWidth + widthErr) && std::abs(coordZ - point.z) < height;
 }
 
 bool WayNode::Tile::IsZLevelContains(const glm::vec3& point, float* dist) const
@@ -615,7 +615,7 @@ bool WayNode::IsContains(const glm::vec3& point, float* dist) const
 
 	return midDist < _tile->GetNodeRadius();
 
-	//return IsContains2(glm::vec2(point), dist) && abs(point.z - GetPos().z) < _point->GetSize()/2.0f;
+	//return IsContains2(glm::vec2(point), dist) && std::abs(point.z - GetPos().z) < _point->GetSize()/2.0f;
 }
 
 WayPath* WayNode::GetPath()

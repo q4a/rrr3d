@@ -854,7 +854,7 @@ void GameObject::SetRotSync(const glm::quat& value)
 	_rotSync = value;
 	_rotSyncAxis = glm::axis(_rotSync);
 	_rotSyncAngle = glm::angle(_rotSync);
-	float angle = abs(_rotSyncAngle);
+	float angle = std::abs(_rotSyncAngle);
 
 	if (angle > glm::pi<float>())
 	{
@@ -892,7 +892,7 @@ void GameObject::SetRotSync2(const glm::quat& curSync, const glm::quat& newSync)
 	_rotSyncAxis2 = glm::axis(dRot);
 	_rotSyncAngle2 = glm::angle(dRot);
 
-	float angle = abs(_rotSyncAngle2);
+	float angle = std::abs(_rotSyncAngle2);
 	if (angle > glm::pi<float>())
 	{
 		_rotSyncAngle2 = (2 * glm::pi<float>() - angle) * (_rotSyncAngle2 > 0 ? -1.0f : 1.0f);

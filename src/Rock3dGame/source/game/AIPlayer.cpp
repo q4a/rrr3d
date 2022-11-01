@@ -494,7 +494,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			triLines[0].pos = glm::vec3(triData.verts[0].get());
 			triLines[1].pos = glm::vec3(triData.verts[1].get());
 			triLines[2].pos = glm::vec3(triData.verts[2].get());
-			triLines[0].diffuse = triLines[1].diffuse = triLines[2].diffuse = abs(myNorm.x) > 0.5f ? clrRed : clrBlue;
+			triLines[0].diffuse = triLines[1].diffuse = triLines[2].diffuse = std::abs(myNorm.x) > 0.5f ? clrRed : clrBlue;
 			triLines[3] = triLines[0];
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINESTRIP, 3, triLines, sizeof(res::VertexPD));

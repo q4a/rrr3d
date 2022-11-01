@@ -792,7 +792,7 @@ void PxWheelSlipEffect::OnProgress(float deltaTime)
 	NxShape* contact = wheel.GetShape()->GetNxShape()->getContact(contactDesc);
 	float slip = 0.0f;
 	if (contact)
-		slip = std::max(abs(contactDesc.lateralSlip) - slipLat, 0.0f) + std::max(abs(contactDesc.longitudalSlip) - slipLong, 0.0f);
+		slip = std::max(std::abs(contactDesc.lateralSlip) - slipLat, 0.0f) + std::max(std::abs(contactDesc.longitudalSlip) - slipLong, 0.0f);
 
 	if (slip > 0)
 	{
@@ -1043,7 +1043,7 @@ void SoundMotor::OnMotor(float deltaTime, float rpm, float minRPM, float maxRPM)
 	{
 		float distRPM = rpm - _curRPM;
 		float rpmDT = motorLag * deltaTime * (distRPM > 0 ? 1.0f : -1.0f);
-		_curRPM = _curRPM + lsl::ClampValue(rpmDT, -abs(distRPM), abs(distRPM));
+		_curRPM = _curRPM + lsl::ClampValue(rpmDT, -std::abs(distRPM), std::abs(distRPM));
 
 		float idleAlpha = lsl::ClampValue(0.5f * (_curRPM - minRPM)/minRPM, 0.0f, 1.0f);
 		float alpha = ClampValue((_curRPM - minRPM)/(maxRPM - minRPM), 0.0f, 1.0f);
@@ -1213,7 +1213,7 @@ void PodushkaAnim::OnProgress(float deltaTime)
 	GameCar* car = lsl::StaticCast<game::GameCar*>(GetGameObj()->GetParent());
 
 	float linSpeed = car->GetLeadWheelSpeed();
-	if (abs(linSpeed) > 1.0f)
+	if (std::abs(linSpeed) > 1.0f)
 	{
 		D3DMATRIX localMat = _target->GetMat();
 		glm::quat rotQuat = glm::angleAxis(glm::pi<float>() * deltaTime * linSpeed * 0.1f, XVector);

@@ -219,7 +219,7 @@ void PlayerStateFrame::ProccessPickItems(float deltaTime)
 
 			glm::vec2 pos = item.pos + glm::vec2(30, index * 85.0f + dPosY);
 			glm::vec2 curPos = item.image->GetPos();
-			if (abs(pos.x - curPos.x) > 0.001f || abs(pos.y - curPos.y) > 0.001f)
+			if (std::abs(pos.x - curPos.x) > 0.001f || std::abs(pos.y - curPos.y) > 0.001f)
 			{
 				curPos.x = std::min(curPos.x + 90.0f * deltaTime, pos.x);
 				curPos.y = std::min(curPos.y + 120.0f * deltaTime, pos.y);
@@ -447,7 +447,7 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		vec.x = lsl::ClampValue(vec.x, -1.0f, 1.0f);
 		vec.y = lsl::ClampValue(vec.y, -1.0f, 1.0f);
 
-		if ((abs(vec.x) == 1.0f || abs(vec.y) == 1.0f))
+		if ((std::abs(vec.x) == 1.0f || std::abs(vec.y) == 1.0f))
 			targetAlpha = 0;
 
 		glm::vec2 vpSize = menu()->GetGUI()->GetVPSize();
@@ -696,7 +696,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			vec.y = lsl::ClampValue(vec.y, -1.0f, 1.0f);
 
 			float targetAlpha = 1.0f;
-			if ((abs(vec.x) == 1.0f || abs(vec.y) == 1.0f) || carLife != NULL)
+			if ((std::abs(vec.x) == 1.0f || std::abs(vec.y) == 1.0f) || carLife != NULL)
 				targetAlpha = std::max(opponent.point->GetMaterial().GetColor().a - 4.0f * deltaTime, 0.0f);
 
 			glm::vec2 vpSize = menu()->GetGUI()->GetVPSize();
@@ -925,7 +925,7 @@ void MiniMapFrame::ComputeNode(Nodes::iterator sIter, Nodes::iterator eIter, Nod
 	Vec2NormCCW(iter->midDir, iter->midNorm);
 
 	//Вычисляем _nodeRadius
-	iter->cosDelta = abs(Vec2Dot(iter->dir, iter->prevDir));
+	iter->cosDelta = std::abs(Vec2Dot(iter->dir, iter->prevDir));
 	//sinA/2 = sin(180 - D/2) = cos(D/2) = №(1 + cosD)/2
 	iter->sinAlpha2 = sqrt((1.0f + iter->cosDelta) / 2.0f);
 	iter->nodeRadius = 0.5f*iter->size / iter->sinAlpha2;
@@ -941,15 +941,15 @@ void MiniMapFrame::AlignNode(const Node& src, Node& dest, float cosErr, float si
 {
 	glm::vec2 dir = glm::normalize(dest.pos - src.pos);
 
-	if (abs(dir.x) > cosErr)
+	if (std::abs(dir.x) > cosErr)
 	{
 		dest.pos.y = src.pos.y;
 	}
-	if (abs(dir.y) > cosErr)
+	if (std::abs(dir.y) > cosErr)
 	{
 		dest.pos.x = src.pos.x;
 	}
-	if (abs(dest.size - src.size) < sizeErr)
+	if (std::abs(dest.size - src.size) < sizeErr)
 	{
 		dest.size = src.size;
 	}
@@ -959,17 +959,17 @@ void MiniMapFrame::AlignMidNodes(Node& node1, Node& node2, float cosErr, float s
 {
 	glm::vec2 dir = glm::normalize(node2.pos - node1.pos);
 
-	if (abs(dir.x) > cosErr)
+	if (std::abs(dir.x) > cosErr)
 	{
 		node1.pos.y = (node1.pos.y + node2.pos.y)/2.0f;
 		node2.pos.y = node1.pos.y;
 	}
-	if (abs(dir.y) > cosErr)
+	if (std::abs(dir.y) > cosErr)
 	{
 		node1.pos.x = (node1.pos.x + node2.pos.x)/2.0f;
 		node2.pos.x = node1.pos.x;
 	}
-	if (abs(node2.size - node1.size) < sizeErr)
+	if (std::abs(node2.size - node1.size) < sizeErr)
 	{
 		node1.size = (node1.size + node2.size)/2.0f;
 		node2.size = node1.size;

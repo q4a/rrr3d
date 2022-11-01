@@ -30,7 +30,7 @@ float CarMotorDesc::CalcRPM(float wheelAxleSpeed, unsigned curGear) const
 		return static_cast<float>(idlingRPM);
 	else
 	{
-		float rpm = abs(wheelAxleSpeed) * gears[curGear] * gearDiff * 60.0f / (2.0f * glm::pi<float>());
+		float rpm = std::abs(wheelAxleSpeed) * gears[curGear] * gearDiff * 60.0f / (2.0f * glm::pi<float>());
 
 		return std::min(rpm, static_cast<float>(maxRPM));
 	}
@@ -68,7 +68,7 @@ CarWheel::MyContactModify::MyContactModify(CarWheel* wheel): _wheel(wheel)
 
 bool CarWheel::MyContactModify::onWheelContact(NxWheelShape* wheelShape, NxVec3& contactPoint, NxVec3& contactNormal, NxReal& contactPosition, NxReal& normalForce, NxShape* otherShape, NxMaterialIndex& otherShapeMaterialIndex, NxU32 otherShapeFeatureIndex)
 {
-	float normReaction = abs(wheelShape->getActor().getMass() * contactNormal.dot(px::Scene::cDefGravity) / _wheel->_owner->Size());
+	float normReaction = std::abs(wheelShape->getActor().getMass() * contactNormal.dot(px::Scene::cDefGravity) / _wheel->_owner->Size());
 
 	if (_wheel->_owner->GetOwner()->IsClutchLocked())
 	{
@@ -237,7 +237,7 @@ void CarWheel::OnProgress(float deltaTime)
 
 		if (contact)
 		{
-			slip = abs(contactDesc.lateralSlip) > slipLat || abs(contactDesc.longitudalSlip) > slipLong;
+			slip = std::abs(contactDesc.lateralSlip) > slipLat || std::abs(contactDesc.longitudalSlip) > slipLong;
 		}
 
 		if (slip)
@@ -527,7 +527,7 @@ void GameCar::MotorProgress(float deltaTime, float& curMotorTorque, float& curBr
 
 inline float NxQuatAngle(const NxQuat& quat1, const NxQuat& quat2)
 {
-	return acos(abs(quat1.dot(quat2)/sqrt(quat1.magnitudeSquared() * quat2.magnitudeSquared()))) * 2;
+	return acos(std::abs(quat1.dot(quat2)/sqrt(quat1.magnitudeSquared() * quat2.magnitudeSquared()))) * 2;
 }
 
 inline const void NxQuatRotation(NxQuat& quat, const NxQuat& quat1, const NxQuat& quat2)
@@ -718,12 +718,12 @@ void GameCar::StabilizeForce(float deltaTime)
 		angMomentum = invMat * angMomentum;
 		if (!_anyWheelContact && _clampYTorque > 0)
 		{
-			float angY = std::min(abs(angMomentum.y), GetPxActor().GetNxActor()->getMassSpaceInertiaTensor().y * _clampYTorque * 2.0f);
+			float angY = std::min(std::abs(angMomentum.y), GetPxActor().GetNxActor()->getMassSpaceInertiaTensor().y * _clampYTorque * 2.0f);
 			angMomentum.y = angMomentum.y >= 0 ? angY : -angY;
 		}
 		if (!_anyWheelContact && _clampXTorque > 0)
 		{
-			float angX = std::min(abs(angMomentum.x), GetPxActor().GetNxActor()->getMassSpaceInertiaTensor().x * _clampXTorque * 2.0f);
+			float angX = std::min(std::abs(angMomentum.x), GetPxActor().GetNxActor()->getMassSpaceInertiaTensor().x * _clampXTorque * 2.0f);
 			angMomentum.x = angMomentum.x >= 0 ? angX : -angX;
 		}
 
@@ -963,7 +963,7 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 			if (velocity.magnitude() > 0.1f)
 			{
 				velocity.normalize();
-				float k = abs(velocity.dot(-triNorm));
+				float k = std::abs(velocity.dot(-triNorm));
 				float friction = contact.data->dynamicFriction0;
 				friction = friction + (-0.3f - friction) * lsl::ClampValue(k, 0.0f, 1.0f);
 
@@ -1029,7 +1029,7 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 			NxVec3 vel = GetPxActor().GetNxActor()->getLinearVelocity();
 			NxContactStreamIterator contIter(contact.stream);
 
-			bool borderContact = abs(norm.z) < 0.5f && ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency);
+			bool borderContact = std::abs(norm.z) < 0.5f && ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency);
 			if (borderContact)
 				_clutchTime = 0.0f;
 
@@ -1044,7 +1044,7 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 
 					NxVec3 tang = vel;
 					tang.normalize();
-					float tangDot = abs(tang.dot(norm));
+					float tangDot = std::abs(tang.dot(norm));
 
 					NxVec3 dir = NxVec3(1.0f, 0.0f, 0.0f);
 					GetPxActor().GetNxActor()->getGlobalOrientationQuat().rotate(dir);
@@ -1061,12 +1061,12 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 							if (tang.z > 0)
 							{
 								tang = contact.pair->sumFrictionForce;
-								tang.z = abs(tang.z);
+								tang.z = std::abs(tang.z);
 							}
 							else
 							{
 								tang = contact.pair->sumFrictionForce;
-								tang.z = -abs(tang.z);
+								tang.z = -std::abs(tang.z);
 							}
 
 							tang.normalize();
@@ -1079,7 +1079,7 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 
 						float velN = norm.dot(vel);
 						//if (dirDot < 0.707f && dirDot2)
-							velN = lsl::ClampValue(abs(velN), 4.0f, 14.0f); //2, 12
+							velN = lsl::ClampValue(std::abs(velN), 4.0f, 14.0f); //2, 12
 
 						float velT = tang.dot(vel) * 0.5f;
 						vel = norm * velN + tang * velT;
@@ -1301,7 +1301,7 @@ float GameCar::GetLeadWheelSpeed()
 
 		float speed = wheel->getAxleSpeed() * wheel->getRadius();
 		//погрешность 0.1 м/с
-		return abs(speed) > 0.1f ? speed : 0.0f;
+		return std::abs(speed) > 0.1f ? speed : 0.0f;
 	}
 	else
 		return 0;
@@ -1322,7 +1322,7 @@ float GameCar::GetDrivenWheelSpeed()
 	{
 		float speed = wheel->GetShape()->GetNxShape()->getAxleSpeed() * wheel->GetShape()->GetRadius();
 		//погрешность 0.1 м/с
-		return abs(speed) > 0.1f ? speed : 0.0f;
+		return std::abs(speed) > 0.1f ? speed : 0.0f;
 	}
 	else
 		return 0;
@@ -1503,7 +1503,7 @@ float GameCar::GetSpeed(NxActor* nxActor, const glm::vec3& dir)
 	{
 		float speed = glm::dot(dir, glm::make_vec3(nxActor->getLinearVelocity().get()));
 		//погрешность 1 м/с
-		if (abs(speed) < 1.0f)
+		if (std::abs(speed) < 1.0f)
 			speed = 0.0f;
 
 		return speed;

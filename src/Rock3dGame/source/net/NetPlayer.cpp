@@ -581,7 +581,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 		glm::quat dRot = QuatRotation(car->GetGrActor().GetRot(), rot);
 		glm::vec3 dRotAxis = glm::axis(dRot);
 		float dRotAngle = glm::angle(dRot);
-		if (abs(dRotAngle) > glm::pi<float>()/24)
+		if (std::abs(dRotAngle) > glm::pi<float>()/24)
 		{
 			car->GetPxActor().SetRot(rot);
 			car->SetRotSync(dRot);
@@ -823,7 +823,7 @@ bool NetPlayer::CheckColor(const glm::vec4& value) const
 			continue;
 
 		glm::vec4 diff = (*iter)->GetColor() - value;
-		if (abs(diff.r) < 0.001f && abs(diff.g) < 0.001f && abs(diff.b) < 0.001f && abs(diff.a) < 0.001f)
+		if (std::abs(diff.r) < 0.001f && std::abs(diff.g) < 0.001f && std::abs(diff.b) < 0.001f && std::abs(diff.a) < 0.001f)
 			return false;
 	}
 

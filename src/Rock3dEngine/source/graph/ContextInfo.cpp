@@ -212,7 +212,7 @@ bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, con
 	const float EPSILON = 1.0e-10f;
 
 	float d = PlaneDotNormal(plane, rayVec);
-	if (abs(d) > EPSILON)
+	if (std::abs(d) > EPSILON)
 	{
 		outT = -PlaneDotCoord(plane, rayStart) / d;
 		return true;
@@ -269,7 +269,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	//поиск по вершинам aabb
 	for (int i = 0; i < 8; ++i)
 		//лежит ли точка в боксе
-		if (abs(projBox.v[i].x) < 1.0f && abs(projBox.v[i].y) < 1.0f)
+		if (std::abs(projBox.v[i].x) < 1.0f && std::abs(projBox.v[i].y) < 1.0f)
 		{
 			float z = -viewBox.v[i].z;
 
@@ -312,7 +312,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	unsigned numPoints = PlaneBBIntersect(projBox, nearPlane, points);
 	for (unsigned i = 0; i < numPoints; ++i)
 	{
-		if (abs(points[i].x) < 1.1f && abs(points[i].y) < 1.1f)
+		if (std::abs(points[i].x) < 1.1f && std::abs(points[i].y) < 1.1f)
 		{
 			glm::vec3 vec = Vec3TransformCoord(points[i], GetInvProj());
 

@@ -191,7 +191,7 @@ private:
 		bool operator==(const MeshVal& value) const
 		{
 			glm::vec3 err = scale - value.scale;
-			float maxErr = std::max(abs(err.x), std::max(abs(err.y), abs(err.z)));
+			float maxErr = std::max(std::abs(err.x), std::max(std::abs(err.y), std::abs(err.z)));
 			//ошибка считается исходя что 1 - один метр, следовательно 1мм допустимая ошибка
 			return id == value.id && maxErr < 0.001f;
 		}

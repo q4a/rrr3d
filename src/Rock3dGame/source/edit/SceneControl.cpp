@@ -183,7 +183,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 
 				glm::quat rotZ = glm::angleAxis(angleZ, ZVector);
 				glm::quat rotY = glm::angleAxis(angleY, _owner->_edit->GetWorld()->GetCamera()->GetRight());
-				glm::quat rot = abs(angleZ) > abs(angleY) ? rotZ : rotY;
+				glm::quat rot = std::abs(angleZ) > std::abs(angleY) ? rotZ : rotY;
 
 				selNode->SetRot(rot * _clStartRot);
 
@@ -267,7 +267,7 @@ bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DMATRIX& aabbToWorld
 			//¬ычисл€ем двухсторонее пересечение test-а боксом aabb. ¬ыбираем  наименьшее значение длины проникновени€, начина€ с distLink.
 			if (test.AABBLineCastIntersect(aabb, normOff, MatrixMultiply(aabbToWorld, testSc->GetInvWorldMat()),
 			                               MatrixMultiply(testSc->GetWorldMat(), worldToAABB), dist) &&
-			    abs(dist) < abs(outDistOff))
+			    std::abs(dist) < std::abs(outDistOff))
 			{
 				res = true;
 				outDistOff = dist;
@@ -304,17 +304,17 @@ void SceneControl::ComputeLink(INode* node, const glm::vec3& pos, glm::vec3& res
 		if (!repeat && ComputeAxeLink(aabb, worldMat, invWorldMat, ZVector, node, zDist))
 		{
 			newOff += zDist * node->GetUp();
-			repeat |= abs(zDist) > 0.001f;
+			repeat |= std::abs(zDist) > 0.001f;
 		}
 		if (!repeat && ComputeAxeLink(aabb, worldMat, invWorldMat, YVector, node, yDist))
 		{
 			newOff += yDist * node->GetRight();
-			repeat |= abs(yDist) > 0.001f;
+			repeat |= std::abs(yDist) > 0.001f;
 		}
 		if (!repeat && ComputeAxeLink(aabb, worldMat, invWorldMat, XVector, node, xDist))
 		{
 			newOff += xDist * node->GetDir();
-			repeat |= abs(xDist) > 0.001f;
+			repeat |= std::abs(xDist) > 0.001f;
 		}
 
 		++repCnt;
@@ -447,12 +447,12 @@ glm::vec3 SceneControl::ComputePoint(const glm::vec3& curPos, const glm::vec3& r
 	glm::vec3 pos = curPos;
 	glm::vec4 plane = PlaneFromPointNormal(pos, planeNorm);
 	glm::vec3 newPos;
-	if (abs(glm::dot(planeNorm, rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
+	if (std::abs(glm::dot(planeNorm, rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
 	{
 		newPos = NullVector;
 
 		plane = PlaneFromPointNormal(pos, XVector);
-		if (dirMove == dmZ && abs(glm::dot(XVector, rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
+		if (dirMove == dmZ && std::abs(glm::dot(XVector, rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
 			newPos = NullVector;
 	}
 

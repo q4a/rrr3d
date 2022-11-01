@@ -332,7 +332,7 @@ glm::vec3 Proj::CalcSpeed(GameObject* weapon)
 		speed = std::max(speed, _desc.speedRelativeMin + std::max(glm::dot(dir, weapon->GetPxVelocityLerp()), 0.0f));
 	}
 
-	float cosa = abs(glm::dot(dir, glm::vec3(0, 0, 1)));
+	float cosa = std::abs(glm::dot(dir, glm::vec3(0, 0, 1)));
 	if (cosa < 0.707f)
 	{
 		dir.z = 0;
@@ -661,7 +661,7 @@ void Proj::MasloContact(const px::Scene::OnContactEvent& contact)
 		float dist = PlaneDotCoord(plane, GetWorldPos());
 
 		if (car->GetPxActor().GetNxActor()->getLinearVelocity().magnitude() > 3.0f)
-			car->LockClutch(abs(dist) > 0.1f && dist > 0 ? -_desc.damage : _desc.damage);
+			car->LockClutch(std::abs(dist) > 0.1f && dist > 0 ? -_desc.damage : _desc.damage);
 	}
 }
 
@@ -1184,7 +1184,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 		NxVec3 velNorm = velocity;
 		velNorm.normalize();
 		float angle = velNorm.dot(norm);
-		if (abs(angle) > 0.1f)
+		if (std::abs(angle) > 0.1f)
 		{
 			glm::vec4 plane = PlaneFromPointNormal(NullVector, glm::make_vec3(norm.get()));
 			D3DMATRIX mat = MatrixReflect(plane);

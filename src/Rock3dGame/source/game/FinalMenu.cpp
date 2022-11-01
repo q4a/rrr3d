@@ -277,7 +277,7 @@ void FinalMenu::OnProgress(float deltaTime)
 	{
 		_labels[mlCredits]->SetVScroll(_labels[mlCredits]->GetVScroll() - 20.0f * deltaTime);
 
-		if (abs(_labels[mlCredits]->GetVScroll()) > _labels[mlCredits]->GetTextAABB().GetSize().y)
+		if (std::abs(_labels[mlCredits]->GetVScroll()) > _labels[mlCredits]->GetTextAABB().GetSize().y)
 			_labels[mlCredits]->SetVScroll(_labels[mlCredits]->GetSize().y);
 	}
 }*/

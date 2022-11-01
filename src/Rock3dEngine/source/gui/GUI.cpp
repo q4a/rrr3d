@@ -3816,9 +3816,9 @@ void ScrollBox::SetScroll(const glm::vec2& value)
 	_box->SetPos(pos);
 
 	if (_scrollBut[sdUp])
-		_scrollBut[sdUp]->SetVisible(abs(scroll.y) > 0.001f);
+		_scrollBut[sdUp]->SetVisible(std::abs(scroll.y) > 0.001f);
 	if (_scrollBut[sdDown])
-		_scrollBut[sdDown]->SetVisible(abs(scroll.y) < clampSize.y);
+		_scrollBut[sdDown]->SetVisible(std::abs(scroll.y) < clampSize.y);
 }
 
 Material& ScrollBox::GetArrowMaterial()
@@ -4006,9 +4006,9 @@ void ListBox::AlignItems()
 		glm::vec2 fracSize = size - clientSize + _itemSpace;
 
 		glm::vec2 index(0, 0);
-		if (abs(clientSize.x > 0.001f) && abs(itemStep.x > 0.001f))
+		if (std::abs(clientSize.x > 0.001f) && std::abs(itemStep.x > 0.001f))
 			index.x = floor(fmod(stripLen, clientSize.x) / itemStep.x);
-		if (abs(clientSize.x > 0.001f))
+		if (std::abs(clientSize.x > 0.001f))
 			index.y = floor(stripLen / clientSize.x);
 
 		Widget* data = (*iter)->GetData();
@@ -5143,10 +5143,10 @@ ColorList::Colors::const_iterator ColorList::FindColor(const glm::vec4& value) c
 	for (Colors::const_iterator iter = _colors.begin(); iter != _colors.end(); ++iter)
 	{
 		glm::vec4 vec = iter->GetVal() - value;
-		vec.r = abs(vec.r);
-		vec.g = abs(vec.g);
-		vec.b = abs(vec.b);
-		vec.a = abs(vec.a);
+		vec.r = std::abs(vec.r);
+		vec.g = std::abs(vec.g);
+		vec.b = std::abs(vec.b);
+		vec.a = std::abs(vec.a);
 
 		if (vec < 0.001f)
 			return iter;

@@ -106,7 +106,7 @@ void CarFrame::SetCar(Garage::Car* value, const glm::vec4& color, bool secret)
 					(*iter)->SetRot(rot);
 				}
 
-				wheelOffs = abs((*iter)->GetPos().z) + (*iter)->GetShape()->GetRadius() + (*iter)->GetOffset().z;
+				wheelOffs = std::abs((*iter)->GetPos().z) + (*iter)->GetShape()->GetRadius() + (*iter)->GetOffset().z;
 			}
 
 			_carMapObj->GetGameObj().SetWorldPos(glm::vec3(0, 0, wheelOffs - 0.71f));
@@ -261,7 +261,7 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 
 		for (int i = 0; i < 8; ++i)
 		{
-			float angle = abs(QuatAngle(camRot, rotList[i]));
+			float angle = std::abs(QuatAngle(camRot, rotList[i]));
 			if (i == 0 || minAngle > angle)
 			{
 				minAngle = angle;

@@ -1667,7 +1667,7 @@ void CreditsFrame::OnProgress(float deltaTime)
 	{
 		_label->SetVScroll(_label->GetVScroll() - 20.0f * deltaTime);
 
-		if (abs(_label->GetVScroll()) > _label->GetTextAABB().GetSize().y)
+		if (std::abs(_label->GetVScroll()) > _label->GetTextAABB().GetSize().y)
 			_label->SetVScroll(_label->GetSize().y);
 	}
 }

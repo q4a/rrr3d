@@ -263,12 +263,12 @@ void BitStream::Serialize(long long& value)
 
 void BitStream::Serialize(float& value, float err)
 {
-	Serialize(value, btFloat, abs(Get().bit.fltVal - value) < err);
+	Serialize(value, btFloat, std::abs(Get().bit.fltVal - value) < err);
 }
 
 void BitStream::Serialize(double& value, float err)
 {
-	Serialize(value, btDouble, abs(Get().bit.dblVal - value) < err);
+	Serialize(value, btDouble, std::abs(Get().bit.dblVal - value) < err);
 }
 
 void BitStream::Serialize(float value[], int count, float err)
@@ -276,7 +276,7 @@ void BitStream::Serialize(float value[], int count, float err)
 	bool eq = true;
 	BitValue& bitVal = Get().bit;
 	for (int i = 0; i < count; ++i)
-		if (abs(value[i] - bitVal.vecVal[i]) >= err)
+		if (std::abs(value[i] - bitVal.vecVal[i]) >= err)
 		{
 			eq = false;
 			break;

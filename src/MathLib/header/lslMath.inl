@@ -580,9 +580,9 @@ inline glm::vec3 Vec3Invert(const glm::vec3& vec)
 
 inline void Vec3Abs(const glm::vec3& vec, glm::vec3& outVec)
 {
-	outVec.x = abs(vec.x);
-	outVec.y = abs(vec.y);
-	outVec.z = abs(vec.z);
+	outVec.x = std::abs(vec.x);
+	outVec.y = std::abs(vec.y);
+	outVec.z = std::abs(vec.z);
 }
 
 inline glm::vec3 Vec3Abs(const glm::vec3& vec)
@@ -693,7 +693,7 @@ inline glm::vec4 operator*(const glm::vec4& vec1, const glm::vec4& vec2)
 inline void QuatShortestArc(const glm::vec3& from, const glm::vec3& to, glm::quat& outQuat)
 {
 	float angle = glm::dot(from, to);
-	if (abs(angle) > 1.0f)
+	if (std::abs(angle) > 1.0f)
 	{
 		outQuat = NullQuaternion;
 		return;
@@ -701,7 +701,7 @@ inline void QuatShortestArc(const glm::vec3& from, const glm::vec3& to, glm::qua
 
 	angle = acos(angle);
 
-	if (abs(angle) > 0.1f)
+	if (std::abs(angle) > 0.1f)
 	{
 		glm::vec3 axe = glm::cross(from, to);
 		outQuat = glm::angleAxis(angle, axe);
@@ -720,7 +720,7 @@ inline glm::quat QuatShortestArc(const glm::vec3& from, const glm::vec3& to)
 
 inline float QuatAngle(const glm::quat& quat1, const glm::quat& quat2)
 {
-	return acos(abs(glm::dot(quat1, quat2) / (glm::length(quat1) * glm::length(quat2)))) * 2;
+	return acos(std::abs(glm::dot(quat1, quat2) / (glm::length(quat1) * glm::length(quat2)))) * 2;
 }
 
 inline glm::quat QuatRotation(const glm::quat& quat1, const glm::quat& quat2)

@@ -314,8 +314,8 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	for (Planars::iterator iter = _planars.begin(); iter != _planars.end(); ++iter)
 	{
 		const glm::vec4& testPlane = iter->plane;
-		float dist = abs(testPlane.w - plane.w);
-		float angle = abs(PlaneDotNormal(testPlane, glm::vec3(plane)));
+		float dist = std::abs(testPlane.w - plane.w);
+		float angle = std::abs(PlaneDotNormal(testPlane, glm::vec3(plane)));
 
 		if (dist < 0.5f && angle > 0.99f
 			//&& (planarIter == _planars.end() ||

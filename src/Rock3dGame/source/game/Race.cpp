@@ -4096,7 +4096,7 @@ Planet::TrackMap::const_iterator Planet::GetTracks(int pass) const
 		if (maxPass <= iter->first)
 			maxPass = iter->first;
 
-	pass = abs(pass - 1) % maxPass + 1;
+	pass = std::abs(pass - 1) % maxPass + 1;
 
 	Planet::TrackMap::const_iterator iter = _trackMap.find(pass);
 	if (iter != _trackMap.end())

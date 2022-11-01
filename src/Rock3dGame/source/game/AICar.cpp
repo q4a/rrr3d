@@ -41,7 +41,7 @@ bool AICar::PathState::FindFirstUnlockTrack(unsigned track, unsigned target, uns
 {
 	int inc = target > track ? +1 : -1;
 
-	for (int i = 1; i < abs((int)(track - target)) + 1; ++i)
+	for (int i = 1; i < std::abs((int)(track - target)) + 1; ++i)
 	{
 		unsigned testTrack = track + i * inc;
 		if (!lockTracks[testTrack])
@@ -58,7 +58,7 @@ bool AICar::PathState::FindLastUnlockTrack(unsigned track, unsigned target, unsi
 {
 	int inc = target > track ? +1 : -1;
 
-	for (int i = 1; i < abs((int)(track - target)) + 1; ++i)
+	for (int i = 1; i < std::abs((int)(track - target)) + 1; ++i)
 	{
 		unsigned testTrack = track + i * inc;
 		if (lockTracks[testTrack])
@@ -127,7 +127,7 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 	//
 	WayNode* movNode = curTile;
 	//
-	dirArea = 5.0f + abs(car.speed) * car.kSteerControl * 10;
+	dirArea = 5.0f + std::abs(car.speed) * car.kSteerControl * 10;
 
 	//Корректировка траектории движения относительно поворота
 	if (nextTile->GetTile().GetTurnAngle() > glm::pi<float>()/12)
@@ -299,9 +299,9 @@ Player* AICar::AttackState::FindEnemy(AICar* owner, const Player::CarState& car,
 void AICar::AttackState::ShotByEnemy(AICar* owner, const CarState& car, Player* enemy)
 {
 	//отклонение от напрваляющией в пределах enemy->GetCar().radius
-	bool bShoot = enemy && abs(Line2DistToPoint(car.dirLine, enemy->GetCar().pos)) < enemy->GetCar().radius;
+	bool bShoot = enemy && std::abs(Line2DistToPoint(car.dirLine, enemy->GetCar().pos)) < enemy->GetCar().radius;
 	//машина в передлах z достижимости
-	bShoot = bShoot && abs(car.pos3.z - enemy->GetCar().pos3.z) < std::min(car.radius, enemy->GetCar().radius);
+	bShoot = bShoot && std::abs(car.pos3.z - enemy->GetCar().pos3.z) < std::min(car.radius, enemy->GetCar().radius);
 	//
 	if (bShoot)
 	{
@@ -490,7 +490,7 @@ AICar::ControlState::ControlState(): blocking(false), timeBlocking(0.0f), backMo
 void AICar::ControlState::UpdateResetCar(AICar* owner, float deltaTime, const Player::CarState& car)
 {
 	//Reset заблокированной машины
-	if (car.mapObj && (blocking || car.curTile == NULL || abs(car.speed) < cMaxSpeedBlocking))
+	if (car.mapObj && (blocking || car.curTile == NULL || std::abs(car.speed) < cMaxSpeedBlocking))
 	{
 		timeResetBlockCar += deltaTime;
 		if (timeResetBlockCar > 3.0f * cMaxTimeBlocking)
@@ -506,7 +506,7 @@ void AICar::ControlState::UpdateResetCar(AICar* owner, float deltaTime, const Pl
 void AICar::ControlState::Update(AICar* owner, float deltaTime, const Player::CarState& car, const PathState& path)
 {
 	//Вычисляем угол между направлением машины и направляющей движения
-	steerAngle = abs(acos(Vec2Dot(car.dir, path.moveDir)));
+	steerAngle = std::abs(acos(Vec2Dot(car.dir, path.moveDir)));
 	//учет инерционности рулевого управления
 	//steerAngle = std::max(0.0f, steerAngle - glm::pi<float>() * deltaTime * 2.0f);
 	//float errorSteer =
@@ -518,7 +518,7 @@ void AICar::ControlState::Update(AICar* owner, float deltaTime, const Player::Ca
 		steerAngle = 0;
 
 	//состояние заблокированности
-	if (abs(car.speed) < cMaxSpeedBlocking)
+	if (std::abs(car.speed) < cMaxSpeedBlocking)
 	{
 		timeBlocking += deltaTime;
 		if (timeBlocking > cMaxTimeBlocking)
@@ -542,7 +542,7 @@ void AICar::ControlState::Update(AICar* owner, float deltaTime, const Player::Ca
 	if (backMovingMode)
 	{
 		timeBackMoving += deltaTime;
-		if (timeBackMoving > cMaxTimeBlocking || (backMoving && abs(steerAngle) < cSteerAngleBias && timeBackMoving > 0.5f* cMaxTimeBlocking))
+		if (timeBackMoving > cMaxTimeBlocking || (backMoving && std::abs(steerAngle) < cSteerAngleBias && timeBackMoving > 0.5f* cMaxTimeBlocking))
 		{
 			backMoving = !backMoving;
 			timeBackMoving = 0.0f;

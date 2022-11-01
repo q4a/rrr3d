@@ -16,12 +16,12 @@ DirPlan cDirPlan = {0, 0, 1, 1, 2, 2};
 
 template<class _Value> _Value AbsMin(const _Value& val1, const _Value& val2)
 {
-	return abs(val1) > abs(val2) ? val2 : val1;
+	return std::abs(val1) > std::abs(val2) ? val2 : val1;
 }
 
 template<class _Value> _Value AbsMax(const _Value& val1, const _Value& val2)
 {
-	return abs(val1) < abs(val2) ? val2 : val1;
+	return std::abs(val1) < std::abs(val2) ? val2 : val1;
 }
 
 AABB2::AABB2()
@@ -585,7 +585,7 @@ glm::vec3 AABB::GetPlaneVert(unsigned index, unsigned vertex) const
 {
 	/*glm::vec4 plane = GetPlane(index);
 	glm::vec3 norm(plane);
-	glm::vec3 invNorm = IdentityVector - glm::vec3(abs(norm.x), abs(norm.y), abs(norm.z));
+	glm::vec3 invNorm = IdentityVector - glm::vec3(std::abs(norm.x), std::abs(norm.y), std::abs(norm.z));
 
 	glm::vec3 fixCoord;
 	Vec3Scale(norm, GetSizes()/2, fixCoord);
@@ -795,7 +795,7 @@ bool RayCastIntersectPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, c
 	const float EPSILON = 1.0e-10f;
 
 	float d = PlaneDotNormal(plane, rayVec);
-	if (abs(d) > EPSILON)
+	if (std::abs(d) > EPSILON)
 	{
 		outT = -PlaneDotCoord(plane, rayStart) / d;
 		return outT > 0;

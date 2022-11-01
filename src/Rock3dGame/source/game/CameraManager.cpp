@@ -414,10 +414,10 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		//Ограничиваем смещение в пределах квадрата на плоскости смещения чтобы камера не уезжала за объект
 		//targOff.x = lsl::ClampValue(targOff.x, -camBorder.x, camBorder.y);
 		//targOff.y = lsl::ClampValue(targOff.y, -camBorder.w, camBorder.z);
-		if (abs(targOff.y) > 0.1f && abs(targOff.x/targOff.y) < camera->GetAspect())
+		if (std::abs(targOff.y) > 0.1f && std::abs(targOff.x/targOff.y) < camera->GetAspect())
 		{
 			float yCoord = lsl::ClampValue(targOff.y, -camBorder.w, camBorder.z);
-			float xCoord = abs(yCoord) / yTargetDot;
+			float xCoord = std::abs(yCoord) / yTargetDot;
 			xCoord = sqrt(xCoord * xCoord - yCoord * yCoord);
 			if (targOff.x < 0)
 				xCoord = -xCoord;
@@ -427,7 +427,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		else
 		{
 			float xCoord = lsl::ClampValue(targOff.x, -camBorder.x, camBorder.y);
-			float yCoord = abs(xCoord) / sqrt(1.0f - (yTargetDot * yTargetDot));
+			float yCoord = std::abs(xCoord) / sqrt(1.0f - (yTargetDot * yTargetDot));
 			yCoord = sqrt(yCoord * yCoord - xCoord * xCoord);
 			if (targOff.y < 0)
 				yCoord = -yCoord;
