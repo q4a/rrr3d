@@ -238,8 +238,8 @@ void BaseSceneNode::BuildMatrix() const
 {	
 	//Поворот не влияет на локальное направление перемещения
 	//Растяжение не влияет на локальное перемещение, т.е. единица длины одна и таже
-	_localMat = GetScaleMat() * GetRotMat() * GetTransMat();
-	_invLocalMat = MatrixInverse(0, _localMat);
+	_localMat = MatrixMultiply(MatrixMultiply(GetScaleMat(), GetRotMat()), GetTransMat());
+	MatrixInverse(&_invLocalMat, 0, _localMat);
 }
 
 void BaseSceneNode::BuildWorldMatrix() const
@@ -248,7 +248,7 @@ void BaseSceneNode::BuildWorldMatrix() const
 	{
 		const D3DMATRIX& mat = _parent->GetWorldMat();
 		_worldMat = MatrixMultiply(_localMat, mat);
-		_invWorldMat = MatrixInverse(0, _worldMat);
+		MatrixInverse(&_invWorldMat, 0, _worldMat);
 	}
 	else
 	{
@@ -981,13 +981,13 @@ D3DMATRIX BaseSceneNode::GetCombMat(CombMatType type) const
 	switch (type)
 	{
 	case cmtScaleTrans:
-		return GetScaleMat() * GetTransMat();
+		return MatrixMultiply(GetScaleMat(), GetTransMat());
 		
 	case cmtScaleRot:
-		return GetScaleMat() * GetTransMat();
+		return MatrixMultiply(GetScaleMat(), GetTransMat());
 		
 	case cmtRotTrans:
-		return GetRotMat() * GetTransMat();
+		return MatrixMultiply(GetRotMat(), GetTransMat());
 
 	default:
 		LSL_ASSERT(false);
@@ -1005,7 +1005,7 @@ D3DMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 		glm::vec3 vec = GetWorldPos();
 		D3DMATRIX transMat = MatrixTranslation(vec.x, vec.y, vec.z);
 
-		return scaleMat * transMat;
+		return MatrixMultiply(scaleMat, transMat);
 	}
 		
 	case cmtScaleRot:
@@ -1014,7 +1014,7 @@ D3DMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 
 		D3DMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
 
-		return scaleMat * rotMat;
+		return MatrixMultiply(scaleMat, rotMat);
 	}
 
 	case cmtRotTrans:
@@ -1023,7 +1023,7 @@ D3DMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 		glm::vec3 pos = GetWorldPos();
 		D3DMATRIX transMat = MatrixTranslation(pos.x, pos.y, pos.z);
 
-		return rotMat * transMat;
+		return MatrixMultiply(rotMat, transMat);
 	}
 
 	default:

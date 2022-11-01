@@ -124,7 +124,7 @@ void CameraCI::WorldMatChanged(const D3DMATRIX& worldMat)
 
 void CameraCI::CalcProjPerspective(D3DMATRIX& mat) const
 {
-	D3DXMatrixPerspectiveFovRH(&mat, _desc.fov, _desc.aspect, _desc.nearDist, _desc.farDist);
+	mat = MatrixPerspectiveFovRH(_desc.fov, _desc.aspect, _desc.nearDist, _desc.farDist);
 }
 
 void CameraCI::ProjMatChanged()
@@ -493,7 +493,7 @@ const D3DMATRIX& CameraCI::GetTransform(Transform transform) const
 				D3DMATRIX matScale = MatrixScaling(2.0f/viewSize.x, _desc.style == csViewPortInv ? 2.0f/viewSize.y : -2.0f/viewSize.y, 1.0f);
 				matScale._33 = 1.0f/(-500.0f - 500.0f);
 				matScale._43 = -500.0f/(-500.0f - 500.0f);
-				_matrices[transform] = matScale * viewMat;
+				_matrices[transform] = MatrixMultiply(matScale, viewMat);
 				break;
 			}
 
@@ -527,7 +527,7 @@ const D3DMATRIX& CameraCI::GetInvTransform(Transform transform) const
 {
 	if (_invMatChanged.test(transform))
 	{
-		_invMatrices[transform] = MatrixInverse(0, GetTransform(transform));
+		MatrixInverse(&_invMatrices[transform], 0, GetTransform(transform));
 		_invMatChanged.reset(transform);
 	}
 
@@ -775,7 +775,7 @@ void ContextInfo::BeginDraw()
 		{
 			D3DMATRIX mat = _textureMatStack[i].front();
 			for (unsigned j = 1; j < _textureMatStack[i].size(); ++j)
-				mat = mat * _textureMatStack[i][j];
+				mat = MatrixMultiply(mat, _textureMatStack[i][j]);
 
 			mat._31 = mat._41;
 			mat._32 = mat._42;

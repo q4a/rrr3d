@@ -1224,7 +1224,7 @@ void PodushkaAnim::OnProgress(float deltaTime)
 
 		D3DMATRIX matOffs1 = MatrixTranslation(-offset.x, -offset.y, -offset.z);
 		D3DMATRIX matOffs2 = MatrixTranslation(offset.x, offset.y, offset.z);
-		localMat = localMat * matOffs1 * rotMat * matOffs2;
+		localMat = MatrixMultiply(MatrixMultiply(MatrixMultiply(localMat, matOffs1), rotMat), matOffs2);
 
 		_target->SetLocalMat(localMat);
 	}

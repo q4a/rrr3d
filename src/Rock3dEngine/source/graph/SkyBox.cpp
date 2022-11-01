@@ -10,7 +10,8 @@ namespace graph
 
 //Ñץולא
 //+y; -y; +z; -z; +x; -x
-const D3DMATRIX skyFromLeftToRightCS(1.0f,  0.0f,  0.0f,  0.0f,
+const D3DMATRIX skyFromLeftToRightCS = MakeMatrix
+									  (1.0f, 0.0f, 0.0f, 0.0f,
 									  0.0f,  0.0f,  1.0f,  0.0f,
 									  0.0f,  -1.0f, 0.0f,  0.0f,
 									  0.0f,  0.0f,  0.0f,  1.0f);
@@ -52,7 +53,7 @@ void SkyBox::Render(Engine& engine)
 	skyWVP._41 = 0.0f;
 	skyWVP._42 = 0.0f;
 	skyWVP._43 = 0.0f;
-	skyWVP = MatrixInverse(0, skyWVP);
+	MatrixInverse(&skyWVP, 0, skyWVP);
 	shader.SetValueDir("matInvWVP", skyWVP);
 
 	shader.Apply(engine);

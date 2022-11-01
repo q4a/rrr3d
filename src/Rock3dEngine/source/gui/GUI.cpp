@@ -417,7 +417,7 @@ D3DMATRIX Graphic3d::GetMat()
 
 D3DMATRIX Graphic3d::GetWorldMat()
 {
-	return _parent ? GetMat() * _parent->GetWorldMat() : GetMat();
+	return _parent ? MatrixMultiply(GetMat(), _parent->GetWorldMat()) : GetMat();
 }
 
 AABB Graphic3d::GetChildAABB()
@@ -798,7 +798,7 @@ void Context::DrawGraphic3d(Graphic3d* graphic, const D3DMATRIX& worldMat)
 	if (graphic->GetMaterial())
 		ApplyMaterial(*graphic->GetMaterial(), 1.0f);
 
-	GetCI().SetWorldMat(graphic->GetWorldMat() * worldMat);
+	GetCI().SetWorldMat(MatrixMultiply(graphic->GetWorldMat(), worldMat));
 	if (graphic->invertCullFace)
 		GetCI().SetRenderState(graph::rsCullMode, D3DCULL_CCW);
 
@@ -1050,7 +1050,7 @@ void Context::DrawView3d(View3d& view3d)
 	GetCI().SetRenderState(graph::rsZEnable, true);
 	GetDriver().GetDevice()->Clear(0, 0, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
 
-	DrawGraphic3d(view3d.GetBox(), localMat * worldMat);
+	DrawGraphic3d(view3d.GetBox(), MatrixMultiply(localMat, worldMat));
 
 	GetCI().SetRenderState(graph::rsZWriteEnable, false);
 	GetCI().SetRenderState(graph::rsZEnable, false);
@@ -1264,15 +1264,15 @@ void Widget::BuildMatrix(MatrixChange change) const
 	}
 
 	case mcWorld:
-		_matrix[mcWorld] = _parent ? GetMat() * _parent->GetWorldMat() : GetMat();
+		_matrix[mcWorld] = _parent ? MatrixMultiply(GetMat(), _parent->GetWorldMat()) : GetMat();
 		break;
 
 	case mcInvLocal:
-		_matrix[mcInvLocal] = MatrixInverse(0, GetMat());
+		MatrixInverse(&_matrix[mcInvLocal], 0, GetMat());
 		break;
 
 	case mcInvWorld:
-		_matrix[mcInvWorld] = MatrixInverse(0, GetWorldMat());
+		MatrixInverse(&_matrix[mcInvWorld], 0, GetWorldMat());
 		break;
 	}
 }

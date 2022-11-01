@@ -137,7 +137,8 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 	float fOffsetY = -0.5f * (fMaxY + fMinY) * fScaleY;
 	float fOffsetZ = -fMinZ * fScaleZ;
 
-	D3DMATRIX mCropView(fScaleX,     0.0f,     0.0f,   0.0f,
+	D3DMATRIX mCropView = MakeMatrix
+	                    (fScaleX,     0.0f,     0.0f,   0.0f,
 	                        0.0f,  fScaleY,     0.0f,   0.0f,
 	                        0.0f,     0.0f,  fScaleZ,   0.0f,
 	                    fOffsetX, fOffsetY, fOffsetZ,   1.0f);
@@ -146,7 +147,7 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 	//Итоговое значение глубины в z буффере будет линейным, в диапазоне от 0 до 1 (near; far), которое можно вычислить как:
 	//depth = Zf/maxZ * (Z - Zn)/(Zf - Zn);
 	//Приблизительно depth = Z / maxZ.
-	_splitLightProjMat[numSplit] = light.GetCamera().GetProj() * mCropView;
+	_splitLightProjMat[numSplit] = MatrixMultiply(light.GetCamera().GetProj(), mCropView);
 }
 
 void ShadowMapRender::CalcSplitScheme(const CameraCI& camera, const LightCI& light)
@@ -163,13 +164,13 @@ void ShadowMapRender::CalcSplitScheme(const CameraCI& camera, const LightCI& lig
 
 		if (_disableCropLight)
 		{
-			D3DMATRIX mCropView(
+			D3DMATRIX mCropView = MakeMatrix(
 				1, 0.0f,  0.0f,   0.0f,
 				0.0f, 1, 0.0f, 0.0f,
 				0.0f, 0.0f, 1.0f/(desc.farDist - desc.nearDist), 0.0f,
 				0.0f, 0.0f, 0.0f, 1.0f
 			);
-			_splitLightProjMat[i] = light.GetCamera().GetProj() * mCropView;
+			_splitLightProjMat[i] = MatrixMultiply(light.GetCamera().GetProj(), mCropView);
 		}
 		else
 		{
@@ -204,7 +205,7 @@ void ShadowMapRender::BeginShadowCaster(Engine& engine)
 		engine.GetDriver().GetDevice()->SetDepthStencilSurface(_depthSurface->GetSurface());
 	}
 
-	D3DMATRIX viewProj = _myCamera.GetView() * _splitLightProjMat[_curNumSplit];
+	D3DMATRIX viewProj = MatrixMultiply(_myCamera.GetView(), _splitLightProjMat[_curNumSplit]);
 	depthRender.SetViewProjMat(viewProj);
 
 	engine.GetContext().ApplyCamera(&_myCamera);
@@ -248,10 +249,10 @@ void ShadowMapRender::BeginShadowMapp(Engine& engine)
 	{
 		float mapSz = static_cast<float>(cShadowMapSize);
 		float fTexOffset = 0.5f + 0.5f / mapSz;
-		shader.mTexScale = D3DMATRIX(0.5f,       0.0f,       0.0f,   0.0f,
-			                          0.0f,       -0.5f,      0.0f,   0.0f,
-							          0.0f,       0.0f,       1.0f,   0.0f,
-							          fTexOffset, fTexOffset, 0.0f,   1.0f);
+		shader.mTexScale = MakeMatrix(0.5f,       0.0f, 0.0f, 0.0f,
+		                              0.0f,      -0.5f, 0.0f, 0.0f,
+		                              0.0f,       0.0f, 1.0f, 0.0f,
+		                        fTexOffset, fTexOffset, 0.0f, 1.0f);
 
 		shader.SetValue("sizeShadow", glm::vec2(mapSz, 1.0f / mapSz));
 

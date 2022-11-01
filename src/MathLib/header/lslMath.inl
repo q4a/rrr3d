@@ -57,10 +57,23 @@ inline glm::mat4 Matrix4DxToGlm(const D3DMATRIX &mat)
 inline D3DMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
 {
 	// mat - GLM, mat[0] 1-st column, mat[0][1] = mat[0].y - 1-st column 2-nd row
-	D3DMATRIX outMat(mat[0].x, mat[1].x, mat[2].x, mat[3].x,
-	                  mat[0].y, mat[1].y, mat[2].y, mat[3].y,
-	                  mat[0].z, mat[1].z, mat[2].z, mat[3].z,
-	                  mat[0].w, mat[1].w, mat[2].w, mat[3].w);
+	D3DMATRIX outMat;
+	outMat.m[0][0] = mat[0].x;
+	outMat.m[0][1] = mat[1].x;
+	outMat.m[0][2] = mat[2].x;
+	outMat.m[0][3] = mat[3].x;
+	outMat.m[1][0] = mat[0].y;
+	outMat.m[1][1] = mat[1].y;
+	outMat.m[1][2] = mat[2].y;
+	outMat.m[1][3] = mat[3].y;
+	outMat.m[2][0] = mat[0].z;
+	outMat.m[2][1] = mat[1].z;
+	outMat.m[2][2] = mat[2].z;
+	outMat.m[2][3] = mat[3].z;
+	outMat.m[3][0] = mat[0].w;
+	outMat.m[3][1] = mat[1].w;
+	outMat.m[3][2] = mat[2].w;
+	outMat.m[3][3] = mat[3].w;
 	return outMat;
 }
 
@@ -141,6 +154,31 @@ inline float ScalarTransform(float scalar, const glm::vec3& vec, const D3DMATRIX
 	return scalar < 0 ? -len : len;
 }
 
+inline D3DMATRIX MakeMatrix(float _11, float _12, float _13, float _14,
+                            float _21, float _22, float _23, float _24,
+                            float _31, float _32, float _33, float _34,
+                            float _41, float _42, float _43, float _44)
+{
+	D3DMATRIX outMat;
+	outMat.m[0][0] = _11;
+	outMat.m[0][1] = _12;
+	outMat.m[0][2] = _13;
+	outMat.m[0][3] = _14;
+	outMat.m[1][0] = _21;
+	outMat.m[1][1] = _22;
+	outMat.m[1][2] = _23;
+	outMat.m[1][3] = _24;
+	outMat.m[2][0] = _31;
+	outMat.m[2][1] = _32;
+	outMat.m[2][2] = _33;
+	outMat.m[2][3] = _34;
+	outMat.m[3][0] = _41;
+	outMat.m[3][1] = _42;
+	outMat.m[3][2] = _43;
+	outMat.m[3][3] = _44;
+	return outMat;
+}
+
 inline D3DMATRIX MatrixMultiply(const D3DMATRIX &mat1, const D3DMATRIX &mat2)
 {
 	D3DMATRIX outMat;
@@ -174,12 +212,23 @@ inline D3DMATRIX MatrixTranslation(float x, float y, float z)
 	return outMat;
 }
 
+inline D3DMATRIX MatrixTranspose(const D3DMATRIX &mat)
+{
+	D3DMATRIX outMat;
+	int i, j;
+	for (i = 0; i < 4; ++i)
+		for (j = 0; j < 4; ++j)
+			outMat.m[i][j] = mat.m[j][i];
+
+	return outMat;
+}
+
 inline void BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot, D3DMATRIX& outMat)
 {
 	D3DMATRIX scaleMat = MatrixScaling(scale.x, scale.y, scale.z);
 	D3DMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rot)));
 	D3DMATRIX transMat = MatrixTranslation(pos.x, pos.y, pos.z);
-	outMat = scaleMat * rotMat * transMat;
+	outMat = MatrixMultiply(MatrixMultiply(scaleMat, rotMat), transMat);
 }
 
 inline D3DMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot)
@@ -189,9 +238,8 @@ inline D3DMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, 
 	return outMat;
 }
 
-inline D3DMATRIX MatrixInverse(float *pdeterminant, const D3DMATRIX &mat)
+inline D3DMATRIX *MatrixInverse(D3DMATRIX *outMat, float *pdeterminant, const D3DMATRIX &mat)
 {
-	D3DMATRIX outMat;
 	float det, t[3], v[16];
 	int i, j;
 
@@ -209,7 +257,7 @@ inline D3DMATRIX MatrixInverse(float *pdeterminant, const D3DMATRIX &mat)
 
 	det = mat.m[0][0] * v[0] + mat.m[0][1] * v[4] + mat.m[0][2] * v[8] + mat.m[0][3] * v[12];
 	if (det == 0.0f)
-		return outMat;
+		return nullptr;
 	if (pdeterminant)
 		*pdeterminant = det;
 
@@ -255,7 +303,7 @@ inline D3DMATRIX MatrixInverse(float *pdeterminant, const D3DMATRIX &mat)
 
 	for (i = 0; i < 4; i++)
 		for (j = 0; j < 4; j++)
-			outMat.m[i][j] = v[4 * i + j] * det;
+			outMat->m[i][j] = v[4 * i + j] * det;
 
 	return outMat;
 }
@@ -298,6 +346,18 @@ inline D3DMATRIX MatrixOrthoRH(float w, float h, float zn, float zf)
 	outMat.m[1][1] = 2.0f / h;
 	outMat.m[2][2] = 1.0f / (zn - zf);
 	outMat.m[3][2] = zn / (zn - zf);
+	return outMat;
+}
+
+inline D3DMATRIX MatrixPerspectiveFovRH(float fovy, float aspect, float zn, float zf)
+{
+	D3DMATRIX outMat = IdentityMatrix;
+	outMat.m[0][0] = 1.0f / (aspect * tanf(fovy / 2.0f));
+	outMat.m[1][1] = 1.0f / tanf(fovy / 2.0f);
+	outMat.m[2][2] = zf / (zn - zf);
+	outMat.m[2][3] = -1.0f;
+	outMat.m[3][2] = (zf * zn) / (zn - zf);
+	outMat.m[3][3] = 0.0f;
 	return outMat;
 }
 

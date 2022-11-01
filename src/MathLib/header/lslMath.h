@@ -20,6 +20,10 @@ int RandomRange(int from, int to);
 float NumAbsAdd(float absVal, float addVal);
 float ScalarTransform(float scalar, const glm::vec3& vec, const D3DMATRIX& mat);
 
+D3DMATRIX MakeMatrix(float _11, float _12, float _13, float _14,
+                     float _21, float _22, float _23, float _24,
+                     float _31, float _32, float _33, float _34,
+                     float _41, float _42, float _43, float _44);
 void BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot, D3DMATRIX& outMat);
 D3DMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot);
 void MatrixRotationFromAxis(const glm::vec3& xVec, const glm::vec3& yVec, const glm::vec3& zVec, D3DMATRIX& matOut);
@@ -79,7 +83,8 @@ bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& rayVec, co
 float PlaneDotCoord(const glm::vec4& plane, const glm::vec3& point);
 
 const float floatErrComp = 0.00001f;
-const D3DMATRIX     IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
+const D3DMATRIX      IdentityMatrix = MakeMatrix
+                                   (1.0f, 0.0f, 0.0f, 0.0f,
                                     0.0f, 1.0f, 0.0f, 0.0f,
                                     0.0f, 0.0f, 1.0f, 0.0f,
                                     0.0f, 0.0f, 0.0f, 1.0f);
