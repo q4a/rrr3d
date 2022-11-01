@@ -47,51 +47,51 @@ inline float NumAbsAdd(float absVal, float addVal)
 inline glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
 {
 	// mat - DX, mat.m[0] 1-st row, mat.m[0][1] = mat._12 - 1-st row 2-nd column
-	glm::mat4 mat4glm(mat._11, mat._21, mat._31, mat._41, // 1-st column
+	glm::mat4 outMat(mat._11, mat._21, mat._31, mat._41, // 1-st column
 	                  mat._12, mat._22, mat._32, mat._42, // 2-nd column
 	                  mat._13, mat._23, mat._33, mat._43, // 3-rd column
 	                  mat._14, mat._24, mat._34, mat._44);// 4-th column
-	return mat4glm;
+	return outMat;
 }
 
 inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
 {
 	// mat - GLM, mat[0] 1-st column, mat[0][1] = mat[0].y - 1-st column 2-nd row
-	D3DXMATRIX matrix(mat[0].x, mat[1].x, mat[2].x, mat[3].x,
+	D3DXMATRIX outMat(mat[0].x, mat[1].x, mat[2].x, mat[3].x,
 	                  mat[0].y, mat[1].y, mat[2].y, mat[3].y,
 	                  mat[0].z, mat[1].z, mat[2].z, mat[3].z,
 	                  mat[0].w, mat[1].w, mat[2].w, mat[3].w);
-	return matrix;
+	return outMat;
 }
 
 inline glm::vec3 Vec3DxToGlm(const D3DXVECTOR3 v3)
 {
-	glm::vec3 v3glm(v3.x, v3.y, v3.z);
-	return v3glm;
+	glm::vec3 outVec(v3.x, v3.y, v3.z);
+	return outVec;
 }
 
 inline D3DXVECTOR3 Vec3GlmToDx(const glm::vec3 v3)
 {
-	D3DXVECTOR3 v3dx(v3.x, v3.y, v3.z);
-	return v3dx;
+	D3DXVECTOR3 outVec(v3.x, v3.y, v3.z);
+	return outVec;
 }
 
 inline glm::vec4 Vec4DxToGlm(const D3DXVECTOR4 v4)
 {
-	glm::vec4 v4glm(v4.x, v4.y, v4.z, v4.w);
-	return v4glm;
+	glm::vec4 outVec(v4.x, v4.y, v4.z, v4.w);
+	return outVec;
 }
 
 inline D3DXVECTOR4 Vec4GlmToDx(const glm::vec4 v4)
 {
-	D3DXVECTOR4 v4Dx(v4.x, v4.y, v4.z, v4.w);
-	return v4Dx;
+	D3DXVECTOR4 outVec(v4.x, v4.y, v4.z, v4.w);
+	return outVec;
 }
 
 inline D3DXPLANE Vec4ToPlane(const glm::vec4 v4)
 {
-	D3DXPLANE plane(v4.x, v4.y, v4.z, v4.w);
-	return plane;
+	D3DXPLANE outPlane(v4.x, v4.y, v4.z, v4.w);
+	return outPlane;
 }
 
 inline D3DCOLOR Vec4ToColor(const glm::vec4 &vec)
@@ -101,54 +101,53 @@ inline D3DCOLOR Vec4ToColor(const glm::vec4 &vec)
 
 inline glm::vec4 ColorToVec4(const D3DCOLOR &col)
 {
-	glm::vec4 vec;
-	vec.r = (col >> 16 & 255) / 255.0f;
-	vec.g = (col >> 8 & 255) / 255.0f;
-	vec.b = (col & 255) / 255.0f;
-	vec.a = (col >> 24 & 255) / 255.0f;
-	return vec;
+	glm::vec4 outVec;
+	outVec.r = (col >> 16 & 255) / 255.0f;
+	outVec.g = (col >> 8 & 255) / 255.0f;
+	outVec.b = (col & 255) / 255.0f;
+	outVec.a = (col >> 24 & 255) / 255.0f;
+	return outVec;
 }
 
 inline glm::vec4 ColorVToVec4(const D3DCOLORVALUE &cv)
 {
-	glm::vec4 v4glm(cv.r, cv.g, cv.b, cv.a);
-	return v4glm;
+	glm::vec4 outVec(cv.r, cv.g, cv.b, cv.a);
+	return outVec;
 }
 
 inline glm::vec3 Vec3TransformCoord(const glm::vec3 &vec, const D3DXMATRIX &mat)
 {
-	D3DXVECTOR3 res;
-	D3DXVec3TransformCoord(&res, &Vec3GlmToDx(vec), &mat);
-	return Vec3DxToGlm(res);
+	D3DXVECTOR3 outVec;
+	D3DXVec3TransformCoord(&outVec, &Vec3GlmToDx(vec), &mat);
+	return Vec3DxToGlm(outVec);
 }
 
 inline glm::vec3 Vec3TransformNormal(const glm::vec3 &vec, const D3DXMATRIX &mat)
 {
-	D3DXVECTOR3 res;
-	D3DXVec3TransformNormal(&res, &Vec3GlmToDx(vec), &mat);
-	return Vec3DxToGlm(res);
+	D3DXVECTOR3 outVec;
+	D3DXVec3TransformNormal(&outVec, &Vec3GlmToDx(vec), &mat);
+	return Vec3DxToGlm(outVec);
 }
 
 inline glm::vec4 Vec3Transform(const glm::vec3 &vec, const D3DXMATRIX &mat)
 {
-	D3DXVECTOR4 res;
-	D3DXVec3Transform(&res, &Vec3GlmToDx(vec), &mat);
-	return Vec4DxToGlm(res);
+	D3DXVECTOR4 outVec;
+	D3DXVec3Transform(&outVec, &Vec3GlmToDx(vec), &mat);
+	return Vec4DxToGlm(outVec);
 }
-
 
 inline glm::vec4 Vec4Transform(const glm::vec4 &vec, const D3DXMATRIX &mat)
 {
-	D3DXVECTOR4 res;
-	D3DXVec4Transform(&res, &Vec4GlmToDx(vec), &mat);
-	return Vec4DxToGlm(res);
+	D3DXVECTOR4 outVec;
+	D3DXVec4Transform(&outVec, &Vec4GlmToDx(vec), &mat);
+	return Vec4DxToGlm(outVec);
 }
 
 inline float ScalarTransform(float scalar, const glm::vec3& vec, const D3DXMATRIX& mat)
 {
-	D3DXVECTOR3 res;
-	D3DXVec3TransformNormal(&res, &Vec3GlmToDx(vec * scalar), &mat);
-	float len = D3DXVec3Length(&res);
+	D3DXVECTOR3 outVec;
+	D3DXVec3TransformNormal(&outVec, &Vec3GlmToDx(vec * scalar), &mat);
+	float len = D3DXVec3Length(&outVec);
 	return scalar < 0 ? -len : len;
 }
 
@@ -167,29 +166,29 @@ inline void BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const
 
 inline D3DXMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot)
 {
-	D3DXMATRIX res;
-	BuildWorldMatrix(pos, scale, rot, res);
-	return res;
+	D3DXMATRIX outMat;
+	BuildWorldMatrix(pos, scale, rot, outMat);
+	return outMat;
 }
 
-inline void MatrixRotationFromAxis(const glm::vec3& xVec, const glm::vec3& yVec, const glm::vec3& zVec, D3DXMATRIX& matOut)
+inline void MatrixRotationFromAxis(const glm::vec3& xVec, const glm::vec3& yVec, const glm::vec3& zVec, D3DXMATRIX& outMat)
 {
-	matOut._11 = xVec.x;
-	matOut._12 = xVec.y;
-	matOut._13 = xVec.z;
-	matOut._14 = 0.0f;
-	matOut._21 = yVec.x;
-	matOut._22 = yVec.y;
-	matOut._23 = yVec.z;
-	matOut._24 = 0.0f;
-	matOut._31 = zVec.x;
-	matOut._32 = zVec.y;
-	matOut._33 = zVec.z;
-	matOut._34 = 0.0f;
-	matOut._41 = 0.0f;
-	matOut._42 = 0.0f;
-	matOut._43 = 0.0f;
-	matOut._44 = 1.0f;
+	outMat._11 = xVec.x;
+	outMat._12 = xVec.y;
+	outMat._13 = xVec.z;
+	outMat._14 = 0.0f;
+	outMat._21 = yVec.x;
+	outMat._22 = yVec.y;
+	outMat._23 = yVec.z;
+	outMat._24 = 0.0f;
+	outMat._31 = zVec.x;
+	outMat._32 = zVec.y;
+	outMat._33 = zVec.z;
+	outMat._34 = 0.0f;
+	outMat._41 = 0.0f;
+	outMat._42 = 0.0f;
+	outMat._43 = 0.0f;
+	outMat._44 = 1.0f;
 }
 
 inline void MatrixSetTranslation(const glm::vec3& vec, D3DXMATRIX& outMat)
@@ -222,30 +221,32 @@ inline void MatrixScale(const glm::vec3& vec, D3DXMATRIX& outMat)
 
 inline void MatGetPos(const D3DXMATRIX& mat, glm::vec3& outPos)
 {
-	outPos = Vec3DxToGlm(mat.m[3]);
+	outPos.x = mat.m[3][0];
+	outPos.y = mat.m[3][1];
+	outPos.z = mat.m[3][2];
 }
 
 inline glm::vec3 MatGetPos(const D3DXMATRIX& mat)
 {
-	glm::vec3 res;
-	MatGetPos(mat, res);
-	return res;
+	glm::vec3 outPos;
+	MatGetPos(mat, outPos);
+	return outPos;
 }
 
 inline glm::vec2 Vec2Minimize(const glm::vec2 &vec1, const glm::vec2 &vec2)
 {
-	glm::vec2 pOut;
-	pOut.x = vec1.x < vec2.x ? vec1.x : vec2.x;
-	pOut.y = vec1.y < vec2.y ? vec1.y : vec2.y;
-	return pOut;
+	glm::vec2 outVec;
+	outVec.x = vec1.x < vec2.x ? vec1.x : vec2.x;
+	outVec.y = vec1.y < vec2.y ? vec1.y : vec2.y;
+	return outVec;
 }
 
 inline glm::vec2 Vec2Maximize(const glm::vec2 &vec1, const glm::vec2 &vec2)
 {
-	glm::vec2 pOut;
-	pOut.x = vec1.x > vec2.x ? vec1.x : vec2.x;
-	pOut.y = vec1.y > vec2.y ? vec1.y : vec2.y;
-	return pOut;
+	glm::vec2 outVec;
+	outVec.x = vec1.x > vec2.x ? vec1.x : vec2.x;
+	outVec.y = vec1.y > vec2.y ? vec1.y : vec2.y;
+	return outVec;
 }
 
 inline glm::vec2 Vec2TransformCoord(const glm::vec2 &vec, const glm::mat4 &mat)
@@ -267,10 +268,10 @@ inline float Vec2Dot(const glm::vec2 &vec1, const glm::vec2 &vec2)
 
 inline glm::vec2 Vec2Lerp(const glm::vec2 &vec1, const glm::vec2 &vec2, float scalar)
 {
-	glm::vec2 res;
-	res.x = vec1.x + scalar * (vec2.x - vec1.x);
-	res.y = vec1.y + scalar * (vec2.y - vec1.y);
-	return res;
+	glm::vec2 outVec;
+	outVec.x = vec1.x + scalar * (vec2.x - vec1.x);
+	outVec.y = vec1.y + scalar * (vec2.y - vec1.y);
+	return outVec;
 }
 
 inline float Vec2CCW(const glm::vec2 &vec1, const glm::vec2 &vec2)
@@ -290,9 +291,9 @@ inline void Vec2NormCCW(const glm::vec2& vec, glm::vec2& outVec)
 
 inline glm::vec2 Vec2NormCCW(const glm::vec2& vec2)
 {
-	glm::vec2 res;
-	Vec2NormCCW(vec2, res);
-	return res;
+	glm::vec2 outVec;
+	Vec2NormCCW(vec2, outVec);
+	return outVec;
 }
 
 //Поворот вектора на 90 градуос по часовой стрелки, иначе говоря его нормаль
@@ -310,32 +311,32 @@ inline float Vec2Proj(const glm::vec2& vec1, const glm::vec2& vec2)
 	return Vec2Dot(vec1, vec2) / glm::length(vec2);
 }
 
-inline void operator*=(glm::vec2& vec1, const glm::vec2& vec2)
+inline void operator*=(glm::vec2& outVec1, const glm::vec2& vec2)
 {
-	vec1.x *= vec2.x;
-	vec1.y *= vec2.y;
+	outVec1.x *= vec2.x;
+	outVec1.y *= vec2.y;
 }
 
 inline glm::vec2 operator*(const glm::vec2& vec1, const glm::vec2& vec2)
 {
-	glm::vec2 res = vec1;
-	res *= vec2;
+	glm::vec2 outVec = vec1;
+	outVec *= vec2;
 
-	return res;
+	return outVec;
 }
 
-inline void operator/=(glm::vec2& vec1, const glm::vec2& vec2)
+inline void operator/=(glm::vec2& outVec1, const glm::vec2& vec2)
 {
-	vec1.x /= vec2.x;
-	vec1.y /= vec2.y;
+	outVec1.x /= vec2.x;
+	outVec1.y /= vec2.y;
 }
 
 inline glm::vec2 operator/(const glm::vec2& vec1, const glm::vec2& vec2)
 {
-	glm::vec2 res = vec1;
-	res /= vec2;
+	glm::vec2 outVec = vec1;
+	outVec /= vec2;
 
-	return res;
+	return outVec;
 }
 
 inline glm::vec3 Vec3FromVec2(const glm::vec2& vec)
@@ -343,42 +344,42 @@ inline glm::vec3 Vec3FromVec2(const glm::vec2& vec)
 	return glm::vec3(vec.x, vec.y, 0.0f);
 }
 
-inline void Vec3Invert(const glm::vec3& vec, glm::vec3& rOut)
+inline void Vec3Invert(const glm::vec3& vec, glm::vec3& outVec)
 {
-	rOut.x = 1 / vec.x;
-	rOut.y = 1 / vec.y;
-	rOut.z = 1 / vec.z;
+	outVec.x = 1 / vec.x;
+	outVec.y = 1 / vec.y;
+	outVec.z = 1 / vec.z;
 };
 
 inline glm::vec3 Vec3Invert(const glm::vec3& vec)
 {
-	glm::vec3 res;
-	Vec3Invert(vec, res);
-	return res;
+	glm::vec3 outVec;
+	Vec3Invert(vec, outVec);
+	return outVec;
 };
 
-inline void Vec3Abs(const glm::vec3& vec, glm::vec3& rOut)
+inline void Vec3Abs(const glm::vec3& vec, glm::vec3& outVec)
 {
-	rOut.x = abs(vec.x);
-	rOut.y = abs(vec.y);
-	rOut.z = abs(vec.z);
+	outVec.x = abs(vec.x);
+	outVec.y = abs(vec.y);
+	outVec.z = abs(vec.z);
 }
 
 inline glm::vec3 Vec3Abs(const glm::vec3& vec)
 {
-	glm::vec3 res;
-	Vec3Abs(vec, res);
-	return res;
+	glm::vec3 outVec;
+	Vec3Abs(vec, outVec);
+	return outVec;
 }
 
 // It's possible to use glm:mix, but it gives a bit different result for Z axe.
 inline glm::vec3 Vec3Lerp(const glm::vec3 &vec1, const glm::vec3 &vec2, float scalar)
 {
-	glm::vec3 res;
-	res.x = vec1.x + scalar * (vec2.x - vec1.x);
-	res.y = vec1.y + scalar * (vec2.y - vec1.y);
-	res.z = vec1.z + scalar * (vec2.z - vec1.z);
-	return res;
+	glm::vec3 outVec;
+	outVec.x = vec1.x + scalar * (vec2.x - vec1.x);
+	outVec.y = vec1.y + scalar * (vec2.y - vec1.y);
+	outVec.z = vec1.z + scalar * (vec2.z - vec1.z);
+	return outVec;
 }
 
 inline void Vec3Rotate(const glm::vec3& v, const glm::quat& quat, glm::vec3& outVec)
@@ -395,34 +396,34 @@ inline void Vec3Rotate(const glm::vec3& v, const glm::quat& quat, glm::vec3& out
 	outVec /= glm::length2(quat);
 }
 
-inline void operator*=(glm::vec3& vec1, const glm::vec3& vec2)
+inline void operator*=(glm::vec3& outVec1, const glm::vec3& vec2)
 {
-	vec1.x *= vec2.x;
-	vec1.y *= vec2.y;
-	vec1.z *= vec2.z;
+	outVec1.x *= vec2.x;
+	outVec1.y *= vec2.y;
+	outVec1.z *= vec2.z;
 }
 
 inline glm::vec3 operator*(const glm::vec3& vec1, const glm::vec3& vec2)
 {
-	glm::vec3 res = vec1;
-	res *= vec2;
+	glm::vec3 outVec = vec1;
+	outVec *= vec2;
 
-	return res;
+	return outVec;
 }
 
-inline void operator/=(glm::vec3& vec1, const glm::vec3& vec2)
+inline void operator/=(glm::vec3& outVec1, const glm::vec3& vec2)
 {
-	vec1.x /= vec2.x;
-	vec1.y /= vec2.y;
-	vec1.z /= vec2.z;
+	outVec1.x /= vec2.x;
+	outVec1.y /= vec2.y;
+	outVec1.z /= vec2.z;
 }
 
 inline glm::vec3 operator/(const glm::vec3& vec1, const glm::vec3& vec2)
 {
-	glm::vec3 res = vec1;
-	res /= vec2;
+	glm::vec3 outVec = vec1;
+	outVec /= vec2;
 
-	return res;
+	return outVec;
 }
 
 inline bool operator>=(const glm::vec3& vec1, float scalar)
@@ -453,20 +454,20 @@ inline bool operator<(const glm::vec3& vec1, const glm::vec3& vec2)
 		   vec1.z < vec2.z;
 }
 
-inline void operator*=(glm::vec4& vec1, const glm::vec4& vec2)
+inline void operator*=(glm::vec4& outVec1, const glm::vec4& vec2)
 {
-	vec1.r *= vec2.r;
-	vec1.g *= vec2.g;
-	vec1.b *= vec2.b;
-	vec1.a *= vec2.a;
+	outVec1.r *= vec2.r;
+	outVec1.g *= vec2.g;
+	outVec1.b *= vec2.b;
+	outVec1.a *= vec2.a;
 }
 
 inline glm::vec4 operator*(const glm::vec4& vec1, const glm::vec4& vec2)
 {
-	glm::vec4 res = vec1;
-	res *= vec2;
+	glm::vec4 outVec = vec1;
+	outVec *= vec2;
 
-	return res;
+	return outVec;
 }
 
 inline void QuatShortestArc(const glm::vec3& from, const glm::vec3& to, glm::quat& outQuat)
@@ -522,7 +523,7 @@ inline glm::quat QuatRotation(const glm::quat& quat1, const glm::quat& quat2)
 	return quat2 * glm::inverse(quat1);
 }
 
-inline const glm::vec3& QuatRotateVec3(glm::vec3& res, const glm::vec3& vec, const glm::quat& quat)
+inline const glm::vec3& QuatRotateVec3(glm::vec3& outVec, const glm::vec3& vec, const glm::quat& quat)
 {
 	glm::quat q(vec.x * quat.x + vec.y * quat.y + vec.z * quat.z,
 				vec.x * quat.w + vec.z * quat.y - vec.y * quat.z,
@@ -530,11 +531,11 @@ inline const glm::vec3& QuatRotateVec3(glm::vec3& res, const glm::vec3& vec, con
 				vec.z * quat.w + vec.y * quat.x - vec.x * quat.y);
 	float norm = glm::length2(quat);
 
-	res = glm::vec3(quat.w * q.x + quat.x * q.w + quat.y * q.z - quat.z * q.y,
+	outVec = glm::vec3(quat.w * q.x + quat.x * q.w + quat.y * q.z - quat.z * q.y,
 		quat.w * q.y + quat.y * q.w + quat.z * q.x - quat.x * q.z,
 		quat.w * q.z + quat.z * q.w + quat.x * q.y - quat.y * q.x) * (1.0f/norm);
 
-	return res;
+	return outVec;
 }
 
 inline void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, glm::vec3& outLine)
@@ -549,9 +550,9 @@ inline void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, glm::ve
 
 inline glm::vec3 Line2FromNorm(const glm::vec2& norm, const glm::vec2& point)
 {
-	glm::vec3 res;
-	Line2FromNorm(norm, point, res);
-	return res;
+	glm::vec3 outVec;
+	Line2FromNorm(norm, point, outVec);
+	return outVec;
 }
 
 inline void Line2FromDir(const glm::vec2& dir, const glm::vec2& point, glm::vec3& outLine)
@@ -563,22 +564,22 @@ inline void Line2FromDir(const glm::vec2& dir, const glm::vec2& point, glm::vec3
 
 inline glm::vec3 Line2FromDir(const glm::vec2& dir, const glm::vec2& point)
 {
-	glm::vec3 res;
-	Line2FromDir(dir, point, res);
-	return res;
+	glm::vec3 outVec;
+	Line2FromDir(dir, point, outVec);
+	return outVec;
 }
 
-inline void Line2GetNorm(const glm::vec3& line, glm::vec2& norm)
+inline void Line2GetNorm(const glm::vec3& line, glm::vec2& outNorm)
 {
-	norm.x = line.x;
-	norm.y = line.y;
+	outNorm.x = line.x;
+	outNorm.y = line.y;
 }
 
-inline void Line2GetDir(const glm::vec3& line, glm::vec2& dir)
+inline void Line2GetDir(const glm::vec3& line, glm::vec2& outDir)
 {
-	dir.x = line.x;
-	dir.y = line.y;
-	Vec2NormCCW(dir, dir);
+	outDir.x = line.x;
+	outDir.y = line.y;
+	Vec2NormCCW(outDir, outDir);
 }
 
 inline void Line2GetRadiusVec(const glm::vec3& line, glm::vec2& outVec)
@@ -589,16 +590,16 @@ inline void Line2GetRadiusVec(const glm::vec3& line, glm::vec2& outVec)
 
 inline glm::vec2 Line2GetRadiusVec(const glm::vec3& line)
 {
-	glm::vec2 res;
-	Line2GetRadiusVec(line, res);
-	return res;
+	glm::vec2 outVec;
+	Line2GetRadiusVec(line, outVec);
+	return outVec;
 }
 
 inline glm::vec2 Line2GetNorm(const glm::vec3& line)
 {
-	glm::vec2 res;
-	Line2GetNorm(line, res);
-	return res;
+	glm::vec2 outVec;
+	Line2GetNorm(line, outVec);
+	return outVec;
 }
 
 inline float Line2DistToPoint(const glm::vec3& line, const glm::vec2& point)
@@ -615,25 +616,25 @@ inline void Line2NormVecToPoint(const glm::vec3& line, const glm::vec2& point, g
 
 inline glm::vec2 Line2NormVecToPoint(const glm::vec3& line, const glm::vec2& point)
 {
-	glm::vec2 res;
-	Line2NormVecToPoint(line, point, res);
-	return res;
+	glm::vec2 outNormVec;
+	Line2NormVecToPoint(line, point, outNormVec);
+	return outNormVec;
 }
 
 inline Vec3Range operator*(const Vec3Range& val1, float val2)
 {
-	Vec3Range res = val1;
-	res *= val2;
+	Vec3Range outVR = val1;
+	outVR *= val2;
 
-	return res;
+	return outVR;
 }
 
 inline Vec3Range operator*(const Vec3Range& val1, const glm::vec3& val2)
 {
-	Vec3Range res = val1;
-	res *= val2;
+	Vec3Range outVR = val1;
+	outVR *= val2;
 
-	return res;
+	return outVR;
 }
 
 //ray = rayPos + t * rayVec
@@ -666,33 +667,33 @@ inline bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& ray
 
 inline glm::vec4 PlaneNormalize(const glm::vec4 &plane)
 {
-	glm::vec4 pOut;
+	glm::vec4 outVec;
 	float norm = sqrt(plane.x * plane.x + plane.y * plane.y + plane.z * plane.z);
 	if (norm)
 	{
-		pOut.x = plane.x / norm;
-		pOut.y = plane.y / norm;
-		pOut.z = plane.z / norm;
-		pOut.w = plane.w / norm;
+		outVec.x = plane.x / norm;
+		outVec.y = plane.y / norm;
+		outVec.z = plane.z / norm;
+		outVec.w = plane.w / norm;
 	}
 	else
 	{
-		pOut.x = 0.0f;
-		pOut.y = 0.0f;
-		pOut.z = 0.0f;
-		pOut.w = 0.0f;
+		outVec.x = 0.0f;
+		outVec.y = 0.0f;
+		outVec.z = 0.0f;
+		outVec.w = 0.0f;
 	}
-	return pOut;
+	return outVec;
 }
 
 inline glm::vec4 PlaneTransform(const glm::vec4 &plane, const D3DXMATRIX &mat)
 {
-	glm::vec4 pOut;
-	pOut.x = mat.m[0][0] * plane.x + mat.m[1][0] * plane.y + mat.m[2][0] * plane.z + mat.m[3][0] * plane.w;
-	pOut.y = mat.m[0][1] * plane.x + mat.m[1][1] * plane.y + mat.m[2][1] * plane.z + mat.m[3][1] * plane.w;
-	pOut.z = mat.m[0][2] * plane.x + mat.m[1][2] * plane.y + mat.m[2][2] * plane.z + mat.m[3][2] * plane.w;
-	pOut.w = mat.m[0][3] * plane.x + mat.m[1][3] * plane.y + mat.m[2][3] * plane.z + mat.m[3][3] * plane.w;
-	return pOut;
+	glm::vec4 outVec;
+	outVec.x = mat.m[0][0] * plane.x + mat.m[1][0] * plane.y + mat.m[2][0] * plane.z + mat.m[3][0] * plane.w;
+	outVec.y = mat.m[0][1] * plane.x + mat.m[1][1] * plane.y + mat.m[2][1] * plane.z + mat.m[3][1] * plane.w;
+	outVec.z = mat.m[0][2] * plane.x + mat.m[1][2] * plane.y + mat.m[2][2] * plane.z + mat.m[3][2] * plane.w;
+	outVec.w = mat.m[0][3] * plane.x + mat.m[1][3] * plane.y + mat.m[2][3] * plane.z + mat.m[3][3] * plane.w;
+	return outVec;
 }
 
 inline glm::vec4 PlaneFromPointNormal(const glm::vec3 &point, const glm::vec3 &normal)
