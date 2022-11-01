@@ -1,7 +1,10 @@
 #pragma once
 
 #include <stdio.h>
+#ifdef _WIN32
+#define NETLIB_DYNAMIC_LINK
 #include <tchar.h>
+#endif
 
 #include "MathCommon.h"
 #include "lslCommon.h"
@@ -10,8 +13,6 @@
 #include "lslContainer.h"
 #include "lslClassList.h"
 #include "lslSDK.h"
-
-#define NETLIB_DYNAMIC_LINK
 
 #ifdef NETLIB_DYNAMIC_LINK
 	#ifdef NETLIB_EXPORTS
@@ -340,7 +341,7 @@ template<class _T> inline unsigned Write(std::ostream& stream, const std::basic_
 template<class _T> inline unsigned Read(std::istream& stream, std::basic_string<_T>& value, unsigned size)
 {
 	value.resize(size);
-	Read(stream, const_cast<std::basic_string<_T>::pointer>(value.data()), sizeof(std::basic_string<_T>::value_type) * size);
+	Read(stream, const_cast<typename std::basic_string<_T>::pointer>(value.data()), sizeof(std::basic_string<_T>::value_type) * size);
 	return size;
 }
 

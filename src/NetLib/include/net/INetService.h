@@ -2,8 +2,6 @@
 
 #include "INetConnection.h"
 #include "INetChannel.h"
-#include "INetPlayer.h"
-
 #include "NetModel.h"
 
 namespace net

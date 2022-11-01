@@ -5,8 +5,11 @@
 
 #else // NOT _WIN32
 
+#include <climits>
+
 #define PATH_SEP '/'
 
+#define MAXUINT UINT_MAX
 #define FLT_MAX __FLT_MAX__
 
 #define CP_ACP        0 // Windows ANSI code page

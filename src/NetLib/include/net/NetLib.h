@@ -2,6 +2,7 @@
 
 #include "NetCommon.h"
 #include "INetService.h"
+#include "INetPlayer.h"
 
 namespace net
 {
