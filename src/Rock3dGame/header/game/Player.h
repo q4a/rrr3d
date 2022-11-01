@@ -416,7 +416,7 @@ public:
 		glm::vec3 pos3;
 		glm::vec3 dir3;
 		glm::quat rot3;
-		D3DXMATRIX worldMat;
+		D3DMATRIX worldMat;
 
 		glm::vec2 pos;
 		glm::vec2 dir;

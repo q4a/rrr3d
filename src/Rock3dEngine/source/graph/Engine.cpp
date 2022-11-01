@@ -503,11 +503,11 @@ void Engine::RenderPlanePT()
 	while (!EndDraw(true));
 }
 
-void Engine::RenderSpritePT(const glm::vec3& pos, const glm::vec3& scale, float turnAngle, const glm::vec3* fixDirection, const D3DXMATRIX& localMat)
+void Engine::RenderSpritePT(const glm::vec3& pos, const glm::vec3& scale, float turnAngle, const glm::vec3* fixDirection, const D3DMATRIX& localMat)
 {
 	const CameraCI& camera = GetContext().GetCamera();
 
-	D3DXMATRIX rotMat;
+	D3DMATRIX rotMat;
 	//Направленный спрайт
 	if (fixDirection)
 	{
@@ -542,12 +542,12 @@ void Engine::RenderSpritePT(const glm::vec3& pos, const glm::vec3& scale, float 
 		rotMat._41 = rotMat._42 = rotMat._43 = 0.0f;
 
 		//Локальный поворот спрайта (только для не направленных)
-		D3DXMATRIX rotZ = MatrixRotationAxis(camera.GetDesc().dir, turnAngle);
+		D3DMATRIX rotZ = MatrixRotationAxis(camera.GetDesc().dir, turnAngle);
 		rotMat *= rotZ;
 	}
 
 	//Результирующая матрица
-	D3DXMATRIX worldMat = localMat;
+	D3DMATRIX worldMat = localMat;
 	MatrixScale(scale, worldMat);
 	worldMat *= rotMat;
 	MatrixSetTranslation(pos, worldMat);

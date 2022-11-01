@@ -301,8 +301,8 @@ void ActorManager::BuildPlanar(unsigned scene)
 
 const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 {
-	D3DXMATRIX mat = actor->GetInvWorldMat();
-	mat = MatrixTranspose(mat);
+	D3DMATRIX mat = actor->GetInvWorldMat();
+	D3DXMatrixTranspose(&mat, &mat);
 
 	glm::vec4 plane = PlaneTransform(actor->vec1(), mat);
 	plane = PlaneNormalize(plane);

@@ -338,7 +338,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		zVec = glm::cross(xVec, yVec);
 		zVec = glm::normalize(zVec);
 
-		D3DXMATRIX velMat;
+		D3DMATRIX velMat;
 		MatrixRotationFromAxis(xVec, yVec, zVec, velMat);
 		glm::quat velRot = glm::quat_cast(Matrix4DxToGlm(velMat));
 		velRot = glm::quat(-velRot.w, velRot.x, velRot.y, velRot.z);
@@ -877,7 +877,7 @@ void CameraManager::GetObserverCoord(const glm::vec3& targetPos, float targetDis
 				xAxis = glm::cross(yAxis, zAxis);
 				xAxis = glm::normalize(xAxis);
 
-				D3DXMATRIX rotMat;
+				D3DMATRIX rotMat;
 				MatrixRotationFromAxis(xAxis, yAxis, zAxis, rotMat);
 				rot = glm::quat_cast(Matrix4DxToGlm(rotMat));
 				rot = glm::quat(-rot.w, rot.x, rot.y, rot.z);
@@ -946,7 +946,7 @@ void CameraManager::GetObserverCoord(const glm::vec3& targetPos, float targetDis
 			glm::vec3 zAxis;
 			zAxis = glm::cross(xAxis, yAxis);
 			zAxis = glm::normalize(zAxis);
-			D3DXMATRIX rotMat;
+			D3DMATRIX rotMat;
 			MatrixRotationFromAxis(xAxis, yAxis, zAxis, rotMat);
 			rot = glm::quat_cast(Matrix4DxToGlm(rotMat));
 			rot = glm::quat(-rot.w, rot.x, rot.y, rot.z);

@@ -236,9 +236,9 @@ public:
 private:
 	CameraDesc _desc;
 
-	D3DXMATRIX _worldMat;
-	mutable D3DXMATRIX _matrices[cTransformEnd];
-	mutable D3DXMATRIX _invMatrices[cTransformEnd];
+	D3DMATRIX _worldMat;
+	mutable D3DMATRIX _matrices[cTransformEnd];
+	mutable D3DMATRIX _invMatrices[cTransformEnd];
 	mutable std::bitset<cTransformEnd> _matChanged;
 	mutable std::bitset<cTransformEnd> _invMatChanged;
 	//
@@ -247,10 +247,10 @@ private:
 
 	unsigned _idState;
 
-	void CalcProjPerspective(D3DXMATRIX& mat) const;
+	void CalcProjPerspective(D3DMATRIX& mat) const;
 
 	void StateChanged();
-	void WorldMatChanged(const D3DXMATRIX& worldMat);
+	void WorldMatChanged(const D3DMATRIX& worldMat);
 	void ProjMatChanged();
 	void DescChanged();
 public:
@@ -262,10 +262,10 @@ public:
 	bool ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const;
 	void AdjustNearFarPlane(const AABB& aabb, float minNear, float maxFar);
 
-	void GetProjPerspective(D3DXMATRIX& mat) const;
-	void GetViewProjPerspective(D3DXMATRIX& mat) const;
-	void GetWVPPerspective(D3DXMATRIX& mat) const;
-	void SetProjMat(const D3DXMATRIX& value);
+	void GetProjPerspective(D3DMATRIX& mat) const;
+	void GetViewProjPerspective(D3DMATRIX& mat) const;
+	void GetWVPPerspective(D3DMATRIX& mat) const;
+	void SetProjMat(const D3DMATRIX& value);
 
 	glm::vec3 ScreenToWorld(const glm::vec2& coord, float z, const glm::vec2& viewSize) const;
 	glm::vec2 WorldToScreen(const glm::vec3& coord, const glm::vec2& viewSize) const;
@@ -273,19 +273,19 @@ public:
 	const CameraDesc& GetDesc() const;
 	void SetDesc(const CameraDesc& value);
 
-	const D3DXMATRIX& GetTransform(Transform transform) const;
-	const D3DXMATRIX& GetInvTransform(Transform transform) const;
+	const D3DMATRIX& GetTransform(Transform transform) const;
+	const D3DMATRIX& GetInvTransform(Transform transform) const;
 	const Frustum& GetFrustum() const;
 
-	const D3DXMATRIX& GetView() const;
-	const D3DXMATRIX& GetProj() const;
-	const D3DXMATRIX& GetViewProj() const;
-	const D3DXMATRIX& GetWVP() const;
+	const D3DMATRIX& GetView() const;
+	const D3DMATRIX& GetProj() const;
+	const D3DMATRIX& GetViewProj() const;
+	const D3DMATRIX& GetWVP() const;
 	//
-	const D3DXMATRIX& GetInvView() const;
-	const D3DXMATRIX& GetInvProj() const;
-	const D3DXMATRIX& GetInvViewProj() const;
-	const D3DXMATRIX& GetInvWVP() const;
+	const D3DMATRIX& GetInvView() const;
+	const D3DMATRIX& GetInvProj() const;
+	const D3DMATRIX& GetInvViewProj() const;
+	const D3DMATRIX& GetInvWVP() const;
 };
 
 class LightCI: public lsl::Object
@@ -341,9 +341,9 @@ public:
 private:
 	RenderDriver* _driver;
 
-	D3DXMATRIX _worldMat;
+	D3DMATRIX _worldMat;
 
-	std::vector<D3DXMATRIX> _textureMatStack[cMaxTexSamplers];
+	std::vector<D3DMATRIX> _textureMatStack[cMaxTexSamplers];
 	IDirect3DBaseTexture9* _textures[cMaxTexSamplers];
 	int _maxTextureStage;
 
@@ -406,10 +406,10 @@ public:
 	void PopShader(BaseShader* value);
 	bool IsShaderActive() const;
 
-	const D3DXMATRIX& GetWorldMat() const;
-	void SetWorldMat(const D3DXMATRIX& value);
+	const D3DMATRIX& GetWorldMat() const;
+	void SetWorldMat(const D3DMATRIX& value);
 
-	void PushTextureTransform(int stage, const D3DXMATRIX& value);
+	void PushTextureTransform(int stage, const D3DMATRIX& value);
 	void PopTextureTransform(int stage);
 
 	const MaterialDesc& GetMaterial() const;

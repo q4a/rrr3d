@@ -39,7 +39,7 @@ public:
 	virtual glm::vec3 GetRight() const = 0;
 	virtual glm::vec3 GetUp() const = 0;
 
-	virtual D3DXMATRIX GetMat() const = 0;
+	virtual D3DMATRIX GetMat() const = 0;
 	//¬ключа€ дочерние узлы
 	virtual AABB GetAABB() const = 0;
 };

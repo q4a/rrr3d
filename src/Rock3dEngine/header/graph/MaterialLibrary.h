@@ -28,13 +28,13 @@ private:
 	Vec3Range _scale;
 	QuatRange _rotate;
 
-	mutable D3DXMATRIX _matrix;
+	mutable D3DMATRIX _matrix;
 	mutable bool _matChanged;
 	mutable float _matFrame;
 	mutable bool _defMat;
 
 	void TransformationChanged() const;
-	const D3DXMATRIX& GetMatrix(float frame) const;
+	const D3DMATRIX& GetMatrix(float frame) const;
 
 	void ApplyFiltering();
 protected:

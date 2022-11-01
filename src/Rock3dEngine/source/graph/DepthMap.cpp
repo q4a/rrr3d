@@ -20,7 +20,7 @@ void DepthMapShader::DoBeginDraw(Engine& engine)
 	if (tech == ttDepthMapAlphaTest)
 		SetTextureDir("opacityTex", engine.GetContext().GetTexture(0));
 
-	D3DXMATRIX matWVP = MatrixMultiply(engine.GetContext().GetWorldMat(), viewProjMat);
+	D3DMATRIX matWVP = MatrixMultiply(engine.GetContext().GetWorldMat(), viewProjMat);
 	SetValueDir("depthMatrix", matWVP);
 }
 
@@ -71,12 +71,12 @@ void DepthMapRender::EndRT(Engine& engine)
 	UnApplyRT(engine);
 }
 
-const D3DXMATRIX& DepthMapRender::GetViewProjMat() const
+const D3DMATRIX& DepthMapRender::GetViewProjMat() const
 {
 	return shader.viewProjMat;
 }
 
-void DepthMapRender::SetViewProjMat(const D3DXMATRIX& value)
+void DepthMapRender::SetViewProjMat(const D3DMATRIX& value)
 {
 	shader.viewProjMat = value;
 }

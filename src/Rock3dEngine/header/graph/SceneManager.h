@@ -125,11 +125,11 @@ private:
 	mutable glm::quat _rot;
 
 	//Матрицы являются промежуточными переменными, и хранятся в полях объекта для оптимизации расчетов. Для вывода коорректных данных(если перерасчет матриц ещё не произошел) о самих матрицах и связных данных используется mutable для const
-	mutable D3DXMATRIX _rotMat;
-	mutable D3DXMATRIX _localMat;
-	mutable D3DXMATRIX _invLocalMat;
-	mutable D3DXMATRIX _worldMat;
-	mutable D3DXMATRIX _invWorldMat;
+	mutable D3DMATRIX _rotMat;
+	mutable D3DMATRIX _localMat;
+	mutable D3DMATRIX _invLocalMat;
+	mutable D3DMATRIX _worldMat;
+	mutable D3DMATRIX _invWorldMat;
 
 	mutable AABB _aabbLocal;
 	mutable AABB _aabbWorld;
@@ -181,7 +181,7 @@ public:
 	//Рендер в локальном пространстве координат
 	virtual void DoRender(graph::Engine& engine) {};
 	//Рендер в глобальном пространстве координат
-	void Render(graph::Engine& engine, const D3DXMATRIX& worldMat);
+	void Render(graph::Engine& engine, const D3DMATRIX& worldMat);
 	//Общая функция рендера
 	virtual void Render(graph::Engine& engine);
 	//Событие временного прогресса
@@ -257,20 +257,20 @@ public:
 	void SetRot(const glm::quat& value);
 
 	//Локальные матрицы
-	D3DXMATRIX GetScaleMat() const;
-	D3DXMATRIX GetRotMat() const;
-	D3DXMATRIX GetTransMat() const;
+	D3DMATRIX GetScaleMat() const;
+	D3DMATRIX GetRotMat() const;
+	D3DMATRIX GetTransMat() const;
 	//Рез. локальная матрица
-	const D3DXMATRIX& GetMat() const;
+	const D3DMATRIX& GetMat() const;
 	//Матрица не должна содержать масштабирования!
-	void SetLocalMat(const D3DXMATRIX& value);
-	const D3DXMATRIX& GetInvMat() const;
+	void SetLocalMat(const D3DMATRIX& value);
+	const D3DMATRIX& GetInvMat() const;
 	//Мировая матрица
-	const D3DXMATRIX& GetWorldMat() const;
-	const D3DXMATRIX& GetInvWorldMat() const;
+	const D3DMATRIX& GetWorldMat() const;
+	const D3DMATRIX& GetInvWorldMat() const;
 	//Комбинированные матрицы
-	D3DXMATRIX GetCombMat(CombMatType type) const;
-	D3DXMATRIX GetWorldCombMat(CombMatType type) const;
+	D3DMATRIX GetCombMat(CombMatType type) const;
+	D3DMATRIX GetWorldCombMat(CombMatType type) const;
 
 	//Мировые координаты
 	glm::vec3 GetWorldPos() const;
@@ -278,7 +278,7 @@ public:
 	glm::quat GetWorldRot() const;
 	void SetWorldRot(const glm::quat& value);
 	//Невозможно представить мировое масштабирование с помощью одного вектора поскольку направление масштабирования зависит от поворота. Поэтому представляется в виде матрицы
-	D3DXMATRIX GetWorldScale() const;
+	D3DMATRIX GetWorldScale() const;
 	//
 	glm::vec3 GetWorldDir() const;
 	glm::vec3 GetWorldRight() const;
@@ -342,7 +342,7 @@ class Camera: public BaseSceneNode
 private:
 	typedef BaseSceneNode _MyBase;
 public:
-	static void RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj, const glm::vec4& colorBB);
+	static void RenderFrustum(graph::Engine& engine, const D3DMATRIX& invViewProj, const glm::vec4& colorBB);
 private:
 	mutable graph::CameraDesc _desc;
 	mutable graph::CameraCI _contextInfo;

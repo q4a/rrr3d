@@ -51,7 +51,7 @@ private:
 	graph::MovCoordSys* _movCoordSys;
 	graph::ScaleCoordSys* _scaleCoordSys;
 
-	bool ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorld, const D3DXMATRIX& worldToAABB, const glm::vec3& normOff, INode* ignore, float& outDistOff, const float distLink = 1.0f);
+	bool ComputeAxeLink(const AABB& aabb, const D3DMATRIX& aabbToWorld, const D3DMATRIX& worldToAABB, const glm::vec3& normOff, INode* ignore, float& outDistOff, const float distLink = 1.0f);
 	void ComputeLink(INode* node, const glm::vec3& pos, glm::vec3& resPos);
 
 	void CreateGraphActor();

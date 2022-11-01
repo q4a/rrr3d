@@ -1187,7 +1187,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 		if (abs(angle) > 0.1f)
 		{
 			glm::vec4 plane = PlaneFromPointNormal(NullVector, glm::make_vec3(norm.get()));
-			D3DXMATRIX mat = MatrixReflect(plane);
+			D3DMATRIX mat = MatrixReflect(plane);
 
 			glm::vec3 vel = glm::make_vec3(velocity.get());
 			vel = Vec3TransformNormal(vel, mat);

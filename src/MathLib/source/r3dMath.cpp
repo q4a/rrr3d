@@ -45,9 +45,9 @@ AABB2::AABB2(const glm::vec2& mMin, const glm::vec2& mMax): min(mMin), max(mMax)
 {
 }
 
-void AABB2::Transform(const AABB2 &aabb, const D3DXMATRIX &mIn, AABB2 &rOut)
+void AABB2::Transform(const AABB2 &aabb, const D3DMATRIX &mIn, AABB2 &rOut)
 {
-	auto m = Matrix4DxToGlm(mIn); // remove after D3DXMATRIX replacement
+	auto m = Matrix4DxToGlm(mIn); // remove after D3DMATRIX replacement
 	glm::vec2 oldMin = aabb.min;
 	glm::vec2 oldMax = aabb.max;
 	rOut.min = Vec2TransformCoord(oldMin, m);
@@ -78,7 +78,7 @@ void AABB2::Offset(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut)
 	rOut.max = aabb.max + vec;
 }
 
-void AABB2::Transform(const D3DXMATRIX &m)
+void AABB2::Transform(const D3DMATRIX &m)
 {
 	Transform(*this, m, *this);
 }
@@ -156,7 +156,7 @@ AABB::AABB(const glm::vec3& minPoint, const glm::vec3& maxPoint): min(minPoint),
 {
 }
 
-inline void AABB::Transform(const AABB& aabb, const D3DXMATRIX& m, AABB& rOut)
+inline void AABB::Transform(const AABB& aabb, const D3DMATRIX& m, AABB& rOut)
 {
 	glm::vec3 oldMin = aabb.min;
 	glm::vec3 oldMax = aabb.max;
@@ -214,7 +214,7 @@ void AABB::FromDimensions(const glm::vec3& dimensions)
 	min = -max;
 }
 
-void AABB::Transform(const D3DXMATRIX& m)
+void AABB::Transform(const D3DMATRIX& m)
 {
 	Transform(*this, m, *this);
 }
@@ -397,7 +397,7 @@ bool AABB::AABBLineCastIntersect(const AABB& aabb, const glm::vec3& rayVec, floa
 	return res;
 }
 
-bool AABB::AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const D3DXMATRIX& startTolocal, const D3DXMATRIX& localToStart, float& minDist) const
+bool AABB::AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const D3DMATRIX& startTolocal, const D3DMATRIX& localToStart, float& minDist) const
 {
 	BoundBox startBB(start);
 	startBB.Transform(startTolocal);
@@ -666,7 +666,7 @@ BoundBox::BoundBox(const AABB& aabb)
 	}
 }
 
-void BoundBox::Transform(const BoundBox& bb, const D3DXMATRIX& m, BoundBox& rOut)
+void BoundBox::Transform(const BoundBox& bb, const D3DMATRIX& m, BoundBox& rOut)
 {
 	for (int i = 0; i < 8; ++i)
 		rOut.v[i] = Vec3TransformCoord(bb.v[i], m);
@@ -678,7 +678,7 @@ void BoundBox::SetPlan(const int numPlan, const float valeur)
 		v[cBBPlans[numPlan][i]][cDirPlan[numPlan]] = valeur;
 }
 
-void BoundBox::Transform(const D3DXMATRIX& m)
+void BoundBox::Transform(const D3DMATRIX& m)
 {
 	Transform(*this, m, *this);
 }
@@ -694,7 +694,7 @@ Frustum::Frustum()
 
 }
 
-void Frustum::CalculateCorners(Corners& pPoints, const D3DXMATRIX& invViewProj)
+void Frustum::CalculateCorners(Corners& pPoints, const D3DMATRIX& invViewProj)
 {
 	int i = 0;
 	for (float fx = -1.0f; fx <= 1.0f; fx += 2.0f)
@@ -705,7 +705,7 @@ void Frustum::CalculateCorners(Corners& pPoints, const D3DXMATRIX& invViewProj)
 	}
 }
 
-void Frustum::Refresh(const D3DXMATRIX& viewProjMat)
+void Frustum::Refresh(const D3DMATRIX& viewProjMat)
 {
 	//extract left plane
 	left.x = viewProjMat._14 - viewProjMat._12;

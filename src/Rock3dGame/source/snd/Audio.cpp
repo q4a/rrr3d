@@ -1665,7 +1665,7 @@ void Source3d::ApplyX3dEffect()
 			X3DAUDIO_LISTENER xList;
 			ZeroMemory(&xList, sizeof(xList));
 			xList.Position = Vec3GlmToDx(listener->pos);
-			D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(listener->rot)));
+			D3DMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(listener->rot)));
 			xList.OrientFront = D3DXVECTOR3(rotMat.m[0]);
 			xList.OrientTop = D3DXVECTOR3(rotMat.m[2]);
 

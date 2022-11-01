@@ -16,12 +16,12 @@ struct AABB2
 	explicit AABB2(const glm::vec2& size);
 	AABB2(const glm::vec2& mMin, const glm::vec2& mMax);
 
-	static void Transform(const AABB2 &aabb, const D3DXMATRIX &m, AABB2 &rOut);
+	static void Transform(const AABB2 &aabb, const D3DMATRIX &m, AABB2 &rOut);
 	static void Include(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut);
 	static void Add(const AABB2& aabb1, const AABB2& aabb2, AABB2& rOut);
 	static void Offset(const AABB2& aabb, const glm::vec2& vec, AABB2& rOut);
 
-	void Transform(const D3DXMATRIX &m);
+	void Transform(const D3DMATRIX &m);
 	void Include(const glm::vec2& vec);
 	void Add(const AABB2& aabb);
 	void Offset(const glm::vec2& vec);
@@ -66,7 +66,7 @@ struct AABB
 
 	//Статические методы могут быть ползены для неконстантных операций, т.е. там где происходит преобразование объекта и результат может быть записан в другое место
 	//Эти методы в любом случае имеет смысл делать инлайновыми(и определять их в *.cpp), поскольку аналогичные унарные операции реализуются через них
-	static void Transform(const AABB& aabb, const D3DXMATRIX& m, AABB& rOut);
+	static void Transform(const AABB& aabb, const D3DMATRIX& m, AABB& rOut);
 	static void Offset(const AABB& aabb, const glm::vec3& vec, AABB& rOut);
 	static void Add(const AABB& aabb1, const AABB& aabb2, AABB& rOut);
 	static void Include(const AABB& aabb, const glm::vec3& vec, AABB& rOut);
@@ -81,7 +81,7 @@ struct AABB
 	void FromPoints(const glm::vec3& pnt1, const glm::vec3& pnt2);
 	void FromDimensions(const glm::vec3& dimensions);
 	void FromPlaneAndScale(const glm::vec4& plane, const glm::vec3& vec);
-	void Transform(const D3DXMATRIX& m);
+	void Transform(const D3DMATRIX& m);
 	void Offset(const glm::vec3& vec);
 	void Add(const AABB& aabb);
 	void Include(const glm::vec3& vec);
@@ -110,7 +110,7 @@ struct AABB
 	//startTolocal - преобразование из start в локальную систему координат this
 	//localToStart - преобразование из this в локальную систему координат start
 	//minDist - выходная минимальная дистанция между this и направленным объемом start
-	bool AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const D3DXMATRIX& startTolocal, const D3DXMATRIX& localToStart, float& minDist) const;
+	bool AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const D3DMATRIX& startTolocal, const D3DMATRIX& localToStart, float& minDist) const;
 	//Пересечение направленным объемом AABB как лучом
 	bool AABBRayCastIntersect(const AABB& aabb, const glm::vec3& rayVec, float& minDist, const float error = 0) const;
 
@@ -148,13 +148,13 @@ struct BoundBox
 	//      0(min)----1/----->X
 	//
 
-	static void Transform(const BoundBox& bb, const D3DXMATRIX& m, BoundBox& rOut);
+	static void Transform(const BoundBox& bb, const D3DMATRIX& m, BoundBox& rOut);
 
 	BoundBox();
 	explicit BoundBox(const AABB& aabb);
 
 	void SetPlan(const int numPlan, const float valeur);
-	void Transform(const D3DXMATRIX& m);
+	void Transform(const D3DMATRIX& m);
 
 	void ToAABB(AABB& aabb) const;
 
@@ -170,9 +170,9 @@ struct Frustum
 
 	Frustum();
 
-	static void CalculateCorners(Corners& pPoints, const D3DXMATRIX& invViewProj);
+	static void CalculateCorners(Corners& pPoints, const D3DMATRIX& invViewProj);
 
-	void Refresh(const D3DXMATRIX& viewProjMat);
+	void Refresh(const D3DMATRIX& viewProjMat);
 
 	SpaceContains ContainsAABB(const AABB& aabb) const;
 

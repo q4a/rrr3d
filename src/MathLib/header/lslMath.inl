@@ -44,7 +44,7 @@ inline float NumAbsAdd(float absVal, float addVal)
 	return absVal > 0 ? absVal + addVal : absVal - addVal;
 }
 
-inline glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
+inline glm::mat4 Matrix4DxToGlm(const D3DMATRIX &mat)
 {
 	// mat - DX, mat.m[0] 1-st row, mat.m[0][1] = mat._12 - 1-st row 2-nd column
 	glm::mat4 outMat(mat._11, mat._21, mat._31, mat._41, // 1-st column
@@ -54,10 +54,10 @@ inline glm::mat4 Matrix4DxToGlm(const D3DXMATRIX &mat)
 	return outMat;
 }
 
-inline D3DXMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
+inline D3DMATRIX Matrix4GlmToDx(const glm::mat4 &mat)
 {
 	// mat - GLM, mat[0] 1-st column, mat[0][1] = mat[0].y - 1-st column 2-nd row
-	D3DXMATRIX outMat(mat[0].x, mat[1].x, mat[2].x, mat[3].x,
+	D3DMATRIX outMat(mat[0].x, mat[1].x, mat[2].x, mat[3].x,
 	                  mat[0].y, mat[1].y, mat[2].y, mat[3].y,
 	                  mat[0].z, mat[1].z, mat[2].z, mat[3].z,
 	                  mat[0].w, mat[1].w, mat[2].w, mat[3].w);
@@ -94,7 +94,7 @@ inline glm::vec4 ColorVToVec4(const D3DCOLORVALUE &cv)
 	return outVec;
 }
 
-inline glm::vec3 Vec3TransformCoord(const glm::vec3 &vec, const D3DXMATRIX &mat)
+inline glm::vec3 Vec3TransformCoord(const glm::vec3 &vec, const D3DMATRIX &mat)
 {
 	glm::vec3 outVec;
 	float norm = mat.m[0][3] * vec.x + mat.m[1][3] * vec.y + mat.m[2][3] * vec.z + mat.m[3][3];
@@ -105,7 +105,7 @@ inline glm::vec3 Vec3TransformCoord(const glm::vec3 &vec, const D3DXMATRIX &mat)
 	return outVec;
 }
 
-inline glm::vec3 Vec3TransformNormal(const glm::vec3 &vec, const D3DXMATRIX &mat)
+inline glm::vec3 Vec3TransformNormal(const glm::vec3 &vec, const D3DMATRIX &mat)
 {
 	glm::vec3 outVec;
 	outVec.x = mat.m[0][0] * vec.x + mat.m[1][0] * vec.y + mat.m[2][0] * vec.z;
@@ -114,7 +114,7 @@ inline glm::vec3 Vec3TransformNormal(const glm::vec3 &vec, const D3DXMATRIX &mat
 	return outVec;
 }
 
-inline glm::vec4 Vec3Transform(const glm::vec3 &vec, const D3DXMATRIX &mat)
+inline glm::vec4 Vec3Transform(const glm::vec3 &vec, const D3DMATRIX &mat)
 {
 	glm::vec4 outVec;
 	outVec.x = mat.m[0][0] * vec.x + mat.m[1][0] * vec.y + mat.m[2][0] * vec.z + mat.m[3][0];
@@ -124,7 +124,7 @@ inline glm::vec4 Vec3Transform(const glm::vec3 &vec, const D3DXMATRIX &mat)
 	return outVec;
 }
 
-inline glm::vec4 Vec4Transform(const glm::vec4 &vec, const D3DXMATRIX &mat)
+inline glm::vec4 Vec4Transform(const glm::vec4 &vec, const D3DMATRIX &mat)
 {
 	glm::vec4 outVec;
 	outVec.x = mat.m[0][0] * vec.x + mat.m[1][0] * vec.y + mat.m[2][0] * vec.z + mat.m[3][0] * vec.w;
@@ -134,16 +134,16 @@ inline glm::vec4 Vec4Transform(const glm::vec4 &vec, const D3DXMATRIX &mat)
 	return outVec;
 }
 
-inline float ScalarTransform(float scalar, const glm::vec3& vec, const D3DXMATRIX& mat)
+inline float ScalarTransform(float scalar, const glm::vec3& vec, const D3DMATRIX& mat)
 {
 	glm::vec3 outVec = Vec3TransformNormal(vec * scalar, mat);
 	float len = glm::length(outVec);
 	return scalar < 0 ? -len : len;
 }
 
-inline D3DXMATRIX MatrixMultiply(const D3DXMATRIX &mat1, const D3DXMATRIX &mat2)
+inline D3DMATRIX MatrixMultiply(const D3DMATRIX &mat1, const D3DMATRIX &mat2)
 {
-	D3DXMATRIX outMat;
+	D3DMATRIX outMat;
 	int i, j;
 	for (i = 0; i < 4; i++)
 	{
@@ -156,53 +156,42 @@ inline D3DXMATRIX MatrixMultiply(const D3DXMATRIX &mat1, const D3DXMATRIX &mat2)
 	return outMat;
 }
 
-inline D3DXMATRIX MatrixScaling(float sx, float sy, float sz)
+inline D3DMATRIX MatrixScaling(float sx, float sy, float sz)
 {
-	D3DXMATRIX outMat = IdentityMatrix;
+	D3DMATRIX outMat = IdentityMatrix;
 	outMat.m[0][0] = sx;
 	outMat.m[1][1] = sy;
 	outMat.m[2][2] = sz;
 	return outMat;
 }
 
-inline D3DXMATRIX MatrixTranslation(float x, float y, float z)
+inline D3DMATRIX MatrixTranslation(float x, float y, float z)
 {
-	D3DXMATRIX outMat = IdentityMatrix;
+	D3DMATRIX outMat = IdentityMatrix;
 	outMat.m[3][0] = x;
 	outMat.m[3][1] = y;
 	outMat.m[3][2] = z;
 	return outMat;
 }
 
-inline D3DXMATRIX MatrixTranspose(const D3DXMATRIX &mat)
+inline void BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot, D3DMATRIX& outMat)
 {
-	D3DXMATRIX outMat;
-	int i, j;
-	for (i = 0; i < 4; ++i)
-		for (j = 0; j < 4; ++j)
-			outMat.m[i][j] = mat.m[j][i];
-
-	return outMat;
-}
-
-inline void BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot, D3DXMATRIX& outMat)
-{
-	D3DXMATRIX scaleMat = MatrixScaling(scale.x, scale.y, scale.z);
-	D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rot)));
-	D3DXMATRIX transMat = MatrixTranslation(pos.x, pos.y, pos.z);
+	D3DMATRIX scaleMat = MatrixScaling(scale.x, scale.y, scale.z);
+	D3DMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rot)));
+	D3DMATRIX transMat = MatrixTranslation(pos.x, pos.y, pos.z);
 	outMat = scaleMat * rotMat * transMat;
 }
 
-inline D3DXMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot)
+inline D3DMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot)
 {
-	D3DXMATRIX outMat;
+	D3DMATRIX outMat;
 	BuildWorldMatrix(pos, scale, rot, outMat);
 	return outMat;
 }
 
-inline D3DXMATRIX MatrixInverse(float *pdeterminant, const D3DXMATRIX &mat)
+inline D3DMATRIX MatrixInverse(float *pdeterminant, const D3DMATRIX &mat)
 {
-	D3DXMATRIX outMat;
+	D3DMATRIX outMat;
 	float det, t[3], v[16];
 	int i, j;
 
@@ -271,9 +260,9 @@ inline D3DXMATRIX MatrixInverse(float *pdeterminant, const D3DXMATRIX &mat)
 	return outMat;
 }
 
-inline D3DXMATRIX MatrixLookAtRH(const glm::vec3 &eye, const glm::vec3 &at, const glm::vec3 &up)
+inline D3DMATRIX MatrixLookAtRH(const glm::vec3 &eye, const glm::vec3 &at, const glm::vec3 &up)
 {
-	D3DXMATRIX outMat;
+	D3DMATRIX outMat;
 	glm::vec3 right, upn, vec;
 
 	vec = glm::normalize(at - eye);
@@ -302,9 +291,9 @@ inline D3DXMATRIX MatrixLookAtRH(const glm::vec3 &eye, const glm::vec3 &at, cons
 	return outMat;
 }
 
-inline D3DXMATRIX MatrixOrthoRH(float w, float h, float zn, float zf)
+inline D3DMATRIX MatrixOrthoRH(float w, float h, float zn, float zf)
 {
-	D3DXMATRIX outMat = IdentityMatrix;
+	D3DMATRIX outMat = IdentityMatrix;
 	outMat.m[0][0] = 2.0f / w;
 	outMat.m[1][1] = 2.0f / h;
 	outMat.m[2][2] = 1.0f / (zn - zf);
@@ -312,9 +301,9 @@ inline D3DXMATRIX MatrixOrthoRH(float w, float h, float zn, float zf)
 	return outMat;
 }
 
-inline D3DXMATRIX MatrixRotationAxis(const glm::vec3 &vec, float angle)
+inline D3DMATRIX MatrixRotationAxis(const glm::vec3 &vec, float angle)
 {
-	D3DXMATRIX outMat;
+	D3DMATRIX outMat;
 	glm::vec3 nv = glm::normalize(vec);
 
 	float sangle, cangle, cdiff;
@@ -342,7 +331,7 @@ inline D3DXMATRIX MatrixRotationAxis(const glm::vec3 &vec, float angle)
 	return outMat;
 }
 
-inline void MatrixRotationFromAxis(const glm::vec3& xVec, const glm::vec3& yVec, const glm::vec3& zVec, D3DXMATRIX& outMat)
+inline void MatrixRotationFromAxis(const glm::vec3& xVec, const glm::vec3& yVec, const glm::vec3& zVec, D3DMATRIX& outMat)
 {
 	outMat._11 = xVec.x;
 	outMat._12 = xVec.y;
@@ -362,42 +351,42 @@ inline void MatrixRotationFromAxis(const glm::vec3& xVec, const glm::vec3& yVec,
 	outMat._44 = 1.0f;
 }
 
-inline void MatrixSetTranslation(const glm::vec3& vec, D3DXMATRIX& outMat)
+inline void MatrixSetTranslation(const glm::vec3& vec, D3DMATRIX& outMat)
 {
 	outMat._41 = vec.x;
 	outMat._42 = vec.y;
 	outMat._43 = vec.z;
 }
 
-inline void MatrixTranslate(const glm::vec3& vec, D3DXMATRIX& outMat)
+inline void MatrixTranslate(const glm::vec3& vec, D3DMATRIX& outMat)
 {
 	outMat._41 += vec.x;
 	outMat._42 += vec.y;
 	outMat._43 += vec.z;
 }
 
-inline void MatrixSetScale(const glm::vec3& vec, D3DXMATRIX& outMat)
+inline void MatrixSetScale(const glm::vec3& vec, D3DMATRIX& outMat)
 {
 	outMat._11 = vec.x;
 	outMat._22 = vec.y;
 	outMat._33 = vec.z;
 }
 
-inline void MatrixScale(const glm::vec3& vec, D3DXMATRIX& outMat)
+inline void MatrixScale(const glm::vec3& vec, D3DMATRIX& outMat)
 {
 	outMat._11 *= vec.x;
 	outMat._22 *= vec.y;
 	outMat._33 *= vec.z;
 }
 
-inline void MatGetPos(const D3DXMATRIX& mat, glm::vec3& outPos)
+inline void MatGetPos(const D3DMATRIX& mat, glm::vec3& outPos)
 {
 	outPos.x = mat.m[3][0];
 	outPos.y = mat.m[3][1];
 	outPos.z = mat.m[3][2];
 }
 
-inline glm::vec3 MatGetPos(const D3DXMATRIX& mat)
+inline glm::vec3 MatGetPos(const D3DMATRIX& mat)
 {
 	glm::vec3 outPos;
 	MatGetPos(mat, outPos);
@@ -842,10 +831,10 @@ inline glm::vec4 PlaneNormalize(const glm::vec4 &plane)
 	return outVec;
 }
 
-inline D3DXMATRIX MatrixReflect(const glm::vec4 &plane)
+inline D3DMATRIX MatrixReflect(const glm::vec4 &plane)
 {
 	glm::vec4 normPlane = PlaneNormalize(plane);
-	D3DXMATRIX outMat;
+	D3DMATRIX outMat;
 	outMat.m[0][0] = 1.0f - 2.0f * normPlane.x * normPlane.x;
 	outMat.m[0][1] = -2.0f * normPlane.x * normPlane.y;
 	outMat.m[0][2] = -2.0f * normPlane.x * normPlane.z;
@@ -865,7 +854,7 @@ inline D3DXMATRIX MatrixReflect(const glm::vec4 &plane)
 	return outMat;
 }
 
-inline glm::vec4 PlaneTransform(const glm::vec4 &plane, const D3DXMATRIX &mat)
+inline glm::vec4 PlaneTransform(const glm::vec4 &plane, const D3DMATRIX &mat)
 {
 	glm::vec4 outVec;
 	outVec.x = mat.m[0][0] * plane.x + mat.m[1][0] * plane.y + mat.m[2][0] * plane.z + mat.m[3][0] * plane.w;

@@ -102,7 +102,7 @@ private:
 		glm::vec3 GetRight() const;
 		glm::vec3 GetUp() const;
 
-		D3DXMATRIX GetMat() const;
+		D3DMATRIX GetMat() const;
 		AABB GetAABB() const;
 	};
 private:

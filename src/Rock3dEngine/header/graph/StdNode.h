@@ -24,12 +24,12 @@ private:
 	glm::quat _rotate;
 	D3DCULL _cullMode;
 
-	mutable D3DXMATRIX _matrix;
+	mutable D3DMATRIX _matrix;
 	mutable bool _matChanged;
 	mutable bool _defMat;
 
 	void TransformationChanged() const;
-	const D3DXMATRIX& GetMatrix() const;
+	const D3DMATRIX& GetMatrix() const;
 
 	void Begin(Engine& engine);
 	void End(Engine& engine);

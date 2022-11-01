@@ -18,17 +18,17 @@ float Random();
 float RandomRange(float from, float to);
 int RandomRange(int from, int to);
 float NumAbsAdd(float absVal, float addVal);
-float ScalarTransform(float scalar, const glm::vec3& vec, const D3DXMATRIX& mat);
+float ScalarTransform(float scalar, const glm::vec3& vec, const D3DMATRIX& mat);
 
-void BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot, D3DXMATRIX& outMat);
-D3DXMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot);
-void MatrixRotationFromAxis(const glm::vec3& xVec, const glm::vec3& yVec, const glm::vec3& zVec, D3DXMATRIX& matOut);
-void MatrixSetTranslation(const glm::vec3& vec, D3DXMATRIX& outMat);
-void MatrixTranslate(const glm::vec3& vec, D3DXMATRIX& outMat);
-void MatrixSetScale(const glm::vec3& vec, D3DXMATRIX& outMat);
-void MatrixScale(const glm::vec3& vec, D3DXMATRIX& outMat);
-void MatGetPos(const D3DXMATRIX& mat, glm::vec3& outPos);
-glm::vec3 MatGetPos(const D3DXMATRIX& mat);
+void BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot, D3DMATRIX& outMat);
+D3DMATRIX BuildWorldMatrix(const glm::vec3& pos, const glm::vec3& scale, const glm::quat& rot);
+void MatrixRotationFromAxis(const glm::vec3& xVec, const glm::vec3& yVec, const glm::vec3& zVec, D3DMATRIX& matOut);
+void MatrixSetTranslation(const glm::vec3& vec, D3DMATRIX& outMat);
+void MatrixTranslate(const glm::vec3& vec, D3DMATRIX& outMat);
+void MatrixSetScale(const glm::vec3& vec, D3DMATRIX& outMat);
+void MatrixScale(const glm::vec3& vec, D3DMATRIX& outMat);
+void MatGetPos(const D3DMATRIX& mat, glm::vec3& outPos);
+glm::vec3 MatGetPos(const D3DMATRIX& mat);
 
 //
 glm::vec2 Vec2TransformCoord(const glm::vec2 &vec, const glm::mat4 &mat);
@@ -45,7 +45,7 @@ glm::vec2 operator/(const glm::vec2& vec1, const glm::vec2& vec2);
 glm::vec3 Vec3FromVec2(const glm::vec2& vec);
 void Vec3Invert(const glm::vec3& vec, glm::vec3& rOut);
 glm::vec3 Vec3Invert(const glm::vec3& vec);
-glm::vec3 Vec3TransformCoord(const glm::vec3& vec, const D3DXMATRIX& mat);
+glm::vec3 Vec3TransformCoord(const glm::vec3& vec, const D3DMATRIX& mat);
 void Vec3Abs(const glm::vec3& vec, glm::vec3& rOut);
 glm::vec3 Vec3Abs(const glm::vec3& vec);
 void Vec3Rotate(const glm::vec3& v, const glm::quat& quat, glm::vec3& outVec);
@@ -79,7 +79,7 @@ bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& rayVec, co
 float PlaneDotCoord(const glm::vec4& plane, const glm::vec3& point);
 
 const float floatErrComp = 0.00001f;
-const D3DXMATRIX     IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
+const D3DMATRIX     IdentityMatrix(1.0f, 0.0f, 0.0f, 0.0f,
                                     0.0f, 1.0f, 0.0f, 0.0f,
                                     0.0f, 0.0f, 1.0f, 0.0f,
                                     0.0f, 0.0f, 0.0f, 1.0f);

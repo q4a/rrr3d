@@ -31,9 +31,9 @@ void FxParticle::BuildWorldMat() const
 	if (_worldMatChanged)
 	{
 		_worldMatChanged = false;
-		D3DXMATRIX scaleMat = MatrixScaling(_scale.x, _scale.y, _scale.z);
-		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(_rot)));
-		D3DXMATRIX transMat = MatrixTranslation(_pos.x, _pos.y, _pos.z);
+		D3DMATRIX scaleMat = MatrixScaling(_scale.x, _scale.y, _scale.z);
+		D3DMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(_rot)));
+		D3DMATRIX transMat = MatrixTranslation(_pos.x, _pos.y, _pos.z);
 
 		_worldMat = scaleMat * rotMat * transMat;
 	}
@@ -89,7 +89,7 @@ void FxParticle::SetScale(const glm::vec3& value)
 	TransformChanged();
 }
 
-const D3DXMATRIX& FxParticle::GetMatrix() const
+const D3DMATRIX& FxParticle::GetMatrix() const
 {
 	BuildWorldMat();
 
@@ -588,7 +588,7 @@ glm::vec3 FxEmitter::GetWorldPos(FxParticle* particle) const
 	return res;
 }
 
-const D3DXMATRIX& FxEmitter::GetMatrix() const
+const D3DMATRIX& FxEmitter::GetMatrix() const
 {
 	return _worldCoordSys ? IdentityMatrix : _owner->GetWorldMat();
 }
@@ -1062,7 +1062,7 @@ void FxPlaneManager::RenderGroup(graph::Engine& engine, FxEmitter* emitter, FxPa
 		glm::vec3 axe = glm::axis(particle->GetRot());
 		float angle = glm::angle(particle->GetRot());
 
-		D3DXMATRIX worldMat = particle->GetMatrix() * emitter->GetMatrix();
+		D3DMATRIX worldMat = particle->GetMatrix() * emitter->GetMatrix();
 		engine.GetContext().SetWorldMat(worldMat);
 
 		engine.RenderPlanePT();

@@ -246,7 +246,7 @@ void BaseSceneNode::BuildWorldMatrix() const
 {
 	if (_parent)
 	{
-		const D3DXMATRIX& mat = _parent->GetWorldMat();
+		const D3DMATRIX& mat = _parent->GetWorldMat();
 		_worldMat = MatrixMultiply(_localMat, mat);
 		_invWorldMat = MatrixInverse(0, _worldMat);
 	}
@@ -413,7 +413,7 @@ void BaseSceneNode::Assign(BaseSceneNode& value)
 	SetScale(value.GetScale());
 }
 
-void BaseSceneNode::Render(graph::Engine& engine, const D3DXMATRIX& worldMat)
+void BaseSceneNode::Render(graph::Engine& engine, const D3DMATRIX& worldMat)
 {
 	if (_visible)
 	{
@@ -514,8 +514,8 @@ void BaseSceneNode::MoveAroundTarget(const glm::vec3& worldTarget, float pitchDe
 	// create a new vector pointing up and then rotate it down
 	// into the new position
 	normalT2C = GetWorldUp();
-	D3DXMATRIX pitchMat = MatrixRotationAxis(normalCameraRight, pitchNow);
-	D3DXMATRIX turnMat = MatrixRotationAxis(worldUp, -turnDelta);
+	D3DMATRIX pitchMat = MatrixRotationAxis(normalCameraRight, pitchNow);
+	D3DMATRIX turnMat = MatrixRotationAxis(worldUp, -turnDelta);
 	normalT2C = Vec3TransformNormal(normalT2C, pitchMat);
 	normalT2C = Vec3TransformNormal(normalT2C, turnMat);
 	normalT2C *= dist;
@@ -532,7 +532,7 @@ void BaseSceneNode::AdjustDistToTarget(const glm::vec3& worldTarget, float dista
 
 void BaseSceneNode::WorldToLocal(const glm::vec4& vec, glm::vec4& out) const
 {
-	const D3DXMATRIX& mat = GetInvWorldMat();
+	const D3DMATRIX& mat = GetInvWorldMat();
 	out = Vec4Transform(vec, mat);
 }
 
@@ -563,13 +563,13 @@ void BaseSceneNode::LocalToWorldNorm(const glm::vec3& vec, glm::vec3& out) const
 
 void BaseSceneNode::ParentToLocal(const glm::vec4& vec, glm::vec4& out) const
 {
-	const D3DXMATRIX& mat = GetInvMat();
+	const D3DMATRIX& mat = GetInvMat();
 	out = Vec4Transform(vec, mat);
 }
 
 void BaseSceneNode::LocalToParent(const glm::vec4& vec, glm::vec4& out) const
 {
-	const D3DXMATRIX& mat = GetMat();
+	const D3DMATRIX& mat = GetMat();
 	out = Vec4Transform(vec, mat);
 }
 
@@ -872,18 +872,18 @@ void BaseSceneNode::SetRot(const glm::quat& value)
 	ChangedRotation(rsQuaternion);
 }
 
-D3DXMATRIX BaseSceneNode::GetScaleMat() const
+D3DMATRIX BaseSceneNode::GetScaleMat() const
 {
 	glm::vec3 vec = _scale;
 	//Если масштабирование слишком мало, то матрица может оказаться вырожденной. Поэтому подменяем на вектор самой допустимо малой длины
 	//if (glm::length(vec) < 0.0001f)
 	//	vec = IdentityVector * 0.0005f;
 
-	D3DXMATRIX scaleMat = MatrixScaling(vec.x, vec.y, vec.z);
+	D3DMATRIX scaleMat = MatrixScaling(vec.x, vec.y, vec.z);
 	return scaleMat;
 }
 
-D3DXMATRIX BaseSceneNode::GetRotMat() const
+D3DMATRIX BaseSceneNode::GetRotMat() const
 {
 	if (!_rotChanged)
 		return _rotMat;
@@ -933,18 +933,18 @@ D3DXMATRIX BaseSceneNode::GetRotMat() const
 	return _rotMat;
 }
 
-D3DXMATRIX BaseSceneNode::GetTransMat() const
+D3DMATRIX BaseSceneNode::GetTransMat() const
 {
 	return MatrixTranslation(_position.x, _position.y, _position.z);
 }
 
-const D3DXMATRIX& BaseSceneNode::GetMat() const
+const D3DMATRIX& BaseSceneNode::GetMat() const
 {
 	ApplyTransformationChanged();
 	return _localMat;
 }
 
-void BaseSceneNode::SetLocalMat(const D3DXMATRIX& value)
+void BaseSceneNode::SetLocalMat(const D3DMATRIX& value)
 {
 	_direction = glm::vec3(value.m[0][0], value.m[0][1], value.m[0][2]);
 	glm::vec3 right = glm::vec3(value.m[1][0], value.m[1][1], value.m[1][2]);
@@ -958,25 +958,25 @@ void BaseSceneNode::SetLocalMat(const D3DXMATRIX& value)
 	TransformationChanged();
 }
 
-const D3DXMATRIX& BaseSceneNode::GetInvMat() const
+const D3DMATRIX& BaseSceneNode::GetInvMat() const
 {
 	ApplyTransformationChanged();
 	return _invLocalMat;
 }
 
-const D3DXMATRIX& BaseSceneNode::GetWorldMat() const
+const D3DMATRIX& BaseSceneNode::GetWorldMat() const
 {
 	ApplyTransformationChanged();
 	return _worldMat;
 }
 
-const D3DXMATRIX& BaseSceneNode::GetInvWorldMat() const
+const D3DMATRIX& BaseSceneNode::GetInvWorldMat() const
 {
 	ApplyTransformationChanged();
 	return _invWorldMat;
 }
 
-D3DXMATRIX BaseSceneNode::GetCombMat(CombMatType type) const
+D3DMATRIX BaseSceneNode::GetCombMat(CombMatType type) const
 {
 	switch (type)
 	{
@@ -995,33 +995,33 @@ D3DXMATRIX BaseSceneNode::GetCombMat(CombMatType type) const
 	}
 }
 
-D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
+D3DMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 {
 	switch (type)
 	{
 	case cmtScaleTrans:
 	{
-		D3DXMATRIX scaleMat = GetWorldScale();
+		D3DMATRIX scaleMat = GetWorldScale();
 		glm::vec3 vec = GetWorldPos();
-		D3DXMATRIX transMat = MatrixTranslation(vec.x, vec.y, vec.z);
+		D3DMATRIX transMat = MatrixTranslation(vec.x, vec.y, vec.z);
 
 		return scaleMat * transMat;
 	}
 		
 	case cmtScaleRot:
 	{
-		D3DXMATRIX scaleMat = GetWorldScale();
+		D3DMATRIX scaleMat = GetWorldScale();
 
-		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
+		D3DMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
 
 		return scaleMat * rotMat;
 	}
 
 	case cmtRotTrans:
 	{
-		D3DXMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
+		D3DMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
 		glm::vec3 pos = GetWorldPos();
-		D3DXMATRIX transMat = MatrixTranslation(pos.x, pos.y, pos.z);
+		D3DMATRIX transMat = MatrixTranslation(pos.x, pos.y, pos.z);
 
 		return rotMat * transMat;
 	}
@@ -1034,7 +1034,7 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 
 glm::vec3 BaseSceneNode::GetWorldPos() const
 {
-	D3DXMATRIX tMat = GetWorldMat();
+	D3DMATRIX tMat = GetWorldMat();
 	return glm::vec3(tMat.m[3][0], tMat.m[3][1], tMat.m[3][2]);
 }
 
@@ -1067,9 +1067,9 @@ void BaseSceneNode::SetWorldRot(const glm::quat& value)
 		return SetRot(value);
 }
 
-D3DXMATRIX BaseSceneNode::GetWorldScale() const
+D3DMATRIX BaseSceneNode::GetWorldScale() const
 {
-	D3DXMATRIX res = MatrixMultiply(IdentityMatrix, GetInvWorldMat());
+	D3DMATRIX res = MatrixMultiply(IdentityMatrix, GetInvWorldMat());
 
 	const BaseSceneNode* node = this;
 	do
@@ -1093,20 +1093,20 @@ D3DXMATRIX BaseSceneNode::GetWorldScale() const
 
 glm::vec3 BaseSceneNode::GetWorldDir() const
 {
-	D3DXMATRIX tMat = GetWorldMat();
+	D3DMATRIX tMat = GetWorldMat();
 	glm::vec3 res = glm::normalize(glm::vec3(tMat.m[0][0], tMat.m[0][1], tMat.m[0][2]));
 	return res;
 }
 
 glm::vec3 BaseSceneNode::GetWorldRight() const
 {
-	D3DXMATRIX tMat = GetWorldMat();
+	D3DMATRIX tMat = GetWorldMat();
 	return glm::vec3(tMat.m[1][0], tMat.m[1][1], tMat.m[1][2]);
 }
 
 glm::vec3 BaseSceneNode::GetWorldUp() const
 {
-	D3DXMATRIX tMat = GetWorldMat();
+	D3DMATRIX tMat = GetWorldMat();
 	return glm::vec3(tMat.m[2][0], tMat.m[2][1], tMat.m[2][2]);
 }
 
@@ -1307,7 +1307,7 @@ Camera::Camera(): _changedCI(true)
 {	
 }
 
-void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj, const glm::vec4& colorBB)
+void Camera::RenderFrustum(graph::Engine& engine, const D3DMATRIX& invViewProj, const glm::vec4& colorBB)
 {
 	using res::VertexPD;
 

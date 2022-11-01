@@ -27,7 +27,7 @@ public:
 	TechniqueType GetTech() const;
 	void SetTech(TechniqueType value);
 
-	D3DXMATRIX viewProjMat;
+	D3DMATRIX viewProjMat;
 };
 
 class DepthMapRender: public GraphObjRender<Tex2DResource>
@@ -40,8 +40,8 @@ public:
 	virtual void BeginRT(Engine& engine, const RtFlags& flags);
 	virtual void EndRT(Engine& engine);
 
-	const D3DXMATRIX& GetViewProjMat() const;
-	void SetViewProjMat(const D3DXMATRIX& value);
+	const D3DMATRIX& GetViewProjMat() const;
+	void SetViewProjMat(const D3DMATRIX& value);
 
 	DepthMapShader shader;
 };
