@@ -63,7 +63,7 @@ const glm::vec4& ReflRender::GetReflPlane() const
 void ReflRender::SetReflPlane(const glm::vec4& value)
 {
 	_reflPlane = value;
-	D3DXMatrixReflect(&_reflMat, &Vec4ToPlane(_reflPlane));
+	_reflMat = MatrixReflect(_reflPlane);
 }
 
 const ReflRender::ClipPlanes& ReflRender::GetClipPlanes() const

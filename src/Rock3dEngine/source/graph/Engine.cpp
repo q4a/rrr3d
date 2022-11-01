@@ -542,8 +542,7 @@ void Engine::RenderSpritePT(const glm::vec3& pos, const glm::vec3& scale, float 
 		rotMat._41 = rotMat._42 = rotMat._43 = 0.0f;
 
 		//Локальный поворот спрайта (только для не направленных)
-		D3DXMATRIX rotZ;
-		D3DXMatrixRotationAxis(&rotZ, &Vec3GlmToDx(camera.GetDesc().dir), turnAngle);
+		D3DXMATRIX rotZ = MatrixRotationAxis(camera.GetDesc().dir, turnAngle);
 		rotMat *= rotZ;
 	}
 

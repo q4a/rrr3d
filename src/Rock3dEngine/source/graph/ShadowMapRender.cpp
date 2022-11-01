@@ -14,8 +14,8 @@ const unsigned ShadowMapRender::cShadowMapSize = 2048;
 void ShadowMapShader::DoBeginDraw(Engine& engine)
 {
 	D3DXMATRIX shadowWVP = shadowViewProj;
-	D3DXMatrixMultiply(&shadowWVP, &engine.GetContext().GetWorldMat(), &shadowWVP);
-	D3DXMatrixMultiply(&shadowWVP, &shadowWVP, &mTexScale);
+	shadowWVP = MatrixMultiply(engine.GetContext().GetWorldMat(), shadowWVP);
+	shadowWVP = MatrixMultiply(shadowWVP, mTexScale);
 
 	SetValue("matWVP", engine.GetContext().GetCamera().GetWVP());
 	SetValue("matShadow", shadowWVP);
@@ -278,7 +278,7 @@ void ShadowMapRender::BeginShadowMapp(Engine& engine)
 	desc.farDist = _splitDistances[_curNumSplit + 1];
 	_myCamera.SetDesc(desc);
 
-	D3DXMatrixMultiply(&shader.shadowViewProj, &engine.GetContext().GetLight(iLight).GetCamera().GetView(), &_splitLightProjMat[_curNumSplit]);
+	shader.shadowViewProj = MatrixMultiply(engine.GetContext().GetLight(iLight).GetCamera().GetView(), _splitLightProjMat[_curNumSplit]);
 
 	engine.GetContext().ApplyCamera(&_myCamera);
 }

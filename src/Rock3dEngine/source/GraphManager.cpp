@@ -1805,8 +1805,7 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 			actor->LocalToWorldNorm(norm, norm);
 			glm::vec3 pos = actor->GetWorldPos();
 
-			glm::vec4 plane;
-			D3DXPlaneFromPointNormal(&plane, &(pos + norm * height), &norm);
+			glm::vec4 plane = PlaneFromPointNormal(pos + norm * height, norm);
 
 			_planarReflRender->SetReflPlane(plane);
 
@@ -1825,16 +1824,16 @@ void GraphManager::RenderPlanarReflScene(graph::CameraCI& camera)
 			glm::vec3 dir = *dir = glm::cross(right, norm);
 			graph::ReflRender::ClipPlanes clipPlanes;
 
-			D3DXPlaneFromPointNormal(&plane, &aabb.min, &dir);
+			plane = PlaneFromPointNormal(aabb.min, dir);
 			clipPlanes.push_back(plane);
 
-			D3DXPlaneFromPointNormal(&plane, &aabb.min, &right);
+			plane = PlaneFromPointNormal(aabb.min, right);
 			clipPlanes.push_back(plane);
 
-			D3DXPlaneFromPointNormal(&plane, &aabb.max, &(-dir));
+			plane = PlaneFromPointNormal(aabb.max, -dir);
 			clipPlanes.push_back(plane);
 
-			D3DXPlaneFromPointNormal(&plane, &aabb.max, &(-right));
+			plane = PlaneFromPointNormal(aabb.max, -right);
 			clipPlanes.push_back(plane);
 
 			_planarReflRender->SetClipPlanes(clipPlanes);

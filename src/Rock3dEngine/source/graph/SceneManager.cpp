@@ -247,7 +247,7 @@ void BaseSceneNode::BuildWorldMatrix() const
 	if (_parent)
 	{
 		const D3DXMATRIX& mat = _parent->GetWorldMat();
-		D3DXMatrixMultiply(&_worldMat, &_localMat, &mat);
+		_worldMat = MatrixMultiply(_localMat, mat);
 		D3DXMatrixInverse(&_invWorldMat, 0, &_worldMat);
 	}
 	else
@@ -513,12 +513,9 @@ void BaseSceneNode::MoveAroundTarget(const glm::vec3& worldTarget, float pitchDe
 	pitchNow = lsl::ClampValue(pitchNow + pitchDelta, 0 + 0.025f, glm::pi<float>() - 0.025f);
 	// create a new vector pointing up and then rotate it down
 	// into the new position
-	D3DXMATRIX pitchMat;
-	D3DXMATRIX turnMat;
-
 	normalT2C = GetWorldUp();
-	D3DXMatrixRotationAxis(&pitchMat, &Vec3GlmToDx(normalCameraRight), pitchNow);
-	D3DXMatrixRotationAxis(&turnMat, &Vec3GlmToDx(worldUp), -turnDelta);
+	D3DXMATRIX pitchMat = MatrixRotationAxis(normalCameraRight, pitchNow);
+	D3DXMATRIX turnMat = MatrixRotationAxis(worldUp, -turnDelta);
 	normalT2C = Vec3TransformNormal(normalT2C, pitchMat);
 	normalT2C = Vec3TransformNormal(normalT2C, turnMat);
 	normalT2C *= dist;
@@ -1081,16 +1078,15 @@ void BaseSceneNode::SetWorldRot(const glm::quat& value)
 
 D3DXMATRIX BaseSceneNode::GetWorldScale() const
 {
-	D3DXMATRIX res = IdentityMatrix;
-	D3DXMatrixMultiply(&res, &res, &GetInvWorldMat());
+	D3DXMATRIX res = MatrixMultiply(IdentityMatrix, GetInvWorldMat());
 
 	const BaseSceneNode* node = this;
 	do
 	{
 		//Применяем опреацию масштабирования
-		D3DXMatrixMultiply(&res, &res, &node->GetScaleMat());
+		res = MatrixMultiply(res, node->GetScaleMat());
 		//Переводим на уровень трансформации пониже
-		D3DXMatrixMultiply(&res, &res, &node->GetMat());
+		res = MatrixMultiply(res, node->GetMat());
 
 		node = node->GetParent();
 			

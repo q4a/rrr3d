@@ -307,8 +307,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	}
 
 	//поиск пересечений aabb с фрустумом
-	/*glm::vec4 nearPlane;
-	D3DXPlaneFromPointNormal(&nearPlane, &NullVector, &ZVector);
+	/*glm::vec4 nearPlane = PlaneFromPointNormal(NullVector, ZVector);
 	glm::vec3 points[4];
 	unsigned numPoints = PlaneBBIntersect(projBox, nearPlane, points);
 	for (unsigned i = 0; i < numPoints; ++i)
@@ -395,7 +394,7 @@ void CameraCI::GetViewProjPerspective(D3DXMATRIX& mat) const
 	else
 	{
 		CalcProjPerspective(mat);
-		D3DXMatrixMultiply(&mat, &GetView(), &mat);
+		mat = MatrixMultiply(GetView(), mat);
 	}
 }
 
@@ -406,7 +405,7 @@ void CameraCI::GetWVPPerspective(D3DXMATRIX& mat) const
 	else
 	{
 		CalcProjPerspective(mat);
-		D3DXMatrixMultiply(&mat, &GetTransform(ctWorldView), &mat);
+		mat = MatrixMultiply(GetTransform(ctWorldView), mat);
 	}
 }
 
@@ -469,8 +468,7 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 
 			default:
 				//Используется правостороння система координат (как в 3dMax-e)
-				D3DXMatrixLookAtRH(&_matrices[transform], &Vec3GlmToDx(_desc.pos), &Vec3GlmToDx(_desc.pos + _desc.dir),
-				                   &Vec3GlmToDx(_desc.up));
+				_matrices[transform] = MatrixLookAtRH(_desc.pos, _desc.pos + _desc.dir, _desc.up);
 			}
 			break;
 
@@ -509,15 +507,15 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 		}
 
 		case ctWorldView:
-			D3DXMatrixMultiply(&_matrices[transform], &_worldMat, &GetTransform(ctView));
+			_matrices[transform] = MatrixMultiply(_worldMat, GetTransform(ctView));
 			break;
 
 		case ctViewProj:
-			D3DXMatrixMultiply(&_matrices[transform], &GetTransform(ctView), &GetTransform(ctProj));
+			_matrices[transform] = MatrixMultiply(GetTransform(ctView), GetTransform(ctProj));
 			break;
 
 		case ctWVP:
-			D3DXMatrixMultiply(&_matrices[transform], &_worldMat, &GetTransform(ctViewProj));
+			_matrices[transform] = MatrixMultiply(_worldMat, GetTransform(ctViewProj));
 			break;
 		}
 
