@@ -32,7 +32,9 @@ private:
 
 	void InvalidateParams(D3DLIGHTTYPE value, bool shadow);
 protected:
+#ifdef _WIN32 // FIX_LINUX D3DXHANDLE
 	D3DXHANDLE _params[cMyParamEnd];
+#endif
 
 	virtual void DoFree();
 	virtual void DoBeginDraw(Engine& engine);
