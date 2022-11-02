@@ -153,7 +153,9 @@ private:
 	Prefab _prefab;
 	Params _params;
 
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 	ID3DXMesh* _d3dxMesh;
+#endif
 	unsigned _beginStreamCnt;
 protected:
 	void LoadData() const;
@@ -358,8 +360,10 @@ public:
 
 class TextFont: public VideoResource
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 private:
 	ID3DXFont* _font;
+#endif
 public:
 	struct Desc
 	{
@@ -367,6 +371,7 @@ public:
 		{
 			height = 14;
 			width = 0;
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 			weight = FW_BOLD;
 			mipLevels = 0;
 			italic = false;
@@ -374,6 +379,7 @@ public:
 			outputPrecision = OUT_DEFAULT_PRECIS;
 			quality = DEFAULT_QUALITY;
 			pitchAndFamily = DEFAULT_PITCH | FF_DONTCARE;
+#endif
 			pFacename = "Arial";
 		}
 

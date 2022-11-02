@@ -7,7 +7,7 @@ if (MSVC)
 
     add_compile_options("$<$<CONFIG:Release>:/Gy>") # Enable Function-Level Linking
 else()
-    add_compile_options(-fpermissive)
+    add_compile_options(-fPIC)
 endif()
 
 add_subdirectory(LexStd)

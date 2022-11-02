@@ -3,8 +3,10 @@
 #include "net/NetService.h"
 #include "net/NetConnectionTCP.h"
 
+#ifdef _WIN32
 #include <winsock2.h>
 #include <Iphlpapi.h>
+#endif
 
 namespace net
 {
@@ -52,7 +54,9 @@ void NetService::AllocProtocols()
 void NetService::ReleaseProtocols()
 {
 	_ioService.poll();
+#ifdef _WIN32 // FIX_LINUX Sleep
 	Sleep(0);
+#endif
 	_ioService.poll();
 
 	DeleteConnections();
@@ -517,6 +521,7 @@ INetAcceptorImpl* NetService::acceptorImpl() const
 
 bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
 {
+#ifdef _WIN32 // FIX_LINUX IP_ADAPTER_ADDRESSES
 	const unsigned WORKING_BUFFER_SIZE = 15000;
 	const unsigned MAX_TRIES = 3;
 
@@ -577,6 +582,7 @@ bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
 	}
 
 	free(addresses);
+#endif
 
 	return true;
 }

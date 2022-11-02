@@ -14,6 +14,7 @@ namespace graph
 {
 
 class MaterialNode;
+class SceneManager;
 
 class BaseSceneNode: public lsl::Component, protected IProgressUser
 {
@@ -443,6 +444,8 @@ public:
 	graph::Tex2DResource* GetShadowMap();
 	void SetShadowMap(graph::Tex2DResource* value);
 };
+
+class SceneRender;
 
 class SceneManager: public lsl::Component, public graph::Renderable
 {

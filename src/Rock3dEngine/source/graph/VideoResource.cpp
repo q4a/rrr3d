@@ -409,7 +409,11 @@ IDirect3DIndexBuffer9* IndexedVBMesh::GetIB()
 	return _ib;
 }
 
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 MeshX::MeshX(): MemPoolResource(D3DUSAGE_WRITEONLY), _data(0), _createData(false), _d3dxMesh(0), _beginStreamCnt(0)
+#else
+MeshX::MeshX()
+#endif
 {
 }
 
@@ -431,18 +435,22 @@ void MeshX::DoInit()
 {
 	LoadData();
 
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 	switch (_prefab)
 	{
 	case mpSphere:
 		D3DXCreateSphere(GetEngine()->GetDriver().GetDevice(), _params.radius1, _params.slices, _params.stacks, &_d3dxMesh, NULL);
 		break;
 	}
+#endif
 }
 
 void MeshX::DoFree()
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 	_d3dxMesh->Release();
 	_d3dxMesh = 0;
+#endif
 }
 
 void MeshX::DoUpdate()
@@ -496,7 +504,9 @@ void MeshX::Draw()
 	BeginStream();
 
 	//GetEngine()->GetDriver().GetDevice()->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, _data->vb.GetVertexCount(), 0, _data->fb.GetFaceCount());
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 	_d3dxMesh->DrawSubset(0);
+#endif
 
 	EndStream();
 }
@@ -508,7 +518,9 @@ void MeshX::DrawSubset(int attribId)
 	BeginStream(attribId);
 
 	//GetEngine()->GetDriver().GetDevice()->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, fg.sVertex, fg.vertexCnt, fg.sFace * 3, fg.faceCnt);
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 	_d3dxMesh->DrawSubset(attribId);
+#endif
 
 	EndStream();
 }
@@ -1252,7 +1264,11 @@ void DepthStencilSurfaceResource::SetScreenScale(glm::vec2 value)
 	}
 }
 
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 TextFont::TextFont(): _font(0)
+#else
+TextFont::TextFont()
+#endif
 {
 }
 
@@ -1263,15 +1279,19 @@ TextFont::~TextFont()
 
 void TextFont::DoInit()
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	HRESULT hr = D3DXCreateFont(GetEngine()->GetDriver().GetDevice(), _desc.height, _desc.width, _desc.weight, _desc. mipLevels, _desc.italic, _desc.charSet, _desc.outputPrecision, _desc.quality, _desc.pitchAndFamily, _desc.pFacename.c_str(), &_font);
 
 	if (hr != D3D_OK)
 		throw lsl::Error("void TextFont::DoInit(). hr != D3D_OK");
+#endif
 }
 
 void TextFont::DoFree()
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	lsl::SafeRelease(_font);
+#endif
 }
 
 void TextFont::DoUpdate()
@@ -1280,32 +1300,40 @@ void TextFont::DoUpdate()
 
 void TextFont::DrawText(const std::string& text, lsl::Rect& rect, DWORD format, const D3DCOLOR& color)
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	RECT mtRect;
 	SetRect(&mtRect, rect.left, rect.top, rect.right, rect.bottom);
 
 	_font->DrawTextA(0, text.c_str(), text.size(), &mtRect, format, color);
 
 	rect = lsl::Rect(mtRect.left, mtRect.top, mtRect.right, mtRect.bottom);
+#endif
 }
 
 void TextFont::DrawText(const std::wstring& text, lsl::Rect& rect, DWORD format, const D3DCOLOR& color)
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	RECT mtRect;
 	SetRect(&mtRect, rect.left, rect.top, rect.right, rect.bottom);
 
 	_font->DrawTextW(0, text.c_str(), text.size(), &mtRect, format, color);
 
 	rect = lsl::Rect(mtRect.left, mtRect.top, mtRect.right, mtRect.bottom);
+#endif
 }
 
 void TextFont::OnLostDevice()
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	_font->OnLostDevice();
+#endif
 }
 
 void TextFont::OnResetDevice()
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	_font->OnResetDevice();
+#endif
 }
 
 const TextFont::Desc& TextFont::GetDesc() const

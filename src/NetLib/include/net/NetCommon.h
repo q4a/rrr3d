@@ -334,14 +334,14 @@ inline unsigned Read(std::istream& stream, D3DMATRIX& value)
 
 template<class _T> inline unsigned Write(std::ostream& stream, const std::basic_string<_T>& value, unsigned size)
 {
-	Write(stream, value.data(), sizeof(std::basic_string<_T>::value_type) * size);
+	Write(stream, value.data(), sizeof(typename std::basic_string<_T>::value_type) * size);
 	return size;
 }
 
 template<class _T> inline unsigned Read(std::istream& stream, std::basic_string<_T>& value, unsigned size)
 {
 	value.resize(size);
-	Read(stream, const_cast<typename std::basic_string<_T>::pointer>(value.data()), sizeof(std::basic_string<_T>::value_type) * size);
+	Read(stream, const_cast<typename std::basic_string<_T>::pointer>(value.data()), sizeof(typename std::basic_string<_T>::value_type) * size);
 	return size;
 }
 
