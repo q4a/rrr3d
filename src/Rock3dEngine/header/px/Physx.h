@@ -359,7 +359,6 @@ public:
 	NxBoxShape* GetNxShape();
 
 	const glm::vec3& GetDimensions() const;
-	void SetDimensions(const glm::vec3& value);
 };
 
 class SphereShape: public Shape

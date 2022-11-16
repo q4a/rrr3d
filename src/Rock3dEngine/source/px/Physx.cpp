@@ -912,21 +912,6 @@ const glm::vec3& BoxShape::GetDimensions() const
 	return _dimensions;
 }
 
-void BoxShape::SetDimensions(const glm::vec3& value)
-{
-	if (_dimensions != value)
-	{
-		_dimensions = value;
-
-		if (GetNxShape())
-		{
-			NxVec3 vec3;
-			vec3.set(glm::value_ptr(_dimensions));
-			GetNxShape()->setDimensions(vec3);
-		}
-	}
-}
-
 SphereShape::SphereShape(Shapes* owner): _MyBase(owner), _radius(1.0f)
 {
 	SetType(Type);
