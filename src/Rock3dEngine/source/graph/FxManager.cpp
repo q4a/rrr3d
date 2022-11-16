@@ -1379,6 +1379,7 @@ void FxFlowEmitter::SetFlowDesc(const FlowDesc& value)
 	_flowDesc = value;
 }
 
+/*
 FxPhysicsEmitter::FxPhysicsEmitter(FxParticleSystem* owner): _MyBase(owner), _pxScene(0)
 {
 }
@@ -1437,6 +1438,7 @@ void FxPhysicsEmitter::SetPxScene(px::Scene* value)
 	if (ReplaceRef(_pxScene, value))
 		_pxScene = value;
 }
+*/
 
 }
 
