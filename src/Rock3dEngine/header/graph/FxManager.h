@@ -2,7 +2,7 @@
 #define R3D_SCENE_FXMANAGER
 
 #include "StdNode.h"
-#include "px\\Physx.h"
+#include "px/Physx.h"
 
 #include "lslSerialValue.h"
 #include "lslMath.h"
@@ -19,11 +19,11 @@ class FxManager;
 class FxParticle: public lsl::Object
 {
 private:
-	D3DXVECTOR3 _pos;
-	D3DXQUATERNION _rot;
-	D3DXVECTOR3 _scale;
-	
-	mutable D3DXMATRIX _worldMat;
+	glm::vec3 _pos;
+	glm::quat _rot;
+	glm::vec3 _scale;
+
+	mutable D3DMATRIX _worldMat;
 	mutable bool _worldMatChanged;
 
 	mutable AABB _aabb;
@@ -38,16 +38,16 @@ public:
 	FxParticle();
 	virtual ~FxParticle();
 
-	const D3DXVECTOR3& GetPos();
-	void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos();
+	void SetPos(const glm::vec3& value);
 
-	const D3DXQUATERNION& GetRot();
-	void SetRot(const D3DXQUATERNION& value);
+	const glm::quat& GetRot();
+	void SetRot(const glm::quat& value);
 
-	const D3DXVECTOR3& GetScale();
-	void SetScale(const D3DXVECTOR3& value);
+	const glm::vec3& GetScale();
+	void SetScale(const glm::vec3& value);
 
-	const D3DXMATRIX& GetMatrix() const;
+	const D3DMATRIX& GetMatrix() const;
 
 	AABB GetAABB() const;
 
@@ -72,7 +72,7 @@ public:
 };
 
 class FxEmitter: public lsl::Object, public lsl::Serializable
-{	
+{
 	friend class FxParticleSystem;
 	friend class FxManager;
 private:
@@ -82,7 +82,7 @@ public:
 	enum MaxNumAction {mnaReplaceLatest = 0, mnaWaitingFree, cMaxNumActionEnd};
 	static const char* cMaxNumActionStr[cMaxNumActionEnd];
 
-	enum StartType 
+	enum StartType
 	{
 		//Относительно времени
 		sotTime = 0,
@@ -90,7 +90,7 @@ public:
 		sotDist,
 		//Комбинированный, при выполнений хотябы одного условия из sotTime, sotDist
 		sotCombine,
-		
+
 		//
 		cStartTypeEnd
 	};
@@ -108,7 +108,7 @@ public:
 		// mnaWaitingFree - Новые не создаются, ожидается уничтожение старых
 		// mnaReplaceLatest - Убиваются самые старые частицы и взамен них создаются новые (по умолчанию). Из-за  особенности реализации удаляются не самые старые!
 		MaxNumAction maxNumAction;
-		//Время жизни (в сек.) одной частицы. 
+		//Время жизни (в сек.) одной частицы.
 		//0 - Время жизни не ограничено
 		FloatRange life;
 		//Смещение в создании (в сек.) частиц
@@ -142,7 +142,7 @@ private:
 	float _curTime;
 	//момент создания последней группы
 	float _lastTimeQGroup;
-	D3DXVECTOR3 _lastPosQGroup;
+	glm::vec3 _lastPosQGroup;
 	//
 	float _curDensParticle;
 	unsigned _cntParticles;
@@ -154,7 +154,7 @@ private:
 	FxParticleGroup* AddGroup();
 	void DelGroup(_GroupList::iterator iter);
 	void DelGroup(const _GroupList::Position& pos);
-	void DelGroup(_GroupList::iterator stIter, _GroupList::iterator endIter);	
+	void DelGroup(_GroupList::iterator stIter, _GroupList::iterator endIter);
 	void DelGroup(FxParticleGroup* value);
 	void ClearGroupList();
 
@@ -165,8 +165,8 @@ private:
 	void ClearParticles(FxParticleGroup* group);
 
 	//возвращает deltaTime >=0 если необходим запрос на создание
-	float CheckTimeCreateQuery(D3DXVECTOR3& offPos);
-	float CheckDistCreateQuery(D3DXVECTOR3& offPos);
+	float CheckTimeCreateQuery(glm::vec3& offPos);
+	float CheckDistCreateQuery(glm::vec3& offPos);
 protected:
 	unsigned GetNextPartIndex() const;
 	float CompRangeFrame(unsigned index) const;
@@ -180,20 +180,20 @@ protected:
 	virtual void UpdateGroup(FxParticleGroup* group, float dTime, bool init);
 
 	//Запрос на создание num частиц с учетом условий ограничения
-	void QueryCreateParticles(unsigned num, float deltaTime, const D3DXVECTOR3& offPos);
-	void QueryCreateGroup(float deltaTime, const D3DXVECTOR3& offPos);	
-	
+	void QueryCreateParticles(unsigned num, float deltaTime, const glm::vec3& offPos);
+	void QueryCreateGroup(float deltaTime, const glm::vec3& offPos);
+
 	virtual AABB LocalDimensions() const;
 	virtual void OnProgress(float deltaTime);
 
 	//
 	virtual void Save(lsl::SWriter* writer);
-	virtual void Load(lsl::SReader* reader);	
+	virtual void Load(lsl::SReader* reader);
 public:
 	FxEmitter(FxParticleSystem* owner);
 	virtual ~FxEmitter();
 
-	void Reset();	
+	void Reset();
 
 	FxParticleSystem* GetSystem();
 
@@ -211,10 +211,10 @@ public:
 	bool GetModeFading() const;
 	void SetModeFading(bool value);
 
-	D3DXVECTOR3 GetLocalPos(FxParticle* particle) const;
-	D3DXVECTOR3 GetWorldPos(FxParticle* particle) const;
+	glm::vec3 GetLocalPos(FxParticle* particle) const;
+	glm::vec3 GetWorldPos(FxParticle* particle) const;
 
-	const D3DXMATRIX& GetMatrix() const;	
+	const D3DMATRIX& GetMatrix() const;
 };
 
 class FxParticleSystem: public BaseSceneNode
@@ -224,7 +224,7 @@ private:
 	typedef BaseSceneNode _MyBase;
 public:
 	enum EmitterType {etBase = 0, etFlow, cEmitterTypeEnd};
-	
+
 	class Emitters: public lsl::Collection<FxEmitter, EmitterType, FxParticleSystem*, void>
 	{
 	private:
@@ -252,14 +252,14 @@ public:
 	typedef Emitters::ClassList ClassList;
 	static ClassList classList;
 
-	enum ChildStyle 
+	enum ChildStyle
 	{
 		//Прокси объекты, структура всех объектов одинакова
 		csProxy = 0,
 
 		//Уникальные объекты для каждой частицы
-		csUnique, 
-		
+		csUnique,
+
 		cChildStyleEnd
 	};
 
@@ -273,7 +273,7 @@ private:
 	ChildStyle _childStyle;
 
 	AABB _aabb;
-	D3DXVECTOR3 _srcSpeed;
+	glm::vec3 _srcSpeed;
 protected:
 	void OnCreateParticle(FxParticle* value);
 	void OnDestroyParticle(FxParticle* value);
@@ -311,8 +311,8 @@ public:
 	//режим затухания
 	void SetModeFading(bool value);
 
-	const D3DXVECTOR3& GetSrcSpeed() const;
-	void SetSrcSpeed(const D3DXVECTOR3& value);
+	const glm::vec3& GetSrcSpeed() const;
+	void SetSrcSpeed(const glm::vec3& value);
 
 	MaterialNode material;
 };
@@ -407,7 +407,7 @@ class FxTrailManager: public FxManager
 private:
 	typedef FxManager _MyBase;
 public:
-	enum TypeDraw 
+	enum TypeDraw
 	{
 		//Отрисовка по группам частиц каждая из которых со своим материалом
 		tdPerGroup,
@@ -417,9 +417,9 @@ public:
 private:
 	float _trailWidth;
 
-	void BuildVertexLine(res::VertexPT* vertex, const D3DXVECTOR3& pos, const D3DXVECTOR3& dir, const D3DXVECTOR3& camPos, float xTex);
+	void BuildVertexLine(res::VertexPT* vertex, const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& camPos, float xTex);
 	void DrawPath(graph::Engine& engine, FxParticleSystem* system, FxParticleGroup* group, res::VertexPT* vBuf, unsigned primCnt, unsigned sPrim);
-protected:	
+protected:
 	virtual void RenderGroup(graph::Engine& engine, FxEmitter* emitter, FxParticleGroup* group);
 	virtual void RenderEmitter(graph::Engine& engine, FxEmitter* emitter);
 	virtual void RenderSystem(graph::Engine& engine, FxParticleSystem* system);
@@ -431,7 +431,7 @@ public:
 	void SetTrailWidth(float value);
 
 	//Фиксированная нормаль у следов
-	D3DXVECTOR3 fixedUpVec;
+	glm::vec3 fixedUpVec;
 	bool fixedUp;
 	//Тип отрисовки
 	TypeDraw typeDraw;
@@ -440,10 +440,10 @@ public:
 class FxFlowParticle: public FxParticle
 {
 public:
-	D3DXVECTOR3 speedPos;
-	D3DXQUATERNION speedRot;
-	D3DXVECTOR3 speedScale;
-	D3DXVECTOR3 acceleration;
+	glm::vec3 speedPos;
+	glm::quat speedRot;
+	glm::vec3 speedScale;
+	glm::vec3 acceleration;
 };
 
 class FxFlowEmitter: public FxEmitter
@@ -460,13 +460,13 @@ public:
 		Vec3Range speedScale;
 		Vec3Range acceleration;
 
-		D3DXVECTOR3 gravitation;		
+		glm::vec3 gravitation;
 		//Автоповорот по направлению скорости перемещения
 		//true - включено
 		bool autoRot;
 	};
 private:
-	FlowDesc _flowDesc;	
+	FlowDesc _flowDesc;
 protected:
 	virtual FxParticle* CreateParticle();
 	virtual void UpdateParticle(FxParticle* value, float dTime, bool init);
@@ -477,7 +477,7 @@ public:
 	FxFlowEmitter(FxParticleSystem* owner);
 
 	const FlowDesc& GetFlowDesc() const;
-	void SetFlowDesc(const FlowDesc& value);	
+	void SetFlowDesc(const FlowDesc& value);
 };
 
 class FxPhysicsParticle: public FxParticle
@@ -488,6 +488,7 @@ public:
 	FxPhysicsParticle(): pxActor(0) {}
 };
 
+/*
 class FxPhysicsEmitter: public FxEmitter
 {
 public:
@@ -504,6 +505,7 @@ public:
 	px::Scene* GetPxScene();
 	void SetPxScene(px::Scene* value);
 };
+*/
 
 }
 

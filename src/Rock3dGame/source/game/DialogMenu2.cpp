@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\Menu.h"
+#include "game/Menu.h"
 
-#include "game\DialogMenu2.h"
+#include "game/DialogMenu2.h"
 
 namespace r3d
 {
@@ -14,12 +14,9 @@ namespace n
 
 const int UserChat::cMaxLines = 50;
 
-
-
-
 AcceptDialog::AcceptDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _resultYes(false), _data(NULL), _guiEvent(NULL)
 {
-	D3DXCOLOR color1(0xffafafaf);
+	glm::vec4 color1 = clrGrayAF;
 
 	StringValue strMenuItems[cMenuItemEnd] = {svNo, svYes};
 
@@ -27,14 +24,14 @@ AcceptDialog::AcceptDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, par
 	std::string fontLabels[cLabelEnd] = {"Item"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1};
+	glm::vec4 colorLabels[cLabelEnd] = {color1};
 
-	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame1.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame1.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_menuBg};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
-	_labels[mlInfo]->SetWordWrap(true);	
+	_labels[mlInfo]->SetWordWrap(true);
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
 	{
@@ -77,8 +74,8 @@ void AcceptDialog::OnShow(bool value)
 	menu()->SetNavElements(_menuItems[miYes], value, elements, ARRAY_LENGTH(elements));
 }
 
-void AcceptDialog::OnAdjustLayout(const D3DXVECTOR2& vpSize)
-{	
+void AcceptDialog::OnAdjustLayout(const glm::vec2& vpSize)
+{
 }
 
 void AcceptDialog::OnInvalidate()
@@ -102,7 +99,7 @@ bool AcceptDialog::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 			guiEvent->OnClick(root(), mClick);
 
 		_data = NULL;
-		
+
 		return true;
 	}
 
@@ -123,28 +120,28 @@ bool AcceptDialog::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	return false;
 }
 
-void AcceptDialog::Show(const std::string& message, const std::string& yesText, const std::string& noText, const D3DXVECTOR2& pos, gui::Widget::Anchor align, gui::Widget::Event* guiEvent, Object* data, bool maxButtonsSize, bool maxMode, bool disableFocus)
+void AcceptDialog::Show(const std::string& message, const std::string& yesText, const std::string& noText, const glm::vec2& pos, gui::Widget::Anchor align, gui::Widget::Event* guiEvent, Object* data, bool maxButtonsSize, bool maxMode, bool disableFocus)
 {
-	D3DXVECTOR2 bgSize = _menuBg->GetMaterial().GetSampler().GetSize();
-	D3DXVECTOR2 infoSize = D3DXVECTOR2(325.0f, 65.0f);
-	D3DXVECTOR2 infoPos = D3DXVECTOR2(0.0f, -25.0f);
-	D3DXVECTOR2 posYes = D3DXVECTOR2(-70.0f, 32.0f);
-	D3DXVECTOR2 posNo = D3DXVECTOR2(70.0f, 32.0f);
-	D3DXVECTOR2 sizeYesNo = _menuItems[miNo]->GetFon()->GetSampler().GetSize();	
+	glm::vec2 bgSize = _menuBg->GetMaterial().GetSampler().GetSize();
+	glm::vec2 infoSize = glm::vec2(325.0f, 65.0f);
+	glm::vec2 infoPos = glm::vec2(0.0f, -25.0f);
+	glm::vec2 posYes = glm::vec2(-70.0f, 32.0f);
+	glm::vec2 posNo = glm::vec2(70.0f, 32.0f);
+	glm::vec2 sizeYesNo = _menuItems[miNo]->GetFon()->GetSampler().GetSize();
 	lsl::string infoFont = "Item";
 	if (maxMode)
 	{
 		bgSize = bgSize * 1.7f;
-		infoSize = infoSize * 1.7f;		
+		infoSize = infoSize * 1.7f;
 		sizeYesNo.x = sizeYesNo.x * 1.5f;
-		posYes = D3DXVECTOR2(-100.0f, 72.0f);
-		posNo = D3DXVECTOR2(100.0f, 72.0f);
+		posYes = glm::vec2(-100.0f, 72.0f);
+		posNo = glm::vec2(100.0f, 72.0f);
 		infoFont = "Small";
 	}
 
 	if (maxButtonsSize)
 	{
-		sizeYesNo = D3DXVECTOR2(sizeYesNo.x * 1.5f, sizeYesNo.y);
+		sizeYesNo = glm::vec2(sizeYesNo.x * 1.5f, sizeYesNo.y);
 		posYes.x = posYes.x - 10;
 		posNo.x = posNo.x + 10;
 	}
@@ -201,30 +198,27 @@ Object* AcceptDialog::data() const
 	return _data;
 }
 
-
-
-
 WeaponDialog::WeaponDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 {
-	D3DXCOLOR color1(0xffafafaf);
-	D3DXCOLOR color2(0xFFFFFFFF);
+	glm::vec4 color1 = clrGrayAF;
+	glm::vec4 color2 = clrWhite;
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"VerySmall", "Small", "Small", "Small"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color2, color2, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color2, color2, color2};
 
-	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame3.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame3.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_menuBg, _menuBg, _menuBg, _menuBg};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
-	_labels[mlInfo]->SetWordWrap(true);	
+	_labels[mlInfo]->SetWordWrap(true);
 }
 
 WeaponDialog::~WeaponDialog()
-{	
+{
 	for (int i = 0; i < cLabelEnd; ++i)
 		menu()->ReleaseWidget(_labels[i]);
 
@@ -235,7 +229,7 @@ void WeaponDialog::OnShow(bool value)
 {
 }
 
-void WeaponDialog::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void WeaponDialog::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	_labels[mlInfo]->SetPos(3.0f, -3.0f);
 	_labels[mlInfo]->SetSize(280.0f, 75.0f);
@@ -254,7 +248,7 @@ bool WeaponDialog::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	return false;
 }
 
-void WeaponDialog::Show(const std::string& title, const std::string& message, const std::string& moneyText, const std::string& damageText, const D3DXVECTOR2& pos, gui::Widget::Anchor align)
+void WeaponDialog::Show(const std::string& title, const std::string& message, const std::string& moneyText, const std::string& damageText, const glm::vec2& pos, gui::Widget::Anchor align)
 {
 	_labels[mlName]->SetText(title);
 	_labels[mlInfo]->SetText(message);
@@ -273,13 +267,10 @@ void WeaponDialog::Hide()
 	ShowModal(false);
 }
 
-
-
-
 InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _data(NULL), _guiEvent(NULL)
 {
-	D3DXCOLOR color1(0xffafafaf);
-	D3DXCOLOR color2(0xffffffff);
+	glm::vec4 color1 = clrGrayAF;
+	glm::vec4 color2 = clrWhite;
 
 	StringValue strMenuItems[cMenuItemEnd] = {svOk};
 
@@ -287,12 +278,12 @@ InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 	std::string fontLabels[cLabelEnd] = {"Small", "Header"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color2, color1};
+	glm::vec4 colorLabels[cLabelEnd] = {color2, color1};
 
-	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame4.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame4.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_menuBg, _menuBg};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 	_labels[mlInfo]->SetWordWrap(true);
 
@@ -303,11 +294,11 @@ InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 }
 
 InfoDialog::~InfoDialog()
-{	
+{
 	menu()->UnregNavElements(_menuItems[miOk]);
 
 	_data = NULL;
-	lsl::SafeRelease(_guiEvent);	
+	lsl::SafeRelease(_guiEvent);
 
 	for (int i = 0; i < cLabelEnd; ++i)
 		menu()->ReleaseWidget(_labels[i]);
@@ -332,7 +323,7 @@ void InfoDialog::OnShow(bool value)
 	menu()->SetNavElements(_menuItems[miOk], value, elements, ARRAY_LENGTH(elements));
 }
 
-void InfoDialog::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void InfoDialog::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	_labels[mlTitle]->SetPos(-27.f, -105.0f);
 
@@ -363,12 +354,12 @@ bool InfoDialog::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 	return false;
 }
 
-void InfoDialog::Show(const std::string& titleText, const std::string& message, const std::string& okText, const D3DXVECTOR2& pos, gui::Widget::Anchor align, gui::Widget::Event* guiEvent, Object* data, bool okButton)
+void InfoDialog::Show(const std::string& titleText, const std::string& message, const std::string& okText, const glm::vec2& pos, gui::Widget::Anchor align, gui::Widget::Event* guiEvent, Object* data, bool okButton)
 {
 	_labels[mlTitle]->SetText(titleText);
-	_labels[mlInfo]->SetText(message);	
+	_labels[mlInfo]->SetText(message);
 	_menuItems[miOk]->SetText(okText);
-	_menuItems[miOk]->SetVisible(okButton);	
+	_menuItems[miOk]->SetVisible(okButton);
 
 	ShowModal(true, cTopmostModal);
 
@@ -389,24 +380,21 @@ Object* InfoDialog::data() const
 	return _data;
 }
 
-
-
-
 MusicDialog::MusicDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
 {
-	D3DXCOLOR color1(0xffafafaf);
-	D3DXCOLOR color2(0xFFFFFFFF);
+	glm::vec4 color1 = clrGrayAF;
+	glm::vec4 color2 = clrWhite;
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"Small", "Item"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haLeft};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color2};
 
-	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame2.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame2.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_menuBg, _menuBg};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 	{
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 		_labels[i]->SetAlign(gui::Widget::waLeft);
@@ -416,7 +404,7 @@ MusicDialog::MusicDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, paren
 }
 
 MusicDialog::~MusicDialog()
-{	
+{
 	for (int i = 0; i < cLabelEnd; ++i)
 		menu()->ReleaseWidget(_labels[i]);
 
@@ -427,7 +415,7 @@ void MusicDialog::OnShow(bool value)
 {
 }
 
-void MusicDialog::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void MusicDialog::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	_labels[mlInfo]->SetPos(-130.0f, 17.0f);
 	_labels[mlInfo]->SetSize(290.0f, 45.0f);
@@ -448,7 +436,7 @@ void MusicDialog::Show(const std::string& title, const std::string& message)
 {
 	_labels[mlTitle]->SetText(title);
 	_labels[mlInfo]->SetText(message);
-	
+
 	MenuFrame::Show(true);
 	root()->SetFlag(gui::Widget::wfTopmost, true);
 	root()->SetTopmostLevel(MenuFrame::cTopmostPopup);
@@ -459,13 +447,10 @@ void MusicDialog::Hide()
 	ShowModal(false);
 }
 
-const D3DXVECTOR2& MusicDialog::size() const
+const glm::vec2& MusicDialog::size() const
 {
 	return _menuBg->GetSize();
 }
-
-
-
 
 InfoMenu::InfoMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msLoading)
 {
@@ -475,7 +460,7 @@ InfoMenu::InfoMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msLoadi
 	_loadingFrame = _menu->CreatePlane(_root, 0, "GUI\\loadingFrame.dds", true);
 	_loadingFrame->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 	_loadingFrame->SetFlag(gui::Widget::wfTopmost, true);
-	_loadingFrame->SetTopmostLevel(MenuFrame::cTopmostLoading);	
+	_loadingFrame->SetTopmostLevel(MenuFrame::cTopmostLoading);
 
 	ApplyState(_state);
 }
@@ -491,7 +476,7 @@ void InfoMenu::ApplyState(State state)
 	_loadingFrame->SetVisible(_state == msLoading);
 }
 
-void InfoMenu::AdjustLayout(const D3DXVECTOR2& vpSize)
+void InfoMenu::AdjustLayout(const glm::vec2& vpSize)
 {
 	_loadingFrame->SetSize(_menu->GetImageAspectSize(_loadingFrame->GetMaterial(), vpSize));
 }
@@ -520,11 +505,8 @@ void InfoMenu::SetState(State value)
 	}
 }
 
-
-
-
-UserChat::UserChat(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _inputPos(NullVector), _linesPos(NullVector), _inputSize(300.0f, 300.0f), _linesSize(300.0f, 300.0f)
-{	
+UserChat::UserChat(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _inputPos(NullVec2), _linesPos(NullVec2), _inputSize(300.0f, 300.0f), _linesSize(300.0f, 300.0f)
+{
 	_input = AddLine(L"", L"", clrWhite, false);
 	_input.name->SetVisible(false);
 }
@@ -536,42 +518,42 @@ UserChat::~UserChat()
 	DelLines();
 }
 
-UserChat::Line UserChat::AddLine(const lsl::stringW& name, const lsl::stringW& text, const D3DXCOLOR& nameColor, bool right)
+UserChat::Line UserChat::AddLine(const lsl::stringW& name, const lsl::stringW& text, const glm::vec4& nameColor, bool right)
 {
 	Line line;
 	line.time = 0.0f;
 
 	line.name = menu()->CreateLabel("", root(), "Small", NullVec2, right ? gui::Text::haRight : gui::Text::haLeft, right ? gui::Text::vaTop : gui::Text::vaBottom, nameColor);
 	line.name->SetTextW(name);
-	line.name->SetAlign(right ? gui::Widget::waRightTop : gui::Widget::waLeftBottom);	
+	line.name->SetAlign(right ? gui::Widget::waRightTop : gui::Widget::waLeftBottom);
 
 	line.text = menu()->CreateLabel("", root(), "Small", NullVec2, right ? gui::Text::haRight : gui::Text::haLeft, right ? gui::Text::vaTop : gui::Text::vaBottom, clrWhite);
 	line.text->SetTextW(text);
 	line.text->SetAlign(right ? gui::Widget::waRightTop : gui::Widget::waLeftBottom);
 	line.text->SetParent(line.name);
-	line.text->SetWordWrap(true);	
+	line.text->SetWordWrap(true);
 
 	return line;
 }
 
 void UserChat::OnShow(bool value)
-{	
+{
 }
 
-void UserChat::OnAdjustLayout(const D3DXVECTOR2& vpSize)
-{	
+void UserChat::OnAdjustLayout(const glm::vec2& vpSize)
+{
 	AABB2 nameAABB = _input.name->GetTextAABB();
 
 	_input.name->SetPos(_inputPos);
-	_input.text->SetPos(D3DXVECTOR2(nameAABB.GetSize().x, 0.0f));	
-	_input.text->SetSize(_inputSize - D3DXVECTOR2(_input.text->GetPos().x, 0.0f));
+	_input.text->SetPos(glm::vec2(nameAABB.GetSize().x, 0.0f));
+	_input.text->SetSize(_inputSize - glm::vec2(_input.text->GetPos().x, 0.0f));
 }
 
 void UserChat::OnInvalidate()
 {
 }
 
-void UserChat::ShowInput(bool show, const lsl::stringW& name, const lsl::stringW& text, const D3DXCOLOR& nameColor)
+void UserChat::ShowInput(bool show, const lsl::stringW& name, const lsl::stringW& text, const glm::vec4& nameColor)
 {
 	_input.name->SetVisible(show);
 	_input.name->SetTextW(name);
@@ -610,7 +592,7 @@ lsl::stringW UserChat::inputText() const
 	return _input.text->GetTextW();
 }
 
-void UserChat::PushLine(const lsl::stringW& name, const lsl::stringW& text, const D3DXCOLOR& nameColor)
+void UserChat::PushLine(const lsl::stringW& name, const lsl::stringW& text, const glm::vec4& nameColor)
 {
 	_lines.push_front(AddLine(name, text, nameColor, true));
 }
@@ -653,9 +635,9 @@ void UserChat::OnProgress(float deltaTime)
 			{
 				AABB2 nameAABB = iter->name->GetTextAABB();
 
-				iter->name->SetPos(_linesPos + D3DXVECTOR2(0.0f, posY));
+				iter->name->SetPos(_linesPos + glm::vec2(0.0f, posY));
 				iter->text->SetPos(-nameAABB.GetSize().x, 0.0f);
-				iter->text->SetSize(_linesSize - D3DXVECTOR2(nameAABB.GetSize().x, 0.0f));
+				iter->text->SetSize(_linesSize - glm::vec2(nameAABB.GetSize().x, 0.0f));
 
 				AABB2 textAABB = iter->text->GetTextAABB();
 				posY += textAABB.GetSize().y;
@@ -669,42 +651,42 @@ void UserChat::OnProgress(float deltaTime)
 	}
 }
 
-const D3DXVECTOR2& UserChat::linesPos() const
+const glm::vec2& UserChat::linesPos() const
 {
 	return _linesPos;
 }
 
-void UserChat::linesPos(const D3DXVECTOR2& value)
+void UserChat::linesPos(const glm::vec2& value)
 {
 	_linesPos = value;
 }
 
-const D3DXVECTOR2& UserChat::inputPos() const
+const glm::vec2& UserChat::inputPos() const
 {
 	return _inputPos;
 }
 
-void UserChat::inputPos(const D3DXVECTOR2& value)
+void UserChat::inputPos(const glm::vec2& value)
 {
 	_inputPos = value;
 }
 
-const D3DXVECTOR2& UserChat::linesSize() const
+const glm::vec2& UserChat::linesSize() const
 {
 	return _linesSize;
 }
 
-void UserChat::linesSize(const D3DXVECTOR2& value)
+void UserChat::linesSize(const glm::vec2& value)
 {
 	_linesSize = value;
 }
 
-const D3DXVECTOR2& UserChat::inputSize() const
+const glm::vec2& UserChat::inputSize() const
 {
 	return _inputSize;
 }
 
-void UserChat::inputSize(const D3DXVECTOR2& value)
+void UserChat::inputSize(const glm::vec2& value)
 {
 	_inputSize = value;
 }

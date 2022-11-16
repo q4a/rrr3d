@@ -51,9 +51,6 @@ BEGIN_MESSAGE_MAP(CClassView, CViewPane)
 	ON_NOTIFY(TVN_SELCHANGED, CLASS_TREE_VIEW, OnViewSelChanged)
 END_MESSAGE_MAP()
 
-
-
-
 CClassView::CClassView(): _mapDoc(0), _autoRot(false), _autoScale(false)
 {
 	m_nCurrSort = ID_SORTING_GROUPBYTYPE;
@@ -88,7 +85,7 @@ void CClassView::ReleaseItems()
 void CClassView::InsertItem(const r3d::IRecordNodeRef& node, HTREEITEM parent)
 {
 	HTREEITEM itemNode = m_wndClassView.InsertItem(StdStrToCString(node->GetName()), 2, 2, parent);
-	SetItemData(itemNode, new ItemData(node, 0));	
+	SetItemData(itemNode, new ItemData(node, 0));
 
 	r3d::IMapObjRecRef record = node->FirstRecord();
 	while (record)
@@ -134,11 +131,11 @@ void CClassView::UpdateList()
 		r3d::IRecordNodeRef node;
 		node.Assign(lib);
 		
-		InsertItem(node, 0);		
+		InsertItem(node, 0);
 	}	
 }
 
-void CClassView::SelectItem(const D3DXVECTOR3& mapObjPos)
+void CClassView::SelectItem(const glm::vec3& mapObjPos)
 {
 	r3d::IMapObjRecRef oldRec = _newMapObj ? _newMapObj->GetRecord() : 0;
 	r3d::IMapObjRecRef curRec = GetSelItemData() ? GetSelItemData()->record : 0;
@@ -159,8 +156,9 @@ void CClassView::SelectItem(const D3DXVECTOR3& mapObjPos)
 			}
 			if (_autoRot)
 			{
-				D3DXQUATERNION rot;
-				D3DXQuaternionRotationYawPitchRoll(&rot, D3DX_PI/12 * RandomRange(-1.0f, 1.0f), D3DX_PI/12 * RandomRange(-1.0f, 1.0f), D3DX_PI/12 * RandomRange(-1.0f, 1.0f));
+				glm::quat rot = glm::quat(glm::vec3(glm::pi<float>() / 12 * RandomRange(-1.0f, 1.0f),
+				                                    glm::pi<float>() / 12 * RandomRange(-1.0f, 1.0f),
+				                                    glm::pi<float>() / 12 * RandomRange(-1.0f, 1.0f)));
 				_newMapObj->SetRot(rot);
 			}
 
@@ -463,7 +461,7 @@ bool CClassView::OnMapViewMouseClickEvent(lsl::MouseKey key, lsl::KeyState state
 {
 	if (_newMapObj && key == lsl::mkLeft && state == lsl::ksDown)
 	{
-		D3DXVECTOR3 pos(0, 0, 0);
+		glm::vec3 pos(0, 0, 0);
 		if (_newMapObj)
 			pos = _newMapObj->GetPos();
 		_newMapObj = 0;

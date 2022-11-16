@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\Actor.h"
+#include "graph/Actor.h"
 #include "GraphManager.h"
 
 namespace r3d
@@ -24,7 +24,7 @@ void Actor::DoRender(graph::Engine& engine)
 {
 	engine.GetContext().SetLightShadow(_graphDesc.props.test(gpShadowApp));
 	engine.GetContext().SetTexDiffK(_texDiffK);
-	
+
 	if (_graphDesc.lighting == glNone)
 		engine.GetContext().SetRenderState(graph::rsLighting, false);
 
@@ -41,7 +41,7 @@ void Actor::Save(lsl::SWriter* writer)
 	_MyBase::Save(writer);
 
 	writer->WriteRef("graph", _graph);
-	
+
 	writer->WriteValue("graphLighting", cLightingStr[_graphDesc.lighting]);
 
 	std::stringstream stream;
@@ -134,32 +134,32 @@ void Actor::SetGraph(GraphManager* graph, const GraphDesc& desc)
 		_graph->InsertActor(this);
 }
 
-const D3DXVECTOR4& Actor::vec1() const
+const glm::vec4& Actor::vec1() const
 {
 	return _vec1;
 }
 
-void Actor::vec1(const D3DXVECTOR4& value)
+void Actor::vec1(const glm::vec4& value)
 {
 	_vec1 = value;
 }
 
-const D3DXVECTOR4& Actor::vec2() const
+const glm::vec4& Actor::vec2() const
 {
 	return _vec2;
 }
 
-void Actor::vec2(const D3DXVECTOR4& value)
+void Actor::vec2(const glm::vec4& value)
 {
 	_vec2 = value;
 }
 
-const D3DXVECTOR4& Actor::vec3() const
+const glm::vec4& Actor::vec3() const
 {
 	return _vec3;
 }
 
-void Actor::vec3(const D3DXVECTOR4& value)
+void Actor::vec3(const glm::vec4& value)
 {
 	_vec3 = value;
 }

@@ -1,12 +1,12 @@
 #include "stdafx.h"
 
-#include "graph\\SceneManager.h"
+#include "graph/SceneManager.h"
 #include "EulerAngles.h"
 #include "lslUtility.h"
 #include "r3dExceptions.h"
 #include <cassert>
 
-#include "res\\GraphResource.h"
+#include "res/GraphResource.h"
 
 namespace r3d
 {
@@ -46,7 +46,7 @@ BaseSceneNode::~BaseSceneNode()
 		_parent->GetChildren().Remove(this);
 	ClearSceneList();
 	
-	delete _proxyList;	
+	delete _proxyList;
 	delete _children;
 
 #ifdef _DEBUG
@@ -54,45 +54,45 @@ BaseSceneNode::~BaseSceneNode()
 #endif
 }
 
-void BaseSceneNode::RenderBB(graph::Engine& engine, const AABB& aabb, const D3DXCOLOR& colorBB)
+void BaseSceneNode::RenderBB(graph::Engine& engine, const AABB& aabb, const glm::vec4& colorBB)
 {
 	using res::VertexPD;
 
-	D3DCOLOR linesColor = colorBB;
+	glm::vec4 linesColor = colorBB;
 
 	engine.GetContext().SetRenderState(graph::rsLighting, false);
 
 	BoundBox box(aabb);
 
 	VertexPD lines[36];
-	lines[0] = VertexPD(box.v[0], linesColor);					
-	lines[1] = VertexPD(box.v[1], linesColor);					
-	lines[2] = VertexPD(box.v[1], linesColor);					
+	lines[0] = VertexPD(box.v[0], linesColor);
+	lines[1] = VertexPD(box.v[1], linesColor);
+	lines[2] = VertexPD(box.v[1], linesColor);
 	lines[3] = VertexPD(box.v[2], linesColor);
 						
-	lines[4] = VertexPD(box.v[2], linesColor);					
-	lines[5] = VertexPD(box.v[3], linesColor);					
-	lines[6] = VertexPD(box.v[3], linesColor);					
+	lines[4] = VertexPD(box.v[2], linesColor);
+	lines[5] = VertexPD(box.v[3], linesColor);
+	lines[6] = VertexPD(box.v[3], linesColor);
 	lines[7] = VertexPD(box.v[0], linesColor);
 
 	//near plane
 	lines[8] = VertexPD(box.v[0], linesColor);
-	lines[9] = VertexPD(box.v[4], linesColor);					
-	lines[10] = VertexPD(box.v[1], linesColor);					
+	lines[9] = VertexPD(box.v[4], linesColor);
+	lines[10] = VertexPD(box.v[1], linesColor);
 	lines[11] = VertexPD(box.v[5], linesColor);
-	lines[12] = VertexPD(box.v[2], linesColor);					
-	lines[13] = VertexPD(box.v[6], linesColor);					
-	lines[14] = VertexPD(box.v[3], linesColor);					
+	lines[12] = VertexPD(box.v[2], linesColor);
+	lines[13] = VertexPD(box.v[6], linesColor);
+	lines[14] = VertexPD(box.v[3], linesColor);
 	lines[15] = VertexPD(box.v[7], linesColor);
 
 	//far plane
 	lines[16] = VertexPD(box.v[4], linesColor);
-	lines[17] = VertexPD(box.v[5], linesColor);					
-	lines[18] = VertexPD(box.v[5], linesColor);					
+	lines[17] = VertexPD(box.v[5], linesColor);
+	lines[18] = VertexPD(box.v[5], linesColor);
 	lines[19] = VertexPD(box.v[6], linesColor);
-	lines[20] = VertexPD(box.v[6], linesColor);					
-	lines[21] = VertexPD(box.v[7], linesColor);					
-	lines[22] = VertexPD(box.v[7], linesColor);					
+	lines[20] = VertexPD(box.v[6], linesColor);
+	lines[21] = VertexPD(box.v[7], linesColor);
+	lines[22] = VertexPD(box.v[7], linesColor);
 	lines[23] = VertexPD(box.v[4], linesColor);
 
 	for (int i = 0; i < 6; ++i)
@@ -101,8 +101,6 @@ void BaseSceneNode::RenderBB(graph::Engine& engine, const AABB& aabb, const D3DX
 		lines[24 + i * 2 + 1] = VertexPD(aabb.GetPlaneVert(i, 1), linesColor);
 	}
 	
-
-
 
 	engine.GetDriver().GetDevice()->SetFVF(VertexPD::fvf);
 
@@ -120,24 +118,25 @@ void BaseSceneNode::ExtractRotation(_RotationStyle style) const
 	//Проверка, корректны ли на данный момент данные в полях
 	if (_rotInvalidate.test(style))
 	{
-		ApplyTransformationChanged();  
-		EulerAngles eulAng; 
+		ApplyTransformationChanged();
+		EulerAngles eulAng;
 		switch (style)   
 		{			
 		case rsEulerAngles:	
-			eulAng = Eul_FromHMatrix(_rotMat.m, EulOrdXYZs);				
+			eulAng = Eul_FromHMatrix(_rotMat.m, EulOrdXYZs);
 			_rollAngle = -eulAng.x;
 			_pitchAngle = -eulAng.y;
 			_turnAngle = -eulAng.z;
 			break;
 				 
-		case rsQuaternion:			
-			D3DXQuaternionRotationMatrix(&_rot, &_rotMat);
+		case rsQuaternion:
+			_rot = glm::quat_cast(Matrix4DxToGlm(_rotMat));
+			_rot = glm::quat(-_rot.w, _rot.x, _rot.y, _rot.z);
 			break;
 
 		case rsVectors:
-			_direction = D3DXVECTOR3(_rotMat.m[0]);
-			_up = D3DXVECTOR3(_rotMat.m[2]);
+			_direction = glm::vec3(_rotMat.m[0][0], _rotMat.m[0][1], _rotMat.m[0][2]);
+			_up = glm::vec3(_rotMat.m[2][0], _rotMat.m[2][1], _rotMat.m[2][2]);
 			break;
 		}
 		_rotInvalidate.reset(style);
@@ -239,17 +238,17 @@ void BaseSceneNode::BuildMatrix() const
 {	
 	//Поворот не влияет на локальное направление перемещения
 	//Растяжение не влияет на локальное перемещение, т.е. единица длины одна и таже
-	_localMat = GetScaleMat() * GetRotMat() * GetTransMat();
-	D3DXMatrixInverse(&_invLocalMat, 0, &_localMat);		
+	_localMat = MatrixMultiply(MatrixMultiply(GetScaleMat(), GetRotMat()), GetTransMat());
+	MatrixInverse(&_invLocalMat, 0, _localMat);
 }
 
 void BaseSceneNode::BuildWorldMatrix() const
 {
 	if (_parent)
 	{
-		const D3DXMATRIX& mat = _parent->GetWorldMat();		
-		D3DXMatrixMultiply(&_worldMat, &_localMat, &mat);	
-		D3DXMatrixInverse(&_invWorldMat, 0, &_worldMat);
+		const D3DMATRIX& mat = _parent->GetWorldMat();
+		_worldMat = MatrixMultiply(_localMat, mat);
+		MatrixInverse(&_invWorldMat, 0, _worldMat);
 	}
 	else
 	{
@@ -263,12 +262,12 @@ void BaseSceneNode::ApplyTransformationChanged() const
 	if (_changes.test(ocTransformation))
 	{
 		_changes.reset(ocTransformation);
-		BuildMatrix();		
-	}		
+		BuildMatrix();
+	}
 	if (_changes.test(ocWorldTransformation))
 	{
 		_changes.reset(ocWorldTransformation);
-		BuildWorldMatrix();		
+		BuildWorldMatrix();
 	}
 }
 
@@ -319,9 +318,9 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 
 	if (storeCoords)
 	{
-		writer->WriteValue("pos", GetPos(), 3);
-		writer->WriteValue("scale", GetScale(), 3);
-		writer->WriteValue("rot", GetRot(), 4);		
+		writer->WriteValue("pos", glm::value_ptr(GetPos()), 3);
+		writer->WriteValue("scale", glm::value_ptr(GetScale()), 3);
+		writer->WriteValue("rot", glm::value_ptr(GetRot()), 4);
 	}
 
 	writer->WriteValue("invertCullFace", invertCullFace);
@@ -329,7 +328,7 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 	if (!_sceneList.empty())
 	{
 		std::stringstream stream;
-		for (SceneList::iterator iter = _sceneList.begin(); iter != _sceneList.end(); ++iter)					
+		for (SceneList::iterator iter = _sceneList.begin(); iter != _sceneList.end(); ++iter)
 		{
 			if (iter != _sceneList.begin())
 				stream << " ";
@@ -342,12 +341,12 @@ void BaseSceneNode::Save(lsl::SWriter* writer)
 	writer->WriteValue("tag", _tag);
 
 	writer->WriteValue("animMode", _animMode);
-	writer->WriteValue("animDuration", animDuration);	
-	writer->WriteValue("frame", frame);	
+	writer->WriteValue("animDuration", animDuration);
+	writer->WriteValue("frame", frame);
 
-	writer->WriteValue("speedPos", speedPos, 3);
-	writer->WriteValue("speedScale", speedScale, 3);
-	writer->WriteValue("speedRot", speedRot, 4);
+	writer->WriteValue("speedPos", glm::value_ptr(speedPos), 3);
+	writer->WriteValue("speedScale", glm::value_ptr(speedScale), 3);
+	writer->WriteValue("speedRot", glm::value_ptr(speedRot), 4);
 
 	//writer->WriteValue("options", _options.to_string());
 }
@@ -360,9 +359,9 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 
 	if (storeCoords)
 	{
-		reader->ReadValue("pos", _position, 3);
-		reader->ReadValue("scale", _scale, 3);
-		reader->ReadValue("rot", _rot, 4);
+		reader->ReadValue("pos", glm::value_ptr(_position), 3);
+		reader->ReadValue("scale", glm::value_ptr(_scale), 3);
+		reader->ReadValue("rot", glm::value_ptr(_rot), 4);
 	}
 
 	reader->ReadValue("invertCullFace", invertCullFace);
@@ -387,11 +386,11 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 	animMode(AnimMode(val));
 
 	reader->ReadValue("animDuration", animDuration);
-	reader->ReadValue("frame", frame);	
+	reader->ReadValue("frame", frame);
 
-	reader->ReadValue("speedPos", speedPos, 3);
-	reader->ReadValue("speedScale", speedScale, 3);
-	reader->ReadValue("speedRot", speedRot, 4);
+	reader->ReadValue("speedPos", glm::value_ptr(speedPos), 3);
+	reader->ReadValue("speedScale", glm::value_ptr(speedScale), 3);
+	reader->ReadValue("speedRot", glm::value_ptr(speedRot), 4);
 
 	//std::string optsStr;
 	//reader->ReadValue("options", optsStr);
@@ -414,7 +413,7 @@ void BaseSceneNode::Assign(BaseSceneNode& value)
 	SetScale(value.GetScale());
 }
 
-void BaseSceneNode::Render(graph::Engine& engine, const D3DXMATRIX& worldMat)
+void BaseSceneNode::Render(graph::Engine& engine, const D3DMATRIX& worldMat)
 {
 	if (_visible)
 	{
@@ -461,20 +460,17 @@ void BaseSceneNode::OnProgress(float deltaTime)
 
 		if (autoRot)
 		{
-			D3DXVECTOR3 dir;
-			D3DXVec3Normalize(&dir, &speedPos);
-			D3DXQUATERNION rot;
+			glm::vec3 dir = glm::normalize(speedPos);
+			glm::quat rot;
 			QuatShortestArc(XVector, dir, rot);
-			SetRot(rot * speedRot);
+			SetRot(speedRot * rot);
 		}
 		else
 		{
-			D3DXVECTOR3 rotAxe;
-			float rotAngle;
-			D3DXQUATERNION rotDt;
-			D3DXQuaternionToAxisAngle(&speedRot, &rotAxe, &rotAngle);
-			D3DXQuaternionRotationAxis(&rotDt, &rotAxe, rotAngle * deltaTime);
-			SetRot(GetRot() * rotDt);
+			glm::vec3 rotAxe = glm::axis(speedRot);
+			float rotAngle = glm::angle(speedRot);
+			glm::quat rotDt = glm::angleAxis(rotAngle * deltaTime, rotAxe);
+			SetRot(rotDt * GetRot());
 		}
 
 		SetScale(GetScale() + speedScale * deltaTime);
@@ -496,109 +492,105 @@ void BaseSceneNode::StructureChanged()
 	NotifyChanged(this, 0);
 }
 
-void BaseSceneNode::MoveAroundTarget(const D3DXVECTOR3& worldTarget, float pitchDelta, float turnDelta)
+void BaseSceneNode::MoveAroundTarget(const glm::vec3& worldTarget, float pitchDelta, float turnDelta)
 {
 	// normalT2C points away from the direction the camera is looking
-	D3DXVECTOR3 originalT2C = GetWorldPos() - worldTarget;
-	D3DXVECTOR3 normalT2C = originalT2C;		
-	float dist = D3DXVec3Length(&normalT2C);
-	D3DXVec3Normalize(&normalT2C, &normalT2C);	
+	glm::vec3 originalT2C = GetWorldPos() - worldTarget;
+	glm::vec3 normalT2C = originalT2C;
+	float dist = glm::length(normalT2C);
+	normalT2C = glm::normalize(normalT2C);
 	// normalRight points to the camera's right
 	// the camera is pitching around this axis.
-	D3DXVECTOR3 normalCameraRight;
-	D3DXVECTOR3 worldUp = GetWorldUp();
-	D3DXVec3Cross(&normalCameraRight, &worldUp, &normalT2C);
-	if (D3DXVec3Length(&normalCameraRight) < 0.001f)
+	glm::vec3 worldUp = GetWorldUp();
+	glm::vec3 normalCameraRight = glm::cross(worldUp, normalT2C);
+	if (glm::length(normalCameraRight) < 0.001f)
 		normalCameraRight = XVector;
 	else
-		D3DXVec3Normalize(&normalCameraRight, &normalCameraRight);
+		normalCameraRight = glm::normalize(normalCameraRight);
 	// calculate the current pitch.
-	// 0 is looking down and PI is looking up		
-	float pitchNow = acos(D3DXVec3Dot(&worldUp, &normalT2C));		
-	pitchNow = lsl::ClampValue(pitchNow + pitchDelta, 0 + 0.025f, D3DX_PI - 0.025f);
+	// 0 is looking down and PI is looking up
+	float pitchNow = acos(glm::dot(worldUp, normalT2C));
+	pitchNow = lsl::ClampValue(pitchNow + pitchDelta, 0 + 0.025f, glm::pi<float>() - 0.025f);
 	// create a new vector pointing up and then rotate it down
 	// into the new position
-	D3DXMATRIX pitchMat;
-	D3DXMATRIX turnMat;
-
 	normalT2C = GetWorldUp();
-	D3DXMatrixRotationAxis(&pitchMat, &normalCameraRight, pitchNow);
-	D3DXMatrixRotationAxis(&turnMat, &worldUp, -turnDelta);		
-	D3DXVec3TransformNormal(&normalT2C, &normalT2C, &pitchMat);
-	D3DXVec3TransformNormal(&normalT2C, &normalT2C, &turnMat);
+	D3DMATRIX pitchMat = MatrixRotationAxis(normalCameraRight, pitchNow);
+	D3DMATRIX turnMat = MatrixRotationAxis(worldUp, -turnDelta);
+	normalT2C = Vec3TransformNormal(normalT2C, pitchMat);
+	normalT2C = Vec3TransformNormal(normalT2C, turnMat);
 	normalT2C *= dist;
-	D3DXVECTOR3 newPos = GetWorldPos() + (normalT2C - originalT2C);
+	glm::vec3 newPos = GetWorldPos() + (normalT2C - originalT2C);
 	if (_parent)
-		_parent->WorldToLocalCoord(newPos, newPos);	
-	SetPos(newPos);	
+		_parent->WorldToLocalCoord(newPos, newPos);
+	SetPos(newPos);
 }
 
-void BaseSceneNode::AdjustDistToTarget(const D3DXVECTOR3& worldTarget, float distance)
+void BaseSceneNode::AdjustDistToTarget(const glm::vec3& worldTarget, float distance)
 {
 	SetWorldPos(worldTarget + GetWorldDir() * (-distance));
 }
 
-void BaseSceneNode::WorldToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
+void BaseSceneNode::WorldToLocal(const glm::vec4& vec, glm::vec4& out) const
 {
-	const D3DXMATRIX& mat = GetInvWorldMat();
-	D3DXVec4Transform(&out, &vec, &mat);
+	const D3DMATRIX& mat = GetInvWorldMat();
+	out = Vec4Transform(vec, mat);
 }
 
-void BaseSceneNode::WorldToLocalCoord(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const
+void BaseSceneNode::WorldToLocalCoord(const glm::vec3& vec, glm::vec3& out) const
 {
-	D3DXVec3TransformCoord(&out, &vec, &GetInvWorldMat());
+	out = Vec3TransformCoord(vec, GetInvWorldMat());
 }
 
-void BaseSceneNode::WorldToLocalNorm(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const
+void BaseSceneNode::WorldToLocalNorm(const glm::vec3& vec, glm::vec3& out) const
 {
-	D3DXVec3TransformNormal(&out, &vec, &GetInvWorldMat());
+	out = Vec3TransformNormal(vec, GetInvWorldMat());
 }
 
-void BaseSceneNode::LocalToWorld(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
+void BaseSceneNode::LocalToWorld(const glm::vec4& vec, glm::vec4& out) const
 {
-	D3DXVec4Transform(&out, &vec, &GetWorldMat());
+	out = Vec4Transform(vec, GetWorldMat());
 }
 
-void BaseSceneNode::LocalToWorldCoord(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const
+void BaseSceneNode::LocalToWorldCoord(const glm::vec3& vec, glm::vec3& out) const
 {
-	D3DXVec3TransformCoord(&out, &vec, &GetWorldMat());
+	out = Vec3TransformCoord(vec, GetWorldMat());
 }
 
-void BaseSceneNode::LocalToWorldNorm(const D3DXVECTOR3& vec, D3DXVECTOR3& out) const
+void BaseSceneNode::LocalToWorldNorm(const glm::vec3& vec, glm::vec3& out) const
 {
-	D3DXVec3TransformNormal(&out, &vec, &GetWorldMat());
+	out = Vec3TransformNormal(vec, GetWorldMat());
 }
 
-void BaseSceneNode::ParentToLocal(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
+void BaseSceneNode::ParentToLocal(const glm::vec4& vec, glm::vec4& out) const
 {
-	const D3DXMATRIX& mat = GetInvMat();
-	D3DXVec4Transform(&out, &vec, &mat);
+	const D3DMATRIX& mat = GetInvMat();
+	out = Vec4Transform(vec, mat);
 }
 
-void BaseSceneNode::LocalToParent(const D3DXVECTOR4& vec, D3DXVECTOR4& out) const
+void BaseSceneNode::LocalToParent(const glm::vec4& vec, glm::vec4& out) const
 {
-	const D3DXMATRIX& mat = GetMat();
-	D3DXVec4Transform(&out, &vec, &mat);
+	const D3DMATRIX& mat = GetMat();
+	out = Vec4Transform(vec, mat);
 }
 
-unsigned BaseSceneNode::RayCastIntersBB(const D3DXVECTOR3& wRayPos, const D3DXVECTOR3& wRayVec, bool includeChild) const
+unsigned BaseSceneNode::RayCastIntersBB(const glm::vec3& wRayPos, const glm::vec3& wRayVec, bool includeChild) const
 {
-	D3DXVECTOR3 rayPos;
+	glm::vec3 rayPos;
 	WorldToLocalCoord(wRayPos, rayPos);
-	D3DXVECTOR3 rayVec;
+	glm::vec3 rayVec;
 	WorldToLocalNorm(wRayVec, rayVec);
 
 	float tNear, tFar;
 	AABB aabb = GetLocalAABB(includeChild);
 
-	return aabb.RayCastIntersect(rayPos, rayVec, tNear, tFar);	
+	return aabb.RayCastIntersect(rayPos, rayVec, tNear, tFar);
 }
 
-unsigned BaseSceneNode::RayCastIntersBB(const D3DXVECTOR3& wRayPos, const D3DXVECTOR3& wRayVec, D3DXVECTOR3& wNearVec, D3DXVECTOR3& wFarVec, bool includeChild) const
+unsigned BaseSceneNode::RayCastIntersBB(const glm::vec3& wRayPos, const glm::vec3& wRayVec, glm::vec3& wNearVec, glm::vec3& wFarVec, bool includeChild) const
 {
-	D3DXVECTOR3 rayPos;
+	glm::vec3 rayPos;
 	WorldToLocalCoord(wRayPos, rayPos);
-	D3DXVECTOR3 rayVec;
+	glm::vec3 rayVec;
 	WorldToLocalNorm(wRayVec, rayVec);
 
 	AABB aabb = GetLocalAABB(includeChild);
@@ -718,23 +710,23 @@ void BaseSceneNode::SetVisible(bool value)
 	//NotifyChanged(this, 0);
 }
 
-const D3DXVECTOR3& BaseSceneNode::GetPos() const
+const glm::vec3& BaseSceneNode::GetPos() const
 {
 	return _position;
 }
 
-void BaseSceneNode::SetPos(const D3DXVECTOR3& value)
+void BaseSceneNode::SetPos(const glm::vec3& value)
 {
 	_position = value;
 	TransformationChanged();
 }
 
-const D3DXVECTOR3& BaseSceneNode::GetScale() const
+const glm::vec3& BaseSceneNode::GetScale() const
 {
 	return _scale;
 }
 
-void BaseSceneNode::SetScale(const D3DXVECTOR3& value)
+void BaseSceneNode::SetScale(const glm::vec3& value)
 {
 	_scale = value;
 	TransformationChanged();
@@ -742,90 +734,89 @@ void BaseSceneNode::SetScale(const D3DXVECTOR3& value)
 
 void BaseSceneNode::SetScale(float value)
 {
-	SetScale(D3DXVECTOR3(value, value, value));
+	SetScale(glm::vec3(value, value, value));
 }
 
-const D3DXVECTOR3& BaseSceneNode::GetDir() const
+const glm::vec3& BaseSceneNode::GetDir() const
 {
 	ExtractRotation(rsVectors);
 	return _direction;
 }
 
-void BaseSceneNode::SetDir(const D3DXVECTOR3& value)
+void BaseSceneNode::SetDir(const glm::vec3& value)
 {
 	ExtractRotation(rsVectors);
 
-	if (D3DXVec3Length(&value) == 0)
+	if (glm::length(value) == 0)
 		_direction = XVector;
 	else
-		D3DXVec3Normalize(&_direction, &value);
+		_direction = glm::normalize(value);
 
-	D3DXVECTOR3 right = GetRight();
-	if (D3DXVec3Length(&right) < floatErrComp)	
+	glm::vec3 right = GetRight();
+	if (glm::length(right) < floatErrComp)
 	{
-		D3DXVec3Cross(&right, &ZVector, &_up);
-		if (D3DXVec3Length(&right) < floatErrComp)
-			D3DXVec3Cross(&right, &XVector, &_up);
+		right = glm::cross(ZVector, _up);
+		if (glm::length(right) < floatErrComp)
+			right = glm::cross(XVector, _up);
 	}
-	D3DXVec3Normalize(&right, &right);
-	D3DXVec3Cross(&_up, &_direction, &right);
+	right = glm::normalize(right);
+	_up = glm::cross(_direction, right);
 
 	ChangedRotation(rsVectors);
 }
 
-D3DXVECTOR3 BaseSceneNode::GetRight() const
+glm::vec3 BaseSceneNode::GetRight() const
 {
 	ExtractRotation(rsVectors);
-	D3DXVECTOR3 tmp;		
-	D3DXVec3Cross(&tmp, &_up, &_direction);
+	glm::vec3 tmp = glm::cross(_up, _direction);
 	return tmp;
 }
 
-void BaseSceneNode::SetRight(const D3DXVECTOR3& value)
+void BaseSceneNode::SetRight(const glm::vec3& value)
 {
 	ExtractRotation(rsVectors);
 
-	D3DXVECTOR3 right;
-	if (D3DXVec3Length(&value) == 0)
+	glm::vec3 right;
+	if (glm::length(value) == 0)
 		right = YVector;
 	else
-		D3DXVec3Normalize(&right, &value);
+		right = glm::normalize(value);
 
-	D3DXVec3Cross(&_up, &right, &_direction);
-	if (D3DXVec3Length(&_up) < floatErrComp)
+	_up = glm::cross(right, _direction);
+	if (glm::length(_up) < floatErrComp)
 	{
-		D3DXVec3Cross(&_up, &_direction, &XVector);
-		if (D3DXVec3Length(&_up) < floatErrComp)
-			D3DXVec3Cross(&_up, &_direction, &YVector);
+		_up = glm::cross(_direction, XVector);
+		if (glm::length(_up) < floatErrComp)
+			_up = glm::cross(_direction, YVector);
 	}
-	D3DXVec3Normalize(&_up, &_up);
-	D3DXVec3Cross(&_direction, &_up, &right);
+	_up = glm::normalize(_up);
+	_direction = glm::cross(_up, right);
 
 	ChangedRotation(rsVectors);
 }
 
-const D3DXVECTOR3& BaseSceneNode::GetUp() const
+const glm::vec3& BaseSceneNode::GetUp() const
 {	
 	ExtractRotation(rsVectors);
 	return _up;
 }
 
-void BaseSceneNode::SetUp(const D3DXVECTOR3& value)
+void BaseSceneNode::SetUp(const glm::vec3& value)
 {
 	ExtractRotation(rsVectors);
 
-	if (D3DXVec3Length(&value) == 0)
-		_up = ZVector;		
-	D3DXVec3Normalize(&_up, &value);
-	D3DXVECTOR3 right = GetRight();
-	if (D3DXVec3Length(&right) < floatErrComp)	
+	if (glm::length(value) == 0)
+		_up = ZVector;
+	_up = glm::normalize(value);
+	glm::vec3 right = GetRight();
+	if (glm::length(right) < floatErrComp)
 	{
-		D3DXVec3Cross(&right, &ZVector, &_up);
-		if (D3DXVec3Length(&right) < floatErrComp)
-			D3DXVec3Cross(&right, &XVector, &_up);
+		right = glm::cross(ZVector, _up);
+		if (glm::length(right) < floatErrComp)
+			right = glm::cross(XVector, _up);
 	}
-	D3DXVec3Normalize(&right, &right);
-	D3DXVec3Cross(&_direction, &right, &_up);
+	right = glm::normalize(right);
+	_direction = glm::cross(right, _up);
 
 	ChangedRotation(rsVectors);
 }
@@ -845,7 +836,7 @@ void BaseSceneNode::SetRollAngle(float value)
 
 float BaseSceneNode::GetPitchAngle() const
 {
-	ExtractRotation(rsEulerAngles);	
+	ExtractRotation(rsEulerAngles);
 	return _pitchAngle;
 }
 
@@ -858,7 +849,7 @@ void BaseSceneNode::SetPitchAngle(float value)
 
 float BaseSceneNode::GetTurnAngle() const
 {
-	ExtractRotation(rsEulerAngles);	
+	ExtractRotation(rsEulerAngles);
 	return _turnAngle;
 }
 
@@ -869,39 +860,37 @@ void BaseSceneNode::SetTurnAngle(float value)
 	ChangedRotation(rsEulerAngles);
 }
 
-const D3DXQUATERNION& BaseSceneNode::GetRot() const
+const glm::quat& BaseSceneNode::GetRot() const
 {
 	ExtractRotation(rsQuaternion);
 	return _rot;
 }
 
-void BaseSceneNode::SetRot(const D3DXQUATERNION& value)
+void BaseSceneNode::SetRot(const glm::quat& value)
 {
 	_rot = value;
 	ChangedRotation(rsQuaternion);
 }
 
-D3DXMATRIX BaseSceneNode::GetScaleMat() const
+D3DMATRIX BaseSceneNode::GetScaleMat() const
 {
-	D3DXVECTOR3 vec = _scale;
+	glm::vec3 vec = _scale;
 	//Если масштабирование слишком мало, то матрица может оказаться вырожденной. Поэтому подменяем на вектор самой допустимо малой длины
-	//if (D3DXVec3Length(&vec) < 0.0001f)
+	//if (glm::length(vec) < 0.0001f)
 	//	vec = IdentityVector * 0.0005f;
 
-
-	D3DXMATRIX scaleMat;
-	D3DXMatrixScaling(&scaleMat, vec.x, vec.y, vec.z);
+	D3DMATRIX scaleMat = MatrixScaling(vec.x, vec.y, vec.z);
 	return scaleMat;
 }
 
-D3DXMATRIX BaseSceneNode::GetRotMat() const
+D3DMATRIX BaseSceneNode::GetRotMat() const
 {
 	if (!_rotChanged)
 		return _rotMat;
 
 	if (!_rotInvalidate.test(rsVectors))
 	{
-		D3DXVECTOR3 right = GetRight();
+		glm::vec3 right = GetRight();
 		_rotMat._11 = _direction.x;
 		_rotMat._12 = _direction.y;
 		_rotMat._13 = _direction.z;
@@ -920,79 +909,85 @@ D3DXMATRIX BaseSceneNode::GetRotMat() const
 		_rotMat._44 = 1.0f;
 	}
 	else
+	{
 		if (!_rotInvalidate.test(rsQuaternion))
-			D3DXMatrixRotationQuaternion(&_rotMat, &_rot);
+		{
+			_rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(_rot)));
+		}
 		else
+		{
 			if (!_rotInvalidate.test(rsEulerAngles))
-			{				
+			{
 				EulerAngles eulAng = Eul_(-_rollAngle, -_pitchAngle, -_turnAngle, EulOrdXYZs);
 				Eul_ToHMatrix(eulAng, _rotMat.m);
 				//D3DXMatrixRotationYawPitchRoll(&_rotMat, _pitchAngle, _rollAngle, _turnAngle);
 			}
 			else
-				D3DXMatrixIdentity(&_rotMat);
+			{
+				_rotMat = IdentityMatrix;
+			}
+		}
+	}
 	
 	_rotChanged = false;
 	return _rotMat;
 }
 
-D3DXMATRIX BaseSceneNode::GetTransMat() const
+D3DMATRIX BaseSceneNode::GetTransMat() const
 {
-	D3DXMATRIX transMat;
-	D3DXMatrixTranslation(&transMat, _position.x, _position.y, _position.z);
-	return transMat;	
+	return MatrixTranslation(_position.x, _position.y, _position.z);
 }
 
-const D3DXMATRIX& BaseSceneNode::GetMat() const
+const D3DMATRIX& BaseSceneNode::GetMat() const
 {
 	ApplyTransformationChanged();
 	return _localMat;
 }
 
-void BaseSceneNode::SetLocalMat(const D3DXMATRIX& value)
+void BaseSceneNode::SetLocalMat(const D3DMATRIX& value)
 {
-	_direction = value.m[0];
-	D3DXVECTOR3 right = value.m[1];
-	_up = value.m[2];	
-	_position = value.m[3];
+	_direction = glm::vec3(value.m[0][0], value.m[0][1], value.m[0][2]);
+	glm::vec3 right = glm::vec3(value.m[1][0], value.m[1][1], value.m[1][2]);
+	_up = glm::vec3(value.m[2][0], value.m[2][1], value.m[2][2]);
+	_position = glm::vec3(value.m[3][0], value.m[3][1], value.m[3][2]);
 
-	D3DXVec3Normalize(&_direction, &_direction);
-	D3DXVec3Normalize(&_up, &_up);
+	_direction = glm::normalize(_direction);
+	_up = glm::normalize(_up);
 
 	ChangedRotation(rsVectors);
 	TransformationChanged();
 }
 
-const D3DXMATRIX& BaseSceneNode::GetInvMat() const
+const D3DMATRIX& BaseSceneNode::GetInvMat() const
 {
-	ApplyTransformationChanged();		
+	ApplyTransformationChanged();
 	return _invLocalMat;
 }
 
-const D3DXMATRIX& BaseSceneNode::GetWorldMat() const
+const D3DMATRIX& BaseSceneNode::GetWorldMat() const
 {
 	ApplyTransformationChanged();
 	return _worldMat;
 }
 
-const D3DXMATRIX& BaseSceneNode::GetInvWorldMat() const
+const D3DMATRIX& BaseSceneNode::GetInvWorldMat() const
 {
-	ApplyTransformationChanged();		
+	ApplyTransformationChanged();
 	return _invWorldMat;
 }
 
-D3DXMATRIX BaseSceneNode::GetCombMat(CombMatType type) const
+D3DMATRIX BaseSceneNode::GetCombMat(CombMatType type) const
 {
 	switch (type)
 	{
 	case cmtScaleTrans:
-		return GetScaleMat() * GetTransMat();
+		return MatrixMultiply(GetScaleMat(), GetTransMat());
 		
 	case cmtScaleRot:
-		return GetScaleMat() * GetTransMat();
+		return MatrixMultiply(GetScaleMat(), GetTransMat());
 		
 	case cmtRotTrans:
-		return GetRotMat() * GetTransMat();
+		return MatrixMultiply(GetRotMat(), GetTransMat());
 
 	default:
 		LSL_ASSERT(false);
@@ -1000,43 +995,35 @@ D3DXMATRIX BaseSceneNode::GetCombMat(CombMatType type) const
 	}
 }
 
-D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
+D3DMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 {
 	switch (type)
 	{
 	case cmtScaleTrans:
 	{
-		D3DXVECTOR3 vec;
+		D3DMATRIX scaleMat = GetWorldScale();
+		glm::vec3 vec = GetWorldPos();
+		D3DMATRIX transMat = MatrixTranslation(vec.x, vec.y, vec.z);
 
-		D3DXMATRIX scaleMat = GetWorldScale();
-		
-		D3DXMATRIX transMat;
-		vec = GetWorldPos();
-		D3DXMatrixTranslation(&transMat, vec.x, vec.y, vec.z);
-
-		return scaleMat * transMat;
+		return MatrixMultiply(scaleMat, transMat);
 	}
 		
 	case cmtScaleRot:
 	{
-		D3DXMATRIX scaleMat = GetWorldScale();
+		D3DMATRIX scaleMat = GetWorldScale();
 
-		D3DXMATRIX rotMat;
-		D3DXMatrixRotationQuaternion(&rotMat, &GetWorldRot());
+		D3DMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
 
-		return scaleMat * rotMat;
+		return MatrixMultiply(scaleMat, rotMat);
 	}
 
 	case cmtRotTrans:
 	{
-		D3DXMATRIX rotMat;
-		D3DXMatrixRotationQuaternion(&rotMat, &GetWorldRot());
+		D3DMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(GetWorldRot())));
+		glm::vec3 pos = GetWorldPos();
+		D3DMATRIX transMat = MatrixTranslation(pos.x, pos.y, pos.z);
 
-		D3DXMATRIX transMat;
-		D3DXVECTOR3 pos = GetWorldPos();
-		D3DXMatrixTranslation(&transMat, pos.x, pos.y, pos.z);
-
-		return rotMat * transMat;
+		return MatrixMultiply(rotMat, transMat);
 	}
 
 	default:
@@ -1045,16 +1032,17 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 	}
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldPos() const
+glm::vec3 BaseSceneNode::GetWorldPos() const
 {
-	return GetWorldMat().m[3];
+	D3DMATRIX tMat = GetWorldMat();
+	return glm::vec3(tMat.m[3][0], tMat.m[3][1], tMat.m[3][2]);
 }
 
-void BaseSceneNode::SetWorldPos(const D3DXVECTOR3& value)
+void BaseSceneNode::SetWorldPos(const glm::vec3& value)
 {
 	if (_parent)
 	{
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		_parent->WorldToLocalCoord(value, pos);
 		SetPos(pos);
 	}
@@ -1062,35 +1050,34 @@ void BaseSceneNode::SetWorldPos(const D3DXVECTOR3& value)
 		SetPos(value);
 }
 
-D3DXQUATERNION BaseSceneNode::GetWorldRot() const
+glm::quat BaseSceneNode::GetWorldRot() const
 {
-	D3DXQUATERNION res = GetRot();
+	glm::quat res = GetRot();
 	const BaseSceneNode* curObj = this;
 	while (curObj = curObj->GetParent())
-		res *= curObj->GetRot();
+		res = curObj->GetRot() * res;
 	return res;
 }
 
-void BaseSceneNode::SetWorldRot(const D3DXQUATERNION& value)
+void BaseSceneNode::SetWorldRot(const glm::quat& value)
 {
 	if (_parent)
-		return SetRot(value * _parent->GetWorldRot());
+		return SetRot(_parent->GetWorldRot() * value);
 	else
 		return SetRot(value);
 }
 
-D3DXMATRIX BaseSceneNode::GetWorldScale() const
+D3DMATRIX BaseSceneNode::GetWorldScale() const
 {
-	D3DXMATRIX res = IdentityMatrix;
-	D3DXMatrixMultiply(&res, &res, &GetInvWorldMat());	
+	D3DMATRIX res = MatrixMultiply(IdentityMatrix, GetInvWorldMat());
 
 	const BaseSceneNode* node = this;
 	do
 	{
 		//Применяем опреацию масштабирования
-		D3DXMatrixMultiply(&res, &res, &node->GetScaleMat());
+		res = MatrixMultiply(res, node->GetScaleMat());
 		//Переводим на уровень трансформации пониже
-		D3DXMatrixMultiply(&res, &res, &node->GetMat());		
+		res = MatrixMultiply(res, node->GetMat());
 
 		node = node->GetParent();
 			
@@ -1104,30 +1091,32 @@ D3DXMATRIX BaseSceneNode::GetWorldScale() const
 	return res;
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldDir() const
+glm::vec3 BaseSceneNode::GetWorldDir() const
 {
-	D3DXVECTOR3 res;
-	D3DXVec3Normalize(&res, &D3DXVECTOR3(GetWorldMat().m[0]));
+	D3DMATRIX tMat = GetWorldMat();
+	glm::vec3 res = glm::normalize(glm::vec3(tMat.m[0][0], tMat.m[0][1], tMat.m[0][2]));
 	return res;
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldRight() const
+glm::vec3 BaseSceneNode::GetWorldRight() const
 {
-	return GetWorldMat().m[1];
+	D3DMATRIX tMat = GetWorldMat();
+	return glm::vec3(tMat.m[1][0], tMat.m[1][1], tMat.m[1][2]);
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldUp() const
+glm::vec3 BaseSceneNode::GetWorldUp() const
 {
-	return GetWorldMat().m[2];
+	D3DMATRIX tMat = GetWorldMat();
+	return glm::vec3(tMat.m[2][0], tMat.m[2][1], tMat.m[2][2]);
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldSizes(bool includeChild) const
+glm::vec3 BaseSceneNode::GetWorldSizes(bool includeChild) const
 {
 	const AABB& aabb = GetWorldAABB(includeChild);
 	return (aabb.max - aabb.min);
 }
 
-D3DXVECTOR3 BaseSceneNode::GetWorldCenterPos(bool includeChild) const
+glm::vec3 BaseSceneNode::GetWorldCenterPos(bool includeChild) const
 {
 	const AABB& aabb = GetWorldAABB(includeChild);
 	return (aabb.min + aabb.max) / 2.0f;
@@ -1135,7 +1124,7 @@ D3DXVECTOR3 BaseSceneNode::GetWorldCenterPos(bool includeChild) const
 
 bool AABBAreEqual(const AABB& bb1, const AABB& bb2)
 {
-	return D3DXVec3Length(&(bb1.min - bb2.min)) < floatErrComp && D3DXVec3Length(&(bb1.max - bb2.max)) < floatErrComp;
+	return glm::length(bb1.min - bb2.min) < floatErrComp && glm::length(bb1.max - bb2.max) < floatErrComp;
 }
 
 const AABB& BaseSceneNode::GetLocalAABB(bool includeChild) const
@@ -1143,7 +1132,7 @@ const AABB& BaseSceneNode::GetLocalAABB(bool includeChild) const
 	if (_bbChanges.test(bbcStructure) || IsBBDyn())
 	{		
 		_aabbLocal = LocalDimensions();
-		_bbChanges.reset(bbcStructure);		
+		_bbChanges.reset(bbcStructure);
 	}
 	
 	if (includeChild)
@@ -1259,7 +1248,7 @@ float BaseSceneNode::GetFrame(float time) const
 		return std::min(frame, 1.0f);
 
 	case amRepeat:
-		return frame - static_cast<int>(frame);		
+		return frame - static_cast<int>(frame);
 
 	case amTile:
 		return frame;
@@ -1309,58 +1298,52 @@ void BaseSceneNode::animMode(BaseSceneNode::AnimMode value)
 	}
 }
 
-
-
-
 void SceneDummy::DoRender(graph::Engine& engine)
 {
 	//Nothing
 }
 
-
-
-
 Camera::Camera(): _changedCI(true)
 {	
 }
 
-void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj, const D3DXCOLOR& colorBB)
+void Camera::RenderFrustum(graph::Engine& engine, const D3DMATRIX& invViewProj, const glm::vec4& colorBB)
 {
 	using res::VertexPD;
 
 	Frustum::Corners frustumV;
 	Frustum::CalculateCorners(frustumV, invViewProj);
-	D3DCOLOR linesColor = colorBB;
+	glm::vec4 linesColor = colorBB;
 
 	VertexPD lines[24];
-	lines[0] = VertexPD(frustumV[0], linesColor);					
-	lines[1] = VertexPD(frustumV[1], linesColor);					
-	lines[2] = VertexPD(frustumV[2], linesColor);					
+	lines[0] = VertexPD(frustumV[0], linesColor);
+	lines[1] = VertexPD(frustumV[1], linesColor);
+	lines[2] = VertexPD(frustumV[2], linesColor);
 	lines[3] = VertexPD(frustumV[3], linesColor);
 						
-	lines[4] = VertexPD(frustumV[4], linesColor);					
-	lines[5] = VertexPD(frustumV[5], linesColor);					
-	lines[6] = VertexPD(frustumV[6], linesColor);					
+	lines[4] = VertexPD(frustumV[4], linesColor);
+	lines[5] = VertexPD(frustumV[5], linesColor);
+	lines[6] = VertexPD(frustumV[6], linesColor);
 	lines[7] = VertexPD(frustumV[7], linesColor);
 
 	//near plane
 	lines[8] = VertexPD(frustumV[1], linesColor);
-	lines[9] = VertexPD(frustumV[3], linesColor);					
-	lines[10] = VertexPD(frustumV[3], linesColor);					
+	lines[9] = VertexPD(frustumV[3], linesColor);
+	lines[10] = VertexPD(frustumV[3], linesColor);
 	lines[11] = VertexPD(frustumV[7], linesColor);
-	lines[12] = VertexPD(frustumV[7], linesColor);					
-	lines[13] = VertexPD(frustumV[5], linesColor);					
-	lines[14] = VertexPD(frustumV[5], linesColor);					
+	lines[12] = VertexPD(frustumV[7], linesColor);
+	lines[13] = VertexPD(frustumV[5], linesColor);
+	lines[14] = VertexPD(frustumV[5], linesColor);
 	lines[15] = VertexPD(frustumV[1], linesColor);
 
 	//far plane
 	lines[16] = VertexPD(frustumV[0], linesColor);
-	lines[17] = VertexPD(frustumV[2], linesColor);					
-	lines[18] = VertexPD(frustumV[2], linesColor);					
+	lines[17] = VertexPD(frustumV[2], linesColor);
+	lines[18] = VertexPD(frustumV[2], linesColor);
 	lines[19] = VertexPD(frustumV[6], linesColor);
-	lines[20] = VertexPD(frustumV[6], linesColor);					
-	lines[21] = VertexPD(frustumV[4], linesColor);					
-	lines[22] = VertexPD(frustumV[4], linesColor);					
+	lines[20] = VertexPD(frustumV[6], linesColor);
+	lines[21] = VertexPD(frustumV[4], linesColor);
+	lines[22] = VertexPD(frustumV[4], linesColor);
 	lines[23] = VertexPD(frustumV[0], linesColor);
 
 	engine.GetContext().SetWorldMat(IdentityMatrix);
@@ -1368,9 +1351,9 @@ void Camera::RenderFrustum(graph::Engine& engine, const D3DXMATRIX& invViewProj,
 	engine.GetContext().SetRenderState(graph::rsLighting, false);
 	engine.GetDriver().GetDevice()->SetFVF(VertexPD::fvf);
 
-	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 12, lines, sizeof(VertexPD));	
+	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 12, lines, sizeof(VertexPD));
 	
-	engine.GetContext().RestoreRenderState(graph::rsDiffuseMaterialSource);					
+	engine.GetContext().RestoreRenderState(graph::rsDiffuseMaterialSource);
 	engine.GetContext().RestoreRenderState(graph::rsLighting);
 }
 
@@ -1421,7 +1404,7 @@ void Camera::AdjustNearFarPlane(const AABB& aabb, float nearDist, float farDist)
 {
 	BuildContextInfo();
 
-	_contextInfo.AdjustNearFarPlane(aabb, nearDist, farDist);	
+	_contextInfo.AdjustNearFarPlane(aabb, nearDist, farDist);
 	_desc.nearDist = _contextInfo.GetDesc().nearDist;
 	_desc.farDist = _contextInfo.GetDesc().farDist;
 
@@ -1519,9 +1502,6 @@ void Camera::SetStyle(CameraStyle value)
 	}
 }
 
-
-
-
 LightSource::LightSource(): _changedCI(true)
 {	
 }
@@ -1589,34 +1569,34 @@ const graph::LightCI& LightSource::GetContextInfo() const
 	return _contextInfo;
 }
 
-const D3DXCOLOR& LightSource::GetAmbient() const
+const glm::vec4& LightSource::GetAmbient() const
 {
 	return _desc.ambient;
 }
 
-void LightSource::SetAmbient(const D3DXCOLOR& value)
+void LightSource::SetAmbient(const glm::vec4& value)
 {
 	_desc.ambient = value;
 	ChangedCI();
 }
 
-const D3DXCOLOR& LightSource::GetDiffuse() const
+const glm::vec4& LightSource::GetDiffuse() const
 {
 	return _desc.diffuse;
 }
 
-void LightSource::SetDiffuse(const D3DXCOLOR& value)
+void LightSource::SetDiffuse(const glm::vec4& value)
 {
 	_desc.diffuse = value;
 	ChangedCI();
 }
 
-const D3DXCOLOR& LightSource::GetSpecular() const
+const glm::vec4& LightSource::GetSpecular() const
 {
 	return _desc.specular;
 }
 
-void LightSource::SetSpecular(const D3DXCOLOR& value)
+void LightSource::SetSpecular(const glm::vec4& value)
 {
 	_desc.specular = value;
 	ChangedCI();
@@ -1701,9 +1681,6 @@ void LightSource::SetShadowMap(graph::Tex2DResource* value)
 	}
 }
 
-
-
-
 SceneManager::SceneManager(): _sceneRender(0)
 {	
 }
@@ -1760,9 +1737,6 @@ void SceneManager::SetSceneRender(SceneRender* value)
 			value->InsertScene(this);
 	}
 }
-
-
-
 
 SceneRender::~SceneRender()
 {

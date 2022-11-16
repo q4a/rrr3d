@@ -38,13 +38,13 @@ private:
 	unsigned _syncStatePriority;
 protected:
 	NETLIB_API virtual void OnDescWrite(const NetMessage& msg, std::ostream& stream) {}
-	NETLIB_API virtual void OnStateRead(const NetMessage& msg, const NetCmdHeader& header, std::istream& stream) {}		
+	NETLIB_API virtual void OnStateRead(const NetMessage& msg, const NetCmdHeader& header, std::istream& stream) {}
 	NETLIB_API virtual void OnStateWrite(const NetMessage& msg, std::ostream& stream) {}
 
 	NETLIB_API std::ostream& NewRPC(unsigned target, unsigned rpc);
 	NETLIB_API void CloseRPC();
 	NETLIB_API virtual void CallRPC(const NetMessage& msg, const NetCmdHeader& header, std::istream& stream) = 0;
-	
+
 	NETLIB_API virtual void OnSerialize(const NetMessage& msg, BitStream& stream) {}
 public:
 	NETLIB_API NetModel(const Desc& desc);
@@ -52,10 +52,10 @@ public:
 
 	NETLIB_API void ProcessCmd(const NetMessage& msg, const NetCmdHeader& header, std::istream& stream);
 	NETLIB_API void Serialize(const NetMessage& msg, BitStream& stream);
-	
+
 	NETLIB_API void DescWrite(const NetMessage& msg, std::ostream& stream);
 	NETLIB_API void StateRead(const NetMessage& msg, const NetCmdHeader& header, std::istream& stream);
-	NETLIB_API void StateWrite(const NetMessage& msg, std::ostream& stream);	
+	NETLIB_API void StateWrite(const NetMessage& msg, std::ostream& stream);
 
 	NETLIB_API void Sync(unsigned target);
 	NETLIB_API void Sync();
@@ -97,9 +97,6 @@ protected:
 	virtual void CallRPC(const NetMessage& msg, const NetCmdHeader& header, std::istream& stream);
 };
 
-
-
-
 template<class _Class> NetModelRPC<_Class>::NetModelRPC(const Desc& desc): NetModel(desc), _rpcCount(0)
 {
 }
@@ -138,6 +135,5 @@ template<class _Class> void NetModelRPC<_Class>::CallRPC(const NetMessage& msg, 
 	if (method)
 		((_Class*)this->*method)(msg, header, stream);
 }
-
 
 }

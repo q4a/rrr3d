@@ -35,7 +35,7 @@ protected:
 	virtual _Item* CreateItem(const _IdType& key);
 	virtual void DestroyItem(_Item* value);
 
-	virtual void LoadItem(SReader* reader);	
+	virtual void LoadItem(SReader* reader);
 public:
 	virtual ~Collection();
 
@@ -54,7 +54,7 @@ protected:
 	virtual _Item* CreateItem();
 	virtual void DestroyItem(_Item* value);
 
-	virtual void LoadItem(SReader* reader);	
+	virtual void LoadItem(SReader* reader);
 public:
 	virtual ~Collection();
 
@@ -86,24 +86,21 @@ protected:
 	virtual _Item* CreateItem();
 	virtual void DestroyItem(_Item* value);
 
-	virtual void LoadItem(SReader* reader);	
+	virtual void LoadItem(SReader* reader);
 public:
 	virtual ~Collection();
 
 	_Item& Add();
 };
 
-
-
-
 template<class _Item, class _IdType, class _Arg> Collection<_Item, _IdType, _Arg, void>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item, class _IdType, class _Arg> _Item* Collection<_Item, _IdType, _Arg, void>::CreateItem(const _IdType& key, const _Arg& arg)
 {
-	return GetClassList()->CreateInst(key, arg);
+	return this->GetClassList()->CreateInst(key, arg);
 }
 
 template<class _Item, class _IdType, class _Arg> void Collection<_Item, _IdType, _Arg, void>::DestroyItem(_Item* value)
@@ -113,7 +110,7 @@ template<class _Item, class _IdType, class _Arg> void Collection<_Item, _IdType,
 
 template<class _Item, class _IdType, class _Arg> void Collection<_Item, _IdType, _Arg, void>::LoadItemFrom(SReader* reader, const _Arg& arg)
 {
-	ReadItem(reader, &Add(LoadType(reader), arg));
+	ReadItem(reader, &Add(this->LoadType(reader), arg));
 }
 
 template<class _Item, class _IdType, class _Arg> _Item& Collection<_Item, _IdType, _Arg, void>::Add(_IdType key, const _Arg& arg)
@@ -123,24 +120,21 @@ template<class _Item, class _IdType, class _Arg> _Item& Collection<_Item, _IdTyp
 
 template<class _Item, class _IdType, class _Arg> template<class _Type> _Type& Collection<_Item, _IdType, _Arg, void>::Add(const _Arg& arg)
 {
-	ClassList::MyClassInst* classInst = GetClassList()->FindByClass<_Type>();
+	auto classInst = this->GetClassList()->template FindByClass<_Type>();
 	if (!classInst)
 		throw lsl::Error("_Type& Collection::Add()");
 
 	return lsl::StaticCast<_Type&>(Add(classInst->GetKey(), arg));
 }
 
-
-
-
 template<class _Item, class _IdType> Collection<_Item, _IdType, void, void>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item, class _IdType> _Item* Collection<_Item, _IdType, void, void>::CreateItem(const _IdType& key)
 {
-	return GetClassList()->CreateInst(key);
+	return this->GetClassList()->CreateInst(key);
 }
 
 template<class _Item, class _IdType> void Collection<_Item, _IdType, void, void>::DestroyItem(_Item* value)
@@ -150,7 +144,7 @@ template<class _Item, class _IdType> void Collection<_Item, _IdType, void, void>
 
 template<class _Item, class _IdType> void Collection<_Item, _IdType, void, void>::LoadItem(SReader* reader)
 {
-	ReadItem(reader, &Add(LoadType(reader)));
+	ReadItem(reader, &Add(this->LoadType(reader)));
 }
 
 template<class _Item, class _IdType> _Item& Collection<_Item, _IdType, void, void>::Add(_IdType key)
@@ -160,25 +154,21 @@ template<class _Item, class _IdType> _Item& Collection<_Item, _IdType, void, voi
 
 template<class _Item, class _IdType> template<class _Type> _Type& Collection<_Item, _IdType, void, void>::Add()
 {
-	ClassList::MyClassInst* classInst = GetClassList()->FindByClass<_Type>();
+	auto classInst = this->GetClassList()->template FindByClass<_Type>();
 	if (!classInst)
 		throw lsl::Error("_Type& Collection::Add()");
 
 	return lsl::StaticCast<_Type&>(Add(classInst->GetKey()));
 }
 
-
-
-
-
 template<class _Item, class _Arg, class _ArgThis> Collection<_Item, void, _Arg, _ArgThis>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item, class _Arg, class _ArgThis> _Item* Collection<_Item, void, _Arg, _ArgThis>::CreateItem()
 {
-	return new _Item(static_cast<_ArgThis>(this)); 
+	return new _Item(static_cast<_ArgThis>(this));
 }
 
 template<class _Item, class _Arg, class _ArgThis> void Collection<_Item, void, _Arg, _ArgThis>::DestroyItem(_Item* value)
@@ -196,12 +186,9 @@ template<class _Item, class _Arg, class _ArgThis> _Item& Collection<_Item, void,
 	return _MyBase::Add(CreateItem());
 }
 
-
-
-
 template<class _Item, class _Arg> Collection<_Item, void, _Arg, void>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item, class _Arg> _Item* Collection<_Item, void, _Arg, void>::CreateItem(const _Arg& arg)
@@ -224,12 +211,9 @@ template<class _Item, class _Arg> _Item& Collection<_Item, void, _Arg, void>::Ad
 	return _MyBase::Add(CreateItem(arg));
 }
 
-
-
-
 template<class _Item> Collection<_Item, void, void, void>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item> _Item* Collection<_Item, void, void, void>::CreateItem()

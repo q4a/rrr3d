@@ -1,9 +1,9 @@
 #include "stdafx.h"
 
-#include "net\NetChannel.h"
-#include "net\NetService.h"
+#include "net/NetChannel.h"
+#include "net/NetService.h"
 
-#include "net\NetConnectionTCP.h"
+#include "net/NetConnectionTCP.h"
 
 namespace net
 {
@@ -73,7 +73,7 @@ void NetChannel::DataWrite()
 		}
 
 		unsigned headerSize = NetStateHeader::SizeOf();
-		unsigned offset = 0;		
+		unsigned offset = 0;
 
 		for (OutputMap::const_iterator iter = outputMap.begin(); iter != outputMap.end(); ++iter)
 		{
@@ -153,7 +153,7 @@ bool NetChannel::DataReceive(bool fromOutput, bool (NetChannel::*handler)(unsign
 	{
 		unsigned numBytes;
 		bool success = _impl->Receive(buffer_cast<void*>(_inputData.prepare(avSize)), avSize, numBytes, _remoteEndpoint, fromOutput);
-		
+
 		bool handleSuccess = (this->*handler)(numBytes, success);
 
 		if (success && !handleSuccess)
@@ -177,8 +177,8 @@ bool NetChannel::OnReceive(unsigned numBytes, bool success)
 		return false;
 	}
 
-	_bytesReceived += numBytes;	
-	unsigned headerSize = NetStateHeader::SizeOf();	
+	_bytesReceived += numBytes;
+	unsigned headerSize = NetStateHeader::SizeOf();
 
 	while (numBytes >= headerSize)
 	{
@@ -312,7 +312,7 @@ void NetChannel::StopReceiveResponseOut()
 }
 
 void NetChannel::Process(unsigned time)
-{	
+{
 	if (IsOpen())
 	{
 		bool isBind = IsBind();

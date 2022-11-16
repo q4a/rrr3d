@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\AICar.h"
+#include "game/AICar.h"
 
-#include "game\World.h"
+#include "game/World.h"
 
 namespace r3d
 {
@@ -9,14 +9,11 @@ namespace r3d
 namespace game
 {
 
-const float AICar::cSteerAngleBias = D3DX_PI/128.0f;
+const float AICar::cSteerAngleBias = glm::pi<float>()/128.0f;
 const float AICar::cMaxSpeedBlocking = 0.5f;
 const float AICar::cMaxTimeBlocking = 1.0f;
 
 const float AICar::cMaxVisibleDistShot = 100.0f;
-
-
-
 
 AICar::AICar(Player* player): _path(_player->GetMap()->GetTrace().cTrackCnt), _player(player), _enbAI(true)
 {
@@ -37,17 +34,17 @@ AICar::PathState::PathState(unsigned trackCnt): cTrackCnt(trackCnt), curTile(0),
 AICar::PathState::~PathState()
 {
 	SetCurTile(0);
-	SetNextTile(0);	
+	SetNextTile(0);
 }
 
 bool AICar::PathState::FindFirstUnlockTrack(unsigned track, unsigned target, unsigned& res)
 {
 	int inc = target > track ? +1 : -1;
-	
-	for (int i = 1; i < abs((int)(track - target)) + 1; ++i)
+
+	for (int i = 1; i < std::abs((int)(track - target)) + 1; ++i)
 	{
 		unsigned testTrack = track + i * inc;
-		if (!lockTracks[testTrack])	
+		if (!lockTracks[testTrack])
 		{
 			res = testTrack;
 			return true;
@@ -60,11 +57,11 @@ bool AICar::PathState::FindFirstUnlockTrack(unsigned track, unsigned target, uns
 bool AICar::PathState::FindLastUnlockTrack(unsigned track, unsigned target, unsigned& res)
 {
 	int inc = target > track ? +1 : -1;
-	
-	for (int i = 1; i < abs((int)(track - target)) + 1; ++i)
+
+	for (int i = 1; i < std::abs((int)(track - target)) + 1; ++i)
 	{
 		unsigned testTrack = track + i * inc;
-		if (lockTracks[testTrack])			
+		if (lockTracks[testTrack])
 			return i > 1;
 
 		res = testTrack;
@@ -126,23 +123,23 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 
 	unsigned newTrack = car.track;
 	//ѕоворот налево
-	bool onLeft = D3DXVec2CCW(&curTile->GetTile().GetDir(), &nextTile->GetTile().GetDir()) > 0;
+	bool onLeft = Vec2CCW(curTile->GetTile().GetDir(), nextTile->GetTile().GetDir()) > 0;
 	//
 	WayNode* movNode = curTile;
 	//
-	dirArea = 5.0f + abs(car.speed) * car.kSteerControl * 10;
+	dirArea = 5.0f + std::abs(car.speed) * car.kSteerControl * 10;
 
 	// орректировка траектории движени€ относительно поворота
-	if (nextTile->GetTile().GetTurnAngle() > D3DX_PI/12)
+	if (nextTile->GetTile().GetTurnAngle() > glm::pi<float>()/12)
 	{
 		float edgeDist = Line2DistToPoint(nextTile->GetTile().GetEdgeLine(), car.pos);
 		if (edgeDist < car.size)
 		{
 			float tileWidth = nextTile->GetPoint()->GetSize() / cTrackCnt;
-			D3DXVECTOR2 targPnt = nextTile->GetPos2() + nextTile->GetTile().GetEdgeNorm() * tileWidth * static_cast<float>(cTrackCnt)/2.0f - car.pos;
-			float proj = D3DXVec2Dot(&curTile->GetTile().GetDir(), &targPnt);
+			glm::vec2 targPnt = nextTile->GetPos2() + nextTile->GetTile().GetEdgeNorm() * tileWidth * static_cast<float>(cTrackCnt)/2.0f - car.pos;
+			float proj = Vec2Dot(curTile->GetTile().GetDir(), targPnt);
 
-			if (proj < car.size)			
+			if (proj < car.size)
 				movNode = nextTile;
 			else
 			{
@@ -160,17 +157,17 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 	//Ѕерм в качестве расчетного либо активный узел либо следующий тайл
 	WayNode* curBreakTile = curNode ? curNode : nextTile;
 	//
-	if (curBreakTile->GetTile().GetTurnAngle() > D3DX_PI/12)
+	if (curBreakTile->GetTile().GetTurnAngle() > glm::pi<float>()/12)
 	{
 		float kLong = car.kSteerControl * car.kSteerControl;
 		float normDist = Line2DistToPoint(curBreakTile->GetTile().GetMidNormLine(), car.pos);
 		float kBreak = -normDist + curBreakTile->GetPoint()->GetSize();
-		
-		float kRot = D3DXVec2Dot(&car.dir, &curBreakTile->GetTile().GetDir());
+
+		float kRot = Vec2Dot(car.dir, curBreakTile->GetTile().GetDir());
 		kRot = 1.0f - std::max(kRot, 0.0f);
 
 		//услови€ вхождени€ в торможение легче чем выхода из него
-		if (!_break && car.speed * car.speed * kLong * kRot > 1.5f * kBreak)		
+		if (!_break && car.speed * car.speed * kLong * kRot > 1.5f * kBreak)
 			_break = true;
 		else if (_break && car.speed * car.speed * kLong * kRot < 1.0f * kBreak)
 			_break = false;
@@ -183,7 +180,7 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 		//по умолчанию остаемс€ на car.track в случае неудач
 		unsigned res = car.track;
 		//ѕоиск последней досутпной дорожки в направлении маршрута
-		if (FindLastUnlockTrack(car.track, newTrack, res))		
+		if (FindLastUnlockTrack(car.track, newTrack, res))
 		{
 			//Nothing
 		}
@@ -199,12 +196,12 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 
 	//расчет траектории движени€
 	{
-		D3DXVECTOR2 dir = movNode->GetTile().GetDir();
-		D3DXVECTOR2 target = car.pos + dir * dirArea;
+		glm::vec2 dir = movNode->GetTile().GetDir();
+		glm::vec2 target = car.pos + dir * dirArea;
 		target += movNode->GetTile().ComputeTrackNormOff(target, newTrack);
-		
+
 		moveDir = target - car.pos;
-		D3DXVec2Normalize(&moveDir, &moveDir);
+		moveDir = glm::normalize(moveDir);
 	}
 }
 
@@ -225,7 +222,7 @@ void AICar::PathState::Update(AICar* owner, float deltaTime, const Player::CarSt
 	}
 
 	if (curTile && nextTile == NULL)
-	{		
+	{
 		//—лучайно выбираем предпочтительно нетупиковый узел принадлежайший WayPoint-у
 		//≈сли существует следующий узел, то в первую очередь выбираем из него
 		if (curTile->GetNext())
@@ -255,7 +252,7 @@ void AICar::PathState::Update(AICar* owner, float deltaTime, const Player::CarSt
 	curNode = curTile && curTile->IsContains2(car.pos) ? curTile : NULL;
 
 	moveDir = NullVec2;
-	if (nextTile)	
+	if (nextTile)
 		ComputeMovDir(owner, deltaTime, car);
 }
 
@@ -277,7 +274,7 @@ AICar::AttackState::AttackState(): target(0), backTarget(0), placeMineRandom(-1.
 
 AICar::AttackState::~AttackState()
 {
-	SetTarget(0);	
+	SetTarget(0);
 	SetBackTarget(0);
 }
 
@@ -285,7 +282,7 @@ AICar::AttackState::~AttackState()
 Player* AICar::AttackState::FindEnemy(AICar* owner, const Player::CarState& car, int dir, Player* currentEnemy)
 {
 	//ищем новую или более доступную цель
-	Player* enemy = owner->_player->FindClosestEnemy(D3DX_PI/4 * dir, true);
+	Player* enemy = owner->_player->FindClosestEnemy(glm::quarter_pi<float>() * dir, true);
 
 	if (currentEnemy && currentEnemy == enemy)
 		return enemy;
@@ -294,7 +291,7 @@ Player* AICar::AttackState::FindEnemy(AICar* owner, const Player::CarState& car,
 	currentEnemy = currentEnemy && car.curTile && car.curTile->GetTile().IsZLevelContains(currentEnemy->GetCar().pos3) ? currentEnemy : NULL;
 
 	//отличие от текущего target как минимум на target->GetCar().size
-	bool testEnemy = enemy && (!currentEnemy || D3DXVec2Length(&(currentEnemy->GetCar().pos - enemy->GetCar().pos)) > currentEnemy->GetCar().size);
+	bool testEnemy = enemy && (!currentEnemy || glm::length(currentEnemy->GetCar().pos - enemy->GetCar().pos) > currentEnemy->GetCar().size);
 
 	return testEnemy ? enemy : currentEnemy;
 }
@@ -302,9 +299,9 @@ Player* AICar::AttackState::FindEnemy(AICar* owner, const Player::CarState& car,
 void AICar::AttackState::ShotByEnemy(AICar* owner, const CarState& car, Player* enemy)
 {
 	//отклонение от напрвал€ющией в пределах enemy->GetCar().radius
-	bool bShoot = enemy && abs(Line2DistToPoint(car.dirLine, enemy->GetCar().pos)) < enemy->GetCar().radius;
+	bool bShoot = enemy && std::abs(Line2DistToPoint(car.dirLine, enemy->GetCar().pos)) < enemy->GetCar().radius;
 	//машина в передлах z достижимости
-	bShoot = bShoot && abs(car.pos3.z - enemy->GetCar().pos3.z) < std::min(car.radius, enemy->GetCar().radius);
+	bShoot = bShoot && std::abs(car.pos3.z - enemy->GetCar().pos3.z) < std::min(car.radius, enemy->GetCar().radius);
 	//
 	if (bShoot)
 	{
@@ -319,7 +316,7 @@ void AICar::AttackState::ShotByEnemy(AICar* owner, const CarState& car, Player* 
 
 		WeaponList weaponList;
 
-		float distToTarget = D3DXVec2Length(&(enemy->GetCar().pos - car.pos));
+		float distToTarget = glm::length(enemy->GetCar().pos - car.pos);
 		int wpnCount = 0;
 
 		for (int i = Player::stWeapon1; i <= Player::stWeapon4; ++i)
@@ -380,7 +377,7 @@ void AICar::AttackState::ShotByEnemy(AICar* owner, const CarState& car, Player* 
 			float part = std::min(summPart / wpPart, 1.0f);
 			float ammo = std::max(curCharge - (1.0f - part) * cntCharge, 0.0f);
 
-			if ((cntCharge == 0 || ammo > 0.0f) && owner->_enbAI)								
+			if ((cntCharge == 0 || ammo > 0.0f) && owner->_enbAI)
 				owner->GetLogic()->Shot(owner->_player, enemy->GetCar().mapObj, weapon.slot);
 		}
 	}
@@ -388,24 +385,24 @@ void AICar::AttackState::ShotByEnemy(AICar* owner, const CarState& car, Player* 
 
 void AICar::AttackState::RunHyper(AICar* owner, const CarState& car, const PathState& path)
 {
-	Slot* hyperSlot = owner->_player->GetSlotInst(Player::stHyper);	
-	WeaponItem* hyperDrive = hyperSlot ? hyperSlot->GetItem().IsWeaponItem() : 0;	
-	
-	float distTile = car.curTile->GetTile().ComputeLength(1.0f - car.curTile->GetTile().ComputeCoordX(car.pos));	
+	Slot* hyperSlot = owner->_player->GetSlotInst(Player::stHyper);
+	WeaponItem* hyperDrive = hyperSlot ? hyperSlot->GetItem().IsWeaponItem() : 0;
+
+	float distTile = car.curTile->GetTile().ComputeLength(1.0f - car.curTile->GetTile().ComputeCoordX(car.pos));
 	float maxDistHyper = hyperDrive ? (hyperDrive->GetDesc().Front().speed + car.speed) : 0.0f;
-	bool hyperDist = (path.nextTile == NULL || path.nextTile->GetTile().GetTurnAngle() < D3DX_PI/6 || distTile > maxDistHyper);
-	
+	bool hyperDist = (path.nextTile == NULL || path.nextTile->GetTile().GetTurnAngle() < glm::pi<float>()/6 || distTile > maxDistHyper);
+
 	if (hyperDrive && car.speed > 1.0f && hyperDist && !path._break)
 	{
 		const float lowP = 0.0f;
 		const float highP = 0.7f;
-		
+
 		float roadDist = car.GetDist(true) / car.GetPathLength(true);
 		//отсекаем до [lowP...highP], преобразуем к [0...1]
 		float summPart = ClampValue((roadDist - lowP)/(highP - lowP), 0.0f, 1.0f);
 
 		unsigned cntCharge = hyperDrive->GetCntCharge();
-		unsigned curCharge = hyperDrive->GetCurCharge();		
+		unsigned curCharge = hyperDrive->GetCurCharge();
 
 		float ammo = std::max(curCharge - (1.0f - summPart) * cntCharge, 0.0f);
 		if ((cntCharge == 0 || ammo > 0.0f) && owner->_enbAI)
@@ -415,7 +412,7 @@ void AICar::AttackState::RunHyper(AICar* owner, const CarState& car, const PathS
 }
 
 void AICar::AttackState::PlaceMine(AICar* owner, const CarState& car, const PathState& path)
-{	
+{
 	Slot* minesSlot = owner->_player->GetSlotInst(Player::stMine);
 	WeaponItem* mines = minesSlot ? minesSlot->GetItem().IsWeaponItem() : 0;
 
@@ -426,14 +423,14 @@ void AICar::AttackState::PlaceMine(AICar* owner, const CarState& car, const Path
 
 		if (placeMineRandom == -1.0f)
 			placeMineRandom = RandomRange(-0.5f, 0.0f);
-		
-		float roadDist = car.GetDist(true) / car.GetPathLength(true);		
+
+		float roadDist = car.GetDist(true) / car.GetPathLength(true);
 		//отсекаем до [lowP...highP], преобразуем к [0...1]
 		float summPart = ClampValue((roadDist - lowP)/(highP - lowP), 0.0f, 1.0f);
 		if (summPart > 0.0f && summPart < 1.0f)
 		{
 			//÷ель сзади, +30% мин
-			if (backTarget && D3DXVec2Length(&(backTarget->GetCar().pos - car.pos)) < 30.0f)
+			if (backTarget && glm::length(backTarget->GetCar().pos - car.pos) < 30.0f)
 				summPart += 0.3f;
 			summPart = ClampValue(summPart + placeMineRandom, 0.0f, 1.0f);
 		}
@@ -493,7 +490,7 @@ AICar::ControlState::ControlState(): blocking(false), timeBlocking(0.0f), backMo
 void AICar::ControlState::UpdateResetCar(AICar* owner, float deltaTime, const Player::CarState& car)
 {
 	//Reset заблокированной машины
-	if (car.mapObj && (blocking || car.curTile == NULL || abs(car.speed) < cMaxSpeedBlocking))
+	if (car.mapObj && (blocking || car.curTile == NULL || std::abs(car.speed) < cMaxSpeedBlocking))
 	{
 		timeResetBlockCar += deltaTime;
 		if (timeResetBlockCar > 3.0f * cMaxTimeBlocking)
@@ -502,26 +499,26 @@ void AICar::ControlState::UpdateResetCar(AICar* owner, float deltaTime, const Pl
 			timeResetBlockCar = 0.0f;
 		}
 	}
-	else	
+	else
 		timeResetBlockCar = 0.0f;
 }
 
 void AICar::ControlState::Update(AICar* owner, float deltaTime, const Player::CarState& car, const PathState& path)
 {
 	//¬ычисл€ем угол между направлением машины и направл€ющей движени€
-	steerAngle = abs(acos(D3DXVec2Dot(&car.dir, &path.moveDir)));
+	steerAngle = std::abs(acos(Vec2Dot(car.dir, path.moveDir)));
 	//учет инерционности рулевого управлени€
-	//steerAngle = std::max(0.0f, steerAngle - D3DX_PI * deltaTime * 2.0f);
-	//float errorSteer = 
-		
+	//steerAngle = std::max(0.0f, steerAngle - glm::pi<float>() * deltaTime * 2.0f);
+	//float errorSteer =
+
 	//”гол поворота колес
-	if (steerAngle > cSteerAngleBias)	
-		steerAngle = D3DXVec2CCW(&car.dir, &path.moveDir) > 0 ? steerAngle : -steerAngle;
+	if (steerAngle > cSteerAngleBias)
+		steerAngle = Vec2CCW(car.dir, path.moveDir) > 0 ? steerAngle : -steerAngle;
 	else
 		steerAngle = 0;
 
 	//состо€ние заблокированности
-	if (abs(car.speed) < cMaxSpeedBlocking)
+	if (std::abs(car.speed) < cMaxSpeedBlocking)
 	{
 		timeBlocking += deltaTime;
 		if (timeBlocking > cMaxTimeBlocking)
@@ -545,14 +542,14 @@ void AICar::ControlState::Update(AICar* owner, float deltaTime, const Player::Ca
 	if (backMovingMode)
 	{
 		timeBackMoving += deltaTime;
-		if (timeBackMoving > cMaxTimeBlocking || (backMoving && abs(steerAngle) < cSteerAngleBias && timeBackMoving > 0.5f* cMaxTimeBlocking))
+		if (timeBackMoving > cMaxTimeBlocking || (backMoving && std::abs(steerAngle) < cSteerAngleBias && timeBackMoving > 0.5f* cMaxTimeBlocking))
 		{
 			backMoving = !backMoving;
 			timeBackMoving = 0.0f;
 			backMovingMode = blocking;
 		}
 
-		if (backMoving)		
+		if (backMoving)
 			steerAngle = -steerAngle;
 	}
 
@@ -572,7 +569,7 @@ void AICar::ControlState::Update(AICar* owner, float deltaTime, const Player::Ca
 
 void AICar::UpdateAI(float deltaTime, const Player::CarState& car)
 {
-	_path.Update(this, deltaTime, car);	
+	_path.Update(this, deltaTime, car);
 	_attack.Update(this, deltaTime, car, _path);
 	_control.Update(this, deltaTime, car, _path);
 }
@@ -601,7 +598,7 @@ void AICar::OnProgress(float deltaTime)
 	{
 		UpdateAI(deltaTime, GetCar());
 	}
-	
+
 	//в обход GetCar
 	if (_enbAI)
 		_control.UpdateResetCar(this, deltaTime, GetCar());

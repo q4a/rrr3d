@@ -8,6 +8,8 @@
 namespace lsl
 {
 
+class CollectionTraits;
+
 class CollectionItem: public virtual Object
 {
 public:

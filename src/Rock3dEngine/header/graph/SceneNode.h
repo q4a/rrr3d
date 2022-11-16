@@ -42,14 +42,14 @@ public:
 	};
 
 	class Proxy: public BaseSceneNode
-	{	
+	{
 	private:
 		SceneNode* _owner;
 	protected:
 		virtual void DoRender(graph::Engine& engine)
 		{
 			_owner->RenderProxy(engine, this);
-		}		
+		}
 	public:
 		Proxy() {}
 		Proxy(SceneNode* owner): _owner(owner) {}
@@ -66,7 +66,7 @@ public:
 		{
 			_MyBase::InsertItem(value);
 
-			value->SetOwner(_owner);			
+			value->SetOwner(_owner);
 		}
 	public:
 		ProxyList(SceneNode* owner): _owner(owner) {}
@@ -77,7 +77,7 @@ public:
 		}
 	};
 
-	static void InitClassList();	
+	static void InitClassList();
 private:
 	Nodes* _nodes;
 	ProxyList* _proxyList;

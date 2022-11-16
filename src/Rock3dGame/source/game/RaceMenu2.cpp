@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "game\Menu.h"
+#include "game/Menu.h"
 
-#include "game\RaceMenu2.h"
-#include "game\World.h"
+#include "game/RaceMenu2.h"
+#include "game/World.h"
 
 namespace r3d
 {
@@ -16,12 +16,12 @@ namespace n
 CarFrame::CarFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _car(NULL), _carMapObj(NULL), _camStyle(cCamStyleEnd)
 {
 	MapObjRec* record =  menu->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\garage");
-	_garageMapObj = &menu->GetRace()->GetMap()->AddMapObj(record);	
+	_garageMapObj = &menu->GetRace()->GetMap()->AddMapObj(record);
 	_garageMapObj->GetGameObj().GetGrActor().SetVisible(false);
 
 	record = menu->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\question");
 	_secretMapObj = &menu->GetRace()->GetMap()->AddMapObj(record);
-	_secretMapObj->GetGameObj().SetWorldPos(D3DXVECTOR3(0, 0, 0.39f));
+	_secretMapObj->GetGameObj().SetWorldPos(glm::vec3(0, 0, 0.39f));
 	_secretMapObj->GetGameObj().GetGrActor().SetVisible(false);
 }
 
@@ -40,10 +40,9 @@ void CarFrame::OnProgress(float deltaTime)
 {
 	if (_secretMapObj->GetGameObj().GetGrActor().GetVisible())
 	{
-		D3DXQUATERNION rot = _secretMapObj->GetGameObj().GetRot();
-		D3DXQUATERNION dRot;
-		D3DXQuaternionRotationAxis(&dRot, &ZVector, 2.0f * D3DX_PI * deltaTime * 0.1f);
-		_secretMapObj->GetGameObj().SetRot(dRot * rot);
+		glm::quat rot = _secretMapObj->GetGameObj().GetRot();
+		glm::quat dRot = glm::angleAxis(2.0f * glm::pi<float>() * deltaTime * 0.1f, ZVector);
+		_secretMapObj->GetGameObj().SetRot(rot * dRot);
 	}
 }
 
@@ -62,13 +61,13 @@ void CarFrame::OnShow(bool value)
 		_camStyle = cCamStyleEnd;
 		SetCamStyle(csCar, true);
 
-		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(-0.94673467f, 3.0021181f, 2.9447727f), 0);
-		menu()->GetEnv()->SetLampRot(D3DXQUATERNION(0.19748747f, 0.34095559f, -0.46066701f, 0.79532242f), 0);
+		menu()->GetEnv()->SetLampPos(glm::vec3(-0.94673467f, 3.0021181f, 2.9447727f), 0);
+		menu()->GetEnv()->SetLampRot(glm::quat(0.79532242f, 0.19748747f, 0.34095559f, -0.46066701f), 0);
 		menu()->GetEnv()->SetLampColor(clrWhite, 0);
 		menu()->GetEnv()->SwitchOnLamp(0, true);
 
-		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(6.0344887f, -5.2521329f, 1.6322796f), 1);
-		menu()->GetEnv()->SetLampRot(D3DXQUATERNION(-0.17059785f, 0.045529708f, 0.95100683f, 0.25379914f), 1);
+		menu()->GetEnv()->SetLampPos(glm::vec3(6.0344887f, -5.2521329f, 1.6322796f), 1);
+		menu()->GetEnv()->SetLampRot(glm::quat(0.25379914f, -0.17059785f, 0.045529708f, 0.95100683f), 1);
 		menu()->GetEnv()->SetLampColor(clrWhite, 1);
 		menu()->GetEnv()->SwitchOnLamp(1, true);
 	}
@@ -81,10 +80,10 @@ Garage::Car* CarFrame::GetCar()
 	return _car;
 }
 
-void CarFrame::SetCar(Garage::Car* value, const D3DXCOLOR& color, bool secret)
+void CarFrame::SetCar(Garage::Car* value, const glm::vec4& color, bool secret)
 {
 	if (Object::ReplaceRef(_car, value) || (value && !secret && _carMapObj == NULL))
-	{		
+	{
 		if (_carMapObj)
 			menu()->GetRace()->GetMap()->DelMapObj(_carMapObj);
 		_carMapObj = NULL;
@@ -97,21 +96,20 @@ void CarFrame::SetCar(Garage::Car* value, const D3DXCOLOR& color, bool secret)
 			RockCar& gameCar = _carMapObj->GetGameObj<RockCar>();
 			float wheelOffs = 0;
 
-			for (GameCar::Wheels::const_iterator iter = gameCar.GetWheels().begin(); iter != gameCar.GetWheels().end(); ++iter) 
+			for (GameCar::Wheels::const_iterator iter = gameCar.GetWheels().begin(); iter != gameCar.GetWheels().end(); ++iter)
 			{
-				(*iter)->SetPos((*iter)->GetPos() + D3DXVECTOR3(0, 0, -0.5f) * (*iter)->GetShape()->GetSuspensionTravel() + (*iter)->GetOffset());
+				(*iter)->SetPos((*iter)->GetPos() + glm::vec3(0, 0, -0.5f) * (*iter)->GetShape()->GetSuspensionTravel() + (*iter)->GetOffset());
 
 				if ((*iter)->invertWheel)
 				{
-					D3DXQUATERNION rot;
-					D3DXQuaternionRotationAxis(&rot, &D3DXVECTOR3(0, 0, 1), D3DX_PI);
+					glm::quat rot = glm::angleAxis(glm::pi<float>(), glm::vec3(0, 0, 1));
 					(*iter)->SetRot(rot);
 				}
 
-				wheelOffs = abs((*iter)->GetPos().z) + (*iter)->GetShape()->GetRadius() + (*iter)->GetOffset().z;
+				wheelOffs = std::abs((*iter)->GetPos().z) + (*iter)->GetShape()->GetRadius() + (*iter)->GetOffset().z;
 			}
 
-			_carMapObj->GetGameObj().SetWorldPos(D3DXVECTOR3(0, 0, wheelOffs - 0.71f));
+			_carMapObj->GetGameObj().SetWorldPos(glm::vec3(0, 0, wheelOffs - 0.71f));
 			_carMapObj->GetGameObj().GetGrActor().SetVisible(visible());
 
 			SetCarColor(color);
@@ -121,12 +119,12 @@ void CarFrame::SetCar(Garage::Car* value, const D3DXCOLOR& color, bool secret)
 	}
 }
 
-void CarFrame::SetCar(MapObjRec* value, const D3DXCOLOR& color, bool secret)
+void CarFrame::SetCar(MapObjRec* value, const glm::vec4& color, bool secret)
 {
 	SetCar(menu()->GetRace()->GetGarage().FindCar(value), color, secret);
 }
 
-D3DXCOLOR CarFrame::GetCarColor()
+glm::vec4 CarFrame::GetCarColor()
 {
 	if (_carMapObj)
 	{
@@ -136,7 +134,7 @@ D3DXCOLOR CarFrame::GetCarColor()
 	return clrWhite;
 }
 
-void CarFrame::SetCarColor(const D3DXCOLOR& value)
+void CarFrame::SetCarColor(const glm::vec4& value)
 {
 	if (_carMapObj)
 	{
@@ -186,7 +184,7 @@ void CarFrame::SetSlots(Player* player, bool includeDefSlots)
 		}
 
 		if (slot)
-		{	
+		{
 			const Garage::PlaceItem* placeItem = placeSlot.FindItem(slot->GetSlot()->GetRecord());
 			if (placeItem && slot->GetMapObj())
 			{
@@ -205,10 +203,10 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 	CamStyle lastCamStyle = _camStyle;
 	_camStyle = value;
 
-	D3DXVECTOR3 pos = NullVector;
-	D3DXQUATERNION rot = NullQuaternion;
+	glm::vec3 pos = NullVector;
+	glm::quat rot = NullQuaternion;
 	CameraManager* camera = menu()->GetRace()->GetWorld()->GetCamera();
-	graph::Camera* cameraInst = menu()->GetRace()->GetWorld()->GetGraph()->GetCamera();	
+	graph::Camera* cameraInst = menu()->GetRace()->GetWorld()->GetGraph()->GetCamera();
 
 	camera->StopFly();
 
@@ -223,47 +221,47 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 		}
 		else
 		{
-			pos = D3DXVECTOR3(2.9176455f, 3.8489482f, 1.2934232f);
-			rot = D3DXQUATERNION(0.11683256f, 0.058045074f, -0.88791621f, 0.44111854f);
+			pos = glm::vec3(2.9176455f, 3.8489482f, 1.2934232f);
+			rot = glm::quat(0.44111854f, 0.11683256f, 0.058045074f, -0.88791621f);
 		}
 
-		camera->SetTarget(D3DXVECTOR4(0, 0, 0, 5.0f));
-		camera->SetClampAngle(D3DXVECTOR4(0.0f, 0.0f, 25.0f * D3DX_PI/180, 80.0f * D3DX_PI/180));
-		camera->SetAngleSpeed(D3DXVECTOR3(D3DX_PI/48, 0, 0));
-		camera->SetStableAngle(D3DXVECTOR3(75.0f * D3DX_PI/180, 0, 0));
+		camera->SetTarget(glm::vec4(0, 0, 0, 5.0f));
+		camera->SetClampAngle(glm::vec4(0.0f, 0.0f, glm::radians(25.0f), glm::radians(80.0f)));
+		camera->SetAngleSpeed(glm::vec3(glm::pi<float>()/48, 0, 0));
+		camera->SetStableAngle(glm::vec3(glm::radians(75.0f), 0, 0));
 		break;
 	}
 
 	case csSlots:
 	{
-		D3DXVECTOR3 posList[8] = {
-			D3DXVECTOR3(-5.6156259f, 4.3894496f, 1.3072476f),
-			D3DXVECTOR3(1.0063084f, 6.9253764f, 1.7360222f),
-			D3DXVECTOR3(5.6724834f, 4.9537153f, 1.3952403f),
-			D3DXVECTOR3(7.0655332f, -1.0402107f, 1.2024049f),
-			D3DXVECTOR3(5.4610982f, -5.3067584f, 1.2650701f),
-			D3DXVECTOR3(-1.1062316f, -7.5020962f, 1.1599010f),
-			D3DXVECTOR3(-5.9399834f, -4.8825927f, 1.0367264f),
-			D3DXVECTOR3(-7.4102926f, 0.61909121f, 1.1492375f)
+		glm::vec3 posList[8] = {
+			glm::vec3(-5.6156259f, 4.3894496f, 1.3072476f),
+			glm::vec3(1.0063084f, 6.9253764f, 1.7360222f),
+			glm::vec3(5.6724834f, 4.9537153f, 1.3952403f),
+			glm::vec3(7.0655332f, -1.0402107f, 1.2024049f),
+			glm::vec3(5.4610982f, -5.3067584f, 1.2650701f),
+			glm::vec3(-1.1062316f, -7.5020962f, 1.1599010f),
+			glm::vec3(-5.9399834f, -4.8825927f, 1.0367264f),
+			glm::vec3(-7.4102926f, 0.61909121f, 1.1492375f)
 		};
 
-		D3DXQUATERNION rotList[8] = {
-			D3DXQUATERNION(0.021078700f, 0.10266567f, -0.20001189f, 0.97417259f),
-			D3DXQUATERNION(0.093931124f, 0.099822313f, -0.67882264f, 0.72140080f),
-			D3DXQUATERNION(0.098612130f, 0.053653944f, -0.87284911f, 0.47491166f),
-			D3DXQUATERNION(0.10475823f, 0.0032271212f, -0.99402952f, 0.030623097f),
-			D3DXQUATERNION(0.10137362f, -0.026610103f, -0.96191424f, -0.25249690f),
-			D3DXQUATERNION(0.070100352f, -0.063905962f, -0.73568070f, -0.67066783f),
-			D3DXQUATERNION(0.041057255f, -0.077143900f, -0.46803388f, -0.87939179f),
-			D3DXQUATERNION(0.0077582477f, -0.092043117f, -0.083636492f, -0.99221748f)
+		glm::quat rotList[8] = {
+			glm::quat(0.97417259f, 0.021078700f, 0.10266567f, -0.20001189f),
+			glm::quat(0.72140080f, 0.093931124f, 0.099822313f, -0.67882264f),
+			glm::quat(0.47491166f, 0.098612130f, 0.053653944f, -0.87284911f),
+			glm::quat(0.030623097f, 0.10475823f, 0.0032271212f, -0.99402952f),
+			glm::quat(-0.25249690f, 0.10137362f, -0.026610103f, -0.96191424f),
+			glm::quat(-0.67066783f, 0.070100352f, -0.063905962f, -0.73568070f),
+			glm::quat(-0.87939179f, 0.041057255f, -0.077143900f, -0.46803388f),
+			glm::quat(-0.99221748f, 0.0077582477f, -0.092043117f, -0.083636492f)
 		};
 
-		D3DXQUATERNION camRot = cameraInst->GetRot();
+		glm::quat camRot = cameraInst->GetRot();
 		float minAngle;
 
 		for (int i = 0; i < 8; ++i)
 		{
-			float angle = abs(QuatAngle(camRot, rotList[i]));
+			float angle = std::abs(QuatAngle(camRot, rotList[i]));
 			if (i == 0 || minAngle > angle)
 			{
 				minAngle = angle;
@@ -295,36 +293,33 @@ void CarFrame::SetCamStyle(CamStyle value, bool instant)
 
 	if (lastCamStyle == csCar)
 	{
-		D3DXVECTOR4 target = camera->GetTarget();
-		camera->GetObserverCoord(D3DXVECTOR3(target.x, target.y, target.z), target.w, &_camLastPos, _camLastRot, NullVec2, 0, false, false, true, NULL, NULL, NULL);
+		glm::vec4 target = camera->GetTarget();
+		camera->GetObserverCoord(glm::vec3(target.x, target.y, target.z), target.w, &_camLastPos, _camLastRot, NullVec2, 0, false, false, true, NULL, NULL, NULL);
 	}
 }
 
-
-
-
 SpaceshipFrame::SpaceshipFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _redLampTime(0.0f)
 {
-	{		
-		D3DXVECTOR3 center = D3DXVECTOR3(63.0f, 0.0f, 23.0f);
+	{
+		glm::vec3 center = glm::vec3(63.0f, 0.0f, 23.0f);
 
 		MapObjRec* record =  menu->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\space2");
 		_spaceMapObj = &menu->GetRace()->GetMap()->AddMapObj(record);
-		_spaceMapObj->GetGameObj().GetGrActor().SetVisible(false);		
+		_spaceMapObj->GetGameObj().GetGrActor().SetVisible(false);
 
-		graph::PlaneNode* spaceSprite = &((graph::PlaneNode&)_spaceMapObj->GetGameObj().GetGrActor().GetNodes().front());		
+		graph::PlaneNode* spaceSprite = &((graph::PlaneNode&)_spaceMapObj->GetGameObj().GetGrActor().GetNodes().front());
 
-		D3DXVECTOR2 imageSize = static_cast<graph::Sampler2d&>(spaceSprite->material.Get()->samplers.front()).GetSize();
+		glm::vec2 imageSize = static_cast<graph::Sampler2d&>(spaceSprite->material.Get()->samplers.front()).GetSize();
 		float aspect = imageSize.x/imageSize.y;
 		spaceSprite->SetPos(center);
-		spaceSprite->SetScale(D3DXVECTOR3(aspect * 70.0f, 70.0f, 1.0f));
-		spaceSprite->SetPitchAngle(-D3DX_PI/2);
-		spaceSprite->SetRollAngle(-D3DX_PI/2);
+		spaceSprite->SetScale(glm::vec3(aspect * 70.0f, 70.0f, 1.0f));
+		spaceSprite->SetPitchAngle(-glm::half_pi<float>());
+		spaceSprite->SetRollAngle(-glm::half_pi<float>());
 	}
 
 	{
 		MapObjRec* record =  menu->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\angar");
-		_angarMapObj = &menu->GetRace()->GetMap()->AddMapObj(record);	
+		_angarMapObj = &menu->GetRace()->GetMap()->AddMapObj(record);
 		_angarMapObj->GetGameObj().GetGrActor().SetVisible(false);
 	}
 }
@@ -361,33 +356,33 @@ void SpaceshipFrame::OnShow(bool value)
 		menu()->GetEnv()->SetWheater(Environment::ewAngar);
 		menu()->GetEnv()->StartScene();
 
-		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(22.169474f, -5.9075522f, 35.802311f), 0);
-		menu()->GetEnv()->SetLampRot(D3DXQUATERNION(-0.47304764f, 0.077942163f, 0.86590993f, 0.14267041f), 0);
+		menu()->GetEnv()->SetLampPos(glm::vec3(22.169474f, -5.9075522f, 35.802311f), 0);
+		menu()->GetEnv()->SetLampRot(glm::quat(0.14267041f, -0.47304764f, 0.077942163f, 0.86590993f), 0);
 		menu()->GetEnv()->SetLampColor(clrWhite, 0);
 		menu()->GetEnv()->SwitchOnLamp(0, true);
 
-		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(-20.881384f, -21.184746f, 26.121809f), 1);
-		menu()->GetEnv()->SetLampRot(D3DXQUATERNION(-0.16464995f, 0.34524971f, 0.39772648f, 0.83397770f), 1);
+		menu()->GetEnv()->SetLampPos(glm::vec3(-20.881384f, -21.184746f, 26.121809f), 1);
+		menu()->GetEnv()->SetLampRot(glm::quat(0.83397770f, -0.16464995f, 0.34524971f, 0.39772648f), 1);
 		menu()->GetEnv()->SetLampColor(clrRed * 0.8f, 1);
 		menu()->GetEnv()->SwitchOnLamp(1, false);
 
-		menu()->GetEnv()->SetLampPos(D3DXVECTOR3(52.307316f, 24.327570f, 32.772705f), 2);
-		menu()->GetEnv()->SetLampRot(D3DXQUATERNION(0.21948183f, 0.18329506f, -0.73549527f, 0.61423278f), 2);
-		menu()->GetEnv()->SetLampColor(D3DXCOLOR(0xff88fefe), 2);
+		menu()->GetEnv()->SetLampPos(glm::vec3(52.307316f, 24.327570f, 32.772705f), 2);
+		menu()->GetEnv()->SetLampRot(glm::quat(0.61423278f, 0.21948183f, 0.18329506f, -0.73549527f), 2);
+		menu()->GetEnv()->SetLampColor(glm::vec4(136.0f/255.0f, 254.0f/255.0f, 254.0f/255.0f, 1.0f), 2); // 0xff88fefe
 		menu()->GetEnv()->SwitchOnLamp(2, true);
 
 		CameraManager* camera = menu()->GetRace()->GetWorld()->GetCamera();
-		graph::Camera* cameraInst = menu()->GetRace()->GetWorld()->GetGraph()->GetCamera();	
+		graph::Camera* cameraInst = menu()->GetRace()->GetWorld()->GetGraph()->GetCamera();
 
 		camera->StopFly();
-		cameraInst->SetPos(D3DXVECTOR3(-43.756214f, -11.786510f, 21.129881f));
-		cameraInst->SetRot(D3DXQUATERNION(-0.028391786f, 0.21455817f, 0.12807286f, 0.96786171f));
+		cameraInst->SetPos(glm::vec3(-43.756214f, -11.786510f, 21.129881f));
+		cameraInst->SetRot(glm::quat(0.96786171f, -0.028391786f, 0.21455817f, 0.12807286f));
 		camera->ChangeStyle(CameraManager::csAutoObserver);
 
-		camera->SetTarget(D3DXVECTOR4(0, 0, 0, 50.0f));
-		camera->SetClampAngle(D3DXVECTOR4(40.0f * D3DX_PI/180, 30.0f * D3DX_PI/180, 45.0f * D3DX_PI/180, 80.0f * D3DX_PI/180));
-		camera->SetAngleSpeed(D3DXVECTOR3(D3DX_PI/96, 0, 0));
-		camera->SetStableAngle(D3DXVECTOR3(65.0f * D3DX_PI/180, 0, 0));
+		camera->SetTarget(glm::vec4(0, 0, 0, 50.0f));
+		camera->SetClampAngle(glm::vec4(glm::radians(40.0f), glm::radians(30.0f), glm::radians(45.0f), glm::radians(80.0f)));
+		camera->SetAngleSpeed(glm::vec3(glm::pi<float>()/96, 0, 0));
+		camera->SetStableAngle(glm::vec3(glm::radians(65.0f), 0, 0));
 
 		_redLampTime = 0.0f;
 	}
@@ -395,18 +390,15 @@ void SpaceshipFrame::OnShow(bool value)
 		menu()->GetEnv()->ReleaseScene();
 }
 
-
-
-
 GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _lastCarIndex(-1)
 {
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;	
+	const glm::vec4 color2 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
 
 	StringValue strLabels[cLabelEnd] = {svGarage, svNull, svNull, svNull, svCarCost};
 	std::string fontLabels[cLabelEnd] = {"Header", "Header", "VerySmall", "Item", "Header"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haRight, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaTop, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color2, color2, color2, clrWhite, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color2, color2, color2, clrWhite, color2};
 
 	_topPanel = menu->CreatePlane(root(), this, "GUI\\topPanel2.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_topPanel->SetAlign(gui::Widget::waTop);
@@ -420,14 +412,14 @@ GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 
 	_leftPanel = menu->CreatePlane(root(), this, "GUI\\rightPanel2.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_leftPanel->SetAlign(gui::Widget::waRight);
-	_leftPanel->SetRot(D3DX_PI);
+	_leftPanel->SetRot(glm::pi<float>());
 
 	_headerBg = menu->CreatePlane(_topPanel, this, "GUI\\header2.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_headerBg->SetAlign(gui::Widget::waCenter);
 	_headerBg->SetVisible(false);
 
 	_moneyBg = menu->CreatePlane(_bottomPanel, this, "GUI\\moneyBg.png", true, IdentityVec2, gui::Material::bmTransparency);
-	_moneyBg->SetAlign(gui::Widget::waRightBottom);	
+	_moneyBg->SetAlign(gui::Widget::waRightBottom);
 
 	_stateBg = menu->CreatePlane(_bottomPanel, this, "GUI\\statFrame2.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_stateBg->SetAlign(gui::Widget::waLeftTop);
@@ -440,13 +432,13 @@ GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 	_damageBar->SetAlign(gui::Widget::waLeftTop);
 
 	_armorBarValue = menu->CreateLabel("", _armorBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_armorBarValue->SetPos(D3DXVECTOR2(_armorBar->GetSize().x - 4.0f, 1.0f));
+	_armorBarValue->SetPos(glm::vec2(_armorBar->GetSize().x - 4.0f, 1.0f));
 
 	_damageBarValue = menu->CreateLabel("", _damageBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_damageBarValue->SetPos(D3DXVECTOR2(_damageBar->GetSize().x - 4.0f, 1.0f));
+	_damageBarValue->SetPos(glm::vec2(_damageBar->GetSize().x - 4.0f, 1.0f));
 
 	_speedBarValue = menu->CreateLabel("", _speedBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_speedBarValue->SetPos(D3DXVECTOR2(_speedBar->GetSize().x - 4.0f, 1.0f));
+	_speedBarValue->SetPos(glm::vec2(_speedBar->GetSize().x - 4.0f, 1.0f));
 
 	_menuItems[miExit] = _raceMenu->CreateMenuButton2(svBack, _bottomPanel, color2, this);
 	_menuItems[miExit]->SetAlign(gui::Widget::waLeftTop);
@@ -473,16 +465,16 @@ GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 	_leftArrow->SetAlign(gui::Widget::waLeft);
 	_rightArrow = _raceMenu->CreateArrow(root(), this);
 	_rightArrow->SetAlign(gui::Widget::waLeft);
-	_rightArrow->SetRot(D3DX_PI);
+	_rightArrow->SetRot(glm::pi<float>());
 
 	gui::Widget* labelsParent[cLabelEnd] = {_headerBg, _bottomPanel, _bottomPanel, _moneyBg, _bottomPanel};
-	for (int i = 0; i < cLabelEnd; ++i)	
-		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);	
+	for (int i = 0; i < cLabelEnd; ++i)
+		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 	_labels[mlCarInfo]->SetWordWrap(true);
 
 	_leftColorGrid = menu->CreateGrid(_leftPanel, NULL, gui::Grid::gsVertical);
-	_leftColorGrid->SetAlign(gui::Widget::waLeft);	
-	_leftColorGrid->SetRot(-D3DX_PI);
+	_leftColorGrid->SetAlign(gui::Widget::waLeft);
+	_leftColorGrid->SetRot(-glm::pi<float>());
 	_leftColorGrid->hideInvisible(false);
 	UpdateColorList(_leftColorGrid, Player::cLeftColors, Player::cColorsCount);
 
@@ -492,7 +484,7 @@ GarageFrame::GarageFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 	UpdateColorList(_rightColorGrid, Player::cRightColors, Player::cColorsCount);
 
 	_carGrid = menu->CreateGrid(_topPanel, NULL, gui::Grid::gsHorizontal);
-	_carGrid->SetAlign(gui::Widget::waLeftTop);	
+	_carGrid->SetAlign(gui::Widget::waLeftTop);
 }
 
 GarageFrame::~GarageFrame()
@@ -531,7 +523,7 @@ void GarageFrame::UpdateCarList(gui::Grid* grid)
 {
 	_cars.clear();
 	grid->DeleteAllChildren();
-	D3DXVECTOR2 size = NullVec2;
+	glm::vec2 size = NullVec2;
 
 	Garage::Cars avCars;
 	Garage::Cars secretCars;
@@ -591,7 +583,7 @@ void GarageFrame::UpdateCarList(gui::Grid* grid)
 		size = plane->GetSize();
 	}
 
-	grid->cellSize(size + D3DXVECTOR2(0.0f, 0.0f));
+	grid->cellSize(size + glm::vec2(0.0f, 0.0f));
 	grid->Reposition();
 }
 
@@ -606,14 +598,14 @@ GarageFrame::Cars::const_iterator GarageFrame::FindCar(Garage::Car* car)
 
 void GarageFrame::AdjustCarList()
 {
-	D3DXVECTOR2 vpSize = uiRoot()->GetVPSize();
+	glm::vec2 vpSize = uiRoot()->GetVPSize();
 
 	float carGridSpace = 10;
 	int totalCars = _carGrid->GetChildren().size();
 	int numCars = static_cast<int>((vpSize.x - carGridSpace) / _carGrid->cellSize().x);
 
 	carGridSpace = (vpSize.x - numCars * _carGrid->cellSize().x)/2.0f;
-	_carGrid->SetPos(D3DXVECTOR2(-vpSize.x/2 + carGridSpace, 25.0f));
+	_carGrid->SetPos(glm::vec2(-vpSize.x/2 + carGridSpace, 25.0f));
 
 	int selIndex = -1;
 	int i = 0;
@@ -653,7 +645,7 @@ void GarageFrame::AdjustCarList()
 void GarageFrame::SelectCar(const CarData& carData)
 {
 	_carData = carData;
-	_raceMenu->carFrame()->SetCar(carData.car, player()->GetColor(), carData.locked);	
+	_raceMenu->carFrame()->SetCar(carData.car, player()->GetColor(), carData.locked);
 
 	Invalidate();
 }
@@ -662,7 +654,7 @@ void GarageFrame::PrevCar()
 {
 	Cars::const_iterator iter = FindCar(car());
 
-	if (iter != _cars.begin())	
+	if (iter != _cars.begin())
 		SelectCar(*(--iter));
 }
 
@@ -674,21 +666,21 @@ void GarageFrame::NextCar()
 		SelectCar(*(++iter));
 }
 
-gui::Widget* GarageFrame::AddColor(gui::Grid* grid, const D3DXCOLOR& color)
+gui::Widget* GarageFrame::AddColor(gui::Grid* grid, const glm::vec4& color)
 {
 	gui::Widget* box = menu()->CreateMenuButton("", "", "GUI\\colorBoxBg.png", "GUI\\colorBoxBgSel.png", grid, this, IdentityVec2, gui::Button::bsSelAnim, clrWhite, Menu::ssButton4);
 
 	gui::PlaneFon* plane = menu()->CreatePlane(box, NULL, "GUI\\colorBox.png", true, IdentityVec2, gui::Material::bmOpaque, Menu::ssButton4);
 	plane->SetEnabled(false);
-	plane->GetMaterial().SetColor(color);	
+	plane->GetMaterial().SetColor(color);
 
 	return box;
 }
 
-void GarageFrame::UpdateColorList(gui::Grid* grid, const D3DXCOLOR colors[], unsigned count)
+void GarageFrame::UpdateColorList(gui::Grid* grid, const glm::vec4 colors[], unsigned count)
 {
 	grid->DeleteAllChildren();
-	D3DXVECTOR2 size = NullVec2;
+	glm::vec2 size = NullVec2;
 
 	for (unsigned i = 0; i < count; ++i)
 	{
@@ -696,11 +688,11 @@ void GarageFrame::UpdateColorList(gui::Grid* grid, const D3DXCOLOR colors[], uns
 		size = plane->GetSize();
 	}
 
-	grid->cellSize(size + D3DXVECTOR2(12.0f, 12.0f));
+	grid->cellSize(size + glm::vec2(12.0f, 12.0f));
 	grid->Reposition();
 }
 
-void GarageFrame::RefreshColorList(gui::Grid* grid, const D3DXCOLOR colors[], unsigned count)
+void GarageFrame::RefreshColorList(gui::Grid* grid, const glm::vec4 colors[], unsigned count)
 {
 	gui::Widget::Children::const_iterator iter = grid->GetChildren().begin();
 
@@ -709,7 +701,7 @@ void GarageFrame::RefreshColorList(gui::Grid* grid, const D3DXCOLOR colors[], un
 		gui::PlaneFon* plane = static_cast<gui::PlaneFon*>((*iter)->GetChildren().front());
 		(*iter)->SetVisible(menu()->IsNetGame() ? net()->player()->CheckColor(plane->GetMaterial().GetColor()) : true);
 
-		++iter;		
+		++iter;
 	}
 }
 
@@ -719,28 +711,30 @@ void GarageFrame::RefreshColorList()
 	RefreshColorList(_rightColorGrid, Player::cRightColors, Player::cColorsCount);
 }
 
-void GarageFrame::SelectColor(const D3DXCOLOR& value)
+void GarageFrame::SelectColor(const glm::vec4& value)
 {
 	_raceMenu->carFrame()->SetCarColor(value);
 	menu()->SetCarColor(value);
 }
 
-void GarageFrame::ShowMessage(StringValue message, gui::Widget* sender, const D3DXVECTOR2& slotSize)
+void GarageFrame::ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize)
 {
-	D3DXVECTOR2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize / 4.0f;
 	cellOffs.y = -cellOffs.y;
 
 	//menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, 0.0f);
-	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), uiRoot()->GetVPSize() / 2.0f,
+	                    gui::Widget::waCenter, 0.0f);
 }
 
-void GarageFrame::ShowAccept(const std::string& message, gui::Widget* sender, const D3DXVECTOR2& slotSize)
+void GarageFrame::ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize)
 {
-	D3DXVECTOR2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize / 4.0f;
 	cellOffs.y = -cellOffs.y;
 
 	//menu()->ShowAccept(message, GetString(svYes), GetString(svNo), sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, this);
-	menu()->ShowAccept(message, GetString(svYes), GetString(svNo), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, this);
+	menu()->ShowAccept(message, GetString(svYes), GetString(svNo), uiRoot()->GetVPSize() / 2.0f, gui::Widget::waCenter,
+	                   this);
 }
 
 void GarageFrame::OnShow(bool value)
@@ -770,7 +764,7 @@ void GarageFrame::OnShow(bool value)
 			{
 				Menu::NavElement navElement = {gridItemsLeft[index - 1], {_rightColorGrid->GetChildren().front(), _leftArrow, gridItemsLeft[index - 2], gridItemsLeft[index]}, {cVirtualKeyEnd, cVirtualKeyEnd}};
 				navElements.push_back(navElement);
-			}	
+			}
 
 			if (index + 1 == itemCount)
 			{
@@ -795,7 +789,7 @@ void GarageFrame::OnShow(bool value)
 			{
 				Menu::NavElement navElement = {gridItemsRight[index - 1], {_rightArrow, _leftColorGrid->GetChildren().front(), gridItemsRight[index - 2], gridItemsRight[index]}, {cVirtualKeyEnd, cVirtualKeyEnd}};
 				navElements.push_back(navElement);
-			}	
+			}
 
 			if (index + 1 == itemCount)
 			{
@@ -837,38 +831,38 @@ void GarageFrame::OnShow(bool value)
 	}
 }
 
-void GarageFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void GarageFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	D3DXVECTOR2 size = menu()->GetImageSize(_topPanel->GetMaterial());
+	glm::vec2 size = menu()->GetImageSize(_topPanel->GetMaterial());
 	//23.0f
 	_topPanel->SetSize(size.x, size.y);
 	_topPanel->SetPos(vpSize.x/2, 0.0f);
 
-	_rightPanel->SetPos(D3DXVECTOR2(vpSize.x + 1, (_topPanel->GetSize().y + vpSize.y - _bottomPanel->GetSize().y + 0.0f)/2.0f));
-	_leftPanel->SetPos(D3DXVECTOR2(-1, (_topPanel->GetSize().y + vpSize.y - _bottomPanel->GetSize().y + 0.0f)/2.0f));
-	_headerBg->SetPos(D3DXVECTOR2(0.0f, _topPanel->GetSize().y - 5));
-	_moneyBg->SetPos(D3DXVECTOR2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 38));
-	_stateBg->SetPos(D3DXVECTOR2(418.0f, -_bottomPanel->GetSize().y + 60));
+	_rightPanel->SetPos(glm::vec2(vpSize.x + 1, (_topPanel->GetSize().y + vpSize.y - _bottomPanel->GetSize().y + 0.0f)/2.0f));
+	_leftPanel->SetPos(glm::vec2(-1, (_topPanel->GetSize().y + vpSize.y - _bottomPanel->GetSize().y + 0.0f)/2.0f));
+	_headerBg->SetPos(glm::vec2(0.0f, _topPanel->GetSize().y - 5));
+	_moneyBg->SetPos(glm::vec2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 38));
+	_stateBg->SetPos(glm::vec2(418.0f, -_bottomPanel->GetSize().y + 60));
 
-	_damageBar->SetPos(D3DXVECTOR2(48.0f, 3.0f));
-	_armorBar->SetPos(D3DXVECTOR2(48.0f, 41.0f));
-	_speedBar->SetPos(D3DXVECTOR2(48.0f, 78.0f));
+	_damageBar->SetPos(glm::vec2(48.0f, 3.0f));
+	_armorBar->SetPos(glm::vec2(48.0f, 41.0f));
+	_speedBar->SetPos(glm::vec2(48.0f, 78.0f));
 
-	_menuItems[miExit]->SetPos(D3DXVECTOR2(-vpSize.x/2, -_bottomPanel->GetSize().y - 8.0f));
-	_menuItems[miBuy]->SetPos(D3DXVECTOR2(15.0f, -_bottomPanel->GetSize().y));
+	_menuItems[miExit]->SetPos(glm::vec2(-vpSize.x/2, -_bottomPanel->GetSize().y - 8.0f));
+	_menuItems[miBuy]->SetPos(glm::vec2(15.0f, -_bottomPanel->GetSize().y));
 
-	_leftArrow->SetPos(D3DXVECTOR2(_leftPanel->GetSize().x + 45.0f, vpSize.y/2));
-	_rightArrow->SetPos(D3DXVECTOR2(vpSize.x - _rightPanel->GetSize().x - 45.0f, vpSize.y/2));
+	_leftArrow->SetPos(glm::vec2(_leftPanel->GetSize().x + 45.0f, vpSize.y/2));
+	_rightArrow->SetPos(glm::vec2(vpSize.x - _rightPanel->GetSize().x - 45.0f, vpSize.y/2));
 
-	_leftColorGrid->SetPos(D3DXVECTOR2(-20.0f, 0.0f));
-	_rightColorGrid->SetPos(D3DXVECTOR2(-20.0f, 0.0f));	
-	
-	_labels[mlCarName]->SetPos(D3DXVECTOR2(10.0f, -155.0f));
-	_labels[mlMoney]->SetPos(D3DXVECTOR2(-53.0f, -29.0f));
-	_labels[mlPrice]->SetPos(D3DXVECTOR2(-523.0f, -80.0f));
+	_leftColorGrid->SetPos(glm::vec2(-20.0f, 0.0f));
+	_rightColorGrid->SetPos(glm::vec2(-20.0f, 0.0f));
 
-	_labels[mlCarInfo]->SetPos(D3DXVECTOR2(0.0f, -60.0f));
-	_labels[mlCarInfo]->SetSize(D3DXVECTOR2(800.0f, 105.0f));
+	_labels[mlCarName]->SetPos(glm::vec2(10.0f, -155.0f));
+	_labels[mlMoney]->SetPos(glm::vec2(-53.0f, -29.0f));
+	_labels[mlPrice]->SetPos(glm::vec2(-523.0f, -80.0f));
+
+	_labels[mlCarInfo]->SetPos(glm::vec2(0.0f, -60.0f));
+	_labels[mlCarInfo]->SetSize(glm::vec2(800.0f, 105.0f));
 
 	AdjustCarList();
 }
@@ -901,7 +895,7 @@ void GarageFrame::OnInvalidate()
 		bool isSel = carPlane->GetData() == car();
 		if (isSel)
 			carIndex = i;
-		carPlane->GetMaterial().SetColor(isSel ? D3DXCOLOR(255.0f, 150.0f, 0.0f, 255.0f)/255.0f : clrWhite);
+		carPlane->GetMaterial().SetColor(isSel ? glm::vec4(255.0f, 150.0f, 0.0f, 255.0f)/255.0f : clrWhite);
 		carBox->GetMaterial().GetSampler().SetTex(isSel ? GetTexture("GUI\\carBoxSel.png") : GetTexture("GUI\\carBox.png"));
 		carBox->GetMaterial().SetBlending(isSel ? gui::Material::bmAdditive : gui::Material::bmTransparency);
 	}
@@ -961,14 +955,14 @@ bool GarageFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 
 	if (sender->GetParent() && (sender->GetParent() == _leftColorGrid || sender->GetParent() == _rightColorGrid))
 	{
-		SelectColor(D3DXCOLOR(static_cast<gui::PlaneFon*>(sender->GetChildren().front())->GetMaterial().GetColor()));
+		SelectColor(glm::vec4(static_cast<gui::PlaneFon*>(sender->GetChildren().front())->GetMaterial().GetColor()));
 		return true;
 	}
 
 	if (sender == menu()->GetAcceptSender())
 	{
 		if (menu()->GetAcceptResultYes())
-		{	
+		{
 			if (menu()->BuyCar(car()))
 				_raceMenu->SetState(RaceMenu::msMain);
 			else
@@ -985,7 +979,7 @@ Garage::Car* GarageFrame::car()
 	return _raceMenu->carFrame()->GetCar();
 }
 
-D3DXCOLOR GarageFrame::color()
+glm::vec4 GarageFrame::color()
 {
 	return _raceMenu->carFrame()->GetCarColor();
 }
@@ -996,12 +990,9 @@ void GarageFrame::OnProcessNetEvent(unsigned id, NetEventData* data)
 		RefreshColorList();
 }
 
-
-
-
 WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _goodScroll(0), _overGood(NULL), _overGood2(NULL), _infoId(-1), _numSelectedSlots(0)
 {
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color2 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
 	const StringValue menuItemsStr[cMenuItemEnd] = {svBack};
 
 	root()->SetEvent(this);
@@ -1010,7 +1001,7 @@ WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	std::string fontLabels[cLabelEnd] = {"Header", "Item", "VerySmall"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haRight, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaTop};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color2, clrWhite, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color2, clrWhite, color2};
 
 	_topPanel = menu->CreatePlane(root(), this, "GUI\\topPanel3.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_topPanel->SetAnchor(gui::Widget::waTop);
@@ -1021,10 +1012,10 @@ WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	_bottomPanel->SetAlign(gui::Widget::waBottom);
 
 	_leftPanel = menu->CreatePlane(root(), this, "GUI\\leftPanel3.png", true, IdentityVec2, gui::Material::bmTransparency);
-	_leftPanel->SetAlign(gui::Widget::waLeft);	
+	_leftPanel->SetAlign(gui::Widget::waLeft);
 
 	_moneyBg = menu->CreatePlane(_bottomPanel, this, "GUI\\moneyBg.png", true, IdentityVec2, gui::Material::bmTransparency);
-	_moneyBg->SetAlign(gui::Widget::waRightBottom);	
+	_moneyBg->SetAlign(gui::Widget::waRightBottom);
 
 	_stateBg = menu->CreatePlane(_bottomPanel, this, "GUI\\statFrame2.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_stateBg->SetAlign(gui::Widget::waLeftTop);
@@ -1051,27 +1042,27 @@ WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	_damageBarBonus->SetSize(_damageBar->GetSize());
 
 	_armorBarValue = menu->CreateLabel("", _armorBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_armorBarValue->SetPos(D3DXVECTOR2(_armorBar->GetSize().x - 4.0f, 1.0f));
+	_armorBarValue->SetPos(glm::vec2(_armorBar->GetSize().x - 4.0f, 1.0f));
 
 	_damageBarValue = menu->CreateLabel("", _damageBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_damageBarValue->SetPos(D3DXVECTOR2(_damageBar->GetSize().x - 4.0f, 1.0f));
+	_damageBarValue->SetPos(glm::vec2(_damageBar->GetSize().x - 4.0f, 1.0f));
 
 	_speedBarValue = menu->CreateLabel("", _speedBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaTop, color2);
-	_speedBarValue->SetPos(D3DXVECTOR2(_speedBar->GetSize().x - 4.0f, 1.0f));
+	_speedBarValue->SetPos(glm::vec2(_speedBar->GetSize().x - 4.0f, 1.0f));
 
 	_goodGrid = menu->CreateGrid(_leftPanel, this, gui::Grid::gsHorizontal, IdentityVec2, 3);
 	_goodGrid->SetAlign(gui::Widget::waLeft);
 
 	_downArrow = _raceMenu->CreateArrow(_leftPanel, this);
-	_downArrow->SetRot(-D3DX_PI/2);
-	D3DXVECTOR2 size = _downArrow->GetSize();
-	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_downArrow->SetRot(-glm::half_pi<float>());
+	glm::vec2 size = _downArrow->GetSize();
+	_downArrow->SetSize(menu->StretchImage(*_downArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_downArrow->SetSelSize(menu->GetImageSize(*_downArrow->GetSel()) * _downArrow->GetSize().x / size.x);
 
 	_upArrow = _raceMenu->CreateArrow(_leftPanel, this);
-	_upArrow->SetRot(D3DX_PI/2);
+	_upArrow->SetRot(glm::half_pi<float>());
 	size = _upArrow->GetSize();
-	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), D3DXVECTOR2(30.0f, 30.0f), true, true, true, false));
+	_upArrow->SetSize(menu->StretchImage(*_upArrow->GetFon(), glm::vec2(30.0f, 30.0f), true, true, true, false));
 	_upArrow->SetSelSize(menu->GetImageSize(*_upArrow->GetSel()) * _upArrow->GetSize().x / size.x);
 
 	const std::string slotIcons[Player::cSlotTypeEnd] = {"", "", "", "", "GUI\\hyperSlot.png", "GUI\\mineSlot.png", "GUI\\wpnSlot.png", "GUI\\wpnSlot.png", "GUI\\wpnSlot.png", "GUI\\wpnSlot.png"};
@@ -1093,8 +1084,7 @@ WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 		float size = std::min(slot.plane->GetSize().x, slot.plane->GetSize().y);
 		slot.viewport->SetSize(size, size);
 
-		D3DXQUATERNION quat;
-		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
+		glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 		slot.viewport->SetRot3dSpeed(quat);
 
 		slot.mesh3d = menu->CreateMesh3d(slot.viewport, NULL, NULL);
@@ -1124,8 +1114,8 @@ WorkshopFrame::WorkshopFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	}
 
 	gui::Widget* labelsParent[cLabelEnd] = {_topPanel, _moneyBg, _bottomPanel};
-	for (int i = 0; i < cLabelEnd; ++i)	
-		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);	
+	for (int i = 0; i < cLabelEnd; ++i)
+		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 	_labels[mlHint]->SetWordWrap(true);
 
 	_dragItem.viewport = menu->CreateViewPort3d(root(), NULL, "", gui::ViewPort3d::msStatic);
@@ -1165,11 +1155,10 @@ gui::ViewPort3d* WorkshopFrame::AddGood(Slot* slot, int index, int count)
 		gui::Mesh3d* mesh3d = static_cast<gui::Mesh3d*>(viewPort->GetBox()->GetChildren().front());
 		mesh3d->GetOrCreateMaterial()->GetSampler().SetFiltering(graph::BaseSampler::sfAnisotropic);
 
-		D3DXQUATERNION quat;
-		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
+		glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 		viewPort->SetRot3dSpeed(quat);
-		D3DXQuaternionRotationAxis(&quat, &ZVector, 2.0f * D3DX_PI * index / count);
-		viewPort->GetBox()->SetRot(quat * viewPort->GetBox()->GetRot());
+		quat = glm::angleAxis(2.0f * glm::pi<float>() * index / count, ZVector);
+		viewPort->GetBox()->SetRot(viewPort->GetBox()->GetRot() * quat);
 	}
 
 	gui::PlaneFon* box = menu()->CreatePlane(viewPort, NULL, "GUI\\slot2Frame.png", true, IdentityVec2, gui::Material::bmTransparency);
@@ -1186,7 +1175,7 @@ void WorkshopFrame::UpdateGoods()
 	SetOverGood(NULL);
 	SetOverGood2(NULL);
 	_goodGrid->DeleteAllChildren();
-	D3DXVECTOR2 size = IdentityVec2;
+	glm::vec2 size = IdentityVec2;
 
 	struct Pred
 	{
@@ -1198,7 +1187,7 @@ void WorkshopFrame::UpdateGoods()
 				return false;
 		}
 	};
-	
+
 	Workshop::Items items = workshop().GetItems();
 	items.sort(Pred());
 
@@ -1221,12 +1210,12 @@ void WorkshopFrame::UpdateGoods()
 		size = viewPort->GetSize();
 	}
 
-	_goodGrid->cellSize(size + D3DXVECTOR2(22.0f, 22.0f));
+	_goodGrid->cellSize(size + glm::vec2(22.0f, 22.0f));
 }
 
 void WorkshopFrame::AdjustGood()
 {
-	_goodGrid->SetPos(D3DXVECTOR2(22.0f, 11.0f));
+	_goodGrid->SetPos(glm::vec2(22.0f, 11.0f));
 
 	int i = 0;
 	for (gui::Widget::Children::const_iterator iter = _goodGrid->GetChildren().begin(); iter != _goodGrid->GetChildren().end(); ++iter)
@@ -1287,7 +1276,7 @@ bool WorkshopFrame::StopDrag(bool dropOut, bool intoGood)
 	{
 		if (!intoGood && _dragItem.slotType != Player::cSlotTypeEnd && player()->GetSlot(_dragItem.slotType) == NULL)
 		{
-			InstalSlot(_dragItem.slotType, _dragItem.slot, _dragItem.chargeCount);			
+			InstalSlot(_dragItem.slotType, _dragItem.slot, _dragItem.chargeCount);
 		}
 		else
 		{
@@ -1300,7 +1289,7 @@ bool WorkshopFrame::StopDrag(bool dropOut, bool intoGood)
 				ShowAccept(message, _dragItem.viewport, _dragItem.viewport->GetSize(), _dragItem.slot);
 				return false;
 			}
-			else				
+			else
 				SellSlot(_dragItem.slot, _dragItem.slotType != Player::cSlotTypeEnd, _dragItem.chargeCount);
 		}
 	}
@@ -1327,7 +1316,7 @@ bool WorkshopFrame::IsDragItem()
 	return _dragItem.slot != NULL;
 }
 
-void WorkshopFrame::UpdateDragPos(const D3DXVECTOR2& pos)
+void WorkshopFrame::UpdateDragPos(const glm::vec2& pos)
 {
 	_dragItem.viewport->SetPos(pos);
 }
@@ -1343,7 +1332,7 @@ void WorkshopFrame::SetSlotActive(Player::SlotType type, bool active, bool enabl
 		box.mesh3d->SetActive(false);
 		if (box.slotIcon)
 			box.slotIcon->SetVisible(true);
-		box.chargeBox->SetVisible(false);		
+		box.chargeBox->SetVisible(false);
 		box.chargeButton->SetVisible(false);
 		box.level->SetVisible(false);
 	}
@@ -1353,10 +1342,10 @@ void WorkshopFrame::UpdateSlot(Player::SlotType type, Slot* slot)
 {
 	LSL_ASSERT(car());
 
-	SlotBox& box = _slots[type];	
+	SlotBox& box = _slots[type];
 	int wpnSlotIndex = type - Player::stWeapon1;
 
-	if (!car()->GetSlot(type).active || 
+	if (!car()->GetSlot(type).active ||
 		(menu()->IsSkirmish() && wpnSlotIndex >= 0 && wpnSlotIndex < Garage::cWeaponMaxLevel && wpnSlotIndex >= garage().GetWeaponMaxLevel()))
 	{
 		SetSlotActive(type, false, false);
@@ -1387,11 +1376,11 @@ void WorkshopFrame::UpdateSlot(Player::SlotType type, Slot* slot)
 		}
 
 		box.level->SetVisible(wpn == NULL);
-		
+
 		if (wpn)
-		{	
+		{
 			box.upLevel = wpn->GetCntCharge();
-			box.chargeBar->SetProgress(box.upLevel / (float)wpn->GetMaxCharge());			
+			box.chargeBar->SetProgress(box.upLevel / (float)wpn->GetMaxCharge());
 		}
 		else
 		{
@@ -1405,7 +1394,7 @@ void WorkshopFrame::UpdateSlot(Player::SlotType type, Slot* slot)
 			box.level->GetSel()->GetSampler().SetTex(GetTexture(imgs[std::min(level + 1, 2)]));
 			box.level->SetSelSize(menu()->GetImageSize(*box.level->GetSel()));
 
-			box.level->SetEnabled(box.upLevel < Garage::cUpgMaxLevel && 
+			box.level->SetEnabled(box.upLevel < Garage::cUpgMaxLevel &&
 				(menu()->IsCampaign() || box.upLevel < garage().GetUpgradeMaxLevel()));
 		}
 	}
@@ -1428,7 +1417,7 @@ bool WorkshopFrame::UpgradeSlot(gui::Widget* sender, Player::SlotType type, int 
 {
 	Slot* slot = player()->GetSlotInst(type);
 	bool isOk = false;
-	D3DXVECTOR2 slotSize = sender->GetSize();
+	glm::vec2 slotSize = sender->GetSize();
 
 	WeaponItem* weapon = slot ? slot->GetItem().IsWeaponItem() : 0;
 	if (weapon)
@@ -1475,7 +1464,7 @@ void WorkshopFrame::SelectSlots(Slot* slot, bool select)
 	_numSelectedSlots = 0;
 	float minDamage = -1.0f;
 	Player::SlotType slotType = Player::cSlotTypeEnd;
-	
+
 	for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 	{
 		Player::SlotType type = (Player::SlotType)i;
@@ -1500,7 +1489,7 @@ void WorkshopFrame::SelectSlots(Slot* slot, bool select)
 		}
 
 		if (checkSlot)
-		{			
+		{
 			WeaponItem* wpn = plrSlot ? plrSlot->GetItem().IsWeaponItem() : NULL;
 
 			if (wpn)
@@ -1560,7 +1549,7 @@ void WorkshopFrame::SetOverGood(gui::Widget* value)
 void WorkshopFrame::SetOverGood2(gui::Widget* value)
 {
 	if (Object::ReplaceRef(_overGood2, value))
-	{		
+	{
 		if (_overGood2)
 			lsl::StaticCast<gui::ViewPort3d*>(_overGood2)->SetStyle(_overGood2->GetParent() == _goodGrid ? gui::ViewPort3d::msMouseOverAnim : gui::ViewPort3d::msStatic);
 
@@ -1611,7 +1600,7 @@ void WorkshopFrame::UpdateMoney()
 	_labels[mlMoney]->SetText(menu()->FormatCurrency(player()->GetMoney()));
 }
 
-void WorkshopFrame::ShowInfo(Slot* slot, int cost, gui::Widget* sender, const D3DXVECTOR2& slotSize, int infoId)
+void WorkshopFrame::ShowInfo(Slot* slot, int cost, gui::Widget* sender, const glm::vec2& slotSize, int infoId)
 {
 	_infoId = infoId;
 
@@ -1620,13 +1609,13 @@ void WorkshopFrame::ShowInfo(Slot* slot, int cost, gui::Widget* sender, const D3
 	if (wpn)
 		damage = lsl::StrFmt("%0.0f", wpn->GetDamage());
 
-	D3DXVECTOR2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize / 4.0f;
 	cellOffs.y = -cellOffs.y;
 
 	menu()->ShowWeaponDialog(GetString(slot->GetItem().GetName()), GetString(slot->GetItem().GetInfo()), menu()->FormatCurrency(cost), damage, sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, 0.0f);
 }
 
-void WorkshopFrame::ShowInfo(Slot* slot, gui::Widget* sender, const D3DXVECTOR2& slotSize, int infoId)
+void WorkshopFrame::ShowInfo(Slot* slot, gui::Widget* sender, const glm::vec2& slotSize, int infoId)
 {
 	ShowInfo(slot, slot->GetItem().GetCost(), sender, slotSize, infoId);
 }
@@ -1646,7 +1635,7 @@ bool WorkshopFrame::UpdateSlotInfo(gui::Widget* sender, const SlotBox& slotBox, 
 	if (!isSender)
 		return false;
 
-	int index = (int)type;	
+	int index = (int)type;
 	int infoId = cSlotInfo + index * 10;
 
 	if (slotBox.chargeButton->IsMouseEnter())
@@ -1703,21 +1692,21 @@ void WorkshopFrame::UpdateBonusStats(Player::SlotType type, Slot* slot)
 	}
 }
 
-void WorkshopFrame::ShowMessage(StringValue message, gui::Widget* sender, const D3DXVECTOR2& slotSize)
+void WorkshopFrame::ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize)
 {
 	HideInfo(cUndefInfo);
 
-	D3DXVECTOR2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize / 4.0f;
 	cellOffs.y = -cellOffs.y;
 
 	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), sender->GetWorldPos() + cellOffs, gui::Widget::waLeftBottom, 0.0f);
 }
 
-void WorkshopFrame::ShowAccept(const std::string& message, gui::Widget* sender, const D3DXVECTOR2& slotSize, Slot* slot)
+void WorkshopFrame::ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize, Slot* slot)
 {
 	HideInfo(cUndefInfo);
 
-	D3DXVECTOR2 cellOffs = slotSize/4;
+	glm::vec2 cellOffs = slotSize / 4.0f;
 	cellOffs.y = -cellOffs.y;
 	SetOverGood2(sender);
 
@@ -1746,31 +1735,31 @@ void WorkshopFrame::OnShow(bool value)
 	}
 }
 
-void WorkshopFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void WorkshopFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	_leftPanel->SetPos(D3DXVECTOR2(30, (_topPanel->GetSize().y - 30.0f + vpSize.y - _bottomPanel->GetSize().y)/2));
-	_moneyBg->SetPos(D3DXVECTOR2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 5));
-	//_stateBg->SetPos(D3DXVECTOR2(418.0f, -_bottomPanel->GetSize().y + 25.0f));	
-	_stateBg->SetPos(D3DXVECTOR2(vpSize.x/2 - _stateBg->GetSize().x - 15.0f, -_bottomPanel->GetSize().y + 25.0f));
+	_leftPanel->SetPos(glm::vec2(30, (_topPanel->GetSize().y - 30.0f + vpSize.y - _bottomPanel->GetSize().y)/2));
+	_moneyBg->SetPos(glm::vec2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 5));
+	//_stateBg->SetPos(glm::vec2(418.0f, -_bottomPanel->GetSize().y + 25.0f));
+	_stateBg->SetPos(glm::vec2(vpSize.x/2 - _stateBg->GetSize().x - 15.0f, -_bottomPanel->GetSize().y + 25.0f));
 
-	_damageBarBonus->SetPos(D3DXVECTOR2(48.0f, 3.0f));
-	_armorBarBonus->SetPos(D3DXVECTOR2(48.0f, 41.0f));
-	_speedBarBonus->SetPos(D3DXVECTOR2(48.0f, 78.0f));
+	_damageBarBonus->SetPos(glm::vec2(48.0f, 3.0f));
+	_armorBarBonus->SetPos(glm::vec2(48.0f, 41.0f));
+	_speedBarBonus->SetPos(glm::vec2(48.0f, 78.0f));
 
-	_upArrow->SetPos(D3DXVECTOR2(_leftPanel->GetSize().x/2, -_leftPanel->GetSize().y/2 + 65.0f));
-	_downArrow->SetPos(D3DXVECTOR2(_leftPanel->GetSize().x/2, _leftPanel->GetSize().y/2 - 42.0f));
+	_upArrow->SetPos(glm::vec2(_leftPanel->GetSize().x/2, -_leftPanel->GetSize().y/2 + 65.0f));
+	_downArrow->SetPos(glm::vec2(_leftPanel->GetSize().x/2, _leftPanel->GetSize().y/2 - 42.0f));
 
 	AdjustGood();
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
-		_menuItems[i]->SetPos(D3DXVECTOR2(-vpSize.x/2, -_bottomPanel->GetSize().y + 40.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
+		_menuItems[i]->SetPos(glm::vec2(-vpSize.x/2, -_bottomPanel->GetSize().y + 40.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
 
-	_labels[mlHeader]->SetPos(D3DXVECTOR2(20.0f, 40.0f));
-	_labels[mlMoney]->SetPos(D3DXVECTOR2(-53.0f, -29.0f));
+	_labels[mlHeader]->SetPos(glm::vec2(20.0f, 40.0f));
+	_labels[mlMoney]->SetPos(glm::vec2(-53.0f, -29.0f));
 
-	_labels[mlHint]->SetPos(D3DXVECTOR2((_menuItems[miExit]->GetPos().x + _menuItems[miExit]->GetSize().x + _stateBg->GetPos().x)/2, -72.0f));
-	_labels[mlHint]->SetSize(D3DXVECTOR2(800.0f, 105.0f));
-	
+	_labels[mlHint]->SetPos(glm::vec2((_menuItems[miExit]->GetPos().x + _menuItems[miExit]->GetSize().x + _stateBg->GetPos().x)/2, -72.0f));
+	_labels[mlHint]->SetSize(glm::vec2(800.0f, 105.0f));
+
 	float scale = vpSize.y/720.0f;
 	float centerX = vpSize.x * 0.63f;
 	float centerY = vpSize.y * 0.451f;
@@ -1779,20 +1768,20 @@ void WorkshopFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 	float topOffset = std::max(centerY - 180.0f * scale, _topPanel->GetSize().y + 65.0f);
 	float bottomOffset = std::min(centerY + 180.0f * scale, vpSize.y - _bottomPanel->GetSize().y - 65.0f);
 
-	D3DXVECTOR2 slotSize = _slots[0].plane->GetSize();
+	glm::vec2 slotSize = _slots[0].plane->GetSize();
 	float slotSpace = 15.0f;
 
-	D3DXVECTOR2 slotOffset[Player::cSlotTypeEnd] = {
-		D3DXVECTOR2(leftOffset, centerY + slotSize.y/2 + slotSpace), 
-		D3DXVECTOR2(leftOffset, centerY - slotSize.y/2 - slotSpace), 
-		D3DXVECTOR2(centerX - slotSize.x/2 - 6.0f * slotSpace, bottomOffset), 
-		D3DXVECTOR2(centerX + slotSize.x/2 + 6.0f * slotSpace, bottomOffset), 
-		D3DXVECTOR2(rightOffset, centerY - slotSize.y/2 - slotSpace), 
-		D3DXVECTOR2(rightOffset, centerY + slotSize.y/2 + slotSpace),
-		D3DXVECTOR2(centerX - (slotSize.x + 4.5f * slotSpace) * 1.5f, topOffset),
-		D3DXVECTOR2(centerX - (slotSize.x + 4.5f * slotSpace) * 0.5f, topOffset),
-		D3DXVECTOR2(centerX + (slotSize.x + 4.5f * slotSpace) * 0.5f, topOffset),
-		D3DXVECTOR2(centerX + (slotSize.x + 4.5f * slotSpace) * 1.5f, topOffset),
+	glm::vec2 slotOffset[Player::cSlotTypeEnd] = {
+		glm::vec2(leftOffset, centerY + slotSize.y/2 + slotSpace),
+		glm::vec2(leftOffset, centerY - slotSize.y/2 - slotSpace),
+		glm::vec2(centerX - slotSize.x/2 - 6.0f * slotSpace, bottomOffset),
+		glm::vec2(centerX + slotSize.x/2 + 6.0f * slotSpace, bottomOffset),
+		glm::vec2(rightOffset, centerY - slotSize.y/2 - slotSpace),
+		glm::vec2(rightOffset, centerY + slotSize.y/2 + slotSpace),
+		glm::vec2(centerX - (slotSize.x + 4.5f * slotSpace) * 1.5f, topOffset),
+		glm::vec2(centerX - (slotSize.x + 4.5f * slotSpace) * 0.5f, topOffset),
+		glm::vec2(centerX + (slotSize.x + 4.5f * slotSpace) * 0.5f, topOffset),
+		glm::vec2(centerX + (slotSize.x + 4.5f * slotSpace) * 1.5f, topOffset),
 	};
 
 	for (int i = 0; i < Player::cSlotTypeEnd; ++i)
@@ -1919,7 +1908,7 @@ bool WorkshopFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 			}
 			else
 			{
-				Slot* slot = static_cast<Slot*>(menu()->GetAcceptData());			
+				Slot* slot = static_cast<Slot*>(menu()->GetAcceptData());
 				BuySlot(_overGood2, slot);
 			}
 		}
@@ -1937,12 +1926,12 @@ bool WorkshopFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 			StopDrag(true, true);
 		}
 		else if (slot)
-		{	
+		{
 			if (_numSelectedSlots == 0)
 			{
 				ShowMessage(svHintWeaponNotSupport, sender, _goodGrid->cellSize());
 			}
-			else if (menu()->IsCampaign())			
+			else if (menu()->IsCampaign())
 			{
 				std::string message = GetString(svBuyWeapon);
 				if (HasString(svBuyWeapon))
@@ -1991,7 +1980,7 @@ bool WorkshopFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 		}
 
 		if (_slots[i].level == sender && slot && !IsDragItem())
-		{		
+		{
 			UpgradeSlot(sender, type, _slots[i].upLevel + 1);
 			return true;
 		}
@@ -2018,7 +2007,7 @@ bool WorkshopFrame::OnMouseMove(gui::Widget* sender, const gui::MouseMove& mMove
 	if (sender == root())
 	{
 		if (_dragItem.slot)
-			UpdateDragPos(D3DXVECTOR2(static_cast<float>(mMove.worldCoord.x), static_cast<float>(mMove.worldCoord.y)));
+			UpdateDragPos(glm::vec2(static_cast<float>(mMove.worldCoord.x), static_cast<float>(mMove.worldCoord.y)));
 	}
 
 	return false;
@@ -2080,27 +2069,23 @@ void WorkshopFrame::OnProcessEvent(unsigned id, EventData* data)
 	}
 }
 
-
-
-
 GamersFrame::GamersFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _planetIndex(-1)
 {
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;	
+	const glm::vec4 color2 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"VerySmall", "Header", "Item"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haCenter, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaTop, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color2, clrWhite, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color2, clrWhite, color2};
 
 	_space = menu->CreatePlane(root(), this, "GUI\\space1.dds", true);
 	_space->SetAnchor(gui::Widget::waCenter);
 
-	_viewport = menu->CreateViewPort3d(root(), NULL, "", gui::ViewPort3d::msAnim, false);	
-	D3DXQUATERNION quat;
-	D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/24.0f);
+	_viewport = menu->CreateViewPort3d(root(), NULL, "", gui::ViewPort3d::msAnim, false);
+	glm::quat quat = glm::angleAxis(glm::pi<float>() / 24.0f, ZVector);
 	_viewport->SetRot3dSpeed(quat);
-	D3DXQuaternionRotationAxis(&quat, &XVector, D3DX_PI/2.0f);
+	quat = glm::angleAxis(glm::half_pi<float>(), XVector);
 	_viewport->GetBox()->SetRot(quat);
 
 	_mesh3d = menu->CreateMesh3d(_viewport, NULL, NULL);
@@ -2108,13 +2093,13 @@ GamersFrame::GamersFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 
 	_bottomPanel = menu->CreatePlane(root(), this, "GUI\\bottomPanel4.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_bottomPanel->SetAnchor(gui::Widget::waBottom);
-	_bottomPanel->SetAlign(gui::Widget::waBottom);	
+	_bottomPanel->SetAlign(gui::Widget::waBottom);
 
 	_photo = menu->CreatePlane(_bottomPanel, this, "", true, IdentityVec2, gui::Material::bmTransparency);
 	_photo->SetAlign(gui::Widget::waBottom);
 	_photo->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 
-	_photoLight = menu->CreatePlane(_bottomPanel, this, "GUI\\wndLight4.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_photoLight = menu->CreatePlane(_bottomPanel, this, "GUI\\wndLight4.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 	_leftArrow = _raceMenu->CreateArrow(root(), this);
 	_leftArrow->SetAlign(gui::Widget::waRight);
@@ -2122,14 +2107,14 @@ GamersFrame::GamersFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): M
 
 	_rightArrow = _raceMenu->CreateArrow(root(), this);
 	_rightArrow->SetAlign(gui::Widget::waRight);
-	_rightArrow->SetRot(D3DX_PI);		
+	_rightArrow->SetRot(glm::pi<float>());
 
 	_nextArrow = _raceMenu->CreateArrow2(_bottomPanel, this);
 	_nextArrow->SetAlign(gui::Widget::waLeft);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_bottomPanel, _bottomPanel, _bottomPanel};
-	for (int i = 0; i < cLabelEnd; ++i)	
-		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);	
+	for (int i = 0; i < cLabelEnd; ++i)
+		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 	_labels[mlInfo]->SetWordWrap(true);
 }
 
@@ -2194,29 +2179,29 @@ int GamersFrame::GetPrevPlanetIndex(int sIndex)
 	return -1;
 }
 
-void GamersFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void GamersFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	float planetRadius = (vpSize.y - _bottomPanel->GetSize().y)/2;
-	D3DXVECTOR2 planetPos = D3DXVECTOR2(vpSize.x/2 - 25.0f, planetRadius);
+	glm::vec2 planetPos = glm::vec2(vpSize.x/2 - 25.0f, planetRadius);
 
 	menu()->StretchImage(_space->GetMaterial(), vpSize, true, true);
 
-	_photo->SetPos(D3DXVECTOR2(-30.0f, -18.0f));
-	_photoLight->SetPos(D3DXVECTOR2(-30.0f, -100.0f));
+	_photo->SetPos(glm::vec2(-30.0f, -18.0f));
+	_photoLight->SetPos(glm::vec2(-30.0f, -100.0f));
 
-	_leftArrow->SetPos(D3DXVECTOR2(planetPos.x - planetRadius - 40.0f + 3.0f, planetPos.y));
-	_rightArrow->SetPos(D3DXVECTOR2(planetPos.x + planetRadius + 40.0f + 3.0f, planetPos.y));
-	_nextArrow->SetPos(D3DXVECTOR2(400.0f, -100.0f));
+	_leftArrow->SetPos(glm::vec2(planetPos.x - planetRadius - 40.0f + 3.0f, planetPos.y));
+	_rightArrow->SetPos(glm::vec2(planetPos.x + planetRadius + 40.0f + 3.0f, planetPos.y));
+	_nextArrow->SetPos(glm::vec2(400.0f, -100.0f));
 
 	_viewport->SetPos(planetPos);
 	planetRadius = std::min(planetRadius, 300.0f);
 	_viewport->SetSize(planetRadius * 3.1f, planetRadius * 3.1f);
 
-	_labels[mlName]->SetPos(D3DXVECTOR2(-25.0f, -_bottomPanel->GetSize().y + 23.0f));
-	_labels[mlBonus]->SetPos(D3DXVECTOR2(245.0f, -105.0f));
+	_labels[mlName]->SetPos(glm::vec2(-25.0f, -_bottomPanel->GetSize().y + 23.0f));
+	_labels[mlBonus]->SetPos(glm::vec2(245.0f, -105.0f));
 
-	_labels[mlInfo]->SetPos(D3DXVECTOR2(-390.0f, -100.0f));
-	_labels[mlInfo]->SetSize(D3DXVECTOR2(475.0f, 160.0f));
+	_labels[mlInfo]->SetPos(glm::vec2(-390.0f, -100.0f));
+	_labels[mlInfo]->SetSize(glm::vec2(475.0f, 160.0f));
 }
 
 void GamersFrame::OnShow(bool value)
@@ -2250,7 +2235,7 @@ void GamersFrame::OnInvalidate()
 	_mesh3d->GetMaterial()->GetSampler().SetTex(planet->GetTexture());
 
 	_photo->GetMaterial().GetSampler().SetTex(planet->GetBoss().photo);
-	_photo->SetSize(menu()->StretchImage(_photo->GetMaterial(), D3DXVECTOR2(190.0f, 190.0f), true, false, true, false));
+	_photo->SetSize(menu()->StretchImage(_photo->GetMaterial(), glm::vec2(190.0f, 190.0f), true, false, true, false));
 
 	_leftArrow->SetVisible(GetPrevPlanetIndex(_planetIndex) != -1);
 	_rightArrow->SetVisible(GetNextPlanetIndex(_planetIndex) != -1);
@@ -2264,7 +2249,7 @@ bool GamersFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 {
 	if (sender == _nextArrow)
 	{
-		Planet* planet = tournament().GetGamers()[_planetIndex];		
+		Planet* planet = tournament().GetGamers()[_planetIndex];
 
 		if (menu()->IsNetGame())
 		{
@@ -2285,7 +2270,7 @@ bool GamersFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 					menu()->PlayMovie("Data\\Video\\intaria_eng.avi");
 			}
 			else
-#endif			
+#endif
 				_raceMenu->SetState(RaceMenu::msGarage);
 		}
 
@@ -2326,7 +2311,8 @@ void GamersFrame::OnProcessNetEvent(unsigned id, NetEventData* data)
 
 			if (data->failed)
 			{
-				menu()->ShowMessage(GetString(svWarning), GetString(svHintSetGamerFailed), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+				menu()->ShowMessage(GetString(svWarning), GetString(svHintSetGamerFailed), GetString(svOk),
+				                    uiRoot()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f);
 			}
 			else
 				_raceMenu->SetState(RaceMenu::msGarage);
@@ -2335,20 +2321,17 @@ void GamersFrame::OnProcessNetEvent(unsigned id, NetEventData* data)
 	}
 }
 
-
-
-
 AngarFrame::AngarFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu), _planetIndex(-1), _planetPrevIndex(-1), _doorTime(-1.0f)
 {
-	const D3DXCOLOR color = D3DXCOLOR(0xff76cef2);
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color = glm::vec4(118.0f/255.0f, 206.0f/255.0f, 242.0f/255.0f, 1.0f); // 0xff76cef2
+	const glm::vec4 color2 = glm::vec4(214.0f/255.0f, 214.0f/255.0f, 214.0f/255.0f, 1.0f);
 	const StringValue menuItemsStr[cMenuItemEnd] = {svBack};
 
 	StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull};
 	std::string fontLabels[cLabelEnd] = {"Item", "Small", "VerySmallThink"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haCenter, gui::Text::haLeft};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaTop};
-	D3DXCOLOR colorLabels[cLabelEnd] = {clrWhite, color, color};
+	glm::vec4 colorLabels[cLabelEnd] = {clrWhite, color, color};
 
 	_bottomPanelBg = menu->CreateDummy(root(), this);
 	_bottomPanelBg->SetAlign(gui::Widget::waBottom);
@@ -2356,22 +2339,21 @@ AngarFrame::AngarFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): Men
 	_planetGridBg = menu->CreateGrid(_bottomPanelBg, NULL, gui::Grid::gsHorizontal);
 	_planetGridBg->SetAlign(gui::Widget::waLeft);
 
-	_bottomPanel = menu->CreatePlane(_bottomPanelBg, this, "GUI\\bottomPanel6.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_bottomPanel = menu->CreatePlane(_bottomPanelBg, this, "GUI\\bottomPanel6.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_bottomPanel->SetAlign(gui::Widget::waBottom);
 
 	_planetGrid = menu->CreateGrid(_bottomPanel, NULL, gui::Grid::gsHorizontal);
 	_planetGrid->SetAlign(gui::Widget::waLeft);
 
-	_planetInfo = menu->CreatePlane(_bottomPanel, this, "GUI\\planetInfo.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_planetInfo = menu->CreatePlane(_bottomPanel, this, "GUI\\planetInfo.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_planetInfo->SetAlign(gui::Widget::waBottom);
 
 	_planetInfoClose = menu->CreateMenuButton(svNull, "", "GUI\\buttonBg6.png", "GUI\\buttonBgSel6.png", _planetInfo, this, IdentityVec2, gui::Button::bsSelAnim, clrWhite);
 
-	_planetBoss = menu->CreatePlane(_planetInfo, this, "", true, IdentityVec2, gui::Material::bmTransparency);	
+	_planetBoss = menu->CreatePlane(_planetInfo, this, "", true, IdentityVec2, gui::Material::bmTransparency);
 
-	_planetBossCar = menu->CreateViewPort3d(_planetInfo, NULL, "", gui::ViewPort3d::msAnim);	
-	D3DXQUATERNION quat;
-	D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
+	_planetBossCar = menu->CreateViewPort3d(_planetInfo, NULL, "", gui::ViewPort3d::msAnim);
+	glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 	_planetBossCar->SetRot3dSpeed(quat);
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
@@ -2381,10 +2363,10 @@ AngarFrame::AngarFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): Men
 	}
 
 	gui::Widget* labelsParent[cLabelEnd] = {_planetInfo, _planetInfo, _planetInfo};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 	_labels[mlBossInfo]->SetAlign(gui::Widget::waLeftTop);
-	_labels[mlBossInfo]->SetWordWrap(true);	
+	_labels[mlBossInfo]->SetWordWrap(true);
 	_labels[mlBossInfo]->SetFlag(gui::Widget::wfClientClip, true);
 }
 
@@ -2413,12 +2395,11 @@ AngarFrame::PlanetBox& AngarFrame::AddPlanet(Planet* planet, int index)
 		box = &_planets.back();
 
 		box->viewport = menu()->CreateMesh3dBox(_planetGrid, this, planet->GetMesh(), planet->GetTexture(), gui::ViewPort3d::msStatic, Menu::ssButton5);
-		D3DXQUATERNION quat;
-		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/24.0f);
+		glm::quat quat = glm::angleAxis(glm::pi<float>() / 24.0f, ZVector);
 		box->viewport->SetRot3dSpeed(quat);
-		D3DXQuaternionRotationAxis(&quat, &XVector, D3DX_PI/2.0f);
+		quat = glm::angleAxis(glm::half_pi<float>(), XVector);
 		box->viewport->GetBox()->SetRot(quat);
-		box->viewport->SetSize(D3DXVECTOR2(180.0f, 180.0f));
+		box->viewport->SetSize(glm::vec2(180.0f, 180.0f));
 		gui::Mesh3d* mesh3d = static_cast<gui::Mesh3d*>(box->viewport->GetBox()->GetChildren().front());
 		mesh3d->GetMaterial()->GetSampler().SetFiltering(graph::BaseSampler::sfAnisotropic);
 
@@ -2426,19 +2407,19 @@ AngarFrame::PlanetBox& AngarFrame::AddPlanet(Planet* planet, int index)
 
 		box->slotClip = menu()->CreateDummy(box->slot, NULL);
 		box->slotClip->SetFlag(gui::Widget::wfClientClip, true);
-		box->slotClip->SetSize(box->slot->GetSize() - D3DXVECTOR2(8.0f, 8.0f));
+		box->slotClip->SetSize(box->slot->GetSize() - glm::vec2(8.0f, 8.0f));
 
 		box->doorDown = menu()->CreatePlane(box->slotClip, NULL, "GUI\\doorDown.png", true, IdentityVec2, gui::Material::bmTransparency);
 		box->doorDown->SetAlign(gui::Widget::waTop);
 
-		box->doorUp = menu()->CreatePlane(box->slotClip, NULL, "GUI\\doorUp.png", true, IdentityVec2, gui::Material::bmTransparency);			
+		box->doorUp = menu()->CreatePlane(box->slotClip, NULL, "GUI\\doorUp.png", true, IdentityVec2, gui::Material::bmTransparency);
 		box->doorUp->SetAlign(gui::Widget::waBottom);
 	}
 
 	if ((planet->GetState() == Planet::psOpen) || (race->GetPlanetChampion() && tournament().GetNextPlanet() == planet))
 	{
 		box->slot->SetText(GetString(svOpen));
-	}	
+	}
 	else if (planet->GetState() == Planet::psClosed)
 	{
 		box->slot->SetText(lsl::StrFmt(GetString(svRequestPoints).c_str(), planet->GetRequestPoints(planet->GetPass())));
@@ -2455,7 +2436,7 @@ AngarFrame::PlanetBox& AngarFrame::AddPlanet(Planet* planet, int index)
 	else if (planet->GetState() == Planet::psCompleted)
 	{
 		box->slot->SetText(GetString(svCompleted));
-	}		
+	}
 
 	return *box;
 }
@@ -2472,7 +2453,7 @@ void AngarFrame::UpdatePlanets()
 	if (index < _planets.size())
 	{
 		for (unsigned i = index; i < _planets.size(); ++i)
-		{	
+		{
 			menu()->ReleaseWidget(_planets[i].slot);
 			menu()->ReleaseWidget(_planets[i].viewport);
 		}
@@ -2480,7 +2461,7 @@ void AngarFrame::UpdatePlanets()
 		_planets.erase(_planets.begin() + index, _planets.end());
 	}
 
-	_planetGrid->cellSize(D3DXVECTOR2(224.0f, 130.0f));
+	_planetGrid->cellSize(glm::vec2(224.0f, 130.0f));
 	_planetGrid->Reposition();
 
 	_planetGridBg->cellSize(_planetGrid->cellSize());
@@ -2508,26 +2489,28 @@ void AngarFrame::SetDoorPos(PlanetBox& planet, float alpha)
 		alpha = 0.0f;
 
 	float doorOffset = 16.0f * alpha;
-	planet.doorDown->SetPos(D3DXVECTOR2(-1.0f, -4.0f + doorOffset));
-	planet.doorUp->SetPos(D3DXVECTOR2(-1.0f, 4.0f - doorOffset));
+	planet.doorDown->SetPos(glm::vec2(-1.0f, -4.0f + doorOffset));
+	planet.doorUp->SetPos(glm::vec2(-1.0f, 4.0f - doorOffset));
 }
 
-void AngarFrame::ShowMessage(StringValue message, gui::Widget* sender, const D3DXVECTOR2& slotSize)
+void AngarFrame::ShowMessage(StringValue message, gui::Widget* sender, const glm::vec2& slotSize)
 {
-	D3DXVECTOR2 cellOffs = slotSize/2;
+	glm::vec2 cellOffs = slotSize / 2.0f;
 	cellOffs.y = -cellOffs.y;
 	cellOffs.x = 0;
 
 	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), sender->GetWorldPos() + cellOffs, gui::Widget::waBottom, 0.0f);
 }
 
-void AngarFrame::ShowAccept(const std::string& message, gui::Widget* sender, const D3DXVECTOR2& slotSize, lsl::Object* data)
+void AngarFrame::ShowAccept(const std::string& message, gui::Widget* sender, const glm::vec2& slotSize, lsl::Object* data)
 {
-	D3DXVECTOR2 cellOffs = slotSize/2;
+	glm::vec2 cellOffs = slotSize / 2.0f;
 	cellOffs.y = -cellOffs.y;
 	cellOffs.x = 0;
 
-	menu()->ShowAccept(message, GetString(svYes), GetString(svNo), (sender ? sender->GetWorldPos() : uiRoot()->GetVPSize()/2) + cellOffs, gui::Widget::waBottom, this, data);
+	menu()->ShowAccept(message, GetString(svYes), GetString(svNo),
+	                   (sender ? sender->GetWorldPos() : uiRoot()->GetVPSize() / 2.0f) + cellOffs,
+	                   gui::Widget::waBottom, this, data);
 }
 
 void AngarFrame::OnShow(bool value)
@@ -2603,43 +2586,43 @@ void AngarFrame::OnShow(bool value)
 	}
 }
 
-void AngarFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void AngarFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
-	_bottomPanelBg->SetPos(vpSize.x/2, vpSize.y - 20.0f);	
-	_planetGrid->SetPos(D3DXVECTOR2(-_bottomPanel->GetSize().x/2 + 35.0f, -_bottomPanel->GetSize().y/2));
-	_planetGridBg->SetPos(_planetGrid->GetPos() + D3DXVECTOR2(0.0f, -124.0f));
+	_bottomPanelBg->SetPos(vpSize.x/2, vpSize.y - 20.0f);
+	_planetGrid->SetPos(glm::vec2(-_bottomPanel->GetSize().x/2 + 35.0f, -_bottomPanel->GetSize().y/2));
+	_planetGridBg->SetPos(_planetGrid->GetPos() + glm::vec2(0.0f, -124.0f));
 
 	if (_planetIndex != -1)
 	{
-		D3DXVECTOR2 pos = _planets[_planetIndex].slot->GetPos() + D3DXVECTOR2(0.0f, -37.0f) + _planetGridBg->GetPos();
+		glm::vec2 pos = _planets[_planetIndex].slot->GetPos() + glm::vec2(0.0f, -37.0f) + _planetGridBg->GetPos();
 		pos.x = lsl::ClampValue(pos.x, -vpSize.x/2 + _planetInfo->GetSize().x/2, -vpSize.x/2 + vpSize.x - _planetInfo->GetSize().x/2);
 		_planetInfo->SetPos(pos);
 	}
-	_planetInfoClose->SetPos(D3DXVECTOR2(180.0f, -265.0f));
-	_planetBoss->SetPos(D3DXVECTOR2(107.0f, -191.0f));
+	_planetInfoClose->SetPos(glm::vec2(180.0f, -265.0f));
+	_planetBoss->SetPos(glm::vec2(107.0f, -191.0f));
 
-	_planetBossCar->SetPos(D3DXVECTOR2(107.0f, -78.0f));
-	_planetBossCar->SetSize(D3DXVECTOR2(110.0f, 110.0f));
+	_planetBossCar->SetPos(glm::vec2(107.0f, -78.0f));
+	_planetBossCar->SetSize(glm::vec2(110.0f, 110.0f));
 
-	_labels[mlPlanetName]->SetPos(D3DXVECTOR2(0, -269.0f));
-	_labels[mlBossName]->SetPos(D3DXVECTOR2(-60.0f, -238.0f));
-	_labels[mlBossInfo]->SetPos(D3DXVECTOR2(-_planetInfo->GetSize().x/2 + 15, -222.0f));
+	_labels[mlPlanetName]->SetPos(glm::vec2(0, -269.0f));
+	_labels[mlBossName]->SetPos(glm::vec2(-60.0f, -238.0f));
+	_labels[mlBossInfo]->SetPos(glm::vec2(-_planetInfo->GetSize().x/2 + 15, -222.0f));
 	_labels[mlBossInfo]->SetSize(225.0f, 200.0f);
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
-		_menuItems[i]->SetPos(D3DXVECTOR2(0.0f, 30.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
+		_menuItems[i]->SetPos(glm::vec2(0.0f, 30.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
 }
 
 void AngarFrame::OnInvalidate()
 {
 	if (_planetIndex != -1)
 	{
-		Planet* planet = tournament().GetPlanet(_planetIndex);	
+		Planet* planet = tournament().GetPlanet(_planetIndex);
 
 		_planetInfo->SetVisible(true);
 
 		_planetBoss->GetMaterial().GetSampler().SetTex(planet->GetBoss().photo);
-		_planetBoss->SetSize(menu()->StretchImage(_planetBoss->GetMaterial(), D3DXVECTOR2(110.0f, 85.0f), true, false, true, false));
+		_planetBoss->SetSize(menu()->StretchImage(_planetBoss->GetMaterial(), glm::vec2(110.0f, 85.0f), true, false, true, false));
 
 		if (planet->GetBoss().cars.size() > 0)
 			_raceMenu->CreateCar(_planetBossCar, garage().FindCar(planet->GetBoss().cars.front().record), clrWhite, NULL);
@@ -2691,7 +2674,7 @@ bool AngarFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 			menu()->ChangePlanet(planet);
 
 			if (newPlanet)
-			{	
+			{
 #ifndef _DEBUG
 				if (!menu()->IsNetGame() && menu()->IsCampaign() && !menu()->GetDisableVideo())
 				{
@@ -2721,7 +2704,7 @@ bool AngarFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 
 	for (unsigned i = 0; i < _planets.size(); ++i)
 	{
-		PlanetBox planetBox = _planets[i]; 
+		PlanetBox planetBox = _planets[i];
 
 		if (sender == planetBox.viewport)
 		{
@@ -2735,7 +2718,7 @@ bool AngarFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 		if (sender == planetBox.slot && i == _planetIndex)
 		{
 			Planet* planet = tournament().GetPlanet(i);
-			Race* race = menu()->GetRace();	
+			Race* race = menu()->GetRace();
 			bool isCurrent = tournament().GetCurPlanetIndex() == i;
 
 			if (race->GetPlanetChampion())
@@ -2751,7 +2734,7 @@ bool AngarFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 					return true;
 				}
 			}
-			
+
 			if (!menu()->IsCampaign() && planet->GetState() == Planet::psOpen)
 			{
 				menu()->ChangePlanet(planet);
@@ -2775,7 +2758,7 @@ void AngarFrame::OnFocusChanged(gui::Widget* sender)
 	{
 		for (unsigned i = 0; i < _planets.size(); ++i)
 		{
-			PlanetBox planetBox = _planets[i]; 		
+			PlanetBox planetBox = _planets[i];
 
 			if (sender == planetBox.viewport)
 			{
@@ -2821,23 +2804,20 @@ void AngarFrame::OnProgress(float deltaTime)
 	}
 }
 
-
-
-
 AchievmentFrame::AchievmentFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu)
 {
-	const D3DXCOLOR color = D3DXCOLOR(0xFFFA5800);
-	const D3DXCOLOR color2 = clrWhite;
+	const glm::vec4 color = glm::vec4(250.0f/255.0f, 88.0f/255.0f, 0.0f, 1.0f); // 0xFFFA5800
+	const glm::vec4 color2 = clrWhite;
 	const StringValue menuItemsStr[cMenuItemEnd] = {svBack};
 
 	StringValue strLabels[cLabelEnd] = {svNull, svRewards};
 	std::string fontLabels[cLabelEnd] = {"Header", "Header"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haCenter};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color, color2};
 
-	_bottomPanel = menu->CreatePlane(root(), this, "GUI\\achievmentBottomPanel.png", true, IdentityVec2, gui::Material::bmTransparency);	
-	_bottomPanel->SetAlign(gui::Widget::waBottom);	
+	_bottomPanel = menu->CreatePlane(root(), this, "GUI\\achievmentBottomPanel.png", true, IdentityVec2, gui::Material::bmTransparency);
+	_bottomPanel->SetAlign(gui::Widget::waBottom);
 	_bottomPanel->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 
 	_bg = menu->CreatePlane(root(), this, "GUI\\achievmentBg.dds", true, IdentityVec2, gui::Material::bmTransparency);
@@ -2845,10 +2825,10 @@ AchievmentFrame::AchievmentFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* pa
 	_bg->SetAnchor(gui::Widget::waCenter);
 	_bg->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 
-	_panel = menu->CreatePlane(root(), this, "GUI\\achievmentPanel.png", true, IdentityVec2, gui::Material::bmTransparency);	
+	_panel = menu->CreatePlane(root(), this, "GUI\\achievmentPanel.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_panel->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 	_panel->SetAlign(gui::Widget::waTop);
-	_panel->SetAnchor(gui::Widget::waTop);	
+	_panel->SetAnchor(gui::Widget::waTop);
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
 	{
@@ -2857,7 +2837,7 @@ AchievmentFrame::AchievmentFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* pa
 	}
 
 	gui::Widget* labelsParent[cLabelEnd] = {_bottomPanel, _panel};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 }
 
@@ -2876,27 +2856,28 @@ AchievmentFrame::~AchievmentFrame()
 	menu()->ReleaseWidget(_bg);
 }
 
-const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned index, const std::string& lockImg, const std::string& img, const D3DXVECTOR2& pos, Achievment* model)
+const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned index, const std::string& lockImg, const std::string& img, const glm::vec2& pos, Achievment* model)
 {
 	LSL_ASSERT(model);
 
 	AchievmentBox* box = index < _achievments.size() ? &_achievments[index] : NULL;;
 	if (box == NULL)
 	{
-		AchievmentBox newBox;		
+		AchievmentBox newBox;
 		newBox.image = menu()->CreatePlane(_panel, this, "", false, IdentityVec2, gui::Material::bmTransparency);
 		newBox.image->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 
-		newBox.price = menu()->CreateLabel(svNull, newBox.image, "Item", NullVec2, gui::Text::haCenter, gui::Text::vaCenter, D3DXCOLOR(0xFFC3C2C0));
-		newBox.button = menu()->CreateMenuButton(svNull, "", "", "", newBox.image, this, IdentityVec2, gui::Button::bsSelAnim);		
+		newBox.price = menu()->CreateLabel(svNull, newBox.image, "Item", NullVec2, gui::Text::haCenter, gui::Text::vaCenter,
+		                        glm::vec4(195.0f/255.0f, 194.0f/255.0f, 192.0f/255.0f, 1.0f)); // 0xFFC3C2C0
+		newBox.button = menu()->CreateMenuButton(svNull, "", "", "", newBox.image, this, IdentityVec2, gui::Button::bsSelAnim);
 
 		_achievments.push_back(newBox);
 		box = &_achievments.back();
 	}
 
-	box->model = model;	
+	box->model = model;
 
-	box->image->SetData(model);	
+	box->image->SetData(model);
 	box->image->GetMaterial().GetSampler().SetTex(GetTexture(model->state() == Achievment::asOpened ? img : lockImg));
 	box->image->SetSize(menu()->GetImageSize(box->image->GetMaterial()));
 	box->image->SetPos(pos);
@@ -2906,7 +2887,7 @@ const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned in
 
 	box->price->SetVisible(model->state() == Achievment::asUnlocked);
 	box->price->SetText(lsl::StrFmt("%d", model->price()));
-	box->price->SetPos(D3DXVECTOR2(0.0f, box->image->GetSize().y/2 - 25.0f));
+	box->price->SetPos(glm::vec2(0.0f, box->image->GetSize().y/2 - 25.0f));
 
 	if (model->state() == Achievment::asLocked)
 		box->button->GetOrCreateFon()->GetSampler().SetTex(GetTexture("GUI\\closeBut.png"));
@@ -2914,7 +2895,7 @@ const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned in
 		box->button->GetOrCreateFon()->GetSampler().SetTex(GetTexture("GUI\\okBut.png"));
 	else
 		box->button->GetOrCreateFon()->GetSampler().SetTex(GetTexture("GUI\\okButSel.png"));
-	
+
 	box->button->GetFon()->GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 	box->button->GetFon()->SetBlending(gui::Material::bmTransparency);
 	box->button->SetSize(menu()->GetImageSize(*box->button->GetFon()));
@@ -2929,7 +2910,7 @@ const AchievmentFrame::AchievmentBox* AchievmentFrame::AddAchievment(unsigned in
 	else
 		box->button->SetSel(NULL);
 
-	box->button->SetPos(box->image->GetSize()/2 - D3DXVECTOR2(15.0f, 25.0f));
+	box->button->SetPos(box->image->GetSize() / 2.0f - glm::vec2(15.0f, 25.0f));
 
 	return box;
 }
@@ -2947,7 +2928,7 @@ void AchievmentFrame::UpdateAchievments()
 	const std::string nameList[cMenuBoxEnd] = {AchievmentModel::cViper, AchievmentModel::cBuggi, AchievmentModel::cAirblade, AchievmentModel::cReflector, AchievmentModel::cDroid, AchievmentModel::cTankchetti, AchievmentModel::cPhaser, AchievmentModel::cMustang, AchievmentModel::cArmor4};
 	const std::string lockImgList[cMenuBoxEnd] = {"GUI\\Rewards\\viperLock.png", "GUI\\Rewards\\buggiLock.png", "GUI\\Rewards\\airbladeLock.png", "GUI\\Rewards\\reflectorLock.png", "GUI\\Rewards\\droidLock.png", "GUI\\Rewards\\tankchettiLock.png", "GUI\\Rewards\\phaserLock.png", "GUI\\Rewards\\mustangLock.png", "GUI\\Rewards\\musicTrackLock.png"};
 	const std::string imgList[cMenuBoxEnd] = {"GUI\\Rewards\\viper.png", "GUI\\Rewards\\buggi.png", "GUI\\Rewards\\airblade.png", "GUI\\Rewards\\reflector.png", "GUI\\Rewards\\droid.png", "GUI\\Rewards\\tankchetti.png", "GUI\\Rewards\\phaser.png", "GUI\\Rewards\\mustang.png", "GUI\\Rewards\\musicTrack.png"};
-	const D3DXVECTOR2 posList[cMenuBoxEnd] = {D3DXVECTOR2(200.0f, 105.0f), D3DXVECTOR2(405.0f, 155.0f), D3DXVECTOR2(0.0f, 245.0f), D3DXVECTOR2(-190.0f, 125.0f), D3DXVECTOR2(-380.0f, 95.0f), D3DXVECTOR2(-325.0f, 265.0f), D3DXVECTOR2(-190.0f, 400.0f), D3DXVECTOR2(205.0f, 375.0f), D3DXVECTOR2(445.0f, 315.0f)};
+	const glm::vec2 posList[cMenuBoxEnd] = {glm::vec2(200.0f, 105.0f), glm::vec2(405.0f, 155.0f), glm::vec2(0.0f, 245.0f), glm::vec2(-190.0f, 125.0f), glm::vec2(-380.0f, 95.0f), glm::vec2(-325.0f, 265.0f), glm::vec2(-190.0f, 400.0f), glm::vec2(205.0f, 375.0f), glm::vec2(445.0f, 315.0f)};
 
 	const Box sortBox[cMenuBoxEnd] = {mbMusicTrack, mbBuggi, mbViper, mbPhaser, mbMustang, mbAirblade, mbReflector, mbDroid, mbTankchetti};
 
@@ -2961,7 +2942,7 @@ void AchievmentFrame::UpdateAchievments()
 		Achievment* model = achievment().Get(nameList[box]);
 		if (model)
 		{
-			achievments[box] = *AddAchievment(count++, lockImgList[box], imgList[box], posList[box] + D3DXVECTOR2(-30.0f, 0.0f), model);
+			achievments[box] = *AddAchievment(count++, lockImgList[box], imgList[box], posList[box] + glm::vec2(-30.0f, 0.0f), model);
 		}
 	}
 
@@ -3007,7 +2988,7 @@ void AchievmentFrame::UpdateAchievments()
 	{
 		Menu::NavElement navElement = {_menuItems[miExit], {NULL, NULL, achievments[mbPhaser].button, achievments[mbPhaser].button}, {vkBack, cVirtualKeyEnd}};
 		navElements.push_back(navElement);
-	}	
+	}
 
 	menu()->SetNavElements(_menuItems[miExit], true, &navElements[0], navElements.size());
 }
@@ -3032,12 +3013,14 @@ void AchievmentFrame::UpdateSelection(gui::Widget* sender, bool select)
 
 void AchievmentFrame::ShowMessage(StringValue message, gui::Widget* sender)
 {
-	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+	menu()->ShowMessage(GetString(svWarning), GetString(message), GetString(svOk), uiRoot()->GetVPSize() / 2.0f,
+	                    gui::Widget::waCenter, 0.0f);
 }
 
 void AchievmentFrame::ShowAccept(const std::string& message, gui::Widget* sender, Achievment* achievment)
 {
-	menu()->ShowAccept(message, GetString(svYes), GetString(svNo), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, this, achievment);
+	menu()->ShowAccept(message, GetString(svYes), GetString(svNo), uiRoot()->GetVPSize() / 2.0f, gui::Widget::waCenter,
+	                   this, achievment);
 }
 
 void AchievmentFrame::OnShow(bool value)
@@ -3055,7 +3038,7 @@ void AchievmentFrame::OnShow(bool value)
 	}
 }
 
-void AchievmentFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void AchievmentFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	_bottomPanel->SetPos(vpSize.x/2, vpSize.y - 80.0f);
 	_bottomPanel->SetSize(vpSize.x, _bottomPanel->GetSize().y);
@@ -3065,15 +3048,15 @@ void AchievmentFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 	float scale = std::min(vpSize.x/1090.0f, vpSize.y/720.0f);
 	_panel->SetScale(scale, scale);
 
-	_labels[mlPoints]->SetPos(D3DXVECTOR2(0, 40.0f));
-	_labels[mlRewards]->SetPos(D3DXVECTOR2(0.0f, 555.0f));
-	
+	_labels[mlPoints]->SetPos(glm::vec2(0, 40.0f));
+	_labels[mlRewards]->SetPos(glm::vec2(0.0f, 555.0f));
+
 	for (int i = 0; i < cMenuItemEnd; ++i)
-		_menuItems[i]->SetPos(D3DXVECTOR2(0.0f, _bottomPanel->GetPos().y + 17.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
+		_menuItems[i]->SetPos(glm::vec2(0.0f, _bottomPanel->GetPos().y + 17.0f + i * (_menuItems[i]->GetSize().y + 10.0f)));
 }
 
 void AchievmentFrame::OnInvalidate()
-{	
+{
 }
 
 bool AchievmentFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
@@ -3093,15 +3076,15 @@ bool AchievmentFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick
 			ShowMessage(svHintCantPoints, sender);
 		return true;
 	}
-	
+
 	const AchievmentBox* box = (sender->GetData() || sender->GetParent() && sender->GetParent()->GetData()) ? GetAchievment((Achievment*)sender->GetData()) : NULL;
 	if (box)
 	{
 		if (box->model->state() == Achievment::asUnlocked)
 			ShowAccept(GetString(svBuyReward), sender, box->model);
 		return true;
-	}	
-	
+	}
+
 	return false;
 }
 
@@ -3139,20 +3122,17 @@ void AchievmentFrame::OnMouseLeave(gui::Widget* sender, bool wasReset)
 	}
 }
 
-
-
-
 RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent), _raceMenu(raceMenu)
 {
-	const D3DXCOLOR color1 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
-	const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 184.0f, 164.0f, 255.0f)/255.0f;	
+	const glm::vec4 color1 = glm::vec4(214.0f, 214.0f, 214.0f, 255.0f)/255.0f;
+	const glm::vec4 color2 = glm::vec4(214.0f, 184.0f, 164.0f, 255.0f)/255.0f;
 	const std::string menuItemsIcon[cMenuItemEnd] = {"GUI\\icoStart.png", "GUI\\icoWorkshop.png", "GUI\\icoGarage.png", "GUI\\icoSpace.png", "GUI\\icoAchivment.png", "GUI\\icoOptions.png", "GUI\\icoExit.png"};
 
 	StringValue strLabels[cLabelEnd] = {svPlayer, svPassing, svTournament, svWeapons, svBossName, svNull, svPassInfo, svTournamentInfo};
 	std::string fontLabels[cLabelEnd] = {"Small", "Small", "Small", "Small", "Small", "Item", "Small", "Small"};
 	gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haRight, gui::Text::haLeft, gui::Text::haLeft};
 	gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter};
-	D3DXCOLOR colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1, clrWhite, color2, color2};
+	glm::vec4 colorLabels[cLabelEnd] = {color1, color1, color1, color1, color1, clrWhite, color2, color2};
 
 	_topPanel = menu->CreatePlane(root(), this, "GUI\\topPanel.png", true);
 	_topPanel->SetAnchor(gui::Widget::waTop);
@@ -3163,7 +3143,7 @@ RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	_bottomPanel->SetAlign(gui::Widget::waBottom);
 
 	_moneyBg = menu->CreatePlane(_bottomPanel, this, "GUI\\moneyBg.png", true, IdentityVec2, gui::Material::bmTransparency);
-	_moneyBg->SetAlign(gui::Widget::waRightBottom);	
+	_moneyBg->SetAlign(gui::Widget::waRightBottom);
 
 	_stateBg = menu->CreatePlane(_bottomPanel, this, "GUI\\statFrame.png", true, IdentityVec2, gui::Material::bmTransparency);
 	_stateBg->SetAlign(gui::Widget::waLeftBottom);
@@ -3175,17 +3155,16 @@ RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	_damageBar = menu->CreateBar(_stateBg, NULL, "GUI\\statBar.png", "");
 
 	_armorBarValue = menu->CreateLabel("", _armorBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaCenter, color1);
-	_armorBarValue->SetPos(D3DXVECTOR2(_armorBar->GetSize().x/2 - 15.0f, 0.0f));
+	_armorBarValue->SetPos(glm::vec2(_armorBar->GetSize().x/2 - 15.0f, 0.0f));
 
 	_damageBarValue = menu->CreateLabel("", _damageBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaCenter, color1);
-	_damageBarValue->SetPos(D3DXVECTOR2(_damageBar->GetSize().x/2 - 15.0f, 0.0f));
+	_damageBarValue->SetPos(glm::vec2(_damageBar->GetSize().x/2 - 15.0f, 0.0f));
 
 	_speedBarValue = menu->CreateLabel("", _speedBar, "Small", NullVec2, gui::Text::haRight, gui::Text::vaCenter, color1);
-	_speedBarValue->SetPos(D3DXVECTOR2(_speedBar->GetSize().x/2 - 15.0f, 0.0f));
+	_speedBarValue->SetPos(glm::vec2(_speedBar->GetSize().x/2 - 15.0f, 0.0f));
 
-	_viewportCar = menu->CreateViewPort3d(_topPanel, NULL, "", gui::ViewPort3d::msAnim);	
-	D3DXQUATERNION quat;
-	D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
+	_viewportCar = menu->CreateViewPort3d(_topPanel, NULL, "", gui::ViewPort3d::msAnim);
+	glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 	_viewportCar->SetRot3dSpeed(quat);
 
 	_playerGrid = menu->CreateDummy(root(), NULL);
@@ -3211,21 +3190,20 @@ RaceMainFrame::RaceMainFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent
 	for (int i = 0; i < 6; ++i)
 	{
 		_slots[i] = menu->CreateMesh3dBox(_topPanel, NULL, NULL, NULL, gui::ViewPort3d::msAnim);
-		_slots[i]->SetSize(D3DXVECTOR2(50.0f, 50.0f));
+		_slots[i]->SetSize(glm::vec2(50.0f, 50.0f));
 
-		D3DXQUATERNION quat;
-		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
+		glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 		_slots[i]->SetRot3dSpeed(quat);
 
-		D3DXQuaternionRotationAxis(&quat, &ZVector, 2.0f * D3DX_PI * i / 6.0f);
-		_slots[i]->GetBox()->SetRot(quat * _slots[i]->GetBox()->GetRot());
+		quat = glm::angleAxis(2.0f * glm::pi<float>() * i / 6.0f, ZVector);
+		_slots[i]->GetBox()->SetRot(_slots[i]->GetBox()->GetRot() * quat);
 	}
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
 		_menuItems[i] = _raceMenu->CreateMenuButton(menuItemsIcon[i], _bottomPanel, this);
 
 	gui::Widget* labelsParent[cLabelEnd] = {_topPanel, _topPanel, _topPanel, _topPanel, _topPanel, _moneyBg, _topPanel, _topPanel};
-	for (int i = 0; i < cLabelEnd; ++i)	
+	for (int i = 0; i < cLabelEnd; ++i)
 		_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i], vertLabels[i], colorLabels[i]);
 
 	_netInfo = menu->CreateLabel(svNull, _topPanel, "Small", NullVec2, gui::Text::haLeft, gui::Text::vaTop);
@@ -3257,7 +3235,7 @@ void RaceMainFrame::RaceRady(bool ready)
 
 RaceMainFrame::PlayerBox* RaceMainFrame::AddPlayer(NetPlayer* netPlayer, unsigned index)
 {
-	const D3DXCOLOR color1 = clrWhite;
+	const glm::vec4 color1 = clrWhite;
 
 	PlayerBox* box = index < _players.size() ? &_players[index] : NULL;
 	if (box == NULL)
@@ -3266,7 +3244,7 @@ RaceMainFrame::PlayerBox* RaceMainFrame::AddPlayer(NetPlayer* netPlayer, unsigne
 
 		newBox.bgRoot = menu()->CreateDummy(_playerGrid, NULL);
 
-		newBox.bg = menu()->CreatePlane(newBox.bgRoot, NULL, "GUI\\netPlayerFrame.png", true, IdentityVec2, gui::Material::bmTransparency);		
+		newBox.bg = menu()->CreatePlane(newBox.bgRoot, NULL, "GUI\\netPlayerFrame.png", true, IdentityVec2, gui::Material::bmTransparency);
 
 		newBox.photo = menu()->CreatePlane(newBox.bgRoot, NULL, "", false, IdentityVec2, gui::Material::bmTransparency);
 
@@ -3276,13 +3254,12 @@ RaceMainFrame::PlayerBox* RaceMainFrame::AddPlayer(NetPlayer* netPlayer, unsigne
 		newBox.readyLabel = menu()->CreateLabel(svNull, newBox.bgRoot, "VerySmall", NullVec2, gui::Text::haLeft, gui::Text::vaCenter, color1);
 		newBox.readyLabel->SetAlign(gui::Widget::waLeft);
 
-		newBox.kick = menu()->CreateMenuButton(svNull, "", "GUI\\netPlayerKick.png", "GUI\\netPlayerKickSel.png", newBox.bgRoot, this, IdentityVec2, gui::Button::bsSelAnim);		
+		newBox.kick = menu()->CreateMenuButton(svNull, "", "GUI\\netPlayerKick.png", "GUI\\netPlayerKickSel.png", newBox.bgRoot, this, IdentityVec2, gui::Button::bsSelAnim);
 
 		newBox.readyState = menu()->CreatePlane(newBox.bgRoot, NULL, "", false, IdentityVec2, gui::Material::bmTransparency);
 
 		newBox.viewportCar = menu()->CreateViewPort3d(newBox.bgRoot, NULL, "", gui::ViewPort3d::msAnim);
-		D3DXQUATERNION quat;
-		D3DXQuaternionRotationAxis(&quat, &ZVector, D3DX_PI/2.0f);
+		glm::quat quat = glm::angleAxis(glm::half_pi<float>(), ZVector);
 		newBox.viewportCar->SetRot3dSpeed(quat);
 
 		_players.push_back(newBox);
@@ -3296,14 +3273,14 @@ RaceMainFrame::PlayerBox* RaceMainFrame::AddPlayer(NetPlayer* netPlayer, unsigne
 	box->kick->SetVisible(net()->isHost());
 
 	if (box->netPlayer->ownerId() == net::cServerPlayer)
-		box->readyLabel->SetText(GetString(svHostLabel));		
+		box->readyLabel->SetText(GetString(svHostLabel));
 	else
-		box->readyLabel->SetText(GetString(netPlayer->IsRaceReady() ? svReadyRace : svCancelReadyRace));		
+		box->readyLabel->SetText(GetString(netPlayer->IsRaceReady() ? svReadyRace : svCancelReadyRace));
 
 	box->readyState->SetVisible(box->netPlayer->ownerId() != net::cServerPlayer);
 	box->readyState->GetMaterial().GetSampler().SetTex(GetTexture(netPlayer->IsRaceReady() ? "GUI\\netPlayerReadyStateSel.png" : "GUI\\netPlayerReadyState.png"));
 
-	_raceMenu->CreateCar(box->viewportCar, netPlayer->model());	
+	_raceMenu->CreateCar(box->viewportCar, netPlayer->model());
 
 	return box;
 }
@@ -3312,26 +3289,26 @@ void RaceMainFrame::AdjustPlayer(PlayerBox* box, bool invert)
 {
 	float dir = invert ? -1.0f : 1.0f;
 
-	box->bg->SetRot(invert ? D3DX_PI : 0.0f);
+	box->bg->SetRot(invert ? glm::pi<float>() : 0.0f);
 
-	box->photo->SetSize(menu()->StretchImage(box->photo->GetMaterial(), D3DXVECTOR2(100.0f, 97.0f), true, false, true, false));
-	box->photo->SetPos(D3DXVECTOR2(-60.0f * dir, 0.0f));
+	box->photo->SetSize(menu()->StretchImage(box->photo->GetMaterial(), glm::vec2(100.0f, 97.0f), true, false, true, false));
+	box->photo->SetPos(glm::vec2(-60.0f * dir, 0.0f));
 
-	box->name->SetPos(D3DXVECTOR2(0.0f * dir, -70.0f));
+	box->name->SetPos(glm::vec2(0.0f * dir, -70.0f));
 	box->name->SetAlign(gui::Widget::waCenter);
 	box->name->SetHorAlign(gui::Text::haCenter);
-	
-	box->readyLabel->SetPos(D3DXVECTOR2(0.0f * dir, 68.0f));
+
+	box->readyLabel->SetPos(glm::vec2(0.0f * dir, 68.0f));
 	box->readyLabel->SetAlign(gui::Widget::waCenter);
 	box->readyLabel->SetHorAlign(gui::Text::haCenter);
 
 	box->readyState->SetSize(menu()->GetImageSize(box->readyState->GetMaterial()));
-	box->readyState->SetPos(D3DXVECTOR2(128.0f * dir, 68.0f));	
+	box->readyState->SetPos(glm::vec2(128.0f * dir, 68.0f));
 
-	box->kick->SetPos(D3DXVECTOR2(128.0f * dir, -68.0f));
+	box->kick->SetPos(glm::vec2(128.0f * dir, -68.0f));
 
-	box->viewportCar->SetSize(D3DXVECTOR2(130.0f, 130.0f));
-	box->viewportCar->SetPos(D3DXVECTOR2(72.0f * dir, 0.0f));
+	box->viewportCar->SetSize(glm::vec2(130.0f, 130.0f));
+	box->viewportCar->SetPos(glm::vec2(72.0f * dir, 0.0f));
 }
 
 void RaceMainFrame::UpdatePlayers()
@@ -3346,12 +3323,12 @@ void RaceMainFrame::UpdatePlayers()
 	if (index < _players.size())
 	{
 		for (unsigned i = index; i < _players.size(); ++i)
-		{	
+		{
 			menu()->ReleaseWidget(_players[i].bgRoot);
 		}
 
 		_players.erase(_players.begin() + index, _players.end());
-	}	
+	}
 }
 
 void RaceMainFrame::OnShow(bool value)
@@ -3376,20 +3353,20 @@ void RaceMainFrame::OnShow(bool value)
 	menu()->SetNavElements(_menuItems[miStartRace], value, elements, ARRAY_LENGTH(elements));
 }
 
-void RaceMainFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
+void RaceMainFrame::OnAdjustLayout(const glm::vec2& vpSize)
 {
 	const float menuItemSpaceX = 50.0f;
 
-	_moneyBg->SetPos(D3DXVECTOR2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 5));
-	_stateBg->SetPos(D3DXVECTOR2(-vpSize.x/2 - 1, -_bottomPanel->GetSize().y + 5));
+	_moneyBg->SetPos(glm::vec2(vpSize.x/2 + 1, -_bottomPanel->GetSize().y + 5));
+	_stateBg->SetPos(glm::vec2(-vpSize.x/2 - 1, -_bottomPanel->GetSize().y + 5));
 
-	_damageBar->SetPos(D3DXVECTOR2(128.0f, -98.0f));
-	_armorBar->SetPos(D3DXVECTOR2(150.0f, -61.0f));
-	_speedBar->SetPos(D3DXVECTOR2(173.0f, -23.0f));
+	_damageBar->SetPos(glm::vec2(128.0f, -98.0f));
+	_armorBar->SetPos(glm::vec2(150.0f, -61.0f));
+	_speedBar->SetPos(glm::vec2(173.0f, -23.0f));
 
-	_labels[mlMoney]->SetPos(D3DXVECTOR2(-53.0f, -29.0f));
-	_labels[mlPassInfo]->SetPos(D3DXVECTOR2(-377.0f, 86.0f));
-	_labels[mlTournamentInfo]->SetPos(D3DXVECTOR2(-102, 86.0f));	
+	_labels[mlMoney]->SetPos(glm::vec2(-53.0f, -29.0f));
+	_labels[mlPassInfo]->SetPos(glm::vec2(-377.0f, 86.0f));
+	_labels[mlTournamentInfo]->SetPos(glm::vec2(-102, 86.0f));
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
 	{
@@ -3404,23 +3381,23 @@ void RaceMainFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 
 	const float frameImagesPos[3] = {-550.0f, 475.0f, 590.0f};
 	for (int i = 0; i < 3; ++i)
-		_photoImages[i]->SetPos(D3DXVECTOR2(frameImagesPos[i], 87));
+		_photoImages[i]->SetPos(glm::vec2(frameImagesPos[i], 87));
 
-	_wheater->SetPos(D3DXVECTOR2(-282.0f, 112.0f));
+	_wheater->SetPos(glm::vec2(-282.0f, 112.0f));
 
 	int chargeIndex = 0;
-	float width = 0;	
+	float width = 0;
 	for (int i = 0; i < 6; ++i)
 		if (_chargeBars[i]->GetVisible())
 		{
 			width = chargeIndex * (_chargeBars[i]->GetSize().x + 40.0f);
-			_chargeBars[i]->SetPos(D3DXVECTOR2(257.0f + width, 120));
+			_chargeBars[i]->SetPos(glm::vec2(257.0f + width, 120));
 			++chargeIndex;
 		}
 	for (int i = 0; i < 6; ++i)
 		if (_chargeBars[i]->GetVisible())
 		{
-			D3DXVECTOR2 pos = _chargeBars[i]->GetPos();
+			glm::vec2 pos = _chargeBars[i]->GetPos();
 			pos.x = pos.x + _chargeBars[i]->GetSize().x/2 + (vpSize.x - width)/2 - vpSize.x/2;
 			_chargeBars[i]->SetPos(pos);
 			_slots[i]->SetPos(pos.x, 65.0f);
@@ -3428,13 +3405,13 @@ void RaceMainFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 
 	_netInfo->SetPos(-vpSize.x/2 + 20.0f, _topPanel->GetSize().y + 20.0f);
 
-	_viewportCar->SetPos(D3DXVECTOR2(605.0f, 87.0f));	
+	_viewportCar->SetPos(glm::vec2(605.0f, 87.0f));
 	_viewportCar->SetSize(menu()->StretchImage(IdentityVec2, _frameImages[2]->GetSize(), true, true));
 
-	float leftSpace = vpSize.y - _topPanel->GetSize().y - _bottomPanel->GetSize().y - _stateBg->GetSize().y;	
+	float leftSpace = vpSize.y - _topPanel->GetSize().y - _bottomPanel->GetSize().y - _stateBg->GetSize().y;
 	for (int i = 0; i < (int)_players.size(); ++i)
 	{
-		D3DXVECTOR2 size = _players[i].bg->GetSize();
+		glm::vec2 size = _players[i].bg->GetSize();
 		float space = 25.0f;
 
 		int leftCount = Floor<int>(leftSpace / (size.y + space * 0.5f));
@@ -3442,15 +3419,15 @@ void RaceMainFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 		int row = i - leftCount * col;
 
 		AdjustPlayer(&_players[i], col > 0);
-		_players[i].bgRoot->SetPos(D3DXVECTOR2(size.x/2 + 8.0f + col * (vpSize.x - size.x - 16.0f), size.y/2 + (size.y + space) * row));
+		_players[i].bgRoot->SetPos(glm::vec2(size.x/2 + 8.0f + col * (vpSize.x - size.x - 16.0f), size.y/2 + (size.y + space) * row));
 	}
-	_playerGrid->SetPos(D3DXVECTOR2(-1, _topPanel->GetSize().y + 30.0f));
+	_playerGrid->SetPos(glm::vec2(-1, _topPanel->GetSize().y + 30.0f));
 
-	menu()->GetUserChat()->inputPos(D3DXVECTOR2(_stateBg->GetSize().x, vpSize.y - _bottomPanel->GetSize().y - 10.0f));
-	menu()->GetUserChat()->inputSize(D3DXVECTOR2(vpSize.x - _stateBg->GetSize().x - _moneyBg->GetSize().x, 300.0f));
+	menu()->GetUserChat()->inputPos(glm::vec2(_stateBg->GetSize().x, vpSize.y - _bottomPanel->GetSize().y - 10.0f));
+	menu()->GetUserChat()->inputSize(glm::vec2(vpSize.x - _stateBg->GetSize().x - _moneyBg->GetSize().x, 300.0f));
 
-	menu()->GetUserChat()->linesPos(D3DXVECTOR2(vpSize.x - 10.0f, _topPanel->GetSize().y));
-	menu()->GetUserChat()->linesSize(D3DXVECTOR2(vpSize.x/3, vpSize.y - _topPanel->GetSize().y - _bottomPanel->GetSize().y - _moneyBg->GetSize().y));
+	menu()->GetUserChat()->linesPos(glm::vec2(vpSize.x - 10.0f, _topPanel->GetSize().y));
+	menu()->GetUserChat()->linesSize(glm::vec2(vpSize.x/3, vpSize.y - _topPanel->GetSize().y - _bottomPanel->GetSize().y - _moneyBg->GetSize().y));
 }
 
 void RaceMainFrame::OnInvalidate()
@@ -3470,7 +3447,7 @@ void RaceMainFrame::OnInvalidate()
 	}
 	else
 	{
-		_netInfo->SetVisible(false);		
+		_netInfo->SetVisible(false);
 	}
 
 	for (int i = 0; i < cMenuItemEnd; ++i)
@@ -3491,7 +3468,7 @@ void RaceMainFrame::OnInvalidate()
 
 	if (HasString(svPassInfo))
 	{
-		_labels[mlPassInfo]->SetText(lsl::StrFmt(GetString(svPassInfo).c_str(), 
+		_labels[mlPassInfo]->SetText(lsl::StrFmt(GetString(svPassInfo).c_str(),
 			GetString(tournament().GetCurPlanet().GetName()).c_str(),
 			tournament().GetCurTrackIndex() + 1,
 			menu()->IsCampaign() ? tournament().GetCurPlanet().GetTracks().size() : tournament().GetCurPlanet().GetTrackList().size()));
@@ -3575,12 +3552,14 @@ bool RaceMainFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 				if (net()->AllPlayersReady() && net()->netOpponents().size() > 0)
 				{
 					if (net()->race()->GetLeaverList().size() > 0)
-						menu()->ShowAccept(GetString(svHintLeaversWillBeRemoved), GetString(svYes), GetString(svNo), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, this);
+						menu()->ShowAccept(GetString(svHintLeaversWillBeRemoved), GetString(svYes), GetString(svNo),
+						                   uiRoot()->GetVPSize() / 2.0f, gui::Widget::waCenter, this);
 					else
 						menu()->StartRace();
 				}
 				else
-					menu()->ShowMessage(GetString(svWarning), GetString(svHintPlayersIsNotReady), GetString(svOk), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+					menu()->ShowMessage(GetString(svWarning), GetString(svHintPlayersIsNotReady), GetString(svOk),
+					                    uiRoot()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f);
 			}
 			else
 				RaceRady(!net()->player()->IsRaceReady());
@@ -3655,9 +3634,6 @@ void RaceMainFrame::OnDisconnectedPlayer(NetPlayer* sender)
 	Invalidate();
 }
 
-
-
-
 RaceMenu::RaceMenu(Menu* menu, gui::Widget* parent, Player* player): _menu(menu), _state(msMain), _lastState(cStateEnd), _player(player)
 {
 	LSL_ASSERT(menu && _player);
@@ -3671,7 +3647,7 @@ RaceMenu::RaceMenu(Menu* menu, gui::Widget* parent, Player* player): _menu(menu)
 	_spaceshipFrame = new SpaceshipFrame(menu, this, _root);
 	_mainFrame = new RaceMainFrame(menu, this, _root);
 	_garageFrame = new GarageFrame(menu, this, _root);
-	_workshopFrame = new WorkshopFrame(menu, this, _root);	
+	_workshopFrame = new WorkshopFrame(menu, this, _root);
 	_gamers = new GamersFrame(menu, this, _root);
 	_angarFrame = new AngarFrame(menu, this, _root);
 	_achievmentFrame = new AchievmentFrame(menu, this, _root);
@@ -3706,7 +3682,7 @@ void RaceMenu::ApplyState(State state)
 {
 	bool carVisible = state == msMain || state == msGarage || state == msWorkshop;
 	bool spaceshipVisible = state == msAngar;
-	
+
 	if (!carVisible)
 		_carFrame->Show(false);
 	if (!spaceshipVisible)
@@ -3782,7 +3758,8 @@ void RaceMenu::OnProcessNetEvent(unsigned id, NetEventData* data)
 	if (id == cNetPlayerSetColor && data->failed)
 	{
 		_carFrame->SetCarColor(_menu->GetPlayer()->GetColor());
-		_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintSetColorFailed), _menu->GetString(svOk), _menu->GetGUI()->GetVPSize()/2, gui::Widget::waCenter, 0.0f);
+		_menu->ShowMessage(_menu->GetString(svWarning), _menu->GetString(svHintSetColorFailed), _menu->GetString(svOk),
+		                   _menu->GetGUI()->GetVPSize() / 2.0f, gui::Widget::waCenter, 0.0f);
 	}
 }
 
@@ -3795,8 +3772,8 @@ gui::Button* RaceMenu::CreateMenuButton(const std::string& icon, gui::Widget* pa
 	return button;
 }
 
-gui::Button* RaceMenu::CreateMenuButton2(StringValue name, gui::Widget* parent, const D3DXCOLOR& textColor, gui::Widget::Event* guiEvent)
-{	
+gui::Button* RaceMenu::CreateMenuButton2(StringValue name, gui::Widget* parent, const glm::vec4& textColor, gui::Widget::Event* guiEvent)
+{
 	return _menu->CreateMenuButton(name, "Header", "GUI\\buttonBg2.png", "GUI\\buttonBgSel2.png", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim, textColor, Menu::ssButton1);
 }
 
@@ -3815,25 +3792,25 @@ gui::Button* RaceMenu::CreatePlusButton(gui::Widget* parent, gui::Widget::Event*
 	return _menu->CreateMenuButton(svNull, "", "GUI\\chargeButton.png", "GUI\\chargeButtonSel.png", parent, guiEvent, IdentityVec2, gui::Button::bsSelAnim, clrWhite, Menu::ssButton3);
 }
 
-void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const D3DXCOLOR& color, Slot* slots[Player::cSlotTypeEnd])
+void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const glm::vec4& color, Slot* slots[Player::cSlotTypeEnd])
 {
-	viewport->GetBox()->DeleteChildren();	
+	viewport->GetBox()->DeleteChildren();
 
 	if (car)
 	{
 		for (Garage::BodyMeshes::const_iterator iter = car->GetBodies().begin(); iter != car->GetBodies().end(); ++iter)
 			if (iter->mesh)
 			{
-				gui::Mesh3d* body = _menu->CreateMesh3d(viewport, iter->mesh, iter->texture, iter->meshId);			
+				gui::Mesh3d* body = _menu->CreateMesh3d(viewport, iter->mesh, iter->texture, iter->meshId);
 				if (iter->decal)
 					body->GetMaterial()->GetSampler().SetColorMode(graph::Sampler2d::tmDecal);
 				body->GetMaterial()->GetSampler().SetColor(color);
-				body->GetMaterial()->GetSampler().SetFiltering(graph::BaseSampler::sfAnisotropic);			
-			}			
+				body->GetMaterial()->GetSampler().SetFiltering(graph::BaseSampler::sfAnisotropic);
+			}
 
 		if (!car->GetWheels().empty() && car->GetWheel())
 		{
-			std::vector<D3DXVECTOR3> wheels;
+			std::vector<glm::vec3> wheels;
 			CarWheels::LoadPosTo(car->GetWheels(), wheels);
 			for (unsigned i = 0; i < wheels.size(); ++i)
 			{
@@ -3843,7 +3820,7 @@ void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const D3DX
 				wheel->SetPos(wheels[i]);
 				if (wheels[i].y < 0)
 				{
-					wheel->SetScale(D3DXVECTOR3(1.0f, -1.0f, 1.0f));
+					wheel->SetScale(glm::vec3(1.0f, -1.0f, 1.0f));
 					wheel->invertCullFace = true;
 				}
 			}
@@ -3866,8 +3843,8 @@ void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Garage::Car* car, const D3DX
 				if (wpn != NULL && wpn->GetMapObj() == NULL)
 					continue;
 
-				D3DXVECTOR3 pos = placeSlot.pos + placeItem->offset;
-				D3DXQUATERNION rot = placeItem ? placeItem->rot : NullQuaternion;
+				glm::vec3 pos = placeSlot.pos + placeItem->offset;
+				glm::quat rot = placeItem ? placeItem->rot : NullQuaternion;
 
 				gui::Mesh3d* carMesh = _menu->CreateMesh3d(viewport, slot->GetItem().GetMesh(), slot->GetItem().GetTexture());
 				carMesh->GetMaterial()->GetSampler().SetFiltering(graph::BaseSampler::sfAnisotropic);
@@ -3899,7 +3876,7 @@ void RaceMenu::CreateCar(gui::ViewPort3d* viewport, Player* player)
 	CreateCar(viewport, car, player != NULL ? player->GetColor() : clrWhite, slots);
 }
 
-void RaceMenu::AdjustLayout(const D3DXVECTOR2& vpSize)
+void RaceMenu::AdjustLayout(const glm::vec2& vpSize)
 {
 	_carFrame->AdjustLayout(vpSize);
 	_spaceshipFrame->AdjustLayout(vpSize);

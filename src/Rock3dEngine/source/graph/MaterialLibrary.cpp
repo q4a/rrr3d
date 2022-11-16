@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\MaterialLibrary.h"
+#include "graph/MaterialLibrary.h"
 
 namespace r3d
 {
@@ -9,9 +9,6 @@ namespace graph
 {
 
 Samplers::ClassList Samplers::classList;
-
-
-
 
 BaseSampler::BaseSampler(Type type): _type(type), _tex(0), _disabled(false), _offset(NullVector), _scale(IdentityVector), _rotate(NullQuaternion), _matChanged(true), _matFrame(0), _defMat(true), _filtering(sfDefault), _filteringLevel(0)
 {
@@ -28,16 +25,16 @@ void BaseSampler::TransformationChanged() const
 	_defMat = _offset == NullVector && _scale == IdentityVector && _rotate == NullQuaternion;
 }
 
-const D3DXMATRIX& BaseSampler::GetMatrix(float frame) const
+const D3DMATRIX& BaseSampler::GetMatrix(float frame) const
 {
 	if (_matChanged || _matFrame != frame)
 	{
 		_matFrame = frame;
 		_matChanged = false;
 
-		D3DXVECTOR3 offset = _offset.GetValue(_matFrame);
-		D3DXVECTOR3 scale = _scale.GetValue(_matFrame);
-		D3DXQUATERNION rotate = _rotate.GetValue(_matFrame);
+		glm::vec3 offset = _offset.GetValue(_matFrame);
+		glm::vec3 scale = _scale.GetValue(_matFrame);
+		glm::quat rotate = _rotate.GetValue(_matFrame);
 
 		_defMat = offset == NullVector && scale == IdentityVector && rotate == NullQuaternion;
 
@@ -105,7 +102,7 @@ void BaseSampler::Apply(Engine& engine, DWORD stage)
 		engine.GetContext().SetTexture(stage, GetTexSrc());
 	}
 
-	D3DXMATRIX mat = GetMatrix(engine.GetContext().GetFrame());
+	D3DMATRIX mat = GetMatrix(engine.GetContext().GetFrame());
 	if (!_defMat)
 	{
 		engine.GetContext().PushTextureTransform(stage, mat);
@@ -170,9 +167,9 @@ void BaseSampler::SetColorMode(Mode value)
 	case tmModulate:
 		stageStates.Set(tssColorOp, D3DTOP_MODULATE);
 		stageStates.Set(tssColorArg1, D3DTA_TEXTURE);
-		stageStates.Set(tssColorArg2, D3DTA_CURRENT);			
+		stageStates.Set(tssColorArg2, D3DTA_CURRENT);
 		break;
-	
+
 	case tmReplace:
 		stageStates.Set(tssColorOp, D3DTOP_SELECTARG1);
 		stageStates.Set(tssColorArg1, D3DTA_TEXTURE);
@@ -197,7 +194,7 @@ void BaseSampler::SetColorMode(Mode value)
 }
 
 void BaseSampler::SetAlphaMode(Mode value)
-{		
+{
 	switch (value)
 	{
 	case tmDecal:
@@ -209,9 +206,9 @@ void BaseSampler::SetAlphaMode(Mode value)
 	case tmModulate:
 		stageStates.Set(tssAlphaOp, D3DTOP_MODULATE);
 		stageStates.Set(tssAlphaArg1, D3DTA_TEXTURE);
-		stageStates.Set(tssAlphaArg2, D3DTA_CURRENT);			
+		stageStates.Set(tssAlphaArg2, D3DTA_CURRENT);
 		break;
-	
+
 	case tmReplace:
 		stageStates.Set(tssAlphaOp, D3DTOP_SELECTARG1);
 		stageStates.Set(tssAlphaArg1, D3DTA_TEXTURE);
@@ -229,14 +226,14 @@ void BaseSampler::SetAlphaMode(Mode value)
 	}
 }
 
-D3DXCOLOR BaseSampler::GetColor() const
+glm::vec4 BaseSampler::GetColor() const
 {
-	return stageStates.Get(tssConstant);
+	return ColorToVec4(stageStates.Get(tssConstant));
 }
 
-void BaseSampler::SetColor(const D3DXCOLOR& value)
+void BaseSampler::SetColor(const glm::vec4& value)
 {
-	stageStates.Set(tssConstant, value);
+	stageStates.Set(tssConstant, Vec4ToColor(value));
 }
 
 const Vec3Range& BaseSampler::GetOffset() const
@@ -283,36 +280,33 @@ void BaseSampler::SetFiltering(Filtering value)
 	ApplyFiltering();
 }
 
-
-
-
 Sampler2d::Sampler2d(): _MyBase(st2d)
 {
 }
 
-void Sampler2d::BuildAnimByOff(const Vec2Range& texCoord, const Point2U& tileCnt, const D3DXVECTOR2& pixOff)
+void Sampler2d::BuildAnimByOff(const Vec2Range& texCoord, const Point2U& tileCnt, const glm::vec2& pixOff)
 {
-	D3DXVECTOR2 fTileCnt(static_cast<float>(tileCnt.x), static_cast<float>(tileCnt.y));
+	glm::vec2 fTileCnt(static_cast<float>(tileCnt.x), static_cast<float>(tileCnt.y));
 
-	D3DXVECTOR2 coordOff(pixOff.x / GetWidth(), pixOff.y / GetHeight());
-	D3DXVECTOR2 coordLen(texCoord.GetMax() - texCoord.GetMin());
-	D3DXVECTOR2 tileSize((coordLen - 2 * coordOff) / fTileCnt);	
+	glm::vec2 coordOff(pixOff.x / GetWidth(), pixOff.y / GetHeight());
+	glm::vec2 coordLen(texCoord.GetMax() - texCoord.GetMin());
+	glm::vec2 tileSize((coordLen - coordOff * 2.0f) / fTileCnt);
 
-	D3DXVECTOR2 stTile(texCoord.GetMin() + coordOff);
-	D3DXVECTOR2 endTile(tileSize * (fTileCnt - IdentityVec2) + stTile);
+	glm::vec2 stTile(texCoord.GetMin() + coordOff);
+	glm::vec2 endTile(tileSize * (fTileCnt - IdentityVec2) + stTile);
 
-	SetScale(D3DXVECTOR3(tileSize.x, tileSize.y, 1.0f));
-	SetOffset(Vec3Range(D3DXVECTOR3(stTile.x, stTile.y, 0), D3DXVECTOR3(endTile.x, endTile.y, 0), Vec3Range::vdVolume, Point3U(tileCnt.x, tileCnt.y, 1)));
+	SetScale(glm::vec3(tileSize.x, tileSize.y, 1.0f));
+	SetOffset(Vec3Range(glm::vec3(stTile.x, stTile.y, 0), glm::vec3(endTile.x, endTile.y, 0), Vec3Range::vdVolume, Point3U(tileCnt.x, tileCnt.y, 1)));
 }
 
-void Sampler2d::BuildAnimByTile(const Vec2Range& texCoord, const Point2U& tileCnt, const D3DXVECTOR2& tileSize)
+void Sampler2d::BuildAnimByTile(const Vec2Range& texCoord, const Point2U& tileCnt, const glm::vec2& tileSize)
 {
-	D3DXVECTOR2 fTileCnt(static_cast<float>(tileCnt.x), static_cast<float>(tileCnt.y));
+	glm::vec2 fTileCnt(static_cast<float>(tileCnt.x), static_cast<float>(tileCnt.y));
 
-	D3DXVECTOR2 coordLen(texCoord.GetMax() - texCoord.GetMin());
-	D3DXVECTOR2 imgSize(coordLen.x * GetWidth(), coordLen.y * GetHeight());
-	
-	D3DXVECTOR2 pixOff = tileSize/2 - ((fTileCnt + IdentityVec2) * tileSize - imgSize) / 2;
+	glm::vec2 coordLen(texCoord.GetMax() - texCoord.GetMin());
+	glm::vec2 imgSize(coordLen.x * GetWidth(), coordLen.y * GetHeight());
+
+	glm::vec2 pixOff = tileSize / 2.0f - ((fTileCnt + IdentityVec2) * tileSize - imgSize) / 2.0f;
 
 	BuildAnimByOff(texCoord, tileCnt, pixOff);
 }
@@ -337,13 +331,10 @@ unsigned Sampler2d::GetFormat() const
 	return GetTex() ? GetTex()->GetData()->GetFormat() : 0;
 }
 
-D3DXVECTOR2 Sampler2d::GetSize()
+glm::vec2 Sampler2d::GetSize()
 {
 	return GetTex() ? GetTex()->GetSize() : NullVec2;
 }
-
-
-
 
 SamplerCube::SamplerCube(): _MyBase(stCube)
 {
@@ -369,9 +360,6 @@ unsigned SamplerCube::GetFormat() const
 	return GetTex()->GetData()->GetFormat();
 }
 
-
-
-
 Samplers::Samplers()
 {
 	InitClassList();
@@ -390,7 +378,7 @@ Samplers::~Samplers()
 void Samplers::InitClassList()
 {
 	static bool initClassList = false;
-	
+
 	if (!initClassList)
 	{
 		initClassList = true;
@@ -426,7 +414,7 @@ SamplerCube& Samplers::AddCube(TexCubeResource* tex)
 
 Samplers::iterator Samplers::Delete(iterator iter)
 {
-	BaseSampler* sampler = *iter;	
+	BaseSampler* sampler = *iter;
 	iterator res = _cont.erase(iter);
 
 	delete sampler;
@@ -530,9 +518,6 @@ Samplers& Samplers::operator=(const Samplers& ref)
 	return *this;
 }
 
-
-
-
 Material::Material(): _ambient(clrWhite), _diffuse(clrWhite), _emissive(clrBlack), _specular(clrBlack), _specPower(128), _blending(bmOpaque), _alpha(1.0f), _ignoreFog(false), _lastIgnFog(true), _alphaTest(asNone), _alphaRef(1.0f), _faceCulling(fcCullCW), _polygonMode(pmFill)
 {
 	SetOption(moLighting, true);
@@ -589,7 +574,7 @@ void Material::ApplyAlphaTest(AlphaTest mode)
 
 	default:
 		LSL_ASSERT(false);
-	}	
+	}
 }
 
 void Material::Apply(Engine& engine)
@@ -614,14 +599,14 @@ void Material::Apply(Engine& engine)
 	}
 	//Без освещения
 	else
-	{		
+	{
 		//Direct3d не поддерживает материал отдельно от освещения, поэтому делается через emissive
 		d3dMat.ambient = d3dMat.diffuse = d3dMat.specular = clrBlack;
 		d3dMat.diffuse.a = alpha;
 		d3dMat.emissive = _diffuse.GetValue(frame);
 	}
 
-	if (engine.GetContext().IsCullOpacity())	
+	if (engine.GetContext().IsCullOpacity())
 		d3dMat.diffuse.a *= engine.GetContext().GetCullOpacity();
 
 	engine.GetContext().SetMaterial(d3dMat);
@@ -782,15 +767,15 @@ void Material::SetOption(Option option, bool value)
 			//Direct3d не поддерживает материал отдельно от освещения, поэтому обходной путь
 			//renderStates.Set(graph::rsLighting, false);
 			break;
-			
+
 		case moZWrite:
 			renderStates.Set(graph::rsZWriteEnable, value);
 			break;
-			
+
 		case moZTest:
 			renderStates.Set(graph::rsZEnable, value);
 			break;
-			
+
 		case moIgnoreFog:
 			_ignoreFog = value;
 			break;
@@ -809,11 +794,11 @@ Material::FaceCulling Material::GetFaceCulling() const
 void Material::SetFaceCulling(FaceCulling value)
 {
 	const D3DCULL cullMode[cFaceCullingEnd] = {D3DCULL_CW, D3DCULL_CCW, D3DCULL_NONE};
-	
+
 	if (_faceCulling != value)
 	{
 		_faceCulling = value;
-		
+
 		renderStates.Set(graph::rsFillMode, cullMode[_faceCulling]);
 	}
 }
@@ -834,9 +819,6 @@ void Material::SetPolygonMode(PolygonMode value)
 		renderStates.Set(graph::rsFillMode, fillMode[_polygonMode]);
 	}
 }
-
-
-
 
 LibMaterial::LibMaterial(): _shader(0)
 {
@@ -863,7 +845,7 @@ void LibMaterial::Apply(Engine& engine)
 		for (unsigned i = 0; i < samplers.Size(); ++i)
 			samplers[i].Apply(engine, i);
 
-		if (_shader)		
+		if (_shader)
 			_shader->Apply(engine);
 	}
 }
@@ -872,7 +854,7 @@ void LibMaterial::UnApply(Engine& engine)
 {
 	if (!engine.GetContext().GetIgnoreMaterial())
 	{
-		if (_shader)		
+		if (_shader)
 			_shader->UnApply(engine);
 
 		for (unsigned i = 0; i < samplers.Size(); ++i)
@@ -898,13 +880,10 @@ graph::LibMaterial& LibMaterial::SetAnisoFlt()
 	return *this;
 }
 
-
-
-
-void DrawScreenQuad(Engine& engine, const D3DXVECTOR4& quadVert, float fLeftU, float fTopV, float fRightU, float fBottomV, bool disableZBuf)
+void DrawScreenQuad(Engine& engine, const glm::vec4& quadVert, float fLeftU, float fTopV, float fRightU, float fBottomV, bool disableZBuf)
 {
 	D3DSURFACE_DESC surfDesc;
-	IDirect3DSurface9* curRTSurf; 
+	IDirect3DSurface9* curRTSurf;
 	engine.GetDriver().GetDevice()->GetRenderTarget(0, &curRTSurf);
 	curRTSurf->GetDesc(&surfDesc);
 	curRTSurf->Release();
@@ -918,17 +897,17 @@ void DrawScreenQuad(Engine& engine, const D3DXVECTOR4& quadVert, float fLeftU, f
 	// Draw the quad
 	res::ScreenVertex svQuad[4];
 
-	svQuad[0].pos = D3DXVECTOR4(fPosX, fPosY, 0.5f, 1.0f);
-	svQuad[0].tex = D3DXVECTOR2(fLeftU, fTopV);
+	svQuad[0].pos = glm::vec4(fPosX, fPosY, 0.5f, 1.0f);
+	svQuad[0].tex = glm::vec2(fLeftU, fTopV);
 
-	svQuad[1].pos = D3DXVECTOR4(fWidth5, fPosY, 0.5f, 1.0f);
-	svQuad[1].tex = D3DXVECTOR2(fRightU, fTopV);
+	svQuad[1].pos = glm::vec4(fWidth5, fPosY, 0.5f, 1.0f);
+	svQuad[1].tex = glm::vec2(fRightU, fTopV);
 
-	svQuad[2].pos = D3DXVECTOR4(fPosX, fHeight5, 0.5f, 1.0f); 
-	svQuad[2].tex = D3DXVECTOR2(fLeftU, fBottomV);
+	svQuad[2].pos = glm::vec4(fPosX, fHeight5, 0.5f, 1.0f);
+	svQuad[2].tex = glm::vec2(fLeftU, fBottomV);
 
-	svQuad[3].pos = D3DXVECTOR4(fWidth5, fHeight5, 0.5f, 1.0f);
-	svQuad[3].tex = D3DXVECTOR2(fRightU, fBottomV);
+	svQuad[3].pos = glm::vec4(fWidth5, fHeight5, 0.5f, 1.0f);
+	svQuad[3].tex = glm::vec2(fRightU, fBottomV);
 
 	if (!disableZBuf)
 	{

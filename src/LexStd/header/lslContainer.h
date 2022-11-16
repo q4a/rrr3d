@@ -8,6 +8,7 @@
 namespace lsl
 {
 
+template <class _Pnt> inline void SafeDelete(_Pnt &pnt);
 typedef std::vector<bool> BoolVec;
 typedef std::map<unsigned, bool> BoolMap;
 
@@ -19,6 +20,10 @@ private:
 	using _MyBase::remove;
 	using _MyBase::remove_if;
 public:
+	typedef typename std::list<_Item>::iterator iterator;
+	typedef typename std::list<_Item>::const_iterator const_iterator;
+	using std::list<_Item>::begin;
+	using std::list<_Item>::end;
 	//Удаляет один элемент с таким значением
 	iterator Remove(const _Item& item)
 	{
@@ -60,6 +65,10 @@ template<class _Item> class Vector: public std::vector<_Item>
 private:
 	typedef std::vector<_Item> _MyBase;
 public:
+	typedef typename std::vector<_Item>::iterator iterator;
+	typedef typename std::vector<_Item>::const_iterator const_iterator;
+	using std::vector<_Item>::begin;
+	using std::vector<_Item>::end;
 	//Удаляет один элемент с таким значением
 	iterator Remove(const _Item& item)
 	{
@@ -121,7 +130,7 @@ public:
 		dupError,
 		dupIgnore,
 		dupAccept
-	};	
+	};
 
 	typedef _Item Item;
 	typedef typename _Cont::iterator iterator;
@@ -131,7 +140,7 @@ public:
 	typedef typename _Cont::reverse_iterator reverse_iterator;
 	typedef typename _Cont::const_reverse_iterator const_reverse_iterator;
 private:
-	Duplicates _duplicates;	
+	Duplicates _duplicates;
 
 	_Cont _cont;
 	_SafeCont* _safeCont;
@@ -145,12 +154,12 @@ public:
 	Container(Duplicates duplicates = dupError);
 	Container(const _MyClass& ref);
 	~Container();
-	
+
 	void Insert(const _Item& item);
 	void Remove(iterator iter);
 	void Remove(const Position& pos);
-	void Remove(const _Item& item);	
-	void Remove(iterator sIter, iterator eIter);	
+	void Remove(const _Item& item);
+	void Remove(iterator sIter, iterator eIter);
 	void Clear();
 
 	bool CheckDuplicate(const _Item& item) const;
@@ -164,7 +173,7 @@ public:
 	iterator begin();
 	iterator end();
 
-	const_iterator begin() const;	
+	const_iterator begin() const;
 	const_iterator end() const;
 
 	reverse_iterator rbegin();
@@ -176,7 +185,7 @@ public:
 	_Item& front();
 	_Item& back();
 
-	const _Item& front() const;	
+	const _Item& front() const;
 	const _Item& back() const;
 
 	Position First();
@@ -185,9 +194,6 @@ public:
 
 	_MyClass& operator=(const _MyClass& value);
 };
-
-
-
 
 template<class _Item> Container<_Item>::Container(Duplicates duplicates): _safeCont(0), _duplicates(duplicates)
 {
@@ -235,7 +241,7 @@ template<class _Item> void Container<_Item>::Insert(const _Item& item)
 	bool safe = !(_safeCont && !_safeCont->SafeInsert(item));
 
 	if (safe && AddItem(item))
-		InsertItem(_cont.back());
+		this->InsertItem(_cont.back());
 }
 
 template<class _Item> void Container<_Item>::Remove(iterator iter)
@@ -244,7 +250,7 @@ template<class _Item> void Container<_Item>::Remove(iterator iter)
 
 	if (safe)
 	{
-		RemoveItem(*iter);
+		this->RemoveItem(*iter);
 		DeleteItem(iter);
 	}
 }
@@ -268,7 +274,7 @@ template<class _Item> void Container<_Item>::Remove(iterator sIter, iterator eIt
 	if (safe)
 	{
 		for (iterator iter = sIter; iter != eIter; ++iter)
-			RemoveItem(*iter);
+			this->RemoveItem(*iter);
 		DeleteItem(sIter, eIter);
 	}
 }
@@ -276,7 +282,7 @@ template<class _Item> void Container<_Item>::Remove(iterator sIter, iterator eIt
 template<class _Item> void Container<_Item>::Clear()
 {
 	bool safe = !(_safeCont && !_safeCont->SafeClear());
-	
+
 	if (safe)
 		Remove(begin(), end());
 }
@@ -289,7 +295,7 @@ template<class _Item> bool Container<_Item>::CheckDuplicate(const _Item& item) c
 	switch (_duplicates)
 	{
 	case dupError:
-		LSL_ASSERT(!isFind);		
+		LSL_ASSERT(!isFind);
 		return !isFind;
 
 	case dupIgnore:

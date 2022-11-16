@@ -21,14 +21,14 @@ public:
 	const std::string& GetName() const;
 	IMapObjRecRef MapObj::GetRecord();
 
-	D3DXVECTOR3 GetPos() const;
-	void SetPos(const D3DXVECTOR3& value);
+	glm::vec3 GetPos() const;
+	void SetPos(const glm::vec3& value);
 
-	D3DXVECTOR3 GetScale() const;
-	void SetScale(const D3DXVECTOR3& value);
+	glm::vec3 GetScale() const;
+	void SetScale(const glm::vec3& value);
 
-	D3DXQUATERNION GetRot() const;
-	void SetRot(const D3DXQUATERNION& value);
+	glm::quat GetRot() const;
+	void SetRot(const glm::quat& value);
 
 	game::Map::MapObjList::const_iterator mapIter;
 };
@@ -37,8 +37,8 @@ class Map: public IMap
 {
 	friend Edit;
 private:
-	static const D3DXCOLOR bbColor;
-	static const D3DXCOLOR selColor;
+	static const glm::vec4 bbColor;
+	static const glm::vec4 selColor;
 
 	typedef lsl::List<game::MapObj*> MapObjList;
 
@@ -54,17 +54,17 @@ private:
 		virtual ~NodeControl();
 
 		void Select(bool active);
-		void OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
+		void OnShiftAction(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec);
 	};
 public:
-	typedef game::Map Inst;	
+	typedef game::Map Inst;
 private:
 	Edit* _edit;
 	ITrace* _trace;
 	bool _showBB;
 
-	game::MapObj* PickInstMapObj(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec);
-	
+	game::MapObj* PickInstMapObj(const glm::vec3& rayPos, const glm::vec3& rayVec);
+
 	void ApplyShowBB();
 	void OnUpdateLevel();
 
@@ -83,7 +83,7 @@ public:
 	unsigned GetCatCount();
 	//
 	IMapObjRef GetFirst(unsigned cat);
-	void GetNext(unsigned cat, IMapObjRef& ref);	
+	void GetNext(unsigned cat, IMapObjRef& ref);
 
 	bool GetShowBBox() const;
 	void SetShowBBox(bool value);

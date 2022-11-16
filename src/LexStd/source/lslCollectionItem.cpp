@@ -51,9 +51,6 @@ CollectionItem& CollectionItem::operator=(const CollectionItem& ref)
 	return *this;
 }
 
-
-
-
 void CollectionTraits::SetItemTraits(CollectionItem* item, CollectionTraits* value)
 {
 	item->_collection = value;

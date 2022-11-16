@@ -34,7 +34,7 @@ private:
 	Items _items;
 
 	void SaveSlot(Slot* slot, const std::string& name);
-	
+
 	//база данных
 	Slot* AddSlot(Record* record);
 	void DelSlot(Slots::const_iterator iter);
@@ -43,13 +43,13 @@ private:
 
 	void LoadWheels();
 	void LoadTruba();
-	void LoadEngines();	
+	void LoadEngines();
 	void LoadArmors();
 	void LoadWeapons();
 
-	void LoadLib();	
-	
-	const RecordLib& GetLib();	
+	void LoadLib();
+
+	const RecordLib& GetLib();
 public:
 	Workshop(Race* race);
 	~Workshop();
@@ -101,11 +101,11 @@ public:
 	struct PlaceItem
 	{
 		PlaceItem(): slot(0), rot(NullQuaternion) {}
-		PlaceItem(Slot* mSlot, const D3DXQUATERNION& mRot = NullQuaternion, const D3DXVECTOR3& mOffset = NullVector): slot(mSlot), rot(mRot), offset(mOffset) {}
+		PlaceItem(Slot* mSlot, const glm::quat& mRot = NullQuaternion, const glm::vec3& mOffset = NullVector): slot(mSlot), rot(mRot), offset(mOffset) {}
 
 		Slot* slot;
-		D3DXQUATERNION rot;
-		D3DXVECTOR3 offset;
+		glm::quat rot;
+		glm::vec3 offset;
 	};
 	typedef lsl::List<PlaceItem> PlaceItems;
 
@@ -115,13 +115,13 @@ public:
 
 		const PlaceItem* FindItem(Record* slot) const;
 		const PlaceItem* FindItem(Slot* slot) const;
-		
+
 		//активен
 		bool active;
 		//отобразить на модели
 		bool show;
 		//ккординаты
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		//итемы
 		PlaceItems items;
 		//итем по умолчанию, ставитс€ на машину если нет других вариантов
@@ -148,8 +148,8 @@ public:
 		struct NightLight
 		{
 			bool head;
-			D3DXVECTOR3 pos;
-			D3DXVECTOR2 size;			
+			glm::vec3 pos;
+			glm::vec2 size;
 		};
 		typedef lsl::Vector<NightLight> NightLights;
 	private:
@@ -167,13 +167,13 @@ public:
 		PlaceSlot _slot[Player::cSlotTypeEnd];
 
 		Car();
-		virtual ~Car();		
+		virtual ~Car();
 	public:
 		void Assign(Car* ref);
 		void ClearSlots();
 
 		void SaveTo(lsl::SWriter* writer, Garage* owner);
-		void LoadFrom(lsl::SReader* reader, Garage* owner);		
+		void LoadFrom(lsl::SReader* reader, Garage* owner);
 
 		MapObjRec* GetRecord();
 		void SetRecord(MapObjRec* value);
@@ -211,7 +211,7 @@ public:
 	};
 
 	typedef lsl::List<Car*> Cars;
-	typedef lsl::List<Car*> Items;	
+	typedef lsl::List<Car*> Items;
 private:
 	Race* _race;
 	Cars _cars;
@@ -219,7 +219,7 @@ private:
 	int _upgradeMaxLevel;
 	int _weaponMaxLevel;
 
-	void FillStandartSlots(Car* car, const std::string& wheel, bool truba, const D3DXVECTOR3* hyperDrive, bool spring, bool maslo, bool mineSpike, bool mineRip, bool mineProton, bool lockedMax);
+	void FillStandartSlots(Car* car, const std::string& wheel, bool truba, const glm::vec3* hyperDrive, bool spring, bool maslo, bool mineSpike, bool mineRip, bool mineProton, bool lockedMax);
 
 	//записи о всех машинвх
 	Car* AddCar();
@@ -229,17 +229,17 @@ private:
 
 	void LoadCars();
 	void LoadLib();
-	
-	Workshop& GetShop();	
+
+	Workshop& GetShop();
 protected:
 	virtual void Save(lsl::SWriter* writer);
-	virtual void Load(lsl::SReader* reader);	
+	virtual void Load(lsl::SReader* reader);
 public:
 	Garage(Race* race, const std::string& name);
 	~Garage();
 
 	//поиск машин
-	Cars::iterator FindCar(Car* car);	
+	Cars::iterator FindCar(Car* car);
 	Car* FindCar(MapObjRec* record);
 	Car* FindCar(const std::string& name);
 
@@ -264,7 +264,7 @@ public:
 	void MaxUpgradeCar(Player* player);
 
 	float GetMobilitySkill(const MobilityItem::CarFunc& func);
-	float GetMobilitySkill(Car* car, Player* player, Player::SlotType type, int level);	
+	float GetMobilitySkill(Car* car, Player* player, Player::SlotType type, int level);
 	float GetArmorSkill(Garage::Car* car, Player* player, float& armorVal, float& maxArmorVal);
 	float GetDamageSkill(Garage::Car* car, Player* player, float& damageVal, float& maxDamageVal);
 	float GetSpeedSkill(Garage::Car* car, Player* player);
@@ -289,7 +289,7 @@ public:
 };
 
 class Planet: public Object
-{	
+{
 public:
 	struct Price
 	{
@@ -300,10 +300,10 @@ public:
 		int points;
 	};
 	typedef lsl::Vector<Price> Prices;
-	
+
 	class Track: public Object
 	{
-		friend Planet; 
+		friend Planet;
 	private:
 		int _index;
 		Planet* _planet;
@@ -315,11 +315,11 @@ public:
 		Environment::WorldType world;
 		Environment::Wheater wheater;
 		//число кругов
-		unsigned numLaps;		
+		unsigned numLaps;
 
 		int GetIndex() const;
 		Planet* GetPlanet();
-		
+
 		unsigned GetLapsCount();
 	};
 
@@ -334,7 +334,7 @@ public:
 		Record* record;
 		int charge;
 		Player::SlotType type;
-		int pass;		
+		int pass;
 	};
 	typedef lsl::List<SlotData> Slots;
 
@@ -355,11 +355,11 @@ public:
 		int id;
 		std::string name;
 		std::string bonus;
-		graph::Tex2DResource* photo;		
+		graph::Tex2DResource* photo;
 		int maxPass;
 
 		Cars cars;
-		Slots slots;		
+		Slots slots;
 	};
 	typedef lsl::List<PlayerData> Players;
 
@@ -367,7 +367,7 @@ public:
 	//заплатив очки можно перейтий из psClosed в psOpen
 	enum State {psOpen, psClosed, psUnavailable, psCompleted};
 
-	enum WorldType {wtWorld1 = 0, wtWorld2, wtWorld3, wtWorld4, wtWorld5, wtWorld6, cWorldTypeEnd};	
+	enum WorldType {wtWorld1 = 0, wtWorld2, wtWorld3, wtWorld4, wtWorld5, wtWorld6, cWorldTypeEnd};
 
 	struct Wheater
 	{
@@ -390,7 +390,7 @@ private:
 	Tracks _trackList;
 	std::string _name;
 	std::string _info;
-	RequestPoints _requestPoints;	
+	RequestPoints _requestPoints;
 	State _state;
 	WorldType _worldType;
 	Wheaters _wheaters;
@@ -410,7 +410,7 @@ private:
 	void StartPass(int pass);
 	//проход завершен
 	//pass = 0, планета была открыта
-	//pass 1...n пройден этап	
+	//pass 1...n пройден этап
 	void CompletePass(int pass);
 
 	void SaveSlots(lsl::SWriter* writer, const std::string& name, Slots& mSlots, Tournament* owner);
@@ -420,11 +420,11 @@ private:
 public:
 	Planet(Race* race, int index);
 	virtual ~Planet();
-	
+
 	Track* AddTrack(int pass);
 	void ClearTracks();
 	Track* NextTrack(Track* track);
-	TrackMap::const_iterator GetTracks(int pass) const;	
+	TrackMap::const_iterator GetTracks(int pass) const;
 	const Tracks& GetTracks() const;
 	const TrackMap& GetTrackMap() const;
 	const Tracks& GetTrackList() const;
@@ -437,7 +437,7 @@ public:
 	void StartPass(Player* player);
 	void StartPass();
 	//следующий
-	void NextPass();	
+	void NextPass();
 	//текущий
 	int GetPass() const;
 	void SetPass(int value);
@@ -460,11 +460,11 @@ public:
 	void SetRequestPoints(const RequestPoints& value);
 
 	int GetRequestPoints(int pass) const;
-	bool HasRequestPoints(int pass, int points) const;	
+	bool HasRequestPoints(int pass, int points) const;
 
 	State GetState() const;
 	void SetState(State value);
-	
+
 	WorldType GetWorldType() const;
 	void SetWorldType(WorldType value);
 
@@ -490,7 +490,7 @@ public:
 	void InsertCar(MapObjRec* car, int pass);
 	void InsertCar(const lsl::string& name, int pass);
 	void SetCars(const Cars& value);
-	void ClearCars();	
+	void ClearCars();
 	Cars::const_iterator FindCar(Garage::Car* car);
 	const Cars& GetCars() const;
 
@@ -504,12 +504,12 @@ public:
 class Tournament: Component
 {
 public:
-	typedef lsl::Vector<Planet*> Planets;	
+	typedef lsl::Vector<Planet*> Planets;
 private:
 	Race* _race;
 	Planets _planets;
 	Planets _gamers;
-	
+
 	Planet* _curPlanet;
 	Planet::Track* _curTrack;
 	Planet::Tracks _trackList;
@@ -522,7 +522,7 @@ private:
 	void LoadLib();
 protected:
 	virtual void Save(lsl::SWriter* writer);
-	virtual void Load(lsl::SReader* reader);	
+	virtual void Load(lsl::SReader* reader);
 public:
 	Tournament(Race* race, const std::string& name);
 	~Tournament();
@@ -534,7 +534,7 @@ public:
 	Planet* NextPlanet(Planet* planet);
 	Planet* PrevPlanet(Planet* planet);
 	Planet* GetPlanet(int index);
-	
+
 	Planet* AddGamer();
 	void DelGamer(Planets::const_iterator iter);
 	void ClearGamers();
@@ -552,7 +552,7 @@ public:
 	Planet::Track& GetCurTrack();
 	int GetCurTrackIndex();
 	void SetCurTrack(Planet::Track* value);
-	const Planet::Tracks& GetTrackList() const;	
+	const Planet::Tracks& GetTrackList() const;
 	//track == NULL if need first track
 	//return NULL if pass completed (tracks queue ended)
 	Planet::Track* NextTrack(Planet::Track* track);
@@ -579,7 +579,7 @@ public:
 	typedef lsl::Vector<Player*> PlayerList;
 	typedef lsl::Vector<HumanPlayer*> Humans;
 	typedef lsl::Vector<AIPlayer*> AIPlayers;
-	
+
 	enum Mode {rmChampionship = 0, rmSkirmish, cModeEnd};
 
 	struct Result
@@ -591,7 +591,7 @@ public:
 		int money;
 		int points;
 		int pickMoney;
-		float voiceNameDur;		
+		float voiceNameDur;
 
 		bool operator==(const Result& result) const
 		{
@@ -607,8 +607,8 @@ public:
 	class Profile: public Object
 	{
 	protected:
-		Race* _race;		
-		std::string _name;		
+		Race* _race;
+		std::string _name;
 		bool _netGame;
 		Difficulty _difficulty;
 	protected:
@@ -635,11 +635,11 @@ public:
 		Difficulty difficulty() const;
 		void difficulty(Difficulty value);
 	};
-	typedef lsl::Vector<Profile*> Profiles;	
+	typedef lsl::Vector<Profile*> Profiles;
 
 	class SnProfile: public Profile
 	{
-		typedef Profile _MyBase;	
+		typedef Profile _MyBase;
 	protected:
 		void SaveWorkshop(lsl::SWriter* writer);
 		void LoadWorkshop(lsl::SReader* reader);
@@ -657,11 +657,11 @@ public:
 
 		virtual void EnterGame();
 		virtual void SaveGame(lsl::SWriter* writer);
-		virtual void LoadGame(lsl::SReader* reader);		
+		virtual void LoadGame(lsl::SReader* reader);
 	public:
 		SnProfile(Race* race, const std::string& name);
 	};
-	
+
 	class SkProfile: public Profile
 	{
 		typedef Profile _MyBase;
@@ -677,7 +677,7 @@ public:
 
 	typedef lsl::List<int> Planets;
 
-	static const float cSellDiscount;	
+	static const float cSellDiscount;
 
 	static const int cTournamentPlanetCount = 5;
 
@@ -689,7 +689,7 @@ public:
 	static const int cCampaignMaxHumans = 3;
 	//
 	static const int cMaxPlayers = 8;
-	
+
 	//computers
 	static const int cComputerBit = 0;
 	//
@@ -716,12 +716,12 @@ public:
 	//
 	static const int cOpponent2 = 0x00000200;
 	//
-	static const int cOpponent3 = 0x00000300;	
+	static const int cOpponent3 = 0x00000300;
 
 	//net
 	static const int cDefaultNetSlot = 0;
 private:
-	GameMode* _game;	
+	GameMode* _game;
 
 	Profiles _profiles;
 	Profile* _profile;
@@ -732,7 +732,7 @@ private:
 	Mode _mode;
 
 	bool _startRace;
-	bool _goRace;	
+	bool _goRace;
 	Results _results;
 	bool _planetChampion;
 	bool _passChampion;
@@ -743,7 +743,7 @@ private:
 	int _tutorialStage;
 	bool _springBorders;
 	bool _enableMineBug;
-	
+
 	Workshop* _workshop;
 	Garage* _garage;
 	Tournament* _tournament;
@@ -760,8 +760,8 @@ private:
 	//»». –аботает только в режиме гонки
 	//≈сли научить режиму менеджера, то небходимо также просчитывать »» перед стартом гонки, пошагово
 	AISystem* _aiSystem;
-	
-	void DisposePlayer(Player* player);	
+
+	void DisposePlayer(Player* player);
 
 	//игрок завершил трасу, вызваетс€ в пор€дке убывани€ по месту
 	void CompleteRace(Player* player);
@@ -779,7 +779,7 @@ public:
 	~Race();
 
 	Player* AddPlayer(int plrId);
-	Player* AddPlayer(int plrId, int gamerId, int netSlot, const D3DXCOLOR& color);
+	Player* AddPlayer(int plrId, int gamerId, int netSlot, const glm::vec4& color);
 	void DelPlayer(PlayerList::const_iterator iter);
 	void DelPlayer(Player* plr);
 	void ClearPlayerList();
@@ -817,7 +817,7 @@ public:
 	void ExitProfile();
 	void NewProfile(Mode mode, bool netGame, bool netClient);
 	bool IsMatchStarted() const;
-	
+
 	void SaveProfile();
 	void LoadProfile();
 	void SaveLib();
@@ -830,7 +830,7 @@ public:
 	Profile* GetLastNetProfile();
 	void SetLastNetProfile(Profile* value);
 
-	Mode GetMode() const;	
+	Mode GetMode() const;
 	bool IsCampaign() const;
 	bool IsSkirmish() const;
 
@@ -838,7 +838,7 @@ public:
 	bool BuyItem(Player* player, int cost);
 	void SellItem(Player* player, int cost, bool sellDiscount = true);
 	int GetCost(int realCost);
-	int GetSellCost(int realCost, bool sellDiscount = true);	
+	int GetSellCost(int realCost, bool sellDiscount = true);
 
 	void HumanNextPlayer();
 	void ResetCarPos();
@@ -847,7 +847,7 @@ public:
 	void ExitRace(const Results* results = NULL);
 	bool IsStartRace() const;
 
-	void GoRace();	
+	void GoRace();
 	bool IsRaceGo() const;
 
 	bool GetCarChanged() const;
@@ -867,15 +867,15 @@ public:
 	bool GetEnableMineBug() const;
 	void SetEnableMineBug(bool value);
 
-	void SendEvent(unsigned id, EventData* data = NULL);	
-	
-	void OnLapPass(Player* player);	
+	void SendEvent(unsigned id, EventData* data = NULL);
+
+	void OnLapPass(Player* player);
 
 	GameMode* GetGame();
 	World* GetWorld();
 	DataBase* GetDB();
 	Map* GetMap();
-	
+
 	Workshop& GetWorkshop();
 	Garage& GetGarage();
 	Tournament& GetTournament();
@@ -888,7 +888,7 @@ public:
 	bool GetPassChampion() const;
 	void ResetChampion();
 	int GetTotalPoints() const;
-	
+
 	MapObjRec* GetMapObjRec(MapObjLib::Category category, const std::string& name);
 	MapObjRec* GetCar(const std::string& name);
 	Record* GetSlot(const std::string& name);

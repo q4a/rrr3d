@@ -18,7 +18,7 @@ private:
 	CoordSystem _coordSystem;
 public:
 	SkyBox();
-	
+
 	virtual void WorldDimensions(AABB& aabb) const;
 	virtual void Render(Engine& engine);
 	virtual void ProgressTime(const float newTime, const float dt);

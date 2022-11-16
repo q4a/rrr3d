@@ -1,17 +1,17 @@
 #include "stdafx.h"
-#include "game\\Weapon.h"
+#include "game/Weapon.h"
 
-#include "game\\Logic.h"
-#include "game\\Race.h"
+#include "game/Logic.h"
+#include "game/Race.h"
 
 namespace r3d
 {
 
 namespace game
 {
- 
+
 Proj::Proj(): _pxBox(0), _ignoreContactProj(false), _model(0), _model2(0), _weapon(0), _playerId(cUndefPlayerId), _sprite(0), _tick1(0), _time1(0), _state1(false), _vec1(NullVector)
-{	
+{
 }
 
 Proj::~Proj()
@@ -26,11 +26,11 @@ Proj::~Proj()
 	SetShot(ShotDesc());
 }
 
-void Proj::LocateProj(GameObject* weapon, bool pos, bool rot, const D3DXVECTOR3* speed)
+void Proj::LocateProj(GameObject* weapon, bool pos, bool rot, const glm::vec3* speed)
 {
 	if (pos)
 	{
-		D3DXVECTOR3 pos = _desc.pos;
+		glm::vec3 pos = _desc.pos;
 		if (weapon)
 			weapon->GetGrActor().LocalToWorldCoord(pos, pos);
 		this->SetPos(pos);
@@ -38,16 +38,15 @@ void Proj::LocateProj(GameObject* weapon, bool pos, bool rot, const D3DXVECTOR3*
 
 	if (rot)
 	{
-		D3DXQUATERNION rot = _desc.rot;
+		glm::quat rot = _desc.rot;
 
-		if (speed && D3DXVec3Length(speed) > 1.0f)
+		if (speed && glm::length(*speed) > 1.0f)
 		{
-			D3DXVECTOR3 dir;
-			D3DXVec3Normalize(&dir, speed);
-			rot = rot * weapon->GetRot() * QuatShortestArc(XVector, dir);
+			glm::vec3 dir = glm::normalize(*speed);
+			rot = QuatShortestArc(XVector, dir) * weapon->GetRot() * rot;
 		}
 		else if (weapon)
-			rot = rot * weapon->GetWorldRot();
+			rot = weapon->GetWorldRot() * rot;
 
 		this->SetRot(rot);
 	}
@@ -74,8 +73,8 @@ void Proj::FreeModel(bool remove)
 		if (remove)
 			GetIncludeList().Delete(_model);
 
-		lsl::SafeRelease(_model);		
-	}	
+		lsl::SafeRelease(_model);
+	}
 }
 
 void Proj::InitModel2()
@@ -140,7 +139,7 @@ void Proj::InsertProjToGraph(GraphManager* graph)
 	desc.order = graph::Actor::goEffect;
 	desc.props.set(graph::Actor::gpColor);
 	desc.props.set(graph::Actor::gpDynamic);
-	//desc.props.set(graph::Actor::gpMorph);	
+	//desc.props.set(graph::Actor::gpMorph);
 
 	GetGrActor().SetGraph(graph, desc);
 }
@@ -158,7 +157,7 @@ AABB Proj::ComputeAABB(bool onlyModel)
 		}
 
 		aabb.Add(_model->GetGameObj().GetGrActor().GetLocalAABB(false));
-	} 
+	}
 	else if (onlyModel)
 		aabb = AABB(IdentityVector * 0.1f);
 	else
@@ -175,21 +174,21 @@ void Proj::CreatePxBox(NxCollisionGroup group)
 	AABB aabb = ComputeAABB(false);
 
 	NxBoxShapeDesc boxDesc;
-	boxDesc.dimensions = NxVec3(aabb.GetSizes()/2.0f);
-	boxDesc.localPose.t.set(aabb.GetCenter());
+	boxDesc.dimensions = glm::value_ptr(aabb.GetSizes() / 2.0f);
+	boxDesc.localPose.t.set(glm::value_ptr(aabb.GetCenter()));
 	boxDesc.group = group;
 	this->_pxBox = &this->GetPxActor().GetShapes().Add<px::BoxShape>();
 	this->_pxBox->AssignFromDesc(boxDesc);
 }
 
-void Proj::AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, NxForceMode mode)
+void Proj::AddContactForce(GameObject* target, const glm::vec3& point, const glm::vec3& force, NxForceMode mode)
 {
-	target->GetPxActor().GetNxActor()->addForceAtPos(NxVec3(force), NxVec3(point), mode);
+	target->GetPxActor().GetNxActor()->addForceAtPos(glm::value_ptr(force), glm::value_ptr(point), mode);
 }
 
-void Proj::AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const D3DXVECTOR3& force, NxForceMode mode)
+void Proj::AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const glm::vec3& force, NxForceMode mode)
 {
-	D3DXVECTOR3 point = GetContactPoint(contact);
+	glm::vec3 point = GetContactPoint(contact);
 	AddContactForce(target, point, force, mode);
 }
 
@@ -210,7 +209,7 @@ void Proj::SetWeapon(GameObject* weapon)
 		if (_weapon)
 		{
 			weapon->InsertListener(this);
-			
+
 			GameObject* car = _weapon->GetParent() ? _weapon->GetParent() : NULL;
 			_playerId = car && car->GetMapObj() && car->GetMapObj()->GetPlayer() ? car->GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;
 		}
@@ -236,14 +235,14 @@ void Proj::SetShot(const ShotDesc& value)
 {
 	if (_shot.GetTargetMapObj())
 	{
-		_shot.GetTargetMapObj()->GetGameObj().RemoveListener(this);		
+		_shot.GetTargetMapObj()->GetGameObj().RemoveListener(this);
 	}
 
 	_shot = value;
 
 	if (_shot.GetTargetMapObj())
 	{
-		_shot.GetTargetMapObj()->GetGameObj().InsertListener(this);		
+		_shot.GetTargetMapObj()->GetGameObj().InsertListener(this);
 	}
 }
 
@@ -298,7 +297,7 @@ void Proj::EnableFilter(GameObject* target, unsigned mask)
 		NxShape* shape = target->GetPxActor().GetNxActor()->getShapes()[i];
 		shape->setGroupsMask(nxMask);
 	}
-	
+
 	target->GetPxActor().GetScene()->GetNxScene()->setFilterOps(NX_FILTEROP_OR, NX_FILTEROP_OR, NX_FILTEROP_AND);
 }
 
@@ -319,35 +318,35 @@ void Proj::DisableFilter(GameObject* target)
 	target->GetPxActor().GetScene()->GetNxScene()->setFilterOps(NX_FILTEROP_AND, NX_FILTEROP_AND, NX_FILTEROP_AND);
 }
 
-D3DXVECTOR3 Proj::CalcSpeed(GameObject* weapon)
+glm::vec3 Proj::CalcSpeed(GameObject* weapon)
 {
-	D3DXVECTOR3 dir = weapon->GetGrActor().GetWorldDir();
+	glm::vec3 dir = weapon->GetGrActor().GetWorldDir();
 	float speed = _desc.speed;
 
 	if (_desc.speedRelative)
 	{
-		speed += std::max(D3DXVec3Dot(&dir, &weapon->GetPxVelocityLerp()), 0.0f);
+		speed += std::max(glm::dot(dir, weapon->GetPxVelocityLerp()), 0.0f);
 	}
 	else if (_desc.speedRelativeMin > 0)
 	{
-		speed = std::max(speed, _desc.speedRelativeMin + std::max(D3DXVec3Dot(&dir, &weapon->GetPxVelocityLerp()), 0.0f));
+		speed = std::max(speed, _desc.speedRelativeMin + std::max(glm::dot(dir, weapon->GetPxVelocityLerp()), 0.0f));
 	}
 
-	float cosa = abs(D3DXVec3Dot(&dir, &D3DXVECTOR3(0, 0, 1)));	
+	float cosa = std::abs(glm::dot(dir, glm::vec3(0, 0, 1)));
 	if (cosa < 0.707f)
 	{
 		dir.z = 0;
-		D3DXVec3Normalize(&dir, &dir);
+		dir = glm::normalize(dir);
 	}
 
 	return dir * speed;
 }
 
-bool Proj::RocketPrepare(GameObject* weapon, bool disableGravity, D3DXVECTOR3* speedVec, NxCollisionGroup pxGroup)
+bool Proj::RocketPrepare(GameObject* weapon, bool disableGravity, glm::vec3* speedVec, NxCollisionGroup pxGroup)
 {
 	_vec1.z = 0.0f;
 
-	D3DXVECTOR3 speed = CalcSpeed(weapon);
+	glm::vec3 speed = CalcSpeed(weapon);
 	if (speedVec)
 		*speedVec = speed;
 
@@ -357,7 +356,7 @@ bool Proj::RocketPrepare(GameObject* weapon, bool disableGravity, D3DXVECTOR3* s
 
 	NxBodyDesc bodyDesc;
 	bodyDesc.flags |= disableGravity ? NX_BF_DISABLE_GRAVITY : 0;
-	bodyDesc.linearVelocity = NxVec3(speed);
+	bodyDesc.linearVelocity = glm::value_ptr(speed);
 
 	CreateBody(bodyDesc);
 
@@ -383,26 +382,26 @@ void Proj::RocketContact(const px::Scene::OnContactEvent& contact)
 
 		DamageTarget(target, _desc.damage);
 
-		D3DXVECTOR3 dir = D3DXVECTOR3(this->GetPxActor().GetNxActor()->getLinearVelocity().get());
-		float dirLength = D3DXVec3Length(&dir);
+		glm::vec3 dir = glm::make_vec3(this->GetPxActor().GetNxActor()->getLinearVelocity().get());
+		float dirLength = glm::length(dir);
 
 		if (dirLength > 1.0f)
 		{
 			dir /= dirLength;
 
-			D3DXVECTOR3 contactDir = GetContactPoint(contact);
-			//D3DXVec3Normalize(&contactDir, &contactDir);	
-			D3DXVec3Cross(&contactDir, &contactDir, &dir);
-			
+			glm::vec3 contactDir = GetContactPoint(contact);
+			//contactDir = glm::normalize(contactDir);
+			contactDir = glm::cross(contactDir, dir);
+
 			//NxVec3 vec3(RandomRange(-1.0f, 1.0f), 0, RandomRange(-1.0f, 1.0f));
-			NxVec3 vec3(contactDir);
+			NxVec3 vec3 = glm::value_ptr(contactDir);
 			if (vec3.magnitude() > 0.01f)
 			{
 				vec3.normalize();
 				target->GetPxActor().GetNxActor()->addLocalTorque(vec3 * _desc.mass * 0.2f, NX_VELOCITY_CHANGE);
 			}
 
-			D3DXVec3Normalize(&dir, &(dir - ZVector));
+			dir = glm::normalize(dir - ZVector);
 
 			//dir = dir * dirLength;
 			//AddContactForce(target, contact, 150.0f * dir, NX_IMPULSE);
@@ -414,11 +413,11 @@ void Proj::RocketUpdate(float deltaTime)
 {
 	const float cTrackHeight = 4.0f;
 
-	D3DXVECTOR3 size = _pxBox->GetDimensions();
-	NxVec3 pos = GetPxActor().GetNxActor()->getGlobalPosition(); 
+	glm::vec3 size = _pxBox->GetDimensions();
+	NxVec3 pos = GetPxActor().GetNxActor()->getGlobalPosition();
 	NxRay nxRay(pos + NxVec3(0, 0, cTrackHeight), NxVec3(0, 0, -1.0f));
 
-	NxRaycastHit hit;			
+	NxRaycastHit hit;
 	NxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, NX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT);
 
 	if (hitShape)
@@ -526,7 +525,7 @@ void Proj::SpeedArrowContact(const px::Scene::OnContactEvent& contact)
 	GameObject* target = GetGameObjFromActor(contact.actor);
 	if (target)
 	{
-		target->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(GetGrActor().GetWorldDir() * _desc.damage));
+		target->GetPxActor().GetNxActor()->setLinearVelocity(glm::value_ptr(GetGrActor().GetWorldDir() * _desc.damage));
 		target->SendEvent(cPlayerSpeedArrow);
 	}
 }
@@ -568,30 +567,30 @@ bool Proj::MinePrepare(const ShotContext& ctx, bool lockMine)
 
 	AABB aabb = ComputeAABB(true);
 	GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
-	_time1 = 0.0f;	
+	_time1 = 0.0f;
 
 	if (ctx.projMat)
 	{
-		SetWorldPos(ctx.projMat->t.get());
+		SetWorldPos(glm::make_vec3(ctx.projMat->t.get()));
 
 		return true;
 	}
 	else
 	{
-		D3DXVECTOR3 rayPos = _desc.pos;
+		glm::vec3 rayPos = _desc.pos;
 		if (_weapon)
 			_weapon->GetGrActor().LocalToWorldCoord(rayPos, rayPos);
-		NxRay nxRay(NxVec3(rayPos) + NxVec3(0, 0, 2.0f), NxVec3(-ZVector));
+		NxRay nxRay(NxVec3(glm::value_ptr(rayPos)) + NxVec3(0, 0, 2.0f), glm::value_ptr(-ZVector));
 
 		NxRaycastHit hit;
 		NxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, (1 << px::Scene::cdgTrackPlane) | (1 << px::Scene::cdgShotTrack), NX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT | NX_RAYCAST_NORMAL);
 
 		if (hitShape && hitShape->getGroup() != px::Scene::cdgShotTrack) //&& hit.distance < _desc.projMaxDist)
 		{
-			float offs = std::max(-aabb.min.z, 0.01f);			
-			D3DXVECTOR3 normal = hit.worldNormal.get();
+			float offs = std::max(-aabb.min.z, 0.01f);
+			glm::vec3 normal = glm::make_vec3(hit.worldNormal.get());
 
-			SetWorldPos(D3DXVECTOR3(hit.worldImpact.get()) + ZVector * offs);
+			SetWorldPos(glm::make_vec3(hit.worldImpact.get()) + ZVector * offs);
 			SetWorldUp(normal);
 
 			if (lockMine)
@@ -639,7 +638,7 @@ float Proj::MineUpdate(float deltaTime, float delay)
 bool Proj::MasloPrepare(const ShotContext& ctx)
 {
 	if (MinePrepare(ctx, true))
-	{		
+	{
 		_model->GetGameObj().SetScale(0.0f);
 		return true;
 	}
@@ -658,12 +657,11 @@ void Proj::MasloContact(const px::Scene::OnContactEvent& contact)
 		if (car == NULL || _time1 >= 0 || car->IsMineLocked())
 			return;
 
-		D3DXPLANE plane;
-		D3DXPlaneFromPointNormal(&plane, &car->GetGrActor().GetWorldPos(), &car->GetGrActor().GetWorldRight());
-		float dist = PlaneDistToPoint(plane, GetWorldPos());
+		glm::vec4 plane = PlaneFromPointNormal(car->GetGrActor().GetWorldPos(), car->GetGrActor().GetWorldRight());
+		float dist = PlaneDotCoord(plane, GetWorldPos());
 
 		if (car->GetPxActor().GetNxActor()->getLinearVelocity().magnitude() > 3.0f)
-			car->LockClutch(abs(dist) > 0.1f && dist > 0 ? -_desc.damage : _desc.damage);
+			car->LockClutch(std::abs(dist) > 0.1f && dist > 0 ? -_desc.damage : _desc.damage);
 	}
 }
 
@@ -700,7 +698,7 @@ void Proj::MineRipUpdate(float deltaTime)
 		}
 		if (_desc.GetModel3())
 		{
-			Vec3Range vec(D3DXVECTOR3(-3.0f, -3.0f, 3.0f), D3DXVECTOR3(3.0f, 3.0f, 1.0f), Vec3Range::vdVolume);
+			Vec3Range vec(glm::vec3(-3.0f, -3.0f, 3.0f), glm::vec3(3.0f, 3.0f, 1.0f), Vec3Range::vdVolume);
 
 			for (int i = 0; i < 5; ++i)
 			{
@@ -709,7 +707,7 @@ void Proj::MineRipUpdate(float deltaTime)
 				mapObj->GetGameObj().SetRot(GetRot());
 				mapObj->GetGameObj().SetScale(GetScale());
 
-				NxVec3 dir(vec.GetValue());
+				NxVec3 dir(glm::value_ptr(vec.GetValue()));
 				dir.normalize();
 				mapObj->GetGameObj().GetPxActor().GetNxActor()->addForce(mapObj->GetGameObj().GetPxActor().GetBody()->GetDesc().mass * dir * 10.0f, NX_IMPULSE);
 
@@ -780,22 +778,26 @@ void Proj::TorpedaUpdate(float deltaTime)
 	MapObj* target = _shot.GetTargetMapObj();
 	if (target && _time1 == 0.0f)
 	{
-		D3DXVECTOR3 targPos = target->GetGameObj().GetWorldPos();
-		D3DXVECTOR3 pos = this->GetWorldPos();
+		glm::vec3 targPos = target->GetGameObj().GetWorldPos();
+		glm::vec3 pos = this->GetWorldPos();
 
-		D3DXVECTOR3 dir = targPos - pos;
-		float dist = D3DXVec3Length(&dir);				
+		glm::vec3 dir = targPos - pos;
+		float dist = glm::length(dir);
 		if (dist > 1.0f)
-			D3DXVec3Normalize(&dir, &dir);
+			dir = glm::normalize(dir);
 		else
 			dir = this->GetGrActor().GetDir();
-		
-		D3DXQUATERNION rot, rot1;
+
+		glm::quat rot, rot1;
 		QuatShortestArc(XVector, dir, rot1);
 		if (_desc.angleSpeed > 0)
-			D3DXQuaternionSlerp(&rot, &this->GetRot(), &rot1, deltaTime * _desc.angleSpeed);
+		{
+			rot = glm::slerp(this->GetRot(), rot1, deltaTime * _desc.angleSpeed);
+		}
 		else
+		{
 			rot = rot1;
+		}
 
 		Vec3Rotate(XVector, rot, dir);
 		this->SetRot(rot);
@@ -804,16 +806,16 @@ void Proj::TorpedaUpdate(float deltaTime)
 
 		if (_desc.speedRelative)
 		{
-			speed = D3DXVec3Length(&_vec1);
+			speed = glm::length(_vec1);
 		}
 		else
 		{
-			speed = std::max(D3DXVec3Dot(&_vec1, &dir), _desc.speed);
+			speed = std::max(glm::dot(_vec1, dir), _desc.speed);
 		}
 
 		_vec1 = dir * speed;
-		
-		this->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(dir * std::max(_desc.speed, speed)));
+
+		this->GetPxActor().GetNxActor()->setLinearVelocity(glm::value_ptr(dir * std::max(_desc.speed, speed)));
 	}
 }
 
@@ -834,8 +836,8 @@ GameObject* Proj::LaserUpdate(float deltaTime, bool distort)
 	if (_weapon == 0)
 		return 0;
 
-	D3DXVECTOR3 shotPos = GetWorldPos();
-	D3DXVECTOR3 shotDir = GetGrActor().GetWorldDir();
+	glm::vec3 shotPos = GetWorldPos();
+	glm::vec3 shotDir = GetGrActor().GetWorldDir();
 	float scaleLaser = _desc.maxDist;
 
 	EnableFilter(_weapon, px::Scene::gmTemp);
@@ -846,8 +848,8 @@ GameObject* Proj::LaserUpdate(float deltaTime, bool distort)
 	nxMask.bits2 = 0;
 	nxMask.bits3 = 0;
 
-	NxRaycastHit rayhit;	
-	NxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(NxRay(NxVec3(shotPos + _desc.sizeAddPx), NxVec3(shotDir)), NX_ALL_SHAPES, rayhit, (1 << px::Scene::cdgDefault) | (1 << px::Scene::cdgShotTransparency) | (1 << px::Scene::cdgTrackPlane), _desc.maxDist, NX_RAYCAST_SHAPE | NX_RAYCAST_DISTANCE, &nxMask);
+	NxRaycastHit rayhit;
+	NxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(NxRay(glm::value_ptr(shotPos + _desc.sizeAddPx), glm::value_ptr(shotDir)), NX_ALL_SHAPES, rayhit, (1 << px::Scene::cdgDefault) | (1 << px::Scene::cdgShotTransparency) | (1 << px::Scene::cdgTrackPlane), _desc.maxDist, NX_RAYCAST_SHAPE | NX_RAYCAST_DISTANCE, &nxMask);
 	GameObject* rayHitActor = hitShape ? GetGameObjFromShape(hitShape) : NULL;
 
 	DisableFilter(_weapon);
@@ -855,7 +857,7 @@ GameObject* Proj::LaserUpdate(float deltaTime, bool distort)
 	if (rayHitActor)
 	{
 		scaleLaser = std::min(rayhit.distance, _desc.maxDist);
-		D3DXVECTOR3 hitPos = shotPos + shotDir * scaleLaser;
+		glm::vec3 hitPos = shotPos + shotDir * scaleLaser;
 		if (_model2)
 			_model2->GetGameObj().SetWorldPos(hitPos);
 
@@ -867,17 +869,17 @@ GameObject* Proj::LaserUpdate(float deltaTime, bool distort)
 
 	if (_model)
 	{
-		graph::Sprite* sprite = (graph::Sprite*)&_model->GetGameObj().GetGrActor().GetNodes().front();	
-		D3DXVECTOR2 size = D3DXVECTOR2(scaleLaser, _desc.size.y);
+		graph::Sprite* sprite = (graph::Sprite*)&_model->GetGameObj().GetGrActor().GetNodes().front();
+		glm::vec2 size = glm::vec2(scaleLaser, _desc.size.y);
 
 		if (distort)
 		{
-			float alpha = lsl::ClampValue(GetTimeLife() / GetMaxTimeLife(), 0.0f, 1.0f);	
+			float alpha = lsl::ClampValue(GetTimeLife() / GetMaxTimeLife(), 0.0f, 1.0f);
 			//alpha = lsl::ClampValue((alpha - 0.0f)/0.5f + 0.5f, 0.0f, 1.5f) - lsl::ClampValue((alpha - 0.7f)/0.3f * 1.5f, 0.0f, 1.5f);
 			alpha = lsl::ClampValue((alpha - 0.0f)/0.5f * 1.5f + 0.5f, 0.0f, 2.0f) - lsl::ClampValue((alpha - 0.6f)/0.4f * 2.0f, 0.0f, 2.0f);
 
 			size.y = size.y * alpha;
-			sprite->material.Get()->samplers[0].SetScale(D3DXVECTOR3(scaleLaser/10.0f, 1.0f, 1.0f));
+			sprite->material.Get()->samplers[0].SetScale(glm::vec3(scaleLaser/10.0f, 1.0f, 1.0f));
 		}
 
 		sprite->SetPos(XVector * scaleLaser/2.0f);
@@ -907,7 +909,7 @@ void Proj::FireUpdate(float deltaTime)
 	{
 		GetPxActor().GetNxActor()->setLinearVelocity(_weapon->GetPxActor().GetNxActor()->getLinearVelocity());
 
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		_weapon->GetGrActor().LocalToWorldCoord(_desc.pos, pos);
 		SetPos(pos);
 
@@ -940,12 +942,12 @@ void Proj::DrobilkaContact(const px::Scene::OnContactEvent& contact)
 		_time1 = 0.5f;
 		InitModel();
 		if (_model)
-		{		
-			D3DXVECTOR3 pnt = GetContactPoint(contact);
+		{
+			glm::vec3 pnt = GetContactPoint(contact);
 			_model->GetGameObj().SetWorldPos(pnt);
 		}
 
-		DamageTarget(target, _desc.damage * contact.deltaTime);	
+		DamageTarget(target, _desc.damage * contact.deltaTime);
 	}
 }
 
@@ -953,14 +955,13 @@ void Proj::DrobilkaUpdate(float deltaTime)
 {
 	if (_weapon)
 	{
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		_weapon->GetGrActor().LocalToWorldCoord(_desc.pos, pos);
 		SetWorldPos(pos);
 		SetWorldRot(_weapon->GetWorldRot());
 
-		D3DXQUATERNION rot;
-		D3DXQuaternionRotationAxis(&rot, &XVector, _desc.angleSpeed * deltaTime);
-		_weapon->SetRot(_weapon->GetRot() * rot);
+		glm::quat rot = glm::angleAxis(_desc.angleSpeed * deltaTime, XVector);
+		_weapon->SetRot(rot * _weapon->GetRot());
 	}
 
 	if (_model && _model->GetGameObj().GetLiveState() != lsDeath && (_time1 -= deltaTime) <= 0)
@@ -981,7 +982,7 @@ void Proj::SonarContact(const px::Scene::OnContactEvent& contact)
 	if (target)
 	{
 		DamageTarget(target, _desc.damage * contact.deltaTime, dtEnergy);
-		AddContactForce(target, contact, _desc.mass * D3DXVECTOR3(this->GetPxActor().GetNxActor()->getLinearVelocity().get()), NX_IMPULSE);
+		AddContactForce(target, contact, _desc.mass * glm::make_vec3(this->GetPxActor().GetNxActor()->getLinearVelocity().get()), NX_IMPULSE);
 	}
 }
 
@@ -993,7 +994,7 @@ bool Proj::SpringPrepare(GameObject* weapon)
 
 	if (car && car->IsWheelsContact())
 	{
-		//static D3DXQUATERNION testRot;
+		//static glm::quat testRot;
 		//_time1 = 0.0f;
 		//_state1 = false;
 		//_vec1.x = 0.0f;
@@ -1020,7 +1021,7 @@ void Proj::SpringUpdate(float deltaTime)
 		{
 			_time1 += deltaTime;
 			float alpha = lsl::ClampValue(_time1/0.1f, 0.0f, 1.0f);
-			dAngle = -D3DX_PI * deltaTime * 1.0f;
+			dAngle = -glm::pi<float>() * deltaTime * 1.0f;
 			_vec1.x = dAngle;
 
 			if (alpha == 1.0f)
@@ -1028,13 +1029,12 @@ void Proj::SpringUpdate(float deltaTime)
 		}
 		else
 		{
-			dAngle = D3DX_PI * deltaTime * 0.75f;
+			dAngle = glm::pi<float>() * deltaTime * 0.75f;
 		}
 
 		_vec1.x = _vec1.x + (dAngle - _vec1.x) * lsl::ClampValue(deltaTime * 6.0f, 0.0f, 1.0f);
 
-		D3DXQUATERNION rot;
-		D3DXQuaternionRotationAxis(&rot, &YVector, _vec1.x);
+		glm::quat rot = glm::angleAxis(_vec1.x, YVector);
 		car->SetRot(rot * car->GetRot());
 	}
 	else if (_state1 || _time1 > 0.0f)
@@ -1042,7 +1042,7 @@ void Proj::SpringUpdate(float deltaTime)
 		Death();
 		return;
 	}*/
-	
+
 	/*GameCar* car = _weapon->GetParent()->IsCar();
 
 	if (car && !car->IsAnyWheelContact())
@@ -1051,10 +1051,9 @@ void Proj::SpringUpdate(float deltaTime)
 
 		_time1 += deltaTime;
 		float alpha = lsl::ClampValue(_time1/1.0f, 0.0f, 1.0f);
-		angle = -D3DX_PI/6 + (D3DX_PI/6 - (-D3DX_PI/6)) * alpha;
+		angle = -glm::pi<float>()/6 + (glm::pi<float>()/6 - (-glm::pi<float>()/6)) * alpha;
 
-		D3DXQUATERNION rot;
-		D3DXQuaternionRotationAxis(&rot, &YVector, angle);
+		glm::quat rot = glm::angleAxis(angle, YVector);
 		car->SetRot(rot * testRot);
 
 		if (alpha == 1.0f)
@@ -1076,7 +1075,7 @@ void Proj::FrostRayUpdate(float deltaTime)
 {
 	GameObject* target = LaserUpdate(deltaTime, false);
 	SlowEffect* slow = target ? target->GetBehaviors().Find<SlowEffect>() : 0;
-	
+
 	if (target && target->IsCar() && slow == 0)
 	{
 		slow = &target->GetBehaviors().Add<SlowEffect>();
@@ -1129,13 +1128,13 @@ void Proj::ImpulseContact(const px::Scene::OnContactEvent& contact)
 				return;
 			}
 
-			MapObj* taget = FindNextTaget(D3DX_PI/2);
+			MapObj* taget = FindNextTaget(glm::half_pi<float>());
 			if (taget == 0)
 			{
 				this->Death(dtEnergy, contactActor);
 				return;
 			}
-			
+
 			ShotDesc shot = _shot;
 			shot.SetTargetMapObj(taget);
 			SetShot(shot);
@@ -1173,7 +1172,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 
 	NxVec3 velocity = GetPxActor().GetNxActor()->getLinearVelocity();
 	NxContactStreamIterator contIter(contact.stream);
-	
+
 	if (ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency) && velocity.magnitude() > 5.0f)
 	{
 		_time1 = 0.1f;
@@ -1184,17 +1183,15 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 
 		NxVec3 velNorm = velocity;
 		velNorm.normalize();
-		float angle = velNorm.dot(norm);		
-		if (abs(angle) > 0.1f)
+		float angle = velNorm.dot(norm);
+		if (std::abs(angle) > 0.1f)
 		{
-			D3DXPLANE plane;
-			D3DXPlaneFromPointNormal(&plane, &NullVector, &D3DXVECTOR3(norm.get()));
-			D3DXMATRIX mat;
-			D3DXMatrixReflect(&mat, &plane);
+			glm::vec4 plane = PlaneFromPointNormal(NullVector, glm::make_vec3(norm.get()));
+			D3DMATRIX mat = MatrixReflect(plane);
 
-			D3DXVECTOR3 vel(velocity.get());
-			D3DXVec3TransformNormal(&vel, &vel, &mat);
-			velocity = NxVec3(vel);
+			glm::vec3 vel = glm::make_vec3(velocity.get());
+			vel = Vec3TransformNormal(vel, mat);
+			velocity = glm::value_ptr(vel);
 		}
 		else
 			velocity = -velocity;
@@ -1207,7 +1204,7 @@ void Proj::ThunderUpdate(float deltaTime)
 {
 	RocketUpdate(deltaTime);
 
-	_time1 -= deltaTime;	
+	_time1 -= deltaTime;
 }
 
 bool Proj::ResonansePrepare(GameObject* weapon)
@@ -1224,10 +1221,9 @@ void Proj::ResonanseUpdate(float deltaTime)
 {
 	RocketUpdate(deltaTime);
 
-	D3DXQUATERNION dRot;
-	D3DXQuaternionRotationAxis(&dRot, &XVector, _desc.angleSpeed * deltaTime);
+	glm::quat dRot = glm::angleAxis(_desc.angleSpeed * deltaTime, XVector);
 
-	SetRot(dRot * GetRot());
+	SetRot(GetRot() * dRot);
 }
 
 void Proj::OnDestroy(GameObject* sender)
@@ -1263,7 +1259,7 @@ void Proj::OnContact(const px::Scene::OnContactEvent& contact)
 		{
 		case ptRocket:
 			RocketContact(contact);
-			break;	
+			break;
 
 		case ptTorpeda:
 			TorpedaContact(contact);
@@ -1272,11 +1268,11 @@ void Proj::OnContact(const px::Scene::OnContactEvent& contact)
 		case ptMedpack:
 			MedpackContact(contact);
 			break;
-			
+
 		case ptCharge:
 			ChargeContact(contact);
 			break;
-			
+
 		case ptMoney:
 			MoneyContact(contact);
 			break;
@@ -1345,14 +1341,14 @@ void Proj::OnContact(const px::Scene::OnContactEvent& contact)
 			ResonanseContact(contact);
 			break;
 		}
-	}			
+	}
 }
 
 void Proj::SaveSource(lsl::SWriter* writer)
 {
 	_MyBase::SaveSource(writer);
 
-	lsl::SWriter* proj = writer->NewDummyNode("proj");	
+	lsl::SWriter* proj = writer->NewDummyNode("proj");
 	_desc.SaveTo(proj, this);
 }
 
@@ -1360,7 +1356,7 @@ void Proj::LoadSource(lsl::SReader* reader)
 {
 	_MyBase::LoadSource(reader);
 
-	lsl::SReader* proj = reader->ReadValue("proj");	
+	lsl::SReader* proj = reader->ReadValue("proj");
 	_desc.LoadFrom(proj, this);
 }
 
@@ -1415,7 +1411,7 @@ void Proj::OnProgress(float deltaTime)
 
 	case ptMineRip:
 		MineRipUpdate(deltaTime);
-		break;	
+		break;
 
 	case ptMineProton:
 		MineProtonUpdate(deltaTime);
@@ -1444,7 +1440,7 @@ void Proj::OnProgress(float deltaTime)
 	case ptResonanse:
 		ResonanseUpdate(deltaTime);
 		break;
-	}		
+	}
 }
 
 bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
@@ -1458,7 +1454,7 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 		timeLife = _desc.maxDist / _desc.speed;
 	SetMaxTimeLife(std::max(timeLife, _desc.minTimeLife.GetValue()));
 
-	bool res = true;	
+	bool res = true;
 	switch (_desc.type)
 	{
 	case ptRocket:
@@ -1480,11 +1476,11 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 	case ptMedpack:
 		res = MedpackPrepare(weapon);
 		break;
-		
+
 	case ptCharge:
 		res = ChargePrepare(weapon);
 		break;
-		
+
 	case ptMoney:
 		res = MoneyPrepare(weapon);
 		break;
@@ -1507,7 +1503,7 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 
 	case ptMine:
 		res = MinePrepare(ctx, true);
-		break;	
+		break;
 
 	case ptMineRip:
 		res = MineRipPrepare(ctx);
@@ -1515,11 +1511,11 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 
 	case ptMinePiece:
 		res = MinePiecePrepare(ctx);
-		break;	
+		break;
 
 	case ptMineProton:
 		res = MineProtonPrepare(ctx);
-		break;	
+		break;
 
 	case ptFire:
 		res = FirePrepare(weapon);
@@ -1575,14 +1571,14 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 
 	//Игнорируем контакты снаряда с родителем (т.е. с самим собой)
 	if (_ignoreContactProj && weapon && weapon->GetPxActor().GetNxActor())
-	{		
+	{
 		GetPxActor().GetScene()->GetNxScene()->setActorPairFlags(*weapon->GetPxActor().GetNxActor(), *GetPxActor().GetNxActor(), NX_IGNORE_PAIR);
 	}
 
 	return res;
 }
 
-void Proj::MineContact(GameObject* target, const D3DXVECTOR3& point)
+void Proj::MineContact(GameObject* target, const glm::vec3& point)
 {
 	this->Death();
 
@@ -1593,7 +1589,7 @@ void Proj::MineContact(GameObject* target, const D3DXVECTOR3& point)
 	}
 
 	DamageTarget(target, _desc.damage, dtMine);
-	AddContactForce(target, point, D3DXVECTOR3(0.0f, 0.0f, _desc.speed), NX_IMPULSE);	
+	AddContactForce(target, point, glm::vec3(0.0f, 0.0f, _desc.speed), NX_IMPULSE);
 }
 
 const Proj::Desc& Proj::GetDesc() const
@@ -1616,9 +1612,6 @@ GameObject* Proj::GetWeapon()
 	return _weapon;
 }
 
-
-
-
 AutoProj::AutoProj(): _prepare(false)
 {
 }
@@ -1634,8 +1627,8 @@ void AutoProj::InitProj()
 	{
 		_prepare = true;
 
-		D3DXVECTOR3 pos = GetPos();
-		D3DXQUATERNION rot = GetRot();
+		glm::vec3 pos = GetPos();
+		glm::quat rot = GetRot();
 
 		Proj::ShotContext ctx;
 		ctx.logic = GetLogic();
@@ -1679,9 +1672,6 @@ void AutoProj::LogicInited()
 	InitProj();
 }
 
-
-
-
 Weapon::Weapon(): _shotTime(0)
 {
 }
@@ -1702,7 +1692,7 @@ void Weapon::LoadSource(lsl::SReader* reader)
 	_MyBase::LoadSource(reader);
 
 	Desc desc;
-	desc.LoadFrom(reader, this);	
+	desc.LoadFrom(reader, this);
 	SetDesc(desc);
 }
 
@@ -1722,14 +1712,14 @@ void Weapon::OnProgress(float deltaTime)
 
 bool Weapon::Shot(const ShotDesc& shotDesc, ProjList* projList)
 {
-	Proj::ShotContext ctx;	
+	Proj::ShotContext ctx;
 	ctx.logic = GetLogic();
 	ctx.shot = shotDesc;
 
 	return CreateShot(this, _desc, ctx, projList);
 }
 
-bool Weapon::Shot(const D3DXVECTOR3& target, ProjList* projList)
+bool Weapon::Shot(const glm::vec3& target, ProjList* projList)
 {
 	ShotDesc desc;
 	desc.target = target;
@@ -1786,7 +1776,7 @@ bool Weapon::CreateShot(Weapon* weapon, const Weapon::Desc& desc, const Proj::Sh
 
 	for (ProjDescList::const_iterator iter = desc.projList.begin(); iter != desc.projList.end(); ++iter)
 	{
-		if (weapon == NULL && 
+		if (weapon == NULL &&
 			(iter->type == Proj::ptRocket ||
 			iter->type == Proj::ptHyper ||
 			iter->type == Proj::ptTorpeda ||

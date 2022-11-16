@@ -42,7 +42,7 @@ struct BitValue
 		} vecVal;
 
 		void* ptr;
-		char* str;		
+		char* str;
 	};
 
 	BitValue(): _w1(0), _w2(0), _w3(0), _w4(0), type(cBitTypeEnd), size(0) {}
@@ -113,7 +113,7 @@ struct BitValue
 	}
 
 	template<class _Type> static void Make(BitValue& bitVal, const _Type& val, BitType type);
-	template<class _Type> static BitValue Make(const _Type& val, BitType type);	
+	template<class _Type> static BitValue Make(const _Type& val, BitType type);
 	template<class _Type> static void Get(const BitValue& bitVal, _Type& val);
 
 	NETLIB_API static void Make(BitValue& bitVal, void* val, unsigned size);
@@ -156,14 +156,14 @@ private:
 	bool _isReading;
 	mutable unsigned _changedCount;
 	mutable unsigned _updatedCount;
-	mutable bool _isSleeping;	
+	mutable bool _isSleeping;
 
 	Val& Get();
 	void Next();
 	void ValUpdated(const Val& val, bool updated) const;
 	void ValChanged(const Val& val, bool changed) const;
 public:
-	NETLIB_API BitStream();	
+	NETLIB_API BitStream();
 
 	NETLIB_API void Reset(bool isWriting, bool isReading, unsigned time);
 	NETLIB_API void Clear();
@@ -176,7 +176,7 @@ public:
 	NETLIB_API bool isChanged() const;
 	NETLIB_API bool isUpdated() const;
 	NETLIB_API bool isSleeping() const;
-	NETLIB_API bool isPutSleep() const;	
+	NETLIB_API bool isPutSleep() const;
 
 	NETLIB_API void Read(std::istream& stream);
 	NETLIB_API void Write(std::ostream& stream, bool diff, bool changed, bool updated) const;
@@ -186,7 +186,7 @@ public:
 
 	NETLIB_API void Serialize(BYTE& value);
 	NETLIB_API void Serialize(char& value);
-	NETLIB_API void Serialize(bool& value);	
+	NETLIB_API void Serialize(bool& value);
 	NETLIB_API void Serialize(unsigned& value);
 	NETLIB_API void Serialize(int& value);
 	NETLIB_API void Serialize(long& value);
@@ -195,17 +195,13 @@ public:
 	NETLIB_API void Serialize(double& value, float err = cFloatErr);
 
 	NETLIB_API void Serialize(float value[], int count, float err = cFloatErr);
-	NETLIB_API void Serialize(D3DXVECTOR2& value, float err = cFloatErr);
-	NETLIB_API void Serialize(D3DXVECTOR3& value, float err = cFloatErr);
-	NETLIB_API void Serialize(D3DXVECTOR4& value, float err = cFloatErr);
-	NETLIB_API void Serialize(D3DXQUATERNION& value, float err = cFloatErr);
-	NETLIB_API void Serialize(D3DXCOLOR& value, float err = cFloatErr);
+	NETLIB_API void Serialize(glm::vec2& value, float err = cFloatErr);
+	NETLIB_API void Serialize(glm::vec3& value, float err = cFloatErr);
+	NETLIB_API void Serialize(glm::vec4& value, float err = cFloatErr);
+	NETLIB_API void Serialize(glm::quat& value, float err = cFloatErr);
 
 	NETLIB_API void Serialize(void*& data, unsigned size, bool cmp);
 };
-
-
-
 
 template<class _Type> inline void BitValue::Make(BitValue& bitVal, const _Type& val, BitType type)
 {
@@ -232,7 +228,7 @@ template<class _Type> inline void BitValue::Get(const BitValue& bitVal, _Type& v
 
 inline void BitValue::Make(BitValue& bitVal, void* val, unsigned size)
 {
-	bitVal.AssignData(val, size);		
+	bitVal.AssignData(val, size);
 	bitVal.type = btData;
 	bitVal.size = size;
 }
@@ -241,9 +237,6 @@ inline void BitValue::Get(BitValue& bitVal, void*& data, unsigned& size)
 {
 	bitVal.GetData(data, size);
 }
-
-
-
 
 template<class _Type> void BitStream::Serialize(_Type& value, BitType type, bool equal)
 {

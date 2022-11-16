@@ -65,7 +65,7 @@ private:
 		Node* _parent;
 		//Список дочерних узлов
 		NodeList _nodeList;
-		
+
 		//Список листьев по группам, т.е. все пользователя разделяются по группам с возможным дублированием
 		Leaf* _leaf;
 		//Массив списков уникальных объектов текущего и дочерних узлов отсортированный по группам
@@ -91,7 +91,7 @@ private:
 		//Опреации над списком пользователей
 		void InsertUser(UserNode* value, unsigned group);
 		void InsertUser(const UserList& value);
-		void RemoveUser(UserNode* value, unsigned group);		
+		void RemoveUser(UserNode* value, unsigned group);
 		void ClearUser(unsigned group);
 		void ClearUser();
 
@@ -136,9 +136,9 @@ public:
 		AABB _aabb;
 		//
 		lsl::Object* _data;
-		
+
 		//Список узлов в листья которых включен пользователь
-		NodeMap _nodeMap;	
+		NodeMap _nodeMap;
 		//Список групп в которые он добавлен
 		lsl::BoolVec _groups;
 		//Идентификатор прохода
@@ -248,7 +248,7 @@ public:
 					}
 				}
 			}
-			
+
 			return 0;
 		}
 
@@ -296,7 +296,7 @@ public:
 
 			_stIterate = false;
 
-			if (_iterNode != _nodeList.end())			
+			if (_iterNode != _nodeList.end())
 				(*_iterNode)->Unlock();
 		}
 
@@ -316,7 +316,7 @@ public:
 					//Определяем пересечение с реальным AABB объекта. Только если родительский нод не входит в камеру полностью
 					next = _iterNode->contains != Frustum::scContainsFully && frustum.ContainsAABB(res->GetAABB()) == Frustum::scNoOverlap;
 				}
-			}			
+			}
 			while (next);
 
 			return res;
@@ -338,7 +338,7 @@ public:
 	private:
 		typedef lsl::Collection<UserNode, void, void, void> _MyBase;
 	private:
-		OctreeSort* _owner;		
+		OctreeSort* _owner;
 	protected:
 		virtual void InsertItem(const Value& value)
 		{
@@ -362,7 +362,7 @@ public:
 
 			return _MyBase::AddItem(new UserNode(_owner, aabb, groups));
 		}
-	};	
+	};
 
 	//Условия разбияния дерева, при нарушении любого из них разбиение прекращается
 	//Минимальное количество объектов которое может быть в узле
@@ -375,7 +375,7 @@ private:
 	Users* _users;
 	Node* _root;
 
-	D3DXVECTOR3 _nodeOff[cOctNum];
+	glm::vec3 _nodeOff[cOctNum];
 	//Уникальный идентификатор прохода
 	unsigned long _idPass;
 

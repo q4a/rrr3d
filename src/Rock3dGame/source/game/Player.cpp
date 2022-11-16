@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "game\Player.h"
+#include "game/Player.h"
 
 namespace r3d
 {
@@ -20,14 +20,19 @@ const float Player::cHumanArmorK[cDifficultyEnd] = {2.0f, 1.75f, 1.5f};
 
 const std::string Player::cSlotTypeStr[cSlotTypeEnd] = {"stWheel", "stTruba", "stArmor", "stMotor", "stHyper", "stMine", "stWeapon1", "stWeapon2", "stWeapon3", "stWeapon4"};
 
-const D3DXCOLOR Player::cLeftColors[Player::cColorsCount] = {clrWhite, clrBlue, clrRed, clrGreen, clrYellow, D3DXCOLOR(0xffff9000), clrGray20};
+const glm::vec4 Player::cLeftColors[Player::cColorsCount] = {clrWhite, clrBlue, clrRed, clrGreen, clrYellow, glm::vec4(1.0f, 144.0f/255.0f, 0.0f, 1.0f), clrGray20}; // 0xffff9000
 
-const D3DXCOLOR Player::cRightColors[Player::cColorsCount] = {D3DXCOLOR(0xff06affa), D3DXCOLOR(0xffb70bae), D3DXCOLOR(0xffb1c903), D3DXCOLOR(0xffa93900), D3DXCOLOR(0xff30373d), D3DXCOLOR(0xff009f15), D3DXCOLOR(0xff70769c)};
+const glm::vec4 Player::cRightColors[Player::cColorsCount] = {
+	glm::vec4(  6.0f/255.0f, 175.0f/255.0f, 250.0f/255.0f, 1.0f), // 0xff06affa
+	glm::vec4(183.0f/255.0f,  11.0f/255.0f, 174.0f/255.0f, 1.0f), // 0xffb70bae
+	glm::vec4(177.0f/255.0f, 201.0f/255.0f,   3.0f/255.0f, 1.0f), // 0xffb1c903
+	glm::vec4(169.0f/255.0f,  57.0f/255.0f,   0.0f/255.0f, 1.0f), // 0xffa93900
+	glm::vec4( 48.0f/255.0f,  55.0f/255.0f,  61.0f/255.0f, 1.0f), // 0xff30373d
+	glm::vec4(  0.0f/255.0f, 159.0f/255.0f,  21.0f/255.0f, 1.0f), // 0xff009f15
+	glm::vec4(112.0f/255.0f, 118.0f/255.0f, 156.0f/255.0f, 1.0f)  // 0xff70769c
+};
 
-Slot::ClassList Slot::classList; 
-
-
-
+Slot::ClassList Slot::classList;
 
 SlotItem::SlotItem(Slot* slot): _name(_SC(svNull)), _info(_SC(svNull)), _slot(slot), _cost(0), _mesh(0), _texture(0), _pos(NullVector), _rot(NullQuaternion)
 {
@@ -40,7 +45,7 @@ SlotItem::~SlotItem()
 }
 
 void SlotItem::RegProgressEvent()
-{	
+{
 	if (GetPlayer())
 		GetPlayer()->GetRace()->GetGame()->RegProgressEvent(this);
 }
@@ -67,7 +72,7 @@ void SlotItem::Load(SReader* reader)
 {
 	reader->ReadValue("name", _name);
 	reader->ReadValue("info", _info);
-	reader->ReadValue("cost", _cost);	
+	reader->ReadValue("cost", _cost);
 	reader->ReadRef("mesh", true, this, 0);
 	reader->ReadRef("texture", true, this, 0);
 
@@ -79,10 +84,10 @@ void SlotItem::OnFixUp(const FixUpNames& fixUpNames)
 {
 	for (FixUpNames::const_iterator iter = fixUpNames.begin(); iter != fixUpNames.end(); ++iter)
 	{
-		if (iter->name == "mesh")	
+		if (iter->name == "mesh")
 			SetMesh(static_cast<graph::IndexedVBMesh*>(iter->collItem));
 
-		if (iter->name == "texture")	
+		if (iter->name == "texture")
 			SetTexture(static_cast<graph::Tex2DResource*>(iter->collItem));
 	}
 }
@@ -134,7 +139,7 @@ Slot* SlotItem::GetSlot() const
 
 Player* SlotItem::GetPlayer() const
 {
-	return _slot ? _slot->GetPlayer() : NULL; 
+	return _slot ? _slot->GetPlayer() : NULL;
 }
 
 const std::string& SlotItem::GetName() const
@@ -189,30 +194,27 @@ void SlotItem::SetTexture(graph::Tex2DResource* value)
 		_texture = value;
 }
 
-const D3DXVECTOR3& SlotItem::GetPos() const
+const glm::vec3& SlotItem::GetPos() const
 {
 	return _pos;
 }
 
-void SlotItem::SetPos(const D3DXVECTOR3& value)
+void SlotItem::SetPos(const glm::vec3& value)
 {
 	_pos = value;
 	TransformChanged();
 }
 
-const D3DXQUATERNION& SlotItem::GetRot() const
+const glm::quat& SlotItem::GetRot() const
 {
 	return _rot;
 }
 
-void SlotItem::SetRot(const D3DXQUATERNION& value)
+void SlotItem::SetRot(const glm::quat& value)
 {
 	_rot = value;
 	TransformChanged();
 }
-
-
-
 
 MobilityItem::MobilityItem(Slot* slot): _MyBase(slot)
 {
@@ -230,7 +232,7 @@ void MobilityItem::CarFunc::WriteTo(lsl::SWriter* writer)
 	lsl::SWriter* wLatTire = writer->NewDummyNode("latTire");
 	latTire.WriteTo(wLatTire);
 
-	writer->WriteValue("maxTorque", maxTorque);	
+	writer->WriteValue("maxTorque", maxTorque);
 	writer->WriteValue("life", life);
 	writer->WriteValue("maxSpeed", maxSpeed);
 	writer->WriteValue("tireSpring", tireSpring);
@@ -256,7 +258,7 @@ void MobilityItem::Save(SWriter* writer)
 {
 	_MyBase::Save(writer);
 
-	lsl::SWriter* funcMap = writer->NewDummyNode("carFuncMap");	
+	lsl::SWriter* funcMap = writer->NewDummyNode("carFuncMap");
 	int i = 0;
 
 	for (CarFuncMap::iterator iter = carFuncMap.begin(); iter != carFuncMap.end(); ++iter, ++i)
@@ -287,7 +289,7 @@ void MobilityItem::Load(SReader* reader)
 			carFunc.ReadFrom(func);
 
 			carFuncMap[car] = carFunc;
-			
+
 			func = func->NextValue();
 		}
 	}
@@ -309,29 +311,17 @@ float MobilityItem::CalcLife(const CarFunc& func)
 	return func.life;
 }
 
-
-
-
 WheelItem::WheelItem(Slot* slot): _MyBase(slot)
 {
 }
 
-
-
-
 MotorItem::MotorItem(Slot* slot): _MyBase(slot)
-{	
+{
 }
-
-
-
 
 TrubaItem::TrubaItem(Slot* slot): _MyBase(slot)
 {
 }
-
-
-
 
 ArmorItem::ArmorItem(Slot* slot): _MyBase(slot), _armor4Installed(false)
 {
@@ -405,9 +395,6 @@ void ArmorItem::InstalArmor4(bool instal)
 	_armor4Installed = instal;
 }
 
-
-
-
 WeaponItem::WeaponItem(Slot* slot): _MyBase(slot), _mapObj(0), _inst(0), _maxCharge(0), _cntCharge(0), _curCharge(0), _chargeStep(1), _damage(0), _chargeCost(0)
 {
 }
@@ -450,7 +437,7 @@ void WeaponItem::OnCreateCar(MapObj* car)
 }
 
 void WeaponItem::OnDestroyCar(MapObj* car)
-{	
+{
 	lsl::SafeRelease(_inst);
 }
 
@@ -479,7 +466,7 @@ void WeaponItem::Load(SReader* reader)
 	reader->ReadValue("cntCharge", _cntCharge);
 	reader->ReadValue("curCharge", _curCharge);
 	reader->ReadValue("chargeStep", _chargeStep);
-	reader->ReadValue("chargeCost", _chargeCost);	
+	reader->ReadValue("chargeCost", _chargeCost);
 
 	_wpnDesc.LoadFrom(reader, this);
 }
@@ -531,7 +518,7 @@ void WeaponItem::SetMapObj(MapObjRec* value)
 {
 	if (ReplaceRef(_mapObj, value))
 	{
-		_mapObj = value;		
+		_mapObj = value;
 	}
 }
 
@@ -632,25 +619,16 @@ Weapon::Desc WeaponItem::GetDesc()
 	return GetWeapon() ? GetWeapon()->GetDesc() : _wpnDesc;
 }
 
-
-
-
 HyperItem::HyperItem(Slot* slot): _MyBase(slot)
 {
 }
-
-
-
 
 MineItem::MineItem(Slot* slot): _MyBase(slot)
 {
 }
 
-
-
-
 DroidItem::DroidItem(Slot* slot): WeaponItem(slot), _repairValue(5.0f), _repairPeriod(1.0f), _time(0.0f)
-{	
+{
 }
 
 DroidItem::~DroidItem()
@@ -727,11 +705,8 @@ void DroidItem::SetRepairPeriod(float value)
 	_repairPeriod = value;
 }
 
-
-
-
 ReflectorItem::ReflectorItem(Slot* slot): WeaponItem(slot), _reflectValue(0.25f)
-{	
+{
 }
 
 ReflectorItem::~ReflectorItem()
@@ -766,9 +741,6 @@ float ReflectorItem::Reflect(float damage)
 {
 	return damage * lsl::ClampValue(1.0f - _reflectValue, 0.0f, 1.0f);
 }
-
-
-
 
 Slot::Slot(Player* player): _player(player), _type(cTypeEnd), _item(0), _record(0)
 {
@@ -879,9 +851,6 @@ void Slot::SetRecord(Record* value)
 	}
 }
 
-
-
-
 Player::Player(Race* race): cTimeRestoreCar(2.0f), _race(race), _carMaxSpeedBase(0), _carTireSpringBase(0), _timeRestoreCar(0), _headLight(hlmNone), _reflScene(true), _money(0), _points(0), _pickMoney(0), _id(cUndefPlayerId), _gamerId(-1), _netSlot(Race::cDefaultNetSlot), _netName(""), _place(0), _finished(false), _cheatEnable(cCheatDisable), _nextBonusProjId(cBonusProjUndef + 1), _nightFlare(NULL), _block(-1.0f)
 {
 	ZeroMemory(_lights, sizeof(_lights));
@@ -899,14 +868,14 @@ Player::~Player()
 
 	SetHeadlight(hlmNone);
 	SetCar(0);
-	FreeColorMat();	
+	FreeColorMat();
 }
 
 Player::CarState::CarState(): owner(NULL), record(0), colorMat(0), color(clrWhite), mapObj(0), gameObj(0), grActor(0), nxActor(0), track(0), curTile(0), curNode(0), lastNode(0), numLaps(0)
 {
 	pos = NullVec2;
 	pos3 = NullVector;
-	rot3 = NullQuaternion;	
+	rot3 = NullQuaternion;
 	dir = IdentityVec2;
 	dir3 = IdentityVector;
 	worldMat = IdentityMatrix;
@@ -944,29 +913,29 @@ void Player::CarState::Update(float deltaTime)
 
 	NxMat34 mat34 = nxActor->getGlobalPose();
 
-	worldMat = D3DXMATRIX(mat34.M(0, 0), mat34.M(0, 1), mat34.M(0, 2), 0,
+	worldMat = MakeMatrix(mat34.M(0, 0), mat34.M(0, 1), mat34.M(0, 2), 0,
 		mat34.M(1, 0), mat34.M(1, 1), mat34.M(1, 2), 0,
 		mat34.M(2, 0), mat34.M(2, 1), mat34.M(2, 2), 0,
 		mat34.t[0], mat34.t[1], mat34.t[2], 1);
 
-	pos3 = mat34.t.get();
-	nxActor->getGlobalOrientationQuat().getXYZW(rot3);
+	pos3 = glm::make_vec3(mat34.t.get());
+	nxActor->getGlobalOrientationQuat().getXYZW(glm::value_ptr(rot3));
 	Vec3Rotate(XVector, rot3, dir3);
 
-	pos = D3DXVECTOR2(pos3);
-	dir = D3DXVECTOR2(dir3);
+	pos = glm::vec2(pos3);
+	dir = glm::vec2(dir3);
 	speed = GameCar::GetSpeed(nxActor, dir3);
-	D3DXVec2Normalize(&dir, &dir);	
+	dir = glm::normalize(dir);
 
 	dirLine = Line2FromDir(dir, pos);
-	normLine = Line2FromNorm(dir, pos);	
+	normLine = Line2FromNorm(dir, pos);
 
 	WayNode* tile = owner->GetMap()->GetTrace().IsTileContains(pos3, curTile);
 	//Существуем множество проблем если подбирать ближвйщий узел, например с lastNode, а целесообразность пока неясна, поэтому пока убрано
 	//Тайл не найден
 	//if (!tile)
 		//Поиск ближайщего узла
-	//	tile = owner->GetMap()->GetTrace().FindClosestNode(pos3);	
+	//	tile = owner->GetMap()->GetTrace().FindClosestNode(pos3);
 	SetCurTile(tile);
 	//
 	if (curTile && curTile->GetNext() && curTile->GetNext()->IsContains(pos3))
@@ -979,16 +948,16 @@ void Player::CarState::Update(float deltaTime)
 		Line2FromDir(curTile->GetTile().GetDir(), pos, trackDirLine);
 		Line2FromNorm(curTile->GetTile().GetDir(), pos, trackNormLine);
 
-		track = curTile->GetTile().ComputeTrackInd(pos);		
+		track = curTile->GetTile().ComputeTrackInd(pos);
 	}
 
 	//
 	bool chLastNode = curTile && lastNode != curTile;
 	bool newLastNode1 = chLastNode && !lastNode;
 	bool newLastNode2 = chLastNode && lastNode && ((lastNode->GetNext() && lastNode->GetNext()->GetPoint()->IsFind(curTile)) || lastNode->GetPoint()->IsFind(curTile, lastNode) || lastNode->GetPath()->GetFirst()->GetPoint()->IsFind(curTile, lastNode->GetPath()->GetFirst()));
-	
+
 	bool onLapPass = false;
-	
+
 	if (newLastNode1 || newLastNode2)
 	{
 		//круг пройден
@@ -1004,7 +973,7 @@ void Player::CarState::Update(float deltaTime)
 		owner->OnLapPass();
 
 	//инверсия движения
-	if (curTile && D3DXVec2Dot(&curTile->GetTile().GetDir(), &dir) < 0)
+	if (curTile && Vec2Dot(curTile->GetTile().GetDir(), dir) < 0)
 	{
 		if (moveInverseStart < 0)
 		{
@@ -1022,14 +991,14 @@ void Player::CarState::Update(float deltaTime)
 		moveInverseStart = -1;
 	}
 
-	//контроль за скоростью	
+	//контроль за скоростью
 	maxSpeedTime += deltaTime;
 	if (speed > maxSpeed || maxSpeedTime > 1.0f)
 	{
 		maxSpeed = speed;
 		maxSpeedTime = 0;
 	}
-	else if (abs(maxSpeed - speed) < 5.0f)
+	else if (std::abs(maxSpeed - speed) < 5.0f)
 	{
 		maxSpeedTime = 0;
 	}
@@ -1041,11 +1010,11 @@ void Player::CarState::Update(float deltaTime)
 	}
 
 	/*//контроль за направляющим углом
-	float dirAngle = acos(abs(D3DXVec3Dot(&lastDir, &dir3)));
+	float dirAngle = acos(std::abs(glm::dot(lastDir, dir3)));
 	lastDir = dir3;
 	summAngle += dirAngle;
 	summAngleTime += deltaTime;
-	if (dirAngle > D3DX_PI/24)
+	if (dirAngle > glm::pi<float>()/24)
 	{
 		summAngleTime = 0;
 	}
@@ -1054,7 +1023,7 @@ void Player::CarState::Update(float deltaTime)
 		summAngle = 0;
 		summAngleTime = 0;
 	}
-	if (summAngle > D3DX_PI/2 && summAngleTime <= 1.0f)
+	if (summAngle > glm::half_pi<float>() && summAngleTime <= 1.0f)
 	{
 		summAngle = 0;
 		summAngleTime = 0;
@@ -1115,7 +1084,7 @@ float Player::CarState::GetPathLength(bool lastCorrect) const
 	if (tile)
 		return tile->GetPath()->GetLength();
 
-	Map* map = owner && owner->GetRace() ? owner->GetRace()->GetGame()->GetWorld()->GetMap() : NULL;	
+	Map* map = owner && owner->GetRace() ? owner->GetRace()->GetGame()->GetWorld()->GetMap() : NULL;
 
 	return map && map->GetTrace().GetPathes().size() > 0 ? map->GetTrace().GetPathes().front()->GetLength() : 1.0f;
 }
@@ -1130,19 +1099,19 @@ float Player::CarState::GetDist(bool lastCorrect) const
 }
 
 float Player::CarState::GetLap(bool lastCorectDist) const
-{	
+{
 	float dist = GetDist(lastCorectDist);
 
 	return numLaps + dist/GetPathLength(lastCorectDist);
 }
 
-D3DXVECTOR3 Player::CarState::GetMapPos() const
+glm::vec3 Player::CarState::GetMapPos() const
 {
-	D3DXVECTOR3 res = NullVector;
+	glm::vec3 res = NullVector;
 	if (curTile)
 	{
 		res = curTile->GetTile().GetPoint(curTile->GetTile().ComputeCoordX(pos));
-	} 
+	}
 	else if (lastNode)
 	{
 		res = lastNode->GetTile().GetPoint(lastNodeCoordX);
@@ -1166,14 +1135,14 @@ void Player::InsertBonusProj(Proj* proj, int projId)
 	proj->AddRef();
 	proj->InsertListener(this);
 
-	_bonusProjs.push_back(bonusProj);	
+	_bonusProjs.push_back(bonusProj);
 }
 
 void Player::RemoveBonusProj(BonusProjs::const_iterator iter)
 {
 	iter->proj->Release();
 	iter->proj->RemoveListener(this);
-	_bonusProjs.erase(iter);	
+	_bonusProjs.erase(iter);
 }
 
 void Player::RemoveBonusProj(Proj* proj)
@@ -1192,7 +1161,7 @@ void Player::ClearBonusProjs()
 		RemoveBonusProj(_bonusProjs.begin());
 }
 
-void Player::InitLight(HeadLight headLight, const D3DXVECTOR3& pos, const D3DXQUATERNION& rot)
+void Player::InitLight(HeadLight headLight, const glm::vec3& pos, const glm::quat& rot)
 {
 	if (!_lights[headLight])
 	{
@@ -1207,10 +1176,10 @@ void Player::InitLight(HeadLight headLight, const D3DXVECTOR3& pos, const D3DXQU
 		_lights[headLight]->GetSource()->SetType(D3DLIGHT_SPOT);
 		_lights[headLight]->GetSource()->SetAmbient(clrBlack);
 		_lights[headLight]->GetSource()->SetDiffuse(clrWhite * 1.0f);
-		_lights[headLight]->GetSource()->SetPhi(D3DX_PI/3.0f);
-		_lights[headLight]->GetSource()->SetTheta(D3DX_PI/6.0f);
+		_lights[headLight]->GetSource()->SetPhi(glm::pi<float>()/3.0f);
+		_lights[headLight]->GetSource()->SetTheta(glm::pi<float>()/6.0f);
 	}
-	
+
 	_lights[headLight]->GetSource()->SetPos(pos);
 	_lights[headLight]->GetSource()->SetRot(rot);
 
@@ -1246,10 +1215,10 @@ void Player::CreateNightLights(MapObj* mapObj)
 	if (mapObj == NULL)
 		return;
 
-	//{D3DXVECTOR3(1.7f, 0.4f, 0.02f), D3DXVECTOR2(1.5f, 1.5f), true},
-	//{D3DXVECTOR3(1.7f, -0.4f, 0.02f), D3DXVECTOR2(1.5f, 1.5f), true},
-	//{D3DXVECTOR3(-1.57f, 0.45f, 0.28f), D3DXVECTOR2(1.0f, 1.0f), false},
-	//{D3DXVECTOR3(-1.57f, -0.45f, 0.28f), D3DXVECTOR2(1.0f, 1.0f), false}
+	//{glm::vec3(1.7f, 0.4f, 0.02f), glm::vec2(1.5f, 1.5f), true},
+	//{glm::vec3(1.7f, -0.4f, 0.02f), glm::vec2(1.5f, 1.5f), true},
+	//{glm::vec3(-1.57f, 0.45f, 0.28f), glm::vec2(1.0f, 1.0f), false},
+	//{glm::vec3(-1.57f, -0.45f, 0.28f), glm::vec2(1.0f, 1.0f), false}
 
 	Garage::Car* car = _race->GetGarage().FindCar(_car.record);
 	if (car == NULL)
@@ -1297,7 +1266,7 @@ void Player::ReleaseCar()
 	_car.nxActor = NULL;
 	lsl::SafeRelease(_car.grActor);
 	lsl::SafeRelease(_car.gameObj);
-	lsl::SafeRelease(_car.mapObj);	
+	lsl::SafeRelease(_car.mapObj);
 }
 
 void Player::ApplyMobility()
@@ -1312,15 +1281,15 @@ void Player::ApplyMobility()
 
 		NxTireFunctionDesc longTireDesc = car->GetWheels().front().GetShape()->GetLongitudalTireForceFunction();
 		longTireDesc.asymptoteSlip = longTireDesc.asymptoteValue = longTireDesc.extremumSlip = longTireDesc.extremumValue = longTireDesc.stiffnessFactor = 0.0f;
-		
+
 		NxTireFunctionDesc latTireDesc = car->GetWheels().front().GetShape()->GetLateralTireForceFunction();
 		latTireDesc.asymptoteSlip = latTireDesc.asymptoteValue = latTireDesc.extremumSlip = latTireDesc.extremumValue = latTireDesc.stiffnessFactor = 0.0f;
 
 		float maxLife = 0.0f;
 		float maxSpeed = 0.0f;
 		float tireSpring = _carTireSpringBase;
-		
-		for (int i = 0; i < cSlotTypeEnd; ++i)	
+
+		for (int i = 0; i < cSlotTypeEnd; ++i)
 		{
 			MobilityItem* mobi = _slot[i] ? _slot[i]->GetItem().IsMobilityItem() : 0;
 			MobilityItem::CarFunc* carFunc = 0;
@@ -1332,7 +1301,7 @@ void Player::ApplyMobility()
 			}
 			if (carFunc)
 			{
-				motorDesc.maxTorque += carFunc->maxTorque;				
+				motorDesc.maxTorque += carFunc->maxTorque;
 				maxLife += mobi->CalcLife(*carFunc);
 				maxSpeed = std::max(carFunc->maxSpeed, maxSpeed);
 				tireSpring += carFunc->tireSpring;
@@ -1383,7 +1352,7 @@ void Player::FreeColorMat()
 
 void Player::ApplyColorMat()
 {
-	FreeColorMat();	
+	FreeColorMat();
 
 	if (_car.mapObj && _car.gameObj->GetGrActor().GetNodes().Size() > 0 && _car.gameObj->GetGrActor().GetNodes().begin()->GetType() == graph::Actor::ntIVBMesh && !_car.gameObj->GetDisableColor())
 	{
@@ -1405,7 +1374,7 @@ void Player::ApplyColor()
 }
 
 void Player::CheatUpdate(float deltaTime)
-{	
+{
 	Player* opponent = NULL;
 	float maxLapDist = 0;
 	_car.cheatFaster = false;
@@ -1430,7 +1399,7 @@ void Player::CheatUpdate(float deltaTime)
 
 	if (_cheatEnable && opponent)
 	{
-		float dist = abs(_car.GetLap() - opponent->GetCar().GetLap());
+		float dist = std::abs(_car.GetLap() - opponent->GetCar().GetLap());
 		dist = dist - floor(dist);
 		dist = std::min(dist, 1.0f - dist);
 		dist = dist * _car.GetPathLength();
@@ -1457,7 +1426,7 @@ void Player::CheatUpdate(float deltaTime)
 				float torqueK = ClampValue((dist - cHumanEasingMinDist[diff]) / (cHumanEasingMaxDist[diff] - cHumanEasingMinDist[diff]), 0.0f, 1.0f);
 				torqueK = cCompCheatMinTorqueK[diff] + (cCompCheatMaxTorqueK[diff] - cCompCheatMinTorqueK[diff]) * torqueK;
 
-				_car.cheatFaster = true;			
+				_car.cheatFaster = true;
 				SetCheatK(_car, torqueK, torqueK);
 			}
 		}
@@ -1472,10 +1441,10 @@ void Player::SetCheatK(const Player::CarState& car, float torqueK, float steerK)
 	if (car.gameObj == NULL)
 		return;
 
-	if (abs(car.gameObj->GetMotorTorqueK() - torqueK) > 0.01f)
+	if (std::abs(car.gameObj->GetMotorTorqueK() - torqueK) > 0.01f)
 		car.gameObj->SetMotorTorqueK(torqueK);
 
-	if (abs(car.gameObj->GetWheelSteerK() - steerK) > 0.01f)
+	if (std::abs(car.gameObj->GetWheelSteerK() - steerK) > 0.01f)
 		car.gameObj->SetWheelSteerK(steerK);
 }
 
@@ -1531,7 +1500,7 @@ void Player::OnDeath(GameObject* sender, DamageType damageType, GameObject* targ
 		case dtMine:
 			SendEvent(cPlayerDeathMine);
 			break;
-		}		
+		}
 
 		SendEvent(cPlayerDeath, &MyEventData(Slot::cTypeEnd, GameObject::cBonusTypeEnd, NULL, sender->GetTouchPlayerId(), damageType));
 	}
@@ -1560,7 +1529,7 @@ void Player::OnProgress(float deltaTime)
 		{
 			_timeRestoreCar = 0;
 			CreateCar(false);
-			ResetCar();			
+			ResetCar();
 		}
 
 		_car.cheatFaster = false;
@@ -1584,7 +1553,7 @@ Player* Player::FindClosestEnemy(float viewAngle, bool zTest)
 
 	float minDist = 0;
 	Player* enemy = 0;
-	
+
 	for (Race::PlayerList::const_iterator iter = _race->GetPlayerList().begin(); iter != _race->GetPlayerList().end(); ++iter)
 	{
 		Player* tPlayer = *iter;
@@ -1597,23 +1566,22 @@ Player* Player::FindClosestEnemy(float viewAngle, bool zTest)
 				continue;
 			}
 
-			D3DXVECTOR3 carPos = _car.pos3;
-			D3DXVECTOR3 carDir = _car.dir3;
-			D3DXVECTOR3 enemyPos = tCar.pos3;
+			glm::vec3 carPos = _car.pos3;
+			glm::vec3 carDir = _car.dir3;
+			glm::vec3 enemyPos = tCar.pos3;
 
-			D3DXVECTOR3 dir;
-			D3DXVec3Normalize(&dir, &(enemyPos - carPos));
-			float angle = D3DXVec3Dot(&dir, &carDir);
+			glm::vec3 dir;
+			dir = glm::normalize(enemyPos - carPos);
+			float angle = glm::dot(dir, carDir);
 
-			D3DXPLANE dirPlane;
-			D3DXPlaneFromPointNormal(&dirPlane, &carPos, &carDir);
-			float dist = D3DXPlaneDotCoord(&dirPlane, &enemyPos);
-			float absDist = abs(dist);
+			glm::vec4 dirPlane = PlaneFromPointNormal(carPos, carDir);
+			float dist = PlaneDotCoord(dirPlane, enemyPos);
+			float absDist = std::abs(dist);
 
 			//Объект ближе
 			bool b1 = enemy == NULL || absDist < minDist;
 			//Объект расположен с правильной стороны относительно машины
-			bool b2 = viewAngle == 0.0f || (viewAngle > 0 ? (angle >= cos(viewAngle)) : (angle <= cos(D3DX_PI/2 - viewAngle)));
+			bool b2 = viewAngle == 0.0f || (viewAngle > 0 ? (angle >= cos(viewAngle)) : (angle <= cos(glm::half_pi<float>() - viewAngle)));
 
 			if (b1 && b2)
 			{
@@ -1632,8 +1600,8 @@ float Player::ComputeCarBBSize()
 
 	AABB aabb = _car.grActor->GetLocalAABB(false);
 	aabb.Transform(_car.grActor->GetWorldScale());
-	
-	return D3DXVec3Length(&aabb.GetSizes());
+
+	return glm::length(aabb.GetSizes());
 }
 
 void Player::CreateCar(bool newRace)
@@ -1658,7 +1626,7 @@ void Player::CreateCar(bool newRace)
 		_car.moveInverseStart = -1;
 		_car.maxSpeed = 0;
 		_car.maxSpeedTime = 0;
-		
+
 		_car.gameObj->SetImmortalFlag(_finished);
 		_car.gameObj->InsertListener(this);
 
@@ -1681,7 +1649,7 @@ void Player::CreateCar(bool newRace)
 		WayNode* node = GetMap()->GetTrace().GetPathes().front()->GetFirst();
 		_car.SetCurTile(node);
 		_car.SetCurNode(node);
-		_car.SetLastNode(node);	
+		_car.SetLastNode(node);
 		ClearBonusProjs();
 		_timeRestoreCar = 0;
 		_nextBonusProjId = cBonusProjUndef + 1;
@@ -1715,18 +1683,18 @@ void Player::ResetCar()
 
 	if (lastNode && _car.mapObj)
 	{
-		/*D3DXVECTOR3 pos = lastNode->GetTile().GetPoint(_car.lastNodeCoordX) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;	
-		D3DXVECTOR2 dir2 = lastNode->GetTile().GetDir();
+		/*glm::vec3 pos = lastNode->GetTile().GetPoint(_car.lastNodeCoordX) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;
+		glm::vec2 dir2 = lastNode->GetTile().GetDir();
 
 		NxRay nxRay(NxVec3(pos), NxVec3(-ZVector));
-		NxRaycastHit hit;		
+		NxRaycastHit hit;
 		NxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, NX_MAX_F32, NX_RAYCAST_SHAPE);
 
 		if (hitShape == NULL)
 			pos = lastNode->GetTile().GetPoint(0.0f) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;*/
 
-		D3DXVECTOR3 pos = NullVector;
-		D3DXVECTOR2 dir2 = NullVec2;
+		glm::vec3 pos = NullVector;
+		glm::vec2 dir2 = NullVec2;
 
 		WayNode* node = lastNode;
 		float distX = node->GetTile().ComputeLength(_car.lastNodeCoordX);
@@ -1735,14 +1703,14 @@ void Player::ResetCar()
 
 		for (int i = 0; i < 5; ++i)
 		{
-			D3DXVECTOR3 newPos;
-			D3DXVECTOR2 newDir2;
-			bool isFind = false;			
+			glm::vec3 newPos;
+			glm::vec2 newDir2;
+			bool isFind = false;
 
 			for (int j = 0; j < 3; ++j)
 			{
 				float coordX = node->GetTile().ComputeCoordX(distX + offs[j]);
-				D3DXVECTOR3 rayPos = node->GetTile().GetPoint(coordX) + ZVector * node->GetTile().ComputeHeight(0.5f) * 0.5f;
+				glm::vec3 rayPos = node->GetTile().GetPoint(coordX) + ZVector * node->GetTile().ComputeHeight(0.5f) * 0.5f;
 
 				if (i == 0 && j == 0)
 				{
@@ -1755,8 +1723,8 @@ void Player::ResetCar()
 					newDir2 = node->GetTile().GetDir();
 				}
 
-				NxRay nxRay(NxVec3(rayPos), NxVec3(-ZVector));
-				NxRaycastHit hit;		
+				NxRay nxRay(glm::value_ptr(rayPos), glm::value_ptr(-ZVector));
+				NxRaycastHit hit;
 				NxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_ALL_SHAPES, hit, 1 << px::Scene::cdgTrackPlane | 1 << px::Scene::cdgPlaneDeath | 1 << px::Scene::cdgDefault, NX_MAX_F32, NX_RAYCAST_SHAPE);
 				GameObject* hitGameObj = GameObject::GetGameObjFromShape(hitShape);
 
@@ -1799,12 +1767,12 @@ void Player::ResetCar()
 
 		_car.gameObj->SetWorldPos(pos);
 		_car.gameObj->SetWorldRot(NullQuaternion);
-		_car.gameObj->SetWorldDir(D3DXVECTOR3(dir2.x, dir2.y, 0.0f));		
+		_car.gameObj->SetWorldDir(glm::vec3(dir2.x, dir2.y, 0.0f));
 
-		_car.gameObj->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setLinearMomentum(NxVec3(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setAngularMomentum(NxVec3(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setAngularVelocity(NxVec3(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setLinearVelocity(glm::value_ptr(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setLinearMomentum(glm::value_ptr(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setAngularMomentum(glm::value_ptr(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setAngularVelocity(glm::value_ptr(NullVector));
 	}
 }
 
@@ -1916,15 +1884,15 @@ void Player::SetHeadlight(HeadLightMode value)
 
 			case hlmOne:
 			{
-				InitLight(hlFirst, D3DXVECTOR3(0.3f, 0.0f, 3.190f), D3DXQUATERNION(0.0009f, 0.344f, -0.029f, 0.939f));
+				InitLight(hlFirst, glm::vec3(0.3f, 0.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
 				FreeLight(hlSecond);
 				break;
 			}
-				
+
 			case hlmTwo:
 			{
-				InitLight(hlFirst, D3DXVECTOR3(0.3f, 1.0f, 3.190f), D3DXQUATERNION(0.0009f, 0.344f, -0.029f, 0.939f));
-				InitLight(hlSecond, D3DXVECTOR3(0.3f, -1.0f, 3.190f), D3DXQUATERNION(0.0009f, 0.344f, -0.029f, 0.939f));
+				InitLight(hlFirst, glm::vec3(0.3f, 1.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
+				InitLight(hlSecond, glm::vec3(0.3f, -1.0f, 3.190f), glm::quat(0.939f, 0.0009f, 0.344f, -0.029f));
 				break;
 			}
 		}
@@ -1962,7 +1930,7 @@ void Player::SetReflScene(bool value)
 	if (_reflScene != value)
 	{
 		_reflScene = value;
-		
+
 		ApplyReflScene();
 	}
 }
@@ -1972,7 +1940,7 @@ Record* Player::GetSlot(SlotType type)
 	return _slot[type] ? _slot[type]->GetRecord() : 0;
 }
 
-void Player::SetSlot(SlotType type, Record* record, const D3DXVECTOR3& pos, const D3DXQUATERNION& rot)
+void Player::SetSlot(SlotType type, Record* record, const glm::vec3& pos, const glm::quat& rot)
 {
 	lsl::SafeDelete(_slot[type]);
 
@@ -2005,7 +1973,7 @@ Slot* Player::GetSlotInst(Slot::Type type)
 void Player::TakeBonus(GameObject* bonus, BonusType type, float value)
 {
 	MapObjRec* record = bonus->GetMapObj() ? bonus->GetMapObj()->GetRecord() : NULL;
-	bonus->Death();	
+	bonus->Death();
 
 	switch (type)
 	{
@@ -2107,15 +2075,15 @@ void Player::ResetPickMoney()
 	_pickMoney = 0;
 }
 
-const D3DXCOLOR& Player::GetColor() const
+const glm::vec4& Player::GetColor() const
 {
 	return _car.color;
 }
 
-void Player::SetColor(const D3DXCOLOR& value)
+void Player::SetColor(const glm::vec4& value)
 {
 	_car.color = value;
-	
+
 	ApplyColor();
 }
 
@@ -2215,7 +2183,7 @@ void Player::SetBlockTime(float value)
 graph::Tex2DResource* Player::GetPhoto()
 {
 	const Planet::PlayerData* plr = _race->GetTournament().GetPlayerData(_gamerId);
-	
+
 	return plr ? plr->photo : NULL;
 }
 

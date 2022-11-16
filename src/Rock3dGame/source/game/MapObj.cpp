@@ -1,10 +1,10 @@
 #include "stdafx.h"
-#include "game\\MapObj.h"
-#include "game\\Player.h"
+#include "game/MapObj.h"
+#include "game/Player.h"
 
-#include "game\\GameCar.h"
-#include "game\\RockCar.h"
-#include "game\\Weapon.h"
+#include "game/GameCar.h"
+#include "game/RockCar.h"
+#include "game/Weapon.h"
 
 #include "lslSerialFileXML.h"
 #include <sstream>
@@ -16,9 +16,6 @@ namespace game
 {
 
 MapObj::ClassList MapObj::classList;
-
-
-
 
 MapObjRec::MapObjRec(const Desc& desc): _MyBase(desc)
 {
@@ -48,9 +45,6 @@ IMapObjLib::Category MapObjRec::GetCategory()
 {
 	return GetLib()->GetCategory();
 }
-
-
-
 
 MapObjLib::MapObjLib(Category category, lsl::SerialNode* rootSrc): _MyBase(IMapObjLib_cCategoryStr[category], rootSrc), _category(category)
 {
@@ -116,9 +110,6 @@ MapObjLib::Category MapObjLib::GetCategory() const
 	return _category;
 }
 
-
-
-
 MapObj::MapObj(MapObjects* owner): _owner(owner), _player(NULL), _createClassList(false), _classList(0), _gameObj(0), _type(Type(0)), _record(0), _loadFromRecord(false), _id(0)
 {
 	InitClassList();
@@ -142,14 +133,14 @@ void MapObj::InitClassList()
 	if (!initClassList)
 	{
 		initClassList = true;
-			
+
 		classList.Add<GameObject>(gotGameObj);
-		
+
 		classList.Add<GameCar>(gotGameCar);
 		classList.Add<RockCar>(gotRockCar);
 		classList.Add<AutoProj>(gotProj);
 		classList.Add<Weapon>(gotWeapon);
-		classList.Add<DestrObj>(gotDestrObj);		
+		classList.Add<DestrObj>(gotDestrObj);
 	}
 }
 
@@ -270,7 +261,7 @@ MapObj::ClassList* MapObj::GetOrCreateClassList()
 	}
 	return _classList;
 }
-	
+
 void MapObj::SetClassList(ClassList* value)
 {
 	if (ReplaceRef(_classList, value))
@@ -317,7 +308,7 @@ const MapObj::GameObj& MapObj::GetGameObj() const
 MapObj::GameObj& MapObj::SetGameObj(Type type)
 {
 	SetType(type);
-	
+
 	return *_gameObj;
 }
 
@@ -351,7 +342,7 @@ void MapObj::SetRecord(MapObjRec* value)
 	if (ReplaceRef(_record, value))
 	{
 		_record = value;
-		
+
 		if (_record)
 			try
 			{
@@ -382,9 +373,6 @@ void MapObj::SetId(unsigned value)
 {
 	_id  = value;
 }
-
-
-
 
 MapObjects::MapObjects(lsl::Component* root): _root(root), _owner(0), _lockCont(false)
 {
@@ -435,7 +423,7 @@ void MapObjects::InsertItem(const Value& value)
 
 	value->GetGameObj().storeName = false;
 	value->GetGameObj().SetOwner(_root);
-	value->SetParent(_owner);	
+	value->SetParent(_owner);
 
 	SpecialListChanged(value, false);
 }
@@ -453,7 +441,7 @@ void MapObjects::SaveItem(lsl::SWriter* writer, iterator pItem, const std::strin
 {
 	lsl::SWriter* child = writer->NewDummyNode((*pItem)->GetName().c_str());
 	//Переходим напрямую к методам сохранения поскольку mapObj является промежуточным звеном и только делегирует вызовы
-	(*pItem)->Save(child);	
+	(*pItem)->Save(child);
 }
 
 void MapObjects::LoadItem(lsl::SReader* reader)

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\SunShaft.h"
+#include "graph/SunShaft.h"
 
 namespace r3d
 {
@@ -44,7 +44,7 @@ void SunShaftRender::Render(Engine& engine)
 	_blurVec[0]->GetTex()->GetSurfaceLevel(0, &blurSurf);
 	engine.GetDriver().GetDevice()->SetRenderTarget(0, blurSurf);
 	blurSurf->Release();
-	
+
 	shader.Apply(engine, "techPrepareShafts", 0);
 	DrawScreenQuad(engine);
 	shader.UnApply(engine);
@@ -73,8 +73,8 @@ void SunShaftRender::Render(Engine& engine)
 	engine.GetContext().RestoreSamplerState(0, ssMinFilter);
 	engine.GetContext().RestoreSamplerState(0, ssMipFilter);
 
-	D3DXVECTOR4 sunPos(_sunPos, 1.0f);
-	D3DXVec4Transform(&sunPos, &sunPos, &engine.GetContext().GetCamera().GetViewProj());
+	glm::vec4 sunPos(_sunPos, 1.0f);
+	sunPos = Vec4Transform(sunPos, engine.GetContext().GetCamera().GetViewProj());
 	sunPos.x /= sunPos.w;
 	sunPos.y /= sunPos.w;
 	sunPos.z /= sunPos.w; //sunPos.z = 1.0f;
@@ -82,24 +82,24 @@ void SunShaftRender::Render(Engine& engine)
 	sunPos.y *= 0.5f;
 
 	//Стд. техника учитывающая напрявление ист. света
-	//D3DXVECTOR3 posNorm;
-	//D3DXVec3Normalize(&posNorm, &engine.GetLight()->GetDesc().pos);
-	//sunPos.w = D3DXVec3Dot(&posNorm, &engine.GetCamera()->GetDesc().dir);
+	//glm::vec3 posNorm;
+	//posNorm = glm::normalize(engine.GetLight()->GetDesc().pos);
+	//sunPos.w = glm::dot(posNorm, engine.GetCamera()->GetDesc().dir);
 	//
 	if (sunPos.w > 0.0f)
 	{
 		//Не учитвает направление ист. света
-		//D3DXVECTOR3 posNorm;
-		//D3DXVec3Normalize(&posNorm, &D3DXVECTOR3(sunPos));
-		//sunPos.w = D3DXVec3Dot(&posNorm, &engine.GetCamera()->GetDesc().up);
+		//glm::vec3 posNorm;
+		//posNorm = glm::normalize(glm::vec3(sunPos));
+		//sunPos.w = glm::dot(posNorm, engine.GetCamera()->GetDesc().up);
 		//
 		//Без затухания
 		sunPos.w = 1.0f;
 	}
 	else
 		sunPos.w = 0.0f;
-	shader.SetValueDir("sunPos", sunPos);	
-	
+	shader.SetValueDir("sunPos", sunPos);
+
 	ApplyRT(engine, RtFlags(0, 0));
 
 	shader.Apply(engine, "techGenShafts", 0);
@@ -129,12 +129,12 @@ void SunShaftRender::SetDepthTex(Tex2DResource* value)
 	shader.SetTexture("depthTex", value);
 }
 
-const D3DXVECTOR3& SunShaftRender::GetSunPos() const
+const glm::vec3& SunShaftRender::GetSunPos() const
 {
 	return _sunPos;
 }
 
-void SunShaftRender::SetSunPos(const D3DXVECTOR3& value)
+void SunShaftRender::SetSunPos(const glm::vec3& value)
 {
 	_sunPos = value;
 }

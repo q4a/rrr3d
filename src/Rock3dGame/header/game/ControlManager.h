@@ -16,11 +16,11 @@ struct MouseClick
 	//оконные координаты
 	lsl::Point coord;
 	//проекционные координаты в видовом пространстве, [-1.0..1.0]
-	D3DXVECTOR2 projCoord;
+	glm::vec2 projCoord;
 
 	//экранный луч в мировом пространстве
-	D3DXVECTOR3 scrRayPos;
-	D3DXVECTOR3 scrRayVec;
+	glm::vec3 scrRayPos;
+	glm::vec3 scrRayVec;
 };
 
 struct MouseMove
@@ -31,7 +31,7 @@ struct MouseMove
 	//оконные координаты
 	Point coord;
 	//проекционные координаты в видовом пространстве, [-1.0..1.0]
-	D3DXVECTOR2 projCoord;
+	glm::vec2 projCoord;
 	//Разность между текущим и предыдущим значением координаты
 	Point dtCoord;
 	//Разность между текущим значением координаты и координатой при клике
@@ -41,8 +41,8 @@ struct MouseMove
 	MouseClick click;
 
 	//экранный луч в мировом пространстве
-	D3DXVECTOR3 scrRayPos;
-	D3DXVECTOR3 scrRayVec;
+	glm::vec3 scrRayPos;
+	glm::vec3 scrRayVec;
 };
 
 enum AsyncKey
@@ -80,7 +80,7 @@ enum GameAction {
 	gaBreak,
 	gaWheelLeft,
 	gaWheelRight,
-	
+
 	gaShot,
 	gaShot1,
 	gaShot2,
@@ -122,10 +122,10 @@ struct InputMessage
 };
 
 class ControlEvent: public Object
-{	
+{
 public:
 	virtual bool OnMouseClickEvent(const MouseClick& mClick) {return false;}
-	virtual bool OnMouseMoveEvent(const MouseMove& mMove) {return false;}	
+	virtual bool OnMouseMoveEvent(const MouseMove& mMove) {return false;}
 	virtual bool OnHandleInput(const InputMessage& msg) {return false;}
 
 	virtual void OnInputProgress(float deltaTime) {}
@@ -140,7 +140,7 @@ private:
 	typedef lsl::Vector<GameAction> GameActions;
 private:
 	World* _world;
-	EventList _eventList;	
+	EventList _eventList;
 
 	ControllerState* _controllerStates[cControllerTypeEnd];
 	VirtualKey _gameKeys[cControllerTypeEnd][cGameActionEnd];
@@ -166,11 +166,11 @@ public:
 	void InsertEvent(ControlEvent* value);
 	void RemoveEvent(ControlEvent* value);
 
-	AsyncKey GetAsyncKey(unsigned key);	
-	AsyncKey IsMouseDown(MouseKey key);	
+	AsyncKey GetAsyncKey(unsigned key);
+	AsyncKey IsMouseDown(MouseKey key);
 
 	lsl::Point GetMousePos();
-	D3DXVECTOR2 GetMouseVec();
+	glm::vec2 GetMouseVec();
 
 	const ControllerState& GetControllerState(ControllerType controller);
 	void GetGameAction(ControllerType controller, VirtualKey key, GameActions& gameActions);

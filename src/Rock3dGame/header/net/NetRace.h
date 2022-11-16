@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game\Race.h"
+#include "game/Race.h"
 #include "NetBase.h"
 
 namespace r3d
@@ -38,7 +38,7 @@ public:
 private:
 	NetGame* _net;
 	unsigned _maxPlayers;
-	unsigned _maxComputers;	
+	unsigned _maxComputers;
 
 	void ReadMatch(std::istream& stream);
 	void WriteMatch(std::ostream& stream);
@@ -51,7 +51,7 @@ private:
 	void CheckGoWait();
 	void CheckFinish();
 
-	void OnStartMatch(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);	
+	void OnStartMatch(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnExitMatch(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnSetPlanet(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnSetTrack(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
@@ -60,11 +60,11 @@ private:
 	void OnRaceGo(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnPause(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnDamage1(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
-	void OnDamage2(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);	
-	void OnSetUpgradeMaxLevel(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);	
+	void OnDamage2(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
+	void OnSetUpgradeMaxLevel(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnSetWeaponMaxLevel(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
-	void OnSetCurrentDifficulty(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);	
-	void OnSetLapsCount(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);	
+	void OnSetCurrentDifficulty(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
+	void OnSetLapsCount(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnSetMaxPlayers(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnSetMaxComputers(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnSetSpringBorders(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
@@ -82,7 +82,7 @@ private:
 	Tournament& tournament();
 	const Tournament& tournament() const;
 protected:
-	virtual bool OnConnected(net::INetConnection* sender);	
+	virtual bool OnConnected(net::INetConnection* sender);
 	virtual void OnDisconnectedPlayer(NetPlayer* sender);
 	virtual void OnProcessNetEvent(unsigned id, NetEventData* data);
 	virtual void OnProcessEvent(unsigned id, EventData* data);
@@ -110,7 +110,7 @@ public:
 	void ExitRace();
 	void Pause(bool pause);
 
-	void Damage(int senderPlayerLocalId, MapObj* target, float value, GameObject::DamageType damageType);	
+	void Damage(int senderPlayerLocalId, MapObj* target, float value, GameObject::DamageType damageType);
 
 	int GetUpgradeMaxLevel() const;
 	void SetUpgradeMaxLevel(int value);
@@ -140,7 +140,7 @@ public:
 
 	Race::PlayerList GetLeaverList() const;
 
-	GameMode* game();		
+	GameMode* game();
 
 	const Race* race() const;
 	Race* race();

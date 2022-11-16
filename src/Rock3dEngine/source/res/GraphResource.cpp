@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "res\\GraphResource.h"
+#include "res/GraphResource.h"
 
 namespace r3d
 {
@@ -8,90 +8,69 @@ namespace r3d
 namespace res
 {
 
-const int VertexData::cElementSize[cElementEnd] = 
+const int VertexData::cElementSize[cElementEnd] =
 {
-	sizeof(D3DXVECTOR3), 
-	sizeof(D3DXVECTOR4),
-	sizeof(D3DXVECTOR3), 
-	sizeof(D3DCOLOR),
-	sizeof(D3DXVECTOR2),
-	sizeof(D3DXVECTOR2),
-	sizeof(D3DXVECTOR3),
-	sizeof(D3DXVECTOR3)
+	sizeof(glm::vec3),
+	sizeof(glm::vec4),
+	sizeof(glm::vec3),
+	sizeof(glm::vec4),
+	sizeof(glm::vec2),
+	sizeof(glm::vec2),
+	sizeof(glm::vec3),
+	sizeof(glm::vec3)
 };
 
 MeshData::ResFormats meshResFormats;
 ImageResource::ResFormats imageResFormats;
 CubeImageResource::ResFormats cubeImageResFormats;
 
-
-
-
 VertexP::VertexP()
 {
 }
 
-VertexP::VertexP(const D3DXVECTOR3& mPos): pos(mPos)
+VertexP::VertexP(const glm::vec3& mPos): pos(mPos)
 {
 }
-
-
-
 
 VertexPD::VertexPD()
 {
 }
 
-VertexPD::VertexPD(D3DXVECTOR3 position, D3DCOLOR diffuseColor): pos(position), diffuse(diffuseColor)
+VertexPD::VertexPD(glm::vec3 position, glm::vec4 diffuseColor) : pos(position), diffuse(diffuseColor)
 {
 }
-
-
-
 
 VertexPN::VertexPN()
 {
 }
 
-VertexPN::VertexPN(D3DXVECTOR3 position, D3DXVECTOR3 normal): pos(position), norm(normal)
+VertexPN::VertexPN(glm::vec3 position, glm::vec3 normal): pos(position), norm(normal)
 {
 }
-
-
-
 
 VertexPT::VertexPT()
 {
 }
 
-VertexPT::VertexPT(D3DXVECTOR3 position, D3DXVECTOR2 texCoord): pos(position), tex(texCoord)
+VertexPT::VertexPT(glm::vec3 position, glm::vec2 texCoord): pos(position), tex(texCoord)
 {
 }
-
-
-
 
 VertexPNT::VertexPNT()
 {
 }
 
-VertexPNT::VertexPNT(const D3DXVECTOR3& position, const D3DXVECTOR3& normal, const D3DXVECTOR2& texCoord): pos(position), norm(normal), tex(texCoord)
+VertexPNT::VertexPNT(const glm::vec3& position, const glm::vec3& normal, const glm::vec2& texCoord): pos(position), norm(normal), tex(texCoord)
 {
 }
-
-
-
 
 ScreenVertex::ScreenVertex()
 {
 }
 
-ScreenVertex::ScreenVertex(const D3DXVECTOR4& position, const D3DXVECTOR2& texCoord): pos(position), tex(texCoord)
+ScreenVertex::ScreenVertex(const glm::vec4& position, const glm::vec2& texCoord): pos(position), tex(texCoord)
 {
 }
-
-
-
 
 VertexData::VertexData(): _vertexCount(0), _vertexSize(0), _screenRHW(false)
 {
@@ -106,8 +85,8 @@ void VertexData::CalcDimensions()
 		++iter;
 		for (unsigned i = 1; i < _vertexCount; ++i, ++iter)
 		{
-			D3DXVec3Minimize(&_minPos, &_minPos, iter.Pos3());
-			D3DXVec3Maximize(&_maxPos, &_maxPos, iter.Pos3());
+			_minPos = glm::min(_minPos, *iter.Pos3());
+			_maxPos = glm::max(_maxPos, *iter.Pos3());
 		}
 	}
 }
@@ -135,7 +114,7 @@ void VertexData::ChangeFormat(const Format& value)
 	SetFormat(value);
 	Init();
 
-	for (unsigned i = 0; i < _vertexCount; ++i)	
+	for (unsigned i = 0; i < _vertexCount; ++i)
 		for (unsigned j = 0; j < cElementEnd; ++j)
 			if (_format.test(j) && tmpData._format.test(j))
 			{
@@ -249,7 +228,7 @@ DWORD VertexData::GetFVF() const
 	DWORD texSize = 0;
 
 	for (unsigned i = 0; i < cElementEnd; ++i)
-		if (_format.test(i))		
+		if (_format.test(i))
 			switch (i)
 			{
 			case vtPos3:
@@ -271,7 +250,7 @@ DWORD VertexData::GetFVF() const
 
 			case vtTex1:
 				++texCnt;
-				texSize |= D3DFVF_TEXCOORDSIZE2(1);				
+				texSize |= D3DFVF_TEXCOORDSIZE2(1);
 				break;
 
 			case vtNormal:
@@ -296,12 +275,12 @@ DWORD VertexData::GetFVF() const
 	return fvf;
 }
 
-const D3DXVECTOR3& VertexData::GetMinPos() const
+const glm::vec3& VertexData::GetMinPos() const
 {
 	return _minPos;
 }
 
-const D3DXVECTOR3& VertexData::GetMaxPos() const
+const glm::vec3& VertexData::GetMaxPos() const
 {
 	return _maxPos;
 }
@@ -331,9 +310,6 @@ VertexIter VertexData::operator[](unsigned index)
 	return VertexIter(index, this);
 }
 
-
-
-
 VertexIter::VertexIter(): _index(0), _owner(0)
 {
 }
@@ -342,49 +318,49 @@ VertexIter::VertexIter(unsigned index, VertexData* owner): _index(index), _owner
 {
 }
 
-const D3DXVECTOR3* VertexIter::Pos3() const
+const glm::vec3* VertexIter::Pos3() const
 {
-	return reinterpret_cast<const D3DXVECTOR3*>(_owner->GetVertex(_index, VertexData::vtPos3));
+	return reinterpret_cast<const glm::vec3*>(_owner->GetVertex(_index, VertexData::vtPos3));
 }
 
-D3DXVECTOR3* VertexIter::Pos3()
+glm::vec3* VertexIter::Pos3()
 {
-	return reinterpret_cast<D3DXVECTOR3*>(_owner->GetVertex(_index, VertexData::vtPos3));
+	return reinterpret_cast<glm::vec3*>(_owner->GetVertex(_index, VertexData::vtPos3));
 }
 
-D3DXVECTOR4* VertexIter::Pos4()
+glm::vec4* VertexIter::Pos4()
 {
-	return reinterpret_cast<D3DXVECTOR4*>(_owner->GetVertex(_index, VertexData::vtPos4));
+	return reinterpret_cast<glm::vec4*>(_owner->GetVertex(_index, VertexData::vtPos4));
 }
 
-D3DCOLOR* VertexIter::Color()
+glm::vec4* VertexIter::Color()
 {
-	return reinterpret_cast<D3DCOLOR*>(_owner->GetVertex(_index, VertexData::vtColor));
+	return reinterpret_cast<glm::vec4*>(_owner->GetVertex(_index, VertexData::vtColor));
 }
 
-D3DXVECTOR2* VertexIter::Tex0()
+glm::vec2* VertexIter::Tex0()
 {
-	return reinterpret_cast<D3DXVECTOR2*>(_owner->GetVertex(_index, VertexData::vtTex0));
+	return reinterpret_cast<glm::vec2*>(_owner->GetVertex(_index, VertexData::vtTex0));
 }
 
-D3DXVECTOR2* VertexIter::Tex1()
+glm::vec2* VertexIter::Tex1()
 {
-	return reinterpret_cast<D3DXVECTOR2*>(_owner->GetVertex(_index, VertexData::vtTex1));
+	return reinterpret_cast<glm::vec2*>(_owner->GetVertex(_index, VertexData::vtTex1));
 }
 
-D3DXVECTOR3* VertexIter::Normal()
+glm::vec3* VertexIter::Normal()
 {
-	return reinterpret_cast<D3DXVECTOR3*>(_owner->GetVertex(_index, VertexData::vtNormal));
+	return reinterpret_cast<glm::vec3*>(_owner->GetVertex(_index, VertexData::vtNormal));
 }
 
-D3DXVECTOR3* VertexIter::Tangent()
+glm::vec3* VertexIter::Tangent()
 {
-	return reinterpret_cast<D3DXVECTOR3*>(_owner->GetVertex(_index, VertexData::vtTangent));
+	return reinterpret_cast<glm::vec3*>(_owner->GetVertex(_index, VertexData::vtTangent));
 }
 
-D3DXVECTOR3* VertexIter::Binormal()
+glm::vec3* VertexIter::Binormal()
 {
-	return reinterpret_cast<D3DXVECTOR3*>(_owner->GetVertex(_index, VertexData::vtBinormal));
+	return reinterpret_cast<glm::vec3*>(_owner->GetVertex(_index, VertexData::vtBinormal));
 }
 
 const char* VertexIter::GetElem(VertexData::Element element) const
@@ -431,9 +407,6 @@ bool VertexIter::operator!=(const VertexIter& value)
 	return _index != value._index;
 }
 
-
-
-
 IndexData::IndexData(): _indexCount(0), _indexFormat(D3DFMT_UNKNOWN)
 {
 }
@@ -470,9 +443,6 @@ unsigned IndexData::GetSize() const
 	return _indexCount * GetIndexSize();
 }
 
-
-
-
 TriFaceData::TriFaceData(): _faceCount(0), _indexFormat(D3DFMT_UNKNOWN)
 {
 }
@@ -505,14 +475,14 @@ unsigned TriFaceData::GetIndex(unsigned face, unsigned indTri) const
 	{
 	case D3DFMT_INDEX16:
 		return *reinterpret_cast<const unsigned short*>(GetData() + sizeof(unsigned short) * (face * 3 + indTri));
-		
+
 	case D3DFMT_INDEX32:
 		return *reinterpret_cast<const unsigned*>(GetData() + sizeof(unsigned) * (face * 3 + indTri));
-		
+
 	default:
 		LSL_ASSERT(false);
 		return 0;
-	}	
+	}
 }
 
 unsigned TriFaceData::GetSize() const
@@ -525,10 +495,6 @@ unsigned TriFaceData::GetFaceSize() const
 	return GetElementFormatSize(_indexFormat) * 3;
 }
 
-
-
-
-
 FaceGroup::FaceGroup(): minPos(NullVector), maxPos(NullVector)
 {
 }
@@ -537,16 +503,10 @@ FaceGroup::FaceGroup(int startFace, int faceCount, int startVertex, int vertexCo
 {
 }
 
-
-
-
 MeshData::ResFormats& MeshData::GetResFormats()
 {
 	return meshResFormats;
 }
-
-
-
 
 MeshData::MeshData()
 {
@@ -557,24 +517,24 @@ MeshData::~MeshData()
 	Free();
 }
 
-void CalcTangentBasis(const D3DXVECTOR3 &p1, const D3DXVECTOR3 &p2, const D3DXVECTOR3 &p3, const D3DXVECTOR2 &t1, const D3DXVECTOR2 &t2, const D3DXVECTOR2 &t3, D3DXVECTOR3& tangent, D3DXVECTOR3& binormal)
+void CalcTangentBasis(const glm::vec3 &p1, const glm::vec3 &p2, const glm::vec3 &p3, const glm::vec2 &t1, const glm::vec2 &t2, const glm::vec2 &t3, glm::vec3& tangent, glm::vec3& binormal)
 {
-	D3DXVECTOR3 e1  = p2 - p1;
-	D3DXVECTOR3 e2  = p3 - p1;
-	D3DXVECTOR2 et1 = t2 - t1;
-	D3DXVECTOR2 et2 = t3 - t1;
-	
+	glm::vec3 e1  = p2 - p1;
+	glm::vec3 e2  = p3 - p1;
+	glm::vec2 et1 = t2 - t1;
+	glm::vec2 et2 = t3 - t1;
+
 	float tmp = 0.0;
 	if (fabsf(et1.x*et2.y - et1.y*et2.x)<0.0001f)
 		tmp = 1.0f;
 	else
 		tmp = 1.0f / (et1.x*et2.y - et1.y*et2.x);
-	
+
 	tangent  = (e1 * et2.y - e2 * et1.y) * tmp;
 	binormal = (e2 * et1.x - e1 * et2.x) * tmp;
-	
-	D3DXVec3Normalize(&tangent, &tangent);
-	D3DXVec3Normalize(&binormal, &binormal);	
+
+	tangent = glm::normalize(tangent);
+	binormal = glm::normalize(binormal);
 }
 
 void MeshData::DoInit()
@@ -609,19 +569,19 @@ void MeshData::DoUpdate()
 			{
 				int triIndex = fb.GetIndex(fg.sFace + j, k);
 				VertexIter iter = vb[triIndex];
-				const D3DXVECTOR3* pos = iter.Pos3();
+				const glm::vec3* pos = iter.Pos3();
 
 				if (j == 0 && k == 0)
 					fg.minPos = fg.maxPos = *pos;
 				else
 				{
-					D3DXVec3Minimize(&fg.minPos, &fg.minPos, pos);
-					D3DXVec3Maximize(&fg.maxPos, &fg.maxPos, pos);
+					fg.minPos = glm::min(fg.minPos, *pos);
+					fg.maxPos = glm::max(fg.maxPos, *pos);
 				}
 			}
 	}
 }
-	
+
 void MeshData::DoLoadFromStream(std::istream& stream, const std::string& fileExt)
 {
 	GetResFormats().GetInstance(fileExt).LoadFromStream(*this, stream);
@@ -635,7 +595,7 @@ void MeshData::CalcTangentSpace()
 	vb.ChangeFormat(format);
 
 	LSL_ASSERT(vb.GetFormat(VertexData::vtPos3) && vb.GetFormat(VertexData::vtTex0) && vb.GetFormat(VertexData::vtTangent) && vb.GetFormat(VertexData::vtBinormal));
-	
+
 	for (unsigned i = 0; i < vb.GetVertexCount(); ++i)
 	{
 		*vb[i].Tangent() = NullVector;
@@ -647,8 +607,8 @@ void MeshData::CalcTangentSpace()
 		unsigned a = fb.GetIndex(i, 0);
 		unsigned b = fb.GetIndex(i, 1);
 		unsigned c = fb.GetIndex(i, 2);
-		
-		D3DXVECTOR3 bin, tan;
+
+		glm::vec3 bin, tan;
 		CalcTangentBasis(*vb[a].Pos3(), *vb[b].Pos3(), *vb[c].Pos3(), *vb[a].Tex0(), *vb[b].Tex0(), *vb[c].Tex0(), tan, bin);
 
 		*vb[a].Tangent() += tan;
@@ -662,57 +622,51 @@ void MeshData::CalcTangentSpace()
 
 	for (unsigned i = 0; i < vb.GetVertexCount(); ++i)
 	{
-		D3DXVec3Normalize(vb[i].Tangent(), vb[i].Tangent());
-		D3DXVec3Normalize(vb[i].Binormal(), vb[i].Binormal());
+		*vb[i].Tangent() = glm::normalize(*vb[i].Tangent());
+		*vb[i].Binormal() = glm::normalize(*vb[i].Binormal());
 
-		D3DXVECTOR3 tmpT = *vb[i].Tangent();
-		D3DXVECTOR3 tmpB = *vb[i].Binormal();
-		D3DXVECTOR3 tmpN = *vb[i].Normal();
+		glm::vec3 tmpT = *vb[i].Tangent();
+		glm::vec3 tmpB = *vb[i].Binormal();
+		glm::vec3 tmpN = *vb[i].Normal();
 
-		D3DXVECTOR3 newT = tmpT - (D3DXVec3Dot(&tmpN, &tmpT) * tmpN);
-		D3DXVECTOR3 newB = tmpB - (D3DXVec3Dot(&tmpN, &tmpB) * tmpN) - (D3DXVec3Dot(&newT, &tmpB) * newT);		
-		D3DXVec3Normalize(&newT, &newT);
-		D3DXVec3Normalize(&newB, &newB);
+		glm::vec3 newT = tmpT - (glm::dot(tmpN, tmpT) * tmpN);
+		glm::vec3 newB = tmpB - (glm::dot(tmpN, tmpB) * tmpN) - (glm::dot(newT, tmpB) * newT);
+		newT = glm::normalize(newT);
+		newB = glm::normalize(newB);
 		*vb[i].Tangent() = newT;
 		*vb[i].Binormal() = newB;
 
-		float lenT = D3DXVec3Length(&newT);
-		float lenB = D3DXVec3Length(&newB);
+		float lenT = glm::length(newT);
+		float lenB = glm::length(newB);
 
 		if (lenT <= 0.0001 || lenB <= 0.0001)
 		{
 			if (lenT > 0.5)
-				D3DXVec3Cross(vb[i].Binormal(), &tmpN, vb[i].Tangent());
-			else 
+				*vb[i].Binormal() = glm::cross(tmpN, *vb[i].Tangent());
+			else
 				if (lenB > 0.5)
-					D3DXVec3Cross(vb[i].Tangent(), vb[i].Binormal(), &tmpN);
+				*vb[i].Tangent() = glm::cross(*vb[i].Binormal(), tmpN);
 				else
 				{
-					D3DXVECTOR3 startAxis;
-					if (D3DXVec3Dot(&XVector, &tmpN) < D3DXVec3Dot(&YVector, &tmpN))
+					glm::vec3 startAxis;
+					if (glm::dot(XVector, tmpN) < glm::dot(YVector, tmpN))
 						startAxis = XVector;
 					else
 						startAxis = YVector;
-					D3DXVec3Cross(vb[i].Tangent(), &tmpN, &startAxis);
-					D3DXVec3Cross(vb[i].Binormal(), &tmpN, vb[i].Tangent());
+					*vb[i].Tangent() = glm::cross(tmpN, startAxis);
+					*vb[i].Binormal() = glm::cross(tmpN, *vb[i].Tangent());
 				}
 		}
-		else 
-			if (D3DXVec3Dot(vb[i].Binormal(), vb[i].Tangent()) > 0.9999f)
-				D3DXVec3Cross(vb[i].Binormal(), &tmpN, vb[i].Tangent());
+		else
+			if (glm::dot(*vb[i].Binormal(), *vb[i].Tangent()) > 0.9999f)
+				*vb[i].Binormal() = glm::cross(tmpN, *vb[i].Tangent());
 	}
 }
-
-
-
 
 ImageResource::ResFormats& ImageResource::GetResFormats()
 {
 	return imageResFormats;
 }
-
-
-
 
 ImageResource::ImageResource(): _size(0), _width(0), _height(0), _format(D3DFMT_UNKNOWN)
 {
@@ -809,16 +763,10 @@ bool ImageResource::IsCompressed() const
 	return false;
 }
 
-
-
-
 CubeImageResource::ResFormats& CubeImageResource::GetResFormats()
 {
 	return cubeImageResFormats;
 }
-
-
-
 
 CubeImageResource::CubeImageResource()
 {
@@ -828,9 +776,6 @@ void CubeImageResource::DoLoadFromStream(std::istream& stream, const std::string
 {
 	GetResFormats().GetInstance(fileExt).LoadFromStream(*this, stream);
 }
-
-
-
 
 unsigned GetVertexFVFSize(DWORD fvf)
 {
@@ -850,7 +795,7 @@ unsigned GetVertexFVFSize(DWORD fvf)
 
 	if (fvf & D3DFVF_DIFFUSE)
 		sz += sizeof(float);
-	
+
 	unsigned texCnt = ((fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT);
 	if (texCnt > 0)
 		switch ((fvf >> 16) & 0x1)
@@ -922,19 +867,19 @@ unsigned GetPrimitivesCount(D3DPRIMITIVETYPE primitiveType, UINT numControlPoint
 		return numControlPoint;
 
 	case D3DPT_LINELIST:
-		return numControlPoint / 2;	
+		return numControlPoint / 2;
 
 	case D3DPT_LINESTRIP:
-		return numControlPoint;	
+		return numControlPoint;
 
 	case D3DPT_TRIANGLELIST:
-		return numControlPoint / 3;	
+		return numControlPoint / 3;
 
 	case D3DPT_TRIANGLESTRIP:
-		return numControlPoint - 2;		
+		return numControlPoint - 2;
 
 	case D3DPT_TRIANGLEFAN:
-		return numControlPoint - 2;	
+		return numControlPoint - 2;
 
 	default:
 		LSL_ASSERT(false);
@@ -943,7 +888,7 @@ unsigned GetPrimitivesCount(D3DPRIMITIVETYPE primitiveType, UINT numControlPoint
 }
 
 void CopyPitchData(char* dest, unsigned destPitch, const char* src, unsigned srcPitch, unsigned srcRowSize, unsigned height)
-{	
+{
 	//Размер шага совпадает с байтовой длиной, замечательно!
 	if (destPitch == srcPitch == srcRowSize)
 		std::memcpy(dest, src, height * srcRowSize);

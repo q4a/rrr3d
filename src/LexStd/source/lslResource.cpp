@@ -8,10 +8,7 @@
 namespace lsl
 {
 
-std::auto_ptr<FileSystem> FileSystem::_instance;
-
-
-
+std::unique_ptr<FileSystem> FileSystem::_instance;
 
 FileSystem::FileSystem(const std::wstring& appPath): _appPath(appPath)
 {
@@ -40,22 +37,22 @@ template<class _T> std::basic_istream<_T, std::char_traits<_T>>* FileSystem::New
 		break;
 	}
 	ioOpMode |= (flags & cAppend) ? std::ios::app : 0;
-	ioOpMode |= (flags & cTruncate) ? std::ios::trunc : 0;	
+	ioOpMode |= (flags & cTruncate) ? std::ios::trunc : 0;
 
 	std::wstring path = GetAppFilePath(fileName);
 
 	std::basic_ifstream<_T, std::char_traits<_T>>* fs = new std::basic_ifstream<_T, std::char_traits<_T>>(path.c_str(), ioOpMode);
 	LSL_ASSERT(fs);
 
-	if (fs->fail())	
+	if (fs->fail())
 	{
 		fs->clear();
 		fs->open(fileName.c_str(), ioOpMode);
 		if (fs->fail())
 		{
-			lsl::SafeDelete(fs);			
+			lsl::SafeDelete(fs);
 			throw EUnableToOpen(fileName);
-		}		
+		}
 	}
 
 	return fs;
@@ -79,7 +76,7 @@ template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* FileSystem::New
 	std::basic_ofstream<_T, std::char_traits<_T>>* fs = new std::basic_ofstream<_T, std::char_traits<_T>>(path.c_str(), ioOpMode);
 	LSL_ASSERT(fs);
 
-	if (fs->fail())	
+	if (fs->fail())
 	{
 		fs->clear();
 		fs->open(fileName.c_str(), ioOpMode);
@@ -87,7 +84,7 @@ template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* FileSystem::New
 		{
 			lsl::SafeDelete(fs);
 			throw Error(std::string("Unable to write file ") + fileName);
-		}		
+		}
 	}
 
 	return fs;
@@ -95,35 +92,51 @@ template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* FileSystem::New
 
 std::istream* FileSystem::NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
+#ifdef _WIN32 // FIX_LINUX Rewrite FS
 	return NewInStream<std::istream::_Ctype::_Elem>(fileName, openMode, flags);
+#else
+	return NewInStream(fileName, openMode, flags);
+#endif
 }
 
+#ifdef _WIN32 // Not used at all
 std::wistream* FileSystem::NewInStreamW(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
 	return NewInStream<std::wistream::_Ctype::_Elem>(fileName, openMode, flags);
 }
+#endif
 
 std::ostream* FileSystem::NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
+#ifdef _WIN32 // FIX_LINUX Rewrite FS
 	return NewOutStream<std::ostream::_Ctype::_Elem>(fileName, openMode, flags);
+#else
+	return NewOutStream(fileName, openMode, flags);
+#endif
 }
 
+#ifdef _WIN32 // Not used at all
 std::wostream* FileSystem::NewOutStreamW(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
 	return NewOutStream<std::wostream::_Ctype::_Elem>(fileName, openMode, flags);
 }
+#endif
 
 void FileSystem::FreeStream(std::ios_base* stream)
 {
-	if (stream)	
+	if (stream)
 		delete stream;
 }
 
 bool FileSystem::FileExists(const std::string& fileName)
 {
+#ifdef _WIN32 // FIX_LINUX Rewrite FS
 	DWORD dwAttrib = GetFileAttributesW(GetAppFilePath(fileName).c_str());
 
 	return (dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY) == 0);
+#else
+	return true;
+#endif
 }
 
 const std::wstring& FileSystem::appPath() const
@@ -131,16 +144,10 @@ const std::wstring& FileSystem::appPath() const
 	return _appPath;
 }
 
-
-
-
 void ResourcesTraits::SetItemResTraits(Resource* item, ResourcesTraits* value)
 {
 	item->_resTraits = value;
 }
-
-
-
 
 Resource::Resource(): _resTraits(0), _init(false), _dynamic(false)
 {
@@ -165,7 +172,7 @@ unsigned Resource::Release() const
 
 	if (_resTraits)
 		_resTraits->OnReleaseItem(const_cast<Resource*>(this));
-	
+
 	return ref;
 }
 
@@ -176,7 +183,7 @@ void Resource::Init()
 		_init = true;
 
 		DoInit();
-		
+
 		if (!_dynamic)
 			DoUpdate();
 
@@ -231,9 +238,6 @@ void Resource::SetDynamic(bool value)
 	_dynamic = value;
 }
 
-
-
-
 void FileResource::DoLoadFromStream(std::istream& stream, const std::string& fileExt)
 {
 	//свидетельствует о том что загрузчик не существует
@@ -284,9 +288,6 @@ void FileResource::SetFileName(const std::string& value)
 	_fileName = value;
 }
 
-
-
-
 BufferResource::~BufferResource()
 {
 	Free();
@@ -333,9 +334,6 @@ const char* BufferResource::GetData() const
 {
 	return _data;
 }
-
-
-
 
 BinaryResource::BinaryResource(): _size(0)
 {

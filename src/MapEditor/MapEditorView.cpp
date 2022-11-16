@@ -24,9 +24,6 @@ BEGIN_MESSAGE_MAP(CMapEditorView, CView)
 	ON_WM_SIZE()
 END_MESSAGE_MAP()
 
-
-
-
 CMapEditorView::CMapEditorView()
 {
 }
@@ -148,7 +145,7 @@ void CMapEditorView::OnSize(UINT nType, int cx, int cy)
 		r3d::IView::Desc desc;
 		desc.fullscreen = false;
 		desc.resolution = lsl::Point(cx, cy);
-		desc.handle = GetSafeHwnd();		
+		desc.handle = GetSafeHwnd();
 		GetR3DView()->Reset(desc);
 
 		//GetR3DView()->SetCameraAspect(static_cast<float>(cx) / cy);

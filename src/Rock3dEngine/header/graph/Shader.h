@@ -2,6 +2,7 @@
 #define R3D_GRAPH_SHADER
 
 #include "Engine.h"
+#include "lslVariant.h"
 
 namespace r3d
 {
@@ -11,6 +12,7 @@ namespace graph
 
 class Shader: public VideoResource, public BaseShader
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXInclude
 private:
 	class D3DXInclude: public ID3DXInclude
 	{
@@ -23,8 +25,9 @@ private:
 	public:
 		D3DXInclude(Shader* owner);
 	};
+#endif
 public:
-	typedef lsl::VariantVec Value;
+	typedef VariantVec Value;
 	typedef std::map<std::string, Value> Values;
 	typedef std::map<std::string, TexResource*> Textures;
 
@@ -47,10 +50,13 @@ public:
 	{
 		friend Shader;
 		friend lsl::Collection<MacroBlock, void, void, void>;
+#ifdef _WIN32 // FIX_LINUX ID3DXEffect
 	private:
 		typedef std::map<std::string, D3DXHANDLE> Handles;
+#endif
 	private:
 		Macros _macros;
+#ifdef _WIN32 // FIX_LINUX ID3DXEffect
 		ID3DXEffect* _effect;
 		Handles _handles;
 
@@ -67,7 +73,7 @@ public:
 				if (_effect)
 					_effect->Release();
 
-				_effect = value;				
+				_effect = value;
 			}
 		}
 
@@ -96,7 +102,7 @@ public:
 		{
 			if (param)
 				_effect->SetTexture(param, texture);
-		}		
+		}
 
 		D3DXHANDLE GetTech(const std::string& name)
 		{
@@ -106,9 +112,14 @@ public:
 
 			return iter->second;
 		}
+#endif
 	protected:
 		MacroBlock() {}
+#ifdef _WIN32 // FIX_LINUX ID3DXEffect
 		MacroBlock(const Macros& macros): _macros(macros), _effect(0) {}
+#else
+		MacroBlock(const Macros& macros): _macros(macros) {}
+#endif
 
 		const Macros& GetMacros() const
 		{
@@ -117,7 +128,11 @@ public:
 
 		bool operator==(const MacroBlock& value) const
 		{
+#ifdef _WIN32 // FIX_LINUX ID3DXEffect
 			return _effect == value._effect;
+#else
+			return false;
+#endif
 		}
 		bool operator==(const Macros& value) const
 		{
@@ -126,24 +141,32 @@ public:
 
 		void SetValue(const std::string& name, const void* data, unsigned size)
 		{
+#ifdef _WIN32 // FIX_LINUX ID3DXEffect
 			SetParam(GetParam(name), data, size);
+#endif
 		}
 
 		void SetValue(const std::string& name, const Value& value)
 		{
+#ifdef _WIN32 // FIX_LINUX ID3DXEffect
 			SetParam(GetParam(name), value);
+#endif
 		}
 
 		void SetTexture(const std::string& name, IDirect3DBaseTexture9* texture)
 		{
+#ifdef _WIN32 // FIX_LINUX ID3DXEffect
 			SetTexParam(GetParam(name), texture);
+#endif
 		}
 
 		void SetTechnique(const std::string& name)
 		{
+#ifdef _WIN32 // FIX_LINUX ID3DXEffect
 			D3DXHANDLE tech = GetTech(name);
 			if (tech)
 				_effect->SetTechnique(tech);
+#endif
 		}
 	};
 
@@ -188,9 +211,9 @@ public:
 				bool reload = Size() == 1 && engine;
 				if (reload)
 					_owner->Free();
-				
+
 				res = &_MyBase::AddItem(new MacroBlock(macros));
-				
+
 				if (reload)
 					_owner->Init(*engine);
 			}
@@ -217,7 +240,7 @@ public:
 	};
 private:
 	//Данные шейдера
-	lsl::BinaryResource* _data;	
+	lsl::BinaryResource* _data;
 	bool _createData;
 	//Параметры
 	Values _values;
@@ -234,7 +257,9 @@ private:
 	MacroBlock* _macro;
 
 	//Реализация включения
+#ifdef _WIN32 // FIX_LINUX D3DXInclude
 	D3DXInclude* _include;
+#endif
 	//Обновление внешних текстур
 	TexUser* _texUser;
 	//Текущая техника прохода, задается только при применении прохода и может быть временной, заданной через параметр
@@ -244,15 +269,17 @@ private:
 	//Общее число внтуренних проходов текущей техники
 	unsigned _cntPass;
 	//Текущий внутренний проход
-	unsigned _numPass;	
+	unsigned _numPass;
 	//Применение эффекта
 	unsigned _apply;
 	//Применение техники
-	unsigned _applyTech;	
+	unsigned _applyTech;
 	//Применение внутреннего прохода
 	unsigned _applyPass;
 	//Пул эффектов
+#ifdef _WIN32 // FIX_LINUX ID3DXEffect
 	ID3DXEffectPool* _effPool;
+#endif
 
 	void InitMacro(MacroBlock* value);
 	void FreeMacro(MacroBlock* value);
@@ -301,10 +328,12 @@ public:
 	lsl::BinaryResource* GetOrCreateData();
 	void SetData(lsl::BinaryResource* value);
 
+#ifdef _WIN32 // FIX_LINUX ID3DXEffect
 	D3DXHANDLE GetParam(const std::string& name);
 	void SetParam(D3DXHANDLE param, const Value& value);
 	void SetParam(D3DXHANDLE param, const void* data, unsigned size);
 	void SetTexParam(D3DXHANDLE param, IDirect3DBaseTexture9* value);
+#endif
 
 	void SetValueDir(const std::string& name, const void* data, unsigned size);
 	void SetValueDir(const std::string& name, const Value& value);
@@ -329,9 +358,6 @@ public:
 	MacroBlock* GetMacro();
 	void SetMacro(MacroBlock* value);
 };
-
-
-
 
 template<class _Type> bool Shader::GetValue(const std::string& name, _Type& outVal) const
 {

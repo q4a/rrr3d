@@ -49,11 +49,11 @@ public:
 
 	HRESULT HandleGraphEvent(IVideoGraphUser* user);
 private:
-	HRESULT InitializeGraph();	
+	HRESULT InitializeGraph();
 	HRESULT CreateVideoRenderer();
 	HRESULT RenderStreams(IBaseFilter *pSource);
 
-	PlaybackState   m_state;	
+	PlaybackState   m_state;
 
 	HWND m_hwnd; // Video window. This window also receives graph events.
 	UINT m_windowMsg;

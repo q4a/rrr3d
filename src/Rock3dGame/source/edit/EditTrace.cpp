@@ -1,9 +1,8 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "edit\Trace.h"
-#include "edit\Edit.h"
-
+#include "edit/Trace.h"
+#include "edit/Edit.h"
 
 namespace r3d
 {
@@ -35,9 +34,6 @@ void WayPoint::SetSize(float value)
 	GetInst()->SetSize(value);
 }
 
-
-
-
 WayNode::WayNode(Inst* inst): ExternImpl<game::WayNode>(inst)
 {
 }
@@ -47,9 +43,6 @@ IWayPathRef WayNode::GetPath()
 	WayPath* path = GetInst()->GetPath() ? new WayPath(GetInst()->GetPath()) : 0;
 	return IWayPathRef(path, path);
 }
-
-
-
 
 WayPath::WayPath(Inst* inst): ExternImpl<game::WayPath>(inst)
 {
@@ -80,9 +73,6 @@ void WayPath::Next(IWayNodeRef& ref)
 	ref.Reset(node, node);
 }
 
-
-
-
 Trace::Trace(Inst* inst, Edit* edit): ExternImpl<game::Trace>(inst), _edit(edit), _enableVisualize(false)
 {
 	game::Trace& trace = *GetInst();
@@ -105,7 +95,7 @@ Trace::NodeControl::NodeControl(Trace* trace, game::WayPoint* wayPoint, const Co
 
 	_wayPoint->AddRef();
 }
-	
+
 Trace::NodeControl::~NodeControl()
 {
 	FreeLink();
@@ -121,7 +111,7 @@ void Trace::NodeControl::Reset(game::WayPoint* wayPoint)
 	LSL_ASSERT(_wayPoint);
 }
 
-void Trace::NodeControl::NewLink(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Trace::NodeControl::NewLink(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	FreeLink();
 
@@ -137,7 +127,7 @@ void Trace::NodeControl::FreeLink()
 			_trace->_traceGfx->SetPointLink(0);
 		lsl::SafeDelete(_link);
 	}
-	
+
 }
 
 bool Trace::NodeControl::CreateWay(game::WayNode* curNode, game::WayPoint* point, game::WayNode* node)
@@ -192,7 +182,7 @@ void Trace::NodeControl::Select(bool active)
 	_trace->_traceGfx->SetSelPoint(active ? _wayPoint : 0);
 }
 
-bool Trace::NodeControl::RayCastInters(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec) const
+bool Trace::NodeControl::RayCastInters(const glm::vec3& rayPos, const glm::vec3& rayVec) const
 {
 	return RayCastIntersectSphere(rayPos, rayVec, _wayPoint->GetPos(), _wayPoint->GetSize()/2.0f);
 }
@@ -202,7 +192,7 @@ bool Trace::NodeControl::Compare(const IMapObjRef& node) const
 	return false;
 }
 
-void Trace::NodeControl::OnStartDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Trace::NodeControl::OnStartDrag(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	NewLink(scrRayPos, scrRayVec);
 
@@ -210,7 +200,7 @@ void Trace::NodeControl::OnStartDrag(const D3DXVECTOR3& scrRayPos, const D3DXVEC
 	_dragRayVec = scrRayVec;
 }
 
-void Trace::NodeControl::OnEndDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Trace::NodeControl::OnEndDrag(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	FreeLink();
 
@@ -226,13 +216,13 @@ void Trace::NodeControl::OnEndDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTO
 	}
 }
 
-void Trace::NodeControl::OnDrag(const D3DXVECTOR3& pos, const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Trace::NodeControl::OnDrag(const glm::vec3& pos, const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	if (_link)
 		_link->SetPos(pos);
 }
 
-void Trace::NodeControl::OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Trace::NodeControl::OnShiftAction(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	game::WayPoint* newPoint = _trace->GetInst()->AddPoint();
 	newPoint->SetPos(_wayPoint->GetPos());
@@ -261,54 +251,54 @@ void Trace::NodeControl::OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXV
 	}
 }
 
-D3DXVECTOR3 Trace::NodeControl::GetPos() const
+glm::vec3 Trace::NodeControl::GetPos() const
 {
 	return _wayPoint->GetPos();
 }
 
-void Trace::NodeControl::SetPos(const D3DXVECTOR3& value)
+void Trace::NodeControl::SetPos(const glm::vec3& value)
 {
 	_wayPoint->SetPos(value);
 }
 
-D3DXQUATERNION Trace::NodeControl::GetRot() const
+glm::quat Trace::NodeControl::GetRot() const
 {
 	return NullQuaternion;
 }
 
-void Trace::NodeControl::SetRot(const D3DXQUATERNION& value)
+void Trace::NodeControl::SetRot(const glm::quat& value)
 {
 	//Nothing
 }
 
-D3DXVECTOR3 Trace::NodeControl::GetScale() const
+glm::vec3 Trace::NodeControl::GetScale() const
 {
 	float radius = _wayPoint->GetSize() / sqrt(3.0f);
 
-	return D3DXVECTOR3(radius, radius, radius);
+	return glm::vec3(radius, radius, radius);
 }
 
-void Trace::NodeControl::SetScale(const D3DXVECTOR3& value)
+void Trace::NodeControl::SetScale(const glm::vec3& value)
 {
-	_wayPoint->SetSize(D3DXVec3Length(&value));
+	_wayPoint->SetSize(glm::length(value));
 }
 
-D3DXVECTOR3 Trace::NodeControl::GetDir() const
+glm::vec3 Trace::NodeControl::GetDir() const
 {
 	return XVector;
 }
 
-D3DXVECTOR3 Trace::NodeControl::GetRight() const
+glm::vec3 Trace::NodeControl::GetRight() const
 {
 	return YVector;
 }
 
-D3DXVECTOR3 Trace::NodeControl::GetUp() const
+glm::vec3 Trace::NodeControl::GetUp() const
 {
 	return ZVector;
 }
 
-D3DXMATRIX Trace::NodeControl::GetMat() const
+D3DMATRIX Trace::NodeControl::GetMat() const
 {
 	return BuildWorldMatrix(GetPos(), GetScale(), GetRot());
 }
@@ -318,11 +308,11 @@ AABB Trace::NodeControl::GetAABB() const
 	return AABB(1.0f);
 }
 
-game::WayPoint* Trace::PickInstPoint(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec)
+game::WayPoint* Trace::PickInstPoint(const glm::vec3& rayPos, const glm::vec3& rayVec)
 {
 	float minDist = 0;
-	game::WayPoint* point = 0;	
-	
+	game::WayPoint* point = 0;
+
 	for (Inst::Points::const_iterator iter = GetInst()->GetPoints().begin(); iter != GetInst()->GetPoints().end(); ++iter)
 	{
 		float t;
@@ -341,8 +331,8 @@ game::WayPoint* Trace::PickInstPoint(const D3DXVECTOR3& rayPos, const D3DXVECTOR
 
 IWayPointRef Trace::PickPoint(const lsl::Point& scrCoord)
 {
-	D3DXVECTOR3 scrRayPos;
-	D3DXVECTOR3 scrRayVec;
+	glm::vec3 scrRayPos;
+	glm::vec3 scrRayVec;
 	_edit->GetWorld()->GetCamera()->ScreenToRay(scrCoord, scrRayPos, scrRayVec);
 
 	game::WayPoint* point = PickInstPoint(scrRayPos, scrRayVec);
@@ -441,7 +431,7 @@ IWayPointRef Trace::FirstPoint()
 void Trace::NextPoint(IWayPointRef& ref)
 {
 	WayPoint* point = ref->GetImpl<WayPoint>();
-	
+
 	if (++(point->traceIter) != GetInst()->GetPoints().end())
 	{
 		WayPoint* newPoint = new WayPoint(static_cast<game::WayPoint*>(*point->traceIter));
@@ -468,7 +458,7 @@ IWayPathRef Trace::FirstPath()
 void Trace::NextPath(IWayPathRef& ref)
 {
 	WayPath* path = ref->GetImpl<WayPath>();
-	
+
 	if (++(path->traceIter) != GetInst()->GetPathes().end())
 	{
 		WayPath* newPath = new WayPath(static_cast<game::WayPath*>(*path->traceIter));
@@ -489,7 +479,7 @@ void Trace::EnableVisualize(bool value)
 	if (_enableVisualize != value)
 	{
 		if (_enableVisualize)
-			_edit->GetWorld()->GetGraph()->RemoveScNode(_traceGfx);	
+			_edit->GetWorld()->GetGraph()->RemoveScNode(_traceGfx);
 		_enableVisualize = value;
 		if (_enableVisualize)
 			_edit->GetWorld()->GetGraph()->InsertScNode(_traceGfx);

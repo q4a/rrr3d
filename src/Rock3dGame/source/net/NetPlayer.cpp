@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "net\NetPlayer.h"
-#include "game\World.h"
+#include "net/NetPlayer.h"
+#include "game/World.h"
 
 namespace r3d
 {
@@ -31,11 +31,8 @@ void NetPlayerResponse::OnSerialize(const net::NetMessage& msg, net::BitStream& 
 	_player->ResponseStream(msg, stream);
 }*/
 
-
-
-
 NetPlayer::NetPlayer(const Desc& desc): NetModelRPC(desc), _net(NetGame::I()), _player(NULL), _human(NULL), _aiPlayer(NULL), _modelOwner(false), _dAlpha(0), _raceReady(false), _raceGoWait(false), _raceFinish(false) //, _response(NULL)
-{	
+{
 	RegRPC(&NetPlayer::OnSetGamerId);
 	RegRPC(&NetPlayer::OnSetColor);
 	RegRPC(&NetPlayer::OnSetCar);
@@ -57,7 +54,7 @@ NetPlayer::NetPlayer(const Desc& desc): NetModelRPC(desc), _net(NetGame::I()), _
 		int opponentId = netSlot << Race::cOpponentBit;
 
 		_player = _net->game()->GetRace()->GetPlayerByNetSlot(netSlot);
-		
+
 		if (_player == NULL)
 		{
 			_player = race()->AddPlayer(opponentId, GenerateGamerId(), netSlot, GenerateColor());
@@ -92,7 +89,7 @@ NetPlayer::NetPlayer(const Desc& desc): NetModelRPC(desc), _net(NetGame::I()), _
 			_aiPlayer = race()->AddAIPlayer(_player);
 			_aiPlayer->AddRef();
 		}
-	}	
+	}
 
 	//if ((desc.owner && _net->isClient()) || (!desc.owner && _net->isHost()))
 	//{
@@ -102,7 +99,7 @@ NetPlayer::NetPlayer(const Desc& desc): NetModelRPC(desc), _net(NetGame::I()), _
 	//}
 
 	net::INetConnection* connection = _net->netService().GetConnectionById(ownerId());
-	if (connection)	
+	if (connection)
 		_player->SetNetName(connection->userName());
 
 	_net->RegPlayer(this);
@@ -183,25 +180,25 @@ void NetPlayer::DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordL
 
 	Weapon::ProjList projList;
 	unsigned coordIndex = 0;
-	NxMat34 nxMat(true);	
+	NxMat34 nxMat(true);
 
 	Proj::ShotContext ctx;
 	ctx.shot.SetTargetMapObj(target);
-	ctx.logic = _net->game()->GetWorld()->GetLogic();	
+	ctx.logic = _net->game()->GetWorld()->GetLogic();
 
 	for (unsigned i = 0; i < slots.count(); ++i)
 	{
-		Player::SlotType type = slots.AsWpn(i); 
-		Slot* slot = _player->GetSlotInst(type);		
-		WeaponItem* wpn = slot ? slot->GetItem().IsWeaponItem() : NULL;		
+		Player::SlotType type = slots.AsWpn(i);
+		Slot* slot = _player->GetSlotInst(type);
+		WeaponItem* wpn = slot ? slot->GetItem().IsWeaponItem() : NULL;
 
 		if (slots.Get(i) && wpn)
 		{
 			projList.clear();
 
-			if (coordList && coordIndex < coordList->size()) 
+			if (coordList && coordIndex < coordList->size())
 			{
-				nxMat.t = NxVec3((*coordList)[coordIndex]);
+				nxMat.t = glm::value_ptr((*coordList)[coordIndex]);
 				ctx.projMat = &nxMat;
 			}
 			else
@@ -220,7 +217,7 @@ void NetPlayer::DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordL
 			LSL_ASSERT(projList.size() > 0);
 
 			Proj* proj = projList.front();
-			D3DXVECTOR3 worldPos = proj->GetWorldPos();
+			glm::vec3 worldPos = proj->GetWorldPos();
 
 			if (!readMode)
 			{
@@ -232,10 +229,10 @@ void NetPlayer::DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordL
 
 			++coordIndex;
 		}
-	}	
+	}
 }
 
-void NetPlayer::SendColor(const D3DXCOLOR& value, bool failed, unsigned target)
+void NetPlayer::SendColor(const glm::vec4& value, bool failed, unsigned target)
 {
 	std::ostream& stream = NewRPC(target, &NetPlayer::OnSetColor);
 	net::Write(stream, value);
@@ -256,7 +253,7 @@ void NetPlayer::SlotsWrite(std::ostream& stream)
 	for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 	{
 		Slot* slot = _player->GetSlotInst(Player::SlotType(i));
-		WeaponItem* wpn = slot ? slot->GetItem().IsWeaponItem() : 0;		
+		WeaponItem* wpn = slot ? slot->GetItem().IsWeaponItem() : 0;
 		ArmorItem* armor = slot && slot->GetType() == Slot::stArmor ? &slot->GetItem<ArmorItem>() : NULL;
 
 		std::string recName = slot && slot->GetRecord() ? slot->GetRecord()->GetName() : "";
@@ -325,7 +322,7 @@ void NetPlayer::OnSetGamerId(const net::NetMessage& msg, const net::NetCmdHeader
 
 void NetPlayer::OnSetColor(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
 {
-	D3DXCOLOR color;
+	glm::vec4 color;
 	bool failed;
 
 	net::Read(stream, color);
@@ -360,7 +357,7 @@ void NetPlayer::OnCarSlotsChanged(const net::NetMessage& msg, const net::NetCmdH
 {
 	int money;
 
-	net::Read(stream, money);	
+	net::Read(stream, money);
 	SlotsRead(stream);
 
 	model()->SetMoney(money);
@@ -392,7 +389,7 @@ void NetPlayer::OnRaceFinish(const net::NetMessage& msg, const net::NetCmdHeader
 
 void NetPlayer::OnShot(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
 {
-	unsigned target;	
+	unsigned target;
 	ShotSlots slots;
 	unsigned projId;
 	CoordList coordList;
@@ -408,7 +405,7 @@ void NetPlayer::OnShot(const net::NetMessage& msg, const net::NetCmdHeader& head
 
 	for (unsigned i = 0; i < coordCount; ++i)
 	{
-		D3DXVECTOR3 worldPos;
+		glm::vec3 worldPos;
 		net::Read(stream, &worldPos, sizeof(worldPos));
 
 		coordList.push_back(worldPos);
@@ -431,7 +428,7 @@ void NetPlayer::OnTakeBonus(const net::NetMessage& msg, const net::NetCmdHeader&
 
 	MapObj* bonus = map()->GetMapObj(bonusId);
 
-	if (bonus == NULL)		
+	if (bonus == NULL)
 	{
 		LSL_LOG("NetPlayer::OnTakeBonus bonus == NULL");
 		msg.Discard();
@@ -442,19 +439,19 @@ void NetPlayer::OnTakeBonus(const net::NetMessage& msg, const net::NetCmdHeader&
 }
 
 void NetPlayer::OnMineContact1(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
-{	
+{
 	unsigned plrId;
-	unsigned projId;	
-	D3DXVECTOR3 point;
+	unsigned projId;
+	glm::vec3 point;
 
 	net::Read(stream, plrId);
-	net::Read(stream, projId);	
+	net::Read(stream, projId);
 	net::Read(stream, point);
 
 	NetPlayer* bonusPlr = _net->GetPlayer(plrId);
-	Proj* bonus = bonusPlr ? bonusPlr->model()->GetBonusProj(projId) : NULL;	
+	Proj* bonus = bonusPlr ? bonusPlr->model()->GetBonusProj(projId) : NULL;
 
-	if (bonusPlr == NULL)		
+	if (bonusPlr == NULL)
 	{
 		LSL_LOG("NetRace::OnMineContact1 bonusPlr == NULL");
 		msg.Discard();
@@ -473,14 +470,14 @@ void NetPlayer::OnMineContact1(const net::NetMessage& msg, const net::NetCmdHead
 
 void NetPlayer::OnMineContact2(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
 {
-	unsigned projId;	
+	unsigned projId;
 
-	D3DXVECTOR3 point;
+	glm::vec3 point;
 
-	net::Read(stream, projId);	
+	net::Read(stream, projId);
 	net::Read(stream, point);
 
-	MapObj* bonus = map()->GetMapObj(projId);	
+	MapObj* bonus = map()->GetMapObj(projId);
 
 	if (bonus == NULL || bonus->GetGameObj().IsProj() == NULL)
 	{
@@ -523,10 +520,10 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 	if (car == NULL)
 		return;
 
-	D3DXVECTOR3 pos = car->GetPxActor().GetPos();
-	D3DXQUATERNION rot = car->GetPxActor().GetRot();	
-	D3DXVECTOR3 linVel = car->GetNxActor()->getLinearMomentum().get();
-	D3DXVECTOR3 angVel = car->GetNxActor()->getAngularMomentum().get();
+	glm::vec3 pos = car->GetPxActor().GetPos();
+	glm::quat rot = car->GetPxActor().GetRot();
+	glm::vec3 linVel = glm::make_vec3(car->GetNxActor()->getLinearMomentum().get());
+	glm::vec3 angVel = glm::make_vec3(car->GetNxActor()->getAngularMomentum().get());
 	BYTE moveState = car->GetMoveCar();
 	BYTE steerState = car->GetSteerWheel();
 	float steerWheelsAngle = car->GetSteerWheelAngle();
@@ -543,8 +540,8 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 	{
 		_dAlpha = 1.0f;
 
-		D3DXVECTOR3 dPos = pos - car->GetPxActor().GetPos();		
-		float dPosLength = D3DXVec3Length(&dPos);
+		glm::vec3 dPos = pos - car->GetPxActor().GetPos();
+		float dPosLength = glm::length(dPos);
 		if (dPosLength > 4.0f)
 		{
 			car->SetPosSync(pos - car->GetGrActor().GetPos());
@@ -553,18 +550,18 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 		else if (dPosLength > 0.1f)
 			linVel += dPos * 2.0f * car->GetNxActor()->getMass();
 
-		/*D3DXVECTOR3 dPos = pos - car->GetPxActor().GetPos();
-		float dPosLength = D3DXVec3Length(&dPos);
+		/*glm::vec3 dPos = pos - car->GetPxActor().GetPos();
+		float dPosLength = glm::length(dPos);
 		if (dPosLength > 4.0f) //>2.0f
 		{
 			car->SetPosSync2(car->GetGrActor().GetPos() - pos, NullVector);
-			car->GetPxActor().SetPos(pos);			
+			car->GetPxActor().SetPos(pos);
 		}
 		else
 		{
-			D3DXVECTOR3 dPos1 = car->GetGrActor().GetPos() - car->GetPxPosLerp();
-			D3DXVECTOR3 dPos2 = pos - car->GetPxPosLerp();
-			if (D3DXVec3Length(&(dPos1 - dPos2)) > 0.5f)
+			glm::vec3 dPos1 = car->GetGrActor().GetPos() - car->GetPxPosLerp();
+			glm::vec3 dPos2 = pos - car->GetPxPosLerp();
+			if (glm::length(dPos1 - dPos2) > 0.5f)
 				car->SetPosSync2(dPos1, dPos2);
 
 			if (dPosLength > 0.1f)
@@ -573,29 +570,27 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 			}
 		}*/
 
-		/*D3DXVECTOR3 dPos = pos - car->GetGrActor().GetPos();
-		float dPosLength = D3DXVec3Length(&dPos);
-		if (D3DXVec3Length(&(car->GetPxActor().GetPos() - pos)) > 1.0f)
+		/*glm::vec3 dPos = pos - car->GetGrActor().GetPos();
+		float dPosLength = glm::length(dPos);
+		if (glm::length(car->GetPxActor().GetPos() - pos) > 1.0f)
 		{
 			car->GetPxActor().SetPos(pos);
 			car->SetPosSync(dPos);
 		}*/
 
-		D3DXQUATERNION dRot;
-		QuatRotation(dRot, car->GetGrActor().GetRot(), rot);
-		D3DXVECTOR3 dRotAxis;
-		float dRotAngle;
-		D3DXQuaternionToAxisAngle(&dRot, &dRotAxis, &dRotAngle);
-		if (abs(dRotAngle) > D3DX_PI/24)
+		glm::quat dRot = QuatRotation(car->GetGrActor().GetRot(), rot);
+		glm::vec3 dRotAxis = glm::axis(dRot);
+		float dRotAngle = glm::angle(dRot);
+		if (std::abs(dRotAngle) > glm::pi<float>()/24)
 		{
 			car->GetPxActor().SetRot(rot);
 			car->SetRotSync(dRot);
 		}
 
-		car->GetNxActor()->setLinearMomentum(NxVec3(linVel));
-		car->GetNxActor()->setAngularMomentum(NxVec3(angVel));
-		
-		car->SetMoveCar((GameCar::MoveCarState)moveState);		
+		car->GetNxActor()->setLinearMomentum(glm::value_ptr(linVel));
+		car->GetNxActor()->setAngularMomentum(glm::value_ptr(angVel));
+
+		car->SetMoveCar((GameCar::MoveCarState)moveState);
 		car->SetSteerWheel((GameCar::SteerWheelState)steerState);
 		car->SetSteerWheelAngle(steerWheelsAngle);
 	}
@@ -608,7 +603,7 @@ void NetPlayer::OnDescWrite(const net::NetMessage& msg, std::ostream& stream)
 
 void NetPlayer::OnStateRead(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
 {
-	D3DXCOLOR color;
+	glm::vec4 color;
 	std::string carName;
 	int gamerId;
 
@@ -632,7 +627,7 @@ void NetPlayer::OnStateRead(const net::NetMessage& msg, const net::NetCmdHeader&
 void NetPlayer::OnStateWrite(const net::NetMessage& msg, std::ostream& stream)
 {
 	net::Write(stream, _player->GetColor());
-	net::Write(stream, _player->GetCar().record ? _player->GetCar().record->GetName() : "");	
+	net::Write(stream, _player->GetCar().record ? _player->GetCar().record->GetName() : "");
 	net::Write(stream, _raceReady);
 	net::Write(stream, _raceGoWait);
 	net::Write(stream, _raceFinish);
@@ -643,7 +638,7 @@ void NetPlayer::OnStateWrite(const net::NetMessage& msg, std::ostream& stream)
 
 void NetPlayer::OnSerialize(const net::NetMessage& msg, net::BitStream& stream)
 {
-	ControlStream(msg, stream);	
+	ControlStream(msg, stream);
 }
 
 void NetPlayer::Process(float deltaTime)
@@ -656,8 +651,8 @@ void NetPlayer::Process(float deltaTime)
 	{
 		_dAlpha = 0.0f;
 		car->SetMoveCar(GameCar::mcNone);
-		car->SetSteerWheel(GameCar::swNone);		
-	}	
+		car->SetSteerWheel(GameCar::swNone);
+	}
 }
 
 void NetPlayer::Shot(MapObj* target, Player::SlotType type)
@@ -673,7 +668,7 @@ void NetPlayer::Shot(MapObj* target, Player::SlotType type)
 		}
 	}
 	else
-		for (unsigned i = 0; i < slots.count(); ++i)		
+		for (unsigned i = 0; i < slots.count(); ++i)
 		{
 			Player::SlotType type = slots.AsWpn(i);
 			if (type == Player::stMine || type == Player::stHyper)
@@ -735,7 +730,7 @@ void NetPlayer::TakeBonus(MapObj* bonus, GameObject::BonusType type, float value
 	}
 }
 
-void NetPlayer::MineContact(Proj* sender, const D3DXVECTOR3& point)
+void NetPlayer::MineContact(Proj* sender, const glm::vec3& point)
 {
 	if (owner())
 	{
@@ -755,7 +750,7 @@ void NetPlayer::MineContact(Proj* sender, const D3DXVECTOR3& point)
 		{
 			std::ostream& stream = NewRPC(net::cNetTargetAll, &NetPlayer::OnMineContact1);
 			net::Write(stream, (*iter)->id());
-			net::Write(stream, id);			
+			net::Write(stream, id);
 			net::Write(stream, point);
 			CloseRPC();
 		}
@@ -766,7 +761,7 @@ void NetPlayer::MineContact(Proj* sender, const D3DXVECTOR3& point)
 			id = sender->GetMapObj()->GetId();
 
 			std::ostream& stream = NewRPC(net::cNetTargetAll, &NetPlayer::OnMineContact2);
-			net::Write(stream, id);			
+			net::Write(stream, id);
 			net::Write(stream, point);
 			CloseRPC();
 		}
@@ -808,34 +803,34 @@ int NetPlayer::GenerateGamerId() const
 	return -1;
 }
 
-const D3DXCOLOR& NetPlayer::GetColor() const
+const glm::vec4& NetPlayer::GetColor() const
 {
 	return _player->GetColor();
 }
 
-void NetPlayer::SetColor(const D3DXCOLOR& value)
+void NetPlayer::SetColor(const glm::vec4& value)
 {
 	_player->SetColor(value);
 
 	SendColor(value, false, net::cNetTargetOthers);
 }
 
-bool NetPlayer::CheckColor(const D3DXCOLOR& value) const
+bool NetPlayer::CheckColor(const glm::vec4& value) const
 {
 	for (NetGame::NetPlayers::const_iterator iter = _net->netPlayers().begin(); iter != _net->netPlayers().end(); ++iter)
 	{
 		if (*iter == this)
 			continue;
 
-		D3DXCOLOR diff = (*iter)->GetColor() - value;
-		if (abs(diff.r) < 0.001f && abs(diff.g) < 0.001f && abs(diff.b) < 0.001f && abs(diff.a) < 0.001f)
+		glm::vec4 diff = (*iter)->GetColor() - value;
+		if (std::abs(diff.r) < 0.001f && std::abs(diff.g) < 0.001f && std::abs(diff.b) < 0.001f && std::abs(diff.a) < 0.001f)
 			return false;
 	}
 
 	return true;
 }
 
-D3DXCOLOR NetPlayer::GenerateColor() const
+glm::vec4 NetPlayer::GenerateColor() const
 {
 	for (int i = 0; i < Player::cColorsCount; ++i)
 		if (CheckColor(Player::cLeftColors[i]))
@@ -873,7 +868,7 @@ void NetPlayer::CarSlotsChanged()
 	std::ostream& stream = NewRPC(net::cNetTargetOthers, &NetPlayer::OnCarSlotsChanged);
 
 	net::Write(stream, model()->GetMoney());
-	SlotsWrite(stream);	
+	SlotsWrite(stream);
 
 	CloseRPC();
 }
@@ -897,7 +892,7 @@ void NetPlayer::RaceReady(bool ready)
 		return;
 
 	DoRaceReady(ready);
-	
+
 	std::ostream& stream = NewRPC(net::cNetTargetOthers, &NetPlayer::OnRaceReady);
 	net::Write(stream, _raceReady);
 	CloseRPC();
@@ -912,7 +907,7 @@ void NetPlayer::RaceGoWait(bool goWait)
 {
 	if (_raceGoWait == goWait)
 		return;
-	
+
 	DoRaceGoWait(goWait);
 
 	std::ostream& stream = NewRPC(net::cNetTargetOthers, &NetPlayer::OnRaceGoWait);

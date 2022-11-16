@@ -12,9 +12,6 @@ namespace
 	ProgressTimer progressTimer;
 }
 
-
-
-
 void IProgressUser::RegProgress()
 {
 	if (++_progressCount == 1)
@@ -28,9 +25,6 @@ void IProgressUser::UnregProgress()
 	if (--_progressCount == 0)
 		progressTimer.UnregUser(this);
 }
-
-
-
 
 ProgressTimer::~ProgressTimer()
 {

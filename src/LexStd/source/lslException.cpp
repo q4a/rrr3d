@@ -8,9 +8,6 @@ namespace lsl
 
 AppLog appLog("appLog.txt");
 
-
-
-
 AppLog::AppLog(const std::string& mFileName): fileName(mFileName), _destroy(false)
 {
 }
@@ -36,9 +33,6 @@ void AppLog::Clear()
 	ReleaseStream(stream);
 }
 
-
-
-
 Error::Error(const char* message): _MyBase(message)
 {
 	PrintToLog();
@@ -58,9 +52,6 @@ void Error::PrintToLog()
 	appLog << "Error: " << this->what() << '\n';
 }
 
-
-
-
 void Assert(const char* expression, const char* filePath, int line)
 {
 	static char sText[1024] = "";
@@ -69,9 +60,10 @@ void Assert(const char* expression, const char* filePath, int line)
 			"File '%s', Line %d\r\n"
 			"Abort execution, allow assert Retry, or Ignore in future?",
 			expression, filePath, line);
-	
+
 	//appLog << "assError: " << expression << " File: " << filePath << " Line: " << line << '\n';
-	
+
+#ifdef _WIN32 // FIX_LINUX MessageBox
 	switch (::MessageBox(0, sText, "ASSERT ERROR", MB_ABORTRETRYIGNORE | MB_TASKMODAL))
 	{
 	case IDIGNORE:
@@ -84,6 +76,7 @@ void Assert(const char* expression, const char* filePath, int line)
 	case IDRETRY:
 		 _CrtDbgBreak();
 	}
+#endif
 }
 
 }

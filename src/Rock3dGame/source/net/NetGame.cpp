@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "net\NetGame.h"
-#include "game\GameMode.h"
+#include "net/NetGame.h"
+#include "game/GameMode.h"
 
 namespace r3d
 {
@@ -10,9 +10,6 @@ namespace game
 {
 
 NetGame* NetGame::_i;
-
-
-
 
 NetGame::NetGame(GameMode* game): _game(game), _race(NULL), _port(58213), _started(false), _isHost(false), _isClient(false), _player(NULL)
 {
@@ -190,7 +187,7 @@ void NetGame::CreateHost(net::INetAcceptorImpl* impl)
 	_isHost = true;
 
 	lsl::appLog.fileName = "appLog.txt";
-	
+
 	netService().StartServer(_port, impl);
 	netPlayer()->MakeModel<NetRace>();
 }
@@ -233,7 +230,7 @@ void NetGame::Close()
 
 	_race = NULL;
 
-	netService().Close();	
+	netService().Close();
 
 	_isHost = false;
 	_isClient = false;

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\WaterPlane.h"
+#include "graph/WaterPlane.h"
 
 namespace r3d
 {
@@ -10,7 +10,7 @@ namespace graph
 
 ReflRender::ReflRender()
 {
-	SetReflPlane(D3DXPLANE(0.0f, 0.0f, 1.0f, 0.0f));
+	SetReflPlane(glm::vec4(0.0f, 0.0f, 1.0f, 0.0f));
 }
 
 void ReflRender::BeginRT(Engine& engine, const RtFlags& flags)
@@ -20,9 +20,9 @@ void ReflRender::BeginRT(Engine& engine, const RtFlags& flags)
 	_MyBase::BeginRT(engine, flags);
 
 	CameraDesc desc = engine.GetContext().GetCamera().GetDesc();
-	D3DXVec3TransformCoord(&desc.pos, &desc.pos, &_reflMat);
-	D3DXVec3TransformNormal(&desc.dir, &desc.dir, &_reflMat);
-	D3DXVec3TransformNormal(&desc.up, &desc.up, &_reflMat);
+	desc.pos = Vec3TransformCoord(desc.pos, _reflMat);
+	desc.dir = Vec3TransformNormal(desc.dir, _reflMat);
+	desc.up = Vec3TransformNormal(desc.up, _reflMat);
 	desc.up = -desc.up;
 	_reflCamera.SetDesc(desc);
 	//reflCamera.AdjustFarPlane(sceneBox, maxFarDist);
@@ -30,14 +30,14 @@ void ReflRender::BeginRT(Engine& engine, const RtFlags& flags)
 	engine.GetContext().ApplyCamera(&_reflCamera);
 
 	DWORD enableClipPlanes = cClipPlanes[0];
-	engine.GetDriver().GetDevice()->SetClipPlane(0, _reflPlane);
+	engine.GetDriver().GetDevice()->SetClipPlane(0, glm::value_ptr(_reflPlane));
 
 	LSL_ASSERT(_clipPlanes.size() <= 5);
 
 	for (unsigned i = 0; i < _clipPlanes.size(); ++i)
 	{
 		enableClipPlanes |= cClipPlanes[i + 1];
-		engine.GetDriver().GetDevice()->SetClipPlane(i + 1, _clipPlanes[i]);
+		engine.GetDriver().GetDevice()->SetClipPlane(i + 1, glm::value_ptr(_clipPlanes[i]));
 	}
 
 	engine.GetContext().SetRenderState(rsClipPlaneEnable, enableClipPlanes);
@@ -55,15 +55,15 @@ void ReflRender::EndRT(Engine& engine)
 	engine.GetContext().UnApplyCamera(&_reflCamera);
 }
 
-const D3DXPLANE& ReflRender::GetReflPlane() const
+const glm::vec4& ReflRender::GetReflPlane() const
 {
 	return _reflPlane;
 }
 
-void ReflRender::SetReflPlane(const D3DXPLANE& value)
+void ReflRender::SetReflPlane(const glm::vec4& value)
 {
 	_reflPlane = value;
-	D3DXMatrixReflect(&_reflMat, &_reflPlane);
+	_reflMat = MatrixReflect(_reflPlane);
 }
 
 const ReflRender::ClipPlanes& ReflRender::GetClipPlanes() const
@@ -75,9 +75,6 @@ void ReflRender::SetClipPlanes(const ClipPlanes& value)
 {
 	_clipPlanes = value;
 }
-
-
-
 
 WaterPlane::WaterPlane(): _viewPos(NullVector), _cloudIntens(0.1f)
 {
@@ -101,7 +98,7 @@ void WaterPlane::DoRender(graph::Engine& engine)
 	shader.SetValueDir("time", curTime);
 	shader.SetValueDir("cloudIntens", _cloudIntens);
 
-	D3DXVECTOR3 fogParamsVec = D3DXVECTOR3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
+	glm::vec3 fogParamsVec = glm::vec3(0, 1, (float)engine.GetContext().GetRenderState(rsFogEnable));
 	if (fogParamsVec.z != 0)
 	{
 		DWORD dwVal = engine.GetContext().GetRenderState(rsFogStart);
@@ -110,7 +107,7 @@ void WaterPlane::DoRender(graph::Engine& engine)
 		dwVal = engine.GetContext().GetRenderState(rsFogEnd);
 		fogParamsVec.y = *(float*)(&dwVal);
 
-		D3DXCOLOR fogColorVec = D3DXCOLOR(engine.GetContext().GetRenderState(rsFogColor));
+		glm::vec4 fogColorVec = ColorToVec4(engine.GetContext().GetRenderState(rsFogColor));
 		shader.SetValueDir("fogColor", fogColorVec);
 	}
 	shader.SetValueDir("fogParams", fogParamsVec);
@@ -150,26 +147,26 @@ void WaterPlane::SetReflTex(graph::Tex2DResource* value)
 	shader.SetTexture("reflTex", value);
 }
 
-D3DXCOLOR WaterPlane::GetColor()
+glm::vec4 WaterPlane::GetColor()
 {
-	D3DXCOLOR res;
+	glm::vec4 res;
 	if (shader.GetValue("waterColor", res))
 		return res;
 	else
 		return clrBlack;
 }
 
-void WaterPlane::SetColor(const D3DXCOLOR& value)
+void WaterPlane::SetColor(const glm::vec4& value)
 {
-	shader.SetValue("waterColor", D3DXVECTOR4(value));
+	shader.SetValue("waterColor", glm::vec4(value));
 }
 
-const D3DXVECTOR3& WaterPlane::GetViewPos() const
+const glm::vec3& WaterPlane::GetViewPos() const
 {
 	return _viewPos;
 }
 
-void WaterPlane::SetViewPos(const D3DXVECTOR3& value)
+void WaterPlane::SetViewPos(const glm::vec3& value)
 {
 	_viewPos = value;
 }

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\ToneMapping.h"
+#include "graph/ToneMapping.h"
 
 namespace r3d
 {
@@ -40,7 +40,7 @@ void ToneMapping::SetColorTex(Tex2DResource* value)
 
 Tex2DResource* ToneMapping::GetBloomTex()
 {
-	return lsl::StaticCast<Tex2DResource*>(shader.GetTexture("bloomTex"));	
+	return lsl::StaticCast<Tex2DResource*>(shader.GetTexture("bloomTex"));
 }
 
 void ToneMapping::SetBloomTex(Tex2DResource* value)
@@ -50,7 +50,7 @@ void ToneMapping::SetBloomTex(Tex2DResource* value)
 
 Tex2DResource* ToneMapping::GetHDRTex()
 {
-	return lsl::StaticCast<Tex2DResource*>(shader.GetTexture("lumTex"));	
+	return lsl::StaticCast<Tex2DResource*>(shader.GetTexture("lumTex"));
 }
 
 void ToneMapping::SetHDRTex(Tex2DResource* value)

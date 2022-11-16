@@ -104,23 +104,24 @@ FreeStaticData freeStaticData;
 
 Profiler* Profiler::_i;
 
-
-
-
 void Win32ThreadPool::QueueWork(UserWork* value, Object* arg, Flags flags)
 {
 	DWORD dwFlags = 0;
-	
+
 	//tfBackground эмулируется с помощью tfLongFunc
+#ifdef _WIN32 // FIX_LINUX QueueUserWorkItem
 	if (flags.test(tfLongFunc) || flags.test(tfBackground))
 		dwFlags |= WT_EXECUTELONGFUNCTION;
+#endif
 
 	value->AddRef();
 	ThreadParameter* param = new ThreadParameter;
 	param->pool = this;
 	param->work = value;
 	param->arg = arg;
+#ifdef _WIN32 // FIX_LINUX QueueUserWorkItem
 	QueueUserWorkItem(&ThreadPoolStart, param, dwFlags);
+#endif
 	//::CreateThread(0, 0, &ThreadPoolStart, value, 0, 0);
 }
 
@@ -142,9 +143,6 @@ void Win32ThreadPool::SetMaxThreads(unsigned value)
 {
 }
 
-
-
-
 void* SDK::GetDataFrom(LockedObj* obj)
 {
 	return obj->_data;
@@ -155,36 +153,42 @@ void SDK::SetDataTo(LockedObj* obj, void* data)
 	obj->_data = data;
 }
 
-
-
-
 Win32ThreadEvent::Win32ThreadEvent(bool manualReset, bool open, const std::string& name)
 {
+#ifdef _WIN32 // FIX_LINUX ThreadEvents
 	_event = CreateEvent(0, manualReset, open, name.empty() ? 0 : name.c_str());
+#endif
 }
 
 Win32ThreadEvent::~Win32ThreadEvent()
 {
+#ifdef _WIN32 // FIX_LINUX ThreadEvents
 	CloseHandle(_event);
+#endif
 }
 
 bool Win32ThreadEvent::WaitOne(unsigned mlsTimeOut)
 {
+#ifdef _WIN32 // FIX_LINUX ThreadEvents
 	return WaitForSingleObject(_event, mlsTimeOut) > 0;
+#else
+	return false;
+#endif
 }
 
 void Win32ThreadEvent::Set()
 {
+#ifdef _WIN32 // FIX_LINUX ThreadEvents
 	SetEvent(_event);
+#endif
 }
 
 void Win32ThreadEvent::Reset()
 {
+#ifdef _WIN32 // FIX_LINUX ThreadEvents
 	ResetEvent(_event);
+#endif
 }
-
-
-
 
 Win32SDK::Win32SDK(): _threadPool(0)
 {
@@ -208,20 +212,24 @@ LockedObj* Win32SDK::CreateLockedObj()
 	LockedObj* obj = new LockedObj();
 	obj->AddRef();
 
+#ifdef _WIN32 // FIX_LINUX RTL_CRITICAL_SECTION
 	RTL_CRITICAL_SECTION* section = new RTL_CRITICAL_SECTION;
 	InitializeCriticalSection(section);
 
 	SetDataTo(obj, section);
+#endif
 
 	return obj;
 }
 
 void Win32SDK::DestroyLockedObj(LockedObj* value)
 {
+#ifdef _WIN32 // FIX_LINUX RTL_CRITICAL_SECTION
 	RTL_CRITICAL_SECTION* section = reinterpret_cast<RTL_CRITICAL_SECTION*>(GetDataFrom(value));
 
 	DeleteCriticalSection(section);
 	delete section;
+#endif
 
 	value->Release();
 	delete value;
@@ -229,12 +237,16 @@ void Win32SDK::DestroyLockedObj(LockedObj* value)
 
 void Win32SDK::Lock(LockedObj* obj)
 {
+#ifdef _WIN32 // FIX_LINUX RTL_CRITICAL_SECTION
 	EnterCriticalSection(reinterpret_cast<RTL_CRITICAL_SECTION*>(GetDataFrom(obj)));
+#endif
 }
 
 void Win32SDK::Unlock(LockedObj* obj)
 {
-	LeaveCriticalSection(reinterpret_cast<RTL_CRITICAL_SECTION*>(GetDataFrom(obj)));	
+#ifdef _WIN32 // FIX_LINUX RTL_CRITICAL_SECTION
+	LeaveCriticalSection(reinterpret_cast<RTL_CRITICAL_SECTION*>(GetDataFrom(obj)));
+#endif
 }
 
 ThreadEvent* Win32SDK::CreateThreadEvent(bool manualReset, bool open, const std::string& name)
@@ -254,19 +266,22 @@ float Win32SDK::GetTime()
 
 double Win32SDK::GetTimeDbl()
 {
+#ifdef _WIN32 // FIX_LINUX QueryPerformanceFrequency
 	__int64 gTime, freq;
 	QueryPerformanceCounter((LARGE_INTEGER*)&gTime);  // Get current count
 	QueryPerformanceFrequency((LARGE_INTEGER*)&freq); // Get processor freq
-	
+
 	return gTime/static_cast<double>(freq);
+#else
+	return 0;
+#endif
 }
-
-
-
 
 Profiler::Profiler()
 {
+#ifdef _WIN32 // FIX_LINUX QueryPerformanceFrequency
 	QueryPerformanceFrequency((LARGE_INTEGER*)&_cpuFreq);
+#endif
 }
 
 void Profiler::ResetSample(SampleData& data)
@@ -277,11 +292,11 @@ void Profiler::ResetSample(SampleData& data)
 	data.summDt = 0;
 	data.maxDt = 0.0f;
 	data.minDt = FLT_MAX;
-	data.updated = false;	
+	data.updated = false;
 }
 
 void Profiler::Begin(const lsl::string& name)
-{	
+{
 	Samples::iterator iter = _samples.find(name);
 	if (iter == _samples.end())
 	{
@@ -289,7 +304,9 @@ void Profiler::Begin(const lsl::string& name)
 		ResetSample(iter->second);
 	}
 
+#ifdef _WIN32 // FIX_LINUX QueryPerformanceCounter
 	QueryPerformanceCounter((LARGE_INTEGER*)&iter->second.time);
+#endif
 
 	_stack.push(name);
 }
@@ -304,13 +321,15 @@ void Profiler::End()
 
 	Samples::iterator iter = _samples.find(name);
 
-	__int64 time = iter->second.time;
+	uint64_t time = iter->second.time;
+#ifdef _WIN32 // FIX_LINUX QueryPerformanceCounter
 	QueryPerformanceCounter((LARGE_INTEGER*)&iter->second.time);
+#endif
 	float dt = 1000 * (iter->second.time - time) / static_cast<float>(_cpuFreq);
 
 	iter->second.updated = true;
 	iter->second.dt = dt;
-	iter->second.summDt += dt;	
+	iter->second.summDt += dt;
 	++iter->second.frames;
 
 	if (iter->second.maxDt < dt)
@@ -345,9 +364,6 @@ Profiler& Profiler::I()
 
 	return *_i;
 }
-
-
-
 
 SDK* GetSDK()
 {

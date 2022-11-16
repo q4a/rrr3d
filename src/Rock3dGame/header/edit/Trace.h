@@ -3,7 +3,7 @@
 #include "ITrace.h"
 
 #include "Utils.h"
-#include "game\TraceGfx.h"
+#include "game/TraceGfx.h"
 
 namespace r3d
 {
@@ -67,12 +67,12 @@ private:
 		ControlEventRef _event;
 
 		game::TraceGfx::PointLink* _link;
-		D3DXVECTOR3 _dragRayPos;
-		D3DXVECTOR3 _dragRayVec;
-		
+		glm::vec3 _dragRayPos;
+		glm::vec3 _dragRayVec;
+
 		void Reset(game::WayPoint* wayPoint);
 
-		void NewLink(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
+		void NewLink(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec);
 		void FreeLink();
 		bool CreateWay(game::WayNode* curNode, game::WayPoint* point, game::WayNode* node);
 	public:
@@ -80,40 +80,40 @@ private:
 		virtual ~NodeControl();
 
 		void Select(bool active);
-		bool RayCastInters(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec) const;
+		bool RayCastInters(const glm::vec3& rayPos, const glm::vec3& rayVec) const;
 		bool Compare(const IMapObjRef& node) const;
 
-		virtual void OnStartDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
-		virtual void OnEndDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
-		virtual void OnDrag(const D3DXVECTOR3& pos, const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
+		virtual void OnStartDrag(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec);
+		virtual void OnEndDrag(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec);
+		virtual void OnDrag(const glm::vec3& pos, const glm::vec3& scrRayPos, const glm::vec3& scrRayVec);
 		//
-		virtual void OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec);
-		
-		D3DXVECTOR3 GetPos() const;
-		void SetPos(const D3DXVECTOR3& value);
-		//
-		D3DXQUATERNION GetRot() const;
-		void SetRot(const D3DXQUATERNION& value);	
-		//
-		D3DXVECTOR3 GetScale() const;
-		void SetScale(const D3DXVECTOR3& value);
-		//
-		D3DXVECTOR3 GetDir() const;
-		D3DXVECTOR3 GetRight() const;
-		D3DXVECTOR3 GetUp() const;
+		virtual void OnShiftAction(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec);
 
-		D3DXMATRIX GetMat() const;
+		glm::vec3 GetPos() const;
+		void SetPos(const glm::vec3& value);
+		//
+		glm::quat GetRot() const;
+		void SetRot(const glm::quat& value);
+		//
+		glm::vec3 GetScale() const;
+		void SetScale(const glm::vec3& value);
+		//
+		glm::vec3 GetDir() const;
+		glm::vec3 GetRight() const;
+		glm::vec3 GetUp() const;
+
+		D3DMATRIX GetMat() const;
 		AABB GetAABB() const;
-	};	
+	};
 private:
 	Edit* _edit;
 	game::TraceGfx* _traceGfx;
-	
+
 	IWayPathRef _selPath;
 	IWayNodeRef _selNode;
 	bool _enableVisualize;
 
-	game::WayPoint* PickInstPoint(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec);
+	game::WayPoint* PickInstPoint(const glm::vec3& rayPos, const glm::vec3& rayVec);
 protected:
 	virtual VirtImpl* GetImpl() {return this;}
 public:

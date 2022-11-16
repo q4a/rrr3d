@@ -2,8 +2,8 @@
 
 #include "Race.h"
 #include "Menu.h"
-#include "net\NetGame.h"
-#include "net\SteamService.h"
+#include "net/NetGame.h"
+#include "net/SteamService.h"
 
 namespace r3d
 {
@@ -12,7 +12,7 @@ namespace game
 {
 
 class GameMode: ControlEvent
-{	
+{
 public:
 	struct Track
 	{
@@ -23,8 +23,8 @@ public:
 
 		void SetSound(snd::Sound* value) {lsl::Object::ReplaceRef(sound, value); sound = value;}
 
-		Track& operator=(const Track& ref) 
-		{ 
+		Track& operator=(const Track& ref)
+		{
 			SetSound(ref.sound);
 			name = ref.name;
 			band = ref.band;
@@ -110,8 +110,8 @@ private:
 		//допустить последовательные повторения для одного и того же игрока
 		bool repeatPlayer;
 		//
-		Voices voices;		
-	};	
+		Voices voices;
+	};
 	typedef std::map<lsl::string, Comment> Comments;
 
 	class Commentator: snd::Source::Report, IGameUser
@@ -127,7 +127,7 @@ private:
 		float _timeSilience;
 
 		void Play(const Sounds& sounds, bool replace);
-		bool Next();		
+		bool Next();
 		void CheckVoice(Voice& voice);
 
 		virtual void OnStreamEnd(snd::Proxy* sender, snd::PlayMode mode);
@@ -167,9 +167,9 @@ public:
 	static const int cGoRace3 = 3;
 	static const int cGoRace = 4;
 
-	enum PrefCamera {pcThirdPerson = 0, pcIsometric, cPrefCameraEnd};	
+	enum PrefCamera {pcThirdPerson = 0, pcIsometric, cPrefCameraEnd};
 
-	static const lsl::string cPrefCameraStr[cPrefCameraEnd];	
+	static const lsl::string cPrefCameraStr[cPrefCameraEnd];
 private:
 	World* _world;
 	Race* _race;
@@ -181,7 +181,7 @@ private:
 
 	Languages _languages;
 	lsl::string _language;
-	
+
 	CommentatorStyles _commentatorStyles;
 	lsl::string _commentatorStyle;
 	PrefCamera _prefCamera;
@@ -199,31 +199,31 @@ private:
 	Users _users;
 	bool _discreteVideoChanged;
 	bool _prefCameraAutodetect;
-	
+
 	snd::Source* _music;
 	snd::Source::Report* _musicReport;
 	MusicCat* _menuMusic;
 	MusicCat* _gameMusic;
 	float _fadeMusic;
 	float _fadeSpeedMusic;
-	
-	Commentator* _commentator;	
+
+	Commentator* _commentator;
 	Menu* _menu;
 
 	int _startRace;
 	bool _prepareGame;
 	bool _startGame;
-	float _startUpTime;	
+	float _startUpTime;
 	float _movieTime;
 	std::string _movieFileName;
 	gui::PlaneFon* _guiLogo;
 	gui::PlaneFon* _guiLogo2;
-	gui::PlaneFon* _guiStartup;	
+	gui::PlaneFon* _guiStartup;
 	MapObj* _semaphore;
 
 	float _goRaceTime;
 	float _finishTime;
-	
+
 	void PrepareGame();
 	void StartGame();
 	void FreeIntro();
@@ -232,9 +232,9 @@ private:
 
 	void DoStartRace();
 	void DoExitRace();
-	
+
 	void SaveGameOpt(lsl::SWriter* writer);
-	void LoadGameOpt(lsl::SReader* reader, bool discreteVideoChanges);	
+	void LoadGameOpt(lsl::SReader* reader, bool discreteVideoChanges);
 	void SaveConfig(lsl::SWriter* writer);
 	void LoadConfig(lsl::SReader* reader, bool discreteVideoChanges);
 	void ResetConfig();
@@ -271,7 +271,7 @@ public:
 	void Terminate();
 	bool IsStartgame() const;
 	unsigned time() const;
-	
+
 	void LoadConfig(bool discreteVideoChanges);
 	void SaveConfig();
 	void SaveGame(bool saveProfile);
@@ -289,7 +289,7 @@ public:
 	bool IsStartRace() const;
 	bool IsRaceFinish() const;
 
-	bool ChangePlanet(Planet* planet);	
+	bool ChangePlanet(Planet* planet);
 
 	void Pause(bool pause);
 	bool IsPaused() const;
@@ -297,7 +297,7 @@ public:
 	void PlayMusic(const Track& track, snd::Source::Report* report, snd::seek_pos pos = 0, bool showInfo = false);
 	void StopMusic();
 	void FadeInMusic(float sVolume = -1, float speed = 1.0f);
-	void FadeOutMusic(float sVolume = -1, float speed = 1.0f);	
+	void FadeOutMusic(float sVolume = -1, float speed = 1.0f);
 	snd::Sound* GetSound(const lsl::string& name, bool assertFind = true);
 
 	void PlayMovie(const std::string& name);
@@ -305,15 +305,15 @@ public:
 
 	void CheckStartupMenu();
 	void OnResetView();
-	void OnFinishFrameClose();	
+	void OnFinishFrameClose();
 
 	void OnFrame(float deltaTime, float pxAlpha);
 	void OnGraphEvent(HWND hwnd, long eventCode, LONG_PTR param1, LONG_PTR param2);
 
 	World* GetWorld();
-	Race* GetRace();	
+	Race* GetRace();
 	Menu* GetMenu();
-	NetGame* netGame(); 
+	NetGame* netGame();
 #ifdef STEAM_SERVICE
 	SteamService* steamService();
 #endif

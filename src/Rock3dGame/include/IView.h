@@ -5,7 +5,7 @@ namespace r3d
 
 namespace game
 {
-	
+
 class IView
 {
 public:
@@ -18,9 +18,9 @@ public:
 public:
 	virtual void Reset(const Desc& desc) = 0;
 
-	virtual D3DXVECTOR2 ViewToProj(const lsl::Point& point) = 0;
-	virtual D3DXVECTOR2 ProjToView(const D3DXVECTOR2& coord) = 0;
-	
+	virtual glm::vec2 ViewToProj(const lsl::Point& point) = 0;
+	virtual glm::vec2 ProjToView(const glm::vec2& coord) = 0;
+
 	virtual bool OnMouseClickEvent(MouseKey key, KeyState state, const Point& coord, bool shift, bool ctrl) = 0;
 	virtual bool OnMouseMoveEvent(const Point& coord, bool shift, bool ctrl) = 0;
 	virtual bool OnKeyEvent(unsigned key, KeyState state, bool repeat) = 0;
@@ -28,7 +28,7 @@ public:
 
 	virtual const Desc& GetDesc() = 0;
 	virtual lsl::Point GetWndSize() const = 0;
-	virtual D3DXVECTOR2 GetVPSize() const = 0;
+	virtual glm::vec2 GetVPSize() const = 0;
 
 	//Часть интерфейса камеры. Только для пользователей
 	virtual float GetCameraAspect() const = 0;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "snd\\Audio.h"
+#include "snd/Audio.h"
 
 namespace r3d
 {
@@ -190,10 +190,10 @@ public:
 	void SetFileName(const std::string& value);
 
 	//value = 0 - генерация последовательности mip уровней до 1x1
-	unsigned GetLevelCnt() const;	
+	unsigned GetLevelCnt() const;
 	void SetLevelCnt(unsigned value);
 
-	bool GetGUI() const;	
+	bool GetGUI() const;
 	void SetGUI(bool value);
 };
 
@@ -268,39 +268,39 @@ public:
 	graph::TextFont& LoadFont(const std::string& name, int height, unsigned weight, bool italic, DWORD charset, const std::string& faceName);
 };
 
-enum StringValue 
+enum StringValue
 {
 	svNull = 0,
 
 	svNewGame,
 	svSingleGame,
 	svNetGame,
-	svContinue, 
+	svContinue,
 	svNetCreate,
 	svConnect,
 	svRefresh,
-	svLoad, 
+	svLoad,
 	svOptions,
-	svControls, 
+	svControls,
 	svGame,
 	svNetwork,
-	svAuthors, 
+	svAuthors,
 	svExit,
 	svProfile,
 
-	svGraphic, 
+	svGraphic,
 	svResolution,
 	svFiltering,
 	svMultisampling,
-	svShadow, 
-	svEnv, 
-	svLight, 
+	svShadow,
+	svEnv,
+	svLight,
 	svPostProcess,
 	svFixedFrameRate,
-	svSound, 
-	svMusic, 
-	svSoundFX, 
-	svSoundDicter, 
+	svSound,
+	svMusic,
+	svSoundFX,
+	svSoundDicter,
 	svLanguage,
 	svCommentator,
 	svCamera,
@@ -317,7 +317,7 @@ enum StringValue
 	svSelectItem,
 	svEnterIP,
 
-	svChampionship, 
+	svChampionship,
 	svSkirmish,
 
 	svOnePlayer,
@@ -348,8 +348,8 @@ enum StringValue
 	svLockedCarInfo,
 
 	svApply,
-	svOk, 
-	svCancel, 
+	svOk,
+	svCancel,
 	svBack,
 	svYes,
 	svNo,
@@ -503,7 +503,7 @@ enum StringValue
 	scGerry,
 	scKJin,
 	scMardock,
-	scStinkle,	
+	scStinkle,
 	scViolet,
 	scViper,
 
@@ -516,7 +516,7 @@ enum StringValue
 	scGerryInfo,
 	scKJinInfo,
 	scMardockInfo,
-	scStinkleInfo,	
+	scStinkleInfo,
 	scVioletInfo,
 	scViperInfo,
 
@@ -614,7 +614,7 @@ public:
 	StringLibrary(ResourceManager* resManager);
 
 	void SaveToFile(const lsl::string& file);
-	void LoadFromFile(const lsl::string& file);	
+	void LoadFromFile(const lsl::string& file);
 
 	const std::string& Get(const std::string& id) const;
 	void Set(const std::string& id, const lsl::string& value);
@@ -665,7 +665,7 @@ private:
 	graph::LibMaterial& LoadImage2dLibMatAnim(const std::string& name, const std::string& imgName, bool sprite = false, graph::Material::Blending blending = graph::Material::bmOpaque, const FloatRange& alpha = 1.0f, const ColorRange& color = clrWhite, const Vec3Range& texOffset = NullVector, const Vec3Range& texScale = IdentityVector, const QuatRange& texRot = NullQuaternion);
 	graph::LibMaterial& LoadAlphaTestLibMat(const std::string& name, const std::string& imgName, bool sprite = false, float alphaRef = cAlphaTestRef);
 	graph::LibMaterial& LoadSpecLibMat(const std::string& name, const std::string& imgName, bool sprite = false);
-	graph::LibMaterial& LoadBumpLibMat(const std::string& name, const std::string& imgName, const std::string& normMap, bool sprite = false, graph::Material::Blending blending = graph::Material::bmOpaque, float alpha = 1.0f);	
+	graph::LibMaterial& LoadBumpLibMat(const std::string& name, const std::string& imgName, const std::string& normMap, bool sprite = false, graph::Material::Blending blending = graph::Material::bmOpaque, float alpha = 1.0f);
 	graph::LibMaterial& LoadAnimImage2dLibMat(const std::string& name, const std::string& imgName, const Vec3Range& offset = NullVector, const Vec3Range& scale = IdentityVector, const QuatRange& rot = NullQuaternion, bool sprite = false, graph::Material::Blending blending = graph::Material::bmOpaque, const FloatRange& alpha = 1.0f, const ColorRange& color = clrWhite);
 
 	graph::TextFont& LoadFont(const std::string& name, int height, unsigned weight, bool italic, const std::string& faceName);
@@ -685,15 +685,15 @@ private:
 	void LoadBonus();
 	void LoadWeapons();
 	void LoadUpgrades();
-	void LoadGUI();	
+	void LoadGUI();
 public:
 	ResourceManager(World* world);
 	virtual ~ResourceManager();
 
-	void LoadCarLibMat(graph::LibMaterial* libMat, graph::Tex2DResource* tex, const D3DXCOLOR& color, const std::string& normMap = "");
+	void LoadCarLibMat(graph::LibMaterial* libMat, graph::Tex2DResource* tex, const glm::vec4& color, const std::string& normMap = "");
 	void LoadCarLibMat(graph::LibMaterial* libMat, const std::string& imgName, const std::string& normMap = "");
 	graph::LibMaterial& LoadCarLibMat(const std::string& name, const std::string& imgName, const std::string& normMap = "");
-	
+
 	void LoadMusic();
 	void LoadSounds();
 	void LoadCommentator(const CommentatorStyle& style);
@@ -705,7 +705,7 @@ public:
 
 	MeshLib& GetMeshLib();
 	ImageLib& GetImageLib();
-	ShaderLib& GetShaderLib();	
+	ShaderLib& GetShaderLib();
 	MatLib& GetMatLib();
 	TextFontLib& GetTextFontLib();
 	StringLib& GetStringLib();

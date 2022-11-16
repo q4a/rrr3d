@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\driver\D3D9RenderDriver.h"
+#include "graph/driver/D3D9RenderDriver.h"
 #include "d3d9.h"
 #include "r3dExceptions.h"
 
@@ -22,9 +22,6 @@ D3DSAMPLERSTATETYPE SamplerStateToD3D9[SAMPLER_STATE_END] = {D3DSAMP_ADDRESSU, D
 D3DTEXTURESTAGESTATETYPE TextureStageStateToD3D9[TEXTURE_STAGE_STATE_END] = {D3DTSS_COLOROP, D3DTSS_COLORARG1, D3DTSS_COLORARG2, D3DTSS_ALPHAOP, D3DTSS_ALPHAARG1, D3DTSS_ALPHAARG2, D3DTSS_BUMPENVMAT00, D3DTSS_BUMPENVMAT01, D3DTSS_BUMPENVMAT10, D3DTSS_BUMPENVMAT11, D3DTSS_TEXCOORDINDEX, D3DTSS_BUMPENVLSCALE, D3DTSS_BUMPENVLOFFSET, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTSS_COLORARG0, D3DTSS_ALPHAARG0, D3DTSS_RESULTARG, D3DTSS_CONSTANT};
 
 D3DTRANSFORMSTATETYPE TransformStateTypeToD3D9[TRANSFORM_STATE_TYPE_END] = {D3DTS_WORLD, D3DTS_VIEW, D3DTS_PROJECTION, D3DTS_TEXTURE0, D3DTS_TEXTURE1, D3DTS_TEXTURE2, D3DTS_TEXTURE3, D3DTS_TEXTURE4, D3DTS_TEXTURE5, D3DTS_TEXTURE6, D3DTS_TEXTURE7};
-
-
-
 
 D3D9RenderDriver::D3D9RenderDriver(D3DPRESENT_PARAMETERS& d3dpp): _d3d9(0), _d3dDevice9(0), _d3d9Ex(NULL), _d3dDevice9Ex(NULL), _frameLatencyOk(false)
 {
@@ -54,7 +51,7 @@ void D3D9RenderDriver::Init(D3DPRESENT_PARAMETERS& d3dpp, bool d3dEx)
 			d3dEx = false;
 			_d3d9Ex = NULL;
 		}
-		
+
 		_d3d9 = Direct3DCreate9(D3D_SDK_VERSION);
 
 		if (_d3d9 == 0)
@@ -63,7 +60,7 @@ void D3D9RenderDriver::Init(D3DPRESENT_PARAMETERS& d3dpp, bool d3dEx)
 
 			throw EInitD3D9Failed();
 		}
-	}	
+	}
 
 	hr = _d3d9->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &_d3dCaps9);
 
@@ -91,7 +88,7 @@ void D3D9RenderDriver::Init(D3DPRESENT_PARAMETERS& d3dpp, bool d3dEx)
 
 	for (unsigned i = 0; i < _d3d9->GetAdapterModeCount(D3DADAPTER_DEFAULT, D3DFMT_X8R8G8B8); ++i)
 	{
-		D3DDISPLAYMODE d3dMode;		
+		D3DDISPLAYMODE d3dMode;
 		_d3d9->EnumAdapterModes(D3DADAPTER_DEFAULT, D3DFMT_X8R8G8B8, i, &d3dMode);
 
 		DisplayMode mode;
@@ -195,7 +192,7 @@ unsigned D3D9RenderDriver::FindPrefRate()
 {
 	const unsigned prefHZ = 60;
 	unsigned minHz = 0;
-	
+
 	for (DisplayModes::const_iterator iter = _displayModes.begin(); iter != _displayModes.end(); ++iter)
 		if (iter->refreshRate != 0 && ((iter->refreshRate >= prefHZ && minHz > iter->refreshRate) || (iter->refreshRate <= prefHZ && minHz < iter->refreshRate) || minHz == 0))
 			minHz = iter->refreshRate;

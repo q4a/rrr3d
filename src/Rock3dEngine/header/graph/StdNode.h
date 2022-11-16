@@ -17,19 +17,19 @@ public:
 private:
 	Materials _materials;
 	LibMaterial* _libMat;
-	D3DXCOLOR _color;
+	glm::vec4 _color;
 
-	D3DXVECTOR3 _offset;
-	D3DXVECTOR3 _scale;
-	D3DXQUATERNION _rotate;
+	glm::vec3 _offset;
+	glm::vec3 _scale;
+	glm::quat _rotate;
 	D3DCULL _cullMode;
 
-	mutable D3DXMATRIX _matrix;
+	mutable D3DMATRIX _matrix;
 	mutable bool _matChanged;
 	mutable bool _defMat;
 
 	void TransformationChanged() const;
-	const D3DXMATRIX& GetMatrix() const;
+	const D3DMATRIX& GetMatrix() const;
 
 	void Begin(Engine& engine);
 	void End(Engine& engine);
@@ -66,17 +66,17 @@ public:
 
 	const Materials& GetList() const;
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 
-	const D3DXVECTOR3& GetOffset() const;
-	void SetOffset(const D3DXVECTOR3& value);
+	const glm::vec3& GetOffset() const;
+	void SetOffset(const glm::vec3& value);
 
-	const D3DXVECTOR3& GetScale() const;
-	void SetScale(const D3DXVECTOR3& value);
+	const glm::vec3& GetScale() const;
+	void SetScale(const glm::vec3& value);
 
-	const D3DXQUATERNION& GetRotate() const;
-	void SetRotate(const D3DXQUATERNION& value);
+	const glm::quat& GetRotate() const;
+	void SetRotate(const glm::quat& value);
 
 	D3DCULL GetCullMode() const;
 	void SetCullMode(D3DCULL value);
@@ -152,11 +152,11 @@ public:
 
 class PlaneNode: public BaseSceneNode
 {
-	typedef BaseSceneNode _MyBase;	
+	typedef BaseSceneNode _MyBase;
 private:
 	graph::VBMesh _mesh;
-	D3DXVECTOR2 _size;
- 
+	glm::vec2 _size;
+
 	void DrawPlane(Engine& engine);
 	void UpdateMesh();
 protected:
@@ -170,8 +170,8 @@ public:
 	PlaneNode();
 	virtual ~PlaneNode();
 
-	const D3DXVECTOR2& GetSize() const;
-	void SetSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSize() const;
+	void SetSize(const glm::vec2& value);
 
 	MaterialNode material;
 };
@@ -198,7 +198,7 @@ class Cylinder: public BaseSceneNode
 {
 private:
 	graph::IndexedVBMesh* _mesh;
-	D3DXCOLOR _color;
+	glm::vec4 _color;
 protected:
 	void UpdateMesh();
 
@@ -211,12 +211,12 @@ public:
 	Cylinder();
 	virtual ~Cylinder();
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 };
 
 class Sprite: public BaseSceneNode
-{	
+{
 private:
 	typedef BaseSceneNode _MyBase;
 protected:
@@ -231,7 +231,7 @@ public:
 
 	MaterialNode material;
 
-	D3DXVECTOR2 sizes;
+	glm::vec2 sizes;
 	//«афиксировать направление, по умолчанию false
 	bool fixDirection;
 };
@@ -249,25 +249,25 @@ public:
 
 	MaterialNode material;
 
-	D3DXVECTOR4 quadVertex;
-	D3DXVECTOR4 uvVertex;
+	glm::vec4 quadVertex;
+	glm::vec4 uvVertex;
 };
 
 class MovCoordSys: public BaseSceneNode
 {
 private:
-	static const D3DXVECTOR3 arUp[3];
+	static const glm::vec3 arUp[3];
 	static const float arSize;
-	static const D3DXVECTOR3 arPos[3];
-	static const D3DXCOLOR arCol[3];
-	static const D3DXCOLOR colSel;
+	static const glm::vec3 arPos[3];
+	static const glm::vec4 arCol[3];
+	static const glm::vec4 colSel;
 public:
 	enum DirMove {dmNone, dmX, dmY, dmZ, dmXY, dmXZ, dmYZ, cDirMoveEnd};
 private:
 	Cylinder* _arrows[3];
 	DirMove _curMove;
 protected:
-	DirMove CompDirMove(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec);
+	DirMove CompDirMove(const glm::vec3& rayStart, const glm::vec3& rayVec);
 
 	virtual void DoRender(Engine& engine);
 	virtual AABB LocalDimensions() const;
@@ -275,26 +275,26 @@ public:
 	MovCoordSys();
 	virtual ~MovCoordSys();
 
-	DirMove OnMouseMove(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec);
-	DirMove OnMouseClick(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, lsl::KeyState state);
+	DirMove OnMouseMove(const glm::vec3& rayStart, const glm::vec3& rayVec);
+	DirMove OnMouseClick(const glm::vec3& rayStart, const glm::vec3& rayVec, lsl::KeyState state);
 };
 
 class ScaleCoordSys: public BaseSceneNode
 {
 private:
-	static const D3DXVECTOR3 arUp[3];
+	static const glm::vec3 arUp[3];
 	static const float arSize;
 	static const float plSize;
-	static const D3DXCOLOR arCol[3];
-	static const D3DXCOLOR colSel;
+	static const glm::vec4 arCol[3];
+	static const glm::vec4 colSel;
 public:
 	enum DirMove {dmNone, dmX, dmY, dmZ, dmXYZ, cDirMoveEnd};
 private:
 	Sprite* _arrows[3];
-	DirMove _curMove;	
+	DirMove _curMove;
 protected:
-	void CompBBPlanes(const D3DXVECTOR3& camPos, D3DXVECTOR3* bbPlanes);
-	DirMove CompDirMove(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& camPos);
+	void CompBBPlanes(const glm::vec3& camPos, glm::vec3* bbPlanes);
+	DirMove CompDirMove(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec3& camPos);
 
 	virtual void DoRender(Engine& engine);
 	virtual AABB LocalDimensions() const;
@@ -302,14 +302,14 @@ public:
 	ScaleCoordSys();
 	virtual ~ScaleCoordSys();
 
-	DirMove OnMouseMove(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& camPos);
-	DirMove OnMouseClick(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, lsl::KeyState state, const D3DXVECTOR3& camPos);
+	DirMove OnMouseMove(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec3& camPos);
+	DirMove OnMouseClick(const glm::vec3& rayStart, const glm::vec3& rayVec, lsl::KeyState state, const glm::vec3& camPos);
 };
 
 void FillDataPlane(res::VertexData& vb, float width, float height, float u, float v);
 //0...bot = min(slices + 1, 1) - вершины нижней грани
 //bot...top = bot + min(slices + 1, 1) - вершины верхней грани
-void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, float height, unsigned slices, const D3DXCOLOR& color);
+void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, float height, unsigned slices, const glm::vec4& color);
 
 }
 

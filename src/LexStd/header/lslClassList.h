@@ -23,7 +23,7 @@ public:
 	virtual ~BaseClassInst() {}
 
 	virtual _BaseClass* CreateInst(const _Arg& arg) = 0;
-	virtual const type_info& GetTypeInfo() const = 0;
+	virtual const std::type_info& GetTypeInfo() const = 0;
 
 	const _Key& GetKey() const
 	{
@@ -39,7 +39,7 @@ public:
 	BaseClassInst(const _Key& key): _key(key) {}
 
 	virtual _BaseClass* CreateInst() = 0;
-	virtual const type_info& GetTypeInfo() const = 0;
+	virtual const std::type_info& GetTypeInfo() const = 0;
 
 	const _Key& GetKey() const
 	{
@@ -56,7 +56,7 @@ public:
 	{
 		return new _Class(arg);
 	}
-	virtual const type_info& GetTypeInfo() const
+	virtual const std::type_info& GetTypeInfo() const
 	{
 		return typeid(_Class);
 	}
@@ -71,7 +71,7 @@ public:
 	{
 		return new _Class();
 	}
-	virtual const type_info& GetTypeInfo() const
+	virtual const std::type_info& GetTypeInfo() const
 	{
 		return typeid(_Class);
 	}
@@ -83,7 +83,7 @@ private:
 	typedef std::map<_Key, BaseClassInst<_Key, _BaseClass, _Arg>*> _ClassList;
 public:
 	typedef BaseClassInst<_Key, _BaseClass, _Arg> MyClassInst;
-	
+
 	typedef _Key Key;
 	typedef _BaseClass BaseClass;
 	typedef _Arg Arg;
@@ -119,7 +119,7 @@ template<class _Key, class _BaseClass, class _Arg> class ArgClassList: public Ba
 public:
 	_BaseClass* CreateInst(const _Key& key, const _Arg& arg)
 	{
-		return Get(key).CreateInst(arg);
+		return this->Get(key).CreateInst(arg);
 	}
 };
 
@@ -135,9 +135,6 @@ public:
 template<class _Key, class _BaseClass, class _Arg = void> class ClassList: public ArgClassList<_Key, _BaseClass, _Arg>
 {
 };
-
-
-
 
 template<class _Key, class _BaseClass, class _Arg> BaseClassList<_Key, _BaseClass, _Arg>::~BaseClassList()
 {
@@ -159,7 +156,8 @@ template<class _Key, class _BaseClass, class _Arg> template<class _Class> void B
 
 template<class _Key, class _BaseClass, class _Arg> void BaseClassList<_Key, _BaseClass, _Arg>::Del(const _Key& key)
 {
-	if (!Find(key))
+	auto iter = Find(key);
+	if (!iter)
 		throw lsl::Error("class del not found");
 
 	delete (*iter);
@@ -168,20 +166,20 @@ template<class _Key, class _BaseClass, class _Arg> void BaseClassList<_Key, _Bas
 
 template<class _Key, class _BaseClass, class _Arg> void BaseClassList<_Key, _BaseClass, _Arg>::Clear()
 {
-	for (_ClassList::iterator iter = _classList.begin(); iter != _classList.end(); ++iter)
+	for (typename _ClassList::iterator iter = _classList.begin(); iter != _classList.end(); ++iter)
 		delete iter->second;
 	_classList.clear();
 }
 
 template<class _Key, class _BaseClass, class _Arg> typename BaseClassList<_Key, _BaseClass, _Arg>::MyClassInst* BaseClassList<_Key, _BaseClass, _Arg>::Find(const _Key& key) const
 {
-	_ClassList::const_iterator iter = _classList.find(key);
+	typename _ClassList::const_iterator iter = _classList.find(key);
 	return iter == _classList.end() ? 0 : iter->second;
 }
 
 template<class _Key, class _BaseClass, class _Arg> template<class _Class> typename BaseClassList<_Key, _BaseClass, _Arg>::MyClassInst* BaseClassList<_Key, _BaseClass, _Arg>::FindByClass() const
 {
-	for (_ClassList::const_iterator iter = _classList.begin(); iter != _classList.end(); ++iter)
+	for (typename _ClassList::const_iterator iter = _classList.begin(); iter != _classList.end(); ++iter)
 		if (iter->second->GetTypeInfo() == typeid(_Class))
 			return iter->second;
 

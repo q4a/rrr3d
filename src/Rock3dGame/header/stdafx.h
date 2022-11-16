@@ -1,5 +1,6 @@
 #pragma once
 
+#include "MathCommon.h"
 #include "lslCommon.h"
 
 #include <windows.h>
@@ -14,8 +15,8 @@
 #include "EulerAngles.h"
 
 #include "GraphManager.h"
-#include "px\Physx.h"
-#include "net\NetLib.h"
+#include "px/Physx.h"
+#include "net/NetLib.h"
 #include "IWorld.h"
 
 //#define STEAM_SERVICE

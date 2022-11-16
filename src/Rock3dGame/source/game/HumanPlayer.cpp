@@ -1,14 +1,14 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "game\HumanPlayer.h"
+#include "game/HumanPlayer.h"
 
 namespace r3d
 {
 
 namespace game
 {
-	
+
 HumanPlayer::HumanPlayer(Player* player): _player(player), _curWeapon(0)
 {
 	LSL_ASSERT(_player);
@@ -33,7 +33,7 @@ HumanPlayer::~HumanPlayer()
 }
 
 HumanPlayer::Control::Control(HumanPlayer* owner): _owner(owner), _accelDown(false), _backDown(false), _leftDown(false), _rightDown(false)
-{	
+{
 }
 
 bool HumanPlayer::Control::OnHandleInput(const InputMessage& msg)
@@ -48,7 +48,7 @@ bool HumanPlayer::Control::OnHandleInput(const InputMessage& msg)
 			_backDown = msg.state == lsl::ksDown;
 
 		if (msg.action == gaWheelLeft)
-			_leftDown = msg.state == lsl::ksDown;	
+			_leftDown = msg.state == lsl::ksDown;
 		if (msg.action == gaWheelRight)
 			_rightDown = msg.state == lsl::ksDown;
 	}
@@ -57,7 +57,7 @@ bool HumanPlayer::Control::OnHandleInput(const InputMessage& msg)
 
 	if (player->IsBlock())
 		return false;
-	
+
 	game::MapObj* mapObj = _owner->_player->GetCar().mapObj;
 	if (mapObj == NULL)
 		return false;
@@ -126,7 +126,7 @@ bool HumanPlayer::Control::OnHandleInput(const InputMessage& msg)
 }
 
 void HumanPlayer::Control::OnInputProgress(float deltaTime)
-{	
+{
 	ControlManager* control = _owner->GetRace()->GetWorld()->GetControl();
 	Player* player = _owner->_player;
 	game::MapObj* mapObj = player->GetCar().mapObj;
@@ -225,7 +225,7 @@ void HumanPlayer::Shot(WeaponType weapon, MapObj* target)
 
 void HumanPlayer::Shot(WeaponType weapon)
 {
-	float viewAngle = D3DX_PI/5.5f;
+	float viewAngle = glm::pi<float>()/5.5f;
 	WeaponItem* wpn = GetWeapon(weapon);
 	if (wpn && wpn->GetSlot()->GetRecord() && wpn->GetSlot()->GetRecord()->GetName() == "sphereGun")
 		viewAngle = 0;
@@ -248,7 +248,7 @@ void HumanPlayer::Shot()
 {
 	LSL_ASSERT(_player->GetCar().mapObj);
 
-	Player* enemy = _player->FindClosestEnemy(D3DX_PI/4, false);
+	Player* enemy = _player->FindClosestEnemy(glm::quarter_pi<float>(), false);
 	Shot(enemy ? enemy->GetCar().mapObj : 0);
 }
 

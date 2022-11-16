@@ -1,10 +1,10 @@
 #include "stdafx.h"
-#include "game\\GameBase.h"
+#include "game/GameBase.h"
 
-#include "game\\GameObject.h"
-#include "game\\GameCar.h"
-#include "game\\Weapon.h"
-#include "game\\Logic.h"
+#include "game/GameObject.h"
+#include "game/GameCar.h"
+#include "game/Weapon.h"
+#include "game/Logic.h"
 
 namespace r3d
 {
@@ -19,11 +19,8 @@ const std::string GameObjListener::cBonusTypeStr[cBonusTypeEnd] = {"btMoney", "b
 
 Behaviors::ClassList Behaviors::classList;
 
-
-
-
 Behavior::Behavior(Behaviors* owner): _owner(owner), _removed(false)
-{	
+{
 }
 
 void Behavior::Save(lsl::SWriter* writer)
@@ -55,8 +52,8 @@ void Behavior::SetPxNotify(PxNotify notify, bool value)
 		{
 		case pxContact:
 			GetGameObj()->GetPxActor().SetContactReportFlag(NX_NOTIFY_ALL, value);
-			break;			
-			
+			break;
+
 		case pxContactModify:
 			GetGameObj()->GetPxActor().SetContactReportFlag(NX_NOTIFY_CONTACT_MODIFICATION, value);
 			break;
@@ -89,9 +86,6 @@ Logic* Behavior::GetLogic()
 	return GetGameObj()->GetLogic();
 }
 
-
-
-
 TouchDeath::TouchDeath(Behaviors* owner): _MyBase(owner)
 {
 	SetPxNotify(pxContact, true);
@@ -104,9 +98,6 @@ void TouchDeath::OnContact(const px::Scene::OnContactEvent& contact)
 	if (target)
 		target->Death(dtDeathPlane);
 }
-
-
-
 
 ResurrectObj::ResurrectObj(Behaviors* owner): _MyBase(owner), _resurrect(false)
 {
@@ -126,9 +117,9 @@ void ResurrectObj::Resurrect()
 	if (owner && parent)
 	{
 		owner->LockDestr();
-		
-		D3DXVECTOR3 pos = gameObj->GetWorldPos();
-		D3DXQUATERNION rot = gameObj->GetWorldRot();
+
+		glm::vec3 pos = gameObj->GetWorldPos();
+		glm::quat rot = gameObj->GetWorldRot();
 
 		owner->Delete(mapObj);
 		gameObj->SetParent(0);
@@ -156,9 +147,6 @@ bool ResurrectObj::IsResurrect() const
 {
 	return _resurrect;
 }
-
-
-
 
 FxSystemWaitingEnd::FxSystemWaitingEnd(Behaviors* owner): _MyBase(owner)
 {
@@ -190,11 +178,8 @@ void FxSystemWaitingEnd::OnProgress(float deltaTime)
 
 		if (resCnt == 0)
 			GetGameObj()->Death();
-	}	
+	}
 }
-
-
-
 
 FxSystemSrcSpeed::FxSystemSrcSpeed(Behaviors* owner): _MyBase(owner)
 {
@@ -211,16 +196,13 @@ void FxSystemSrcSpeed::OnProgress(float deltaTime)
 		{
 			graph::FxParticleSystem* fxSystem = iter->GetItem<graph::FxParticleSystem>();
 
-			D3DXVECTOR3 speed(GetGameObj()->GetPxActor().GetNxActor()->getLinearVelocity().get());
+			glm::vec3 speed = glm::make_vec3(GetGameObj()->GetPxActor().GetNxActor()->getLinearVelocity().get());
 			if (GetGameObj()->GetParent())
 				GetGameObj()->GetParent()->GetGrActor().WorldToLocalNorm(speed, speed);
 
 			fxSystem->SetSrcSpeed(speed);
 		}
 }
-
-
-
 
 EventEffect::EventEffect(Behaviors* owner): _MyBase(owner), _effect(0), _pos(NullVector), _impulse(NullVector), _ignoreRot(false), _makeEffect(0)
 {
@@ -282,7 +264,7 @@ void EventEffect::DestroyEffObj(MapObj* mapObj, bool destrWorld)
 	//удаляем только дочерний объект
 	if (mapObj->GetOwner()->GetOwner() == GetGameObj())
 	{
-		GetGameObj()->GetIncludeList().Delete(mapObj);		
+		GetGameObj()->GetIncludeList().Delete(mapObj);
 	}
 	else if (destrWorld)
 	{
@@ -342,8 +324,8 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 {
 	LSL_ASSERT(_effect);
 
-	MapObj* mapObj = 0;	
-	
+	MapObj* mapObj = 0;
+
 	//дочерний объект
 	if (desc.parent)
 	{
@@ -365,8 +347,8 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 	if (!_ignoreRot)
 		mapObj->GetGameObj().SetRot(desc.rot);
 
-	if (D3DXVec3Length(&_impulse) > 0.001f && mapObj->GetGameObj().GetPxActor().GetNxActor())
-		mapObj->GetGameObj().GetPxActor().GetNxActor()->addLocalForce(NxVec3(_impulse), NX_IMPULSE);
+	if (glm::length(_impulse) > 0.001f && mapObj->GetGameObj().GetPxActor().GetNxActor())
+		mapObj->GetGameObj().GetPxActor().GetNxActor()->addLocalForce(glm::value_ptr(_impulse), NX_IMPULSE);
 
 	return mapObj;
 }
@@ -439,9 +421,9 @@ void EventEffect::SaveSource(lsl::SWriter* writer)
 		sounds->WriteRef(lsl::StrFmt("sound%d", i).c_str(), iter->sound);
 	}
 
-	writer->WriteValue("pos", _pos, 3);
-	writer->WriteValue("impulse", _impulse, 3);
-	writer->WriteValue("ignoreRot", _ignoreRot);	
+	writer->WriteValue("pos", glm::value_ptr(_pos), 3);
+	writer->WriteValue("impulse", glm::value_ptr(_impulse), 3);
+	writer->WriteValue("ignoreRot", _ignoreRot);
 }
 
 void EventEffect::LoadSource(lsl::SReader* reader)
@@ -456,16 +438,16 @@ void EventEffect::LoadSource(lsl::SReader* reader)
 		{
 			child->AddFixUp(true, this, NULL);
 			child = child->NextValue();
-		}		
+		}
 	}
 
 	lsl::SReader* child = reader->ReadRef("sound", true, this, 0);
 
-	SetEffect(MapObjRec::Lib::LoadRecordRef(reader, "effect"));	
-	
-	reader->ReadValue("pos", _pos, 3);
-	reader->ReadValue("impulse", _impulse, 3);
-	reader->ReadValue("ignoreRot", _ignoreRot);	
+	SetEffect(MapObjRec::Lib::LoadRecordRef(reader, "effect"));
+
+	reader->ReadValue("pos", glm::value_ptr(_pos), 3);
+	reader->ReadValue("impulse", glm::value_ptr(_impulse), 3);
+	reader->ReadValue("ignoreRot", _ignoreRot);
 }
 
 void EventEffect::OnFixUp(const FixUpNames& fixUpNames)
@@ -554,22 +536,22 @@ void EventEffect::SetSound(snd::Sound* value)
 	AddSound(value);
 }
 
-const D3DXVECTOR3& EventEffect::GetPos() const
+const glm::vec3& EventEffect::GetPos() const
 {
 	return _pos;
 }
 
-void EventEffect::SetPos(const D3DXVECTOR3& value)
+void EventEffect::SetPos(const glm::vec3& value)
 {
 	_pos = value;
 }
 
-const D3DXVECTOR3& EventEffect::GetImpulse() const
+const glm::vec3& EventEffect::GetImpulse() const
 {
 	return _impulse;
 }
 
-void EventEffect::SetImpulse(const D3DXVECTOR3& value)
+void EventEffect::SetImpulse(const glm::vec3& value)
 {
 	_impulse = value;
 }
@@ -583,9 +565,6 @@ void EventEffect::SetIgnoreRot(bool value)
 {
 	_ignoreRot = value;
 }
-
-
-
 
 LowLifePoints::LowLifePoints(Behaviors* owner): _MyBase(owner), _lifeLevel(0.35f)
 {
@@ -610,7 +589,7 @@ void LowLifePoints::OnProgress(float deltaTime)
 	_MyBase::OnProgress(deltaTime);
 
 	float maxLife = GetGameObj()->GetMaxLife();
-	float life = GetGameObj()->GetLife();	
+	float life = GetGameObj()->GetLife();
 
 	if (GetGameObj()->GetLiveState() != GameObject::lsDeath && maxLife > 0.0f && life > 0 && life/maxLife < _lifeLevel)
 	{
@@ -631,9 +610,6 @@ void LowLifePoints::SetLifeLevel(float value)
 {
 	_lifeLevel = value;
 }
-
-
-
 
 DamageEffect::DamageEffect(Behaviors* owner): _MyBase(owner), _damageType(dtSimple)
 {
@@ -686,9 +662,6 @@ void DamageEffect::SetDamageType(DamageType value)
 {
 	_damageType = value;
 }
-
-
-
 
 DeathEffect::DeathEffect(Behaviors* owner): _MyBase(owner), _effectPxIgnoreSenderCar(false), _targetChild(false)
 {
@@ -764,9 +737,6 @@ void DeathEffect::SetTargetChild(bool value)
 	_targetChild = value;
 }
 
-
-
-
 LifeEffect::LifeEffect(Behaviors* owner): _MyBase(owner), _play(false)
 {
 }
@@ -780,7 +750,7 @@ void LifeEffect::OnProgress(float deltaTime)
 		snd::Source3d* source = GiveSource3d();
 		if (source)
 		{
-			_play = true;	
+			_play = true;
 
 			source->SetPlayMode(snd::pmOnce);
 			source->SetPos(0);
@@ -789,11 +759,8 @@ void LifeEffect::OnProgress(float deltaTime)
 	}
 }
 
-
-
-
 PxWheelSlipEffect::PxWheelSlipEffect(Behaviors* owner): _MyBase(owner)
-{	
+{
 }
 
 PxWheelSlipEffect::~PxWheelSlipEffect()
@@ -820,21 +787,21 @@ void PxWheelSlipEffect::OnProgress(float deltaTime)
 
 	CarWheel& wheel = lsl::StaticCast<CarWheel&>(*GetGameObj());
 	snd::Source3d* source = GiveSource3d();
-	
+
 	NxWheelContactData contactDesc;
 	NxShape* contact = wheel.GetShape()->GetNxShape()->getContact(contactDesc);
-	float slip = 0.0f;		
+	float slip = 0.0f;
 	if (contact)
-		slip = std::max(abs(contactDesc.lateralSlip) - slipLat, 0.0f) + std::max(abs(contactDesc.longitudalSlip) - slipLong, 0.0f);
+		slip = std::max(std::abs(contactDesc.lateralSlip) - slipLat, 0.0f) + std::max(std::abs(contactDesc.longitudalSlip) - slipLong, 0.0f);
 
 	if (slip > 0)
 	{
 		EffectDesc desc;
-		desc.pos = D3DXVECTOR3(contactDesc.contactPoint.get());
+		desc.pos = glm::make_vec3(contactDesc.contactPoint.get());
 		desc.child = false;
 		if (GetMakeEffect())
 			GetMakeEffect()->GetGameObj().SetPos(GetPos() + desc.pos);
-		else		
+		else
 			MakeEffect(desc);
 
 		if (source)
@@ -857,14 +824,11 @@ void PxWheelSlipEffect::OnProgress(float deltaTime)
 #endif
 }
 
-
-
-
 ShotEffect::ShotEffect(Behaviors* owner): _MyBase(owner)
 {
 }
 
-void ShotEffect::OnShot(const D3DXVECTOR3& pos)
+void ShotEffect::OnShot(const glm::vec3& pos)
 {
 	if (GetEffect())
 	{
@@ -883,9 +847,6 @@ void ShotEffect::OnShot(const D3DXVECTOR3& pos)
 	}
 }
 
-
-
-
 ImmortalEffect::ImmortalEffect(Behaviors* owner): _MyBase(owner), _fadeInTime(-1.0f), _fadeOutTime(-1.0f), _dmgTime(-1.0f), _scale(IdentityVector), _scaleK(IdentityVector)
 {
 }
@@ -897,7 +858,7 @@ void ImmortalEffect::OnImmortalStatus(bool status)
 		if (GetEffect())
 		{
 			EffectDesc desc;
-			desc.child = true;		
+			desc.child = true;
 			MakeEffect(desc);
 		}
 
@@ -921,7 +882,7 @@ void ImmortalEffect::OnImmortalStatus(bool status)
 	}
 	else
 	{
-		_fadeOutTime = 0.0f;		
+		_fadeOutTime = 0.0f;
 	}
 }
 
@@ -947,13 +908,12 @@ void ImmortalEffect::LoadSource(lsl::SReader* reader)
 	lsl::SReadValue(reader, "scaleK", _scaleK);
 }
 
-
 void ImmortalEffect::OnProgress(float deltaTime)
 {
 	MapObj* mapObj = GetMakeEffect();
 
 	if (mapObj && _dmgTime >= 0)
-	{	
+	{
 		float alpha = ClampValue(_dmgTime / 0.25f, 0.0f, 1.0f);
 
 		const graph::Actor::Nodes& nodes = GetMakeEffect()->GetGameObj().GetGrActor().GetNodes();
@@ -963,7 +923,7 @@ void ImmortalEffect::OnProgress(float deltaTime)
 			if (material == NULL)
 				continue;
 
-			material->SetColor(D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f + 2.5f * (1.0f - alpha)));
+			material->SetColor(glm::vec4(1.0f, 1.0f, 1.0f, 1.0f + 2.5f * (1.0f - alpha)));
 		}
 
 		if (alpha >= 1.0f)
@@ -973,7 +933,7 @@ void ImmortalEffect::OnProgress(float deltaTime)
 	}
 
 	if (mapObj && _fadeInTime >= 0)
-	{	
+	{
 		_fadeInTime += deltaTime;
 		float alpha = ClampValue(_fadeInTime / 0.5f, 0.0f, 1.0f);
 		mapObj->GetGameObj().SetScale(_scale * alpha);
@@ -982,7 +942,7 @@ void ImmortalEffect::OnProgress(float deltaTime)
 	}
 
 	if (mapObj && _fadeOutTime >= 0)
-	{	
+	{
 		_fadeOutTime += deltaTime;
 		float alpha = ClampValue(_fadeOutTime / 0.5f, 0.0f, 1.0f);
 		mapObj->GetGameObj().SetScale(_scale * (1.0f - alpha));
@@ -994,18 +954,15 @@ void ImmortalEffect::OnProgress(float deltaTime)
 	}
 }
 
-const D3DXVECTOR3& ImmortalEffect::GetScaleK() const
+const glm::vec3& ImmortalEffect::GetScaleK() const
 {
 	return _scaleK;
 }
 
-void ImmortalEffect::SetScaleK(const D3DXVECTOR3& value)
+void ImmortalEffect::SetScaleK(const glm::vec3& value)
 {
 	_scaleK = value;
 }
-
-
-
 
 SlowEffect::SlowEffect(Behaviors* owner): _MyBase(owner)
 {
@@ -1014,7 +971,7 @@ SlowEffect::SlowEffect(Behaviors* owner): _MyBase(owner)
 void SlowEffect::OnDestroyEffect(MapObj* sender)
 {
 	GetGameObj()->GetPxActor().GetNxActor()->setLinearDamping(0.0f);
-	Remove();	
+	Remove();
 }
 
 void SlowEffect::OnProgress(float deltaTime)
@@ -1034,9 +991,6 @@ void SlowEffect::OnProgress(float deltaTime)
 			target->setLinearVelocity(linSpeed * 20);
 	}
 }
-
-
-
 
 SoundMotor::SoundMotor(Behaviors* owner): _MyBase(owner), _sndIdle(0), _sndRPM(0), _init(false), _srcIdle(0), _srcRPM(0), _rpmVolumeRange(0.0f, 1.0f), _rpmFreqRange(0.0f, 1.0f)
 {
@@ -1067,7 +1021,7 @@ void SoundMotor::Init()
 		_srcRPM->SetPlayMode(snd::pmInfite);
 	}
 }
-	
+
 void SoundMotor::Free()
 {
 	if (_init)
@@ -1089,12 +1043,12 @@ void SoundMotor::OnMotor(float deltaTime, float rpm, float minRPM, float maxRPM)
 	{
 		float distRPM = rpm - _curRPM;
 		float rpmDT = motorLag * deltaTime * (distRPM > 0 ? 1.0f : -1.0f);
-		_curRPM = _curRPM + lsl::ClampValue(rpmDT, -abs(distRPM), abs(distRPM));
+		_curRPM = _curRPM + lsl::ClampValue(rpmDT, -std::abs(distRPM), std::abs(distRPM));
 
 		float idleAlpha = lsl::ClampValue(0.5f * (_curRPM - minRPM)/minRPM, 0.0f, 1.0f);
 		float alpha = ClampValue((_curRPM - minRPM)/(maxRPM - minRPM), 0.0f, 1.0f);
 
-		_srcRPM->Play();		
+		_srcRPM->Play();
 		_srcRPM->SetVolume((_rpmVolumeRange.x + alpha * (_rpmVolumeRange.y - _rpmVolumeRange.x)) * idleAlpha);
 		_srcRPM->SetFrequencyRatio((_rpmFreqRange.x + alpha * (_rpmFreqRange.y - _rpmFreqRange.x)));
 
@@ -1181,28 +1135,25 @@ void SoundMotor::SetSndRPM(snd::Sound* value)
 	}
 }
 
-const D3DXVECTOR2& SoundMotor::GetRPMVolumeRange() const
+const glm::vec2& SoundMotor::GetRPMVolumeRange() const
 {
 	return _rpmVolumeRange;
 }
 
-void SoundMotor::SetRPMVolumeRange(const D3DXVECTOR2& value)
+void SoundMotor::SetRPMVolumeRange(const glm::vec2& value)
 {
 	_rpmVolumeRange = value;
 }
 
-const D3DXVECTOR2& SoundMotor::GetRPMFreqRange() const
+const glm::vec2& SoundMotor::GetRPMFreqRange() const
 {
 	return _rpmFreqRange;
 }
 
-void SoundMotor::SetRPMFreqRange(const D3DXVECTOR2& value)
+void SoundMotor::SetRPMFreqRange(const glm::vec2& value)
 {
 	_rpmFreqRange = value;
 }
-
-
-
 
 GusenizaAnim::GusenizaAnim(Behaviors* owner): _MyBase(owner), _xAnimOff(0)
 {
@@ -1229,13 +1180,10 @@ void GusenizaAnim::OnProgress(float deltaTime)
 	_xAnimOff -= linSpeed * deltaTime / gusLength;
 	//выделяем дробную часть
 	_xAnimOff = _xAnimOff - floor(_xAnimOff);
-	D3DXVECTOR3 offset(1.0f - _xAnimOff, 0, 0.0f);
+	glm::vec3 offset(1.0f - _xAnimOff, 0, 0.0f);
 
 	mat->SetOffset(offset);
 }
-
-
-
 
 PodushkaAnim::PodushkaAnim(Behaviors* owner): _MyBase(owner), _targetTag(0), _target(NULL)
 {
@@ -1263,24 +1211,20 @@ void PodushkaAnim::OnProgress(float deltaTime)
 	LSL_ASSERT(_target);
 
 	GameCar* car = lsl::StaticCast<game::GameCar*>(GetGameObj()->GetParent());
-	
+
 	float linSpeed = car->GetLeadWheelSpeed();
-	if (abs(linSpeed) > 1.0f)
+	if (std::abs(linSpeed) > 1.0f)
 	{
-		D3DXMATRIX localMat = _target->GetMat();
-		D3DXQUATERNION rotQuat;
-		D3DXQuaternionRotationAxis(&rotQuat, &XVector, D3DX_PI * deltaTime * linSpeed * 0.1f);
-		D3DXMATRIX rotMat;
-		D3DXMatrixRotationQuaternion(&rotMat, &rotQuat);
+		D3DMATRIX localMat = _target->GetMat();
+		glm::quat rotQuat = glm::angleAxis(glm::pi<float>() * deltaTime * linSpeed * 0.1f, XVector);
+		D3DMATRIX rotMat = Matrix4GlmToDx(glm::transpose(glm::mat4_cast(rotQuat)));
 
 		const res::FaceGroup& fg = _target->GetMesh()->GetData()->faceGroups[_target->GetMeshId()];
-		D3DXVECTOR3 offset = (fg.minPos + fg.maxPos) / 2;
+		glm::vec3 offset = (fg.minPos + fg.maxPos) / 2.0f;
 
-		D3DXMATRIX matOffs1;
-		D3DXMatrixTranslation(&matOffs1, -offset.x, -offset.y, -offset.z);
-		D3DXMATRIX matOffs2;
-		D3DXMatrixTranslation(&matOffs2, offset.x, offset.y, offset.z);
-		localMat = localMat * matOffs1 * rotMat * matOffs2;
+		D3DMATRIX matOffs1 = MatrixTranslation(-offset.x, -offset.y, -offset.z);
+		D3DMATRIX matOffs2 = MatrixTranslation(offset.x, offset.y, offset.z);
+		localMat = MatrixMultiply(MatrixMultiply(MatrixMultiply(localMat, matOffs1), rotMat), matOffs2);
 
 		_target->SetLocalMat(localMat);
 	}
@@ -1296,9 +1240,6 @@ void PodushkaAnim::targetTag(int value)
 	_targetTag = value;
 	_target = NULL;
 }
-
-
-
 
 Behaviors::Behaviors(GameObject* gameObj): _gameObj(gameObj), storeProxy(true), storeSource(true)
 {
@@ -1323,16 +1264,16 @@ void Behaviors::InitClassList()
 
 		classList.Add<TouchDeath>(btTouchDeath);
 		classList.Add<ResurrectObj>(btResurrectObj);
-		classList.Add<FxSystemWaitingEnd>(btFxSystemWaitingEnd);		
-		classList.Add<FxSystemSrcSpeed>(btFxSystemSrcSpeed);		
+		classList.Add<FxSystemWaitingEnd>(btFxSystemWaitingEnd);
+		classList.Add<FxSystemSrcSpeed>(btFxSystemSrcSpeed);
 		classList.Add<LowLifePoints>(btLowLifePoints);
 		classList.Add<DamageEffect>(btDamageEffect);
 		classList.Add<DeathEffect>(btDeathEffect);
-		classList.Add<LifeEffect>(btLifeEffect);		
+		classList.Add<LifeEffect>(btLifeEffect);
 		classList.Add<SlowEffect>(btSlowEffect);
 		classList.Add<PxWheelSlipEffect>(btPxWheelSlipEffect);
-		classList.Add<ShotEffect>(btShotEffect);	
-		classList.Add<ImmortalEffect>(btImmortalEffect);			
+		classList.Add<ShotEffect>(btShotEffect);
+		classList.Add<ImmortalEffect>(btImmortalEffect);
 		classList.Add<SoundMotor>(btSoundMotor);
 		classList.Add<GusenizaAnim>(btGusenizaAnim);
 		classList.Add<PodushkaAnim>(btPodushkaAnim);
@@ -1372,7 +1313,7 @@ void Behaviors::OnProgress(float deltaTime)
 	}
 }
 
-void Behaviors::OnShot(const D3DXVECTOR3& pos)
+void Behaviors::OnShot(const glm::vec3& pos)
 {
 	for (iterator iter = begin(); iter != end(); ++iter)
 		(*iter)->OnShot(pos);

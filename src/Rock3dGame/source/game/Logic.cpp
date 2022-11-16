@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\\World.h"
+#include "game/World.h"
 
-#include "game\\Logic.h"
+#include "game/Logic.h"
 
 namespace r3d
 {
@@ -10,9 +10,6 @@ namespace game
 {
 
 LogicBehaviors::ClassList LogicBehaviors::classList;
-
-
-
 
 LogicBehavior::LogicBehavior(LogicBehaviors* owner): _owner(owner)
 {
@@ -43,12 +40,9 @@ Map* LogicBehavior::GetMap()
 	return GetLogic()->GetMap();
 }
 
-
-
-
 LogicEventEffect::LogicEventEffect(LogicBehaviors* owner): _MyBase(owner), _effect(0), _pos(NullVector)
 {
-	_gameObjEvent = new GameObjEvent(this);	
+	_gameObjEvent = new GameObjEvent(this);
 }
 
 LogicEventEffect::~LogicEventEffect()
@@ -127,14 +121,14 @@ void LogicEventEffect::Save(lsl::SWriter* writer)
 {
 	MapObjRec::Lib::SaveRecordRef(writer, "effect", _effect);
 
-	writer->WriteValue("pos", _pos, 3);
+	writer->WriteValue("pos", glm::value_ptr(_pos), 3);
 }
 
 void LogicEventEffect::Load(lsl::SReader* reader)
 {
 	SetEffect(MapObjRec::Lib::LoadRecordRef(reader, "effect"));
 
-	reader->ReadValue("pos", _pos, 3);
+	reader->ReadValue("pos", glm::value_ptr(_pos), 3);
 }
 
 MapObjRec* LogicEventEffect::GetEffect()
@@ -148,18 +142,15 @@ void LogicEventEffect::SetEffect(MapObjRec* value)
 		_effect = value;
 }
 
-const D3DXVECTOR3& LogicEventEffect::GetPos() const
+const glm::vec3& LogicEventEffect::GetPos() const
 {
-	return _pos;	
+	return _pos;
 }
 
-void LogicEventEffect::SetPos(const D3DXVECTOR3& value)
+void LogicEventEffect::SetPos(const glm::vec3& value)
 {
 	_pos = value;
 }
-
-
-
 
 PairPxContactEffect::PairPxContactEffect(LogicBehaviors* owner): _MyBase(owner)
 {
@@ -191,23 +182,23 @@ PairPxContactEffect::ContactMap::iterator PairPxContactEffect::GetOrCreateContac
 			index = lsl::ClampValue<unsigned>(index, 0, _sounds.size() - 1);
 
 			node->source = GetLogic()->CreateSndSource3d(Logic::scEffects);
-			node->source->SetSound(_sounds[index]);			
+			node->source->SetSound(_sounds[index]);
 		}
 	}
 
 	return res.first;
 }
 
-void PairPxContactEffect::InsertContact(ContactMap::iterator iter, NxShape* shape1, NxShape* shape2, const D3DXVECTOR3& point)
+void PairPxContactEffect::InsertContact(ContactMap::iterator iter, NxShape* shape1, NxShape* shape2, const glm::vec3& point)
 {
 	ContactNode* node = iter->second;
-	
+
 	if (node->last == node->list.end())
 	{
 		if (node->list.size() >= 2)
 			return;
 
-		node->last = node->list.insert(node->list.end(), Contact());		
+		node->last = node->list.insert(node->list.end(), Contact());
 	}
 	//effect может быть удален из вне, например в RemoveContactByEffect
 	if (!node->last->effect)
@@ -271,14 +262,14 @@ void PairPxContactEffect::ReleaseContacts(bool death)
 {
 	for (ContactMap::iterator iter = _contactMap.begin(); iter != _contactMap.end();)
 		iter = ReleaseContact(iter, iter->second->list.begin(), iter->second->list.end(), death);
-	
+
 	LSL_ASSERT(_contactMap.empty());
 }
 
 void PairPxContactEffect::RemoveContactByEffect(MapObj* effect)
 {
 	for (ContactMap::iterator iter = _contactMap.begin(); iter != _contactMap.end(); ++iter)
-		for (ContactList::iterator cIter = iter->second->list.begin(); cIter != iter->second->list.end(); ++cIter)	
+		for (ContactList::iterator cIter = iter->second->list.begin(); cIter != iter->second->list.end(); ++cIter)
 			if (cIter->effect == effect)
 			{
 				lsl::SafeRelease(cIter->effect);
@@ -304,7 +295,7 @@ void PairPxContactEffect::OnContact(const px::Scene::OnContactEvent& contact1, c
 		shapes[0] = !streamIter.isDeletedShape(0) ? streamIter.getShape(0) : 0;
 		shapes[1] = !streamIter.isDeletedShape(1) ? streamIter.getShape(1) : 0;
 
-		bool checkShapes = D3DXVec3Length(&contact1.sumFrictionForce) > 10000.0f;
+		bool checkShapes = glm::length(contact1.sumFrictionForce) > 10000.0f;
 		for (int i = 0; i < 2; ++i)
 		{
 			checkShapes &= shapes[i] && shapes[i]->getType() != NX_SHAPE_WHEEL;
@@ -327,12 +318,12 @@ void PairPxContactEffect::OnContact(const px::Scene::OnContactEvent& contact1, c
 			while (streamIter.goNextPatch())
 				while (streamIter.goNextPoint())
 				{
-					InsertContact(mapIter, shapes[0], shapes[1], streamIter.getPoint().get());
+					InsertContact(mapIter, shapes[0], shapes[1], glm::make_vec3(streamIter.getPoint().get()));
 
 					if (contNode->source && !activateSnd)
 					{
 						activateSnd = true;
-						contNode->source->SetPos3d(streamIter.getPoint().get());
+						contNode->source->SetPos3d(glm::make_vec3(streamIter.getPoint().get()));
 						contNode->source->Play();
 					}
 				}
@@ -378,7 +369,7 @@ void PairPxContactEffect::RemoveSound(snd::Sound* sound)
 
 void PairPxContactEffect::ClearSounds()
 {
-	for (Sounds::iterator iter = _sounds.begin(); iter != _sounds.end(); ++iter)	
+	for (Sounds::iterator iter = _sounds.begin(); iter != _sounds.end(); ++iter)
 		(*iter)->Release();
 
 	_sounds.clear();
@@ -388,9 +379,6 @@ const PairPxContactEffect::Sounds& PairPxContactEffect::GetSounds() const
 {
 	return _sounds;
 }
-
-
-
 
 LogicBehaviors::LogicBehaviors(Logic* logic): _logic(logic)
 {
@@ -403,7 +391,7 @@ LogicBehaviors::~LogicBehaviors()
 {
 	Clear();
 }
-	
+
 void LogicBehaviors::InitClassList()
 {
 	static bool initClassList = false;
@@ -426,9 +414,6 @@ Logic* LogicBehaviors::GetLogic()
 {
 	return _logic;
 }
-
-
-
 
 Logic::Logic(World* world): _world(world), _initSndCat(false), _touchBorderDamage(0, 0), _touchBorderDamageForce(0, 0), _touchCarDamage(0, 0), _touchCarDamageForce(0, 0)
 {
@@ -569,7 +554,7 @@ void Logic::Shot(Player* player, MapObj* target, Player::SlotType type)
 		ctx.shot.SetTargetMapObj(target);
 
 		WeaponItem* wpn = player->GetSlotInst(type) ? player->GetSlotInst(type)->GetItem().IsWeaponItem() : NULL;
-		if (wpn && wpn->IsReadyShot())			
+		if (wpn && wpn->IsReadyShot())
 			player->Shot(ctx, type, player->GetNextBonusProjId());
 	}
 
@@ -585,7 +570,7 @@ void Logic::Shot(Player* player, MapObj* target)
 		if (netPlayer)
 			netPlayer->Shot(target);
 	}
-	else 
+	else
 	{
 		Proj::ShotContext ctx;
 		ctx.logic = this;
@@ -664,7 +649,7 @@ bool Logic::TakeBonus(GameObject* sender, GameObject* bonus, GameObject::BonusTy
 	return true;
 }
 
-bool Logic::MineContact(Proj* sender, GameObject* target, const D3DXVECTOR3& point)
+bool Logic::MineContact(Proj* sender, GameObject* target, const glm::vec3& point)
 {
 	LSL_ASSERT(sender && target && target->GetMapObj());
 	if (target == NULL)
@@ -743,42 +728,42 @@ void Logic::Mute(SndCategory category, bool value)
 
 }
 
-const D3DXVECTOR2& Logic::GetTouchBorderDamage() const
+const glm::vec2& Logic::GetTouchBorderDamage() const
 {
 	return _touchBorderDamage;
 }
 
-void Logic::SetTouchBorderDamage(const D3DXVECTOR2& value)
+void Logic::SetTouchBorderDamage(const glm::vec2& value)
 {
 	_touchBorderDamage = value;
 }
 
-const D3DXVECTOR2& Logic::GetTouchBorderDamageForce() const
+const glm::vec2& Logic::GetTouchBorderDamageForce() const
 {
 	return _touchBorderDamageForce;
 }
 
-void Logic::SetTouchBorderDamageForce(const D3DXVECTOR2& value)
+void Logic::SetTouchBorderDamageForce(const glm::vec2& value)
 {
 	_touchBorderDamageForce = value;
 }
 
-const D3DXVECTOR2& Logic::GetTouchCarDamage() const
+const glm::vec2& Logic::GetTouchCarDamage() const
 {
 	return _touchCarDamage;
 }
 
-void Logic::SetTouchCarDamage(const D3DXVECTOR2& value)
+void Logic::SetTouchCarDamage(const glm::vec2& value)
 {
 	_touchCarDamage = value;
 }
 
-const D3DXVECTOR2& Logic::GetTouchCarDamageForce() const
+const glm::vec2& Logic::GetTouchCarDamageForce() const
 {
 	return _touchCarDamageForce;
 }
 
-void Logic::SetTouchCarDamageForce(const D3DXVECTOR2& value)
+void Logic::SetTouchCarDamageForce(const glm::vec2& value)
 {
 	_touchCarDamageForce = value;
 }

@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "game\Environment.h"
+#include "game/Environment.h"
 
 namespace r3d
 {
@@ -49,12 +49,9 @@ std::pair<GraphManager::GraphOption, Environment::Quality> Environment::cEnvGrap
 	std::make_pair(GraphManager::goMagma, Environment::eqLow)
 };
 
-
-
-
 Environment::Environment(World* world): _world(world), _wheater(ewClody), _worldType(wtWorld1), _syncFrameRate(sfrFixed), _sun(0), _shadowQuality(eqLow), _lightQuality(eqLow), _postEffQuality(eqLow), _envQuality(eqLow), _filtering(efLinear), _multisampling(emNone), _editMode(false), _startScene(false), _enableRain(false), _rain(0)
 {
-	_sunPos = D3DXVECTOR3(150, 150, 150.0f);
+	_sunPos = glm::vec3(150, 150, 150.0f);
 	_sunRot = NullQuaternion;
 
 	ZeroMemory(_lamp, sizeof(_lamp));
@@ -66,14 +63,12 @@ Environment::Environment(World* world): _world(world), _wheater(ewClody), _world
 	for (int i = 0; i < 4; ++i)
 		_lampSwitchOn[i] = true;
 
-	D3DXQUATERNION rot1;
-	D3DXQuaternionRotationAxis(&rot1, &YVector, D3DX_PI/4.0f);
-	D3DXQUATERNION rot2;
-	D3DXQuaternionRotationAxis(&rot2, &ZVector, -D3DX_PI/4.0f);	
-	_sunRot = rot1 * rot2;
+	glm::quat rot1 = glm::angleAxis(glm::quarter_pi<float>(), YVector);
+	glm::quat rot2 = glm::angleAxis(-glm::quarter_pi<float>(), ZVector);
+	_sunRot = rot2 * rot1;
 
 	//текстура по умолчанию. ќб€зательно должна быть!
-	GetGraph()->SetSkyTex("Data\\World1\\Texture\\skyTex1.dds");	
+	GetGraph()->SetSkyTex("Data\\World1\\Texture\\skyTex1.dds");
 }
 
 Environment::~Environment()
@@ -131,7 +126,7 @@ void Environment::EnableSun(bool enable, bool enableShadow)
 		_sun->GetSource()->SetType(D3DLIGHT_DIRECTIONAL);
 		_sun->GetSource()->SetAmbient(clrGray60);
 		_sun->GetSource()->SetDiffuse(clrGray60);
-		_sun->GetSource()->SetFalloff(0);		
+		_sun->GetSource()->SetFalloff(0);
 		_sun->GetSource()->SetPos(_sunPos);
 		_sun->GetSource()->SetRot(_sunRot);
 
@@ -173,7 +168,7 @@ void Environment::EnableLamp(bool enable, int index, float farDist)
 		_lamp[index]->GetSource()->SetAmbient(clrBlack);
 		_lamp[index]->GetSource()->SetDiffuse(_lampColor[index]);
 		_lamp[index]->SetEnable(_lampSwitchOn[index]);
-		//_lamp->GetSource()->SetFalloff(0);		
+		//_lamp->GetSource()->SetFalloff(0);
 		_lamp[index]->GetSource()->SetPos(_lampPos[index]);
 		_lamp[index]->GetSource()->SetRot(_lampRot[index]);
 
@@ -204,12 +199,12 @@ void Environment::EnableLamps(bool enable)
 
 void Environment::EnableWater(bool enable)
 {
-	SetGraphOption(GraphManager::goWater, enable);	
+	SetGraphOption(GraphManager::goWater, enable);
 }
 
 void Environment::EnablePlanarRefl(bool enable)
 {
-	SetGraphOption(GraphManager::goPlanarRefl, enable);	
+	SetGraphOption(GraphManager::goPlanarRefl, enable);
 }
 
 void Environment::EnableGrass(bool enable)
@@ -274,7 +269,7 @@ void Environment::SetGraphOption(GraphManager::GraphOption option, bool value)
 
 	value = value && (CheckGraphMap(option, _shadowQuality, cShadowGraphMap, ARRAY_LENGTH(cShadowGraphMap), quality) ||
 		CheckGraphMap(option, _lightQuality, cLightGraphMap, ARRAY_LENGTH(cLightGraphMap), quality) ||
-		CheckGraphMap(option, _postEffQuality, cPostEffGraphMap, ARRAY_LENGTH(cPostEffGraphMap), quality) || 
+		CheckGraphMap(option, _postEffQuality, cPostEffGraphMap, ARRAY_LENGTH(cPostEffGraphMap), quality) ||
 		CheckGraphMap(option, _envQuality, cEnvGraphMap, ARRAY_LENGTH(cEnvGraphMap), quality));
 
 	GetGraph()->SetGraphOption(option, value, cGraphQuality[quality]);
@@ -282,9 +277,9 @@ void Environment::SetGraphOption(GraphManager::GraphOption option, bool value)
 
 void Environment::ApplyCloudColor()
 {
-	D3DXCOLOR cloudColor = GetGraph()->GetFogColor();
+	glm::vec4 cloudColor = GetGraph()->GetFogColor();
 	if (_worldType == wtWorld3)
-		cloudColor = D3DXCOLOR(87.0f/255.0f, 81.0f/255.0f, 115.0f/255.0f, 1.0f);		
+		cloudColor = glm::vec4(87.0f/255.0f, 81.0f/255.0f, 115.0f/255.0f, 1.0f);
 	else if (_worldType == wtWorld4)
 		cloudColor = clrWhite;
 
@@ -299,7 +294,7 @@ void Environment::ApplyWheater()
 	{
 	case ewFair:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
+		glm::vec4 fogColor = glm::vec4(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
@@ -312,17 +307,17 @@ void Environment::ApplyWheater()
 		SetGraphOption(GraphManager::goBloom,         true);
 		SetGraphOption(GraphManager::goHDR,           true);
 		SetGraphOption(GraphManager::goFog,           true);
-		
+
 		EnableSun(true);
-		EnableRain(false);		
+		EnableRain(false);
 		break;
 	}
-		
+
 	case ewNight:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(15.0f, 25.0f, 31.0f, 255.0f)/255.0f;
+		glm::vec4 fogColor = glm::vec4(15.0f/255.0f, 25.0f/255.0f, 31.0f/255.0f, 1.0f);
 
-		GetGraph()->SetSceneAmbient(D3DXCOLOR(0xFF8A90AE));
+		GetGraph()->SetSceneAmbient(glm::vec4(138.0f/255.0f, 144.0f/255.0f, 174.0f/255.0f, 1.0f)); // 0xFF8A90AE
 		GetGraph()->SetFogColor(fogColor);
 		GetGraph()->SetFogIntensivity(1.0f);
 		GetGraph()->SetSkyTex("Data\\Misc\\nightSky.dds");
@@ -333,15 +328,15 @@ void Environment::ApplyWheater()
 		SetGraphOption(GraphManager::goBloom,         false);
 		SetGraphOption(GraphManager::goHDR,           false);
 		SetGraphOption(GraphManager::goFog,           true);
-		
+
 		EnableSun(false);
 		EnableRain(false);
 		break;
 	}
-		
+
 	case ewClody:
 	{
-		D3DXCOLOR fogColor = 0x00C0BDB8;
+		glm::vec4 fogColor = glm::vec4(192.0f/255.0f, 189.0f/255.0f, 184.0f/255.0f, 0.0f); // 0x00C0BDB8;
 
 		GetGraph()->SetSkyTex("Data\\World2\\Texture\\skyTex1.dds");
 		GetGraph()->SetSceneAmbient(clrBlack);
@@ -359,10 +354,10 @@ void Environment::ApplyWheater()
 		EnableRain(false);
 		break;
 	}
-		
+
 	case ewRainy:
 	{
-		D3DXCOLOR fogColor = 0x00C0BDB8;
+		glm::vec4 fogColor = glm::vec4(192.0f/255.0f, 189.0f/255.0f, 184.0f/255.0f, 0.0f); // 0x00C0BDB8;
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
@@ -383,7 +378,7 @@ void Environment::ApplyWheater()
 
 	case ewSahara:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(87.0f/255.0f, 81.0f/255.0f, 115.0f/255.0f, 1.0f);
+		glm::vec4 fogColor = glm::vec4(87.0f/255.0f, 81.0f/255.0f, 115.0f/255.0f, 1.0f);
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
@@ -398,18 +393,18 @@ void Environment::ApplyWheater()
 		SetGraphOption(GraphManager::goFog,           true);
 
 		EnableSun(true);
-		EnableRain(false);	
+		EnableRain(false);
 		break;
 	}
 
 	case ewHell:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(82.0f/255.0f, 12.0f/255.0f, 8.0f/255.0f, 1.0f);
+		glm::vec4 fogColor = glm::vec4(82.0f/255.0f, 12.0f/255.0f, 8.0f/255.0f, 1.0f);
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
 		GetGraph()->SetFogIntensivity(0.5f);
-		GetGraph()->SetSkyTex("Data\\World4\\Texture\\skyTex1.dds");		
+		GetGraph()->SetSkyTex("Data\\World4\\Texture\\skyTex1.dds");
 		GetCamera()->SetFar(cameraFar);
 
 		SetGraphOption(GraphManager::goSkyBox,        true);
@@ -425,12 +420,12 @@ void Environment::ApplyWheater()
 
 	case ewSnow:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(0xFF9CA6B5);
+		glm::vec4 fogColor = glm::vec4(156.0f/255.0f, 166.0f/255.0f, 181.0f/255.0f, 1.0f); // 0xFF9CA6B5
 
 		GetGraph()->SetSceneAmbient(clrBlack);
 		GetGraph()->SetFogColor(fogColor);
 		GetGraph()->SetFogIntensivity(0.5f);
-		GetGraph()->SetSkyTex("Data\\World5\\Texture\\sky_text.dds");		
+		GetGraph()->SetSkyTex("Data\\World5\\Texture\\sky_text.dds");
 		GetCamera()->SetFar(cameraFar);
 
 		SetGraphOption(GraphManager::goSkyBox,        true);
@@ -446,12 +441,12 @@ void Environment::ApplyWheater()
 
 	case ewGarage:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
+		glm::vec4 fogColor = glm::vec4(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
 
 		GetGraph()->SetSceneAmbient(clrGray60);
 		GetGraph()->SetFogColor(fogColor);
 		GetGraph()->SetFogIntensivity(1.0f);
-		GetGraph()->SetSkyTex("Data\\World1\\Texture\\skyTex1.dds");		
+		GetGraph()->SetSkyTex("Data\\World1\\Texture\\skyTex1.dds");
 		GetCamera()->SetFar(cameraFar);
 
 		SetGraphOption(GraphManager::goSkyBox,        false);
@@ -459,7 +454,7 @@ void Environment::ApplyWheater()
 		SetGraphOption(GraphManager::goBloom,         true);
 		SetGraphOption(GraphManager::goHDR,           true);
 		SetGraphOption(GraphManager::goFog,           false);
-		
+
 		EnableSun(false);
 		EnableRain(false);
 		break;
@@ -467,12 +462,12 @@ void Environment::ApplyWheater()
 
 	case ewAngar:
 	{
-		D3DXCOLOR fogColor = D3DXCOLOR(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
+		glm::vec4 fogColor = glm::vec4(148.0f/255.0f, 193.0f/255.0f, 235.0f/255.0f, 1.0f);
 
 		GetGraph()->SetSceneAmbient(clrGray60);
 		GetGraph()->SetFogColor(fogColor);
 		GetGraph()->SetFogIntensivity(1.0f);
-		GetGraph()->SetSkyTex("Data\\World1\\Texture\\skyTex1.dds");		
+		GetGraph()->SetSkyTex("Data\\World1\\Texture\\skyTex1.dds");
 		GetCamera()->SetFar(cameraFar);
 
 		SetGraphOption(GraphManager::goSkyBox,        false);
@@ -480,7 +475,7 @@ void Environment::ApplyWheater()
 		SetGraphOption(GraphManager::goBloom,         true);
 		SetGraphOption(GraphManager::goHDR,           true);
 		SetGraphOption(GraphManager::goFog,           false);
-		
+
 		EnableSun(false);
 		EnableRain(false);
 		break;
@@ -503,13 +498,13 @@ void Environment::ApplyWorldType()
 		EnableGroundFog(false);
 		EnableMagma(false);
 		EnablePlanarRefl(false);
-		
+
 		GraphManager::HDRParams hdrParams;
 		hdrParams.lumKey = 1.1f;
 		hdrParams.brightThreshold = 1.5f;
 		hdrParams.gaussianScalar = 30.0f;
 		hdrParams.exposure = 15.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -528,12 +523,12 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 1.9f;
 		hdrParams.gaussianScalar = 30.0f;
 		hdrParams.exposure = 8.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
 
-	case wtWorld3:	
+	case wtWorld3:
 	{
 		EnableLamps(false);
 		EnableWater(false);
@@ -546,8 +541,8 @@ void Environment::ApplyWorldType()
 		hdrParams.lumKey = 4.0f;
 		hdrParams.brightThreshold = 4.5f;
 		hdrParams.gaussianScalar = 20.0f;
-		hdrParams.exposure = 3.0f;		
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.exposure = 3.0f;
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -566,7 +561,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 1.9f;
 		hdrParams.gaussianScalar = 30.0f;
 		hdrParams.exposure = 8.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -585,7 +580,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 1.3f;
 		hdrParams.gaussianScalar = 30.0f;
 		hdrParams.exposure = 15.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -604,7 +599,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 1.9f;
 		hdrParams.gaussianScalar = 30.0f;
 		hdrParams.exposure = 8.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -637,7 +632,7 @@ void Environment::ApplyWorldType()
 		hdrParams.gaussianScalar = 25.0f;
 		hdrParams.exposure = 2.0f;
 
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -658,7 +653,7 @@ void Environment::ApplyWorldType()
 		hdrParams.brightThreshold = 3.5f;
 		hdrParams.gaussianScalar = 20.0f;
 		hdrParams.exposure = 5.0f;
-		hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
+		hdrParams.colorCorrection = glm::vec2(1.0f, 0.0f);
 		GetGraph()->SetHDRParams(hdrParams);
 		break;
 	}
@@ -719,7 +714,7 @@ void Environment::ProcessScene(float dt)
 
 	if (_rain && GetCamera())
 	{
-		_rain->GetGameObj().SetPos(GetCamera()->GetPos());	
+		_rain->GetGameObj().SetPos(GetCamera()->GetPos());
 	}
 
 	/*if (_rain && GetCamera())
@@ -729,12 +724,12 @@ void Environment::ProcessScene(float dt)
 		graph::FxEmitter::ParticleDesc desc = em->GetParticleDesc();
 
 		bool dir = _world->GetControl()->GetAsyncKey(VK_CONTROL);
-		D3DXVECTOR3 vec = dir ? desc.startPos.GetMax() : desc.startPos.GetMin();
+		glm::vec3 vec = dir ? desc.startPos.GetMax() : desc.startPos.GetMin();
 
 		if (_world->GetControl()->GetAsyncKey('W'))
 			vec.x += 3.0f * dt;
 		if (_world->GetControl()->GetAsyncKey('A'))
-			vec.y += 3.0f * dt;		
+			vec.y += 3.0f * dt;
 		if (_world->GetControl()->GetAsyncKey('Z'))
 			vec.z += 3.0f * dt;
 		if (_world->GetControl()->GetAsyncKey('S'))
@@ -745,15 +740,15 @@ void Environment::ProcessScene(float dt)
 			vec.z -= 3.0f * dt;
 
 		if (dir)
-			desc.startPos.SetMax(vec);	
+			desc.startPos.SetMax(vec);
 		else
-			desc.startPos.SetMin(vec);		
-		
+			desc.startPos.SetMin(vec);
+
 		em->SetParticleDesc(desc);
 	}*/
 }
 
-const D3DXVECTOR3& Environment::GetSunPos() const
+const glm::vec3& Environment::GetSunPos() const
 {
 	if (_sun)
 		_sunPos = _sun->GetSource()->GetPos();
@@ -761,7 +756,7 @@ const D3DXVECTOR3& Environment::GetSunPos() const
 	return _sunPos;
 }
 
-void Environment::SetSunPos(const D3DXVECTOR3& value)
+void Environment::SetSunPos(const glm::vec3& value)
 {
 	_sunPos = value;
 
@@ -769,7 +764,7 @@ void Environment::SetSunPos(const D3DXVECTOR3& value)
 		_sun->GetSource()->SetPos(_sunPos);
 }
 
-const D3DXQUATERNION& Environment::GetSunRot() const
+const glm::quat& Environment::GetSunRot() const
 {
 	if (_sun)
 		_sunRot = _sun->GetSource()->GetRot();
@@ -777,7 +772,7 @@ const D3DXQUATERNION& Environment::GetSunRot() const
 	return _sunRot;
 }
 
-void Environment::SetSunRot(const D3DXQUATERNION& value)
+void Environment::SetSunRot(const glm::quat& value)
 {
 	_sunRot = value;
 
@@ -785,12 +780,12 @@ void Environment::SetSunRot(const D3DXQUATERNION& value)
 		_sun->GetSource()->SetRot(_sunRot);
 }
 
-const D3DXVECTOR3& Environment::GetLampPos(int index) const
+const glm::vec3& Environment::GetLampPos(int index) const
 {
 	return _lampPos[index];
 }
 
-void Environment::SetLampPos(const D3DXVECTOR3& value, int index)
+void Environment::SetLampPos(const glm::vec3& value, int index)
 {
 	_lampPos[index] = value;
 
@@ -798,12 +793,12 @@ void Environment::SetLampPos(const D3DXVECTOR3& value, int index)
 		_lamp[index]->GetSource()->SetPos(value);
 }
 
-const D3DXQUATERNION& Environment::GetLampRot(int index) const
+const glm::quat& Environment::GetLampRot(int index) const
 {
 	return _lampRot[index];
 }
 
-void Environment::SetLampRot(const D3DXQUATERNION& value, int index)
+void Environment::SetLampRot(const glm::quat& value, int index)
 {
 	_lampRot[index] = value;
 
@@ -811,12 +806,12 @@ void Environment::SetLampRot(const D3DXQUATERNION& value, int index)
 		_lamp[index]->GetSource()->SetRot(value);
 }
 
-const D3DXCOLOR& Environment::GetLampColor(int index) const
+const glm::vec4& Environment::GetLampColor(int index) const
 {
 	return _lampColor[index];
 }
 
-void Environment::SetLampColor(const D3DXCOLOR& value, int index)
+void Environment::SetLampColor(const glm::vec4& value, int index)
 {
 	_lampColor[index] = value;
 
@@ -859,7 +854,7 @@ Environment::WorldType Environment::GetWorldType() const
 void Environment::SetWorldType(WorldType value)
 {
 	if (_worldType != value)
-	{		
+	{
 		_worldType = value;
 		ApplyWorldType();
 	}
@@ -1078,14 +1073,14 @@ float Environment::GetPerspectiveCameraFar() const
 	switch (_wheater)
 	{
 	case ewFair:
-		return 120.0f;		
+		return 120.0f;
 
 	case ewNight:
 		return 120.0f;
-		
+
 	case ewClody:
 		return 120.0f;
-		
+
 	case ewRainy:
 		return 100.0f;
 

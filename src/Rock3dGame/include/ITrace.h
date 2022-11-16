@@ -17,11 +17,11 @@ public:
 	virtual float GetSize() const = 0;
 	virtual void SetSize(float value) = 0;
 
-	/*virtual const D3DXVECTOR3& GetPos() const;
-	virtual void SetPos(const D3DXVECTOR3& value);
+	/*virtual const glm::vec3& GetPos() const;
+	virtual void SetPos(const glm::vec3& value);
 
-	virtual const D3DXVECTOR3& GetOff() const;
-	virtual void SetOff(const D3DXVECTOR3& value);*/
+	virtual const glm::vec3& GetOff() const;
+	virtual void SetOff(const glm::vec3& value);*/
 };
 typedef AutoRef<IWayPoint> IWayPointRef;
 

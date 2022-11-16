@@ -16,7 +16,7 @@ private:
 
 	Tex2DResource* _depthTex;
 	graph::LibMaterial * _cloudsMat;
-	D3DXCOLOR _color;
+	glm::vec4 _color;
 	float _cloudIntens;
 	float _speed;
 
@@ -33,8 +33,8 @@ public:
 	graph::LibMaterial* GetCloudsMat();
 	void SetCloudsMat(graph::LibMaterial* value);
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 
 	float GetCloudIntens() const;
 	void SetCloudIntens(float value);
@@ -42,8 +42,8 @@ public:
 	float GetSpeed() const;
 	void SetSpeed(float value);
 
-	const D3DXVECTOR2& GetSize() const;
-	void SetSize(const D3DXVECTOR2& value);
+	const glm::vec2& GetSize() const;
+	void SetSize(const glm::vec2& value);
 
 	Shader shader;
 };

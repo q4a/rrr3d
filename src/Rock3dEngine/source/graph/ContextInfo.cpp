@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\ContextInfo.h"
+#include "graph/ContextInfo.h"
 
 namespace r3d
 {
@@ -32,7 +32,7 @@ DWORD ContextInfo::defaultRenderStates[RENDER_STATE_END] = {D3DZB_TRUE, D3DFILL_
 
 DWORD ContextInfo::defaultSamplerStates[SAMPLER_STATE_END] = {D3DTADDRESS_WRAP, D3DTADDRESS_WRAP, D3DTADDRESS_WRAP, 0, D3DTEXF_POINT, D3DTEXF_POINT, D3DTEXF_NONE, 0, 0, 1, 0, 0, 0};
 
-DWORD ContextInfo::defaultTextureStageStates[TEXTURE_STAGE_STATE_END] = {D3DTOP_MODULATE, D3DTA_TEXTURE, D3DTA_CURRENT, D3DTOP_SELECTARG1, D3DTA_TEXTURE, D3DTA_CURRENT, 0, 0, 0, 0, 0, 0, 0, D3DTTFF_DISABLE,  D3DTA_CURRENT, D3DTA_CURRENT, D3DTA_CURRENT, clrWhite};
+DWORD ContextInfo::defaultTextureStageStates[TEXTURE_STAGE_STATE_END] = {D3DTOP_MODULATE, D3DTA_TEXTURE, D3DTA_CURRENT, D3DTOP_SELECTARG1, D3DTA_TEXTURE, D3DTA_CURRENT, 0, 0, 0, 0, 0, 0, 0, D3DTTFF_DISABLE,  D3DTA_CURRENT, D3DTA_CURRENT, D3DTA_CURRENT, Vec4ToColor(clrWhite)};
 
 DWORD ContextInfo::GetDefTextureStageState(int stage, TextureStageState state)
 {
@@ -50,13 +50,10 @@ DWORD ContextInfo::GetDefTextureStageState(int stage, TextureStageState state)
 	return ContextInfo::defaultTextureStageStates[state];
 }
 
-
-
-
 CameraDesc::CameraDesc()
 {
 	aspect = 1.0f;
-	fov = D3DX_PI/2.0f;
+	fov = glm::half_pi<float>();
 	nearDist = 1.0f;
 	farDist = 100.0f;
 	style = csPerspective;
@@ -67,18 +64,15 @@ CameraDesc::CameraDesc()
 	up = ZVector;
 }
 
-
-
-
 CameraCI::CameraCI(): _idState(0), _frustChanged(true)
 {
 	_matChanged.set();
 	_invMatChanged.set();
 }
 
-D3DXVECTOR2 CameraCI::ViewToProj(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize)
+glm::vec2 CameraCI::ViewToProj(const glm::vec2& coord, const glm::vec2& viewSize)
 {
-	D3DXVECTOR2 projVec(coord.x / viewSize.x, coord.y / viewSize.y);
+	glm::vec2 projVec(coord.x / viewSize.x, coord.y / viewSize.y);
 	//Приводим к диапазону [-1, 1]
 	projVec = projVec * 2.0f - IdentityVec2;
 	//Ось Y у экрана и у заднего буфера(или иначе говоря экранной D3D поверхности) не совпадают
@@ -92,16 +86,16 @@ D3DXVECTOR2 CameraCI::ViewToProj(const D3DXVECTOR2& coord, const D3DXVECTOR2& vi
 	float width = static_cast<float>(GetWndWidth());
 	float height = static_cast<float>(GetWndHeight());
 
-	D3DXVECTOR3 screenVec(coord.x / width * viewPort.Width, coord.y / height * viewPort.Height, z);
-	
+	glm::vec3 screenVec(coord.x / width * viewPort.Width, coord.y / height * viewPort.Height, z);
+
 	D3DXVec3Unproject(&screenVec, &screenVec, &viewPort, &_curCamera->GetContextInfo().GetProjMat(),  &_curCamera->GetContextInfo().GetViewMat(), &IdentityMatrix);
 
 	return screenVec;*/
 }
 
-D3DXVECTOR2 CameraCI::ProjToView(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize)
+glm::vec2 CameraCI::ProjToView(const glm::vec2& coord, const glm::vec2& viewSize)
 {
-	D3DXVECTOR2 projVec = coord;
+	glm::vec2 projVec = coord;
 	projVec.y = -projVec.y;
 	projVec = projVec * 0.5f + IdentityVec2 * 0.5f;
 
@@ -118,7 +112,7 @@ void CameraCI::StateChanged()
 	_frustChanged = true;
 }
 
-void CameraCI::WorldMatChanged(const D3DXMATRIX& worldMat)
+void CameraCI::WorldMatChanged(const D3DMATRIX& worldMat)
 {
 	_worldMat = worldMat;
 
@@ -128,9 +122,9 @@ void CameraCI::WorldMatChanged(const D3DXMATRIX& worldMat)
 	_invMatChanged.set(ctWVP);
 }
 
-void CameraCI::CalcProjPerspective(D3DXMATRIX& mat) const
+void CameraCI::CalcProjPerspective(D3DMATRIX& mat) const
 {
-	D3DXMatrixPerspectiveFovRH(&mat, _desc.fov, _desc.aspect, _desc.nearDist, _desc.farDist);
+	mat = MatrixPerspectiveFovRH(_desc.fov, _desc.aspect, _desc.nearDist, _desc.farDist);
 }
 
 void CameraCI::ProjMatChanged()
@@ -159,21 +153,21 @@ unsigned CameraCI::IdState() const
 
 enum Intersect {fiOutside, fiIntersect, fiInside};
 
-Intersect FrustumAABBIntersect(const Frustum& frustum, bool incZ, const AABB& aabb, D3DXVECTOR3& vMin, D3DXVECTOR3& vMax)
+Intersect FrustumAABBIntersect(const Frustum& frustum, bool incZ, const AABB& aabb, glm::vec3& vMin, glm::vec3& vMax)
 {
 	Intersect ret = fiInside;
 	int ePlane = incZ ? 6 : 4;
-	
+
 	for (int i = 0; i < ePlane; ++i)
 	{
-		D3DXVECTOR3 normal(frustum.planes[i].a, frustum.planes[i].b, frustum.planes[i].c);
+		glm::vec3 normal(frustum.planes[i].x, frustum.planes[i].y, frustum.planes[i].z);
 
 		// X axis
 		if (normal.x > 0)
 		{
 			vMin.x = aabb.min.x;
 			vMax.x = aabb.max.x;
-		} 
+		}
 		else
 		{
 			vMin.x = aabb.max.x;
@@ -204,29 +198,29 @@ Intersect FrustumAABBIntersect(const Frustum& frustum, bool incZ, const AABB& aa
 			vMax.z = aabb.min.z;
 		}
 
-		if (D3DXPlaneDotCoord(&frustum.planes[i], &vMin) > 0)
+		if (PlaneDotCoord(frustum.planes[i], vMin) > 0)
 			return fiOutside;
-		if (D3DXPlaneDotCoord(&frustum.planes[i], &vMax) >= 0)
+		if (PlaneDotCoord(frustum.planes[i], vMax) >= 0)
 			ret = fiIntersect;
 	}
 
 	return ret;
 }
 
-bool LineCastIntersPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXPLANE& plane, float& outT)
+bool LineCastIntersPlane(const glm::vec3& rayStart, const glm::vec3& rayVec, const glm::vec4& plane, float& outT)
 {
 	const float EPSILON = 1.0e-10f;
 
-	float d = D3DXPlaneDotNormal(&plane, &rayVec);	
-	if (abs(d) > EPSILON)
+	float d = PlaneDotNormal(plane, rayVec);
+	if (std::abs(d) > EPSILON)
 	{
-		outT = -D3DXPlaneDotCoord(&plane, &rayStart) / d;
+		outT = -PlaneDotCoord(plane, rayStart) / d;
 		return true;
 	}
 	return false;
 }
 
-unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, D3DXVECTOR3 points[])
+unsigned PlaneBBIntersect(const BoundBox& bb, const glm::vec4& plane, glm::vec3 points[])
 {
 	//конечные вершины ребер для каждого вертекса
 	const int lines[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
@@ -235,12 +229,12 @@ unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, D3DXVECTOR
 
 	for (int i = 0; i < 12; ++i)
 	{
-		D3DXVECTOR3 v1 = bb.v[lines[i][0]];
-		D3DXVECTOR3 v2 = bb.v[lines[i][1]];
+		glm::vec3 v1 = bb.v[lines[i][0]];
+		glm::vec3 v2 = bb.v[lines[i][1]];
 
-		D3DXVECTOR3 vec = v2 - v1;
-		float vec3Len = D3DXVec3Length(&vec);
-		D3DXVec3Normalize(&vec, &vec);
+		glm::vec3 vec = v2 - v1;
+		float vec3Len = glm::length(vec);
+		vec = glm::normalize(vec);
 		float dist;
 		//есть пересечение
 		if (LineCastIntersPlane(v1, vec, plane, dist) && dist > 0.0f && dist < vec3Len)
@@ -255,7 +249,7 @@ unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, D3DXVECTOR
 	return res;
 }
 
-unsigned PlaneAABBIntersect(const AABB& aabb, const D3DXPLANE& plane, D3DXVECTOR3 points[])
+unsigned PlaneAABBIntersect(const AABB& aabb, const glm::vec4& plane, glm::vec3 points[])
 {
 	BoundBox bb(aabb);
 
@@ -265,8 +259,7 @@ unsigned PlaneAABBIntersect(const AABB& aabb, const D3DXPLANE& plane, D3DXVECTOR
 bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 {
 	bool res = false;
-	D3DXPLANE posNearPlane;
-	D3DXPlaneFromPointNormal(&posNearPlane, &_desc.pos,  &_desc.dir);
+	glm::vec4 posNearPlane = PlaneFromPointNormal(_desc.pos, _desc.dir);
 
 	BoundBox box(aabb);
 	BoundBox viewBox, projBox;
@@ -274,39 +267,39 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	BoundBox::Transform(box, GetViewProj(), projBox);
 
 	//поиск по вершинам aabb
-	for (int i = 0; i < 8; ++i)	
+	for (int i = 0; i < 8; ++i)
 		//лежит ли точка в боксе
-		if (abs(projBox.v[i].x) < 1.0f && abs(projBox.v[i].y) < 1.0f)
+		if (std::abs(projBox.v[i].x) < 1.0f && std::abs(projBox.v[i].y) < 1.0f)
 		{
 			float z = -viewBox.v[i].z;
 
 			if (z > maxZ || !res)
 				maxZ = z;
-			if (z < minZ || !res)			
+			if (z < minZ || !res)
 				minZ = z;
 
 			res = true;
 		}
 
 	//поиск через лучи из направляющих ребер фрустума
-	D3DXVECTOR3 rayVec[4] = {D3DXVECTOR3(-1.0f, -1.0f, 1.0f), D3DXVECTOR3(1.0f, -1.0f, 1.0f), D3DXVECTOR3(-1.0f, 1.0f, 1.0f), D3DXVECTOR3(1.0f, 1.0f, 1.0f)};
-	D3DXVECTOR3 rayPos[4] = {D3DXVECTOR3(-1.0f, -1.0f, 0.0f), D3DXVECTOR3(1.0f, -1.0f, 0.0f), D3DXVECTOR3(-1.0f, 1.0f, 0.0f), D3DXVECTOR3(1.0f, 1.0f, 0.0f)};
-	
+	glm::vec3 rayVec[4] = {glm::vec3(-1.0f, -1.0f, 1.0f), glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(-1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f)};
+	glm::vec3 rayPos[4] = {glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f)};
+
 	for (int i = 0; i < 4; ++i)
 	{
-		D3DXVec3TransformCoord(&rayVec[i], &rayVec[i], &GetInvViewProj());
-		D3DXVec3TransformCoord(&rayPos[i], &rayPos[i], &GetInvViewProj());
-		D3DXVec3Normalize(&rayVec[i], &(rayVec[i] - rayPos[i]));
+		rayVec[i] = Vec3TransformCoord(rayVec[i], GetInvViewProj());
+		rayPos[i] = Vec3TransformCoord(rayPos[i], GetInvViewProj());
+		rayVec[i] = glm::normalize(rayVec[i] - rayPos[i]);
 
 		float tNear, tFar;
 		if (aabb.LineCastIntersect(rayPos[i], rayVec[i], tNear, tFar))
 		{
-			tNear = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tNear));
-			tFar = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tFar));
+			tNear = PlaneDotCoord(posNearPlane, rayPos[i] + rayVec[i] * tNear);
+			tFar = PlaneDotCoord(posNearPlane, rayPos[i] + rayVec[i] * tFar);
 
 			if (tNear < minZ || !res)
-				minZ = tNear;			
-			if (tFar > maxZ || !res)			
+				minZ = tNear;
+			if (tFar > maxZ || !res)
 				maxZ = tFar;
 
 			res = true;
@@ -314,16 +307,14 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	}
 
 	//поиск пересечений aabb с фрустумом
-	/*D3DXPLANE nearPlane;
-	D3DXPlaneFromPointNormal(&nearPlane, &NullVector, &ZVector);
-	D3DXVECTOR3 points[4];
+	/*glm::vec4 nearPlane = PlaneFromPointNormal(NullVector, ZVector);
+	glm::vec3 points[4];
 	unsigned numPoints = PlaneBBIntersect(projBox, nearPlane, points);
 	for (unsigned i = 0; i < numPoints; ++i)
 	{
-		if (abs(points[i].x) < 1.1f && abs(points[i].y) < 1.1f)
+		if (std::abs(points[i].x) < 1.1f && std::abs(points[i].y) < 1.1f)
 		{
-			D3DXVECTOR3 vec;
-			D3DXVec3TransformCoord(&vec, &points[i], &GetInvProj());
+			glm::vec3 vec = Vec3TransformCoord(points[i], GetInvProj());
 
 			if (vec.z < minZ || !res)
 				minZ = vec.z;
@@ -335,11 +326,10 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 
 	return res;*/
 
-
 	const Frustum& frustum = GetFrustum();
 	for (int i = 0; i < 4; ++i)
 	{
-		D3DXVECTOR3 points[4];
+		glm::vec3 points[4];
 		unsigned numPnt = PlaneAABBIntersect(aabb, frustum.planes[i], points);
 
 		for (int j = 0; j < 4; ++j)
@@ -349,7 +339,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 			for (int k = 0; k < 3; ++k)
 			{
 				int numPlane = (i + k + 1) % 4;
-				float planeDot = D3DXPlaneDotCoord(&frustum.planes[numPlane], &points[j]);
+				float planeDot = PlaneDotCoord(frustum.planes[numPlane], points[j]);
 				if (k == 0)
 					fContain = planeDot;
 				//лежит вне
@@ -362,14 +352,14 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 
 			if (contain)
 			{
-				float z = D3DXPlaneDotCoord(&posNearPlane, &points[j]);
+				float z = PlaneDotCoord(posNearPlane, points[j]);
 
 				if (z < minZ || !res)
 					minZ = z;
 				if (z > maxZ || !res)
 					maxZ = z;
-				
-				res = true;				
+
+				res = true;
 			}
 		}
 	}
@@ -385,11 +375,11 @@ void CameraCI::AdjustNearFarPlane(const AABB& aabb, float minNear, float maxFar)
 
 	_desc.nearDist = std::max(fMinZ, minNear);
 	_desc.farDist = std::min(fMaxZ, maxFar);
-	
+
 	DescChanged();
 }
 
-void CameraCI::GetProjPerspective(D3DXMATRIX& mat) const
+void CameraCI::GetProjPerspective(D3DMATRIX& mat) const
 {
 	if (_desc.style == csPerspective)
 		mat = GetProj();
@@ -397,29 +387,29 @@ void CameraCI::GetProjPerspective(D3DXMATRIX& mat) const
 		return CalcProjPerspective(mat);
 }
 
-void CameraCI::GetViewProjPerspective(D3DXMATRIX& mat) const
+void CameraCI::GetViewProjPerspective(D3DMATRIX& mat) const
 {
 	if (_desc.style == csPerspective)
 		mat = GetViewProj();
 	else
 	{
 		CalcProjPerspective(mat);
-		D3DXMatrixMultiply(&mat, &GetView(), &mat);
+		mat = MatrixMultiply(GetView(), mat);
 	}
 }
 
-void CameraCI::GetWVPPerspective(D3DXMATRIX& mat) const
+void CameraCI::GetWVPPerspective(D3DMATRIX& mat) const
 {
 	if (_desc.style == csPerspective)
 		mat = GetViewProj();
 	else
 	{
 		CalcProjPerspective(mat);
-		D3DXMatrixMultiply(&mat, &GetTransform(ctWorldView), &mat);
+		mat = MatrixMultiply(GetTransform(ctWorldView), mat);
 	}
 }
 
-void CameraCI::SetProjMat(const D3DXMATRIX& value)
+void CameraCI::SetProjMat(const D3DMATRIX& value)
 {
 	_matrices[ctProj] = value;
 
@@ -431,21 +421,20 @@ void CameraCI::SetProjMat(const D3DXMATRIX& value)
 	ProjMatChanged();
 }
 
-D3DXVECTOR3 CameraCI::ScreenToWorld(const D3DXVECTOR2& coord, float z, const D3DXVECTOR2& viewSize) const 
+glm::vec3 CameraCI::ScreenToWorld(const glm::vec2& coord, float z, const glm::vec2& viewSize) const
 {
-	D3DXVECTOR2 projCoord = ViewToProj(coord, viewSize);
-	D3DXVECTOR3 screenVec(projCoord.x, projCoord.y, z);
+	glm::vec2 projCoord = ViewToProj(coord, viewSize);
+	glm::vec3 screenVec(projCoord.x, projCoord.y, z);
 	//Переводим в мировое пространство(домножая на инв. матрицу), что соотв. точке на near плоскости камеры
-	D3DXVec3TransformCoord(&screenVec, &screenVec, &GetInvViewProj());
+	screenVec = Vec3TransformCoord(screenVec, GetInvViewProj());
 
 	return screenVec;
 }
 
-D3DXVECTOR2 CameraCI::WorldToScreen(const D3DXVECTOR3& coord, const D3DXVECTOR2& viewSize) const
+glm::vec2 CameraCI::WorldToScreen(const glm::vec3& coord, const glm::vec2& viewSize) const
 {
-	D3DXVECTOR3 screenVec;
-	D3DXVec3TransformCoord(&screenVec, &coord, &GetViewProj());	
-	D3DXVECTOR2 vec = screenVec;
+	glm::vec3 screenVec = Vec3TransformCoord(coord, GetViewProj());
+	glm::vec2 vec(screenVec.x, screenVec.y);
 
 	return ProjToView(vec, viewSize);
 }
@@ -462,7 +451,7 @@ void CameraCI::SetDesc(const CameraDesc& value)
 	DescChanged();
 }
 
-const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
+const D3DMATRIX& CameraCI::GetTransform(Transform transform) const
 {
 	if (_matChanged.test(transform))
 	{
@@ -479,8 +468,8 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 
 			default:
 				//Используется правостороння система координат (как в 3dMax-e)
-				D3DXMatrixLookAtRH(&_matrices[transform], &_desc.pos, &(_desc.pos + _desc.dir), &_desc.up);
-			}			
+				_matrices[transform] = MatrixLookAtRH(_desc.pos, _desc.pos + _desc.dir, _desc.up);
+			}
 			break;
 
 		case ctProj:
@@ -493,20 +482,18 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 				break;
 
 			case csOrtho:
-				D3DXMatrixOrthoRH(&_matrices[transform], _desc.width, _desc.width / _desc.aspect, _desc.nearDist, _desc.farDist);
+				_matrices[transform] = MatrixOrthoRH(_desc.width, _desc.width / _desc.aspect, _desc.nearDist, _desc.farDist);
 				break;
 
 			case csViewPort:
 			case csViewPortInv:
 			{
-				D3DXVECTOR2 viewSize = D3DXVECTOR2(_desc.width, _desc.width / _desc.aspect);
-				D3DXMATRIX viewMat;
-				D3DXMatrixTranslation(&viewMat, -1.0f, _desc.style == csViewPortInv ? -1.0f : 1.0f, 0.0f);
-				D3DXMATRIX matScale;
-				D3DXMatrixScaling(&matScale, 2.0f/viewSize.x, _desc.style == csViewPortInv ? 2.0f/viewSize.y : -2.0f/viewSize.y, 1.0f);
+				glm::vec2 viewSize = glm::vec2(_desc.width, _desc.width / _desc.aspect);
+				D3DMATRIX viewMat = MatrixTranslation(-1.0f, _desc.style == csViewPortInv ? -1.0f : 1.0f, 0.0f);
+				D3DMATRIX matScale = MatrixScaling(2.0f/viewSize.x, _desc.style == csViewPortInv ? 2.0f/viewSize.y : -2.0f/viewSize.y, 1.0f);
 				matScale._33 = 1.0f/(-500.0f - 500.0f);
 				matScale._43 = -500.0f/(-500.0f - 500.0f);
-				_matrices[transform] = matScale * viewMat;
+				_matrices[transform] = MatrixMultiply(matScale, viewMat);
 				break;
 			}
 
@@ -518,15 +505,15 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 		}
 
 		case ctWorldView:
-			D3DXMatrixMultiply(&_matrices[transform], &_worldMat, &GetTransform(ctView));
+			_matrices[transform] = MatrixMultiply(_worldMat, GetTransform(ctView));
 			break;
 
 		case ctViewProj:
-			D3DXMatrixMultiply(&_matrices[transform], &GetTransform(ctView), &GetTransform(ctProj));
+			_matrices[transform] = MatrixMultiply(GetTransform(ctView), GetTransform(ctProj));
 			break;
 
 		case ctWVP:
-			D3DXMatrixMultiply(&_matrices[transform], &_worldMat, &GetTransform(ctViewProj));
+			_matrices[transform] = MatrixMultiply(_worldMat, GetTransform(ctViewProj));
 			break;
 		}
 
@@ -536,11 +523,11 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 	return _matrices[transform];
 }
 
-const D3DXMATRIX& CameraCI::GetInvTransform(Transform transform) const
+const D3DMATRIX& CameraCI::GetInvTransform(Transform transform) const
 {
 	if (_invMatChanged.test(transform))
 	{
-		D3DXMatrixInverse(&_invMatrices[transform], 0, &GetTransform(transform));
+		MatrixInverse(&_invMatrices[transform], 0, GetTransform(transform));
 		_invMatChanged.reset(transform);
 	}
 
@@ -558,48 +545,45 @@ const Frustum& CameraCI::GetFrustum() const
 	return _frustum;
 }
 
-const D3DXMATRIX& CameraCI::GetView() const
+const D3DMATRIX& CameraCI::GetView() const
 {
 	return GetTransform(ctView);
 }
 
-const D3DXMATRIX& CameraCI::GetProj() const
+const D3DMATRIX& CameraCI::GetProj() const
 {
 	return GetTransform(ctProj);
 }
 
-const D3DXMATRIX& CameraCI::GetViewProj() const
+const D3DMATRIX& CameraCI::GetViewProj() const
 {
 	return GetTransform(ctViewProj);
 }
 
-const D3DXMATRIX& CameraCI::GetWVP() const
+const D3DMATRIX& CameraCI::GetWVP() const
 {
 	return GetTransform(ctWVP);
 }
 
-const D3DXMATRIX& CameraCI::GetInvView() const
+const D3DMATRIX& CameraCI::GetInvView() const
 {
 	return GetInvTransform(ctView);
 }
 
-const D3DXMATRIX& CameraCI::GetInvProj() const
+const D3DMATRIX& CameraCI::GetInvProj() const
 {
 	return GetInvTransform(ctProj);
 }
 
-const D3DXMATRIX& CameraCI::GetInvViewProj() const
+const D3DMATRIX& CameraCI::GetInvViewProj() const
 {
 	return GetInvTransform(ctViewProj);
 }
 
-const D3DXMATRIX& CameraCI::GetInvWVP() const
+const D3DMATRIX& CameraCI::GetInvWVP() const
 {
 	return GetInvTransform(ctWVP);
 }
-
-
-
 
 LightCI::LightCI(): _changed(true), _owner(0)
 {
@@ -622,14 +606,14 @@ void LightCI::AdjustNearFarPlane(const AABB& aabb, float minNear, float maxFar)
 	BoundBox viewBox, projBox;
 	BoundBox::Transform(box, _camera.GetView(), viewBox);
 	BoundBox::Transform(box, _camera.GetViewProj(), projBox);
-	
-	for (int i = 0; i < 8; ++i)	
+
+	for (int i = 0; i < 8; ++i)
 		{
 			float z = -viewBox.v[i].z;
 
-			if (z > maxZ || !res)			
-				maxZ = z;			
-			if (z < minZ || !res)			
+			if (z > maxZ || !res)
+				maxZ = z;
+			if (z < minZ || !res)
 				minZ = z;
 
 			res = true;
@@ -686,16 +670,13 @@ const CameraCI& LightCI::GetCamera() const
 	return _camera;
 }
 
-
-
-
 ContextInfo::ContextInfo(RenderDriver* driver): _driver(driver), _enableShadow(false), _texDiffK(1.0f), _invertingCullFace(false), _ignoreMaterial(false), _cullOpacity(1.0f), _color(clrWhite), _meshId(-1), _maxTextureStage(-1)
 {
 	ZeroMemory(_textures, sizeof(_textures));
 	std::memcpy(_renderStates, defaultRenderStates, sizeof(defaultRenderStates));
 
 	for (int i = 0; i < cMaxTexSamplers; ++i)
-	{		
+	{
 		std::memcpy(_samplerStates[i], defaultSamplerStates, sizeof(defaultSamplerStates));
 		std::memcpy(_textureStageStates[i], defaultTextureStageStates, sizeof(defaultTextureStageStates));
 	}
@@ -717,7 +698,7 @@ DWORD ContextInfo::InvertCullFace(DWORD curFace)
 		break;
 	case D3DCULL_CCW:
 		return D3DCULL_CW;
-		break;	
+		break;
 	}
 	return curFace;
 }
@@ -740,20 +721,20 @@ void ContextInfo::SetLight(LightCI* light, DWORD lightIndex)
 	light->_camera.WorldMatChanged(_worldMat);
 
 	D3DLIGHT9 d3dLight;
-	d3dLight.Ambient = light->_desc.ambient;
+	d3dLight.Ambient = *reinterpret_cast<D3DCOLORVALUE *>(&light->_desc.ambient);
 	d3dLight.Attenuation0 = light->_desc.attenuation0;
 	d3dLight.Attenuation1 = light->_desc.attenuation1;
 	d3dLight.Attenuation2 = light->_desc.attenuation2;
-	d3dLight.Diffuse = light->_desc.diffuse;
-	d3dLight.Direction = light->_desc.dir;
+	d3dLight.Diffuse = *reinterpret_cast<D3DCOLORVALUE *>(&light->_desc.diffuse);
+	d3dLight.Direction = Vec3GlmToDx(light->_desc.dir);
 	d3dLight.Falloff = light->_desc.falloff;
 	d3dLight.Phi = light->_desc.phi;
-	d3dLight.Position = light->_desc.pos;
+	d3dLight.Position = Vec3GlmToDx(light->_desc.pos);
 	d3dLight.Range = light->_desc.range;
-	d3dLight.Specular = light->_desc.specular;
+	d3dLight.Specular = *reinterpret_cast<D3DCOLORVALUE *>(&light->_desc.specular);
 	d3dLight.Theta = light->_desc.theta;
 	d3dLight.Type = light->_desc.type;
-	
+
 	_driver->GetDevice()->SetLight(lightIndex, &d3dLight);
 }
 
@@ -792,9 +773,9 @@ void ContextInfo::BeginDraw()
 	for (int i = 0; i <= _maxTextureStage; ++i)
 		if (!_textureMatStack[i].empty())
 		{
-			D3DXMATRIX mat = _textureMatStack[i].front();
+			D3DMATRIX mat = _textureMatStack[i].front();
 			for (unsigned j = 1; j < _textureMatStack[i].size(); ++j)
-				mat = mat * _textureMatStack[i][j];
+				mat = MatrixMultiply(mat, _textureMatStack[i][j]);
 
 			mat._31 = mat._41;
 			mat._32 = mat._42;
@@ -840,12 +821,12 @@ void ContextInfo::AddLight(LightCI* value)
 	LSL_ASSERT(value && value->_owner == 0);
 
 	unsigned id = (_lastLight == _lightList.end()) ? _lightList.size() : (*_lastLight)->_id + 1;
-	
+
 	Lights::const_iterator iter = _lastLight = _lightList.insert(_lastLight, value);
 	value->_owner = this;
 	value->_id = id;
 	++iter;
-	//Места нет, берем конец списка	
+	//Места нет, берем конец списка
 	if (!(iter != _lightList.end() && (*iter)->_id - id > 1))
 		_lastLight = _lightList.end();
 
@@ -878,7 +859,7 @@ bool ContextInfo::GetLightEnable(LightCI* light) const
 
 void ContextInfo::SetLightEnable(LightCI* light, bool value)
 {
-	if (_lightEnable.Push(light, value))	
+	if (_lightEnable.Push(light, value))
 		SetLightEnable(light->_id, value);
 }
 
@@ -935,12 +916,12 @@ bool ContextInfo::IsShaderActive() const
 	return _shaderStack.size() > 0;
 }
 
-const D3DXMATRIX& ContextInfo::GetWorldMat() const
+const D3DMATRIX& ContextInfo::GetWorldMat() const
 {
 	return _worldMat;
 }
 
-void ContextInfo::SetWorldMat(const D3DXMATRIX& value)
+void ContextInfo::SetWorldMat(const D3DMATRIX& value)
 {
 	_worldMat = value;
 	if (!_cameraStack.empty())
@@ -952,7 +933,7 @@ void ContextInfo::SetWorldMat(const D3DXMATRIX& value)
 	_driver->SetTransform(tstWorld, &_worldMat);
 }
 
-void ContextInfo::PushTextureTransform(int stage, const D3DXMATRIX& value)
+void ContextInfo::PushTextureTransform(int stage, const D3DMATRIX& value)
 {
 	_textureMatStack[stage].push_back(value);
 }
@@ -974,11 +955,11 @@ void ContextInfo::SetMaterial(const MaterialDesc& value)
 	if (!_ignoreMaterial)
 	{
 		D3DMATERIAL9 mat;
-		mat.Ambient = _material.ambient * _color;
-		mat.Diffuse = _material.diffuse * _color;
-		mat.Emissive = _material.emissive * _color;
+		mat.Ambient = *reinterpret_cast<D3DCOLORVALUE *>(&(_material.ambient * _color));
+		mat.Diffuse = *reinterpret_cast<D3DCOLORVALUE *>(&(_material.diffuse * _color));
+		mat.Emissive = *reinterpret_cast<D3DCOLORVALUE *>(&(_material.emissive * _color));
 		mat.Power = _material.power;
-		mat.Specular = _material.specular;
+		mat.Specular = *reinterpret_cast<D3DCOLORVALUE *>(&_material.specular);
 		_driver->SetMaterial(&mat);
 	}
 }
@@ -993,7 +974,7 @@ void ContextInfo::SetRenderState(RenderState type, DWORD value)
 	if (type == rsCullMode && _invertingCullFace)
 		value = InvertCullFace(value);
 	if (_renderStates[type] != value)
-	{		
+	{
 		_renderStates[type] = value;
 		_driver->SetRenderState(type, value);
 	}
@@ -1010,7 +991,7 @@ IDirect3DBaseTexture9* ContextInfo::GetTexture(DWORD sampler)
 }
 
 void ContextInfo::SetTexture(DWORD sampler, IDirect3DBaseTexture9* value)
-{	
+{
 	if (_textures[sampler] != value)
 	{
 		_textures[sampler] = value;
@@ -1065,7 +1046,7 @@ void ContextInfo::SetTextureStageState(DWORD sampler, TextureStageState type, DW
 	{
 		_textureStageStates[sampler][type] = value;
 		if (!_ignoreMaterial)
-			_driver->SetTextureStageState(sampler, type, value);	
+			_driver->SetTextureStageState(sampler, type, value);
 	}
 }
 
@@ -1160,12 +1141,12 @@ bool ContextInfo::IsCullOpacity() const
 	return _cullOpacity < 1.0f;
 }
 
-const D3DXCOLOR& ContextInfo::GetColor() const
+const glm::vec4& ContextInfo::GetColor() const
 {
 	return _color;
 }
 
-void ContextInfo::SetColor(const D3DXCOLOR& value)
+void ContextInfo::SetColor(const glm::vec4& value)
 {
 	_color = value;
 }

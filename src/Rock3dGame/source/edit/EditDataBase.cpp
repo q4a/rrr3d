@@ -1,9 +1,8 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "edit\DataBase.h"
-#include "edit\Edit.h"
-
+#include "edit/DataBase.h"
+#include "edit/Edit.h"
 
 namespace r3d
 {
@@ -35,9 +34,6 @@ void MapObjRec::SetName(const std::string& value)
 	GetInst()->SetName(value);
 }
 
-
-
-
 RecordNode::RecordNode(Inst* inst): ExternImpl<Inst>(inst)
 {
 }
@@ -58,7 +54,7 @@ IMapObjRecRef RecordNode::FirstRecord()
 void RecordNode::NextRecord(IMapObjRecRef& ref)
 {
 	MapObjRec* rec = ref->GetImpl<MapObjRec>();
-	
+
 	if (++(rec->libIter) != GetInst()->GetRecordList().end())
 	{
 		MapObjRec* newRec = new MapObjRec(static_cast<game::MapObjRec*>(*rec->libIter));
@@ -85,7 +81,7 @@ IRecordNodeRef RecordNode::FirstNode()
 void RecordNode::NextNode(IRecordNodeRef& ref)
 {
 	RecordNode* node = ref->GetImpl<RecordNode>();
-	
+
 	if (++(node->libIter) != GetInst()->GetNodeList().end())
 	{
 		RecordNode* newNode = new RecordNode(*node->libIter);
@@ -101,15 +97,9 @@ const std::string& RecordNode::GetName() const
 	return GetInst()->GetName();
 }
 
-
-
-
 MapObjLib::MapObjLib(Inst* inst): RecordNode(inst)
 {
 }
-
-
-
 
 DataBase::DataBase(Edit* edit): _edit(edit)
 {

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "res\\D3DXImageFile.h"
-#include "graph\\Engine.h"
+#include "res/D3DXImageFile.h"
+#include "graph/Engine.h"
 
 namespace r3d
 {
@@ -11,9 +11,6 @@ namespace res
 
 graph::RenderDriver* D3DXImageFile::driver;
 graph::RenderDriver* D3DXCubeImageFile::driver;
-
-
-
 
 void D3DXImageFile::RegistredFile()
 {
@@ -30,9 +27,9 @@ void D3DXImageFile::LoadFromStream(Resource& outData, std::istream& stream)
 	tmpBuff.LoadFromStream(stream, "");
 
 	D3DXIMAGE_INFO info;
-	IDirect3DTexture9* tmpTex;	
+	IDirect3DTexture9* tmpTex;
 	HRESULT hr = D3DXCreateTextureFromFileInMemoryEx(driver->GetDevice(), tmpBuff.GetData(), tmpBuff.GetSize(), D3DX_FROM_FILE, D3DX_FROM_FILE, 1, 0, D3DFMT_UNKNOWN, D3DPOOL_SCRATCH, D3DX_DEFAULT, D3DX_DEFAULT, 0, &info, 0, &tmpTex);
-	
+
 	LSL_ASSERT(hr != D3DERR_NOTAVAILABLE);
 	LSL_ASSERT(hr != D3DERR_OUTOFVIDEOMEMORY);
 	LSL_ASSERT(hr != D3DERR_INVALIDCALL);
@@ -79,9 +76,6 @@ void D3DXImageFile::SaveToStream(const Resource& inData, std::ostream& stream)
 {
 }
 
-
-
-
 void D3DXCubeImageFile::RegistredFile()
 {
 	CubeImageResource::GetResFormats().Add<D3DXCubeImageFile>(".dds");
@@ -93,7 +87,7 @@ void D3DXCubeImageFile::LoadFromStream(Resource& outData, std::istream& stream)
 	tmpBuff.LoadFromStream(stream, "");
 
 	D3DXIMAGE_INFO info;
-	IDirect3DCubeTexture9* cubeTex;	
+	IDirect3DCubeTexture9* cubeTex;
 	HRESULT hr = D3DXCreateCubeTextureFromFileInMemoryEx(driver->GetDevice(), tmpBuff.GetData(), tmpBuff.GetSize(), D3DX_FROM_FILE, 1, 0, D3DFMT_UNKNOWN, D3DPOOL_SCRATCH, D3DX_DEFAULT, D3DX_DEFAULT, 0, &info, 0, &cubeTex);
 
 	LSL_ASSERT(hr != D3DERR_NOTAVAILABLE);

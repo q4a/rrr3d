@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game\Race.h"
+#include "game/Race.h"
 #include "NetBase.h"
 
 namespace r3d
@@ -127,7 +127,7 @@ private:
 		}
 	};
 
-	typedef std::vector<D3DXVECTOR3> CoordList;
+	typedef std::vector<glm::vec3> CoordList;
 public:
 	struct DescData
 	{
@@ -164,13 +164,13 @@ private:
 	void DoRaceReady(bool ready);
 	void DoRaceGoWait(bool goWait);
 	void DoRaceFinish(bool finish);
-	
+
 	void DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordList* coordList, bool readMode);
-	void SendColor(const D3DXCOLOR& value, bool failed, unsigned target);
+	void SendColor(const glm::vec4& value, bool failed, unsigned target);
 	void SendGamerId(int value, bool failed, unsigned target);
 
 	void SlotsWrite(std::ostream& stream);
-	void SlotsRead(std::istream& stream);	
+	void SlotsRead(std::istream& stream);
 
 	void OnSetGamerId(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 	void OnSetColor(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
@@ -201,17 +201,17 @@ public:
 	void Shot(MapObj* target);
 
 	void TakeBonus(MapObj* bonus, GameObject::BonusType type, float value);
-	void MineContact(Proj* sender, const D3DXVECTOR3& point);
+	void MineContact(Proj* sender, const glm::vec3& point);
 
 	int GetGamerId() const;
 	void SetGamerId(int value);
 	bool CheckGamerId(int value) const;
 	int GenerateGamerId() const;
 
-	const D3DXCOLOR& GetColor() const;	
-	void SetColor(const D3DXCOLOR& value);	
-	bool CheckColor(const D3DXCOLOR& value) const;
-	D3DXCOLOR GenerateColor() const;
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
+	bool CheckColor(const glm::vec4& value) const;
+	glm::vec4 GenerateColor() const;
 
 	Garage::Car* GetCar();
 	bool BuyCar(Garage::Car* car);

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\RenderToTexture.h"
+#include "graph/RenderToTexture.h"
 
 namespace r3d
 {
@@ -18,9 +18,6 @@ D3DCUBEMAP_FACES operator++(D3DCUBEMAP_FACES& value)
 
 }
 
-
-
-
 RenderTarget<Tex2DResource>::RenderTarget(): _texture(0), _createTexture(false)
 {
 }
@@ -35,7 +32,7 @@ Tex2DResource* RenderTarget<Tex2DResource>::CreateRT()
 	Tex2DResource* tex = new Tex2DResource();
 	tex->SetDynamic(true);
 	tex->SetUsage(D3DUSAGE_RENDERTARGET);
-	
+
 	return tex;
 }
 
@@ -62,7 +59,7 @@ bool RenderTarget<Tex2DResource>::IsApplyRT() const
 
 Tex2DResource* RenderTarget<Tex2DResource>::GetRT()
 {
-	return _texture;	
+	return _texture;
 }
 
 Tex2DResource* RenderTarget<Tex2DResource>::GetOrCreateRT()
@@ -88,9 +85,6 @@ void RenderTarget<Tex2DResource>::SetRT(Tex2DResource* value)
 		_texture = value;
 	}
 }
-
-
-
 
 RenderTarget<TexCubeResource>::RenderTarget(): _texture(0), _createTexture(false)
 {
@@ -133,7 +127,7 @@ bool RenderTarget<TexCubeResource>::IsApplyRT() const
 
 TexCubeResource* RenderTarget<TexCubeResource>::GetRT()
 {
-	return _texture;	
+	return _texture;
 }
 
 TexCubeResource* RenderTarget<TexCubeResource>::GetOrCreateRT()
@@ -160,9 +154,6 @@ void RenderTarget<TexCubeResource>::SetRT(TexCubeResource* value)
 	}
 }
 
-
-
-
 void RenderToTexture::BeginRT(Engine& engine, const RtFlags& flags)
 {
 	ApplyRT(engine, flags);
@@ -177,9 +168,6 @@ void RenderToTexture::EndRT(Engine& engine)
 	_MyBase::EndRT(engine);
 }
 
-
-
-
 RenderToCubeTex::RenderToCubeTex(): _flags(static_cast<D3DCUBEMAP_FACES>(0), 0, 0), _viewPos(NullVector)
 {
 }
@@ -189,48 +177,48 @@ void RenderToCubeTex::BeginCubeSurf(Engine& engine)
 	LSL_ASSERT(IsBeginRT());
 
 	CameraDesc camDesc = engine.GetContext().GetCamera().GetDesc();
-	//camDesc.pos = D3DXVECTOR3(0, 0, 15.0f);
+	//camDesc.pos = glm::vec3(0, 0, 15.0f);
 	camDesc.pos = _viewPos;
 	camDesc.style = csPerspective;
 	camDesc.aspect = 1;
 	camDesc.nearDist = 1.0f;
 	camDesc.farDist = 100.0f;
-	camDesc.fov = D3DX_PI/2;
+	camDesc.fov = glm::half_pi<float>();
 
 	switch(_flags.faceType)
 	{
 	case D3DCUBEMAP_FACE_POSITIVE_X:
-		camDesc.dir = D3DXVECTOR3(-1.0f, 0.0f, 0.0f );
-		camDesc.up = D3DXVECTOR3( 0.0f, -1.0f, 0.0f );
+		camDesc.dir = glm::vec3(-1.0f, 0.0f, 0.0f );
+		camDesc.up = glm::vec3( 0.0f, -1.0f, 0.0f );
 		break;
 
-	case D3DCUBEMAP_FACE_NEGATIVE_X:			
-		camDesc.dir = D3DXVECTOR3(1.0f, 0.0f, 0.0f );			
-		camDesc.up = D3DXVECTOR3( 0.0f, -1.0f, 0.0f );
-		break; 
-
-	case D3DCUBEMAP_FACE_POSITIVE_Y:			
-		camDesc.dir = D3DXVECTOR3( 0.0f, -1.0f, 0.0f );
-		camDesc.up = D3DXVECTOR3( 0.0f, 0.0f, 1.0f );
+	case D3DCUBEMAP_FACE_NEGATIVE_X:
+		camDesc.dir = glm::vec3(1.0f, 0.0f, 0.0f );
+		camDesc.up = glm::vec3( 0.0f, -1.0f, 0.0f );
 		break;
-			
-	case D3DCUBEMAP_FACE_NEGATIVE_Y:			
-		camDesc.dir = D3DXVECTOR3( 0.0f, 1.0f, 0.0f );
-		camDesc.up = D3DXVECTOR3( 0.0f, 0.0f, -1.0f );
-		break;				
-			
+
+	case D3DCUBEMAP_FACE_POSITIVE_Y:
+		camDesc.dir = glm::vec3( 0.0f, -1.0f, 0.0f );
+		camDesc.up = glm::vec3( 0.0f, 0.0f, 1.0f );
+		break;
+
+	case D3DCUBEMAP_FACE_NEGATIVE_Y:
+		camDesc.dir = glm::vec3( 0.0f, 1.0f, 0.0f );
+		camDesc.up = glm::vec3( 0.0f, 0.0f, -1.0f );
+		break;
+
 	case D3DCUBEMAP_FACE_POSITIVE_Z:
-		camDesc.dir = D3DXVECTOR3( 0.0f, 0.0f, -1.0f );
-		camDesc.up = D3DXVECTOR3( 0.0f, -1.0f, 0.0f );
-		break;				
-	
+		camDesc.dir = glm::vec3( 0.0f, 0.0f, -1.0f );
+		camDesc.up = glm::vec3( 0.0f, -1.0f, 0.0f );
+		break;
+
 	case D3DCUBEMAP_FACE_NEGATIVE_Z:
-		camDesc.dir = D3DXVECTOR3( 0.0f, 0.0f, 1.0f );
-		camDesc.up = D3DXVECTOR3( 0.0f, -1.0f, 0.0f );
+		camDesc.dir = glm::vec3( 0.0f, 0.0f, 1.0f );
+		camDesc.up = glm::vec3( 0.0f, -1.0f, 0.0f );
 		break;
 	}
 
-	_myCamera.SetDesc(camDesc);	
+	_myCamera.SetDesc(camDesc);
 	engine.GetContext().ApplyCamera(&_myCamera);
 
 	ApplyRT(engine, _flags);
@@ -267,12 +255,12 @@ void RenderToCubeTex::EndRT(Engine& engine)
 	_MyBase::EndRT(engine);
 }
 
-const D3DXVECTOR3& RenderToCubeTex::GetViewPos() const
+const glm::vec3& RenderToCubeTex::GetViewPos() const
 {
 	return _viewPos;
 }
 
-void RenderToCubeTex::SetViewPos(const D3DXVECTOR3& value)
+void RenderToCubeTex::SetViewPos(const glm::vec3& value)
 {
 	_viewPos = value;
 }

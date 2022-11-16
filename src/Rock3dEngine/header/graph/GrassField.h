@@ -2,7 +2,7 @@
 #define GRASS_FIELD
 
 #include "SceneManager.h"
-#include "graph\\MaterialLibrary.h"
+#include "graph/MaterialLibrary.h"
 
 namespace r3d
 {
@@ -21,17 +21,17 @@ private:
 public:
 	struct GrassTile
 	{
-		GrassTile(float mWeight, D3DXVECTOR4 mTexCoord);
+		GrassTile(float mWeight, glm::vec4 mTexCoord);
 
 		float weight;
-		D3DXVECTOR4 texCoord;
+		glm::vec4 texCoord;
 	};
 
 	struct GrassDesc
 	{
 		typedef std::vector<GrassTile> Tiles;
 
-		GrassDesc(graph::LibMaterial* mLibMat, const GrassTile& tile = GrassTile(1, D3DXVECTOR4(0, 0, 1, 1)));
+		GrassDesc(graph::LibMaterial* mLibMat, const GrassTile& tile = GrassTile(1, glm::vec4(0, 0, 1, 1)));
 
 		graph::LibMaterial* libMat;
 		Tiles tiles;
@@ -40,7 +40,7 @@ public:
 
 	struct Field
 	{
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 	};
 	typedef lsl::Vector<Field> FieldList;
 
@@ -57,7 +57,7 @@ private:
 	float _fieldWidth;
 	float _fieldHeight;
 	FieldList _fieldList;
-	
+
 	void BuildField();
 	void DrawField(graph::Engine& engine, const Field& field);
 	void Rebuild();

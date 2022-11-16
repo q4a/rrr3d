@@ -14,13 +14,13 @@ namespace graph
 class BaseSampler
 {
 public:
-	enum Mode {tmDecal, tmModulate, tmReplace, tmLight, tmDefault};	
+	enum Mode {tmDecal, tmModulate, tmReplace, tmLight, tmDefault};
 	enum Type {st2d = 0, stCube, cSamplerTypeEnd};
 	enum Filtering {sfDefault, sfPoint, sfLinear, sfAnisotropic};
 private:
 	Type _type;
 	lsl::AutoRef<TexResource> _tex;
-	bool _disabled;	
+	bool _disabled;
 	Filtering _filtering;
 	unsigned _filteringLevel;
 
@@ -28,13 +28,13 @@ private:
 	Vec3Range _scale;
 	QuatRange _rotate;
 
-	mutable D3DXMATRIX _matrix;
+	mutable D3DMATRIX _matrix;
 	mutable bool _matChanged;
 	mutable float _matFrame;
 	mutable bool _defMat;
 
 	void TransformationChanged() const;
-	const D3DXMATRIX& GetMatrix(float frame) const;
+	const D3DMATRIX& GetMatrix(float frame) const;
 
 	void ApplyFiltering();
 protected:
@@ -47,8 +47,8 @@ public:
 	void Apply(Engine& engine, DWORD stage);
 	void UnApply(Engine& engine, DWORD stage);
 
-	Type GetType() const;	
-	
+	Type GetType() const;
+
 	TexResource* GetTex();
 	const TexResource* GetTex() const;
 	IDirect3DBaseTexture9* GetTexSrc();
@@ -56,8 +56,8 @@ public:
 	void SetColorMode(Mode value);
 	void SetAlphaMode(Mode value);
 
-	D3DXCOLOR GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	glm::vec4 GetColor() const;
+	void SetColor(const glm::vec4& value);
 
 	const Vec3Range& GetOffset() const;
 	void SetOffset(const Vec3Range& value);
@@ -83,7 +83,7 @@ private:
 	bool _createTex;
 protected:
 	Sampler(Type type);
-public:	
+public:
 	virtual ~Sampler();
 
 	_Tex* GetTex();
@@ -98,8 +98,8 @@ class Sampler2d: public Sampler<Tex2DResource>
 public:
 	Sampler2d();
 
-	void BuildAnimByOff(const Vec2Range& texCoord, const Point2U& tileCnt, const D3DXVECTOR2& pixOff = D3DXVECTOR2(0.5f, 0.5f));
-	void BuildAnimByTile(const Vec2Range& texCoord, const Point2U& tileCnt, const D3DXVECTOR2& tileSize);
+	void BuildAnimByOff(const Vec2Range& texCoord, const Point2U& tileCnt, const glm::vec2& pixOff = glm::vec2(0.5f, 0.5f));
+	void BuildAnimByTile(const Vec2Range& texCoord, const Point2U& tileCnt, const glm::vec2& tileSize);
 
 	IDirect3DTexture9* GetTexSrc();
 
@@ -107,7 +107,7 @@ public:
 	unsigned GetHeight() const;
 	unsigned GetFormat() const;
 
-	D3DXVECTOR2 GetSize();
+	glm::vec2 GetSize();
 };
 
 class SamplerCube: public Sampler<TexCubeResource>
@@ -129,7 +129,7 @@ class Samplers
 {
 private:
 	typedef std::vector<BaseSampler*> Cont;
-	typedef BaseSampler::Type SamplerType;		
+	typedef BaseSampler::Type SamplerType;
 public:
 	typedef lsl::ClassList<SamplerType, BaseSampler, void> ClassList;
 	static ClassList classList;
@@ -186,7 +186,7 @@ public:
 	enum Blending
 	{
 		bmOpaque = 0,
-		bmTransparency, 
+		bmTransparency,
 		bmAdditive
 	};
 	enum AlphaTest
@@ -221,7 +221,7 @@ private:
 	void ApplyBlending(Blending value);
 	void ApplyAlphaTest(AlphaTest mode);
 public:
-	Material();	
+	Material();
 
 	void Apply(Engine& engine);
 	void UnApply(Engine& engine);
@@ -229,7 +229,7 @@ public:
 	const ColorRange& GetAmbient() const;
 	void SetAmbient(const ColorRange& value);
 	const ColorRange& GetDiffuse() const;
-	void SetDiffuse(const ColorRange& value);	
+	void SetDiffuse(const ColorRange& value);
 	const ColorRange& GetEmissive() const;
 	void SetEmissive(const ColorRange& value);
 	const ColorRange& GetSpecular() const;
@@ -293,10 +293,7 @@ private:
 	typedef lsl::ComCollection<LibMaterial, void, void, void> _MyBase;
 };
 
-void DrawScreenQuad(Engine& engine,  const D3DXVECTOR4& quadVert = D3DXVECTOR4(0.0f, 0.0f, 1.0f, 1.0f), float fLeftU = 0.0f, float fTopV = 0.0f, float fRightU = 1.0f, float fBottomV = 1.0f, bool disableZBuf = false);
-
-
-
+void DrawScreenQuad(Engine& engine,  const glm::vec4& quadVert = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f), float fLeftU = 0.0f, float fTopV = 0.0f, float fRightU = 1.0f, float fBottomV = 1.0f, bool disableZBuf = false);
 
 template<class _Tex> Sampler<_Tex>::Sampler(Type type): _MyBase(type), _createTex(false)
 {
@@ -325,7 +322,7 @@ template<class _Tex> _Tex* Sampler<_Tex>::GetOrCreateTex()
 		_createTex = true;
 	}
 
-	return GetTex();	
+	return GetTex();
 }
 
 template<class _Tex> void Sampler<_Tex>::SetTex(_Tex* value)

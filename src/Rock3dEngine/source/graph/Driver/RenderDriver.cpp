@@ -3,7 +3,7 @@
 #ifndef RENDER_DRIVER_INL
 #define RENDER_DRIVER_INL
 
-#include "graph\driver\RenderDriver.h"
+#include "graph/driver/RenderDriver.h"
 
 namespace r3d
 {
@@ -19,9 +19,6 @@ const unsigned RenderDriver::cMaxResHeight = 1080;
 //
 const unsigned RenderDriver::cOptimalResWidth = 1366; //1280; //1600;
 const unsigned RenderDriver::cOptimalResHeight = 768; //720; //900;
-
-
-
 
 float RenderDriver::CalcAspect()
 {
@@ -44,10 +41,10 @@ bool RenderDriver::FindNearMode(const lsl::Point& resolution, DisplayMode& mode,
 
 		for (unsigned i = 0; i < GetDisplayModes().size(); ++i)
 		{
-			DisplayMode dispMode = GetDisplayModes()[i];			
+			DisplayMode dispMode = GetDisplayModes()[i];
 			float newAspect = dispMode.height != 0 ? dispMode.width /(float)dispMode.height : 0.0f;
 
-			if (newAspect != 0 && (abs(minAspect - aspect) > abs(aspect - newAspect) || minAspect == 0.0f))
+			if (newAspect != 0 && (std::abs(minAspect - aspect) > std::abs(aspect - newAspect) || minAspect == 0.0f))
 				minAspect = newAspect;
 		}
 
@@ -62,9 +59,9 @@ bool RenderDriver::FindNearMode(const lsl::Point& resolution, DisplayMode& mode,
 	for (unsigned i = 0; i < GetDisplayModes().size(); ++i)
 	{
 		DisplayMode dispMode = GetDisplayModes()[i];
-		int dist = abs(static_cast<int>(dispMode.width * dispMode.height - resolution.x * resolution.y));
+		int dist = std::abs(static_cast<int>(dispMode.width * dispMode.height - resolution.x * resolution.y));
 
-		if (aspect != 0.0f && dispMode.height != 0 && abs(aspect - dispMode.width/(float)dispMode.height) < 0.001f)
+		if (aspect != 0.0f && dispMode.height != 0 && std::abs(aspect - dispMode.width/(float)dispMode.height) < 0.001f)
 		{
 			if (minDAsp > dist || minDAsp == -1)
 			{

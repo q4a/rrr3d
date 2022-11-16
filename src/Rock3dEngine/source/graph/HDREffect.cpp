@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\HDREffect.h"
+#include "graph/HDREffect.h"
 
 namespace r3d
 {
@@ -12,7 +12,6 @@ HDRRender::HDRRender(): _restart(true), _colorTex(0)
 {
 	const unsigned toneMapSz[cToneMapTexNum] = {1, 4, 16, 64};
 
-
 	for (int i = 0; i < cToneMapTexNum; ++i)
 	{
 		Tex2DResource& tex = _toneMapTex.Add();
@@ -20,7 +19,7 @@ HDRRender::HDRRender(): _restart(true), _colorTex(0)
 		tex.SetUsage(D3DUSAGE_RENDERTARGET);
 		tex.GetOrCreateData()->SetWidth(toneMapSz[i]);
 		tex.GetData()->SetHeight(toneMapSz[i]);
-		tex.GetData()->SetFormat(D3DFMT_A16B16G16R16F);		
+		tex.GetData()->SetFormat(D3DFMT_A16B16G16R16F);
 
 		_toneVec.push_back(&tex);
 	}
@@ -48,32 +47,32 @@ void HDRRender::MeasureLuminance(Engine& engine)
 {
 	LSL_ASSERT(_colorTex);
 
-	D3DXVECTOR2 sampleOffsets3x3[9];
-	D3DXVECTOR2 sampleOffsets4x4[16];
+	glm::vec2 sampleOffsets3x3[9];
+	glm::vec2 sampleOffsets4x4[16];
 
 	GetSampleOffsetsDownScale3x3(_colorTex->GetData()->GetWidth(), _colorTex->GetData()->GetHeight(), sampleOffsets3x3);
 	shader.SetTextureDir("lumTex", _colorTex);
 	shader.SetValueDir("sampleOffsets3x3", sampleOffsets3x3, sizeof(sampleOffsets3x3));
-	
+
 	IDirect3DSurface9* pSurfDest = 0;
 	_toneVec[cToneMapTexNum - 1]->GetTex()->GetSurfaceLevel(0, &pSurfDest);
-	engine.GetDriver().GetDevice()->SetRenderTarget(0, pSurfDest);	
-	
+	engine.GetDriver().GetDevice()->SetRenderTarget(0, pSurfDest);
+
 	shader.Apply(engine, "techDown3x3LumLog", 0);
 	DrawScreenQuad(engine);
 	shader.UnApply(engine);
-	
+
 	pSurfDest->Release();
 
 	for( int i = cToneMapTexNum - 1; i > 0; i--)
-    {
-		GetSampleOffsetsDownScale4x4(_toneVec[i - 1]->GetData()->GetWidth(), _toneVec[i - 1]->GetData()->GetHeight(), sampleOffsets4x4);		
+	{
+		GetSampleOffsetsDownScale4x4(_toneVec[i - 1]->GetData()->GetWidth(), _toneVec[i - 1]->GetData()->GetHeight(), sampleOffsets4x4);
 		//≈сли i == 1 окончательный вариант прохода в текстуру 1х1
 		shader.SetTextureDir("lumTex", _toneVec[i]);
 		shader.SetValueDir("sampleOffsets4x4", sampleOffsets4x4, sizeof(sampleOffsets4x4));
-		
+
 		if (i == 1 && (engine.IsRestart() || _restart))
-			GetRT()->GetTex()->GetSurfaceLevel(0, &pSurfDest);			
+			GetRT()->GetTex()->GetSurfaceLevel(0, &pSurfDest);
 		else
 			_toneVec[i - 1]->GetTex()->GetSurfaceLevel(0, &pSurfDest);
 
@@ -84,7 +83,7 @@ void HDRRender::MeasureLuminance(Engine& engine)
 		shader.UnApply(engine);
 
 		pSurfDest->Release();
-    }
+	}
 }
 
 void HDRRender::AdaptationLuminance(Engine& engine)
@@ -97,7 +96,7 @@ void HDRRender::AdaptationLuminance(Engine& engine)
 	shader.SetTextureDir("lumTex", _toneVec[0]);
 	shader.SetTextureDir("lumTexOld", GetRT());
 	shader.SetValueDir("dtime", dtime);
-	
+
 	ApplyRT(engine, RtFlags(0, 0));
 
 	shader.Apply(engine, "techAdaptLum", 0);
@@ -129,10 +128,10 @@ void HDRRender::SetColorTex(Tex2DResource* value)
 {
 	if (_colorTex != value)
 	{
-		if (_colorTex)				
+		if (_colorTex)
 			_colorTex->Release();
 		_colorTex = value;
-		if (_colorTex)		
+		if (_colorTex)
 			_colorTex->AddRef();
 	}
 }

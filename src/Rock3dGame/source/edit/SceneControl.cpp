@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "edit\SceneControl.h"
-#include "edit\Edit.h"
+#include "edit/SceneControl.h"
+#include "edit/Edit.h"
 
 namespace r3d
 {
@@ -11,9 +11,6 @@ namespace edit
 {
 
 const SceneControl::DirMove DMCoordMoveToSC[graph::MovCoordSys::cDirMoveEnd] = {SceneControl::dmNone, SceneControl::dmX, SceneControl::dmY, SceneControl::dmZ, SceneControl::dmXY, SceneControl::dmXZ, SceneControl::dmYZ};
-
-
-
 
 SceneControl::SceneControl(Edit* edit): _edit(edit), _selMode(smNone), _selNode(0), _linkBB(false), _actor(0), _movCoordSys(0), _scaleCoordSys(0)
 {
@@ -74,7 +71,7 @@ bool SceneControl::Control::OnMouseClickEvent(const game::MouseClick& mClick)
 			_clDirOff = _owner->ComputePos(selNode, mClick.scrRayPos, mClick.scrRayVec, DMCoordMoveToSC[_clDirMove], NullVector);
 			_clDirOff = _clDirOff - selNode->GetPos();
 			return _clDirMove != graph::MovCoordSys::dmNone;
-			
+
 		case smRotate:
 			_clRotating = selNode->RayCastInters(mClick.scrRayPos, mClick.scrRayVec);
 			_clStartRot = selNode->GetRot();
@@ -111,8 +108,8 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 
 	INodeRef selNode = _owner->_selNode;
 
-	D3DXVECTOR2 offCoord(static_cast<float>(mMove.offCoord.x), static_cast<float>(mMove.offCoord.y));
-	
+	glm::vec2 offCoord(static_cast<float>(mMove.offCoord.x), static_cast<float>(mMove.offCoord.y));
+
 	//Ќажата лева€ кнопка мыши
 	if (mMove.click.key == lsl::mkLeft && mMove.click.state == lsl::ksDown)
 	{
@@ -121,17 +118,17 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 		case smNone:
 			if (_clDrag)
 			{
-				if (!_startDrag && D3DXVec3Length(&_clDragOff) > 0.1f)
+				if (!_startDrag && glm::length(_clDragOff) > 0.1f)
 				{
 					_startDrag = true;
 					selNode->OnStartDrag(mMove.scrRayPos, mMove.scrRayVec);
 				}
 				if (_startDrag)
 				{
-					D3DXVECTOR3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, dmView, _clDragOff);
+					glm::vec3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, dmView, _clDragOff);
 					selNode->OnDrag(pos, mMove.scrRayPos, mMove.scrRayVec);
 				}
-			}			
+			}
 			break;
 
 		case smMove:
@@ -143,7 +140,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				if (!_shiftAction && mMove.shift1)
 				{
 					graph::MovCoordSys::DirMove dirMove = _clDirMove;
-					D3DXVECTOR3 clDirOff = _clDirOff;
+					glm::vec3 clDirOff = _clDirOff;
 
 					selNode->OnShiftAction(mMove.scrRayPos, mMove.scrRayVec);
 
@@ -153,44 +150,42 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 					shitMovUpdate = true;
 				}
 
-				D3DXVECTOR3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, DMCoordMoveToSC[_clDirMove], _clDirOff);
+				glm::vec3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, DMCoordMoveToSC[_clDirMove], _clDirOff);
 				selNode->SetPos(pos);
 				_owner->_movCoordSys->SetWorldPos(pos);
 
 				return true;
 			}
-			return false;			
+			return false;
 		}
-		
+
 		case smRotate:
 			if (_clRotating)
 			{
 				if (!_shiftAction && mMove.shift1)
 				{
 					bool clRotating = _clRotating;
-					D3DXQUATERNION clStartRot = _clStartRot;
+					glm::quat clStartRot = _clStartRot;
 
 					selNode->OnShiftAction(mMove.scrRayPos, mMove.scrRayVec);
 
 					_shiftAction = true;
 					_clRotating = clRotating;
-					_clStartRot = clStartRot;	
+					_clStartRot = clStartRot;
 				}
 
 				//
-				float angleZ = offCoord.x / 400.0f * 2 * D3DX_PI;
-				angleZ = ceil(angleZ / (D3DX_PI/12.0f)) * (D3DX_PI/12.0f);
+				float angleZ = offCoord.x / 400.0f * 2 * glm::pi<float>();
+				angleZ = ceil(angleZ / (glm::pi<float>()/12.0f)) * (glm::pi<float>()/12.0f);
 				//
-				float angleY = -offCoord.y  / 400.0f * 2 * D3DX_PI;
-				angleY = ceil(angleY / (D3DX_PI/12.0f)) * (D3DX_PI/12.0f);
+				float angleY = -offCoord.y  / 400.0f * 2 * glm::pi<float>();
+				angleY = ceil(angleY / (glm::pi<float>()/12.0f)) * (glm::pi<float>()/12.0f);
 
-				D3DXQUATERNION rotZ;
-				D3DXQuaternionRotationAxis(&rotZ, &ZVector, angleZ);
-				D3DXQUATERNION rotY;
-				D3DXQuaternionRotationAxis(&rotY, &_owner->_edit->GetWorld()->GetCamera()->GetRight(), angleY);
-				D3DXQUATERNION rot = abs(angleZ) > abs(angleY) ? rotZ : rotY;
-					
-				selNode->SetRot(_clStartRot * rot);
+				glm::quat rotZ = glm::angleAxis(angleZ, ZVector);
+				glm::quat rotY = glm::angleAxis(angleY, _owner->_edit->GetWorld()->GetCamera()->GetRight());
+				glm::quat rot = std::abs(angleZ) > std::abs(angleY) ? rotZ : rotY;
+
+				selNode->SetRot(rot * _clStartRot);
 
 				return true;
 			}
@@ -201,30 +196,30 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				if (!_shiftAction && mMove.shift1)
 				{
 					graph::ScaleCoordSys::DirMove clScDirMove = _clScDirMove;
-					D3DXVECTOR3 clStScale = _clStScale;
+					glm::vec3 clStScale = _clStScale;
 
 					selNode->OnShiftAction(mMove.scrRayPos, mMove.scrRayVec);
 
 					_shiftAction = true;
 					_clScDirMove = clScDirMove;
-					_clStScale = clStScale;	
+					_clStScale = clStScale;
 				}
 
-			D3DXVECTOR2 fS(offCoord.x, -offCoord.y);
+			glm::vec2 fS(offCoord.x, -offCoord.y);
 			fS /= 100.0f;
 			switch (_clScDirMove)
-			{					
+			{
 			case graph::ScaleCoordSys::dmXYZ:
-				selNode->SetScale(_clStScale + D3DXVECTOR3(fS.y, fS.y, fS.y));
+				selNode->SetScale(_clStScale + glm::vec3(fS.y, fS.y, fS.y));
 				break;
 			case graph::ScaleCoordSys::dmX:
-				selNode->SetScale(_clStScale + D3DXVECTOR3(fS.x, 0, 0));
+				selNode->SetScale(_clStScale + glm::vec3(fS.x, 0, 0));
 				break;
 			case graph::ScaleCoordSys::dmY:
-				selNode->SetScale(_clStScale + D3DXVECTOR3(0, fS.x, 0));
+				selNode->SetScale(_clStScale + glm::vec3(0, fS.x, 0));
 				break;
 			case graph::ScaleCoordSys::dmZ:
-				selNode->SetScale(_clStScale + D3DXVECTOR3(0, 0, fS.y));
+				selNode->SetScale(_clStScale + glm::vec3(0, 0, fS.y));
 				break;
 			}
 			return true;
@@ -236,7 +231,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 	{
 	case smLink:
 	{
-		D3DXVECTOR3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, dmXY, NullVector);
+		glm::vec3 pos = _owner->ComputePos(selNode.Pnt(), mMove.scrRayPos, mMove.scrRayVec, dmXY, NullVector);
 		selNode->SetPos(pos);
 		break;
 	}
@@ -254,40 +249,41 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 	return false;
 }
 
-bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorld, const D3DXMATRIX& worldToAABB, const D3DXVECTOR3& normOff, INode* ignore, float& outDistOff, const float distLink)
+bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DMATRIX& aabbToWorld, const D3DMATRIX& worldToAABB, const glm::vec3& normOff, INode* ignore, float& outDistOff, const float distLink)
 {
 	bool res = false;
 	outDistOff = distLink;
 	game::Map* map = _edit->GetWorld()->GetMap();
 
-	for (game::Map::Objects::const_iterator iter = map->GetObjects().begin(); iter != map->GetObjects().end(); ++iter)	
+	for (game::Map::Objects::const_iterator iter = map->GetObjects().begin(); iter != map->GetObjects().end(); ++iter)
 	{
 		game::MapObj* mapObj = iter->second;
 		graph::BaseSceneNode* testSc = &(mapObj->GetGameObj().GetGrActor());
 		if (!ignore->Compare(IMapObjRef(new MapObj(mapObj), this)))
-		{			
+		{
 			AABB test = testSc->GetLocalAABB(true);
-			
+
 			float dist;
 			//¬ычисл€ем двухсторонее пересечение test-а боксом aabb. ¬ыбираем  наименьшее значение длины проникновени€, начина€ с distLink.
-			if (test.AABBLineCastIntersect(aabb, normOff, aabbToWorld * testSc->GetInvWorldMat(), testSc->GetWorldMat() * worldToAABB, dist) && abs(dist) < abs(outDistOff))
+			if (test.AABBLineCastIntersect(aabb, normOff, MatrixMultiply(aabbToWorld, testSc->GetInvWorldMat()),
+			                               MatrixMultiply(testSc->GetWorldMat(), worldToAABB), dist) &&
+			    std::abs(dist) < std::abs(outDistOff))
 			{
 				res = true;
 				outDistOff = dist;
-			}		
+			}
 		}
 	}
 
 	return res;
 }
 
-void SceneControl::ComputeLink(INode* node, const D3DXVECTOR3& pos, D3DXVECTOR3& resPos)
+void SceneControl::ComputeLink(INode* node, const glm::vec3& pos, glm::vec3& resPos)
 {
-	D3DXVECTOR3 oldPos = node->GetPos();
-	D3DXVECTOR3 offset = pos - oldPos;
+	glm::vec3 oldPos = node->GetPos();
+	glm::vec3 offset = pos - oldPos;
 
-
-	D3DXVECTOR3 newOff = offset;
+	glm::vec3 newOff = offset;
 	bool repeat = false;
 	unsigned repCnt = 0;
 	//ѕеремещение раскладываетс€ на орты в системе координат mapObj, и по каждой орте ищетс€ возможный  link. ≈сли их несколько то процесс продолжаетс€ пока не будет наден близкий к нулю link или пока не истечет заданное число итераций (сделано на случай неопреденных ситуаций чтобы избежать зацикливани€)
@@ -299,27 +295,26 @@ void SceneControl::ComputeLink(INode* node, const D3DXVECTOR3& pos, D3DXVECTOR3&
 		float zDist;
 		repeat = false;
 
-		D3DXMATRIX worldMat;
-		D3DXMatrixTranslation(&worldMat, newOff.x, newOff.y, newOff.z);
-		worldMat = node->GetMat() * worldMat;
-		D3DXMATRIX invWorldMat;
-		D3DXMatrixInverse(&invWorldMat, 0, &worldMat);
+		D3DMATRIX worldMat = MatrixTranslation(newOff.x, newOff.y, newOff.z);
+		worldMat = MatrixMultiply(node->GetMat(), worldMat);
+		D3DMATRIX invWorldMat;
+		MatrixInverse(&invWorldMat, 0, worldMat);
 		AABB aabb = node->GetAABB();
 
 		if (!repeat && ComputeAxeLink(aabb, worldMat, invWorldMat, ZVector, node, zDist))
 		{
 			newOff += zDist * node->GetUp();
-			repeat |= abs(zDist) > 0.001f;
+			repeat |= std::abs(zDist) > 0.001f;
 		}
 		if (!repeat && ComputeAxeLink(aabb, worldMat, invWorldMat, YVector, node, yDist))
 		{
 			newOff += yDist * node->GetRight();
-			repeat |= abs(yDist) > 0.001f;
+			repeat |= std::abs(yDist) > 0.001f;
 		}
 		if (!repeat && ComputeAxeLink(aabb, worldMat, invWorldMat, XVector, node, xDist))
 		{
 			newOff += xDist * node->GetDir();
-			repeat |= abs(xDist) > 0.001f;
+			repeat |= std::abs(xDist) > 0.001f;
 		}
 
 		++repCnt;
@@ -401,7 +396,7 @@ void SceneControl::ApplySelMode()
 
 	if (!_selNode)
 		return;
-	
+
 	switch (_selMode)
 	{
 	case smMove:
@@ -414,9 +409,9 @@ void SceneControl::ApplySelMode()
 	}
 }
 
-D3DXVECTOR3 SceneControl::ComputePoint(const D3DXVECTOR3& curPos, const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, DirMove dirMove, const D3DXVECTOR3& centerOff)
+glm::vec3 SceneControl::ComputePoint(const glm::vec3& curPos, const glm::vec3& rayStart, const glm::vec3& rayVec, DirMove dirMove, const glm::vec3& centerOff)
 {
-	D3DXVECTOR3 planeNorm;
+	glm::vec3 planeNorm;
 
 	switch (dirMove)
 	{
@@ -449,16 +444,15 @@ D3DXVECTOR3 SceneControl::ComputePoint(const D3DXVECTOR3& curPos, const D3DXVECT
 		(dirMove == dmZ || dirMove == dmXZ || dirMove == dmYZ || dirMove == dmView)
 	};
 
-	D3DXVECTOR3 pos = curPos;
-	D3DXPLANE plane;
-	D3DXPlaneFromPointNormal(&plane, &pos, &planeNorm);
-	D3DXVECTOR3 newPos;
-	if (abs(D3DXVec3Dot(&planeNorm, &rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
+	glm::vec3 pos = curPos;
+	glm::vec4 plane = PlaneFromPointNormal(pos, planeNorm);
+	glm::vec3 newPos;
+	if (std::abs(glm::dot(planeNorm, rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
 	{
 		newPos = NullVector;
 
-		D3DXPlaneFromPointNormal(&plane, &pos, &XVector);		
-		if (dirMove == dmZ && abs(D3DXVec3Dot(&XVector, &rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
+		plane = PlaneFromPointNormal(pos, XVector);
+		if (dirMove == dmZ && std::abs(glm::dot(XVector, rayVec)) < 0.05f || !RayCastIntersectPlane(rayStart, rayVec, plane, newPos))
 			newPos = NullVector;
 	}
 
@@ -471,10 +465,10 @@ D3DXVECTOR3 SceneControl::ComputePoint(const D3DXVECTOR3& curPos, const D3DXVECT
 	return newPos;
 }
 
-D3DXVECTOR3 SceneControl::ComputePos(INode* node, const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, DirMove dirMove, const D3DXVECTOR3& centerOff)
+glm::vec3 SceneControl::ComputePos(INode* node, const glm::vec3& rayStart, const glm::vec3& rayVec, DirMove dirMove, const glm::vec3& centerOff)
 {
-	D3DXVECTOR3 newPos = ComputePoint(node->GetPos(), rayStart, rayVec, dirMove, centerOff);
-	
+	glm::vec3 newPos = ComputePoint(node->GetPos(), rayStart, rayVec, dirMove, centerOff);
+
 	if (_linkBB)
 		ComputeLink(node, newPos, newPos);
 
@@ -497,10 +491,10 @@ void SceneControl::SelectNode(const INodeRef& value)
 		{
 			_selNode->Select(false);
 		}
-		_selNode = value;		
+		_selNode = value;
 		if (_selNode)
 		{
-			_selNode->Select(true);			
+			_selNode->Select(true);
 		}
 
 		ApplySelMode();
@@ -520,7 +514,7 @@ void SceneControl::SetSelMode(SelMode value)
 		_control->ResetState();
 
 		_selMode = value;
-		ApplySelMode();		
+		ApplySelMode();
 	}
 }
 

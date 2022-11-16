@@ -4,9 +4,9 @@
 
 #include <xaudio2.h>
 #include <X3daudio.h>
-#include <vorbis\codec.h>
-#include <vorbis\vorbisfile.h>
-#include <vorbis\vorbisenc.h>
+#include <vorbis/codec.h>
+#include <vorbis/vorbisfile.h>
+#include <vorbis/vorbisenc.h>
 
 namespace r3d
 {
@@ -21,7 +21,7 @@ class SoundLib;
 
 class Sound: public lsl::Resource
 {
-	friend SoundLib;	
+	friend SoundLib;
 public:
 	static const unsigned cBufferSize;
 
@@ -54,11 +54,11 @@ public:
 		bool IsInit() const;
 
 		char* GetData() const;
-		int GetDataSize() const;		
+		int GetDataSize() const;
 
 		seek_pos GetPos() const;
-		seek_pos GetEndPos() const;		
-	};	
+		seek_pos GetEndPos() const;
+	};
 
 	typedef std::map<seek_pos, Buffer*> Buffers;
 	typedef lsl::List<Buffer*> BufferList;
@@ -68,11 +68,11 @@ private:
 	unsigned _cacheSize;
 	bool _isLoad;
 	float _volume;
-	
+
 	FILE* _file;
 	//mutable - чтение некоторые свойств требует non-const
-	mutable OggVorbis_File _oggFile; 
-	vorbis_info _vorbisInfo;	
+	mutable OggVorbis_File _oggFile;
+	vorbis_info _vorbisInfo;
 	//последовательный список буфферов
 	Buffers _buffers;
 	//список освобоженных буфферов
@@ -168,10 +168,10 @@ public:
 typedef lsl::List<class Voice*> VoiceList;
 
 class Voice: public lsl::Object
-{	
+{
 private:
 	Engine* _engine;
-	VoiceList _receivers;	
+	VoiceList _receivers;
 
 	void DoClearReceivers();
 protected:
@@ -179,7 +179,7 @@ protected:
 	int _srcChannels;
 	int _destChannels;
 
-	void SendReceivers(IXAudio2Voice* voice);	
+	void SendReceivers(IXAudio2Voice* voice);
 	void ApplyOutputMatrix(IXAudio2Voice* voice);
 
 	virtual void ChangedReceivers() = 0;
@@ -286,12 +286,12 @@ private:
 		unsigned _dataSizeBuffers;
 		//абс. позиция первого буффера
 		seek_pos _firstBufPos;
-		
+
 		//событие управляющее выполнением потока: блокирован, работает
 		ThreadEvent* _process;
 		//был плностью кэшрован, следующим этап кэширования настпуит только при достижения уровня буферизации
 		bool _cached;
-		
+
 		//операции со списком буфферов
 		//свободить буффер
 		bool RemoveBuffer(Buffers::iterator iter, bool checkVoiceState = true);
@@ -328,7 +328,7 @@ private:
 		seek_pos GetPos() const;
 		void SetPos(seek_pos value);
 
-		//стриминг. Грубо говоря общая вместимость равна сумме bufSize и cacheSize. Если сумма равна нулю то стриминг в реал тайм. Значения по умлочанию выполняют эффективное резервирование буффебро для неперывеного воспроизведения. Нужно быть осторожней с установкой данных значений. Для полной загрузкп ресурса в память без стриминга используйте Sound::Load. Порядок стириминга такой. Сначала обязательная буфферизация, потом кеширование в случае если вопсрпоизвдения достигает уровня буфферизации.	
+		//стриминг. Грубо говоря общая вместимость равна сумме bufSize и cacheSize. Если сумма равна нулю то стриминг в реал тайм. Значения по умлочанию выполняют эффективное резервирование буффебро для неперывеного воспроизведения. Нужно быть осторожней с установкой данных значений. Для полной загрузкп ресурса в память без стриминга используйте Sound::Load. Порядок стириминга такой. Сначала обязательная буфферизация, потом кеширование в случае если вопсрпоизвдения достигает уровня буфферизации.
 		//размер буффера. Определяет минимальную буферизацию перед началом воспроизведения
 		//0 - буферизация не производится
 		unsigned GetBufSize() const;
@@ -431,7 +431,7 @@ public:
 	typedef lsl::List<Report*> ReportList;
 private:
 	Sound* _sound;
-	
+
 	seek_pos _pos;
 	PlayMode _playMode;
 	float _volume;
@@ -454,7 +454,7 @@ protected:
 
 	void Init();
 	void Free(bool unload = false);
-	
+
 	Proxy* GetProxy();
 public:
 	virtual void Play();
@@ -496,7 +496,7 @@ public:
 	};
 private:
 	MyReport* _myReport;
-	D3DXVECTOR3 _pos3d;
+	glm::vec3 _pos3d;
 	float _distScaler;
 
 	X3DAUDIO_EMITTER _xEmitter;
@@ -523,8 +523,8 @@ public:
 	virtual void Stop();
 	virtual bool IsPlaying() const;
 
-	const D3DXVECTOR3& GetPos3d();
-	void SetPos3d(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos3d();
+	void SetPos3d(const glm::vec3& value);
 
 	float GetDistScaler() const;
 	void SetDistScaler(float value);
@@ -534,8 +534,8 @@ struct Listener
 {
 	Listener(): pos(NullVector), rot(NullQuaternion) {}
 
-	D3DXVECTOR3 pos;
-	D3DXQUATERNION rot;
+	glm::vec3 pos;
+	glm::quat rot;
 };
 
 class Engine: public lsl::Component
@@ -575,7 +575,7 @@ private:
 	//пул источников
 	ProxyList _srcPool;
 	unsigned _poolMaxSize;
-	//список неиспользуемых источников, потокобезопасна, при необходимости из этого списка источники забираются в пул 
+	//список неиспользуемых источников, потокобезопасна, при необходимости из этого списка источники забираются в пул
 	ProxyList _srcCache;
 	//
 	ProxyList _deleteProxyList;
@@ -598,7 +598,7 @@ private:
 	void RemovePool(Proxy* proxy);
 	void ClearPool();
 	void OptimizePool();
-	
+
 	//манипуляции с кешом
 	void InsertCache(Proxy* proxy);
 	ProxyList::iterator RemoveCache(ProxyList::iterator iter);
@@ -608,7 +608,7 @@ private:
 
 	//выделение, освобождение источников
 	Proxy* AllocProxy(Sound* sound);
-	void ReleaseProxy(Proxy* proxy, bool unload);	
+	void ReleaseProxy(Proxy* proxy, bool unload);
 	void ComputeProxy(Proxy* proxy);
 
 	void InitX3dAudio();

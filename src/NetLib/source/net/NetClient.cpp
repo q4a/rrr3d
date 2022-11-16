@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "net\NetClient.h"
-#include "net\NetService.h"
+#include "net/NetClient.h"
+#include "net/NetService.h"
 
 namespace net
 {
@@ -31,7 +31,7 @@ void NetClient::OnProcessCmd(const NetMessage& msg, const NetCmdHeader& header, 
 			Read(stream, id);
 
 			LSL_LOG(lsl::StrFmt("NetClient SetPlayerId id=%d", id));
-			
+
 			this->id(id);
 			_connected = true;
 
@@ -88,12 +88,12 @@ void NetClient::OnReceiveCmd(const NetMessage& msg, const NetCmdHeader& header, 
 
 void NetClient::OnProcess(unsigned time)
 {
-	_connection->Process(time);	
+	_connection->Process(time);
 }
 
 void NetClient::OnDispatch()
 {
-	_connection->Dispatch();	
+	_connection->Dispatch();
 }
 
 bool NetClient::Connect(const Endpoint& endpoint)

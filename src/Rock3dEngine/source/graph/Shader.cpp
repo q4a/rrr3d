@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\Shader.h"
+#include "graph/Shader.h"
 
 namespace r3d
 {
@@ -92,7 +92,7 @@ void Shader::InitMacro(MacroBlock* value)
 		macrosBuf[macros.size()].Name = macrosBuf[macros.size()].Definition = 0;
 	}
 
-	if (_macros->Size() > 1 && !_effPool)	
+	if (_macros->Size() > 1 && !_effPool)
 		D3DXCreateEffectPool(&_effPool);
 
 	DWORD flags = 0;
@@ -106,7 +106,7 @@ void Shader::InitMacro(MacroBlock* value)
 	ID3DXBuffer* bufCompErr = 0;
 	HRESULT hr = D3DXCreateEffect(GetEngine()->GetDriver().GetDevice(), _data->GetData(), _data->GetSize(), macrosBuf, _include, flags, _effPool, &effect, &bufCompErr);
 	if (hr != D3D_OK)
-	{		
+	{
 		char* bufCompErrStr = (char*)bufCompErr->GetBufferPointer();
 		lsl::appLog.Append("D3DXCreateEffect compile failed.");
 		lsl::appLog.Append(bufCompErrStr);
@@ -286,7 +286,7 @@ void Shader::ApplyTech(const std::string& tech, MacroBlock* macro)
 
 		HRESULT hr = _curMacro->GetEffect()->Begin(&_cntPass, 0);
 
-		LSL_ASSERT(hr == D3D_OK);		
+		LSL_ASSERT(hr == D3D_OK);
 	}
 }
 
@@ -423,7 +423,7 @@ bool Shader::GetValue(const std::string& name, Value& outVal) const
 		outVal = iter->second;
 		return true;
 	}
-	else	
+	else
 		return false;
 }
 
@@ -449,9 +449,9 @@ void Shader::SetTextureDir(const std::string& name, TexResource* value)
 TexResource* Shader::GetTexture(const std::string& name)
 {
 	Textures::const_iterator iter = _textures.find(name);
-	if (iter != _textures.end())	
+	if (iter != _textures.end())
 		return iter->second;
-	else	
+	else
 		return 0;
 }
 
@@ -482,7 +482,7 @@ void Shader::SetTexture(const std::string& name, TexResource* value)
 			if (IsInit() && GetCurMacro())
 				SetTextureDir(name, value);
 		}
-	}	
+	}
 }
 
 void Shader::ClearTextures()

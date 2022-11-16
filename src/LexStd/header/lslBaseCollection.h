@@ -7,6 +7,7 @@
 #include "lslException.h"
 #include "lslClassList.h"
 #include "lslUtility.h"
+#include "xplatform.h"
 
 namespace lsl
 {
@@ -57,7 +58,7 @@ public:
 template<class _Item> class CollectionValue<_Item, void>
 {
 private:
-	_Item* _item;	
+	_Item* _item;
 public:
 	CollectionValue(): _item(0) {}
 	CollectionValue(_Item* item): _item(item) {}
@@ -84,7 +85,7 @@ public:
 };
 
 template<class _Item, class _IdType> class BaseCollection: public virtual lsl::Serializable
-{	 
+{
 public:
 	typedef _Item Item;
 	typedef CollectionValue<_Item, _IdType> Value;
@@ -151,7 +152,7 @@ public:
 	iterator Delete(iterator iter);
 	void Delete(const Position& pos);
 	iterator Delete(_Item* item);
-	iterator Delete(iterator sIter, iterator eIter);	
+	iterator Delete(iterator sIter, iterator eIter);
 	void Clear();
 
 	//Поиск
@@ -181,7 +182,9 @@ template<class _Item, class _IdType, class _Arg> class BaseCollectionCL: public 
 private:
 	typedef BaseCollection<_Item, _IdType> _MyBase;
 public:
-	typedef ClassList<_IdType, _Item, _Arg> ClassList;	
+	typedef ClassList<_IdType, _Item, _Arg> ClassList;
+	typedef CollectionValue<_Item, _IdType> Value;
+	typedef typename std::list<Value>::iterator iterator;
 private:
 	ClassList* _classList;
 	bool _createClassList;
@@ -230,9 +233,11 @@ template<class _Item, class _IdType, class _Arg, class _ArgThis> class ComCollec
 {
 private:
 	typedef Collection<_Item, _IdType, _Arg, _ArgThis> _MyBase;
-	typedef ComCollection<_Item, _IdType, _Arg, _ArgThis> _MyClass;	
+	typedef ComCollection<_Item, _IdType, _Arg, _ArgThis> _MyClass;
 public:
 	static const char* const cDefItemName;
+	typedef CollectionValue<_Item, _IdType> Value;
+	typedef typename std::list<Value>::iterator iterator;
 private:
 	virtual CollectionItem* FindItem(const std::string& name);
 protected:
@@ -249,9 +254,6 @@ public:
 };
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> const char* const ComCollection<_Item, _IdType, _Arg, _ArgThis>::cDefItemName = "item";
-
-
-
 
 template<class _Item, class _IdType> BaseCollection<_Item, _IdType>::BaseCollection(): _safeCont(0), _lockDestr(0), _lockNotify(0)
 {
@@ -271,7 +273,7 @@ template<class _Item, class _IdType> void BaseCollection<_Item, _IdType>::Insert
 
 template<class _Item, class _IdType> void BaseCollection<_Item, _IdType>::Remove(iterator iter)
 {
-	_cont.erase(iter);	
+	_cont.erase(iter);
 }
 
 template<class _Item, class _IdType> void BaseCollection<_Item, _IdType>::Remove(iterator sIter, iterator eIter)
@@ -330,7 +332,7 @@ template<class _Item, class _IdType> _Item& BaseCollection<_Item, _IdType>::AddI
 	if (safe)
 	{
 		_cont.push_back(value);
-		
+
 		if (!IsLockNotify())
 			InsertItem(value);
 	}
@@ -340,7 +342,7 @@ template<class _Item, class _IdType> _Item& BaseCollection<_Item, _IdType>::AddI
 
 template<class _Item, class _IdType> _Item& BaseCollection<_Item, _IdType>::Add(const Value& value)
 {
-	return AddItem(value);	
+	return AddItem(value);
 }
 
 template<class _Item, class _IdType> void BaseCollection<_Item, _IdType>::WriteItem(SWriter* writer, void* value)
@@ -397,7 +399,7 @@ template<class _Item, class _IdType> void BaseCollection<_Item, _IdType>::Load(S
 template<class _Item, class _IdType> typename BaseCollection<_Item, _IdType>::iterator BaseCollection<_Item, _IdType>::Delete(iterator iter)
 {
 	if (!IsLockNotify())
-		RemoveItem(*iter);		
+		RemoveItem(*iter);
 	if (!IsLockDestr())
 		DestroyItem(*iter);
 
@@ -414,7 +416,7 @@ template<class _Item, class _IdType> void BaseCollection<_Item, _IdType>::Delete
 	LSL_ASSERT(_safeCont);
 
 	if (!IsLockNotify())
-		RemoveItem(pos->GetItem());		
+		RemoveItem(pos->GetItem());
 	if (!IsLockDestr())
 		DestroyItem(pos->GetItem());
 
@@ -431,13 +433,13 @@ template<class _Item, class _IdType> typename BaseCollection<_Item, _IdType>::it
 	for (iterator iter = sIter; iter != eIter; ++iter)
 	{
 		if (!IsLockNotify())
-			RemoveItem(*iter);			
+			RemoveItem(*iter);
 		if (!IsLockDestr())
 			DestroyItem(*iter);
 	}
 
 	bool safe = !(_safeCont && !_safeCont->SafeRemove(sIter, eIter));
-	if (safe)	
+	if (safe)
 		return _cont.erase(sIter, eIter);
 
 	return eIter;
@@ -520,9 +522,6 @@ template<class _Item, class _IdType> _IdType BaseCollection<_Item, _IdType>::Get
 	return FindItem(item).GetType();
 }
 
-
-
-
 template<class _Item, class _IdType, class _Arg> BaseCollectionCL<_Item, _IdType, _Arg>::BaseCollectionCL(): _classList(0), _createClassList(false)
 {
 }
@@ -545,8 +544,8 @@ template<class _Item, class _IdType, class _Arg> _IdType BaseCollectionCL<_Item,
 {
 	_IdType res = _IdType(0);
 	if (const SReader::ValueDesc* desc = reader->ReadAttr("type"))
-		if (desc->type == SReader::vtInt)		
-			desc->CastToFromInt(&res);		
+		if (desc->type == SReader::vtInt)
+			desc->CastToFromInt(&res);
 		else
 		{
 			std::string str;
@@ -612,17 +611,14 @@ template<class _Item, class _IdType, class _Arg> void BaseCollectionCL<_Item, _I
 		_classNames.push_back(value[i]);
 }
 
-
-
-
 template<class _Item, class _IdType, class _Arg, class _ArgThis> Collection<_Item, _IdType, _Arg, _ArgThis>::~Collection()
 {
-	Clear();
+	this->Clear();
 }
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> _Item* Collection<_Item, _IdType, _Arg, _ArgThis>::CreateItem(const _IdType& key)
 {
-	return GetClassList()->CreateInst(key, static_cast<_ArgThis>(this));
+	return this->GetClassList()->CreateInst(key, static_cast<_ArgThis>(this));
 }
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> void Collection<_Item, _IdType, _Arg, _ArgThis>::DestroyItem(_Item* value)
@@ -632,7 +628,7 @@ template<class _Item, class _IdType, class _Arg, class _ArgThis> void Collection
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> void Collection<_Item, _IdType, _Arg, _ArgThis>::LoadItem(SReader* reader)
 {
-	ReadItem(reader, &Add(LoadType(reader)));
+	ReadItem(reader, &Add(this->LoadType(reader)));
 }
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> _Item& Collection<_Item, _IdType, _Arg, _ArgThis>::Add(_IdType key)
@@ -642,15 +638,12 @@ template<class _Item, class _IdType, class _Arg, class _ArgThis> _Item& Collecti
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> template<class _Type> _Type& Collection<_Item, _IdType, _Arg, _ArgThis>::Add()
 {
-	ClassList::MyClassInst* classInst = GetClassList()->FindByClass<_Type>();
+	auto classInst = this->GetClassList()->template FindByClass<_Type>();
 	if (!classInst)
 		throw lsl::Error("_Type& Collection::Add()");
 
 	return lsl::StaticCast<_Type&>(Add(classInst->GetKey()));
 }
-
-
-
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> CollectionItem* ComCollection<_Item, _IdType, _Arg, _ArgThis>::FindItem(const std::string& name)
 {
@@ -671,18 +664,18 @@ template<class _Item, class _IdType, class _Arg, class _ArgThis> void ComCollect
 template<class _Item, class _IdType, class _Arg, class _ArgThis> void ComCollection<_Item, _IdType, _Arg, _ArgThis>::Save(SWriter* writer)
 {
 	CollectionTraits::Save(writer);
-	_MyBase::Save(writer);	
+	_MyBase::Save(writer);
 }
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> void ComCollection<_Item, _IdType, _Arg, _ArgThis>::Load(SReader* reader)
 {
 	CollectionTraits::Load(reader);
-	_MyBase::Load(reader);	
+	_MyBase::Load(reader);
 }
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> _Item* ComCollection<_Item, _IdType, _Arg, _ArgThis>::Find(const std::string& name)
 {
-	for (iterator iter = begin(); iter != end(); ++iter)
+	for (iterator iter = this->begin(); iter != this->end(); ++iter)
 		if ((*iter)->GetName() == name)
 			return *iter;
 
@@ -703,7 +696,7 @@ template<class _Item, class _IdType, class _Arg, class _ArgThis> std::string Com
 	{
 		oss.seekp(nPos);
 		oss<<cnt;
-		++cnt;		
+		++cnt;
 	}
 	while (Find(oss.str()));
 	return oss.str();

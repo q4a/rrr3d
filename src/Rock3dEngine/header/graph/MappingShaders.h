@@ -20,19 +20,21 @@ protected:
 	static const lsl::string cLightPropStr[cLightPropEnd];
 	static const lsl::string cMyParamStr[cMyParamEnd];
 private:
-	D3DXVECTOR3 _viewPos;
+	glm::vec3 _viewPos;
 	float _texDiffK;
 
-	MacroBlock* _lightMacro[cLightTypeEnd][cLightPropEnd];	
+	MacroBlock* _lightMacro[cLightTypeEnd][cLightPropEnd];
 	D3DLIGHTTYPE _paramsLight;
 	bool _paramsShadow;
 
-	unsigned _curLight;	
-	D3DXCOLOR _fogColor;	
+	unsigned _curLight;
+	glm::vec4 _fogColor;
 
 	void InvalidateParams(D3DLIGHTTYPE value, bool shadow);
 protected:
+#ifdef _WIN32 // FIX_LINUX D3DXHANDLE
 	D3DXHANDLE _params[cMyParamEnd];
+#endif
 
 	virtual void DoFree();
 	virtual void DoBeginDraw(Engine& engine);
@@ -41,8 +43,8 @@ public:
 	LightShader();
 	virtual ~LightShader();
 
-	const D3DXVECTOR3& GetViewPos() const;
-	void SetViewPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetViewPos() const;
+	void SetViewPos(const glm::vec3& value);
 
 	float GetTexDiffK() const;
 	void SetTexDiffK(float value);
@@ -92,7 +94,7 @@ public:
 class RefrShader: public Shader
 {
 protected:
-	virtual void DoBeginDraw(Engine& engine); 
+	virtual void DoBeginDraw(Engine& engine);
 public:
 	RefrShader();
 };

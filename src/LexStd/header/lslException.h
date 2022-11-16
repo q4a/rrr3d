@@ -24,10 +24,10 @@ public:
 	std::string fileName;
 };
 
-class Error: public std::exception
+class Error: public std::runtime_error
 {
 private:
-	typedef std::exception _MyBase;
+	typedef std::runtime_error _MyBase;
 private:
 	void PrintToLog();
 public:
@@ -63,9 +63,6 @@ void Assert(const char* expression, const char* filePath, int line);
 
 extern AppLog appLog;
 
-
-
-
 template<class _Value> void AppLog::Write(const _Value& value)
 {
 	if (_destroy)
@@ -73,7 +70,7 @@ template<class _Value> void AppLog::Write(const _Value& value)
 
 	std::ostream* stream = CreateStream();
 
-	*stream << value;	
+	*stream << value;
 
 #ifdef _CONSOLE
 	std::cout << value;
@@ -104,9 +101,6 @@ template<class _Value> inline AppLog& operator<<(AppLog& log, const _Value& valu
 	log.Write(value);
 	return log;
 }
-
-
-
 
 template<typename _To, typename _From> inline _To StaticCast(_From& x)
 {

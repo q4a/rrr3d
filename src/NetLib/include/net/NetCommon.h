@@ -1,16 +1,18 @@
 #pragma once
 
 #include <stdio.h>
+#ifdef _WIN32
+#define NETLIB_DYNAMIC_LINK
 #include <tchar.h>
+#endif
 
+#include "MathCommon.h"
 #include "lslCommon.h"
 #include "lslUtility.h"
 #include "lslException.h"
 #include "lslContainer.h"
 #include "lslClassList.h"
 #include "lslSDK.h"
-
-#define NETLIB_DYNAMIC_LINK
 
 #ifdef NETLIB_DYNAMIC_LINK
 	#ifdef NETLIB_EXPORTS
@@ -47,7 +49,7 @@ private:
 	mutable bool _discard;
 public:
 	unsigned sender;
-	unsigned time;	
+	unsigned time;
 
 	NetMessage(): _discard(false), sender(cUndefPlayer), time(0) {}
 	NetMessage(unsigned mSender, unsigned mTime): _discard(false), sender(mSender), time(mTime) {}
@@ -96,7 +98,7 @@ struct Endpoint
 {
 	std::string address;
 	unsigned addressLong;
-	unsigned port;		
+	unsigned port;
 
 	Endpoint() {}
 	Endpoint(const std::string& mAddress, unsigned mPort): addressLong(0), address(mAddress), port(mPort) {}
@@ -153,32 +155,26 @@ unsigned Read(std::istream& stream, double& value);
 unsigned Write(std::ostream& stream, bool value);
 unsigned Read(std::istream& stream, bool& value);
 
-unsigned Write(std::ostream& stream, const D3DXVECTOR2& value);
-unsigned Read(std::istream& stream, D3DXVECTOR2& value);
+unsigned Write(std::ostream& stream, const glm::vec2& value);
+unsigned Read(std::istream& stream, glm::vec2& value);
 
-unsigned Write(std::ostream& stream, const D3DXVECTOR3& value);
-unsigned Read(std::istream& stream, D3DXVECTOR3& value);
+unsigned Write(std::ostream& stream, const glm::vec3& value);
+unsigned Read(std::istream& stream, glm::vec3& value);
 
-unsigned Write(std::ostream& stream, const D3DXVECTOR4& value);
-unsigned Read(std::istream& stream, D3DXVECTOR4& value);
+unsigned Write(std::ostream& stream, const glm::vec4& value);
+unsigned Read(std::istream& stream, glm::vec4& value);
 
-unsigned Write(std::ostream& stream, const D3DXQUATERNION& value);
-unsigned Read(std::istream& stream, D3DXQUATERNION& value);
+unsigned Write(std::ostream& stream, const glm::quat& value);
+unsigned Read(std::istream& stream, glm::quat& value);
 
-unsigned Write(std::ostream& stream, const D3DXCOLOR& value);
-unsigned Read(std::istream& stream, D3DXCOLOR& value);
-
-unsigned Write(std::ostream& stream, const D3DXMATRIX& value);
-unsigned Read(std::istream& stream, D3DXMATRIX& value);
+unsigned Write(std::ostream& stream, const D3DMATRIX& value);
+unsigned Read(std::istream& stream, D3DMATRIX& value);
 
 template<class _T> unsigned Write(std::ostream& stream, const std::basic_string<_T>& value, unsigned size);
 template<class _T> unsigned Read(std::istream& stream, std::basic_string<_T>& value, unsigned size);
 
 template<class _T> unsigned Write(std::ostream& stream, const std::basic_string<_T>& value);
 template<class _T> unsigned Read(std::istream& stream, std::basic_string<_T>& value);
-
-
-
 
 inline unsigned Write(std::ostream& stream, const void* data, unsigned size)
 {
@@ -276,73 +272,61 @@ inline unsigned Read(std::istream& stream, bool& value)
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXVECTOR2& value)
+inline unsigned Write(std::ostream& stream, const glm::vec2& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXVECTOR2& value)
+inline unsigned Read(std::istream& stream, glm::vec2& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXVECTOR3& value)
+inline unsigned Write(std::ostream& stream, const glm::vec3& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXVECTOR3& value)
+inline unsigned Read(std::istream& stream, glm::vec3& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXVECTOR4& value)
+inline unsigned Write(std::ostream& stream, const glm::vec4& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXVECTOR4& value)
+inline unsigned Read(std::istream& stream, glm::vec4& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXQUATERNION& value)
+inline unsigned Write(std::ostream& stream, const glm::quat& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXQUATERNION& value)
+inline unsigned Read(std::istream& stream, glm::quat& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Write(std::ostream& stream, const D3DXCOLOR& value)
+inline unsigned Write(std::ostream& stream, const D3DMATRIX& value)
 {
 	Write(stream, &value, sizeof(value));
 	return sizeof(value);
 }
 
-inline unsigned Read(std::istream& stream, D3DXCOLOR& value)
-{
-	Read(stream, &value, sizeof(value));
-	return sizeof(value);
-}
-
-inline unsigned Write(std::ostream& stream, const D3DXMATRIX& value)
-{
-	Write(stream, &value, sizeof(value));
-	return sizeof(value);
-}
-
-inline unsigned Read(std::istream& stream, D3DXMATRIX& value)
+inline unsigned Read(std::istream& stream, D3DMATRIX& value)
 {
 	Read(stream, &value, sizeof(value));
 	return sizeof(value);
@@ -350,14 +334,14 @@ inline unsigned Read(std::istream& stream, D3DXMATRIX& value)
 
 template<class _T> inline unsigned Write(std::ostream& stream, const std::basic_string<_T>& value, unsigned size)
 {
-	Write(stream, value.data(), sizeof(std::basic_string<_T>::value_type) * size);
+	Write(stream, value.data(), sizeof(typename std::basic_string<_T>::value_type) * size);
 	return size;
 }
 
 template<class _T> inline unsigned Read(std::istream& stream, std::basic_string<_T>& value, unsigned size)
 {
-	value.resize(size);	
-	Read(stream, const_cast<std::basic_string<_T>::pointer>(value.data()), sizeof(std::basic_string<_T>::value_type) * size);
+	value.resize(size);
+	Read(stream, const_cast<typename std::basic_string<_T>::pointer>(value.data()), sizeof(typename std::basic_string<_T>::value_type) * size);
 	return size;
 }
 

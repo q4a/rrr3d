@@ -1,13 +1,13 @@
 #include "stdafx.h"
 
-#include "game\Trace.h"
+#include "game/Trace.h"
 
 namespace r3d
 {
 
 namespace game
 {
-	
+
 WayPoint::WayPoint(Trace* trace, unsigned id): _trace(trace), _id(id), _pos(NullVector), _size(0), _off(NullVector)
 {
 	LSL_ASSERT(_trace);
@@ -34,14 +34,14 @@ void WayPoint::Changed()
 		(*iter)->Changed();
 }
 
-bool WayPoint::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, float* dist) const
+bool WayPoint::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, float* dist) const
 {
 	return RayCastIntersectSphere(rayPos, rayVec, _pos, _size / 2.0f, dist);
 }
 
-bool WayPoint::IsContains(const D3DXVECTOR3& point, float* dist) const
+bool WayPoint::IsContains(const glm::vec3& point, float* dist) const
 {
-	float midDist = D3DXVec3Length(&(point - _pos));
+	float midDist = glm::length(point - _pos);
 	if (dist)
 		*dist = midDist;
 
@@ -53,12 +53,12 @@ unsigned WayPoint::GetId() const
 	return _id;
 }
 
-const D3DXVECTOR3& WayPoint::GetPos() const
+const glm::vec3& WayPoint::GetPos() const
 {
 	return _pos;
 }
 
-void WayPoint::SetPos(const D3DXVECTOR3& value)
+void WayPoint::SetPos(const glm::vec3& value)
 {
 	_pos = value;
 	Changed();
@@ -75,12 +75,12 @@ void WayPoint::SetSize(float value)
 	Changed();
 }
 
-const D3DXVECTOR3& WayPoint::GetOff() const
+const glm::vec3& WayPoint::GetOff() const
 {
 	return _off;
 }
 
-void WayPoint::SetOff(const D3DXVECTOR3& value)
+void WayPoint::SetOff(const glm::vec3& value)
 {
 	_off = value;
 	Changed();
@@ -129,9 +129,6 @@ const WayPoint::Nodes& WayPoint::GetNodes() const
 	return _nodes;
 }
 
-
-
-
 WayNode::WayNode(WayPath* path, WayPoint* point): _path(path), _point(point), _prev(0), _next(0)
 {
 	LSL_ASSERT(_point);
@@ -160,12 +157,12 @@ void WayNode::Tile::ApplyChanges() const
 	{
 		_changed = false;
 
-		D3DXVECTOR2 sPos = GetPos();
+		glm::vec2 sPos = GetPos();
 		if (_node->GetNext())
 		{
-			_dir = D3DXVECTOR2(GetNextPos()) - sPos;
-			_dirLength = D3DXVec2Length(&_dir);
-			D3DXVec2Normalize(&_dir, &_dir);
+			_dir = glm::vec2(GetNextPos()) - sPos;
+			_dirLength = glm::length(_dir);
+			_dir = glm::normalize(_dir);
 		}
 		else
 		{
@@ -179,27 +176,27 @@ void WayNode::Tile::ApplyChanges() const
 
 		//вычисляем и нормализуем поскольку лубая из составляющих _midDir могла оказаться близкой к нулю
 		_midDir = (_dir + GetPrevDir()) / 2.0f;
-		D3DXVec2Normalize(&_midDir, &_midDir);
+		_midDir = glm::normalize(_midDir);
 		//линии через node
 		Line2FromNorm(_midDir, sPos, _midNormLine);
 		//Вычисляем _midNorm
 		Line2GetDir(_midNormLine, _midNorm);
 
 		//Вычисляем _nodeRadius
-		float cosDelta = D3DXVec2Dot(&_dir, &GetPrevDir());
+		float cosDelta = Vec2Dot(_dir, GetPrevDir());
 		//sinA/2 = sin(180 - D/2) = cos(D/2) = №(1 + cosD)/2
 		_nodeRadius = GetHeight() / sqrt((1.0f + cosDelta) / 2.0f);
 
 		//Вычисляем _edgeNorm
-		if (D3DXVec2CCW(&GetPrevDir(), &_dir) > 0)
+		if (Vec2CCW(GetPrevDir(), _dir) > 0)
 			Vec2NormCCW(_midDir, _edgeNorm);
 		else
 			Vec2NormCW(_midDir, _edgeNorm);
-		Line2FromNorm(_edgeNorm, sPos + _nodeRadius * _edgeNorm, _edgeLine);		
+		Line2FromNorm(_edgeNorm, sPos + _nodeRadius * _edgeNorm, _edgeLine);
 
 		//Вычисляем turnAngle
 		if (_node->GetPrev())
-			_turnAngle = acos(D3DXVec2Dot(&GetPrevDir(), &_dir));
+			_turnAngle = acos(Vec2Dot(GetPrevDir(), _dir));
 		else
 			_turnAngle = 0.0f;
 
@@ -212,7 +209,7 @@ void WayNode::Tile::ApplyChanges() const
 	}
 }
 
-const D3DXVECTOR3& WayNode::Tile::GetPos() const
+const glm::vec3& WayNode::Tile::GetPos() const
 {
 	return _node->GetPoint()->GetPos();
 }
@@ -222,7 +219,7 @@ float WayNode::Tile::GetHeight() const
 	return _node->GetPoint()->GetSize() / 2.0f;
 }
 
-const D3DXVECTOR3& WayNode::Tile::GetNextPos() const
+const glm::vec3& WayNode::Tile::GetNextPos() const
 {
 	return _node->GetNext() ? _node->GetNext()->GetTile().GetPos() : GetPos();
 }
@@ -232,26 +229,26 @@ float WayNode::Tile::GetNextHeight() const
 	return _node->GetNext() ? _node->GetNext()->GetTile().GetHeight() : GetHeight();
 }
 
-const D3DXVECTOR2& WayNode::Tile::GetPrevDir() const
+const glm::vec2& WayNode::Tile::GetPrevDir() const
 {
 	const Tile* tile = _node->GetPrev() ? &_node->GetPrev()->GetTile() : this;
-	
+
 	tile->ApplyChanges();
 	return tile->_dir;
 }
 
-const D3DXVECTOR2& WayNode::Tile::GetNextMidNorm() const
+const glm::vec2& WayNode::Tile::GetNextMidNorm() const
 {
 	const Tile* tile = _node->GetNext() ? &_node->GetNext()->GetTile() : this;
-	
+
 	tile->ApplyChanges();
 	return tile->_midNorm;
 }
 
-const D3DXVECTOR3& WayNode::Tile::GetNextNormLine() const
+const glm::vec3& WayNode::Tile::GetNextNormLine() const
 {
 	const Tile* tile = _node->GetNext() ? &_node->GetNext()->GetTile() : this;
-	
+
 	tile->ApplyChanges();
 	return tile->_midNormLine;
 }
@@ -269,32 +266,32 @@ void WayNode::Tile::Changed()
 	_changed = true;
 }
 
-void WayNode::Tile::GetVBuf(D3DXVECTOR3* vBuf, unsigned length, const D3DXVECTOR3* upVec) const
+void WayNode::Tile::GetVBuf(glm::vec3* vBuf, unsigned length, const glm::vec3* upVec) const
 {
 	LSL_ASSERT(length >= 4);
 
 	ApplyChanges();
 
-	D3DXVECTOR2 nextMidNorm = GetNextMidNorm();
+	glm::vec2 nextMidNorm = GetNextMidNorm();
 
-	vBuf[0] = GetPos() + D3DXVECTOR3(_midNorm.x, _midNorm.y, 0.0f) * _nodeRadius;
-	vBuf[1] = GetPos() - D3DXVECTOR3(_midNorm.x, _midNorm.y, 0.0f) * _nodeRadius;
-	vBuf[2] = GetNextPos() + D3DXVECTOR3(nextMidNorm.x, nextMidNorm.y, 0.0f) * GetNextNodeRadius();
-	vBuf[3] = GetNextPos() - D3DXVECTOR3(nextMidNorm.x, nextMidNorm.y, 0.0f) * GetNextNodeRadius();
+	vBuf[0] = GetPos() + glm::vec3(_midNorm.x, _midNorm.y, 0.0f) * _nodeRadius;
+	vBuf[1] = GetPos() - glm::vec3(_midNorm.x, _midNorm.y, 0.0f) * _nodeRadius;
+	vBuf[2] = GetNextPos() + glm::vec3(nextMidNorm.x, nextMidNorm.y, 0.0f) * GetNextNodeRadius();
+	vBuf[3] = GetNextPos() - glm::vec3(nextMidNorm.x, nextMidNorm.y, 0.0f) * GetNextNodeRadius();
 
 	if (!upVec)
 		vBuf[0].z = vBuf[1].z = vBuf[2].z = vBuf[3].z = 0;
 }
 
-unsigned WayNode::Tile::ComputeTrackInd(const D3DXVECTOR2& point) const
+unsigned WayNode::Tile::ComputeTrackInd(const glm::vec2& point) const
 {
 	ApplyChanges();
 
 	float tileWidth = GetWidth(point);
 	float trackDiv = tileWidth / cTrackCnt;
 	float trackPos = Line2DistToPoint(_dirLine, point);
-	
-	unsigned trackInd = static_cast<unsigned>(abs(floor(trackPos/trackDiv + cTrackCnt/2.0f)));
+
+	unsigned trackInd = static_cast<unsigned>(std::abs(floor(trackPos/trackDiv + cTrackCnt/2.0f)));
 	trackInd = std::max<int>(trackInd , 0);
 	trackInd = std::min<int>(trackInd , cTrackCnt - 1);
 
@@ -304,18 +301,18 @@ unsigned WayNode::Tile::ComputeTrackInd(const D3DXVECTOR2& point) const
 
 	float off = cTrackCnt % 2 > 0 ? 0.0f : 0.5f;
 	int trackInd = static_cast<int>(Round(trackPos / trackDiv + off));
-	
+
 	trackInd = std::max<int>(trackInd , -cTrackCnt/2);
 	trackInd = std::min<int>(trackInd , cTrackCnt/2);*/
 
 	return trackInd;
 }
 
-D3DXVECTOR2 WayNode::Tile::ComputeTrackNormOff(const D3DXVECTOR2& point, unsigned track) const
+glm::vec2 WayNode::Tile::ComputeTrackNormOff(const glm::vec2& point, unsigned track) const
 {
 	ApplyChanges();
 
-	D3DXVECTOR2 dir = _dir;
+	glm::vec2 dir = _dir;
 
 	float tileWidth = GetWidth(point);
 	float trackDiv = tileWidth / cTrackCnt;
@@ -326,28 +323,28 @@ D3DXVECTOR2 WayNode::Tile::ComputeTrackNormOff(const D3DXVECTOR2& point, unsigne
 	return _norm * trackOff;
 }
 
-void PlaneFromDirVec(const D3DXVECTOR3& dir, const D3DXVECTOR3& norm, const D3DXVECTOR3& pos, D3DXPLANE& plane)
+void PlaneFromDirVec(const glm::vec3& dir, const glm::vec3& norm, const glm::vec3& pos, glm::vec4& plane)
 {
-	D3DXVECTOR3 right, up;
-	D3DXVec3Cross(&right, &dir, &norm);
-	D3DXVec3Cross(&up, &right, &dir);
-	D3DXPlaneFromPointNormal(&plane, &pos, &up);
+	glm::vec3 right, up;
+	right = glm::cross(dir, norm);
+	up = glm::cross(right, dir);
+	plane = PlaneFromPointNormal(pos, up);
 }
 
-bool WayNode::Tile::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, float* dist) const
+bool WayNode::Tile::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, float* dist) const
 {
-	D3DXVECTOR3 dir = GetNextPos() - GetPos();
-	D3DXVec3Normalize(&dir, &dir);
+	glm::vec3 dir = GetNextPos() - GetPos();
+	dir = glm::normalize(dir);
 
-	D3DXPLANE plane;
+	glm::vec4 plane;
 	//Условие неколлинеарности векторов
-	if (D3DXVec3Dot(&dir, &rayVec) > 0.001f)
+	if (glm::dot(dir, rayVec) > 0.001f)
 		//плоскость перепендикулярно лучу в центре цилиндра тайла
 		PlaneFromDirVec(dir, rayVec, GetPos(), plane);
 	//Вектора коллиниарны
 	else
 		//Строим плоскость через центр тайла перпендикулярно направлению
-		D3DXPlaneFromPointNormal(&plane, &((GetPos() + GetNextPos()) / 2.0f), &dir);
+		plane = PlaneFromPointNormal((GetPos() + GetNextPos()) / 2.0f, dir);
 
 	float tmp;
 	bool res = RayCastIntersectPlane(rayPos, rayVec, plane, tmp) && IsContains(rayPos + rayVec * tmp);
@@ -357,19 +354,19 @@ bool WayNode::Tile::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec
 	return res;
 }
 
-bool WayNode::Tile::IsContains(const D3DXVECTOR3& point, bool lengthClamp, float* dist, float widthErr) const
+bool WayNode::Tile::IsContains(const glm::vec3& point, bool lengthClamp, float* dist, float widthErr) const
 {
 	ApplyChanges();
 
-	D3DXVECTOR3 pos1 = GetPos();
-	D3DXVECTOR3 pos2 = GetNextPos();
+	glm::vec3 pos1 = GetPos();
+	glm::vec3 pos2 = GetNextPos();
 
 	//Расстояние в 2д плоскости
-	D3DXVECTOR2 point2 = point;
+	glm::vec2 point2 = point;
 	float dist1 = Line2DistToPoint(_midNormLine, point2);
 	float dist2 = Line2DistToPoint(GetNextNormLine(), point2);
 	float dirDist = Line2DistToPoint(_dirLine, point2);
-	
+
 	//Высота от плоскости трасы до поверхности ограничивающего цилиндра
 	float coordX = ComputeCoordX(dist1);
 	float coordZ = ComputeZCoord(coordX);
@@ -382,21 +379,21 @@ bool WayNode::Tile::IsContains(const D3DXVECTOR3& point, bool lengthClamp, float
 	//Первое условие, ограничение по длине
 	//Второе условие, ограничение по ширине
 	//Третье условие, ограничение по высоте
-	return (!lengthClamp || dist1 * dist2 < 0) && abs(dirDist) < (halfWidth + widthErr) && abs(coordZ - point.z) < height;
+	return (!lengthClamp || dist1 * dist2 < 0) && std::abs(dirDist) < (halfWidth + widthErr) && std::abs(coordZ - point.z) < height;
 }
 
-bool WayNode::Tile::IsZLevelContains(const D3DXVECTOR3& point, float* dist) const
+bool WayNode::Tile::IsZLevelContains(const glm::vec3& point, float* dist) const
 {
 	ApplyChanges();
 
-	D3DXVECTOR2 pos = D3DXVECTOR2(point);
+	glm::vec2 pos = point;
 	float height = GetHeight(pos);
 	float coordZ = GetZCoord(pos);
 
 	return (coordZ - point.z) < height;
 }
 
-const D3DXVECTOR2& WayNode::Tile::GetDir() const
+const glm::vec2& WayNode::Tile::GetDir() const
 {
 	ApplyChanges();
 	return _dir;
@@ -409,37 +406,37 @@ float WayNode::Tile::GetDirLength() const
 	return _dirLength;
 }
 
-const D3DXVECTOR2& WayNode::Tile::GetNorm() const
+const glm::vec2& WayNode::Tile::GetNorm() const
 {
 	ApplyChanges();
 	return _norm;
 }
 
-const D3DXVECTOR3& WayNode::Tile::GetDirLine() const
+const glm::vec3& WayNode::Tile::GetDirLine() const
 {
 	ApplyChanges();
 	return _dirLine;
 }
 
-const D3DXVECTOR2& WayNode::Tile::GetMidDir() const
+const glm::vec2& WayNode::Tile::GetMidDir() const
 {
 	ApplyChanges();
 	return _midDir;
 }
 
-const D3DXVECTOR2& WayNode::Tile::GetMidNorm() const
+const glm::vec2& WayNode::Tile::GetMidNorm() const
 {
 	ApplyChanges();
 	return _midNorm;
 }
 
-const D3DXVECTOR3& WayNode::Tile::GetMidNormLine() const
+const glm::vec3& WayNode::Tile::GetMidNormLine() const
 {
 	ApplyChanges();
 	return _midNormLine;
 }
 
-const D3DXVECTOR2& WayNode::Tile::GetEdgeNorm() const
+const glm::vec2& WayNode::Tile::GetEdgeNorm() const
 {
 	ApplyChanges();
 	return _edgeNorm;
@@ -451,7 +448,7 @@ float WayNode::Tile::GetNodeRadius() const
 	return _nodeRadius;
 }
 
-const D3DXVECTOR3& WayNode::Tile::GetEdgeLine() const
+const glm::vec3& WayNode::Tile::GetEdgeLine() const
 {
 	ApplyChanges();
 	return _edgeLine;
@@ -485,11 +482,11 @@ float WayNode::Tile::ComputeCoordX(float dist) const
 	return _dirLength > 0.0f ? lsl::ClampValue(dist / _dirLength, 0.0f, 1.0f) : 0.0f;
 }
 
-float WayNode::Tile::ComputeCoordX(const D3DXVECTOR2& point) const
+float WayNode::Tile::ComputeCoordX(const glm::vec2& point) const
 {
 	ApplyChanges();
 
-	float dist = Line2DistToPoint(_normLine, point);	
+	float dist = Line2DistToPoint(_normLine, point);
 
 	return ComputeCoordX(dist);
 }
@@ -519,32 +516,32 @@ float WayNode::Tile::ComputeZCoord(float coordX) const
 	return posZ1 + (posZ2 - posZ1) * coordX;
 }
 
-float WayNode::Tile::GetLength(const D3DXVECTOR2& point) const
+float WayNode::Tile::GetLength(const glm::vec2& point) const
 {
 	return ComputeLength(ComputeCoordX(point));
 }
 
-float WayNode::Tile::GetHeight(const D3DXVECTOR2& point) const
+float WayNode::Tile::GetHeight(const glm::vec2& point) const
 {
 	return ComputeHeight(ComputeCoordX(point));
 }
 
-float WayNode::Tile::GetWidth(const D3DXVECTOR2& point) const
+float WayNode::Tile::GetWidth(const glm::vec2& point) const
 {
 	return ComputeWidth(ComputeCoordX(point));
 }
 
-float WayNode::Tile::GetZCoord(const D3DXVECTOR2& point) const
+float WayNode::Tile::GetZCoord(const glm::vec2& point) const
 {
 	return ComputeZCoord(ComputeCoordX(point));
 }
 
-D3DXVECTOR3 WayNode::Tile::GetPoint(float coordX) const
+glm::vec3 WayNode::Tile::GetPoint(float coordX) const
 {
 	return GetPos() + (GetNextPos() - GetPos()) * coordX;
 }
 
-D3DXVECTOR3 WayNode::Tile::GetCenter3() const
+glm::vec3 WayNode::Tile::GetCenter3() const
 {
 	ApplyChanges();
 
@@ -593,32 +590,32 @@ void WayNode::Changed()
 
 		curNode->_tile->Changed();
 		curNode = curNode->_next;
-	}	
+	}
 }
 
-bool WayNode::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, float* dist) const
+bool WayNode::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, float* dist) const
 {
 	return RayCastIntersectSphere(rayPos, rayVec, _point->GetPos(), _tile->GetNodeRadius(), dist);
 }
 
-bool WayNode::IsContains2(const D3DXVECTOR2& point, float* dist) const
+bool WayNode::IsContains2(const glm::vec2& point, float* dist) const
 {
-	float midDist = D3DXVec2Length(&(point - D3DXVECTOR2(_point->GetPos())));
+	float midDist = glm::length(point - glm::vec2(_point->GetPos()));
 	if (dist)
 		*dist = midDist;
 
 	return midDist < _tile->GetNodeRadius();
 }
 
-bool WayNode::IsContains(const D3DXVECTOR3& point, float* dist) const
+bool WayNode::IsContains(const glm::vec3& point, float* dist) const
 {
-	float midDist = D3DXVec3Length(&(point - _point->GetPos()));
+	float midDist = glm::length(point - _point->GetPos());
 	if (dist)
 		*dist = midDist;
 
 	return midDist < _tile->GetNodeRadius();
 
-	//return IsContains2(D3DXVECTOR2(point), dist) && abs(point.z - GetPos().z) < _point->GetSize()/2.0f;
+	//return IsContains2(glm::vec2(point), dist) && std::abs(point.z - GetPos().z) < _point->GetSize()/2.0f;
 }
 
 WayPath* WayNode::GetPath()
@@ -646,14 +643,14 @@ WayNode* WayNode::GetNext()
 	return _next;
 }
 
-const D3DXVECTOR3& WayNode::GetPos() const
+const glm::vec3& WayNode::GetPos() const
 {
 	return _point->GetPos();
 }
 
-D3DXVECTOR2 WayNode::GetPos2() const
+glm::vec2 WayNode::GetPos2() const
 {
-	return D3DXVECTOR2(GetPos());
+	return glm::vec2(GetPos());
 }
 
 float WayNode::GetSize() const
@@ -665,9 +662,6 @@ float WayNode::GetRadius() const
 {
 	return _point->GetSize()/2.0f;
 }
-
-
-
 
 WayPath::WayPath(Trace* trace): _trace(trace), _first(0), _last(0), _count(0)
 {
@@ -773,7 +767,7 @@ void WayPath::Enclosed(bool value)
 	}
 }
 
-WayNode* WayPath::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, WayNode* mWhere, float* dist) const
+WayNode* WayPath::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, WayNode* mWhere, float* dist) const
 {
 	float minDist = 0;
 	WayNode* resNode = 0;
@@ -817,7 +811,7 @@ WayNode* WayPath::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, 
 	return resNode;
 }
 
-WayNode* WayPath::IsTileContains(const D3DXVECTOR3& point, WayNode* mWhere) const
+WayNode* WayPath::IsTileContains(const glm::vec3& point, WayNode* mWhere) const
 {
 	WayNode* resNode = 0;
 
@@ -836,21 +830,21 @@ WayNode* WayPath::IsTileContains(const D3DXVECTOR3& point, WayNode* mWhere) cons
 	//При отсутсвии результата проверям конечные узлы
 	if (!resNode && _first && _first->IsContains(point))
 	{
-		resNode = _first;		
+		resNode = _first;
 	}
 	if (!resNode && _last && _last->IsContains(point))
 	{
-		resNode = _last;		
+		resNode = _last;
 	}
 
 	return resNode;
 }
 
-void WayPath::GetTriStripVBuf(res::VertexData& data, const D3DXVECTOR3* upVec)
+void WayPath::GetTriStripVBuf(res::VertexData& data, const glm::vec3* upVec)
 {
 	data.SetFormat(res::VertexData::vtPos3, true);
 
-	if (GetCount() < 2)	
+	if (GetCount() < 2)
 	{
 		data.SetVertexCount(0);
 		return;
@@ -898,9 +892,6 @@ float WayPath::GetLength() const
 	return _first ? _first->GetTile().GetFinishDist() : 0.0f;
 }
 
-
-
-
 Trace::Trace(unsigned tracksCnt): cTrackCnt(tracksCnt), _pointId(0)
 {
 }
@@ -914,7 +905,7 @@ WayPoint* Trace::AddPoint(unsigned id)
 {
 	WayPoint* point = new WayPoint(this, id);
 	_points.push_back(point);
-	
+
 	_pointId = std::max(_pointId, id + 1);
 
 	return point;
@@ -935,7 +926,7 @@ void Trace::Save(SWriter* writer)
 		SWriter* sPoint = sPoints->NewDummyNode(sstream.str().c_str());
 		sPoint->WriteAttr("id", point->GetId());
 		lsl::SWriteValue(sPoint, "pos", point->GetPos());
-		lsl::SWriteValue(sPoint, "size", point->GetSize());		
+		lsl::SWriteValue(sPoint, "size", point->GetSize());
 	}
 
 	SWriter* sPathes = writer->NewDummyNode("pathes");
@@ -955,7 +946,7 @@ void Trace::Save(SWriter* writer)
 			std::stringstream sstream;
 			sstream << "node" << iNode;
 			SWriter* sNode = sPath->WriteValue(sstream.str().c_str(), node->GetPoint()->GetId());
-			
+
 			node = node->GetNext();
 			++iNode;
 		}
@@ -971,7 +962,7 @@ void Trace::Load(SReader* reader)
 	while (sPoint)
 	{
 		const lsl::SIOTraits::ValueDesc* val;
-		D3DXVECTOR3 vec3;
+		glm::vec3 vec3;
 		float fVal;
 
 		game::WayPoint* point;
@@ -1042,7 +1033,7 @@ WayPath* Trace::AddPath()
 {
 	WayPath* path = new WayPath(this);
 	_pathes.push_back(path);
-	
+
 	return path;
 }
 
@@ -1066,7 +1057,7 @@ void Trace::Clear()
 	ClearPoints();
 }
 
-WayNode* Trace::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, float* dist) const
+WayNode* Trace::RayCast(const glm::vec3& rayPos, const glm::vec3& rayVec, float* dist) const
 {
 	float minDist = 0;
 	WayNode* resNode = 0;
@@ -1088,7 +1079,7 @@ WayNode* Trace::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, fl
 	return resNode;
 }
 
-WayNode* Trace::IsTileContains(const D3DXVECTOR3& point, WayNode* mWhere) const
+WayNode* Trace::IsTileContains(const glm::vec3& point, WayNode* mWhere) const
 {
 	WayPath* wPath = 0;
 	if (mWhere)
@@ -1118,7 +1109,7 @@ WayPoint* Trace::FindPoint(unsigned id)
 	return 0;
 }
 
-WayNode* Trace::FindClosestNode(const D3DXVECTOR3& point)
+WayNode* Trace::FindClosestNode(const glm::vec3& point)
 {
 	float minDist;
 	WayNode* res = 0;

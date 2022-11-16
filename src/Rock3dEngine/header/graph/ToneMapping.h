@@ -18,9 +18,9 @@ protected:
 	virtual Tex2DResource* CreateRT();
 public:
 	virtual void Render(Engine& engine);
-	
+
 	Tex2DResource* GetColorTex();
-	void SetColorTex(Tex2DResource* value);	
+	void SetColorTex(Tex2DResource* value);
 	Tex2DResource* GetBloomTex();
 	void SetBloomTex(Tex2DResource* value);
 	Tex2DResource* GetHDRTex();

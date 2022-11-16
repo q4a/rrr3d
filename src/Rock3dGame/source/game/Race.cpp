@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "game\Race.h"
+#include "game/Race.h"
 #include "lslSerialFileXml.h"
 
 #ifdef _DEBUG
@@ -16,9 +16,6 @@ namespace game
 
 const float Race::cSellDiscount = 0.5f;
 const std::string Planet::cWorldTypeStr[cWorldTypeEnd] = {"wtWorld1", "wtWorld2", "wtWorld3", "wtWorld4", "wtWorld5", "wtWorld6"};
-
-
-
 
 Workshop::Workshop(Race* race): _race(race), _lib(NULL)
 {
@@ -98,7 +95,7 @@ void Workshop::LoadWheels()
 			func.latTire.extremumValue   = 2.25f;
 			func.latTire.asymptoteSlip   = 2.0f;
 			func.latTire.asymptoteValue  = 1.0f;
-		}		
+		}
 		//dirtdevil
 		{
 			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];
@@ -112,7 +109,7 @@ void Workshop::LoadWheels()
 			func.latTire.extremumValue   = 2.25f;
 			func.latTire.asymptoteSlip   = 2.0f;
 			func.latTire.asymptoteValue  = 1.0f;
-		}		
+		}
 		//manticora
 		{
 			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];
@@ -147,7 +144,7 @@ void Workshop::LoadWheels()
 			WheelItem::CarFunc& boss = item.carFuncMap[_race->GetCar("monstertruckBoss")];
 			boss = func;
 		}
-		
+
 		SaveSlot(slot, "wheel1");
 	}
 	{
@@ -173,10 +170,10 @@ void Workshop::LoadWheels()
 			func.latTire.extremumValue   = 2.6f;
 			func.latTire.asymptoteSlip   = 2.0f;
 			func.latTire.asymptoteValue  = 1.25f;
-		}		
+		}
 		//dirtdevil
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];
 			//long
 			func.longTire.extremumSlip   = 0.5f;
 			func.longTire.extremumValue  = 6.0f;
@@ -187,10 +184,10 @@ void Workshop::LoadWheels()
 			func.latTire.extremumValue   = 2.6f;
 			func.latTire.asymptoteSlip   = 2.0f;
 			func.latTire.asymptoteValue  = 1.0f;
-		}		
+		}
 		//manticora
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];
 			//long
 			func.longTire.extremumSlip   = 0.5f;
 			func.longTire.extremumValue  = 6.5f;
@@ -207,7 +204,7 @@ void Workshop::LoadWheels()
 		}
 		//monstertruck
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("monstertruck")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("monstertruck")];
 			//long
 			func.longTire.extremumSlip   = 0.5f;
 			func.longTire.extremumValue  = 6.0f;
@@ -222,7 +219,7 @@ void Workshop::LoadWheels()
 			WheelItem::CarFunc& boss = item.carFuncMap[_race->GetCar("monstertruckBoss")];
 			boss = func;
 		}
-		
+
 		SaveSlot(slot, "wheel2");
 	}
 	{
@@ -248,10 +245,10 @@ void Workshop::LoadWheels()
 			func.latTire.extremumValue   = 3.0f;
 			func.latTire.asymptoteSlip   = 2.0f;
 			func.latTire.asymptoteValue  = 1.5f;
-		}		
+		}
 		//buggi
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("buggi")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("buggi")];
 			//long
 			func.longTire.extremumSlip   = 0.4f;
 			func.longTire.extremumValue  = 6.0f;
@@ -310,7 +307,7 @@ void Workshop::LoadWheels()
 		}
 		//monstertruck
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("monstertruck")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("monstertruck")];
 			//long
 			func.longTire.extremumSlip   = 0.5f;
 			func.longTire.extremumValue  = 6.0f;
@@ -356,7 +353,7 @@ void Workshop::LoadWheels()
 			WheelItem::CarFunc& boss = item.carFuncMap[_race->GetCar("gusenizaBoss")];
 			boss = func;
 		}
-		
+
 		SaveSlot(slot, "gusWheel1");
 	}
 	{
@@ -386,7 +383,7 @@ void Workshop::LoadWheels()
 			WheelItem::CarFunc& boss = item.carFuncMap[_race->GetCar("gusenizaBoss")];
 			boss = func;
 		}
-		
+
 		SaveSlot(slot, "gusWheel2");
 	}
 	{
@@ -437,12 +434,12 @@ void Workshop::LoadTruba()
 		{
 			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("marauder")];
 			func.maxTorque = 100.0f;
-		}		
+		}
 		//dirtdevil
 		{
 			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];
 			func.maxTorque = 100.0f;
-		}		
+		}
 		//manticora
 		{
 			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];
@@ -461,7 +458,7 @@ void Workshop::LoadTruba()
 		}
 		//monstertruck
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("monstertruck")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("monstertruck")];
 			func.maxTorque = 50.0f;
 			//boss
 			WheelItem::CarFunc& boss = item.carFuncMap[_race->GetCar("monstertruckBoss")];
@@ -484,15 +481,15 @@ void Workshop::LoadTruba()
 		{
 			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("marauder")];
 			func.maxTorque = 150.0f;
-		}		
+		}
 		//dirtdevil
 		{
 			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];
 			func.maxTorque = 150.0f;
-		}		
+		}
 		//manticora
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];
 			func.maxTorque = 200.0f;
 			//boss
 			WheelItem::CarFunc& boss = item.carFuncMap[_race->GetCar("manticoraBoss")];
@@ -508,13 +505,13 @@ void Workshop::LoadTruba()
 		}
 		//monstertruck
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("monstertruck")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("monstertruck")];
 			func.maxTorque = 65.0f;
 			//boss
 			WheelItem::CarFunc& boss = item.carFuncMap[_race->GetCar("monstertruckBoss")];
 			boss = func;
 		}
-		
+
 		SaveSlot(slot, "truba2");
 	}
 	{
@@ -534,22 +531,22 @@ void Workshop::LoadTruba()
 		}
 		//buggi
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("buggi")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("buggi")];
 			func.maxTorque = 200.0f;
 		}
-		//dirtdevil		
+		//dirtdevil
 		{
 			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];
 			func.maxTorque = 200.0f;
 		}
 		//tankchetti
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("tankchetti")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("tankchetti")];
 			func.maxTorque = 200.0f;
 		}
 		//manticora
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];		
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];
 			func.maxTorque = 300.0f;
 			//boss
 			WheelItem::CarFunc& boss = item.carFuncMap[_race->GetCar("manticoraBoss")];
@@ -557,7 +554,7 @@ void Workshop::LoadTruba()
 		}
 		//guseniza
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("guseniza")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("guseniza")];
 			func.maxTorque = 200.0f;
 			//boss
 			WheelItem::CarFunc& boss = item.carFuncMap[_race->GetCar("gusenizaBoss")];
@@ -565,13 +562,13 @@ void Workshop::LoadTruba()
 		}
 		//monstertruck
 		{
-			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("monstertruck")];			
+			WheelItem::CarFunc& func = item.carFuncMap[_race->GetCar("monstertruck")];
 			func.maxTorque = 80.0f;
 			//boss
 			WheelItem::CarFunc& boss = item.carFuncMap[_race->GetCar("monstertruckBoss")];
 			boss = func;
 		}
-		
+
 		SaveSlot(slot, "truba3");
 	}
 }
@@ -592,12 +589,12 @@ void Workshop::LoadEngines()
 		{
 			MotorItem::CarFunc& func = item.carFuncMap[_race->GetCar("marauder")];
 			func.maxTorque = 800.0f;
-		}		
+		}
 		//dirtdevil
 		{
 			MotorItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];
-			func.maxTorque = 800.0f;			
-		}		
+			func.maxTorque = 800.0f;
+		}
 		//manticora
 		{
 			MotorItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];
@@ -618,7 +615,7 @@ void Workshop::LoadEngines()
 		{
 			MotorItem::CarFunc& func = item.carFuncMap[_race->GetCar("podushka")];
 			func.maxTorque = 750.0f;
-			
+
 			//long
 			func.longTire.extremumSlip   = 0.3f;
 			func.longTire.extremumValue  = 6.0f;
@@ -675,16 +672,16 @@ void Workshop::LoadEngines()
 		{
 			MotorItem::CarFunc& func = item.carFuncMap[_race->GetCar("marauder")];
 			func.maxTorque = 1000.0f;
-		}		
+		}
 		//dirtdevil
 		{
 			MotorItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];
-			func.maxTorque = 1000.0f;			
-		}		
+			func.maxTorque = 1000.0f;
+		}
 		//manticora
 		{
 			MotorItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];
-			func.maxTorque = 1500.0f;			
+			func.maxTorque = 1500.0f;
 			//boss
 			MotorItem::CarFunc& boss = item.carFuncMap[_race->GetCar("manticoraBoss")];
 			boss = func;
@@ -741,7 +738,7 @@ void Workshop::LoadEngines()
 			MotorItem::CarFunc& boss = item.carFuncMap[_race->GetCar("devildriverBoss")];
 			boss = func;
 		}
-		
+
 		SaveSlot(slot, "engine2");
 	}
 	{
@@ -767,7 +764,7 @@ void Workshop::LoadEngines()
 		//dirtdevil
 		{
 			MotorItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];
-			func.maxTorque = 1200.0f;			
+			func.maxTorque = 1200.0f;
 		}
 		//tankchetti
 		{
@@ -777,7 +774,7 @@ void Workshop::LoadEngines()
 		//manticora
 		{
 			MotorItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];
-			func.maxTorque = 1900.0f;			
+			func.maxTorque = 1900.0f;
 			//boss
 			MotorItem::CarFunc& boss = item.carFuncMap[_race->GetCar("manticoraBoss")];
 			boss = func;
@@ -836,7 +833,7 @@ void Workshop::LoadEngines()
 		}
 
 		SaveSlot(slot, "engine3");
-	}	
+	}
 }
 
 void Workshop::LoadArmors()
@@ -855,15 +852,15 @@ void Workshop::LoadArmors()
 		{
 			ArmorItem::CarFunc& func = item.carFuncMap[_race->GetCar("marauder")];
 			func.life = 50.0f;
-		}		
+		}
 		//dirtdevil
 		{
 			ArmorItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];
 			func.life = 35.0f;
-		}		
+		}
 		//manticora
 		{
-			ArmorItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];			
+			ArmorItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];
 			func.life = 50.0f;
 			//boss
 			ArmorItem::CarFunc& boss = item.carFuncMap[_race->GetCar("manticoraBoss")];
@@ -899,7 +896,7 @@ void Workshop::LoadArmors()
 			ArmorItem::CarFunc& boss = item.carFuncMap[_race->GetCar("devildriverBoss")];
 			boss = func;
 		}
-		
+
 		SaveSlot(slot, "armor1");
 	}
 	{
@@ -916,12 +913,12 @@ void Workshop::LoadArmors()
 		{
 			ArmorItem::CarFunc& func = item.carFuncMap[_race->GetCar("marauder")];
 			func.life = 65.0f;
-		}		
+		}
 		//dirtdevil
 		{
 			ArmorItem::CarFunc& func = item.carFuncMap[_race->GetCar("dirtdevil")];
 			func.life = 50.0f;
-		}		
+		}
 		//manticora
 		{
 			ArmorItem::CarFunc& func = item.carFuncMap[_race->GetCar("manticora")];
@@ -960,7 +957,7 @@ void Workshop::LoadArmors()
 			ArmorItem::CarFunc& boss = item.carFuncMap[_race->GetCar("devildriverBoss")];
 			boss = func;
 		}
-		
+
 		SaveSlot(slot, "armor2");
 	}
 	{
@@ -1031,9 +1028,9 @@ void Workshop::LoadArmors()
 			ArmorItem::CarFunc& boss = item.carFuncMap[_race->GetCar("devildriverBoss")];
 			boss = func;
 		}
-		
+
 		SaveSlot(slot, "armor3");
-	}	
+	}
 }
 
 void Workshop::LoadWeapons()
@@ -1060,8 +1057,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\bulletProj"));
-			projDesc.pos = D3DXVECTOR3(0.4f, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(2.0f, 0.25f, 1.3f);
+			projDesc.pos = glm::vec3(0.4f, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(2.0f, 0.25f, 1.3f);
 			projDesc.modelSize = false;
 			projDesc.speed = 50.0f;
 			projDesc.speedRelative = true;
@@ -1076,7 +1073,7 @@ void Workshop::LoadWeapons()
 		}
 
 		SaveSlot(slot, "bulletGun");
-	}	
+	}
 	{
 		Slot* slot = new Slot(0);
 
@@ -1106,10 +1103,10 @@ void Workshop::LoadWeapons()
 			projDesc.mass = 100.0f;
 			projDesc.damage = 10.0f/2;
 
-			projDesc.pos = D3DXVECTOR3(0.2f, -0.7f, 0.0f);
+			projDesc.pos = glm::vec3(0.2f, -0.7f, 0.0f);
 			desc.projList.push_back(projDesc);
 
-			projDesc.pos = D3DXVECTOR3(0.2f, 0.7f, 0.0f);
+			projDesc.pos = glm::vec3(0.2f, 0.7f, 0.0f);
 			desc.projList.push_back(projDesc);
 
 			desc.shotDelay = 0.2f;
@@ -1139,8 +1136,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\blaster"));
-			projDesc.pos = D3DXVECTOR3(0.3f, -0.6f, 0.0f);
-			projDesc.size = D3DXVECTOR3(1.0f, 0.5f, 0.5f);
+			projDesc.pos = glm::vec3(0.3f, -0.6f, 0.0f);
+			projDesc.size = glm::vec3(1.0f, 0.5f, 0.5f);
 			projDesc.modelSize = false;
 			projDesc.speed = 40.0f;
 			projDesc.speedRelative = true;
@@ -1149,7 +1146,7 @@ void Workshop::LoadWeapons()
 			projDesc.damage = 12.0f/2;
 			desc.projList.push_back(projDesc);
 
-			projDesc.pos = D3DXVECTOR3(0.3f, 0.6f, 0.0f);
+			projDesc.pos = glm::vec3(0.3f, 0.6f, 0.0f);
 			desc.projList.push_back(projDesc);
 
 			desc.shotDelay = 0.2f;
@@ -1180,7 +1177,7 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptLaser;
 			projDesc.SetLibMat(_race->GetLibMat("Effect\\laser3-red2"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.0f);
 			projDesc.size = IdentityVector * 1.0f;
 			projDesc.maxDist = 100.0f;
 			projDesc.damage = 19.0f/0.5f;
@@ -1193,7 +1190,7 @@ void Workshop::LoadWeapons()
 		}
 
 		SaveSlot(slot, "tankLaser");
-	}	
+	}
 
 	{
 		Slot* slot = new Slot(0);
@@ -1216,8 +1213,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptSonar;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "sonar"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
-			projDesc.size = D3DXVECTOR3(3.0f, 2.0f, 2.0f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
+			projDesc.size = glm::vec3(3.0f, 2.0f, 2.0f);
 			projDesc.modelSize = false;
 			projDesc.maxDist = 15.0f;
 			projDesc.mass = 75.0f;
@@ -1231,7 +1228,6 @@ void Workshop::LoadWeapons()
 
 			item.SetWpnDesc(desc);
 		}
-
 
 		SaveSlot(slot, "sonar");
 	}
@@ -1257,8 +1253,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\shotBall"));
-			projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(0.5f, 0.5f, 1.0f);
+			projDesc.pos = glm::vec3(0, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(0.5f, 0.5f, 1.0f);
 			projDesc.modelSize = true;
 			projDesc.speed = 45.0f;
 			projDesc.speedRelative = true;
@@ -1296,8 +1292,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptImpulse;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "phaseRing"));
-			projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.0f);
-			projDesc.size = D3DXVECTOR3(0.5f, 0.5f, 1.0f);
+			projDesc.pos = glm::vec3(0, 0.0f, 0.0f);
+			projDesc.size = glm::vec3(0.5f, 0.5f, 1.0f);
 			projDesc.modelSize = false;
 			projDesc.speed = 20.0f;
 			projDesc.speedRelative = true;
@@ -1336,8 +1332,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\rocket"));
-			projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.0f);
-			projDesc.size = D3DXVECTOR3(0.0f, 0.0f, 1.3f);
+			projDesc.pos = glm::vec3(0, 0.0f, 0.0f);
+			projDesc.size = glm::vec3(0.0f, 0.0f, 1.3f);
 			projDesc.modelSize = true;
 			projDesc.speed = 40.0f;
 			projDesc.speedRelative = true;
@@ -1374,8 +1370,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\laserPulse"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(3.5f, 0.6f, 1.8f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(3.5f, 0.6f, 1.8f);
 			projDesc.modelSize = false;
 			projDesc.speed = 40.0f;
 			projDesc.speedRelative = true;
@@ -1413,9 +1409,9 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptFire;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "fire2"));
-			projDesc.pos = D3DXVECTOR3(0.4f, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(12.0, 1.5f, 1.5f);
-			projDesc.offset = D3DXVECTOR3(6.0, 0.0f, 0.0f);
+			projDesc.pos = glm::vec3(0.4f, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(12.0, 1.5f, 1.5f);
+			projDesc.offset = glm::vec3(6.0, 0.0f, 0.0f);
 			projDesc.modelSize = false;
 			projDesc.speed = 0.0f;
 			projDesc.maxDist = 12.0f;
@@ -1452,14 +1448,14 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptDrobilka;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "spark2"));
-			projDesc.pos = D3DXVECTOR3(1.3f, 0.0f, 0.0f);
-			projDesc.size = D3DXVECTOR3(2.1f, 0.5f, 0.5f);
+			projDesc.pos = glm::vec3(1.3f, 0.0f, 0.0f);
+			projDesc.size = glm::vec3(2.1f, 0.5f, 0.5f);
 			projDesc.modelSize = true;
 			projDesc.maxDist = 3.0f;
 			projDesc.mass = 100.0f;
 			projDesc.damage = 60.0f/4;
 			projDesc.minTimeLife = 4.0f;
-			projDesc.angleSpeed = 4.0f * D3DX_PI;
+			projDesc.angleSpeed = 4.0f * glm::pi<float>();
 
 			desc.projList.push_back(projDesc);
 			desc.shotDelay = 4.0f;
@@ -1491,12 +1487,12 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptTorpeda;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\spherePulse"));
-			projDesc.pos = D3DXVECTOR3(0.1f, 0.0f, 0.15f);
-			projDesc.size = D3DXVECTOR3(0.5f, 0.5f, 0.5f);
+			projDesc.pos = glm::vec3(0.1f, 0.0f, 0.15f);
+			projDesc.size = glm::vec3(0.5f, 0.5f, 0.5f);
 			projDesc.modelSize = false;
 			projDesc.speed = 30.0f;
 			projDesc.speedRelativeMin = 20;
-			projDesc.angleSpeed = D3DX_PI * 4.0f;
+			projDesc.angleSpeed = glm::pi<float>() * 4.0f;
 			projDesc.maxDist = 150.0f;
 			projDesc.mass = 100.0f;
 			projDesc.damage = 15.0f;
@@ -1508,7 +1504,7 @@ void Workshop::LoadWeapons()
 		}
 
 		SaveSlot(slot, "sphereGun");
-	}	
+	}
 	{
 		Slot* slot = new Slot(0);
 
@@ -1530,12 +1526,12 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptTorpeda;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\torpeda"));
-			projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.2f);
+			projDesc.pos = glm::vec3(0, 0.0f, 0.2f);
 			projDesc.size = NullVector;
 			projDesc.modelSize = true;
 			projDesc.speed = 30.0f;
 			projDesc.speedRelativeMin = 20;
-			projDesc.angleSpeed = D3DX_PI;
+			projDesc.angleSpeed = glm::pi<float>();
 			projDesc.maxDist = 300.0f;
 			projDesc.mass = 300.0f;
 			projDesc.damage = 40.0f;
@@ -1547,7 +1543,7 @@ void Workshop::LoadWeapons()
 		}
 
 		SaveSlot(slot, "torpedaWeapon");
-	}	
+	}
 
 	{
 		Slot* slot = new Slot(0);
@@ -1570,8 +1566,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptMortira;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "mortiraBall"));
-			projDesc.pos = D3DXVECTOR3(0, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(0.5f, 0.5f, 1.0f);
+			projDesc.pos = glm::vec3(0, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(0.5f, 0.5f, 1.0f);
 			projDesc.modelSize = true;
 			projDesc.speed = 40.0f;
 			projDesc.speedRelative = true;
@@ -1611,9 +1607,9 @@ void Workshop::LoadWeapons()
 			projDesc.SetLibMat(_race->GetLibMat("Effect\\frostRay"));
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "frostHit"));
 			projDesc.SetModel2(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "frost"));
-			projDesc.pos = D3DXVECTOR3(0.7f, 0.0f, 0.3f);
-			D3DXQuaternionRotationAxis(&projDesc.rot, &YVector, D3DX_PI/24.0f);
-			projDesc.size = D3DXVECTOR3(0.5f, 0.5f, 0.0f);
+			projDesc.pos = glm::vec3(0.7f, 0.0f, 0.3f);
+			projDesc.rot = glm::angleAxis(glm::pi<float>() / 24.0f, YVector);
+			projDesc.size = glm::vec3(0.5f, 0.5f, 0.0f);
 			projDesc.maxDist = 100.0f;
 			projDesc.damage = 19.0f/0.5f;
 			projDesc.minTimeLife = 1.0f;
@@ -1647,8 +1643,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptRocket;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "hyperBlaster"));
-			projDesc.pos = D3DXVECTOR3(1.0f, 0.0f, 0.1f);
-			projDesc.size = D3DXVECTOR3(3.5f, 0.75f, 1.0f);
+			projDesc.pos = glm::vec3(1.0f, 0.0f, 0.1f);
+			projDesc.size = glm::vec3(3.5f, 0.75f, 1.0f);
 			projDesc.modelSize = false;
 			projDesc.speed = 40.0f;
 			projDesc.speedRelative = true;
@@ -1668,7 +1664,7 @@ void Workshop::LoadWeapons()
 	{
 		Slot* slot = new Slot(0);
 
-		MineItem& item = slot->CreateItem<MineItem>();	
+		MineItem& item = slot->CreateItem<MineItem>();
 		item.SetName(_SC(scMaslo));
 		item.SetInfo(_SC(scMasloInfo));
 		item.SetMesh(_race->GetMesh("Weapon\\maslo.r3d"));
@@ -1677,7 +1673,7 @@ void Workshop::LoadWeapons()
 		item.SetMaxCharge(7);
 		item.SetCntCharge(1);
 		item.SetDamage(0.0f);
-		item.SetCost(8000);		
+		item.SetCost(8000);
 		item.SetChargeCost(4000);
 
 		{
@@ -1686,9 +1682,9 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptMaslo;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\maslo"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
 			projDesc.modelSize = false;
-			projDesc.size = D3DXVECTOR3(1.5f, 1.5f, 1.7f);
+			projDesc.size = glm::vec3(1.5f, 1.5f, 1.7f);
 			projDesc.damage = 1.5f;
 
 			desc.projList.push_back(projDesc);
@@ -1721,8 +1717,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptMine;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\mine1"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
-			projDesc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
+			projDesc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 			projDesc.modelSize = true;
 			projDesc.damage = 11.0f;
 			projDesc.maxDist = 0.0f;
@@ -1734,7 +1730,7 @@ void Workshop::LoadWeapons()
 			item.SetWpnDesc(desc);
 		}
 
-		SaveSlot(slot, "mine1");		
+		SaveSlot(slot, "mine1");
 	}
 
 	{
@@ -1760,8 +1756,8 @@ void Workshop::LoadWeapons()
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\mine2"));
 			projDesc.SetModel2(_race->GetDB()->GetRecord(MapObjLib::ctBonus, "mineRipKern"));
 			projDesc.SetModel3(_race->GetDB()->GetRecord(MapObjLib::ctBonus, "mineRipPiece"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
-			projDesc.size = D3DXVECTOR3(0.0f, 0.0f, 1.7f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
+			projDesc.size = glm::vec3(0.0f, 0.0f, 1.7f);
 			projDesc.modelSize = true;
 			projDesc.damage = 20.0f;
 			projDesc.maxDist = 0.0f;
@@ -1798,8 +1794,8 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptMine;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctDecoration, "Misc\\mine3"));
-			projDesc.pos = D3DXVECTOR3(0.0f, 0.0f, 0.2f);
-			projDesc.size = D3DXVECTOR3(5.0f, 5.0f, 1.7f);
+			projDesc.pos = glm::vec3(0.0f, 0.0f, 0.2f);
+			projDesc.size = glm::vec3(5.0f, 5.0f, 1.7f);
 			projDesc.modelSize = false;
 			projDesc.damage = 25.0f;
 			projDesc.maxDist = 0.0f;
@@ -1818,7 +1814,7 @@ void Workshop::LoadWeapons()
 	{
 		Slot* slot = new Slot(0);
 
-		HyperItem& item = slot->CreateItem<HyperItem>();	
+		HyperItem& item = slot->CreateItem<HyperItem>();
 		item.SetName(_SC(scSpring));
 		item.SetInfo(_SC(scSpringInfo));
 		item.SetMesh(_race->GetMesh("Weapon\\spring.r3d"));
@@ -1827,7 +1823,7 @@ void Workshop::LoadWeapons()
 		item.SetMaxCharge(7);
 		item.SetCntCharge(1);
 		item.SetDamage(0.0f);
-		item.SetCost(6000);		
+		item.SetCost(6000);
 		item.SetChargeCost(2000);
 
 		{
@@ -1869,19 +1865,19 @@ void Workshop::LoadWeapons()
 
 			projDesc.type = Proj::ptHyper;
 			projDesc.SetModel(_race->GetDB()->GetRecord(MapObjLib::ctEffects, "accelEff"));
-			projDesc.pos = D3DXVECTOR3(0.4f, 0.0f, 0.0f);
+			projDesc.pos = glm::vec3(0.4f, 0.0f, 0.0f);
 			projDesc.size = NullVector;
 			projDesc.modelSize = true;
 			projDesc.speed = 10.0f;
 			projDesc.minTimeLife = 2.0f;
 
 			desc.projList.push_back(projDesc);
-			desc.shotDelay = 1.5f;	
+			desc.shotDelay = 1.5f;
 
 			item.SetWpnDesc(desc);
 		}
 
-		SaveSlot(slot, "hyperdrive");		
+		SaveSlot(slot, "hyperdrive");
 	}
 }
 
@@ -1890,9 +1886,9 @@ void Workshop::LoadLib()
 	lsl::SafeDelete(_lib);
 
 	try
-	{		
-		SerialFileXML xml;		
-		xml.LoadNodeFromFile(*_rootNode, "workshop.xml");		
+	{
+		SerialFileXML xml;
+		xml.LoadNodeFromFile(*_rootNode, "workshop.xml");
 
 		_lib = new RecordLib("workshop", _rootNode);
 		_lib->SetOwner(_race);
@@ -1915,7 +1911,7 @@ void Workshop::LoadLib()
 
 	DeleteSlots();
 	for (RecordLib::RecordList::const_iterator iter = _lib->GetRecordList().begin(); iter != _lib->GetRecordList().end(); ++iter)
-		AddSlot(*iter);	
+		AddSlot(*iter);
 }
 
 const RecordLib& Workshop::GetLib()
@@ -1969,7 +1965,7 @@ void Workshop::ClearItems()
 	for (Items::iterator iter = _items.begin(); iter != _items.end(); ++iter)
 		(*iter)->Release();
 
-	_items.clear();	
+	_items.clear();
 }
 
 bool Workshop::BuyItem(Player* player, Slot* slot)
@@ -2063,7 +2059,7 @@ int Workshop::GetChargeSellCost(WeaponItem* slot) const
 
 void Workshop::Reset()
 {
-	ClearItems();	
+	ClearItems();
 }
 
 const Workshop::Items& Workshop::GetItems()
@@ -2085,9 +2081,6 @@ Race* Workshop::GetRace()
 {
 	return _race;
 }
-
-
-
 
 Garage::Garage(Race* race, const std::string& name): _race(race), _upgradeMaxLevel(0), _weaponMaxLevel(0)
 {
@@ -2122,13 +2115,13 @@ const Garage::PlaceItem* Garage::PlaceSlot::FindItem(Slot* slot) const
 }
 
 Garage::Car::Car(): _record(0), _wheel(0), _cost(0), _name(scNull), _desc(scNull), _initialUpgradeSet(0)
-{	
+{
 }
 
 Garage::Car::~Car()
 {
 	ClearSlots();
-	ClearBodies();	
+	ClearBodies();
 
 	SetWheel(0);
 	SetRecord(0);
@@ -2157,7 +2150,7 @@ void Garage::Car::ClearSlots()
 {
 	for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 	{
-		SetSlot(Player::SlotType(i), PlaceSlot());		
+		SetSlot(Player::SlotType(i), PlaceSlot());
 	}
 }
 
@@ -2171,14 +2164,14 @@ void Garage::Car::SaveTo(lsl::SWriter* writer, Garage* owner)
 	{
 		std::stringstream sstream;
 		sstream << "bodyMesh" << i;
-		lsl::SWriter* child = bodyMeshes->NewDummyNode(sstream.str().c_str());		
+		lsl::SWriter* child = bodyMeshes->NewDummyNode(sstream.str().c_str());
 
 		child->WriteValue("meshId", iter->meshId);
 		child->WriteValue("decal", iter->decal);
 
-		child->WriteRef("mesh", iter->mesh);		
-		child->WriteRef("texture", iter->texture);		
-	}	
+		child->WriteRef("mesh", iter->mesh);
+		child->WriteRef("texture", iter->texture);
+	}
 
 	writer->WriteValue("cost", _cost);
 
@@ -2199,7 +2192,7 @@ void Garage::Car::SaveTo(lsl::SWriter* writer, Garage* owner)
 		child->WriteValue("show", slot.show);
 		child->WriteValue("lock", slot.lock);
 		lsl::SWriteValue(child, "pos", slot.pos);
-		RecordLib::SaveRecordRef(child, "defItem", slot.defItem ? slot.defItem->GetRecord() : NULL);		
+		RecordLib::SaveRecordRef(child, "defItem", slot.defItem ? slot.defItem->GetRecord() : NULL);
 
 		lsl::SWriter* items = child->NewDummyNode("items");
 		int j = 0;
@@ -2222,12 +2215,12 @@ void Garage::Car::SaveTo(lsl::SWriter* writer, Garage* owner)
 	{
 		std::stringstream sstream;
 		sstream << "item" << i;
-		lsl::SWriter* child = nightLights->NewDummyNode(sstream.str().c_str());		
+		lsl::SWriter* child = nightLights->NewDummyNode(sstream.str().c_str());
 
 		child->WriteValue("head", _nightLights[i].head);
 		lsl::SWriteValue(child, "pos", _nightLights[i].pos);
 		lsl::SWriteValue(child, "size", _nightLights[i].size);
-	}	
+	}
 }
 
 void Garage::Car::LoadFrom(lsl::SReader* reader, Garage* owner)
@@ -2241,7 +2234,7 @@ void Garage::Car::LoadFrom(lsl::SReader* reader, Garage* owner)
 	{
 		lsl::SReader* child = bodyMeshes->FirstChildValue();
 		while (child)
-		{	
+		{
 			BodyMesh bodyMesh;
 
 			child->ReadValue("meshId", bodyMesh.meshId);
@@ -2253,7 +2246,7 @@ void Garage::Car::LoadFrom(lsl::SReader* reader, Garage* owner)
 
 			if (child->ReadRef("texture", true, NULL, &fixUpName))
 				bodyMesh.texture = fixUpName.GetCollItem<graph::Tex2DResource*>();
-			
+
 			AddBody(bodyMesh);
 
 			child = child->NextValue();
@@ -2292,7 +2285,7 @@ void Garage::Car::LoadFrom(lsl::SReader* reader, Garage* owner)
 		{
 			lsl::SReader* child = items->FirstChildValue();
 			while (child)
-			{	
+			{
 				PlaceItem item;
 
 				record = RecordLib::LoadRecordRef(child, "record");
@@ -2314,7 +2307,7 @@ void Garage::Car::LoadFrom(lsl::SReader* reader, Garage* owner)
 	{
 		lsl::SReader* child = nightLights->FirstChildValue();
 		while (child)
-		{	
+		{
 			NightLight nightLight;
 
 			child->ReadValue("head", nightLight.head);
@@ -2469,12 +2462,12 @@ void Garage::Car::SetSlot(Player::SlotType type, const PlaceSlot& value)
 		_slot[type].defItem->AddRef();
 }
 
-void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, const D3DXVECTOR3* hyperDrive, bool spring, bool maslo, bool mineSpike, bool mineRip, bool mineProton, bool lockedMax)
+void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, const glm::vec3* hyperDrive, bool spring, bool maslo, bool mineSpike, bool mineRip, bool mineProton, bool lockedMax)
 {
 	for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 	{
 		PlaceSlot place;
-				
+
 		switch (i)
 		{
 		case Player::stWheel:
@@ -2488,12 +2481,12 @@ void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, c
 					place.items.push_back(&GetShop().GetSlot(wheel + "1"));
 					place.items.push_back(&GetShop().GetSlot(wheel + "2"));
 				}
-				place.items.push_back(&GetShop().GetSlot(wheel + "3"));				
+				place.items.push_back(&GetShop().GetSlot(wheel + "3"));
 				place.defItem = place.items.front().slot;
 				place.lock = true;
 			}
 			break;
-			
+
 		case Player::stTruba:
 			if (truba)
 			{
@@ -2510,13 +2503,13 @@ void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, c
 				place.lock = true;
 			}
 			break;
-			
+
 		case Player::stArmor:
 			place.active = true;
 			place.show = false;
 
 			if (!lockedMax)
-			{			
+			{
 				place.items.push_back(&GetShop().GetSlot("armor1"));
 				place.items.push_back(&GetShop().GetSlot("armor2"));
 			}
@@ -2524,7 +2517,7 @@ void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, c
 			place.defItem = place.items.front().slot;
 			place.lock = true;
 			break;
-			
+
 		case Player::stMotor:
 			place.active = true;
 			place.show = false;
@@ -2538,8 +2531,8 @@ void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, c
 			place.defItem = place.items.front().slot;
 			place.lock = true;
 			break;
-			
-		case Player::stHyper: 
+
+		case Player::stHyper:
 		{
 			//коллизинируют по свойству place.show, в этом суча необходимо его сделать частью PlaceItem
 			LSL_ASSERT(!spring || !hyperDrive);
@@ -2550,50 +2543,49 @@ void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, c
 			if (spring)
 			{
 				place.show = false;
-				place.items.push_back(&GetShop().GetSlot("spring"));				
+				place.items.push_back(&GetShop().GetSlot("spring"));
 			}
 			if (hyperDrive)
 			{
 				place.show = true;
-				D3DXQUATERNION rot;
-				D3DXQuaternionRotationAxis(&rot, &ZVector, D3DX_PI);
+				glm::quat rot = glm::angleAxis(glm::pi<float>(), ZVector);
 				place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperdrive"), rot, *hyperDrive));
-			}				
+			}
 			if (!place.items.empty())
 				place.defItem = place.items.back().slot;
 
 			place.lock = true;
 			break;
 		}
-			
+
 		case Player::stMine:
 			place.active = true;
-			place.show = false;			
+			place.show = false;
 
 			if (maslo)
 			{
 				place.items.push_back(&GetShop().GetSlot("maslo"));
-				place.pos = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+				place.pos = glm::vec3(0.0f, 0.0f, 0.0f);
 			}
 			if (mineSpike)
 			{
 				place.items.push_back(&GetShop().GetSlot("mine1"));
-				place.pos = D3DXVECTOR3(-1.0f, 0.0f, 0.0f);
+				place.pos = glm::vec3(-1.0f, 0.0f, 0.0f);
 			}
 			if (mineRip)
 			{
 				place.items.push_back(&GetShop().GetSlot("mine2"));
-				place.pos = D3DXVECTOR3(-1.0f, 0.0f, 0.0f);
+				place.pos = glm::vec3(-1.0f, 0.0f, 0.0f);
 			}
 			if (mineProton)
 			{
 				place.items.push_back(&GetShop().GetSlot("mine3"));
-				place.pos = D3DXVECTOR3(-1.0f, 0.0f, 0.0f);
+				place.pos = glm::vec3(-1.0f, 0.0f, 0.0f);
 			}
 			if (!place.items.empty())
 				place.defItem = place.items.back().slot;
 			place.lock = true;
-			break;		
+			break;
 		}
 
 		car->SetSlot(Player::SlotType(i), place);
@@ -2648,14 +2640,14 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.65f, 0.0f, 0.7f);
+			place.pos = glm::vec3(-0.65f, 0.0f, 0.7f);
 
 			place.items.push_back(&GetShop().GetSlot("bulletGun"));
 			place.defItem = place.items.front().slot;
 			place.lock = true;
 
 			car->SetSlot(Player::stWeapon1, place);
-		}		
+		}
 	}
 
 	//dirtdevil
@@ -2675,7 +2667,7 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(1.6f, 0.0f, 0.0f);
+			place.pos = glm::vec3(1.6f, 0.0f, 0.0f);
 
 			place.items.push_back(&GetShop().GetSlot("rifleWeapon"));
 			place.defItem = place.items.front().slot;
@@ -2687,7 +2679,7 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.38f, 0.0f, 1.1f);
+			place.pos = glm::vec3(-0.38f, 0.0f, 1.1f);
 
 			place.items.push_back(&GetShop().GetSlot("rocketLauncher"));
 
@@ -2708,15 +2700,15 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\manticoraWheel.txt");
 		car->SetCost(90000);
 
-		FillStandartSlots(car, "wheel", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, true, false, false, false);
+		FillStandartSlots(car, "wheel", true, &glm::vec3(-1.5f, 0.0f, 0.35f), false, false, true, false, false, false);
 
 		{
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(1.7f, 0.0f, 0.08f);
+			place.pos = glm::vec3(1.7f, 0.0f, 0.08f);
 
-			place.items.push_back(&GetShop().GetSlot("blasterGun"));	
+			place.items.push_back(&GetShop().GetSlot("blasterGun"));
 			place.defItem = place.items.front().slot;
 			place.lock = true;
 
@@ -2726,20 +2718,19 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.0f, 1.0f, 0.3f);
-			D3DXQUATERNION rot;
-			D3DXVECTOR3 offset;
-			
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/3.0f);
+			place.pos = glm::vec3(0.0f, 1.0f, 0.3f);
+			glm::vec3 offset;
+
+			glm::quat rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/3.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI);
+			rot = glm::angleAxis(-glm::pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
-			offset = D3DXVECTOR3(1.25f, -0.3f, 0.05f);
+			offset = glm::vec3(1.25f, -0.3f, 0.05f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			car->SetSlot(Player::stWeapon2, place);
@@ -2748,19 +2739,18 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.0f, -1.0f, 0.3f);
-			D3DXQUATERNION rot;
-			D3DXVECTOR3 offset;
-			
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/3.0f);
+			place.pos = glm::vec3(0.0f, -1.0f, 0.3f);
+			glm::vec3 offset;
+
+			glm::quat rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
-			
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/3.0f);
+
+			rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
 
-			offset = D3DXVECTOR3(1.25f, 0.3f, 0.05f);
+			offset = glm::vec3(1.25f, 0.3f, 0.05f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			car->SetSlot(Player::stWeapon3, place);
@@ -2785,16 +2775,16 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\gusenizaWheel.txt");
 		car->SetCost(140000);
 
-		FillStandartSlots(car, "gusWheel", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.25f), false, false, false, true, false, false);
+		FillStandartSlots(car, "gusWheel", true, &glm::vec3(-1.5f, 0.0f, 0.25f), false, false, false, true, false, false);
 
 		{
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.27f, 0.0f, 0.36f);
+			place.pos = glm::vec3(-0.27f, 0.0f, 0.36f);
 
 			place.items.push_back(&GetShop().GetSlot("tankLaser"));
-			
+
 			place.defItem = place.items.front().slot;
 			place.lock = true;
 
@@ -2805,35 +2795,34 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.0f, 1.4f, 0.0f);
-			D3DXQUATERNION rot;
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.0f, 1.4f, 0.0f);
+			glm::vec3 offset;
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
+			glm::quat rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI);
+			rot = glm::angleAxis(-glm::pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
-			offset = D3DXVECTOR3(0.85f, -0.8f, 0.0f);
+			offset = glm::vec3(0.85f, -0.8f, 0.0f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &YVector, -D3DX_PI/24.0f);
-			offset = D3DXVECTOR3(0.85f, -0.6f, 0.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
+			offset = glm::vec3(0.85f, -0.6f, 0.0f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot, offset));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon2, place);
@@ -2842,34 +2831,33 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.0f, -1.4f, 0.0f);
-			D3DXQUATERNION rot;
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.0f, -1.4f, 0.0f);
+			glm::vec3 offset;
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
+			glm::quat rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
 
-			offset = D3DXVECTOR3(0.85f, 0.8f, 0.0f);
+			offset = glm::vec3(0.85f, 0.8f, 0.0f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &YVector, -D3DX_PI/24.0f);
-			offset = D3DXVECTOR3(0.85f, 0.6f, 0.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
+			offset = glm::vec3(0.85f, 0.6f, 0.0f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot, offset));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon3, place);
@@ -2894,13 +2882,13 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\podushkaWheel.txt");
 		car->SetCost(165000);
 
-		FillStandartSlots(car, "", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, false, false, true, false);
+		FillStandartSlots(car, "", true, &glm::vec3(-1.5f, 0.0f, 0.35f), false, false, false, false, true, false);
 
 		{
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.27f, 0.0f, 0.65f);
+			place.pos = glm::vec3(-0.27f, 0.0f, 0.65f);
 
 			place.items.push_back(&GetShop().GetSlot("sphereGun"));
 			place.defItem = place.items.front().slot;
@@ -2912,34 +2900,33 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.2f, 0.6f, 0.25f);
-			D3DXQUATERNION rot;
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.2f, 0.6f, 0.25f);
+			glm::vec3 offset;
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/3.0f);
+			glm::quat rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/3.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI);
+			rot = glm::angleAxis(-glm::pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
-			//offset = D3DXVECTOR3(1.2f, -0.05f, -0.1f);
+			//offset = glm::vec3(1.2f, -0.05f, -0.1f);
 			//place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/3.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/3.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &YVector, -D3DX_PI/24.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/3.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon2, place);
@@ -2948,33 +2935,32 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.2f, -0.6f, 0.25f);
-			D3DXQUATERNION rot;
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.2f, -0.6f, 0.25f);
+			glm::vec3 offset;
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/3.0f);
+			glm::quat rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/3.0f);
+			rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
 
-			//offset = D3DXVECTOR3(1.2f, 0.05f, -0.1f);
+			//offset = glm::vec3(1.2f, 0.05f, -0.1f);
 			//place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/3.0f);
+			rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/3.0f);
+			rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &YVector, -D3DX_PI/24.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/3.0f);
+			rot = glm::angleAxis(glm::pi<float>() / 3.0f, XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon3, place);
@@ -2988,17 +2974,17 @@ void Garage::LoadCars()
 		car->SetDesc(_SC(scMonsterTruckInfo));
 		car->SetRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "monstertruck"));
 		car->AddBody(_race->GetMesh("Car\\monstertruck.r3d"), _race->GetTexture("Car\\monstertruck.tga"), true);
-		car->SetWheel(_race->GetMesh("Car\\monstertruckWheel.r3d"));		
+		car->SetWheel(_race->GetMesh("Car\\monstertruckWheel.r3d"));
 		car->SetWheels("Data\\Car\\monstertruckWheelGUI.txt");
 		car->SetCost(200000);
 
-		FillStandartSlots(car, "wheel", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, false, true, false, false);
+		FillStandartSlots(car, "wheel", true, &glm::vec3(-1.5f, 0.0f, 0.35f), false, false, false, true, false, false);
 
 		{
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.8f, 0.0f, 0.65f);
+			place.pos = glm::vec3(-0.8f, 0.0f, 0.65f);
 
 			place.items.push_back(&GetShop().GetSlot("asyncFrost"));
 			place.defItem = place.items.front().slot;
@@ -3011,34 +2997,33 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.3f, 0.8f, 0.4f);
-			D3DXQUATERNION rot;
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.3f, 0.8f, 0.4f);
+			glm::vec3 offset;
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
+			glm::quat rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI);
+			rot = glm::angleAxis(-glm::pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("fireGun"), rot));
 
-			offset = D3DXVECTOR3(0.95f, -0.1f, -0.1f);
+			offset = glm::vec3(0.95f, -0.1f, -0.1f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &YVector, -D3DX_PI/24.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, -D3DX_PI/2.0f);
+			rot = glm::angleAxis(-glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon2, place);
@@ -3047,33 +3032,32 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(0.3f, -0.8f, 0.4f);
-			D3DXQUATERNION rot;
-			D3DXVECTOR3 offset;
+			place.pos = glm::vec3(0.3f, -0.8f, 0.4f);
+			glm::vec3 offset;
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
+			glm::quat rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("rocketLauncher"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("pulsator"), rot));
 
 			place.items.push_back(&GetShop().GetSlot("fireGun"));
 
-			offset = D3DXVECTOR3(0.95f, 0.1f, -0.1f);
+			offset = glm::vec3(0.95f, 0.1f, -0.1f);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("turel"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("phaseImpulse"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &YVector, -D3DX_PI/24.0f);
+			rot = glm::angleAxis(-glm::pi<float>() / 24.0f, YVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("mortira"), rot));
 
-			D3DXQuaternionRotationAxis(&rot, &XVector, D3DX_PI/2.0f);
+			rot = glm::angleAxis(glm::half_pi<float>(), XVector);
 			place.items.push_back(PlaceItem(&GetShop().GetSlot("hyperBlaster"), rot));
 
 			car->SetSlot(Player::stWeapon3, place);
@@ -3083,9 +3067,8 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(1.4f, 0.0f, 0.6f);
-			D3DXVECTOR3 offset;
-			D3DXQUATERNION rot;
+			place.pos = glm::vec3(1.4f, 0.0f, 0.6f);
+			//glm::vec3 offset;
 
 			place.items.push_back(&GetShop().GetSlot("rocketLauncher"));
 
@@ -3093,7 +3076,7 @@ void Garage::LoadCars()
 
 			//place.items.push_back(&GetShop().GetSlot("fireGun"));
 			//
-			//offset = D3DXVECTOR3(0.1f, 0.0f, -0.15f);
+			//offset = glm::vec3(0.1f, 0.0f, -0.15f);
 			//place.items.push_back(PlaceItem(&GetShop().GetSlot("drobilka"), NullQuaternion, offset));
 
 			place.items.push_back(&GetShop().GetSlot("torpedaWeapon"));
@@ -3109,7 +3092,7 @@ void Garage::LoadCars()
 		Car* boss = AddCar();
 		boss->Assign(car);
 		boss->SetRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "monstertruckBoss"));
-		boss->AddBody(_race->GetMesh("Car\\monstertruckBoss.r3d"), _race->GetTexture("Car\\monstertruckBoss.tga"), true);		
+		boss->AddBody(_race->GetMesh("Car\\monstertruckBoss.r3d"), _race->GetTexture("Car\\monstertruckBoss.tga"), true);
 	}
 
 	//devildriver
@@ -3122,13 +3105,13 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\devildriverWheel.txt");
 		car->SetCost(300000);
 
-		FillStandartSlots(car, "", false, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, false, false, true, false);
+		FillStandartSlots(car, "", false, &glm::vec3(-1.5f, 0.0f, 0.35f), false, false, false, false, true, false);
 
 		{
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.27f, 0.0f, 0.65f);
+			place.pos = glm::vec3(-0.27f, 0.0f, 0.65f);
 
 			place.items.push_back(&GetShop().GetSlot("sonar"));
 			place.defItem = place.items.front().slot;
@@ -3141,7 +3124,7 @@ void Garage::LoadCars()
 		Car* boss = AddCar();
 		boss->Assign(car);
 		boss->SetRecord(_race->GetDB()->GetRecord(MapObjLib::ctCar, "devildriverBoss"));
-		boss->AddBody(_race->GetMesh("Car\\devildriverBoss.r3d"), _race->GetTexture("Car\\devildriverBoss.tga"), true);		
+		boss->AddBody(_race->GetMesh("Car\\devildriverBoss.r3d"), _race->GetTexture("Car\\devildriverBoss.tga"), true);
 	}
 
 	//buggi
@@ -3161,14 +3144,14 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(1.2f, 0.02f, 0.53f);
+			place.pos = glm::vec3(1.2f, 0.02f, 0.53f);
 
 			place.items.push_back(&GetShop().GetSlot("bulletGun"));
 			place.defItem = place.items.front().slot;
 			place.lock = true;
 
 			car->SetSlot(Player::stWeapon1, place);
-		}		
+		}
 	}
 
 	//tankchetti
@@ -3188,7 +3171,7 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(1.88f, 0.0f, -0.22f);
+			place.pos = glm::vec3(1.88f, 0.0f, -0.22f);
 
 			place.items.push_back(&GetShop().GetSlot("rifleWeapon"));
 			place.defItem = place.items.front().slot;
@@ -3200,7 +3183,7 @@ void Garage::LoadCars()
 			PlaceSlot place;
 			place.active = true;
 			place.show = true;
-			place.pos = D3DXVECTOR3(-0.41f, 0.08f, 1.1f);
+			place.pos = glm::vec3(-0.41f, 0.08f, 1.1f);
 
 			place.items.push_back(&GetShop().GetSlot("rocketLauncher"));
 			place.defItem = place.items.front().slot;
@@ -3218,8 +3201,8 @@ void Garage::LoadLib()
 	lsl::RootNode rootNode("garageRoot", _race);
 
 	try
-	{		
-		SerialFileXML xml;		
+	{
+		SerialFileXML xml;
 		xml.LoadNodeFromFile(rootNode, "garage.xml");
 
 		rootNode.Load(this);
@@ -3249,12 +3232,12 @@ void Garage::Save(lsl::SWriter* writer)
 	{
 		std::stringstream sstream;
 		sstream << "car" << i;
-		lsl::SWriter* child = cars->NewDummyNode(sstream.str().c_str());		
+		lsl::SWriter* child = cars->NewDummyNode(sstream.str().c_str());
 
 		(*iter)->SaveTo(child, this);
 	}
 
-	lsl::SWriteValue(writer, "touchBorderDamage", logic->GetTouchBorderDamage());	
+	lsl::SWriteValue(writer, "touchBorderDamage", logic->GetTouchBorderDamage());
 	lsl::SWriteValue(writer, "touchBorderDamageForce", logic->GetTouchBorderDamageForce());
 	lsl::SWriteValue(writer, "touchCarDamage", logic->GetTouchCarDamage());
 	lsl::SWriteValue(writer, "touchCarDamageForce", logic->GetTouchCarDamageForce());
@@ -3271,7 +3254,7 @@ void Garage::Load(lsl::SReader* reader)
 	{
 		lsl::SReader* child = cars->FirstChildValue();
 		while (child)
-		{	
+		{
 			Garage::Car* car = AddCar();
 			car->LoadFrom(child, this);
 
@@ -3279,10 +3262,10 @@ void Garage::Load(lsl::SReader* reader)
 		}
 	}
 
-	D3DXVECTOR2 touchBorderDamage = NullVec2;
-	D3DXVECTOR2 touchBorderDamageForce = NullVec2;
-	D3DXVECTOR2 touchCarDamage = NullVec2;
-	D3DXVECTOR2 touchCarDamageForce = NullVec2;
+	glm::vec2 touchBorderDamage = NullVec2;
+	glm::vec2 touchBorderDamageForce = NullVec2;
+	glm::vec2 touchCarDamage = NullVec2;
+	glm::vec2 touchCarDamageForce = NullVec2;
 
 	lsl::SReadValue(reader, "touchBorderDamage", touchBorderDamage);
 	lsl::SReadValue(reader, "touchBorderDamageForce", touchBorderDamageForce);
@@ -3333,7 +3316,7 @@ void Garage::RemoveItem(Items::const_iterator iter)
 
 void Garage::RemoveItem(Car* item)
 {
-	RemoveItem(_items.Find(item));	
+	RemoveItem(_items.Find(item));
 }
 
 void Garage::ClearItems()
@@ -3341,11 +3324,11 @@ void Garage::ClearItems()
 	for (Items::iterator iter = _items.begin(); iter != _items.end(); ++iter)
 		(*iter)->Release();
 
-	_items.clear();	
+	_items.clear();
 }
 
 Garage::Items::iterator Garage::FindItem(Car* item)
-{	
+{
 	for (Items::iterator iter = _items.begin(); iter != _items.end(); ++iter)
 		if (*iter == item)
 			return iter;
@@ -3357,8 +3340,8 @@ Slot* Garage::InstalSlot(Player* player, Player::SlotType type, Car* car, Slot* 
 {
 	LSL_ASSERT(car->GetRecord() == player->GetCar().record);
 
-	D3DXVECTOR3 pos;
-	D3DXQUATERNION rot = NullQuaternion;
+	glm::vec3 pos;
+	glm::quat rot = NullQuaternion;
 	if (slot)
 	{
 		const PlaceSlot& place = car->GetSlot(type);
@@ -3366,7 +3349,7 @@ Slot* Garage::InstalSlot(Player* player, Player::SlotType type, Car* car, Slot* 
 
 		LSL_ASSERT(placeItem);
 
-		pos = place.pos + placeItem->offset;		
+		pos = place.pos + placeItem->offset;
 		rot = placeItem->rot;
 	}
 
@@ -3375,7 +3358,7 @@ Slot* Garage::InstalSlot(Player* player, Player::SlotType type, Car* car, Slot* 
 	Slot* slotInst = player->GetSlotInst(type);
 
 	if (slotInst)
-	{		
+	{
 		WeaponItem* weapon = slotInst->GetItem().IsWeaponItem();
 		if (weapon)
 		{
@@ -3423,7 +3406,7 @@ void Garage::GetSupportedSlots(Player* player, Car* car, std::pair<Slot*, int> (
 	ZeroMemory(slots, sizeof(slots));
 
 	Car* myCar = player->GetCar().record ? FindCar(player->GetCar().record) : NULL;
-	
+
 	for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 	{
 		if (slots[i].first != NULL)
@@ -3432,7 +3415,7 @@ void Garage::GetSupportedSlots(Player* player, Car* car, std::pair<Slot*, int> (
 
 		Player::SlotType type = (Player::SlotType)i;
 
-		Record* slotRec = player->GetSlot(type);		
+		Record* slotRec = player->GetSlot(type);
 		Slot* slot = slotRec ? _race->GetWorkshop().FindSlot(slotRec) : NULL;
 		if (slot == NULL)
 			continue;
@@ -3462,7 +3445,7 @@ void Garage::GetSupportedSlots(Player* player, Car* car, std::pair<Slot*, int> (
 		}
 	}
 
-	if (includeDef) 
+	if (includeDef)
 		for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 		{
 			Player::SlotType type = (Player::SlotType)i;
@@ -3525,7 +3508,7 @@ Slot* Garage::GetUpgradeCar(Car* car, Player* player, Player::SlotType type, int
 	}
 	else
 	{
-		Record* record = GetUpgradeCar(car, type, level);		
+		Record* record = GetUpgradeCar(car, type, level);
 
 		return record ? _race->GetWorkshop().FindSlot(record) : NULL;
 	}
@@ -3561,7 +3544,7 @@ void Garage::UpgradeCar(Player* player, int level, bool instalMaxCharge)
 		}
 
 		if (instalMaxCharge)
-		{		
+		{
 			Slot* slot = player->GetSlotInst(type);
 			WeaponItem* weapon = slot ? slot->GetItem().IsWeaponItem() : NULL;
 			if (weapon)
@@ -3712,7 +3695,7 @@ float Garage::GetSpeedSkill(Garage::Car* car, Player* player)
 
 		if (maxSpeed < speed)
 			maxSpeed = speed;
-	}	
+	}
 
 	float speed = 0.0f;
 	speed += GetMobilitySkill(car, player, Player::stMotor, -1);
@@ -3723,7 +3706,7 @@ float Garage::GetSpeedSkill(Garage::Car* car, Player* player)
 }
 
 int Garage::GetCarCost(Car* car)
-{	
+{
 	return _race->GetCost(car->GetCost());
 }
 
@@ -3783,7 +3766,7 @@ bool Garage::BuyCar(Player* player, Garage::Car* car)
 		Record* slot = player->GetSlot(type);
 
 		if (curCar)
-		{			
+		{
 			const PlaceSlot& curPlace = curCar->GetSlot(type);
 
 			if (!curPlace.lock && curSlot && curSlot != slot)
@@ -3792,7 +3775,7 @@ bool Garage::BuyCar(Player* player, Garage::Car* car)
 				for (int j = 0; j < Player::cSlotTypeEnd; ++j)
 					if (slots[j].first && slots[j].first->GetRecord() == curSlot)
 					{
-						isFind = true;					
+						isFind = true;
 						break;
 					}
 					if (!isFind)
@@ -3864,7 +3847,7 @@ void Garage::SetWeaponMaxLevel(int value)
 			for (Race::PlayerList::const_iterator iter = _race->GetPlayerList().begin(); iter != _race->GetPlayerList().end(); ++iter)
 			{
 				if ((*iter)->IsHuman())
-				{					
+				{
 					for (int i = _weaponMaxLevel; i < Garage::cWeaponMaxLevel; ++i)
 						(*iter)->SetSlot((Player::SlotType)(i + Player::stWeapon1), NULL);
 				}
@@ -3876,9 +3859,6 @@ void Garage::SetWeaponMaxLevel(int value)
 		}
 	}
 }
-
-
-
 
 Planet::Planet(Race* race, int index): _race(race), _index(index), _name(scNull), _info(scNull), _mesh(0), _texture(0), _state(psUnavailable), _worldType(wtWorld1), _pass(-1)
 {
@@ -3901,11 +3881,11 @@ int Planet::Track::GetIndex() const
 	return _index;
 }
 
-Planet* Planet::Track::GetPlanet() 
+Planet* Planet::Track::GetPlanet()
 {
 	return _planet;
 }
-		
+
 unsigned Planet::Track::GetLapsCount()
 {
 	return _planet->_race->IsCampaign() ? numLaps : _planet->_race->GetTournament().GetLapsCount();
@@ -3997,7 +3977,7 @@ void Planet::CompletePass(int pass)
 
 	for (Cars::const_iterator iter = _cars.begin(); iter != _cars.end(); ++iter)
 		if (iter->pass == pass)
-			_race->GetGarage().InsertItem(_race->GetGarage().FindCar(iter->record));	
+			_race->GetGarage().InsertItem(_race->GetGarage().FindCar(iter->record));
 }
 
 void Planet::SaveSlots(lsl::SWriter* writer, const std::string& name, Slots& mSlots, Tournament* owner)
@@ -4116,7 +4096,7 @@ Planet::TrackMap::const_iterator Planet::GetTracks(int pass) const
 		if (maxPass <= iter->first)
 			maxPass = iter->first;
 
-	pass = abs(pass - 1) % maxPass + 1;
+	pass = std::abs(pass - 1) % maxPass + 1;
 
 	Planet::TrackMap::const_iterator iter = _trackMap.find(pass);
 	if (iter != _trackMap.end())
@@ -4205,7 +4185,7 @@ void Planet::SetPass(int value)
 	{
 		if (_pass >= 0)
 			CompletePass(_pass);
-		
+
 		_pass = value;
 
 		if (_pass >= 0)
@@ -4233,7 +4213,7 @@ void Planet::SaveTo(lsl::SWriter* writer, Tournament* owner)
 	for (TrackMap::const_iterator iterMap = _trackMap.begin(); iterMap != _trackMap.end(); ++iterMap, ++i)
 	{
 		const Tracks& trackList = iterMap->second;
-		
+
 		lsl::SWriter* tracks = trackMap->NewDummyNode(lsl::StrFmt("tracks%d", i).c_str());
 		tracks->WriteAttr("pass", iterMap->first);
 
@@ -4298,7 +4278,7 @@ void Planet::SaveTo(lsl::SWriter* writer, Tournament* owner)
 		child->WriteValue("id", iter->id);
 		lsl::SWriteValue(child, "name", iter->name);
 		lsl::SWriteValue(child, "bonus", iter->bonus);
-		child->WriteRef("photo", iter->photo);		
+		child->WriteRef("photo", iter->photo);
 		child->WriteValue("maxPass", iter->maxPass);
 
 		SaveCars(child, "cars", iter->cars, owner);
@@ -4314,7 +4294,7 @@ void Planet::LoadFrom(lsl::SReader* reader, Tournament* owner)
 	ClearCars();
 	ClearSlots();
 	ClearPlayers();
-	ClearTracks();	
+	ClearTracks();
 
 	lsl::SReadValue(reader, "name", _name);
 	lsl::SReadValue(reader, "info", _info);
@@ -4426,7 +4406,7 @@ void Planet::LoadFrom(lsl::SReader* reader, Tournament* owner)
 	{
 		lsl::SReader* child = players->FirstChildValue();
 		while (child)
-		{			
+		{
 			PlayerData player;
 
 			child->ReadValue("id", player.id);
@@ -4435,7 +4415,7 @@ void Planet::LoadFrom(lsl::SReader* reader, Tournament* owner)
 			child->ReadValue("maxPass", player.maxPass);
 
 			if (child->ReadRef("photo", true, NULL, &fixUpName))
-				player.photo = fixUpName.GetCollItem<graph::Tex2DResource*>();			
+				player.photo = fixUpName.GetCollItem<graph::Tex2DResource*>();
 
 			LoadCars(child, "cars", player.cars, owner);
 			LoadSlots(child, "slots", player.slots, owner);
@@ -4453,7 +4433,7 @@ void Planet::LoadFrom(lsl::SReader* reader, Tournament* owner)
 		{
 			lsl::SReader* child = tracks->FirstChildValue();
 			while (child)
-			{	
+			{
 				Track* track = AddTrack(1);
 
 				child->ReadValue("level", track->level);
@@ -4534,7 +4514,7 @@ int Planet::GetRequestPoints(int pass) const
 }
 
 bool Planet::HasRequestPoints(int pass, int points) const
-{	
+{
 	int req = GetRequestPoints(pass);
 	if (req == -1)
 		return false;
@@ -4550,7 +4530,7 @@ Planet::State Planet::GetState() const
 void Planet::SetState(State value)
 {
 	if (_state == value)
-		return;	
+		return;
 
 	switch (value)
 	{
@@ -4701,7 +4681,7 @@ void Planet::InsertCar(const CarData& car)
 void Planet::InsertCar(MapObjRec* car, int pass)
 {
 	CarData data;
-	data.record = car;	
+	data.record = car;
 	data.pass = pass;
 
 	InsertCar(data);
@@ -4746,7 +4726,7 @@ const Planet::Cars& Planet::GetCars() const
 void Planet::InsertPlayer(const PlayerData& data)
 {
 	if (data.photo)
-		data.photo->AddRef();	
+		data.photo->AddRef();
 	for (Cars::const_iterator iter = data.cars.begin(); iter != data.cars.end(); ++iter)
 		iter->record->AddRef();
 	for (Slots::const_iterator iter = data.slots.begin(); iter != data.slots.end(); ++iter)
@@ -4760,7 +4740,7 @@ void Planet::ClearPlayers()
 	for (Players::iterator iter = _players.begin(); iter != _players.end(); ++iter)
 	{
 		if (iter->photo)
-			iter->photo->Release();		
+			iter->photo->Release();
 
 		for (Cars::const_iterator iterCar = iter->cars.begin(); iterCar != iter->cars.end(); ++iterCar)
 			iterCar->record->Release();
@@ -4796,11 +4776,8 @@ Planet::PlayerData Planet::GetBoss() const
 	return _players.size() > 0 ? _players.front() : PlayerData();
 }
 
-
-
-
 Tournament::Tournament(Race* race, const std::string& name): _race(race), _curPlanet(0), _curTrack(0), _wheater(Environment::ewFair), _wheaterNightPass(false), _lapsCount(4)
-{	
+{
 	SetName(name);
 	SetOwner(race);
 
@@ -4883,25 +4860,25 @@ void Tournament::LoadPlanets()
 			Planet::Track* track = planet->AddTrack(1);
 			track->level = "Data\\Map\\World1\\map8.r3dMap";
 			track->numLaps = 4;
-		}		
+		}
 
-		planet->InsertCar("marauder", 0);		
-		planet->InsertCar("dirtdevil", 0);		
+		planet->InsertCar("marauder", 0);
+		planet->InsertCar("dirtdevil", 0);
 		planet->InsertCar("manticora", 0);
 
-		planet->InsertSlot("rocketLauncher", 0);		
-		planet->InsertSlot("pulsator", 0);		
+		planet->InsertSlot("rocketLauncher", 0);
+		planet->InsertSlot("pulsator", 0);
 
 		//Player1
 		{
 			Planet::PlayerData data;
 			data.id = Race::cComputer1;
 			data.name = scTarquin;
-			data.photo = _race->GetTexture("GUI\\Chars\\tarquin.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\tarquin.png");
 			data.maxPass = 2;
 
 			//first
-			data.cars.push_back(Planet::CarData(_race->GetCar("manticoraBoss"), 1));			
+			data.cars.push_back(Planet::CarData(_race->GetCar("manticoraBoss"), 1));
 			//
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("engine1"), 0, Player::stMotor, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("armor1"), 0, Player::stArmor, 1));
@@ -4933,11 +4910,11 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer2;
 			data.name = scRip;
-			data.photo = _race->GetTexture("GUI\\Chars\\rip.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\rip.png");
 			data.maxPass = 2;
 
 			//first
-			data.cars.push_back(Planet::CarData(_race->GetCar("marauder"), 1));			
+			data.cars.push_back(Planet::CarData(_race->GetCar("marauder"), 1));
 			//
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("engine1"), 0, Player::stMotor, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("armor1"), 0, Player::stArmor, 1));
@@ -4967,7 +4944,7 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer3;
 			data.name = scSnake;
-			data.photo = _race->GetTexture("GUI\\Chars\\snake.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\snake.png");
 			data.maxPass = 2;
 
 			//first
@@ -4978,7 +4955,7 @@ void Tournament::LoadPlanets()
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("wheel1"), 0, Player::stWheel, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("truba2"), 0, Player::stTruba, 1));
 			//
-			data.slots.push_back(Planet::SlotData(_race->GetSlot("rifleWeapon"), 4, Player::stWeapon1, 1));			
+			data.slots.push_back(Planet::SlotData(_race->GetSlot("rifleWeapon"), 4, Player::stWeapon1, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("maslo"), 2, Player::stMine, 1));
 			//data.slots.push_back(Planet::SlotData(_race->GetSlot("spring"), 1, Player::stHyper, 1));
 
@@ -4995,7 +4972,7 @@ void Tournament::LoadPlanets()
 			//data.slots.push_back(Planet::SlotData(_race->GetSlot("spring"), 3, Player::stHyper, 2));
 
 			planet->InsertPlayer(data);
-		}		
+		}
 	}
 
 	{
@@ -5009,7 +4986,7 @@ void Tournament::LoadPlanets()
 		wheaters.push_back(Planet::Wheater(Environment::ewRainy, 25));
 		wheaters.push_back(Planet::Wheater(Environment::ewNight, 10));
 		planet->SetWheaters(wheaters);
-		
+
 		Planet::RequestPoints points;
 		points[1] = 2000;
 		points[2] = 2400;
@@ -5071,19 +5048,19 @@ void Tournament::LoadPlanets()
 			track->numLaps = 4;
 		}
 
-		planet->InsertCar("guseniza", 0);		
+		planet->InsertCar("guseniza", 0);
 
-		planet->InsertSlot("fireGun", 0);		
-		planet->InsertSlot("drobilka", 0);		
-		planet->InsertSlot("torpedaWeapon", 0);		
-		planet->InsertSlot("turel", 0);		
+		planet->InsertSlot("fireGun", 0);
+		planet->InsertSlot("drobilka", 0);
+		planet->InsertSlot("torpedaWeapon", 0);
+		planet->InsertSlot("turel", 0);
 
 		//Player1
 		{
 			Planet::PlayerData data;
 			data.id = Race::cComputer1;
 			data.name = scTarquin;
-			data.photo = _race->GetTexture("GUI\\Chars\\tarquin.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\tarquin.png");
 			data.maxPass = 2;
 
 			//first
@@ -5121,7 +5098,7 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer2;
 			data.name = scRip;
-			data.photo = _race->GetTexture("GUI\\Chars\\rip.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\rip.png");
 			data.maxPass = 2;
 
 			//first
@@ -5159,7 +5136,7 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer3;
 			data.name = scTarquin;
-			data.photo = _race->GetTexture("GUI\\Chars\\snake.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\snake.png");
 			data.maxPass = 2;
 
 			//first
@@ -5188,7 +5165,7 @@ void Tournament::LoadPlanets()
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("hyperdrive"), 3, Player::stHyper, 2));
 
 			planet->InsertPlayer(data);
-		}		
+		}
 	}
 
 	{
@@ -5256,20 +5233,20 @@ void Tournament::LoadPlanets()
 			Planet::Track* track = planet->AddTrack(1);
 			track->level = "Data\\Map\\World3\\map8.r3dMap";
 			track->numLaps = 4;
-		}		
-		
+		}
+
 		planet->InsertCar("podushka", 0);
 		planet->InsertCar("monstertruck", 0);
-		
-		planet->InsertSlot("mortira", 0);		
-		planet->InsertSlot("phaseImpulse", 0);		
+
+		planet->InsertSlot("mortira", 0);
+		planet->InsertSlot("phaseImpulse", 0);
 
 		//Player1
 		{
 			Planet::PlayerData data;
 			data.id = Race::cComputer1;
 			data.name = scTarquin;
-			data.photo = _race->GetTexture("GUI\\Chars\\tarquin.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\tarquin.png");
 			data.maxPass = 2;
 
 			//first
@@ -5282,7 +5259,7 @@ void Tournament::LoadPlanets()
 			//
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("asyncFrost"), 4, Player::stWeapon1, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("torpedaWeapon"), 2, Player::stWeapon2, 1));
-			data.slots.push_back(Planet::SlotData(_race->GetSlot("fireGun"), 5, Player::stWeapon3, 1));			
+			data.slots.push_back(Planet::SlotData(_race->GetSlot("fireGun"), 5, Player::stWeapon3, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("mine2"), 4, Player::stMine, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("hyperdrive"), 6, Player::stHyper, 1));
 
@@ -5308,7 +5285,7 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer2;
 			data.name = scRip;
-			data.photo = _race->GetTexture("GUI\\Chars\\rip.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\rip.png");
 			data.maxPass = 2;
 
 			//first
@@ -5345,7 +5322,7 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer3;
 			data.name = scSnake;
-			data.photo = _race->GetTexture("GUI\\Chars\\snake.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\snake.png");
 			data.maxPass = 2;
 
 			//first
@@ -5371,12 +5348,12 @@ void Tournament::LoadPlanets()
 			//
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("tankLaser"), 7, Player::stWeapon1, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("drobilka"), 7, Player::stWeapon2, 2));
-			data.slots.push_back(Planet::SlotData(_race->GetSlot("pulsator"), 3, Player::stWeapon3, 2));			
+			data.slots.push_back(Planet::SlotData(_race->GetSlot("pulsator"), 3, Player::stWeapon3, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("mine2"), 4, Player::stMine, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("hyperdrive"), 5, Player::stHyper, 2));
 
 			planet->InsertPlayer(data);
-		}		
+		}
 	}
 
 	{
@@ -5458,7 +5435,7 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer1;
 			data.name = scTarquin;
-			data.photo = _race->GetTexture("GUI\\Chars\\tarquin.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\tarquin.png");
 			data.maxPass = 2;
 
 			//first
@@ -5471,7 +5448,7 @@ void Tournament::LoadPlanets()
 			//
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("asyncFrost"), 4, Player::stWeapon1, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("torpedaWeapon"), 2, Player::stWeapon2, 1));
-			data.slots.push_back(Planet::SlotData(_race->GetSlot("fireGun"), 5, Player::stWeapon3, 1));			
+			data.slots.push_back(Planet::SlotData(_race->GetSlot("fireGun"), 5, Player::stWeapon3, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("mine2"), 4, Player::stMine, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("hyperdrive"), 6, Player::stHyper, 1));
 
@@ -5497,7 +5474,7 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer2;
 			data.name = scRip;
-			data.photo = _race->GetTexture("GUI\\Chars\\rip.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\rip.png");
 			data.maxPass = 2;
 
 			//first
@@ -5534,7 +5511,7 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer3;
 			data.name = scSnake;
-			data.photo = _race->GetTexture("GUI\\Chars\\snake.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\snake.png");
 			data.maxPass = 2;
 
 			//first
@@ -5560,12 +5537,12 @@ void Tournament::LoadPlanets()
 			//
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("tankLaser"), 7, Player::stWeapon1, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("drobilka"), 7, Player::stWeapon2, 2));
-			data.slots.push_back(Planet::SlotData(_race->GetSlot("pulsator"), 3, Player::stWeapon3, 2));			
+			data.slots.push_back(Planet::SlotData(_race->GetSlot("pulsator"), 3, Player::stWeapon3, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("mine2"), 4, Player::stMine, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("hyperdrive"), 5, Player::stHyper, 2));
 
 			planet->InsertPlayer(data);
-		}		
+		}
 	}
 
 	{
@@ -5637,16 +5614,16 @@ void Tournament::LoadPlanets()
 
 		planet->InsertCar("devildriver", 0);
 		planet->InsertCar("buggi", 3);
-		planet->InsertCar("tankchetti", 3);		
+		planet->InsertCar("tankchetti", 3);
 
-		planet->InsertSlot("hyperBlaster", 0);		
+		planet->InsertSlot("hyperBlaster", 0);
 
 		//Player1
 		{
 			Planet::PlayerData data;
 			data.id = Race::cComputer1;
 			data.name = scTarquin;
-			data.photo = _race->GetTexture("GUI\\Chars\\tarquin.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\tarquin.png");
 			data.maxPass = 2;
 
 			//first
@@ -5655,7 +5632,7 @@ void Tournament::LoadPlanets()
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("engine3"), 0, Player::stMotor, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("armor3"), 0, Player::stArmor, 1));
 			//
-			data.slots.push_back(Planet::SlotData(_race->GetSlot("sonar"), 5, Player::stWeapon1, 1));			
+			data.slots.push_back(Planet::SlotData(_race->GetSlot("sonar"), 5, Player::stWeapon1, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("mine3"), 6, Player::stMine, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("hyperdrive"), 7, Player::stHyper, 1));
 
@@ -5665,7 +5642,7 @@ void Tournament::LoadPlanets()
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("engine3"), 0, Player::stMotor, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("armor3"), 0, Player::stArmor, 2));
 			//
-			data.slots.push_back(Planet::SlotData(_race->GetSlot("sonar"), 7, Player::stWeapon1, 2));			
+			data.slots.push_back(Planet::SlotData(_race->GetSlot("sonar"), 7, Player::stWeapon1, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("mine3"), 7, Player::stMine, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("hyperdrive"), 7, Player::stHyper, 2));
 
@@ -5676,7 +5653,7 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer2;
 			data.name = scRip;
-			data.photo = _race->GetTexture("GUI\\Chars\\rip.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\rip.png");
 			data.maxPass = 2;
 
 			//first
@@ -5702,7 +5679,7 @@ void Tournament::LoadPlanets()
 			//
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("asyncFrost"), 7, Player::stWeapon1, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("mortira"), 3, Player::stWeapon2, 2));
-			data.slots.push_back(Planet::SlotData(_race->GetSlot("rocketLauncher"), 7, Player::stWeapon3, 2));			
+			data.slots.push_back(Planet::SlotData(_race->GetSlot("rocketLauncher"), 7, Player::stWeapon3, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("mine2"), 7, Player::stMine, 2));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("hyperdrive"), 7, Player::stHyper, 2));
 
@@ -5713,7 +5690,7 @@ void Tournament::LoadPlanets()
 			Planet::PlayerData data;
 			data.id = Race::cComputer3;
 			data.name = scSnake;
-			data.photo = _race->GetTexture("GUI\\Chars\\snake.png");			
+			data.photo = _race->GetTexture("GUI\\Chars\\snake.png");
 			data.maxPass = 2;
 
 			//first
@@ -5726,7 +5703,7 @@ void Tournament::LoadPlanets()
 			//
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("tankLaser"), 7, Player::stWeapon1, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("drobilka"), 7, Player::stWeapon2, 1));
-			data.slots.push_back(Planet::SlotData(_race->GetSlot("turel"), 4, Player::stWeapon3, 1));			
+			data.slots.push_back(Planet::SlotData(_race->GetSlot("turel"), 4, Player::stWeapon3, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("mine2"), 5, Player::stMine, 1));
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("hyperdrive"), 6, Player::stHyper, 1));
 
@@ -5744,7 +5721,7 @@ void Tournament::LoadPlanets()
 			data.slots.push_back(Planet::SlotData(_race->GetSlot("hyperdrive"), 7, Player::stHyper, 2));
 
 			planet->InsertPlayer(data);
-		}		
+		}
 	}
 }
 
@@ -5775,8 +5752,8 @@ void Tournament::LoadLib()
 	lsl::RootNode rootNode("tournametRoot", _race);
 
 	try
-	{		
-		SerialFileXML xml;		
+	{
+		SerialFileXML xml;
 		xml.LoadNodeFromFile(rootNode, "tournamet.xml");
 
 		rootNode.Load(this);
@@ -5800,7 +5777,7 @@ void Tournament::Save(lsl::SWriter* writer)
 	{
 		std::stringstream sstream;
 		sstream << "planet" << i;
-		lsl::SWriter* child = planets->NewDummyNode(sstream.str().c_str());		
+		lsl::SWriter* child = planets->NewDummyNode(sstream.str().c_str());
 
 		(*iter)->SaveTo(child, this);
 	}
@@ -5811,7 +5788,7 @@ void Tournament::Save(lsl::SWriter* writer)
 	{
 		std::stringstream sstream;
 		sstream << "gamer" << i;
-		lsl::SWriter* child = gamers->NewDummyNode(sstream.str().c_str());		
+		lsl::SWriter* child = gamers->NewDummyNode(sstream.str().c_str());
 
 		(*iter)->SaveTo(child, this);
 	}
@@ -5827,9 +5804,9 @@ void Tournament::Load(lsl::SReader* reader)
 	{
 		lsl::SReader* child = planets->FirstChildValue();
 		while (child)
-		{	
+		{
 			Planet* planet = AddPlanet();
-			planet->LoadFrom(child, this); 
+			planet->LoadFrom(child, this);
 
 			child = child->NextValue();
 		}
@@ -5840,7 +5817,7 @@ void Tournament::Load(lsl::SReader* reader)
 	{
 		lsl::SReader* child = gamers->FirstChildValue();
 		while (child)
-		{	
+		{
 			Planet* gamer = AddGamer();
 			gamer->LoadFrom(child, this);
 
@@ -5889,7 +5866,7 @@ Planet* Tournament::FindPlanet(const std::string& name)
 Planet* Tournament::NextPlanet(Planet* planet)
 {
 	Planets::iterator iter = FindPlanet(planet);
-	
+
 	if (iter != _planets.end() && iter != --_planets.end())
 		return *(++iter);
 
@@ -5899,8 +5876,8 @@ Planet* Tournament::NextPlanet(Planet* planet)
 Planet* Tournament::PrevPlanet(Planet* planet)
 {
 	Planets::iterator iter = FindPlanet(planet);
-	
-	if (iter != _planets.begin())	
+
+	if (iter != _planets.begin())
 		return *(--iter);
 
 	return 0;
@@ -5962,7 +5939,7 @@ void Tournament::CompleteTrack(int points, bool& passComplete, bool& passChampio
 	passChampion = false;
 	planetChampion = false;
 
-	Planet::Track* nextTrack = NextTrack(_curTrack);	
+	Planet::Track* nextTrack = NextTrack(_curTrack);
 
 	if (nextTrack == NULL)
 	{
@@ -6017,7 +5994,7 @@ void Tournament::SetCurPlanet(Planet* value)
 	{
 		_trackList.clear();
 		_curPlanet = value;
-		
+
 		if (_curPlanet)
 		{
 			SetCurTrack(NextTrack(NULL));
@@ -6072,7 +6049,7 @@ Planet::Track* Tournament::NextTrack(Planet::Track* track)
 	Planet::Track* nextTrack = NULL;
 
 	if (_race->IsCampaign())
-	{	
+	{
 		if (track != NULL)
 		{
 			nextTrack = _curPlanet->NextTrack(track);
@@ -6091,7 +6068,7 @@ Planet::Track* Tournament::NextTrack(Planet::Track* track)
 		if (_trackList.size() == 0)
 		{
 			for (Planet::TrackMap::const_iterator iter = _curPlanet->GetTrackMap().begin(); iter != _curPlanet->GetTrackMap().end(); ++iter)
-			{				
+			{
 				if (iter->second.size() > 0)
 				{
 					_trackList.insert(_trackList.end(), iter->second.begin(), iter->second.end());
@@ -6103,7 +6080,7 @@ Planet::Track* Tournament::NextTrack(Planet::Track* track)
 
 			_wheaterNightPass = false;
 		}
-		
+
 		nextTrack = _trackList.front();
 		_trackList.erase(_trackList.begin());
 	}
@@ -6178,9 +6155,6 @@ const Tournament::Planets& Tournament::GetGamers() const
 	return _gamers;
 }
 
-
-
-
 Race::Race(GameMode* game, const std::string& name): _game(game), _profile(0), _lastProfile(NULL), _lastNetProfile(NULL), _startRace(false), _goRace(false), _human(0), _aiSystem(0), _lastLeadPlace(0), _lastThirdPlace(0), _planetChampion(false), _passChampion(false), _carChanged(false), _minDifficulty(cDifficultyEnd), _tutorialStage(0), _springBorders(true), _enableMineBug(true)
 {
 	SetName(name);
@@ -6204,7 +6178,7 @@ Race::Race(GameMode* game, const std::string& name): _game(game), _profile(0), _
 
 	LSL_LOG("race create aiSystem");
 
-	_aiSystem = new AISystem(this);	
+	_aiSystem = new AISystem(this);
 
 	LSL_LOG("race create profiles");
 
@@ -6226,7 +6200,7 @@ Race::~Race()
 	ClearProfiles();
 	ClearAIPlayers();
 	FreeHuman();
-	ClearPlayerList();	
+	ClearPlayerList();
 
 	delete _snClientProfile;
 	delete _skProfile;
@@ -6240,7 +6214,7 @@ Race::~Race()
 }
 
 Race::Profile::Profile(Race* race, const std::string& name): _race(race), _name(name), _netGame(false), _difficulty(gdNormal)
-{	
+{
 }
 
 void Race::Profile::Enter()
@@ -6274,7 +6248,7 @@ void Race::Profile::SaveGame(std::ostream& stream)
 	SaveGame(writer);
 	lsl::SWriteEnum(writer, "dfficulty", _difficulty, cDifficultyStr, cDifficultyEnd);
 
-	node.EndSave();	
+	node.EndSave();
 
 	lsl::SerialFileXML file;
 	file.SaveNode(node, stream);
@@ -6284,7 +6258,7 @@ void Race::Profile::LoadGame(std::istream& stream)
 {
 	Reset();
 
-	lsl::RootNode node("profile", _race);	
+	lsl::RootNode node("profile", _race);
 	lsl::SerialFileXML file;
 	file.LoadNode(node, stream);
 
@@ -6345,7 +6319,7 @@ void Race::Profile::difficulty(Difficulty value)
 }
 
 Race::SnProfile::SnProfile(Race* race, const std::string& name): _MyBase(race, name)
-{	
+{
 }
 
 void Race::SnProfile::SaveWorkshop(lsl::SWriter* writer)
@@ -6359,7 +6333,7 @@ void Race::SnProfile::SaveWorkshop(lsl::SWriter* writer)
 		std::stringstream stream;
 		stream << "slot" << i;
 
-		RecordLib::SaveRecordRef(slots, stream.str(), (*iter)->GetRecord());		
+		RecordLib::SaveRecordRef(slots, stream.str(), (*iter)->GetRecord());
 	}
 }
 
@@ -6368,11 +6342,11 @@ void Race::SnProfile::LoadWorkshop(lsl::SReader* reader)
 	Workshop& shop = _race->GetWorkshop();
 	shop.ClearItems();
 
-	lsl::SReader* slots = reader->ReadValue("slots");	
+	lsl::SReader* slots = reader->ReadValue("slots");
 	lsl::SReader* slot = slots ? slots->FirstChildValue() : 0;
 	while (slot)
 	{
-		Record* record = RecordLib::LoadRecordRefFrom(slot);		
+		Record* record = RecordLib::LoadRecordRefFrom(slot);
 		if (Slot* item = shop.FindSlot(record))
 			shop.InsertItem(item);
 
@@ -6397,11 +6371,11 @@ void Race::SnProfile::LoadGarage(lsl::SReader* reader)
 	Garage& shop = _race->GetGarage();
 	shop.ClearItems();
 
-	lsl::SReader* cars = reader->ReadValue("cars");	
+	lsl::SReader* cars = reader->ReadValue("cars");
 	lsl::SReader* car = cars ? cars->FirstChildValue() : 0;
 	while (car)
 	{
-		MapObjRec* record = MapObjLib::LoadRecordRefFrom(car);		
+		MapObjRec* record = MapObjLib::LoadRecordRefFrom(car);
 		if (Garage::Car* item = shop.FindCar(record))
 			shop.InsertItem(item);
 
@@ -6439,7 +6413,7 @@ void Race::SnProfile::LoadTournament(lsl::SReader* reader)
 				tournament.GetPlanets()[i]->SetState(Planet::State(v));
 			if (planet->ReadValue("pass", v))
 				tournament.GetPlanets()[i]->SetPass(v);
-		}		
+		}
 	}
 
 	if (reader->ReadValue("planet", ind))
@@ -6479,7 +6453,7 @@ void Race::SnProfile::LoadPlayer(Player* player, lsl::SReader* reader)
 {
 	lsl::string str;
 	lsl::Serializable::FixUpName fixUp;
-	D3DXCOLOR color;
+	glm::vec4 color;
 	int numb;
 
 	MapObjRec* carRef = MapObjLib::LoadRecordRef(reader, "car");
@@ -6512,14 +6486,14 @@ void Race::SnProfile::LoadPlayer(Player* player, lsl::SReader* reader)
 		lsl::SReader* node = reader->ReadValue(lsl::StrFmt("slot%d", i).c_str());
 		if (node)
 		{
-			Record* slotRef = RecordLib::LoadRecordRefFrom(node);		
+			Record* slotRef = RecordLib::LoadRecordRefFrom(node);
 			Slot* slot = _race->GetWorkshop().FindSlot(slotRef);
-			const lsl::SReader::ValueDesc* desc = node ? node->ReadAttr("charge") : 0;			
-			
+			const lsl::SReader::ValueDesc* desc = node ? node->ReadAttr("charge") : 0;
+
 			if (car && slot)
 			{
 				Slot* inst = _race->GetGarage().InstalSlot(player, Player::SlotType(i), car, slot);
-				
+
 				WeaponItem* wpn = inst ? inst->GetItem().IsWeaponItem() : 0;
 				if (wpn && desc)
 				{
@@ -6527,7 +6501,7 @@ void Race::SnProfile::LoadPlayer(Player* player, lsl::SReader* reader)
 					desc->CastTo<int>(&v);
 					inst->GetItem().IsWeaponItem()->SetCntCharge(v);
 				}
-			}			
+			}
 		}
 	}
 }
@@ -6536,7 +6510,7 @@ void Race::SnProfile::SaveHumans(lsl::SWriter* writer)
 {
 	lsl::SWriter* humans = writer->NewDummyNode("humans");
 
-	int i = 0;	
+	int i = 0;
 	for (PlayerList::const_iterator iter = _race->GetPlayerList().begin(); iter != _race->GetPlayerList().end(); ++iter, ++i)
 		if ((*iter)->IsHuman() || (*iter)->IsOpponent())
 		{
@@ -6606,7 +6580,7 @@ void Race::SnProfile::SaveGame(lsl::SWriter* writer)
 	//SaveGarage(writer);
 
 	SaveHumans(writer);
-	//SaveAIPlayers(writer);	
+	//SaveAIPlayers(writer);
 }
 
 void Race::SnProfile::LoadGame(lsl::SReader* reader)
@@ -6639,7 +6613,7 @@ void Race::SkProfile::EnterGame()
 			//planet->SetPass(3);
 		}
 	}
-	
+
 	_race->GetTournament().GetPlanets()[0]->Unlock();
 	_race->GetTournament().GetPlanets()[0]->Open();
 	_race->GetTournament().SetCurPlanet(_race->GetTournament().GetPlanets()[0]);
@@ -6674,7 +6648,7 @@ void Race::DisposePlayer(Player* player)
 {
 	if (GetWorld()->GetCamera()->GetPlayer() == player)
 		GetWorld()->GetCamera()->SetPlayer(0);
-	
+
 	SendEvent(cPlayerDispose, &EventData(player->GetId()));
 
 	player->Release();
@@ -6682,12 +6656,12 @@ void Race::DisposePlayer(Player* player)
 }
 
 void Race::CompleteRace(Player* player)
-{	
+{
 	//защита от двойного завершения трасы на всякий случай
 	if (GetResult(player->GetId()) == NULL)
 	{
 		Result result;
-		result.playerId = player->GetId();	
+		result.playerId = player->GetId();
 		result.place = !_results.empty() ? _results.back().place + 1 : 1;
 		result.voiceNameDur = 1.5f;
 
@@ -6728,7 +6702,7 @@ void Race::CompleteRace(const Results* results)
 
 	typedef lsl::List<MyPlayer> MyPlayers;
 
-	MyPlayers players;	
+	MyPlayers players;
 
 	if (results)
 	{
@@ -6768,7 +6742,7 @@ void Race::CompleteRace(const Results* results)
 	players.sort();
 
 	//принудительно завершаем гонку для сотавшихся игроков
-	for (MyPlayers::iterator iter = players.begin(); iter != players.end(); ++iter)	
+	for (MyPlayers::iterator iter = players.begin(); iter != players.end(); ++iter)
 		CompleteRace(iter->inst);
 
 	if (IsCampaign())
@@ -6858,7 +6832,7 @@ void Race::SaveGame(lsl::SWriter* writer)
 void Race::LoadGame(lsl::SReader* reader)
 {
 	lsl::StringVec vec;
-	lsl::string str;	
+	lsl::string str;
 
 	ClearProfiles();
 	_planetsCompleted.clear();
@@ -6939,9 +6913,9 @@ void Race::OnLateProgress(float deltaTime, bool pxStep)
 	Player* lastThird = _playerPlaceList.size() >= 3 ? _playerPlaceList[2] : NULL;
 	_playerPlaceList = _playerList;
 
-	struct Pred 
+	struct Pred
 	{
-		bool operator()(const Player* p1, const Player* p2) const 
+		bool operator()(const Player* p1, const Player* p2) const
 		{
 			if (p1->GetFinished() && p2->GetFinished())
 				return p1->GetPlace() < p2->GetPlace();
@@ -6959,7 +6933,7 @@ void Race::OnLateProgress(float deltaTime, bool pxStep)
 	for (unsigned i = 0; i < _playerPlaceList.size(); ++i)
 		_playerPlaceList[i]->SetPlace(i + 1);
 
-	Player* leaderPlayer = !_playerPlaceList.empty() ? _playerPlaceList.front(): NULL;	
+	Player* leaderPlayer = !_playerPlaceList.empty() ? _playerPlaceList.front(): NULL;
 	Player* secondPlayer = _playerPlaceList.size() >= 2 ? _playerPlaceList[1] : NULL;
 	Player* thirdPlayer = _playerPlaceList.size() >= 3 ? _playerPlaceList[2] : NULL;
 	Player* nextLastPlayer = _playerPlaceList.size() >= 2 ? _playerPlaceList[_playerPlaceList.size() - 2] : NULL;
@@ -7007,10 +6981,19 @@ void Race::OnLateProgress(float deltaTime, bool pxStep)
 
 Player* Race::AddPlayer(int plrId)
 {
-	const D3DXCOLOR color[cMaxPlayers] = {D3DXCOLOR(0xFF5B29A5), D3DXCOLOR(0xFF9E9E9E), D3DXCOLOR(0xFFFF80C0), D3DXCOLOR(0xFF83F7CC), D3DXCOLOR(0xFF83E500), D3DXCOLOR(0xFFD8E585), D3DXCOLOR(0xFF6100B9), D3DXCOLOR(0xFF006CA4)};
+	const glm::vec4 color[cMaxPlayers] = {
+		glm::vec4( 91.0f/255.0f,  41.0f/255.0f, 165.0f/255.0f, 1.0f), // 0xFF5B29A5
+		glm::vec4(158.0f/255.0f, 158.0f/255.0f, 158.0f/255.0f, 1.0f), // 0xFF9E9E9E
+		glm::vec4(         1.0f, 128.0f/255.0f, 192.0f/255.0f, 1.0f), // 0xFFFF80C0
+		glm::vec4(131.0f/255.0f, 247.0f/255.0f, 204.0f/255.0f, 1.0f), // 0xFF83F7CC
+		glm::vec4(131.0f/255.0f, 229.0f/255.0f,          0.0f, 1.0f), // 0xFF83E500
+		glm::vec4(216.0f/255.0f, 229.0f/255.0f, 133.0f/255.0f, 1.0f), // 0xFFD8E585
+		glm::vec4( 97.0f/255.0f,          0.0f, 185.0f/255.0f, 1.0f), // 0xFF6100B9
+		glm::vec4(         0.0f, 108.0f/255.0f, 164.0f/255.0f, 1.0f)  // 0xFF006CA4
+	};
 
 	Player* player = new Player(this);
-	player->AddRef();	
+	player->AddRef();
 	player->SetId(plrId);
 	_playerList.push_back(player);
 
@@ -7028,7 +7011,7 @@ Player* Race::AddPlayer(int plrId)
 	return player;
 }
 
-Player* Race::AddPlayer(int plrId, int gamerId, int netSlot, const D3DXCOLOR& color)
+Player* Race::AddPlayer(int plrId, int gamerId, int netSlot, const glm::vec4& color)
 {
 	Player* player = AddPlayer(plrId);
 	player->SetGamerId(gamerId);
@@ -7102,7 +7085,7 @@ HumanPlayer* Race::CreateHuman(Player* player)
 	FreeHuman();
 
 	_human = new HumanPlayer(player);
-	_human->AddRef();	
+	_human->AddRef();
 
 	return _human;
 }
@@ -7140,7 +7123,7 @@ void Race::CreatePlayers(unsigned numAI)
 		{
 			Player* player = AddPlayer(cComputer1 + i - 1);
 
-#if DEBUG_WEAPON			
+#if DEBUG_WEAPON
 			continue;
 #endif
 
@@ -7244,7 +7227,7 @@ void Race::DelProfile(Profile* profile, bool saveLib)
 {
 	DelProfile(_profiles.Find(profile), saveLib);
 }
-	
+
 void Race::ClearProfiles(bool saveLib)
 {
 	while (!_profiles.empty())
@@ -7288,7 +7271,7 @@ std::string Race::MakeProfileName(const std::string& base) const
 
 	return test;
 }
-	
+
 const Race::Profiles& Race::GetProfiles() const
 {
 	return _profiles;
@@ -7304,7 +7287,7 @@ void Race::EnterProfile(Profile* profile, Mode mode)
 	_mode = mode;
 	_carChanged = false;
 	_minDifficulty = cDifficultyEnd;
-	_profile->AddRef();	
+	_profile->AddRef();
 
 	if (mode != rmSkirmish && profile != _snClientProfile)
 	{
@@ -7320,7 +7303,7 @@ void Race::EnterProfile(Profile* profile, Mode mode)
 void Race::ExitProfile()
 {
 	if (_profile)
-	{		
+	{
 		_profile->Release();
 		_profile = 0;
 
@@ -7347,16 +7330,16 @@ void Race::NewProfile(Mode mode, bool netGame, bool netClient)
 			std::string name = MakeProfileName();
 
 			Race::Profile* profile = AddProfile(name);
-			profile->netGame(netGame);			
+			profile->netGame(netGame);
 
 			EnterProfile(profile, rmChampionship);
 		}
 		break;
 	}
-		
+
 	case rmSkirmish:
 	{
-		EnterProfile(_skProfile, rmSkirmish);		
+		EnterProfile(_skProfile, rmSkirmish);
 		_skProfile->netGame(netGame);
 		LoadProfile();
 		break;
@@ -7373,7 +7356,7 @@ bool Race::IsMatchStarted() const
 void Race::SaveProfile()
 {
 	if (_profile)
-		_profile->SaveGameFile();	
+		_profile->SaveGameFile();
 }
 
 void Race::LoadProfile()
@@ -7493,10 +7476,10 @@ void Race::ResetCarPos()
 {
 	const unsigned cRowLength = 4;
 	const float rowSpace = 7.0f;
-	
-	D3DXVECTOR3 stPos = ZVector * 7.0f;
-	D3DXVECTOR3 dirVec = XVector;
-	D3DXVECTOR3 lineVec = YVector;
+
+	glm::vec3 stPos = ZVector * 7.0f;
+	glm::vec3 dirVec = XVector;
+	glm::vec3 lineVec = YVector;
 	float nodeWidth = 10.0f;
 
 	if (!GetMap()->GetTrace().GetPoints().empty())
@@ -7509,11 +7492,11 @@ void Race::ResetCarPos()
 
 		if (node)
 		{
-			D3DXVECTOR2 dir2 = node->GetTile().GetDir();
-			D3DXVECTOR2 norm2 = node->GetTile().GetNorm();
+			glm::vec2 dir2 = node->GetTile().GetDir();
+			glm::vec2 norm2 = node->GetTile().GetNorm();
 
-			dirVec = D3DXVECTOR3(dir2.x, dir2.y, 0);
-			lineVec = D3DXVECTOR3(norm2.x, norm2.y, 0);
+			dirVec = glm::vec3(dir2.x, dir2.y, 0);
+			lineVec = glm::vec3(norm2.x, norm2.y, 0);
 		}
 	}
 
@@ -7539,30 +7522,30 @@ void Race::ResetCarPos()
 					plSize += gameObj->GetGrActor().GetLocalAABB(true).GetSizes().y;
 			}
 
-			spaceY = std::max((nodeWidth - plSize) / (count + 1.0f), 0.0f);			
+			spaceY = std::max((nodeWidth - plSize) / (count + 1.0f), 0.0f);
 		}
 
 		Player* player = _playerList[i];
 		MapObj* mapObj = player->GetCar().mapObj;
-		GameObject* gameObj = player->GetCar().gameObj;	
+		GameObject* gameObj = player->GetCar().gameObj;
 
 		if (mapObj)
 		{
 			AABB aabb = gameObj->GetGrActor().GetLocalAABB(true);
-			D3DXVECTOR3 size = aabb.GetSizes();			
+			glm::vec3 size = aabb.GetSizes();
 
 			//dirVec начинается с небольшого порога чтобы машина не оказалась на последнем тайле
 			gameObj->SetWorldPos(stPos + dirVec * (0.1f - i / 4 * rowSpace) + lineVec * (-nodeWidth / 2.0f + spaceY + size.y/2.0f + stepY));
 			stepY += size.y + spaceY;
 
 			gameObj->GetGrActor().SetDir(dirVec);
-			gameObj->GetGrActor().SetUp(ZVector);			
+			gameObj->GetGrActor().SetUp(ZVector);
 			gameObj->SetWorldRot(gameObj->GetGrActor().GetWorldRot());
 
-			gameObj->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(NullVector));
-			gameObj->GetPxActor().GetNxActor()->setLinearMomentum(NxVec3(NullVector));
-			gameObj->GetPxActor().GetNxActor()->setAngularMomentum(NxVec3(NullVector));
-			gameObj->GetPxActor().GetNxActor()->setAngularVelocity(NxVec3(NullVector));
+			gameObj->GetPxActor().GetNxActor()->setLinearVelocity(glm::value_ptr(NullVector));
+			gameObj->GetPxActor().GetNxActor()->setLinearMomentum(glm::value_ptr(NullVector));
+			gameObj->GetPxActor().GetNxActor()->setAngularMomentum(glm::value_ptr(NullVector));
+			gameObj->GetPxActor().GetNxActor()->setAngularVelocity(glm::value_ptr(NullVector));
 		}
 	}
 }
@@ -7576,7 +7559,7 @@ void Race::StartRace()
 	{
 		_startRace = true;
 
-		_goRace = false;		
+		_goRace = false;
 
 		_game->RegFixedStepEvent(this);
 		_game->RegLateProgressEvent(this);
@@ -7585,7 +7568,7 @@ void Race::StartRace()
 		ResetChampion();
 		_lastThirdPlace = _lastLeadPlace = 0;
 
-		GetWorld()->LoadLevel(_tournament->GetCurTrack().level);		
+		GetWorld()->LoadLevel(_tournament->GetCurTrack().level);
 
 #ifdef _DEBUG
 		Environment::Wheater wheater = Environment::ewClody;
@@ -7691,7 +7674,7 @@ void Race::ExitRace(const Results* results)
 		_achievment->ResetRaceState();
 
 		GetWorld()->GetCamera()->SetPlayer(NULL);
-		GetWorld()->GetEnv()->ReleaseScene();		
+		GetWorld()->GetEnv()->ReleaseScene();
 		GetWorld()->GetLogic()->CleanGameObjs();
 		GetMap()->Clear();
 
@@ -7784,7 +7767,7 @@ void Race::SendEvent(unsigned id, EventData* data)
 
 void Race::OnLapPass(Player* player)
 {
-	bool isHuman = player->IsHuman();	
+	bool isHuman = player->IsHuman();
 
 	if (player->GetCar().numLaps >= _tournament->GetCurTrack().GetLapsCount())
 	{

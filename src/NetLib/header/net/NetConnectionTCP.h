@@ -23,7 +23,7 @@ public:
 
 	tcp::acceptor& acceptor();
 };
-	
+
 class NetConnectionTCP: public INetConnectionImpl
 {
 private:
@@ -44,7 +44,7 @@ public:
 
 	virtual bool Send(const void* data, unsigned size);
 	virtual bool Receive(void* data, unsigned size, unsigned& numBytes);
-	virtual bool IsAvailable(unsigned& size);	
+	virtual bool IsAvailable(unsigned& size);
 
 	virtual void Accept();
 	virtual bool Connect(const Endpoint& endpoint);

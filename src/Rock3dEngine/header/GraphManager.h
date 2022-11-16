@@ -1,26 +1,26 @@
 #ifndef R3D_GRAPH_MANAGER
 #define R3D_GRAPH_MANAGER
 
-#include "graph\\FogPlane.h"
-#include "graph\\ClearSurf.h"
-#include "graph\\GrassField.h"
-#include "graph\\WaterPlane.h"
-#include "graph\\MappingShaders.h"
-#include "graph\\ShadowMapRender.h"
-#include "graph\\HDREffect.h"
-#include "graph\\BloomEffect.h"
-#include "graph\\ToneMapping.h"
-#include "graph\\DepthMap.h"
-#include "graph\\SunShaft.h"
-#include "graph\\SkyBox.h"
-#include "graph\\RenderToTexture.h"
+#include "graph/FogPlane.h"
+#include "graph/ClearSurf.h"
+#include "graph/GrassField.h"
+#include "graph/WaterPlane.h"
+#include "graph/MappingShaders.h"
+#include "graph/ShadowMapRender.h"
+#include "graph/HDREffect.h"
+#include "graph/BloomEffect.h"
+#include "graph/ToneMapping.h"
+#include "graph/DepthMap.h"
+#include "graph/SunShaft.h"
+#include "graph/SkyBox.h"
+#include "graph/RenderToTexture.h"
 
-#include "graph\\StdNode.h"
-#include "graph\\OctreeRender.h"
-#include "graph\\Actor.h"
-#include "graph\\ActorManager.h"
+#include "graph/StdNode.h"
+#include "graph/OctreeRender.h"
+#include "graph/Actor.h"
+#include "graph/ActorManager.h"
 
-#include "gui\\GUI.h"
+#include "gui/GUI.h"
 
 namespace r3d
 {
@@ -57,7 +57,7 @@ private:
 	{
 		osReflWater = 0,
 		osViewCubeMap,
-		osViewDepth,		
+		osViewDepth,
 
 		osShadowCast,
 		osShadowMapp,
@@ -79,7 +79,7 @@ private:
 		cOctreeSceneEnd
 	};
 
-	static const D3DXVECTOR3 posLights[8];
+	static const glm::vec3 posLights[8];
 public:
 	typedef std::list<graph::Actor*> ActorList;
 
@@ -128,7 +128,7 @@ public:
 
 	struct OrthoTarget
 	{
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		float size;
 	};
 
@@ -140,21 +140,21 @@ public:
 		float brightThreshold;
 		float gaussianScalar;
 		float exposure;
-		D3DXVECTOR2 colorCorrection;
+		glm::vec2 colorCorrection;
 	};
 
 	enum ReflMappMode { rmColorLayer, rmLackLayer };
 private:
 	graph::Engine* _engine;
-	gui::Manager* _gui;	
-	
+	gui::Manager* _gui;
+
 	bool _graphOptions[cGraphOptionEnd];
 	GraphQuality _graphQuality[cGraphOptionEnd];
 
 	std::string _skyTex;
-	D3DXCOLOR _fogColor;
+	glm::vec4 _fogColor;
 	float _fogIntensivity;
-	D3DXCOLOR _cloudColor;
+	glm::vec4 _cloudColor;
 	float _cloudIntensivity;
 	float _cloudHeight;
 
@@ -163,7 +163,7 @@ private:
 	graph::ActorManager* _actorManager;
 
 	graph::Camera* _camera;
-	D3DXVECTOR3 _cubeViewPos;
+	glm::vec3 _cubeViewPos;
 	OrthoTarget _orthoTarget;
 	AABB _groundAABB;
 	bool _guiMode;
@@ -179,7 +179,7 @@ private:
 
 	graph::ReflRender* _reflRender;
 	graph::Tex2DResource* _waterColor;
-	graph::Tex2DResource* _waterTexNorm;	
+	graph::Tex2DResource* _waterTexNorm;
 	graph::WaterPlane* _waterPlane;
 	graph::PlaneNode* _waterNode;
 	graph::Actor* _waterPlaneActor;
@@ -202,7 +202,7 @@ private:
 
 	graph::RenderToCubeTex* _scRenderCubeTex;
 	unsigned _scRenderCubeTexRef;
-	
+
 	graph::DepthMapRender* _scDepthMap;
 	unsigned _scDepthMapRef;
 
@@ -234,7 +234,7 @@ private:
 	bool _trueRefl;
 
 	graph::ReflRender* _planarReflRender;
-	graph::PlanarReflMappShader* _planarReflShader;	
+	graph::PlanarReflMappShader* _planarReflShader;
 
 	graph::BumpMapShader* _bumpMapShader;
 
@@ -243,10 +243,10 @@ private:
 	graph::FogPlane* _fogPlane;
 	graph::Tex2DResource* _cloudsTex;
 	graph::LibMaterial* _cloudsMat;
-	D3DXVECTOR2 _tileScale;
+	glm::vec2 _tileScale;
 	graph::Actor* _fogPlaneActor;
 
-	D3DXCOLOR _sceneAmbient;
+	glm::vec4 _sceneAmbient;
 
 	unsigned _multisampling;
 	graph::RenderTargetResource* _msRT;
@@ -326,7 +326,7 @@ private:
 	void InitFog();
 	void FreeFog();
 
-	void InitPlaneFog(lsl::string texture, const D3DXVECTOR2& tileScale, float speed, GraphQuality quality);
+	void InitPlaneFog(lsl::string texture, const glm::vec2& tileScale, float speed, GraphQuality quality);
 	void FreePlaneFog();
 	void UpdateFogPlane();
 
@@ -345,7 +345,7 @@ private:
 
 	void RenderDebug();
 
-	void OctreeRender(OctreeScene scene, bool ignoreRayUsers, bool planarRefl = false);	
+	void OctreeRender(OctreeScene scene, bool ignoreRayUsers, bool planarRefl = false);
 	bool RenderWithShader(OctreeScene scene, bool ignoreRayUsers, graph::Shader* shader, bool checkLight, bool defRender);
 	void RenderPlanarReflScene(graph::CameraCI& camera);
 	void RenderEnvReflScene(graph::CameraCI& camera);
@@ -355,7 +355,7 @@ private:
 	void AdjustViewOrtho(graph::CameraCI& camera);
 	void RenderShadow(graph::CameraCI& camera);
 	void RenderCubeMap(graph::CameraCI& camera);
-	void RenderWaterRef(graph::CameraCI& camera);	
+	void RenderWaterRef(graph::CameraCI& camera);
 	void RenderDepthScene(graph::CameraCI& camera);
 public:
 	GraphManager(HWND window, lsl::Point resolution, bool fullScreen);
@@ -389,10 +389,10 @@ public:
 
 	void BuildOctree();
 
-	D3DXVECTOR3 ScreenToWorld(const lsl::Point& coord, const float z);
-	lsl::Point WorldToScreen(const D3DXVECTOR3& coord);
-	void ScreenToRay(const lsl::Point& coord, D3DXVECTOR3& rayStart, D3DXVECTOR3& rayVec);
-	bool ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, D3DXVECTOR3& outVec);
+	glm::vec3 ScreenToWorld(const lsl::Point& coord, const float z);
+	lsl::Point WorldToScreen(const glm::vec3& coord);
+	void ScreenToRay(const lsl::Point& coord, glm::vec3& rayStart, glm::vec3& rayVec);
+	bool ScreenPixelRayCastWithPlaneXY(const lsl::Point& coord, glm::vec3& outVec);
 
 	graph::Engine& GetEngine();
 	gui::Manager& GetGUI();
@@ -410,24 +410,24 @@ public:
 	bool IsFilteringSupported(unsigned value) const;
 
 	unsigned GetMultisampling() const;
-	void SetMultisampling(unsigned value);	
+	void SetMultisampling(unsigned value);
 	bool IsMultisamplingSupported(unsigned value) const;
 
 	//
 	const std::string& GetSkyTex() const;
 	void SetSkyTex(const std::string& value);
 	//
-	const D3DXCOLOR& GetFogColor() const;
-	void SetFogColor(const D3DXCOLOR& value);
+	const glm::vec4& GetFogColor() const;
+	void SetFogColor(const glm::vec4& value);
 	//
-	const D3DXCOLOR& GetSceneAmbient();
-	void SetSceneAmbient(const D3DXCOLOR& value);
+	const glm::vec4& GetSceneAmbient();
+	void SetSceneAmbient(const glm::vec4& value);
 	//
 	float GetFogIntensivity() const;
 	void SetFogIntensivity(float value);
 	//
-	const D3DXCOLOR& GetCloudColor() const;
-	void SetCloudColor(const D3DXCOLOR& value);
+	const glm::vec4& GetCloudColor() const;
+	void SetCloudColor(const glm::vec4& value);
 	//
 	float GetCloudIntensivity() const;
 	void SetCloudIntensivity(float value);
@@ -438,12 +438,12 @@ public:
 	//Камера
 	graph::Camera* GetCamera();
 	void SetCamera(graph::Camera* value);
-	
-	const D3DXVECTOR3& GetCubeViewPos() const;
-	void SetCubeViewPos(const D3DXVECTOR3& value);
+
+	const glm::vec3& GetCubeViewPos() const;
+	void SetCubeViewPos(const glm::vec3& value);
 	//
 	const OrthoTarget& GetOrthoTarget() const;
-	void SetOrthoTarget(const D3DXVECTOR3& pos, float size);
+	void SetOrthoTarget(const glm::vec3& pos, float size);
 
 	const HDRParams& GetHDRParams() const;
 	void SetHDRParams(const HDRParams& value);
@@ -456,7 +456,7 @@ public:
 
 	bool GetGUIMode() const;
 	void SetGUIMode(bool value);
-	
+
 	graph::DisplayMode GetDisplayMode() const;
 	const graph::DisplayModes& GetDisplayModes() const;
 	bool FindNearMode(const lsl::Point& resolution, graph::DisplayMode& mode, float aspect = 0) const;

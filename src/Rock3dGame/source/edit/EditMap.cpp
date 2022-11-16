@@ -1,11 +1,10 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "edit\Map.h"
-#include "edit\Edit.h"
+#include "edit/Map.h"
+#include "edit/Edit.h"
 
-#include "edit\Trace.h"
-
+#include "edit/Trace.h"
 
 namespace r3d
 {
@@ -13,12 +12,9 @@ namespace r3d
 namespace edit
 {
 
-const D3DXCOLOR Map::bbColor(clrRed);
-const D3DXCOLOR Map::selColor(clrGreen);
+const glm::vec4 Map::bbColor(clrRed);
+const glm::vec4 Map::selColor(clrGreen);
 
-
-			
-	
 MapObj::MapObj(Inst* inst): ExternImpl<Inst>(inst)
 {
 }
@@ -28,32 +24,32 @@ const std::string& MapObj::GetName() const
 	return GetInst()->GetName();
 }
 
-D3DXVECTOR3 MapObj::GetPos() const
+glm::vec3 MapObj::GetPos() const
 {
 	return GetInst()->GetGameObj().GetPos();
 }
 
-void MapObj::SetPos(const D3DXVECTOR3& value)
+void MapObj::SetPos(const glm::vec3& value)
 {
 	 GetInst()->GetGameObj().SetPos(value);
 }
 
-D3DXVECTOR3 MapObj::GetScale() const
+glm::vec3 MapObj::GetScale() const
 {
 	return GetInst()->GetGameObj().GetScale();
 }
 
-void MapObj::SetScale(const D3DXVECTOR3& value)
+void MapObj::SetScale(const glm::vec3& value)
 {
 	GetInst()->GetGameObj().SetScale(value);
 }
 
-D3DXQUATERNION MapObj::GetRot() const
+glm::quat MapObj::GetRot() const
 {
 	return GetInst()->GetGameObj().GetRot();
 }
 
-void MapObj::SetRot(const D3DXQUATERNION& value)
+void MapObj::SetRot(const glm::quat& value)
 {
 	GetInst()->GetGameObj().SetRot(value);
 }
@@ -66,9 +62,6 @@ IMapObjRecRef MapObj::GetRecord()
 	return IMapObjRecRef(ext, ext);
 }
 
-
-
-
 Map::Map(Edit* edit): _edit(edit), _showBB(true)
 {
 	_trace = new Trace(&GetInst()->GetTrace(), edit);
@@ -78,15 +71,15 @@ Map::Map(Edit* edit): _edit(edit), _showBB(true)
 
 Map::~Map()
 {
-	delete _trace;	
+	delete _trace;
 }
 
 Map::NodeControl::NodeControl(game::MapObj* mapObj, Map* map, const ControlEventRef& mEvent): _MyBase(&mapObj->GetGameObj().GetGrActor()), _mapObj(mapObj), _map(map), _event(mEvent)
-{	
+{
 }
 
 Map::NodeControl::~NodeControl()
-{	
+{
 }
 
 void Map::NodeControl::Select(bool active)
@@ -95,34 +88,34 @@ void Map::NodeControl::Select(bool active)
 	GetNode()->colorBB = active ? Map::selColor : Map::bbColor;
 }
 
-void Map::NodeControl::OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec)
+void Map::NodeControl::OnShiftAction(const glm::vec3& scrRayPos, const glm::vec3& scrRayVec)
 {
 	Select(false);
 	_mapObj = &_map->GetInst()->AddMapObj(_mapObj);
 	Reset(&_mapObj->GetGameObj().GetGrActor());
 	Select(true);
 
-	if (_event)	
+	if (_event)
 	{
 		MapObj* mapObj = new MapObj(_mapObj);
-		_event->OnAddAndSelMapObj(IMapObjRef(mapObj, mapObj));		
+		_event->OnAddAndSelMapObj(IMapObjRef(mapObj, mapObj));
 	}
 }
 
-game::MapObj* Map::PickInstMapObj(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec)
+game::MapObj* Map::PickInstMapObj(const glm::vec3& rayPos, const glm::vec3& rayVec)
 {
 	float minDist = 0;
-	game::MapObj* mapObj = 0;	
-	
+	game::MapObj* mapObj = 0;
+
 	for (Inst::Objects::const_iterator iter = GetInst()->GetObjects().begin(); iter != GetInst()->GetObjects().end(); ++iter)
 	{
-		D3DXVECTOR3 nearVec;
-		D3DXVECTOR3 farVec;
+		glm::vec3 nearVec;
+		glm::vec3 farVec;
 		game::MapObj* item = iter->second;
 
 		if (item->GetGameObj().GetGrActor().RayCastIntersBB(rayPos, rayVec, nearVec, farVec, true))
 		{
-			float dist = D3DXVec3Length(&(rayPos - nearVec));
+			float dist = glm::length(rayPos - nearVec);
 			if (minDist > dist || mapObj == 0)
 			{
 				mapObj = item;
@@ -188,8 +181,8 @@ void Map::ClearMap()
 
 IMapObjRef Map::PickMapObj(const lsl::Point& coord)
 {
-	D3DXVECTOR3 scrRayPos;
-	D3DXVECTOR3 scrRayVec;
+	glm::vec3 scrRayPos;
+	glm::vec3 scrRayVec;
 	_edit->GetWorld()->GetCamera()->ScreenToRay(coord, scrRayPos, scrRayVec);
 	game::MapObj* mapObj = PickInstMapObj(scrRayPos, scrRayVec);
 
@@ -230,8 +223,8 @@ IMapObjRef Map::GetFirst(unsigned i)
 
 void Map::GetNext(unsigned cat, IMapObjRef& ref)
 {
-	MapObj* mapObj = ref->GetImpl<MapObj>();	
-	
+	MapObj* mapObj = ref->GetImpl<MapObj>();
+
 	if (++(mapObj->mapIter) != GetInst()->GetMapObjList(game::MapObjLib::Category(cat)).end())
 	{
 		MapObj* newMapObj = new MapObj(*mapObj->mapIter);

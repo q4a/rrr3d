@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\OctreeRender.h"
+#include "graph/OctreeRender.h"
 
 namespace r3d
 {
@@ -24,7 +24,6 @@ void OctreeRender::Render(graph::Engine& engine, unsigned index)
 	for (Group::const_iterator iter = group->begin(); iter != group->end(); ++iter)
 		(*iter)->Render(engine);
 }
-
 
 OctreeRender::Group& OctreeRender::AddGroup()
 {

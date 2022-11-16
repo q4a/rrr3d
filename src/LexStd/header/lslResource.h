@@ -5,6 +5,7 @@
 #include "lslCollection.h"
 #include "lslUtility.h"
 #include "lslObject.h"
+#include <memory>
 
 namespace lsl
 {
@@ -12,7 +13,7 @@ namespace lsl
 template<class _Resource> class IOResource
 {
 public:
-	typedef _Resource Resource;	
+	typedef _Resource Resource;
 public:
 	virtual ~IOResource() {}
 
@@ -25,10 +26,10 @@ public:
 class FileSystem
 {
 private:
-	static std::auto_ptr<FileSystem> _instance;
+	static std::unique_ptr<FileSystem> _instance;
 public:
 	enum OpenMode {omText, omBinary};
-	
+
 	static const DWORD cAppend   = 0x1 << 0;
 	static const DWORD cTruncate = 0x1 << 1;
 
@@ -40,20 +41,24 @@ private:
 	template<class _T> std::basic_istream<_T, std::char_traits<_T>>* NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags);
 	template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags);
 public:
-	FileSystem(const std::wstring& appPath);	
+	FileSystem(const std::wstring& appPath);
 
 	std::istream* NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags);
+#ifdef _WIN32 // Not used at all
 	std::wistream* NewInStreamW(const std::string& fileName, OpenMode openMode, DWORD flags);
+#endif
 
 	std::ostream* NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags);
 	std::wostream* NewOutStreamW(const std::string& fileName, OpenMode openMode, DWORD flags);
 
-	void FreeStream(std::ios_base* stream);	
+	void FreeStream(std::ios_base* stream);
 
 	bool FileExists(const std::string& fileName);
 
 	const std::wstring& appPath() const;
 };
+
+class Resource;
 
 class ResourcesTraits
 {
@@ -106,7 +111,7 @@ public:
 	void Reload();
 	//Обновление ресурса без пересоздания. Обычно загрузка данных из внешнего источника либо обновление состояния из-за изменившихся данных
 	void Update();
-	
+
 	//Состояние инициализации
 	bool IsInit() const;
 
@@ -125,7 +130,7 @@ class FileResource: public Resource
 private:
 	std::string _fileName;
 protected:
-	virtual void DoLoadFromStream(std::istream& stream, const std::string& fileExt);	
+	virtual void DoLoadFromStream(std::istream& stream, const std::string& fileExt);
 public:
 	void LoadFromStream(std::istream& stream, const std::string& fileExt);
 	void SaveToStream(std::ostream& stream, const std::string& fileExt);
@@ -174,31 +179,30 @@ template<class _Resource, class _IdType, class _Arg, class _ArgThis> class Resou
 private:
 	typedef ComCollection<_Resource, _IdType, _Arg, _ArgThis> _MyBase;
 protected:
-	virtual void InsertItem(const Value& value);
+	virtual void InsertItem(const typename _MyBase::Value &value);
 };
 
-
-
-
-template<class _Resource, class _IdType, class _Arg, class _ArgThis> void ResourceCollection<_Resource, _IdType, _Arg, _ArgThis>::InsertItem(const Value& value)
+template<class _Resource, class _IdType, class _Arg, class _ArgThis> void ResourceCollection<_Resource, _IdType, _Arg, _ArgThis>::InsertItem(const typename _MyBase::Value& value)
 {
 	_MyBase::InsertItem(value);
 
 	SetItemResTraits(value, this);
 }
 
-
-
-
 inline std::wstring GetAppPath()
 {
+#ifdef _WIN32 // FIX_LINUX GetModuleFileNameW
 	wchar_t buf[1024];
 	unsigned size = GetModuleFileNameW(NULL, buf, 1024);
-	
+
 	std::wstring res(buf, size);
 	lsl::ExtractFilePath(res, res);
 
 	return res;
+#else
+	std::wstring res;
+	return res;
+#endif
 }
 
 inline std::wstring GetAppFilePath(const std::string& localFileName)

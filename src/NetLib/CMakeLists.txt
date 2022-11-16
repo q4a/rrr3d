@@ -21,13 +21,20 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     header
     include
     ${CMAKE_SOURCE_DIR}/src/LexStd/header
+    ${CMAKE_SOURCE_DIR}/src/MathLib/header
+    ${CMAKE_SOURCE_DIR}/src/XPlatform/header
     ${CMAKE_SOURCE_DIR}/extern/boost/include
+    ${CMAKE_SOURCE_DIR}/extern/glm/include
     ${CMAKE_SOURCE_DIR}/extern/directx/include
 )
 
+if (WIN32)
+set(SYSTEM_DEPS "Iphlpapi.lib")
+endif()
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
     LexStd
-    Iphlpapi.lib
+    ${SYSTEM_DEPS}
 )
 
 target_link_directories(${PROJECT_NAME} PRIVATE

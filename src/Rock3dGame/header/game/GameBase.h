@@ -3,9 +3,9 @@
 #include "MapObj.h"
 #include "GameEvent.h"
 
-#include "graph\\Actor.h"
-#include "px\\PhysX.h"
-#include "snd\Audio.h"
+#include "graph/Actor.h"
+#include "px/PhysX.h"
+#include "snd/Audio.h"
 
 namespace r3d
 {
@@ -33,7 +33,7 @@ public:
 		dtEnergy,
 		dtMine,
 		dtTouch,
-		dtDeathPlane		
+		dtDeathPlane
 	};
 
 	enum BonusType
@@ -72,7 +72,7 @@ private:
 	PxNotifies _pxNotifies;
 	bool _removed;
 protected:
-	virtual void OnShot(const D3DXVECTOR3& pos) {}
+	virtual void OnShot(const glm::vec3& pos) {}
 	virtual void OnMotor(float deltaTime, float rpm, float minRPM, float maxRPM) {}
 	virtual void OnImmortalStatus(bool status) {}
 
@@ -165,8 +165,8 @@ protected:
 	{
 		EffectDesc(): pos(NullVector), rot(NullQuaternion), child(true), parent(NULL) {}
 
-		D3DXVECTOR3 pos;
-		D3DXQUATERNION rot;
+		glm::vec3 pos;
+		glm::quat rot;
 		//дочерний
 		//true - время жизни совпадает с врменем жизни EventEffect, локальная система координат
 		//false - за удаление отвечает Logic, мировая система координат
@@ -189,8 +189,8 @@ private:
 	MapObjRec* _effect;
 	SoundList _sounds;
 
-	D3DXVECTOR3 _pos;
-	D3DXVECTOR3 _impulse;
+	glm::vec3 _pos;
+	glm::vec3 _impulse;
 	bool _ignoreRot;
 
 	EffObjList _effObjList;
@@ -238,17 +238,17 @@ public:
 
 	void AddSound(snd::Sound* sound);
 	void ClearSounds();
-	const SoundList& GetSounds();	
+	const SoundList& GetSounds();
 
 	snd::Sound* GetSound();
 	void SetSound(snd::Sound* value);
 
-	const D3DXVECTOR3& GetPos() const;
-	void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos() const;
+	void SetPos(const glm::vec3& value);
 
 	//local coordinates
-	const D3DXVECTOR3& GetImpulse() const;
-	void SetImpulse(const D3DXVECTOR3& value);
+	const glm::vec3& GetImpulse() const;
+	void SetImpulse(const glm::vec3& value);
 
 	//игнорировать родительский поворот
 	bool GetIgnoreRot() const;
@@ -320,7 +320,7 @@ class LifeEffect: public EventEffect
 private:
 	bool _play;
 public:
-	LifeEffect(Behaviors* owner);	
+	LifeEffect(Behaviors* owner);
 
 	virtual void OnProgress(float deltaTime);
 };
@@ -339,7 +339,7 @@ class ShotEffect: public EventEffect
 {
 	typedef EventEffect _MyBase;
 protected:
-	virtual void OnShot(const D3DXVECTOR3& pos);
+	virtual void OnShot(const glm::vec3& pos);
 public:
 	ShotEffect(Behaviors* owner);
 };
@@ -351,8 +351,8 @@ private:
 	float _fadeInTime;
 	float _fadeOutTime;
 	float _dmgTime;
-	D3DXVECTOR3 _scale;
-	D3DXVECTOR3 _scaleK;
+	glm::vec3 _scale;
+	glm::vec3 _scaleK;
 protected:
 	virtual void OnImmortalStatus(bool status);
 	virtual void OnDamage(GameObject* sender, float value, DamageType damageType);
@@ -364,8 +364,8 @@ public:
 
 	virtual void OnProgress(float deltaTime);
 
-	const D3DXVECTOR3& GetScaleK() const;
-	void SetScaleK(const D3DXVECTOR3& value);
+	const glm::vec3& GetScaleK() const;
+	void SetScaleK(const glm::vec3& value);
 };
 
 class SlowEffect: public EventEffect
@@ -374,7 +374,7 @@ class SlowEffect: public EventEffect
 protected:
 	virtual void OnDestroyEffect(MapObj* sender);
 public:
-	SlowEffect(Behaviors* owner);	
+	SlowEffect(Behaviors* owner);
 
 	virtual void OnProgress(float deltaTime);
 };
@@ -385,13 +385,13 @@ class SoundMotor: public Behavior
 private:
 	snd::Sound* _sndIdle;
 	snd::Sound* _sndRPM;
-	
+
 	bool _init;
 	float _curRPM;
 	snd::Source3d* _srcIdle;
 	snd::Source3d* _srcRPM;
-	D3DXVECTOR2 _rpmVolumeRange;
-	D3DXVECTOR2 _rpmFreqRange;
+	glm::vec2 _rpmVolumeRange;
+	glm::vec2 _rpmFreqRange;
 
 	void Init();
 	void Free();
@@ -413,18 +413,18 @@ public:
 	snd::Sound* GetSndRPM();
 	void SetSndRPM(snd::Sound* value);
 
-	const D3DXVECTOR2& GetRPMVolumeRange() const;
-	void SetRPMVolumeRange(const D3DXVECTOR2& value);
+	const glm::vec2& GetRPMVolumeRange() const;
+	void SetRPMVolumeRange(const glm::vec2& value);
 
-	const D3DXVECTOR2& GetRPMFreqRange() const;
-	void SetRPMFreqRange(const D3DXVECTOR2& value);
+	const glm::vec2& GetRPMFreqRange() const;
+	void SetRPMFreqRange(const glm::vec2& value);
 };
 
 class GusenizaAnim: public Behavior
 {
 	typedef Behavior _MyBase;
-private:	
-	float _xAnimOff;	
+private:
+	float _xAnimOff;
 public:
 	GusenizaAnim(Behaviors* owner);
 	virtual ~GusenizaAnim();
@@ -435,7 +435,7 @@ public:
 class PodushkaAnim: public Behavior
 {
 	typedef Behavior _MyBase;
-private:	
+private:
 	int _targetTag;
 	graph::IVBMeshNode* _target;
 protected:
@@ -478,7 +478,7 @@ public:
 	void OnProgress(float deltaTime);
 	//выстрел
 	//pos - относительные координаты
-	void OnShot(const D3DXVECTOR3& pos);
+	void OnShot(const glm::vec3& pos);
 	void OnMotor(float deltaTime, float rpm, float minRPM, float maxRPM);
 	void OnImmortalStatus(bool status);
 
@@ -487,9 +487,6 @@ public:
 	bool storeProxy;
 	bool storeSource;
 };
-
-
-
 
 template<class _Type> _Type* Behaviors::Find()
 {

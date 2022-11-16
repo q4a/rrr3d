@@ -6,9 +6,12 @@ if (MSVC)
     add_compile_options(/W3) # Warning level
 
     add_compile_options("$<$<CONFIG:Release>:/Gy>") # Enable Function-Level Linking
+else()
+    add_compile_options(-fPIC)
 endif()
 
 add_subdirectory(LexStd)
+add_subdirectory(MathLib)
 add_subdirectory(NetLib)
 add_subdirectory(Rock3dEngine)
 add_subdirectory(Rock3dGame)

@@ -32,7 +32,7 @@ private:
 	IDirect3DSurface9* _surfRT;
 protected:
 	virtual Tex2DResource* CreateRT();
-	
+
 	void ApplyRT(Engine& engine, const RtFlags& flags);
 	void UnApplyRT(Engine& engine);
 	bool IsApplyRT() const;
@@ -65,7 +65,7 @@ private:
 	IDirect3DSurface9* _surfRT;
 protected:
 	virtual TexCubeResource* CreateRT();
-	
+
 	void ApplyRT(Engine& engine, const RtFlags& flags);
 	void UnApplyRT(Engine& engine);
 	bool IsApplyRT() const;
@@ -92,15 +92,15 @@ public:
 	virtual void BeginRT(Engine& engine, const RtFlags& flags)
 	{
 		LSL_ASSERT(!_isBeginRT);
-		
-		_isBeginRT = true;	
+
+		_isBeginRT = true;
 	}
 
 	virtual void EndRT(Engine& engine)
 	{
 		LSL_ASSERT(_isBeginRT);
-		
-		_isBeginRT = false;	
+
+		_isBeginRT = false;
 	}
 
 	bool IsBeginRT() const
@@ -132,7 +132,7 @@ private:
 	CameraCI _myCamera;
 private:
 	RtFlags _flags;
-	D3DXVECTOR3 _viewPos;
+	glm::vec3 _viewPos;
 public:
 	RenderToCubeTex();
 
@@ -142,8 +142,8 @@ public:
 	virtual void BeginRT(Engine& engine, const RtFlags& flags);
 	virtual void EndRT(Engine& engine);
 
-	const D3DXVECTOR3& GetViewPos() const;
-	void SetViewPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetViewPos() const;
+	void SetViewPos(const glm::vec3& value);
 };
 
 }

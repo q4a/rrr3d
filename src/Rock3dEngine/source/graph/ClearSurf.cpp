@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\ClearSurf.h"
+#include "graph/ClearSurf.h"
 
 namespace r3d
 {
@@ -22,8 +22,8 @@ void ClearSurf::ApplyMode()
 
 void ClearSurf::Render(Engine& engine)
 {
-	shader.SetValueDir("color", _color);	
-	
+	shader.SetValueDir("color", _color);
+
 	ApplyRT(engine, RtFlags(0, 0));
 
 	shader.Apply(engine);
@@ -47,12 +47,12 @@ void ClearSurf::SetMode(Mode value)
 	}
 }
 
-const D3DXCOLOR& ClearSurf::GetColor() const
+const glm::vec4& ClearSurf::GetColor() const
 {
 	return _color;
 }
 
-void ClearSurf::SetColor(const D3DXCOLOR& value)
+void ClearSurf::SetColor(const glm::vec4& value)
 {
 	_color = value;
 }

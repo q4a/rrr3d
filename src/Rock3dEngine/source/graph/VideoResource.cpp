@@ -1,8 +1,8 @@
 #include "stdafx.h"
 
-#include "graph\\VideoResource.h"
+#include "graph/VideoResource.h"
 
-#include "graph\\Engine.h"
+#include "graph/Engine.h"
 
 namespace r3d
 {
@@ -74,7 +74,7 @@ void VideoResource::OnLostDevice()
 		_MyBase::Free();
 		_autoInit = true;
 	}
-	
+
 }
 
 void VideoResource::OnResetDevice()
@@ -90,9 +90,6 @@ Engine* VideoResource::GetEngine()
 {
 	return _engine;
 }
-
-
-
 
 MemPoolResource::MemPoolResource(DWORD usage): _memoryPool(D3DPOOL_DEFAULT), _usage(usage)
 {
@@ -138,9 +135,6 @@ void MemPoolResource::SetUsage(DWORD value)
 	}
 }
 
-
-
-
 VBMesh::VBMesh(): MemPoolResource(D3DUSAGE_WRITEONLY), _data(0), _createData(false), _vb(0), primitiveType(D3DPT_TRIANGLELIST), _beginStream(0)
 {
 }
@@ -161,7 +155,7 @@ void VBMesh::DoInit()
 {
 	LoadData();
 
-	GetEngine()->GetDriver().GetDevice()->CreateVertexBuffer(_data->GetSize(), GetUsage(), _data->GetFVF(), GetMemoryPool(), &_vb, 0);	
+	GetEngine()->GetDriver().GetDevice()->CreateVertexBuffer(_data->GetSize(), GetUsage(), _data->GetFVF(), GetMemoryPool(), &_vb, 0);
 }
 
 void VBMesh::DoFree()
@@ -242,14 +236,14 @@ void VBMesh::SetData(res::VertexData* value)
 	}
 }
 
-const D3DXVECTOR3& VBMesh::GetMinPos() const
+const glm::vec3& VBMesh::GetMinPos() const
 {
 	LoadData();
 
 	return _data->GetMinPos();
 }
 
-const D3DXVECTOR3& VBMesh::GetMaxPos() const
+const glm::vec3& VBMesh::GetMaxPos() const
 {
 	LoadData();
 
@@ -261,15 +255,12 @@ IDirect3DVertexBuffer9* VBMesh::GetVB() const
 	return _vb;
 }
 
-
-
-
 IndexedVBMesh::IndexedVBMesh(): MemPoolResource(D3DUSAGE_WRITEONLY), _data(0), _createData(false), _beginStreamCnt(0), _vb(0), _ib(0)
-{	
+{
 }
 
 IndexedVBMesh::~IndexedVBMesh()
-{	
+{
 	LSL_ASSERT(_beginStreamCnt == 0);
 
 	Free();
@@ -284,7 +275,7 @@ void IndexedVBMesh::LoadData() const
 
 void IndexedVBMesh::DoInit()
 {
-	LoadData();	
+	LoadData();
 
 	GetEngine()->GetDriver().GetDevice()->CreateVertexBuffer(_data->vb.GetSize(), GetUsage(), _data->vb.GetFVF(), GetMemoryPool(), &_vb, 0);
 	GetEngine()->GetDriver().GetDevice()->CreateIndexBuffer(_data->fb.GetSize(), GetUsage(), _data->fb.GetIndexFormat(), GetMemoryPool(), &_ib, 0);
@@ -305,7 +296,7 @@ void IndexedVBMesh::DoUpdate()
 
 	void* ibData;
 	_ib->Lock(0, 0, (void**)&ibData, 0);
-	_data->fb.CopyDataTo(ibData);	
+	_data->fb.CopyDataTo(ibData);
 	_ib->Unlock();
 }
 
@@ -316,7 +307,7 @@ void IndexedVBMesh::BeginStream(int attribId, unsigned streamNumber)
 	if (_beginStreamCnt++ == 0)
 	{
 		const res::FaceGroup& fg = _data->faceGroups.at(attribId);
-		
+
 		GetEngine()->GetDriver().GetDevice()->SetStreamSource(streamNumber, _vb, fg.sVertex * _data->vb.GetVertexSize(), _data->vb.GetVertexSize());
 		GetEngine()->GetDriver().GetDevice()->SetIndices(_ib);
 		GetEngine()->GetDriver().GetDevice()->SetFVF(_data->vb.GetFVF());
@@ -324,7 +315,7 @@ void IndexedVBMesh::BeginStream(int attribId, unsigned streamNumber)
 }
 
 void IndexedVBMesh::BeginStream()
-{	
+{
 	LSL_ASSERT(IsInit());
 
 	if (_beginStreamCnt++ == 0)
@@ -353,7 +344,7 @@ void IndexedVBMesh::DrawSubset(int attribId)
 {
 	const res::FaceGroup& fg = _data->faceGroups.at(attribId);
 
-	BeginStream(attribId);	
+	BeginStream(attribId);
 	GetEngine()->GetDriver().GetDevice()->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, fg.sVertex, fg.vertexCnt, fg.sFace * 3, fg.faceCnt);
 	EndStream();
 }
@@ -394,14 +385,14 @@ unsigned IndexedVBMesh::GetSubsetCount() const
 	return _data->faceGroups.size();
 }
 
-const D3DXVECTOR3& IndexedVBMesh::GetMinPos() const
+const glm::vec3& IndexedVBMesh::GetMinPos() const
 {
 	LoadData();
 
 	return _data->vb.GetMinPos();
 }
 
-const D3DXVECTOR3& IndexedVBMesh::GetMaxPos() const
+const glm::vec3& IndexedVBMesh::GetMaxPos() const
 {
 	LoadData();
 
@@ -418,11 +409,12 @@ IDirect3DIndexBuffer9* IndexedVBMesh::GetIB()
 	return _ib;
 }
 
-
-
-
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 MeshX::MeshX(): MemPoolResource(D3DUSAGE_WRITEONLY), _data(0), _createData(false), _d3dxMesh(0), _beginStreamCnt(0)
-{	
+#else
+MeshX::MeshX()
+#endif
+{
 }
 
 MeshX::~MeshX()
@@ -441,20 +433,24 @@ void MeshX::LoadData() const
 
 void MeshX::DoInit()
 {
-	LoadData();	
+	LoadData();
 
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 	switch (_prefab)
 	{
 	case mpSphere:
 		D3DXCreateSphere(GetEngine()->GetDriver().GetDevice(), _params.radius1, _params.slices, _params.stacks, &_d3dxMesh, NULL);
 		break;
 	}
+#endif
 }
 
 void MeshX::DoFree()
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 	_d3dxMesh->Release();
 	_d3dxMesh = 0;
+#endif
 }
 
 void MeshX::DoUpdate()
@@ -466,7 +462,7 @@ void MeshX::DoUpdate()
 
 	//void* ibData;
 	//_ib->Lock(0, 0, (void**)&ibData, 0);
-	//_data->fb.CopyDataTo(ibData);	
+	//_data->fb.CopyDataTo(ibData);
 	//_ib->Unlock();
 }
 
@@ -485,7 +481,7 @@ void MeshX::BeginStream(int attribId, unsigned streamNumber)
 }
 
 void MeshX::BeginStream()
-{	
+{
 	LSL_ASSERT(IsInit());
 
 	if (_beginStreamCnt++ == 0)
@@ -506,10 +502,12 @@ void MeshX::EndStream()
 void MeshX::Draw()
 {
 	BeginStream();
-	
+
 	//GetEngine()->GetDriver().GetDevice()->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, _data->vb.GetVertexCount(), 0, _data->fb.GetFaceCount());
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 	_d3dxMesh->DrawSubset(0);
-	
+#endif
+
 	EndStream();
 }
 
@@ -517,11 +515,13 @@ void MeshX::DrawSubset(int attribId)
 {
 	//const res::FaceGroup& fg = _data->faceGroups.at(attribId);
 
-	BeginStream(attribId);	
-	
+	BeginStream(attribId);
+
 	//GetEngine()->GetDriver().GetDevice()->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, fg.sVertex, fg.vertexCnt, fg.sFace * 3, fg.faceCnt);
+#ifdef _WIN32 // FIX_LINUX ID3DXMesh
 	_d3dxMesh->DrawSubset(attribId);
-	
+#endif
+
 	EndStream();
 }
 
@@ -561,25 +561,22 @@ unsigned MeshX::GetSubsetCount() const
 	return _data->faceGroups.size();
 }
 
-const D3DXVECTOR3& MeshX::GetMinPos() const
+const glm::vec3& MeshX::GetMinPos() const
 {
 	LoadData();
 
 	return _data->vb.GetMinPos();
 }
 
-const D3DXVECTOR3& MeshX::GetMaxPos() const
+const glm::vec3& MeshX::GetMaxPos() const
 {
 	LoadData();
 
 	return _data->vb.GetMaxPos();
 }
 
-
-
-
 TexResource::TexResource(DWORD usage): MemPoolResource(usage), _screenScale(0, 0), _levelCnt(1) //один основной уровень
-{	
+{
 }
 
 IDirect3DBaseTexture9* TexResource::GetTex()
@@ -601,12 +598,12 @@ void TexResource::SetLevelCnt(unsigned value)
 	}
 }
 
-const D3DXVECTOR2& TexResource::GetScreenScale() const
+const glm::vec2& TexResource::GetScreenScale() const
 {
 	return _screenScale;
 }
 
-void TexResource::SetScreenScale(D3DXVECTOR2 value)
+void TexResource::SetScreenScale(glm::vec2 value)
 {
 	if (_screenScale != value)
 	{
@@ -614,9 +611,6 @@ void TexResource::SetScreenScale(D3DXVECTOR2 value)
 		Free();
 	}
 }
-
-
-
 
 Tex2DResource::Tex2DResource(): TexResource(0), _texture(0), _data(0), _createData(false), _d3dxLoadUsed(false), _gui(false)
 {
@@ -645,7 +639,7 @@ void Tex2DResource::LoadData()
 
 	if (_data->GetFileName() != "" && Engine::d3dxUse())
 	{
-		D3DXIMAGE_INFO info;		
+		D3DXIMAGE_INFO info;
 		HRESULT hr = D3DXGetImageInfoFromFileW(lsl::GetAppFilePath(_data->GetFileName()).c_str(), &info);
 
 		if (hr == S_OK)
@@ -728,11 +722,11 @@ void Tex2DResource::DoUpdate()
 	IDirect3DTexture9* tmpTex;
 	bool _notDirAccess = GetMemoryPool() == D3DPOOL_DEFAULT && !(GetUsage() & D3DUSAGE_DYNAMIC);
 	if (_notDirAccess)
-		GetEngine()->GetDriver().GetDevice()->CreateTexture(_data->GetWidth(), _data->GetHeight(), manualFilter ? GetLevelCnt() : 1, 0, _data->GetFormat(), D3DPOOL_SYSTEMMEM, &tmpTex, 0);	
+		GetEngine()->GetDriver().GetDevice()->CreateTexture(_data->GetWidth(), _data->GetHeight(), manualFilter ? GetLevelCnt() : 1, 0, _data->GetFormat(), D3DPOOL_SYSTEMMEM, &tmpTex, 0);
 	else
 		tmpTex = _texture;
 
-	D3DLOCKED_RECT source;	
+	D3DLOCKED_RECT source;
 	tmpTex->LockRect(0, &source, 0, D3DLOCK_READONLY);
 
 	switch (_data->GetFormat())
@@ -775,7 +769,7 @@ void Tex2DResource::SyncFrom(Tex2DResource* value)
 		_data->SetWidth(value->_data->GetWidth());
 		_data->SetHeight(value->_data->GetHeight());
 		_data->SetFormat(value->_data->GetFormat());
-		
+
 		Free();
 	}
 }
@@ -826,7 +820,7 @@ void Tex2DResource::SetData(res::ImageResource* value)
 			_createData = false;
 		}
 
-		_data = value;		
+		_data = value;
 	}
 }
 
@@ -837,20 +831,17 @@ IDirect3DTexture9* Tex2DResource::GetTex()
 	return _texture;
 }
 
-D3DXVECTOR2 Tex2DResource::GetSize()
+glm::vec2 Tex2DResource::GetSize()
 {
 	LSL_ASSERT(_data);
 
 	LoadData();
 
-	return D3DXVECTOR2(static_cast<float>(_data->GetWidth()), static_cast<float>(_data->GetHeight()));
+	return glm::vec2(static_cast<float>(_data->GetWidth()), static_cast<float>(_data->GetHeight()));
 }
 
-
-
-
 TexCubeResource::TexCubeResource(): TexResource(0), _texture(0), _data(0), _createData(false), _d3dxLoadUsed(false)
-{	
+{
 }
 
 TexCubeResource::~TexCubeResource()
@@ -876,7 +867,7 @@ void TexCubeResource::LoadData()
 
 	if (_data->GetFileName() != "" && Engine::d3dxUse())
 	{
-		D3DXIMAGE_INFO info;		
+		D3DXIMAGE_INFO info;
 		HRESULT hr = D3DXGetImageInfoFromFileW(lsl::GetAppFilePath(_data->GetFileName()).c_str(), &info);
 
 		if (hr == S_OK)
@@ -951,8 +942,8 @@ void TexCubeResource::DoUpdate()
 
 	IDirect3DCubeTexture9* tmpTex;
 	bool _notDirAccess = GetMemoryPool() == D3DPOOL_DEFAULT && !(GetUsage() & D3DUSAGE_DYNAMIC);
-	if (_notDirAccess)	
-		GetEngine()->GetDriver().GetDevice()->CreateCubeTexture(_data->GetWidth()/6, manualFilter ? GetLevelCnt() : 1, 0, _data->GetFormat(), D3DPOOL_SYSTEMMEM, &tmpTex, 0);	
+	if (_notDirAccess)
+		GetEngine()->GetDriver().GetDevice()->CreateCubeTexture(_data->GetWidth()/6, manualFilter ? GetLevelCnt() : 1, 0, _data->GetFormat(), D3DPOOL_SYSTEMMEM, &tmpTex, 0);
 	else
 		tmpTex = _texture;
 
@@ -1017,7 +1008,7 @@ res::CubeImageResource* TexCubeResource::GetOrCreateData()
 		_createData = true;
 	}
 
-	return _data;	
+	return _data;
 }
 
 void TexCubeResource::SetData(res::CubeImageResource* value)
@@ -1030,7 +1021,7 @@ void TexCubeResource::SetData(res::CubeImageResource* value)
 			_createData = false;
 		}
 
-		_data = value;		
+		_data = value;
 	}
 }
 
@@ -1040,9 +1031,6 @@ IDirect3DCubeTexture9* TexCubeResource::GetTex()
 
 	return _texture;
 }
-
-
-
 
 RenderTargetResource::RenderTargetResource(): _surface(0), _width(0), _height(0), _screenScale(0, 0), _format(D3DFMT_UNKNOWN), _lockable(false), _multisampleType(D3DMULTISAMPLE_NONE), _multisampleQuality(0)
 {
@@ -1065,7 +1053,7 @@ void RenderTargetResource::DoInit()
 
 void RenderTargetResource::DoFree()
 {
-	_surface->Release();	
+	_surface->Release();
 }
 
 void RenderTargetResource::DoUpdate()
@@ -1085,27 +1073,27 @@ unsigned RenderTargetResource::GetWidth() const
 
 void RenderTargetResource::SetWidth(unsigned value)
 {
-	_width = value;	
+	_width = value;
 }
 
 unsigned RenderTargetResource::GetHeight() const
 {
-	return _height;	
+	return _height;
 }
 
 void RenderTargetResource::SetHeight(unsigned value)
 {
-	_height = value;	
+	_height = value;
 }
 
 D3DFORMAT RenderTargetResource::GetFormat() const
 {
-	return _format;	
+	return _format;
 }
 
 void RenderTargetResource::SetFormat(D3DFORMAT value)
 {
-	_format = value;	
+	_format = value;
 }
 
 bool RenderTargetResource::GetLockable() const
@@ -1146,12 +1134,12 @@ void RenderTargetResource::SetMultisampleQuality(unsigned value)
 	}
 }
 
-const D3DXVECTOR2& RenderTargetResource::GetScreenScale() const
+const glm::vec2& RenderTargetResource::GetScreenScale() const
 {
 	return _screenScale;
 }
 
-void RenderTargetResource::SetScreenScale(D3DXVECTOR2 value)
+void RenderTargetResource::SetScreenScale(glm::vec2 value)
 {
 	if (_screenScale != value)
 	{
@@ -1159,9 +1147,6 @@ void RenderTargetResource::SetScreenScale(D3DXVECTOR2 value)
 		Free();
 	}
 }
-
-
-
 
 DepthStencilSurfaceResource::DepthStencilSurfaceResource(): _surface(0), _width(0), _height(0), _screenScale(0, 0), _format(D3DFMT_UNKNOWN), _discard(true), _multisampleType(D3DMULTISAMPLE_NONE), _multisampleQuality(0)
 {
@@ -1184,7 +1169,7 @@ void DepthStencilSurfaceResource::DoInit()
 
 void DepthStencilSurfaceResource::DoFree()
 {
-	_surface->Release();	
+	_surface->Release();
 }
 
 void DepthStencilSurfaceResource::DoUpdate()
@@ -1204,27 +1189,27 @@ unsigned DepthStencilSurfaceResource::GetWidth() const
 
 void DepthStencilSurfaceResource::SetWidth(unsigned value)
 {
-	_width = value;	
+	_width = value;
 }
 
 unsigned DepthStencilSurfaceResource::GetHeight() const
 {
-	return _height;	
+	return _height;
 }
 
 void DepthStencilSurfaceResource::SetHeight(unsigned value)
 {
-	_height = value;	
+	_height = value;
 }
 
 D3DFORMAT DepthStencilSurfaceResource::GetFormat() const
 {
-	return _format;	
+	return _format;
 }
 
 void DepthStencilSurfaceResource::SetFormat(D3DFORMAT value)
 {
-	_format = value;	
+	_format = value;
 }
 
 bool DepthStencilSurfaceResource::GetDiscard() const
@@ -1265,12 +1250,12 @@ void DepthStencilSurfaceResource::SetMultisampleQuality(unsigned value)
 	}
 }
 
-const D3DXVECTOR2& DepthStencilSurfaceResource::GetScreenScale() const
+const glm::vec2& DepthStencilSurfaceResource::GetScreenScale() const
 {
 	return _screenScale;
 }
 
-void DepthStencilSurfaceResource::SetScreenScale(D3DXVECTOR2 value)
+void DepthStencilSurfaceResource::SetScreenScale(glm::vec2 value)
 {
 	if (_screenScale != value)
 	{
@@ -1279,10 +1264,11 @@ void DepthStencilSurfaceResource::SetScreenScale(D3DXVECTOR2 value)
 	}
 }
 
-
-
-
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 TextFont::TextFont(): _font(0)
+#else
+TextFont::TextFont()
+#endif
 {
 }
 
@@ -1293,15 +1279,19 @@ TextFont::~TextFont()
 
 void TextFont::DoInit()
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	HRESULT hr = D3DXCreateFont(GetEngine()->GetDriver().GetDevice(), _desc.height, _desc.width, _desc.weight, _desc. mipLevels, _desc.italic, _desc.charSet, _desc.outputPrecision, _desc.quality, _desc.pitchAndFamily, _desc.pFacename.c_str(), &_font);
 
 	if (hr != D3D_OK)
 		throw lsl::Error("void TextFont::DoInit(). hr != D3D_OK");
+#endif
 }
 
 void TextFont::DoFree()
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	lsl::SafeRelease(_font);
+#endif
 }
 
 void TextFont::DoUpdate()
@@ -1310,32 +1300,40 @@ void TextFont::DoUpdate()
 
 void TextFont::DrawText(const std::string& text, lsl::Rect& rect, DWORD format, const D3DCOLOR& color)
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	RECT mtRect;
 	SetRect(&mtRect, rect.left, rect.top, rect.right, rect.bottom);
 
 	_font->DrawTextA(0, text.c_str(), text.size(), &mtRect, format, color);
-	
+
 	rect = lsl::Rect(mtRect.left, mtRect.top, mtRect.right, mtRect.bottom);
+#endif
 }
 
 void TextFont::DrawText(const std::wstring& text, lsl::Rect& rect, DWORD format, const D3DCOLOR& color)
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	RECT mtRect;
 	SetRect(&mtRect, rect.left, rect.top, rect.right, rect.bottom);
 
 	_font->DrawTextW(0, text.c_str(), text.size(), &mtRect, format, color);
 
 	rect = lsl::Rect(mtRect.left, mtRect.top, mtRect.right, mtRect.bottom);
+#endif
 }
 
 void TextFont::OnLostDevice()
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	_font->OnLostDevice();
+#endif
 }
 
 void TextFont::OnResetDevice()
 {
+#ifdef _WIN32 // FIX_LINUX ID3DXFont
 	_font->OnResetDevice();
+#endif
 }
 
 const TextFont::Desc& TextFont::GetDesc() const
@@ -1346,7 +1344,7 @@ const TextFont::Desc& TextFont::GetDesc() const
 void TextFont::SetDesc(const Desc& value)
 {
 	_desc = value;
-	
+
 	if (IsInit())
 		Reload();
 }

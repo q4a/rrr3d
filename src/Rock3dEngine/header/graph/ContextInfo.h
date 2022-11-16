@@ -2,7 +2,7 @@
 #define R3D_GRAPH_CONTEXTINFO
 
 #include "VideoResource.h"
-#include "driver\\RenderDriver.h"
+#include "driver/RenderDriver.h"
 #include "r3dMath.h"
 
 #include <map>
@@ -23,7 +23,7 @@ template<class _State, class _Value, _Value _defValue[]> class StateManager
 private:
 	typedef std::map<_State, _Value> _States;
 public:
-	typedef typename _States::iterator iterator;	
+	typedef typename _States::iterator iterator;
 private:
 	_States _states;
 public:
@@ -71,8 +71,8 @@ public:
 
 	bool Push(const _State& state, const _Value& value)
 	{
-		States::iterator iter = _states.find(state);
-		if (iter == _states.end())		
+		typename States::iterator iter = _states.find(state);
+		if (iter == _states.end())
 			iter = _states.insert(_states.end(), States::value_type(state, ValueStatck()));
 
 		bool res = !iter->second.empty() && iter->second.top().value == value;
@@ -88,8 +88,8 @@ public:
 	}
 	bool Pop(const _State& state)
 	{
-		States::iterator iter = _states.find(state);
-		
+		typename States::iterator iter = _states.find(state);
+
 		LSL_ASSERT(iter != _states.end());
 
 		bool res = iter->second.top().Release() == 0;
@@ -105,7 +105,7 @@ public:
 
 	const _Value& Back(const _State& state) const
 	{
-		States::const_iterator iter = _states.find(state);
+		typename States::const_iterator iter = _states.find(state);
 
 		LSL_ASSERT(iter != _states.end());
 
@@ -114,7 +114,7 @@ public:
 
 	const _Value* End(const _State& state) const
 	{
-		States::const_iterator iter = _states.find(state);
+		typename States::const_iterator iter = _states.find(state);
 
 		if (iter == _states.end())
 			return 0;
@@ -134,18 +134,18 @@ public:
 
 //Экранный, внеэкранный буффер
 class RenderBuffer: public virtual lsl::Object
-{	
+{
 public:
 	virtual void Render(Engine& engine, IDirect3DSurface9* backBuffer, IDirect3DSurface9* dsSurface) = 0;
 };
 
 struct MaterialDesc
 {
-	D3DXCOLOR diffuse;
-    D3DXCOLOR ambient;
-    D3DXCOLOR specular;
-    D3DXCOLOR emissive;
-    float power;
+	glm::vec4 diffuse;
+	glm::vec4 ambient;
+	glm::vec4 specular;
+	glm::vec4 emissive;
+	float power;
 };
 
 enum CameraStyle
@@ -169,9 +169,9 @@ struct CameraDesc
 	//ширина плоскости на которую проецируется изображение для csOrtho, csViewPort матриц
 	float width;
 
-	D3DXVECTOR3 pos;
-	D3DXVECTOR3 dir;
-	D3DXVECTOR3 up;
+	glm::vec3 pos;
+	glm::vec3 dir;
+	glm::vec3 up;
 };
 
 struct LightDesc
@@ -182,7 +182,7 @@ struct LightDesc
 		ambient = clrBlack;
 		diffuse = clrWhite;
 		specular = clrWhite;
-		
+
 		aspect = 1.0f;
 		nearDist = 1.0f;
 		range = 100.0f;
@@ -190,8 +190,8 @@ struct LightDesc
 		attenuation0 = 1;
 		attenuation1 = 0;
 		attenuation2 = 0;
-		phi = D3DX_PI/2.0f;
-		theta = D3DX_PI/4.0f;		
+		phi = glm::half_pi<float>();
+		theta = glm::quarter_pi<float>();
 
 		pos = NullVector;
 		dir = XVector;
@@ -200,27 +200,27 @@ struct LightDesc
 	}
 
 	D3DLIGHTTYPE type;
-	D3DXCOLOR ambient;
-    D3DXCOLOR diffuse;
-    D3DXCOLOR specular;
-	
+	glm::vec4 ambient;
+	glm::vec4 diffuse;
+	glm::vec4 specular;
+
 	//Соотношение сторон фрустума отдельного направления точечного, направленного источника света. Для конусного игнорируется.
 	float aspect;
 	float nearDist;
 	float range;
-    float falloff;
-    float attenuation0;
-    float attenuation1;
-    float attenuation2;
-    float theta;
-    float phi;
-	
-	D3DXVECTOR3 pos;
-    D3DXVECTOR3 dir;
-	D3DXVECTOR3 up;
+	float falloff;
+	float attenuation0;
+	float attenuation1;
+	float attenuation2;
+	float theta;
+	float phi;
+
+	glm::vec3 pos;
+	glm::vec3 dir;
+	glm::vec3 up;
 
 	//Карта теней в пространстве текущей камеры
-	Tex2DResource* shadowMap;	
+	Tex2DResource* shadowMap;
 };
 
 class ContextInfo;
@@ -231,14 +231,14 @@ class CameraCI: public virtual lsl::Object
 public:
 	enum Transform {ctView = 0, ctProj, ctWorldView, ctViewProj, ctWVP, cTransformEnd};
 
-	static public D3DXVECTOR2 ViewToProj(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize);
-	static public D3DXVECTOR2 ProjToView(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize);
+	static glm::vec2 ViewToProj(const glm::vec2& coord, const glm::vec2& viewSize);
+	static glm::vec2 ProjToView(const glm::vec2& coord, const glm::vec2& viewSize);
 private:
 	CameraDesc _desc;
-	
-	D3DXMATRIX _worldMat;
-	mutable D3DXMATRIX _matrices[cTransformEnd];
-	mutable D3DXMATRIX _invMatrices[cTransformEnd];
+
+	D3DMATRIX _worldMat;
+	mutable D3DMATRIX _matrices[cTransformEnd];
+	mutable D3DMATRIX _invMatrices[cTransformEnd];
 	mutable std::bitset<cTransformEnd> _matChanged;
 	mutable std::bitset<cTransformEnd> _invMatChanged;
 	//
@@ -247,10 +247,10 @@ private:
 
 	unsigned _idState;
 
-	void CalcProjPerspective(D3DXMATRIX& mat) const;
+	void CalcProjPerspective(D3DMATRIX& mat) const;
 
 	void StateChanged();
-	void WorldMatChanged(const D3DXMATRIX& worldMat);
+	void WorldMatChanged(const D3DMATRIX& worldMat);
 	void ProjMatChanged();
 	void DescChanged();
 public:
@@ -260,32 +260,32 @@ public:
 	unsigned IdState() const;
 
 	bool ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const;
-	void AdjustNearFarPlane(const AABB& aabb, float minNear, float maxFar);	
+	void AdjustNearFarPlane(const AABB& aabb, float minNear, float maxFar);
 
-	void GetProjPerspective(D3DXMATRIX& mat) const;
-	void GetViewProjPerspective(D3DXMATRIX& mat) const;
-	void GetWVPPerspective(D3DXMATRIX& mat) const;
-	void SetProjMat(const D3DXMATRIX& value);
+	void GetProjPerspective(D3DMATRIX& mat) const;
+	void GetViewProjPerspective(D3DMATRIX& mat) const;
+	void GetWVPPerspective(D3DMATRIX& mat) const;
+	void SetProjMat(const D3DMATRIX& value);
 
-	D3DXVECTOR3 ScreenToWorld(const D3DXVECTOR2& coord, float z, const D3DXVECTOR2& viewSize) const;
-	D3DXVECTOR2 WorldToScreen(const D3DXVECTOR3& coord, const D3DXVECTOR2& viewSize) const;
+	glm::vec3 ScreenToWorld(const glm::vec2& coord, float z, const glm::vec2& viewSize) const;
+	glm::vec2 WorldToScreen(const glm::vec3& coord, const glm::vec2& viewSize) const;
 
 	const CameraDesc& GetDesc() const;
 	void SetDesc(const CameraDesc& value);
 
-	const D3DXMATRIX& GetTransform(Transform transform) const;
-	const D3DXMATRIX& GetInvTransform(Transform transform) const;
+	const D3DMATRIX& GetTransform(Transform transform) const;
+	const D3DMATRIX& GetInvTransform(Transform transform) const;
 	const Frustum& GetFrustum() const;
 
-	const D3DXMATRIX& GetView() const;
-	const D3DXMATRIX& GetProj() const;
-	const D3DXMATRIX& GetViewProj() const;
-	const D3DXMATRIX& GetWVP() const;
+	const D3DMATRIX& GetView() const;
+	const D3DMATRIX& GetProj() const;
+	const D3DMATRIX& GetViewProj() const;
+	const D3DMATRIX& GetWVP() const;
 	//
-	const D3DXMATRIX& GetInvView() const;
-	const D3DXMATRIX& GetInvProj() const;
-	const D3DXMATRIX& GetInvViewProj() const;
-	const D3DXMATRIX& GetInvWVP() const;	
+	const D3DMATRIX& GetInvView() const;
+	const D3DMATRIX& GetInvProj() const;
+	const D3DMATRIX& GetInvViewProj() const;
+	const D3DMATRIX& GetInvWVP() const;
 };
 
 class LightCI: public lsl::Object
@@ -309,7 +309,7 @@ public:
 	const LightDesc& GetDesc() const;
 	void SetDesc(const LightDesc& value);
 
-	const CameraCI& GetCamera() const;	
+	const CameraCI& GetCamera() const;
 };
 
 class BaseShader
@@ -323,8 +323,8 @@ class ContextInfo
 {
 public:
 	static const unsigned cMaxTexSamplers = 8;
-	
-	static const TransformStateType ContextInfo::cTexTransform[8];
+
+	static const TransformStateType cTexTransform[8];
 	static DWORD defaultRenderStates[RENDER_STATE_END];
 	static DWORD defaultSamplerStates[SAMPLER_STATE_END];
 	static DWORD defaultTextureStageStates[TEXTURE_STAGE_STATE_END];
@@ -341,21 +341,21 @@ public:
 private:
 	RenderDriver* _driver;
 
-	D3DXMATRIX _worldMat;	
+	D3DMATRIX _worldMat;
 
-	std::vector<D3DXMATRIX> _textureMatStack[cMaxTexSamplers];
-	IDirect3DBaseTexture9* _textures[cMaxTexSamplers];	
+	std::vector<D3DMATRIX> _textureMatStack[cMaxTexSamplers];
+	IDirect3DBaseTexture9* _textures[cMaxTexSamplers];
 	int _maxTextureStage;
 
 	MaterialDesc _material;
-	DWORD _renderStates[RENDER_STATE_END];	
+	DWORD _renderStates[RENDER_STATE_END];
 	DWORD _samplerStates[cMaxTexSamplers][SAMPLER_STATE_END];
 	DWORD _textureStageStates[cMaxTexSamplers][TEXTURE_STAGE_STATE_END];
 
 	bool _enableShadow;
 	float _texDiffK;
 	bool _invertingCullFace;
-	bool _ignoreMaterial;	
+	bool _ignoreMaterial;
 
 	CameraStack _cameraStack;
 	ShaderStack _shaderStack;
@@ -366,7 +366,7 @@ private:
 
 	std::stack<float> _frameStack;
 	float _cullOpacity;
-	D3DXCOLOR _color;
+	glm::vec4 _color;
 	int _meshId;
 
 	DWORD InvertCullFace(DWORD curFace);
@@ -406,10 +406,10 @@ public:
 	void PopShader(BaseShader* value);
 	bool IsShaderActive() const;
 
-	const D3DXMATRIX& GetWorldMat() const;
-	void SetWorldMat(const D3DXMATRIX& value);
+	const D3DMATRIX& GetWorldMat() const;
+	void SetWorldMat(const D3DMATRIX& value);
 
-	void PushTextureTransform(int stage, const D3DXMATRIX& value);
+	void PushTextureTransform(int stage, const D3DMATRIX& value);
 	void PopTextureTransform(int stage);
 
 	const MaterialDesc& GetMaterial() const;
@@ -434,7 +434,7 @@ public:
 	void SetInvertingCullFace(bool value);
 
 	bool GetIgnoreMaterial();
-	void SetIgnoreMaterial(bool value);	
+	void SetIgnoreMaterial(bool value);
 
 	const ShaderStack& GetShaderStack() const;
 
@@ -454,8 +454,8 @@ public:
 	void RestoreCullOpacity();
 	bool IsCullOpacity() const;
 
-	const D3DXCOLOR& GetColor() const;
-	void SetColor(const D3DXCOLOR& value);
+	const glm::vec4& GetColor() const;
+	void SetColor(const glm::vec4& value);
 
 	int GetMeshId() const;
 	void SetMeshId(int value);
@@ -463,12 +463,9 @@ public:
 	bool IsNight() const;
 };
 
-
-
-
 template<class _State, class _Value, _Value _defValue[]> _Value StateManager<_State, _Value, _defValue>::Get(_State state) const
 {
-	_States::const_iterator iter = _states.find(state);
+	typename _States::const_iterator iter = _states.find(state);
 	if (iter != _states.end())
 		return iter->second;
 	else
@@ -481,7 +478,7 @@ template<class _State, class _Value, _Value _defValue[]> void StateManager<_Stat
 		_states[state] = value;
 	else
 	{
-		_States::iterator iter = _states.find(state);
+		typename _States::iterator iter = _states.find(state);
 		if (iter != _states.end())
 			_states.erase(iter);
 	}

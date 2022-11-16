@@ -34,7 +34,7 @@ public:
 	};
 
 	struct MyEventData: public EventData
-	{		
+	{
 		int targetPlayerId;
 		GameObject* target;
 		float damage;
@@ -45,16 +45,16 @@ public:
 	};
 private:
 	MapObj* _mapObj;
-	Logic* _logic;	
-	
+	Logic* _logic;
+
 	graph::Actor* _grActor;
-	px::Actor* _pxActor;	
+	px::Actor* _pxActor;
 
 	GameObject* _parent;
 	Children _children;
 	IncludeList* _includeList;
 	ListenerList _listenerList;
-	Behaviors* _behaviors;	
+	Behaviors* _behaviors;
 
 	LiveState _liveState;
 	//Начальное количество здоровья
@@ -81,34 +81,34 @@ private:
 	int _touchPlayerId;
 	float _touchPlayerTime;
 
-	D3DXVECTOR3 _posSync;
-	D3DXVECTOR3 _posSyncDir;
+	glm::vec3 _posSync;
+	glm::vec3 _posSyncDir;
 	float _posSyncLength;
 
-	D3DXQUATERNION _rotSync;
-	D3DXVECTOR3 _rotSyncAxis;
+	glm::quat _rotSync;
+	glm::vec3 _rotSyncAxis;
 	float _rotSyncAngle;
 
-	D3DXVECTOR3 _posSync2;
-	D3DXVECTOR3 _posSyncDir2;
+	glm::vec3 _posSync2;
+	glm::vec3 _posSyncDir2;
 	float _posSyncDist2;
 	float _posSyncLength2;
 
-	D3DXQUATERNION _rotSync2;
-	D3DXVECTOR3 _rotSyncAxis2;
+	glm::quat _rotSync2;
+	glm::vec3 _rotSyncAxis2;
 	float _rotSyncAngle2;
 	float _rotSyncLength2;
 
-	D3DXVECTOR3 _pxPosLerp;
-	D3DXQUATERNION _pxRotLerp;
-	D3DXVECTOR3 _pxVelocityLerp;
+	glm::vec3 _pxPosLerp;
+	glm::quat _pxRotLerp;
+	glm::vec3 _pxVelocityLerp;
 
-	D3DXVECTOR3 _pxPrevPos;
-	D3DXQUATERNION _pxPrevRot;
-	D3DXVECTOR3 _pxPrevVelocity;
+	glm::vec3 _pxPrevPos;
+	glm::quat _pxPrevRot;
+	glm::vec3 _pxPrevVelocity;
 
 	void SetSyncFrameEvent(bool value);
-	void SetBodyProgressEvent(bool value);	
+	void SetBodyProgressEvent(bool value);
 protected:
 	void Destroy();
 
@@ -124,7 +124,7 @@ protected:
 	void RegFixedStepEvent();
 	void UnregFixedStepEvent();
 
-	D3DXVECTOR3 GetContactPoint(const px::Scene::OnContactEvent& contact);
+	glm::vec3 GetContactPoint(const px::Scene::OnContactEvent& contact);
 	bool ContainsContactGroup(NxContactStreamIterator& contIter, unsigned actorIndex, px::Scene::CollDisGroup group);
 
 	//изменения ссылки на объект логки, хак
@@ -132,13 +132,13 @@ protected:
 	virtual void LogicInited() {};
 
 	virtual bool OnContactModify(const px::Scene::OnContactModifyEvent& contact) {return true;}
-	virtual void OnContact(const px::Scene::OnContactEvent& contact);	
+	virtual void OnContact(const px::Scene::OnContactEvent& contact);
 	virtual void OnWake();
 	virtual void OnSleep();
 
 	virtual void OnImmortalStatus(bool status) {}
 
-	void RayCastClosestActor(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayDir, NxShapesType shapesType, RayCastHit& hit, unsigned groups = 0xFFFFFFFF, unsigned mask = 0, float maxDist = NX_MAX_F32);
+	void RayCastClosestActor(const glm::vec3& rayStart, const glm::vec3& rayDir, NxShapesType shapesType, RayCastHit& hit, unsigned groups = 0xFFFFFFFF, unsigned mask = 0, float maxDist = NX_MAX_F32);
 
 	void DoDeath(DamageType damageType = dtSimple, GameObject* target = NULL);
 	void SendDeath(DamageType damageType = dtSimple, GameObject* target = NULL);
@@ -210,52 +210,52 @@ public:
 
 	virtual Proj* IsProj();
 	virtual GameCar* IsCar();
-	
+
 	//Интерфейс пользователя для изменения трансформации
 	//Локальные трансформации
 	//Позиция
-	const D3DXVECTOR3& GetPos() const;
-	virtual void SetPos(const D3DXVECTOR3& value);
+	const glm::vec3& GetPos() const;
+	virtual void SetPos(const glm::vec3& value);
 	//Растяжение
-	const D3DXVECTOR3& GetScale() const;
-	virtual void SetScale(const D3DXVECTOR3& value);
+	const glm::vec3& GetScale() const;
+	virtual void SetScale(const glm::vec3& value);
 	void SetScale(float value);
 	//Поворот
-	const D3DXQUATERNION& GetRot() const;
-	virtual void SetRot(const D3DXQUATERNION& value);	
+	const glm::quat& GetRot() const;
+	virtual void SetRot(const glm::quat& value);
 	//Абсолютные трансформации
 	//Позиция
-	D3DXVECTOR3 GetWorldPos() const;
-	virtual void SetWorldPos(const D3DXVECTOR3& value);
+	glm::vec3 GetWorldPos() const;
+	virtual void SetWorldPos(const glm::vec3& value);
 	//Поворот
-	D3DXQUATERNION GetWorldRot() const;
-	virtual void SetWorldRot(const D3DXQUATERNION& value);
-	
-	void SetWorldDir(const D3DXVECTOR3& value);
-	void SetWorldUp(const D3DXVECTOR3& value);
+	glm::quat GetWorldRot() const;
+	virtual void SetWorldRot(const glm::quat& value);
 
-	const D3DXVECTOR3& GetPosSync() const;
-	void SetPosSync(const D3DXVECTOR3& value);
+	void SetWorldDir(const glm::vec3& value);
+	void SetWorldUp(const glm::vec3& value);
 
-	const D3DXQUATERNION& GetRotSync() const;
-	void SetRotSync(const D3DXQUATERNION& value);
+	const glm::vec3& GetPosSync() const;
+	void SetPosSync(const glm::vec3& value);
 
-	const D3DXVECTOR3& GetPosSync2() const;
-	void SetPosSync2(const D3DXVECTOR3& curSync, const D3DXVECTOR3& newSync);
+	const glm::quat& GetRotSync() const;
+	void SetRotSync(const glm::quat& value);
 
-	const D3DXQUATERNION& GetRotSync2() const;
-	void SetRotSync2(const D3DXQUATERNION& curSync, const D3DXQUATERNION& newSync);
+	const glm::vec3& GetPosSync2() const;
+	void SetPosSync2(const glm::vec3& curSync, const glm::vec3& newSync);
 
-	const D3DXVECTOR3& GetPxPosLerp() const;
-	const D3DXQUATERNION& GetPxRotLerp() const;
-	const D3DXVECTOR3& GetPxVelocityLerp() const;
+	const glm::quat& GetRotSync2() const;
+	void SetRotSync2(const glm::quat& curSync, const glm::quat& newSync);
 
-	const D3DXVECTOR3& GetPxPrevPos() const;
-	const D3DXQUATERNION& GetPxPrevRot() const;
-	const D3DXVECTOR3& GetPxPrevVelocity() const;
+	const glm::vec3& GetPxPosLerp() const;
+	const glm::quat& GetPxRotLerp() const;
+	const glm::vec3& GetPxVelocityLerp() const;
+
+	const glm::vec3& GetPxPrevPos() const;
+	const glm::quat& GetPxPrevRot() const;
+	const glm::vec3& GetPxPrevVelocity() const;
 
 	LiveState GetLiveState() const;
-	
+
 	float GetMaxLife() const;
 	void SetMaxLife(float value);
 

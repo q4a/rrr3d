@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\ActorManager.h"
+#include "graph/ActorManager.h"
 
 namespace r3d
 {
@@ -29,7 +29,7 @@ void ActorManager::User::InitOctree()
 	{
 		_octreeUser = &_owner->_octree.GetUsers().Add(GetAABB(), _desc.scenes);
 		_octreeUser->AddRef();
-		_octreeUser->SetData(this);				
+		_octreeUser->SetData(this);
 	}
 }
 
@@ -63,7 +63,7 @@ void ActorManager::User::SetGroup(Group* value)
 		if (_group)
 			_owner->AddRefGroup(_group);
 	}
-}	
+}
 
 AABB ActorManager::User::GetAABB() const
 {
@@ -79,9 +79,6 @@ const ActorManager::UserDesc& ActorManager::User::GetDesc() const
 {
 	return _desc;
 }
-
-
-
 
 ActorManager::ActorManager(unsigned sceneCnt): cNumScenes(sceneCnt), _octree(sceneCnt)
 {
@@ -129,8 +126,8 @@ ActorManager::CameraCache::iterator ActorManager::CameraCull(const graph::Camera
 		iterCamera = _cameraCache.insert(iterCamera, CameraCache::value_type(camera, CacheValue()));
 		compCull = true;
 	}
-	else 	
-		compCull = iterCamera->second.idState != camera->IdState();	
+	else
+		compCull = iterCamera->second.idState != camera->IdState();
 	if (compCull)
 	{
 		iterCamera->second.pos = _octree.Culling(frustum);
@@ -140,19 +137,18 @@ ActorManager::CameraCache::iterator ActorManager::CameraCull(const graph::Camera
 	return iterCamera;
 }
 
-bool ActorManager::PullInRayTargetGroup(User* user, unsigned scene, const graph::CameraCI* camera, const D3DXVECTOR3& rayTarget, float rayTargetSize)
+bool ActorManager::PullInRayTargetGroup(User* user, unsigned scene, const graph::CameraCI* camera, const glm::vec3& rayTarget, float rayTargetSize)
 {
 	RayUsers::iterator iter = _rayUsers.find(user);
 	if (iter != _rayUsers.end())
 		iter->second.draw = true;
 
-	D3DXVECTOR3 vec3;
-	D3DXVec3TransformCoord(&vec3, &rayTarget, &camera->GetViewProj());
+	glm::vec3 vec3 = Vec3TransformCoord(rayTarget, camera->GetViewProj());
 	vec3.z = 0.0f;
-	D3DXVec3TransformCoord(&vec3, &vec3, &camera->GetInvViewProj());
-	D3DXVECTOR3 ray = rayTarget - vec3;
-	float rayLen = D3DXVec3Length(&ray);
-	D3DXVec3Normalize(&ray, &ray);
+	vec3 = Vec3TransformCoord(vec3, camera->GetInvViewProj());
+	glm::vec3 ray = rayTarget - vec3;
+	float rayLen = glm::length(ray);
+	ray = glm::normalize(ray);
 
 	float nearDist, farDist;
 	if (user->GetAABB().LineCastIntersect(vec3, ray, nearDist, farDist) && rayLen - farDist > rayTargetSize * 1.5f)
@@ -204,7 +200,7 @@ void ActorManager::RemoveActor(User* value)
 			if (value->GetDesc().scenes[i])
 				_dynUserList[i].Remove(value);
 	}
-	
+
 	_userList.Remove(value);
 	RemoveRayUser(value);
 
@@ -305,12 +301,11 @@ void ActorManager::BuildPlanar(unsigned scene)
 
 const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 {
-	D3DXMATRIX mat = actor->GetInvWorldMat();
-	D3DXMatrixTranspose(&mat, &mat);
+	D3DMATRIX mat = actor->GetInvWorldMat();
+	mat = MatrixTranspose(mat);
 
-	D3DXPLANE plane;
-	D3DXPlaneTransform(&plane, &D3DXPLANE(actor->vec1()), &mat);
-	D3DXPlaneNormalize(&plane, &plane);
+	glm::vec4 plane = PlaneTransform(actor->vec1(), mat);
+	plane = PlaneNormalize(plane);
 
 	float minDist = 0;
 	float minAngle = 0;
@@ -318,12 +313,12 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 
 	for (Planars::iterator iter = _planars.begin(); iter != _planars.end(); ++iter)
 	{
-		const D3DXPLANE& testPlane = iter->plane;
-		float dist = abs(testPlane.d - plane.d);
-		float angle = abs(D3DXPlaneDotNormal(&testPlane, &D3DXVECTOR3(plane)));
+		const glm::vec4& testPlane = iter->plane;
+		float dist = std::abs(testPlane.w - plane.w);
+		float angle = std::abs(PlaneDotNormal(testPlane, glm::vec3(plane)));
 
-		if (dist < 0.5f && angle > 0.99f 
-			//&& (planarIter == _planars.end() || 
+		if (dist < 0.5f && angle > 0.99f
+			//&& (planarIter == _planars.end() ||
 			//(minDist >= dist && minAngle - angle < 0.002f) ||
 			//(minDist - dist > -0.1f && minAngle <= angle))
 			)
@@ -346,7 +341,7 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	return _planars.back();
 }
 
-void ActorManager::PullRayUsers(unsigned scene, const graph::CameraCI* camera, const D3DXVECTOR3& rayTarget, float rayTargetSize)
+void ActorManager::PullRayUsers(unsigned scene, const graph::CameraCI* camera, const glm::vec3& rayTarget, float rayTargetSize)
 {
 	const Frustum& frustum = camera->GetFrustum();
 	CameraCache::iterator iterCamera = CameraCull(camera);
@@ -398,7 +393,7 @@ void ActorManager::Render(Engine& engine, unsigned scene, const graph::CameraCI*
 		{
 			User* myUser = *iter;
 
-			myUser->GetActor()->Render(engine);			
+			myUser->GetActor()->Render(engine);
 		}
 }
 
@@ -410,7 +405,7 @@ void ActorManager::Render(Engine& engine, unsigned scene, bool ignoreRayUsers)
 void ActorManager::RenderRayUsers(Engine& engine, float opacity)
 {
 	const float cSpeedOpacity = 0.25f;
-	
+
 	for (RayUsers::iterator iter = _rayUsers.begin(); iter != _rayUsers.end();)
 	{
 		User* user = iter->first;
@@ -425,7 +420,7 @@ void ActorManager::RenderRayUsers(Engine& engine, float opacity)
 		}
 		rayUser.draw = false;
 
-		if (rayUser.overloap)			
+		if (rayUser.overloap)
 			rayUser.time = lsl::ClampValue(rayUser.time + engine.GetDt(), 0.0f, cSpeedOpacity);
 		else
 			rayUser.time -= engine.GetDt();

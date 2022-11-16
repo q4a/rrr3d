@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "video\VideoPlayer.h"
+#include "video/VideoPlayer.h"
 
 namespace r3d
 {
@@ -170,7 +170,7 @@ bool Player::OnPaint(HWND handle)
 		HDC hdc;
 		hdc = BeginPaint(handle, &ps);
 
-		//The player has video, so ask the player to repaint. 
+		//The player has video, so ask the player to repaint.
 		HRESULT hr = _dShowPlayer->Repaint(hdc);
 
 		if (hr != S_OK)

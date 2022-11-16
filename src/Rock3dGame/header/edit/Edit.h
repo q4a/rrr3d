@@ -2,9 +2,9 @@
 
 #include "IEdit.h"
 
-#include "edit\DataBase.h"
-#include "edit\Map.h"
-#include "edit\SceneControl.h"
+#include "edit/DataBase.h"
+#include "edit/Map.h"
+#include "edit/SceneControl.h"
 
 namespace r3d
 {
@@ -29,7 +29,7 @@ public:
 
 	game::World* GetWorld();
 	IDataBase* GetDB();
-	IMap* GetMap();	
+	IMap* GetMap();
 	ISceneControl* GetScControl();
 };
 

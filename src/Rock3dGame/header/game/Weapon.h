@@ -24,12 +24,12 @@ public:
 		graph::LibMaterial* _libMat;
 	public:
 		Desc(): _model(0), _model2(0), _model3(0), _libMat(0), type(ptRocket), pos(NullVector), rot(NullQuaternion), size(NullVector), sizeAddPx(NullVector), offset(NullVector), modelSize(true), speed(0), speedRelativeMin(13.0f), speedRelative(false), angleSpeed(0), maxDist(0), mass(100.0f), minTimeLife(0), damage(0) {}
-		
+
 		Desc(const Desc& ref): _model(0), _model2(0), _model3(0), _libMat(0)
 		{
 			*this = ref;
 		}
-		
+
 		~Desc()
 		{
 			SetModel(0);
@@ -42,10 +42,10 @@ public:
 		{
 			lsl::SWriteValue(writer, "type", type);
 			lsl::SWriteValue(writer, "pos", pos);
-			lsl::SWriteValue(writer, "rot", rot);			
+			lsl::SWriteValue(writer, "rot", rot);
 			lsl::SWriteValue(writer, "size", size);
 			lsl::SWriteValue(writer, "sizeAddPx", sizeAddPx);
-			lsl::SWriteValue(writer, "offset", offset);			
+			lsl::SWriteValue(writer, "offset", offset);
 			lsl::SWriteValue(writer, "modelSize", modelSize);
 			lsl::SWriteValue(writer, "speed", speed);
 			lsl::SWriteValue(writer, "speedRelativeMin", speedRelativeMin);
@@ -55,7 +55,7 @@ public:
 			lsl::SWriteValue(writer, "mass", mass);
 			lsl::SWriteValue(writer, "minTimeLife", minTimeLife);
 			lsl::SWriteValue(writer, "damage", damage);
-			
+
 			MapObjLib::SaveRecordRef(writer, "model", _model);
 			MapObjLib::SaveRecordRef(writer, "model2", _model2);
 			MapObjLib::SaveRecordRef(writer, "model3", _model3);
@@ -82,7 +82,7 @@ public:
 			lsl::SReadValue(reader, "mass", mass);
 			lsl::SReadValue(reader, "minTimeLife", minTimeLife);
 			lsl::SReadValue(reader, "damage", damage);
-			
+
 			SetModel(MapObjLib::LoadRecordRef(reader, "model"));
 			SetModel2(MapObjLib::LoadRecordRef(reader, "model2"));
 			SetModel3(MapObjLib::LoadRecordRef(reader, "model3"));
@@ -162,18 +162,18 @@ public:
 		}
 
 		//тип снаряда
-		Type type;		
+		Type type;
 		//Локальная позиция снаряда
-		D3DXVECTOR3 pos;
+		glm::vec3 pos;
 		//Локальный поворот снаряда
-		D3DXQUATERNION rot;
+		glm::quat rot;
 		//размер и смещение бокса снаряда
-		D3DXVECTOR3 size;
-		D3DXVECTOR3 sizeAddPx;
-		D3DXVECTOR3 offset;
+		glm::vec3 size;
+		glm::vec3 sizeAddPx;
+		glm::vec3 offset;
 		//прибавлять к размеру размер модели снаряда
 		bool modelSize;
-		//Скорость снаряда, 
+		//Скорость снаряда,
 		//- для гиппер драйва ускорение
 		//- для мины подброс
 		float speed;
@@ -190,10 +190,10 @@ public:
 		float maxDist;
 		//масса снаряда, не должна быть равной нулю
 		float mass;
-		//минимальное время жизни объекта, которое он проживет обязательно 
+		//минимальное время жизни объекта, которое он проживет обязательно
 		FloatRange minTimeLife;
 		//повреждение наносимое снарядом
-		float damage;				
+		float damage;
 	};
 
 	struct ShotDesc
@@ -227,18 +227,18 @@ public:
 		ShotDesc& operator=(const ShotDesc& ref)
 		{
 			target = ref.target;
-			
+
 			SetTargetMapObj(ref._targetMapObj);
 
 			return *this;
 		}
 
-		D3DXVECTOR3 target;		
+		glm::vec3 target;
 	};
 
 	struct ShotContext
 	{
-		Logic* logic;		
+		Logic* logic;
 		ShotDesc shot;
 
 		NxMat34* projMat;
@@ -261,9 +261,9 @@ private:
 	int _tick1;
 	float _time1;
 	bool _state1;
-	D3DXVECTOR3 _vec1;
+	glm::vec3 _vec1;
 
-	void LocateProj(GameObject* weapon, bool pos, bool rot, const D3DXVECTOR3* speed);
+	void LocateProj(GameObject* weapon, bool pos, bool rot, const glm::vec3* speed);
 
 	void InitModel();
 	void FreeModel(bool remove);
@@ -278,27 +278,27 @@ private:
 
 	AABB ComputeAABB(bool onlyModel);
 	void CreatePxBox(NxCollisionGroup group = px::Scene::cdgShot);
-	void AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, NxForceMode mode);
-	void AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const D3DXVECTOR3& force, NxForceMode mode);
+	void AddContactForce(GameObject* target, const glm::vec3& point, const glm::vec3& force, NxForceMode mode);
+	void AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const glm::vec3& force, NxForceMode mode);
 
 	void SetWeapon(GameObject* weapon);
 	//прилинковать к владельцу. Уничтожается вместе с ним
 	void LinkToWeapon();
 	void SetIgnoreContactProj(bool value);
 	void SetShot(const ShotDesc& value);
-	void DamageTarget(GameObject* target, float damage, DamageType damageType = dtSimple);	
+	void DamageTarget(GameObject* target, float damage, DamageType damageType = dtSimple);
 	MapObj* FindNextTaget(float viewAngle);
 	//
 	void EnableFilter(GameObject* target, unsigned mask);
 	void DisableFilter(GameObject* target);
 
-	D3DXVECTOR3 CalcSpeed(GameObject* weapon);
+	glm::vec3 CalcSpeed(GameObject* weapon);
 
-	bool RocketPrepare(GameObject* weapon, bool disableGravity = true, D3DXVECTOR3* speedVec = NULL, NxCollisionGroup pxGroup = px::Scene::cdgShot);
+	bool RocketPrepare(GameObject* weapon, bool disableGravity = true, glm::vec3* speedVec = NULL, NxCollisionGroup pxGroup = px::Scene::cdgShot);
 	void RocketContact(const px::Scene::OnContactEvent& contact);
 	void RocketUpdate(float deltaTime);
 	//
-	bool HyperPrepare(GameObject* weapon);	
+	bool HyperPrepare(GameObject* weapon);
 	//
 	bool MedpackPrepare(GameObject* weapon);
 	void MedpackContact(const px::Scene::OnContactEvent& contact);
@@ -324,14 +324,14 @@ private:
 	//
 	bool MasloPrepare(const ShotContext& ctx);
 	void MasloContact(const px::Scene::OnContactEvent& contact);
-	void MasloUpdate(float deltaTime);	
+	void MasloUpdate(float deltaTime);
 	//
 	bool MineRipPrepare(const ShotContext& ctx);
 	void MineRipContact(const px::Scene::OnContactEvent& contact);
 	void MineRipUpdate(float deltaTime);
 	//
 	bool MinePiecePrepare(const ShotContext& ctx);
-	void MinePieceContact(const px::Scene::OnContactEvent& contact);	
+	void MinePieceContact(const px::Scene::OnContactEvent& contact);
 	//
 	bool MineProtonPrepare(const ShotContext& ctx);
 	void MineProtonContact(const px::Scene::OnContactEvent& contact);
@@ -346,7 +346,7 @@ private:
 	//
 	bool FirePrepare(GameObject* weapon);
 	void FireContact(const px::Scene::OnContactEvent& contact);
-	void FireUpdate(float deltaTime);	
+	void FireUpdate(float deltaTime);
 	//
 	bool DrobilkaPrepare(GameObject* weapon);
 	void DrobilkaContact(const px::Scene::OnContactEvent& contact);
@@ -372,7 +372,7 @@ private:
 	void ImpulseUpdate(float deltaTime);
 
 	bool ThunderPrepare(GameObject* weapon);
-	void ThunderContact(const px::Scene::OnContactEvent& contact);	
+	void ThunderContact(const px::Scene::OnContactEvent& contact);
 	void ThunderUpdate(float deltaTime);
 
 	bool ResonansePrepare(GameObject* weapon);
@@ -394,7 +394,7 @@ public:
 	virtual void OnProgress(float deltaTime);
 	bool PrepareProj(GameObject* weapon, const ShotContext& ctx);
 
-	void MineContact(GameObject* target, const D3DXVECTOR3& point);
+	void MineContact(GameObject* target, const glm::vec3& point);
 
 	const Desc& GetDesc() const;
 	void SetDesc(const Desc& value);
@@ -411,16 +411,16 @@ private:
 	bool _prepare;
 
 	void InitProj();
-	void FreeProj();	
+	void FreeProj();
 protected:
 	virtual void LogicReleased();
 	virtual void LogicInited();
-	
+
 	virtual void SaveSource(lsl::SWriter* writer);
-	virtual void LoadSource(lsl::SReader* reader);	
+	virtual void LoadSource(lsl::SReader* reader);
 public:
 	AutoProj();
-	virtual ~AutoProj();	
+	virtual ~AutoProj();
 };
 
 class Weapon: public GameObject
@@ -454,7 +454,7 @@ public:
 				lsl::SWriter* proj = projListNode->NewDummyNode(sstream.str().c_str());
 
 				iter->SaveTo(proj, owner);
-			}	
+			}
 
 			lsl::SWriteValue(writer, "shotDelay", shotDelay);
 		}
@@ -468,7 +468,7 @@ public:
 			{
 				lsl::SReader* proj = projListNode->FirstChildValue();
 				while (proj)
-				{	
+				{
 					ProjDesc projDesc;
 					projDesc.LoadFrom(proj, owner);
 					projList.push_back(projDesc);
@@ -496,7 +496,7 @@ public:
 				}
 			}
 		}
-		
+
 		const ProjDesc& Front() const
 		{
 			return !projList.empty() ? projList.front() : _tmpProj;
@@ -518,7 +518,7 @@ public:
 public:
 	typedef lsl::List<Proj*> ProjList;
 private:
-	Desc _desc;	
+	Desc _desc;
 	float _shotTime;
 protected:
 	virtual void SaveSource(lsl::SWriter* writer);
@@ -531,7 +531,7 @@ public:
 	virtual void OnProgress(float deltaTime);
 
 	bool Shot(const ShotDesc& shotDesc, ProjList* projList = NULL);
-	bool Shot(const D3DXVECTOR3& target, ProjList* projList = NULL);
+	bool Shot(const glm::vec3& target, ProjList* projList = NULL);
 	bool Shot(MapObj* target, ProjList* projList = NULL);
 	bool Shot(ProjList* projList = NULL);
 

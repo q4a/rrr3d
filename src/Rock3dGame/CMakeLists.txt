@@ -30,19 +30,23 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     header
     include
     ${CMAKE_SOURCE_DIR}/src/LexStd/header
+    ${CMAKE_SOURCE_DIR}/src/MathLib/header
     ${CMAKE_SOURCE_DIR}/src/NetLib/include
     ${CMAKE_SOURCE_DIR}/src/Rock3dEngine/header
+    ${CMAKE_SOURCE_DIR}/src/XPlatform/header
     ${CMAKE_SOURCE_DIR}/extern/ogg/include
     ${CMAKE_SOURCE_DIR}/extern/physx/include/Cooking
     ${CMAKE_SOURCE_DIR}/extern/physx/include/Foundation
     ${CMAKE_SOURCE_DIR}/extern/physx/include/Physics
     ${CMAKE_SOURCE_DIR}/extern/physx/include/PhysXLoader
     ${CMAKE_SOURCE_DIR}/extern/vorbis/include
+    ${CMAKE_SOURCE_DIR}/extern/glm/include
     ${CMAKE_SOURCE_DIR}/extern/directx/include
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     LexStd
+    MathLib
     NetLib
     Rock3dEngine
     libogg_static.lib

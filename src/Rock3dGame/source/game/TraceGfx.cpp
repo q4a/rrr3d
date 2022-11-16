@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "game\TraceGfx.h"
+#include "game/TraceGfx.h"
 
 namespace r3d
 {
@@ -13,7 +13,7 @@ TraceGfx::TraceGfx(Trace* trace): _trace(trace), _selPoint(0), _selPath(0), _sel
 	LSL_ASSERT(_trace);
 
 	_trace->AddRef();
-	
+
 	{
 		_libMat = new graph::LibMaterial();
 		graph::Material& mat = _libMat->material;
@@ -26,7 +26,7 @@ TraceGfx::TraceGfx(Trace* trace): _trace(trace), _selPoint(0), _selPath(0), _sel
 		mat.SetOption(graph::Material::moIgnoreFog, true);
 	}
 
-	_wayPnt = new graph::Box();	
+	_wayPnt = new graph::Box();
 	_wayPnt->material.Set(_libMat);
 
 	_sprite = new graph::Sprite();
@@ -48,7 +48,7 @@ TraceGfx::~TraceGfx()
 	_trace->Release();
 }
 
-void TraceGfx::DrawNodes(graph::Engine& engine, D3DXVECTOR3* vBuf, unsigned triCnt, const D3DXCOLOR& color)
+void TraceGfx::DrawNodes(graph::Engine& engine, glm::vec3* vBuf, unsigned triCnt, const glm::vec4& color)
 {
 	_libMat->material.SetDiffuse(color);
 	_libMat->Apply(engine);
@@ -58,11 +58,11 @@ void TraceGfx::DrawNodes(graph::Engine& engine, D3DXVECTOR3* vBuf, unsigned triC
 	engine.GetContext().SetRenderState(graph::rsCullMode, D3DCULL_NONE);
 
 	engine.GetDriver().GetDevice()->SetFVF(D3DFVF_XYZ);
-	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, triCnt, vBuf, sizeof(D3DXVECTOR3));
+	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, triCnt, vBuf, sizeof(glm::vec3));
 
 	engine.GetContext().RestoreRenderState(graph::rsCullMode);
 	engine.EndDraw(false);
-	
+
 	_libMat->UnApply(engine);
 }
 
@@ -74,20 +74,20 @@ void TraceGfx::DoRender(graph::Engine& engine)
 		_libMat->material.SetDiffuse(*iter == _selPoint ? clrGreen : clrRed);
 
 		_wayPnt->SetPos((*iter)->GetPos());
-		_wayPnt->SetScale((*iter)->GetSize());			
-		_wayPnt->Render(engine);		
+		_wayPnt->SetScale((*iter)->GetSize());
+		_wayPnt->Render(engine);
 	}
 
 	//Отрисовка связей между путями
-	Vec3Range resColor(D3DXVECTOR3(clrWhite / 2.0f), D3DXVECTOR3(clrWhite), Vec3Range::vdVolume);
-	D3DXVECTOR3 upVec = engine.GetContext().GetCamera().GetDesc().dir;
+	Vec3Range resColor(glm::vec3(clrWhite / 2.0f), glm::vec3(clrWhite), Vec3Range::vdVolume);
+	glm::vec3 upVec = engine.GetContext().GetCamera().GetDesc().dir;
 	float iPath = 0.0f;
 	float pathCnt = static_cast<float>(_trace->GetPathes().size());
-	
+
 	for (Trace::Pathes::const_iterator iter = _trace->GetPathes().begin(); iter != _trace->GetPathes().end(); ++iter, ++iPath)
 	{
 		WayPath* path = *iter;
-		D3DXCOLOR pathColor = path == _selPath ? clrGreen : D3DXCOLOR(resColor.GetValue(iPath / (pathCnt - 1.0f)));
+		glm::vec4 pathColor = path == _selPath ? clrGreen : glm::vec4(resColor.GetValue(iPath / (pathCnt - 1.0f)), 0.0f);
 		res::VertexData vBuf;
 		path->GetTriStripVBuf(vBuf, &upVec);
 		if (vBuf.IsInit())
@@ -97,7 +97,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 	//Для выделенного узла свой цикл отрисовки
 	if (_selNode && _selNode->GetNext())
 	{
-		D3DXVECTOR3 vBuf[4];
+		glm::vec3 vBuf[4];
 		_selNode->GetTile().GetVBuf(vBuf, 4, &upVec);
 		DrawNodes(engine, vBuf, 4 - 2, clrGreen);
 	}
@@ -105,11 +105,11 @@ void TraceGfx::DoRender(graph::Engine& engine)
 	//Отрисовка связи выделения
 	if (_pointLink)
 	{
-		D3DXVECTOR3 pos1 = _pointLink->GetPoint()->GetPos();
-		D3DXVECTOR3 pos2 = _pointLink->GetPos();
-		D3DXVECTOR3 dir = pos1 - pos2;
-		D3DXVECTOR2 sizes(D3DXVec3Length(&dir), _pointLink->GetPoint()->GetSize());
-		D3DXVec3Normalize(&dir, &dir);
+		glm::vec3 pos1 = _pointLink->GetPoint()->GetPos();
+		glm::vec3 pos2 = _pointLink->GetPos();
+		glm::vec3 dir = pos1 - pos2;
+		glm::vec2 sizes(glm::length(dir), _pointLink->GetPoint()->GetSize());
+		dir = glm::normalize(dir);
 
 		_sprite->SetPos((pos1 + pos2) / 2.0f);
 		_sprite->SetDir(dir);

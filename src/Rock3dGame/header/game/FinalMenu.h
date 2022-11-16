@@ -23,7 +23,7 @@ private:
 
 	struct Slide
 	{
-		gui::PlaneFon* plane;		
+		gui::PlaneFon* plane;
 	};
 	typedef lsl::Vector<Slide> Slides;
 private:
@@ -40,7 +40,7 @@ private:
 	void DeleteAll();
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
 	bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);
@@ -64,7 +64,7 @@ private:
 	float _scrollTime;
 protected:
 	virtual void OnShow(bool value);
-	virtual void OnAdjustLayout(const D3DXVECTOR2& vpSize);
+	virtual void OnAdjustLayout(const glm::vec2& vpSize);
 	virtual void OnInvalidate();
 
 	bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick);

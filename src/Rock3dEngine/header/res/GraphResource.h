@@ -32,65 +32,65 @@ struct VertexP
 	static const DWORD fvf = D3DFVF_XYZ;
 
 	VertexP();
-	VertexP(const D3DXVECTOR3& mPos);
+	VertexP(const glm::vec3& mPos);
 
-	D3DXVECTOR3 pos;
+	glm::vec3 pos;
 };
 
 struct VertexPD
 {
 	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_DIFFUSE;
 
-	D3DXVECTOR3 pos;
-	D3DCOLOR diffuse;
+	glm::vec3 pos;
+	glm::vec4 diffuse;
 
 	VertexPD();
-	VertexPD(D3DXVECTOR3 position, D3DCOLOR diffuseColor);
+	VertexPD(glm::vec3 position, glm::vec4 diffuseColor);
 };
 
 struct VertexPN
 {
 	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_NORMAL;
 
-	D3DXVECTOR3 pos;
-	D3DXVECTOR3 norm;
+	glm::vec3 pos;
+	glm::vec3 norm;
 
 	VertexPN();
-	VertexPN(D3DXVECTOR3 position, D3DXVECTOR3 normal);	
+	VertexPN(glm::vec3 position, glm::vec3 normal);
 };
 
 struct VertexPT
 {
 	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_TEX1;
 
-	D3DXVECTOR3 pos;
-	D3DXVECTOR2 tex;
+	glm::vec3 pos;
+	glm::vec2 tex;
 
 	VertexPT();
-	VertexPT(D3DXVECTOR3 position, D3DXVECTOR2 texCoord);
+	VertexPT(glm::vec3 position, glm::vec2 texCoord);
 };
 
 struct VertexPNT
-{	
+{
 	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
 
-	D3DVECTOR pos;	
-	D3DVECTOR norm;
-	D3DXVECTOR2 tex;
+	glm::vec3 pos;
+	glm::vec3 norm;
+	glm::vec2 tex;
 
 	VertexPNT();
-	VertexPNT(const D3DXVECTOR3& position, const D3DXVECTOR3& normal, const D3DXVECTOR2& texCoord);
+	VertexPNT(const glm::vec3& position, const glm::vec3& normal, const glm::vec2& texCoord);
 };
 
 struct ScreenVertex
 {
 	static const DWORD fvf = D3DFVF_XYZRHW | D3DFVF_TEX1;
 
-	D3DXVECTOR4 pos;
-	D3DXVECTOR2 tex;
+	glm::vec4 pos;
+	glm::vec2 tex;
 
 	ScreenVertex();
-	ScreenVertex(const D3DXVECTOR4& position, const D3DXVECTOR2& texCoord);
+	ScreenVertex(const glm::vec4& position, const glm::vec2& texCoord);
 };
 
 struct VertexIter;
@@ -108,18 +108,18 @@ public:
 	typedef VertexIter iterator;
 private:
 	unsigned _vertexCount;
-	Format _format;	
+	Format _format;
 	bool _screenRHW;
 
 	unsigned _vertexSize;
 	unsigned _elemOff[cElementEnd];
-	D3DXVECTOR3 _minPos;
-	D3DXVECTOR3 _maxPos;
+	glm::vec3 _minPos;
+	glm::vec3 _maxPos;
 
 	void CalcDimensions();
 protected:
 	virtual void DoUpdate();
-public:	
+public:
 	VertexData();
 
 	void Assign(const VertexData& value);
@@ -145,8 +145,8 @@ public:
 	DWORD GetFVF() const;
 
 	//
-	const D3DXVECTOR3& GetMinPos() const;
-	const D3DXVECTOR3& GetMaxPos() const;
+	const glm::vec3& GetMinPos() const;
+	const glm::vec3& GetMaxPos() const;
 
 	bool GetScreenRHW() const;
 	void SetScreenRHW(bool value);
@@ -165,15 +165,15 @@ struct VertexIter
 	VertexIter();
 	VertexIter(unsigned index, VertexData* owner);
 
-	const D3DXVECTOR3* Pos3() const;
-	D3DXVECTOR3* Pos3();
-	D3DXVECTOR4* Pos4();
-	D3DCOLOR* Color();
-	D3DXVECTOR2* Tex0();
-	D3DXVECTOR2* Tex1();
-	D3DXVECTOR3* Normal();
-	D3DXVECTOR3* Tangent();
-	D3DXVECTOR3* Binormal();
+	const glm::vec3* Pos3() const;
+	glm::vec3* Pos3();
+	glm::vec4* Pos4();
+	glm::vec4* Color();
+	glm::vec2* Tex0();
+	glm::vec2* Tex1();
+	glm::vec3* Normal();
+	glm::vec3* Tangent();
+	glm::vec3* Binormal();
 
 	const char* GetElem(VertexData::Element element) const;
 	void SetElem(VertexData::Element element, const char* value);
@@ -192,14 +192,14 @@ struct VertexIter
 class IndexData: public lsl::BufferResource
 {
 private:
-	unsigned _indexCount;	
+	unsigned _indexCount;
 	D3DFORMAT _indexFormat;
-public:	
+public:
 	IndexData();
 
 	unsigned GetIndexSize() const;
 	unsigned GetIndexCount() const;
-	void SetIndexCount(unsigned value);	
+	void SetIndexCount(unsigned value);
 	D3DFORMAT GetIndexFormat() const;
 	void SetIndexFormat(D3DFORMAT value);
 	virtual unsigned GetSize() const;
@@ -210,7 +210,7 @@ class TriFaceData: public lsl::BufferResource
 private:
 	unsigned _faceCount;
 	D3DFORMAT _indexFormat;
-public:	
+public:
 	TriFaceData();
 
 	unsigned GetFaceCount() const;
@@ -219,7 +219,7 @@ public:
 	void SetIndexFormat(D3DFORMAT value);
 
 	unsigned GetIndex(unsigned face, unsigned indTri) const;
-	
+
 	virtual unsigned GetSize() const;
 	unsigned GetFaceSize() const;
 };
@@ -232,8 +232,8 @@ struct FaceGroup
 	int vertexCnt;
 	int mathId;
 
-	D3DXVECTOR3 minPos;
-	D3DXVECTOR3 maxPos;
+	glm::vec3 minPos;
+	glm::vec3 maxPos;
 
 	FaceGroup();
 	FaceGroup(int startFace, int faceCount, int startVertex, int vertexCount);
@@ -312,9 +312,6 @@ unsigned GetPrimitivesCount(D3DPRIMITIVETYPE primitiveType, UINT numControlPoint
 void CopyPitchData(char* dest, unsigned destPitch, const char* src, unsigned srcPitch, unsigned srcRowSize, unsigned height);
 void operator++(D3DCUBEMAP_FACES& lvalue);
 
-
-
-
 template<class _IndexType> TriFace<_IndexType>::TriFace()
 {
 }
@@ -328,4 +325,3 @@ template<class _IndexType> TriFace<_IndexType>::TriFace(_IndexType vert1, _Index
 }
 
 #endif
-	

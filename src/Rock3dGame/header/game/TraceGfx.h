@@ -15,14 +15,14 @@ public:
 	{
 	private:
 		WayPoint* _point;
-		D3DXVECTOR3 _pos;
+		glm::vec3 _pos;
 	public:
 		PointLink(WayPoint* point): _point(point) {LSL_ASSERT(_point); _point->AddRef();}
 		~PointLink() {_point->Release();};
 
 		WayPoint* GetPoint() {return _point;}
-		const D3DXVECTOR3& GetPos() const {return _pos;}
-		void SetPos(const D3DXVECTOR3& value) {_pos = value;}
+		const glm::vec3& GetPos() const {return _pos;}
+		void SetPos(const glm::vec3& value) {_pos = value;}
 	};
 private:
 	Trace* _trace;
@@ -35,7 +35,7 @@ private:
 	WayNode* _selNode;
 	PointLink* _pointLink;
 
-	void DrawNodes(graph::Engine& engine, D3DXVECTOR3* vBuf, unsigned triCnt, const D3DXCOLOR& color);
+	void DrawNodes(graph::Engine& engine, glm::vec3* vBuf, unsigned triCnt, const glm::vec4& color);
 protected:
 	virtual void DoRender(graph::Engine& engine);
 public:
