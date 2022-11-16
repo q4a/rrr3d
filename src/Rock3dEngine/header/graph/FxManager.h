@@ -488,6 +488,7 @@ public:
 	FxPhysicsParticle(): pxActor(0) {}
 };
 
+/*
 class FxPhysicsEmitter: public FxEmitter
 {
 public:
@@ -504,6 +505,7 @@ public:
 	px::Scene* GetPxScene();
 	void SetPxScene(px::Scene* value);
 };
+*/
 
 }
 
