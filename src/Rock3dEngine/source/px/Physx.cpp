@@ -1945,9 +1945,9 @@ void Actor::WorldToLocalPos(const glm::vec3& inValue, glm::vec3& outValue, bool 
 	outValue = inValue;
 }
 
-BoxShape& Actor::AddBBShape(const AABB& aabb, const NxBoxShapeDesc& desc)
+BoxShape& Actor::AddBBShape(const AABB& aabb) //, const NxBoxShapeDesc& desc)
 {
-	NxBoxShapeDesc descShape = desc;
+	NxBoxShapeDesc descShape = NxBoxShapeDesc(); // desc;
 	glm::vec3 sizes = aabb.GetSizes();
 	sizes /= 2.0f;
 	glm::vec3 pos = aabb.GetCenter();

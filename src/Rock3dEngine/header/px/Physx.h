@@ -261,11 +261,13 @@ private:
 	bool _delayInitialization;
 
 	void SetNxShape(NxShape* value);
+public:
+	void ReloadNxShape(bool allowInitialization = false);
 protected:
 	void SetType(ShapeType value);
 	//
 	virtual NxShapeDesc* CreateDesc() = 0;
-	void ReloadNxShape(bool allowInitialization = false);
+//	void ReloadNxShape(bool allowInitialization = false);
 
 	glm::vec3 TransformLocalPos(const glm::vec3& inValue);
 	void SyncPos();
@@ -670,7 +672,7 @@ public:
 	void LocalToWorldPos(const glm::vec3& inValue, glm::vec3& outValue, bool nxActorSpace = false);
 	void WorldToLocalPos(const glm::vec3& inValue, glm::vec3& outValue, bool nxActorSpace = false);
 
-	BoxShape& AddBBShape(const AABB& aabb, const NxBoxShapeDesc& desc = NxBoxShapeDesc());
+	BoxShape& AddBBShape(const AABB& aabb); //, const NxBoxShapeDesc& desc = NxBoxShapeDesc());
 
 	ActorUser* GetOwner();
 
