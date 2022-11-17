@@ -112,7 +112,6 @@ public:
 	static const int cDefMatInd;
 
 	static Actor* GetActorFromNx(NxActor* actor);
-	static Actor* GetActorFromNxShape(NxShape* shape);
 private:
 	Manager* _manager;
 	ContactModify* _contactModify;

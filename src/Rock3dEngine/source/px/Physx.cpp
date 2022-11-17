@@ -190,11 +190,6 @@ Actor* Scene::GetActorFromNx(NxActor* actor)
 	return actor->userData ? reinterpret_cast<Actor*>(actor->userData) : 0;
 }
 
-Actor* Scene::GetActorFromNxShape(NxShape* shape)
-{
-	return GetActorFromNx(&shape->getActor());
-}
-
 void Scene::CreateGroundPlane()
 {
 	/*NxPlaneShapeDesc planeShape;
