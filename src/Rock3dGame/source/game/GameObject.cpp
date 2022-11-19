@@ -194,23 +194,6 @@ void GameObject::OnSleep()
 	SetBodyProgressEvent(false);
 }
 
-void GameObject::RayCastClosestActor(const glm::vec3& rayStart, const glm::vec3& rayDir, NxShapesType shapesType, RayCastHit& hit, unsigned groups, unsigned mask, float maxDist)
-{
-	NxRaycastHit nxHit;
-	hit.gameActor = 0;
-
-	NxGroupsMask nxMask;
-	nxMask.bits0 = mask;
-	nxMask.bits1 = 0;
-	nxMask.bits2 = 0;
-	nxMask.bits3 = 0;
-
-	if (NxShape* shape = GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(NxRay(glm::value_ptr(rayStart), glm::value_ptr(rayDir)), shapesType, nxHit, groups, maxDist, 0xFFFFFFFF, mask > 0 ? &nxMask : 0))
-		hit.gameActor = GetGameObjFromShape(shape);
-
-	hit.distance = nxHit.distance;
-}
-
 void GameObject::DoDeath(DamageType damageType, GameObject* target)
 {
 	_liveState = lsDeath;

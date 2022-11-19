@@ -138,8 +138,6 @@ protected:
 
 	virtual void OnImmortalStatus(bool status) {}
 
-	void RayCastClosestActor(const glm::vec3& rayStart, const glm::vec3& rayDir, NxShapesType shapesType, RayCastHit& hit, unsigned groups = 0xFFFFFFFF, unsigned mask = 0, float maxDist = NX_MAX_F32);
-
 	void DoDeath(DamageType damageType = dtSimple, GameObject* target = NULL);
 	void SendDeath(DamageType damageType = dtSimple, GameObject* target = NULL);
 
