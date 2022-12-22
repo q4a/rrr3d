@@ -102,49 +102,54 @@ namespace r3d
 
 			void FinishMenu::OnInvalidate()
 			{
-				//показывать результаты, только если гонка была завершена как следует, без скипов.
-				if (!menu()->GetPlayer()->GetAutoSkip())
-				{
-					const Race::Results& results = menu()->GetRace()->GetResults();
-					_playerCount = std::min(results.size(), static_cast<unsigned>(cBoxCount));
-
-					for (unsigned i = 0; i < cBoxCount; ++i)
+					//показывать результаты, только если гонка была завершена как следует, без скипов.
+					if (menu()->GetPlayer() && !menu()->GetPlayer()->GetAutoSkip())
 					{
-						Box& box = _boxes[i];
+						const Race::Results& results = menu()->GetRace()->GetResults();
+						_playerCount = std::min(results.size(), static_cast<unsigned>(cBoxCount));
 
-						if (i < results.size())
+						for (unsigned i = 0; i < cBoxCount; ++i)
 						{
-							const Race::Result& result = results[i];
+							Box& box = _boxes[i];
 
-							Player* player = menu()->GetRace()->GetPlayerById(result.playerId);
-							if (player == nullptr || player->GetGamerId() >= SPECTATOR_ID_BEGIN)
+							if (i < results.size())
 							{
-								box.leftFrame->SetVisible(false);
-								continue;
+								const Race::Result& result = results[i];
+
+								Player* player = menu()->GetRace()->GetPlayerById(result.playerId);
+								if (player == nullptr || player->GetGamerId() >= SPECTATOR_ID_BEGIN)
+								{
+									box.leftFrame->SetVisible(false);
+									continue;
+								}
+
+								box.leftFrame->SetVisible(_time == -1.0f);
+
+								box.photo->GetMaterial().GetSampler().SetTex(player->GetPhoto());
+								box.photo->SetSize(menu()->StretchImage(box.photo->GetMaterial(),
+									D3DXVECTOR2(198.0f, 193.0f), true, false, true,
+									false));
+
+								box.labels[mlName]->SetText(GetString(player->GetName()));
+
+								if (result.pickMoney > 0)
+									box.labels[mlPriceVal]->SetText(
+										StrFmt("%d + %d\n%d", result.money, result.pickMoney, result.points));
+								else
+									box.labels[mlPriceVal]->SetText(StrFmt("%d\n%d", result.money, result.points));
+
+								box.duration = result.voiceNameDur;
+								box.plrId = result.playerId;
 							}
-
-							box.leftFrame->SetVisible(_time == -1.0f);
-
-							box.photo->GetMaterial().GetSampler().SetTex(player->GetPhoto());
-							box.photo->SetSize(menu()->StretchImage(box.photo->GetMaterial(),
-							                                        D3DXVECTOR2(198.0f, 193.0f), true, false, true,
-							                                        false));
-
-							box.labels[mlName]->SetText(GetString(player->GetName()));
-
-							if (result.pickMoney > 0)
-								box.labels[mlPriceVal]->SetText(
-									StrFmt("%d + %d\n%d", result.money, result.pickMoney, result.points));
 							else
-								box.labels[mlPriceVal]->SetText(StrFmt("%d\n%d", result.money, result.points));
-
-							box.duration = result.voiceNameDur;
-							box.plrId = result.playerId;
+								box.leftFrame->SetVisible(false);
 						}
-						else
-							box.leftFrame->SetVisible(false);
 					}
-				}
+					else
+					{
+						menu()->OnFinishClose();
+					}
+				
 			}
 
 			bool FinishMenu::OnMouseClickEvent(const MouseClick& mClick)

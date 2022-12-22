@@ -8,12 +8,8 @@ namespace r3d
 {
 	namespace game
 	{
-		extern bool TEST_BUILD = false;
-		extern bool EDIT_MODE = false;
 		extern int CAM_FOV = 75;
-		extern unsigned int HUD_STYLE = 1;
 		extern unsigned int MM_STYLE = 6;
-		extern float ISOCAM_DIST = 1.5f;
 		extern unsigned int lapsRest = 0;
 		extern unsigned int lapRestFix = 1;
 		extern float X_VPSIZE = 0.0f;
@@ -23,18 +19,6 @@ namespace r3d
 		extern float MMAP_OFFSET_X = 320.0f;
 		extern float MMAP_OFFSET_Y = 0.0f;
 		extern float FIX_OFFSET = 5.0f;
-		extern float LOCAL_XPOS_HYPERITEM = 30.0f;
-		extern float LOCAL_YPOS_HYPERITEM = 32.0f;
-		extern float LOCAL_XPOS_MINEITEM = 30.0f;;
-		extern float LOCAL_YPOS_MINEITEM = 140.0f;
-		extern float LOCAL_YPOS_WEAPONITEM = 50.0f;
-		extern float LOCAL_XPOS_WEAPONITEM = 155.0f;
-		extern float LOCAL_XPOS_WPN_BOX_ITEM = 5.0f;
-		extern float LOCAL_YPOS_WPN_BOX_ITEM = -15.0f;
-		extern float GUN2_OFFSET = 0.0f;
-		extern float GUN3_OFFSET = 0.0f;
-		extern float GUN4_OFFSET = 0.0f;
-		extern float LL_OFFSET = 0.0f;
 		extern int WEAPON_INDEXX = 0;
 		extern unsigned int L_COLORINDEX = 1;
 		extern unsigned int R_COLORINDEX = 1;
@@ -43,15 +27,19 @@ namespace r3d
 		extern bool GAME_PAUSED = false;
 		extern float CRATER_POSX = 0.0f;
 		extern float CRATER_POSY = 0.0f;
-		extern float CRATER_POSZ = 0.0f;
+		extern float CRATER_POSZ = 0.0f; 
+		extern float S_CRATER_POSX = 0.0f;
+		extern float S_CRATER_POSY = 0.0f;
+		extern float S_CRATER_POSZ = 0.0f;
 		extern bool CRATER_SPAWN = false;
-		extern bool DOUBLE_JUMP = true;
+		extern bool S_CRATER_SPAWN = false;
 		extern int SPECTATOR_ID_BEGIN = 11;
 		extern unsigned int SPECTATORS_COUNT = 0;
 		extern unsigned int TOTALPLAYERS_COUNT = 0;
 		extern bool DIVISION_END = false;
 		extern bool DLG_ONSHOW = false;
 		extern int DLG_ITTER = 0;
+		extern bool EDITMODE;
 
 		const std::string Achievment::cStateStr[cStateEnd] = {"asLocked", "asUnlocked", "asOpened"};
 
@@ -405,7 +393,7 @@ namespace r3d
 					{
 						++_bonusCount;
 
-						if (_bonusCount >= _bonusTotalCount && HUD_STYLE < 3)
+						if (_bonusCount >= _bonusTotalCount)
 						{
 							CompleteIteration();
 							_bonusCount = 0;
@@ -469,7 +457,7 @@ namespace r3d
 			{
 			case cPlayerKill:
 				{
-					if (++_curKills >= _killsNum && HUD_STYLE < 3)
+					if (++_curKills >= _killsNum)
 					{
 						_curKills = 0;
 						_time = 0;
@@ -555,7 +543,7 @@ namespace r3d
 			{
 			case cMineKill:
 				{
-					if (++_curKillz >= _killzNum && HUD_STYLE < 3)
+					if (++_curKillz >= _killzNum)
 					{
 						_curKillz = 0;
 						_timez = 0;
@@ -633,7 +621,7 @@ namespace r3d
 			{
 			case cPlayerKill:
 				{
-					if (++_curKills >= _killsNum && HUD_STYLE < 3)
+					if (++_curKills >= _killsNum)
 					{
 						_curKills = 0;
 						CompleteIteration();
@@ -694,7 +682,7 @@ namespace r3d
 
 			case cRaceFinish:
 				{
-					if (_lapCount >= owner()->race()->GetTournament().GetCurTrack().GetLapsCount() && HUD_STYLE < 3)
+					if (_lapCount >= owner()->race()->GetTournament().GetCurTrack().GetLapsCount())
 						CompleteIteration();
 					break;
 				}
@@ -760,7 +748,7 @@ namespace r3d
 
 			case cRacePassLap:
 				{
-					if (_damage == 0 && owner()->player()->GetCar().numLaps == 1 && HUD_STYLE < 3)
+					if (_damage == 0 && owner()->player()->GetCar().numLaps == 1)
 						CompleteIteration();
 					_damage = 0;
 					break;
@@ -791,7 +779,7 @@ namespace r3d
 					unsigned numLaps = owner()->race()->GetTournament().GetCurTrack().GetLapsCount();
 
 					if (owner()->player()->GetCar().numLaps >= numLaps && _place - newPlace >= static_cast<int>(owner()
-						->race()->GetPlayerList().size()) - 1 && HUD_STYLE < 3)
+						->race()->GetPlayerList().size()) - 1)
 						CompleteIteration();
 
 					_place = newPlace;
@@ -826,7 +814,7 @@ namespace r3d
 			case cRacePassLap:
 				{
 					if (!owner()->race()->GetSurvivalMode() && owner()->player()->GetCar().numLaps == owner()->race()->
-						GetTournament().GetCurTrack().GetLapsCount() - 1 && _curDeaths == 0 && HUD_STYLE < 3)
+						GetTournament().GetCurTrack().GetLapsCount() - 1 && _curDeaths == 0)
 						CompleteIteration();
 					break;
 				}
@@ -863,7 +851,7 @@ namespace r3d
 			case cRacePassLap:
 				{
 					if (owner()->player()->GetCar().numLaps == owner()->race()->GetTournament().GetCurTrack().
-					                                                    GetLapsCount() - 1 && HUD_STYLE == 4)
+					                                                    GetLapsCount() - 1)
 						CompleteIteration();
 					break;
 				}
@@ -886,7 +874,7 @@ namespace r3d
 			{
 			case cPlayerKill:
 				{
-					if (data && data->playerId == Race::cHuman && _curKills == 0 && HUD_STYLE < 3)
+					if (data && data->playerId == Race::cHuman && _curKills == 0)
 						CompleteIteration();
 					++_curKills;
 					break;
@@ -907,7 +895,7 @@ namespace r3d
 				{
 					auto myData = static_cast<Player::MyEventData*>(data);
 					if ((myData->damageType == GameObject::dtTouch || myData->damageType == GameObject::dtDeathPlane) &&
-						myData->targetPlayerId == Race::cHuman && myData->playerId != Race::cHuman && HUD_STYLE < 3)
+						myData->targetPlayerId == Race::cHuman && myData->playerId != Race::cHuman)
 						CompleteIteration();
 					break;
 				}

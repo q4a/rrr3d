@@ -1,14 +1,12 @@
 #include "stdafx.h"
-#include "game/World.h"
+#include "game\World.h"
 
-#include "game/HumanPlayer.h"
+#include "game\HumanPlayer.h"
 
 namespace r3d
 {
 	namespace game
 	{
-		extern bool UnlimitedTurn = false;
-		extern float TurnForce = 1.0f;
 
 		HumanPlayer::HumanPlayer(Player* player): _player(player), _curWeapon(0)
 		{
@@ -33,9 +31,7 @@ namespace r3d
 			_player->Release();
 		}
 
-		HumanPlayer::Control::Control(HumanPlayer* owner): _owner(owner), _accelDown(false), _backDown(false),
-		                                                   _brakeDown(false), _rapidDown(false), _easyDown(false),
-		                                                   _leftDown(false), _rightDown(false)
+		HumanPlayer::Control::Control(HumanPlayer* owner): _owner(owner), _accelDown(false), _backDown(false), _brakeDown(false), _rapidDown(false), _easyDown(false), _leftDown(false), _rightDown(false), _accelDownSec(false), _backDownSec(false), _brakeDownSec(false), _rapidDownSec(false), _easyDownSec(false), _leftDownSec(false), _rightDownSec(false)
 		{
 		}
 
@@ -62,652 +58,29 @@ namespace r3d
 					_leftDown = msg.state == ksDown;
 				if (msg.action == gaWheelRight)
 					_rightDown = msg.state == ksDown;
+				
+				/// //////////////////////
+				if (msg.action == gaAccelSec)
+					_accelDownSec = msg.state == ksDown;
+				if (msg.action == gaBackSec)
+					_backDownSec = msg.state == ksDown;
+				if (msg.action == gaBreakSec)
+					_brakeDownSec = msg.state == ksDown;
+
+				if (msg.action == gaRapidModeSec)
+					_rapidDownSec = msg.state == ksDown;
+				if (msg.action == gaEasyModeSec)
+					_easyDownSec = msg.state == ksDown;
+
+
+				if (msg.action == gaWheelLeftSec)
+					_leftDownSec = msg.state == ksDown;
+				if (msg.action == gaWheelRightSec)
+					_rightDownSec = msg.state == ksDown;
 			}
 
 			Player* player = _owner->_player;
-
-			if (_owner->GetPlayer() != nullptr && _owner->GetPlayer()->IsSpectator() && _owner->GetPlayer()->InRace() ==
-				true)
-			{
-				if (msg.action == gaShot1 && msg.state == ksDown && !msg.repeat)
-				{
-					if (_owner->GetRace()->GetWorld()->GetCamera()->InFly() == false)
-					{
-						_owner->GetRace()->GetWorld()->GetCamera()->ChangeStyle(CameraManager::csAutoObserver);
-						return true;
-					}
-					return false;
-				}
-
-				if (msg.action == gaShot2 && msg.state == ksDown && !msg.repeat)
-				{
-					if (_owner->GetRace()->GetWorld()->GetCamera()->InFly() == false)
-					{
-						_owner->GetRace()->GetWorld()->GetCamera()->ChangeStyle(CameraManager::csIsometric);
-						return true;
-					}
-					return false;
-				}
-
-				if (msg.action == gaShot3 && msg.state == ksDown && !msg.repeat)
-				{
-					if (_owner->GetRace()->GetWorld()->GetCamera()->InFly() == false)
-					{
-						_owner->GetRace()->GetWorld()->GetCamera()->ChangeStyle(CameraManager::csThirdPerson);
-						return true;
-					}
-					return false;
-				}
-
-				if (msg.action == gaShot4 && msg.state == ksDown && !msg.repeat)
-				{
-					if (_owner->GetRace()->GetWorld()->GetCamera()->InFly() == false)
-					{
-						_owner->GetRace()->GetWorld()->GetCamera()->ChangeStyle(CameraManager::csFreeView);
-						return true;
-					}
-					return false;
-				}
-
-				if (msg.action == gaShotAll && msg.state == ksDown && !msg.repeat)
-				{
-					//подтянуть свободную камеру к игроку
-					if (_owner->GetRace()->GetWorld()->GetCamera()->GetStyle() == CameraManager::csFreeView)
-					{
-						if (_owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetCar().gameObj != nullptr)
-						{
-							D3DXQUATERNION targetRot = _owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetCar()
-							                                 .gameObj->GetRot();
-							D3DXVECTOR3 targetPos = _owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetCar().
-							                                gameObj->GetWorldPos();
-							_owner->GetRace()->GetWorld()->GetCamera()->FlyTo(targetPos, targetRot, 5.0f, true, true);
-							return true;
-						}
-						return false;
-					}
-				}
-
-				if (msg.action == gaHyper && msg.state == ksDown && !msg.repeat)
-				{
-					//быстро подтянуть свободную камеру к игроку
-					if (_owner->GetRace()->GetWorld()->GetCamera()->GetStyle() == CameraManager::csFreeView)
-					{
-						if (_owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetCar().gameObj != nullptr)
-						{
-							D3DXQUATERNION targetRot = _owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetCar()
-							                                 .gameObj->GetRot();
-							D3DXVECTOR3 targetPos = _owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetCar().
-							                                gameObj->GetWorldPos();
-							_owner->GetRace()->GetWorld()->GetCamera()->FlyTo(targetPos, targetRot, 1.0f, true, true);
-							return true;
-						}
-						return false;
-					}
-				}
-
-				if (msg.action == gaResetCar && msg.state == ksDown && !msg.repeat)
-				{
-					//полурандомный полёт свободной камеры
-					if (_owner->GetRace()->GetWorld()->GetCamera()->GetStyle() == CameraManager::csFreeView)
-					{
-						if (_owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetCar().gameObj != nullptr)
-						{
-							D3DXQUATERNION targetRot = _owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetCar()
-							                                 .gameObj->GetRot();
-							_owner->GetRace()->GetWorld()->GetCamera()->FlyTo(
-								D3DXVECTOR3(RandomRange(-100.0f, 100.0f), RandomRange(-100.0f, 100.0f),
-								            RandomRange(0.0f, 40.0f)), targetRot, 5.0f, false, true);
-							return true;
-						}
-						return false;
-					}
-					return false;
-				}
-
-				if (msg.action == gaBreak && msg.state == ksDown && !msg.repeat)
-				{
-					//остановить полёт свободной камеры:
-					if (_owner->GetRace()->GetWorld()->GetCamera()->GetStyle() == CameraManager::csFreeView)
-					{
-						if (_owner->GetRace()->GetWorld()->GetCamera()->InFly())
-						{
-							_owner->GetRace()->GetWorld()->GetCamera()->StopFly();
-							return true;
-						}
-						return false;
-					}
-				}
-
-				if (msg.action == gaRapidMode && msg.state == ksDown && !msg.repeat)
-				{
-					_owner->GetRace()->GetWorld()->GetGame()->gameMusic()->Next();
-					return true;
-				}
-
-				if (msg.action == gaEasyMode && msg.state == ksDown && !msg.repeat)
-				{
-					_owner->GetRace()->GetWorld()->GetGame()->gameMusic()->Pause(true);
-					return true;
-				}
-
-				//следующий бот
-				if (msg.action == gaAccel && msg.state == ksDown && !msg.repeat)
-				{
-					Player* current = _owner->GetRace()->GetWorld()->GetCamera()->GetPlayer();
-					if (current->IsComputer())
-					{
-						if (current->GetId() == _owner->GetRace()->GetPlayerById(Race::cComputer1)->GetId())
-						{
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer2) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer2)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer2));
-								return true;
-							}
-							return false;
-						}
-
-						if (current->GetId() == _owner->GetRace()->GetPlayerById(Race::cComputer2)->GetId())
-						{
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer3) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer3)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer3));
-								return true;
-							}
-							return false;
-						}
-
-						if (current->GetId() == _owner->GetRace()->GetPlayerById(Race::cComputer3)->GetId())
-						{
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer4) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer4)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer4));
-								return true;
-							}
-							return false;
-						}
-
-						if (current->GetId() == _owner->GetRace()->GetPlayerById(Race::cComputer4)->GetId())
-						{
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer5) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer5)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer5));
-								return true;
-							}
-							return false;
-						}
-
-						if (current->GetId() == _owner->GetRace()->GetPlayerById(Race::cComputer5)->GetId())
-						{
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer1) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer1)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer1));
-								return true;
-							}
-							return false;
-						}
-					}
-					else
-					{
-						//по-умолчанию переключаемся на босса
-						if (_owner->GetRace()->GetPlayerById(Race::cComputer1) != nullptr && _owner->GetRace()->
-							GetPlayerById(Race::cComputer1)->IsGamer())
-						{
-							_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-								_owner->GetRace()->GetPlayerById(Race::cComputer1));
-							return true;
-						}
-						return false;
-					}
-				}
-
-				//предыдущий бот
-				if (msg.action == gaBack && msg.state == ksDown && !msg.repeat)
-				{
-					Player* current = _owner->GetRace()->GetWorld()->GetCamera()->GetPlayer();
-					if (current->IsComputer())
-					{
-						if (current->GetId() == _owner->GetRace()->GetPlayerById(Race::cComputer1)->GetId())
-						{
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer5) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer5)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer5));
-								return true;
-							}
-							return false;
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer4) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer4)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer4));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer3) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer3)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer3));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer2) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer2)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer2));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-							return false;
-						}
-
-						if (current->GetId() == _owner->GetRace()->GetPlayerById(Race::cComputer2)->GetId())
-						{
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer1) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer1)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer1));
-								return true;
-							}
-							return false;
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer5) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer5)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer5));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer4) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer4)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer4));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer3) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer3)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer3));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-							return false;
-						}
-
-
-						if (current->GetId() == _owner->GetRace()->GetPlayerById(Race::cComputer3)->GetId())
-						{
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer2) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer2)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer2));
-								return true;
-							}
-							return false;
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer1) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer1)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer1));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer5) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer5)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer5));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer4) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer4)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer4));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer3) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer3)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer3));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-							return false;
-						}
-
-						if (current->GetId() == _owner->GetRace()->GetPlayerById(Race::cComputer4)->GetId())
-						{
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer3) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer3)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer3));
-								return true;
-							}
-							return false;
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer2) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer2)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer2));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer1) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer1)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer1));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer5) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer5)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer5));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							return false;
-						}
-
-						if (current->GetId() == _owner->GetRace()->GetPlayerById(Race::cComputer5)->GetId())
-						{
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer4) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer4)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer4));
-								return true;
-							}
-							return false;
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer3) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer3)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer3));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer2) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer2)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer2));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-
-							if (_owner->GetRace()->GetPlayerById(Race::cComputer1) != nullptr && _owner->GetRace()->
-								GetPlayerById(Race::cComputer1)->IsGamer())
-							{
-								_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-									_owner->GetRace()->GetPlayerById(Race::cComputer1));
-								return true;
-							}
-							else
-							{
-								return false;
-							}
-							return false;
-						}
-					}
-					else
-					{
-						//по-умолчанию переключаемся на босса
-						if (_owner->GetRace()->GetPlayerById(Race::cComputer1) != nullptr && _owner->GetRace()->
-							GetPlayerById(Race::cComputer1)->IsGamer())
-						{
-							_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-								_owner->GetRace()->GetPlayerById(Race::cComputer1));
-							return true;
-						}
-						return false;
-					}
-				}
-
-				//предыдущий актор
-				if (msg.action == gaWheelLeft && msg.state == ksDown && !msg.repeat)
-				{
-					unsigned int curID = _owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetNetSlot();
-					unsigned int prevID = curID - 1;
-
-					if (_owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->IsComputer())
-					{
-						if (_owner->GetRace()->GetPlayerById(Race::cHuman) != nullptr && _owner->GetRace()->
-							GetPlayerById(Race::cHuman)->IsGamer())
-						{
-							_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-								_owner->GetRace()->GetPlayerById(Race::cHuman));
-							return true;
-						}
-						if (_owner->GetRace()->GetPlayerById(Race::cOpponent1) != nullptr && _owner->GetRace()->
-							GetPlayerById(Race::cOpponent1)->IsGamer())
-						{
-							_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-								_owner->GetRace()->GetPlayerById(Race::cOpponent1));
-							return true;
-						}
-
-						if (_owner->GetRace()->GetPlayerById(Race::cOpponent2) != nullptr && _owner->GetRace()->
-							GetPlayerById(Race::cOpponent2)->IsGamer())
-						{
-							_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-								_owner->GetRace()->GetPlayerById(Race::cOpponent2));
-							return true;
-						}
-
-						if (_owner->GetRace()->GetPlayerById(Race::cOpponent3) != nullptr && _owner->GetRace()->
-							GetPlayerById(Race::cOpponent3)->IsGamer())
-						{
-							_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-								_owner->GetRace()->GetPlayerById(Race::cOpponent3));
-							return true;
-						}
-						return false;
-					}
-
-					if (prevID > 0)
-					{
-						//если предыдущий актор существует и не является наблюдателем, то переключаемся на него.
-						if (_owner->GetRace()->GetPlayerByNetSlot(prevID) != nullptr && _owner->GetRace()->
-							GetPlayerByNetSlot(prevID)->IsGamer())
-							_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-								_owner->GetRace()->GetPlayerByNetSlot(prevID));
-						else
-						{
-							if (prevID > 1)
-							{
-								prevID -= 1;
-								if (_owner->GetRace()->GetPlayerByNetSlot(prevID) != nullptr && _owner->GetRace()->
-									GetPlayerByNetSlot(prevID)->IsGamer())
-									_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-										_owner->GetRace()->GetPlayerByNetSlot(prevID));
-								else
-								{
-									if (prevID > 1)
-									{
-										prevID -= 1;
-										if (_owner->GetRace()->GetPlayerByNetSlot(prevID) != nullptr && _owner->
-											GetRace()->GetPlayerByNetSlot(prevID)->IsGamer())
-											_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-												_owner->GetRace()->GetPlayerByNetSlot(prevID));
-										else
-										{
-											if (prevID > 1)
-											{
-												prevID -= 1;
-												if (_owner->GetRace()->GetPlayerByNetSlot(prevID) != nullptr && _owner->
-													GetRace()->GetPlayerByNetSlot(prevID)->IsGamer())
-													_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-														_owner->GetRace()->GetPlayerByNetSlot(prevID));
-												else
-												{
-													if (prevID > 1)
-													{
-														prevID -= 1;
-														if (_owner->GetRace()->GetPlayerByNetSlot(prevID) != nullptr &&
-															_owner->GetRace()->GetPlayerByNetSlot(prevID)->IsGamer())
-															_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-																_owner->GetRace()->GetPlayerByNetSlot(prevID));
-													}
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-					return true;
-				}
-
-				//следующий актор
-				if (msg.action == gaWheelRight && msg.state == ksDown && !msg.repeat)
-				{
-					unsigned int curID = _owner->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetNetSlot();
-					unsigned int nextID = curID + 1;
-
-					if (nextID < 9)
-					{
-						//если следующий актор существует и не является наблюдателем, то переключаемся на него.
-						if (_owner->GetRace()->GetPlayerByNetSlot(nextID) != nullptr && _owner->GetRace()->
-							GetPlayerByNetSlot(nextID)->IsGamer())
-							_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-								_owner->GetRace()->GetPlayerByNetSlot(nextID));
-						else
-						{
-							if (nextID < 8)
-							{
-								nextID += 1;
-								if (_owner->GetRace()->GetPlayerByNetSlot(nextID) != nullptr && _owner->GetRace()->
-									GetPlayerByNetSlot(nextID)->IsGamer())
-									_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-										_owner->GetRace()->GetPlayerByNetSlot(nextID));
-								else
-								{
-									if (nextID < 8)
-									{
-										nextID += 1;
-										if (_owner->GetRace()->GetPlayerByNetSlot(nextID) != nullptr && _owner->
-											GetRace()->GetPlayerByNetSlot(nextID)->IsGamer())
-											_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-												_owner->GetRace()->GetPlayerByNetSlot(nextID));
-										else
-										{
-											if (nextID < 8)
-											{
-												nextID += 1;
-												if (_owner->GetRace()->GetPlayerByNetSlot(nextID) != nullptr && _owner->
-													GetRace()->GetPlayerByNetSlot(nextID)->IsGamer())
-													_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-														_owner->GetRace()->GetPlayerByNetSlot(nextID));
-												else
-												{
-													if (nextID < 8)
-													{
-														nextID += 1;
-														if (_owner->GetRace()->GetPlayerByNetSlot(nextID) != nullptr &&
-															_owner->GetRace()->GetPlayerByNetSlot(nextID)->IsGamer())
-															_owner->GetRace()->GetWorld()->GetCamera()->SetPlayer(
-																_owner->GetRace()->GetPlayerByNetSlot(nextID));
-													}
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-					return true;
-				}
-			}
-
+				
 			MapObj* mapObj = _owner->_player->GetCar().mapObj;
 			if (mapObj == nullptr)
 				return false;
@@ -724,61 +97,57 @@ namespace r3d
 			if (!player->InRace())
 				return false;
 
-			if (_owner->GetPlayer()->GetShotFreeze() == false && GAME_PAUSED == false && msg.action == gaShotAll && msg.
-				state == ksDown && !msg.repeat)
-			{
-				GameCar* car = _owner->GetPlayer()->GetCar().gameObj;
-				//фикс для молотова в сетевой (чтобы патроны не тратились в холостую):
-				if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon2) && _owner->GetPlayer()->
-					GetSlotInst(Player::stWeapon2)->GetItem().GetName() == "scMolotov")
-				{
-					if (car->IsWheelsContact() == false)
-					{
-						_owner->Shot();
-					}
-					else
-					{
-						if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon1))
-							_owner->Shot(stWeapon1);
-						if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon3))
-							_owner->Shot(stWeapon3);
-					}
-				}
-				else
-				{
-					_owner->Shot();
-				}
-				return true;
-			}
 
 			if (msg.action == gaResetCar && msg.state == ksDown && !msg.repeat && GAME_PAUSED == false)
-			{
+			{				
 				_owner->ResetCar();
 				return true;
 			}
 
-			//second jump
-			if (DOUBLE_JUMP == false && msg.action == gaHyper && msg.state == ksDown && !msg.repeat && _owner->
-				GetPlayer()->GetSlotInst(Player::stHyper))
+			if (msg.action == gaResetCarSec && msg.state == ksDown && !msg.repeat && GAME_PAUSED == false)
 			{
-				if (_owner->GetPlayer()->GetSlotInst(Player::stHyper)->GetItem().IsWeaponItem()->GetCurCharge() <= 0)
+				_owner->ResetCarSec();
+				return true;
+			}
+
+			if (msg.action == gaViewSwitchSec && msg.state == ksDown && !msg.repeat && GAME_PAUSED == false)
+			{
+
+				if (_owner->GetRace()->IsFriendship())
 				{
-					if (HUD_STYLE == 3)
+					Player* _SecondPlayer = _owner->GetRace()->GetPlayerById(Race::cOpponent1);
+					if (_SecondPlayer->InRace())
 					{
-						_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-						                              _owner->GetPlayer()->GetCar().gameObj,
-						                              GameObjListener::btEmpty, 1.0f, false);
+						//если включена блокировка камеры, то ставим второму игроку такую же камеру, как у первого игрока...
+						if (_SecondPlayer->GetRace()->GetGame()->CamLock() == true)
+						{
+							if (_owner->GetPlayer()->GetRace()->GetGame()->GetPrefCamera() == 0)
+								_SecondPlayer->SetIsometricView(false);							
+							else							
+								_SecondPlayer->SetIsometricView(true);							
+						}
+						else
+						{
+							//смена видов второй камеры
+							if (_SecondPlayer->GetIsometricView())
+								_SecondPlayer->SetIsometricView(false);
+							else
+								_SecondPlayer->SetIsometricView(true);
+						}
 					}
 				}
+				return true;
+			}
 
+			//second jump
+			if (msg.action == gaHyper && msg.state == ksDown && !msg.repeat && _owner->GetPlayer()->GetSlotInst(Player::stHyper) && _owner->GetPlayer()->GetFinished() == false)
+			{
 				//второй прыжок доступен после первого прыжка с задержкой, но только если он не на рампе.
-				if (_owner->GetPlayer()->inRamp() == false && _owner->GetPlayer()->GetDoubleJump() && _owner->
-					GetPlayer()->GetCar().gameObj->OnJump() && _owner->GetPlayer()->GetJumpTime() > 0.2f)
+				if (_owner->GetPlayer()->GetCar().gameObj->DoubleJumpIsActive() == false && _owner->GetPlayer()->inRamp() == false && _owner->GetPlayer()->GetDoubleJump() && _owner->GetPlayer()->GetCar().gameObj->OnJump() && _owner->GetPlayer()->GetJumpTime() > 0.2f)
 				{
 					if (_owner->GetPlayer()->GetSlotInst(Player::stHyper)->GetItem().IsWeaponItem()->GetCurCharge() > 0)
 					{
-						(_owner->GetPlayer()->GetSlotInst(Player::stHyper)->GetItem().IsWeaponItem()->
-						         MinusCurCharge(1));
+						(_owner->GetPlayer()->GetSlotInst(Player::stHyper)->GetItem().IsWeaponItem()->MinusCurCharge(1));
 						//если второй прыжок делается от преграды то он сильнее, чем в воздухе:
 						if (_owner->GetPlayer()->GetCar().gameObj->IsBodyContact())
 							_owner->GetPlayer()->GetCar().gameObj->GetPxActor().GetNxActor()->addForce(
@@ -786,28 +155,17 @@ namespace r3d
 						else
 							_owner->GetPlayer()->GetCar().gameObj->GetPxActor().GetNxActor()->addLocalForce(
 								NxVec3(0.0f, 0.0f, 10.0f), NX_SMOOTH_VELOCITY_CHANGE);
-						DOUBLE_JUMP = true;
+						_owner->GetPlayer()->GetCar().gameObj->DoubleJumpSetActive(true);
 					}
 				}
 			}
 
-			if (_owner->GetPlayer()->GetSlotInst(Player::stMine) && msg.action == gaMine && msg.state == ksDown && !msg.
-				repeat && control->GetGameActionInfo(msg.controller, gaMine).alphaMax == 0)
+			if (_owner->GetPlayer()->GetSlotInst(Player::stMine) && msg.action == gaMine && msg.state == ksDown && !msg.repeat && control->GetGameActionInfo(msg.controller, gaMine).alphaMax == 0)
 			{
 				Weapon* wpnMine = _owner->GetWeapon(stMine) ? _owner->GetWeapon(stMine)->GetWeapon() : nullptr;
 				if (wpnMine && !wpnMine->IsAutoMine())
 				{
-					if (_owner->GetPlayer()->GetSlotInst(Player::stMine)->GetItem().IsWeaponItem()->GetCurCharge() <= 0)
-					{
-						if (HUD_STYLE == 3)
-						{
-							_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-							                              _owner->GetPlayer()->GetCar().gameObj,
-							                              GameObjListener::btEmpty, 1.0f, false);
-						}
-					}
-
-					if (GAME_PAUSED == false && _owner->GetPlayer()->GetMineFreeze() == false)
+					if (GAME_PAUSED == false && _owner->GetPlayer()->GetMineFreeze() == false && _owner->GetPlayer()->GetFinished() == false)
 					{
 						if (_owner->GetPlayer()->GetSlotInst(Player::stMine)->GetItem().GetAutoShot() == true)
 						{
@@ -822,82 +180,8 @@ namespace r3d
 				return true;
 			}
 
-			if (_owner->GetPlayer()->GetShotFreeze() == false && msg.action == gaShot && msg.state == ksDown && !msg.
-				repeat)
-			{
-				GameCar* car = _owner->GetPlayer()->GetCar().gameObj;
-				if (GAME_PAUSED == false && _owner->GetPlayer()->GetSlotInst(Player::stWeapon1) && _owner->GetPlayer()->
-					GetSlotInst(Player::stWeapon1)->GetItem().GetAutoShot() == false)
-				{
-					if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon1)->GetItem().IsWeaponItem()->GetCurCharge() >
-						0)
-						_owner->SetCurWeapon(0);
-					else
-					{
-						if (HUD_STYLE == 3)
-						{
-							_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-							                              _owner->GetPlayer()->GetCar().gameObj,
-							                              GameObjListener::btEmpty, 1.0f, false);
-						}
-						if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon2) && _owner->GetPlayer()->
-							GetSlotInst(Player::stWeapon2)->GetItem().IsWeaponItem()->GetCurCharge() > 0)
-							_owner->SetCurWeapon(1);
-						else
-						{
-							if (HUD_STYLE == 3)
-							{
-								_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-								                              _owner->GetPlayer()->GetCar().gameObj,
-								                              GameObjListener::btEmpty, 1.0f, false);
-							}
-							if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon3) && _owner->GetPlayer()->
-								GetSlotInst(Player::stWeapon3)->GetItem().IsWeaponItem()->GetCurCharge() > 0)
-								_owner->SetCurWeapon(2);
-							else
-							{
-								if (HUD_STYLE == 3)
-								{
-									_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-									                              _owner->GetPlayer()->GetCar().gameObj,
-									                              GameObjListener::btEmpty, 1.0f, false);
-								}
 
-								if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon4) && _owner->GetPlayer()->
-									GetSlotInst(Player::stWeapon4)->GetItem().IsWeaponItem()->GetCurCharge() > 0)
-									_owner->SetCurWeapon(3);
-								else
-								{
-									if (HUD_STYLE == 3)
-									{
-										_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-										                              _owner->GetPlayer()->GetCar().gameObj,
-										                              GameObjListener::btEmpty, 1.0f, false);
-									}
-								}
-							}
-						}
-					}
-					if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon2) && _owner->GetPlayer()->
-						GetSlotInst(Player::stWeapon2)->GetItem().GetName() == "scMolotov")
-					{
-						if (car->IsWheelsContact() == false)
-						{
-							_owner->ShotCurrent();
-						}
-						else
-						{
-							if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon1))
-								_owner->Shot(stWeapon1);
-						}
-					}
-					else
-						_owner->ShotCurrent();
-					return true;
-				}
-			}
-
-			const unsigned weaponShotKeys[stWeapon4 - stWeapon1 + 1] = {gaShot1, gaShot2, gaShot3, gaShot4};
+			const unsigned weaponShotKeys[stWeapon4 - stWeapon1 + 1] = { gaShot1, gaShot2, gaShot3, gaShot4 };
 
 			for (unsigned i = stWeapon1; i <= stWeapon4; ++i)
 			{
@@ -906,26 +190,18 @@ namespace r3d
 				{
 					GameCar* car = _owner->GetPlayer()->GetCar().gameObj;
 					WeaponType weapon = _owner->GetWeaponByIndex(index);
-					if (weapon != cWeaponTypeEnd && _owner->GetPlayer()->GetShotFreeze() == false)
+					if (weapon != cWeaponTypeEnd && _owner->GetPlayer()->GetShotFreeze() == false && _owner->GetPlayer()->GetFinished() == false)
 					{
 						_owner->SetCurWeapon(index);
 
 						if (weapon == stWeapon2)
 						{
 							if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon2)->GetItem().IsWeaponItem()->
-							            GetCurCharge() > 0)
+								GetCurCharge() > 0)
 							{
 								_owner->SetCurWeapon(1);
 							}
-							else
-							{
-								if (HUD_STYLE == 3)
-								{
-									_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-									                              _owner->GetPlayer()->GetCar().gameObj,
-									                              GameObjListener::btEmpty, 1.0f, false);
-								}
-							}
+
 
 							//фикс для молотова в сетевой (чтобы патроны не тратились в холостую):
 							if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon2)->GetItem().GetName() == "scMolotov")
@@ -948,54 +224,27 @@ namespace r3d
 							if (weapon == stWeapon1)
 							{
 								if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon1)->GetItem().IsWeaponItem()->
-								            GetCurCharge() > 0)
+									GetCurCharge() > 0)
 								{
 									_owner->SetCurWeapon(0);
-								}
-								else
-								{
-									if (HUD_STYLE == 3)
-									{
-										_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-										                              _owner->GetPlayer()->GetCar().gameObj,
-										                              GameObjListener::btEmpty, 1.0f, false);
-									}
 								}
 							}
 
 							if (weapon == stWeapon3)
 							{
 								if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon3)->GetItem().IsWeaponItem()->
-								            GetCurCharge() > 0)
+									GetCurCharge() > 0)
 								{
 									_owner->SetCurWeapon(2);
-								}
-								else
-								{
-									if (HUD_STYLE == 3)
-									{
-										_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-										                              _owner->GetPlayer()->GetCar().gameObj,
-										                              GameObjListener::btEmpty, 1.0f, false);
-									}
 								}
 							}
 
 							if (weapon == stWeapon4)
 							{
 								if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon4)->GetItem().IsWeaponItem()->
-								            GetCurCharge() > 0)
+									GetCurCharge() > 0)
 								{
 									_owner->SetCurWeapon(3);
-								}
-								else
-								{
-									if (HUD_STYLE == 3)
-									{
-										_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-										                              _owner->GetPlayer()->GetCar().gameObj,
-										                              GameObjListener::btEmpty, 1.0f, false);
-									}
 								}
 							}
 						}
@@ -1004,14 +253,125 @@ namespace r3d
 				}
 			}
 
+			if (_owner->GetRace()->IsFriendship())
+			{
+				Player* _SecondPlayer = _owner->GetRace()->GetPlayerById(Race::cOpponent1);
+
+				if (_SecondPlayer == nullptr)
+					return false;
+
+				MapObj* mapObjS = _SecondPlayer->GetCar().mapObj;
+
+				if (mapObjS == nullptr)
+					return false;
+
+				if (_SecondPlayer->IsBlock())
+					return false;
+
+				if (!_SecondPlayer->InRace())
+					return false;
+
+				GameCar& gameObjS = mapObjS->GetGameObj<GameCar>();
+				if (_SecondPlayer->GetCar().gameObj && _SecondPlayer->GetFinished() == false)
+				{
+					if (msg.action == gaHyperSec && msg.state == ksDown && !msg.repeat && _SecondPlayer->GetSlotInst(Player::stHyper) && _SecondPlayer->GetFinished() == false)
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stHyper)->GetItem().IsWeaponItem()->GetCurCharge() <= 0)
+							_owner->GetLogic()->TakeBonus(_SecondPlayer->GetCar().gameObj, _SecondPlayer->GetCar().gameObj, GameObjListener::btEmpty, 1.0f, false);
+
+						//второй прыжок доступен после первого прыжка с задержкой, но только если он не на рампе.
+						if (_SecondPlayer->GetCar().gameObj->DoubleJumpIsActive() == false && _SecondPlayer->inRamp() == false && _SecondPlayer->GetDoubleJump() && _SecondPlayer->GetCar().gameObj->OnJump() && _SecondPlayer->GetJumpTime() > 0.2f)
+						{
+							if (_SecondPlayer->GetSlotInst(Player::stHyper)->GetItem().IsWeaponItem()->GetCurCharge() > 0)
+							{
+								(_SecondPlayer->GetSlotInst(Player::stHyper)->GetItem().IsWeaponItem()->MinusCurCharge(1));
+								//если второй прыжок делается от преграды то он сильнее, чем в воздухе:
+								if (_SecondPlayer->GetCar().gameObj->IsBodyContact())
+									_SecondPlayer->GetCar().gameObj->GetPxActor().GetNxActor()->addForce(
+										NxVec3(0.0f, 0.0f, 22.0f), NX_SMOOTH_VELOCITY_CHANGE);
+								else
+									_SecondPlayer->GetCar().gameObj->GetPxActor().GetNxActor()->addLocalForce(
+										NxVec3(0.0f, 0.0f, 10.0f), NX_SMOOTH_VELOCITY_CHANGE);
+								_SecondPlayer->GetCar().gameObj->DoubleJumpSetActive(true);
+							}
+						}
+					}
+				
+					if (_SecondPlayer->GetSlotInst(Player::stMine) && msg.action == gaMineSec && msg.state == ksDown && !msg.repeat && control->GetGameActionInfo(msg.controller, gaMineSec).alphaMax == 0)
+					{
+
+						Weapon* wpnMine = _owner->GetWeapon(stMine) ? _owner->GetWeapon(stMine)->GetWeapon() : nullptr;
+						if (wpnMine && !wpnMine->IsAutoMine())
+						{
+							if (GAME_PAUSED == false && _SecondPlayer->GetMineFreeze() == false && _SecondPlayer->GetFinished() == false)
+							{
+								if (_SecondPlayer->GetSlotInst(Player::stMine)->GetItem().GetAutoShot() == true)
+								{
+									if (_SecondPlayer->GetMasloDrop() || (_SecondPlayer->GetCar().gameObj->
+										IsWheelsContact()))
+										_owner->Shot2(stMine);
+								}
+								else
+									_owner->Shot2(stMine);
+							}
+						}
+						return true;
+					}
+
+
+					if (msg.action == gaShot1Sec && msg.state == ksDown && !msg.repeat && _SecondPlayer->GetSlotInst(Player::stWeapon1) && _SecondPlayer->GetFinished() == false)
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon1)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _SecondPlayer->GetSlotInst(Player::stWeapon1)->GetItem().GetAutoShot() == false)
+							_owner->Shot2(stWeapon1);
+					}
+
+
+					if (msg.action == gaShot2Sec && msg.state == ksDown && !msg.repeat && _SecondPlayer->GetSlotInst(Player::stWeapon2) && _SecondPlayer->GetFinished() == false)
+					{
+
+						if (_SecondPlayer->GetCar().gameObj && _SecondPlayer->GetSlotInst(Player::stWeapon2)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _SecondPlayer->GetSlotInst(Player::stWeapon2)->GetItem().GetAutoShot() == false)
+						{
+							//фикс для молотова в сетевой (чтобы патроны не тратились в холостую):
+							if (_SecondPlayer->GetSlotInst(Player::stWeapon2)->GetItem().GetName() == "scMolotov")
+							{
+								if (_SecondPlayer->GetCar().gameObj->IsWheelsContact() == false)								
+									_owner->Shot2(stWeapon2);								
+							}
+							else
+							{
+								if (_SecondPlayer->GetSlotInst(Player::stWeapon2)->GetItem().GetName() != "scFireGun")
+									_owner->Shot2(stWeapon2);
+								
+							}
+						}		
+					}
+
+
+					if (msg.action == gaShot3Sec && msg.state == ksDown && !msg.repeat && _SecondPlayer->GetSlotInst(Player::stWeapon3) && _SecondPlayer->GetFinished() == false)
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon3)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _SecondPlayer->GetSlotInst(Player::stWeapon3)->GetItem().GetAutoShot() == false)
+							_owner->Shot2(stWeapon3);
+					}
+
+
+					if (msg.action == gaShot4Sec && msg.state == ksDown && !msg.repeat && _SecondPlayer->GetSlotInst(Player::stWeapon4) && _SecondPlayer->GetFinished() == false)
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon4)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _SecondPlayer->GetSlotInst(Player::stWeapon4)->GetItem().GetAutoShot() == false)
+							_owner->Shot2(stWeapon4);
+					}				
+				}
+			}
+					
 			return false;
 		}
+
 
 		void HumanPlayer::Control::OnInputProgress(float deltaTime)
 		{
 			ControlManager* control = _owner->GetRace()->GetWorld()->GetControl();
 			Player* player = _owner->_player;
 			MapObj* mapObj = player->GetCar().mapObj;
+
 
 			if (mapObj == nullptr)
 				return;
@@ -1040,10 +400,19 @@ namespace r3d
 			int leftAlphaMax = _leftDown ? 0 : control->GetGameActionInfo(ctGamepad, gaWheelLeft).alphaMax;
 			int rightAlphaMax = _rightDown ? 0 : control->GetGameActionInfo(ctGamepad, gaWheelRight).alphaMax;
 
+			bool accelDownS = _accelDownSec || control->GetGameActionState(ctGamepad, gaAccelSec);
+			bool backDownS = _backDownSec || control->GetGameActionState(ctGamepad, gaBackSec);
+			bool brakeDownS = _brakeDownSec || control->GetGameActionState(ctGamepad, gaBreakSec);
+			bool rapidDownS = _rapidDownSec || control->GetGameActionState(ctGamepad, gaRapidModeSec);
+			bool easyDownS = _easyDownSec || control->GetGameActionState(ctGamepad, gaEasyModeSec);
+			float leftDownS = _leftDownSec ? 1.0f : control->GetGameActionState(ctGamepad, gaWheelLeftSec, false);
+			float rightDownS = _rightDownSec ? 1.0f : control->GetGameActionState(ctGamepad, gaWheelRightSec, false);
+			int leftAlphaMaxS = _leftDownSec ? 0 : control->GetGameActionInfo(ctGamepad, gaWheelLeftSec).alphaMax;
+			int rightAlphaMaxS = _rightDownSec ? 0 : control->GetGameActionInfo(ctGamepad, gaWheelRightSec).alphaMax;
+
 
 			if (accelDown)
-			{
-				//pizda не оптимизированый фрагмент кода!!!
+			{				
 				if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon1) != nullptr)
 				{
 					if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon1) && _owner->GetPlayer()->
@@ -1080,77 +449,196 @@ namespace r3d
 						_owner->GetPlayer()->IsEmptyWpn(false);
 				}
 
-				if (!brakeDown)
-					gameObj.SetMoveCar(GameCar::mcAccel);
-				else
-					gameObj.SetMoveCar(GameCar::mcBrake);
+				if (_owner->GetPlayer()->GetFinished() == false)
+				{
+					if (!brakeDown)
+						gameObj.SetMoveCar(GameCar::mcAccel);
+					else
+						gameObj.SetMoveCar(GameCar::mcBrake);
+				}
 			}
 			else if (backDown)
 			{
-				if (!brakeDown)
-					gameObj.SetMoveCar(GameCar::mcBack);
-				else
-					gameObj.SetMoveCar(GameCar::mcBrake);
+				if (_owner->GetPlayer()->GetFinished() == false)
+				{
+					if (!brakeDown)
+						gameObj.SetMoveCar(GameCar::mcBack);
+					else
+						gameObj.SetMoveCar(GameCar::mcBrake);
 
-				//быстрый задний ход, если полностью прокачено шасси.
-				if (_owner->GetPlayer()->GetSlotInst(Player::stTrans) && _owner->GetPlayer()->
-					GetSlotInst(Player::stTrans)->GetItem().GetName() == "scTrans4")
-					gameObj.BackSpeedK(1.0f);
-				else
-					gameObj.BackSpeedK(0.2f);
+					//быстрый задний ход, если полностью прокачено шасси.
+					if (_owner->GetPlayer()->GetSlotInst(Player::stTrans) && _owner->GetPlayer()->
+						GetSlotInst(Player::stTrans)->GetItem().GetName() == "scTrans4")
+						gameObj.BackSpeedK(1.0f);
+					else
+						gameObj.BackSpeedK(0.2f);
+				}
 			}
 			else if (brakeDown && !accelDown)
 			{
-				gameObj.SetMoveCar(GameCar::mcBrake);
+				if (_owner->GetPlayer()->GetFinished() == false)
+					gameObj.SetMoveCar(GameCar::mcBrake);
 			}
 			else
 			{
-				gameObj.SetMoveCar(GameCar::mcNone);
+				if (_owner->GetPlayer()->GetFinished() == false)
+					gameObj.SetMoveCar(GameCar::mcNone);
 			}
 
 			if (leftDown != 0.0f)
 			{
-				if (leftAlphaMax != 0)
+				if (_owner->GetPlayer()->GetFinished() == false)
 				{
-					gameObj.SetSteerWheel(GameCar::smManual);
-					gameObj.SetSteerWheelAngle(-GameCar::cMaxSteerAngle * leftDown);
-				}
-				else
-				{
-					gameObj.SetSteerWheel(GameCar::swOnLeft);
+					if (leftAlphaMax != 0)
+					{
+						gameObj.SetSteerWheel(GameCar::smManual);
+						gameObj.SetSteerWheelAngle(-GameCar::cMaxSteerAngle * leftDown);
+					}
+					else
+					{
+						gameObj.SetSteerWheel(GameCar::swOnLeft);
+					}
 				}
 			}
 			else if (rightDown)
 			{
-				if (rightAlphaMax != 0)
+				if (_owner->GetPlayer()->GetFinished() == false)
 				{
-					gameObj.SetSteerWheel(GameCar::smManual);
-					gameObj.SetSteerWheelAngle(-GameCar::cMaxSteerAngle * rightDown);
-				}
-				else
-				{
-					gameObj.SetSteerWheel(GameCar::swOnRight);
+					if (rightAlphaMax != 0)
+					{
+						gameObj.SetSteerWheel(GameCar::smManual);
+						gameObj.SetSteerWheelAngle(-GameCar::cMaxSteerAngle * rightDown);
+					}
+					else
+					{
+						gameObj.SetSteerWheel(GameCar::swOnRight);
+					}
 				}
 			}
 			else
 			{
 				gameObj.SetSteerWheel(GameCar::swNone);
 			}
+			/////////////////////////////////////////////////////////////////////
+			if (_owner->GetRace()->IsFriendship())
+			{
+				Player* _SecondPlayer = _owner->GetRace()->GetPlayerById(Race::cOpponent1);
+								
+				if (_SecondPlayer == nullptr)
+					return;
+
+				MapObj* mapObjS = _SecondPlayer->GetCar().mapObj;
+
+				if (mapObjS == nullptr)
+					return;
+
+				if (_SecondPlayer->IsBlock())
+					return;
+
+				if (!_SecondPlayer->InRace())
+					return;
+
+				GameCar& gameObjS = mapObjS->GetGameObj<GameCar>();
+
+				if (_SecondPlayer->GetCar().gameObj && _SecondPlayer->GetFinished() == false)
+				{
+					if (accelDownS)
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon1) != nullptr)
+						{
+							if (_SecondPlayer->GetSlotInst(Player::stWeapon1) && _SecondPlayer->GetSlotInst(Player::stWeapon1)->GetItem().IsWeaponItem()->GetCurCharge() < 1)
+								_SecondPlayer->IsEmptyWpn(true);
+							else
+								_SecondPlayer->IsEmptyWpn(false);
+						}
+
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon2) != nullptr)
+						{
+							if (_SecondPlayer->GetSlotInst(Player::stWeapon2)->GetItem().IsWeaponItem()->GetCurCharge() < 1)
+								_SecondPlayer->IsEmptyWpn(true);
+							else
+								_SecondPlayer->IsEmptyWpn(false);
+						}
+
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon3) != nullptr)
+						{
+							if (_SecondPlayer->GetSlotInst(Player::stWeapon3)->GetItem().IsWeaponItem()->GetCurCharge() < 1)
+								_SecondPlayer->IsEmptyWpn(true);
+							else
+								_SecondPlayer->IsEmptyWpn(false);
+						}
+
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon4) != nullptr)
+						{
+							if (_SecondPlayer->GetSlotInst(Player::stWeapon4)->GetItem().IsWeaponItem()->GetCurCharge() < 1)
+								_SecondPlayer->IsEmptyWpn(true);
+							else
+								_SecondPlayer->IsEmptyWpn(false);
+						}
+
+						if (!brakeDownS)
+							gameObjS.SetMoveCar(GameCar::mcAccel);
+						else
+							gameObjS.SetMoveCar(GameCar::mcBrake);
+					}
+					else if (backDownS)
+					{
+						if (!brakeDownS)
+							gameObjS.SetMoveCar(GameCar::mcBack);
+						else
+							gameObjS.SetMoveCar(GameCar::mcBrake);
+
+						//быстрый задний ход, если полностью прокачено шасси.
+						if (_SecondPlayer->GetSlotInst(Player::stTrans) && _SecondPlayer->GetSlotInst(Player::stTrans)->GetItem().GetName() == "scTrans4")
+							gameObjS.BackSpeedK(1.0f);
+						else
+							gameObjS.BackSpeedK(0.2f);
+					}
+					else if (brakeDownS && !accelDownS)
+					{
+						gameObjS.SetMoveCar(GameCar::mcBrake);
+					}
+					else
+					{
+						gameObjS.SetMoveCar(GameCar::mcNone);
+					}
+
+					if (leftDownS != 0.0f)
+					{
+						if (leftAlphaMaxS != 0)
+						{
+							gameObjS.SetSteerWheel(GameCar::smManual);
+							gameObjS.SetSteerWheelAngle(-GameCar::cMaxSteerAngle * leftDownS);
+						}
+						else
+						{
+							gameObjS.SetSteerWheel(GameCar::swOnLeft);
+						}
+					}
+					else if (rightDownS)
+					{
+						if (rightAlphaMaxS != 0)
+						{
+							gameObjS.SetSteerWheel(GameCar::smManual);
+							gameObjS.SetSteerWheelAngle(-GameCar::cMaxSteerAngle * rightDownS);
+						}
+						else
+						{
+							gameObjS.SetSteerWheel(GameCar::swOnRight);
+						}
+					}
+					else
+					{
+						gameObjS.SetSteerWheel(GameCar::swNone);
+					}
+				}
+			} 
 
 			bool chatMode = _owner->GetRace()->GetGame()->GetMenu()->IsChatInputVisible();
 
 			if (chatMode)
 				return;
 
-			if (_owner->GetPlayer()->GetShotFreeze() == false && control->GetGameActionState(gaShot, false))
-			{
-				//Автоматическая стрельба
-				if (GAME_PAUSED == false && _owner->GetPlayer()->GetSlotInst(Player::stWeapon1) && _owner->GetPlayer()->
-					GetSlotInst(Player::stWeapon1)->GetItem().GetAutoShot() == true)
-				{
-					_owner->ShotCurrent();
-				}
-			}
 
 			if (CRATER_SPAWN == true)
 			{
@@ -1160,24 +648,69 @@ namespace r3d
 				}
 			}
 
+			if (S_CRATER_SPAWN == true)
+			{
+				Player* _SecondPlayer = _owner->GetRace()->GetPlayerById(Race::cOpponent1);
+				if (_SecondPlayer)
+				{
+					_owner->Shot2(stWeapon4);
+				}
+			}
+
+			
+			/// ////////////////////////////////////////////////////''''''''''''
+			//автоматизация оружия
+
+			if (control->GetGameActionState(gaShot1, false) && _owner->GetPlayer()->GetSlotInst(Player::stWeapon1) && _owner->GetPlayer()->GetFinished() == false)
+			{
+				if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon1)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _owner->GetPlayer()->GetSlotInst(Player::stWeapon1)->GetItem().GetAutoShot())
+					_owner->Shot(stWeapon1);
+			}
+
+
+			if (control->GetGameActionState(gaShot2, false) && _owner->GetPlayer()->GetSlotInst(Player::stWeapon2) && _owner->GetPlayer()->GetFinished() == false)
+			{
+
+				if (_owner->GetPlayer()->GetCar().gameObj && _owner->GetPlayer()->GetSlotInst(Player::stWeapon2)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _owner->GetPlayer()->GetSlotInst(Player::stWeapon2)->GetItem().GetAutoShot())
+				{
+					//фикс для молотова в сетевой (чтобы патроны не тратились в холостую):
+					if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon2)->GetItem().GetName() == "scMolotov")
+					{
+						if (_owner->GetPlayer()->GetCar().gameObj->IsWheelsContact() == false)
+							_owner->Shot(stWeapon2);
+					}
+					else
+					{
+						if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon2)->GetItem().GetName() != "scFireGun")
+							_owner->Shot(stWeapon2);
+
+					}
+				}
+			}
+
+
+			if (control->GetGameActionState(gaShot3, false) && _owner->GetPlayer()->GetSlotInst(Player::stWeapon3) && _owner->GetPlayer()->GetFinished() == false)
+			{
+				if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon3)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _owner->GetPlayer()->GetSlotInst(Player::stWeapon3)->GetItem().GetAutoShot())
+					_owner->Shot(stWeapon3);
+			}
+
+
+			if (control->GetGameActionState(gaShot4, false) && _owner->GetPlayer()->GetSlotInst(Player::stWeapon4) && _owner->GetPlayer()->GetFinished() == false)
+			{
+				if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon4)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _owner->GetPlayer()->GetSlotInst(Player::stWeapon4)->GetItem().GetAutoShot())
+					_owner->Shot(stWeapon4);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+
 			//автоматизация прыжков
 			if (control->GetGameActionState(gaHyper, false))
 			{
 				if (_owner->GetPlayer()->GetSlotInst(Player::stHyper) && !_owner->GetPlayer()->GetHyperDelay() && !
 					_owner->GetPlayer()->GetCar().gameObj->IsShell() && !_owner->GetPlayer()->GetCar().gameObj->
-					OnJump())
+					OnJump() && _owner->GetPlayer()->GetFinished() == false)
 				{
-					if (_owner->GetPlayer()->GetSlotInst(Player::stHyper)->GetItem().IsWeaponItem()->GetCurCharge() <=
-						0)
-					{
-						if (HUD_STYLE == 3)
-						{
-							_owner->GetLogic()->TakeBonus(_owner->GetPlayer()->GetCar().gameObj,
-							                              _owner->GetPlayer()->GetCar().gameObj,
-							                              GameObjListener::btEmpty, 1.0f, false);
-						}
-					}
-
 					//фикс чтобы прыжки с рампы не тратились все за раз.
 					if (_owner->GetPlayer()->GetSlotInst(Player::stHyper)->GetItem().GetAutoShot() == true)
 					{
@@ -1186,6 +719,92 @@ namespace r3d
 					}
 					else
 						_owner->Shot(stHyper);
+				}
+			}
+
+			if (_owner->GetRace()->IsFriendship())
+			{
+				Player* _SecondPlayer = _owner->GetRace()->GetPlayerById(Race::cOpponent1);
+
+				if (_SecondPlayer == nullptr)
+					return;
+
+				MapObj* mapObjS = _SecondPlayer->GetCar().mapObj;
+
+				if (mapObjS == nullptr)
+					return;
+
+				if (_SecondPlayer->IsBlock())
+					return;
+
+				if (!_SecondPlayer->InRace())
+					return;
+
+				GameCar& gameObjS = mapObjS->GetGameObj<GameCar>();
+
+				if (_SecondPlayer->GetCar().gameObj)
+				{
+					if (control->GetGameActionState(gaHyperSec, false))
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stHyper) && !_SecondPlayer->GetHyperDelay() && !
+							_SecondPlayer->GetCar().gameObj->IsShell() && !_SecondPlayer->GetCar().gameObj->
+							OnJump() && _SecondPlayer->GetFinished() == false)
+						{
+							//фикс чтобы прыжки с рампы не тратились все за раз.
+							if (_SecondPlayer->GetSlotInst(Player::stHyper)->GetItem().GetAutoShot() == true)
+							{
+								if (_SecondPlayer->GetCar().gameObj->IsWheelsContact())
+									_owner->Shot2(stHyper);
+							}
+							else
+								_owner->Shot2(stHyper);
+						}
+					}
+
+
+					if (control->GetGameActionState(gaShot1Sec, false) && _SecondPlayer->GetSlotInst(Player::stWeapon1) && _SecondPlayer->GetFinished() == false)
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon1)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _SecondPlayer->GetSlotInst(Player::stWeapon1)->GetItem().GetAutoShot())
+							_owner->Shot2(stWeapon1);
+					}
+
+
+					if (control->GetGameActionState(gaShot2Sec, false) && _SecondPlayer->GetSlotInst(Player::stWeapon2) && _SecondPlayer->GetFinished() == false)
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon2)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _SecondPlayer->GetSlotInst(Player::stWeapon2)->GetItem().GetAutoShot())
+						{
+							//фикс для молотова в сетевой (чтобы патроны не тратились в холостую):
+							if (_SecondPlayer->GetSlotInst(Player::stWeapon2)->GetItem().GetName() == "scMolotov")
+							{
+								if (_SecondPlayer->GetCar().gameObj->IsWheelsContact() == false)
+									_owner->Shot2(stWeapon2);
+							}
+							else
+							{
+								if (_SecondPlayer->GetSlotInst(Player::stWeapon2)->GetItem().GetName() != "scFireGun")
+									_owner->Shot2(stWeapon2);
+
+							}
+						}
+					}
+
+
+					if (control->GetGameActionState(gaShot3Sec, false) && _SecondPlayer->GetSlotInst(Player::stWeapon3) && _SecondPlayer->GetFinished() == false)
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon3)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _SecondPlayer->GetSlotInst(Player::stWeapon3)->GetItem().GetAutoShot())
+							_owner->Shot2(stWeapon3);
+					}
+
+
+					if (control->GetGameActionState(gaShot4Sec, false) && _SecondPlayer->GetSlotInst(Player::stWeapon4) && _SecondPlayer->GetFinished() == false)
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon4)->GetItem().IsWeaponItem()->GetCurCharge() > 0 && _SecondPlayer->GetSlotInst(Player::stWeapon4)->GetItem().GetAutoShot())
+							_owner->Shot2(stWeapon4);
+					}
+
+
+
+
 				}
 			}
 
@@ -1199,23 +818,23 @@ namespace r3d
 				{
 					if (_owner->GetPlayer()->GetCar().gameObj->IsAnyWheelContact())
 					{
-						TurnForce = 1.4f;
-						UnlimitedTurn = true;
+						_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(1.4f);
+						_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(true);
 					}
 					else
 					{
 						//для сайдвиндера в полёте углы более резкие.
 						if (_owner->GetPlayer()->GetCar().gameObj->InFly())
 						{
-							TurnForce = 1.6f;
-							UnlimitedTurn = true;
+							_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(1.6f);
+							_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(true);
 						}
 
 						//для девилдрайвера воздушные стрейфы
 						if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon1) && _owner->GetPlayer()->
 							GetSlotInst(Player::stWeapon1)->GetItem().GetName() == "scSonar")
 						{
-							UnlimitedTurn = false;
+							_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(false);
 							float magnitude = _owner->GetPlayer()->GetCar().gameObj->GetPxActor().GetNxActor()->
 							                          getLinearVelocity().magnitude();
 
@@ -1233,23 +852,23 @@ namespace r3d
 				{
 					if (_owner->GetPlayer()->GetCar().gameObj->IsAnyWheelContact())
 					{
-						TurnForce = -1.4f;
-						UnlimitedTurn = true;
+						_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(-1.4f);
+						_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(true);
 					}
 					else
 					{
 						//для сайдвиндера в полёте углы более резкие.
 						if (_owner->GetPlayer()->GetCar().gameObj->InFly())
 						{
-							TurnForce = -1.6f;
-							UnlimitedTurn = true;
+							_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(-1.6f);
+							_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(true);
 						}
 
 						//для девилдрайвера воздушные стрейфы
 						if (_owner->GetPlayer()->GetSlotInst(Player::stWeapon1) && _owner->GetPlayer()->
 							GetSlotInst(Player::stWeapon1)->GetItem().GetName() == "scSonar")
 						{
-							UnlimitedTurn = false;
+							_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(false);
 							float magnitude = _owner->GetPlayer()->GetCar().gameObj->GetPxActor().GetNxActor()->
 							                          getLinearVelocity().magnitude();
 
@@ -1268,13 +887,13 @@ namespace r3d
 					//для сайдвиндера в полёте углы более резкие.
 					if (_owner->GetPlayer()->GetCar().gameObj->InFly())
 					{
-						TurnForce = 0.7f;
-						UnlimitedTurn = true;
+						_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(0.7f);
+						_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(true);
 					}
 					else
 					{
-						TurnForce = 0.5f;
-						UnlimitedTurn = true;
+						_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(0.5f);
+						_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(true);
 					}
 				}
 
@@ -1283,13 +902,13 @@ namespace r3d
 					//для сайдвиндера в полёте углы более резкие.
 					if (_owner->GetPlayer()->GetCar().gameObj->InFly())
 					{
-						TurnForce = -0.7f;
-						UnlimitedTurn = true;
+						_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(-0.7f);
+						_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(true);
 					}
 					else
 					{
-						TurnForce = -0.5f;
-						UnlimitedTurn = true;
+						_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(-0.5);
+						_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(true);
 					}
 				}
 			}
@@ -1300,12 +919,12 @@ namespace r3d
 			{
 				if (easyDown)
 				{
-					TurnForce = 0.5f;
+					_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(0.5);
 				}
 
 				if (rapidDown)
 				{
-					TurnForce = 1.4f;
+					_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(1.4);
 				}
 			}
 
@@ -1318,19 +937,19 @@ namespace r3d
 						GetSlotInst(Player::stTrans)->GetItem().GetName() != "scTrans1")
 					{
 						//для девилдрайвера уже со 2 уровня шасси можно разворачиваться на 360 с места.
-						UnlimitedTurn = true;
-						TurnForce = 0.8f;
+						_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(true);
+						_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(0.8f);
 					}
 					else
 					{
-						UnlimitedTurn = false;
-						TurnForce = 0.8f;
+						_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(false);
+						_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(0.8f);
 					}
 				}
 				else
 				{
-					UnlimitedTurn = false;
-					TurnForce = 1.0f;
+					_owner->GetPlayer()->GetCar().gameObj->SetUnlimitedTurn(false);
+					_owner->GetPlayer()->GetCar().gameObj->SetTurnForce(1.0f);
 				}
 			}
 
@@ -1339,10 +958,11 @@ namespace r3d
 				auto controller = static_cast<ControllerType>(i);
 				float alpha = control->GetGameActionState(controller, gaMine, false);
 
-				if (alpha && _owner->GetPlayer()->GetSlotInst(Player::stMine))
+				if (alpha && _owner->GetPlayer()->GetSlotInst(Player::stMine) && _owner->GetPlayer()->GetFinished() == false)
 				{
 					VirtualKeyInfo info = control->GetGameActionInfo(controller, gaMine);
 					Weapon* wpnMine = _owner->GetWeapon(stMine) ? _owner->GetWeapon(stMine)->GetWeapon() : nullptr;
+
 
 					if (wpnMine && (info.alphaMax != 0 || wpnMine->IsAutoMine()) && wpnMine->IsReadyShot(
 						(1.0f - alpha) * 0.6f))
@@ -1363,6 +983,210 @@ namespace r3d
 					break;
 				}
 			}
+		
+
+
+			/////////////////////////////
+			if (_owner->GetRace()->IsFriendship())
+			{
+				Player* _SecondPlayer = _owner->GetRace()->GetPlayerById(Race::cOpponent1);
+
+				if (_SecondPlayer == nullptr)
+					return;
+
+				MapObj* mapObjS = _SecondPlayer->GetCar().mapObj;
+
+				if (mapObjS == nullptr)
+					return;
+
+				if (_SecondPlayer->IsBlock())
+					return;
+
+				if (!_SecondPlayer->InRace())
+					return;
+
+				GameCar& gameObjS = mapObjS->GetGameObj<GameCar>();
+
+				if (_SecondPlayer->GetCar().gameObj)
+				{
+
+					if (_SecondPlayer->GetSlotInst(Player::stTrans) && (_SecondPlayer->GetSlotInst(Player::stTrans)
+						->GetItem().GetName() == "scTrans3" ||
+						_SecondPlayer->GetSlotInst(Player::stTrans)->GetItem().GetName() == "scTrans4"))
+					{
+						if (rapidDownS && !backDownS)
+						{
+							if (_SecondPlayer->GetCar().gameObj->IsAnyWheelContact())
+							{
+								_SecondPlayer->GetCar().gameObj->SetTurnForce(1.4f);
+								_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(true);
+							}
+							else
+							{
+								//для сайдвиндера в полёте углы более резкие.
+								if (_SecondPlayer->GetCar().gameObj->InFly())
+								{
+									_SecondPlayer->GetCar().gameObj->SetTurnForce(1.6f);
+									_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(true);
+								}
+
+								//для девилдрайвера воздушные стрейфы
+								if (_SecondPlayer->GetSlotInst(Player::stWeapon1) && _SecondPlayer->
+									GetSlotInst(Player::stWeapon1)->GetItem().GetName() == "scSonar")
+								{
+									_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(false);
+									float magnitude = _SecondPlayer->GetCar().gameObj->GetPxActor().GetNxActor()->
+										getLinearVelocity().magnitude();
+
+									if (gameObj.GetSteerWheel() == GameCar::swOnLeft)
+										_SecondPlayer->GetCar().gameObj->GetPxActor().GetNxActor()->addLocalForce(
+											NxVec3(YVector * (100 - magnitude)), NX_ACCELERATION);
+									if (gameObj.GetSteerWheel() == GameCar::swOnRight)
+										_SecondPlayer->GetCar().gameObj->GetPxActor().GetNxActor()->addLocalForce(
+											NxVec3(-YVector * (100 - magnitude)), NX_ACCELERATION);
+								}
+							}
+						}
+
+						if (rapidDownS && backDownS)
+						{
+							if (_SecondPlayer->GetCar().gameObj->IsAnyWheelContact())
+							{
+								_SecondPlayer->GetCar().gameObj->SetTurnForce(-1.4f);
+								_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(true);
+							}
+							else
+							{
+								//для сайдвиндера в полёте углы более резкие.
+								if (_SecondPlayer->GetCar().gameObj->InFly())
+								{
+									_SecondPlayer->GetCar().gameObj->SetTurnForce(-1.6f);
+									_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(true);
+								}
+
+								//для девилдрайвера воздушные стрейфы
+								if (_SecondPlayer->GetSlotInst(Player::stWeapon1) && _SecondPlayer->
+									GetSlotInst(Player::stWeapon1)->GetItem().GetName() == "scSonar")
+								{
+									_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(false);
+									float magnitude = _SecondPlayer->GetCar().gameObj->GetPxActor().GetNxActor()->
+										getLinearVelocity().magnitude();
+
+									if (gameObj.GetSteerWheel() == GameCar::swOnLeft)
+										_SecondPlayer->GetCar().gameObj->GetPxActor().GetNxActor()->addLocalForce(
+											NxVec3(YVector * (100 - magnitude)), NX_ACCELERATION);
+									if (gameObj.GetSteerWheel() == GameCar::swOnRight)
+										_SecondPlayer->GetCar().gameObj->GetPxActor().GetNxActor()->addLocalForce(
+											NxVec3(-YVector * (100 - magnitude)), NX_ACCELERATION);
+								}
+							}
+						}
+
+						if (easyDownS && !backDownS)
+						{
+							//для сайдвиндера в полёте углы более резкие.
+							if (_SecondPlayer->GetCar().gameObj->InFly())
+							{
+								_SecondPlayer->GetCar().gameObj->SetTurnForce(0.7f);
+								_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(true);
+							}
+							else
+							{
+								_SecondPlayer->GetCar().gameObj->SetTurnForce(0.5f);
+								_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(true);
+							}
+						}
+
+						if (easyDownS && backDownS)
+						{
+							//для сайдвиндера в полёте углы более резкие.
+							if (_SecondPlayer->GetCar().gameObj->InFly())
+							{
+								_SecondPlayer->GetCar().gameObj->SetTurnForce(-0.7f);
+								_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(true);
+							}
+							else
+							{
+								_SecondPlayer->GetCar().gameObj->SetTurnForce(-0.5);
+								_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(true);
+							}
+						}
+					}
+
+					//второй уровень шасси открывает доступ к плавным поворотам, частично резким.
+					if (_SecondPlayer->GetSlotInst(Player::stTrans) && (_SecondPlayer->GetSlotInst(Player::stTrans)
+						->GetItem().GetName() == "scTrans2"))
+					{
+						if (easyDownS)
+						{
+							_SecondPlayer->GetCar().gameObj->SetTurnForce(0.5);
+						}
+
+						if (rapidDownS)
+						{
+							_SecondPlayer->GetCar().gameObj->SetTurnForce(1.4);
+						}
+					}
+
+					if (!easyDownS && !rapidDownS)
+					{
+						if (_SecondPlayer->GetSlotInst(Player::stWeapon1) && _SecondPlayer->
+							GetSlotInst(Player::stWeapon1)->GetItem().GetName() == "scSonar")
+						{
+							if (_SecondPlayer->GetSlotInst(Player::stTrans) && _SecondPlayer->
+								GetSlotInst(Player::stTrans)->GetItem().GetName() != "scTrans1")
+							{
+								//для девилдрайвера уже со 2 уровня шасси можно разворачиваться на 360 с места.
+								_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(true);
+								_SecondPlayer->GetCar().gameObj->SetTurnForce(0.8f);
+							}
+							else
+							{
+								_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(false);
+								_SecondPlayer->GetCar().gameObj->SetTurnForce(0.8f);
+							}
+						}
+						else
+						{
+							_SecondPlayer->GetCar().gameObj->SetUnlimitedTurn(false);
+							_SecondPlayer->GetCar().gameObj->SetTurnForce(1.0f);
+						}
+					}
+
+					for (int i = 0; i < cControllerTypeEnd; ++i)
+					{
+						auto controller = static_cast<ControllerType>(i);
+						float alpha = control->GetGameActionState(controller, gaMineSec, false);
+
+						if (alpha && _SecondPlayer->GetSlotInst(Player::stMine))
+						{
+							VirtualKeyInfo info = control->GetGameActionInfo(controller, gaMineSec);
+							Weapon* wpnMine = _owner->GetWeapon(stMine) ? _owner->GetWeapon(stMine)->GetWeapon() : nullptr;
+
+
+							if (wpnMine && (info.alphaMax != 0 || wpnMine->IsAutoMine()) && wpnMine->IsReadyShot(
+								(1.0f - alpha) * 0.6f))
+							{
+								if (GAME_PAUSED == false && _SecondPlayer->GetMineFreeze() == false && _SecondPlayer->GetFinished() == false)
+								{
+									if (_SecondPlayer->GetSlotInst(Player::stMine)->GetItem().GetAutoShot() == true)
+									{
+										if (_SecondPlayer->GetMasloDrop() || (_SecondPlayer->GetCar().gameObj->
+											IsWheelsContact()))
+											_owner->Shot2(stMine);
+									}
+									else
+										_owner->Shot2(stMine);
+								}
+							}
+
+							break;
+						}
+					}
+
+				}
+			} 
+
 		}
 
 		void HumanPlayer::Shot(WeaponType weapon, MapObj* target)
@@ -1373,6 +1197,15 @@ namespace r3d
 				GetLogic()->Shot(_player, target, type);
 		}
 
+		void HumanPlayer::SecShot(WeaponType weapon, MapObj* target)
+		{
+			Player* _SecondPlayer = this->GetRace()->GetPlayerById(Race::cOpponent1);
+			auto type = static_cast<Player::SlotType>(weapon + Player::stHyper);
+
+			if (_SecondPlayer->GetSlot(type))
+				GetLogic()->Shot(_SecondPlayer, target, type);
+		}
+
 		void HumanPlayer::Shot(WeaponType weapon)
 		{
 			float viewAngle = D3DX_PI / 5.5f;
@@ -1380,8 +1213,20 @@ namespace r3d
 			if (wpn && wpn->GetSlot()->GetRecord() && wpn->GetSlot()->GetRecord()->GetName() == "sphereGun")
 				viewAngle = 0;
 
-			Player* enemy = _player->FindClosestEnemy(viewAngle, false);
-			Shot(weapon, enemy ? enemy->GetCar().mapObj : nullptr);
+				Player* enemy = _player->FindClosestEnemy(viewAngle, false);
+				Shot(weapon, enemy ? enemy->GetCar().mapObj : nullptr);			
+		}
+
+		void HumanPlayer::Shot2(WeaponType weapon)
+		{
+			float viewAngle = D3DX_PI / 5.5f;
+			WeaponItem* wpn = GetWeapon(weapon);
+			if (wpn && wpn->GetSlot()->GetRecord() && wpn->GetSlot()->GetRecord()->GetName() == "sphereGun")
+				viewAngle = 0;
+
+			Player* _SecondPlayer = this->GetRace()->GetPlayerById(Race::cOpponent1);
+			Player* enemy = _SecondPlayer->FindClosestEnemy(viewAngle, false);
+			SecShot(weapon, enemy ? enemy->GetCar().mapObj : nullptr);
 		}
 
 		void HumanPlayer::ShotCurrent()
@@ -1402,16 +1247,53 @@ namespace r3d
 			Shot(enemy ? enemy->GetCar().mapObj : nullptr);
 		}
 
+		void HumanPlayer::ShotSec()
+		{
+			Player* _SecondPlayer = this->GetRace()->GetPlayerById(Race::cOpponent1);
+			LSL_ASSERT(_SecondPlayer->GetCar().mapObj);
+
+			Player* enemy = _SecondPlayer->FindClosestEnemy(D3DX_PI / 4, false);
+			Shot(enemy ? enemy->GetCar().mapObj : nullptr);
+		}
+
 		void HumanPlayer::ResetCar()
 		{
-			GameCar* plrcar = _player->GetCar().gameObj;
-			if (plrcar && (plrcar->IsAnyWheelContact() || plrcar->IsBodyContact()))
+			if (GetPlayer()->GetFinished() == false)
 			{
-				//звук респавна только для респавна человека.
-				if (plrcar->GetGhostEff() == false && plrcar->GetRespBlock() == false)
-					plrcar->GetLogic()->Damage(plrcar, _player->GetId(), plrcar, 0, plrcar->dtResp);
+				GameCar* plrcar = _player->GetCar().gameObj;
+				if (plrcar && (plrcar->IsAnyWheelContact() || plrcar->IsBodyContact()))
+				{
+					//звук респавна только для респавна человека.
+					if (plrcar->GetGhostEff() == false && plrcar->GetRespBlock() == false)
+						plrcar->GetLogic()->Damage(plrcar, _player->GetId(), plrcar, 0, plrcar->dtResp);
 
-				_player->ResetCar();
+					_player->ResetCar();
+				}
+			}
+		}
+
+		void HumanPlayer::ResetCarSec()
+		{
+			Player* _SecondPlayer = this->GetRace()->GetPlayerById(Race::cOpponent1);
+			if (_SecondPlayer->GetFinished() == false)
+			{
+				if (this->GetRace()->IsFriendship())
+				{					
+					if (_SecondPlayer == nullptr || !_SecondPlayer->InRace())
+						return;
+
+
+					GameCar* plrcar = _SecondPlayer->GetCar().gameObj;
+
+					if (plrcar && (plrcar->IsAnyWheelContact() || plrcar->IsBodyContact()))
+					{
+						//звук респавна только для респавна человека.
+						if (plrcar->GetGhostEff() == false && plrcar->GetRespBlock() == false)
+							plrcar->GetLogic()->Damage(plrcar, _SecondPlayer->GetId(), plrcar, 0, plrcar->dtResp);
+
+						_SecondPlayer->ResetCar();
+					}
+				}
 			}
 		}
 
@@ -1434,6 +1316,20 @@ namespace r3d
 			auto type = static_cast<Player::SlotType>(weapon + Player::stHyper);
 
 			Slot* slot = _player->GetSlotInst(type);
+			WeaponItem* wpn = slot ? slot->GetItem().IsWeaponItem() : nullptr;
+
+			if (wpn && wpn->GetMapObj())
+				return wpn;
+
+			return nullptr;
+		}
+
+		WeaponItem* HumanPlayer::GetWeaponSec(WeaponType weapon)
+		{
+			Player* _SecondPlayer = this->GetRace()->GetPlayerById(Race::cOpponent1);
+			auto type = static_cast<Player::SlotType>(weapon + Player::stHyper);
+
+			Slot* slot = _SecondPlayer->GetSlotInst(type);
 			WeaponItem* wpn = slot ? slot->GetItem().IsWeaponItem() : nullptr;
 
 			if (wpn && wpn->GetMapObj())
@@ -1487,7 +1383,6 @@ namespace r3d
 					return;
 				}
 			}
-
 			_curWeapon = 0;
 		}
 

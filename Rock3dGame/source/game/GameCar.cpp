@@ -470,7 +470,7 @@ namespace r3d
 		                    _flyYTorque(D3DX_PI / 1.6f), _clampXTorque(0), _clampYTorque(0), _motorTorqueK(1),
 		                    _wheelSteerK(1), _angDamping(IdentityVector), _gravEngine(false), _clutchImmunity(false),
 		                    _maxSpeed(0), _tireSpring(0), _disableColor(false), _spinstatus(false), _resplocked(false),
-		                    _wasted(false), _burn(false), _burnDamage(0), _backSpeedK(1.0f), _turnfreeze(false),
+		                    _wasted(false), _burn(false), _unlimitedTurn(false), _doublej(true), _turnForce(1.0f), _burnDamage(0), _backSpeedK(1.0f), _turnfreeze(false),
 		                    _turnInverse(false), _inverseTime(0), _LMS(0), _isDamageStop(false), _maxTimeSR(3.0f),
 		                    _deminingTime(1.0f), _slowride(false), _demining(false), _onJump(false), _goAiJump(false),
 		                    _inFly(false), _lockAJmp(false), _inRage(false), _invisible(false), _isStabilityMine(false),
@@ -613,7 +613,7 @@ namespace r3d
 					{
 						_steerAngle = _steerSpeed > 0
 							              ? std::min(std::max(_steerAngle, 0.0f) + _steerSpeed * deltaTime,
-							                         cMaxSteerAngle * TurnForce)
+							                         cMaxSteerAngle * _turnForce)
 							              : cMaxSteerAngle;
 					}
 				}
@@ -623,7 +623,7 @@ namespace r3d
 					{
 						_steerAngle = _steerSpeed > 0
 							              ? std::max(std::min(_steerAngle, 0.0f) - _steerSpeed * deltaTime,
-							                         -cMaxSteerAngle * TurnForce)
+							                         -cMaxSteerAngle * _turnForce)
 							              : -cMaxSteerAngle;
 					}
 				}
@@ -683,7 +683,7 @@ namespace r3d
 
 				NxMat34 worldMat = nxActor->getGlobalPose();
 				NxQuat rotQuat;
-				if (UnlimitedTurn == false)
+				if (_unlimitedTurn == false)
 				{
 					if (_turnInverse == false)
 						rotQuat.fromAngleAxisFast(alpha * _steerAngle / cMaxSteerAngle * _steerRot * deltaTime,
@@ -692,7 +692,7 @@ namespace r3d
 						rotQuat.fromAngleAxisFast(alpha * -(_steerAngle / cMaxSteerAngle) * _steerRot * deltaTime,
 						                          NxVec3(0, 0, 1));
 				}
-				else if (UnlimitedTurn == true)
+				else if (_unlimitedTurn == true)
 				{
 					if (_turnInverse == false)
 						rotQuat.fromAngleAxisFast(_steerAngle / cMaxSteerAngle * _steerRot * deltaTime,
@@ -803,7 +803,7 @@ namespace r3d
 			{
 				constexpr float baseK = 0.2f;
 				if (curspeed < 38.0f)
-					UnlimitedTurn = false;
+					_unlimitedTurn = false;
 
 				//сила заноса = текущая скорость * коэфициент.
 				LockClutch((baseK * curspeed) * (this->GetMapObj()->GetPlayer()->GetDriftStrength() * smoothK));
@@ -926,8 +926,11 @@ namespace r3d
 				child->WriteValue("disableColor", _disableColor);
 				child->WriteValue("spinstatus", _spinstatus);
 				child->WriteValue("resplocked", _resplocked);
-				child->WriteValue("wasted", _wasted);
+				child->WriteValue("wasted", _wasted);   
 				child->WriteValue("burn", _burn);
+				child->WriteValue("unlimitedTurn", _unlimitedTurn);
+				child->WriteValue("doublej", _doublej);
+				child->WriteValue("turnForce", _turnForce);
 				child->WriteValue("burnDamage", _burnDamage);
 				child->WriteValue("backSpeedK", _backSpeedK);
 				child->WriteValue("turnfreeze", _turnfreeze);
@@ -982,7 +985,10 @@ namespace r3d
 				child->ReadValue("spinstatus", _spinstatus);
 				child->ReadValue("resplocked", _resplocked);
 				child->ReadValue("wasted", _wasted);
-				child->ReadValue("burn", _burn);
+				child->ReadValue("burn", _burn);  
+				child->ReadValue("unlimitedTurn", _unlimitedTurn);
+				child->ReadValue("doublej", _doublej);
+				child->ReadValue("turnForce", _turnForce);
 				child->ReadValue("burnDamage", _burnDamage);
 				child->ReadValue("backSpeedK", _backSpeedK);
 				child->ReadValue("turnfreeze", _turnfreeze);
@@ -1689,6 +1695,36 @@ namespace r3d
 		void GameCar::SetBurn(bool value)
 		{
 			_burn = value;
+		}
+
+		bool GameCar::IsUlimitedTurn() const
+		{
+			return _unlimitedTurn;
+		}
+
+		void GameCar::SetUnlimitedTurn(bool value)
+		{
+			_unlimitedTurn = value;
+		}
+
+		bool GameCar::DoubleJumpIsActive() const
+		{
+			return _doublej;
+		}
+
+		void GameCar::DoubleJumpSetActive(bool value)
+		{
+			_doublej = value;
+		}
+
+		float GameCar::GetTurnForce() const
+		{
+			return _turnForce;
+		}
+
+		void GameCar::SetTurnForce(float value)
+		{
+			_turnForce = value;
 		}
 
 		float GameCar::BackSpeedK() const

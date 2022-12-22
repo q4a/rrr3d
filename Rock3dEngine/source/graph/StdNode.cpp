@@ -12,7 +12,8 @@ namespace graph
 const D3DXVECTOR3 MovCoordSys::arUp[3] = {XVector, YVector, ZVector};
 const float MovCoordSys::arSize = 2.0f;
 const D3DXVECTOR3 MovCoordSys::arPos[3] = {2 * XVector, 2 * YVector, 2 * ZVector};
-const D3DXCOLOR MovCoordSys::arCol[3] = {clrRed, clrGreen, clrBlue};
+const D3DXCOLOR MovCoordSys::arCol[3] = {clrRed, clrGreen, 
+};
 const D3DXCOLOR MovCoordSys::colSel = clrYellow;
 
 const D3DXVECTOR3 ScaleCoordSys::arUp[3] = {XVector, YVector, ZVector};

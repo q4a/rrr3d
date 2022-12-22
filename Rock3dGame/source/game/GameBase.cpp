@@ -10,7 +10,7 @@ namespace r3d
 {
 	namespace game
 	{
-		const string cDifficultyStr[cDifficultyEnd] = {"gdEasy", "gdNormal", "gdHard", "gdMadness"};
+		const string cDifficultyStr[cDifficultyEnd] = {"gdEasy", "gdNormal", "gdHard", "gdMaster"};
 		const char* cScActorTypeStr[cScActorTypeEnd] = {"satBaseObj", "satMeshObj"};
 
 		const std::string GameObjListener::cBonusTypeStr[cBonusTypeEnd] = {
@@ -1481,12 +1481,12 @@ namespace r3d
 
 		void PodushkaAnim::OnProgress(float deltaTime)
 		{
-			if (_target == nullptr)
+			if (_target == NULL)
 				_target = lsl::StaticCast<graph::IVBMeshNode*>(GetGameObj()->GetGrActor().GetNodeByTag(_targetTag));
 
 			LSL_ASSERT(_target);
 
-			auto car = lsl::StaticCast<GameCar*>(GetGameObj()->GetParent());
+			GameCar* car = lsl::StaticCast<game::GameCar*>(GetGameObj()->GetParent());
 
 			float linSpeed = car->GetLeadWheelSpeed();
 			if (abs(linSpeed) > 1.0f)

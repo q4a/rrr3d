@@ -35,6 +35,7 @@ namespace r3d
 				void FlyStart();
 				void FlyCompleted();
 				void TargetChanged();
+				void SecTargetChanged();
 			};
 
 		private:
@@ -58,6 +59,7 @@ namespace r3d
 
 			graph::Camera* _camera;
 			Player* _player;
+			Player* _secondPlr;
 			GraphManager::LightSrc* _light;
 			D3DXVECTOR4 _target;
 
@@ -106,6 +108,9 @@ namespace r3d
 
 			Player* GetPlayer();
 			void SetPlayer(Player* value);
+
+			Player* GetSecondPlayer();
+			void SetSecondPlayer(Player* value);
 
 			const D3DXVECTOR4& GetTarget();
 			void SetTarget(const D3DXVECTOR4& value);

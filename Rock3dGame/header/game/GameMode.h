@@ -191,13 +191,15 @@ namespace r3d
 
 			enum ProectionCamera { A = 0, B, cCamProectionEnd };
 
-			enum FovLevel { Fov60 = 0, Fov65, Fov70, Fov75, Fov80, Fov85, Fov90, cFovLevelEnd };
+			enum SpltType { Horrizontal = 0, Vertical, Quad, cSplitTypeEnd };
+
+			enum FovLevel { Fov60 = 0, Fov65, Fov70, Fov75, Fov80, Fov85, Fov90, Fov95, Fov100, Fov105, Fov110, Fov115, cFovLevelEnd };
 
 			enum SubjectLevel { Def = 0, P1, P2, P3, P4, P5, P6, P7, Boss, Auto, cSubjectLevelEnd };
 
 			enum MMStyle { Off = 0, MMA, MMB, MMC, MMD, MME, MMF, MMH, MMG, MMI, MMJ, MMK, cMMStyleEnd };
 
-			enum HUDStyle { HUDOff = 0, Standart, Silver, Classic, Alternative, cHUDStyleEnd };
+			enum HUDStyle { HUDOff = 0, Standart, Silver, cHUDStyleEnd };
 
 			static const string cPrefCameraStr[cPrefCameraEnd];
 		private:
@@ -224,9 +226,9 @@ namespace r3d
 			bool _weaponUpgrades;
 			bool _survivalMode;
 			bool _autoCamera;
-			int _subjectView;
-			bool _devMode;
+			int _subjectView;		
 			bool _camLock;
+			unsigned _splitType;
 			bool _staticCam;
 			unsigned _camFov;
 			int _camProection;
@@ -414,9 +416,6 @@ namespace r3d
 			int subjectView() const;
 			void subjectView(int value);
 
-			bool devMode() const;
-			void devMode(bool value);
-
 			bool CamLock() const;
 			void CamLock(bool value);
 
@@ -425,6 +424,9 @@ namespace r3d
 
 			unsigned CamFov() const;
 			void CamFov(unsigned value);
+
+			unsigned GetSplitMOde() const;
+			void SplitMOde(unsigned value);
 
 			int CamProection() const;
 			void CamProection(int value);

@@ -8,7 +8,7 @@ namespace r3d
 	namespace game
 	{
 		class Proj;
-		class GameCar;
+		class GameCar;		
 
 		class GameObject : public Component, public GameObjListener, public px::ActorUser, IFrameEvent, IProgressEvent,
 		                   ILateProgressEvent, IFixedStepEvent, public virtual IGameEvent

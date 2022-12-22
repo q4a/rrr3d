@@ -21,8 +21,8 @@ namespace r3d
 		                                  _netGame(nullptr), _maxPlayers(8), _maxComputers(5),
 		                                  _upgradeMaxLevel(Garage::cUpgMaxLevel), _selectedLevel(0),
 		                                  _weaponUpgrades(true), _survivalMode(false), _autoCamera(false),
-		                                  _subjectView(0), _devMode(false), _camLock(false), _staticCam(true),
-		                                  _camFov(3), _camProection(0), _lapsCount(4), _styleHUD(1), _minimapStyle(6),
+		                                  _subjectView(0), _camLock(false), _splitType(0), _staticCam(true),
+		                                  _camFov(3), _camProection(0), _lapsCount(4), _styleHUD(2), _minimapStyle(6),
 		                                  _enableMineBug(true), _oilDestroyer(true), _disableVideo(true),
 		                                  _prefCamera(pcIsometric), _cameraDistance(1.25f),
 		                                  _discreteVideoChanged(false), _prefCameraAutodetect(false)
@@ -871,8 +871,8 @@ namespace r3d
 			writer->WriteValue("survivalMode", _survivalMode);
 			writer->WriteValue("autoCamera", _autoCamera);
 			writer->WriteValue("subjectView", _subjectView);
-			writer->WriteValue("devMode", _devMode);
 			writer->WriteValue("camLock", _camLock);
+			writer->WriteValue("splitType", _splitType);
 			writer->WriteValue("staticCam", _staticCam);
 			writer->WriteValue("camFov", _camFov);
 			writer->WriteValue("camProection", _camProection);
@@ -884,7 +884,6 @@ namespace r3d
 			writer->WriteValue("disableVideo", _disableVideo);
 			writer->WriteValue("fullScreen", fullScreen());
 			MM_STYLE = _minimapStyle;
-			HUD_STYLE = _styleHUD;
 			CAM_FOV = 60 + (_camFov * 5);
 			writer->WriteValue("language", _language);
 			writer->WriteValue("commentatorStyle", _commentatorStyle);
@@ -978,8 +977,6 @@ namespace r3d
 				autoCamera(bVal);
 			if (reader->ReadValue("subjectView", intVal))
 				subjectView(intVal);
-			if (reader->ReadValue("devMode", bVal))
-				devMode(bVal);
 			if (reader->ReadValue("camLock", bVal))
 				CamLock(bVal);
 			if (reader->ReadValue("staticCam", bVal))
@@ -994,12 +991,13 @@ namespace r3d
 
 			reader->ReadValue("styleHUD", _styleHUD);
 			reader->ReadValue("camFov", _camFov);
+			reader->ReadValue("splitType", _splitType);
 			reader->ReadValue("minimapStyle", _minimapStyle);
 			reader->ReadValue("enableMineBug", _enableMineBug);
 			reader->ReadValue("disableVideo", _disableVideo);
 			MM_STYLE = _minimapStyle;
-			HUD_STYLE = _styleHUD;
 			CAM_FOV = 60 + (_camFov * 5);
+			SPLIT_TYPE = 1 + _splitType;
 
 			if (reader->ReadValue("fullScreen", bVal))
 				fullScreen(bVal);
@@ -1291,20 +1289,6 @@ namespace r3d
 			if (msg.state != ksDown || msg.repeat)
 				return false;
 
-			if (msg.action == gaScreenMode)
-			{
-				if (GetMenu()->GetFullScreen())
-				{
-					GetMenu()->SetFullScreen(false);
-					GetWorld()->GetEnv()->SetShadowQuality(GetWorld()->GetEnv()->eqLow);
-					GetWorld()->GetEnv()->SetPostEffQuality(GetWorld()->GetEnv()->eqLow);
-					return true;
-				}
-				GetMenu()->SetFullScreen(true);
-				GetWorld()->GetEnv()->SetShadowQuality(GetWorld()->GetEnv()->eqHigh);
-				GetWorld()->GetEnv()->SetPostEffQuality(GetWorld()->GetEnv()->eqMiddle);
-				return true;
-			}
 
 			if (msg.action == gaEscape)
 			{
@@ -1576,7 +1560,6 @@ namespace r3d
 			_race->GetGarage().SetSelectedLevel(_selectedLevel);
 			_race->SetWeaponUpgrades(_weaponUpgrades);
 			_race->SetSurvivalMode(_survivalMode);
-			_race->SetDevMode(_devMode);
 			_race->SetCamLock(_camLock);
 			_race->SetStaticCam(_staticCam);
 			_race->SetCamFov(_camFov);
@@ -1586,6 +1569,17 @@ namespace r3d
 			_race->GetTournament().SetLapsCount(_lapsCount);
 			if (createPlayers)
 				_race->CreatePlayers(mode == Race::rmSkirmish ? _maxComputers : _race->GetMaxAICount());
+
+			if (_race->IsFriendship())
+			{
+				//добавляем второго игрока
+				Player* _friend = _race->AddPlayer(Race::cOpponent1, 0, 1, clrGray05);
+				_friend->Release();
+				_friend->AddRef();
+				_friend->isFriend(true);
+				_friend->IsGamer(true);
+				_friend->IsSpectator(false);
+			}
 		}
 
 		void GameMode::ExitMatch(bool saveGame)
@@ -1637,6 +1631,8 @@ namespace r3d
 			if (_race == nullptr || !_race->IsStartRace())
 				return;
 
+			LSL_LOG("Exit Race");
+
 			_finishTime = -1;
 			_startRace = -1;
 			_goRaceTime = -1;
@@ -1646,7 +1642,12 @@ namespace r3d
 			SetSemaphore(nullptr);
 			_race->ExitRace(results);
 
-			SaveGame(saveGame);
+			SPLIT_TYPE = 0;
+			_menu->SetState(Menu::msRace2);
+			_menu->SetState(Menu::msInfo);
+
+			//SaveGame(saveGame);
+			LSL_LOG("SAVE GAME COMPLATED");
 		}
 
 		void GameMode::ExitRaceGoFinish()
@@ -1764,9 +1765,6 @@ namespace r3d
 			//_music->SetPos(6000000);
 			_music->SetPos(pos);
 			_music->Play();
-
-			if (showInfo && _startGame && HUD_STYLE != 0)
-				_menu->ShowMusicInfo(track.band, track.name);
 		}
 
 		void GameMode::StopMusic()
@@ -2285,39 +2283,6 @@ SteamService* GameMode::steamService()
 
 		float GameMode::GetCameraDistance() const
 		{
-			if (_cameraDistance >= 1.5f)
-			{
-				if (_staticCam == true)
-				{
-					ISOCAM_DIST = 3.0f;
-				}
-				else
-				{
-					ISOCAM_DIST = 5.0f;
-				}
-			}
-			else if (_cameraDistance > 1.0f && _cameraDistance <= 1.5f)
-			{
-				if (_staticCam == true)
-				{
-					ISOCAM_DIST = 1.5f;
-				}
-				else
-				{
-					ISOCAM_DIST = 2.5f;
-				}
-			}
-			else
-			{
-				if (_staticCam == true)
-				{
-					ISOCAM_DIST = 0.6f;
-				}
-				else
-				{
-					ISOCAM_DIST = 1.5f;
-				}
-			}
 			return _cameraDistance;
 		}
 
@@ -2343,9 +2308,9 @@ SteamService* GameMode::steamService()
 
 		void GameMode::maxComputers(unsigned value)
 		{
-			_maxComputers = value;
-
-			if (IsMatchStarted() && _race->IsSkirmish() && !_netGame->isStarted())
+			_maxComputers = value;			
+			//пока отключаем опцию смены количества ботов в сплитскрине. Иначе получим краш игры...
+			if (IsMatchStarted() && _race->IsSkirmish() && !_netGame->isStarted() && _race->IsFriendship() == false)
 				_race->CreatePlayers(value);
 		}
 
@@ -2427,19 +2392,6 @@ SteamService* GameMode::steamService()
 				_race->SetSubjectView(value);
 		}
 
-		bool GameMode::devMode() const
-		{
-			return _devMode;
-		}
-
-		void GameMode::devMode(bool value)
-		{
-			_devMode = value;
-
-			if (_startGame)
-				_race->SetDevMode(value);
-		}
-
 		bool GameMode::CamLock() const
 		{
 			return _camLock;
@@ -2478,6 +2430,17 @@ SteamService* GameMode::steamService()
 
 			if (_startGame)
 				_race->SetCamFov(value);
+		}
+
+		unsigned GameMode::GetSplitMOde() const
+		{
+			return _splitType;
+		}
+
+		void GameMode::SplitMOde(unsigned value)
+		{
+			_splitType = value;
+			SPLIT_TYPE = 1 + value;
 		}
 
 		int GameMode::CamProection() const
@@ -2543,7 +2506,6 @@ SteamService* GameMode::steamService()
 		void GameMode::StyleHUD(unsigned value)
 		{
 			_styleHUD = value;
-			HUD_STYLE = value;
 		}
 
 		unsigned GameMode::MinimapStyle() const

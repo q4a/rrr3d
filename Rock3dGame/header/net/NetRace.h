@@ -75,7 +75,6 @@ namespace r3d
 			void OnSetMaxComputers(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 			void OnSetWeaponUpgrades(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 			void OnSetSurvivalMode(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
-			void OnSetDevMode(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 			void OnSetOilDestroyer(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 			void OnSetEnableMineBug(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
 			void OnPushLine(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream);
@@ -147,9 +146,6 @@ namespace r3d
 
 			bool GetSurvivalMode() const;
 			void SetSurvivalMode(bool value);
-
-			bool GetDevMode() const;
-			void SetDevMode(bool value);
 
 			bool GetOilDestroyer() const;
 			void SetOilDestroyer(bool value);

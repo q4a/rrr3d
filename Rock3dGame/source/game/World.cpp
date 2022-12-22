@@ -422,8 +422,18 @@ namespace r3d
 			const float iterDownThreshold = syncDownThreshold / syncStep;
 
 			bool startRace = _game && _game->IsStartgame() && _game->GetRace()->IsStartRace();
+			bool friendship = _game && _game->IsStartgame() && _game->GetRace()->IsFriendship();
 			bool syncModeOn = true; //_env->GetSyncFrameRate() == Environment::sfrFixed;
 			bool enableSync = syncModeOn;
+			
+			if (startRace == true && friendship == true)
+			{
+				ENABLE_SPLIT_SCREEN = true;
+			}
+			else
+				ENABLE_SPLIT_SCREEN = false;
+
+
 			if (_warmIterations > 0)
 			{
 				enableSync = false;
@@ -540,7 +550,7 @@ namespace r3d
 #ifdef DEBUG_FRAME_SYNC
 	QueryPerformanceCounter((LARGE_INTEGER*)&tick);
 #endif
-
+			
 			if (!_graph->Render(dt, _pause))
 				return;
 

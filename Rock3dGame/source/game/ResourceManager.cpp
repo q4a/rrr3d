@@ -15,6 +15,7 @@ namespace r3d
 
 			"svNewGame",
 			"svSingleGame",
+			"svFriendship",
 			"svNetGame",
 			"svContinue",
 			"svNetCreate",
@@ -47,6 +48,7 @@ namespace r3d
 			"svLanguage",
 			"svCommentator",
 			"svCamera",
+			"svSplitScreen",
 			"svMaxPlayers",
 			"svMaxComputers",
 			"svLapsCount",
@@ -59,7 +61,6 @@ namespace r3d
 			"svAutoCamera",
 			"svSubjectView",
 			"svWeaponUpgrades",
-			"svDevMode",
 			"svCamLock",
 			"svStaticCam",
 			"svCamFov",
@@ -124,6 +125,9 @@ namespace r3d
 
 			"svCameraSecView",
 			"svCameraOrtho",
+			"svSplitHor",
+			"svSplitVer",
+			"svSplitQuad",
 			"sv2d",
 			"sv3d",
 			"svMMoff",
@@ -145,6 +149,11 @@ namespace r3d
 			"svFov80",
 			"svFov85",
 			"svFov90",
+			"svFov95",
+			"svFov100",
+			"svFov105",
+			"svFov110",
+			"svFov115",
 			"svDef",
 			"svAuto",
 			"svPlayer1",
@@ -3610,7 +3619,20 @@ namespace r3d
 			LoadImage("GUI\\HUD\\slotSel.png", 1, true, false, -1, true);
 			LoadImage("GUI\\HUD\\zlotSel.png", 1, true, false, -1, true);
 			LoadImage("GUI\\HUD\\lap.png", 1, true, false, -1, true);
+
+
+			LoadImage("GUI\\HUD\\lapz0.png", 1, true, false, -1, true);
+			LoadImage("GUI\\HUD\\lapz1.png", 1, true, false, -1, true);
+			LoadImage("GUI\\HUD\\lapz2.png", 1, true, false, -1, true);
+			LoadImage("GUI\\HUD\\lapz3.png", 1, true, false, -1, true);
+			LoadImage("GUI\\HUD\\lapz4.png", 1, true, false, -1, true);
+			LoadImage("GUI\\HUD\\lapz5.png", 1, true, false, -1, true);
+			LoadImage("GUI\\HUD\\lapz6.png", 1, true, false, -1, true);
+			LoadImage("GUI\\HUD\\lapz7.png", 1, true, false, -1, true);
+
+
 			LoadImage("GUI\\HUD\\lifeBar.png", 1, true, false, -1, true);
+			LoadImage("GUI\\HUD\\lifeBar2.png", 1, true, false, -1, true);
 			LoadImage("GUI\\HUD\\lifeBarSilver.png", 1, true, false, -1, true);
 			LoadImage("GUI\\HUD\\AmmoBar.png", 1, true, false, -1, true);
 			LoadImage("GUI\\HUD\\lifeBarBack.png", 1, true, false, -1, true);
@@ -3899,7 +3921,11 @@ namespace r3d
 			//
 			LoadFont("Header", 44, 0, false, "Verdana");
 			//
+			LoadFont("HeaderHard", 44, FW_BOLD, false, "Verdana");
+			//
 			LoadFont("Item", 32, 0, false, "Verdana");
+			//
+			 LoadFont("ItemHard", 32, FW_BOLD, false, "Verdana");
 			//14
 			LoadFont("Small", 24, 0, false, "Verdana");
 			//12

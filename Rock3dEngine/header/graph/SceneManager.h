@@ -101,6 +101,8 @@ private:
 	ProxyList* _proxyList;
 
 	D3DXVECTOR3 _position;
+	D3DXVECTOR3 _fposition;
+	D3DXVECTOR3 _sposition;
 	D3DXVECTOR3 _scale;
 	bool _visible;
 	NodeOpts _options;
@@ -123,6 +125,8 @@ private:
 	mutable float _pitchAngle;
 	mutable float _turnAngle;
 	mutable D3DXQUATERNION _rot;
+	mutable D3DXQUATERNION _frot;
+	mutable D3DXQUATERNION _srot;
 
 	//Матрицы являются промежуточными переменными, и хранятся в полях объекта для оптимизации расчетов. Для вывода коорректных данных(если перерасчет матриц ещё не произошел) о самих матрицах и связных данных используется mutable для const
 	mutable D3DXMATRIX _rotMat;
@@ -233,6 +237,13 @@ public:
 	//Позиция
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
+	//
+	const D3DXVECTOR3& GetFirstPos() const;
+	void SetFirstPos(const D3DXVECTOR3& value);
+	//
+	const D3DXVECTOR3& GetSecondPos() const;
+	void SetSecondPos(const D3DXVECTOR3& value);
+	//
 	//Масштаб
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(const D3DXVECTOR3& value);
@@ -255,6 +266,12 @@ public:
 	//Поворот по кватерниону
 	const D3DXQUATERNION& GetRot() const;
 	void SetRot(const D3DXQUATERNION& value);
+	//
+	const D3DXQUATERNION& GetFirstRot() const;
+	void SetFirstRot(const D3DXQUATERNION& value);
+	//
+	const D3DXQUATERNION& GetSecondRot() const;
+	void SetSecondRot(const D3DXQUATERNION& value);
 
 	//Локальные матрицы
 	D3DXMATRIX GetScaleMat() const;
@@ -347,7 +364,10 @@ private:
 	mutable graph::CameraDesc _desc;
 	mutable graph::CameraCI _contextInfo;
 	mutable bool _changedCI;
-
+	
+	bool _isoViewSec;
+	bool _isoViewFrst;
+	float _userFOV;
 	float _width;
 
 	void BuildContextInfo() const;
@@ -377,12 +397,21 @@ public:
 	float GetFov() const;
 	void SetFov(float value);
 	//
+	float GetUserFov() const;
+	void SetUserFov(float value);
+	//
 	float GetNear() const;
 	void SetNear(float value);
 	//
 	float GetFar() const;
-	void SetFar(float value);
-	//	
+	void SetFar(float value);	
+	//
+	bool isSecondViewIso() const;
+	void SecondViewIso(bool value);
+	//
+	bool isFirstViewIso() const;
+	void FirtsViewIso(bool value);
+	//
 	CameraStyle GetStyle() const;
 	void SetStyle(CameraStyle value);
 };

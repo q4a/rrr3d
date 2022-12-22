@@ -1176,10 +1176,10 @@ namespace r3d
 		                            _nextBonusProjId(cBonusProjUndef + 1), _headLight(hlmNone), _nightFlare(nullptr),
 		                            _reflScene(true), _money(0), _sponsorMoney(0), _points(0), _killstotal(0),
 		                            _deadstotal(0), _racesTotal(0), _winsTotal(0), _passTrial(0), _OnSuicide(false),
-		                            _skipResults(false), _overBoardD(false), _raceTime(0.0f), _raceSeconds(0.0f),
+		                            _skipResults(false), _isometricV(true), _overBoardD(false), _raceTime(0.0f), _raceSeconds(0.0f),
 		                            _raceMSeconds(0), _raceMinutes(0), _spectator(false), _gamer(false), _inRace(false),
 		                            _hyperDelay(false), _liveTime(0), _pickMoney(0), _id(cUndefPlayerId), _gamerId(-1),
-		                            _subj(false), _inRamp(false), _camstatus(0), _emptyWpn(false),
+		                            _subj(false), _friend(false), _inRamp(false), _camstatus(0), _emptyWpn(false),
 		                            _netSlot(Race::cDefaultNetSlot), _netName(""), _place(0), _finished(false),
 		                            _shotFreeze(false), _mineFreeze(true), _cheatEnable(cCheatDisable), _block(-1.0f),
 		                            _recoveryTime(2.0f), _backMoveTime(0)
@@ -1320,9 +1320,6 @@ namespace r3d
 					moveInverse = true;
 					if (owner->GetCar().gameObj != nullptr)
 					{
-						if (HUD_STYLE == 3)
-							owner->GetCar().gameObj->GetLogic()->TakeBonus(
-								owner->GetCar().gameObj, owner->GetCar().gameObj, btWrong, 1.0f, false);
 						owner->SendEvent(cPlayerMoveInverse);
 					}
 				}
@@ -1756,7 +1753,7 @@ namespace r3d
 			if (_car.mapObj && _car.gameObj->GetGrActor().GetNodes().Size() > 0 && _car.gameObj->GetGrActor().GetNodes()
 				.begin()->GetType() == graph::Actor::ntIVBMesh && !_car.gameObj->GetDisableColor())
 			{
-				auto& mesh = static_cast<graph::IVBMeshNode&>(_car.gameObj->GetGrActor().GetNodes().front());
+				graph::IVBMeshNode& mesh = static_cast<graph::IVBMeshNode&>(_car.gameObj->GetGrActor().GetNodes().front());
 				CreateColorMat(*mesh.material.Get());
 
 				mesh.material.Set(_car.colorMat);
@@ -1922,6 +1919,7 @@ namespace r3d
 			ReloadWeapons();
 
 			_race->OnLapPass(this);
+			_race->FriendlyFinish();
 		}
 
 		void Player::ResetMaxSpeed()
@@ -2185,28 +2183,14 @@ namespace r3d
 					_car.gameObj->SetMoveCar(_block == 0.0f ? GameCar::mcBrake : GameCar::mcNone);
 			}
 
-			//фикс машин после финиша + эффект затемнения.
-			if (this->GetFinished())
+			//фикс машин после финиша
+			if (this->GetFinished() && this->GetCar().gameObj != nullptr)
 			{
 				_timeAfterFinish += deltaTime;
 				if (_timeAfterFinish < 3.0f)
 				{
 					if (this->GetCar().gameObj->GetLastMoveState() == 1)
 						this->GetCar().gameObj->SetMoveCar(GameCar::mcBrake);
-					if (IsHuman() && IsGamer())
-					{
-						//Плавное затемнение экрана в изометрии по завершению гонки:
-						GraphManager::HDRParams params = GetRace()->GetWorld()->GetGraph()->GetHDRParams();
-						GraphManager::HDRParams newparams;
-						newparams.lumKey = params.lumKey;
-						newparams.brightThreshold = params.brightThreshold;
-						newparams.gaussianScalar = params.gaussianScalar;
-						newparams.exposure = params.exposure;
-						newparams.colorCorrection = D3DXVECTOR2(1.0f - (_timeAfterFinish / 3), 0.0f);
-
-						if (GetRace()->GetWorld()->GetCamera()->GetStyle() == CameraManager::csIsometric)
-							GetRace()->GetWorld()->GetGraph()->SetHDRParams(newparams);
-					}
 				}
 				else
 				{
@@ -3101,6 +3085,16 @@ namespace r3d
 			_skipResults = value;
 		}
 
+		bool Player::GetIsometricView() const
+		{
+			return _isometricV;
+		}
+
+		void Player::SetIsometricView(bool value)
+		{
+			_isometricV = value;
+		}
+		
 		bool Player::GetOverBoardD() const
 		{
 			return _overBoardD;
@@ -3225,7 +3219,20 @@ namespace r3d
 			return _car.color;
 		}
 
+		const D3DXCOLOR& Player::GetFriendColor() const
+		{
+			return _car.friendcolor;
+		}
+
 		void Player::SetColor(const D3DXCOLOR& value)
+		{
+			_car.color = value;
+			_car.friendcolor = value;
+
+			ApplyColor();
+		}
+
+		void Player::SetFriendColor(const D3DXCOLOR& value)
 		{
 			_car.color = value;
 
@@ -3260,6 +3267,16 @@ namespace r3d
 		void Player::isSubject(bool value)
 		{
 			_subj = value;
+		}
+
+		bool Player::isFriend() const
+		{
+			return _friend;
+		}
+
+		void Player::isFriend(bool value)
+		{
+			_friend = value;
 		}
 
 		bool Player::inRamp() const
@@ -3323,7 +3340,7 @@ namespace r3d
 		}
 
 		bool Player::GetFinished() const
-		{
+		{			
 			return _finished;
 		}
 
@@ -3399,7 +3416,7 @@ namespace r3d
 		{
 			const Planet::PlayerData* plr = _race->GetTournament().GetPlayerData(_gamerId);
 
-			return !_netName.empty() ? _netName : (plr ? plr->name : scNull);
+			return plr ? plr->name : scNull; //!_netName.empty() ? _netName : (plr ? plr->name : scNull);
 		}
 
 		const std::string& Player::GetRealName()

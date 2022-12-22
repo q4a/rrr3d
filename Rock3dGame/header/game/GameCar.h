@@ -179,6 +179,9 @@ namespace r3d
 			bool _resplocked;
 			bool _wasted;
 			bool _burn;
+			bool _unlimitedTurn;
+			bool _doublej;
+			float _turnForce;
 			float _burnDamage;
 			float _backSpeedK;
 			bool _turnfreeze;
@@ -324,6 +327,15 @@ namespace r3d
 
 			bool IsBurn() const;
 			void SetBurn(bool value);
+
+			bool IsUlimitedTurn() const;
+			void SetUnlimitedTurn(bool value);
+
+			bool DoubleJumpIsActive() const;
+			void DoubleJumpSetActive(bool value);
+
+			float GetTurnForce() const;
+			void SetTurnForce(float value);
 
 			float BackSpeedK() const;
 			void BackSpeedK(float value);

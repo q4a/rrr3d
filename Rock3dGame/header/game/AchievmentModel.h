@@ -6,12 +6,8 @@ namespace r3d
 {
 	namespace game
 	{
-		extern bool TEST_BUILD;
-		extern bool EDIT_MODE;
 		extern int CAM_FOV;;
-		extern unsigned int HUD_STYLE;
 		extern unsigned int MM_STYLE;
-		extern float ISOCAM_DIST;
 		extern unsigned int lapsRest;
 		extern unsigned int lapRestFix;
 		extern float X_VPSIZE;
@@ -21,18 +17,6 @@ namespace r3d
 		extern float MMAP_OFFSET_X;
 		extern float MMAP_OFFSET_Y;
 		extern float FIX_OFFSET;
-		extern float LOCAL_XPOS_HYPERITEM;
-		extern float LOCAL_YPOS_HYPERITEM;
-		extern float LOCAL_XPOS_MINEITEM;
-		extern float LOCAL_YPOS_MINEITEM;
-		extern float LOCAL_XPOS_WEAPONITEM;
-		extern float LOCAL_YPOS_WEAPONITEM;
-		extern float LOCAL_XPOS_WPN_BOX_ITEM;
-		extern float LOCAL_YPOS_WPN_BOX_ITEM;
-		extern float GUN2_OFFSET;
-		extern float GUN3_OFFSET;
-		extern float GUN4_OFFSET;
-		extern float LL_OFFSET;
 		extern int WEAPON_INDEXX;
 		extern unsigned int L_COLORINDEX;
 		extern unsigned int R_COLORINDEX;
@@ -42,8 +26,11 @@ namespace r3d
 		extern float CRATER_POSX;
 		extern float CRATER_POSY;
 		extern float CRATER_POSZ;
+		extern float S_CRATER_POSX;
+		extern float S_CRATER_POSY;
+		extern float S_CRATER_POSZ;
 		extern bool CRATER_SPAWN;
-		extern bool DOUBLE_JUMP;
+		extern bool S_CRATER_SPAWN;
 		//начало gamerID наблюдателей
 		extern int SPECTATOR_ID_BEGIN;
 		extern unsigned int SPECTATORS_COUNT;

@@ -185,6 +185,7 @@ namespace r3d
 			float _messageTime;
 			float _musicTime;
 			bool _Ispectator;
+			bool _IsFriendFrame;
 
 			void SetScreenFon(bool init);
 			void SetMainMenu2(bool init);
@@ -214,6 +215,14 @@ namespace r3d
 			World* GetWorld();
 			Menu(GameMode* game);
 			~Menu() override;
+			//награда за первое место в текущем дивизионе (очки)
+			unsigned _maxPrize;
+			//количество оставшиехся заездов в текущем дивизионе
+			unsigned _raceRestCount;
+			unsigned _currentPoints;
+			unsigned _reqestPoints;
+			//количество очков, которые игрок может набрать до окончания дивизиона
+			unsigned _potentialPoints;
 
 			//centUnscacle - система координат в центре экрана, объекты не масштабируются а только смещаются
 			D3DXVECTOR2 WinToLocal(const D3DXVECTOR2& vec, bool centUnscacle = false);
@@ -279,6 +288,16 @@ namespace r3d
 			//
 			void CarSlotsChanged();
 			//
+			unsigned GetMaxPrize();
+			unsigned GetRaceRestCount();
+			unsigned GetCurrentPoints();
+			unsigned GetReqestPoints();
+			unsigned GetPotentialPoints();
+			//
+			unsigned GetCurTrack();
+			unsigned GetTracksCount();
+			//
+			bool IsSingePlayer();
 			bool IsCampaign();
 			bool IsSkirmish();
 			bool IsNetGame();
@@ -289,10 +308,15 @@ namespace r3d
 #endif
 			//
 			void DelProfile(int profileIndex);
-			Race::Profile* GetLastProfile(bool netGame);
+			Race::Profile* GetLastProfile(bool netGame);	
 			Player* GetPlayer();
-
+			Player* GetSecondPlayer();
+			Player* GetCurrentPlayer();
+			
+			
 			//match
+			void SetFriendFrame(bool value);
+			bool IsFriendFrame();
 			void SetGamerId(int gamerId);
 			const D3DXCOLOR& GetCarColor();
 			void SetCarColor(const D3DXCOLOR& color);
@@ -337,12 +361,11 @@ namespace r3d
 			int subjectView();
 			void subjectView(int value);
 
-			bool devMode();
-			void devMode(bool value);
-			bool enabledDevMode();
-
 			bool camLock();
 			void camLock(bool value);
+
+			unsigned splitType();
+			void splitType(unsigned value);
 
 			bool staticCam();
 			void staticCam(bool value);

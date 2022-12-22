@@ -6,9 +6,6 @@ namespace r3d
 {
 	namespace game
 	{
-		extern bool UnlimitedTurn;
-		extern float TurnForce;
-
 		class HumanPlayer : public Object
 		{
 		private:
@@ -24,6 +21,14 @@ namespace r3d
 				bool _easyDown;
 				bool _leftDown;
 				bool _rightDown;
+
+				bool _accelDownSec;
+				bool _backDownSec;
+				bool _brakeDownSec;
+				bool _rapidDownSec;
+				bool _easyDownSec;
+				bool _leftDownSec;
+				bool _rightDownSec;
 
 				bool OnHandleInput(const InputMessage& msg) override;
 				void OnInputProgress(float deltaTime) override;
@@ -43,15 +48,20 @@ namespace r3d
 			~HumanPlayer() override;
 
 			void Shot(WeaponType weapon, MapObj* target);
+			void SecShot(WeaponType weapon, MapObj* target);
 			void Shot(WeaponType weapon);
+			void Shot2(WeaponType weapon);
 			void ShotCurrent();
 			void Shot(MapObj* target);
 			void Shot();
+			void ShotSec();
 
 			void ResetCar();
+			void ResetCarSec();
 
 			WeaponType GetWeaponByIndex(int number);
 			WeaponItem* GetWeapon(WeaponType weapon);
+			WeaponItem* GetWeaponSec(WeaponType weapon);
 			int GetWeaponCount();
 
 			int GetCurWeapon();

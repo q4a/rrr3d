@@ -23,7 +23,7 @@ namespace r3d
 					svMMoff, svMMA, svMMB, svMMC, svMMD, svMME, svMMF, svMMG, svMMH, svMMI, svMMJ, svMMK
 				};
 				const StringValue cHudStyleStr[GameMode::cHUDStyleEnd] = {
-					svMMoff, svStandart, svSilver, svClassic, svAlternative
+					svMMoff, svStandart, svSilver,  
 				};
 
 				StringList mMapStr;
@@ -60,15 +60,15 @@ namespace r3d
 
 				StringList itemsStepper[cStepperEnd] = {
 					lapsCountStr, SelectedLevel, mMapStr, SHudStr, numComputersStr, upgradeMaxLevel, onOffLevel,
-					onOffLevel, onOffLevel, onOffLevel, onOffLevel
+					onOffLevel, onOffLevel, onOffLevel
 				}; //, numPlayersStr};
 				string strLabels[cLabelEnd] = {
 					_SC(svLapsCount), _SC(svSelectedLevel), _SC(svMinimapStyle), _SC(svStyleHUD), _SC(svMaxComputers),
 					_SC(svUpgradeMaxLevel), _SC(svWeaponUpgrades), _SC(svSurvivalMode), _SC(svEnableMineBug),
-					_SC(svOilDestroyer), _SC(svDevMode)
+					_SC(svOilDestroyer)
 				};
 				std::string fontLabels[cLabelEnd] = {
-					"Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small"
+					"Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small"
 				};
 				gui::Text::HorAlign horLabels[cLabelEnd] = {
 					gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft,
@@ -77,10 +77,10 @@ namespace r3d
 				gui::Text::VertAlign vertLabels[cLabelEnd] = {
 					gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter,
 					gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter,
-					gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter
+					gui::Text::vaCenter, gui::Text::vaCenter
 				};
 				D3DXCOLOR colorLabels[cLabelEnd] = {
-					color1, color1, color1, color1, color1, color1, color1, color1, color1, color1, color1
+					color1, color1, color1, color1, color1, color1, color1, color1, color1, color1
 				};
 
 				_grid = menu->CreateGrid(root(), nullptr, gui::Grid::gsVertical);
@@ -203,10 +203,9 @@ namespace r3d
 				menu()->SetStepperEnabled(_steppers[dbUpgradeMaxLevel], menu()->EnabledOptionUpgradeMaxLevel());
 				menu()->SetStepperEnabled(_steppers[dbSelectedLevel], menu()->EnabledOptionSelectedLevel());
 				//menu()->SetStepperEnabled(_steppers[dbMaxPlayers], menu()->enabledMaxPlayers());
-				menu()->SetStepperEnabled(_steppers[dbMaxComputers], menu()->enabledMaxComputers());
+				menu()->SetStepperEnabled(_steppers[dbMaxComputers], ENABLE_SPLIT_SCREEN == false);
 				menu()->SetStepperEnabled(_steppers[dbWeaponUpgrades], menu()->enabledWeaponUpgrades());
-				menu()->SetStepperEnabled(_steppers[dbSurvivalMode], menu()->enabledSurvivalMode());
-				menu()->SetStepperEnabled(_steppers[dbDevMode], menu()->enabledDevMode());
+				menu()->SetStepperEnabled(_steppers[dbSurvivalMode], menu()->enabledSurvivalMode());				
 				menu()->SetStepperEnabled(_steppers[dbOilDestroyer], menu()->enabledOilDestroyer());
 				menu()->SetStepperEnabled(_steppers[dbEnableMineBug], menu()->activeEnableMineBug());
 
@@ -219,8 +218,7 @@ namespace r3d
 				//_steppers[dbMaxPlayers]->SetSelIndex((int)menu()->maxPlayers() - 2);
 				_steppers[dbMaxComputers]->SetSelIndex(menu()->maxComputers());
 				_steppers[dbWeaponUpgrades]->SetSelIndex(menu()->weaponUpgrades());
-				_steppers[dbSurvivalMode]->SetSelIndex(menu()->survivalMode());
-				_steppers[dbDevMode]->SetSelIndex(menu()->devMode());
+				_steppers[dbSurvivalMode]->SetSelIndex(menu()->survivalMode());				
 				_steppers[dbOilDestroyer]->SetSelIndex(menu()->oilDestroyer());
 				_steppers[dbEnableMineBug]->SetSelIndex(menu()->enableMineBug());
 			}
@@ -319,10 +317,6 @@ namespace r3d
 						menu()->survivalMode(val == 1);
 						break;
 
-					case dbDevMode:
-						menu()->devMode(val == 1);
-						break;
-
 					case dbOilDestroyer:
 						menu()->oilDestroyer(val == 1);
 						break;
@@ -347,9 +341,10 @@ namespace r3d
 				D3DXCOLOR color1(0xffafafaf);
 
 				const StringValue cPrefCameraStr[GameMode::cPrefCameraEnd] = {svCameraSecView, svCameraOrtho};
+				const StringValue cSplitLevelStr[GameMode::cSplitTypeEnd] = { svSplitHor, svSplitVer, svSplitQuad};
 				const StringValue cProectionStr[GameMode::cCamProectionEnd] = {sv2d, sv3d};
 				const StringValue cFovLevelStr[GameMode::cFovLevelEnd] = {
-					svFov60, svFov65, svFov70, svFov75, svFov80, svFov85, svFov90
+					svFov60, svFov65, svFov70, svFov75, svFov80, svFov85, svFov90, svFov95, svFov100, svFov105, svFov110, svFov115
 				};
 				const StringValue cSubjectLevelStr[GameMode::cSubjectLevelEnd] = {
 					svDef, svPlayer1, svPlayer2, svPlayer3, svPlayer4, svPlayer5, svPlayer6, svPlayer7, svBoss,
@@ -360,13 +355,17 @@ namespace r3d
 				for (int i = 0; i < GameMode::cPrefCameraEnd; ++i)
 					cameraStr.push_back(GetString(cPrefCameraStr[i]));
 
+				StringList SplitStr;
+				for (int i = 0; i < GameMode::cSplitTypeEnd; ++i)
+					SplitStr.push_back(GetString(cSplitLevelStr[i]));
+
 				StringList proectionStr;
 				for (int i = 0; i < GameMode::cCamProectionEnd; ++i)
 					proectionStr.push_back(GetString(cProectionStr[i]));
 
 				StringList cameraDistStr;
-				for (int i = 0; i < 3; ++i)
-					cameraDistStr.push_back(StrFmt("%0.2f x", 1.0f + i * 0.25f));
+				for (int i = 0; i < 25; ++i)
+					cameraDistStr.push_back(StrFmt("%0.1f x", 0.1f + i * 0.1f));
 
 				StringList FOVStr;
 				for (int i = 0; i < GameMode::cFovLevelEnd; ++i)
@@ -382,26 +381,26 @@ namespace r3d
 				onOffLevel.push_back(GetString(svOn));
 
 				StringList itemsStepper[cStepperEnd] = {
-					cameraStr, cameraDistStr, onOffLevel, onOffLevel, FOVStr, proectionStr, onOffLevel,
+					cameraStr, SplitStr, cameraDistStr, onOffLevel, onOffLevel, FOVStr, proectionStr, onOffLevel,
 					SubjectStr
 				};
 				string strLabels[cLabelEnd] = {
-					_SC(svCamera), "svCameraDist", _SC(svCamLock), _SC(svStaticCam), _SC(svCamFov),
+					_SC(svCamera), _SC(svSplitScreen), "svCameraDist", _SC(svCamLock), _SC(svStaticCam), _SC(svCamFov),
 					_SC(svCamProection), _SC(svAutoCamera), _SC(svSubjectView)
 				};
 				std::string fontLabels[cLabelEnd] = {
-					"Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small"
+					"Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small", "Small"
 				};
 				gui::Text::HorAlign horLabels[cLabelEnd] = {
-					gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft,
+					gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft,
 					gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft, gui::Text::haLeft
 				};
 				gui::Text::VertAlign vertLabels[cLabelEnd] = {
-					gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter,
+					gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter,
 					gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter
 				};
 				D3DXCOLOR colorLabels[cLabelEnd] = {
-					color1, color1, color1, color1, color1, color1, color1, color1
+					color1, color1, color1, color1, color1, color1, color1, color1, color1
 				};
 
 				_grid = menu->CreateGrid(root(), nullptr, gui::Grid::gsVertical);
@@ -521,9 +520,11 @@ namespace r3d
 
 			void CameraFrame::LoadCfg()
 			{
+				menu()->SetStepperEnabled(_steppers[dbAutoCamera], false);
+				menu()->SetStepperEnabled(_steppers[dbSubjectView], false);
 				_steppers[dbCamera]->SetSelIndex(menu()->GetGame()->GetPrefCamera());
-				_steppers[dbCameraDist]->SetSelIndex(
-					static_cast<int>(Round((menu()->GetGame()->GetCameraDistance() - 1.0f) / 0.25f)));
+				_steppers[dbSplitType]->SetSelIndex(menu()->GetGame()->GetSplitMOde());
+				_steppers[dbCameraDist]->SetSelIndex(static_cast<int>(Round((menu()->GetGame()->GetCameraDistance() - 0.2f) / 0.1f)));
 
 				_steppers[dbCamLock]->SetSelIndex(menu()->camLock());
 				_steppers[dbStaticCam]->SetSelIndex(menu()->staticCam());
@@ -596,8 +597,12 @@ namespace r3d
 						menu()->GetGame()->SetPrefCamera(static_cast<GameMode::PrefCamera>(val));
 						break;
 
+					case dbSplitType:
+						menu()->GetGame()->SplitMOde(static_cast<GameMode::SpltType>(val));
+						break;						
+
 					case dbCameraDist:
-						menu()->GetGame()->SetCameraDistance(1.0f + val * 0.25f);
+						menu()->GetGame()->SetCameraDistance(0.2f + val * 0.1f);
 						break;
 
 					case dbCamLock:
@@ -744,13 +749,17 @@ namespace r3d
 
 			void MediaFrame::LoadCfg()
 			{
+
+				menu()->SetStepperEnabled(_steppers[dbPostProcess], false);
+				menu()->SetStepperEnabled(_steppers[dbShadow], false);
+
 				_steppers[dbResolution]->SetSelIndex(menu()->GetDisplayModeIndex());
 				_steppers[dbFiltering]->SetSelIndex(menu()->GetEnv()->GetFiltering());
 				_steppers[dbMultisampling]->SetSelIndex(menu()->GetEnv()->GetMultisampling());
-				_steppers[dbShadow]->SetSelIndex(menu()->GetEnv()->GetShadowQuality());
+				_steppers[dbShadow]->SetSelIndex(0);
 				_steppers[dbEnv]->SetSelIndex(menu()->GetEnv()->GetEnvQuality());
 				_steppers[dbLight]->SetSelIndex(menu()->GetEnv()->GetLightQuality());
-				_steppers[dbPostProcess]->SetSelIndex(menu()->GetEnv()->GetPostEffQuality());
+				_steppers[dbPostProcess]->SetSelIndex(0);
 				_steppers[dbDisableVideo]->SetSelIndex(menu()->GetDisableVideo());
 				//_steppers[dbWindowMode]->SetSelIndex(menu()->GetFullScreen() == false); 
 			}

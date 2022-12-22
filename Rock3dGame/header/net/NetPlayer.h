@@ -156,6 +156,7 @@ namespace r3d
 		private:
 			NetGame* _net;
 			Player* _player;
+			
 			HumanPlayer* _human;
 			AIPlayer* _aiPlayer;
 			//NetPlayerResponse* _response;

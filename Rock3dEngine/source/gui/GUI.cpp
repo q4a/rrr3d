@@ -3692,6 +3692,7 @@ ScrollBox::ScrollBox(Manager* manager): _MyBase(manager), _arrowSize(20.0f, 20.0
 	_box->SetParent(_clip);
 	_box->SetEvent(_myEvent);
 
+
 	ApplyOptions();
 }
 

@@ -24,6 +24,10 @@
 
 namespace r3d
 {
+	extern bool ENABLE_SPLIT_SCREEN;
+	extern unsigned int SPLIT_TYPE;
+	extern float ISOCAM_DIST;
+	extern bool FIXED_ASPECT;
 
 struct Rect
 {
@@ -165,6 +169,7 @@ private:
 	graph::Camera* _camera;
 	D3DXVECTOR3 _cubeViewPos;
 	OrthoTarget _orthoTarget;
+	OrthoTarget _orthoTargetSec;
 	AABB _groundAABB;
 	bool _guiMode;
 	//
@@ -365,6 +370,7 @@ public:
 	void MainThread();
 	//Рендер может идти в отдельном потоке
 	bool Render(float deltaTime, bool pause);
+	void RenderViewports(float deltaTime, bool pause);
 	//
 	void GPUSync();
 	bool IsSyncSupported();
@@ -444,6 +450,9 @@ public:
 	//
 	const OrthoTarget& GetOrthoTarget() const;
 	void SetOrthoTarget(const D3DXVECTOR3& pos, float size);
+
+	const OrthoTarget& GetOrthoTargetSec() const;
+	void SetOrthoTargetSec(const D3DXVECTOR3& pos, float size);
 
 	const HDRParams& GetHDRParams() const;
 	void SetHDRParams(const HDRParams& value);

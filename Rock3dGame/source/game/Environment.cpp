@@ -827,6 +827,7 @@ namespace r3d
 					hdrParams.exposure = 15.0f;
 					hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
 					GetGraph()->SetHDRParams(hdrParams);
+					SetEnvQuality(eqUltra);
 					break;
 				}
 
@@ -846,6 +847,7 @@ namespace r3d
 					hdrParams.exposure = 4.0f;
 					hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
 					GetGraph()->SetHDRParams(hdrParams);
+					SetEnvQuality(eqLow);
 					break;
 				}
 
@@ -865,6 +867,7 @@ namespace r3d
 					hdrParams.exposure = 3.0f;
 					hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
 					GetGraph()->SetHDRParams(hdrParams);
+					SetEnvQuality(eqLow);
 					break;
 				}
 
@@ -884,6 +887,7 @@ namespace r3d
 					hdrParams.exposure = 8.0f;
 					hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
 					GetGraph()->SetHDRParams(hdrParams);
+					SetEnvQuality(eqLow);
 					break;
 				}
 
@@ -894,7 +898,7 @@ namespace r3d
 					EnableGrass(false);
 					EnableGroundFog(false);
 					EnableMagma(false);
-					EnablePlanarRefl(true);
+					EnablePlanarRefl(false); 
 
 					GraphManager::HDRParams hdrParams;
 					hdrParams.lumKey = 1.1f;
@@ -903,6 +907,7 @@ namespace r3d
 					hdrParams.exposure = 15.0f;
 					hdrParams.colorCorrection = D3DXVECTOR2(1.0f, 0.0f);
 					GetGraph()->SetHDRParams(hdrParams);
+					SetEnvQuality(eqUltra);
 					break;
 				}
 
@@ -1270,11 +1275,8 @@ namespace r3d
 
 		void Environment::SetShadowQuality(Quality value)
 		{
-			if (_shadowQuality != value)
-			{
-				_shadowQuality = value;
-				ApplyQuality();
-			}
+			_shadowQuality = eqLow;
+			ApplyQuality();			
 		}
 
 		bool Environment::IsShadowQualitySupported(Quality value)
@@ -1308,11 +1310,8 @@ namespace r3d
 
 		void Environment::SetPostEffQuality(Quality value)
 		{
-			if (_postEffQuality != value)
-			{
-				_postEffQuality = value;
-				ApplyQuality();
-			}
+			_postEffQuality = eqLow;
+			ApplyQuality();			
 		}
 
 		bool Environment::IsPostEffQualitySupported(Quality value)
@@ -1581,11 +1580,7 @@ namespace r3d
 			if (_editMode != value)
 			{
 				_editMode = value;
-				if (value == true)
-				{
-					TEST_BUILD = true;
-					EDIT_MODE = true;
-				}
+				TOTALPLAYERS_COUNT = 69;
 				ApplyWheater();
 			}
 		}

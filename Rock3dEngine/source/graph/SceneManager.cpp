@@ -14,7 +14,7 @@ namespace r3d
 namespace graph
 {
 
-BaseSceneNode::BaseSceneNode(): _parent(0), _proxyMaster(0), _visible(true), _time(0), _rotInvalidate(0), _rotChanged(true), _position(NullVector), _scale(IdentityVector), _direction(XVector), _up(ZVector), _rollAngle(0), _pitchAngle(0), _turnAngle(0), _rot(NullQuaternion), colorBB(clrRed), storeCoords(true), invertCullFace(false), _tag(0), _animMode(amNone), animDuration(1.0f), frame(0), speedPos(NullVector), speedScale(NullVector), speedRot(NullQuaternion), autoRot(false), _nodeDynRef(0)
+BaseSceneNode::BaseSceneNode(): _parent(0), _proxyMaster(0), _visible(true), _time(0), _rotInvalidate(0), _rotChanged(true), _position(NullVector), _fposition(NullVector), _sposition(NullVector), _scale(IdentityVector), _direction(XVector), _up(ZVector), _rollAngle(0), _pitchAngle(0), _turnAngle(0), _rot(NullQuaternion), _frot(NullQuaternion), _srot(NullQuaternion), colorBB(clrRed), storeCoords(true), invertCullFace(false), _tag(0), _animMode(amNone), animDuration(1.0f), frame(0), speedPos(NullVector), speedScale(NullVector), speedRot(NullQuaternion), autoRot(false), _nodeDynRef(0)
 
 #ifdef _DEBUG
 		, showBB(false),
@@ -240,6 +240,7 @@ void BaseSceneNode::BuildMatrix() const
 	//Поворот не влияет на локальное направление перемещения
 	//Растяжение не влияет на локальное перемещение, т.е. единица длины одна и таже
 	_localMat = GetScaleMat() * GetRotMat() * GetTransMat();
+
 	D3DXMatrixInverse(&_invLocalMat, 0, &_localMat);		
 }
 
@@ -361,8 +362,12 @@ void BaseSceneNode::Load(lsl::SReader* reader)
 	if (storeCoords)
 	{
 		reader->ReadValue("pos", _position, 3);
+		reader->ReadValue("spos", _sposition, 3);
+		reader->ReadValue("fpos", _fposition, 3);
 		reader->ReadValue("scale", _scale, 3);
 		reader->ReadValue("rot", _rot, 4);
+		reader->ReadValue("srot", _srot, 4);
+		reader->ReadValue("frot", _frot, 4);
 	}
 
 	reader->ReadValue("invertCullFace", invertCullFace);
@@ -729,6 +734,28 @@ void BaseSceneNode::SetPos(const D3DXVECTOR3& value)
 	TransformationChanged();
 }
 
+const D3DXVECTOR3& BaseSceneNode::GetFirstPos() const
+{
+	return _fposition;
+}
+
+void BaseSceneNode::SetFirstPos(const D3DXVECTOR3& value)
+{
+	_fposition = value;
+	TransformationChanged();
+}
+
+const D3DXVECTOR3& BaseSceneNode::GetSecondPos() const
+{
+	return _sposition;
+}
+
+void BaseSceneNode::SetSecondPos(const D3DXVECTOR3& value)
+{
+	_sposition = value;
+	TransformationChanged();
+}
+
 const D3DXVECTOR3& BaseSceneNode::GetScale() const
 {
 	return _scale;
@@ -881,6 +908,30 @@ void BaseSceneNode::SetRot(const D3DXQUATERNION& value)
 	ChangedRotation(rsQuaternion);
 }
 
+const D3DXQUATERNION& BaseSceneNode::GetFirstRot() const
+{
+	ExtractRotation(rsQuaternion);
+	return _frot;
+}
+
+void BaseSceneNode::SetFirstRot(const D3DXQUATERNION& value)
+{
+	_frot = value;
+	ChangedRotation(rsQuaternion);
+}
+
+const D3DXQUATERNION& BaseSceneNode::GetSecondRot() const
+{
+	ExtractRotation(rsQuaternion);
+	return _srot;
+}
+
+void BaseSceneNode::SetSecondRot(const D3DXQUATERNION& value)
+{
+	_srot = value;
+	ChangedRotation(rsQuaternion);
+}
+
 D3DXMATRIX BaseSceneNode::GetScaleMat() const
 {
 	D3DXVECTOR3 vec = _scale;
@@ -951,6 +1002,7 @@ const D3DXMATRIX& BaseSceneNode::GetMat() const
 
 void BaseSceneNode::SetLocalMat(const D3DXMATRIX& value)
 {
+	
 	_direction = value.m[0];
 	D3DXVECTOR3 right = value.m[1];
 	_up = value.m[2];	
@@ -987,16 +1039,17 @@ D3DXMATRIX BaseSceneNode::GetCombMat(CombMatType type) const
 	{
 	case cmtScaleTrans:
 		return GetScaleMat() * GetTransMat();
-		
+
 	case cmtScaleRot:
 		return GetScaleMat() * GetTransMat();
-		
+
 	case cmtRotTrans:
 		return GetRotMat() * GetTransMat();
 
 	default:
 		LSL_ASSERT(false);
 		return IdentityMatrix;
+		
 	}
 }
 
@@ -1477,6 +1530,16 @@ void Camera::SetFov(float value)
 	}
 }
 
+float Camera::GetUserFov() const
+{
+	return _userFOV;
+}
+
+void Camera::SetUserFov(float value)
+{
+	_userFOV = value;
+}
+
 float Camera::GetNear() const
 {
 	return _desc.nearDist;
@@ -1503,6 +1566,26 @@ void Camera::SetFar(float value)
 		_desc.farDist = value;
 		ChangedCI();
 	}
+}
+
+bool Camera::isSecondViewIso() const
+{
+	return _isoViewSec;
+}
+
+void Camera::SecondViewIso(bool value)
+{
+	_isoViewSec = value;
+}
+
+bool Camera::isFirstViewIso() const
+{
+	return _isoViewFrst;
+}
+
+void Camera::FirtsViewIso(bool value)
+{
+	_isoViewFrst = value;
 }
 
 CameraStyle Camera::GetStyle() const

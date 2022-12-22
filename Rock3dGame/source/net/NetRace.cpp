@@ -27,7 +27,6 @@ namespace r3d
 			RegRPC(&NetRace::OnSetMaxComputers);
 			RegRPC(&NetRace::OnSetWeaponUpgrades);
 			RegRPC(&NetRace::OnSetSurvivalMode);
-			RegRPC(&NetRace::OnSetDevMode);
 			RegRPC(&NetRace::OnSetOilDestroyer);
 			RegRPC(&NetRace::OnSetEnableMineBug);
 			RegRPC(&NetRace::OnPushLine);
@@ -61,7 +60,6 @@ namespace r3d
 			int wheater;
 			bool weaponUpgrades;
 			bool survivalMode;
-			bool devMode;
 			bool oilDestroyer;
 			bool enableMineBug;
 
@@ -74,7 +72,6 @@ namespace r3d
 			net::Read(stream, _maxComputers);
 			net::Read(stream, weaponUpgrades);
 			net::Read(stream, survivalMode);
-			net::Read(stream, devMode);
 			net::Read(stream, oilDestroyer);
 			net::Read(stream, enableMineBug);
 			net::Read(stream, planet);
@@ -91,7 +88,6 @@ namespace r3d
 			garage().SetSelectedLevel(selectedLevel);
 			race()->SetWeaponUpgrades(weaponUpgrades);
 			race()->SetSurvivalMode(survivalMode);
-			race()->SetDevMode(devMode);
 			race()->SetOilDestroyer(oilDestroyer);
 			race()->SetEnableMineBug(enableMineBug);
 			tournament().SetLapsCount(lapsCount);
@@ -111,7 +107,6 @@ namespace r3d
 			net::Write(stream, _maxComputers);
 			net::Write(stream, race()->GetWeaponUpgrades());
 			net::Write(stream, race()->GetSurvivalMode());
-			net::Write(stream, race()->GetDevMode());
 			net::Write(stream, race()->GetOilDestroyer());
 			net::Write(stream, race()->GetEnableMineBug());
 			net::Write(stream, race()->GetTournament().GetCurPlanetIndex());
@@ -453,15 +448,6 @@ namespace r3d
 			net::Read(stream, survivalMode);
 
 			race()->SetSurvivalMode(survivalMode);
-		}
-
-		void NetRace::OnSetDevMode(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
-		{
-			bool devMode;
-
-			net::Read(stream, devMode);
-
-			race()->SetDevMode(devMode);
 		}
 
 		void NetRace::OnSetOilDestroyer(const net::NetMessage& msg, const net::NetCmdHeader& header,
@@ -954,23 +940,6 @@ namespace r3d
 				_net->game()->survivalMode(value);
 
 				std::ostream& stream = NewRPC(net::cNetTargetOthers, &NetRace::OnSetSurvivalMode);
-				net::Write(stream, value);
-				CloseRPC();
-			}
-		}
-
-		bool NetRace::GetDevMode() const
-		{
-			return race()->GetDevMode();
-		}
-
-		void NetRace::SetDevMode(bool value)
-		{
-			if (_net->isHost() && _net->game()->devMode() != value)
-			{
-				_net->game()->devMode(value);
-
-				std::ostream& stream = NewRPC(net::cNetTargetOthers, &NetRace::OnSetDevMode);
 				net::Write(stream, value);
 				CloseRPC();
 			}

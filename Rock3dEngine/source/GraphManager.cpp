@@ -21,7 +21,10 @@ const std::string GraphManager::cGraphOptionStr[GraphManager::cGraphOptionEnd] =
 
 const std::string GraphManager::cGraphQualityStr[GraphManager::cGraphQualityEnd] = {"gqLow", "gqMiddle", "gqHigh", "gqUltra"};
 
-
+extern bool ENABLE_SPLIT_SCREEN = false;
+extern unsigned int SPLIT_TYPE = 0;
+extern float ISOCAM_DIST = 1.5;
+extern bool FIXED_ASPECT = false;
 
 
 GraphManager::LightSrc::LightSrc(const LightDesc& desc): _enable(true), _shadowMap(0)
@@ -115,6 +118,8 @@ GraphManager::GraphManager(HWND window, lsl::Point resolution, bool fullScreen):
 	_fogIntensivity = 0.5f;
 	_orthoTarget.pos = NullVector;
 	_orthoTarget.size = 0.0f;
+	_orthoTargetSec.pos = NullVector;
+	_orthoTargetSec.size = 0.0f;
 	_cubeViewPos = NullVector;
 
 	_engine = new graph::Engine(window, resolution, fullScreen, _multisampling);
@@ -135,6 +140,7 @@ GraphManager::GraphManager(HWND window, lsl::Point resolution, bool fullScreen):
 
 	ZeroMemory(_graphOptions, sizeof(_graphOptions));
 	ZeroMemory(_graphQuality, sizeof(_graphQuality));
+
 }
 
 GraphManager::~GraphManager()
@@ -1908,10 +1914,11 @@ void GraphManager::RenderEnvReflScene(graph::CameraCI& camera)
 		OctreeRender(osColorRefl, true);
 }
 
+
 void GraphManager::RenderScenes(graph::CameraCI& camera)
 {
 	ApplyFog();
-	
+
 	if (_pixLightShader)
 		_pixLightShader->SetViewPos(_camera->GetPos());
 	if (_bumpMapShader)
@@ -1922,7 +1929,7 @@ void GraphManager::RenderScenes(graph::CameraCI& camera)
 		_reflBumpShader->SetViewPos(_camera->GetPos());
 	if (_planarReflShader)
 		_planarReflShader->SetViewPos(_camera->GetPos());
-	
+
 	RenderWithShader(osColorPix, true, _pixLightShader, true, true);
 
 	if (!RenderWithShader(osColorBump, true, _bumpMapShader, true, false))
@@ -1946,7 +1953,7 @@ void GraphManager::RenderScenes(graph::CameraCI& camera)
 		_waterPlane->Render(*_engine);
 
 	OctreeRender(osColorOpacity, false);
-	
+
 	//Рендерим с отключенной запись
 	_engine->GetContext().SetRenderState(graph::rsZWriteEnable, false);
 
@@ -1954,8 +1961,8 @@ void GraphManager::RenderScenes(graph::CameraCI& camera)
 	_actorManager->RenderRayUsers(*_engine, 0.3f);
 	//Спецэффекты в обязательо порядке с откл. записью
 	OctreeRender(osColorEffect, false);
-	
-	_engine->GetContext().RestoreRenderState(graph::rsZWriteEnable);	
+
+	_engine->GetContext().RestoreRenderState(graph::rsZWriteEnable);
 
 	OctreeRender(osColorLast, false);
 
@@ -1963,6 +1970,7 @@ void GraphManager::RenderScenes(graph::CameraCI& camera)
 
 	UnApplyFog();
 }
+
 
 void GraphManager::ProgressTime(float deltaTime, bool pause)
 {
@@ -2150,47 +2158,299 @@ void GraphManager::MainThread()
 	_engine->CheckReset();
 }
 
+
 bool GraphManager::Render(float deltaTime, bool pause)
 {
-	typedef graph::RenderTarget<graph::Tex2DResource>::RtFlags RtFlags;
-
-	if (_guiMode)
+	if (ENABLE_SPLIT_SCREEN == true)
 	{
-		ProgressTime(deltaTime, pause);
+		RenderViewports(deltaTime, pause);		
+		return _engine->EndScene();		
+	}
+	else
+	{
+		typedef graph::RenderTarget<graph::Tex2DResource>::RtFlags RtFlags;
+
+		if (_guiMode)
+		{
+			ProgressTime(deltaTime, pause);
+
+			if (_engine->BeginScene())
+			{
+				_engine->BeginBackBufOut(D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _guiMode ? clrBlack : _fogColor);
+				_gui->Draw();
+				_engine->EndBackBufOut();
+			}
+
+			return _engine->EndScene();
+		}
+
+		LSL_ASSERT(_camera);
+
+		const D3DXVECTOR3* rayTarget = _camera->GetStyle() == graph::csOrtho && _actorManager->IsBuildOctree() ? &_orthoTarget.pos : 0;
 
 		if (_engine->BeginScene())
 		{
-			_engine->BeginBackBufOut(D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _guiMode ? clrBlack : _fogColor);
-			_gui->Draw();
-			_engine->EndBackBufOut();
-		}
+			if (_msRT)
+			{
+				_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_depthSurface->GetSurface());
+			}
+			else
+			{
+				_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_engine->GetDSSurf());
+			}
 
+			ProgressTime(deltaTime, pause);
+
+			graph::CameraCI camera;
+			camera.SetDesc(_camera->GetContextInfo().GetDesc());
+
+			//выравнивание Ortho
+			AdjustViewOrtho(camera);
+
+			if (rayTarget)
+				_actorManager->PullRayUsers(osColorCullOpacity, &camera, *rayTarget, _orthoTarget.size);
+
+			_engine->GetContext().SetRenderState(graph::rsMultiSampleAntialias, false);
+
+			//рендер ShadowMap
+			RenderShadow(camera);
+
+			_engine->GetContext().ApplyCamera(&camera);
+
+			//Осветляем сцену для спец. эффектов (например для четкого кубемапа)
+			_engine->GetContext().SetRenderState(graph::rsAmbient, clrWhite);
+			//Рендер кубемапы сцены
+			RenderCubeMap(camera);
+			//Рендер текстуры водных отражений
+			RenderWaterRef(camera);
+			//Рендер глубины сцены
+			RenderDepthScene(camera);
+
+			_engine->GetContext().RestoreRenderState(graph::rsMultiSampleAntialias);
+
+			//Глобальное фоновое освещение, если включены тени то для объектов он расчитывается через рендер теней в лихт мапе(чтобы скрывать артефакты в тенях)
+			_engine->GetContext().SetRenderState(graph::rsAmbient, _sceneAmbient);
+
+			//
+			unsigned i = 0;
+			for (LightList::iterator iter = _lightList.begin(); iter != _lightList.end(); ++iter, ++i)
+				if ((*iter)->GetEnable())
+					(*iter)->GetSource()->Apply(*_engine, i);
+
+			//Рендер с постпроцессингом
+			if (_scRenderTexRef)
+			{
+				if (_msRT)
+				{
+					_engine->GetDriver().GetDevice()->SetRenderTarget(0, _msRT->GetSurface());
+					_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_msDS->GetSurface());
+					_engine->GetDriver().GetDevice()->Clear(0, NULL, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor, 1.0f, 0);
+				}
+				else
+					_scRenderTex->BeginRT(*_engine, RtFlags(0, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor));
+
+				_preNodeScene->Render(*_engine);
+
+				RenderScenes(camera);
+
+				if (_cleanScTexRef)
+				{
+					IDirect3DSurface9* surf1;
+					IDirect3DSurface9* surf2;
+
+					if (_msRT)
+						surf1 = _msRT->GetSurface();
+					else
+						_scRenderTex->GetRT()->GetTex()->GetSurfaceLevel(0, &surf1);
+					_cleanScTex->GetRT()->GetTex()->GetSurfaceLevel(0, &surf2);
+
+					_engine->GetDriver().GetDevice()->StretchRect(surf1, 0, surf2, 0, D3DTEXF_NONE);
+					//_engine->GetDriver().GetDevice()->SetRenderTarget(1, 0);
+					//_engine->GetDriver().GetDevice()->UpdateTexture
+
+					if (_msRT == NULL)
+						surf1->Release();
+					surf2->Release();
+				}
+
+				if (_refrEffRef)
+				{
+					_refrShader->Apply(*_engine);
+					OctreeRender(osColorRefr, 0);
+					_refrShader->UnApply(*_engine);
+				}
+
+				if (_msRT)
+				{
+					IDirect3DSurface9* surfTex;
+					_scRenderTex->GetRT()->GetTex()->GetSurfaceLevel(0, &surfTex);
+
+					_engine->GetDriver().GetDevice()->StretchRect(_msRT->GetSurface(), 0, surfTex, 0, D3DTEXF_NONE);
+
+					surfTex->Release();
+
+					_engine->GetDriver().GetDevice()->SetRenderTarget(0, NULL);
+					_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_engine->GetDSSurf());
+				}
+				else
+					_scRenderTex->EndRT(*_engine);
+
+				if (_hdrEff)
+					_hdrEff->Render(*_engine);
+				if (_bloomEff)
+					_bloomEff->Render(*_engine);
+				if (_toneMapRef)
+					_toneMap->Render(*_engine);
+				if (_sunShaft && _engine->GetContext().GetCamera().GetDesc().style == graph::csPerspective)
+				{
+					//наложение
+					D3DXVECTOR3 lightPos = _engine->GetContext().GetLight(0).GetDesc().pos;
+					D3DXVECTOR3 radVec;
+					D3DXVec3Normalize(&radVec, &(lightPos - _actorManager->GetWorldAABB().GetCenter()));
+					D3DXVec3Cross(&radVec, &D3DXVECTOR3(0, 0, 1), &radVec);
+					if (D3DXVec3Length(&radVec) < 0.1f)
+						radVec = D3DXVECTOR3(1, 0, 0);
+					D3DXQUATERNION radQuat;
+					D3DXQuaternionRotationAxis(&radQuat, &radVec, D3DX_PI / 2.5f);
+					Vec3Rotate(D3DXVECTOR3(0, 0, 1), radQuat, radVec);
+					radVec = radVec * 1000.0f;
+
+					_sunShaft->SetSunPos(radVec);
+					_sunShaft->Render(*_engine);
+				}
+
+				_engine->BeginBackBufOut(0, 0);
+
+				_engine->GetContext().SetTexture(0, _scRenderTex->GetRT()->GetTex());
+				DrawScreenQuad(*_engine);
+
+				_nodeScene->Render(*_engine);
+				//RenderDebug();
+				_gui->Draw();
+
+				_engine->EndBackBufOut();
+			}
+			//Прямой рендер в задний буффер
+			else
+			{
+				LSL_ASSERT(!_cleanScTexRef);
+
+				_engine->BeginBackBufOut(D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor);
+
+				_preNodeScene->Render(*_engine);
+
+				RenderScenes(camera);
+
+				_nodeScene->Render(*_engine);
+				_gui->Draw();
+				//RenderDebug();
+
+				_engine->EndBackBufOut();
+			}
+
+			i = 0;
+			for (LightList::iterator iter = _lightList.begin(); iter != _lightList.end(); ++iter, ++i)
+				if ((*iter)->GetEnable())
+					(*iter)->GetSource()->UnApply(*_engine, i);
+
+			_engine->GetContext().UnApplyCamera(&camera);
+
+			_actorManager->ResetCache();
+		}
 		return _engine->EndScene();
 	}
+}
+
+void GraphManager::RenderViewports(float deltaTime, bool pause)
+{
+	typedef graph::RenderTarget<graph::Tex2DResource>::RtFlags RtFlags;
+	//Split Screen Settings:
+	DWORD w = GetWndRect().Width();
+	DWORD h = GetWndRect().Height();
+
+	DWORD upPoint = GetWndRect().top;
+	DWORD downPoint = GetWndRect().bottom;
+	DWORD leftPoint = GetWndRect().left;
+	DWORD rightPoint = GetWndRect().right;
+
+	DWORD centerPointV = (upPoint + downPoint) / 2;
+	DWORD centerPointH = (leftPoint + rightPoint) / 2;
+	
+	//Init viewports
+	D3DVIEWPORT9 vp1 = { 0, 0, w, h, 0, 1 };
+	D3DVIEWPORT9 vp2 = { 0, 0, w, h, 0, 1 }; 
+
+	//SPLIT_TYPE = 0;
+	if (SPLIT_TYPE == 1)
+	{
+		//классический (горизонтальное разделение):
+		vp1 = { 0, 0, w, h / 2, 0, 1 };
+		vp2 = { 0, centerPointV, w, h / 2, 0, 1 };
+		if (FIXED_ASPECT == true)
+		{
+			_camera->SetAspect(2.2);
+			//_camera->SetWidth(28 * ISOCAM_DIST); 
+		}
+	}
+	else if (SPLIT_TYPE == 2)
+	{		
+		//широкоформатный (вертикальное разделение):
+		vp1 = { 0, 0, w / 2, h, 0, 1 };
+		vp2 = { centerPointH, 0, w / 2, h, 0, 1 };		
+		if (FIXED_ASPECT == true)
+		{
+			_camera->SetAspect(0.7);
+			_camera->SetWidth(14 * ISOCAM_DIST);
+		}
+	}
+	else if (SPLIT_TYPE == 3)
+	{
+		//квадратный (сохряняется изначальное соотношение сторон)
+		vp1 = { 128, 0, w / 2, h / 2, 0, 1 };
+		vp2 = { (w / 2) - 128, h / 2, w / 2, h / 2, 0, 1 };
+	}
+	else
+	{
+		//0 == PARAMETRS IN MENU:
+		_camera->SetAspect(1);
+		_camera->SetWidth(28 * ISOCAM_DIST);
+	}
+
+//-------------------------------------------------------------------------
+	//rayTarget отвечает за правильную отрисовку полупрозрачных объектов в изометрии...
+	const D3DXVECTOR3* rayTarget = _camera->GetStyle() == graph::csOrtho && _actorManager->IsBuildOctree() ? &_orthoTarget.pos : 0;
+	const D3DXVECTOR3* rayTargetSec = _camera->GetStyle() == graph::csOrtho && _actorManager->IsBuildOctree() ? &_orthoTargetSec.pos : 0;
 
 	LSL_ASSERT(_camera);
-
-	const D3DXVECTOR3* rayTarget = _camera->GetStyle() == graph::csOrtho && _actorManager->IsBuildOctree() ? &_orthoTarget.pos : 0;
 
 	if (_engine->BeginScene())
 	{
 		if (_msRT)
-		{
 			_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_depthSurface->GetSurface());
-		}
 		else
-		{
 			_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_engine->GetDSSurf());
-		}
 
 		ProgressTime(deltaTime, pause);
 
+		//параметры первой камеры
 		graph::CameraCI camera;
+		_camera->SetPos(_camera->GetFirstPos());
+		_camera->SetRot(_camera->GetFirstRot());
+		if (_camera->isFirstViewIso())
+		{
+			_camera->SetStyle(graph::csOrtho);
+			_camera->SetFov(90 * D3DX_PI / 180);
+		}
+		else
+		{
+			_camera->SetStyle(graph::csPerspective);
+			_camera->SetFov(_camera->GetUserFov() * D3DX_PI / 180);
+		}
+
 		camera.SetDesc(_camera->GetContextInfo().GetDesc());
+		//////////////////////////////////////////////////////
 
-		//выравнивание Ortho
 		AdjustViewOrtho(camera);
-
 		if (rayTarget)
 			_actorManager->PullRayUsers(osColorCullOpacity, &camera, *rayTarget, _orthoTarget.size);
 
@@ -2200,22 +2460,15 @@ bool GraphManager::Render(float deltaTime, bool pause)
 		RenderShadow(camera);
 
 		_engine->GetContext().ApplyCamera(&camera);
-		
-		//Осветляем сцену для спец. эффектов (например для четкого кубемапа)
+
 		_engine->GetContext().SetRenderState(graph::rsAmbient, clrWhite);
-		//Рендер кубемапы сцены
 		RenderCubeMap(camera);
-		//Рендер текстуры водных отражений
-		RenderWaterRef(camera);		
-		//Рендер глубины сцены
+		RenderWaterRef(camera);
 		RenderDepthScene(camera);
 
 		_engine->GetContext().RestoreRenderState(graph::rsMultiSampleAntialias);
-
-		//Глобальное фоновое освещение, если включены тени то для объектов он расчитывается через рендер теней в лихт мапе(чтобы скрывать артефакты в тенях)
 		_engine->GetContext().SetRenderState(graph::rsAmbient, _sceneAmbient);
-		
-		//
+
 		unsigned i = 0;
 		for (LightList::iterator iter = _lightList.begin(); iter != _lightList.end(); ++iter, ++i)
 			if ((*iter)->GetEnable())
@@ -2224,111 +2477,63 @@ bool GraphManager::Render(float deltaTime, bool pause)
 		//Рендер с постпроцессингом
 		if (_scRenderTexRef)
 		{
-			if (_msRT)
-			{
-				_engine->GetDriver().GetDevice()->SetRenderTarget(0, _msRT->GetSurface());
-				_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_msDS->GetSurface());
-				_engine->GetDriver().GetDevice()->Clear(0, NULL, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor, 1.0f, 0);
-			}
-			else
-				_scRenderTex->BeginRT(*_engine, RtFlags(0, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor));
-
-			_preNodeScene->Render(*_engine);
-
-			RenderScenes(camera);
-
-			if (_cleanScTexRef)
-			{
-				IDirect3DSurface9* surf1;
-				IDirect3DSurface9* surf2;
-				
-				if (_msRT)
-					surf1 = _msRT->GetSurface();
-				else
-					_scRenderTex->GetRT()->GetTex()->GetSurfaceLevel(0, &surf1);					
-				_cleanScTex->GetRT()->GetTex()->GetSurfaceLevel(0, &surf2);
-
-				_engine->GetDriver().GetDevice()->StretchRect(surf1, 0, surf2, 0, D3DTEXF_NONE);
-				//_engine->GetDriver().GetDevice()->SetRenderTarget(1, 0);
-				//_engine->GetDriver().GetDevice()->UpdateTexture
-
-				if (_msRT == NULL)
-					surf1->Release();
-				surf2->Release();
-			}
-
-			if (_refrEffRef)
-			{
-				_refrShader->Apply(*_engine);
-				OctreeRender(osColorRefr, 0);
-				_refrShader->UnApply(*_engine);
-			}
-
-			if (_msRT)
-			{
-				IDirect3DSurface9* surfTex;
-				_scRenderTex->GetRT()->GetTex()->GetSurfaceLevel(0, &surfTex);
-
-				_engine->GetDriver().GetDevice()->StretchRect(_msRT->GetSurface(), 0, surfTex, 0, D3DTEXF_NONE);
-
-				surfTex->Release();
-
-				_engine->GetDriver().GetDevice()->SetRenderTarget(0, NULL);
-				_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_engine->GetDSSurf());
-			}
-			else
-				_scRenderTex->EndRT(*_engine);
-
-			if (_hdrEff)
-				_hdrEff->Render(*_engine);
-			if (_bloomEff)
-				_bloomEff->Render(*_engine);
-			if (_toneMapRef)
-				_toneMap->Render(*_engine);
-			if (_sunShaft && _engine->GetContext().GetCamera().GetDesc().style == graph::csPerspective)
-			{
-				//наложение
-				D3DXVECTOR3 lightPos = _engine->GetContext().GetLight(0).GetDesc().pos;
-				D3DXVECTOR3 radVec;
-				D3DXVec3Normalize(&radVec, &(lightPos - _actorManager->GetWorldAABB().GetCenter()));
-				D3DXVec3Cross(&radVec, &D3DXVECTOR3(0, 0, 1), &radVec);
-				if (D3DXVec3Length(&radVec) < 0.1f)
-					radVec = D3DXVECTOR3(1, 0, 0);
-				D3DXQUATERNION radQuat;
-				D3DXQuaternionRotationAxis(&radQuat, &radVec, D3DX_PI/2.5f);
-				Vec3Rotate(D3DXVECTOR3(0, 0, 1), radQuat, radVec);
-				radVec = radVec * 1000.0f;
-
-				_sunShaft->SetSunPos(radVec);
-				_sunShaft->Render(*_engine);
-			}
-
-			_engine->BeginBackBufOut(0, 0);
-
-			_engine->GetContext().SetTexture(0, _scRenderTex->GetRT()->GetTex());
-			DrawScreenQuad(*_engine);
-
-			_nodeScene->Render(*_engine);
-			//RenderDebug();
-			_gui->Draw();			
-
-			_engine->EndBackBufOut();
 		}
 		//Прямой рендер в задний буффер
 		else
 		{
 			LSL_ASSERT(!_cleanScTexRef);
-
-			_engine->BeginBackBufOut(D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor);
-
+			_engine->BeginBackBufOut(D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, clrBlack);
+			_engine->GetDriver().GetDevice()->SetViewport(&vp1);
 			_preNodeScene->Render(*_engine);
-
 			RenderScenes(camera);
-			
 			_nodeScene->Render(*_engine);
 			_gui->Draw();
-			//RenderDebug();
+			_engine->EndBackBufOut();
+		}
 
+		//параметры второй камеры:
+		_camera->SetPos(_camera->GetSecondPos());
+		_camera->SetRot(_camera->GetSecondRot());
+		if (_camera->isSecondViewIso())
+		{
+			_camera->SetStyle(graph::csOrtho);
+			_camera->SetFov(90 * D3DX_PI / 180);
+		}
+		else
+		{
+			_camera->SetStyle(graph::csPerspective);
+			_camera->SetFov(_camera->GetUserFov() * D3DX_PI / 180);
+		}
+		camera.SetDesc(_camera->GetContextInfo().GetDesc());
+		//////////////////////////////////////////////////////
+
+		AdjustViewOrtho(camera);
+		if (rayTargetSec)
+			_actorManager->PullRayUsers(osColorCullOpacity, &camera, *rayTargetSec, _orthoTargetSec.size);
+
+		_engine->GetContext().SetRenderState(graph::rsMultiSampleAntialias, false);
+		//рендер ShadowMap не работает во втором вьювпорте
+		RenderShadow(camera);
+		_engine->GetContext().ApplyCamera(&camera);
+		_engine->GetContext().SetRenderState(graph::rsAmbient, clrWhite);
+		//RenderCubeMap(camera) не работает во втором вьювпорте
+		RenderWaterRef(camera);
+		RenderDepthScene(camera);
+		_engine->GetContext().RestoreRenderState(graph::rsMultiSampleAntialias);
+		_engine->GetContext().SetRenderState(graph::rsAmbient, _sceneAmbient);
+	    
+		//VIEWPORT2
+		if (_scRenderTexRef)
+		{
+		}
+		//Прямой рендер в задний буффер
+		else
+		{
+			_engine->GetDriver().GetDevice()->SetViewport(&vp2);
+			_preNodeScene->Render(*_engine);
+			RenderScenes(camera);
+			_nodeScene->Render(*_engine);
+			_gui->Draw();
 			_engine->EndBackBufOut();
 		}
 
@@ -2336,13 +2541,12 @@ bool GraphManager::Render(float deltaTime, bool pause)
 		for (LightList::iterator iter = _lightList.begin(); iter != _lightList.end(); ++iter, ++i)
 			if ((*iter)->GetEnable())
 				(*iter)->GetSource()->UnApply(*_engine, i);
-
+		
 		_engine->GetContext().UnApplyCamera(&camera);
-
-		_actorManager->ResetCache();
+		_actorManager->ResetCache();		
 	}
-	return _engine->EndScene();
 }
+
 
 void GraphManager::GPUSync()
 {
@@ -2927,6 +3131,17 @@ void GraphManager::SetOrthoTarget(const D3DXVECTOR3& pos, float size)
 {
 	_orthoTarget.pos = pos;
 	_orthoTarget.size = size;
+}
+
+const GraphManager::OrthoTarget& GraphManager::GetOrthoTargetSec() const
+{
+	return _orthoTarget;
+}
+
+void GraphManager::SetOrthoTargetSec(const D3DXVECTOR3& pos, float size)
+{
+	_orthoTargetSec.pos = pos;
+	_orthoTargetSec.size = size;
 }
 
 const GraphManager::HDRParams& GraphManager::GetHDRParams() const

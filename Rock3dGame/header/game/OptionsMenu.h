@@ -25,7 +25,6 @@ namespace r3d
 					mlSurvivalMode,
 					mlEnableMineBug,
 					mlOilDestroyer,
-					mlDevMode,
 					cLabelEnd
 				}; //mlMaxPlayers 
 				enum Stepper
@@ -40,7 +39,6 @@ namespace r3d
 					dbSurvivalMode,
 					dbEnableMineBug,
 					dbOilDestroyer,
-					dbDevMode,
 					cStepperEnd
 				}; //dbMaxPlayers
 			private:
@@ -79,6 +77,7 @@ namespace r3d
 				enum Label
 				{
 					mlCamera,
+					mlSplitType,
 					mlCameraDist,
 					mlCamLock,
 					mlStaticCam,
@@ -92,6 +91,7 @@ namespace r3d
 				enum Stepper
 				{
 					dbCamera,
+					dbSplitType,
 					dbCameraDist,
 					dbCamLock,
 					dbStaticCam,

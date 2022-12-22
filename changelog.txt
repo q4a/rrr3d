@@ -1,0 +1,6 @@
+Beta4i:
+--------------------------------------
++Configurate Viewports;
++Add Split option (vertical/horizontal/quadchess):
++Add fixed aspect Option;
++Add smooth-change isodistance, FOV values;

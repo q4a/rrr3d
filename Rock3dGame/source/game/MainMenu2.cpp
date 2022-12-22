@@ -30,18 +30,29 @@ namespace r3d
 			{
 				if (sender == _mainMenu->GetItem(miChampionship))
 				{
+					if (menu()->GetRace()->IsFriendship())
+						menu()->SetFriendFrame(true);
+					else
+						menu()->SetFriendFrame(false);
+
 					_mainMenu->PushState(MainMenu::msTournament);
 					return true;
 				}
 
 				if (sender == _mainMenu->GetItem(miSkirmish))
 				{
+					if (menu()->GetRace()->IsFriendship())
+						menu()->SetFriendFrame(true);
+					else
+						menu()->SetFriendFrame(false);
+
 					_mainMenu->PushState(MainMenu::msDifficulty);
 					return true;
 				}
 
 				if (sender == _mainMenu->GetItem(miBack))
 				{
+					menu()->SetFriendFrame(false);
 					_mainMenu->BackState();
 					return true;
 				}
@@ -2107,7 +2118,7 @@ void SteamBrowserFrame::OnDisconnectedPlayer(NetPlayer* sender)
 			void MainFrame::OnShow(bool value)
 			{
 				const string menuItemsStr[cMenuItemEnd] = {
-					_SC(svSingleGame), _SC(svNetGame), _SC(svOptions), _SC(svAuthors), _SC(svExit)
+					_SC(svSingleGame), _SC(svFriendship), _SC(svNetGame), _SC(svOptions), _SC(svExit)
 				};
 
 				if (value)
@@ -2121,25 +2132,29 @@ void SteamBrowserFrame::OnDisconnectedPlayer(NetPlayer* sender)
 				if (sender == _mainMenu->GetItem(miSingle))
 				{
 					_mainMenu->PushState(MainMenu::msGameMode);
+					menu()->GetRace()->SetFriendship(false);
+					return true;
+				}
+
+				if (sender == _mainMenu->GetItem(miFriendship))
+				{					
+					_mainMenu->PushState(MainMenu::msGameMode);
+					menu()->GetRace()->SetFriendship(true);
+					LSL_LOG("FRIENDSHIP SELECTED");
+					//menu()->SetState(Menu::msFinal);
 					return true;
 				}
 
 				if (sender == _mainMenu->GetItem(miNetwork))
 				{
 					_mainMenu->PushState(MainMenu::msNetwork);
+					menu()->GetRace()->SetFriendship(false);
 					return true;
 				}
 
 				if (sender == _mainMenu->GetItem(miOptions))
 				{
 					menu()->ShowOptions(true);
-					return true;
-				}
-
-				if (sender == _mainMenu->GetItem(miAuthors))
-				{
-					//_mainMenu->PushState(MainMenu::msCredits);
-					menu()->SetState(Menu::msFinal);
 					return true;
 				}
 
@@ -2182,9 +2197,7 @@ void SteamBrowserFrame::OnDisconnectedPlayer(NetPlayer* sender)
 				_bottomPanel->SetAlign(gui::Widget::waBottom);
 				_bottomPanel->SetVisible(false);
 
-				TEST_BUILD = false;
-				_version = menu->CreateLabel("v. 1.3.0\n Massmod v1.0 Beta2", _root, "Small", NullVec2,
-				                             gui::Text::haRight, gui::Text::vaBottom, clrWhite);
+				_version = menu->CreateLabel("v. 1.3.0\n Massmod v1.0 Beta4SE\n Split-Screen Edition", _root, "Small", NullVec2, gui::Text::haRight, gui::Text::vaBottom, clrWhite);
 
 				_mainFrame = new MainFrame(menu, this, _root);
 				_gameMode = new GameModeFrame(menu, this, _root);

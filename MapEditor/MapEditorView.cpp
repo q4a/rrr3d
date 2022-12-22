@@ -207,7 +207,10 @@ void CMapEditorView::OnKeyEvent(unsigned key, lsl::KeyState state)
 	//Q - режим перемещения объектов.
 	if (key == 0x51 && state == lsl::ksDown)
 	{
-		get_document()->SetSelMode(r3d::ISceneControl::smMove);
+		//D3DVIEWPORT9 viewPort = { 0, 0, 800, 600, 0, 1 };
+		//_engine = new r3d::graph::Engine* (window, resolution, fullScreen, _multisampling);
+		//_engine->GetDriver().GetDevice()->GetViewport(&viewPort);
+		//get_document()->SetSelMode(r3d::ISceneControl::smMove);
 	}
 
 	//E - режим масштабирования объектов.

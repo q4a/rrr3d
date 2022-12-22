@@ -66,11 +66,42 @@ namespace r3d
 			}
 		};
 
-		const string cGameActionStr[cGameActionEnd] = {
-			"gaAccel", "gaBack", "gaWheelLeft", "gaWheelRight", "gaRapidMode", "gaEasyMode", "gaResetCar", "gaBreak",
-			"gaHyper", "gaMine", "gaShot", "gaShot1", "gaShot2", "gaShot3", "gaShot4", "gaShotAll", "gaViewSwitch",
-			"gaEscape", "gaChat", "gaAction", "gaScreenMode"
-		};
+		const lsl::string cGameActionStr[cGameActionEnd] =
+		{  	"gaAccelSec",
+			"gaWheelLeftSec",
+			"gaWheelRightSec",
+			"gaBackSec",
+			"gaBreakSec",
+			"gaHyperSec",
+			"gaMineSec",
+			"gaShot1Sec",
+			"gaShot2Sec",
+			"gaShot3Sec",
+			"gaShot4Sec",
+			"gaRapidModeSec",
+			"gaEasyModeSec",
+			"gaResetCarSec",
+			"gaViewSwitchSec",
+			"gaAccel",
+			"gaBack",
+			"gaWheelLeft",
+			"gaWheelRight",
+			"gaBreak",
+			"gaHyper",
+			"gaMine",
+			"gaShot1",
+			"gaShot2",
+			"gaShot3",
+			"gaShot4",
+			"gaRapidMode",
+			"gaEasyMode",
+			"gaResetCar",
+			"gaViewSwitch",
+
+			"gaEscape", 
+			"gaChat", 
+			"gaAction", 
+			"gaScreenMode" };
 
 		const string cControllerTypeStr[cControllerTypeEnd] = {"ctKeyboard", "ctGamepad"};
 
@@ -82,27 +113,53 @@ namespace r3d
 
 			ZeroMemory(_gameKeys, sizeof(_gameKeys));
 
+			_gameKeys[ctKeyboard][gaAccelSec] = CharToVirtualKey('W');
+			_gameKeys[ctKeyboard][gaBackSec] = CharToVirtualKey('S');
+			_gameKeys[ctKeyboard][gaWheelLeftSec] = CharToVirtualKey('A');
+			_gameKeys[ctKeyboard][gaWheelRightSec] = CharToVirtualKey('D');
+
+			_gameKeys[ctKeyboard][gaRapidModeSec] = cVirtualKeyEnd;
+			_gameKeys[ctKeyboard][gaEasyModeSec] = vkShift;
+			_gameKeys[ctKeyboard][gaBreakSec] = vkCtrl;
+			_gameKeys[ctKeyboard][gaHyperSec] = CharToVirtualKey('J');
+			_gameKeys[ctKeyboard][gaMineSec] = CharToVirtualKey('K');
+
+			_gameKeys[ctKeyboard][gaShot1Sec] = CharToVirtualKey('H');
+			_gameKeys[ctKeyboard][gaShot2Sec] = CharToVirtualKey('Y');
+			_gameKeys[ctKeyboard][gaShot3Sec] = CharToVirtualKey('U');
+			_gameKeys[ctKeyboard][gaShot4Sec] = CharToVirtualKey('I');
+			_gameKeys[ctKeyboard][gaViewSwitchSec] = CharToVirtualKey('C');
+
+			_gameKeys[ctKeyboard][gaResetCarSec] = CharToVirtualKey('R');
+
+
+			//second
 			_gameKeys[ctKeyboard][gaAccel] = vkUp;
 			_gameKeys[ctKeyboard][gaBack] = vkDown;
 			_gameKeys[ctKeyboard][gaWheelLeft] = vkLeft;
 			_gameKeys[ctKeyboard][gaWheelRight] = vkRight;
-			_gameKeys[ctKeyboard][gaRapidMode] = vkShift;
-			_gameKeys[ctKeyboard][gaEasyMode] = vkCtrl;
-			_gameKeys[ctKeyboard][gaResetCar] = CharToVirtualKey('R');
-			_gameKeys[ctKeyboard][gaBreak] = CharToVirtualKey('Z');
-			_gameKeys[ctKeyboard][gaHyper] = CharToVirtualKey('Q');
-			_gameKeys[ctKeyboard][gaMine] = CharToVirtualKey('E');
-			_gameKeys[ctKeyboard][gaShot] = CharToVirtualKey('W');
-			_gameKeys[ctKeyboard][gaShot1] = CharToVirtualKey('1');
-			_gameKeys[ctKeyboard][gaShot2] = CharToVirtualKey('2');
-			_gameKeys[ctKeyboard][gaShot3] = CharToVirtualKey('3');
-			_gameKeys[ctKeyboard][gaShot4] = CharToVirtualKey('4');
-			_gameKeys[ctKeyboard][gaShotAll] = vkButtonY;
-			_gameKeys[ctKeyboard][gaViewSwitch] = CharToVirtualKey('C');
+
+			_gameKeys[ctKeyboard][gaRapidMode] = cVirtualKeyEnd;
+			_gameKeys[ctKeyboard][gaEasyMode] = cVirtualKeyEnd;
+			_gameKeys[ctKeyboard][gaBreak] = cVirtualKeyEnd;
+
+			_gameKeys[ctKeyboard][gaHyper] = cVirtualKeyEnd;
+			_gameKeys[ctKeyboard][gaMine] = cVirtualKeyEnd;
+
+			_gameKeys[ctKeyboard][gaShot1] = cVirtualKeyEnd;
+			_gameKeys[ctKeyboard][gaShot2] = cVirtualKeyEnd;
+			_gameKeys[ctKeyboard][gaShot3] = cVirtualKeyEnd;
+			_gameKeys[ctKeyboard][gaShot4] = cVirtualKeyEnd;
+
+			_gameKeys[ctKeyboard][gaResetCar] = cVirtualKeyEnd;
+			_gameKeys[ctKeyboard][gaViewSwitch] = cVirtualKeyEnd;
+
 			_gameKeys[ctKeyboard][gaEscape] = vkBack;
 			_gameKeys[ctKeyboard][gaChat] = vkStart;
 			_gameKeys[ctKeyboard][gaAction] = vkStart;
 			_gameKeys[ctKeyboard][gaScreenMode] = vkF12;
+
+			/// ///////////////////////////////////////////////////////////////////////
 
 			_gameKeys[ctGamepad][gaAccel] = vkButtonA;
 			_gameKeys[ctGamepad][gaBack] = vkDown;
@@ -110,17 +167,33 @@ namespace r3d
 			_gameKeys[ctGamepad][gaWheelRight] = vkRight;
 			_gameKeys[ctGamepad][gaRapidMode] = vkShoulderRight;
 			_gameKeys[ctGamepad][gaEasyMode] = cVirtualKeyEnd;
+
+			_gameKeys[ctGamepad][gaAccelSec] = cVirtualKeyEnd;
+			_gameKeys[ctGamepad][gaBackSec] = cVirtualKeyEnd;
+			_gameKeys[ctGamepad][gaWheelLeftSec] = cVirtualKeyEnd;
+			_gameKeys[ctGamepad][gaWheelRightSec] = cVirtualKeyEnd;
+			_gameKeys[ctGamepad][gaRapidModeSec] = cVirtualKeyEnd;
+			_gameKeys[ctGamepad][gaEasyModeSec] = cVirtualKeyEnd;
+			_gameKeys[ctGamepad][gaBreakSec] = cVirtualKeyEnd;
+
 			_gameKeys[ctGamepad][gaResetCar] = cVirtualKeyEnd;
+			_gameKeys[ctGamepad][gaResetCarSec] = cVirtualKeyEnd;
 			_gameKeys[ctGamepad][gaBreak] = cVirtualKeyEnd;
 			_gameKeys[ctGamepad][gaHyper] = vkButtonY;
+			_gameKeys[ctGamepad][gaHyperSec] = vkButtonY;
 			_gameKeys[ctGamepad][gaMine] = vkButtonB;
-			_gameKeys[ctGamepad][gaShot] = vkButtonX;
+			_gameKeys[ctGamepad][gaMineSec] = vkButtonB;
 			_gameKeys[ctGamepad][gaShot1] = cVirtualKeyEnd;
 			_gameKeys[ctGamepad][gaShot2] = cVirtualKeyEnd;
 			_gameKeys[ctGamepad][gaShot3] = cVirtualKeyEnd;
 			_gameKeys[ctGamepad][gaShot4] = cVirtualKeyEnd;
-			_gameKeys[ctGamepad][gaShotAll] = cVirtualKeyEnd;
+
+			_gameKeys[ctGamepad][gaShot1Sec] = cVirtualKeyEnd;
+			_gameKeys[ctGamepad][gaShot2Sec] = cVirtualKeyEnd;
+			_gameKeys[ctGamepad][gaShot3Sec] = cVirtualKeyEnd;
+			_gameKeys[ctGamepad][gaShot4Sec] = cVirtualKeyEnd;
 			_gameKeys[ctGamepad][gaViewSwitch] = vkBack;
+			_gameKeys[ctGamepad][gaViewSwitchSec] = cVirtualKeyEnd;
 			_gameKeys[ctGamepad][gaEscape] = cVirtualKeyEnd;
 			_gameKeys[ctGamepad][gaChat] = cVirtualKeyEnd;
 			_gameKeys[ctGamepad][gaAction] = vkStart;

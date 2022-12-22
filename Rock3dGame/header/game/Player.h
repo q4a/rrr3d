@@ -537,6 +537,7 @@ namespace r3d
 				MapObjRec* record;
 				graph::LibMaterial* colorMat;
 				D3DXCOLOR color;
+				D3DXCOLOR friendcolor;
 
 				MapObj* mapObj;
 				RockCar* gameObj;
@@ -688,6 +689,7 @@ namespace r3d
 			int _passTrial;
 			bool _OnSuicide;
 			bool _skipResults;
+			bool _isometricV;
 			bool _overBoardD;
 			float _raceTime;
 			float _raceSeconds;
@@ -702,6 +704,7 @@ namespace r3d
 			int _id;
 			int _gamerId;
 			bool _subj;
+			bool _friend;
 			bool _inRamp;
 			int _camstatus;
 			bool _emptyWpn;
@@ -855,6 +858,9 @@ namespace r3d
 			bool GetAutoSkip() const;
 			void SetAutoSkip(bool value);
 
+			bool GetIsometricView() const;
+			void SetIsometricView(bool value);
+
 			bool GetOverBoardD() const;
 			void SetOverBoardD(bool value);
 
@@ -890,7 +896,9 @@ namespace r3d
 			void AddPickMoney(int value);
 
 			const D3DXCOLOR& GetColor() const;
+			const D3DXCOLOR& GetFriendColor() const;
 			void SetColor(const D3DXCOLOR& value);
+			void SetFriendColor(const D3DXCOLOR& value);
 
 			int GetId() const;
 			void SetId(int value);
@@ -900,6 +908,9 @@ namespace r3d
 
 			bool isSubject() const;
 			void isSubject(bool value);
+
+			bool isFriend() const;
+			void isFriend(bool value);
 
 			bool inRamp() const;
 			void inRamp(bool value);

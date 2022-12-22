@@ -8,9 +8,6 @@ namespace r3d
 {
 	namespace game
 	{
-		extern bool TITLE_CHANGE = false;
-		extern float TITLE_TIME = 0.0f;
-
 		namespace n
 		{
 			CarFrame::CarFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent): MenuFrame(menu, parent),
@@ -30,7 +27,7 @@ namespace r3d
 			{
 				Show(false);
 
-				SetCar(static_cast<Garage::Car*>(NULL), clrWhite);
+				SetCar(static_cast<Garage::Car*>(NULL), clrWhite);  
 
 				menu()->GetRace()->GetMap()->DelMapObj(_secretMapObj);
 				menu()->GetRace()->GetMap()->DelMapObj(_garageMapObj);
@@ -52,7 +49,9 @@ namespace r3d
 			{
 				_garageMapObj->GetGameObj().GetGrActor().SetVisible(value);
 				if (_carMapObj)
+				{
 					_carMapObj->GetGameObj().GetGrActor().SetVisible(value);
+				}
 
 				if (value)
 				{
@@ -121,7 +120,7 @@ namespace r3d
 						_carMapObj->GetGameObj().SetWorldPos(D3DXVECTOR3(0, 0, wheelOffs - 0.71f));
 						_carMapObj->GetGameObj().GetGrActor().SetVisible(visible());
 
-						SetCarColor(color);
+						SetCarColor(color); 
 					}
 
 					_secretMapObj->GetGameObj().GetGrActor().SetVisible(_car && secret);
@@ -137,8 +136,7 @@ namespace r3d
 			{
 				if (_carMapObj)
 				{
-					auto& mesh = static_cast<graph::IVBMeshNode&>(_carMapObj->GetGameObj().GetGrActor().GetNodes().
-					                                                          front());
+					graph::IVBMeshNode& mesh = static_cast<graph::IVBMeshNode&>(_carMapObj->GetGameObj().GetGrActor().GetNodes().front());
 					return mesh.material.Get()->samplers[0].GetColor();
 				}
 				return clrWhite;
@@ -148,8 +146,7 @@ namespace r3d
 			{
 				if (_carMapObj)
 				{
-					auto& mesh = static_cast<graph::IVBMeshNode&>(_carMapObj->GetGameObj().GetGrActor().GetNodes().
-					                                                          front());
+					graph::IVBMeshNode& mesh = static_cast<graph::IVBMeshNode&>(_carMapObj->GetGameObj().GetGrActor().GetNodes().front());
 					mesh.material.Get()->samplers[0].SetColor(value);
 				}
 			}
@@ -421,16 +418,16 @@ namespace r3d
 			{
 				const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f) / 255.0f;
 
-				StringValue strLabels[cLabelEnd] = {svGarage, svNull, svNull, svNull, svCarCost};
-				std::string fontLabels[cLabelEnd] = {"Header", "Header", "VerySmall", "Item", "Header"};
+				StringValue strLabels[cLabelEnd] = {svGarage, svNull, svNull, svNull, svCarCost, svNull};
+				std::string fontLabels[cLabelEnd] = {"Header", "Header", "VerySmall", "Item", "Header", "Item"};
 				gui::Text::HorAlign horLabels[cLabelEnd] = {
 					gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haRight,
-					gui::Text::haCenter
+					gui::Text::haCenter, gui::Text::haCenter
 				};
 				gui::Text::VertAlign vertLabels[cLabelEnd] = {
-					gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaTop, gui::Text::vaCenter, gui::Text::vaCenter
+					gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaTop, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter
 				};
-				D3DXCOLOR colorLabels[cLabelEnd] = {color2, color2, color2, clrWhite, color2};
+				D3DXCOLOR colorLabels[cLabelEnd] = {color2, color2, color2, clrWhite, color2, clrWhite};
 
 				_topPanel = menu->CreatePlane(root(), this, "GUI\\topPanel2.png", true, IdentityVec2,
 				                              gui::Material::bmTransparency);
@@ -518,8 +515,8 @@ namespace r3d
 				_UPbtnR->SetAlign(gui::Widget::waLeft);
 				_DWNbtnR = _raceMenu->CreateDWNArrowR(root(), this);
 				_DWNbtnR->SetAlign(gui::Widget::waLeft);
-
-				gui::Widget* labelsParent[cLabelEnd] = {_headerBg, _bottomPanel, _bottomPanel, _moneyBg, _bottomPanel};
+		
+				gui::Widget* labelsParent[cLabelEnd] = {_headerBg, _bottomPanel, _bottomPanel, _moneyBg, _bottomPanel, _bottomPanel};
 				for (int i = 0; i < cLabelEnd; ++i)
 					_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i],
 					                               vertLabels[i], colorLabels[i]);
@@ -539,7 +536,7 @@ namespace r3d
 				_rightColorGrid->hideInvisible(false);
 				UpdateColorList(_rightColorGrid, Player::cRightColors, Player::cColorsCount);
 
-				//FixColorPos();
+				FixColorPos();
 
 				_carGrid = menu->CreateGrid(_topPanel, nullptr, gui::Grid::gsHorizontal);
 				_carGrid->SetAlign(gui::Widget::waLeftTop);
@@ -713,7 +710,12 @@ namespace r3d
 			void GarageFrame::SelectCar(const CarData& carData)
 			{
 				_carData = carData;
-				_raceMenu->carFrame()->SetCar(carData.car, player()->GetColor(), carData.locked);
+				//цвет выбора машины...
+				if (menu()->IsFriendFrame())
+					_raceMenu->carFrame()->SetCar(carData.car, menu()->GetCurrentPlayer()->GetFriendColor(), carData.locked);
+				else
+					_raceMenu->carFrame()->SetCar(carData.car, menu()->GetCurrentPlayer()->GetColor(), carData.locked);
+				
 
 				Invalidate();
 			}
@@ -767,14 +769,36 @@ namespace r3d
 			{
 				auto iter = grid->GetChildren().begin();
 
-				for (unsigned i = 0; i < count; ++i)
+				if (menu()->IsFriendFrame())
 				{
-					auto plane = static_cast<gui::PlaneFon*>((*iter)->GetChildren().front());
-					(*iter)->SetVisible(menu()->IsNetGame()
-						                    ? net()->player()->CheckColor(plane->GetMaterial().GetColor())
-						                    : true);
+					//спрятать цвета, которые уже используют игроки...
+					for (unsigned i = 0; i < count; ++i)
+					{
+						auto plane = static_cast<gui::PlaneFon*>((*iter)->GetChildren().front());
+						
+						if (plane->GetMaterial().GetColor() == menu()->GetSecondPlayer()->GetColor())
+							(*iter)->SetVisible(false);
+						else
+						{
+							if (plane->GetMaterial().GetColor() == menu()->GetPlayer()->GetColor())
+								(*iter)->SetVisible(false);
+							else
+								(*iter)->SetVisible(true);
+						}
 
-					++iter;
+						++iter;
+					}
+				}
+				else
+				{
+					for (unsigned i = 0; i < count; ++i)
+					{
+						auto plane = static_cast<gui::PlaneFon*>((*iter)->GetChildren().front());
+
+						(*iter)->SetVisible(menu()->IsNetGame() ? net()->player()->CheckColor(plane->GetMaterial().GetColor()) : true);
+
+						++iter;
+					}
 				}
 			}
 
@@ -802,11 +826,13 @@ namespace r3d
 			void GarageFrame::SelectColor(const D3DXCOLOR& value)
 			{
 				_raceMenu->carFrame()->SetCarColor(value);
-				menu()->SetCarColor(value);
+				menu()->GetCurrentPlayer()->SetColor(value);
+				menu()->GetCurrentPlayer()->SetFriendColor(value);
+				Invalidate();
 			}
 
 			void GarageFrame::FixColorPos()
-			{
+			{				
 				D3DXVECTOR2 size = menu()->GetImageSize(_topPanel->GetMaterial());
 				if (CLR_PAGE_CHANGED == true)
 				{
@@ -992,6 +1018,9 @@ namespace r3d
 					_carGrid->DeleteAllChildren();
 					menu()->UnregNavElements(_menuItems[miExit]);
 				}
+
+
+				FixColorPos();
 			}
 
 			void GarageFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
@@ -1036,9 +1065,14 @@ namespace r3d
 				_labels[mlCarName]->SetPos(D3DXVECTOR2(10.0f, -155.0f));
 				_labels[mlMoney]->SetPos(D3DXVECTOR2(-53.0f, -29.0f));
 				_labels[mlPrice]->SetPos(D3DXVECTOR2(-523.0f, -80.0f));
+				_labels[mlCurPlr]->SetPos(D3DXVECTOR2(14.0f, -280));
 
 				_labels[mlCarInfo]->SetPos(D3DXVECTOR2(0.0f, -60.0f));
 				_labels[mlCarInfo]->SetSize(D3DXVECTOR2(800.0f, 105.0f));
+
+				if (menu()->GetRace()->IsFriendship() == false)
+					_labels[mlCurPlr]->SetVisible(false);
+
 
 				AdjustCarList();
 			}
@@ -1047,19 +1081,33 @@ namespace r3d
 			{
 				if (car() == nullptr)
 				{
+
 					_carData.car = garage().GetCars().front();
 					_carData.locked = false;
-					_raceMenu->carFrame()->SetCar(_carData.car, player()->GetColor(), _carData.locked);
+					//цвет при стартовой покупке машины
+					if (menu()->IsFriendFrame())
+						_raceMenu->carFrame()->SetCar(_carData.car, menu()->GetCurrentPlayer()->GetFriendColor(), _carData.locked);
+					else
+						_raceMenu->carFrame()->SetCar(_carData.car, menu()->GetCurrentPlayer()->GetColor(), _carData.locked);
 				}
 
 				LSL_ASSERT(car());
+				Player* curplr = player();
+				if (menu()->IsFriendFrame())
+					curplr = menu()->GetSecondPlayer();
 
 				_raceMenu->carFrame()->SetSlots(nullptr, true);
 
 				_labels[mlCarName]->SetText(GetString(!_carData.locked ? car()->GetName() : _SC(svLockedCarName)));
 				_labels[mlCarInfo]->SetText(GetString(!_carData.locked ? car()->GetDesc() : _SC(svLockedCarInfo)));
-				_labels[mlMoney]->SetText(menu()->FormatCurrency(player()->GetMoney()));
+				
+				_labels[mlMoney]->SetText(menu()->FormatCurrency(curplr->GetMoney()));
 				_labels[mlPrice]->SetText(!_carData.locked ? menu()->FormatCurrency(car()->GetCost()) : "-");
+
+				if (menu()->IsFriendFrame())
+					_labels[mlCurPlr]->SetText("Игрок 1 (" + GetString(menu()->GetSecondPlayer()->GetName()) + ")");
+				else
+					_labels[mlCurPlr]->SetText("Игрок 2 (" + GetString(menu()->GetPlayer()->GetName()) + ")");
 
 				int carIndex = -1;
 				int i = 0;
@@ -1088,17 +1136,22 @@ namespace r3d
 				_UPbtnR->SetVisible(R_COLORINDEX > 1);
 				_DWNbtnR->SetVisible(R_COLORINDEX < 2);
 
-				menu()->SetButtonEnabled(_menuItems[miExit], player()->GetCar().record != nullptr);
+				menu()->SetButtonEnabled(_menuItems[miExit], curplr->GetCar().record != nullptr);
 				menu()->SetButtonEnabled(_menuItems[miBuy], !_carData.locked);
 
 				_raceMenu->UpdateStats(!_carData.locked ? car() : nullptr, nullptr, _armorBar, _speedBar, _damageBar,
 				                       _armorBarValue, _damageBarValue, _speedBarValue);
 
 				RefreshColorList();
+				FixColorPos();
 			}
 
 			bool GarageFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 			{
+				Player* curplr = player();
+				if (menu()->IsFriendFrame())
+					curplr = menu()->GetSecondPlayer();
+							
 				if (sender == _menuItems[miExit])
 				{
 					_raceMenu->SetState(RaceMenu::msMain);
@@ -1107,12 +1160,11 @@ namespace r3d
 
 				if (sender == _menuItems[miBuy])
 				{
-					if (player()->GetCar().record != car()->GetRecord())
+					if (curplr->GetCar().record != car()->GetRecord())
 					{
 						std::string message = GetString(svBuyCar);
 						if (HasString(svBuyCar))
-							message = StrFmt(message.c_str(),
-							                 menu()->FormatCurrency(garage().GetCarCost(car())).c_str());
+							message = lsl::StrFmt(message.c_str(), menu()->FormatCurrency(garage().GetCarCost(car())).c_str());
 
 						if (menu()->IsCampaign())
 							ShowAccept(message, sender, sender->GetSize());
@@ -1304,7 +1356,7 @@ namespace r3d
 				}
 
 
-				if (menu()->GetPlayer()->GetGamerId() && sender->GetParent() && (sender->GetParent() == _leftColorGrid
+				if (curplr->GetGamerId() && sender->GetParent() && (sender->GetParent() == _leftColorGrid
 					|| sender->GetParent() == _rightColorGrid))
 				{
 					SelectColor(D3DXCOLOR(
@@ -1831,16 +1883,26 @@ namespace r3d
 
 			void WorkshopFrame::UpdateSlots()
 			{
+				Player* curplr = player();
+				if (menu()->IsFriendFrame())
+				{
+					curplr = menu()->GetSecondPlayer();
+				}
+
 				for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 				{
 					auto type = static_cast<Player::SlotType>(i);
-					UpdateSlot(type, player()->GetSlotInst(type));
+					UpdateSlot(type, curplr->GetSlotInst(type));
 				}
 			}
 
 			bool WorkshopFrame::UpgradeSlot(gui::Widget* sender, Player::SlotType type, int level)
 			{
-				Slot* slot = player()->GetSlotInst(type);
+				Player* curplr = player();
+				if (menu()->IsFriendFrame())
+					curplr = menu()->GetSecondPlayer();
+
+				Slot* slot = curplr->GetSlotInst(type);
 				bool isOk = false;
 				D3DXVECTOR2 slotSize = sender->GetSize();
 
@@ -1849,7 +1911,7 @@ namespace r3d
 				{
 					if (weapon->GetCntCharge() < weapon->GetMaxCharge())
 					{
-						isOk = workshop().BuyChargeFor(_raceMenu->GetPlayer(), weapon);
+						isOk = workshop().BuyChargeFor(curplr, weapon);
 						UpdateSlot(type, slot);
 						UpdateMoney();
 					}
@@ -1861,10 +1923,10 @@ namespace r3d
 				else
 				{
 					Record* slotRec = garage().GetUpgradeCar(car(), type, level);
-					Slot* newSlot = workshop().BuyUpgrade(player(), slotRec);
+					Slot* newSlot = workshop().BuyUpgrade(curplr, slotRec);
 					if (newSlot)
 					{
-						garage().InstalSlot(player(), type, car(), newSlot);
+						garage().InstalSlot(curplr, type, car(), newSlot);
 						UpdateSlot(type, newSlot);
 						UpdateStats();
 						UpdateMoney();
@@ -1892,10 +1954,14 @@ namespace r3d
 
 				for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 				{
+					Player* curplr = player();
+					if (menu()->IsFriendFrame())
+						curplr = menu()->GetSecondPlayer();
+
 					auto type = static_cast<Player::SlotType>(i);
 					bool checkSlot = slot != nullptr ? car()->GetSlot(type).FindItem(slot) != nullptr : false;
 					bool selectSlot = select && checkSlot && !car()->GetSlot(type).lock;
-					Slot* plrSlot = player()->GetSlotInst(type);
+					Slot* plrSlot = curplr->GetSlotInst(type);
 
 					if (selectSlot)
 						++_numSelectedSlots;
@@ -1994,7 +2060,11 @@ namespace r3d
 
 			void WorkshopFrame::BuySlot(gui::Widget* sender, Slot* slot)
 			{
-				if (workshop().BuyItem(player(), slot))
+				Player* curplr = player();
+				if (menu()->IsFriendFrame())
+					curplr = menu()->GetSecondPlayer();
+
+				if (workshop().BuyItem(curplr, slot))
 				{
 					StartDrag(slot, Player::cSlotTypeEnd, -1);
 					UpdateGoods();
@@ -2009,7 +2079,11 @@ namespace r3d
 
 			void WorkshopFrame::SellSlot(Slot* slot, bool sellDiscount, int chargeCount)
 			{
-				workshop().SellItem(player(), slot, sellDiscount, chargeCount);
+				Player* curplr = player();
+				if (menu()->IsFriendFrame())
+					curplr = menu()->GetSecondPlayer();
+
+				workshop().SellItem(curplr, slot, sellDiscount, chargeCount);
 
 				UpdateGoods();
 				AdjustGood();
@@ -2018,21 +2092,32 @@ namespace r3d
 
 			void WorkshopFrame::InstalSlot(Player::SlotType type, Slot* slot, int chargeCount)
 			{
-				garage().InstalSlot(player(), type, car(), slot, chargeCount);
-				UpdateSlot(type, player()->GetSlotInst(type));
+				Player* curplr = player();
+				if (menu()->IsFriendFrame())
+					curplr = menu()->GetSecondPlayer();
+
+				garage().InstalSlot(curplr, type, car(), slot, chargeCount);
+				UpdateSlot(type, curplr->GetSlotInst(type));
 				UpdateStats();
-				_raceMenu->carFrame()->SetSlots(player(), false);
+				_raceMenu->carFrame()->SetSlots(curplr, false);
 			}
 
 			void WorkshopFrame::UpdateMoney()
 			{
-				_labels[mlMoney]->SetText(menu()->FormatCurrency(player()->GetMoney()));
+				Player* curplr = player();
+				if (menu()->IsFriendFrame())
+					curplr = menu()->GetSecondPlayer();
+
+				_labels[mlMoney]->SetText(menu()->FormatCurrency(curplr->GetMoney()));
 			}
 
-			void WorkshopFrame::ShowInfo(Slot* slot, int cost, gui::Widget* sender, const D3DXVECTOR2& slotSize,
-			                             int infoId)
+			void WorkshopFrame::ShowInfo(Slot* slot, int cost, gui::Widget* sender, const D3DXVECTOR2& slotSize, int infoId)
 			{
 				_infoId = infoId;
+
+				Player* curplr = player();
+				if (menu()->IsFriendFrame())
+					curplr = menu()->GetSecondPlayer();
 
 				std::string damage = "-";
 				WeaponItem* wpn = slot->GetItem().IsWeaponItem();
@@ -2040,31 +2125,31 @@ namespace r3d
 
 				if (WEAPON_INDEXX == 4)
 				{
-					Slot* hyperslot = player()->GetSlotInst(Player::stHyper);
+					Slot* hyperslot = curplr->GetSlotInst(Player::stHyper);
 					WeaponItem* HYPER = hyperslot->GetItem().IsWeaponItem();
 					inf_cost = static_cast<float>(HYPER->GetChargeCost());
 				}
 				else if (WEAPON_INDEXX == 5)
 				{
-					Slot* mineslot = player()->GetSlotInst(Player::stMine);
+					Slot* mineslot = curplr->GetSlotInst(Player::stMine);
 					WeaponItem* MINE = mineslot->GetItem().IsWeaponItem();
 					inf_cost = static_cast<float>(MINE->GetChargeCost());
 				}
 				else if (WEAPON_INDEXX == 6)
 				{
-					Slot* slot1 = player()->GetSlotInst(Player::stWeapon1);
+					Slot* slot1 = curplr->GetSlotInst(Player::stWeapon1);
 					WeaponItem* WP1 = slot1->GetItem().IsWeaponItem();
 					inf_cost = static_cast<float>(WP1->GetChargeCost() * WP1->GetChargeStep());
 				}
 				else if (WEAPON_INDEXX == 7)
 				{
-					Slot* slot2 = player()->GetSlotInst(Player::stWeapon2);
+					Slot* slot2 = curplr->GetSlotInst(Player::stWeapon2);
 					WeaponItem* WP2 = slot2->GetItem().IsWeaponItem();
 					inf_cost = static_cast<float>(WP2->GetChargeCost());
 				}
 				else if (WEAPON_INDEXX == 8)
 				{
-					Slot* slot3 = player()->GetSlotInst(Player::stWeapon3);
+					Slot* slot3 = curplr->GetSlotInst(Player::stWeapon3);
 					WeaponItem* WP3 = slot3->GetItem().IsWeaponItem();
 					inf_cost = static_cast<float>(WP3->GetChargeCost());
 				}
@@ -2163,10 +2248,14 @@ namespace r3d
 					//показывать описание следующего уровня апгрейда оружия без предварительной прокачки:
 					if (slot && slot != nullptr && slot->GetItem().GetModify() == true)
 					{
+						Player* curplr = player();
+						if (menu()->IsFriendFrame())
+							curplr = menu()->GetSecondPlayer();
+
 						const int linkID = slot->GetItem().GetLinkId();
-						const int cntcharge = menu()->GetPlayer()->GetSlotInst(type)->GetItem().IsWeaponItem()->
+						const int cntcharge = curplr->GetSlotInst(type)->GetItem().IsWeaponItem()->
 						                              GetCntCharge();
-						const float inf = 1 + menu()->GetPlayer()->GetSlotInst(type)->GetItem().GetInf();
+						const float inf = 1 + curplr->GetSlotInst(type)->GetItem().GetInf();
 						Workshop::Items items = workshop().GetItems();
 
 						int i = 0;
@@ -2213,7 +2302,11 @@ namespace r3d
 
 			void WorkshopFrame::UpdateStats()
 			{
-				_raceMenu->UpdateStats(car(), player(), _armorBar, _speedBar, _damageBar, _armorBarValue,
+				Player* curplr = player();
+				if (menu()->IsFriendFrame())
+					curplr = menu()->GetSecondPlayer();
+
+				_raceMenu->UpdateStats(car(), curplr, _armorBar, _speedBar, _damageBar, _armorBarValue,
 				                       _damageBarValue, _speedBarValue);
 			}
 
@@ -2221,16 +2314,20 @@ namespace r3d
 			{
 				if (slot && type != Player::cSlotTypeEnd)
 				{
-					Slot* slotInst = player()->GetSlotInst(type);
+					Player* curplr = player();
+					if (menu()->IsFriendFrame())
+						curplr = menu()->GetSecondPlayer();
+
+					Slot* slotInst = curplr->GetSlotInst(type);
 					Slot* curClot = slotInst ? workshop().FindSlot(slotInst->GetRecord()) : nullptr;
 					int chargeCount = slotInst && slotInst->GetItem().IsWeaponItem()
 						                  ? slotInst->GetItem().IsWeaponItem()->GetCntCharge()
 						                  : -1;
 
-					garage().InstalSlot(player(), type, car(), slot);
+					garage().InstalSlot(curplr, type, car(), slot);
 					_raceMenu->UpdateStats(car(), player(), _armorBarBonus, _speedBarBonus, _damageBarBonus,
 					                       _armorBarValue, _damageBarValue, _speedBarValue);
-					garage().InstalSlot(player(), type, car(), curClot, chargeCount);
+					garage().InstalSlot(curplr, type, car(), curClot, chargeCount);
 				}
 				else
 				{
@@ -2349,7 +2446,11 @@ namespace r3d
 					_slots[i].plane->SetPos(slotOffset[i]);
 					if (i == Player::stWeapon4)
 					{
-						if (menu()->GetPlayer()->GetSlotInst(Player::stWeapon4) && menu()->GetPlayer()->
+						Player* curplr = player();
+						if (menu()->IsFriendFrame())
+							curplr = menu()->GetSecondPlayer();
+
+						if (curplr->GetSlotInst(Player::stWeapon4) && curplr->
 							GetSlotInst(Player::stWeapon4)->GetItem().GetName() == "scCrater")
 							//слот для кратера делаем невидимым:
 							_slots[i].plane->SetVisible(false);
@@ -2606,8 +2707,12 @@ namespace r3d
 
 				for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 				{
+					Player* curplr = player();
+					if (menu()->IsFriendFrame())
+						curplr = menu()->GetSecondPlayer();
+
 					auto type = static_cast<Player::SlotType>(i);
-					Slot* slot = player()->GetSlotInst(type);
+					Slot* slot = curplr->GetSlotInst(type);
 					const Garage::PlaceSlot& place = car()->GetSlot(type);
 
 					Slot* slotShop = slot ? workshop().FindSlot(slot->GetRecord()) : nullptr;
@@ -2626,11 +2731,14 @@ namespace r3d
 					{
 						if (slot && slot != nullptr)
 						{
-							Player* plr = menu()->GetPlayer();
+							Player* curplr = player();
+							if (menu()->IsFriendFrame())
+								curplr = menu()->GetSecondPlayer();
+
 							const int linkID = slot->GetItem().GetLinkId();
-							const int cntcharge = plr->GetSlotInst(type)->GetItem().IsWeaponItem()->GetCntCharge();
-							const int maxcharge = plr->GetSlotInst(type)->GetItem().IsWeaponItem()->GetMaxCharge();
-							const float inf = 1 + plr->GetSlotInst(type)->GetItem().GetInf();
+							const int cntcharge = curplr->GetSlotInst(type)->GetItem().IsWeaponItem()->GetCntCharge();
+							const int maxcharge = curplr->GetSlotInst(type)->GetItem().IsWeaponItem()->GetMaxCharge();
+							const float inf = 1 + curplr->GetSlotInst(type)->GetItem().GetInf();
 							Workshop::Items items = workshop().GetItems();
 
 							int i = 0;
@@ -2645,7 +2753,7 @@ namespace r3d
 									int limitCost = newSlot->GetItem().GetCost();
 									if (cntcharge <= 1)
 										cost = cntcharge * newSlot->GetItem().GetCost();
-									int money = plr->GetMoney();
+									int money = curplr->GetMoney();
 									int reqIndex = newSlot->GetItem().GetPIndex() - 1;
 
 									//для кампании прокачка апгрейда доступна не сразу, а при условиях.
@@ -2661,7 +2769,7 @@ namespace r3d
 												{
 													if (money >= limitCost)
 													{
-														plr->AddMoney(-limitCost);
+														curplr->AddMoney(-limitCost);
 														InstalSlot(type, newSlot, cntcharge);
 														UpdateStats();
 														UpdateMoney();
@@ -2682,7 +2790,7 @@ namespace r3d
 											{
 												if (money >= cost)
 												{
-													plr->AddMoney(-cost);
+													curplr->AddMoney(-cost);
 													InstalSlot(type, newSlot, cntcharge);
 													UpdateStats();
 													UpdateMoney();
@@ -2770,8 +2878,12 @@ namespace r3d
 
 				for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 				{
+					Player* curplr = player();
+					if (menu()->IsFriendFrame())
+						curplr = menu()->GetSecondPlayer();
+
 					auto type = static_cast<Player::SlotType>(i);
-					Slot* slot = player()->GetSlot(type) ? workshop().FindSlot(player()->GetSlot(type)) : nullptr;
+					Slot* slot = curplr->GetSlot(type) ? workshop().FindSlot(curplr->GetSlot(type)) : nullptr;
 					if (slot == nullptr)
 						continue;
 
@@ -2792,8 +2904,12 @@ namespace r3d
 
 				for (int i = 0; i < Player::cSlotTypeEnd; ++i)
 				{
+					Player* curplr = player();
+					if (menu()->IsFriendFrame())
+						curplr = menu()->GetSecondPlayer();
+
 					auto type = static_cast<Player::SlotType>(i);
-					Slot* slot = player()->GetSlotInst(type);
+					Slot* slot = curplr->GetSlotInst(type);
 					if (slot == nullptr)
 						continue;
 
@@ -2821,15 +2937,15 @@ namespace r3d
 			{
 				const D3DXCOLOR color2 = D3DXCOLOR(214.0f, 214.0f, 214.0f, 255.0f) / 255.0f;
 
-				StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull};
-				std::string fontLabels[cLabelEnd] = {"VerySmall", "Header", "Item"};
+				StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull, svNull};
+				std::string fontLabels[cLabelEnd] = {"VerySmall", "Header", "Item", "HeaderHard"};
 				gui::Text::HorAlign horLabels[cLabelEnd] = {
-					gui::Text::haLeft, gui::Text::haCenter, gui::Text::haCenter
+					gui::Text::haLeft, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter
 				};
 				gui::Text::VertAlign vertLabels[cLabelEnd] = {
-					gui::Text::vaTop, gui::Text::vaCenter, gui::Text::vaCenter
+					gui::Text::vaTop, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter
 				};
-				D3DXCOLOR colorLabels[cLabelEnd] = {color2, clrWhite, color2};
+				D3DXCOLOR colorLabels[cLabelEnd] = {color2, clrWhite, color2, clrGray};
 
 				_space = menu->CreatePlane(root(), this, "GUI\\space1.dds", true);
 				_space->SetAnchor(gui::Widget::waCenter);
@@ -2867,7 +2983,7 @@ namespace r3d
 				_nextArrow = _raceMenu->CreateArrow2(_bottomPanel, this);
 				_nextArrow->SetAlign(gui::Widget::waLeft);
 
-				gui::Widget* labelsParent[cLabelEnd] = {_bottomPanel, _bottomPanel, _bottomPanel};
+				gui::Widget* labelsParent[cLabelEnd] = {_bottomPanel, _bottomPanel, _bottomPanel, _bottomPanel };
 				for (int i = 0; i < cLabelEnd; ++i)
 					_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i],
 					                               vertLabels[i], colorLabels[i]);
@@ -2888,6 +3004,7 @@ namespace r3d
 
 				menu()->ReleaseWidget(_bottomPanel);
 				menu()->ReleaseWidget(_space);
+				_friendId = 1000;
 			}
 
 			void GamersFrame::SelectPlanet(int value)
@@ -2895,6 +3012,8 @@ namespace r3d
 				if (_planetIndex != value)
 				{
 					_planetIndex = value;
+
+					_viewport->SetSize(D3DXVECTOR2(24, 24));
 					Invalidate();
 				}
 			}
@@ -2912,6 +3031,7 @@ namespace r3d
 			int GamersFrame::GetNextPlanetIndex(int sIndex)
 			{
 				int spectators = 2;
+
 				if (menu()->ISpectator() && menu()->IsNetGame() && menu()->GetNet()->isClient())
 				{
 					for (int i = sIndex + 1; i < static_cast<int>(tournament().GetGamers().size()); ++i)
@@ -2929,7 +3049,7 @@ namespace r3d
 				{
 					int gamerId = tournament().GetGamers()[i]->GetId();
 
-					if (achievment().CheckGamerId(gamerId) && !(menu()->IsNetGame() && !net()->player()->CheckGamerId(
+					if (achievment().CheckGamerId(gamerId) && CheckFriendId(gamerId) && !(menu()->IsNetGame() && !net()->player()->CheckGamerId(
 						gamerId)))
 						return i;
 				}
@@ -2943,12 +3063,30 @@ namespace r3d
 				{
 					int gamerId = tournament().GetGamers()[i]->GetId();
 
-					if (achievment().CheckGamerId(gamerId) && !(menu()->IsNetGame() && !net()->player()->CheckGamerId(
+					if (CheckFriendId(gamerId) && achievment().CheckGamerId(gamerId) && !(menu()->IsNetGame() && !net()->player()->CheckGamerId(
 						gamerId)))
 						return i;
 				}
 
 				return -1;
+			}
+
+			void GamersFrame::SetFriendGamerId(unsigned value)
+			{
+				_friendId = value;
+			}
+			
+			unsigned GamersFrame::FriendGamerId()
+			{
+				return _friendId;
+			}
+			
+			bool GamersFrame::CheckFriendId(int id)
+			{
+				if (id == FriendGamerId())
+					return false;
+				else
+					return true;
 			}
 
 			void GamersFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
@@ -2967,10 +3105,15 @@ namespace r3d
 
 				_viewport->SetPos(planetPos);
 				planetRadius = std::min(planetRadius, 300.0f);
-				_viewport->SetSize(planetRadius * 3.1f, planetRadius * 3.1f);
+				_maxVPsizeX = planetRadius * 3.1f;
+				_viewport->SetSize(24, 24);
 
 				_labels[mlName]->SetPos(D3DXVECTOR2(-25.0f, -_bottomPanel->GetSize().y + 23.0f));
 				_labels[mlBonus]->SetPos(D3DXVECTOR2(245.0f, -105.0f));
+				_labels[mlCurPlr]->SetPos(D3DXVECTOR2(-18.0f, -(_bottomPanel->GetSize().y + 40.0f)));
+
+				if (menu()->GetRace()->IsFriendship() == false)
+					_labels[mlCurPlr]->SetVisible(false);
 
 				_labels[mlInfo]->SetPos(D3DXVECTOR2(-390.0f, -100.0f));
 				_labels[mlInfo]->SetSize(D3DXVECTOR2(475.0f, 160.0f));
@@ -2990,6 +3133,7 @@ namespace r3d
 					}
 
 					_planetIndex = planet ? planet->GetIndex() : GetNextPlanetIndex(-1);
+
 				}
 				else
 				{
@@ -3008,7 +3152,7 @@ namespace r3d
 			void GamersFrame::OnInvalidate()
 			{
 				Planet* planet = tournament().GetGamers()[_planetIndex];
-
+				
 				_mesh3d->SetMesh(planet->GetMesh());
 				_mesh3d->GetMaterial()->GetSampler().SetTex(planet->GetTexture());
 
@@ -3021,6 +3165,12 @@ namespace r3d
 				_labels[mlName]->SetText(GetString(planet->GetName()));
 				_labels[mlInfo]->SetText(GetString(planet->GetInfo()));
 				_labels[mlBonus]->SetText(GetString(planet->GetBoss().bonus));
+
+				if (menu()->IsFriendFrame())
+					_labels[mlCurPlr]->SetText(GetString("Игрок 1"));
+				else
+					_labels[mlCurPlr]->SetText(GetString("Игрок 2"));
+
 				if (menu()->ISpectator() && menu()->IsNetGame() && menu()->GetNet()->isClient())
 				{
 					_leftArrow->SetVisible(false);
@@ -3041,6 +3191,31 @@ namespace r3d
 				{
 					Planet* planet = tournament().GetGamers()[_planetIndex];
 
+					if (menu()->GetRace()->IsFriendship())
+					{
+						if (menu()->IsFriendFrame())
+						{
+							SetFriendGamerId(planet->GetId());
+							menu()->SetFriendFrame(false);
+							menu()->GetSecondPlayer()->SetGamerId(planet->GetId());
+							menu()->GetSecondPlayer()->isFriend(true);
+							if (_planetIndex > 0)
+								PrevPlanet();
+							else
+								NextPlanet();
+						}
+						else
+						{
+							menu()->SetGamerId(planet->GetId());
+							menu()->GetPlayer()->SetGamerId(planet->GetId());
+							menu()->GetPlayer()->isFriend(false);
+							menu()->SetFriendFrame(true);
+
+							_raceMenu->SetState(RaceMenu::msGarage);
+						}
+						return true;
+					}
+
 					if (menu()->IsNetGame())
 					{
 						menu()->ShowMessageLoading();
@@ -3050,7 +3225,6 @@ namespace r3d
 					{
 						menu()->SetGamerId(planet->GetId());
 
-#ifndef _DEBUG
 						if (menu()->IsCampaign() && !menu()->GetDisableVideo())
 						{
 							const Language* lang = menu()->GetLanguageParam();
@@ -3060,12 +3234,12 @@ namespace r3d
 								menu()->PlayMovie("Data\\Video\\intaria_eng.avi");
 						}
 						else
-#endif
 							_raceMenu->SetState(RaceMenu::msGarage);
 					}
-
+				
 					return true;
 				}
+
 
 				if (sender == _leftArrow)
 				{
@@ -3080,6 +3254,39 @@ namespace r3d
 				}
 
 				return false;
+			}
+
+			void GamersFrame::OnProgress(float deltaTime)
+			{
+				D3DXVECTOR2 curSize = _viewport->GetSize();
+				//скорость приближения планеты
+				float _accelView = 720;
+				
+				curSize.x += deltaTime * _accelView;
+				curSize.y += deltaTime * _accelView;
+
+				//if (curSize < D3DXVECTOR2(_maxVPsizeX, _maxVPsizeX))
+				//_viewport->SetSize(curSize * 2);
+				// 
+				//останавливаем приближение
+				if (curSize.x < _maxVPsizeX)
+					_viewport->SetSize(curSize.x, curSize.y);
+				else
+					_viewport->SetSize(_maxVPsizeX, _maxVPsizeX);
+
+
+				_timeShowLabel += deltaTime;
+				if (menu()->GetRace()->IsFriendship())
+				{
+					//мерцание заголовка					
+					if (_timeShowLabel < 2.8f)
+						_labels[mlCurPlr]->SetVisible(true);
+					else					
+						_labels[mlCurPlr]->SetVisible(false);
+				
+					if (_timeShowLabel > 3.0f)
+						_timeShowLabel = 0.0f; 						
+				}
 			}
 
 			void GamersFrame::OnProcessEvent(unsigned id, EventData* data)
@@ -3591,7 +3798,7 @@ namespace r3d
 						Race* race = menu()->GetRace();
 						bool isCurrent = tournament().GetCurPlanetIndex() == i;
 
-						if (race->GetPlanetChampion() || race->GetDevMode() && TEST_BUILD == true)
+						if (race->GetPlanetChampion())
 						{
 							if (isCurrent)
 							{
@@ -4394,6 +4601,10 @@ namespace r3d
 			void RaceMainFrame::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 			{
 				const float menuItemSpaceX = 50.0f;
+				_timeShowPoints = 0.0f;
+				_titleTime = 0.0f;
+				_titleChange = false;
+				_isShowPoints = false;
 
 				_moneyBg->SetPos(D3DXVECTOR2(vpSize.x / 2 + 1, -_bottomPanel->GetSize().y + 5));
 				_stateBg->SetPos(D3DXVECTOR2(-vpSize.x / 2 - 1, -_bottomPanel->GetSize().y + 5));
@@ -4401,6 +4612,7 @@ namespace r3d
 				_damageBar->SetPos(D3DXVECTOR2(128.0f, -98.0f));
 				_armorBar->SetPos(D3DXVECTOR2(150.0f, -61.0f));
 				_speedBar->SetPos(D3DXVECTOR2(173.0f, -23.0f));
+
 
 				for (int i = 0; i < cMenuItemEnd; ++i)
 				{
@@ -4493,15 +4705,27 @@ namespace r3d
 						auto plane = static_cast<gui::PlaneFon*>(_menuItems[i]->GetChildren().front());
 						plane->GetMaterial().SetAlpha(!raceReady ? 1.0f : 0.25f);
 					}
+				}					
+				if (menu()->IsFriendFrame())
+					_photoImages[0]->GetMaterial().GetSampler().SetTex(menu()->GetSecondPlayer()->GetPhoto());
+				else
+					_photoImages[0]->GetMaterial().GetSampler().SetTex(player()->GetPhoto());
+				_photoImages[0]->SetSize(menu()->StretchImage(_photoImages[0]->GetMaterial(), _frameImages[0]->GetSize()));
+				
+				//В свободной гонке с другом показываем друга вместо босса.
+				if (menu()->GetRace()->IsFriendship() && menu()->IsSkirmish())
+				{					
+					if (menu()->IsFriendFrame())
+						_photoImages[1]->GetMaterial().GetSampler().SetTex(menu()->GetPlayer()->GetPhoto());
+					else
+						_photoImages[1]->GetMaterial().GetSampler().SetTex(menu()->GetSecondPlayer()->GetPhoto());
+				}
+				else
+				{
+					_photoImages[1]->GetMaterial().GetSampler().SetTex(tournament().GetCurPlanet().GetBoss().photo);
 				}
 
-				_photoImages[0]->GetMaterial().GetSampler().SetTex(player()->GetPhoto());
-				_photoImages[0]->SetSize(
-					menu()->StretchImage(_photoImages[0]->GetMaterial(), _frameImages[0]->GetSize()));
-
-				_photoImages[1]->GetMaterial().GetSampler().SetTex(tournament().GetCurPlanet().GetBoss().photo);
-				_photoImages[1]->SetSize(
-					menu()->StretchImage(_photoImages[1]->GetMaterial(), _frameImages[1]->GetSize()));
+				_photoImages[1]->SetSize(menu()->StretchImage(_photoImages[1]->GetMaterial(), _frameImages[1]->GetSize()));
 
 				Player::SlotType playerSlots[6] = {
 					Player::stWeapon1, Player::stHyper, Player::stMine, Player::stWeapon2, Player::stWeapon3,
@@ -4510,7 +4734,11 @@ namespace r3d
 
 				for (int i = 0; i < 6; ++i)
 				{
-					Slot* slot = player()->GetSlotInst(playerSlots[i]);
+					Player* curplr = player();
+					if (menu()->IsFriendFrame())
+						curplr = menu()->GetSecondPlayer();
+
+					Slot* slot = curplr->GetSlotInst(playerSlots[i]);
 					//chargebar для кратера должен быть невидимым:
 					if (slot != nullptr && slot->GetItem().GetName() != "scCrater")
 					{
@@ -4536,10 +4764,15 @@ namespace r3d
 						_slots[i]->SetVisible(false);
 					}
 				}
+				Player* curplr = menu()->GetCurrentPlayer();
 
+				//цвет машины в гараже
+				if (menu()->IsFriendFrame())
+					_raceMenu->carFrame()->SetCar(curplr->GetCar().record, curplr->GetFriendColor());
+				else
+					_raceMenu->carFrame()->SetCar(curplr->GetCar().record, curplr->GetColor());
 
-				_raceMenu->carFrame()->SetCar(player()->GetCar().record, player()->GetColor());
-				_raceMenu->carFrame()->SetSlots(player(), false);
+				_raceMenu->carFrame()->SetSlots(curplr, false);
 
 				///////////////////////////////////////////////////////////////////////////////////////
 				//МОДИФИКАЦИЯ ВЕРХНЕЙ ПАНЕЛИ ГАРАЖА.
@@ -4548,40 +4781,32 @@ namespace r3d
 				_labels[mlDeads]->SetPos(D3DXVECTOR2(-515.0f, 100.0f));
 				_labels[mlPointz]->SetPos(D3DXVECTOR2(-330.0f, 72.0f));
 				_labels[mlRequest]->SetPos(D3DXVECTOR2(-330.0f, 100.0f));
-
+				
 				_labels[mlLocation]->SetPos(548.0f, 18);
 				_labels[mlDivision]->SetPos(-280, 18);
 				_labels[mlDifficulty]->SetPos(-555.0f, 18);
 				_labels[mlTracks]->SetPos(0.0f, 18);
 
-				//////////////////////
-				_labels[mlMoney]->SetText(menu()->FormatCurrency(player()->GetMoney()));
+				
+				_labels[mlMoney]->SetText(menu()->FormatCurrency(curplr->GetMoney()));
 				_labels[mlLocation]->SetText(GetString(tournament().GetCurPlanet().GetName()));
 
-				int ShowKills = player()->GetKillsTotal();
-				int ShowDeads = player()->GetDeadsTotal();
-				int ShowRaces = player()->GetRacesTotal();
-				int ShowWins = player()->GetWinsTotal();
 
+				int ShowKills = curplr->GetKillsTotal();
+				int ShowDeads = curplr->GetDeadsTotal();
+				int ShowRaces = curplr->GetRacesTotal();
+				int ShowWins = curplr->GetWinsTotal();
+
+				
+				
 				std::stringstream sstreamKillz;
-				sstreamKillz << menu()->GetString(svKills) << ShowKills;
-
 				std::stringstream sstreamDeadz;
+
+				sstreamKillz << menu()->GetString(svKills) << ShowKills;				
 				sstreamDeadz << menu()->GetString(svDeads) << ShowDeads;
 
 				_labels[mlKills]->SetText(sstreamKillz.str());
 				_labels[mlDeads]->SetText(sstreamDeadz.str());
-
-				//Число трас
-				int curTrack = tournament().GetCurTrackIndex() + 1;
-				int TracksTotal = menu()->IsCampaign()
-					                  ? tournament().GetCurPlanet().GetTracks().size()
-					                  : tournament().GetCurPlanet().GetTrackList().size();
-
-				std::stringstream sstreamTrackMap;
-				sstreamTrackMap << menu()->GetString(svTrackMaps) << curTrack << menu()->GetString("/") << TracksTotal;
-
-				_labels[mlTracks]->SetText(sstreamTrackMap.str());
 
 				//Дивизион
 				int pass = tournament().GetCurPlanet().GetPass();
@@ -4591,39 +4816,25 @@ namespace r3d
 
 				std::stringstream sstreamDivision;
 				sstreamDivision << menu()->GetString(svDivision) << menu()->GetString(passStr);
-
 				_labels[mlDivision]->SetText(sstreamDivision.str());
-
-				//общее количество очков для этого дивизиона:
-				int TotalPoints = tournament().GetCurPlanet().GetRequestPoints(tournament().GetCurPlanet().GetPass());
-				//количество очков у игрока за дивизион:
-				int MyPoints = menu()->GetRace()->GetTotalPoints();
-				//сколько осталось собрать очков:
-				int NeedPoints = TotalPoints - MyPoints;
-				//не показывать отрицательных значений:
-				int ShowPoints = 0;
-				if (NeedPoints >= 0)
-					ShowPoints = NeedPoints;
-				else
-					ShowPoints = 0;
 
 				std::stringstream sstreamPointz;
 				std::stringstream sstreamNeed;
 
-				//не показивать дивизион и очки в свободном заезде, а показывать победы и число гонок.
 				if (menu()->IsCampaign())
 				{
 					_labels[mlGameMode]->SetText(menu()->GetString(svChampionship));
 					_labels[mlGameMode]->SetPos(280, 18);
 					_labels[mlDivision]->SetVisible(true);
-					sstreamPointz << menu()->GetString(svPoints) << menu()->GetString(": ") << MyPoints;
-					sstreamNeed << menu()->GetString(svRequest) << menu()->GetString(": ") << TotalPoints;
+					sstreamPointz << menu()->GetString(svPoints) << menu()->GetString(": ") << menu()->GetRace()->GetTotalPoints();
+					sstreamNeed << menu()->GetString(svRequest) << menu()->GetString(": ") << menu()->GetRace()->GetTournament().GetCurPlanet().GetRequestPoints(menu()->GetRace()->GetTournament().GetCurPlanet().GetPass());;
 				}
 				else
 				{
 					_labels[mlGameMode]->SetText(menu()->GetString(svTraining));
 					_labels[mlGameMode]->SetPos(-280, 18);
 					_labels[mlDivision]->SetVisible(false);
+					//Не показивать дивизион и очки в свободном заезде, а показывать победы и число гонок.
 					sstreamPointz << menu()->GetString(svWins) << menu()->GetString(": ") << ShowWins;
 					sstreamNeed << menu()->GetString(svRaces) << menu()->GetString(": ") << ShowRaces;
 				}
@@ -4631,14 +4842,26 @@ namespace r3d
 				_labels[mlPointz]->SetText(sstreamPointz.str());
 				_labels[mlRequest]->SetText(sstreamNeed.str());
 
+				///////////////////////////////////////////////////////////////////////////////////////
 				Planet& bossPlanet = tournament().GetCurPlanet();
-				if (bossPlanet.GetBoss().cars.size() > 0)
-					_raceMenu->CreateCar(_viewportCar, garage().FindCar(bossPlanet.GetBoss().cars.front().record),
-					                     clrWhite, nullptr);
-				else
-					_raceMenu->CreateCar(_viewportCar, nullptr);
 
-				_raceMenu->UpdateStats(_raceMenu->carFrame()->GetCar(), player(), _armorBar, _speedBar, _damageBar,
+				//В свободной гонке с другом показываем машину друга вместо машины босса.
+				if (menu()->GetRace()->IsFriendship() && menu()->IsSkirmish())
+				{
+					if (menu()->IsFriendFrame())
+						_raceMenu->CreateCar(_viewportCar, menu()->GetPlayer());
+					else
+						_raceMenu->CreateCar(_viewportCar, menu()->GetSecondPlayer());
+				}
+				else
+				{
+					if (bossPlanet.GetBoss().cars.size() > 0)
+						_raceMenu->CreateCar(_viewportCar, garage().FindCar(bossPlanet.GetBoss().cars.front().record), clrWhite, NULL);
+					else
+						_raceMenu->CreateCar(_viewportCar, NULL);
+				}
+
+				_raceMenu->UpdateStats(_raceMenu->carFrame()->GetCar(), curplr, _armorBar, _speedBar, _damageBar,
 				                       _armorBarValue, _damageBarValue, _speedBarValue);
 
 				UpdatePlayers();
@@ -4647,6 +4870,13 @@ namespace r3d
 			bool RaceMainFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 			{
 				Race* _race = menu()->GetRace();
+				//фикс отображения текущей трасы на панели (надо переделать!!!) а пока так...
+				if (menu()->IsSkirmish())
+				{				
+					std::stringstream curtrack;
+					curtrack << menu()->GetString(svTrackMaps) << menu()->GetSelectedLevel() << menu()->GetString("/") << tournament().GetCurPlanet().GetTrackList().size();
+					_labels[mlTracks]->SetText(curtrack.str());
+				}
 
 				if (DLG_ONSHOW == false)
 				{
@@ -4663,18 +4893,12 @@ namespace r3d
 						{
 							if (net()->isHost())
 							{
-								if (net()->AllPlayersReady() && net()->netOpponents().size() > 0 || menu()->devMode() ==
-									true && TEST_BUILD == true)
+								if (net()->AllPlayersReady() && net()->netOpponents().size() > 0)
 								{
-									//if (net()->race()->GetLeaverList().size() > 0)
-									//	menu()->ShowAccept(true, GetString(svHintLeaversWillBeRemoved), GetString(svYes), GetString(svNo), uiRoot()->GetVPSize()/2, gui::Widget::waCenter, this);
-									//else 
 									menu()->StartRace();
 								}
 								else
-									menu()->ShowMessage(GetString(svWarning), GetString(svHintPlayersIsNotReady),
-									                    GetString(svOk), uiRoot()->GetVPSize() / 2,
-									                    gui::Widget::waCenter, 0.0f);
+									menu()->ShowMessage(GetString(svWarning), GetString(svHintPlayersIsNotReady), GetString(svOk), uiRoot()->GetVPSize() / 2, gui::Widget::waCenter, 0.0f);
 							}
 							else
 							{
@@ -4683,19 +4907,43 @@ namespace r3d
 						}
 						else
 						{
+							if (menu()->IsFriendFrame())
+							{
+								//обновление вида
+								menu()->SetFriendFrame(false);
+
+								Invalidate();
+								_raceMenu->carFrame()->SetCarColor(menu()->GetCurrentPlayer()->GetColor());
+
+								if (menu()->GetSecondPlayer()->GetCar().record == NULL || menu()->GetPlayer()->GetCar().record == NULL)
+								{
+									_raceMenu->SetState(RaceMenu::msGarage);
+								}
+
+								return true;
+							}
 							if (menu()->IsCampaign())
 							{
 								menu()->StartRace();
 							}
 							else
 							{
+								//Skirmish
 								if (_race->GetGame()->SelectedLevel() != 0)
-									_race->GetTournament().SetCurTrack(
-										_race->GetTournament().GetCurPlanet().GetTracks()[_race->GetGame()->
-											SelectedLevel() - 1]);
+									_race->GetTournament().SetCurTrack(_race->GetTournament().GetCurPlanet().GetTracks()[_race->GetGame()->SelectedLevel() - 1]);
 								menu()->StartRace();
 							}
+							//Only Splitscreen Mode:
+							SPLIT_TYPE = 1 + menu()->splitType();
+							FIXED_ASPECT = menu()->staticCam();
+							ISOCAM_DIST = menu()->GetGame()->GetCameraDistance();
 						}
+
+						if (menu()->GetRace()->IsFriendship() && menu()->GetSecondPlayer()->GetCar().record == NULL || menu()->GetPlayer()->GetCar().record == NULL)
+						{
+							_raceMenu->SetState(RaceMenu::msGarage);						
+						}
+
 						return true;
 					}
 
@@ -4725,7 +4973,11 @@ namespace r3d
 
 					if (sender == _menuItems[miOptions])
 					{
-						menu()->ShowOptions(true);
+						if (menu()->IsFriendFrame() || ENABLE_SPLIT_SCREEN == true)
+							menu()->ShowMessage(GetString(svWarning), GetString("Нет доступа..."), GetString(svOk),
+								uiRoot()->GetVPSize() / 2, gui::Widget::waCenter, 0.0f);
+						else
+							menu()->ShowOptions(true);
 						return true;
 					}
 
@@ -4735,6 +4987,9 @@ namespace r3d
 						RIGHT_CLR_PAGE_CHANGED = false;
 						L_COLORINDEX = 1;
 						R_COLORINDEX = 1;
+						menu()->SetFriendFrame(false);
+						menu()->GetRace()->SetFriendship(false);
+						ENABLE_SPLIT_SCREEN = false;
 						menu()->ExitMatch();
 						return true;
 					}
@@ -4771,55 +5026,78 @@ namespace r3d
 
 			void RaceMainFrame::OnProgress(float deltaTime)
 			{
-				TITLE_TIME += deltaTime;
-
-				if (TITLE_TIME >= 5.0f)
+				_timeShowPoints += deltaTime;
+				//таймер мерцания очков
+				if (_timeShowPoints > 0.4f)
 				{
-					if (TITLE_CHANGE == false)
-					{
-						TITLE_TIME = 0;
-						TITLE_CHANGE = true;
-					}
+					if (_isShowPoints == false)
+						_isShowPoints = true;
 					else
-					{
-						TITLE_TIME = 0;
-						TITLE_CHANGE = false;
-					}
+						_isShowPoints = false;
+	
+					_timeShowPoints = 0.0f;
+				}
+				
+				//таймер смены заголовка в RaceMenu
+				_titleTime += deltaTime;
+				if (_titleTime >= 5.0f)
+				{					
+					if (_titleChange == false)
+						_titleChange = true;
+					else
+						_titleChange = false;
+					_titleTime = 0.0f;
 				}
 
-				std::stringstream sstreamTitleMessege;
-				int Difficulty = menu()->GetRace()->GetProfile()->difficulty();
-				bool NetGameProcess = menu()->IsNetGame();
 
-				if (TITLE_CHANGE == true)
+				//Отображение текущей трассы в RaceMenu (fixed):	
+				std::stringstream sstreamTrackMap;
+				if (menu()->IsCampaign() && menu()->GetPotentialPoints() < menu()->GetReqestPoints())
+					sstreamTrackMap << menu()->GetString(svTrackMaps) << "1" << menu()->GetString("/") << menu()->GetTracksCount();
+				else
+					sstreamTrackMap << menu()->GetString(svTrackMaps) << menu()->GetCurTrack() << menu()->GetString("/") << menu()->GetTracksCount();
+
+				_labels[mlTracks]->SetText(sstreamTrackMap.str());
+
+
+				//Эффект мерцания очков (если игроку обязательно надо приехать первым, чтобы пройти дивизион):
+				std::stringstream sstreamPoints;
+				if (menu()->GetPotentialPoints() == menu()->GetReqestPoints() && (menu()->GetPotentialPoints() - menu()->GetCurrentPoints()) == menu()->GetMaxPrize())
+				{				
+					if (_isShowPoints == true)
+						sstreamPoints << menu()->GetString(svPoints) << menu()->GetString(": ") << menu()->GetCurrentPoints();
+					else
+						sstreamPoints << menu()->GetString(svPoints) << menu()->GetString(":");
+
+					_labels[mlPointz]->SetText(sstreamPoints.str());
+				}
+
+
+				int Difficulty = menu()->GetRace()->GetProfile()->difficulty();
+				std::stringstream sstreamTitleMessege;
+
+				if (_titleChange == true)
 				{
-					if (NetGameProcess == true)
-					{
+					if (menu()->IsNetGame())
 						sstreamTitleMessege << menu()->GetString(svNetGame);
-					}
 					else
 					{
-						sstreamTitleMessege << menu()->GetString(svSingleGame);
+						if (menu()->GetRace()->IsFriendship())
+							sstreamTitleMessege << menu()->GetString(svFriendship);
+						else
+							sstreamTitleMessege << menu()->GetString(svSingleGame);
 					}
 				}
 				else
 				{
 					if (Difficulty == 0)
-					{
 						sstreamTitleMessege << menu()->GetString("gdEasy");
-					}
 					else if (Difficulty == 1)
-					{
 						sstreamTitleMessege << menu()->GetString("gdNormal");
-					}
 					else if (Difficulty == 2)
-					{
 						sstreamTitleMessege << menu()->GetString("gdHard");
-					}
 					else
-					{
-						sstreamTitleMessege << menu()->GetString("gdMadness");
-					}
+						sstreamTitleMessege << menu()->GetString("gdMaster");
 				}
 
 				_labels[mlDifficulty]->SetText(sstreamTitleMessege.str());
@@ -4882,7 +5160,10 @@ namespace r3d
 					_spaceshipFrame->Show(false);
 
 				if (carVisible)
+				{
 					_carFrame->Show(true);
+					_carFrame->SetCarColor(_menu->GetCurrentPlayer()->GetColor());
+				}
 				if (spaceshipVisible)
 					_spaceshipFrame->Show(true);
 
@@ -4947,6 +5228,7 @@ namespace r3d
 					_garageFrame->OnProcessNetEvent(id, data);
 				if (_gamers->visible())
 					_gamers->OnProcessNetEvent(id, data);
+
 
 				if (id == cNetPlayerSetColor && data->failed)
 				{
@@ -5172,6 +5454,8 @@ namespace r3d
 					_angarFrame->OnProgress(deltaTime);
 				if (_mainFrame)
 					_mainFrame->OnProgress(deltaTime);
+				if (_gamers)
+					_gamers->OnProgress(deltaTime);
 			}
 
 			Player* RaceMenu::GetPlayer()
@@ -5198,6 +5482,7 @@ namespace r3d
 					ApplyState(_state);
 				}
 			}
+
 
 			RaceMenu::State RaceMenu::GetLastState() const
 			{

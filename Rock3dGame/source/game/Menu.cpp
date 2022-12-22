@@ -17,7 +17,7 @@ namespace r3d
 		                            _startOptionsVisible(false), _screenFon(nullptr), _mainMenu2(nullptr),
 		                            _raceMenu2(nullptr), _hudMenu(nullptr), _finishMenu2(nullptr), _finalMenu(nullptr),
 		                            _infoMenu(nullptr), _optionsMenu(nullptr), _startOptionsMenu(nullptr),
-		                            _weaponTime(-1), _messageTime(-1), _musicTime(-1), _Ispectator(false)
+		                            _weaponTime(-1), _messageTime(-1), _musicTime(-1), _Ispectator(false), _IsFriendFrame(false)
 		{
 			_controlEvent = new MyControlEvent(this);
 			_game->GetWorld()->GetControl()->InsertEvent(_controlEvent);
@@ -858,6 +858,13 @@ namespace r3d
 
 			if (_raceMenu2)
 			{
+				//начальная инициализация
+				_maxPrize = GetRace()->GetTournament().GetCurPlanet().GetPrice(1).points;
+				_raceRestCount = GetRace()->GetTournament().GetCurPlanet().GetTracks().size() - GetRace()->GetTournament().GetCurTrackIndex();
+				_currentPoints = GetPlayer()->GetPoints();
+				_reqestPoints = GetRace()->GetTournament().GetCurPlanet().GetRequestPoints(GetRace()->GetTournament().GetCurPlanet().GetPass());
+				_potentialPoints = _currentPoints + (_maxPrize * _raceRestCount);
+
 				_raceMenu2->AdjustLayout(vpSize);
 			}
 
@@ -925,7 +932,9 @@ namespace r3d
 
 		void Menu::OnFinishClose()
 		{
-			Player* player = GetPlayer();
+			if (GetRace()->IsFriendship())
+				this->GetGame()->GetMenu()->SetFriendFrame(true);
+
 			D3DXVECTOR2 pos = GetGUI()->GetVPSize() / 2;
 			SetState(msRace2);
 			_game->OnFinishFrameClose();
@@ -960,7 +969,7 @@ namespace r3d
 				else if (IsNetGame() && _game->netGame()->isClient())
 				{
 					//спектаторам не показывать диалоговые окна.
-					if (player->GetGamerId() < SPECTATOR_ID_BEGIN)
+					if (GetPlayer()->GetGamerId() < SPECTATOR_ID_BEGIN)
 						ShowMessage(GetString(svWarning), GetString(svHintYouCanFlyPlanetClient), GetString(svOk), pos,
 						            gui::Widget::waCenter, 0.0f, nullptr);
 					DIVISION_END = true;
@@ -968,7 +977,7 @@ namespace r3d
 				else
 				{
 					_raceMenu2->SetState(n::RaceMenu::msAngar);
-					if (player->GetGamerId() < SPECTATOR_ID_BEGIN)
+					if (GetPlayer()->GetGamerId() < SPECTATOR_ID_BEGIN)
 						ShowMessage(GetString(svWarning), GetString(svHintYouCanFlyPlanet), GetString(svOk), pos,
 						            gui::Widget::waCenter, 0.0f, nullptr);
 					DIVISION_END = true;
@@ -976,16 +985,39 @@ namespace r3d
 			}
 			else if (GetRace()->GetPassChampion())
 			{
-				if (player->GetGamerId() < SPECTATOR_ID_BEGIN)
+				if (GetPlayer()->GetGamerId() < SPECTATOR_ID_BEGIN)
 					ShowMessage(GetString(svWarning), GetString(svHintYouCompletePass), GetString(svOk), pos,
 					            gui::Widget::waCenter, 1.0f, nullptr);
 				DIVISION_END = true;
 			}
-			else if (IsCampaign() && GetRace()->GetTournament().GetCurTrackIndex() == 0)
+			else 
 			{
-				if (player->GetGamerId() < SPECTATOR_ID_BEGIN)
-					ShowMessage(GetString(svWarning), GetString(svHintYouNotCompletePass), GetString(svOk), pos,
-					            gui::Widget::waCenter, 0.0f, nullptr);
+				if (IsCampaign() && GetRace()->GetTournament().GetCurTrackIndex() == 0 && GetPlayer()->GetGamerId() < SPECTATOR_ID_BEGIN)
+					ShowMessage(GetString(svWarning), GetString(svHintYouNotCompletePass), GetString(svOk), pos, gui::Widget::waCenter, 0.0f, nullptr);
+			}
+
+			//if (IsCampaign() && GetPlayer()->IsGamer() && GetPlayer()->IsHuman())
+			{
+				//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+				//Инициализация переменных
+				/*
+				_maxPrize = GetRace()->GetTournament().GetCurPlanet().GetPrice(1).points;
+				_raceRestCount = GetRace()->GetTournament().GetCurPlanet().GetTracks().size() - GetRace()->GetTournament().GetCurTrackIndex();
+				_currentPoints = GetPlayer()->GetPoints();
+				_reqestPoints = GetRace()->GetTournament().GetCurPlanet().GetRequestPoints(GetRace()->GetTournament().GetCurPlanet().GetPass());
+				_potentialPoints = _currentPoints + (_maxPrize * _raceRestCount);*/
+
+				//если игрок не способен набрать достаточно очков
+				//завершаем дивизион принудительно
+				/*
+				if (_potentialPoints < _reqestPoints)
+				{
+					GetRace()->GetTournament().SetCurTrack(GetRace()->GetTournament().NextTrack(nullptr));
+					GetPlayer()->SetPoints(0);
+					GetPlayer()->AddPassTrial(1);
+					ShowMessage(GetString(svWarning), GetString(svHintYouNotCompletePass), GetString(svOk), pos, gui::Widget::waCenter, 1.0f, nullptr);
+				}*/
+				//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 			}
 		}
 
@@ -1270,6 +1302,58 @@ namespace r3d
 			if (IsNetGame())
 				GetNet()->player()->CarSlotsChanged();
 		}
+		///////////////////////////////////////////////
+		unsigned Menu::GetMaxPrize()
+		{
+			return _maxPrize;
+		}
+		
+		unsigned Menu::GetRaceRestCount()
+		{
+			return _raceRestCount;
+		}
+
+		unsigned Menu::GetCurrentPoints()
+		{
+			return _currentPoints;
+		}
+
+		unsigned Menu::GetReqestPoints()
+		{
+			return _reqestPoints;
+		}
+
+		unsigned Menu::GetPotentialPoints()
+		{
+			return _potentialPoints;
+		}
+		///////////////////////////////////////////////
+		//Текущая трасса
+		unsigned Menu::GetCurTrack()
+		{
+			if (IsCampaign())
+				return 1 + this->GetRace()->GetTournament().GetCurTrackIndex();
+			else
+			{
+				if (GetSelectedLevel () > 0)
+					return this->GetSelectedLevel();
+				else
+					return 1 + this->GetRace()->GetTournament().GetCurTrackIndex();
+			}
+		}
+		//Общее количество трасс
+		unsigned Menu::GetTracksCount()
+		{
+			if (IsCampaign())
+				return this->GetRace()->GetTournament().GetCurPlanet().GetTracks().size();
+			else
+				return this->GetRace()->GetTournament().GetCurPlanet().GetTrackList().size();
+		}
+		//////////////////////////////////////////////
+		bool Menu::IsSingePlayer()
+		{
+			return GetRace()->IsCampaign();
+		}
 
 		bool Menu::IsCampaign()
 		{
@@ -1325,7 +1409,30 @@ bool Menu::IsSteamSavingInProcess()
 
 		Player* Menu::GetPlayer()
 		{
-			return GetRace()->GetHuman() ? GetRace()->GetHuman()->GetPlayer() : nullptr;
+			return GetRace()->GetHuman() ? GetRace()->GetHuman()->GetPlayer() : NULL;
+		}
+
+		Player* Menu::GetSecondPlayer()
+		{
+			return GetRace()->GetPlayerById(Race::cOpponent1);
+		}
+
+		Player* Menu::GetCurrentPlayer()
+		{
+			if (IsFriendFrame())
+				return GetSecondPlayer();
+			else
+				return GetPlayer();
+		}
+
+		void Menu::SetFriendFrame(bool value)
+		{
+			_IsFriendFrame = value;
+		}
+
+		bool Menu::IsFriendFrame()
+		{
+			return _IsFriendFrame;
 		}
 
 		void Menu::SetGamerId(int gamerId)
@@ -1357,7 +1464,11 @@ bool Menu::IsSteamSavingInProcess()
 		{
 			if (IsNetGame())
 				return GetNet()->player()->BuyCar(car);
-			return GetRace()->GetGarage().BuyCar(GetPlayer(), car);
+
+			if (IsFriendFrame())
+				return GetRace()->GetGarage().BuyCar(GetSecondPlayer(), car);
+			else
+				return GetRace()->GetGarage().BuyCar(GetPlayer(), car);
 		}
 
 		void Menu::ChangePlanet(Planet* planet)
@@ -1548,26 +1659,6 @@ bool Menu::IsSteamSavingInProcess()
 			_game->subjectView(value);
 		}
 
-		bool Menu::devMode()
-		{
-			if (IsNetGame())
-				return GetNet()->race()->GetDevMode();
-			return _game->devMode();
-		}
-
-		void Menu::devMode(bool value)
-		{
-			if (TEST_BUILD == true)
-				_game->devMode(value);
-			else
-				_game->devMode(false);
-		}
-
-		bool Menu::enabledDevMode()
-		{
-			return TEST_BUILD;
-		}
-
 		bool Menu::camLock()
 		{
 			return _game->CamLock();
@@ -1576,6 +1667,16 @@ bool Menu::IsSteamSavingInProcess()
 		void Menu::camLock(bool value)
 		{
 			_game->CamLock(value);
+		}
+
+		unsigned Menu::splitType()
+		{
+			return _game->GetSplitMOde();
+		}
+
+		void Menu::splitType(unsigned value)
+		{
+			_game->SplitMOde(value);
 		}
 
 		bool Menu::staticCam()
@@ -1637,7 +1738,6 @@ bool Menu::IsSteamSavingInProcess()
 		void Menu::StyleHUD(unsigned value)
 		{
 			_game->StyleHUD(value);
-			HUD_STYLE = value;
 		}
 
 		unsigned Menu::MinimapStyle()
@@ -1697,8 +1797,10 @@ bool Menu::IsSteamSavingInProcess()
 			}
 			else
 			{
-				_game->ExitRace(true);
+				_game->ExitRace(false);
 				_game->ExitRaceGoFinish();
+				FIXED_ASPECT = false;
+				SPLIT_TYPE = 0;
 			}
 		}
 

@@ -836,7 +836,7 @@ namespace r3d
 			const float force = _desc.speed * plr->GetJumpPower();
 			car->GetPxActor().GetNxActor()->addLocalForce(NxVec3(0.0f, 0.0f, 1.0f) * force, NX_SMOOTH_VELOCITY_CHANGE);
 
-			DOUBLE_JUMP = false;
+			car->DoubleJumpSetActive(false);		
 			return true;
 		}
 
@@ -1683,10 +1683,23 @@ namespace r3d
 				else
 				{
 					//подготовка к спавну кратера:
-					CRATER_POSX = this->GetPos().x;
-					CRATER_POSY = this->GetPos().y;
-					CRATER_POSZ = this->GetPos().z;
-					CRATER_SPAWN = true;
+					//GameCar* _car = _weapon->GetParent()->IsCar();
+					//_car->
+					if (_weapon->GetParent()->GetMapObj()->GetPlayer()->isFriend())
+					{
+						S_CRATER_POSX = this->GetPos().x;
+						S_CRATER_POSY = this->GetPos().y;
+						S_CRATER_POSZ = this->GetPos().z;
+						S_CRATER_SPAWN = true;
+					}
+					else
+					{
+						CRATER_POSX = this->GetPos().x;
+						CRATER_POSY = this->GetPos().y;
+						CRATER_POSZ = this->GetPos().z;
+						CRATER_SPAWN = true;
+					}
+
 					this->Death();
 				}
 			}
@@ -1734,6 +1747,48 @@ namespace r3d
 				}
 				return false;
 			}
+
+			if (S_CRATER_SPAWN == true)
+			{
+				SetIgnoreContactProj(true);
+				S_CRATER_SPAWN = false;
+				_weapon->SetWorldPos(D3DXVECTOR3(S_CRATER_POSX, S_CRATER_POSY, S_CRATER_POSZ * 2));
+				_time1 = -1.0f;
+				InitModel();
+				CreatePxBox(px::Scene::cdgShotTrack);
+
+				const AABB aabb = ComputeAABB(true);
+				GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
+				_time1 = 0.0f;
+
+				if (ctx.projMat)
+				{
+					SetWorldPos(ctx.projMat->t.get());
+
+					return true;
+				}
+				D3DXVECTOR3 rayPos = _desc.pos;
+				if (_weapon)
+					_weapon->GetGrActor().LocalToWorldCoord(rayPos, rayPos);
+				const NxRay nxRay(NxVec3(rayPos) + NxVec3(0, 0, 2.0f), NxVec3(-ZVector));
+
+				NxRaycastHit hit;
+				const NxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(
+					nxRay, NX_STATIC_SHAPES, hit, (1 << px::Scene::cdgTrackPlane) | (1 << px::Scene::cdgShotTrack),
+					NX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT | NX_RAYCAST_NORMAL);
+
+				if (hitShape && hitShape->getGroup() != px::Scene::cdgShotTrack) //&& hit.distance < _desc.projMaxDist)
+				{
+					const float offs = std::max(-aabb.min.z, 0.01f);
+					const D3DXVECTOR3 normal = hit.worldNormal.get();
+
+					SetWorldPos(D3DXVECTOR3(hit.worldImpact.get()) + ZVector * offs);
+					SetWorldUp(normal);
+					return true;
+				}
+				return false;
+			}
+
 			return false;
 		}
 
@@ -4286,21 +4341,22 @@ namespace r3d
 			if (target == nullptr)
 				return;
 
-			GameCar* car = target->GetParent() && target->GetParent()->IsCar() && target->GetParent()->GetPxActor().
-			               GetNxActor()
-				               ? target->GetParent()->IsCar()
-				               : target->IsCar();
-			//на новичке боты не стреляют, если наехали на лужу:
-			if (car->GetMapObj()->GetPlayer()->IsComputer() && GAME_DIFF == 0)
-				car->GetMapObj()->GetPlayer()->SetShotFreeze(true);
 
-			if (target && target->IsCar())
+			if (target->IsCar())
 			{
+				GameCar* car = target->GetParent() && target->GetParent()->IsCar() && target->GetParent()->GetPxActor().
+					GetNxActor()
+					? target->GetParent()->IsCar()
+					: target->IsCar();
+				//на новичке боты не стреляют, если наехали на лужу:
+				if (car->GetMapObj()->GetPlayer()->IsComputer() && GAME_DIFF == 0)
+					car->GetMapObj()->GetPlayer()->SetShotFreeze(true);
+
 				const NxActor* nxTarget = target->GetPxActor().GetNxActor();
 				//контакт будет засчитан, если машина не слишком медленно едет:
 				if (nxTarget->getLinearVelocity().magnitude() > 32.0f)
 				{
-					UnlimitedTurn = true;
+					car->SetUnlimitedTurn(true);
 					car->SetSpinStatus(true);
 					car->SetRespBlock(true);
 					//target->SendEvent(cPlayerSpinOut); //отправляем событие для озвучки коментатором.
@@ -4310,11 +4366,8 @@ namespace r3d
 					//mcAccel
 					if (car->GetSpeed() > 4)
 					{
-						car->LockClutch(
-							RandomRange(-2.8f, 2.8f) + car->GetPxActor().GetNxActor()->getLinearVelocity().magnitude() *
-							0.1f);
-						car->GetPxActor().GetNxActor()->addLocalForce(NxVec3(car->GetGrActor().GetRight() * 18.0f),
-						                                              NX_ACCELERATION);
+						car->LockClutch(RandomRange(-2.8f, 2.8f) + car->GetPxActor().GetNxActor()->getLinearVelocity().magnitude() * 0.1f);
+						car->GetPxActor().GetNxActor()->addLocalForce(NxVec3(car->GetGrActor().GetRight() * 18.0f), NX_ACCELERATION);
 						car->SetRespBlock(true);
 					}
 					//mcBack
@@ -4322,8 +4375,7 @@ namespace r3d
 					{
 						car->SetMoveCar(car->mcBack);
 						car->LockClutch(RandomRange(-1.6f, 1.6f));
-						car->GetPxActor().GetNxActor()->addLocalForce(NxVec3(car->GetGrActor().GetRight() * -12.0f),
-						                                              NX_ACCELERATION);
+						car->GetPxActor().GetNxActor()->addLocalForce(NxVec3(car->GetGrActor().GetRight() * -12.0f), NX_ACCELERATION);
 						car->SetRespBlock(true);
 					}
 				}
@@ -4535,11 +4587,8 @@ namespace r3d
 			CreatePxBox();
 
 			this->GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
-			//триггеры видны только в режиме разработчика и в редакторе трасс.
-			//if (GetLogic()->GetRace()->GetDevMode() == false)
-			//this->GetGrActor().SetVisible(false);
-
-			if (EDIT_MODE == false)
+			//триггеры не видны в гонке, но видны в редакторе трасс			
+			if (TOTALPLAYERS_COUNT != 69)
 				this->GetGrActor().SetVisible(false);
 
 			return true;

@@ -830,6 +830,7 @@ namespace r3d
 			Mode _mode;
 
 			bool _startRace;
+			bool _friendship;
 			unsigned _myCarIndex;
 			unsigned _myWorldType;
 			unsigned _weatherType;
@@ -851,7 +852,6 @@ namespace r3d
 			bool _survivalMode;
 			bool _autoCamera;
 			int _subjectView;
-			bool _devMode;
 			bool _camLock;
 			bool _staticCam;
 			int _camFov;
@@ -927,6 +927,7 @@ namespace r3d
 			Player* GetPlayerByNetSlot(unsigned netSlot) const;
 			const PlayerList& GetPlayerList() const;
 			HumanPlayer* GetHuman();
+			Player* GetFriend();
 			const AIPlayers& GetAIPlayers() const;
 
 			Profile* AddProfile(const std::string& name);
@@ -959,6 +960,8 @@ namespace r3d
 			void SetLastNetProfile(Profile* value);
 
 			Mode GetMode() const;
+			void SetFriendship(bool value);
+			bool IsFriendship() const;
 			bool IsCampaign() const;
 			bool IsSkirmish() const;
 
@@ -973,6 +976,7 @@ namespace r3d
 			void ResetCarPos();
 
 			void StartRace();
+			void RaceClear();
 			void ExitRace(const Results* results = nullptr);
 			bool IsStartRace() const;
 
@@ -1002,9 +1006,6 @@ namespace r3d
 			int GetSubjectView() const;
 			void SetSubjectView(int value);
 
-			bool GetDevMode() const;
-			void SetDevMode(bool value);
-
 			bool GetCamLock() const;
 			void SetCamLock(bool value);
 
@@ -1026,6 +1027,7 @@ namespace r3d
 			void SendEvent(unsigned id, EventData* data = nullptr);
 
 			void OnLapPass(Player* player);
+			void FriendlyFinish();
 			void QuickFinish(Player* player);
 
 			GameMode* GetGame();

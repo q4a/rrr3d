@@ -355,7 +355,7 @@ public:
 			class MainFrame : public MenuFrame
 			{
 			private:
-				enum MenuItem { miSingle = 0, miNetwork, miOptions, miAuthors, miExit, cMenuItemEnd };
+				enum MenuItem { miSingle = 0, miFriendship, miNetwork, miOptions, miExit, cMenuItemEnd };
 
 			private:
 				MainMenu* _mainMenu;

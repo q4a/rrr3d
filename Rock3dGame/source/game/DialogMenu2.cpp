@@ -12,47 +12,47 @@ namespace r3d
 			const int UserChat::cMaxLines = 50;
 
 
-			AcceptDialog::AcceptDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _resultYes(false),
-			                                                             _data(nullptr), _guiEvent(nullptr)
+			AcceptDialog::AcceptDialog(Menu* menu, gui::Widget* parent) : MenuFrame(menu, parent), _resultYes(false),
+				_data(nullptr), _guiEvent(nullptr)
 			{
-				constexpr StringValue strMenuItems[cMenuItemEnd] = {svNo, svYes};
+				constexpr StringValue strMenuItems[cMenuItemEnd] = { svNo, svYes };
 				const D3DXCOLOR color1(0xffafafaf);
 
-				constexpr StringValue strLabels[cLabelEnd] = {svNull};
-				const std::string fontLabels[cLabelEnd] = {"Item"};
-				constexpr gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haCenter};
-				constexpr gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter};
-				const D3DXCOLOR colorLabels[cLabelEnd] = {color1};
+				constexpr StringValue strLabels[cLabelEnd] = { svNull };
+				const std::string fontLabels[cLabelEnd] = { "Item" };
+				constexpr gui::Text::HorAlign horLabels[cLabelEnd] = { gui::Text::haCenter };
+				constexpr gui::Text::VertAlign vertLabels[cLabelEnd] = { gui::Text::vaCenter };
+				const D3DXCOLOR colorLabels[cLabelEnd] = { color1 };
 
 				_menuBg1 = menu->CreatePlane(root(), this, "GUI\\HUD\\dlgWnd1.png", true, IdentityVec2,
-				                             gui::Material::bmTransparency);
+					gui::Material::bmTransparency);
 				_menuBg2 = menu->CreatePlane(root(), this, "GUI\\HUD\\dlgWnd2.png", true, IdentityVec2,
-				                             gui::Material::bmTransparency);
+					gui::Material::bmTransparency);
 				_menuBg3 = menu->CreatePlane(root(), this, "GUI\\HUD\\dlgWnd3.png", true, IdentityVec2,
-				                             gui::Material::bmTransparency);
+					gui::Material::bmTransparency);
 				_menuBg4 = menu->CreatePlane(root(), this, "GUI\\HUD\\dlgWnd4.png", true, IdentityVec2,
-				                             gui::Material::bmTransparency);
+					gui::Material::bmTransparency);
 
-				gui::Widget* labelsParent[cLabelEnd] = {_menuBg1};
+				gui::Widget* labelsParent[cLabelEnd] = { _menuBg1 };
 				for (int i = 0; i < cLabelEnd; ++i)
 					_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i],
-					                               vertLabels[i], colorLabels[i]);
+						vertLabels[i], colorLabels[i]);
 				_labels[mlInfo]->SetWordWrap(true);
 
 				for (int i = 0; i < cMenuItemEnd; ++i)
 				{
 					_menuItems[i] = menu->CreateMenuButton(strMenuItems[i], "Item", "GUI\\HUD\\button1.png",
-					                                       "GUI\\HUD\\button1Sel.png", _menuBg1, this, IdentityVec2,
-					                                       gui::Button::bsSelAnim, color1);
+						"GUI\\HUD\\button1Sel.png", _menuBg1, this, IdentityVec2,
+						gui::Button::bsSelAnim, color1);
 					_menuItems2[i] = menu->CreateMenuButton(strMenuItems[i], "Item", "GUI\\HUD\\button2.png",
-					                                        "GUI\\HUD\\button2Sel.png", _menuBg2, this, IdentityVec2,
-					                                        gui::Button::bsSelAnim, color1);
+						"GUI\\HUD\\button2Sel.png", _menuBg2, this, IdentityVec2,
+						gui::Button::bsSelAnim, color1);
 					_menuItems3[i] = menu->CreateMenuButton(strMenuItems[i], "Item", "GUI\\HUD\\button3.png",
-					                                        "GUI\\HUD\\button3Sel.png", _menuBg3, this, IdentityVec2,
-					                                        gui::Button::bsSelAnim, color1);
+						"GUI\\HUD\\button3Sel.png", _menuBg3, this, IdentityVec2,
+						gui::Button::bsSelAnim, color1);
 					_menuItems4[i] = menu->CreateMenuButton(strMenuItems[i], "Item", "GUI\\HUD\\button4.png",
-					                                        "GUI\\HUD\\button4Sel.png", _menuBg4, this, IdentityVec2,
-					                                        gui::Button::bsSelAnim, color1);
+						"GUI\\HUD\\button4Sel.png", _menuBg4, this, IdentityVec2,
+						gui::Button::bsSelAnim, color1);
 				}
 
 				_menuBg1->SetEnabled(false);
@@ -94,52 +94,6 @@ namespace r3d
 					SafeRelease(_guiEvent);
 				}
 
-				if (HUD_STYLE == 2)
-				{
-					Menu::NavElement elements[] = {
-						{
-							_menuItems2[miNo], {_menuItems2[miYes], _menuItems2[miYes], nullptr, nullptr},
-							{vkBack, cVirtualKeyEnd}
-						},
-						{
-							_menuItems2[miYes], {_menuItems2[miNo], _menuItems2[miNo], nullptr, nullptr},
-							{cVirtualKeyEnd, cVirtualKeyEnd}
-						}
-					};
-
-					menu()->SetNavElements(_menuItems2[miYes], value, elements, ARRAY_LENGTH(elements));
-				}
-				else if (HUD_STYLE == 3)
-				{
-					Menu::NavElement elements[] = {
-						{
-							_menuItems3[miNo], {_menuItems3[miYes], _menuItems3[miYes], nullptr, nullptr},
-							{vkBack, cVirtualKeyEnd}
-						},
-						{
-							_menuItems3[miYes], {_menuItems3[miNo], _menuItems3[miNo], nullptr, nullptr},
-							{cVirtualKeyEnd, cVirtualKeyEnd}
-						}
-					};
-
-					menu()->SetNavElements(_menuItems3[miYes], value, elements, ARRAY_LENGTH(elements));
-				}
-				else if (HUD_STYLE == 4)
-				{
-					Menu::NavElement elements[] = {
-						{
-							_menuItems4[miNo], {_menuItems4[miYes], _menuItems4[miYes], nullptr, nullptr},
-							{vkBack, cVirtualKeyEnd}
-						},
-						{
-							_menuItems4[miYes], {_menuItems4[miNo], _menuItems4[miNo], nullptr, nullptr},
-							{cVirtualKeyEnd, cVirtualKeyEnd}
-						}
-					};
-
-					menu()->SetNavElements(_menuItems4[miYes], value, elements, ARRAY_LENGTH(elements));
-				}
-				else
 				{
 					Menu::NavElement elements[] = {
 						{
@@ -158,7 +112,13 @@ namespace r3d
 
 			void AcceptDialog::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 			{
-				//menu()->GetGame()->_gameMusic->Pause(true);
+				if (ENABLE_SPLIT_SCREEN == true)
+				{
+					if (SPLIT_TYPE == 1)
+						_menuBg1->SetSize(192, 156);
+					else if (SPLIT_TYPE == 2)
+						_menuBg1->SetSize(384, 78);
+				}
 			}
 
 			void AcceptDialog::OnInvalidate()
@@ -206,9 +166,9 @@ namespace r3d
 			}
 
 			void AcceptDialog::Show(bool fixmenu, const std::string& message, const std::string& yesText,
-			                        const std::string& noText, const D3DXVECTOR2& pos, gui::Widget::Anchor align,
-			                        gui::Widget::Event* guiEvent, Object* data, bool maxButtonsSize, bool maxMode,
-			                        bool disableFocus)
+				const std::string& noText, const D3DXVECTOR2& pos, gui::Widget::Anchor align,
+				gui::Widget::Event* guiEvent, Object* data, bool maxButtonsSize, bool maxMode,
+				bool disableFocus)
 			{
 				D3DXVECTOR2 bgSize;
 				auto infoSize = D3DXVECTOR2(325.0f, 65.0f);
@@ -253,107 +213,6 @@ namespace r3d
 				}
 				else
 				{
-					if (HUD_STYLE == 2)
-					{
-						bgSize = _menuBg2->GetMaterial().GetSampler().GetSize();
-						_menuBg1->SetVisible(false);
-						_menuBg2->SetVisible(true);
-						_menuBg3->SetVisible(false);
-						_menuBg4->SetVisible(false);
-
-						_menuItems[miNo]->SetVisible(false);
-						_menuItems[miYes]->SetVisible(false);
-						_menuItems[miNo]->SetEnabled(false);
-						_menuItems[miYes]->SetEnabled(false);
-
-						_menuItems2[miNo]->SetVisible(true);
-						_menuItems2[miYes]->SetVisible(true);
-						_menuItems2[miNo]->SetEnabled(true);
-						_menuItems2[miYes]->SetEnabled(true);
-
-						_menuItems3[miNo]->SetVisible(false);
-						_menuItems3[miYes]->SetVisible(false);
-						_menuItems3[miNo]->SetEnabled(false);
-						_menuItems3[miYes]->SetEnabled(false);
-
-						_menuItems4[miNo]->SetVisible(false);
-						_menuItems4[miYes]->SetVisible(false);
-						_menuItems4[miNo]->SetEnabled(false);
-						_menuItems4[miYes]->SetEnabled(false);
-
-						_menuItems2[miNo]->SetParent(_menuBg2);
-						_menuItems2[miYes]->SetParent(_menuBg2);
-						_labels[mlInfo]->SetParent(_menuBg2);
-						sizeYesNo = _menuItems2[miNo]->GetFon()->GetSampler().GetSize();
-					}
-					else if (HUD_STYLE == 3)
-					{
-						bgSize = _menuBg3->GetMaterial().GetSampler().GetSize();
-						_menuBg1->SetVisible(false);
-						_menuBg2->SetVisible(false);
-						_menuBg3->SetVisible(true);
-						_menuBg4->SetVisible(false);
-
-						_menuItems[miNo]->SetVisible(false);
-						_menuItems[miYes]->SetVisible(false);
-						_menuItems[miNo]->SetEnabled(false);
-						_menuItems[miYes]->SetEnabled(false);
-
-						_menuItems2[miNo]->SetVisible(false);
-						_menuItems2[miYes]->SetVisible(false);
-						_menuItems2[miNo]->SetEnabled(false);
-						_menuItems2[miYes]->SetEnabled(false);
-
-						_menuItems3[miNo]->SetVisible(true);
-						_menuItems3[miYes]->SetVisible(true);
-						_menuItems3[miNo]->SetEnabled(true);
-						_menuItems3[miYes]->SetEnabled(true);
-
-						_menuItems4[miNo]->SetVisible(false);
-						_menuItems4[miYes]->SetVisible(false);
-						_menuItems4[miNo]->SetEnabled(false);
-						_menuItems4[miYes]->SetEnabled(false);
-
-						_menuItems[miNo]->SetParent(_menuBg3);
-						_menuItems[miYes]->SetParent(_menuBg3);
-						_labels[mlInfo]->SetParent(_menuBg3);
-						sizeYesNo = _menuItems3[miNo]->GetFon()->GetSampler().GetSize();
-					}
-					else if (HUD_STYLE == 4)
-					{
-						bgSize = _menuBg4->GetMaterial().GetSampler().GetSize();
-						_menuBg1->SetVisible(false);
-						_menuBg2->SetVisible(false);
-						_menuBg3->SetVisible(false);
-						_menuBg4->SetVisible(true);
-
-						_menuItems[miNo]->SetVisible(false);
-						_menuItems[miYes]->SetVisible(false);
-						_menuItems[miNo]->SetEnabled(false);
-						_menuItems[miYes]->SetEnabled(false);
-
-						_menuItems2[miNo]->SetVisible(false);
-						_menuItems2[miYes]->SetVisible(false);
-						_menuItems2[miNo]->SetEnabled(false);
-						_menuItems2[miYes]->SetEnabled(false);
-
-						_menuItems3[miNo]->SetVisible(false);
-						_menuItems3[miYes]->SetVisible(false);
-						_menuItems3[miNo]->SetEnabled(false);
-						_menuItems3[miYes]->SetEnabled(false);
-
-						_menuItems4[miNo]->SetVisible(true);
-						_menuItems4[miYes]->SetVisible(true);
-						_menuItems4[miNo]->SetEnabled(true);
-						_menuItems4[miYes]->SetEnabled(true);
-
-
-						_menuItems[miNo]->SetParent(_menuBg4);
-						_menuItems[miYes]->SetParent(_menuBg4);
-						_labels[mlInfo]->SetParent(_menuBg4);
-						sizeYesNo = _menuItems4[miNo]->GetFon()->GetSampler().GetSize();
-					}
-					else
 					{
 						bgSize = _menuBg1->GetMaterial().GetSampler().GetSize();
 						_menuBg1->SetVisible(true);
@@ -479,34 +338,6 @@ namespace r3d
 					}
 					else
 					{
-						if (HUD_STYLE == 2)
-						{
-							Menu::NavElement navElements[] = {
-								{_menuBg2, {nullptr, nullptr, nullptr, nullptr}, {vkBack, cVirtualKeyEnd}}
-							};
-
-							menu()->UnregNavElements(_menuItems2[miYes]);
-							menu()->SetNavElements(_menuBg2, true, navElements, 1);
-						}
-						else if (HUD_STYLE == 3)
-						{
-							Menu::NavElement navElements[] = {
-								{_menuBg3, {nullptr, nullptr, nullptr, nullptr}, {vkBack, cVirtualKeyEnd}}
-							};
-
-							menu()->UnregNavElements(_menuItems3[miYes]);
-							menu()->SetNavElements(_menuBg3, true, navElements, 1);
-						}
-						else if (HUD_STYLE == 4)
-						{
-							Menu::NavElement navElements[] = {
-								{_menuBg4, {nullptr, nullptr, nullptr, nullptr}, {vkBack, cVirtualKeyEnd}}
-							};
-
-							menu()->UnregNavElements(_menuItems4[miYes]);
-							menu()->SetNavElements(_menuBg4, true, navElements, 1);
-						}
-						else
 						{
 							Menu::NavElement navElements[] = {
 								{_menuBg1, {nullptr, nullptr, nullptr, nullptr}, {vkBack, cVirtualKeyEnd}}
@@ -535,28 +366,28 @@ namespace r3d
 			}
 
 
-			WeaponDialog::WeaponDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
+			WeaponDialog::WeaponDialog(Menu* menu, gui::Widget* parent) : MenuFrame(menu, parent)
 			{
 				const D3DXCOLOR color1(0xffafafaf);
 				const D3DXCOLOR color2(0xFFFFFFFF);
 
-				constexpr StringValue strLabels[cLabelEnd] = {svNull, svNull, svNull, svNull};
-				const std::string fontLabels[cLabelEnd] = {"VerySmall", "Small", "Small", "Small"};
+				constexpr StringValue strLabels[cLabelEnd] = { svNull, svNull, svNull, svNull };
+				const std::string fontLabels[cLabelEnd] = { "VerySmall", "Small", "Small", "Small" };
 				constexpr gui::Text::HorAlign horLabels[cLabelEnd] = {
 					gui::Text::haLeft, gui::Text::haCenter, gui::Text::haCenter, gui::Text::haCenter
 				};
 				constexpr gui::Text::VertAlign vertLabels[cLabelEnd] = {
 					gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter, gui::Text::vaCenter
 				};
-				const D3DXCOLOR colorLabels[cLabelEnd] = {color1, color2, color2, color2};
+				const D3DXCOLOR colorLabels[cLabelEnd] = { color1, color2, color2, color2 };
 
 				_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame3.png", true, IdentityVec2,
-				                            gui::Material::bmTransparency);
+					gui::Material::bmTransparency);
 
-				gui::Widget* labelsParent[cLabelEnd] = {_menuBg, _menuBg, _menuBg, _menuBg};
+				gui::Widget* labelsParent[cLabelEnd] = { _menuBg, _menuBg, _menuBg, _menuBg };
 				for (int i = 0; i < cLabelEnd; ++i)
 					_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i],
-					                               vertLabels[i], colorLabels[i]);
+						vertLabels[i], colorLabels[i]);
 				_labels[mlInfo]->SetWordWrap(true);
 			}
 
@@ -592,7 +423,7 @@ namespace r3d
 			}
 
 			void WeaponDialog::Show(const std::string& title, const std::string& message, const std::string& moneyText,
-			                        const std::string& damageText, const D3DXVECTOR2& pos, gui::Widget::Anchor align)
+				const std::string& damageText, const D3DXVECTOR2& pos, gui::Widget::Anchor align)
 			{
 				_labels[mlName]->SetText(title);
 				_labels[mlInfo]->SetText(message);
@@ -612,34 +443,34 @@ namespace r3d
 			}
 
 
-			InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _data(nullptr),
-			                                                         _guiEvent(nullptr)
+			InfoDialog::InfoDialog(Menu* menu, gui::Widget* parent) : MenuFrame(menu, parent), _data(nullptr),
+				_guiEvent(nullptr)
 			{
 				const D3DXCOLOR color1(0xffafafaf);
 				const D3DXCOLOR color2(0xffffffff);
 
-				constexpr StringValue strMenuItems[cMenuItemEnd] = {svOk};
+				constexpr StringValue strMenuItems[cMenuItemEnd] = { svOk };
 
-				constexpr StringValue strLabels[cLabelEnd] = {svNull, svNull};
-				const std::string fontLabels[cLabelEnd] = {"Small", "Header"};
-				constexpr gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haCenter};
-				constexpr gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter};
-				const D3DXCOLOR colorLabels[cLabelEnd] = {color2, color1};
+				constexpr StringValue strLabels[cLabelEnd] = { svNull, svNull };
+				const std::string fontLabels[cLabelEnd] = { "Small", "Header" };
+				constexpr gui::Text::HorAlign horLabels[cLabelEnd] = { gui::Text::haLeft, gui::Text::haCenter };
+				constexpr gui::Text::VertAlign vertLabels[cLabelEnd] = { gui::Text::vaCenter, gui::Text::vaCenter };
+				const D3DXCOLOR colorLabels[cLabelEnd] = { color2, color1 };
 
 				_menuBg = menu->CreatePlane(root(), this, "GUI\\dlgFrame4.png", true, IdentityVec2,
-				                            gui::Material::bmTransparency);
+					gui::Material::bmTransparency);
 
-				gui::Widget* labelsParent[cLabelEnd] = {_menuBg, _menuBg};
+				gui::Widget* labelsParent[cLabelEnd] = { _menuBg, _menuBg };
 				for (int i = 0; i < cLabelEnd; ++i)
 					_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i],
-					                               vertLabels[i], colorLabels[i]);
+						vertLabels[i], colorLabels[i]);
 				_labels[mlInfo]->SetWordWrap(true);
 
 				for (int i = 0; i < cMenuItemEnd; ++i)
 				{
 					_menuItems[i] = menu->CreateMenuButton(strMenuItems[i], "Item", "GUI\\HUD\\ibutton1.png",
-					                                       "GUI\\HUD\\ibutton1Sel.png", _menuBg, this, IdentityVec2,
-					                                       gui::Button::bsSelAnim, color2);
+						"GUI\\HUD\\ibutton1Sel.png", _menuBg, this, IdentityVec2,
+						gui::Button::bsSelAnim, color2);
 				}
 			}
 
@@ -712,8 +543,8 @@ namespace r3d
 			}
 
 			void InfoDialog::Show(const std::string& titleText, const std::string& message, const std::string& okText,
-			                      const D3DXVECTOR2& pos, gui::Widget::Anchor align, gui::Widget::Event* guiEvent,
-			                      Object* data, bool okButton)
+				const D3DXVECTOR2& pos, gui::Widget::Anchor align, gui::Widget::Event* guiEvent,
+				Object* data, bool okButton)
 			{
 				_labels[mlTitle]->SetText(titleText);
 				_labels[mlInfo]->SetText(message);
@@ -747,31 +578,31 @@ namespace r3d
 			}
 
 
-			MusicDialog::MusicDialog(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent)
+			MusicDialog::MusicDialog(Menu* menu, gui::Widget* parent) : MenuFrame(menu, parent)
 			{
 				const D3DXCOLOR color1(0xffafafaf);
 				const D3DXCOLOR color2(0xFFFFFFFF);
 
-				constexpr StringValue strLabels[cLabelEnd] = {svNull, svNull};
-				const std::string fontLabels[cLabelEnd] = {"Small", "Item"};
-				constexpr gui::Text::HorAlign horLabels[cLabelEnd] = {gui::Text::haLeft, gui::Text::haLeft};
-				constexpr gui::Text::VertAlign vertLabels[cLabelEnd] = {gui::Text::vaCenter, gui::Text::vaCenter};
-				const D3DXCOLOR colorLabels[cLabelEnd] = {color1, color2};
+				constexpr StringValue strLabels[cLabelEnd] = { svNull, svNull };
+				const std::string fontLabels[cLabelEnd] = { "Small", "Item" };
+				constexpr gui::Text::HorAlign horLabels[cLabelEnd] = { gui::Text::haLeft, gui::Text::haLeft };
+				constexpr gui::Text::VertAlign vertLabels[cLabelEnd] = { gui::Text::vaCenter, gui::Text::vaCenter };
+				const D3DXCOLOR colorLabels[cLabelEnd] = { color1, color2 };
 
 				_menuBg = menu->CreatePlane(root(), this, "GUI\\HUD\\mWnd1.png", true, IdentityVec2,
-				                            gui::Material::bmTransparency);
+					gui::Material::bmTransparency);
 				_menuBg2 = menu->CreatePlane(root(), this, "GUI\\HUD\\mWnd2.png", true, IdentityVec2,
-				                             gui::Material::bmTransparency);
+					gui::Material::bmTransparency);
 				_menuBg3 = menu->CreatePlane(root(), this, "GUI\\HUD\\mWnd3.png", true, IdentityVec2,
-				                             gui::Material::bmTransparency);
+					gui::Material::bmTransparency);
 				_menuBg4 = menu->CreatePlane(root(), this, "GUI\\HUD\\mWnd4.png", true, IdentityVec2,
-				                             gui::Material::bmTransparency);
+					gui::Material::bmTransparency);
 
-				gui::Widget* labelsParent[cLabelEnd] = {_menuBg, _menuBg};
+				gui::Widget* labelsParent[cLabelEnd] = { _menuBg, _menuBg };
 				for (int i = 0; i < cLabelEnd; ++i)
 				{
 					_labels[i] = menu->CreateLabel(strLabels[i], labelsParent[i], fontLabels[i], NullVec2, horLabels[i],
-					                               vertLabels[i], colorLabels[i]);
+						vertLabels[i], colorLabels[i]);
 					_labels[i]->SetAlign(gui::Widget::waLeft);
 				}
 
@@ -795,43 +626,6 @@ namespace r3d
 
 			void MusicDialog::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 			{
-				if (HUD_STYLE == 1)
-				{
-					_labels[mlInfo]->SetParent(_menuBg);
-					_labels[mlTitle]->SetParent(_menuBg);
-					_menuBg->SetVisible(true);
-					_menuBg2->SetVisible(false);
-					_menuBg3->SetVisible(false);
-					_menuBg4->SetVisible(false);
-				}
-				else if (HUD_STYLE == 2)
-				{
-					_labels[mlInfo]->SetParent(_menuBg2);
-					_labels[mlTitle]->SetParent(_menuBg2);
-					_menuBg->SetVisible(false);
-					_menuBg2->SetVisible(true);
-					_menuBg3->SetVisible(false);
-					_menuBg4->SetVisible(false);
-				}
-				else if (HUD_STYLE == 3)
-				{
-					_labels[mlInfo]->SetParent(_menuBg3);
-					_labels[mlTitle]->SetParent(_menuBg3);
-					_menuBg->SetVisible(false);
-					_menuBg2->SetVisible(false);
-					_menuBg3->SetVisible(true);
-					_menuBg4->SetVisible(false);
-				}
-				else if (HUD_STYLE == 4)
-				{
-					_labels[mlInfo]->SetParent(_menuBg4);
-					_labels[mlTitle]->SetParent(_menuBg4);
-					_menuBg->SetVisible(false);
-					_menuBg2->SetVisible(false);
-					_menuBg3->SetVisible(false);
-					_menuBg4->SetVisible(true);
-				}
-				else
 				{
 					_menuBg->SetVisible(false);
 					_menuBg2->SetVisible(false);
@@ -875,7 +669,7 @@ namespace r3d
 			}
 
 
-			InfoMenu::InfoMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msLoading)
+			InfoMenu::InfoMenu(Menu* menu, gui::Widget* parent) : _menu(menu), _state(msLoading)
 			{
 				_root = _menu->GetGUI()->CreateDummy();
 				_root->SetParent(parent);
@@ -929,9 +723,9 @@ namespace r3d
 			}
 
 
-			UserChat::UserChat(Menu* menu, gui::Widget* parent): MenuFrame(menu, parent), _linesPos(NullVector),
-			                                                     _inputPos(NullVector), _linesSize(300.0f, 300.0f),
-			                                                     _inputSize(300.0f, 300.0f)
+			UserChat::UserChat(Menu* menu, gui::Widget* parent) : MenuFrame(menu, parent), _linesPos(NullVector),
+				_inputPos(NullVector), _linesSize(300.0f, 300.0f),
+				_inputSize(300.0f, 300.0f)
 			{
 				_input = AddLine(L"", L"", clrWhite, false);
 				_input.name->SetVisible(false);
@@ -945,21 +739,21 @@ namespace r3d
 			}
 
 			UserChat::Line UserChat::AddLine(const stringW& name, const stringW& text, const D3DXCOLOR& nameColor,
-			                                 bool right) const
+				bool right) const
 			{
 				// ReSharper disable once CppInitializedValueIsAlwaysRewritten
 				Line line{};
 				line.time = 0.0f;
 
 				line.name = menu()->CreateLabel("", root(), "Small", NullVec2,
-				                                right ? gui::Text::haRight : gui::Text::haLeft,
-				                                right ? gui::Text::vaTop : gui::Text::vaBottom, nameColor);
+					right ? gui::Text::haRight : gui::Text::haLeft,
+					right ? gui::Text::vaTop : gui::Text::vaBottom, nameColor);
 				line.name->SetTextW(name);
 				line.name->SetAlign(right ? gui::Widget::waRightTop : gui::Widget::waLeftBottom);
 
 				line.text = menu()->CreateLabel("", root(), "Small", NullVec2,
-				                                right ? gui::Text::haRight : gui::Text::haLeft,
-				                                right ? gui::Text::vaTop : gui::Text::vaBottom, clrWhite);
+					right ? gui::Text::haRight : gui::Text::haLeft,
+					right ? gui::Text::vaTop : gui::Text::vaBottom, clrWhite);
 				line.text->SetTextW(text);
 				line.text->SetAlign(right ? gui::Widget::waRightTop : gui::Widget::waLeftBottom);
 				line.text->SetParent(line.name);

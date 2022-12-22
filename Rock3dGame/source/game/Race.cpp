@@ -836,7 +836,6 @@ namespace r3d
 				pos = place.pos + placeItem->offset;
 				rot = placeItem->rot;
 			}
-
 			player->SetSlot(type, slot ? slot->GetRecord() : nullptr, pos, rot);
 
 			Slot* slotInst = player->GetSlotInst(type);
@@ -2045,9 +2044,15 @@ namespace r3d
 
 		int Planet::GetRequestPoints(int pass) const
 		{
+			int numPlayers = 0;
+			for (Race::PlayerList::const_iterator iter = _race->GetPlayerList().begin(); iter != _race->GetPlayerList().end(); ++iter)
+				if ((*iter)->IsHuman() || (*iter)->IsOpponent())
+					++numPlayers;
+
+			numPlayers = std::max(numPlayers, 1);
 			int points = 0;
 
-			auto iter = _requestPoints.find(pass);
+			RequestPoints::const_iterator iter = _requestPoints.find(pass);
 			if (iter != _requestPoints.end())
 				points = iter->second;
 			else if (_requestPoints.size() > 0)
@@ -2055,7 +2060,14 @@ namespace r3d
 			else
 				return -1;
 
-			return points;
+			if (numPlayers > 3)
+				return Ceil<int>(points * 2.0f / 100.0f) * 100;
+			else if (numPlayers > 2)
+				return Ceil<int>(points * 1.5f / 100.0f) * 100;
+			else if (numPlayers > 1)
+				return Ceil<int>(points * 1.3f / 100.0f) * 100;
+			else
+				return points;
 		}
 
 		bool Planet::HasRequestPoints(int pass, int points) const
@@ -2799,9 +2811,9 @@ namespace r3d
 		                                                     _lastLeadPlace(0), _lastThirdPlace(0), _carChanged(false),
 		                                                     _minDifficulty(cDifficultyEnd), _tutorialStage(0),
 		                                                     _weaponUpgrades(false), _survivalMode(false),
-		                                                     _autoCamera(false), _subjectView(0), _devMode(false),
+		                                                     _autoCamera(false), _subjectView(0),
 		                                                     _camLock(false), _staticCam(false), _camFov(3),
-		                                                     _camProection(1), _oilDestroyer(true),
+		                                                     _camProection(1), _oilDestroyer(true), _friendship(false),
 		                                                     _enableMineBug(true), _human(nullptr), _aiSystem(nullptr)
 		{
 			SetName(name);
@@ -3368,6 +3380,7 @@ namespace r3d
 		{
 			player->InRace(false);
 			//защита от двойного завершения трасы на всякий случай
+
 			if (GetResult(player->GetId()) == nullptr)
 			{
 				Result result;
@@ -3386,8 +3399,8 @@ namespace r3d
 				_results.push_back(result);
 
 				player->SetPlace(result.place);
-				if (player->IsBlock() == false)
-					player->AddRacesTotal(1);
+				//if (player->IsBlock() == false)
+				player->AddRacesTotal(1);
 				player->SetFinished(true);
 				player->SetCameraStatus(0);
 				player->inRamp(false);
@@ -3400,21 +3413,26 @@ namespace r3d
 				if (aiPlayer)
 					aiPlayer->FreeCar();
 				//Фикс вращения машины игрока после финиша:
-				if (!player->IsComputer() && player->GetFinished() && player->GetCar().gameObj)
+				if (player->GetFinished() && player->GetCar().gameObj)
 				{
-					player->GetCar().gameObj->SetSteerWheelAngle(0.0f);
-					player->GetCar().gameObj->SetSteerWheel(GameCar::smManual);
-					player->GetCar().gameObj->SetSteerRot(0.0f);
-					player->GetCar().gameObj->LockClutch(0.0f);
-					player->GetCar().gameObj->SetSteerSpeed(0.0f);
-					player->GetCar().gameObj->SetRespBlock(false);
-					player->GetCar().gameObj->SetDamageStop(false);
-					player->GetCar().gameObj->InFly(false);
-					player->GetCar().gameObj->InRage(false);
-					player->SetBlockTime(0.3f);
-					UnlimitedTurn = false;
-				}
-				player->GetCar().gameObj->SetLastMoveState(1);
+					if (!player->IsComputer())
+					{
+						player->GetCar().gameObj->SetSteerWheelAngle(0.0f);
+						player->GetCar().gameObj->SetSteerWheel(GameCar::smManual);
+						player->GetCar().gameObj->SetSteerRot(0.0f);
+						player->GetCar().gameObj->LockClutch(0.0f);
+						player->GetCar().gameObj->SetSteerSpeed(0.0f);
+						player->GetCar().gameObj->SetRespBlock(false);
+						player->GetCar().gameObj->SetDamageStop(false);
+						player->GetCar().gameObj->InFly(false);
+						player->GetCar().gameObj->InRage(false);
+						player->SetBlockTime(0.3f);
+						player->GetCar().gameObj->SetUnlimitedTurn(false);
+						
+					}
+					else
+						player->GetCar().gameObj->SetLastMoveState(1);
+				}				
 			}
 		}
 
@@ -3422,6 +3440,7 @@ namespace r3d
 		{
 			if (!_startRace)
 				return;
+			LSL_LOG("COMPLETE RACE START");
 
 			struct MyPlayer
 			{
@@ -3479,6 +3498,9 @@ namespace r3d
 			//принудительно завершаем гонку для сотавшихся игроков
 			for (auto iter = players.begin(); iter != players.end(); ++iter)
 				CompleteRace(iter->inst);
+			
+			LSL_LOG("FORCE ALL PLR COMPLETE");
+
 
 			if (IsCampaign())
 			{
@@ -3505,7 +3527,6 @@ namespace r3d
 					Player* player = *iter;
 					if (player->IsGamer())
 					{
-						const int pointz = player->GetPoints();
 						player->SetPoints(0);
 
 						//Если дивизион успешно пройден, даем игроку денежную награду.
@@ -3851,10 +3872,7 @@ namespace r3d
 			_tournament->GetCurPlanet().StartPass(player);
 
 			if (player->IsHuman() || player->IsOpponent())
-				if (GetGame()->devMode() == true && TEST_BUILD == true)
-					player->SetMoney(5000000);
-				else
-					player->SetMoney(40000);
+				player->SetMoney(40000);
 			else if (player->IsComputer())
 			{
 				int index = plrId - cComputer1;
@@ -3936,6 +3954,7 @@ namespace r3d
 
 		HumanPlayer* Race::CreateHuman(Player* player)
 		{
+			LSL_LOG("CREATE HUMAN");
 			FreeHuman();
 
 			_human = new HumanPlayer(player);
@@ -3969,17 +3988,18 @@ namespace r3d
 
 		void Race::CreatePlayers(unsigned numAI)
 		{
+
 #if DEBUG_WEAPON
 	numAI = 3;
 #elif _DEBUG | DEBUG_PX
 			//numAI = 4;
 #endif
-
 			for (unsigned i = _playerList.size(); i < numAI + 1; ++i)
 			{
 				if (i == 0)
 				{
 					Player* player = AddPlayer(cHuman);
+					player->isFriend(false);
 					CreateHuman(player);
 
 #if _DEBUG | DEBUG_PX
@@ -4089,6 +4109,13 @@ namespace r3d
 		HumanPlayer* Race::GetHuman()
 		{
 			return _human;
+		}
+
+		Player* Race::GetFriend()
+		{		
+			for (PlayerList::const_iterator iter = _playerList.begin(); iter != _playerList.end(); ++iter)
+				if ((*iter)->isFriend())
+					return *iter;
 		}
 
 		const Race::AIPlayers& Race::GetAIPlayers() const
@@ -4347,6 +4374,16 @@ namespace r3d
 			return IsMatchStarted() ? _mode : cModeEnd;
 		}
 
+		void Race::SetFriendship(bool value)
+		{
+			_friendship = value;			
+		}
+
+		bool Race::IsFriendship() const
+		{
+			return _friendship;
+		}
+
 		bool Race::IsCampaign() const
 		{
 			return _mode == rmChampionship;
@@ -4410,90 +4447,7 @@ namespace r3d
 
 		void Race::AutoCameraProgress(float deltaTime)
 		{
-			Player* current = this->GetWorld()->GetCamera()->GetPlayer();
-			//camera status: 
-			//0 - авто/ручная (зависит от настроек) 
-			//1 - сзади
-			//2 - изометрия	
-			//3 - ручной режим (принудительный выход из авто)
-			//4 - автоматический режим (принудительный вход в авто)
-
-			if (GetPlayerById(cHuman) != nullptr && current != nullptr && current->GetCar().gameObj != nullptr)
-			{
-				//принудительный вход в авто делается через триггер:
-				if (current->GetCameraStatus() == 4)
-				{
-					if (!GetGame()->autoCamera())
-						GetGame()->autoCamera(true);
-				}
-
-				//автоматическое переключение вида камеры.
-				if (GetGame()->autoCamera())
-				{
-					if (current->GetCameraStatus() == 1)
-					{
-						if (GetWorld()->GetCamera()->GetStyle() != CameraManager::csThirdPerson)
-							GetWorld()->GetCamera()->ChangeStyle(CameraManager::csThirdPerson);
-					}
-					else if (current->GetCameraStatus() == 2)
-					{
-						if (GetWorld()->GetCamera()->GetStyle() != CameraManager::csIsometric)
-							GetWorld()->GetCamera()->ChangeStyle(CameraManager::csIsometric);
-					}
-					else if (current->GetCameraStatus() == 3)
-					{
-						//принудительный выход из авто через триггер.
-						if (GetGame()->autoCamera())
-							GetGame()->autoCamera(false);
-					}
-					else
-					{
-						//вне тригеров камера меняется в зависимости от обстоятельств:
-						if (current->InRace() && current->GetCar().gameObj != nullptr)
-						{
-							if (current->GetCar().gameObj->GetSpeed() > 10)
-							{
-								//изометрия, если игрок первый.
-								if (current->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetPlace() == 1)
-									if (GetWorld()->GetCamera()->GetStyle() != CameraManager::csIsometric)
-										GetWorld()->GetCamera()->ChangeStyle(CameraManager::csIsometric);
-
-								//вид сзади, если игрок последний.
-								if (current->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetPlace() ==
-									TOTALPLAYERS_COUNT - SPECTATORS_COUNT)
-									if (GetWorld()->GetCamera()->GetStyle() != CameraManager::csThirdPerson)
-										GetWorld()->GetCamera()->ChangeStyle(CameraManager::csThirdPerson);
-							}
-
-							//если кончились патроны и игрок не последний
-							if (current->IsEmptyWpn() && current->GetPlace() != TOTALPLAYERS_COUNT - SPECTATORS_COUNT)
-								if (GetWorld()->GetCamera()->GetStyle() != CameraManager::csIsometric && current->
-									GetRace()->GetWorld()->GetCamera()->GetStyle() != CameraManager::csInverseThird)
-									GetWorld()->GetCamera()->ChangeStyle(CameraManager::csIsometric);
-
-							if (current->GetCar().gameObj->GetMoveCar() == current->GetCar().gameObj->mcBack)
-							{
-								current->_backMoveTime += deltaTime;
-								if (current->_backMoveTime > 1.0f)
-								{
-									if (current->GetRace()->GetWorld()->GetCamera()->GetPlayer()->GetPlace() ==
-										TOTALPLAYERS_COUNT - SPECTATORS_COUNT)
-									{
-										if (GetWorld()->GetCamera()->GetStyle() != CameraManager::csInverseThird)
-											GetWorld()->GetCamera()->ChangeStyle(CameraManager::csInverseThird);
-									}
-									else
-									{
-										if (GetWorld()->GetCamera()->GetStyle() != CameraManager::csIsometric)
-											GetWorld()->GetCamera()->ChangeStyle(CameraManager::csIsometric);
-									}
-									current->_backMoveTime = 0;
-								}
-							}
-						}
-					}
-				}
-			}
+				
 		}
 
 		void Race::ResetCarPos()
@@ -4506,6 +4460,7 @@ namespace r3d
 					++SPECTATORS_COUNT;
 				}
 			}
+
 
 			const unsigned cRowLength = 4;
 			const float rowSpace = 7.0f;
@@ -4553,8 +4508,8 @@ namespace r3d
 					for (unsigned j = g; j < g + count; ++j)
 					{
 						Player* player = _playerList[i];
-
-						if (player->IsGamer())
+				
+						if (player->IsGamer() || player->isFriend())
 						{
 							MapObj* mapObj = player->GetCar().mapObj;
 							GameObject* gameObj = player->GetCar().gameObj;
@@ -4567,7 +4522,7 @@ namespace r3d
 				}
 
 				Player* player = _playerList[i];
-				if (player->IsGamer())
+				if (player->IsGamer() || player->isFriend())
 				{
 					MapObj* mapObj = player->GetCar().mapObj;
 					GameObject* gameObj = player->GetCar().gameObj;
@@ -4593,7 +4548,7 @@ namespace r3d
 						gameObj->GetPxActor().GetNxActor()->setAngularVelocity(NxVec3(NullVector));
 					}
 				}
-				if (player->IsGamer())
+				if (player->IsGamer() || player->isFriend())
 					g += 1;
 				else
 					s += 1;
@@ -4665,10 +4620,10 @@ namespace r3d
 					(*iter)->SetRaceTime(0);
 					(*iter)->SetRaceSeconds(0);
 					(*iter)->SetRaceMSeconds(0);
-					(*iter)->SetRaceMinutes(0);
+					(*iter)->SetRaceMinutes(0);					
 				}
 
-				if (_human)
+				if (_human) 
 				{
 					_human->GetPlayer()->ResetBlock(true);
 					_human->SetCurWeapon(0);
@@ -4757,6 +4712,10 @@ namespace r3d
 				SPECTATORS_COUNT = 0;
 
 				ResetCarPos();
+
+
+				if (IsFriendship())
+					GetWorld()->GetCamera()->SetSecondPlayer(GetPlayerById(Race::cOpponent1));
 
 				//стиль заблокированой камеры указываем в турнаменте:
 				if (_tournament->GetCurTrack().CamLock())
@@ -4861,6 +4820,38 @@ namespace r3d
 			}
 		}
 
+
+		void Race::RaceClear()
+		{
+			_goRace = false;
+
+			if (_startRace)
+			{
+				_startRace = false;
+				CompleteTutorialStage();
+
+				_game->UnregFixedStepEvent(this);
+				_game->UnregLateProgressEvent(this);
+
+				for (auto iter = _aiPlayers.begin(); iter != _aiPlayers.end(); ++iter)
+				{
+					(*iter)->FreeCar();
+				}
+				for (auto iter = _playerList.begin(); iter != _playerList.end(); ++iter)
+				{
+					(*iter)->SetHeadlight(Player::hlmNone);
+					(*iter)->FreeCar(true);
+				}
+
+				//_achievment->ResetRaceState();
+
+				GetWorld()->GetCamera()->SetPlayer(nullptr);
+				GetWorld()->GetEnv()->ReleaseScene();
+				GetWorld()->GetLogic()->CleanGameObjs();
+				GetMap()->Clear();
+			}
+		}
+
 		void Race::ExitRace(const Results* results)
 		{
 			CompleteRace(results);
@@ -4887,16 +4878,20 @@ namespace r3d
 					(*iter)->SetHeadlight(Player::hlmNone);
 					(*iter)->FreeCar(true);
 				}
+				LSL_LOG("CARS CLEARS");
 
 				_achievment->ResetRaceState();
 
 				GetWorld()->GetCamera()->SetPlayer(nullptr);
+				GetWorld()->GetCamera()->SetSecondPlayer(nullptr);
 				GetWorld()->GetEnv()->ReleaseScene();
 				GetWorld()->GetLogic()->CleanGameObjs();
 				GetMap()->Clear();
 
-				if (_minDifficulty > _profile->difficulty())
-					_minDifficulty = _profile->difficulty();
+				//if (_minDifficulty > _profile->difficulty())
+				//	_minDifficulty = _profile->difficulty();
+				LSL_LOG("EXIT RACE DONE");
+
 			}
 		}
 
@@ -4907,7 +4902,7 @@ namespace r3d
 
 		void Race::GoRace()
 		{
-			_goRace = true;
+			_goRace = true; 
 			if (_human)
 			{
 				_human->GetPlayer()->ResetBlock(false);
@@ -5006,16 +5001,6 @@ namespace r3d
 			_subjectView = value;
 		}
 
-		bool Race::GetDevMode() const
-		{
-			return _devMode;
-		}
-
-		void Race::SetDevMode(bool value)
-		{
-			_devMode = value;
-		}
-
 		bool Race::GetCamLock() const
 		{
 			return _camLock;
@@ -5081,7 +5066,7 @@ namespace r3d
 			_game->SendEvent(id, data);
 		}
 
-		void Race::OnLapPass(Player* player)
+		void Race::OnLapPass(Player* player) 
 		{
 			bool isHuman = player->IsHuman();
 
@@ -5117,8 +5102,20 @@ namespace r3d
 					}
 				}
 			}
+			
+			if (IsFriendship())
+			{
+				if (player->GetCar().numLaps >= lapscount)
+				{
+					player->SetFinished(true);
+					player->SetAutoSkip(false);
+					CompleteRace(player);
+					player->ResetBlock(false);
+					player->InRace(true);
+				}
+			}
 
-			if (player->GetCar().numLaps >= lapscount)
+			if (IsFriendship() == false && player->GetCar().numLaps >= lapscount)
 			{
 				player->SetAutoSkip(false);
 				CompleteRace(player);
@@ -5156,20 +5153,51 @@ namespace r3d
 					}
 
 				SendEvent(cRaceLastLap, &EventData(leader->GetId()));
+			}			
+		}
 
-				if (GetPlayerById(cHuman)->GetCar().gameObj != nullptr && HUD_STYLE == 3)
-				{
-					GameObjListener* bt = nullptr;
-					GetPlayerById(cHuman)->GetCar().gameObj->GetLogic()->TakeBonus(
-						GetPlayerById(cHuman)->GetCar().gameObj, GetPlayerById(
-							cHuman)->GetCar().gameObj, bt->btLastLap, 1.0f, false);
-				}
-			}
+		void Race::FriendlyFinish()
+		{
+			Player* plr1 = GetPlayerById(cHuman);
+			Player* plr2 = GetPlayerById(cOpponent1);
+
+			//оба игрока должны доехать до финиша...
+			if (plr1->GetFinished() == true && plr2->GetFinished() == true)
+			{
+				//CompleteRace(plr1);
+				//CompleteRace(plr2);
+				plr1->InRace(false);
+				plr2->InRace(false);
+				SendEvent(cRaceFinish, nullptr);
+			}		
 		}
 
 		void Race::QuickFinish(Player* player)
 		{
+			if (IsFriendship() && GetPlayerById(Race::cOpponent1) != nullptr)
+			{
+				Player* _friend = GetPlayerById(Race::cOpponent1);
+				_friend->SetSuicide(true);
+				CompleteRace(_friend);
+				_friend->SetAutoSkip(false);
+				_friend->SetPlace(TOTALPLAYERS_COUNT - 1);
+			}
+			//human
+			player->SetSuicide(true);
 			CompleteRace(player);
+			player->SetAutoSkip(false);
+			player->SetPlace(TOTALPLAYERS_COUNT);
+
+			if (_results.size() == 1)
+				SendEvent(cPlayerLeadFinish, &EventData(player->GetId()));
+			else if (_results.size() == 2)
+				SendEvent(cPlayerSecondFinish, &EventData(player->GetId()));
+			else if (_results.size() == 3)
+				SendEvent(cPlayerThirdFinish, &EventData(player->GetId()));
+			else if (_results.size() == _playerList.size())
+				SendEvent(cPlayerLastFinish, &EventData(player->GetId()));
+
+			SendEvent(cRaceFinish, nullptr);			
 		}
 
 		GameMode* Race::GetGame()

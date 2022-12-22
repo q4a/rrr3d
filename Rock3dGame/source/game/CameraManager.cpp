@@ -11,7 +11,7 @@ namespace r3d
 		                                            _clampAngle(0.0f, 0.0f, 25.0f * D3DX_PI / 180,
 		                                                        80.0f * D3DX_PI / 180), _angleSpeed(D3DX_PI / 48, 0, 0),
 		                                            _stableAngle(75.0f * D3DX_PI / 180, 0, 0), _flyCurTime(-1),
-		                                            _player(nullptr), _light(nullptr), _target(0, 0, 0, 5.0f)
+		                                            _player(nullptr), _secondPlr(nullptr), _light(nullptr), _target(0, 0, 0, 5.0f)
 		{
 			_camera = new graph::Camera();
 			_camera->SetPos(D3DXVECTOR3(50.0f, 50.0f, 50.0f));
@@ -29,6 +29,7 @@ namespace r3d
 		{
 			SetLight(nullptr);
 			SetPlayer(nullptr);
+			SetSecondPlayer(nullptr);
 
 			_world->GetControl()->RemoveEvent(_control);
 			delete _control;
@@ -38,22 +39,7 @@ namespace r3d
 
 		void CameraManager::OrthoCullOffset()
 		{
-			/*if (_style == csIsometric)
-			{
-				float minZ = 0;
-				float maxZ = 0;
-				
-				if (_world->GetGraph()->ComputeViewZBound(_camera->GetContextInfo(), minZ, maxZ))
-				{
-					float offZ = std::min(minZ - _near, 0.0f);
-					float maxNear = _near;
-					float maxFar = -offZ + maxZ;
-		
-					//_camera->SetPos(_camera->GetPos() + _camera->GetDir() * offZ);
-					//_camera->SetNear(maxNear);
-					//_camera->SetFar(maxFar);
-				}
-			}*/
+
 		}
 
 		void CameraManager::SyncLight()
@@ -110,7 +96,7 @@ namespace r3d
 					nullptr || _manager->GetPlayer()->InRace() == false || _manager->GetPlayer()->GetFinished() || (
 						_manager->GetPlayer()->GetCar().gameObj == nullptr && _manager->GetPlayer()->IsGamer()) ||
 					_manager->GetPlayer()->GetRace()->GetGame()->autoCamera() || _manager->_world->GetGame()->
-					IsStartRace() == false)
+					IsStartRace() == false || _manager->GetPlayer()->IsBlock())
 					return true;
 
 				if (_manager->_world->GetGame()->GetRace()->GetTournament().GetCurTrack().CamLock())
@@ -153,13 +139,6 @@ namespace r3d
 			graph::Camera* camera = _manager->_camera;
 			GameMode* game = nullptr;
 
-			if (_manager->GetPlayer() != nullptr && _manager->GetPlayer()->GetFinished() && _manager->GetPlayer()->
-				GetPlace() == 1)
-			{
-				if (_manager->GetStyle() == csThirdPerson)
-					_manager->ChangeStyle(csInverseThird);
-			}
-
 			if (_manager->InFly())
 			{
 				_manager->_flyCurTime += deltaTime;
@@ -201,55 +180,6 @@ namespace r3d
 				cIsoAngY = 15.5f * D3DX_PI / 180;
 			}
 
-			/*#ifndef _RETAIL
-				{
-					static int tmp = 0;
-			
-					if (_manager->_world->GetControl()->GetAsyncKey('Y') == akLastDown)
-					{
-						if (tmp != 1)
-						{
-							tmp = 1;
-							cIsoAngY = 16.0f * D3DX_PI / 180;
-							cIsoBorder = 5.5f;
-						}
-						else
-						{
-							tmp = 0;
-							cIsoAngY = 15.5f * D3DX_PI / 180;
-							cIsoBorder = 5.0f;
-						}
-					}
-			
-					if (_manager->_world->GetControl()->GetAsyncKey('T') == akLastDown)
-					{
-						++tmp;
-						if (tmp > 3)
-							tmp = 0;
-			
-						if (tmp == 3)
-						{
-							cIsoAngY = atan(0.4f);
-							cIsoBorder = 7.5f;
-						}
-						else if (tmp == 2)
-						{
-							cIsoAngY = 16.5f * D3DX_PI / 180;
-							cIsoBorder = 5.5f;
-						}
-						else if (tmp == 1)
-						{
-							cIsoAngY = 16.0f * D3DX_PI / 180;
-							cIsoBorder = 5.5f;
-						}
-						else
-						{
-							cIsoAngY = 15.5f * D3DX_PI / 180;
-							cIsoBorder = 5.0f;
-						}
-					}
-				}
-			#endif*/
 
 			D3DXQUATERNION isoRotY, isoRotZ;
 			D3DXQuaternionRotationAxis(&isoRotY, &YVector, cIsoAngY);
@@ -265,8 +195,8 @@ namespace r3d
 
 			ControlManager* control = _manager->_world->GetControl();
 
-			D3DXVECTOR3 pos = camera->GetPos();
-			D3DXQUATERNION rot = camera->GetRot();
+			D3DXVECTOR3 pos = camera->GetFirstPos();
+			D3DXQUATERNION rot = camera->GetFirstRot();
 			D3DXVECTOR3 dir = camera->GetDir();
 			D3DXVECTOR3 right = camera->GetRight();
 
@@ -278,6 +208,21 @@ namespace r3d
 			float targetDrivenSpeed = 0.0f;
 
 			Player* player = _manager->_player;
+			/// ////////////////////////////////////////////////////////////////////////
+			D3DXVECTOR3 s_pos = camera->GetSecondPos();
+			D3DXQUATERNION s_rot = camera->GetSecondRot();
+			D3DXVECTOR3 s_dir = camera->GetDir();
+			D3DXVECTOR3 s_right = camera->GetRight();
+
+			Player* plr2 = _manager->_secondPlr;
+			D3DXVECTOR3 s_targetPos = NullVector;
+			D3DXVECTOR3 s_targetDir = XVector;
+			D3DXQUATERNION s_targetRot = NullQuaternion;
+			float s_targetSize = 0.0f;
+			D3DXVECTOR3 s_targetVel = NullVector;
+			float s_targetDrivenSpeed = 0.0f;
+
+
 			if (player)
 			{
 				targetSize = player->GetCar().size;
@@ -311,226 +256,289 @@ namespace r3d
 				targetPos = D3DXVECTOR3(_manager->_target.x, _manager->_target.y, _manager->_target.z);
 			}
 
-			if (_manager->_light && _manager->_style == csLights)
+
+			if (plr2)
 			{
-				pos = _manager->_light->GetSource()->GetPos();
-				dir = _manager->_light->GetSource()->GetDir();
-				right = _manager->_light->GetSource()->GetRight();
-				rot = _manager->_light->GetSource()->GetRot();
+				s_targetSize = plr2->GetCar().size;
+
+				if (plr2->GetCar().grActor)
+				{
+					s_targetPos = plr2->GetCar().grActor->GetWorldPos();
+					s_targetDir = plr2->GetCar().grActor->GetWorldDir();
+					s_targetRot = plr2->GetCar().grActor->GetWorldRot();
+					s_targetVel = plr2->GetCar().gameObj->GetPxVelocityLerp();
+					s_targetDrivenSpeed = plr2->GetCar().gameObj->GetDrivenWheelSpeed();
+
+					//принужденное движение назад, отвечат за блокировку камеры поворачивающейся наза при заднем ходе. Если закоментировать, блокирвока уберется, необходимо брать с неким запасом из за погрешностей синхронизации
+					if (s_targetDrivenSpeed < 0.1f)
+					{
+						//отсекаем отрицательную составляющую по направляющей локальной оси x
+						plr2->GetCar().grActor->WorldToLocalNorm(s_targetVel, s_targetVel);
+						s_targetVel.x = std::max(targetVel.x, 0.0f);
+						plr2->GetCar().grActor->LocalToWorldNorm(s_targetVel, s_targetVel);
+					}
+				}
+				else
+				{
+					s_targetPos = plr2->GetCar().pos3;
+					s_targetDir = plr2->GetCar().dir3;
+					s_targetRot = plr2->GetCar().rot3;
+				}
 			}
+			else
+			{
+				s_targetPos = D3DXVECTOR3(_manager->_target.x, _manager->_target.y, _manager->_target.z);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 			switch (_manager->_style)
 			{
 			case csFreeView:
 			case csLights:
 			case csIsoView:
+			{
+				if (_manager->_style == csIsoView)
 				{
-					if (_manager->_style == csIsoView)
-					{
-						dir = D3DXVECTOR3(1, 1, 0);
-						D3DXVec3Normalize(&dir, &dir);
-						right = D3DXVECTOR3(-1, 1, 0);
-						D3DXVec3Normalize(&right, &right);
-						rot = cIsoRot;
-					}
-
-					if (control->GetAsyncKey('W'))
-						pos += dir * speedMove;
-					if (control->GetAsyncKey('A'))
-						pos += right * speedMove;
-					if (control->GetAsyncKey('S'))
-						pos -= dir * speedMove;
-					if (control->GetAsyncKey('D'))
-						pos -= right * speedMove;
-
-
-					if (control->GetAsyncKey('C'))
-					{
-						camera->SetStyle(graph::csPerspective);
-						D3DXQUATERNION Vrot;
-						D3DXQuaternionRotationAxis(&Vrot, &YVector, -4.7f);
-						rot = Vrot;
-						_manager->FlyTo(D3DXVECTOR3(0, 0, 500), Vrot, 3.0f, true, true);
-					}
-
-					/*if (GetAsyncKeyState('Q'))
-						camera->SetPos(camera->GetPos() + ZVector * speedMove);
-					if (GetAsyncKeyState('E'))
-						camera->SetPos(camera->GetPos() - ZVector * speedMove);*/
-					break;
 				}
+				break;
+			}
 
 			case csThirdPerson:
+			{
+				float velocityLen = D3DXVec3Length(&targetVel);
+				D3DXVECTOR3 velocity = targetDir + targetVel * 0.1f;
+				//эффект победителя. Реверс камеры...
+				if (_manager->GetPlayer() && _manager->GetPlayer()->GetFinished() && _manager->GetPlayer()->GetPlace() == 1)
+					velocity = -targetDir + -targetVel * 0.1f;
+
+				D3DXVec3Normalize(&velocity, &velocity);
+
+				//строим матрицу поворота относительно скорости
+				D3DXVECTOR3 xVec;
+				D3DXVec3Normalize(&xVec, &velocity);
+				D3DXVECTOR3 yVec;
+				D3DXVec3Cross(&yVec, &ZVector, &xVec);
+				if (D3DXVec3Length(&yVec) < 0.001f)
 				{
-					float velocityLen = D3DXVec3Length(&targetVel);
-					D3DXVECTOR3 velocity = targetDir + targetVel * 0.1f;
-
-					D3DXVec3Normalize(&velocity, &velocity);
-
-					//строим матрицу поворота относительно скорости
-					D3DXVECTOR3 xVec;
-					D3DXVec3Normalize(&xVec, &velocity);
-					D3DXVECTOR3 yVec;
-					D3DXVec3Cross(&yVec, &ZVector, &xVec);
-					if (D3DXVec3Length(&yVec) < 0.001f)
-					{
-						//D3DXVec3Cross(&yVec, &xVec, &ZVector);
-					}
-					D3DXVec3Normalize(&yVec, &yVec);
-					D3DXVECTOR3 zVec;
-					D3DXVec3Cross(&zVec, &xVec, &yVec);
-					D3DXVec3Normalize(&zVec, &zVec);
-
-					D3DXMATRIX velMat;
-					D3DXQUATERNION velRot;
-					MatrixRotationFromAxis(xVec, yVec, zVec, velMat);
-					D3DXQuaternionRotationMatrix(&velRot, &velMat);
-
-					//
-					D3DXQUATERNION camQuat;
-					D3DXQUATERNION camQuat1 = rot;
-					D3DXQUATERNION camQuat2 = velRot;
-					D3DXQuaternionSlerp(&camQuat, &camQuat1, &camQuat2, 6.0f * deltaTime);
-
-					/*D3DXVECTOR3 camPos;
-					Vec3Rotate(cCamTargetOff, camQuat, camPos);
-					camPos += targetPos;*/
-
-					D3DXVECTOR3 camDir;
-					Vec3Rotate(XVector, camQuat, camDir);
-					const float minSpeed = 0.0f;
-					const float maxSpeed = 150.0f * 1000.0f / 3600.0f;
-					float speedK = ClampValue((velocityLen - minSpeed) / (maxSpeed - minSpeed), 0.0f, 1.0f);
-					const float minDist = 0.0f;
-					float maxDist = 1.5f;
-					if (_manager->GetPlayer() && _manager->GetPlayer()->GetRace()->GetCamLock())
-						maxDist = ISOCAM_DIST;
-					else
-						maxDist = 1.5f;
-					float distTarget;
-					if (_manager->GetPlayer() && _manager->GetPlayer()->GetRace()->GetStaticCam())
-						distTarget = minDist + speedK * speedK * (maxDist - minDist);
-					else
-						distTarget = maxDist / 2;
-
-					_staticFloat1 = _staticFloat1 + (distTarget - _staticFloat1) * ClampValue(
-						deltaTime * 5.0f, 0.0f, 1.0f);
-
-					D3DXVECTOR3 camOff;
-					Vec3Rotate(cCamTargetOff + D3DXVECTOR3(-1.0f, 0.0f, 0.0f), camQuat, camOff);
-					D3DXVECTOR3 camPos = targetPos - camDir * _staticFloat1 + camOff;
-
-					/*D3DXVECTOR3 camPos;
-					D3DXVECTOR3 camPos1 = pos;
-					D3DXVECTOR3 camPos2;
-					Vec3Rotate(cCamTargetOff, camQuat2, camPos2);
-					camPos2 += targetPos;
-					D3DXVec3Lerp(&camPos, &camPos1, &camPos2, 8.0f * deltaTime);*/
-
-					D3DXQUATERNION yRot;
-					D3DXQuaternionRotationAxis(&yRot, &D3DXVECTOR3(0, 1, 0), D3DX_PI * 12.0f);
-					camQuat = yRot * camQuat;
-
-					pos = camPos;
-					rot = camQuat;
-					break;
+					//D3DXVec3Cross(&yVec, &xVec, &ZVector);
 				}
+				D3DXVec3Normalize(&yVec, &yVec);
+				D3DXVECTOR3 zVec;
+				D3DXVec3Cross(&zVec, &xVec, &yVec);
+				D3DXVec3Normalize(&zVec, &zVec);
 
-			case csInverseThird:
-				{
-					float velocityLen = D3DXVec3Length(&targetVel);
-					D3DXVECTOR3 velozity = -targetDir + -targetVel * 0.1f;
-					D3DXVec3Normalize(&velozity, &velozity);
+				D3DXMATRIX velMat;
+				D3DXQUATERNION velRot;
+				MatrixRotationFromAxis(xVec, yVec, zVec, velMat);
+				D3DXQuaternionRotationMatrix(&velRot, &velMat);
 
-					//строим матрицу поворота относительно скорости
-					D3DXVECTOR3 xVec;
-					D3DXVec3Normalize(&xVec, &velozity);
-					D3DXVECTOR3 yVec;
-					D3DXVec3Cross(&yVec, &ZVector, &xVec);
-					if (D3DXVec3Length(&yVec) < 0.001f)
-					{
-						//D3DXVec3Cross(&yVec, &xVec, &ZVector);
-					}
-					D3DXVec3Normalize(&yVec, &yVec);
-					D3DXVECTOR3 zVec;
-					D3DXVec3Cross(&zVec, &xVec, &yVec);
-					D3DXVec3Normalize(&zVec, &zVec);
+				//
+				D3DXQUATERNION camQuat;
+				D3DXQUATERNION camQuat1 = rot;
+				D3DXQUATERNION camQuat2 = velRot;
+				D3DXQuaternionSlerp(&camQuat, &camQuat1, &camQuat2, 6.0f * deltaTime);
 
-					D3DXMATRIX velMat;
-					D3DXQUATERNION velRot;
-					MatrixRotationFromAxis(xVec, yVec, zVec, velMat);
-					D3DXQuaternionRotationMatrix(&velRot, &velMat);
+				D3DXVECTOR3 camDir;
+				Vec3Rotate(XVector, camQuat, camDir);
+				/* отдаление камеры в сплитскрине работает не корректно
+				const float minSpeed = 0.0f;
+				const float maxSpeed = 150.0f * 1000.0f / 3600.0f;
+				float speedK = lsl::ClampValue((velocityLen - minSpeed) / (maxSpeed - minSpeed), 0.0f, 1.0f);
+				const float minDist = 0.0f;
+				const float maxDist = 1.5f;
+				float distTarget = minDist + speedK * speedK * (maxDist - minDist);
+				_staticFloat1 = _staticFloat1 + (distTarget - _staticFloat1) * lsl::ClampValue(deltaTime * 5.0f, 0.0f, 1.0f);
+				*/
 
-					//
-					D3DXQUATERNION camQuat;
-					D3DXQUATERNION camQuat1 = rot;
-					D3DXQUATERNION camQuat2 = velRot;
-					D3DXQuaternionSlerp(&camQuat, &camQuat1, &camQuat2, 3.0f * deltaTime);
+				//расстояние камеры зависит от FOV...
+				float distance = 1.2f;
+				if (CAM_FOV < 85)
+					distance = 2.5f;
+				else if (CAM_FOV > 95)
+					distance = 0.4f;
 
-					/*D3DXVECTOR3 camPos;
-					Vec3Rotate(cCamTargetOff, camQuat, camPos);
-					camPos += targetPos;*/
+				if (SPLIT_TYPE == 1)
+					distance *= 2.5f;
 
-					D3DXVECTOR3 camDir;
-					Vec3Rotate(XVector, camQuat, camDir);
-					const float minSpeed = 0.0f;
-					const float maxSpeed = 150.0f * 1000.0f / 3600.0f;
-					float speedK = ClampValue((velocityLen - minSpeed) / (maxSpeed - minSpeed), 0.0f, 1.0f);
-					const float minDist = 0.0f;
-					float maxDist = 1.5f;
-					if (_manager->GetPlayer() && _manager->GetPlayer()->GetRace()->GetCamLock())
-						maxDist = ISOCAM_DIST;
-					else
-						maxDist = 1.5f;
-					float distTarget;
-					if (_manager->GetPlayer() && _manager->GetPlayer()->GetRace()->GetStaticCam())
-						distTarget = minDist + speedK * speedK * (maxDist - minDist);
-					else
-						distTarget = maxDist / 2;
+				D3DXVECTOR3 camOff;
+				Vec3Rotate(cCamTargetOff + D3DXVECTOR3(-1.0f, 0.0f, 0.0f), camQuat, camOff);
+				D3DXVECTOR3 camPos = targetPos - camDir * distance + camOff;
 
-					_staticFloat1 = _staticFloat1 + (distTarget - _staticFloat1) * ClampValue(
-						deltaTime * 5.0f, 0.0f, 1.0f);
 
-					D3DXVECTOR3 camOff;
-					Vec3Rotate(cCamTargetOff + D3DXVECTOR3(-1.0f, 0.0f, 0.0f), camQuat, camOff);
-					D3DXVECTOR3 camPos = targetPos - camDir * _staticFloat1 + camOff;
+				D3DXQUATERNION yRot;
+				D3DXQuaternionRotationAxis(&yRot, &D3DXVECTOR3(0, 1, 0), D3DX_PI * 12.0f);
+				camQuat = yRot * camQuat;
+				camera->FirtsViewIso(false);
+				if (SPLIT_TYPE == 1)
+					camera->SetUserFov(CAM_FOV / 2);
+				else
+					camera->SetUserFov(CAM_FOV);
 
-					/*D3DXVECTOR3 camPos;
-					D3DXVECTOR3 camPos1 = pos;
-					D3DXVECTOR3 camPos2;
-					Vec3Rotate(cCamTargetOff, camQuat2, camPos2);
-					camPos2 += targetPos;
-					D3DXVec3Lerp(&camPos, &camPos1, &camPos2, 8.0f * deltaTime);*/
+				pos = camPos;
+				rot = camQuat;
 
-					D3DXQUATERNION yRot;
-					D3DXQuaternionRotationAxis(&yRot, &D3DXVECTOR3(0, 1, 0), D3DX_PI * 12.0f);
-					camQuat = yRot * camQuat;
-
-					pos = camPos;
-					rot = camQuat;
-
-					break;
-				}
+				break;
+			}
 
 			case csIsometric:
+			{
+				float camWidth = camera->GetWidth() / 2;
+				float camHeight = camWidth / camera->GetAspect();
+				float camSize = sqrt(camWidth * camWidth + camHeight * camHeight);
+				//left, right, top, bottom
+				auto camBorder = D3DXVECTOR4(cIsoBorder, cIsoBorder, cIsoBorder / camera->GetAspect(),
+					cIsoBorder / camera->GetAspect());
+
+				D3DXQUATERNION cIsoInvRot;
+				D3DXQuaternionInverse(&cIsoInvRot, &cIsoRot);
+
+				D3DXVECTOR3 isoDir;
+				Vec3Rotate(XVector, cIsoRot, isoDir);
+				D3DXVECTOR3 targOff = targetDir;
+				targOff.z = 0.0f;
+				Vec3Rotate(targOff, cIsoInvRot, targOff);
+				//Проецируем на плоскость смещения
+				targOff.x = targOff.y;
+				targOff.y = targOff.z;
+				targOff.z = 0.0f;
+				D3DXVec3Normalize(&targOff, &targOff);
+				//
+				float yTargetDot = D3DXVec3Dot(&targOff, &D3DXVECTOR3(0.0f, 1.0f, 0.0f));
+				targOff *= camSize;
+
+				if (abs(targOff.y) > 0.1f && abs(targOff.x / targOff.y) < camera->GetAspect())
+				{
+					float yCoord = ClampValue(targOff.y, -camBorder.w, camBorder.z);
+					float xCoord = abs(yCoord) / yTargetDot;
+					xCoord = sqrt(xCoord * xCoord - yCoord * yCoord);
+					if (targOff.x < 0)
+						xCoord = -xCoord;
+					targOff.x = xCoord;
+					targOff.y = yCoord;
+				}
+				else
+				{
+					float xCoord = ClampValue(targOff.x, -camBorder.x, camBorder.y);
+					float yCoord = abs(xCoord) / sqrt(1.0f - (yTargetDot * yTargetDot));
+					yCoord = sqrt(yCoord * yCoord - xCoord * xCoord);
+					if (targOff.y < 0)
+						yCoord = -yCoord;
+					targOff.x = xCoord;
+					targOff.y = yCoord;
+				}
+
+				targOff.z = targOff.y;
+				targOff.y = targOff.x;
+				targOff.x = 0.0f;
+
+				//Обратное преобразование в мировое пространство
+				Vec3Rotate(targOff, cIsoRot, targOff);
+
+				D3DXVec3Lerp(&_staticVec1, &_staticVec1, &targOff, deltaTime);
+				D3DXVECTOR3 camPos = targetPos + (-isoDir) * targDist + _staticVec1;
+
+				//Плавная интерполяция при скачках машины
+				//К сожалению в сплитскрине плохо работает!!!
+				/*
+				D3DXVECTOR3 dTargetPos = targetPos - _staticVec2;
+				_staticVec2 = targetPos;
+				float dTargetLength = D3DXVec3Length(&dTargetPos);
+
+				if (dTargetLength > 6.0f)
+				{
+					_staticFloat2 = _staticFloat1 == 0.0f ? dTargetLength / 0.5f : _staticFloat2;
+					_staticFloat1 = dTargetLength;
+					_staticVec3 = dTargetPos / dTargetLength;
+				}
+
+				if (_staticFloat1 > 0.0f)
+				{
+					_staticFloat1 = std::max(_staticFloat1 - _staticFloat2 * deltaTime, 0.0f);
+					camPos = camPos - _staticFloat1 * _staticVec3;
+				}*/
+
+				if (_manager->GetPlayer()->GetRace()->GetGame()->CamProection() == 1)
+					camera->FirtsViewIso(false);
+				else
+					camera->FirtsViewIso(true);
+
+				
+				pos = camPos;
+				rot = cIsoRot;
+
+				break;
+			}
+
+			case csAutoObserver:
+			{
+				D3DXVECTOR2 mPos = control->GetMouseVec();
+				D3DXVECTOR2 dMPos = mPos - D3DXVECTOR2(_staticVec1.x, _staticVec1.y);
+				_staticVec1 = D3DXVECTOR3(mPos.x, mPos.y, 0);
+				bool leftDown = control->IsMouseDown(mkLeft) == akDown;
+
+				if (leftDown && _staticVec2.z == 0.0f)
+				{
+					D3DXVECTOR2 dMPos2 = mPos - D3DXVECTOR2(_staticVec2.x, _staticVec2.y);
+					if (D3DXVec2Length(&dMPos2) > 15.0f)
+						_staticVec2.z = 1.0f;
+					else
+						leftDown = false;
+				}
+				else if (!leftDown)
+				{
+					_staticVec2 = D3DXVECTOR3(mPos.x, mPos.y, 0.0f);
+				}
+
+				bool dragX = leftDown && dMPos.x != 0;
+				bool dragY = leftDown && dMPos.y != 0;
+				bool restoreY = _staticFloat1 >= 3.0f;
+
+				if (dragX || dragY)
+					_staticFloat1 = 0.0f;
+				_staticFloat1 += deltaTime;
+
+				_manager->GetObserverCoord(targetPos, _manager->_target.w, nullptr, _staticQuat1, dMPos, deltaTime,
+					dragX, dragY, restoreY, &pos, &rot, &_staticFloat2);
+				break;
+			}
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			if (ENABLE_SPLIT_SCREEN == true && _manager->GetSecondPlayer()) 
+			{
+				if (_manager->GetSecondPlayer()->GetRace()->GetGame()->CamLock() == true)
+				{
+					if (_manager->GetSecondPlayer()->GetRace()->GetGame()->GetPrefCamera() == 0)
+						_manager->GetSecondPlayer()->SetIsometricView(false);
+					else
+						_manager->GetSecondPlayer()->SetIsometricView(true);
+				}
+
+				if (_manager->GetSecondPlayer()->GetIsometricView())
+				//ISOMETRIC
 				{
 					float camWidth = camera->GetWidth() / 2;
 					float camHeight = camWidth / camera->GetAspect();
 					float camSize = sqrt(camWidth * camWidth + camHeight * camHeight);
 					//left, right, top, bottom
 					auto camBorder = D3DXVECTOR4(cIsoBorder, cIsoBorder, cIsoBorder / camera->GetAspect(),
-					                             cIsoBorder / camera->GetAspect());
+						cIsoBorder / camera->GetAspect());
 
-					//Обратный поворот
+					D3DXVECTOR3 _statVec1 = NullVector;
+					D3DXVECTOR3 _statVec2 = NullVector;
+					if (_manager->_secondPlr)
+						_statVec2 = _manager->_secondPlr && _manager->_secondPlr->GetCar().mapObj
+						? _manager->_secondPlr->GetCar().grActor->GetWorldPos()
+						: _manager->_secondPlr->GetCar().pos3;
+					else
+						_statVec2 = D3DXVECTOR3(_manager->_target);
+
 					D3DXQUATERNION cIsoInvRot;
 					D3DXQuaternionInverse(&cIsoInvRot, &cIsoRot);
 
-					//Направление камеры в мировом пространстве
 					D3DXVECTOR3 isoDir;
 					Vec3Rotate(XVector, cIsoRot, isoDir);
-
-					//Преобразуем в пространство камеры, чтобы вычислять смещение отностиельно центра экрана. Для перспективной проекции это дает артефакт удаления-приближения камеры, поэтому может быть опущено
-					D3DXVECTOR3 targOff = targetDir;
+					D3DXVECTOR3 targOff = s_targetDir;
 					targOff.z = 0.0f;
 					Vec3Rotate(targOff, cIsoInvRot, targOff);
 					//Проецируем на плоскость смещения
@@ -540,12 +548,8 @@ namespace r3d
 					D3DXVec3Normalize(&targOff, &targOff);
 					//
 					float yTargetDot = D3DXVec3Dot(&targOff, &D3DXVECTOR3(0.0f, 1.0f, 0.0f));
-					//Формируем вектор смещения
 					targOff *= camSize;
 
-					//Ограничиваем смещение в пределах квадрата на плоскости смещения чтобы камера не уезжала за объект
-					//targOff.x = lsl::ClampValue(targOff.x, -camBorder.x, camBorder.y);
-					//targOff.y = lsl::ClampValue(targOff.y, -camBorder.w, camBorder.z);
 					if (abs(targOff.y) > 0.1f && abs(targOff.x / targOff.y) < camera->GetAspect())
 					{
 						float yCoord = ClampValue(targOff.y, -camBorder.w, camBorder.z);
@@ -574,83 +578,131 @@ namespace r3d
 					//Обратное преобразование в мировое пространство
 					Vec3Rotate(targOff, cIsoRot, targOff);
 
-					//Планва интерполяция смещения		
-					D3DXVec3Lerp(&_staticVec1, &_staticVec1, &targOff, deltaTime);
-					//_staticVec1 = targOff;
-					//Позиция камеры
-					D3DXVECTOR3 camPos = targetPos + (-isoDir) * targDist + _staticVec1;
+					D3DXVec3Lerp(&_statVec1, &_statVec1, &targOff, deltaTime);
+					D3DXVECTOR3 camPos = s_targetPos + (-isoDir) * targDist + _statVec1;
 
-					//Плавная интерполяция при скачках машины
-					D3DXVECTOR3 dTargetPos = targetPos - _staticVec2;
-					_staticVec2 = targetPos;
-					float dTargetLength = D3DXVec3Length(&dTargetPos);
+					//фикс проекции для второй камеры
+					if (_manager->GetPlayer()->GetRace()->GetGame()->CamProection() == 1)
+						camera->SecondViewIso(false);
+					else
+						camera->SecondViewIso(true);
 
-					if (dTargetLength > 6.0f)
-					{
-						//только если это первый скачок
-						_staticFloat2 = _staticFloat1 == 0.0f ? dTargetLength / 0.5f : _staticFloat2;
-						_staticFloat1 = dTargetLength;
-						_staticVec3 = dTargetPos / dTargetLength;
-					}
-
-					if (_staticFloat1 > 0.0f)
-					{
-						_staticFloat1 = std::max(_staticFloat1 - _staticFloat2 * deltaTime, 0.0f);
-						camPos = camPos - _staticFloat1 * _staticVec3;
-					}
-
-					pos = camPos;
-					rot = cIsoRot;
-
-					break;
+					s_pos = camPos;
+					s_rot = cIsoRot;
 				}
-
-			case csAutoObserver:
+				else
+				//THIRD PERSON
 				{
-					D3DXVECTOR2 mPos = control->GetMouseVec();
-					D3DXVECTOR2 dMPos = mPos - D3DXVECTOR2(_staticVec1.x, _staticVec1.y);
-					_staticVec1 = D3DXVECTOR3(mPos.x, mPos.y, 0);
-					bool leftDown = control->IsMouseDown(mkLeft) == akDown;
+					float velocityLen = D3DXVec3Length(&s_targetVel);
+					D3DXVECTOR3 velocity = s_targetDir + s_targetVel * 0.1f;
+					//эффект победителя. Реверс камеры...
+					if (_manager->GetSecondPlayer() && _manager->GetSecondPlayer()->GetFinished() && _manager->GetSecondPlayer()->GetPlace() == 1)
+						velocity = -s_targetDir + -s_targetVel * 0.1f;
 
-					if (leftDown && _staticVec2.z == 0.0f)
+					D3DXVec3Normalize(&velocity, &velocity);
+
+					//строим матрицу поворота относительно скорости
+					D3DXVECTOR3 xVec;
+					D3DXVec3Normalize(&xVec, &velocity);
+					D3DXVECTOR3 yVec;
+					D3DXVec3Cross(&yVec, &ZVector, &xVec);
+					if (D3DXVec3Length(&yVec) < 0.001f)
 					{
-						D3DXVECTOR2 dMPos2 = mPos - D3DXVECTOR2(_staticVec2.x, _staticVec2.y);
-						if (D3DXVec2Length(&dMPos2) > 15.0f)
-							_staticVec2.z = 1.0f;
-						else
-							leftDown = false;
+						//D3DXVec3Cross(&yVec, &xVec, &ZVector);
 					}
-					else if (!leftDown)
-					{
-						_staticVec2 = D3DXVECTOR3(mPos.x, mPos.y, 0.0f);
-					}
+					D3DXVec3Normalize(&yVec, &yVec);
+					D3DXVECTOR3 zVec;
+					D3DXVec3Cross(&zVec, &xVec, &yVec);
+					D3DXVec3Normalize(&zVec, &zVec);
 
-					bool dragX = leftDown && dMPos.x != 0;
-					bool dragY = leftDown && dMPos.y != 0;
-					bool restoreY = _staticFloat1 >= 3.0f;
+					D3DXMATRIX velMat;
+					D3DXQUATERNION velRot;
+					MatrixRotationFromAxis(xVec, yVec, zVec, velMat);
+					D3DXQuaternionRotationMatrix(&velRot, &velMat);
 
-					if (dragX || dragY)
-						_staticFloat1 = 0.0f;
-					_staticFloat1 += deltaTime;
+					//
+					D3DXQUATERNION camQuat;
+					D3DXQUATERNION camQuat1 = s_rot;
+					D3DXQUATERNION camQuat2 = velRot;
+					D3DXQuaternionSlerp(&camQuat, &camQuat1, &camQuat2, 6.0f * deltaTime);
 
-					_manager->GetObserverCoord(targetPos, _manager->_target.w, nullptr, _staticQuat1, dMPos, deltaTime,
-					                           dragX, dragY, restoreY, &pos, &rot, &_staticFloat2);
-					break;
+					D3DXVECTOR3 camDir;
+					Vec3Rotate(XVector, camQuat, camDir);
+					/* отдаление камеры в сплитскрине работает не корректно
+					const float minSpeed = 0.0f;
+					const float maxSpeed = 150.0f * 1000.0f / 3600.0f;
+					float speedK = lsl::ClampValue((velocityLen - minSpeed) / (maxSpeed - minSpeed), 0.0f, 1.0f);
+					const float minDist = 0.0f;
+					const float maxDist = 1.5f;
+					float distTarget = minDist + speedK * speedK * (maxDist - minDist);
+					_staticFloat1 = _staticFloat1 + (distTarget - _staticFloat1) * lsl::ClampValue(deltaTime * 5.0f, 0.0f, 1.0f);
+					*/
+
+					//расстояние камеры зависит от FOV...
+
+					float distance = 1.2f;
+					if (CAM_FOV < 85)
+						distance = 2.5f;
+					else if (CAM_FOV > 95)
+						distance = 0.4f;
+
+					if (SPLIT_TYPE == 1)
+						distance *= 2.5f;
+
+					D3DXVECTOR3 camOff;
+					Vec3Rotate(cCamTargetOff + D3DXVECTOR3(-1.0f, 0.0f, 0.0f), camQuat, camOff);
+					D3DXVECTOR3 camPos = s_targetPos - camDir * distance + camOff;
+
+
+					D3DXQUATERNION yRot;
+					D3DXQuaternionRotationAxis(&yRot, &D3DXVECTOR3(0, 1, 0), D3DX_PI * 12.0f);
+					camQuat = yRot * camQuat;
+
+					camera->SecondViewIso(false);
+					if (SPLIT_TYPE == 1)
+						camera->SetUserFov(CAM_FOV / 2);
+					else
+						camera->SetUserFov(CAM_FOV);
+
+					s_pos = camPos;
+					s_rot = camQuat;					
 				}
 			}
+		
+
 
 			camera->SetPos(pos);
 			camera->SetRot(rot);
 
+			camera->SetFirstPos(pos);
+			camera->SetFirstRot(rot);
+
+			camera->SetSecondPos(s_pos);
+			camera->SetSecondRot(s_rot);
+
 			_manager->OrthoCullOffset();
 			_manager->SyncLight();
 
+
+			
 			_manager->_world->GetGraph()->SetCubeViewPos(targetPos + ZVector * 1.0f);
 			_manager->_world->GetGraph()->SetOrthoTarget(targetPos, targetSize);
+
+			_manager->_world->GetGraph()->SetOrthoTargetSec(s_targetPos, s_targetSize);
 
 			snd::Listener listener;
 			listener.pos = targetPos;
 			listener.rot = targetRot;
+			if (_manager->GetPlayer() != nullptr && ENABLE_SPLIT_SCREEN == true)
+			{
+				//в режиме сплискрин изменяем источник звука в некоторых обстоятельствах
+				if (_manager->GetPlayer()->GetFinished() || _manager->GetPlayer()->GetCar().gameObj == nullptr)
+				{
+					listener.pos = s_targetPos;
+					listener.rot = s_targetRot;
+				}
+			}
+
 			_manager->_world->GetAudio()->SetListener(&listener);
 		}
 
@@ -671,6 +723,7 @@ namespace r3d
 				Point pos = _manager->_world->GetControl()->GetMousePos();
 				_staticVec2 = _staticVec1 = D3DXVECTOR3(static_cast<float>(pos.x), static_cast<float>(pos.y), 0);
 			}
+			//именно здесь указывается растояние движения изометрической камеры...
 			else if (newStyle == csIsometric)
 			{
 				TargetChanged();
@@ -711,6 +764,20 @@ namespace r3d
 					_staticVec2 = _manager->_player && _manager->_player->GetCar().mapObj
 						              ? _manager->_player->GetCar().grActor->GetWorldPos()
 						              : _manager->_player->GetCar().pos3;
+				else
+					_staticVec2 = D3DXVECTOR3(_manager->_target);
+			}
+		}
+
+		void CameraManager::Control::SecTargetChanged()
+		{
+			if (_manager->_style == csIsometric)
+			{
+				_staticVec1 = NullVector;
+				if (_manager->_secondPlr)
+					_staticVec2 = _manager->_secondPlr && _manager->_secondPlr->GetCar().mapObj
+					? _manager->_secondPlr->GetCar().grActor->GetWorldPos()
+					: _manager->_secondPlr->GetCar().pos3;
 				else
 					_staticVec2 = D3DXVECTOR3(_manager->_target);
 			}
@@ -864,16 +931,14 @@ namespace r3d
 
 			if (_style == csAutoObserver || _style == csBlock)
 				_camera->SetFov(65 * D3DX_PI / 180);
-			else if (_style == csThirdPerson || _style == csInverseThird)
+
+			if (_style == csIsometric && _world->GetGame()->CamProection() == 1)			
 				_camera->SetFov(CAM_FOV * D3DX_PI / 180);
-			else
+			
+			if (ENABLE_SPLIT_SCREEN == false)
 			{
-				if (_style == csIsometric && _world->GetGame()->CamProection() == 1)
-				{
+				if (_style == csThirdPerson || _style == csInverseThird)
 					_camera->SetFov(CAM_FOV * D3DX_PI / 180);
-				}
-				else
-					_camera->SetFov(90 * D3DX_PI / 180);
 			}
 
 
@@ -963,6 +1028,22 @@ namespace r3d
 				_player = value;
 
 				_control->TargetChanged();
+			}
+		}
+
+		Player* CameraManager::GetSecondPlayer()
+		{
+			return _secondPlr;
+		}
+
+		void CameraManager::SetSecondPlayer(Player* value)
+		{
+			_world->GetGame()->GetCameraDistance();
+			if (Object::ReplaceRef(_secondPlr, value))
+			{
+				_secondPlr = value;
+
+				_control->SecTargetChanged();
 			}
 		}
 

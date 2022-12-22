@@ -6,9 +6,6 @@ namespace r3d
 {
 	namespace game
 	{
-		extern bool TITLE_CHANGE;
-		extern float TITLE_TIME;
-
 		namespace n
 		{
 			class RaceMenu;
@@ -17,6 +14,7 @@ namespace r3d
 			{
 			public:
 				enum CamStyle { csCar, csSlots, cCamStyleEnd };
+
 
 			private:
 				RaceMenu* _raceMenu;
@@ -70,7 +68,7 @@ namespace r3d
 			private:
 				enum MenuItem { miExit, miBuy, cMenuItemEnd };
 
-				enum Label { mlHeader, mlCarName, mlCarInfo, mlMoney, mlPrice, cLabelEnd };
+				enum Label { mlHeader, mlCarName, mlCarInfo, mlMoney, mlPrice, mlCurPlr, cLabelEnd };
 
 				struct CarData
 				{
@@ -124,7 +122,7 @@ namespace r3d
 				void SelectCar(const CarData& carData);
 				void PrevCar();
 				void NextCar();
-
+		
 				gui::Widget* AddColor(gui::Grid* grid, const D3DXCOLOR& color);
 				void UpdateColorList(gui::Grid* grid, const D3DXCOLOR colors[], unsigned count);
 				void RefreshColorList(gui::Grid* grid, const D3DXCOLOR colors[], unsigned count);
@@ -274,11 +272,14 @@ namespace r3d
 			class GamersFrame : public MenuFrame, IGameUser
 			{
 			private:
-				enum Label { mlInfo, mlName, mlBonus, cLabelEnd };
+				enum Label { mlInfo, mlName, mlBonus, mlCurPlr, cLabelEnd };
 
 			private:
 				RaceMenu* _raceMenu;
 				int _planetIndex;
+				unsigned _friendId;
+				float _maxVPsizeX;
+				float _timeShowLabel;
 
 				gui::Label* _labels[cLabelEnd];
 
@@ -298,12 +299,17 @@ namespace r3d
 				void NextPlanet();
 				int GetNextPlanetIndex(int sIndex);
 				int GetPrevPlanetIndex(int sIndex);
+				
 			protected:
+				void SetFriendGamerId(unsigned value);
+				unsigned FriendGamerId();
+				bool CheckFriendId(int id);
 				void OnAdjustLayout(const D3DXVECTOR2& vpSize) override;
-				void OnShow(bool value) override;
-				void OnInvalidate() override;
+				void OnShow(bool value) override;				
+				void OnInvalidate() override;				
 				bool OnClick(gui::Widget* sender, const gui::MouseClick& mClick) override;
 			public:
+				void OnProgress(float deltaTime);
 				GamersFrame(Menu* menu, RaceMenu* raceMenu, gui::Widget* parent);
 				~GamersFrame() override;
 
@@ -445,8 +451,7 @@ namespace r3d
 					miOptions,
 					miExit,
 					cMenuItemEnd
-				};
-
+				};		
 				enum Label
 				{
 					mlDivision = 0,
@@ -477,9 +482,9 @@ namespace r3d
 				};
 
 				using Players = Vector<PlayerBox>;
-			private:
+			public:
 				RaceMenu* _raceMenu;
-
+			private:
 				gui::Button* _menuItems[cMenuItemEnd];
 				gui::Label* _labels[cLabelEnd];
 
@@ -502,7 +507,11 @@ namespace r3d
 				gui::ViewPort3d* _viewportCar;
 				gui::Dummy* _playerGrid;
 				Players _players;
-
+				float _timeShowPoints;
+				float _titleTime;
+				bool _titleChange;
+				bool _isShowPoints;
+			
 				void RaceRady(bool ready);
 
 				PlayerBox* AddPlayer(NetPlayer* netPlayer, unsigned index);
