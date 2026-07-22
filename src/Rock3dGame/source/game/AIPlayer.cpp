@@ -225,7 +225,7 @@ void AISystem::ComputeTracks(float deltaTime)
 		LSL_ASSERT(!tChain->empty());
 
 		
-		struct Pred: public std::binary_function<Link*, Link*, bool>
+		struct Pred
 		{
 			bool operator()(Link* link1, Link* link2)
 			{

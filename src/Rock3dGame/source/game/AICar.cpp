@@ -349,7 +349,7 @@ void AICar::AttackState::ShotByEnemy(AICar* owner, const CarState& car, Player* 
 				weaponList.push_back(Weapon((Player::SlotType)i, weapon));
 		}
 
-		struct DistSort: public std::binary_function<Weapon, Weapon, bool>
+		struct DistSort
 		{
 			bool operator()(Weapon weapon1, Weapon weapon2)
 			{
