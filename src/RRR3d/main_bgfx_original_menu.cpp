@@ -4,6 +4,11 @@
 #include "resource/ResourceFileSystem.h"
 #include "xplatform.h"
 
+#ifdef RRR3D_GAMEPAD_INPUT
+#include "SdlInputManager.h"
+#include "SdlInputSmoke.h"
+#endif
+
 #include <SDL3/SDL.h>
 #include <bx/math.h>
 
@@ -13,6 +18,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -41,6 +47,9 @@ struct Options
     std::filesystem::path dataDirectory;
     std::string language;
     bool verifyResources = false;
+#ifdef RRR3D_GAMEPAD_INPUT
+    bool inputSmokeTest = false;
+#endif
 };
 
 struct TextVisual
@@ -61,6 +70,15 @@ std::optional<Options> parseOptions(int argc, char** argv)
             options.verifyResources = true;
             continue;
         }
+#ifdef RRR3D_GAMEPAD_INPUT
+        if (argument == "--input-smoke-test")
+        {
+            options.inputSmokeTest = true;
+            if (options.smokeFrames == 0)
+                options.smokeFrames = 120;
+            continue;
+        }
+#endif
         if (argument.substr(0, dataPrefix.size()) == dataPrefix)
         {
             const auto value = argument.substr(dataPrefix.size());
@@ -165,6 +183,37 @@ void drawQuad(GraphicsDevice& device, Mesh quad, Shader shader,
                 pipeline);
 }
 
+#ifdef RRR3D_GAMEPAD_INPUT
+std::optional<std::size_t> hoveredItem(SDL_Window* window, float windowX,
+                                       float windowY, std::size_t itemCount,
+                                       float itemWidth, float itemHeight)
+{
+    int windowWidth = 0;
+    int windowHeight = 0;
+    if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight) ||
+        windowWidth <= 0 || windowHeight <= 0)
+        return std::nullopt;
+
+    const float virtualX =
+        windowX * menu::virtualWidth / static_cast<float>(windowWidth);
+    const float virtualY =
+        windowY * menu::virtualHeight / static_cast<float>(windowHeight);
+    const float centerX =
+        menu::virtualWidth * 0.5F + menu::itemCenterOffsetX;
+    if (std::abs(virtualX - centerX) > itemWidth * 0.5F)
+        return std::nullopt;
+    for (std::size_t index = 0; index < itemCount; ++index)
+    {
+        const float centerY = menu::virtualHeight * 0.5F +
+                              menu::firstItemOffsetY +
+                              static_cast<float>(index) * menu::itemSpacing;
+        if (std::abs(virtualY - centerY) <= itemHeight * 0.5F)
+            return index;
+    }
+    return std::nullopt;
+}
+#endif
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -174,7 +223,11 @@ int main(int argc, char** argv)
     {
         std::cerr << "Usage: RRR3d [--data-dir=PATH] "
                      "[--language=english|russian] [--verify-resources] "
-                     "[--smoke-test-frames=N]\n";
+                     "[--smoke-test-frames=N]"
+#ifdef RRR3D_GAMEPAD_INPUT
+                     " [--input-smoke-test]"
+#endif
+                     "\n";
         return EXIT_FAILURE;
     }
 
@@ -227,20 +280,63 @@ int main(int argc, char** argv)
     }
 
     if (!SDL_SetAppMetadata("Motor Rock", "1.3.1",
-                            "org.rrr3d.motorrock") ||
-        !SDL_Init(SDL_INIT_VIDEO))
+                            "org.rrr3d.motorrock"))
+    {
+        std::cerr << "Unable to set SDL metadata: " << SDL_GetError()
+                  << '\n';
+        return EXIT_FAILURE;
+    }
+    SDL_InitFlags sdlFlags = SDL_INIT_VIDEO;
+#ifdef RRR3D_GAMEPAD_INPUT
+    sdlFlags |= SDL_INIT_GAMEPAD;
+#endif
+    if (!SDL_Init(sdlFlags))
     {
         std::cerr << "Unable to initialize SDL3: " << SDL_GetError()
                   << '\n';
         return EXIT_FAILURE;
     }
 
+#ifdef RRR3D_GAMEPAD_INPUT
+    rrr3d::input::SdlInputManager input;
+    std::string inputError;
+    if (!input.initialize(inputError))
+    {
+        std::cerr << "Input initialization failed: " << inputError << '\n';
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+    if (options->inputSmokeTest &&
+        (!rrr3d::input::runSdlInputSmokeTest(input, inputError) ||
+         !menu::runOriginalMainMenuInputSmoke(inputError)))
+    {
+        std::cerr << "Milestone 7 input smoke test failed: " << inputError
+                  << '\n';
+        input.shutdown();
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+    if (options->inputSmokeTest)
+    {
+        std::cout << "Milestone 7 input smoke: keyboard, mouse, focus reset, "
+                     "gamepad hot-plug, axes, dead zones, buttons, rumble, "
+                     "and MainMenu2 command order passed\n";
+    }
+#endif
+
     SDL_Window* window = SDL_CreateWindow(
+#ifdef RRR3D_GAMEPAD_INPUT
+        "Motor Rock - Original MainMenu2 Input (Milestone 7)", initialWidth,
+#else
         "Motor Rock - Original MainMenu2 (Milestone 6)", initialWidth,
+#endif
         initialHeight, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (window == nullptr)
     {
         std::cerr << "Unable to create window: " << SDL_GetError() << '\n';
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
         SDL_Quit();
         return EXIT_FAILURE;
     }
@@ -256,6 +352,9 @@ int main(int argc, char** argv)
         std::cerr << "Unable to obtain Cocoa drawable: " << SDL_GetError()
                   << '\n';
         SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
         SDL_Quit();
         return EXIT_FAILURE;
     }
@@ -270,6 +369,9 @@ int main(int argc, char** argv)
         std::cerr << "Renderer initialization failed: " << rendererError
                   << '\n';
         SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
         SDL_Quit();
         return EXIT_FAILURE;
     }
@@ -353,6 +455,9 @@ int main(int argc, char** argv)
         releaseResources();
         device.reset();
         SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
         SDL_Quit();
         return EXIT_FAILURE;
     }
@@ -366,6 +471,10 @@ int main(int argc, char** argv)
                  "MainMenu2.cpp\n"
               << "MainMenu2 font: requested " << menu::fontFace
               << ", resolved " << resolvedFont << '\n';
+#ifdef RRR3D_GAMEPAD_INPUT
+    std::cout << "Input: SDL3 keyboard/mouse/gamepad, "
+              << input.connectedGamepadCount() << " gamepad(s)\n";
+#endif
 
     PipelineState opaque;
     opaque.faceCulling = PipelineState::FaceCulling::None;
@@ -377,12 +486,58 @@ int main(int argc, char** argv)
 
     bool running = true;
     std::uint32_t renderedFrames = 0;
-    constexpr std::size_t selectedItem = 0;
+    menu::Controller controller(model->items.size());
     while (running)
     {
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+#ifdef RRR3D_GAMEPAD_INPUT
+            bool pointerTargetsItem = true;
+            if (event.type == SDL_EVENT_MOUSE_MOTION)
+            {
+                const auto hovered = hoveredItem(
+                    window, event.motion.x, event.motion.y,
+                    model->items.size(),
+                    static_cast<float>(model->selectionImage.width),
+                    static_cast<float>(model->selectionImage.height));
+                if (hovered)
+                    controller.select(*hovered);
+            }
+            else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+            {
+                const auto hovered = hoveredItem(
+                    window, event.button.x, event.button.y,
+                    model->items.size(),
+                    static_cast<float>(model->selectionImage.width),
+                    static_cast<float>(model->selectionImage.height));
+                pointerTargetsItem = hovered.has_value() ||
+                                     event.button.button != SDL_BUTTON_LEFT;
+                if (hovered)
+                    controller.select(*hovered);
+            }
+            const auto inputEvents = input.processEvent(event);
+            for (const auto& inputEvent : inputEvents)
+            {
+                if (!pointerTargetsItem &&
+                    inputEvent.source == rrr3d::input::Source::Mouse &&
+                    inputEvent.action ==
+                        rrr3d::input::Action::MenuConfirm)
+                    continue;
+                const auto command = controller.handle(inputEvent);
+                if (!command)
+                    continue;
+                std::cout << "MainMenu2 command: "
+                          << menu::commandName(*command) << " via "
+                          << rrr3d::input::sourceName(inputEvent.source)
+                          << '\n';
+                if (*command == menu::Command::Exit ||
+                    *command == menu::Command::Back)
+                {
+                    running = false;
+                }
+            }
+#endif
             if (event.type == SDL_EVENT_QUIT ||
                 event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
             {
@@ -414,14 +569,14 @@ int main(int argc, char** argv)
                                   menu::firstItemOffsetY +
                                   static_cast<float>(index) *
                                       menu::itemSpacing;
-            if (index == selectedItem)
+            if (index == controller.selectedItem())
             {
                 drawQuad(*device, quad, shader, selection,
                          static_cast<float>(model->selectionImage.width),
                          static_cast<float>(model->selectionImage.height),
                          centerX, centerY, 50.0F, transparent);
             }
-            const auto& text = index == selectedItem
+            const auto& text = index == controller.selectedItem()
                                    ? selectedItems[index]
                                    : normalItems[index];
             drawQuad(*device, quad, shader, text.texture, text.width,
@@ -440,8 +595,13 @@ int main(int argc, char** argv)
         if (options->smokeFrames != 0 &&
             renderedFrames >= options->smokeFrames)
         {
+#ifdef RRR3D_GAMEPAD_INPUT
+            std::cout << "Milestone 7 original MainMenu2/input/bgfx/Metal "
+                         "smoke test completed after "
+#else
             std::cout << "Milestone 6 original MainMenu2/bgfx/Metal smoke "
                          "test completed after "
+#endif
                       << renderedFrames << " frames\n";
             running = false;
         }
@@ -450,6 +610,9 @@ int main(int argc, char** argv)
     releaseResources();
     device.reset();
     SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+    input.shutdown();
+#endif
     SDL_Quit();
     return EXIT_SUCCESS;
 }

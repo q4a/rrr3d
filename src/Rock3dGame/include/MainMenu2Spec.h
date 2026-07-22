@@ -25,6 +25,40 @@ inline constexpr char version[] = "v. 1.2.0";
 inline constexpr std::array<const char*, 5> itemStringKeys{
     "svSingleGame", "svNetGame", "svOptions", "svAuthors", "svExit"};
 
+enum class Command : std::uint8_t
+{
+    SinglePlayer,
+    Network,
+    Options,
+    Authors,
+    Exit,
+    Back,
+};
+
+inline constexpr std::array<Command, 5> itemCommands{
+    Command::SinglePlayer, Command::Network, Command::Options,
+    Command::Authors, Command::Exit};
+
+constexpr const char* commandName(Command command) noexcept
+{
+    switch (command)
+    {
+    case Command::SinglePlayer:
+        return "SinglePlayer";
+    case Command::Network:
+        return "Network";
+    case Command::Options:
+        return "Options";
+    case Command::Authors:
+        return "Authors";
+    case Command::Exit:
+        return "Exit";
+    case Command::Back:
+        return "Back";
+    }
+    return "Unknown";
+}
+
 inline constexpr float virtualWidth = 1920.0F;
 inline constexpr float virtualHeight = 1100.0F;
 inline constexpr float itemCenterOffsetX = 5.0F;

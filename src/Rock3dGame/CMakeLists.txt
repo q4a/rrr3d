@@ -29,6 +29,7 @@ else()
     # after their renderer/physics dependencies have real backends.
     set(_rrr3d_portable_game_sources
         source/stub/PortableGame.cpp
+        include/InputActions.h
         include/PortableGame.h
         include/PortableInput.h
         include/MainMenu2Spec.h

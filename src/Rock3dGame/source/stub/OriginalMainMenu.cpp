@@ -386,6 +386,101 @@ std::string languagePath(const resource::ResourceFileSystem& resources,
 
 } // namespace
 
+Controller::Controller(std::size_t itemCount) : itemCount_(itemCount)
+{
+    if (itemCount_ != itemCommands.size())
+        throw std::invalid_argument(
+            "MainMenu2 controller item count differs from shared spec");
+}
+
+std::size_t Controller::selectedItem() const noexcept
+{
+    return selectedItem_;
+}
+
+bool Controller::select(std::size_t item) noexcept
+{
+    if (item >= itemCount_)
+        return false;
+    selectedItem_ = item;
+    return true;
+}
+
+std::optional<Command> Controller::handle(
+    const rrr3d::input::ActionEvent& event)
+{
+    if (!event.active)
+        return std::nullopt;
+
+    switch (event.action)
+    {
+    case rrr3d::input::Action::MenuUp:
+        selectedItem_ =
+            selectedItem_ == 0 ? itemCount_ - 1 : selectedItem_ - 1;
+        break;
+    case rrr3d::input::Action::MenuDown:
+        selectedItem_ = (selectedItem_ + 1) % itemCount_;
+        break;
+    case rrr3d::input::Action::MenuConfirm:
+        if (!event.repeated)
+            return itemCommands[selectedItem_];
+        break;
+    case rrr3d::input::Action::MenuBack:
+        if (!event.repeated)
+            return Command::Back;
+        break;
+    default:
+        break;
+    }
+    return std::nullopt;
+}
+
+bool runOriginalMainMenuInputSmoke(std::string& error)
+{
+    Controller controller(itemCommands.size());
+    using rrr3d::input::Action;
+    using rrr3d::input::ActionEvent;
+    using rrr3d::input::Source;
+
+    controller.handle(
+        {Action::MenuDown, 1.0F, true, false, Source::Keyboard, 0});
+    controller.handle(
+        {Action::MenuDown, 1.0F, true, true, Source::Keyboard, 0});
+    if (controller.selectedItem() != 2)
+    {
+        error = "MainMenu2 down/repeat navigation failed";
+        return false;
+    }
+    controller.handle(
+        {Action::MenuUp, 1.0F, true, false, Source::GamepadButton, 1});
+    if (controller.selectedItem() != 1)
+    {
+        error = "MainMenu2 up navigation failed";
+        return false;
+    }
+    if (!controller.select(4) || controller.select(itemCommands.size()))
+    {
+        error = "MainMenu2 pointer selection bounds failed";
+        return false;
+    }
+    const auto command = controller.handle(
+        {Action::MenuConfirm, 1.0F, true, false, Source::Mouse, 0});
+    if (command != Command::Exit)
+    {
+        error = "MainMenu2 command dispatch differs from legacy item order";
+        return false;
+    }
+    const auto back = controller.handle(
+        {Action::MenuBack, 1.0F, true, false, Source::GamepadButton, 1});
+    if (back != Command::Back)
+    {
+        error = "MainMenu2 back dispatch failed";
+        return false;
+    }
+    error.clear();
+    return true;
+}
+
 Model loadOriginalMainMenu(const resource::ResourceFileSystem& resources,
                            std::string language)
 {

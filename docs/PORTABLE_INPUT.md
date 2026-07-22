@@ -1,5 +1,10 @@
 # Portable input and SDL3 gamepad (Milestone 7)
 
+> **Superseded historical report.** This file describes the cancelled
+> standalone portable vertical slice and is not the corrected M7 acceptance
+> status. The active implementation and verified boundary are documented in
+> `docs/ORIGINAL_MAIN_MENU_M7.md`.
+
 ## Результат
 
 Milestone 7 добавляет единый action layer между SDL3 и игровым/menu code.

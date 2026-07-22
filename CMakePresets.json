@@ -101,7 +101,7 @@
     },
     {
       "name": "macos-arm64-m7",
-      "displayName": "macOS arm64 SDL3 keyboard, mouse, and gamepad menu",
+      "displayName": "macOS arm64 original MainMenu2 with SDL3 input",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/macos-arm64-m7",
       "cacheVariables": {
@@ -113,7 +113,8 @@
         "RRR3D_BUILD_SDL_SHELL": "OFF",
         "RRR3D_BUILD_DXVK_MOLTENVK_TEST": "OFF",
         "RRR3D_BUILD_BGFX_SCENE": "OFF",
-        "RRR3D_BUILD_PORTABLE_MENU": "ON",
+        "RRR3D_BUILD_PORTABLE_MENU": "OFF",
+        "RRR3D_BUILD_ORIGINAL_MENU": "ON",
         "RRR3D_ENABLE_RENDERER": "ON",
         "RRR3D_RENDERER_BACKEND": "bgfx",
         "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",

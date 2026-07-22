@@ -1,22 +1,25 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
-> **Исправленный активный статус:** Milestone 5 и Milestone 6 переделаны от
-> исходных ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
-> bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки,
-> проверяет полный набор игровых данных и использует общую спецификацию с
-> legacy `MainMenu2.cpp`. Старые M6–M10 ниже остаются историей отменённого
-> самостоятельного vertical slice и не являются acceptance status.
+> **Исправленный активный статус:** Milestone 5–7 переделаны от исходных
+> ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
+> bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки.
+> M7 подключает к этому же меню SDL3 keyboard/mouse/gamepad input и общий с
+> legacy `MainMenu2.cpp` порядок команд. Старые M6–M10 ниже остаются историей
+> отменённого самостоятельного vertical slice и не являются acceptance
+> status.
 
 ## Активный этап
 
-Milestone 6: оригинальное главное меню и игровые ресурсы на bgfx/Metal.
+Milestone 7: ввод SDL3 для оригинального главного меню на bgfx/Metal.
 
 ## Активный статус
 
-Preset `macos-arm64-m6` больше не использует `PortableMenu`, `menu/menu.cfg`
-или `font5x7`. Подробный текущий отчёт находится в
-`docs/ORIGINAL_MAIN_MENU_M6.md`. Полный legacy `gui::Manager` ещё не перенесён;
-события и переходы меню относятся к следующему Milestone 7.
+Preset `macos-arm64-m7` продолжает исправленный M6-путь и не использует
+`PortableMenu`, `menu/menu.cfg` или `font5x7`. Навигация, pointer hit-testing,
+gamepad hot-plug и dispatch команд работают через SDL-независимые actions.
+Подробный текущий отчёт находится в `docs/ORIGINAL_MAIN_MENU_M7.md`. Полные
+экраны, в которые ведут пункты `SinglePlayer`, `Network`, `Options` и
+`Authors`, ещё не перенесены и не подменяются фиктивной реализацией.
 
 ## Исторический отчёт отменённого vertical slice
 

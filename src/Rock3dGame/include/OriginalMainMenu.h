@@ -1,9 +1,11 @@
 #pragma once
 
+#include "InputActions.h"
 #include "MainMenu2Spec.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -52,6 +54,22 @@ struct Model
     Image cursorImage;
     ResourceAudit audit;
 };
+
+class Controller
+{
+public:
+    explicit Controller(std::size_t itemCount);
+
+    std::size_t selectedItem() const noexcept;
+    bool select(std::size_t item) noexcept;
+    std::optional<Command> handle(const rrr3d::input::ActionEvent& event);
+
+private:
+    std::size_t itemCount_ = 0;
+    std::size_t selectedItem_ = 0;
+};
+
+bool runOriginalMainMenuInputSmoke(std::string& error);
 
 // Loads the assets and localized strings named by the original
 // ResourceManager/MainMenu2 code. No portable menu.cfg or replacement bitmap

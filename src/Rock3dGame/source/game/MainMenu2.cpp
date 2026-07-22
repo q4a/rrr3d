@@ -1937,40 +1937,39 @@ void MainFrame::OnShow(bool value)
 
 bool MainFrame::OnClick(gui::Widget* sender, const gui::MouseClick& mClick)
 {
-	if (sender == _mainMenu->GetItem(miSingle))
+	static_assert(mainmenu2::itemCommands.size() == cMenuItemEnd,
+		"shared MainMenu2 command order must match the legacy item enum");
+	for (std::size_t index = 0; index < mainmenu2::itemCommands.size();
+		 ++index)
 	{
-		_mainMenu->PushState(MainMenu::msGameMode);
-		return true;
-	}
+		if (sender != _mainMenu->GetItem(static_cast<int>(index)))
+			continue;
 
-	if (sender == _mainMenu->GetItem(miNetwork))
-	{
-		_mainMenu->PushState(MainMenu::msNetwork);
-		return true;
-	}
-
-	if (sender == _mainMenu->GetItem(miOptions))
-	{
-		menu()->ShowOptions(true);
-		return true;
-	}
-
-	if (sender == _mainMenu->GetItem(miAuthors))
-	{
-		//_mainMenu->PushState(MainMenu::msCredits);
-		menu()->SetState(Menu::msFinal);
-		return true;
-	}
-
-	if (sender == _mainMenu->GetItem(miExit))
-	{
+		switch (mainmenu2::itemCommands[index])
+		{
+		case mainmenu2::Command::SinglePlayer:
+			_mainMenu->PushState(MainMenu::msGameMode);
+			return true;
+		case mainmenu2::Command::Network:
+			_mainMenu->PushState(MainMenu::msNetwork);
+			return true;
+		case mainmenu2::Command::Options:
+			menu()->ShowOptions(true);
+			return true;
+		case mainmenu2::Command::Authors:
+			menu()->SetState(Menu::msFinal);
+			return true;
+		case mainmenu2::Command::Exit:
 #ifdef STEAM_SERVICE
-		if (menu()->IsSteamSavingInProcess())
-			menu()->ShowSteamSavingMessage();
-		else
+			if (menu()->IsSteamSavingInProcess())
+				menu()->ShowSteamSavingMessage();
+			else
 #endif
-			menu()->Terminate();
-		return true;
+				menu()->Terminate();
+			return true;
+		case mainmenu2::Command::Back:
+			break;
+		}
 	}
 
 	return false;
