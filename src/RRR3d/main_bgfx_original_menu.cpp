@@ -1,4 +1,5 @@
 #include "CoreTextRasterizer.h"
+#include "OriginalAudioSpec.h"
 #include "OriginalMainMenu.h"
 #include "renderer/BgfxGraphicsDevice.h"
 #include "resource/ResourceFileSystem.h"
@@ -7,6 +8,11 @@
 #ifdef RRR3D_GAMEPAD_INPUT
 #include "SdlInputManager.h"
 #include "SdlInputSmoke.h"
+#endif
+#ifdef RRR3D_AUDIO
+#include "SdlAudioBackend.h"
+#include "SdlAudioSmoke.h"
+#include "audio/AudioBackend.h"
 #endif
 
 #include <SDL3/SDL.h>
@@ -34,6 +40,7 @@ namespace
 
 using namespace r3d::renderer;
 namespace menu = r3d::game::mainmenu2;
+namespace originalaudio = r3d::game::originalaudio;
 
 constexpr int initialWidth = 1280;
 constexpr int initialHeight = 733;
@@ -49,6 +56,9 @@ struct Options
     bool verifyResources = false;
 #ifdef RRR3D_GAMEPAD_INPUT
     bool inputSmokeTest = false;
+#endif
+#ifdef RRR3D_AUDIO
+    bool audioSmokeTest = false;
 #endif
 };
 
@@ -76,6 +86,15 @@ std::optional<Options> parseOptions(int argc, char** argv)
             options.inputSmokeTest = true;
             if (options.smokeFrames == 0)
                 options.smokeFrames = 120;
+            continue;
+        }
+#endif
+#ifdef RRR3D_AUDIO
+        if (argument == "--audio-smoke-test")
+        {
+            options.audioSmokeTest = true;
+            if (options.smokeFrames == 0)
+                options.smokeFrames = 180;
             continue;
         }
 #endif
@@ -214,6 +233,15 @@ std::optional<std::size_t> hoveredItem(SDL_Window* window, float windowX,
 }
 #endif
 
+#ifdef RRR3D_AUDIO
+std::string dataAudioPath(std::string_view legacyPath)
+{
+    std::string path = "Data\\";
+    path.append(legacyPath);
+    return path;
+}
+#endif
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -226,6 +254,9 @@ int main(int argc, char** argv)
                      "[--smoke-test-frames=N]"
 #ifdef RRR3D_GAMEPAD_INPUT
                      " [--input-smoke-test]"
+#endif
+#ifdef RRR3D_AUDIO
+                     " [--audio-smoke-test]"
 #endif
                      "\n";
         return EXIT_FAILURE;
@@ -290,6 +321,9 @@ int main(int argc, char** argv)
 #ifdef RRR3D_GAMEPAD_INPUT
     sdlFlags |= SDL_INIT_GAMEPAD;
 #endif
+#ifdef RRR3D_AUDIO
+    sdlFlags |= SDL_INIT_AUDIO;
+#endif
     if (!SDL_Init(sdlFlags))
     {
         std::cerr << "Unable to initialize SDL3: " << SDL_GetError()
@@ -306,7 +340,11 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
-    if (options->inputSmokeTest &&
+    bool runInputSmoke = options->inputSmokeTest;
+#ifdef RRR3D_AUDIO
+    runInputSmoke = runInputSmoke || options->audioSmokeTest;
+#endif
+    if (runInputSmoke &&
         (!rrr3d::input::runSdlInputSmokeTest(input, inputError) ||
          !menu::runOriginalMainMenuInputSmoke(inputError)))
     {
@@ -316,7 +354,7 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
-    if (options->inputSmokeTest)
+    if (runInputSmoke)
     {
         std::cout << "Milestone 7 input smoke: keyboard, mouse, focus reset, "
                      "gamepad hot-plug, axes, dead zones, buttons, rumble, "
@@ -325,7 +363,9 @@ int main(int argc, char** argv)
 #endif
 
     SDL_Window* window = SDL_CreateWindow(
-#ifdef RRR3D_GAMEPAD_INPUT
+#ifdef RRR3D_AUDIO
+        "Motor Rock - Original MainMenu2 Audio (Milestone 8)", initialWidth,
+#elif defined(RRR3D_GAMEPAD_INPUT)
         "Motor Rock - Original MainMenu2 Input (Milestone 7)", initialWidth,
 #else
         "Motor Rock - Original MainMenu2 (Milestone 6)", initialWidth,
@@ -476,6 +516,136 @@ int main(int argc, char** argv)
               << input.connectedGamepadCount() << " gamepad(s)\n";
 #endif
 
+#ifdef RRR3D_AUDIO
+    rrr3d::audio::SdlAudioBackend audio;
+    std::string audioError;
+    if (!audio.initialize(audioError))
+    {
+        std::cerr << "Audio initialization failed: " << audioError << '\n';
+        releaseResources();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+
+    std::cout << "Audio: SDL3/" << audio.driverName()
+              << ", 48 kHz stereo float mixer, default output '"
+              << audio.outputDeviceName() << "'\n";
+    if (options->audioSmokeTest &&
+        !rrr3d::audio::runSdlAudioSmokeTest(audio, *resources, audioError))
+    {
+        std::cerr << "Milestone 8 audio smoke test failed: " << audioError
+                  << '\n';
+        audio.shutdown();
+        releaseResources();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+    if (options->audioSmokeTest)
+    {
+        std::cout << "Milestone 8 audio smoke: 182 original Ogg containers; "
+                     "music, MainMenu2 click, and gameplay decode; PCM "
+                     "signal, mixing, legacy volumes, pause/resume, loop "
+                     "boundary, device events, and release passed\n";
+    }
+
+    auto loadAudio = [&](std::string_view legacyPath,
+                         r3d::audio::SoundInfo& info) {
+        try
+        {
+            return audio.loadOgg(
+                resources->resolve(dataAudioPath(legacyPath)), info,
+                audioError);
+        }
+        catch (const std::exception& exception)
+        {
+            audioError = exception.what();
+            return r3d::audio::invalidSound;
+        }
+    };
+
+    r3d::audio::SoundInfo musicInfo;
+    r3d::audio::SoundInfo clickInfo;
+    const auto musicSound =
+        loadAudio(originalaudio::menuTracks[0].path, musicInfo);
+    const auto clickSound =
+        musicSound == r3d::audio::invalidSound
+            ? r3d::audio::invalidSound
+            : loadAudio(originalaudio::mainButtonClick, clickInfo);
+    if (musicSound == r3d::audio::invalidSound ||
+        clickSound == r3d::audio::invalidSound)
+    {
+        std::cerr << "Original MainMenu2 audio loading failed: "
+                  << audioError << '\n';
+        audio.shutdown();
+        releaseResources();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+
+    audio.setMasterVolume(1.0F);
+    audio.setBusVolume(r3d::audio::Bus::Music,
+                       originalaudio::defaultMusicVolume);
+    audio.setBusVolume(r3d::audio::Bus::Effects,
+                       originalaudio::defaultEffectsVolume);
+    audio.setBusVolume(r3d::audio::Bus::Voice,
+                       originalaudio::defaultVoiceVolume);
+    r3d::audio::PlayOptions musicOptions;
+    musicOptions.bus = r3d::audio::Bus::Music;
+    musicOptions.loop = true;
+    const auto musicVoice = audio.play(musicSound, musicOptions, audioError);
+    if (musicVoice == r3d::audio::invalidVoice)
+    {
+        std::cerr << "Original menu music start failed: " << audioError
+                  << '\n';
+        audio.shutdown();
+        releaseResources();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+
+    std::cout << "Original menu music: Data/"
+              << originalaudio::menuTracks[0].path << " ("
+              << originalaudio::menuTracks[0].band << " - "
+              << originalaudio::menuTracks[0].name << "), "
+              << musicInfo.durationSeconds << " s; MainMenu2 ssButton1: Data/"
+              << originalaudio::mainButtonClick << '\n';
+
+    auto playMainButtonClick = [&]() {
+        r3d::audio::PlayOptions clickOptions;
+        clickOptions.bus = r3d::audio::Bus::Effects;
+        std::string clickError;
+        if (audio.play(clickSound, clickOptions, clickError) ==
+            r3d::audio::invalidVoice)
+        {
+            SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO,
+                        "Unable to play original MainMenu2 click: %s",
+                        clickError.c_str());
+            return false;
+        }
+        return true;
+    };
+#endif
+
     PipelineState opaque;
     opaque.faceCulling = PipelineState::FaceCulling::None;
     opaque.writeDepth = false;
@@ -485,13 +655,62 @@ int main(int argc, char** argv)
     const Camera camera = makeCamera(*device);
 
     bool running = true;
+    bool runtimeSmokeFailed = false;
     std::uint32_t renderedFrames = 0;
     menu::Controller controller(model->items.size());
+#ifdef RRR3D_AUDIO
+    bool integratedAudioInputObserved = !options->audioSmokeTest;
+#endif
+#if defined(RRR3D_AUDIO) && defined(RRR3D_GAMEPAD_INPUT)
+    if (options->audioSmokeTest)
+    {
+        SDL_Event down{};
+        down.key.type = SDL_EVENT_KEY_DOWN;
+        down.key.down = true;
+        down.key.scancode = SDL_SCANCODE_DOWN;
+        SDL_Event confirm{};
+        confirm.key.type = SDL_EVENT_KEY_DOWN;
+        confirm.key.down = true;
+        confirm.key.scancode = SDL_SCANCODE_RETURN;
+        if (!SDL_PushEvent(&down) || !SDL_PushEvent(&confirm))
+        {
+            std::cerr << "Unable to queue integrated M8 menu/audio events: "
+                      << SDL_GetError() << '\n';
+            runtimeSmokeFailed = true;
+        }
+    }
+#endif
     while (running)
     {
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+#ifdef RRR3D_AUDIO
+            if ((event.type == SDL_EVENT_AUDIO_DEVICE_ADDED ||
+                 event.type == SDL_EVENT_AUDIO_DEVICE_REMOVED ||
+                 event.type == SDL_EVENT_AUDIO_DEVICE_FORMAT_CHANGED) &&
+                !event.adevice.recording)
+            {
+                if (event.type == SDL_EVENT_AUDIO_DEVICE_ADDED)
+                {
+                    audio.notifyPlaybackDeviceEvent(
+                        r3d::audio::PlaybackDeviceEvent::Added,
+                        event.adevice.which);
+                }
+                else if (event.type == SDL_EVENT_AUDIO_DEVICE_REMOVED)
+                {
+                    audio.notifyPlaybackDeviceEvent(
+                        r3d::audio::PlaybackDeviceEvent::Removed,
+                        event.adevice.which);
+                }
+                else
+                {
+                    audio.notifyPlaybackDeviceEvent(
+                        r3d::audio::PlaybackDeviceEvent::FormatChanged,
+                        event.adevice.which);
+                }
+            }
+#endif
 #ifdef RRR3D_GAMEPAD_INPUT
             bool pointerTargetsItem = true;
             if (event.type == SDL_EVENT_MOUSE_MOTION)
@@ -527,6 +746,20 @@ int main(int argc, char** argv)
                 const auto command = controller.handle(inputEvent);
                 if (!command)
                     continue;
+#ifdef RRR3D_AUDIO
+                // MainMenu2 creates these buttons with ssButton1. The legacy
+                // scheme plays click.ogg on press and has no navigation or
+                // hover sound, so only a successful confirm reaches here.
+                const bool clickStarted = playMainButtonClick();
+#if defined(RRR3D_GAMEPAD_INPUT)
+                if (options->audioSmokeTest && clickStarted &&
+                    *command == menu::Command::Network &&
+                    controller.selectedItem() == 1)
+                {
+                    integratedAudioInputObserved = true;
+                }
+#endif
+#endif
                 std::cout << "MainMenu2 command: "
                           << menu::commandName(*command) << " via "
                           << rrr3d::input::sourceName(inputEvent.source)
@@ -595,18 +828,36 @@ int main(int argc, char** argv)
         if (options->smokeFrames != 0 &&
             renderedFrames >= options->smokeFrames)
         {
-#ifdef RRR3D_GAMEPAD_INPUT
+#ifdef RRR3D_AUDIO
+            if (!integratedAudioInputObserved)
+            {
+                std::cerr << "Milestone 8 integrated input/MainMenu2/audio "
+                             "dispatch was not observed\n";
+                runtimeSmokeFailed = true;
+            }
+            else
+            {
+                std::cout << "Milestone 8 original MainMenu2/input/audio/"
+                             "bgfx/Metal smoke test completed after "
+                          << renderedFrames << " frames\n";
+            }
+#elif defined(RRR3D_GAMEPAD_INPUT)
             std::cout << "Milestone 7 original MainMenu2/input/bgfx/Metal "
                          "smoke test completed after "
 #else
             std::cout << "Milestone 6 original MainMenu2/bgfx/Metal smoke "
                          "test completed after "
 #endif
+#ifndef RRR3D_AUDIO
                       << renderedFrames << " frames\n";
+#endif
             running = false;
         }
     }
 
+#ifdef RRR3D_AUDIO
+    audio.shutdown();
+#endif
     releaseResources();
     device.reset();
     SDL_DestroyWindow(window);
@@ -614,5 +865,5 @@ int main(int argc, char** argv)
     input.shutdown();
 #endif
     SDL_Quit();
-    return EXIT_SUCCESS;
+    return runtimeSmokeFailed ? EXIT_FAILURE : EXIT_SUCCESS;
 }

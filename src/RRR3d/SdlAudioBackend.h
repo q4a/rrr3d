@@ -84,6 +84,7 @@ class SdlAudioBackend final : public r3d::audio::AudioBackend
 	float masterVolume_ = 1.0F;
 	float musicVolume_ = 1.0F;
 	float effectsVolume_ = 1.0F;
+	float voiceVolume_ = 1.0F;
 	bool paused_ = false;
 	std::atomic_bool running_{false};
 	std::atomic_uint64_t mixedFrames_{0};

@@ -1,25 +1,28 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
-> **Исправленный активный статус:** Milestone 5–7 переделаны от исходных
+> **Исправленный активный статус:** Milestone 5–8 переделаны от исходных
 > ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
 > bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки.
 > M7 подключает к этому же меню SDL3 keyboard/mouse/gamepad input и общий с
-> legacy `MainMenu2.cpp` порядок команд. Старые M6–M10 ниже остаются историей
-> отменённого самостоятельного vertical slice и не являются acceptance
-> status.
+> legacy `MainMenu2.cpp` порядок команд. M8 воспроизводит исходную музыку
+> меню и штатный `ssButton1/click.ogg` через SDL3/CoreAudio, а также проверяет
+> реальные игровые эффекты. Старые M6–M10 ниже остаются историей отменённого
+> самостоятельного vertical slice и не являются acceptance status.
 
 ## Активный этап
 
-Milestone 7: ввод SDL3 для оригинального главного меню на bgfx/Metal.
+Milestone 8: SDL3/CoreAudio для оригинального главного меню на bgfx/Metal.
 
 ## Активный статус
 
-Preset `macos-arm64-m7` продолжает исправленный M6-путь и не использует
+Preset `macos-arm64-m8` продолжает исправленный M7-путь и не использует
 `PortableMenu`, `menu/menu.cfg` или `font5x7`. Навигация, pointer hit-testing,
-gamepad hot-plug и dispatch команд работают через SDL-независимые actions.
-Подробный текущий отчёт находится в `docs/ORIGINAL_MAIN_MENU_M7.md`. Полные
-экраны, в которые ведут пункты `SinglePlayer`, `Network`, `Options` и
-`Authors`, ещё не перенесены и не подменяются фиктивной реализацией.
+gamepad hot-plug и dispatch команд продолжают работать через SDL-независимые
+actions. Меню играет исходный `Track1.ogg`, а подтверждение использует тот же
+`Sounds\\UI\\click.ogg`, что и legacy `Menu::ssButton1`. Подробный отчёт —
+`docs/ORIGINAL_AUDIO_M8.md`. Игровой `fireGun.ogg` декодируется и проверяется,
+но не проигрывается искусственно в меню: его настоящий consumer появится
+вместе с гонкой.
 
 ## Исторический отчёт отменённого vertical slice
 

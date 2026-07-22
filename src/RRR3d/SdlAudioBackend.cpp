@@ -147,8 +147,14 @@ void SdlAudioBackend::shutdown() noexcept
 	voices_.clear();
 	sounds_.clear();
 	paused_ = false;
+	masterVolume_ = 1.0F;
+	musicVolume_ = 1.0F;
+	effectsVolume_ = 1.0F;
+	voiceVolume_ = 1.0F;
 	nextSound_ = 1;
 	nextVoice_ = 1;
+	mixedFrames_.store(0, std::memory_order_relaxed);
+	playbackDeviceEvents_.store(0, std::memory_order_relaxed);
 }
 
 r3d::audio::SoundHandle SdlAudioBackend::loadOgg(const std::filesystem::path &path, r3d::audio::SoundInfo &info,
@@ -266,13 +272,27 @@ r3d::audio::SoundHandle SdlAudioBackend::loadOgg(const std::filesystem::path &pa
 	sound.info.sourceChannels = source_info->channels;
 	sound.info.mixerFrames = sound.samples.size() / mixerChannels;
 	sound.info.durationSeconds = static_cast<double>(source_frames) / static_cast<double>(source_info->rate);
+	long double squared_sum = 0.0L;
+	for (const float sample : sound.samples)
+	{
+		if (!std::isfinite(sample))
+		{
+			error = "Decoded Ogg/Vorbis resource contains non-finite PCM: ";
+			error += path.string();
+			return r3d::audio::invalidSound;
+		}
+		sound.info.peakAmplitude = std::max(sound.info.peakAmplitude, std::abs(sample));
+		squared_sum += static_cast<long double>(sample) * sample;
+	}
+	sound.info.rmsAmplitude = static_cast<float>(
+		std::sqrt(squared_sum / static_cast<long double>(sound.samples.size())));
 	info = sound.info;
 
 	std::lock_guard<std::mutex> lock(mutex_);
 	const auto handle = allocateSoundHandle();
 	if (handle == r3d::audio::invalidSound)
 	{
-		error = "No free portable audio sound handles";
+		error = "No free audio sound handles";
 		return r3d::audio::invalidSound;
 	}
 	sounds_.emplace(handle, std::move(sound));
@@ -311,7 +331,7 @@ r3d::audio::VoiceHandle SdlAudioBackend::play(r3d::audio::SoundHandle sound, con
 	const auto handle = allocateVoiceHandle();
 	if (handle == r3d::audio::invalidVoice)
 	{
-		error = "No free portable audio voice handles";
+		error = "No free audio voice handles";
 		return r3d::audio::invalidVoice;
 	}
 	voices_.emplace(handle, Voice{sound, 0, options.bus, clampVolume(options.volume), options.loop, options.paused});
@@ -385,16 +405,33 @@ float SdlAudioBackend::masterVolume() const noexcept
 void SdlAudioBackend::setBusVolume(r3d::audio::Bus bus, float volume) noexcept
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	if (bus == r3d::audio::Bus::Music)
+	switch (bus)
+	{
+	case r3d::audio::Bus::Music:
 		musicVolume_ = clampVolume(volume);
-	else
+		break;
+	case r3d::audio::Bus::Effects:
 		effectsVolume_ = clampVolume(volume);
+		break;
+	case r3d::audio::Bus::Voice:
+		voiceVolume_ = clampVolume(volume);
+		break;
+	}
 }
 
 float SdlAudioBackend::busVolume(r3d::audio::Bus bus) const noexcept
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	return bus == r3d::audio::Bus::Music ? musicVolume_ : effectsVolume_;
+	switch (bus)
+	{
+	case r3d::audio::Bus::Music:
+		return musicVolume_;
+	case r3d::audio::Bus::Effects:
+		return effectsVolume_;
+	case r3d::audio::Bus::Voice:
+		return voiceVolume_;
+	}
+	return 0.0F;
 }
 
 void SdlAudioBackend::notifyPlaybackDeviceEvent(r3d::audio::PlaybackDeviceEvent event, std::uint32_t device_id) noexcept
@@ -464,7 +501,11 @@ void SdlAudioBackend::mixAndQueue(SDL_AudioStream *stream, int additional_amount
 				}
 
 				const Sound &sound = sound_entry->second;
-				const float bus_volume = voice.bus == r3d::audio::Bus::Music ? musicVolume_ : effectsVolume_;
+				float bus_volume = effectsVolume_;
+				if (voice.bus == r3d::audio::Bus::Music)
+					bus_volume = musicVolume_;
+				else if (voice.bus == r3d::audio::Bus::Voice)
+					bus_volume = voiceVolume_;
 				const float gain = masterVolume_ * bus_volume * voice.volume;
 				bool finished = false;
 				for (int frame = 0; frame < frame_count; ++frame)
@@ -509,7 +550,9 @@ void SdlAudioBackend::mixAndQueue(SDL_AudioStream *stream, int additional_amount
 
 float SdlAudioBackend::clampVolume(float value) noexcept
 {
-	return std::clamp(value, 0.0F, 1.0F);
+	if (!std::isfinite(value))
+		return 0.0F;
+	return std::clamp(value, 0.0F, r3d::audio::maximumVolume);
 }
 
 r3d::audio::VoiceHandle SdlAudioBackend::allocateVoiceHandle() noexcept

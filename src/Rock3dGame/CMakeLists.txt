@@ -32,6 +32,7 @@ else()
         include/InputActions.h
         include/PortableGame.h
         include/PortableInput.h
+        include/OriginalAudioSpec.h
         include/MainMenu2Spec.h
         include/Rock3dGame.h
         include/IWorld.h

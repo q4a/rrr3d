@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "OriginalAudioSpec.h"
 #include "game/World.h"
 
 #include "game/Menu.h"
@@ -36,10 +37,10 @@ Menu::Menu(GameMode* game): _game(game), _state(msMain2), _loadingVisible(false)
 	for (int i = 0; i < cSoundShemeTypeEnd; ++i)
 		_soundShemes[i] = new SoundSheme(this);
 
-	_soundShemes[ssButton1]->clickDown(GetSound("Sounds\\UI\\click.ogg"));
+	_soundShemes[ssButton1]->clickDown(GetSound(originalaudio::mainButtonClick));
 
-	_soundShemes[ssButton2]->clickDown(GetSound("Sounds\\UI\\click.ogg"));
-	_soundShemes[ssButton2]->mouseEnter(GetSound("Sounds\\UI\\navedenie.ogg"));
+	_soundShemes[ssButton2]->clickDown(GetSound(originalaudio::mainButtonClick));
+	_soundShemes[ssButton2]->mouseEnter(GetSound(originalaudio::rollover));
 
 	_soundShemes[ssButton3]->clickDown(GetSound("Sounds\\UI\\pickup_down.ogg"));
 

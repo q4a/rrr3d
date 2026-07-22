@@ -1,11 +1,14 @@
 #include "SdlAudioSmoke.h"
 
+#include "OriginalAudioSpec.h"
 #include "SdlAudioBackend.h"
 #include "resource/ResourceFileSystem.h"
 
 #include <SDL3/SDL_timer.h>
 
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <string_view>
 #include <utility>
@@ -20,6 +23,13 @@ bool nearlyEqual(float left, float right) noexcept
 	return std::abs(left - right) < 0.0001F;
 }
 
+std::string dataResourcePath(std::string_view legacyPath)
+{
+	std::string path = "Data\\";
+	path.append(legacyPath);
+	return path;
+}
+
 bool waitUntil(const std::function<bool()> &predicate, std::uint64_t timeout_ms)
 {
 	const std::uint64_t deadline = SDL_GetTicks() + timeout_ms;
@@ -32,11 +42,58 @@ bool waitUntil(const std::function<bool()> &predicate, std::uint64_t timeout_ms)
 	return predicate();
 }
 
+bool auditOggDirectory(const std::filesystem::path &directory,
+                       std::size_t expectedCount, std::string &error)
+{
+	std::size_t count = 0;
+	std::error_code iterator_error;
+	for (std::filesystem::recursive_directory_iterator iterator(directory, iterator_error), end;
+	     !iterator_error && iterator != end; iterator.increment(iterator_error))
+	{
+		if (!iterator->is_regular_file() || iterator->path().extension() != ".ogg")
+			continue;
+		++count;
+		std::ifstream stream(iterator->path(), std::ios::binary);
+		char capture_pattern[4]{};
+		if (!stream.read(capture_pattern, sizeof(capture_pattern)) ||
+		    std::string_view(capture_pattern, sizeof(capture_pattern)) != "OggS")
+		{
+			error = "Invalid Ogg capture pattern: ";
+			error += iterator->path().string();
+			return false;
+		}
+	}
+	if (iterator_error)
+	{
+		error = "Unable to audit original Ogg directory: ";
+		error += iterator_error.message();
+		return false;
+	}
+	if (count != expectedCount)
+	{
+		error = "Original Ogg count mismatch in ";
+		error += directory.string();
+		error += ": expected ";
+		error += std::to_string(expectedCount);
+		error += ", found ";
+		error += std::to_string(count);
+		return false;
+	}
+	return true;
+}
+
 } // namespace
 
 bool runSdlAudioSmokeTest(SdlAudioBackend &audio, const r3d::resource::ResourceFileSystem &resources,
                           std::string &error)
 {
+	if (!auditOggDirectory(resources.root() / "Data/Music", 16, error) ||
+	    !auditOggDirectory(resources.root() / "Data/Sounds", 46, error) ||
+	    !auditOggDirectory(resources.root() / "Data/Voice", 120, error))
+	{
+		return false;
+	}
+
 	const auto baseline = audio.statistics();
 	r3d::audio::SoundHandle music = r3d::audio::invalidSound;
 	r3d::audio::SoundHandle click = r3d::audio::invalidSound;
@@ -53,16 +110,17 @@ bool runSdlAudioSmokeTest(SdlAudioBackend &audio, const r3d::resource::ResourceF
 		audio.setMasterVolume(1.0F);
 		audio.setBusVolume(r3d::audio::Bus::Music, 1.0F);
 		audio.setBusVolume(r3d::audio::Bus::Effects, 1.0F);
+		audio.setBusVolume(r3d::audio::Bus::Voice, 1.0F);
 	};
 	auto fail = [&](std::string message) {
 		error = std::move(message);
 		cleanup();
 		return false;
 	};
-	auto load = [&](std::string_view virtual_path, r3d::audio::SoundInfo &info) {
+	auto load = [&](std::string_view legacy_path, r3d::audio::SoundInfo &info) {
 		try
 		{
-			return audio.loadOgg(resources.resolve(virtual_path), info, error);
+			return audio.loadOgg(resources.resolve(dataResourcePath(legacy_path)), info, error);
 		}
 		catch (const std::exception &exception)
 		{
@@ -72,36 +130,48 @@ bool runSdlAudioSmokeTest(SdlAudioBackend &audio, const r3d::resource::ResourceF
 	};
 
 	r3d::audio::SoundInfo music_info;
-	music = load("Data/Music/Track1.ogg", music_info);
+	music = load(r3d::game::originalaudio::menuTracks[0].path, music_info);
 	if (music == r3d::audio::invalidSound)
 		return fail("Music decode failed: " + error);
 	if (music_info.sourceSampleRate != 44100 || music_info.sourceChannels != 2 || music_info.durationSeconds < 60.0 ||
-	    music_info.mixerFrames == 0)
+	    music_info.mixerFrames == 0 || music_info.peakAmplitude <= 0.0F || music_info.rmsAmplitude <= 0.0F)
 	{
 		return fail("Decoded Track1.ogg metadata is invalid");
 	}
 
 	r3d::audio::SoundInfo click_info;
-	click = load("Data/Sounds/UI/click.ogg", click_info);
+	click = load(r3d::game::originalaudio::mainButtonClick, click_info);
 	if (click == r3d::audio::invalidSound)
 		return fail("UI effect decode failed: " + error);
-	if (click_info.durationSeconds <= 0.05 || click_info.durationSeconds >= 1.0 || click_info.mixerFrames == 0)
+	if (click_info.durationSeconds <= 0.05 || click_info.durationSeconds >= 1.0 || click_info.mixerFrames == 0 ||
+	    click_info.peakAmplitude <= 0.0F || click_info.rmsAmplitude <= 0.0F)
 		return fail("Decoded click.ogg metadata is invalid");
 
 	r3d::audio::SoundInfo gameplay_info;
-	gameplay_effect = load("Data/Sounds/fireGun.ogg", gameplay_info);
+	gameplay_effect = load(r3d::game::originalaudio::fireGun, gameplay_info);
 	if (gameplay_effect == r3d::audio::invalidSound)
 		return fail("Gameplay effect decode failed: " + error);
-	if (gameplay_info.durationSeconds < 1.0 || gameplay_info.mixerFrames == 0)
+	if (gameplay_info.durationSeconds < 1.0 || gameplay_info.mixerFrames == 0 ||
+	    gameplay_info.peakAmplitude <= 0.0F || gameplay_info.rmsAmplitude <= 0.0F)
 		return fail("Decoded fireGun.ogg metadata is invalid");
 
-	audio.setMasterVolume(2.0F);
-	audio.setBusVolume(r3d::audio::Bus::Music, 0.25F);
-	audio.setBusVolume(r3d::audio::Bus::Effects, 0.75F);
-	if (!nearlyEqual(audio.masterVolume(), 1.0F) || !nearlyEqual(audio.busVolume(r3d::audio::Bus::Music), 0.25F) ||
-	    !nearlyEqual(audio.busVolume(r3d::audio::Bus::Effects), 0.75F))
+	audio.setMasterVolume(3.0F);
+	audio.setBusVolume(r3d::audio::Bus::Music, r3d::game::originalaudio::defaultMusicVolume);
+	audio.setBusVolume(r3d::audio::Bus::Effects, r3d::game::originalaudio::defaultEffectsVolume);
+	audio.setBusVolume(r3d::audio::Bus::Voice, -1.0F);
+	if (!nearlyEqual(audio.busVolume(r3d::audio::Bus::Voice), 0.0F))
+		return fail("Negative voice volume did not clamp to zero");
+	audio.setBusVolume(r3d::audio::Bus::Voice,
+	                   r3d::game::originalaudio::defaultVoiceVolume);
+	if (!nearlyEqual(audio.masterVolume(), r3d::audio::maximumVolume) ||
+	    !nearlyEqual(audio.busVolume(r3d::audio::Bus::Music),
+	                 r3d::game::originalaudio::defaultMusicVolume) ||
+	    !nearlyEqual(audio.busVolume(r3d::audio::Bus::Effects),
+	                 r3d::game::originalaudio::defaultEffectsVolume) ||
+	    !nearlyEqual(audio.busVolume(r3d::audio::Bus::Voice),
+	                 r3d::game::originalaudio::defaultVoiceVolume))
 	{
-		return fail("Master/music/effects volume controls did not retain clamped values");
+		return fail("Master/music/effects/voice volume controls did not retain clamped values");
 	}
 
 	r3d::audio::PlayOptions music_options;
@@ -131,6 +201,16 @@ bool runSdlAudioSmokeTest(SdlAudioBackend &audio, const r3d::resource::ResourceF
 		return fail("One-shot UI effect did not finish and release its voice");
 	if (!audio.isVoiceActive(music_voice))
 		return fail("Looping music voice stopped unexpectedly");
+
+	const auto click_loop = audio.play(
+		click, {r3d::audio::Bus::Effects, 1.0F, true, false}, error);
+	if (click_loop == r3d::audio::invalidVoice)
+		return fail("Unable to create a looping UI effect voice: " + error);
+	const auto loop_boundary_ms = static_cast<std::uint64_t>(
+		std::ceil(click_info.durationSeconds * 1000.0)) + 150;
+	SDL_Delay(static_cast<std::uint32_t>(loop_boundary_ms));
+	if (!audio.isVoiceActive(click_loop) || !audio.stop(click_loop))
+		return fail("Looping voice did not survive and stop after a sample boundary");
 
 	const auto gameplay_voice = audio.play(gameplay_effect, {r3d::audio::Bus::Effects, 0.6F, false, false}, error);
 	if (gameplay_voice == r3d::audio::invalidVoice || !audio.unloadSound(gameplay_effect) ||

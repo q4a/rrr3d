@@ -1,5 +1,9 @@
 # Portable audio Milestone 8
 
+> **Superseded historical report.** This file describes audio attached to the
+> cancelled standalone portable vertical slice and is not the corrected M8
+> acceptance status. See `docs/ORIGINAL_AUDIO_M8.md`.
+
 ## Результат
 
 Milestone 8 добавляет настоящий macOS audio path поверх SDL3 Audio/CoreAudio.

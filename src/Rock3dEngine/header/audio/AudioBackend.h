@@ -17,8 +17,13 @@ constexpr VoiceHandle invalidVoice = 0;
 enum class Bus
 {
 	Music,
-	Effects
+	Effects,
+	Voice
 };
+
+// Matches the 0..2 gain range exposed by the original options UI. The final
+// mixer still limits output samples to [-1, 1].
+constexpr float maximumVolume = 2.0F;
 
 enum class PlaybackDeviceEvent
 {
@@ -33,6 +38,8 @@ struct SoundInfo
 	int sourceChannels = 0;
 	std::uint64_t mixerFrames = 0;
 	double durationSeconds = 0.0;
+	float peakAmplitude = 0.0F;
+	float rmsAmplitude = 0.0F;
 };
 
 struct PlayOptions
