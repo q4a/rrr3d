@@ -20,7 +20,7 @@ private:
 		int catIndex;
 	};
 
-	class DelDataFunc: public std::unary_function<HTREEITEM, bool>
+	class DelDataFunc
 	{
 	private:
 		CFileView* _view;
@@ -37,7 +37,7 @@ private:
 			return false;
 		}
 	};
-	class FindItemByMapObjFunc: public std::unary_function<HTREEITEM, bool>
+	class FindItemByMapObjFunc
 	{
 	private:
 		CFileView* _view;
