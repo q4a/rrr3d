@@ -31,6 +31,7 @@ else()
         source/stub/PortableGame.cpp
         include/PortableGame.h
         include/PortableInput.h
+        include/MainMenu2Spec.h
         include/Rock3dGame.h
         include/IWorld.h
         include/IView.h
@@ -39,6 +40,12 @@ else()
         list(APPEND _rrr3d_portable_game_sources
             source/stub/PortableMenu.cpp
             include/PortableMenu.h
+        )
+    endif()
+    if(RRR3D_BUILD_ORIGINAL_MENU)
+        list(APPEND _rrr3d_portable_game_sources
+            source/stub/OriginalMainMenu.cpp
+            include/OriginalMainMenu.h
         )
     endif()
     if(RRR3D_ENABLE_PHYSICS)

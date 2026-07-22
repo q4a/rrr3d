@@ -11,7 +11,9 @@ option(RRR3D_BUILD_DXVK_MOLTENVK_TEST
 option(RRR3D_BUILD_BGFX_SCENE
     "Build the Milestone 5 static 3D scene with the portable renderer" OFF)
 option(RRR3D_BUILD_PORTABLE_MENU
-    "Build the Milestone 6 resource-backed main menu" OFF)
+    "Build the superseded portable vertical-slice menu" OFF)
+option(RRR3D_BUILD_ORIGINAL_MENU
+    "Build the Milestone 6 original ResourceManager/MainMenu2 renderer slice" OFF)
 option(RRR3D_BUILD_MACOS_BUNDLE
     "Package the portable game as an autonomous macOS application bundle" OFF)
 option(RRR3D_ENABLE_RENDERER "Enable the game renderer" OFF)
@@ -60,15 +62,27 @@ elseif(RRR3D_MACOS_HARDENED_RUNTIME)
         "RRR3D_MACOS_HARDENED_RUNTIME requires RRR3D_BUILD_MACOS_BUNDLE=ON")
 endif()
 
-if(RRR3D_BUILD_BGFX_SCENE AND RRR3D_BUILD_PORTABLE_MENU)
+if(RRR3D_BUILD_BGFX_SCENE AND
+   (RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU))
     message(FATAL_ERROR
-        "RRR3D_BUILD_BGFX_SCENE and RRR3D_BUILD_PORTABLE_MENU are separate "
+        "The Milestone 5 scene and menu entry points are separate "
         "milestone entry points and cannot be enabled together")
+endif()
+
+if(RRR3D_BUILD_PORTABLE_MENU AND RRR3D_BUILD_ORIGINAL_MENU)
+    message(FATAL_ERROR
+        "The original Milestone 6 menu cannot be combined with the "
+        "superseded portable vertical slice")
 endif()
 
 if(RRR3D_BUILD_PORTABLE_MENU AND NOT RRR3D_BUILD_GAME)
     message(FATAL_ERROR
         "RRR3D_BUILD_PORTABLE_MENU requires RRR3D_BUILD_GAME=ON")
+endif()
+
+if(RRR3D_BUILD_ORIGINAL_MENU AND NOT RRR3D_BUILD_GAME)
+    message(FATAL_ERROR
+        "RRR3D_BUILD_ORIGINAL_MENU requires RRR3D_BUILD_GAME=ON")
 endif()
 
 if(RRR3D_ENABLE_PHYSICS AND NOT WIN32 AND NOT RRR3D_BUILD_PORTABLE_MENU)
@@ -83,7 +97,8 @@ if(RRR3D_ENABLE_PHYSICS AND NOT WIN32 AND NOT RRR3D_ENABLE_GAMEPAD)
         "RRR3D_ENABLE_GAMEPAD=ON for the SDL3 action layer")
 endif()
 
-if(RRR3D_BUILD_BGFX_SCENE OR RRR3D_BUILD_PORTABLE_MENU)
+if(RRR3D_BUILD_BGFX_SCENE OR RRR3D_BUILD_PORTABLE_MENU OR
+   RRR3D_BUILD_ORIGINAL_MENU)
     if(NOT RRR3D_ENABLE_RENDERER OR
        NOT RRR3D_RENDERER_BACKEND STREQUAL "bgfx")
         message(FATAL_ERROR

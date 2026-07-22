@@ -1,0 +1,30 @@
+#pragma once
+
+#include "MainMenu2Spec.h"
+
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace rrr3d::macos
+{
+
+struct TextBitmap
+{
+    std::uint16_t width = 0;
+    std::uint16_t height = 0;
+    std::vector<std::uint8_t> rgba;
+    std::string resolvedFontName;
+};
+
+TextBitmap rasterizeText(std::string_view utf8,
+                         std::string_view requestedFont,
+                         float pointSize, bool bold,
+                         r3d::game::mainmenu2::Rgba8 color);
+
+// Mirrors the legacy GameMode::AutodetectLanguage decision for the two
+// localized resource sets currently accepted by the Milestone 6 slice.
+std::string preferredGameLanguage();
+
+} // namespace rrr3d::macos

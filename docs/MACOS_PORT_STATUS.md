@@ -1,25 +1,24 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
-> **Исправление статуса (Milestone 5):** прежние M6–M10 представляли собой
-> отдельный vertical slice и не являются завершённым портом Motor Rock.
-> Активная реализация возвращена к Milestone 5. Теперь bgfx entry point
-> отображает исходные `buggi.r3d` и `buggiWheel.r3d`, оригинальную DDS-текстуру
-> и штатные координаты колёс через общий `.r3d` decoder. Все более поздние
-> заявления о завершении ниже сохранены только как история отменённой попытки
-> и не должны использоваться как acceptance status.
+> **Исправленный активный статус:** Milestone 5 и Milestone 6 переделаны от
+> исходных ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
+> bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки,
+> проверяет полный набор игровых данных и использует общую спецификацию с
+> legacy `MainMenu2.cpp`. Старые M6–M10 ниже остаются историей отменённого
+> самостоятельного vertical slice и не являются acceptance status.
 
-## Этап
+## Активный этап
 
-Milestone 10: автономный `RRR3d.app` для Apple Silicon. Milestones 1–9
-остаются зелёными.
+Milestone 6: оригинальное главное меню и игровые ресурсы на bgfx/Metal.
 
-## Статус
+## Активный статус
 
-Выполнен. Presets `macos-arm64-m10` и `macos-arm64-release` собирают полный M9
-runtime как `RRR3d.app`: arm64 executable, `Info.plist`, original-derived
-`.icns`, `Contents/Frameworks`, 1200 packaged game-data files, licence notices и локальная
-ad-hoc подпись. Bundle не содержит сторонних dylib, находит game-data после
-перемещения и прошёл запуск через LaunchServices с race/render smoke.
+Preset `macos-arm64-m6` больше не использует `PortableMenu`, `menu/menu.cfg`
+или `font5x7`. Подробный текущий отчёт находится в
+`docs/ORIGINAL_MAIN_MENU_M6.md`. Полный legacy `gui::Manager` ещё не перенесён;
+события и переходы меню относятся к следующему Milestone 7.
+
+## Исторический отчёт отменённого vertical slice
 
 Milestone 4 был выполнен как аргументированный отказ от DXVK Native + MoltenVK backend.
 Отдельный `rrr3d_dxvk_moltenvk_test` собирается и запускается на Apple Silicon,

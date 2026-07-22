@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "MainMenu2Spec.h"
 #include "game/Menu.h"
 
 #include "game/MainMenu2.h"
@@ -1923,7 +1924,10 @@ MainFrame::MainFrame(Menu* menu, MainMenu* mainMenu, gui::Widget* parent): MenuF
 
 void MainFrame::OnShow(bool value)
 {
-	const lsl::string menuItemsStr[cMenuItemEnd] = {_SC(svSingleGame), _SC(svNetGame), _SC(svOptions), _SC(svAuthors), _SC(svExit)};
+	const lsl::string menuItemsStr[cMenuItemEnd] = {
+		mainmenu2::itemStringKeys[0], mainmenu2::itemStringKeys[1],
+		mainmenu2::itemStringKeys[2], mainmenu2::itemStringKeys[3],
+		mainmenu2::itemStringKeys[4]};
 
 	if (value)
 	{
@@ -1977,19 +1981,19 @@ MainMenu::MainMenu(Menu* menu, gui::Widget* parent): _menu(menu), _state(msMain)
 	_root = _menu->GetGUI()->CreateDummy();
 	_root->SetParent(parent);
 
-	_winFrame = _menu->CreatePlane(_root, NULL, "GUI\\mainFrame.dds", true);
+	_winFrame = _menu->CreatePlane(_root, NULL, mainmenu2::background, true);
 	_winFrame->SetAnchor(gui::Widget::waCenter);
 	_winFrame->GetMaterial().GetSampler().SetFiltering(graph::Sampler2d::sfLinear);
 
-	_topPanel = menu->CreatePlane(_root, NULL, "GUI\\topPanel5.png", true, IdentityVec2, gui::Material::bmTransparency);
+	_topPanel = menu->CreatePlane(_root, NULL, mainmenu2::topPanel, true, IdentityVec2, gui::Material::bmTransparency);
 	_topPanel->SetAlign(gui::Widget::waCenter);
 
-	_bottomPanel = menu->CreatePlane(_root, NULL, "GUI\\bottomPanel5.png", true, IdentityVec2, gui::Material::bmTransparency);
+	_bottomPanel = menu->CreatePlane(_root, NULL, mainmenu2::bottomPanel, true, IdentityVec2, gui::Material::bmTransparency);
 	_bottomPanel->SetAnchor(gui::Widget::waBottom);
 	_bottomPanel->SetAlign(gui::Widget::waBottom);
 	_bottomPanel->SetVisible(false);
 
-	_version = menu->CreateLabel("v. 1.2.0", _root, "VerySmall", NullVec2, gui::Text::haRight, gui::Text::vaBottom, clrWhite);
+	_version = menu->CreateLabel(mainmenu2::version, _root, mainmenu2::smallFont, NullVec2, gui::Text::haRight, gui::Text::vaBottom, clrWhite);
 
 	_mainFrame = new MainFrame(menu, this, _root);
 	_gameMode = new GameModeFrame(menu, this, _root);
@@ -2087,7 +2091,9 @@ void MainMenu::AdjustMenuItems(const glm::vec2& vpSize)
 			if (!_menuItems[i]->GetVisible())
 				continue;
 
-			_menuItems[i]->SetPos(vpSize.x/2 + 5, vpSize.y/2 - 100.0f + index * (_menuItems[i]->GetSize().y + 5));
+			_menuItems[i]->SetPos(vpSize.x/2 + mainmenu2::itemCenterOffsetX,
+				vpSize.y/2 + mainmenu2::firstItemOffsetY +
+				index * mainmenu2::itemSpacing);
 			++index;
 		}
 
@@ -2437,9 +2443,15 @@ Race::Profile* MainMenu::steamHostProfile() const
 
 gui::Button* MainMenu::CreateMenuButton(const lsl::string& name, gui::Widget* parent, gui::Widget::Event* guiEvent)
 {
-	const glm::vec4 color1(1.0f, 138.0f/255.0f, 112.0f/255.0f, 1.0f); // 0xffff8a70
+	const glm::vec4 color1(
+		mainmenu2::normalTextColor.red / 255.0f,
+		mainmenu2::normalTextColor.green / 255.0f,
+		mainmenu2::normalTextColor.blue / 255.0f,
+		mainmenu2::normalTextColor.alpha / 255.0f); // 0xffff8a70
 
-	gui::Button* button = _menu->CreateMenuButton(name, "Header", "", "GUI\\mainItemSel5.png", parent, guiEvent, IdentityVec2, gui::Button::bsSimple, color1, Menu::ssButton1);
+	gui::Button* button = _menu->CreateMenuButton(name, mainmenu2::headerFont,
+		"", mainmenu2::selection, parent, guiEvent, IdentityVec2,
+		gui::Button::bsSimple, color1, Menu::ssButton1);
 	button->SetSize(button->GetSelSize());
 	button->GetOrCreateTextSelMaterial()->SetColor(clrWhite);
 

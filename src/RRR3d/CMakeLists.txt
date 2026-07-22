@@ -18,7 +18,8 @@ if(WIN32)
         Rock3dGame
         ${CMAKE_SOURCE_DIR}/extern/directx/lib/d3dx9.lib
     )
-elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_BGFX_SCENE)
+elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
+       RRR3D_BUILD_BGFX_SCENE)
     set(_rrr3d_shader_source_dir "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
     if(RRR3D_BUILD_BGFX_SCENE)
         set(_rrr3d_vertex_shader_source
@@ -74,7 +75,9 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_BGFX_SCENE)
         VERBATIM
     )
 
-    if(RRR3D_BUILD_PORTABLE_MENU)
+    if(RRR3D_BUILD_ORIGINAL_MENU)
+        set(_rrr3d_bgfx_main main_bgfx_original_menu.cpp)
+    elseif(RRR3D_BUILD_PORTABLE_MENU)
         set(_rrr3d_bgfx_main main_bgfx_menu.cpp)
     else()
         set(_rrr3d_bgfx_main main_bgfx.cpp)
@@ -90,6 +93,26 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_BGFX_SCENE)
         "${_rrr3d_vertex_shader}"
         "${_rrr3d_fragment_shader}"
     )
+
+    if(RRR3D_BUILD_ORIGINAL_MENU)
+        if(NOT APPLE)
+            message(FATAL_ERROR
+                "The original Milestone 6 menu currently requires CoreText")
+        endif()
+        find_library(RRR3D_CORETEXT_FRAMEWORK CoreText REQUIRED)
+        find_library(RRR3D_COREGRAPHICS_FRAMEWORK CoreGraphics REQUIRED)
+        target_sources(${PROJECT_NAME} PRIVATE
+            CoreTextRasterizer.cpp
+            CoreTextRasterizer.h
+        )
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            ${RRR3D_CORETEXT_FRAMEWORK}
+            ${RRR3D_COREGRAPHICS_FRAMEWORK}
+        )
+        target_compile_definitions(${PROJECT_NAME} PRIVATE
+            RRR3D_ORIGINAL_MENU=1
+        )
+    endif()
 
     if(APPLE AND RRR3D_BUILD_MACOS_BUNDLE)
         set(_rrr3d_bundle_icon "${CMAKE_SOURCE_DIR}/resources/macos/RRR3d.icns")
@@ -201,7 +224,7 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_BGFX_SCENE)
             VERBATIM)
     endif()
 
-    if(RRR3D_BUILD_PORTABLE_MENU)
+    if(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU)
         set(_rrr3d_game_data_source "${CMAKE_SOURCE_DIR}/resources/game-data")
         file(GLOB_RECURSE _rrr3d_game_data_files CONFIGURE_DEPENDS
             "${_rrr3d_game_data_source}/*")
@@ -244,7 +267,7 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_BGFX_SCENE)
                 COMMAND ${CMAKE_COMMAND} -E copy_directory
                     "${_rrr3d_game_data_source}"
                     "$<TARGET_FILE_DIR:${PROJECT_NAME}>/game-data"
-                COMMENT "Copying validated portable game-data resources"
+                COMMENT "Copying original Motor Rock game-data resources"
                 VERBATIM)
         endif()
     endif()

@@ -1,7 +1,8 @@
 include(FetchContent)
 
 if(RRR3D_BUILD_SDL_SHELL OR RRR3D_BUILD_DXVK_MOLTENVK_TEST OR
-   RRR3D_BUILD_BGFX_SCENE OR RRR3D_BUILD_PORTABLE_MENU)
+   RRR3D_BUILD_BGFX_SCENE OR RRR3D_BUILD_PORTABLE_MENU OR
+   RRR3D_BUILD_ORIGINAL_MENU)
     if(APPLE)
         # Homebrew bottles are built for the host macOS version and can raise
         # the deployment target. Build the pinned source as arm64/macOS 13 so
@@ -38,7 +39,7 @@ if(RRR3D_BUILD_SDL_SHELL OR RRR3D_BUILD_DXVK_MOLTENVK_TEST OR
         set(SDL_VULKAN ${RRR3D_BUILD_DXVK_MOLTENVK_TEST}
             CACHE BOOL "Build SDL3 Vulkan support" FORCE)
         if(RRR3D_BUILD_DXVK_MOLTENVK_TEST OR RRR3D_BUILD_BGFX_SCENE OR
-           RRR3D_BUILD_PORTABLE_MENU)
+           RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU)
             set(_rrr3d_sdl_metal ON)
         else()
             set(_rrr3d_sdl_metal OFF)
