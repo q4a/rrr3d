@@ -1,0 +1,140 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<achievmentRoot>
+  <points>0</points>
+  <items>
+    <airblade classId="1">
+      <state>asUnlocked</state>
+      <price>40000</price>
+      <records>
+        <item0 lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</item0>
+        <item1 lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</item1>
+        <item2 lib="world\db\ctCar">world\db\root\ctCar\podushkaBoss</item2>
+        <item3 lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</item3>
+        <item4 lib="world\db\ctCar">world\db\root\ctCar\devildriverBoss</item4>
+      </records>
+    </airblade>
+    <armor4 classId="1">
+      <state>asUnlocked</state>
+      <price>20000</price>
+      <records />
+    </armor4>
+    <buggi classId="1">
+      <state>asUnlocked</state>
+      <price>5000</price>
+      <records>
+        <item0 lib="world\db\ctCar">world\db\root\ctCar\buggi</item0>
+      </records>
+    </buggi>
+    <droid classId="1">
+      <state>asUnlocked</state>
+      <price>15000</price>
+      <records>
+        <item0 lib="world\race\workshop">world\race\workshopRoot\workshop\droid</item0>
+      </records>
+    </droid>
+    <mustang classId="1">
+      <state>asUnlocked</state>
+      <price>10000</price>
+      <records>
+        <item0 lib="world\db\ctCar">world\db\root\ctCar\mustang</item0>
+      </records>
+    </mustang>
+    <phaser classId="1">
+      <state>asUnlocked</state>
+      <price>15000</price>
+      <records>
+        <item0 lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</item0>
+      </records>
+    </phaser>
+    <reflector classId="1">
+      <state>asUnlocked</state>
+      <price>10000</price>
+      <records>
+        <item0 lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</item0>
+      </records>
+    </reflector>
+    <tankchetti classId="1">
+      <state>asUnlocked</state>
+      <price>5000</price>
+      <records>
+        <item0 lib="world\db\ctCar">world\db\root\ctCar\tankchetti</item0>
+      </records>
+    </tankchetti>
+    <viper classId="2">
+      <state>asUnlocked</state>
+      <price>20000</price>
+      <gamerId>9</gamerId>
+    </viper>
+  </items>
+  <conditions>
+    <armored classId="9">
+      <reward>400</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+    </armored>
+    <breakRacer classId="6">
+      <reward>700</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+    </breakRacer>
+    <bulletProf classId="5">
+      <reward>400</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+    </bulletProf>
+    <devastator classId="3">
+      <reward>1000</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+      <killsNum>5</killsNum>
+    </devastator>
+    <doubleKill classId="2">
+      <reward>800</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+      <killsNum>2</killsNum>
+      <killsTime>4</killsTime>
+    </doubleKill>
+    <explosivo classId="1">
+      <reward>500</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+      <bonusType>btCharge</bonusType>
+    </explosivo>
+    <firstBlood classId="8">
+      <reward>400</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+    </firstBlood>
+    <medicate classId="1">
+      <reward>500</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+      <bonusType>btMedpack</bonusType>
+    </medicate>
+    <megaRacer classId="4">
+      <reward>800</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+      <place>1</place>
+    </megaRacer>
+    <moneyBags classId="1">
+      <reward>500</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+      <bonusType>btMoney</bonusType>
+    </moneyBags>
+    <survival classId="7">
+      <reward>400</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+    </survival>
+    <tripleKill classId="2">
+      <reward>1500</reward>
+      <iterNum>0</iterNum>
+      <iterCount>1</iterCount>
+      <killsNum>3</killsNum>
+      <killsTime>4</killsTime>
+    </tripleKill>
+  </conditions>
+</achievmentRoot>

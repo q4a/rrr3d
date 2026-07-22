@@ -29,19 +29,21 @@ void FileSystem::Release()
 
 template<class _T> std::basic_istream<_T, std::char_traits<_T>>* FileSystem::NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
-	std::ios_base::open_mode ioOpMode = std::ios_base::in;
+	std::ios_base::openmode ioOpMode = std::ios_base::in;
 	switch (openMode)
 	{
+	case omText:
+		break;
 	case omBinary:
-		ioOpMode += std::ios::binary;
+		ioOpMode |= std::ios::binary;
 		break;
 	}
 	ioOpMode |= (flags & cAppend) ? std::ios::app : 0;
 	ioOpMode |= (flags & cTruncate) ? std::ios::trunc : 0;
 
-	std::wstring path = GetAppFilePath(fileName);
+	std::filesystem::path path(GetAppFilePath(fileName));
 
-	std::basic_ifstream<_T, std::char_traits<_T>>* fs = new std::basic_ifstream<_T, std::char_traits<_T>>(path.c_str(), ioOpMode);
+	std::basic_ifstream<_T, std::char_traits<_T>>* fs = new std::basic_ifstream<_T, std::char_traits<_T>>(path, ioOpMode);
 	LSL_ASSERT(fs);
 
 	if (fs->fail())
@@ -60,20 +62,22 @@ template<class _T> std::basic_istream<_T, std::char_traits<_T>>* FileSystem::New
 
 template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* FileSystem::NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
-	std::ios_base::open_mode ioOpMode = std::ios_base::out;
+	std::ios_base::openmode ioOpMode = std::ios_base::out;
 	switch (openMode)
 	{
+	case omText:
+		break;
 	case omBinary:
-		ioOpMode += std::ios::binary;
+		ioOpMode |= std::ios::binary;
 		break;
 	}
 
 	ioOpMode |= (flags & cAppend) ? std::ios::app : 0;
 	ioOpMode |= (flags & cTruncate) ? std::ios::trunc : 0;
 
-	std::wstring path = GetAppFilePath(fileName);
+	std::filesystem::path path(GetAppFilePath(fileName));
 
-	std::basic_ofstream<_T, std::char_traits<_T>>* fs = new std::basic_ofstream<_T, std::char_traits<_T>>(path.c_str(), ioOpMode);
+	std::basic_ofstream<_T, std::char_traits<_T>>* fs = new std::basic_ofstream<_T, std::char_traits<_T>>(path, ioOpMode);
 	LSL_ASSERT(fs);
 
 	if (fs->fail())
@@ -92,35 +96,39 @@ template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* FileSystem::New
 
 std::istream* FileSystem::NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
-#ifdef _WIN32 // FIX_LINUX Rewrite FS
+#ifdef _WIN32
 	return NewInStream<std::istream::_Ctype::_Elem>(fileName, openMode, flags);
 #else
-	return NewInStream(fileName, openMode, flags);
+	return NewInStream<char>(fileName, openMode, flags);
 #endif
 }
 
-#ifdef _WIN32 // Not used at all
 std::wistream* FileSystem::NewInStreamW(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
+#ifdef _WIN32
 	return NewInStream<std::wistream::_Ctype::_Elem>(fileName, openMode, flags);
-}
+#else
+	return NewInStream<wchar_t>(fileName, openMode, flags);
 #endif
+}
 
 std::ostream* FileSystem::NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
-#ifdef _WIN32 // FIX_LINUX Rewrite FS
+#ifdef _WIN32
 	return NewOutStream<std::ostream::_Ctype::_Elem>(fileName, openMode, flags);
 #else
-	return NewOutStream(fileName, openMode, flags);
+	return NewOutStream<char>(fileName, openMode, flags);
 #endif
 }
 
-#ifdef _WIN32 // Not used at all
 std::wostream* FileSystem::NewOutStreamW(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
+#ifdef _WIN32
 	return NewOutStream<std::wostream::_Ctype::_Elem>(fileName, openMode, flags);
-}
+#else
+	return NewOutStream<wchar_t>(fileName, openMode, flags);
 #endif
+}
 
 void FileSystem::FreeStream(std::ios_base* stream)
 {
@@ -130,12 +138,14 @@ void FileSystem::FreeStream(std::ios_base* stream)
 
 bool FileSystem::FileExists(const std::string& fileName)
 {
-#ifdef _WIN32 // FIX_LINUX Rewrite FS
+#ifdef _WIN32
 	DWORD dwAttrib = GetFileAttributesW(GetAppFilePath(fileName).c_str());
 
 	return (dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY) == 0);
 #else
-	return true;
+	std::error_code error;
+	return std::filesystem::is_regular_file(
+		std::filesystem::path(GetAppFilePath(fileName)), error);
 #endif
 }
 
@@ -240,7 +250,7 @@ void Resource::SetDynamic(bool value)
 
 void FileResource::DoLoadFromStream(std::istream& stream, const std::string& fileExt)
 {
-	//свидетельствует о том что загрузчик не существует
+	//СЃРІРёРґРµС‚РµР»СЊСЃС‚РІСѓРµС‚ Рѕ С‚РѕРј С‡С‚Рѕ Р·Р°РіСЂСѓР·С‡РёРє РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚
 	assert(false);
 }
 

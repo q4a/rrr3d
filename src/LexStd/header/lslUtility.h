@@ -7,9 +7,7 @@
 #include "lslObject.h"
 #include "lslException.h"
 #include "lslContainer.h"
-#include "lslContainer.h"
 #include "xplatform.h"
-#include <windows.h>
 
 namespace lsl
 {
@@ -21,21 +19,21 @@ typedef char TCHAR;
 
 typedef lsl::Vector<string> StringVec;
 
-const TCHAR cStrLev = '\\';
+const TCHAR cStrLev = PATH_SEP;
 const TCHAR cStrComma = ',';
-const lsl::string cStrRLev = "..\\";
+const lsl::string cStrRLev = lsl::string("..") + PATH_SEP;
 
 #define ARRAY_LENGTH(arr) _countof(arr)
 
-//При использовании множественного виртуального наследования от абстрактных классов(интерфейсов) и при иерархичном наследовании реализаций этих самых интерфейсов может возникать ошибочный warning 4250 (warning C4250: 'Class2' : inherits 'Class1::Class1::Method1' via dominance). На самом деле какой именно(или иначе, по какому именно пути) метод наследуется не играет совершенно никакой роли, поскольку классы полностью абстрактны(т.е. главным образом не содержат релизаций этого метода) а также неследуются виртуально.
-////Выключить ошибочный warning
+//РџСЂРё РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРё РјРЅРѕР¶РµСЃС‚РІРµРЅРЅРѕРіРѕ РІРёСЂС‚СѓР°Р»СЊРЅРѕРіРѕ РЅР°СЃР»РµРґРѕРІР°РЅРёСЏ РѕС‚ Р°Р±СЃС‚СЂР°РєС‚РЅС‹С… РєР»Р°СЃСЃРѕРІ(РёРЅС‚РµСЂС„РµР№СЃРѕРІ) Рё РїСЂРё РёРµСЂР°СЂС…РёС‡РЅРѕРј РЅР°СЃР»РµРґРѕРІР°РЅРёРё СЂРµР°Р»РёР·Р°С†РёР№ СЌС‚РёС… СЃР°РјС‹С… РёРЅС‚РµСЂС„РµР№СЃРѕРІ РјРѕР¶РµС‚ РІРѕР·РЅРёРєР°С‚СЊ РѕС€РёР±РѕС‡РЅС‹Р№ warning 4250 (warning C4250: 'Class2' : inherits 'Class1::Class1::Method1' via dominance). РќР° СЃР°РјРѕРј РґРµР»Рµ РєР°РєРѕР№ РёРјРµРЅРЅРѕ(РёР»Рё РёРЅР°С‡Рµ, РїРѕ РєР°РєРѕРјСѓ РёРјРµРЅРЅРѕ РїСѓС‚Рё) РјРµС‚РѕРґ РЅР°СЃР»РµРґСѓРµС‚СЃСЏ РЅРµ РёРіСЂР°РµС‚ СЃРѕРІРµСЂС€РµРЅРЅРѕ РЅРёРєР°РєРѕР№ СЂРѕР»Рё, РїРѕСЃРєРѕР»СЊРєСѓ РєР»Р°СЃСЃС‹ РїРѕР»РЅРѕСЃС‚СЊСЋ Р°Р±СЃС‚СЂР°РєС‚РЅС‹(С‚.Рµ. РіР»Р°РІРЅС‹Рј РѕР±СЂР°Р·РѕРј РЅРµ СЃРѕРґРµСЂР¶Р°С‚ СЂРµР»РёР·Р°С†РёР№ СЌС‚РѕРіРѕ РјРµС‚РѕРґР°) Р° С‚Р°РєР¶Рµ РЅРµСЃР»РµРґСѓСЋС‚СЃСЏ РІРёСЂС‚СѓР°Р»СЊРЅРѕ.
+////Р’С‹РєР»СЋС‡РёС‚СЊ РѕС€РёР±РѕС‡РЅС‹Р№ warning
 //#pragma warning(disable : WARNING_MULTIPLE_VIRTUAL_INHERIT_C4250)
-////Восстановить умолчание
+////Р’РѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ СѓРјРѕР»С‡Р°РЅРёРµ
 //#pragma warning(default : WARNING_MULTIPLE_VIRTUAL_INHERIT_C4250)
 #define WARNING_MULTIPLE_VIRTUAL_INHERIT_C4250 4250
 
-//Базовый класс с поддержкой идентификации типа во время выполнения, а также сохранения идентификатора типа. Выступает в качестве супер класса (самого базового) для иерархии
-//Может быть также использован с целью получения несвязанных друг с другом интерфейсов(по его type), которые реализуются(поддерживаются) каким нибудь из классов иерархии. По аналогии с IUnknown::QueryInterface
+//Р‘Р°Р·РѕРІС‹Р№ РєР»Р°СЃСЃ СЃ РїРѕРґРґРµСЂР¶РєРѕР№ РёРґРµРЅС‚РёС„РёРєР°С†РёРё С‚РёРїР° РІРѕ РІСЂРµРјСЏ РІС‹РїРѕР»РЅРµРЅРёСЏ, Р° С‚Р°РєР¶Рµ СЃРѕС…СЂР°РЅРµРЅРёСЏ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂР° С‚РёРїР°. Р’С‹СЃС‚СѓРїР°РµС‚ РІ РєР°С‡РµСЃС‚РІРµ СЃСѓРїРµСЂ РєР»Р°СЃСЃР° (СЃР°РјРѕРіРѕ Р±Р°Р·РѕРІРѕРіРѕ) РґР»СЏ РёРµСЂР°СЂС…РёРё
+//РњРѕР¶РµС‚ Р±С‹С‚СЊ С‚Р°РєР¶Рµ РёСЃРїРѕР»СЊР·РѕРІР°РЅ СЃ С†РµР»СЊСЋ РїРѕР»СѓС‡РµРЅРёСЏ РЅРµСЃРІСЏР·Р°РЅРЅС‹С… РґСЂСѓРі СЃ РґСЂСѓРіРѕРј РёРЅС‚РµСЂС„РµР№СЃРѕРІ(РїРѕ РµРіРѕ type), РєРѕС‚РѕСЂС‹Рµ СЂРµР°Р»РёР·СѓСЋС‚СЃСЏ(РїРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ) РєР°РєРёРј РЅРёР±СѓРґСЊ РёР· РєР»Р°СЃСЃРѕРІ РёРµСЂР°СЂС…РёРё. РџРѕ Р°РЅР°Р»РѕРіРёРё СЃ IUnknown::QueryInterface
 template<class _Type> class SuperClass
 {
 private:
@@ -54,7 +52,7 @@ protected:
 public:
 	template<class _Class> bool Is(Type type, _Class** out)
 	{
-		//Инициализируем указатель на случай если он не был(чтобы не получить av при разыменовывании) а также проверяем на статическую совместимость типов
+		//РРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј СѓРєР°Р·Р°С‚РµР»СЊ РЅР° СЃР»СѓС‡Р°Р№ РµСЃР»Рё РѕРЅ РЅРµ Р±С‹Р»(С‡С‚РѕР±С‹ РЅРµ РїРѕР»СѓС‡РёС‚СЊ av РїСЂРё СЂР°Р·С‹РјРµРЅРѕРІС‹РІР°РЅРёРё) Р° С‚Р°РєР¶Рµ РїСЂРѕРІРµСЂСЏРµРј РЅР° СЃС‚Р°С‚РёС‡РµСЃРєСѓСЋ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚СЊ С‚РёРїРѕРІ
 		_MyClass* myClass = (*out = 0);
 		//
 		void* tmp;
@@ -73,7 +71,7 @@ public:
 	}
 };
 
-//Супер класс для ветки реализаций, включает кастование между реализациями. Интерфейс переходит именно к этому классу как к базовой реализации
+//РЎСѓРїРµСЂ РєР»Р°СЃСЃ РґР»СЏ РІРµС‚РєРё СЂРµР°Р»РёР·Р°С†РёР№, РІРєР»СЋС‡Р°РµС‚ РєР°СЃС‚РѕРІР°РЅРёРµ РјРµР¶РґСѓ СЂРµР°Р»РёР·Р°С†РёСЏРјРё. РРЅС‚РµСЂС„РµР№СЃ РїРµСЂРµС…РѕРґРёС‚ РёРјРµРЅРЅРѕ Рє СЌС‚РѕРјСѓ РєР»Р°СЃСЃСѓ РєР°Рє Рє Р±Р°Р·РѕРІРѕР№ СЂРµР°Р»РёР·Р°С†РёРё
 class VirtImpl
 {
 public:
@@ -88,14 +86,14 @@ public:
 		return static_cast<const _Class*>(this);
 	}
 
-	//Сравнивание реализаций. Может быть виртуально замещено
+	//РЎСЂР°РІРЅРёРІР°РЅРёРµ СЂРµР°Р»РёР·Р°С†РёР№. РњРѕР¶РµС‚ Р±С‹С‚СЊ РІРёСЂС‚СѓР°Р»СЊРЅРѕ Р·Р°РјРµС‰РµРЅРѕ
 	virtual bool Equal(const VirtImpl* value) const
 	{
 		return (this == value);
 	}
 };
 
-//Супер класс для ветки интерфейсов, включает переход к реализации
+//РЎСѓРїРµСЂ РєР»Р°СЃСЃ РґР»СЏ РІРµС‚РєРё РёРЅС‚РµСЂС„РµР№СЃРѕРІ, РІРєР»СЋС‡Р°РµС‚ РїРµСЂРµС…РѕРґ Рє СЂРµР°Р»РёР·Р°С†РёРё
 class ExternInterf: public virtual Object
 {
 private:
@@ -119,14 +117,14 @@ public:
 	}
 	*/
 
-	//Сравнивание интерфейсов. На практике реалзиация этих интерфейсов определяется результат
+	//РЎСЂР°РІРЅРёРІР°РЅРёРµ РёРЅС‚РµСЂС„РµР№СЃРѕРІ. РќР° РїСЂР°РєС‚РёРєРµ СЂРµР°Р»Р·РёР°С†РёСЏ СЌС‚РёС… РёРЅС‚РµСЂС„РµР№СЃРѕРІ РѕРїСЂРµРґРµР»СЏРµС‚СЃСЏ СЂРµР·СѓР»СЊС‚Р°С‚
 	bool Equal(const ExternInterf* value) const
 	{
 		return value ? GetConstImpl()->Equal(value->GetConstImpl()) : false;
 	}
 };
 
-//Ветка реализаций. Включает ссылку на внешний класс-реализацию (подход внешних интерфейсов)
+//Р’РµС‚РєР° СЂРµР°Р»РёР·Р°С†РёР№. Р’РєР»СЋС‡Р°РµС‚ СЃСЃС‹Р»РєСѓ РЅР° РІРЅРµС€РЅРёР№ РєР»Р°СЃСЃ-СЂРµР°Р»РёР·Р°С†РёСЋ (РїРѕРґС…РѕРґ РІРЅРµС€РЅРёС… РёРЅС‚РµСЂС„РµР№СЃРѕРІ)
 template<class _Inst> class ExternImpl: public VirtImpl
 {
 public:
@@ -156,7 +154,7 @@ public:
 		InstRelease(_inst);
 	}
 
-	//При сравнении внешних интерфейсов нужно сравнивать их реализации поскольку может существовать несколько внешних интрфейсов для одной реализации.
+	//РџСЂРё СЃСЂР°РІРЅРµРЅРёРё РІРЅРµС€РЅРёС… РёРЅС‚РµСЂС„РµР№СЃРѕРІ РЅСѓР¶РЅРѕ СЃСЂР°РІРЅРёРІР°С‚СЊ РёС… СЂРµР°Р»РёР·Р°С†РёРё РїРѕСЃРєРѕР»СЊРєСѓ РјРѕР¶РµС‚ СЃСѓС‰РµСЃС‚РІРѕРІР°С‚СЊ РЅРµСЃРєРѕР»СЊРєРѕ РІРЅРµС€РЅРёС… РёРЅС‚СЂС„РµР№СЃРѕРІ РґР»СЏ РѕРґРЅРѕР№ СЂРµР°Р»РёР·Р°С†РёРё.
 	virtual bool Equal(const VirtImpl* value) const
 	{
 		return (_inst == value->CastTo<ExternImpl<_Inst>>()->_inst);
@@ -172,7 +170,7 @@ public:
 	}
 };
 
-//Внешний итератор специально для IExternImplace, в случае необходимости перебирания элементов (например для списка)
+//Р’РЅРµС€РЅРёР№ РёС‚РµСЂР°С‚РѕСЂ СЃРїРµС†РёР°Р»СЊРЅРѕ РґР»СЏ IExternImplace, РІ СЃР»СѓС‡Р°Рµ РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё РїРµСЂРµР±РёСЂР°РЅРёСЏ СЌР»РµРјРµРЅС‚РѕРІ (РЅР°РїСЂРёРјРµСЂ РґР»СЏ СЃРїРёСЃРєР°)
 template<class _ExternImplace, class _Iterator> class ExternIterator
 {
 private:
@@ -428,14 +426,14 @@ template<class _Class, class _ClassMapList> void RegisterMapClass<_Class, _Class
 {
 }
 
-static Point& operator+(const Point& value1, const Point& value2)
+inline Point operator+(const Point& value1, const Point& value2)
 {
 	Point res(value1);
 
 	return res += value2;
 }
 
-static Point& operator-(const Point& value1, const Point& value2)
+inline Point operator-(const Point& value1, const Point& value2)
 {
 	Point res(value1);
 
@@ -444,49 +442,40 @@ static Point& operator-(const Point& value1, const Point& value2)
 
 inline double GetTimeDbl()
 {
-#ifdef _WIN32 // FIX_LINUX GetTickCount
+#ifdef _WIN32
 	__int64 gTime, freq;
 	QueryPerformanceCounter((LARGE_INTEGER*)&gTime);  // Get current count
 	QueryPerformanceFrequency((LARGE_INTEGER*)&freq); // Get processor freq
 
 	return gTime/static_cast<double>(freq);
 #else
-    return 0.0;
+	return rrr3d::platform::steady_seconds();
 #endif
 }
 
+#ifdef _MSC_VER
 #pragma warning(disable:4996)
+#endif
 
 inline string StrFmt(const TCHAR* value, ...)
 {
 	va_list arglist;
 	va_start(arglist, value);
 
-	const int cBufSize = 256;
-	TCHAR cBuf[cBufSize];
-	int bufSize = 1;
-	TCHAR* buf = 0;
-
-	int res = -1;
-	while (res == -1)
+	va_list countArgs;
+	va_copy(countArgs, arglist);
+	const int required = vsnprintf(0, 0, value, countArgs);
+	va_end(countArgs);
+	if (required < 0)
 	{
-		if (buf == 0)
-			buf = cBuf;
-		else
-		{
-			if (bufSize > 1)
-				delete[] buf;
-			buf = new TCHAR[(++bufSize) * cBufSize];
-		}
-
-		res = vsnprintf(buf, bufSize * cBufSize, value, arglist);
+		va_end(arglist);
+		throw lsl::Error("Unable to format string");
 	}
 
-	string ret(buf, res);
-	if (bufSize > 1)
-		delete[] buf;
-
-	return ret;
+	std::vector<TCHAR> buffer(static_cast<std::size_t>(required) + 1);
+	vsnprintf(buffer.data(), buffer.size(), value, arglist);
+	va_end(arglist);
+	return string(buffer.data(), static_cast<std::size_t>(required));
 }
 
 #ifdef _WIN32 // Not used at all
@@ -523,7 +512,9 @@ inline stringW StrFmtW(const wchar_t* value, ...)
 }
 #endif
 
+#ifdef _MSC_VER
 #pragma warning(default:4996)
+#endif
 
 inline void StrDelSpacesBi(string& str)
 {
@@ -585,22 +576,17 @@ inline string ExtractFileDir(const string& str, const TCHAR del = cStrLev)
 
 inline lsl::stringW ConvertStrAToW(const char* str, unsigned length, UINT codePage = CP_ACP)
 {
-#ifdef _WIN32 // FIX_LINUX MultiByteToWideChar
+#ifdef _WIN32
 	int num = MultiByteToWideChar(codePage, MB_PRECOMPOSED, str, length, 0, 0);
-#else
-	int num = mbstowcs(nullptr, str, length);
-#endif
-
 	lsl::stringW::value_type* resStr = new lsl::stringW::value_type[num];
-#ifdef _WIN32 // FIX_LINUX MultiByteToWideChar
 	MultiByteToWideChar(codePage, MB_PRECOMPOSED, str, length, resStr, num);
-#else
-	mbstowcs(resStr, str, length);
-#endif
 	lsl::stringW outStr(resStr, num);
 	delete[] resStr;
-
 	return outStr;
+#else
+	(void)codePage;
+	return rrr3d::platform::utf8_to_wide(std::string_view(str, length));
+#endif
 }
 
 inline lsl::stringW ConvertStrAToW(const lsl::stringA& str, UINT codePage = CP_ACP)
@@ -610,22 +596,17 @@ inline lsl::stringW ConvertStrAToW(const lsl::stringA& str, UINT codePage = CP_A
 
 inline lsl::stringA ConvertStrWToA(const wchar_t* str, unsigned length, UINT codePage = CP_ACP)
 {
-#ifdef _WIN32 // FIX_LINUX WideCharToMultiByte
+#ifdef _WIN32
 	int num = WideCharToMultiByte(codePage, WC_NO_BEST_FIT_CHARS, str, length, 0, 0, 0, 0);
-#else
-	int num = wcstombs(nullptr, str, length);
-#endif
-
 	lsl::stringA::value_type* resStr = new lsl::stringA::value_type[num];
-#ifdef _WIN32 // FIX_LINUX WideCharToMultiByte
 	WideCharToMultiByte(codePage, WC_NO_BEST_FIT_CHARS, str, length, resStr, num, 0, 0);
-#else
-	wcstombs(resStr, str, length);
-#endif
 	lsl::stringA outStr(resStr, num);
 	delete[] resStr;
-
 	return outStr;
+#else
+	(void)codePage;
+	return rrr3d::platform::wide_to_utf8(std::wstring_view(str, length));
+#endif
 }
 
 inline lsl::stringA ConvertStrWToA(const lsl::stringW& str, UINT codePage = CP_ACP)

@@ -1,11 +1,9 @@
 project(LexStd)
 
-add_definitions(-DNOMINMAX) # Use std::max()/std::min()
-
 list(APPEND PROJECT_DIRS
     "header"
     "source"
-    )
+)
 add_dir("${PROJECT_DIRS}" "${PROJECT_NAME}")
 
 add_library(${PROJECT_NAME} STATIC
@@ -14,10 +12,15 @@ add_library(${PROJECT_NAME} STATIC
     ${${PROJECT_NAME}_HEADER}
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(${PROJECT_NAME} PUBLIC
     header
-    ${CMAKE_SOURCE_DIR}/src/XPlatform/header
-    ${CMAKE_SOURCE_DIR}/extern/tinyxml/include
 )
 
-target_link_libraries(${PROJECT_NAME})
+target_compile_definitions(${PROJECT_NAME} PUBLIC NOMINMAX)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC
+    XPlatform
+    ${RRR3D_TINYXML_TARGET}
+)
+
+rrr3d_set_common_target_options(${PROJECT_NAME})

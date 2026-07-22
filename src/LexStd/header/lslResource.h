@@ -21,8 +21,8 @@ public:
 	virtual void SaveToStream(const Resource& inData, std::ostream& stream) = 0;
 };
 
-//Поддерживаемые операторы ОС
-//..\\ сдвиг на каталог назад
+//РџРѕРґРґРµСЂР¶РёРІР°РµРјС‹Рµ РѕРїРµСЂР°С‚РѕСЂС‹ РћРЎ
+//..\\ СЃРґРІРёРі РЅР° РєР°С‚Р°Р»РѕРі РЅР°Р·Р°Рґ
 class FileSystem
 {
 private:
@@ -44,9 +44,7 @@ public:
 	FileSystem(const std::wstring& appPath);
 
 	std::istream* NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags);
-#ifdef _WIN32 // Not used at all
 	std::wistream* NewInStreamW(const std::string& fileName, OpenMode openMode, DWORD flags);
-#endif
 
 	std::ostream* NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags);
 	std::wostream* NewOutStreamW(const std::string& fileName, OpenMode openMode, DWORD flags);
@@ -90,11 +88,11 @@ private:
 	bool _init;
 	bool _dynamic;
 protected:
-	//Выделение ресурса
+	//Р’С‹РґРµР»РµРЅРёРµ СЂРµСЃСѓСЂСЃР°
 	virtual void DoInit() = 0;
-	//Освобождение ресурса
+	//РћСЃРІРѕР±РѕР¶РґРµРЅРёРµ СЂРµСЃСѓСЂСЃР°
 	virtual void DoFree() = 0;
-	//Обновление ресурса
+	//РћР±РЅРѕРІР»РµРЅРёРµ СЂРµСЃСѓСЂСЃР°
 	virtual void DoUpdate() = 0;
 public:
 	Resource();
@@ -103,28 +101,28 @@ public:
 	virtual void AddRef() const;
 	virtual unsigned Release() const;
 
-	//Инициализация ресурса
+	//РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ СЂРµСЃСѓСЂСЃР°
 	void Init();
-	//Освобождение занятого ресурса
+	//РћСЃРІРѕР±РѕР¶РґРµРЅРёРµ Р·Р°РЅСЏС‚РѕРіРѕ СЂРµСЃСѓСЂСЃР°
 	void Free();
-	//Полная перезагрузка ресурса
+	//РџРѕР»РЅР°СЏ РїРµСЂРµР·Р°РіСЂСѓР·РєР° СЂРµСЃСѓСЂСЃР°
 	void Reload();
-	//Обновление ресурса без пересоздания. Обычно загрузка данных из внешнего источника либо обновление состояния из-за изменившихся данных
+	//РћР±РЅРѕРІР»РµРЅРёРµ СЂРµСЃСѓСЂСЃР° Р±РµР· РїРµСЂРµСЃРѕР·РґР°РЅРёСЏ. РћР±С‹С‡РЅРѕ Р·Р°РіСЂСѓР·РєР° РґР°РЅРЅС‹С… РёР· РІРЅРµС€РЅРµРіРѕ РёСЃС‚РѕС‡РЅРёРєР° Р»РёР±Рѕ РѕР±РЅРѕРІР»РµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ РёР·-Р·Р° РёР·РјРµРЅРёРІС€РёС…СЃСЏ РґР°РЅРЅС‹С…
 	void Update();
 
-	//Состояние инициализации
+	//РЎРѕСЃС‚РѕСЏРЅРёРµ РёРЅРёС†РёР°Р»РёР·Р°С†РёРё
 	bool IsInit() const;
 
 	ResourcesTraits* GetResTraits();
 
-	//Свойство "динамичность", ресурс обновляется только по требованию, иначе вызов Update происходит после инициализации
+	//РЎРІРѕР№СЃС‚РІРѕ "РґРёРЅР°РјРёС‡РЅРѕСЃС‚СЊ", СЂРµСЃСѓСЂСЃ РѕР±РЅРѕРІР»СЏРµС‚СЃСЏ С‚РѕР»СЊРєРѕ РїРѕ С‚СЂРµР±РѕРІР°РЅРёСЋ, РёРЅР°С‡Рµ РІС‹Р·РѕРІ Update РїСЂРѕРёСЃС…РѕРґРёС‚ РїРѕСЃР»Рµ РёРЅРёС†РёР°Р»РёР·Р°С†РёРё
 	bool GetDynamic() const;
 	void SetDynamic(bool value);
 
 	UserList userList;
 };
 
-//Тип ресурса который имеет методы загрузки и сохранения в файл, путь к файлу запоминается. Содержимое ресурса связано с содержимым файла, поэтому загрузка осуществляется в процессе инициализации. Т.к. путь к файлу запоминается, загрузка(или иначе инциализация) может откладываться до момента начала использования ресурса, а после завершения его использования может осуществляться освобождение занятой памяти т.д.
+//РўРёРї СЂРµСЃСѓСЂСЃР° РєРѕС‚РѕСЂС‹Р№ РёРјРµРµС‚ РјРµС‚РѕРґС‹ Р·Р°РіСЂСѓР·РєРё Рё СЃРѕС…СЂР°РЅРµРЅРёСЏ РІ С„Р°Р№Р», РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ Р·Р°РїРѕРјРёРЅР°РµС‚СЃСЏ. РЎРѕРґРµСЂР¶РёРјРѕРµ СЂРµСЃСѓСЂСЃР° СЃРІСЏР·Р°РЅРѕ СЃ СЃРѕРґРµСЂР¶РёРјС‹Рј С„Р°Р№Р»Р°, РїРѕСЌС‚РѕРјСѓ Р·Р°РіСЂСѓР·РєР° РѕСЃСѓС‰РµСЃС‚РІР»СЏРµС‚СЃСЏ РІ РїСЂРѕС†РµСЃСЃРµ РёРЅРёС†РёР°Р»РёР·Р°С†РёРё. Рў.Рє. РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ Р·Р°РїРѕРјРёРЅР°РµС‚СЃСЏ, Р·Р°РіСЂСѓР·РєР°(РёР»Рё РёРЅР°С‡Рµ РёРЅС†РёР°Р»РёР·Р°С†РёСЏ) РјРѕР¶РµС‚ РѕС‚РєР»Р°РґС‹РІР°С‚СЊСЃСЏ РґРѕ РјРѕРјРµРЅС‚Р° РЅР°С‡Р°Р»Р° РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ СЂРµСЃСѓСЂСЃР°, Р° РїРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РµРіРѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ РјРѕР¶РµС‚ РѕСЃСѓС‰РµСЃС‚РІР»СЏС‚СЊСЃСЏ РѕСЃРІРѕР±РѕР¶РґРµРЅРёРµ Р·Р°РЅСЏС‚РѕР№ РїР°РјСЏС‚Рё С‚.Рґ.
 class FileResource: public Resource
 {
 private:
@@ -191,23 +189,17 @@ template<class _Resource, class _IdType, class _Arg, class _ArgThis> void Resour
 
 inline std::wstring GetAppPath()
 {
-#ifdef _WIN32 // FIX_LINUX GetModuleFileNameW
-	wchar_t buf[1024];
-	unsigned size = GetModuleFileNameW(NULL, buf, 1024);
-
-	std::wstring res(buf, size);
-	lsl::ExtractFilePath(res, res);
-
-	return res;
-#else
-	std::wstring res;
-	return res;
-#endif
+	std::wstring result = rrr3d::platform::resource_directory().wstring();
+	if (!result.empty() && result.back() != static_cast<wchar_t>(PATH_SEP))
+		result.push_back(static_cast<wchar_t>(PATH_SEP));
+	return result;
 }
 
 inline std::wstring GetAppFilePath(const std::string& localFileName)
 {
-	return GetAppPath() + ConvertStrAToW(localFileName);
+	return rrr3d::platform::join_path(
+		rrr3d::platform::resource_directory(),
+		rrr3d::platform::normalize_path(localFileName)).wstring();
 }
 
 }

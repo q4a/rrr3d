@@ -20,6 +20,7 @@ Quat Eul_ToQuat(EulerAngles ea)
 	double a[3], ti, tj, th, ci, cj, ch, si, sj, sh, cc, cs, sc, ss;
 	int i,j,k,h,n,s,f;
 	EulGetOrd(ea.w,i,j,k,h,n,s,f);
+	(void)h;
 	if (f==EulFrmR) {float t = ea.x; ea.x = ea.z; ea.z = t;}
 	if (n==EulParOdd) ea.y = -ea.y;
 	ti = ea.x*0.5; tj = ea.y*0.5; th = ea.z*0.5;
@@ -48,6 +49,7 @@ void Eul_ToHMatrix(EulerAngles ea, HMatrix M)
 	double ti, tj, th, ci, cj, ch, si, sj, sh, cc, cs, sc, ss;
 	int i,j,k,h,n,s,f;
 	EulGetOrd(ea.w,i,j,k,h,n,s,f);
+	(void)h;
 	if (f==EulFrmR) {float t = ea.x; ea.x = ea.z; ea.z = t;}
 	if (n==EulParOdd) {ea.x = -ea.x; ea.y = -ea.y; ea.z = -ea.z;}
 	ti = ea.x;    tj = ea.y;    th = ea.z;
@@ -72,6 +74,7 @@ EulerAngles Eul_FromHMatrix(HMatrix M, int order)
 	EulerAngles ea;
 	int i,j,k,h,n,s,f;
 	EulGetOrd(order,i,j,k,h,n,s,f);
+	(void)h;
 	if (s==EulRepYes) {
 	float sy = sqrt(M[i][j]*M[i][j] + M[i][k]*M[i][k]);
 	if (sy > 16*FLT_EPSILON) {

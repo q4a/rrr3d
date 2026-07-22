@@ -16,8 +16,7 @@ Serializable::Serializable(): _masterSer(0), _lockCnt(0)
 
 Serializable::~Serializable()
 {
-	if (_lockCnt)
-		throw Error("Serializable::~Serializable()");
+	LSL_ASSERT(_lockCnt == 0);
 
 	ClearProxySer();
 	SetMasterSer(0);

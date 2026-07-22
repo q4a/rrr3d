@@ -111,6 +111,7 @@ bool SReader::ResolveFixUp(_FixUpName& inOutName)
 
 	inOutName.component = GetRoot()->AbsoluteFindComponent(inOutName.path);
 	if (inOutName.component)
+	{
 		if (!inOutName.nameCollItem.empty())
 		{
 			CollectionTraits* coll = inOutName.GetComponent<CollectionTraits*>();
@@ -120,14 +121,15 @@ bool SReader::ResolveFixUp(_FixUpName& inOutName)
 		}
 		else
 			return true;
+	}
 
 	return false;
 }
 
 void SReader::FixUp()
 {
-	//FixUp ссылок на компоненты
-	//результат, добавляются только успешные фиксупы
+	//FixUp СЃСЃС‹Р»РѕРє РЅР° РєРѕРјРїРѕРЅРµРЅС‚С‹
+	//СЂРµР·СѓР»СЊС‚Р°С‚, РґРѕР±Р°РІР»СЏСЋС‚СЃСЏ С‚РѕР»СЊРєРѕ СѓСЃРїРµС€РЅС‹Рµ С„РёРєСЃСѓРїС‹
 	typedef std::map<Serializable*, _FixUpNames> OnSend;
 
 	OnSend onSend;
@@ -190,6 +192,7 @@ bool SReader::GetRef(bool collItem, _FixUpName& fixUpName)
 	fixUpName.collItem = 0;
 
 	if (collItem)
+	{
 		if (const ValueDesc* desc = ReadAttr(Serializable::cItem))
 		{
 			desc->CastTo(&fixUpName.nameCollItem);
@@ -198,6 +201,7 @@ bool SReader::GetRef(bool collItem, _FixUpName& fixUpName)
 		}
 		else
 			return false;
+	}
 	//
 	GetVal().CastTo(&fixUpName.path);
 	if (fixUpName.path.empty())
@@ -234,6 +238,8 @@ SReader* SReader::ReadValue(const char* name, ValueDesc value)
 	case vtBool:
 		desc.CastTo<bool>((bool*)outVal, value.count);
 		break;
+	case vtUnknown:
+		throw lsl::Error("Cannot read a value with unknown serialized type");
 	}
 
 	return reader;
@@ -316,9 +322,9 @@ bool SerialNode::ReadRefNodeFrom(SReader* reader, SerialNode** outNode)
 	_FixUpName fixUp;
 	if (reader->AddFixUp(false, 0, &fixUp))
 	{
-		//К сожалению сущесвтует некая двойсвенность с dynamic_cast, поэтому так нельзя
+		//Рљ СЃРѕР¶Р°Р»РµРЅРёСЋ СЃСѓС‰РµСЃРІС‚СѓРµС‚ РЅРµРєР°СЏ РґРІРѕР№СЃРІРµРЅРЅРѕСЃС‚СЊ СЃ dynamic_cast, РїРѕСЌС‚РѕРјСѓ С‚Р°Рє РЅРµР»СЊР·СЏ
 		//*outNode = outName.GetComponent<SerialNode*>();
-		//Пока без динмаической проверки типов во время дебага
+		//РџРѕРєР° Р±РµР· РґРёРЅРјР°РёС‡РµСЃРєРѕР№ РїСЂРѕРІРµСЂРєРё С‚РёРїРѕРІ РІРѕ РІСЂРµРјСЏ РґРµР±Р°РіР°
 		*outNode = static_cast<SerialNode*>(fixUp.component);
 		return true;
 	}
@@ -339,11 +345,11 @@ SReader* SerialNode::ReadRefNode(SReader* reader, const std::string& name, Seria
 SerialNode* SerialNode::FindLinkSer(Serializable* value)
 {
 	SerialNode* result;
-	if (result = (_linkSer == value ? this : 0))
+	if ((result = (_linkSer == value ? this : 0)))
 		return result;
 
 	for (Elements::iterator iter = _elements->begin(); iter != _elements->end(); ++iter)
-		if (result = (*iter)->FindLinkSer(value))
+		if ((result = (*iter)->FindLinkSer(value)))
 			return result;
 
 	return 0;
@@ -396,18 +402,18 @@ void SerialNode::OnFixUp()
 
 	FixUp();
 
-	//FixUp ссылок на узлы, востановление прокси списков
+	//FixUp СЃСЃС‹Р»РѕРє РЅР° СѓР·Р»С‹, РІРѕСЃС‚Р°РЅРѕРІР»РµРЅРёРµ РїСЂРѕРєСЃРё СЃРїРёСЃРєРѕРІ
 	//Include master
 	Serializable* ser = _masterSer;
 	if (_masterNode)
 	{
 		LSL_ASSERT(!ser && _masterNode->_linkSer);
 
-		//Найденый master
+		//РќР°Р№РґРµРЅС‹Р№ master
 		ser = _masterNode->_linkSer;
 		_masterNode->ReleaseSerLink();
 	}
-	//Поскольку узел может содержать как Serializable, так и просто значение, то необходима проверка на то что узел содержит именно Serializable
+	//РџРѕСЃРєРѕР»СЊРєСѓ СѓР·РµР» РјРѕР¶РµС‚ СЃРѕРґРµСЂР¶Р°С‚СЊ РєР°Рє Serializable, С‚Р°Рє Рё РїСЂРѕСЃС‚Рѕ Р·РЅР°С‡РµРЅРёРµ, С‚Рѕ РЅРµРѕР±С…РѕРґРёРјР° РїСЂРѕРІРµСЂРєР° РЅР° С‚Рѕ С‡С‚Рѕ СѓР·РµР» СЃРѕРґРµСЂР¶РёС‚ РёРјРµРЅРЅРѕ Serializable
 	if (_linkSer)
 	{
 		_linkSer->SetMasterSer(ser);
@@ -453,21 +459,21 @@ bool SerialNode::IsProxyLoad() const
 
 void SerialNode::SaveSerializable(Serializable* value)
 {
-	//Сссылка обязательно должны быть обнулена, что говорит о правильном процессе разрешения прокси ссылок. Также записать ссылку можно только один раз
+	//РЎСЃСЃС‹Р»РєР° РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ РѕР±РЅСѓР»РµРЅР°, С‡С‚Рѕ РіРѕРІРѕСЂРёС‚ Рѕ РїСЂР°РІРёР»СЊРЅРѕРј РїСЂРѕС†РµСЃСЃРµ СЂР°Р·СЂРµС€РµРЅРёСЏ РїСЂРѕРєСЃРё СЃСЃС‹Р»РѕРє. РўР°РєР¶Рµ Р·Р°РїРёСЃР°С‚СЊ СЃСЃС‹Р»РєСѓ РјРѕР¶РЅРѕ С‚РѕР»СЊРєРѕ РѕРґРёРЅ СЂР°Р·
 	LSL_ASSERT(value && !_linkSer);
 
-	//Условие того что прилинкованный узел используется в разрешении прокси ссылок
+	//РЈСЃР»РѕРІРёРµ С‚РѕРіРѕ С‡С‚Рѕ РїСЂРёР»РёРЅРєРѕРІР°РЅРЅС‹Р№ СѓР·РµР» РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РІ СЂР°Р·СЂРµС€РµРЅРёРё РїСЂРѕРєСЃРё СЃСЃС‹Р»РѕРє
 	//if (!value->GetProxySerList().empty() || value->GetMasterSer())
 	//{
-	//Добавляем ссылку на Serializable к которому прилинкован узел
+	//Р”РѕР±Р°РІР»СЏРµРј СЃСЃС‹Р»РєСѓ РЅР° Serializable Рє РєРѕС‚РѕСЂРѕРјСѓ РїСЂРёР»РёРЅРєРѕРІР°РЅ СѓР·РµР»
 	_linkSer = value;
-	//Добавляем ссылку на Serializable, чтобы знать сколько узлов его используют
+	//Р”РѕР±Р°РІР»СЏРµРј СЃСЃС‹Р»РєСѓ РЅР° Serializable, С‡С‚РѕР±С‹ Р·РЅР°С‚СЊ СЃРєРѕР»СЊРєРѕ СѓР·Р»РѕРІ РµРіРѕ РёСЃРїРѕР»СЊР·СѓСЋС‚
 	++_linkSer->_lockCnt;
 	//}
 
 	if (value->GetMasterSer())
 		++value->GetMasterSer()->_lockCnt;
-	//Если отсутствует мастер объект, то сохраняем данные
+	//Р•СЃР»Рё РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚ РјР°СЃС‚РµСЂ РѕР±СЉРµРєС‚, С‚Рѕ СЃРѕС…СЂР°РЅСЏРµРј РґР°РЅРЅС‹Рµ
 	else
 		value->Save(this);
 }
@@ -512,7 +518,7 @@ void SerialNode::LoadSerializable(Serializable* value)
 		}
 		else
 		{
-			//Искомый объект SerialNode уже должен существовать поскольку создание иерархии происходит в момент загрузки из источника. К тому же искомый объект сам по себе содержит данные которые должны быть по заложенной логике доступны на момент загрузки
+			//РСЃРєРѕРјС‹Р№ РѕР±СЉРµРєС‚ SerialNode СѓР¶Рµ РґРѕР»Р¶РµРЅ СЃСѓС‰РµСЃС‚РІРѕРІР°С‚СЊ РїРѕСЃРєРѕР»СЊРєСѓ СЃРѕР·РґР°РЅРёРµ РёРµСЂР°СЂС…РёРё РїСЂРѕРёСЃС…РѕРґРёС‚ РІ РјРѕРјРµРЅС‚ Р·Р°РіСЂСѓР·РєРё РёР· РёСЃС‚РѕС‡РЅРёРєР°. Рљ С‚РѕРјСѓ Р¶Рµ РёСЃРєРѕРјС‹Р№ РѕР±СЉРµРєС‚ СЃР°Рј РїРѕ СЃРµР±Рµ СЃРѕРґРµСЂР¶РёС‚ РґР°РЅРЅС‹Рµ РєРѕС‚РѕСЂС‹Рµ РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ РїРѕ Р·Р°Р»РѕР¶РµРЅРЅРѕР№ Р»РѕРіРёРєРµ РґРѕСЃС‚СѓРїРЅС‹ РЅР° РјРѕРјРµРЅС‚ Р·Р°РіСЂСѓР·РєРё
 			masterNode = GetRootNode()->FindNode(path);
 			if (masterNode)
 			{
@@ -526,10 +532,10 @@ void SerialNode::LoadSerializable(Serializable* value)
 	else
 		value->Load(this);
 
-	//Добавляем ссылку на прилинкованный Serializable только если из этого узла не загружается прокси
+	//Р”РѕР±Р°РІР»СЏРµРј СЃСЃС‹Р»РєСѓ РЅР° РїСЂРёР»РёРЅРєРѕРІР°РЅРЅС‹Р№ Serializable С‚РѕР»СЊРєРѕ РµСЃР»Рё РёР· СЌС‚РѕРіРѕ СѓР·Р»Р° РЅРµ Р·Р°РіСЂСѓР¶Р°РµС‚СЃСЏ РїСЂРѕРєСЃРё
 	if (!IsProxyLoad())
 	{
-		//Из одного узла не могут загружаться два объекта, поскольку в этом случае непонятно какой именно объект линковать к узлу
+		//РР· РѕРґРЅРѕРіРѕ СѓР·Р»Р° РЅРµ РјРѕРіСѓС‚ Р·Р°РіСЂСѓР¶Р°С‚СЊСЃСЏ РґРІР° РѕР±СЉРµРєС‚Р°, РїРѕСЃРєРѕР»СЊРєСѓ РІ СЌС‚РѕРј СЃР»СѓС‡Р°Рµ РЅРµРїРѕРЅСЏС‚РЅРѕ РєР°РєРѕР№ РёРјРµРЅРЅРѕ РѕР±СЉРµРєС‚ Р»РёРЅРєРѕРІР°С‚СЊ Рє СѓР·Р»Сѓ
 		LSL_ASSERT(!_linkSer);
 
 		AddRefSerLink();
@@ -670,7 +676,7 @@ void SerialNode::EndSave()
 	LSL_ASSERT(_beginSave > 0);
 
 	if (--_beginSave == 0)
-		//Разрешение и подстановка путей для прокси ссылок
+		//Р Р°Р·СЂРµС€РµРЅРёРµ Рё РїРѕРґСЃС‚Р°РЅРѕРІРєР° РїСѓС‚РµР№ РґР»СЏ РїСЂРѕРєСЃРё СЃСЃС‹Р»РѕРє
 		ResolveProxyRef();
 }
 
@@ -686,7 +692,7 @@ void SerialNode::EndLoad()
 	LSL_ASSERT(_beginLoad > 0);
 
 	if (--_beginLoad == 0)
-		//закончили чтение корневого компонента, время fixUp
+		//Р·Р°РєРѕРЅС‡РёР»Рё С‡С‚РµРЅРёРµ РєРѕСЂРЅРµРІРѕРіРѕ РєРѕРјРїРѕРЅРµРЅС‚Р°, РІСЂРµРјСЏ fixUp
 		OnFixUp();
 }
 
@@ -695,7 +701,7 @@ void SerialNode::Save(Serializable* root)
 	BeginSave();
 	try
 	{
-		//Запись напрямую, т.е. без учета прокси ссылок
+		//Р—Р°РїРёСЃСЊ РЅР°РїСЂСЏРјСѓСЋ, С‚.Рµ. Р±РµР· СѓС‡РµС‚Р° РїСЂРѕРєСЃРё СЃСЃС‹Р»РѕРє
 		root->Save(this);
 	}
 	LSL_FINALLY(EndSave();)
@@ -706,7 +712,7 @@ void SerialNode::Load(Serializable* root)
 	BeginLoad();
 	try
 	{
-		//чтение напрямую, т.е. без учета прокси ссылок
+		//С‡С‚РµРЅРёРµ РЅР°РїСЂСЏРјСѓСЋ, С‚.Рµ. Р±РµР· СѓС‡РµС‚Р° РїСЂРѕРєСЃРё СЃСЃС‹Р»РѕРє
 		root->Load(this);
 	}
 	LSL_FINALLY(EndLoad();)

@@ -8,7 +8,7 @@ namespace lsl
 
 AppLog appLog("appLog.txt");
 
-AppLog::AppLog(const std::string& mFileName): fileName(mFileName), _destroy(false)
+AppLog::AppLog(const std::string& mFileName): _destroy(false), fileName(mFileName)
 {
 }
 
@@ -74,8 +74,10 @@ void Assert(const char* expression, const char* filePath, int line)
 		break;
 
 	case IDRETRY:
-		 _CrtDbgBreak();
+	 _CrtDbgBreak();
 	}
+#else
+	rrr3d::platform::report_error("ASSERT ERROR", sText);
 #endif
 }
 

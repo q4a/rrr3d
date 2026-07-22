@@ -1,0 +1,11 @@
+# Preserve shipped Motor Rock data byte-for-byte. Its original text files use
+# CRLF and trailing spaces that must not be normalized or treated as source
+# whitespace errors.
+resources/game-data/** -text -diff -whitespace
+
+# This is a patch payload; lines beginning with a single space are significant
+# unified-diff context, not project source formatting.
+cmake/patches/*.patch -text -diff -whitespace
+
+# Third-party license text is preserved verbatim.
+resources/macos/Licenses/** -text -diff -whitespace

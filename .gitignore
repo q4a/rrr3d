@@ -1,5 +1,7 @@
 build*
+!scripts/build_*.sh
 cmake-build-*
+.DS_Store
 bin
 extern
 .vs

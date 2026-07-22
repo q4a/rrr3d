@@ -6,10 +6,14 @@
 // that uses this DLL. This way any other project whose source files include this file see
 // ROCK3DGAME_API functions as being imported from a DLL, whereas this DLL sees symbols
 // defined with this macro as being exported.
-#ifdef ROCK3DGAME_EXPORTS
+#if defined(_WIN32) && defined(ROCK3DGAME_EXPORTS)
 #define ROCK3DGAME_API __declspec(dllexport)
-#else
+#elif defined(_WIN32)
 #define ROCK3DGAME_API __declspec(dllimport)
+#elif defined(__GNUC__) || defined(__clang__)
+#define ROCK3DGAME_API __attribute__((visibility("default")))
+#else
+#define ROCK3DGAME_API
 #endif
 
 #include "IWorld.h"

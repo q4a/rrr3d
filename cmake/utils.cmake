@@ -10,3 +10,24 @@ macro(add_dir DIRS FILE_GROUP)
     list( APPEND ${FILE_GROUP}_HEADER ${${dir}_HEADER_ADD} )
   endforeach()
 endmacro()
+
+function(rrr3d_set_common_target_options target_name)
+  target_compile_features(${target_name} PUBLIC cxx_std_17)
+  target_compile_definitions(${target_name} PUBLIC
+    "$<$<CONFIG:Debug>:_DEBUG>"
+  )
+
+  if(MSVC)
+    target_compile_options(${target_name} PRIVATE /W3)
+  else()
+    target_compile_options(${target_name} PRIVATE
+      -Wall
+      -Wextra
+      -Wpedantic
+      -Wno-unused-parameter
+      # The original sources contain CP1251 comments. Converting every comment
+      # is a separate mechanical cleanup and does not affect compiled strings.
+      -Wno-invalid-utf8
+    )
+  endif()
+endfunction()

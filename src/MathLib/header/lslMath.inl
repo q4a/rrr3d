@@ -30,13 +30,17 @@ inline float Random()
 //from (inclusive) ... to (inclusive)
 inline float RandomRange(float from, float to)
 {
-	return from + rand() * (to - from) / RAND_MAX;
+	const float unit = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+	return from + unit * (to - from);
 }
 
 //from (inclusive) ... to (inclusive)
 inline int RandomRange(int from, int to)
 {
-	return from + Floor<int>(rand() * (to + 1 - from) / static_cast<float>(RAND_MAX + 1));
+	const double unit = static_cast<double>(rand()) /
+		(static_cast<double>(RAND_MAX) + 1.0);
+	const double span = static_cast<double>(to) - static_cast<double>(from) + 1.0;
+	return from + static_cast<int>(std::floor(unit * span));
 }
 
 inline float NumAbsAdd(float absVal, float addVal)
@@ -499,10 +503,10 @@ inline float Vec2CCW(const glm::vec2 &vec1, const glm::vec2 &vec2)
 	return vec1.x * vec2.y - vec1.y * vec2.x;
 }
 
-//Поворот вектора на 90 градуос против часовой стрелки, иначе говоря его нормаль
+//РџРѕРІРѕСЂРѕС‚ РІРµРєС‚РѕСЂР° РЅР° 90 РіСЂР°РґСѓРѕСЃ РїСЂРѕС‚РёРІ С‡Р°СЃРѕРІРѕР№ СЃС‚СЂРµР»РєРё, РёРЅР°С‡Рµ РіРѕРІРѕСЂСЏ РµРіРѕ РЅРѕСЂРјР°Р»СЊ
 inline void Vec2NormCCW(const glm::vec2& vec, glm::vec2& outVec)
 {
-	//На случай если &vec2 == &outVec
+	//РќР° СЃР»СѓС‡Р°Р№ РµСЃР»Рё &vec2 == &outVec
 	float tmpX = vec.x;
 
 	outVec.x = -vec.y;
@@ -516,10 +520,10 @@ inline glm::vec2 Vec2NormCCW(const glm::vec2& vec2)
 	return outVec;
 }
 
-//Поворот вектора на 90 градуос по часовой стрелки, иначе говоря его нормаль
+//РџРѕРІРѕСЂРѕС‚ РІРµРєС‚РѕСЂР° РЅР° 90 РіСЂР°РґСѓРѕСЃ РїРѕ С‡Р°СЃРѕРІРѕР№ СЃС‚СЂРµР»РєРё, РёРЅР°С‡Рµ РіРѕРІРѕСЂСЏ РµРіРѕ РЅРѕСЂРјР°Р»СЊ
 inline void Vec2NormCW(const glm::vec2& vec, glm::vec2& outVec)
 {
-	//На случай если &vec2 == &outVec
+	//РќР° СЃР»СѓС‡Р°Р№ РµСЃР»Рё &vec2 == &outVec
 	float tmpX = vec.x;
 
 	outVec.x = vec.y;
@@ -745,9 +749,9 @@ inline const glm::vec3& QuatRotateVec3(glm::vec3& outVec, const glm::vec3& vec, 
 
 inline void Line2FromNorm(const glm::vec2& norm, const glm::vec2& point, glm::vec3& outLine)
 {
-	//Уравнение разделяющей прямой через нормаль и точку
+	//РЈСЂР°РІРЅРµРЅРёРµ СЂР°Р·РґРµР»СЏСЋС‰РµР№ РїСЂСЏРјРѕР№ С‡РµСЂРµР· РЅРѕСЂРјР°Р»СЊ Рё С‚РѕС‡РєСѓ
 	//(N,X) + D = 0
-	//Нормаль
+	//РќРѕСЂРјР°Р»СЊ
 	outLine.x = norm.x;
 	outLine.y = norm.y;
 	outLine.z = -Vec2Dot(norm, point);
@@ -851,9 +855,9 @@ inline bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& ray
 	float b = 2.0f * glm::dot(rayVec, v);
 	float c = glm::dot(v, v) - sphereRadius * sphereRadius;
 
-	// Находим дискриминант
+	// РќР°С…РѕРґРёРј РґРёСЃРєСЂРёРјРёРЅР°РЅС‚
 	float discriminant = (b * b) - (4.0f * c);
-	// Проверяем на мнимые числа
+	// РџСЂРѕРІРµСЂСЏРµРј РЅР° РјРЅРёРјС‹Рµ С‡РёСЃР»Р°
 	if(discriminant < 0.0f)
 		return false;
 
@@ -866,7 +870,7 @@ inline bool RayCastIntersectSphere(const glm::vec3& rayPos, const glm::vec3& ray
 	if (t)
 		*t = tRay;
 
-	// Если есть решение > 0, луч пересекает сферу
+	// Р•СЃР»Рё РµСЃС‚СЊ СЂРµС€РµРЅРёРµ > 0, Р»СѓС‡ РїРµСЂРµСЃРµРєР°РµС‚ СЃС„РµСЂСѓ
 	return tRay > 0;
 }
 

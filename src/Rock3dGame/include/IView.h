@@ -1,5 +1,9 @@
 #pragma once
 
+#include "lslUtility.h"
+#include "r3dMath.h"
+#include "xplatform.h"
+
 namespace r3d
 {
 
@@ -11,8 +15,8 @@ class IView
 public:
 	struct Desc
 	{
-		HWND handle;
-		Point resolution;
+		rrr3d::platform::NativeWindowHandle handle;
+		lsl::Point resolution;
 		bool fullscreen;
 	};
 public:
@@ -21,16 +25,16 @@ public:
 	virtual glm::vec2 ViewToProj(const lsl::Point& point) = 0;
 	virtual glm::vec2 ProjToView(const glm::vec2& coord) = 0;
 
-	virtual bool OnMouseClickEvent(MouseKey key, KeyState state, const Point& coord, bool shift, bool ctrl) = 0;
-	virtual bool OnMouseMoveEvent(const Point& coord, bool shift, bool ctrl) = 0;
-	virtual bool OnKeyEvent(unsigned key, KeyState state, bool repeat) = 0;
+	virtual bool OnMouseClickEvent(lsl::MouseKey key, lsl::KeyState state, const lsl::Point& coord, bool shift, bool ctrl) = 0;
+	virtual bool OnMouseMoveEvent(const lsl::Point& coord, bool shift, bool ctrl) = 0;
+	virtual bool OnKeyEvent(unsigned key, lsl::KeyState state, bool repeat) = 0;
 	virtual void OnKeyChar(unsigned key, lsl::KeyState state, bool repeat) = 0;
 
 	virtual const Desc& GetDesc() = 0;
 	virtual lsl::Point GetWndSize() const = 0;
 	virtual glm::vec2 GetVPSize() const = 0;
 
-	//Часть интерфейса камеры. Только для пользователей
+	//Р§Р°СЃС‚СЊ РёРЅС‚РµСЂС„РµР№СЃР° РєР°РјРµСЂС‹. РўРѕР»СЊРєРѕ РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
 	virtual float GetCameraAspect() const = 0;
 	virtual void SetCameraAspect(float value) = 0;
 

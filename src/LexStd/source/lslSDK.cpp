@@ -2,13 +2,22 @@
 
 #include "lslSDK.h"
 
+#include <algorithm>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+
 namespace lsl
 {
 
-class Win32ThreadPool: public ThreadPool
+class PlatformThreadPool: public ThreadPool
 {
+private:
+	unsigned _minThreads;
+	unsigned _maxThreads;
 public:
-	//–азмещение работ в пуле. ѕроисходит в пор€дке очереди: первый вошел первым вышел
+	PlatformThreadPool();
+
 	void QueueWork(UserWork* value, Object* arg, Flags flags = Flags(0));
 
 	unsigned GetMinThreads();
@@ -18,31 +27,45 @@ public:
 	void SetMaxThreads(unsigned value);
 };
 
-class Win32ThreadEvent: public ThreadEvent
+#ifndef _WIN32
+struct PortableEventState
 {
-	friend class Win32SDK;
+	PortableEventState(bool manual, bool initial): manualReset(manual), signaled(initial) {}
+
+	std::mutex mutex;
+	std::condition_variable condition;
+	bool manualReset;
+	bool signaled;
+};
+#endif
+
+class PlatformThreadEvent: public ThreadEvent
+{
+	friend class PlatformSDK;
 private:
+#ifdef _WIN32
 	HANDLE _event;
+#else
+	PortableEventState _event;
+#endif
 protected:
-	Win32ThreadEvent(bool manualReset, bool open, const std::string& name);
-	virtual ~Win32ThreadEvent();
+	PlatformThreadEvent(bool manualReset, bool open, const std::string& name);
+	virtual ~PlatformThreadEvent();
 public:
 	bool WaitOne(unsigned mlsTimeOut = INFINITE);
 	void Set();
 	void Reset();
 };
 
-class Win32SDK: public SDK
+class PlatformSDK: public SDK
 {
 private:
-	Win32ThreadPool* _threadPool;
+	PlatformThreadPool* _threadPool;
 public:
-	Win32SDK();
-	virtual ~Win32SDK();
+	PlatformSDK();
+	virtual ~PlatformSDK();
 
-	//
 	ThreadPool* GetThreadPool();
-	//
 	LockedObj* CreateLockedObj();
 	void DestroyLockedObj(LockedObj* value);
 	void Lock(LockedObj* obj);
@@ -60,19 +83,16 @@ namespace
 
 struct ThreadParameter
 {
-	Win32ThreadPool* pool;
 	ThreadPool::UserWork* work;
 	Object* arg;
 };
 
 SDK* instance = 0;
 
-DWORD __stdcall ThreadPoolStart(void* lpThreadParameter)
+void ExecuteThreadWork(ThreadParameter* param)
 {
-	LSL_ASSERT(lpThreadParameter);
+	LSL_ASSERT(param);
 
-	ThreadParameter* param = reinterpret_cast<ThreadParameter*>(lpThreadParameter);
-	Win32ThreadPool* pool = param->pool;
 	ThreadPool::UserWork* work = param->work;
 	Object* arg = param->arg;
 	delete param;
@@ -81,13 +101,18 @@ DWORD __stdcall ThreadPoolStart(void* lpThreadParameter)
 	try
 	{
 		work->Execute(arg);
-		//»сточник опасности, поскольку внтуренние уведомлени€ о завершении работы уже получены и задачу могут попытатьс€ уничтожить
 		work->Release();
 	}
 	LSL_FINALLY(work->EndExecution();)
+}
 
+#ifdef _WIN32
+DWORD __stdcall ThreadPoolStart(void* threadParameter)
+{
+	ExecuteThreadWork(reinterpret_cast<ThreadParameter*>(threadParameter));
 	return 0;
 }
+#endif
 
 class FreeStaticData
 {
@@ -100,47 +125,67 @@ public:
 
 FreeStaticData freeStaticData;
 
-}
+} // namespace
 
 Profiler* Profiler::_i;
 
-void Win32ThreadPool::QueueWork(UserWork* value, Object* arg, Flags flags)
+PlatformThreadPool::PlatformThreadPool():
+	_minThreads(1),
+	_maxThreads(std::max(1u, std::thread::hardware_concurrency()))
 {
-	DWORD dwFlags = 0;
+}
 
-	//tfBackground эмулируетс€ с помощью tfLongFunc
-#ifdef _WIN32 // FIX_LINUX QueueUserWorkItem
-	if (flags.test(tfLongFunc) || flags.test(tfBackground))
-		dwFlags |= WT_EXECUTELONGFUNCTION;
-#endif
-
+void PlatformThreadPool::QueueWork(UserWork* value, Object* arg, Flags flags)
+{
 	value->AddRef();
 	ThreadParameter* param = new ThreadParameter;
-	param->pool = this;
 	param->work = value;
 	param->arg = arg;
-#ifdef _WIN32 // FIX_LINUX QueueUserWorkItem
-	QueueUserWorkItem(&ThreadPoolStart, param, dwFlags);
+
+#ifdef _WIN32
+	DWORD win32Flags = 0;
+	if (flags.test(tfLongFunc) || flags.test(tfBackground))
+		win32Flags |= WT_EXECUTELONGFUNCTION;
+	if (!QueueUserWorkItem(&ThreadPoolStart, param, win32Flags))
+	{
+		value->Release();
+		delete param;
+		throw lsl::Error("QueueUserWorkItem failed");
+	}
+#else
+	(void)flags;
+	try
+	{
+		std::thread([param]() { ExecuteThreadWork(param); }).detach();
+	}
+	catch (...)
+	{
+		value->Release();
+		delete param;
+		throw;
+	}
 #endif
-	//::CreateThread(0, 0, &ThreadPoolStart, value, 0, 0);
 }
 
-unsigned Win32ThreadPool::GetMinThreads()
+unsigned PlatformThreadPool::GetMinThreads()
 {
-	return 0;
+	return _minThreads;
 }
 
-void Win32ThreadPool::SetMinThreads(unsigned value)
+void PlatformThreadPool::SetMinThreads(unsigned value)
 {
+	_minThreads = std::max(1u, value);
+	_maxThreads = std::max(_maxThreads, _minThreads);
 }
 
-unsigned Win32ThreadPool::GetMaxThreads()
+unsigned PlatformThreadPool::GetMaxThreads()
 {
-	return 0;
+	return _maxThreads;
 }
 
-void Win32ThreadPool::SetMaxThreads(unsigned value)
+void PlatformThreadPool::SetMaxThreads(unsigned value)
 {
+	_maxThreads = std::max(_minThreads, value);
 }
 
 void* SDK::GetDataFrom(LockedObj* obj)
@@ -153,135 +198,164 @@ void SDK::SetDataTo(LockedObj* obj, void* data)
 	obj->_data = data;
 }
 
-Win32ThreadEvent::Win32ThreadEvent(bool manualReset, bool open, const std::string& name)
+PlatformThreadEvent::PlatformThreadEvent(bool manualReset, bool open, const std::string& name)
+#ifndef _WIN32
+	: _event(manualReset, open)
+#endif
 {
-#ifdef _WIN32 // FIX_LINUX ThreadEvents
+#ifdef _WIN32
 	_event = CreateEvent(0, manualReset, open, name.empty() ? 0 : name.c_str());
+	if (!_event)
+		throw lsl::Error("CreateEvent failed");
+#else
+	(void)name;
 #endif
 }
 
-Win32ThreadEvent::~Win32ThreadEvent()
+PlatformThreadEvent::~PlatformThreadEvent()
 {
-#ifdef _WIN32 // FIX_LINUX ThreadEvents
+#ifdef _WIN32
 	CloseHandle(_event);
 #endif
 }
 
-bool Win32ThreadEvent::WaitOne(unsigned mlsTimeOut)
+bool PlatformThreadEvent::WaitOne(unsigned mlsTimeOut)
 {
-#ifdef _WIN32 // FIX_LINUX ThreadEvents
-	return WaitForSingleObject(_event, mlsTimeOut) > 0;
+#ifdef _WIN32
+	return WaitForSingleObject(_event, mlsTimeOut) == WAIT_OBJECT_0;
 #else
-	return false;
+	std::unique_lock<std::mutex> lock(_event.mutex);
+	bool signaled = false;
+	if (mlsTimeOut == INFINITE)
+	{
+		_event.condition.wait(lock, [this]() { return _event.signaled; });
+		signaled = true;
+	}
+	else
+	{
+		signaled = _event.condition.wait_for(
+			lock, std::chrono::milliseconds(mlsTimeOut),
+			[this]() { return _event.signaled; });
+	}
+
+	if (signaled && !_event.manualReset)
+		_event.signaled = false;
+	return signaled;
 #endif
 }
 
-void Win32ThreadEvent::Set()
+void PlatformThreadEvent::Set()
 {
-#ifdef _WIN32 // FIX_LINUX ThreadEvents
+#ifdef _WIN32
 	SetEvent(_event);
+#else
+	{
+		std::lock_guard<std::mutex> lock(_event.mutex);
+		_event.signaled = true;
+	}
+	if (_event.manualReset)
+		_event.condition.notify_all();
+	else
+		_event.condition.notify_one();
 #endif
 }
 
-void Win32ThreadEvent::Reset()
+void PlatformThreadEvent::Reset()
 {
-#ifdef _WIN32 // FIX_LINUX ThreadEvents
+#ifdef _WIN32
 	ResetEvent(_event);
+#else
+	std::lock_guard<std::mutex> lock(_event.mutex);
+	_event.signaled = false;
 #endif
 }
 
-Win32SDK::Win32SDK(): _threadPool(0)
+PlatformSDK::PlatformSDK(): _threadPool(0)
 {
 }
 
-Win32SDK::~Win32SDK()
+PlatformSDK::~PlatformSDK()
 {
 	lsl::SafeDelete(_threadPool);
 }
 
-ThreadPool* Win32SDK::GetThreadPool()
+ThreadPool* PlatformSDK::GetThreadPool()
 {
 	if (!_threadPool)
-		_threadPool = new Win32ThreadPool();
-
+		_threadPool = new PlatformThreadPool();
 	return _threadPool;
 }
 
-LockedObj* Win32SDK::CreateLockedObj()
+LockedObj* PlatformSDK::CreateLockedObj()
 {
 	LockedObj* obj = new LockedObj();
 	obj->AddRef();
 
-#ifdef _WIN32 // FIX_LINUX RTL_CRITICAL_SECTION
+#ifdef _WIN32
 	RTL_CRITICAL_SECTION* section = new RTL_CRITICAL_SECTION;
 	InitializeCriticalSection(section);
-
 	SetDataTo(obj, section);
+#else
+	SetDataTo(obj, new std::recursive_mutex());
 #endif
 
 	return obj;
 }
 
-void Win32SDK::DestroyLockedObj(LockedObj* value)
+void PlatformSDK::DestroyLockedObj(LockedObj* value)
 {
-#ifdef _WIN32 // FIX_LINUX RTL_CRITICAL_SECTION
+#ifdef _WIN32
 	RTL_CRITICAL_SECTION* section = reinterpret_cast<RTL_CRITICAL_SECTION*>(GetDataFrom(value));
-
 	DeleteCriticalSection(section);
 	delete section;
+#else
+	delete reinterpret_cast<std::recursive_mutex*>(GetDataFrom(value));
 #endif
 
 	value->Release();
 	delete value;
 }
 
-void Win32SDK::Lock(LockedObj* obj)
+void PlatformSDK::Lock(LockedObj* obj)
 {
-#ifdef _WIN32 // FIX_LINUX RTL_CRITICAL_SECTION
+#ifdef _WIN32
 	EnterCriticalSection(reinterpret_cast<RTL_CRITICAL_SECTION*>(GetDataFrom(obj)));
+#else
+	reinterpret_cast<std::recursive_mutex*>(GetDataFrom(obj))->lock();
 #endif
 }
 
-void Win32SDK::Unlock(LockedObj* obj)
+void PlatformSDK::Unlock(LockedObj* obj)
 {
-#ifdef _WIN32 // FIX_LINUX RTL_CRITICAL_SECTION
+#ifdef _WIN32
 	LeaveCriticalSection(reinterpret_cast<RTL_CRITICAL_SECTION*>(GetDataFrom(obj)));
+#else
+	reinterpret_cast<std::recursive_mutex*>(GetDataFrom(obj))->unlock();
 #endif
 }
 
-ThreadEvent* Win32SDK::CreateThreadEvent(bool manualReset, bool open, const std::string& name)
+ThreadEvent* PlatformSDK::CreateThreadEvent(bool manualReset, bool open, const std::string& name)
 {
-	return new Win32ThreadEvent(manualReset, open, name);
+	return new PlatformThreadEvent(manualReset, open, name);
 }
 
-void Win32SDK::DestroyThreadEvent(ThreadEvent* value)
+void PlatformSDK::DestroyThreadEvent(ThreadEvent* value)
 {
-	delete static_cast<Win32ThreadEvent*>(value);
+	delete static_cast<PlatformThreadEvent*>(value);
 }
 
-float Win32SDK::GetTime()
+float PlatformSDK::GetTime()
 {
 	return static_cast<float>(GetTimeDbl());
 }
 
-double Win32SDK::GetTimeDbl()
+double PlatformSDK::GetTimeDbl()
 {
-#ifdef _WIN32 // FIX_LINUX QueryPerformanceFrequency
-	__int64 gTime, freq;
-	QueryPerformanceCounter((LARGE_INTEGER*)&gTime);  // Get current count
-	QueryPerformanceFrequency((LARGE_INTEGER*)&freq); // Get processor freq
-
-	return gTime/static_cast<double>(freq);
-#else
-	return 0;
-#endif
+	return rrr3d::platform::steady_seconds();
 }
 
-Profiler::Profiler()
+Profiler::Profiler(): _cpuFreq(1000000000ull)
 {
-#ifdef _WIN32 // FIX_LINUX QueryPerformanceFrequency
-	QueryPerformanceFrequency((LARGE_INTEGER*)&_cpuFreq);
-#endif
 }
 
 void Profiler::ResetSample(SampleData& data)
@@ -291,7 +365,7 @@ void Profiler::ResetSample(SampleData& data)
 	data.dt = 0.0f;
 	data.summDt = 0;
 	data.maxDt = 0.0f;
-	data.minDt = FLT_MAX;
+	data.minDt = std::numeric_limits<float>::max();
 	data.updated = false;
 }
 
@@ -304,10 +378,7 @@ void Profiler::Begin(const lsl::string& name)
 		ResetSample(iter->second);
 	}
 
-#ifdef _WIN32 // FIX_LINUX QueryPerformanceCounter
-	QueryPerformanceCounter((LARGE_INTEGER*)&iter->second.time);
-#endif
-
+	iter->second.time = rrr3d::platform::steady_nanoseconds();
 	_stack.push(name);
 }
 
@@ -320,12 +391,10 @@ void Profiler::End()
 	_stack.pop();
 
 	Samples::iterator iter = _samples.find(name);
-
-	uint64_t time = iter->second.time;
-#ifdef _WIN32 // FIX_LINUX QueryPerformanceCounter
-	QueryPerformanceCounter((LARGE_INTEGER*)&iter->second.time);
-#endif
-	float dt = 1000 * (iter->second.time - time) / static_cast<float>(_cpuFreq);
+	const uint64_t startTime = iter->second.time;
+	iter->second.time = rrr3d::platform::steady_nanoseconds();
+	const float dt = 1000.0f * (iter->second.time - startTime) /
+		static_cast<float>(_cpuFreq);
 
 	iter->second.updated = true;
 	iter->second.dt = dt;
@@ -334,7 +403,6 @@ void Profiler::End()
 
 	if (iter->second.maxDt < dt)
 		iter->second.maxDt = dt;
-
 	if (iter->second.minDt > dt)
 		iter->second.minDt = dt;
 }
@@ -342,10 +410,8 @@ void Profiler::End()
 void Profiler::ResetSample(const lsl::string& name)
 {
 	Samples::iterator iter = _samples.find(name);
-	if (iter == _samples.end())
-		return;
-
-	ResetSample(iter->second);
+	if (iter != _samples.end())
+		ResetSample(iter->second);
 }
 
 const Profiler::Samples& Profiler::samples() const
@@ -361,15 +427,13 @@ void Profiler::Init(Profiler* profiler)
 Profiler& Profiler::I()
 {
 	LSL_ASSERT(_i);
-
 	return *_i;
 }
 
 SDK* GetSDK()
 {
 	if (instance == 0)
-		instance = new Win32SDK();
-
+		instance = new PlatformSDK();
 	return instance;
 }
 
@@ -378,4 +442,4 @@ void ReleaseSDK()
 	lsl::SafeDelete(instance);
 }
 
-}
+} // namespace lsl

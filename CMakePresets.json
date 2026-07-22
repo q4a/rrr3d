@@ -1,0 +1,347 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "macos-arm64-debug",
+      "displayName": "macOS arm64 Debug (portable game stubs)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RRR3D_BUILD_GAME": "ON",
+        "RRR3D_BUILD_MAP_EDITOR": "OFF",
+        "RRR3D_BUILD_SDL_SHELL": "ON",
+        "RRR3D_BUILD_BGFX_SCENE": "OFF",
+        "RRR3D_BUILD_PORTABLE_MENU": "OFF",
+        "RRR3D_ENABLE_RENDERER": "OFF",
+        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_VIDEO": "OFF",
+        "RRR3D_ENABLE_PHYSICS": "OFF",
+        "RRR3D_ENABLE_STEAM": "OFF",
+        "RRR3D_ENABLE_DXVK_NATIVE": "OFF"
+      }
+    },
+    {
+      "name": "macos-arm64-m4",
+      "displayName": "macOS arm64 DXVK + MoltenVK feasibility",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-m4",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RRR3D_BUILD_GAME": "OFF",
+        "RRR3D_BUILD_MAP_EDITOR": "OFF",
+        "RRR3D_BUILD_SDL_SHELL": "OFF",
+        "RRR3D_BUILD_DXVK_MOLTENVK_TEST": "ON",
+        "RRR3D_BUILD_BGFX_SCENE": "OFF",
+        "RRR3D_BUILD_PORTABLE_MENU": "OFF",
+        "RRR3D_DXVK_NATIVE_ROOT": "${sourceDir}/build/dxvk-macos/install",
+        "RRR3D_ENABLE_RENDERER": "OFF",
+        "RRR3D_ENABLE_DXVK_NATIVE": "OFF"
+      }
+    },
+    {
+      "name": "macos-arm64-m5",
+      "displayName": "macOS arm64 bgfx/Metal static 3D scene",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-m5",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RRR3D_BUILD_GAME": "ON",
+        "RRR3D_BUILD_MAP_EDITOR": "OFF",
+        "RRR3D_BUILD_SDL_SHELL": "OFF",
+        "RRR3D_BUILD_DXVK_MOLTENVK_TEST": "OFF",
+        "RRR3D_BUILD_BGFX_SCENE": "ON",
+        "RRR3D_BUILD_PORTABLE_MENU": "OFF",
+        "RRR3D_ENABLE_RENDERER": "ON",
+        "RRR3D_RENDERER_BACKEND": "bgfx",
+        "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",
+        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_VIDEO": "OFF",
+        "RRR3D_ENABLE_PHYSICS": "OFF",
+        "RRR3D_ENABLE_STEAM": "OFF",
+        "RRR3D_ENABLE_DXVK_NATIVE": "OFF"
+      }
+    },
+    {
+      "name": "macos-arm64-m6",
+      "displayName": "macOS arm64 resource-backed bgfx/Metal main menu",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-m6",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RRR3D_BUILD_GAME": "ON",
+        "RRR3D_BUILD_MAP_EDITOR": "OFF",
+        "RRR3D_BUILD_SDL_SHELL": "OFF",
+        "RRR3D_BUILD_DXVK_MOLTENVK_TEST": "OFF",
+        "RRR3D_BUILD_BGFX_SCENE": "OFF",
+        "RRR3D_BUILD_PORTABLE_MENU": "ON",
+        "RRR3D_ENABLE_RENDERER": "ON",
+        "RRR3D_RENDERER_BACKEND": "bgfx",
+        "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",
+        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_VIDEO": "OFF",
+        "RRR3D_ENABLE_PHYSICS": "OFF",
+        "RRR3D_ENABLE_STEAM": "OFF",
+        "RRR3D_ENABLE_DXVK_NATIVE": "OFF"
+      }
+    },
+    {
+      "name": "macos-arm64-m7",
+      "displayName": "macOS arm64 SDL3 keyboard, mouse, and gamepad menu",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-m7",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RRR3D_BUILD_GAME": "ON",
+        "RRR3D_BUILD_MAP_EDITOR": "OFF",
+        "RRR3D_BUILD_SDL_SHELL": "OFF",
+        "RRR3D_BUILD_DXVK_MOLTENVK_TEST": "OFF",
+        "RRR3D_BUILD_BGFX_SCENE": "OFF",
+        "RRR3D_BUILD_PORTABLE_MENU": "ON",
+        "RRR3D_ENABLE_RENDERER": "ON",
+        "RRR3D_RENDERER_BACKEND": "bgfx",
+        "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",
+        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_VIDEO": "OFF",
+        "RRR3D_ENABLE_PHYSICS": "OFF",
+        "RRR3D_ENABLE_STEAM": "OFF",
+        "RRR3D_ENABLE_GAMEPAD": "ON",
+        "RRR3D_ENABLE_DXVK_NATIVE": "OFF"
+      }
+    },
+    {
+      "name": "macos-arm64-m8",
+      "displayName": "macOS arm64 SDL3 audio, input, and bgfx/Metal menu",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-m8",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RRR3D_BUILD_GAME": "ON",
+        "RRR3D_BUILD_MAP_EDITOR": "OFF",
+        "RRR3D_BUILD_SDL_SHELL": "OFF",
+        "RRR3D_BUILD_DXVK_MOLTENVK_TEST": "OFF",
+        "RRR3D_BUILD_BGFX_SCENE": "OFF",
+        "RRR3D_BUILD_PORTABLE_MENU": "ON",
+        "RRR3D_ENABLE_RENDERER": "ON",
+        "RRR3D_RENDERER_BACKEND": "bgfx",
+        "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",
+        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_VIDEO": "OFF",
+        "RRR3D_ENABLE_PHYSICS": "OFF",
+        "RRR3D_ENABLE_STEAM": "OFF",
+        "RRR3D_ENABLE_GAMEPAD": "ON",
+        "RRR3D_ENABLE_AUDIO": "ON",
+        "RRR3D_ENABLE_DXVK_NATIVE": "OFF"
+      }
+    },
+    {
+      "name": "macos-arm64-m9",
+      "displayName": "macOS arm64 playable physics race",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-m9",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RRR3D_BUILD_GAME": "ON",
+        "RRR3D_BUILD_MAP_EDITOR": "OFF",
+        "RRR3D_BUILD_SDL_SHELL": "OFF",
+        "RRR3D_BUILD_DXVK_MOLTENVK_TEST": "OFF",
+        "RRR3D_BUILD_BGFX_SCENE": "OFF",
+        "RRR3D_BUILD_PORTABLE_MENU": "ON",
+        "RRR3D_ENABLE_RENDERER": "ON",
+        "RRR3D_RENDERER_BACKEND": "bgfx",
+        "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",
+        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_VIDEO": "OFF",
+        "RRR3D_ENABLE_PHYSICS": "ON",
+        "RRR3D_ENABLE_STEAM": "OFF",
+        "RRR3D_ENABLE_GAMEPAD": "ON",
+        "RRR3D_ENABLE_AUDIO": "ON",
+        "RRR3D_ENABLE_DXVK_NATIVE": "OFF"
+      }
+    },
+    {
+      "name": "macos-arm64-m10",
+      "displayName": "macOS arm64 autonomous Debug application bundle",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-m10",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RRR3D_BUILD_GAME": "ON",
+        "RRR3D_BUILD_MAP_EDITOR": "OFF",
+        "RRR3D_BUILD_SDL_SHELL": "OFF",
+        "RRR3D_BUILD_DXVK_MOLTENVK_TEST": "OFF",
+        "RRR3D_BUILD_BGFX_SCENE": "OFF",
+        "RRR3D_BUILD_PORTABLE_MENU": "ON",
+        "RRR3D_BUILD_MACOS_BUNDLE": "ON",
+        "RRR3D_ENABLE_RENDERER": "ON",
+        "RRR3D_RENDERER_BACKEND": "bgfx",
+        "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",
+        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_VIDEO": "OFF",
+        "RRR3D_ENABLE_PHYSICS": "ON",
+        "RRR3D_ENABLE_STEAM": "OFF",
+        "RRR3D_ENABLE_GAMEPAD": "ON",
+        "RRR3D_ENABLE_AUDIO": "ON",
+        "RRR3D_ENABLE_DXVK_NATIVE": "OFF",
+        "RRR3D_MACOS_CODESIGN_IDENTITY": "-"
+      }
+    },
+    {
+      "name": "macos-arm64-release",
+      "displayName": "macOS arm64 autonomous Release application bundle",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RRR3D_BUILD_GAME": "ON",
+        "RRR3D_BUILD_MAP_EDITOR": "OFF",
+        "RRR3D_BUILD_SDL_SHELL": "OFF",
+        "RRR3D_BUILD_DXVK_MOLTENVK_TEST": "OFF",
+        "RRR3D_BUILD_BGFX_SCENE": "OFF",
+        "RRR3D_BUILD_PORTABLE_MENU": "ON",
+        "RRR3D_BUILD_MACOS_BUNDLE": "ON",
+        "RRR3D_ENABLE_RENDERER": "ON",
+        "RRR3D_RENDERER_BACKEND": "bgfx",
+        "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",
+        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_VIDEO": "OFF",
+        "RRR3D_ENABLE_PHYSICS": "ON",
+        "RRR3D_ENABLE_STEAM": "OFF",
+        "RRR3D_ENABLE_GAMEPAD": "ON",
+        "RRR3D_ENABLE_AUDIO": "ON",
+        "RRR3D_ENABLE_DXVK_NATIVE": "OFF",
+        "RRR3D_MACOS_CODESIGN_IDENTITY": "-"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "macos-arm64-debug",
+      "configurePreset": "macos-arm64-debug",
+      "targets": [
+        "XPlatform",
+        "LexStd",
+        "MathLib",
+        "Rock3dEngine",
+        "Rock3dGame",
+        "RRR3d"
+      ]
+    },
+    {
+      "name": "macos-arm64-m4",
+      "configurePreset": "macos-arm64-m4",
+      "targets": [
+        "rrr3d_dxvk_moltenvk_test"
+      ]
+    },
+    {
+      "name": "macos-arm64-m5",
+      "configurePreset": "macos-arm64-m5",
+      "targets": [
+        "XPlatform",
+        "LexStd",
+        "MathLib",
+        "Rock3dEngine",
+        "Rock3dGame",
+        "RRR3d"
+      ]
+    },
+    {
+      "name": "macos-arm64-m6",
+      "configurePreset": "macos-arm64-m6",
+      "targets": [
+        "XPlatform",
+        "LexStd",
+        "MathLib",
+        "Rock3dEngine",
+        "Rock3dGame",
+        "RRR3d"
+      ]
+    },
+    {
+      "name": "macos-arm64-m7",
+      "configurePreset": "macos-arm64-m7",
+      "targets": [
+        "XPlatform",
+        "LexStd",
+        "MathLib",
+        "Rock3dEngine",
+        "Rock3dGame",
+        "RRR3d"
+      ]
+    },
+    {
+      "name": "macos-arm64-m8",
+      "configurePreset": "macos-arm64-m8",
+      "targets": [
+        "XPlatform",
+        "LexStd",
+        "MathLib",
+        "Rock3dEngine",
+        "Rock3dGame",
+        "RRR3d"
+      ]
+    },
+    {
+      "name": "macos-arm64-m9",
+      "configurePreset": "macos-arm64-m9",
+      "targets": [
+        "XPlatform",
+        "LexStd",
+        "MathLib",
+        "Rock3dEngine",
+        "Rock3dGame",
+        "RRR3d"
+      ]
+    },
+    {
+      "name": "macos-arm64-m10",
+      "configurePreset": "macos-arm64-m10",
+      "targets": [
+        "XPlatform",
+        "LexStd",
+        "MathLib",
+        "Rock3dEngine",
+        "Rock3dGame",
+        "RRR3d",
+        "RRR3dBundle"
+      ]
+    },
+    {
+      "name": "macos-arm64-release",
+      "configurePreset": "macos-arm64-release",
+      "targets": [
+        "XPlatform",
+        "LexStd",
+        "MathLib",
+        "Rock3dEngine",
+        "Rock3dGame",
+        "RRR3d",
+        "RRR3dBundle"
+      ]
+    }
+  ]
+}

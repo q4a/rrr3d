@@ -24,7 +24,7 @@ public:
 	typedef typename std::list<_Item>::const_iterator const_iterator;
 	using std::list<_Item>::begin;
 	using std::list<_Item>::end;
-	//Удаляет один элемент с таким значением
+	//РЈРґР°Р»СЏРµС‚ РѕРґРёРЅ СЌР»РµРјРµРЅС‚ СЃ С‚Р°РєРёРј Р·РЅР°С‡РµРЅРёРµРј
 	iterator Remove(const _Item& item)
 	{
 		iterator iter = Find(item);
@@ -38,7 +38,7 @@ public:
 		_MyBase::remove_if(pred);
 	}
 
-	//Удаляет все элементы с таким значением
+	//РЈРґР°Р»СЏРµС‚ РІСЃРµ СЌР»РµРјРµРЅС‚С‹ СЃ С‚Р°РєРёРј Р·РЅР°С‡РµРЅРёРµРј
 	void RemoveValue(const _Item& item)
 	{
 		_MyBase::remove(item);
@@ -69,7 +69,7 @@ public:
 	typedef typename std::vector<_Item>::const_iterator const_iterator;
 	using std::vector<_Item>::begin;
 	using std::vector<_Item>::end;
-	//Удаляет один элемент с таким значением
+	//РЈРґР°Р»СЏРµС‚ РѕРґРёРЅ СЌР»РµРјРµРЅС‚ СЃ С‚Р°РєРёРј Р·РЅР°С‡РµРЅРёРµРј
 	iterator Remove(const _Item& item)
 	{
 		iterator iter = Find(item);
@@ -94,7 +94,7 @@ public:
 	}
 };
 
-//Модель контейнера способная к уведомлению. При создании и уничтожении экземпляра класса уведомления не происходит. Если значения элементов меняется уведомления также нет. В этом случай можно использовать метод вроде обычного Update
+//РњРѕРґРµР»СЊ РєРѕРЅС‚РµР№РЅРµСЂР° СЃРїРѕСЃРѕР±РЅР°СЏ Рє СѓРІРµРґРѕРјР»РµРЅРёСЋ. РџСЂРё СЃРѕР·РґР°РЅРёРё Рё СѓРЅРёС‡С‚РѕР¶РµРЅРёРё СЌРєР·РµРјРїР»СЏСЂР° РєР»Р°СЃСЃР° СѓРІРµРґРѕРјР»РµРЅРёСЏ РЅРµ РїСЂРѕРёСЃС…РѕРґРёС‚. Р•СЃР»Рё Р·РЅР°С‡РµРЅРёСЏ СЌР»РµРјРµРЅС‚РѕРІ РјРµРЅСЏРµС‚СЃСЏ СѓРІРµРґРѕРјР»РµРЅРёСЏ С‚Р°РєР¶Рµ РЅРµС‚. Р’ СЌС‚РѕРј СЃР»СѓС‡Р°Р№ РјРѕР¶РЅРѕ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РјРµС‚РѕРґ РІСЂРѕРґРµ РѕР±С‹С‡РЅРѕРіРѕ Update
 template<class _Item> class BaseContainer
 {
 protected:
@@ -145,7 +145,7 @@ private:
 	_Cont _cont;
 	_SafeCont* _safeCont;
 protected:
-	//Манипуляции с элементами контейнера
+	//РњР°РЅРёРїСѓР»СЏС†РёРё СЃ СЌР»РµРјРµРЅС‚Р°РјРё РєРѕРЅС‚РµР№РЅРµСЂР°
 	bool AddItem(const _Item& item);
 	void DeleteItem(iterator iter);
 	void DeleteItem(iterator sIter, iterator eIter);
@@ -195,11 +195,11 @@ public:
 	_MyClass& operator=(const _MyClass& value);
 };
 
-template<class _Item> Container<_Item>::Container(Duplicates duplicates): _safeCont(0), _duplicates(duplicates)
+template<class _Item> Container<_Item>::Container(Duplicates duplicates): _duplicates(duplicates), _safeCont(0)
 {
 }
 
-template<class _Item> Container<_Item>::Container(const _MyClass& ref): _safeCont(0), _duplicates(dupError)
+template<class _Item> Container<_Item>::Container(const _MyClass& ref): _duplicates(dupError), _safeCont(0)
 {
 	*this = ref;
 }

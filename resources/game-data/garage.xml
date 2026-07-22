@@ -1,0 +1,4452 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<garageRoot>
+  <cars>
+    <car0>
+      <record lib="world\db\ctCar">world\db\root\ctCar\marauder</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\marauder.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\marauder.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.66 0.5 0.22</pos>
+          <size>1.5 1.5</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.66 -0.5 0.22</pos>
+          <size>1.5 1.5</size>
+        </head2>
+        <head3>
+          <head>true</head>
+          <pos>0.3 -0.33 0.78</pos>
+          <size>1.0 1.0</size>
+        </head3>
+        <head4>
+          <head>true</head>
+          <pos>0.3 -0.0 0.78</pos>
+          <size>1.0 1.0</size>
+        </head4>
+        <head5>
+          <head>true</head>
+          <pos>0.3 0.33 0.78</pos>
+          <size>1.0 1.0</size>
+        </head5>
+        <back1>
+          <head>false</head>
+          <pos>-1.5 0.52 0.2</pos>
+          <size>1.2 1.2</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.5 -0.47 0.2</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>18000</cost>
+      <name>scMarauder</name>
+      <desc>scMarauderInfo</desc>
+      <wheel item="Car\marauderWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\marauderWheel.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\spring</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\spring</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\maslo</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\maslo</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>-0.85 0 0.66</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\bulletGun</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\bulletGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon2>
+      <stWeapon3>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </car0>
+    <car1>
+      <record lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\dirtdevil.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\dirtdevil.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.74 0.4 0.02</pos>
+          <size>1.5 1.5</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.74 -0.4 0.02</pos>
+          <size>1.5 1.5</size>
+        </head2>
+        <head3>
+          <head>true</head>
+          <pos>0.45 -0.28 0.83</pos>
+          <size>1.2 1.2</size>
+        </head3>
+        <head4>
+          <head>true</head>
+          <pos>0.45 0.28 0.83</pos>
+          <size>1.2 1.2</size>
+        </head4>
+        <back1>
+          <head>false</head>
+          <pos>-1.1 0.41 0.3</pos>
+          <size>1 1</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.1 -0.4 0.3</pos>
+          <size>1 1</size>
+        </back2>
+      </nightLights>
+      <cost>20000</cost>
+      <name>scDirtdevil</name>
+      <desc>scDirtdevilInfo</desc>
+      <wheel item="Car\dirtdevilWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\dirtdevilWheel.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\spring</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\spring</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\maslo</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\maslo</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>1.1 0 0.34</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\rifleWeapon</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rifleWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.0 0 1.1</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </car1>
+    <airblade>
+      <record lib="world\db\ctCar">world\db\root\ctCar\airblade</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\airblade.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\airblade.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.2 0.43 -0.04</pos>
+          <size>1.2 1.2</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.2 -0.43 -0.04</pos>
+          <size>1.2 1.2</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.47 0.42 0.25</pos>
+          <size>1.2 1.2</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.47 -0.42 0.25</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>90000</cost>
+      <name>scAirblade</name>
+      <desc>scAirbladeInfo</desc>
+      <wheel item="Car\airbladeWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\airbladeWheel.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.35</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>0.83 0 0.18</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\airWeapon</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\airWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0 0.75 0.2</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>1.25 -0.3 0.05</offset>
+          </item3>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0 -0.75 0.2</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>1.25 0.3 0.05</offset>
+          </item3>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </airblade>
+    <car2>
+      <record lib="world\db\ctCar">world\db\root\ctCar\manticora</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\manticora.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\manticora.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.32 0.6 0.05</pos>
+          <size>1.2 0.7</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.32 -0.6 0.05</pos>
+          <size>1.2 0.7</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.67 0.24 0.18</pos>
+          <size>1.2 0.7</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.67 -0.24 0.18</pos>
+          <size>1.2 0.7</size>
+        </back2>
+      </nightLights>
+      <cost>85000</cost>
+      <name>scManticora</name>
+      <desc>scManticoraInfo</desc>
+      <wheel item="Car\manticoraWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\manticoraWheel.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.35</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>-0.2 0 0.75</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\blasterGun</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\blasterGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.45 0.8 0.36</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>1.25 -0.3 0.05</offset>
+          </item3>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.45 -0.8 0.36</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>1.25 0.3 0.05</offset>
+          </item3>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </car2>
+    <car3>
+      <record lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\manticoraBoss.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\manticoraBoss.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <cost>90000</cost>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.32 0.6 0.05</pos>
+          <size>1.2 0.7</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.32 -0.6 0.05</pos>
+          <size>1.2 0.7</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.67 0.24 0.18</pos>
+          <size>1.2 0.7</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.67 -0.24 0.18</pos>
+          <size>1.2 0.7</size>
+        </back2>
+      </nightLights>
+      <name>scManticoraBoss</name>
+      <desc>scManticoraInfo</desc>
+      <wheel item="Car\manticoraWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\manticoraWheel.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.35</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>-0.2 0 0.75</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\blasterGun</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\blasterGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.45 0.8 0.36</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>1.25 -0.3 0.05</offset>
+          </item3>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.45 -0.8 0.36</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>1.25 0.3 0.05</offset>
+          </item3>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </car3>
+    <car4>
+      <record lib="world\db\ctCar">world\db\root\ctCar\guseniza</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>0</meshId>
+          <decal>true</decal>
+          <mesh item="Car\guseniza.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\guseniza.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+        <bodyMesh1>
+          <meshId>1</meshId>
+          <decal>false</decal>
+          <mesh item="Car\guseniza.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\gusenizaChain.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh1>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>0.7 0.54 0.25</pos>
+          <size>1.3 1.3</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>0.7 -0.54 0.25</pos>
+          <size>1.3 1.3</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.0 0.47 0.55</pos>
+          <size>2.1 0.8</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.0 -0.47 0.55</pos>
+          <size>2.1 0.8</size>
+        </back2>
+      </nightLights>
+      <cost>120000</cost>
+      <name>scGuseniza</name>
+      <desc>scGusenizaInfo</desc>
+      <initialUpgradeSet>1</initialUpgradeSet>
+      <wheels>Data\Car\gusenizaWheel.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\gusWheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\gusWheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\gusWheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\gusWheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.25</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine2</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>0.35 0 0.6</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\tankLaser</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\tankLaser</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0 1.4 0</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.85 -0.8 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0.85 -0.6 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item9>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0 -1.4 0</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.85 0.8 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0.85 0.6 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item9>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </car4>
+    <car5>
+      <record lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>0</meshId>
+          <decal>true</decal>
+          <mesh item="Car\gusenizaBoss.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\gusenizaBoss.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+        <bodyMesh1>
+          <meshId>1</meshId>
+          <decal>false</decal>
+          <mesh item="Car\gusenizaBoss.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\gusenizaChain.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh1>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>0.7 0.54 0.25</pos>
+          <size>1.3 1.3</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>0.7 -0.54 0.25</pos>
+          <size>1.3 1.3</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.0 0.47 0.55</pos>
+          <size>2.1 0.8</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.0 -0.47 0.55</pos>
+          <size>2.1 0.8</size>
+        </back2>
+      </nightLights>
+      <cost>125000</cost>
+      <name>scGusenizaBoss</name>
+      <desc>scGusenizaInfo</desc>
+      <initialUpgradeSet>2</initialUpgradeSet>
+      <wheels>Data\Car\gusenizaWheel.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\gusWheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\gusWheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\gusWheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\gusWheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\gusWheel1_boss</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.25</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine2</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>0.35 0 0.6</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\tankLaser</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\tankLaser</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0 1.4 0</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.85 -0.8 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0.85 -0.6 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item9>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0 -1.4 0</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.85 0.8 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0.85 0.6 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item9>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </car5>
+    <car6>
+      <record lib="world\db\ctCar">world\db\root\ctCar\podushka</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\podushka.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\podushka.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.3 0.43 0.1</pos>
+          <size>1 1</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.3 -0.43 0.1</pos>
+          <size>1 1</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.57 0.45 0.3</pos>
+          <size>1.2 1.2</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.57 -0.45 0.3</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>135000</cost>
+      <name>scPodushka</name>
+      <desc>scPodushkaInfo</desc>
+      <initialUpgradeSet>1</initialUpgradeSet>
+      <wheels>Data\Car\podushkaWheel.txt</wheels>
+      <stWheel>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWheel>
+      <stTruba>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items></items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.35</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine3</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>-0.4 0.21 0.61</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\sphereGun</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\sphereGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.5 0.7 0.15</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item8>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.5 -0.7 0.15</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </car6>
+    <podushkaBoss>
+      <record lib="world\db\ctCar">world\db\root\ctCar\podushkaBoss</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\podushkaBoss.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\podushkaBoss.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.3 0.43 0.1</pos>
+          <size>1.6 1</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.3 -0.43 0.1</pos>
+          <size>1.6 1</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.57 0.6 0.3</pos>
+          <size>1.2 1.2</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.57 -0.6 0.3</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>140000</cost>
+      <name>scPodushkaBoss</name>
+      <desc>scPodushkaInfo</desc>
+      <initialUpgradeSet>2</initialUpgradeSet>
+      <wheels>Data\Car\podushkaWheel.txt</wheels>
+      <stWheel>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWheel>
+      <stTruba>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items></items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.35</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine3</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>-0.4 0.21 0.61</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\sphereGun</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\sphereGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.5 0.7 0.15</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item8>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.5 -0.7 0.15</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </podushkaBoss>
+    <car7>
+      <record lib="world\db\ctCar">world\db\root\ctCar\monstertruck</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\monstertruck.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\monstertruck.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.6 0.4 0.1</pos>
+          <size>1.5 1.5</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.6 -0.4 0.1</pos>
+          <size>1.5 1.5</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.65 0.46 0.34</pos>
+          <size>1.2 1.2</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.65 -0.46 0.34</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>150000</cost>
+      <name>scMonsterTruck</name>
+      <desc>scMonsterTruckInfo</desc>
+      <initialUpgradeSet>2</initialUpgradeSet>
+      <wheel item="Car\monstertruckWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\monstertruckWheelGUI.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.35</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine2</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>-0.7 -0.125 0.86</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\asyncFrost</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\asyncFrost</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.3 0.8 0.2</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.95 -0.1 -0.1</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item9>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.3 -0.8 0.2</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.95 0.1 -0.1</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item9>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>1.4 0 0.5</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon4>
+    </car7>
+    <car8>
+      <record lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</record>
+      <bodyMeshes>
+        <bodyMesh1>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\monstertruckBoss.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\monstertruckBoss.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh1>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.7 0.4 0.1</pos>
+          <size>1.5 1.5</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.7 -0.4 0.1</pos>
+          <size>1.5 1.5</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.65 0.51 0.04</pos>
+          <size>1.2 1.2</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.65 -0.51 0.04</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>145000</cost>
+      <name>scMonsterTruck</name>
+      <desc>scMonsterTruckInfo</desc>
+      <initialUpgradeSet>2</initialUpgradeSet>
+      <wheel item="Car\monstertruckBossWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\monstertruckWheelGUI.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.35</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine2</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>-0.8 0 0.55</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\asyncFrost2</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\asyncFrost2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.3 0.8 0.4</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.95 -0.1 -0.1</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>-0.707107 -0 -0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item9>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>0.3 -0.8 0.4</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.95 0.1 -0.1</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>0.707107 0 0 0.707107</rot>
+            <offset>0 0 0</offset>
+          </item9>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>1.4 0 0.6</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon4>
+    </car8>
+    <car9>
+      <record lib="world\db\ctCar">world\db\root\ctCar\devildriver</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\devildriver.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\devildriver.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>2.3 0.7 -0.02</pos>
+          <size>1.5 1.0</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>2.3 -0.7 -0.02</pos>
+          <size>1.5 1.5</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-2.35 0.76 0.15</pos>
+          <size>1.2 1.0</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-2.35 -0.76 0.15</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>165000</cost>
+      <name>scDevilDriver</name>
+      <desc>scDevilDriverInfo</desc>
+      <initialUpgradeSet>3</initialUpgradeSet>
+      <wheels>Data\Car\devildriverWheel.txt</wheels>
+      <stWheel>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWheel>
+      <stTruba>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.35</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine3</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>-1.1 0 0.5</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\sonar</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\sonar</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>1.75 0.9 0.2</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.2 -0.1 -0.1</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item9>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>1.75 -0.9 0.2</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.2 0.1 -0.1</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0.4 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item9>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>1.5 0 0.45</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon4>
+    </car9>
+    <car10>
+      <record lib="world\db\ctCar">world\db\root\ctCar\devildriverBoss</record>
+      <bodyMeshes>
+        <bodyMesh1>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\devildriverBoss.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\devildriverBoss.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh1>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>2.3 0.7 -0.02</pos>
+          <size>1.5 1.0</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>2.3 -0.7 -0.02</pos>
+          <size>1.5 1.5</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-2.35 0.76 0.15</pos>
+          <size>1.2 1.0</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-2.35 -0.76 0.15</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>140000</cost>
+      <name>scDevilDriverBoss</name>
+      <desc>scDevilDriverInfo</desc>
+      <initialUpgradeSet>3</initialUpgradeSet>
+      <wheels>Data\Car\devildriverWheel.txt</wheels>
+      <stWheel>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWheel>
+      <stTruba>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.35</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine3</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>-1.1 0 0.5</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\sonar</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\sonar</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>1.75 0.9 0.2</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.2 -0.1 -0.1</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>-0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item9>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>1.75 -0.9 0.2</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\drobilka</record>
+            <rot>0 0 0 1</rot>
+            <offset>0.2 0.1 -0.1</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0.4 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <item9>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>0.258819 0 0 0.965926</rot>
+            <offset>0 0 0</offset>
+          </item9>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>1.5 0 0.45</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon4>
+    </car10>
+    <xCar>
+      <record lib="world\db\ctCar">world\db\root\ctCar\xCar</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\xCar.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\xCar.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.3 0.43 0.1</pos>
+          <size>1 1</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.3 -0.43 0.1</pos>
+          <size>1 1</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.57 0.45 0.3</pos>
+          <size>1.2 1.2</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.57 -0.45 0.3</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>135000</cost>
+      <name>scXCar</name>
+      <desc>scXCarInfo</desc>
+      <initialUpgradeSet>1</initialUpgradeSet>
+      <wheel item="Car\xCarWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\xCarWheel.txt</wheels>
+      <stWheel>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWheel>
+      <stTruba>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items></items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperdrive</record>
+            <rot>0 0 1 -4.37114e-008</rot>
+            <offset>-1.5 0 0.35</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\mine3</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>-0.8 0.0 0.61</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\sphereGun</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\sphereGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>-0.2 0.7 0.15</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>-1 -0 -0 -4.37114e-008</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>-0.5 -0 -0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item8>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>-0.2 -0.7 0.15</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\fireGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\torpedaWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+          <item4>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\turel</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item4>
+          <item5>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\phaseImpulse</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item5>
+          <item6>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\mortira</record>
+            <rot>-0 -0.0654031 -0 0.997859</rot>
+            <offset>0 0 0</offset>
+          </item6>
+          <item7>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\hyperBlaster</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item7>
+          <item8>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rezonator</record>
+            <rot>0.5 0 0 0.866025</rot>
+            <offset>0 0 0</offset>
+          </item8>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </xCar>
+    <car11>
+      <record lib="world\db\ctCar">world\db\root\ctCar\buggi</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\buggi.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\buggi.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.7 0.55 0.1</pos>
+          <size>1.5 1.5</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.7 -0.55 0.1</pos>
+          <size>1.5 1.5</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.57 0.55 0.4</pos>
+          <size>1.2 1.2</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.57 -0.55 0.4</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>18000</cost>
+      <name>scBuggi</name>
+      <desc>scBuggiInfo</desc>
+      <wheel item="Car\buggiWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\buggiWheel.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\spring</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\spring</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\maslo</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\maslo</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>1.2 0.02 0.53</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\bulletGun</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\bulletGun</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon2>
+      <stWeapon3>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </car11>
+    <car12>
+      <record lib="world\db\ctCar">world\db\root\ctCar\tankchetti</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\tankchetti.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\tankchetti.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.8 0.65 0.1</pos>
+          <size>1.5 1.5</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.8 -0.65 0.1</pos>
+          <size>1.5 1.5</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.65 0.75 0.42</pos>
+          <size>1.2 1.2</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.65 -0.65 0.45</pos>
+          <size>1.1 1.1</size>
+        </back2>
+      </nightLights>
+      <cost>20000</cost>
+      <name>scTankchetti</name>
+      <desc>scTankchettiInfo</desc>
+      <wheel item="Car\tankchettiWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\tankchettiWheel.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+          <item3>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item3>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine1</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine2</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <item2>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item2>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\spring</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\spring</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stHyper>
+      <stMine>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\maslo</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\maslo</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMine>
+      <stWeapon1>
+        <active>true</active>
+        <show>true</show>
+        <lock>true</lock>
+        <pos>1.88 0 -0.22</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\rifleWeapon</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rifleWeapon</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>true</active>
+        <show>true</show>
+        <lock>false</lock>
+        <pos>-0.41 0.08 1.1</pos>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\rocketLauncher</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+          <item1>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\pulsator</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item1>
+          <droid>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\droid</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </droid>
+          <reflector>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\reflector</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </reflector>
+        </items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </car12>
+    <mustang>
+      <record lib="world\db\ctCar">world\db\root\ctCar\mustang</record>
+      <bodyMeshes>
+        <bodyMesh0>
+          <meshId>-1</meshId>
+          <decal>true</decal>
+          <mesh item="Car\mustang.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+          <texture item="Car\mustang.dds">world\resManager\imageLib\tex2dLib</texture>
+        </bodyMesh0>
+      </bodyMeshes>
+      <nightLights>
+        <head1>
+          <head>true</head>
+          <pos>1.7 0.55 0.1</pos>
+          <size>1.5 1.5</size>
+        </head1>
+        <head2>
+          <head>true</head>
+          <pos>1.7 -0.55 0.1</pos>
+          <size>1.5 1.5</size>
+        </head2>
+        <back1>
+          <head>false</head>
+          <pos>-1.57 0.55 0.4</pos>
+          <size>1.2 1.2</size>
+        </back1>
+        <back2>
+          <head>false</head>
+          <pos>-1.57 -0.55 0.4</pos>
+          <size>1.2 1.2</size>
+        </back2>
+      </nightLights>
+      <cost>90000</cost>
+      <name>scMustang</name>
+      <desc>scMustangInfo</desc>
+      <wheel item="Car\mustangWheel.r3d">world\resManager\meshLib\ivbMeshLib</wheel>
+      <wheels>Data\Car\mustangWheel.txt</wheels>
+      <stWheel>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\wheel3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stWheel>
+      <stTruba>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\truba3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stTruba>
+      <stArmor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\armor3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stArmor>
+      <stMotor>
+        <active>true</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <defItem lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</defItem>
+        <items>
+          <item0>
+            <record lib="world\race\workshop">world\race\workshopRoot\workshop\engine3</record>
+            <rot>0 0 0 1</rot>
+            <offset>0 0 0</offset>
+          </item0>
+        </items>
+      </stMotor>
+      <stHyper>
+        <active>false</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0 0 0</pos>
+        <items></items>
+      </stHyper>
+      <stMine>
+        <active>false</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>-1 0 0</pos>
+        <items></items>
+      </stMine>
+      <stWeapon1>
+        <active>false</active>
+        <show>false</show>
+        <lock>true</lock>
+        <pos>0.83 0 0.18</pos>
+        <items></items>
+      </stWeapon1>
+      <stWeapon2>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 1 0.3</pos>
+        <items></items>
+      </stWeapon2>
+      <stWeapon3>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 -1 0.3</pos>
+        <items></items>
+      </stWeapon3>
+      <stWeapon4>
+        <active>false</active>
+        <show>false</show>
+        <lock>false</lock>
+        <pos>0 0 0</pos>
+        <items />
+      </stWeapon4>
+    </mustang>
+  </cars>
+  <touchBorderDamage>5 5</touchBorderDamage>
+  <touchBorderDamageForce>3800000 3800000</touchBorderDamageForce>
+  <touchCarDamage>5 5</touchCarDamage>
+  <touchCarDamageForce>1100000 1100000</touchCarDamageForce>
+</garageRoot>

@@ -354,14 +354,14 @@ bool AABB::AABBLineCastIntersect(const AABB& aabb, const glm::vec3& rayVec, floa
 		glm::vec3 curV = aabb.GetVertex(i);
 		float tNear;
 		float tFar;
-		//Прямое направление
+		//РџСЂСЏРјРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
 		if (LineCastIntersect(curV, rayVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
 			minDist = (res) ? AbsMin(minDist, t) : t;
 			res = true;
 		}
-		//Обратное направление
+		//РћР±СЂР°С‚РЅРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
 		curV = GetVertex(i);
 		if (aabb.LineCastIntersect(curV, -rayVec, tNear, tFar))
 		{
@@ -371,21 +371,21 @@ bool AABB::AABBLineCastIntersect(const AABB& aabb, const glm::vec3& rayVec, floa
 		}
 	}
 
-	///Контроль на пересечение относительно центра. Берутся две проекции одного центра относительно линии пересечения чтобы учесть все возможные случаи проникновения
+	///РљРѕРЅС‚СЂРѕР»СЊ РЅР° РїРµСЂРµСЃРµС‡РµРЅРёРµ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ С†РµРЅС‚СЂР°. Р‘РµСЂСѓС‚СЃСЏ РґРІРµ РїСЂРѕРµРєС†РёРё РѕРґРЅРѕРіРѕ С†РµРЅС‚СЂР° РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ Р»РёРЅРёРё РїРµСЂРµСЃРµС‡РµРЅРёСЏ С‡С‚РѕР±С‹ СѓС‡РµСЃС‚СЊ РІСЃРµ РІРѕР·РјРѕР¶РЅС‹Рµ СЃР»СѓС‡Р°Рё РїСЂРѕРЅРёРєРЅРѕРІРµРЅРёСЏ
 	glm::vec3 centerNear;
 	glm::vec3 centerFar;
 	if (aabb.LineCastIntersect(aabb.GetCenter(), rayVec, centerNear, centerFar))
 	{
 		float tNear;
 		float tFar;
-		//Ближняя проекция
+		//Р‘Р»РёР¶РЅСЏСЏ РїСЂРѕРµРєС†РёСЏ
 		if (LineCastIntersect(centerNear, rayVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
 			minDist = (res) ? AbsMin(minDist, t) : t;
 			res = true;
 		}
-		//Дальняя проекция
+		//Р”Р°Р»СЊРЅСЏСЏ РїСЂРѕРµРєС†РёСЏ
 		if (LineCastIntersect(centerFar, rayVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
@@ -411,7 +411,7 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const 
 	{
 		float tNear;
 		float tFar;
-		//Прямое направление
+		//РџСЂСЏРјРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
 		if (LineCastIntersect(startBB.v[i], localVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
@@ -426,7 +426,7 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const 
 		}
 	}
 
-	///Контроль на пересечение относительно центра. Берутся две проекции одного центра относительно линии пересечения чтобы учесть все возможные случаи проникновения
+	///РљРѕРЅС‚СЂРѕР»СЊ РЅР° РїРµСЂРµСЃРµС‡РµРЅРёРµ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ С†РµРЅС‚СЂР°. Р‘РµСЂСѓС‚СЃСЏ РґРІРµ РїСЂРѕРµРєС†РёРё РѕРґРЅРѕРіРѕ С†РµРЅС‚СЂР° РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ Р»РёРЅРёРё РїРµСЂРµСЃРµС‡РµРЅРёСЏ С‡С‚РѕР±С‹ СѓС‡РµСЃС‚СЊ РІСЃРµ РІРѕР·РјРѕР¶РЅС‹Рµ СЃР»СѓС‡Р°Рё РїСЂРѕРЅРёРєРЅРѕРІРµРЅРёСЏ
 	glm::vec3 centerNear;
 	glm::vec3 centerFar;
 	if (start.LineCastIntersect(start.GetCenter(), vec, centerNear, centerFar))
@@ -435,14 +435,14 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const glm::vec3& vec, const 
 		centerFar = Vec3TransformCoord(centerFar, startTolocal);
 		float tNear;
 		float tFar;
-		//Ближняя проекция
+		//Р‘Р»РёР¶РЅСЏСЏ РїСЂРѕРµРєС†РёСЏ
 		if (LineCastIntersect(centerNear, localVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
 			minDist = (res) ? AbsMin(minDist, t) : t;
 			res = true;
 		}
-		//Дальняя проекция
+		//Р”Р°Р»СЊРЅСЏСЏ РїСЂРѕРµРєС†РёСЏ
 		if (LineCastIntersect(centerFar, localVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
@@ -462,13 +462,13 @@ bool AABB::AABBRayCastIntersect(const AABB& aabb, const glm::vec3& rayVec, float
 		glm::vec3 curV = aabb.GetVertex(i);
 		float tNear;
 		float tFar;
-		//Прямое направление
+		//РџСЂСЏРјРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
 		if (RayCastIntersect(curV, rayVec, tNear, tFar))
 		{
 			minDist = (res) ? AbsMin(minDist, tNear) : tNear;
 			res = true;
 		}
-		//Обратное направление
+		//РћР±СЂР°С‚РЅРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
 		curV = GetVertex(i);
 		if (aabb.RayCastIntersect(curV, -rayVec, tNear, tFar))
 		{
@@ -477,7 +477,7 @@ bool AABB::AABBRayCastIntersect(const AABB& aabb, const glm::vec3& rayVec, float
 		}
 	}
 
-	///Контроль на пересечение относительно центра
+	///РљРѕРЅС‚СЂРѕР»СЊ РЅР° РїРµСЂРµСЃРµС‡РµРЅРёРµ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ С†РµРЅС‚СЂР°
 	glm::vec3 centerNear;
 	glm::vec3 centerFar;
 	if (aabb.RayCastIntersect(GetCenter(), rayVec, centerNear, centerFar))
@@ -752,8 +752,6 @@ void Frustum::Refresh(const D3DMATRIX& viewProjMat)
 
 Frustum::SpaceContains Frustum::ContainsAABB(const AABB& aabb) const
 {
-	typedef glm::vec4 PlaneArray[6];
-
 	AABB::Corners corners;
 	aabb.ExtractCorners(corners);
 

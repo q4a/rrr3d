@@ -1,19 +1,17 @@
 project(XPlatform)
 
-list(APPEND PROJECT_DIRS
-    "header"
-    "source"
-    )
-add_dir("${PROJECT_DIRS}" "${PROJECT_NAME}")
-
 add_library(${PROJECT_NAME} STATIC
-    ${${PROJECT_NAME}_SOURCE}
-    ${${PROJECT_NAME}_INLINE}
-    ${${PROJECT_NAME}_HEADER}
+    source/xplatform.cpp
+    header/xplatform.h
+    header/d3dx9math.h
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(${PROJECT_NAME} PUBLIC
     header
 )
 
-target_link_libraries(${PROJECT_NAME})
+if(CMAKE_DL_LIBS)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
+endif()
+
+rrr3d_set_common_target_options(${PROJECT_NAME})

@@ -4,6 +4,9 @@
 #include "r3dMath.h"
 #include "lslUtility.h"
 #include "lslAutoRef.h"
+#include "xplatform.h"
+
+#include <cstdint>
 
 namespace r3d {using namespace lsl;}
 
@@ -14,7 +17,11 @@ namespace r3d {using namespace lsl;}
 namespace r3d
 {
 
-const UINT WM_GRAPH_EVENT = WM_APP + 1;
+#ifdef _WIN32
+inline constexpr UINT WM_GRAPH_EVENT = WM_APP + 1;
+#else
+inline constexpr std::uint32_t WM_GRAPH_EVENT = 0;
+#endif
 
 namespace game
 {
@@ -45,7 +52,7 @@ public:
 	virtual bool IsTerminate() const = 0;
 	virtual int GetTerminateResult() const = 0;
 
-	virtual bool OnPaint(HWND handle) = 0;
+	virtual bool OnPaint(rrr3d::platform::NativeWindowHandle handle) = 0;
 	virtual void OnDisplayChange() = 0;
 	virtual void OnWMGraphEvent() = 0;
 };

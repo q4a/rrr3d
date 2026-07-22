@@ -1,0 +1,4272 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<workshopRoot>
+  <workshop folder="true">
+    <wheel1>
+      <type>1</type>
+      <item>
+        <name>scWheel1</name>
+        <info>scWheel1Info</info>
+        <cost>0</cost>
+        <mesh item="Upgrade\wheel1.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\wheel1.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.5</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>2</tireSpring>
+            <maxSpeed>42</maxSpeed>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>6.75</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.65</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.5</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>2</tireSpring>
+            <maxSpeed>42</maxSpeed>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2.25</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.75</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>2</tireSpring>
+            <maxSpeed>42</maxSpeed>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2.25</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.75</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>2</tireSpring>
+            <maxSpeed>45</maxSpeed>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0.7</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2.25</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.75</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>2</tireSpring>
+            <maxSpeed>42</maxSpeed>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>8</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>7.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>2</tireSpring>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>8</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>7.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>2</tireSpring>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.5</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>2</tireSpring>
+            <maxSpeed>42</maxSpeed>
+          </func6>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>8</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>7.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.5</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>2</tireSpring>
+            <maxSpeed>42</maxSpeed>
+          </func7>
+        </carFuncMap>
+      </item>
+    </wheel1>
+    <wheel2>
+      <type>1</type>
+      <item>
+        <name>scWheel2</name>
+        <info>scWheel2Info</info>
+        <cost>25000</cost>
+        <mesh item="Upgrade\wheel2.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\wheel2.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2.5</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>5</tireSpring>
+            <maxSpeed>45</maxSpeed>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>6.75</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.65</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2.5</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>5</tireSpring>
+            <maxSpeed>45</maxSpeed>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2.75</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.25</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>5</tireSpring>
+            <maxSpeed>45</maxSpeed>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2.75</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.25</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>5</tireSpring>
+            <maxSpeed>45</maxSpeed>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0.7</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2.75</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.25</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>5</tireSpring>
+            <maxSpeed>45</maxSpeed>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>8</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>7.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3.5</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.25</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>5</tireSpring>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>8</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>7.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3.5</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.25</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>5</tireSpring>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2.5</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>5</tireSpring>
+            <maxSpeed>45</maxSpeed>
+          </func6>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>8</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>7.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>2.5</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>5</tireSpring>
+            <maxSpeed>45</maxSpeed>
+          </func7>
+        </carFuncMap>
+      </item>
+    </wheel2>
+    <wheel3>
+      <type>1</type>
+      <item>
+        <name>scWheel3</name>
+        <info>scWheel3Info</info>
+        <cost>35000</cost>
+        <mesh item="Upgrade\wheel3.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\wheel3.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.5</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>8</tireSpring>
+            <maxSpeed>48</maxSpeed>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>6.75</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.65</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.5</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>8</tireSpring>
+            <maxSpeed>48</maxSpeed>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3.25</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.75</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>8</tireSpring>
+            <maxSpeed>48</maxSpeed>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3.25</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.75</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>8</tireSpring>
+            <maxSpeed>48</maxSpeed>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0.7</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3.25</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.75</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>8</tireSpring>
+            <maxSpeed>48</maxSpeed>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>8</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>7.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>4</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.5</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>8</tireSpring>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>8</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>7.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>4</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>1.5</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>8</tireSpring>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.5</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>8</tireSpring>
+            <maxSpeed>48</maxSpeed>
+          </func6>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0.45</extremumSlip>
+              <extremumValue>8</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>7.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.5</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>8</tireSpring>
+            <maxSpeed>48</maxSpeed>
+          </func7>
+          <mustang>
+            <car lib="world\db\ctCar">world\db\root\ctCar\mustang</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>6</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>5.9</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3.5</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <tireSpring>8</tireSpring>
+          </mustang>
+        </carFuncMap>
+      </item>
+    </wheel3>
+    <gusWheel1>
+      <type>1</type>
+      <item>
+        <name>scGuseniza1</name>
+        <info>scGuseniza1Info</info>
+        <cost>0</cost>
+        <mesh item="Upgrade\gusWheel1.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\gusWheel1.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0.4</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>5.5</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>2.25</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <maxSpeed>42</maxSpeed>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0.4</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>5.5</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>2.25</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <maxSpeed>42</maxSpeed>
+          </func1>
+        </carFuncMap>
+      </item>
+    </gusWheel1>
+    <gusWheel2>
+      <type>1</type>
+      <item>
+        <name>scGuseniza2</name>
+        <info>scGuseniza2Info</info>
+        <cost>25000</cost>
+        <mesh item="Upgrade\gusWheel2.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\gusWheel1.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0.4</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>5.75</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>2.6</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <maxSpeed>45</maxSpeed>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0.4</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>5.75</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>2.6</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <maxSpeed>45</maxSpeed>
+          </func1>
+        </carFuncMap>
+      </item>
+    </gusWheel2>
+    <gusWheel3>
+      <type>1</type>
+      <item>
+        <name>scGuseniza3</name>
+        <info>scGuseniza3Info</info>
+        <cost>35000</cost>
+        <mesh item="Upgrade\gusWheel3.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\gusWheel3.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0.4</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>3</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <maxSpeed>48</maxSpeed>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0.4</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>3</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <maxSpeed>48</maxSpeed>
+          </func1>
+        </carFuncMap>
+      </item>
+    </gusWheel3>
+    <gusWheel1_boss>
+      <type>1</type>
+      <item>
+        <name>scGuseniza1</name>
+        <info>scGuseniza1Info</info>
+        <cost>0</cost>
+        <mesh item="Upgrade\gusWheel1.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\gusWheel1.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0.4</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>4</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>1.75</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>0</life>
+            <maxSpeed>41</maxSpeed>
+          </func0>
+        </carFuncMap>
+      </item>
+    </gusWheel1_boss>
+    <truba1>
+      <type>2</type>
+      <item>
+        <name>scTruba1</name>
+        <info>scTruba1Info</info>
+        <cost>0</cost>
+        <mesh item="Upgrade\truba1.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\truba1.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>100</maxTorque>
+            <life>0</life>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>100</maxTorque>
+            <life>0</life>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>100</maxTorque>
+            <life>0</life>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>100</maxTorque>
+            <life>0</life>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>100</maxTorque>
+            <life>0</life>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>100</maxTorque>
+            <life>0</life>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>100</maxTorque>
+            <life>0</life>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>50</maxTorque>
+            <life>0</life>
+          </func6>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>50</maxTorque>
+            <life>0</life>
+          </func7>
+          <func8>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>100</maxTorque>
+            <life>0</life>
+          </func8>
+          <func9>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>100</maxTorque>
+            <life>0</life>
+          </func9>
+        </carFuncMap>
+      </item>
+    </truba1>
+    <truba2>
+      <type>2</type>
+      <item>
+        <name>scTruba2</name>
+        <info>scTruba2Info</info>
+        <cost>16000</cost>
+        <mesh item="Upgrade\truba2.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\truba2.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>150</maxTorque>
+            <life>0</life>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>150</maxTorque>
+            <life>0</life>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>200</maxTorque>
+            <life>0</life>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>200</maxTorque>
+            <life>0</life>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>200</maxTorque>
+            <life>0</life>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>150</maxTorque>
+            <life>0</life>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>150</maxTorque>
+            <life>0</life>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>65</maxTorque>
+            <life>0</life>
+          </func6>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>65</maxTorque>
+            <life>0</life>
+          </func7>
+          <func8>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>150</maxTorque>
+            <life>0</life>
+          </func8>
+          <func9>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>150</maxTorque>
+            <life>0</life>
+          </func9>
+        </carFuncMap>
+      </item>
+    </truba2>
+    <truba3>
+      <type>2</type>
+      <item>
+        <name>scTruba3</name>
+        <info>scTruba3Info</info>
+        <cost>27000</cost>
+        <mesh item="Upgrade\truba3.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\truba3.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>200</maxTorque>
+            <life>0</life>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>200</maxTorque>
+            <life>0</life>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>300</maxTorque>
+            <life>0</life>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>300</maxTorque>
+            <life>0</life>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>300</maxTorque>
+            <life>0</life>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>200</maxTorque>
+            <life>0</life>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>200</maxTorque>
+            <life>0</life>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>80</maxTorque>
+            <life>0</life>
+          </func6>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>80</maxTorque>
+            <life>0</life>
+          </func7>
+          <func8>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>200</maxTorque>
+            <life>0</life>
+          </func8>
+          <func9>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>200</maxTorque>
+            <life>0</life>
+          </func9>
+          <mustang>
+            <car lib="world\db\ctCar">world\db\root\ctCar\mustang</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>300</maxTorque>
+            <life>0</life>
+          </mustang>
+        </carFuncMap>
+      </item>
+    </truba3>
+    <engine1>
+      <type>4</type>
+      <item>
+        <name>scEngine1</name>
+        <info>scEngine1Info</info>
+        <cost>0</cost>
+        <mesh item="Upgrade\engine1.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\engine1.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>900</maxTorque>
+            <life>0</life>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>900</maxTorque>
+            <life>0</life>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1300</maxTorque>
+            <life>0</life>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1300</maxTorque>
+            <life>0</life>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1100</maxTorque>
+            <life>0</life>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1300</maxTorque>
+            <life>0</life>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1300</maxTorque>
+            <life>0</life>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushka</car>
+            <longTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>2</asymptoteValue>
+            </latTire>
+            <maxTorque>1000</maxTorque>
+            <life>0</life>
+            <maxSpeed>42</maxSpeed>
+          </func6>
+          <podushkaBoss>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushkaBoss</car>
+            <longTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>2</asymptoteValue>
+            </latTire>
+            <maxTorque>1000</maxTorque>
+            <life>0</life>
+            <maxSpeed>42</maxSpeed>
+          </podushkaBoss>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>300</maxTorque>
+            <life>0</life>
+          </func7>
+          <func8>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>300</maxTorque>
+            <life>0</life>
+          </func8>
+          <func9>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriver</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.5</asymptoteValue>
+            </latTire>
+            <maxTorque>800</maxTorque>
+            <life>0</life>
+          </func9>
+          <func10>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriverBoss</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>2.5</asymptoteValue>
+            </latTire>
+            <maxTorque>800</maxTorque>
+            <life>0</life>
+          </func10>
+          <func11>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>800</maxTorque>
+            <life>0</life>
+          </func11>
+          <func12>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>900</maxTorque>
+            <life>0</life>
+          </func12>
+          <xCar>
+            <car lib="world\db\ctCar">world\db\root\ctCar\xCar</car>
+            <longTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>2</asymptoteValue>
+            </latTire>
+            <maxTorque>1000</maxTorque>
+            <life>0</life>
+            <maxSpeed>42</maxSpeed>
+          </xCar>
+        </carFuncMap>
+      </item>
+    </engine1>
+    <engine2>
+      <type>4</type>
+      <item>
+        <name>scEngine2</name>
+        <info>scEngine2Info</info>
+        <cost>32000</cost>
+        <mesh item="Upgrade\engine2.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\engine2.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1150</maxTorque>
+            <life>0</life>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1150</maxTorque>
+            <life>0</life>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1600</maxTorque>
+            <life>0</life>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1600</maxTorque>
+            <life>0</life>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1300</maxTorque>
+            <life>0</life>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1550</maxTorque>
+            <life>0</life>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1550</maxTorque>
+            <life>0</life>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushka</car>
+            <longTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6.25</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>2.5</asymptoteValue>
+            </latTire>
+            <maxTorque>1150</maxTorque>
+            <life>0</life>
+            <maxSpeed>45</maxSpeed>
+          </func6>
+          <podushkaBoss>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushkaBoss</car>
+            <longTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6.25</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>2.5</asymptoteValue>
+            </latTire>
+            <maxTorque>1150</maxTorque>
+            <life>0</life>
+            <maxSpeed>45</maxSpeed>
+          </podushkaBoss>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>400</maxTorque>
+            <life>0</life>
+          </func7>
+          <func8>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>400</maxTorque>
+            <life>0</life>
+          </func8>
+          <func9>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriver</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3.5</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>3</asymptoteValue>
+            </latTire>
+            <maxTorque>950</maxTorque>
+            <life>0</life>
+          </func9>
+          <func10>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriverBoss</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>3.5</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>3</asymptoteValue>
+            </latTire>
+            <maxTorque>950</maxTorque>
+            <life>0</life>
+          </func10>
+          <func11>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1000</maxTorque>
+            <life>0</life>
+          </func11>
+          <func12>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1100</maxTorque>
+            <life>0</life>
+          </func12>
+          <xCar>
+            <car lib="world\db\ctCar">world\db\root\ctCar\xCar</car>
+            <longTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6.25</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>2.5</asymptoteValue>
+            </latTire>
+            <maxTorque>1150</maxTorque>
+            <life>0</life>
+            <maxSpeed>45</maxSpeed>
+          </xCar>
+        </carFuncMap>
+      </item>
+    </engine2>
+    <engine3>
+      <type>4</type>
+      <item>
+        <name>scEngine3</name>
+        <info>scEngine3Info</info>
+        <cost>55000</cost>
+        <mesh item="Upgrade\engine3.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\engine3.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1500</maxTorque>
+            <life>0</life>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1500</maxTorque>
+            <life>0</life>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1900</maxTorque>
+            <life>0</life>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1900</maxTorque>
+            <life>0</life>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1600</maxTorque>
+            <life>0</life>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1800</maxTorque>
+            <life>0</life>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1800</maxTorque>
+            <life>0</life>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushka</car>
+            <longTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>3</asymptoteValue>
+            </latTire>
+            <maxTorque>1350</maxTorque>
+            <life>0</life>
+            <maxSpeed>48</maxSpeed>
+          </func6>
+          <podushkaBoss>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushkaBoss</car>
+            <longTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>3</asymptoteValue>
+            </latTire>
+            <maxTorque>1350</maxTorque>
+            <life>0</life>
+            <maxSpeed>48</maxSpeed>
+          </podushkaBoss>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>460</maxTorque>
+            <life>0</life>
+          </func7>
+          <func8>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>460</maxTorque>
+            <life>0</life>
+          </func8>
+          <func9>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriver</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>4</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>3.5</asymptoteValue>
+            </latTire>
+            <maxTorque>1050</maxTorque>
+            <life>0</life>
+          </func9>
+          <func10>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriverBoss</car>
+            <longTire>
+              <extremumSlip>0.5</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>4</extremumValue>
+              <asymptoteSlip>2</asymptoteSlip>
+              <asymptoteValue>3.5</asymptoteValue>
+            </latTire>
+            <maxTorque>1050</maxTorque>
+            <life>0</life>
+          </func10>
+          <func11>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1200</maxTorque>
+            <life>0</life>
+          </func11>
+          <func12>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1300</maxTorque>
+            <life>0</life>
+          </func12>
+          <mustang>
+            <car lib="world\db\ctCar">world\db\root\ctCar\mustang</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>1200</maxTorque>
+            <life>0</life>
+          </mustang>
+          <xCar>
+            <car lib="world\db\ctCar">world\db\root\ctCar\xCar</car>
+            <longTire>
+              <extremumSlip>0.3</extremumSlip>
+              <extremumValue>7</extremumValue>
+              <asymptoteSlip>3</asymptoteSlip>
+              <asymptoteValue>6.4</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0.1</extremumSlip>
+              <extremumValue>6.5</extremumValue>
+              <asymptoteSlip>0.4</asymptoteSlip>
+              <asymptoteValue>3</asymptoteValue>
+            </latTire>
+            <maxTorque>1350</maxTorque>
+            <life>0</life>
+            <maxSpeed>48</maxSpeed>
+          </xCar>
+        </carFuncMap>
+      </item>
+    </engine3>
+    <armor1>
+      <type>3</type>
+      <item>
+        <name>scArmor1</name>
+        <info>scArmor1Info</info>
+        <cost>0</cost>
+        <mesh item="Upgrade\armor1.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\armor1.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>40</life>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>42</life>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>65</life>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>70</life>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>70</life>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>90</life>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>90</life>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushka</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>85</life>
+          </func6>
+          <podushkaBoss>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushkaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>85</life>
+          </podushkaBoss>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>100</life>
+          </func7>
+          <func8>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>100</life>
+          </func8>
+          <func9>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriver</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>105</life>
+          </func9>
+          <func10>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriverBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>105</life>
+          </func10>
+          <func11>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>50</life>
+          </func11>
+          <func12>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>60</life>
+          </func12>
+          <xCar>
+            <car lib="world\db\ctCar">world\db\root\ctCar\xCar</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>85</life>
+          </xCar>
+        </carFuncMap>
+      </item>
+    </armor1>
+    <armor2>
+      <type>3</type>
+      <item>
+        <name>scArmor2</name>
+        <info>scArmor2Info</info>
+        <cost>30000</cost>
+        <mesh item="Upgrade\armor2.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\armor2.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>65</life>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>67</life>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>80</life>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>80</life>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>85</life>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>105</life>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>100</life>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushka</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>100</life>
+          </func6>
+          <podushkaBoss>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushkaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>100</life>
+          </podushkaBoss>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>120</life>
+          </func7>
+          <func8>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>125</life>
+          </func8>
+          <func9>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriver</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>125</life>
+          </func9>
+          <func10>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriverBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>115</life>
+          </func10>
+          <func11>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>70</life>
+          </func11>
+          <func12>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>80</life>
+          </func12>
+          <xCar>
+            <car lib="world\db\ctCar">world\db\root\ctCar\xCar</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>100</life>
+          </xCar>
+        </carFuncMap>
+      </item>
+    </armor2>
+    <armor3>
+      <type>3</type>
+      <item>
+        <name>scArmor3</name>
+        <info>scArmor3Info</info>
+        <cost>47000</cost>
+        <mesh item="Upgrade\armor3.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Upgrade\armor3.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <carFuncMap>
+          <func0>
+            <car lib="world\db\ctCar">world\db\root\ctCar\marauder</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>95</life>
+          </func0>
+          <func1>
+            <car lib="world\db\ctCar">world\db\root\ctCar\dirtdevil</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>100</life>
+          </func1>
+          <func2>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticora</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>105</life>
+          </func2>
+          <func3>
+            <car lib="world\db\ctCar">world\db\root\ctCar\manticoraBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>105</life>
+          </func3>
+          <airblade>
+            <car lib="world\db\ctCar">world\db\root\ctCar\airblade</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>110</life>
+          </airblade>
+          <func4>
+            <car lib="world\db\ctCar">world\db\root\ctCar\guseniza</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>120</life>
+          </func4>
+          <func5>
+            <car lib="world\db\ctCar">world\db\root\ctCar\gusenizaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>120</life>
+          </func5>
+          <func6>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushka</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>115</life>
+          </func6>
+          <podushkaBoss>
+            <car lib="world\db\ctCar">world\db\root\ctCar\podushkaBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>115</life>
+          </podushkaBoss>
+          <func7>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruck</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>140</life>
+          </func7>
+          <func8>
+            <car lib="world\db\ctCar">world\db\root\ctCar\monstertruckBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>150</life>
+          </func8>
+          <func9>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriver</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>150</life>
+          </func9>
+          <func10>
+            <car lib="world\db\ctCar">world\db\root\ctCar\devildriverBoss</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>150</life>
+          </func10>
+          <func11>
+            <car lib="world\db\ctCar">world\db\root\ctCar\buggi</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>90</life>
+          </func11>
+          <func12>
+            <car lib="world\db\ctCar">world\db\root\ctCar\tankchetti</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>95</life>
+          </func12>
+          <mustang>
+            <car lib="world\db\ctCar">world\db\root\ctCar\mustang</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>80</life>
+          </mustang>
+          <xCar>
+            <car lib="world\db\ctCar">world\db\root\ctCar\xCar</car>
+            <longTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </longTire>
+            <latTire>
+              <extremumSlip>0</extremumSlip>
+              <extremumValue>0</extremumValue>
+              <asymptoteSlip>0</asymptoteSlip>
+              <asymptoteValue>0</asymptoteValue>
+            </latTire>
+            <maxTorque>0</maxTorque>
+            <life>115</life>
+          </xCar>
+        </carFuncMap>
+      </item>
+    </armor3>
+    <bulletGun>
+      <type>7</type>
+      <item>
+        <name>scBulletGun</name>
+        <info>scBulletGunInfo</info>
+        <cost>0</cost>
+        <mesh item="Weapon\bulletGun.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Car\marauder.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\bulletGun</mapObj>
+        <damage>6</damage>
+        <maxCharge>28</maxCharge>
+        <cntCharge>4</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeStep>4</chargeStep>
+        <chargeCost>2750</chargeCost>
+        <projList>
+          <proj0>
+            <type>0</type>
+            <pos>0.4 0 0.1</pos>
+            <rot>0 0 0 1</rot>
+            <size>1.5 0.5 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>50</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>50</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>6</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\bulletProj</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.06</shotDelay>
+      </item>
+    </bulletGun>
+    <rifleWeapon>
+      <type>7</type>
+      <item>
+        <name>scRifle</name>
+        <info>scRifleInfo</info>
+        <cost>0</cost>
+        <mesh item="Weapon\rifleWeapon.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Car\dirtdevil.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\rifleWeapon</mapObj>
+        <damage>12</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>9000</chargeCost>
+        <projList>
+          <proj0>
+            <type>0</type>
+            <pos>0.2 -0.5 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>1 0.5 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>40</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>6</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\rifleProj</model>
+          </proj0>
+          <proj1>
+            <type>0</type>
+            <pos>0.2 0.5 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>1 0.5 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>40</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>6</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\rifleProj</model>
+          </proj1>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </rifleWeapon>
+    <airWeapon>
+      <type>7</type>
+      <item>
+        <name>scAirWeapon</name>
+        <info>scAirWeaponInfo</info>
+        <cost>0</cost>
+        <mesh item="Weapon\airWeapon.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Car\airblade.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\airWeapon</mapObj>
+        <damage>14</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>10000</chargeCost>
+        <projList>
+          <proj0>
+            <type>0</type>
+            <pos>0.2 -0.7 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>1 1 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>36</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>150</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>14</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\rocketAir</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </airWeapon>
+    <blasterGun>
+      <type>7</type>
+      <item>
+        <name>scBlaster</name>
+        <info>scBlasterInfo</info>
+        <cost>0</cost>
+        <mesh item="Weapon\blasterGun.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Car\manticora.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\blasterGun</mapObj>
+        <damage>14</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>10000</chargeCost>
+        <projList>
+          <proj0>
+            <type>0</type>
+            <pos>0.3 -0.6 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>1 0.5 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>40</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>7</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\blaster</model>
+          </proj0>
+          <proj1>
+            <type>0</type>
+            <pos>0.3 0.6 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>1 0.5 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>40</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>7</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\blaster</model>
+          </proj1>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </blasterGun>
+    <tankLaser>
+      <type>7</type>
+      <item>
+        <name>scTankLaser</name>
+        <info>scTankLaserInfo</info>
+        <cost>0</cost>
+        <mesh item="Weapon\tankLaser.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\tankLaser.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\tankLaser</mapObj>
+        <damage>30</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>15000</chargeCost>
+        <projList>
+          <proj0>
+            <type>3</type>
+            <pos>0 0 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>1 0.3 1</size>
+            <sizeAddPx>0 0 -0.3</sizeAddPx>
+            <offset>0 0 0</offset>
+            <modelSize>true</modelSize>
+            <speed>0</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>100</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>1</min>
+              <max>1</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>30</damage>
+            <model lib="world\db\ctEffects">world\db\root\ctEffects\laserRay</model>
+            <model2 lib="world\db\ctEffects">world\db\root\ctEffects\laserSpark</model2>
+          </proj0>
+        </projList>
+        <shotDelay>1.1</shotDelay>
+      </item>
+    </tankLaser>
+    <sonar>
+      <type>7</type>
+      <item>
+        <name>scSonar</name>
+        <info>scSonarInfo</info>
+        <cost>0</cost>
+        <mesh item="Weapon\sonar.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Car\devildriver.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\sonar</mapObj>
+        <damage>18</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>18000</chargeCost>
+        <projList>
+          <proj0>
+            <type>22</type>
+            <pos>0 0 0.2</pos>
+            <rot>0 0 0 1</rot>
+            <size>3 1 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>40</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>200</maxDist>
+            <mass>75</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>27</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\thunder</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.3</shotDelay>
+      </item>
+    </sonar>
+    <turel>
+      <type>7</type>
+      <item>
+        <name>scTurel</name>
+        <info>scTurelInfo</info>
+        <cost>16000</cost>
+        <mesh item="Weapon\turel.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\turel.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\turel</mapObj>
+        <damage>15</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>16000</chargeCost>
+        <projList>
+          <proj0>
+            <type>0</type>
+            <pos>0 0 0.1</pos>
+            <rot>0 0 0 1</rot>
+            <size>0.5 1 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>45</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>15</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\shotBall</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </turel>
+    <phaseImpulse>
+      <type>7</type>
+      <item>
+        <name>scPhaseImpulse</name>
+        <info>scPhaseImpulseInfo</info>
+        <cost>22000</cost>
+        <mesh item="Weapon\phaseImpulse.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\phaseImpulse.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\phaseImpulse</mapObj>
+        <damage>8</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>22000</chargeCost>
+        <projList>
+          <proj0>
+            <type>21</type>
+            <pos>0 0 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>0.5 0.5 0.5</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>30</speed>
+            <speedRelativeMin>0</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>100</maxDist>
+            <mass>200</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>8</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\phaserBolt</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </phaseImpulse>
+    <rocketLauncher>
+      <type>7</type>
+      <item>
+        <name>scRocket</name>
+        <info>scRocketInfo</info>
+        <cost>14000</cost>
+        <mesh item="Weapon\rocketLauncher.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\rocketLauncher.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\rocketLauncher</mapObj>
+        <damage>13</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>14000</chargeCost>
+        <projList>
+          <proj0>
+            <type>0</type>
+            <pos>0 0 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>1 1 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>40</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>150</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>13</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\rocket</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </rocketLauncher>
+    <pulsator>
+      <type>7</type>
+      <item>
+        <name>scPulsator</name>
+        <info>scPulsatorInfo</info>
+        <cost>12000</cost>
+        <mesh item="Weapon\pulsator.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\pulsator.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\pulsator</mapObj>
+        <damage>11</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>12000</chargeCost>
+        <projList>
+          <proj0>
+            <type>0</type>
+            <pos>0 0 0.1</pos>
+            <rot>0 0 0 1</rot>
+            <size>3 1 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>40</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>150</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>11</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\laserPulse</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </pulsator>
+    <fireGun>
+      <type>7</type>
+      <item>
+        <name>scFireGun</name>
+        <info>scFireGunInfo</info>
+        <cost>18000</cost>
+        <mesh item="Weapon\fireGun.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\fireGun.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\fireGun</mapObj>
+        <damage>18</damage>
+        <maxCharge>4</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>18000</chargeCost>
+        <projList>
+          <proj0>
+            <type>14</type>
+            <pos>0.4 0 0.1</pos>
+            <rot>0 0 0 1</rot>
+            <size>12 1.5 1.5</size>
+            <offset>6 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>0</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>12</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>1.6</min>
+              <max>1.6</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>18</damage>
+            <model lib="world\db\ctEffects">world\db\root\ctEffects\fire2</model>
+          </proj0>
+        </projList>
+        <shotDelay>1.5</shotDelay>
+      </item>
+    </fireGun>
+    <drobilka>
+      <type>7</type>
+      <item>
+        <name>scDrobilka</name>
+        <info>scDrobilkaInfo</info>
+        <cost>26000</cost>
+        <mesh item="Weapon\drobilka.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\drobilka.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\drobilka</mapObj>
+        <damage>55</damage>
+        <maxCharge>5</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>26000</chargeCost>
+        <projList>
+          <proj0>
+            <type>15</type>
+            <pos>1.3 0 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>2.1 0.5 0.5</size>
+            <offset>0 0 0</offset>
+            <modelSize>true</modelSize>
+            <speed>0</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>12.5664</angleSpeed>
+            <maxDist>3</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>4</min>
+              <max>4</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>55</damage>
+            <model lib="world\db\ctEffects">world\db\root\ctEffects\spark2</model>
+          </proj0>
+        </projList>
+        <shotDelay>4</shotDelay>
+      </item>
+    </drobilka>
+    <sphereGun>
+      <type>7</type>
+      <item>
+        <name>scSphereGun</name>
+        <info>scSphereGunInfo</info>
+        <cost>0</cost>
+        <mesh item="Weapon\sphereGun.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Car\podushka.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\sphereGun</mapObj>
+        <damage>9</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>11000</chargeCost>
+        <projList>
+          <proj0>
+            <type>2</type>
+            <pos>0.1 0 0.15</pos>
+            <rot>0 0 0 1</rot>
+            <size>0.5 0.5 0.5</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>30</speed>
+            <speedRelativeMin>20</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>12.5664</angleSpeed>
+            <maxDist>150</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>9</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\spherePulse</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </sphereGun>
+    <torpedaWeapon>
+      <type>7</type>
+      <item>
+        <name>scTorpeda</name>
+        <info>scTorpedaInfo</info>
+        <cost>25000</cost>
+        <mesh item="Weapon\torpeda.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\torpeda.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\torpedaWeapon</mapObj>
+        <damage>40</damage>
+        <maxCharge>2</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>25000</chargeCost>
+        <projList>
+          <proj0>
+            <type>2</type>
+            <pos>0 0 0.2</pos>
+            <rot>0 0 0 1</rot>
+            <size>0 0 0</size>
+            <offset>0 0 0</offset>
+            <modelSize>true</modelSize>
+            <speed>30</speed>
+            <speedRelativeMin>20</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>3.14159</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>300</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>40</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\torpeda</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.2</shotDelay>
+      </item>
+    </torpedaWeapon>
+    <mortira>
+      <type>7</type>
+      <item>
+        <name>scMortira</name>
+        <info>scMortiraInfo</info>
+        <cost>20000</cost>
+        <mesh item="Weapon\mortira.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\mortira.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\mortira</mapObj>
+        <damage>24</damage>
+        <maxCharge>3</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>21000</chargeCost>
+        <projList>
+          <proj0>
+            <type>19</type>
+            <pos>0 0 0.1</pos>
+            <rot>0 0 0 1</rot>
+            <size>0.5 0.5 1</size>
+            <offset>0 0 0</offset>
+            <modelSize>true</modelSize>
+            <speed>40</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>500</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>24</damage>
+            <model lib="world\db\ctEffects">world\db\root\ctEffects\mortiraBall</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </mortira>
+    <asyncFrost>
+      <type>7</type>
+      <item>
+        <name>scAsyncFrost</name>
+        <info>scAsyncFrostInfo</info>
+        <cost>0</cost>
+        <mesh item="Weapon\asyncFrost.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Car\monstertruck.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\asyncFrost</mapObj>
+        <damage>31</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>17000</chargeCost>
+        <projList>
+          <proj0>
+            <type>18</type>
+            <pos>0.7 0 0.3</pos>
+            <rot>0 0.0654031 0 0.997859</rot>
+            <size>0.5 0.5 0</size>
+            <offset>0 0 0</offset>
+            <modelSize>true</modelSize>
+            <speed>0</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>25</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>1</min>
+              <max>1</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>31</damage>
+            <model lib="world\db\ctEffects">world\db\root\ctEffects\frostRay</model>
+            <model2 lib="world\db\ctEffects">world\db\root\ctEffects\frostHit</model2>
+            <model3 lib="world\db\ctEffects">world\db\root\ctEffects\frost</model3>
+          </proj0>
+        </projList>
+        <shotDelay>1.1</shotDelay>
+      </item>
+    </asyncFrost>
+    <asyncFrost2>
+      <type>7</type>
+      <item>
+        <name>scAsyncFrost</name>
+        <info>scAsyncFrostInfo</info>
+        <cost>0</cost>
+        <mesh item="Weapon\asyncFrost2.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Car\monstertruckBoss.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\asyncFrost2</mapObj>
+        <damage>31</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>17000</chargeCost>
+        <projList>
+          <proj0>
+            <type>18</type>
+            <pos>0.7 0 0.3</pos>
+            <rot>0 0.0654031 0 0.997859</rot>
+            <size>0.5 0.5 0</size>
+            <offset>0 0 0</offset>
+            <modelSize>true</modelSize>
+            <speed>0</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>25</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>1</min>
+              <max>1</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>31</damage>
+            <model lib="world\db\ctEffects">world\db\root\ctEffects\frostRay</model>
+            <model2 lib="world\db\ctEffects">world\db\root\ctEffects\frostHit</model2>
+            <model3 lib="world\db\ctEffects">world\db\root\ctEffects\frost</model3>
+          </proj0>
+        </projList>
+        <shotDelay>1.1</shotDelay>
+      </item>
+    </asyncFrost2>
+    <hyperBlaster>
+      <type>7</type>
+      <item>
+        <name>scHyperBlaster</name>
+        <info>scHyperBlasterInfo</info>
+        <cost>18000</cost>
+        <mesh item="Weapon\hyperBlaster.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\hyperBlaster.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\hyperBlaster</mapObj>
+        <damage>20</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>18000</chargeCost>
+        <projList>
+          <proj0>
+            <type>0</type>
+            <pos>1 0 0.1</pos>
+            <rot>0 0 0 1</rot>
+            <size>3 1 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>40</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>20</damage>
+            <model lib="world\db\ctEffects">world\db\root\ctEffects\hyperBlaster</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </hyperBlaster>
+    <rezonator>
+      <type>7</type>
+      <item>
+        <name>scRezonator</name>
+        <info>scRezonatorInfo</info>
+        <cost>18000</cost>
+        <mesh item="Weapon\rezonator.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\rezonator.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\rezonator</mapObj>
+        <damage>22</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>18000</chargeCost>
+        <projList>
+          <proj0>
+            <type>23</type>
+            <pos>1 0 0.1</pos>
+            <rot>0 0 0 1</rot>
+            <size>2 1 2</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>40</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>true</speedRelative>
+            <angleSpeed>32</angleSpeed>
+            <maxDist>300</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>20</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\resonanse</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.2</shotDelay>
+      </item>
+    </rezonator>
+    <droid>
+      <type>8</type>
+      <item>
+        <name>scDroid</name>
+        <info>scDroidInfo</info>
+        <cost>35000</cost>
+        <mesh item="Weapon\droid.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\droid.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <damage>0</damage>
+        <maxCharge>1</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>35000</chargeCost>
+        <shotDelay>0.2</shotDelay>
+        <repairPeriod>5</repairPeriod>
+        <repairValue>5</repairValue>
+      </item>
+    </droid>
+    <reflector>
+      <type>9</type>
+      <item>
+        <name>scReflector</name>
+        <info>scReflectorInfo</info>
+        <cost>30000</cost>
+        <mesh item="Weapon\reflector.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\reflector.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <damage>0</damage>
+        <maxCharge>1</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>30000</chargeCost>
+        <shotDelay>0.2</shotDelay>
+        <reflectValue>0.4</reflectValue>
+      </item>
+    </reflector>
+    <maslo>
+      <type>6</type>
+      <item>
+        <name>scMaslo</name>
+        <info>scMasloInfo</info>
+        <cost>7000</cost>
+        <mesh item="Weapon\maslo.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\maslo.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\masloWeapon</mapObj>
+        <damage>0</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>4000</chargeCost>
+        <projList>
+          <proj0>
+            <type>10</type>
+            <pos>0 0 0.2</pos>
+            <rot>0 0 0 1</rot>
+            <size>1.25 1.25 1.7</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>0</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>0</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>1.5</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\maslo</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.05</shotDelay>
+      </item>
+    </maslo>
+    <mine1>
+      <type>6</type>
+      <item>
+        <name>scMineSpike</name>
+        <info>scMineSpikeInfo</info>
+        <cost>9000</cost>
+        <mesh item="Weapon\mine1.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\mine1.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\mine1Weapon</mapObj>
+        <damage>11</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>9000</chargeCost>
+        <projList>
+          <proj0>
+            <type>11</type>
+            <pos>0 0 0.2</pos>
+            <rot>0 0 0 1</rot>
+            <size>0 0 1.7</size>
+            <offset>0 0 0</offset>
+            <modelSize>true</modelSize>
+            <speed>3000</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>0</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>10</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\mine1</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </mine1>
+    <mine2>
+      <type>6</type>
+      <item>
+        <name>scMineRip</name>
+        <info>scMineRipInfo</info>
+        <cost>16000</cost>
+        <mesh item="Weapon\mine2.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\mine2.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\mine2Weapon</mapObj>
+        <damage>16</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>15000</chargeCost>
+        <projList>
+          <proj0>
+            <type>12</type>
+            <pos>0 0 0.2</pos>
+            <rot>0 0 0 1</rot>
+            <size>0 0 1.7</size>
+            <offset>0 0 0</offset>
+            <modelSize>true</modelSize>
+            <speed>3000</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>2</angleSpeed>
+            <maxDist>0</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>15</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\mine2</model>
+            <model2 lib="world\db\ctBonus">world\db\root\ctBonus\mineRipKern</model2>
+            <model3 lib="world\db\ctBonus">world\db\root\ctBonus\mineRipPiece</model3>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </mine2>
+    <mine3>
+      <type>6</type>
+      <item>
+        <name>scMinePropton</name>
+        <info>scMineProptonInfo</info>
+        <cost>17000</cost>
+        <mesh item="Weapon\mine3.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\mine3.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\mine3Weapon</mapObj>
+        <damage>19</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>18000</chargeCost>
+        <projList>
+          <proj0>
+            <type>24</type>
+            <pos>0 0 0.2</pos>
+            <rot>0 0 0 1</rot>
+            <size>5 5 1.7</size>
+            <offset>0 0 0</offset>
+            <modelSize>false</modelSize>
+            <speed>3000</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>0</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0</min>
+              <max>0</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>18</damage>
+            <model lib="world\db\ctDecoration">world\db\root\ctDecoration\Misc\mine3</model>
+          </proj0>
+        </projList>
+        <shotDelay>0.1</shotDelay>
+      </item>
+    </mine3>
+    <spring>
+      <type>5</type>
+      <item>
+        <name>scSpring</name>
+        <info>scSpringInfo</info>
+        <cost>4000</cost>
+        <mesh item="Weapon\spring.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\spring.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\spring</mapObj>
+        <damage>0</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>4000</chargeCost>
+        <projList>
+          <proj0>
+            <type>17</type>
+            <pos>0 0 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>0 0 0</size>
+            <offset>0 0 0</offset>
+            <modelSize>true</modelSize>
+            <speed>17</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>0</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>0.5</min>
+              <max>0.5</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>0</damage>
+          </proj0>
+        </projList>
+        <shotDelay>0.2</shotDelay>
+      </item>
+    </spring>
+    <hyperdrive>
+      <type>5</type>
+      <item>
+        <name>scHyper</name>
+        <info>scHyperInfo</info>
+        <cost>14000</cost>
+        <mesh item="Weapon\hyperdrive.r3d">world\resManager\meshLib\ivbMeshLib</mesh>
+        <texture item="Weapon\hyperdrive.dds">world\resManager\imageLib\tex2dLib</texture>
+        <pos>0 0 0</pos>
+        <rot>0 0 0 1</rot>
+        <mapObj lib="world\db\ctWeapon">world\db\root\ctWeapon\hyperdrive</mapObj>
+        <damage>0</damage>
+        <maxCharge>7</maxCharge>
+        <cntCharge>1</cntCharge>
+        <curCharge>0</curCharge>
+        <chargeCost>14000</chargeCost>
+        <projList>
+          <proj0>
+            <type>1</type>
+            <pos>0.4 0 0</pos>
+            <rot>0 0 0 1</rot>
+            <size>0 0 0</size>
+            <offset>0 0 0</offset>
+            <modelSize>true</modelSize>
+            <speed>10</speed>
+            <speedRelativeMin>13</speedRelativeMin>
+            <speedRelative>false</speedRelative>
+            <angleSpeed>0</angleSpeed>
+            <maxDist>0</maxDist>
+            <mass>100</mass>
+            <minTimeLife>
+              <min>2</min>
+              <max>2</max>
+              <distrib>vdLinear</distrib>
+            </minTimeLife>
+            <damage>0</damage>
+            <model lib="world\db\ctEffects">world\db\root\ctEffects\accelEff</model>
+          </proj0>
+        </projList>
+        <shotDelay>1.5</shotDelay>
+      </item>
+    </hyperdrive>
+  </workshop>
+</workshopRoot>
