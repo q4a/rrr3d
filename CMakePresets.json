@@ -1,0 +1,27 @@
+﻿{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "base-x86", "hidden": true, "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "architecture": {
+        "value": "x86",
+        "strategy": "external"
+      }
+    },
+    {
+      "name": "Release", "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "Debug", "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    { "name": "msvc-x86-release", "inherits": [ "base-x86", "Release" ] },
+    { "name": "msvc-x86-debug",   "inherits": [ "base-x86", "Debug" ] }
+  ]
+}
