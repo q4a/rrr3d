@@ -5,7 +5,7 @@
 Пути Homebrew не зашиты: CMake ищет config package/target, поэтому формулы из
 нативного arm64 prefix обнаруживаются через стандартные механизмы CMake.
 
-## Текущий milestone: автономный M10 bundle с portable race
+## Текущий milestone: original-data physics race M9
 
 | Имя | Зафиксированная/проверенная версия | Источник | Лицензия | CMake target | Включать в `.app` |
 | --- | --- | --- | --- | --- | --- |
@@ -17,6 +17,7 @@
 | bgfx | commit `65551a7db19240b4d105f09e665190d196243d92` | `scripts/build_bgfx_macos.sh`, официальный GitHub | BSD-2-Clause | `rrr3d_bgfx` | статически; добавить copyright/license notice |
 | bx | commit `5a2b876258ab5843d5e1dfde695b127baf9e354a` | тот же pinned build script | BSD-2-Clause | `rrr3d_bx` | статически; добавить copyright/license notice |
 | bimg | commit `da38bface6384cdd7f69733b08fb58e57a63cffa` | тот же pinned build script | BSD-2-Clause | `rrr3d_bimg`, `rrr3d_bimg_decode` | статически; DDS/PNG decode; добавить copyright/license notice |
+| Jolt Physics | 5.5.0, commit `23dadd0e603f1b321142d4c74df07fce85064989`, SHA-256 `e4a44a9bfdcdb1e47259b7a66a300d9f31daf1b28ec19617761c3aad7165b979` | официальный GitHub archive через `FetchContent` | MIT | `Jolt` | статически для non-Windows original M9; `JoltPhysics.txt` |
 | Apple system libraries | macOS 13 SDK или новее | Xcode Command Line Tools | Apple SDK terms | `${CMAKE_DL_LIBS}` при необходимости | системные, не копировать |
 
 TinyXML-2 не подходит: проект использует API оригинального TinyXML 1. Архив
@@ -34,12 +35,17 @@ Gamepad API/HIDAPI. Preset M8 включает SDL Audio с `coreaudio`, `disk` 
 Итоговый `RRR3d` и Ogg/Vorbis decoder статически слинкованы и зависят только
 от Apple system frameworks.
 
-В M10 те же статические targets входят в
+В отменённом M10 portable bundle те же статические targets входят в
 `RRR3d.app/Contents/MacOS/RRR3d`. `Contents/Frameworks` намеренно пуст:
 проверка `otool -L` не находит `/opt/homebrew`, `/usr/local`, локальный build
 directory или Windows runtime. Bundle получает `@executable_path/../Frameworks`
 в rpath для контролируемых будущих dylib, очищается от extended attributes и
 ad-hoc подписывается после копирования ресурсов.
+
+Jolt подключается только при `RRR3D_ENABLE_PHYSICS=ON` вместе с
+`RRR3D_BUILD_ORIGINAL_MENU=ON`. Windows PhysX targets и старые `.lib` при этом
+не меняются; preset M6–M8 Jolt не загружают и не собирают. Будущий исправленный
+M10 должен быть заново основан на M9 и включить Jolt notice в bundle.
 
 Homebrew GLM 1.0.3 экспортирует и header-only target, и optional compiled
 dylib. Этот проект использует только `glm::glm-header-only`: dylib также собран

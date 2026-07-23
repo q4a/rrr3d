@@ -9,6 +9,7 @@ linked into the native macOS executable:
 - libogg — BSD 3-Clause licence;
 - libvorbis and libvorbisfile — BSD 3-Clause licence;
 - bgfx, bimg and bx — BSD 2-Clause licence;
+- Jolt Physics — MIT licence;
 - GLM — Happy Bunny Licence or MIT Licence.
 
 The original Motor Rock game data under the adjacent `game-data` directory is

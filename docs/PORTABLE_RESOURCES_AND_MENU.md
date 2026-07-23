@@ -84,7 +84,8 @@ Resource filesystem:
 
 ## Menu resources и rendering
 
-Portable menu использует те же ресурсы, что legacy `MainMenu2`:
+Исправленный original-menu path использует те же ресурсы и layout, что legacy
+`MainMenu2`:
 
 - `Data/GUI/mainFrame.dds` — DXT1 background 1920×1100;
 - `Data/GUI/topPanel5.png` — прозрачный logo panel 1920×220;
@@ -95,13 +96,13 @@ Portable menu использует те же ресурсы, что legacy `Main
 
 `bimg_decode` распаковывает DDS/PNG в RGBA8. UI pass использует virtual canvas
 1920×1100, orthographic camera, alpha blending, depth ordering и Retina
-backbuffer. Текст пока строится из portable 5×7 font: перенос Windows/Verdana
-font path и UTF-16 localization остаётся отдельной задачей.
+backbuffer. Текст создаётся CoreText с запросом штатного Verdana и строками из
+оригинальной English/Russian localization.
 
 Up/Down меняют выбранный пункт, Enter активирует, Escape закрывает окно.
-`EXIT` завершает программу. Начиная с Milestone 9, `SINGLE PLAYER` запускает
-portable physics race на оригинальном `debugTrack.r3dMap`; остальные
-неперенесённые пункты сообщают о недоступности.
+`EXIT` завершает программу. В исправленном Milestone 9 `SINGLE PLAYER`
+запускает первую гонку `Data/Map/World1/map1.r3dMap` на Marauder; map/car/
+physics data берутся из `tournamet.xml`, `db.xml` и `garage.xml`.
 
 ## Сборка и проверка
 
@@ -147,11 +148,11 @@ importer менять не потребовалось. Архитектура и
 
 ## Подключение в Milestone 9
 
-Race loader читает `ctTrack` и `numLaps` из оригинального
-`Data/Map/debugTrack.r3dMap`, проверяет `track1/track2`, `pxTrack1/pxTrack2` и
-`buggi` assets через тот же exact-case filesystem. Геометрические bounds карты
-задают portable stadium track и collision corridor. Полный binary `.r3d`
-visual-material parser остаётся следующим уровнем scene migration; детали и
+Race loader выбирает первый track/car через `tournamet.xml`, читает 52
+`ctTrack` placement и trace из `Data/Map/World1/map1.r3dMap`, разрешает записи
+через `db.xml`/`garage.xml` и загружает исходные visual/collision `.r3d` через
+тот же exact-case filesystem. Jolt получает фактические triangle meshes, а
+bgfx/Metal — фактические vertex/index/material groups и DDS atlas. Детали и
 ограничения описаны в `docs/PHYSICS_PORT_PLAN.md`.
 
 ## Упаковка в Milestone 10

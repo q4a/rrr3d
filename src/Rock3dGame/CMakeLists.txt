@@ -52,7 +52,12 @@ else()
             include/OriginalMainMenu.h
         )
     endif()
-    if(RRR3D_ENABLE_PHYSICS)
+    if(RRR3D_ENABLE_PHYSICS AND RRR3D_BUILD_ORIGINAL_MENU)
+        list(APPEND _rrr3d_portable_game_sources
+            source/stub/OriginalRace.cpp
+            include/OriginalRace.h
+        )
+    elseif(RRR3D_ENABLE_PHYSICS)
         list(APPEND _rrr3d_portable_game_sources
             source/stub/PortableRace.cpp
             include/PortableRace.h
@@ -116,6 +121,9 @@ else()
     target_compile_definitions(${PROJECT_NAME} PUBLIC
         RRR3D_PORTABLE_GAME_STUBS=1
     )
+    if(RRR3D_ENABLE_PHYSICS AND RRR3D_BUILD_ORIGINAL_MENU)
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${RRR3D_TINYXML_TARGET})
+    endif()
 endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE ROCK3DGAME_EXPORTS)

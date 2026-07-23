@@ -63,7 +63,14 @@ else()
         )
     endif()
 
-    if(RRR3D_ENABLE_PHYSICS)
+    if(RRR3D_ENABLE_PHYSICS AND RRR3D_BUILD_ORIGINAL_MENU)
+        list(APPEND ${PROJECT_NAME}_SOURCE
+            source/physics/JoltVehiclePhysics.cpp
+        )
+        list(APPEND ${PROJECT_NAME}_HEADER
+            header/physics/OriginalVehiclePhysics.h
+        )
+    elseif(RRR3D_ENABLE_PHYSICS)
         list(APPEND ${PROJECT_NAME}_SOURCE
             source/physics/MinimalVehiclePhysics.cpp
         )
@@ -103,7 +110,12 @@ else()
         target_link_libraries(${PROJECT_NAME} PUBLIC rrr3d_bgfx)
     endif()
 
-    if(RRR3D_ENABLE_PHYSICS)
+    if(RRR3D_ENABLE_PHYSICS AND RRR3D_BUILD_ORIGINAL_MENU)
+        target_compile_definitions(${PROJECT_NAME} PUBLIC
+            RRR3D_PHYSICS_JOLT=1
+        )
+        target_link_libraries(${PROJECT_NAME} PUBLIC ${RRR3D_JOLT_TARGET})
+    elseif(RRR3D_ENABLE_PHYSICS)
         target_compile_definitions(${PROJECT_NAME} PUBLIC
             RRR3D_PHYSICS_MINIMAL=1
         )

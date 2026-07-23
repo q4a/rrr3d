@@ -1,5 +1,27 @@
 include(FetchContent)
 
+# PhysX 2.8.4 remains untouched on Windows.  The native macOS race backend
+# uses a pinned Jolt release; only the backend adapter sees Jolt types.
+if(RRR3D_ENABLE_PHYSICS AND NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
+    set(OVERRIDE_CXX_FLAGS OFF CACHE BOOL "Keep project compiler flags" FORCE)
+    set(ENABLE_ALL_WARNINGS OFF CACHE BOOL "Jolt warnings" FORCE)
+    set(GENERATE_DEBUG_SYMBOLS OFF CACHE BOOL "Jolt debug symbols" FORCE)
+    set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "Jolt IPO" FORCE)
+    set(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE OFF CACHE BOOL "Jolt debug renderer" FORCE)
+    set(PROFILER_IN_DEBUG_AND_RELEASE OFF CACHE BOOL "Jolt profiler" FORCE)
+    set(ENABLE_OBJECT_STREAM OFF CACHE BOOL "Jolt object stream" FORCE)
+    set(ENABLE_INSTALL OFF CACHE BOOL "Jolt install targets" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Jolt static library" FORCE)
+    FetchContent_Declare(rrr3d_jolt
+        URL "https://github.com/jrouwe/JoltPhysics/archive/23dadd0e603f1b321142d4c74df07fce85064989.tar.gz"
+        URL_HASH "SHA256=e4a44a9bfdcdb1e47259b7a66a300d9f31daf1b28ec19617761c3aad7165b979"
+        SOURCE_SUBDIR Build
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(rrr3d_jolt)
+    set(RRR3D_JOLT_TARGET Jolt)
+endif()
+
 if(RRR3D_BUILD_SDL_SHELL OR RRR3D_BUILD_DXVK_MOLTENVK_TEST OR
    RRR3D_BUILD_BGFX_SCENE OR RRR3D_BUILD_PORTABLE_MENU OR
    RRR3D_BUILD_ORIGINAL_MENU)

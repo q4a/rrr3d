@@ -1,6 +1,11 @@
 #include "CoreTextRasterizer.h"
 #include "OriginalAudioSpec.h"
 #include "OriginalMainMenu.h"
+#ifdef RRR3D_PHYSICS
+#include "OriginalRace.h"
+#include "OriginalRaceRenderer.h"
+#include "physics/OriginalVehiclePhysics.h"
+#endif
 #include "renderer/BgfxGraphicsDevice.h"
 #include "resource/ResourceFileSystem.h"
 #include "xplatform.h"
@@ -21,6 +26,10 @@
 
 #include "rrr3d_fs_static_scene.bin.h"
 #include "rrr3d_vs_static_scene.bin.h"
+#ifdef RRR3D_PHYSICS
+#include "rrr3d_fs_original_race.bin.h"
+#include "rrr3d_vs_original_race.bin.h"
+#endif
 
 #include <algorithm>
 #include <array>
@@ -55,6 +64,10 @@ struct Options
     std::filesystem::path dataDirectory;
     std::string language;
     bool verifyResources = false;
+#ifdef RRR3D_PHYSICS
+    bool physicsSmokeTest = false;
+    bool raceRenderSmokeTest = false;
+#endif
 #ifdef RRR3D_GAMEPAD_INPUT
     bool inputSmokeTest = false;
 #endif
@@ -81,6 +94,20 @@ std::optional<Options> parseOptions(int argc, char** argv)
             options.verifyResources = true;
             continue;
         }
+#ifdef RRR3D_PHYSICS
+        if (argument == "--physics-smoke-test")
+        {
+            options.physicsSmokeTest = true;
+            continue;
+        }
+        if (argument == "--race-render-smoke-test")
+        {
+            options.raceRenderSmokeTest = true;
+            if (options.smokeFrames == 0)
+                options.smokeFrames = 240;
+            continue;
+        }
+#endif
 #ifdef RRR3D_GAMEPAD_INPUT
         if (argument == "--input-smoke-test")
         {
@@ -259,6 +286,9 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
                      " [--audio-smoke-test]"
 #endif
+#ifdef RRR3D_PHYSICS
+                     " [--physics-smoke-test] [--race-render-smoke-test]"
+#endif
                      "\n";
         return EXIT_FAILURE;
     }
@@ -278,11 +308,22 @@ int main(int argc, char** argv)
 
     std::optional<r3d::resource::ResourceFileSystem> resources;
     std::optional<menu::Model> model;
+#ifdef RRR3D_PHYSICS
+    std::optional<r3d::game::originalrace::Race> originalRace;
+    std::optional<r3d::physics::WorldDescription> physicsDescription;
+#endif
     try
     {
         resources.emplace(dataDirectory);
         model.emplace(menu::loadOriginalMainMenu(*resources,
                                                  options->language));
+#ifdef RRR3D_PHYSICS
+        originalRace.emplace(
+            r3d::game::originalrace::loadFirstOriginalRace(*resources));
+        physicsDescription.emplace(
+            r3d::game::originalrace::makePhysicsDescription(
+                *originalRace, *resources));
+#endif
     }
     catch (const std::exception& exception)
     {
@@ -310,6 +351,33 @@ int main(int argc, char** argv)
                      "verification passed\n";
         return EXIT_SUCCESS;
     }
+
+#ifdef RRR3D_PHYSICS
+    if (options->physicsSmokeTest)
+    {
+        std::string physicsError;
+        if (!r3d::game::originalrace::runOriginalRaceResourceSmokeTest(
+                *originalRace, *resources, physicsError) ||
+            !r3d::physics::runOriginalVehiclePhysicsSmokeTest(
+                *physicsDescription, physicsError))
+        {
+            std::cerr << "Milestone 9 original race/physics smoke failed: "
+                      << physicsError << '\n';
+            return EXIT_FAILURE;
+        }
+        std::size_t collisionTriangles = 0;
+        for (const auto& mesh : physicsDescription->collisionMeshes)
+            collisionTriangles += mesh.indices.size() / 3U;
+        std::cout << "Milestone 9 original race smoke passed: "
+                  << originalRace->levelPath << ", "
+                  << originalRace->trackInstances.size()
+                  << " placed track objects, " << collisionTriangles
+                  << " original collision triangles, marauder/Jolt vehicle"
+                     " acceleration, braking, steering, suspension contacts,"
+                     " and trace reset\n";
+        return EXIT_SUCCESS;
+    }
+#endif
 
     if (!SDL_SetAppMetadata("Motor Rock", "1.3.1",
                             "org.rrr3d.motorrock"))
@@ -364,7 +432,9 @@ int main(int argc, char** argv)
 #endif
 
     SDL_Window* window = SDL_CreateWindow(
-#ifdef RRR3D_AUDIO
+#ifdef RRR3D_PHYSICS
+        "Motor Rock - Original Race Physics (Milestone 9)", initialWidth,
+#elif defined(RRR3D_AUDIO)
         "Motor Rock - Original MainMenu2 Audio (Milestone 8)", initialWidth,
 #elif defined(RRR3D_GAMEPAD_INPUT)
         "Motor Rock - Original MainMenu2 Input (Milestone 7)", initialWidth,
@@ -429,6 +499,12 @@ int main(int argc, char** argv)
         {rrr3d_vs_static_scene, sizeof(rrr3d_vs_static_scene)},
         {rrr3d_fs_static_scene, sizeof(rrr3d_fs_static_scene)},
         "original-main-menu");
+#ifdef RRR3D_PHYSICS
+    const Shader raceShader = device->createShader(
+        {rrr3d_vs_original_race, sizeof(rrr3d_vs_original_race)},
+        {rrr3d_fs_original_race, sizeof(rrr3d_fs_original_race)},
+        "original-race-r3d");
+#endif
     const Mesh quad = device->createMesh(
         quadVertices.data(), quadVertices.size(), quadIndices.data(),
         quadIndices.size());
@@ -466,7 +542,11 @@ int main(int argc, char** argv)
         menu::selectedTextColor, resolvedFont);
 
     const bool gpuResourcesValid =
-        valid(shader) && valid(quad) && valid(background) && valid(topPanel) &&
+        valid(shader) &&
+#ifdef RRR3D_PHYSICS
+        valid(raceShader) &&
+#endif
+        valid(quad) && valid(background) && valid(topPanel) &&
         valid(bottomPanel) && valid(selection) && valid(cursor) &&
         valid(version.texture) && normalItems.size() == model->items.size() &&
         selectedItems.size() == model->items.size() &&
@@ -487,6 +567,9 @@ int main(int argc, char** argv)
         device->destroy(topPanel);
         device->destroy(background);
         device->destroy(quad);
+#ifdef RRR3D_PHYSICS
+        device->destroy(raceShader);
+#endif
         device->destroy(shader);
     };
 
@@ -515,6 +598,35 @@ int main(int argc, char** argv)
 #ifdef RRR3D_GAMEPAD_INPUT
     std::cout << "Input: SDL3 keyboard/mouse/gamepad, "
               << input.connectedGamepadCount() << " gamepad(s)\n";
+#endif
+
+#ifdef RRR3D_PHYSICS
+    std::string physicsError;
+    auto physicsWorld = r3d::physics::createOriginalVehicleWorld(
+        *physicsDescription, physicsError);
+    rrr3d::race::OriginalRaceRenderer raceRenderer;
+    if (!physicsWorld ||
+        !raceRenderer.initialize(*device, *resources, *originalRace,
+                                 physicsError))
+    {
+        std::cerr << "Original race initialization failed: " << physicsError
+                  << '\n';
+        raceRenderer.shutdown(*device);
+        releaseResources();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+    std::cout << "Milestone 9 race: " << originalRace->levelPath << ", "
+              << originalRace->lapCount << " laps, "
+              << originalRace->trackInstances.size()
+              << " original track placements, car "
+              << originalRace->vehicle.record
+              << ", Jolt backend with original db.xml parameters\n";
 #endif
 
 #ifdef RRR3D_AUDIO
@@ -673,6 +785,56 @@ int main(int argc, char** argv)
         }
         return true;
     };
+#ifdef RRR3D_PHYSICS
+    r3d::audio::SoundInfo idleInfo;
+    r3d::audio::SoundInfo rpmInfo;
+    const auto idleSound = audio.loadOgg(
+        resources->resolve(originalRace->vehicle.idleSoundPath), idleInfo,
+        audioError);
+    const auto rpmSound = audio.loadOgg(
+        resources->resolve(originalRace->vehicle.rpmSoundPath), rpmInfo,
+        audioError);
+    if (idleSound == r3d::audio::invalidSound ||
+        rpmSound == r3d::audio::invalidSound)
+    {
+        std::cerr << "Original marauder engine audio loading failed: "
+                  << audioError << '\n';
+        music.shutdown();
+        if (idleSound != r3d::audio::invalidSound)
+            audio.unloadSound(idleSound);
+        if (rpmSound != r3d::audio::invalidSound)
+            audio.unloadSound(rpmSound);
+        audio.unloadSound(clickSound);
+        audio.shutdown();
+        raceRenderer.shutdown(*device);
+        releaseResources();
+        device.reset();
+        SDL_DestroyWindow(window);
+        input.shutdown();
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+    r3d::audio::VoiceHandle idleVoice = r3d::audio::invalidVoice;
+    r3d::audio::VoiceHandle rpmVoice = r3d::audio::invalidVoice;
+    auto startRaceAudio = [&]() {
+        music.pause(true, audioError);
+        r3d::audio::PlayOptions idleOptions;
+        idleOptions.bus = r3d::audio::Bus::Effects;
+        idleOptions.loop = true;
+        idleOptions.volume = 0.5F;
+        idleVoice = audio.play(idleSound, idleOptions, audioError);
+        r3d::audio::PlayOptions rpmOptions = idleOptions;
+        rpmOptions.volume = 0.28F;
+        rpmVoice = audio.play(rpmSound, rpmOptions, audioError);
+    };
+    auto stopRaceAudio = [&]() {
+        audio.stop(idleVoice);
+        audio.stop(rpmVoice);
+        idleVoice = r3d::audio::invalidVoice;
+        rpmVoice = r3d::audio::invalidVoice;
+        music.pause(false, audioError);
+    };
+#endif
 #endif
 
     PipelineState opaque;
@@ -681,12 +843,24 @@ int main(int argc, char** argv)
     opaque.depthTest = false;
     PipelineState transparent = opaque;
     transparent.alphaBlend = true;
+#ifdef RRR3D_PHYSICS
+    PipelineState racePipeline;
+    racePipeline.faceCulling = PipelineState::FaceCulling::None;
+#endif
     const Camera camera = makeCamera(*device);
 
     bool running = true;
     bool runtimeSmokeFailed = false;
     std::uint32_t renderedFrames = 0;
     menu::Controller controller(model->items.size());
+#ifdef RRR3D_PHYSICS
+    bool inRace = false;
+    r3d::physics::VehicleInput raceInput;
+    std::uint64_t previousFrameTicks = SDL_GetTicksNS();
+    bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
+    float maximumRaceSmokeSpeed = 0.0F;
+    std::uint32_t maximumRaceSmokeContacts = 0;
+#endif
 #ifdef RRR3D_AUDIO
     bool integratedAudioInputObserved = !options->audioSmokeTest;
     enum class MusicSmokePhase
@@ -718,6 +892,21 @@ int main(int argc, char** argv)
         if (!SDL_PushEvent(&down) || !SDL_PushEvent(&confirm))
         {
             std::cerr << "Unable to queue integrated M8 menu/audio events: "
+                      << SDL_GetError() << '\n';
+            runtimeSmokeFailed = true;
+        }
+    }
+#endif
+#if defined(RRR3D_PHYSICS) && defined(RRR3D_GAMEPAD_INPUT)
+    if (options->raceRenderSmokeTest)
+    {
+        SDL_Event confirm{};
+        confirm.key.type = SDL_EVENT_KEY_DOWN;
+        confirm.key.down = true;
+        confirm.key.scancode = SDL_SCANCODE_RETURN;
+        if (!SDL_PushEvent(&confirm))
+        {
+            std::cerr << "Unable to queue integrated M9 Single Player event: "
                       << SDL_GetError() << '\n';
             runtimeSmokeFailed = true;
         }
@@ -756,7 +945,11 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_GAMEPAD_INPUT
             bool pointerTargetsItem = true;
-            if (event.type == SDL_EVENT_MOUSE_MOTION)
+            if (
+#ifdef RRR3D_PHYSICS
+                !inRace &&
+#endif
+                event.type == SDL_EVENT_MOUSE_MOTION)
             {
                 const auto hovered = hoveredItem(
                     window, event.motion.x, event.motion.y,
@@ -766,7 +959,11 @@ int main(int argc, char** argv)
                 if (hovered)
                     controller.select(*hovered);
             }
-            else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+            else if (
+#ifdef RRR3D_PHYSICS
+                !inRace &&
+#endif
+                event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
             {
                 const auto hovered = hoveredItem(
                     window, event.button.x, event.button.y,
@@ -781,6 +978,51 @@ int main(int argc, char** argv)
             const auto inputEvents = input.processEvent(event);
             for (const auto& inputEvent : inputEvents)
             {
+#ifdef RRR3D_PHYSICS
+                if (inRace)
+                {
+                    switch (inputEvent.action)
+                    {
+                    case rrr3d::input::Action::Accelerate:
+                        raceInput.throttle = inputEvent.active
+                                                 ? inputEvent.value
+                                                 : 0.0F;
+                        break;
+                    case rrr3d::input::Action::Brake:
+                        raceInput.brake = inputEvent.active
+                                              ? inputEvent.value
+                                              : 0.0F;
+                        break;
+                    case rrr3d::input::Action::TurnLeft:
+                        if (inputEvent.active)
+                            raceInput.steering = -inputEvent.value;
+                        else if (raceInput.steering < 0.0F)
+                            raceInput.steering = 0.0F;
+                        break;
+                    case rrr3d::input::Action::TurnRight:
+                        if (inputEvent.active)
+                            raceInput.steering = inputEvent.value;
+                        else if (raceInput.steering > 0.0F)
+                            raceInput.steering = 0.0F;
+                        break;
+                    case rrr3d::input::Action::Pause:
+                    case rrr3d::input::Action::MenuBack:
+                        if (inputEvent.active && !inputEvent.repeated)
+                        {
+                            inRace = false;
+                            raceInput = {};
+#ifdef RRR3D_AUDIO
+                            stopRaceAudio();
+#endif
+                            std::cout << "Race -> MainMenu2\n";
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+                    continue;
+                }
+#endif
                 if (!pointerTargetsItem &&
                     inputEvent.source == rrr3d::input::Source::Mouse &&
                     inputEvent.action ==
@@ -812,6 +1054,22 @@ int main(int argc, char** argv)
                 {
                     running = false;
                 }
+#ifdef RRR3D_PHYSICS
+                else if (*command == menu::Command::SinglePlayer)
+                {
+                    physicsWorld->reset();
+                    raceInput = {};
+                    inRace = true;
+                    if (options->raceRenderSmokeTest)
+                        integratedRaceStartObserved = true;
+                    previousFrameTicks = SDL_GetTicksNS();
+#ifdef RRR3D_AUDIO
+                    startRaceAudio();
+#endif
+                    std::cout << "MainMenu2 -> original race: "
+                              << originalRace->levelPath << '\n';
+                }
+#endif
             }
 #endif
             if (event.type == SDL_EVENT_QUIT ||
@@ -827,6 +1085,35 @@ int main(int argc, char** argv)
                                static_cast<std::uint32_t>(pixelHeight));
             }
         }
+
+#ifdef RRR3D_PHYSICS
+        const std::uint64_t currentFrameTicks = SDL_GetTicksNS();
+        float frameSeconds = std::clamp(
+            static_cast<float>(currentFrameTicks - previousFrameTicks) /
+                1000000000.0F,
+            0.0F, 0.1F);
+        if (options->raceRenderSmokeTest)
+            frameSeconds = 1.0F / 60.0F;
+        previousFrameTicks = currentFrameTicks;
+        if (inRace && options->raceRenderSmokeTest)
+        {
+            raceInput.throttle = 1.0F;
+            raceInput.brake = 0.0F;
+            raceInput.steering = renderedFrames >= 90 &&
+                                         renderedFrames < 180
+                                     ? 0.35F
+                                     : 0.0F;
+        }
+        if (inRace)
+        {
+            physicsWorld->step(frameSeconds, raceInput);
+            maximumRaceSmokeSpeed = std::max(
+                maximumRaceSmokeSpeed, physicsWorld->vehicle().speed);
+            maximumRaceSmokeContacts = std::max(
+                maximumRaceSmokeContacts,
+                physicsWorld->vehicle().contactCount);
+        }
+#endif
 
 #ifdef RRR3D_AUDIO
         if (!music.update(audioError))
@@ -994,6 +1281,21 @@ int main(int argc, char** argv)
         }
 #endif
 
+#ifdef RRR3D_PHYSICS
+        if (inRace)
+        {
+            const auto raceCamera = raceRenderer.makeCamera(
+                *device, physicsWorld->vehicle(),
+                static_cast<std::uint32_t>(pixelWidth),
+                static_cast<std::uint32_t>(pixelHeight));
+            device->beginFrame(raceCamera, 0x6b91b8ffU);
+            raceRenderer.draw(*device, raceShader, *originalRace,
+                              physicsWorld->vehicle(), racePipeline);
+            device->endFrame();
+        }
+        else
+        {
+#endif
         device->beginFrame(camera, 0x040818ffU);
         drawQuad(*device, quad, shader, background, menu::virtualWidth,
                  menu::virtualHeight, menu::virtualWidth * 0.5F,
@@ -1032,6 +1334,9 @@ int main(int argc, char** argv)
         drawQuad(*device, quad, shader, version.texture, version.width,
                  version.height, versionX, versionY, 25.0F, transparent);
         device->endFrame();
+#ifdef RRR3D_PHYSICS
+        }
+#endif
 
         ++renderedFrames;
         if (options->smokeFrames != 0 &&
@@ -1042,6 +1347,34 @@ int main(int argc, char** argv)
 #endif
         )
         {
+#ifdef RRR3D_PHYSICS
+            if (options->raceRenderSmokeTest)
+            {
+                if (!integratedRaceStartObserved || !inRace ||
+                    maximumRaceSmokeContacts == 0 ||
+                    maximumRaceSmokeSpeed < 0.2F)
+                {
+                    std::cerr
+                        << "Milestone 9 integrated Single Player/race render "
+                           "verification failed: started="
+                        << integratedRaceStartObserved << ", inRace="
+                        << inRace << ", contacts="
+                        << maximumRaceSmokeContacts << ", maxSpeed="
+                        << maximumRaceSmokeSpeed << '\n';
+                    runtimeSmokeFailed = true;
+                }
+                else
+                {
+                    std::cout
+                        << "Milestone 9 original Single Player/map1/marauder/"
+                           "Jolt/bgfx/Metal smoke test completed after "
+                        << renderedFrames << " frames; max speed "
+                        << maximumRaceSmokeSpeed << ", wheel contacts "
+                        << maximumRaceSmokeContacts << '\n';
+                }
+            }
+            else
+#endif
 #ifdef RRR3D_AUDIO
             if (!integratedAudioInputObserved)
             {
@@ -1070,6 +1403,11 @@ int main(int argc, char** argv)
     }
 
 #ifdef RRR3D_AUDIO
+#ifdef RRR3D_PHYSICS
+    stopRaceAudio();
+    audio.unloadSound(rpmSound);
+    audio.unloadSound(idleSound);
+#endif
     music.shutdown();
     audio.unloadSound(clickSound);
     audio.shutdown();
@@ -1081,6 +1419,10 @@ int main(int argc, char** argv)
         temporary += ".tmp";
         std::filesystem::remove(temporary, removeError);
     }
+#endif
+#ifdef RRR3D_PHYSICS
+    physicsWorld.reset();
+    raceRenderer.shutdown(*device);
 #endif
     releaseResources();
     device.reset();

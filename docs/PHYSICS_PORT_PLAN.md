@@ -1,157 +1,103 @@
-# Physics port plan and Milestone 9 result
+# Перенос физики и результат Milestone 9
 
-## Результат M9
+## Статус
 
-Milestone 9 добавляет запускаемую однокруговую гонку на macOS Apple Silicon.
-Пункт `SINGLE PLAYER` теперь переводит меню в race scene. Автомобиль получает
-непрерывные значения `Accelerate`, `Brake`, `TurnLeft` и `TurnRight` из
-переносимого action layer, движется с фиксированным шагом 120 Hz, сталкивается
-с двумя границами трассы, проходит три checkpoint и фиксирует финиш.
+Milestone 9 запускает из оригинального `MainMenu2` первую штатную гонку
+турнира. Пункт `Single Player` открывает `Data/Map/World1/map1.r3dMap`, ставит
+`world\db\root\ctCar\marauder` в стартовую точку исходной trace и включает
+vehicle simulation. Старый procedural `PortableRace` с овальной трассой в
+этом preset не компилируется и не является результатом M9.
 
-Сцена использует:
+## Источники данных
 
-- границы и 18 размещений секций из оригинального
-  `Data/Map/debugTrack.r3dMap`;
-- проверенные исходные visual meshes `track1.r3d`, `track2.r3d`, `buggi.r3d`;
-- проверенные collision meshes `pxTrack1.r3d` и `pxTrack2.r3d`;
-- bgfx/Metal для road ribbon, ограждений, машины, камеры и маркеров;
-- `engine_player_heavy_mot.ogg`, `carcrash05.ogg`, `fireGun.ogg` и UI audio
-  через уже перенесённый SDL3/CoreAudio backend.
+Новый путь не задаёт трассу, автомобиль или баланс константами приложения:
 
-Текущий renderer строит переносимое представление трассы из карты. Бинарные
-`.r3d` meshes валидируются и используются как источник геометрического
-контракта, но их полный visual-material parser ещё не подключён. Это отделяет
-M9 physics vertical slice от дальнейшего переноса legacy scene graph.
+- `tournamet.xml` выбирает `map1.r3dMap` и четыре круга;
+- `map1.r3dMap` задаёт 52 размещения `ctTrack`, их position/rotation/scale и
+  trace из пяти точек;
+- `db.xml` разрешает visual/collision meshes трассы и параметры Marauder:
+  mass, box shape pose, local center of mass, четыре wheel position, radius,
+  suspension travel/spring/damper, driven/steering flags, brake torque,
+  differential ratio, max RPM и torque;
+- `garage.xml` задаёт исходные body/wheel `.r3d` и `marauder.dds`;
+- `px*.r3d` material groups дают 591 collision triangle после размещения
+  секций карты;
+- `Sounds/engine_player_heavy_tom.ogg` и `Sounds/Motor_high02.ogg` берутся из
+  sound references автомобиля в `db.xml`.
 
-## Аудит legacy PhysX
+Старт совпадает с `Race::ResetCarPos`: первая точка первого path плюс 2 по Z,
+ориентация направлена на следующую точку path.
 
-В Windows-коде используется NVIDIA PhysX 2.8.4
-(`NX_SDK_VERSION_NUMBER=284`). Поиск PhysX/Nx API даёт 717 совпадений в 27
-файлах `Rock3dEngine` и `Rock3dGame`. macOS target не линкует
-`PhysXLoader.lib`, `PhysXCooking.lib` или другие Windows binaries.
+## Backend
 
-### Scene и simulation
+PhysX 2.8.4 остаётся неизменным в Windows-ветке. Для Apple Silicon используется
+Jolt Physics 5.5.0, зафиксированный commit
+`23dadd0e603f1b321142d4c74df07fce85064989` и SHA-256 архива. Jolt собирается
+статически только для non-Windows original-menu physics preset.
 
-`Rock3dEngine/source/px/Physx.cpp` создаёт один `NxScene` через
-`NxPhysicsSDK::createScene`:
+`OriginalVehiclePhysics` не выпускает типы Jolt за границу engine. Adapter:
 
-- Z-up (`upAxis=2`), gravity `(0, 0, -20)`;
-- variable timestep;
-- default material: static/dynamic friction 0.5, restitution 0.5;
-- collision groups для car, wheel, shot, track, transparent track и border;
-- `NxUserContactModify`, `NxUserContactReport` и `NxUserNotify` callbacks;
-- synchronous `simulate(deltaTime)` + `fetchResults`.
+- переводит игровую Z-up систему в Jolt Y-up;
+- строит один static triangle mesh из исходных collision meshes карты;
+- сохраняет legacy gravity `-20`, friction/restitution `0.5`;
+- создаёт dynamic body с mass/shape pose/center of mass из `db.xml`;
+- создаёт четыре настоящих wheel/suspension constraint;
+- подаёт torque через driven differential, steering и brake torque;
+- выполняет simulation фиксированными шагами 1/120 s;
+- использует двусторонние suspension raycasts, поскольку старые PhysX meshes
+  содержат winding, рассчитанный на поведение PhysX 2.
 
-Gameplay также выполняет scene raycasts, меняет actor-pair/group filter flags
-и напрямую читает/записывает linear/angular velocity и momentum.
+Это не численная эмуляция PhysX 2: Jolt contact solver и tire model отличаются.
+Однако геометрия, масса, suspension, motor и стартовое состояние происходят из
+исходных ресурсов, а не из придуманной игровой механики.
 
-### Shapes и cooking
+## Renderer, input и audio
 
-Legacy wrapper поддерживает plane, box, sphere, capsule, triangle mesh,
-convex mesh и wheel shapes. `NxTriangleMeshDesc` заполняется vertex/index
-данными из custom `.r3d` mesh, после чего `NxCookTriangleMesh` или
-`NxCookConvexMesh` готовит буфер в памяти и SDK создаёт runtime mesh. То есть
-`pxTrack*.r3d` — custom collision geometry, а не готовая платформенная PhysX
-serialization. В импортированных ресурсах найдено 33 таких `px*.r3d` track
-meshes; это позволяет позже готовить их для другого backend без декодирования
-старого PhysX binary stream.
+`OriginalRaceRenderer` загружает фактические `.r3d` vertices/indices/material
+groups и DDS texture atlas, рисует все 52 track placements, кузов и четыре
+wheel transform через bgfx/Metal. Камера следует за физическим кузовом.
 
-### Vehicle API
+SDL-независимые actions `Accelerate`, `Brake`, `TurnLeft` и `TurnRight`
+управляют Jolt vehicle. `Escape`/`Pause` возвращает в `MainMenu2`. На старте
+гонки MusicCat ставится на паузу и включаются два штатных loop автомобиля; при
+возврате engine voices останавливаются, MusicCat продолжает сохранённый трек.
 
-`GameCar`, `CarWheel` и `RockCar` используют `NxWheelShapeDesc`/
-`NxWheelShape`, wheel-contact callback, suspension spring/damper/travel,
-longitudinal/lateral tire force functions, motor torque, steer angle,
-inverse wheel mass и material index контакта. Car/game object code напрямую
-работает с `NxActor`, forces, impulses, torque, damping, mass pose, wheel
-contact и triangle-mesh raycast.
-
-### Связность с gameplay
-
-Зависимость не ограничена engine wrapper. `GameBase`, `GameObject`,
-`GameCar`, `AIPlayer`, `Player`, `Weapon`, `Logic` и network replication
-обращаются к `NxActor`/`NxScene` напрямую. Механическая замена заголовков на
-PhysX 5 или Jolt без промежуточной границы потребовала бы переписать
-автомобиль, оружие, AI и replication одновременно.
-
-## Рассмотренные стратегии
-
-| Вариант | Плюсы | Риск/стоимость | Решение M9 |
-| --- | --- | --- | --- |
-| Современный PhysX wrapper | Близкая терминология shapes/actors/cooking | PhysX 2 wheel API удалён; direct Nx coupling всё равно переписывается | Не выбран |
-| Jolt Physics | Нативный arm64, активный проект, хорошие rigid bodies/queries | Нужен отдельный vehicle controller и importer; большая новая dependency | Кандидат после vertical slice |
-| Минимальная custom vehicle physics | Малый проверяемый объём, нет внешней ABI, быстро даёт runnable race | Не воспроизводит многотельную suspension и weapon dynamics | Выбран для M9 |
-| Временный scene-loading stub | Позволяет проверить карты | Нет движения/столкновений, критерий M9 не выполняется | Отклонён |
-
-Выбранная реализация находится за SDL/Metal-независимым
-`physics/PhysicsBackend.h`. Gameplay видит только `TrackGeometry`,
-`VehicleInput`, `VehicleState`, `TrackSample` и `PhysicsWorld`. Поэтому
-минимальный backend можно заменить Jolt или современным PhysX, не меняя
-input, menu, audio и renderer race scene.
-
-## Реализованная модель
-
-- stadium-track выводится из min/max координат секций `ctTrack` оригинальной
-  debug map;
-- nearest-point projection формирует непрерывный collision corridor;
-- машина имеет longitudinal acceleration, braking, quadratic drag,
-  speed-dependent steering и circular collision footprint;
-- при пересечении ограждения позиция возвращается в corridor, normal velocity
-  отражается и гасится, событие collision направляется в audio;
-- трамплин на нижней прямой проверяет подъём, отрыв, gravity и landing;
-- race progress разворачивает cyclic track distance, не засчитывает движение
-  назад и требует checkpoints 25/50/75% до финиша;
-- simulation делается fixed step 1/120 s с frame accumulator; большой frame
-  time ограничен, чтобы после паузы не было physics explosion;
-- Tab выполняет безопасный reset на старт, P ставит simulation/audio на
-  паузу, Escape возвращает в меню.
-
-## Автоматическая проверка
-
-`--physics-smoke-test` сначала без renderer проверяет:
-
-1. разгон за две секунды;
-2. торможение;
-3. изменение heading при steering;
-4. столкновение с внешним ограждением;
-5. take-off и landing на трамплине;
-6. reset;
-7. одинаковый результат двух fixed-step replays;
-8. автономное прохождение checkpoints и однокруговый финиш.
-
-Затем приложение запускает настоящие SDL3/audio/bgfx/Metal subsystems и
-рисует 240 кадров race scene. Зафиксированный arm64 результат:
-
-```text
-Milestone 9 physics smoke: acceleration, braking, steering, wall collision,
-ramp jump/landing, reset, deterministic replay, checkpoints, and one-lap
-finish passed; finish 17.8581 s, max 89.7191 km/h, collisions 0
-Milestone 9 physics/race/render smoke test completed after 240 frames
-```
-
-Команды:
+## Проверка
 
 ```bash
 cmake --preset macos-arm64-m9
-cmake --build --preset macos-arm64-m9 --clean-first -j 8
+cmake --build --preset macos-arm64-m9 --target RRR3d -j 8
 
-SDL_AUDIO_DRIVER=dummy \
-  build/macos-arm64-m9/Debug/RRR3d --physics-smoke-test
-build/macos-arm64-m9/Debug/RRR3d --verify-resources
-build/macos-arm64-m9/Debug/RRR3d
+build/macos-arm64-m9/Debug/RRR3d --physics-smoke-test
+build/macos-arm64-m9/Debug/RRR3d --race-render-smoke-test
 ```
 
-## Windows reference и критерий parity
+Headless test проверяет provenance ресурсов, контакт suspension, acceleration,
+braking, steering и reset. Интеграционный test посылает настоящий
+`MenuConfirm` в `Single Player`, рендерит 240 Metal frames и требует контакт
+всех колёс и движение автомобиля.
 
-Задание требует перед сохранением точного поведения снять Windows reference:
-position, acceleration, braking, turning, collision, jump, fall, reset и
-slope. Рабочая среда M9 — Apple Silicon, Windows executable/совместимый PhysX
-runtime и эталонный replay не предоставлены, поэтому численное равенство
-legacy PhysX 2.8.4 не заявляется.
+Проверенный результат:
 
-M9 закрывает функциональный критерий вертикального среза: на macOS машина
-движется по ресурсной трассе, сталкивается с окружением, проходит checkpoint
-и завершает гонку. Известные отличия от Windows — single-body car вместо
-четырёх `NxWheelShape`, gravity 9.81 вместо 20, процедурная collision corridor
-вместо полного triangle mesh и отсутствие weapon rigid bodies. Перед заменой
-backend или заявлением release parity нужно снять Windows trace тем же набором
-сценариев и сохранить его как versioned test data.
+```text
+Milestone 9 original race smoke passed: Data/Map/World1/map1.r3dMap,
+52 placed track objects, 591 original collision triangles, marauder/Jolt
+vehicle acceleration, braking, steering, suspension contacts, and trace reset
+
+Milestone 9 original Single Player/map1/marauder/Jolt/bgfx/Metal smoke test
+completed after 240 frames; max speed 11.4956, wheel contacts 4
+```
+
+## Граница Milestone 9
+
+Перенесён запускаемый physics race slice, но не полный Windows race mode. Пока
+нет AI-соперников, lap/checkpoint state machine, HUD, оружия, damage, bonuses,
+decorations/effects, weather, spatial audio и остальных карт/автомобилей.
+`ctDecoration` также ещё не рисуется, поэтому M9 визуализирует исходную трассу
+и Marauder, но не весь scenery Windows-версии. Эти пункты нельзя считать
+готовыми или заменять procedural аналогами.
+
+Перед заявлением physics parity нужен записанный Windows/PhysX reference replay
+для acceleration, braking, turning, suspension, collision, slope, jump/fall и
+reset. Следующее безопасное расширение — перенести `ctDecoration`/material
+mapping первой карты, затем lap/checkpoint/HUD и только после этого AI.

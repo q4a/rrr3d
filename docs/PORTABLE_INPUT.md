@@ -100,9 +100,9 @@ release.
 
 ## Подключение к гонке в Milestone 9
 
-Milestone 9 подключил continuous values `Accelerate`, `Brake`, `TurnLeft` и
-`TurnRight` к portable vehicle physics. `UseWeapon` воспроизводит gameplay
-effect, `Pause` останавливает physics/audio, `ChangeWeapon` (Tab/wheel)
-выполняет reset, а `MenuBack` возвращает race scene в меню. Keyboard releases,
-focus loss и gamepad axis zero очищают накопленное управление. Подробности —
-в `docs/PHYSICS_PORT_PLAN.md`.
+Исправленный Milestone 9 подключил continuous values `Accelerate`, `Brake`,
+`TurnLeft` и `TurnRight` к Jolt vehicle, параметры которого загружаются из
+оригинального `db.xml`. `Pause` и `MenuBack` возвращают race scene в
+`MainMenu2`. Keyboard releases, focus loss и gamepad axis zero очищают
+накопленное управление. Weapon/change-weapon gameplay в M9 ещё не перенесён и
+не имитируется. Подробности — в `docs/PHYSICS_PORT_PLAN.md`.

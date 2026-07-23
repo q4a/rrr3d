@@ -75,6 +75,45 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
         VERBATIM
     )
 
+    if(RRR3D_BUILD_ORIGINAL_MENU AND RRR3D_ENABLE_PHYSICS)
+        set(_rrr3d_race_vertex_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_vs_original_race.bin.h")
+        set(_rrr3d_race_fragment_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_original_race.bin.h")
+        add_custom_command(
+            OUTPUT "${_rrr3d_race_vertex_shader}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${_rrr3d_shader_output_dir}"
+            COMMAND "${RRR3D_BGFX_SHADERC}"
+                --type vertex --platform osx --profile metal -O 3
+                --varyingdef
+                    "${_rrr3d_shader_source_dir}/varying_legacy_mesh.def.sc"
+                -i "${RRR3D_BGFX_SOURCE_DIR}/src"
+                -f "${_rrr3d_shader_source_dir}/vs_legacy_mesh.sc"
+                -o "${_rrr3d_race_vertex_shader}"
+                --bin2c rrr3d_vs_original_race
+            DEPENDS
+                "${_rrr3d_shader_source_dir}/vs_legacy_mesh.sc"
+                "${_rrr3d_shader_source_dir}/varying_legacy_mesh.def.sc"
+            VERBATIM)
+        add_custom_command(
+            OUTPUT "${_rrr3d_race_fragment_shader}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${_rrr3d_shader_output_dir}"
+            COMMAND "${RRR3D_BGFX_SHADERC}"
+                --type fragment --platform osx --profile metal -O 3
+                --varyingdef
+                    "${_rrr3d_shader_source_dir}/varying_legacy_mesh.def.sc"
+                -i "${RRR3D_BGFX_SOURCE_DIR}/src"
+                -f "${_rrr3d_shader_source_dir}/fs_legacy_mesh.sc"
+                -o "${_rrr3d_race_fragment_shader}"
+                --bin2c rrr3d_fs_original_race
+            DEPENDS
+                "${_rrr3d_shader_source_dir}/fs_legacy_mesh.sc"
+                "${_rrr3d_shader_source_dir}/varying_legacy_mesh.def.sc"
+            VERBATIM)
+    endif()
+
     if(RRR3D_BUILD_ORIGINAL_MENU)
         set(_rrr3d_bgfx_main main_bgfx_original_menu.cpp)
     elseif(RRR3D_BUILD_PORTABLE_MENU)
@@ -92,6 +131,8 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
         ${_rrr3d_bgfx_main}
         "${_rrr3d_vertex_shader}"
         "${_rrr3d_fragment_shader}"
+        ${_rrr3d_race_vertex_shader}
+        ${_rrr3d_race_fragment_shader}
     )
 
     if(RRR3D_BUILD_ORIGINAL_MENU)
@@ -188,10 +229,17 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
         )
     endif()
     if(RRR3D_ENABLE_PHYSICS)
-        target_sources(${PROJECT_NAME} PRIVATE
-            PortableRaceRenderer.cpp
-            PortableRaceRenderer.h
-        )
+        if(RRR3D_BUILD_ORIGINAL_MENU)
+            target_sources(${PROJECT_NAME} PRIVATE
+                OriginalRaceRenderer.cpp
+                OriginalRaceRenderer.h
+            )
+        else()
+            target_sources(${PROJECT_NAME} PRIVATE
+                PortableRaceRenderer.cpp
+                PortableRaceRenderer.h
+            )
+        endif()
         target_compile_definitions(${PROJECT_NAME} PRIVATE
             RRR3D_PHYSICS=1
         )
