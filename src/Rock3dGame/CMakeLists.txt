@@ -28,8 +28,10 @@ else()
     # returning fake resources. Full gameplay sources enter the target only
     # after their renderer/physics dependencies have real backends.
     set(_rrr3d_portable_game_sources
+        source/stub/MusicCat.cpp
         source/stub/PortableGame.cpp
         include/InputActions.h
+        include/MusicCat.h
         include/PortableGame.h
         include/PortableInput.h
         include/OriginalAudioSpec.h

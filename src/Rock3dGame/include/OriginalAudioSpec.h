@@ -9,16 +9,16 @@ namespace r3d::game::originalaudio
 // the original Data directory, exactly as ResourceManager receives them.
 struct TrackSpec
 {
-    const char* path;
-    const char* name;
-    const char* band;
+	const char *path;
+	const char *name;
+	const char *band;
+	int group;
 };
 
 inline constexpr std::array<TrackSpec, 3> menuTracks{{
-    {"Music\\Track1.ogg", "Cold Hard Bitch", "Jet"},
-    {"Music\\Track14.ogg", "Angel's wings (acoustic)",
-     "Social Distortion"},
-    {"Music\\Track15.ogg", "On our Way", "Stereoside"},
+	{"Music\\Track1.ogg", "Cold Hard Bitch", "Jet", 0},
+	{"Music\\Track14.ogg", "Angel's wings (acoustic)", "Social Distortion", 0},
+	{"Music\\Track15.ogg", "On our Way", "Stereoside", 0},
 }};
 
 inline constexpr char mainButtonClick[] = "Sounds\\UI\\click.ogg";

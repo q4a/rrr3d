@@ -4,9 +4,10 @@
 > ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
 > bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки.
 > M7 подключает к этому же меню SDL3 keyboard/mouse/gamepad input и общий с
-> legacy `MainMenu2.cpp` порядок команд. M8 воспроизводит исходную музыку
-> меню и штатный `ssButton1/click.ogg` через SDL3/CoreAudio, а также проверяет
-> реальные игровые эффекты. Старые M6–M10 ниже остаются историей отменённого
+> legacy `MainMenu2.cpp` порядок команд. M8 воспроизводит все три исходных
+> menu-трека через перенесённую MusicCat-очередь и SDL3/CoreAudio, сохраняет
+> shuffle/позицию/паузу и использует штатный `ssButton1/click.ogg`, а также
+> проверяет реальные игровые эффекты. Старые M6–M10 ниже остаются историей отменённого
 > самостоятельного vertical slice и не являются acceptance status.
 
 ## Активный этап
@@ -18,7 +19,10 @@ Milestone 8: SDL3/CoreAudio для оригинального главного �
 Preset `macos-arm64-m8` продолжает исправленный M7-путь и не использует
 `PortableMenu`, `menu/menu.cfg` или `font5x7`. Навигация, pointer hit-testing,
 gamepad hot-plug и dispatch команд продолжают работать через SDL-независимые
-actions. Меню играет исходный `Track1.ogg`, а подтверждение использует тот же
+actions. Перенесённая независимая от Windows часть `MusicCat` перемешивает
+`Track1/Track14/Track15`, выполняет automatic Next и восстанавливает playlist,
+current frame и pause из Application Support. Декодирование идёт одним
+фоновым worker и не блокирует SDL/bgfx loop. Подтверждение использует тот же
 `Sounds\\UI\\click.ogg`, что и legacy `Menu::ssButton1`. Подробный отчёт —
 `docs/ORIGINAL_AUDIO_M8.md`. Игровой `fireGun.ogg` декодируется и проверяется,
 но не проигрывается искусственно в меню: его настоящий consumer появится
@@ -92,9 +96,10 @@ Portable core Milestone 3 не изменил поведение обычног�
 - Оригинальные Ogg/Vorbis декодируются через статические pinned libogg 1.3.5
   и libvorbis/libvorbisfile 1.3.7, затем SDL AudioStream выполняет channel
   conversion/resample. Homebrew audio dylib не используется.
-- Меню запускает `Track1.ogg` в loop; hover/navigation/confirm используют
-  исходные UI sounds, `UseWeapon` — `fireGun.ogg`, `Pause` управляет global
-  audio state.
+- Original-menu путь использует перенесённую MusicCat-очередь для всех трёх
+  menu Ogg: shuffle без повторения на границе цикла, automatic/explicit Next,
+  pause/resume с mixer cursor и атомарное user-state persistence. Декодирование
+  и preload выполняются последовательно в фоне, не в render/input loop.
 - Добавлены `--audio-smoke-test` и preset `macos-arm64-m8`. Тест проверяет
   decode музыки/UI/gameplay effects, callback mixing, volume, pause/resume,
   one-shot/loop, device events, stop/unload и 180 кадров общего runtime.
@@ -541,6 +546,10 @@ SDL_AUDIO_DRIVER=dummy \
   Apple libraries/frameworks, включая CoreAudio и AudioToolbox;
 - после M8 clean M7 virtual gamepad smoke и M6 120-frame menu smoke повторно
   завершились с exit code 0; M7 SDL Audio по-прежнему `OFF`.
+- M8 follow-up smoke продолжил bgfx/Metal rendering во время фонового decode
+  `Track1/Track14/Track15`, затем проверил pause/resume cursor, естественное
+  окончание voice -> automatic Next, explicit Next, три различные selection и
+  точный save/load MusicCat state; exit code 0 после 628 кадров.
 - M9 build: 315 шагов, exit code 0; новые physics/race sources собираются без
   предупреждений, остаются два legacy warning в `lslObject.h`;
 - M9 smoke прошёл acceleration/braking/steering, forced wall collision,
@@ -585,8 +594,10 @@ SDL_AUDIO_DRIVER=dummy \
 - Оригинальные game assets импортированы в `game-data`; M9 использует карту и
   audio, но binary `.r3d` visual/material parser ещё не подключён. Перед
   публикацией нужно отдельно проверить права на распространение данных.
-- Длинная музыка M8 пока декодируется целиком; `Track1.ogg` занимает примерно
-  92 MiB PCM. Streaming/ring buffer остаётся оптимизацией. Spatial X3DAudio
+- Длинная музыка M8 пока декодируется целиком и сохраняется в памяти, но decode
+  и preload всех трёх menu-треков выполняются последовательно фоновым worker;
+  render/input loop не ждёт их. Streaming/ring buffer остаётся оптимизацией
+  памяти. Spatial X3DAudio
   emitters/listener не перенесены; M9 race events используют обычный effects
   bus без 3D attenuation.
 - Физическое переключение Bluetooth/USB playback device не выполнялось;

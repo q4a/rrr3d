@@ -174,6 +174,12 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             SdlAudioSmoke.cpp
             SdlAudioSmoke.h
         )
+        if(RRR3D_BUILD_ORIGINAL_MENU)
+            target_sources(${PROJECT_NAME} PRIVATE
+                OriginalMenuMusic.cpp
+                OriginalMenuMusic.h
+            )
+        endif()
         target_compile_definitions(${PROJECT_NAME} PRIVATE
             RRR3D_AUDIO=1
         )

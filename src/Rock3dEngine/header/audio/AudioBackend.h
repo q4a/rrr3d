@@ -48,6 +48,7 @@ struct PlayOptions
 	float volume = 1.0F;
 	bool loop = false;
 	bool paused = false;
+	std::uint64_t startFrame = 0;
 };
 
 struct Statistics
@@ -76,6 +77,7 @@ class AudioBackend
 	virtual void stopAll() noexcept = 0;
 	virtual bool setVoicePaused(VoiceHandle voice, bool paused) noexcept = 0;
 	virtual bool isVoiceActive(VoiceHandle voice) const noexcept = 0;
+	virtual std::uint64_t voicePositionFrames(VoiceHandle voice) const noexcept = 0;
 
 	virtual void setPaused(bool paused) noexcept = 0;
 	virtual bool paused() const noexcept = 0;

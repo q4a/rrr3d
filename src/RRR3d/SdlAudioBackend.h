@@ -38,6 +38,7 @@ class SdlAudioBackend final : public r3d::audio::AudioBackend
 	void stopAll() noexcept override;
 	bool setVoicePaused(r3d::audio::VoiceHandle voice, bool paused) noexcept override;
 	bool isVoiceActive(r3d::audio::VoiceHandle voice) const noexcept override;
+	std::uint64_t voicePositionFrames(r3d::audio::VoiceHandle voice) const noexcept override;
 
 	void setPaused(bool paused) noexcept override;
 	bool paused() const noexcept override;

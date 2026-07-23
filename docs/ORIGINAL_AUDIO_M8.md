@@ -29,11 +29,23 @@ contain a hover or keyboard-navigation sound. M8 therefore plays `click.ogg`
 only after a valid `MenuConfirm`; it deliberately does not restore the old
 portable slice's invented `navedenie.ogg`/`acception.ogg` behaviour.
 
-The menu starts the shipped `Music\\Track1.ogg` entry from the original
-three-track menu list and loops it on the Music bus. The runtime reports its
-legacy title and band metadata. `Sounds\\fireGun.ogg`, used by the original
-fireGun `ShotEffect`, is decoded and mixed by the M8 test but is not triggered
-inside the main menu. Its real gameplay consumer belongs to the race port.
+The follow-up ports the platform-independent part of legacy
+`GameMode::MusicCat`: it builds the same grouped playlist, shuffles all three
+group-0 menu entries, consumes the queue from the back and prevents the last
+track of one cycle from immediately repeating at the start of the next. A
+finished voice automatically selects `Next`; an explicit `Next` uses the same
+queue. No menu-only replacement playback policy is used.
+
+All three shipped menu entries are active and retain their title/band/group
+metadata:
+
+- `Music\\Track1.ogg` — Jet, Cold Hard Bitch;
+- `Music\\Track14.ogg` — Social Distortion, Angel's wings (acoustic);
+- `Music\\Track15.ogg` — Stereoside, On our Way.
+
+`Sounds\\fireGun.ogg`, used by the original fireGun `ShotEffect`, is decoded
+and mixed by the M8 test but is not triggered inside the main menu. Its real
+gameplay consumer belongs to the race port.
 
 The original automatic category gains are retained:
 
@@ -72,9 +84,22 @@ Xiph release archives with pinned SHA-256 values and linked statically. No
 Homebrew audio dylib or Windows XAudio2/X3DAudio library enters the M8 link
 graph.
 
-Long sounds are currently decoded fully when loaded. This is a functional,
-bounded implementation (512 MiB per sound), not the final streaming
-optimization.
+Long sounds are decoded fully, but never on the UI/render thread. A single
+background job first decodes the selected track and then preloads the next
+playlist entries. Completion is polled without waiting from the SDL/bgfx loop;
+voice creation and automatic/manual transitions therefore do not decode or
+resample synchronously. The implementation remains bounded to 512 MiB per
+sound. A future streaming/ring-buffer backend can replace this policy without
+changing `MusicCat`.
+
+`PlayOptions::startFrame` and `voicePositionFrames` preserve the mixer cursor.
+Pause freezes the active voice without discarding it; resume continues from
+that cursor. The current track, remaining shuffled playlist, RNG state,
+pause flag and frame position are atomically written to
+`~/Library/Application Support/RRR3d/menu-music.state` on transitions,
+pause/resume, clean shutdown and periodically during playback. A catalog
+fingerprint and strict range/duplicate validation reject stale or corrupt
+state.
 
 ## Resource coverage
 
@@ -85,9 +110,11 @@ The copied game data contains 182 original Ogg containers:
 - 120 in `Data/Voice`.
 
 The smoke test checks the `OggS` capture pattern of all 182 files, then fully
-decodes representative resources from each active M8 role:
+decodes representative resources from each active M8 role. The integrated
+follow-up additionally background-decodes and validates every original menu
+track:
 
-- `Music\\Track1.ogg` — menu music;
+- `Music\\Track1.ogg`, `Track14.ogg`, `Track15.ogg` — complete menu playlist;
 - `Sounds\\UI\\click.ogg` — actual MainMenu2 `ssButton1` effect;
 - `Sounds\\fireGun.ogg` — original gameplay `ShotEffect`.
 
@@ -113,8 +140,12 @@ Down + Return
 It additionally verifies virtual-gamepad M7 regression, nonzero decoded PCM,
 the SDL playback callback, one-shot completion, a loop crossing its sample
 boundary, 0..2 gain clamp, all three category gains, global/per-voice
-pause/resume, stop/unload, device notifications, leak-free cleanup and 180
-bgfx/Metal frames.
+pause/resume, stop/unload and device notifications. The MusicCat follow-up
+requires render frames to continue while all three tracks decode, verifies a
+stable cursor while paused and progress after resume, seeks near the real Ogg
+end to exercise automatic `Next`, performs another explicit `Next`, proves the
+three selections are distinct and round-trips the persisted state. Its isolated
+smoke state is removed afterwards.
 
 ## Build and verification
 
@@ -142,8 +173,9 @@ that original gameplay effects work through the same backend. It does not
 claim the Windows `snd::Engine`, X3DAudio spatial emitters, commentator queue
 or race sound graph are already ported.
 
-The legacy `MusicCat` randomizes three menu tracks and persists playlist
-state. The current seam starts and loops its first real track; shuffle,
-persisted position and track-change UI remain outside this milestone. M9 must
-attach the backend to the real race/physics port rather than firing gameplay
-effects from the menu as a demonstration.
+The independent MusicCat policy, its three real menu tracks, background
+decoding, shuffle, automatic/manual Next, pause/resume and state restoration
+are now present. This still does not port the Windows-only spatial engine,
+commentator queue or race sound graph. M9 must attach the backend to the real
+race/physics port rather than firing gameplay effects from the menu as a
+demonstration.

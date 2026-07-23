@@ -322,7 +322,8 @@ r3d::audio::VoiceHandle SdlAudioBackend::play(r3d::audio::SoundHandle sound, con
                                               std::string &error)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	if (sounds_.find(sound) == sounds_.end())
+	const auto sound_entry = sounds_.find(sound);
+	if (sound_entry == sounds_.end())
 	{
 		error = "Cannot play an invalid or unloaded sound handle";
 		return r3d::audio::invalidVoice;
@@ -334,7 +335,10 @@ r3d::audio::VoiceHandle SdlAudioBackend::play(r3d::audio::SoundHandle sound, con
 		error = "No free audio voice handles";
 		return r3d::audio::invalidVoice;
 	}
-	voices_.emplace(handle, Voice{sound, 0, options.bus, clampVolume(options.volume), options.loop, options.paused});
+	const std::uint64_t start_frame = std::min(options.startFrame, sound_entry->second.info.mixerFrames);
+	const std::size_t sample_cursor = static_cast<std::size_t>(start_frame) * mixerChannels;
+	voices_.emplace(handle,
+	                Voice{sound, sample_cursor, options.bus, clampVolume(options.volume), options.loop, options.paused});
 	error.clear();
 	return handle;
 }
@@ -365,6 +369,15 @@ bool SdlAudioBackend::isVoiceActive(r3d::audio::VoiceHandle voice) const noexcep
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	return voices_.find(voice) != voices_.end();
+}
+
+std::uint64_t SdlAudioBackend::voicePositionFrames(r3d::audio::VoiceHandle voice) const noexcept
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	const auto entry = voices_.find(voice);
+	if (entry == voices_.end())
+		return 0;
+	return static_cast<std::uint64_t>(entry->second.sampleCursor / mixerChannels);
 }
 
 void SdlAudioBackend::setPaused(bool paused) noexcept

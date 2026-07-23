@@ -10,6 +10,7 @@
 #include "SdlInputSmoke.h"
 #endif
 #ifdef RRR3D_AUDIO
+#include "OriginalMenuMusic.h"
 #include "SdlAudioBackend.h"
 #include "SdlAudioSmoke.h"
 #include "audio/AudioBackend.h"
@@ -558,6 +559,22 @@ int main(int argc, char** argv)
                      "boundary, device events, and release passed\n";
     }
 
+    if (options->audioSmokeTest &&
+        !r3d::game::runMusicCatSmokeTest(audioError))
+    {
+        std::cerr << "Milestone 8 MusicCat policy smoke test failed: "
+                  << audioError << '\n';
+        audio.shutdown();
+        releaseResources();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+
     auto loadAudio = [&](std::string_view legacyPath,
                          r3d::audio::SoundInfo& info) {
         try
@@ -573,16 +590,10 @@ int main(int argc, char** argv)
         }
     };
 
-    r3d::audio::SoundInfo musicInfo;
     r3d::audio::SoundInfo clickInfo;
-    const auto musicSound =
-        loadAudio(originalaudio::menuTracks[0].path, musicInfo);
     const auto clickSound =
-        musicSound == r3d::audio::invalidSound
-            ? r3d::audio::invalidSound
-            : loadAudio(originalaudio::mainButtonClick, clickInfo);
-    if (musicSound == r3d::audio::invalidSound ||
-        clickSound == r3d::audio::invalidSound)
+        loadAudio(originalaudio::mainButtonClick, clickInfo);
+    if (clickSound == r3d::audio::invalidSound)
     {
         std::cerr << "Original MainMenu2 audio loading failed: "
                   << audioError << '\n';
@@ -604,14 +615,30 @@ int main(int argc, char** argv)
                        originalaudio::defaultEffectsVolume);
     audio.setBusVolume(r3d::audio::Bus::Voice,
                        originalaudio::defaultVoiceVolume);
-    r3d::audio::PlayOptions musicOptions;
-    musicOptions.bus = r3d::audio::Bus::Music;
-    musicOptions.loop = true;
-    const auto musicVoice = audio.play(musicSound, musicOptions, audioError);
-    if (musicVoice == r3d::audio::invalidVoice)
+
+    auto musicStatePath =
+        rrr3d::platform::save_directory() / "menu-music.state";
+    if (options->audioSmokeTest)
     {
-        std::cerr << "Original menu music start failed: " << audioError
-                  << '\n';
+        musicStatePath =
+            rrr3d::platform::save_directory() / "menu-music-smoke.state";
+        std::error_code removeError;
+        std::filesystem::remove(musicStatePath, removeError);
+        auto temporary = musicStatePath;
+        temporary += ".tmp";
+        std::filesystem::remove(temporary, removeError);
+    }
+    rrr3d::audio::OriginalMenuMusic music(
+        audio, *resources, musicStatePath,
+        options->audioSmokeTest ? 0x4d75736963436174ULL
+                                : rrr3d::platform::steady_nanoseconds(),
+        true);
+    if (!music.initialize(audioError))
+    {
+        std::cerr << "Original MusicCat initialization failed: "
+                  << audioError << '\n';
+        music.shutdown();
+        audio.unloadSound(clickSound);
         audio.shutdown();
         releaseResources();
         device.reset();
@@ -623,11 +650,13 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    std::cout << "Original menu music: Data/"
-              << originalaudio::menuTracks[0].path << " ("
-              << originalaudio::menuTracks[0].band << " - "
-              << originalaudio::menuTracks[0].name << "), "
-              << musicInfo.durationSeconds << " s; MainMenu2 ssButton1: Data/"
+    std::cout << "Original MusicCat: background decode, shuffled playlist, "
+                 "auto Next, pause/resume, state "
+              << musicStatePath << "\nOriginal menu tracks:";
+    for (const auto& track : originalaudio::menuTracks)
+        std::cout << " [" << track.band << " - " << track.name
+                  << ": Data/" << track.path << ']';
+    std::cout << "\nMainMenu2 ssButton1: Data/"
               << originalaudio::mainButtonClick << '\n';
 
     auto playMainButtonClick = [&]() {
@@ -660,6 +689,20 @@ int main(int argc, char** argv)
     menu::Controller controller(model->items.size());
 #ifdef RRR3D_AUDIO
     bool integratedAudioInputObserved = !options->audioSmokeTest;
+    enum class MusicSmokePhase
+    {
+        WaitingForDecode,
+        WaitingWhilePaused,
+        WaitingForResume,
+        WaitingForAutomaticNext,
+        WaitingForManualNext,
+        Complete
+    };
+    MusicSmokePhase musicSmokePhase = MusicSmokePhase::WaitingForDecode;
+    std::array<std::size_t, 3> smokeTrackOrder{};
+    std::uint64_t smokePausePosition = 0;
+    std::uint64_t smokePhaseTicks = SDL_GetTicks();
+    const std::uint64_t musicSmokeDeadline = SDL_GetTicks() + 30000;
 #endif
 #if defined(RRR3D_AUDIO) && defined(RRR3D_GAMEPAD_INPUT)
     if (options->audioSmokeTest)
@@ -785,6 +828,172 @@ int main(int argc, char** argv)
             }
         }
 
+#ifdef RRR3D_AUDIO
+        if (!music.update(audioError))
+        {
+            std::cerr << "Original MusicCat runtime failed: " << audioError
+                      << '\n';
+            runtimeSmokeFailed = true;
+            running = false;
+        }
+
+        if (running && options->audioSmokeTest &&
+            musicSmokePhase != MusicSmokePhase::Complete)
+        {
+            if (SDL_GetTicks() >= musicSmokeDeadline)
+            {
+                std::cerr << "Milestone 8 MusicCat transition smoke timed "
+                             "out while the render loop remained active\n";
+                runtimeSmokeFailed = true;
+                running = false;
+            }
+            else if (musicSmokePhase ==
+                         MusicSmokePhase::WaitingForDecode &&
+                     music.allTracksLoaded() &&
+                     music.currentVoiceActive())
+            {
+                bool metadataValid = renderedFrames > 1;
+                for (std::size_t index = 0;
+                     index < originalaudio::menuTracks.size(); ++index)
+                {
+                    const auto* info = music.trackInfo(index);
+                    metadataValid = metadataValid && info != nullptr &&
+                                    info->sourceSampleRate == 44100 &&
+                                    info->sourceChannels == 2 &&
+                                    info->durationSeconds > 60.0 &&
+                                    info->mixerFrames != 0 &&
+                                    info->peakAmplitude > 0.0F &&
+                                    info->rmsAmplitude > 0.0F;
+                }
+                const auto current = music.currentTrack();
+                if (!metadataValid || !current ||
+                    !music.pause(true, audioError))
+                {
+                    std::cerr << "Milestone 8 background decode/pause "
+                                 "verification failed: "
+                              << (audioError.empty()
+                                      ? "invalid three-track metadata"
+                                      : audioError)
+                              << '\n';
+                    runtimeSmokeFailed = true;
+                    running = false;
+                }
+                else
+                {
+                    smokeTrackOrder[0] = *current;
+                    smokePausePosition =
+                        music.currentPositionFrames();
+                    smokePhaseTicks = SDL_GetTicks();
+                    musicSmokePhase =
+                        MusicSmokePhase::WaitingWhilePaused;
+                }
+            }
+            else if (musicSmokePhase ==
+                         MusicSmokePhase::WaitingWhilePaused &&
+                     SDL_GetTicks() - smokePhaseTicks >= 100)
+            {
+                if (!music.paused() ||
+                    music.currentPositionFrames() != smokePausePosition ||
+                    !music.pause(false, audioError))
+                {
+                    std::cerr << "Milestone 8 MusicCat pause/resume "
+                                 "verification failed: "
+                              << audioError << '\n';
+                    runtimeSmokeFailed = true;
+                    running = false;
+                }
+                else
+                {
+                    musicSmokePhase =
+                        MusicSmokePhase::WaitingForResume;
+                }
+            }
+            else if (musicSmokePhase ==
+                         MusicSmokePhase::WaitingForResume &&
+                     music.currentPositionFrames() > smokePausePosition)
+            {
+                const auto* info =
+                    music.trackInfo(smokeTrackOrder[0]);
+                const std::uint64_t tailFrames = 4800;
+                if (info == nullptr || info->mixerFrames <= tailFrames ||
+                    !music.seekCurrent(info->mixerFrames - tailFrames,
+                                       audioError))
+                {
+                    std::cerr << "Milestone 8 MusicCat resume/automatic-Next "
+                                 "setup failed: "
+                              << audioError << '\n';
+                    runtimeSmokeFailed = true;
+                    running = false;
+                }
+                else
+                {
+                    musicSmokePhase =
+                        MusicSmokePhase::WaitingForAutomaticNext;
+                }
+            }
+            else if (musicSmokePhase ==
+                         MusicSmokePhase::WaitingForAutomaticNext)
+            {
+                const auto current = music.currentTrack();
+                if (current && *current != smokeTrackOrder[0] &&
+                    music.currentVoiceActive())
+                {
+                    smokeTrackOrder[1] = *current;
+                    if (music.transitionCount() == 0 ||
+                        !music.next(audioError))
+                    {
+                        std::cerr << "Milestone 8 MusicCat automatic/manual "
+                                     "Next verification failed: "
+                                  << audioError << '\n';
+                        runtimeSmokeFailed = true;
+                        running = false;
+                    }
+                    else
+                    {
+                        musicSmokePhase =
+                            MusicSmokePhase::WaitingForManualNext;
+                    }
+                }
+            }
+            else if (musicSmokePhase ==
+                         MusicSmokePhase::WaitingForManualNext)
+            {
+                const auto current = music.currentTrack();
+                if (current && *current != smokeTrackOrder[1] &&
+                    music.currentVoiceActive())
+                {
+                    smokeTrackOrder[2] = *current;
+                    const bool allDistinct =
+                        smokeTrackOrder[0] != smokeTrackOrder[1] &&
+                        smokeTrackOrder[0] != smokeTrackOrder[2] &&
+                        smokeTrackOrder[1] != smokeTrackOrder[2];
+                    if (!allDistinct ||
+                        !music.verifySavedState(audioError))
+                    {
+                        std::cerr << "Milestone 8 MusicCat shuffle/state "
+                                     "verification failed: "
+                                  << (audioError.empty()
+                                          ? "track order repeated"
+                                          : audioError)
+                                  << '\n';
+                        runtimeSmokeFailed = true;
+                        running = false;
+                    }
+                    else
+                    {
+                        musicSmokePhase = MusicSmokePhase::Complete;
+                        std::cout
+                            << "Milestone 8 MusicCat follow-up smoke: all "
+                               "three original menu tracks decoded in the "
+                               "background while rendering; shuffle, pause/"
+                               "resume, automatic Next, manual Next, and "
+                               "state round-trip passed\n";
+                    }
+                }
+            }
+        }
+#endif
+
         device->beginFrame(camera, 0x040818ffU);
         drawQuad(*device, quad, shader, background, menu::virtualWidth,
                  menu::virtualHeight, menu::virtualWidth * 0.5F,
@@ -826,7 +1035,12 @@ int main(int argc, char** argv)
 
         ++renderedFrames;
         if (options->smokeFrames != 0 &&
-            renderedFrames >= options->smokeFrames)
+            renderedFrames >= options->smokeFrames
+#ifdef RRR3D_AUDIO
+            && (!options->audioSmokeTest ||
+                musicSmokePhase == MusicSmokePhase::Complete)
+#endif
+        )
         {
 #ifdef RRR3D_AUDIO
             if (!integratedAudioInputObserved)
@@ -838,7 +1052,7 @@ int main(int argc, char** argv)
             else
             {
                 std::cout << "Milestone 8 original MainMenu2/input/audio/"
-                             "bgfx/Metal smoke test completed after "
+                             "MusicCat/bgfx/Metal smoke test completed after "
                           << renderedFrames << " frames\n";
             }
 #elif defined(RRR3D_GAMEPAD_INPUT)
@@ -856,7 +1070,17 @@ int main(int argc, char** argv)
     }
 
 #ifdef RRR3D_AUDIO
+    music.shutdown();
+    audio.unloadSound(clickSound);
     audio.shutdown();
+    if (options->audioSmokeTest)
+    {
+        std::error_code removeError;
+        std::filesystem::remove(musicStatePath, removeError);
+        auto temporary = musicStatePath;
+        temporary += ".tmp";
+        std::filesystem::remove(temporary, removeError);
+    }
 #endif
     releaseResources();
     device.reset();
