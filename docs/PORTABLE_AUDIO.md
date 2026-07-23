@@ -124,10 +124,10 @@ directory.
 ## Подключение к Milestone 9
 
 Исправленный M9 подключил `AudioBackend` к original-data race state. На старте
-MusicCat приостанавливает текущий сохранённый menu track, а sound references
-Marauder из `db.xml` запускают `engine_player_heavy_tom.ogg` и
-`Motor_high02.ogg` как loops. Возврат в меню останавливает оба engine voice и
-продолжает тот же MusicCat track. Collision/weapon/finish sound graph в M9 ещё
-не перенесён и искусственно не воспроизводится. X3DAudio spatial
-emitter/listener model также пока отсутствует; engine идёт через effects bus
-без 3D attenuation.
+MusicCat приостанавливает текущий сохранённый menu track, а `sndIdle`/`sndRPM`
+каждой машины игрока и пяти AI читаются из `db.xml` и запускаются как loops.
+Физические engine RPM управляют cross-fade и pitch. Для AI работают distance
+attenuation и stereo pan относительно ориентации игрока; pause/resume
+останавливает все engine voices. Возврат в меню продолжает тот же MusicCat
+track. Collision/weapon/finish sound graph и полная X3DAudio модель (doppler,
+cones, obstruction) ещё не перенесены.

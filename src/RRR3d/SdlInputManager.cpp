@@ -53,9 +53,9 @@ void appendDirectionalAxis(std::vector<ActionEvent> &events, float signed_value,
 	appendAnalog(events, Action::TurnRight, std::max(signed_value, 0.0F), Source::GamepadAxis, device_id);
 }
 
-constexpr std::array<Action, 11> allActions = {
+constexpr std::array<Action, 12> allActions = {
 	Action::Accelerate, Action::Brake,  Action::TurnLeft, Action::TurnRight,   Action::UseWeapon, Action::ChangeWeapon,
-	Action::Pause,      Action::MenuUp, Action::MenuDown, Action::MenuConfirm, Action::MenuBack};
+	Action::ResetVehicle, Action::Pause, Action::MenuUp, Action::MenuDown, Action::MenuConfirm, Action::MenuBack};
 
 } // namespace
 
@@ -194,6 +194,9 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 		case SDL_SCANCODE_TAB:
 			appendDigital(events, Action::ChangeWeapon, down, repeat, Source::Keyboard);
 			break;
+		case SDL_SCANCODE_R:
+			appendDigital(events, Action::ResetVehicle, down, repeat, Source::Keyboard);
+			break;
 		case SDL_SCANCODE_ESCAPE:
 			appendDigital(events, Action::MenuBack, down, repeat, Source::Keyboard);
 			appendDigital(events, Action::Pause, down, repeat, Source::Keyboard);
@@ -274,6 +277,10 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			break;
 		case SDL_GAMEPAD_BUTTON_WEST:
 			appendDigital(events, Action::ChangeWeapon, event.gbutton.down, false, Source::GamepadButton,
+			              event.gbutton.which);
+			break;
+		case SDL_GAMEPAD_BUTTON_NORTH:
+			appendDigital(events, Action::ResetVehicle, event.gbutton.down, false, Source::GamepadButton,
 			              event.gbutton.which);
 			break;
 		default:

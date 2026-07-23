@@ -76,6 +76,8 @@ class AudioBackend
 	virtual bool stop(VoiceHandle voice) noexcept = 0;
 	virtual void stopAll() noexcept = 0;
 	virtual bool setVoicePaused(VoiceHandle voice, bool paused) noexcept = 0;
+	virtual bool setVoiceParameters(VoiceHandle voice, float volume,
+	                                float pitch, float pan) noexcept = 0;
 	virtual bool isVoiceActive(VoiceHandle voice) const noexcept = 0;
 	virtual std::uint64_t voicePositionFrames(VoiceHandle voice) const noexcept = 0;
 

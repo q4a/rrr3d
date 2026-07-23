@@ -231,6 +231,8 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
     if(RRR3D_ENABLE_PHYSICS)
         if(RRR3D_BUILD_ORIGINAL_MENU)
             target_sources(${PROJECT_NAME} PRIVATE
+                OriginalRaceHud.cpp
+                OriginalRaceHud.h
                 OriginalRaceRenderer.cpp
                 OriginalRaceRenderer.h
             )

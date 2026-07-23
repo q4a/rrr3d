@@ -37,6 +37,8 @@ class SdlAudioBackend final : public r3d::audio::AudioBackend
 	bool stop(r3d::audio::VoiceHandle voice) noexcept override;
 	void stopAll() noexcept override;
 	bool setVoicePaused(r3d::audio::VoiceHandle voice, bool paused) noexcept override;
+	bool setVoiceParameters(r3d::audio::VoiceHandle voice, float volume,
+	                        float pitch, float pan) noexcept override;
 	bool isVoiceActive(r3d::audio::VoiceHandle voice) const noexcept override;
 	std::uint64_t voicePositionFrames(r3d::audio::VoiceHandle voice) const noexcept override;
 
@@ -62,9 +64,11 @@ class SdlAudioBackend final : public r3d::audio::AudioBackend
 	struct Voice
 	{
 		r3d::audio::SoundHandle sound = r3d::audio::invalidSound;
-		std::size_t sampleCursor = 0;
+		double frameCursor = 0.0;
 		r3d::audio::Bus bus = r3d::audio::Bus::Effects;
 		float volume = 1.0F;
+		float pitch = 1.0F;
+		float pan = 0.0F;
 		bool loop = false;
 		bool paused = false;
 	};

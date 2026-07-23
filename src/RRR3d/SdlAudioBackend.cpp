@@ -336,9 +336,10 @@ r3d::audio::VoiceHandle SdlAudioBackend::play(r3d::audio::SoundHandle sound, con
 		return r3d::audio::invalidVoice;
 	}
 	const std::uint64_t start_frame = std::min(options.startFrame, sound_entry->second.info.mixerFrames);
-	const std::size_t sample_cursor = static_cast<std::size_t>(start_frame) * mixerChannels;
 	voices_.emplace(handle,
-	                Voice{sound, sample_cursor, options.bus, clampVolume(options.volume), options.loop, options.paused});
+	                Voice{sound, static_cast<double>(start_frame),
+	                      options.bus, clampVolume(options.volume),
+	                      1.0F, 0.0F, options.loop, options.paused});
 	error.clear();
 	return handle;
 }
@@ -365,6 +366,22 @@ bool SdlAudioBackend::setVoicePaused(r3d::audio::VoiceHandle voice, bool paused)
 	return true;
 }
 
+bool SdlAudioBackend::setVoiceParameters(
+	r3d::audio::VoiceHandle voice, float volume, float pitch,
+	float pan) noexcept
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	const auto entry = voices_.find(voice);
+	if (entry == voices_.end())
+		return false;
+	entry->second.volume = clampVolume(volume);
+	entry->second.pitch =
+		std::isfinite(pitch) ? std::clamp(pitch, 0.25F, 4.0F) : 1.0F;
+	entry->second.pan =
+		std::isfinite(pan) ? std::clamp(pan, -1.0F, 1.0F) : 0.0F;
+	return true;
+}
+
 bool SdlAudioBackend::isVoiceActive(r3d::audio::VoiceHandle voice) const noexcept
 {
 	std::lock_guard<std::mutex> lock(mutex_);
@@ -377,7 +394,7 @@ std::uint64_t SdlAudioBackend::voicePositionFrames(r3d::audio::VoiceHandle voice
 	const auto entry = voices_.find(voice);
 	if (entry == voices_.end())
 		return 0;
-	return static_cast<std::uint64_t>(entry->second.sampleCursor / mixerChannels);
+	return static_cast<std::uint64_t>(entry->second.frameCursor);
 }
 
 void SdlAudioBackend::setPaused(bool paused) noexcept
@@ -520,13 +537,22 @@ void SdlAudioBackend::mixAndQueue(SDL_AudioStream *stream, int additional_amount
 				else if (voice.bus == r3d::audio::Bus::Voice)
 					bus_volume = voiceVolume_;
 				const float gain = masterVolume_ * bus_volume * voice.volume;
+				const float left_gain =
+					gain * (voice.pan > 0.0F ? 1.0F - voice.pan : 1.0F);
+				const float right_gain =
+					gain * (voice.pan < 0.0F ? 1.0F + voice.pan : 1.0F);
 				bool finished = false;
+				const std::size_t sound_frames =
+					sound.samples.size() / mixerChannels;
 				for (int frame = 0; frame < frame_count; ++frame)
 				{
-					if (voice.sampleCursor + 1 >= sound.samples.size())
+					if (voice.frameCursor >=
+					    static_cast<double>(sound_frames))
 					{
 						if (voice.loop)
-							voice.sampleCursor = 0;
+							voice.frameCursor = std::fmod(
+								voice.frameCursor,
+								static_cast<double>(sound_frames));
 						else
 						{
 							finished = true;
@@ -535,9 +561,28 @@ void SdlAudioBackend::mixAndQueue(SDL_AudioStream *stream, int additional_amount
 					}
 
 					const std::size_t output = static_cast<std::size_t>(frame * mixerChannels);
-					mix[output] += sound.samples[voice.sampleCursor] * gain;
-					mix[output + 1] += sound.samples[voice.sampleCursor + 1] * gain;
-					voice.sampleCursor += mixerChannels;
+					const std::size_t source_frame =
+						static_cast<std::size_t>(voice.frameCursor);
+					std::size_t next_frame = source_frame + 1U;
+					if (next_frame >= sound_frames)
+						next_frame = voice.loop ? 0U : source_frame;
+					const float fraction = static_cast<float>(
+						voice.frameCursor -
+						static_cast<double>(source_frame));
+					const std::size_t source = source_frame * mixerChannels;
+					const std::size_t next = next_frame * mixerChannels;
+					const float left =
+						sound.samples[source] +
+						(sound.samples[next] - sound.samples[source]) *
+							fraction;
+					const float right =
+						sound.samples[source + 1U] +
+						(sound.samples[next + 1U] -
+						 sound.samples[source + 1U]) *
+							fraction;
+					mix[output] += left * left_gain;
+					mix[output + 1] += right * right_gain;
+					voice.frameCursor += voice.pitch;
 				}
 
 				if (finished)

@@ -3,10 +3,16 @@ macro(add_dir DIRS FILE_GROUP)
     message("adding ${dir} to ${FILE_GROUP}")
 #    include_directories(${dir})
     file( GLOB ${dir}_SOURCE_ADD ${dir}/*.cpp ${dir}/*.cxx ${dir}/*.c )
+    # macOS File Provider may materialize conflict copies as "name 2.ext".
+    # They are user recovery files, not source units, and must never enter a
+    # target alongside the tracked original.
+    list( FILTER ${dir}_SOURCE_ADD EXCLUDE REGEX " 2\\.(cpp|cxx|c)$" )
     list( APPEND ${FILE_GROUP}_SOURCE ${${dir}_SOURCE_ADD} )
     file( GLOB ${dir}_INLINE_ADD ${dir}/*.inl )
+    list( FILTER ${dir}_INLINE_ADD EXCLUDE REGEX " 2\\.inl$" )
     list( APPEND ${FILE_GROUP}_INLINE ${${dir}_INLINE_ADD} )
     file( GLOB ${dir}_HEADER_ADD ${dir}/*.h ${dir}/*.hpp )
+    list( FILTER ${dir}_HEADER_ADD EXCLUDE REGEX " 2\\.(h|hpp)$" )
     list( APPEND ${FILE_GROUP}_HEADER ${${dir}_HEADER_ADD} )
   endforeach()
 endmacro()

@@ -13,6 +13,7 @@ namespace
 {
 
 constexpr bgfx::ViewId scene_view = 0;
+constexpr bgfx::ViewId overlay_view = 1;
 
 bool valid(VertexBuffer handle) noexcept
 {
@@ -43,6 +44,14 @@ public:
         {
             if (bgfx::isValid(texture_sampler_))
                 bgfx::destroy(texture_sampler_);
+            if (bgfx::isValid(scene_light_direction_))
+                bgfx::destroy(scene_light_direction_);
+            if (bgfx::isValid(scene_ambient_))
+                bgfx::destroy(scene_ambient_);
+            if (bgfx::isValid(scene_fog_))
+                bgfx::destroy(scene_fog_);
+            if (bgfx::isValid(scene_camera_))
+                bgfx::destroy(scene_camera_);
             bgfx::shutdown();
         }
     }
@@ -104,7 +113,19 @@ public:
 
         texture_sampler_ = bgfx::createUniform(
             "s_texColor", bgfx::UniformType::Sampler);
-        if (!bgfx::isValid(texture_sampler_))
+        scene_light_direction_ = bgfx::createUniform(
+            "u_sceneLightDirection", bgfx::UniformType::Vec4);
+        scene_ambient_ = bgfx::createUniform(
+            "u_sceneAmbient", bgfx::UniformType::Vec4);
+        scene_fog_ = bgfx::createUniform(
+            "u_sceneFog", bgfx::UniformType::Vec4);
+        scene_camera_ = bgfx::createUniform(
+            "u_sceneCamera", bgfx::UniformType::Vec4);
+        if (!bgfx::isValid(texture_sampler_) ||
+            !bgfx::isValid(scene_light_direction_) ||
+            !bgfx::isValid(scene_ambient_) ||
+            !bgfx::isValid(scene_fog_) ||
+            !bgfx::isValid(scene_camera_))
         {
             error = "bgfx could not create the scene texture sampler";
             bgfx::shutdown();
@@ -113,6 +134,7 @@ public:
         }
 
         bgfx::setViewName(scene_view, "Motor Rock .r3d static scene");
+        bgfx::setViewName(overlay_view, "Motor Rock HUD");
         return true;
     }
 
@@ -262,6 +284,7 @@ public:
 
     void beginFrame(const Camera& camera, std::uint32_t clearRgba) override
     {
+        current_view_ = scene_view;
         bgfx::setViewRect(scene_view, 0, 0,
                           static_cast<std::uint16_t>(
                               std::min(width_, std::uint32_t(UINT16_MAX))),
@@ -272,6 +295,26 @@ public:
         bgfx::setViewTransform(scene_view, camera.view.data(),
                                camera.projection.data());
         bgfx::touch(scene_view);
+    }
+
+    void beginOverlay(const Camera& camera) override
+    {
+        current_view_ = overlay_view;
+        bgfx::setViewRect(
+            overlay_view, 0, 0,
+            static_cast<std::uint16_t>(
+                std::min(width_, std::uint32_t(UINT16_MAX))),
+            static_cast<std::uint16_t>(
+                std::min(height_, std::uint32_t(UINT16_MAX))));
+        bgfx::setViewClear(overlay_view, BGFX_CLEAR_NONE);
+        bgfx::setViewTransform(overlay_view, camera.view.data(),
+                               camera.projection.data());
+        bgfx::touch(overlay_view);
+    }
+
+    void setSceneLighting(const SceneLighting& lighting) override
+    {
+        scene_lighting_ = lighting;
     }
 
     void draw(Mesh mesh, Shader shader, Texture texture,
@@ -313,8 +356,14 @@ public:
         }
         bgfx::setTexture(0, texture_sampler_,
                          bgfx::TextureHandle{texture.value});
+        bgfx::setUniform(scene_light_direction_,
+                         scene_lighting_.lightDirection.data());
+        bgfx::setUniform(scene_ambient_, scene_lighting_.ambient.data());
+        bgfx::setUniform(scene_fog_, scene_lighting_.fogColor.data());
+        bgfx::setUniform(scene_camera_,
+                         scene_lighting_.cameraPosition.data());
         bgfx::setState(state);
-        bgfx::submit(scene_view, bgfx::ProgramHandle{shader.value});
+        bgfx::submit(current_view_, bgfx::ProgramHandle{shader.value});
     }
 
     void endFrame() override
@@ -338,6 +387,12 @@ private:
     std::uint32_t width_ = 0;
     std::uint32_t height_ = 0;
     std::uint32_t reset_flags_ = BGFX_RESET_NONE;
+    bgfx::ViewId current_view_ = scene_view;
+    SceneLighting scene_lighting_;
+    bgfx::UniformHandle scene_light_direction_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle scene_ambient_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle scene_fog_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle scene_camera_ = BGFX_INVALID_HANDLE;
     bgfx::VertexLayout color_vertex_layout_;
     bgfx::VertexLayout static_vertex_layout_;
     bgfx::UniformHandle texture_sampler_ = BGFX_INVALID_HANDLE;

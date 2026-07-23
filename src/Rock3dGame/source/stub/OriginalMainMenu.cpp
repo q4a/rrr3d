@@ -481,6 +481,12 @@ bool runOriginalMainMenuInputSmoke(std::string& error)
     return true;
 }
 
+Image loadOriginalImage(const resource::ResourceFileSystem& resources,
+                        std::string virtualPath)
+{
+    return loadImage(resources, std::move(virtualPath));
+}
+
 Model loadOriginalMainMenu(const resource::ResourceFileSystem& resources,
                            std::string language)
 {

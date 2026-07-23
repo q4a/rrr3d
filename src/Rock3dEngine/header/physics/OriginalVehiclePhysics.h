@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -64,12 +65,22 @@ struct VehicleDescription
     std::vector<WheelDescription> wheels;
 };
 
+struct VehicleSpawn
+{
+    VehicleDescription vehicle;
+    Vec3 position;
+    Vec3 direction{1.0F, 0.0F, 0.0F};
+};
+
 struct WorldDescription
 {
     std::vector<TriangleMesh> collisionMeshes;
+    // The legacy fields keep the Windows/M9 single-car data contract intact.
+    // Multi-car races populate spawns; the first spawn is always the human.
     VehicleDescription vehicle;
     Vec3 startPosition;
     Vec3 startDirection{1.0F, 0.0F, 0.0F};
+    std::vector<VehicleSpawn> spawns;
     float gravity = -20.0F;
 };
 
@@ -96,8 +107,14 @@ class OriginalVehicleWorld
 public:
     virtual ~OriginalVehicleWorld() = default;
     virtual void reset() noexcept = 0;
+    virtual void resetVehicle(std::size_t index, Vec3 position,
+                              Vec3 direction) noexcept = 0;
     virtual void step(float seconds, const VehicleInput& input) noexcept = 0;
+    virtual void step(float seconds,
+                      const std::vector<VehicleInput>& inputs) noexcept = 0;
     virtual const VehicleState& vehicle() const noexcept = 0;
+    virtual const VehicleState& vehicle(std::size_t index) const noexcept = 0;
+    virtual std::size_t vehicleCount() const noexcept = 0;
 };
 
 std::unique_ptr<OriginalVehicleWorld> createOriginalVehicleWorld(

@@ -266,29 +266,44 @@ public:
                 std::max(1, static_cast<int>(std::thread::hardware_concurrency()) -
                                 1))
     {
+        if (description_.spawns.empty())
+        {
+            description_.spawns.push_back(
+                {description_.vehicle, description_.startPosition,
+                 description_.startDirection});
+        }
         validate();
         system_.Init(4096, 0, 16384, 4096, broadPhaseInterface_,
                      objectVsBroadPhase_, objectLayerPairs_);
         system_.SetGravity(toJolt({0.0F, 0.0F, description_.gravity}));
         createTrack();
-        createVehicle();
+        vehicles_.reserve(description_.spawns.size());
+        for (const auto& spawn : description_.spawns)
+            createVehicle(spawn);
         system_.OptimizeBroadPhase();
         reset();
     }
 
     ~JoltVehicleWorld() override
     {
-        if (constraint_ != nullptr)
+        for (auto& vehicle : vehicles_)
         {
-            system_.RemoveStepListener(constraint_);
-            system_.RemoveConstraint(constraint_);
-            constraint_ = nullptr;
+            if (vehicle.constraint != nullptr)
+            {
+                system_.RemoveStepListener(vehicle.constraint);
+                system_.RemoveConstraint(vehicle.constraint);
+                vehicle.constraint = nullptr;
+                vehicle.controller = nullptr;
+            }
         }
         auto& bodies = system_.GetBodyInterface();
-        if (!carBody_.IsInvalid())
+        for (auto& vehicle : vehicles_)
         {
-            bodies.RemoveBody(carBody_);
-            bodies.DestroyBody(carBody_);
+            if (!vehicle.body.IsInvalid())
+            {
+                bodies.RemoveBody(vehicle.body);
+                bodies.DestroyBody(vehicle.body);
+            }
         }
         if (!trackBody_.IsInvalid())
         {
@@ -299,31 +314,67 @@ public:
 
     void reset() noexcept override
     {
-        auto& bodies = system_.GetBodyInterface();
-        const float angle = std::atan2(description_.startDirection.y,
-                                       description_.startDirection.x);
-        bodies.SetPositionAndRotation(
-            carBody_, toJolt(description_.startPosition),
-            JPH::Quat::sRotation(JPH::Vec3::sAxisY(), -angle),
-            JPH::EActivation::Activate);
-        bodies.SetLinearAndAngularVelocity(carBody_, JPH::Vec3::sZero(),
-                                           JPH::Vec3::sZero());
-        controller_->SetDriverInput(0.0F, 0.0F, 1.0F, 0.0F);
-        ++resetCount_;
-        updateState();
+        for (std::size_t index = 0; index < vehicles_.size(); ++index)
+        {
+            const auto& spawn = vehicles_[index].spawn;
+            resetVehicle(index, spawn.position, spawn.direction);
+        }
     }
 
-    void step(float seconds, const VehicleInput& rawInput) noexcept override
+    void resetVehicle(std::size_t index, Vec3 position,
+                      Vec3 direction) noexcept override
     {
-        VehicleInput input = rawInput;
-        input.throttle = std::clamp(input.throttle, 0.0F, 1.0F);
-        input.brake = std::clamp(input.brake, 0.0F, 1.0F);
-        input.steering = std::clamp(input.steering, -1.0F, 1.0F);
-        controller_->SetDriverInput(input.throttle, input.steering,
-                                    input.brake, 0.0F);
-        if (input.throttle != 0.0F || input.brake != 0.0F ||
-            input.steering != 0.0F)
-            system_.GetBodyInterface().ActivateBody(carBody_);
+        if (index >= vehicles_.size())
+            return;
+        auto& vehicle = vehicles_[index];
+        const float length =
+            std::sqrt(direction.x * direction.x + direction.y * direction.y);
+        if (length <= 0.0001F)
+            direction = {1.0F, 0.0F, 0.0F};
+        else
+        {
+            direction.x /= length;
+            direction.y /= length;
+        }
+        const float angle = std::atan2(direction.y, direction.x);
+        auto& bodies = system_.GetBodyInterface();
+        bodies.SetPositionAndRotation(
+            vehicle.body, toJolt(position),
+            JPH::Quat::sRotation(JPH::Vec3::sAxisY(), -angle),
+            JPH::EActivation::Activate);
+        bodies.SetLinearAndAngularVelocity(
+            vehicle.body, JPH::Vec3::sZero(), JPH::Vec3::sZero());
+        vehicle.controller->SetDriverInput(0.0F, 0.0F, 1.0F, 0.0F);
+        ++vehicle.resetCount;
+        updateState(vehicle);
+    }
+
+    void step(float seconds, const VehicleInput& input) noexcept override
+    {
+        std::vector<VehicleInput> inputs(vehicles_.size());
+        if (!inputs.empty())
+            inputs.front() = input;
+        step(seconds, inputs);
+    }
+
+    void step(float seconds,
+              const std::vector<VehicleInput>& rawInputs) noexcept override
+    {
+        for (std::size_t index = 0; index < vehicles_.size(); ++index)
+        {
+            VehicleInput input;
+            if (index < rawInputs.size())
+                input = rawInputs[index];
+            input.throttle = std::clamp(input.throttle, 0.0F, 1.0F);
+            input.brake = std::clamp(input.brake, 0.0F, 1.0F);
+            input.steering = std::clamp(input.steering, -1.0F, 1.0F);
+            auto& vehicle = vehicles_[index];
+            vehicle.controller->SetDriverInput(
+                input.throttle, input.steering, input.brake, 0.0F);
+            if (input.throttle != 0.0F || input.brake != 0.0F ||
+                input.steering != 0.0F)
+                system_.GetBodyInterface().ActivateBody(vehicle.body);
+        }
 
         float remaining = std::clamp(seconds, 0.0F, 0.25F);
         constexpr float fixedStep = 1.0F / 120.0F;
@@ -333,21 +384,48 @@ public:
             system_.Update(delta, 1, &tempAllocator_, &jobs_);
             remaining -= delta;
         }
-        updateState();
+        for (auto& vehicle : vehicles_)
+            updateState(vehicle);
     }
 
     const VehicleState& vehicle() const noexcept override
     {
-        return state_;
+        return vehicles_.front().state;
+    }
+
+    const VehicleState& vehicle(std::size_t index) const noexcept override
+    {
+        return vehicles_[std::min(index, vehicles_.size() - 1U)].state;
+    }
+
+    std::size_t vehicleCount() const noexcept override
+    {
+        return vehicles_.size();
     }
 
 private:
+    struct VehicleRuntime
+    {
+        VehicleSpawn spawn;
+        JPH::BodyID body;
+        JPH::Ref<JPH::VehicleConstraint> constraint;
+        JPH::WheeledVehicleController* controller = nullptr;
+        VehicleState state;
+        std::uint32_t resetCount = 0;
+    };
+
     void validate()
     {
         if (description_.collisionMeshes.empty() ||
-            description_.vehicle.mass <= 0.0F ||
-            description_.vehicle.wheels.size() != 4)
+            description_.spawns.empty())
             throw std::runtime_error("incomplete original race physics data");
+        for (const auto& spawn : description_.spawns)
+        {
+            if (spawn.vehicle.mass <= 0.0F ||
+                spawn.vehicle.wheels.size() != 4)
+                throw std::runtime_error(
+                    "incomplete original vehicle physics data");
+        }
     }
 
     void createTrack()
@@ -389,9 +467,9 @@ private:
             throw std::runtime_error("Jolt could not create track body");
     }
 
-    void createVehicle()
+    void createVehicle(const VehicleSpawn& spawn)
     {
-        const auto& source = description_.vehicle;
+        const auto& source = spawn.vehicle;
         const JPH::Vec3 halfExtents = toJolt(source.halfExtents);
         const auto box = new JPH::BoxShape(halfExtents);
         const auto translated = JPH::RotatedTranslatedShapeSettings(
@@ -413,7 +491,7 @@ private:
             throw std::runtime_error(
                 ("Jolt car shape: " + shifted.GetError()).c_str());
         JPH::BodyCreationSettings bodySettings(
-            shifted.Get(), toJolt(description_.startPosition),
+            shifted.Get(), toJolt(spawn.position),
             JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic,
             Layers::moving);
         bodySettings.mOverrideMassProperties =
@@ -422,11 +500,13 @@ private:
         bodySettings.mFriction = 0.5F;
         bodySettings.mRestitution = 0.5F;
         bodySettings.mEnhancedInternalEdgeRemoval = true;
-        carBody_ = system_.GetBodyInterface().CreateAndAddBody(
+        VehicleRuntime runtime;
+        runtime.spawn = spawn;
+        runtime.body = system_.GetBodyInterface().CreateAndAddBody(
             bodySettings, JPH::EActivation::Activate);
-        if (carBody_.IsInvalid())
+        if (runtime.body.IsInvalid())
             throw std::runtime_error("Jolt could not create vehicle body");
-        JPH::BodyLockWrite lock(system_.GetBodyLockInterface(), carBody_);
+        JPH::BodyLockWrite lock(system_.GetBodyLockInterface(), runtime.body);
         if (!lock.Succeeded())
             throw std::runtime_error("Jolt could not lock vehicle body");
 
@@ -478,44 +558,49 @@ private:
             controllerSettings->mDifferentials.push_back(differential);
         }
         settings.mController = controllerSettings;
-        constraint_ = new JPH::VehicleConstraint(lock.GetBody(), settings);
-        constraint_->SetVehicleCollisionTester(
+        runtime.constraint =
+            new JPH::VehicleConstraint(lock.GetBody(), settings);
+        runtime.constraint->SetVehicleCollisionTester(
             new OriginalWheelCollisionTester(Layers::moving));
-        system_.AddConstraint(constraint_);
-        system_.AddStepListener(constraint_);
-        controller_ = static_cast<JPH::WheeledVehicleController*>(
-            constraint_->GetController());
+        system_.AddConstraint(runtime.constraint);
+        system_.AddStepListener(runtime.constraint);
+        runtime.controller = static_cast<JPH::WheeledVehicleController*>(
+            runtime.constraint->GetController());
+        vehicles_.push_back(std::move(runtime));
     }
 
-    void updateState() noexcept
+    void updateState(VehicleRuntime& vehicle) noexcept
     {
-        JPH::BodyLockRead lock(system_.GetBodyLockInterface(), carBody_);
+        JPH::BodyLockRead lock(system_.GetBodyLockInterface(), vehicle.body);
         if (!lock.Succeeded())
             return;
         const JPH::Body& body = lock.GetBody();
-        state_.body.position = fromJolt(body.GetPosition());
-        state_.body.rotation = fromJolt(body.GetRotation());
-        state_.body.scale = {1.0F, 1.0F, 1.0F};
-        state_.linearVelocity = fromJolt(body.GetLinearVelocity());
-        state_.speed = body.GetLinearVelocity().Length();
-        state_.engineRpm = controller_->GetEngine().GetCurrentRPM();
-        state_.resetCount = resetCount_;
-        state_.wheels.clear();
+        auto& state = vehicle.state;
+        state.body.position = fromJolt(body.GetPosition());
+        state.body.rotation = fromJolt(body.GetRotation());
+        state.body.scale = {1.0F, 1.0F, 1.0F};
+        state.linearVelocity = fromJolt(body.GetLinearVelocity());
+        state.speed = body.GetLinearVelocity().Length();
+        state.engineRpm =
+            vehicle.controller->GetEngine().GetCurrentRPM();
+        state.resetCount = vehicle.resetCount;
+        state.wheels.clear();
         JPH::uint contacts = 0;
-        for (JPH::uint index = 0; index < constraint_->GetWheels().size();
+        for (JPH::uint index = 0;
+             index < vehicle.constraint->GetWheels().size();
              ++index)
         {
-            const auto matrix = constraint_->GetWheelWorldTransform(
+            const auto matrix = vehicle.constraint->GetWheelWorldTransform(
                 index, JPH::Vec3::sAxisZ(), JPH::Vec3::sAxisY());
             Transform wheel;
             wheel.position = fromJolt(matrix.GetTranslation());
             wheel.rotation = fromJolt(matrix.GetQuaternion());
             wheel.scale = {1.0F, 1.0F, 1.0F};
-            state_.wheels.push_back(wheel);
-            if (constraint_->GetWheel(index)->HasContact())
+            state.wheels.push_back(wheel);
+            if (vehicle.constraint->GetWheel(index)->HasContact())
                 ++contacts;
         }
-        state_.contactCount = contacts;
+        state.contactCount = contacts;
     }
 
     WorldDescription description_;
@@ -526,11 +611,7 @@ private:
     JPH::TempAllocatorImpl tempAllocator_;
     JPH::JobSystemThreadPool jobs_;
     JPH::BodyID trackBody_;
-    JPH::BodyID carBody_;
-    JPH::Ref<JPH::VehicleConstraint> constraint_;
-    JPH::WheeledVehicleController* controller_ = nullptr;
-    VehicleState state_;
-    std::uint32_t resetCount_ = 0;
+    std::vector<VehicleRuntime> vehicles_;
 };
 
 } // namespace

@@ -14,6 +14,7 @@ enum class Action : std::uint8_t
     TurnRight,
     UseWeapon,
     ChangeWeapon,
+    ResetVehicle,
     Pause,
     MenuUp,
     MenuDown,
@@ -56,6 +57,8 @@ constexpr std::string_view actionName(Action action) noexcept
         return "UseWeapon";
     case Action::ChangeWeapon:
         return "ChangeWeapon";
+    case Action::ResetVehicle:
+        return "ResetVehicle";
     case Action::Pause:
         return "Pause";
     case Action::MenuUp:

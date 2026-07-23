@@ -140,6 +140,14 @@ struct Camera
     std::array<float, 16> projection{};
 };
 
+struct SceneLighting
+{
+    std::array<float, 4> lightDirection{-0.45F, -0.35F, 0.82F, 0.0F};
+    std::array<float, 4> ambient{0.22F, 0.22F, 0.22F, 1.0F};
+    std::array<float, 4> fogColor{0.58F, 0.76F, 0.92F, 0.5F};
+    std::array<float, 4> cameraPosition{0.0F, 0.0F, 0.0F, 1.0F};
+};
+
 struct Transform
 {
     std::array<float, 16> matrix{};
@@ -203,6 +211,9 @@ public:
     virtual void destroy(Texture texture) = 0;
 
     virtual void beginFrame(const Camera& camera, std::uint32_t clearRgba) = 0;
+    // Selects a second, non-clearing view for HUD/UI draws in the same frame.
+    virtual void beginOverlay(const Camera& camera) = 0;
+    virtual void setSceneLighting(const SceneLighting& lighting) = 0;
     virtual void draw(Mesh mesh, Shader shader, Texture texture,
                       const Transform& transform,
                       const PipelineState& pipeline,

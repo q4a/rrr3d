@@ -148,12 +148,14 @@ importer менять не потребовалось. Архитектура и
 
 ## Подключение в Milestone 9
 
-Race loader выбирает первый track/car через `tournamet.xml`, читает 52
-`ctTrack` placement и trace из `Data/Map/World1/map1.r3dMap`, разрешает записи
-через `db.xml`/`garage.xml` и загружает исходные visual/collision `.r3d` через
-тот же exact-case filesystem. Jolt получает фактические triangle meshes, а
-bgfx/Metal — фактические vertex/index/material groups и DDS atlas. Детали и
-ограничения описаны в `docs/PHYSICS_PORT_PLAN.md`.
+Race loader выбирает через `tournamet.xml` одну из 88 трасс и соответствующий
+planet/pass roster, а через `garage.xml` — одну из 17 машин. Для map1 он читает
+52 `ctTrack`, 234 `ctDecoration`, 7 `ctBonus` и trace; записи разрешаются через
+`db.xml`, а visual/collision `.r3d` проходят тот же защищённый filesystem.
+Windows-only несовпадения регистра допускаются лишь при единственном
+однозначном совпадении. Jolt получает фактические triangle meshes, а
+bgfx/Metal — vertex/index/material groups и DDS. Детали и ограничения описаны
+в `docs/PHYSICS_PORT_PLAN.md`.
 
 ## Упаковка в Milestone 10
 

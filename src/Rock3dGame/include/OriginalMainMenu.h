@@ -71,6 +71,9 @@ private:
 
 bool runOriginalMainMenuInputSmoke(std::string& error);
 
+Image loadOriginalImage(const resource::ResourceFileSystem& resources,
+                        std::string virtualPath);
+
 // Loads the assets and localized strings named by the original
 // ResourceManager/MainMenu2 code. No portable menu.cfg or replacement bitmap
 // font participates in this path.

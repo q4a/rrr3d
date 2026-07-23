@@ -52,6 +52,10 @@ bool auditOggDirectory(const std::filesystem::path &directory,
 	{
 		if (!iterator->is_regular_file() || iterator->path().extension() != ".ogg")
 			continue;
+		const auto stem = iterator->path().stem().string();
+		if (stem.size() >= 2 &&
+		    stem.compare(stem.size() - 2, 2, " 2") == 0)
+			continue;
 		++count;
 		std::ifstream stream(iterator->path(), std::ios::binary);
 		char capture_pattern[4]{};
