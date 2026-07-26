@@ -2,6 +2,7 @@
 #include "OriginalAudioSpec.h"
 #include "OriginalMainMenu.h"
 #ifdef RRR3D_PHYSICS
+#include "OriginalProfile.h"
 #include "OriginalRace.h"
 #include "OriginalRaceHud.h"
 #include "OriginalRaceRenderer.h"
@@ -18,6 +19,9 @@
 #endif
 #ifdef RRR3D_AUDIO
 #include "OriginalMenuMusic.h"
+#ifdef RRR3D_PHYSICS
+#include "OriginalRaceCommentator.h"
+#endif
 #include "SdlAudioBackend.h"
 #include "SdlAudioSmoke.h"
 #include "audio/AudioBackend.h"
@@ -69,13 +73,17 @@ struct Options
     std::uint32_t smokeFrames = 0;
     std::filesystem::path dataDirectory;
     std::string language;
+    bool languageSelected = false;
     bool verifyResources = false;
 #ifdef RRR3D_PHYSICS
     bool physicsSmokeTest = false;
     bool raceRenderSmokeTest = false;
     std::uint32_t trackIndex = 0;
+    bool trackSelected = false;
     std::string car;
+    bool carSelected = false;
     std::string weather = "fair";
+    bool weatherSelected = false;
 #endif
 #ifdef RRR3D_GAMEPAD_INPUT
     bool inputSmokeTest = false;
@@ -100,6 +108,46 @@ std::string_view recordName(std::string_view record)
                              : separator + 1);
 }
 
+#ifdef RRR3D_AUDIO
+template <std::size_t Count>
+std::vector<r3d::game::MusicCatTrack> musicTracks(
+    const std::array<originalaudio::TrackSpec, Count>& source)
+{
+    std::vector<r3d::game::MusicCatTrack> result;
+    result.reserve(source.size());
+    for (const auto& track : source)
+        result.push_back(
+            {track.path, track.name, track.band, track.group});
+    return result;
+}
+
+std::vector<std::size_t> musicPlaylist(std::string_view source,
+                                       std::size_t trackCount)
+{
+    std::vector<std::size_t> result;
+    while (!source.empty())
+    {
+        const auto separator = source.find(',');
+        const auto token = source.substr(0, separator);
+        std::size_t index = 0;
+        const auto parsed = std::from_chars(
+            token.data(), token.data() + token.size(), index);
+        if (parsed.ec == std::errc{} &&
+            parsed.ptr == token.data() + token.size() &&
+            index < trackCount &&
+            std::find(result.begin(), result.end(), index) ==
+                result.end())
+        {
+            result.push_back(index);
+        }
+        if (separator == std::string_view::npos)
+            break;
+        source.remove_prefix(separator + 1U);
+    }
+    return result;
+}
+#endif
+
 std::optional<Options> parseOptions(int argc, char** argv)
 {
     Options options;
@@ -121,6 +169,7 @@ std::optional<Options> parseOptions(int argc, char** argv)
             if (result.ec != std::errc{} ||
                 result.ptr != value.data() + value.size())
                 return std::nullopt;
+            options.trackSelected = true;
             continue;
         }
         if (argument.substr(0, carPrefix.size()) == carPrefix)
@@ -128,6 +177,7 @@ std::optional<Options> parseOptions(int argc, char** argv)
             options.car = argument.substr(carPrefix.size());
             if (options.car.empty())
                 return std::nullopt;
+            options.carSelected = true;
             continue;
         }
         if (argument.substr(0, weatherPrefix.size()) == weatherPrefix)
@@ -136,8 +186,12 @@ std::optional<Options> parseOptions(int argc, char** argv)
             if (options.weather != "fair" &&
                 options.weather != "night" &&
                 options.weather != "cloudy" &&
-                options.weather != "rainy")
+                options.weather != "rainy" &&
+                options.weather != "sahara" &&
+                options.weather != "hell" &&
+                options.weather != "snow")
                 return std::nullopt;
+            options.weatherSelected = true;
             continue;
         }
         if (argument == "--physics-smoke-test")
@@ -184,6 +238,7 @@ std::optional<Options> parseOptions(int argc, char** argv)
             options.language = argument.substr(languagePrefix.size());
             if (options.language.empty())
                 return std::nullopt;
+            options.languageSelected = true;
             continue;
         }
         if (argument.substr(0, smokePrefix.size()) == smokePrefix)
@@ -338,21 +393,56 @@ void applyWeather(
         environment.weather =
             weather == "rainy" ? Weather::Rainy : Weather::Cloudy;
         environment.skyTexturePath =
-            "Data/World2/texture/skyTex1.dds";
+            "Data/World2/Texture/skyTex1.dds";
         environment.fogColor =
             {192.0F / 255.0F, 189.0F / 255.0F,
-             184.0F / 255.0F, 1.0F};
-        environment.ambientColor = {0.2F, 0.2F, 0.2F, 1.0F};
+             184.0F / 255.0F, 0.0F};
+        environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
         environment.fogIntensity = 1.0F;
         environment.rain = weather == "rainy";
+    }
+    else if (weather == "sahara")
+    {
+        environment.weather = Weather::Sahara;
+        environment.skyTexturePath =
+            "Data/World3/Texture/skyTex1.dds";
+        environment.fogColor =
+            {87.0F / 255.0F, 81.0F / 255.0F,
+             115.0F / 255.0F, 1.0F};
+        environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
+        environment.fogIntensity = 0.5F;
+    }
+    else if (weather == "hell")
+    {
+        environment.weather = Weather::Hell;
+        environment.skyTexturePath =
+            "Data/World4/Texture/skyTex1.dds";
+        environment.fogColor =
+            {82.0F / 255.0F, 12.0F / 255.0F,
+             8.0F / 255.0F, 1.0F};
+        environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
+        environment.fogIntensity = 0.5F;
+    }
+    else if (weather == "snow")
+    {
+        environment.weather = Weather::Snow;
+        environment.skyTexturePath =
+            "Data/World5/Texture/sky_text.dds";
+        environment.fogColor =
+            {156.0F / 255.0F, 166.0F / 255.0F,
+             181.0F / 255.0F, 1.0F};
+        environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
+        environment.fogIntensity = 0.5F;
     }
     else
     {
         environment.weather = Weather::Fair;
+        environment.skyTexturePath =
+            "Data/World1/Texture/skyTex1.dds";
         environment.fogColor =
             {148.0F / 255.0F, 193.0F / 255.0F,
              235.0F / 255.0F, 1.0F};
-        environment.ambientColor = {0.18F, 0.18F, 0.18F, 1.0F};
+        environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
         environment.fogIntensity = 0.5F;
     }
 }
@@ -376,7 +466,7 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_PHYSICS
                      " [--track=0..87] [--car=garage-record] "
-                     "[--weather=fair|night|cloudy|rainy] "
+                     "[--weather=fair|night|cloudy|rainy|sahara|hell|snow] "
                      "[--physics-smoke-test] [--race-render-smoke-test]"
 #endif
                      "\n";
@@ -398,19 +488,56 @@ int main(int argc, char** argv)
 
     std::optional<r3d::resource::ResourceFileSystem> resources;
     std::optional<menu::Model> model;
+    std::string activeLanguage = options->language;
 #ifdef RRR3D_PHYSICS
     std::optional<r3d::game::originalrace::Race> originalRace;
     std::optional<r3d::physics::WorldDescription> physicsDescription;
+    r3d::game::originalrace::OriginalProfileStore profileStore(
+        rrr3d::platform::save_directory(), dataDirectory);
+    std::string profileWarning;
+    auto profileState = profileStore.load(profileWarning);
+    if (!profileWarning.empty())
+        std::cerr << "Profile import warning: " << profileWarning << '\n';
+    if (options->languageSelected)
+        profileState.config.language = options->language;
+    else
+        activeLanguage = profileState.config.language;
+    std::size_t selectedTrack =
+        options->trackSelected ? options->trackIndex : 0U;
+    const std::string selectedCar =
+        options->carSelected ? options->car
+                             : profileState.player.currentCar;
 #endif
     try
     {
         resources.emplace(dataDirectory);
-        model.emplace(menu::loadOriginalMainMenu(*resources,
-                                                 options->language));
+        model.emplace(
+            menu::loadOriginalMainMenu(*resources, activeLanguage));
 #ifdef RRR3D_PHYSICS
         originalRace.emplace(r3d::game::originalrace::loadOriginalRace(
-            *resources, options->trackIndex, options->car));
-        applyWeather(originalRace->environment, options->weather);
+            *resources, selectedTrack, selectedCar));
+        if (!options->trackSelected)
+        {
+            selectedTrack =
+                r3d::game::originalrace::resolveOriginalTournamentTrack(
+                    *originalRace, profileState.player);
+            if (selectedTrack != 0U)
+            {
+                originalRace.emplace(
+                    r3d::game::originalrace::loadOriginalRace(
+                        *resources, selectedTrack, selectedCar));
+            }
+        }
+        if (options->weatherSelected)
+            applyWeather(originalRace->environment, options->weather);
+        profileState.player.currentCar = originalRace->vehicle.record;
+        if (!originalRace->racers.empty())
+            originalRace->racers.front().name =
+                profileState.player.name;
+        r3d::game::originalrace::applyOriginalPlayerProfile(
+            *originalRace, *resources, profileState.player);
+        r3d::game::originalrace::writeOriginalTournamentSelection(
+            *originalRace, selectedTrack, profileState.player);
         physicsDescription.emplace(
             r3d::game::originalrace::makePhysicsDescription(
                 *originalRace, *resources));
@@ -442,7 +569,7 @@ int main(int argc, char** argv)
                      "verification passed\n";
 #ifdef RRR3D_PHYSICS
         std::cout << "Milestone 9 selected race audit passed: track "
-                  << options->trackIndex << ' ' << originalRace->levelPath
+                  << selectedTrack << ' ' << originalRace->levelPath
                   << ", " << originalRace->trackInstances.size()
                   << " track objects, "
                   << originalRace->decorationInstances.size()
@@ -712,12 +839,18 @@ int main(int argc, char** argv)
     auto physicsWorld = r3d::physics::createOriginalVehicleWorld(
         *physicsDescription, physicsError);
     r3d::game::originalrace::OriginalRaceSession raceSession(*originalRace);
+    raceSession.applyPlayerProfile(profileState.player);
+    raceSession.applyAchievementProfile(profileState);
+    raceSession.setEnableMineBug(profileState.config.enableMineBug);
     rrr3d::race::OriginalRaceRenderer raceRenderer;
     rrr3d::race::OriginalRaceHud raceHud;
     if (!physicsWorld ||
         !raceRenderer.initialize(*device, *resources, *originalRace,
                                  physicsError) ||
-        !raceHud.initialize(*device, *resources, physicsError))
+        !raceHud.initialize(*device, *resources, *originalRace,
+                            activeLanguage,
+                            profileState.player.difficulty,
+                            physicsError))
     {
         std::cerr << "Original race initialization failed: " << physicsError
                   << '\n';
@@ -832,12 +965,21 @@ int main(int argc, char** argv)
     }
 
     audio.setMasterVolume(1.0F);
+#ifdef RRR3D_PHYSICS
+    audio.setBusVolume(r3d::audio::Bus::Music,
+                       profileState.config.musicVolume);
+    audio.setBusVolume(r3d::audio::Bus::Effects,
+                       profileState.config.effectsVolume);
+    audio.setBusVolume(r3d::audio::Bus::Voice,
+                       profileState.config.voiceVolume);
+#else
     audio.setBusVolume(r3d::audio::Bus::Music,
                        originalaudio::defaultMusicVolume);
     audio.setBusVolume(r3d::audio::Bus::Effects,
                        originalaudio::defaultEffectsVolume);
     audio.setBusVolume(r3d::audio::Bus::Voice,
                        originalaudio::defaultVoiceVolume);
+#endif
 
     auto musicStatePath =
         rrr3d::platform::save_directory() / "menu-music.state";
@@ -873,6 +1015,36 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
+#ifdef RRR3D_PHYSICS
+    const auto gameMusicStatePath =
+        rrr3d::platform::save_directory() / "game-music.state";
+    rrr3d::audio::OriginalMenuMusic gameMusic(
+        audio, *resources, gameMusicStatePath,
+        rrr3d::platform::steady_nanoseconds() ^
+            0x47616d654d757369ULL,
+        true, musicTracks(originalaudio::gameTracks),
+        musicPlaylist(profileState.config.gameMusicPlaylist,
+                      originalaudio::gameTracks.size()));
+    if (!gameMusic.initialize(audioError) ||
+        !gameMusic.pause(true, audioError))
+    {
+        std::cerr << "Original game MusicCat initialization failed: "
+                  << audioError << '\n';
+        gameMusic.shutdown();
+        music.shutdown();
+        audio.unloadSound(clickSound);
+        audio.shutdown();
+        releaseResources();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+#endif
+
     std::cout << "Original MusicCat: background decode, shuffled playlist, "
                  "auto Next, pause/resume, state "
               << musicStatePath << "\nOriginal menu tracks:";
@@ -906,6 +1078,8 @@ int main(int argc, char** argv)
     };
     std::map<std::string, r3d::audio::SoundHandle> engineSounds;
     std::vector<EngineAudio> engineAudio(originalRace->racers.size());
+    std::vector<r3d::audio::SoundHandle> weaponAudio(
+        originalRace->weapons.size(), r3d::audio::invalidSound);
     auto loadEngineSound = [&](const std::string& path) {
         const auto found = engineSounds.find(path);
         if (found != engineSounds.end())
@@ -932,10 +1106,54 @@ int main(int argc, char** argv)
             engineAudio[racer].idle != r3d::audio::invalidSound &&
             engineAudio[racer].rpm != r3d::audio::invalidSound;
     }
+    for (std::size_t weapon = 0;
+         weapon < originalRace->weapons.size(); ++weapon)
+    {
+        weaponAudio[weapon] =
+            loadEngineSound(originalRace->weapons[weapon].soundPath);
+        engineAudioValid =
+            engineAudioValid &&
+            weaponAudio[weapon] != r3d::audio::invalidSound;
+    }
+    const auto pickupAudio =
+        loadEngineSound("Data/Sounds/UI/pickup_up.ogg");
+    const auto shieldAudio =
+        loadEngineSound("Data/Sounds/shieldOn.ogg");
+    const auto crashAudio =
+        loadEngineSound("Data/Sounds/carcrash05.ogg");
+    const auto destructionAudio =
+        loadEngineSound("Data/Sounds/spherePulseDeath.ogg");
+    std::array<r3d::audio::SoundHandle, 5> impactAudio{};
+    std::vector<float> damageAudioCooldown(
+        originalRace->racers.size(), 0.0F);
+    for (std::size_t index = 0; index < impactAudio.size(); ++index)
+    {
+        impactAudio[index] = loadEngineSound(
+            "Data/Sounds/light_impact0" +
+            std::to_string(index + 1U) + ".ogg");
+    }
+    rrr3d::audio::OriginalRaceCommentator commentator(
+        audio, *resources);
+    const bool commentatorValid = commentator.initialize(
+        profileState.config.commentatorStyle, audioError);
+    engineAudioValid =
+        engineAudioValid &&
+        pickupAudio != r3d::audio::invalidSound &&
+        shieldAudio != r3d::audio::invalidSound &&
+        crashAudio != r3d::audio::invalidSound &&
+        destructionAudio != r3d::audio::invalidSound &&
+        std::all_of(
+            impactAudio.begin(), impactAudio.end(),
+            [](r3d::audio::SoundHandle sound) {
+                return sound != r3d::audio::invalidSound;
+            }) &&
+        commentatorValid;
     if (!engineAudioValid)
     {
         std::cerr << "Original race engine audio loading failed: "
                   << audioError << '\n';
+        commentator.shutdown();
+        gameMusic.shutdown();
         music.shutdown();
         for (const auto& [path, sound] : engineSounds)
         {
@@ -949,12 +1167,19 @@ int main(int argc, char** argv)
         releaseResources();
         device.reset();
         SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
         input.shutdown();
+#endif
         SDL_Quit();
         return EXIT_FAILURE;
     }
     auto startRaceAudio = [&]() {
         music.pause(true, audioError);
+        gameMusic.pause(false, audioError);
+        commentator.pause(false);
+        commentator.reset();
+        std::fill(damageAudioCooldown.begin(),
+                  damageAudioCooldown.end(), 0.0F);
         for (std::size_t racer = 0; racer < engineAudio.size();
              ++racer)
         {
@@ -969,7 +1194,7 @@ int main(int argc, char** argv)
                 engineAudio[racer].rpm, options, audioError);
         }
     };
-    auto stopRaceAudio = [&]() {
+    auto stopRaceAudio = [&](bool advanceGameTrack = true) {
         for (auto& engine : engineAudio)
         {
             audio.stop(engine.idleVoice);
@@ -977,6 +1202,10 @@ int main(int argc, char** argv)
             engine.idleVoice = r3d::audio::invalidVoice;
             engine.rpmVoice = r3d::audio::invalidVoice;
         }
+        commentator.pause(true);
+        gameMusic.pause(true, audioError);
+        if (advanceGameTrack)
+            gameMusic.next(audioError);
         music.pause(false, audioError);
     };
 #endif
@@ -1002,6 +1231,10 @@ int main(int argc, char** argv)
     bool inRace = false;
     r3d::physics::VehicleInput raceInput;
     bool raceUseWeapon = false;
+    bool raceUseMine = false;
+    bool raceUseHyper = false;
+    bool raceChangeWeaponRequested = false;
+    int raceWeaponSlotRequested = -1;
     bool raceResetRequested = false;
     std::vector<r3d::physics::VehicleState> raceVehicles(
         physicsWorld->vehicleCount());
@@ -1013,6 +1246,34 @@ int main(int argc, char** argv)
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
     float maximumRaceSmokeSpeed = 0.0F;
     std::uint32_t maximumRaceSmokeContacts = 0;
+    bool raceProgressSaved = false;
+    auto saveRaceProfile = [&]() {
+        if (!raceSession.racers().empty())
+        {
+            raceSession.writePlayerProfile(profileState.player);
+            raceSession.writeAchievementProfile(profileState);
+            if (raceSession.racers().front().finished &&
+                !raceProgressSaved)
+            {
+                const auto advance =
+                    r3d::game::originalrace::
+                        completeOriginalTournamentTrack(
+                            *originalRace, selectedTrack, profileState);
+                raceProgressSaved = true;
+                std::cout
+                    << "Original Tournament::CompleteTrack: track "
+                    << selectedTrack << " -> " << advance.trackIndex
+                    << ", passComplete=" << advance.passComplete
+                    << ", passChampion=" << advance.passChampion
+                    << ", planetChampion=" << advance.planetChampion
+                    << '\n';
+            }
+        }
+        std::string profileError;
+        if (!profileStore.save(profileState, profileError))
+            std::cerr << "Unable to save original profile: "
+                      << profileError << '\n';
+    };
 #endif
 #ifdef RRR3D_AUDIO
     bool integratedAudioInputObserved = !options->audioSmokeTest;
@@ -1161,6 +1422,42 @@ int main(int argc, char** argv)
                     case rrr3d::input::Action::UseWeapon:
                         raceUseWeapon = inputEvent.active;
                         break;
+                    case rrr3d::input::Action::UseMine:
+                        raceUseMine = inputEvent.active;
+                        break;
+                    case rrr3d::input::Action::UseHyper:
+                        raceUseHyper = inputEvent.active;
+                        break;
+                    case rrr3d::input::Action::ChangeWeapon:
+                        if (inputEvent.active && !inputEvent.repeated)
+                            raceChangeWeaponRequested = true;
+                        break;
+                    case rrr3d::input::Action::SelectWeapon1:
+                    case rrr3d::input::Action::SelectWeapon2:
+                    case rrr3d::input::Action::SelectWeapon3:
+                    case rrr3d::input::Action::SelectWeapon4:
+                        if (inputEvent.active && !inputEvent.repeated)
+                        {
+                            raceWeaponSlotRequested =
+                                static_cast<int>(inputEvent.action) -
+                                static_cast<int>(
+                                    rrr3d::input::Action::SelectWeapon1);
+                        }
+                        break;
+                    case rrr3d::input::Action::ToggleCamera:
+                        if (inputEvent.active && !inputEvent.repeated)
+                        {
+                            using CameraStyle =
+                                r3d::game::originalrace::PreferredCamera;
+                            profileState.config.preferredCamera =
+                                profileState.config.preferredCamera ==
+                                        CameraStyle::Isometric
+                                    ? CameraStyle::ThirdPerson
+                                    : CameraStyle::Isometric;
+                            raceRenderer.resetCamera();
+                            saveRaceProfile();
+                        }
+                        break;
                     case rrr3d::input::Action::ResetVehicle:
                         if (inputEvent.active && !inputEvent.repeated)
                             raceResetRequested = true;
@@ -1172,14 +1469,23 @@ int main(int argc, char** argv)
                                 raceSession.phase() !=
                                 r3d::game::originalrace::RacePhase::Paused;
                             raceSession.setPaused(paused);
+#ifdef RRR3D_AUDIO
+                            gameMusic.pause(paused, audioError);
+                            commentator.pause(paused);
+#endif
                         }
                         break;
                     case rrr3d::input::Action::MenuBack:
                         if (inputEvent.active && !inputEvent.repeated)
                         {
+                            saveRaceProfile();
                             inRace = false;
                             raceInput = {};
                             raceUseWeapon = false;
+                            raceUseMine = false;
+                            raceUseHyper = false;
+                            raceChangeWeaponRequested = false;
+                            raceWeaponSlotRequested = -1;
                             raceResetRequested = false;
 #ifdef RRR3D_AUDIO
                             stopRaceAudio();
@@ -1229,10 +1535,16 @@ int main(int argc, char** argv)
                 {
                     physicsWorld->reset();
                     raceSession.reset();
+                    raceRenderer.resetCamera();
                     raceInput = {};
                     raceUseWeapon = false;
+                    raceUseMine = false;
+                    raceUseHyper = false;
+                    raceChangeWeaponRequested = false;
+                    raceWeaponSlotRequested = -1;
                     raceResetRequested = false;
                     raceElapsedSeconds = 0.0F;
+                    raceProgressSaved = false;
                     for (std::size_t index = 0;
                          index < physicsWorld->vehicleCount(); ++index)
                         raceVehicles[index] =
@@ -1287,12 +1599,211 @@ int main(int argc, char** argv)
             r3d::game::originalrace::RaceControl control;
             control.driving = raceInput;
             control.useWeapon = raceUseWeapon;
+            control.useMine = raceUseMine;
+            control.useHyper = raceUseHyper;
+            control.changeWeapon = raceChangeWeaponRequested;
+            control.weaponSlot = raceWeaponSlotRequested;
             control.reset = raceResetRequested;
             raceSession.update(frameSeconds, raceVehicles, control);
+            raceChangeWeaponRequested = false;
+            raceWeaponSlotRequested = -1;
             raceResetRequested = false;
+#ifdef RRR3D_AUDIO
+            if (!raceVehicles.empty())
+            {
+                const auto listener =
+                    raceVehicles.front().body.position;
+                const auto listenerRotation =
+                    raceVehicles.front().body.rotation;
+                const r3d::physics::Vec3 listenerRight{
+                    2.0F * (listenerRotation.x * listenerRotation.y -
+                            listenerRotation.w * listenerRotation.z),
+                    1.0F -
+                        2.0F *
+                            (listenerRotation.x * listenerRotation.x +
+                             listenerRotation.z * listenerRotation.z),
+                    0.0F};
+                auto playSpatial =
+                    [&](r3d::audio::SoundHandle sound,
+                        const r3d::physics::Vec3& source,
+                        const r3d::physics::Vec3& sourceVelocity,
+                        float gain) {
+                    if (sound == r3d::audio::invalidSound)
+                        return;
+                    const float dx = source.x - listener.x;
+                    const float dy = source.y - listener.y;
+                    const float distance =
+                        std::sqrt(dx * dx + dy * dy);
+                    const float attenuation =
+                        std::clamp(1.0F - distance / 70.0F,
+                                   0.0F, 1.0F);
+                    float pan = 0.0F;
+                    if (distance > 0.001F)
+                        pan = std::clamp(
+                            (dx * listenerRight.x +
+                             dy * listenerRight.y) /
+                                distance,
+                            -1.0F, 1.0F);
+                    float pitch = 1.0F;
+                    if (distance > 0.001F)
+                    {
+                        constexpr float speedOfSound = 343.0F;
+                        const float nx = dx / distance;
+                        const float ny = dy / distance;
+                        const auto& listenerVelocity =
+                            raceVehicles.front().linearVelocity;
+                        const float listenerRadial =
+                            listenerVelocity.x * nx +
+                            listenerVelocity.y * ny;
+                        const float sourceRadial =
+                            sourceVelocity.x * nx +
+                            sourceVelocity.y * ny;
+                        pitch = std::clamp(
+                            (speedOfSound + listenerRadial) /
+                                std::max(speedOfSound + sourceRadial,
+                                         1.0F),
+                            0.8F, 1.25F);
+                    }
+                    r3d::audio::PlayOptions playOptions;
+                    playOptions.bus = r3d::audio::Bus::Effects;
+                    playOptions.volume = gain * attenuation;
+                    const auto voice =
+                        audio.play(sound, playOptions, audioError);
+                    if (voice != r3d::audio::invalidVoice)
+                        audio.setVoiceParameters(
+                            voice, gain * attenuation, pitch, pan);
+                };
+                auto eventVelocity =
+                    [&](std::size_t racer) {
+                        return racer < raceVehicles.size()
+                                   ? raceVehicles[racer].linearVelocity
+                                   : r3d::physics::Vec3{};
+                    };
+                for (auto& cooldown : damageAudioCooldown)
+                    cooldown =
+                        std::max(0.0F, cooldown - frameSeconds);
+                for (const auto& event : raceSession.events())
+                {
+                    if (event.kind ==
+                            r3d::game::originalrace::RaceEventKind::
+                                WeaponFired &&
+                        event.racer < raceSession.racers().size())
+                    {
+                        const auto weapon = event.weapon;
+                        if (weapon < weaponAudio.size())
+                            playSpatial(weaponAudio[weapon],
+                                        event.position,
+                                        eventVelocity(event.racer),
+                                        0.9F);
+                    }
+                    else if (event.kind ==
+                                 r3d::game::originalrace::RaceEventKind::
+                                     MinePlaced &&
+                             event.target < weaponAudio.size())
+                    {
+                        playSpatial(weaponAudio[event.target],
+                                    event.position,
+                                    eventVelocity(event.racer), 0.8F);
+                    }
+                    else if (event.kind ==
+                                 r3d::game::originalrace::RaceEventKind::
+                                     HyperActivated &&
+                             event.target < weaponAudio.size())
+                    {
+                        playSpatial(weaponAudio[event.target],
+                                    event.position,
+                                    eventVelocity(event.racer), 0.9F);
+                    }
+                    else if (event.kind ==
+                                 r3d::game::originalrace::RaceEventKind::
+                                     Bonus &&
+                             event.target < originalRace->bonuses.size())
+                    {
+                        const auto kind =
+                            originalRace->bonuses[event.target].kind;
+                        playSpatial(
+                            kind ==
+                                    r3d::game::originalrace::BonusKind::
+                                        Shield
+                                ? shieldAudio
+                                : pickupAudio,
+                            event.position,
+                            eventVelocity(event.racer), 0.75F);
+                    }
+                    else if (event.kind ==
+                                 r3d::game::originalrace::RaceEventKind::
+                                     Damage)
+                    {
+                        if (event.racer <
+                                damageAudioCooldown.size() &&
+                            damageAudioCooldown[event.racer] > 0.0F)
+                            continue;
+                        if (event.racer <
+                            damageAudioCooldown.size())
+                            damageAudioCooldown[event.racer] =
+                                event.touchDamage ? 0.2F : 0.08F;
+                        const auto sound =
+                            event.touchDamage
+                                ? crashAudio
+                                : impactAudio[
+                                      (event.racer + event.target) %
+                                      impactAudio.size()];
+                        playSpatial(
+                            sound, event.position,
+                            eventVelocity(event.racer),
+                            event.touchDamage ? 0.75F : 0.62F);
+                    }
+                    else if (event.kind ==
+                                 r3d::game::originalrace::RaceEventKind::
+                                     Kill ||
+                             event.kind ==
+                                 r3d::game::originalrace::RaceEventKind::
+                                     Respawn)
+                    {
+                        playSpatial(
+                            destructionAudio, event.position,
+                            eventVelocity(
+                                event.kind ==
+                                        r3d::game::originalrace::
+                                            RaceEventKind::Kill
+                                    ? event.target
+                                    : event.racer),
+                            0.9F);
+                    }
+                    else if (event.kind ==
+                                 r3d::game::originalrace::RaceEventKind::
+                                     DecorationDestroyed)
+                    {
+                        playSpatial(
+                            crashAudio, event.position,
+                            eventVelocity(event.racer), 0.72F);
+                    }
+                }
+                commentator.update(
+                    *originalRace, raceSession, audioError);
+            }
+#endif
             for (const auto& respawn : raceSession.takeRespawns())
                 physicsWorld->resetVehicle(
                     respawn.racer, respawn.position, respawn.direction);
+            for (const auto& velocity :
+                 raceSession.takeVelocityRequests())
+            {
+                physicsWorld->addLinearVelocity(
+                    velocity.racer, velocity.delta);
+            }
+            for (const auto& velocity :
+                 raceSession.takeAngularVelocityRequests())
+            {
+                physicsWorld->addAngularVelocity(
+                    velocity.racer, velocity.delta);
+            }
+            for (std::size_t racer = 0;
+                 racer < raceSession.racers().size(); ++racer)
+            {
+                if (raceSession.racers()[racer].slowSeconds > 0.0F)
+                    physicsWorld->clampLinearSpeed(racer, 20.0F);
+            }
             physicsWorld->step(frameSeconds,
                                raceSession.vehicleInputs());
             raceElapsedSeconds = raceSession.elapsedSeconds();
@@ -1376,6 +1887,15 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef RRR3D_AUDIO
+#ifdef RRR3D_PHYSICS
+        if (inRace && !gameMusic.update(audioError))
+        {
+            std::cerr << "Original game MusicCat runtime failed: "
+                      << audioError << '\n';
+            runtimeSmokeFailed = true;
+            running = false;
+        }
+#endif
         if (!music.update(audioError))
         {
             std::cerr << "Original MusicCat runtime failed: " << audioError
@@ -1547,17 +2067,24 @@ int main(int argc, char** argv)
             const auto raceCamera = raceRenderer.makeCamera(
                 *device, physicsWorld->vehicle(),
                 static_cast<std::uint32_t>(pixelWidth),
-                static_cast<std::uint32_t>(pixelHeight));
+                static_cast<std::uint32_t>(pixelHeight),
+                profileState.config.preferredCamera,
+                profileState.config.cameraDistance, frameSeconds);
             device->beginFrame(raceCamera, 0x6b91b8ffU);
             raceRenderer.draw(*device, raceShader, *originalRace,
                               raceVehicles, racePipeline,
                               raceSession.decorationActive(),
                               raceSession.bonusActive(),
+                              raceSession.racers(),
+                              raceSession.effects(),
+                              raceSession.mines(),
+                              raceSession.projectiles(),
                               raceElapsedSeconds);
             raceHud.update(*device, *originalRace, raceSession,
-                           physicsWorld->vehicle());
+                           raceVehicles, raceCamera, frameSeconds);
             device->beginOverlay(camera);
-            raceHud.draw(*device, quad, shader);
+            if (profileState.config.enableHud)
+                raceHud.draw(*device, quad, shader, raceShader);
             device->endFrame();
         }
         else
@@ -1673,7 +2200,9 @@ int main(int argc, char** argv)
 
 #ifdef RRR3D_AUDIO
 #ifdef RRR3D_PHYSICS
-    stopRaceAudio();
+    stopRaceAudio(false);
+    commentator.shutdown();
+    gameMusic.shutdown();
     for (const auto& [path, sound] : engineSounds)
     {
         static_cast<void>(path);
@@ -1693,6 +2222,7 @@ int main(int argc, char** argv)
     }
 #endif
 #ifdef RRR3D_PHYSICS
+    saveRaceProfile();
     physicsWorld.reset();
     raceHud.shutdown(*device);
     raceRenderer.shutdown(*device);

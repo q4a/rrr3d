@@ -98,14 +98,17 @@ Milestone 7 input/menu smoke test completed after 120 frames
 Bluetooth/USB и rumble следует повторить на Xbox/PlayStation devices перед
 release.
 
-## Подключение к гонке в Milestone 9
+## Подключение к гонке в Milestone 9.1
 
-Исправленный Milestone 9 подключил continuous values `Accelerate`, `Brake`,
-`TurnLeft` и `TurnRight` к Jolt vehicle, параметры которого загружаются из
-оригинального `db.xml`. `UseWeapon` стреляет базовым перенесённым gun,
-`ResetVehicle` (`R`/gamepad North) возвращает машину к последнему trace point.
-`Pause` и `MenuBack` приостанавливают гонку или возвращают race scene в
-`MainMenu2`. Keyboard releases, focus loss и gamepad axis zero очищают
-накопленное управление. `ChangeWeapon` поступает от Tab, mouse wheel и gamepad
-West, но полный selector workshop slots ещё не подключён. Подробности — в
-`docs/PHYSICS_PORT_PLAN.md`.
+Milestone 9.1 подключает continuous values `Accelerate`, `Brake`, `TurnLeft`
+и `TurnRight` к Jolt vehicle с параметрами из оригинального `db.xml`.
+`UseWeapon`, `UseMine` и `UseHyper` обслуживают соответствующие workshop
+slots; `SelectWeapon1`…`SelectWeapon4` выбирают каждый из четырёх слотов, а
+`ChangeWeapon` циклически переключает их. `ToggleCamera` меняет штатные
+third-person/isometric modes, `ResetVehicle` возвращает машину к последней
+trace point. `Pause` и `MenuBack` приостанавливают гонку или возвращают race
+scene в `MainMenu2`.
+
+Keyboard releases, focus loss и gamepad axis zero очищают накопленное
+управление. Keyboard, mouse и SDL Gamepad bindings сходятся в одном
+SDL-независимом action layer. Подробности — в `docs/PHYSICS_PORT_PLAN.md`.

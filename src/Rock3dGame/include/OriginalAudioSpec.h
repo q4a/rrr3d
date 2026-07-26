@@ -21,6 +21,22 @@ inline constexpr std::array<TrackSpec, 3> menuTracks{{
 	{"Music\\Track15.ogg", "On our Way", "Stereoside", 0},
 }};
 
+// Ordering, metadata and grouping are the serialized gameMusic/tracks catalog
+// from game.xml. UserConfig::gameMusicPlaylist stores indices into this list.
+inline constexpr std::array<TrackSpec, 11> gameTracks{{
+	{"Music\\Track2.ogg", "Highway Star", "Frantick", 1},
+	{"Music\\Track4.ogg", "Born to be Wild", "Frantick", 0},
+	{"Music\\Track5.ogg", "Ace of Spider", "Frantick", 0},
+	{"Music\\Track6.ogg", "Radar Love", "Frantick", 2},
+	{"Music\\Track7.ogg", "Riot in Everyone", "Speed Stroke", 2},
+	{"Music\\Track8.ogg", "Paranoid", "Frantick", 3},
+	{"Music\\Track9.ogg", "Paranoid", "RuslanoS ft Frantick", 3},
+	{"Music\\Track11.ogg", "Age of Rock'n'Roll", "Speed Stroke", 1},
+	{"Music\\Track12.ogg", "Radar Love", "Frantick", 1},
+	{"Music\\Track13.ogg", "Paranoid", "S.S.H.", 3},
+	{"Music\\Track3.ogg", "Highway Star", "Frantick", 1},
+}};
+
 inline constexpr char mainButtonClick[] = "Sounds\\UI\\click.ogg";
 inline constexpr char rollover[] = "Sounds\\UI\\navedenie.ogg";
 inline constexpr char fireGun[] = "Sounds\\fireGun.ogg";

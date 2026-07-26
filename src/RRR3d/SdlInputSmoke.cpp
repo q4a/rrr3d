@@ -290,9 +290,9 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 		return fail("virtual trigger did not reach the requested value");
 	}
 	actions = processAxis(input, virtual_id, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, trigger_value);
-	if (!contains(actions, Action::Accelerate, Source::GamepadAxis, true, virtual_id))
+	if (!contains(actions, Action::UseMine, Source::GamepadAxis, true, virtual_id))
 	{
-		return fail("analog trigger action mapping failed");
+		return fail("original mine trigger action mapping failed");
 	}
 
 	if (!SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_DPAD_UP, true))

@@ -126,12 +126,34 @@ struct PipelineState
         CounterClockwise,
     };
 
+    enum class BlendMode
+    {
+        Opaque,
+        Alpha,
+        Additive,
+    };
+
     bool writeColor = true;
     bool writeDepth = true;
     bool depthTest = true;
     FaceCulling faceCulling = FaceCulling::Clockwise;
+    BlendMode blendMode = BlendMode::Opaque;
+    // Compatibility flag for the menu/early portable renderers.
     bool alphaBlend = false;
     bool multisampling = true;
+};
+
+struct MaterialState
+{
+    std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
+    // xy scales source UVs and zw offsets them.  Original LibMaterial uses
+    // this for animated texture atlases and scrolling effect materials.
+    std::array<float, 4> textureTransform{1.0F, 1.0F, 0.0F, 0.0F};
+    float alphaReference = 0.0F;
+    float emissive = 0.0F;
+    float specular = 0.0F;
+    float shininess = 128.0F;
+    bool ignoreFog = false;
 };
 
 struct Camera
@@ -217,7 +239,8 @@ public:
     virtual void draw(Mesh mesh, Shader shader, Texture texture,
                       const Transform& transform,
                       const PipelineState& pipeline,
-                      DrawRange range = {}) = 0;
+                      DrawRange range = {},
+                      const MaterialState& material = {}) = 0;
     virtual void endFrame() = 0;
 
     virtual std::string_view backendName() const noexcept = 0;

@@ -40,6 +40,14 @@ struct TriangleMesh
 
 struct WheelDescription
 {
+    struct TireFunction
+    {
+        float extremumSlip = 0.0F;
+        float extremumValue = 0.0F;
+        float asymptoteSlip = 0.0F;
+        float asymptoteValue = 0.0F;
+    };
+
     Vec3 position;
     float radius = 0.0F;
     float width = 0.0F;
@@ -49,6 +57,8 @@ struct WheelDescription
     float inverseMass = 0.0F;
     bool driven = false;
     bool steering = false;
+    TireFunction longitudinalTire;
+    TireFunction lateralTire;
 };
 
 struct VehicleDescription
@@ -61,6 +71,7 @@ struct VehicleDescription
     float differentialRatio = 0.0F;
     float maximumRpm = 0.0F;
     float maximumTorque = 0.0F;
+    float maximumSpeed = 0.0F;
     float steerAngle = 0.0F;
     std::vector<WheelDescription> wheels;
 };
@@ -109,6 +120,12 @@ public:
     virtual void reset() noexcept = 0;
     virtual void resetVehicle(std::size_t index, Vec3 position,
                               Vec3 direction) noexcept = 0;
+    virtual void addLinearVelocity(std::size_t index,
+                                   Vec3 delta) noexcept = 0;
+    virtual void addAngularVelocity(std::size_t index,
+                                    Vec3 delta) noexcept = 0;
+    virtual void clampLinearSpeed(std::size_t index,
+                                  float maximumSpeed) noexcept = 0;
     virtual void step(float seconds, const VehicleInput& input) noexcept = 0;
     virtual void step(float seconds,
                       const std::vector<VehicleInput>& inputs) noexcept = 0;

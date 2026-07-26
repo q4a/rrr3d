@@ -52,6 +52,14 @@ public:
                 bgfx::destroy(scene_fog_);
             if (bgfx::isValid(scene_camera_))
                 bgfx::destroy(scene_camera_);
+            if (bgfx::isValid(material_color_))
+                bgfx::destroy(material_color_);
+            if (bgfx::isValid(material_parameters_))
+                bgfx::destroy(material_parameters_);
+            if (bgfx::isValid(material_options_))
+                bgfx::destroy(material_options_);
+            if (bgfx::isValid(texture_transform_))
+                bgfx::destroy(texture_transform_);
             bgfx::shutdown();
         }
     }
@@ -121,11 +129,23 @@ public:
             "u_sceneFog", bgfx::UniformType::Vec4);
         scene_camera_ = bgfx::createUniform(
             "u_sceneCamera", bgfx::UniformType::Vec4);
+        material_color_ = bgfx::createUniform(
+            "u_materialColor", bgfx::UniformType::Vec4);
+        material_parameters_ = bgfx::createUniform(
+            "u_materialParams", bgfx::UniformType::Vec4);
+        material_options_ = bgfx::createUniform(
+            "u_materialOptions", bgfx::UniformType::Vec4);
+        texture_transform_ = bgfx::createUniform(
+            "u_textureTransform", bgfx::UniformType::Vec4);
         if (!bgfx::isValid(texture_sampler_) ||
             !bgfx::isValid(scene_light_direction_) ||
             !bgfx::isValid(scene_ambient_) ||
             !bgfx::isValid(scene_fog_) ||
-            !bgfx::isValid(scene_camera_))
+            !bgfx::isValid(scene_camera_) ||
+            !bgfx::isValid(material_color_) ||
+            !bgfx::isValid(material_parameters_) ||
+            !bgfx::isValid(material_options_) ||
+            !bgfx::isValid(texture_transform_))
         {
             error = "bgfx could not create the scene texture sampler";
             bgfx::shutdown();
@@ -319,7 +339,8 @@ public:
 
     void draw(Mesh mesh, Shader shader, Texture texture,
               const Transform& transform,
-              const PipelineState& pipeline, DrawRange range) override
+              const PipelineState& pipeline, DrawRange range,
+              const MaterialState& material) override
     {
         if (!valid(mesh.vertices) || !valid(mesh.indices) || !valid(shader) ||
             !valid(texture))
@@ -337,7 +358,11 @@ public:
         else if (pipeline.faceCulling ==
                  PipelineState::FaceCulling::CounterClockwise)
             state |= BGFX_STATE_CULL_CCW;
-        if (pipeline.alphaBlend)
+        if (pipeline.blendMode == PipelineState::BlendMode::Additive)
+            state |= BGFX_STATE_BLEND_ADD;
+        else if (pipeline.alphaBlend ||
+                 pipeline.blendMode ==
+                     PipelineState::BlendMode::Alpha)
             state |= BGFX_STATE_BLEND_ALPHA;
         if (pipeline.multisampling)
             state |= BGFX_STATE_MSAA;
@@ -362,6 +387,17 @@ public:
         bgfx::setUniform(scene_fog_, scene_lighting_.fogColor.data());
         bgfx::setUniform(scene_camera_,
                          scene_lighting_.cameraPosition.data());
+        const std::array<float, 4> materialParameters{
+            material.alphaReference, material.emissive,
+            material.specular, material.shininess};
+        const std::array<float, 4> materialOptions{
+            material.ignoreFog ? 1.0F : 0.0F, 0.0F, 0.0F, 0.0F};
+        bgfx::setUniform(material_color_, material.color.data());
+        bgfx::setUniform(material_parameters_,
+                         materialParameters.data());
+        bgfx::setUniform(material_options_, materialOptions.data());
+        bgfx::setUniform(texture_transform_,
+                         material.textureTransform.data());
         bgfx::setState(state);
         bgfx::submit(current_view_, bgfx::ProgramHandle{shader.value});
     }
@@ -393,6 +429,10 @@ private:
     bgfx::UniformHandle scene_ambient_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_fog_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_camera_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle material_color_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle material_parameters_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle material_options_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle texture_transform_ = BGFX_INVALID_HANDLE;
     bgfx::VertexLayout color_vertex_layout_;
     bgfx::VertexLayout static_vertex_layout_;
     bgfx::UniformHandle texture_sampler_ = BGFX_INVALID_HANDLE;

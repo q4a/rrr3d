@@ -121,13 +121,16 @@ Dummy driver нужен только для бесшумной автомати�
 что audio resources находятся рядом с executable, а не через current working
 directory.
 
-## Подключение к Milestone 9
+## Подключение к Milestone 9.1
 
-Исправленный M9 подключил `AudioBackend` к original-data race state. На старте
-MusicCat приостанавливает текущий сохранённый menu track, а `sndIdle`/`sndRPM`
-каждой машины игрока и пяти AI читаются из `db.xml` и запускаются как loops.
-Физические engine RPM управляют cross-fade и pitch. Для AI работают distance
-attenuation и stereo pan относительно ориентации игрока; pause/resume
-останавливает все engine voices. Возврат в меню продолжает тот же MusicCat
-track. Collision/weapon/finish sound graph и полная X3DAudio модель (doppler,
-cones, obstruction) ещё не перенесены.
+M9.1 подключает `AudioBackend` ко всей portable race session. На старте
+MusicCat приостанавливает сохранённый menu track, а `sndIdle`/`sndRPM` каждой
+машины игрока и AI читаются из `db.xml` и запускаются как loops. Физические
+engine RPM управляют cross-fade и pitch. Для движущихся источников работают
+distance attenuation, stereo pan и doppler-like pitch.
+
+Из исходных ресурсов загружаются weapon/projectile, impact, collision,
+damage/destruction, pickup/shield, lap/finish и commentator cues. Pause/resume
+останавливает race voices, а возврат в меню продолжает тот же MusicCat track.
+Точная X3DAudio DSP-матрица, cones и obstruction остаются Windows-only и
+заменены явно ограниченным portable spatial backend.

@@ -1,21 +1,22 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
-> **Исправленный активный статус:** Milestone 5–9 переделаны от исходных
+> **Исправленный активный статус:** Milestone 5–9.1 переделаны от исходных
 > ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
 > bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки.
 > M7 подключает к этому же меню SDL3 keyboard/mouse/gamepad input и общий с
 > legacy `MainMenu2.cpp` порядок команд. M8 воспроизводит все три исходных
 > menu-трека через перенесённую MusicCat-очередь и SDL3/CoreAudio, сохраняет
 > shuffle/позицию/паузу и использует штатный `ssButton1/click.ogg`, а также
-> проверяет реальные игровые эффекты. M9 запускает original-data гонку с
-> полным окружением map1, шестью Jolt vehicles, race state, HUD, AI, базовым
-> combat, weather и spatial engine audio. Loader охватывает все 88 турнирных
-> карт и 17 машин гаража. Старые portable M6–M10 ниже остаются историей
+> проверяет реальные игровые эффекты. M9.1 переносит профиль, обе оригинальные
+> камеры, HUD/mini-map, четыре workshop slots, projectile/mine/hyper/support,
+> achievements, AI, materials, nested effect/particle graph, окружение всех
+> миров и spatial race audio. Loader охватывает все 88 турнирных карт и 17
+> машин гаража. Старые portable M6–M10 ниже остаются историей
 > отменённого самостоятельного vertical slice и не являются acceptance status.
 
 ## Активный этап
 
-Milestone 9: запускаемая гонка с физикой из оригинальных данных.
+Milestone 9.1: расширенный перенос оригинального race runtime.
 
 ## Активный статус
 
@@ -24,12 +25,20 @@ Preset `macos-arm64-m9` продолжает исправленный M8-пут�
 по умолчанию читает map1/Marauder из `tournamet.xml`, `map1.r3dMap`, `db.xml`
 и `garage.xml`; bgfx/Metal рисует 52 `ctTrack`, 234 `ctDecoration`, 7 bonuses,
 шесть машин и их колёса. Jolt получает 1175 collision triangles и параметры
-каждого автомобиля. Countdown, trace/laps/finish, reset/respawn, HUD, AI,
-damage/pickups и базовое оружие работают в portable race session. MusicCat
-ставится на паузу, а idle/RPM loops всех машин получают attenuation/pan.
-`--track`, `--car` и `--weather` выбирают остальные исходные данные.
+каждого автомобиля. Countdown, trace/laps/finish, reset/respawn, original
+HUD/mini-map/camera, полный workshop catalog, damage/bonuses/achievements,
+projectiles/mines/hyper/support, AI и source effect graph работают в portable
+race session. MusicCat ставится на паузу, а race sound graph и idle/RPM loops
+получают spatial attenuation/pan/pitch. `--track`, `--car` и `--weather`
+выбирают остальные исходные данные.
 Подробности, проверки и честная граница готовности — в
 `docs/PHYSICS_PORT_PLAN.md`.
+
+Финальная проверка M9.1: configure/build прошли; physics/session, audio/
+MusicCat и resource smoke завершились с exit code 0; строгий catalog sweep
+разрешил 88/88 tracks и 17/17 cars; реальный bgfx/Metal race smoke прошёл
+240 кадров с движением Marauder и четырьмя wheel contacts. Parallels не
+использовался.
 
 ## Исторический отчёт отменённого vertical slice
 
@@ -80,12 +89,14 @@ Portable core Milestone 3 не изменил поведение обычног�
   meshes, DDS materials, map lighting/fog/sky/rain и камерой по исходным
   `CameraManager` константам.
 - `OriginalRaceSession` обслуживает countdown, checkpoints/laps/place/finish,
-  wrong-way, reset/respawn, пять AI, life/damage/shield, pickups, базовый gun
-  и destructible decoration state; штатные HUD images дополнены динамическим
-  текстом.
-- SDL actions управляют машиной, оружием, reset и pause. MusicCat
-  приостановлена, а original idle/RPM loops всех шести машин следуют
-  физическим RPM, distance attenuation и stereo pan.
+  wrong-way, reset/respawn, пять AI, life/damage/shield, bonuses,
+  achievements, четыре workshop slots, projectiles/mines/hyper/support и
+  destructible decoration state.
+- Оригинальные HUD images/layout, mini-map trace, обе race cameras и
+  notifications работают через bgfx/Metal. SDL actions управляют машиной,
+  четырьмя слотами, mine/hyper, камерой, reset и pause.
+- MusicCat приостановлена, а original race cues и idle/RPM loops всех машин
+  следуют физическим RPM, distance attenuation, stereo pan и pitch.
 - `--physics-smoke-test` проверяет provenance, suspension/contact/handling и
   race state. `--race-render-smoke-test` проходит реальный menu dispatch и
   240 кадров SDL3/audio/bgfx/Metal runtime. Все 88 tracks и 17 cars прошли
@@ -230,6 +241,25 @@ Portable core Milestone 3 не изменил поведение обычног�
 - Warning cleanup: `src/LexStd/header/lslAutoRef.h`.
 - Documentation: `docs/BUILDING_MACOS.md`, resource/renderer/dependency docs и
   этот файл.
+
+## Изменённые файлы Milestone 9.1
+
+- Profile/game data: `src/Rock3dGame/include/OriginalProfile.h`,
+  `src/Rock3dGame/source/stub/OriginalProfile.cpp`,
+  `src/Rock3dGame/include/OriginalRace.h`,
+  `src/Rock3dGame/source/stub/OriginalRace.cpp`.
+- Race runtime: `src/Rock3dGame/include/OriginalRaceSession.h`,
+  `src/Rock3dGame/source/stub/OriginalRaceSession.cpp`,
+  `src/Rock3dGame/include/InputActions.h`.
+- HUD/render/audio: `src/RRR3d/OriginalRaceHud.*`,
+  `src/RRR3d/OriginalRaceRenderer.*`,
+  `src/RRR3d/OriginalRaceCommentator.*`,
+  `src/RRR3d/main_bgfx_original_menu.cpp`, mesh shaders и portable
+  renderer/material boundary.
+- Physics/input/music: Jolt vehicle adapter, SDL action mapping и MusicCat
+  state integration.
+- Documentation: `docs/PHYSICS_PORT_PLAN.md`, `docs/PORTABLE_INPUT.md`,
+  `docs/PORTABLE_AUDIO.md` и этот файл.
 
 ## Изменённые файлы Milestone 9
 
@@ -588,12 +618,12 @@ SDL_AUDIO_DRIVER=dummy \
 
 ## Известные проблемы
 
-- `Rock3dEngine` пока не является полным legacy engine target: активный M9
+- `Rock3dEngine` пока не является полным legacy engine target: активный M9.1
   включает renderer, resources, audio boundary и Jolt adapter, но D3D9/PhysX
   части остаются изолированы.
-- `Rock3dGame` предоставляет original-data menu/race slice, но не
-  полный legacy runtime. Его world/car/object/weapon код напрямую зависит от
-  D3D9 и PhysX 2.8.4.
+- `Rock3dGame` предоставляет original-data menu/race runtime, но Windows-only
+  network/Steam/video и прямой D3D9/PhysX 2.8.4 код в portable target не
+  включаются.
 - `RecordLib` не включён в portable game target. Пробное подключение выявило
   MSVC-зависимые template lookup и спорную protected reference-counting
   границу в legacy serialization; это следует исправлять отдельным небольшим
@@ -601,28 +631,27 @@ SDL_AUDIO_DRIVER=dummy \
 - В обычном M3 preset SDL events заканчиваются в diagnostic shell; M7 menu и
   исправленный M9 race используют action layer, но legacy `ControlManager` ещё не
   является его consumer.
-- DXVK Native/MoltenVK проверен и отклонён. Новый bgfx backend пока покрывает
-  исправленные M5–M9 slices; legacy materials/effects требуют
-  поэтапных adapters, а не прямого включения D3D9 headers.
-- Оригинальные game assets импортированы в `game-data`; M9 декодирует binary
-  `.r3d` visual/collision meshes и DDS, включая decorations и базовые
-  lighting/fog/weather effects. Полный legacy material/effect graph,
-  reflections/shadows и particles ещё не перенесены. Перед публикацией нужно
-  отдельно проверить права на распространение данных.
+- DXVK Native/MoltenVK проверен и отклонён. bgfx backend покрывает
+  исправленные M5–M9.1 slices; отдельные legacy HDR, planar-reflection и
+  shadow-map passes ещё требуют Metal implementations.
+- Оригинальные game assets импортированы в `game-data`; M9.1 декодирует binary
+  `.r3d` visual/collision meshes, materials, DDS, nested effect graph и
+  particle emitters. Portable particle scheduler/sorting и projected shadows
+  не являются побитовой копией D3D9 renderer. Перед публикацией нужно отдельно
+  проверить права на распространение данных.
 - Длинная музыка M8 пока декодируется целиком и сохраняется в памяти, но decode
   и preload всех трёх menu-треков выполняются последовательно фоновым worker;
   render/input loop не ждёт их. Streaming/ring buffer остаётся оптимизацией
-  памяти. M9 engine loops имеют distance attenuation и stereo pan, но не
-  полный X3DAudio emitter/listener с doppler/cones/obstruction.
+  памяти. M9.1 race audio имеет attenuation, stereo pan и doppler-like pitch,
+  но не точную X3DAudio DSP-матрицу с cones/obstruction.
 - Физическое переключение Bluetooth/USB playback device не выполнялось;
   SDL default-device migration и event path нужно повторить на release hardware.
-- Численная parity с legacy PhysX не доказана: в доступной Apple Silicon среде
-  нет записанного Windows/PhysX reference replay. GUI A/B был заблокирован
-  состоянием macOS login session. Отличия и обязательный baseline описаны в
-  `docs/PHYSICS_PORT_PLAN.md`.
-- Combat/AI являются переносимым baseline: полный legacy `AIPlayer`, workshop
-  slots, все projectiles/mines, original particle/sound effect graph и точный
-  баланс ещё не портированы.
+- Численная parity с legacy PhysX не доказана: Jolt имеет другой solver/tire
+  model. По требованию M9.1 Windows/Parallels A/B не выполняется; границы
+  backend-эквивалентности описаны в `docs/PHYSICS_PORT_PLAN.md`.
+- AI/workshop/projectile/mine/support/material/effect data перенесены из
+  исходников, но порядок PhysX contacts, legacy particle scheduling и D3D9
+  multipass rendering не могут быть численно идентичны portable backend.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,
@@ -634,8 +663,8 @@ SDL_AUDIO_DRIVER=dummy \
 
 ## Следующий рекомендуемый этап
 
-Разблокировать macOS session и снять парный Windows/PhysX — macOS/Jolt replay
-для камеры и handling. Затем калибровать Jolt и переносить полный
-AI/workshop weapon/projectile/effect stack без procedural замен. После этого
-заново базировать bundle Milestone 10 на исправленный M5–M9 путь; старый M10
+После финальной проверки M9.1 следующий технический этап — отдельные
+bgfx/Metal HDR, planar-reflection и shadow-map passes, затем более точный
+particle scheduling/sorting и калибровка Jolt. После этого следует заново
+базировать bundle Milestone 10 на исправленный M5–M9.1 путь; старый M10
 portable bundle не является текущим release-кандидатом.

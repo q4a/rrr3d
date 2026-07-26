@@ -357,6 +357,46 @@ public:
         step(seconds, inputs);
     }
 
+    void addLinearVelocity(std::size_t index,
+                           Vec3 delta) noexcept override
+    {
+        if (index >= vehicles_.size())
+            return;
+        auto& bodies = system_.GetBodyInterface();
+        bodies.AddLinearVelocity(
+            vehicles_[index].body, toJolt(delta));
+        bodies.ActivateBody(vehicles_[index].body);
+    }
+
+    void addAngularVelocity(std::size_t index,
+                            Vec3 delta) noexcept override
+    {
+        if (index >= vehicles_.size())
+            return;
+        auto& bodies = system_.GetBodyInterface();
+        bodies.AddLinearAndAngularVelocity(
+            vehicles_[index].body, JPH::Vec3::sZero(),
+            toJolt(delta));
+        bodies.ActivateBody(vehicles_[index].body);
+    }
+
+    void clampLinearSpeed(std::size_t index,
+                          float maximumSpeed) noexcept override
+    {
+        if (index >= vehicles_.size() || maximumSpeed <= 0.0F)
+            return;
+        auto& bodies = system_.GetBodyInterface();
+        const auto velocity =
+            bodies.GetLinearVelocity(vehicles_[index].body);
+        const float speed = velocity.Length();
+        if (speed > maximumSpeed)
+        {
+            bodies.SetLinearVelocity(
+                vehicles_[index].body,
+                velocity * (maximumSpeed / speed));
+        }
+    }
+
     void step(float seconds,
               const std::vector<VehicleInput>& rawInputs) noexcept override
     {
@@ -369,6 +409,10 @@ public:
             input.brake = std::clamp(input.brake, 0.0F, 1.0F);
             input.steering = std::clamp(input.steering, -1.0F, 1.0F);
             auto& vehicle = vehicles_[index];
+            if (vehicle.spawn.vehicle.maximumSpeed > 0.0F &&
+                vehicle.state.speed >
+                    vehicle.spawn.vehicle.maximumSpeed)
+                input.throttle = 0.0F;
             vehicle.controller->SetDriverInput(
                 input.throttle, input.steering, input.brake, 0.0F);
             if (input.throttle != 0.0F || input.brake != 0.0F ||
@@ -537,6 +581,33 @@ private:
                 sourceWheel.steering ? source.steerAngle : 0.0F;
             wheel->mMaxBrakeTorque = source.brakeTorque;
             wheel->mMaxHandBrakeTorque = 0.0F;
+            auto applyTire = [](JPH::LinearCurve& output,
+                                const WheelDescription::TireFunction&
+                                    input,
+                                bool lateral) {
+                if (input.extremumSlip <= 0.0F ||
+                    input.extremumValue <= 0.0F ||
+                    input.asymptoteSlip <= 0.0F ||
+                    input.asymptoteValue <= 0.0F)
+                    return;
+                const float slipScale =
+                    lateral ? 180.0F / 3.14159265358979323846F
+                            : 1.0F;
+                output.Clear();
+                output.Reserve(3);
+                output.AddPoint(0.0F, 0.0F);
+                output.AddPoint(input.extremumSlip * slipScale,
+                                input.extremumValue);
+                output.AddPoint(
+                    std::max(input.asymptoteSlip,
+                             input.extremumSlip) *
+                        slipScale,
+                    input.asymptoteValue);
+            };
+            applyTire(wheel->mLongitudinalFriction,
+                      sourceWheel.longitudinalTire, false);
+            applyTire(wheel->mLateralFriction,
+                      sourceWheel.lateralTire, true);
             settings.mWheels.push_back(wheel);
         }
 

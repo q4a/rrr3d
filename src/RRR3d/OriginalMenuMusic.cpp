@@ -61,9 +61,21 @@ struct OriginalMenuMusic::Impl
 {
 	Impl(r3d::audio::AudioBackend &backend, const r3d::resource::ResourceFileSystem &fileSystem,
 	     std::filesystem::path persistedState, std::uint64_t seed, bool shouldPersist)
-		: audio(backend), resources(fileSystem), statePath(std::move(persistedState)),
-		  music(originalMenuTracks(), seed), loaded(music.tracks().size()), persistState(shouldPersist)
+		: Impl(backend, fileSystem, std::move(persistedState), seed,
+		       shouldPersist, originalMenuTracks(), {})
 	{
+	}
+
+	Impl(r3d::audio::AudioBackend &backend,
+	     const r3d::resource::ResourceFileSystem &fileSystem,
+	     std::filesystem::path persistedState, std::uint64_t seed,
+	     bool shouldPersist,
+	     std::vector<r3d::game::MusicCatTrack> tracks,
+	     std::vector<std::size_t> initialPlaylist)
+		: audio(backend), resources(fileSystem), statePath(std::move(persistedState)),
+		  music(std::move(tracks), seed), loaded(music.tracks().size()), persistState(shouldPersist)
+	{
+		music.setPlaylist(std::move(initialPlaylist));
 	}
 
 	bool initialize(std::string &error)
@@ -264,7 +276,7 @@ struct OriginalMenuMusic::Impl
 			return false;
 		}
 		const std::string state((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-		r3d::game::MusicCat restored(originalMenuTracks(), 1);
+		r3d::game::MusicCat restored(music.tracks(), 1);
 		if (!restored.restore(state, error))
 			return false;
 		if (restored.serialize() != music.serialize())
@@ -463,6 +475,18 @@ OriginalMenuMusic::OriginalMenuMusic(r3d::audio::AudioBackend &audio,
                                      const r3d::resource::ResourceFileSystem &resources,
                                      std::filesystem::path statePath, std::uint64_t randomSeed, bool persistState)
 	: impl_(std::make_unique<Impl>(audio, resources, std::move(statePath), randomSeed, persistState))
+{
+}
+
+OriginalMenuMusic::OriginalMenuMusic(
+	r3d::audio::AudioBackend &audio,
+	const r3d::resource::ResourceFileSystem &resources,
+	std::filesystem::path statePath, std::uint64_t randomSeed,
+	bool persistState, std::vector<r3d::game::MusicCatTrack> tracks,
+	std::vector<std::size_t> initialPlaylist)
+	: impl_(std::make_unique<Impl>(
+		  audio, resources, std::move(statePath), randomSeed,
+		  persistState, std::move(tracks), std::move(initialPlaylist)))
 {
 }
 

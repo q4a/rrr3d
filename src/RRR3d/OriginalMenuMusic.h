@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace r3d::resource
 {
@@ -25,6 +26,12 @@ class OriginalMenuMusic
   public:
 	OriginalMenuMusic(r3d::audio::AudioBackend &audio, const r3d::resource::ResourceFileSystem &resources,
 	                  std::filesystem::path statePath, std::uint64_t randomSeed, bool persistState);
+	OriginalMenuMusic(r3d::audio::AudioBackend &audio,
+	                  const r3d::resource::ResourceFileSystem &resources,
+	                  std::filesystem::path statePath,
+	                  std::uint64_t randomSeed, bool persistState,
+	                  std::vector<r3d::game::MusicCatTrack> tracks,
+	                  std::vector<std::size_t> initialPlaylist);
 	~OriginalMenuMusic();
 
 	OriginalMenuMusic(const OriginalMenuMusic &) = delete;

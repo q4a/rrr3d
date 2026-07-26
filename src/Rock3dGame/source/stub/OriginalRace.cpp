@@ -1,5 +1,6 @@
 #include "OriginalRace.h"
 
+#include "OriginalProfile.h"
 #include "resource/R3DMeshAsset.h"
 #include "resource/ResourceFileSystem.h"
 
@@ -9,6 +10,7 @@
 #include <cctype>
 #include <cmath>
 #include <filesystem>
+#include <iterator>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -224,8 +226,130 @@ std::string basename(std::string_view record)
 
 std::uint32_t unsignedValue(std::string_view value,
                             std::string_view source);
+float optionalScalar(TiXmlElement* parent, std::string_view path,
+                     float fallback);
 
-void selectRacers(Race& race, TiXmlElement* planet,
+void applyMobilityLoadout(
+    Vehicle& vehicle, const resource::ResourceFileSystem& resources,
+    TiXmlElement* workshop, const std::vector<RacerSlot>& loadout,
+    std::string_view difficulty, bool updateWheelVisual)
+{
+    const float baseMaximumSpeed = vehicle.physics.maximumSpeed;
+    float maximumTorque = 0.0F;
+    float maximumLife = 0.0F;
+    float maximumSpeed = 0.0F;
+    float tireSpring = 0.0F;
+    r3d::physics::WheelDescription::TireFunction longitudinalTire;
+    r3d::physics::WheelDescription::TireFunction lateralTire;
+    auto addTire = [&](TiXmlElement* function, const char* name,
+                       auto& output) {
+        auto* tire = child(function, name);
+        if (tire == nullptr)
+            return;
+        output.extremumSlip +=
+            optionalScalar(tire, "extremumSlip", 0.0F);
+        output.extremumValue +=
+            optionalScalar(tire, "extremumValue", 0.0F);
+        output.asymptoteSlip +=
+            optionalScalar(tire, "asymptoteSlip", 0.0F);
+        output.asymptoteValue +=
+            optionalScalar(tire, "asymptoteValue", 0.0F);
+    };
+
+    for (const auto& slot : loadout)
+    {
+        const auto itemName = basename(slot.record);
+        if (itemName.empty())
+            continue;
+        TiXmlElement* entry = nullptr;
+        for (auto* candidate = workshop->FirstChildElement();
+             candidate != nullptr;
+             candidate = candidate->NextSiblingElement())
+        {
+            if (std::string_view(candidate->Value()) == itemName)
+            {
+                entry = candidate;
+                break;
+            }
+        }
+        if (entry == nullptr)
+            continue;
+        auto* item = child(entry, "item");
+        auto* functions = child(item, "carFuncMap");
+        if (functions == nullptr)
+            continue;
+        TiXmlElement* function = nullptr;
+        for (auto* candidate = functions->FirstChildElement();
+             candidate != nullptr;
+             candidate = candidate->NextSiblingElement())
+        {
+            auto* carElement = child(candidate, "car");
+            const char* car =
+                carElement == nullptr ? nullptr : carElement->GetText();
+            if (car != nullptr &&
+                (vehicle.record == car ||
+                 basename(vehicle.record) == basename(car)))
+            {
+                function = candidate;
+                break;
+            }
+        }
+        if (function == nullptr)
+            continue;
+
+        maximumTorque += optionalScalar(function, "maxTorque", 0.0F);
+        maximumLife += optionalScalar(function, "life", 0.0F);
+        maximumSpeed = std::max(
+            maximumSpeed, optionalScalar(function, "maxSpeed", 0.0F));
+        tireSpring += optionalScalar(function, "tireSpring", 0.0F);
+        addTire(function, "longTire", longitudinalTire);
+        addTire(function, "latTire", lateralTire);
+
+        if (updateWheelVisual && slot.type == "stWheel")
+        {
+            auto* mesh = child(item, "mesh");
+            auto* texture = child(item, "texture");
+            if (mesh != nullptr && texture != nullptr &&
+                mesh->Attribute("item") != nullptr &&
+                texture->Attribute("item") != nullptr)
+            {
+                const auto meshPath = canonicalDataPath(
+                    resources, mesh->Attribute("item"));
+                const auto texturePath = canonicalDataPath(
+                    resources, texture->Attribute("item"));
+                vehicle.wheelMeshPath = meshPath;
+                for (auto& visual : vehicle.wheelVisuals)
+                {
+                    visual.meshPath = meshPath;
+                    visual.materials = {
+                        {"Upgrade\\" + itemName, texturePath,
+                         MaterialBlend::Opaque, 0.0F}};
+                }
+            }
+        }
+    }
+
+    // Player::ApplyMobility resets these values, accumulates every installed
+    // mobility slot, and then restores only the car's base maximum speed.
+    vehicle.physics.maximumTorque = maximumTorque;
+    vehicle.physics.maximumSpeed = baseMaximumSpeed + maximumSpeed;
+    float armorScale = 1.75F;
+    if (difficulty == "gdEasy")
+        armorScale = 2.0F;
+    else if (difficulty == "gdHard")
+        armorScale = 1.5F;
+    vehicle.maximumLife = maximumLife * armorScale;
+    for (auto& wheel : vehicle.physics.wheels)
+    {
+        wheel.spring += tireSpring;
+        wheel.longitudinalTire = longitudinalTire;
+        wheel.lateralTire = lateralTire;
+    }
+}
+
+void selectRacers(Race& race,
+                  const resource::ResourceFileSystem& resources,
+                  TiXmlElement* planet,
                   std::uint32_t racePass,
                   std::string_view humanRecord)
 {
@@ -240,7 +364,11 @@ void selectRacers(Race& race, TiXmlElement* planet,
             "garage.xml: tournament player car is missing");
 
     race.racers.clear();
-    race.racers.push_back({"Human", humanVehicle->second, true});
+    race.racers.push_back(
+        {"Human", {}, humanVehicle->second, true, {}, {}, false});
+    race.racers.back().configuredVehicle =
+        race.vehicles[humanVehicle->second];
+    race.racers.back().hasConfiguredVehicle = true;
     auto* opponentEntries =
         require(planet, "players", "tournamet.xml/planet");
     const std::string requestedPass = std::to_string(racePass);
@@ -268,9 +396,36 @@ void selectRacers(Race& race, TiXmlElement* planet,
         if (vehicle == vehicleIndices.end())
             throw resource::ResourceError(
                 "garage.xml: AI tournament car is missing: " + record);
-        race.racers.push_back(
-            {text(opponent, "name", "tournamet.xml/player"),
-             vehicle->second, false});
+        Racer racer;
+        racer.name = text(opponent, "name", "tournamet.xml/player");
+        if (auto* photo = child(opponent, "photo");
+            photo != nullptr && photo->Attribute("item") != nullptr)
+        {
+            racer.photoPath =
+                canonicalDataPath(resources, photo->Attribute("item"));
+        }
+        racer.vehicle = vehicle->second;
+        racer.configuredVehicle = race.vehicles[vehicle->second];
+        racer.hasConfiguredVehicle = true;
+        if (auto* slots = child(opponent, "slots"))
+        {
+            for (auto* slot = slots->FirstChildElement(); slot != nullptr;
+                 slot = slot->NextSiblingElement())
+            {
+                if (text(slot, "pass", "tournamet.xml/player slot") !=
+                    requestedPass)
+                    continue;
+                racer.loadout.push_back(
+                    {text(slot, "record",
+                          "tournamet.xml/player slot"),
+                     text(slot, "type", "tournamet.xml/player slot"),
+                     unsignedValue(
+                         text(slot, "charge",
+                              "tournamet.xml/player slot"),
+                         "tournamet.xml/player slot/charge")});
+            }
+        }
+        race.racers.push_back(std::move(racer));
     }
     if (race.racers.size() < 2)
         throw resource::ResourceError(
@@ -281,14 +436,92 @@ MaterialDefinition materialDefinition(
     const resource::ResourceFileSystem& resources, std::string_view legacy)
 {
     const std::string record(legacy);
+    auto tune = [&](MaterialDefinition material) {
+        if (material.blend == MaterialBlend::AlphaTest)
+            material.alphaReference =
+                std::max(material.alphaReference, 0.933F);
+        if (record.rfind("Car\\", 0) == 0)
+        {
+            material.specular = 1.0F;
+            material.shininess = 64.0F;
+        }
+        if (record.rfind("Effect\\", 0) == 0)
+        {
+            material.emissive = 1.0F;
+            material.specular = 0.0F;
+            material.ignoreFog = true;
+            if (record == "Effect\\smoke1")
+                material.color = {0.25F, 0.25F, 0.25F, 1.0F};
+            else if (record == "Effect\\smoke2")
+                material.color = {0.5F, 0.32F, 0.25F, 1.0F};
+            else if (record == "Effect\\flare1" ||
+                     record == "Effect\\flare3")
+                material.color = {1.0F, 0.58F, 0.36F, 1.0F};
+            else if (record == "Effect\\flare2" ||
+                     record == "Effect\\flare7Red")
+                material.color = {1.0F, 0.0F, 0.0F, 1.0F};
+            else if (record == "Effect\\dust_smoke_06")
+                material.color = {0.2F, 0.2F, 1.0F, 1.0F};
+            else if (record == "Effect\\ExplosionRay" ||
+                     record == "Effect\\lens1")
+                material.color = {0.0F, 0.0F, 1.0F, 1.0F};
+            else if (record == "Effect\\ExplosionRing")
+                material.color = {1.0F, 1.0F, 0.0F, 1.0F};
+            else if (record == "Effect\\thunder1")
+                material.color =
+                    {236.0F / 255.0F, 0.0F, 140.0F / 255.0F, 1.0F};
+        }
+        if (record == "Car\\blend")
+        {
+            material.blend = MaterialBlend::Additive;
+            material.color[3] = 0.7F;
+            material.emissive = 1.0F;
+            material.ignoreFog = true;
+        }
+        if (record == "Bonus\\shield")
+        {
+            material.emissive = 1.0F;
+            material.ignoreFog = true;
+        }
+        struct Atlas
+        {
+            std::string_view record;
+            std::uint16_t columns;
+            std::uint16_t rows;
+        };
+        static constexpr Atlas atlases[] = {
+            {"Effect\\smoke6", 4, 1},
+            {"Effect\\explosion2", 4, 4},
+            {"Effect\\explosion3", 6, 6},
+            {"Effect\\explosion4", 7, 7},
+            {"Effect\\boom1", 8, 4},
+            {"Effect\\boom2", 8, 8},
+            {"Effect\\fire1", 4, 3},
+            {"Effect\\fire2", 5, 5},
+            {"Effect\\gunEff2", 4, 1},
+            {"Effect\\engine1", 5, 2},
+            {"Effect\\shield1", 5, 2},
+            {"Bonus\\strelkaAnim", 3, 2},
+        };
+        const auto atlas = std::find_if(
+            std::begin(atlases), std::end(atlases),
+            [&](const Atlas& value) { return value.record == record; });
+        if (atlas != std::end(atlases))
+        {
+            material.atlasColumns = atlas->columns;
+            material.atlasRows = atlas->rows;
+        }
+        return material;
+    };
     struct Mapping
     {
         std::string_view record;
         std::string_view texture;
         MaterialBlend blend;
     };
-    // These are the exact ResourceManager::LoadWorld1/2/3 and LoadCrush
-    // mappings used by map1. Several meshes deliberately share an atlas.
+    // Exact exceptions and blending states from ResourceManager.cpp.
+    // Direct-name materials are resolved below; this table preserves every
+    // material whose texture name or render state differs from that rule.
     static constexpr Mapping mappings[] = {
         {"World1\\Track\\track1", "Data/World1/Track/Texture/track1.dds",
          MaterialBlend::Opaque},
@@ -316,6 +549,14 @@ MaterialDefinition materialDefinition(
          MaterialBlend::AlphaTest},
         {"World2\\semaphore", "Data/World2/texture/semaphore.dds",
          MaterialBlend::Opaque},
+        {"World2\\elka", "Data/World2/Texture/elka.dds",
+         MaterialBlend::AlphaTest},
+        {"World2\\deadtree1", "Data/World2/Texture/deadtree1.dds",
+         MaterialBlend::AlphaTest},
+        {"World2\\deadtree2", "Data/World2/Texture/deadtree2.dds",
+         MaterialBlend::AlphaTest},
+        {"World2\\poplar1", "Data/World2/Texture/poplar1.dds",
+         MaterialBlend::AlphaTest},
         {"World3\\stone", "Data/World3/Texture/stone.dds",
          MaterialBlend::Opaque},
         {"World3\\naves", "Data/World3/Track/Texture/track1.dds",
@@ -323,6 +564,26 @@ MaterialDefinition materialDefinition(
         {"World3\\Track\\track",
          "Data/World3/Track/Texture/track1.dds",
          MaterialBlend::Opaque},
+        {"World3\\grass", "Data/World3/Texture/grass.dds",
+         MaterialBlend::AlphaTest},
+        {"World4\\Track\\most2",
+         "Data/World4/Track/Texture/most2.dds",
+         MaterialBlend::AlphaTest},
+        {"World5\\cannon", "Data/World5/Texture/cannon.dds",
+         MaterialBlend::AlphaTest},
+        {"World5\\cannon3", "Data/World5/Texture/cannon3.dds",
+         MaterialBlend::AlphaTest},
+        {"World5\\mountain", "Data/World5/Texture/mountain.dds",
+         MaterialBlend::AlphaTest},
+        {"World5\\naves", "Data/World5/Texture/naves.dds",
+         MaterialBlend::AlphaTest},
+        {"World5\\snowstone", "Data/World5/Texture/snowstone.dds",
+         MaterialBlend::AlphaTest},
+        {"World5\\treeSnow", "Data/World5/Texture/treeSnow.dds",
+         MaterialBlend::AlphaTest},
+        {"World5\\Track\\track1",
+         "Data/World5/Track/Texture/track1.dds",
+         MaterialBlend::AlphaTest},
         {"Crush\\pregrada", "Data/Crush/pregrada.dds",
          MaterialBlend::Opaque},
         {"Crush\\crush1", "Data/Crush/crush1.dds",
@@ -339,17 +600,112 @@ MaterialDefinition materialDefinition(
          MaterialBlend::Opaque},
         {"Crush\\znak", "Data/Crush/znak.dds", MaterialBlend::Opaque},
         {"Crush\\box", "Data/Crush/box.dds", MaterialBlend::Opaque},
-        {"Bonus\\money", "Data/Bonus/money.dds", MaterialBlend::AlphaTest},
-        {"Bonus\\medpack", "Data/Bonus/medpack.dds",
+        {"Car\\marauderWheel", "Data/Car/marauder.dds",
+         MaterialBlend::Opaque},
+        {"Car\\buggiWheel", "Data/Car/buggi.dds",
+         MaterialBlend::Opaque},
+        {"Car\\dirtdevilWheel", "Data/Car/dirtdevil.dds",
+         MaterialBlend::Opaque},
+        {"Car\\tankchettiWheel", "Data/Car/tankchetti.dds",
+         MaterialBlend::Opaque},
+        {"Car\\manticoraWheel", "Data/Car/manticora.dds",
+         MaterialBlend::Opaque},
+        {"Car\\airbladeWheel", "Data/Car/airblade.dds",
+         MaterialBlend::Opaque},
+        {"Car\\monstertruckWheel", "Data/Car/monstertruck.dds",
+         MaterialBlend::Opaque},
+        {"Car\\monstertruckBossWheel",
+         "Data/Car/monstertruckBoss.dds", MaterialBlend::Opaque},
+        {"Car\\manticoraBossWheel", "Data/Car/manticoraBoss.dds",
+         MaterialBlend::Opaque},
+        {"Car\\mustangWheel", "Data/Car/mustang.dds",
+         MaterialBlend::Opaque},
+        {"Car\\gusenizaChain", "Data/Car/gusenizaChain.dds",
          MaterialBlend::AlphaTest},
-        {"Bonus\\ammo", "Data/Bonus/ammo.dds", MaterialBlend::AlphaTest},
+        {"Weapon\\bulletGun", "Data/Car/marauder.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\blasterGun", "Data/Car/manticora.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\rifleWeapon", "Data/Car/dirtdevil.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\airWeapon", "Data/Car/airblade.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\asyncFrost", "Data/Car/monstertruck.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\asyncFrost2", "Data/Car/monstertruckBoss.dds",
+         MaterialBlend::Opaque},
+        {"Effect\\frostHit", "Data/Effect/frostSmoke.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\flare2", "Data/Effect/flare1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flare3", "Data/Effect/flare1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flare4", "Data/Effect/flare2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flare5", "Data/Effect/flare3.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flare6", "Data/Effect/flare4.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flare7Red", "Data/Effect/flare5.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flare7White", "Data/Effect/flare5.dds",
+         MaterialBlend::Additive},
+        {"Effect\\dust_smoke_06", "Data/Effect/flare1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flareLaser1", "Data/Effect/flare2b.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flareLaser2", "Data/Effect/flare1_tc.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flareLaser3", "Data/Effect/flare2a.dds",
+         MaterialBlend::Additive},
+        {"Effect\\boom1", "Data/Effect/fireblast09anim2.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\boom2", "Data/Effect/blueboom1_add.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\boomSpark1", "Data/Effect/szikra_group_6.dds",
+         MaterialBlend::Additive},
+        {"Effect\\boomSpark2", "Data/Effect/szikra_group_7.dds",
+         MaterialBlend::Additive},
+        {"Effect\\shield2Hor", "Data/Effect/shield2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\shield2Vert", "Data/Effect/shield2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\phaserBolt", "Data/Effect/shield2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\laserRay",
+         "Data/Effect/lazerbeam1_blue1_blend7b.dds",
+         MaterialBlend::Additive},
+        {"Bonus\\money", "Data/Bonus/money.dds", MaterialBlend::Opaque},
+        {"Bonus\\medpack", "Data/Bonus/medpack.dds",
+         MaterialBlend::Opaque},
+        {"Bonus\\ammo", "Data/Bonus/ammo.dds", MaterialBlend::Opaque},
         {"Bonus\\mineSpike", "Data/Bonus/mineSpike.dds",
          MaterialBlend::AlphaTest},
         {"Bonus\\shield", "Data/Bonus/shield.dds",
-         MaterialBlend::Transparency},
+         MaterialBlend::Opaque},
         {"Bonus\\speedArrow", "Data/Bonus/speedArrow.dds",
-         MaterialBlend::AlphaTest},
+         MaterialBlend::Transparency},
+        {"Bonus\\strelkaAnim", "Data/Bonus/strelkaAnim.dds",
+         MaterialBlend::Transparency},
+        {"Bonus\\lusha", "Data/Bonus/lusha.dds",
+         MaterialBlend::Transparency},
+        {"Bonus\\snowLusha", "Data/Bonus/snowLusha.dds",
+         MaterialBlend::Transparency},
+        {"Bonus\\hellLusha", "Data/Bonus/hellLusha.dds",
+         MaterialBlend::Transparency},
     };
+    if (record == "Effect\\gravBall" ||
+        record == "Weapon\\mortiraBall")
+    {
+        MaterialDefinition material;
+        material.record = record;
+        material.blend = MaterialBlend::Opaque;
+        material.color =
+            record == "Effect\\gravBall"
+                ? std::array<float, 4>{1.0F, 0.0F, 0.0F, 1.0F}
+                : std::array<float, 4>{0.0F, 0.0F, 0.0F, 1.0F};
+        return tune(material);
+    }
     for (const auto& mapping : mappings)
     {
         if (mapping.record == record)
@@ -360,8 +716,10 @@ MaterialDefinition materialDefinition(
                 throw resource::ResourceError(
                     "Mapped original texture is missing: " +
                     std::string(mapping.texture));
-            return {record, texture, mapping.blend,
-                    mapping.blend == MaterialBlend::AlphaTest ? 0.1F : 0.0F};
+            return tune({record, texture, mapping.blend,
+                         mapping.blend == MaterialBlend::AlphaTest
+                             ? 0.1F
+                             : 0.0F});
         }
     }
 
@@ -376,8 +734,26 @@ MaterialDefinition materialDefinition(
         path += ".dds";
         path = canonicalDataPath(resources, path);
         if (resources.exists(path))
-            return MaterialDefinition{record, path, MaterialBlend::Opaque,
-                                      0.0F};
+        {
+            MaterialBlend blend = MaterialBlend::Opaque;
+            if (prefix == "Effect\\")
+            {
+                const bool transparency =
+                    name.find("smoke") != std::string::npos ||
+                    name.find("frost") != std::string::npos ||
+                    name == "asphaltMarks" || name == "drop" ||
+                    name == "crater" || name == "boom1" ||
+                    name == "boom2";
+                blend = transparency ? MaterialBlend::Transparency
+                                     : MaterialBlend::Additive;
+            }
+            else if (prefix == "Bonus\\")
+            {
+                blend = MaterialBlend::Opaque;
+            }
+            return tune(MaterialDefinition{
+                record, path, blend, 0.0F});
+        }
         return std::nullopt;
     };
     if (auto value = directMapping("Car\\", "Data/Car/"))
@@ -427,10 +803,10 @@ MaterialDefinition materialDefinition(
                 name.find("Tree") != std::string::npos ||
                 name.find("elka") != std::string::npos ||
                 name.find("poplar") != std::string::npos;
-            return {record, candidate,
-                    transparent ? MaterialBlend::AlphaTest
-                                : MaterialBlend::Opaque,
-                    transparent ? 0.1F : 0.0F};
+            return tune({record, candidate,
+                         transparent ? MaterialBlend::AlphaTest
+                                     : MaterialBlend::Opaque,
+                         transparent ? 0.1F : 0.0F});
         }
     }
     throw resource::ResourceError("No original material mapping for " +
@@ -502,12 +878,45 @@ std::vector<VisualNode> visualNodes(
          item = item->NextSiblingElement())
     {
         auto* mesh = child(item, "mesh");
-        if (mesh == nullptr || mesh->Attribute("item") == nullptr)
+        const char* type = item->Attribute("type");
+        const bool plane =
+            type != nullptr &&
+            (std::string_view(type) == "ntPlane" ||
+             std::string_view(type) == "ntSprite");
+        if (!plane &&
+            (mesh == nullptr || mesh->Attribute("item") == nullptr))
             continue;
         VisualNode node;
-        node.meshPath =
-            canonicalDataPath(resources, mesh->Attribute("item"));
+        node.plane = plane;
+        node.fixedDirection =
+            type != nullptr && std::string_view(type) == "ntSprite" &&
+            child(item, "fixDirection") != nullptr &&
+            child(item, "fixDirection")->GetText() != nullptr &&
+            std::string_view(child(item, "fixDirection")->GetText()) ==
+                "true";
+        if (!plane)
+        {
+            node.meshPath =
+                canonicalDataPath(resources, mesh->Attribute("item"));
+        }
         node.transform = elementTransform(item, source);
+        if (plane)
+        {
+            auto* size = child(item, "size");
+            if (size == nullptr)
+                size = child(item, "sizes");
+            if (size != nullptr && size->GetText() != nullptr)
+            {
+                std::istringstream stream(size->GetText());
+                float width = 1.0F;
+                float height = 1.0F;
+                if (stream >> width >> height)
+                {
+                    node.transform.scale.x *= width;
+                    node.transform.scale.y *= height;
+                }
+            }
+        }
         if (auto* meshId = child(item, "meshId");
             meshId != nullptr && meshId->GetText() != nullptr)
         {
@@ -540,6 +949,191 @@ std::vector<VisualNode> visualNodes(
     return result;
 }
 
+float optionalParticleScalar(TiXmlElement* parent,
+                             std::string_view path,
+                             float fallback,
+                             std::string_view source)
+{
+    auto* item = child(parent, path);
+    return item != nullptr && item->GetText() != nullptr
+               ? scalar(parent, path, source)
+               : fallback;
+}
+
+Vec3 optionalParticleVector(TiXmlElement* parent,
+                            std::string_view path, Vec3 fallback,
+                            std::string_view source)
+{
+    auto* item = child(parent, path);
+    return item != nullptr && item->GetText() != nullptr
+               ? vector3(parent, path, source)
+               : fallback;
+}
+
+void appendParticleEmitters(
+    const resource::ResourceFileSystem& resources,
+    TiXmlElement* record, const Transform& parentTransform,
+    ObjectDefinition& definition, std::string_view source)
+{
+    auto* nodes = child(record, "grActor/nodes/items");
+    if (nodes == nullptr)
+        return;
+    for (auto* node = nodes->FirstChildElement(); node != nullptr;
+         node = node->NextSiblingElement())
+    {
+        const char* type = node->Attribute("type");
+        if (type == nullptr ||
+            std::string_view(type) != "ntParticleSystem")
+            continue;
+        const Transform nodeTransform =
+            compose(parentTransform, elementTransform(node, source));
+        std::vector<MaterialDefinition> materials;
+        if (auto* sourceMaterials = child(node, "materials"))
+        {
+            for (auto* material =
+                     sourceMaterials->FirstChildElement();
+                 material != nullptr;
+                 material = material->NextSiblingElement())
+            {
+                const char* item = material->Attribute("item");
+                if (item != nullptr && *item != '\0')
+                    materials.push_back(
+                        materialDefinition(resources, item));
+            }
+        }
+        if (materials.empty())
+            continue;
+        auto* emitters = child(node, "emitters/items");
+        if (emitters == nullptr)
+            continue;
+        for (auto* sourceEmitter = emitters->FirstChildElement();
+             sourceEmitter != nullptr;
+             sourceEmitter = sourceEmitter->NextSiblingElement())
+        {
+            auto* part = child(sourceEmitter, "partDesc");
+            auto* flow = child(sourceEmitter, "flowDesc");
+            if (part == nullptr || flow == nullptr)
+                continue;
+            ParticleEmitterDefinition emitter;
+            emitter.transform = nodeTransform;
+            emitter.materials = materials;
+            emitter.maximumParticles = static_cast<std::uint32_t>(
+                std::max(optionalParticleScalar(
+                             part, "maxNum", 0.0F, source),
+                         0.0F));
+            emitter.lifeMinimum = optionalParticleScalar(
+                part, "life/min", 0.0F, source);
+            emitter.lifeMaximum = optionalParticleScalar(
+                part, "life/max", emitter.lifeMinimum, source);
+            emitter.startTimeMinimum = optionalParticleScalar(
+                part, "startTime/min", 0.0F, source);
+            emitter.startTimeMaximum = optionalParticleScalar(
+                part, "startTime/max",
+                emitter.startTimeMinimum, source);
+            emitter.startDuration = optionalParticleScalar(
+                part, "startDuration", 0.0F, source);
+            emitter.densityMinimum = optionalParticleScalar(
+                part, "density/min", 1.0F, source);
+            emitter.densityMaximum = optionalParticleScalar(
+                part, "density/max",
+                emitter.densityMinimum, source);
+            emitter.startPositionMinimum = optionalParticleVector(
+                part, "startPos/min", {}, source);
+            emitter.startPositionMaximum = optionalParticleVector(
+                part, "startPos/max",
+                emitter.startPositionMinimum, source);
+            emitter.startScaleMinimum = optionalParticleVector(
+                part, "startScale/min", {1.0F, 1.0F, 1.0F},
+                source);
+            emitter.startScaleMaximum = optionalParticleVector(
+                part, "startScale/max",
+                emitter.startScaleMinimum, source);
+            emitter.velocityMinimum = optionalParticleVector(
+                flow, "speedPos/min", {}, source);
+            emitter.velocityMaximum = optionalParticleVector(
+                flow, "speedPos/max", emitter.velocityMinimum,
+                source);
+            emitter.scaleVelocityMinimum = optionalParticleVector(
+                flow, "speedScale/min", {}, source);
+            emitter.scaleVelocityMaximum = optionalParticleVector(
+                flow, "speedScale/max",
+                emitter.scaleVelocityMinimum, source);
+            emitter.accelerationMinimum = optionalParticleVector(
+                flow, "acceleration/min", {}, source);
+            emitter.accelerationMaximum = optionalParticleVector(
+                flow, "acceleration/max",
+                emitter.accelerationMinimum, source);
+            emitter.gravity = optionalParticleVector(
+                flow, "gravitation", {}, source);
+            if (auto* coordinates =
+                    child(sourceEmitter, "worldCoordSys");
+                coordinates != nullptr &&
+                coordinates->GetText() != nullptr)
+            {
+                emitter.worldCoordinates =
+                    std::string_view(coordinates->GetText()) ==
+                    "true";
+            }
+            if (auto* rotateNode = child(sourceEmitter, "autoRot");
+                rotateNode != nullptr &&
+                rotateNode->GetText() != nullptr)
+            {
+                emitter.autoRotate =
+                    std::string_view(rotateNode->GetText()) ==
+                    "true";
+            }
+            if (auto* startType = child(part, "startType");
+                startType != nullptr &&
+                startType->GetText() != nullptr)
+            {
+                emitter.distanceTriggered =
+                    std::string_view(startType->GetText()) ==
+                    "sotDist";
+            }
+            definition.particleEmitters.push_back(
+                std::move(emitter));
+        }
+    }
+}
+
+void appendIncludedEffects(
+    const resource::ResourceFileSystem& resources,
+    TiXmlElement* database, TiXmlElement* record,
+    const Transform& parentTransform, ObjectDefinition& definition,
+    std::string_view source, std::uint32_t depth)
+{
+    if (depth >= 8U)
+        throw resource::ResourceError(
+            std::string(source) + ": effect include depth exceeded");
+    auto* includes = child(record, "includeList/items");
+    if (includes == nullptr)
+        return;
+    for (auto* include = includes->FirstChildElement();
+         include != nullptr; include = include->NextSiblingElement())
+    {
+        auto* reference = child(include, "record");
+        if (reference == nullptr || reference->GetText() == nullptr)
+            continue;
+        const Transform includeTransform =
+            compose(parentTransform, elementTransform(include, source));
+        auto* includedRecord =
+            databaseRecord(database, reference->GetText());
+        auto nodes = visualNodes(resources, includedRecord, source);
+        for (auto& node : nodes)
+        {
+            node.transform =
+                compose(includeTransform, node.transform);
+            definition.visualNodes.push_back(std::move(node));
+        }
+        appendParticleEmitters(
+            resources, includedRecord, includeTransform, definition,
+            source);
+        appendIncludedEffects(
+            resources, database, includedRecord, includeTransform,
+            definition, source, depth + 1U);
+    }
+}
+
 void loadCollisionShapes(const resource::ResourceFileSystem& resources,
                          ObjectDefinition& definition, TiXmlElement* record,
                          std::string_view source)
@@ -569,6 +1163,10 @@ ObjectDefinition objectDefinition(
     result.record = record;
     auto* dbRecord = databaseRecord(database, record);
     result.visualNodes = visualNodes(resources, dbRecord, source);
+    appendParticleEmitters(
+        resources, dbRecord, Transform{}, result, source);
+    appendIncludedEffects(
+        resources, database, dbRecord, Transform{}, result, source, 0U);
     if (result.visualNodes.empty())
     {
         // gotDestrObj records keep their intact render pieces in destrList.
@@ -645,6 +1243,358 @@ float baseArmor(std::string_view record)
     return 50.0F;
 }
 
+float optionalScalar(TiXmlElement* parent, std::string_view path,
+                     float fallback)
+{
+    auto* value = child(parent, path);
+    if (value == nullptr || value->GetText() == nullptr)
+        return fallback;
+    std::istringstream stream(value->GetText());
+    float result = fallback;
+    return stream >> result ? result : fallback;
+}
+
+std::uint32_t optionalUnsigned(TiXmlElement* parent,
+                               std::string_view path,
+                               std::uint32_t fallback)
+{
+    auto* value = child(parent, path);
+    if (value == nullptr || value->GetText() == nullptr)
+        return fallback;
+    std::istringstream stream(value->GetText());
+    std::uint32_t result = fallback;
+    return stream >> result ? result : fallback;
+}
+
+std::string weaponEffectTexture(
+    const resource::ResourceFileSystem& resources,
+    std::uint32_t projectileType)
+{
+    static constexpr std::array<std::string_view, 25> effects{{
+        "Data/Effect/bullet.dds",
+        "Data/Effect/engine1.dds",
+        "Data/Effect/rocketAir.dds",
+        "Data/Effect/laser3-blue.dds",
+        "Data/Effect/smoke1.dds",
+        "Data/Effect/smoke1.dds",
+        "Data/Effect/rad_add.dds",
+        "Data/Effect/shield1.dds",
+        "Data/Effect/engine1.dds",
+        "Data/Effect/drop.dds",
+        "Data/Effect/smoke3.dds",
+        "Data/Effect/explosion2.dds",
+        "Data/Effect/explosion3.dds",
+        "Data/Effect/spark1.dds",
+        "Data/Effect/firePatron.dds",
+        "Data/Effect/gunEff2.dds",
+        "Data/Effect/sonar.dds",
+        "Data/Effect/ring1.dds",
+        "Data/Effect/frostRay.dds",
+        "Data/Effect/explosion4.dds",
+        "Data/Effect/crater.dds",
+        "Data/Effect/phaseRing.dds",
+        "Data/Effect/thunder1.dds",
+        "Data/Effect/protonRing.dds",
+        "Data/Effect/protonRay.dds",
+    }};
+    const auto path =
+        effects[std::min<std::size_t>(projectileType,
+                                      effects.size() - 1U)];
+    return resources.exists(path) ? std::string(path)
+                                  : "Data/Effect/bullet.dds";
+}
+
+std::string weaponSoundPath(std::string_view record,
+                            std::uint32_t projectileType)
+{
+    std::string name(record);
+    std::transform(name.begin(), name.end(), name.begin(),
+                   [](unsigned char value) {
+                       return static_cast<char>(std::tolower(value));
+                   });
+    if (name.find("sonar") != std::string::npos)
+        return "Data/Sounds/sonar.ogg";
+    if (name.find("turel") != std::string::npos)
+        return "Data/Sounds/turel.ogg";
+    if (name.find("pulsator") != std::string::npos)
+        return "Data/Sounds/pulsator.ogg";
+    if (name.find("mortira") != std::string::npos)
+        return "Data/Sounds/mortira.ogg";
+    if (name.find("frost") != std::string::npos ||
+        projectileType == 18U)
+        return "Data/Sounds/frost_ray.ogg";
+    if (name.find("rezonator") != std::string::npos)
+        return "Data/Sounds/rezonator.ogg";
+    if (name.find("drobilka") != std::string::npos)
+        return "Data/Sounds/shredder.ogg";
+    if (name.find("sphere") != std::string::npos)
+        return "Data/Sounds/phalanx_shot_a.ogg";
+    if (name.find("rocket") != std::string::npos ||
+        projectileType == 2U)
+        return "Data/Sounds/missile_launch.ogg";
+    if (name.find("phase") != std::string::npos ||
+        projectileType == 21U)
+        return "Data/Sounds/fazowij_izluchatel.ogg";
+    if (name.find("laser") != std::string::npos ||
+        projectileType == 3U)
+        return "Data/Sounds/laserGuseniza.ogg";
+    return "Data/Sounds/fireGun.ogg";
+}
+
+void loadWeapons(const resource::ResourceFileSystem& resources,
+                 TiXmlElement* workshopRoot, TiXmlElement* database,
+                 Race& race)
+{
+    auto projectileVisual = [&](TiXmlElement* projectile,
+                                std::string_view elementName) {
+        ObjectDefinition result;
+        auto* model = child(projectile, elementName);
+        if (model == nullptr || model->GetText() == nullptr)
+            return result;
+        const std::string record = model->GetText();
+        result = objectDefinition(
+            resources, database, record,
+            "workshop.xml/weapon/projectile visual");
+        if (!result.visualNodes.empty())
+            return result;
+        auto* indirect = databaseRecord(database, record);
+        auto* nested = child(indirect, "proj/model");
+        if (nested != nullptr && nested->GetText() != nullptr)
+        {
+            result = objectDefinition(
+                resources, database, nested->GetText(),
+                "db.xml/projectile visual");
+        }
+        return result;
+    };
+    race.weapons.clear();
+    auto* workshop = require(workshopRoot, "workshop", "workshop.xml");
+    for (auto* entry = workshop->FirstChildElement(); entry != nullptr;
+         entry = entry->NextSiblingElement())
+    {
+        const std::uint32_t type =
+            optionalUnsigned(entry, "type", 0U);
+        if (type < 5U || type > 9U)
+            continue;
+        auto* item = child(entry, "item");
+        auto* mesh = child(item, "mesh");
+        auto* texture = child(item, "texture");
+        if (item == nullptr || mesh == nullptr || texture == nullptr ||
+            mesh->Attribute("item") == nullptr ||
+            texture->Attribute("item") == nullptr)
+            continue;
+
+        WeaponDefinition weapon;
+        weapon.record = entry->Value();
+        weapon.name = text(item, "name", "workshop.xml/weapon");
+        weapon.slot = type == 5U
+                          ? WeaponSlot::Hyper
+                          : (type == 6U ? WeaponSlot::Mine
+                                        : (type == 7U
+                                               ? WeaponSlot::Primary
+                                               : WeaponSlot::Support));
+        weapon.visual.meshPath =
+            canonicalDataPath(resources, mesh->Attribute("item"));
+        weapon.visual.transform.position =
+            child(item, "pos") != nullptr
+                ? vector3(item, "pos", "workshop.xml/weapon")
+                : Vec3{};
+        weapon.visual.transform.rotation =
+            child(item, "rot") != nullptr
+                ? quaternion(item, "rot", "workshop.xml/weapon")
+                : Quat{};
+        weapon.visual.materials.push_back(
+            {"Weapon\\" + weapon.record,
+             canonicalDataPath(resources, texture->Attribute("item")),
+             MaterialBlend::Opaque, 0.0F});
+        weapon.damage = optionalScalar(item, "damage", 0.0F);
+        weapon.maximumCharge =
+            optionalUnsigned(item, "maxCharge", 0U);
+        weapon.reloadCharge =
+            optionalUnsigned(item, "cntCharge", 1U);
+        weapon.chargeStep =
+            optionalUnsigned(item, "chargeStep", 1U);
+        weapon.shotDelay =
+            optionalScalar(item, "shotDelay", 0.1F);
+        weapon.repairPeriod =
+            optionalScalar(item, "repairPeriod", 0.0F);
+        weapon.repairValue =
+            optionalScalar(item, "repairValue", 0.0F);
+        weapon.reflectValue =
+            optionalScalar(item, "reflectValue", 0.0F);
+        if (auto* projectiles = child(item, "projList"))
+        {
+            for (auto* projectile = projectiles->FirstChildElement();
+                 projectile != nullptr;
+                 projectile = projectile->NextSiblingElement())
+            {
+                ProjectileDefinition definition;
+                definition.type =
+                    optionalUnsigned(projectile, "type", 0U);
+                definition.visual =
+                    projectileVisual(projectile, "model");
+                definition.secondaryVisual =
+                    projectileVisual(projectile, "model2");
+                definition.tertiaryVisual =
+                    projectileVisual(projectile, "model3");
+                if (child(projectile, "pos") != nullptr)
+                {
+                    definition.position = vector3(
+                        projectile, "pos",
+                        "workshop.xml/weapon/projectile");
+                }
+                if (child(projectile, "size") != nullptr)
+                {
+                    definition.size = vector3(
+                        projectile, "size",
+                        "workshop.xml/weapon/projectile");
+                }
+                if (child(projectile, "offset") != nullptr)
+                {
+                    definition.offset = vector3(
+                        projectile, "offset",
+                        "workshop.xml/weapon/projectile");
+                }
+                if (child(projectile, "rot") != nullptr)
+                {
+                    definition.rotation = quaternion(
+                        projectile, "rot",
+                        "workshop.xml/weapon/projectile");
+                }
+                definition.speed =
+                    optionalScalar(projectile, "speed", 0.0F);
+                definition.relativeSpeedMinimum = optionalScalar(
+                    projectile, "speedRelativeMin", 13.0F);
+                if (auto* relative =
+                        child(projectile, "speedRelative");
+                    relative != nullptr &&
+                    relative->GetText() != nullptr)
+                {
+                    definition.relativeSpeed =
+                        std::string_view(relative->GetText()) == "true" ||
+                        std::string_view(relative->GetText()) == "1";
+                }
+                definition.angularSpeed =
+                    optionalScalar(projectile, "angleSpeed", 0.0F);
+                definition.maximumDistance =
+                    optionalScalar(projectile, "maxDist", 0.0F);
+                definition.minimumLife =
+                    optionalScalar(projectile, "minTimeLife/min", 0.0F);
+                definition.mass =
+                    optionalScalar(projectile, "mass", 100.0F);
+                definition.damage =
+                    optionalScalar(projectile, "damage", weapon.damage);
+                weapon.projectiles.push_back(definition);
+            }
+        }
+        if (weapon.projectiles.empty())
+        {
+            ProjectileDefinition projectile;
+            projectile.damage = weapon.damage;
+            weapon.projectiles.push_back(projectile);
+        }
+        const auto& firstProjectile = weapon.projectiles.front();
+        weapon.projectileType = firstProjectile.type;
+        weapon.projectileSpeed = firstProjectile.speed;
+        weapon.maximumDistance = firstProjectile.maximumDistance;
+        weapon.effectTexturePath =
+            weaponEffectTexture(resources, weapon.projectileType);
+        weapon.soundPath =
+            weaponSoundPath(weapon.record, weapon.projectileType);
+        race.weapons.push_back(std::move(weapon));
+    }
+    if (race.weapons.empty() ||
+        std::none_of(race.weapons.begin(), race.weapons.end(),
+                     [](const WeaponDefinition& weapon) {
+                         return weapon.slot == WeaponSlot::Primary;
+                     }))
+    {
+        throw resource::ResourceError(
+            "workshop.xml: no original weapon catalog");
+    }
+}
+
+void loadAchievements(
+    const resource::ResourceFileSystem& resources, Race& race)
+{
+    auto document = parseXml(resources, "achievment.xml");
+    auto* conditions = require(
+        document.RootElement(), "conditions", "achievment.xml");
+    race.achievements.clear();
+    for (auto* item = conditions->FirstChildElement(); item != nullptr;
+         item = item->NextSiblingElement())
+    {
+        AchievementDefinition definition;
+        definition.name = item->Value();
+        if (const char* classId = item->Attribute("classId"))
+        {
+            definition.classId =
+                unsignedValue(classId, "achievment.xml/classId");
+        }
+        definition.reward = optionalUnsigned(item, "reward", 0U);
+        definition.iterationCount =
+            std::max(optionalUnsigned(item, "iterCount", 1U), 1U);
+        definition.killsNumber =
+            optionalUnsigned(item, "killsNum", 0U);
+        definition.killsTime =
+            optionalScalar(item, "killsTime", 0.0F);
+        definition.place = optionalUnsigned(item, "place", 1U);
+        if (auto* bonus = child(item, "bonusType");
+            bonus != nullptr && bonus->GetText() != nullptr)
+        {
+            const std::string_view type = bonus->GetText();
+            if (type == "btMoney")
+                definition.bonusKind = BonusKind::Money;
+            else if (type == "btMedpack")
+                definition.bonusKind = BonusKind::Medpack;
+            else if (type == "btCharge")
+                definition.bonusKind = BonusKind::Ammunition;
+            else if (type == "btMine")
+                definition.bonusKind = BonusKind::Mine;
+            else if (type == "btImmortal")
+                definition.bonusKind = BonusKind::Shield;
+            else if (type == "btSpeedArrow")
+                definition.bonusKind = BonusKind::Speed;
+        }
+        race.achievements.push_back(std::move(definition));
+    }
+}
+
+void loadRewards(TiXmlElement* planet, Race& race)
+{
+    race.rewardMoney.fill(0U);
+    race.rewardPoints.fill(0U);
+    race.requiredPoints.clear();
+    if (auto* points = child(planet, "points"))
+    {
+        for (auto* point = points->FirstChildElement();
+             point != nullptr;
+             point = point->NextSiblingElement())
+        {
+            const auto pass = optionalUnsigned(point, "place", 0U);
+            if (pass == 0U)
+                continue;
+            if (race.requiredPoints.size() < pass)
+                race.requiredPoints.resize(pass, 0U);
+            race.requiredPoints[pass - 1U] =
+                optionalUnsigned(point, "value", 0U);
+        }
+    }
+    auto* prices = child(planet, "prices");
+    if (prices == nullptr)
+        return;
+    std::size_t place = 0;
+    for (auto* price = prices->FirstChildElement();
+         price != nullptr && place < race.rewardMoney.size();
+         price = price->NextSiblingElement(), ++place)
+    {
+        race.rewardMoney[place] =
+            optionalUnsigned(price, "money", 0U);
+        race.rewardPoints[place] =
+            optionalUnsigned(price, "points", 0U);
+    }
+}
+
 Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
                     TiXmlElement* database, TiXmlElement* garage,
                     std::string_view record)
@@ -678,6 +1628,55 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
         throw resource::ResourceError(source + ": no body visual");
     result.bodyMeshPath = result.bodyVisuals.front().meshPath;
     result.bodyVisualTransform = result.bodyVisuals.front().transform;
+
+    if (auto* lights = child(garageDefinition, "nightLights"))
+    {
+        for (auto* item = lights->FirstChildElement(); item != nullptr;
+             item = item->NextSiblingElement())
+        {
+            VehicleNightLight light;
+            light.head = boolean(item, "head", "garage.xml/nightLight");
+            light.position =
+                vector3(item, "pos", "garage.xml/nightLight");
+            std::istringstream size(
+                text(item, "size", "garage.xml/nightLight"));
+            if (!(size >> light.size[0] >> light.size[1]))
+                throw resource::ResourceError(
+                    "garage.xml/nightLight: invalid size");
+            result.nightLights.push_back(light);
+        }
+    }
+    for (std::size_t mountIndex = 0;
+         mountIndex < result.weaponMounts.size(); ++mountIndex)
+    {
+        const std::string mountName =
+            "stWeapon" + std::to_string(mountIndex + 1U);
+        auto* mount = child(garageDefinition, mountName);
+        if (mount == nullptr)
+            continue;
+        auto& output = result.weaponMounts[mountIndex];
+        output.active =
+            boolean(mount, "active", "garage.xml/" + mountName);
+        output.show =
+            boolean(mount, "show", "garage.xml/" + mountName);
+        output.position =
+            vector3(mount, "pos", "garage.xml/" + mountName);
+        auto* items = child(mount, "items");
+        if (items == nullptr)
+            continue;
+        for (auto* item = items->FirstChildElement(); item != nullptr;
+             item = item->NextSiblingElement())
+        {
+            VehicleWeaponPlacement placement;
+            placement.record =
+                text(item, "record", "garage.xml/" + mountName);
+            placement.rotation =
+                quaternion(item, "rot", "garage.xml/" + mountName);
+            placement.offset =
+                vector3(item, "offset", "garage.xml/" + mountName);
+            output.placements.push_back(std::move(placement));
+        }
+    }
 
     auto* engineSound =
         require(car, "behaviors/items/item5", source + "/engine sound");
@@ -756,6 +1755,186 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
     return result;
 }
 
+void applyWeatherDescription(
+    const resource::ResourceFileSystem& resources, Race& race,
+    Weather weather)
+{
+    auto set = [&](Weather weather, std::string_view sky,
+                   std::array<float, 4> fog, float intensity,
+                   std::array<float, 4> ambient) {
+        race.environment.weather = weather;
+        race.environment.skyTexturePath =
+            canonicalDataPath(resources, sky);
+        race.environment.fogColor = fog;
+        race.environment.fogIntensity = intensity;
+        race.environment.ambientColor = ambient;
+        race.environment.rain = weather == Weather::Rainy;
+    };
+    switch (weather)
+    {
+    case Weather::Night:
+        set(Weather::Night, "Data/Misc/nightSky.dds",
+            {15.0F / 255.0F, 25.0F / 255.0F, 31.0F / 255.0F, 1.0F},
+            1.0F,
+            {138.0F / 255.0F, 144.0F / 255.0F,
+             174.0F / 255.0F, 1.0F});
+        break;
+    case Weather::Cloudy:
+        set(Weather::Cloudy, "Data/World2/Texture/skyTex1.dds",
+            {192.0F / 255.0F, 189.0F / 255.0F, 184.0F / 255.0F,
+             0.0F},
+            1.0F, {0.0F, 0.0F, 0.0F, 1.0F});
+        break;
+    case Weather::Rainy:
+        set(Weather::Rainy, "Data/World2/Texture/skyTex1.dds",
+            {192.0F / 255.0F, 189.0F / 255.0F, 184.0F / 255.0F,
+             0.0F},
+            1.0F, {0.0F, 0.0F, 0.0F, 1.0F});
+        break;
+    case Weather::Sahara:
+        set(Weather::Sahara, "Data/World3/Texture/skyTex1.dds",
+            {87.0F / 255.0F, 81.0F / 255.0F, 115.0F / 255.0F,
+             1.0F},
+            0.5F, {0.0F, 0.0F, 0.0F, 1.0F});
+        break;
+    case Weather::Hell:
+        set(Weather::Hell, "Data/World4/Texture/skyTex1.dds",
+            {82.0F / 255.0F, 12.0F / 255.0F, 8.0F / 255.0F, 1.0F},
+            0.5F, {0.0F, 0.0F, 0.0F, 1.0F});
+        break;
+    case Weather::Snow:
+        set(Weather::Snow, "Data/World5/Texture/sky_text.dds",
+            {156.0F / 255.0F, 166.0F / 255.0F, 181.0F / 255.0F,
+             1.0F},
+            0.5F, {0.0F, 0.0F, 0.0F, 1.0F});
+        break;
+    case Weather::Fair:
+        set(Weather::Fair, "Data/World1/Texture/skyTex1.dds",
+            {148.0F / 255.0F, 193.0F / 255.0F, 235.0F / 255.0F,
+             1.0F},
+            0.5F, {0.0F, 0.0F, 0.0F, 1.0F});
+        break;
+    }
+}
+
+Weather weatherFromToken(std::string_view token)
+{
+    if (token == "ewNight")
+        return Weather::Night;
+    if (token == "ewClody")
+        return Weather::Cloudy;
+    if (token == "ewRainy")
+        return Weather::Rainy;
+    if (token == "ewSahara")
+        return Weather::Sahara;
+    if (token == "ewHell")
+        return Weather::Hell;
+    if (token == "ewSnow")
+        return Weather::Snow;
+    return Weather::Fair;
+}
+
+void applyOriginalEnvironment(
+    const resource::ResourceFileSystem& resources, Race& race)
+{
+    race.environment.surface = EnvironmentSurface::None;
+    race.environment.planarReflection = false;
+    if (race.levelPath.find("World1") != std::string::npos)
+    {
+        race.environment.surface = EnvironmentSurface::Grass;
+        race.environment.hdrLuminanceKey = 1.1F;
+        race.environment.hdrBrightThreshold = 1.5F;
+        race.environment.hdrGaussianScalar = 30.0F;
+        race.environment.hdrExposure = 15.0F;
+    }
+    else if (race.levelPath.find("World2") != std::string::npos)
+    {
+        race.environment.surface = EnvironmentSurface::Water;
+        race.environment.hdrLuminanceKey = 1.7F;
+        race.environment.hdrBrightThreshold = 1.9F;
+        race.environment.hdrGaussianScalar = 30.0F;
+        race.environment.hdrExposure = 8.0F;
+    }
+    else if (race.levelPath.find("World3") != std::string::npos)
+    {
+        race.environment.surface = EnvironmentSurface::GroundFog;
+        race.environment.surfaceHeight = 3.0F;
+        race.environment.surfaceScroll = 0.02F;
+        race.environment.hdrLuminanceKey = 4.0F;
+        race.environment.hdrBrightThreshold = 4.5F;
+        race.environment.hdrGaussianScalar = 20.0F;
+        race.environment.hdrExposure = 3.0F;
+    }
+    else if (race.levelPath.find("World4") != std::string::npos)
+    {
+        race.environment.surface = EnvironmentSurface::Magma;
+        race.environment.surfaceHeight = 0.5F;
+        race.environment.surfaceScroll = 0.01F;
+        race.environment.hdrLuminanceKey = 1.9F;
+        race.environment.hdrBrightThreshold = 1.9F;
+        race.environment.hdrGaussianScalar = 30.0F;
+        race.environment.hdrExposure = 8.0F;
+    }
+    else if (race.levelPath.find("World5") != std::string::npos)
+    {
+        race.environment.planarReflection = true;
+        race.environment.hdrLuminanceKey = 1.1F;
+        race.environment.hdrBrightThreshold = 1.3F;
+        race.environment.hdrGaussianScalar = 30.0F;
+        race.environment.hdrExposure = 15.0F;
+    }
+    else if (race.levelPath.find("World6") != std::string::npos)
+    {
+        race.environment.surface = EnvironmentSurface::GroundFog;
+        race.environment.surfaceHeight = 3.0F;
+        race.environment.surfaceScroll = 0.02F;
+        race.environment.hdrLuminanceKey = 1.7F;
+        race.environment.hdrBrightThreshold = 1.9F;
+        race.environment.hdrGaussianScalar = 30.0F;
+        race.environment.hdrExposure = 8.0F;
+    }
+    Weather weather = Weather::Fair;
+    if (race.levelPath.find("World2") != std::string::npos ||
+        race.levelPath.find("World6") != std::string::npos)
+        weather = Weather::Cloudy;
+    else if (race.levelPath.find("World3") != std::string::npos)
+        weather = Weather::Sahara;
+    else if (race.levelPath.find("World4") != std::string::npos)
+        weather = Weather::Hell;
+    else if (race.levelPath.find("World5") != std::string::npos)
+        weather = Weather::Snow;
+    applyWeatherDescription(resources, race, weather);
+}
+
+void applyPlanetEnvironment(
+    const resource::ResourceFileSystem& resources,
+    TiXmlElement* planet, Race& race)
+{
+    auto* weatherItems = child(planet, "wheaters");
+    TiXmlElement* selected = nullptr;
+    float maximumChance = -1.0F;
+    if (weatherItems != nullptr)
+    {
+        for (auto* item = weatherItems->FirstChildElement();
+             item != nullptr; item = item->NextSiblingElement())
+        {
+            const float chance = optionalScalar(item, "chance", 0.0F);
+            if (chance > maximumChance)
+            {
+                maximumChance = chance;
+                selected = item;
+            }
+        }
+    }
+    if (selected != nullptr)
+    {
+        applyWeatherDescription(
+            resources, race,
+            weatherFromToken(text(selected, "type",
+                                  "tournamet.xml/wheaters")));
+    }
+}
+
 void loadMap(const resource::ResourceFileSystem& resources,
              TiXmlElement* database, Race& race)
 {
@@ -766,6 +1945,7 @@ void loadMap(const resource::ResourceFileSystem& resources,
     race.bonuses.clear();
     race.tracePoints.clear();
     race.tracePath.clear();
+    race.tracePaths.clear();
 
     auto mapDocument = parseXml(resources, race.levelPath);
     auto* map = require(mapDocument.RootElement(), "map", race.levelPath);
@@ -856,35 +2036,28 @@ void loadMap(const resource::ResourceFileSystem& resources,
              vector3(point, "pos", race.levelPath),
              scalar(point, "size", race.levelPath)});
     }
-    auto* path = require(map, "trace/pathes/path0", race.levelPath);
-    for (auto* node = path->FirstChildElement(); node != nullptr;
-         node = node->NextSiblingElement())
+    auto* paths = require(map, "trace/pathes", race.levelPath);
+    for (auto* path = paths->FirstChildElement(); path != nullptr;
+         path = path->NextSiblingElement())
     {
-        if (node->GetText() != nullptr)
-            race.tracePath.push_back(
-                unsignedValue(node->GetText(), race.levelPath));
+        std::vector<std::uint32_t> result;
+        for (auto* node = path->FirstChildElement(); node != nullptr;
+             node = node->NextSiblingElement())
+        {
+            if (node->GetText() != nullptr)
+                result.push_back(
+                    unsignedValue(node->GetText(), race.levelPath));
+        }
+        if (result.size() > 1U)
+            race.tracePaths.push_back(std::move(result));
     }
+    if (race.tracePaths.empty())
+        throw resource::ResourceError(
+            race.levelPath + ": trace has no paths");
+    race.tracePath = race.tracePaths.front();
     race.environment.sunPosition = vector3(map, "sunPos", race.levelPath);
     race.environment.sunRotation = quaternion(map, "sunRot", race.levelPath);
-    race.environment.weather = Weather::Fair;
-    if (race.levelPath.find("World1") != std::string::npos)
-        race.environment.skyTexturePath =
-            "Data/World1/Texture/skyTex1.dds";
-    else if (race.levelPath.find("World2") != std::string::npos)
-        race.environment.skyTexturePath =
-            "Data/World2/texture/skyTex1.dds";
-    else if (race.levelPath.find("World3") != std::string::npos)
-        race.environment.skyTexturePath =
-            "Data/World3/Texture/skyTex1.dds";
-    else if (race.levelPath.find("World4") != std::string::npos)
-        race.environment.skyTexturePath =
-            "Data/World4/Texture/skyTex1.dds";
-    else if (race.levelPath.find("World5") != std::string::npos)
-        race.environment.skyTexturePath =
-            "Data/World5/Texture/sky_text.dds";
-    else
-        race.environment.skyTexturePath =
-            "Data/World1/Texture/skyTex1.dds";
+    applyOriginalEnvironment(resources, race);
 }
 
 std::uint32_t unsignedValue(std::string_view value,
@@ -905,11 +2078,15 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
     auto tournamentDocument = parseXml(resources, "tournamet.xml");
     auto databaseDocument = parseXml(resources, "db.xml");
     auto garageDocument = parseXml(resources, "garage.xml");
+    auto workshopDocument = parseXml(resources, "workshop.xml");
     auto* tournament = tournamentDocument.RootElement();
     auto* database = databaseDocument.RootElement();
 
     Race race;
+    loadWeapons(resources, workshopDocument.RootElement(), database, race);
+    loadAchievements(resources, race);
     auto* firstPlanet = require(tournament, "planets/planet0", "tournamet.xml");
+    loadRewards(firstPlanet, race);
     auto* firstTrack = require(firstPlanet,
                                "trackMap/tracks0/track0", "tournamet.xml");
     race.levelPath = canonicalDataPath(
@@ -1027,9 +2204,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
         vector3(map, "sunPos", race.levelPath);
     race.environment.sunRotation =
         quaternion(map, "sunRot", race.levelPath);
-    race.environment.weather = Weather::Fair;
-    race.environment.skyTexturePath =
-        "Data/World1/Texture/skyTex1.dds";
+    applyOriginalEnvironment(resources, race);
 
     auto* planets = require(tournament, "planets", "tournamet.xml");
     std::uint32_t planetIndex = 0;
@@ -1080,7 +2255,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
         throw resource::ResourceError(
             "garage.xml: tournament player car is missing");
     race.vehicle = race.vehicles[humanVehicle->second];
-    selectRacers(race, firstPlanet, 1U, carRecord);
+    selectRacers(race, resources, firstPlanet, 1U, carRecord);
     if (race.trackInstances.empty() || race.tracePath.size() < 2 ||
         race.vehicle.record.find(carName) == std::string::npos ||
         race.vehicles.size() != 17 || race.racers.size() < 2)
@@ -1138,10 +2313,228 @@ Race loadOriginalRace(const resource::ResourceFileSystem& resources,
     if (selectedPlanet == nullptr)
         throw resource::ResourceError(
             "tournamet.xml: selected planet is unavailable");
-    selectRacers(result, selectedPlanet,
+    loadRewards(selectedPlanet, result);
+    applyPlanetEnvironment(resources, selectedPlanet, result);
+    selectRacers(result, resources, selectedPlanet,
                  result.trackCatalog[trackIndex].racePass,
                  result.vehicle.record);
     return result;
+}
+
+namespace
+{
+
+std::uint32_t normalizedRacePass(const Race& race,
+                                 std::uint32_t planet,
+                                 std::uint32_t pass) noexcept
+{
+    std::uint32_t maximumPass = 0U;
+    for (const auto& track : race.trackCatalog)
+    {
+        if (track.planetIndex == planet)
+            maximumPass = std::max(maximumPass, track.racePass);
+    }
+    if (maximumPass == 0U)
+        return 1U;
+    const auto oneBasedPass = std::max(pass, 1U);
+    return ((oneBasedPass - 1U) % maximumPass) + 1U;
+}
+
+} // namespace
+
+std::size_t resolveOriginalTournamentTrack(
+    const Race& race, const PlayerProfile& profile) noexcept
+{
+    if (race.trackCatalog.empty())
+        return 0U;
+    const auto wantedPass = normalizedRacePass(
+        race, profile.currentPlanet, profile.currentPass);
+    std::size_t localTrack = 0U;
+    std::size_t firstMatch = race.trackCatalog.size();
+    for (std::size_t index = 0; index < race.trackCatalog.size(); ++index)
+    {
+        const auto& track = race.trackCatalog[index];
+        if (track.planetIndex != profile.currentPlanet ||
+            track.racePass != wantedPass)
+            continue;
+        if (firstMatch == race.trackCatalog.size())
+            firstMatch = index;
+        if (localTrack == profile.currentTrack)
+            return index;
+        ++localTrack;
+    }
+    return firstMatch < race.trackCatalog.size() ? firstMatch : 0U;
+}
+
+void writeOriginalTournamentSelection(
+    const Race& race, std::size_t trackIndex,
+    PlayerProfile& profile) noexcept
+{
+    if (trackIndex >= race.trackCatalog.size())
+        return;
+    const auto& selected = race.trackCatalog[trackIndex];
+    profile.currentPlanet = selected.planetIndex;
+    profile.currentPass = selected.racePass;
+    if (selected.planetIndex < profile.planets.size())
+        profile.planets[selected.planetIndex].pass = selected.racePass;
+    profile.currentTrack = 0U;
+    for (std::size_t index = 0; index < trackIndex; ++index)
+    {
+        const auto& candidate = race.trackCatalog[index];
+        if (candidate.planetIndex == selected.planetIndex &&
+            candidate.racePass == selected.racePass)
+            ++profile.currentTrack;
+    }
+}
+
+TournamentAdvance completeOriginalTournamentTrack(
+    const Race& race, std::size_t trackIndex,
+    ProfileState& profile) noexcept
+{
+    TournamentAdvance result;
+    if (trackIndex >= race.trackCatalog.size())
+        return result;
+    const auto& selected = race.trackCatalog[trackIndex];
+    const auto planet = selected.planetIndex;
+    const auto pass = selected.racePass;
+
+    for (std::size_t index = trackIndex + 1U;
+         index < race.trackCatalog.size(); ++index)
+    {
+        const auto& candidate = race.trackCatalog[index];
+        if (candidate.planetIndex == planet &&
+            candidate.racePass == pass)
+        {
+            result.trackIndex = index;
+            writeOriginalTournamentSelection(
+                race, result.trackIndex, profile.player);
+            return result;
+        }
+    }
+
+    result.passComplete = true;
+    const auto required =
+        pass > 0U && pass <= race.requiredPoints.size()
+            ? race.requiredPoints[pass - 1U]
+            : 0U;
+    if (required > 0U && profile.player.points >= required)
+    {
+        result.passChampion = true;
+        const auto nextPass = pass + 1U;
+        profile.player.currentPass = nextPass;
+        if (planet < profile.player.planets.size())
+        {
+            auto& progress = profile.player.planets[planet];
+            progress.pass = nextPass;
+            if (nextPass >= 3U)
+            {
+                progress.state = 3U;
+                result.planetChampion = true;
+                if (std::find(profile.planetsCompleted.begin(),
+                              profile.planetsCompleted.end(),
+                              planet) ==
+                    profile.planetsCompleted.end())
+                {
+                    profile.planetsCompleted.push_back(planet);
+                }
+            }
+        }
+    }
+    profile.player.points = 0U;
+    result.trackIndex =
+        resolveOriginalTournamentTrack(race, profile.player);
+    writeOriginalTournamentSelection(
+        race, result.trackIndex, profile.player);
+    if (result.planetChampion)
+    {
+        profile.player.currentPass = pass + 1U;
+        if (planet < profile.player.planets.size())
+            profile.player.planets[planet].pass = pass + 1U;
+    }
+    return result;
+}
+
+void applyOriginalPlayerProfile(
+    Race& race, const resource::ResourceFileSystem& resources,
+    const PlayerProfile& profile)
+{
+    if (race.racers.empty() ||
+        race.racers.front().vehicle >= race.vehicles.size())
+        return;
+    auto workshopDocument = parseXml(resources, "workshop.xml");
+    auto* workshop = require(workshopDocument.RootElement(), "workshop",
+                             "workshop.xml");
+    auto& human = race.racers.front();
+    auto tournamentDocument = parseXml(resources, "tournamet.xml");
+    if (auto* gamers =
+            child(tournamentDocument.RootElement(), "gamers"))
+    {
+        TiXmlElement* fallback = nullptr;
+        bool matchedPlayer = false;
+        for (auto* gamer = gamers->FirstChildElement(); gamer != nullptr;
+             gamer = gamer->NextSiblingElement())
+        {
+            auto* players = child(gamer, "players");
+            if (players == nullptr)
+                continue;
+            for (auto* player = players->FirstChildElement();
+                 player != nullptr;
+                 player = player->NextSiblingElement())
+            {
+                if (fallback == nullptr)
+                    fallback = player;
+                const auto id = unsignedValue(
+                    text(player, "id", "tournamet.xml/gamer"),
+                    "tournamet.xml/gamer/id");
+                if (id != profile.gamerId && id != profile.playerId)
+                    continue;
+                fallback = player;
+                matchedPlayer = true;
+                break;
+            }
+            if (matchedPlayer)
+                break;
+        }
+        if (fallback != nullptr)
+        {
+            human.name =
+                text(fallback, "name", "tournamet.xml/gamer");
+            if (auto* photo = child(fallback, "photo");
+                photo != nullptr &&
+                photo->Attribute("item") != nullptr)
+            {
+                human.photoPath = canonicalDataPath(
+                    resources, photo->Attribute("item"));
+            }
+        }
+    }
+    human.configuredVehicle = race.vehicles[human.vehicle];
+    human.hasConfiguredVehicle = true;
+    std::vector<RacerSlot> humanLoadout;
+    humanLoadout.reserve(4);
+    for (std::size_t profileSlot = 0; profileSlot < 4U;
+         ++profileSlot)
+    {
+        static constexpr std::array<std::string_view, 4> types{
+            "stWheel", "stTruba", "stArmor", "stMotor"};
+        humanLoadout.push_back(
+            {profile.slots[profileSlot].record,
+             std::string(types[profileSlot]),
+             profile.slots[profileSlot].charge});
+    }
+    human.loadout = humanLoadout;
+    applyMobilityLoadout(human.configuredVehicle, resources, workshop,
+                         human.loadout, profile.difficulty, true);
+    race.vehicle = human.configuredVehicle;
+
+    for (std::size_t index = 1; index < race.racers.size(); ++index)
+    {
+        auto& racer = race.racers[index];
+        racer.configuredVehicle = race.vehicles[racer.vehicle];
+        racer.hasConfiguredVehicle = true;
+        applyMobilityLoadout(racer.configuredVehicle, resources, workshop,
+                             racer.loadout, profile.difficulty, true);
+    }
 }
 
 r3d::physics::WorldDescription makePhysicsDescription(
@@ -1282,9 +2675,12 @@ r3d::physics::WorldDescription makePhysicsDescription(
             position.y += lineDirection.y * lateral;
             lateralStep += racerWidths[index] + lateralSpace;
             const auto& racer = race.racers[index];
+            const auto& vehicle =
+                racer.hasConfiguredVehicle
+                    ? racer.configuredVehicle
+                    : race.vehicles.at(racer.vehicle);
             result.spawns.push_back(
-                {prepareVehicle(race.vehicles.at(racer.vehicle)),
-                 position, result.startDirection});
+                {prepareVehicle(vehicle), position, result.startDirection});
         }
     }
     return result;
@@ -1319,11 +2715,14 @@ bool runOriginalRaceResourceSmokeTest(
             !near(physics.vehicle.brakeTorque, 7500.0F) ||
             !near(physics.vehicle.differentialRatio, 3.42F) ||
             !near(physics.vehicle.maximumRpm, 7000.0F) ||
-            !near(physics.vehicle.maximumTorque, 2000.0F) ||
+            // Original defaults install truba1 + engine1: 100 + 900.
+            !near(physics.vehicle.maximumTorque, 1000.0F) ||
+            !near(race.vehicle.maximumLife, 70.0F) ||
             physics.vehicle.wheels.size() != 4 ||
             !near(physics.vehicle.wheels[0].radius, 0.42947F) ||
             !near(physics.vehicle.wheels[0].suspensionTravel, 0.3F) ||
-            !near(physics.vehicle.wheels[0].spring, 140000.0F) ||
+            // wheel1 adds 2 to the 140000 base tire spring.
+            !near(physics.vehicle.wheels[0].spring, 140002.0F) ||
             !near(physics.vehicle.wheels[0].damper, 1000.0F) ||
             !physics.vehicle.wheels[0].driven ||
             !physics.vehicle.wheels[0].steering ||

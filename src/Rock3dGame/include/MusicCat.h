@@ -28,6 +28,7 @@ class MusicCat
 	std::optional<std::size_t> play();
 	bool play(std::size_t trackIndex, bool excludeFromPlaylist = true);
 	std::optional<std::size_t> next();
+	bool setPlaylist(std::vector<std::size_t> playlist) noexcept;
 
 	void setPlaybackPosition(std::uint64_t positionFrames, std::uint64_t totalFrames) noexcept;
 	void setPaused(bool paused) noexcept;

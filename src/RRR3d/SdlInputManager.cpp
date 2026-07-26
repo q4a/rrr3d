@@ -53,9 +53,12 @@ void appendDirectionalAxis(std::vector<ActionEvent> &events, float signed_value,
 	appendAnalog(events, Action::TurnRight, std::max(signed_value, 0.0F), Source::GamepadAxis, device_id);
 }
 
-constexpr std::array<Action, 12> allActions = {
-	Action::Accelerate, Action::Brake,  Action::TurnLeft, Action::TurnRight,   Action::UseWeapon, Action::ChangeWeapon,
-	Action::ResetVehicle, Action::Pause, Action::MenuUp, Action::MenuDown, Action::MenuConfirm, Action::MenuBack};
+constexpr std::array<Action, 19> allActions = {
+	Action::Accelerate, Action::Brake, Action::TurnLeft, Action::TurnRight,
+	Action::UseWeapon, Action::UseMine, Action::UseHyper, Action::ChangeWeapon,
+	Action::SelectWeapon1, Action::SelectWeapon2, Action::SelectWeapon3, Action::SelectWeapon4,
+	Action::ToggleCamera, Action::ResetVehicle, Action::Pause, Action::MenuUp,
+	Action::MenuDown, Action::MenuConfirm, Action::MenuBack};
 
 } // namespace
 
@@ -165,13 +168,21 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 		{
 		case SDL_SCANCODE_UP:
 			appendDigital(events, Action::MenuUp, down, repeat, Source::Keyboard);
+			appendDigital(events, Action::Accelerate, down, repeat, Source::Keyboard);
 			break;
 		case SDL_SCANCODE_DOWN:
 			appendDigital(events, Action::MenuDown, down, repeat, Source::Keyboard);
+			appendDigital(events, Action::Brake, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_LEFT:
+			appendDigital(events, Action::TurnLeft, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_RIGHT:
+			appendDigital(events, Action::TurnRight, down, repeat, Source::Keyboard);
 			break;
 		case SDL_SCANCODE_W:
 			appendDigital(events, Action::MenuUp, down, repeat, Source::Keyboard);
-			appendDigital(events, Action::Accelerate, down, repeat, Source::Keyboard);
+			appendDigital(events, Action::UseWeapon, down, repeat, Source::Keyboard);
 			break;
 		case SDL_SCANCODE_S:
 			appendDigital(events, Action::MenuDown, down, repeat, Source::Keyboard);
@@ -193,6 +204,28 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			break;
 		case SDL_SCANCODE_TAB:
 			appendDigital(events, Action::ChangeWeapon, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_C:
+			appendDigital(events, Action::ToggleCamera, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_M:
+		case SDL_SCANCODE_E:
+			appendDigital(events, Action::UseMine, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_Q:
+			appendDigital(events, Action::UseHyper, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_1:
+			appendDigital(events, Action::SelectWeapon1, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_2:
+			appendDigital(events, Action::SelectWeapon2, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_3:
+			appendDigital(events, Action::SelectWeapon3, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_4:
+			appendDigital(events, Action::SelectWeapon4, down, repeat, Source::Keyboard);
 			break;
 		case SDL_SCANCODE_R:
 			appendDigital(events, Action::ResetVehicle, down, repeat, Source::Keyboard);
@@ -257,13 +290,28 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			appendDigital(events, Action::MenuDown, event.gbutton.down, false, Source::GamepadButton,
 			              event.gbutton.which);
 			break;
+		case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+			appendDigital(events, Action::TurnLeft, event.gbutton.down, false, Source::GamepadButton,
+			              event.gbutton.which);
+			break;
+		case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+			appendDigital(events, Action::TurnRight, event.gbutton.down, false, Source::GamepadButton,
+			              event.gbutton.which);
+			break;
 		case SDL_GAMEPAD_BUTTON_SOUTH:
 			appendDigital(events, Action::MenuConfirm, event.gbutton.down, false, Source::GamepadButton,
 			              event.gbutton.which);
+			appendDigital(events, Action::Accelerate, event.gbutton.down, false, Source::GamepadButton,
+			              event.gbutton.which);
 			break;
 		case SDL_GAMEPAD_BUTTON_EAST:
-		case SDL_GAMEPAD_BUTTON_BACK:
 			appendDigital(events, Action::MenuBack, event.gbutton.down, false, Source::GamepadButton,
+			              event.gbutton.which);
+			appendDigital(events, Action::Brake, event.gbutton.down, false, Source::GamepadButton,
+			              event.gbutton.which);
+			break;
+		case SDL_GAMEPAD_BUTTON_BACK:
+			appendDigital(events, Action::ResetVehicle, event.gbutton.down, false, Source::GamepadButton,
 			              event.gbutton.which);
 			break;
 		case SDL_GAMEPAD_BUTTON_START:
@@ -272,15 +320,20 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			appendDigital(events, Action::Pause, event.gbutton.down, false, Source::GamepadButton, event.gbutton.which);
 			break;
 		case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
-			appendDigital(events, Action::UseWeapon, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
-			break;
-		case SDL_GAMEPAD_BUTTON_WEST:
+		case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
 			appendDigital(events, Action::ChangeWeapon, event.gbutton.down, false, Source::GamepadButton,
 			              event.gbutton.which);
 			break;
+		case SDL_GAMEPAD_BUTTON_WEST:
+			appendDigital(events, Action::UseWeapon, event.gbutton.down, false, Source::GamepadButton,
+			              event.gbutton.which);
+			break;
 		case SDL_GAMEPAD_BUTTON_NORTH:
-			appendDigital(events, Action::ResetVehicle, event.gbutton.down, false, Source::GamepadButton,
+			appendDigital(events, Action::UseWeapon, event.gbutton.down, false, Source::GamepadButton,
+			              event.gbutton.which);
+			break;
+		case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
+			appendDigital(events, Action::ToggleCamera, event.gbutton.down, false, Source::GamepadButton,
 			              event.gbutton.which);
 			break;
 		default:
@@ -342,12 +395,12 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 		}
 		else if (axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 		{
-			appendAnalog(events, Action::Accelerate, applyTriggerDeadZone(event.gaxis.value), Source::GamepadAxis,
+			appendAnalog(events, Action::UseMine, applyTriggerDeadZone(event.gaxis.value), Source::GamepadAxis,
 			             event.gaxis.which);
 		}
 		else if (axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER)
 		{
-			appendAnalog(events, Action::Brake, applyTriggerDeadZone(event.gaxis.value), Source::GamepadAxis,
+			appendAnalog(events, Action::UseHyper, applyTriggerDeadZone(event.gaxis.value), Source::GamepadAxis,
 			             event.gaxis.which);
 		}
 		break;

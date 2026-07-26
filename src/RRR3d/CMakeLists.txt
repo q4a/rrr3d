@@ -220,6 +220,12 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                 OriginalMenuMusic.cpp
                 OriginalMenuMusic.h
             )
+            if(RRR3D_ENABLE_PHYSICS)
+                target_sources(${PROJECT_NAME} PRIVATE
+                    OriginalRaceCommentator.cpp
+                    OriginalRaceCommentator.h
+                )
+            endif()
         endif()
         target_compile_definitions(${PROJECT_NAME} PRIVATE
             RRR3D_AUDIO=1

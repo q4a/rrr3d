@@ -68,6 +68,18 @@ std::optional<std::size_t> MusicCat::next()
 	return play();
 }
 
+bool MusicCat::setPlaylist(std::vector<std::size_t> playlist) noexcept
+{
+	std::set<std::size_t> unique;
+	for (const auto track : playlist)
+	{
+		if (track >= tracks_.size() || !unique.insert(track).second)
+			return false;
+	}
+	playlist_ = std::move(playlist);
+	return true;
+}
+
 void MusicCat::setPlaybackPosition(std::uint64_t positionFrames, std::uint64_t totalFrames) noexcept
 {
 	totalFrames_ = totalFrames;

@@ -1,124 +1,144 @@
-# Перенос гонки и результат Milestone 9
+# Milestone 9.1: перенос оригинальной гонки
 
-## Что является результатом
+## Результат
 
-Milestone 9 запускает из перенесённого `MainMenu2` гонку, собранную из
-оригинальных данных Motor Rock. Старый procedural `PortableRace` с придуманной
-овальной трассой в preset `macos-arm64-m9` не компилируется и результатом
-milestone не является.
+Milestone 9.1 продолжает исправленный путь M5–M9: это перенос исходной
+логики и данных Motor Rock на portable C++/bgfx/Metal/Jolt, а не новая игра
+по мотивам оригинала. Старые `PortableRace` и procedural-трасса не входят в
+preset `macos-arm64-m9`.
 
-По умолчанию `Single Player` открывает
-`Data/Map/World1/map1.r3dMap`, ставит Marauder и пять соперников в исходную
-стартовую решётку и начинает четыре круга после трёхсекундного countdown.
-Параметрами запуска можно выбрать любую из 88 турнирных трасс, любую из 17
-машин гаража и один из четырёх перенесённых режимов погоды.
+`Single Player` загружает турнир, профиль, трассу, автомобили, workshop,
+окружение, HUD, звук и эффекты из оригинальных XML, `.r3d`, DDS/PNG и Ogg.
+Параметрами запуска можно выбрать любую из 88 турнирных трасс, 17 гаражных
+машин и штатные варианты погоды.
 
-## Происхождение сцены
+## Источники и профиль
 
-Для первой карты загрузчик использует:
+Portable loader использует оригинальные:
 
-- 52 размещения `ctTrack`, 234 размещения `ctDecoration`, 7 `ctBonus` и
-  исходную trace из `map1.r3dMap`;
-- visual/collision records, составные destructible-объекты и material records
-  из `db.xml`;
-- body/wheel meshes, DDS и список 17 машин из `garage.xml`;
-- четыре круга, состав AI и варианты машин для pass 1/2 из `tournamet.xml`;
-- 1175 collision triangles после размещения track и имеющих collision
-  decorations.
+- `tournamet.xml`, `garage.xml`, `workshop.xml`, `db.xml` и карты
+  `Data/Map/*/*.r3dMap`;
+- visual/collision records, составные и разрушаемые decorations, material
+  records, источники света и вложенные `includeList`;
+- garage/workshop характеристики, четыре weapon slots, projectile variants,
+  mines, hyper, droid и reflector;
+- `UserInfo.xml`, `config.xml` и `achievment.xml`.
 
-Material mapping map1 повторяет записи `ResourceManager` для World1,
-World2 semaphore, World3 exceptions, Crush и Bonus. Alpha-test применяется к
-растительности и прозрачным bonus materials. Для остальных миров loader
-сначала ищет соответствующую штатную texture, затем исходный track atlas.
-Все 88 карт проходят разрешение mesh/material/collision ресурсов.
+Профиль сохраняет выбранные машину, персонажа, планету и pass, деньги,
+garage/workshop upgrades, музыку, язык, управление, сетевой профиль и полное
+состояние achievements. При первом запуске определения achievements берутся
+из штатного XML, а пользовательский файл накладывает накопленные значения.
+Запись выполняется в Application Support, ресурсы игры не изменяются.
 
-В исходной базе встречаются Windows-пути с другим регистром, например
-`pxMost.r3d` при файле `PXmost.r3d`. Перенесённый loader исправляет такой путь
-только при единственном однозначном case-insensitive совпадении. Строгий
-`ResourceFileSystem` и защита от неоднозначных/выходящих за game-data путей
-остаются включены.
+Windows-пути с несовпадающим регистром разрешаются только при единственном
+однозначном case-insensitive совпадении. `ResourceFileSystem` по-прежнему
+запрещает абсолютные пути, выход из game-data, неоднозначные совпадения и
+слишком большие файлы.
 
-## Физика и старт
+## Физика и состояние гонки
 
-PhysX 2.8.4 остаётся неизменным для Windows. На Apple Silicon используется
-Jolt Physics 5.5.0, зафиксированный commit
-`23dadd0e603f1b321142d4c74df07fce85064989`.
+Windows остаётся на PhysX 2.8.4. Apple Silicon использует Jolt Physics 5.5.0
+через SDL/renderer-независимый `OriginalVehiclePhysics`:
 
-Adapter:
+- Z-up игровая система преобразуется в Y-up Jolt;
+- static triangle collision строится из штатных `.r3d`;
+- параметры body, center of mass, колёс, suspension, differential, brakes,
+  RPM и torque берутся из `db.xml`;
+- игрок и все соперники имеют отдельные Jolt vehicles;
+- simulation выполняется фиксированными шагами 1/120 s;
+- стартовая решётка и reset/respawn повторяют исходные trace и формулы
+  `Race::ResetCarPos`.
 
-- переводит игровую Z-up систему в Jolt Y-up;
-- строит static triangle collision из штатных `.r3d`;
-- использует legacy gravity `-20`, friction/restitution `0.5`;
-- создаёт отдельный Jolt vehicle для игрока и каждого AI;
-- загружает mass, shape pose, center of mass, wheel positions/radius,
-  suspension spring/damper/travel, driven/steering flags, differential,
-  brake torque, max RPM и torque из `db.xml`;
-- выполняет simulation фиксированными шагами 1/120 s;
-- воспроизводит формулу `Race::ResetCarPos`: по четыре машины в ряду,
-  `rowSpace = 7`, ширина ряда из body meshes, первая trace point плюс 2 по Z.
+`OriginalRaceSession` переносит countdown, pause/resume, ordered checkpoints,
+laps, place, wrong-way, finish, reset и respawn. В нём работают исходные
+roster/loadout соперников, trace-based AI, collision/contact damage,
+разрушение decorations, bonuses, shield, death/kill flow и achievements.
 
-Это перенос данных и поведения, но не численная эмуляция PhysX 2. Jolt имеет
-другой contact solver и tire model, поэтому окончательная калибровка требует
-одинакового записанного Windows replay.
+Это поведенческий перенос, но не численная эмуляция PhysX. Contact solver,
+tire model и порядок разрешения ограничений Jolt отличаются, поэтому
+побитовая идентичность траекторий Windows/PhysX не заявляется.
 
-## Race state и AI
+## Workshop, оружие и поддержка
 
-`OriginalRaceSession` реализует:
+Загружается полный workshop catalog и четыре оригинальных слота. Portable
+session учитывает ammunition, cooldown, цены, upgrades, damage/radius,
+скорость и lifetime projectile, multi-projectile, ray/attached weapons,
+homing torpedo/impulse, frost, laser, fire и дробилку.
 
-- countdown, pause/resume, упорядоченные checkpoints, laps, place,
-  wrong-way, finish и остановку управления после финиша;
-- ручной reset (`R`/gamepad North) и respawn на последнем пройденном trace
-  point при падении или застревании;
-- пять AI-соперников из исходного planet/pass roster, steering к следующей
-  trace point, throttle и braking перед поворотом;
-- life, collision damage, shield и respawn после уничтожения;
-- pickup денег, medpack, ammunition, mine, shield и speed boost;
-- базовый направленный gun, ammunition/cooldown, AI fire и временные
-  weapon/damage effects;
-- отключение подобранных bonuses и разрушенных `gotDestrObj`.
+Перенесены:
 
-AI и combat здесь являются первым переносимым runtime-слоем над исходными
-данными. Полный legacy `AIPlayer`, весь workshop weapon/projectile catalog,
-физические мины, индивидуальные upgrade/weapon slots и оригинальный effect
-graph ещё не перенесены.
+- projectile models и их primary/secondary/tertiary visuals;
+- oil, MineRip и остальные mine descriptors, включая grow/owner-lock;
+- hyper/acceleration, spring velocity, droid repair и reflector;
+- shield, medpack, ammunition, money и speed bonuses;
+- AI fire, damage, kills/deaths и source-derived loadouts.
 
-## Renderer, HUD, камера и погода
+`enableMineBug` из оригинальной конфигурации сохраняет legacy owner-lock для
+соответствующих типов мин. `springBorders` в исходнике только передаётся
+внутрь старого PhysX wrapper; отдельная выдуманная механика для него не
+добавлялась.
 
-`OriginalRaceRenderer` через bgfx/Metal рисует все track/decor/bonus/car/wheel
-visual nodes с исходными `.r3d`, material groups и DDS. Сцена получила
-направленное освещение от map sun, ambient, fog, sky texture, alpha-test,
-исчезновение разрушенных объектов и анимацию доступных bonuses.
+## Камера, HUD и mini-map
 
-Камера использует исходные константы третьего лица из `CameraManager`:
-`cCamTargetOff = (-4.6, 0, 2.4)`, дополнительное смещение назад, speed
-pull-back, FOV 75°, near 1 и far 120. HUD использует штатные
-`placeMineHyper.png`, `lifeBarBack.png`, `lifeBar.png`, `lap.png` и выводит
-place, lap, speed, RPM, ammunition, mines, money, countdown, wrong-way,
-pause и finish.
+Камера перенесена по исходным режимам и константам `CameraManager`:
+`pcThirdPerson` (названный `Rear view` в UI) и `pcIsometric`, target offset,
+speed pull-back, FOV, near/far planes и переключение действий ввода.
 
-Опции `fair`, `night`, `cloudy` и `rainy` переносят исходные environment
-colors/fog; rainy добавляет локальные rain streaks. Полный legacy particle
-manager, shadows/reflections, Sahara/Hell/Snow и все специальные world effects
-пока отсутствуют.
+HUD использует оригинальные GUI textures, bitmap font и layout-данные. Он
+отображает:
 
-## Audio и управление
+- place, lap, speed, RPM, life, ammunition, money и четыре weapon slots;
+- mines/hyper/support state, countdown, wrong-way, pause и finish;
+- checkpoint/bonus/damage/kill/achievement notifications;
+- mini-map по полной trace карты с позициями игрока и соперников.
 
-SDL actions подключают keyboard/mouse/gamepad:
+Координаты mini-map и динамических индикаторов вычисляются из исходной trace,
+а не из придуманной овальной схемы.
 
-- `W/S/A/D` или triggers/stick — accelerate, brake и steering;
-- Space/left mouse/right shoulder — базовое оружие;
-- `R`/gamepad North — reset;
-- `P`, Escape или gamepad Start — pause/return;
-- Tab, mouse wheel и gamepad West уже дают portable `ChangeWeapon`, но полный
-  legacy selector пока не подключён к workshop slots.
+## Materials, окружение и effect graph
 
-Для каждой из шести машин загружаются её `sndIdle` и `sndRPM` из `db.xml`.
-Jolt engine RPM управляет cross-fade и pitch. У соперников есть distance
-attenuation и stereo pan относительно ориентации машины игрока. Это рабочий
-portable spatial baseline, а не полная X3DAudio emitter/listener parity с
-legacy cones, doppler и obstruction.
+Renderer загружает все track/decor/bonus/car/wheel visual nodes, исходные
+material groups и texture atlases. Перенесены ambient/sun/fog, alpha test с
+исходным reference, blend/cull/depth flags, specular/shininess, emissive,
+`ignoreFog`, UV atlas animation и map/world material mapping.
 
-## Проверка
+Environment loader охватывает World1–World5, Crush/Bonus exceptions, sky,
+weather, grass, water, ground fog, magma, rain и исходные высоты/скорости
+прокрутки. Разрушаемые decorations исчезают и создают исходные эффекты.
+
+Generic parser переносит source `ntSprite`, `ntPlane`, nested `includeList`
+и particle emitters: limits, lifetime/start ranges, density, position/scale
+ranges, velocity, acceleration/gravity, world coordinate flag, material и
+time/distance triggers. Эти данные используются для weapon impacts, trails,
+frost/laser endpoints, mines, hyper и environment effects. Portable emitter
+детерминированно ограничивает число одновременно рисуемых частиц; точный
+D3D9 sorting/billboarding и внутренний scheduler legacy particle manager
+не воспроизводятся побитово.
+
+Metal backend пока не имеет отдельных legacy HDR, planar-reflection и
+shadow-map passes. Их source-параметры и флаги загружаются, но текущие
+отражения/тени являются portable renderer approximations, а не заявленной
+графической parity.
+
+## Звук и управление
+
+SDL action layer поддерживает keyboard, mouse и gamepad: непрерывные throttle,
+brake/steering, reset, pause, переключение camera modes, выбор каждого weapon
+slot, next slot, fire, mine и hyper. Droid/reflector активируются через
+штатное действие выбранного workshop slot.
+
+MusicCat сохраняет shuffle, текущий track/cursor и pause, воспроизводит все
+три оригинальных menu-трека и декодирует/preload их фоновым worker.
+
+В гонке engine idle/RPM loops следуют физическим оборотам всех машин.
+Перенесены исходные weapon, impact, damage, collision, bonus, lap, finish и
+commentator Ogg. Для движущихся источников применяются distance attenuation,
+stereo pan и pitch/doppler approximation. Legacy X3DAudio cones, obstruction
+и его точная DSP-матрица не входят в portable backend.
+
+## Финальная проверка
+
+После завершения всего переноса M9.1 выполнен один финальный цикл:
 
 ```bash
 cmake --preset macos-arm64-m9
@@ -128,32 +148,36 @@ build/macos-arm64-m9/Debug/RRR3d --physics-smoke-test
 SDL_AUDIODRIVER=dummy \
   build/macos-arm64-m9/Debug/RRR3d --audio-smoke-test
 build/macos-arm64-m9/Debug/RRR3d --race-render-smoke-test
-
-build/macos-arm64-m9/Debug/RRR3d \
-  --track=1 --car=dirtdevil --weather=rainy \
-  --race-render-smoke-test
+build/macos-arm64-m9/Debug/RRR3d --verify-resources
 ```
 
-Полный catalog audit проверяет `--verify-resources --track=N` для
-`N=0..87`; отдельный audit выбирает все 17 garage records. Physics/session
-smoke проверяет acceleration, brake, steering, suspension contact, countdown,
-checkpoint/lap/finish, weapon/damage, bonus и respawn. Metal smoke проходит
-240 кадров, требует реального menu dispatch, движения и wheel contacts.
+Configure и arm64 Debug build завершились успешно. Physics/session smoke
+проверил 1175 исходных collision triangles, Jolt acceleration/braking/
+steering/suspension, workshop mobility, countdown, checkpoints/laps/finish,
+weapon/damage, bonus и respawn. Audio/MusicCat smoke проверил 182 Ogg,
+background decode, все три menu tracks, race sounds и lifecycle mixer.
 
-## Что ещё нельзя назвать parity
+Resource sweep разрешил все 88 tournament tracks и все 17 garage cars.
+Оконный smoke прошёл реальный `MainMenu2 -> Single Player`, 240 кадров
+bgfx/Metal race, движение Marauder и контакты всех четырёх колёс.
 
-Автоматические проверки подтверждают происхождение ресурсов и целостность
-runtime, но не заменяют визуальный A/B. Попытка запустить Windows reference и
-macOS build через локальный GUI была остановлена заблокированным macOS
-сеансом. После разблокировки нужно записать одинаковый старт и контрольный
-заезд в Windows/PhysX и macOS/Jolt, затем сравнить:
+По прямому требованию для M9.1 Windows/Parallels A/B не выполнялся. Весь
+финальный цикл запущен только после завершения кода и документации.
 
-- framing/FOV и положение всех машин на стартовой решётке;
-- acceleration, braking distance, steering radius и suspension response;
-- collision, ramp/jump/fall и reset;
-- lap/checkpoint timing, AI lines и combat outcomes;
-- light/fog/alpha materials, particles, shadows и audio falloff.
+## Честная граница M9.1
 
-До этой ручной проверки и переноса полного legacy AI/weapon/effect stack
-Milestone 9 является расширенным playable race slice, а не полной копией
-Windows race mode.
+Перенесены данные и независимая от Windows логика, найденные в исходной
+гонке, профиле, workshop, HUD, camera, material/effect и audio слоях. В
+portable target не включаются Windows-only D3D9/PhysX/XAudio2/X3DAudio,
+Steam, network и video runtime.
+
+Оставшиеся различия относятся не к подмене ресурсов или выдуманной игровой
+механике, а к backend-эквивалентности:
+
+- Jolt не даёт численно идентичный PhysX 2.8 solver/tire model;
+- bgfx/Metal ещё требует отдельных HDR/reflection/shadow-map render passes;
+- portable particle renderer использует исходные параметры, но не точный
+  legacy D3D9 particle scheduler/sorting;
+- SDL audio не воспроизводит точную X3DAudio DSP-матрицу.
+
+Эти ограничения не скрываются и не замещаются процедурными аналогами.
