@@ -6,14 +6,20 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 namespace r3d::renderer
 {
 namespace
 {
 
-constexpr bgfx::ViewId scene_view = 0;
-constexpr bgfx::ViewId overlay_view = 1;
+constexpr bgfx::ViewId viewId(RenderPass pass) noexcept
+{
+    return static_cast<bgfx::ViewId>(pass);
+}
+
+constexpr bgfx::ViewId scene_view = viewId(RenderPass::Scene);
+constexpr bgfx::ViewId overlay_view = viewId(RenderPass::Overlay);
 
 bool valid(VertexBuffer handle) noexcept
 {
@@ -42,8 +48,18 @@ public:
     {
         if (initialized_)
         {
+            for (const auto& [handle, info] : render_targets_)
+            {
+                static_cast<void>(info);
+                bgfx::destroy(bgfx::FrameBufferHandle{handle});
+            }
+            render_targets_.clear();
             if (bgfx::isValid(texture_sampler_))
                 bgfx::destroy(texture_sampler_);
+            if (bgfx::isValid(reflection_sampler_))
+                bgfx::destroy(reflection_sampler_);
+            if (bgfx::isValid(shadow_sampler_))
+                bgfx::destroy(shadow_sampler_);
             if (bgfx::isValid(scene_light_direction_))
                 bgfx::destroy(scene_light_direction_);
             if (bgfx::isValid(scene_ambient_))
@@ -60,6 +76,14 @@ public:
                 bgfx::destroy(material_options_);
             if (bgfx::isValid(texture_transform_))
                 bgfx::destroy(texture_transform_);
+            if (bgfx::isValid(clip_plane_))
+                bgfx::destroy(clip_plane_);
+            if (bgfx::isValid(reflection_view_projection_))
+                bgfx::destroy(reflection_view_projection_);
+            if (bgfx::isValid(shadow_view_projection_))
+                bgfx::destroy(shadow_view_projection_);
+            if (bgfx::isValid(post_parameters_))
+                bgfx::destroy(post_parameters_);
             bgfx::shutdown();
         }
     }
@@ -121,6 +145,10 @@ public:
 
         texture_sampler_ = bgfx::createUniform(
             "s_texColor", bgfx::UniformType::Sampler);
+        reflection_sampler_ = bgfx::createUniform(
+            "s_texReflection", bgfx::UniformType::Sampler);
+        shadow_sampler_ = bgfx::createUniform(
+            "s_texShadow", bgfx::UniformType::Sampler);
         scene_light_direction_ = bgfx::createUniform(
             "u_sceneLightDirection", bgfx::UniformType::Vec4);
         scene_ambient_ = bgfx::createUniform(
@@ -137,7 +165,17 @@ public:
             "u_materialOptions", bgfx::UniformType::Vec4);
         texture_transform_ = bgfx::createUniform(
             "u_textureTransform", bgfx::UniformType::Vec4);
+        clip_plane_ = bgfx::createUniform(
+            "u_clipPlane", bgfx::UniformType::Vec4);
+        reflection_view_projection_ = bgfx::createUniform(
+            "u_reflectionViewProj", bgfx::UniformType::Mat4);
+        shadow_view_projection_ = bgfx::createUniform(
+            "u_shadowViewProj", bgfx::UniformType::Mat4);
+        post_parameters_ = bgfx::createUniform(
+            "u_postParams", bgfx::UniformType::Vec4);
         if (!bgfx::isValid(texture_sampler_) ||
+            !bgfx::isValid(reflection_sampler_) ||
+            !bgfx::isValid(shadow_sampler_) ||
             !bgfx::isValid(scene_light_direction_) ||
             !bgfx::isValid(scene_ambient_) ||
             !bgfx::isValid(scene_fog_) ||
@@ -145,7 +183,11 @@ public:
             !bgfx::isValid(material_color_) ||
             !bgfx::isValid(material_parameters_) ||
             !bgfx::isValid(material_options_) ||
-            !bgfx::isValid(texture_transform_))
+            !bgfx::isValid(texture_transform_) ||
+            !bgfx::isValid(clip_plane_) ||
+            !bgfx::isValid(reflection_view_projection_) ||
+            !bgfx::isValid(shadow_view_projection_) ||
+            !bgfx::isValid(post_parameters_))
         {
             error = "bgfx could not create the scene texture sampler";
             bgfx::shutdown();
@@ -153,7 +195,19 @@ public:
             return false;
         }
 
-        bgfx::setViewName(scene_view, "Motor Rock .r3d static scene");
+        bgfx::setViewName(viewId(RenderPass::Reflection),
+                          "Motor Rock planar reflection");
+        bgfx::setViewName(viewId(RenderPass::Shadow),
+                          "Motor Rock shadow map");
+        bgfx::setViewName(scene_view, "Motor Rock HDR scene");
+        bgfx::setViewName(viewId(RenderPass::BloomExtract),
+                          "Motor Rock bloom extract");
+        bgfx::setViewName(viewId(RenderPass::BloomHorizontal),
+                          "Motor Rock bloom horizontal");
+        bgfx::setViewName(viewId(RenderPass::BloomVertical),
+                          "Motor Rock bloom vertical");
+        bgfx::setViewName(viewId(RenderPass::Composite),
+                          "Motor Rock tone map");
         bgfx::setViewName(overlay_view, "Motor Rock HUD");
         return true;
     }
@@ -282,6 +336,69 @@ public:
         return {texture.idx};
     }
 
+    RenderTarget createRenderTarget(
+        std::uint16_t width, std::uint16_t height,
+        RenderTargetFormat format, bool depth,
+        std::string_view name) override
+    {
+        if (width == 0 || height == 0)
+            return {};
+        bgfx::TextureFormat::Enum colorFormat =
+            bgfx::TextureFormat::RGBA8;
+        if (format == RenderTargetFormat::Rgba16F)
+            colorFormat = bgfx::TextureFormat::RGBA16F;
+        else if (format == RenderTargetFormat::R32F)
+            colorFormat = bgfx::TextureFormat::R32F;
+        const std::uint64_t flags =
+            BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP |
+            BGFX_SAMPLER_V_CLAMP;
+        std::array<bgfx::TextureHandle, 2> attachments{
+            bgfx::createTexture2D(width, height, false, 1,
+                                  colorFormat, flags),
+            BGFX_INVALID_HANDLE};
+        std::uint8_t count = 1;
+        if (depth)
+        {
+            attachments[1] = bgfx::createTexture2D(
+                width, height, false, 1, bgfx::TextureFormat::D32F,
+                BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP |
+                    BGFX_SAMPLER_V_CLAMP |
+                    BGFX_SAMPLER_COMPARE_LEQUAL);
+            count = 2;
+        }
+        if (!bgfx::isValid(attachments[0]) ||
+            (depth && !bgfx::isValid(attachments[1])))
+        {
+            for (const auto attachment : attachments)
+                if (bgfx::isValid(attachment))
+                    bgfx::destroy(attachment);
+            return {};
+        }
+        const auto framebuffer =
+            bgfx::createFrameBuffer(count, attachments.data(), true);
+        if (!bgfx::isValid(framebuffer))
+        {
+            for (std::uint8_t index = 0; index < count; ++index)
+                bgfx::destroy(attachments[index]);
+            return {};
+        }
+        const std::string ownedName(name);
+        bgfx::setName(framebuffer, ownedName.c_str());
+        render_targets_.emplace(
+            framebuffer.idx, TargetInfo{width, height});
+        return {framebuffer.idx};
+    }
+
+    Texture renderTargetTexture(RenderTarget target) const override
+    {
+        if (target.value == invalid_resource ||
+            !render_targets_.contains(target.value))
+            return {};
+        const auto texture = bgfx::getTexture(
+            bgfx::FrameBufferHandle{target.value}, 0);
+        return bgfx::isValid(texture) ? Texture{texture.idx} : Texture{};
+    }
+
     void destroy(Shader shader) override
     {
         if (valid(shader))
@@ -302,39 +419,71 @@ public:
             bgfx::destroy(bgfx::TextureHandle{texture.value});
     }
 
+    void destroy(RenderTarget target) override
+    {
+        const auto found = render_targets_.find(target.value);
+        if (found == render_targets_.end())
+            return;
+        bgfx::destroy(bgfx::FrameBufferHandle{target.value});
+        render_targets_.erase(found);
+    }
+
     void beginFrame(const Camera& camera, std::uint32_t clearRgba) override
     {
-        current_view_ = scene_view;
-        bgfx::setViewRect(scene_view, 0, 0,
-                          static_cast<std::uint16_t>(
-                              std::min(width_, std::uint32_t(UINT16_MAX))),
-                          static_cast<std::uint16_t>(
-                              std::min(height_, std::uint32_t(UINT16_MAX))));
-        bgfx::setViewClear(scene_view, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
-                           clearRgba, 1.0F, 0);
-        bgfx::setViewTransform(scene_view, camera.view.data(),
+        setPassState({});
+        beginPass(RenderPass::Scene, {}, camera, clearRgba, true, true);
+    }
+
+    void beginPass(RenderPass pass, RenderTarget target,
+                   const Camera& camera, std::uint32_t clearRgba,
+                   bool clearColor, bool clearDepth) override
+    {
+        current_view_ = viewId(pass);
+        std::uint16_t viewWidth = static_cast<std::uint16_t>(
+            std::min(width_, std::uint32_t(UINT16_MAX)));
+        std::uint16_t viewHeight = static_cast<std::uint16_t>(
+            std::min(height_, std::uint32_t(UINT16_MAX)));
+        const auto found = render_targets_.find(target.value);
+        if (found != render_targets_.end())
+        {
+            viewWidth = found->second.width;
+            viewHeight = found->second.height;
+            bgfx::setViewFrameBuffer(
+                current_view_,
+                bgfx::FrameBufferHandle{target.value});
+        }
+        else
+        {
+            bgfx::setViewFrameBuffer(
+                current_view_, BGFX_INVALID_HANDLE);
+        }
+        bgfx::setViewRect(current_view_, 0, 0, viewWidth, viewHeight);
+        std::uint16_t clearFlags = BGFX_CLEAR_NONE;
+        if (clearColor)
+            clearFlags |= BGFX_CLEAR_COLOR;
+        if (clearDepth)
+            clearFlags |= BGFX_CLEAR_DEPTH;
+        bgfx::setViewClear(current_view_, clearFlags, clearRgba, 1.0F, 0);
+        bgfx::setViewTransform(current_view_, camera.view.data(),
                                camera.projection.data());
-        bgfx::touch(scene_view);
+        bgfx::setViewMode(current_view_, bgfx::ViewMode::Sequential);
+        bgfx::touch(current_view_);
     }
 
     void beginOverlay(const Camera& camera) override
     {
-        current_view_ = overlay_view;
-        bgfx::setViewRect(
-            overlay_view, 0, 0,
-            static_cast<std::uint16_t>(
-                std::min(width_, std::uint32_t(UINT16_MAX))),
-            static_cast<std::uint16_t>(
-                std::min(height_, std::uint32_t(UINT16_MAX))));
-        bgfx::setViewClear(overlay_view, BGFX_CLEAR_NONE);
-        bgfx::setViewTransform(overlay_view, camera.view.data(),
-                               camera.projection.data());
-        bgfx::touch(overlay_view);
+        setPassState({});
+        beginPass(RenderPass::Overlay, {}, camera, 0, false, false);
     }
 
     void setSceneLighting(const SceneLighting& lighting) override
     {
         scene_lighting_ = lighting;
+    }
+
+    void setPassState(const RenderPassState& state) override
+    {
+        pass_state_ = state;
     }
 
     void draw(Mesh mesh, Shader shader, Texture texture,
@@ -353,9 +502,18 @@ public:
             state |= BGFX_STATE_WRITE_Z;
         if (pipeline.depthTest)
             state |= BGFX_STATE_DEPTH_TEST_LESS;
-        if (pipeline.faceCulling == PipelineState::FaceCulling::Clockwise)
+        auto culling = pipeline.faceCulling;
+        if (pass_state_.invertCulling)
+        {
+            if (culling == PipelineState::FaceCulling::Clockwise)
+                culling = PipelineState::FaceCulling::CounterClockwise;
+            else if (culling ==
+                     PipelineState::FaceCulling::CounterClockwise)
+                culling = PipelineState::FaceCulling::Clockwise;
+        }
+        if (culling == PipelineState::FaceCulling::Clockwise)
             state |= BGFX_STATE_CULL_CW;
-        else if (pipeline.faceCulling ==
+        else if (culling ==
                  PipelineState::FaceCulling::CounterClockwise)
             state |= BGFX_STATE_CULL_CCW;
         if (pipeline.blendMode == PipelineState::BlendMode::Additive)
@@ -381,6 +539,20 @@ public:
         }
         bgfx::setTexture(0, texture_sampler_,
                          bgfx::TextureHandle{texture.value});
+        const auto reflectionTexture =
+            valid(pass_state_.reflectionTexture)
+                ? pass_state_.reflectionTexture
+                : texture;
+        const auto shadowTexture =
+            valid(pass_state_.shadowTexture)
+                ? pass_state_.shadowTexture
+                : texture;
+        bgfx::setTexture(
+            1, reflection_sampler_,
+            bgfx::TextureHandle{reflectionTexture.value});
+        bgfx::setTexture(
+            2, shadow_sampler_,
+            bgfx::TextureHandle{shadowTexture.value});
         bgfx::setUniform(scene_light_direction_,
                          scene_lighting_.lightDirection.data());
         bgfx::setUniform(scene_ambient_, scene_lighting_.ambient.data());
@@ -391,13 +563,26 @@ public:
             material.alphaReference, material.emissive,
             material.specular, material.shininess};
         const std::array<float, 4> materialOptions{
-            material.ignoreFog ? 1.0F : 0.0F, 0.0F, 0.0F, 0.0F};
+            material.ignoreFog ? 1.0F : 0.0F,
+            material.reflectionStrength,
+            pass_state_.shadowsEnabled && material.receivesShadow
+                ? pass_state_.shadowStrength
+                : 0.0F,
+            pass_state_.clipPlaneEnabled ? 1.0F : 0.0F};
         bgfx::setUniform(material_color_, material.color.data());
         bgfx::setUniform(material_parameters_,
                          materialParameters.data());
         bgfx::setUniform(material_options_, materialOptions.data());
         bgfx::setUniform(texture_transform_,
                          material.textureTransform.data());
+        bgfx::setUniform(clip_plane_,
+                         pass_state_.clipPlane.data());
+        bgfx::setUniform(reflection_view_projection_,
+                         pass_state_.reflectionViewProjection.data());
+        bgfx::setUniform(shadow_view_projection_,
+                         pass_state_.shadowViewProjection.data());
+        bgfx::setUniform(post_parameters_,
+                         material.postParameters.data());
         bgfx::setState(state);
         bgfx::submit(current_view_, bgfx::ProgramHandle{shader.value});
     }
@@ -419,12 +604,20 @@ public:
     }
 
 private:
+    struct TargetInfo
+    {
+        std::uint16_t width = 0;
+        std::uint16_t height = 0;
+    };
+
     bool initialized_ = false;
     std::uint32_t width_ = 0;
     std::uint32_t height_ = 0;
     std::uint32_t reset_flags_ = BGFX_RESET_NONE;
     bgfx::ViewId current_view_ = scene_view;
     SceneLighting scene_lighting_;
+    RenderPassState pass_state_;
+    std::unordered_map<std::uint16_t, TargetInfo> render_targets_;
     bgfx::UniformHandle scene_light_direction_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_ambient_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_fog_ = BGFX_INVALID_HANDLE;
@@ -433,9 +626,17 @@ private:
     bgfx::UniformHandle material_parameters_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle material_options_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle texture_transform_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle clip_plane_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle reflection_view_projection_ =
+        BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle shadow_view_projection_ =
+        BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle post_parameters_ = BGFX_INVALID_HANDLE;
     bgfx::VertexLayout color_vertex_layout_;
     bgfx::VertexLayout static_vertex_layout_;
     bgfx::UniformHandle texture_sampler_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle reflection_sampler_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle shadow_sampler_ = BGFX_INVALID_HANDLE;
 };
 
 } // namespace

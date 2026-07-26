@@ -31,6 +31,8 @@ public:
         std::vector<Asset> nodes;
         std::vector<std::vector<r3d::renderer::Texture>>
             particleTextures;
+        bool planarReflection = false;
+        bool castsShadow = false;
     };
 
     struct ProjectileAsset
@@ -43,7 +45,11 @@ public:
     bool initialize(r3d::renderer::GraphicsDevice& device,
                     const r3d::resource::ResourceFileSystem& resources,
                     const r3d::game::originalrace::Race& race,
+                    std::uint32_t width, std::uint32_t height,
                     std::string& error);
+    bool resize(r3d::renderer::GraphicsDevice& device,
+                std::uint32_t width, std::uint32_t height,
+                std::string& error);
     void shutdown(r3d::renderer::GraphicsDevice& device) noexcept;
 
     r3d::renderer::Camera makeCamera(
@@ -68,9 +74,41 @@ public:
                   r3d::game::originalrace::MineRuntime>& mines,
               const std::vector<
                   r3d::game::originalrace::ProjectileRuntime>& projectiles,
-              float elapsedSeconds) const;
+              float elapsedSeconds,
+              bool reflectionPass = false) const;
+    void renderFrame(
+        r3d::renderer::GraphicsDevice& device,
+        r3d::renderer::Shader sceneShader,
+        const r3d::renderer::Camera& camera,
+        std::uint32_t clearRgba,
+        const r3d::game::originalrace::Race& race,
+        const std::vector<r3d::physics::VehicleState>& vehicles,
+        const r3d::renderer::PipelineState& pipeline,
+        const std::vector<bool>& decorationActive,
+        const std::vector<bool>& bonusActive,
+        const std::vector<
+            r3d::game::originalrace::RacerRuntime>& racerRuntime,
+        const std::vector<
+            r3d::game::originalrace::RaceEffect>& effects,
+        const std::vector<
+            r3d::game::originalrace::MineRuntime>& mines,
+        const std::vector<
+            r3d::game::originalrace::ProjectileRuntime>& projectiles,
+        float elapsedSeconds) const;
 
 private:
+    bool createFrameTargets(r3d::renderer::GraphicsDevice& device,
+                            std::uint32_t width, std::uint32_t height,
+                            std::string& error);
+    void destroyFrameTargets(
+        r3d::renderer::GraphicsDevice& device) noexcept;
+    void drawShadowCasters(
+        r3d::renderer::GraphicsDevice& device,
+        const r3d::game::originalrace::Race& race,
+        const std::vector<r3d::physics::VehicleState>& vehicles,
+        const r3d::renderer::PipelineState& pipeline,
+        const std::vector<bool>& decorationActive,
+        float elapsedSeconds) const;
     std::vector<ObjectAsset> tracks_;
     std::vector<ObjectAsset> decorations_;
     std::vector<ObjectAsset> bonuses_;
@@ -78,18 +116,28 @@ private:
     std::vector<std::vector<ObjectAsset>> vehicleWheels_;
     std::vector<ObjectAsset> weapons_;
     std::vector<std::vector<ProjectileAsset>> projectiles_;
+    ObjectAsset rainEffect_;
     r3d::renderer::Texture skyTexture_;
     r3d::renderer::Mesh skyMesh_;
-    r3d::renderer::Texture rainTexture_;
-    r3d::renderer::Mesh rainMesh_;
     std::vector<r3d::renderer::Texture> weaponEffectTextures_;
     r3d::renderer::Texture destructionEffectTexture_;
     r3d::renderer::Texture engineSmokeTexture_;
     r3d::renderer::Texture shieldEffectTexture_;
-    r3d::renderer::Texture shadowTexture_;
     r3d::renderer::Texture vehicleLightTexture_;
     r3d::renderer::Texture environmentSurfaceTexture_;
     r3d::renderer::Mesh effectMesh_;
+    r3d::renderer::Mesh postProcessMesh_;
+    r3d::renderer::Shader shadowShader_;
+    r3d::renderer::Shader bloomExtractShader_;
+    r3d::renderer::Shader bloomBlurShader_;
+    r3d::renderer::Shader toneMapShader_;
+    r3d::renderer::RenderTarget hdrTarget_;
+    r3d::renderer::RenderTarget reflectionTarget_;
+    r3d::renderer::RenderTarget shadowTarget_;
+    r3d::renderer::RenderTarget bloomTargetA_;
+    r3d::renderer::RenderTarget bloomTargetB_;
+    std::uint32_t frameWidth_ = 0;
+    std::uint32_t frameHeight_ = 0;
     r3d::physics::Vec3 environmentSurfaceCenter_;
     r3d::physics::Vec3 environmentSurfaceSize_;
     r3d::physics::Vec3 cameraLead_;

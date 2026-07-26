@@ -90,6 +90,7 @@ struct ParticleEmitterDefinition
     bool worldCoordinates = true;
     bool autoRotate = false;
     bool distanceTriggered = false;
+    bool fixedDirection = false;
 };
 
 struct ObjectDefinition
@@ -103,6 +104,8 @@ struct ObjectDefinition
     std::vector<CollisionShape> collisionShapes;
     float maximumLife = -1.0F;
     bool destructible = false;
+    bool planarReflection = false;
+    bool castsShadow = false;
 };
 
 struct ObjectInstance
@@ -331,6 +334,7 @@ struct Race
     std::array<std::uint32_t, 3> rewardPoints{};
     std::vector<std::uint32_t> requiredPoints;
     EnvironmentDescription environment;
+    ObjectDefinition rainEffect;
     Vehicle vehicle;
 };
 

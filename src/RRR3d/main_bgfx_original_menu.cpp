@@ -846,6 +846,8 @@ int main(int argc, char** argv)
     rrr3d::race::OriginalRaceHud raceHud;
     if (!physicsWorld ||
         !raceRenderer.initialize(*device, *resources, *originalRace,
+                                 static_cast<std::uint32_t>(pixelWidth),
+                                 static_cast<std::uint32_t>(pixelHeight),
                                  physicsError) ||
         !raceHud.initialize(*device, *resources, *originalRace,
                             activeLanguage,
@@ -1573,6 +1575,20 @@ int main(int argc, char** argv)
                 pixelHeight = std::max(event.window.data2, 1);
                 device->resize(static_cast<std::uint32_t>(pixelWidth),
                                static_cast<std::uint32_t>(pixelHeight));
+#ifdef RRR3D_PHYSICS
+                std::string resizeError;
+                if (!raceRenderer.resize(
+                        *device,
+                        static_cast<std::uint32_t>(pixelWidth),
+                        static_cast<std::uint32_t>(pixelHeight),
+                        resizeError))
+                {
+                    std::cerr
+                        << "Unable to resize M9.2 render targets: "
+                        << resizeError << '\n';
+                    running = false;
+                }
+#endif
             }
         }
 
@@ -2070,16 +2086,13 @@ int main(int argc, char** argv)
                 static_cast<std::uint32_t>(pixelHeight),
                 profileState.config.preferredCamera,
                 profileState.config.cameraDistance, frameSeconds);
-            device->beginFrame(raceCamera, 0x6b91b8ffU);
-            raceRenderer.draw(*device, raceShader, *originalRace,
-                              raceVehicles, racePipeline,
-                              raceSession.decorationActive(),
-                              raceSession.bonusActive(),
-                              raceSession.racers(),
-                              raceSession.effects(),
-                              raceSession.mines(),
-                              raceSession.projectiles(),
-                              raceElapsedSeconds);
+            raceRenderer.renderFrame(
+                *device, raceShader, raceCamera, 0x6b91b8ffU,
+                *originalRace, raceVehicles, racePipeline,
+                raceSession.decorationActive(),
+                raceSession.bonusActive(), raceSession.racers(),
+                raceSession.effects(), raceSession.mines(),
+                raceSession.projectiles(), raceElapsedSeconds);
             raceHud.update(*device, *originalRace, raceSession,
                            raceVehicles, raceCamera, frameSeconds);
             device->beginOverlay(camera);

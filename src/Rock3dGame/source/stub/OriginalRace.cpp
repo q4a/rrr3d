@@ -987,6 +987,14 @@ void appendParticleEmitters(
             continue;
         const Transform nodeTransform =
             compose(parentTransform, elementTransform(node, source));
+        bool fixedDirection = false;
+        if (auto* manager = child(node, "fxManager");
+            manager != nullptr && manager->GetText() != nullptr)
+        {
+            fixedDirection =
+                std::string_view(manager->GetText()).find(
+                    "fxDirSpriteManager") != std::string_view::npos;
+        }
         std::vector<MaterialDefinition> materials;
         if (auto* sourceMaterials = child(node, "materials"))
         {
@@ -1017,6 +1025,7 @@ void appendParticleEmitters(
             ParticleEmitterDefinition emitter;
             emitter.transform = nodeTransform;
             emitter.materials = materials;
+            emitter.fixedDirection = fixedDirection;
             emitter.maximumParticles = static_cast<std::uint32_t>(
                 std::max(optionalParticleScalar(
                              part, "maxNum", 0.0F, source),
@@ -1162,6 +1171,19 @@ ObjectDefinition objectDefinition(
     ObjectDefinition result;
     result.record = record;
     auto* dbRecord = databaseRecord(database, record);
+    if (auto* lighting = child(dbRecord, "grActor/graphLighting");
+        lighting != nullptr && lighting->GetText() != nullptr)
+    {
+        result.planarReflection =
+            std::string_view(lighting->GetText()) == "glPlanarRefl";
+    }
+    if (auto* properties = child(dbRecord, "grActor/graphProps");
+        properties != nullptr && properties->GetText() != nullptr)
+    {
+        result.castsShadow =
+            std::string_view(properties->GetText()).find("gpShadowCast") !=
+            std::string_view::npos;
+    }
     result.visualNodes = visualNodes(resources, dbRecord, source);
     appendParticleEmitters(
         resources, dbRecord, Transform{}, result, source);
@@ -2205,6 +2227,9 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
     race.environment.sunRotation =
         quaternion(map, "sunRot", race.levelPath);
     applyOriginalEnvironment(resources, race);
+    race.rainEffect = objectDefinition(
+        resources, database, "world\\db\\root\\ctEffects\\rain",
+        "db.xml/original rain");
 
     auto* planets = require(tournament, "planets", "tournamet.xml");
     std::uint32_t planetIndex = 0;

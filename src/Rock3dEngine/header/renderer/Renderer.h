@@ -91,6 +91,27 @@ struct RenderTarget
     std::uint16_t value = invalid_resource;
 };
 
+enum class RenderTargetFormat : std::uint8_t
+{
+    Rgba8,
+    Rgba16F,
+    R32F,
+};
+
+// Fixed ordering mirrors the original GraphManager pipeline while keeping
+// D3D9/bgfx types out of game code.
+enum class RenderPass : std::uint8_t
+{
+    Reflection,
+    Shadow,
+    Scene,
+    BloomExtract,
+    BloomHorizontal,
+    BloomVertical,
+    Composite,
+    Overlay,
+};
+
 struct DepthBuffer
 {
     std::uint16_t value = invalid_resource;
@@ -154,6 +175,10 @@ struct MaterialState
     float specular = 0.0F;
     float shininess = 128.0F;
     bool ignoreFog = false;
+    float reflectionStrength = 0.0F;
+    bool receivesShadow = true;
+    // Generic parameters used by the source-derived post-process shaders.
+    std::array<float, 4> postParameters{};
 };
 
 struct Camera
@@ -168,6 +193,27 @@ struct SceneLighting
     std::array<float, 4> ambient{0.22F, 0.22F, 0.22F, 1.0F};
     std::array<float, 4> fogColor{0.58F, 0.76F, 0.92F, 0.5F};
     std::array<float, 4> cameraPosition{0.0F, 0.0F, 0.0F, 1.0F};
+};
+
+struct RenderPassState
+{
+    Texture reflectionTexture;
+    Texture shadowTexture;
+    std::array<float, 16> reflectionViewProjection{
+        1.0F, 0.0F, 0.0F, 0.0F,
+        0.0F, 1.0F, 0.0F, 0.0F,
+        0.0F, 0.0F, 1.0F, 0.0F,
+        0.0F, 0.0F, 0.0F, 1.0F};
+    std::array<float, 16> shadowViewProjection{
+        1.0F, 0.0F, 0.0F, 0.0F,
+        0.0F, 1.0F, 0.0F, 0.0F,
+        0.0F, 0.0F, 1.0F, 0.0F,
+        0.0F, 0.0F, 0.0F, 1.0F};
+    std::array<float, 4> clipPlane{0.0F, 0.0F, 1.0F, 0.0F};
+    bool clipPlaneEnabled = false;
+    bool shadowsEnabled = false;
+    bool invertCulling = false;
+    float shadowStrength = 0.62F;
 };
 
 struct Transform
@@ -227,14 +273,24 @@ public:
     virtual Texture createTextureContainer(const std::uint8_t* data,
                                            std::size_t byteCount,
                                            std::string_view name) = 0;
+    virtual RenderTarget createRenderTarget(
+        std::uint16_t width, std::uint16_t height,
+        RenderTargetFormat format, bool depth,
+        std::string_view name) = 0;
+    virtual Texture renderTargetTexture(RenderTarget target) const = 0;
 
     virtual void destroy(Shader shader) = 0;
     virtual void destroy(Mesh mesh) = 0;
     virtual void destroy(Texture texture) = 0;
+    virtual void destroy(RenderTarget target) = 0;
 
     virtual void beginFrame(const Camera& camera, std::uint32_t clearRgba) = 0;
+    virtual void beginPass(RenderPass pass, RenderTarget target,
+                           const Camera& camera, std::uint32_t clearRgba,
+                           bool clearColor, bool clearDepth) = 0;
     // Selects a second, non-clearing view for HUD/UI draws in the same frame.
     virtual void beginOverlay(const Camera& camera) = 0;
+    virtual void setPassState(const RenderPassState& state) = 0;
     virtual void setSceneLighting(const SceneLighting& lighting) = 0;
     virtual void draw(Mesh mesh, Shader shader, Texture texture,
                       const Transform& transform,

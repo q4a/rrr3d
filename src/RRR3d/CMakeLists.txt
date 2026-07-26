@@ -112,6 +112,71 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                 "${_rrr3d_shader_source_dir}/fs_legacy_mesh.sc"
                 "${_rrr3d_shader_source_dir}/varying_legacy_mesh.def.sc"
             VERBATIM)
+
+        function(_rrr3d_compile_m9_2_shader output type source
+                 varying symbol)
+            add_custom_command(
+                OUTPUT "${output}"
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${_rrr3d_shader_output_dir}"
+                COMMAND "${RRR3D_BGFX_SHADERC}"
+                    --type "${type}" --platform osx --profile metal -O 3
+                    --varyingdef "${varying}"
+                    -i "${RRR3D_BGFX_SOURCE_DIR}/src"
+                    -f "${source}"
+                    -o "${output}"
+                    --bin2c "${symbol}"
+                DEPENDS "${source}" "${varying}"
+                VERBATIM)
+        endfunction()
+
+        set(_rrr3d_shadow_vertex_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_vs_shadow_map.bin.h")
+        set(_rrr3d_shadow_fragment_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_shadow_map.bin.h")
+        set(_rrr3d_post_vertex_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_vs_post_process.bin.h")
+        set(_rrr3d_bloom_extract_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_bloom_extract.bin.h")
+        set(_rrr3d_bloom_blur_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_bloom_blur.bin.h")
+        set(_rrr3d_tone_map_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_tone_map.bin.h")
+        set(_rrr3d_legacy_varying
+            "${_rrr3d_shader_source_dir}/varying_legacy_mesh.def.sc")
+        set(_rrr3d_post_varying
+            "${_rrr3d_shader_source_dir}/varying_post_process.def.sc")
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_shadow_vertex_shader}" vertex
+            "${_rrr3d_shader_source_dir}/vs_shadow_map.sc"
+            "${_rrr3d_legacy_varying}" rrr3d_vs_shadow_map)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_shadow_fragment_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_shadow_map.sc"
+            "${_rrr3d_legacy_varying}" rrr3d_fs_shadow_map)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_post_vertex_shader}" vertex
+            "${_rrr3d_shader_source_dir}/vs_post_process.sc"
+            "${_rrr3d_post_varying}" rrr3d_vs_post_process)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_bloom_extract_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_bloom_extract.sc"
+            "${_rrr3d_post_varying}" rrr3d_fs_bloom_extract)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_bloom_blur_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_bloom_blur.sc"
+            "${_rrr3d_post_varying}" rrr3d_fs_bloom_blur)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_tone_map_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_tone_map.sc"
+            "${_rrr3d_post_varying}" rrr3d_fs_tone_map)
+        set(_rrr3d_race_post_shaders
+            "${_rrr3d_shadow_vertex_shader}"
+            "${_rrr3d_shadow_fragment_shader}"
+            "${_rrr3d_post_vertex_shader}"
+            "${_rrr3d_bloom_extract_shader}"
+            "${_rrr3d_bloom_blur_shader}"
+            "${_rrr3d_tone_map_shader}")
     endif()
 
     if(RRR3D_BUILD_ORIGINAL_MENU)
@@ -133,6 +198,7 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
         "${_rrr3d_fragment_shader}"
         ${_rrr3d_race_vertex_shader}
         ${_rrr3d_race_fragment_shader}
+        ${_rrr3d_race_post_shaders}
     )
 
     if(RRR3D_BUILD_ORIGINAL_MENU)

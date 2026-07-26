@@ -1,6 +1,6 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
-> **Исправленный активный статус:** Milestone 5–9.1 переделаны от исходных
+> **Исправленный активный статус:** Milestone 5–9.2 переделаны от исходных
 > ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
 > bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки.
 > M7 подключает к этому же меню SDL3 keyboard/mouse/gamepad input и общий с
@@ -10,13 +10,15 @@
 > проверяет реальные игровые эффекты. M9.1 переносит профиль, обе оригинальные
 > камеры, HUD/mini-map, четыре workshop slots, projectile/mine/hyper/support,
 > achievements, AI, materials, nested effect/particle graph, окружение всех
-> миров и spatial race audio. Loader охватывает все 88 турнирных карт и 17
+> миров и spatial race audio. M9.2 добавляет source-driven planar reflection,
+> shadow map, HDR/bloom/tone mapping, render layers/billboards и оригинальный
+> `ctEffects/rain`. Loader охватывает все 88 турнирных карт и 17
 > машин гаража. Старые portable M6–M10 ниже остаются историей
 > отменённого самостоятельного vertical slice и не являются acceptance status.
 
 ## Активный этап
 
-Milestone 9.1: расширенный перенос оригинального race runtime.
+Milestone 9.2: legacy multipass renderer и particle parity на bgfx/Metal.
 
 ## Активный статус
 
@@ -31,14 +33,14 @@ projectiles/mines/hyper/support, AI и source effect graph работают в p
 race session. MusicCat ставится на паузу, а race sound graph и idle/RPM loops
 получают spatial attenuation/pan/pitch. `--track`, `--car` и `--weather`
 выбирают остальные исходные данные.
-Подробности, проверки и честная граница готовности — в
-`docs/PHYSICS_PORT_PLAN.md`.
+Подробности M9.1 находятся в `docs/PHYSICS_PORT_PLAN.md`; renderer/particle
+перенос и статический Windows-аудит M9.2 — в `docs/MILESTONE_9_2.md`.
 
-Финальная проверка M9.1: configure/build прошли; physics/session, audio/
-MusicCat и resource smoke завершились с exit code 0; строгий catalog sweep
-разрешил 88/88 tracks и 17/17 cars; реальный bgfx/Metal race smoke прошёл
-240 кадров с движением Marauder и четырьмя wheel contacts. Parallels не
-использовался.
+Финальная проверка M9.2: configure/arm64 Debug build и все новые Metal
+shaders прошли; physics/session и resource smoke завершились с exit code 0.
+Реальный Cocoa `MainMenu2 -> Single Player` bgfx/Metal smoke прошёл 240
+кадров с движением Marauder и четырьмя wheel contacts. Parallels не
+использовался. Подробные результаты находятся в `docs/MILESTONE_9_2.md`.
 
 ## Исторический отчёт отменённого vertical slice
 
