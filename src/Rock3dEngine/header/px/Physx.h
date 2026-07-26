@@ -11,8 +11,8 @@
 	#undef free
 #endif
 
-#include "NxPhysics.h"
-#include "NxCooking.h"
+#include "PxPhysicsAPI.h"
+#include "PxCooking.h"
 
 #ifdef DEBUG_MEMORY
 	#pragma pop_macro("new")
@@ -25,6 +25,9 @@
 #include "lslCollection.h"
 #include "lslException.h"
 #include "PhysX2Wrapper.h"
+
+namespace physx
+{
 
 namespace r3d
 {
@@ -41,16 +44,20 @@ class Scene: public lsl::Component
 private:
 	typedef std::list<SceneUser*> UserList;
 
-	class ContactModify: public NxUserContactModify
+	class ContactModify: public PxContactModifyCallback //public NxUserContactModify
 	{
 	private:
 		Scene* _scene;
 	public:
 		ContactModify(Scene* scene);
 
+#if 0
 		virtual bool onContactConstraint(NxU32& changeFlags, const NxShape* shape0, const NxShape* shape1, const NxU32 featureIndex0, const NxU32 featureIndex1, NxContactCallbackData& data);
+#endif
+		virtual void onContactModify(PxContactModifyPair* const pairs, PxU32 count);
 	};
 
+#if 0
 	class ContactReport: public NxUserContactReport
 	{
 	private:
@@ -60,23 +67,36 @@ private:
 
 		virtual void onContactNotify(NxContactPair& pair, NxU32 events);
 	};
+#endif
 
-	class UserNotify: public NxUserNotify
+	class UserNotify: public PxSimulationEventCallback //public NxUserNotify
 	{
 	private:
 		Scene* _scene;
 	public:
 		UserNotify(Scene* scene);
 
+#if 0
 		virtual bool onJointBreak(NxReal breakingImpulse, NxJoint& brokenJoint) {return true;}
 		virtual void onWake(NxActor** actors, NxU32 count);
 		virtual void onSleep(NxActor** actors, NxU32 count);
+#endif
+		// from PxSimulationEventCallback
+		virtual void onConstraintBreak(PxConstraintInfo* constraints, PxU32 count);
+		virtual void onWake(PxActor** actors, PxU32 count);
+		virtual void onSleep(PxActor** actors, PxU32 count);
+		virtual void onContact(const PxContactPairHeader& pairHeader, const PxContactPair* pairs, PxU32 nbPairs);
+		virtual void onTrigger(PxTriggerPair* pairs, PxU32 count);
+		virtual void onAdvance(const PxRigidBody*const* bodyBuffer, const PxTransform* poseBuffer, const PxU32 count);
 	};
 public:
 	enum CollDisGroup {cdgDefault = 0, cdgShot = 1, cdgShotBorder = 2, cdgShotTransparency = 3, cdgWheel = 4, cdgShotTrack = 5, cdgTrackPlane = 6, cdgPlaneDeath = 7, cCollDisGroupEnd = 32};
 	enum GroupMask {gmDef = 0x0, gmTemp = 0x1, cGroupMaskEnd};
+#if 0
 	typedef NxUserContactModify ContactModifyTraits;
 	typedef ContactModifyTraits::NxContactCallbackData NxContactCallbackData;
+#endif
+	typedef PxContactModifyCallback ContactModifyTraits;
 
 	struct OnContactEvent
 	{
@@ -84,17 +104,22 @@ public:
 		Actor* actor;
 		unsigned actorIndex;
 		
+#if 0 // check ApexSceneUserNotify.h
 		NxContactPair* pair;
+#endif
 		unsigned events;
 
 		float deltaTime;
 		D3DXVECTOR3 sumNormalForce;
 		D3DXVECTOR3 sumFrictionForce;
+#if 0 // check ApexSceneUserNotify.h
 		NxConstContactStream stream;
+#endif
 	};
 	struct OnContactModifyEvent
 	{
 		//внешний актер, соотв индексу 1
+#if 0
 		Actor* actor;	
 		unsigned actorIndex;
 
@@ -105,21 +130,28 @@ public:
 
 		NxU32* changeFlags;
 		NxContactCallbackData* data;
+#endif
+		unsigned actorIndex;
+
+		PxContactModifyPair* pairs;
+		PxU32 count;
 	};
 
 	//static const float maxTimeStep;
 	//static const unsigned maxSimIter;
-	static const NxVec3 cDefGravity;
+	static const PxVec3 cDefGravity;
 	static const int cDefMatInd;
 
-	static Actor* GetActorFromNx(NxActor* actor);
-	static Actor* GetActorFromNxShape(NxShape* shape);
+	static Actor* GetActorFromNx(PxActor* actor);
+	static Actor* GetActorFromNxShape(PxShape* shape);
 private:
 	Manager* _manager;
 	ContactModify* _contactModify;
+#if 0 // check ApexSceneUserNotify.h
 	ContactReport* _contactReport;
+#endif
 	UserNotify* _userNotify;
-	NxScene* _nxScene;
+	PxScene* _nxScene;
 
 	UserList _userList;
 	float _lastDeltaTime;
@@ -129,15 +161,17 @@ protected:
 	Scene(Manager* manager);
 	virtual ~Scene();
 
+#if 0 // check ApexActor.h
 	NxActor* CreateNxActor(const NxActorDesc& desc, Actor* actor);
 	void ReleaseNxActor(NxActor* nxActor, Actor* actor);
+#endif
 public:
 	void Compute(float deltaTime);
 
 	void InsertUser(SceneUser* value);
 	void RemoveUser(SceneUser* value);
 
-	NxScene* GetNxScene();
+	PxScene* GetNxScene();
 };
 
 class SceneUser: public lsl::Object
@@ -154,11 +188,17 @@ public:
 //Необходимо разделить понятия менеджер физики(который реализует инициализацию сдк) и сцену(разделение физических пространств)
 class Manager: public lsl::Component
 {	
-	friend NxPhysicsSDK& GetSDK();
-	friend NxCookingInterface& GetCooking();
+	friend PxPhysics& GetSDK();
+	friend PxCooking& GetCooking();
 private:
-	static NxPhysicsSDK* _nxSDK;
-	static NxCookingInterface* _nxCooking;
+	static PxPhysics* _nxSDK;
+	static PxFoundation* _nxFoundation;
+	static PxCooking* _nxCooking;
+	static PxDefaultErrorCallback _nxErrorCallback;
+	static PxDefaultAllocator _nxAllocator;
+	static PxPvd* _nxPvd;
+	static PxPvdTransport* _nxTransport;
+
 	static unsigned _sdkRefCnt;
 public:
 	typedef std::list<Scene*> SceneList;
@@ -178,8 +218,8 @@ public:
 	void ClearSceneList();
 	const SceneList& GetSceneList();
 
-	NxPhysicsSDK& GetSDK();
-	NxCookingInterface& GetCooking();
+	PxPhysics& GetSDK();
+	PxCooking& GetCooking();
 };
 
 class TriangleMesh: public lsl::CollectionItem
@@ -202,8 +242,8 @@ private:
 		//ид отдельной фигуры из меша. Если < 0 то используются все фигуры меша
 		int id;
 
-		NxTriangleMesh* tri;
-		NxConvexMesh* convex;
+		PxTriangleMesh* tri;
+		PxConvexMesh* convex;
 		
 		unsigned sumRef;
 		unsigned triRef;
@@ -212,11 +252,11 @@ private:
 
 	typedef lsl::List<MeshVal> MeshList;
 private:
-	res::MeshData* _meshData;
+	::r3d::res::MeshData* _meshData;
 	MeshList _meshList;
 
-	void LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc& desc);
-	void FreeMesh(NxTriangleMeshDesc& desc);
+	void LoadMesh(const D3DXVECTOR3& scale, int id, PxTriangleMeshDesc& desc);
+	void FreeMesh(PxTriangleMeshDesc& desc);
 
 	MeshList::iterator GetOrCreateMesh(const D3DXVECTOR3& scale, int id);
 	void ReleaseMesh(MeshList::iterator iter);
@@ -224,14 +264,14 @@ public:
 	TriangleMesh();
 	virtual ~TriangleMesh();
 
-	NxTriangleMesh* GetOrCreateTri(const D3DXVECTOR3& scale, int id);
-	void ReleaseTri(NxTriangleMesh* mesh);
+	PxTriangleMesh* GetOrCreateTri(const D3DXVECTOR3& scale, int id);
+	void ReleaseTri(PxTriangleMesh* mesh);
 
-	NxConvexMesh* GetOrCreateConvex(const D3DXVECTOR3& scale, int id);
-	void ReleaseConvex(NxConvexMesh* mesh);
+	PxConvexMesh* GetOrCreateConvex(const D3DXVECTOR3& scale, int id);
+	void ReleaseConvex(PxConvexMesh* mesh);
 
-	res::MeshData* GetMeshData();
-	void SetMeshData(res::MeshData* value);
+	::r3d::res::MeshData* GetMeshData();
+	void SetMeshData(::r3d::res::MeshData* value);
 
 	bool IsEmpty() const;
 };
@@ -250,7 +290,7 @@ public:
 private:
 	ShapeType _type;
 	Shapes* _owner;
-	NxShape* _nxShape;
+	PxShape* _nxShape;
 
 	D3DXVECTOR3 _pos;
 	D3DXQUATERNION _rot;
@@ -261,14 +301,16 @@ private:
 	unsigned _group;
 	bool _delayInitialization;
 
-	void SetNxShape(NxShape* value);
+	void SetNxShape(PxShape* value);
 protected:
 	void SetType(ShapeType value);
 	//
+#if 0
 	virtual NxShapeDesc* CreateDesc() = 0;
+#endif
 	void ReloadNxShape(bool allowInitialization = false);
 
-	NxVec3 TransformLocalPos(const D3DXVECTOR3& inValue);
+	PxVec3 TransformLocalPos(const D3DXVECTOR3& inValue);
 	void SyncPos();
 	void SyncRot();
 	virtual void SyncScale();
@@ -279,14 +321,16 @@ public:
 	Shape(Shapes* owner);
 
 	//
+#if 0
 	void AssignFromDesc(const NxShapeDesc& desc, bool reloadShape = true);
 	void AssignToDesc(NxShapeDesc& desc);
+#endif
 
 	ShapeType GetType() const;
 	Shapes* GetOwner();
 	Actor* GetActor();
 
-	NxShape* GetNxShape();
+	PxShape* GetNxShape();
 
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
@@ -297,8 +341,8 @@ public:
 	const D3DXVECTOR3& GetScale() const;
 	void SetScale(D3DXVECTOR3& value);
 
-	NxU16 GetMaterialIndex();
-	void SetMaterialIndex(NxU16 value);
+	PxU16 GetMaterialIndex();
+	void SetMaterialIndex(PxU16 value);
 
 	float GetDensity() const;
 	void SetDensity(float value);
@@ -319,17 +363,21 @@ private:
 	D3DXVECTOR3 _normal;
 	float _dist;
 protected:
+#if 0
 	virtual NxShapeDesc* CreateDesc();
+#endif
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
 	PlaneShape(Shapes* owner);
 
+#if 0
 	void AssignFromDesc(const NxPlaneShapeDesc& desc, bool reloadShape = true);
 	void AssignToDesc(NxPlaneShapeDesc& desc);
+#endif
 
-	NxPlaneShape* GetNxShape();
+	PxShape* GetNxShape();
 
 	const D3DXVECTOR3& GetNormal() const;
 	void SetNormal(const D3DXVECTOR3& value);
@@ -347,22 +395,25 @@ public:
 private:
 	D3DXVECTOR3 _dimensions;
 protected:
-	virtual NxShapeDesc* CreateDesc();
+	//virtual NxShapeDesc* CreateDesc();
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
 	BoxShape(Shapes* owner);
 
+#if 0
 	void AssignFromDesc(const NxBoxShapeDesc& desc, bool reloadShape = true);
 	void AssignToDesc(NxBoxShapeDesc& desc);
+#endif
 
-	NxBoxShape* GetNxShape();
+	PxShape* GetNxShape();
 
 	const D3DXVECTOR3& GetDimensions() const;
 	void SetDimensions(const D3DXVECTOR3& value);
 };
 
+#if 0
 class SphereShape: public Shape
 {
 private:
@@ -556,6 +607,7 @@ public:
 	ContactModify* GetContactModify();
 	void SetContactModify(ContactModify* value);
 };
+#endif
 
 class Body: public lsl::Serializable
 {
@@ -611,8 +663,10 @@ class Actor: public lsl::Object, public lsl::Serializable
 	friend void Shape::ReloadNxShape(bool allowInitialization);
 
 		//Жесткая связь _parent - _child реализуется с помощью shape, поэтому координаты требуется преобразовывать вручную
+#if 0
 private:
 	typedef NxArray<NxShapeDesc*, NxAllocatorDefault> _NxShapeDescList;
+#endif
 public:	
 	typedef std::list<Actor*> Children;
 private:
@@ -624,8 +678,10 @@ private:
 	Actor* _parent;
 	Children _children;
 
+#if 0
 	NxActorDesc _desc;
-	NxActor* _nxActor;
+#endif
+	PxActor* _nxActor;
 
 	//координаты кэшируется, отностиельно _nxActor
 	mutable D3DXVECTOR3 _pos;
@@ -640,13 +696,15 @@ protected:
 
 	//Методы для статической инициализации actor. При статической инициализации происходит создание всех фигур(в том числе и дочерних) в момент создания актера
 	//Заполнения списка дескрипторами
+#if 0
 	void FillShapeDescList(_NxShapeDescList& shapeList);
 	void FillShapeDescListIncludeChildren(_NxShapeDescList& shapeList);
+#endif
 	//Извлечение указателей созданных фигур из актера для внутреннего списка фигур
-	void UnpackActorShapeList(NxShape*const* begin, NxShape*const* end);
-	unsigned UnpackActorShapeListIncludeChildren(NxShape*const* shape, unsigned numShapes, unsigned curShape);
+	void UnpackActorShapeList(PxShape*const* begin, PxShape*const* end);
+	unsigned UnpackActorShapeListIncludeChildren(PxShape*const* shape, unsigned numShapes, unsigned curShape);
 	//Установка _nxActor для всех Actor (в том числе и дочерних). Если аргумент равен нулю то сразу происходит обнуление _nxShape для всех Shape
-	void SetNxActorIncludeChildren(NxActor* value);
+	void SetNxActorIncludeChildren(PxActor* value);
 
 	//Инициализация корневого актера
 	void InitRootNxActor();
@@ -672,11 +730,13 @@ public:
 	void LocalToWorldPos(const D3DXVECTOR3& inValue, D3DXVECTOR3& outValue, bool nxActorSpace = false);
 	void WorldToLocalPos(const D3DXVECTOR3& inValue, D3DXVECTOR3& outValue, bool nxActorSpace = false);
 
+#if 0
 	BoxShape& AddBBShape(const AABB& aabb, const NxBoxShapeDesc& desc = NxBoxShapeDesc());
+#endif
 
 	ActorUser* GetOwner();
 
-	NxActor* GetNxActor();
+	PxActor* GetNxActor();
 	//Менеджер, один для всей иерархии, изменение влечет также изменение в дочерних узлах
 	Scene* GetScene();
 	void SetScene(Scene* value);
@@ -712,20 +772,20 @@ public:
 };
 
 //
-static inline NxPhysicsSDK& GetSDK();
-static inline NxCookingInterface& GetCooking();
+static inline PxPhysics& GetSDK();
+static inline PxCooking& GetCooking();
 
 
 
 
-NxPhysicsSDK& GetSDK()
+PxPhysics& GetSDK()
 {
 	LSL_ASSERT(Manager::_nxSDK);
 
 	return *Manager::_nxSDK;
 }
 
-NxCookingInterface& GetCooking()
+PxCooking& GetCooking()
 {
 	LSL_ASSERT(Manager::_nxCooking);
 
@@ -735,5 +795,7 @@ NxCookingInterface& GetCooking()
 }
 
 }
+
+} // namespace physx
 
 #endif
