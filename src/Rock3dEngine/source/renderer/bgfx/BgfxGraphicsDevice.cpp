@@ -3,6 +3,8 @@
 #include <bgfx/bgfx.h>
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <string>
@@ -54,12 +56,26 @@ public:
                 bgfx::destroy(bgfx::FrameBufferHandle{handle});
             }
             render_targets_.clear();
+            for (const auto& [handle, info] : cube_targets_)
+            {
+                static_cast<void>(handle);
+                for (const auto depth : info.depthTextures)
+                    if (bgfx::isValid(depth))
+                        bgfx::destroy(depth);
+                if (bgfx::isValid(info.colorTexture))
+                    bgfx::destroy(info.colorTexture);
+            }
+            cube_targets_.clear();
             if (bgfx::isValid(texture_sampler_))
                 bgfx::destroy(texture_sampler_);
             if (bgfx::isValid(reflection_sampler_))
                 bgfx::destroy(reflection_sampler_);
             if (bgfx::isValid(shadow_sampler_))
                 bgfx::destroy(shadow_sampler_);
+            if (bgfx::isValid(environment_sampler_))
+                bgfx::destroy(environment_sampler_);
+            if (bgfx::isValid(normal_sampler_))
+                bgfx::destroy(normal_sampler_);
             if (bgfx::isValid(scene_light_direction_))
                 bgfx::destroy(scene_light_direction_);
             if (bgfx::isValid(scene_ambient_))
@@ -141,6 +157,8 @@ public:
             .add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
             .add(bgfx::Attrib::Normal, 3, bgfx::AttribType::Float)
             .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+            .add(bgfx::Attrib::Tangent, 3, bgfx::AttribType::Float)
+            .add(bgfx::Attrib::Bitangent, 3, bgfx::AttribType::Float)
             .end();
 
         texture_sampler_ = bgfx::createUniform(
@@ -149,6 +167,10 @@ public:
             "s_texReflection", bgfx::UniformType::Sampler);
         shadow_sampler_ = bgfx::createUniform(
             "s_texShadow", bgfx::UniformType::Sampler);
+        environment_sampler_ = bgfx::createUniform(
+            "s_texEnvironment", bgfx::UniformType::Sampler);
+        normal_sampler_ = bgfx::createUniform(
+            "s_texNormal", bgfx::UniformType::Sampler);
         scene_light_direction_ = bgfx::createUniform(
             "u_sceneLightDirection", bgfx::UniformType::Vec4);
         scene_ambient_ = bgfx::createUniform(
@@ -176,6 +198,8 @@ public:
         if (!bgfx::isValid(texture_sampler_) ||
             !bgfx::isValid(reflection_sampler_) ||
             !bgfx::isValid(shadow_sampler_) ||
+            !bgfx::isValid(environment_sampler_) ||
+            !bgfx::isValid(normal_sampler_) ||
             !bgfx::isValid(scene_light_direction_) ||
             !bgfx::isValid(scene_ambient_) ||
             !bgfx::isValid(scene_fog_) ||
@@ -195,6 +219,18 @@ public:
             return false;
         }
 
+        bgfx::setViewName(viewId(RenderPass::EnvironmentPositiveX),
+                          "Motor Rock environment +X");
+        bgfx::setViewName(viewId(RenderPass::EnvironmentNegativeX),
+                          "Motor Rock environment -X");
+        bgfx::setViewName(viewId(RenderPass::EnvironmentPositiveY),
+                          "Motor Rock environment +Y");
+        bgfx::setViewName(viewId(RenderPass::EnvironmentNegativeY),
+                          "Motor Rock environment -Y");
+        bgfx::setViewName(viewId(RenderPass::EnvironmentPositiveZ),
+                          "Motor Rock environment +Z");
+        bgfx::setViewName(viewId(RenderPass::EnvironmentNegativeZ),
+                          "Motor Rock environment -Z");
         bgfx::setViewName(viewId(RenderPass::Reflection),
                           "Motor Rock planar reflection");
         bgfx::setViewName(viewId(RenderPass::Shadow),
@@ -400,6 +436,95 @@ public:
         return {framebuffer.idx};
     }
 
+    CubeRenderTarget createCubeRenderTarget(
+        std::uint16_t size, RenderTargetFormat format, bool depth,
+        std::string_view name) override
+    {
+        if (size == 0)
+            return {};
+        // Metal exposes BGRA8 as the renderable 8-bit cube format even
+        // though regular 2D render targets also accept RGBA8.
+        bgfx::TextureFormat::Enum colorFormat =
+            bgfx::TextureFormat::BGRA8;
+        if (format == RenderTargetFormat::Rgba16F)
+            colorFormat = bgfx::TextureFormat::RGBA16F;
+        else if (format == RenderTargetFormat::R32F)
+            colorFormat = bgfx::TextureFormat::R32F;
+        const std::uint64_t flags = BGFX_TEXTURE_RT;
+        const bgfx::TextureHandle color = bgfx::createTextureCube(
+            size, false, 1, colorFormat, flags);
+        if (!bgfx::isValid(color))
+            return {};
+
+        CubeRenderTarget result;
+        result.texture = {color.idx};
+        CubeTargetInfo info;
+        info.colorTexture = color;
+        const std::string ownedName(name);
+        bgfx::setName(color, (ownedName + " texture").c_str());
+        for (std::uint16_t face = 0; face < result.faces.size(); ++face)
+        {
+            if (depth)
+            {
+                info.depthTextures[face] = bgfx::createTexture2D(
+                    size, size, false, 1, bgfx::TextureFormat::D32F,
+                    BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP |
+                        BGFX_SAMPLER_V_CLAMP);
+                if (!bgfx::isValid(info.depthTextures[face]))
+                {
+                    for (std::uint16_t previous = 0; previous < face;
+                         ++previous)
+                    {
+                        bgfx::destroy(bgfx::FrameBufferHandle{
+                            result.faces[previous].value});
+                        render_targets_.erase(
+                            result.faces[previous].value);
+                        if (bgfx::isValid(info.depthTextures[previous]))
+                            bgfx::destroy(info.depthTextures[previous]);
+                    }
+                    bgfx::destroy(color);
+                    return {};
+                }
+            }
+            std::array<bgfx::Attachment, 2> attachments;
+            attachments[0].init(color, bgfx::Access::Write, face);
+            std::uint8_t count = 1;
+            if (depth)
+            {
+                attachments[1].init(
+                    info.depthTextures[face], bgfx::Access::Write,
+                    0, 1, 0, BGFX_RESOLVE_NONE);
+                count = 2;
+            }
+            const auto framebuffer =
+                bgfx::createFrameBuffer(count, attachments.data(), false);
+            if (!bgfx::isValid(framebuffer))
+            {
+                if (bgfx::isValid(info.depthTextures[face]))
+                    bgfx::destroy(info.depthTextures[face]);
+                for (std::uint16_t previous = 0; previous < face;
+                     ++previous)
+                {
+                    bgfx::destroy(bgfx::FrameBufferHandle{
+                        result.faces[previous].value});
+                    render_targets_.erase(result.faces[previous].value);
+                    if (bgfx::isValid(info.depthTextures[previous]))
+                        bgfx::destroy(info.depthTextures[previous]);
+                }
+                bgfx::destroy(color);
+                return {};
+            }
+            bgfx::setName(
+                framebuffer,
+                (ownedName + " face " + std::to_string(face)).c_str());
+            result.faces[face] = {framebuffer.idx};
+            render_targets_.emplace(
+                framebuffer.idx, TargetInfo{size, size});
+        }
+        cube_targets_.emplace(color.idx, info);
+        return result;
+    }
+
     Texture renderTargetTexture(
         RenderTarget target, std::uint8_t attachment) const override
     {
@@ -439,6 +564,27 @@ public:
             return;
         bgfx::destroy(bgfx::FrameBufferHandle{target.value});
         render_targets_.erase(found);
+    }
+
+    void destroy(CubeRenderTarget target) override
+    {
+        const auto found = cube_targets_.find(target.texture.value);
+        if (found == cube_targets_.end())
+            return;
+        for (const auto face : target.faces)
+        {
+            if (render_targets_.contains(face.value))
+            {
+                bgfx::destroy(bgfx::FrameBufferHandle{face.value});
+                render_targets_.erase(face.value);
+            }
+        }
+        for (const auto depth : found->second.depthTextures)
+            if (bgfx::isValid(depth))
+                bgfx::destroy(depth);
+        if (bgfx::isValid(found->second.colorTexture))
+            bgfx::destroy(found->second.colorTexture);
+        cube_targets_.erase(found);
     }
 
     void beginFrame(const Camera& camera, std::uint32_t clearRgba) override
@@ -521,6 +667,73 @@ public:
             !valid(texture))
             return;
 
+        bgfx::setVertexBuffer(
+            0, bgfx::VertexBufferHandle{mesh.vertices.value});
+        if (range.indexCount == 0)
+        {
+            bgfx::setIndexBuffer(
+                bgfx::IndexBufferHandle{mesh.indices.value});
+        }
+        else
+        {
+            bgfx::setIndexBuffer(
+                bgfx::IndexBufferHandle{mesh.indices.value},
+                range.firstIndex, range.indexCount);
+        }
+        submit(shader, texture, transform, pipeline, material);
+    }
+
+    void drawTransient(
+        const StaticMeshVertex* vertices, std::size_t vertexCount,
+        const std::uint32_t* indices, std::size_t indexCount,
+        Shader shader, Texture texture, const Transform& transform,
+        const PipelineState& pipeline,
+        const MaterialState& material) override
+    {
+        if (vertices == nullptr || indices == nullptr || vertexCount == 0 ||
+            indexCount == 0 || !valid(shader) || !valid(texture) ||
+            vertexCount > std::numeric_limits<std::uint32_t>::max() ||
+            indexCount > std::numeric_limits<std::uint32_t>::max())
+            return;
+        bgfx::TransientVertexBuffer vertexBuffer;
+        bgfx::TransientIndexBuffer indexBuffer;
+        if (!bgfx::allocTransientBuffers(
+                &vertexBuffer, static_vertex_layout_,
+                static_cast<std::uint32_t>(vertexCount), &indexBuffer,
+                static_cast<std::uint32_t>(indexCount), true))
+            return;
+        std::memcpy(vertexBuffer.data, vertices,
+                    vertexCount * sizeof(StaticMeshVertex));
+        std::memcpy(indexBuffer.data, indices,
+                    indexCount * sizeof(std::uint32_t));
+        bgfx::setVertexBuffer(0, &vertexBuffer);
+        bgfx::setIndexBuffer(&indexBuffer);
+        ++telemetry_.transientDrawCount;
+        submit(shader, texture, transform, pipeline, material);
+    }
+
+    void endFrame() override
+    {
+        bgfx::frame();
+    }
+
+    std::string_view backendName() const noexcept override
+    {
+        return initialized_ ? bgfx::getRendererName(bgfx::getRendererType())
+                            : "uninitialized";
+    }
+
+    bool usesHomogeneousDepth() const noexcept override
+    {
+        return initialized_ && bgfx::getCaps()->homogeneousDepth;
+    }
+
+private:
+    void submit(Shader shader, Texture texture,
+                const Transform& transform,
+                const PipelineState& pipeline,
+                const MaterialState& material)
+    {
         std::uint64_t state = 0;
         if (pipeline.writeColor)
             state |= BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A;
@@ -552,17 +765,6 @@ public:
             state |= BGFX_STATE_MSAA;
 
         bgfx::setTransform(transform.matrix.data());
-        bgfx::setVertexBuffer(0,
-            bgfx::VertexBufferHandle{mesh.vertices.value});
-        if (range.indexCount == 0)
-        {
-            bgfx::setIndexBuffer(bgfx::IndexBufferHandle{mesh.indices.value});
-        }
-        else
-        {
-            bgfx::setIndexBuffer(bgfx::IndexBufferHandle{mesh.indices.value},
-                                 range.firstIndex, range.indexCount);
-        }
         bgfx::setTexture(0, texture_sampler_,
                          bgfx::TextureHandle{texture.value});
         const auto reflectionTexture =
@@ -579,6 +781,22 @@ public:
         bgfx::setTexture(
             2, shadow_sampler_,
             bgfx::TextureHandle{shadowTexture.value});
+        const auto environmentTexture =
+            valid(material.environmentTexture)
+                ? material.environmentTexture
+                : (valid(pass_state_.environmentTexture)
+                       ? pass_state_.environmentTexture
+                       : texture);
+        const auto normalTexture =
+            valid(material.normalTexture)
+                ? material.normalTexture
+                : texture;
+        bgfx::setTexture(
+            3, environment_sampler_,
+            bgfx::TextureHandle{environmentTexture.value});
+        bgfx::setTexture(
+            4, normal_sampler_,
+            bgfx::TextureHandle{normalTexture.value});
         bgfx::setUniform(scene_light_direction_,
                          scene_lighting_.lightDirection.data());
         bgfx::setUniform(scene_ambient_, scene_lighting_.ambient.data());
@@ -613,29 +831,40 @@ public:
         bgfx::submit(current_view_, bgfx::ProgramHandle{shader.value});
         ++telemetry_.drawCount[
             static_cast<std::size_t>(current_pass_)];
+        const bool sceneGeometry =
+            (current_pass_ >= RenderPass::EnvironmentPositiveX &&
+             current_pass_ <= RenderPass::EnvironmentNegativeZ) ||
+            current_pass_ == RenderPass::Reflection ||
+            current_pass_ == RenderPass::Scene;
+        if (sceneGeometry)
+        {
+            const int mode = std::clamp(
+                static_cast<int>(std::lround(material.postParameters[3])),
+                0, 6);
+            ++telemetry_.lightingDrawCount[
+                static_cast<std::size_t>(mode)];
+            if (mode == 3 && valid(pass_state_.environmentTexture))
+                ++telemetry_.environmentMappedDrawCount;
+            if (mode == 4 && valid(material.normalTexture))
+                ++telemetry_.normalMappedDrawCount;
+        }
     }
 
-    void endFrame() override
-    {
-        bgfx::frame();
-    }
-
-    std::string_view backendName() const noexcept override
-    {
-        return initialized_ ? bgfx::getRendererName(bgfx::getRendererType())
-                            : "uninitialized";
-    }
-
-    bool usesHomogeneousDepth() const noexcept override
-    {
-        return initialized_ && bgfx::getCaps()->homogeneousDepth;
-    }
-
-private:
     struct TargetInfo
     {
         std::uint16_t width = 0;
         std::uint16_t height = 0;
+    };
+    struct CubeTargetInfo
+    {
+        bgfx::TextureHandle colorTexture = BGFX_INVALID_HANDLE;
+        std::array<bgfx::TextureHandle, 6> depthTextures{
+            bgfx::TextureHandle{bgfx::kInvalidHandle},
+            bgfx::TextureHandle{bgfx::kInvalidHandle},
+            bgfx::TextureHandle{bgfx::kInvalidHandle},
+            bgfx::TextureHandle{bgfx::kInvalidHandle},
+            bgfx::TextureHandle{bgfx::kInvalidHandle},
+            bgfx::TextureHandle{bgfx::kInvalidHandle}};
     };
 
     bool initialized_ = false;
@@ -648,6 +877,7 @@ private:
     RenderPass current_pass_ = RenderPass::Scene;
     RenderTelemetry telemetry_;
     std::unordered_map<std::uint16_t, TargetInfo> render_targets_;
+    std::unordered_map<std::uint16_t, CubeTargetInfo> cube_targets_;
     bgfx::UniformHandle scene_light_direction_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_ambient_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_fog_ = BGFX_INVALID_HANDLE;
@@ -667,6 +897,8 @@ private:
     bgfx::UniformHandle texture_sampler_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle reflection_sampler_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle shadow_sampler_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle environment_sampler_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle normal_sampler_ = BGFX_INVALID_HANDLE;
 };
 
 } // namespace

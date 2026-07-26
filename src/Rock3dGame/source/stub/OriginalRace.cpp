@@ -511,6 +511,21 @@ MaterialDefinition materialDefinition(
             material.atlasColumns = atlas->columns;
             material.atlasRows = atlas->rows;
         }
+        // ResourceManager::LoadBumpLibMat binds a second sampler whose
+        // shipped name follows the diffuse texture with `_norm`. This is
+        // active for the World2 track and bridge materials.
+        if (!material.texturePath.empty() &&
+            material.normalTexturePath.empty())
+        {
+            const auto extension = material.texturePath.find_last_of('.');
+            if (extension != std::string::npos)
+            {
+                auto candidate = material.texturePath;
+                candidate.insert(extension, "_norm");
+                if (resources.exists(candidate))
+                    material.normalTexturePath = std::move(candidate);
+            }
+        }
         return material;
     };
     struct Mapping
@@ -1054,6 +1069,14 @@ void appendParticleEmitters(
             emitter.materials = materials;
             emitter.fixedDirection = fixedDirection;
             emitter.renderMode = renderMode;
+            if (renderMode == ParticleRenderMode::Trail)
+            {
+                // DataBase::Init uses one FxTrailManager with width 0.3,
+                // fixedUp=true and ZVector for both source trail records.
+                emitter.trailWidth = 0.3F;
+                emitter.trailFixedUp = {0.0F, 0.0F, 1.0F};
+                emitter.trailFixedUpEnabled = true;
+            }
             emitter.maximumParticles = static_cast<std::uint32_t>(
                 std::max(optionalParticleScalar(
                              part, "maxNum", 0.0F, source),
@@ -2335,6 +2358,9 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
     race.rainEffect = objectDefinition(
         resources, database, "world\\db\\root\\ctEffects\\rain",
         "db.xml/original rain");
+    race.wheelTrailEffect = objectDefinition(
+        resources, database, "world\\db\\root\\ctEffects\\trail",
+        "db.xml/original wheel trail");
 
     auto* planets = require(tournament, "planets", "tournamet.xml");
     std::uint32_t planetIndex = 0;

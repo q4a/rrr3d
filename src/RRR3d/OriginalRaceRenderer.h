@@ -22,6 +22,7 @@ public:
         r3d::resource::R3DMeshAsset source;
         r3d::renderer::Mesh mesh;
         std::vector<r3d::renderer::Texture> textures;
+        std::vector<r3d::renderer::Texture> normalTextures;
         std::vector<r3d::game::originalrace::MaterialDefinition> materials;
         int subMesh = -1;
     };
@@ -120,6 +121,7 @@ private:
     std::vector<ObjectAsset> weapons_;
     std::vector<std::vector<ProjectileAsset>> projectiles_;
     ObjectAsset rainEffect_;
+    ObjectAsset wheelTrailEffect_;
     r3d::renderer::Texture skyTexture_;
     r3d::renderer::Mesh skyMesh_;
     std::vector<r3d::renderer::Texture> weaponEffectTextures_;
@@ -132,6 +134,7 @@ private:
     r3d::renderer::Mesh effectMesh_;
     r3d::renderer::Mesh postProcessMesh_;
     r3d::renderer::Shader shadowShader_;
+    r3d::renderer::Shader skyShader_;
     r3d::renderer::Shader bloomExtractShader_;
     r3d::renderer::Shader bloomBlurShader_;
     r3d::renderer::Shader toneMapShader_;
@@ -143,6 +146,7 @@ private:
     r3d::renderer::RenderTarget hdrTarget_;
     r3d::renderer::RenderTarget waterSceneTarget_;
     r3d::renderer::RenderTarget reflectionTarget_;
+    r3d::renderer::CubeRenderTarget environmentReflectionTarget_;
     r3d::renderer::RenderTarget shadowTarget_;
     r3d::renderer::RenderTarget luminance64Target_;
     r3d::renderer::RenderTarget luminance16Target_;
@@ -161,10 +165,15 @@ private:
     r3d::physics::Vec3 cameraPosition_;
     r3d::physics::Vec3 cameraJumpDirection_;
     r3d::physics::Vec3 thirdPersonDirection_{1.0F, 0.0F, 0.0F};
+    std::vector<std::vector<std::vector<r3d::physics::Vec3>>>
+        wheelTrailPaths_;
+    std::vector<std::vector<std::vector<float>>> wheelTrailTimes_;
+    std::vector<std::uint32_t> wheelTrailResetCounts_;
     float cameraJumpDistance_ = 0.0F;
     float cameraJumpSpeed_ = 0.0F;
     float thirdPersonPullback_ = 0.0F;
     float previousRenderSeconds_ = 0.0F;
+    float wheelTrailUpdateSeconds_ = -1.0F;
     bool adaptedLuminanceAIsCurrent_ = false;
     bool luminanceAdaptationInitialized_ = false;
     bool cameraInitialized_ = false;

@@ -146,6 +146,10 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_shader_output_dir}/rrr3d_vs_water.bin.h")
         set(_rrr3d_water_fragment_shader
             "${_rrr3d_shader_output_dir}/rrr3d_fs_water.bin.h")
+        set(_rrr3d_sky_vertex_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_vs_skybox.bin.h")
+        set(_rrr3d_sky_fragment_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_skybox.bin.h")
         set(_rrr3d_copy_shader
             "${_rrr3d_shader_output_dir}/rrr3d_fs_copy.bin.h")
         set(_rrr3d_luminance_log_shader
@@ -160,6 +164,8 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_shader_source_dir}/varying_post_process.def.sc")
         set(_rrr3d_water_varying
             "${_rrr3d_shader_source_dir}/varying_water.def.sc")
+        set(_rrr3d_sky_varying
+            "${_rrr3d_shader_source_dir}/varying_skybox.def.sc")
         _rrr3d_compile_m9_2_shader(
             "${_rrr3d_shadow_vertex_shader}" vertex
             "${_rrr3d_shader_source_dir}/vs_shadow_map.sc"
@@ -193,6 +199,14 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_shader_source_dir}/fs_water.sc"
             "${_rrr3d_water_varying}" rrr3d_fs_water)
         _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_sky_vertex_shader}" vertex
+            "${_rrr3d_shader_source_dir}/vs_skybox.sc"
+            "${_rrr3d_sky_varying}" rrr3d_vs_skybox)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_sky_fragment_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_skybox.sc"
+            "${_rrr3d_sky_varying}" rrr3d_fs_skybox)
+        _rrr3d_compile_m9_2_shader(
             "${_rrr3d_copy_shader}" fragment
             "${_rrr3d_shader_source_dir}/fs_copy.sc"
             "${_rrr3d_post_varying}" rrr3d_fs_copy)
@@ -217,6 +231,8 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_tone_map_shader}"
             "${_rrr3d_water_vertex_shader}"
             "${_rrr3d_water_fragment_shader}"
+            "${_rrr3d_sky_vertex_shader}"
+            "${_rrr3d_sky_fragment_shader}"
             "${_rrr3d_copy_shader}"
             "${_rrr3d_luminance_log_shader}"
             "${_rrr3d_luminance_downsample_shader}"

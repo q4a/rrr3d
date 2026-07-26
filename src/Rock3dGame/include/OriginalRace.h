@@ -52,6 +52,8 @@ struct MaterialDefinition
     std::uint16_t atlasColumns = 1;
     std::uint16_t atlasRows = 1;
     float animationRate = 24.0F;
+    // Optional second sampler from LibMaterial (the source bump/normal map).
+    std::string normalTexturePath{};
 };
 
 struct VisualNode
@@ -122,6 +124,11 @@ struct ParticleEmitterDefinition
     ParticleRenderMode renderMode = ParticleRenderMode::Sprite;
     ParticleMaximumAction maximumAction =
         ParticleMaximumAction::WaitForFree;
+    // FxTrailManager is configured once in DataBase.cpp and shared by the
+    // trail/heatTrail records.
+    float trailWidth = 0.3F;
+    Vec3 trailFixedUp{0.0F, 0.0F, 1.0F};
+    bool trailFixedUpEnabled = true;
 };
 
 enum class LightingMode
@@ -379,6 +386,8 @@ struct Race
     std::vector<std::uint32_t> requiredPoints;
     EnvironmentDescription environment;
     ObjectDefinition rainEffect;
+    // Source ctEffects/trail record referenced by the wheel behavior type 9.
+    ObjectDefinition wheelTrailEffect;
     Vehicle vehicle;
 };
 

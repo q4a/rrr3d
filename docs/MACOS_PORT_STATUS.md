@@ -1,6 +1,6 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
-> **Исправленный активный статус:** Milestone 5–9.2 переделаны от исходных
+> **Исправленный активный статус:** Milestone 5–9.4 переделаны от исходных
 > ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
 > bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки.
 > M7 подключает к этому же меню SDL3 keyboard/mouse/gamepad input и общий с
@@ -12,13 +12,16 @@
 > achievements, AI, materials, nested effect/particle graph, окружение всех
 > миров и spatial race audio. M9.2 добавляет source-driven planar reflection,
 > shadow map, HDR/bloom/tone mapping, render layers/billboards и оригинальный
-> `ctEffects/rain`. Loader охватывает все 88 турнирных карт и 17
+> `ctEffects/rain`. M9.3 переносит source Water/HDR adaptation и добавляет
+> проверяемый render graph. M9.4 реализует 512×512 dynamic cube reflection,
+> настоящий tangent-space normal mapping и связный `FxTrailManager` strip
+> по истории колёс. Loader охватывает все 88 турнирных карт и 17
 > машин гаража. Старые portable M6–M10 ниже остаются историей
 > отменённого самостоятельного vertical slice и не являются acceptance status.
 
 ## Активный этап
 
-Milestone 9.2: legacy multipass renderer и particle parity на bgfx/Metal.
+Milestone 9.4: true cube reflection, normal mapping и FxTrail на bgfx/Metal.
 
 ## Активный статус
 
@@ -33,14 +36,15 @@ projectiles/mines/hyper/support, AI и source effect graph работают в p
 race session. MusicCat ставится на паузу, а race sound graph и idle/RPM loops
 получают spatial attenuation/pan/pitch. `--track`, `--car` и `--weather`
 выбирают остальные исходные данные.
-Подробности M9.1 находятся в `docs/PHYSICS_PORT_PLAN.md`; renderer/particle
-перенос и статический Windows-аудит M9.2 — в `docs/MILESTONE_9_2.md`.
+Подробности M9.1 находятся в `docs/PHYSICS_PORT_PLAN.md`; последующие
+renderer stages описаны в `docs/MILESTONE_9_2.md`,
+`docs/MILESTONE_9_3.md` и `docs/MILESTONE_9_4.md`.
 
-Финальная проверка M9.2: configure/arm64 Debug build и все новые Metal
-shaders прошли; physics/session и resource smoke завершились с exit code 0.
-Реальный Cocoa `MainMenu2 -> Single Player` bgfx/Metal smoke прошёл 240
-кадров с движением Marauder и четырьмя wheel contacts. Parallels не
-использовался. Подробные результаты находятся в `docs/MILESTONE_9_2.md`.
+Финальная проверка M9.4: arm64 Debug build и новые Metal shaders прошли без
+новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
+каждый подтвердил шесть cube faces, `glRefl` и FxTrail, а World2 дополнительно
+дал 768 draw submissions с исходными normal maps. Parallels не
+использовался. Подробные результаты находятся в `docs/MILESTONE_9_4.md`.
 
 ## Исторический отчёт отменённого vertical slice
 
@@ -634,9 +638,9 @@ SDL_AUDIO_DRIVER=dummy \
   исправленный M9 race используют action layer, но legacy `ControlManager` ещё не
   является его consumer.
 - DXVK Native/MoltenVK проверен и отклонён. bgfx backend покрывает
-  исправленные M5–M9.1 slices; отдельные legacy HDR, planar-reflection и
-  shadow-map passes ещё требуют Metal implementations.
-- Оригинальные game assets импортированы в `game-data`; M9.1 декодирует binary
+  исправленные M5–M9.4 slices, включая HDR, planar reflection, shadow map,
+  true cube reflection, normal mapping и FxTrail.
+- Оригинальные game assets импортированы в `game-data`; M9.4 декодирует binary
   `.r3d` visual/collision meshes, materials, DDS, nested effect graph и
   particle emitters. Portable particle scheduler/sorting и projected shadows
   не являются побитовой копией D3D9 renderer. Перед публикацией нужно отдельно
@@ -665,8 +669,7 @@ SDL_AUDIO_DRIVER=dummy \
 
 ## Следующий рекомендуемый этап
 
-После финальной проверки M9.1 следующий технический этап — отдельные
-bgfx/Metal HDR, planar-reflection и shadow-map passes, затем более точный
-particle scheduling/sorting и калибровка Jolt. После этого следует заново
-базировать bundle Milestone 10 на исправленный M5–M9.1 путь; старый M10
+После M9.4 следующий технический этап — projected-shadow детали, оставшаяся
+точность particle scheduling/sorting и калибровка Jolt. После этого следует
+заново базировать bundle Milestone 10 на исправленный M5–M9.4 путь; старый M10
 portable bundle не является текущим release-кандидатом.

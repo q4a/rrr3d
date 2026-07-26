@@ -1282,6 +1282,10 @@ int main(int argc, char** argv)
         maximumRacePassBegins{};
     std::array<std::uint32_t, r3d::renderer::renderPassCount>
         maximumRacePassDraws{};
+    std::array<std::uint32_t, 7> maximumRaceLightingDraws{};
+    std::uint32_t maximumEnvironmentMappedDraws = 0;
+    std::uint32_t maximumNormalMappedDraws = 0;
+    std::uint32_t maximumTransientDraws = 0;
     std::array<bool, 2> raceCameraStylesObserved{};
     bool raceProgressSaved = false;
     auto saveRaceProfile = [&]() {
@@ -2162,6 +2166,22 @@ int main(int argc, char** argv)
                     maximumRacePassDraws[pass],
                     telemetry.drawCount[pass]);
             }
+            for (std::size_t mode = 0;
+                 mode < maximumRaceLightingDraws.size(); ++mode)
+            {
+                maximumRaceLightingDraws[mode] = std::max(
+                    maximumRaceLightingDraws[mode],
+                    telemetry.lightingDrawCount[mode]);
+            }
+            maximumEnvironmentMappedDraws = std::max(
+                maximumEnvironmentMappedDraws,
+                telemetry.environmentMappedDrawCount);
+            maximumNormalMappedDraws = std::max(
+                maximumNormalMappedDraws,
+                telemetry.normalMappedDrawCount);
+            maximumTransientDraws = std::max(
+                maximumTransientDraws,
+                telemetry.transientDrawCount);
         }
         else
         {
@@ -2230,6 +2250,24 @@ int main(int argc, char** argv)
                                 maximumRacePassDraws[index] > 0U);
                     };
                 bool renderGraphComplete =
+                    passObserved(
+                        r3d::renderer::RenderPass::
+                            EnvironmentPositiveX) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::
+                            EnvironmentNegativeX) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::
+                            EnvironmentPositiveY) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::
+                            EnvironmentNegativeY) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::
+                            EnvironmentPositiveZ) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::
+                            EnvironmentNegativeZ) &&
                     passObserved(r3d::renderer::RenderPass::Shadow) &&
                     passObserved(r3d::renderer::RenderPass::Scene) &&
                     passObserved(
@@ -2261,6 +2299,15 @@ int main(int argc, char** argv)
                     originalRace->environment.surface ==
                     r3d::game::originalrace::
                         EnvironmentSurface::Water;
+                const bool expectsBumpMapping =
+                    std::any_of(
+                        originalRace->trackDefinitions.begin(),
+                        originalRace->trackDefinitions.end(),
+                        [](const auto& definition) {
+                            return definition.lighting ==
+                                   r3d::game::originalrace::
+                                       LightingMode::Bump;
+                        });
                 if (expectsReflection)
                     renderGraphComplete =
                         renderGraphComplete &&
@@ -2277,7 +2324,11 @@ int main(int argc, char** argv)
                     raceVehicles.size() < 2U ||
                     !raceCameraStylesObserved[0] ||
                     !raceCameraStylesObserved[1] ||
-                    !renderGraphComplete)
+                    !renderGraphComplete ||
+                    maximumEnvironmentMappedDraws == 0U ||
+                    (expectsBumpMapping &&
+                     maximumNormalMappedDraws == 0U) ||
+                    maximumTransientDraws == 0U)
                 {
                     std::cerr
                         << "Milestone 9 integrated Single Player/race render "
@@ -2288,6 +2339,12 @@ int main(int argc, char** argv)
                         << maximumRaceSmokeSpeed
                         << ", renderGraph="
                         << renderGraphComplete
+                        << ", envMapped="
+                        << maximumEnvironmentMappedDraws
+                        << ", normalMapped="
+                        << maximumNormalMappedDraws
+                        << ", transient="
+                        << maximumTransientDraws
                         << ", cars=" << raceVehicles.size()
                         << ", cameras="
                         << raceCameraStylesObserved[0] << '/'
@@ -2297,18 +2354,24 @@ int main(int argc, char** argv)
                 else
                 {
                     std::cout
-                        << "Milestone 9.3 original Single Player/"
+                        << "Milestone 9.4 original Single Player/"
                         << originalRace->levelPath << '/'
                         << recordName(originalRace->vehicle.record)
                         << "/Jolt/bgfx/Metal smoke test completed after "
                         << renderedFrames << " frames; max speed "
                         << maximumRaceSmokeSpeed << ", wheel contacts "
                         << maximumRaceSmokeContacts
-                        << ", renderer passes shadow/scene/HDR64-1/"
+                        << ", renderer passes cube6/shadow/scene/HDR64-1/"
                            "adapt/bloom/composite/HUD"
                         << (expectsReflection ? "/reflection" : "")
                         << (expectsWater ? "/water" : "")
-                        << " verified; " << raceVehicles.size()
+                        << " verified; cube reflection "
+                        << maximumEnvironmentMappedDraws
+                        << ", normal map "
+                        << maximumNormalMappedDraws
+                        << ", FxTrail "
+                        << maximumTransientDraws << "; "
+                        << raceVehicles.size()
                         << " cars, both original camera modes and "
                            "render-target resize round-trip passed\n";
                 }

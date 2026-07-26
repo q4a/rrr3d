@@ -1,10 +1,12 @@
-$input v_normal, v_texcoord0, v_worldPosition, v_reflectionPosition, v_shadowPosition, v_linearDepth
+$input v_normal, v_texcoord0, v_worldPosition, v_reflectionPosition, v_shadowPosition, v_linearDepth, v_tangent, v_bitangent
 
 #include "bgfx_shader.sh"
 
 SAMPLER2D(s_texColor, 0);
 SAMPLER2D(s_texReflection, 1);
 SAMPLER2D(s_texShadow, 2);
+SAMPLERCUBE(s_texEnvironment, 3);
+SAMPLER2D(s_texNormal, 4);
 uniform vec4 u_sceneLightDirection;
 uniform vec4 u_sceneAmbient;
 uniform vec4 u_sceneFog;
@@ -29,17 +31,14 @@ void main()
     vec3 normal = normalize(v_normal);
     if (abs(mappingMode - 4.0) < 0.5)
     {
-        float heightX =
-            texture2D(s_texColor,
-                      v_texcoord0 + vec2(0.0025, 0.0)).r -
-            texture2D(s_texColor,
-                      v_texcoord0 - vec2(0.0025, 0.0)).r;
-        float heightY =
-            texture2D(s_texColor,
-                      v_texcoord0 + vec2(0.0, 0.0025)).r -
-            texture2D(s_texColor,
-                      v_texcoord0 - vec2(0.0, 0.0025)).r;
-        normal = normalize(normal + vec3(-heightX, -heightY, 0.0));
+        vec3 tangent = normalize(v_tangent);
+        vec3 bitangent = normalize(v_bitangent);
+        vec3 tangentNormal =
+            texture2D(s_texNormal, v_texcoord0).xyz * 2.0 - 1.0;
+        normal = normalize(
+            tangent * tangentNormal.x +
+            bitangent * tangentNormal.y +
+            normal * tangentNormal.z);
     }
     vec3 lightDirection = normalize(u_sceneLightDirection.xyz);
     float diffuse = max(dot(normal, lightDirection), 0.0);
@@ -79,15 +78,17 @@ void main()
             ? albedo.rgb
             : albedo.rgb * lighting * shadowFactor +
                   vec3_splat(specular * shadowFactor);
-    float fresnel =
-        clamp(1.0 - dot(viewDirection, normal), 0.0, 1.0);
     if (abs(mappingMode - 3.0) < 0.5)
     {
-        lit = mix(lit, albedo.rgb + vec3_splat(specular),
-                  0.4 * fresnel);
+        vec3 reflected = textureCube(
+            s_texEnvironment,
+            reflect(-viewDirection, normal)).rgb;
+        lit = mix(lit, reflected, 0.4);
     }
     else if (abs(mappingMode - 5.0) < 0.5)
     {
+        float fresnel =
+            clamp(1.0 - dot(viewDirection, normal), 0.0, 1.0);
         lit = mix(lit, u_sceneFog.rgb, 0.22 * fresnel);
     }
     if (u_materialOptions.y > 0.0 &&

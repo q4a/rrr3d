@@ -91,6 +91,109 @@ std::uint32_t positiveCount(Reader& reader, std::string_view field,
     return static_cast<std::uint32_t>(value);
 }
 
+std::array<float, 3> subtract(const std::array<float, 3>& left,
+                              const std::array<float, 3>& right)
+{
+    return {left[0] - right[0], left[1] - right[1],
+            left[2] - right[2]};
+}
+
+float dot(const std::array<float, 3>& left,
+          const std::array<float, 3>& right)
+{
+    return left[0] * right[0] + left[1] * right[1] +
+           left[2] * right[2];
+}
+
+std::array<float, 3> cross(const std::array<float, 3>& left,
+                           const std::array<float, 3>& right)
+{
+    return {
+        left[1] * right[2] - left[2] * right[1],
+        left[2] * right[0] - left[0] * right[2],
+        left[0] * right[1] - left[1] * right[0]};
+}
+
+std::array<float, 3> normalized(std::array<float, 3> value)
+{
+    const float length = std::sqrt(dot(value, value));
+    if (length <= 0.000001F)
+        return {};
+    for (float& component : value)
+        component /= length;
+    return value;
+}
+
+void buildTangentSpace(R3DMeshAsset& mesh)
+{
+    if (!mesh.hasTexcoords)
+        return;
+
+    std::vector<std::array<float, 3>> tangents(mesh.vertices.size());
+    std::vector<std::array<float, 3>> bitangents(mesh.vertices.size());
+    for (std::size_t triangle = 0; triangle + 2U < mesh.indices.size();
+         triangle += 3U)
+    {
+        const auto i0 = mesh.indices[triangle];
+        const auto i1 = mesh.indices[triangle + 1U];
+        const auto i2 = mesh.indices[triangle + 2U];
+        const auto& v0 = mesh.vertices[i0];
+        const auto& v1 = mesh.vertices[i1];
+        const auto& v2 = mesh.vertices[i2];
+        const auto edge1 = subtract(v1.position, v0.position);
+        const auto edge2 = subtract(v2.position, v0.position);
+        const float du1 = v1.texcoord[0] - v0.texcoord[0];
+        const float dv1 = v1.texcoord[1] - v0.texcoord[1];
+        const float du2 = v2.texcoord[0] - v0.texcoord[0];
+        const float dv2 = v2.texcoord[1] - v0.texcoord[1];
+        const float determinant = du1 * dv2 - du2 * dv1;
+        if (std::abs(determinant) <= 0.000001F)
+            continue;
+        const float inverse = 1.0F / determinant;
+        const std::array<float, 3> tangent{
+            (edge1[0] * dv2 - edge2[0] * dv1) * inverse,
+            (edge1[1] * dv2 - edge2[1] * dv1) * inverse,
+            (edge1[2] * dv2 - edge2[2] * dv1) * inverse};
+        const std::array<float, 3> bitangent{
+            (edge2[0] * du1 - edge1[0] * du2) * inverse,
+            (edge2[1] * du1 - edge1[1] * du2) * inverse,
+            (edge2[2] * du1 - edge1[2] * du2) * inverse};
+        for (const auto index : {i0, i1, i2})
+        {
+            for (std::size_t axis = 0; axis < 3U; ++axis)
+            {
+                tangents[index][axis] += tangent[axis];
+                bitangents[index][axis] += bitangent[axis];
+            }
+        }
+    }
+
+    for (std::size_t index = 0; index < mesh.vertices.size(); ++index)
+    {
+        auto normal = normalized(mesh.vertices[index].normal);
+        auto tangent = tangents[index];
+        const float projection = dot(normal, tangent);
+        for (std::size_t axis = 0; axis < 3U; ++axis)
+            tangent[axis] -= normal[axis] * projection;
+        tangent = normalized(tangent);
+        if (dot(tangent, tangent) <= 0.000001F)
+        {
+            const std::array<float, 3> reference =
+                std::abs(normal[2]) < 0.9F
+                    ? std::array<float, 3>{0.0F, 0.0F, 1.0F}
+                    : std::array<float, 3>{0.0F, 1.0F, 0.0F};
+            tangent = normalized(cross(reference, normal));
+        }
+        auto bitangent = normalized(cross(normal, tangent));
+        if (dot(bitangent, bitangents[index]) < 0.0F)
+            for (float& component : bitangent)
+                component = -component;
+        mesh.vertices[index].normal = normal;
+        mesh.vertices[index].tangent = tangent;
+        mesh.vertices[index].bitangent = bitangent;
+    }
+}
+
 } // namespace
 
 R3DMeshAsset decodeR3DMeshAsset(const std::vector<std::uint8_t>& bytes,
@@ -161,6 +264,7 @@ R3DMeshAsset decodeR3DMeshAsset(const std::vector<std::uint8_t>& bytes,
         if (index >= vertex_count)
             reader.fail("triangle index references a missing vertex");
     }
+    buildTangentSpace(mesh);
 
     const std::uint32_t material_count = positiveCount(
         reader, "material group count", face_count);

@@ -14,6 +14,11 @@ struct R3DVertex
 {
     std::array<float, 3> position{};
     std::array<float, 3> normal{};
+    // The legacy loader generated tangent space for meshes used by
+    // BumpMapShader. Keep the generated basis in the portable asset so the
+    // Metal backend can consume the original normal-map materials.
+    std::array<float, 3> tangent{};
+    std::array<float, 3> bitangent{};
     std::array<float, 2> texcoord{};
 };
 

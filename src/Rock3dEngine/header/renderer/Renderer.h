@@ -47,6 +47,12 @@ struct StaticMeshVertex
     float normalZ;
     float u;
     float v;
+    float tangentX = 0.0F;
+    float tangentY = 0.0F;
+    float tangentZ = 0.0F;
+    float bitangentX = 0.0F;
+    float bitangentY = 0.0F;
+    float bitangentZ = 0.0F;
 };
 
 enum class VertexLayout
@@ -102,8 +108,14 @@ enum class RenderTargetFormat : std::uint8_t
 // D3D9/bgfx types out of game code.
 enum class RenderPass : std::uint8_t
 {
-    Reflection,
     Shadow,
+    EnvironmentPositiveX,
+    EnvironmentNegativeX,
+    EnvironmentPositiveY,
+    EnvironmentNegativeY,
+    EnvironmentPositiveZ,
+    EnvironmentNegativeZ,
+    Reflection,
     Scene,
     Water,
     Luminance64,
@@ -126,6 +138,10 @@ struct RenderTelemetry
 {
     std::array<std::uint32_t, renderPassCount> beginCount{};
     std::array<std::uint32_t, renderPassCount> drawCount{};
+    std::array<std::uint32_t, 7> lightingDrawCount{};
+    std::uint32_t environmentMappedDrawCount = 0;
+    std::uint32_t normalMappedDrawCount = 0;
+    std::uint32_t transientDrawCount = 0;
 };
 
 struct DepthBuffer
@@ -193,6 +209,11 @@ struct MaterialState
     bool ignoreFog = false;
     float reflectionStrength = 0.0F;
     bool receivesShadow = true;
+    // Optional per-draw override.  The sky cube uses the static source DDS
+    // while reflective scene materials fall back to the current pass cube.
+    Texture environmentTexture;
+    // Optional second LibMaterial sampler used by BumpMapShader.
+    Texture normalTexture;
     // Generic parameters used by the source-derived post-process shaders.
     std::array<float, 4> postParameters{};
 };
@@ -215,6 +236,8 @@ struct RenderPassState
 {
     Texture reflectionTexture;
     Texture shadowTexture;
+    // Cube texture used by ReflMappShader/ReflBumpMappShader.
+    Texture environmentTexture;
     std::array<float, 16> reflectionViewProjection{
         1.0F, 0.0F, 0.0F, 0.0F,
         0.0F, 1.0F, 0.0F, 0.0F,
@@ -230,6 +253,12 @@ struct RenderPassState
     bool shadowsEnabled = false;
     bool invertCulling = false;
     float shadowStrength = 0.62F;
+};
+
+struct CubeRenderTarget
+{
+    Texture texture;
+    std::array<RenderTarget, 6> faces{};
 };
 
 struct Transform
@@ -293,6 +322,9 @@ public:
         std::uint16_t width, std::uint16_t height,
         RenderTargetFormat format, bool depth,
         std::string_view name) = 0;
+    virtual CubeRenderTarget createCubeRenderTarget(
+        std::uint16_t size, RenderTargetFormat format, bool depth,
+        std::string_view name) = 0;
     virtual Texture renderTargetTexture(
         RenderTarget target, std::uint8_t attachment = 0) const = 0;
 
@@ -300,6 +332,7 @@ public:
     virtual void destroy(Mesh mesh) = 0;
     virtual void destroy(Texture texture) = 0;
     virtual void destroy(RenderTarget target) = 0;
+    virtual void destroy(CubeRenderTarget target) = 0;
 
     virtual void beginFrame(const Camera& camera, std::uint32_t clearRgba) = 0;
     virtual void resetRenderTelemetry() noexcept = 0;
@@ -316,6 +349,13 @@ public:
                       const PipelineState& pipeline,
                       DrawRange range = {},
                       const MaterialState& material = {}) = 0;
+    // Per-frame geometry path used by the original FxTrailManager strip.
+    virtual void drawTransient(
+        const StaticMeshVertex* vertices, std::size_t vertexCount,
+        const std::uint32_t* indices, std::size_t indexCount,
+        Shader shader, Texture texture, const Transform& transform,
+        const PipelineState& pipeline,
+        const MaterialState& material = {}) = 0;
     virtual void endFrame() = 0;
 
     virtual std::string_view backendName() const noexcept = 0;
