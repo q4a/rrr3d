@@ -105,11 +105,27 @@ enum class RenderPass : std::uint8_t
     Reflection,
     Shadow,
     Scene,
+    Water,
+    Luminance64,
+    Luminance16,
+    Luminance4,
+    Luminance1,
+    LuminanceAdapt,
     BloomExtract,
     BloomHorizontal,
     BloomVertical,
     Composite,
     Overlay,
+    Count,
+};
+
+inline constexpr std::size_t renderPassCount =
+    static_cast<std::size_t>(RenderPass::Count);
+
+struct RenderTelemetry
+{
+    std::array<std::uint32_t, renderPassCount> beginCount{};
+    std::array<std::uint32_t, renderPassCount> drawCount{};
 };
 
 struct DepthBuffer
@@ -277,7 +293,8 @@ public:
         std::uint16_t width, std::uint16_t height,
         RenderTargetFormat format, bool depth,
         std::string_view name) = 0;
-    virtual Texture renderTargetTexture(RenderTarget target) const = 0;
+    virtual Texture renderTargetTexture(
+        RenderTarget target, std::uint8_t attachment = 0) const = 0;
 
     virtual void destroy(Shader shader) = 0;
     virtual void destroy(Mesh mesh) = 0;
@@ -285,6 +302,8 @@ public:
     virtual void destroy(RenderTarget target) = 0;
 
     virtual void beginFrame(const Camera& camera, std::uint32_t clearRgba) = 0;
+    virtual void resetRenderTelemetry() noexcept = 0;
+    virtual const RenderTelemetry& renderTelemetry() const noexcept = 0;
     virtual void beginPass(RenderPass pass, RenderTarget target,
                            const Camera& camera, std::uint32_t clearRgba,
                            bool clearColor, bool clearDepth) = 0;

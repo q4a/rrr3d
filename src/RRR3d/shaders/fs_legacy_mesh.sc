@@ -16,6 +16,8 @@ uniform vec4 u_materialParams;
 // x = ignore fog, y = planar reflection, z = shadow strength,
 // w = source clip plane enabled.
 uniform vec4 u_materialOptions;
+// w = original IActor::Lighting (glNone..glPlanarRefl).
+uniform vec4 u_postParams;
 uniform vec4 u_clipPlane;
 
 void main()
@@ -23,7 +25,22 @@ void main()
     if (u_materialOptions.w > 0.5 &&
         dot(vec4(v_worldPosition, 1.0), u_clipPlane) < 0.0)
         discard;
+    float mappingMode = u_postParams.w;
     vec3 normal = normalize(v_normal);
+    if (abs(mappingMode - 4.0) < 0.5)
+    {
+        float heightX =
+            texture2D(s_texColor,
+                      v_texcoord0 + vec2(0.0025, 0.0)).r -
+            texture2D(s_texColor,
+                      v_texcoord0 - vec2(0.0025, 0.0)).r;
+        float heightY =
+            texture2D(s_texColor,
+                      v_texcoord0 + vec2(0.0, 0.0025)).r -
+            texture2D(s_texColor,
+                      v_texcoord0 - vec2(0.0, 0.0025)).r;
+        normal = normalize(normal + vec3(-heightX, -heightY, 0.0));
+    }
     vec3 lightDirection = normalize(u_sceneLightDirection.xyz);
     float diffuse = max(dot(normal, lightDirection), 0.0);
     vec3 lighting = u_sceneAmbient.rgb + vec3_splat(diffuse * 0.82);
@@ -58,8 +75,21 @@ void main()
         }
     }
     vec3 lit =
-        albedo.rgb * lighting * shadowFactor +
-        vec3_splat(specular * shadowFactor);
+        mappingMode < 0.5
+            ? albedo.rgb
+            : albedo.rgb * lighting * shadowFactor +
+                  vec3_splat(specular * shadowFactor);
+    float fresnel =
+        clamp(1.0 - dot(viewDirection, normal), 0.0, 1.0);
+    if (abs(mappingMode - 3.0) < 0.5)
+    {
+        lit = mix(lit, albedo.rgb + vec3_splat(specular),
+                  0.4 * fresnel);
+    }
+    else if (abs(mappingMode - 5.0) < 0.5)
+    {
+        lit = mix(lit, u_sceneFog.rgb, 0.22 * fresnel);
+    }
     if (u_materialOptions.y > 0.0 &&
         v_reflectionPosition.w > 0.0001)
     {

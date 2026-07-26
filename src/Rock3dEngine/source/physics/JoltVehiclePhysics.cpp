@@ -613,7 +613,18 @@ private:
 
         auto* controllerSettings = new JPH::WheeledVehicleControllerSettings;
         controllerSettings->mEngine.mMaxTorque = source.maximumTorque;
-        controllerSettings->mEngine.mMaxRPM = source.maximumRpm;
+        controllerSettings->mEngine.mMaxRPM =
+            std::max(source.maximumRpm, 100.0F);
+        controllerSettings->mEngine.mMinRPM = std::min(
+            controllerSettings->mEngine.mMinRPM,
+            controllerSettings->mEngine.mMaxRPM * 0.25F);
+        // Jolt's fixed 4000/2000 automatic shift defaults assert when an
+        // original opponent/upgrade has maxRPM <= 4000. Scale the shift
+        // points to each db.xml motor, as the legacy controller did.
+        controllerSettings->mTransmission.mShiftUpRPM =
+            controllerSettings->mEngine.mMaxRPM * 0.86F;
+        controllerSettings->mTransmission.mShiftDownRPM =
+            controllerSettings->mEngine.mMaxRPM * 0.48F;
         std::vector<JPH::uint> driven;
         for (JPH::uint index = 0; index < source.wheels.size(); ++index)
             if (source.wheels[index].driven)

@@ -393,7 +393,7 @@ void applyWeather(
         environment.weather =
             weather == "rainy" ? Weather::Rainy : Weather::Cloudy;
         environment.skyTexturePath =
-            "Data/World2/Texture/skyTex1.dds";
+            "Data/World2/texture/skyTex1.dds";
         environment.fogColor =
             {192.0F / 255.0F, 189.0F / 255.0F,
              184.0F / 255.0F, 0.0F};
@@ -516,7 +516,10 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         originalRace.emplace(r3d::game::originalrace::loadOriginalRace(
             *resources, selectedTrack, selectedCar));
-        if (!options->trackSelected)
+        // The provenance/physics smoke has exact World1/map1 assertions and
+        // must not depend on whichever tournament track a prior GUI run
+        // persisted in user.xml.
+        if (!options->trackSelected && !options->physicsSmokeTest)
         {
             selectedTrack =
                 r3d::game::originalrace::resolveOriginalTournamentTrack(
@@ -866,6 +869,33 @@ int main(int argc, char** argv)
 #endif
         SDL_Quit();
         return EXIT_FAILURE;
+    }
+    if (options->raceRenderSmokeTest)
+    {
+        std::string resizeError;
+        const auto smokeWidth = static_cast<std::uint32_t>(
+            std::max(pixelWidth / 2, 320));
+        const auto smokeHeight = static_cast<std::uint32_t>(
+            std::max(pixelHeight / 2, 200));
+        if (!raceRenderer.resize(
+                *device, smokeWidth, smokeHeight, resizeError) ||
+            !raceRenderer.resize(
+                *device, static_cast<std::uint32_t>(pixelWidth),
+                static_cast<std::uint32_t>(pixelHeight), resizeError))
+        {
+            std::cerr << "M9.3 renderer target resize round-trip failed: "
+                      << resizeError << '\n';
+            raceRenderer.shutdown(*device);
+            raceHud.shutdown(*device);
+            releaseResources();
+            device.reset();
+            SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+            input.shutdown();
+#endif
+            SDL_Quit();
+            return EXIT_FAILURE;
+        }
     }
     std::cout << "Milestone 9 race: " << originalRace->levelPath << ", "
               << originalRace->lapCount << " laps, "
@@ -1248,6 +1278,11 @@ int main(int argc, char** argv)
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
     float maximumRaceSmokeSpeed = 0.0F;
     std::uint32_t maximumRaceSmokeContacts = 0;
+    std::array<std::uint32_t, r3d::renderer::renderPassCount>
+        maximumRacePassBegins{};
+    std::array<std::uint32_t, r3d::renderer::renderPassCount>
+        maximumRacePassDraws{};
+    std::array<bool, 2> raceCameraStylesObserved{};
     bool raceProgressSaved = false;
     auto saveRaceProfile = [&]() {
         if (!raceSession.racers().empty())
@@ -1584,7 +1619,7 @@ int main(int argc, char** argv)
                         resizeError))
                 {
                     std::cerr
-                        << "Unable to resize M9.2 render targets: "
+                        << "Unable to resize M9.3 render targets: "
                         << resizeError << '\n';
                     running = false;
                 }
@@ -2080,11 +2115,28 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         if (inRace)
         {
+            auto cameraStyle =
+                profileState.config.preferredCamera;
+            if (options->raceRenderSmokeTest)
+            {
+                cameraStyle =
+                    renderedFrames < options->smokeFrames / 2U
+                        ? r3d::game::originalrace::
+                              PreferredCamera::Isometric
+                        : r3d::game::originalrace::
+                              PreferredCamera::ThirdPerson;
+                raceCameraStylesObserved[
+                    cameraStyle ==
+                            r3d::game::originalrace::
+                                PreferredCamera::ThirdPerson
+                        ? 0U
+                        : 1U] = true;
+            }
             const auto raceCamera = raceRenderer.makeCamera(
                 *device, physicsWorld->vehicle(),
                 static_cast<std::uint32_t>(pixelWidth),
                 static_cast<std::uint32_t>(pixelHeight),
-                profileState.config.preferredCamera,
+                cameraStyle,
                 profileState.config.cameraDistance, frameSeconds);
             raceRenderer.renderFrame(
                 *device, raceShader, raceCamera, 0x6b91b8ffU,
@@ -2099,6 +2151,17 @@ int main(int argc, char** argv)
             if (profileState.config.enableHud)
                 raceHud.draw(*device, quad, shader, raceShader);
             device->endFrame();
+            const auto& telemetry = device->renderTelemetry();
+            for (std::size_t pass = 0;
+                 pass < r3d::renderer::renderPassCount; ++pass)
+            {
+                maximumRacePassBegins[pass] = std::max(
+                    maximumRacePassBegins[pass],
+                    telemetry.beginCount[pass]);
+                maximumRacePassDraws[pass] = std::max(
+                    maximumRacePassDraws[pass],
+                    telemetry.drawCount[pass]);
+            }
         }
         else
         {
@@ -2157,9 +2220,64 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
             if (options->raceRenderSmokeTest)
             {
+                auto passObserved =
+                    [&](r3d::renderer::RenderPass pass,
+                        bool requireDraw = true) {
+                        const auto index =
+                            static_cast<std::size_t>(pass);
+                        return maximumRacePassBegins[index] > 0U &&
+                               (!requireDraw ||
+                                maximumRacePassDraws[index] > 0U);
+                    };
+                bool renderGraphComplete =
+                    passObserved(r3d::renderer::RenderPass::Shadow) &&
+                    passObserved(r3d::renderer::RenderPass::Scene) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::Luminance64) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::Luminance16) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::Luminance4) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::Luminance1) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::LuminanceAdapt) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::BloomExtract) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::BloomHorizontal) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::BloomVertical) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::Composite) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::Overlay, false);
+                const bool expectsReflection =
+                    originalRace->environment.planarReflection ||
+                    originalRace->environment.surface ==
+                        r3d::game::originalrace::
+                            EnvironmentSurface::Water;
+                const bool expectsWater =
+                    originalRace->environment.surface ==
+                    r3d::game::originalrace::
+                        EnvironmentSurface::Water;
+                if (expectsReflection)
+                    renderGraphComplete =
+                        renderGraphComplete &&
+                        passObserved(
+                            r3d::renderer::RenderPass::Reflection);
+                if (expectsWater)
+                    renderGraphComplete =
+                        renderGraphComplete &&
+                        passObserved(
+                            r3d::renderer::RenderPass::Water);
                 if (!integratedRaceStartObserved || !inRace ||
                     maximumRaceSmokeContacts == 0 ||
-                    maximumRaceSmokeSpeed < 0.2F)
+                    maximumRaceSmokeSpeed < 0.2F ||
+                    raceVehicles.size() < 2U ||
+                    !raceCameraStylesObserved[0] ||
+                    !raceCameraStylesObserved[1] ||
+                    !renderGraphComplete)
                 {
                     std::cerr
                         << "Milestone 9 integrated Single Player/race render "
@@ -2167,19 +2285,32 @@ int main(int argc, char** argv)
                         << integratedRaceStartObserved << ", inRace="
                         << inRace << ", contacts="
                         << maximumRaceSmokeContacts << ", maxSpeed="
-                        << maximumRaceSmokeSpeed << '\n';
+                        << maximumRaceSmokeSpeed
+                        << ", renderGraph="
+                        << renderGraphComplete
+                        << ", cars=" << raceVehicles.size()
+                        << ", cameras="
+                        << raceCameraStylesObserved[0] << '/'
+                        << raceCameraStylesObserved[1] << '\n';
                     runtimeSmokeFailed = true;
                 }
                 else
                 {
                     std::cout
-                        << "Milestone 9 original Single Player/"
+                        << "Milestone 9.3 original Single Player/"
                         << originalRace->levelPath << '/'
                         << recordName(originalRace->vehicle.record)
                         << "/Jolt/bgfx/Metal smoke test completed after "
                         << renderedFrames << " frames; max speed "
                         << maximumRaceSmokeSpeed << ", wheel contacts "
-                        << maximumRaceSmokeContacts << '\n';
+                        << maximumRaceSmokeContacts
+                        << ", renderer passes shadow/scene/HDR64-1/"
+                           "adapt/bloom/composite/HUD"
+                        << (expectsReflection ? "/reflection" : "")
+                        << (expectsWater ? "/water" : "")
+                        << " verified; " << raceVehicles.size()
+                        << " cars, both original camera modes and "
+                           "render-target resize round-trip passed\n";
                 }
             }
             else

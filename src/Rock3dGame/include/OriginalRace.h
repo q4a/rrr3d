@@ -64,6 +64,22 @@ struct VisualNode
     bool fixedDirection = false;
 };
 
+enum class ParticleRenderMode
+{
+    PointSprite,
+    Sprite,
+    DirectionalSprite,
+    Plane,
+    Trail,
+    Node,
+};
+
+enum class ParticleMaximumAction
+{
+    WaitForFree,
+    ReplaceLatest,
+};
+
 struct ParticleEmitterDefinition
 {
     Transform transform;
@@ -80,8 +96,20 @@ struct ParticleEmitterDefinition
     Vec3 startPositionMaximum;
     Vec3 startScaleMinimum{1.0F, 1.0F, 1.0F};
     Vec3 startScaleMaximum{1.0F, 1.0F, 1.0F};
+    Quat startRotationMinimum;
+    Quat startRotationMaximum;
+    float rangeLifeMinimum = 0.0F;
+    float rangeLifeMaximum = 0.0F;
+    Vec3 rangePositionMinimum;
+    Vec3 rangePositionMaximum;
+    Vec3 rangeScaleMinimum;
+    Vec3 rangeScaleMaximum;
+    Quat rangeRotationMinimum;
+    Quat rangeRotationMaximum;
     Vec3 velocityMinimum;
     Vec3 velocityMaximum;
+    Quat rotationVelocityMinimum;
+    Quat rotationVelocityMaximum;
     Vec3 scaleVelocityMinimum;
     Vec3 scaleVelocityMaximum;
     Vec3 accelerationMinimum;
@@ -91,6 +119,20 @@ struct ParticleEmitterDefinition
     bool autoRotate = false;
     bool distanceTriggered = false;
     bool fixedDirection = false;
+    ParticleRenderMode renderMode = ParticleRenderMode::Sprite;
+    ParticleMaximumAction maximumAction =
+        ParticleMaximumAction::WaitForFree;
+};
+
+enum class LightingMode
+{
+    None,
+    Standard,
+    Pixel,
+    Reflection,
+    Bump,
+    Refraction,
+    PlanarReflection,
 };
 
 struct ObjectDefinition
@@ -106,6 +148,7 @@ struct ObjectDefinition
     bool destructible = false;
     bool planarReflection = false;
     bool castsShadow = false;
+    LightingMode lighting = LightingMode::Standard;
 };
 
 struct ObjectInstance
@@ -160,6 +203,7 @@ struct Vehicle
     std::vector<VehicleNightLight> nightLights;
     r3d::physics::VehicleDescription physics;
     float maximumLife = 100.0F;
+    LightingMode lighting = LightingMode::Standard;
 };
 
 enum class WeaponSlot

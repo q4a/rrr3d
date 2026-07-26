@@ -200,6 +200,18 @@ public:
         bgfx::setViewName(viewId(RenderPass::Shadow),
                           "Motor Rock shadow map");
         bgfx::setViewName(scene_view, "Motor Rock HDR scene");
+        bgfx::setViewName(viewId(RenderPass::Water),
+                          "Motor Rock water/refraction");
+        bgfx::setViewName(viewId(RenderPass::Luminance64),
+                          "Motor Rock luminance 64");
+        bgfx::setViewName(viewId(RenderPass::Luminance16),
+                          "Motor Rock luminance 16");
+        bgfx::setViewName(viewId(RenderPass::Luminance4),
+                          "Motor Rock luminance 4");
+        bgfx::setViewName(viewId(RenderPass::Luminance1),
+                          "Motor Rock luminance 1");
+        bgfx::setViewName(viewId(RenderPass::LuminanceAdapt),
+                          "Motor Rock luminance adaptation");
         bgfx::setViewName(viewId(RenderPass::BloomExtract),
                           "Motor Rock bloom extract");
         bgfx::setViewName(viewId(RenderPass::BloomHorizontal),
@@ -362,8 +374,7 @@ public:
             attachments[1] = bgfx::createTexture2D(
                 width, height, false, 1, bgfx::TextureFormat::D32F,
                 BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP |
-                    BGFX_SAMPLER_V_CLAMP |
-                    BGFX_SAMPLER_COMPARE_LEQUAL);
+                    BGFX_SAMPLER_V_CLAMP);
             count = 2;
         }
         if (!bgfx::isValid(attachments[0]) ||
@@ -389,13 +400,15 @@ public:
         return {framebuffer.idx};
     }
 
-    Texture renderTargetTexture(RenderTarget target) const override
+    Texture renderTargetTexture(
+        RenderTarget target, std::uint8_t attachment) const override
     {
         if (target.value == invalid_resource ||
-            !render_targets_.contains(target.value))
+            !render_targets_.contains(target.value) ||
+            attachment > 1U)
             return {};
         const auto texture = bgfx::getTexture(
-            bgfx::FrameBufferHandle{target.value}, 0);
+            bgfx::FrameBufferHandle{target.value}, attachment);
         return bgfx::isValid(texture) ? Texture{texture.idx} : Texture{};
     }
 
@@ -430,14 +443,27 @@ public:
 
     void beginFrame(const Camera& camera, std::uint32_t clearRgba) override
     {
+        resetRenderTelemetry();
         setPassState({});
         beginPass(RenderPass::Scene, {}, camera, clearRgba, true, true);
+    }
+
+    void resetRenderTelemetry() noexcept override
+    {
+        telemetry_ = {};
+    }
+
+    const RenderTelemetry& renderTelemetry() const noexcept override
+    {
+        return telemetry_;
     }
 
     void beginPass(RenderPass pass, RenderTarget target,
                    const Camera& camera, std::uint32_t clearRgba,
                    bool clearColor, bool clearDepth) override
     {
+        current_pass_ = pass;
+        ++telemetry_.beginCount[static_cast<std::size_t>(pass)];
         current_view_ = viewId(pass);
         std::uint16_t viewWidth = static_cast<std::uint16_t>(
             std::min(width_, std::uint32_t(UINT16_MAX)));
@@ -585,6 +611,8 @@ public:
                          material.postParameters.data());
         bgfx::setState(state);
         bgfx::submit(current_view_, bgfx::ProgramHandle{shader.value});
+        ++telemetry_.drawCount[
+            static_cast<std::size_t>(current_pass_)];
     }
 
     void endFrame() override
@@ -617,6 +645,8 @@ private:
     bgfx::ViewId current_view_ = scene_view;
     SceneLighting scene_lighting_;
     RenderPassState pass_state_;
+    RenderPass current_pass_ = RenderPass::Scene;
+    RenderTelemetry telemetry_;
     std::unordered_map<std::uint16_t, TargetInfo> render_targets_;
     bgfx::UniformHandle scene_light_direction_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_ambient_ = BGFX_INVALID_HANDLE;

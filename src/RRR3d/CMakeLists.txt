@@ -142,10 +142,24 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_shader_output_dir}/rrr3d_fs_bloom_blur.bin.h")
         set(_rrr3d_tone_map_shader
             "${_rrr3d_shader_output_dir}/rrr3d_fs_tone_map.bin.h")
+        set(_rrr3d_water_vertex_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_vs_water.bin.h")
+        set(_rrr3d_water_fragment_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_water.bin.h")
+        set(_rrr3d_copy_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_copy.bin.h")
+        set(_rrr3d_luminance_log_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_luminance_log.bin.h")
+        set(_rrr3d_luminance_downsample_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_luminance_downsample.bin.h")
+        set(_rrr3d_luminance_adapt_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_luminance_adapt.bin.h")
         set(_rrr3d_legacy_varying
             "${_rrr3d_shader_source_dir}/varying_legacy_mesh.def.sc")
         set(_rrr3d_post_varying
             "${_rrr3d_shader_source_dir}/varying_post_process.def.sc")
+        set(_rrr3d_water_varying
+            "${_rrr3d_shader_source_dir}/varying_water.def.sc")
         _rrr3d_compile_m9_2_shader(
             "${_rrr3d_shadow_vertex_shader}" vertex
             "${_rrr3d_shader_source_dir}/vs_shadow_map.sc"
@@ -170,13 +184,43 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_tone_map_shader}" fragment
             "${_rrr3d_shader_source_dir}/fs_tone_map.sc"
             "${_rrr3d_post_varying}" rrr3d_fs_tone_map)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_water_vertex_shader}" vertex
+            "${_rrr3d_shader_source_dir}/vs_water.sc"
+            "${_rrr3d_water_varying}" rrr3d_vs_water)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_water_fragment_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_water.sc"
+            "${_rrr3d_water_varying}" rrr3d_fs_water)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_copy_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_copy.sc"
+            "${_rrr3d_post_varying}" rrr3d_fs_copy)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_luminance_log_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_luminance_log.sc"
+            "${_rrr3d_post_varying}" rrr3d_fs_luminance_log)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_luminance_downsample_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_luminance_downsample.sc"
+            "${_rrr3d_post_varying}" rrr3d_fs_luminance_downsample)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_luminance_adapt_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_luminance_adapt.sc"
+            "${_rrr3d_post_varying}" rrr3d_fs_luminance_adapt)
         set(_rrr3d_race_post_shaders
             "${_rrr3d_shadow_vertex_shader}"
             "${_rrr3d_shadow_fragment_shader}"
             "${_rrr3d_post_vertex_shader}"
             "${_rrr3d_bloom_extract_shader}"
             "${_rrr3d_bloom_blur_shader}"
-            "${_rrr3d_tone_map_shader}")
+            "${_rrr3d_tone_map_shader}"
+            "${_rrr3d_water_vertex_shader}"
+            "${_rrr3d_water_fragment_shader}"
+            "${_rrr3d_copy_shader}"
+            "${_rrr3d_luminance_log_shader}"
+            "${_rrr3d_luminance_downsample_shader}"
+            "${_rrr3d_luminance_adapt_shader}")
     endif()
 
     if(RRR3D_BUILD_ORIGINAL_MENU)

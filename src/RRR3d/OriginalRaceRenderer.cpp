@@ -1,12 +1,19 @@
 #include "OriginalRaceRenderer.h"
 
+#include "OriginalMainMenu.h"
 #include "resource/ResourceFileSystem.h"
 #include "rrr3d_fs_bloom_blur.bin.h"
 #include "rrr3d_fs_bloom_extract.bin.h"
+#include "rrr3d_fs_copy.bin.h"
+#include "rrr3d_fs_luminance_adapt.bin.h"
+#include "rrr3d_fs_luminance_downsample.bin.h"
+#include "rrr3d_fs_luminance_log.bin.h"
 #include "rrr3d_fs_shadow_map.bin.h"
 #include "rrr3d_fs_tone_map.bin.h"
+#include "rrr3d_fs_water.bin.h"
 #include "rrr3d_vs_post_process.bin.h"
 #include "rrr3d_vs_shadow_map.bin.h"
+#include "rrr3d_vs_water.bin.h"
 
 #include <bx/math.h>
 
@@ -341,6 +348,37 @@ r3d::physics::Quat multiply(const r3d::physics::Quat& first,
                 first.y * second.y - first.z * second.z};
 }
 
+r3d::physics::Quat normalizedLerp(
+    r3d::physics::Quat first, r3d::physics::Quat second,
+    float amount)
+{
+    amount = std::clamp(amount, 0.0F, 1.0F);
+    const float dot = first.x * second.x + first.y * second.y +
+                      first.z * second.z + first.w * second.w;
+    if (dot < 0.0F)
+    {
+        second.x = -second.x;
+        second.y = -second.y;
+        second.z = -second.z;
+        second.w = -second.w;
+    }
+    r3d::physics::Quat result{
+        first.x + (second.x - first.x) * amount,
+        first.y + (second.y - first.y) * amount,
+        first.z + (second.z - first.z) * amount,
+        first.w + (second.w - first.w) * amount};
+    const float length = std::sqrt(
+        result.x * result.x + result.y * result.y +
+        result.z * result.z + result.w * result.w);
+    if (length <= 0.0001F)
+        return {};
+    result.x /= length;
+    result.y /= length;
+    result.z /= length;
+    result.w /= length;
+    return result;
+}
+
 r3d::physics::Transform compose(
     const r3d::physics::Transform& parent,
     const r3d::physics::Transform& local)
@@ -416,12 +454,15 @@ void drawGroups(GraphicsDevice& device,
                 const Transform& model, const PipelineState& pipeline,
                 float elapsedSeconds = 0.0F,
                 float reflectionStrength = 0.0F,
+                r3d::game::originalrace::LightingMode lighting =
+                    r3d::game::originalrace::LightingMode::Standard,
                 DrawLayer layer = DrawLayer::All)
 {
     if (asset.textures.empty())
         return;
     auto materialState =
-        [elapsedSeconds, reflectionStrength](const auto& material) {
+        [elapsedSeconds, reflectionStrength, lighting](
+            const auto& material) {
             MaterialState state;
             state.color = material.color;
             state.alphaReference = material.alphaReference;
@@ -430,6 +471,8 @@ void drawGroups(GraphicsDevice& device,
             state.shininess = material.shininess;
             state.ignoreFog = material.ignoreFog;
             state.reflectionStrength = reflectionStrength;
+            state.postParameters[3] =
+                static_cast<float>(lighting);
             state.receivesShadow =
                 material.blend ==
                     r3d::game::originalrace::MaterialBlend::Opaque &&
@@ -600,23 +643,48 @@ bool OriginalRaceRenderer::createFrameTargets(
     hdrTarget_ = device.createRenderTarget(
         targetWidth, targetHeight, RenderTargetFormat::Rgba16F,
         true, "Motor Rock HDR color");
+    waterSceneTarget_ = device.createRenderTarget(
+        targetWidth, targetHeight, RenderTargetFormat::Rgba16F,
+        true, "Motor Rock water source color/depth");
     reflectionTarget_ = device.createRenderTarget(
         halfWidth, halfHeight, RenderTargetFormat::Rgba8,
         true, "Motor Rock planar reflection");
     shadowTarget_ = device.createRenderTarget(
         1024, 1024, RenderTargetFormat::R32F,
         true, "Motor Rock directional shadow");
+    luminance64Target_ = device.createRenderTarget(
+        64, 64, RenderTargetFormat::Rgba16F, false,
+        "Motor Rock luminance 64");
+    luminance16Target_ = device.createRenderTarget(
+        16, 16, RenderTargetFormat::Rgba16F, false,
+        "Motor Rock luminance 16");
+    luminance4Target_ = device.createRenderTarget(
+        4, 4, RenderTargetFormat::Rgba16F, false,
+        "Motor Rock luminance 4");
+    luminance1Target_ = device.createRenderTarget(
+        1, 1, RenderTargetFormat::Rgba16F, false,
+        "Motor Rock luminance current");
+    adaptedLuminanceTargetA_ = device.createRenderTarget(
+        1, 1, RenderTargetFormat::Rgba16F, false,
+        "Motor Rock luminance adapted A");
+    adaptedLuminanceTargetB_ = device.createRenderTarget(
+        1, 1, RenderTargetFormat::Rgba16F, false,
+        "Motor Rock luminance adapted B");
     bloomTargetA_ = device.createRenderTarget(
-        halfWidth, halfHeight, RenderTargetFormat::Rgba16F,
+        128, 128, RenderTargetFormat::Rgba16F,
         false, "Motor Rock bloom A");
     bloomTargetB_ = device.createRenderTarget(
-        halfWidth, halfHeight, RenderTargetFormat::Rgba16F,
+        128, 128, RenderTargetFormat::Rgba16F,
         false, "Motor Rock bloom B");
-    if (!valid(hdrTarget_) || !valid(reflectionTarget_) ||
-        !valid(shadowTarget_) || !valid(bloomTargetA_) ||
-        !valid(bloomTargetB_))
+    if (!valid(hdrTarget_) || !valid(waterSceneTarget_) ||
+        !valid(reflectionTarget_) || !valid(shadowTarget_) ||
+        !valid(luminance64Target_) || !valid(luminance16Target_) ||
+        !valid(luminance4Target_) || !valid(luminance1Target_) ||
+        !valid(adaptedLuminanceTargetA_) ||
+        !valid(adaptedLuminanceTargetB_) ||
+        !valid(bloomTargetA_) || !valid(bloomTargetB_))
     {
-        error = "bgfx/Metal could not create M9.2 render targets";
+        error = "bgfx/Metal could not create M9.3 render targets";
         destroyFrameTargets(device);
         return false;
     }
@@ -633,15 +701,39 @@ void OriginalRaceRenderer::destroyFrameTargets(
         device.destroy(bloomTargetA_);
     if (valid(shadowTarget_))
         device.destroy(shadowTarget_);
+    if (valid(adaptedLuminanceTargetB_))
+        device.destroy(adaptedLuminanceTargetB_);
+    if (valid(adaptedLuminanceTargetA_))
+        device.destroy(adaptedLuminanceTargetA_);
+    if (valid(luminance1Target_))
+        device.destroy(luminance1Target_);
+    if (valid(luminance4Target_))
+        device.destroy(luminance4Target_);
+    if (valid(luminance16Target_))
+        device.destroy(luminance16Target_);
+    if (valid(luminance64Target_))
+        device.destroy(luminance64Target_);
     if (valid(reflectionTarget_))
         device.destroy(reflectionTarget_);
     if (valid(hdrTarget_))
         device.destroy(hdrTarget_);
+    if (valid(waterSceneTarget_))
+        device.destroy(waterSceneTarget_);
     bloomTargetB_ = {};
     bloomTargetA_ = {};
     shadowTarget_ = {};
+    adaptedLuminanceTargetB_ = {};
+    adaptedLuminanceTargetA_ = {};
+    luminance1Target_ = {};
+    luminance4Target_ = {};
+    luminance16Target_ = {};
+    luminance64Target_ = {};
     reflectionTarget_ = {};
     hdrTarget_ = {};
+    waterSceneTarget_ = {};
+    adaptedLuminanceAIsCurrent_ = false;
+    luminanceAdaptationInitialized_ = false;
+    previousRenderSeconds_ = 0.0F;
     frameWidth_ = 0;
     frameHeight_ = 0;
 }
@@ -688,11 +780,42 @@ bool OriginalRaceRenderer::initialize(
              sizeof(rrr3d_vs_post_process)},
             {rrr3d_fs_tone_map, sizeof(rrr3d_fs_tone_map)},
             "original-tone-map");
+        copyShader_ = device.createShader(
+            {rrr3d_vs_post_process,
+             sizeof(rrr3d_vs_post_process)},
+            {rrr3d_fs_copy, sizeof(rrr3d_fs_copy)},
+            "original-scene-copy");
+        waterShader_ = device.createShader(
+            {rrr3d_vs_water, sizeof(rrr3d_vs_water)},
+            {rrr3d_fs_water, sizeof(rrr3d_fs_water)},
+            "original-water-plane");
+        luminanceLogShader_ = device.createShader(
+            {rrr3d_vs_post_process,
+             sizeof(rrr3d_vs_post_process)},
+            {rrr3d_fs_luminance_log,
+             sizeof(rrr3d_fs_luminance_log)},
+            "original-hdr-luminance-log");
+        luminanceDownsampleShader_ = device.createShader(
+            {rrr3d_vs_post_process,
+             sizeof(rrr3d_vs_post_process)},
+            {rrr3d_fs_luminance_downsample,
+             sizeof(rrr3d_fs_luminance_downsample)},
+            "original-hdr-luminance-downsample");
+        luminanceAdaptShader_ = device.createShader(
+            {rrr3d_vs_post_process,
+             sizeof(rrr3d_vs_post_process)},
+            {rrr3d_fs_luminance_adapt,
+             sizeof(rrr3d_fs_luminance_adapt)},
+            "original-hdr-luminance-adapt");
         postProcessMesh_ = device.createMesh(
             postProcessVertices.data(), postProcessVertices.size(),
             postProcessIndices.data(), postProcessIndices.size());
         if (!valid(shadowShader_) || !valid(bloomExtractShader_) ||
             !valid(bloomBlurShader_) || !valid(toneMapShader_) ||
+            !valid(copyShader_) || !valid(waterShader_) ||
+            !valid(luminanceLogShader_) ||
+            !valid(luminanceDownsampleShader_) ||
+            !valid(luminanceAdaptShader_) ||
             !valid(postProcessMesh_) ||
             !createFrameTargets(device, width, height, error))
             throw r3d::resource::ResourceError(
@@ -805,6 +928,7 @@ bool OriginalRaceRenderer::initialize(
                     definition) {
                 asset.planarReflection = definition.planarReflection;
                 asset.castsShadow = definition.castsShadow;
+                asset.lighting = definition.lighting;
                 loadObject(asset, definition.visualNodes);
                 loadParticleTextures(
                     asset, definition.particleEmitters);
@@ -877,6 +1001,7 @@ bool OriginalRaceRenderer::initialize(
                     ? sourceRacer.configuredVehicle
                     : race.vehicles.at(sourceRacer.vehicle);
             loadObject(vehicleBodies_[racer], vehicle.bodyVisuals);
+            vehicleBodies_[racer].lighting = vehicle.lighting;
             vehicleWheels_[racer].resize(vehicle.wheelVisuals.size());
             for (std::size_t wheel = 0;
                  wheel < vehicle.wheelVisuals.size(); ++wheel)
@@ -928,6 +1053,20 @@ bool OriginalRaceRenderer::initialize(
             environmentSurfaceTexture_ =
                 device.createTextureContainer(
                     surfaceBytes.data(), surfaceBytes.size(), surfacePath);
+            if (race.environment.surface ==
+                r3d::game::originalrace::EnvironmentSurface::Water)
+            {
+                constexpr std::string_view normalPath =
+                    "Data/Misc/water00.png";
+                const auto normalImage =
+                    r3d::game::mainmenu2::loadOriginalImage(
+                        resources, std::string(normalPath));
+                waterNormalTexture_ =
+                    device.createTextureRgba8(
+                        normalImage.width, normalImage.height,
+                        normalImage.bytes.data(),
+                        normalImage.bytes.size());
+            }
 
             float minimumX = 0.0F;
             float maximumX = 0.0F;
@@ -1000,6 +1139,9 @@ bool OriginalRaceRenderer::initialize(
             (race.environment.surface !=
                      r3d::game::originalrace::EnvironmentSurface::None &&
              !valid(environmentSurfaceTexture_)) ||
+            (race.environment.surface ==
+                     r3d::game::originalrace::EnvironmentSurface::Water &&
+             !valid(waterNormalTexture_)) ||
             std::any_of(weaponEffectTextures_.begin(),
                         weaponEffectTextures_.end(),
                         [](Texture value) { return !valid(value); }))
@@ -1019,6 +1161,16 @@ bool OriginalRaceRenderer::initialize(
 void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
 {
     destroyFrameTargets(device);
+    if (valid(luminanceAdaptShader_))
+        device.destroy(luminanceAdaptShader_);
+    if (valid(luminanceDownsampleShader_))
+        device.destroy(luminanceDownsampleShader_);
+    if (valid(luminanceLogShader_))
+        device.destroy(luminanceLogShader_);
+    if (valid(waterShader_))
+        device.destroy(waterShader_);
+    if (valid(copyShader_))
+        device.destroy(copyShader_);
     if (valid(toneMapShader_))
         device.destroy(toneMapShader_);
     if (valid(bloomBlurShader_))
@@ -1030,6 +1182,11 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     if (valid(postProcessMesh_))
         device.destroy(postProcessMesh_);
     toneMapShader_ = {};
+    copyShader_ = {};
+    waterShader_ = {};
+    luminanceLogShader_ = {};
+    luminanceDownsampleShader_ = {};
+    luminanceAdaptShader_ = {};
     bloomBlurShader_ = {};
     bloomExtractShader_ = {};
     shadowShader_ = {};
@@ -1100,6 +1257,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         device.destroy(vehicleLightTexture_);
     if (valid(environmentSurfaceTexture_))
         device.destroy(environmentSurfaceTexture_);
+    if (valid(waterNormalTexture_))
+        device.destroy(waterNormalTexture_);
     if (valid(effectMesh_))
         device.destroy(effectMesh_);
     skyTexture_ = {};
@@ -1110,6 +1269,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     shieldEffectTexture_ = {};
     vehicleLightTexture_ = {};
     environmentSurfaceTexture_ = {};
+    waterNormalTexture_ = {};
     effectMesh_ = {};
     environmentSurfaceCenter_ = {};
     environmentSurfaceSize_ = {};
@@ -1348,7 +1508,8 @@ void OriginalRaceRenderer::draw(
     const std::vector<r3d::game::originalrace::MineRuntime>& mines,
     const std::vector<
         r3d::game::originalrace::ProjectileRuntime>& projectiles,
-    float elapsedSeconds, bool reflectionPass) const
+    float elapsedSeconds, bool reflectionPass,
+    bool omitEnvironmentSurface) const
 {
     SceneLighting sceneLighting;
     const auto sun = race.environment.sunPosition;
@@ -1389,7 +1550,8 @@ void OriginalRaceRenderer::draw(
     PipelineState deferredSurfacePipeline;
     MaterialState deferredSurfaceMaterial;
     Transform deferredSurfaceTransform;
-    if (!reflectionPass && valid(environmentSurfaceTexture_) &&
+    if (!reflectionPass && !omitEnvironmentSurface &&
+        valid(environmentSurfaceTexture_) &&
         race.environment.surface !=
             r3d::game::originalrace::EnvironmentSurface::None)
     {
@@ -1452,6 +1614,8 @@ void OriginalRaceRenderer::draw(
         const Asset* asset = nullptr;
         Transform model;
         float reflectionStrength = 0.0F;
+        r3d::game::originalrace::LightingMode lighting =
+            r3d::game::originalrace::LightingMode::Standard;
         float distanceSquared = 0.0F;
     };
     std::vector<DeferredVisualDraw> deferredVisuals;
@@ -1482,7 +1646,7 @@ void OriginalRaceRenderer::draw(
                     : 0.0F;
             drawGroups(device, asset.nodes[index], shader, model,
                        pipeline, elapsedSeconds, reflectionStrength,
-                       DrawLayer::Opaque);
+                       asset.lighting, DrawLayer::Opaque);
             if (std::any_of(
                     asset.nodes[index].materials.begin(),
                     asset.nodes[index].materials.end(),
@@ -1500,7 +1664,7 @@ void OriginalRaceRenderer::draw(
                     model.matrix[14] - cameraPosition_.z;
                 deferredVisuals.push_back(
                     {&asset.nodes[index], model,
-                     reflectionStrength,
+                     reflectionStrength, asset.lighting,
                      dx * dx + dy * dy + dz * dz});
             }
         }
@@ -1603,11 +1767,16 @@ void OriginalRaceRenderer::draw(
                         static_cast<std::uint32_t>(
                             emitterIndex) *
                             2891336453U;
-                    const float activeLife =
+                    float activeLife =
                         emitter.lifeMinimum +
                         (emitter.lifeMaximum -
                          emitter.lifeMinimum) *
                             unitNoise(groupSeed + 17U);
+                    activeLife +=
+                        emitter.rangeLifeMinimum +
+                        (emitter.rangeLifeMaximum -
+                         emitter.rangeLifeMinimum) *
+                            unitNoise(groupSeed + 19U);
                     if (!permanentGroup &&
                         particleAge > std::max(activeLife, 0.0F))
                         continue;
@@ -1629,9 +1798,32 @@ void OriginalRaceRenderer::draw(
                     {
                         const std::uint32_t seed =
                             groupSeed + groupParticle * 2246822519U;
+                        const float rangeFrame =
+                            maximumParticles > 1U
+                                ? static_cast<float>(
+                                      submittedParticles %
+                                      maximumParticles) /
+                                      static_cast<float>(
+                                          maximumParticles - 1U)
+                                : unitNoise(seed + 13U);
                         auto position = rangeVector(
                             emitter.startPositionMinimum,
                             emitter.startPositionMaximum, seed + 31U);
+                        position.x +=
+                            emitter.rangePositionMinimum.x +
+                            (emitter.rangePositionMaximum.x -
+                             emitter.rangePositionMinimum.x) *
+                                rangeFrame;
+                        position.y +=
+                            emitter.rangePositionMinimum.y +
+                            (emitter.rangePositionMaximum.y -
+                             emitter.rangePositionMinimum.y) *
+                                rangeFrame;
+                        position.z +=
+                            emitter.rangePositionMinimum.z +
+                            (emitter.rangePositionMaximum.z -
+                             emitter.rangePositionMinimum.z) *
+                                rangeFrame;
                         const auto velocity = rangeVector(
                             emitter.velocityMinimum,
                             emitter.velocityMaximum, seed + 67U);
@@ -1656,6 +1848,21 @@ void OriginalRaceRenderer::draw(
                         auto scale = rangeVector(
                             emitter.startScaleMinimum,
                             emitter.startScaleMaximum, seed + 149U);
+                        scale.x +=
+                            emitter.rangeScaleMinimum.x +
+                            (emitter.rangeScaleMaximum.x -
+                             emitter.rangeScaleMinimum.x) *
+                                rangeFrame;
+                        scale.y +=
+                            emitter.rangeScaleMinimum.y +
+                            (emitter.rangeScaleMaximum.y -
+                             emitter.rangeScaleMinimum.y) *
+                                rangeFrame;
+                        scale.z +=
+                            emitter.rangeScaleMinimum.z +
+                            (emitter.rangeScaleMaximum.z -
+                             emitter.rangeScaleMinimum.z) *
+                                rangeFrame;
                         const auto scaleVelocity = rangeVector(
                             emitter.scaleVelocityMinimum,
                             emitter.scaleVelocityMaximum, seed + 193U);
@@ -1674,6 +1881,27 @@ void OriginalRaceRenderer::draw(
                         r3d::physics::Transform particle;
                         particle.position = position;
                         particle.scale = scale;
+                        particle.rotation = multiply(
+                            normalizedLerp(
+                                emitter.startRotationMinimum,
+                                emitter.startRotationMaximum,
+                                unitNoise(seed + 211U)),
+                            normalizedLerp(
+                                emitter.rangeRotationMinimum,
+                                emitter.rangeRotationMaximum,
+                                rangeFrame));
+                        const auto rotationVelocity =
+                            normalizedLerp(
+                                emitter.rotationVelocityMinimum,
+                                emitter.rotationVelocityMaximum,
+                                unitNoise(seed + 223U));
+                        particle.rotation = multiply(
+                            normalizedLerp(
+                                {}, rotationVelocity,
+                                std::fmod(
+                                    std::max(particleAge, 0.0F),
+                                    1.0F)),
+                            particle.rotation);
                         auto world = compose(emitterWorld, particle);
                         if (emitter.worldCoordinates)
                         {
@@ -1704,11 +1932,32 @@ void OriginalRaceRenderer::draw(
                                 ? std::acos(std::clamp(
                                       unitDirection.x, -1.0F, 1.0F))
                                 : 0.0F;
-                        const auto model = billboardTransform(
-                            world.position, world.scale,
-                            cameraPosition_, turnAngle,
-                            emitter.fixedDirection ? &direction
-                                                   : nullptr);
+                        Transform model;
+                        if (emitter.renderMode ==
+                                r3d::game::originalrace::
+                                    ParticleRenderMode::Plane ||
+                            emitter.renderMode ==
+                                r3d::game::originalrace::
+                                    ParticleRenderMode::Node)
+                        {
+                            model = transform(world);
+                        }
+                        else
+                        {
+                            const bool directed =
+                                emitter.fixedDirection ||
+                                emitter.renderMode ==
+                                    r3d::game::originalrace::
+                                        ParticleRenderMode::
+                                            DirectionalSprite ||
+                                emitter.renderMode ==
+                                    r3d::game::originalrace::
+                                        ParticleRenderMode::Trail;
+                            model = billboardTransform(
+                                world.position, world.scale,
+                                cameraPosition_, turnAngle,
+                                directed ? &direction : nullptr);
+                        }
                         const std::size_t materialIndex =
                             submittedParticles %
                             emitter.materials.size();
@@ -2242,7 +2491,7 @@ void OriginalRaceRenderer::draw(
     {
         drawGroups(device, *deferred.asset, shader, deferred.model,
                    pipeline, elapsedSeconds,
-                   deferred.reflectionStrength,
+                   deferred.reflectionStrength, deferred.lighting,
                    DrawLayer::Transparency);
     }
     for (const auto& deferred : deferredParticles)
@@ -2427,12 +2676,15 @@ void OriginalRaceRenderer::renderFrame(
     const std::vector<r3d::game::originalrace::MineRuntime>& mines,
     const std::vector<
         r3d::game::originalrace::ProjectileRuntime>& projectiles,
-    float elapsedSeconds) const
+    float elapsedSeconds)
 {
+    device.resetRenderTelemetry();
+    const bool hasWater =
+        race.environment.surface ==
+        r3d::game::originalrace::EnvironmentSurface::Water;
     const bool hasReflection =
         race.environment.planarReflection ||
-        race.environment.surface ==
-            r3d::game::originalrace::EnvironmentSurface::Water;
+        hasWater;
     const auto reflectionCamera =
         reflectedCamera(camera, race.environment.surfaceHeight);
     if (hasReflection)
@@ -2482,11 +2734,13 @@ void OriginalRaceRenderer::renderFrame(
     sceneState.shadowsEnabled = true;
     sceneState.shadowStrength = 0.62F;
     device.setPassState(sceneState);
-    device.beginPass(RenderPass::Scene, hdrTarget_, camera, clearRgba,
-                     true, true);
+    device.beginPass(
+        RenderPass::Scene,
+        hasWater ? waterSceneTarget_ : hdrTarget_,
+        camera, clearRgba, true, true);
     draw(device, sceneShader, race, vehicles, pipeline,
          decorationActive, bonusActive, racerRuntime, effects, mines,
-         projectiles, elapsedSeconds);
+         projectiles, elapsedSeconds, false, hasWater);
 
     Camera postCamera;
     postCamera.view = identityMatrix();
@@ -2499,25 +2753,143 @@ void OriginalRaceRenderer::renderFrame(
     postPipeline.faceCulling = PipelineState::FaceCulling::None;
     postPipeline.multisampling = false;
 
+    if (hasWater)
+    {
+        const auto sourceColor =
+            device.renderTargetTexture(waterSceneTarget_);
+        const auto sourceDepth =
+            device.renderTargetTexture(waterSceneTarget_, 1);
+        const auto reflectionTexture =
+            device.renderTargetTexture(reflectionTarget_);
+
+        device.setPassState({});
+        device.beginPass(RenderPass::Water, hdrTarget_, postCamera,
+                         clearRgba, true, true);
+        device.draw(postProcessMesh_, copyShader_, sourceColor,
+                    postTransform, postPipeline);
+
+        RenderPassState waterState;
+        waterState.reflectionTexture = waterNormalTexture_;
+        waterState.shadowTexture = reflectionTexture;
+        device.setPassState(waterState);
+        auto waterPipeline = pipeline;
+        waterPipeline.writeDepth = false;
+        waterPipeline.depthTest = false;
+        waterPipeline.faceCulling =
+            PipelineState::FaceCulling::None;
+        waterPipeline.blendMode =
+            PipelineState::BlendMode::Alpha;
+        MaterialState waterMaterial;
+        waterMaterial.color = {0.0F, 0.2F, 0.5F, 1.0F};
+        waterMaterial.alphaReference =
+            std::fmod(std::max(elapsedSeconds, 0.0F) * 0.15F,
+                      1.0F);
+        waterMaterial.emissive = 0.1F;
+        waterMaterial.textureTransform =
+            {1.0F, 1.0F, 0.0F, 0.0F};
+        r3d::physics::Transform water;
+        water.position = environmentSurfaceCenter_;
+        water.scale = environmentSurfaceSize_;
+        device.draw(effectMesh_, waterShader_, sourceDepth,
+                    transform(water), waterPipeline, {},
+                    waterMaterial);
+    }
+
     const auto hdrTexture = device.renderTargetTexture(hdrTarget_);
-    const auto bloomA = device.renderTargetTexture(bloomTargetA_);
-    const auto bloomB = device.renderTargetTexture(bloomTargetB_);
     MaterialState postMaterial;
     postMaterial.receivesShadow = false;
-    postMaterial.postParameters = {
-        race.environment.hdrBrightThreshold, 0.0F, 0.0F, 0.0F};
+
     device.setPassState({});
+    postMaterial.postParameters = {
+        1.0F / static_cast<float>(std::max(frameWidth_, 1U)),
+        1.0F / static_cast<float>(std::max(frameHeight_, 1U)),
+        0.0F, 0.0F};
+    device.beginPass(RenderPass::Luminance64, luminance64Target_,
+                     postCamera, 0x000000ffU, true, false);
+    device.draw(postProcessMesh_, luminanceLogShader_, hdrTexture,
+                postTransform, postPipeline, {}, postMaterial);
+
+    const auto luminance64 =
+        device.renderTargetTexture(luminance64Target_);
+    postMaterial.postParameters = {
+        1.0F / 64.0F, 1.0F / 64.0F, 0.0F, 0.0F};
+    device.beginPass(RenderPass::Luminance16, luminance16Target_,
+                     postCamera, 0x000000ffU, true, false);
+    device.draw(postProcessMesh_, luminanceDownsampleShader_,
+                luminance64, postTransform, postPipeline, {},
+                postMaterial);
+
+    const auto luminance16 =
+        device.renderTargetTexture(luminance16Target_);
+    postMaterial.postParameters = {
+        1.0F / 16.0F, 1.0F / 16.0F, 0.0F, 0.0F};
+    device.beginPass(RenderPass::Luminance4, luminance4Target_,
+                     postCamera, 0x000000ffU, true, false);
+    device.draw(postProcessMesh_, luminanceDownsampleShader_,
+                luminance16, postTransform, postPipeline, {},
+                postMaterial);
+
+    const auto luminance4 =
+        device.renderTargetTexture(luminance4Target_);
+    postMaterial.postParameters = {
+        1.0F / 4.0F, 1.0F / 4.0F, 1.0F, 0.0F};
+    device.beginPass(RenderPass::Luminance1, luminance1Target_,
+                     postCamera, 0x000000ffU, true, false);
+    device.draw(postProcessMesh_, luminanceDownsampleShader_,
+                luminance4, postTransform, postPipeline, {},
+                postMaterial);
+
+    const float elapsedDelta =
+        previousRenderSeconds_ > 0.0F &&
+                elapsedSeconds >= previousRenderSeconds_
+            ? elapsedSeconds - previousRenderSeconds_
+            : 1.0F / 60.0F;
+    previousRenderSeconds_ = elapsedSeconds;
+    const auto currentLuminance =
+        device.renderTargetTexture(luminance1Target_);
+    const auto previousAdapted =
+        luminanceAdaptationInitialized_
+            ? device.renderTargetTexture(
+                  adaptedLuminanceAIsCurrent_
+                      ? adaptedLuminanceTargetA_
+                      : adaptedLuminanceTargetB_)
+            : currentLuminance;
+    const auto adaptedTarget =
+        adaptedLuminanceAIsCurrent_
+            ? adaptedLuminanceTargetB_
+            : adaptedLuminanceTargetA_;
+    RenderPassState adaptationState;
+    adaptationState.reflectionTexture = previousAdapted;
+    device.setPassState(adaptationState);
+    postMaterial.postParameters = {
+        std::clamp(elapsedDelta, 0.0F, 0.1F) / 2.0F,
+        0.0F, 0.0F, 0.0F};
+    device.beginPass(RenderPass::LuminanceAdapt, adaptedTarget,
+                     postCamera, 0x000000ffU, true, false);
+    device.draw(postProcessMesh_, luminanceAdaptShader_,
+                currentLuminance, postTransform, postPipeline, {},
+                postMaterial);
+    adaptedLuminanceAIsCurrent_ =
+        !adaptedLuminanceAIsCurrent_;
+    luminanceAdaptationInitialized_ = true;
+    const auto adaptedLuminance =
+        device.renderTargetTexture(adaptedTarget);
+
+    const auto bloomA = device.renderTargetTexture(bloomTargetA_);
+    const auto bloomB = device.renderTargetTexture(bloomTargetB_);
+    RenderPassState bloomState;
+    bloomState.reflectionTexture = adaptedLuminance;
+    device.setPassState(bloomState);
+    postMaterial.postParameters = {
+        race.environment.hdrLuminanceKey,
+        race.environment.hdrBrightThreshold, 0.0F, 0.0F};
     device.beginPass(RenderPass::BloomExtract, bloomTargetA_,
                      postCamera, 0x000000ffU, true, false);
     device.draw(postProcessMesh_, bloomExtractShader_, hdrTexture,
                 postTransform, postPipeline, {}, postMaterial);
 
-    const float halfWidth =
-        static_cast<float>(std::max(frameWidth_ / 2U, 1U));
-    const float halfHeight =
-        static_cast<float>(std::max(frameHeight_ / 2U, 1U));
     postMaterial.postParameters = {
-        1.0F / halfWidth, 0.0F,
+        1.0F / 128.0F, 0.0F,
         race.environment.hdrGaussianScalar, 0.0F};
     device.beginPass(RenderPass::BloomHorizontal, bloomTargetB_,
                      postCamera, 0x000000ffU, true, false);
@@ -2525,7 +2897,7 @@ void OriginalRaceRenderer::renderFrame(
                 postTransform, postPipeline, {}, postMaterial);
 
     postMaterial.postParameters = {
-        0.0F, 1.0F / halfHeight,
+        0.0F, 1.0F / 128.0F,
         race.environment.hdrGaussianScalar, 0.0F};
     device.beginPass(RenderPass::BloomVertical, bloomTargetA_,
                      postCamera, 0x000000ffU, true, false);
@@ -2534,10 +2906,11 @@ void OriginalRaceRenderer::renderFrame(
 
     RenderPassState compositeState;
     compositeState.reflectionTexture = bloomA;
+    compositeState.shadowTexture = adaptedLuminance;
     device.setPassState(compositeState);
     postMaterial.postParameters = {
-        race.environment.hdrLuminanceKey,
-        race.environment.hdrExposure, 0.65F, 0.0F};
+        race.environment.hdrGaussianScalar,
+        race.environment.hdrExposure, 0.5F, 0.0F};
     device.beginPass(RenderPass::Composite, {}, postCamera, clearRgba,
                      false, false);
     device.draw(postProcessMesh_, toneMapShader_, hdrTexture,

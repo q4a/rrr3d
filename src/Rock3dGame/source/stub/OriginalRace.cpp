@@ -970,6 +970,17 @@ Vec3 optionalParticleVector(TiXmlElement* parent,
                : fallback;
 }
 
+Quat optionalParticleQuaternion(TiXmlElement* parent,
+                                std::string_view path,
+                                Quat fallback,
+                                std::string_view source)
+{
+    auto* item = child(parent, path);
+    return item != nullptr && item->GetText() != nullptr
+               ? quaternion(parent, path, source)
+               : fallback;
+}
+
 void appendParticleEmitters(
     const resource::ResourceFileSystem& resources,
     TiXmlElement* record, const Transform& parentTransform,
@@ -988,12 +999,28 @@ void appendParticleEmitters(
         const Transform nodeTransform =
             compose(parentTransform, elementTransform(node, source));
         bool fixedDirection = false;
+        ParticleRenderMode renderMode = ParticleRenderMode::Sprite;
         if (auto* manager = child(node, "fxManager");
             manager != nullptr && manager->GetText() != nullptr)
         {
+            const std::string_view managerName(manager->GetText());
             fixedDirection =
-                std::string_view(manager->GetText()).find(
-                    "fxDirSpriteManager") != std::string_view::npos;
+                managerName.find("fxDirSpriteManager") !=
+                std::string_view::npos;
+            if (managerName.find("fxPointSpritesManager") !=
+                std::string_view::npos)
+                renderMode = ParticleRenderMode::PointSprite;
+            else if (fixedDirection)
+                renderMode = ParticleRenderMode::DirectionalSprite;
+            else if (managerName.find("fxPlaneManager") !=
+                     std::string_view::npos)
+                renderMode = ParticleRenderMode::Plane;
+            else if (managerName.find("fxTrailManager") !=
+                     std::string_view::npos)
+                renderMode = ParticleRenderMode::Trail;
+            else if (managerName.find("fxNodeManager") !=
+                     std::string_view::npos)
+                renderMode = ParticleRenderMode::Node;
         }
         std::vector<MaterialDefinition> materials;
         if (auto* sourceMaterials = child(node, "materials"))
@@ -1026,6 +1053,7 @@ void appendParticleEmitters(
             emitter.transform = nodeTransform;
             emitter.materials = materials;
             emitter.fixedDirection = fixedDirection;
+            emitter.renderMode = renderMode;
             emitter.maximumParticles = static_cast<std::uint32_t>(
                 std::max(optionalParticleScalar(
                              part, "maxNum", 0.0F, source),
@@ -1057,11 +1085,47 @@ void appendParticleEmitters(
             emitter.startScaleMaximum = optionalParticleVector(
                 part, "startScale/max",
                 emitter.startScaleMinimum, source);
+            emitter.startRotationMinimum =
+                optionalParticleQuaternion(
+                    part, "startRot/min", {}, source);
+            emitter.startRotationMaximum =
+                optionalParticleQuaternion(
+                    part, "startRot/max",
+                    emitter.startRotationMinimum, source);
+            emitter.rangeLifeMinimum = optionalParticleScalar(
+                part, "rangeLife/min", 0.0F, source);
+            emitter.rangeLifeMaximum = optionalParticleScalar(
+                part, "rangeLife/max",
+                emitter.rangeLifeMinimum, source);
+            emitter.rangePositionMinimum = optionalParticleVector(
+                part, "rangePos/min", {}, source);
+            emitter.rangePositionMaximum = optionalParticleVector(
+                part, "rangePos/max",
+                emitter.rangePositionMinimum, source);
+            emitter.rangeScaleMinimum = optionalParticleVector(
+                part, "rangeScale/min", {}, source);
+            emitter.rangeScaleMaximum = optionalParticleVector(
+                part, "rangeScale/max",
+                emitter.rangeScaleMinimum, source);
+            emitter.rangeRotationMinimum =
+                optionalParticleQuaternion(
+                    part, "rangeRot/min", {}, source);
+            emitter.rangeRotationMaximum =
+                optionalParticleQuaternion(
+                    part, "rangeRot/max",
+                    emitter.rangeRotationMinimum, source);
             emitter.velocityMinimum = optionalParticleVector(
                 flow, "speedPos/min", {}, source);
             emitter.velocityMaximum = optionalParticleVector(
                 flow, "speedPos/max", emitter.velocityMinimum,
                 source);
+            emitter.rotationVelocityMinimum =
+                optionalParticleQuaternion(
+                    flow, "speedRot/min", {}, source);
+            emitter.rotationVelocityMaximum =
+                optionalParticleQuaternion(
+                    flow, "speedRot/max",
+                    emitter.rotationVelocityMinimum, source);
             emitter.scaleVelocityMinimum = optionalParticleVector(
                 flow, "speedScale/min", {}, source);
             emitter.scaleVelocityMaximum = optionalParticleVector(
@@ -1098,6 +1162,17 @@ void appendParticleEmitters(
                 emitter.distanceTriggered =
                     std::string_view(startType->GetText()) ==
                     "sotDist";
+            }
+            if (auto* maximumAction =
+                    child(part, "maxNumAction");
+                maximumAction != nullptr &&
+                maximumAction->GetText() != nullptr)
+            {
+                emitter.maximumAction =
+                    std::string_view(maximumAction->GetText()) ==
+                            "mnaReplaceLatest"
+                        ? ParticleMaximumAction::ReplaceLatest
+                        : ParticleMaximumAction::WaitForFree;
             }
             definition.particleEmitters.push_back(
                 std::move(emitter));
@@ -1174,8 +1249,21 @@ ObjectDefinition objectDefinition(
     if (auto* lighting = child(dbRecord, "grActor/graphLighting");
         lighting != nullptr && lighting->GetText() != nullptr)
     {
+        const std::string_view value(lighting->GetText());
+        if (value == "glNone")
+            result.lighting = LightingMode::None;
+        else if (value == "glPix")
+            result.lighting = LightingMode::Pixel;
+        else if (value == "glRefl")
+            result.lighting = LightingMode::Reflection;
+        else if (value == "glBump")
+            result.lighting = LightingMode::Bump;
+        else if (value == "glRefr")
+            result.lighting = LightingMode::Refraction;
+        else if (value == "glPlanarRefl")
+            result.lighting = LightingMode::PlanarReflection;
         result.planarReflection =
-            std::string_view(lighting->GetText()) == "glPlanarRefl";
+            result.lighting == LightingMode::PlanarReflection;
     }
     if (auto* properties = child(dbRecord, "grActor/graphProps");
         properties != nullptr && properties->GetText() != nullptr)
@@ -1628,6 +1716,23 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
     Vehicle result;
     result.record = std::string(record);
     result.maximumLife = baseArmor(record);
+    if (auto* lighting = child(car, "grActor/graphLighting");
+        lighting != nullptr && lighting->GetText() != nullptr)
+    {
+        const std::string_view value(lighting->GetText());
+        if (value == "glNone")
+            result.lighting = LightingMode::None;
+        else if (value == "glPix")
+            result.lighting = LightingMode::Pixel;
+        else if (value == "glRefl")
+            result.lighting = LightingMode::Reflection;
+        else if (value == "glBump")
+            result.lighting = LightingMode::Bump;
+        else if (value == "glRefr")
+            result.lighting = LightingMode::Refraction;
+        else if (value == "glPlanarRefl")
+            result.lighting = LightingMode::PlanarReflection;
+    }
     if (auto* garageWheel = child(garageDefinition, "wheel");
         garageWheel != nullptr &&
         garageWheel->Attribute("item") != nullptr)
@@ -1802,13 +1907,13 @@ void applyWeatherDescription(
              174.0F / 255.0F, 1.0F});
         break;
     case Weather::Cloudy:
-        set(Weather::Cloudy, "Data/World2/Texture/skyTex1.dds",
+        set(Weather::Cloudy, "Data/World2/texture/skyTex1.dds",
             {192.0F / 255.0F, 189.0F / 255.0F, 184.0F / 255.0F,
              0.0F},
             1.0F, {0.0F, 0.0F, 0.0F, 1.0F});
         break;
     case Weather::Rainy:
-        set(Weather::Rainy, "Data/World2/Texture/skyTex1.dds",
+        set(Weather::Rainy, "Data/World2/texture/skyTex1.dds",
             {192.0F / 255.0F, 189.0F / 255.0F, 184.0F / 255.0F,
              0.0F},
             1.0F, {0.0F, 0.0F, 0.0F, 1.0F});

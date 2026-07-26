@@ -33,6 +33,8 @@ public:
             particleTextures;
         bool planarReflection = false;
         bool castsShadow = false;
+        r3d::game::originalrace::LightingMode lighting =
+            r3d::game::originalrace::LightingMode::Standard;
     };
 
     struct ProjectileAsset
@@ -75,7 +77,8 @@ public:
               const std::vector<
                   r3d::game::originalrace::ProjectileRuntime>& projectiles,
               float elapsedSeconds,
-              bool reflectionPass = false) const;
+              bool reflectionPass = false,
+              bool omitEnvironmentSurface = false) const;
     void renderFrame(
         r3d::renderer::GraphicsDevice& device,
         r3d::renderer::Shader sceneShader,
@@ -94,7 +97,7 @@ public:
             r3d::game::originalrace::MineRuntime>& mines,
         const std::vector<
             r3d::game::originalrace::ProjectileRuntime>& projectiles,
-        float elapsedSeconds) const;
+        float elapsedSeconds);
 
 private:
     bool createFrameTargets(r3d::renderer::GraphicsDevice& device,
@@ -125,15 +128,28 @@ private:
     r3d::renderer::Texture shieldEffectTexture_;
     r3d::renderer::Texture vehicleLightTexture_;
     r3d::renderer::Texture environmentSurfaceTexture_;
+    r3d::renderer::Texture waterNormalTexture_;
     r3d::renderer::Mesh effectMesh_;
     r3d::renderer::Mesh postProcessMesh_;
     r3d::renderer::Shader shadowShader_;
     r3d::renderer::Shader bloomExtractShader_;
     r3d::renderer::Shader bloomBlurShader_;
     r3d::renderer::Shader toneMapShader_;
+    r3d::renderer::Shader copyShader_;
+    r3d::renderer::Shader waterShader_;
+    r3d::renderer::Shader luminanceLogShader_;
+    r3d::renderer::Shader luminanceDownsampleShader_;
+    r3d::renderer::Shader luminanceAdaptShader_;
     r3d::renderer::RenderTarget hdrTarget_;
+    r3d::renderer::RenderTarget waterSceneTarget_;
     r3d::renderer::RenderTarget reflectionTarget_;
     r3d::renderer::RenderTarget shadowTarget_;
+    r3d::renderer::RenderTarget luminance64Target_;
+    r3d::renderer::RenderTarget luminance16Target_;
+    r3d::renderer::RenderTarget luminance4Target_;
+    r3d::renderer::RenderTarget luminance1Target_;
+    r3d::renderer::RenderTarget adaptedLuminanceTargetA_;
+    r3d::renderer::RenderTarget adaptedLuminanceTargetB_;
     r3d::renderer::RenderTarget bloomTargetA_;
     r3d::renderer::RenderTarget bloomTargetB_;
     std::uint32_t frameWidth_ = 0;
@@ -148,6 +164,9 @@ private:
     float cameraJumpDistance_ = 0.0F;
     float cameraJumpSpeed_ = 0.0F;
     float thirdPersonPullback_ = 0.0F;
+    float previousRenderSeconds_ = 0.0F;
+    bool adaptedLuminanceAIsCurrent_ = false;
+    bool luminanceAdaptationInitialized_ = false;
     bool cameraInitialized_ = false;
 };
 
