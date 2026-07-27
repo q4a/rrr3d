@@ -512,7 +512,8 @@ D3DXVECTOR3 AABB::GetSizes() const
 
 float AABB::GetDiameter() const
 {
-	return D3DXVec3Length(&GetSizes());
+	const D3DXVECTOR3 sizes = GetSizes();
+	return D3DXVec3Length(&sizes);
 }
 
 float AABB::GetRadius() const
@@ -560,16 +561,25 @@ D3DXPLANE AABB::GetPlane(unsigned index) const
 	switch (index)
 	{
 	case cLeftPlane:
-		D3DXPlaneFromPointNormal(&res, &min, &(-XVector));
+	{
+		const D3DXVECTOR3 negX = -XVector;
+		D3DXPlaneFromPointNormal(&res, &min, &negX);
 		break;
+	}
 
 	case cTopPlane:
-		D3DXPlaneFromPointNormal(&res, &min, &(-YVector));
+	{
+		const D3DXVECTOR3 negY = -YVector;
+		D3DXPlaneFromPointNormal(&res, &min, &negY);
 		break;
+	}
 
 	case cBackPlane:
-		D3DXPlaneFromPointNormal(&res, &min, &(-ZVector));
+	{
+		const D3DXVECTOR3 negZ = -ZVector;
+		D3DXPlaneFromPointNormal(&res, &min, &negZ);
 		break;
+	}
 
 	case cRightPlane:
 		D3DXPlaneFromPointNormal(&res, &max, &(XVector));
@@ -710,7 +720,8 @@ void Frustum::CalculateCorners(Corners& pPoints, const D3DXMATRIX& invViewProj)
 	for (float fy = -1.0f; fy <= 1.0f; fy += 2.0f)
 	for (float fz = 0.0f; fz <= 1.0f; fz += 1.0f, ++i)
 	{
-		D3DXVec3TransformCoord(&pPoints[i], &D3DXVECTOR3(fx, fy, fz), &invViewProj);
+		const D3DXVECTOR3 pt(fx, fy, fz);
+		D3DXVec3TransformCoord(&pPoints[i], &pt, &invViewProj);
 	}
 }
 
@@ -838,7 +849,8 @@ bool RayCastIntersectSquare(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayV
 		D3DXVec3Normalize(&intPnt1, &intPnt1);
 		D3DXVECTOR3 intPnt2 = intPnt - max;
 		D3DXVec3Normalize(&intPnt2, &intPnt2);
-		bool res = D3DXVec3Dot(&intPnt1, &plDiag) > Arad45 && D3DXVec3Dot(&intPnt2, &(-plDiag)) > Arad45;
+		const D3DXVECTOR3 negDiag = -plDiag;
+		bool res = D3DXVec3Dot(&intPnt1, &plDiag) > Arad45 && D3DXVec3Dot(&intPnt2, &negDiag) > Arad45;
 		if (res)
 		{
 			if (outT)

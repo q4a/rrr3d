@@ -47,7 +47,8 @@ inline float NumAbsAdd(float absVal, float addVal)
 inline float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMATRIX& mat)
 {
 	D3DXVECTOR3 res;
-	D3DXVec3TransformNormal(&res, &(vec * scalar), &mat);
+	const D3DXVECTOR3 scaled = vec * scalar;
+	D3DXVec3TransformNormal(&res, &scaled, &mat);
 	float len = D3DXVec3Length(&res);
 	return scalar < 0 ? -len : len;
 }
@@ -497,7 +498,8 @@ inline D3DXVECTOR2 Line2GetNorm(const D3DXVECTOR3& line)
 
 inline float Line2DistToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point)
 {
-	return D3DXVec3Dot(&line,  &D3DXVECTOR3(point.x, point.y, 1.0f));
+	const D3DXVECTOR3 coord(point.x, point.y, 1.0f);
+	return D3DXVec3Dot(&line, &coord);
 }
 
 inline void Line2NormVecToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point, D3DXVECTOR2& outNormVec)

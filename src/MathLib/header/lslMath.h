@@ -413,7 +413,13 @@ private:
 			
 			LSL_ASSERT(_volume > 0);
 			
-			D3DXVECTOR2 leng = _max - _min;
+			// _min/_max are quaternions here. This deliberately reinterprets the
+			// difference's first two floats as a 2D length, which is what the
+			// implicit D3DXQUATERNION -> FLOAT* -> D3DXVECTOR2 conversion did
+			// under MSVC. That chain is two user-defined conversions, which only
+			// MSVC's permissive mode accepts, so spell it out.
+			const D3DXQUATERNION diff = _max - _min;
+			D3DXVECTOR2 leng(static_cast<const FLOAT*>(diff));
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
 
