@@ -169,6 +169,24 @@ BOOL SetWindowPos(HWND wnd, HWND insertAfter, int x, int y, int cx, int cy, UINT
 LONG GetWindowLong(HWND wnd, int index);
 LONG SetWindowLong(HWND wnd, int index, LONG newLong);
 BOOL GetWindowInfo(HWND wnd, PWINDOWINFO info);
+BOOL InvalidateRect(HWND wnd, const RECT* rect, BOOL erase);
+BOOL UpdateWindow(HWND wnd);
+BOOL GetCursorPos(POINT* point);
+BOOL ScreenToClient(HWND wnd, POINT* point);
+
+/*
+ * winuser.h character classification, used when validating typed player names.
+ * Byte-oriented, as the Windows MBCS versions are.
+ */
+BOOL IsCharAlpha(char ch);
+BOOL IsCharAlphaNumeric(char ch);
+
+/*
+ * Locale selection. Text encoding is UTF-8 throughout here and there is no
+ * thread locale to set, so both succeed and change nothing.
+ */
+int  _setmbcp(int codepage);
+BOOL SetThreadLocale(DWORD locale);
 
 /* combaseapi.h. COM apartment setup has no meaning here. */
 #define COINIT_MULTITHREADED     0x0
@@ -210,6 +228,9 @@ inline long _time32(long* dest)
  * numeric values -- they appear in saved key bindings -- so they must keep the
  * same values whatever reads them.
  */
+#define VK_LBUTTON      0x01
+#define VK_RBUTTON      0x02
+#define VK_MBUTTON      0x04
 #define VK_BACK         0x08
 #define VK_TAB          0x09
 #define VK_RETURN       0x0D
@@ -237,6 +258,18 @@ inline long _time32(long* dest)
 #define VK_NUMPAD7      0x67
 #define VK_NUMPAD8      0x68
 #define VK_NUMPAD9      0x69
+#define VK_F1           0x70
+#define VK_F2           0x71
+#define VK_F3           0x72
+#define VK_F4           0x73
+#define VK_F5           0x74
+#define VK_F6           0x75
+#define VK_F7           0x76
+#define VK_F8           0x77
+#define VK_F9           0x78
+#define VK_F10          0x79
+#define VK_F11          0x7A
+#define VK_F12          0x7B
 #define VK_ADD          0x6B
 #define VK_SUBTRACT     0x6D
 #define VK_OEM_PERIOD   0xBE
@@ -263,6 +296,59 @@ inline long _time32(long* dest)
 /* wingdi.h charsets used when picking a UI font. */
 #define EASTEUROPE_CHARSET 238
 #define BALTIC_CHARSET     186
+
+/*
+ * winerror.h. Only the two the game tests for.
+ */
+#define ERROR_SUCCESS 0L
+
+/*
+ * wingdi.h display enumeration. GameMode walks the attached displays to build
+ * the resolution list; with no display server behind HWND it finds none and the
+ * configured mode is used as-is.
+ */
+#define DISPLAY_DEVICE_ATTACHED_TO_DESKTOP 0x00000001
+
+typedef struct _DISPLAY_DEVICEA
+{
+    DWORD cb;
+    CHAR  DeviceName[32];
+    CHAR  DeviceString[128];
+    DWORD StateFlags;
+    CHAR  DeviceID[128];
+    CHAR  DeviceKey[128];
+} DISPLAY_DEVICEA, DISPLAY_DEVICE, *PDISPLAY_DEVICE;
+
+BOOL EnumDisplayDevices(const char* device, DWORD deviceNum, PDISPLAY_DEVICE displayDevice, DWORD flags);
+
+/*
+ * winnls.h. The UI language selects which Data/<language>.txt the game loads.
+ * Reporting neutral English leaves it on the default; wiring this to
+ * CFLocaleCopyPreferredLanguages is a small follow-up once the port runs.
+ */
+typedef WORD LANGID;
+
+#define LANG_NEUTRAL       0x00
+#define SUBLANG_NEUTRAL    0x00
+#define SORT_DEFAULT       0x0
+
+#define MAKELANGID(p, s)   ((((WORD)(s)) << 10) | (WORD)(p))
+#define PRIMARYLANGID(lgid) ((WORD)(lgid) & 0x3ff)
+#define MAKELCID(lgid, srt) ((DWORD)((((DWORD)((WORD)(srt))) << 16) | ((DWORD)((WORD)(lgid)))))
+
+LANGID GetUserDefaultUILanguage(void);
+
+/* mbctype.h -- the code page selector _setmbcp takes. */
+#define _MB_CP_LOCALE (-4)
+
+/*
+ * DirectShow filter graph event codes. The video player is stubbed, but World
+ * and GameMode switch on these in their own graph-event handlers, so the values
+ * have to exist and match.
+ */
+#define EC_COMPLETE   0x01
+#define EC_USERABORT  0x02
+#define EC_ERRORABORT 0x03
 
 /* Calling conventions. windows_base.h defines WINAPI; these are its siblings. */
 #ifndef CALLBACK

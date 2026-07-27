@@ -8,6 +8,7 @@
 
 #include "xplatform.h"
 
+#include <cctype>
 #include <cerrno>
 #include <chrono>
 #include <condition_variable>
@@ -302,6 +303,68 @@ BOOL GetWindowInfo(HWND, PWINDOWINFO info)
 	std::memset(info, 0, sizeof(*info));
 	info->cbSize = sizeof(*info);
 	return TRUE;
+}
+
+BOOL InvalidateRect(HWND, const RECT*, BOOL)
+{
+	return TRUE;
+}
+
+BOOL UpdateWindow(HWND)
+{
+	return TRUE;
+}
+
+BOOL GetCursorPos(POINT* point)
+{
+	if (!point)
+		return FALSE;
+	point->x = 0;
+	point->y = 0;
+	return TRUE;
+}
+
+BOOL ScreenToClient(HWND, POINT*)
+{
+	/* No window, so screen and client coordinates coincide. */
+	return TRUE;
+}
+
+BOOL IsCharAlpha(char ch)
+{
+	return std::isalpha(static_cast<unsigned char>(ch)) ? TRUE : FALSE;
+}
+
+BOOL IsCharAlphaNumeric(char ch)
+{
+	return std::isalnum(static_cast<unsigned char>(ch)) ? TRUE : FALSE;
+}
+
+int _setmbcp(int)
+{
+	return 0;
+}
+
+BOOL SetThreadLocale(DWORD)
+{
+	return TRUE;
+}
+
+BOOL EnumDisplayDevices(const char*, DWORD, PDISPLAY_DEVICE displayDevice, DWORD)
+{
+	/* No displays enumerated; the caller keeps its configured mode. */
+	if (displayDevice)
+	{
+		const DWORD cb = displayDevice->cb;
+		std::memset(displayDevice, 0, sizeof(*displayDevice));
+		displayDevice->cb = cb;
+	}
+	return FALSE;
+}
+
+LANGID GetUserDefaultUILanguage(void)
+{
+	return MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL);
 }
 
 HRESULT CoInitializeEx(void*, DWORD)

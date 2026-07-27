@@ -49,6 +49,35 @@
 #define ERROR_DEVICE_NOT_CONNECTED      1167
 #define ERROR_EMPTY                     4306
 
+#define XUSER_MAX_COUNT                 4
+#define XUSER_INDEX_ANY                 0x000000FF
+
+/* Virtual keys reported by XInputGetKeystroke. */
+#define VK_PAD_A                        0x5800
+#define VK_PAD_B                        0x5801
+#define VK_PAD_X                        0x5802
+#define VK_PAD_Y                        0x5803
+#define VK_PAD_RSHOULDER                0x5804
+#define VK_PAD_LSHOULDER                0x5805
+#define VK_PAD_LTRIGGER                 0x5806
+#define VK_PAD_RTRIGGER                 0x5807
+#define VK_PAD_DPAD_UP                  0x5810
+#define VK_PAD_DPAD_DOWN                0x5811
+#define VK_PAD_DPAD_LEFT                0x5812
+#define VK_PAD_DPAD_RIGHT               0x5813
+#define VK_PAD_START                    0x5814
+#define VK_PAD_BACK                     0x5815
+#define VK_PAD_LTHUMB_PRESS             0x5816
+#define VK_PAD_RTHUMB_PRESS             0x5817
+#define VK_PAD_LTHUMB_UP                0x5820
+#define VK_PAD_LTHUMB_DOWN              0x5821
+#define VK_PAD_LTHUMB_RIGHT             0x5822
+#define VK_PAD_LTHUMB_LEFT              0x5823
+#define VK_PAD_RTHUMB_UP                0x5830
+#define VK_PAD_RTHUMB_DOWN              0x5831
+#define VK_PAD_RTHUMB_RIGHT             0x5832
+#define VK_PAD_RTHUMB_LEFT              0x5833
+
 typedef struct _XINPUT_GAMEPAD
 {
     WORD  wButtons;
