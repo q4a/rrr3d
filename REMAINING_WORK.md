@@ -13,8 +13,8 @@ things.
 | `LexStd` | ~7,000 | **builds** |
 | `NetLib` | ~5,000 | **builds** — arm64 dylib |
 | `Tests` | ~350 | **builds**, 50 runtime checks pass |
-| `Rock3dEngine` | ~35,500 | 221 errors, **all in `px/Physx.h`** |
-| `Rock3dGame` | ~73,600 | not attempted |
+| `Rock3dEngine` | ~35,500 | **builds** |
+| `Rock3dGame` | ~73,600 | 10 of 52 translation units compile |
 | `RRR3d` (the exe) | ~350 | not attempted |
 | `MapEditor` | ~4,600 | excluded from non-Windows builds (MFC) |
 
@@ -49,7 +49,30 @@ primitives are tested. That is a long way from a game.
 
 ## 1. Finish the PhysX migration
 
-The only thing blocking `Rock3dEngine`. Remaining `Nx*` symbols:
+**`Rock3dEngine` builds.** The engine-side migration is done: actors, shapes,
+scenes, contact callbacks, cooking and the collision-group table are all on
+PhysX 4.1.
+
+`Rock3dGame` is down from 336 `Nx*` references to 90, concentrated in
+`GameCar.cpp` (26), `Weapon.cpp` (15) and `DataBase.cpp` (12). What is left is
+the part with no mechanical equivalent — the wheel runtime API, raycast
+queries, contact-stream iteration and material indices — plus the vehicle model
+itself.
+
+Closed since this document was written:
+
+- **Momentum accessors.** `px::GetLinearMomentum` and friends reproduce the 2.8
+  definitions, including angular momentum as `R·I·Rᵀ·ω` rather than
+  `mass × ω` — the latter would be wrong for every body with anisotropic
+  inertia, which is all of them.
+- **`NX_AF_LOCK_COM`** now drives `setCMassLocalPose`.
+
+Historical note on the table below: it was written when the header failed
+first, which stopped compilation before the rest of the file was parsed. The
+"221 errors, all in `px/Physx.h`" figure was an artifact of that. Treat error
+counts as a floor until the file compiles.
+
+Remaining `Nx*` symbols at the time of writing:
 
 | Symbol | Count | Becomes |
 |---|---|---|
@@ -80,16 +103,29 @@ would simply behave wrong:
   mass.
 - **`Shape::_materialIndex` is orphaned**, the same way. It should select the
   `PxMaterial` passed to `createExclusiveShape`. Until then everything gets
-  default friction.
-- **Momentum accessors are gone.** PhysX 3+ removed
-  `getLinearMomentum`/`setLinearMomentum`/`getAngularMomentum`; there is only
-  velocity and mass. Six call sites in `NetPlayer.cpp` and three in
-  `Player.cpp`. Mechanically `momentum = mass × velocity`, but these are the
-  **multiplayer sync path**, so an error changes netplay behaviour rather
-  than failing to build.
+  default friction. Needs a `Manager`-owned index-to-`PxMaterial` map fed from
+  whatever populated the 2.8 table.
 - **`NX_AF_DISABLE_RESPONSE` has no equivalent.** Expressed by clearing
   `PxShapeFlag::eSIMULATION_SHAPE`. Mapping recorded in `px::BodyFlag`,
   not yet applied.
+- **Contact reports fire on every pair.** 2.8 raised them per actor via
+  `contactReportFlags`; PhysX 3+ wants the pair flags requested in the filter
+  shader, before any actor is consulted, so the field is stored and serialised
+  but no longer reaches the simulation.
+- **Contact modification cannot reject a pair by return value.** 2.8 returned
+  `false`; the equivalent is ignoring every contact in the set, which is what
+  the callback now does.
+- **`sumFrictionForce` is always zero**, and `sumNormalForce` is an impulse
+  divided by the step. PhysX 3+ reports one per-point impulse combining both.
+- **Wheels have no suspension and generate no tire force.** The placeholder
+  geometry is a sphere with `eSIMULATION_SHAPE` cleared so it cannot collide
+  in the meantime.
+- **Plane shapes now move with their actor.** `PxPlaneGeometry` has no normal
+  or distance, so the equation lives in the local pose. Every plane in this
+  game is on a static actor, so this is currently inert.
+- **`&temporary` is downgraded from an error, not fixed.** ~40 sites, an MSVC
+  extension; clang materializes the temporary identically, so behaviour
+  matches. Worth cleaning up once the port runs and can be tested.
 
 ### The vehicle model
 
@@ -142,14 +178,23 @@ Consequences to handle:
 dozen times — dependent-base lookup, `address of temporary`, `friend class`
 not introducing names, MSVC-only STL. Plus:
 
-- **XAudio2 + X3DAudio** (~2,900 LOC) → **FAudio**, a zlib-licensed
-  accuracy-focused reimplementation of exactly these APIs, SDL2-only
-  dependency, macOS supported. Closest thing to a free win remaining.
-- **DirectShow** video (~1,500 LOC) → ffmpeg, or make cutscenes skippable.
-  Check first whether the 2013-era `.avi` files decode at all; transcoding
-  the assets may be cheaper than the player.
-- **XInput** → SDL_GameController. `XInputGetKeystroke` has no SDL analogue
-  and needs explicit edge detection.
+Audio, video and input are **stubbed, not ported** — the milestone is a tree
+that compiles and links first. All three stubs keep the original API shape so
+the real implementation is a contained change:
+
+- **XAudio2 + X3DAudio** — `src/XPlatform/header/xaudio2.h` and `X3daudio.h`
+  declare exactly what `snd/Audio.cpp` uses, with a silent implementation.
+  **FAudio** (zlib, in Homebrew) reimplements precisely this API, so adopting
+  it means implementing these interfaces rather than rewriting 2,900 lines.
+- **DirectShow** video — `video.cpp` and `playback.cpp` compile out;
+  `video::Player` reports `STATE_NO_GRAPH`, already the state
+  `World::IsVideoMode()` treats as no cutscene playing, so cutscenes skip
+  rather than stall. Check whether the 2013-era `.avi` files decode at all
+  before writing a player; transcoding the assets may be cheaper.
+- **XInput** → `src/XPlatform/header/xinput.h`, reporting no controller so the
+  game falls back to the keyboard. SDL_GameController maps onto this nearly
+  one-for-one. `XInputGetKeystroke` is the exception — SDL reports button
+  state, not press/release/repeat, so it needs explicit edge detection.
 - ~2,300 backslash separators in asset path literals, plus case sensitivity.
 
 ## 3. The graphics backend
