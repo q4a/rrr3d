@@ -76,6 +76,38 @@ variable of include flags does not word-split in zsh, so the compiler saw
 one concatenated argument and reported missing headers that were on the
 path. Use an array.)
 
+### Followed through: three errors
+
+Applying the obvious fixes to a scratch copy takes it from 33 to **3 errors
+across 17,539 lines**, with `d9mt_context.cpp` -- 5,300 lines and the heart of
+the backend -- compiling clean:
+
+```
+d9mt_context.cpp     0      d9mt_resources.cpp   0
+d9mt_device.cpp      1      d9mt_shader.cpp      0
+d9mt_hud.cpp         0      d9mt_watcher.cpp     0
+d9mt_instance.cpp    1      d9mt_wsi.cpp         1
+d9mt_presenter.cpp   0      stubs.cpp            0
+```
+
+The three: two more Vulkan handle casts of the same i686 shape, and
+`wsi::Win32WSI`, which is the window system integration and therefore the SDL
+shell rather than a backend problem.
+
+What that probe stubbed rather than solved is `D9MT_UnixCall` -- 10 sites. It
+dispatches to `d9mtmetal`, a companion library holding the runtime shader
+compile (MSL source to metallib), the PSO cache, frame capture and the HUD.
+Its implementation is `~/src/d9mt/v2/third_party/d9mtmetal/unix.m`, 723 lines
+whose own header comment reads "plain Metal calls, no wine APIs needed". A
+native build compiles it directly and replaces the unixlib dispatch with a
+call. It also uses sqlite3 for the shader cache.
+
+So the honest remaining list for the backend is:
+
+1. Two handle casts and the surface cast — minutes.
+2. `d9mtmetal` compiled natively, `D9MT_UnixCall` replaced by direct calls.
+3. `wsi::Win32WSI` replaced by an SDL WSI.
+
 ### Order
 
 1. Native `winemetal` implementation in Objective-C++: the 90 functions and 66
