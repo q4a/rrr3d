@@ -395,6 +395,27 @@ LANGID GetUserDefaultUILanguage(void);
 void* VirtualAlloc(void* address, size_t size, DWORD allocationType, DWORD protect);
 BOOL  VirtualFree(void* address, size_t size, DWORD freeType);
 
+/*
+ * libloaderapi.h. DXVK's D3D9 front-end uses these for one optional thing: it
+ * tries to load d3dx9.dll to borrow D3DXDisassembleShader, purely so shader
+ * disassembly can appear in debug output. Reporting no module makes it skip
+ * that, which is the correct outcome -- there is no d3dx9.dll here, and the
+ * D3DX work this project owns is tracked separately.
+ */
+typedef void* HMODULE;
+typedef int (*FARPROC)(void);
+
+HMODULE  LoadLibraryA(const char* name);
+FARPROC  GetProcAddress(HMODULE module, const char* name);
+BOOL     FreeLibrary(HMODULE module);
+
+/*
+ * wingdi.h. Used once, to make a memory device context for a surface. There is
+ * no GDI here; the caller checks the result.
+ */
+HDC  CreateCompatibleDC(HDC dc);
+BOOL DeleteDC(HDC dc);
+
 /* Calling conventions. windows_base.h defines WINAPI; these are its siblings. */
 #ifndef CALLBACK
 #define CALLBACK

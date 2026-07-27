@@ -348,6 +348,32 @@ BOOL VirtualFree(void* address, size_t size, DWORD freeType)
 	return madvise(address, size, MADV_FREE) == 0 ? TRUE : FALSE;
 }
 
+HMODULE LoadLibraryA(const char*)
+{
+	/* No PE loader, and nothing here is packaged as a DLL. */
+	return nullptr;
+}
+
+FARPROC GetProcAddress(HMODULE, const char*)
+{
+	return nullptr;
+}
+
+BOOL FreeLibrary(HMODULE)
+{
+	return TRUE;
+}
+
+HDC CreateCompatibleDC(HDC)
+{
+	return nullptr;
+}
+
+BOOL DeleteDC(HDC)
+{
+	return TRUE;
+}
+
 SHORT GetAsyncKeyState(int)
 {
 	return 0;
