@@ -198,7 +198,7 @@ PairPxContactEffect::ContactMap::iterator PairPxContactEffect::GetOrCreateContac
 	return res.first;
 }
 
-void PairPxContactEffect::InsertContact(ContactMap::iterator iter, NxShape* shape1, NxShape* shape2, const D3DXVECTOR3& point)
+void PairPxContactEffect::InsertContact(ContactMap::iterator iter, PxShape* shape1, PxShape* shape2, const D3DXVECTOR3& point)
 {
 	ContactNode* node = iter->second;
 	
@@ -300,7 +300,7 @@ void PairPxContactEffect::OnContact(const px::Scene::OnContactEvent& contact1, c
 
 	while (streamIter.goNextPair())
 	{
-		NxShape* shapes[2];
+		PxShape* shapes[2];
 		shapes[0] = !streamIter.isDeletedShape(0) ? streamIter.getShape(0) : 0;
 		shapes[1] = !streamIter.isDeletedShape(1) ? streamIter.getShape(1) : 0;
 

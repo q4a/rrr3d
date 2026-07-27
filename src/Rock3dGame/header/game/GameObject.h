@@ -125,7 +125,7 @@ protected:
 	void UnregFixedStepEvent();
 
 	D3DXVECTOR3 GetContactPoint(const px::Scene::OnContactEvent& contact);
-	bool ContainsContactGroup(NxContactStreamIterator& contIter, unsigned actorIndex, px::Scene::CollDisGroup group);
+	bool ContainsContactGroup(const PxContactPair& pair, unsigned actorIndex, px::Scene::CollDisGroup group);
 
 	//изменения ссылки на объект логки, хак
 	virtual void LogicReleased() {};
@@ -138,7 +138,7 @@ protected:
 
 	virtual void OnImmortalStatus(bool status) {}
 
-	void RayCastClosestActor(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayDir, NxShapesType shapesType, RayCastHit& hit, unsigned groups = 0xFFFFFFFF, unsigned mask = 0, float maxDist = NX_MAX_F32);
+	void RayCastClosestActor(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayDir, PxQueryFlags shapesType, RayCastHit& hit, unsigned groups = 0xFFFFFFFF, unsigned mask = 0, float maxDist = PX_MAX_F32);
 
 	void DoDeath(DamageType damageType = dtSimple, GameObject* target = NULL);
 	void SendDeath(DamageType damageType = dtSimple, GameObject* target = NULL);
@@ -206,7 +206,7 @@ public:
 
 	graph::Actor& GetGrActor();
 	px::Actor& GetPxActor();
-	NxActor* GetNxActor();
+	PxRigidActor* GetNxActor();
 
 	virtual Proj* IsProj();
 	virtual GameCar* IsCar();
@@ -278,8 +278,8 @@ public:
 	virtual void OnProgress(float deltaTime);
 
 	static GameObject* GetGameObjFromActor(px::Actor* actor);
-	static GameObject* GetGameObjFromActor(NxActor* actor);
-	static GameObject* GetGameObjFromShape(NxShape* shape);
+	static GameObject* GetGameObjFromActor(PxRigidActor* actor);
+	static GameObject* GetGameObjFromShape(PxShape* shape);
 };
 
 }

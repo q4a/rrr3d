@@ -205,7 +205,7 @@ void GameObject::RayCastClosestActor(const D3DXVECTOR3& rayStart, const D3DXVECT
 	nxMask.bits2 = 0;
 	nxMask.bits3 = 0;
 
-	if (NxShape* shape = GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(NxRay(NxVec3(rayStart), NxVec3(rayDir)), shapesType, nxHit, groups, maxDist, 0xFFFFFFFF, mask > 0 ? &nxMask : 0))
+	if (PxShape* shape = GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(NxRay(px::ToPx(rayStart), px::ToPx(rayDir)), shapesType, nxHit, groups, maxDist, 0xFFFFFFFF, mask > 0 ? &nxMask : 0))
 		hit.gameActor = GetGameObjFromShape(shape);
 
 	hit.distance = nxHit.distance;
@@ -227,7 +227,7 @@ void GameObject::SendDeath(DamageType damageType, GameObject* target)
 
 void GameObject::OnPxSync(float alpha)
 {
-	NxActor* nxActor = _pxActor->GetNxActor();
+	PxRigidActor* nxActor = _pxActor->GetNxActor();
 	if (nxActor == NULL)
 		return;
 
@@ -437,9 +437,9 @@ void GameObject::OnFixUp(const FixUpNames& fixUpNames)
 			SetParent(iter->GetComponent<GameObject*>());*/
 }
 
-NxActor* GameObject::GetNxActor()
+PxRigidActor* GameObject::GetNxActor()
 {
-	NxActor* nxActor = _pxActor->GetNxActor();
+	PxRigidActor* nxActor = _pxActor->GetNxActor();
 	if (!nxActor)
 		throw lsl::Error("GameObject::GetNxActor(), not initializated");
 
@@ -985,14 +985,14 @@ GameObject* GameObject::GetGameObjFromActor(px::Actor* actor)
 	return lsl::StaticCast<GameObject*>(actor->GetOwner());
 }
 
-GameObject* GameObject::GetGameObjFromActor(NxActor* actor)
+GameObject* GameObject::GetGameObjFromActor(PxRigidActor* actor)
 {
 	px::Actor* pxActor = px::Scene::GetActorFromNx(actor);
 
 	return pxActor ? GetGameObjFromActor(pxActor) : 0;
 }
 
-GameObject* GameObject::GetGameObjFromShape(NxShape* shape)
+GameObject* GameObject::GetGameObjFromShape(PxShape* shape)
 {
 	return GetGameObjFromActor(&shape->getActor());
 }

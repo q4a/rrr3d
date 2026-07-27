@@ -10,6 +10,9 @@ namespace r3d
 namespace game
 {
 
+//Named by CarWheel before its own definition below.
+class CarWheels;
+
 class CarWheel: public GameObject
 {
 	friend class CarWheels;
@@ -30,7 +33,9 @@ private:
 	public:
 		MyContactModify(CarWheel* wheel);
 
-		virtual bool onWheelContact(NxWheelShape* wheelShape, NxVec3& contactPoint, NxVec3& contactNormal, NxReal& contactPosition, NxReal& normalForce, NxShape* otherShape, NxMaterialIndex& otherShapeMaterialIndex, NxU32 otherShapeFeatureIndex);
+		virtual bool onWheelContact(px::WheelShape* wheelShape, D3DXVECTOR3& contactPoint, D3DXVECTOR3& contactNormal,
+			float& contactPosition, float& normalForce, PxShape* otherShape, PxU16& otherShapeMaterialIndex,
+			PxU32 otherShapeFeatureIndex);
 	};
 private:
 	CarWheels* _owner;
@@ -54,7 +59,7 @@ protected:
 	virtual void Load(lsl::SReader* reader);
 	
 	void CreateWheelShape();
-	void CreateWheelShape(const NxWheelShapeDesc& desc);
+	void CreateWheelShape(const px::WheelDesc& desc);
 	void DestroyWheelShape();	
 public:
 	CarWheel(CarWheels* owner);
@@ -118,7 +123,7 @@ public:
 	virtual ~CarWheels();
 
 	CarWheel& Add();
-	CarWheel& Add(const NxWheelShapeDesc& desc);
+	CarWheel& Add(const px::WheelDesc& desc);
 
 	GameCar* GetOwner();
 
@@ -183,7 +188,7 @@ private:
 	void StabilizeForce(float deltaTime);
 
 	float GetWheelRPM() const;
-	NxShape* GetWheelContactData(NxWheelContactData& contact);
+	PxShape* GetWheelContactData(NxWheelContactData& contact);
 
 	void ApplyWheelSteerK();
 protected:
@@ -295,13 +300,13 @@ public:
 	//{
 	//	PxContactCallbackData data;
 	//	NxTriangle tri;
-	//	const NxShape* shape0;
-	//	const NxShape* shape1;
+	//	const PxShape* shape0;
+	//	const PxShape* shape1;
 	//};
 	//typedef lsl::List<Contact> ContactList;	
 	//ContactList contactList;
 
-	static float GetSpeed(NxActor* nxActor, const D3DXVECTOR3& dir);
+	static float GetSpeed(PxRigidActor* nxActor, const D3DXVECTOR3& dir);
 };
 
 class DestrObj: public GameObject

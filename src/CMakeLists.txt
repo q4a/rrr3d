@@ -12,6 +12,19 @@ if (MSVC)
     add_compile_options("$<$<CONFIG:Release>:/Gy>") # Enable Function-Level Linking
 else()
     add_compile_options(-fPIC)
+
+    # `&D3DXVECTOR3(...)` -- taking the address of a temporary -- is an MSVC
+    # extension this codebase uses throughout, almost entirely to pass scratch
+    # vectors to D3DX math functions. Clang rejects it by default but
+    # materializes the temporary the same way MSVC does when the diagnostic is
+    # downgraded, with the same end-of-full-expression lifetime, so the
+    # behaviour is identical.
+    #
+    # Downgrading rather than rewriting the ~40 sites is deliberate: every
+    # rewrite is a chance to change evaluation order or scope by hand, for no
+    # behavioural gain. Worth cleaning up once the port runs and can be tested.
+    # It is safe only because no callee stores the pointer past the call.
+    add_compile_options(-Wno-error=address-of-temporary)
 endif()
 
 # Windows API substitutes for non-Windows targets

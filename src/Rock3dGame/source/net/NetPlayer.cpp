@@ -201,7 +201,7 @@ void NetPlayer::DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordL
 
 			if (coordList && coordIndex < coordList->size()) 
 			{
-				nxMat.t = NxVec3((*coordList)[coordIndex]);
+				nxMat.t = px::ToPx((*coordList)[coordIndex]);
 				ctx.projMat = &nxMat;
 			}
 			else
@@ -592,8 +592,8 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 			car->SetRotSync(dRot);
 		}
 
-		car->GetNxActor()->setLinearMomentum(NxVec3(linVel));
-		car->GetNxActor()->setAngularMomentum(NxVec3(angVel));
+		car->GetNxActor()->setLinearMomentum(px::ToPx(linVel));
+		car->GetNxActor()->setAngularMomentum(px::ToPx(angVel));
 		
 		car->SetMoveCar((GameCar::MoveCarState)moveState);		
 		car->SetSteerWheel((GameCar::SteerWheelState)steerState);

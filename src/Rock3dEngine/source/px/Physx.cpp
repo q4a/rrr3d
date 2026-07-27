@@ -15,33 +15,8 @@ namespace px
 //over PxPvdTransport rather than by host and port constants. Not reinstated:
 //nothing in the port needs it yet, and it would be dead configuration.
 
-//D3DX and PhysX vector types are layout-compatible but unrelated, so
-//conversion is explicit. These live here rather than in the header to keep
-//PhysX types off r3dMath's interface.
-namespace
-{
-
-inline PxVec3 ToPx(const D3DXVECTOR3& value)
-{
-	return PxVec3(value.x, value.y, value.z);
-}
-
-inline D3DXVECTOR3 FromPx(const PxVec3& value)
-{
-	return D3DXVECTOR3(value.x, value.y, value.z);
-}
-
-inline PxQuat ToPx(const D3DXQUATERNION& value)
-{
-	return PxQuat(value.x, value.y, value.z, value.w);
-}
-
-inline D3DXQUATERNION FromPx(const PxQuat& value)
-{
-	return D3DXQUATERNION(value.x, value.y, value.z, value.w);
-}
-
-}
+//ToPx/FromPx live in px/Physx.h -- the game layer converts at the same
+//boundaries this file does.
 
 //const float Scene::maxTimeStep = 1.0f/75.0f;
 //const unsigned Scene::maxSimIter = 8;

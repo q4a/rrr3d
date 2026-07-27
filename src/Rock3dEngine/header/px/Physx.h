@@ -43,6 +43,30 @@ namespace px
 using namespace physx;
 #endif
 
+//D3DX and PhysX vector types are layout-compatible but unrelated, so
+//conversion is explicit. PhysX 2.8's NxVec3 interoperated with D3DXVECTOR3
+//through get()/set(); PhysX 3+ has nothing of the sort, and the game layer
+//converts at the same boundaries the engine does.
+inline PxVec3 ToPx(const D3DXVECTOR3& value)
+{
+	return PxVec3(value.x, value.y, value.z);
+}
+
+inline D3DXVECTOR3 FromPx(const PxVec3& value)
+{
+	return D3DXVECTOR3(value.x, value.y, value.z);
+}
+
+inline PxQuat ToPx(const D3DXQUATERNION& value)
+{
+	return PxQuat(value.x, value.y, value.z, value.w);
+}
+
+inline D3DXQUATERNION FromPx(const PxQuat& value)
+{
+	return D3DXQUATERNION(value.x, value.y, value.z, value.w);
+}
+
 //MSVC's permissive mode lets an in-class `friend class Actor;` introduce the
 //name into the enclosing namespace. Standard C++ does not, so the types these
 //classes refer to before their definitions are declared here explicitly.

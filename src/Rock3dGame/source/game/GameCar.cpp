@@ -72,7 +72,7 @@ CarWheel::MyContactModify::MyContactModify(CarWheel* wheel): _wheel(wheel)
 {	
 }
 
-bool CarWheel::MyContactModify::onWheelContact(NxWheelShape* wheelShape, NxVec3& contactPoint, NxVec3& contactNormal, NxReal& contactPosition, NxReal& normalForce, NxShape* otherShape, NxMaterialIndex& otherShapeMaterialIndex, NxU32 otherShapeFeatureIndex)
+bool CarWheel::MyContactModify::onWheelContact(NxWheelShape* wheelShape, PxVec3& contactPoint, PxVec3& contactNormal, PxReal& contactPosition, PxReal& normalForce, PxShape* otherShape, PxU16& otherShapeMaterialIndex, PxU32 otherShapeFeatureIndex)
 {
 	float normReaction = abs(wheelShape->getActor().getMass() * contactNormal.dot(px::Scene::cDefGravity) / _wheel->_owner->Size());
 
@@ -179,16 +179,16 @@ void CarWheel::PxSyncWheel(float alpha)
 	NxWheelShape* wheel = _wheelShape->GetNxShape();
 	LSL_ASSERT(wheel);
 
-	NxReal st = wheel->getSuspensionTravel();
-	NxReal r = wheel->getRadius();			
+	PxReal st = wheel->getSuspensionTravel();
+	PxReal r = wheel->getRadius();			
 	NxMat34 localPose = wheel->getLocalPose();
 	//cast along -Y	
-	NxVec3 dir = localPose.M.getColumn(1);
-	NxVec3 t = localPose.t;
+	PxVec3 dir = localPose.M.getColumn(1);
+	PxVec3 t = localPose.t;
 
 	NxWheelContactData wcd;
 	//cast from shape origin
-	NxShape* s = wheel->getContact(wcd);
+	PxShape* s = wheel->getContact(wcd);
 	if (s && wcd.contactForce > -1000)
 		st = wcd.contactPosition - r;
 
@@ -237,7 +237,7 @@ void CarWheel::OnProgress(float deltaTime)
 	if (_trailEff)
 	{
 		NxWheelContactData contactDesc;
-		NxShape* contact = GetShape()->GetNxShape()->getContact(contactDesc);
+		PxShape* contact = GetShape()->GetNxShape()->getContact(contactDesc);
 		bool slip = false;
 
 		if (contact)
@@ -253,7 +253,7 @@ void CarWheel::OnProgress(float deltaTime)
 				_actTrail->AddRef();
 			}
 
-			_actTrail->GetGameObj().SetWorldPos(D3DXVECTOR3(contactDesc.contactPoint.get()) + ZVector * 0.001f);
+			_actTrail->GetGameObj().SetWorldPos(px::FromPx(contactDesc.contactPoint) + ZVector * 0.001f);
 			//Во время установки следа время жизни не меняется
 			_actTrail->GetGameObj().SetTimeLife(0);
 		}
@@ -283,7 +283,7 @@ float CarWheel::GetLongSlip()
 	LSL_ASSERT(GetShape());
 
 	NxWheelContactData contactDesc;
-	NxShape* contact = GetShape()->GetNxShape()->getContact(contactDesc);
+	PxShape* contact = GetShape()->GetNxShape()->getContact(contactDesc);
 	
 	return contact ? contactDesc.longitudalSlip : 0;
 }
@@ -291,7 +291,7 @@ float CarWheel::GetLongSlip()
 float CarWheel::GetLatSlip()
 {
 	NxWheelContactData contactDesc;
-	NxShape* contact = GetShape()->GetNxShape()->getContact(contactDesc);
+	PxShape* contact = GetShape()->GetNxShape()->getContact(contactDesc);
 	
 	return contact ? contactDesc.lateralSlip : 0;
 }
@@ -537,12 +537,12 @@ void GameCar::MotorProgress(float deltaTime, float& curMotorTorque, float& curBr
 	}
 }
 
-inline float NxQuatAngle(const NxQuat& quat1, const NxQuat& quat2)
+inline float NxQuatAngle(const PxQuat& quat1, const PxQuat& quat2)
 {	
 	return acos(abs(quat1.dot(quat2)/sqrt(quat1.magnitudeSquared() * quat2.magnitudeSquared()))) * 2;
 }
 
-inline const void NxQuatRotation(NxQuat& quat, const NxQuat& quat1, const NxQuat& quat2)
+inline const void NxQuatRotation(PxQuat& quat, const PxQuat& quat1, const PxQuat& quat2)
 {
 	quat = quat1;
 	quat.invert();
@@ -551,8 +551,8 @@ inline const void NxQuatRotation(NxQuat& quat, const NxQuat& quat1, const NxQuat
 
 void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorque)
 {
-	NxActor* nxActor = GetPxActor().GetNxActor();
-	float speed = GetSpeed(nxActor, nxActor->getGlobalOrientationQuat().rot(NxVec3(1.0f, 0.0f, 0.0f)).get());
+	PxRigidActor* nxActor = GetPxActor().GetNxActor();
+	float speed = GetSpeed(nxActor, nxActor->getGlobalOrientationQuat().rot(PxVec3(1.0f, 0.0f, 0.0f)).get());
 	float absSpeed = GetPxActor().GetNxActor()->getLinearVelocity().magnitude();
 
 	if (_maxSpeed > 0 && absSpeed > _maxSpeed)
@@ -610,7 +610,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 	StabilizeForce(deltaTime);
 
 	//static float dFixAngle = 0;
-	//static NxVec3 dFixAxis;
+	//static PxVec3 dFixAxis;
 	//static SteerWheelState lastSteer = swNone;
 
 	LSL_ASSERT(backWheel);
@@ -621,12 +621,12 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 		//alpha = 1.0f;
 
 		NxMat34 worldMat = nxActor->getGlobalPose();
-		NxQuat rotQuat;
-		rotQuat.fromAngleAxisFast(alpha * _steerAngle/cMaxSteerAngle * _steerRot * deltaTime, NxVec3(0, 0, 1));
+		PxQuat rotQuat;
+		rotQuat.fromAngleAxisFast(alpha * _steerAngle/cMaxSteerAngle * _steerRot * deltaTime, PxVec3(0, 0, 1));
 		NxMat34 rotMat;
 		rotMat.M.fromQuat(rotQuat);
 		NxMat34 matOffs1;
-		matOffs1.t = NxVec3(backWheel->GetPos().x, 0, 0);
+		matOffs1.t = PxVec3(backWheel->GetPos().x, 0, 0);
 		NxMat34 matOffs2;
 		matOffs2.t = -matOffs1.t;
 		worldMat = worldMat * matOffs1 * rotMat * matOffs2;
@@ -641,9 +641,9 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 		//const float cFixAngleStep = 15.0f * D3DX_PI / 180.0f;
 		const float cFixAngleStep = 22.5f * D3DX_PI / 180.0f;
 
-		NxQuat fixRot;
-		fixRot.fromAngleAxisFast(0, NxVec3(0, 0, 1));
-		NxQuat worldRot = nxActor->getGlobalOrientationQuat();
+		PxQuat fixRot;
+		fixRot.fromAngleAxisFast(0, PxVec3(0, 0, 1));
+		PxQuat worldRot = nxActor->getGlobalOrientationQuat();
 		NxQuatRotation(fixRot, fixRot, worldRot);
 
 		D3DXQUATERNION rot;
@@ -670,7 +670,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 		else
 			dFixAngleNew = std::min(dFixAngle + _steerRot * deltaTime, 0.0f);
 
-		NxQuat dRot;
+		PxQuat dRot;
 		dRot.fromAngleAxisFast(dFixAngle - dFixAngleNew, dFixAxis);
 		nxActor->setGlobalOrientationQuat(nxActor->getGlobalOrientationQuat() * dRot);
 
@@ -701,7 +701,7 @@ void GameCar::TransmissionProgress(float deltaTime, float curRPM)
 
 void GameCar::JumpProgress(float deltaTime)
 {
-	NxActor* nxActor = GetPxActor().GetNxActor();
+	PxRigidActor* nxActor = GetPxActor().GetNxActor();
 
 	_springTime = std::max(_springTime - deltaTime, 0.0f);
 
@@ -712,18 +712,18 @@ void GameCar::JumpProgress(float deltaTime)
 		nxActor->addForce(1.0f * px::Scene::cDefGravity, NX_ACCELERATION);
 		
 		//наклоняем машину вперед если она движется в OXY
-		NxVec3 vel = nxActor->getLinearVelocity();
+		PxVec3 vel = nxActor->getLinearVelocity();
 		vel.z = 0.0f;
 		if (vel.magnitude() > 1.0f && _flyYTorque != 0 && _springTime == 0.0f)
-			nxActor->addLocalTorque(NxVec3(0, _flyYTorque, 0), NX_ACCELERATION);
+			nxActor->addLocalTorque(PxVec3(0, _flyYTorque, 0), NX_ACCELERATION);
 	}
 }
 
 void GameCar::StabilizeForce(float deltaTime)
 {
-	NxVec3 angMomentum = GetPxActor().GetNxActor()->getAngularMomentum();	
-	NxMat33 mat = GetPxActor().GetNxActor()->getGlobalOrientation();	
-	NxMat33 invMat;
+	PxVec3 angMomentum = GetPxActor().GetNxActor()->getAngularMomentum();	
+	PxMat33 mat = GetPxActor().GetNxActor()->getGlobalOrientation();	
+	PxMat33 invMat;
 
 	if ((_angDamping.x != -1 || _angDamping.y != -1 || _angDamping.z != -1 || _clampYTorque > 0 || _clampXTorque > 0 || IsClutchLocked()) && mat.getInverse(invMat))
 	{
@@ -749,11 +749,11 @@ void GameCar::StabilizeForce(float deltaTime)
 			_clutchStrength = 0;
 		}
 
-		angMomentum = mat * NxVec3(angMomentum.x * _angDamping.x, angMomentum.y * _angDamping.y, angMomZ);
+		angMomentum = mat * PxVec3(angMomentum.x * _angDamping.x, angMomentum.y * _angDamping.y, angMomZ);
 
 		if (_clampYTorque > 0 || _clampXTorque > 0)
 		{
-			NxQuat rot = GetPxActor().GetNxActor()->getGlobalOrientationQuat();
+			PxQuat rot = GetPxActor().GetNxActor()->getGlobalOrientationQuat();
 
 			EulerAngles angles = Eul_FromQuat(*(Quat*)&rot, EulOrdXYZs);
 			if (_clampXTorque > 0)
@@ -778,7 +778,7 @@ float GameCar::GetWheelRPM() const
 	return _motor.CalcRPM(wheel->getAxleSpeed(), _curGear);
 }
 
-NxShape* GameCar::GetWheelContactData(NxWheelContactData& contact)
+PxShape* GameCar::GetWheelContactData(NxWheelContactData& contact)
 {
 	LSL_ASSERT(!_wheels->GetLeadGroup().empty());
 
@@ -866,14 +866,14 @@ void GameCar::LoadSource(lsl::SReader* reader)
 }
 
 //преобразуем в локльную систему координат тела актера
-void NxQuatFromWorldToLocal(const NxMat33& worldMat, const NxMat33& worldMatRot, NxMat33& outLocalMatRot)
+void NxQuatFromWorldToLocal(const PxMat33& worldMat, const PxMat33& worldMatRot, PxMat33& outLocalMatRot)
 {	
-	NxMat33 invWorldMat;
+	PxMat33 invWorldMat;
 	worldMat.getInverse(invWorldMat);
 	outLocalMatRot.multiply(invWorldMat, worldMatRot);	
 }
 
-void NxQuatFromLocalToWorld(const NxMat33& worldMat, const NxMat33& localMatRot, NxMat33& outWorldMatRot)
+void NxQuatFromLocalToWorld(const PxMat33& worldMat, const PxMat33& localMatRot, PxMat33& outWorldMatRot)
 {
 	outWorldMatRot.multiply(worldMat, localMatRot);
 }
@@ -890,7 +890,7 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 	bool shapeDyn0 = contact.shape0->getActor().isDynamic();
 	bool shapeDyn1 = contact.shape1->getActor().isDynamic();
 
-	const NxTriangleMeshShape* triShape = 0;
+	const PxShape* triShape = 0;
 	unsigned triInd = 0;
 	if (contact.shape0->isTriangleMesh())
 	{
@@ -909,20 +909,20 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 		//triangle for shape1
 		NxTriangle tri;
 		triShape->getTriangle(tri, 0, 0, triInd, true, true);
-		NxVec3 triNorm;
+		PxVec3 triNorm;
 		tri.normal(triNorm);
 		//если цель является основным взаимодействующим лицом, то необходимо инверитровать нормаль
 		if (contact.actorIndex == 0)
 			triNorm = -triNorm;
 		
-		NxMat33 wFricMat = NxMat33(contact.data->localorientation0);
+		PxMat33 wFricMat = PxMat33(contact.data->localorientation0);
 		if (shapeDyn0)
 			NxQuatFromLocalToWorld(contact.shape0->getActor().getCMassGlobalPose().M, wFricMat, wFricMat);
 
 		//вычислянм новый базис относительно дополнительной оси трения, берем localorientation1 в мировой системе координат
-		NxVec3 secFric = wFricMat.getColumn(2);
+		PxVec3 secFric = wFricMat.getColumn(2);
 		//вычисляем основную ось трения
-		NxVec3 firstFric = secFric.cross(triNorm);
+		PxVec3 firstFric = secFric.cross(triNorm);
 		//если secFric совпадает с нормалью, то вычислянм новый базис относительно основной оси трения
 		//для наклонные повврехности до 45 градусов считаются не препятсвующими движению, т.е. по ним можно скользить (например по верхужкам прыжков)
 		if (firstFric.magnitude() < 0.5f)
@@ -939,29 +939,29 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 			triNorm = firstFric.cross(secFric);
 			triNorm.normalize();
 			//
-			NxMat33 fricMat;
+			PxMat33 fricMat;
 			fricMat.setColumn(0, triNorm);
 			fricMat.setColumn(1, firstFric);
 			fricMat.setColumn(2, secFric);
-			NxQuat fricRot;
+			PxQuat fricRot;
 			fricMat.toQuat(fricRot);
 
-			NxQuat rot0;
+			PxQuat rot0;
 			//преобразуем в локльную систему координат тела актера
 			if (shapeDyn0)
 			{
-				NxMat33 rot0Mat;
+				PxMat33 rot0Mat;
 				NxQuatFromWorldToLocal(contact.shape0->getActor().getCMassGlobalPose().M, fricMat, rot0Mat);
 				rot0Mat.toQuat(rot0);
 			}
 			else
 				fricMat.toQuat(rot0);
 
-			NxQuat rot1;
+			PxQuat rot1;
 			//преобразуем в локльную систему координат тела актера
 			if (shapeDyn1)
 			{
-				NxMat33 rot1Mat;
+				PxMat33 rot1Mat;
 				NxQuatFromWorldToLocal(contact.shape1->getActor().getCMassGlobalPose().M, fricMat, rot1Mat);
 				rot1Mat.toQuat(rot1);
 			}
@@ -971,7 +971,7 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 			contact.data->localorientation0 = rot0;
 			contact.data->localorientation1 = rot1;
 
-			NxVec3 velocity = GetPxActor().GetNxActor()->getLinearVelocity();
+			PxVec3 velocity = GetPxActor().GetNxActor()->getLinearVelocity();
 			if (velocity.magnitude() > 0.1f)
 			{
 				velocity.normalize();
@@ -1003,7 +1003,7 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 
 void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 {
-	NxActor* nxActor = GetPxActor().GetNxActor();
+	PxRigidActor* nxActor = GetPxActor().GetNxActor();
 	_bodyContact = true;
 	bool springBorders = GetLogic() && GetLogic()->GetRace()->GetSpringBorders();
 
@@ -1016,7 +1016,7 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 	int targetPlayerId = target && target->GetMapObj() && target->GetMapObj()->GetPlayer() ? target->GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;
 	int senderPlayerId = GetMapObj() && GetMapObj()->GetPlayer() ? GetMapObj()->GetPlayer()->GetId() : cUndefPlayerId;	
 	
-	NxVec3 force = contact.pair->sumNormalForce;
+	PxVec3 force = contact.pair->sumNormalForce;
 	float forceLength = contact.pair->sumNormalForce.magnitude();
 
 	if (target && target->GetMapObj() && target->GetMapObj()->GetRecord() && target->GetMapObj()->GetRecord()->GetCategory() == MapObjLib::ctTrack)
@@ -1033,12 +1033,12 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 
 		if (forceLength > 0.01f)
 		{
-			NxVec3 norm = force;
+			PxVec3 norm = force;
 			norm.normalize();
 			if (contact.actorIndex == 0)
 				norm = -norm;
 
-			NxVec3 vel = GetPxActor().GetNxActor()->getLinearVelocity();			
+			PxVec3 vel = GetPxActor().GetNxActor()->getLinearVelocity();			
 			NxContactStreamIterator contIter(contact.stream);
 
 			bool borderContact = abs(norm.z) < 0.5f && ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency);
@@ -1049,16 +1049,16 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 			{
 				if (springBorders)
 				{
-					//NxVec3 tang = contact.pair->sumFrictionForce;
+					//PxVec3 tang = contact.pair->sumFrictionForce;
 					//tang.normalize();
 					//tang = tang.cross(norm);
 					//tang.normalize();
 
-					NxVec3 tang = vel;
+					PxVec3 tang = vel;
 					tang.normalize();
 					float tangDot = abs(tang.dot(norm));
 
-					NxVec3 dir = NxVec3(1.0f, 0.0f, 0.0f);
+					PxVec3 dir = PxVec3(1.0f, 0.0f, 0.0f);
 					GetPxActor().GetNxActor()->getGlobalOrientationQuat().rotate(dir);
 					float dirDot = dir.dot(norm);
 					float dirDot2 = dir.dot(tang);
@@ -1087,7 +1087,7 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 							tang = tang.cross(norm);
 						}
 						else
-							tang = NxVec3(0, 0, 0);
+							tang = PxVec3(0, 0, 0);
 					
 						float velN = norm.dot(vel);
 						//if (dirDot < 0.707f && dirDot2)
@@ -1107,7 +1107,7 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 	}
 	else if (target && target->GetMapObj() && target->GetMapObj()->GetRecord() && target->GetMapObj()->GetRecord()->GetCategory() == MapObjLib::ctCar)
 	{
-		NxActor* nxTarget = contact.actor->GetNxActor();
+		PxRigidActor* nxTarget = contact.actor->GetNxActor();
 
 		if (nxTarget && nxTarget->isDynamic())
 		{
@@ -1160,7 +1160,7 @@ void GameCar::OnFixedStep(float deltaTime)
 {
 	_MyBase::OnFixedStep(deltaTime);
 
-	NxActor* nxActor = GetPxActor().GetNxActor();
+	PxRigidActor* nxActor = GetPxActor().GetNxActor();
 
 	LSL_ASSERT(nxActor);
 
@@ -1509,11 +1509,11 @@ GameCar::Wheels& GameCar::GetWheels()
 	return *_wheels;
 }
 
-float GameCar::GetSpeed(NxActor* nxActor, const D3DXVECTOR3& dir)
+float GameCar::GetSpeed(PxRigidActor* nxActor, const D3DXVECTOR3& dir)
 {
 	if (nxActor)
 	{
-		float speed = D3DXVec3Dot(&dir, &D3DXVECTOR3(nxActor->getLinearVelocity().get()));
+		float speed = D3DXVec3Dot(&dir, &px::FromPx(nxActor->getLinearVelocity()));
 		//погрешность 1 м/с
 		if (abs(speed) < 1.0f)
 			speed = 0.0f;

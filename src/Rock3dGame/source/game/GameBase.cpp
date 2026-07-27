@@ -366,7 +366,7 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 		mapObj->GetGameObj().SetRot(desc.rot);
 
 	if (D3DXVec3Length(&_impulse) > 0.001f && mapObj->GetGameObj().GetPxActor().GetNxActor())
-		mapObj->GetGameObj().GetPxActor().GetNxActor()->addLocalForce(NxVec3(_impulse), NX_IMPULSE);
+		mapObj->GetGameObj().GetPxActor().GetNxActor()->addLocalForce(px::ToPx(_impulse), NX_IMPULSE);
 
 	return mapObj;
 }
@@ -715,8 +715,8 @@ void DeathEffect::OnDeath(GameObject* sender, DamageType damageType, GameObject*
 
 		MakeEffect(desc);
 
-		NxActor* eff = GetMakeEffect() ? GetMakeEffect()->GetGameObj().GetPxActor().GetNxActor() : 0;
-		NxActor* car = sender && sender->GetParent() && sender->GetParent()->IsProj() && sender->GetParent()->IsProj()->GetWeapon() ? sender->GetParent()->IsProj()->GetWeapon()->GetPxActor().GetNxActor() : 0;
+		PxRigidActor* eff = GetMakeEffect() ? GetMakeEffect()->GetGameObj().GetPxActor().GetNxActor() : 0;
+		PxRigidActor* car = sender && sender->GetParent() && sender->GetParent()->IsProj() && sender->GetParent()->IsProj()->GetWeapon() ? sender->GetParent()->IsProj()->GetWeapon()->GetPxActor().GetNxActor() : 0;
 
 		if (_effectPxIgnoreSenderCar && eff && car)
 			eff->getScene().setActorPairFlags(*eff, *car, NX_IGNORE_PAIR);
@@ -822,7 +822,7 @@ void PxWheelSlipEffect::OnProgress(float deltaTime)
 	snd::Source3d* source = GiveSource3d();
 	
 	NxWheelContactData contactDesc;
-	NxShape* contact = wheel.GetShape()->GetNxShape()->getContact(contactDesc);
+	PxShape* contact = wheel.GetShape()->GetNxShape()->getContact(contactDesc);
 	float slip = 0.0f;		
 	if (contact)
 		slip = std::max(abs(contactDesc.lateralSlip) - slipLat, 0.0f) + std::max(abs(contactDesc.longitudalSlip) - slipLong, 0.0f);
@@ -830,7 +830,7 @@ void PxWheelSlipEffect::OnProgress(float deltaTime)
 	if (slip > 0)
 	{
 		EffectDesc desc;
-		desc.pos = D3DXVECTOR3(contactDesc.contactPoint.get());
+		desc.pos = px::FromPx(contactDesc.contactPoint);
 		desc.child = false;
 		if (GetMakeEffect())
 			GetMakeEffect()->GetGameObj().SetPos(GetPos() + desc.pos);
@@ -1023,10 +1023,10 @@ void SlowEffect::OnProgress(float deltaTime)
 
 	MakeEffect();
 
-	NxActor* target = GetGameObj()->GetPxActor().GetNxActor();
+	PxRigidActor* target = GetGameObj()->GetPxActor().GetNxActor();
 	if (target)
 	{
-		NxVec3 linSpeed = target->getLinearVelocity();
+		PxVec3 linSpeed = target->getLinearVelocity();
 		float maxSpeed = linSpeed.magnitude();
 		linSpeed.normalize();
 

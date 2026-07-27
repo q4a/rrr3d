@@ -31,6 +31,8 @@ struct X3DAUDIO_VECTOR
 {
     FLOAT x, y, z;
 
+    X3DAUDIO_VECTOR(): x(0.0f), y(0.0f), z(0.0f) {}
+
     template <class _Vec> X3DAUDIO_VECTOR(const _Vec& value): x(value.x), y(value.y), z(value.z) {}
 
     template <class _Vec> X3DAUDIO_VECTOR& operator=(const _Vec& value)

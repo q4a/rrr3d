@@ -94,11 +94,11 @@ private:
 	bool _initMapObjLib;
 	MapObjLib* _mapObjLib[MapObjLib::cCategoryEnd];
 
-	NxMaterial* _nxCarMaterial1;
-	NxMaterial* _nxCarMaterial2;
-	NxMaterial* _nxWheelMaterial;
-	NxMaterial* _trackMaterial;	
-	NxMaterial* _borderMaterial;
+	PxMaterial* _nxCarMaterial1;
+	PxMaterial* _nxCarMaterial2;
+	PxMaterial* _nxWheelMaterial;
+	PxMaterial* _trackMaterial;	
+	PxMaterial* _borderMaterial;
 
 	void InitMapObjLib();
 	void FreeMapObjLib();

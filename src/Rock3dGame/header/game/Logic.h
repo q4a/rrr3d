@@ -122,8 +122,8 @@ private:
 			return effect == contact.effect;
 		}
 
-		NxShape* shape1;
-		NxShape* shape2;
+		PxShape* shape1;
+		PxShape* shape2;
 		D3DXVECTOR3 point;		
 
 		MapObj* effect;
@@ -152,7 +152,7 @@ private:
 	ContactMap _contactMap;
 
 	ContactMap::iterator GetOrCreateContact(const Key& key);
-	void InsertContact(ContactMap::iterator iter, NxShape* shape1, NxShape* shape2, const D3DXVECTOR3& point);
+	void InsertContact(ContactMap::iterator iter, PxShape* shape1, PxShape* shape2, const D3DXVECTOR3& point);
 	ContactMap::iterator ReleaseContact(ContactMap::iterator iter, ContactList::iterator cIter1, ContactList::iterator cIter2, bool death, float deltaTime = 0.0f, float cRelTime = -1.0f);
 	void ReleaseContacts(bool death);
 

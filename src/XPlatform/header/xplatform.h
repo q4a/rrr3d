@@ -155,6 +155,23 @@ BOOL GetClientRect(HWND wnd, RECT* rect);
  */
 #define WM_APP 0x8000
 
+/* Calling conventions. windows_base.h defines WINAPI; these are its siblings. */
+#ifndef CALLBACK
+#define CALLBACK
+#endif
+#ifndef APIENTRY
+#define APIENTRY
+#endif
+
+#ifdef __cplusplus
+/*
+ * MSVC's secure CRT. There is no wide-path fopen off Windows -- paths there are
+ * bytes, and this project treats them as UTF-8 -- so both arguments are
+ * narrowed on the way through. Returns 0 on success, like the original.
+ */
+int _wfopen_s(FILE** file, const wchar_t* path, const wchar_t* mode);
+#endif /* __cplusplus */
+
 UINT timeBeginPeriod(UINT period);
 UINT timeEndPeriod(UINT period);
 

@@ -182,7 +182,7 @@ void Proj::CreatePxBox(NxCollisionGroup group)
 
 void Proj::AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, NxForceMode mode)
 {
-	target->GetPxActor().GetNxActor()->addForceAtPos(NxVec3(force), NxVec3(point), mode);
+	target->GetPxActor().GetNxActor()->addForceAtPos(px::ToPx(force), px::ToPx(point), mode);
 }
 
 void Proj::AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const D3DXVECTOR3& force, NxForceMode mode)
@@ -293,7 +293,7 @@ void Proj::EnableFilter(GameObject* target, unsigned mask)
 	nxMask.bits1 = nxMask.bits2 = nxMask.bits3 = 0;
 	for (unsigned i = 0; i < target->GetPxActor().GetNxActor()->getNbShapes(); ++i)
 	{
-		NxShape* shape = target->GetPxActor().GetNxActor()->getShapes()[i];
+		PxShape* shape = target->GetPxActor().GetNxActor()->getShapes()[i];
 		shape->setGroupsMask(nxMask);
 	}
 	
@@ -310,7 +310,7 @@ void Proj::DisableFilter(GameObject* target)
 	nxMask.bits1 = nxMask.bits2 = nxMask.bits3 = 0;
 	for (unsigned i = 0; i < target->GetPxActor().GetNxActor()->getNbShapes(); ++i)
 	{
-		NxShape* shape = target->GetPxActor().GetNxActor()->getShapes()[i];
+		PxShape* shape = target->GetPxActor().GetNxActor()->getShapes()[i];
 		shape->setGroupsMask(nxMask);
 	}
 
@@ -355,7 +355,7 @@ bool Proj::RocketPrepare(GameObject* weapon, bool disableGravity, D3DXVECTOR3* s
 
 	NxBodyDesc bodyDesc;
 	bodyDesc.flags |= disableGravity ? NX_BF_DISABLE_GRAVITY : 0;
-	bodyDesc.linearVelocity = NxVec3(speed);
+	bodyDesc.linearVelocity = px::ToPx(speed);
 
 	CreateBody(bodyDesc);
 
@@ -381,7 +381,7 @@ void Proj::RocketContact(const px::Scene::OnContactEvent& contact)
 
 		DamageTarget(target, _desc.damage);
 
-		D3DXVECTOR3 dir = D3DXVECTOR3(this->GetPxActor().GetNxActor()->getLinearVelocity().get());
+		D3DXVECTOR3 dir = px::FromPx(this->GetPxActor().GetNxActor()->getLinearVelocity());
 		float dirLength = D3DXVec3Length(&dir);
 
 		if (dirLength > 1.0f)
@@ -392,8 +392,8 @@ void Proj::RocketContact(const px::Scene::OnContactEvent& contact)
 			//D3DXVec3Normalize(&contactDir, &contactDir);	
 			D3DXVec3Cross(&contactDir, &contactDir, &dir);
 			
-			//NxVec3 vec3(RandomRange(-1.0f, 1.0f), 0, RandomRange(-1.0f, 1.0f));
-			NxVec3 vec3(contactDir);
+			//PxVec3 vec3(RandomRange(-1.0f, 1.0f), 0, RandomRange(-1.0f, 1.0f));
+			PxVec3 vec3(contactDir);
 			if (vec3.magnitude() > 0.01f)
 			{
 				vec3.normalize();
@@ -413,11 +413,11 @@ void Proj::RocketUpdate(float deltaTime)
 	const float cTrackHeight = 4.0f;
 
 	D3DXVECTOR3 size = _pxBox->GetDimensions();
-	NxVec3 pos = GetPxActor().GetNxActor()->getGlobalPosition(); 
-	NxRay nxRay(pos + NxVec3(0, 0, cTrackHeight), NxVec3(0, 0, -1.0f));
+	PxVec3 pos = GetPxActor().GetNxActor()->getGlobalPosition(); 
+	NxRay nxRay(pos + PxVec3(0, 0, cTrackHeight), PxVec3(0, 0, -1.0f));
 
 	NxRaycastHit hit;			
-	NxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, NX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT);
+	PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, NX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT);
 
 	if (hitShape)
 	{
@@ -441,7 +441,7 @@ bool Proj::HyperPrepare(GameObject* weapon)
 	InitModel();
 	LinkToWeapon();
 
-	weapon->GetPxActor().GetNxActor()->addLocalForce(NxVec3(1.0f, 0.0f, 0.0f) * _desc.speed, NX_SMOOTH_VELOCITY_CHANGE);
+	weapon->GetPxActor().GetNxActor()->addLocalForce(PxVec3(1.0f, 0.0f, 0.0f) * _desc.speed, NX_SMOOTH_VELOCITY_CHANGE);
 
 	return true;
 }
@@ -524,7 +524,7 @@ void Proj::SpeedArrowContact(const px::Scene::OnContactEvent& contact)
 	GameObject* target = GetGameObjFromActor(contact.actor);
 	if (target)
 	{
-		target->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(GetGrActor().GetWorldDir() * _desc.damage));
+		target->GetPxActor().GetNxActor()->setLinearVelocity(px::ToPx(GetGrActor().GetWorldDir() * _desc.damage));
 		target->SendEvent(cPlayerSpeedArrow);
 	}
 }
@@ -545,9 +545,9 @@ void Proj::LushaContact(const px::Scene::OnContactEvent& contact)
 	GameObject* target = GetGameObjFromActor(contact.actor);
 	if (target)
 	{
-		NxActor* nxTarget = target->GetPxActor().GetNxActor();
+		PxRigidActor* nxTarget = target->GetPxActor().GetNxActor();
 
-		NxVec3 linSpeed = nxTarget->getLinearVelocity();
+		PxVec3 linSpeed = nxTarget->getLinearVelocity();
 		float maxSpeed = linSpeed.magnitude();
 		linSpeed.normalize();
 
@@ -579,17 +579,17 @@ bool Proj::MinePrepare(const ShotContext& ctx, bool lockMine)
 		D3DXVECTOR3 rayPos = _desc.pos;
 		if (_weapon)
 			_weapon->GetGrActor().LocalToWorldCoord(rayPos, rayPos);
-		NxRay nxRay(NxVec3(rayPos) + NxVec3(0, 0, 2.0f), NxVec3(-ZVector));
+		NxRay nxRay(px::ToPx(rayPos) + PxVec3(0, 0, 2.0f), px::ToPx(-ZVector));
 
 		NxRaycastHit hit;
-		NxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, (1 << px::Scene::cdgTrackPlane) | (1 << px::Scene::cdgShotTrack), NX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT | NX_RAYCAST_NORMAL);
+		PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, (1 << px::Scene::cdgTrackPlane) | (1 << px::Scene::cdgShotTrack), NX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT | NX_RAYCAST_NORMAL);
 
 		if (hitShape && hitShape->getGroup() != px::Scene::cdgShotTrack) //&& hit.distance < _desc.projMaxDist)
 		{
 			float offs = std::max(-aabb.min.z, 0.01f);			
 			D3DXVECTOR3 normal = hit.worldNormal.get();
 
-			SetWorldPos(D3DXVECTOR3(hit.worldImpact.get()) + ZVector * offs);
+			SetWorldPos(px::FromPx(hit.worldImpact) + ZVector * offs);
 			SetWorldUp(normal);
 
 			if (lockMine)
@@ -707,7 +707,7 @@ void Proj::MineRipUpdate(float deltaTime)
 				mapObj->GetGameObj().SetRot(GetRot());
 				mapObj->GetGameObj().SetScale(GetScale());
 
-				NxVec3 dir(vec.GetValue());
+				PxVec3 dir(vec.GetValue());
 				dir.normalize();
 				mapObj->GetGameObj().GetPxActor().GetNxActor()->addForce(mapObj->GetGameObj().GetPxActor().GetBody()->GetDesc().mass * dir * 10.0f, NX_IMPULSE);
 
@@ -811,7 +811,7 @@ void Proj::TorpedaUpdate(float deltaTime)
 
 		_vec1 = dir * speed;
 		
-		this->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(dir * std::max(_desc.speed, speed)));
+		this->GetPxActor().GetNxActor()->setLinearVelocity(px::ToPx(dir * std::max(_desc.speed, speed)));
 	}
 }
 
@@ -845,7 +845,7 @@ GameObject* Proj::LaserUpdate(float deltaTime, bool distort)
 	nxMask.bits3 = 0;
 
 	NxRaycastHit rayhit;	
-	NxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(NxRay(NxVec3(shotPos + _desc.sizeAddPx), NxVec3(shotDir)), NX_ALL_SHAPES, rayhit, (1 << px::Scene::cdgDefault) | (1 << px::Scene::cdgShotTransparency) | (1 << px::Scene::cdgTrackPlane), _desc.maxDist, NX_RAYCAST_SHAPE | NX_RAYCAST_DISTANCE, &nxMask);
+	PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(NxRay(px::ToPx(shotPos + _desc.sizeAddPx), px::ToPx(shotDir)), NX_ALL_SHAPES, rayhit, (1 << px::Scene::cdgDefault) | (1 << px::Scene::cdgShotTransparency) | (1 << px::Scene::cdgTrackPlane), _desc.maxDist, NX_RAYCAST_SHAPE | NX_RAYCAST_DISTANCE, &nxMask);
 	GameObject* rayHitActor = hitShape ? GetGameObjFromShape(hitShape) : NULL;
 
 	DisableFilter(_weapon);
@@ -979,7 +979,7 @@ void Proj::SonarContact(const px::Scene::OnContactEvent& contact)
 	if (target)
 	{
 		DamageTarget(target, _desc.damage * contact.deltaTime, dtEnergy);
-		AddContactForce(target, contact, _desc.mass * D3DXVECTOR3(this->GetPxActor().GetNxActor()->getLinearVelocity().get()), NX_IMPULSE);
+		AddContactForce(target, contact, _desc.mass * px::FromPx(this->GetPxActor().GetNxActor()->getLinearVelocity()), NX_IMPULSE);
 	}
 }
 
@@ -998,7 +998,7 @@ bool Proj::SpringPrepare(GameObject* weapon)
 		//testRot = car->GetRot();
 		//SetMaxTimeLife(4.0f);
 
-		car->GetPxActor().GetNxActor()->addLocalForce(NxVec3(0.0f, 0.0f, 1.0f) * _desc.speed, NX_SMOOTH_VELOCITY_CHANGE);
+		car->GetPxActor().GetNxActor()->addLocalForce(PxVec3(0.0f, 0.0f, 1.0f) * _desc.speed, NX_SMOOTH_VELOCITY_CHANGE);
 		car->LockSpring();
 		return true;
 	}
@@ -1169,30 +1169,30 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 		return;
 	_time1 = 0.0f;
 
-	NxVec3 velocity = GetPxActor().GetNxActor()->getLinearVelocity();
+	PxVec3 velocity = GetPxActor().GetNxActor()->getLinearVelocity();
 	NxContactStreamIterator contIter(contact.stream);
 	
 	if (ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency) && velocity.magnitude() > 5.0f)
 	{
 		_time1 = 0.1f;
 
-		NxVec3 norm = contIter.getPatchNormal();
+		PxVec3 norm = contIter.getPatchNormal();
 		if (contact.actorIndex == 0)
 			norm = -norm;
 
-		NxVec3 velNorm = velocity;
+		PxVec3 velNorm = velocity;
 		velNorm.normalize();
 		float angle = velNorm.dot(norm);		
 		if (abs(angle) > 0.1f)
 		{
 			D3DXPLANE plane;
-			D3DXPlaneFromPointNormal(&plane, &NullVector, &D3DXVECTOR3(norm.get()));
+			D3DXPlaneFromPointNormal(&plane, &NullVector, &px::FromPx(norm));
 			D3DXMATRIX mat;
 			D3DXMatrixReflect(&mat, &plane);
 
 			D3DXVECTOR3 vel(velocity.get());
 			D3DXVec3TransformNormal(&vel, &vel, &mat);
-			velocity = NxVec3(vel);
+			velocity = px::ToPx(vel);
 		}
 		else
 			velocity = -velocity;

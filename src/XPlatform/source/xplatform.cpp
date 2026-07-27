@@ -8,6 +8,7 @@
 
 #include "xplatform.h"
 
+#include <cerrno>
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
@@ -271,6 +272,15 @@ int MessageBox(HWND, const char* text, const char* caption, UINT)
 void OutputDebugStringA(const char* str)
 {
 	std::fputs(str ? str : "", stderr);
+}
+
+int _wfopen_s(FILE** file, const wchar_t* path, const wchar_t* mode)
+{
+	if (!file)
+		return EINVAL;
+
+	*file = std::fopen(ToUtf8(path, -1).c_str(), ToUtf8(mode, -1).c_str());
+	return *file ? 0 : errno;
 }
 
 UINT timeBeginPeriod(UINT)

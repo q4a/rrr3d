@@ -1718,9 +1718,9 @@ void Player::ResetCar()
 		/*D3DXVECTOR3 pos = lastNode->GetTile().GetPoint(_car.lastNodeCoordX) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;	
 		D3DXVECTOR2 dir2 = lastNode->GetTile().GetDir();
 
-		NxRay nxRay(NxVec3(pos), NxVec3(-ZVector));
+		NxRay nxRay(px::ToPx(pos), px::ToPx(-ZVector));
 		NxRaycastHit hit;		
-		NxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, NX_MAX_F32, NX_RAYCAST_SHAPE);
+		PxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, NX_MAX_F32, NX_RAYCAST_SHAPE);
 
 		if (hitShape == NULL)
 			pos = lastNode->GetTile().GetPoint(0.0f) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;*/
@@ -1755,9 +1755,9 @@ void Player::ResetCar()
 					newDir2 = node->GetTile().GetDir();
 				}
 
-				NxRay nxRay(NxVec3(rayPos), NxVec3(-ZVector));
+				NxRay nxRay(px::ToPx(rayPos), px::ToPx(-ZVector));
 				NxRaycastHit hit;		
-				NxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_ALL_SHAPES, hit, 1 << px::Scene::cdgTrackPlane | 1 << px::Scene::cdgPlaneDeath | 1 << px::Scene::cdgDefault, NX_MAX_F32, NX_RAYCAST_SHAPE);
+				PxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_ALL_SHAPES, hit, 1 << px::Scene::cdgTrackPlane | 1 << px::Scene::cdgPlaneDeath | 1 << px::Scene::cdgDefault, NX_MAX_F32, NX_RAYCAST_SHAPE);
 				GameObject* hitGameObj = GameObject::GetGameObjFromShape(hitShape);
 
 				if (!isDeathPlane && i == 0 && j == 0 && (hitShape == NULL || hitShape->getGroup() == px::Scene::cdgPlaneDeath))
@@ -1801,10 +1801,10 @@ void Player::ResetCar()
 		_car.gameObj->SetWorldRot(NullQuaternion);
 		_car.gameObj->SetWorldDir(D3DXVECTOR3(dir2.x, dir2.y, 0.0f));		
 
-		_car.gameObj->GetPxActor().GetNxActor()->setLinearVelocity(NxVec3(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setLinearMomentum(NxVec3(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setAngularMomentum(NxVec3(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setAngularVelocity(NxVec3(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setLinearVelocity(px::ToPx(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setLinearMomentum(px::ToPx(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setAngularMomentum(px::ToPx(NullVector));
+		_car.gameObj->GetPxActor().GetNxActor()->setAngularVelocity(px::ToPx(NullVector));
 	}
 }
 

@@ -453,9 +453,9 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			game::GameCar::PxContactCallbackData contData = iter->data;
 			NxTriangle triData = iter->tri;
 
-			NxVec3 pos0 = contData.localpos0;
-			NxQuat rot0 = contData.localorientation0;
-			NxMat33 mat0(rot0);
+			PxVec3 pos0 = contData.localpos0;
+			PxQuat rot0 = contData.localorientation0;
+			PxMat33 mat0(rot0);
 			if (iter->shape0->getActor().isDynamic())
 			{
 				NxMat34 bodyMat = iter->shape0->getActor().getCMassGlobalPose();				
@@ -467,43 +467,43 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			D3DXVECTOR3 errorNorm;
 			D3DXVec3Normalize(&errorNorm, &error);
 			//Отрисовка error вектора
-			NxVec3 nxErrNorm = error;
+			PxVec3 nxErrNorm = error;
 			//nxErrNorm.normalize();
 			gameObj->GetPxActor().GetNxActor()->getCMassGlobalPose().M.multiply(nxErrNorm, nxErrNorm);
-			errorNorm = D3DXVECTOR3(nxErrNorm.get());
-			lines[0].pos = D3DXVECTOR3(pos0.get());
+			errorNorm = px::FromPx(nxErrNorm);
+			lines[0].pos = px::FromPx(pos0);
 			lines[0].diffuse = clrBlack;
-			lines[1].pos = D3DXVECTOR3(pos0.get()) + errorNorm * 50.0f;
+			lines[1].pos = px::FromPx(pos0) + errorNorm * 50.0f;
 			lines[1].diffuse = clrBlack;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
 
 			//Отрисовка X оси базиса
-			lines[0].pos = D3DXVECTOR3(pos0.get());
-			lines[1].pos = D3DXVECTOR3((pos0 + mat0.getColumn(0) * 5.0f).get());
+			lines[0].pos = px::FromPx(pos0);
+			lines[1].pos = px::FromPx((pos0 + mat0.getColumn(0) * 5.0f));
 			lines[0].diffuse = lines[1].diffuse = clrYellow;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
 			//Отрисовка Y оси базиса
-			lines[0].pos = D3DXVECTOR3(pos0.get());
-			lines[1].pos = D3DXVECTOR3((pos0 + mat0.getColumn(1) * 5.0f).get());
+			lines[0].pos = px::FromPx(pos0);
+			lines[1].pos = px::FromPx((pos0 + mat0.getColumn(1) * 5.0f));
 			lines[0].diffuse = lines[1].diffuse = clrGreen;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
 			//Отрисовка Z оси базиса
-			lines[0].pos = D3DXVECTOR3(pos0.get());
-			lines[1].pos = D3DXVECTOR3((pos0 + mat0.getColumn(2) * 5.0f).get());
+			lines[0].pos = px::FromPx(pos0);
+			lines[1].pos = px::FromPx((pos0 + mat0.getColumn(2) * 5.0f));
 			lines[0].diffuse = lines[1].diffuse = clrRed;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
 
 			//Отрисовка треугольника
-			NxVec3 myNorm;
+			PxVec3 myNorm;
 			triData.normal(myNorm);
 			res::VertexPD triLines[4];
-			triLines[0].pos = D3DXVECTOR3(triData.verts[0].get());
-			triLines[1].pos = D3DXVECTOR3(triData.verts[1].get());
-			triLines[2].pos = D3DXVECTOR3(triData.verts[2].get());
+			triLines[0].pos = px::FromPx(triData.verts[0]);
+			triLines[1].pos = px::FromPx(triData.verts[1]);
+			triLines[2].pos = px::FromPx(triData.verts[2]);
 			triLines[0].diffuse = triLines[1].diffuse = triLines[2].diffuse = abs(myNorm.x) > 0.5f ? clrRed : clrBlue;
 			triLines[3] = triLines[0];
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
@@ -558,7 +558,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		return;
 
 	game::RockCar* gameObj = car.gameObj;
-	NxActor* nxActor = gameObj->GetPxActor().GetNxActor();
+	PxRigidActor* nxActor = gameObj->GetPxActor().GetNxActor();
 
 	if (car.speed <= 0)
 	{
@@ -637,7 +637,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	NxSpringDesc suspension = pxWheel->GetSuspension();
 	float suspensionTravel = pxWheel->GetSuspensionTravel();
 	float mass = nxActor->getMass();
-	NxVec3 cMassPos = nxActor->getCMassLocalPosition();
+	PxVec3 cMassPos = nxActor->getCMassLocalPosition();
 	CarMotorDesc motor = gameObj->GetMotorDesc();
 	float steerSpeed = gameObj->GetSteerSpeed();
 	float steerRot = gameObj->GetSteerRot();

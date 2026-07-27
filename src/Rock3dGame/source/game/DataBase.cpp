@@ -367,7 +367,7 @@ px::Body* DataBase::AddPxBody(MapObj* mapObj, float mass, const D3DXVECTOR3* mas
 
 	if (massPos)
 	{
-		body.massLocalPose.t.set(NxVec3(*massPos));
+		body.massLocalPose.t.set(px::ToPx(*massPos));
 		mapObj->GetGameObj().GetPxActor().SetFlag(NX_AF_LOCK_COM);
 	}
 
@@ -423,10 +423,10 @@ CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& me
 
 	descShapeWheel.wheelFlags = NX_WF_CLAMPED_FRICTION;
 
-	NxQuat q;
-	q.fromAngleAxis(90, NxVec3(1,0,0));
-	NxQuat q2;
-	q2.fromAngleAxis(90.0f, NxVec3(0,0,1));
+	PxQuat q;
+	q.fromAngleAxis(90, PxVec3(1,0,0));
+	PxQuat q2;
+	q2.fromAngleAxis(90.0f, PxVec3(0,0,1));
 	q = q2 * q;
 	descShapeWheel.localPose.M.fromQuat(q);
 
@@ -4334,7 +4334,7 @@ void DataBase::Init()
 		carMaterialDesc.restitution = 0.0f;
 		carMaterialDesc.staticFrictionV = 3.2f;
 		carMaterialDesc.dynamicFrictionV = 2.0f;
-		carMaterialDesc.dirOfAnisotropy = NxVec3(0, 0, 1.0f);
+		carMaterialDesc.dirOfAnisotropy = PxVec3(0, 0, 1.0f);
 		//устаналвиаем данные флаги чтобы машина нормально скользила по боковой поверхности, иначе она приподнимается вверх
 		carMaterialDesc.flags = NX_MF_ANISOTROPIC | NX_MF_DISABLE_STRONG_FRICTION;
 		carMaterialDesc.frictionCombineMode = NX_CM_MIN;
@@ -4347,7 +4347,7 @@ void DataBase::Init()
 		carMaterialDesc.restitution = 0.0f;
 		carMaterialDesc.staticFrictionV = 3.2f;
 		carMaterialDesc.dynamicFrictionV = 2.0f;
-		carMaterialDesc.dirOfAnisotropy = NxVec3(0, 0, 1.0f);
+		carMaterialDesc.dirOfAnisotropy = PxVec3(0, 0, 1.0f);
 		//устаналвиаем данные флаги чтобы машина нормально скользила по боковой поверхности, иначе она приподнимается вверх
 		carMaterialDesc.flags = NX_MF_ANISOTROPIC | NX_MF_DISABLE_STRONG_FRICTION;
 		carMaterialDesc.frictionCombineMode = NX_CM_MIN;

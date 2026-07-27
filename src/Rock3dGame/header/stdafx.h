@@ -20,6 +20,14 @@
 
 #include "GraphManager.h"
 #include "px/Physx.h"
+
+#ifndef _WIN32
+//PhysX 3+ scopes everything in namespace physx where the 2.8 Nx* types were
+//global. px/Physx.h imports it inside r3d::px; the game layer names the same
+//types directly, so it is imported here too. Verified that nothing this project
+//declares collides with a PhysX 4.1 type name.
+using namespace physx;
+#endif
 #include "net/NetLib.h"
 #include "IWorld.h"
 

@@ -241,7 +241,7 @@ public:
 		Logic* logic;		
 		ShotDesc shot;
 
-		NxMat34* projMat;
+		PxTransform* projMat;
 
 		ShotContext(): logic(NULL), projMat(NULL) {}
 	};
@@ -271,15 +271,15 @@ private:
 	void InitModel2();
 	void FreeModel2(bool remove);
 
-	px::Body* CreateBody(const NxBodyDesc& desc);
+	px::Body* CreateBody(const px::BodyDesc& desc);
 	graph::Sprite* CreateSprite();
 	void FreeSprite();
 	void InsertProjToGraph(GraphManager* graph);
 
 	AABB ComputeAABB(bool onlyModel);
-	void CreatePxBox(NxCollisionGroup group = px::Scene::cdgShot);
-	void AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, NxForceMode mode);
-	void AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const D3DXVECTOR3& force, NxForceMode mode);
+	void CreatePxBox(px::Scene::CollDisGroup group = px::Scene::cdgShot);
+	void AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, PxForceMode::Enum mode);
+	void AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const D3DXVECTOR3& force, PxForceMode::Enum mode);
 
 	void SetWeapon(GameObject* weapon);
 	//прилинковать к владельцу. Уничтожается вместе с ним
@@ -294,7 +294,7 @@ private:
 
 	D3DXVECTOR3 CalcSpeed(GameObject* weapon);
 
-	bool RocketPrepare(GameObject* weapon, bool disableGravity = true, D3DXVECTOR3* speedVec = NULL, NxCollisionGroup pxGroup = px::Scene::cdgShot);
+	bool RocketPrepare(GameObject* weapon, bool disableGravity = true, D3DXVECTOR3* speedVec = NULL, px::Scene::CollDisGroup pxGroup = px::Scene::cdgShot);
 	void RocketContact(const px::Scene::OnContactEvent& contact);
 	void RocketUpdate(float deltaTime);
 	//
