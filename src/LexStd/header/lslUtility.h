@@ -5,8 +5,11 @@
 #include "lslObject.h"
 #include "lslException.h"
 #include "lslContainer.h"
-#include "lslContainer.h"
-#include <windows.h>
+#ifdef _WIN32
+	#include <windows.h>
+#else
+	#include "xplatform.h"
+#endif
 
 namespace lsl
 {
@@ -118,11 +121,13 @@ public:
 
 	template<class _Class> _Class* GetImpl()
 	{
-		return GetImpl()->CastTo<_Class>();
+		return GetImpl()->template CastTo<_Class>();
 	}
 	template<class _Class> const _Class* GetImpl() const
 	{
-		return GetImpl()->CastTo<_Class>();
+		// This template hides the virtual GetImpl(), which is non-const anyway.
+		// GetConstImpl() is the const accessor for it.
+		return GetConstImpl()->template CastTo<_Class>();
 	}
 
 	//Сравнивание интерфейсов. На практике реалзиация этих интерфейсов определяется результат
@@ -322,7 +327,7 @@ template<class _Value> inline _Value ClampValue(const _Value& value, const _Valu
 
 template<class _T> inline void ExtractFilePathBase(std::basic_string<_T>& filePath, const std::basic_string<_T>& fileName, _T del)
 {
-	std::basic_string<_T>::size_type posName = fileName.rfind(del) + 1;
+	typename std::basic_string<_T>::size_type posName = fileName.rfind(del) + 1;
 	filePath = fileName;
 	filePath.erase(posName, fileName.size() - posName);
 }
@@ -407,8 +412,8 @@ template<class _Key, class _BaseClass> template<class _Class> void ClassMapList<
 
 template<class _Key, class _BaseClass> void ClassMapList<_Key, _BaseClass>::Delete(const _Key& key)
 {
-	_Map::iterator ter = _map.find(key);
-	if (ter == _map.end())
+	typename _Map::iterator iter = _map.find(key);
+	if (iter == _map.end())
 	{
 		throw lsl::Error("template<class _Key, class _BaseClass> void ClassMapList<_Key, _BaseClass>::Delete(const _Key& key)");
 	}
@@ -418,14 +423,14 @@ template<class _Key, class _BaseClass> void ClassMapList<_Key, _BaseClass>::Dele
 
 template<class _Key, class _BaseClass> void ClassMapList<_Key, _BaseClass>::Clear()
 {
-	for (_Map::iterator iter = _map.begin(); iter != _map.end(); ++iter)
+	for (typename _Map::iterator iter = _map.begin(); iter != _map.end(); ++iter)
 		delete iter->second;	
 	_map.clear();
 }
 
 template<class _Key, class _BaseClass> _BaseClass& ClassMapList<_Key, _BaseClass>::GetInstance(const _Key& key) const
 {
-	_Map::const_iterator iter = _map.find(key);
+	typename _Map::const_iterator iter = _map.find(key);
 	if ( iter != _map.end())
 		return *iter->second;
 	else
@@ -437,7 +442,7 @@ template<class _Key, class _BaseClass> _BaseClass& ClassMapList<_Key, _BaseClass
 
 template<class _Class, class _ClassMapList> RegisterMapClass<_Class, _ClassMapList>::RegisterMapClass(_ClassMapList& mapList, typename _ClassMapList::Key key)
 {
-	mapList.Add<_Class>(key);
+	mapList.template Add<_Class>(key);
 }
 
 template<class _Class, class _ClassMapList> void RegisterMapClass<_Class, _ClassMapList>::Test()

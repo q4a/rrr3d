@@ -8,6 +8,11 @@
 namespace lsl
 {
 
+// Declared below. A friend declaration alone does not introduce the name for
+// ordinary lookup -- only MSVC's permissive mode does that -- so the members
+// referring to it below need this.
+class CollectionTraits;
+
 class CollectionItem: public virtual Object
 {
 public:

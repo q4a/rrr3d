@@ -14,6 +14,11 @@ else()
     add_compile_options(-fPIC)
 endif()
 
+# Windows API substitutes for non-Windows targets
+if (NOT WIN32)
+    add_subdirectory(XPlatform)
+endif()
+
 add_subdirectory(LexStd)
 add_subdirectory(MathLib)
 add_subdirectory(NetLib)

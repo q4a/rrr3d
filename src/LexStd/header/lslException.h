@@ -29,10 +29,16 @@ class Error: public std::exception
 private:
 	typedef std::exception _MyBase;
 private:
+	// std::exception(const char*) is an MSVC extension; the standard has no
+	// such constructor, so the message has to be carried here.
+	std::string _message;
+
 	void PrintToLog();
 public:
 	Error(const char* message);
 	Error(const std::string& message);
+
+	virtual const char* what() const noexcept override;
 };
 
 class EUnableToOpen: public Error

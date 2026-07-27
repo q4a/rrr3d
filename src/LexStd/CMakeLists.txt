@@ -14,9 +14,15 @@ add_library(${PROJECT_NAME} STATIC
     ${${PROJECT_NAME}_HEADER}
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(${PROJECT_NAME} PUBLIC
     header
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/extern/tinyxml/include
 )
 
-target_link_libraries(${PROJECT_NAME})
+if (NOT WIN32)
+    # Substitutes for <windows.h> and the Win32 calls this library uses
+    target_link_libraries(${PROJECT_NAME} PUBLIC XPlatform)
+endif()

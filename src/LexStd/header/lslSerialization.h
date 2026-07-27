@@ -11,6 +11,10 @@
 namespace lsl
 {
 
+// Declared below. A friend declaration alone does not introduce the name for
+// ordinary lookup -- only MSVC's permissive mode does that.
+class SerialNodes;
+
 struct SIOTraits
 {
 public:

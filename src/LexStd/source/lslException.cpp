@@ -39,14 +39,19 @@ void AppLog::Clear()
 
 
 
-Error::Error(const char* message): _MyBase(message)
+const char* Error::what() const noexcept
+{
+	return _message.c_str();
+}
+
+Error::Error(const char* message): _message(message ? message : "")
 {
 	PrintToLog();
 
 	LSL_ASSERT(false);
 }
 
-Error::Error(const std::string& message): _MyBase(message.c_str())
+Error::Error(const std::string& message): _message(message)
 {
 	PrintToLog();
 

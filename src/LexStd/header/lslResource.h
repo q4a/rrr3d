@@ -55,6 +55,10 @@ public:
 	const std::wstring& appPath() const;
 };
 
+// Declared below. A friend declaration alone does not introduce the name for
+// ordinary lookup -- only MSVC's permissive mode does that.
+class Resource;
+
 class ResourcesTraits
 {
 	friend class Resource;
@@ -173,6 +177,8 @@ template<class _Resource, class _IdType, class _Arg, class _ArgThis> class Resou
 {
 private:
 	typedef ComCollection<_Resource, _IdType, _Arg, _ArgThis> _MyBase;
+	// Inherited from a dependent base, so not visible to unqualified lookup.
+	typedef typename _MyBase::Value Value;
 protected:
 	virtual void InsertItem(const Value& value);
 };

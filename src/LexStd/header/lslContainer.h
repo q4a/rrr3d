@@ -11,6 +11,11 @@ namespace lsl
 typedef std::vector<bool> BoolVec;
 typedef std::map<unsigned, bool> BoolMap;
 
+// Defined in lslUtility.h, which includes this header -- so it cannot be
+// included back. Container<>::~Container calls it through a qualified name,
+// which clang resolves at definition time, so it needs to be declared here.
+template<class _Pnt> inline void SafeDelete(_Pnt& pnt);
+
 template<class _Item> class List: public std::list<_Item>
 {
 private:
@@ -19,6 +24,11 @@ private:
 	using _MyBase::remove;
 	using _MyBase::remove_if;
 public:
+	//Dependent base names: clang does not look these up unqualified.
+	typedef typename _MyBase::iterator iterator;
+	typedef typename _MyBase::const_iterator const_iterator;
+	using _MyBase::begin;
+	using _MyBase::end;
 	//Удаляет один элемент с таким значением
 	iterator Remove(const _Item& item)
 	{
@@ -60,6 +70,11 @@ template<class _Item> class Vector: public std::vector<_Item>
 private:
 	typedef std::vector<_Item> _MyBase;
 public:
+	//Dependent base names: clang does not look these up unqualified.
+	typedef typename _MyBase::iterator iterator;
+	typedef typename _MyBase::const_iterator const_iterator;
+	using _MyBase::begin;
+	using _MyBase::end;
 	//Удаляет один элемент с таким значением
 	iterator Remove(const _Item& item)
 	{
@@ -235,7 +250,7 @@ template<class _Item> void Container<_Item>::Insert(const _Item& item)
 	bool safe = !(_safeCont && !_safeCont->SafeInsert(item));
 
 	if (safe && AddItem(item))
-		InsertItem(_cont.back());
+		this->InsertItem(_cont.back());
 }
 
 template<class _Item> void Container<_Item>::Remove(iterator iter)
@@ -244,7 +259,7 @@ template<class _Item> void Container<_Item>::Remove(iterator iter)
 
 	if (safe)
 	{
-		RemoveItem(*iter);
+		this->RemoveItem(*iter);
 		DeleteItem(iter);
 	}
 }
@@ -268,7 +283,7 @@ template<class _Item> void Container<_Item>::Remove(iterator sIter, iterator eIt
 	if (safe)
 	{
 		for (iterator iter = sIter; iter != eIter; ++iter)
-			RemoveItem(*iter);
+			this->RemoveItem(*iter);
 		DeleteItem(sIter, eIter);
 	}
 }
