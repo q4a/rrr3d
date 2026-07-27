@@ -30,6 +30,9 @@ endif()
 # Windows API substitutes for non-Windows targets
 if (NOT WIN32)
     add_subdirectory(XPlatform)
+    # extern.7z ships TinyXML only as an MSVC static lib; build it from the
+    # vendored 2.5.3 sources instead.
+    add_subdirectory(TinyXml)
 endif()
 
 add_subdirectory(LexStd)

@@ -11,11 +11,11 @@ class Menu;
 class MenuFrame: public gui::Widget::Event
 {
 public:
-	static const int cTopmostDef = 0;
-	static const int cTopmostPopup = 1;
-	static const int cTopmostModal = 2;
-	static const int cTopmostCursor = 4;
-	static const int cTopmostLoading = 5;
+	static constexpr int cTopmostDef = 0;
+	static constexpr int cTopmostPopup = 1;
+	static constexpr int cTopmostModal = 2;
+	static constexpr int cTopmostCursor = 4;
+	static constexpr int cTopmostLoading = 5;
 private:
 	Menu* _menu;
 	gui::Dummy* _root;

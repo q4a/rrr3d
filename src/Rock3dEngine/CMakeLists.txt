@@ -61,4 +61,22 @@ if (NOT WIN32)
         ${PHYSX41}/physx/include
         ${PHYSX41}/pxshared/include
     )
+
+    # The "mac.x86_64" directory is the PhysX preset name, not the
+    # architecture -- tools/setup-physx-macos.sh builds these arm64.
+    #
+    # PUBLIC because this is a static library: whatever links Rock3dEngine is
+    # what actually resolves these. Order matters, the linker being
+    # single-pass: Extensions depends on PhysX, PhysX on Common, everything on
+    # Foundation.
+    set(PHYSX41_LIB ${PHYSX41}/physx/bin/mac.x86_64/release)
+    target_link_libraries(${PROJECT_NAME} PUBLIC
+        ${PHYSX41_LIB}/libPhysXExtensions_static_64.a
+        ${PHYSX41_LIB}/libPhysXVehicle_static_64.a
+        ${PHYSX41_LIB}/libPhysXCooking_static_64.a
+        ${PHYSX41_LIB}/libPhysX_static_64.a
+        ${PHYSX41_LIB}/libPhysXCommon_static_64.a
+        ${PHYSX41_LIB}/libPhysXPvdSDK_static_64.a
+        ${PHYSX41_LIB}/libPhysXFoundation_static_64.a
+    )
 endif()

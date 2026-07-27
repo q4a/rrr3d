@@ -235,6 +235,15 @@ inline long _time32(long* dest)
  * these yet -- there is no message loop off Windows -- but the constant has to
  * carry the same value so the derived ids stay stable.
  */
+/* tchar.h. This project is byte-oriented, so the TCHAR forms are the narrow ones. */
+#ifndef _T
+#define _T(s) s
+#endif
+typedef char* LPTSTR;
+typedef const char* LPCTSTR;
+
+/* TEXT() maps to the narrow form -- this project builds MBCS, not UNICODE. */
+
 #define WM_APP 0x8000
 
 /*

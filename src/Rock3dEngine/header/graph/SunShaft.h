@@ -15,9 +15,9 @@ class SunShaftRender: public PostEffRender<Tex2DResource>
 public:
 	typedef lsl::ResourceCollection<Tex2DResource, void, void, void> Textures;
 public:
-	static const int cShaftsTexSizeX = 1280;
-	static const int cShaftsTexSizeY = 1024;
-	static const int cShaftsTexNum   = 2;
+	static constexpr int cShaftsTexSizeX = 1280;
+	static constexpr int cShaftsTexSizeY = 1024;
+	static constexpr int cShaftsTexNum   = 2;
 private:
 	D3DXVECTOR3 _sunPos;
 public:

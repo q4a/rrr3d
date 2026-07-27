@@ -44,7 +44,7 @@ public:
 	};
 	typedef lsl::Vector<Field> FieldList;
 
-	static const int cMaxBufSize = 4194304;
+	static constexpr int cMaxBufSize = 4194304;
 private:
 	float _width;
 	float _height;

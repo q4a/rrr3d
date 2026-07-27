@@ -94,9 +94,9 @@ public:
 class Garage: lsl::Component
 {
 public:
-	static const int cUpgCntLevel = 3;
-	static const int cUpgMaxLevel = cUpgCntLevel - 1;
-	static const int cWeaponMaxLevel = 4;
+	static constexpr int cUpgCntLevel = 3;
+	static constexpr int cUpgMaxLevel = cUpgCntLevel - 1;
+	static constexpr int cWeaponMaxLevel = 4;
 
 	struct PlaceItem
 	{
@@ -679,47 +679,47 @@ public:
 
 	static const float cSellDiscount;	
 
-	static const int cTournamentPlanetCount = 5;
+	static constexpr int cTournamentPlanetCount = 5;
 
 	//self
-	static const int cHuman = 0;
+	static constexpr int cHuman = 0;
 	//
-	static const int cCampaignMaxPlayers = 6;
+	static constexpr int cCampaignMaxPlayers = 6;
 	//
-	static const int cCampaignMaxHumans = 3;
+	static constexpr int cCampaignMaxHumans = 3;
 	//
-	static const int cMaxPlayers = 8;
+	static constexpr int cMaxPlayers = 8;
 	
 	//computers
-	static const int cComputerBit = 0;
+	static constexpr int cComputerBit = 0;
 	//
-	static const int cComputerMask = 0x000000FF;
+	static constexpr int cComputerMask = 0x000000FF;
 	//boss
-	static const int cComputer1 = 0x00000001;
+	static constexpr int cComputer1 = 0x00000001;
 	//rip
-	static const int cComputer2 = 0x00000002;
+	static constexpr int cComputer2 = 0x00000002;
 	//butcher
-	static const int cComputer3 = 0x00000003;
+	static constexpr int cComputer3 = 0x00000003;
 	//comp4
-	static const int cComputer4 = 0x00000004;
+	static constexpr int cComputer4 = 0x00000004;
 	//comp5
-	static const int cComputer5 = 0x00000005;
+	static constexpr int cComputer5 = 0x00000005;
 	//
-	static const int cComputerCount = 5;
+	static constexpr int cComputerCount = 5;
 
 	//human opponents
-	static const int cOpponentBit = 8;
+	static constexpr int cOpponentBit = 8;
 	//
-	static const int cOpponentMask = 0x0000FF00;
+	static constexpr int cOpponentMask = 0x0000FF00;
 	//
-	static const int cOpponent1 = 0x00000100;
+	static constexpr int cOpponent1 = 0x00000100;
 	//
-	static const int cOpponent2 = 0x00000200;
+	static constexpr int cOpponent2 = 0x00000200;
 	//
-	static const int cOpponent3 = 0x00000300;	
+	static constexpr int cOpponent3 = 0x00000300;	
 
 	//net
-	static const int cDefaultNetSlot = 0;
+	static constexpr int cDefaultNetSlot = 0;
 private:
 	GameMode* _game;	
 

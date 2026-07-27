@@ -12,7 +12,7 @@ class INetPlayer
 public:
 	typedef std::map<unsigned, NetModel*> Models;
 
-	static const unsigned cDefCmd = 0;	
+	static constexpr unsigned cDefCmd = 0;	
 protected:
 	virtual void RegSyncModel(NetModel* model) = 0;
 	virtual void UnregSyncModel(NetModel* model) = 0;

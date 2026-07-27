@@ -29,7 +29,7 @@ typedef TriFace<unsigned int> TriFace32;
 
 struct VertexP
 {
-	static const DWORD fvf = D3DFVF_XYZ;
+	static constexpr DWORD fvf = D3DFVF_XYZ;
 
 	VertexP();
 	VertexP(const D3DXVECTOR3& mPos);
@@ -39,7 +39,7 @@ struct VertexP
 
 struct VertexPD
 {
-	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_DIFFUSE;
+	static constexpr DWORD fvf = D3DFVF_XYZ | D3DFVF_DIFFUSE;
 
 	D3DXVECTOR3 pos;
 	D3DCOLOR diffuse;
@@ -50,7 +50,7 @@ struct VertexPD
 
 struct VertexPN
 {
-	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_NORMAL;
+	static constexpr DWORD fvf = D3DFVF_XYZ | D3DFVF_NORMAL;
 
 	D3DXVECTOR3 pos;
 	D3DXVECTOR3 norm;
@@ -61,7 +61,7 @@ struct VertexPN
 
 struct VertexPT
 {
-	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_TEX1;
+	static constexpr DWORD fvf = D3DFVF_XYZ | D3DFVF_TEX1;
 
 	D3DXVECTOR3 pos;
 	D3DXVECTOR2 tex;
@@ -72,7 +72,7 @@ struct VertexPT
 
 struct VertexPNT
 {	
-	static const DWORD fvf = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
+	static constexpr DWORD fvf = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
 
 	D3DVECTOR pos;	
 	D3DVECTOR norm;
@@ -84,7 +84,7 @@ struct VertexPNT
 
 struct ScreenVertex
 {
-	static const DWORD fvf = D3DFVF_XYZRHW | D3DFVF_TEX1;
+	static constexpr DWORD fvf = D3DFVF_XYZRHW | D3DFVF_TEX1;
 
 	D3DXVECTOR4 pos;
 	D3DXVECTOR2 tex;

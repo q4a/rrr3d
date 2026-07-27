@@ -30,14 +30,14 @@ protected:
 
 	typedef std::map<unsigned, SyncModel> SyncModels;
 public:
-	static const unsigned cCmdMax = 8;
+	static constexpr unsigned cCmdMax = 8;
 
-	static const unsigned cSetPlayerId = 0;
-	static const unsigned cAllocateModelRPC = 1;
-	static const unsigned cNewModelRPC = 2;
-	static const unsigned cDelModelRPC = 3;
+	static constexpr unsigned cSetPlayerId = 0;
+	static constexpr unsigned cAllocateModelRPC = 1;
+	static constexpr unsigned cNewModelRPC = 2;
+	static constexpr unsigned cDelModelRPC = 3;
 
-	static const unsigned cPing = 0;
+	static constexpr unsigned cPing = 0;
 private:
 	unsigned _id;
 	Cmd _cmdBuf[cCmdMax];

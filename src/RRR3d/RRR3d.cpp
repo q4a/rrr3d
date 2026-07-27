@@ -67,6 +67,14 @@ DWORD GetExtWndStyles(bool fullScreen)
 	}
 }
 
+/*
+ * Everything below is the Win32 shell: window class, message loop and
+ * _tWinMain. Replacing it with an SDL window and event loop is its own piece
+ * of work -- see the plan's Stage 4 -- so off Windows it compiles out and the
+ * placeholder entry point at the bottom of this file stands in.
+ */
+#ifdef _WIN32
+
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
@@ -315,3 +323,61 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	return exitResult;
 }
 
+#else
+
+//Closes the anonymous namespace opened at the top of the file; the brace that
+//did so on Windows sits inside the guarded shell above.
+}
+
+/*
+ * Placeholder entry point. Does what _tWinMain does apart from creating a
+ * window: sets the working directory, opens the log, builds the world and
+ * lets it fail where it will -- at device creation, since there is no
+ * graphics backend yet (src/XPlatform/source/d3d9_stub.cpp).
+ *
+ * There is no message loop because there are no messages: input, window
+ * resizing and the frame pump all arrive through the Win32 shell above. This
+ * exists so the tree links and the failure is a clear one, not so the game
+ * runs.
+ */
+int main(int argc, char* argv[])
+{
+	int exitResult = EXIT_SUCCESS;
+
+	lsl::appLog.Clear();
+	lsl::appLog.Append("Init...");
+
+	try
+	{
+		r3d::IView::Desc desc;
+		desc.fullscreen = false;
+		//No window to hand over; the graphics backend is what this waits on.
+		desc.handle = 0;
+		desc.resolution = cResolution;
+
+		rock3dWorld = r3d::CreateWorld(desc, true);
+		rock3dWorld->RunGame();
+
+		lsl::appLog.Append("Run...");
+		lsl::appLog.Append("No window system yet -- see docs/macos-graphics-backend.md");
+
+		r3d::ReleaseWorld(rock3dWorld);
+	}
+	catch (const lsl::Error& err)
+	{
+		std::fprintf(stderr, "rrr3d: %s\n", err.what());
+		exitResult = EXIT_FAILURE;
+	}
+	catch (const std::exception& err)
+	{
+		std::fprintf(stderr, "rrr3d: %s\n", err.what());
+		exitResult = EXIT_FAILURE;
+	}
+
+	lsl::appLog.Append("Exit");
+	lsl::FileSystem::Release();
+
+	return exitResult;
+}
+
+#endif /* _WIN32 */

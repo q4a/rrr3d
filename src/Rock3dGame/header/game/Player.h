@@ -482,13 +482,13 @@ public:
 
 	static const float cHumanArmorK[cDifficultyEnd];
 
-	static const unsigned cBonusProjUndef = 0;
+	static constexpr unsigned cBonusProjUndef = 0;
 
-	static const unsigned cCheatDisable = 0;
-	static const unsigned cCheatEnableSlower = 1 << 0;
-	static const unsigned cCheatEnableFaster = 1 << 1;
+	static constexpr unsigned cCheatDisable = 0;
+	static constexpr unsigned cCheatEnableSlower = 1 << 0;
+	static constexpr unsigned cCheatEnableFaster = 1 << 1;
 
-	static const unsigned cColorsCount = 7;	
+	static constexpr unsigned cColorsCount = 7;	
 	static const D3DXCOLOR cLeftColors[cColorsCount];
 	static const D3DXCOLOR cRightColors[cColorsCount];
 private:

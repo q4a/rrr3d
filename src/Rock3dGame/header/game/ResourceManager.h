@@ -107,10 +107,10 @@ private:
 	typedef ComplexResCollection<px::TriangleMesh, ComplexMeshLib> _PxMeshLib;
 	typedef lsl::List<ComplexMesh*> MeshList;
 public:
-	static const int cTagLoadData = 1 << 8;
-	static const int cTagInitIVB = 1 << 9;
-	static const int cTagCount = 10;
-	static const int cTagIndexMask = 0xFF;
+	static constexpr int cTagLoadData = 1 << 8;
+	static constexpr int cTagInitIVB = 1 << 9;
+	static constexpr int cTagCount = 10;
+	static constexpr int cTagIndexMask = 0xFF;
 private:
 	graph::Engine* _engine;
 	MeshList _tagList[cTagCount];
@@ -209,10 +209,10 @@ private:
 	typedef ComplexResCollection<graph::TexCubeResource, ComplexImageLib> _CubeTexLib;
 	typedef lsl::List<ComplexImage*> ImageList;
 public:
-	static const int cTagInitTex2d = 1 << 8;
-	static const int cTagInitCubeTex = 1 << 9;
-	static const int cTagCount = 10;
-	static const int cTagIndexMask = 0xFF;
+	static constexpr int cTagInitTex2d = 1 << 8;
+	static constexpr int cTagInitCubeTex = 1 << 9;
+	static constexpr int cTagCount = 10;
+	static constexpr int cTagIndexMask = 0xFF;
 private:
 	graph::Engine* _engine;
 	ImageList _tagList[cTagCount];

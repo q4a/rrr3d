@@ -6,7 +6,7 @@ namespace r3d
 namespace game
 {
 
-static const int cUndefPlayerId = 0xFF000000;
+static constexpr int cUndefPlayerId = 0xFF000000;
 
 struct EventData
 {

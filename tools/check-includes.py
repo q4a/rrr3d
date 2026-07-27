@@ -27,6 +27,8 @@ SOURCE_SUFFIXES = {".cpp", ".h", ".inl"}
 VENDORED = (
     "XPlatform/header/windows",
     "XPlatform/header/directx",
+    # TinyXML 2.5.3, kept byte-identical to the release.
+    "TinyXml",
 )
 
 

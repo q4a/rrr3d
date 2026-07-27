@@ -322,7 +322,7 @@ public:
 class ContextInfo
 {
 public:
-	static const unsigned cMaxTexSamplers = 8;
+	static constexpr unsigned cMaxTexSamplers = 8;
 	
 	static const TransformStateType cTexTransform[8];
 	static DWORD defaultRenderStates[RENDER_STATE_END];
@@ -337,7 +337,7 @@ public:
 
 	static DWORD GetDefTextureStageState(int stage, TextureStageState state);
 
-	static const int cMeshIdIgnore = 1 << 31;
+	static constexpr int cMeshIdIgnore = 1 << 31;
 private:
 	RenderDriver* _driver;
 

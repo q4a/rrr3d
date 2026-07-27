@@ -16,7 +16,7 @@ private:
 	typedef PostEffRender<Tex2DResource> _MyBase;
 	typedef lsl::ResourceCollection<Tex2DResource, void, void, void> _Textures;
 
-	static const int cToneMapTexNum = 4;
+	static constexpr int cToneMapTexNum = 4;
 private:
 	Tex2DResource* _colorTex;
 	bool _restart;

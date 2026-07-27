@@ -315,20 +315,20 @@ public:
 	static const std::string cFirstBlood;
 	static const std::string cArmored;
 
-	static const unsigned cUndef = 0;
+	static constexpr unsigned cUndef = 0;
 	//
-	static const unsigned cMapObj = 1;
-	static const unsigned cGamer = 2;
+	static constexpr unsigned cMapObj = 1;
+	static constexpr unsigned cGamer = 2;
 	//
-	static const unsigned cBonus = 1;
-	static const unsigned cSpeedKill = 2;
-	static const unsigned cRaceKill = 3;
-	static const unsigned cLapPass = 4;
-	static const unsigned cDodge = 5;
-	static const unsigned cLapBreak = 6;
-	static const unsigned cLapSurvival = 7;
-	static const unsigned cFirstKill = 8;
-	static const unsigned cTouchKill = 9;
+	static constexpr unsigned cBonus = 1;
+	static constexpr unsigned cSpeedKill = 2;
+	static constexpr unsigned cRaceKill = 3;
+	static constexpr unsigned cLapPass = 4;
+	static constexpr unsigned cDodge = 5;
+	static constexpr unsigned cLapBreak = 6;
+	static constexpr unsigned cLapSurvival = 7;
+	static constexpr unsigned cFirstKill = 8;
+	static constexpr unsigned cTouchKill = 9;
 private:
 	Race* _race;
 	Classes _classes;

@@ -24,8 +24,8 @@ public:
 
 	enum SyncState {ssOff = 0, ssDelta};
 
-	static const unsigned cSyncRPC = 0;
-	static const unsigned cSysRPCEnd = 1;
+	static constexpr unsigned cSyncRPC = 0;
+	static constexpr unsigned cSysRPCEnd = 1;
 private:
 	INetPlayer* _player;
 	unsigned _classId;

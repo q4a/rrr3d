@@ -18,6 +18,10 @@ SOURCE_SUFFIXES = {".cpp", ".h", ".inl", ".ms"}
 VENDORED = (
     "XPlatform/header/windows",
     "XPlatform/header/directx",
+    # TinyXML 2.5.3, kept byte-identical to the release. tinystr.cpp carries a
+    # Latin-1 "ø" in an attribution comment; transcoding it would make the
+    # vendored copy no longer match upstream for the sake of one comment byte.
+    "TinyXml",
 )
 
 

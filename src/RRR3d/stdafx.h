@@ -15,7 +15,11 @@
 #include "lslCommon.h"
 
 #include <stdio.h>
-#include <tchar.h>
+//tchar.h is MSVC's TCHAR mapping; _T() and LPTSTR come from xplatform.h
+//elsewhere, where this project is byte-oriented throughout.
+#ifdef _WIN32
+	#include <tchar.h>
+#endif
 #include <windows.h>
 
 #include "lslObject.h"

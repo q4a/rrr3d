@@ -17,7 +17,7 @@ private:
 public:	
 	typedef std::map<unsigned, MapObj*> Objects;
 
-	static const unsigned cDefMapObjId = 0;
+	static constexpr unsigned cDefMapObjId = 0;
 
 	class MapObjList: public MapObjects
 	{

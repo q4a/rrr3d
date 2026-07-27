@@ -52,7 +52,7 @@ public:
 class NetChannel: public INetChannel, INetChannelImplUser
 {
 private:
-	static const int cDatagramSize = 512;
+	static constexpr int cDatagramSize = 512;
 private:
 	NetService* _net;
 	INetChannelUser* _user;

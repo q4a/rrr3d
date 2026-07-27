@@ -29,8 +29,8 @@ private:
 public:
 	enum OpenMode {omText, omBinary};
 	
-	static const DWORD cAppend   = 0x1 << 0;
-	static const DWORD cTruncate = 0x1 << 1;
+	static constexpr DWORD cAppend   = 0x1 << 0;
+	static constexpr DWORD cTruncate = 0x1 << 1;
 
 	static FileSystem* GetInstance();
 	static void Release();

@@ -170,9 +170,9 @@ private:
 		int chargeCount;
 	};
 
-	static const int cUndefInfo = -1;
-	static const int cGoodInfo = 0;
-	static const int cSlotInfo = 1;	
+	static constexpr int cUndefInfo = -1;
+	static constexpr int cGoodInfo = 0;
+	static constexpr int cSlotInfo = 1;	
 private:
 	RaceMenu* _raceMenu;
 	int _goodScroll;

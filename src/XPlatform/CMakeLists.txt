@@ -20,3 +20,10 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     header/windows
     header/directx
 )
+
+# d3dx9.h reaches for the Wine d3dx9 math headers, which live in MathLib.
+# Headers only, deliberately: MathLib links XPlatform, so a link dependency
+# the other way would be circular.
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/MathLib/header
+)

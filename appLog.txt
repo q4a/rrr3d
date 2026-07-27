@@ -1,0 +1,4 @@
+Init...
+world init
+graph init
+_d3d9 init failed
