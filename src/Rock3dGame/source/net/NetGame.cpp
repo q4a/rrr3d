@@ -1,6 +1,9 @@
 #include "stdafx.h"
 
 #include "net/NetGame.h"
+//INetService.h forward-declares INetPlayer to avoid a circular include;
+//these call its methods, so they need the definition.
+#include "net/INetPlayer.h"
 #include "game/GameMode.h"
 
 namespace r3d
