@@ -140,6 +140,13 @@ void OutputDebugStringA(const char* str);
  */
 BOOL GetClientRect(HWND wnd, RECT* rect);
 
+/*
+ * Polled keyboard state. Used by debug overlays and the camera fly-through, all
+ * of which the SDL input port will re-source from SDL_GetKeyboardState.
+ * Reports every key up until then.
+ */
+SHORT GetAsyncKeyState(int virtualKey);
+
 typedef struct tagWINDOWINFO
 {
     DWORD cbSize;
@@ -230,6 +237,8 @@ inline long _time32(long* dest)
 #define VK_NUMPAD7      0x67
 #define VK_NUMPAD8      0x68
 #define VK_NUMPAD9      0x69
+#define VK_ADD          0x6B
+#define VK_SUBTRACT     0x6D
 #define VK_OEM_PERIOD   0xBE
 
 /*

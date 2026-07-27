@@ -11,6 +11,7 @@
 
 #include "xaudio2.h"
 #include "X3daudio.h"
+#include "xinput.h"
 
 #include <cstring>
 #include <new>
@@ -172,6 +173,25 @@ HRESULT XAudio2Create(IXAudio2** ppXAudio2, UINT32, UINT32)
 
 	*ppXAudio2 = new (std::nothrow) StubXAudio2();
 	return *ppXAudio2 ? S_OK : E_OUTOFMEMORY;
+}
+
+/*
+ * No controller. ControlManager treats ERROR_DEVICE_NOT_CONNECTED as "fall back
+ * to the keyboard", which is what should happen until SDL_GameController is
+ * wired up.
+ */
+DWORD XInputGetState(DWORD, XINPUT_STATE* pState)
+{
+	if (pState)
+		std::memset(pState, 0, sizeof(*pState));
+	return ERROR_DEVICE_NOT_CONNECTED;
+}
+
+DWORD XInputGetKeystroke(DWORD, DWORD, PXINPUT_KEYSTROKE pKeystroke)
+{
+	if (pKeystroke)
+		std::memset(pKeystroke, 0, sizeof(*pKeystroke));
+	return ERROR_DEVICE_NOT_CONNECTED;
 }
 
 void X3DAudioInitialize(UINT32, FLOAT, X3DAUDIO_HANDLE Instance)

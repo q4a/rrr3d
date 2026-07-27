@@ -19,7 +19,7 @@ public:
 	MapObj(Inst* inst);
 
 	const std::string& GetName() const;
-	IMapObjRecRef MapObj::GetRecord();
+	IMapObjRecRef GetRecord();
 
 	D3DXVECTOR3 GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);

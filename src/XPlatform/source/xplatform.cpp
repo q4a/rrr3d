@@ -274,6 +274,11 @@ void OutputDebugStringA(const char* str)
 	std::fputs(str ? str : "", stderr);
 }
 
+SHORT GetAsyncKeyState(int)
+{
+	return 0;
+}
+
 BOOL SetWindowPos(HWND, HWND, int, int, int, int, UINT)
 {
 	return TRUE;

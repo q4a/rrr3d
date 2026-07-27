@@ -12,6 +12,9 @@ namespace r3d
 namespace game
 {
 
+//Named by LogicBehavior before its own definition below.
+class LogicBehaviors;
+
 class Map;
 class Race;
 class NetGame;

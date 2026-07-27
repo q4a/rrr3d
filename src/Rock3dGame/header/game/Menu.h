@@ -325,7 +325,7 @@ public:
 	gui::Button* CreateArrowButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size = IdentityVec2);
 	gui::Button* CreateSpaceArrowButton(gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size = IdentityVec2);
 	//
-	gui::Button* Menu::CreateMenuButton(const lsl::string& name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size, gui::Button::Style style, const D3DXCOLOR& textColor, SoundShemeType soundSheme);
+	gui::Button* CreateMenuButton(const lsl::string& name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size, gui::Button::Style style, const D3DXCOLOR& textColor, SoundShemeType soundSheme);
 	gui::Button* CreateMenuButton(StringValue name, const std::string& font, const std::string& norm, const std::string& sel, gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size = IdentityVec2, gui::Button::Style style = gui::Button::bsSimple, const D3DXCOLOR& textColor = clrWhite, SoundShemeType soundSheme = ssButton1);	
 	gui::Button* CreateMenuButton(const std::string& name, gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size = IdentityVec2, SoundShemeType soundSheme = ssButton1);
 	gui::Button* CreateMenuButton(StringValue name, gui::Widget* parent, gui::Widget::Event* guiEvent, const D3DXVECTOR2& size = IdentityVec2, SoundShemeType soundSheme = ssButton1);

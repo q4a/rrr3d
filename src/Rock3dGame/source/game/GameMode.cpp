@@ -2,7 +2,10 @@
 #include "game/World.h"
 
 #include "game/GameMode.h"
-#include <mbctype.h>
+//MSVC multibyte CRT; nothing here uses it.
+#ifdef _WIN32
+	#include <mbctype.h>
+#endif
 #include "lslSerialFileXML.h"
 
 namespace r3d

@@ -10,6 +10,9 @@ namespace r3d
 namespace game
 {
 
+//Named by AIPlayer before its own definition below.
+class AIDebug;
+
 class AIPlayer: public Object
 {
 	friend class AIDebug;
