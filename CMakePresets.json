@@ -21,7 +21,16 @@
         "CMAKE_BUILD_TYPE": "Debug"
       }
     },
+    {
+      "name": "base-macos-arm64", "hidden": true, "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "arm64"
+      }
+    },
     { "name": "msvc-x86-release", "inherits": [ "base-x86", "Release" ] },
-    { "name": "msvc-x86-debug",   "inherits": [ "base-x86", "Debug" ] }
+    { "name": "msvc-x86-debug",   "inherits": [ "base-x86", "Debug" ] },
+    { "name": "macos-arm64-release", "inherits": [ "base-macos-arm64", "Release" ] },
+    { "name": "macos-arm64-debug",   "inherits": [ "base-macos-arm64", "Debug" ] }
   ]
 }
