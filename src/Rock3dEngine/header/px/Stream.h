@@ -1,6 +1,16 @@
 #ifndef STREAM_H
 #define STREAM_H
 
+/*
+ * MemoryWriteBuffer and MemoryReadBuffer are vendored PhysX 2.8 sample code
+ * implementing NxStream. PhysX 4.1 ships exact equivalents --
+ * PxDefaultMemoryOutputStream and PxDefaultMemoryInputData -- so once the mesh
+ * cooking in Physx.cpp moves to PxCooking, these go away rather than being
+ * ported.
+ */
+
+#ifdef _WIN32
+
 #include "NxStream.h"
 
 
@@ -53,4 +63,10 @@ class MemoryReadBuffer : public NxStream
 	mutable		const NxU8*		buffer;
 	};
 
-#endif
+#else
+
+#include "extensions/PxDefaultStreams.h"
+
+#endif /* _WIN32 */
+
+#endif /* STREAM_H */
