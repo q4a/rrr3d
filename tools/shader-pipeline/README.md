@@ -1,5 +1,29 @@
 # Shader pipeline validation
 
+Two checks live here, answering different questions.
+
+## 1. Can the shaders be compiled natively? — `vkd3d_hlsl_check.py`
+
+The one the runtime depends on. The game compiles its `.fx` files *at runtime*,
+through `D3DXCreateEffect`, with a different `#define` set each time — so it
+needs a real HLSL compiler in the process, emitting the shader model 3 bytecode
+a D3D9 device accepts.
+
+    tools/setup-vkd3d-macos.sh          # once
+    python3 tools/shader-pipeline/vkd3d_hlsl_check.py
+
+Result: **48/48 entry points compile to `vs_3_0`/`ps_3_0` with vkd3d-shader**,
+natively, with no Wine and no Microsoft `d3dcompiler`.
+
+That matters because check 2 below, and everything it proved, runs
+`D3DCompile` under Wine. That is a fine investigation tool and can never ship:
+it is neither native nor ours.
+
+DXC and glslang were the alternatives considered. Both target DXBC or SPIR-V;
+neither emits shader model 3, which is the only thing D3D9 takes.
+
+## 2. Do they survive the whole path to Metal? — `batch_shaders.py`
+
 Checks that this game's shaders survive the path a native macOS graphics
 backend would put them through:
 
