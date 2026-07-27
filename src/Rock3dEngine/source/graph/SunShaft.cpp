@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\SunShaft.h"
+#include "graph/SunShaft.h"
 
 namespace r3d
 {

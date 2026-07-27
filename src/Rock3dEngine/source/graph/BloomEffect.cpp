@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\BloomEffect.h"
+#include "graph/BloomEffect.h"
 
 namespace r3d
 {

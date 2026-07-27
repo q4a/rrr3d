@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "game\\ControlManager.h"
-#include "game\\World.h"
+#include "game/ControlManager.h"
+#include "game/World.h"
 
 #include <xinput.h>
 

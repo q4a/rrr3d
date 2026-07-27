@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\ResourceManager.h"
+#include "game/ResourceManager.h"
 
-#include "game\World.h"
+#include "game/World.h"
 
 namespace r3d
 {

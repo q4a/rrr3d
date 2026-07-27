@@ -7,11 +7,11 @@
 
 
 #include "stdafx.h"
-#include "net\p2pauth.h"
+#include "net/p2pauth.h"
 
 #ifdef STEAM_SERVICE
 
-#include "net\SteamService.h"
+#include "net/SteamService.h"
 
 
 

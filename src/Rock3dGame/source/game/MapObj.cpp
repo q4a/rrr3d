@@ -1,10 +1,10 @@
 #include "stdafx.h"
-#include "game\\MapObj.h"
-#include "game\\Player.h"
+#include "game/MapObj.h"
+#include "game/Player.h"
 
-#include "game\\GameCar.h"
-#include "game\\RockCar.h"
-#include "game\\Weapon.h"
+#include "game/GameCar.h"
+#include "game/RockCar.h"
+#include "game/Weapon.h"
 
 #include "lslSerialFileXML.h"
 #include <sstream>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game\Race.h"
+#include "game/Race.h"
 #include "NetBase.h"
 
 namespace r3d

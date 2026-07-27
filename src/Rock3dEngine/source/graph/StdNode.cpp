@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\StdNode.h"
+#include "graph/StdNode.h"
 #include "lslSerialValue.h"
 
 namespace r3d

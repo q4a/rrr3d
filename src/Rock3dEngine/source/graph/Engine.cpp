@@ -1,8 +1,8 @@
 #include "stdafx.h"
 
-#include "graph\\Engine.h"
+#include "graph/Engine.h"
 
-#include "graph\\driver\D3D9RenderDriver.h"
+#include "graph/driver/D3D9RenderDriver.h"
 #include "lslUtility.h"
 
 //#define OCCLUSION_QUERIES

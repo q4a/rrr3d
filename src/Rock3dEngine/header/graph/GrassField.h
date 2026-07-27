@@ -2,7 +2,7 @@
 #define GRASS_FIELD
 
 #include "SceneManager.h"
-#include "graph\\MaterialLibrary.h"
+#include "graph/MaterialLibrary.h"
 
 namespace r3d
 {

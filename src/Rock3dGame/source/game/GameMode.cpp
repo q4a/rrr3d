@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "game\GameMode.h"
+#include "game/GameMode.h"
 #include <mbctype.h>
 #include "lslSerialFileXml.h"
 

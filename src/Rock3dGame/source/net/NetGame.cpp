@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "net\NetGame.h"
-#include "game\GameMode.h"
+#include "net/NetGame.h"
+#include "game/GameMode.h"
 
 namespace r3d
 {

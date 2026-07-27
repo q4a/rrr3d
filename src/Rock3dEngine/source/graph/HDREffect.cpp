@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\HDREffect.h"
+#include "graph/HDREffect.h"
 
 namespace r3d
 {

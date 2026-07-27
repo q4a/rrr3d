@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "net\BitStream.h"
+#include "net/BitStream.h"
 
 namespace net
 {

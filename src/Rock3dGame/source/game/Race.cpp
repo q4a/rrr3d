@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "game\Race.h"
+#include "game/Race.h"
 #include "lslSerialFileXml.h"
 
 #ifdef _DEBUG

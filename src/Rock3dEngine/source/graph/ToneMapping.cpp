@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\ToneMapping.h"
+#include "graph/ToneMapping.h"
 
 namespace r3d
 {

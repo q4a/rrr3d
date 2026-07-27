@@ -2,7 +2,7 @@
 #define R3D_GRAPH_CONTEXTINFO
 
 #include "VideoResource.h"
-#include "driver\\RenderDriver.h"
+#include "driver/RenderDriver.h"
 #include "r3dMath.h"
 
 #include <map>

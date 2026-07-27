@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "game\CameraManager.h"
+#include "game/CameraManager.h"
 
 namespace r3d
 {

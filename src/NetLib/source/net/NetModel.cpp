@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "net\NetModel.h"
+#include "net/NetModel.h"
 
 namespace net
 {

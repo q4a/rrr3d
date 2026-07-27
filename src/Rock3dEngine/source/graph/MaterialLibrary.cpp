@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\MaterialLibrary.h"
+#include "graph/MaterialLibrary.h"
 
 namespace r3d
 {

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "game\TraceGfx.h"
+#include "game/TraceGfx.h"
 
 namespace r3d
 {

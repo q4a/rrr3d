@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\SkyBox.h"
+#include "graph/SkyBox.h"
 
 namespace r3d
 {

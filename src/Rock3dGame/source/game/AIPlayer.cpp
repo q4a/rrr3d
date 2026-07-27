@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\AIPLayer.h"
+#include "game/AIPLayer.h"
 
-#include "game\World.h"
+#include "game/World.h"
 
 namespace r3d
 {

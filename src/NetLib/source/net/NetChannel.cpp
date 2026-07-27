@@ -1,9 +1,9 @@
 #include "stdafx.h"
 
-#include "net\NetChannel.h"
-#include "net\NetService.h"
+#include "net/NetChannel.h"
+#include "net/NetService.h"
 
-#include "net\NetConnectionTCP.h"
+#include "net/NetConnectionTCP.h"
 
 namespace net
 {

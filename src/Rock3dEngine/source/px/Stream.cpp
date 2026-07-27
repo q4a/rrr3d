@@ -2,8 +2,8 @@
 
 #include <stdio.h>
 
-#include "px\\Physx.h"
-#include "px\\Stream.h"
+#include "px/Physx.h"
+#include "px/Stream.h"
 
 
 MemoryWriteBuffer::MemoryWriteBuffer() : currentSize(0), maxSize(0), data(NULL)

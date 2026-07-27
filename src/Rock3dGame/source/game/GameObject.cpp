@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "game\\Logic.h"
+#include "game/Logic.h"
 
-#include "game\\GameObject.h"
-#include "game\\World.h"
+#include "game/GameObject.h"
+#include "game/World.h"
 #include "GraphManager.h"
 
 namespace r3d

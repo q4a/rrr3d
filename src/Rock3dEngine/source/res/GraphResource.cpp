@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "res\\GraphResource.h"
+#include "res/GraphResource.h"
 
 namespace r3d
 {

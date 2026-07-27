@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "net\NetPlayer.h"
-#include "game\World.h"
+#include "net/NetPlayer.h"
+#include "game/World.h"
 
 namespace r3d
 {

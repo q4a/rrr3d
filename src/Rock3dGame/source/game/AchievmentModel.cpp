@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\AchievmentModel.h"
+#include "game/AchievmentModel.h"
 
-#include "game\World.h"
+#include "game/World.h"
 #include "lslSerialFileXML.h"
 
 namespace r3d

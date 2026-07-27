@@ -1,7 +1,7 @@
 #pragma once
 
-#include "game\MapObj.h"
-#include "game\RockCar.h"
+#include "game/MapObj.h"
+#include "game/RockCar.h"
 
 namespace r3d
 {

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "graph\\FxManager.h"
-#include "graph\\SceneNode.h"
+#include "graph/FxManager.h"
+#include "graph/SceneNode.h"
 #include "r3dMath.h"
 
 namespace r3d

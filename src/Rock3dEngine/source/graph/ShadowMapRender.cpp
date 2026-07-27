@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "graph\\ShadowMapRender.h"
-#include "graph\\SceneManager.h"
+#include "graph/ShadowMapRender.h"
+#include "graph/SceneManager.h"
 
 namespace r3d
 {
