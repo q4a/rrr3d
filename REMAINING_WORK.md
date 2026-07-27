@@ -239,33 +239,34 @@ the real implementation is a contained change:
 
 ## 3. The graphics backend
 
-Nothing implements the D3D9 declarations. This is the largest unknown.
+**Reassessed 2026-07-28, and the previous assessment was wrong.** This was
+described as the long pole and the one genuine unknown. It is neither.
 
-**Chosen approach:** keep DXVK's D3D9 front-end, put a Metal backend behind
-`DxvkContext`. See `docs/macos-graphics-backend.md` for the 62-method
-contract, derived from DXVK v3.0.2 by intersecting the public `DxvkContext`
-API with what `src/d3d9/` actually calls.
+`~/src/d9mt` is not a prior attempt to learn from — it is a **working
+D3D9-to-Metal layer**. Its `src/d3d9fe/` is 17,539 lines implementing exactly
+the `DxvkContext` contract in `docs/macos-graphics-backend.md`, and it runs
+GTA IV at 60fps at 3K.
 
-Why not the alternatives, with the evidence:
+What stands between it and a native rrr3d is the Wine boundary, and only that.
+d9mt reaches Metal through **winemetal**, a flat C ABI vendored from DXMT whose
+Unix side lives in Wine. Measured:
 
-- **Stock DXVK over MoltenVK does not work.** DXVK requires `geometryShader`
-  and `shaderCullDistance`; MoltenVK reports both unsupported because Metal
-  has neither. Measured directly on an M1 Pro — everything *else* DXVK needs
-  is now present (Vulkan 1.3.357, `timelineSemaphore`, `dualSrcBlend`), so
-  this is not a maturity gap, it is architectural.
-- **`d3dmetal-native`** is D3D11/12 only and x86_64-only.
-- **`Gcenx/DXVK-macOS`** is pinned at DXVK 1.10.3 (2023), D3D10/11 only, and
-  Wine-targeted.
+- **90** winemetal functions of 123 are actually called by d9mt v1
+- **66** command-stream cases in `encodeCommands`
+- both **fully specified** in `winemetal.h` — 225 struct and enum definitions
 
-A Metal backend never involves Vulkan, so none of those requirements apply.
+The functions are thin Objective-C wrappers; the command cases are a switch
+over a linked list, each 1–3 Metal calls. This is transcription against a
+written contract, not design work.
 
-`~/src/d9mt` is a prior D3D9-on-Metal attempt for this game against DXVK
-2.7.1 for Wine. Its `src/d3d9fe/` is ~13k lines of the same mapping and
-`docs/METAL-BACKEND-NOTES.md` records the decisions; there is also a `v2/`
-tree worth reading before leaning on `src/`. The Wine coupling
-(`winemetal` bridge, unixlib) is what a native port drops. Unresolved: it
-never rendered 3D, and whether that was a backend bug or an artefact of the
-Wine boundary is not established.
+See `docs/macos-graphics-backend.md` for the order and the handle-smuggling
+scheme d9mt uses.
+
+**The one genuine unknown is smaller than it was**: d9mt never rendered 3D for
+*this game*, though it runs GTA IV. Whether that is a backend bug or an
+artefact of the Wine boundary is unestablished — and since a native build
+removes that boundary, doing the work also answers the question.
+`~/src/d9mt/traces/` holds captured frames of this game to diff against.
 
 ## 4. D3DX is ours regardless
 

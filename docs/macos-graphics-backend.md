@@ -2,16 +2,68 @@
 
 ## Approach
 
-Keep **DXVK's D3D9 front-end** and put a Metal backend behind `DxvkContext`,
-rather than reimplementing Direct3D 9. The front-end already handles the D3D9
-semantics this engine leans on — fixed-function emulation, `DrawPrimitiveUP`,
-state blocks, the shader constant register file, alpha test — and getting
-those right independently would be months of work.
+**Corrected 2026-07-28.** This document previously said the work was to write
+a Metal backend behind `DxvkContext` from scratch — the 62 methods below. That
+was wrong in an expensive direction: **the implementation already exists.**
 
-This avoids Vulkan entirely, which matters: stock DXVK requires
-`geometryShader` and `shaderCullDistance`, and MoltenVK reports both as
-unsupported because Metal has neither. A Metal backend never touches
-MoltenVK, so those requirements do not apply.
+`~/src/d9mt` is not a reference. Its `src/d3d9fe/` is **17,539 lines
+implementing exactly this contract** — the Metal `DxvkDevice`/`DxvkContext`
+behind DXVK's D3D9 front-end — and it is mature enough to run GTA IV at 60fps
+at 3K. Its own `docs/METAL-BACKEND-NOTES.md` records the design, including the
+handle-smuggling scheme that lets Vulkan's u64 non-dispatchable handles carry
+Metal object handles (`VkBuffer` := `MTLBuffer`, `VkImage` := `MTLTexture`,
+`VkDeviceAddress` := `MTLBuffer.gpuAddress`, and so on).
+
+There is also a `v2/` tree, 46k lines, rebuilding the backend Metal-native to
+shed DXVK's Vulkan-shaped plumbing. v2 is further from done — triangle,
+textures, index buffers, blend and depth/stencil work through the real DXVK
+frontend — but it is the better long-term shape. **v1 is the one to port
+first**; v2 is where it should end up.
+
+### What actually stands between d9mt and a native rrr3d
+
+d9mt targets Wine: it builds as i686 PE and reaches Metal through the
+**winemetal** ABI, a flat C interface vendored from DXMT whose Unix side lives
+in Wine, not in d9mt. A native build has to replace that boundary — and only
+that boundary.
+
+Measured, not estimated:
+
+| Piece | Size |
+|---|---|
+| winemetal functions d9mt v1 actually calls | **90** of 123 |
+| command-stream cases in `encodeCommands` | **66** |
+| d9mt v1 Metal backend (reused as-is) | 17,539 lines |
+
+The 90 functions are thin Objective-C wrappers — `MTLCommandBuffer_commit`,
+`MTLCommandQueue_commandBuffer`, `MTLTexture_replaceRegion`. The 66 command
+cases are a switch over a linked list of `wmtcmd_*` structs, each 1–3 Metal
+calls. Both are **fully specified in `winemetal.h`** (225 struct and enum
+definitions), so this is transcription against a written contract, not design.
+
+Natively, the batching that command stream exists for — amortising Wine
+boundary crossings — is unnecessary. It can be honoured as-is first (simplest,
+matches the contract) and flattened later.
+
+### Order
+
+1. Native `winemetal` implementation in Objective-C++: the 90 functions and 66
+   command cases. Bounded and mechanical.
+2. Build d9mt v1's `d3d9fe/` and the DXVK D3D9 front-end as native arm64
+   rather than i686 PE.
+3. Wire `Direct3DCreate9` in `src/XPlatform/source/d3d9_stub.cpp` to it.
+4. Then the open question below.
+
+### The one genuine unknown
+
+d9mt never rendered 3D **for this game**, though it runs GTA IV. Whether that
+is a backend bug or an artefact of the Wine boundary is still unestablished —
+and a native build removes the Wine boundary, so this step also answers it.
+`~/src/d9mt/traces/` holds captured frames from this game to diff against.
+
+Everything below this line remains accurate: it is the contract d9mt's
+`d3d9fe/` implements, and it is what a native winemetal has to keep standing
+up.
 
 ## Contract
 
@@ -137,12 +189,17 @@ bindResources, cmdBindPipeline, cmdDispatch, cmdPipelineBarrier, track
 
 ## References, in order of usefulness
 
-1. **DXVK's own Vulkan backend** (`src/dxvk/dxvk_context.cpp`) — a complete,
-   working implementation of exactly this interface. For every method, it
-   shows what the semantics must be.
-2. `d9mt` — a prior D3D9-on-Metal attempt for this game, built against DXVK
-   2.7.1 for Wine. Its `d3d9fe/` is ~13k lines of the same mapping, and its
-   `docs/METAL-BACKEND-NOTES.md` records the decisions. The Wine coupling
-   (`winemetal` bridge, unixlib) is what a native port drops.
-3. The captured traces of this game under d9mt, for ground truth on the call
-   sequence a real frame produces.
+1. **`~/src/d9mt/src/d3d9fe/`** — not a reference, the implementation. 17,539
+   lines of exactly this contract, running GTA IV at 60fps.
+   `docs/METAL-BACKEND-NOTES.md` beside it records the design decisions.
+2. **`~/src/d9mt/v2/third_party/winemetal/winemetal.h`** — the full contract
+   for the piece that has to be written: 123 functions, 225 struct and enum
+   definitions, the whole command-stream format.
+3. **DXVK's own Vulkan backend** (`src/dxvk/dxvk_context.cpp`) — for any
+   method where d9mt's Metal implementation is unclear, this shows what the
+   semantics must be.
+4. `~/src/d9mt/traces/` — captured frames of this game under d9mt, for ground
+   truth on the call sequence a real frame produces, and for diffing against
+   once something renders.
+5. `~/src/d9mt/v2/` — the Metal-native rebuild. Where this should end up, not
+   where it should start.
