@@ -672,18 +672,23 @@ void Shape::AssignFromDesc(const NxShapeDesc& desc, bool reloadShape)
 		ReloadNxShape();
 }
 
-void Shape::AssignToDesc(NxShapeDesc& desc)
+void Shape::ApplyToShape(PxShape& shape) const
 {
-	desc.localPose.t.set(_pos);
-	//
-	PxQuat quat;
-	quat.setXYZW(_rot);
-	desc.localPose.M.fromQuat(quat);
+	PxQuat rot;
+	rot.setXYZW(_rot);
+	shape.setLocalPose(PxTransform(PxVec3(_pos.x, _pos.y, _pos.z), rot));
 
-	desc.materialIndex = _materialIndex;
-	desc.density = _density;
-	desc.skinWidth = _skinWidth;
-	desc.group = _group;
+	//PhysX 2.8 had a global NX_SKIN_WIDTH plus a per-shape skinWidth. PhysX 3+
+	//has only the per-shape contact offset, so the global default is folded in
+	//here -- see Manager::InitSDK.
+	if (_skinWidth > 0.0f)
+		shape.setContactOffset(_skinWidth);
+
+	//Collision group; PhysX 3+ uses filter data rather than a group index.
+	PxFilterData filter;
+	filter.word0 = _group;
+	shape.setSimulationFilterData(filter);
+	shape.setQueryFilterData(filter);
 }
 
 ShapeType Shape::GetType() const
@@ -809,11 +814,9 @@ PlaneShape::PlaneShape(Shapes* owner): _MyBase(owner), _normal(ZVector), _dist(0
 	SetType(Type);
 }
 
-NxShapeDesc* PlaneShape::CreateDesc()
+PxGeometryHolder PlaneShape::CreateGeometry()
 {
-	NxPlaneShapeDesc* desc = new NxPlaneShapeDesc();
-	AssignToDesc(*desc);
-	return desc;
+	return PxGeometryHolder(PxPlaneGeometry());
 }
 
 void PlaneShape::Save(lsl::SWriter* writer)
@@ -887,12 +890,10 @@ BoxShape::BoxShape(Shapes* owner): _MyBase(owner), _dimensions(NullVector)
 	SetType(Type);
 }
 
-NxShapeDesc* BoxShape::CreateDesc()
+PxGeometryHolder BoxShape::CreateGeometry()
 {
-	NxBoxShapeDesc* desc = new NxBoxShapeDesc();
-	AssignToDesc(*desc);
-
-	return desc;
+	//Both NxBoxShapeDesc::dimensions and PxBoxGeometry take half-extents.
+	return PxGeometryHolder(PxBoxGeometry(_dimensions.x, _dimensions.y, _dimensions.z));
 }
 
 void BoxShape::Save(lsl::SWriter* writer)
@@ -956,12 +957,9 @@ SphereShape::SphereShape(Shapes* owner): _MyBase(owner), _radius(1.0f)
 	SetType(Type);
 }
 
-NxShapeDesc* SphereShape::CreateDesc()
+PxGeometryHolder SphereShape::CreateGeometry()
 {
-	NxSphereShapeDesc* desc = new NxSphereShapeDesc();
-	AssignToDesc(*desc);
-	
-	return desc;	
+	return PxGeometryHolder(PxSphereGeometry(_radius));
 }
 
 void SphereShape::Save(lsl::SWriter* writer)
@@ -1018,12 +1016,28 @@ CapsuleShape::CapsuleShape(Shapes* owner): _MyBase(owner), _radius(1.0f), _heigh
 	SetType(Type);
 }
 
-NxShapeDesc* CapsuleShape::CreateDesc()
+PxGeometryHolder CapsuleShape::CreateGeometry()
 {
-	NxCapsuleShapeDesc* desc = new NxCapsuleShapeDesc();
-	AssignToDesc(*desc);
-	
-	return desc;	
+	//Two convention changes from PhysX 2.8, both of which silently alter
+	//collision if missed:
+	//  - NxCapsuleShapeDesc::height is the full length of the cylindrical
+	//    section; PxCapsuleGeometry takes half of it.
+	//  - PhysX 2.8 capsules run along Y, PhysX 3+ capsules run along X. The
+	//    rotation that corrects for this is applied in ApplyToShape via the
+	//    local pose, see CapsuleShape::ApplyToShape.
+	return PxGeometryHolder(PxCapsuleGeometry(_radius, _height * 0.5f));
+}
+
+void CapsuleShape::ApplyToShape(PxShape& shape) const
+{
+	_MyBase::ApplyToShape(shape);
+
+	//PhysX 2.8 capsules were aligned along Y, PhysX 3+ along X. Compose a
+	//quarter turn about Z onto the local pose so the capsule keeps the
+	//orientation the content was authored against.
+	PxTransform pose = shape.getLocalPose();
+	pose.q = pose.q * PxQuat(PxHalfPi, PxVec3(0.0f, 0.0f, 1.0f));
+	shape.setLocalPose(pose);
 }
 
 void CapsuleShape::Save(lsl::SWriter* writer)
@@ -1130,12 +1144,14 @@ void TriangleMeshShape::FreeNxMesh()
 	}
 }
 
-NxShapeDesc* TriangleMeshShape::CreateDesc()
+PxGeometryHolder TriangleMeshShape::CreateGeometry()
 {
-	NxTriangleMeshShapeDesc* desc = new NxTriangleMeshShapeDesc();
-	AssignToDesc(*desc);
+	if (!_nxMesh)
+		_nxMesh = _mesh ? _mesh->GetOrCreateTri(GetScale() * GetActor()->GetWorldScale(), _meshId) : 0;
 
-	return desc;
+	LSL_ASSERT(_nxMesh);
+
+	return PxGeometryHolder(PxTriangleMeshGeometry(_nxMesh));
 }
 
 void TriangleMeshShape::SyncScale()
@@ -1238,12 +1254,14 @@ void ConvexShape::FreeNxMesh()
 	}
 }
 
-NxShapeDesc* ConvexShape::CreateDesc()
+PxGeometryHolder ConvexShape::CreateGeometry()
 {
-	NxConvexShapeDesc* desc = new NxConvexShapeDesc();
-	AssignToDesc(*desc);
+	if (!_nxConvex)
+		_nxConvex = _mesh ? _mesh->GetOrCreateConvex(GetScale() * GetActor()->GetWorldScale(), _meshId) : 0;
 
-	return desc;
+	LSL_ASSERT(_nxConvex);
+
+	return PxGeometryHolder(PxConvexMeshGeometry(_nxConvex));
 }
 
 void ConvexShape::Save(lsl::SWriter* writer)

@@ -279,7 +279,10 @@ private:
 protected:
 	void SetType(ShapeType value);
 	//
-	virtual NxShapeDesc* CreateDesc() = 0;
+	//PhysX 3+ removed the descriptor pattern. A shape is now created from a
+	//geometry, and the properties that used to live on NxShapeDesc are set on
+	//the PxShape afterwards.
+	virtual PxGeometryHolder CreateGeometry() = 0;
 	void ReloadNxShape(bool allowInitialization = false);
 
 	D3DXVECTOR3 TransformLocalPos(const D3DXVECTOR3& inValue);
@@ -293,8 +296,9 @@ public:
 	Shape(Shapes* owner);
 
 	//
-	void AssignFromDesc(const NxShapeDesc& desc, bool reloadShape = true);
-	void AssignToDesc(NxShapeDesc& desc);
+	//Applies localPose, contact offset and collision filtering to a shape
+	//created from CreateGeometry().
+	virtual void ApplyToShape(PxShape& shape) const;
 
 	ShapeType GetType() const;
 	Shapes* GetOwner();
@@ -333,15 +337,13 @@ private:
 	D3DXVECTOR3 _normal;
 	float _dist;
 protected:
-	virtual NxShapeDesc* CreateDesc();
+	virtual PxGeometryHolder CreateGeometry();
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
 	PlaneShape(Shapes* owner);
 
-	void AssignFromDesc(const NxPlaneShapeDesc& desc, bool reloadShape = true);
-	void AssignToDesc(NxPlaneShapeDesc& desc);
 
 	NxPlaneShape* GetNxShape();
 
@@ -361,15 +363,13 @@ public:
 private:
 	D3DXVECTOR3 _dimensions;
 protected:
-	virtual NxShapeDesc* CreateDesc();
+	virtual PxGeometryHolder CreateGeometry();
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
 	BoxShape(Shapes* owner);
 
-	void AssignFromDesc(const NxBoxShapeDesc& desc, bool reloadShape = true);
-	void AssignToDesc(NxBoxShapeDesc& desc);
 
 	NxBoxShape* GetNxShape();
 
@@ -386,15 +386,13 @@ public:
 private:
 	float _radius;	
 protected:
-	virtual NxShapeDesc* CreateDesc();
+	virtual PxGeometryHolder CreateGeometry();
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
 	SphereShape(Shapes* owner);
 
-	void AssignFromDesc(const NxSphereShapeDesc& desc, bool reloadShape = true);
-	void AssignToDesc(NxSphereShapeDesc& desc);
 
 	NxSphereShape* GetNxShape();
 
@@ -413,15 +411,16 @@ private:
 	float _height;
 	unsigned _capsuleFlags;
 protected:
-	virtual NxShapeDesc* CreateDesc();
+	virtual PxGeometryHolder CreateGeometry();
+	//PhysX capsules run along X where PhysX 2.8's ran along Y; the local
+	//pose has to carry that rotation.
+	virtual void ApplyToShape(PxShape& shape) const;
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
 	CapsuleShape(Shapes* owner);
 
-	void AssignFromDesc(const NxCapsuleShapeDesc& desc, bool reloadShape = true);
-	void AssignToDesc(NxCapsuleShapeDesc& desc);
 
 	NxCapsuleShape* GetNxShape();
 
@@ -448,7 +447,7 @@ private:
 
 	void FreeNxMesh();
 protected:
-	virtual NxShapeDesc* CreateDesc();
+	virtual PxGeometryHolder CreateGeometry();
 	virtual void SyncScale();
 
 	virtual void Save(lsl::SWriter* writer);
@@ -458,8 +457,6 @@ public:
 	TriangleMeshShape(Shapes* owner);
 	virtual ~TriangleMeshShape();
 
-	void AssignFromDesc(const NxTriangleMeshShapeDesc& desc, bool reloadShape = true);
-	void AssignToDesc(NxTriangleMeshShapeDesc& desc);
 
 	NxTriangleMeshShape* GetNxShape();
 
@@ -482,7 +479,7 @@ private:
 
 	void FreeNxMesh();
 protected:
-	virtual NxShapeDesc* CreateDesc();
+	virtual PxGeometryHolder CreateGeometry();
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
@@ -491,8 +488,6 @@ public:
 	ConvexShape(Shapes* owner);
 	virtual ~ConvexShape();
 
-	void AssignFromDesc(const NxConvexShapeDesc& desc, bool reloadShape = true);
-	void AssignToDesc(NxConvexShapeDesc& desc);
 
 	NxConvexShape* GetNxShape();
 
@@ -525,7 +520,7 @@ private:
 	float _steerAngle;
 	ContactModify* _contactModify;
 protected:
-	virtual NxShapeDesc* CreateDesc();
+	virtual PxGeometryHolder CreateGeometry();
 
 	void SaveTireForceFunction(lsl::SWriter* writer, const NxTireFunctionDesc& func);
 	void LoadTireForceFunction(lsl::SReader* reader, NxTireFunctionDesc& func);
