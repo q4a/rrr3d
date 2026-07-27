@@ -44,7 +44,7 @@ void GrassField::BuildField()
 	for (int i = -Floor<int>(numX/2.0f); i < Ceil<int>(numX/2.0f) - 1; ++i)
 		for (int j = -Floor<int>(numY/2.0f); j < Ceil<int>(numY/2.0f) - 1; ++j, ++ind)
 			mapPos[ind] = D3DXVECTOR3(step.x/2 + i * step.x, step.y/2 + j * step.y, step.z);
-	std::random_shuffle(mapPos.begin(), mapPos.end());
+	lsl::RandomShuffle(mapPos.begin(), mapPos.end());
 
 	//Суммарный вес
 	float summWeight = 0;

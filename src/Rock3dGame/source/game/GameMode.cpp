@@ -142,7 +142,7 @@ void GameMode::MusicCat::GenRandom(int ignore)
 		Node& node = *iter;
 		PlayList list;
 
-		std::random_shuffle(node.playList.begin(), node.playList.end());
+		lsl::RandomShuffle(node.playList.begin(), node.playList.end());
 
 		for (unsigned j = 0; j < node.playList.size(); ++j)
 		{
@@ -160,7 +160,7 @@ void GameMode::MusicCat::GenRandom(int ignore)
 			slots.Remove(list[i]);
 	}
 
-	std::random_shuffle(defGroupList.begin(), defGroupList.end());
+	lsl::RandomShuffle(defGroupList.begin(), defGroupList.end());
 
 	for (unsigned i = 0; i < defGroupList.size(); ++i)
 		_playList[slots[i]] = defGroupList[i];

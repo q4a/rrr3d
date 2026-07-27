@@ -25,7 +25,7 @@ public:
 class FileSystem
 {
 private:
-	static std::auto_ptr<FileSystem> _instance;
+	static std::unique_ptr<FileSystem> _instance;
 public:
 	enum OpenMode {omText, omBinary};
 	

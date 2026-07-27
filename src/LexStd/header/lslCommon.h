@@ -1,7 +1,11 @@
 #ifndef LSL_COMMON
 #define LSL_COMMON
 
-#ifdef _DEBUG
+// The debug heap below is the MSVC CRT's (_malloc_dbg / _free_dbg / crtdbg.h),
+// and the redefinition of new only matches MSVC's debug operator new. There is
+// no equivalent on clang, so leave DEBUG_MEMORY undefined there and let the
+// blocks guarded by it compile out.
+#if defined(_DEBUG) && defined(_MSC_VER)
 	#define DEBUG_MEMORY
 #endif
 
@@ -31,5 +35,8 @@
 #include <exception>
 #include <list>
 #include <cstdio>
+#include <iterator>
+#include <memory>
+#include <utility>
 
 #endif

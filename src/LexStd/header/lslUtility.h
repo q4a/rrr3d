@@ -18,11 +18,22 @@ typedef char TCHAR;
 
 typedef lsl::Vector<string> StringVec;
 
+//std::random_shuffle was removed in C++17. This is the shuffle it performed,
+//kept deliberately on rand() so the sequence stays tied to the srand() call in
+//Rock3dGame.cpp rather than to a separate engine.
+template<class _Iter> void RandomShuffle(_Iter first, _Iter last)
+{
+	typename std::iterator_traits<_Iter>::difference_type n = last - first;
+	for (typename std::iterator_traits<_Iter>::difference_type i = n - 1; i > 0; --i)
+		std::swap(first[i], first[std::rand() % (i + 1)]);
+}
+
 const TCHAR cStrLev = '\\';
 const TCHAR cStrComma = ',';
 const lsl::string cStrRLev = "..\\";
 
-#define ARRAY_LENGTH(arr) _countof(arr)
+//_countof is MSVC-only; std::size is the C++17 equivalent
+#define ARRAY_LENGTH(arr) std::size(arr)
 
 //При использовании множественного виртуального наследования от абстрактных классов(интерфейсов) и при иерархичном наследовании реализаций этих самых интерфейсов может возникать ошибочный warning 4250 (warning C4250: 'Class2' : inherits 'Class1::Class1::Method1' via dominance). На самом деле какой именно(или иначе, по какому именно пути) метод наследуется не играет совершенно никакой роли, поскольку классы полностью абстрактны(т.е. главным образом не содержат релизаций этого метода) а также неследуются виртуально.
 ////Выключить ошибочный warning

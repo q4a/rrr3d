@@ -6095,7 +6095,7 @@ Planet::Track* Tournament::NextTrack(Planet::Track* track)
 				if (iter->second.size() > 0)
 				{
 					_trackList.insert(_trackList.end(), iter->second.begin(), iter->second.end());
-					std::random_shuffle(_trackList.end() - iter->second.size(), _trackList.end());
+					lsl::RandomShuffle(_trackList.end() - iter->second.size(), _trackList.end());
 				}
 			}
 
