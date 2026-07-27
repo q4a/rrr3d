@@ -315,6 +315,22 @@ BOOL UpdateWindow(HWND)
 	return TRUE;
 }
 
+BOOL AdjustWindowRect(RECT*, DWORD, BOOL)
+{
+	return TRUE;
+}
+
+HANDLE GetCurrentThread(void)
+{
+	return NULL;
+}
+
+ULONG_PTR SetThreadAffinityMask(HANDLE, ULONG_PTR)
+{
+	/* Non-zero is success; the previous mask is what Windows returns. */
+	return 1;
+}
+
 BOOL GetCursorPos(POINT* point)
 {
 	if (!point)

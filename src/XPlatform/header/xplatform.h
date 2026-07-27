@@ -171,6 +171,21 @@ LONG SetWindowLong(HWND wnd, int index, LONG newLong);
 BOOL GetWindowInfo(HWND wnd, PWINDOWINFO info);
 BOOL InvalidateRect(HWND wnd, const RECT* rect, BOOL erase);
 BOOL UpdateWindow(HWND wnd);
+
+/*
+ * Expands a client rect to the window rect a given style would need. With no
+ * window decorations to account for, the rect passes through unchanged.
+ */
+BOOL AdjustWindowRect(RECT* rect, DWORD style, BOOL menu);
+
+/*
+ * Thread affinity. The one caller pins the main thread to CPU 0 so
+ * QueryPerformanceCounter does not jump between cores on older AMD parts --
+ * a Windows-specific hazard with no macOS analogue, where mach_absolute_time
+ * is coherent across cores. Reports success and does nothing.
+ */
+HANDLE GetCurrentThread(void);
+ULONG_PTR SetThreadAffinityMask(HANDLE thread, ULONG_PTR affinityMask);
 BOOL GetCursorPos(POINT* point);
 BOOL ScreenToClient(HWND wnd, POINT* point);
 

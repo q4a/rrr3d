@@ -438,7 +438,8 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		D3DXVECTOR3 pos = _carLifes[i].target->GetCar().gameObj->GetPos() + D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 		D3DXVECTOR4 projVec;
 		D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
-		D3DXVECTOR2 vec = projVec / projVec.w;
+		D3DXVECTOR4 projDiv = projVec / projVec.w;
+		D3DXVECTOR2 vec(projDiv.x, projDiv.y);
 
 		if (projVec.z < 0)
 		{		
@@ -687,7 +688,8 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			D3DXVECTOR3 pos = opponent.player->GetCar().gameObj->GetWorldPos() + D3DXVECTOR3(1.0f, -0.5f, 0);
 			D3DXVECTOR4 projVec;
 			D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
-			D3DXVECTOR2 vec = projVec / projVec.w;
+			D3DXVECTOR4 projDiv = projVec / projVec.w;
+		D3DXVECTOR2 vec(projDiv.x, projDiv.y);
 
 			if (projVec.z < 0)
 			{		

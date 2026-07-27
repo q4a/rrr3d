@@ -7525,7 +7525,7 @@ void Race::ResetCarPos()
 	{
 		if ((i % cRowLength) == 0)
 		{
-			unsigned count = std::min(_playerList.size() - i, 4U);
+			unsigned count = static_cast<unsigned>(std::min(_playerList.size() - i, static_cast<size_t>(4)));
 			plSize = 0.0f;
 			stepY = 0;
 

@@ -91,7 +91,8 @@ void GameMode::MusicCat::GenRandom(int ignore)
 		int group;
 		GameMode::PlayList playList;
 
-		bool operator<(const Node& ref)
+		//std::list::sort compares through const references.
+		bool operator<(const Node& ref) const
 		{
 			return group < ref.group;
 		}
