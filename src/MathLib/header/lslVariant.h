@@ -17,28 +17,28 @@ private:
 protected:
 	static unsigned GetTypeSize(Type type);
 private:
-	//Данные
+	//Р”Р°РЅРЅС‹Рµ
 	int _buf[16];
 	void* _data;
-	//Размер в байтах, если:
-	//=0  - значение value = 0
-	//>0  - массив размером count, причем count - это количество элементов valType, если valType = vtVoid, то количество байтов
+	//Р Р°Р·РјРµСЂ РІ Р±Р°Р№С‚Р°С…, РµСЃР»Рё:
+	//=0  - Р·РЅР°С‡РµРЅРёРµ value = 0
+	//>0  - РјР°СЃСЃРёРІ СЂР°Р·РјРµСЂРѕРј count, РїСЂРёС‡РµРј count - СЌС‚Рѕ РєРѕР»РёС‡РµСЃС‚РІРѕ СЌР»РµРјРµРЅС‚РѕРІ valType, РµСЃР»Рё valType = vtVoid, С‚Рѕ РєРѕР»РёС‡РµСЃС‚РІРѕ Р±Р°Р№С‚РѕРІ
 	unsigned _count;
-	//Тип значения
+	//РўРёРї Р·РЅР°С‡РµРЅРёСЏ
 	Type _type;
 protected:
-	//Копирование данных
+	//РљРѕРїРёСЂРѕРІР°РЅРёРµ РґР°РЅРЅС‹С…
 	void AssignData(const void* value, Type type, unsigned count, unsigned oldTypeSize, unsigned newTypeSize);
 	void AssignData(const void* value, Type type, unsigned count);
 	void AssignData(const Variant& value);
 	template<class _Type> void AssignData(const _Type* value, unsigned count);
 	void FreeData();
 
-	//Приведение типа
+	//РџСЂРёРІРµРґРµРЅРёРµ С‚РёРїР°
 	template<class _Type> const _Type* Cast() const;
 	template<class _Type> _Type* Cast();
 
-	//Преобразование из _Type в Type
+	//РџСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РёР· _Type РІ Type
 	template<class _Type> Type GetTypeOf() const;
 	template<> Type GetTypeOf<void>() const;
 	template<> Type GetTypeOf<int>() const;
@@ -67,24 +67,24 @@ public:
 	//
 	~Variant();
 
-	//Проверка типа
+	//РџСЂРѕРІРµСЂРєР° С‚РёРїР°
 	template<class _Type> bool CheckType() const;
 	bool CheckType(Type type) const;
 	template<class _Type> const _Type* IsType() const;
-	//Запись в тип
+	//Р—Р°РїРёСЃСЊ РІ С‚РёРї
 	template<class _Type> _Type& AsType(unsigned index = 0);
-	//Преобразование типа
+	//РџСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ С‚РёРїР°
 	template<class _Type> void Convert(_Type* outVal, unsigned index = 0, unsigned count = 1) const;
 	template<class _Type> _Type Convert(unsigned index = 0) const;
 
-	//Чтение состояния
+	//Р§С‚РµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ
 	const void* GetData() const;
 	void SetData(const void* value, unsigned size);
 	unsigned GetSize() const;
 	unsigned GetCount() const;
 	Type GetType() const;
 
-	//Опреаторы
+	//РћРїСЂРµР°С‚РѕСЂС‹
 	Variant& operator=(const Variant& value);
 	bool operator==(const Variant& value) const;
 	bool operator!=(const Variant& value) const;

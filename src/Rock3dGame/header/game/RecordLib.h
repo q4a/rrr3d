@@ -64,9 +64,9 @@ private:
 	NodeList _nodeList;
 
 	Record* FindRecord(const lsl::StringList& strList);
-	//Поиск узла
-	//res - самый глубокий узел соответствующий путю
-	//outList - оставшийся путь
+	//РџРѕРёСЃРє СѓР·Р»Р°
+	//res - СЃР°РјС‹Р№ РіР»СѓР±РѕРєРёР№ СѓР·РµР» СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РёР№ РїСѓС‚СЋ
+	//outList - РѕСЃС‚Р°РІС€РёР№СЃСЏ РїСѓС‚СЊ
 	RecordNode* FindNode(const lsl::StringList& strList, lsl::StringList& outList);
 protected:
 	RecordNode(const Desc& desc);
@@ -84,7 +84,7 @@ public:
 	RecordNode* AddNode(const std::string& name);
 	void DelNode(RecordNode* value);
 
-	//Поиск начинается с дочерних узлов
+	//РџРѕРёСЃРє РЅР°С‡РёРЅР°РµС‚СЃСЏ СЃ РґРѕС‡РµСЂРЅРёС… СѓР·Р»РѕРІ
 	Record* FindRecord(const std::string& path);
 	RecordNode* FindNode(const std::string& path);
 
@@ -132,7 +132,7 @@ public:
 	RecordLib(const std::string& name, lsl::SerialNode* rootSrc);
 	~RecordLib();
 
-	//name - имя, может включать разделители '\\' для группировки по узлам
+	//name - РёРјСЏ, РјРѕР¶РµС‚ РІРєР»СЋС‡Р°С‚СЊ СЂР°Р·РґРµР»РёС‚РµР»Рё '\\' РґР»СЏ РіСЂСѓРїРїРёСЂРѕРІРєРё РїРѕ СѓР·Р»Р°Рј
 	Record* GetOrCreateRecord(const std::string& name);
 
 	void SetName(const std::string& value);

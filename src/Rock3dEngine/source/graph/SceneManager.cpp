@@ -41,7 +41,7 @@ BaseSceneNode::~BaseSceneNode()
 	if (_proxyMaster)
 		_proxyMaster->GetProxyList().Remove(this);
 
-	//Так делается специально, в обход SetParent, который устанавливает вместо 0 sceneRoot
+	//РўР°Рє РґРµР»Р°РµС‚СЃСЏ СЃРїРµС†РёР°Р»СЊРЅРѕ, РІ РѕР±С…РѕРґ SetParent, РєРѕС‚РѕСЂС‹Р№ СѓСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ РІРјРµСЃС‚Рѕ 0 sceneRoot
 	if (_parent)
 		_parent->GetChildren().Remove(this);
 	ClearSceneList();
@@ -117,7 +117,7 @@ void BaseSceneNode::RenderBB(graph::Engine& engine, const AABB& aabb, const D3DX
 
 void BaseSceneNode::ExtractRotation(_RotationStyle style) const
 {
-	//Проверка, корректны ли на данный момент данные в полях
+	//РџСЂРѕРІРµСЂРєР°, РєРѕСЂСЂРµРєС‚РЅС‹ Р»Рё РЅР° РґР°РЅРЅС‹Р№ РјРѕРјРµРЅС‚ РґР°РЅРЅС‹Рµ РІ РїРѕР»СЏС…
 	if (_rotInvalidate.test(style))
 	{
 		ApplyTransformationChanged();  
@@ -209,27 +209,27 @@ void BaseSceneNode::SetDynBB(bool value)
 
 	if (value)
 	{
-		//Узел уже был проинициализирован
+		//РЈР·РµР» СѓР¶Рµ Р±С‹Р» РїСЂРѕРёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°РЅ
 		if (_nodeDynRef)
 			return;
-		//Инициализируем узел
+		//РРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј СѓР·РµР»
 		_nodeDynRef = 1;
 
 		_parent->InsertChildBBDyn(this);
-		//Если есть хотя бы один потомок то узел регистрируем в качестве динамического
+		//Р•СЃР»Рё РµСЃС‚СЊ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїРѕС‚РѕРјРѕРє С‚Рѕ СѓР·РµР» СЂРµРіРёСЃС‚СЂРёСЂСѓРµРј РІ РєР°С‡РµСЃС‚РІРµ РґРёРЅР°РјРёС‡РµСЃРєРѕРіРѕ
 		if (_childBBDynList.size() == 1 && _parent->_parent)
 			_parent->SetDynBB(value);
 	}
 	else
 	{
-		//Узел ещё не был освобожден
+		//РЈР·РµР» РµС‰С‘ РЅРµ Р±С‹Р» РѕСЃРІРѕР±РѕР¶РґРµРЅ
 		if (!_nodeDynRef)
 			return;
-		//Освобождаем узел
+		//РћСЃРІРѕР±РѕР¶РґР°РµРј СѓР·РµР»
 		_nodeDynRef = 0;
 
 		_parent->RemoveChildBBDyn(this);
-		//Если динамических потомков больше нет то узел перестает быть динамическим
+		//Р•СЃР»Рё РґРёРЅР°РјРёС‡РµСЃРєРёС… РїРѕС‚РѕРјРєРѕРІ Р±РѕР»СЊС€Рµ РЅРµС‚ С‚Рѕ СѓР·РµР» РїРµСЂРµСЃС‚Р°РµС‚ Р±С‹С‚СЊ РґРёРЅР°РјРёС‡РµСЃРєРёРј
 		if (_childBBDynList.size() == 0 && _parent->_parent)
 			_parent->SetDynBB(value);
 	}
@@ -237,8 +237,8 @@ void BaseSceneNode::SetDynBB(bool value)
 
 void BaseSceneNode::BuildMatrix() const
 {	
-	//Поворот не влияет на локальное направление перемещения
-	//Растяжение не влияет на локальное перемещение, т.е. единица длины одна и таже
+	//РџРѕРІРѕСЂРѕС‚ РЅРµ РІР»РёСЏРµС‚ РЅР° Р»РѕРєР°Р»СЊРЅРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ РїРµСЂРµРјРµС‰РµРЅРёСЏ
+	//Р Р°СЃС‚СЏР¶РµРЅРёРµ РЅРµ РІР»РёСЏРµС‚ РЅР° Р»РѕРєР°Р»СЊРЅРѕРµ РїРµСЂРµРјРµС‰РµРЅРёРµ, С‚.Рµ. РµРґРёРЅРёС†Р° РґР»РёРЅС‹ РѕРґРЅР° Рё С‚Р°Р¶Рµ
 	_localMat = GetScaleMat() * GetRotMat() * GetTransMat();
 	D3DXMatrixInverse(&_invLocalMat, 0, &_localMat);		
 }
@@ -302,7 +302,7 @@ void BaseSceneNode::ChildStructureChanged(BaseSceneNode* child)
 		_bbChanges.set(bbcIncludeChild);
 		_bbChanges.set(bbcWorldIncludeChild);
 
-		//родителю посылается только уведомление об имзенении структруы дочери
+		//СЂРѕРґРёС‚РµР»СЋ РїРѕСЃС‹Р»Р°РµС‚СЃСЏ С‚РѕР»СЊРєРѕ СѓРІРµРґРѕРјР»РµРЅРёРµ РѕР± РёРјР·РµРЅРµРЅРёРё СЃС‚СЂСѓРєС‚СЂСѓС‹ РґРѕС‡РµСЂРё
 		if (_parent)
 			_parent->ChildStructureChanged(this);
 	}
@@ -682,7 +682,7 @@ void BaseSceneNode::SetParent(BaseSceneNode* value)
 			_parent->_children->Remove(this);
 		if (value)					
 			value->_children->Insert(this);
-		//Если задается нулевой родитель то авт. к корн. узлу
+		//Р•СЃР»Рё Р·Р°РґР°РµС‚СЃСЏ РЅСѓР»РµРІРѕР№ СЂРѕРґРёС‚РµР»СЊ С‚Рѕ Р°РІС‚. Рє РєРѕСЂРЅ. СѓР·Р»Сѓ
 		//else
 		//	if (_scene)
 		//		_scene->GetRoot()->_children->push_back(this);
@@ -884,7 +884,7 @@ void BaseSceneNode::SetRot(const D3DXQUATERNION& value)
 D3DXMATRIX BaseSceneNode::GetScaleMat() const
 {
 	D3DXVECTOR3 vec = _scale;
-	//Если масштабирование слишком мало, то матрица может оказаться вырожденной. Поэтому подменяем на вектор самой допустимо малой длины
+	//Р•СЃР»Рё РјР°СЃС€С‚Р°Р±РёСЂРѕРІР°РЅРёРµ СЃР»РёС€РєРѕРј РјР°Р»Рѕ, С‚Рѕ РјР°С‚СЂРёС†Р° РјРѕР¶РµС‚ РѕРєР°Р·Р°С‚СЊСЃСЏ РІС‹СЂРѕР¶РґРµРЅРЅРѕР№. РџРѕСЌС‚РѕРјСѓ РїРѕРґРјРµРЅСЏРµРј РЅР° РІРµРєС‚РѕСЂ СЃР°РјРѕР№ РґРѕРїСѓСЃС‚РёРјРѕ РјР°Р»РѕР№ РґР»РёРЅС‹
 	//if (D3DXVec3Length(&vec) < 0.0001f)
 	//	vec = IdentityVector * 0.0005f;
 
@@ -1087,9 +1087,9 @@ D3DXMATRIX BaseSceneNode::GetWorldScale() const
 	const BaseSceneNode* node = this;
 	do
 	{
-		//Применяем опреацию масштабирования
+		//РџСЂРёРјРµРЅСЏРµРј РѕРїСЂРµР°С†РёСЋ РјР°СЃС€С‚Р°Р±РёСЂРѕРІР°РЅРёСЏ
 		D3DXMatrixMultiply(&res, &res, &node->GetScaleMat());
-		//Переводим на уровень трансформации пониже
+		//РџРµСЂРµРІРѕРґРёРј РЅР° СѓСЂРѕРІРµРЅСЊ С‚СЂР°РЅСЃС„РѕСЂРјР°С†РёРё РїРѕРЅРёР¶Рµ
 		D3DXMatrixMultiply(&res, &res, &node->GetMat());		
 
 		node = node->GetParent();
@@ -1097,7 +1097,7 @@ D3DXMATRIX BaseSceneNode::GetWorldScale() const
 	}
 	while (node);
 
-	//Исключаем из преобразования перемещение
+	//РСЃРєР»СЋС‡Р°РµРј РёР· РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ РїРµСЂРµРјРµС‰РµРЅРёРµ
 	res._41 = res._42 = res._43 = 0;
 	res._44 = 1.0f;
 
@@ -1717,10 +1717,10 @@ SceneManager::~SceneManager()
 
 void SceneManager::Render(graph::Engine& engine)
 {
-	//Передаем рендер специальному компоненту
+	//РџРµСЂРµРґР°РµРј СЂРµРЅРґРµСЂ СЃРїРµС†РёР°Р»СЊРЅРѕРјСѓ РєРѕРјРїРѕРЅРµРЅС‚Сѓ
 	if (_sceneRender)
 		_sceneRender->Render(engine, this);
-	//Рендерим сами, по Forward алгоритму
+	//Р РµРЅРґРµСЂРёРј СЃР°РјРё, РїРѕ Forward Р°Р»РіРѕСЂРёС‚РјСѓ
 	else	
 		for (Objects::iterator iter = _objects.begin(); iter != _objects.end(); ++iter)
 			(*iter)->Render(engine);

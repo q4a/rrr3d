@@ -410,7 +410,7 @@ void World::MainProgress()
 	const float syncStep = 1.0f/_syncFreq;
 	const int syncFreq = _syncFreq;	
 	const int syncNumFrames = 15;
-	//запас синхронизации, в с
+	//Р·Р°РїР°СЃ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё, РІ СЃ
 	const float syncUpThreshold = 0.002f;
 	const float syncDownThreshold = 0.003f;
 	//
@@ -664,7 +664,7 @@ void World::MainProgress()
 		float drawTimeMin = renderTimeMin + gpuTimeAvg;
 		float drawTimeMax = renderTimeMax + gpuTimeMax;
 
-		//увеличение числа итераций при превышении порога рассинхронизации в syncError
+		//СѓРІРµР»РёС‡РµРЅРёРµ С‡РёСЃР»Р° РёС‚РµСЂР°С†РёР№ РїСЂРё РїСЂРµРІС‹С€РµРЅРёРё РїРѕСЂРѕРіР° СЂР°СЃСЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё РІ syncError
 		float newTimeIterMin = drawTimeMin / syncStep;
 		float newTimeIterMax = drawTimeMax / syncStep;		
 

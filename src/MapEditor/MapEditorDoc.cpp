@@ -198,7 +198,7 @@ r3d::IMapObjRef CMapEditorDoc::GetSelMapObj()
 
 void CMapEditorDoc::SelectMapObj(const r3d::IMapObjRef& value)
 {
-	//Î÷èùàåì âñå âûäåëåíèÿ òîëüêî åñëè çàäàí àðãóìåíò òåêóùåãî âûäåëåíèÿ
+	//ÐžÑ‡Ð¸Ñ‰Ð°ÐµÐ¼ Ð²ÑÐµ Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð¸Ñ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ ÐµÑÐ»Ð¸ Ð·Ð°Ð´Ð°Ð½ Ð°Ñ€Ð³ÑƒÐ¼ÐµÐ½Ñ‚ Ñ‚ÐµÐºÑƒÑ‰ÐµÐ³Ð¾ Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð¸Ñ
 	if (_selMapObj != value && (!_selMapObj || !_selMapObj->Equal(value.Pnt())))
 	{
 		ClearSelection();
@@ -220,7 +220,7 @@ r3d::IWayPointRef CMapEditorDoc::GetSelWayPoint()
 
 void CMapEditorDoc::SelectWayPoint(const r3d::IWayPointRef& point, const r3d::ITrace::ControlEventRef& mEvent)
 {
-	//Î÷èùàåì âñå âûäåëåíèÿ òîëüêî åñëè çàäàí àðãóìåíò òåêóùåãî âûäåëåíèÿ
+	//ÐžÑ‡Ð¸Ñ‰Ð°ÐµÐ¼ Ð²ÑÐµ Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð¸Ñ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ ÐµÑÐ»Ð¸ Ð·Ð°Ð´Ð°Ð½ Ð°Ñ€Ð³ÑƒÐ¼ÐµÐ½Ñ‚ Ñ‚ÐµÐºÑƒÑ‰ÐµÐ³Ð¾ Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð¸Ñ
 	if (_selWayPoint != point && (!_selWayPoint || !_selWayPoint->Equal(point.Pnt())))
 	{
 		ClearSelection();

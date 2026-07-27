@@ -89,10 +89,10 @@ float CalcDeltaTime(__int64& gTime, __int64& gLastTime)
 	QueryPerformanceFrequency((LARGE_INTEGER*)&freq); // Get processor freq
 	float deltaTime = static_cast<float>((gTime - gLastTime)/static_cast<double>(freq));
 	gLastTime = gTime;
-	//Для слишком медленного ФПС фикс.
+	//Р”Р»СЏ СЃР»РёС€РєРѕРј РјРµРґР»РµРЅРЅРѕРіРѕ Р¤РџРЎ С„РёРєСЃ.
 	if (deltaTime > 1.0f)
 		deltaTime = 1;
-	//Для слишком быстрого ФПС тоже фикс, поскольку нулевое значение стопорит прогресс
+	//Р”Р»СЏ СЃР»РёС€РєРѕРј Р±С‹СЃС‚СЂРѕРіРѕ Р¤РџРЎ С‚РѕР¶Рµ С„РёРєСЃ, РїРѕСЃРєРѕР»СЊРєСѓ РЅСѓР»РµРІРѕРµ Р·РЅР°С‡РµРЅРёРµ СЃС‚РѕРїРѕСЂРёС‚ РїСЂРѕРіСЂРµСЃСЃ
 	if (deltaTime == 0)
 		deltaTime = 1.0f/10000.0f;
 
@@ -110,7 +110,7 @@ void Engine::DrawFPS()
 	static char fpsString[255] = "Frames Per Second = ";	
 	if (nTimeOfLastFPSUpdate > 1.0f) // Update once a second
 	{		
-		sprintf_s(fpsString, "FPS - %4.2f \n 'C' - переключить камеру \n"
+		sprintf_s(fpsString, "FPS - %4.2f \n 'C' - РїРµСЂРµРєР»СЋС‡РёС‚СЊ РєР°РјРµСЂСѓ \n"
 			"FixedFPS - %i \n", nFrameCount/nTimeOfLastFPSUpdate, (static_cast<int>(1.0f/_dt) / 10) * 10);
 		nTimeOfLastFPSUpdate = 0;
 		nFrameCount = 0;
@@ -173,7 +173,7 @@ void Engine::UpdateScreenQuad()
 	float fRightU = 1.0f;
 	float fBottomV = 1.0f;
 
-	//Закоментированные смещения вносят искажения при совмещении текстур
+	//Р—Р°РєРѕРјРµРЅС‚РёСЂРѕРІР°РЅРЅС‹Рµ СЃРјРµС‰РµРЅРёСЏ РІРЅРѕСЃСЏС‚ РёСЃРєР°Р¶РµРЅРёСЏ РїСЂРё СЃРѕРІРјРµС‰РµРЅРёРё С‚РµРєСЃС‚СѓСЂ
 	float fPosX = quadVert.x * _d3dpp.BackBufferWidth - 0.5f;
 	float fPosY = quadVert.y * _d3dpp.BackBufferHeight - 0.5f;
 	float fWidth5 = _d3dpp.BackBufferWidth * quadVert.z - 0.5f;
@@ -334,7 +334,7 @@ bool Engine::Reset(HWND window, lsl::Point resolution, bool fullScreen, unsigned
 
 bool Engine::IsReset() const
 {
-	//Не забываем что Render может вызываться в отдельном потоке, поэтому переключение с _lost = true на _reset = false могло пока и не произойти
+	//РќРµ Р·Р°Р±С‹РІР°РµРј С‡С‚Рѕ Render РјРѕР¶РµС‚ РІС‹Р·С‹РІР°С‚СЊСЃСЏ РІ РѕС‚РґРµР»СЊРЅРѕРј РїРѕС‚РѕРєРµ, РїРѕСЌС‚РѕРјСѓ РїРµСЂРµРєР»СЋС‡РµРЅРёРµ СЃ _lost = true РЅР° _reset = false РјРѕРіР»Рѕ РїРѕРєР° Рё РЅРµ РїСЂРѕРёР·РѕР№С‚Рё
 	return (_reset && !_lost);
 }
 
@@ -414,7 +414,7 @@ void Engine::GPUSync()
 	{	
 		while (_d3dQueryEvent->GetData(NULL, 0, D3DGETDATA_FLUSH) == S_FALSE);
 
-		//переводим событие в состояние ресурса (issued state), как только буффер команд станет пустым событие самой перейдет в сигнальное состояние, это может произойти во время renderTime (время цпу), в результате даже если буффер снова заполнится то мы не будем ждать на цикле выше. Т.е. мы всегда имеем запас в кадр. Однако на экране будет лаг в один кадр.
+		//РїРµСЂРµРІРѕРґРёРј СЃРѕР±С‹С‚РёРµ РІ СЃРѕСЃС‚РѕСЏРЅРёРµ СЂРµСЃСѓСЂСЃР° (issued state), РєР°Рє С‚РѕР»СЊРєРѕ Р±СѓС„С„РµСЂ РєРѕРјР°РЅРґ СЃС‚Р°РЅРµС‚ РїСѓСЃС‚С‹Рј СЃРѕР±С‹С‚РёРµ СЃР°РјРѕР№ РїРµСЂРµР№РґРµС‚ РІ СЃРёРіРЅР°Р»СЊРЅРѕРµ СЃРѕСЃС‚РѕСЏРЅРёРµ, СЌС‚Рѕ РјРѕР¶РµС‚ РїСЂРѕРёР·РѕР№С‚Рё РІРѕ РІСЂРµРјСЏ renderTime (РІСЂРµРјСЏ С†РїСѓ), РІ СЂРµР·СѓР»СЊС‚Р°С‚Рµ РґР°Р¶Рµ РµСЃР»Рё Р±СѓС„С„РµСЂ СЃРЅРѕРІР° Р·Р°РїРѕР»РЅРёС‚СЃСЏ С‚Рѕ РјС‹ РЅРµ Р±СѓРґРµРј Р¶РґР°С‚СЊ РЅР° С†РёРєР»Рµ РІС‹С€Рµ. Рў.Рµ. РјС‹ РІСЃРµРіРґР° РёРјРµРµРј Р·Р°РїР°СЃ РІ РєР°РґСЂ. РћРґРЅР°РєРѕ РЅР° СЌРєСЂР°РЅРµ Р±СѓРґРµС‚ Р»Р°Рі РІ РѕРґРёРЅ РєР°РґСЂ.
 		_d3dQueryEvent->Issue(D3DISSUE_END);
 	}	
 #endif
@@ -512,12 +512,12 @@ void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, fl
 	const CameraCI& camera = GetContext().GetCamera();
 
 	D3DXMATRIX rotMat;
-	//Направленный спрайт
+	//РќР°РїСЂР°РІР»РµРЅРЅС‹Р№ СЃРїСЂР°Р№С‚
 	if (fixDirection)
 	{
 		D3DXVECTOR3 xVec = *fixDirection;
 
-		//Видовой вектор
+		//Р’РёРґРѕРІРѕР№ РІРµРєС‚РѕСЂ
 		D3DXVECTOR3 viewVec;
 		switch (GetContext().GetCamera().GetDesc().style)
 		{
@@ -541,19 +541,19 @@ void Engine::RenderSpritePT(const D3DXVECTOR3& pos, const D3DXVECTOR3& scale, fl
 
 		MatrixRotationFromAxis(xVec, yVec, zVec, rotMat);
 	}
-	//Обычный спрайт
+	//РћР±С‹С‡РЅС‹Р№ СЃРїСЂР°Р№С‚
 	else
 	{
 		rotMat = camera.GetInvView();
 		rotMat._41 = rotMat._42 = rotMat._43 = 0.0f;
 
-		//Локальный поворот спрайта (только для не направленных)
+		//Р›РѕРєР°Р»СЊРЅС‹Р№ РїРѕРІРѕСЂРѕС‚ СЃРїСЂР°Р№С‚Р° (С‚РѕР»СЊРєРѕ РґР»СЏ РЅРµ РЅР°РїСЂР°РІР»РµРЅРЅС‹С…)
 		D3DXMATRIX rotZ;
 		D3DXMatrixRotationAxis(&rotZ, &camera.GetDesc().dir, turnAngle);
 		rotMat *= rotZ;
 	}
 
-	//Результирующая матрица
+	//Р РµР·СѓР»СЊС‚РёСЂСѓСЋС‰Р°СЏ РјР°С‚СЂРёС†Р°
 	D3DXMATRIX worldMat = localMat;
 	MatrixScale(scale, worldMat);
 	worldMat *= rotMat;

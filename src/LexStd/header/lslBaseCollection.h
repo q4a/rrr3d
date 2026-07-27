@@ -107,16 +107,16 @@ private:
 	unsigned _lockDestr;
 	unsigned _lockNotify;
 
-	//Операции для SafeContainer
+	//РћРїРµСЂР°С†РёРё РґР»СЏ SafeContainer
 	void Insert(const Value& item);
 	void Remove(iterator iter);
 	void Remove(iterator sIter, iterator eIter);
 protected:
-	//Фабричные методы
+	//Р¤Р°Р±СЂРёС‡РЅС‹Рµ РјРµС‚РѕРґС‹
 	//virtual _Item* CreateItem(...);
 	virtual void DestroyItem(_Item* value) = 0;
 
-	//Уведомления о вставке/удалении
+	//РЈРІРµРґРѕРјР»РµРЅРёСЏ Рѕ РІСЃС‚Р°РІРєРµ/СѓРґР°Р»РµРЅРёРё
 	virtual void InsertItem(const Value& value);
 	virtual void RemoveItem(const Value& value);
 
@@ -128,18 +128,18 @@ protected:
 	void UnlockNotify();
 	bool IsLockNotify() const;
 
-	//Добавление нового item, по концепции сама коллекция создает item поэтому здесь он объявлен как protected, но есть возможность переопределения
+	//Р”РѕР±Р°РІР»РµРЅРёРµ РЅРѕРІРѕРіРѕ item, РїРѕ РєРѕРЅС†РµРїС†РёРё СЃР°РјР° РєРѕР»Р»РµРєС†РёСЏ СЃРѕР·РґР°РµС‚ item РїРѕСЌС‚РѕРјСѓ Р·РґРµСЃСЊ РѕРЅ РѕР±СЉСЏРІР»РµРЅ РєР°Рє protected, РЅРѕ РµСЃС‚СЊ РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊ РїРµСЂРµРѕРїСЂРµРґРµР»РµРЅРёСЏ
 	_Item& AddItem(const Value& value);
 	_Item& Add(const Value& value);
 
-	//так как не все item-ы унаследованы от lsl::Seriazable то применяется перегрузка чтобы их разделить
+	//С‚Р°Рє РєР°Рє РЅРµ РІСЃРµ item-С‹ СѓРЅР°СЃР»РµРґРѕРІР°РЅС‹ РѕС‚ lsl::Seriazable С‚Рѕ РїСЂРёРјРµРЅСЏРµС‚СЃСЏ РїРµСЂРµРіСЂСѓР·РєР° С‡С‚РѕР±С‹ РёС… СЂР°Р·РґРµР»РёС‚СЊ
 	void WriteItem(SWriter* writer, void* value);
 	void WriteItem(SWriter* writer, lsl::Serializable* value);
 	void ReadItem(SReader* reader, void* value);
 	void ReadItem(SReader* reader, lsl::Serializable* value);
-	//Сохранение итем-а в кусок writer с рекомендуемым именем aName
+	//РЎРѕС…СЂР°РЅРµРЅРёРµ РёС‚РµРј-Р° РІ РєСѓСЃРѕРє writer СЃ СЂРµРєРѕРјРµРЅРґСѓРµРјС‹Рј РёРјРµРЅРµРј aName
 	virtual void SaveItem(SWriter* writer, iterator pItem, const std::string& aName);
-	//Загрузка итем-а из reader, где reader есть сам item
+	//Р—Р°РіСЂСѓР·РєР° РёС‚РµРј-Р° РёР· reader, РіРґРµ reader РµСЃС‚СЊ СЃР°Рј item
 	virtual void LoadItem(SReader* reader) = 0;
 	//
 	virtual void Save(SWriter* writer);
@@ -154,7 +154,7 @@ public:
 	iterator Delete(iterator sIter, iterator eIter);	
 	void Clear();
 
-	//Поиск
+	//РџРѕРёСЃРє
 	iterator Find(_Item* item);
 	unsigned Size() const;
 	bool Empty() const;
@@ -175,7 +175,7 @@ public:
 	_IdType GetItemType(_Item* item);
 };
 
-//Класс фабрика
+//РљР»Р°СЃСЃ С„Р°Р±СЂРёРєР°
 template<class _Item, class _IdType, class _Arg> class BaseCollectionCL: public BaseCollection<_Item, _IdType>
 {
 private:
@@ -204,7 +204,7 @@ public:
 	void SetClassNames(const char* value[], unsigned cnt);
 };
 
-//Коллекция с аргументом, при чем случай с аргументом указателя на сам класс
+//РљРѕР»Р»РµРєС†РёСЏ СЃ Р°СЂРіСѓРјРµРЅС‚РѕРј, РїСЂРё С‡РµРј СЃР»СѓС‡Р°Р№ СЃ Р°СЂРіСѓРјРµРЅС‚РѕРј СѓРєР°Р·Р°С‚РµР»СЏ РЅР° СЃР°Рј РєР»Р°СЃСЃ
 template<class _Item, class _IdType, class _Arg, class _ArgThis> class Collection: public BaseCollectionCL<_Item, _IdType, _Arg>
 {
 private:
@@ -217,15 +217,15 @@ protected:
 public:
 	virtual ~Collection();
 
-	//Добавление с ид key
+	//Р”РѕР±Р°РІР»РµРЅРёРµ СЃ РёРґ key
 	_Item& Add(_IdType key);
-	//добавление производного item-a с классом _Type
+	//РґРѕР±Р°РІР»РµРЅРёРµ РїСЂРѕРёР·РІРѕРґРЅРѕРіРѕ item-a СЃ РєР»Р°СЃСЃРѕРј _Type
 	template<class _Type> _Type& Add();
 };
 
-//Считается что аргументом Item-a обязательно выступает сам скласс или один из его наследников
-//Параметр _Traits нужен для определения общих свойств у шаблонных коллекций (это общее свойства обычно передается в качестве аргумента Item-у)
-//Так как Traits включается путем множественного наследования, то нет аозможности использовать специализацию Collection<Item, _IdType, Arg, ArgThis>, поскольку в шаблонный параметр _ArgThis никаким образом не вставить унаследованный шаблон ComCollection.
+//РЎС‡РёС‚Р°РµС‚СЃСЏ С‡С‚Рѕ Р°СЂРіСѓРјРµРЅС‚РѕРј Item-a РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ РІС‹СЃС‚СѓРїР°РµС‚ СЃР°Рј СЃРєР»Р°СЃСЃ РёР»Рё РѕРґРёРЅ РёР· РµРіРѕ РЅР°СЃР»РµРґРЅРёРєРѕРІ
+//РџР°СЂР°РјРµС‚СЂ _Traits РЅСѓР¶РµРЅ РґР»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ РѕР±С‰РёС… СЃРІРѕР№СЃС‚РІ Сѓ С€Р°Р±Р»РѕРЅРЅС‹С… РєРѕР»Р»РµРєС†РёР№ (СЌС‚Рѕ РѕР±С‰РµРµ СЃРІРѕР№СЃС‚РІР° РѕР±С‹С‡РЅРѕ РїРµСЂРµРґР°РµС‚СЃСЏ РІ РєР°С‡РµСЃС‚РІРµ Р°СЂРіСѓРјРµРЅС‚Р° Item-Сѓ)
+//РўР°Рє РєР°Рє Traits РІРєР»СЋС‡Р°РµС‚СЃСЏ РїСѓС‚РµРј РјРЅРѕР¶РµСЃС‚РІРµРЅРЅРѕРіРѕ РЅР°СЃР»РµРґРѕРІР°РЅРёСЏ, С‚Рѕ РЅРµС‚ Р°РѕР·РјРѕР¶РЅРѕСЃС‚Рё РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ СЃРїРµС†РёР°Р»РёР·Р°С†РёСЋ Collection<Item, _IdType, Arg, ArgThis>, РїРѕСЃРєРѕР»СЊРєСѓ РІ С€Р°Р±Р»РѕРЅРЅС‹Р№ РїР°СЂР°РјРµС‚СЂ _ArgThis РЅРёРєР°РєРёРј РѕР±СЂР°Р·РѕРј РЅРµ РІСЃС‚Р°РІРёС‚СЊ СѓРЅР°СЃР»РµРґРѕРІР°РЅРЅС‹Р№ С€Р°Р±Р»РѕРЅ ComCollection.
 template<class _Item, class _IdType, class _Arg, class _ArgThis> class ComCollection: public Collection<_Item, _IdType, _Arg, _ArgThis>, public CollectionTraits
 {
 private:

@@ -34,13 +34,13 @@ class CollectionTraits: public lsl::Component
 protected:
 	virtual void OnItemChangeName(CollectionItem* item, const std::string& newName) = 0;
 
-	//Установление полей CollectionItem без уведомлений
+	//РЈСЃС‚Р°РЅРѕРІР»РµРЅРёРµ РїРѕР»РµР№ CollectionItem Р±РµР· СѓРІРµРґРѕРјР»РµРЅРёР№
 	void SetItemTraits(CollectionItem* item, CollectionTraits* value);
 	void SetItemName(CollectionItem* item, const std::string& name);
 public:
-	//Поиск по имени, это нужно для системы сериализации
+	//РџРѕРёСЃРє РїРѕ РёРјРµРЅРё, СЌС‚Рѕ РЅСѓР¶РЅРѕ РґР»СЏ СЃРёСЃС‚РµРјС‹ СЃРµСЂРёР°Р»РёР·Р°С†РёРё
 	virtual CollectionItem* FindItem(const std::string& name) = 0;
-	//Проверка допустимости имени
+	//РџСЂРѕРІРµСЂРєР° РґРѕРїСѓСЃС‚РёРјРѕСЃС‚Рё РёРјРµРЅРё
 	virtual bool ValidateName(const std::string& name) = 0;
 };
 

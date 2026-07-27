@@ -7,8 +7,8 @@
 #include "PropertiesWnd.h"
 #include "MapEditorView.h"
 
-//Главное окно
-//Выступает также посредником между отдельными видами
+//Р“Р»Р°РІРЅРѕРµ РѕРєРЅРѕ
+//Р’С‹СЃС‚СѓРїР°РµС‚ С‚Р°РєР¶Рµ РїРѕСЃСЂРµРґРЅРёРєРѕРј РјРµР¶РґСѓ РѕС‚РґРµР»СЊРЅС‹РјРё РІРёРґР°РјРё
 class CMainFrame : public CFrameWndEx
 {
 	DECLARE_DYNCREATE(CMainFrame)
@@ -44,7 +44,7 @@ protected:
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	BOOL CreateDockingWindows();
 	void SetDockingWindowIcons(BOOL bHiColorIcons);
-	//Вызваются соответствующими видами при установке фокуса
+	//Р’С‹Р·РІР°СЋС‚СЃСЏ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РёРјРё РІРёРґР°РјРё РїСЂРё СѓСЃС‚Р°РЅРѕРІРєРµ С„РѕРєСѓСЃР°
 	void ViewSetFocus(CViewPane* view);
 
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
@@ -60,7 +60,7 @@ public:
 	bool OnMapViewMouseMoveEvent(const lsl::Point& coord);
 	bool OnMapViewKeyEvent(unsigned key, lsl::KeyState state);
 	
-	//Устанавливает активный документ для редактирования
+	//РЈСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ Р°РєС‚РёРІРЅС‹Р№ РґРѕРєСѓРјРµРЅС‚ РґР»СЏ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ
 	CMapEditorView* GetActiveMapView();
 	void SetActiveMapView(CMapEditorView* value);	
 

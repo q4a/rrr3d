@@ -7,7 +7,7 @@
 namespace lsl
 {
 
-//Специализация для случая присутсвтия аргумента, и аргумент не есть указатель на сам класс
+//РЎРїРµС†РёР°Р»РёР·Р°С†РёСЏ РґР»СЏ СЃР»СѓС‡Р°СЏ РїСЂРёСЃСѓС‚СЃРІС‚РёСЏ Р°СЂРіСѓРјРµРЅС‚Р°, Рё Р°СЂРіСѓРјРµРЅС‚ РЅРµ РµСЃС‚СЊ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° СЃР°Рј РєР»Р°СЃСЃ
 template<class _Item, class _IdType, class _Arg> class Collection<_Item, _IdType, _Arg, void>: public BaseCollectionCL<_Item, _IdType, _Arg>
 {
 private:
@@ -20,13 +20,13 @@ protected:
 public:
 	virtual ~Collection();
 
-	//Добавление с ид key
+	//Р”РѕР±Р°РІР»РµРЅРёРµ СЃ РёРґ key
 	_Item& Add(_IdType key, const _Arg& arg);
-	//добавление производного item-a с классом _Type
+	//РґРѕР±Р°РІР»РµРЅРёРµ РїСЂРѕРёР·РІРѕРґРЅРѕРіРѕ item-a СЃ РєР»Р°СЃСЃРѕРј _Type
 	template<class _Type> _Type& Add(const _Arg& arg);
 };
 
-//Специализация для случая отсутствия аргумента
+//РЎРїРµС†РёР°Р»РёР·Р°С†РёСЏ РґР»СЏ СЃР»СѓС‡Р°СЏ РѕС‚СЃСѓС‚СЃС‚РІРёСЏ Р°СЂРіСѓРјРµРЅС‚Р°
 template<class _Item, class _IdType> class Collection<_Item, _IdType, void, void>: public BaseCollectionCL<_Item, _IdType, void>
 {
 private:
@@ -39,13 +39,13 @@ protected:
 public:
 	virtual ~Collection();
 
-	//Добавление с ид key
+	//Р”РѕР±Р°РІР»РµРЅРёРµ СЃ РёРґ key
 	_Item& Add(_IdType key);
-	//добавление производного item-a с классом _Type
+	//РґРѕР±Р°РІР»РµРЅРёРµ РїСЂРѕРёР·РІРѕРґРЅРѕРіРѕ item-a СЃ РєР»Р°СЃСЃРѕРј _Type
 	template<class _Type> _Type& Add();
 };
 
-//Коллекция с аргументом, при чем случай с аргументом указателя на сам класс
+//РљРѕР»Р»РµРєС†РёСЏ СЃ Р°СЂРіСѓРјРµРЅС‚РѕРј, РїСЂРё С‡РµРј СЃР»СѓС‡Р°Р№ СЃ Р°СЂРіСѓРјРµРЅС‚РѕРј СѓРєР°Р·Р°С‚РµР»СЏ РЅР° СЃР°Рј РєР»Р°СЃСЃ
 template<class _Item, class _Arg, class _ArgThis> class Collection<_Item, void, _Arg, _ArgThis>: public BaseCollection<_Item, void>
 {
 private:
@@ -61,7 +61,7 @@ public:
 	_Item& Add();
 };
 
-//Специализация для случая присутсвтия аргумента, и аргумент не есть указатель на сам класс
+//РЎРїРµС†РёР°Р»РёР·Р°С†РёСЏ РґР»СЏ СЃР»СѓС‡Р°СЏ РїСЂРёСЃСѓС‚СЃРІС‚РёСЏ Р°СЂРіСѓРјРµРЅС‚Р°, Рё Р°СЂРіСѓРјРµРЅС‚ РЅРµ РµСЃС‚СЊ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° СЃР°Рј РєР»Р°СЃСЃ
 template<class _Item, class _Arg> class Collection<_Item, void, _Arg, void>: public BaseCollection<_Item, void>
 {
 private:
@@ -77,7 +77,7 @@ public:
 	_Item& Add(const _Arg& arg);
 };
 
-//Специализация для случая отсутствия аргумента
+//РЎРїРµС†РёР°Р»РёР·Р°С†РёСЏ РґР»СЏ СЃР»СѓС‡Р°СЏ РѕС‚СЃСѓС‚СЃС‚РІРёСЏ Р°СЂРіСѓРјРµРЅС‚Р°
 template<class _Item> class Collection<_Item, void, void, void>: public BaseCollection<_Item, void>
 {
 private:

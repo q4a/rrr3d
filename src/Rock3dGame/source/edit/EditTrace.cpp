@@ -142,7 +142,7 @@ void Trace::NodeControl::FreeLink()
 
 bool Trace::NodeControl::CreateWay(game::WayNode* curNode, game::WayPoint* point, game::WayNode* node)
 {
-	//Ïåðâûé ñëó÷àé, ñóùåñòâóåò òåêóùèé óçåë
+	//ÐŸÐµÑ€Ð²Ñ‹Ð¹ ÑÐ»ÑƒÑ‡Ð°Ð¹, ÑÑƒÑ‰ÐµÑÑ‚Ð²ÑƒÐµÑ‚ Ñ‚ÐµÐºÑƒÑ‰Ð¸Ð¹ ÑƒÐ·ÐµÐ»
 	if (curNode && point && curNode->GetPoint() != point)
 	{
 		game::WayPath* path = curNode->GetPath();
@@ -158,7 +158,7 @@ bool Trace::NodeControl::CreateWay(game::WayNode* curNode, game::WayPoint* point
 		}
 	}
 	//
-	//Âòîðîé ñëó÷àé, ñóùåñòâóåò âûäåëåííûé óçåë
+	//Ð’Ñ‚Ð¾Ñ€Ð¾Ð¹ ÑÐ»ÑƒÑ‡Ð°Ð¹, ÑÑƒÑ‰ÐµÑÑ‚Ð²ÑƒÐµÑ‚ Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð½Ñ‹Ð¹ ÑƒÐ·ÐµÐ»
 	if (node && node->GetPoint() != _wayPoint)
 	{
 		game::WayPath* path = node->GetPath();
@@ -174,7 +174,7 @@ bool Trace::NodeControl::CreateWay(game::WayNode* curNode, game::WayPoint* point
 		}
 	}
 	//
-	//Òðåòèé ñëó÷àé. Îòñóòñòâóþò óçëû, ñîçäàåòñÿ íîâûé ïóòü
+	//Ð¢Ñ€ÐµÑ‚Ð¸Ð¹ ÑÐ»ÑƒÑ‡Ð°Ð¹. ÐžÑ‚ÑÑƒÑ‚ÑÑ‚Ð²ÑƒÑŽÑ‚ ÑƒÐ·Ð»Ñ‹, ÑÐ¾Ð·Ð´Ð°ÐµÑ‚ÑÑ Ð½Ð¾Ð²Ñ‹Ð¹ Ð¿ÑƒÑ‚ÑŒ
 	if (point && point != _wayPoint)
 	{
 		game::WayPath* path = _trace->GetInst()->AddPath();
@@ -239,7 +239,7 @@ void Trace::NodeControl::OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXV
 	newPoint->SetSize(_wayPoint->GetSize());
 
 	game::WayNode* curNode = _trace->GetInst()->RayCast(scrRayPos, scrRayVec);
-	//Åñëè óçåë ïî êëèêó íå íàéäåí, òî áåðåì ïóòü èç ñïèñêà âåéïîéíòà
+	//Ð•ÑÐ»Ð¸ ÑƒÐ·ÐµÐ» Ð¿Ð¾ ÐºÐ»Ð¸ÐºÑƒ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½, Ñ‚Ð¾ Ð±ÐµÑ€ÐµÐ¼ Ð¿ÑƒÑ‚ÑŒ Ð¸Ð· ÑÐ¿Ð¸ÑÐºÐ° Ð²ÐµÐ¹Ð¿Ð¾Ð¹Ð½Ñ‚Ð°
 	if (!curNode)
 		curNode = (!_wayPoint->GetNodes().empty()) ? *_wayPoint->GetNodes().begin() : 0;
 	if (curNode)

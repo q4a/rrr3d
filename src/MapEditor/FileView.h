@@ -70,8 +70,8 @@ private:
 	CMapEditorDoc* _mapDoc;
 	MapDocEvent* _mapDocEvent;
 
-	//Функции обновления вида
-	//Вспомогательные
+	//Р¤СѓРЅРєС†РёРё РѕР±РЅРѕРІР»РµРЅРёСЏ РІРёРґР°
+	//Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅС‹Рµ
 	void ReleaseItem(HTREEITEM item);
 	void ReleaseItems();
 	void InsertItem(const r3d::IMapObjRef& mapObj, HTREEITEM parent);
@@ -80,15 +80,15 @@ private:
 	void InsertCategory(unsigned i);
 	HTREEITEM FindCatItem(unsigned i);
 	HTREEITEM FindMapObjItem(const r3d::IMapObjRef& mapObj);
-	//Общие
+	//РћР±С‰РёРµ
 	void ClearList();
 	void UpdateList();
-	//Выделения
+	//Р’С‹РґРµР»РµРЅРёСЏ
 	void SelectItem(HTREEITEM item);
 	void SelectItem(const r3d::IMapObjRef& mapObj);
 	void DeselectItem();
 
-	//Операции доступа
+	//РћРїРµСЂР°С†РёРё РґРѕСЃС‚СѓРїР°
 	ItemData* GetItemData(HTREEITEM item);
 	void SetItemData(HTREEITEM item, ItemData* value);
 	ItemData* GetSelItemData();

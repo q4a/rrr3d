@@ -119,7 +119,7 @@ void AISystem::ComputeTracks(float deltaTime)
 	if (_aiDebug)
 		_aiDebug->chainList.clear();
 
-	//Заполняем список
+	//Р—Р°РїРѕР»РЅСЏРµРј СЃРїРёСЃРѕРє
 	for (PlayerList::const_iterator iter = _playerList.begin(); iter != _playerList.end(); ++iter)
 	{
 		if ((*iter)->GetCar() && (*iter)->GetCar()->GetCar().mapObj && (*iter)->GetCar()->GetCar().curTile)
@@ -138,14 +138,14 @@ void AISystem::ComputeTracks(float deltaTime)
 	//
 	for (CarList::Position pos = carList.First(); Link** iter = carList.Current(pos); carList.Next(pos))
 	{
-		//опорный элемент
+		//РѕРїРѕСЂРЅС‹Р№ СЌР»РµРјРµРЅС‚
 		Link* link = *iter;
 		AICar* aiCar = link->car;
 		Chain* chain = link->chain;
 		const AICar::CarState& car = aiCar->GetCar();
 		WayNode* curNode = car.curNode;
 
-		//по умолчанию дорожки свободные
+		//РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РґРѕСЂРѕР¶РєРё СЃРІРѕР±РѕРґРЅС‹Рµ
 		for (unsigned i = 0; i < cTrackCnt; ++i)
 		{
 			aiCar->_path.freeTracks[i] = true;
@@ -153,17 +153,17 @@ void AISystem::ComputeTracks(float deltaTime)
 		}
 		//
 		CarList::Position tPos = carList.First();
-		//поиск целевых элементов цепи
+		//РїРѕРёСЃРє С†РµР»РµРІС‹С… СЌР»РµРјРµРЅС‚РѕРІ С†РµРїРё
 		for (CarList::Position tPos = carList.First(); Link** iter = carList.Current(tPos); carList.Next(tPos))
 		{
-			//целевой элемент
+			//С†РµР»РµРІРѕР№ СЌР»РµРјРµРЅС‚
 			Link* tLink = *iter;
 			AICar* tAICar = tLink->car;
 			const AICar::CarState& tCar = tAICar->GetCar();
 			Chain* tChain = tLink->chain;
 			
-			//1. Совпадающие элементы
-			//2. Элементы уже входят в одну и ту же цепь
+			//1. РЎРѕРІРїР°РґР°СЋС‰РёРµ СЌР»РµРјРµРЅС‚С‹
+			//2. Р­Р»РµРјРµРЅС‚С‹ СѓР¶Рµ РІС…РѕРґСЏС‚ РІ РѕРґРЅСѓ Рё С‚Сѓ Р¶Рµ С†РµРїСЊ
 			if (link == tLink || (tChain && tChain == chain))
 				continue;
 
@@ -173,7 +173,7 @@ void AISystem::ComputeTracks(float deltaTime)
 
 			if (curNode->GetTile().IsContains(tCar.pos3, false) && lowRange && heighRange)
 			{
-				//цепи нет, следовательно создаем и обрабаываем опорный элемент
+				//С†РµРїРё РЅРµС‚, СЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ СЃРѕР·РґР°РµРј Рё РѕР±СЂР°Р±Р°С‹РІР°РµРј РѕРїРѕСЂРЅС‹Р№ СЌР»РµРјРµРЅС‚
 				if (!chain)
 				{
 					if (tChain)
@@ -186,14 +186,14 @@ void AISystem::ComputeTracks(float deltaTime)
 
 					LSL_ASSERT(link->chain == 0);
 
-					//вставляем опорный элемент
+					//РІСЃС‚Р°РІР»СЏРµРј РѕРїРѕСЂРЅС‹Р№ СЌР»РµРјРµРЅС‚
 					link->chain = chain;
 					chain->push_back(link);
 				}
 
-				//обрабатываем целевой элемент
+				//РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј С†РµР»РµРІРѕР№ СЌР»РµРјРµРЅС‚
 				if (chain != tChain)
-					//цель в другой цепи, необходимо объеденить её с chain
+					//С†РµР»СЊ РІ РґСЂСѓРіРѕР№ С†РµРїРё, РЅРµРѕР±С…РѕРґРёРјРѕ РѕР±СЉРµРґРµРЅРёС‚СЊ РµС‘ СЃ chain
 					if (tChain)
 					{
 						for (Chain::iterator iter = tChain->begin(); iter != tChain->end(); ++iter)		
@@ -202,7 +202,7 @@ void AISystem::ComputeTracks(float deltaTime)
 						chainList.Remove(tChain);
 						delete tChain;
 					}
-					//добавление нового целевого элемента в цепь
+					//РґРѕР±Р°РІР»РµРЅРёРµ РЅРѕРІРѕРіРѕ С†РµР»РµРІРѕРіРѕ СЌР»РµРјРµРЅС‚Р° РІ С†РµРїСЊ
 					else
 					{	
 						LSL_ASSERT(tLink->chain == 0);
@@ -213,11 +213,11 @@ void AISystem::ComputeTracks(float deltaTime)
 			}
 		}
 
-		//удаляем опорный элемент, который не может встречаться дважды в одной цепи
+		//СѓРґР°Р»СЏРµРј РѕРїРѕСЂРЅС‹Р№ СЌР»РµРјРµРЅС‚, РєРѕС‚РѕСЂС‹Р№ РЅРµ РјРѕР¶РµС‚ РІСЃС‚СЂРµС‡Р°С‚СЊСЃСЏ РґРІР°Р¶РґС‹ РІ РѕРґРЅРѕР№ С†РµРїРё
 		carList.Remove(pos);
 	}
 
-	//Обрабатываем цепи
+	//РћР±СЂР°Р±Р°С‚С‹РІР°РµРј С†РµРїРё
 	for (ChainList::iterator iter = chainList.begin(); iter != chainList.end(); ++iter)
 	{
 		Chain* tChain = *iter;
@@ -232,7 +232,7 @@ void AISystem::ComputeTracks(float deltaTime)
 				return link1->dirDist < link2->dirDist;
 			}
 		};
-		//сортируем по убыванию dirDist, т.е. слева на право в направлении дорожек
+		//СЃРѕСЂС‚РёСЂСѓРµРј РїРѕ СѓР±С‹РІР°РЅРёСЋ dirDist, С‚.Рµ. СЃР»РµРІР° РЅР° РїСЂР°РІРѕ РІ РЅР°РїСЂР°РІР»РµРЅРёРё РґРѕСЂРѕР¶РµРє
 		tChain->sort(Pred());
 
 		AIDebug::Chain* debChain = 0;
@@ -242,7 +242,7 @@ void AISystem::ComputeTracks(float deltaTime)
 			debChain = &_aiDebug->chainList.back();
 		}
 
-		//общее количество требуемых дорожек
+		//РѕР±С‰РµРµ РєРѕР»РёС‡РµСЃС‚РІРѕ С‚СЂРµР±СѓРµРјС‹С… РґРѕСЂРѕР¶РµРє
 		unsigned tCount = tChain->size();
 		unsigned sTrack = 0;
 		unsigned i = 0;
@@ -255,12 +255,12 @@ void AISystem::ComputeTracks(float deltaTime)
 			AICar* tAICar = (*tIter)->car;
 			AICar::CarState& tCar = const_cast<AICar::CarState&>(tAICar->GetCar());
 
-			//максимально допустимая дорожка с учетом требуемых для оставшихся целей мест			
+			//РјР°РєСЃРёРјР°Р»СЊРЅРѕ РґРѕРїСѓСЃС‚РёРјР°СЏ РґРѕСЂРѕР¶РєР° СЃ СѓС‡РµС‚РѕРј С‚СЂРµР±СѓРµРјС‹С… РґР»СЏ РѕСЃС‚Р°РІС€РёС…СЃСЏ С†РµР»РµР№ РјРµСЃС‚			
 			sTrack = ClampValue(tCar.track, std::min(sTrack, cTrackCnt - 1), cTrackCnt - (std::min(tCount, cTrackCnt) - i % cTrackCnt));
 
 			//
 			LockChainTrack(tChain->begin(), tChain->end(), tAICar, sTrack);
-			//Если соседние машины на одинаковых треках, необходимо заблокировать левый трек для правой машины чтобы избежать неопределнности при вычислении маршрута
+			//Р•СЃР»Рё СЃРѕСЃРµРґРЅРёРµ РјР°С€РёРЅС‹ РЅР° РѕРґРёРЅР°РєРѕРІС‹С… С‚СЂРµРєР°С…, РЅРµРѕР±С…РѕРґРёРјРѕ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ Р»РµРІС‹Р№ С‚СЂРµРє РґР»СЏ РїСЂР°РІРѕР№ РјР°С€РёРЅС‹ С‡С‚РѕР±С‹ РёР·Р±РµР¶Р°С‚СЊ РЅРµРѕРїСЂРµРґРµР»РЅРЅРѕСЃС‚Рё РїСЂРё РІС‹С‡РёСЃР»РµРЅРёРё РјР°СЂС€СЂСѓС‚Р°
 			if (lastAICar && lastAICar->GetCar().track == tCar.track && lastSTrack > 0)
 			{
 				tAICar->_path.freeTracks[lastSTrack - 1] = false;
@@ -466,7 +466,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			D3DXVECTOR3 error(contData.error.get());
 			D3DXVECTOR3 errorNorm;
 			D3DXVec3Normalize(&errorNorm, &error);
-			//Отрисовка error вектора
+			//РћС‚СЂРёСЃРѕРІРєР° error РІРµРєС‚РѕСЂР°
 			NxVec3 nxErrNorm = error;
 			//nxErrNorm.normalize();
 			gameObj->GetPxActor().GetNxActor()->getCMassGlobalPose().M.multiply(nxErrNorm, nxErrNorm);
@@ -478,26 +478,26 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
 
-			//Отрисовка X оси базиса
+			//РћС‚СЂРёСЃРѕРІРєР° X РѕСЃРё Р±Р°Р·РёСЃР°
 			lines[0].pos = D3DXVECTOR3(pos0.get());
 			lines[1].pos = D3DXVECTOR3((pos0 + mat0.getColumn(0) * 5.0f).get());
 			lines[0].diffuse = lines[1].diffuse = clrYellow;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
-			//Отрисовка Y оси базиса
+			//РћС‚СЂРёСЃРѕРІРєР° Y РѕСЃРё Р±Р°Р·РёСЃР°
 			lines[0].pos = D3DXVECTOR3(pos0.get());
 			lines[1].pos = D3DXVECTOR3((pos0 + mat0.getColumn(1) * 5.0f).get());
 			lines[0].diffuse = lines[1].diffuse = clrGreen;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
-			//Отрисовка Z оси базиса
+			//РћС‚СЂРёСЃРѕРІРєР° Z РѕСЃРё Р±Р°Р·РёСЃР°
 			lines[0].pos = D3DXVECTOR3(pos0.get());
 			lines[1].pos = D3DXVECTOR3((pos0 + mat0.getColumn(2) * 5.0f).get());
 			lines[0].diffuse = lines[1].diffuse = clrRed;
 			engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 			engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 1, lines, sizeof(res::VertexPD));
 
-			//Отрисовка треугольника
+			//РћС‚СЂРёСЃРѕРІРєР° С‚СЂРµСѓРіРѕР»СЊРЅРёРєР°
 			NxVec3 myNorm;
 			triData.normal(myNorm);
 			res::VertexPD triLines[4];
@@ -665,17 +665,17 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	sstream2 << "9. tireSpring = " << tireSpring << '\n';
 	sstream2 << '\n';
 	sstream2 << "suspension" << '\n';
-	//Упругость, тем больше значение тем система жестче
+	//РЈРїСЂСѓРіРѕСЃС‚СЊ, С‚РµРј Р±РѕР»СЊС€Рµ Р·РЅР°С‡РµРЅРёРµ С‚РµРј СЃРёСЃС‚РµРјР° Р¶РµСЃС‚С‡Рµ
 	sstream2 << "0. spring = " << suspension.spring << '\n';
-	//Затухание колебаний
+	//Р—Р°С‚СѓС…Р°РЅРёРµ РєРѕР»РµР±Р°РЅРёР№
 	sstream2 << "1. damper = " << suspension.damper << '\n';
-	//Точка где сила равняется нулю
+	//РўРѕС‡РєР° РіРґРµ СЃРёР»Р° СЂР°РІРЅСЏРµС‚СЃСЏ РЅСѓР»СЋ
 	sstream2 << "2. targetValue = " << suspension.targetValue << '\n';
-	//Высота подвески
+	//Р’С‹СЃРѕС‚Р° РїРѕРґРІРµСЃРєРё
 	sstream2 << "3. suspensionTravel = " << suspensionTravel << '\n';
-	//масса
+	//РјР°СЃСЃР°
 	sstream2 << "4. mass = " << mass << '\n';
-	//центр тяжести
+	//С†РµРЅС‚СЂ С‚СЏР¶РµСЃС‚Рё
 	sstream2 << "5. cMass = (" << cMassPos.x << ", " << cMassPos.y << ", " << cMassPos.z << ")" << '\n';	
 	//motor
 	sstream2 << "6. torque = " << motor.maxTorque << '\n';		

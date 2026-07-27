@@ -578,7 +578,7 @@ const D3DXVECTOR3& MeshX::GetMaxPos() const
 
 
 
-TexResource::TexResource(DWORD usage): MemPoolResource(usage), _screenScale(0, 0), _levelCnt(1) //один основной уровень
+TexResource::TexResource(DWORD usage): MemPoolResource(usage), _screenScale(0, 0), _levelCnt(1) //РѕРґРёРЅ РѕСЃРЅРѕРІРЅРѕР№ СѓСЂРѕРІРµРЅСЊ
 {	
 }
 

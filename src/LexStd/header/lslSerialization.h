@@ -1,4 +1,4 @@
-//Есть идея сделать зависимый fixUp, т.е. сам reader(событие ему делегирует Serializable) определяет момент когда востанавилаются ссылки для его дочерей. Т.е. сделать все по аналогии с SReader::ReadXXX. Это нужно для точго чтобы управлять порядков восст. ссылок, на данный момент порядок фиксирован "с нижних уровней к верхним".
+//Р•СЃС‚СЊ РёРґРµСЏ СЃРґРµР»Р°С‚СЊ Р·Р°РІРёСЃРёРјС‹Р№ fixUp, С‚.Рµ. СЃР°Рј reader(СЃРѕР±С‹С‚РёРµ РµРјСѓ РґРµР»РµРіРёСЂСѓРµС‚ Serializable) РѕРїСЂРµРґРµР»СЏРµС‚ РјРѕРјРµРЅС‚ РєРѕРіРґР° РІРѕСЃС‚Р°РЅР°РІРёР»Р°СЋС‚СЃСЏ СЃСЃС‹Р»РєРё РґР»СЏ РµРіРѕ РґРѕС‡РµСЂРµР№. Рў.Рµ. СЃРґРµР»Р°С‚СЊ РІСЃРµ РїРѕ Р°РЅР°Р»РѕРіРёРё СЃ SReader::ReadXXX. Р­С‚Рѕ РЅСѓР¶РЅРѕ РґР»СЏ С‚РѕС‡РіРѕ С‡С‚РѕР±С‹ СѓРїСЂР°РІР»СЏС‚СЊ РїРѕСЂСЏРґРєРѕРІ РІРѕСЃСЃС‚. СЃСЃС‹Р»РѕРє, РЅР° РґР°РЅРЅС‹Р№ РјРѕРјРµРЅС‚ РїРѕСЂСЏРґРѕРє С„РёРєСЃРёСЂРѕРІР°РЅ "СЃ РЅРёР¶РЅРёС… СѓСЂРѕРІРЅРµР№ Рє РІРµСЂС…РЅРёРј".
 
 #ifndef LSL_SERIALIZATION
 #define LSL_SERIALIZATION
@@ -23,7 +23,7 @@ public:
 		{}
 		ValueDesc(const void* pValue, ValType valType, int valCount): value(pValue), type(valType), count(valCount)
 		{}
-		//Фундаментальные типы
+		//Р¤СѓРЅРґР°РјРµРЅС‚Р°Р»СЊРЅС‹Рµ С‚РёРїС‹
 		ValueDesc(const char& val): value(&val), type(vtChar), count(1)
 		{}
 		ValueDesc(const int& val): value(&val), type(vtInt), count(1)
@@ -41,7 +41,7 @@ public:
 		{}
 		ValueDesc(const std::string& val): value(val.data()), type(vtChar), count(val.size())
 		{}
-		//Массивы
+		//РњР°СЃСЃРёРІС‹
 		ValueDesc(const int* val, int valCount): value(val), type(vtInt), count(valCount)
 		{}
 		ValueDesc(const unsigned* val, int valCount): value(val), type(vtUInt), count(valCount)
@@ -51,7 +51,7 @@ public:
 		ValueDesc(const double* val, int valCount): value(val), type(vtDouble), count(valCount)
 		{}
 
-		//Преобразования
+		//РџСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ
 		const char* ToChar() const
 		{
 			return type == vtChar ? reinterpret_cast<const char*>(value) : 0;
@@ -79,7 +79,7 @@ public:
 
 		template<class _Type> void CastTo(_Type* outVal, int cnt = 1) const
 		{
-			//Выключить предупреждение о преобразовании из типа bool в _Type
+			//Р’С‹РєР»СЋС‡РёС‚СЊ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµ Рѕ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРё РёР· С‚РёРїР° bool РІ _Type
 			#pragma warning(disable : 4800)
 
 			if (IsDummy())
@@ -116,7 +116,7 @@ public:
 					break;
 				}
 
-			//Восстановить умолчание
+			//Р’РѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ СѓРјРѕР»С‡Р°РЅРёРµ
 			#pragma warning(default : 4800)
 		}
 
@@ -133,7 +133,7 @@ public:
 		{
 			cnt = count;
 			std::stringstream sstream;
-			//Для булевых значений
+			//Р”Р»СЏ Р±СѓР»РµРІС‹С… Р·РЅР°С‡РµРЅРёР№
 			sstream.setf(std::ios_base::boolalpha);
 
 			if (type == vtChar)		
@@ -175,13 +175,13 @@ public:
 			return (value == 0 || count == 0);
 		}
 
-		//ссылка на данные
+		//СЃСЃС‹Р»РєР° РЅР° РґР°РЅРЅС‹Рµ
 		const void* value;
-		//тип
+		//С‚РёРї
 		ValType type;
-		//Размер в байтах, если:
-		//=0  - значение value = 0
-		//>0  - массив размером count, причем count - это количество элементов valType, если valType = vtUnknown, то количество байтов
+		//Р Р°Р·РјРµСЂ РІ Р±Р°Р№С‚Р°С…, РµСЃР»Рё:
+		//=0  - Р·РЅР°С‡РµРЅРёРµ value = 0
+		//>0  - РјР°СЃСЃРёРІ СЂР°Р·РјРµСЂРѕРј count, РїСЂРёС‡РµРј count - СЌС‚Рѕ РєРѕР»РёС‡РµСЃС‚РІРѕ СЌР»РµРјРµРЅС‚РѕРІ valType, РµСЃР»Рё valType = vtUnknown, С‚Рѕ РєРѕР»РёС‡РµСЃС‚РІРѕ Р±Р°Р№С‚РѕРІ
 		int count;		
 	};
 
@@ -190,7 +190,7 @@ public:
 	private:
 		void FreeMem()
 		{
-			//Снимаем модификатор const, которые означает неизменяемость данных для дескриптора(т.к. хранится указатель на них). В самом типе Value данные копируются
+			//РЎРЅРёРјР°РµРј РјРѕРґРёС„РёРєР°С‚РѕСЂ const, РєРѕС‚РѕСЂС‹Рµ РѕР·РЅР°С‡Р°РµС‚ РЅРµРёР·РјРµРЅСЏРµРјРѕСЃС‚СЊ РґР°РЅРЅС‹С… РґР»СЏ РґРµСЃРєСЂРёРїС‚РѕСЂР°(С‚.Рє. С…СЂР°РЅРёС‚СЃСЏ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РЅРёС…). Р’ СЃР°РјРѕРј С‚РёРїРµ Value РґР°РЅРЅС‹Рµ РєРѕРїРёСЂСѓСЋС‚СЃСЏ
 			if (value)
 			{
 				free(const_cast<void*>(value));
@@ -203,7 +203,7 @@ public:
 		{	
 			FreeMem();
 			std::stringstream stream(str);
-			//Для булевых значений
+			//Р”Р»СЏ Р±СѓР»РµРІС‹С… Р·РЅР°С‡РµРЅРёР№
 			stream.setf(std::ios_base::boolalpha);
 
 			_Type* pValue = 0;
@@ -213,7 +213,7 @@ public:
 			{
 				pValue = static_cast<_Type*>(realloc(pValue, (++cnt) * sizeof(_Type)));
 				stream >> pValue[cnt - 1];
-				//если произошла ошибка то тип неподходит
+				//РµСЃР»Рё РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР° С‚Рѕ С‚РёРї РЅРµРїРѕРґС…РѕРґРёС‚
 				if (stream.fail())
 				{
 					free(pValue);
@@ -282,7 +282,7 @@ public:
 								if (AnalizeStream<char>(str))
 									type = vtChar;
 								else
-									throw lsl::Error("Неизвестный тип данных");
+									throw lsl::Error("РќРµРёР·РІРµСЃС‚РЅС‹Р№ С‚РёРї РґР°РЅРЅС‹С…");
 		}
 	};
 protected:
@@ -290,9 +290,9 @@ protected:
 public:
 	static int GetValTypeSize(ValType type);
 
-	//Необходима ссылка на корневой компонент для fixUp
+	//РќРµРѕР±С…РѕРґРёРјР° СЃСЃС‹Р»РєР° РЅР° РєРѕСЂРЅРµРІРѕР№ РєРѕРјРїРѕРЅРµРЅС‚ РґР»СЏ fixUp
 	virtual Component* GetRoot() = 0;
-	//Необходима ссылка на корневой узел для разрешения прокси ссылок а также востановления прокси списков
+	//РќРµРѕР±С…РѕРґРёРјР° СЃСЃС‹Р»РєР° РЅР° РєРѕСЂРЅРµРІРѕР№ СѓР·РµР» РґР»СЏ СЂР°Р·СЂРµС€РµРЅРёСЏ РїСЂРѕРєСЃРё СЃСЃС‹Р»РѕРє Р° С‚Р°РєР¶Рµ РІРѕСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ РїСЂРѕРєСЃРё СЃРїРёСЃРєРѕРІ
 	virtual SerialNode* GetRootNode() = 0;
 };
 
@@ -302,27 +302,27 @@ class SWriter: public virtual SIOTraits
 protected:
 	SWriter();
 public:
-	//запись аттрибутов к текущему узлу, аттрибуты это параметры которые описывают значение(т.е. узел) и их как правило получают ещё до загрузки значения
+	//Р·Р°РїРёСЃСЊ Р°С‚С‚СЂРёР±СѓС‚РѕРІ Рє С‚РµРєСѓС‰РµРјСѓ СѓР·Р»Сѓ, Р°С‚С‚СЂРёР±СѓС‚С‹ СЌС‚Рѕ РїР°СЂР°РјРµС‚СЂС‹ РєРѕС‚РѕСЂС‹Рµ РѕРїРёСЃС‹РІР°СЋС‚ Р·РЅР°С‡РµРЅРёРµ(С‚.Рµ. СѓР·РµР») Рё РёС… РєР°Рє РїСЂР°РІРёР»Рѕ РїРѕР»СѓС‡Р°СЋС‚ РµС‰С‘ РґРѕ Р·Р°РіСЂСѓР·РєРё Р·РЅР°С‡РµРЅРёСЏ
 	virtual void WriteAttr(const char* name, const ValueDesc& desc) = 0;
 	virtual void SetVal(const ValueDesc& desc) = 0;
-	//В один узел может быть сохранен только один Serializable (необходимо для правильного разрешения прокси ссылок и вост. прокси листов)
+	//Р’ РѕРґРёРЅ СѓР·РµР» РјРѕР¶РµС‚ Р±С‹С‚СЊ СЃРѕС…СЂР°РЅРµРЅ С‚РѕР»СЊРєРѕ РѕРґРёРЅ Serializable (РЅРµРѕР±С…РѕРґРёРјРѕ РґР»СЏ РїСЂР°РІРёР»СЊРЅРѕРіРѕ СЂР°Р·СЂРµС€РµРЅРёСЏ РїСЂРѕРєСЃРё СЃСЃС‹Р»РѕРє Рё РІРѕСЃС‚. РїСЂРѕРєСЃРё Р»РёСЃС‚РѕРІ)
 	virtual void SaveSerializable(Serializable* value) = 0;
 
-	//новый узел
+	//РЅРѕРІС‹Р№ СѓР·РµР»
 	virtual SWriter* NewDummyNode(const char* name) = 0;
 	//
 	virtual SWriter* WriteValue(const char* name, const ValueDesc& desc) = 0;
-	//более удобные формы записи
+	//Р±РѕР»РµРµ СѓРґРѕР±РЅС‹Рµ С„РѕСЂРјС‹ Р·Р°РїРёСЃРё
 	SWriter* WriteValue(const char* name, const int* value, unsigned count);
 	SWriter* WriteValue(const char* name, const unsigned* value, unsigned count);
 	SWriter* WriteValue(const char* name, const float* value, unsigned count);
 	SWriter* WriteValue(const char* name, const double* value, unsigned count);
 	//
 	SWriter* WriteValue(const char* name, Serializable* value);
-	//запись ссылок
-	//В виде обычного узла со значением
+	//Р·Р°РїРёСЃСЊ СЃСЃС‹Р»РѕРє
+	//Р’ РІРёРґРµ РѕР±С‹С‡РЅРѕРіРѕ СѓР·Р»Р° СЃРѕ Р·РЅР°С‡РµРЅРёРµРј
 	SWriter* WriteRef(const char* name, const Component* component);
-	//В виде узла с аттрибутом item и значением collection
+	//Р’ РІРёРґРµ СѓР·Р»Р° СЃ Р°С‚С‚СЂРёР±СѓС‚РѕРј item Рё Р·РЅР°С‡РµРЅРёРµРј collection
 	SWriter* WriteRef(const char* name, const CollectionItem* item);
 };
 
@@ -340,36 +340,36 @@ private:
 protected:
 	SReader();
 public:
-	//Операции с узлом
-	//чтение аттрибутов узла
+	//РћРїРµСЂР°С†РёРё СЃ СѓР·Р»РѕРј
+	//С‡С‚РµРЅРёРµ Р°С‚С‚СЂРёР±СѓС‚РѕРІ СѓР·Р»Р°
 	virtual const ValueDesc* ReadAttr(const char* name) = 0;
 	
-	//Запрос на восстановление ссылки:
-	//path - путь до искомого компонента, включая его имя
-	//collItem - имя элемента коллекции, указывается если ищется
-	//target - вызвавший узел, отправитель запроса. Он же будет получателем
-	//target != 0 - отложенный fixUp; 
-	//target == 0 - fixUp в месте вызова, fixUpName не должен равняться нулю
-	//fixUpName - информация о восстановлении
+	//Р—Р°РїСЂРѕСЃ РЅР° РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ СЃСЃС‹Р»РєРё:
+	//path - РїСѓС‚СЊ РґРѕ РёСЃРєРѕРјРѕРіРѕ РєРѕРјРїРѕРЅРµРЅС‚Р°, РІРєР»СЋС‡Р°СЏ РµРіРѕ РёРјСЏ
+	//collItem - РёРјСЏ СЌР»РµРјРµРЅС‚Р° РєРѕР»Р»РµРєС†РёРё, СѓРєР°Р·С‹РІР°РµС‚СЃСЏ РµСЃР»Рё РёС‰РµС‚СЃСЏ
+	//target - РІС‹Р·РІР°РІС€РёР№ СѓР·РµР», РѕС‚РїСЂР°РІРёС‚РµР»СЊ Р·Р°РїСЂРѕСЃР°. РћРЅ Р¶Рµ Р±СѓРґРµС‚ РїРѕР»СѓС‡Р°С‚РµР»РµРј
+	//target != 0 - РѕС‚Р»РѕР¶РµРЅРЅС‹Р№ fixUp; 
+	//target == 0 - fixUp РІ РјРµСЃС‚Рµ РІС‹Р·РѕРІР°, fixUpName РЅРµ РґРѕР»Р¶РµРЅ СЂР°РІРЅСЏС‚СЊСЃСЏ РЅСѓР»СЋ
+	//fixUpName - РёРЅС„РѕСЂРјР°С†РёСЏ Рѕ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРё
 	bool AddFixUp(const std::string& path, const std::string& collItem, Serializable* target, _FixUpName* fixUpName);
-	//Чтение ссылки из текущего узла и добавление её в FixUp, см. AddFixUp
+	//Р§С‚РµРЅРёРµ СЃСЃС‹Р»РєРё РёР· С‚РµРєСѓС‰РµРіРѕ СѓР·Р»Р° Рё РґРѕР±Р°РІР»РµРЅРёРµ РµС‘ РІ FixUp, СЃРј. AddFixUp
 	bool AddFixUp(bool collItem, Serializable* target, _FixUpName* fixUpName);
 
-	//Работа с текущим узлом
-	//загрузка Serializable из текущего узла
+	//Р Р°Р±РѕС‚Р° СЃ С‚РµРєСѓС‰РёРј СѓР·Р»РѕРј
+	//Р·Р°РіСЂСѓР·РєР° Serializable РёР· С‚РµРєСѓС‰РµРіРѕ СѓР·Р»Р°
 	virtual void LoadSerializable(Serializable* value) = 0;
-	//имя узла
+	//РёРјСЏ СѓР·Р»Р°
 	virtual const std::string& GetMyName() const = 0;
-	//значение узла
+	//Р·РЅР°С‡РµРЅРёРµ СѓР·Р»Р°
 	virtual const ValueDesc& GetVal() const = 0;
-	//Чтение ссылки
+	//Р§С‚РµРЅРёРµ СЃСЃС‹Р»РєРё
 	bool GetRef(bool collItem, _FixUpName& fixUpName);
 
-	//Операции с дочерними узлами
-	//чтение узла, если его не существует то возвр. 0
+	//РћРїРµСЂР°С†РёРё СЃ РґРѕС‡РµСЂРЅРёРјРё СѓР·Р»Р°РјРё
+	//С‡С‚РµРЅРёРµ СѓР·Р»Р°, РµСЃР»Рё РµРіРѕ РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚ С‚Рѕ РІРѕР·РІСЂ. 0
 	virtual SReader* ReadValue(const char* name) = 0;
-	//вспомогательные операции
-	//если операция чтение не удалась то возвр. 0 (даже если сущ. node)
+	//РІСЃРїРѕРјРѕРіР°С‚РµР»СЊРЅС‹Рµ РѕРїРµСЂР°С†РёРё
+	//РµСЃР»Рё РѕРїРµСЂР°С†РёСЏ С‡С‚РµРЅРёРµ РЅРµ СѓРґР°Р»Р°СЃСЊ С‚Рѕ РІРѕР·РІСЂ. 0 (РґР°Р¶Рµ РµСЃР»Рё СЃСѓС‰. node)
 	SReader* ReadValue(const char* name, ValueDesc value);
 	SReader* ReadValue(const char* name, std::string& value);
 	SReader* ReadValue(const char* name, int* value, unsigned count);
@@ -378,19 +378,19 @@ public:
 	SReader* ReadValue(const char* name, double* value, unsigned count);
 	//
 	SReader* ReadValue(const char* name, Serializable* value);
-	//чтение ссылки, содержащейся в узле с именем name, см. AddFixUp
+	//С‡С‚РµРЅРёРµ СЃСЃС‹Р»РєРё, СЃРѕРґРµСЂР¶Р°С‰РµР№СЃСЏ РІ СѓР·Р»Рµ СЃ РёРјРµРЅРµРј name, СЃРј. AddFixUp
 	SReader* ReadRef(const char* name, bool collItem, Serializable* target, _FixUpName* fixUpName);
 
-	//навигация по узлам, для динамического чтения
+	//РЅР°РІРёРіР°С†РёСЏ РїРѕ СѓР·Р»Р°Рј, РґР»СЏ РґРёРЅР°РјРёС‡РµСЃРєРѕРіРѕ С‡С‚РµРЅРёСЏ
 	virtual SReader* GetOwnerValue() = 0;
-	//Первое(в порядке чтения, т.е. добавления в файл при записи) дочернее значение
+	//РџРµСЂРІРѕРµ(РІ РїРѕСЂСЏРґРєРµ С‡С‚РµРЅРёСЏ, С‚.Рµ. РґРѕР±Р°РІР»РµРЅРёСЏ РІ С„Р°Р№Р» РїСЂРё Р·Р°РїРёСЃРё) РґРѕС‡РµСЂРЅРµРµ Р·РЅР°С‡РµРЅРёРµ
 	virtual SReader* FirstChildValue() = 0;
-	//Предыдущее и следующее значение(в порядке чтения) из той иерархии что и сам узел
+	//РџСЂРµРґС‹РґСѓС‰РµРµ Рё СЃР»РµРґСѓСЋС‰РµРµ Р·РЅР°С‡РµРЅРёРµ(РІ РїРѕСЂСЏРґРєРµ С‡С‚РµРЅРёСЏ) РёР· С‚РѕР№ РёРµСЂР°СЂС…РёРё С‡С‚Рѕ Рё СЃР°Рј СѓР·РµР»
 	virtual SReader* PrevValue() = 0;
 	virtual SReader* NextValue() = 0;
 };
 
-//Защищенное наследование, в котором октрывается доступ к ссылочному классу Object
+//Р—Р°С‰РёС‰РµРЅРЅРѕРµ РЅР°СЃР»РµРґРѕРІР°РЅРёРµ, РІ РєРѕС‚РѕСЂРѕРј РѕРєС‚СЂС‹РІР°РµС‚СЃСЏ РґРѕСЃС‚СѓРї Рє СЃСЃС‹Р»РѕС‡РЅРѕРјСѓ РєР»Р°СЃСЃСѓ Object
 class SerialNode: protected Component, public virtual Object, public SWriter, public SReader
 {
 	//
@@ -420,8 +420,8 @@ private:
 
 	SerialNode* FindLinkSer(Serializable* value);
 	void ResolveProxyRef();
-	//Начинается с нижних уровней и идет к верхним
-	//Вообщем в каком порядке ссылки записаны в таком порядке и будут вызываться FixUp-ы
+	//РќР°С‡РёРЅР°РµС‚СЃСЏ СЃ РЅРёР¶РЅРёС… СѓСЂРѕРІРЅРµР№ Рё РёРґРµС‚ Рє РІРµСЂС…РЅРёРј
+	//Р’РѕРѕР±С‰РµРј РІ РєР°РєРѕРј РїРѕСЂСЏРґРєРµ СЃСЃС‹Р»РєРё Р·Р°РїРёСЃР°РЅС‹ РІ С‚Р°РєРѕРј РїРѕСЂСЏРґРєРµ Рё Р±СѓРґСѓС‚ РІС‹Р·С‹РІР°С‚СЊСЃСЏ FixUp-С‹
 	void OnFixUp();
 
 	void AddRefSerLink();
@@ -522,7 +522,7 @@ public:
 	SerialNode* GetOwner();
 };
 
-//Иерархия SerialNode изолирована от объектов Component(чтобы исключить в цепочке наличие классов отличных от SerialNode), однако полагаю будет полезно оставить возможность добавления RootNode, как корневого, в иерархию Component
+//РРµСЂР°СЂС…РёСЏ SerialNode РёР·РѕР»РёСЂРѕРІР°РЅР° РѕС‚ РѕР±СЉРµРєС‚РѕРІ Component(С‡С‚РѕР±С‹ РёСЃРєР»СЋС‡РёС‚СЊ РІ С†РµРїРѕС‡РєРµ РЅР°Р»РёС‡РёРµ РєР»Р°СЃСЃРѕРІ РѕС‚Р»РёС‡РЅС‹С… РѕС‚ SerialNode), РѕРґРЅР°РєРѕ РїРѕР»Р°РіР°СЋ Р±СѓРґРµС‚ РїРѕР»РµР·РЅРѕ РѕСЃС‚Р°РІРёС‚СЊ РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊ РґРѕР±Р°РІР»РµРЅРёСЏ RootNode, РєР°Рє РєРѕСЂРЅРµРІРѕРіРѕ, РІ РёРµСЂР°СЂС…РёСЋ Component
 class RootNode: public SerialNode
 {
 private:
@@ -542,9 +542,9 @@ public:
 class SerialFile
 {
 public:
-	//Если имя аттрибута "parse", а значение "имя элемента", то значение элемента вставляется напрямую, без обработки
+	//Р•СЃР»Рё РёРјСЏ Р°С‚С‚СЂРёР±СѓС‚Р° "parse", Р° Р·РЅР°С‡РµРЅРёРµ "РёРјСЏ СЌР»РµРјРµРЅС‚Р°", С‚Рѕ Р·РЅР°С‡РµРЅРёРµ СЌР»РµРјРµРЅС‚Р° РІСЃС‚Р°РІР»СЏРµС‚СЃСЏ РЅР°РїСЂСЏРјСѓСЋ, Р±РµР· РѕР±СЂР°Р±РѕС‚РєРё
 	static const std::string cParse;
-	//Узел является каталогом
+	//РЈР·РµР» СЏРІР»СЏРµС‚СЃСЏ РєР°С‚Р°Р»РѕРіРѕРј
 	static const std::string cFolder;
 public:
 	virtual void SaveNode(SerialNode& root, std::ostream& stream) = 0;

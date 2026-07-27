@@ -220,7 +220,7 @@ void CTraceView::InsertPointItem(r3d::IWayPointRef waypoint)
 void CTraceView::RemovePointItem(HTREEITEM item)
 {
 	ReleasePointItem(item);
-	//При удалении последнего item, странно, но выделение не меняется (Событие OnChangedSelectedItem). Поэтому меняем вручную
+	//РџСЂРё СѓРґР°Р»РµРЅРёРё РїРѕСЃР»РµРґРЅРµРіРѕ item, СЃС‚СЂР°РЅРЅРѕ, РЅРѕ РІС‹РґРµР»РµРЅРёРµ РЅРµ РјРµРЅСЏРµС‚СЃСЏ (РЎРѕР±С‹С‚РёРµ OnChangedSelectedItem). РџРѕСЌС‚РѕРјСѓ РјРµРЅСЏРµРј РІСЂСѓС‡РЅСѓСЋ
 	if (_pointView.GetCount() == 1)
 		_pointView.SelectItem(0);
 	_pointView.DeleteItem(item);	
@@ -292,7 +292,7 @@ void CTraceView::InsertPathItem(r3d::IWayPathRef path)
 void CTraceView::RemovePathItem(HTREEITEM item)
 {
 	ReleasePathItem(item);
-	//При удалении последнего item, странно, но выделение не меняется (Событие OnChangedSelectedItem). Поэтому меняем вручную
+	//РџСЂРё СѓРґР°Р»РµРЅРёРё РїРѕСЃР»РµРґРЅРµРіРѕ item, СЃС‚СЂР°РЅРЅРѕ, РЅРѕ РІС‹РґРµР»РµРЅРёРµ РЅРµ РјРµРЅСЏРµС‚СЃСЏ (РЎРѕР±С‹С‚РёРµ OnChangedSelectedItem). РџРѕСЌС‚РѕРјСѓ РјРµРЅСЏРµРј РІСЂСѓС‡РЅСѓСЋ
 	if (_pathView.GetCount() == 1)
 		_pathView.SelectItem(0);
 	_pathView.DeleteItem(item);

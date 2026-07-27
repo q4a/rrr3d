@@ -143,7 +143,7 @@ void HumanPlayer::Control::OnInputProgress(float deltaTime)
 	Race* race = _owner->_player->GetRace();
 
 	for (Race::AIPlayers::const_iterator iter = race->GetAIPlayers().begin(); iter != race->GetAIPlayers().end(); ++iter)
-		//íå ìåøàåì ÀÈ
+		//Ğ½Ğµ Ğ¼ĞµÑˆĞ°ĞµĞ¼ ĞĞ˜
 		if ((*iter)->GetCar() && (*iter)->GetCar()->_enbAI && (*iter)->GetPlayer() == _owner->_player)
 			return;
 #endif

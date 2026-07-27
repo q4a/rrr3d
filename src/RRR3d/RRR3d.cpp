@@ -77,7 +77,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 
 	case WM_KEYDOWN:
 	{
-		//Только если клавиша не повторяется (не зажата!)
+		//РўРѕР»СЊРєРѕ РµСЃР»Рё РєР»Р°РІРёС€Р° РЅРµ РїРѕРІС‚РѕСЂСЏРµС‚СЃСЏ (РЅРµ Р·Р°Р¶Р°С‚Р°!)
 		bool repeat = (lParam >> 30) & 0x1;
 
 		OnKeyEvent(wParam, lsl::ksDown, repeat);
@@ -181,7 +181,7 @@ int MainLoop()
 		}
 
 		MSG msg;
-		//Обработка сообщений
+		//РћР±СЂР°Р±РѕС‚РєР° СЃРѕРѕР±С‰РµРЅРёР№
 		while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE | PM_QS_INPUT | PM_QS_POSTMESSAGE | PM_QS_SENDMESSAGE))
 		{
 			if (msg.message == WM_QUIT)
@@ -195,11 +195,11 @@ int MainLoop()
 			inputWasReset = inputWasReset || rock3dWorld->InputWasReset();
 		}
 
-		//првоеряем состояние, в случае успеха выход
+		//РїСЂРІРѕРµСЂСЏРµРј СЃРѕСЃС‚РѕСЏРЅРёРµ, РІ СЃР»СѓС‡Р°Рµ СѓСЃРїРµС…Р° РІС‹С…РѕРґ
 		if (rock3dWorld->IsTerminate())
 			return rock3dWorld->GetTerminateResult();
 
-		//Рендерим здесь чтобы не блокировать обработку сообщений (например сообщений от клавиатуры и мыши, что используется)
+		//Р РµРЅРґРµСЂРёРј Р·РґРµСЃСЊ С‡С‚РѕР±С‹ РЅРµ Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ РѕР±СЂР°Р±РѕС‚РєСѓ СЃРѕРѕР±С‰РµРЅРёР№ (РЅР°РїСЂРёРјРµСЂ СЃРѕРѕР±С‰РµРЅРёР№ РѕС‚ РєР»Р°РІРёР°С‚СѓСЂС‹ Рё РјС‹С€Рё, С‡С‚Рѕ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ)
 		rock3dWorld->MainProgress();
 	}
 }
@@ -279,16 +279,16 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 		r3d::ReleaseWorld(rock3dWorld);
 	}
-	//lsl искл. Автоматически записывается в лог и делает assert
+	//lsl РёСЃРєР». РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРё Р·Р°РїРёСЃС‹РІР°РµС‚СЃСЏ РІ Р»РѕРі Рё РґРµР»Р°РµС‚ assert
 	catch (const lsl::Error& err)
 	{
 		ErrMessage(err.what());		
 	}
-//отключаем стд исключения чтобы точнее поймать их место в дебагере
+//РѕС‚РєР»СЋС‡Р°РµРј СЃС‚Рґ РёСЃРєР»СЋС‡РµРЅРёСЏ С‡С‚РѕР±С‹ С‚РѕС‡РЅРµРµ РїРѕР№РјР°С‚СЊ РёС… РјРµСЃС‚Рѕ РІ РґРµР±Р°РіРµСЂРµ
 #ifndef _DEBUG
 	catch(const std::exception& err)
 	{
-		//вручную останавливаем, чтобы поймать место
+		//РІСЂСѓС‡РЅСѓСЋ РѕСЃС‚Р°РЅР°РІР»РёРІР°РµРј, С‡С‚РѕР±С‹ РїРѕР№РјР°С‚СЊ РјРµСЃС‚Рѕ
 		LSL_ASSERT(false);
 
 		lsl::appLog << "stdError: " << err.what() << '\n';
@@ -296,7 +296,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	}
 	catch (...)
 	{
-		//вручную останавливаем, чтобы поймать место
+		//РІСЂСѓС‡РЅСѓСЋ РѕСЃС‚Р°РЅР°РІР»РёРІР°РµРј, С‡С‚РѕР±С‹ РїРѕР№РјР°С‚СЊ РјРµСЃС‚Рѕ
 		LSL_ASSERT(false);
 
 		lsl::appLog << "undefError" << '\n';

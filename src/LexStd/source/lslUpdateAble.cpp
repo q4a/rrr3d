@@ -68,7 +68,7 @@ void UpdateAble::EndUpdate()
 			}
 			catch (...)
 			{
-				//àâàðèéíîå çàâåðøåíèå
+				//Ð°Ð²Ð°Ñ€Ð¸Ð¹Ð½Ð¾Ðµ Ð·Ð°Ð²ÐµÑ€ÑˆÐµÐ½Ð¸Ðµ
 				for (_UpdateMap::iterator iter2 = iter; iter2 != _updateMap.end(); ++iter2)
 					if (iter2->second)
 						delete iter2->second;

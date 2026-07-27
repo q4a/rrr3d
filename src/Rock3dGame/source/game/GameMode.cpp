@@ -165,7 +165,7 @@ void GameMode::MusicCat::GenRandom(int ignore)
 	for (unsigned i = 0; i < defGroupList.size(); ++i)
 		_playList[slots[i]] = defGroupList[i];
 
-	//необходимо исключить возможность совпадения последнего элемента новой последовательности с прошлым треком
+	//РЅРµРѕР±С…РѕРґРёРјРѕ РёСЃРєР»СЋС‡РёС‚СЊ РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊ СЃРѕРІРїР°РґРµРЅРёСЏ РїРѕСЃР»РµРґРЅРµРіРѕ СЌР»РµРјРµРЅС‚Р° РЅРѕРІРѕР№ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚Рё СЃ РїСЂРѕС€Р»С‹Рј С‚СЂРµРєРѕРј
 	if (!_playList.empty() && _playList.back() == ignore)
 		std::iter_swap(_playList.begin(), --_playList.end());
 }

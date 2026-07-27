@@ -88,7 +88,7 @@ void Shader::InitMacro(MacroBlock* value)
 			macrosBuf[i].Name = iter->name.c_str();
 			macrosBuf[i].Definition = iter->definition.c_str();
 		}
-		//Завершающий ноль для массива
+		//Р—Р°РІРµСЂС€Р°СЋС‰РёР№ РЅРѕР»СЊ РґР»СЏ РјР°СЃСЃРёРІР°
 		macrosBuf[macros.size()].Name = macrosBuf[macros.size()].Definition = 0;
 	}
 
@@ -206,12 +206,12 @@ bool Shader::EndDraw(Engine& engine, bool nextPass)
 {
 	UnApplyPass();
 
-	//Выполняем сначала внутрениие проходы эффекта если можно (это делается для каждого внешнего прохода)
+	//Р’С‹РїРѕР»РЅСЏРµРј СЃРЅР°С‡Р°Р»Р° РІРЅСѓС‚СЂРµРЅРёРёРµ РїСЂРѕС…РѕРґС‹ СЌС„С„РµРєС‚Р° РµСЃР»Рё РјРѕР¶РЅРѕ (СЌС‚Рѕ РґРµР»Р°РµС‚СЃСЏ РґР»СЏ РєР°Р¶РґРѕРіРѕ РІРЅРµС€РЅРµРіРѕ РїСЂРѕС…РѕРґР°)
 	if (nextPass && ++_numPass < _cntPass)
 	{
 		return false;
 	}
-	//Затем приступаем к внешним проходам
+	//Р—Р°С‚РµРј РїСЂРёСЃС‚СѓРїР°РµРј Рє РІРЅРµС€РЅРёРј РїСЂРѕС…РѕРґР°Рј
 	else
 	{
 		_numPass = 0;
@@ -532,7 +532,7 @@ void Shader::SetMacro(MacroBlock* value)
 {
 	if (ReplaceRef(_macro, value))
 	{
-		//Применяем все параметры если отсутствовал предыдущий макрос
+		//РџСЂРёРјРµРЅСЏРµРј РІСЃРµ РїР°СЂР°РјРµС‚СЂС‹ РµСЃР»Рё РѕС‚СЃСѓС‚СЃС‚РІРѕРІР°Р» РїСЂРµРґС‹РґСѓС‰РёР№ РјР°РєСЂРѕСЃ
 		bool applyParams = _macro == 0;
 
 		_macro = value;

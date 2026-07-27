@@ -68,7 +68,7 @@ void TraceGfx::DrawNodes(graph::Engine& engine, D3DXVECTOR3* vBuf, unsigned triC
 
 void TraceGfx::DoRender(graph::Engine& engine)
 {
-	//Îòðèñîâêà ïóòåé
+	//ÐžÑ‚Ñ€Ð¸ÑÐ¾Ð²ÐºÐ° Ð¿ÑƒÑ‚ÐµÐ¹
 	for (Trace::Points::const_iterator iter = _trace->GetPoints().begin(); iter != _trace->GetPoints().end(); ++iter)
 	{
 		_libMat->material.SetDiffuse(*iter == _selPoint ? clrGreen : clrRed);
@@ -78,7 +78,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 		_wayPnt->Render(engine);		
 	}
 
-	//Îòðèñîâêà ñâÿçåé ìåæäó ïóòÿìè
+	//ÐžÑ‚Ñ€Ð¸ÑÐ¾Ð²ÐºÐ° ÑÐ²ÑÐ·ÐµÐ¹ Ð¼ÐµÐ¶Ð´Ñƒ Ð¿ÑƒÑ‚ÑÐ¼Ð¸
 	Vec3Range resColor(D3DXVECTOR3(clrWhite / 2.0f), D3DXVECTOR3(clrWhite), Vec3Range::vdVolume);
 	D3DXVECTOR3 upVec = engine.GetContext().GetCamera().GetDesc().dir;
 	float iPath = 0.0f;
@@ -94,7 +94,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 			DrawNodes(engine, vBuf.begin().Pos3(), vBuf.GetVertexCount() - 2, pathColor);
 	}
 
-	//Äëÿ âûäåëåííîãî óçëà ñâîé öèêë îòðèñîâêè
+	//Ð”Ð»Ñ Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð½Ð¾Ð³Ð¾ ÑƒÐ·Ð»Ð° ÑÐ²Ð¾Ð¹ Ñ†Ð¸ÐºÐ» Ð¾Ñ‚Ñ€Ð¸ÑÐ¾Ð²ÐºÐ¸
 	if (_selNode && _selNode->GetNext())
 	{
 		D3DXVECTOR3 vBuf[4];
@@ -102,7 +102,7 @@ void TraceGfx::DoRender(graph::Engine& engine)
 		DrawNodes(engine, vBuf, 4 - 2, clrGreen);
 	}
 
-	//Îòðèñîâêà ñâÿçè âûäåëåíèÿ
+	//ÐžÑ‚Ñ€Ð¸ÑÐ¾Ð²ÐºÐ° ÑÐ²ÑÐ·Ð¸ Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð¸Ñ
 	if (_pointLink)
 	{
 		D3DXVECTOR3 pos1 = _pointLink->GetPoint()->GetPos();

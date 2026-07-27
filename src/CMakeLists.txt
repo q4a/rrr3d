@@ -1,4 +1,8 @@
 if (MSVC)
+    # Sources are UTF-8. Without this MSVC decodes them as the system ANSI
+    # codepage, which mangles every non-ASCII comment and string literal.
+    add_compile_options(/utf-8)
+
     # Always generate PDBs
     add_compile_options(/Zi)
     add_link_options(/DEBUG)

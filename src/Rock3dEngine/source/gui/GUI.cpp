@@ -889,7 +889,7 @@ template<class _Text> void Context::DrawBaseText(_Text& text, AABB2* aabb)
 	else
 	{
 		pos += D3DXVECTOR2(MatGetPos(GetCI().GetWorldMat()));
-		//Оси y не совпадают
+		//РћСЃРё y РЅРµ СЃРѕРІРїР°РґР°СЋС‚
 		if (_invertY)
 			pos.y = GetVPSize().y - (pos.y + text.GetVScroll());
 		else
@@ -1046,7 +1046,7 @@ void Context::DrawPlane3d(Plane3d& plane3d)
 
 void Context::DrawView3d(View3d& view3d)
 {
-	//отстраиваем размер относительно локального AABB. Трансформации GetBox() применяются при DrawGraphic3d
+	//РѕС‚СЃС‚СЂР°РёРІР°РµРј СЂР°Р·РјРµСЂ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ Р»РѕРєР°Р»СЊРЅРѕРіРѕ AABB. РўСЂР°РЅСЃС„РѕСЂРјР°С†РёРё GetBox() РїСЂРёРјРµРЅСЏСЋС‚СЃСЏ РїСЂРё DrawGraphic3d
 	AABB aabb = view3d.GetBox()->GetLocalAABB(true);
 	
 	/*Plane plane(this);
@@ -1054,27 +1054,27 @@ void Context::DrawView3d(View3d& view3d)
 	plane.SetPos(view3d.GetPos());
 	DrawPlane(plane);*/
 
-	//максимальный осевой размер меша
+	//РјР°РєСЃРёРјР°Р»СЊРЅС‹Р№ РѕСЃРµРІРѕР№ СЂР°Р·РјРµСЂ РјРµС€Р°
 	float maxScale = D3DXVec3Length(&aabb.GetSizes());
-	//с учетом нецентрированности
+	//СЃ СѓС‡РµС‚РѕРј РЅРµС†РµРЅС‚СЂРёСЂРѕРІР°РЅРЅРѕСЃС‚Рё
 	if (!view3d.GetAlign())
 		maxScale += D3DXVec3Length(&aabb.GetCenter());
-	//размер поля в котором он отображается
+	//СЂР°Р·РјРµСЂ РїРѕР»СЏ РІ РєРѕС‚РѕСЂРѕРј РѕРЅ РѕС‚РѕР±СЂР°Р¶Р°РµС‚СЃСЏ
 	D3DXVECTOR3 viewSize = D3DXVECTOR3(view3d.GetSize().x, view3d.GetSize().y, 0.0f);
-	//размер по оси z вычисляет с прикидкой
+	//СЂР°Р·РјРµСЂ РїРѕ РѕСЃРё z РІС‹С‡РёСЃР»СЏРµС‚ СЃ РїСЂРёРєРёРґРєРѕР№
 	viewSize.z = (viewSize.x + viewSize.y) / 2.0f;
 
-	//растягиваем меш до размера поля
+	//СЂР°СЃС‚СЏРіРёРІР°РµРј РјРµС€ РґРѕ СЂР°Р·РјРµСЂР° РїРѕР»СЏ
 	D3DXVECTOR3 scale = viewSize / maxScale;
 	D3DXVECTOR3 pos = NullVector;
-	//центрируем
+	//С†РµРЅС‚СЂРёСЂСѓРµРј
 	if (view3d.GetAlign())
 	{
 		D3DXVec3TransformCoord(&pos, &aabb.GetCenter(), &view3d.GetBox()->GetMat());
 		pos = pos * scale;
 	}
 
-	//мировая матрица меша
+	//РјРёСЂРѕРІР°СЏ РјР°С‚СЂРёС†Р° РјРµС€Р°
 	D3DXMATRIX worldMat = GetCI().GetWorldMat();
 	if (!_invertY)
 		worldMat._22 = -worldMat._22;
@@ -1433,9 +1433,9 @@ void Widget::ApplyAlign() const
 
 	if (_parent && IsAligned())
 	{
-		//AABB в локальных координатах родителя, без учета масштабирования
+		//AABB РІ Р»РѕРєР°Р»СЊРЅС‹С… РєРѕРѕСЂРґРёРЅР°С‚Р°С… СЂРѕРґРёС‚РµР»СЏ, Р±РµР· СѓС‡РµС‚Р° РјР°СЃС€С‚Р°Р±РёСЂРѕРІР°РЅРёСЏ
 		AABB2 rect = _parent->GetLocalAABB(false);
-		//без учета дочерей, поскольку это ведет к багу при изменении размера SetSize если дочери остаются вне его AABB (возвращается старый AABB вследствии чего изменение размера не происходит)
+		//Р±РµР· СѓС‡РµС‚Р° РґРѕС‡РµСЂРµР№, РїРѕСЃРєРѕР»СЊРєСѓ СЌС‚Рѕ РІРµРґРµС‚ Рє Р±Р°РіСѓ РїСЂРё РёР·РјРµРЅРµРЅРёРё СЂР°Р·РјРµСЂР° SetSize РµСЃР»Рё РґРѕС‡РµСЂРё РѕСЃС‚Р°СЋС‚СЃСЏ РІРЅРµ РµРіРѕ AABB (РІРѕР·РІСЂР°С‰Р°РµС‚СЃСЏ СЃС‚Р°СЂС‹Р№ AABB РІСЃР»РµРґСЃС‚РІРёРё С‡РµРіРѕ РёР·РјРµРЅРµРЅРёРµ СЂР°Р·РјРµСЂР° РЅРµ РїСЂРѕРёСЃС…РѕРґРёС‚)
 		AABB2 localRect = GetLocalAABB(false);
 		localRect.Transform(GetMat());
 
@@ -1467,7 +1467,7 @@ void Widget::ApplyAlign() const
 		D3DXVECTOR2 size = newRect.GetSize();
 		D3DXVECTOR2 pos = newRect.GetCenter();
 
-		//В виде исключения
+		//Р’ РІРёРґРµ РёСЃРєР»СЋС‡РµРЅРёСЏ
 		Widget* mThis = const_cast<Widget*>(this);
 		mThis->_pos = pos;
 		mThis->_size = size;
@@ -1517,7 +1517,7 @@ void Widget::StructureChanged(StructChange change)
 	switch (change)
 	{
 	case scLocal:
-		//В соотвествии с определением StructureChanged, уведомляем дочерние структуры только если произошло действительное изменение состояния acLocalAABB (можно сказать экономим на флагах StructChange об имзенении структуры)
+		//Р’ СЃРѕРѕС‚РІРµСЃС‚РІРёРё СЃ РѕРїСЂРµРґРµР»РµРЅРёРµРј StructureChanged, СѓРІРµРґРѕРјР»СЏРµРј РґРѕС‡РµСЂРЅРёРµ СЃС‚СЂСѓРєС‚СѓСЂС‹ С‚РѕР»СЊРєРѕ РµСЃР»Рё РїСЂРѕРёР·РѕС€Р»Рѕ РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕРµ РёР·РјРµРЅРµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ acLocalAABB (РјРѕР¶РЅРѕ СЃРєР°Р·Р°С‚СЊ СЌРєРѕРЅРѕРјРёРј РЅР° С„Р»Р°РіР°С… StructChange РѕР± РёРјР·РµРЅРµРЅРёРё СЃС‚СЂСѓРєС‚СѓСЂС‹)
 		if (!_aabbChanges[acLocalAABB])
 		{
 			if (_parent)
@@ -3578,14 +3578,14 @@ bool ViewPort3d::OnMouseOver(const MouseMove& mMove)
 	{
 		if (_style == msViewer)
 		{
-			//Вращение по двум осям
+			//Р’СЂР°С‰РµРЅРёРµ РїРѕ РґРІСѓРј РѕСЃСЏРј
 			/*D3DXQUATERNION rotY;
 			D3DXQuaternionRotationAxis(&rotY, &YVector, D3DX_PI * mMove.dtCoord.x/100.0f);	
 			D3DXQUATERNION rotX;
 			D3DXQuaternionRotationAxis(&rotX, &XVector, -D3DX_PI * mMove.dtCoord.y/100.0f);
 			SetRot3d(GetRot3d() * rotY * rotX);*/
 			
-			//Вращение по одной оси, совпадающией с up mesh
+			//Р’СЂР°С‰РµРЅРёРµ РїРѕ РѕРґРЅРѕР№ РѕСЃРё, СЃРѕРІРїР°РґР°СЋС‰РёРµР№ СЃ up mesh
 			D3DXQUATERNION rotZ;
 			D3DXQuaternionRotationAxis(&rotZ, &ZVector, D3DX_PI * mMove.dtCoord.x/200.0f);
 			GetBox()->SetRot(rotZ * GetBox()->GetRot());
@@ -3888,7 +3888,7 @@ void ScrollBox::SetScroll(const D3DXVECTOR2& value)
 {	
 	D3DXVECTOR2 boxSize = _box->GetChildAABB().GetSize();
 
-	//корректируем чтобы максимальной прокруткой был размер страницы
+	//РєРѕСЂСЂРµРєС‚РёСЂСѓРµРј С‡С‚РѕР±С‹ РјР°РєСЃРёРјР°Р»СЊРЅРѕР№ РїСЂРѕРєСЂСѓС‚РєРѕР№ Р±С‹Р» СЂР°Р·РјРµСЂ СЃС‚СЂР°РЅРёС†С‹
 	D3DXVECTOR2 clampSize(boxSize.x, std::max(boxSize.y - _clip->GetSize().y, 0.0f));
 	D3DXVECTOR2 scroll = value;
 	D3DXVec2Maximize(&scroll, &scroll, &NullVec2);
@@ -3944,7 +3944,7 @@ ListBox::~ListBox()
 	FreeFon();
 
 	_scrollBox->Release();
-	//Чтобы не было опасного обновления
+	//Р§С‚РѕР±С‹ РЅРµ Р±С‹Р»Рѕ РѕРїР°СЃРЅРѕРіРѕ РѕР±РЅРѕРІР»РµРЅРёСЏ
 	_scrollBox->SetParent(0);
 	GetManager().ReleaseWidget(_scrollBox);
 
@@ -4092,7 +4092,7 @@ void ListBox::AlignItems()
 		clientSize.x = floor(clientSize.x);
 		clientSize.y = floor(clientSize.y);
 		clientSize *= itemStep;
-		//необходимо учитывать дополнительный пробел _itemSpace
+		//РЅРµРѕР±С…РѕРґРёРјРѕ СѓС‡РёС‚С‹РІР°С‚СЊ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Р№ РїСЂРѕР±РµР» _itemSpace
 		D3DXVECTOR2 fracSize = size - clientSize + _itemSpace;
 
 		D3DXVECTOR2 index(0, 0);
@@ -4234,7 +4234,7 @@ void ListBox::AlignSizeByItems(const D3DXVECTOR2& size)
 {
 	D3DXVECTOR2 newSize = size;
 	newSize = (newSize - GetScrollSpace()) / GetItemPlaceSize();
-	//Пои оси X не зачем выравнивать, поскольку прокрутка только вертикальная (и может привести к погрешности)
+	//РџРѕРё РѕСЃРё X РЅРµ Р·Р°С‡РµРј РІС‹СЂР°РІРЅРёРІР°С‚СЊ, РїРѕСЃРєРѕР»СЊРєСѓ РїСЂРѕРєСЂСѓС‚РєР° С‚РѕР»СЊРєРѕ РІРµСЂС‚РёРєР°Р»СЊРЅР°СЏ (Рё РјРѕР¶РµС‚ РїСЂРёРІРµСЃС‚Рё Рє РїРѕРіСЂРµС€РЅРѕСЃС‚Рё)
 	//newSize.x = floor(newSize.x);
 	newSize.y = floor(newSize.y);
 	newSize *= GetItemPlaceSize();
@@ -5513,7 +5513,7 @@ void Manager::DoDrawWidget(Widget* widget)
 
 	if (widget->GetFlag(Widget::wfClientClip))
 	{
-		//ограничение, только один clipWidget
+		//РѕРіСЂР°РЅРёС‡РµРЅРёРµ, С‚РѕР»СЊРєРѕ РѕРґРёРЅ clipWidget
 		LSL_ASSERT(_clipWidget == 0);
 
 		_clipWidget = widget;
@@ -5552,7 +5552,7 @@ void Manager::DoDrawWidget(Widget* widget)
 	}
 	if (drawWidget)
 	{
-		//убираем флаг IsMouseOver если вдруг произошло залипание
+		//СѓР±РёСЂР°РµРј С„Р»Р°Рі IsMouseOver РµСЃР»Рё РІРґСЂСѓРі РїСЂРѕРёР·РѕС€Р»Рѕ Р·Р°Р»РёРїР°РЅРёРµ
 		if (widget->IsMouseOver() && !widget->GetWorldAABB(false).ContainsPoint(_mMove.worldCoord))
 		{
 			widget->_isMouseOver = false;
@@ -5628,7 +5628,7 @@ bool Manager::OnWidgetMouseMove(Widget* widget, const MouseMove& mMove)
 
 	MouseMove locMove = GetMouseMove(widget);
 	//
-	//Порядок именно такой
+	//РџРѕСЂСЏРґРѕРє РёРјРµРЅРЅРѕ С‚Р°РєРѕР№
 	if (widget->GetEnabled() && widget->OnMouseMove(_mMove))
 		return true;
 	//

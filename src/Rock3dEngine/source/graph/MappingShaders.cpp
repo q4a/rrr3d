@@ -30,7 +30,7 @@ LightShader::LightShader(): _curLight(0), _fogColor(clrWhite), _viewPos(NullVect
 			_lightMacro[i][j]->AddRef();
 		}
 
-	//Ìàêðîñ áóäåò îïðåäåëÿòüñÿ äèíàìè÷åñêè, îáíóëÿåì ìàêðîñ ïî óìîë÷àíèþ ÷òîáû èçáåæàòü ñëó÷àéíîãî ïðèìåíåíèÿ
+	//ÐœÐ°ÐºÑ€Ð¾Ñ Ð±ÑƒÐ´ÐµÑ‚ Ð¾Ð¿Ñ€ÐµÐ´ÐµÐ»ÑÑ‚ÑŒÑÑ Ð´Ð¸Ð½Ð°Ð¼Ð¸Ñ‡ÐµÑÐºÐ¸, Ð¾Ð±Ð½ÑƒÐ»ÑÐµÐ¼ Ð¼Ð°ÐºÑ€Ð¾Ñ Ð¿Ð¾ ÑƒÐ¼Ð¾Ð»Ñ‡Ð°Ð½Ð¸ÑŽ Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð¸Ð·Ð±ÐµÐ¶Ð°Ñ‚ÑŒ ÑÐ»ÑƒÑ‡Ð°Ð¹Ð½Ð¾Ð³Ð¾ Ð¿Ñ€Ð¸Ð¼ÐµÐ½ÐµÐ½Ð¸Ñ
 	SetMacro(0);
 }
 
@@ -86,9 +86,9 @@ void LightShader::DoBeginDraw(Engine& engine)
 
 	LSL_ASSERT(lightCnt > _curLight);
 
-	//Ïåðâûé ïðîõîä
+	//ÐŸÐµÑ€Ð²Ñ‹Ð¹ Ð¿Ñ€Ð¾Ñ…Ð¾Ð´
 	bool firstPass = _curLight == 0;
-	//Ïîñëäåíèé ïðîõîä
+	//ÐŸÐ¾ÑÐ»Ð´ÐµÐ½Ð¸Ð¹ Ð¿Ñ€Ð¾Ñ…Ð¾Ð´
 	bool lastPass = _curLight >= lightCnt - 1;
 	//
 	_fogColor = D3DXCOLOR(engine.GetContext().GetRenderState(rsFogColor));
@@ -181,7 +181,7 @@ bool LightShader::DoEndDraw(Engine& engine, bool nextPass)
 
 	unsigned lightCnt = engine.GetContext().GetLights().size();
 
-	//Íóæåí ëè ñëåäóþùèõ ïðîõîä
+	//ÐÑƒÐ¶ÐµÐ½ Ð»Ð¸ ÑÐ»ÐµÐ´ÑƒÑŽÑ‰Ð¸Ñ… Ð¿Ñ€Ð¾Ñ…Ð¾Ð´
 	bool needNextPass = nextPass &&  lightCnt > _curLight;
 
 	engine.GetContext().SetRenderState(rsFogColor, _fogColor);

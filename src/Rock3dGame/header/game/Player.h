@@ -226,15 +226,15 @@ public:
 	MapObjRec* GetMapObj();
 	void SetMapObj(MapObjRec* value);	
 
-	//0 - бесконечно
-	//>0 - область значений
-	//максимально возможный заряд
+	//0 - Р±РµСЃРєРѕРЅРµС‡РЅРѕ
+	//>0 - РѕР±Р»Р°СЃС‚СЊ Р·РЅР°С‡РµРЅРёР№
+	//РјР°РєСЃРёРјР°Р»СЊРЅРѕ РІРѕР·РјРѕР¶РЅС‹Р№ Р·Р°СЂСЏРґ
 	unsigned GetMaxCharge();
 	void SetMaxCharge(unsigned value);
-	//количество установленного заряда
+	//РєРѕР»РёС‡РµСЃС‚РІРѕ СѓСЃС‚Р°РЅРѕРІР»РµРЅРЅРѕРіРѕ Р·Р°СЂСЏРґР°
 	unsigned GetCntCharge();
 	void SetCntCharge(unsigned value);
-	//текущее количество заряда
+	//С‚РµРєСѓС‰РµРµ РєРѕР»РёС‡РµСЃС‚РІРѕ Р·Р°СЂСЏРґР°
 	unsigned GetCurCharge();
 	void SetCurCharge(unsigned value);
 	//
@@ -373,7 +373,7 @@ public:
 	enum HeadLightMode {hlmNone, hlmOne, hlmTwo};
 	enum HeadLight {hlFirst = 0, hlSecond, cHeadLightEnd};
 
-	//Описывает состояние показателей машины
+	//РћРїРёСЃС‹РІР°РµС‚ СЃРѕСЃС‚РѕСЏРЅРёРµ РїРѕРєР°Р·Р°С‚РµР»РµР№ РјР°С€РёРЅС‹
 	struct CarState
 	{
 	private:
@@ -394,12 +394,12 @@ public:
 		int GetPathIndex(bool lastCorrect = false) const;
 		bool IsMainPath(bool lastCorrect = false) const;		
 		float GetPathLength(bool lastCorrect = false) const;
-		//текущее пройденное расстояние
+		//С‚РµРєСѓС‰РµРµ РїСЂРѕР№РґРµРЅРЅРѕРµ СЂР°СЃСЃС‚РѕСЏРЅРёРµ
 		float GetDist(bool lastCorrect = false) const;
-		//текущее место на трасе, в относительных единицах в терминах круга
+		//С‚РµРєСѓС‰РµРµ РјРµСЃС‚Рѕ РЅР° С‚СЂР°СЃРµ, РІ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅС‹С… РµРґРёРЅРёС†Р°С… РІ С‚РµСЂРјРёРЅР°С… РєСЂСѓРіР°
 		float GetLap(bool lastCorrect = false) const;
 
-		//место на карте
+		//РјРµСЃС‚Рѕ РЅР° РєР°СЂС‚Рµ
 		D3DXVECTOR3 GetMapPos() const;
 
 		Player* owner;
@@ -412,7 +412,7 @@ public:
 		graph::Actor* grActor;
 		NxActor* nxActor;
 
-		//Координаты актера
+		//РљРѕРѕСЂРґРёРЅР°С‚С‹ Р°РєС‚РµСЂР°
 		D3DXVECTOR3 pos3;
 		D3DXVECTOR3 dir3;
 		D3DXQUATERNION rot3;
@@ -421,13 +421,13 @@ public:
 		D3DXVECTOR2 pos;
 		D3DXVECTOR2 dir;
 		float speed;
-		//Диаметр ограничивающей сферы
+		//Р”РёР°РјРµС‚СЂ РѕРіСЂР°РЅРёС‡РёРІР°СЋС‰РµР№ СЃС„РµСЂС‹
 		float size;
 		float radius;
 		float kSteerControl;
-		//Линия проведенная через pos в направлении dir актера
+		//Р›РёРЅРёСЏ РїСЂРѕРІРµРґРµРЅРЅР°СЏ С‡РµСЂРµР· pos РІ РЅР°РїСЂР°РІР»РµРЅРёРё dir Р°РєС‚РµСЂР°
 		D3DXVECTOR3 dirLine;
-		//Линия проведенная через pos и перпендикулярно dir актера
+		//Р›РёРЅРёСЏ РїСЂРѕРІРµРґРµРЅРЅР°СЏ С‡РµСЂРµР· pos Рё РїРµСЂРїРµРЅРґРёРєСѓР»СЏСЂРЅРѕ dir Р°РєС‚РµСЂР°
 		D3DXVECTOR3 normLine;
 		//
 		D3DXVECTOR3 trackDirLine;
@@ -440,15 +440,15 @@ public:
 		//
 		unsigned track;
 
-		//число пройденных кругов
+		//С‡РёСЃР»Рѕ РїСЂРѕР№РґРµРЅРЅС‹С… РєСЂСѓРіРѕРІ
 		unsigned numLaps;
-		//двигается инвертировано
+		//РґРІРёРіР°РµС‚СЃСЏ РёРЅРІРµСЂС‚РёСЂРѕРІР°РЅРѕ
 		bool moveInverse;
 		float moveInverseStart;
-		//отслеживание резкий колебаний скорости
+		//РѕС‚СЃР»РµР¶РёРІР°РЅРёРµ СЂРµР·РєРёР№ РєРѕР»РµР±Р°РЅРёР№ СЃРєРѕСЂРѕСЃС‚Рё
 		float maxSpeed;
 		float maxSpeedTime;
-		//отслеживание резких колебаний угла направляющего вектора
+		//РѕС‚СЃР»РµР¶РёРІР°РЅРёРµ СЂРµР·РєРёС… РєРѕР»РµР±Р°РЅРёР№ СѓРіР»Р° РЅР°РїСЂР°РІР»СЏСЋС‰РµРіРѕ РІРµРєС‚РѕСЂР°
 		D3DXVECTOR3 lastDir;
 		float summAngle;
 		float summAngleTime;
@@ -556,9 +556,9 @@ public:
 
 	void OnProgress(float deltaTime);	
 
-	//>0 искать соперников спереди машины
-	//<0 искать соперников сзади машины
-	//=0 искать соперников с обеих сторон
+	//>0 РёСЃРєР°С‚СЊ СЃРѕРїРµСЂРЅРёРєРѕРІ СЃРїРµСЂРµРґРё РјР°С€РёРЅС‹
+	//<0 РёСЃРєР°С‚СЊ СЃРѕРїРµСЂРЅРёРєРѕРІ СЃР·Р°РґРё РјР°С€РёРЅС‹
+	//=0 РёСЃРєР°С‚СЊ СЃРѕРїРµСЂРЅРёРєРѕРІ СЃ РѕР±РµРёС… СЃС‚РѕСЂРѕРЅ
 	Player* FindClosestEnemy(float viewAngle, bool zTest);
 	float ComputeCarBBSize();
 
@@ -581,7 +581,7 @@ public:
 	//
 	HeadLightMode GetHeadLight() const;
 	void SetHeadlight(HeadLightMode value);
-	//Рендериться в отражения сцены, для человеческого игрока следует отключать
+	//Р РµРЅРґРµСЂРёС‚СЊСЃСЏ РІ РѕС‚СЂР°Р¶РµРЅРёСЏ СЃС†РµРЅС‹, РґР»СЏ С‡РµР»РѕРІРµС‡РµСЃРєРѕРіРѕ РёРіСЂРѕРєР° СЃР»РµРґСѓРµС‚ РѕС‚РєР»СЋС‡Р°С‚СЊ
 	bool GetReflScene() const;
 	void SetReflScene(bool value);
 
@@ -612,7 +612,7 @@ public:
 	int GetGamerId() const;
 	void SetGamerId(int value);
 
-	//Внимание!!! является уникальным только для людей, для компов всегда Race::cDefNetId
+	//Р’РЅРёРјР°РЅРёРµ!!! СЏРІР»СЏРµС‚СЃСЏ СѓРЅРёРєР°Р»СЊРЅС‹Рј С‚РѕР»СЊРєРѕ РґР»СЏ Р»СЋРґРµР№, РґР»СЏ РєРѕРјРїРѕРІ РІСЃРµРіРґР° Race::cDefNetId
 	unsigned GetNetSlot() const;
 	void SetNetSlot(unsigned value);
 

@@ -34,7 +34,7 @@ public:
 	virtual void LoadCustomState();
 	virtual void SaveCustomState();
 
-	//Регистарция вида
+	//Р РµРіРёСЃС‚Р°СЂС†РёСЏ РІРёРґР°
 	void RegR3DView(CView* view);
 	void UnRegR3DView(CView* view);
 

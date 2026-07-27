@@ -93,7 +93,7 @@ bool Achievment::Buy(Player* player)
 {
 	if (_state == asUnlocked)
 	{
-		if (_owner->ÑonsumePoints(_price))
+		if (_owner->Ð¡onsumePoints(_price))
 		{
 			Open();
 			return true;
@@ -1127,7 +1127,7 @@ void AchievmentModel::AddPoints(int value)
 	}
 }
 
-bool AchievmentModel::ÑonsumePoints(int value)
+bool AchievmentModel::Ð¡onsumePoints(int value)
 {
 	if (_points < value)
 		return false;

@@ -57,18 +57,18 @@ private:
 	Behaviors* _behaviors;	
 
 	LiveState _liveState;
-	//Начальное количество здоровья
-	//<0 - бесконечное число здоровья
+	//РќР°С‡Р°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ Р·РґРѕСЂРѕРІСЊСЏ
+	//<0 - Р±РµСЃРєРѕРЅРµС‡РЅРѕРµ С‡РёСЃР»Рѕ Р·РґРѕСЂРѕРІСЊСЏ
 	float _maxLife;
 	float _maxTimeLife;
-	//Текущее число здоровья
+	//РўРµРєСѓС‰РµРµ С‡РёСЃР»Рѕ Р·РґРѕСЂРѕРІСЊСЏ
 	float _life;
 	float _timeLife;
 	//
 	bool _immortalFlag;
 	//
 	float _immortalTime;
-	//вспомогательный флаг, чтобы избежать двойного вызова Destroy
+	//РІСЃРїРѕРјРѕРіР°С‚РµР»СЊРЅС‹Р№ С„Р»Р°Рі, С‡С‚РѕР±С‹ РёР·Р±РµР¶Р°С‚СЊ РґРІРѕР№РЅРѕРіРѕ РІС‹Р·РѕРІР° Destroy
 	bool _destroy;
 
 	unsigned _frameEventCount;
@@ -127,7 +127,7 @@ protected:
 	D3DXVECTOR3 GetContactPoint(const px::Scene::OnContactEvent& contact);
 	bool ContainsContactGroup(NxContactStreamIterator& contIter, unsigned actorIndex, px::Scene::CollDisGroup group);
 
-	//изменения ссылки на объект логки, хак
+	//РёР·РјРµРЅРµРЅРёСЏ СЃСЃС‹Р»РєРё РЅР° РѕР±СЉРµРєС‚ Р»РѕРіРєРё, С…Р°Рє
 	virtual void LogicReleased() {};
 	virtual void LogicInited() {};
 
@@ -143,7 +143,7 @@ protected:
 	void DoDeath(DamageType damageType = dtSimple, GameObject* target = NULL);
 	void SendDeath(DamageType damageType = dtSimple, GameObject* target = NULL);
 
-	//Синхронизация с физикой, дожна вызваться до OnProgress
+	//РЎРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ СЃ С„РёР·РёРєРѕР№, РґРѕР¶РЅР° РІС‹Р·РІР°С‚СЊСЃСЏ РґРѕ OnProgress
 	virtual void OnPxSync(float alpha);
 	virtual void OnLateProgress(float deltaTime, bool pxStep);
 	virtual void OnFrame(float deltaTime, float pxAlpha);
@@ -179,7 +179,7 @@ public:
 	void Resc();
 	void Damage(int senderPlayerId, float value, float newLife, bool death, DamageType damageType);
 	void Damage(int senderPlayerId, float value, DamageType damageType = dtSimple);
-	//поделчить, клампится до MaxLife
+	//РїРѕРґРµР»С‡РёС‚СЊ, РєР»Р°РјРїРёС‚СЃСЏ РґРѕ MaxLife
 	void Healt(float life);
 	void LowLife(Behavior* behavior);
 
@@ -197,7 +197,7 @@ public:
 	void SendEvent(unsigned id, int playerId, MyEventData* data = NULL);
 	void SendEvent(unsigned id, MyEventData* data = NULL);
 
-	//это методы для установления связи включения как объекта сцены
+	//СЌС‚Рѕ РјРµС‚РѕРґС‹ РґР»СЏ СѓСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ СЃРІСЏР·Рё РІРєР»СЋС‡РµРЅРёСЏ РєР°Рє РѕР±СЉРµРєС‚Р° СЃС†РµРЅС‹
 	GameObject* GetParent();
 	void SetParent(GameObject* value);
 	const Children& GetChildren() const;
@@ -211,23 +211,23 @@ public:
 	virtual Proj* IsProj();
 	virtual GameCar* IsCar();
 	
-	//Интерфейс пользователя для изменения трансформации
-	//Локальные трансформации
-	//Позиция
+	//РРЅС‚РµСЂС„РµР№СЃ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РґР»СЏ РёР·РјРµРЅРµРЅРёСЏ С‚СЂР°РЅСЃС„РѕСЂРјР°С†РёРё
+	//Р›РѕРєР°Р»СЊРЅС‹Рµ С‚СЂР°РЅСЃС„РѕСЂРјР°С†РёРё
+	//РџРѕР·РёС†РёСЏ
 	const D3DXVECTOR3& GetPos() const;
 	virtual void SetPos(const D3DXVECTOR3& value);
-	//Растяжение
+	//Р Р°СЃС‚СЏР¶РµРЅРёРµ
 	const D3DXVECTOR3& GetScale() const;
 	virtual void SetScale(const D3DXVECTOR3& value);
 	void SetScale(float value);
-	//Поворот
+	//РџРѕРІРѕСЂРѕС‚
 	const D3DXQUATERNION& GetRot() const;
 	virtual void SetRot(const D3DXQUATERNION& value);	
-	//Абсолютные трансформации
-	//Позиция
+	//РђР±СЃРѕР»СЋС‚РЅС‹Рµ С‚СЂР°РЅСЃС„РѕСЂРјР°С†РёРё
+	//РџРѕР·РёС†РёСЏ
 	D3DXVECTOR3 GetWorldPos() const;
 	virtual void SetWorldPos(const D3DXVECTOR3& value);
-	//Поворот
+	//РџРѕРІРѕСЂРѕС‚
 	D3DXQUATERNION GetWorldRot() const;
 	virtual void SetWorldRot(const D3DXQUATERNION& value);
 	

@@ -1,5 +1,5 @@
-//Описывает состояние режима гонка. Взаимодействует с игроком Player, с миром World.
-//Данный модуль используется Menu, AI
+//РћРїРёСЃС‹РІР°РµС‚ СЃРѕСЃС‚РѕСЏРЅРёРµ СЂРµР¶РёРјР° РіРѕРЅРєР°. Р’Р·Р°РёРјРѕРґРµР№СЃС‚РІСѓРµС‚ СЃ РёРіСЂРѕРєРѕРј Player, СЃ РјРёСЂРѕРј World.
+//Р”Р°РЅРЅС‹Р№ РјРѕРґСѓР»СЊ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ Menu, AI
 
 #pragma once
 
@@ -35,7 +35,7 @@ private:
 
 	void SaveSlot(Slot* slot, const std::string& name);
 	
-	//база данных
+	//Р±Р°Р·Р° РґР°РЅРЅС‹С…
 	Slot* AddSlot(Record* record);
 	void DelSlot(Slots::const_iterator iter);
 	void DelSlot(Slot* slot);
@@ -54,24 +54,24 @@ public:
 	Workshop(Race* race);
 	~Workshop();
 
-	//найти слот в базе данных
+	//РЅР°Р№С‚Рё СЃР»РѕС‚ РІ Р±Р°Р·Рµ РґР°РЅРЅС‹С…
 	Record& GetRecord(const std::string& name);
 	Slot* FindSlot(Record* record);
 
-	//магазин, доступные слоты
+	//РјР°РіР°Р·РёРЅ, РґРѕСЃС‚СѓРїРЅС‹Рµ СЃР»РѕС‚С‹
 	void InsertItem(Slot* slot);
 	void RemoveItem(Items::iterator iter);
 	bool RemoveItem(Slot* slot);
 	void ClearItems();
 
-	//купить слот
+	//РєСѓРїРёС‚СЊ СЃР»РѕС‚
 	bool BuyItem(Player* player, Slot* slot);
 	Slot* BuyItem(Player* player, Record* slot);
-	//продать слот
+	//РїСЂРѕРґР°С‚СЊ СЃР»РѕС‚
 	void SellItem(Player* player, Slot* slot, bool sellDiscount = true, int chargeCount = -1);
 	void SellItem(Player* player, Record* slot, bool sellDiscount = true, int chargeCount = -1);
 	int GetCostItem(Slot* slot, bool sellDiscount = true, int chargeCount = -1);
-	//купить заряды для
+	//РєСѓРїРёС‚СЊ Р·Р°СЂСЏРґС‹ РґР»СЏ
 	bool BuyChargeFor(Player* player, WeaponItem* slot);
 	Slot* BuyUpgrade(Player* player, Record* slot);
 
@@ -81,11 +81,11 @@ public:
 	int GetChargeSellCost(WeaponItem* slot) const;
 	void Reset();
 
-	//слоты в базе данных
+	//СЃР»РѕС‚С‹ РІ Р±Р°Р·Рµ РґР°РЅРЅС‹С…
 	const Slots& GetSlots();
-	//доступные слоты
+	//РґРѕСЃС‚СѓРїРЅС‹Рµ СЃР»РѕС‚С‹
 	const Items& GetItems();
-	//найти слот в базе по имени
+	//РЅР°Р№С‚Рё СЃР»РѕС‚ РІ Р±Р°Р·Рµ РїРѕ РёРјРµРЅРё
 	Slot& GetSlot(const std::string& name);
 
 	Race* GetRace();
@@ -116,17 +116,17 @@ public:
 		const PlaceItem* FindItem(Record* slot) const;
 		const PlaceItem* FindItem(Slot* slot) const;
 		
-		//активен
+		//Р°РєС‚РёРІРµРЅ
 		bool active;
-		//отобразить на модели
+		//РѕС‚РѕР±СЂР°Р·РёС‚СЊ РЅР° РјРѕРґРµР»Рё
 		bool show;
-		//ккординаты
+		//РєРєРѕСЂРґРёРЅР°С‚С‹
 		D3DXVECTOR3 pos;
-		//итемы
+		//РёС‚РµРјС‹
 		PlaceItems items;
-		//итем по умолчанию, ставится на машину если нет других вариантов
+		//РёС‚РµРј РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ, СЃС‚Р°РІРёС‚СЃСЏ РЅР° РјР°С€РёРЅСѓ РµСЃР»Рё РЅРµС‚ РґСЂСѓРіРёС… РІР°СЂРёР°РЅС‚РѕРІ
 		Slot* defItem;
-		//заблокирован, манипуляции с ним запрещены
+		//Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ, РјР°РЅРёРїСѓР»СЏС†РёРё СЃ РЅРёРј Р·Р°РїСЂРµС‰РµРЅС‹
 		bool lock;
 	};
 
@@ -221,7 +221,7 @@ private:
 
 	void FillStandartSlots(Car* car, const std::string& wheel, bool truba, const D3DXVECTOR3* hyperDrive, bool spring, bool maslo, bool mineSpike, bool mineRip, bool mineProton, bool lockedMax);
 
-	//записи о всех машинвх
+	//Р·Р°РїРёСЃРё Рѕ РІСЃРµС… РјР°С€РёРЅРІС…
 	Car* AddCar();
 	void DeleteCar(Cars::iterator iter);
 	void DeleteCar(Car* car);
@@ -238,20 +238,20 @@ public:
 	Garage(Race* race, const std::string& name);
 	~Garage();
 
-	//поиск машин
+	//РїРѕРёСЃРє РјР°С€РёРЅ
 	Cars::iterator FindCar(Car* car);	
 	Car* FindCar(MapObjRec* record);
 	Car* FindCar(const std::string& name);
 
-	//магазин, имеющиеся машины
+	//РјР°РіР°Р·РёРЅ, РёРјРµСЋС‰РёРµСЃСЏ РјР°С€РёРЅС‹
 	void InsertItem(Car* item);
 	void RemoveItem(Items::const_iterator iter);
 	void RemoveItem(Car* item);
 	void ClearItems();
 	Items::iterator FindItem(Car* item);
 
-	//установить слот на машину
-	//возвращает слот игрока
+	//СѓСЃС‚Р°РЅРѕРІРёС‚СЊ СЃР»РѕС‚ РЅР° РјР°С€РёРЅСѓ
+	//РІРѕР·РІСЂР°С‰Р°РµС‚ СЃР»РѕС‚ РёРіСЂРѕРєР°
 	Slot* InstalSlot(Player* player, Player::SlotType type, Car* car, Slot* slot, int chargeCount = -1);
 	bool IsSlotSupported(Car* car, Player::SlotType type, Slot* slot);
 	bool TestCompSlot(Car* car, Car* newCar, Player::SlotType type, Slot* slot);
@@ -269,16 +269,16 @@ public:
 	float GetDamageSkill(Garage::Car* car, Player* player, float& damageVal, float& maxDamageVal);
 	float GetSpeedSkill(Garage::Car* car, Player* player);
 
-	//купить машину
-	//продать старую машину
+	//РєСѓРїРёС‚СЊ РјР°С€РёРЅСѓ
+	//РїСЂРѕРґР°С‚СЊ СЃС‚Р°СЂСѓСЋ РјР°С€РёРЅСѓ
 	int GetCarCost(Car* car);
 	int GetCarSellCost(Player* player);
 	bool BuyCar(Player* player, Garage::Car* car);
 	void Reset();
 
-	//список всех машин
+	//СЃРїРёСЃРѕРє РІСЃРµС… РјР°С€РёРЅ
 	const Cars& GetCars() const;
-	//список доступных машин
+	//СЃРїРёСЃРѕРє РґРѕСЃС‚СѓРїРЅС‹С… РјР°С€РёРЅ
 	const Items& GetItems()	 const;
 
 	int GetUpgradeMaxLevel() const;
@@ -314,7 +314,7 @@ public:
 		std::string level;
 		Environment::WorldType world;
 		Environment::Wheater wheater;
-		//число кругов
+		//С‡РёСЃР»Рѕ РєСЂСѓРіРѕРІ
 		unsigned numLaps;		
 
 		int GetIndex() const;
@@ -363,8 +363,8 @@ public:
 	};
 	typedef lsl::List<PlayerData> Players;
 
-	//Состояние: открыта, закрыта, недоступна
-	//заплатив очки можно перейтий из psClosed в psOpen
+	//РЎРѕСЃС‚РѕСЏРЅРёРµ: РѕС‚РєСЂС‹С‚Р°, Р·Р°РєСЂС‹С‚Р°, РЅРµРґРѕСЃС‚СѓРїРЅР°
+	//Р·Р°РїР»Р°С‚РёРІ РѕС‡РєРё РјРѕР¶РЅРѕ РїРµСЂРµР№С‚РёР№ РёР· psClosed РІ psOpen
 	enum State {psOpen, psClosed, psUnavailable, psCompleted};
 
 	enum WorldType {wtWorld1 = 0, wtWorld2, wtWorld3, wtWorld4, wtWorld5, wtWorld6, cWorldTypeEnd};	
@@ -403,14 +403,14 @@ private:
 	graph::IndexedVBMesh* _mesh;
 	graph::Tex2DResource* _texture;
 
-	//проход начат
-	//pass = 0, планета была разблокирована
-	//pass 1...n начать этап
+	//РїСЂРѕС…РѕРґ РЅР°С‡Р°С‚
+	//pass = 0, РїР»Р°РЅРµС‚Р° Р±С‹Р»Р° СЂР°Р·Р±Р»РѕРєРёСЂРѕРІР°РЅР°
+	//pass 1...n РЅР°С‡Р°С‚СЊ СЌС‚Р°Рї
 	void StartPass(int pass, Player* player);
 	void StartPass(int pass);
-	//проход завершен
-	//pass = 0, планета была открыта
-	//pass 1...n пройден этап	
+	//РїСЂРѕС…РѕРґ Р·Р°РІРµСЂС€РµРЅ
+	//pass = 0, РїР»Р°РЅРµС‚Р° Р±С‹Р»Р° РѕС‚РєСЂС‹С‚Р°
+	//pass 1...n РїСЂРѕР№РґРµРЅ СЌС‚Р°Рї	
 	void CompletePass(int pass);
 
 	void SaveSlots(lsl::SWriter* writer, const std::string& name, Slots& mSlots, Tournament* owner);
@@ -433,12 +433,12 @@ public:
 	bool Open();
 	bool Complete();
 
-	//начать проход
+	//РЅР°С‡Р°С‚СЊ РїСЂРѕС…РѕРґ
 	void StartPass(Player* player);
 	void StartPass();
-	//следующий
+	//СЃР»РµРґСѓСЋС‰РёР№
 	void NextPass();	
-	//текущий
+	//С‚РµРєСѓС‰РёР№
 	int GetPass() const;
 	void SetPass(int value);
 	//
@@ -750,20 +750,20 @@ private:
 	AchievmentModel* _achievment;
 	Planets _planetsCompleted;
 
-	//Список игроков
+	//РЎРїРёСЃРѕРє РёРіСЂРѕРєРѕРІ
 	PlayerList _playerList;
 	PlayerList _playerPlaceList;
-	//люди
+	//Р»СЋРґРё
 	HumanPlayer* _human;
-	//компьтерные игроки
+	//РєРѕРјРїСЊС‚РµСЂРЅС‹Рµ РёРіСЂРѕРєРё
 	AIPlayers _aiPlayers;
-	//ИИ. Работает только в режиме гонки
-	//Если научить режиму менеджера, то небходимо также просчитывать ИИ перед стартом гонки, пошагово
+	//РР. Р Р°Р±РѕС‚Р°РµС‚ С‚РѕР»СЊРєРѕ РІ СЂРµР¶РёРјРµ РіРѕРЅРєРё
+	//Р•СЃР»Рё РЅР°СѓС‡РёС‚СЊ СЂРµР¶РёРјСѓ РјРµРЅРµРґР¶РµСЂР°, С‚Рѕ РЅРµР±С…РѕРґРёРјРѕ С‚Р°РєР¶Рµ РїСЂРѕСЃС‡РёС‚С‹РІР°С‚СЊ РР РїРµСЂРµРґ СЃС‚Р°СЂС‚РѕРј РіРѕРЅРєРё, РїРѕС€Р°РіРѕРІРѕ
 	AISystem* _aiSystem;
 	
 	void DisposePlayer(Player* player);	
 
-	//игрок завершил трасу, вызвается в порядке убывания по месту
+	//РёРіСЂРѕРє Р·Р°РІРµСЂС€РёР» С‚СЂР°СЃСѓ, РІС‹Р·РІР°РµС‚СЃСЏ РІ РїРѕСЂСЏРґРєРµ СѓР±С‹РІР°РЅРёСЏ РїРѕ РјРµСЃС‚Сѓ
 	void CompleteRace(Player* player);
 	void CompleteRace(const Results* results);
 	void CompletePlanet(int index);

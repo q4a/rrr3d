@@ -39,70 +39,70 @@ public:
 
 	unsigned GetId() const;
 
-	//Позиция, в мировых координатах
+	//РџРѕР·РёС†РёСЏ, РІ РјРёСЂРѕРІС‹С… РєРѕРѕСЂРґРёРЅР°С‚Р°С…
 	const D3DXVECTOR3& GetPos() const;
 	void SetPos(const D3DXVECTOR3& value);
-	//Размер, в виде диаметра сферы
+	//Р Р°Р·РјРµСЂ, РІ РІРёРґРµ РґРёР°РјРµС‚СЂР° СЃС„РµСЂС‹
 	float GetSize() const;
 	void SetSize(float value);
-	//Оптимальная точка, в виде смещения относительно позиции
+	//РћРїС‚РёРјР°Р»СЊРЅР°СЏ С‚РѕС‡РєР°, РІ РІРёРґРµ СЃРјРµС‰РµРЅРёСЏ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РїРѕР·РёС†РёРё
 	const D3DXVECTOR3& GetOff() const;
 	void SetOff(const D3DXVECTOR3& value);
 
-	//Принадлжеит ли точка путю
+	//РџСЂРёРЅР°РґР»Р¶РµРёС‚ Р»Рё С‚РѕС‡РєР° РїСѓС‚СЋ
 	bool IsFind(WayPath* path) const;
 	//
 	bool IsFind(WayNode* node, WayNode* ignore = NULL) const;
-	//Получить случайный узел не совпадающий с ignore
+	//РџРѕР»СѓС‡РёС‚СЊ СЃР»СѓС‡Р°Р№РЅС‹Р№ СѓР·РµР» РЅРµ СЃРѕРІРїР°РґР°СЋС‰РёР№ СЃ ignore
 	WayNode* GetRandomNode(WayNode* ignore, bool hasNext);
 	//
 	const Nodes& GetNodes() const;
 };
 
-//Узел, представляет понятие вейпойнта формирующего двунаправленный путь. Узлы образуют тайлы и могут ссылаться на них
+//РЈР·РµР», РїСЂРµРґСЃС‚Р°РІР»СЏРµС‚ РїРѕРЅСЏС‚РёРµ РІРµР№РїРѕР№РЅС‚Р° С„РѕСЂРјРёСЂСѓСЋС‰РµРіРѕ РґРІСѓРЅР°РїСЂР°РІР»РµРЅРЅС‹Р№ РїСѓС‚СЊ. РЈР·Р»С‹ РѕР±СЂР°Р·СѓСЋС‚ С‚Р°Р№Р»С‹ Рё РјРѕРіСѓС‚ СЃСЃС‹Р»Р°С‚СЊСЃСЏ РЅР° РЅРёС…
 class WayNode: public Object
 {
 	friend class WayPath;
 private:
-	//Тайл, начинается с узла _node
-	//представляет собой 3д участок, ограниченный двумя узлами _node и _node->_next. Для некоторых расчетов для упрощения используется 2д система
+	//РўР°Р№Р», РЅР°С‡РёРЅР°РµС‚СЃСЏ СЃ СѓР·Р»Р° _node
+	//РїСЂРµРґСЃС‚Р°РІР»СЏРµС‚ СЃРѕР±РѕР№ 3Рґ СѓС‡Р°СЃС‚РѕРє, РѕРіСЂР°РЅРёС‡РµРЅРЅС‹Р№ РґРІСѓРјСЏ СѓР·Р»Р°РјРё _node Рё _node->_next. Р”Р»СЏ РЅРµРєРѕС‚РѕСЂС‹С… СЂР°СЃС‡РµС‚РѕРІ РґР»СЏ СѓРїСЂРѕС‰РµРЅРёСЏ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ 2Рґ СЃРёСЃС‚РµРјР°
 	class Tile
 	{
 	private:
 		WayNode* _node;
 
-		//Направляющий вектор, образованный node, nextNode
+		//РќР°РїСЂР°РІР»СЏСЋС‰РёР№ РІРµРєС‚РѕСЂ, РѕР±СЂР°Р·РѕРІР°РЅРЅС‹Р№ node, nextNode
 		mutable D3DXVECTOR2 _dir;
-		//продольгая длина тайла
+		//РїСЂРѕРґРѕР»СЊРіР°СЏ РґР»РёРЅР° С‚Р°Р№Р»Р°
 		mutable float _dirLength;
-		//Нормаль к направляющему вектору
+		//РќРѕСЂРјР°Р»СЊ Рє РЅР°РїСЂР°РІР»СЏСЋС‰РµРјСѓ РІРµРєС‚РѕСЂСѓ
 		mutable D3DXVECTOR2 _norm;
 		//
 		mutable D3DXVECTOR3 _normLine;
-		//направляющая линия
+		//РЅР°РїСЂР°РІР»СЏСЋС‰Р°СЏ Р»РёРЅРёСЏ
 		mutable D3DXVECTOR3 _dirLine;
-		//Средний направляющий вектор
+		//РЎСЂРµРґРЅРёР№ РЅР°РїСЂР°РІР»СЏСЋС‰РёР№ РІРµРєС‚РѕСЂ
 		mutable D3DXVECTOR2 _midDir;
-		//Нормаль к _midDir
+		//РќРѕСЂРјР°Р»СЊ Рє _midDir
 		mutable D3DXVECTOR2 _midNorm;
-		//Нормальная ограничивающие линия через node
+		//РќРѕСЂРјР°Р»СЊРЅР°СЏ РѕРіСЂР°РЅРёС‡РёРІР°СЋС‰РёРµ Р»РёРЅРёСЏ С‡РµСЂРµР· node
 		mutable D3DXVECTOR3 _midNormLine;
-		//нормаль к _midDir в направлении к внутреннему углу (наче говоря к острому углу)
+		//РЅРѕСЂРјР°Р»СЊ Рє _midDir РІ РЅР°РїСЂР°РІР»РµРЅРёРё Рє РІРЅСѓС‚СЂРµРЅРЅРµРјСѓ СѓРіР»Сѓ (РЅР°С‡Рµ РіРѕРІРѕСЂСЏ Рє РѕСЃС‚СЂРѕРјСѓ СѓРіР»Сѓ)
 		mutable D3DXVECTOR2 _edgeNorm;
-		//узловой радиус окружности целиком описывающий угол
+		//СѓР·Р»РѕРІРѕР№ СЂР°РґРёСѓСЃ РѕРєСЂСѓР¶РЅРѕСЃС‚Рё С†РµР»РёРєРѕРј РѕРїРёСЃС‹РІР°СЋС‰РёР№ СѓРіРѕР»
 		mutable float _nodeRadius;
-		//линия через внутренний угол поворота перпендикулярно _midNorm
+		//Р»РёРЅРёСЏ С‡РµСЂРµР· РІРЅСѓС‚СЂРµРЅРЅРёР№ СѓРіРѕР» РїРѕРІРѕСЂРѕС‚Р° РїРµСЂРїРµРЅРґРёРєСѓР»СЏСЂРЅРѕ _midNorm
 		mutable D3DXVECTOR3 _edgeLine;
-		//острый угол поворота узла (двух смежных тайлов), в рад
+		//РѕСЃС‚СЂС‹Р№ СѓРіРѕР» РїРѕРІРѕСЂРѕС‚Р° СѓР·Р»Р° (РґРІСѓС… СЃРјРµР¶РЅС‹С… С‚Р°Р№Р»РѕРІ), РІ СЂР°Рґ
 		mutable float _turnAngle;
-		//дистанцию до конечного узла
+		//РґРёСЃС‚Р°РЅС†РёСЋ РґРѕ РєРѕРЅРµС‡РЅРѕРіРѕ СѓР·Р»Р°
 		mutable float _finishDist;
-		//дистанция до начального узла
+		//РґРёСЃС‚Р°РЅС†РёСЏ РґРѕ РЅР°С‡Р°Р»СЊРЅРѕРіРѕ СѓР·Р»Р°
 		mutable float _startDist;
-		//флаг состояния
+		//С„Р»Р°Рі СЃРѕСЃС‚РѕСЏРЅРёСЏ
 		mutable bool _changed;
 
-		//Применить изменения
+		//РџСЂРёРјРµРЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ
 		void ApplyChanges() const;
 
 		const D3DXVECTOR3& GetPos() const;
@@ -120,17 +120,17 @@ private:
 		Tile(WayNode* node);
 
 		void Changed();
-		//если upVec указан, то в 3д координатах иначе в 2д координатах
+		//РµСЃР»Рё upVec СѓРєР°Р·Р°РЅ, С‚Рѕ РІ 3Рґ РєРѕРѕСЂРґРёРЅР°С‚Р°С… РёРЅР°С‡Рµ РІ 2Рґ РєРѕРѕСЂРґРёРЅР°С‚Р°С…
 		void GetVBuf(D3DXVECTOR3* vBuf, unsigned length, const D3DXVECTOR3* upVec) const;
-		//Работа с дорожками
-		//Номер дорожки отсчитывается начиная с 0 от крайней грани в направлении нормали GetNorm
-		//Номер из поизции
+		//Р Р°Р±РѕС‚Р° СЃ РґРѕСЂРѕР¶РєР°РјРё
+		//РќРѕРјРµСЂ РґРѕСЂРѕР¶РєРё РѕС‚СЃС‡РёС‚С‹РІР°РµС‚СЃСЏ РЅР°С‡РёРЅР°СЏ СЃ 0 РѕС‚ РєСЂР°Р№РЅРµР№ РіСЂР°РЅРё РІ РЅР°РїСЂР°РІР»РµРЅРёРё РЅРѕСЂРјР°Р»Рё GetNorm
+		//РќРѕРјРµСЂ РёР· РїРѕРёР·С†РёРё
 		unsigned ComputeTrackInd(const D3DXVECTOR2& point) const;
-		//Наикратчайший вектор смещения до соседней дорожки track относительно point
+		//РќР°РёРєСЂР°С‚С‡Р°Р№С€РёР№ РІРµРєС‚РѕСЂ СЃРјРµС‰РµРЅРёСЏ РґРѕ СЃРѕСЃРµРґРЅРµР№ РґРѕСЂРѕР¶РєРё track РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ point
 		D3DXVECTOR2 ComputeTrackNormOff(const D3DXVECTOR2& point, unsigned track) const;
 
 		bool RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, float* dist = 0) const;
-		//lengthClamp - ограничивать ли тайл по длине
+		//lengthClamp - РѕРіСЂР°РЅРёС‡РёРІР°С‚СЊ Р»Рё С‚Р°Р№Р» РїРѕ РґР»РёРЅРµ
 		bool IsContains(const D3DXVECTOR3& point, bool lengthClamp = true, float* dist = 0, float widthErr = 0.0f) const;
 		bool IsZLevelContains(const D3DXVECTOR3& point, float* dist = 0) const;
 
@@ -148,16 +148,16 @@ private:
 		float GetFinishDist() const;
 		float GetStartDist() const;
 
-		//coordX - относительная продольная координата тайла
+		//coordX - РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅР°СЏ РїСЂРѕРґРѕР»СЊРЅР°СЏ РєРѕРѕСЂРґРёРЅР°С‚Р° С‚Р°Р№Р»Р°
 		float ComputeCoordX(float dist) const;
 		float ComputeCoordX(const D3DXVECTOR2& point) const;
-		//длина тайла
+		//РґР»РёРЅР° С‚Р°Р№Р»Р°
 		float ComputeLength(float coordX) const;
-		//Длина нормали в определенной точке
+		//Р”Р»РёРЅР° РЅРѕСЂРјР°Р»Рё РІ РѕРїСЂРµРґРµР»РµРЅРЅРѕР№ С‚РѕС‡РєРµ
 		float ComputeWidth(float coordX) const;
-		//Высота тайла в определенной точке, coordX = [0..1]
+		//Р’С‹СЃРѕС‚Р° С‚Р°Р№Р»Р° РІ РѕРїСЂРµРґРµР»РµРЅРЅРѕР№ С‚РѕС‡РєРµ, coordX = [0..1]
 		float ComputeHeight(float coordX) const;
-		//Z координата тайла в точке coordX
+		//Z РєРѕРѕСЂРґРёРЅР°С‚Р° С‚Р°Р№Р»Р° РІ С‚РѕС‡РєРµ coordX
 		float ComputeZCoord(float coordX) const;
 		//
 		D3DXVECTOR3 GetPoint(float coordX) const;
@@ -192,7 +192,7 @@ public:
 
 	WayPath* GetPath();
 	WayPoint* GetPoint();
-	//трек, который начинается с данного узла. Представляет собой 2д плоскость
+	//С‚СЂРµРє, РєРѕС‚РѕСЂС‹Р№ РЅР°С‡РёРЅР°РµС‚СЃСЏ СЃ РґР°РЅРЅРѕРіРѕ СѓР·Р»Р°. РџСЂРµРґСЃС‚Р°РІР»СЏРµС‚ СЃРѕР±РѕР№ 2Рґ РїР»РѕСЃРєРѕСЃС‚СЊ
 	const Tile& GetTile() const;
 
 	WayNode* GetPrev();
@@ -219,7 +219,7 @@ private:
 	WayPath(Trace* trace);
 	~WayPath();
 public:
-	//mWhere - перед узлом mWhere, == 0 в конец
+	//mWhere - РїРµСЂРµРґ СѓР·Р»РѕРј mWhere, == 0 РІ РєРѕРЅРµС†
 	WayNode* Add(WayPoint* point, WayNode* mWhere = 0);
 	void Delete(WayNode* value);
 	void Clear();
@@ -228,9 +228,9 @@ public:
 	void Enclosed(bool value);
 
 	WayNode* RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, WayNode* mWhere = 0, float* dist = 0) const;
-	//Поиск узла-тайла содержащего point. При поиске предпочтение отдается узлам с кторых начинается тайл
+	//РџРѕРёСЃРє СѓР·Р»Р°-С‚Р°Р№Р»Р° СЃРѕРґРµСЂР¶Р°С‰РµРіРѕ point. РџСЂРё РїРѕРёСЃРєРµ РїСЂРµРґРїРѕС‡С‚РµРЅРёРµ РѕС‚РґР°РµС‚СЃСЏ СѓР·Р»Р°Рј СЃ РєС‚РѕСЂС‹С… РЅР°С‡РёРЅР°РµС‚СЃСЏ С‚Р°Р№Р»
 	WayNode* IsTileContains(const D3DXVECTOR3& point, WayNode* mWhere = 0) const;
-	//если upVec указан, то в 3д координатах иначе в 2д координатах
+	//РµСЃР»Рё upVec СѓРєР°Р·Р°РЅ, С‚Рѕ РІ 3Рґ РєРѕРѕСЂРґРёРЅР°С‚Р°С… РёРЅР°С‡Рµ РІ 2Рґ РєРѕРѕСЂРґРёРЅР°С‚Р°С…
 	void GetTriStripVBuf(res::VertexData& data, const D3DXVECTOR3* upVec);
 
 	Trace* GetTrace();

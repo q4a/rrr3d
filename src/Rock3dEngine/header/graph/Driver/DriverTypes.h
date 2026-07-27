@@ -2,7 +2,7 @@
 #define DRIVER_TYPES
 
 #include "windows.h"
-#include "d3d9.h" //При абсолютной абстракции этого здесь быть не должно
+#include "d3d9.h" //РџСЂРё Р°Р±СЃРѕР»СЋС‚РЅРѕР№ Р°Р±СЃС‚СЂР°РєС†РёРё СЌС‚РѕРіРѕ Р·РґРµСЃСЊ Р±С‹С‚СЊ РЅРµ РґРѕР»Р¶РЅРѕ
 #include <bitset>
 
 #include "lslContainer.h"

@@ -407,7 +407,7 @@ CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& me
 	}
 
 	NxWheelShapeDesc descShapeWheel;
-	//íà÷àëüíàÿ èíèöèàëèçàöèÿ, íàïðèìåð ãðóïïû
+	//Ð½Ð°Ñ‡Ð°Ð»ÑŒÐ½Ð°Ñ Ð¸Ð½Ð¸Ñ†Ð¸Ð°Ð»Ð¸Ð·Ð°Ñ†Ð¸Ñ, Ð½Ð°Ð¿Ñ€Ð¸Ð¼ÐµÑ€ Ð³Ñ€ÑƒÐ¿Ð¿Ñ‹
 	wheel->GetShape()->AssignToDesc(descShapeWheel);
 
 	descShapeWheel.inverseWheelMass = carDesc.inverseWheelMass;
@@ -577,7 +577,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 				slipEffect.SetEffect(GetRecord(MapObjLib::ctEffects, "trail"));
 				slipEffect.SetPos(ZVector * 0.01f);
 				
-				//äëÿ îäíîãî êîëåñà
+				//Ð´Ð»Ñ Ð¾Ð´Ð½Ð¾Ð³Ð¾ ÐºÐ¾Ð»ÐµÑÐ°
 				if (i == 0)
 					slipEffect.SetSound(&GetSound("Sounds\\SkidAsphalt.ogg"));
 			}
@@ -728,7 +728,7 @@ void DataBase::LoadCrushObj(const std::string& name, const std::string& mesh, co
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::DestrObj& gameObj = mapObj->SetGameObj<game::DestrObj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 		mapObj->GetGameObj().GetPxActor().SetScene(_world->GetPxScene());
 		mapObj->GetGameObj().SetMaxLife(0);
@@ -2941,7 +2941,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -2964,7 +2964,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -2988,7 +2988,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -3012,7 +3012,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -3037,7 +3037,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -3059,7 +3059,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -3081,7 +3081,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -3103,7 +3103,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -3125,7 +3125,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -3146,7 +3146,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -3167,7 +3167,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -3188,7 +3188,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -3209,7 +3209,7 @@ void DataBase::LoadBonus()
 	{
 		game::MapObj* mapObj = NewMapObj();
 		game::AutoProj& gameObj = mapObj->SetGameObj<game::AutoProj>();
-		//íåîáõîäèìî äëÿ ðåíäåðà BB
+		//Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ð¾ Ð´Ð»Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° BB
 		AddToGraph(mapObj, gtDefFixPipe, true);
 
 		AutoProj::Desc desc;
@@ -4330,7 +4330,7 @@ void DataBase::Init()
 		carMaterialDesc.staticFrictionV = 3.2f;
 		carMaterialDesc.dynamicFrictionV = 2.0f;
 		carMaterialDesc.dirOfAnisotropy = NxVec3(0, 0, 1.0f);
-		//óñòàíàëâèàåì äàííûå ôëàãè ÷òîáû ìàøèíà íîðìàëüíî ñêîëüçèëà ïî áîêîâîé ïîâåðõíîñòè, èíà÷å îíà ïðèïîäíèìàåòñÿ ââåðõ
+		//ÑƒÑÑ‚Ð°Ð½Ð°Ð»Ð²Ð¸Ð°ÐµÐ¼ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ñ„Ð»Ð°Ð³Ð¸ Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð¼Ð°ÑˆÐ¸Ð½Ð° Ð½Ð¾Ñ€Ð¼Ð°Ð»ÑŒÐ½Ð¾ ÑÐºÐ¾Ð»ÑŒÐ·Ð¸Ð»Ð° Ð¿Ð¾ Ð±Ð¾ÐºÐ¾Ð²Ð¾Ð¹ Ð¿Ð¾Ð²ÐµÑ€Ñ…Ð½Ð¾ÑÑ‚Ð¸, Ð¸Ð½Ð°Ñ‡Ðµ Ð¾Ð½Ð° Ð¿Ñ€Ð¸Ð¿Ð¾Ð´Ð½Ð¸Ð¼Ð°ÐµÑ‚ÑÑ Ð²Ð²ÐµÑ€Ñ…
 		carMaterialDesc.flags = NX_MF_ANISOTROPIC | NX_MF_DISABLE_STRONG_FRICTION;
 		carMaterialDesc.frictionCombineMode = NX_CM_MIN;
 		_nxCarMaterial1 = _world->GetPxScene()->GetNxScene()->createMaterial(carMaterialDesc);
@@ -4343,7 +4343,7 @@ void DataBase::Init()
 		carMaterialDesc.staticFrictionV = 3.2f;
 		carMaterialDesc.dynamicFrictionV = 2.0f;
 		carMaterialDesc.dirOfAnisotropy = NxVec3(0, 0, 1.0f);
-		//óñòàíàëâèàåì äàííûå ôëàãè ÷òîáû ìàøèíà íîðìàëüíî ñêîëüçèëà ïî áîêîâîé ïîâåðõíîñòè, èíà÷å îíà ïðèïîäíèìàåòñÿ ââåðõ
+		//ÑƒÑÑ‚Ð°Ð½Ð°Ð»Ð²Ð¸Ð°ÐµÐ¼ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ñ„Ð»Ð°Ð³Ð¸ Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð¼Ð°ÑˆÐ¸Ð½Ð° Ð½Ð¾Ñ€Ð¼Ð°Ð»ÑŒÐ½Ð¾ ÑÐºÐ¾Ð»ÑŒÐ·Ð¸Ð»Ð° Ð¿Ð¾ Ð±Ð¾ÐºÐ¾Ð²Ð¾Ð¹ Ð¿Ð¾Ð²ÐµÑ€Ñ…Ð½Ð¾ÑÑ‚Ð¸, Ð¸Ð½Ð°Ñ‡Ðµ Ð¾Ð½Ð° Ð¿Ñ€Ð¸Ð¿Ð¾Ð´Ð½Ð¸Ð¼Ð°ÐµÑ‚ÑÑ Ð²Ð²ÐµÑ€Ñ…
 		carMaterialDesc.flags = NX_MF_ANISOTROPIC | NX_MF_DISABLE_STRONG_FRICTION;
 		carMaterialDesc.frictionCombineMode = NX_CM_MIN;
 		_nxCarMaterial2 = _world->GetPxScene()->GetNxScene()->createMaterial(carMaterialDesc);

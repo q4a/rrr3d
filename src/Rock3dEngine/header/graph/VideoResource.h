@@ -197,7 +197,7 @@ public:
 	IDirect3DBaseTexture9* GetTex();
 	
 	unsigned GetLevelCnt() const;
-	//value = 0 - генерация последовательности mip уровней до 1x1
+	//value = 0 - РіРµРЅРµСЂР°С†РёСЏ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚Рё mip СѓСЂРѕРІРЅРµР№ РґРѕ 1x1
 	void SetLevelCnt(unsigned value);
 
 	const D3DXVECTOR2& GetScreenScale() const;

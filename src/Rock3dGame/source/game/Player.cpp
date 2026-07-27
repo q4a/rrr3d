@@ -962,10 +962,10 @@ void Player::CarState::Update(float deltaTime)
 	normLine = Line2FromNorm(dir, pos);	
 
 	WayNode* tile = owner->GetMap()->GetTrace().IsTileContains(pos3, curTile);
-	//Существуем множество проблем если подбирать ближвйщий узел, например с lastNode, а целесообразность пока неясна, поэтому пока убрано
-	//Тайл не найден
+	//РЎСѓС‰РµСЃС‚РІСѓРµРј РјРЅРѕР¶РµСЃС‚РІРѕ РїСЂРѕР±Р»РµРј РµСЃР»Рё РїРѕРґР±РёСЂР°С‚СЊ Р±Р»РёР¶РІР№С‰РёР№ СѓР·РµР», РЅР°РїСЂРёРјРµСЂ СЃ lastNode, Р° С†РµР»РµСЃРѕРѕР±СЂР°Р·РЅРѕСЃС‚СЊ РїРѕРєР° РЅРµСЏСЃРЅР°, РїРѕСЌС‚РѕРјСѓ РїРѕРєР° СѓР±СЂР°РЅРѕ
+	//РўР°Р№Р» РЅРµ РЅР°Р№РґРµРЅ
 	//if (!tile)
-		//Поиск ближайщего узла
+		//РџРѕРёСЃРє Р±Р»РёР¶Р°Р№С‰РµРіРѕ СѓР·Р»Р°
 	//	tile = owner->GetMap()->GetTrace().FindClosestNode(pos3);	
 	SetCurTile(tile);
 	//
@@ -991,7 +991,7 @@ void Player::CarState::Update(float deltaTime)
 	
 	if (newLastNode1 || newLastNode2)
 	{
-		//круг пройден
+		//РєСЂСѓРі РїСЂРѕР№РґРµРЅ
 		onLapPass = lastNode && curTile == lastNode->GetPath()->GetTrace()->GetPathes().front()->GetFirst();
 
 		SetLastNode(curTile);
@@ -1003,7 +1003,7 @@ void Player::CarState::Update(float deltaTime)
 	if (onLapPass)
 		owner->OnLapPass();
 
-	//инверсия движения
+	//РёРЅРІРµСЂСЃРёСЏ РґРІРёР¶РµРЅРёСЏ
 	if (curTile && D3DXVec2Dot(&curTile->GetTile().GetDir(), &dir) < 0)
 	{
 		if (moveInverseStart < 0)
@@ -1022,7 +1022,7 @@ void Player::CarState::Update(float deltaTime)
 		moveInverseStart = -1;
 	}
 
-	//контроль за скоростью	
+	//РєРѕРЅС‚СЂРѕР»СЊ Р·Р° СЃРєРѕСЂРѕСЃС‚СЊСЋ	
 	maxSpeedTime += deltaTime;
 	if (speed > maxSpeed || maxSpeedTime > 1.0f)
 	{
@@ -1040,7 +1040,7 @@ void Player::CarState::Update(float deltaTime)
 		owner->SendEvent(cPlayerLostControl);
 	}
 
-	/*//контроль за направляющим углом
+	/*//РєРѕРЅС‚СЂРѕР»СЊ Р·Р° РЅР°РїСЂР°РІР»СЏСЋС‰РёРј СѓРіР»РѕРј
 	float dirAngle = acos(abs(D3DXVec3Dot(&lastDir, &dir3)));
 	lastDir = dir3;
 	summAngle += dirAngle;
@@ -1578,7 +1578,7 @@ void Player::OnProgress(float deltaTime)
 
 Player* Player::FindClosestEnemy(float viewAngle, bool zTest)
 {
-	//нет смысла искать противников
+	//РЅРµС‚ СЃРјС‹СЃР»Р° РёСЃРєР°С‚СЊ РїСЂРѕС‚РёРІРЅРёРєРѕРІ
 	if (!_car.mapObj)
 		return 0;
 
@@ -1610,9 +1610,9 @@ Player* Player::FindClosestEnemy(float viewAngle, bool zTest)
 			float dist = D3DXPlaneDotCoord(&dirPlane, &enemyPos);
 			float absDist = abs(dist);
 
-			//Объект ближе
+			//РћР±СЉРµРєС‚ Р±Р»РёР¶Рµ
 			bool b1 = enemy == NULL || absDist < minDist;
-			//Объект расположен с правильной стороны относительно машины
+			//РћР±СЉРµРєС‚ СЂР°СЃРїРѕР»РѕР¶РµРЅ СЃ РїСЂР°РІРёР»СЊРЅРѕР№ СЃС‚РѕСЂРѕРЅС‹ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РјР°С€РёРЅС‹
 			bool b2 = viewAngle == 0.0f || (viewAngle > 0 ? (angle >= cos(viewAngle)) : (angle <= cos(D3DX_PI/2 - viewAngle)));
 
 			if (b1 && b2)
@@ -2024,7 +2024,7 @@ void Player::TakeBonus(GameObject* bonus, BonusType type, float value)
 				{
 					WeaponItem* item = &_slot[i]->GetItem<WeaponItem>();
 
-					//только если пушка хотябы отчасти разряжена
+					//С‚РѕР»СЊРєРѕ РµСЃР»Рё РїСѓС€РєР° С…РѕС‚СЏР±С‹ РѕС‚С‡Р°СЃС‚Рё СЂР°Р·СЂСЏР¶РµРЅР°
 					if (item->GetCurCharge() < item->GetCntCharge())
 						weapons.push_back(&_slot[i]->GetItem<WeaponItem>());
 				}

@@ -303,16 +303,16 @@ void FxEmitter::QueryCreateParticles(unsigned num, float deltaTime, const D3DXVE
 	if (num == 0)
 		return;
 
-	//Число частиц которые вмещаются в эмиттер
+	//Р§РёСЃР»Рѕ С‡Р°СЃС‚РёС† РєРѕС‚РѕСЂС‹Рµ РІРјРµС‰Р°СЋС‚СЃСЏ РІ СЌРјРёС‚С‚РµСЂ
 	unsigned crtNum = _particleDesc.maxNum == 0 ? num : std::min(_particleDesc.maxNum - _cntParticles, num);
 
-	//Проверяем, если число создаваемых частиц crtNum меньше заданного num, то пытаемся освободить для них места
+	//РџСЂРѕРІРµСЂСЏРµРј, РµСЃР»Рё С‡РёСЃР»Рѕ СЃРѕР·РґР°РІР°РµРјС‹С… С‡Р°СЃС‚РёС† crtNum РјРµРЅСЊС€Рµ Р·Р°РґР°РЅРЅРѕРіРѕ num, С‚Рѕ РїС‹С‚Р°РµРјСЃСЏ РѕСЃРІРѕР±РѕРґРёС‚СЊ РґР»СЏ РЅРёС… РјРµСЃС‚Р°
 	if (crtNum < num)		
 		switch (_particleDesc.maxNumAction)
 		{
 		case mnaReplaceLatest:
 		{
-			//Пока не работает
+			//РџРѕРєР° РЅРµ СЂР°Р±РѕС‚Р°РµС‚
 			LSL_ASSERT(false);
 			/*_GroupList::iterator group = --_groupList.begin();
 			FxParticleGroup::iterator first = (*group)->begin();
@@ -333,7 +333,7 @@ void FxEmitter::QueryCreateParticles(unsigned num, float deltaTime, const D3DXVE
 
 	bool checkDur = _particleDesc.startDuration <= 0 || _particleDesc.startDuration > _curTime;
 
-	//Если имеются частицы создаем их
+	//Р•СЃР»Рё РёРјРµСЋС‚СЃСЏ С‡Р°СЃС‚РёС†С‹ СЃРѕР·РґР°РµРј РёС…
 	if (crtNum > 0 && checkDur)
 	{
 		FxParticleGroup* group = AddGroup();
@@ -357,11 +357,11 @@ void FxEmitter::QueryCreateParticles(unsigned num, float deltaTime, const D3DXVE
 
 void FxEmitter::QueryCreateGroup(float deltaTime, const D3DXVECTOR3& offPos)
 {
-	//Текущая плотность частиц
+	//РўРµРєСѓС‰Р°СЏ РїР»РѕС‚РЅРѕСЃС‚СЊ С‡Р°СЃС‚РёС†
 	_curDensParticle = _curDensParticle + _particleDesc.density.GetValue();
-	//Число частиц которое нужно создать
+	//Р§РёСЃР»Рѕ С‡Р°СЃС‚РёС† РєРѕС‚РѕСЂРѕРµ РЅСѓР¶РЅРѕ СЃРѕР·РґР°С‚СЊ
 	int newParticles = static_cast<int>(_curDensParticle);
-	//Остаток от создания частиц
+	//РћСЃС‚Р°С‚РѕРє РѕС‚ СЃРѕР·РґР°РЅРёСЏ С‡Р°СЃС‚РёС†
 	_curDensParticle -= newParticles;
 	//
 	_lastTimeQGroup = _curTime;
@@ -388,7 +388,7 @@ void FxEmitter::OnProgress(float deltaTime)
 		_lastTimeQGroup = _curTime;
 	}
 	
-	//Удаление и обновление оставшихся групп и частиц
+	//РЈРґР°Р»РµРЅРёРµ Рё РѕР±РЅРѕРІР»РµРЅРёРµ РѕСЃС‚Р°РІС€РёС…СЃСЏ РіСЂСѓРїРї Рё С‡Р°СЃС‚РёС†
 	for (_GroupList::Position pos = _groupList.First(); FxParticleGroup** iter = _groupList.Current(pos); _groupList.Next(pos))
 	{
 		FxParticleGroup* group = (*iter);
@@ -396,33 +396,33 @@ void FxEmitter::OnProgress(float deltaTime)
 		LSL_ASSERT(!group->Empty());
 
 		bool death = group->maxLife > 0 && (group->life = std::max(group->life - deltaTime, 0.0f)) <= 0;
-		//Если группа мертва то её можно удалить
+		//Р•СЃР»Рё РіСЂСѓРїРїР° РјРµСЂС‚РІР° С‚Рѕ РµС‘ РјРѕР¶РЅРѕ СѓРґР°Р»РёС‚СЊ
 		if (death)
 			DelGroup(pos);
-		//Иначе обновляем её
+		//РРЅР°С‡Рµ РѕР±РЅРѕРІР»СЏРµРј РµС‘
 		else
 		{
-			//Сначала обновление частиц
+			//РЎРЅР°С‡Р°Р»Р° РѕР±РЅРѕРІР»РµРЅРёРµ С‡Р°СЃС‚РёС†
 			for (FxParticleGroup::iterator iterPart = group->begin(); iterPart != group->end(); ++iterPart)
 			{
 				UpdateParticle(*iterPart, deltaTime, false);
 				_owner->OnUpdateParticle(this, *iterPart, deltaTime, false);
 			}
 
-			//Затем обновление группы (так удобней с точки зрения реализации)
+			//Р—Р°С‚РµРј РѕР±РЅРѕРІР»РµРЅРёРµ РіСЂСѓРїРїС‹ (С‚Р°Рє СѓРґРѕР±РЅРµР№ СЃ С‚РѕС‡РєРё Р·СЂРµРЅРёСЏ СЂРµР°Р»РёР·Р°С†РёРё)
 			UpdateGroup(group, deltaTime, false);
 		}
 	}
 
-	//Создание частиц
+	//РЎРѕР·РґР°РЅРёРµ С‡Р°СЃС‚РёС†
 if (!_modeFading)
 	switch (_particleDesc.startType)
 	{
 	case sotTime:
 	{
-		//минимальное допустимое стартовое время 1 мс
+		//РјРёРЅРёРјР°Р»СЊРЅРѕРµ РґРѕРїСѓСЃС‚РёРјРѕРµ СЃС‚Р°СЂС‚РѕРІРѕРµ РІСЂРµРјСЏ 1 РјСЃ
 		FloatRange startTime(std::max(_particleDesc.startTime.GetMin(), 0.001f), std::max(_particleDesc.startTime.GetMax(), 0.001f));
-		//оставание более чем в 20 раз недопустимо
+		//РѕСЃС‚Р°РІР°РЅРёРµ Р±РѕР»РµРµ С‡РµРј РІ 20 СЂР°Р· РЅРµРґРѕРїСѓСЃС‚РёРјРѕ
 		float dTime = std::min(_curTime - _nextTimeCreate, startTime.GetMax() * 20.0f);
 
 		D3DXVECTOR3 dPos = _lastPosQGroup - (_worldCoordSys ? _owner->GetWorldPos() : _owner->GetPos());
@@ -447,7 +447,7 @@ if (!_modeFading)
 			D3DXVECTOR3 pos = GetLocalPos(particle);
 			D3DXVECTOR3 dist = pos;
 			float distLen = D3DXVec3Length(&dist);
-			//оставание более чем в 20 раз недопустимо
+			//РѕСЃС‚Р°РІР°РЅРёРµ Р±РѕР»РµРµ С‡РµРј РІ 20 СЂР°Р· РЅРµРґРѕРїСѓСЃС‚РёРјРѕ
 			float dDist = std::min(distLen - _nextDistCreate, _particleDesc.startTime.GetMax() * 20.0f);
 
 			D3DXVECTOR3 dPos = _lastPosQGroup - (_worldCoordSys ? _owner->GetWorldPos() : _owner->GetPos());
@@ -464,7 +464,7 @@ if (!_modeFading)
 		}
 		else
 		{
-			//Начальная инициализация переменной
+			//РќР°С‡Р°Р»СЊРЅР°СЏ РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РїРµСЂРµРјРµРЅРЅРѕР№
 			_nextDistCreate = _particleDesc.startTime.GetValue();
 			QueryCreateGroup(0, NullVector);
 		}
@@ -983,7 +983,7 @@ void FxPointSpritesManager::RenderGroup(graph::Engine& engine, FxEmitter* emitte
 		FxParticle* particle = *iter;
 
 		vertex->pos = particle->GetPos();
-		//Делим на 4 для преобразования к мировым координатам
+		//Р”РµР»РёРј РЅР° 4 РґР»СЏ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ Рє РјРёСЂРѕРІС‹Рј РєРѕРѕСЂРґРёРЅР°С‚Р°Рј
 		float camScale = 1.0f;
 		switch (engine.GetContext().GetCamera().GetDesc().style)
 		{
@@ -1189,7 +1189,7 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 
 	FxParticleSystem* system = emitter->GetSystem();
 	const EmitterGroups& groups = GetEmitterGroups(emitter);
-	//Общее число частиц плюс одна частица для следа от самого эммитера
+	//РћР±С‰РµРµ С‡РёСЃР»Рѕ С‡Р°СЃС‚РёС† РїР»СЋСЃ РѕРґРЅР° С‡Р°СЃС‚РёС†Р° РґР»СЏ СЃР»РµРґР° РѕС‚ СЃР°РјРѕРіРѕ СЌРјРјРёС‚РµСЂР°
 	unsigned cntParticle = emitter->GetCntParticle() + 1;
 
 	if (cntParticle < 2)
@@ -1206,7 +1206,7 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 	//
 	D3DXVECTOR3 worldPos = emitter->GetWorldCoordSys() ? system->GetWorldPos() : NullVector;
 
-	//Вычисление начального направления
+	//Р’С‹С‡РёСЃР»РµРЅРёРµ РЅР°С‡Р°Р»СЊРЅРѕРіРѕ РЅР°РїСЂР°РІР»РµРЅРёСЏ
 	EmitterGroups::const_iterator iter1 = groups.begin();
 	FxParticleGroup::const_iterator iterPart1 = (*iter1)->begin();
 	D3DXVECTOR3 pos1 = (*iterPart1)->GetPos();
@@ -1219,12 +1219,12 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 		pos2 = worldPos;
 	D3DXVECTOR3 dir = pos2 - pos1;
 	D3DXVec3Normalize(&dir, &dir);
-	//Последняя позиция для вычисления направления
+	//РџРѕСЃР»РµРґРЅСЏСЏ РїРѕР·РёС†РёСЏ РґР»СЏ РІС‹С‡РёСЃР»РµРЅРёСЏ РЅР°РїСЂР°РІР»РµРЅРёСЏ
 	D3DXVECTOR3 lastPos = pos1 - dir;
 	
-	//Последняя частица которая была отрисована
+	//РџРѕСЃР»РµРґРЅСЏСЏ С‡Р°СЃС‚РёС†Р° РєРѕС‚РѕСЂР°СЏ Р±С‹Р»Р° РѕС‚СЂРёСЃРѕРІР°РЅР°
 	unsigned lastPartDraw = 0;
-	//Текущее число частиц
+	//РўРµРєСѓС‰РµРµ С‡РёСЃР»Рѕ С‡Р°СЃС‚РёС†
 	unsigned numPartDraw = 0;
 
 	bool bd = groups.Size() > 1;
@@ -1237,7 +1237,7 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 			FxParticle* particle = *iterPart;
 			D3DXVECTOR3 pos = particle->GetPos();
 
-			//Строим линию из двух вершин
+			//РЎС‚СЂРѕРёРј Р»РёРЅРёСЋ РёР· РґРІСѓС… РІРµСЂС€РёРЅ
 			BuildVertexLine(vertex, pos, dir, camPos, xTex);
 			vertex += 2;
 
@@ -1266,13 +1266,13 @@ void FxTrailManager::RenderEmitter(graph::Engine& engine, FxEmitter* emitter)
 		}
 	}	
 
-	//Обращаемся к последней частице в роли которой выступает сам емиттер, и также строим линию из двух вершин
+	//РћР±СЂР°С‰Р°РµРјСЃСЏ Рє РїРѕСЃР»РµРґРЅРµР№ С‡Р°СЃС‚РёС†Рµ РІ СЂРѕР»Рё РєРѕС‚РѕСЂРѕР№ РІС‹СЃС‚СѓРїР°РµС‚ СЃР°Рј РµРјРёС‚С‚РµСЂ, Рё С‚Р°РєР¶Рµ СЃС‚СЂРѕРёРј Р»РёРЅРёСЋ РёР· РґРІСѓС… РІРµСЂС€РёРЅ
 	dir = worldPos - lastPos;
 	D3DXVec3Normalize(&dir, &dir);
 	BuildVertexLine(vertex, worldPos, dir, camPos, xTex);
 	++numPartDraw;
 
-	//Рисуем все оставшиеся частицы. Если режим typeDraw == tdLastGroup то рисуются все частицы, иначе только последняя
+	//Р РёСЃСѓРµРј РІСЃРµ РѕСЃС‚Р°РІС€РёРµСЃСЏ С‡Р°СЃС‚РёС†С‹. Р•СЃР»Рё СЂРµР¶РёРј typeDraw == tdLastGroup С‚Рѕ СЂРёСЃСѓСЋС‚СЃСЏ РІСЃРµ С‡Р°СЃС‚РёС†С‹, РёРЅР°С‡Рµ С‚РѕР»СЊРєРѕ РїРѕСЃР»РµРґРЅСЏСЏ
 	DrawPath(engine, system, groups.back(), vertexBuf, numPartDraw - lastPartDraw - 1, lastPartDraw);
 	
 	delete[] vertexBuf;

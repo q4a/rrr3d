@@ -17,7 +17,7 @@ const float GameCar::cMaxSteerAngle = D3DX_PI / 6;
 
 CarMotorDesc::CarMotorDesc(): maxRPM(7000), idlingRPM(1000), maxTorque(2000.0f), SEM(0.7f), gearDiff(3.42f), autoGear(true), brakeTorque(7500), restTorque(400.0f)
 {
-	//задняя
+	//Р·Р°РґРЅСЏСЏ
 	gears.push_back(1.5f);
 	//
 	gears.push_back(2.66f);
@@ -86,7 +86,7 @@ bool CarWheel::MyContactModify::onWheelContact(NxWheelShape* wheelShape, NxVec3&
 		float nReac = normalForce/normReaction;
 		_wheel->_nReac = nReac;
 		
-		//Ограничение допустимой перегрузки, чтобы машина при падении не ускорялась в связи с чрезмерно больгим сцеплением. Допустимая перегрузка в 1.5g.
+		//РћРіСЂР°РЅРёС‡РµРЅРёРµ РґРѕРїСѓСЃС‚РёРјРѕР№ РїРµСЂРµРіСЂСѓР·РєРё, С‡С‚РѕР±С‹ РјР°С€РёРЅР° РїСЂРё РїР°РґРµРЅРёРё РЅРµ СѓСЃРєРѕСЂСЏР»Р°СЃСЊ РІ СЃРІСЏР·Рё СЃ С‡СЂРµР·РјРµСЂРЅРѕ Р±РѕР»СЊРіРёРј СЃС†РµРїР»РµРЅРёРµРј. Р”РѕРїСѓСЃС‚РёРјР°СЏ РїРµСЂРµРіСЂСѓР·РєР° РІ 1.5g.
 		if (tireSpring > 0.0f && nReac > tireSpring)
 			normalForce = 0.0f;
 		else
@@ -111,7 +111,7 @@ void CarWheel::Save(lsl::SWriter* writer)
 
 void CarWheel::Load(lsl::SReader* reader)
 {
-	//Если загрузка не чистого актера, то сначала нужно уничтожить занятый шейп
+	//Р•СЃР»Рё Р·Р°РіСЂСѓР·РєР° РЅРµ С‡РёСЃС‚РѕРіРѕ Р°РєС‚РµСЂР°, С‚Рѕ СЃРЅР°С‡Р°Р»Р° РЅСѓР¶РЅРѕ СѓРЅРёС‡С‚РѕР¶РёС‚СЊ Р·Р°РЅСЏС‚С‹Р№ С€РµР№Рї
 	if (_wheelShape)
 		DestroyWheelShape();
 
@@ -254,7 +254,7 @@ void CarWheel::OnProgress(float deltaTime)
 			}
 
 			_actTrail->GetGameObj().SetWorldPos(D3DXVECTOR3(contactDesc.contactPoint.get()) + ZVector * 0.001f);
-			//Во время установки следа время жизни не меняется
+			//Р’Рѕ РІСЂРµРјСЏ СѓСЃС‚Р°РЅРѕРІРєРё СЃР»РµРґР° РІСЂРµРјСЏ Р¶РёР·РЅРё РЅРµ РјРµРЅСЏРµС‚СЃСЏ
 			_actTrail->GetGameObj().SetTimeLife(0);
 		}
 		else
@@ -707,11 +707,11 @@ void GameCar::JumpProgress(float deltaTime)
 
 	if (!_anyWheelContact)
 	{
-		//если нет контакта необходжимо машину замедлять и быстро приземлять, чтобы она не улетала на прыжках в космос
+		//РµСЃР»Рё РЅРµС‚ РєРѕРЅС‚Р°РєС‚Р° РЅРµРѕР±С…РѕРґР¶РёРјРѕ РјР°С€РёРЅСѓ Р·Р°РјРµРґР»СЏС‚СЊ Рё Р±С‹СЃС‚СЂРѕ РїСЂРёР·РµРјР»СЏС‚СЊ, С‡С‚РѕР±С‹ РѕРЅР° РЅРµ СѓР»РµС‚Р°Р»Р° РЅР° РїСЂС‹Р¶РєР°С… РІ РєРѕСЃРјРѕСЃ
 		//nxActor->setLinearDamping(0.4f);
 		nxActor->addForce(1.0f * px::Scene::cDefGravity, NX_ACCELERATION);
 		
-		//наклоняем машину вперед если она движется в OXY
+		//РЅР°РєР»РѕРЅСЏРµРј РјР°С€РёРЅСѓ РІРїРµСЂРµРґ РµСЃР»Рё РѕРЅР° РґРІРёР¶РµС‚СЃСЏ РІ OXY
 		NxVec3 vel = nxActor->getLinearVelocity();
 		vel.z = 0.0f;
 		if (vel.magnitude() > 1.0f && _flyYTorque != 0 && _springTime == 0.0f)
@@ -865,7 +865,7 @@ void GameCar::LoadSource(lsl::SReader* reader)
 	ApplyWheelSteerK();
 }
 
-//преобразуем в локльную систему координат тела актера
+//РїСЂРµРѕР±СЂР°Р·СѓРµРј РІ Р»РѕРєР»СЊРЅСѓСЋ СЃРёСЃС‚РµРјСѓ РєРѕРѕСЂРґРёРЅР°С‚ С‚РµР»Р° Р°РєС‚РµСЂР°
 void NxQuatFromWorldToLocal(const NxMat33& worldMat, const NxMat33& worldMatRot, NxMat33& outLocalMatRot)
 {	
 	NxMat33 invWorldMat;
@@ -911,7 +911,7 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 		triShape->getTriangle(tri, 0, 0, triInd, true, true);
 		NxVec3 triNorm;
 		tri.normal(triNorm);
-		//если цель является основным взаимодействующим лицом, то необходимо инверитровать нормаль
+		//РµСЃР»Рё С†РµР»СЊ СЏРІР»СЏРµС‚СЃСЏ РѕСЃРЅРѕРІРЅС‹Рј РІР·Р°РёРјРѕРґРµР№СЃС‚РІСѓСЋС‰РёРј Р»РёС†РѕРј, С‚Рѕ РЅРµРѕР±С…РѕРґРёРјРѕ РёРЅРІРµСЂРёС‚СЂРѕРІР°С‚СЊ РЅРѕСЂРјР°Р»СЊ
 		if (contact.actorIndex == 0)
 			triNorm = -triNorm;
 		
@@ -919,23 +919,23 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 		if (shapeDyn0)
 			NxQuatFromLocalToWorld(contact.shape0->getActor().getCMassGlobalPose().M, wFricMat, wFricMat);
 
-		//вычислянм новый базис относительно дополнительной оси трения, берем localorientation1 в мировой системе координат
+		//РІС‹С‡РёСЃР»СЏРЅРј РЅРѕРІС‹Р№ Р±Р°Р·РёСЃ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕР№ РѕСЃРё С‚СЂРµРЅРёСЏ, Р±РµСЂРµРј localorientation1 РІ РјРёСЂРѕРІРѕР№ СЃРёСЃС‚РµРјРµ РєРѕРѕСЂРґРёРЅР°С‚
 		NxVec3 secFric = wFricMat.getColumn(2);
-		//вычисляем основную ось трения
+		//РІС‹С‡РёСЃР»СЏРµРј РѕСЃРЅРѕРІРЅСѓСЋ РѕСЃСЊ С‚СЂРµРЅРёСЏ
 		NxVec3 firstFric = secFric.cross(triNorm);
-		//если secFric совпадает с нормалью, то вычислянм новый базис относительно основной оси трения
-		//для наклонные повврехности до 45 градусов считаются не препятсвующими движению, т.е. по ним можно скользить (например по верхужкам прыжков)
+		//РµСЃР»Рё secFric СЃРѕРІРїР°РґР°РµС‚ СЃ РЅРѕСЂРјР°Р»СЊСЋ, С‚Рѕ РІС‹С‡РёСЃР»СЏРЅРј РЅРѕРІС‹Р№ Р±Р°Р·РёСЃ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РѕСЃРЅРѕРІРЅРѕР№ РѕСЃРё С‚СЂРµРЅРёСЏ
+		//РґР»СЏ РЅР°РєР»РѕРЅРЅС‹Рµ РїРѕРІРІСЂРµС…РЅРѕСЃС‚Рё РґРѕ 45 РіСЂР°РґСѓСЃРѕРІ СЃС‡РёС‚Р°СЋС‚СЃСЏ РЅРµ РїСЂРµРїСЏС‚СЃРІСѓСЋС‰РёРјРё РґРІРёР¶РµРЅРёСЋ, С‚.Рµ. РїРѕ РЅРёРј РјРѕР¶РЅРѕ СЃРєРѕР»СЊР·РёС‚СЊ (РЅР°РїСЂРёРјРµСЂ РїРѕ РІРµСЂС…СѓР¶РєР°Рј РїСЂС‹Р¶РєРѕРІ)
 		if (firstFric.magnitude() < 0.5f)
 		{
 			firstFric = wFricMat.getColumn(1);
 			secFric = triNorm.cross(firstFric);			
 		}
-		////если firstFric совпадает с нормалью, то оставляем старый базис
+		////РµСЃР»Рё firstFric СЃРѕРІРїР°РґР°РµС‚ СЃ РЅРѕСЂРјР°Р»СЊСЋ, С‚Рѕ РѕСЃС‚Р°РІР»СЏРµРј СЃС‚Р°СЂС‹Р№ Р±Р°Р·РёСЃ
 		if (secFric.magnitude() > 0.1f)
 		{
 			firstFric.normalize();
 			secFric.normalize();			
-			//корректируем нормаль для ортоганальной системы
+			//РєРѕСЂСЂРµРєС‚РёСЂСѓРµРј РЅРѕСЂРјР°Р»СЊ РґР»СЏ РѕСЂС‚РѕРіР°РЅР°Р»СЊРЅРѕР№ СЃРёСЃС‚РµРјС‹
 			triNorm = firstFric.cross(secFric);
 			triNorm.normalize();
 			//
@@ -947,7 +947,7 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 			fricMat.toQuat(fricRot);
 
 			NxQuat rot0;
-			//преобразуем в локльную систему координат тела актера
+			//РїСЂРµРѕР±СЂР°Р·СѓРµРј РІ Р»РѕРєР»СЊРЅСѓСЋ СЃРёСЃС‚РµРјСѓ РєРѕРѕСЂРґРёРЅР°С‚ С‚РµР»Р° Р°РєС‚РµСЂР°
 			if (shapeDyn0)
 			{
 				NxMat33 rot0Mat;
@@ -958,7 +958,7 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 				fricMat.toQuat(rot0);
 
 			NxQuat rot1;
-			//преобразуем в локльную систему координат тела актера
+			//РїСЂРµРѕР±СЂР°Р·СѓРµРј РІ Р»РѕРєР»СЊРЅСѓСЋ СЃРёСЃС‚РµРјСѓ РєРѕРѕСЂРґРёРЅР°С‚ С‚РµР»Р° Р°РєС‚РµСЂР°
 			if (shapeDyn1)
 			{
 				NxMat33 rot1Mat;
@@ -1312,7 +1312,7 @@ float GameCar::GetLeadWheelSpeed()
 		NxWheelShape* wheel = _wheels->GetLeadGroup().front()->GetShape()->GetNxShape();
 		
 		float speed = wheel->getAxleSpeed() * wheel->getRadius();
-		//погрешность 0.1 м/с
+		//РїРѕРіСЂРµС€РЅРѕСЃС‚СЊ 0.1 Рј/СЃ
 		return abs(speed) > 0.1f ? speed : 0.0f;
 	}
 	else
@@ -1333,7 +1333,7 @@ float GameCar::GetDrivenWheelSpeed()
 	if (wheel)
 	{
 		float speed = wheel->GetShape()->GetNxShape()->getAxleSpeed() * wheel->GetShape()->GetRadius();		
-		//погрешность 0.1 м/с
+		//РїРѕРіСЂРµС€РЅРѕСЃС‚СЊ 0.1 Рј/СЃ
 		return abs(speed) > 0.1f ? speed : 0.0f;
 	}
 	else
@@ -1514,7 +1514,7 @@ float GameCar::GetSpeed(NxActor* nxActor, const D3DXVECTOR3& dir)
 	if (nxActor)
 	{
 		float speed = D3DXVec3Dot(&dir, &D3DXVECTOR3(nxActor->getLinearVelocity().get()));
-		//погрешность 1 м/с
+		//РїРѕРіСЂРµС€РЅРѕСЃС‚СЊ 1 Рј/СЃ
 		if (abs(speed) < 1.0f)
 			speed = 0.0f;
 

@@ -13,7 +13,7 @@
 namespace lsl
 {
 
-//Элементом списка классов может быть только класс имеющий конструктор по умолчанию, если требуется другое поведение то небходимо переопределеить ClassInst::CreateInst и в списке классов ClassList::Add
+//Р­Р»РµРјРµРЅС‚РѕРј СЃРїРёСЃРєР° РєР»Р°СЃСЃРѕРІ РјРѕР¶РµС‚ Р±С‹С‚СЊ С‚РѕР»СЊРєРѕ РєР»Р°СЃСЃ РёРјРµСЋС‰РёР№ РєРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ, РµСЃР»Рё С‚СЂРµР±СѓРµС‚СЃСЏ РґСЂСѓРіРѕРµ РїРѕРІРµРґРµРЅРёРµ С‚Рѕ РЅРµР±С…РѕРґРёРјРѕ РїРµСЂРµРѕРїСЂРµРґРµР»РµРёС‚СЊ ClassInst::CreateInst Рё РІ СЃРїРёСЃРєРµ РєР»Р°СЃСЃРѕРІ ClassList::Add
 template<class _Key, class _BaseClass, class _Arg> class BaseClassInst
 {
 private:
@@ -93,7 +93,7 @@ public:
 	~BaseClassList();
 
 	template<class _Class> void Add(const _Key& key);
-	//добавление производного класса _Type с идентификатором _Class::Type
+	//РґРѕР±Р°РІР»РµРЅРёРµ РїСЂРѕРёР·РІРѕРґРЅРѕРіРѕ РєР»Р°СЃСЃР° _Type СЃ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂРѕРј _Class::Type
 	template<class _Class> void Add();
 	//
 	void Del(const _Key& key);
@@ -105,12 +105,12 @@ public:
 	MyClassInst& Get(const _Key& key) const;
 	template<class _Class> MyClassInst& GetByClass() const;
 
-	//Только для полиморфных
-	//Преобразование с выбросом исключения
+	//РўРѕР»СЊРєРѕ РґР»СЏ РїРѕР»РёРјРѕСЂС„РЅС‹С…
+	//РџСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ СЃ РІС‹Р±СЂРѕСЃРѕРј РёСЃРєР»СЋС‡РµРЅРёСЏ
 	template<class _Class1, class _Class2> _Class1& As(_Class2& inst) const;
-	//Допустимо ли преобразование из _Class2 в _Class1
+	//Р”РѕРїСѓСЃС‚РёРјРѕ Р»Рё РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РёР· _Class2 РІ _Class1
 	template<class _Class1, class _Class2> _Class1* Is(_Class2* inst) const;
-	//Допустимо ли преобразование из _Class в _Base
+	//Р”РѕРїСѓСЃС‚РёРјРѕ Р»Рё РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РёР· _Class РІ _Base
 	//template<class _Base> bool Is(const _Key& key) const;
 };
 

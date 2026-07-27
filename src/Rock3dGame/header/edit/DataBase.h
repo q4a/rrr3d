@@ -23,7 +23,7 @@ public:
 	const std::string& GetName() const;
 	void SetName(const std::string& value);
 
-	//Можно использовать другой подход возвращая курсор, тогда не пришлось бы хранить итератор в самом классе-результате
+	//РњРѕР¶РЅРѕ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РґСЂСѓРіРѕР№ РїРѕРґС…РѕРґ РІРѕР·РІСЂР°С‰Р°СЏ РєСѓСЂСЃРѕСЂ, С‚РѕРіРґР° РЅРµ РїСЂРёС€Р»РѕСЃСЊ Р±С‹ С…СЂР°РЅРёС‚СЊ РёС‚РµСЂР°С‚РѕСЂ РІ СЃР°РјРѕРј РєР»Р°СЃСЃРµ-СЂРµР·СѓР»СЊС‚Р°С‚Рµ
 	game::RecordNode::RecordList::const_iterator libIter;
 };
 
@@ -34,7 +34,7 @@ protected:
 public:
 	RecordNode(Inst* inst);
 
-	//Можно использовать другой подход возвращая курсор, тогда не пришлось бы хранить итератор в самом классе-результате
+	//РњРѕР¶РЅРѕ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РґСЂСѓРіРѕР№ РїРѕРґС…РѕРґ РІРѕР·РІСЂР°С‰Р°СЏ РєСѓСЂСЃРѕСЂ, С‚РѕРіРґР° РЅРµ РїСЂРёС€Р»РѕСЃСЊ Р±С‹ С…СЂР°РЅРёС‚СЊ РёС‚РµСЂР°С‚РѕСЂ РІ СЃР°РјРѕРј РєР»Р°СЃСЃРµ-СЂРµР·СѓР»СЊС‚Р°С‚Рµ
 	IMapObjRecRef FirstRecord();
 	void NextRecord(IMapObjRecRef& ref);
 
@@ -46,7 +46,7 @@ public:
 	game::RecordNode::NodeList::const_iterator libIter;
 };
 
-//Выключить ошибочный warning
+//Р’С‹РєР»СЋС‡РёС‚СЊ РѕС€РёР±РѕС‡РЅС‹Р№ warning
 #pragma warning(disable : WARNING_MULTIPLE_VIRTUAL_INHERIT_C4250)
 class MapObjLib: public IMapObjLib, public RecordNode
 {
@@ -57,7 +57,7 @@ protected:
 public:
 	MapObjLib(Inst* inst);
 };
-//Восстановить умолчание
+//Р’РѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ СѓРјРѕР»С‡Р°РЅРёРµ
 #pragma warning(default : WARNING_MULTIPLE_VIRTUAL_INHERIT_C4250)
 
 class DataBase: public IDataBase

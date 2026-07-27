@@ -31,14 +31,14 @@ void GrassField::BuildField()
 	_batchList.clear();
 	_mesh.Free();
 
-	//Вычисляем карту позиций
+	//Р’С‹С‡РёСЃР»СЏРµРј РєР°СЂС‚Сѓ РїРѕР·РёС†РёР№
 	int numX = static_cast<int>(_fieldWidth * _density);
 	int numY = static_cast<int>(_fieldHeight * _density);	
-	//Общее число спрайтов
+	//РћР±С‰РµРµ С‡РёСЃР»Рѕ СЃРїСЂР°Р№С‚РѕРІ
 	int maxSprites = numX * numY;	
-	//Шаг размещения
+	//РЁР°Рі СЂР°Р·РјРµС‰РµРЅРёСЏ
 	D3DXVECTOR3 step(_fieldWidth/numX, _fieldHeight/numY, 0.0f);
-	//Заполняем
+	//Р—Р°РїРѕР»РЅСЏРµРј
 	std::vector<D3DXVECTOR3> mapPos(maxSprites);
 	int ind = 0;
 	for (int i = -Floor<int>(numX/2.0f); i < Ceil<int>(numX/2.0f) - 1; ++i)
@@ -46,20 +46,20 @@ void GrassField::BuildField()
 			mapPos[ind] = D3DXVECTOR3(step.x/2 + i * step.x, step.y/2 + j * step.y, step.z);
 	std::random_shuffle(mapPos.begin(), mapPos.end());
 
-	//Суммарный вес
+	//РЎСѓРјРјР°СЂРЅС‹Р№ РІРµСЃ
 	float summWeight = 0;
 	for (unsigned i = 0; i < _grassList.size(); ++i)	
 		for (unsigned j = 0; j < _grassList[i].tiles.size(); ++j)		
 			summWeight += _grassList[i].tiles[j].weight;
 	float spritesPerWeight = maxSprites / summWeight;
 
-	//Инициализируем буффер
+	//РРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј Р±СѓС„С„РµСЂ
 	res::VertexData& data = *_mesh.GetOrCreateData();
 	data.SetVertexCount(maxSprites * 6);
 	data.SetFormat(res::VertexData::vtPos4);
 	data.SetFormat(res::VertexData::vtTex0);
 	data.Init();
-	//Заполняем
+	//Р—Р°РїРѕР»РЅСЏРµРј
 	_batchList.resize(_grassList.size());
 	int spriteOff = 0;
 	for (unsigned i = 0; i < _grassList.size(); ++i)
@@ -103,7 +103,7 @@ void GrassField::BuildField()
 			}
 
 			spriteOff += numSprites;
-			//Т.к. плоскость образуют два треугольника...
+			//Рў.Рє. РїР»РѕСЃРєРѕСЃС‚СЊ РѕР±СЂР°Р·СѓСЋС‚ РґРІР° С‚СЂРµСѓРіРѕР»СЊРЅРёРєР°...
 			_batchList[i].primCnt += numSprites * 2;
 		}		
 	}

@@ -68,7 +68,7 @@ public:
 	CameraManager(World* world);
 	~CameraManager();
 
-	//z - координата глубины относительно zNear. [0..1] <--> [zNear..zFar]
+	//z - РєРѕРѕСЂРґРёРЅР°С‚Р° РіР»СѓР±РёРЅС‹ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ zNear. [0..1] <--> [zNear..zFar]
 	D3DXVECTOR3 ScreenToWorld(const lsl::Point& coord, float z);
 	D3DXVECTOR2 WorldToScreen(const D3DXVECTOR3& coord);
 	void ScreenToRay(const lsl::Point& coord, D3DXVECTOR3& rayStart, D3DXVECTOR3& rayVec);

@@ -17,7 +17,7 @@ void Map::MapObjList::InsertItem(const Value& value)
 {
 	_MyBase::InsertItem(value);
 
-	//òèïû GameObject íåëüçÿ èìçåíÿòü ïîñëå äîáàâëåíèÿ íà êàðòó!
+	//Ñ‚Ð¸Ð¿Ñ‹ GameObject Ð½ÐµÐ»ÑŒÐ·Ñ Ð¸Ð¼Ð·ÐµÐ½ÑÑ‚ÑŒ Ð¿Ð¾ÑÐ»Ðµ Ð´Ð¾Ð±Ð°Ð²Ð»ÐµÐ½Ð¸Ñ Ð½Ð° ÐºÐ°Ñ€Ñ‚Ñƒ!
 	value->GetGameObj().AddRef();
 	value->GetGameObj().SetLogic(_owner->_world->GetLogic());	
 

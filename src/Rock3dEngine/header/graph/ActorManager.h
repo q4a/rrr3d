@@ -125,13 +125,13 @@ private:
 public:
 	typedef lsl::List<User*> UserList;	
 private:
-	//Список рендеров для актеров
+	//РЎРїРёСЃРѕРє СЂРµРЅРґРµСЂРѕРІ РґР»СЏ Р°РєС‚РµСЂРѕРІ
 	GroupList _groupList;
-	//Список пользователей
+	//РЎРїРёСЃРѕРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
 	UserList _userList;
 	//
 	UserList* _dynUserList;
-	//Octree сортировка
+	//Octree СЃРѕСЂС‚РёСЂРѕРІРєР°
 	OctreeSort _octree;
 	//
 	Planars _planars;

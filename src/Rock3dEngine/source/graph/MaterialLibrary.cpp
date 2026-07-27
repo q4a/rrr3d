@@ -599,7 +599,7 @@ void Material::Apply(Engine& engine)
 	float alpha = _alpha.GetValue(frame);
 	float alphaRef = _alphaRef.GetValue(frame);
 
-	//С освещением
+	//РЎ РѕСЃРІРµС‰РµРЅРёРµРј
 	if (_options.test(moLighting))
 	{
 		d3dMat.ambient = _ambient.GetValue(frame);
@@ -612,10 +612,10 @@ void Material::Apply(Engine& engine)
 		if (_specPower > 0 && _specular != clrBlack)
 			engine.GetContext().SetRenderState(rsSpecularEnable, true);
 	}
-	//Без освещения
+	//Р‘РµР· РѕСЃРІРµС‰РµРЅРёСЏ
 	else
 	{		
-		//Direct3d не поддерживает материал отдельно от освещения, поэтому делается через emissive
+		//Direct3d РЅРµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚ РјР°С‚РµСЂРёР°Р» РѕС‚РґРµР»СЊРЅРѕ РѕС‚ РѕСЃРІРµС‰РµРЅРёСЏ, РїРѕСЌС‚РѕРјСѓ РґРµР»Р°РµС‚СЃСЏ С‡РµСЂРµР· emissive
 		d3dMat.ambient = d3dMat.diffuse = d3dMat.specular = clrBlack;
 		d3dMat.diffuse.a = alpha;
 		d3dMat.emissive = _diffuse.GetValue(frame);
@@ -779,7 +779,7 @@ void Material::SetOption(Option option, bool value)
 		switch (option)
 		{
 		case moLighting:
-			//Direct3d не поддерживает материал отдельно от освещения, поэтому обходной путь
+			//Direct3d РЅРµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚ РјР°С‚РµСЂРёР°Р» РѕС‚РґРµР»СЊРЅРѕ РѕС‚ РѕСЃРІРµС‰РµРЅРёСЏ, РїРѕСЌС‚РѕРјСѓ РѕР±С…РѕРґРЅРѕР№ РїСѓС‚СЊ
 			//renderStates.Set(graph::rsLighting, false);
 			break;
 			
@@ -909,7 +909,7 @@ void DrawScreenQuad(Engine& engine, const D3DXVECTOR4& quadVert, float fLeftU, f
 	curRTSurf->GetDesc(&surfDesc);
 	curRTSurf->Release();
 
-	//Закоментированные смещения вносят искажения при совмещении текстур
+	//Р—Р°РєРѕРјРµРЅС‚РёСЂРѕРІР°РЅРЅС‹Рµ СЃРјРµС‰РµРЅРёСЏ РІРЅРѕСЃСЏС‚ РёСЃРєР°Р¶РµРЅРёСЏ РїСЂРё СЃРѕРІРјРµС‰РµРЅРёРё С‚РµРєСЃС‚СѓСЂ
 	float fPosX = quadVert.x * surfDesc.Width - 0.5f;
 	float fPosY = quadVert.y * surfDesc.Height - 0.5f;
 	float fWidth5 = surfDesc.Width * quadVert.z - 0.5f;

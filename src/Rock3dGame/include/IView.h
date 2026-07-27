@@ -30,7 +30,7 @@ public:
 	virtual lsl::Point GetWndSize() const = 0;
 	virtual D3DXVECTOR2 GetVPSize() const = 0;
 
-	//Часть интерфейса камеры. Только для пользователей
+	//Р§Р°СЃС‚СЊ РёРЅС‚РµСЂС„РµР№СЃР° РєР°РјРµСЂС‹. РўРѕР»СЊРєРѕ РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
 	virtual float GetCameraAspect() const = 0;
 	virtual void SetCameraAspect(float value) = 0;
 

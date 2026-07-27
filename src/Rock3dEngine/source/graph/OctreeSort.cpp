@@ -415,7 +415,7 @@ void OctreeSort::BuildOctree(Node& node, const UserList& userList)
 	unsigned userCnt = userList.size();
 	float size = node.GetAABB().GetDiameter();
 
-	//Условия создания листа
+	//РЈСЃР»РѕРІРёСЏ СЃРѕР·РґР°РЅРёСЏ Р»РёСЃС‚Р°
 	if (userCnt <= cMinNodeUserCnt || size <= cMinLeafSize)
 	{
 		node.InsertUser(userList);
@@ -429,12 +429,12 @@ void OctreeSort::BuildOctree(Node& node, const UserList& userList)
 		aabb.Offset(node.GetAABB().GetCenter() + _nodeOff[i] * nodeSize/2);
 
 		UserList list;
-		//Ищем подходящих пользователей
+		//РС‰РµРј РїРѕРґС…РѕРґСЏС‰РёС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
 		for (UserList::const_iterator iter = userList.begin(); iter != userList.end(); ++iter)
 			if (aabb.ContainsAABB((*iter)->GetAABB()) != AABB::scNoOverlap)
 				list.push_back(*iter);
 
-		//Если нашли, следовательно добавляем новый узел
+		//Р•СЃР»Рё РЅР°С€Р»Рё, СЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ РґРѕР±Р°РІР»СЏРµРј РЅРѕРІС‹Р№ СѓР·РµР»
 		if (!list.empty())
 		{
 			Node& child = node.AddNode(aabb);
@@ -461,32 +461,32 @@ bool OctreeSort::DoCulling(const Frustum& frustum, Frustum::SpaceContains spaceC
 	switch (spaceCont)
 	{
 
-	//Узел полностью в камере
+	//РЈР·РµР» РїРѕР»РЅРѕСЃС‚СЊСЋ РІ РєР°РјРµСЂРµ
 	case Frustum::scContainsFully:		
 		return true;
 
-	//Узел частично в камере
+	//РЈР·РµР» С‡Р°СЃС‚РёС‡РЅРѕ РІ РєР°РјРµСЂРµ
 	case Frustum::scContainsPartially:
 	{
-		//Если узел конечный, то сразу можно добавить его полностью
+		//Р•СЃР»Рё СѓР·РµР» РєРѕРЅРµС‡РЅС‹Р№, С‚Рѕ СЃСЂР°Р·Сѓ РјРѕР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ РµРіРѕ РїРѕР»РЅРѕСЃС‚СЊСЋ
 		if (node.GetNodeList().empty())
 			return true;
 
 		NodeCull* children = new NodeCull[node.GetNodeList().size()];		
-		//Узел имеет дочерей, следовательно проверяем их всех и если хотя бы один не может быть добавлен полностью разделяем узел
+		//РЈР·РµР» РёРјРµРµС‚ РґРѕС‡РµСЂРµР№, СЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ РїСЂРѕРІРµСЂСЏРµРј РёС… РІСЃРµС… Рё РµСЃР»Рё С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РґРѕР±Р°РІР»РµРЅ РїРѕР»РЅРѕСЃС‚СЊСЋ СЂР°Р·РґРµР»СЏРµРј СѓР·РµР»
 		int i = 0;
 		for (NodeList::const_iterator iter = node.GetNodeList().begin(); iter != node.GetNodeList().end(); ++iter, ++i)
 		{
 			children[i].node = *iter;
 			children[i].contains = frustum.ContainsAABB(children[i]->GetAABB());
-			//Такой объект нашелся
+			//РўР°РєРѕР№ РѕР±СЉРµРєС‚ РЅР°С€РµР»СЃСЏ
 			if (!DoCulling(frustum, children[i].contains, *children[i], pos))
 			{
-				//Добавляем все предыдущие узлы
+				//Р”РѕР±Р°РІР»СЏРµРј РІСЃРµ РїСЂРµРґС‹РґСѓС‰РёРµ СѓР·Р»С‹
 				for (int j = 0; j < i; ++j)
 					pos.InsertNode(children[j].node, children[j].contains);
 
-				//Проверяем все следующие узлы
+				//РџСЂРѕРІРµСЂСЏРµРј РІСЃРµ СЃР»РµРґСѓСЋС‰РёРµ СѓР·Р»С‹
 				NodeList::const_iterator iterNext = iter;
 				++iterNext;
 				for (; iterNext != node.GetNodeList().end(); ++iterNext)
@@ -498,11 +498,11 @@ bool OctreeSort::DoCulling(const Frustum& frustum, Frustum::SpaceContains spaceC
 		}
 		delete[] children;
 
-		//Нет необохимости разделять узел
+		//РќРµС‚ РЅРµРѕР±РѕС…РёРјРѕСЃС‚Рё СЂР°Р·РґРµР»СЏС‚СЊ СѓР·РµР»
 		return true;
 	}
 
-	//Узел не попал в камеру
+	//РЈР·РµР» РЅРµ РїРѕРїР°Р» РІ РєР°РјРµСЂСѓ
 	case Frustum::scNoOverlap:
 		return false;
 	}

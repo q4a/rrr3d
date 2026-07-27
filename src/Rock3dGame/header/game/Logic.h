@@ -106,10 +106,10 @@ private:
 
 		bool operator<(const Key& key) const
 		{
-			//àëüòåðíàòèâà, íåêîððåêòíà
+			//Ð°Ð»ÑŒÑ‚ÐµÑ€Ð½Ð°Ñ‚Ð¸Ð²Ð°, Ð½ÐµÐºÐ¾Ñ€Ñ€ÐµÐºÑ‚Ð½Ð°
 			//return (unsigned)actor1 + (unsigned)actor2 < (unsigned)key.actor1 + (unsigned)key.actor2;
 			
-			//ñ ó÷åòîì ïåðåìåíû ìåñò ñëàãàåìîå íå äîëæíî èçìåíÿòüñÿ
+			//Ñ ÑƒÑ‡ÐµÑ‚Ð¾Ð¼ Ð¿ÐµÑ€ÐµÐ¼ÐµÐ½Ñ‹ Ð¼ÐµÑÑ‚ ÑÐ»Ð°Ð³Ð°ÐµÐ¼Ð¾Ðµ Ð½Ðµ Ð´Ð¾Ð»Ð¶Ð½Ð¾ Ð¸Ð·Ð¼ÐµÐ½ÑÑ‚ÑŒÑÑ
 			return actor1 == key.actor1 ? actor2 < key.actor2 : actor1 < key.actor1;
 		}
 	};

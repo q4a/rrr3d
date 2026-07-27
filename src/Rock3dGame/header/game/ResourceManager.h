@@ -10,7 +10,7 @@ namespace game
 
 class ResourceManager;
 
-//Неполучается использовать ResourceCollection поскольку px::TriangleMesh не является Resource
+//РќРµРїРѕР»СѓС‡Р°РµС‚СЃСЏ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ ResourceCollection РїРѕСЃРєРѕР»СЊРєСѓ px::TriangleMesh РЅРµ СЏРІР»СЏРµС‚СЃСЏ Resource
 template<class _Resource, class _ComplexLib> class ComplexResCollection: public ComCollection<_Resource, void, void, void>
 {
 private:
@@ -30,7 +30,7 @@ public:
 	}
 	virtual bool ValidateName(const std::string& name)
 	{
-		//Проверка осуществляется на более высоком уровне ComplexLib
+		//РџСЂРѕРІРµСЂРєР° РѕСЃСѓС‰РµСЃС‚РІР»СЏРµС‚СЃСЏ РЅР° Р±РѕР»РµРµ РІС‹СЃРѕРєРѕРј СѓСЂРѕРІРЅРµ ComplexLib
 		return true;
 	}
 };
@@ -76,7 +76,7 @@ public:
 	//release all
 	void ReleaseAll();
 
-	//Перезагружает ресурсы если они уже инициализированы (т.е. используются)
+	//РџРµСЂРµР·Р°РіСЂСѓР¶Р°РµС‚ СЂРµСЃСѓСЂСЃС‹ РµСЃР»Рё РѕРЅРё СѓР¶Рµ РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°РЅС‹ (С‚.Рµ. РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ)
 	void Reload();
 
 	int GetTag() const;
@@ -175,7 +175,7 @@ public:
 	void ReleaseCubeTex();
 
 	void ReleaseAll();
-	//Перезагружает ресурсы если они уже инициализированы (т.е. используются)
+	//РџРµСЂРµР·Р°РіСЂСѓР¶Р°РµС‚ СЂРµСЃСѓСЂСЃС‹ РµСЃР»Рё РѕРЅРё СѓР¶Рµ РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°РЅС‹ (С‚.Рµ. РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ)
 	void Reload();
 
 	int GetTag() const;
@@ -189,7 +189,7 @@ public:
 	const std::string& GetFileName() const;
 	void SetFileName(const std::string& value);
 
-	//value = 0 - генерация последовательности mip уровней до 1x1
+	//value = 0 - РіРµРЅРµСЂР°С†РёСЏ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚Рё mip СѓСЂРѕРІРЅРµР№ РґРѕ 1x1
 	unsigned GetLevelCnt() const;	
 	void SetLevelCnt(unsigned value);
 

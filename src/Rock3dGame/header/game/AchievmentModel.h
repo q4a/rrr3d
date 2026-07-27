@@ -364,7 +364,7 @@ public:
 	AchievmentCondition* GetCond(const std::string& name);
 
 	void AddPoints(int value);
-	bool ÑonsumePoints(int value);
+	bool Ð¡onsumePoints(int value);
 	int points() const;
 
 	bool CheckAchievment(const std::string& id) const;

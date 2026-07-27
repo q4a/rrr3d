@@ -25,9 +25,9 @@ struct MouseClick
 	KeyState state;
 	bool shift1;
 	
-	//локальные координаты
+	//Р»РѕРєР°Р»СЊРЅС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹
 	D3DXVECTOR2 coord;
-	//мировые координаты
+	//РјРёСЂРѕРІС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹
 	D3DXVECTOR2 worldCoord;
 };
 
@@ -36,16 +36,16 @@ struct MouseMove
 	MouseMove(): shift1(false), coord(0, 0) {}
 
 	bool shift1;
-	//локальные координаты
+	//Р»РѕРєР°Р»СЊРЅС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹
 	D3DXVECTOR2 coord;
-	//Разность между текущим и предыдущим значением координаты
+	//Р Р°Р·РЅРѕСЃС‚СЊ РјРµР¶РґСѓ С‚РµРєСѓС‰РёРј Рё РїСЂРµРґС‹РґСѓС‰РёРј Р·РЅР°С‡РµРЅРёРµРј РєРѕРѕСЂРґРёРЅР°С‚С‹
 	D3DXVECTOR2 dtCoord;
-	//Разность между текущим значением координаты и координатой при клике
+	//Р Р°Р·РЅРѕСЃС‚СЊ РјРµР¶РґСѓ С‚РµРєСѓС‰РёРј Р·РЅР°С‡РµРЅРёРµРј РєРѕРѕСЂРґРёРЅР°С‚С‹ Рё РєРѕРѕСЂРґРёРЅР°С‚РѕР№ РїСЂРё РєР»РёРєРµ
 	D3DXVECTOR2 offCoord;
-	//мировые координаты
+	//РјРёСЂРѕРІС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹
 	D3DXVECTOR2 worldCoord;
 
-	//Состояние последнего клика мыши
+	//РЎРѕСЃС‚РѕСЏРЅРёРµ РїРѕСЃР»РµРґРЅРµРіРѕ РєР»РёРєР° РјС‹С€Рё
 	MouseClick click;
 };
 
@@ -80,7 +80,7 @@ public:
 	graph::Sampler2d& GetSampler();
 };
 
-//Абстракция базового графического элемента, с настройками визуализации, к которому может применяться шаблон оформления (шаблон конфигурируется вне)
+//РђР±СЃС‚СЂР°РєС†РёСЏ Р±Р°Р·РѕРІРѕРіРѕ РіСЂР°С„РёС‡РµСЃРєРѕРіРѕ СЌР»РµРјРµРЅС‚Р°, СЃ РЅР°СЃС‚СЂРѕР№РєР°РјРё РІРёР·СѓР°Р»РёР·Р°С†РёРё, Рє РєРѕС‚РѕСЂРѕРјСѓ РјРѕР¶РµС‚ РїСЂРёРјРµРЅСЏС‚СЊСЃСЏ С€Р°Р±Р»РѕРЅ РѕС„РѕСЂРјР»РµРЅРёСЏ (С€Р°Р±Р»РѕРЅ РєРѕРЅС„РёРіСѓСЂРёСЂСѓРµС‚СЃСЏ РІРЅРµ)
 class Graphic: public Object
 {
 	friend Context;
@@ -109,7 +109,7 @@ public:
 	const D3DXVECTOR2& GetSize() const;
 	void SetSize(const D3DXVECTOR2& value);
 
-	//Без материала Graphic не рисуется
+	//Р‘РµР· РјР°С‚РµСЂРёР°Р»Р° Graphic РЅРµ СЂРёСЃСѓРµС‚СЃСЏ
 	Material* GetOrCreateMaterial();
 	Material* GetMaterial();
 	void SetMaterial(Material* value);
@@ -131,7 +131,7 @@ public:
 	virtual void Draw();
 };
 
-//Пока не введена операция вычисления Rect текста, может пригодятся для определения точного размера, должна быть типа AABB
+//РџРѕРєР° РЅРµ РІРІРµРґРµРЅР° РѕРїРµСЂР°С†РёСЏ РІС‹С‡РёСЃР»РµРЅРёСЏ Rect С‚РµРєСЃС‚Р°, РјРѕР¶РµС‚ РїСЂРёРіРѕРґСЏС‚СЃСЏ РґР»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ С‚РѕС‡РЅРѕРіРѕ СЂР°Р·РјРµСЂР°, РґРѕР»Р¶РЅР° Р±С‹С‚СЊ С‚РёРїР° AABB
 class BaseText: public Graphic
 {
 	friend Context;
@@ -171,14 +171,14 @@ public:
 	VertAlign GetVertAlign() const;
 	void SetVertAlign(VertAlign value);
 
-	//перенос по словам
+	//РїРµСЂРµРЅРѕСЃ РїРѕ СЃР»РѕРІР°Рј
 	bool GetWordWrap() const;
 	void SetWordWrap(bool value);
 
 	bool GetClipEnable() const;
 	void SetClipEnable(bool value);
 
-	//Область в которой текст форматируется и рендерится, тип двухмерной вектор, введение типа AABB2 излишне
+	//РћР±Р»Р°СЃС‚СЊ РІ РєРѕС‚РѕСЂРѕР№ С‚РµРєСЃС‚ С„РѕСЂРјР°С‚РёСЂСѓРµС‚СЃСЏ Рё СЂРµРЅРґРµСЂРёС‚СЃСЏ, С‚РёРї РґРІСѓС…РјРµСЂРЅРѕР№ РІРµРєС‚РѕСЂ, РІРІРµРґРµРЅРёРµ С‚РёРїР° AABB2 РёР·Р»РёС€РЅРµ
 	using _MyBase::GetSize;
 	using _MyBase::SetSize;
 
@@ -274,7 +274,7 @@ public:
 
 	const Children& GetChildren() const;
 
-	//Без материала Graphic не рисуется
+	//Р‘РµР· РјР°С‚РµСЂРёР°Р»Р° Graphic РЅРµ СЂРёСЃСѓРµС‚СЃСЏ
 	Material* GetOrCreateMaterial();
 	Material* GetMaterial();
 	void SetMaterial(Material* value);
@@ -372,13 +372,13 @@ public:
 
 	Graphic3d* GetBox();
 
-	//выравнивание по центру
+	//РІС‹СЂР°РІРЅРёРІР°РЅРёРµ РїРѕ С†РµРЅС‚СЂСѓ
 	bool GetAlign() const;
 	void SetAlign(bool value);
 };
 
-//контекст в котором отрисовывается Graphic
-//Система координат экранная, единицы пиксели, начало в левом нижнем углу экрана
+//РєРѕРЅС‚РµРєСЃС‚ РІ РєРѕС‚РѕСЂРѕРј РѕС‚СЂРёСЃРѕРІС‹РІР°РµС‚СЃСЏ Graphic
+//РЎРёСЃС‚РµРјР° РєРѕРѕСЂРґРёРЅР°С‚ СЌРєСЂР°РЅРЅР°СЏ, РµРґРёРЅРёС†С‹ РїРёРєСЃРµР»Рё, РЅР°С‡Р°Р»Рѕ РІ Р»РµРІРѕРј РЅРёР¶РЅРµРј СѓРіР»Сѓ СЌРєСЂР°РЅР°
 class Context: public Object
 {
 private:
@@ -449,7 +449,7 @@ public:
 	void SetVPSize(const D3DXVECTOR2& value);
 };
 
-//элемент управления включающий контейнер Graphic, обработку событий, ввода, связь родитель-потомок
+//СЌР»РµРјРµРЅС‚ СѓРїСЂР°РІР»РµРЅРёСЏ РІРєР»СЋС‡Р°СЋС‰РёР№ РєРѕРЅС‚РµР№РЅРµСЂ Graphic, РѕР±СЂР°Р±РѕС‚РєСѓ СЃРѕР±С‹С‚РёР№, РІРІРѕРґР°, СЃРІСЏР·СЊ СЂРѕРґРёС‚РµР»СЊ-РїРѕС‚РѕРјРѕРє
 class Widget: public Object, protected graph::IProgressUser
 {
 	friend Manager;
@@ -467,15 +467,15 @@ public:
 
 	enum Flag 
 	{
-		//Всегда перехватывать сообщения от мыши если они зоне охвата. Установлен по умлочанию
+		//Р’СЃРµРіРґР° РїРµСЂРµС…РІР°С‚С‹РІР°С‚СЊ СЃРѕРѕР±С‰РµРЅРёСЏ РѕС‚ РјС‹С€Рё РµСЃР»Рё РѕРЅРё Р·РѕРЅРµ РѕС…РІР°С‚Р°. РЈСЃС‚Р°РЅРѕРІР»РµРЅ РїРѕ СѓРјР»РѕС‡Р°РЅРёСЋ
 		wfCathMouseMessages = 0,
-		//события OnClick срабатывает при всяком клике мыши
+		//СЃРѕР±С‹С‚РёСЏ OnClick СЃСЂР°Р±Р°С‚С‹РІР°РµС‚ РїСЂРё РІСЃСЏРєРѕРј РєР»РёРєРµ РјС‹С€Рё
 		wfMouseOnClick,
 
-		//На переднем плане
+		//РќР° РїРµСЂРµРґРЅРµРј РїР»Р°РЅРµ
 		wfTopmost,
 
-		//выравнивание по краям родителя
+		//РІС‹СЂР°РІРЅРёРІР°РЅРёРµ РїРѕ РєСЂР°СЏРј СЂРѕРґРёС‚РµР»СЏ
 		wfAlignLeft,
 		wfAlignTop,
 		wfAlignRight,
@@ -499,11 +499,11 @@ public:
 		virtual void OnMouseLeave(Widget* sender, bool wasReset) {}
 		virtual bool OnMouseOver(Widget* sender, const MouseMove& mMove) {return false;}
 		virtual bool OnClick(Widget* sender, const MouseClick& mClick) {return false;}
-		//пользователем, неявно!, выбран item
+		//РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј, РЅРµСЏРІРЅРѕ!, РІС‹Р±СЂР°РЅ item
 		virtual bool OnSelect(Widget* sender, Object* item) {return false;}
 		//
 		virtual void OnFocusChanged(Widget* sender) {}
-		//выделение изменилось, явно или неявно
+		//РІС‹РґРµР»РµРЅРёРµ РёР·РјРµРЅРёР»РѕСЃСЊ, СЏРІРЅРѕ РёР»Рё РЅРµСЏРІРЅРѕ
 		//virtual bool OnChangedSelection(Widget* sender, Object* item) {return false;}
 		virtual bool OnDrag(Widget* sender, const MouseMove& mMove) {return false;}
 
@@ -564,45 +564,45 @@ private:
 	void BuildChildAABB() const;
 	void BuildLocalChildAABB() const;
 	void BuildWorldChildAABB() const;
-	//изменение aabb, в зависимости от структуры и трансформации, аргумент change описывает оба случая
+	//РёР·РјРµРЅРµРЅРёРµ aabb, РІ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ СЃС‚СЂСѓРєС‚СѓСЂС‹ Рё С‚СЂР°РЅСЃС„РѕСЂРјР°С†РёРё, Р°СЂРіСѓРјРµРЅС‚ change РѕРїРёСЃС‹РІР°РµС‚ РѕР±Р° СЃР»СѓС‡Р°СЏ
 	void AABBChanged(StructChange change = scLocal);
 
 	bool ApplyMouseEnter(bool wasReset);
 	
-	//выравнивание
-	//условия выравнивания: локальные координаты, локальный AABB, родительский AABB
-	//корректировка только локальных координат согласно выравниванию
+	//РІС‹СЂР°РІРЅРёРІР°РЅРёРµ
+	//СѓСЃР»РѕРІРёСЏ РІС‹СЂР°РІРЅРёРІР°РЅРёСЏ: Р»РѕРєР°Р»СЊРЅС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹, Р»РѕРєР°Р»СЊРЅС‹Р№ AABB, СЂРѕРґРёС‚РµР»СЊСЃРєРёР№ AABB
+	//РєРѕСЂСЂРµРєС‚РёСЂРѕРІРєР° С‚РѕР»СЊРєРѕ Р»РѕРєР°Р»СЊРЅС‹С… РєРѕРѕСЂРґРёРЅР°С‚ СЃРѕРіР»Р°СЃРЅРѕ РІС‹СЂР°РІРЅРёРІР°РЅРёСЋ
 	void ApplyAlign() const;
-	//условия для выравнивания изменились
+	//СѓСЃР»РѕРІРёСЏ РґР»СЏ РІС‹СЂР°РІРЅРёРІР°РЅРёСЏ РёР·РјРµРЅРёР»РёСЃСЊ
 	void AlignChanged();
 	//
 	bool IsAligned() const;	
 protected:
-	//Уведомления об изменениях
-	//Локальные координаты
+	//РЈРІРµРґРѕРјР»РµРЅРёСЏ РѕР± РёР·РјРµРЅРµРЅРёСЏС…
+	//Р›РѕРєР°Р»СЊРЅС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹
 	virtual void TransformChanged();
-	//Мировые координаты
+	//РњРёСЂРѕРІС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹
 	virtual void WorldTransformChanged();
-	//Только структура, под которой можно понимать внешнее состояние которое влияет на локальный AABB - локальная, мировая, дочерняя
+	//РўРѕР»СЊРєРѕ СЃС‚СЂСѓРєС‚СѓСЂР°, РїРѕРґ РєРѕС‚РѕСЂРѕР№ РјРѕР¶РЅРѕ РїРѕРЅРёРјР°С‚СЊ РІРЅРµС€РЅРµРµ СЃРѕСЃС‚РѕСЏРЅРёРµ РєРѕС‚РѕСЂРѕРµ РІР»РёСЏРµС‚ РЅР° Р»РѕРєР°Р»СЊРЅС‹Р№ AABB - Р»РѕРєР°Р»СЊРЅР°СЏ, РјРёСЂРѕРІР°СЏ, РґРѕС‡РµСЂРЅСЏСЏ
 	virtual void StructureChanged(StructChange change = scLocal);
 	//
 	virtual void FlagChanged(Flag flag, bool value);
 
-	//События от мыши
-	//return true если оно было обработано, false в ином случае
-	//дочерние виджеты полностью перехватывают сообщения если в его зоне и обработали
-	//виджету можно ввести флаг чтобы допустим он всегда перехватывал сообшения если он в его зоне
+	//РЎРѕР±С‹С‚РёСЏ РѕС‚ РјС‹С€Рё
+	//return true РµСЃР»Рё РѕРЅРѕ Р±С‹Р»Рѕ РѕР±СЂР°Р±РѕС‚Р°РЅРѕ, false РІ РёРЅРѕРј СЃР»СѓС‡Р°Рµ
+	//РґРѕС‡РµСЂРЅРёРµ РІРёРґР¶РµС‚С‹ РїРѕР»РЅРѕСЃС‚СЊСЋ РїРµСЂРµС…РІР°С‚С‹РІР°СЋС‚ СЃРѕРѕР±С‰РµРЅРёСЏ РµСЃР»Рё РІ РµРіРѕ Р·РѕРЅРµ Рё РѕР±СЂР°Р±РѕС‚Р°Р»Рё
+	//РІРёРґР¶РµС‚Сѓ РјРѕР¶РЅРѕ РІРІРµСЃС‚Рё С„Р»Р°Рі С‡С‚РѕР±С‹ РґРѕРїСѓСЃС‚РёРј РѕРЅ РІСЃРµРіРґР° РїРµСЂРµС…РІР°С‚С‹РІР°Р» СЃРѕРѕР±С€РµРЅРёСЏ РµСЃР»Рё РѕРЅ РІ РµРіРѕ Р·РѕРЅРµ
 	virtual bool OnMouseClick(const MouseClick& mClick);
 	virtual bool OnMouseOver(const MouseMove& mMove);
 	virtual bool OnMouseEnter(const MouseMove& mMove);
 	virtual void OnMouseLeave(bool wasReset);
 
-	//временной прогресс, для анимации
+	//РІСЂРµРјРµРЅРЅРѕР№ РїСЂРѕРіСЂРµСЃСЃ, РґР»СЏ Р°РЅРёРјР°С†РёРё
 	virtual void OnProgress(float deltaTime) {}
 	
-	//События от менеджера
-	//return true если событие обрабатывается
-	//перемещение мыши, 
+	//РЎРѕР±С‹С‚РёСЏ РѕС‚ РјРµРЅРµРґР¶РµСЂР°
+	//return true РµСЃР»Рё СЃРѕР±С‹С‚РёРµ РѕР±СЂР°Р±Р°С‚С‹РІР°РµС‚СЃСЏ
+	//РїРµСЂРµРјРµС‰РµРЅРёРµ РјС‹С€Рё, 
 	virtual bool OnMouseDown(const MouseClick& mClick);
 	virtual bool OnMouseMove(const MouseMove& mMove);
 
@@ -614,7 +614,7 @@ protected:
 
 	Widget(Manager* manager);
 	virtual ~Widget();
-	//Вызвается при особождении manager->ReleaseWidget(). Здесь необходимо очищать все внешнее состояние
+	//Р’С‹Р·РІР°РµС‚СЃСЏ РїСЂРё РѕСЃРѕР±РѕР¶РґРµРЅРёРё manager->ReleaseWidget(). Р—РґРµСЃСЊ РЅРµРѕР±С…РѕРґРёРјРѕ РѕС‡РёС‰Р°С‚СЊ РІСЃРµ РІРЅРµС€РЅРµРµ СЃРѕСЃС‚РѕСЏРЅРёРµ
 	virtual void Dispose();
 public:
 	bool disposed() const;
@@ -709,7 +709,7 @@ public:
 	const D3DXMATRIX& GetInvMat() const;
 	const D3DXMATRIX& GetInvWorldMat() const;
 
-	//размер относительно центра localAABB
+	//СЂР°Р·РјРµСЂ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ С†РµРЅС‚СЂР° localAABB
 	const D3DXVECTOR2& GetSize() const;
 	void SetSize(const D3DXVECTOR2& value);
 	void SetSize(float szX, float szY);
@@ -721,7 +721,7 @@ public:
 	int GetTag() const;
 	void SetTag(int value);
 
-	//внешние данные, связанные с виджетом
+	//РІРЅРµС€РЅРёРµ РґР°РЅРЅС‹Рµ, СЃРІСЏР·Р°РЅРЅС‹Рµ СЃ РІРёРґР¶РµС‚РѕРј
 	Object* GetData();
 	void SetData(Object* value);
 
@@ -736,7 +736,7 @@ protected:
 	Dummy(Manager* manager);
 };
 
-//контейнер Widget-ов. Вспомогательный класс, добавляет вложенный dummy выступающий в роли контейнера
+//РєРѕРЅС‚РµР№РЅРµСЂ Widget-РѕРІ. Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅС‹Р№ РєР»Р°СЃСЃ, РґРѕР±Р°РІР»СЏРµС‚ РІР»РѕР¶РµРЅРЅС‹Р№ dummy РІС‹СЃС‚СѓРїР°СЋС‰РёР№ РІ СЂРѕР»Рё РєРѕРЅС‚РµР№РЅРµСЂР°
 class WidgetCont: public Dummy
 {
 	friend Manager;
@@ -1081,7 +1081,7 @@ public:
 	Style GetStyle() const;
 	void SetStyle(Style value);
 
-	//выравнивание по центру
+	//РІС‹СЂР°РІРЅРёРІР°РЅРёРµ РїРѕ С†РµРЅС‚СЂСѓ
 	bool GetAlign() const;
 	void SetAlign(bool value);
 };
@@ -1130,9 +1130,9 @@ protected:
 
 	virtual void StructureChanged(StructChange change = scLocal);
 public:
-	//область отсечения
+	//РѕР±Р»Р°СЃС‚СЊ РѕС‚СЃРµС‡РµРЅРёСЏ
 	Dummy* GetClip();
-	//box с элементами
+	//box СЃ СЌР»РµРјРµРЅС‚Р°РјРё
 	Widget* GetBox();
 
 	bool GetOption(Option option) const;
@@ -1576,7 +1576,7 @@ public:
 	void hideInvisible(bool value);
 };
 
-//главный класс, фасад, фабрика элементов Widget
+//РіР»Р°РІРЅС‹Р№ РєР»Р°СЃСЃ, С„Р°СЃР°Рґ, С„Р°Р±СЂРёРєР° СЌР»РµРјРµРЅС‚РѕРІ Widget
 class Manager
 {
 	friend Widget;

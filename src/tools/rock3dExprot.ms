@@ -1,7 +1,7 @@
 /*
-ÍÅËÜÇß ÈÑÏÎËÜÇÎÂÀÒÜ ÎÒÐÈÖÀÒÅËÜÍÎÅ ÌÀÑØÒÀÁÈÐÎÂÀÍÈÅ, ÒÀÊ ÊÀÊ ÐÅÀËÈÇÀÖÈÈ
-Â 3Ä ÌÀÊÑÅ È DIRECTX ÐÀÇËÈ×ÀÞÒÑß (3Ä ÌÀÊÑ ÀÂÒÎÌÀÒÈ×ÅÑÊÈ ÌÅÍßÅÒ 
-ÏÎÐßÄÎÊ ÎÁÕÎÄÀ ÂÅÐØÈÍ)
+ÐÐ•Ð›Ð¬Ð—Ð¯ Ð˜Ð¡ÐŸÐžÐ›Ð¬Ð—ÐžÐ’ÐÐ¢Ð¬ ÐžÐ¢Ð Ð˜Ð¦ÐÐ¢Ð•Ð›Ð¬ÐÐžÐ• ÐœÐÐ¡Ð¨Ð¢ÐÐ‘Ð˜Ð ÐžÐ’ÐÐÐ˜Ð•, Ð¢ÐÐš ÐšÐÐš Ð Ð•ÐÐ›Ð˜Ð—ÐÐ¦Ð˜Ð˜
+Ð’ 3Ð” ÐœÐÐšÐ¡Ð• Ð˜ DIRECTX Ð ÐÐ—Ð›Ð˜Ð§ÐÐ®Ð¢Ð¡Ð¯ (3Ð” ÐœÐÐšÐ¡ ÐÐ’Ð¢ÐžÐœÐÐ¢Ð˜Ð§Ð•Ð¡ÐšÐ˜ ÐœÐ•ÐÐ¯Ð•Ð¢ 
+ÐŸÐžÐ Ð¯Ð”ÐžÐš ÐžÐ‘Ð¥ÐžÐ”Ð Ð’Ð•Ð Ð¨Ð˜Ð)
 */
 
 global curExportVersion = 0
@@ -32,7 +32,7 @@ rollout ExportMesh "Export Mesh"
 	(
 	    if editPath.Text == undefined then
 		(
-		    MessageBox "Îøèáêà, ââåäèòå êîððåêòíûé ïóòü"
+		    MessageBox "ÐžÑˆÐ¸Ð±ÐºÐ°, Ð²Ð²ÐµÐ´Ð¸Ñ‚Ðµ ÐºÐ¾Ñ€Ñ€ÐµÐºÑ‚Ð½Ñ‹Ð¹ Ð¿ÑƒÑ‚ÑŒ"
 			exit
 		)		
 		for i = 1 to selection.count do
@@ -44,7 +44,7 @@ rollout ExportMesh "Export Mesh"
 			fs = fOpen filePath "wb";
             if fs == undefined then
 			(
-			    MessageBox "Îøèáêà çàïèñè â ôàéë, ïðîöåññ áóäåò ïðåêðàùåí..."
+			    MessageBox "ÐžÑˆÐ¸Ð±ÐºÐ° Ð·Ð°Ð¿Ð¸ÑÐ¸ Ð² Ñ„Ð°Ð¹Ð», Ð¿Ñ€Ð¾Ñ†ÐµÑÑ Ð±ÑƒÐ´ÐµÑ‚ Ð¿Ñ€ÐµÐºÑ€Ð°Ñ‰ÐµÐ½..."
 				exit
 			)
 			
@@ -136,7 +136,7 @@ rollout ExportMesh "Export Mesh"
 							)
 							
 						    if curIndexedVert == nextIndexedVert then						
-						        MessageBox("Âûðîæäåííûé ôåéñ! Íåïðåäóñìîòðåííûé ñëó÷àé...")
+						        MessageBox("Ð’Ñ‹Ñ€Ð¾Ð¶Ð´ÐµÐ½Ð½Ñ‹Ð¹ Ñ„ÐµÐ¹Ñ! ÐÐµÐ¿Ñ€ÐµÐ´ÑƒÑÐ¼Ð¾Ñ‚Ñ€ÐµÐ½Ð½Ñ‹Ð¹ ÑÐ»ÑƒÑ‡Ð°Ð¹...")
 					
 						    --Criteries unique
 						    if nextFaceSmoothGr > 0 and nextFaceSmoothGr == curFaceSmoothGr and

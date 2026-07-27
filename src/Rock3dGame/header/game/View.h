@@ -9,8 +9,8 @@ namespace r3d
 namespace game
 {
 
-//Представляет окно рендера
-//Также отвечает за увеомления об изменении экранного разрешения
+//РџСЂРµРґСЃС‚Р°РІР»СЏРµС‚ РѕРєРЅРѕ СЂРµРЅРґРµСЂР°
+//РўР°РєР¶Рµ РѕС‚РІРµС‡Р°РµС‚ Р·Р° СѓРІРµРѕРјР»РµРЅРёСЏ РѕР± РёР·РјРµРЅРµРЅРёРё СЌРєСЂР°РЅРЅРѕРіРѕ СЂР°Р·СЂРµС€РµРЅРёСЏ
 class View: public IView
 {
 private:
@@ -34,10 +34,10 @@ public:
 	lsl::Point GetWndSize() const;	
 	D3DXVECTOR2 GetVPSize() const;
 
-	//из экранного в пространство ViewPort
-	//в терминах движка, пространство ViewPort и будет далее являться экранным
+	//РёР· СЌРєСЂР°РЅРЅРѕРіРѕ РІ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ ViewPort
+	//РІ С‚РµСЂРјРёРЅР°С… РґРІРёР¶РєР°, РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ ViewPort Рё Р±СѓРґРµС‚ РґР°Р»РµРµ СЏРІР»СЏС‚СЊСЃСЏ СЌРєСЂР°РЅРЅС‹Рј
 	lsl::Point ScreenToView(const lsl::Point& point);
-	//из ViewPort в проекционноое пространство
+	//РёР· ViewPort РІ РїСЂРѕРµРєС†РёРѕРЅРЅРѕРѕРµ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ
 	D3DXVECTOR2 ViewToProj(const lsl::Point& point);
 	//
 	D3DXVECTOR2 ProjToView(const D3DXVECTOR2& coord);
@@ -45,7 +45,7 @@ public:
 	float GetCameraAspect() const;
 	void SetCameraAspect(float value);
 
-	//получить координаты мыши, в пространство ViewPort
+	//РїРѕР»СѓС‡РёС‚СЊ РєРѕРѕСЂРґРёРЅР°С‚С‹ РјС‹С€Рё, РІ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ ViewPort
 	lsl::Point GetMousePos() const;
 
 	static void SetWindowSize(HWND handle, const lsl::Point& size, bool fullScreen);

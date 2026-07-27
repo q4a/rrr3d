@@ -124,15 +124,15 @@ public:
 	enum SoundShemeType {ssButton1 = 0, ssButton2, ssButton3, ssButton4, ssButton5, ssStepper, cSoundShemeTypeEnd};
 
 	static const D3DXCOLOR cTextColor;
-	//оптимальное разрешение
+	//РѕРїС‚РёРјР°Р»СЊРЅРѕРµ СЂР°Р·СЂРµС€РµРЅРёРµ
 	static const D3DXVECTOR2 cWinSize;
-	//минимально-поддерживаемое
+	//РјРёРЅРёРјР°Р»СЊРЅРѕ-РїРѕРґРґРµСЂР¶РёРІР°РµРјРѕРµ
 	static const D3DXVECTOR2 cMinWinSize;
-	//максимально-поддерживаемое
+	//РјР°РєСЃРёРјР°Р»СЊРЅРѕ-РїРѕРґРґРµСЂР¶РёРІР°РµРјРѕРµ
 	static const D3DXVECTOR2 cMaxWinSize;	
 
 	static D3DXVECTOR2 GetImageSize(gui::Material& material);
-	//масштабирование до newSize с сохранением форматного соотношения Aspect
+	//РјР°СЃС€С‚Р°Р±РёСЂРѕРІР°РЅРёРµ РґРѕ newSize СЃ СЃРѕС…СЂР°РЅРµРЅРёРµРј С„РѕСЂРјР°С‚РЅРѕРіРѕ СЃРѕРѕС‚РЅРѕС€РµРЅРёСЏ Aspect
 	static D3DXVECTOR2 GetAspectSize(const D3DXVECTOR2& curSize, const D3DXVECTOR2& newSize);
 	static D3DXVECTOR2 GetImageAspectSize(gui::Material& material, const D3DXVECTOR2& newSize);
 	static D3DXVECTOR2 StretchImage(D3DXVECTOR2 imageSize, const D3DXVECTOR2& size, bool keepAspect = true, bool fillRect = false, bool scaleDown = true, bool scaleUp = true);
@@ -203,10 +203,10 @@ public:
 	Menu(GameMode* game);
 	virtual ~Menu();
 
-	//centUnscacle - система координат в центре экрана, объекты не масштабируются а только смещаются
+	//centUnscacle - СЃРёСЃС‚РµРјР° РєРѕРѕСЂРґРёРЅР°С‚ РІ С†РµРЅС‚СЂРµ СЌРєСЂР°РЅР°, РѕР±СЉРµРєС‚С‹ РЅРµ РјР°СЃС€С‚Р°Р±РёСЂСѓСЋС‚СЃСЏ Р° С‚РѕР»СЊРєРѕ СЃРјРµС‰Р°СЋС‚СЃСЏ
 	D3DXVECTOR2 WinToLocal(const D3DXVECTOR2& vec, bool centUnscacle = false);
 	void AdjustLayout(const D3DXVECTOR2& vpSize);
-	//параметры кэрана изменились
+	//РїР°СЂР°РјРµС‚СЂС‹ РєСЌСЂР°РЅР° РёР·РјРµРЅРёР»РёСЃСЊ
 	void OnResetView();
 	void OnFinishClose();
 

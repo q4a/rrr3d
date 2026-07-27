@@ -236,7 +236,7 @@ void Resource::SetDynamic(bool value)
 
 void FileResource::DoLoadFromStream(std::istream& stream, const std::string& fileExt)
 {
-	//свидетельствует о том что загрузчик не существует
+	//СЃРІРёРґРµС‚РµР»СЊСЃС‚РІСѓРµС‚ Рѕ С‚РѕРј С‡С‚Рѕ Р·Р°РіСЂСѓР·С‡РёРє РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚
 	assert(false);
 }
 

@@ -46,7 +46,7 @@ public:
 	virtual UINT GetAdapterCount() const = 0;
 	virtual HRESULT GetAdapterIdentifier(UINT adapter, DWORD flags, D3DADAPTER_IDENTIFIER9* pIdentifier) = 0;
 
-	//Временно, необходимо убрать
+	//Р’СЂРµРјРµРЅРЅРѕ, РЅРµРѕР±С…РѕРґРёРјРѕ СѓР±СЂР°С‚СЊ
 	float CalcAspect();
 	bool FindNearMode(const lsl::Point& resolution, DisplayMode& mode, float aspect = 0) const;
 };

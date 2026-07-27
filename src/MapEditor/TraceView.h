@@ -136,10 +136,10 @@ private:
 	CMapEditorDoc* _mapDoc;	
 	MapDocEvent* _mapDocEvent;
 
-	//Функции обновления вида
+	//Р¤СѓРЅРєС†РёРё РѕР±РЅРѕРІР»РµРЅРёСЏ РІРёРґР°
 	//
 
-	//Список точек
+	//РЎРїРёСЃРѕРє С‚РѕС‡РµРє
 	void ReleasePointItem(HTREEITEM item);
 	void ReleasePointItems();
 	void InsertPointItem(r3d::IWayPointRef waypoint);
@@ -149,7 +149,7 @@ private:
 	void ClearPointList();
 	void UpdatePointList();
 	
-	//Список путей
+	//РЎРїРёСЃРѕРє РїСѓС‚РµР№
 	void ReleasePathItem(HTREEITEM item);
 	void ReleasePathItems();
 	//	
@@ -161,12 +161,12 @@ private:
 	void ClearPathList();
 	void UpdatePathList();
 	
-	//Общие функции
+	//РћР±С‰РёРµ С„СѓРЅРєС†РёРё
 	void ClearList();
 	void UpdateList();
 
-	//Редактирование модели + обновление вида
-	//Поскольку данные изолированны в данном классе, то редактирование идет в обход документа для упрощения
+	//Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РјРѕРґРµР»Рё + РѕР±РЅРѕРІР»РµРЅРёРµ РІРёРґР°
+	//РџРѕСЃРєРѕР»СЊРєСѓ РґР°РЅРЅС‹Рµ РёР·РѕР»РёСЂРѕРІР°РЅРЅС‹ РІ РґР°РЅРЅРѕРј РєР»Р°СЃСЃРµ, С‚Рѕ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РёРґРµС‚ РІ РѕР±С…РѕРґ РґРѕРєСѓРјРµРЅС‚Р° РґР»СЏ СѓРїСЂРѕС‰РµРЅРёСЏ
 	void AddPoint();
 	void DelSelPoint();
 	void SelectPoint(HTREEITEM item);

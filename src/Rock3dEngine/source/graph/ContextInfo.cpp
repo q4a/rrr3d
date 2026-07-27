@@ -79,14 +79,14 @@ CameraCI::CameraCI(): _idState(0), _frustChanged(true)
 D3DXVECTOR2 CameraCI::ViewToProj(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize)
 {
 	D3DXVECTOR2 projVec(coord.x / viewSize.x, coord.y / viewSize.y);
-	//Приводим к диапазону [-1, 1]
+	//РџСЂРёРІРѕРґРёРј Рє РґРёР°РїР°Р·РѕРЅСѓ [-1, 1]
 	projVec = projVec * 2.0f - IdentityVec2;
-	//Ось Y у экрана и у заднего буфера(или иначе говоря экранной D3D поверхности) не совпадают
+	//РћСЃСЊ Y Сѓ СЌРєСЂР°РЅР° Рё Сѓ Р·Р°РґРЅРµРіРѕ Р±СѓС„РµСЂР°(РёР»Рё РёРЅР°С‡Рµ РіРѕРІРѕСЂСЏ СЌРєСЂР°РЅРЅРѕР№ D3D РїРѕРІРµСЂС…РЅРѕСЃС‚Рё) РЅРµ СЃРѕРІРїР°РґР°СЋС‚
 	projVec.y = -projVec.y;
 
 	return projVec;
 
-	/*//Алгоритм с импользованием D3DXVec3Unproject
+	/*//РђР»РіРѕСЂРёС‚Рј СЃ РёРјРїРѕР»СЊР·РѕРІР°РЅРёРµРј D3DXVec3Unproject
 	D3DVIEWPORT9 viewPort;
 	_engine->GetDriver().GetDevice()->GetViewport(&viewPort);
 	float width = static_cast<float>(GetWndWidth());
@@ -228,7 +228,7 @@ bool LineCastIntersPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec,
 
 unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, D3DXVECTOR3 points[])
 {
-	//конечные вершины ребер для каждого вертекса
+	//РєРѕРЅРµС‡РЅС‹Рµ РІРµСЂС€РёРЅС‹ СЂРµР±РµСЂ РґР»СЏ РєР°Р¶РґРѕРіРѕ РІРµСЂС‚РµРєСЃР°
 	const int lines[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
 
 	unsigned res = 0;
@@ -242,11 +242,11 @@ unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, D3DXVECTOR
 		float vec3Len = D3DXVec3Length(&vec);
 		D3DXVec3Normalize(&vec, &vec);
 		float dist;
-		//есть пересечение
+		//РµСЃС‚СЊ РїРµСЂРµСЃРµС‡РµРЅРёРµ
 		if (LineCastIntersPlane(v1, vec, plane, dist) && dist > 0.0f && dist < vec3Len)
 		{
 			points[res] = v1 + vec * dist;
-			//больше 4-х точек не может быть
+			//Р±РѕР»СЊС€Рµ 4-С… С‚РѕС‡РµРє РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ
 			if (++res > 3)
 				return res;
 		}
@@ -273,9 +273,9 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	BoundBox::Transform(box, GetView(), viewBox);
 	BoundBox::Transform(box, GetViewProj(), projBox);
 
-	//поиск по вершинам aabb
+	//РїРѕРёСЃРє РїРѕ РІРµСЂС€РёРЅР°Рј aabb
 	for (int i = 0; i < 8; ++i)	
-		//лежит ли точка в боксе
+		//Р»РµР¶РёС‚ Р»Рё С‚РѕС‡РєР° РІ Р±РѕРєСЃРµ
 		if (abs(projBox.v[i].x) < 1.0f && abs(projBox.v[i].y) < 1.0f)
 		{
 			float z = -viewBox.v[i].z;
@@ -288,7 +288,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 			res = true;
 		}
 
-	//поиск через лучи из направляющих ребер фрустума
+	//РїРѕРёСЃРє С‡РµСЂРµР· Р»СѓС‡Рё РёР· РЅР°РїСЂР°РІР»СЏСЋС‰РёС… СЂРµР±РµСЂ С„СЂСѓСЃС‚СѓРјР°
 	D3DXVECTOR3 rayVec[4] = {D3DXVECTOR3(-1.0f, -1.0f, 1.0f), D3DXVECTOR3(1.0f, -1.0f, 1.0f), D3DXVECTOR3(-1.0f, 1.0f, 1.0f), D3DXVECTOR3(1.0f, 1.0f, 1.0f)};
 	D3DXVECTOR3 rayPos[4] = {D3DXVECTOR3(-1.0f, -1.0f, 0.0f), D3DXVECTOR3(1.0f, -1.0f, 0.0f), D3DXVECTOR3(-1.0f, 1.0f, 0.0f), D3DXVECTOR3(1.0f, 1.0f, 0.0f)};
 	
@@ -313,7 +313,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 		}
 	}
 
-	//поиск пересечений aabb с фрустумом
+	//РїРѕРёСЃРє РїРµСЂРµСЃРµС‡РµРЅРёР№ aabb СЃ С„СЂСѓСЃС‚СѓРјРѕРј
 	/*D3DXPLANE nearPlane;
 	D3DXPlaneFromPointNormal(&nearPlane, &NullVector, &ZVector);
 	D3DXVECTOR3 points[4];
@@ -352,7 +352,7 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 				float planeDot = D3DXPlaneDotCoord(&frustum.planes[numPlane], &points[j]);
 				if (k == 0)
 					fContain = planeDot;
-				//лежит вне
+				//Р»РµР¶РёС‚ РІРЅРµ
 				if (k > 0 && planeDot * fContain < 0)
 				{
 					contain = false;
@@ -435,7 +435,7 @@ D3DXVECTOR3 CameraCI::ScreenToWorld(const D3DXVECTOR2& coord, float z, const D3D
 {
 	D3DXVECTOR2 projCoord = ViewToProj(coord, viewSize);
 	D3DXVECTOR3 screenVec(projCoord.x, projCoord.y, z);
-	//Переводим в мировое пространство(домножая на инв. матрицу), что соотв. точке на near плоскости камеры
+	//РџРµСЂРµРІРѕРґРёРј РІ РјРёСЂРѕРІРѕРµ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ(РґРѕРјРЅРѕР¶Р°СЏ РЅР° РёРЅРІ. РјР°С‚СЂРёС†Сѓ), С‡С‚Рѕ СЃРѕРѕС‚РІ. С‚РѕС‡РєРµ РЅР° near РїР»РѕСЃРєРѕСЃС‚Рё РєР°РјРµСЂС‹
 	D3DXVec3TransformCoord(&screenVec, &screenVec, &GetInvViewProj());
 
 	return screenVec;
@@ -478,14 +478,14 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 				break;
 
 			default:
-				//Используется правостороння система координат (как в 3dMax-e)
+				//РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РїСЂР°РІРѕСЃС‚РѕСЂРѕРЅРЅСЏ СЃРёСЃС‚РµРјР° РєРѕРѕСЂРґРёРЅР°С‚ (РєР°Рє РІ 3dMax-e)
 				D3DXMatrixLookAtRH(&_matrices[transform], &_desc.pos, &(_desc.pos + _desc.dir), &_desc.up);
 			}			
 			break;
 
 		case ctProj:
 		{
-			//Используется правостороння система координат (как в 3dMax-e)
+			//РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РїСЂР°РІРѕСЃС‚РѕСЂРѕРЅРЅСЏ СЃРёСЃС‚РµРјР° РєРѕРѕСЂРґРёРЅР°С‚ (РєР°Рє РІ 3dMax-e)
 			switch (_desc.style)
 			{
 			case csPerspective:
@@ -770,13 +770,13 @@ void ContextInfo::SetDefaults()
 	_color = clrWhite;
 	_meshId = -1;
 
-	//Эти умолчания отличаются от стандартного состояния d3d9
+	//Р­С‚Рё СѓРјРѕР»С‡Р°РЅРёСЏ РѕС‚Р»РёС‡Р°СЋС‚СЃСЏ РѕС‚ СЃС‚Р°РЅРґР°СЂС‚РЅРѕРіРѕ СЃРѕСЃС‚РѕСЏРЅРёСЏ d3d9
 	_driver->SetRenderState(rsCullMode, D3DCULL_CW);
 	_driver->SetRenderState(rsNormalizeNormals, true);
 	_driver->SetRenderState(rsZEnable, true);
 	for (int  i = 0; i < cMaxTexSamplers; ++i)
 	{
-		//Эти значения по умолчанию зависят от установленной текстуры в данном stage, приводим их к стд виду
+		//Р­С‚Рё Р·РЅР°С‡РµРЅРёСЏ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ Р·Р°РІРёСЃСЏС‚ РѕС‚ СѓСЃС‚Р°РЅРѕРІР»РµРЅРЅРѕР№ С‚РµРєСЃС‚СѓСЂС‹ РІ РґР°РЅРЅРѕРј stage, РїСЂРёРІРѕРґРёРј РёС… Рє СЃС‚Рґ РІРёРґСѓ
 		_driver->SetTexture(i, 0);
 
 		for (int j = 0; j < TEXTURE_STAGE_STATE_END; ++j)
@@ -845,7 +845,7 @@ void ContextInfo::AddLight(LightCI* value)
 	value->_owner = this;
 	value->_id = id;
 	++iter;
-	//Места нет, берем конец списка	
+	//РњРµСЃС‚Р° РЅРµС‚, Р±РµСЂРµРј РєРѕРЅРµС† СЃРїРёСЃРєР°	
 	if (!(iter != _lightList.end() && (*iter)->_id - id > 1))
 		_lastLight = _lightList.end();
 
@@ -1081,7 +1081,7 @@ bool ContextInfo::GetInvertingCullFace() const
 
 void ContextInfo::SetInvertingCullFace(bool value)
 {
-	//Метод не работает!!!
+	//РњРµС‚РѕРґ РЅРµ СЂР°Р±РѕС‚Р°РµС‚!!!
 	LSL_ASSERT(false);
 
 	_invertingCullFace = value;
