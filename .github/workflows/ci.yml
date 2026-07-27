@@ -3,6 +3,13 @@ name: CI
 on: [push, pull_request]
 
 jobs:
+  encoding:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@main
+    - name: Check sources are valid UTF-8
+      run: python3 tools/check-encoding.py
+
   win:
     runs-on: windows-2022
     strategy:
