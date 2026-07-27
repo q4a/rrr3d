@@ -942,15 +942,18 @@ void Player::CarState::Update(float deltaTime)
 {
 	LSL_ASSERT(mapObj);
 
-	PxTransform mat34 = nxActor->getGlobalPose();
+	const PxTransform pose = nxActor->getGlobalPose();
 
-	worldMat = D3DXMATRIX(mat34.M(0, 0), mat34.M(0, 1), mat34.M(0, 2), 0,
-		mat34.M(1, 0), mat34.M(1, 1), mat34.M(1, 2), 0,
-		mat34.M(2, 0), mat34.M(2, 1), mat34.M(2, 2), 0,
-		mat34.t[0], mat34.t[1], mat34.t[2], 1);
+	//PxTransform holds a quaternion, not a basis, so the rows are taken from a
+	//PxMat33 built from it. Row-vector layout, as D3DX expects.
+	const PxMat33 basis(pose.q);
+	worldMat = D3DXMATRIX(basis[0].x, basis[0].y, basis[0].z, 0,
+		basis[1].x, basis[1].y, basis[1].z, 0,
+		basis[2].x, basis[2].y, basis[2].z, 0,
+		pose.p.x, pose.p.y, pose.p.z, 1);
 
-	pos3 = mat34.t.get();
-	nxActor->getGlobalPose().q.getXYZW(rot3);
+	pos3 = px::FromPx(pose.p);
+	rot3 = px::FromPx(pose.q);
 	Vec3Rotate(XVector, rot3, dir3);
 
 	pos = D3DXVECTOR2(pos3);

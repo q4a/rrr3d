@@ -149,9 +149,9 @@ void GameMode::MusicCat::GenRandom(int ignore)
 
 		for (unsigned j = 0; j < node.playList.size(); ++j)
 		{
-			unsigned slotsCount = std::max(slots.size() - Floor<unsigned>(slots.size() / (float)node.playList.size()), node.playList.size());
+			unsigned slotsCount = static_cast<unsigned>(std::max(slots.size() - static_cast<size_t>(Floor<unsigned>(slots.size() / (float)node.playList.size())), node.playList.size()));
 			unsigned slotsOffset = slots.size() - slotsCount;
-			unsigned count = std::max(node.playList.size() - 1, 1U);
+			unsigned count = static_cast<unsigned>(std::max(node.playList.size() - 1, static_cast<size_t>(1)));
 			int index = (count * slotsOffset + 2 * (slotsCount - 1) * j) / (2 * count);
 			
 			index = slots[index];

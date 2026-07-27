@@ -367,7 +367,9 @@ px::Body* DataBase::AddPxBody(MapObj* mapObj, float mass, const D3DXVECTOR3* mas
 
 	if (massPos)
 	{
-		body.massLocalPose.t.set(px::ToPx(*massPos));
+		body.massLocalPose._41 = massPos->x;
+		body.massLocalPose._42 = massPos->y;
+		body.massLocalPose._43 = massPos->z;
 		mapObj->GetGameObj().GetPxActor().SetFlag(px::bfLockCenterOfMass);
 	}
 
@@ -423,14 +425,14 @@ CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& me
 
 	descShapeWheel.wheelFlags = px::wfClampedFriction;
 
-	PxQuat q;
-	q.fromAngleAxis(90, PxVec3(1,0,0));
-	PxQuat q2;
-	q2.fromAngleAxis(90.0f, PxVec3(0,0,1));
-	q = q2 * q;
-	descShapeWheel.localPose.M.fromQuat(q);
+	//NxQuat::fromAngleAxis took DEGREES; PxQuat's angle-axis constructor takes
+	//radians, so these two quarter turns are PxHalfPi rather than 90.
+	const PxQuat q = PxQuat(PxHalfPi, PxVec3(0.0f, 0.0f, 1.0f)) * PxQuat(PxHalfPi, PxVec3(1.0f, 0.0f, 0.0f));
 
 	wheel->GetShape()->AssignFromDesc(descShapeWheel);
+	//WheelDesc carries no pose -- the shape's own rotation does, where 2.8 put
+	//it on NxWheelShapeDesc::localPose.
+	wheel->GetShape()->SetRot(px::FromPx(q));
 	
 	//if (master)
 	//{
@@ -483,7 +485,7 @@ void DataBase::LoadTrack(const std::string& name, const std::string& mesh, const
 {
 	//pxDefGroup = false;
 	//pxShotGroup = false;
-	D3DXVECTOR4 myVec3 = vec3;
+	D3DXVECTOR4 myVec3(vec3.a, vec3.b, vec3.c, vec3.d);
 	myVec3.x = -1;
 
 	MapObj* mapObj = NewMapObj();
@@ -504,21 +506,21 @@ void DataBase::LoadTrack(const std::string& name, const std::string& mesh, const
 	if (pxDefGroup)
 	{
 		px::TriangleMeshShape* meshShape = AddPxMesh(mapObj, pxMeshRes, 0);
-		meshShape->SetMaterialIndex(_trackMaterial->getMaterialIndex());
+		meshShape->SetMaterialIndex(px::Manager::RegisterMaterial(_trackMaterial));
 		meshShape->SetGroup(px::Scene::cdgTrackPlane);
 		myVec3.x = 0;
 	}
 	else if (!pxShotGroup)
 	{
 		px::TriangleMeshShape* meshShape = AddPxMesh(mapObj, pxMeshRes, -1);
-		meshShape->SetMaterialIndex(_trackMaterial->getMaterialIndex());
+		meshShape->SetMaterialIndex(px::Manager::RegisterMaterial(_trackMaterial));
 		meshShape->SetGroup(px::Scene::cdgTrackPlane);
 	}
 
 	if (pxShotGroup)
 	{
 		px::TriangleMeshShape* meshShape = AddPxMesh(mapObj, pxMeshRes, 1);
-		meshShape->SetMaterialIndex(_borderMaterial->getMaterialIndex());
+		meshShape->SetMaterialIndex(px::Manager::RegisterMaterial(_borderMaterial));
 		meshShape->SetGroup(px::Scene::cdgShotTransparency);
 	}
 
@@ -1990,7 +1992,7 @@ void DataBase::LoadWorld1()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 vec1 = plane;
+	D3DXVECTOR4 vec1(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.075f, 0.0f);
 
@@ -2063,7 +2065,7 @@ void DataBase::LoadWorld2()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 vec1 = plane;
+	D3DXVECTOR4 vec1(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.10f, 0.0f);
 	
@@ -2117,10 +2119,10 @@ void DataBase::LoadWorld3()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 vec1 = plane;
+	D3DXVECTOR4 vec1(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &ZVector);
-	D3DXVECTOR4 vec1Up = plane;
+	D3DXVECTOR4 vec1Up(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
@@ -2157,7 +2159,7 @@ void DataBase::LoadWorld4()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 vec1 = plane;
+	D3DXVECTOR4 vec1(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.25f, 0.25f, 0.0f);	
 
@@ -2191,11 +2193,11 @@ void DataBase::LoadWorld5()
 	D3DXPLANE plane;
 
 	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &ZVector);
-	D3DXVECTOR4 plane1 = plane;
+	D3DXVECTOR4 plane1(plane.a, plane.b, plane.c, plane.d);
 
 	float cosAng = cos(20.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 plane2 = plane;
+	D3DXVECTOR4 plane2(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
@@ -2227,10 +2229,10 @@ void DataBase::LoadWorld6()
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
 	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 vec1 = plane;
+	D3DXVECTOR4 vec1(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &ZVector);
-	D3DXVECTOR4 vec1Up = plane;
+	D3DXVECTOR4 vec1Up(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
@@ -4327,51 +4329,35 @@ void DataBase::Init()
 	_fxTrailManager->fixedUp = true;
 	_fxTrailManager->fixedUpVec = ZVector;
 
+	//PhysX 3+ has no material descriptor; materials come straight off the SDK.
+	//
+	//BEHAVIOUR GAP: anisotropic friction was removed outright in PhysX 3, so
+	//staticFrictionV, dynamicFrictionV, dirOfAnisotropy and NX_MF_ANISOTROPIC
+	//have no equivalent. The comment below says what that cost: the car
+	//materials were anisotropic specifically so a car sliding along a wall would
+	//skid rather than climb it. Reproducing that needs either a contact-modify
+	//pass that rewrites the friction directions or a wall-specific material.
 	{
-		NxMaterialDesc carMaterialDesc;
-		carMaterialDesc.staticFriction = 0.08f;
-		carMaterialDesc.dynamicFriction = 0.08f;
-		carMaterialDesc.restitution = 0.0f;
-		carMaterialDesc.staticFrictionV = 3.2f;
-		carMaterialDesc.dynamicFrictionV = 2.0f;
-		carMaterialDesc.dirOfAnisotropy = PxVec3(0, 0, 1.0f);
 		//устаналвиаем данные флаги чтобы машина нормально скользила по боковой поверхности, иначе она приподнимается вверх
-		carMaterialDesc.flags = NX_MF_ANISOTROPIC | NX_MF_DISABLE_STRONG_FRICTION;
-		carMaterialDesc.frictionCombineMode = NX_CM_MIN;
-		_nxCarMaterial1 = _world->GetPxScene()->GetNxScene()->createMaterial(carMaterialDesc);
+		_nxCarMaterial1 = px::GetSDK().createMaterial(0.08f, 0.08f, 0.0f);
+		_nxCarMaterial1->setFlag(PxMaterialFlag::eDISABLE_STRONG_FRICTION, true);
+		_nxCarMaterial1->setFrictionCombineMode(PxCombineMode::eMIN);
 	}
 	{
-		NxMaterialDesc carMaterialDesc;
-		carMaterialDesc.staticFriction = 0.02f;
-		carMaterialDesc.dynamicFriction = 0.02f;
-		carMaterialDesc.restitution = 0.0f;
-		carMaterialDesc.staticFrictionV = 3.2f;
-		carMaterialDesc.dynamicFrictionV = 2.0f;
-		carMaterialDesc.dirOfAnisotropy = PxVec3(0, 0, 1.0f);
-		//устаналвиаем данные флаги чтобы машина нормально скользила по боковой поверхности, иначе она приподнимается вверх
-		carMaterialDesc.flags = NX_MF_ANISOTROPIC | NX_MF_DISABLE_STRONG_FRICTION;
-		carMaterialDesc.frictionCombineMode = NX_CM_MIN;
-		_nxCarMaterial2 = _world->GetPxScene()->GetNxScene()->createMaterial(carMaterialDesc);
+		_nxCarMaterial2 = px::GetSDK().createMaterial(0.02f, 0.02f, 0.0f);
+		_nxCarMaterial2->setFlag(PxMaterialFlag::eDISABLE_STRONG_FRICTION, true);
+		_nxCarMaterial2->setFrictionCombineMode(PxCombineMode::eMIN);
 	}
 
-	NxMaterialDesc descMaterialWheel;
-	descMaterialWheel.restitution = 0.0f;
-	descMaterialWheel.flags = NX_MF_DISABLE_FRICTION;
-	_nxWheelMaterial = _world->GetPxScene()->GetNxScene()->createMaterial(descMaterialWheel);
+	//NX_MF_DISABLE_FRICTION is zero friction in both directions; PhysX 3+ has no
+	//such flag but the effect is the same.
+	_nxWheelMaterial = px::GetSDK().createMaterial(0.0f, 0.0f, 0.0f);
 
-	NxMaterialDesc trackMaterialDesc;
-	trackMaterialDesc.staticFriction = 0.1f;
-	trackMaterialDesc.dynamicFriction = 0.1f;
-	trackMaterialDesc.restitution = 0.0f;
-	trackMaterialDesc.frictionCombineMode = NX_CM_AVERAGE;
-	_trackMaterial = _world->GetPxScene()->GetNxScene()->createMaterial(trackMaterialDesc);
+	_trackMaterial = px::GetSDK().createMaterial(0.1f, 0.1f, 0.0f);
+	_trackMaterial->setFrictionCombineMode(PxCombineMode::eAVERAGE);
 
-	NxMaterialDesc borderMaterialDesc;
-	borderMaterialDesc.staticFriction = 0.1f;
-	borderMaterialDesc.dynamicFriction = 4.0f;
-	borderMaterialDesc.restitution = 0.0f;	
-	borderMaterialDesc.frictionCombineMode = NX_CM_MAX;
-	_borderMaterial = _world->GetPxScene()->GetNxScene()->createMaterial(borderMaterialDesc);
+	_borderMaterial = px::GetSDK().createMaterial(0.1f, 4.0f, 0.0f);
+	_borderMaterial->setFrictionCombineMode(PxCombineMode::eMAX);
 
 	try
 	{

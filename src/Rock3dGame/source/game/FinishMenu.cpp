@@ -96,7 +96,7 @@ void FinishMenu::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 void FinishMenu::OnInvalidate()
 {
 	const Race::Results& results = menu()->GetRace()->GetResults();
-	_playerCount = std::min(results.size(), (unsigned)cBoxCount);
+	_playerCount = static_cast<unsigned>(std::min(results.size(), static_cast<size_t>(cBoxCount)));
 
 	for (unsigned i = 0; i < cBoxCount; ++i)
 	{

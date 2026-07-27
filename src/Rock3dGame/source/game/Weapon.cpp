@@ -288,16 +288,21 @@ void Proj::EnableFilter(GameObject* target, unsigned mask)
 	if (target->GetPxActor().GetNxActor() == 0)
 		return;
 
-	NxGroupsMask nxMask;
+	PxGroupsMask nxMask;
 	nxMask.bits0 = mask;
 	nxMask.bits1 = nxMask.bits2 = nxMask.bits3 = 0;
-	for (unsigned i = 0; i < target->GetPxActor().GetNxActor()->getNbShapes(); ++i)
-	{
-		PxShape* shape = target->GetPxActor().GetNxActor()->getShapes()[i];
-		shape->setGroupsMask(nxMask);
-	}
-	
-	target->GetPxActor().GetScene()->GetNxScene()->setFilterOps(NX_FILTEROP_OR, NX_FILTEROP_OR, NX_FILTEROP_AND);
+
+	//PhysX 3+ copies shape pointers out rather than exposing an array.
+	PxRigidActor* actor = target->GetPxActor().GetNxActor();
+	const PxU32 numShapes = actor->getNbShapes();
+	std::vector<PxShape*> shapes(numShapes);
+	if (numShapes)
+		actor->getShapes(&shapes[0], numShapes);
+
+	for (PxU32 i = 0; i < numShapes; ++i)
+		px::Scene::SetShapeGroupsMask(*shapes[i], nxMask);
+
+	PxSetFilterOps(PxFilterOp::PX_FILTEROP_OR, PxFilterOp::PX_FILTEROP_OR, PxFilterOp::PX_FILTEROP_AND);
 }
 
 void Proj::DisableFilter(GameObject* target)
@@ -305,16 +310,21 @@ void Proj::DisableFilter(GameObject* target)
 	if (target->GetPxActor().GetNxActor() == 0)
 		return;
 
-	NxGroupsMask nxMask;
+	PxGroupsMask nxMask;
 	nxMask.bits0 = px::Scene::gmDef;
 	nxMask.bits1 = nxMask.bits2 = nxMask.bits3 = 0;
-	for (unsigned i = 0; i < target->GetPxActor().GetNxActor()->getNbShapes(); ++i)
-	{
-		PxShape* shape = target->GetPxActor().GetNxActor()->getShapes()[i];
-		shape->setGroupsMask(nxMask);
-	}
 
-	target->GetPxActor().GetScene()->GetNxScene()->setFilterOps(NX_FILTEROP_AND, NX_FILTEROP_AND, NX_FILTEROP_AND);
+	//PhysX 3+ copies shape pointers out rather than exposing an array.
+	PxRigidActor* actor = target->GetPxActor().GetNxActor();
+	const PxU32 numShapes = actor->getNbShapes();
+	std::vector<PxShape*> shapes(numShapes);
+	if (numShapes)
+		actor->getShapes(&shapes[0], numShapes);
+
+	for (PxU32 i = 0; i < numShapes; ++i)
+		px::Scene::SetShapeGroupsMask(*shapes[i], nxMask);
+
+	PxSetFilterOps(PxFilterOp::PX_FILTEROP_AND, PxFilterOp::PX_FILTEROP_AND, PxFilterOp::PX_FILTEROP_AND);
 }
 
 D3DXVECTOR3 Proj::CalcSpeed(GameObject* weapon)
@@ -359,7 +369,7 @@ bool Proj::RocketPrepare(GameObject* weapon, bool disableGravity, D3DXVECTOR3* s
 
 	CreateBody(bodyDesc);
 
-	this->GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL);
+	this->GetPxActor().SetContactReportFlags(px::Scene::crfNotifyAll);
 	this->GetPxActor().SetFlag(px::bfDisableResponse, true);
 	SetIgnoreContactProj(true);
 
@@ -734,7 +744,7 @@ bool Proj::MinePiecePrepare(const ShotContext& ctx)
 	px::BodyDesc bodyDesc;
 	CreateBody(bodyDesc);
 
-	GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL);
+	GetPxActor().SetContactReportFlags(px::Scene::crfNotifyAll);
 
 	return true;
 }
@@ -923,7 +933,7 @@ bool Proj::DrobilkaPrepare(GameObject* weapon)
 	px::BodyDesc desc;
 	CreateBody(desc);
 
-	this->GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL);
+	this->GetPxActor().SetContactReportFlags(px::Scene::crfNotifyAll);
 	this->GetPxActor().SetFlag(px::bfDisableResponse, true);
 	SetIgnoreContactProj(true);
 
@@ -1574,7 +1584,7 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 	//Игнорируем контакты снаряда с родителем (т.е. с самим собой)
 	if (_ignoreContactProj && weapon && weapon->GetPxActor().GetNxActor())
 	{		
-		GetPxActor().GetScene()->GetNxScene()->setActorPairFlags(*weapon->GetPxActor().GetNxActor(), *GetPxActor().GetNxActor(), NX_IGNORE_PAIR);
+		GetPxActor().GetScene()->SetActorPairIgnored(*weapon->GetPxActor().GetNxActor(), *GetPxActor().GetNxActor(), true);
 	}
 
 	return res;

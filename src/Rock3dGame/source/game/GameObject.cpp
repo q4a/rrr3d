@@ -196,17 +196,26 @@ void GameObject::OnSleep()
 
 void GameObject::RayCastClosestActor(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayDir, PxQueryFlags shapesType, RayCastHit& hit, unsigned groups, unsigned mask, float maxDist)
 {
-	PxRaycastHit nxHit;
 	hit.gameActor = 0;
 
-	NxGroupsMask nxMask;
-	nxMask.bits0 = mask;
-	nxMask.bits1 = 0;
-	nxMask.bits2 = 0;
-	nxMask.bits3 = 0;
+	//Word 0 is the collision group, words 2 and 3 the groups mask -- the layout
+	//PxDefaultSimulationFilterShader reads. See px::Scene::SetShapeGroupsMask.
+	PxQueryFilterData filterData;
+	filterData.data.word0 = groups;
+	filterData.data.word2 = mask;
+	filterData.flags = shapesType;
 
-	if (PxShape* shape = GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(NxRay(px::ToPx(rayStart), px::ToPx(rayDir)), shapesType, nxHit, groups, maxDist, 0xFFFFFFFF, mask > 0 ? &nxMask : 0))
-		hit.gameActor = GetGameObjFromShape(shape);
+	PxRaycastBuffer buffer;
+	const bool anyHit = GetPxActor().GetScene()->GetNxScene()->raycast(
+		px::ToPx(rayStart), px::ToPx(rayDir).getNormalized(), maxDist, buffer,
+		PxHitFlag::eDEFAULT, filterData);
+
+	PxRaycastHit nxHit;
+	if (anyHit && buffer.hasBlock)
+	{
+		nxHit = buffer.block;
+		hit.gameActor = GetGameObjFromShape(nxHit.shape);
+	}
 
 	hit.distance = nxHit.distance;
 }
@@ -1006,7 +1015,7 @@ GameObject* GameObject::GetGameObjFromActor(PxRigidActor* actor)
 
 GameObject* GameObject::GetGameObjFromShape(PxShape* shape)
 {
-	return GetGameObjFromActor(&shape->getActor());
+	return GetGameObjFromActor(shape->getActor());
 }
 
 }

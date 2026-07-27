@@ -465,7 +465,7 @@ GameCar::GameCar(): _clutchStrength(0), _clutchTime(0.0f), _springTime(0), _mine
 {
 	_wheels = new Wheels(this);	
 
-	GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL | NX_NOTIFY_CONTACT_MODIFICATION);
+	GetPxActor().SetContactReportFlags(px::Scene::crfNotifyAll | px::Scene::crfNotifyContactModification);
 	GetPxActor().SetFlag(px::bfContactModification, true);	
 
 	RegFixedStepEvent();
@@ -621,14 +621,12 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 		//alpha = 1.0f;
 
 		PxTransform worldMat = nxActor->getGlobalPose();
-		PxQuat rotQuat;
-		rotQuat.fromAngleAxisFast(alpha * _steerAngle/cMaxSteerAngle * _steerRot * deltaTime, PxVec3(0, 0, 1));
-		PxTransform rotMat;
-		rotMat.M.fromQuat(rotQuat);
-		PxTransform matOffs1;
-		matOffs1.t = PxVec3(backWheel->GetPos().x, 0, 0);
-		PxTransform matOffs2;
-		matOffs2.t = -matOffs1.t;
+		//fromAngleAxisFast took radians, which is what PxQuat's angle-axis
+		//constructor also takes -- unlike fromAngleAxis, which took degrees.
+		const PxQuat rotQuat(alpha * _steerAngle/cMaxSteerAngle * _steerRot * deltaTime, PxVec3(0, 0, 1));
+		const PxTransform rotMat(PxVec3(0.0f), rotQuat);
+		const PxTransform matOffs1(PxVec3(backWheel->GetPos().x, 0, 0));
+		const PxTransform matOffs2(-matOffs1.p);
 		worldMat = worldMat * matOffs1 * rotMat * matOffs2;
 
 		nxActor->setGlobalPose(worldMat);

@@ -54,11 +54,11 @@ void Behavior::SetPxNotify(PxNotify notify, bool value)
 		switch (notify)
 		{
 		case pxContact:
-			GetGameObj()->GetPxActor().SetContactReportFlag(NX_NOTIFY_ALL, value);
+			GetGameObj()->GetPxActor().SetContactReportFlag(px::Scene::crfNotifyAll, value);
 			break;			
 			
 		case pxContactModify:
-			GetGameObj()->GetPxActor().SetContactReportFlag(NX_NOTIFY_CONTACT_MODIFICATION, value);
+			GetGameObj()->GetPxActor().SetContactReportFlag(px::Scene::crfNotifyContactModification, value);
 			break;
 		}
 	}
@@ -211,7 +211,7 @@ void FxSystemSrcSpeed::OnProgress(float deltaTime)
 		{
 			graph::FxParticleSystem* fxSystem = iter->GetItem<graph::FxParticleSystem>();
 
-			D3DXVECTOR3 speed(GetGameObj()->GetPxActor().GetNxDynamic()->getLinearVelocity().get());
+			D3DXVECTOR3 speed = px::FromPx(GetGameObj()->GetPxActor().GetNxDynamic()->getLinearVelocity());
 			if (GetGameObj()->GetParent())
 				GetGameObj()->GetParent()->GetGrActor().WorldToLocalNorm(speed, speed);
 
@@ -366,7 +366,10 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 		mapObj->GetGameObj().SetRot(desc.rot);
 
 	if (D3DXVec3Length(&_impulse) > 0.001f && mapObj->GetGameObj().GetPxActor().GetNxActor())
-		mapObj->GetGameObj().GetPxActor().GetNxDynamic()->addLocalForce(px::ToPx(_impulse), PxForceMode::eIMPULSE);
+	{
+		PxRigidDynamic* body = mapObj->GetGameObj().GetPxActor().GetNxDynamic();
+		body->addForce(body->getGlobalPose().q.rotate(px::ToPx(_impulse)), PxForceMode::eIMPULSE);
+	}
 
 	return mapObj;
 }
@@ -719,7 +722,7 @@ void DeathEffect::OnDeath(GameObject* sender, DamageType damageType, GameObject*
 		PxRigidActor* car = sender && sender->GetParent() && sender->GetParent()->IsProj() && sender->GetParent()->IsProj()->GetWeapon() ? sender->GetParent()->IsProj()->GetWeapon()->GetPxActor().GetNxActor() : 0;
 
 		if (_effectPxIgnoreSenderCar && eff && car)
-			eff->getScene().setActorPairFlags(*eff, *car, NX_IGNORE_PAIR);
+			GetGameObj()->GetPxActor().GetScene()->SetActorPairIgnored(*eff, *car, true);
 	}
 }
 

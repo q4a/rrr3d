@@ -469,7 +469,11 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			//Отрисовка error вектора
 			PxVec3 nxErrNorm = error;
 			//nxErrNorm.normalize();
-			gameObj->GetPxActor().GetNxActor()->getCMassGlobalPose().M.multiply(nxErrNorm, nxErrNorm);
+			//NxMat33::multiply(src, dst) is PxQuat::rotate, and 2.8's
+			//getCMassGlobalPose() is the actor pose composed with the local
+			//centre-of-mass pose.
+			PxRigidDynamic* body = gameObj->GetPxActor().GetNxDynamic();
+			nxErrNorm = (body->getGlobalPose() * body->getCMassLocalPose()).q.rotate(nxErrNorm);
 			errorNorm = px::FromPx(nxErrNorm);
 			lines[0].pos = px::FromPx(pos0);
 			lines[0].diffuse = clrBlack;
@@ -558,7 +562,8 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		return;
 
 	game::RockCar* gameObj = car.gameObj;
-	PxRigidActor* nxActor = gameObj->GetPxActor().GetNxActor();
+	//Mass and centre of mass are read and restored below, so this needs the body.
+	PxRigidDynamic* nxActor = gameObj->GetPxActor().GetNxDynamic();
 
 	if (car.speed <= 0)
 	{
@@ -637,7 +642,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 	px::SpringDesc suspension = pxWheel->GetSuspension();
 	float suspensionTravel = pxWheel->GetSuspensionTravel();
 	float mass = nxActor->getMass();
-	PxVec3 cMassPos = nxActor->getCMassLocalPosition();
+	PxVec3 cMassPos = nxActor->getCMassLocalPose().p;
 	CarMotorDesc motor = gameObj->GetMotorDesc();
 	float steerSpeed = gameObj->GetSteerSpeed();
 	float steerRot = gameObj->GetSteerRot();
@@ -805,7 +810,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 		wheel->GetShape()->SetSuspensionTravel(suspensionTravel);
 	}
 	nxActor->setMass(mass);
-	nxActor->setCMassOffsetLocalPosition(cMassPos);
+	nxActor->setCMassLocalPose(PxTransform(cMassPos));
 	gameObj->SetMotorDesc(motor);
 	gameObj->SetSteerSpeed(steerSpeed);
 	gameObj->SetSteerRot(steerRot);
