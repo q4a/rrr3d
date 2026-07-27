@@ -110,7 +110,7 @@ void Engine::DrawFPS()
 	static char fpsString[255] = "Frames Per Second = ";	
 	if (nTimeOfLastFPSUpdate > 1.0f) // Update once a second
 	{		
-		sprintf_s(fpsString, "FPS - %4.2f \n 'C' - переключить камеру \n"
+		sprintf_s(fpsString, "FPS - %4.2f \n 'C' - switch camera \n"
 			"FixedFPS - %i \n", nFrameCount/nTimeOfLastFPSUpdate, (static_cast<int>(1.0f/_dt) / 10) * 10);
 		nTimeOfLastFPSUpdate = 0;
 		nFrameCount = 0;

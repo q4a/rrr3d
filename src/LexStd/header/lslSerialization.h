@@ -282,7 +282,7 @@ public:
 								if (AnalizeStream<char>(str))
 									type = vtChar;
 								else
-									throw lsl::Error("Неизвестный тип данных");
+									throw lsl::Error("Unknown data type");
 		}
 	};
 protected:
