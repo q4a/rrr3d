@@ -58,12 +58,15 @@ obj_handle_t NSArray_object(obj_handle_t array, uint64_t index);
 
 obj_handle_t MTLDevice_newCommandQueue(obj_handle_t device, uint64_t maxCommandBufferCount);
 
-/* Bytes of the device name, UTF-8, truncated to `size`. Returns bytes needed. */
-uint64_t MTLDevice_name(obj_handle_t device, char* buffer, uint64_t size);
+/*
+ * Returns an NSString handle, not bytes. Callers pair it with
+ * NSString_getCString -- which is what d9mt's mtlDevice() does.
+ */
+obj_handle_t MTLDevice_name(obj_handle_t device);
 
 uint64_t MTLDevice_recommendedMaxWorkingSetSize(obj_handle_t device);
-uint8_t  MTLDevice_hasUnifiedMemory(obj_handle_t device);
-uint8_t  MTLDevice_supportsFamily(obj_handle_t device, uint32_t family);
+bool MTLDevice_hasUnifiedMemory(obj_handle_t device);
+bool MTLDevice_supportsFamily(obj_handle_t device, uint32_t family);
 
 /* ---- command queue and buffer ---- */
 
@@ -147,9 +150,32 @@ void MTLBuffer_didModifyRange(obj_handle_t buffer, uint64_t start, uint64_t leng
 void MTLBuffer_updateContents(obj_handle_t buffer, uint64_t offset,
                               struct WMTConstMemoryPointer data, uint64_t length);
 
+/* MTLTextureSwizzle values, matching Metal's numbering. */
+enum WMTTextureSwizzle
+{
+    WMTTextureSwizzleZero  = 0,
+    WMTTextureSwizzleOne   = 1,
+    WMTTextureSwizzleRed   = 2,
+    WMTTextureSwizzleGreen = 3,
+    WMTTextureSwizzleBlue  = 4,
+    WMTTextureSwizzleAlpha = 5
+};
+
+struct WMTTextureSwizzleChannels
+{
+    unsigned char r, g, b, a;
+};
+
+/*
+ * Note the swizzle: it sits between the slice range and the out-pointer. It is
+ * passed by value, so omitting it shifts every argument after it -- which is
+ * exactly what happened the first time this was written, and what turned
+ * out_gpu_resource_id into a wild pointer.
+ */
 obj_handle_t MTLTexture_newTextureView(obj_handle_t texture, uint32_t format, uint32_t texture_type,
                                        uint16_t level_start, uint16_t level_count,
                                        uint16_t slice_start, uint16_t slice_count,
+                                       struct WMTTextureSwizzleChannels swizzle,
                                        uint64_t* out_gpu_resource_id);
 
 void MTLTexture_replaceRegion(obj_handle_t texture, struct WMTOrigin origin, struct WMTSize size,

@@ -493,7 +493,157 @@ bool MTLDevice_supportsTextureSampleCount(obj_handle_t device, uint64_t count);
 bool MTLDevice_supportsBCTextureCompression(obj_handle_t device);
 void MTLDevice_setShouldMaximizeConcurrentCompilation(obj_handle_t device, bool value);
 
+enum WMTDataType : uint16_t {
+  WMTDataTypeNone = 0,
+
+  WMTDataTypeStruct = 1,
+  WMTDataTypeArray = 2,
+
+  WMTDataTypeFloat = 3,
+  WMTDataTypeFloat2 = 4,
+  WMTDataTypeFloat3 = 5,
+  WMTDataTypeFloat4 = 6,
+
+  WMTDataTypeFloat2x2 = 7,
+  WMTDataTypeFloat2x3 = 8,
+  WMTDataTypeFloat2x4 = 9,
+
+  WMTDataTypeFloat3x2 = 10,
+  WMTDataTypeFloat3x3 = 11,
+  WMTDataTypeFloat3x4 = 12,
+
+  WMTDataTypeFloat4x2 = 13,
+  WMTDataTypeFloat4x3 = 14,
+  WMTDataTypeFloat4x4 = 15,
+
+  WMTDataTypeHalf = 16,
+  WMTDataTypeHalf2 = 17,
+  WMTDataTypeHalf3 = 18,
+  WMTDataTypeHalf4 = 19,
+
+  WMTDataTypeHalf2x2 = 20,
+  WMTDataTypeHalf2x3 = 21,
+  WMTDataTypeHalf2x4 = 22,
+
+  WMTDataTypeHalf3x2 = 23,
+  WMTDataTypeHalf3x3 = 24,
+  WMTDataTypeHalf3x4 = 25,
+
+  WMTDataTypeHalf4x2 = 26,
+  WMTDataTypeHalf4x3 = 27,
+  WMTDataTypeHalf4x4 = 28,
+
+  WMTDataTypeInt = 29,
+  WMTDataTypeInt2 = 30,
+  WMTDataTypeInt3 = 31,
+  WMTDataTypeInt4 = 32,
+
+  WMTDataTypeUInt = 33,
+  WMTDataTypeUInt2 = 34,
+  WMTDataTypeUInt3 = 35,
+  WMTDataTypeUInt4 = 36,
+
+  WMTDataTypeShort = 37,
+  WMTDataTypeShort2 = 38,
+  WMTDataTypeShort3 = 39,
+  WMTDataTypeShort4 = 40,
+
+  WMTDataTypeUShort = 41,
+  WMTDataTypeUShort2 = 42,
+  WMTDataTypeUShort3 = 43,
+  WMTDataTypeUShort4 = 44,
+
+  WMTDataTypeChar = 45,
+  WMTDataTypeChar2 = 46,
+  WMTDataTypeChar3 = 47,
+  WMTDataTypeChar4 = 48,
+
+  WMTDataTypeUChar = 49,
+  WMTDataTypeUChar2 = 50,
+  WMTDataTypeUChar3 = 51,
+  WMTDataTypeUChar4 = 52,
+
+  WMTDataTypeBool = 53,
+  WMTDataTypeBool2 = 54,
+  WMTDataTypeBool3 = 55,
+  WMTDataTypeBool4 = 56,
+};
+
+struct WMTFunctionConstant {
+  struct WMTConstMemoryPointer data;
+  enum WMTDataType type;
+  uint16_t index;
+  uint32_t reserved;
+};
+
+enum WMTStringEncoding : uint64_t {
+  WMTASCIIStringEncoding = 1,
+  WMTNEXTSTEPStringEncoding = 2,
+  WMTJapaneseEUCStringEncoding = 3,
+  WMTUTF8StringEncoding = 4,
+  WMTWMTISOLatin1StringEncoding = 5,
+  SymbolStringEncoding = 6,
+  WMTNonLossyASCIIStringEncoding = 7,
+  WMTShiftJISStringEncoding = 8,
+  WMTISOLatin2StringEncoding = 9,
+  WMTUnicodeStringEncoding = 10,
+  WMTWindowsCP1251StringEncoding = 11,
+  WMTWindowsCP1252StringEncoding = 12,
+  WMTWindowsCP1253StringEncoding = 13,
+  WMTWindowsCP1254StringEncoding = 14,
+  WMTWindowsCP1250StringEncoding = 15,
+  WMTISO2022JPStringEncoding = 21,
+  WMTMacOSRomanStringEncoding = 30,
+
+  WMTUTF16StringEncoding = WMTUnicodeStringEncoding,
+
+  WMTUTF16BigEndianStringEncoding = 0x90000100,
+  WMTUTF16LittleEndianStringEncoding = 0x94000100,
+
+  WMTUTF32StringEncoding = 0x8c000100,
+  WMTUTF32BigEndianStringEncoding = 0x98000100,
+  WMTUTF32LittleEndianStringEncoding = 0x9c000100
+};
+
+struct WMTLayerProps
+{
+    obj_handle_t device;
+    double contents_scale;
+    double drawable_width;
+    double drawable_height;
+    bool opaque;
+    bool display_sync_enabled;
+    bool framebuffer_only;
+    uint32_t pixel_format;
+};
+
+enum WMTCommandBufferProperty
+{
+    WMTCommandBufferPropertyKernelStartTime,
+    WMTCommandBufferPropertyKernelEndTime,
+    WMTCommandBufferPropertyGPUStartTime,
+    WMTCommandBufferPropertyGPUEndTime
+};
+
+obj_handle_t MTLLibrary_newFunctionWithConstants(obj_handle_t library, const char* name,
+    const struct WMTFunctionConstant* constants, uint32_t num_constants, obj_handle_t* err_out);
+
+obj_handle_t MTLCommandBuffer_error(obj_handle_t cmdbuf);
+uint64_t MTLCommandBuffer_property(obj_handle_t cmdbuf, enum WMTCommandBufferProperty prop);
+
+obj_handle_t NSAutoreleasePool_alloc_init(void);
+obj_handle_t NSObject_description(obj_handle_t obj);
+uint64_t NSString_getCString(obj_handle_t str, char* buffer, uint64_t maxLength, uint32_t encoding);
+
 /* ---- presentation ---- */
+
+obj_handle_t CreateMetalViewFromHWND(intptr_t hwnd, obj_handle_t device, obj_handle_t* layer);
+void ReleaseMetalView(obj_handle_t view);
+
+void MetalLayer_getProps(obj_handle_t layer, struct WMTLayerProps* props);
+void MetalLayer_setProps(obj_handle_t layer, const struct WMTLayerProps* props);
+obj_handle_t MetalLayer_nextDrawable(obj_handle_t layer);
+obj_handle_t MetalDrawable_texture(obj_handle_t drawable);
 
 void MTLCommandBuffer_presentDrawable(obj_handle_t cmdbuf, obj_handle_t drawable);
 

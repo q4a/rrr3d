@@ -32,8 +32,12 @@ if (MSVC)
 endif()
 
 if (NOT WIN32)
-    # Win32 substitutes, the vendored d3d9.h, and the graphics seam --
-    # see src/XPlatform/source/d3d9_stub.cpp. MathLib carries the Wine d3dx9
-    # math headers d3dx9.h reaches for.
+    # Win32 substitutes, and the D3DX seam -- see
+    # src/XPlatform/source/d3d9_stub.cpp.
     target_link_libraries(${PROJECT_NAME} PRIVATE XPlatform)
+endif()
+
+if (APPLE)
+    # Direct3D 9 itself: DXVK's front-end over d9mt's Metal backend.
+    target_link_libraries(${PROJECT_NAME} PRIVATE D3D9Metal)
 endif()

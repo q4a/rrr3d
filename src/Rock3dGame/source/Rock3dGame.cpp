@@ -1,3 +1,7 @@
+#ifdef __APPLE__
+#include "util/util_error.h"
+#endif
+
 #include "stdafx.h"
 #include "Rock3dGame.h"
 
@@ -41,8 +45,32 @@ ROCK3DGAME_API IWorld* CreateWorld(const IView::Desc& viewDesc, bool steamInit)
 
 		world->Init(viewDesc);
 	}
+	catch (const dxvk::DxvkError& err)
+	{
+		//DXVK reports failures by throwing DxvkError, which derives from
+		//nothing -- so it slips past every catch in this codebase and reaches
+		//the catch-all below with its message discarded.
+		LSL_LOG("CreateWorld failed, DxvkError: " + err.message());
+
+		ReleaseWorld(world);
+		world = 0;
+		throw;
+	}
+	catch (const std::exception& err)
+	{
+		//Without this the reason vanishes: lsl::Error logs itself on
+		//construction, but DXVK and the standard library throw types that do
+		//not, and the catch-all below then discards what happened.
+		LSL_LOG(lsl::StrFmt("CreateWorld failed: %s", err.what()));
+
+		ReleaseWorld(world);
+		world = 0;
+		throw;
+	}
 	catch(...)
 	{
+		LSL_LOG("CreateWorld failed: unknown exception");
+
 		ReleaseWorld(world);
 		world = 0;
 		throw;

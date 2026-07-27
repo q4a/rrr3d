@@ -43,6 +43,8 @@ if (APPLE)
     enable_language(OBJC)
     enable_language(OBJCXX)
     add_subdirectory(MetalBridge)
+    # DXVK's D3D9 front-end over d9mt's Metal backend.
+    add_subdirectory(D3D9Metal)
 endif()
 
 add_subdirectory(LexStd)

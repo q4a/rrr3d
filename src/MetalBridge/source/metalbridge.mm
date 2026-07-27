@@ -93,23 +93,13 @@ obj_handle_t MTLDevice_newCommandQueue(obj_handle_t device, uint64_t maxCommandB
 	return Wrap(queue);
 }
 
-uint64_t MTLDevice_name(obj_handle_t device, char* buffer, uint64_t size)
+obj_handle_t MTLDevice_name(obj_handle_t device)
 {
-	if (!device)
-		return 0;
-
-	const char* name = [[Unwrap<id<MTLDevice>>(device) name] UTF8String];
-	if (!name)
-		return 0;
-
-	const uint64_t needed = std::strlen(name) + 1;
-	if (buffer && size > 0)
-	{
-		const uint64_t copied = needed < size ? needed : size;
-		std::memcpy(buffer, name, copied);
-		buffer[copied - 1] = '\0';
-	}
-	return needed;
+	/*
+	 * An NSString handle, per the ABI -- not a byte count into a caller buffer.
+	 * d9mt pairs this with NSString_getCString.
+	 */
+	return device ? Wrap([Unwrap<id<MTLDevice>>(device) name]) : NULL_OBJECT_HANDLE;
 }
 
 uint64_t MTLDevice_recommendedMaxWorkingSetSize(obj_handle_t device)
@@ -117,17 +107,14 @@ uint64_t MTLDevice_recommendedMaxWorkingSetSize(obj_handle_t device)
 	return device ? [Unwrap<id<MTLDevice>>(device) recommendedMaxWorkingSetSize] : 0;
 }
 
-uint8_t MTLDevice_hasUnifiedMemory(obj_handle_t device)
+bool MTLDevice_hasUnifiedMemory(obj_handle_t device)
 {
-	return device && [Unwrap<id<MTLDevice>>(device) hasUnifiedMemory] ? 1 : 0;
+	return device && [Unwrap<id<MTLDevice>>(device) hasUnifiedMemory];
 }
 
-uint8_t MTLDevice_supportsFamily(obj_handle_t device, uint32_t family)
+bool MTLDevice_supportsFamily(obj_handle_t device, uint32_t family)
 {
-	if (!device)
-		return 0;
-
-	return [Unwrap<id<MTLDevice>>(device) supportsFamily:static_cast<MTLGPUFamily>(family)] ? 1 : 0;
+	return device && [Unwrap<id<MTLDevice>>(device) supportsFamily:static_cast<MTLGPUFamily>(family)];
 }
 
 obj_handle_t MTLCommandQueue_commandBuffer(obj_handle_t queue)
@@ -323,16 +310,24 @@ void MTLBuffer_updateContents(obj_handle_t buffer, uint64_t offset,
 obj_handle_t MTLTexture_newTextureView(obj_handle_t texture, uint32_t format, uint32_t texture_type,
                                        uint16_t level_start, uint16_t level_count,
                                        uint16_t slice_start, uint16_t slice_count,
+                                       struct WMTTextureSwizzleChannels swizzle,
                                        uint64_t* out_gpu_resource_id)
 {
 	if (!texture)
 		return NULL_OBJECT_HANDLE;
 
+	const MTLTextureSwizzleChannels channels = MTLTextureSwizzleChannelsMake(
+		static_cast<MTLTextureSwizzle>(swizzle.r),
+		static_cast<MTLTextureSwizzle>(swizzle.g),
+		static_cast<MTLTextureSwizzle>(swizzle.b),
+		static_cast<MTLTextureSwizzle>(swizzle.a));
+
 	id<MTLTexture> view = [Unwrap<id<MTLTexture>>(texture)
 		newTextureViewWithPixelFormat:static_cast<MTLPixelFormat>(format)
 		                  textureType:static_cast<MTLTextureType>(texture_type)
 		                       levels:NSMakeRange(level_start, level_count)
-		                       slices:NSMakeRange(slice_start, slice_count)];
+		                       slices:NSMakeRange(slice_start, slice_count)
+		                      swizzle:channels];
 
 	if (!view)
 		return NULL_OBJECT_HANDLE;

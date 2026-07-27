@@ -1,3 +1,7 @@
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+
 #include <array>
 #include <cstdlib>
 #include <filesystem>
@@ -104,6 +108,21 @@ namespace dxvk::env {
     }
 
     return std::string(exePath);
+#elif defined(__APPLE__)
+    // rrr3d: no /proc and no KERN_PROC_PATHNAME. _NSGetExecutablePath fills the
+    // buffer and reports the size it needed, so ask twice rather than guess.
+    uint32_t size = 0;
+    _NSGetExecutablePath(nullptr, &size);
+
+    std::vector<char> exePath(size + 1);
+    if (_NSGetExecutablePath(exePath.data(), &size) != 0)
+      return "";
+
+    return std::string(exePath.data());
+#else
+    // Falling off the end here returns garbage and traps somewhere less
+    // obvious; say so at the point the platform is unhandled.
+    return "";
 #endif
   }
   

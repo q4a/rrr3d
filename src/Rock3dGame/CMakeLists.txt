@@ -83,6 +83,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Rock3dEngine
 )
 
+if (APPLE)
+    # For DxvkError only -- see the catch in CreateWorld.
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/D3D9Metal/dxvk/src
+    )
+endif()
+
 if (NOT WIN32)
     # Windows/COM substitutes plus the vendored d3d9.h
     target_link_libraries(${PROJECT_NAME} PRIVATE XPlatform)

@@ -80,3 +80,10 @@ if (NOT WIN32)
         ${PHYSX41_LIB}/libPhysXFoundation_static_64.a
     )
 endif()
+
+if (APPLE)
+    # Direct3D 9 itself. This is the consumer -- D3D9RenderDriver calls
+    # Direct3DCreate9 -- so the dependency belongs here rather than on the
+    # executable, and PUBLIC so it reaches whatever links this.
+    target_link_libraries(${PROJECT_NAME} PUBLIC D3D9Metal)
+endif()

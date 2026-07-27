@@ -9,6 +9,8 @@
 
 #import <Metal/Metal.h>
 
+#include <cstring>
+
 namespace
 {
 
@@ -308,4 +310,79 @@ void MTLCommandBuffer_presentDrawable(obj_handle_t cmdbuf, obj_handle_t drawable
 {
 	if (cmdbuf && drawable)
 		[Unwrap<id<MTLCommandBuffer>>(cmdbuf) presentDrawable:Unwrap<id<MTLDrawable>>(drawable)];
+}
+
+/* ---- functions with specialisation constants ---- */
+
+obj_handle_t MTLLibrary_newFunctionWithConstants(obj_handle_t library, const char* name,
+	const struct WMTFunctionConstant* constants, uint32_t num_constants, obj_handle_t* err_out)
+{
+	if (err_out)
+		*err_out = NULL_OBJECT_HANDLE;
+	if (!library || !name)
+		return NULL_OBJECT_HANDLE;
+
+	MTLFunctionConstantValues* values = [[MTLFunctionConstantValues alloc] init];
+	for (uint32_t i = 0; i < num_constants; ++i)
+	{
+		[values setConstantValue:constants[i].data.ptr
+		                    type:static_cast<MTLDataType>(constants[i].type)
+		                 atIndex:constants[i].index];
+	}
+
+	NSError* error = nil;
+	id<MTLFunction> fn = [Unwrap<id<MTLLibrary>>(library) newFunctionWithName:@(name)
+	                                                          constantValues:values
+	                                                                   error:&error];
+	[values release];
+
+	if (!fn && err_out && error)
+		*err_out = Wrap(error);
+
+	return Wrap(fn);
+}
+
+obj_handle_t MTLCommandBuffer_error(obj_handle_t cmdbuf)
+{
+	return cmdbuf ? Wrap([Unwrap<id<MTLCommandBuffer>>(cmdbuf) error]) : NULL_OBJECT_HANDLE;
+}
+
+uint64_t MTLCommandBuffer_property(obj_handle_t cmdbuf, enum WMTCommandBufferProperty prop)
+{
+	if (!cmdbuf)
+		return 0;
+
+	id<MTLCommandBuffer> cb = Unwrap<id<MTLCommandBuffer>>(cmdbuf);
+
+	/* Metal reports these as seconds; the ABI carries nanoseconds. */
+	CFTimeInterval t = 0.0;
+	switch (prop)
+	{
+	case WMTCommandBufferPropertyKernelStartTime: t = [cb kernelStartTime]; break;
+	case WMTCommandBufferPropertyKernelEndTime:   t = [cb kernelEndTime];   break;
+	case WMTCommandBufferPropertyGPUStartTime:    t = [cb GPUStartTime];    break;
+	case WMTCommandBufferPropertyGPUEndTime:      t = [cb GPUEndTime];      break;
+	}
+	return static_cast<uint64_t>(t * 1e9);
+}
+
+obj_handle_t NSAutoreleasePool_alloc_init(void)
+{
+	return Wrap([[NSAutoreleasePool alloc] init]);
+}
+
+obj_handle_t NSObject_description(obj_handle_t obj)
+{
+	return obj ? Wrap([Unwrap<id>(obj) description]) : NULL_OBJECT_HANDLE;
+}
+
+uint64_t NSString_getCString(obj_handle_t str, char* buffer, uint64_t maxLength, uint32_t encoding)
+{
+	if (!str || !buffer || maxLength == 0)
+		return 0;
+
+	NSString* s = Unwrap<NSString*>(str);
+	const BOOL ok = [s getCString:buffer maxLength:maxLength
+	                     encoding:static_cast<NSStringEncoding>(encoding)];
+	return ok ? std::strlen(buffer) : 0;
 }
