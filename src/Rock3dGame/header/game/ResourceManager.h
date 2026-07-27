@@ -20,9 +20,9 @@ private:
 public:
 	ComplexResCollection(_ComplexLib* complexLib): _complexLib(complexLib) {}
 
-	virtual Item* Find(const std::string& name)
+	virtual typename _MyBase::Item* Find(const std::string& name)
 	{
-		Item* res = _MyBase::Find(name);
+		typename _MyBase::Item* res = _MyBase::Find(name);
 		if (res == 0)
 			return lsl::StaticCast<_Resource*>(_complexLib->ComplexFind(this, name));
 

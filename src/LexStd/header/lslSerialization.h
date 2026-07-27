@@ -402,6 +402,14 @@ class SerialNode: protected Component, public virtual Object, public SWriter, pu
 private:
 	typedef Component _MyBase;
 public:
+	//ObjReference is reached both through the protected Component base and the
+	//public Object one. MSVC resolves that to the accessible path; clang picks
+	//the protected one, so reference counting on a SerialNode* is re-exposed
+	//here explicitly. Callers include lsl::SafeRelease.
+	using ObjReference::AddRef;
+	using ObjReference::Release;
+	using ObjReference::GetRefCnt;
+
 	typedef std::map<std::string, Value*> Attributes;
 	typedef SerialNodes Elements;
 

@@ -139,6 +139,25 @@ void OutputDebugStringA(const char* str);
  */
 BOOL GetClientRect(HWND wnd, RECT* rect);
 
+/*
+ * mmsystem.h. These raise and restore the Windows timer interrupt resolution,
+ * which the frame limiter does so Sleep() is accurate to a millisecond. macOS
+ * timers are already fine-grained and there is nothing global to change, so
+ * these succeed and do nothing.
+ */
+#define TIMERR_NOERROR 0
+
+/*
+ * winuser.h. The base of the range reserved for application-defined window
+ * messages; the engine derives WM_GRAPH_EVENT from it. Nothing dispatches
+ * these yet -- there is no message loop off Windows -- but the constant has to
+ * carry the same value so the derived ids stay stable.
+ */
+#define WM_APP 0x8000
+
+UINT timeBeginPeriod(UINT period);
+UINT timeEndPeriod(UINT period);
+
 #ifdef __cplusplus
 }
 #endif

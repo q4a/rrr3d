@@ -6,6 +6,12 @@ namespace r3d
 namespace game
 {
 
+//MSVC's permissive mode lets the `friend class` declarations below introduce
+//these names into the namespace. Standard C++ does not, and Record refers to
+//both well before either is defined.
+class RecordNode;
+class RecordLib;
+
 class Record: public lsl::Object
 {
 	friend class RecordLib;
@@ -153,7 +159,7 @@ protected:
 template<class _Record> void RecordList<_Record>::Save(lsl::SWriter* writer)
 {
 	unsigned i = 0;
-	for (iterator iter = begin(); iter != end(); ++iter, ++i)
+	for (typename RecordList<_Record>::iterator iter = this->begin(); iter != this->end(); ++iter, ++i)
 	{
 		std::stringstream sstream;
 		sstream << "item" << i;
@@ -164,12 +170,12 @@ template<class _Record> void RecordList<_Record>::Save(lsl::SWriter* writer)
 
 template<class _Record> void RecordList<_Record>::Load(lsl::SReader* reader)
 {
-	Clear();
+	this->Clear();
 
 	lsl::SReader* child = reader->FirstChildValue();
 	while (child)
 	{
-		Insert(_Record::Lib::LoadRecordRefFrom(child));
+		this->Insert(_Record::Lib::LoadRecordRefFrom(child));
 		child = child->NextValue();
 	}
 }

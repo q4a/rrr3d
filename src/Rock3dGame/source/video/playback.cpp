@@ -1,3 +1,7 @@
+#ifdef _WIN32
+/* DirectShow throughout; see src/Rock3dGame/source/video/VideoPlayer.cpp
+   for the non-Windows stand-in. */
+
 
 // THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 // ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
@@ -383,3 +387,5 @@ done:
 	}
 	return hr;
 }
+
+#endif /* _WIN32 */

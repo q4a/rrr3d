@@ -6,10 +6,16 @@
 // that uses this DLL. This way any other project whose source files include this file see 
 // ROCK3DGAME_API functions as being imported from a DLL, whereas this DLL sees symbols
 // defined with this macro as being exported.
-#ifdef ROCK3DGAME_EXPORTS
-#define ROCK3DGAME_API __declspec(dllexport)
+// __declspec is MSVC-only. Elsewhere a shared library exports through symbol
+// visibility, and there is no import side to declare at all.
+#ifdef _WIN32
+	#ifdef ROCK3DGAME_EXPORTS
+	#define ROCK3DGAME_API __declspec(dllexport)
+	#else
+	#define ROCK3DGAME_API __declspec(dllimport)
+	#endif
 #else
-#define ROCK3DGAME_API __declspec(dllimport)
+	#define ROCK3DGAME_API __attribute__((visibility("default")))
 #endif
 
 #include "IWorld.h"

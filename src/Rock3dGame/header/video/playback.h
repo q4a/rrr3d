@@ -24,6 +24,12 @@ public:
 	virtual void OnGraphEvent(HWND hwnd, long eventCode, LONG_PTR param1, LONG_PTR param2) = 0;
 };
 
+// Everything above is plain declaration that World.h needs. Everything below is
+// DirectShow -- IGraphBuilder, IMediaControl, VMR/EVR renderers -- which has no
+// equivalent off Windows. video::Player holds a DShowPlayer only by pointer, so
+// an incomplete type is enough there and the non-Windows build never has one.
+#ifdef _WIN32
+
 class DShowPlayer
 {
 public:
@@ -63,3 +69,9 @@ private:
 	IMediaEventEx   *m_pEvent;
 	CVideoRenderer  *m_pVideo;
 };
+
+#else
+
+class DShowPlayer;
+
+#endif /* _WIN32 */

@@ -12,6 +12,10 @@ namespace game
 class GameObject;
 class MapObj;
 class Player;
+//Referred to before their definitions below; MSVC's permissive mode would take
+//these from the `friend class` declarations instead.
+class MapObjLib;
+class MapObjects;
 
 enum GameObjType 
 {

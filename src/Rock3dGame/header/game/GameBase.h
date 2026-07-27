@@ -15,6 +15,9 @@ namespace game
 
 class Logic;
 class Behavior;
+//Behavior refers to this before its definition; MSVC's permissive mode would
+//take the name from the `friend class Behaviors;` declaration instead.
+class Behaviors;
 
 enum ScActorType {satBaseObj, satMeshObj, cScActorTypeEnd};
 enum Difficulty {gdEasy, gdNormal, gdHard, cDifficultyEnd};

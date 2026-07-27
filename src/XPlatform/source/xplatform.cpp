@@ -273,6 +273,16 @@ void OutputDebugStringA(const char* str)
 	std::fputs(str ? str : "", stderr);
 }
 
+UINT timeBeginPeriod(UINT)
+{
+	return TIMERR_NOERROR;
+}
+
+UINT timeEndPeriod(UINT)
+{
+	return TIMERR_NOERROR;
+}
+
 BOOL GetClientRect(HWND, RECT* rect)
 {
 	if (!rect)

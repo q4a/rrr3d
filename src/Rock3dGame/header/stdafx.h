@@ -4,7 +4,11 @@
 #include "lslCommon.h"
 
 #include <windows.h>
-#include <MMSystem.h>
+//Only timeBeginPeriod/timeEndPeriod are used from here, by World.cpp's frame
+//limiter. XPlatform substitutes those; see xplatform.h.
+#ifdef _WIN32
+	#include <MMSystem.h>
+#endif
 
 #include "targetver.h"
 #include "lslObject.h"

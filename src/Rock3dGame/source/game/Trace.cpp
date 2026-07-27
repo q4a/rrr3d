@@ -41,7 +41,8 @@ bool WayPoint::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, flo
 
 bool WayPoint::IsContains(const D3DXVECTOR3& point, float* dist) const
 {
-	float midDist = D3DXVec3Length(&(point - _pos));
+	D3DXVECTOR3 offset = point - _pos;
+	float midDist = D3DXVec3Length(&offset);
 	if (dist)
 		*dist = midDist;
 
@@ -160,7 +161,8 @@ void WayNode::Tile::ApplyChanges() const
 	{
 		_changed = false;
 
-		D3DXVECTOR2 sPos = GetPos();
+		D3DXVECTOR3 sPos3 = GetPos();
+		D3DXVECTOR2 sPos(sPos3.x, sPos3.y);
 		if (_node->GetNext())
 		{
 			_dir = D3DXVECTOR2(GetNextPos()) - sPos;
@@ -347,7 +349,10 @@ bool WayNode::Tile::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec
 	//Вектора коллиниарны
 	else
 		//Строим плоскость через центр тайла перпендикулярно направлению
-		D3DXPlaneFromPointNormal(&plane, &((GetPos() + GetNextPos()) / 2.0f), &dir);
+	{
+		D3DXVECTOR3 tileCenter = (GetPos() + GetNextPos()) / 2.0f;
+		D3DXPlaneFromPointNormal(&plane, &tileCenter, &dir);
+	}
 
 	float tmp;
 	bool res = RayCastIntersectPlane(rayPos, rayVec, plane, tmp) && IsContains(rayPos + rayVec * tmp);
@@ -365,7 +370,7 @@ bool WayNode::Tile::IsContains(const D3DXVECTOR3& point, bool lengthClamp, float
 	D3DXVECTOR3 pos2 = GetNextPos();
 
 	//Расстояние в 2д плоскости
-	D3DXVECTOR2 point2 = point;
+	D3DXVECTOR2 point2(point.x, point.y);
 	float dist1 = Line2DistToPoint(_midNormLine, point2);
 	float dist2 = Line2DistToPoint(GetNextNormLine(), point2);
 	float dirDist = Line2DistToPoint(_dirLine, point2);
@@ -603,7 +608,9 @@ bool WayNode::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, floa
 
 bool WayNode::IsContains2(const D3DXVECTOR2& point, float* dist) const
 {
-	float midDist = D3DXVec2Length(&(point - D3DXVECTOR2(_point->GetPos())));
+	D3DXVECTOR3 nodePos3 = _point->GetPos();
+	D3DXVECTOR2 offset2 = point - D3DXVECTOR2(nodePos3.x, nodePos3.y);
+	float midDist = D3DXVec2Length(&offset2);
 	if (dist)
 		*dist = midDist;
 
@@ -612,7 +619,8 @@ bool WayNode::IsContains2(const D3DXVECTOR2& point, float* dist) const
 
 bool WayNode::IsContains(const D3DXVECTOR3& point, float* dist) const
 {
-	float midDist = D3DXVec3Length(&(point - _point->GetPos()));
+	D3DXVECTOR3 offset3 = point - _point->GetPos();
+	float midDist = D3DXVec3Length(&offset3);
 	if (dist)
 		*dist = midDist;
 

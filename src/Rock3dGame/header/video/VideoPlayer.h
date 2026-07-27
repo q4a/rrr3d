@@ -1,6 +1,8 @@
 #pragma once
 
-#include <dshow.h>
+#ifdef _WIN32
+	#include <dshow.h>
+#endif
 #include "playback.h"
 
 namespace r3d

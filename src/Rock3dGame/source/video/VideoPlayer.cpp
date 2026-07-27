@@ -2,6 +2,8 @@
 
 #include "video/VideoPlayer.h"
 
+#ifdef _WIN32
+
 namespace r3d
 {
 
@@ -208,3 +210,98 @@ void Player::OnWMGraphEvent()
 }
 
 }
+
+#else
+
+/*
+ * Cutscene playback stands in for DirectShow until the video port lands. Every
+ * call succeeds and reports STATE_NO_GRAPH, which is exactly the state
+ * World::IsVideoMode() already treats as "no cutscene playing" -- so the game
+ * skips cutscenes rather than stalling on them.
+ */
+
+namespace r3d
+{
+
+namespace video
+{
+
+Player::Player(IVideoGraphUser* user): _dShowPlayer(NULL), _size(0, 0), _user(user), _fullScreen(false)
+{
+}
+
+Player::~Player()
+{
+}
+
+void CALLBACK Player::OnGraphEvent(HWND, long, LONG_PTR, LONG_PTR)
+{
+}
+
+void Player::Initialize(HWND)
+{
+}
+
+void Player::Finalize()
+{
+}
+
+void Player::Open(const lsl::string&)
+{
+}
+
+void Player::Unload()
+{
+}
+
+void Player::Play()
+{
+}
+
+void Player::Pause()
+{
+}
+
+void Player::Stop()
+{
+}
+
+PlaybackState Player::state() const
+{
+	return STATE_NO_GRAPH;
+}
+
+bool Player::GetFullScreen() const
+{
+	return _fullScreen;
+}
+
+void Player::SetFullScreen(bool value)
+{
+	_fullScreen = value;
+}
+
+void Player::UpdateVideoWindow(const lsl::Point& size)
+{
+	_size = size;
+}
+
+bool Player::OnPaint(HWND)
+{
+	//False means "not handled", so the caller paints the frame itself.
+	return false;
+}
+
+void Player::DisplayModeChanged()
+{
+}
+
+void Player::OnWMGraphEvent()
+{
+}
+
+}
+
+}
+
+#endif /* _WIN32 */

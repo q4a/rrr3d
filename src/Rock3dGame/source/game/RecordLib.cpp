@@ -31,8 +31,11 @@ void DevideStr(std::string::const_iterator sIter, std::string::const_iterator eI
 
 Record::Record(const Desc& desc): _lib(desc.lib), _parent(desc.parent), _name(desc.name), _src(desc.src)
 {
+	//SerialNode reaches ObjReference through both a protected Component base and
+	//a public Object one. MSVC picks the accessible path on its own; clang needs
+	//to be pointed at it.
 	if (_src)
-		_src->AddRef();
+		static_cast<const lsl::Object*>(_src)->AddRef();
 }
 
 Record::~Record()
@@ -87,8 +90,11 @@ void Record::SetName(const std::string& value)
 
 RecordNode::RecordNode(const Desc& desc): _lib(desc.lib), _parent(desc.parent), _name(desc.name), _src(desc.src)
 {
+	//SerialNode reaches ObjReference through both a protected Component base and
+	//a public Object one. MSVC picks the accessible path on its own; clang needs
+	//to be pointed at it.
 	if (_src)
-		_src->AddRef();
+		static_cast<const lsl::Object*>(_src)->AddRef();
 }
 
 RecordNode::~RecordNode()
