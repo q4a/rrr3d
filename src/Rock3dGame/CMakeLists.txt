@@ -87,6 +87,16 @@ if (NOT WIN32)
     # Windows/COM substitutes plus the vendored d3d9.h
     target_link_libraries(${PROJECT_NAME} PRIVATE XPlatform)
 
+    # Ogg Vorbis. extern.7z ships MSVC static libs; elsewhere this comes from
+    # the system. libvorbis 1.3.7 is what extern.7z pinned, so the decoder
+    # behaviour matches.
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(VORBISFILE REQUIRED vorbisfile)
+
+    target_include_directories(${PROJECT_NAME} PRIVATE ${VORBISFILE_INCLUDE_DIRS})
+    target_link_directories(${PROJECT_NAME} PRIVATE ${VORBISFILE_LIBRARY_DIRS})
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${VORBISFILE_LIBRARIES})
+
     # PhysX 4.1, built by tools/setup-physx-macos.sh
     set(PHYSX41 ${CMAKE_SOURCE_DIR}/extern/physx41)
     target_include_directories(${PROJECT_NAME} PRIVATE
