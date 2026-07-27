@@ -1037,9 +1037,8 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 				norm = -norm;
 
 			PxVec3 vel = GetPxActor().GetNxDynamic()->getLinearVelocity();			
-			NxContactStreamIterator contIter(contact.stream);
-
-			bool borderContact = abs(norm.z) < 0.5f && ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency);
+			bool borderContact = abs(norm.z) < 0.5f && contact.pair &&
+				ContainsContactGroup(*contact.pair, contact.actorIndex, px::Scene::cdgShotTransparency);
 			if (borderContact)
 				_clutchTime = 0.0f;
 

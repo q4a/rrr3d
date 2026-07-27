@@ -151,31 +151,29 @@ void GameObject::UnregFixedStepEvent()
 		_logic->UnregFixedStepEvent(this);
 }
 
+//2.8 walked a contact stream pair by pair, patch by patch, point by point.
+//PhysX 3+ hands the points over in one batch, so both of these lose two levels
+//of loop.
 D3DXVECTOR3 GameObject::GetContactPoint(const px::Scene::OnContactEvent& contact)
 {
-	NxContactStreamIterator contIter(contact.stream);
+	if (!contact.pair)
+		return NullVector;
 
-	while (contIter.goNextPair())
-		while (contIter.goNextPatch())
-			while (contIter.goNextPoint())
-			{				
-				return contIter.getPoint().get();
-			}
+	PxContactPairPoint points[px::Scene::cMaxContactPoints];
+	const PxU32 numPoints = contact.pair->extractContacts(points, px::Scene::cMaxContactPoints);
 
-			return NullVector;
+	return numPoints > 0 ? px::FromPx(points[0].position) : NullVector;
 }
 
-bool GameObject::ContainsContactGroup(NxContactStreamIterator& contIter, unsigned actorIndex, px::Scene::CollDisGroup group)
+bool GameObject::ContainsContactGroup(const PxContactPair& pair, unsigned actorIndex, px::Scene::CollDisGroup group)
 {
-	while (contIter.goNextPair())
-		while (contIter.goNextPatch())
-			while (contIter.goNextPoint())
-			{
-				if (contIter.getShape(actorIndex)->getGroup() == group)
-					return true;
-			}
+	//The shape is a property of the pair rather than of each contact point, so
+	//there is nothing to iterate: in 2.8 getShape(actorIndex) returned the same
+	//shape for every point of a pair anyway.
+	LSL_ASSERT(actorIndex < 2);
 
-	return false;
+	const PxShape* shape = pair.shapes[actorIndex];
+	return shape && px::Scene::GetShapeGroup(*shape) == group;
 }
 
 void GameObject::OnContact(const px::Scene::OnContactEvent& contact)

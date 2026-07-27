@@ -1192,9 +1192,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 	_time1 = 0.0f;
 
 	PxVec3 velocity = GetPxActor().GetNxDynamic()->getLinearVelocity();
-	NxContactStreamIterator contIter(contact.stream);
-	
-	if (ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency) && velocity.magnitude() > 5.0f)
+	if (contact.pair && ContainsContactGroup(*contact.pair, contact.actorIndex, px::Scene::cdgShotTransparency) && velocity.magnitude() > 5.0f)
 	{
 		_time1 = 0.1f;
 

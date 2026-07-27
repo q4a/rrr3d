@@ -294,54 +294,51 @@ void PairPxContactEffect::OnDestroyEffect(MapObj* sender)
 void PairPxContactEffect::OnContact(const px::Scene::OnContactEvent& contact1, const px::Scene::OnContactEvent& contact2)
 {
 #if !_DEBUG
-	NxContactStreamIterator streamIter(contact1.stream);
-	ContactNode* contNode = 0;
-	ContactMap::iterator mapIter;
+	if (!contact1.pair)
+		return;
 
-	while (streamIter.goNextPair())
+	//2.8 iterated a contact stream pair by pair; an OnContactEvent now carries
+	//exactly one PxContactPair, so the outer loop is gone. The "Нельзя
+	//пропускать!" branch went with it -- it existed only to drain the stream
+	//cursor past a pair being skipped, and there is no cursor to advance now.
+	const PxContactPair& pair = *contact1.pair;
+
+	PxShape* shapes[2];
+	shapes[0] = !pair.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_0) ? pair.shapes[0] : 0;
+	shapes[1] = !pair.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_1) ? pair.shapes[1] : 0;
+
+	bool checkShapes = D3DXVec3Length(&contact1.sumFrictionForce) > 10000.0f;
+	for (int i = 0; i < 2; ++i)
 	{
-		PxShape* shapes[2];
-		shapes[0] = !streamIter.isDeletedShape(0) ? streamIter.getShape(0) : 0;
-		shapes[1] = !streamIter.isDeletedShape(1) ? streamIter.getShape(1) : 0;
+		//NX_SHAPE_WHEEL is gone with NxWheelShape. Wheels are identified by their
+		//collision group instead, which CarWheel sets on every wheel shape.
+		checkShapes &= shapes[i] && px::Scene::GetShapeGroup(*shapes[i]) != px::Scene::cdgWheel;
+		if (!checkShapes)
+			break;
+	}
 
-		bool checkShapes = D3DXVec3Length(&contact1.sumFrictionForce) > 10000.0f;
-		for (int i = 0; i < 2; ++i)
+	if (!checkShapes)
+		return;
+
+	ContactMap::iterator mapIter = GetOrCreateContact(Key(contact1.actor, contact2.actor));
+	ContactNode* contNode = mapIter->second;
+
+	LSL_ASSERT(contNode);
+
+	PxContactPairPoint points[px::Scene::cMaxContactPoints];
+	const PxU32 numPoints = pair.extractContacts(points, px::Scene::cMaxContactPoints);
+
+	bool activateSnd = false;
+	for (PxU32 i = 0; i < numPoints; ++i)
+	{
+		const D3DXVECTOR3 point = px::FromPx(points[i].position);
+		InsertContact(mapIter, shapes[0], shapes[1], point);
+
+		if (contNode->source && !activateSnd)
 		{
-			checkShapes &= shapes[i] && shapes[i]->getType() != NX_SHAPE_WHEEL;
-			if (!checkShapes)
-				break;
-		}
-
-		if (checkShapes)
-		{
-			if (!contNode)
-			{
-				mapIter = GetOrCreateContact(Key(contact1.actor, contact2.actor));
-				contNode = mapIter->second;
-			}
-
-			LSL_ASSERT(contNode);
-
-			bool activateSnd = false;
-
-			while (streamIter.goNextPatch())
-				while (streamIter.goNextPoint())
-				{
-					InsertContact(mapIter, shapes[0], shapes[1], streamIter.getPoint().get());
-
-					if (contNode->source && !activateSnd)
-					{
-						activateSnd = true;
-						contNode->source->SetPos3d(streamIter.getPoint().get());
-						contNode->source->Play();
-					}
-				}
-		}
-		else
-		{
-			//Нельзя пропускать!
-			while (streamIter.goNextPatch())
-				while (streamIter.goNextPoint()) {}
+			activateSnd = true;
+			contNode->source->SetPos3d(point);
+			contNode->source->Play();
 		}
 	}
 #endif
