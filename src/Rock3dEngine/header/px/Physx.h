@@ -284,6 +284,10 @@ protected:
 	//the PxShape afterwards.
 	virtual PxGeometryHolder CreateGeometry() = 0;
 	void ReloadNxShape(bool allowInitialization = false);
+	//PhysX 3+ has no per-shape dimension setters -- NxSphereShape::setRadius and
+	//friends are gone. A shape's geometry is replaced wholesale instead, so
+	//every setter that changes a dimension re-derives it from CreateGeometry().
+	void SyncGeometry();
 
 	D3DXVECTOR3 TransformLocalPos(const D3DXVECTOR3& inValue);
 	void SyncPos();
@@ -336,16 +340,17 @@ public:
 private:
 	D3DXVECTOR3 _normal;
 	float _dist;
+
+	//A PhysX 3+ plane is defined by its pose, not by its geometry.
+	void SyncPlanePose();
 protected:
 	virtual PxGeometryHolder CreateGeometry();
+	virtual void ApplyToShape(PxShape& shape) const;
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
 	PlaneShape(Shapes* owner);
-
-
-	NxPlaneShape* GetNxShape();
 
 	const D3DXVECTOR3& GetNormal() const;
 	void SetNormal(const D3DXVECTOR3& value);
@@ -370,9 +375,6 @@ protected:
 public:
 	BoxShape(Shapes* owner);
 
-
-	NxBoxShape* GetNxShape();
-
 	const D3DXVECTOR3& GetDimensions() const;
 	void SetDimensions(const D3DXVECTOR3& value);
 };
@@ -392,9 +394,6 @@ protected:
 	virtual void Load(lsl::SReader* reader);
 public:
 	SphereShape(Shapes* owner);
-
-
-	NxSphereShape* GetNxShape();
 
 	float GetRadius() const;
 	void SetRadius(float value);
@@ -420,9 +419,6 @@ protected:
 	virtual void Load(lsl::SReader* reader);
 public:
 	CapsuleShape(Shapes* owner);
-
-
-	NxCapsuleShape* GetNxShape();
 
 	float GetRadius() const;
 	void SetRadius(float value);
@@ -457,9 +453,6 @@ public:
 	TriangleMeshShape(Shapes* owner);
 	virtual ~TriangleMeshShape();
 
-
-	NxTriangleMeshShape* GetNxShape();
-
 	TriangleMesh* GetMesh();
 	void SetMesh(TriangleMesh* value, int meshId = -1);
 
@@ -488,13 +481,77 @@ public:
 	ConvexShape(Shapes* owner);
 	virtual ~ConvexShape();
 
-
-	NxConvexShape* GetNxShape();
-
 	TriangleMesh* GetMesh();
 	void SetMesh(TriangleMesh* value, int meshId = -1);
 
 	int GetMeshId();
+};
+
+//PhysX 3+ deleted NxWheelShape and the entire raycast-wheel model with it, so
+//NxSpringDesc, NxTireFunctionDesc and NxWheelShapeDesc have no successor
+//types -- PxVehicleTireData parameterises grip completely differently.
+//
+//These are project-owned copies of the 2.8 layouts: same fields, same
+//defaults, same names. That is deliberate. Every car's handling in
+//Data/Car/*Wheel.txt and db.xml is written in these terms, as is the on-disk
+//format of every saved game, so the migration reproduces the 2.8 curve maths
+//against these values in a PxVehicleComputeTireForce shader rather than
+//retuning the content by ear against a game that does not run yet.
+
+//NxSpringDesc.
+struct SpringDesc
+{
+	float spring;       //default 0
+	float damper;       //default 0
+	float targetValue;  //default 0, the suspension rest length in [0,1]
+
+	SpringDesc();
+};
+
+//NxTireFunctionDesc. Force(slip) is a two-piece cubic Hermite spline running
+//(0,0) -> (extremumSlip, extremumValue) -> (asymptoteSlip, asymptoteValue),
+//with a zero tangent at both named points.
+struct TireFunctionDesc
+{
+	float extremumSlip;     //default 1.0
+	float extremumValue;    //default 0.02
+	float asymptoteSlip;    //default 2.0
+	float asymptoteValue;   //default 0.01
+	float stiffnessFactor;  //default 1000000.0 -- quite stiff, per the SDK
+
+	TireFunctionDesc();
+};
+
+//NxWheelShapeFlags.
+enum WheelFlag
+{
+	wfWheelAxisContactNormal = 1 << 0,  //NX_WF_WHEEL_AXIS_CONTACT_NORMAL
+	wfInputLatSlipVelocity   = 1 << 1,  //NX_WF_INPUT_LAT_SLIPVELOCITY
+	wfInputLngSlipVelocity   = 1 << 2,  //NX_WF_INPUT_LNG_SLIPVELOCITY
+	wfUnscaledSpringBehavior = 1 << 3,  //NX_WF_UNSCALED_SPRING_BEHAVIOR
+	wfAxleSpeedOverride      = 1 << 4,  //NX_WF_AXLE_SPEED_OVERRIDE
+	wfEmulateLegacyWheel     = 1 << 5,  //NX_WF_EMULATE_LEGACY_WHEEL
+	wfClampedFriction        = 1 << 6   //NX_WF_CLAMPED_FRICTION
+};
+
+//NxWheelShapeDesc, minus the fields this project never read. brakeTorque is
+//among them: the 2.8 descriptor carried it but WheelShape never stored it,
+//and braking is applied through motorTorque instead.
+struct WheelDesc
+{
+	float radius;            //default 1.0
+	float suspensionTravel;  //default 1.0
+	SpringDesc suspension;
+
+	TireFunctionDesc longitudalTireForceFunction;
+	TireFunctionDesc lateralTireForceFunction;
+
+	float inverseWheelMass;  //default 1.0
+	unsigned wheelFlags;     //default 0
+	float motorTorque;       //default 0.0
+	float steerAngle;        //default 0.0
+
+	WheelDesc();
 };
 
 class WheelShape: public Shape
@@ -504,15 +561,26 @@ private:
 public:
 	static const ShapeType Type = stWheel;
 
-	class ContactModify: public NxUserWheelContactModify, public lsl::Object
-	{};
+	//NxUserWheelContactModify. PhysX 4.1 has no equivalent hook: the vehicle
+	//SDK reports wheel contacts through PxVehicleWheelQueryResult *after*
+	//simulation rather than letting the user rewrite them during it, so this
+	//interface survives but nothing calls it yet.
+	class ContactModify: public lsl::Object
+	{
+	public:
+		virtual ~ContactModify() {}
+
+		virtual bool onWheelContact(WheelShape* wheelShape, D3DXVECTOR3& contactPoint, D3DXVECTOR3& contactNormal,
+			float& contactPosition, float& normalForce, PxShape* otherShape, PxU16& otherShapeMaterialIndex,
+			PxU32 otherShapeFeatureIndex) = 0;
+	};
 private:
 	float _radius;
 	float _suspensionTravel;
-	NxSpringDesc _suspension;
+	SpringDesc _suspension;
 
-	NxTireFunctionDesc _longitudalTireForceFunction;
-	NxTireFunctionDesc _lateralTireForceFunction;
+	TireFunctionDesc _longitudalTireForceFunction;
+	TireFunctionDesc _lateralTireForceFunction;
 
 	float _inverseWheelMass;
 	UINT _wheelFlags;
@@ -521,38 +589,37 @@ private:
 	ContactModify* _contactModify;
 protected:
 	virtual PxGeometryHolder CreateGeometry();
+	virtual void ApplyToShape(PxShape& shape) const;
 
-	void SaveTireForceFunction(lsl::SWriter* writer, const NxTireFunctionDesc& func);
-	void LoadTireForceFunction(lsl::SReader* reader, NxTireFunctionDesc& func);
+	void SaveTireForceFunction(lsl::SWriter* writer, const TireFunctionDesc& func);
+	void LoadTireForceFunction(lsl::SReader* reader, TireFunctionDesc& func);
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
 	WheelShape(Shapes* owner);
 	virtual ~WheelShape();
 
-	void AssignFromDesc(const NxWheelShapeDesc& desc, bool reloadShape = true);
-	void AssignToDesc(NxWheelShapeDesc& desc);
-
-	NxWheelShape* GetNxShape();
+	void AssignFromDesc(const WheelDesc& desc, bool reloadShape = true);
+	void AssignToDesc(WheelDesc& desc);
 
 	float GetRadius() const;
 	void SetRadius(float value);
-	
+
 	float GetSuspensionTravel() const;
 	void SetSuspensionTravel(float value);
-	
-	const NxSpringDesc& GetSuspension() const;
-	void SetSuspension(const NxSpringDesc& value);
-	
-	const NxTireFunctionDesc& GetLongitudalTireForceFunction() const;
-	void SetLongitudalTireForceFunction(const NxTireFunctionDesc& value);
-	
-	const NxTireFunctionDesc& GetLateralTireForceFunction() const;
-	void SetLateralTireForceFunction(const NxTireFunctionDesc& value);	
-	
+
+	const SpringDesc& GetSuspension() const;
+	void SetSuspension(const SpringDesc& value);
+
+	const TireFunctionDesc& GetLongitudalTireForceFunction() const;
+	void SetLongitudalTireForceFunction(const TireFunctionDesc& value);
+
+	const TireFunctionDesc& GetLateralTireForceFunction() const;
+	void SetLateralTireForceFunction(const TireFunctionDesc& value);
+
 	float GetInverseWheelMass() const;
 	void SetInverseWheelMass(float value);
-	
+
 	UINT GetWheelFlags() const;
 	void SetWheelFlags(UINT value);
 

@@ -11,15 +11,38 @@ namespace r3d
 namespace px
 {
 
-#ifdef _DEBUG
-	#define SAMPLES_USE_VRD
-	//Change this setting to the IP number or DNS name of the computer that is running the VRD
-	const char* const cSamplesVRDHost = "localhost";
-	//Change this setting to the port on which the VRD is listening, or keep the default: NX_DBG_DEFAULT_PORT
-	const DWORD cNxDbgDefaultPort = NX_DBG_DEFAULT_PORT;
-	//Change this setting to decide what type of information is sent to the VRD. Default: NX_DBG_EVENTMASK_EVERYTHING
-	const DWORD cSamplesVrdEventMask = NX_DBG_EVENTMASK_EVERYTHING;
-#endif
+//The PhysX 2.8 Visual Remote Debugger connection lived here. PhysX 4.1
+//replaces it with PVD (PxPvd), created alongside the foundation and connected
+//over PxPvdTransport rather than by host and port constants. Not reinstated:
+//nothing in the port needs it yet, and it would be dead configuration.
+
+//D3DX and PhysX vector types are layout-compatible but unrelated, so
+//conversion is explicit. These live here rather than in the header to keep
+//PhysX types off r3dMath's interface.
+namespace
+{
+
+inline PxVec3 ToPx(const D3DXVECTOR3& value)
+{
+	return PxVec3(value.x, value.y, value.z);
+}
+
+inline D3DXVECTOR3 FromPx(const PxVec3& value)
+{
+	return D3DXVECTOR3(value.x, value.y, value.z);
+}
+
+inline PxQuat ToPx(const D3DXQUATERNION& value)
+{
+	return PxQuat(value.x, value.y, value.z, value.w);
+}
+
+inline D3DXQUATERNION FromPx(const PxQuat& value)
+{
+	return D3DXQUATERNION(value.x, value.y, value.z, value.w);
+}
+
+}
 
 //const float Scene::maxTimeStep = 1.0f/75.0f;
 //const unsigned Scene::maxSimIter = 8;
@@ -604,20 +627,31 @@ D3DXVECTOR3 Shape::TransformLocalPos(const D3DXVECTOR3& inValue)
 	return tmp;
 }
 
+//PhysX 3+ has a single local pose where 2.8 had separate position and
+//orientation setters, so each of these reads the pose back and replaces its
+//own half rather than overwriting both.
 void Shape::SyncPos()
 {
 	LSL_ASSERT(_nxShape);
 
-	_nxShape->setLocalPosition(PxVec3(TransformLocalPos(_pos)));
+	PxTransform pose = _nxShape->getLocalPose();
+	pose.p = ToPx(TransformLocalPos(_pos));
+	_nxShape->setLocalPose(pose);
 }
 
 void Shape::SyncRot()
 {
 	LSL_ASSERT(_nxShape);
 
-	PxQuat quat;
-	quat.setXYZW(_rot);
-	_nxShape->setLocalOrientation(PxMat33(quat));
+	PxTransform pose = _nxShape->getLocalPose();
+	pose.q = ToPx(_rot);
+	_nxShape->setLocalPose(pose);
+}
+
+void Shape::SyncGeometry()
+{
+	if (_nxShape)
+		_nxShape->setGeometry(CreateGeometry().any());
 }
 
 void Shape::SyncScale()
@@ -734,8 +768,12 @@ void Shape::SetMaterialIndex(PxU16 value)
 	if (_materialIndex != value)
 	{
 		_materialIndex = value;
-		if (_nxShape)
-			_nxShape->setMaterial(_materialIndex);
+		//BEHAVIOUR GAP: PhysX 2.8 shapes referenced a material by index into a
+		//scene-wide table; PhysX 3+ shapes hold PxMaterial pointers and there is
+		//no such table. The index is stored and serialised but does not reach
+		//the simulation, so every shape currently uses the default material.
+		//Closing this needs a Manager-owned index-to-PxMaterial map fed from the
+		//same content that populated the 2.8 table.
 	}
 }
 
@@ -763,8 +801,10 @@ void Shape::SetSkinWidth(float value)
 	if (_skinWidth != value)
 	{
 		_skinWidth = value;
-		if (_nxShape)
-			_nxShape->setSkinWidth(value);
+		//2.8's per-shape skinWidth is PhysX 3+'s contact offset. See
+		//Shape::ApplyToShape, which folds in the old global NX_SKIN_WIDTH.
+		if (_nxShape && value > 0.0f)
+			_nxShape->setContactOffset(value);
 	}
 }
 
@@ -778,8 +818,15 @@ void Shape::SetGroup(unsigned value)
 	if (_group != value)
 	{
 		_group = value;
+		//2.8 collision groups become filter data words in PhysX 3+; the pairwise
+		//enable/disable table Scene sets up is expressed in the filter shader.
 		if (_nxShape)
-			_nxShape->setGroup(_group);
+		{
+			PxFilterData filter;
+			filter.word0 = _group;
+			_nxShape->setSimulationFilterData(filter);
+			_nxShape->setQueryFilterData(filter);
+		}
 	}
 }
 
@@ -789,9 +836,34 @@ PlaneShape::PlaneShape(Shapes* owner): _MyBase(owner), _normal(ZVector), _dist(0
 	SetType(Type);
 }
 
+//PxPlaneGeometry carries no normal and no distance: a PhysX 3+ plane is always
+//the YZ plane through the origin with +X as its normal, and the plane equation
+//is expressed entirely by the shape's local pose.
+//
+//Two differences from 2.8 follow. The equations have opposite sign
+//conventions -- 2.8 is n.X = d, PhysX 4.1 is n.v + d = 0 -- so the distance is
+//negated. And 2.8 documented plane shapes as living in world space, ignoring
+//both actor and shape pose; in PhysX 4.1 the plane is posed like any other
+//shape, so a plane on a moving actor now moves with it. Every plane in this
+//game is on a static actor, so that difference is currently inert.
+void PlaneShape::SyncPlanePose()
+{
+	if (PxShape* shape = GetNxShape())
+		shape->setLocalPose(PxTransformFromPlaneEquation(PxPlane(ToPx(_normal), -_dist)));
+}
+
 PxGeometryHolder PlaneShape::CreateGeometry()
 {
 	return PxGeometryHolder(PxPlaneGeometry());
+}
+
+void PlaneShape::ApplyToShape(PxShape& shape) const
+{
+	_MyBase::ApplyToShape(shape);
+
+	//Overrides the base pose deliberately: for a plane, _pos and _rot carry no
+	//meaning and the equation is the whole of the transform.
+	shape.setLocalPose(PxTransformFromPlaneEquation(PxPlane(ToPx(_normal), -_dist)));
 }
 
 void PlaneShape::Save(lsl::SWriter* writer)
@@ -811,11 +883,6 @@ void PlaneShape::Load(lsl::SReader* reader)
 }
 
 
-NxPlaneShape* PlaneShape::GetNxShape()
-{
-	return static_cast<NxPlaneShape*>(_MyBase::GetNxShape());
-}
-
 const D3DXVECTOR3& PlaneShape::GetNormal() const
 {
 	return _normal;
@@ -824,9 +891,8 @@ const D3DXVECTOR3& PlaneShape::GetNormal() const
 void PlaneShape::SetNormal(const D3DXVECTOR3& value)
 {
 	_normal = value;
-	
-	if (GetNxShape())	
-		GetNxShape()->setPlane(PxVec3(value), _dist);
+
+	SyncPlanePose();
 }
 
 float PlaneShape::GetDist() const
@@ -837,9 +903,8 @@ float PlaneShape::GetDist() const
 void PlaneShape::SetDist(float value)
 {
 	_dist = value;
-	
-	if (GetNxShape())	
-		GetNxShape()->setPlane(PxVec3(value), _dist);
+
+	SyncPlanePose();
 }
 
 
@@ -869,11 +934,6 @@ void BoxShape::Load(lsl::SReader* reader)
 }
 
 
-NxBoxShape* BoxShape::GetNxShape()
-{
-	return static_cast<NxBoxShape*>(_MyBase::GetNxShape());
-}
-
 const D3DXVECTOR3& BoxShape::GetDimensions() const
 {
 	return _dimensions;
@@ -884,13 +944,8 @@ void BoxShape::SetDimensions(const D3DXVECTOR3& value)
 	if (_dimensions != value)
 	{
 		_dimensions = value;
-		
-		if (GetNxShape())
-		{
-			PxVec3 vec3;
-			vec3.set(_dimensions);
-			GetNxShape()->setDimensions(vec3);
-		}
+
+		SyncGeometry();
 	}
 }
 
@@ -920,11 +975,6 @@ void SphereShape::Load(lsl::SReader* reader)
 }
 
 
-NxSphereShape* SphereShape::GetNxShape()
-{
-	return static_cast<NxSphereShape*>(_MyBase::GetNxShape());
-}
-
 float SphereShape::GetRadius() const
 {
 	return _radius;
@@ -934,8 +984,7 @@ void SphereShape::SetRadius(float value)
 {
 	_radius = value;
 
-	if (GetNxShape())
-		GetNxShape()->setRadius(value);		
+	SyncGeometry();
 }
 
 
@@ -987,11 +1036,6 @@ void CapsuleShape::Load(lsl::SReader* reader)
 }
 
 
-NxCapsuleShape* CapsuleShape::GetNxShape()
-{
-	return static_cast<NxCapsuleShape*>(_MyBase::GetNxShape());
-}
-
 float CapsuleShape::GetRadius() const
 {
 	return _radius;
@@ -1001,8 +1045,7 @@ void CapsuleShape::SetRadius(float value)
 {
 	_radius = value;
 
-	if (GetNxShape())
-		GetNxShape()->setRadius(value);		
+	SyncGeometry();
 }
 
 float CapsuleShape::GetHeight() const
@@ -1014,8 +1057,7 @@ void CapsuleShape::SetHeight(float value)
 {
 	_height = value;
 
-	if (GetNxShape())
-		GetNxShape()->setHeight(value);
+	SyncGeometry();
 }
 
 unsigned CapsuleShape::GetCapsuleFlags() const
@@ -1099,11 +1141,6 @@ void TriangleMeshShape::OnFixUp(const FixUpNames& fixUpNames)
 			SetMesh(iter->GetCollItem<TriangleMesh*>(), _meshId);
 }
 
-
-NxTriangleMeshShape* TriangleMeshShape::GetNxShape()
-{
-	return static_cast<NxTriangleMeshShape*>(_MyBase::GetNxShape());
-}
 
 TriangleMesh* TriangleMeshShape::GetMesh()
 {
@@ -1189,11 +1226,6 @@ void ConvexShape::OnFixUp(const FixUpNames& fixUpNames)
 }
 
 
-NxConvexShape* ConvexShape::GetNxShape()
-{
-	return static_cast<NxConvexShape*>(_MyBase::GetNxShape());
-}
-
 TriangleMesh* ConvexShape::GetMesh()
 {
 	return _mesh;
@@ -1216,11 +1248,34 @@ int ConvexShape::GetMeshId()
 }
 
 
+SpringDesc::SpringDesc(): spring(0.0f), damper(0.0f), targetValue(0.0f)
+{
+}
+
+TireFunctionDesc::TireFunctionDesc():
+	extremumSlip(1.0f),
+	extremumValue(0.02f),
+	asymptoteSlip(2.0f),
+	asymptoteValue(0.01f),
+	stiffnessFactor(1000000.0f)
+{
+}
+
+WheelDesc::WheelDesc():
+	radius(1.0f),
+	suspensionTravel(1.0f),
+	inverseWheelMass(1.0f),
+	wheelFlags(0),
+	motorTorque(0.0f),
+	steerAngle(0.0f)
+{
+}
+
 WheelShape::WheelShape(Shapes* owner): _MyBase(owner), _contactModify(0)
 {
 	SetType(Type);
 
-	AssignFromDesc(NxWheelShapeDesc(), false);
+	AssignFromDesc(WheelDesc(), false);
 }
 
 WheelShape::~WheelShape()
@@ -1228,14 +1283,60 @@ WheelShape::~WheelShape()
 	SetContactModify(0);
 }
 
-NxShapeDesc* WheelShape::CreateDesc()
+PxGeometryHolder WheelShape::CreateGeometry()
 {
-	NxWheelShapeDesc* desc = new NxWheelShapeDesc();
-	AssignToDesc(*desc);
-	return desc;
+	//A 2.8 wheel was not a solid. It cast a ray of suspensionTravel and applied
+	//suspension and tire forces to the body itself, so it never collided in the
+	//ordinary sense. PhysX 4.1 has no such shape, and PxVehicle models the wheel
+	//as data on a PxVehicleWheels rather than as a shape at all.
+	//
+	//A sphere of the wheel radius is a placeholder so the shape object exists
+	//and can still be found by name; ApplyToShape clears eSIMULATION_SHAPE so it
+	//cannot collide in the meantime. Until the PxVehicle work lands, wheels have
+	//no suspension and generate no tire force.
+	return PxGeometryHolder(PxSphereGeometry(_radius > 0.0f ? _radius : 1.0f));
 }
 
-void WheelShape::SaveTireForceFunction(lsl::SWriter* writer, const NxTireFunctionDesc& func)
+void WheelShape::ApplyToShape(PxShape& shape) const
+{
+	_MyBase::ApplyToShape(shape);
+
+	shape.setFlag(PxShapeFlag::eSIMULATION_SHAPE, false);
+}
+
+void WheelShape::AssignFromDesc(const WheelDesc& desc, bool reloadShape)
+{
+	_radius = desc.radius;
+	_suspensionTravel = desc.suspensionTravel;
+	_suspension = desc.suspension;
+	_longitudalTireForceFunction = desc.longitudalTireForceFunction;
+	_lateralTireForceFunction = desc.lateralTireForceFunction;
+	_inverseWheelMass = desc.inverseWheelMass;
+	_wheelFlags = desc.wheelFlags;
+	_motorTorque = desc.motorTorque;
+	_steerAngle = desc.steerAngle;
+
+	//The base half of this used to be Shape::AssignFromDesc, which went with the
+	//descriptor API. Shape properties are set through the accessors now, so the
+	//radius is the only field here that changes the geometry.
+	if (reloadShape)
+		SyncGeometry();
+}
+
+void WheelShape::AssignToDesc(WheelDesc& desc)
+{
+	desc.radius = _radius;
+	desc.suspensionTravel = _suspensionTravel;
+	desc.suspension = _suspension;
+	desc.longitudalTireForceFunction = _longitudalTireForceFunction;
+	desc.lateralTireForceFunction = _lateralTireForceFunction;
+	desc.inverseWheelMass = _inverseWheelMass;
+	desc.wheelFlags = _wheelFlags;
+	desc.motorTorque = _motorTorque;
+	desc.steerAngle = _steerAngle;
+}
+
+void WheelShape::SaveTireForceFunction(lsl::SWriter* writer, const TireFunctionDesc& func)
 {
 	writer->WriteValue("asymptoteSlip", func.asymptoteSlip);
 	writer->WriteValue("asymptoteValue", func.asymptoteValue);
@@ -1244,7 +1345,7 @@ void WheelShape::SaveTireForceFunction(lsl::SWriter* writer, const NxTireFunctio
 	writer->WriteValue("stiffnessFactor", func.stiffnessFactor);
 }
 
-void WheelShape::LoadTireForceFunction(lsl::SReader* reader, NxTireFunctionDesc& func)
+void WheelShape::LoadTireForceFunction(lsl::SReader* reader, TireFunctionDesc& func)
 {
 	reader->ReadValue("asymptoteSlip", func.asymptoteSlip);
 	reader->ReadValue("asymptoteValue", func.asymptoteValue);
@@ -1302,10 +1403,10 @@ void WheelShape::Load(lsl::SReader* reader)
 }
 
 
-NxWheelShape* WheelShape::GetNxShape()
-{
-	return static_cast<NxWheelShape*>(_MyBase::GetNxShape());
-}
+//Every setter below caches only. In PhysX 2.8 each pushed straight onto a live
+//NxWheelShape; PhysX 4.1 has no such object, so the values sit here until the
+//PxVehicle work reads them when building the vehicle. Radius is the exception,
+//because it is the one field the placeholder geometry depends on.
 
 float WheelShape::GetRadius() const
 {
@@ -1317,8 +1418,7 @@ void WheelShape::SetRadius(float value)
 	if (_radius != value)
 	{
 		_radius = value;
-		if (GetNxShape())		
-			GetNxShape()->setRadius(value);
+		SyncGeometry();
 	}
 }
 
@@ -1329,48 +1429,37 @@ float WheelShape::GetSuspensionTravel() const
 
 void WheelShape::SetSuspensionTravel(float value)
 {
-	if (_suspensionTravel != value)
-	{
-		_suspensionTravel = value;
-		if (GetNxShape())		
-			GetNxShape()->setSuspensionTravel(value);
-	}
+	_suspensionTravel = value;
 }
 
-const NxSpringDesc& WheelShape::GetSuspension() const
+const SpringDesc& WheelShape::GetSuspension() const
 {
 	return _suspension;
 }
 
-void WheelShape::SetSuspension(const NxSpringDesc& value)
+void WheelShape::SetSuspension(const SpringDesc& value)
 {
 	_suspension = value;
-	if (GetNxShape())		
-		GetNxShape()->setSuspension(value);	
 }
 
-const NxTireFunctionDesc& WheelShape::GetLongitudalTireForceFunction() const
+const TireFunctionDesc& WheelShape::GetLongitudalTireForceFunction() const
 {
 	return _longitudalTireForceFunction;
 }
 
-void WheelShape::SetLongitudalTireForceFunction(const NxTireFunctionDesc& value)
+void WheelShape::SetLongitudalTireForceFunction(const TireFunctionDesc& value)
 {
 	_longitudalTireForceFunction = value;
-	if (GetNxShape())		
-		GetNxShape()->setLongitudalTireForceFunction(value);	
 }
 
-const NxTireFunctionDesc& WheelShape::GetLateralTireForceFunction() const
+const TireFunctionDesc& WheelShape::GetLateralTireForceFunction() const
 {
 	return _lateralTireForceFunction;
 }
 
-void WheelShape::SetLateralTireForceFunction(const NxTireFunctionDesc& value)
+void WheelShape::SetLateralTireForceFunction(const TireFunctionDesc& value)
 {
 	_lateralTireForceFunction = value;
-	if (GetNxShape())		
-		GetNxShape()->setLateralTireForceFunction(value);	
 }
 
 float WheelShape::GetInverseWheelMass() const
@@ -1380,12 +1469,7 @@ float WheelShape::GetInverseWheelMass() const
 
 void WheelShape::SetInverseWheelMass(float value)
 {
-	if (_inverseWheelMass != value)
-	{
-		_inverseWheelMass = value;
-		if (GetNxShape())		
-			GetNxShape()->setInverseWheelMass(value);
-	}
+	_inverseWheelMass = value;
 }
 
 UINT WheelShape::GetWheelFlags() const
@@ -1395,12 +1479,7 @@ UINT WheelShape::GetWheelFlags() const
 
 void WheelShape::SetWheelFlags(UINT value)
 {
-	if (_wheelFlags != value)
-	{
-		_wheelFlags = value;
-		if (GetNxShape())		
-			GetNxShape()->setWheelFlags(value);
-	}
+	_wheelFlags = value;
 }
 
 float WheelShape::GetMotorTorque() const
@@ -1410,12 +1489,7 @@ float WheelShape::GetMotorTorque() const
 
 void WheelShape::SetMotorTorque(float value)
 {
-	if (_motorTorque != value)
-	{
-		_motorTorque = value;
-		if (GetNxShape())		
-			GetNxShape()->setMotorTorque(value);
-	}
+	_motorTorque = value;
 }
 
 float WheelShape::GetSteerAngle() const
@@ -1425,12 +1499,7 @@ float WheelShape::GetSteerAngle() const
 
 void WheelShape::SetSteerAngle(float value)
 {
-	if (_steerAngle != value)
-	{
-		_steerAngle = value;
-		if (GetNxShape())		
-			GetNxShape()->setSteerAngle(value);
-	}
+	_steerAngle = value;
 }
 
 WheelShape::ContactModify* WheelShape::GetContactModify()
@@ -1441,11 +1510,7 @@ WheelShape::ContactModify* WheelShape::GetContactModify()
 void WheelShape::SetContactModify(ContactModify* value)
 {
 	if (ReplaceRef(_contactModify, value))
-	{
 		_contactModify = value;
-		if (GetNxShape())
-			GetNxShape()->setUserWheelContactModify(_contactModify);
-	}
 }
 
 

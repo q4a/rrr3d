@@ -37,7 +37,8 @@ primitives are tested. That is a long way from a game.
 
 - **The MSVC build.** Unverified since commit 12. CI caught a real regression
   once already (`d3dx9_compat.h` including only `d3d9types.h`, which does not
-  declare `D3D_OK`). Every commit since then is unchecked on Windows.
+  declare `D3D_OK`). Every commit since then is unchecked on Windows, and
+  `Rock3dEngine` specifically is *known broken* there — see below.
 - **Any rendering.** Shaders compile; none has been executed on a GPU.
 - **Any physics.** No PhysX call has been made at runtime.
 - Shader coverage is the **default macro permutation only** — every `#if`
@@ -112,6 +113,29 @@ capsule height changed from full to half. Both are handled in
 `CapsuleShape::CreateGeometry`/`ApplyToShape`; the same class of trap is
 likely in the wheel work.
 
+### Windows moves to PhysX 4.1 as well
+
+**Decided.** `Physx.h` branches at the include — `NxPhysics.h` on Windows,
+`PxPhysicsAPI.h` elsewhere — but the class bodies below it already carry 56
+unguarded `Px*` references. The Windows build of `Rock3dEngine` is therefore
+not merely unverified, it cannot compile, and no arrangement of the macOS work
+changes that.
+
+The alternative was `#ifdef`-ing every affected member so Windows kept 2.8.4.
+Rejected: it makes `Physx.h` dual-API throughout and every future physics
+change has to be written twice — the opposite of the goal.
+
+So the include branch comes out and one backend serves all three platforms.
+Consequences to handle:
+
+- `extern.7z` supplies PhysX 2.8.4 for MSVC. Needs a 4.1 Windows build, or
+  `tools/setup-physx-macos.sh` generalised to fetch and build per platform.
+- Windows physics behaviour changes at the same moment macOS's does, so the
+  2.8 build stops being available as a reference. Capture whatever comparison
+  data is wanted from it *before* this lands.
+- `Stream.h`'s `MemoryWriteBuffer`/`MemoryReadBuffer` exist only to serve the
+  2.8 cooking API and get deleted here.
+
 ## 2. Get `Rock3dGame` compiling
 
 73,600 LOC, untouched. Expect the same conformance patterns already fixed a
@@ -178,7 +202,7 @@ Not part of D3D9, so no graphics backend provides it:
 - `Data/` paths use backslashes throughout and the game is case-insensitive
   by assumption.
 - `Stream.h`'s `MemoryWriteBuffer`/`MemoryReadBuffer` are Windows-only now;
-  delete them once Windows also moves to PhysX 4.1.
+  they go with the PhysX 4.1 move above.
 - `d3dx9math.h`/`.inl` carry four documented deviations from upstream Wine.
   Two are SDK-parity fixes (`D3DXPlaneDotCoord`/`DotNormal` typed
   `D3DXVECTOR4*` by both Wine and MinGW, `D3DXVECTOR3*` by the SDK); two
@@ -187,14 +211,21 @@ Not part of D3D9, so no graphics backend provides it:
 
 ## Suggested order
 
+**Target milestone: the whole tree compiles and links** — an executable that
+starts and fails at device creation. Audio, video and input get stubs, not
+ports, until that holds. The point is to surface unknown blockers in the
+73,600 untouched lines early rather than after the physics is perfect.
+
 1. **PhysX 1a** — compile only. Unblocks `Rock3dEngine`.
-2. **Push and check CI.** 13+ commits of unverified Windows build.
+2. **Move Windows to PhysX 4.1** — see below.
 3. **Write physics tests**, now that the engine builds.
 4. **PhysX 1b** — density, material, momentum, callbacks, then the vehicle
    model, test-first.
-5. `Rock3dGame`: conformance pass, then FAudio, then input.
-6. The Metal backend, against `docs/macos-graphics-backend.md`.
-7. D3DX: effects, textures, fonts.
+5. `Rock3dGame`: conformance pass, audio/video/input **stubbed**.
+6. `RRR3d` links. Milestone reached.
+7. Then, in either order: the Metal backend against
+   `docs/macos-graphics-backend.md`, and D3DX (effects, textures, fonts).
+8. Un-stub audio (FAudio), input (SDL_GameController), video.
 
-Steps 1–5 are needed for Linux as well as macOS, and are largely mechanical.
-Step 6 is where the genuine unknowns are.
+Steps 1–6 are needed for Linux as well as macOS, and are largely mechanical.
+Step 7 is where the genuine unknowns are.
