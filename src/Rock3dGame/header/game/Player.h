@@ -410,7 +410,7 @@ public:
 		MapObj* mapObj;
 		RockCar* gameObj;
 		graph::Actor* grActor;
-		PxRigidActor* nxActor;
+		PxRigidDynamic* nxActor;
 
 		//Координаты актера
 		D3DXVECTOR3 pos3;

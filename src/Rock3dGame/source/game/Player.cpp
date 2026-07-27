@@ -1652,7 +1652,7 @@ void Player::CreateCar(bool newRace)
 		_car.gameObj->AddRef();
 		_car.grActor = &_car.gameObj->GetGrActor();
 		_car.grActor->AddRef();
-		_car.nxActor = _car.gameObj->GetPxActor().GetNxActor();
+		_car.nxActor = _car.gameObj->GetPxActor().GetNxDynamic();
 
 		_car.kSteerControl = _car.gameObj->GetKSteerControl();
 		_car.size = ComputeCarBBSize();

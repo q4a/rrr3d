@@ -188,7 +188,7 @@ private:
 	void StabilizeForce(float deltaTime);
 
 	float GetWheelRPM() const;
-	PxShape* GetWheelContactData(NxWheelContactData& contact);
+	PxShape* GetWheelContactData(px::WheelContactData& contact);
 
 	void ApplyWheelSteerK();
 protected:
@@ -306,7 +306,8 @@ public:
 	//typedef lsl::List<Contact> ContactList;	
 	//ContactList contactList;
 
-	static float GetSpeed(PxRigidActor* nxActor, const D3DXVECTOR3& dir);
+	//Velocity lives on the body, so this needs the dynamic actor.
+	static float GetSpeed(PxRigidDynamic* nxActor, const D3DXVECTOR3& dir);
 };
 
 class DestrObj: public GameObject

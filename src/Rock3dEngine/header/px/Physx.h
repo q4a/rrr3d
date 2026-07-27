@@ -99,6 +99,11 @@ void SetAngularMomentum(PxRigidDynamic& body, const D3DXVECTOR3& value);
 //position: that applies at the actor origin, which generates torque the 2.8
 //call never produced on any body whose centre of mass is offset. Every car
 //here sets one, via bfLockCenterOfMass.
+//NxActor::computeKineticEnergy, which PhysX 3+ dropped. Translational plus
+//rotational: 0.5*m*v^2 + 0.5*w.(I*w), with the angular term evaluated in mass
+//space where the inertia tensor is diagonal.
+float ComputeKineticEnergy(const PxRigidDynamic& body);
+
 void AddLocalForce(PxRigidDynamic& body, const D3DXVECTOR3& force, PxForceMode::Enum mode);
 void AddLocalTorque(PxRigidDynamic& body, const D3DXVECTOR3& torque, PxForceMode::Enum mode);
 

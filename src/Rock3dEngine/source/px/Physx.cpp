@@ -55,6 +55,20 @@ D3DXVECTOR3 GetAngularMomentum(const PxRigidDynamic& body)
 	return FromPx(rot.rotate(PxVec3(local.x * inertia.x, local.y * inertia.y, local.z * inertia.z)));
 }
 
+float ComputeKineticEnergy(const PxRigidDynamic& body)
+{
+	const PxVec3 linVel = body.getLinearVelocity();
+	const float translational = 0.5f * body.getMass() * linVel.magnitudeSquared();
+
+	const PxVec3 inertia = body.getMassSpaceInertiaTensor();
+	const PxVec3 angVel = MassFrameRotation(body).rotateInv(body.getAngularVelocity());
+	const float rotational = 0.5f * (angVel.x * angVel.x * inertia.x +
+		angVel.y * angVel.y * inertia.y +
+		angVel.z * angVel.z * inertia.z);
+
+	return translational + rotational;
+}
+
 void AddLocalForce(PxRigidDynamic& body, const D3DXVECTOR3& force, PxForceMode::Enum mode)
 {
 	body.addForce(body.getGlobalPose().q.rotate(ToPx(force)), mode);
