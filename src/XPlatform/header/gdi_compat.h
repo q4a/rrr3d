@@ -112,6 +112,39 @@ typedef struct _GLYPHMETRICSFLOAT {
 #define DT_NOCLIP      0x00000100
 #define DT_CALCRECT    0x00000400
 
+
+/*
+ * Screen DPI query, used only to size the debug overlay font. HDC and RECT
+ * come from the dxvk Windows headers; only these helpers are missing.
+ */
+#define LOGPIXELSY 90
+
+inline HDC GetDC(HWND) { return NULL; }
+inline int ReleaseDC(HWND, HDC) { return 1; }
+
+//96 dpi is the standard logical DPI; the overlay only needs a sane size.
+inline int GetDeviceCaps(HDC, int) { return 96; }
+
+inline int MulDiv(int number, int numerator, int denominator)
+{
+    if (!denominator)
+        return -1;
+    return static_cast<int>((static_cast<long long>(number) * numerator) / denominator);
+}
+
+/* TEXT() maps to the narrow form -- this project builds MBCS, not UNICODE. */
+#ifndef TEXT
+#define TEXT(s) s
+#endif
+
+inline BOOL SetRect(RECT* r, int left, int top, int right, int bottom)
+{
+    if (!r)
+        return FALSE;
+    r->left = left; r->top = top; r->right = right; r->bottom = bottom;
+    return TRUE;
+}
+
 /*
  * objidl.h. Only ever used as a pointer in the d3dx9 declarations we compile,
  * so an incomplete type is enough.

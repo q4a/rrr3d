@@ -24,6 +24,10 @@ add_compile_definitions(
     D3DX9_NO_SH_CUBEMAP
 )
 
+### PhysX requires exactly one of NDEBUG / _DEBUG to be defined. CMake's
+### Release config defines NDEBUG, but its Debug config defines neither.
+add_compile_definitions($<$<CONFIG:Debug>:_DEBUG>)
+
 ### Set up output paths
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release")
