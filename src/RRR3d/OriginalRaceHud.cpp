@@ -1244,12 +1244,6 @@ void OriginalRaceHud::update(
 
     mapMarkers_.clear();
     mapMarkers_.reserve(std::min(vehicles.size(), race.racers.size()));
-    constexpr std::array<std::array<float, 4>, 4> playerColors{{
-        {1.0F, 0.1F, 0.1F, 1.0F},
-        {0.1F, 1.0F, 0.1F, 1.0F},
-        {1.0F, 1.0F, 1.0F, 1.0F},
-        {1.0F, 0.9F, 0.1F, 1.0F},
-    }};
     for (std::size_t index = 0;
          index < vehicles.size() && index < race.racers.size(); ++index)
     {
@@ -1259,7 +1253,7 @@ void OriginalRaceHud::update(
             {mapOriginX_ + (position.x - mapMinimumX_) * mapScale_,
              mapOriginY_ + (mapMaximumY_ - position.y) * mapScale_,
              std::atan2(-direction.y, direction.x),
-             playerColors[index % playerColors.size()]});
+             race.racers[index].color});
     }
 
     const std::size_t opponentCount =

@@ -381,6 +381,7 @@ struct Racer
     std::vector<RacerSlot> loadout;
     Vehicle configuredVehicle;
     bool hasConfiguredVehicle = false;
+    std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
 };
 
 struct TrackCatalogEntry

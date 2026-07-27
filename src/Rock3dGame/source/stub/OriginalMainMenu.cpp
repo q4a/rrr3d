@@ -494,7 +494,7 @@ Model loadOriginalMainMenu(const resource::ResourceFileSystem& resources,
     const auto catalog = loadAndValidateCatalog(resources, model.audit);
     validateGuiResources(resources, catalog, model.audit);
 
-    const auto strings =
+    auto strings =
         loadStringLibrary(resources, languagePath(resources, language));
     model.language = std::move(language);
     model.audit.localizedStrings = strings.size();
@@ -513,6 +513,7 @@ Model loadOriginalMainMenu(const resource::ResourceFileSystem& resources,
     model.bottomPanelImage = loadImage(resources, dataPath(bottomPanel));
     model.selectionImage = loadImage(resources, dataPath(selection));
     model.cursorImage = loadImage(resources, dataPath(cursor));
+    model.localizedStrings = std::move(strings);
     return model;
 }
 

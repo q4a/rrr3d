@@ -44,9 +44,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -646,6 +648,10 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
+#ifdef RRR3D_PHYSICS
+    input.applyKeyboardBindings(
+        profileState.config.keyboardControls);
+#endif
     bool runInputSmoke = options->inputSmokeTest;
 #ifdef RRR3D_AUDIO
     runInputSmoke = runInputSmoke || options->audioSmokeTest;
@@ -754,20 +760,238 @@ int main(int argc, char** argv)
         createImageTexture(*device, model->selectionImage);
     const Texture cursor = createImageTexture(*device, model->cursorImage);
 
-    std::vector<TextVisual> normalItems;
-    std::vector<TextVisual> selectedItems;
-    std::string resolvedFont;
-    try
+    struct MenuPageVisual
     {
-        for (const auto& item : model->items)
+        std::vector<std::string> labels;
+        std::vector<TextVisual> normal;
+        std::vector<TextVisual> selected;
+    };
+    auto localized = [&](std::string_view key) {
+        const auto found =
+            model->localizedStrings.find(std::string(key));
+        return found == model->localizedStrings.end()
+                   ? std::string(key)
+                   : found->second;
+    };
+    auto labels = [&](std::initializer_list<const char*> keys) {
+        std::vector<std::string> output;
+        output.reserve(keys.size());
+        for (const char* key : keys)
+            output.push_back(localized(key));
+        return output;
+    };
+    MenuPageVisual mainPage;
+    MenuPageVisual gameModePage;
+    MenuPageVisual tournamentPage;
+    MenuPageVisual difficultyPage;
+    MenuPageVisual profilePage;
+    MenuPageVisual networkPage;
+    MenuPageVisual optionsPage;
+    MenuPageVisual creditsPage;
+#ifdef RRR3D_PHYSICS
+    MenuPageVisual gameOptionsPage;
+    MenuPageVisual graphicsOptionsPage;
+    MenuPageVisual soundOptionsPage;
+    MenuPageVisual controlsOptionsPage;
+    MenuPageVisual finishPage;
+#endif
+    std::string resolvedFont;
+    auto createPage = [&](std::vector<std::string> pageLabels) {
+        MenuPageVisual page;
+        page.labels = std::move(pageLabels);
+        for (const auto& item : page.labels)
         {
-            normalItems.push_back(createText(
+            page.normal.push_back(createText(
                 *device, item, menu::headerFontHeight, false,
                 menu::normalTextColor, resolvedFont));
-            selectedItems.push_back(createText(
+            page.selected.push_back(createText(
                 *device, item, menu::headerFontHeight, false,
                 menu::selectedTextColor, resolvedFont));
         }
+        return page;
+    };
+    auto destroyPage = [&](const MenuPageVisual& page) {
+        for (const auto& item : page.selected)
+            device->destroy(item.texture);
+        for (const auto& item : page.normal)
+            device->destroy(item.texture);
+    };
+#ifdef RRR3D_PHYSICS
+    auto optionValue = [&](std::string_view key,
+                           const std::string& value) {
+        return localized(key) + ": " + value;
+    };
+    auto onOff = [&](bool value) {
+        return localized(value ? "svOn" : "svOff");
+    };
+    auto qualityName = [&](std::uint32_t value) {
+        return localized(
+            std::array<std::string_view, 3>{
+                "svLow", "svMiddle", "svHigh"}
+                [std::min<std::uint32_t>(value, 2U)]);
+    };
+    auto volumeName = [](float value) {
+        return std::to_string(
+                   static_cast<int>(std::lround(
+                       std::clamp(value, 0.0F, 2.0F) * 50.0F))) +
+               "%";
+    };
+    auto distanceName = [](float value) {
+        std::ostringstream stream;
+        stream.setf(std::ios::fixed);
+        stream.precision(2);
+        stream << value << " x";
+        return stream.str();
+    };
+    auto gameOptionsLabels = [&]() {
+        return std::vector<std::string>{
+            optionValue(
+                "svCamera",
+                localized(
+                    profileState.config.preferredCamera ==
+                            r3d::game::originalrace::
+                                PreferredCamera::ThirdPerson
+                        ? "svCameraSecView"
+                        : "svCameraOrtho")),
+            optionValue(
+                "svCameraDist",
+                distanceName(profileState.config.cameraDistance)),
+            optionValue(
+                "svEnableHUD",
+                onOff(profileState.config.enableHud)),
+            optionValue(
+                "svDifficulty",
+                localized(profileState.player.difficulty)),
+            optionValue(
+                "svSpringBorders",
+                onOff(profileState.config.springBorders)),
+            optionValue(
+                "svLapsCount",
+                std::to_string(profileState.config.lapsCount)),
+            optionValue(
+                "svMaxComputers",
+                std::to_string(profileState.config.maxComputers)),
+            optionValue(
+                "svEnableMineBug",
+                onOff(profileState.config.enableMineBug)),
+            localized("svBack")};
+    };
+    auto graphicsOptionsLabels = [&]() {
+        static constexpr std::array<std::string_view, 4>
+            filteringNames{
+                "linear", "af 2x", "af 4x", "af 8x"};
+        static constexpr std::array<std::string_view, 4> msaaNames{
+            "none", "aa 2x", "aa 4x", "aa 8x"};
+        return std::vector<std::string>{
+            optionValue(
+                "svFiltering",
+                std::string(filteringNames[
+                    std::min<std::uint32_t>(
+                        profileState.config.quality.filtering,
+                        filteringNames.size() - 1U)])),
+            optionValue(
+                "svMultisampling",
+                std::string(msaaNames[
+                    std::min<std::uint32_t>(
+                        profileState.config.quality.msaa,
+                        msaaNames.size() - 1U)])),
+            optionValue(
+                "svShadow",
+                qualityName(profileState.config.quality.shadow)),
+            optionValue(
+                "svEnv",
+                qualityName(profileState.config.quality.environment)),
+            optionValue(
+                "svLight",
+                qualityName(profileState.config.quality.light)),
+            optionValue(
+                "svPostProcess",
+                qualityName(profileState.config.quality.postEffect)),
+            optionValue(
+                "svWindowMode",
+                onOff(profileState.config.fullScreen)),
+            localized("svBack")};
+    };
+    auto soundOptionsLabels = [&]() {
+        return std::vector<std::string>{
+            optionValue(
+                "svLanguage",
+                localized(profileState.config.language == "russian"
+                              ? "svRussian"
+                              : "svEnglish")),
+            optionValue(
+                "svCommentator",
+                localized(
+                    profileState.config.commentatorStyle == "russian"
+                        ? "svRussian"
+                        : "svEnglish")),
+            optionValue(
+                "svMusic",
+                volumeName(profileState.config.musicVolume)),
+            optionValue(
+                "svSound",
+                volumeName(profileState.config.effectsVolume)),
+            optionValue(
+                "svSoundDicter",
+                volumeName(profileState.config.voiceVolume)),
+            localized("svBack")};
+    };
+    auto controlsOptionsLabels = [&]() {
+        static constexpr std::array<std::string_view, 7> actions{
+            "gaAccel", "gaBreak", "gaWheelLeft", "gaWheelRight",
+            "gaShot", "gaMine", "gaViewSwitch"};
+        std::vector<std::string> output;
+        output.reserve(actions.size() + 1U);
+        for (const auto action : actions)
+        {
+            const auto found =
+                profileState.config.keyboardControls.find(
+                    std::string(action));
+            output.push_back(
+                optionValue(
+                    action,
+                    found ==
+                            profileState.config.keyboardControls.end()
+                        ? localized("svNull")
+                        : found->second));
+        }
+        output.push_back(localized("svBack"));
+        return output;
+    };
+#endif
+    try
+    {
+        mainPage = createPage(model->items);
+        gameModePage = createPage(labels(
+            {"svChampionship", "svSkirmish", "svBack"}));
+        tournamentPage = createPage(labels(
+            {"svContinue", "svNewGame", "svLoad", "svBack"}));
+        difficultyPage = createPage(
+            labels({"gdEasy", "gdNormal", "gdHard", "svBack"}));
+        std::vector<std::string> profileLabels;
+#ifdef RRR3D_PHYSICS
+        profileLabels = profileState.profiles;
+#endif
+        if (profileLabels.empty())
+            profileLabels.push_back("profile1");
+        profileLabels.push_back(localized("svBack"));
+        profilePage = createPage(std::move(profileLabels));
+        networkPage = createPage(
+            labels({"svNetCreate", "svConnect", "svBack"}));
+        optionsPage = createPage(labels(
+            {"svGame", "svGraphic", "svSound", "svControls",
+             "svBack"}));
+        creditsPage = createPage(labels({"svBack"}));
+#ifdef RRR3D_PHYSICS
+        gameOptionsPage = createPage(gameOptionsLabels());
+        graphicsOptionsPage =
+            createPage(graphicsOptionsLabels());
+        soundOptionsPage = createPage(soundOptionsLabels());
+        controlsOptionsPage =
+            createPage(controlsOptionsLabels());
+        finishPage = createPage(
+            labels({"svContinue", "svBack"}));
+#endif
     }
     catch (const std::exception& exception)
     {
@@ -777,6 +1001,30 @@ int main(int argc, char** argv)
     const TextVisual version = createText(
         *device, model->versionText, menu::smallFontHeight, true,
         menu::selectedTextColor, resolvedFont);
+    const TextVisual credits = createText(
+        *device, localized("svCredits"), menu::smallFontHeight, false,
+        menu::normalTextColor, resolvedFont);
+#ifdef RRR3D_PHYSICS
+    TextVisual finishSummary = createText(
+        *device, localized("svFinish"), menu::smallFontHeight, false,
+        menu::normalTextColor, resolvedFont);
+#endif
+
+    auto pageValid = [](const MenuPageVisual& page) {
+        return !page.labels.empty() &&
+               page.normal.size() == page.labels.size() &&
+               page.selected.size() == page.labels.size() &&
+               std::all_of(
+                   page.normal.begin(), page.normal.end(),
+                   [](const TextVisual& item) {
+                       return valid(item.texture);
+                   }) &&
+               std::all_of(
+                   page.selected.begin(), page.selected.end(),
+                   [](const TextVisual& item) {
+                       return valid(item.texture);
+                   });
+    };
 
     const bool gpuResourcesValid =
         valid(shader) &&
@@ -785,19 +1033,44 @@ int main(int argc, char** argv)
 #endif
         valid(quad) && valid(background) && valid(topPanel) &&
         valid(bottomPanel) && valid(selection) && valid(cursor) &&
-        valid(version.texture) && normalItems.size() == model->items.size() &&
-        selectedItems.size() == model->items.size() &&
-        std::all_of(normalItems.begin(), normalItems.end(),
-                    [](const TextVisual& item) { return valid(item.texture); }) &&
-        std::all_of(selectedItems.begin(), selectedItems.end(),
-                    [](const TextVisual& item) { return valid(item.texture); });
+        valid(version.texture) && valid(credits.texture) &&
+        pageValid(mainPage) && pageValid(gameModePage) &&
+        pageValid(tournamentPage) && pageValid(difficultyPage) &&
+        pageValid(profilePage) && pageValid(networkPage) &&
+        pageValid(optionsPage) && pageValid(creditsPage);
+#ifdef RRR3D_PHYSICS
+    const bool optionsResourcesValid =
+        pageValid(gameOptionsPage) &&
+        pageValid(graphicsOptionsPage) &&
+        pageValid(soundOptionsPage) &&
+        pageValid(controlsOptionsPage) &&
+        pageValid(finishPage) &&
+        valid(finishSummary.texture);
+#else
+    const bool optionsResourcesValid = true;
+#endif
 
     auto releaseResources = [&]() {
+#ifdef RRR3D_PHYSICS
+        device->destroy(finishSummary.texture);
+#endif
+        device->destroy(credits.texture);
         device->destroy(version.texture);
-        for (const auto& item : selectedItems)
-            device->destroy(item.texture);
-        for (const auto& item : normalItems)
-            device->destroy(item.texture);
+#ifdef RRR3D_PHYSICS
+        destroyPage(finishPage);
+        destroyPage(controlsOptionsPage);
+        destroyPage(soundOptionsPage);
+        destroyPage(graphicsOptionsPage);
+        destroyPage(gameOptionsPage);
+#endif
+        destroyPage(creditsPage);
+        destroyPage(optionsPage);
+        destroyPage(networkPage);
+        destroyPage(profilePage);
+        destroyPage(difficultyPage);
+        destroyPage(tournamentPage);
+        destroyPage(gameModePage);
+        destroyPage(mainPage);
         device->destroy(cursor);
         device->destroy(selection);
         device->destroy(bottomPanel);
@@ -810,7 +1083,7 @@ int main(int argc, char** argv)
         device->destroy(shader);
     };
 
-    if (!gpuResourcesValid)
+    if (!gpuResourcesValid || !optionsResourcesValid)
     {
         std::cerr << "Unable to create original MainMenu2 GPU resources\n";
         releaseResources();
@@ -1262,7 +1535,92 @@ int main(int argc, char** argv)
     bool running = true;
     bool runtimeSmokeFailed = false;
     std::uint32_t renderedFrames = 0;
-    menu::Controller controller(model->items.size());
+    enum class MenuScreen
+    {
+        Main,
+        GameMode,
+        Tournament,
+        Difficulty,
+        Profiles,
+        Network,
+        Options,
+        Credits,
+#ifdef RRR3D_PHYSICS
+        GameOptions,
+        GraphicsOptions,
+        SoundOptions,
+        ControlsOptions,
+        Finish,
+#endif
+    };
+    std::vector<MenuScreen> menuStack{MenuScreen::Main};
+    std::size_t menuSelection = 0;
+    bool championshipMode = true;
+    bool newTournamentProfile = false;
+    auto activeMenuPage = [&]() -> MenuPageVisual& {
+        switch (menuStack.back())
+        {
+        case MenuScreen::Main:
+            return mainPage;
+        case MenuScreen::GameMode:
+            return gameModePage;
+        case MenuScreen::Tournament:
+            return tournamentPage;
+        case MenuScreen::Difficulty:
+            return difficultyPage;
+        case MenuScreen::Profiles:
+            return profilePage;
+        case MenuScreen::Network:
+            return networkPage;
+        case MenuScreen::Options:
+            return optionsPage;
+        case MenuScreen::Credits:
+            return creditsPage;
+#ifdef RRR3D_PHYSICS
+        case MenuScreen::GameOptions:
+            return gameOptionsPage;
+        case MenuScreen::GraphicsOptions:
+            return graphicsOptionsPage;
+        case MenuScreen::SoundOptions:
+            return soundOptionsPage;
+        case MenuScreen::ControlsOptions:
+            return controlsOptionsPage;
+        case MenuScreen::Finish:
+            return finishPage;
+#endif
+        }
+        return mainPage;
+    };
+    auto pushMenu = [&](MenuScreen screen) {
+        menuStack.push_back(screen);
+        menuSelection = 0;
+    };
+    auto backMenu = [&]() {
+        if (menuStack.size() > 1U)
+            menuStack.pop_back();
+        menuSelection = 0;
+    };
+#ifdef RRR3D_PHYSICS
+    std::optional<std::string> bindingCaptureAction;
+    auto originalKeyName = [](SDL_Scancode scancode) {
+        switch (scancode)
+        {
+        case SDL_SCANCODE_UP:
+            return std::string("Up Arrow");
+        case SDL_SCANCODE_DOWN:
+            return std::string("Down Arrow");
+        case SDL_SCANCODE_LEFT:
+            return std::string("Left Arrow");
+        case SDL_SCANCODE_RIGHT:
+            return std::string("Right Arrow");
+        case SDL_SCANCODE_RETURN:
+        case SDL_SCANCODE_KP_ENTER:
+            return std::string("Enter");
+        default:
+            return std::string(SDL_GetScancodeName(scancode));
+        }
+    };
+#endif
 #ifdef RRR3D_PHYSICS
     bool inRace = false;
     r3d::physics::VehicleInput raceInput;
@@ -1292,6 +1650,9 @@ int main(int argc, char** argv)
     std::uint32_t maximumTransientDraws = 0;
     std::array<bool, 2> raceCameraStylesObserved{};
     bool raceProgressSaved = false;
+    bool finishMenuShown = false;
+    std::uint32_t raceSmokeMenuStep = 0;
+    std::uint32_t raceSmokeNextMenuFrame = 0;
     auto saveRaceProfile = [&]() {
         if (!raceSession.racers().empty())
         {
@@ -1300,14 +1661,16 @@ int main(int argc, char** argv)
             if (raceSession.racers().front().finished &&
                 !raceProgressSaved)
             {
+                const auto completedTrack = selectedTrack;
                 const auto advance =
                     r3d::game::originalrace::
                         completeOriginalTournamentTrack(
                             *originalRace, selectedTrack, profileState);
+                selectedTrack = advance.trackIndex;
                 raceProgressSaved = true;
                 std::cout
                     << "Original Tournament::CompleteTrack: track "
-                    << selectedTrack << " -> " << advance.trackIndex
+                    << completedTrack << " -> " << advance.trackIndex
                     << ", passComplete=" << advance.passComplete
                     << ", passChampion=" << advance.passChampion
                     << ", planetChampion=" << advance.planetChampion
@@ -1318,6 +1681,455 @@ int main(int argc, char** argv)
         if (!profileStore.save(profileState, profileError))
             std::cerr << "Unable to save original profile: "
                       << profileError << '\n';
+    };
+    auto reloadCurrentRace = [&]() {
+        try
+        {
+#ifdef RRR3D_AUDIO
+            stopRaceAudio(false);
+#endif
+            raceHud.shutdown(*device);
+            raceRenderer.shutdown(*device);
+            *originalRace =
+                r3d::game::originalrace::loadOriginalRace(
+                    *resources, selectedTrack,
+                    profileState.player.currentCar);
+            if (options->weatherSelected)
+                applyWeather(
+                    originalRace->environment, options->weather);
+            profileState.player.currentCar =
+                originalRace->vehicle.record;
+            if (!originalRace->racers.empty())
+                originalRace->racers.front().name =
+                    profileState.player.name;
+            r3d::game::originalrace::applyOriginalPlayerProfile(
+                *originalRace, *resources, profileState.player);
+            r3d::game::originalrace::
+                writeOriginalTournamentSelection(
+                    *originalRace, selectedTrack,
+                    profileState.player);
+            if (!championshipMode)
+            {
+                // GameMode::StartRace applies these GameFrame values only
+                // to rmSkirmish.  Championship keeps the tournament's own
+                // lap and six-racer definitions.
+                originalRace->lapCount =
+                    std::clamp<std::uint32_t>(
+                        profileState.config.lapsCount, 1U, 8U);
+                const auto skirmishRacers =
+                    std::min<std::size_t>(
+                        originalRace->racers.size(),
+                        std::clamp<std::uint32_t>(
+                            profileState.config.maxComputers,
+                            0U, 5U) +
+                            1U);
+                originalRace->racers.resize(
+                    std::max<std::size_t>(
+                        skirmishRacers, 1U));
+            }
+            *physicsDescription =
+                r3d::game::originalrace::makePhysicsDescription(
+                    *originalRace, *resources);
+            std::string reloadError;
+            physicsWorld =
+                r3d::physics::createOriginalVehicleWorld(
+                    *physicsDescription, reloadError);
+            if (!physicsWorld ||
+                !raceRenderer.initialize(
+                    *device, *resources, *originalRace,
+                    static_cast<std::uint32_t>(pixelWidth),
+                    static_cast<std::uint32_t>(pixelHeight),
+                    reloadError) ||
+                !raceHud.initialize(
+                    *device, *resources, *originalRace,
+                    activeLanguage, profileState.player.difficulty,
+                    reloadError))
+            {
+                std::cerr
+                    << "Unable to reload original tournament race: "
+                    << reloadError << '\n';
+                return false;
+            }
+            raceSession.reset();
+            raceSession.applyPlayerProfile(profileState.player);
+            raceSession.applyAchievementProfile(profileState);
+            raceSession.setEnableMineBug(
+                profileState.config.enableMineBug);
+#ifdef RRR3D_AUDIO
+            engineAudio.assign(
+                originalRace->racers.size(), EngineAudio{});
+            for (std::size_t racer = 0;
+                 racer < originalRace->racers.size(); ++racer)
+            {
+                const auto vehicleIndex =
+                    originalRace->racers[racer].vehicle;
+                if (vehicleIndex >= originalRace->vehicles.size())
+                    continue;
+                const auto& vehicle =
+                    originalRace->vehicles[vehicleIndex];
+                engineAudio[racer].idle =
+                    loadEngineSound(vehicle.idleSoundPath);
+                engineAudio[racer].rpm =
+                    loadEngineSound(vehicle.rpmSoundPath);
+            }
+            damageAudioCooldown.assign(
+                originalRace->racers.size(), 0.0F);
+#endif
+            raceVehicles.resize(physicsWorld->vehicleCount());
+            for (std::size_t index = 0;
+                 index < physicsWorld->vehicleCount(); ++index)
+                raceVehicles[index] = physicsWorld->vehicle(index);
+            return true;
+        }
+        catch (const std::exception& exception)
+        {
+            std::cerr
+                << "Unable to reload original tournament data: "
+                << exception.what() << '\n';
+            return false;
+        }
+    };
+    auto startCurrentRace = [&]() {
+        if (!reloadCurrentRace())
+        {
+            runtimeSmokeFailed = true;
+            running = false;
+            return;
+        }
+        raceRenderer.resetCamera();
+        raceInput = {};
+        raceUseWeapon = false;
+        raceUseMine = false;
+        raceUseHyper = false;
+        raceChangeWeaponRequested = false;
+        raceWeaponSlotRequested = -1;
+        raceResetRequested = false;
+        raceElapsedSeconds = 0.0F;
+        raceProgressSaved = false;
+        finishMenuShown = false;
+        raceVehicles.resize(physicsWorld->vehicleCount());
+        for (std::size_t index = 0;
+             index < physicsWorld->vehicleCount(); ++index)
+            raceVehicles[index] = physicsWorld->vehicle(index);
+        inRace = true;
+        if (options->raceRenderSmokeTest)
+            integratedRaceStartObserved = true;
+        previousFrameTicks = SDL_GetTicksNS();
+#ifdef RRR3D_AUDIO
+        startRaceAudio();
+#endif
+        std::cout << "MainMenu2 -> original race: "
+                  << originalRace->levelPath << '\n';
+    };
+    auto replacePage = [&](MenuPageVisual& page,
+                           std::vector<std::string> pageLabels) {
+        auto replacement = createPage(std::move(pageLabels));
+        destroyPage(page);
+        page = std::move(replacement);
+        menuSelection =
+            std::min(menuSelection, page.labels.size() - 1U);
+    };
+    auto refreshCurrentOptionsPage = [&]() {
+        switch (menuStack.back())
+        {
+        case MenuScreen::GameOptions:
+            replacePage(gameOptionsPage, gameOptionsLabels());
+            break;
+        case MenuScreen::GraphicsOptions:
+            replacePage(
+                graphicsOptionsPage, graphicsOptionsLabels());
+            break;
+        case MenuScreen::SoundOptions:
+            replacePage(soundOptionsPage, soundOptionsLabels());
+            break;
+        case MenuScreen::ControlsOptions:
+            replacePage(
+                controlsOptionsPage, controlsOptionsLabels());
+            break;
+        default:
+            break;
+        }
+    };
+    auto cycleValue = [](std::uint32_t value,
+                         std::uint32_t count, int direction) {
+        if (count == 0U)
+            return 0U;
+        const int normalized =
+            (static_cast<int>(value % count) + direction +
+             static_cast<int>(count)) %
+            static_cast<int>(count);
+        return static_cast<std::uint32_t>(normalized);
+    };
+    auto adjustCurrentOption = [&](int direction) {
+        direction = direction < 0 ? -1 : 1;
+        switch (menuStack.back())
+        {
+        case MenuScreen::GameOptions:
+            switch (menuSelection)
+            {
+            case 0:
+                profileState.config.preferredCamera =
+                    profileState.config.preferredCamera ==
+                            r3d::game::originalrace::
+                                PreferredCamera::ThirdPerson
+                        ? r3d::game::originalrace::
+                              PreferredCamera::Isometric
+                        : r3d::game::originalrace::
+                              PreferredCamera::ThirdPerson;
+                raceRenderer.resetCamera();
+                break;
+            case 1:
+                profileState.config.cameraDistance =
+                    std::clamp(
+                        profileState.config.cameraDistance +
+                            static_cast<float>(direction) * 0.25F,
+                        1.0F, 2.0F);
+                break;
+            case 2:
+                profileState.config.enableHud =
+                    !profileState.config.enableHud;
+                break;
+            case 3: {
+                static constexpr std::array<std::string_view, 3>
+                    difficulties{
+                        "gdEasy", "gdNormal", "gdHard"};
+                const auto found = std::find(
+                    difficulties.begin(), difficulties.end(),
+                    profileState.player.difficulty);
+                const auto index =
+                    found == difficulties.end()
+                        ? 1U
+                        : static_cast<std::uint32_t>(
+                              found - difficulties.begin());
+                profileState.player.difficulty =
+                    difficulties[cycleValue(index, 3U, direction)];
+                break;
+            }
+            case 4:
+                profileState.config.springBorders =
+                    !profileState.config.springBorders;
+                break;
+            case 5:
+                profileState.config.lapsCount =
+                    std::clamp(
+                        static_cast<int>(
+                            profileState.config.lapsCount) +
+                            direction,
+                        1, 8);
+                break;
+            case 6:
+                profileState.config.maxComputers =
+                    cycleValue(
+                        profileState.config.maxComputers,
+                        6U, direction);
+                break;
+            case 7:
+                profileState.config.enableMineBug =
+                    !profileState.config.enableMineBug;
+                raceSession.setEnableMineBug(
+                    profileState.config.enableMineBug);
+                break;
+            default:
+                return;
+            }
+            break;
+        case MenuScreen::GraphicsOptions:
+            switch (menuSelection)
+            {
+            case 0:
+                profileState.config.quality.filtering =
+                    cycleValue(
+                        profileState.config.quality.filtering,
+                        4U, direction);
+                break;
+            case 1:
+                profileState.config.quality.msaa =
+                    cycleValue(
+                        profileState.config.quality.msaa,
+                        4U, direction);
+                break;
+            case 2:
+                profileState.config.quality.shadow =
+                    cycleValue(
+                        profileState.config.quality.shadow,
+                        3U, direction);
+                break;
+            case 3:
+                profileState.config.quality.environment =
+                    cycleValue(
+                        profileState.config.quality.environment,
+                        3U, direction);
+                break;
+            case 4:
+                profileState.config.quality.light =
+                    cycleValue(
+                        profileState.config.quality.light,
+                        3U, direction);
+                break;
+            case 5:
+                profileState.config.quality.postEffect =
+                    cycleValue(
+                        profileState.config.quality.postEffect,
+                        3U, direction);
+                break;
+            case 6:
+                profileState.config.fullScreen =
+                    !profileState.config.fullScreen;
+                if (!SDL_SetWindowFullscreen(
+                        window, profileState.config.fullScreen))
+                {
+                    std::cerr
+                        << "Unable to change original window mode: "
+                        << SDL_GetError() << '\n';
+                    profileState.config.fullScreen =
+                        !profileState.config.fullScreen;
+                }
+                break;
+            default:
+                return;
+            }
+            break;
+        case MenuScreen::SoundOptions:
+            switch (menuSelection)
+            {
+            case 0:
+                profileState.config.language =
+                    profileState.config.language == "russian"
+                        ? "english"
+                        : "russian";
+                break;
+            case 1:
+                profileState.config.commentatorStyle =
+                    profileState.config.commentatorStyle == "russian"
+                        ? "english"
+                        : "russian";
+#ifdef RRR3D_AUDIO
+                commentator.shutdown();
+                if (!commentator.initialize(
+                        profileState.config.commentatorStyle,
+                        audioError))
+                {
+                    std::cerr
+                        << "Unable to switch commentator: "
+                        << audioError << '\n';
+                }
+#endif
+                break;
+            case 2:
+                profileState.config.musicVolume =
+                    std::clamp(
+                        profileState.config.musicVolume +
+                            static_cast<float>(direction) * 0.1F,
+                        0.0F, 2.0F);
+#ifdef RRR3D_AUDIO
+                audio.setBusVolume(
+                    r3d::audio::Bus::Music,
+                    profileState.config.musicVolume);
+#endif
+                break;
+            case 3:
+                profileState.config.effectsVolume =
+                    std::clamp(
+                        profileState.config.effectsVolume +
+                            static_cast<float>(direction) * 0.1F,
+                        0.0F, 2.0F);
+#ifdef RRR3D_AUDIO
+                audio.setBusVolume(
+                    r3d::audio::Bus::Effects,
+                    profileState.config.effectsVolume);
+#endif
+                break;
+            case 4:
+                profileState.config.voiceVolume =
+                    std::clamp(
+                        profileState.config.voiceVolume +
+                            static_cast<float>(direction) * 0.1F,
+                        0.0F, 2.0F);
+#ifdef RRR3D_AUDIO
+                audio.setBusVolume(
+                    r3d::audio::Bus::Voice,
+                    profileState.config.voiceVolume);
+#endif
+                break;
+            default:
+                return;
+            }
+            break;
+        default:
+            return;
+        }
+        refreshCurrentOptionsPage();
+        std::string optionSaveError;
+        if (!profileStore.save(profileState, optionSaveError))
+            std::cerr << "Unable to save original options: "
+                      << optionSaveError << '\n';
+    };
+    auto showFinishMenu = [&]() {
+        if (finishMenuShown || raceSession.racers().empty())
+            return;
+        finishMenuShown = true;
+        saveRaceProfile();
+#ifdef RRR3D_AUDIO
+        stopRaceAudio();
+#endif
+        std::vector<std::size_t> order(
+            raceSession.racers().size());
+        for (std::size_t index = 0; index < order.size(); ++index)
+            order[index] = index;
+        std::stable_sort(
+            order.begin(), order.end(),
+            [&](std::size_t first, std::size_t second) {
+                return raceSession.racers()[first].place <
+                       raceSession.racers()[second].place;
+            });
+        std::ostringstream summary;
+        summary << localized("svFinish") << '\n';
+        for (const auto racer : order)
+        {
+            const auto& result = raceSession.racers()[racer];
+            const float time =
+                result.finishTime >= 0.0F
+                    ? result.finishTime
+                    : raceSession.elapsedSeconds();
+            const auto minutes =
+                static_cast<unsigned>(time) / 60U;
+            const float seconds =
+                time - static_cast<float>(minutes * 60U);
+            summary << result.place << ". "
+                    << originalRace->racers[racer].name << "  "
+                    << minutes << ':' << std::fixed
+                    << std::setprecision(2) << std::setw(5)
+                    << std::setfill('0') << seconds << '\n';
+        }
+        const auto& player = raceSession.racers().front();
+        summary << localized("svMoney") << ": +"
+                << player.rewardMoney + player.pickedMoney << "   "
+                << localized("svPoints") << ": +"
+                << player.rewardPoints;
+        try
+        {
+            auto replacement = createText(
+                *device, summary.str(), menu::smallFontHeight,
+                false, menu::normalTextColor, resolvedFont);
+            device->destroy(finishSummary.texture);
+            finishSummary = replacement;
+        }
+        catch (const std::exception& exception)
+        {
+            std::cerr << "Unable to create FinishMenu results: "
+                      << exception.what() << '\n';
+        }
+        inRace = false;
+        raceInput = {};
+        raceUseWeapon = false;
+        raceUseMine = false;
+        raceUseHyper = false;
+        menuStack = {MenuScreen::Main, MenuScreen::Finish};
+        menuSelection = 0;
+        std::cout << "Original FinishMenu: place "
+                  << player.place << ", money +"
+                  << player.rewardMoney + player.pickedMoney
+                  << ", points +" << player.rewardPoints << '\n';
     };
 #endif
 #ifdef RRR3D_AUDIO
@@ -1356,23 +2168,37 @@ int main(int argc, char** argv)
         }
     }
 #endif
-#if defined(RRR3D_PHYSICS) && defined(RRR3D_GAMEPAD_INPUT)
-    if (options->raceRenderSmokeTest)
-    {
-        SDL_Event confirm{};
-        confirm.key.type = SDL_EVENT_KEY_DOWN;
-        confirm.key.down = true;
-        confirm.key.scancode = SDL_SCANCODE_RETURN;
-        if (!SDL_PushEvent(&confirm))
-        {
-            std::cerr << "Unable to queue integrated M9 Single Player event: "
-                      << SDL_GetError() << '\n';
-            runtimeSmokeFailed = true;
-        }
-    }
-#endif
     while (running)
     {
+#if defined(RRR3D_PHYSICS) && defined(RRR3D_GAMEPAD_INPUT)
+        // Do not enqueue all confirms before the event loop.  SDL's input
+        // layer intentionally suppresses repeats while a key is held, and
+        // the old batch therefore never exercised Main -> GameMode ->
+        // Tournament -> Continue.  Advance one real press/release pair per
+        // rendered menu frame instead.
+        if (options->raceRenderSmokeTest && !inRace &&
+            raceSmokeMenuStep < 3U &&
+            renderedFrames >= raceSmokeNextMenuFrame)
+        {
+            SDL_Event confirm{};
+            confirm.key.type = SDL_EVENT_KEY_DOWN;
+            confirm.key.down = true;
+            confirm.key.scancode = SDL_SCANCODE_RETURN;
+            SDL_Event release = confirm;
+            release.key.type = SDL_EVENT_KEY_UP;
+            release.key.down = false;
+            if (!SDL_PushEvent(&confirm) ||
+                !SDL_PushEvent(&release))
+            {
+                std::cerr << "Unable to queue integrated M9 menu step "
+                          << raceSmokeMenuStep << ": "
+                          << SDL_GetError() << '\n';
+                runtimeSmokeFailed = true;
+            }
+            ++raceSmokeMenuStep;
+            raceSmokeNextMenuFrame = renderedFrames + 1U;
+        }
+#endif
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
@@ -1403,6 +2229,37 @@ int main(int argc, char** argv)
             }
 #endif
 #ifdef RRR3D_GAMEPAD_INPUT
+#ifdef RRR3D_PHYSICS
+            if (!inRace && bindingCaptureAction &&
+                event.type == SDL_EVENT_KEY_DOWN &&
+                !event.key.repeat)
+            {
+                const auto keyName =
+                    originalKeyName(event.key.scancode);
+                if (!keyName.empty())
+                {
+                    profileState.config.keyboardControls[
+                        *bindingCaptureAction] = keyName;
+                    input.applyKeyboardBindings(
+                        profileState.config.keyboardControls);
+                    std::cout
+                        << "Original ControlsFrame: "
+                        << *bindingCaptureAction << " -> "
+                        << keyName << '\n';
+                    bindingCaptureAction.reset();
+                    refreshCurrentOptionsPage();
+                    std::string bindingSaveError;
+                    if (!profileStore.save(
+                            profileState, bindingSaveError))
+                    {
+                        std::cerr
+                            << "Unable to save control binding: "
+                            << bindingSaveError << '\n';
+                    }
+                }
+                continue;
+            }
+#endif
             bool pointerTargetsItem = true;
             if (
 #ifdef RRR3D_PHYSICS
@@ -1412,11 +2269,11 @@ int main(int argc, char** argv)
             {
                 const auto hovered = hoveredItem(
                     window, event.motion.x, event.motion.y,
-                    model->items.size(),
+                    activeMenuPage().labels.size(),
                     static_cast<float>(model->selectionImage.width),
                     static_cast<float>(model->selectionImage.height));
                 if (hovered)
-                    controller.select(*hovered);
+                    menuSelection = *hovered;
             }
             else if (
 #ifdef RRR3D_PHYSICS
@@ -1426,13 +2283,13 @@ int main(int argc, char** argv)
             {
                 const auto hovered = hoveredItem(
                     window, event.button.x, event.button.y,
-                    model->items.size(),
+                    activeMenuPage().labels.size(),
                     static_cast<float>(model->selectionImage.width),
                     static_cast<float>(model->selectionImage.height));
                 pointerTargetsItem = hovered.has_value() ||
                                      event.button.button != SDL_BUTTON_LEFT;
                 if (hovered)
-                    controller.select(*hovered);
+                    menuSelection = *hovered;
             }
             const auto inputEvents = input.processEvent(event);
             for (const auto& inputEvent : inputEvents)
@@ -1549,8 +2406,64 @@ int main(int argc, char** argv)
                     inputEvent.action ==
                         rrr3d::input::Action::MenuConfirm)
                     continue;
-                const auto command = controller.handle(inputEvent);
-                if (!command)
+                if (!inputEvent.active)
+                    continue;
+                auto& page = activeMenuPage();
+                if (inputEvent.action ==
+                    rrr3d::input::Action::MenuUp)
+                {
+                    menuSelection =
+                        menuSelection == 0U
+                            ? page.labels.size() - 1U
+                            : menuSelection - 1U;
+                    continue;
+                }
+                if (inputEvent.action ==
+                    rrr3d::input::Action::MenuDown)
+                {
+                    menuSelection =
+                        (menuSelection + 1U) % page.labels.size();
+                    continue;
+                }
+#ifdef RRR3D_PHYSICS
+                const bool adjustableOptions =
+                    menuStack.back() == MenuScreen::GameOptions ||
+                    menuStack.back() ==
+                        MenuScreen::GraphicsOptions ||
+                    menuStack.back() == MenuScreen::SoundOptions;
+                if (adjustableOptions &&
+                    (inputEvent.action ==
+                         rrr3d::input::Action::TurnLeft ||
+                     inputEvent.action ==
+                         rrr3d::input::Action::TurnRight))
+                {
+                    if (!inputEvent.repeated)
+                    {
+                        adjustCurrentOption(
+                            inputEvent.action ==
+                                    rrr3d::input::Action::TurnLeft
+                                ? -1
+                                : 1);
+                    }
+                    continue;
+                }
+#endif
+                if (inputEvent.repeated)
+                    continue;
+                if (inputEvent.action ==
+                    rrr3d::input::Action::MenuBack)
+                {
+#ifdef RRR3D_AUDIO
+                    playMainButtonClick();
+#endif
+                    if (menuStack.size() == 1U)
+                        running = false;
+                    else
+                        backMenu();
+                    continue;
+                }
+                if (inputEvent.action !=
+                    rrr3d::input::Action::MenuConfirm)
                     continue;
 #ifdef RRR3D_AUDIO
                 // MainMenu2 creates these buttons with ssButton1. The legacy
@@ -1559,52 +2472,215 @@ int main(int argc, char** argv)
                 const bool clickStarted = playMainButtonClick();
 #if defined(RRR3D_GAMEPAD_INPUT)
                 if (options->audioSmokeTest && clickStarted &&
-                    *command == menu::Command::Network &&
-                    controller.selectedItem() == 1)
+                    menuStack.back() == MenuScreen::Main &&
+                    menuSelection == 1U)
                 {
                     integratedAudioInputObserved = true;
                 }
 #endif
 #endif
-                std::cout << "MainMenu2 command: "
-                          << menu::commandName(*command) << " via "
+                std::cout << "MainMenu2 selection: "
+                          << page.labels[menuSelection] << " via "
                           << rrr3d::input::sourceName(inputEvent.source)
                           << '\n';
-                if (*command == menu::Command::Exit ||
-                    *command == menu::Command::Back)
+                switch (menuStack.back())
                 {
-                    running = false;
-                }
+                case MenuScreen::Main:
+                    if (menuSelection == 0U)
+                        pushMenu(MenuScreen::GameMode);
+                    else if (menuSelection == 1U)
+                        pushMenu(MenuScreen::Network);
+                    else if (menuSelection == 2U)
+                        pushMenu(MenuScreen::Options);
+                    else if (menuSelection == 3U)
+                        pushMenu(MenuScreen::Credits);
+                    else
+                        running = false;
+                    break;
+                case MenuScreen::GameMode:
+                    if (menuSelection == 0U)
+                    {
+                        championshipMode = true;
+                        pushMenu(MenuScreen::Tournament);
+                    }
+                    else if (menuSelection == 1U)
+                    {
+                        championshipMode = false;
+                        newTournamentProfile = false;
+                        pushMenu(MenuScreen::Difficulty);
+                    }
+                    else
+                        backMenu();
+                    break;
+                case MenuScreen::Tournament:
+                    if (menuSelection == 0U)
+                    {
 #ifdef RRR3D_PHYSICS
-                else if (*command == menu::Command::SinglePlayer)
-                {
-                    physicsWorld->reset();
-                    raceSession.reset();
-                    raceRenderer.resetCamera();
-                    raceInput = {};
-                    raceUseWeapon = false;
-                    raceUseMine = false;
-                    raceUseHyper = false;
-                    raceChangeWeaponRequested = false;
-                    raceWeaponSlotRequested = -1;
-                    raceResetRequested = false;
-                    raceElapsedSeconds = 0.0F;
-                    raceProgressSaved = false;
-                    for (std::size_t index = 0;
-                         index < physicsWorld->vehicleCount(); ++index)
-                        raceVehicles[index] =
-                            physicsWorld->vehicle(index);
-                    inRace = true;
-                    if (options->raceRenderSmokeTest)
-                        integratedRaceStartObserved = true;
-                    previousFrameTicks = SDL_GetTicksNS();
-#ifdef RRR3D_AUDIO
-                    startRaceAudio();
+                        startCurrentRace();
 #endif
-                    std::cout << "MainMenu2 -> original race: "
-                              << originalRace->levelPath << '\n';
+                    }
+                    else if (menuSelection == 1U)
+                    {
+                        championshipMode = true;
+                        newTournamentProfile = true;
+                        pushMenu(MenuScreen::Difficulty);
+                    }
+                    else if (menuSelection == 2U)
+                        pushMenu(MenuScreen::Profiles);
+                    else
+                        backMenu();
+                    break;
+                case MenuScreen::Difficulty:
+                    if (menuSelection >= 3U)
+                    {
+                        backMenu();
+                        break;
+                    }
+#ifdef RRR3D_PHYSICS
+                    profileState.player.difficulty =
+                        std::array<std::string, 3>{
+                            "gdEasy", "gdNormal", "gdHard"}
+                            [menuSelection];
+                    if (championshipMode && newTournamentProfile)
+                    {
+                        const auto profileName =
+                            profileState.player.name;
+                        const auto color =
+                            profileState.player.color;
+                        profileState.player =
+                            r3d::game::originalrace::PlayerProfile{};
+                        profileState.player.name = profileName;
+                        profileState.player.color = color;
+                        profileState.player.difficulty =
+                            std::array<std::string, 3>{
+                                "gdEasy", "gdNormal", "gdHard"}
+                                [menuSelection];
+                        selectedTrack = 0U;
+                    }
+                    saveRaceProfile();
+                    startCurrentRace();
+#endif
+                    break;
+                case MenuScreen::Profiles:
+                    if (menuSelection + 1U >= page.labels.size())
+                        backMenu();
+                    else
+                    {
+#ifdef RRR3D_PHYSICS
+                        // Persist the profile being left before replacing
+                        // PlayerProfile.  Merely changing its name used to
+                        // save the current car/progress into another file
+                        // and never loaded the chosen Windows profile.
+                        saveRaceProfile();
+                        std::string profileError;
+                        if (!profileStore.selectProfile(
+                                profileState,
+                                page.labels[menuSelection],
+                                profileError))
+                        {
+                            std::cerr
+                                << "Unable to load original profile: "
+                                << profileError << '\n';
+                            break;
+                        }
+                        selectedTrack =
+                            r3d::game::originalrace::
+                                resolveOriginalTournamentTrack(
+                                    *originalRace,
+                                    profileState.player);
+                        if (!reloadCurrentRace())
+                        {
+                            runtimeSmokeFailed = true;
+                            running = false;
+                            break;
+                        }
+                        input.applyKeyboardBindings(
+                            profileState.config.keyboardControls);
+                        saveRaceProfile();
+#endif
+                        backMenu();
+                    }
+                    break;
+                case MenuScreen::Network:
+                    if (menuSelection + 1U >= page.labels.size())
+                        backMenu();
+                    else
+                        std::cout
+                            << "Network mode requires the pending "
+                               "non-Windows NetLib transport port\n";
+                    break;
+                case MenuScreen::Options:
+#ifdef RRR3D_PHYSICS
+                    if (menuSelection == 0U)
+                        pushMenu(MenuScreen::GameOptions);
+                    else if (menuSelection == 1U)
+                        pushMenu(MenuScreen::GraphicsOptions);
+                    else if (menuSelection == 2U)
+                        pushMenu(MenuScreen::SoundOptions);
+                    else if (menuSelection == 3U)
+                        pushMenu(MenuScreen::ControlsOptions);
+                    else
+                        backMenu();
+#else
+                    backMenu();
+#endif
+                    break;
+                case MenuScreen::Credits:
+                    backMenu();
+                    break;
+#ifdef RRR3D_PHYSICS
+                case MenuScreen::GameOptions:
+                case MenuScreen::GraphicsOptions:
+                case MenuScreen::SoundOptions:
+                    if (menuSelection + 1U >= page.labels.size())
+                        backMenu();
+                    else
+                        adjustCurrentOption(1);
+                    break;
+                case MenuScreen::ControlsOptions:
+                    if (menuSelection + 1U >= page.labels.size())
+                    {
+                        backMenu();
+                    }
+                    else
+                    {
+                        static constexpr std::array<
+                            std::string_view, 7>
+                            controlActions{
+                                "gaAccel", "gaBreak",
+                                "gaWheelLeft", "gaWheelRight",
+                                "gaShot", "gaMine",
+                                "gaViewSwitch"};
+                        bindingCaptureAction =
+                            controlActions[menuSelection];
+                        std::cout
+                            << "Original ControlsFrame: "
+                            << localized("svPressKey") << " ("
+                            << *bindingCaptureAction << ")\n";
+                    }
+                    break;
+                case MenuScreen::Finish:
+                    if (menuSelection == 0U)
+                    {
+                        menuStack =
+                            championshipMode
+                                ? std::vector<MenuScreen>{
+                                      MenuScreen::Main,
+                                      MenuScreen::GameMode,
+                                      MenuScreen::Tournament}
+                                : std::vector<MenuScreen>{
+                                      MenuScreen::Main,
+                                      MenuScreen::GameMode};
+                        startCurrentRace();
+                    }
+                    else
+                    {
+                        menuStack = {MenuScreen::Main};
+                        menuSelection = 0;
+                    }
+                    break;
+#endif
                 }
-#endif
             }
 #endif
             if (event.type == SDL_EVENT_QUIT ||
@@ -1942,6 +3018,9 @@ int main(int argc, char** argv)
             maximumRaceSmokeContacts = std::max(
                 maximumRaceSmokeContacts,
                 physicsWorld->vehicle().contactCount);
+            if (!raceSession.racers().empty() &&
+                raceSession.racers().front().finished)
+                showFinishMenu();
         }
 #endif
 
@@ -2200,7 +3279,9 @@ int main(int argc, char** argv)
                  static_cast<float>(model->topPanelImage.height),
                  menu::virtualWidth * 0.5F, 200.0F, 70.0F, transparent);
 
-        for (std::size_t index = 0; index < normalItems.size(); ++index)
+        auto& activePage = activeMenuPage();
+        for (std::size_t index = 0;
+             index < activePage.normal.size(); ++index)
         {
             const float centerX = menu::virtualWidth * 0.5F +
                                   menu::itemCenterOffsetX;
@@ -2208,19 +3289,49 @@ int main(int argc, char** argv)
                                   menu::firstItemOffsetY +
                                   static_cast<float>(index) *
                                       menu::itemSpacing;
-            if (index == controller.selectedItem())
+            if (index == menuSelection)
             {
                 drawQuad(*device, quad, shader, selection,
                          static_cast<float>(model->selectionImage.width),
                          static_cast<float>(model->selectionImage.height),
                          centerX, centerY, 50.0F, transparent);
             }
-            const auto& text = index == controller.selectedItem()
-                                   ? selectedItems[index]
-                                   : normalItems[index];
+            const auto& text = index == menuSelection
+                                   ? activePage.selected[index]
+                                   : activePage.normal[index];
             drawQuad(*device, quad, shader, text.texture, text.width,
                      text.height, centerX, centerY, 25.0F, transparent);
         }
+        if (menuStack.back() == MenuScreen::Credits)
+        {
+            const float scroll =
+                std::fmod(
+                    static_cast<float>(SDL_GetTicks()) * 0.02F,
+                    credits.height + 400.0F);
+            drawQuad(
+                *device, quad, shader, credits.texture,
+                std::min(credits.width, 700.0F), credits.height,
+                menu::virtualWidth * 0.5F - 260.0F,
+                menu::virtualHeight + credits.height * 0.5F -
+                    scroll,
+                30.0F, transparent);
+        }
+#ifdef RRR3D_PHYSICS
+        if (menuStack.back() == MenuScreen::Finish)
+        {
+            const float scale = std::min(
+                {1.0F,
+                 1050.0F / std::max(finishSummary.width, 1.0F),
+                 430.0F / std::max(finishSummary.height, 1.0F)});
+            drawQuad(
+                *device, quad, shader, finishSummary.texture,
+                finishSummary.width * scale,
+                finishSummary.height * scale,
+                menu::virtualWidth * 0.5F,
+                menu::virtualHeight * 0.70F,
+                30.0F, transparent);
+        }
+#endif
 
         const float versionX = menu::virtualWidth - 25.0F -
                                version.width * 0.5F;

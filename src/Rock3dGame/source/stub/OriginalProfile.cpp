@@ -599,6 +599,37 @@ ProfileState OriginalProfileStore::load(std::string& warning) const
     return state;
 }
 
+bool OriginalProfileStore::selectProfile(
+    ProfileState& state, std::string_view name,
+    std::string& error) const
+{
+    error.clear();
+    const auto profileName = cleanFileName(std::string(name));
+    if (std::find(state.profiles.begin(), state.profiles.end(),
+                  profileName) == state.profiles.end())
+    {
+        error = "unknown original profile: " + profileName;
+        return false;
+    }
+
+    const auto path = loadPath(
+        std::filesystem::path("Profile") /
+        (profileName + ".xml"));
+    std::error_code fileError;
+    if (!std::filesystem::is_regular_file(path, fileError))
+    {
+        error = "original profile file is missing: " +
+                path.string();
+        return false;
+    }
+
+    PlayerProfile selected;
+    selected.name = profileName;
+    loadProfile(path, selected);
+    state.player = std::move(selected);
+    return true;
+}
+
 bool OriginalProfileStore::save(const ProfileState& state,
                                 std::string& error) const
 {

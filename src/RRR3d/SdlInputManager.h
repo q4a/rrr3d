@@ -29,6 +29,8 @@ class SdlInputManager
 
 	bool initialize(std::string &error);
 	void shutdown() noexcept;
+	void applyKeyboardBindings(
+	    const std::map<std::string, std::string> &bindings);
 
 	std::vector<ActionEvent> processEvent(const SDL_Event &event);
 
@@ -49,6 +51,8 @@ class SdlInputManager
 	void appendGamepadReleases(std::vector<ActionEvent> &events, SDL_JoystickID device_id) const;
 
 	bool initialized_ = false;
+	bool keyboard_bindings_configured_ = false;
+	std::map<SDL_Scancode, std::vector<Action>> keyboard_actions_;
 	std::map<SDL_JoystickID, GamepadState> gamepads_;
 };
 

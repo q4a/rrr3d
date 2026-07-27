@@ -164,6 +164,7 @@ private:
     r3d::physics::Vec3 cameraLead_;
     r3d::physics::Vec3 previousCameraTarget_;
     r3d::physics::Vec3 cameraPosition_;
+    r3d::physics::Vec3 cameraViewDirection_{1.0F, 0.0F, 0.0F};
     r3d::physics::Vec3 cameraJumpDirection_;
     r3d::physics::Vec3 thirdPersonDirection_{1.0F, 0.0F, 0.0F};
     std::vector<std::vector<std::vector<r3d::physics::Vec3>>>

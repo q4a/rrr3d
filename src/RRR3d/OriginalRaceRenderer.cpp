@@ -689,16 +689,24 @@ void drawGroups(GraphicsDevice& device,
                     r3d::game::originalrace::LightingMode::Standard,
                 DrawLayer layer = DrawLayer::All,
                 const r3d::game::originalrace::VisualNode* node = nullptr,
-                float opacity = 1.0F)
+                float opacity = 1.0F,
+                const std::array<float, 4>* tint = nullptr)
 {
     if (asset.textures.empty())
         return;
     const auto geometryPipeline = nodePipeline(pipeline, node);
     auto materialState =
-        [&asset, elapsedSeconds, reflectionStrength, lighting, opacity](
+        [&asset, elapsedSeconds, reflectionStrength, lighting, opacity, tint](
             const auto& material, std::size_t materialIndex) {
             MaterialState state;
             state.color = material.color;
+            if (tint != nullptr)
+            {
+                state.color[0] *= (*tint)[0];
+                state.color[1] *= (*tint)[1];
+                state.color[2] *= (*tint)[2];
+                state.color[3] *= (*tint)[3];
+            }
             state.color[3] *= opacity;
             state.alphaReference = material.alphaReference;
             state.emissive = material.emissive;
@@ -1656,6 +1664,7 @@ Camera OriginalRaceRenderer::makeCamera(
             isoRotation.w};
         const auto isoDirection =
             rotate(isoRotation, {1.0F, 0.0F, 0.0F});
+        cameraViewDirection_ = isoDirection;
 
         // This follows CameraManager::csIsometric's projection into camera
         // space, border clipping and transform back into world space.
@@ -1798,6 +1807,8 @@ Camera OriginalRaceRenderer::makeCamera(
                       position.y + thirdPersonDirection_.y * 8.0F,
                       position.z + 2.4F};
     cameraPosition_ = {eye.x, eye.y, eye.z};
+    cameraViewDirection_ = {
+        thirdPersonDirection_.x, thirdPersonDirection_.y, 0.0F};
     previousCameraTarget_ = position;
     cameraInitialized_ = true;
     Camera camera;
@@ -1815,6 +1826,7 @@ void OriginalRaceRenderer::resetCamera() noexcept
     cameraLead_ = {};
     previousCameraTarget_ = {};
     cameraPosition_ = {};
+    cameraViewDirection_ = {1.0F, 0.0F, 0.0F};
     cameraJumpDirection_ = {};
     thirdPersonDirection_ = {1.0F, 0.0F, 0.0F};
     cameraJumpDistance_ = 0.0F;
@@ -1975,6 +1987,7 @@ void OriginalRaceRenderer::draw(
         float opacity = 1.0F;
         RenderStage stage = RenderStage::Opacity;
         DrawLayer layer = DrawLayer::Transparency;
+        const std::array<float, 4>* tint = nullptr;
     };
     std::vector<DeferredVisualDraw> deferredVisuals;
     auto drawObject = [&](const ObjectAsset& asset,
@@ -1983,7 +1996,8 @@ void OriginalRaceRenderer::draw(
                           const r3d::physics::Transform& parent,
                           r3d::game::originalrace::GraphOrder graphOrder,
                           bool cullOpacityActor,
-                          float opacity) {
+                          float opacity,
+                          const std::array<float, 4>* tint) {
         const std::size_t count = std::min(asset.nodes.size(), nodes.size());
         for (std::size_t index = 0; index < count; ++index)
         {
@@ -2014,7 +2028,7 @@ void OriginalRaceRenderer::draw(
                 drawGroups(device, asset.nodes[index], shader, model,
                            pipeline, elapsedSeconds, reflectionStrength,
                            asset.lighting, DrawLayer::Opaque,
-                           &nodes[index]);
+                           &nodes[index], 1.0F, tint);
             }
             if (deferredActor ||
                 std::any_of(
@@ -2036,7 +2050,8 @@ void OriginalRaceRenderer::draw(
                      dx * dx + dy * dy + dz * dz, opacity,
                      renderStage(graphOrder, cullOpacityActor),
                      deferredActor ? DrawLayer::All
-                                   : DrawLayer::Transparency});
+                                   : DrawLayer::Transparency,
+                     tint});
             }
         }
     };
@@ -2549,10 +2564,17 @@ void OriginalRaceRenderer::draw(
             const std::vector<r3d::physics::Vec3>*
                 trailOverride = nullptr,
             float opacity = 1.0F) {
+            // gpCullOpacity only makes an actor a RayUser after the
+            // camera-to-player cast hits it.  ActorManager renders every
+            // other actor through its normal graph-order/depth pass.
+            // Deferring every tagged actor unconditionally changed depth
+            // ordering across the whole map and caused visible popping.
             const bool cullOpacityActor =
-                !reflectionPass && definition.cullOpacity;
+                !reflectionPass && definition.cullOpacity &&
+                opacity < 0.999F;
             drawObject(asset, definition.visualNodes, parent,
-                       definition.graphOrder, cullOpacityActor, opacity);
+                       definition.graphOrder, cullOpacityActor, opacity,
+                       nullptr);
             if (!definition.particleEmitters.empty())
             {
                 deferredParticles.push_back(
@@ -2636,7 +2658,7 @@ void OriginalRaceRenderer::draw(
         drawObject(vehicleBodies_[racer],
                    definition.bodyVisuals, state.body,
                    r3d::game::originalrace::GraphOrder::Default,
-                   false, 1.0F);
+                   false, 1.0F, &race.racers[racer].color);
         if (racer < racerRuntime.size())
         {
             const auto& runtime = racerRuntime[racer];
@@ -3174,7 +3196,8 @@ void OriginalRaceRenderer::draw(
                        deferred.model, stagePipeline,
                        elapsedSeconds, deferred.reflectionStrength,
                        deferred.lighting, deferred.layer,
-                       deferred.node, deferred.opacity);
+                       deferred.node, deferred.opacity,
+                       deferred.tint);
         }
         for (const auto& deferred : deferredParticles)
         {
@@ -3465,6 +3488,16 @@ void OriginalRaceRenderer::renderFrame(
             }
         }
     }
+    // ActorManager::PullInRayTargetGroup does not cast from the camera
+    // position. It projects the player to the near plane and unprojects the
+    // same screen point, producing a ray parallel to the orthographic view
+    // direction. Casting from cameraPosition_ incorrectly included the
+    // isometric lead offset and missed large gpCullOpacity actors directly
+    // over the car.
+    const r3d::physics::Vec3 rayStart{
+        rayTarget.x - cameraViewDirection_.x * 150.0F,
+        rayTarget.y - cameraViewDirection_.y * 150.0F,
+        rayTarget.z - cameraViewDirection_.z * 150.0F};
     auto updateCullTime = [cullDelta](float& time, bool overlap) {
         constexpr float duration = 0.25F;
         if (overlap)
@@ -3486,7 +3519,7 @@ void OriginalRaceRenderer::renderFrame(
                 objectBounds(tracks_.at(instance.definition),
                              definition.visualNodes,
                              instance.transform),
-                cameraPosition_, rayTarget, rayTargetSize);
+                rayStart, rayTarget, rayTargetSize);
         updateCullTime(trackCullOpacityTimes_[index], overlap);
     }
     decorationCullOpacityTimes_.resize(
@@ -3507,7 +3540,7 @@ void OriginalRaceRenderer::renderFrame(
                 objectBounds(decorations_.at(instance.definition),
                              definition.visualNodes,
                              instance.transform),
-                cameraPosition_, rayTarget, rayTargetSize);
+                rayStart, rayTarget, rayTargetSize);
         updateCullTime(
             decorationCullOpacityTimes_[index], overlap);
     }
@@ -3647,7 +3680,13 @@ void OriginalRaceRenderer::renderFrame(
             device.renderTargetTexture(reflectionTarget_);
 
         device.setPassState({});
-        device.beginPass(RenderPass::Water, hdrTarget_, postCamera,
+        // The copied scene uses a vertex shader that writes clip-space
+        // positions directly, while WaterVS needs the actual race camera
+        // for its world-space plane.  A bgfx view has one view/projection
+        // pair for all submissions, so using postCamera here transformed
+        // the hundreds-of-metres water plane as clip-space geometry and
+        // covered the frame with flashing, washed-out triangles.
+        device.beginPass(RenderPass::Water, hdrTarget_, camera,
                          clearRgba, true, true);
         device.draw(postProcessMesh_, copyShader_, sourceColor,
                     postTransform, postPipeline);

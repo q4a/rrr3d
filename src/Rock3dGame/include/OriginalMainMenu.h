@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace r3d::resource
@@ -53,6 +54,7 @@ struct Model
     Image selectionImage;
     Image cursorImage;
     ResourceAudit audit;
+    std::unordered_map<std::string, std::string> localizedStrings;
 };
 
 class Controller

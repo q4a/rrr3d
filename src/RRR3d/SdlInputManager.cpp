@@ -6,6 +6,8 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <optional>
+#include <string_view>
 
 namespace rrr3d::input
 {
@@ -60,6 +62,61 @@ constexpr std::array<Action, 19> allActions = {
 	Action::ToggleCamera, Action::ResetVehicle, Action::Pause, Action::MenuUp,
 	Action::MenuDown, Action::MenuConfirm, Action::MenuBack};
 
+SDL_Scancode legacyScancode(const std::string &name) noexcept
+{
+	if (name == "None")
+		return SDL_SCANCODE_UNKNOWN;
+	if (name == "Up Arrow")
+		return SDL_SCANCODE_UP;
+	if (name == "Down Arrow")
+		return SDL_SCANCODE_DOWN;
+	if (name == "Left Arrow")
+		return SDL_SCANCODE_LEFT;
+	if (name == "Right Arrow")
+		return SDL_SCANCODE_RIGHT;
+	if (name == "Enter")
+		return SDL_SCANCODE_RETURN;
+	if (name == "Back")
+		return SDL_SCANCODE_BACKSPACE;
+	const auto scancode = SDL_GetScancodeFromName(name.c_str());
+	return scancode;
+}
+
+std::optional<Action> gameAction(std::string_view name) noexcept
+{
+	if (name == "gaAccel")
+		return Action::Accelerate;
+	if (name == "gaBreak")
+		return Action::Brake;
+	if (name == "gaWheelLeft")
+		return Action::TurnLeft;
+	if (name == "gaWheelRight")
+		return Action::TurnRight;
+	if (name == "gaShot" || name == "gaShotAll")
+		return Action::UseWeapon;
+	if (name == "gaMine")
+		return Action::UseMine;
+	if (name == "gaHyper")
+		return Action::UseHyper;
+	if (name == "gaWeaponDown" || name == "gaWeaponUp")
+		return Action::ChangeWeapon;
+	if (name == "gaShot1")
+		return Action::SelectWeapon1;
+	if (name == "gaShot2")
+		return Action::SelectWeapon2;
+	if (name == "gaShot3")
+		return Action::SelectWeapon3;
+	if (name == "gaShot4")
+		return Action::SelectWeapon4;
+	if (name == "gaViewSwitch")
+		return Action::ToggleCamera;
+	if (name == "gaResetCar")
+		return Action::ResetVehicle;
+	if (name == "gaEscape")
+		return Action::Pause;
+	return std::nullopt;
+}
+
 } // namespace
 
 SdlInputManager::~SdlInputManager()
@@ -97,7 +154,27 @@ void SdlInputManager::shutdown() noexcept
 		SDL_CloseGamepad(state.handle);
 	}
 	gamepads_.clear();
+	keyboard_actions_.clear();
+	keyboard_bindings_configured_ = false;
 	initialized_ = false;
+}
+
+void SdlInputManager::applyKeyboardBindings(
+    const std::map<std::string, std::string> &bindings)
+{
+	keyboard_actions_.clear();
+	for (const auto &[name, key] : bindings)
+	{
+		const auto action = gameAction(name);
+		const auto scancode = legacyScancode(key);
+		if (!action || scancode == SDL_SCANCODE_UNKNOWN)
+			continue;
+		auto &actions = keyboard_actions_[scancode];
+		if (std::find(actions.begin(), actions.end(), *action) ==
+		    actions.end())
+			actions.push_back(*action);
+	}
+	keyboard_bindings_configured_ = true;
 }
 
 bool SdlInputManager::openGamepad(SDL_JoystickID device_id) noexcept
@@ -164,6 +241,46 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 	case SDL_EVENT_KEY_UP: {
 		const bool down = event.key.down;
 		const bool repeat = event.key.repeat;
+		if (keyboard_bindings_configured_)
+		{
+			// Menu navigation remains available independently of the race
+			// bindings, matching ControlManager's GUI navigation layer.
+			switch (event.key.scancode)
+			{
+			case SDL_SCANCODE_UP:
+			case SDL_SCANCODE_W:
+				appendDigital(events, Action::MenuUp, down, repeat,
+				              Source::Keyboard);
+				break;
+			case SDL_SCANCODE_DOWN:
+			case SDL_SCANCODE_S:
+				appendDigital(events, Action::MenuDown, down, repeat,
+				              Source::Keyboard);
+				break;
+			case SDL_SCANCODE_RETURN:
+			case SDL_SCANCODE_KP_ENTER:
+			case SDL_SCANCODE_SPACE:
+				appendDigital(events, Action::MenuConfirm, down, repeat,
+				              Source::Keyboard);
+				break;
+			case SDL_SCANCODE_ESCAPE:
+			case SDL_SCANCODE_BACKSPACE:
+				appendDigital(events, Action::MenuBack, down, repeat,
+				              Source::Keyboard);
+				break;
+			default:
+				break;
+			}
+			const auto found =
+			    keyboard_actions_.find(event.key.scancode);
+			if (found != keyboard_actions_.end())
+			{
+				for (const auto action : found->second)
+					appendDigital(events, action, down, repeat,
+					              Source::Keyboard);
+			}
+			break;
+		}
 		switch (event.key.scancode)
 		{
 		case SDL_SCANCODE_UP:

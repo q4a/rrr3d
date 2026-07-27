@@ -430,6 +430,19 @@ void selectRacers(Race& race,
     if (race.racers.size() < 2)
         throw resource::ResourceError(
             "tournamet.xml: selected race has no AI opponents");
+    static constexpr std::array<std::array<float, 4>, 8> aiColors{{
+        {91.0F / 255.0F, 41.0F / 255.0F, 165.0F / 255.0F, 1.0F},
+        {158.0F / 255.0F, 158.0F / 255.0F, 158.0F / 255.0F, 1.0F},
+        {1.0F, 128.0F / 255.0F, 192.0F / 255.0F, 1.0F},
+        {131.0F / 255.0F, 247.0F / 255.0F, 204.0F / 255.0F, 1.0F},
+        {131.0F / 255.0F, 229.0F / 255.0F, 0.0F, 1.0F},
+        {216.0F / 255.0F, 229.0F / 255.0F, 133.0F / 255.0F, 1.0F},
+        {97.0F / 255.0F, 0.0F, 185.0F / 255.0F, 1.0F},
+        {0.0F, 108.0F / 255.0F, 164.0F / 255.0F, 1.0F},
+    }};
+    for (std::size_t index = 1; index < race.racers.size(); ++index)
+        race.racers[index].color =
+            aiColors[(index - 1U) % aiColors.size()];
 }
 
 MaterialDefinition materialDefinition(
@@ -2734,6 +2747,7 @@ void applyOriginalPlayerProfile(
     auto* workshop = require(workshopDocument.RootElement(), "workshop",
                              "workshop.xml");
     auto& human = race.racers.front();
+    human.color = profile.color;
     auto tournamentDocument = parseXml(resources, "tournamet.xml");
     if (auto* gamers =
             child(tournamentDocument.RootElement(), "gamers"))
@@ -3069,6 +3083,10 @@ bool runOriginalRaceResourceSmokeTest(
             race.vehicle.wheelVisuals[1].cullMode !=
                 VisualNode::CullMode::CounterClockwise ||
             !near(race.vehicle.wheelVisualOffsets[0].x, 0.05F) ||
+            race.racers.size() < 2U ||
+            !near(race.racers[1].color[0], 91.0F / 255.0F) ||
+            !near(race.racers[1].color[1], 41.0F / 255.0F) ||
+            !near(race.racers[1].color[2], 165.0F / 255.0F) ||
             alphaTestMaterialCount == 0 ||
             !alphaTestThresholdMatchesSource ||
             cullOpacityDefinitionCount == 0 ||
