@@ -1,6 +1,7 @@
 #pragma once
 
 #include "NetModel.h"
+#include "INetService.h"
 
 namespace net
 {

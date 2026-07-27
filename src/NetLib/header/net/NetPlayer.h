@@ -1,5 +1,7 @@
 #pragma once
 
+#include "net/INetPlayer.h"
+
 namespace net
 {
 

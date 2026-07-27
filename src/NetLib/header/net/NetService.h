@@ -46,7 +46,7 @@ private:
 	NetClient* _netClient;
 	ModelClasses _modelClasses;
 
-	io_service _ioService;
+	io_context _ioService;
 
 	void AllocProtocols();
 	void ReleaseProtocols();
@@ -61,7 +61,7 @@ private:
 	void DeleteChannels();
 	void SendPing();
 
-	io_service& ioService();
+	io_context& ioService();
 	
 	virtual bool OnConnected(INetConnection* sender);
 	virtual bool OnDisconnected(INetConnection* sender);

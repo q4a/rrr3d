@@ -3,8 +3,15 @@
 #include "net/NetService.h"
 #include "net/NetConnectionTCP.h"
 
-#include <winsock2.h>
-#include <Iphlpapi.h>
+#ifdef _WIN32
+	#include <winsock2.h>
+	#include <Iphlpapi.h>
+#else
+	#include <arpa/inet.h>
+	#include <ifaddrs.h>
+	#include <net/if.h>
+	#include <netinet/in.h>
+#endif
 
 namespace net
 {
@@ -152,10 +159,10 @@ void NetService::SendPing()
 	header.sender = cLocalPlayer;
 	header.size = 0;
 	
-	_netChannel->SendState(Endpoint(ip::address_v4::broadcast().to_ulong(), _pingPort), header, streambuf::const_buffers_type(NULL, 0));
+	_netChannel->SendState(Endpoint(ip::address_v4::broadcast().to_uint(), _pingPort), header, streambuf::const_buffers_type(NULL, 0));
 }
 
-io_service& NetService::ioService()
+io_context& NetService::ioService()
 {
 	return _ioService;
 }
@@ -248,10 +255,15 @@ void NetService::Process(unsigned time)
 	_time = time;	
 
 	//receive async events (may immediately dispatched or collected depends from current async model)
-	error_code error;
-	_ioService.poll(error);
-	if (error)
-		lsl::appLog.Append(error.message());
+	// Boost 1.87 dropped the error_code overload of poll(); it throws instead.
+	try
+	{
+		_ioService.poll();
+	}
+	catch (const boost::system::system_error& error)
+	{
+		lsl::appLog.Append(error.what());
+	}
 
 	if (_connections.size() > 0)
 		++_bufConnectionTick;
@@ -354,7 +366,7 @@ void NetService::Close()
 {
 	if (!IsClosed())
 	{
-		_ioService.reset();
+		_ioService.restart();
 
 		lsl::SafeDelete(_netClient);
 		lsl::SafeDelete(_netServer);
@@ -518,6 +530,42 @@ INetAcceptorImpl* NetService::acceptorImpl() const
 	return _netAcceptorImpl;
 }
 
+#ifndef _WIN32
+
+// POSIX equivalent of the GetAdaptersAddresses path below. Same filtering:
+// IPv4 only, skipping loopback and interfaces that are not up.
+bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
+{
+	ifaddrs* ifaddr = NULL;
+
+	if (getifaddrs(&ifaddr) != 0)
+	{
+		LSL_LOG("getifaddrs failed");
+		return false;
+	}
+
+	for (ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next)
+	{
+		if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_INET)
+			continue;
+
+		if ((ifa->ifa_flags & IFF_LOOPBACK) || !(ifa->ifa_flags & IFF_UP))
+			continue;
+
+		const sockaddr_in* addr = reinterpret_cast<const sockaddr_in*>(ifa->ifa_addr);
+		char buf[INET_ADDRSTRLEN];
+
+		if (inet_ntop(AF_INET, &addr->sin_addr, buf, sizeof(buf)) != NULL)
+			addrVec.push_back(buf);
+	}
+
+	freeifaddrs(ifaddr);
+
+	return true;
+}
+
+#else
+
 bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
 {
 	const unsigned WORKING_BUFFER_SIZE = 15000;
@@ -583,6 +631,8 @@ bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
 
 	return true;
 }
+
+#endif /* !_WIN32 */
 
 IStreamBuf* NetService::CreateStreamBuf(unsigned maxSize, const std::allocator<char>& allocator)
 {

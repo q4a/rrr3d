@@ -9,7 +9,7 @@ private:
 	tcp::acceptor _acceptor;
 	bool _isOpen;
 public:
-	NetAcceptorTCP(io_service& io_service);
+	NetAcceptorTCP(io_context& io_context);
 	~NetAcceptorTCP();
 
 	void Listen(const Endpoint& endpoint);

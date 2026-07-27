@@ -1,5 +1,7 @@
 #include "stdafx.h"
 
+#include "net/INetPlayer.h"
+
 #include "net/NetModel.h"
 
 namespace net

@@ -22,19 +22,28 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     include
     ${CMAKE_SOURCE_DIR}/src/LexStd/header
     ${CMAKE_SOURCE_DIR}/src/MathLib/header
-    ${CMAKE_SOURCE_DIR}/extern/boost/include
-    ${CMAKE_SOURCE_DIR}/extern/directx/include
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     LexStd
-    Iphlpapi.lib
 )
 
-target_link_directories(${PROJECT_NAME} PRIVATE
-    "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/boost/lib/release>"
-    "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/boost/lib/debug>"
-)
+if (MSVC)
+    # Prebuilt 32-bit Boost from extern.7z, and the Win32 IP Helper API
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/extern/boost/include
+        ${CMAKE_SOURCE_DIR}/extern/directx/include
+    )
+    target_link_libraries(${PROJECT_NAME} PRIVATE Iphlpapi.lib)
+    target_link_directories(${PROJECT_NAME} PRIVATE
+        "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/boost/lib/release>"
+        "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/boost/lib/debug>"
+    )
+else()
+    # Only asio, bind and thread are used, all of which build natively
+    find_package(Boost REQUIRED COMPONENTS thread)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Boost::thread)
+endif()
 
 target_compile_definitions(${PROJECT_NAME}
     PRIVATE

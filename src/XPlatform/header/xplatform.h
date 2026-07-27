@@ -15,13 +15,24 @@
 #error "xplatform.h is the non-Windows substitute for <windows.h>"
 #endif
 
-#include <cfloat>
-#include <climits>
-#include <cstdarg>
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <string>
+/* This header is included from C too -- the vendored Wine d3dx9 math. */
+#ifdef __cplusplus
+	#include <cfloat>
+	#include <climits>
+	#include <cstdarg>
+	#include <cstddef>
+	#include <cstdint>
+	#include <cstdio>
+	#include <cstring>
+#else
+	#include <float.h>
+	#include <limits.h>
+	#include <stdarg.h>
+	#include <stddef.h>
+	#include <stdint.h>
+	#include <stdio.h>
+	#include <string.h>
+#endif
 
 /* ---- scalar types ---- */
 
@@ -32,6 +43,7 @@ typedef uint32_t        DWORD;
 typedef int32_t         LONG;
 typedef unsigned int    UINT;
 typedef int             INT;
+typedef float           FLOAT;
 typedef char            TCHAR;
 typedef wchar_t         WCHAR;
 typedef void*           HANDLE;
@@ -54,6 +66,7 @@ typedef int64_t         __int64;
 #define FALSE 0
 #endif
 
+#define CONST const
 #define WINAPI
 #define APIENTRY
 #define CALLBACK
@@ -79,6 +92,10 @@ typedef union _LARGE_INTEGER {
     struct { DWORD LowPart; LONG HighPart; };
     int64_t QuadPart;
 } LARGE_INTEGER;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ---- timing (QueryPerformanceCounter / GetTickCount) ---- */
 
@@ -150,6 +167,10 @@ int MessageBox(HWND owner, const char* text, const char* caption, UINT type);
 void OutputDebugStringA(const char* str);
 #define OutputDebugString OutputDebugStringA
 
+#ifdef __cplusplus
+}
+#endif
+
 #ifndef ZeroMemory
 #define ZeroMemory(dst, len) memset((dst), 0, (len))
 #endif
@@ -160,6 +181,7 @@ void OutputDebugStringA(const char* str);
 #define _vsnprintf  vsnprintf
 #define _vsnwprintf vswprintf
 
+#ifdef __cplusplus
 template <size_t size>
 inline int sprintf_s(char (&buffer)[size], const char* format, ...)
 {
@@ -178,5 +200,6 @@ inline int sprintf_s(char* buffer, size_t size, const char* format, ...)
     va_end(args);
     return result;
 }
+#endif /* __cplusplus */
 
 #endif /* XPLATFORM_H */

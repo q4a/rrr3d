@@ -24,6 +24,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/LexStd/header
 )
 
+if (NOT WIN32)
+    # d3dx9_compat.h defers to xplatform.h for the Windows scalar types
+    target_link_libraries(${PROJECT_NAME} PUBLIC XPlatform)
+endif()
+
 if (MSVC)
     # d3d9types.h, for the D3D base types the compat header defers to on Windows
     target_include_directories(${PROJECT_NAME} PRIVATE

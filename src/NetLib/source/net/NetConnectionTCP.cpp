@@ -5,7 +5,7 @@
 namespace net
 {
 
-NetAcceptorTCP::NetAcceptorTCP(io_service& io_service): _acceptor(io_service), _isOpen(false)
+NetAcceptorTCP::NetAcceptorTCP(io_context& io_context): _acceptor(io_context), _isOpen(false)
 {
 }
 
@@ -62,7 +62,7 @@ tcp::acceptor& NetAcceptorTCP::acceptor()
 	
 
 
-NetConnectionTCP::NetConnectionTCP(NetAcceptorTCP* owner): _owner(owner), _socket(owner->acceptor().get_io_service()), _isOpen(false), _beep(false), _beepCount(0), _isConnected(false)
+NetConnectionTCP::NetConnectionTCP(NetAcceptorTCP* owner): _owner(owner), _socket(owner->acceptor().get_executor()), _isOpen(false), _beep(false), _beepCount(0), _isConnected(false)
 {
 }
 
@@ -231,14 +231,14 @@ Endpoint NetConnectionTCP::localEndpoint()
 {
 	tcp::endpoint endpoint = _socket.local_endpoint();
 
-	return Endpoint(endpoint.address().to_v4().to_ulong(), endpoint.port());
+	return Endpoint(endpoint.address().to_v4().to_uint(), endpoint.port());
 }
 
 Endpoint NetConnectionTCP::remoteEndpoint()
 {
 	tcp::endpoint endpoint = _socket.remote_endpoint();
 
-	return Endpoint(endpoint.address().to_v4().to_ulong(), endpoint.port());
+	return Endpoint(endpoint.address().to_v4().to_uint(), endpoint.port());
 }
 
 lsl::string NetConnectionTCP::userName() const
@@ -249,7 +249,7 @@ lsl::string NetConnectionTCP::userName() const
 
 
 
-NetChannelTCP::NetChannelTCP(NetAcceptorTCP* owner): _owner(owner), _socketReader(owner->acceptor().get_io_service()), _socketWriter(owner->acceptor().get_io_service()), _isOpen(false), _isBind(false), _broadcast(false)
+NetChannelTCP::NetChannelTCP(NetAcceptorTCP* owner): _owner(owner), _socketReader(owner->acceptor().get_executor()), _socketWriter(owner->acceptor().get_executor()), _isOpen(false), _isBind(false), _broadcast(false)
 {
 }
 
@@ -316,7 +316,7 @@ bool NetChannelTCP::Receive(void* data, unsigned size, unsigned& numBytes, Endpo
 		return false;
 	}
 
-	remoteEndpoint = Endpoint(udpEndpoint.address().to_v4().to_ulong(), udpEndpoint.port());
+	remoteEndpoint = Endpoint(udpEndpoint.address().to_v4().to_uint(), udpEndpoint.port());
 
 	return true;
 }
@@ -420,7 +420,7 @@ Endpoint NetChannelTCP::localEndpoint()
 {
 	udp::endpoint endpoint = _socketWriter.local_endpoint();
 
-	return Endpoint(endpoint.address().to_v4().to_ulong(), endpoint.port());
+	return Endpoint(endpoint.address().to_v4().to_uint(), endpoint.port());
 }
 
 }

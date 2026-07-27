@@ -12,7 +12,7 @@ bool GetEndpointTCP(const Endpoint& ref, tcp::endpoint& endpoint)
 	if (!ref.address.empty())
 	{
 		error_code code;
-		ip::address addr = address::from_string(ref.address, code);
+		ip::address addr = ip::make_address(ref.address, code);
 
 		if (code)
 		{

@@ -21,32 +21,8 @@
 
 #else /* !_WIN32 */
 
-#include <stdint.h>
-#include <stddef.h>
-#include <string.h>
-
-typedef int             BOOL;
-typedef unsigned char   BYTE;
-typedef unsigned short  WORD;
-typedef uint32_t        DWORD;
-typedef int             INT;
-typedef unsigned int    UINT;
-typedef float           FLOAT;
-typedef long            LONG;
-typedef int32_t         HRESULT;
-typedef void*           LPVOID;
-typedef const char*     LPCSTR;
-
-#ifndef TRUE
-#define TRUE  1
-#endif
-#ifndef FALSE
-#define FALSE 0
-#endif
-
-#define CONST const
-#define WINAPI
-#define __stdcall
+/* One source of truth for the Windows scalar types and Win32 calls. */
+#include "xplatform.h"
 
 /* D3D base types, layout-identical to d3d9types.h */
 typedef DWORD D3DCOLOR;

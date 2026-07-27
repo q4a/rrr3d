@@ -1,7 +1,9 @@
 #pragma once
 
 #include <stdio.h>
-#include <tchar.h>
+#ifdef _WIN32
+	#include <tchar.h>
+#endif
 
 #include "MathCommon.h"
 #include "lslCommon.h"
@@ -14,10 +16,16 @@
 #define NETLIB_DYNAMIC_LINK
 
 #ifdef NETLIB_DYNAMIC_LINK
-	#ifdef NETLIB_EXPORTS
-		#define NETLIB_API __declspec(dllexport)
+	#ifdef _WIN32
+		#ifdef NETLIB_EXPORTS
+			#define NETLIB_API __declspec(dllexport)
+		#else
+			#define NETLIB_API __declspec(dllimport)
+		#endif
 	#else
-		#define NETLIB_API __declspec(dllimport)
+		// ELF/Mach-O export the symbol either way; the attribute only matters
+		// when building the library, and is harmless for consumers.
+		#define NETLIB_API __attribute__((visibility("default")))
 	#endif
 #else
 	#define NETLIB_API
@@ -351,14 +359,14 @@ inline unsigned Read(std::istream& stream, D3DXMATRIX& value)
 
 template<class _T> inline unsigned Write(std::ostream& stream, const std::basic_string<_T>& value, unsigned size)
 {
-	Write(stream, value.data(), sizeof(std::basic_string<_T>::value_type) * size);
+	Write(stream, value.data(), sizeof(typename std::basic_string<_T>::value_type) * size);
 	return size;
 }
 
 template<class _T> inline unsigned Read(std::istream& stream, std::basic_string<_T>& value, unsigned size)
 {
 	value.resize(size);	
-	Read(stream, const_cast<std::basic_string<_T>::pointer>(value.data()), sizeof(std::basic_string<_T>::value_type) * size);
+	Read(stream, const_cast<typename std::basic_string<_T>::pointer>(value.data()), sizeof(typename std::basic_string<_T>::value_type) * size);
 	return size;
 }
 

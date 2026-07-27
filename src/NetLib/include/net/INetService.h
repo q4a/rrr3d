@@ -2,12 +2,15 @@
 
 #include "INetConnection.h"
 #include "INetChannel.h"
-#include "INetPlayer.h"
 
 #include "NetModel.h"
 
 namespace net
 {
+
+// Only used as a pointer here. Including INetPlayer.h would be circular:
+// INetPlayer's inline NewModel() needs the complete INetService.
+class INetPlayer;
 
 class INetServiceUser
 {
