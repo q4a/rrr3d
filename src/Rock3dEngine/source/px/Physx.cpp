@@ -28,6 +28,7 @@ const int Scene::cDefMatInd = 0;
 
 PxPhysics* Manager::_nxSDK = 0;
 PxCooking* Manager::_nxCooking = 0;
+PxFoundation* Manager::_nxFoundation = 0;
 unsigned Manager::_sdkRefCnt = 0;
 
 Shapes::ClassList Shapes::classList;
@@ -278,34 +279,30 @@ void Manager::InitSDK()
 	{
 		LSL_LOG("px create sdk");
 
-		NxPhysicsSDKDesc desc;
-		NxSDKCreateError errorCode = NXCE_NO_ERROR;
-		Manager::_nxSDK = NxCreatePhysicsSDK(NX_PHYSICS_SDK_VERSION, NULL, 0, desc, &errorCode);
-		PxPhysics* nxSDK = Manager::_nxSDK;
+		static PxDefaultAllocator allocator;
+		static PxDefaultErrorCallback errorCallback;
 
-		if(!nxSDK)
-		{
-			std::stringstream sstream;
-			sstream << "\nSDK create error ("<<errorCode<<" - "<<errorCode<<").\nUnable to initialize the Physx SDK, exiting the sample.\n\n";
-			throw lsl::Error(sstream.str());
-		}
+		Manager::_nxFoundation = PxCreateFoundation(PX_PHYSICS_VERSION, allocator, errorCallback);
+		if (!Manager::_nxFoundation)
+			throw lsl::Error("Unable to create the PhysX foundation");
 
-#ifdef SAMPLES_USE_VRD
-		// The settings for the VRD host and port are found in SampleCommonCode/SamplesVRDSettings.h
-		if (nxSDK->getFoundationSDK().getRemoteDebugger() && !nxSDK->getFoundationSDK().getRemoteDebugger()->isConnected())
-			nxSDK->getFoundationSDK().getRemoteDebugger()->connect(cSamplesVRDHost, cNxDbgDefaultPort, cSamplesVrdEventMask);
-#endif
-		//Чтобы тачка не вела себя странно
-		nxSDK->setParameter(NX_ADAPTIVE_FORCE, 0.0f);
-		//Допустимое взаимопроникновение тел
-		nxSDK->setParameter(NX_SKIN_WIDTH, 0.025f);
+		Manager::_nxSDK = PxCreatePhysics(PX_PHYSICS_VERSION, *Manager::_nxFoundation, PxTolerancesScale());
+		if (!Manager::_nxSDK)
+			throw lsl::Error("Unable to initialize the PhysX SDK");
+
+		//PhysX 2.8 had two global tuning parameters set here:
+		//  NX_ADAPTIVE_FORCE 0.0 -- adaptive force was removed outright in
+		//    PhysX 4, so there is nothing to set. It was disabled anyway.
+		//  NX_SKIN_WIDTH 0.025 -- allowed interpenetration, now per-shape via
+		//    PxShape::setContactOffset rather than a global. Applied where
+		//    shapes are created so the behaviour is preserved.
 
 		LSL_LOG("px create cooking");
 
-		Manager::_nxCooking = NxGetCookingLib(NX_PHYSICS_SDK_VERSION);
+		Manager::_nxCooking = PxCreateCooking(PX_PHYSICS_VERSION, *Manager::_nxFoundation,
+			PxCookingParams(PxTolerancesScale()));
 		if (!Manager::_nxCooking)
 			throw lsl::Error("The cooking library has not been initialized");
-		Manager::_nxCooking->NxInitCooking();
 	}
 
 	
@@ -317,11 +314,14 @@ void Manager::ReleaseSDK()
 
 	if (--_sdkRefCnt == 0)
 	{
+		Manager::_nxCooking->release();
+		Manager::_nxCooking = 0;
+
 		Manager::_nxSDK->release();
 		Manager::_nxSDK = 0;
 
-		Manager::_nxCooking->NxCloseCooking();
-		Manager::_nxCooking = 0;
+		Manager::_nxFoundation->release();
+		Manager::_nxFoundation = 0;
 	}
 }
 
@@ -380,7 +380,7 @@ TriangleMesh::~TriangleMesh()
 	SetMeshData(0);
 }
 
-void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc& desc)
+void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, PxTriangleMeshDesc& desc)
 {
 	LSL_ASSERT(_meshData);
 
@@ -416,18 +416,23 @@ void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc
 				vertices[i] = vertices[i] * scale;
 		}
 
-	desc.numVertices          = vertCnt;
-	desc.pointStrideBytes     = sizeof(D3DXVECTOR3);
-	desc.points               = vertices;
-	desc.numTriangles         = faceCnt;
-	desc.triangleStrideBytes  = _meshData->fb.GetFaceSize();		
-	desc.triangles            = _meshData->fb.GetData() + _meshData->fb.GetFaceSize() * sFace;
-	desc.flags                = 0;
+	desc.points.count     = vertCnt;
+	desc.points.stride    = sizeof(D3DXVECTOR3);
+	desc.points.data      = vertices;
+	desc.triangles.count  = faceCnt;
+	desc.triangles.stride = _meshData->fb.GetFaceSize();
+	desc.triangles.data   = _meshData->fb.GetData() + _meshData->fb.GetFaceSize() * sFace;
+
+	//Формат индексов выводится из размера грани, а не предполагается 32-битным
+	//как в версии для PhysX 2.8
+	desc.flags = PxMeshFlags();
+	if (_meshData->fb.GetFaceSize() == 3 * sizeof(PxU16))
+		desc.flags |= PxMeshFlag::e16_BIT_INDICES;
 }
 
-void TriangleMesh::FreeMesh(NxTriangleMeshDesc& desc)
+void TriangleMesh::FreeMesh(PxTriangleMeshDesc& desc)
 {
-	delete desc.points;
+	delete[] static_cast<const D3DXVECTOR3*>(desc.points.data);
 }
 
 TriangleMesh::MeshList::iterator TriangleMesh::GetOrCreateMesh(const D3DXVECTOR3& scale, int id)
@@ -464,13 +469,13 @@ PxTriangleMesh* TriangleMesh::GetOrCreateTri(const D3DXVECTOR3& scale, int id)
 	if (mesh->tri)	
 		return mesh->tri;
 
-	NxTriangleMeshDesc desc;
+	PxTriangleMeshDesc desc;
 	LoadMesh(scale, id, desc);
 
-	MemoryWriteBuffer buf;
-	if (!px::GetCooking().NxCookTriangleMesh(desc, buf))
+	PxDefaultMemoryOutputStream buf;
+	if (!px::GetCooking().cookTriangleMesh(desc, buf))
 		throw lsl::Error("Error cooking TriangleMesh");
-	MemoryReadBuffer readBuffer(buf.data);
+	PxDefaultMemoryInputData readBuffer(buf.getData(), buf.getSize());
 
 	mesh->tri = px::GetSDK().createTriangleMesh(readBuffer);
 
@@ -487,7 +492,7 @@ void TriangleMesh::ReleaseTri(PxTriangleMesh* mesh)
 		{
 			if (--(iter->triRef) == 0)
 			{
-				px::GetSDK().releaseTriangleMesh(*iter->tri);
+				iter->tri->release();
 				iter->tri = 0;
 			}
 
@@ -507,23 +512,19 @@ PxConvexMesh* TriangleMesh::GetOrCreateConvex(const D3DXVECTOR3& scale, int id)
 	if (mesh->convex)	
 		return mesh->convex;
 
-	NxTriangleMeshDesc desc;
+	PxTriangleMeshDesc desc;
 	LoadMesh(scale, id, desc);
 
-	NxConvexMeshDesc convexDesc;
-	convexDesc.numVertices          = desc.numVertices;
-	convexDesc.pointStrideBytes     = desc.pointStrideBytes;
-	convexDesc.points               = desc.points;
-	convexDesc.numTriangles         = desc.numTriangles;
-	convexDesc.triangleStrideBytes  = desc.triangleStrideBytes;
-	convexDesc.triangles            = desc.triangles;
-	convexDesc.flags                |= NX_CF_COMPUTE_CONVEX;
+	PxConvexMeshDesc convexDesc;
+	convexDesc.points   = desc.points;
+	convexDesc.indices  = desc.triangles;
+	convexDesc.flags    = PxConvexFlag::eCOMPUTE_CONVEX;
 
 
-	MemoryWriteBuffer buf;
-	if (!px::GetCooking().NxCookConvexMesh(convexDesc, buf))
-		throw lsl::Error("Error cooking TriangleMesh");
-	MemoryReadBuffer readBuffer(buf.data);
+	PxDefaultMemoryOutputStream buf;
+	if (!px::GetCooking().cookConvexMesh(convexDesc, buf))
+		throw lsl::Error("Error cooking ConvexMesh");
+	PxDefaultMemoryInputData readBuffer(buf.getData(), buf.getSize());
 
 	mesh->convex = px::GetSDK().createConvexMesh(readBuffer);
 
@@ -540,7 +541,7 @@ void TriangleMesh::ReleaseConvex(PxConvexMesh* mesh)
 		{
 			if (--(iter->convexRef) == 0)
 			{
-				px::GetSDK().releaseConvexMesh(*iter->convex);
+				iter->convex->release();
 				iter->convex = 0;
 			}
 

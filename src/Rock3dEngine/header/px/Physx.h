@@ -170,6 +170,9 @@ class Manager: public lsl::Component
 private:
 	static PxPhysics* _nxSDK;
 	static PxCooking* _nxCooking;
+	//PhysX 3+ requires an explicit foundation, which owns the allocator and
+	//error callback. PhysX 2.8 created these implicitly.
+	static PxFoundation* _nxFoundation;
 	static unsigned _sdkRefCnt;
 public:
 	typedef std::list<Scene*> SceneList;
@@ -226,8 +229,8 @@ private:
 	res::MeshData* _meshData;
 	MeshList _meshList;
 
-	void LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc& desc);
-	void FreeMesh(NxTriangleMeshDesc& desc);
+	void LoadMesh(const D3DXVECTOR3& scale, int id, PxTriangleMeshDesc& desc);
+	void FreeMesh(PxTriangleMeshDesc& desc);
 
 	MeshList::iterator GetOrCreateMesh(const D3DXVECTOR3& scale, int id);
 	void ReleaseMesh(MeshList::iterator iter);
@@ -723,8 +726,8 @@ public:
 };
 
 //
-static inline PxPhysics& GetSDK();
-static inline PxCooking& GetCooking();
+inline PxPhysics& GetSDK();
+inline PxCooking& GetCooking();
 
 
 
