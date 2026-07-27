@@ -27,6 +27,9 @@
 #define METALBRIDGE_H
 
 #include <stdint.h>
+#ifndef __cplusplus
+#include <stdbool.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,6 +72,98 @@ obj_handle_t MTLCommandQueue_commandBuffer(obj_handle_t queue);
 void MTLCommandBuffer_commit(obj_handle_t cmdbuf);
 void MTLCommandBuffer_waitUntilCompleted(obj_handle_t cmdbuf);
 uint32_t MTLCommandBuffer_status(obj_handle_t cmdbuf);
+
+/* ---- resources ----
+ *
+ * The WMT enums mirror Metal's numeric values exactly -- WMTPixelFormatA8Unorm
+ * is 1 as MTLPixelFormatA8Unorm is, RGBA8Unorm 70, BGRA8Unorm 80, and the
+ * texture type, usage, resource-option and GPU-family enums line up the same
+ * way. DXMT numbered them deliberately, so every conversion below is a cast
+ * rather than a lookup table.
+ */
+
+/*
+ * A pointer, wrapped because the ABI has to survive a 32-bit PE caller holding
+ * a 64-bit Unix pointer. Natively there is no such split.
+ */
+struct WMTMemoryPointer { void* ptr; };
+struct WMTConstMemoryPointer { const void* ptr; };
+
+struct WMTOrigin { uint64_t x, y, z; };
+struct WMTSize   { uint64_t width, height, depth; };
+
+struct WMTBufferInfo
+{
+    uint64_t length;      /* in  */
+    uint64_t options;     /* in, WMTResourceOptions */
+    struct WMTMemoryPointer memory; /* inout: contents pointer */
+    uint64_t gpu_address; /* out */
+};
+
+struct WMTTextureInfo
+{
+    uint32_t pixel_format;
+    uint32_t width;
+    uint32_t height;
+    uint32_t depth;
+    uint32_t array_length;
+    uint32_t type                : 8;
+    uint32_t mipmap_level_count  : 8;
+    uint32_t sample_count        : 8;
+    uint32_t usage               : 8;
+    uint64_t options;
+    uint32_t reserved;
+    uint32_t mach_port;           /* in/out; unused natively */
+    uint64_t gpu_resource_id;     /* out */
+};
+
+struct WMTSamplerInfo
+{
+    uint32_t min_filter;
+    uint32_t mag_filter;
+    uint32_t mip_filter;
+    uint32_t r_address_mode;
+    uint32_t s_address_mode;
+    uint32_t t_address_mode;
+    uint8_t  border_color;
+    uint32_t compare_function;
+    float    lod_min_clamp;
+    float    lod_max_clamp;
+    uint32_t max_anisotroy;       /* spelling is the ABI's */
+    bool     normalized_coords;
+    bool     lod_average;
+    bool     support_argument_buffers;
+    uint64_t gpu_resource_id;     /* out */
+};
+
+obj_handle_t MTLDevice_newBuffer(obj_handle_t device, struct WMTBufferInfo* info);
+obj_handle_t MTLDevice_newTexture(obj_handle_t device, struct WMTTextureInfo* info);
+obj_handle_t MTLDevice_newSamplerState(obj_handle_t device, struct WMTSamplerInfo* info);
+
+obj_handle_t MTLBuffer_newTexture(obj_handle_t buffer, struct WMTTextureInfo* info,
+                                  uint64_t offset, uint64_t bytes_per_row);
+
+void MTLBuffer_didModifyRange(obj_handle_t buffer, uint64_t start, uint64_t length);
+void MTLBuffer_updateContents(obj_handle_t buffer, uint64_t offset,
+                              struct WMTConstMemoryPointer data, uint64_t length);
+
+obj_handle_t MTLTexture_newTextureView(obj_handle_t texture, uint32_t format, uint32_t texture_type,
+                                       uint16_t level_start, uint16_t level_count,
+                                       uint16_t slice_start, uint16_t slice_count,
+                                       uint64_t* out_gpu_resource_id);
+
+void MTLTexture_replaceRegion(obj_handle_t texture, struct WMTOrigin origin, struct WMTSize size,
+                              uint64_t level, uint64_t slice, struct WMTMemoryPointer data,
+                              uint64_t bytes_per_row, uint64_t bytes_per_image);
+
+uint32_t MTLTexture_pixelFormat(obj_handle_t texture);
+uint64_t MTLTexture_width(obj_handle_t texture);
+uint64_t MTLTexture_height(obj_handle_t texture);
+uint64_t MTLTexture_depth(obj_handle_t texture);
+uint64_t MTLTexture_arrayLength(obj_handle_t texture);
+uint64_t MTLTexture_mipmapLevelCount(obj_handle_t texture);
+
+uint64_t MTLDevice_minimumLinearTextureAlignmentForPixelFormat(obj_handle_t device, uint32_t format);
 
 #ifdef __cplusplus
 }
