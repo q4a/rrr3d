@@ -713,7 +713,7 @@ void GameCar::JumpProgress(float deltaTime)
 		PxVec3 vel = nxActor->getLinearVelocity();
 		vel.z = 0.0f;
 		if (vel.magnitude() > 1.0f && _flyYTorque != 0 && _springTime == 0.0f)
-			nxActor->addLocalTorque(PxVec3(0, _flyYTorque, 0), PxForceMode::eACCELERATION);
+			px::AddLocalTorque(*nxActor, D3DXVECTOR3(0, _flyYTorque, 0), PxForceMode::eACCELERATION);
 	}
 }
 

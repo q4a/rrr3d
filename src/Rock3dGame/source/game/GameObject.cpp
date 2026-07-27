@@ -234,11 +234,11 @@ void GameObject::SendDeath(DamageType damageType, GameObject* target)
 
 void GameObject::OnPxSync(float alpha)
 {
-	PxRigidActor* nxActor = _pxActor->GetNxActor();
+	PxRigidDynamic* nxActor = _pxActor->GetNxDynamic();
 	if (nxActor == NULL)
 		return;
 
-	D3DXVECTOR3 pxVelocityLerp = nxActor->getLinearVelocity().get();
+	D3DXVECTOR3 pxVelocityLerp = px::FromPx(nxActor->getLinearVelocity());
 
 	if (alpha < 1.0f)
 	{

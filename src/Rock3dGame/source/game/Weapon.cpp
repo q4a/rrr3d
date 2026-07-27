@@ -182,7 +182,7 @@ void Proj::CreatePxBox(px::Scene::CollDisGroup group)
 
 void Proj::AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, PxForceMode::Enum mode)
 {
-	target->GetPxActor().GetNxDynamic()->addForceAtPos(px::ToPx(force), px::ToPx(point), mode);
+	PxRigidBodyExt::addForceAtPos(*target->GetPxActor().GetNxDynamic(), px::ToPx(force), px::ToPx(point), mode);
 }
 
 void Proj::AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const D3DXVECTOR3& force, PxForceMode::Enum mode)
@@ -407,7 +407,7 @@ void Proj::RocketContact(const px::Scene::OnContactEvent& contact)
 			if (vec3.magnitude() > 0.01f)
 			{
 				vec3.normalize();
-				target->GetPxActor().GetNxActor()->addLocalTorque(vec3 * _desc.mass * 0.2f, PxForceMode::eVELOCITY_CHANGE);
+				px::AddLocalTorque(*target->GetPxActor().GetNxDynamic(), px::FromPx(vec3) * _desc.mass * 0.2f, PxForceMode::eVELOCITY_CHANGE);
 			}
 
 			D3DXVec3Normalize(&dir, &(dir - ZVector));
@@ -456,7 +456,7 @@ bool Proj::HyperPrepare(GameObject* weapon)
 	InitModel();
 	LinkToWeapon();
 
-	weapon->GetPxActor().GetNxDynamic()->addLocalForce(PxVec3(1.0f, 0.0f, 0.0f) * _desc.speed, PxForceMode::eVELOCITY_CHANGE);
+	px::AddLocalForce(*weapon->GetPxActor().GetNxDynamic(), XVector * _desc.speed, PxForceMode::eVELOCITY_CHANGE);
 
 	return true;
 }
@@ -560,7 +560,7 @@ void Proj::LushaContact(const px::Scene::OnContactEvent& contact)
 	GameObject* target = GetGameObjFromActor(contact.actor);
 	if (target)
 	{
-		PxRigidActor* nxTarget = target->GetPxActor().GetNxActor();
+		PxRigidDynamic* nxTarget = target->GetPxActor().GetNxDynamic();
 
 		PxVec3 linSpeed = nxTarget->getLinearVelocity();
 		float maxSpeed = linSpeed.magnitude();
@@ -1020,7 +1020,7 @@ bool Proj::SpringPrepare(GameObject* weapon)
 		//testRot = car->GetRot();
 		//SetMaxTimeLife(4.0f);
 
-		car->GetPxActor().GetNxDynamic()->addLocalForce(PxVec3(0.0f, 0.0f, 1.0f) * _desc.speed, PxForceMode::eVELOCITY_CHANGE);
+		px::AddLocalForce(*car->GetPxActor().GetNxDynamic(), ZVector * _desc.speed, PxForceMode::eVELOCITY_CHANGE);
 		car->LockSpring();
 		return true;
 	}

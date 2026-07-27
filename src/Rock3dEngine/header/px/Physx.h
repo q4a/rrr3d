@@ -90,6 +90,18 @@ void SetLinearMomentum(PxRigidDynamic& body, const D3DXVECTOR3& value);
 D3DXVECTOR3 GetAngularMomentum(const PxRigidDynamic& body);
 void SetAngularMomentum(PxRigidDynamic& body, const D3DXVECTOR3& value);
 
+//NxActor::addLocalForce / addLocalTorque. PhysX 3+ has neither. Both took a
+//vector in the actor's frame and applied it at the CENTRE OF MASS -- 2.8 had
+//separate addLocalForceAtLocalPos for positioned forces -- so the equivalent
+//is addForce/addTorque with the vector rotated into world space.
+//
+//Deliberately NOT PxRigidBodyExt::addLocalForceAtLocalPos with a zero
+//position: that applies at the actor origin, which generates torque the 2.8
+//call never produced on any body whose centre of mass is offset. Every car
+//here sets one, via bfLockCenterOfMass.
+void AddLocalForce(PxRigidDynamic& body, const D3DXVECTOR3& force, PxForceMode::Enum mode);
+void AddLocalTorque(PxRigidDynamic& body, const D3DXVECTOR3& torque, PxForceMode::Enum mode);
+
 //MSVC's permissive mode lets an in-class `friend class Actor;` introduce the
 //name into the enclosing namespace. Standard C++ does not, so the types these
 //classes refer to before their definitions are declared here explicitly.

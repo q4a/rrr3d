@@ -55,6 +55,16 @@ D3DXVECTOR3 GetAngularMomentum(const PxRigidDynamic& body)
 	return FromPx(rot.rotate(PxVec3(local.x * inertia.x, local.y * inertia.y, local.z * inertia.z)));
 }
 
+void AddLocalForce(PxRigidDynamic& body, const D3DXVECTOR3& force, PxForceMode::Enum mode)
+{
+	body.addForce(body.getGlobalPose().q.rotate(ToPx(force)), mode);
+}
+
+void AddLocalTorque(PxRigidDynamic& body, const D3DXVECTOR3& torque, PxForceMode::Enum mode)
+{
+	body.addTorque(body.getGlobalPose().q.rotate(ToPx(torque)), mode);
+}
+
 void SetAngularMomentum(PxRigidDynamic& body, const D3DXVECTOR3& value)
 {
 	const PxQuat rot = MassFrameRotation(body);

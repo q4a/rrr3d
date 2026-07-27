@@ -1026,7 +1026,8 @@ void SlowEffect::OnProgress(float deltaTime)
 
 	MakeEffect();
 
-	PxRigidActor* target = GetGameObj()->GetPxActor().GetNxActor();
+	//Velocity is clamped below, so this needs the body rather than the actor.
+	PxRigidDynamic* target = GetGameObj()->GetPxActor().GetNxDynamic();
 	if (target)
 	{
 		PxVec3 linSpeed = target->getLinearVelocity();
