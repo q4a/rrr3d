@@ -6,15 +6,19 @@ project(MetalBridge)
 
 add_library(${PROJECT_NAME} STATIC
     source/metalbridge.mm
+    source/metalbridge_commands.mm
     header/metalbridge.h
+    header/metalbridge_commands.h
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC header)
 
 # ARC off: the ABI's contract is manual retain/release, and the handles are
 # unowned bridged pointers. Letting ARC manage them would double-free.
-set_source_files_properties(source/metalbridge.mm PROPERTIES
-    COMPILE_FLAGS "-fno-objc-arc"
+set_source_files_properties(
+    source/metalbridge.mm
+    source/metalbridge_commands.mm
+    PROPERTIES COMPILE_FLAGS "-fno-objc-arc"
 )
 
 find_library(METAL_FRAMEWORK Metal REQUIRED)
