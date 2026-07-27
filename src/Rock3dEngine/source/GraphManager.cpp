@@ -5,7 +5,12 @@
 #include "res/R3DFile.h"
 #include "res/D3DXImageFile.h"
 
-#include <DXGI.h>
+//The only DXGI use in this file is the adapter enumeration below, which is
+//commented out -- _discreteVideoCard is hardcoded true instead. Kept behind a
+//guard rather than deleted so the Windows build is untouched.
+#ifdef _WIN32
+	#include <DXGI.h>
+#endif
 
 
 
@@ -1555,13 +1560,16 @@ bool ComputeZBounds(graph::Engine& engine, const graph::CameraCI& camera, const 
 	{
 		D3DXVec3TransformCoord(&rayVec[i], &rayVec[i], &camera.GetInvViewProj());
 		D3DXVec3TransformCoord(&rayPos[i], &rayPos[i], &camera.GetInvViewProj());
-		D3DXVec3Normalize(&rayVec[i], &(rayVec[i] - rayPos[i]));
+		D3DXVECTOR3 rayDir = rayVec[i] - rayPos[i];
+		D3DXVec3Normalize(&rayVec[i], &rayDir);
 
 		float tNear, tFar;
 		if (aabb.LineCastIntersect(rayPos[i], rayVec[i], tNear, tFar))
 		{
-			tNear = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tNear));
-			tFar = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tFar));
+			D3DXVECTOR3 nearPoint = rayPos[i] + rayVec[i] * tNear;
+			D3DXVECTOR3 farPoint = rayPos[i] + rayVec[i] * tFar;
+			tNear = D3DXPlaneDotCoord(&posNearPlane, &nearPoint);
+			tFar = D3DXPlaneDotCoord(&posNearPlane, &farPoint);
 
 			if (tNear < minZ || !res)
 				minZ = tNear;			
@@ -2046,7 +2054,8 @@ void GraphManager::RenderShadow(graph::CameraCI& camera)
 				if (camDesc.style == graph::csOrtho)
 				{
 					D3DXVECTOR3 pos = _camera->GetPos() + _camera->GetDir() * _shadowMaxFar;
-					maxFar = std::min(D3DXVec3Length(&(pos - camDesc.pos)), camDesc.farDist);
+					D3DXVECTOR3 camOffset = pos - camDesc.pos;
+					maxFar = std::min(D3DXVec3Length(&camOffset), camDesc.farDist);
 				}
 
 				shadowMap->SetMaxFar(maxFar);
@@ -2290,8 +2299,9 @@ bool GraphManager::Render(float deltaTime, bool pause)
 				//наложение
 				D3DXVECTOR3 lightPos = _engine->GetContext().GetLight(0).GetDesc().pos;
 				D3DXVECTOR3 radVec;
-				D3DXVec3Normalize(&radVec, &(lightPos - _actorManager->GetWorldAABB().GetCenter()));
-				D3DXVec3Cross(&radVec, &D3DXVECTOR3(0, 0, 1), &radVec);
+				D3DXVECTOR3 lightOffset = lightPos - _actorManager->GetWorldAABB().GetCenter();
+				D3DXVec3Normalize(&radVec, &lightOffset);
+				D3DXVec3Cross(&radVec, &ZVector, &radVec);
 				if (D3DXVec3Length(&radVec) < 0.1f)
 					radVec = D3DXVECTOR3(1, 0, 0);
 				D3DXQUATERNION radQuat;
@@ -2454,7 +2464,8 @@ void GraphManager::BuildOctree()
 
 			if ((abs(texDiffK.x) + abs(texDiffK.y)) > 0.0f && _lightList.size() > 0 && _lightList.front()->GetSource()->GetType() == D3DLIGHT_DIRECTIONAL)
 			{	
-				D3DXVECTOR3 norm = (*iter)->GetActor()->vec1();
+				const D3DXVECTOR4& actorVec1 = (*iter)->GetActor()->vec1();
+				D3DXVECTOR3 norm(actorVec1.x, actorVec1.y, actorVec1.z);
 				D3DXVECTOR3 lightDir = _lightList.front()->GetSource()->GetDir();
 				float dot = D3DXVec3Dot(&norm, &ZVector);
 
@@ -2466,7 +2477,8 @@ void GraphManager::BuildOctree()
 					D3DXVec3Cross(&binormal, &right, &ZVector);
 
 					float d1 = D3DXVec3Dot(&binormal, &norm);
-					float d2 = D3DXVec3Dot(&binormal, &(-lightDir));
+					D3DXVECTOR3 invLightDir = -lightDir;
+					float d2 = D3DXVec3Dot(&binormal, &invLightDir);
 
 					int b = (d1 > 0.0f) == (d2 > 0.0f);
 					dot = 1.0f + texDiffK[b];

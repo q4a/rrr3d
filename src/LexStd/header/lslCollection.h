@@ -118,7 +118,7 @@ template<class _Item, class _IdType, class _Arg> void Collection<_Item, _IdType,
 
 template<class _Item, class _IdType, class _Arg> _Item& Collection<_Item, _IdType, _Arg, void>::Add(_IdType key, const _Arg& arg)
 {
-	return _MyBase::Add(Value(CreateItem(key, arg), key));
+	return _MyBase::Add(typename _MyBase::Value(CreateItem(key, arg), key));
 }
 
 template<class _Item, class _IdType, class _Arg> template<class _Type> _Type& Collection<_Item, _IdType, _Arg, void>::Add(const _Arg& arg)
@@ -155,7 +155,7 @@ template<class _Item, class _IdType> void Collection<_Item, _IdType, void, void>
 
 template<class _Item, class _IdType> _Item& Collection<_Item, _IdType, void, void>::Add(_IdType key)
 {
-	return _MyBase::Add(Value(CreateItem(key), key));
+	return _MyBase::Add(typename _MyBase::Value(CreateItem(key), key));
 }
 
 template<class _Item, class _IdType> template<class _Type> _Type& Collection<_Item, _IdType, void, void>::Add()

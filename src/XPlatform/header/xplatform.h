@@ -131,6 +131,14 @@ DWORD GetModuleFileNameW(void* module, wchar_t* buf, DWORD size);
 int  MessageBox(HWND owner, const char* text, const char* caption, UINT type);
 void OutputDebugStringA(const char* str);
 
+/*
+ * The engine asks the window for its client area to size render targets. There
+ * is no window system behind HWND yet -- RRR3d.cpp's Win32 shell has not been
+ * replaced -- so this reports an empty rect and callers fall back to the size
+ * they were configured with. Revisit when the SDL window lands.
+ */
+BOOL GetClientRect(HWND wnd, RECT* rect);
+
 #ifdef __cplusplus
 }
 #endif

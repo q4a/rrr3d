@@ -15,6 +15,8 @@ namespace graph
 
 class SceneNode;
 class FxManager;
+//Used by FxEmitter well before its own definition below.
+class FxParticleSystem;
 
 class FxParticle: public lsl::Object
 {

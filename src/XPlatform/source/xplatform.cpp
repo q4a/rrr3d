@@ -272,3 +272,15 @@ void OutputDebugStringA(const char* str)
 {
 	std::fputs(str ? str : "", stderr);
 }
+
+BOOL GetClientRect(HWND, RECT* rect)
+{
+	if (!rect)
+		return FALSE;
+
+	rect->left = 0;
+	rect->top = 0;
+	rect->right = 0;
+	rect->bottom = 0;
+	return TRUE;
+}

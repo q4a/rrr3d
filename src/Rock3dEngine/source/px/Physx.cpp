@@ -1,7 +1,6 @@
 #include "stdafx.h"
 
 #include "px/Physx.h"
-#include "px/Stream.h"
 
 #include "lslSerialValue.h"
 
@@ -52,63 +51,100 @@ const int Scene::cDefMatInd = 0;
 PxPhysics* Manager::_nxSDK = 0;
 PxCooking* Manager::_nxCooking = 0;
 PxFoundation* Manager::_nxFoundation = 0;
+PxMaterial* Manager::_defMaterial = 0;
 unsigned Manager::_sdkRefCnt = 0;
 
 Shapes::ClassList Shapes::classList;
 
 
+//PhysX 3+ decides collision filtering in a shader supplied by the application.
+//The extensions library ships one that, in its own words, emulates 2.8.x
+//filtering: it reads the collision group from filter data word0 -- which is
+//what Shape::ApplyToShape writes -- and consults the same 0..31 pairwise table
+//that PxSetGroupCollisionFlag maintains.
+//
+//The only thing it does not do is ask for the reports this engine needs, so
+//this wrapper adds them. 2.8 enabled contact notification and contact
+//modification per actor; PhysX 3+ requires the pair flags be requested here,
+//in the shader, because filtering happens before any actor is consulted.
+static PxFilterFlags SceneFilterShader(
+	PxFilterObjectAttributes attributes0, PxFilterData filterData0,
+	PxFilterObjectAttributes attributes1, PxFilterData filterData1,
+	PxPairFlags& pairFlags, const void* constantBlock, PxU32 constantBlockSize)
+{
+	PxFilterFlags flags = PxDefaultSimulationFilterShader(
+		attributes0, filterData0, attributes1, filterData1,
+		pairFlags, constantBlock, constantBlockSize);
+
+	//BEHAVIOUR GAP: this asks for reports on every surviving pair, where 2.8
+	//raised them only for actors carrying the matching contact-report flags.
+	//Actor::_desc.contactReportFlags is still stored and serialised but no
+	//longer reaches the simulation, so the callbacks currently fire more often
+	//than they used to and the engine filters afterwards.
+	if (!(flags & (PxFilterFlag::eKILL | PxFilterFlag::eSUPPRESS)))
+	{
+		pairFlags |= PxPairFlag::eNOTIFY_TOUCH_FOUND
+			| PxPairFlag::eNOTIFY_TOUCH_PERSISTS
+			| PxPairFlag::eNOTIFY_CONTACT_POINTS
+			| PxPairFlag::eMODIFY_CONTACTS;
+	}
+
+	return flags;
+}
+
 Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0)
 {
 	_contactModify = new ContactModify(this);
-	_contactReport = new ContactReport(this);
-	_userNotify = new UserNotify(this);
+	_simulationEvents = new SimulationEvents(this);
 
-	NxSceneDesc sceneDesc;
-	sceneDesc.gravity				= cDefGravity;
-	sceneDesc.userContactReport		= 0;
-	sceneDesc.upAxis                = 2; //ZVector
-	sceneDesc.timeStepMethod        = NX_TIMESTEP_VARIABLE;
-	//sceneDesc.maxTimestep           = maxTimeStep;
-	//sceneDesc.maxIter               = maxSimIter;
-	sceneDesc.userContactModify     = _contactModify;
-	sceneDesc.userContactReport     = _contactReport;
-	sceneDesc.userNotify            = _userNotify;
+	//2.8's upAxis and timeStepMethod have no PhysX 3+ equivalents and need
+	//none: the up axis was only ever advisory, gravity already encodes it, and
+	//simulate() takes the step directly, which is what NX_TIMESTEP_VARIABLE
+	//selected.
+	PxSceneDesc sceneDesc(_manager->GetSDK().getTolerancesScale());
+	sceneDesc.gravity = cDefGravity;
+	sceneDesc.filterShader = SceneFilterShader;
+	sceneDesc.simulationEventCallback = _simulationEvents;
+	sceneDesc.contactModifyCallback = _contactModify;
+
+	//PhysX 2.8 owned its worker threads; PhysX 3+ makes that the caller's job.
+	_cpuDispatcher = PxDefaultCpuDispatcherCreate(0);
+	sceneDesc.cpuDispatcher = _cpuDispatcher;
 
 	_nxScene = _manager->GetSDK().createScene(sceneDesc);
 
-	PxMaterial* defMat = _nxScene->getMaterialFromIndex(0);
-	defMat->setStaticFriction(0.5f);
-	defMat->setDynamicFriction(0.5f);
-	defMat->setRestitution(0.5f);
-
-	_nxScene->setGroupCollisionFlag(cdgShot, cdgShot, false);
+	//BEHAVIOUR GAP: PxSetGroupCollisionFlag is global where
+	//NxScene::setGroupCollisionFlag was per-scene. The game runs one scene, so
+	//this is currently equivalent; a second scene would silently share the
+	//table.
+	PxSetGroupCollisionFlag(cdgShot, cdgShot, false);
 	//
-	_nxScene->setGroupCollisionFlag(cdgShotBorder, cdgShotBorder, false);
-	_nxScene->setGroupCollisionFlag(cdgShotBorder, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgShotBorder, cdgShotBorder, false);
+	PxSetGroupCollisionFlag(cdgShotBorder, cdgShot, false);
 	//
-	_nxScene->setGroupCollisionFlag(cdgShotTrack, cdgShot, false);
-	_nxScene->setGroupCollisionFlag(cdgShotTrack, cdgShotBorder, false);
-	_nxScene->setGroupCollisionFlag(cdgShotTrack, cdgShotTrack, false);		
+	PxSetGroupCollisionFlag(cdgShotTrack, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgShotTrack, cdgShotBorder, false);
+	PxSetGroupCollisionFlag(cdgShotTrack, cdgShotTrack, false);
 	//
-	_nxScene->setGroupCollisionFlag(cdgShotTransparency, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgShotTransparency, cdgShot, false);
 	//
-	_nxScene->setGroupCollisionFlag(cdgWheel, cdgShot, false);
-	_nxScene->setGroupCollisionFlag(cdgWheel, cdgShotBorder, false);
-	_nxScene->setGroupCollisionFlag(cdgWheel, cdgShotTrack, false);
-	_nxScene->setGroupCollisionFlag(cdgWheel, cdgShotTransparency, false);
+	PxSetGroupCollisionFlag(cdgWheel, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgWheel, cdgShotBorder, false);
+	PxSetGroupCollisionFlag(cdgWheel, cdgShotTrack, false);
+	PxSetGroupCollisionFlag(cdgWheel, cdgShotTransparency, false);
 	//
-	_nxScene->setGroupCollisionFlag(cdgTrackPlane, cdgShot, false);
-	_nxScene->setGroupCollisionFlag(cdgTrackPlane, cdgShotBorder, false);
+	PxSetGroupCollisionFlag(cdgTrackPlane, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgTrackPlane, cdgShotBorder, false);
 }
 
 Scene::~Scene()
 {
 	LSL_ASSERT(_userList.empty());
 
-	_manager->GetSDK().releaseScene(*_nxScene);
+	_nxScene->release();
+	_cpuDispatcher->release();
 
-	delete _userNotify;
-	delete _contactReport;
+	delete _simulationEvents;
 	delete _contactModify;
 }
 
@@ -116,108 +152,145 @@ Scene::ContactModify::ContactModify(Scene* scene): _scene(scene)
 {
 }
 
-bool Scene::ContactModify::onContactConstraint(PxU32& changeFlags, const PxShape* shape0, const PxShape* shape1, const PxU32 featureIndex0, const PxU32 featureIndex1, NxContactCallbackData& data)
+void Scene::ContactModify::onContactModify(PxContactModifyPair* const pairs, PxU32 count)
 {
-	OnContactModifyEvent contactEvent;	
-	
-	contactEvent.shape0 = shape0;
-	contactEvent.shape1 = shape1;
-	contactEvent.featureIndex0 = featureIndex0;
-	contactEvent.featureIndex1 = featureIndex1;
-
-	contactEvent.changeFlags = &changeFlags;
-	contactEvent.data = &data;
-
-	Actor* actor0 = _scene->GetActorFromNx(&shape0->getActor());
-	Actor* actor1 = _scene->GetActorFromNx(&shape1->getActor());
-
-	if (actor0 && actor1)
+	for (PxU32 i = 0; i < count; ++i)
 	{
+		PxContactModifyPair& pair = pairs[i];
+
+		OnContactModifyEvent contactEvent;
+
+		contactEvent.shape0 = pair.shape[0];
+		contactEvent.shape1 = pair.shape[1];
+		//No PhysX 3+ equivalent; see OnContactModifyEvent.
+		contactEvent.featureIndex0 = 0;
+		contactEvent.featureIndex1 = 0;
+
+		contactEvent.contacts = &pair.contacts;
+
+		Actor* actor0 = GetActorFromNx(pair.actor[0]);
+		Actor* actor1 = GetActorFromNx(pair.actor[1]);
+
+		if (!actor0 || !actor1)
+			continue;
+
+		bool accept = true;
+
 		//Отправляем событие первому актеру
 		contactEvent.actor = actor1;
 		contactEvent.actorIndex = 1;
 		if (actor0->GetOwner() && !actor0->GetOwner()->OnContactModify(contactEvent))
-			return false;
+			accept = false;
 
 		//Отправляем событие второму актеру
-		contactEvent.actor = actor0;
-		contactEvent.actorIndex = 0;
-		if (actor1->GetOwner() && !actor1->GetOwner()->OnContactModify(contactEvent))
-			return false;
+		if (accept)
+		{
+			contactEvent.actor = actor0;
+			contactEvent.actorIndex = 0;
+			if (actor1->GetOwner() && !actor1->GetOwner()->OnContactModify(contactEvent))
+				accept = false;
+		}
+
+		//2.8 rejected the whole constraint by returning false. PhysX 3+ has no
+		//such return, so the equivalent is ignoring every contact in the set.
+		if (!accept)
+		{
+			for (PxU32 c = 0; c < pair.contacts.size(); ++c)
+				pair.contacts.ignore(c);
+		}
 	}
-
-	return true;
 }
 
-Scene::ContactReport::ContactReport(Scene* scene): _scene(scene)
+Scene::SimulationEvents::SimulationEvents(Scene* scene): _scene(scene)
 {
 }
 
-void Scene::ContactReport::onContactNotify(NxContactPair& pair, PxU32 events)
+void Scene::SimulationEvents::onContact(const PxContactPairHeader& pairHeader, const PxContactPair* pairs, PxU32 count)
 {
-	OnContactEvent contact1;
-	OnContactEvent contact2;
+	//An actor removed from the scene during simulation must not be dereferenced.
+	bool removedActor0 = pairHeader.flags.isSet(PxContactPairHeaderFlag::eREMOVED_ACTOR_0);
+	bool removedActor1 = pairHeader.flags.isSet(PxContactPairHeaderFlag::eREMOVED_ACTOR_1);
 
-	contact1.pair = &pair;
-	contact1.events = events;
-	contact1.deltaTime = _scene->_lastDeltaTime;
-	contact1.stream = pair.stream;
-	contact1.sumNormalForce = D3DXVECTOR3(pair.sumNormalForce.get());
-	contact1.sumFrictionForce = D3DXVECTOR3(pair.sumFrictionForce.get());
-	contact2 = contact1;
-
-	contact1.actor = !pair.isDeletedActor[0] ? _scene->GetActorFromNx(pair.actors[0]) : 0;
-	contact1.actorIndex = 0;
-	contact2.actor = !pair.isDeletedActor[1] ? _scene->GetActorFromNx(pair.actors[1]) : 0;
-	contact2.actorIndex = 1;
-
-	if (contact1.actor && contact2.actor)
+	for (PxU32 i = 0; i < count; ++i)
 	{
-		if (contact1.actor->GetOwner())
-			contact1.actor->GetOwner()->OnContact(contact2);
+		const PxContactPair& pair = pairs[i];
 
-		if (contact2.actor->GetOwner())
-			contact2.actor->GetOwner()->OnContact(contact1);
+		OnContactEvent contact1;
+		OnContactEvent contact2;
 
-		for (UserList::iterator iter = _scene->_userList.begin(); iter != _scene->_userList.end(); ++iter)
-			(*iter)->OnContact(contact1, contact2);
+		contact1.pair = &pair;
+		contact1.events = pair.events;
+		contact1.deltaTime = _scene->_lastDeltaTime;
+
+		//2.8 handed over summed normal and friction forces. PhysX 3+ reports a
+		//per-point impulse that already combines both, so the sum is converted
+		//back to a force by dividing by the step, and friction is left at zero
+		//rather than reported wrongly. See OnContactEvent.
+		PxContactPairPoint points[cMaxContactPoints];
+		PxU32 numPoints = pair.extractContacts(points, cMaxContactPoints);
+
+		PxVec3 sumImpulse(0.0f);
+		for (PxU32 p = 0; p < numPoints; ++p)
+			sumImpulse += points[p].impulse;
+
+		contact1.sumNormalForce = _scene->_lastDeltaTime > 0.0f
+			? FromPx(sumImpulse / _scene->_lastDeltaTime)
+			: NullVector;
+		contact1.sumFrictionForce = NullVector;
+
+		contact2 = contact1;
+
+		contact1.actor = !removedActor0 ? GetActorFromNx(pairHeader.actors[0]) : 0;
+		contact1.actorIndex = 0;
+		contact2.actor = !removedActor1 ? GetActorFromNx(pairHeader.actors[1]) : 0;
+		contact2.actorIndex = 1;
+
+		if (contact1.actor && contact2.actor)
+		{
+			if (contact1.actor->GetOwner())
+				contact1.actor->GetOwner()->OnContact(contact2);
+
+			if (contact2.actor->GetOwner())
+				contact2.actor->GetOwner()->OnContact(contact1);
+
+			for (UserList::iterator iter = _scene->_userList.begin(); iter != _scene->_userList.end(); ++iter)
+				(*iter)->OnContact(contact1, contact2);
+		}
 	}
 }
 
-Scene::UserNotify::UserNotify(Scene* scene): _scene(scene)
-{
-}
-
-void Scene::UserNotify::onWake(NxActor** actors, PxU32 count)
+void Scene::SimulationEvents::onWake(PxActor** actors, PxU32 count)
 {
 	for (unsigned i = 0; i < count; ++i)
 	{
-		Actor* actor = _scene->GetActorFromNx(actors[i]);
+		Actor* actor = GetActorFromNx(actors[i]->is<PxRigidActor>());
 
 		if (actor && actor->GetOwner())
 			actor->GetOwner()->OnWake();
 	}
 }
 
-void Scene::UserNotify::onSleep(NxActor** actors, PxU32 count)
+void Scene::SimulationEvents::onSleep(PxActor** actors, PxU32 count)
 {
 	for (unsigned i = 0; i < count; ++i)
 	{
-		Actor* actor = _scene->GetActorFromNx(actors[i]);
+		Actor* actor = GetActorFromNx(actors[i]->is<PxRigidActor>());
 
 		if (actor && actor->GetOwner())
 			actor->GetOwner()->OnSleep();
 	}
 }
 
-Actor* Scene::GetActorFromNx(NxActor* actor)
+Actor* Scene::GetActorFromNx(const PxRigidActor* actor)
 {
-	return actor->userData ? reinterpret_cast<Actor*>(actor->userData) : 0;
+	return actor && actor->userData ? reinterpret_cast<Actor*>(actor->userData) : 0;
 }
 
-Actor* Scene::GetActorFromNxShape(PxShape* shape)
+Actor* Scene::GetActorFromNxShape(const PxShape* shape)
 {
-	return GetActorFromNx(&shape->getActor());
+	//PhysX 3+ shapes know their actor only while attached, and an exclusive
+	//shape has exactly one.
+	return shape ? GetActorFromNx(shape->getActor()) : 0;
 }
 
 void Scene::CreateGroundPlane()
@@ -229,28 +302,38 @@ void Scene::CreateGroundPlane()
 	_nxScene->createActor(planeActor);*/
 }
 
-NxActor* Scene::CreateNxActor(const NxActorDesc& desc, Actor* actor)
+PxRigidActor* Scene::CreateNxActor(const PxTransform& pose, bool dynamic, Actor* actor)
 {
-	if (!desc.isValid())
-		throw lsl::Error("NxActor* Scene::CreateNxActor(const NxActorDesc& desc, Actor* actor)");
+	if (!pose.isSane())
+		throw lsl::Error("PxRigidActor* Scene::CreateNxActor(const PxTransform& pose, bool dynamic, Actor* actor)");
 
-	NxActor* res = _nxScene->createActor(desc);
+	PxRigidActor* res = dynamic
+		? static_cast<PxRigidActor*>(_manager->GetSDK().createRigidDynamic(pose))
+		: static_cast<PxRigidActor*>(_manager->GetSDK().createRigidStatic(pose));
+
+	if (!res)
+		return 0;
+
 	res->userData = actor;
+	//Shapes are attached by the caller before the actor sees a simulation step.
+	_nxScene->addActor(*res);
 	return res;
 }
 
-void Scene::ReleaseNxActor(NxActor* nxActor, Actor* actor)
+void Scene::ReleaseNxActor(PxRigidActor* nxActor, Actor* actor)
 {
-	_nxScene->releaseActor(*nxActor);
+	_nxScene->removeActor(*nxActor);
+	nxActor->release();
 }
 
 void Scene::Compute(float deltaTime)
 {
 	_lastDeltaTime = deltaTime;
 
+	//flushStream is gone in PhysX 3+, and fetchResults no longer needs to be
+	//told which simulation stage to wait for.
 	_nxScene->simulate(deltaTime);
-	_nxScene->flushStream();
-	_nxScene->fetchResults(NX_RIGID_BODY_FINISHED, true);
+	_nxScene->fetchResults(true);
 }
 
 void Scene::InsertUser(SceneUser* value)
@@ -322,9 +405,18 @@ void Manager::InitSDK()
 			PxCookingParams(PxTolerancesScale()));
 		if (!Manager::_nxCooking)
 			throw lsl::Error("The cooking library has not been initialized");
-	}
 
-	
+		//PxDefaultSimulationFilterShader and the collision group table it reads
+		//live in the extensions library, which has to be initialised explicitly.
+		if (!PxInitExtensions(*Manager::_nxSDK, 0))
+			throw lsl::Error("Unable to initialize the PhysX extensions");
+
+		//The material NxScene gave every scene at index 0, with the friction and
+		//restitution the 2.8 code assigned to it.
+		Manager::_defMaterial = Manager::_nxSDK->createMaterial(0.5f, 0.5f, 0.5f);
+		if (!Manager::_defMaterial)
+			throw lsl::Error("Unable to create the default PhysX material");
+	}
 }
 
 void Manager::ReleaseSDK()
@@ -333,6 +425,11 @@ void Manager::ReleaseSDK()
 
 	if (--_sdkRefCnt == 0)
 	{
+		Manager::_defMaterial->release();
+		Manager::_defMaterial = 0;
+
+		PxCloseExtensions();
+
 		Manager::_nxCooking->release();
 		Manager::_nxCooking = 0;
 
@@ -385,6 +482,13 @@ PxPhysics& Manager::GetSDK()
 PxCooking& Manager::GetCooking()
 {
 	return *_nxCooking;
+}
+
+PxMaterial& Manager::GetDefaultMaterial()
+{
+	LSL_ASSERT(_defMaterial);
+
+	return *_defMaterial;
 }
 
 
@@ -683,11 +787,11 @@ void Shape::Load(lsl::SReader* reader)
 }
 
 
-void Shape::ApplyToShape(PxShape& shape) const
+void Shape::ApplyToShape(PxShape& shape)
 {
-	PxQuat rot;
-	rot.setXYZW(_rot);
-	shape.setLocalPose(PxTransform(PxVec3(_pos.x, _pos.y, _pos.z), rot));
+	//Child actors share their parent's PxRigidActor, so a shape's local pose is
+	//expressed in the root actor's space rather than its own owner's.
+	shape.setLocalPose(PxTransform(ToPx(TransformLocalPos(_pos)), ToPx(_rot)));
 
 	//PhysX 2.8 had a global NX_SKIN_WIDTH plus a per-shape skinWidth. PhysX 3+
 	//has only the per-shape contact offset, so the global default is folded in
@@ -857,7 +961,7 @@ PxGeometryHolder PlaneShape::CreateGeometry()
 	return PxGeometryHolder(PxPlaneGeometry());
 }
 
-void PlaneShape::ApplyToShape(PxShape& shape) const
+void PlaneShape::ApplyToShape(PxShape& shape)
 {
 	_MyBase::ApplyToShape(shape);
 
@@ -1005,7 +1109,7 @@ PxGeometryHolder CapsuleShape::CreateGeometry()
 	return PxGeometryHolder(PxCapsuleGeometry(_radius, _height * 0.5f));
 }
 
-void CapsuleShape::ApplyToShape(PxShape& shape) const
+void CapsuleShape::ApplyToShape(PxShape& shape)
 {
 	_MyBase::ApplyToShape(shape);
 
@@ -1187,12 +1291,12 @@ void ConvexShape::FreeNxMesh()
 
 PxGeometryHolder ConvexShape::CreateGeometry()
 {
-	if (!_nxConvex)
-		_nxConvex = _mesh ? _mesh->GetOrCreateConvex(GetScale() * GetActor()->GetWorldScale(), _meshId) : 0;
+	if (!_nxMesh)
+		_nxMesh = _mesh ? _mesh->GetOrCreateConvex(GetScale() * GetActor()->GetWorldScale(), _meshId) : 0;
 
-	LSL_ASSERT(_nxConvex);
+	LSL_ASSERT(_nxMesh);
 
-	return PxGeometryHolder(PxConvexMeshGeometry(_nxConvex));
+	return PxGeometryHolder(PxConvexMeshGeometry(_nxMesh));
 }
 
 void ConvexShape::Save(lsl::SWriter* writer)
@@ -1297,7 +1401,7 @@ PxGeometryHolder WheelShape::CreateGeometry()
 	return PxGeometryHolder(PxSphereGeometry(_radius > 0.0f ? _radius : 1.0f));
 }
 
-void WheelShape::ApplyToShape(PxShape& shape) const
+void WheelShape::ApplyToShape(PxShape& shape)
 {
 	_MyBase::ApplyToShape(shape);
 
@@ -1576,12 +1680,12 @@ void Body::SetDesc(const BodyDesc& value)
 {
 	_desc = value;
 
-	if (_actor && _actor->GetNxActor())
+	//Only a dynamic actor has a velocity; a static one silently had none in 2.8
+	//too, since NxActorDesc::body was null for it.
+	if (_actor)
 	{
-		_actor->GetNxActor()->setLinearVelocity(value.linearVelocity);
-		//
-		//...
-		//
+		if (PxRigidDynamic* dynamic = _actor->GetNxDynamic())
+			dynamic->setLinearVelocity(ToPx(value.linearVelocity));
 	}
 }
 
@@ -1625,6 +1729,10 @@ Actor* Shapes::GetActor()
 }
 
 
+Actor::Desc::Desc(): flags(0), contactReportFlags(0)
+{
+}
+
 Actor::Actor(ActorUser* owner): _owner(owner), _nxActor(0), _scene(0), _parent(0), _body(0), _pos(NullVector), _rot(NullQuaternion), _scale(IdentityVector), storeCoords(true)
 {
 	_shapes = new Shapes(this);
@@ -1646,18 +1754,30 @@ void Actor::CreateNxShape(Shape* shape)
 {
 	LSL_ASSERT(_nxActor && !shape->_nxShape);
 
-	NxShapeDesc* shapeDesc = shape->CreateDesc();
-	D3DXVECTOR3 pos;
-	LocalToWorldPos(D3DXVECTOR3(shapeDesc->localPose.t.get()), pos, true);
-	shapeDesc->localPose.t.set(pos);
-
-	//not all conditions is completed to create nxShape (neccesary params will be set next, PxTriangleMesh for example)		
-	if (shapeDesc->isValid())
-		shape->SetNxShape(_nxActor->createShape(*shapeDesc));
-	else
+	//not all conditions is completed to create nxShape (neccesary params will be set next, PxTriangleMesh for example)
+	PxGeometryHolder geometry = shape->CreateGeometry();
+	if (geometry.getType() == PxGeometryType::eINVALID)
+	{
 		shape->_delayInitialization = true;
+		return;
+	}
 
-	delete shapeDesc;
+	//createExclusiveShape both creates the shape and attaches it, replacing
+	//NxActor::createShape. The material is the one PhysX 2.8 kept at scene
+	//index 0; per-shape material selection is still open -- see
+	//Shape::SetMaterialIndex.
+	PxShape* nxShape = PxRigidActorExt::createExclusiveShape(*_nxActor, geometry.any(),
+		Manager::GetDefaultMaterial());
+	if (!nxShape)
+	{
+		shape->_delayInitialization = true;
+		return;
+	}
+
+	shape->SetNxShape(nxShape);
+	//ApplyToShape carries the local pose through LocalToWorldPos, which is what
+	//the descriptor path did by hand before creating the shape.
+	shape->ApplyToShape(*nxShape);
 }
 
 void Actor::DestroyNxShape(Shape* shape)
@@ -1666,7 +1786,7 @@ void Actor::DestroyNxShape(Shape* shape)
 
 	PxShape* tmp = shape->_nxShape;
 	shape->SetNxShape(0);
-	_nxActor->releaseShape(*tmp);
+	_nxActor->detachShape(*tmp);
 }
 
 void Actor::ReloadNxShape(Shape* shape, bool allowInitialization)
@@ -1679,7 +1799,7 @@ void Actor::ReloadNxShape(Shape* shape, bool allowInitialization)
 
 		CreateNxShape(shape);
 
-		_nxActor->releaseShape(*oldNxShape);
+		_nxActor->detachShape(*oldNxShape);
 	}
 	else if ((allowInitialization || shape->_delayInitialization) && _nxActor && shape->_nxShape == NULL)
 	{
@@ -1687,48 +1807,26 @@ void Actor::ReloadNxShape(Shape* shape, bool allowInitialization)
 	}
 }
 
-void Actor::FillShapeDescList(_NxShapeDescList& shapeList)
+unsigned Actor::CountShapesIncludeChildren() const
+{
+	unsigned res = _shapes->Size();
+
+	for (Children::const_iterator iter = _children.begin(); iter != _children.end(); ++iter)
+		res += (*iter)->CountShapesIncludeChildren();
+
+	return res;
+}
+
+void Actor::CreateNxShapesIncludeChildren()
 {
 	for (Shapes::iterator iter = _shapes->begin(); iter != _shapes->end(); ++iter)
-	{
-		NxShapeDesc* shapeDesc = (*iter)->CreateDesc();
-		shapeList.push_back(shapeDesc);
-	}
-}
-
-void Actor::FillShapeDescListIncludeChildren(_NxShapeDescList& shapeList)
-{
-	FillShapeDescList(shapeList);
+		CreateNxShape(*iter);
 
 	for (Children::iterator iter = _children.begin(); iter != _children.end(); ++iter)
-		(*iter)->FillShapeDescListIncludeChildren(shapeList);
+		(*iter)->CreateNxShapesIncludeChildren();
 }
 
-void Actor::UnpackActorShapeList(PxShape*const* begin, PxShape*const* end)
-{
-	Shapes::iterator pShape = _shapes->begin();
-	for (PxShape*const* iter = begin; iter != end; ++iter, ++pShape)	
-		(*pShape)->SetNxShape(*iter);
-}
-
-unsigned Actor::UnpackActorShapeListIncludeChildren(PxShape*const* shape, unsigned numShapes, unsigned curShape)
-{
-	unsigned nextInd = curShape;
-	if (!GetShapes().Empty())
-	{
-		LSL_ASSERT(curShape < numShapes);
-		
-		unsigned endInd = curShape + GetShapes().Size();
-		UnpackActorShapeList(&shape[curShape], &shape[endInd]);
-		
-		nextInd = endInd;
-	}
-	for (Children::iterator iter = _children.begin(); iter != _children.end(); ++iter)
-		nextInd = (*iter)->UnpackActorShapeListIncludeChildren(shape, numShapes, nextInd);
-	return nextInd;
-}
-
-void Actor::SetNxActorIncludeChildren(NxActor* value)
+void Actor::SetNxActorIncludeChildren(PxRigidActor* value)
 {
 	_nxActor = value;
 	if (!_nxActor)
@@ -1743,30 +1841,20 @@ void Actor::InitRootNxActor()
 {
 	if (!_nxActor && _scene)
 	{
-		NxActorDesc actorDesc = _desc;
-
-		FillShapeDescListIncludeChildren(actorDesc.shapes);
 		//Пустые физические актеры не инстанцируем
-		if (actorDesc.shapes.empty())
+		if (CountShapesIncludeChildren() == 0)
 			return;
 
-		actorDesc.globalPose.t.set(_pos);
-		PxQuat rot;
-		rot.setXYZW(_rot);
-		actorDesc.globalPose.M.fromQuat(rot);
-		actorDesc.body = _body ? &_body->GetDesc() : 0;
-
-		LSL_ASSERT(actorDesc.isValid());
-		if (!actorDesc.isValid())
+		PxTransform pose(ToPx(_pos), ToPx(_rot));
+		if (!pose.isSane())
 		{
-			LSL_LOG("Actor::InitRootNxActor !actorDesc.isValid()");
+			LSL_LOG("Actor::InitRootNxActor pose is not sane");
 			return;
 		}
 
-		_nxActor = _scene->CreateNxActor(actorDesc, this);
-
-		for (_NxShapeDescList::iterator iter = actorDesc.shapes.begin(); iter != actorDesc.shapes.end(); ++iter)
-			delete (*iter);
+		//PhysX 3+ fixes static versus dynamic at creation. _body is the same
+		//discriminator NxActorDesc::body was.
+		_nxActor = _scene->CreateNxActor(pose, _body != 0, this);
 
 		if (!_nxActor)
 		{
@@ -1774,18 +1862,63 @@ void Actor::InitRootNxActor()
 			throw lsl::Error("Actor::InitNxActor failed");
 		}
 
+		//Shapes are attached to the actor rather than described before it, so
+		//this happens after creation and there is no list to unpack afterwards.
 		SetNxActorIncludeChildren(_nxActor);
-		UnpackActorShapeListIncludeChildren(_nxActor->getShapes(), _nxActor->getNbShapes(), 0);
+		CreateNxShapesIncludeChildren();
 
-		//Если установлен такой флаг то центр масс не вычисляется при создании, а значит должен браться из значения указанного в body
-		if (_body && GetFlag(NX_AF_LOCK_COM))
-		{
-			_nxActor->setCMassOffsetLocalPose(_body->GetDesc().massLocalPose);
-		}
+		if (_body)
+			ApplyBodyDesc();
 
 		if (_owner && _body)
 			_owner->OnSetBody(true);
 	}
+}
+
+void Actor::ApplyBodyDesc()
+{
+	PxRigidDynamic* dynamic = GetNxDynamic();
+	if (!dynamic)
+		return;
+
+	const BodyDesc& desc = _body->GetDesc();
+
+	dynamic->setMass(desc.mass);
+	dynamic->setLinearVelocity(ToPx(desc.linearVelocity));
+	dynamic->setSleepThreshold(desc.sleepEnergyThreshold);
+
+	//NX_BF_DISABLE_GRAVITY.
+	dynamic->setActorFlag(PxActorFlag::eDISABLE_GRAVITY, GetFlag(bfDisableGravity));
+
+	//Если установлен такой флаг то центр масс не вычисляется при создании, а значит должен браться из значения указанного в body
+	if (GetFlag(bfLockCenterOfMass))
+	{
+		//massLocalPose keeps D3DX's row-vector layout: rows 0-2 the basis,
+		//row 3 the translation. See BodyDesc.
+		const D3DXMATRIX& m = desc.massLocalPose;
+		PxMat33 basis(
+			PxVec3(m._11, m._12, m._13),
+			PxVec3(m._21, m._22, m._23),
+			PxVec3(m._31, m._32, m._33));
+
+		dynamic->setCMassLocalPose(PxTransform(PxVec3(m._41, m._42, m._43), PxQuat(basis)));
+	}
+	else
+	{
+		//BEHAVIOUR GAP: 2.8 computed mass and inertia from the shapes and their
+		//per-shape density when no explicit centre of mass was given.
+		//Shape::_density is still stored and serialised but no longer reaches
+		//the simulation, so this uses the body mass with a computed inertia
+		//instead. Closing it means PxRigidBodyExt::updateMassAndInertia with the
+		//per-shape densities.
+		PxRigidBodyExt::setMassAndUpdateInertia(*dynamic, desc.mass);
+	}
+
+	//BEHAVIOUR GAP: bfDisableResponse (NX_AF_DISABLE_RESPONSE) is expressed by
+	//clearing PxShapeFlag::eSIMULATION_SHAPE on every shape, and
+	//bfContactModification (NX_AF_CONTACT_MODIFICATION) by the eMODIFY_CONTACTS
+	//pair flag. Neither is applied yet -- the filter shader currently requests
+	//contact modification for every pair.
 }
 
 void Actor::FreeRootNxActor()
@@ -1850,8 +1983,10 @@ void Actor::ReloadNxActor()
 
 void Actor::Save(lsl::SWriter* writer)
 {
-	if (_nxActor)
-		_nxActor->saveToDesc(_desc);
+	//2.8 read the live actor's state back into the descriptor before saving.
+	//PhysX 3+ has no descriptor to read back into, and both fields _desc still
+	//carries are engine-side settings the simulation never changes, so the
+	//cached values are already current.
 
 	writer->WriteValue("flags", _desc.flags);
 	writer->WriteValue("contactReportFlags", _desc.contactReportFlags);
@@ -1942,7 +2077,7 @@ void Actor::WorldToLocalPos(const D3DXVECTOR3& inValue, D3DXVECTOR3& outValue, b
 	outValue = inValue;
 }
 
-BoxShape& Actor::AddBBShape(const AABB& aabb, const NxBoxShapeDesc& desc)
+BoxShape& Actor::AddBBShape(const AABB& aabb)
 {
 	D3DXVECTOR3 sizes = aabb.GetSizes();
 	sizes /= 2.0f;
@@ -1959,9 +2094,14 @@ ActorUser* Actor::GetOwner()
 	return _owner;
 }
 
-NxActor* Actor::GetNxActor()
+PxRigidActor* Actor::GetNxActor()
 {
 	return _nxActor;
+}
+
+PxRigidDynamic* Actor::GetNxDynamic()
+{
+	return _nxActor ? _nxActor->is<PxRigidDynamic>() : 0;
 }
 
 Scene* Actor::GetScene()
@@ -2011,7 +2151,7 @@ Body* Actor::GetBody()
 	return _body;
 }
 
-void Actor::SetBody(const NxBodyDesc* value)
+void Actor::SetBody(const BodyDesc* value)
 {
 	if (value)
 	{
@@ -2078,7 +2218,7 @@ void Actor::SetContactReportFlag(unsigned value, bool set)
 const D3DXVECTOR3& Actor::GetPos() const
 {
 	if (!_parent && _nxActor)
-		_nxActor->getGlobalPosition().get(_pos);
+		_pos = FromPx(_nxActor->getGlobalPose().p);
 
 	return _pos;
 }
@@ -2089,7 +2229,13 @@ void Actor::SetPos(const D3DXVECTOR3& value)
 	if (_nxActor)
 	{
 		if (!_parent)
-			_nxActor->setGlobalPosition(PxVec3(value));
+		{
+			//PhysX 3+ has one global pose rather than separate position and
+			//orientation setters.
+			PxTransform pose = _nxActor->getGlobalPose();
+			pose.p = ToPx(value);
+			_nxActor->setGlobalPose(pose);
+		}
 		else
 			for (Shapes::iterator iter = _shapes->begin(); iter != _shapes->end(); ++iter)
 				(*iter)->SyncPos();
@@ -2099,7 +2245,7 @@ void Actor::SetPos(const D3DXVECTOR3& value)
 const D3DXQUATERNION& Actor::GetRot() const
 {
 	if (!_parent && _nxActor)
-		_nxActor->getGlobalOrientationQuat().getXYZW(_rot);
+		_rot = FromPx(_nxActor->getGlobalPose().q);
 
 	return _rot;
 }
@@ -2111,9 +2257,9 @@ void Actor::SetRot(const D3DXQUATERNION& value)
 	{
 		if (!_parent)
 		{
-			PxQuat quat;
-			quat.setXYZW(value);
-			_nxActor->setGlobalOrientationQuat(quat);
+			PxTransform pose = _nxActor->getGlobalPose();
+			pose.q = ToPx(value);
+			_nxActor->setGlobalPose(pose);
 		}
 		else
 			for (Shapes::iterator iter = _shapes->begin(); iter != _shapes->end(); ++iter)

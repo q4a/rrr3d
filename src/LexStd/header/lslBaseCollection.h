@@ -569,7 +569,7 @@ template<class _Item, class _IdType, class _Arg> void BaseCollectionCL<_Item, _I
 {
 	lsl::SWriter* child = writer->NewDummyNode(aName.c_str());
 	SaveType(child, *pItem);
-	WriteItem(child, *pItem);
+	this->WriteItem(child, *pItem);
 }
 
 template<class _Item, class _IdType, class _Arg> typename BaseCollectionCL<_Item, _IdType, _Arg>::ClassList* BaseCollectionCL<_Item, _IdType, _Arg>::GetClassList()
@@ -638,12 +638,12 @@ template<class _Item, class _IdType, class _Arg, class _ArgThis> void Collection
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> void Collection<_Item, _IdType, _Arg, _ArgThis>::LoadItem(SReader* reader)
 {
-	ReadItem(reader, &Add(this->LoadType(reader)));
+	this->ReadItem(reader, &Add(this->LoadType(reader)));
 }
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> _Item& Collection<_Item, _IdType, _Arg, _ArgThis>::Add(_IdType key)
 {
-	return _MyBase::Add(Value(CreateItem(key), key));
+	return _MyBase::Add(typename _MyBase::Value(CreateItem(key), key));
 }
 
 template<class _Item, class _IdType, class _Arg, class _ArgThis> template<class _Type> _Type& Collection<_Item, _IdType, _Arg, _ArgThis>::Add()

@@ -1444,7 +1444,7 @@ void FxPhysicsEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 		//px::TriangleMeshShape& triShape = particle->pxActor.GetShapes().Add<px::TriangleMeshShape>();
 		//triShape.SetMesh(_mesh, particle->index);
 
-		NxBodyDesc body;
+		px::BodyDesc body;
 		body.mass = 20.0f;
 		body.sleepEnergyThreshold = 0.05f;
 		particle->pxActor.SetBody(&body);

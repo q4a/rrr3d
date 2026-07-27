@@ -43,7 +43,14 @@ namespace px
 using namespace physx;
 #endif
 
+//MSVC's permissive mode lets an in-class `friend class Actor;` introduce the
+//name into the enclosing namespace. Standard C++ does not, so the types these
+//classes refer to before their definitions are declared here explicitly.
 class SceneUser;
+class Actor;
+class Manager;
+class Shape;
+class Shapes;
 
 class Scene: public lsl::Component
 {
@@ -52,70 +59,77 @@ class Scene: public lsl::Component
 private:
 	typedef std::list<SceneUser*> UserList;
 
-	class ContactModify: public NxUserContactModify
+	//NxUserContactModify. The 2.8 callback returned a bool to reject a contact
+	//outright; PhysX 3+ returns void and a contact is rejected by calling
+	//PxContactSet::ignore() on it, which is what a false return maps to.
+	class ContactModify: public PxContactModifyCallback
 	{
 	private:
 		Scene* _scene;
 	public:
 		ContactModify(Scene* scene);
 
-		virtual bool onContactConstraint(PxU32& changeFlags, const PxShape* shape0, const PxShape* shape1, const PxU32 featureIndex0, const PxU32 featureIndex1, NxContactCallbackData& data);
+		virtual void onContactModify(PxContactModifyPair* const pairs, PxU32 count);
 	};
 
-	class ContactReport: public NxUserContactReport
+	//NxUserContactReport and NxUserNotify merged. PhysX 3+ takes exactly one
+	//PxSimulationEventCallback per scene, so the two 2.8 interfaces cannot stay
+	//separate objects.
+	class SimulationEvents: public PxSimulationEventCallback
 	{
 	private:
 		Scene* _scene;
 	public:
-		ContactReport(Scene* scene);
+		SimulationEvents(Scene* scene);
 
-		virtual void onContactNotify(NxContactPair& pair, PxU32 events);
-	};
-
-	class UserNotify: public NxUserNotify
-	{
-	private:
-		Scene* _scene;
-	public:
-		UserNotify(Scene* scene);
-
-		virtual bool onJointBreak(PxReal breakingImpulse, PxJoint& brokenJoint) {return true;}
-		virtual void onWake(NxActor** actors, PxU32 count);
-		virtual void onSleep(NxActor** actors, PxU32 count);
+		virtual void onConstraintBreak(PxConstraintInfo* constraints, PxU32 count) {}
+		virtual void onWake(PxActor** actors, PxU32 count);
+		virtual void onSleep(PxActor** actors, PxU32 count);
+		virtual void onContact(const PxContactPairHeader& pairHeader, const PxContactPair* pairs, PxU32 count);
+		virtual void onTrigger(PxTriggerPair* pairs, PxU32 count) {}
+		virtual void onAdvance(const PxRigidBody*const* bodyBuffer, const PxTransform* poseBuffer, const PxU32 count) {}
 	};
 public:
 	enum CollDisGroup {cdgDefault = 0, cdgShot = 1, cdgShotBorder = 2, cdgShotTransparency = 3, cdgWheel = 4, cdgShotTrack = 5, cdgTrackPlane = 6, cdgPlaneDeath = 7, cCollDisGroupEnd = 32};
 	enum GroupMask {gmDef = 0x0, gmTemp = 0x1, cGroupMaskEnd};
-	typedef NxUserContactModify ContactModifyTraits;
-	typedef ContactModifyTraits::NxContactCallbackData NxContactCallbackData;
+
+	//Contact points are pulled out of the pair one batch at a time. 2.8 handed
+	//over an unbounded NxConstContactStream; this is the largest batch the
+	//engine will look at in one callback.
+	static const unsigned cMaxContactPoints = 32;
 
 	struct OnContactEvent
 	{
 		//внешний актер, соотв индексу 1
 		Actor* actor;
 		unsigned actorIndex;
-		
-		NxContactPair* pair;
+
+		const PxContactPair* pair;
 		unsigned events;
 
 		float deltaTime;
+		//BEHAVIOUR GAP: 2.8 reported summed normal and friction forces per pair.
+		//PhysX 3+ reports a single per-point impulse that already combines both,
+		//so sumNormalForce is that impulse divided by the step and
+		//sumFrictionForce is left zero rather than reported wrongly.
 		D3DXVECTOR3 sumNormalForce;
 		D3DXVECTOR3 sumFrictionForce;
-		NxConstContactStream stream;
 	};
 	struct OnContactModifyEvent
 	{
 		//внешний актер, соотв индексу 1
-		Actor* actor;	
+		Actor* actor;
 		unsigned actorIndex;
 
 		const PxShape* shape0;
 		const PxShape* shape1;
+		//BEHAVIOUR GAP: 2.8 passed the colliding feature indices directly.
+		//PhysX 3+ exposes a face index per contact point via
+		//PxContactSet::getFaceIndex, so these are reported as zero.
 		unsigned featureIndex0;
 		unsigned featureIndex1;
 
-		PxU32* changeFlags;
-		NxContactCallbackData* data;
+		PxContactSet* contacts;
 	};
 
 	//static const float maxTimeStep;
@@ -123,13 +137,15 @@ public:
 	static const PxVec3 cDefGravity;
 	static const int cDefMatInd;
 
-	static Actor* GetActorFromNx(NxActor* actor);
-	static Actor* GetActorFromNxShape(PxShape* shape);
+	static Actor* GetActorFromNx(const PxRigidActor* actor);
+	static Actor* GetActorFromNxShape(const PxShape* shape);
 private:
 	Manager* _manager;
 	ContactModify* _contactModify;
-	ContactReport* _contactReport;
-	UserNotify* _userNotify;
+	SimulationEvents* _simulationEvents;
+	//PhysX 3+ requires the application to supply the worker thread pool that
+	//2.8 created internally.
+	PxDefaultCpuDispatcher* _cpuDispatcher;
 	PxScene* _nxScene;
 
 	UserList _userList;
@@ -140,8 +156,11 @@ protected:
 	Scene(Manager* manager);
 	virtual ~Scene();
 
-	NxActor* CreateNxActor(const NxActorDesc& desc, Actor* actor);
-	void ReleaseNxActor(NxActor* nxActor, Actor* actor);
+	//PhysX 3+ has no actor descriptor, and static versus dynamic is fixed at
+	//creation rather than switchable afterwards. `dynamic` is the same
+	//discriminator the 2.8 code already used, NxActorDesc::body != 0.
+	PxRigidActor* CreateNxActor(const PxTransform& pose, bool dynamic, Actor* actor);
+	void ReleaseNxActor(PxRigidActor* nxActor, Actor* actor);
 public:
 	void Compute(float deltaTime);
 
@@ -173,6 +192,11 @@ private:
 	//PhysX 3+ requires an explicit foundation, which owns the allocator and
 	//error callback. PhysX 2.8 created these implicitly.
 	static PxFoundation* _nxFoundation;
+	//PhysX 2.8 gave every scene a built-in material at index 0. PhysX 3+ has no
+	//material table at all -- shapes hold PxMaterial pointers -- so the default
+	//is created once here with the same friction and restitution the 2.8 code
+	//assigned to index 0.
+	static PxMaterial* _defMaterial;
 	static unsigned _sdkRefCnt;
 public:
 	typedef std::list<Scene*> SceneList;
@@ -194,6 +218,8 @@ public:
 
 	PxPhysics& GetSDK();
 	PxCooking& GetCooking();
+
+	static PxMaterial& GetDefaultMaterial();
 };
 
 class TriangleMesh: public lsl::CollectionItem
@@ -302,7 +328,7 @@ public:
 	//
 	//Applies localPose, contact offset and collision filtering to a shape
 	//created from CreateGeometry().
-	virtual void ApplyToShape(PxShape& shape) const;
+	virtual void ApplyToShape(PxShape& shape);
 
 	ShapeType GetType() const;
 	Shapes* GetOwner();
@@ -345,7 +371,7 @@ private:
 	void SyncPlanePose();
 protected:
 	virtual PxGeometryHolder CreateGeometry();
-	virtual void ApplyToShape(PxShape& shape) const;
+	virtual void ApplyToShape(PxShape& shape);
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
@@ -413,7 +439,7 @@ protected:
 	virtual PxGeometryHolder CreateGeometry();
 	//PhysX capsules run along X where PhysX 2.8's ran along Y; the local
 	//pose has to carry that rotation.
-	virtual void ApplyToShape(PxShape& shape) const;
+	virtual void ApplyToShape(PxShape& shape);
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
@@ -589,7 +615,7 @@ private:
 	ContactModify* _contactModify;
 protected:
 	virtual PxGeometryHolder CreateGeometry();
-	virtual void ApplyToShape(PxShape& shape) const;
+	virtual void ApplyToShape(PxShape& shape);
 
 	void SaveTireForceFunction(lsl::SWriter* writer, const TireFunctionDesc& func);
 	void LoadTireForceFunction(lsl::SReader* reader, TireFunctionDesc& func);
@@ -716,10 +742,20 @@ class Actor: public lsl::Object, public lsl::Serializable
 	friend void Shape::ReloadNxShape(bool allowInitialization);
 
 		//Жесткая связь _parent - _child реализуется с помощью shape, поэтому координаты требуется преобразовывать вручную
-private:
-	typedef NxArray<NxShapeDesc*, NxAllocatorDefault> _NxShapeDescList;
-public:	
+public:
 	typedef std::list<Actor*> Children;
+
+	//What survives of NxActorDesc. Everything else it carried is now computed
+	//at creation: the pose from _pos/_rot, the body from _body, and the shapes
+	//by attaching them to the actor rather than by describing them up front.
+	//Kept as a struct because both fields are serialised by name.
+	struct Desc
+	{
+		unsigned flags;
+		unsigned contactReportFlags;
+
+		Desc();
+	};
 private:
 	ActorUser* _owner;
 	Scene* _scene;
@@ -729,8 +765,8 @@ private:
 	Actor* _parent;
 	Children _children;
 
-	NxActorDesc _desc;
-	NxActor* _nxActor;
+	Desc _desc;
+	PxRigidActor* _nxActor;
 
 	//координаты кэшируется, отностиельно _nxActor
 	mutable D3DXVECTOR3 _pos;
@@ -743,15 +779,16 @@ protected:
 	//Если nxShape создан, перезагружает его
 	void ReloadNxShape(Shape* shape, bool allowInitialization);
 
-	//Методы для статической инициализации actor. При статической инициализации происходит создание всех фигур(в том числе и дочерних) в момент создания актера
-	//Заполнения списка дескрипторами
-	void FillShapeDescList(_NxShapeDescList& shapeList);
-	void FillShapeDescListIncludeChildren(_NxShapeDescList& shapeList);
-	//Извлечение указателей созданных фигур из актера для внутреннего списка фигур
-	void UnpackActorShapeList(PxShape*const* begin, PxShape*const* end);
-	unsigned UnpackActorShapeListIncludeChildren(PxShape*const* shape, unsigned numShapes, unsigned curShape);
+	//PhysX 3+ attaches shapes to an actor that already exists, so the descriptor
+	//list the 2.8 code built up front -- and then unpacked back into the Shape
+	//objects afterwards -- is replaced by creating each shape directly.
+	unsigned CountShapesIncludeChildren() const;
+	void CreateNxShapesIncludeChildren();
 	//Установка _nxActor для всех Actor (в том числе и дочерних). Если аргумент равен нулю то сразу происходит обнуление _nxShape для всех Shape
-	void SetNxActorIncludeChildren(NxActor* value);
+	void SetNxActorIncludeChildren(PxRigidActor* value);
+	//Applies BodyDesc to a freshly created PxRigidDynamic. 2.8 passed these
+	//through NxActorDesc::body at creation time.
+	void ApplyBodyDesc();
 
 	//Инициализация корневого актера
 	void InitRootNxActor();
@@ -777,11 +814,14 @@ public:
 	void LocalToWorldPos(const D3DXVECTOR3& inValue, D3DXVECTOR3& outValue, bool nxActorSpace = false);
 	void WorldToLocalPos(const D3DXVECTOR3& inValue, D3DXVECTOR3& outValue, bool nxActorSpace = false);
 
-	BoxShape& AddBBShape(const AABB& aabb, const NxBoxShapeDesc& desc = NxBoxShapeDesc());
+	BoxShape& AddBBShape(const AABB& aabb);
 
 	ActorUser* GetOwner();
 
-	NxActor* GetNxActor();
+	PxRigidActor* GetNxActor();
+	//A dynamic actor, or null when this actor is static. Callers that need
+	//mass, velocity or forces want this rather than GetNxActor().
+	PxRigidDynamic* GetNxDynamic();
 	//Менеджер, один для всей иерархии, изменение влечет также изменение в дочерних узлах
 	Scene* GetScene();
 	void SetScene(Scene* value);
@@ -790,7 +830,7 @@ public:
 	void SetParent(Actor* value);
 
 	Body* GetBody();
-	void SetBody(const NxBodyDesc* value);
+	void SetBody(const BodyDesc* value);
 	Shapes& GetShapes();
 
 	unsigned GetFlags() const;
