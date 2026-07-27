@@ -67,6 +67,26 @@ inline D3DXQUATERNION FromPx(const PxQuat& value)
 	return D3DXQUATERNION(value.x, value.y, value.z, value.w);
 }
 
+//PhysX 3+ removed NxActor's momentum accessors; there is only velocity, mass
+//and the inertia tensor. These reproduce the 2.8 definitions exactly:
+//
+//  linear  momentum = mass * linearVelocity
+//  angular momentum = worldInertiaTensor * angularVelocity
+//
+//The world inertia tensor is R*I*R^T, with R the rotation of the body's
+//centre-of-mass frame and I the diagonal mass-space tensor PhysX stores. Note
+//that angular momentum is NOT mass * angularVelocity -- treating it that way
+//would be wrong for every body whose inertia is not isotropic, which is all of
+//them.
+//
+//These sit on the multiplayer sync path, so an error here changes netplay
+//behaviour rather than failing to build.
+D3DXVECTOR3 GetLinearMomentum(const PxRigidDynamic& body);
+void SetLinearMomentum(PxRigidDynamic& body, const D3DXVECTOR3& value);
+
+D3DXVECTOR3 GetAngularMomentum(const PxRigidDynamic& body);
+void SetAngularMomentum(PxRigidDynamic& body, const D3DXVECTOR3& value);
+
 //MSVC's permissive mode lets an in-class `friend class Actor;` introduce the
 //name into the enclosing namespace. Standard C++ does not, so the types these
 //classes refer to before their definitions are declared here explicitly.

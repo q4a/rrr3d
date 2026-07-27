@@ -207,6 +207,8 @@ public:
 	graph::Actor& GetGrActor();
 	px::Actor& GetPxActor();
 	PxRigidActor* GetNxActor();
+	//Mass, velocity and forces; null-checked, so this throws for a static actor.
+	PxRigidDynamic* GetNxDynamic();
 
 	virtual Proj* IsProj();
 	virtual GameCar* IsCar();

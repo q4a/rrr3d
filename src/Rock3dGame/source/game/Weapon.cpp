@@ -182,7 +182,7 @@ void Proj::CreatePxBox(NxCollisionGroup group)
 
 void Proj::AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, NxForceMode mode)
 {
-	target->GetPxActor().GetNxActor()->addForceAtPos(px::ToPx(force), px::ToPx(point), mode);
+	target->GetPxActor().GetNxDynamic()->addForceAtPos(px::ToPx(force), px::ToPx(point), mode);
 }
 
 void Proj::AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const D3DXVECTOR3& force, NxForceMode mode)
@@ -381,7 +381,7 @@ void Proj::RocketContact(const px::Scene::OnContactEvent& contact)
 
 		DamageTarget(target, _desc.damage);
 
-		D3DXVECTOR3 dir = px::FromPx(this->GetPxActor().GetNxActor()->getLinearVelocity());
+		D3DXVECTOR3 dir = px::FromPx(this->GetPxActor().GetNxDynamic()->getLinearVelocity());
 		float dirLength = D3DXVec3Length(&dir);
 
 		if (dirLength > 1.0f)
@@ -441,7 +441,7 @@ bool Proj::HyperPrepare(GameObject* weapon)
 	InitModel();
 	LinkToWeapon();
 
-	weapon->GetPxActor().GetNxActor()->addLocalForce(PxVec3(1.0f, 0.0f, 0.0f) * _desc.speed, NX_SMOOTH_VELOCITY_CHANGE);
+	weapon->GetPxActor().GetNxDynamic()->addLocalForce(PxVec3(1.0f, 0.0f, 0.0f) * _desc.speed, NX_SMOOTH_VELOCITY_CHANGE);
 
 	return true;
 }
@@ -524,7 +524,7 @@ void Proj::SpeedArrowContact(const px::Scene::OnContactEvent& contact)
 	GameObject* target = GetGameObjFromActor(contact.actor);
 	if (target)
 	{
-		target->GetPxActor().GetNxActor()->setLinearVelocity(px::ToPx(GetGrActor().GetWorldDir() * _desc.damage));
+		target->GetPxActor().GetNxDynamic()->setLinearVelocity(px::ToPx(GetGrActor().GetWorldDir() * _desc.damage));
 		target->SendEvent(cPlayerSpeedArrow);
 	}
 }
@@ -660,7 +660,7 @@ void Proj::MasloContact(const px::Scene::OnContactEvent& contact)
 		D3DXPlaneFromPointNormal(&plane, &car->GetGrActor().GetWorldPos(), &car->GetGrActor().GetWorldRight());
 		float dist = PlaneDistToPoint(plane, GetWorldPos());
 
-		if (car->GetPxActor().GetNxActor()->getLinearVelocity().magnitude() > 3.0f)
+		if (car->GetPxActor().GetNxDynamic()->getLinearVelocity().magnitude() > 3.0f)
 			car->LockClutch(abs(dist) > 0.1f && dist > 0 ? -_desc.damage : _desc.damage);
 	}
 }
@@ -709,7 +709,7 @@ void Proj::MineRipUpdate(float deltaTime)
 
 				PxVec3 dir(vec.GetValue());
 				dir.normalize();
-				mapObj->GetGameObj().GetPxActor().GetNxActor()->addForce(mapObj->GetGameObj().GetPxActor().GetBody()->GetDesc().mass * dir * 10.0f, NX_IMPULSE);
+				mapObj->GetGameObj().GetPxActor().GetNxDynamic()->addForce(mapObj->GetGameObj().GetPxActor().GetBody()->GetDesc().mass * dir * 10.0f, NX_IMPULSE);
 
 				//Player* player = GetLogic()->GetRace()->GetPlayerByMapObj(_shot.GetTargetMapObj());
 				//if (player)
@@ -811,7 +811,7 @@ void Proj::TorpedaUpdate(float deltaTime)
 
 		_vec1 = dir * speed;
 		
-		this->GetPxActor().GetNxActor()->setLinearVelocity(px::ToPx(dir * std::max(_desc.speed, speed)));
+		this->GetPxActor().GetNxDynamic()->setLinearVelocity(px::ToPx(dir * std::max(_desc.speed, speed)));
 	}
 }
 
@@ -903,7 +903,7 @@ void Proj::FireUpdate(float deltaTime)
 {
 	if (_weapon && _weapon->GetPxActor().GetNxActor() && GetPxActor().GetNxActor())
 	{
-		GetPxActor().GetNxActor()->setLinearVelocity(_weapon->GetPxActor().GetNxActor()->getLinearVelocity());
+		GetPxActor().GetNxDynamic()->setLinearVelocity(_weapon->GetPxActor().GetNxDynamic()->getLinearVelocity());
 
 		D3DXVECTOR3 pos;
 		_weapon->GetGrActor().LocalToWorldCoord(_desc.pos, pos);
@@ -979,7 +979,7 @@ void Proj::SonarContact(const px::Scene::OnContactEvent& contact)
 	if (target)
 	{
 		DamageTarget(target, _desc.damage * contact.deltaTime, dtEnergy);
-		AddContactForce(target, contact, _desc.mass * px::FromPx(this->GetPxActor().GetNxActor()->getLinearVelocity()), NX_IMPULSE);
+		AddContactForce(target, contact, _desc.mass * px::FromPx(this->GetPxActor().GetNxDynamic()->getLinearVelocity()), NX_IMPULSE);
 	}
 }
 
@@ -998,7 +998,7 @@ bool Proj::SpringPrepare(GameObject* weapon)
 		//testRot = car->GetRot();
 		//SetMaxTimeLife(4.0f);
 
-		car->GetPxActor().GetNxActor()->addLocalForce(PxVec3(0.0f, 0.0f, 1.0f) * _desc.speed, NX_SMOOTH_VELOCITY_CHANGE);
+		car->GetPxActor().GetNxDynamic()->addLocalForce(PxVec3(0.0f, 0.0f, 1.0f) * _desc.speed, NX_SMOOTH_VELOCITY_CHANGE);
 		car->LockSpring();
 		return true;
 	}
@@ -1169,7 +1169,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 		return;
 	_time1 = 0.0f;
 
-	PxVec3 velocity = GetPxActor().GetNxActor()->getLinearVelocity();
+	PxVec3 velocity = GetPxActor().GetNxDynamic()->getLinearVelocity();
 	NxContactStreamIterator contIter(contact.stream);
 	
 	if (ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency) && velocity.magnitude() > 5.0f)
@@ -1197,7 +1197,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 		else
 			velocity = -velocity;
 
-		GetPxActor().GetNxActor()->setLinearVelocity(velocity);
+		GetPxActor().GetNxDynamic()->setLinearVelocity(velocity);
 	}
 }
 

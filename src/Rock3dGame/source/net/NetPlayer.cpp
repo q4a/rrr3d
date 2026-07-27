@@ -525,8 +525,8 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 
 	D3DXVECTOR3 pos = car->GetPxActor().GetPos();
 	D3DXQUATERNION rot = car->GetPxActor().GetRot();	
-	D3DXVECTOR3 linVel = car->GetNxActor()->getLinearMomentum().get();
-	D3DXVECTOR3 angVel = car->GetNxActor()->getAngularMomentum().get();
+	D3DXVECTOR3 linVel = px::GetLinearMomentum(*car->GetNxDynamic());
+	D3DXVECTOR3 angVel = px::GetAngularMomentum(*car->GetNxDynamic());
 	BYTE moveState = car->GetMoveCar();
 	BYTE steerState = car->GetSteerWheel();
 	float steerWheelsAngle = car->GetSteerWheelAngle();
@@ -551,7 +551,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 			car->GetPxActor().SetPos(pos);
 		}
 		else if (dPosLength > 0.1f)
-			linVel += dPos * 2.0f * car->GetNxActor()->getMass();
+			linVel += dPos * 2.0f * car->GetNxDynamic()->getMass();
 
 		/*D3DXVECTOR3 dPos = pos - car->GetPxActor().GetPos();
 		float dPosLength = D3DXVec3Length(&dPos);
@@ -569,7 +569,7 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 
 			if (dPosLength > 0.1f)
 			{
-				linVel += dPos * 2.0f * car->GetNxActor()->getMass();
+				linVel += dPos * 2.0f * car->GetNxDynamic()->getMass();
 			}
 		}*/
 
@@ -592,8 +592,8 @@ void NetPlayer::ResponseStream(const net::NetMessage& msg, net::BitStream& strea
 			car->SetRotSync(dRot);
 		}
 
-		car->GetNxActor()->setLinearMomentum(px::ToPx(linVel));
-		car->GetNxActor()->setAngularMomentum(px::ToPx(angVel));
+		px::SetLinearMomentum(*car->GetNxDynamic(), linVel);
+		px::SetAngularMomentum(*car->GetNxDynamic(), angVel);
 		
 		car->SetMoveCar((GameCar::MoveCarState)moveState);		
 		car->SetSteerWheel((GameCar::SteerWheelState)steerState);

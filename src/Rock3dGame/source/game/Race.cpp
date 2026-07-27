@@ -7559,10 +7559,10 @@ void Race::ResetCarPos()
 			gameObj->GetGrActor().SetUp(ZVector);			
 			gameObj->SetWorldRot(gameObj->GetGrActor().GetWorldRot());
 
-			gameObj->GetPxActor().GetNxActor()->setLinearVelocity(px::ToPx(NullVector));
-			gameObj->GetPxActor().GetNxActor()->setLinearMomentum(px::ToPx(NullVector));
-			gameObj->GetPxActor().GetNxActor()->setAngularMomentum(px::ToPx(NullVector));
-			gameObj->GetPxActor().GetNxActor()->setAngularVelocity(px::ToPx(NullVector));
+			gameObj->GetPxActor().GetNxDynamic()->setLinearVelocity(px::ToPx(NullVector));
+			px::SetLinearMomentum(*gameObj->GetPxActor().GetNxDynamic(), NullVector);
+			px::SetAngularMomentum(*gameObj->GetPxActor().GetNxDynamic(), NullVector);
+			gameObj->GetPxActor().GetNxDynamic()->setAngularVelocity(px::ToPx(NullVector));
 		}
 	}
 }

@@ -446,6 +446,18 @@ PxRigidActor* GameObject::GetNxActor()
 	return nxActor;
 }
 
+//Mass, velocity and forces live on PxRigidDynamic in PhysX 3+, not on the
+//actor. Throwing rather than returning null matches GetNxActor above: the
+//callers are all code that already assumes a simulated body.
+PxRigidDynamic* GameObject::GetNxDynamic()
+{
+	PxRigidDynamic* dynamic = _pxActor->GetNxDynamic();
+	if (!dynamic)
+		throw lsl::Error("GameObject::GetNxDynamic(), no dynamic body");
+
+	return dynamic;
+}
+
 void GameObject::Assign(GameObject* value)
 {
 	LSL_ASSERT(value);

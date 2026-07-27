@@ -950,7 +950,7 @@ void Player::CarState::Update(float deltaTime)
 		mat34.t[0], mat34.t[1], mat34.t[2], 1);
 
 	pos3 = mat34.t.get();
-	nxActor->getGlobalOrientationQuat().getXYZW(rot3);
+	nxActor->getGlobalPose().q.getXYZW(rot3);
 	Vec3Rotate(XVector, rot3, dir3);
 
 	pos = D3DXVECTOR2(pos3);
@@ -1801,10 +1801,10 @@ void Player::ResetCar()
 		_car.gameObj->SetWorldRot(NullQuaternion);
 		_car.gameObj->SetWorldDir(D3DXVECTOR3(dir2.x, dir2.y, 0.0f));		
 
-		_car.gameObj->GetPxActor().GetNxActor()->setLinearVelocity(px::ToPx(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setLinearMomentum(px::ToPx(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setAngularMomentum(px::ToPx(NullVector));
-		_car.gameObj->GetPxActor().GetNxActor()->setAngularVelocity(px::ToPx(NullVector));
+		_car.gameObj->GetPxActor().GetNxDynamic()->setLinearVelocity(px::ToPx(NullVector));
+		px::SetLinearMomentum(*_car.gameObj->GetPxActor().GetNxDynamic(), NullVector);
+		px::SetAngularMomentum(*_car.gameObj->GetPxActor().GetNxDynamic(), NullVector);
+		_car.gameObj->GetPxActor().GetNxDynamic()->setAngularVelocity(px::ToPx(NullVector));
 	}
 }
 

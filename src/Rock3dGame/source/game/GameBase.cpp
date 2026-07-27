@@ -211,7 +211,7 @@ void FxSystemSrcSpeed::OnProgress(float deltaTime)
 		{
 			graph::FxParticleSystem* fxSystem = iter->GetItem<graph::FxParticleSystem>();
 
-			D3DXVECTOR3 speed(GetGameObj()->GetPxActor().GetNxActor()->getLinearVelocity().get());
+			D3DXVECTOR3 speed(GetGameObj()->GetPxActor().GetNxDynamic()->getLinearVelocity().get());
 			if (GetGameObj()->GetParent())
 				GetGameObj()->GetParent()->GetGrActor().WorldToLocalNorm(speed, speed);
 
@@ -366,7 +366,7 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 		mapObj->GetGameObj().SetRot(desc.rot);
 
 	if (D3DXVec3Length(&_impulse) > 0.001f && mapObj->GetGameObj().GetPxActor().GetNxActor())
-		mapObj->GetGameObj().GetPxActor().GetNxActor()->addLocalForce(px::ToPx(_impulse), NX_IMPULSE);
+		mapObj->GetGameObj().GetPxActor().GetNxDynamic()->addLocalForce(px::ToPx(_impulse), NX_IMPULSE);
 
 	return mapObj;
 }
@@ -1013,7 +1013,7 @@ SlowEffect::SlowEffect(Behaviors* owner): _MyBase(owner)
 
 void SlowEffect::OnDestroyEffect(MapObj* sender)
 {
-	GetGameObj()->GetPxActor().GetNxActor()->setLinearDamping(0.0f);
+	GetGameObj()->GetPxActor().GetNxDynamic()->setLinearDamping(0.0f);
 	Remove();	
 }
 

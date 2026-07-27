@@ -552,8 +552,8 @@ inline const void NxQuatRotation(PxQuat& quat, const PxQuat& quat1, const PxQuat
 void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorque)
 {
 	PxRigidActor* nxActor = GetPxActor().GetNxActor();
-	float speed = GetSpeed(nxActor, nxActor->getGlobalOrientationQuat().rot(PxVec3(1.0f, 0.0f, 0.0f)).get());
-	float absSpeed = GetPxActor().GetNxActor()->getLinearVelocity().magnitude();
+	float speed = GetSpeed(nxActor, nxActor->getGlobalPose().q.rot(PxVec3(1.0f, 0.0f, 0.0f)).get());
+	float absSpeed = GetPxActor().GetNxDynamic()->getLinearVelocity().magnitude();
 
 	if (_maxSpeed > 0 && absSpeed > _maxSpeed)
 	{
@@ -643,7 +643,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 
 		PxQuat fixRot;
 		fixRot.fromAngleAxisFast(0, PxVec3(0, 0, 1));
-		PxQuat worldRot = nxActor->getGlobalOrientationQuat();
+		PxQuat worldRot = nxActor->getGlobalPose().q;
 		NxQuatRotation(fixRot, fixRot, worldRot);
 
 		D3DXQUATERNION rot;
@@ -672,7 +672,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 
 		PxQuat dRot;
 		dRot.fromAngleAxisFast(dFixAngle - dFixAngleNew, dFixAxis);
-		nxActor->setGlobalOrientationQuat(nxActor->getGlobalOrientationQuat() * dRot);
+		nxActor->setGlobalOrientationQuat(nxActor->getGlobalPose().q * dRot);
 
 		dFixAngle = dFixAngleNew;
 	}*/
@@ -721,7 +721,7 @@ void GameCar::JumpProgress(float deltaTime)
 
 void GameCar::StabilizeForce(float deltaTime)
 {
-	PxVec3 angMomentum = GetPxActor().GetNxActor()->getAngularMomentum();	
+	D3DXVECTOR3 angMomentum = px::GetAngularMomentum(*GetPxActor().GetNxDynamic());
 	PxMat33 mat = GetPxActor().GetNxActor()->getGlobalOrientation();	
 	PxMat33 invMat;
 
@@ -743,7 +743,7 @@ void GameCar::StabilizeForce(float deltaTime)
 		if (IsClutchLocked())
 		{		
 			if (_clutchStrength != 0)
-				angMomZ = _clutchStrength * GetNxActor()->getMass();
+				angMomZ = _clutchStrength * GetNxDynamic()->getMass();
 			else
 				angMomZ = angMomentum.z;
 			_clutchStrength = 0;
@@ -753,7 +753,7 @@ void GameCar::StabilizeForce(float deltaTime)
 
 		if (_clampYTorque > 0 || _clampXTorque > 0)
 		{
-			PxQuat rot = GetPxActor().GetNxActor()->getGlobalOrientationQuat();
+			PxQuat rot = GetPxActor().GetNxActor()->getGlobalPose().q;
 
 			EulerAngles angles = Eul_FromQuat(*(Quat*)&rot, EulOrdXYZs);
 			if (_clampXTorque > 0)
@@ -766,7 +766,7 @@ void GameCar::StabilizeForce(float deltaTime)
 		}
 	}
 
-	GetPxActor().GetNxActor()->setAngularMomentum(angMomentum);
+	px::SetAngularMomentum(*GetPxActor().GetNxDynamic(), angMomentum);
 }
 
 float GameCar::GetWheelRPM() const
@@ -971,7 +971,7 @@ bool GameCar::OnContactModify(const px::Scene::OnContactModifyEvent& contact)
 			contact.data->localorientation0 = rot0;
 			contact.data->localorientation1 = rot1;
 
-			PxVec3 velocity = GetPxActor().GetNxActor()->getLinearVelocity();
+			PxVec3 velocity = GetPxActor().GetNxDynamic()->getLinearVelocity();
 			if (velocity.magnitude() > 0.1f)
 			{
 				velocity.normalize();
@@ -1038,7 +1038,7 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 			if (contact.actorIndex == 0)
 				norm = -norm;
 
-			PxVec3 vel = GetPxActor().GetNxActor()->getLinearVelocity();			
+			PxVec3 vel = GetPxActor().GetNxDynamic()->getLinearVelocity();			
 			NxContactStreamIterator contIter(contact.stream);
 
 			bool borderContact = abs(norm.z) < 0.5f && ContainsContactGroup(contIter, contact.actorIndex, px::Scene::cdgShotTransparency);
@@ -1059,7 +1059,7 @@ void GameCar::OnContact(const px::Scene::OnContactEvent& contact)
 					float tangDot = abs(tang.dot(norm));
 
 					PxVec3 dir = PxVec3(1.0f, 0.0f, 0.0f);
-					GetPxActor().GetNxActor()->getGlobalOrientationQuat().rotate(dir);
+					GetPxActor().GetNxActor()->getGlobalPose().q.rotate(dir);
 					float dirDot = dir.dot(norm);
 					float dirDot2 = dir.dot(tang);
 
@@ -1264,7 +1264,7 @@ void GameCar::SetMoveCar(MoveCarState value)
 		_moveCar = value;
 
 		if (_moveCar != mcNone && GetPxActor().GetNxActor())
-			GetPxActor().GetNxActor()->wakeUp();
+			GetPxActor().GetNxDynamic()->wakeUp();
 	}
 }
 

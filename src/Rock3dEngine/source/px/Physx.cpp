@@ -18,6 +18,59 @@ namespace px
 //ToPx/FromPx live in px/Physx.h -- the game layer converts at the same
 //boundaries this file does.
 
+namespace
+{
+
+//The rotation taking mass-space vectors to world space.
+PxQuat MassFrameRotation(const PxRigidDynamic& body)
+{
+	return (body.getGlobalPose() * body.getCMassLocalPose()).q;
+}
+
+}
+
+D3DXVECTOR3 GetLinearMomentum(const PxRigidDynamic& body)
+{
+	return FromPx(body.getLinearVelocity() * body.getMass());
+}
+
+void SetLinearMomentum(PxRigidDynamic& body, const D3DXVECTOR3& value)
+{
+	const float mass = body.getMass();
+
+	//A zero-mass dynamic actor is kinematic in all but name; leave it alone
+	//rather than dividing by zero.
+	if (mass > 0.0f)
+		body.setLinearVelocity(ToPx(value) / mass);
+}
+
+D3DXVECTOR3 GetAngularMomentum(const PxRigidDynamic& body)
+{
+	const PxQuat rot = MassFrameRotation(body);
+	const PxVec3 inertia = body.getMassSpaceInertiaTensor();
+
+	//L = R * I * R^T * w, evaluated by taking w into mass space, scaling by the
+	//diagonal tensor, and rotating back.
+	const PxVec3 local = rot.rotateInv(body.getAngularVelocity());
+	return FromPx(rot.rotate(PxVec3(local.x * inertia.x, local.y * inertia.y, local.z * inertia.z)));
+}
+
+void SetAngularMomentum(PxRigidDynamic& body, const D3DXVECTOR3& value)
+{
+	const PxQuat rot = MassFrameRotation(body);
+	const PxVec3 inertia = body.getMassSpaceInertiaTensor();
+
+	//w = R * I^-1 * R^T * L. A zero principal moment means no rotation is
+	//possible about that axis, which is what PhysX means by a locked axis.
+	const PxVec3 local = rot.rotateInv(ToPx(value));
+	const PxVec3 scaled(
+		inertia.x > 0.0f ? local.x / inertia.x : 0.0f,
+		inertia.y > 0.0f ? local.y / inertia.y : 0.0f,
+		inertia.z > 0.0f ? local.z / inertia.z : 0.0f);
+
+	body.setAngularVelocity(rot.rotate(scaled));
+}
+
 //const float Scene::maxTimeStep = 1.0f/75.0f;
 //const unsigned Scene::maxSimIter = 8;
 const PxVec3 Scene::cDefGravity(0.0f, 0.0f, -20.0f);
