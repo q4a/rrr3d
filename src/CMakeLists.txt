@@ -38,6 +38,9 @@ endif()
 # Metal. Apple platforms only; the winemetal ABI this implements is what
 # d9mt's D3D9 backend calls.
 if (APPLE)
+    # OBJC for the vendored d9mtmetal (.m, plain Objective-C where void*
+    # converts implicitly); OBJCXX for the bridge itself.
+    enable_language(OBJC)
     enable_language(OBJCXX)
     add_subdirectory(MetalBridge)
 endif()
