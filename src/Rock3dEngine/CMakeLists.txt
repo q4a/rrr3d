@@ -33,12 +33,18 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     header
     ${CMAKE_SOURCE_DIR}/src/LexStd/header
     ${CMAKE_SOURCE_DIR}/src/MathLib/header
-    ${CMAKE_SOURCE_DIR}/extern/physx/include/Cooking
-    ${CMAKE_SOURCE_DIR}/extern/physx/include/Foundation
-    ${CMAKE_SOURCE_DIR}/extern/physx/include/Physics
-    ${CMAKE_SOURCE_DIR}/extern/physx/include/PhysXLoader
-    ${CMAKE_SOURCE_DIR}/extern/directx/include
 )
+
+if (MSVC)
+    # PhysX 2.8.4 and the DirectX SDK, from the prebuilt extern.7z
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/extern/physx/include/Cooking
+        ${CMAKE_SOURCE_DIR}/extern/physx/include/Foundation
+        ${CMAKE_SOURCE_DIR}/extern/physx/include/Physics
+        ${CMAKE_SOURCE_DIR}/extern/physx/include/PhysXLoader
+        ${CMAKE_SOURCE_DIR}/extern/directx/include
+    )
+endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     LexStd
@@ -47,4 +53,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 if (NOT WIN32)
     # Windows/COM substitutes plus the vendored d3d9.h
     target_link_libraries(${PROJECT_NAME} PRIVATE XPlatform MathLib)
+
+    # PhysX 4.1, built by tools/setup-physx-macos.sh. PhysX 2.8.4 is closed
+    # source with no 64-bit or macOS build, so there is nothing to shim to.
+    set(PHYSX41 ${CMAKE_SOURCE_DIR}/extern/physx41)
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${PHYSX41}/physx/include
+        ${PHYSX41}/pxshared/include
+    )
 endif()

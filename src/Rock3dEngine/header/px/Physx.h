@@ -11,8 +11,13 @@
 	#undef free
 #endif
 
-#include "NxPhysics.h"
-#include "NxCooking.h"
+#ifdef _WIN32
+	#include "NxPhysics.h"
+	#include "NxCooking.h"
+#else
+	#include "PxPhysicsAPI.h"
+	#include "cooking/PxCooking.h"
+#endif
 
 #ifdef DEBUG_MEMORY
 	#pragma pop_macro("new")
