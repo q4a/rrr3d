@@ -566,19 +566,48 @@ public:
 	void SetContactModify(ContactModify* value);
 };
 
+//PhysX 3+ has no body descriptor -- a rigid body is configured through
+//setters. This carries the five fields this project actually used from
+//NxBodyDesc, so the type disappears from the game-facing headers.
+//
+//massLocalPose keeps D3DX's row-vector layout: rows 0-2 are the basis and
+//row 3 is the translation, which matches the existing 12-float on-disk
+//format exactly, so saved games and the object database stay readable.
+struct BodyDesc
+{
+	float mass;
+	unsigned flags;
+	D3DXMATRIX massLocalPose;
+	float sleepEnergyThreshold;
+	D3DXVECTOR3 linearVelocity;
+
+	BodyDesc();
+};
+
+//Replacements for the NX_BF_/NX_AF_ flags this project used. PhysX 3+ splits
+//these across PxActorFlag and PxRigidBodyFlag, and eNO_RESPONSE has no direct
+//equivalent -- it is expressed by clearing PxShapeFlag::eSIMULATION_SHAPE.
+enum BodyFlag
+{
+	bfDisableGravity      = 1 << 0,  //NX_BF_DISABLE_GRAVITY
+	bfLockCenterOfMass    = 1 << 1,  //NX_AF_LOCK_COM
+	bfDisableResponse     = 1 << 2,  //NX_AF_DISABLE_RESPONSE
+	bfContactModification = 1 << 3   //NX_AF_CONTACT_MODIFICATION
+};
+
 class Body: public lsl::Serializable
 {
 private:
 	Actor* _actor;
-	NxBodyDesc _desc;
+	BodyDesc _desc;
 protected:
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);	
 public:
 	Body(Actor* actor);
 
-	const NxBodyDesc& GetDesc();
-	void SetDesc(const NxBodyDesc& value);
+	const BodyDesc& GetDesc();
+	void SetDesc(const BodyDesc& value);
 };
 
 //Класс предусматривает отложенную инициализацию NxActor. Для этого следует методы изменяющие его состояние заключать в блок BeginUpdate/EndUpdate.

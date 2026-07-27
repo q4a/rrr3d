@@ -1457,17 +1457,18 @@ void Body::Save(lsl::SWriter* writer)
 {
 	writer->WriteValue("mass", _desc.mass);	
 
+	//Rows 0-2 are the basis, row 3 the translation -- the same 12 floats the
+	//NxMat34 form wrote, so existing saves stay readable.
 	D3DXVECTOR3 massLocalPose[4];
-	for (int i = 0; i < 3; ++i)
-		massLocalPose[i] = _desc.massLocalPose.M.getRow(i).get();
-	massLocalPose[3] = _desc.massLocalPose.t.get();
+	for (int i = 0; i < 4; ++i)
+		massLocalPose[i] = D3DXVECTOR3(_desc.massLocalPose.m[i][0], _desc.massLocalPose.m[i][1], _desc.massLocalPose.m[i][2]);
 	writer->WriteValue("massLocalPose", massLocalPose[0], 12);
 
 	writer->WriteValue("flags", _desc.flags);
 
 	writer->WriteValue("sleepEnergyThreshold", _desc.sleepEnergyThreshold);
 
-	lsl::SWriteValue(writer, "linearVelocity", D3DXVECTOR3(_desc.linearVelocity.get()));
+	lsl::SWriteValue(writer, "linearVelocity", _desc.linearVelocity);
 }
 
 void Body::Load(lsl::SReader* reader)
@@ -1477,26 +1478,36 @@ void Body::Load(lsl::SReader* reader)
 	D3DXVECTOR3 massLocalPose[4];
 	if (reader->ReadValue("massLocalPose", massLocalPose[0], 12))
 	{
-		for (int i = 0; i < 3; ++i)
-			_desc.massLocalPose.M.setRow(i, PxVec3(massLocalPose[i]));
-		_desc.massLocalPose.t.set(massLocalPose[3]);
+		D3DXMatrixIdentity(&_desc.massLocalPose);
+		for (int i = 0; i < 4; ++i)
+		{
+			_desc.massLocalPose.m[i][0] = massLocalPose[i].x;
+			_desc.massLocalPose.m[i][1] = massLocalPose[i].y;
+			_desc.massLocalPose.m[i][2] = massLocalPose[i].z;
+		}
 	}
 
 	reader->ReadValue("flags", _desc.flags);
 
 	reader->ReadValue("sleepEnergyThreshold", _desc.sleepEnergyThreshold);
 
-	D3DXVECTOR3 linearVelocity;
-	lsl::SReadValue(reader, "linearVelocity", linearVelocity);
-	_desc.linearVelocity = PxVec3(linearVelocity);
+	lsl::SReadValue(reader, "linearVelocity", _desc.linearVelocity);
 }
 
-const NxBodyDesc& Body::GetDesc()
+BodyDesc::BodyDesc(): mass(0.0f), flags(0), sleepEnergyThreshold(-1.0f), linearVelocity(NullVector)
+{
+	D3DXMatrixIdentity(&massLocalPose);
+}
+
+
+
+
+const BodyDesc& Body::GetDesc()
 {
 	return _desc;
 }
 
-void Body::SetDesc(const NxBodyDesc& value)
+void Body::SetDesc(const BodyDesc& value)
 {
 	_desc = value;
 
