@@ -365,7 +365,7 @@ bool Proj::RocketPrepare(GameObject* weapon, bool disableGravity, D3DXVECTOR3* s
 
 	px::BodyDesc bodyDesc;
 	bodyDesc.flags |= disableGravity ? px::bfDisableGravity : 0;
-	bodyDesc.linearVelocity = px::ToPx(speed);
+	bodyDesc.linearVelocity = speed;
 
 	CreateBody(bodyDesc);
 
@@ -403,7 +403,7 @@ void Proj::RocketContact(const px::Scene::OnContactEvent& contact)
 			D3DXVec3Cross(&contactDir, &contactDir, &dir);
 			
 			//PxVec3 vec3(RandomRange(-1.0f, 1.0f), 0, RandomRange(-1.0f, 1.0f));
-			PxVec3 vec3(contactDir);
+			PxVec3 vec3 = px::ToPx(contactDir);
 			if (vec3.magnitude() > 0.01f)
 			{
 				vec3.normalize();
@@ -585,7 +585,7 @@ bool Proj::MinePrepare(const ShotContext& ctx, bool lockMine)
 
 	if (ctx.projMat)
 	{
-		SetWorldPos(ctx.projMat->t.get());
+		SetWorldPos(px::FromPx(ctx.projMat->p));
 
 		return true;
 	}
@@ -725,7 +725,7 @@ void Proj::MineRipUpdate(float deltaTime)
 				mapObj->GetGameObj().SetRot(GetRot());
 				mapObj->GetGameObj().SetScale(GetScale());
 
-				PxVec3 dir(vec.GetValue());
+				PxVec3 dir = px::ToPx(vec.GetValue());
 				dir.normalize();
 				mapObj->GetGameObj().GetPxActor().GetNxDynamic()->addForce(mapObj->GetGameObj().GetPxActor().GetBody()->GetDesc().mass * dir * 10.0f, PxForceMode::eIMPULSE);
 
@@ -1196,7 +1196,12 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 	{
 		_time1 = 0.1f;
 
-		PxVec3 norm = contIter.getPatchNormal();
+		PxContactPairPoint points[px::Scene::cMaxContactPoints];
+		const PxU32 numPoints = contact.pair->extractContacts(points, px::Scene::cMaxContactPoints);
+		if (numPoints == 0)
+			return;
+
+		PxVec3 norm = points[0].normal;
 		if (contact.actorIndex == 0)
 			norm = -norm;
 
@@ -1210,7 +1215,7 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 			D3DXMATRIX mat;
 			D3DXMatrixReflect(&mat, &plane);
 
-			D3DXVECTOR3 vel(velocity.get());
+			D3DXVECTOR3 vel = px::FromPx(velocity);
 			D3DXVec3TransformNormal(&vel, &vel, &mat);
 			velocity = px::ToPx(vel);
 		}

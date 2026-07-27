@@ -183,7 +183,7 @@ void NetPlayer::DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordL
 
 	Weapon::ProjList projList;
 	unsigned coordIndex = 0;
-	PxTransform nxMat(true);	
+	PxTransform nxMat(PxIdentity);
 
 	Proj::ShotContext ctx;
 	ctx.shot.SetTargetMapObj(target);
@@ -201,7 +201,7 @@ void NetPlayer::DoShot(MapObj* target, ShotSlots& slots, unsigned projId, CoordL
 
 			if (coordList && coordIndex < coordList->size()) 
 			{
-				nxMat.t = px::ToPx((*coordList)[coordIndex]);
+				nxMat.p = px::ToPx((*coordList)[coordIndex]);
 				ctx.projMat = &nxMat;
 			}
 			else
