@@ -942,7 +942,7 @@ void Player::CarState::Update(float deltaTime)
 {
 	LSL_ASSERT(mapObj);
 
-	NxMat34 mat34 = nxActor->getGlobalPose();
+	PxTransform mat34 = nxActor->getGlobalPose();
 
 	worldMat = D3DXMATRIX(mat34.M(0, 0), mat34.M(0, 1), mat34.M(0, 2), 0,
 		mat34.M(1, 0), mat34.M(1, 1), mat34.M(1, 2), 0,
@@ -1310,10 +1310,10 @@ void Player::ApplyMobility()
 		CarMotorDesc motorDesc = car->GetMotorDesc();
 		motorDesc.maxTorque = 0.0f;
 
-		NxTireFunctionDesc longTireDesc = car->GetWheels().front().GetShape()->GetLongitudalTireForceFunction();
+		px::TireFunctionDesc longTireDesc = car->GetWheels().front().GetShape()->GetLongitudalTireForceFunction();
 		longTireDesc.asymptoteSlip = longTireDesc.asymptoteValue = longTireDesc.extremumSlip = longTireDesc.extremumValue = longTireDesc.stiffnessFactor = 0.0f;
 		
-		NxTireFunctionDesc latTireDesc = car->GetWheels().front().GetShape()->GetLateralTireForceFunction();
+		px::TireFunctionDesc latTireDesc = car->GetWheels().front().GetShape()->GetLateralTireForceFunction();
 		latTireDesc.asymptoteSlip = latTireDesc.asymptoteValue = latTireDesc.extremumSlip = latTireDesc.extremumValue = latTireDesc.stiffnessFactor = 0.0f;
 
 		float maxLife = 0.0f;
@@ -1719,8 +1719,8 @@ void Player::ResetCar()
 		D3DXVECTOR2 dir2 = lastNode->GetTile().GetDir();
 
 		NxRay nxRay(px::ToPx(pos), px::ToPx(-ZVector));
-		NxRaycastHit hit;		
-		PxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, NX_MAX_F32, NX_RAYCAST_SHAPE);
+		PxRaycastHit hit;		
+		PxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, PX_MAX_F32, NX_RAYCAST_SHAPE);
 
 		if (hitShape == NULL)
 			pos = lastNode->GetTile().GetPoint(0.0f) + ZVector * lastNode->GetTile().ComputeHeight(0.5f) * 0.5f;*/
@@ -1756,8 +1756,8 @@ void Player::ResetCar()
 				}
 
 				NxRay nxRay(px::ToPx(rayPos), px::ToPx(-ZVector));
-				NxRaycastHit hit;		
-				PxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_ALL_SHAPES, hit, 1 << px::Scene::cdgTrackPlane | 1 << px::Scene::cdgPlaneDeath | 1 << px::Scene::cdgDefault, NX_MAX_F32, NX_RAYCAST_SHAPE);
+				PxRaycastHit hit;		
+				PxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_ALL_SHAPES, hit, 1 << px::Scene::cdgTrackPlane | 1 << px::Scene::cdgPlaneDeath | 1 << px::Scene::cdgDefault, PX_MAX_F32, NX_RAYCAST_SHAPE);
 				GameObject* hitGameObj = GameObject::GetGameObjFromShape(hitShape);
 
 				if (!isDeathPlane && i == 0 && j == 0 && (hitShape == NULL || hitShape->getGroup() == px::Scene::cdgPlaneDeath))

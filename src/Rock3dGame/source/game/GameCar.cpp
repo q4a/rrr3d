@@ -153,7 +153,7 @@ void CarWheel::CreateWheelShape()
 	_wheelShape->SetGroup(px::Scene::cdgWheel);
 }
 
-void CarWheel::CreateWheelShape(const NxWheelShapeDesc& desc)
+void CarWheel::CreateWheelShape(const px::WheelDesc& desc)
 {
 	LSL_ASSERT(!_wheelShape);
 
@@ -181,7 +181,7 @@ void CarWheel::PxSyncWheel(float alpha)
 
 	PxReal st = wheel->getSuspensionTravel();
 	PxReal r = wheel->getRadius();			
-	NxMat34 localPose = wheel->getLocalPose();
+	PxTransform localPose = wheel->getLocalPose();
 	//cast along -Y	
 	PxVec3 dir = localPose.M.getColumn(1);
 	PxVec3 t = localPose.t;
@@ -417,7 +417,7 @@ CarWheel& CarWheels::Add()
 	return _MyBase::Add();
 }
 
-CarWheel& CarWheels::Add(const NxWheelShapeDesc& desc)
+CarWheel& CarWheels::Add(const px::WheelDesc& desc)
 {
 	CarWheel* wheel = CreateItem();
 	wheel->CreateWheelShape(desc);
@@ -466,7 +466,7 @@ GameCar::GameCar(): _clutchStrength(0), _clutchTime(0.0f), _springTime(0), _mine
 	_wheels = new Wheels(this);	
 
 	GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL | NX_NOTIFY_CONTACT_MODIFICATION);
-	GetPxActor().SetFlag(NX_AF_CONTACT_MODIFICATION, true);	
+	GetPxActor().SetFlag(px::bfContactModification, true);	
 
 	RegFixedStepEvent();
 }
@@ -620,14 +620,14 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 		float alpha = lsl::ClampValue(speed/10.0f, -1.0f, 1.0f);
 		//alpha = 1.0f;
 
-		NxMat34 worldMat = nxActor->getGlobalPose();
+		PxTransform worldMat = nxActor->getGlobalPose();
 		PxQuat rotQuat;
 		rotQuat.fromAngleAxisFast(alpha * _steerAngle/cMaxSteerAngle * _steerRot * deltaTime, PxVec3(0, 0, 1));
-		NxMat34 rotMat;
+		PxTransform rotMat;
 		rotMat.M.fromQuat(rotQuat);
-		NxMat34 matOffs1;
+		PxTransform matOffs1;
 		matOffs1.t = PxVec3(backWheel->GetPos().x, 0, 0);
-		NxMat34 matOffs2;
+		PxTransform matOffs2;
 		matOffs2.t = -matOffs1.t;
 		worldMat = worldMat * matOffs1 * rotMat * matOffs2;
 
@@ -709,13 +709,13 @@ void GameCar::JumpProgress(float deltaTime)
 	{
 		//если нет контакта необходжимо машину замедлять и быстро приземлять, чтобы она не улетала на прыжках в космос
 		//nxActor->setLinearDamping(0.4f);
-		nxActor->addForce(1.0f * px::Scene::cDefGravity, NX_ACCELERATION);
+		nxActor->addForce(1.0f * px::Scene::cDefGravity, PxForceMode::eACCELERATION);
 		
 		//наклоняем машину вперед если она движется в OXY
 		PxVec3 vel = nxActor->getLinearVelocity();
 		vel.z = 0.0f;
 		if (vel.magnitude() > 1.0f && _flyYTorque != 0 && _springTime == 0.0f)
-			nxActor->addLocalTorque(PxVec3(0, _flyYTorque, 0), NX_ACCELERATION);
+			nxActor->addLocalTorque(PxVec3(0, _flyYTorque, 0), PxForceMode::eACCELERATION);
 	}
 }
 
@@ -794,7 +794,7 @@ void GameCar::ApplyWheelSteerK()
 		if ((*iter)->GetShape() == NULL || (*iter)->GetShape()->GetNxShape() == NULL)
 			continue;
 
-		NxTireFunctionDesc desc = (*iter)->GetShape()->GetLateralTireForceFunction();
+		px::TireFunctionDesc desc = (*iter)->GetShape()->GetLateralTireForceFunction();
 		desc.asymptoteValue *= _wheelSteerK;
 		desc.extremumValue *= _wheelSteerK;
 		(*iter)->GetShape()->GetNxShape()->setLateralTireForceFunction(desc);
@@ -1531,7 +1531,7 @@ DestrObj::DestrObj(): _checkDestruction(false)
 {
 	_destrList = new DestrList(this);
 
-	GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
+	GetPxActor().SetFlag(px::bfDisableResponse, true);
 }
 
 DestrObj::~DestrObj()

@@ -366,7 +366,7 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 		mapObj->GetGameObj().SetRot(desc.rot);
 
 	if (D3DXVec3Length(&_impulse) > 0.001f && mapObj->GetGameObj().GetPxActor().GetNxActor())
-		mapObj->GetGameObj().GetPxActor().GetNxDynamic()->addLocalForce(px::ToPx(_impulse), NX_IMPULSE);
+		mapObj->GetGameObj().GetPxActor().GetNxDynamic()->addLocalForce(px::ToPx(_impulse), PxForceMode::eIMPULSE);
 
 	return mapObj;
 }

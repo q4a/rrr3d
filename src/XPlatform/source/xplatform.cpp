@@ -274,6 +274,40 @@ void OutputDebugStringA(const char* str)
 	std::fputs(str ? str : "", stderr);
 }
 
+BOOL SetWindowPos(HWND, HWND, int, int, int, int, UINT)
+{
+	return TRUE;
+}
+
+LONG GetWindowLong(HWND, int)
+{
+	return 0;
+}
+
+LONG SetWindowLong(HWND, int, LONG)
+{
+	return 0;
+}
+
+BOOL GetWindowInfo(HWND, PWINDOWINFO info)
+{
+	if (!info)
+		return FALSE;
+
+	std::memset(info, 0, sizeof(*info));
+	info->cbSize = sizeof(*info);
+	return TRUE;
+}
+
+HRESULT CoInitializeEx(void*, DWORD)
+{
+	return S_OK;
+}
+
+void CoUninitialize(void)
+{
+}
+
 int _wfopen_s(FILE** file, const wchar_t* path, const wchar_t* mode)
 {
 	if (!file)

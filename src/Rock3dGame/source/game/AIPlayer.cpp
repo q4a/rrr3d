@@ -458,7 +458,7 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 			PxMat33 mat0(rot0);
 			if (iter->shape0->getActor().isDynamic())
 			{
-				NxMat34 bodyMat = iter->shape0->getActor().getCMassGlobalPose();				
+				PxTransform bodyMat = iter->shape0->getActor().getCMassGlobalPose();				
 				bodyMat.multiply(pos0, pos0);				
 				mat0.multiply(bodyMat.M, mat0);
 			}
@@ -632,9 +632,9 @@ void AIDebug::GrActor::DoRender(graph::Engine& engine)
 
 	game::CarWheel* wheel = &gameObj->GetWheels().front();
 	px::WheelShape* pxWheel =  wheel->GetShape();
-	NxTireFunctionDesc longFunc = pxWheel->GetLongitudalTireForceFunction();
-	NxTireFunctionDesc latFunc = pxWheel->GetLateralTireForceFunction();
-	NxSpringDesc suspension = pxWheel->GetSuspension();
+	px::TireFunctionDesc longFunc = pxWheel->GetLongitudalTireForceFunction();
+	px::TireFunctionDesc latFunc = pxWheel->GetLateralTireForceFunction();
+	px::SpringDesc suspension = pxWheel->GetSuspension();
 	float suspensionTravel = pxWheel->GetSuspensionTravel();
 	float mass = nxActor->getMass();
 	PxVec3 cMassPos = nxActor->getCMassLocalPosition();

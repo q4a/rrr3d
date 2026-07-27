@@ -194,9 +194,9 @@ void GameObject::OnSleep()
 	SetBodyProgressEvent(false);
 }
 
-void GameObject::RayCastClosestActor(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayDir, NxShapesType shapesType, RayCastHit& hit, unsigned groups, unsigned mask, float maxDist)
+void GameObject::RayCastClosestActor(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayDir, PxQueryFlags shapesType, RayCastHit& hit, unsigned groups, unsigned mask, float maxDist)
 {
-	NxRaycastHit nxHit;
+	PxRaycastHit nxHit;
 	hit.gameActor = 0;
 
 	NxGroupsMask nxMask;

@@ -352,7 +352,7 @@ px::ConvexShape* DataBase::AddPxConvex(MapObj* mapObj, const std::string& meshNa
 	return &triShape;
 }
 
-px::Body* DataBase::AddPxBody(MapObj* mapObj, const NxBodyDesc& desc)
+px::Body* DataBase::AddPxBody(MapObj* mapObj, const px::BodyDesc& desc)
 {
 	mapObj->GetGameObj().GetPxActor().SetBody(&desc);
 
@@ -361,14 +361,14 @@ px::Body* DataBase::AddPxBody(MapObj* mapObj, const NxBodyDesc& desc)
 
 px::Body* DataBase::AddPxBody(MapObj* mapObj, float mass, const D3DXVECTOR3* massPos)
 {
-	NxBodyDesc body;
+	px::BodyDesc body;
 	body.mass = mass;
 	body.sleepEnergyThreshold = 0.05f;
 
 	if (massPos)
 	{
 		body.massLocalPose.t.set(px::ToPx(*massPos));
-		mapObj->GetGameObj().GetPxActor().SetFlag(NX_AF_LOCK_COM);
+		mapObj->GetGameObj().GetPxActor().SetFlag(px::bfLockCenterOfMass);
 	}
 
 	return AddPxBody(mapObj, body);
@@ -411,7 +411,7 @@ CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& me
 		AddLibMat(meshNode, "Car\\blend");
 	}
 
-	NxWheelShapeDesc descShapeWheel;
+	px::WheelDesc descShapeWheel;
 	//начальная инициализация, например группы
 	wheel->GetShape()->AssignToDesc(descShapeWheel);
 
@@ -421,7 +421,7 @@ CarWheel* DataBase::AddWheel(unsigned index, GameCar& car, const std::string& me
 	descShapeWheel.suspension.spring = carDesc.suspensionSpring;
 	descShapeWheel.suspension.damper = carDesc.suspensionDamper;
 
-	descShapeWheel.wheelFlags = NX_WF_CLAMPED_FRICTION;
+	descShapeWheel.wheelFlags = px::wfClampedFriction;
 
 	PxQuat q;
 	q.fromAngleAxis(90, PxVec3(1,0,0));

@@ -30,6 +30,7 @@
 	#include <cstddef>
 	#include <cstdint>
 	#include <cstdio>
+	#include <ctime>
 	#include <cstring>
 #else
 	#include <float.h>
@@ -139,6 +140,47 @@ void OutputDebugStringA(const char* str);
  */
 BOOL GetClientRect(HWND wnd, RECT* rect);
 
+typedef struct tagWINDOWINFO
+{
+    DWORD cbSize;
+    RECT  rcWindow;
+    RECT  rcClient;
+    DWORD dwStyle;
+    DWORD dwExStyle;
+    DWORD dwWindowStatus;
+    UINT  cxWindowBorders;
+    UINT  cyWindowBorders;
+    WORD  atomWindowType;
+    WORD  wCreatorVersion;
+} WINDOWINFO, *PWINDOWINFO;
+
+/*
+ * Window management, all no-ops for the same reason GetClientRect is: there is
+ * no window system behind HWND until the SDL shell lands.
+ */
+BOOL SetWindowPos(HWND wnd, HWND insertAfter, int x, int y, int cx, int cy, UINT flags);
+LONG GetWindowLong(HWND wnd, int index);
+LONG SetWindowLong(HWND wnd, int index, LONG newLong);
+BOOL GetWindowInfo(HWND wnd, PWINDOWINFO info);
+
+/* combaseapi.h. COM apartment setup has no meaning here. */
+#define COINIT_MULTITHREADED     0x0
+#define COINIT_DISABLE_OLE1DDE   0x4
+
+HRESULT CoInitializeEx(void* reserved, DWORD coInit);
+void CoUninitialize(void);
+
+/* MSVC's 32-bit time_t variant. */
+#ifdef __cplusplus
+inline long _time32(long* dest)
+{
+    const long now = static_cast<long>(std::time(nullptr));
+    if (dest)
+        *dest = now;
+    return now;
+}
+#endif
+
 /*
  * mmsystem.h. These raise and restore the Windows timer interrupt resolution,
  * which the frame limiter does so Sleep() is accurate to a millisecond. macOS
@@ -154,6 +196,64 @@ BOOL GetClientRect(HWND wnd, RECT* rect);
  * carry the same value so the derived ids stay stable.
  */
 #define WM_APP 0x8000
+
+/*
+ * winuser.h virtual key codes. The input port replaces GetAsyncKeyState and the
+ * WM_KEYDOWN path with SDL, but ControlManager stores and serialises these
+ * numeric values -- they appear in saved key bindings -- so they must keep the
+ * same values whatever reads them.
+ */
+#define VK_BACK         0x08
+#define VK_TAB          0x09
+#define VK_RETURN       0x0D
+#define VK_SHIFT        0x10
+#define VK_CONTROL      0x11
+#define VK_MENU         0x12
+#define VK_ESCAPE       0x1B
+#define VK_SPACE        0x20
+#define VK_PRIOR        0x21
+#define VK_NEXT         0x22
+#define VK_END          0x23
+#define VK_HOME         0x24
+#define VK_LEFT         0x25
+#define VK_UP           0x26
+#define VK_RIGHT        0x27
+#define VK_DOWN         0x28
+#define VK_DELETE       0x2E
+#define VK_NUMPAD0      0x60
+#define VK_NUMPAD1      0x61
+#define VK_NUMPAD2      0x62
+#define VK_NUMPAD3      0x63
+#define VK_NUMPAD4      0x64
+#define VK_NUMPAD5      0x65
+#define VK_NUMPAD6      0x66
+#define VK_NUMPAD7      0x67
+#define VK_NUMPAD8      0x68
+#define VK_NUMPAD9      0x69
+#define VK_OEM_PERIOD   0xBE
+
+/*
+ * Window styles and SetWindowPos flags. Nothing creates a window off Windows
+ * yet -- RRR3d.cpp's Win32 shell is still to be replaced with SDL -- so these
+ * exist to keep the mode-switching code compiling until it is rewritten.
+ */
+#define WS_OVERLAPPEDWINDOW 0x00CF0000
+#define WS_POPUP            0x80000000
+#define WS_VISIBLE          0x10000000
+#define WS_EX_TOPMOST       0x00000008
+
+#define GWL_STYLE          (-16)
+#define GWL_EXSTYLE        (-20)
+
+#define SWP_NOMOVE         0x0002
+#define SWP_NOSIZE         0x0001
+#define SWP_NOZORDER       0x0004
+#define SWP_FRAMECHANGED   0x0020
+#define SWP_SHOWWINDOW     0x0040
+
+/* wingdi.h charsets used when picking a UI font. */
+#define EASTEUROPE_CHARSET 238
+#define BALTIC_CHARSET     186
 
 /* Calling conventions. windows_base.h defines WINAPI; these are its siblings. */
 #ifndef CALLBACK

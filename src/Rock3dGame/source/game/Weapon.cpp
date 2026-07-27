@@ -103,9 +103,9 @@ void Proj::FreeModel2(bool remove)
 	}
 }
 
-px::Body* Proj::CreateBody(const NxBodyDesc& desc)
+px::Body* Proj::CreateBody(const px::BodyDesc& desc)
 {
-	NxBodyDesc body = desc;
+	px::BodyDesc body = desc;
 	body.mass = _desc.mass;
 
 	this->GetPxActor().SetBody(&body);
@@ -170,7 +170,7 @@ AABB Proj::ComputeAABB(bool onlyModel)
 	return aabb;
 }
 
-void Proj::CreatePxBox(NxCollisionGroup group)
+void Proj::CreatePxBox(px::Scene::CollDisGroup group)
 {
 	AABB aabb = ComputeAABB(false);
 
@@ -180,12 +180,12 @@ void Proj::CreatePxBox(NxCollisionGroup group)
 	this->_pxBox->SetGroup(group);
 }
 
-void Proj::AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, NxForceMode mode)
+void Proj::AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, PxForceMode::Enum mode)
 {
 	target->GetPxActor().GetNxDynamic()->addForceAtPos(px::ToPx(force), px::ToPx(point), mode);
 }
 
-void Proj::AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const D3DXVECTOR3& force, NxForceMode mode)
+void Proj::AddContactForce(GameObject* target, const px::Scene::OnContactEvent& contact, const D3DXVECTOR3& force, PxForceMode::Enum mode)
 {
 	D3DXVECTOR3 point = GetContactPoint(contact);
 	AddContactForce(target, point, force, mode);
@@ -341,7 +341,7 @@ D3DXVECTOR3 Proj::CalcSpeed(GameObject* weapon)
 	return dir * speed;
 }
 
-bool Proj::RocketPrepare(GameObject* weapon, bool disableGravity, D3DXVECTOR3* speedVec, NxCollisionGroup pxGroup)
+bool Proj::RocketPrepare(GameObject* weapon, bool disableGravity, D3DXVECTOR3* speedVec, px::Scene::CollDisGroup pxGroup)
 {
 	_vec1.z = 0.0f;
 
@@ -353,14 +353,14 @@ bool Proj::RocketPrepare(GameObject* weapon, bool disableGravity, D3DXVECTOR3* s
 	InitModel();
 	CreatePxBox(pxGroup);
 
-	NxBodyDesc bodyDesc;
-	bodyDesc.flags |= disableGravity ? NX_BF_DISABLE_GRAVITY : 0;
+	px::BodyDesc bodyDesc;
+	bodyDesc.flags |= disableGravity ? px::bfDisableGravity : 0;
 	bodyDesc.linearVelocity = px::ToPx(speed);
 
 	CreateBody(bodyDesc);
 
 	this->GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL);
-	this->GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
+	this->GetPxActor().SetFlag(px::bfDisableResponse, true);
 	SetIgnoreContactProj(true);
 
 	return true;
@@ -397,13 +397,13 @@ void Proj::RocketContact(const px::Scene::OnContactEvent& contact)
 			if (vec3.magnitude() > 0.01f)
 			{
 				vec3.normalize();
-				target->GetPxActor().GetNxActor()->addLocalTorque(vec3 * _desc.mass * 0.2f, NX_VELOCITY_CHANGE);
+				target->GetPxActor().GetNxActor()->addLocalTorque(vec3 * _desc.mass * 0.2f, PxForceMode::eVELOCITY_CHANGE);
 			}
 
 			D3DXVec3Normalize(&dir, &(dir - ZVector));
 
 			//dir = dir * dirLength;
-			//AddContactForce(target, contact, 150.0f * dir, NX_IMPULSE);
+			//AddContactForce(target, contact, 150.0f * dir, PxForceMode::eIMPULSE);
 		}
 	}
 }
@@ -416,13 +416,13 @@ void Proj::RocketUpdate(float deltaTime)
 	PxVec3 pos = GetPxActor().GetNxActor()->getGlobalPosition(); 
 	NxRay nxRay(pos + PxVec3(0, 0, cTrackHeight), PxVec3(0, 0, -1.0f));
 
-	NxRaycastHit hit;			
-	PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, NX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT);
+	PxRaycastHit hit;			
+	PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, PX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT);
 
 	if (hitShape)
 	{
 		GameObject* tes = GetGameObjFromShape(hitShape);
-		NxCollisionGroup gr = hitShape->getGroup();
+		px::Scene::CollDisGroup gr = hitShape->getGroup();
 
 		float height = std::max(pos.z - hit.worldImpact.z, size.z);
 		if (_vec1.z == 0.0f)
@@ -441,7 +441,7 @@ bool Proj::HyperPrepare(GameObject* weapon)
 	InitModel();
 	LinkToWeapon();
 
-	weapon->GetPxActor().GetNxDynamic()->addLocalForce(PxVec3(1.0f, 0.0f, 0.0f) * _desc.speed, NX_SMOOTH_VELOCITY_CHANGE);
+	weapon->GetPxActor().GetNxDynamic()->addLocalForce(PxVec3(1.0f, 0.0f, 0.0f) * _desc.speed, PxForceMode::eVELOCITY_CHANGE);
 
 	return true;
 }
@@ -452,7 +452,7 @@ bool Proj::MedpackPrepare(GameObject* weapon)
 	InitModel();
 	CreatePxBox();
 
-	this->GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
+	this->GetPxActor().SetFlag(px::bfDisableResponse, true);
 
 	return true;
 }
@@ -514,7 +514,7 @@ bool Proj::SpeedArrowPrepare(GameObject* weapon)
 	InitModel();
 	CreatePxBox();
 
-	this->GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
+	this->GetPxActor().SetFlag(px::bfDisableResponse, true);
 
 	return true;
 }
@@ -535,7 +535,7 @@ bool Proj::LushaPrepare(const ShotContext& ctx)
 	InitModel();
 	CreatePxBox();
 
-	this->GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
+	this->GetPxActor().SetFlag(px::bfDisableResponse, true);
 
 	return true;
 }
@@ -565,7 +565,7 @@ bool Proj::MinePrepare(const ShotContext& ctx, bool lockMine)
 	CreatePxBox(px::Scene::cdgShotTrack);
 
 	AABB aabb = ComputeAABB(true);
-	GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
+	GetPxActor().SetFlag(px::bfDisableResponse, true);
 	_time1 = 0.0f;	
 
 	if (ctx.projMat)
@@ -581,8 +581,8 @@ bool Proj::MinePrepare(const ShotContext& ctx, bool lockMine)
 			_weapon->GetGrActor().LocalToWorldCoord(rayPos, rayPos);
 		NxRay nxRay(px::ToPx(rayPos) + PxVec3(0, 0, 2.0f), px::ToPx(-ZVector));
 
-		NxRaycastHit hit;
-		PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, (1 << px::Scene::cdgTrackPlane) | (1 << px::Scene::cdgShotTrack), NX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT | NX_RAYCAST_NORMAL);
+		PxRaycastHit hit;
+		PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, (1 << px::Scene::cdgTrackPlane) | (1 << px::Scene::cdgShotTrack), PX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT | NX_RAYCAST_NORMAL);
 
 		if (hitShape && hitShape->getGroup() != px::Scene::cdgShotTrack) //&& hit.distance < _desc.projMaxDist)
 		{
@@ -709,7 +709,7 @@ void Proj::MineRipUpdate(float deltaTime)
 
 				PxVec3 dir(vec.GetValue());
 				dir.normalize();
-				mapObj->GetGameObj().GetPxActor().GetNxDynamic()->addForce(mapObj->GetGameObj().GetPxActor().GetBody()->GetDesc().mass * dir * 10.0f, NX_IMPULSE);
+				mapObj->GetGameObj().GetPxActor().GetNxDynamic()->addForce(mapObj->GetGameObj().GetPxActor().GetBody()->GetDesc().mass * dir * 10.0f, PxForceMode::eIMPULSE);
 
 				//Player* player = GetLogic()->GetRace()->GetPlayerByMapObj(_shot.GetTargetMapObj());
 				//if (player)
@@ -731,7 +731,7 @@ bool Proj::MinePiecePrepare(const ShotContext& ctx)
 	CreatePxBox(px::Scene::cdgShotTrack);
 	_time1 = -1.0f;
 
-	NxBodyDesc bodyDesc;
+	px::BodyDesc bodyDesc;
 	CreateBody(bodyDesc);
 
 	GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL);
@@ -844,7 +844,7 @@ GameObject* Proj::LaserUpdate(float deltaTime, bool distort)
 	nxMask.bits2 = 0;
 	nxMask.bits3 = 0;
 
-	NxRaycastHit rayhit;	
+	PxRaycastHit rayhit;	
 	PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(NxRay(px::ToPx(shotPos + _desc.sizeAddPx), px::ToPx(shotDir)), NX_ALL_SHAPES, rayhit, (1 << px::Scene::cdgDefault) | (1 << px::Scene::cdgShotTransparency) | (1 << px::Scene::cdgTrackPlane), _desc.maxDist, NX_RAYCAST_SHAPE | NX_RAYCAST_DISTANCE, &nxMask);
 	GameObject* rayHitActor = hitShape ? GetGameObjFromShape(hitShape) : NULL;
 
@@ -920,11 +920,11 @@ bool Proj::DrobilkaPrepare(GameObject* weapon)
 	LocateProj(weapon, true, true, NULL);
 	CreatePxBox();
 
-	NxBodyDesc desc;
+	px::BodyDesc desc;
 	CreateBody(desc);
 
 	this->GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL);
-	this->GetPxActor().SetFlag(NX_AF_DISABLE_RESPONSE, true);
+	this->GetPxActor().SetFlag(px::bfDisableResponse, true);
 	SetIgnoreContactProj(true);
 
 	return true;
@@ -979,7 +979,7 @@ void Proj::SonarContact(const px::Scene::OnContactEvent& contact)
 	if (target)
 	{
 		DamageTarget(target, _desc.damage * contact.deltaTime, dtEnergy);
-		AddContactForce(target, contact, _desc.mass * px::FromPx(this->GetPxActor().GetNxDynamic()->getLinearVelocity()), NX_IMPULSE);
+		AddContactForce(target, contact, _desc.mass * px::FromPx(this->GetPxActor().GetNxDynamic()->getLinearVelocity()), PxForceMode::eIMPULSE);
 	}
 }
 
@@ -998,7 +998,7 @@ bool Proj::SpringPrepare(GameObject* weapon)
 		//testRot = car->GetRot();
 		//SetMaxTimeLife(4.0f);
 
-		car->GetPxActor().GetNxDynamic()->addLocalForce(PxVec3(0.0f, 0.0f, 1.0f) * _desc.speed, NX_SMOOTH_VELOCITY_CHANGE);
+		car->GetPxActor().GetNxDynamic()->addLocalForce(PxVec3(0.0f, 0.0f, 1.0f) * _desc.speed, PxForceMode::eVELOCITY_CHANGE);
 		car->LockSpring();
 		return true;
 	}
@@ -1591,7 +1591,7 @@ void Proj::MineContact(GameObject* target, const D3DXVECTOR3& point)
 	}
 
 	DamageTarget(target, _desc.damage, dtMine);
-	AddContactForce(target, point, D3DXVECTOR3(0.0f, 0.0f, _desc.speed), NX_IMPULSE);	
+	AddContactForce(target, point, D3DXVECTOR3(0.0f, 0.0f, _desc.speed), PxForceMode::eIMPULSE);	
 }
 
 const Proj::Desc& Proj::GetDesc() const
