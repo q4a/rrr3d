@@ -20,7 +20,7 @@ import pathlib
 import re
 import sys
 
-SOURCE_SUFFIXES = {".cpp", ".h", ".inl"}
+SOURCE_SUFFIXES = {".cpp", ".h", ".inl", ".mm"}
 
 # Vendored third-party headers. We do not control their contents, and a future
 # upstream change should not fail this project's CI.

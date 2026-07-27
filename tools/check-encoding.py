@@ -11,7 +11,7 @@ Run from the repository root:  python3 tools/check-encoding.py
 import pathlib
 import sys
 
-SOURCE_SUFFIXES = {".cpp", ".h", ".inl", ".ms"}
+SOURCE_SUFFIXES = {".cpp", ".h", ".inl", ".ms", ".mm"}
 
 # Vendored third-party headers. We do not control their contents, and a future
 # upstream change should not fail this project's CI.

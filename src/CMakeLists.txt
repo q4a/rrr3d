@@ -35,6 +35,13 @@ if (NOT WIN32)
     add_subdirectory(TinyXml)
 endif()
 
+# Metal. Apple platforms only; the winemetal ABI this implements is what
+# d9mt's D3D9 backend calls.
+if (APPLE)
+    enable_language(OBJCXX)
+    add_subdirectory(MetalBridge)
+endif()
+
 add_subdirectory(LexStd)
 add_subdirectory(MathLib)
 add_subdirectory(NetLib)
