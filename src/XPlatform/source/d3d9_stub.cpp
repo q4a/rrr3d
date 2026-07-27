@@ -1,30 +1,29 @@
 /*
- * The graphics seam.
+ * The D3DX seam: what is still missing.
  *
- * These twelve entry points are the entire boundary between the ported engine
- * and a working renderer. Everything else in the tree compiles and links; this
- * file is what stands between the build and a running game.
+ * Direct3D itself now comes from src/D3D9Metal -- DXVK's D3D9 front-end over
+ * d9mt's Metal backend -- so Direct3DCreate9 and Direct3DCreate9Ex are no
+ * longer here.
  *
- * They are split in two, and the two halves have different futures:
+ * What remains is D3DX, which is not part of Direct3D and which no backend
+ * choice provides. It is ours regardless:
  *
- *   Direct3DCreate9, Direct3DCreate9Ex
- *       Direct3D itself. The plan is DXVK's D3D9 front-end with a Metal
- *       backend behind DxvkContext -- 62 methods, derived in
- *       docs/macos-graphics-backend.md. This is the large piece.
+ *   ID3DXEffect over 23 .fx files, texture loading, and ID3DXFont -- which is
+ *   not a debug-only concern here, every piece of UI text in the game renders
+ *   through it.
  *
- *   The ten D3DX entry points
- *       Not part of Direct3D, so no backend choice provides them; they are
- *       ours regardless. Effects (ID3DXEffect over 23 .fx files), texture
- *       loading, ID3DXFont -- which is not debug-only here, every piece of UI
- *       text renders through it -- and one D3DXCreateSphere.
+ * DDS loading has moved to d3dx_texture.cpp, which implements it. This file is
+ * now only the part that does not exist yet. Each entry reports failure rather
+ * than returning a half-built object, so the engine stops at a named point
+ * instead of crashing somewhere less informative.
  *
- * Until then each reports failure rather than returning a half-built object.
- * The engine checks these results, so the game starts, logs, and stops at
- * device creation instead of crashing somewhere less informative.
+ * D3DXGetImageInfoFromFileW and the file-path texture loaders are listed here
+ * as unimplemented, but they are also unwanted: failing the GetImageInfo probe
+ * is what keeps VideoResource.cpp on its decode-in-memory branch. See the
+ * header of d3dx_texture.cpp.
  */
 
 #include "xplatform.h"
-#include "directx/d3d9.h"
 #include "directx/d3dx9.h"
 
 #include <cstdio>
@@ -45,20 +44,6 @@ void ReportMissing(const char* what)
 	}
 }
 
-}
-
-IDirect3D9* WINAPI Direct3DCreate9(UINT)
-{
-	ReportMissing("Direct3DCreate9");
-	return NULL;
-}
-
-HRESULT WINAPI Direct3DCreate9Ex(UINT, IDirect3D9Ex** d3d9ex)
-{
-	ReportMissing("Direct3DCreate9Ex");
-	if (d3d9ex)
-		*d3d9ex = NULL;
-	return E_NOTIMPL;
 }
 
 /* ---- D3DX: effects ---- */
@@ -105,25 +90,7 @@ HRESULT WINAPI D3DXCreateCubeTextureFromFileExA(struct IDirect3DDevice9*, const 
 	return E_NOTIMPL;
 }
 
-HRESULT WINAPI D3DXCreateTextureFromFileInMemoryEx(struct IDirect3DDevice9*, const void*,
-	UINT, UINT, UINT, UINT, DWORD, D3DFORMAT, D3DPOOL, DWORD, DWORD, D3DCOLOR,
-	D3DXIMAGE_INFO*, PALETTEENTRY*, struct IDirect3DTexture9** texture)
-{
-	ReportMissing("D3DXCreateTextureFromFileInMemoryEx");
-	if (texture)
-		*texture = NULL;
-	return E_NOTIMPL;
-}
-
-HRESULT WINAPI D3DXCreateCubeTextureFromFileInMemoryEx(struct IDirect3DDevice9*, const void*,
-	UINT, UINT, UINT, DWORD, D3DFORMAT, D3DPOOL, DWORD, DWORD, D3DCOLOR,
-	D3DXIMAGE_INFO*, PALETTEENTRY*, struct IDirect3DCubeTexture9** cube)
-{
-	ReportMissing("D3DXCreateCubeTextureFromFileInMemoryEx");
-	if (cube)
-		*cube = NULL;
-	return E_NOTIMPL;
-}
+/* The two in-memory loaders are implemented in d3dx_texture.cpp. */
 
 HRESULT WINAPI D3DXFilterTexture(struct IDirect3DBaseTexture9*, const PALETTEENTRY*, UINT, DWORD)
 {

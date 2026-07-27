@@ -1,6 +1,7 @@
 #ifndef IO_TYPES
 #define IO_TYPES
 
+#include <algorithm>
 #include "lslCommon.h"
 #include "lslCollection.h"
 #include "lslUtility.h"
@@ -211,7 +212,21 @@ inline std::wstring GetAppPath()
 
 inline std::wstring GetAppFilePath(const std::string& localFileName)
 {
-	return GetAppPath() + ConvertStrAToW(localFileName);
+	std::wstring path = GetAppPath() + ConvertStrAToW(localFileName);
+
+#ifndef _WIN32
+	//Every asset path in this game is written Windows-style -- "Data\\Misc\\
+	//StadiumGrass1.dds" and some 2,300 others. A backslash is an ordinary
+	//filename character elsewhere, so without this the whole path is one name
+	//and nothing loads.
+	//
+	//Done here rather than at the ~2,300 literals: this is the single point
+	//every asset load passes through, and rewriting the literals would break
+	//the Windows build for no gain.
+	std::replace(path.begin(), path.end(), L'\\', L'/');
+#endif
+
+	return path;
 }
 
 }
