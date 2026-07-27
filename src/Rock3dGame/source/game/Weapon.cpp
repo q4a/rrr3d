@@ -174,12 +174,10 @@ void Proj::CreatePxBox(NxCollisionGroup group)
 {
 	AABB aabb = ComputeAABB(false);
 
-	NxBoxShapeDesc boxDesc;
-	boxDesc.dimensions = NxVec3(aabb.GetSizes()/2.0f);
-	boxDesc.localPose.t.set(aabb.GetCenter());
-	boxDesc.group = group;
 	this->_pxBox = &this->GetPxActor().GetShapes().Add<px::BoxShape>();
-	this->_pxBox->AssignFromDesc(boxDesc);
+	this->_pxBox->SetDimensions(aabb.GetSizes()/2.0f);
+	this->_pxBox->SetPos(aabb.GetCenter());
+	this->_pxBox->SetGroup(group);
 }
 
 void Proj::AddContactForce(GameObject* target, const D3DXVECTOR3& point, const D3DXVECTOR3& force, NxForceMode mode)

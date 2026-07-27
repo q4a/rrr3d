@@ -1438,10 +1438,8 @@ void FxPhysicsEmitter::UpdateParticle(FxParticle* value, float dTime, bool init)
 
 	if (init)
 	{
-		NxBoxShapeDesc boxShape;
-		boxShape.dimensions.set(IdentityVector * value->GetScale());
 		px::BoxShape& bbShape = particle->pxActor.GetShapes().Add<px::BoxShape>();
-		bbShape.AssignFromDesc(boxShape);
+		bbShape.SetDimensions(IdentityVector * value->GetScale());
 
 		//px::TriangleMeshShape& triShape = particle->pxActor.GetShapes().Add<px::TriangleMeshShape>();
 		//triShape.SetMesh(_mesh, particle->index);

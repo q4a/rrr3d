@@ -292,16 +292,21 @@ px::CapsuleShape* DataBase::AddPxCapsule(MapObj* mapObj, float radius, float hei
 	D3DXVECTOR3 right;
 	D3DXVec3Cross(&right, &dir, &up);
 
-	NxCapsuleShapeDesc desc;
-	desc.radius = radius;
-	desc.height = height;
+	//The descriptor carried the orientation as a basis matrix; the shape API
+	//takes a quaternion, so build the basis and convert.
+	D3DXMATRIX basis;
+	D3DXMatrixIdentity(&basis);
+	*reinterpret_cast<D3DXVECTOR3*>(&basis._11) = right;
+	*reinterpret_cast<D3DXVECTOR3*>(&basis._21) = dir;
+	*reinterpret_cast<D3DXVECTOR3*>(&basis._31) = up;
 
-	desc.localPose.M.setColumn(0, NxVec3(right));
-	desc.localPose.M.setColumn(1, NxVec3(dir));
-	desc.localPose.M.setColumn(2, NxVec3(up));
+	D3DXQUATERNION rot;
+	D3DXQuaternionRotationMatrix(&rot, &basis);
 
 	px::CapsuleShape& shape = mapObj->GetGameObj().GetPxActor().GetShapes().Add<px::CapsuleShape>();
-	shape.AssignFromDesc(desc);
+	shape.SetRadius(radius);
+	shape.SetHeight(height);
+	shape.SetRot(rot);
 
 	mapObj->GetGameObj().GetPxActor().SetScene(_world->GetPxScene());
 

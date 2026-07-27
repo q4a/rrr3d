@@ -34,8 +34,6 @@ unsigned Manager::_sdkRefCnt = 0;
 Shapes::ClassList Shapes::classList;
 
 
-
-
 Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0)
 {
 	_contactModify = new ContactModify(this);
@@ -256,8 +254,6 @@ PxScene* Scene::GetNxScene()
 }
 
 
-
-
 Manager::Manager()
 {
 	InitSDK();
@@ -367,8 +363,6 @@ PxCooking& Manager::GetCooking()
 {
 	return *_nxCooking;
 }
-
-
 
 
 TriangleMesh::TriangleMesh(): _meshData(0)
@@ -582,8 +576,6 @@ bool TriangleMesh::IsEmpty() const
 }
 
 
-
-
 Shape::Shape(Shapes* owner): _owner(owner), _type(stUnknown), _nxShape(0), _pos(NullVector), _rot(NullQuaternion), _scale(IdentityVector), _materialIndex(0), _density(1.0f), _skinWidth(-1), _group(0)
 {
 	SetType(Type);
@@ -656,21 +648,6 @@ void Shape::Load(lsl::SReader* reader)
 	reader->ReadValue("group", _group);
 }
 
-void Shape::AssignFromDesc(const NxShapeDesc& desc, bool reloadShape)
-{
-	desc.localPose.t.get(_pos);
-	//
-	PxQuat quat;
-	desc.localPose.M.toQuat(quat);
-	quat.getXYZW(_rot);
-
-	_materialIndex = desc.materialIndex;
-	_density = desc.density;
-	_skinWidth = desc.skinWidth;
-	_group = desc.group;
-	if (reloadShape)
-		ReloadNxShape();
-}
 
 void Shape::ApplyToShape(PxShape& shape) const
 {
@@ -807,8 +784,6 @@ void Shape::SetGroup(unsigned value)
 }
 
 
-
-
 PlaneShape::PlaneShape(Shapes* owner): _MyBase(owner), _normal(ZVector), _dist(0.0f)
 {
 	SetType(Type);
@@ -835,21 +810,6 @@ void PlaneShape::Load(lsl::SReader* reader)
 	reader->ReadValue("dist", _dist);
 }
 
-void PlaneShape::AssignFromDesc(const NxPlaneShapeDesc& desc, bool reloadShape)
-{
-	_normal = desc.normal.get();
-	_dist = desc.d;
-
-	_MyBase::AssignFromDesc(desc, reloadShape);
-}
-
-void PlaneShape::AssignToDesc(NxPlaneShapeDesc& desc)
-{
-	desc.normal.set(_normal);
-	desc.d = _dist;
-
-	_MyBase::AssignToDesc(desc);
-}
 
 NxPlaneShape* PlaneShape::GetNxShape()
 {
@@ -883,8 +843,6 @@ void PlaneShape::SetDist(float value)
 }
 
 
-
-
 BoxShape::BoxShape(Shapes* owner): _MyBase(owner), _dimensions(NullVector)
 {
 	SetType(Type);
@@ -910,19 +868,6 @@ void BoxShape::Load(lsl::SReader* reader)
 	reader->ReadValue("dimensions", _dimensions, 3);
 }
 
-void BoxShape::AssignFromDesc(const NxBoxShapeDesc& desc, bool reloadShape)
-{
-	_dimensions = desc.dimensions.get();
-
-	_MyBase::AssignFromDesc(desc, reloadShape);
-}
-
-void BoxShape::AssignToDesc(NxBoxShapeDesc& desc)
-{
-	desc.dimensions.set(_dimensions);
-
-	_MyBase::AssignToDesc(desc);
-}
 
 NxBoxShape* BoxShape::GetNxShape()
 {
@@ -950,8 +895,6 @@ void BoxShape::SetDimensions(const D3DXVECTOR3& value)
 }
 
 
-
-
 SphereShape::SphereShape(Shapes* owner): _MyBase(owner), _radius(1.0f)
 {
 	SetType(Type);
@@ -976,19 +919,6 @@ void SphereShape::Load(lsl::SReader* reader)
 	reader->ReadValue("radius", _radius);	
 }
 
-void SphereShape::AssignFromDesc(const NxSphereShapeDesc& desc, bool reloadShape)
-{
-	_radius = desc.radius;
-	
-	_MyBase::AssignFromDesc(desc, reloadShape);
-}
-
-void SphereShape::AssignToDesc(NxSphereShapeDesc& desc)
-{
-	desc.radius = _radius;
-	
-	_MyBase::AssignToDesc(desc);
-}
 
 NxSphereShape* SphereShape::GetNxShape()
 {
@@ -1007,8 +937,6 @@ void SphereShape::SetRadius(float value)
 	if (GetNxShape())
 		GetNxShape()->setRadius(value);		
 }
-
-
 
 
 CapsuleShape::CapsuleShape(Shapes* owner): _MyBase(owner), _radius(1.0f), _height(1.0f), _capsuleFlags(0)
@@ -1058,23 +986,6 @@ void CapsuleShape::Load(lsl::SReader* reader)
 	reader->ReadValue("capsuleFlags", _capsuleFlags);
 }
 
-void CapsuleShape::AssignFromDesc(const NxCapsuleShapeDesc& desc, bool reloadShape)
-{
-	_radius = desc.radius;
-	_height = desc.height;
-	_capsuleFlags = desc.flags;
-
-	_MyBase::AssignFromDesc(desc, reloadShape);
-}
-
-void CapsuleShape::AssignToDesc(NxCapsuleShapeDesc& desc)
-{
-	desc.radius = _radius;
-	desc.height = _height;
-	desc.flags = _capsuleFlags;
-
-	_MyBase::AssignToDesc(desc);
-}
 
 NxCapsuleShape* CapsuleShape::GetNxShape()
 {
@@ -1119,8 +1030,6 @@ void CapsuleShape::SetCapsuleFlags(unsigned value)
 	if (GetNxShape())
 		ReloadNxShape();
 }
-
-
 
 
 TriangleMeshShape::TriangleMeshShape(Shapes* owner): _MyBase(owner), _mesh(0), _meshId(-1), _nxMesh(0)
@@ -1190,19 +1099,6 @@ void TriangleMeshShape::OnFixUp(const FixUpNames& fixUpNames)
 			SetMesh(iter->GetCollItem<TriangleMesh*>(), _meshId);
 }
 
-void TriangleMeshShape::AssignFromDesc(const NxTriangleMeshShapeDesc& desc, bool reloadShape)
-{
-	_MyBase::AssignFromDesc(desc, reloadShape);
-}
-
-void TriangleMeshShape::AssignToDesc(NxTriangleMeshShapeDesc& desc)
-{
-	_MyBase::AssignToDesc(desc);
-
-	if (!_nxMesh)
-		_nxMesh = _mesh ? _mesh->GetOrCreateTri(GetScale() * GetActor()->GetWorldScale(), _meshId) : 0;
-	desc.meshData = _nxMesh;
-}
 
 NxTriangleMeshShape* TriangleMeshShape::GetNxShape()
 {
@@ -1229,8 +1125,6 @@ int TriangleMeshShape::GetMeshId()
 {
 	return _meshId;
 }
-
-
 
 
 ConvexShape::ConvexShape(Shapes* owner): _MyBase(owner), _mesh(0), _meshId(-1), _nxMesh(0)
@@ -1294,19 +1188,6 @@ void ConvexShape::OnFixUp(const FixUpNames& fixUpNames)
 			SetMesh(iter->GetCollItem<TriangleMesh*>(), _meshId);
 }
 
-void ConvexShape::AssignFromDesc(const NxConvexShapeDesc& desc, bool reloadShape)
-{
-	_MyBase::AssignFromDesc(desc, reloadShape);
-}
-
-void ConvexShape::AssignToDesc(NxConvexShapeDesc& desc)
-{
-	_MyBase::AssignToDesc(desc);
-
-	if (!_nxMesh)
-		_nxMesh = _mesh ? _mesh->GetOrCreateConvex(IdentityVector, _meshId) : 0;
-	desc.meshData = _nxMesh;
-}
 
 NxConvexShape* ConvexShape::GetNxShape()
 {
@@ -1333,8 +1214,6 @@ int ConvexShape::GetMeshId()
 {
 	return _meshId;
 }
-
-
 
 
 WheelShape::WheelShape(Shapes* owner): _MyBase(owner), _contactModify(0)
@@ -1422,36 +1301,6 @@ void WheelShape::Load(lsl::SReader* reader)
 	reader->ReadValue("steerAngle", _steerAngle);
 }
 
-void WheelShape::AssignFromDesc(const NxWheelShapeDesc& desc, bool reloadShape)
-{
-	_radius = desc.radius;
-	_suspensionTravel = desc.suspensionTravel;
-	_suspension = desc.suspension;
-	_longitudalTireForceFunction = desc.longitudalTireForceFunction;
-	_lateralTireForceFunction = desc.lateralTireForceFunction;
-	_inverseWheelMass = desc.inverseWheelMass;
-	_wheelFlags = desc.wheelFlags;
-	_motorTorque = desc.motorTorque;
-	_steerAngle = desc.steerAngle;
-
-	_MyBase::AssignFromDesc(desc, reloadShape);
-}
-
-void WheelShape::AssignToDesc(NxWheelShapeDesc& desc)
-{
-	_MyBase::AssignToDesc(desc);
-
-	desc.radius = _radius;
-	desc.suspensionTravel = _suspensionTravel;
-	desc.suspension = _suspension;
-	desc.longitudalTireForceFunction = _longitudalTireForceFunction;
-	desc.lateralTireForceFunction = _lateralTireForceFunction;
-	desc.inverseWheelMass = _inverseWheelMass;
-	desc.wheelFlags = _wheelFlags;
-	desc.motorTorque = _motorTorque;
-	desc.steerAngle = _steerAngle;
-	desc.wheelContactModify = _contactModify;
-}
 
 NxWheelShape* WheelShape::GetNxShape()
 {
@@ -1600,8 +1449,6 @@ void WheelShape::SetContactModify(ContactModify* value)
 }
 
 
-
-
 Body::Body(Actor* actor): _actor(actor)
 {
 }
@@ -1663,8 +1510,6 @@ void Body::SetDesc(const NxBodyDesc& value)
 }
 
 
-
-
 Shapes::Shapes(Actor* owner): _owner(owner)
 {
 	SetClassList(&classList);
@@ -1702,8 +1547,6 @@ Actor* Shapes::GetActor()
 {
 	return _owner;
 }
-
-
 
 
 Actor::Actor(ActorUser* owner): _owner(owner), _nxActor(0), _scene(0), _parent(0), _body(0), _pos(NullVector), _rot(NullQuaternion), _scale(IdentityVector), storeCoords(true)
@@ -2025,14 +1868,12 @@ void Actor::WorldToLocalPos(const D3DXVECTOR3& inValue, D3DXVECTOR3& outValue, b
 
 BoxShape& Actor::AddBBShape(const AABB& aabb, const NxBoxShapeDesc& desc)
 {
-	NxBoxShapeDesc descShape = desc;
 	D3DXVECTOR3 sizes = aabb.GetSizes();
 	sizes /= 2.0f;
-	D3DXVECTOR3 pos = aabb.GetCenter();
-	descShape.dimensions.set(sizes);
-	descShape.localPose.t.set(pos);
+
 	px::BoxShape& bbShape = GetShapes().Add<px::BoxShape>();
-	bbShape.AssignFromDesc(descShape);
+	bbShape.SetDimensions(sizes);
+	bbShape.SetPos(aabb.GetCenter());
 
 	return bbShape;
 }
