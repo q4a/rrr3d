@@ -374,6 +374,27 @@ LANGID GetUserDefaultUILanguage(void);
 #define EC_USERABORT  0x02
 #define EC_ERRORABORT 0x03
 
+/*
+ * memoryapi.h. d9mt's Metal backend allocates client memory with these and
+ * hands it to Metal's newBufferWithBytesNoCopy, which requires page alignment
+ * -- so mmap is the right primitive underneath, not malloc.
+ *
+ * Only the flags that backend uses are defined. VirtualFree with MEM_RELEASE
+ * takes a size of 0, meaning "the whole original reservation", so the sizes are
+ * tracked on this side; munmap needs the length.
+ */
+#define MEM_COMMIT      0x00001000
+#define MEM_RESERVE     0x00002000
+#define MEM_RELEASE     0x00008000
+#define MEM_DECOMMIT    0x00004000
+
+#define PAGE_NOACCESS   0x01
+#define PAGE_READONLY   0x02
+#define PAGE_READWRITE  0x04
+
+void* VirtualAlloc(void* address, size_t size, DWORD allocationType, DWORD protect);
+BOOL  VirtualFree(void* address, size_t size, DWORD freeType);
+
 /* Calling conventions. windows_base.h defines WINAPI; these are its siblings. */
 #ifndef CALLBACK
 #define CALLBACK
