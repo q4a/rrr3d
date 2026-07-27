@@ -80,6 +80,7 @@ PxPhysics* Manager::_nxSDK = 0;
 PxCooking* Manager::_nxCooking = 0;
 PxFoundation* Manager::_nxFoundation = 0;
 PxMaterial* Manager::_defMaterial = 0;
+std::vector<PxMaterial*> Manager::_materials;
 unsigned Manager::_sdkRefCnt = 0;
 
 Shapes::ClassList Shapes::classList;
@@ -115,6 +116,14 @@ static PxFilterFlags SceneFilterShader(
 			| PxPairFlag::eNOTIFY_TOUCH_PERSISTS
 			| PxPairFlag::eNOTIFY_CONTACT_POINTS
 			| PxPairFlag::eMODIFY_CONTACTS;
+
+		//Only pairs where both actors carry an exception need the callback,
+		//which is the only place actor identity is visible.
+		if ((filterData0.word1 & Scene::cPairExceptionBit) &&
+			(filterData1.word1 & Scene::cPairExceptionBit))
+		{
+			flags |= PxFilterFlag::eCALLBACK;
+		}
 	}
 
 	return flags;
@@ -124,6 +133,7 @@ Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0)
 {
 	_contactModify = new ContactModify(this);
 	_simulationEvents = new SimulationEvents(this);
+	_pairFilter = new PairFilter(this);
 
 	//2.8's upAxis and timeStepMethod have no PhysX 3+ equivalents and need
 	//none: the up axis was only ever advisory, gravity already encodes it, and
@@ -134,6 +144,7 @@ Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0)
 	sceneDesc.filterShader = SceneFilterShader;
 	sceneDesc.simulationEventCallback = _simulationEvents;
 	sceneDesc.contactModifyCallback = _contactModify;
+	sceneDesc.filterCallback = _pairFilter;
 
 	//PhysX 2.8 owned its worker threads; PhysX 3+ makes that the caller's job.
 	_cpuDispatcher = PxDefaultCpuDispatcherCreate(0);
@@ -172,6 +183,7 @@ Scene::~Scene()
 	_nxScene->release();
 	_cpuDispatcher->release();
 
+	delete _pairFilter;
 	delete _simulationEvents;
 	delete _contactModify;
 }
@@ -309,6 +321,99 @@ void Scene::SimulationEvents::onSleep(PxActor** actors, PxU32 count)
 	}
 }
 
+Scene::PairFilter::PairFilter(Scene* scene): _scene(scene)
+{
+}
+
+PxFilterFlags Scene::PairFilter::pairFound(PxU32,
+	PxFilterObjectAttributes, PxFilterData, const PxActor* a0, const PxShape*,
+	PxFilterObjectAttributes, PxFilterData, const PxActor* a1, const PxShape*,
+	PxPairFlags& pairFlags)
+{
+	if (_scene->IsActorPairIgnored(a0, a1))
+		return PxFilterFlag::eSUPPRESS;
+
+	pairFlags |= PxPairFlag::eCONTACT_DEFAULT;
+	return PxFilterFlags();
+}
+
+void Scene::SetActorPairIgnored(PxRigidActor& actor0, PxRigidActor& actor1, bool ignored)
+{
+	const PxActor* a = &actor0;
+	const PxActor* b = &actor1;
+	if (b < a)
+		std::swap(a, b);
+
+	if (ignored)
+	{
+		_ignoredPairs.insert(std::make_pair(a, b));
+		//Both sides must be marked or the shader will not defer to the callback.
+		MarkPairException(actor0);
+		MarkPairException(actor1);
+	}
+	else
+	{
+		//The marker bit is deliberately left set. Clearing it would need a scan
+		//of every remaining exception, and a spurious callback only costs a
+		//lookup that returns false.
+		_ignoredPairs.erase(std::make_pair(a, b));
+	}
+}
+
+bool Scene::IsActorPairIgnored(const PxActor* actor0, const PxActor* actor1) const
+{
+	if (!actor0 || !actor1)
+		return false;
+
+	const PxActor* a = actor0;
+	const PxActor* b = actor1;
+	if (b < a)
+		std::swap(a, b);
+
+	return _ignoredPairs.find(std::make_pair(a, b)) != _ignoredPairs.end();
+}
+
+void Scene::MarkPairException(PxRigidActor& actor)
+{
+	const PxU32 numShapes = actor.getNbShapes();
+	if (numShapes == 0)
+		return;
+
+	std::vector<PxShape*> shapes(numShapes);
+	actor.getShapes(&shapes[0], numShapes);
+
+	for (PxU32 i = 0; i < numShapes; ++i)
+	{
+		PxFilterData filter = shapes[i]->getSimulationFilterData();
+		filter.word1 |= cPairExceptionBit;
+		shapes[i]->setSimulationFilterData(filter);
+	}
+}
+
+//The word layout is PxDefaultSimulationFilterShader's own -- see
+//ExtDefaultSimulationFilterShader.cpp, which packs the mask the same way.
+void Scene::SetShapeGroupsMask(PxShape& shape, const PxGroupsMask& mask)
+{
+	PxFilterData filter = shape.getSimulationFilterData();
+	filter.word2 = PxU32(mask.bits0 | (PxU32(mask.bits1) << 16));
+	filter.word3 = PxU32(mask.bits2 | (PxU32(mask.bits3) << 16));
+
+	shape.setSimulationFilterData(filter);
+	shape.setQueryFilterData(filter);
+}
+
+PxGroupsMask Scene::GetShapeGroupsMask(const PxShape& shape)
+{
+	const PxFilterData filter = shape.getSimulationFilterData();
+
+	PxGroupsMask mask;
+	mask.bits0 = PxU16(filter.word2 & 0xffff);
+	mask.bits1 = PxU16(filter.word2 >> 16);
+	mask.bits2 = PxU16(filter.word3 & 0xffff);
+	mask.bits3 = PxU16(filter.word3 >> 16);
+	return mask;
+}
+
 Actor* Scene::GetActorFromNx(const PxRigidActor* actor)
 {
 	return actor && actor->userData ? reinterpret_cast<Actor*>(actor->userData) : 0;
@@ -444,6 +549,10 @@ void Manager::InitSDK()
 		Manager::_defMaterial = Manager::_nxSDK->createMaterial(0.5f, 0.5f, 0.5f);
 		if (!Manager::_defMaterial)
 			throw lsl::Error("Unable to create the default PhysX material");
+
+		//Index 0, matching NxScene's built-in material.
+		Manager::_materials.clear();
+		Manager::_materials.push_back(Manager::_defMaterial);
 	}
 }
 
@@ -453,6 +562,11 @@ void Manager::ReleaseSDK()
 
 	if (--_sdkRefCnt == 0)
 	{
+		//Index 0 is the default material, released just below.
+		for (size_t i = 1; i < Manager::_materials.size(); ++i)
+			Manager::_materials[i]->release();
+		Manager::_materials.clear();
+
 		Manager::_defMaterial->release();
 		Manager::_defMaterial = 0;
 
@@ -517,6 +631,23 @@ PxMaterial& Manager::GetDefaultMaterial()
 	LSL_ASSERT(_defMaterial);
 
 	return *_defMaterial;
+}
+
+PxU16 Manager::RegisterMaterial(PxMaterial* material)
+{
+	LSL_ASSERT(material);
+
+	for (size_t i = 0; i < _materials.size(); ++i)
+		if (_materials[i] == material)
+			return static_cast<PxU16>(i);
+
+	_materials.push_back(material);
+	return static_cast<PxU16>(_materials.size() - 1);
+}
+
+PxMaterial* Manager::GetMaterialByIndex(PxU16 index)
+{
+	return index < _materials.size() ? _materials[index] : _defMaterial;
 }
 
 
@@ -900,12 +1031,16 @@ void Shape::SetMaterialIndex(PxU16 value)
 	if (_materialIndex != value)
 	{
 		_materialIndex = value;
-		//BEHAVIOUR GAP: PhysX 2.8 shapes referenced a material by index into a
-		//scene-wide table; PhysX 3+ shapes hold PxMaterial pointers and there is
-		//no such table. The index is stored and serialised but does not reach
-		//the simulation, so every shape currently uses the default material.
-		//Closing this needs a Manager-owned index-to-PxMaterial map fed from the
-		//same content that populated the 2.8 table.
+
+		//Manager keeps the index-to-PxMaterial table PhysX 3+ dropped.
+		if (_nxShape)
+		{
+			if (PxMaterial* material = Manager::GetMaterialByIndex(value))
+			{
+				PxMaterial* materials[1] = {material};
+				_nxShape->setMaterials(materials, 1);
+			}
+		}
 	}
 }
 
@@ -1794,8 +1929,9 @@ void Actor::CreateNxShape(Shape* shape)
 	//NxActor::createShape. The material is the one PhysX 2.8 kept at scene
 	//index 0; per-shape material selection is still open -- see
 	//Shape::SetMaterialIndex.
+	PxMaterial* material = Manager::GetMaterialByIndex(shape->GetMaterialIndex());
 	PxShape* nxShape = PxRigidActorExt::createExclusiveShape(*_nxActor, geometry.any(),
-		Manager::GetDefaultMaterial());
+		material ? *material : Manager::GetDefaultMaterial());
 	if (!nxShape)
 	{
 		shape->_delayInitialization = true;

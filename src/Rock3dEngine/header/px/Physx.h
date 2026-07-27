@@ -30,6 +30,9 @@
 #include "lslCollection.h"
 #include "lslException.h"
 
+#include <set>
+#include <vector>
+
 namespace r3d
 {
 
@@ -116,6 +119,32 @@ private:
 		virtual void onContactModify(PxContactModifyPair* const pairs, PxU32 count);
 	};
 
+	//NxScene::setActorPairFlags(a, b, NX_IGNORE_PAIR). PhysX 3+ has no pairwise
+	//actor table; the equivalent is a filter callback, which is the only place
+	//actor identity is available -- PxSimulationFilterShader sees filter data
+	//and nothing else.
+	//
+	//Returning eCALLBACK for every pair would be needlessly expensive, so
+	//actors that participate in an exception are marked in filter data word1
+	//and the shader defers only for those.
+	class PairFilter: public PxSimulationFilterCallback
+	{
+	private:
+		Scene* _scene;
+	public:
+		PairFilter(Scene* scene);
+
+		virtual PxFilterFlags pairFound(PxU32 pairID,
+			PxFilterObjectAttributes attributes0, PxFilterData filterData0, const PxActor* a0, const PxShape* s0,
+			PxFilterObjectAttributes attributes1, PxFilterData filterData1, const PxActor* a1, const PxShape* s1,
+			PxPairFlags& pairFlags);
+
+		virtual void pairLost(PxU32 pairID, PxFilterObjectAttributes, PxFilterData,
+			PxFilterObjectAttributes, PxFilterData, bool) {}
+
+		virtual bool statusChange(PxU32&, PxPairFlags&, PxFilterFlags&) {return false;}
+	};
+
 	//NxUserContactReport and NxUserNotify merged. PhysX 3+ takes exactly one
 	//PxSimulationEventCallback per scene, so the two 2.8 interfaces cannot stay
 	//separate objects.
@@ -136,6 +165,27 @@ private:
 public:
 	enum CollDisGroup {cdgDefault = 0, cdgShot = 1, cdgShotBorder = 2, cdgShotTransparency = 3, cdgWheel = 4, cdgShotTrack = 5, cdgTrackPlane = 6, cdgPlaneDeath = 7, cCollDisGroupEnd = 32};
 	enum GroupMask {gmDef = 0x0, gmTemp = 0x1, cGroupMaskEnd};
+
+	//NxActorDesc::contactReportFlags. PhysX 3+ asks for these as pair flags in
+	//the filter shader instead, before any actor is consulted, so these are
+	//stored and serialised but do not currently reach the simulation -- the
+	//shader requests reports for every pair. See SceneFilterShader.
+	enum ContactReportFlag
+	{
+		crfNotifyAll                 = 0xFFFF,  //NX_NOTIFY_ALL
+		crfNotifyContactModification = 0x10000  //NX_NOTIFY_CONTACT_MODIFICATION
+	};
+
+	//NxShape::setGroupsMask. PhysX 3+ has no per-shape setter, but the default
+	//filter shader reads the same four-word mask out of filter data words 2 and
+	//3, so writing them directly keeps 2.8's per-shape granularity --
+	//PxSetGroupsMask only works per actor. Words 0 and 1 are left alone; word 0
+	//is the collision group.
+	static void SetShapeGroupsMask(PxShape& shape, const PxGroupsMask& mask);
+	static PxGroupsMask GetShapeGroupsMask(const PxShape& shape);
+
+	//Filter data word1 bit marking an actor as having pair exceptions.
+	static const PxU32 cPairExceptionBit = 0x1;
 
 	//Contact points are pulled out of the pair one batch at a time. 2.8 handed
 	//over an unbounded NxConstContactStream; this is the largest batch the
@@ -184,9 +234,16 @@ public:
 	static Actor* GetActorFromNx(const PxRigidActor* actor);
 	static Actor* GetActorFromNxShape(const PxShape* shape);
 private:
+	typedef std::set<std::pair<const PxActor*, const PxActor*> > IgnoredPairs;
+
 	Manager* _manager;
 	ContactModify* _contactModify;
 	SimulationEvents* _simulationEvents;
+	PairFilter* _pairFilter;
+	//Ordered by pointer so lookup does not depend on which actor came first.
+	IgnoredPairs _ignoredPairs;
+
+	void MarkPairException(PxRigidActor& actor);
 	//PhysX 3+ requires the application to supply the worker thread pool that
 	//2.8 created internally.
 	PxDefaultCpuDispatcher* _cpuDispatcher;
@@ -207,6 +264,10 @@ protected:
 	void ReleaseNxActor(PxRigidActor* nxActor, Actor* actor);
 public:
 	void Compute(float deltaTime);
+
+	//NxScene::setActorPairFlags(a, b, NX_IGNORE_PAIR).
+	void SetActorPairIgnored(PxRigidActor& actor0, PxRigidActor& actor1, bool ignored);
+	bool IsActorPairIgnored(const PxActor* actor0, const PxActor* actor1) const;
 
 	void InsertUser(SceneUser* value);
 	void RemoveUser(SceneUser* value);
@@ -241,6 +302,7 @@ private:
 	//is created once here with the same friction and restitution the 2.8 code
 	//assigned to index 0.
 	static PxMaterial* _defMaterial;
+	static std::vector<PxMaterial*> _materials;
 	static unsigned _sdkRefCnt;
 public:
 	typedef std::list<Scene*> SceneList;
@@ -264,6 +326,13 @@ public:
 	PxCooking& GetCooking();
 
 	static PxMaterial& GetDefaultMaterial();
+
+	//PhysX 2.8 kept materials in a scene-wide table and shapes referenced them
+	//by index. PhysX 3+ has no table -- shapes hold PxMaterial pointers -- so
+	//this reinstates the index, which the content and the save format both use.
+	//Index 0 is always the default material, as it was in 2.8.
+	static PxU16 RegisterMaterial(PxMaterial* material);
+	static PxMaterial* GetMaterialByIndex(PxU16 index);
 };
 
 class TriangleMesh: public lsl::CollectionItem
