@@ -1581,7 +1581,22 @@ WheelDesc::WheelDesc():
 {
 }
 
-WheelShape::WheelShape(Shapes* owner): _MyBase(owner), _contactModify(0)
+WheelContactData::WheelContactData():
+	contactPoint(NullVector),
+	contactNormal(NullVector),
+	longitudalDirection(NullVector),
+	lateralDirection(NullVector),
+	contactForce(0.0f),
+	longitudalSlip(0.0f),
+	lateralSlip(0.0f),
+	longitudalImpulse(0.0f),
+	lateralImpulse(0.0f),
+	otherShapeMaterialIndex(0),
+	contactPosition(0.0f)
+{
+}
+
+WheelShape::WheelShape(Shapes* owner): _MyBase(owner), _axleSpeed(0.0f), _brakeTorque(0.0f), _contactModify(0)
 {
 	SetType(Type);
 
@@ -1810,6 +1825,39 @@ float WheelShape::GetSteerAngle() const
 void WheelShape::SetSteerAngle(float value)
 {
 	_steerAngle = value;
+}
+
+PxShape* WheelShape::GetContact(WheelContactData& data) const
+{
+	//No suspension raycast runs, so there is never a contact to report. Callers
+	//test the return value, so reporting none is the safe answer -- reporting a
+	//fabricated contact would drive tire trails and slip effects off invented
+	//numbers.
+	data = WheelContactData();
+	return 0;
+}
+
+float WheelShape::GetAxleSpeed() const
+{
+	return _axleSpeed;
+}
+
+void WheelShape::SetAxleSpeed(float value)
+{
+	//NX_WF_AXLE_SPEED_OVERRIDE let the game drive this directly; otherwise the
+	//solver computed it. Nothing computes it now, so the setter is the only
+	//source.
+	_axleSpeed = value;
+}
+
+float WheelShape::GetBrakeTorque() const
+{
+	return _brakeTorque;
+}
+
+void WheelShape::SetBrakeTorque(float value)
+{
+	_brakeTorque = value;
 }
 
 WheelShape::ContactModify* WheelShape::GetContactModify()

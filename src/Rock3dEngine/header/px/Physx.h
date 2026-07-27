@@ -720,6 +720,32 @@ struct WheelDesc
 	WheelDesc();
 };
 
+//NxWheelContactData, field for field. PhysX 2.8's wheel shape raycast its own
+//suspension every step and reported the result through this. PxVehicle reports
+//the equivalent through PxVehicleWheelQueryResult after simulation instead, so
+//the struct survives as the shape of the data the game reads.
+struct WheelContactData
+{
+	D3DXVECTOR3 contactPoint;
+	D3DXVECTOR3 contactNormal;
+	//The direction the wheel points, and the sideways direction at right angles
+	//to it.
+	D3DXVECTOR3 longitudalDirection;
+	D3DXVECTOR3 lateralDirection;
+
+	float contactForce;
+	float longitudalSlip;
+	float lateralSlip;
+	float longitudalImpulse;
+	float lateralImpulse;
+
+	PxU16 otherShapeMaterialIndex;
+	//Where on the suspension travel the wheel would rest on this contact.
+	float contactPosition;
+
+	WheelContactData();
+};
+
 class WheelShape: public Shape
 {
 private:
@@ -752,6 +778,9 @@ private:
 	UINT _wheelFlags;
 	float _motorTorque;
 	float _steerAngle;
+	//Solver outputs in 2.8; cached here until PxVehicle drives them.
+	float _axleSpeed;
+	float _brakeTorque;
 	ContactModify* _contactModify;
 protected:
 	virtual PxGeometryHolder CreateGeometry();
@@ -797,6 +826,22 @@ public:
 
 	ContactModify* GetContactModify();
 	void SetContactModify(ContactModify* value);
+
+	//NxWheelShape's runtime state. In 2.8 these were live readings off a shape
+	//the solver updated every step; there is no such object now.
+	//
+	//BEHAVIOUR GAP: GetContact always reports no contact and GetAxleSpeed always
+	//reports zero, because nothing computes them until the PxVehicle work lands.
+	//Wheels therefore never register ground contact: no tire trails, no slip,
+	//no engine RPM derived from axle speed. The accessors exist so the game
+	//layer keeps its shape and so there is one place to fill in.
+	PxShape* GetContact(WheelContactData& data) const;
+
+	float GetAxleSpeed() const;
+	void SetAxleSpeed(float value);
+
+	float GetBrakeTorque() const;
+	void SetBrakeTorque(float value);
 };
 
 //PhysX 3+ has no body descriptor -- a rigid body is configured through
