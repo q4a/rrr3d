@@ -54,16 +54,29 @@ struct MaterialDefinition
     float animationRate = 24.0F;
     // Optional second sampler from LibMaterial (the source bump/normal map).
     std::string normalTexturePath{};
+    // Material::moZWrite is independent from D3D blending (for example the
+    // opaque j_swell sprite disables depth writes).
+    bool writeDepth = true;
 };
 
 struct VisualNode
 {
+    enum class CullMode
+    {
+        Inherit,
+        Clockwise,
+        CounterClockwise,
+        None,
+    };
+
     std::string meshPath;
     Transform transform;
     std::vector<MaterialDefinition> materials;
     int subMesh = -1;
     bool plane = false;
     bool fixedDirection = false;
+    bool invertCullFace = false;
+    CullMode cullMode = CullMode::Inherit;
 };
 
 enum class ParticleRenderMode
@@ -142,6 +155,17 @@ enum class LightingMode
     PlanarReflection,
 };
 
+// Runtime render queues used by GraphManager::RenderScenes.  The legacy
+// serializer has a known enum/string-table mismatch; ObjectDefinition keeps
+// the runtime meaning after that mapping has been applied.
+enum class GraphOrder
+{
+    Default,
+    Opacity,
+    Effect,
+    Last,
+};
+
 struct ObjectDefinition
 {
     std::string record;
@@ -155,7 +179,11 @@ struct ObjectDefinition
     bool destructible = false;
     bool planarReflection = false;
     bool castsShadow = false;
+    // IActor::gpCullOpacity: fade this actor when it obscures the player in
+    // the original isometric camera.
+    bool cullOpacity = false;
     LightingMode lighting = LightingMode::Standard;
+    GraphOrder graphOrder = GraphOrder::Default;
 };
 
 struct ObjectInstance

@@ -1251,7 +1251,11 @@ int main(int argc, char** argv)
     transparent.alphaBlend = true;
 #ifdef RRR3D_PHYSICS
     PipelineState racePipeline;
-    racePipeline.faceCulling = PipelineState::FaceCulling::None;
+    // ContextInfo.cpp uses MatrixLookAtRH/MatrixPerspectiveFovRH and the
+    // default D3D9 state D3DCULL_CW.  Preserve that state directly; mirrored
+    // nodes carry their original cullMode/invertCullFace overrides.
+    racePipeline.faceCulling =
+        PipelineState::FaceCulling::Clockwise;
 #endif
     const Camera camera = makeCamera(*device);
 
@@ -2148,7 +2152,8 @@ int main(int argc, char** argv)
                 raceSession.decorationActive(),
                 raceSession.bonusActive(), raceSession.racers(),
                 raceSession.effects(), raceSession.mines(),
-                raceSession.projectiles(), raceElapsedSeconds);
+                raceSession.projectiles(), raceElapsedSeconds,
+                profileState.config.quality);
             raceHud.update(*device, *originalRace, raceSession,
                            raceVehicles, raceCamera, frameSeconds);
             device->beginOverlay(camera);

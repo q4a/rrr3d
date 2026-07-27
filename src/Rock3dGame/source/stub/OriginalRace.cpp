@@ -438,18 +438,47 @@ MaterialDefinition materialDefinition(
     const std::string record(legacy);
     auto tune = [&](MaterialDefinition material) {
         if (material.blend == MaterialBlend::AlphaTest)
-            material.alphaReference =
-                std::max(material.alphaReference, 0.933F);
-        if (record.rfind("Car\\", 0) == 0)
+        {
+            // ResourceManager::cAlphaTestRef is 0.933, but the D3D9
+            // Material::Apply path writes (1 - alphaRef) * 255 to
+            // D3DRS_ALPHAREF and uses D3DCMP_GREATEREQUAL.  Store the
+            // resulting normalized comparison threshold used by Metal.
+            material.alphaReference = 1.0F - 0.933F;
+        }
+        static constexpr std::string_view carMaterials[] = {
+            "Car\\marauder", "Car\\buggi", "Car\\dirtdevil",
+            "Car\\tankchetti", "Car\\manticora", "Car\\airblade",
+            "Car\\guseniza", "Car\\gusenizaBoss",
+            "Car\\monstertruck", "Car\\podushka",
+            "Car\\podushkaBoss", "Car\\monstertruckBoss",
+            "Car\\manticoraBoss", "Car\\devildriver",
+            "Car\\devildriverBoss", "Car\\mustang", "Car\\xCar",
+        };
+        if (std::find(
+                std::begin(carMaterials), std::end(carMaterials),
+                record) != std::end(carMaterials))
         {
             material.specular = 1.0F;
             material.shininess = 64.0F;
         }
         if (record.rfind("Effect\\", 0) == 0)
         {
-            material.emissive = 1.0F;
-            material.specular = 0.0F;
-            material.ignoreFog = true;
+            // These five records are source 3D materials (sprite=false).
+            // All remaining Effect materials disable lighting/Z-write/fog in
+            // ComplexMatLib::LoadLibMat because they are sprites.
+            const bool litGeometry =
+                record == "Effect\\wheel" ||
+                record == "Effect\\truba" ||
+                record == "Effect\\destrCar" ||
+                record == "Effect\\pieces" ||
+                record == "Effect\\frost";
+            if (!litGeometry)
+            {
+                material.emissive = 1.0F;
+                material.specular = 0.0F;
+                material.ignoreFog = true;
+                material.writeDepth = false;
+            }
             if (record == "Effect\\smoke1")
                 material.color = {0.25F, 0.25F, 0.25F, 1.0F};
             else if (record == "Effect\\smoke2")
@@ -523,7 +552,12 @@ MaterialDefinition materialDefinition(
                 auto candidate = material.texturePath;
                 candidate.insert(extension, "_norm");
                 if (resources.exists(candidate))
+                {
                     material.normalTexturePath = std::move(candidate);
+                    // LoadBumpLibMat uses this exact D3D material state.
+                    material.specular = 0.5F;
+                    material.shininess = 128.0F;
+                }
             }
         }
         return material;
@@ -538,6 +572,16 @@ MaterialDefinition materialDefinition(
     // Direct-name materials are resolved below; this table preserves every
     // material whose texture name or render state differs from that rule.
     static constexpr Mapping mappings[] = {
+        {"Effect\\wheel", "Data/Effect/wheel.dds",
+         MaterialBlend::Opaque},
+        {"Effect\\truba", "Data/Effect/truba.dds",
+         MaterialBlend::Opaque},
+        {"Effect\\destrCar", "Data/Effect/destrCar.dds",
+         MaterialBlend::Opaque},
+        {"Effect\\pieces", "Data/Effect/pieces.dds",
+         MaterialBlend::Opaque},
+        {"Effect\\j_swell", "Data/Effect/j_swell.dds",
+         MaterialBlend::Opaque},
         {"World1\\Track\\track1", "Data/World1/Track/Texture/track1.dds",
          MaterialBlend::Opaque},
         {"World1\\Track\\most", "Data/World1/Track/Texture/most.dds",
@@ -889,6 +933,13 @@ std::vector<VisualNode> visualNodes(
     auto* items = child(record, "grActor/nodes/items");
     if (items == nullptr)
         return result;
+    bool actorInvertCullFace = false;
+    if (auto* invert = child(record, "grActor/invertCullFace");
+        invert != nullptr && invert->GetText() != nullptr)
+    {
+        actorInvertCullFace =
+            std::string_view(invert->GetText()) == "true";
+    }
     for (auto* item = items->FirstChildElement(); item != nullptr;
          item = item->NextSiblingElement())
     {
@@ -903,6 +954,37 @@ std::vector<VisualNode> visualNodes(
             continue;
         VisualNode node;
         node.plane = plane;
+        node.invertCullFace = actorInvertCullFace;
+        if (auto* invert = child(item, "invertCullFace");
+            invert != nullptr && invert->GetText() != nullptr)
+        {
+            node.invertCullFace =
+                node.invertCullFace ||
+                std::string_view(invert->GetText()) == "true";
+        }
+        if (auto* cullMode = child(item, "cullMode");
+            cullMode != nullptr && cullMode->GetText() != nullptr)
+        {
+            unsigned mode = 0U;
+            std::istringstream stream(cullMode->GetText());
+            stream >> mode;
+            switch (mode)
+            {
+            case 1U:
+                node.cullMode = VisualNode::CullMode::None;
+                break;
+            case 2U:
+                node.cullMode = VisualNode::CullMode::Clockwise;
+                break;
+            case 3U:
+                node.cullMode =
+                    VisualNode::CullMode::CounterClockwise;
+                break;
+            default:
+                node.cullMode = VisualNode::CullMode::Inherit;
+                break;
+            }
+        }
         node.fixedDirection =
             type != nullptr && std::string_view(type) == "ntSprite" &&
             child(item, "fixDirection") != nullptr &&
@@ -938,13 +1020,7 @@ std::vector<VisualNode> visualNodes(
             std::istringstream stream(meshId->GetText());
             stream >> node.subMesh;
         }
-        if (!textureOverride.empty())
-        {
-            node.materials.push_back(
-                {"", std::string(textureOverride), MaterialBlend::Opaque,
-                 0.0F});
-        }
-        else if (auto* materials = child(item, "materials"))
+        if (auto* materials = child(item, "materials"))
         {
             for (auto* material = materials->FirstChildElement();
                  material != nullptr;
@@ -952,9 +1028,28 @@ std::vector<VisualNode> visualNodes(
             {
                 const char* itemName = material->Attribute("item");
                 if (itemName != nullptr && *itemName != '\0')
-                    node.materials.push_back(
-                        materialDefinition(resources, itemName));
+                {
+                    auto definition =
+                        materialDefinition(resources, itemName);
+                    if (!textureOverride.empty() &&
+                        !definition.texturePath.empty())
+                    {
+                        // Player/Garage skins replace the color texture, not
+                        // the LibMaterial.  Preserve Car\\blend, per-group
+                        // blending, specular state, alpha-test, and all other
+                        // source material behavior.
+                        definition.texturePath = textureOverride;
+                        definition.normalTexturePath.clear();
+                    }
+                    node.materials.push_back(std::move(definition));
+                }
             }
+        }
+        if (node.materials.empty() && !textureOverride.empty())
+        {
+            node.materials.push_back(
+                {"", std::string(textureOverride), MaterialBlend::Opaque,
+                 0.0F});
         }
         if (node.materials.empty())
             throw resource::ResourceError(std::string(source) +
@@ -1291,9 +1386,27 @@ ObjectDefinition objectDefinition(
     if (auto* properties = child(dbRecord, "grActor/graphProps");
         properties != nullptr && properties->GetText() != nullptr)
     {
+        const std::string_view graphProperties(properties->GetText());
         result.castsShadow =
-            std::string_view(properties->GetText()).find("gpShadowCast") !=
-            std::string_view::npos;
+            graphProperties.find("gpShadowCast") != std::string_view::npos;
+        result.cullOpacity =
+            graphProperties.find("gpCullOpacity") != std::string_view::npos;
+    }
+    if (auto* order = child(dbRecord, "grActor/graphOrder");
+        order != nullptr && order->GetText() != nullptr)
+    {
+        const std::string_view value(order->GetText());
+        // IActor::Order is {goDefault, goEffect, goOpacity, goFirst,
+        // goLast}, while cGraphOrderStr is
+        // {"goDefault", "goOpacity", "goEffect", "goLast"}.  SReadEnum
+        // converts by the string-table index, so the two middle serialized
+        // names intentionally map to the opposite runtime queues.
+        if (value == "goOpacity")
+            result.graphOrder = GraphOrder::Effect;
+        else if (value == "goEffect")
+            result.graphOrder = GraphOrder::Opacity;
+        else if (value == "goLast")
+            result.graphOrder = GraphOrder::Last;
     }
     result.visualNodes = visualNodes(resources, dbRecord, source);
     appendParticleEmitters(
@@ -2855,6 +2968,68 @@ bool runOriginalRaceResourceSmokeTest(
         const auto near = [](float first, float second) {
             return std::abs(first - second) <= 0.0001F;
         };
+        std::size_t alphaTestMaterialCount = 0;
+        bool alphaTestThresholdMatchesSource = true;
+        const auto auditAlphaTestMaterials =
+            [&](const std::vector<ObjectDefinition>& definitions) {
+                for (const auto& definition : definitions)
+                {
+                    for (const auto& node : definition.visualNodes)
+                    {
+                        for (const auto& material : node.materials)
+                        {
+                            if (material.blend != MaterialBlend::AlphaTest)
+                                continue;
+                            ++alphaTestMaterialCount;
+                            alphaTestThresholdMatchesSource &=
+                                near(material.alphaReference, 1.0F - 0.933F);
+                        }
+                    }
+                }
+            };
+        auditAlphaTestMaterials(race.trackDefinitions);
+        auditAlphaTestMaterials(race.decorationDefinitions);
+        const auto cullOpacityDefinitionCount =
+            std::count_if(
+                race.trackDefinitions.begin(),
+                race.trackDefinitions.end(),
+                [](const ObjectDefinition& definition) {
+                    return definition.cullOpacity;
+                }) +
+            std::count_if(
+                race.decorationDefinitions.begin(),
+                race.decorationDefinitions.end(),
+                [](const ObjectDefinition& definition) {
+                    return definition.cullOpacity;
+                });
+        if (race.vehicle.bodyVisuals.empty() ||
+            race.vehicle.bodyVisuals.front().materials.empty())
+        {
+            error = "marauder body material is missing";
+            return false;
+        }
+        if (!near(
+                race.vehicle.bodyVisuals.front()
+                    .materials.front().specular,
+                1.0F))
+        {
+            error = "marauder body source specular mismatch";
+            return false;
+        }
+        if (race.vehicle.wheelVisuals.empty() ||
+            race.vehicle.wheelVisuals.front().materials.empty())
+        {
+            error = "marauder wheel material is missing";
+            return false;
+        }
+        if (!near(
+                race.vehicle.wheelVisuals.front()
+                    .materials.front().specular,
+                0.0F))
+        {
+            error = "marauder wheel source specular mismatch";
+            return false;
+        }
         if (race.levelPath != "Data/Map/World1/map1.r3dMap" ||
             race.lapCount != 4 || race.vehicle.record.find("marauder") ==
                                       std::string::npos ||
@@ -2885,10 +3060,20 @@ bool runOriginalRaceResourceSmokeTest(
             physics.vehicle.wheels[2].driven ||
             physics.vehicle.wheels[2].steering ||
             !near(race.vehicle.bodyVisualTransform.scale.z, 0.95F) ||
+            race.vehicle.wheelVisuals.size() != 4 ||
             race.vehicle.wheelVisualTransforms.size() != 4 ||
             race.vehicle.wheelVisualOffsets.size() != 4 ||
             !near(race.vehicle.wheelVisualTransforms[1].scale.y, -1.0F) ||
-            !near(race.vehicle.wheelVisualOffsets[0].x, 0.05F))
+            race.vehicle.wheelVisuals[0].cullMode !=
+                VisualNode::CullMode::Inherit ||
+            race.vehicle.wheelVisuals[1].cullMode !=
+                VisualNode::CullMode::CounterClockwise ||
+            !near(race.vehicle.wheelVisualOffsets[0].x, 0.05F) ||
+            alphaTestMaterialCount == 0 ||
+            !alphaTestThresholdMatchesSource ||
+            cullOpacityDefinitionCount == 0 ||
+            race.rainEffect.graphOrder != GraphOrder::Effect ||
+            race.wheelTrailEffect.graphOrder != GraphOrder::Effect)
         {
             error = "original tournament/map/db/garage provenance mismatch";
             return false;

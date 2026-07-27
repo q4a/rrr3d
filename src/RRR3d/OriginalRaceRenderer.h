@@ -79,7 +79,7 @@ public:
                   r3d::game::originalrace::ProjectileRuntime>& projectiles,
               float elapsedSeconds,
               bool reflectionPass = false,
-              bool omitEnvironmentSurface = false) const;
+              bool omitEnvironmentSurface = false);
     void renderFrame(
         r3d::renderer::GraphicsDevice& device,
         r3d::renderer::Shader sceneShader,
@@ -98,7 +98,8 @@ public:
             r3d::game::originalrace::MineRuntime>& mines,
         const std::vector<
             r3d::game::originalrace::ProjectileRuntime>& projectiles,
-        float elapsedSeconds);
+        float elapsedSeconds,
+        const r3d::game::originalrace::QualityConfig& quality);
 
 private:
     bool createFrameTargets(r3d::renderer::GraphicsDevice& device,
@@ -169,6 +170,9 @@ private:
         wheelTrailPaths_;
     std::vector<std::vector<std::vector<float>>> wheelTrailTimes_;
     std::vector<std::uint32_t> wheelTrailResetCounts_;
+    // ActorManager::RayUser fade timers for original gpCullOpacity actors.
+    std::vector<float> trackCullOpacityTimes_;
+    std::vector<float> decorationCullOpacityTimes_;
     float cameraJumpDistance_ = 0.0F;
     float cameraJumpSpeed_ = 0.0F;
     float thirdPersonPullback_ = 0.0F;

@@ -15,7 +15,7 @@ option(RRR3D_BUILD_PORTABLE_MENU
 option(RRR3D_BUILD_ORIGINAL_MENU
     "Build the Milestone 6 original ResourceManager/MainMenu2 renderer slice" OFF)
 option(RRR3D_BUILD_MACOS_BUNDLE
-    "Package the portable game as an autonomous macOS application bundle" OFF)
+    "Package the active game port as an autonomous macOS application bundle" OFF)
 option(RRR3D_ENABLE_RENDERER "Enable the game renderer" OFF)
 option(RRR3D_ENABLE_NETWORK "Enable networking" OFF)
 option(RRR3D_ENABLE_VIDEO "Enable video playback" OFF)
@@ -44,14 +44,16 @@ if(RRR3D_BUILD_MACOS_BUNDLE)
     if(NOT APPLE)
         message(FATAL_ERROR "RRR3D_BUILD_MACOS_BUNDLE is available only on macOS")
     endif()
-    if(NOT RRR3D_BUILD_PORTABLE_MENU OR
+    if(RRR3D_BUILD_PORTABLE_MENU OR
+       NOT RRR3D_BUILD_ORIGINAL_MENU OR
        NOT RRR3D_ENABLE_RENDERER OR
        NOT RRR3D_ENABLE_GAMEPAD OR
        NOT RRR3D_ENABLE_AUDIO OR
        NOT RRR3D_ENABLE_PHYSICS)
         message(FATAL_ERROR
-            "The Milestone 10 bundle requires the complete portable M9 "
-            "runtime: menu, renderer, gamepad, audio, and physics")
+            "The macOS bundle requires the active source-driven runtime: "
+            "original menu/resources, renderer, gamepad, audio, and physics; "
+            "the superseded portable vertical slice must be disabled")
     endif()
     if(RRR3D_MACOS_CODESIGN_IDENTITY STREQUAL "")
         message(FATAL_ERROR

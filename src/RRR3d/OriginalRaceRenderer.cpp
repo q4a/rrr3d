@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 #include <exception>
+#include <limits>
 
 namespace rrr3d::race
 {
@@ -450,6 +451,133 @@ r3d::physics::Transform compose(
     return result;
 }
 
+struct WorldBounds
+{
+    r3d::physics::Vec3 minimum{
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max()};
+    r3d::physics::Vec3 maximum{
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest()};
+    bool valid = false;
+};
+
+r3d::physics::Vec3 transformPoint(
+    const Transform& value, const r3d::physics::Vec3& point) noexcept
+{
+    const auto& matrix = value.matrix;
+    return {
+        matrix[0] * point.x + matrix[4] * point.y +
+            matrix[8] * point.z + matrix[12],
+        matrix[1] * point.x + matrix[5] * point.y +
+            matrix[9] * point.z + matrix[13],
+        matrix[2] * point.x + matrix[6] * point.y +
+            matrix[10] * point.z + matrix[14]};
+}
+
+void include(WorldBounds& bounds,
+             const r3d::physics::Vec3& point) noexcept
+{
+    bounds.minimum.x = std::min(bounds.minimum.x, point.x);
+    bounds.minimum.y = std::min(bounds.minimum.y, point.y);
+    bounds.minimum.z = std::min(bounds.minimum.z, point.z);
+    bounds.maximum.x = std::max(bounds.maximum.x, point.x);
+    bounds.maximum.y = std::max(bounds.maximum.y, point.y);
+    bounds.maximum.z = std::max(bounds.maximum.z, point.z);
+    bounds.valid = true;
+}
+
+WorldBounds objectBounds(
+    const OriginalRaceRenderer::ObjectAsset& asset,
+    const std::vector<r3d::game::originalrace::VisualNode>& nodes,
+    const r3d::physics::Transform& parent) noexcept
+{
+    WorldBounds result;
+    const std::size_t count = std::min(asset.nodes.size(), nodes.size());
+    for (std::size_t index = 0; index < count; ++index)
+    {
+        const auto model = transform(compose(parent, nodes[index].transform));
+        const auto& minimum = asset.nodes[index].source.minimum;
+        const auto& maximum = asset.nodes[index].source.maximum;
+        for (unsigned corner = 0; corner < 8U; ++corner)
+        {
+            include(
+                result,
+                transformPoint(
+                    model,
+                    {(corner & 1U) != 0U ? maximum[0] : minimum[0],
+                     (corner & 2U) != 0U ? maximum[1] : minimum[1],
+                     (corner & 4U) != 0U ? maximum[2] : minimum[2]}));
+        }
+    }
+    return result;
+}
+
+bool lineIntersectsBoundsBeforeTarget(
+    const WorldBounds& bounds, const r3d::physics::Vec3& start,
+    const r3d::physics::Vec3& target, float targetSize) noexcept
+{
+    if (!bounds.valid)
+        return false;
+    auto direction = r3d::physics::Vec3{
+        target.x - start.x, target.y - start.y, target.z - start.z};
+    const float length = std::sqrt(
+        direction.x * direction.x + direction.y * direction.y +
+        direction.z * direction.z);
+    if (length <= 0.0001F)
+        return false;
+    direction.x /= length;
+    direction.y /= length;
+    direction.z /= length;
+    float nearDistance = 0.0F;
+    float farDistance = length;
+    for (unsigned axis = 0; axis < 3U; ++axis)
+    {
+        const float origin =
+            axis == 0U ? start.x : (axis == 1U ? start.y : start.z);
+        const float ray =
+            axis == 0U ? direction.x
+                       : (axis == 1U ? direction.y : direction.z);
+        const float minimum =
+            axis == 0U
+                ? bounds.minimum.x
+                : (axis == 1U ? bounds.minimum.y : bounds.minimum.z);
+        const float maximum =
+            axis == 0U
+                ? bounds.maximum.x
+                : (axis == 1U ? bounds.maximum.y : bounds.maximum.z);
+        if (std::abs(ray) <= 0.000001F)
+        {
+            if (origin < minimum || origin > maximum)
+                return false;
+            continue;
+        }
+        float first = (minimum - origin) / ray;
+        float second = (maximum - origin) / ray;
+        if (first > second)
+            std::swap(first, second);
+        nearDistance = std::max(nearDistance, first);
+        farDistance = std::min(farDistance, second);
+        if (nearDistance > farDistance)
+            return false;
+    }
+    // ActorManager::PullInRayTargetGroup keeps actors containing/behind the
+    // target opaque; only geometry safely in front of the car fades.
+    return farDistance >= 0.0F &&
+           length - farDistance > targetSize * 1.5F;
+}
+
+float cullOpacity(float time) noexcept
+{
+    constexpr float duration = 0.25F;
+    constexpr float minimumOpacity = 0.3F;
+    return 1.0F -
+           std::clamp(time / duration, 0.0F, 1.0F) *
+               (1.0F - minimumOpacity);
+}
+
 std::array<float, 4> atlasFrame(std::uint16_t columns,
                                 std::uint16_t rows,
                                 std::uint32_t frame)
@@ -500,6 +628,58 @@ enum class DrawLayer
     Transparency,
 };
 
+bool isBlended(
+    r3d::game::originalrace::MaterialBlend blend) noexcept
+{
+    return blend ==
+               r3d::game::originalrace::MaterialBlend::Transparency ||
+           blend ==
+               r3d::game::originalrace::MaterialBlend::Additive;
+}
+
+PipelineState nodePipeline(
+    const PipelineState& source,
+    const r3d::game::originalrace::VisualNode* node)
+{
+    auto result = source;
+    if (node == nullptr)
+        return result;
+    using CullMode =
+        r3d::game::originalrace::VisualNode::CullMode;
+    switch (node->cullMode)
+    {
+    case CullMode::Clockwise:
+        result.faceCulling =
+            PipelineState::FaceCulling::Clockwise;
+        break;
+    case CullMode::CounterClockwise:
+        result.faceCulling =
+            PipelineState::FaceCulling::CounterClockwise;
+        break;
+    case CullMode::None:
+        result.faceCulling = PipelineState::FaceCulling::None;
+        break;
+    case CullMode::Inherit:
+        break;
+    }
+    if (node->invertCullFace)
+    {
+        if (result.faceCulling ==
+            PipelineState::FaceCulling::Clockwise)
+        {
+            result.faceCulling =
+                PipelineState::FaceCulling::CounterClockwise;
+        }
+        else if (result.faceCulling ==
+                 PipelineState::FaceCulling::CounterClockwise)
+        {
+            result.faceCulling =
+                PipelineState::FaceCulling::Clockwise;
+        }
+    }
+    return result;
+}
+
 void drawGroups(GraphicsDevice& device,
                 const OriginalRaceRenderer::Asset& asset, Shader shader,
                 const Transform& model, const PipelineState& pipeline,
@@ -507,15 +687,19 @@ void drawGroups(GraphicsDevice& device,
                 float reflectionStrength = 0.0F,
                 r3d::game::originalrace::LightingMode lighting =
                     r3d::game::originalrace::LightingMode::Standard,
-                DrawLayer layer = DrawLayer::All)
+                DrawLayer layer = DrawLayer::All,
+                const r3d::game::originalrace::VisualNode* node = nullptr,
+                float opacity = 1.0F)
 {
     if (asset.textures.empty())
         return;
+    const auto geometryPipeline = nodePipeline(pipeline, node);
     auto materialState =
-        [&asset, elapsedSeconds, reflectionStrength, lighting](
+        [&asset, elapsedSeconds, reflectionStrength, lighting, opacity](
             const auto& material, std::size_t materialIndex) {
             MaterialState state;
             state.color = material.color;
+            state.color[3] *= opacity;
             state.alphaReference = material.alphaReference;
             state.emissive = material.emissive;
             state.specular = material.specular;
@@ -525,8 +709,7 @@ void drawGroups(GraphicsDevice& device,
             state.postParameters[3] =
                 static_cast<float>(lighting);
             state.receivesShadow =
-                material.blend ==
-                    r3d::game::originalrace::MaterialBlend::Opaque &&
+                !isBlended(material.blend) &&
                 material.emissive < 0.999F;
             if (materialIndex < asset.normalTextures.size())
                 state.normalTexture =
@@ -537,15 +720,22 @@ void drawGroups(GraphicsDevice& device,
             return state;
         };
     auto materialPipeline = [&](std::size_t index) {
-        auto result = pipeline;
+        auto result = geometryPipeline;
         if (asset.materials.empty())
+        {
+            if (opacity < 0.999F)
+            {
+                result.blendMode = PipelineState::BlendMode::Alpha;
+                result.writeDepth = false;
+            }
             return result;
-        const auto blend =
+        }
+        const auto& material =
             asset.materials[std::min(
-                index, asset.materials.size() - 1U)].blend;
-        if (blend ==
-                r3d::game::originalrace::MaterialBlend::Transparency ||
-            blend == r3d::game::originalrace::MaterialBlend::Additive)
+                index, asset.materials.size() - 1U)];
+        const auto blend = material.blend;
+        result.writeDepth = result.writeDepth && material.writeDepth;
+        if (isBlended(blend))
         {
             result.blendMode =
                 blend ==
@@ -555,14 +745,22 @@ void drawGroups(GraphicsDevice& device,
             result.writeDepth = false;
             result.faceCulling = PipelineState::FaceCulling::None;
         }
+        if (opacity < 0.999F)
+        {
+            // Material::Apply enables source-alpha blending and
+            // GraphManager disables Z writes while RenderRayUsers submits
+            // gpCullOpacity actors.
+            result.blendMode = PipelineState::BlendMode::Alpha;
+            result.writeDepth = false;
+        }
         return result;
     };
     auto includeMaterial = [&](std::size_t index) {
         const bool transparent =
             !asset.materials.empty() &&
-            asset.materials[std::min(
-                index, asset.materials.size() - 1U)].blend !=
-                r3d::game::originalrace::MaterialBlend::Opaque;
+            isBlended(
+                asset.materials[std::min(
+                    index, asset.materials.size() - 1U)].blend);
         return layer == DrawLayer::All ||
                (layer == DrawLayer::Transparency && transparent) ||
                (layer == DrawLayer::Opaque && !transparent);
@@ -622,10 +820,12 @@ void drawShadowGroups(GraphicsDevice& device,
                       const OriginalRaceRenderer::Asset& asset,
                       Shader shader, const Transform& model,
                       const PipelineState& pipeline,
-                      float elapsedSeconds)
+                      float elapsedSeconds,
+                      const r3d::game::originalrace::VisualNode* node)
 {
     if (asset.textures.empty())
         return;
+    const auto geometryPipeline = nodePipeline(pipeline, node);
     auto stateFor = [elapsedSeconds](const auto& material) {
         MaterialState state;
         state.alphaReference = material.alphaReference;
@@ -642,7 +842,7 @@ void drawShadowGroups(GraphicsDevice& device,
                 ? MaterialState{}
                 : stateFor(asset.materials.front());
         device.draw(asset.mesh, shader, asset.textures.front(), model,
-                    pipeline, {}, state);
+                    geometryPipeline, {}, state);
         return;
     }
     if (asset.subMesh >= 0 &&
@@ -656,7 +856,8 @@ void drawShadowGroups(GraphicsDevice& device,
                 ? MaterialState{}
                 : stateFor(asset.materials.front());
         device.draw(asset.mesh, shader, asset.textures.front(), model,
-                    pipeline, {group.firstIndex, group.indexCount}, state);
+                    geometryPipeline,
+                    {group.firstIndex, group.indexCount}, state);
         return;
     }
     for (std::size_t index = 0;
@@ -674,7 +875,8 @@ void drawShadowGroups(GraphicsDevice& device,
                 ? MaterialState{}
                 : stateFor(asset.materials[materialIndex]);
         device.draw(asset.mesh, shader, asset.textures[textureIndex], model,
-                    pipeline, {group.firstIndex, group.indexCount}, state);
+                    geometryPipeline,
+                    {group.firstIndex, group.indexCount}, state);
     }
 }
 
@@ -1393,6 +1595,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     wheelTrailPaths_.clear();
     wheelTrailTimes_.clear();
     wheelTrailResetCounts_.clear();
+    trackCullOpacityTimes_.clear();
+    decorationCullOpacityTimes_.clear();
     wheelTrailUpdateSeconds_ = -1.0F;
     environmentSurfaceCenter_ = {};
     environmentSurfaceSize_ = {};
@@ -1632,7 +1836,7 @@ void OriginalRaceRenderer::draw(
     const std::vector<
         r3d::game::originalrace::ProjectileRuntime>& projectiles,
     float elapsedSeconds, bool reflectionPass,
-    bool omitEnvironmentSurface) const
+    bool omitEnvironmentSurface)
 {
     SceneLighting sceneLighting;
     const auto sun = race.environment.sunPosition;
@@ -1735,20 +1939,51 @@ void OriginalRaceRenderer::draw(
         }
     }
 
+    enum class RenderStage
+    {
+        Opacity,
+        CullOpacity,
+        Effect,
+        Last,
+    };
+    auto renderStage = [](r3d::game::originalrace::GraphOrder order,
+                          bool cullOpacityActor) {
+        if (cullOpacityActor)
+            return RenderStage::CullOpacity;
+        switch (order)
+        {
+        case r3d::game::originalrace::GraphOrder::Opacity:
+            return RenderStage::Opacity;
+        case r3d::game::originalrace::GraphOrder::Effect:
+            return RenderStage::Effect;
+        case r3d::game::originalrace::GraphOrder::Last:
+            return RenderStage::Last;
+        case r3d::game::originalrace::GraphOrder::Default:
+            return RenderStage::Opacity;
+        }
+        return RenderStage::Opacity;
+    };
     struct DeferredVisualDraw
     {
         const Asset* asset = nullptr;
+        const r3d::game::originalrace::VisualNode* node = nullptr;
         Transform model;
         float reflectionStrength = 0.0F;
         r3d::game::originalrace::LightingMode lighting =
             r3d::game::originalrace::LightingMode::Standard;
         float distanceSquared = 0.0F;
+        float opacity = 1.0F;
+        RenderStage stage = RenderStage::Opacity;
+        DrawLayer layer = DrawLayer::Transparency;
     };
     std::vector<DeferredVisualDraw> deferredVisuals;
     auto drawObject = [&](const ObjectAsset& asset,
                           const std::vector<
                               r3d::game::originalrace::VisualNode>& nodes,
-                          const r3d::physics::Transform& parent) {
+                          const r3d::physics::Transform& parent,
+                          r3d::game::originalrace::GraphOrder graphOrder,
+                          bool cullOpacityActor,
+                          float opacity) {
         const std::size_t count = std::min(asset.nodes.size(), nodes.size());
         for (std::size_t index = 0; index < count; ++index)
         {
@@ -1770,16 +2005,23 @@ void OriginalRaceRenderer::draw(
                 asset.planarReflection && !reflectionPass
                     ? 0.58F
                     : 0.0F;
-            drawGroups(device, asset.nodes[index], shader, model,
-                       pipeline, elapsedSeconds, reflectionStrength,
-                       asset.lighting, DrawLayer::Opaque);
-            if (std::any_of(
+            const bool deferredActor =
+                cullOpacityActor ||
+                graphOrder !=
+                    r3d::game::originalrace::GraphOrder::Default;
+            if (!deferredActor)
+            {
+                drawGroups(device, asset.nodes[index], shader, model,
+                           pipeline, elapsedSeconds, reflectionStrength,
+                           asset.lighting, DrawLayer::Opaque,
+                           &nodes[index]);
+            }
+            if (deferredActor ||
+                std::any_of(
                     asset.nodes[index].materials.begin(),
                     asset.nodes[index].materials.end(),
                     [](const auto& material) {
-                        return material.blend !=
-                            r3d::game::originalrace::
-                                MaterialBlend::Opaque;
+                        return isBlended(material.blend);
                     }))
             {
                 const float dx =
@@ -1789,9 +2031,12 @@ void OriginalRaceRenderer::draw(
                 const float dz =
                     model.matrix[14] - cameraPosition_.z;
                 deferredVisuals.push_back(
-                    {&asset.nodes[index], model,
+                    {&asset.nodes[index], &nodes[index], model,
                      reflectionStrength, asset.lighting,
-                     dx * dx + dy * dy + dz * dz});
+                     dx * dx + dy * dy + dz * dz, opacity,
+                     renderStage(graphOrder, cullOpacityActor),
+                     deferredActor ? DrawLayer::All
+                                   : DrawLayer::Transparency});
             }
         }
     };
@@ -1822,7 +2067,8 @@ void OriginalRaceRenderer::draw(
             const r3d::physics::Transform& parent, float age,
             float sourceSpeed,
             const std::vector<r3d::physics::Vec3>*
-                trailOverride) {
+                trailOverride,
+            float opacity, bool forceNoDepth) {
             const std::size_t emitterCount = std::min(
                 asset.particleTextures.size(),
                 definition.particleEmitters.size());
@@ -2100,6 +2346,7 @@ void OriginalRaceRenderer::draw(
                             emitter.materials[materialIndex];
                         MaterialState material;
                         material.color = sourceMaterial.color;
+                        material.color[3] *= opacity;
                         material.alphaReference =
                             sourceMaterial.alphaReference;
                         material.emissive = sourceMaterial.emissive;
@@ -2112,6 +2359,8 @@ void OriginalRaceRenderer::draw(
                             sourceMaterial.atlasRows, particleAge,
                             sourceMaterial.animationRate);
                         auto particlePipeline = pipeline;
+                        if (forceNoDepth)
+                            particlePipeline.writeDepth = false;
                         if (sourceMaterial.blend ==
                             r3d::game::originalrace::
                                 MaterialBlend::Additive)
@@ -2123,6 +2372,12 @@ void OriginalRaceRenderer::draw(
                         else if (sourceMaterial.blend ==
                                  r3d::game::originalrace::
                                      MaterialBlend::Transparency)
+                        {
+                            particlePipeline.blendMode =
+                                PipelineState::BlendMode::Alpha;
+                            particlePipeline.writeDepth = false;
+                        }
+                        if (opacity < 0.999F)
                         {
                             particlePipeline.blendMode =
                                 PipelineState::BlendMode::Alpha;
@@ -2282,6 +2537,8 @@ void OriginalRaceRenderer::draw(
         float sourceSpeed = 0.0F;
         const std::vector<r3d::physics::Vec3>* trailOverride =
             nullptr;
+        float opacity = 1.0F;
+        RenderStage stage = RenderStage::Opacity;
     };
     std::vector<DeferredParticleDraw> deferredParticles;
     auto drawDefinition =
@@ -2290,22 +2547,36 @@ void OriginalRaceRenderer::draw(
             const r3d::physics::Transform& parent, float age,
             float sourceSpeed,
             const std::vector<r3d::physics::Vec3>*
-                trailOverride = nullptr) {
-            drawObject(asset, definition.visualNodes, parent);
+                trailOverride = nullptr,
+            float opacity = 1.0F) {
+            const bool cullOpacityActor =
+                !reflectionPass && definition.cullOpacity;
+            drawObject(asset, definition.visualNodes, parent,
+                       definition.graphOrder, cullOpacityActor, opacity);
             if (!definition.particleEmitters.empty())
             {
                 deferredParticles.push_back(
                     {&asset, &definition, parent, age, sourceSpeed,
-                     trailOverride});
+                     trailOverride, opacity,
+                     renderStage(definition.graphOrder,
+                                 cullOpacityActor)});
             }
         };
-    for (const auto& instance : race.trackInstances)
+    for (std::size_t index = 0; index < race.trackInstances.size();
+         ++index)
     {
+        const auto& instance = race.trackInstances[index];
         const auto& definition =
             race.trackDefinitions.at(instance.definition);
+        const float opacity =
+            !reflectionPass && definition.cullOpacity &&
+                    index < trackCullOpacityTimes_.size()
+                ? cullOpacity(trackCullOpacityTimes_[index])
+                : 1.0F;
         drawDefinition(
             tracks_.at(instance.definition), definition,
-            instance.transform, elapsedSeconds, 0.0F);
+            instance.transform, elapsedSeconds, 0.0F, nullptr,
+            opacity);
     }
 
     for (std::size_t index = 0; index < race.decorationInstances.size();
@@ -2316,9 +2587,15 @@ void OriginalRaceRenderer::draw(
         const auto& instance = race.decorationInstances[index];
         const auto& definition =
             race.decorationDefinitions.at(instance.definition);
+        const float opacity =
+            !reflectionPass && definition.cullOpacity &&
+                    index < decorationCullOpacityTimes_.size()
+                ? cullOpacity(decorationCullOpacityTimes_[index])
+                : 1.0F;
         drawDefinition(
             decorations_.at(instance.definition), definition,
-            instance.transform, elapsedSeconds, 0.0F);
+            instance.transform, elapsedSeconds, 0.0F, nullptr,
+            opacity);
     }
 
     for (std::size_t index = 0; index < race.bonuses.size(); ++index)
@@ -2357,7 +2634,9 @@ void OriginalRaceRenderer::draw(
                 : race.vehicles[vehicleIndex];
         const auto& state = vehicles[racer];
         drawObject(vehicleBodies_[racer],
-                   definition.bodyVisuals, state.body);
+                   definition.bodyVisuals, state.body,
+                   r3d::game::originalrace::GraphOrder::Default,
+                   false, 1.0F);
         if (racer < racerRuntime.size())
         {
             const auto& runtime = racerRuntime[racer];
@@ -2390,14 +2669,16 @@ void OriginalRaceRenderer::draw(
                     local.position.z += placement->offset.z;
                     local.rotation = placement->rotation;
                 }
+                const auto& weaponNode =
+                    race.weapons[weaponIndex].visual;
                 drawGroups(
                     device, weapons_[weaponIndex].nodes.front(), shader,
                     transform(compose(
                         state.body,
-                        compose(local,
-                                race.weapons[weaponIndex]
-                                    .visual.transform))),
-                    pipeline, elapsedSeconds);
+                        compose(local, weaponNode.transform))),
+                    pipeline, elapsedSeconds, 0.0F,
+                    r3d::game::originalrace::LightingMode::Standard,
+                    DrawLayer::All, &weaponNode);
             }
         }
         const bool showNightLights =
@@ -2450,7 +2731,10 @@ void OriginalRaceRenderer::draw(
                     transform(compose(
                         wheel,
                         definition.wheelVisuals[wheelIndex].transform)),
-                    pipeline, elapsedSeconds);
+                    pipeline, elapsedSeconds, 0.0F,
+                    r3d::game::originalrace::LightingMode::Standard,
+                    DrawLayer::All,
+                    &definition.wheelVisuals[wheelIndex]);
             // The original wheel behavior type 9 instantiates ctEffects/trail
             // while a contacted wheel moves.  Jolt exposes aggregate contact
             // state, so preserve that trigger boundary and feed the source
@@ -2614,6 +2898,27 @@ void OriginalRaceRenderer::draw(
     glowMaterial.emissive = 1.0F;
     glowMaterial.specular = 0.0F;
     glowMaterial.ignoreFog = true;
+    struct DeferredEffectDraw
+    {
+        Mesh mesh;
+        Texture texture;
+        Transform model;
+        PipelineState pipeline;
+        MaterialState material;
+        float distanceSquared = 0.0F;
+    };
+    std::vector<DeferredEffectDraw> deferredEffects;
+    auto deferEffect = [&](Mesh mesh, Texture texture,
+                           const Transform& model,
+                           const PipelineState& effectState,
+                           const MaterialState& material) {
+        const float dx = model.matrix[12] - cameraPosition_.x;
+        const float dy = model.matrix[13] - cameraPosition_.y;
+        const float dz = model.matrix[14] - cameraPosition_.z;
+        deferredEffects.push_back(
+            {mesh, texture, model, effectState, material,
+             dx * dx + dy * dy + dz * dz});
+    };
     for (const auto& effect : effects)
     {
         const float dx = effect.target.x - effect.origin.x;
@@ -2767,37 +3072,8 @@ void OriginalRaceRenderer::draw(
                 std::clamp(progress, 0.0F, 0.9999F) * 16.0F);
             effectMaterial.textureTransform = atlasFrame(4, 4, frame);
         }
-        device.draw(effectMesh_, shader, texture, transform(visual),
-                    effectPipeline, {}, effectMaterial);
-    }
-
-    // Original GraphManager submits goOpacity after goDefault.  Preserve
-    // that boundary and draw translucent source nodes back-to-front.
-    std::stable_sort(
-        deferredVisuals.begin(), deferredVisuals.end(),
-        [](const auto& first, const auto& second) {
-            return first.distanceSquared > second.distanceSquared;
-        });
-    for (const auto& deferred : deferredVisuals)
-    {
-        drawGroups(device, *deferred.asset, shader, deferred.model,
-                   pipeline, elapsedSeconds,
-                   deferred.reflectionStrength, deferred.lighting,
-                   DrawLayer::Transparency);
-    }
-    for (const auto& deferred : deferredParticles)
-    {
-        drawParticles(*deferred.asset, *deferred.definition,
-                      deferred.parent, deferred.age,
-                      deferred.sourceSpeed,
-                      deferred.trailOverride);
-    }
-    if (deferredEnvironmentSurface)
-    {
-        device.draw(
-            effectMesh_, shader, environmentSurfaceTexture_,
-            deferredSurfaceTransform, deferredSurfacePipeline, {},
-            deferredSurfaceMaterial);
+        deferEffect(effectMesh_, texture, transform(visual),
+                    effectPipeline, effectMaterial);
     }
 
     auto smokePipeline = pipeline;
@@ -2825,9 +3101,8 @@ void OriginalRaceRenderer::draw(
                            std::sin(elapsedSeconds * 8.0F +
                                     static_cast<float>(racer));
             smoke.scale = {pulse * 1.8F, pulse, 1.0F};
-            device.draw(effectMesh_, shader, engineSmokeTexture_,
-                        transform(smoke), smokePipeline, {},
-                        smokeMaterial);
+            deferEffect(effectMesh_, engineSmokeTexture_,
+                        transform(smoke), smokePipeline, smokeMaterial);
         }
         if (racer < racerRuntime.size() &&
             racerRuntime[racer].shieldSeconds > 0.0F)
@@ -2842,8 +3117,8 @@ void OriginalRaceRenderer::draw(
             shieldMaterial.color = {0.35F, 0.72F, 1.0F, 0.72F};
             shieldMaterial.textureTransform =
                 animatedAtlas(5, 2, elapsedSeconds);
-            device.draw(effectMesh_, shader, shieldEffectTexture_,
-                        transform(shield), effectPipeline, {},
+            deferEffect(effectMesh_, shieldEffectTexture_,
+                        transform(shield), effectPipeline,
                         shieldMaterial);
         }
     }
@@ -2852,9 +3127,75 @@ void OriginalRaceRenderer::draw(
     {
         r3d::physics::Transform rainParent;
         rainParent.position = cameraPosition_;
-        drawObject(rainEffect_, race.rainEffect.visualNodes, rainParent);
-        drawParticles(rainEffect_, race.rainEffect, rainParent,
-                      elapsedSeconds, 0.0F, nullptr);
+        drawDefinition(rainEffect_, race.rainEffect, rainParent,
+                       elapsedSeconds, 0.0F);
+    }
+
+    // GraphManager::RenderScenes renders surfaces, material-opacity actors,
+    // ray-cull actors, effect actors with Z writes disabled, and finally
+    // goLast actors.  Keep those queue boundaries instead of allowing
+    // particles and fallback effects to interleave with map geometry.
+    if (deferredEnvironmentSurface)
+    {
+        device.draw(
+            effectMesh_, shader, environmentSurfaceTexture_,
+            deferredSurfaceTransform, deferredSurfacePipeline, {},
+            deferredSurfaceMaterial);
+    }
+    const std::array stages{
+        RenderStage::Opacity, RenderStage::CullOpacity,
+        RenderStage::Effect, RenderStage::Last};
+    std::stable_sort(
+        deferredVisuals.begin(), deferredVisuals.end(),
+        [](const auto& first, const auto& second) {
+            if (first.stage != second.stage)
+                return static_cast<int>(first.stage) <
+                       static_cast<int>(second.stage);
+            return first.distanceSquared > second.distanceSquared;
+        });
+    std::stable_sort(
+        deferredEffects.begin(), deferredEffects.end(),
+        [](const auto& first, const auto& second) {
+            return first.distanceSquared > second.distanceSquared;
+        });
+    for (const auto stage : stages)
+    {
+        auto stagePipeline = pipeline;
+        const bool forceNoDepth =
+            stage == RenderStage::CullOpacity ||
+            stage == RenderStage::Effect;
+        if (forceNoDepth)
+            stagePipeline.writeDepth = false;
+        for (const auto& deferred : deferredVisuals)
+        {
+            if (deferred.stage != stage)
+                continue;
+            drawGroups(device, *deferred.asset, shader,
+                       deferred.model, stagePipeline,
+                       elapsedSeconds, deferred.reflectionStrength,
+                       deferred.lighting, deferred.layer,
+                       deferred.node, deferred.opacity);
+        }
+        for (const auto& deferred : deferredParticles)
+        {
+            if (deferred.stage != stage)
+                continue;
+            drawParticles(*deferred.asset, *deferred.definition,
+                          deferred.parent, deferred.age,
+                          deferred.sourceSpeed,
+                          deferred.trailOverride,
+                          deferred.opacity, forceNoDepth);
+        }
+        if (stage == RenderStage::Effect)
+        {
+            for (const auto& deferred : deferredEffects)
+            {
+                device.draw(
+                    deferred.mesh, shader, deferred.texture,
+                    deferred.model, deferred.pipeline, {},
+                    deferred.material);
+            }
+        }
     }
 }
 
@@ -2884,7 +3225,7 @@ void OriginalRaceRenderer::drawShadowCasters(
                 drawShadowGroups(
                     device, asset.nodes[index], shadowShader_,
                     transform(compose(parent, nodes[index].transform)),
-                    shadowPipeline, elapsedSeconds);
+                    shadowPipeline, elapsedSeconds, &nodes[index]);
             }
         };
 
@@ -2949,7 +3290,8 @@ void OriginalRaceRenderer::drawShadowCasters(
                     transform(compose(
                         wheel,
                         definition.wheelVisuals[wheelIndex].transform)),
-                    shadowPipeline, elapsedSeconds);
+                    shadowPipeline, elapsedSeconds,
+                    &definition.wheelVisuals[wheelIndex]);
             }
         }
     }
@@ -2968,7 +3310,8 @@ void OriginalRaceRenderer::renderFrame(
     const std::vector<r3d::game::originalrace::MineRuntime>& mines,
     const std::vector<
         r3d::game::originalrace::ProjectileRuntime>& projectiles,
-    float elapsedSeconds)
+    float elapsedSeconds,
+    const r3d::game::originalrace::QualityConfig& quality)
 {
     if (wheelTrailUpdateSeconds_ < 0.0F ||
         elapsedSeconds < wheelTrailUpdateSeconds_)
@@ -3074,13 +3417,121 @@ void OriginalRaceRenderer::renderFrame(
         }
     }
 
+    // CameraManager only pulls gpCullOpacity actors for the isometric
+    // (orthographic) camera.  ActorManager then animates the fade over 0.25 s
+    // while an actor's AABB intersects the camera-to-player ray.
+    const float cullDelta =
+        previousRenderSeconds_ > 0.0F &&
+                elapsedSeconds >= previousRenderSeconds_
+            ? elapsedSeconds - previousRenderSeconds_
+            : 0.0F;
+    const bool isometricCamera =
+        std::abs(camera.projection[15]) > 0.5F;
+    r3d::physics::Vec3 rayTarget{};
+    float rayTargetSize = 0.0F;
+    if (!vehicles.empty())
+    {
+        rayTarget = vehicles.front().body.position;
+        if (!race.racers.empty() && !vehicleBodies_.empty())
+        {
+            const auto vehicleIndex = race.racers.front().vehicle;
+            if (vehicleIndex < race.vehicles.size())
+            {
+                const auto& vehicle =
+                    race.racers.front().hasConfiguredVehicle
+                        ? race.racers.front().configuredVehicle
+                        : race.vehicles[vehicleIndex];
+                const auto bounds = objectBounds(
+                    vehicleBodies_.front(), vehicle.bodyVisuals,
+                    vehicles.front().body);
+                if (bounds.valid)
+                {
+                    const float x =
+                        bounds.maximum.x - bounds.minimum.x;
+                    const float y =
+                        bounds.maximum.y - bounds.minimum.y;
+                    const float z =
+                        bounds.maximum.z - bounds.minimum.z;
+                    rayTargetSize = std::sqrt(x * x + y * y + z * z);
+                }
+                if (rayTargetSize <= 0.0001F)
+                {
+                    const auto& half = vehicle.physics.halfExtents;
+                    rayTargetSize =
+                        2.0F * std::sqrt(
+                            half.x * half.x + half.y * half.y +
+                            half.z * half.z);
+                }
+            }
+        }
+    }
+    auto updateCullTime = [cullDelta](float& time, bool overlap) {
+        constexpr float duration = 0.25F;
+        if (overlap)
+            time = std::clamp(time + cullDelta, 0.0F, duration);
+        else
+            time = std::max(time - cullDelta, 0.0F);
+    };
+    trackCullOpacityTimes_.resize(race.trackInstances.size(), 0.0F);
+    for (std::size_t index = 0; index < race.trackInstances.size();
+         ++index)
+    {
+        const auto& instance = race.trackInstances[index];
+        const auto& definition =
+            race.trackDefinitions.at(instance.definition);
+        const bool overlap =
+            isometricCamera && definition.cullOpacity &&
+            !vehicles.empty() &&
+            lineIntersectsBoundsBeforeTarget(
+                objectBounds(tracks_.at(instance.definition),
+                             definition.visualNodes,
+                             instance.transform),
+                cameraPosition_, rayTarget, rayTargetSize);
+        updateCullTime(trackCullOpacityTimes_[index], overlap);
+    }
+    decorationCullOpacityTimes_.resize(
+        race.decorationInstances.size(), 0.0F);
+    for (std::size_t index = 0;
+         index < race.decorationInstances.size(); ++index)
+    {
+        const auto& instance = race.decorationInstances[index];
+        const auto& definition =
+            race.decorationDefinitions.at(instance.definition);
+        const bool active =
+            index >= decorationActive.size() ||
+            decorationActive[index];
+        const bool overlap =
+            active && isometricCamera && definition.cullOpacity &&
+            !vehicles.empty() &&
+            lineIntersectsBoundsBeforeTarget(
+                objectBounds(decorations_.at(instance.definition),
+                             definition.visualNodes,
+                             instance.transform),
+                cameraPosition_, rayTarget, rayTargetSize);
+        updateCullTime(
+            decorationCullOpacityTimes_[index], overlap);
+    }
+
     device.resetRenderTelemetry();
+    // Environment.cpp maps the three original quality levels to graph
+    // options.  Keep those thresholds here instead of silently rendering the
+    // high-quality graph for every profile.
+    const bool shadowsEnabled = quality.shadow >= 1U;
+    const bool trueReflectionsEnabled = quality.light >= 2U;
+    const bool planarReflectionsEnabled = quality.light >= 2U;
+    const bool weatherAllowsPostEffects =
+        race.environment.weather !=
+        r3d::game::originalrace::Weather::Night;
+    const bool bloomEnabled =
+        quality.postEffect >= 1U && weatherAllowsPostEffects;
+    const bool hdrEnabled =
+        quality.postEffect >= 2U && weatherAllowsPostEffects;
     const bool hasWater =
         race.environment.surface ==
         r3d::game::originalrace::EnvironmentSurface::Water;
     const bool hasReflection =
-        race.environment.planarReflection ||
-        hasWater;
+        planarReflectionsEnabled &&
+        (race.environment.planarReflection || hasWater);
     const auto reflectionCamera =
         reflectedCamera(camera, race.environment.surfaceHeight);
 
@@ -3095,30 +3546,36 @@ void OriginalRaceRenderer::renderFrame(
     if (sunLength < 0.001F)
         sun = {45.0F, 30.0F, 60.0F};
     const auto lightCamera = shadowCamera(device, renderCenter, sun);
-    device.setPassState({});
-    device.beginPass(RenderPass::Shadow, shadowTarget_, lightCamera,
-                     0xffffffffU, true, true);
-    drawShadowCasters(device, race, vehicles, pipeline,
-                      decorationActive, elapsedSeconds);
+    if (shadowsEnabled)
+    {
+        device.setPassState({});
+        device.beginPass(RenderPass::Shadow, shadowTarget_, lightCamera,
+                         0xffffffffU, true, true);
+        drawShadowCasters(device, race, vehicles, pipeline,
+                          decorationActive, elapsedSeconds);
+    }
 
     auto environmentCenter = renderCenter;
     environmentCenter.z += 1.0F;
-    for (std::size_t face = 0; face < environmentPasses.size(); ++face)
+    if (trueReflectionsEnabled)
     {
-        RenderPassState environmentState;
-        // Prevent feedback while the dynamic cube is being populated.  This
-        // matches InitRefl's source sky sampler before InitTrueRefl replaces
-        // it for the main scene.
-        environmentState.environmentTexture = skyTexture_;
-        device.setPassState(environmentState);
-        device.beginPass(
-            environmentPasses[face],
-            environmentReflectionTarget_.faces[face],
-            environmentCamera(device, environmentCenter, face),
-            clearRgba, true, true);
-        draw(device, sceneShader, race, vehicles, pipeline,
-             decorationActive, bonusActive, racerRuntime, effects,
-             mines, projectiles, elapsedSeconds, true, true);
+        for (std::size_t face = 0; face < environmentPasses.size(); ++face)
+        {
+            RenderPassState environmentState;
+            // Prevent feedback while the dynamic cube is being populated.
+            // This matches InitRefl's source sky sampler before InitTrueRefl
+            // replaces it for the main scene.
+            environmentState.environmentTexture = skyTexture_;
+            device.setPassState(environmentState);
+            device.beginPass(
+                environmentPasses[face],
+                environmentReflectionTarget_.faces[face],
+                environmentCamera(device, environmentCenter, face),
+                clearRgba, true, true);
+            draw(device, sceneShader, race, vehicles, pipeline,
+                 decorationActive, bonusActive, racerRuntime, effects,
+                 mines, projectiles, elapsedSeconds, true, true);
+        }
     }
 
     if (hasReflection)
@@ -3140,8 +3597,11 @@ void OriginalRaceRenderer::renderFrame(
     }
 
     RenderPassState sceneState;
-    sceneState.environmentTexture =
-        environmentReflectionTarget_.texture;
+    if (trueReflectionsEnabled)
+    {
+        sceneState.environmentTexture =
+            environmentReflectionTarget_.texture;
+    }
     if (hasReflection)
     {
         sceneState.reflectionTexture =
@@ -3149,11 +3609,14 @@ void OriginalRaceRenderer::renderFrame(
         sceneState.reflectionViewProjection =
             viewProjection(reflectionCamera);
     }
-    sceneState.shadowTexture =
-        device.renderTargetTexture(shadowTarget_);
-    sceneState.shadowViewProjection = viewProjection(lightCamera);
-    sceneState.shadowsEnabled = true;
-    sceneState.shadowStrength = 0.62F;
+    if (shadowsEnabled)
+    {
+        sceneState.shadowTexture =
+            device.renderTargetTexture(shadowTarget_);
+        sceneState.shadowViewProjection = viewProjection(lightCamera);
+        sceneState.shadowsEnabled = true;
+        sceneState.shadowStrength = 0.62F;
+    }
     device.setPassState(sceneState);
     device.beginPass(
         RenderPass::Scene,
@@ -3219,6 +3682,64 @@ void OriginalRaceRenderer::renderFrame(
     const auto hdrTexture = device.renderTargetTexture(hdrTarget_);
     MaterialState postMaterial;
     postMaterial.receivesShadow = false;
+
+    if (!hdrEnabled)
+    {
+        if (!bloomEnabled)
+        {
+            device.setPassState({});
+            device.beginPass(RenderPass::Composite, {}, postCamera,
+                             clearRgba, false, false);
+            device.draw(postProcessMesh_, copyShader_, hdrTexture,
+                        postTransform, postPipeline, {}, postMaterial);
+            previousRenderSeconds_ = elapsedSeconds;
+            luminanceAdaptationInitialized_ = false;
+            return;
+        }
+
+        const auto bloomA =
+            device.renderTargetTexture(bloomTargetA_);
+        const auto bloomB =
+            device.renderTargetTexture(bloomTargetB_);
+        device.setPassState({});
+        postMaterial.postParameters = {
+            race.environment.hdrLuminanceKey,
+            race.environment.hdrBrightThreshold, 1.0F, 0.0F};
+        device.beginPass(RenderPass::BloomExtract, bloomTargetA_,
+                         postCamera, 0x000000ffU, true, false);
+        device.draw(postProcessMesh_, bloomExtractShader_, hdrTexture,
+                    postTransform, postPipeline, {}, postMaterial);
+
+        postMaterial.postParameters = {
+            1.0F / 128.0F, 0.0F,
+            race.environment.hdrGaussianScalar, 0.0F};
+        device.beginPass(RenderPass::BloomHorizontal, bloomTargetB_,
+                         postCamera, 0x000000ffU, true, false);
+        device.draw(postProcessMesh_, bloomBlurShader_, bloomA,
+                    postTransform, postPipeline, {}, postMaterial);
+
+        postMaterial.postParameters = {
+            0.0F, 1.0F / 128.0F,
+            race.environment.hdrGaussianScalar, 0.0F};
+        device.beginPass(RenderPass::BloomVertical, bloomTargetA_,
+                         postCamera, 0x000000ffU, true, false);
+        device.draw(postProcessMesh_, bloomBlurShader_, bloomB,
+                    postTransform, postPipeline, {}, postMaterial);
+
+        RenderPassState compositeState;
+        compositeState.reflectionTexture = bloomA;
+        device.setPassState(compositeState);
+        postMaterial.postParameters = {
+            race.environment.hdrGaussianScalar,
+            race.environment.hdrExposure, 0.5F, 1.0F};
+        device.beginPass(RenderPass::Composite, {}, postCamera,
+                         clearRgba, false, false);
+        device.draw(postProcessMesh_, toneMapShader_, hdrTexture,
+                    postTransform, postPipeline, {}, postMaterial);
+        previousRenderSeconds_ = elapsedSeconds;
+        luminanceAdaptationInitialized_ = false;
+        return;
+    }
 
     device.setPassState({});
     postMaterial.postParameters = {
