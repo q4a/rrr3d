@@ -1,11 +1,16 @@
 /*
- * Windows types and calls this project depends on, implemented for
- * non-Windows platforms. Included in place of <windows.h>.
+ * Windows API substitutes for non-Windows platforms. Included in place of
+ * <windows.h>.
  *
- * These are real implementations, not stubs -- the timing, synchronisation
- * and encoding conversions all have direct C++17 or POSIX equivalents, and
- * silently no-oping them would produce a build that runs but misbehaves.
- * Anything that genuinely has no equivalent is marked and left to the caller.
+ * The Windows *types* (scalars, COM, LARGE_INTEGER, ...) come from the
+ * vendored dxvk native headers in windows/, which are the same set used by
+ * native non-Wine D3D9 builds and which d3d9.h needs anyway. This header adds
+ * the Win32 *calls* this project uses, which those headers do not provide.
+ *
+ * The implementations in xplatform.cpp are real, not stubs -- the timing,
+ * synchronisation and encoding conversions all have direct C++17 or POSIX
+ * equivalents, and silently no-oping them would produce a build that runs but
+ * misbehaves.
  */
 
 #ifndef XPLATFORM_H
@@ -15,7 +20,9 @@
 #error "xplatform.h is the non-Windows substitute for <windows.h>"
 #endif
 
-/* This header is included from C too -- the vendored Wine d3dx9 math. */
+/* Windows types, COM, LARGE_INTEGER. Also included from C. */
+#include "windows/windows_base.h"
+
 #ifdef __cplusplus
 	#include <cfloat>
 	#include <climits>
@@ -34,48 +41,19 @@
 	#include <string.h>
 #endif
 
-/* ---- scalar types ---- */
+/* ---- types the dxvk headers do not cover ---- */
 
-typedef int             BOOL;
-typedef unsigned char   BYTE;
-typedef unsigned short  WORD;
-typedef uint32_t        DWORD;
-typedef int32_t         LONG;
-typedef unsigned int    UINT;
-typedef int             INT;
-typedef float           FLOAT;
-typedef char            TCHAR;
-typedef wchar_t         WCHAR;
-typedef void*           HANDLE;
-typedef void*           HWND;
-typedef void*           LPVOID;
-typedef const char*     LPCSTR;
-typedef char*           LPSTR;
-typedef const wchar_t*  LPCWSTR;
-typedef wchar_t*        LPWSTR;
-typedef int32_t         HRESULT;
-typedef intptr_t        LONG_PTR;
-typedef uintptr_t       DWORD_PTR;
-typedef uintptr_t       UINT_PTR;
-typedef int64_t         __int64;
+typedef char     TCHAR;
+typedef int64_t  __int64;
 
-#ifndef TRUE
-#define TRUE  1
+#ifndef MAXUINT
+#define MAXUINT UINT_MAX
 #endif
-#ifndef FALSE
-#define FALSE 0
+#ifndef INFINITE
+#define INFINITE 0xFFFFFFFFu
 #endif
 
-#define CONST const
-#define WINAPI
-#define APIENTRY
-#define CALLBACK
-#define __stdcall
-#define __cdecl
-
-#define MAXUINT   UINT_MAX
-#define INFINITE  0xFFFFFFFFu
-#define MAX_PATH  1024
+#define PATH_SEP '/'
 
 /* Code pages. Everything in this project is treated as UTF-8 on non-Windows. */
 #define CP_ACP        0
@@ -86,18 +64,11 @@ typedef int64_t         __int64;
 #define MB_PRECOMPOSED       0x00000001
 #define WC_NO_BEST_FIT_CHARS 0x00000400
 
-#define PATH_SEP '/'
-
-typedef union _LARGE_INTEGER {
-    struct { DWORD LowPart; LONG HighPart; };
-    int64_t QuadPart;
-} LARGE_INTEGER;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* ---- timing (QueryPerformanceCounter / GetTickCount) ---- */
+/* ---- timing ---- */
 
 BOOL  QueryPerformanceCounter(LARGE_INTEGER* count);
 BOOL  QueryPerformanceFrequency(LARGE_INTEGER* freq);
@@ -122,9 +93,6 @@ BOOL   SetEvent(HANDLE event);
 BOOL   ResetEvent(HANDLE event);
 DWORD  WaitForSingleObject(HANDLE event, DWORD milliseconds);
 BOOL   CloseHandle(HANDLE handle);
-
-#define WAIT_OBJECT_0 0x00000000u
-#define WAIT_TIMEOUT  0x00000102u
 
 /* ---- thread pool ---- */
 
@@ -160,20 +128,17 @@ DWORD GetModuleFileNameW(void* module, wchar_t* buf, DWORD size);
 #define IDRETRY   4
 #define IDIGNORE  5
 
-/* MSVC debug-CRT breakpoint */
-#define _CrtDbgBreak() __builtin_trap()
-
-int MessageBox(HWND owner, const char* text, const char* caption, UINT type);
+int  MessageBox(HWND owner, const char* text, const char* caption, UINT type);
 void OutputDebugStringA(const char* str);
-#define OutputDebugString OutputDebugStringA
 
 #ifdef __cplusplus
 }
 #endif
 
-#ifndef ZeroMemory
-#define ZeroMemory(dst, len) memset((dst), 0, (len))
-#endif
+#define OutputDebugString OutputDebugStringA
+
+/* MSVC debug-CRT breakpoint */
+#define _CrtDbgBreak() __builtin_trap()
 
 /*
  * CRT spellings MSVC provides and the C standard does not.

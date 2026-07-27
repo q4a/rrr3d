@@ -43,3 +43,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE
     LexStd
 )
+
+if (NOT WIN32)
+    # Windows/COM substitutes plus the vendored d3d9.h
+    target_link_libraries(${PROJECT_NAME} PRIVATE XPlatform MathLib)
+endif()

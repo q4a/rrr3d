@@ -13,6 +13,19 @@ import sys
 
 SOURCE_SUFFIXES = {".cpp", ".h", ".inl", ".ms"}
 
+# Vendored third-party headers. We do not control their contents, and a future
+# upstream change should not fail this project's CI.
+VENDORED = (
+    "XPlatform/header/windows",
+    "XPlatform/header/directx",
+)
+
+
+def is_vendored(path: pathlib.Path, root: pathlib.Path) -> bool:
+    rel = path.relative_to(root).as_posix()
+    return any(rel.startswith(v) for v in VENDORED)
+
+
 
 def main() -> int:
     root = pathlib.Path(__file__).resolve().parent.parent / "src"
@@ -24,6 +37,8 @@ def main() -> int:
     bad = []
     for path in sorted(root.rglob("*")):
         if not path.is_file() or path.suffix not in SOURCE_SUFFIXES:
+            continue
+        if is_vendored(path, root):
             continue
         checked += 1
         try:

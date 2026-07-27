@@ -24,48 +24,21 @@
 /* One source of truth for the Windows scalar types and Win32 calls. */
 #include "xplatform.h"
 
-/* D3D base types, layout-identical to d3d9types.h */
-typedef DWORD D3DCOLOR;
-
-typedef struct _D3DVECTOR {
-    float x;
-    float y;
-    float z;
-} D3DVECTOR;
-
-typedef struct _D3DCOLORVALUE {
-    float r;
-    float g;
-    float b;
-    float a;
-} D3DCOLORVALUE;
-
-typedef struct _D3DMATRIX {
-    union {
-        struct {
-            float _11, _12, _13, _14;
-            float _21, _22, _23, _24;
-            float _31, _32, _33, _34;
-            float _41, _42, _43, _44;
-        };
-        float m[4][4];
-    };
-} D3DMATRIX;
-
-typedef struct _D3DVIEWPORT9 {
-    DWORD X;
-    DWORD Y;
-    DWORD Width;
-    DWORD Height;
-    float MinZ;
-    float MaxZ;
-} D3DVIEWPORT9;
+/*
+ * D3D base types (D3DVECTOR, D3DMATRIX, D3DCOLORVALUE, D3DVIEWPORT9, ...)
+ * come from the vendored MinGW-w64 header, the same one d3d9.h uses, so the
+ * layouts cannot drift apart.
+ */
+#include "d3d9types.h"
 
 /*
  * Only referenced by the spherical-harmonics cube map declarations, which
- * this project never calls. An opaque type is enough to let the header parse.
+ * this project never calls (see D3DX9_NO_SH_CUBEMAP). d3d9.h declares the
+ * real interface; an opaque type is enough for the math to parse alone.
  */
+#ifdef D3DX9_NO_SH_CUBEMAP
 typedef struct IDirect3DCubeTexture9 IDirect3DCubeTexture9;
+#endif
 
 /* HRESULT values and tests used by the math code */
 #define S_OK                ((HRESULT)0)

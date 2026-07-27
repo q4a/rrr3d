@@ -21,6 +21,19 @@ import re
 import sys
 
 SOURCE_SUFFIXES = {".cpp", ".h", ".inl"}
+
+# Vendored third-party headers. We do not control their contents, and a future
+# upstream change should not fail this project's CI.
+VENDORED = (
+    "XPlatform/header/windows",
+    "XPlatform/header/directx",
+)
+
+
+def is_vendored(path: pathlib.Path, root: pathlib.Path) -> bool:
+    rel = path.relative_to(root).as_posix()
+    return any(rel.startswith(v) for v in VENDORED)
+
 INCLUDE = re.compile(r'#\s*include\s+"([^"]+)"')
 
 
@@ -45,7 +58,8 @@ def main() -> int:
         insensitive[suffix.lower()].append(suffix)
 
     backslash, miscased = [], []
-    for path in sorted(f for f in files if f.suffix in SOURCE_SUFFIXES):
+    for path in sorted(f for f in files if f.suffix in SOURCE_SUFFIXES
+                       and not is_vendored(f, src)):
         for lineno, line in enumerate(path.read_text(encoding="utf-8").split("\n"), 1):
             match = INCLUDE.search(line)
             if not match:
