@@ -17,7 +17,9 @@
 #ifdef _WIN32
 
 #include <windows.h>
-#include <d3d9types.h>
+// d3d9.h, not just d3d9types.h: the math code uses D3D_OK and
+// D3DERR_INVALIDCALL, which d3d9types.h does not declare.
+#include <d3d9.h>
 
 #else /* !_WIN32 */
 

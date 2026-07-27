@@ -26,6 +26,10 @@ add_subdirectory(Rock3dEngine)
 add_subdirectory(Rock3dGame)
 add_subdirectory(RRR3d)
 
+# Runtime tests for the ported layers
+enable_testing()
+add_subdirectory(Tests)
+
 # MapEditor is an MFC application (CWinAppEx, CDockablePane, ribbon resources)
 # and has no non-Windows equivalent. It talks to the engine only through
 # IWorld/IView, so leaving it out costs the game nothing.
