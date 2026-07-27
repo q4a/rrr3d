@@ -620,8 +620,8 @@ int main(int argc, char** argv)
                   << "/Jolt vehicle"
                      " acceleration, braking, steering, suspension contacts,"
                      " trace reset, countdown, checkpoint/lap/finish,"
-                     " weapon/damage, bonus, garage/workshop, and respawn "
-                     "state passed\n";
+                     " source border/car contacts, weapon/damage, bonus,"
+                     " garage/workshop, and respawn state passed\n";
         return EXIT_SUCCESS;
     }
 #endif
@@ -1178,6 +1178,7 @@ int main(int argc, char** argv)
     raceSession.applyPlayerProfile(profileState.player);
     raceSession.applyAchievementProfile(profileState);
     raceSession.setEnableMineBug(profileState.config.enableMineBug);
+    raceSession.setSpringBorders(profileState.config.springBorders);
     rrr3d::race::OriginalRaceRenderer raceRenderer;
     rrr3d::race::OriginalRaceHud raceHud;
     if (!physicsWorld ||
@@ -1851,6 +1852,8 @@ int main(int argc, char** argv)
             raceSession.applyAchievementProfile(profileState);
             raceSession.setEnableMineBug(
                 profileState.config.enableMineBug);
+            raceSession.setSpringBorders(
+                profileState.config.springBorders);
 #ifdef RRR3D_AUDIO
             engineAudio.assign(
                 originalRace->racers.size(), EngineAudio{});
@@ -2178,6 +2181,8 @@ int main(int argc, char** argv)
             case 4:
                 profileState.config.springBorders =
                     !profileState.config.springBorders;
+                raceSession.setSpringBorders(
+                    profileState.config.springBorders);
                 break;
             case 5:
                 profileState.config.upgradeMaxLevel =

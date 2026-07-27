@@ -10,6 +10,7 @@
 #include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Body/BodyFilter.h>
+#include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -19,8 +20,10 @@
 #include <Jolt/RegisterTypes.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cmath>
+#include <limits>
 #include <mutex>
 #include <stdexcept>
 #include <thread>
@@ -139,6 +142,145 @@ Vec3 transformPoint(const Transform& transform, Vec3 value)
             rotated.y + transform.position.y,
             rotated.z + transform.position.z};
 }
+
+constexpr JPH::uint64 bodyKindMask = 0xf000000000000000ULL;
+constexpr JPH::uint64 vehicleBodyKind = 0x1000000000000000ULL;
+constexpr JPH::uint64 surfaceBodyKind = 0x2000000000000000ULL;
+
+JPH::uint64 vehicleUserData(std::size_t index)
+{
+    return vehicleBodyKind | static_cast<JPH::uint64>(index);
+}
+
+JPH::uint64 surfaceUserData(CollisionSurface surface)
+{
+    return surfaceBodyKind | static_cast<JPH::uint64>(surface);
+}
+
+bool vehicleIndex(JPH::uint64 userData, std::size_t& index)
+{
+    if ((userData & bodyKindMask) != vehicleBodyKind)
+        return false;
+    index = static_cast<std::size_t>(userData & ~bodyKindMask);
+    return true;
+}
+
+CollisionSurface collisionSurface(JPH::uint64 userData)
+{
+    if ((userData & bodyKindMask) != surfaceBodyKind)
+        return CollisionSurface::TrackPlane;
+    const auto value = static_cast<std::uint8_t>(userData & ~bodyKindMask);
+    return value <= static_cast<std::uint8_t>(CollisionSurface::Decoration)
+               ? static_cast<CollisionSurface>(value)
+               : CollisionSurface::TrackPlane;
+}
+
+class OriginalContactListener final : public JPH::ContactListener
+{
+public:
+    void resize(std::size_t count)
+    {
+        std::scoped_lock lock(mutex_);
+        pending_.assign(count, {});
+    }
+
+    void beginStep()
+    {
+        std::scoped_lock lock(mutex_);
+        for (auto& contacts : pending_)
+            contacts.clear();
+    }
+
+    std::vector<BodyContact> take(std::size_t index)
+    {
+        std::scoped_lock lock(mutex_);
+        if (index >= pending_.size())
+            return {};
+        return std::move(pending_[index]);
+    }
+
+    void OnContactAdded(const JPH::Body& first, const JPH::Body& second,
+                        const JPH::ContactManifold& manifold,
+                        JPH::ContactSettings&) override
+    {
+        record(first, second, manifold);
+    }
+
+    void OnContactPersisted(const JPH::Body& first,
+                            const JPH::Body& second,
+                            const JPH::ContactManifold& manifold,
+                            JPH::ContactSettings&) override
+    {
+        record(first, second, manifold);
+    }
+
+private:
+    void recordOne(std::size_t vehicle, const JPH::Body& body,
+                   const JPH::Body& other, JPH::Vec3Arg outwardNormal)
+    {
+        const JPH::Vec3 bodyVelocity = body.GetLinearVelocity();
+        std::size_t otherVehicle = std::numeric_limits<std::size_t>::max();
+        const bool otherIsVehicle =
+            vehicleIndex(other.GetUserData(), otherVehicle);
+        const JPH::Vec3 otherVelocity =
+            otherIsVehicle ? other.GetLinearVelocity()
+                           : JPH::Vec3::sZero();
+        const float normalSpeed = std::max(
+            0.0F, -(bodyVelocity - otherVelocity).Dot(outwardNormal));
+        const float bodyInverseMass =
+            body.GetMotionProperties()->GetInverseMass();
+        const float otherInverseMass =
+            otherIsVehicle
+                ? other.GetMotionProperties()->GetInverseMass()
+                : 0.0F;
+        const float inverseMass = bodyInverseMass + otherInverseMass;
+        constexpr float originalContactStep = 1.0F / 120.0F;
+        const float force =
+            inverseMass > 0.0F
+                ? normalSpeed / (inverseMass * originalContactStep)
+                : 0.0F;
+
+        BodyContact contact;
+        contact.surface =
+            otherIsVehicle ? CollisionSurface::Vehicle
+                           : collisionSurface(other.GetUserData());
+        contact.otherVehicle = otherVehicle;
+        contact.normal = fromJolt(outwardNormal);
+        contact.normalSpeed = normalSpeed;
+        contact.force = force;
+
+        std::scoped_lock lock(mutex_);
+        if (vehicle >= pending_.size())
+            return;
+        auto& contacts = pending_[vehicle];
+        const auto found = std::find_if(
+            contacts.begin(), contacts.end(),
+            [&](const BodyContact& value) {
+                return value.surface == contact.surface &&
+                       value.otherVehicle == contact.otherVehicle;
+            });
+        if (found == contacts.end())
+            contacts.push_back(contact);
+        else if (contact.force > found->force)
+            *found = contact;
+    }
+
+    void record(const JPH::Body& first, const JPH::Body& second,
+                const JPH::ContactManifold& manifold)
+    {
+        std::size_t firstVehicle = 0;
+        std::size_t secondVehicle = 0;
+        if (vehicleIndex(first.GetUserData(), firstVehicle))
+            recordOne(firstVehicle, first, second,
+                      -manifold.mWorldSpaceNormal);
+        if (vehicleIndex(second.GetUserData(), secondVehicle))
+            recordOne(secondVehicle, second, first,
+                      manifold.mWorldSpaceNormal);
+    }
+
+    std::mutex mutex_;
+    std::vector<std::vector<BodyContact>> pending_;
+};
 
 // The original PhysX triangle meshes are used both for solid collision and
 // suspension raycasts. PhysX accepted the suspension-facing side independently
@@ -275,6 +417,8 @@ public:
         validate();
         system_.Init(4096, 0, 16384, 4096, broadPhaseInterface_,
                      objectVsBroadPhase_, objectLayerPairs_);
+        contactListener_.resize(description_.spawns.size());
+        system_.SetContactListener(&contactListener_);
         system_.SetGravity(toJolt({0.0F, 0.0F, description_.gravity}));
         createTrack();
         vehicles_.reserve(description_.spawns.size());
@@ -286,6 +430,7 @@ public:
 
     ~JoltVehicleWorld() override
     {
+        system_.SetContactListener(nullptr);
         for (auto& vehicle : vehicles_)
         {
             if (vehicle.constraint != nullptr)
@@ -305,10 +450,12 @@ public:
                 bodies.DestroyBody(vehicle.body);
             }
         }
-        if (!trackBody_.IsInvalid())
+        for (const auto trackBody : trackBodies_)
         {
-            bodies.RemoveBody(trackBody_);
-            bodies.DestroyBody(trackBody_);
+            if (trackBody.IsInvalid())
+                continue;
+            bodies.RemoveBody(trackBody);
+            bodies.DestroyBody(trackBody);
         }
     }
 
@@ -422,6 +569,7 @@ public:
 
         float remaining = std::clamp(seconds, 0.0F, 0.25F);
         constexpr float fixedStep = 1.0F / 120.0F;
+        contactListener_.beginStep();
         while (remaining > 0.0F)
         {
             const float delta = std::min(remaining, fixedStep);
@@ -474,13 +622,26 @@ private:
 
     void createTrack()
     {
-        JPH::TriangleList triangles;
-        std::size_t indexCount = 0;
+        constexpr std::size_t surfaceCount = 3U;
+        std::array<JPH::TriangleList, surfaceCount> triangles;
+        auto surfaceIndex = [](CollisionSurface surface) {
+            switch (surface)
+            {
+            case CollisionSurface::TrackBorder:
+                return 1U;
+            case CollisionSurface::Decoration:
+                return 2U;
+            default:
+                return 0U;
+            }
+        };
         for (const auto& mesh : description_.collisionMeshes)
-            indexCount += mesh.indices.size();
-        triangles.reserve(indexCount / 3U);
+            triangles[surfaceIndex(mesh.surface)].reserve(
+                triangles[surfaceIndex(mesh.surface)].size() +
+                mesh.indices.size() / 3U);
         for (const auto& mesh : description_.collisionMeshes)
         {
+            auto& surfaceTriangles = triangles[surfaceIndex(mesh.surface)];
             for (std::size_t index = 0; index + 2 < mesh.indices.size();
                  index += 3)
             {
@@ -492,23 +653,38 @@ private:
                     mesh.transform, mesh.vertices.at(mesh.indices[index + 2]));
                 // The Z-up -> Y-up axis exchange reverses handedness, so
                 // reverse winding to preserve the original solid front face.
-                triangles.emplace_back(toJolt(a), toJolt(c), toJolt(b));
+                surfaceTriangles.emplace_back(
+                    toJolt(a), toJolt(c), toJolt(b));
             }
         }
-        JPH::MeshShapeSettings shapeSettings(triangles);
-        const auto shapeResult = shapeSettings.Create();
-        if (shapeResult.HasError())
-            throw std::runtime_error(
-                ("Jolt track mesh: " + shapeResult.GetError()).c_str());
-        JPH::BodyCreationSettings settings(
-            shapeResult.Get(), JPH::RVec3::sZero(), JPH::Quat::sIdentity(),
-            JPH::EMotionType::Static, Layers::nonMoving);
-        settings.mFriction = 0.5F;
-        settings.mRestitution = 0.5F;
-        trackBody_ = system_.GetBodyInterface().CreateAndAddBody(
-            settings, JPH::EActivation::DontActivate);
-        if (trackBody_.IsInvalid())
-            throw std::runtime_error("Jolt could not create track body");
+        constexpr std::array<CollisionSurface, surfaceCount> surfaces{
+            CollisionSurface::TrackPlane,
+            CollisionSurface::TrackBorder,
+            CollisionSurface::Decoration};
+        for (std::size_t index = 0; index < triangles.size(); ++index)
+        {
+            if (triangles[index].empty())
+                continue;
+            JPH::MeshShapeSettings shapeSettings(triangles[index]);
+            const auto shapeResult = shapeSettings.Create();
+            if (shapeResult.HasError())
+                throw std::runtime_error(
+                    ("Jolt track mesh: " + shapeResult.GetError()).c_str());
+            JPH::BodyCreationSettings settings(
+                shapeResult.Get(), JPH::RVec3::sZero(),
+                JPH::Quat::sIdentity(), JPH::EMotionType::Static,
+                Layers::nonMoving);
+            settings.mFriction = 0.5F;
+            settings.mRestitution = 0.5F;
+            settings.mUserData = surfaceUserData(surfaces[index]);
+            const auto body =
+                system_.GetBodyInterface().CreateAndAddBody(
+                    settings, JPH::EActivation::DontActivate);
+            if (body.IsInvalid())
+                throw std::runtime_error(
+                    "Jolt could not create track body");
+            trackBodies_.push_back(body);
+        }
     }
 
     void createVehicle(const VehicleSpawn& spawn)
@@ -544,6 +720,7 @@ private:
         bodySettings.mFriction = 0.5F;
         bodySettings.mRestitution = 0.5F;
         bodySettings.mEnhancedInternalEdgeRemoval = true;
+        bodySettings.mUserData = vehicleUserData(vehicles_.size());
         VehicleRuntime runtime;
         runtime.spawn = spawn;
         runtime.body = system_.GetBodyInterface().CreateAndAddBody(
@@ -666,6 +843,9 @@ private:
         state.engineRpm =
             vehicle.controller->GetEngine().GetCurrentRPM();
         state.resetCount = vehicle.resetCount;
+        std::size_t vehicleIndexValue =
+            static_cast<std::size_t>(&vehicle - vehicles_.data());
+        state.bodyContacts = contactListener_.take(vehicleIndexValue);
         state.wheels.clear();
         JPH::uint contacts = 0;
         for (JPH::uint index = 0;
@@ -690,9 +870,10 @@ private:
     ObjectVsBroadPhaseFilter objectVsBroadPhase_;
     ObjectLayerPairFilter objectLayerPairs_;
     JPH::PhysicsSystem system_;
+    OriginalContactListener contactListener_;
     JPH::TempAllocatorImpl tempAllocator_;
     JPH::JobSystemThreadPool jobs_;
-    JPH::BodyID trackBody_;
+    std::vector<JPH::BodyID> trackBodies_;
     std::vector<VehicleRuntime> vehicles_;
 };
 
@@ -773,6 +954,60 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     if (world->vehicle().resetCount < 2)
     {
         error = "vehicle reset did not restore the original trace start";
+        return false;
+    }
+
+    WorldDescription contactDescription;
+    contactDescription.vehicle =
+        description.spawns.empty() ? description.vehicle
+                                   : description.spawns.front().vehicle;
+    contactDescription.startPosition = {0.0F, 0.0F, 2.0F};
+    contactDescription.startDirection = {1.0F, 0.0F, 0.0F};
+    contactDescription.gravity = description.gravity;
+    contactDescription.spawns.push_back(
+        {contactDescription.vehicle, contactDescription.startPosition,
+         contactDescription.startDirection});
+    TriangleMesh floor;
+    floor.surface = CollisionSurface::TrackPlane;
+    floor.vertices = {{-30.0F, -30.0F, 0.0F},
+                      {30.0F, -30.0F, 0.0F},
+                      {30.0F, 30.0F, 0.0F},
+                      {-30.0F, 30.0F, 0.0F}};
+    floor.indices = {0U, 1U, 2U, 0U, 2U, 3U};
+    contactDescription.collisionMeshes.push_back(std::move(floor));
+    TriangleMesh border;
+    border.surface = CollisionSurface::TrackBorder;
+    border.vertices = {{4.0F, -8.0F, 0.0F},
+                       {4.0F, 8.0F, 5.0F},
+                       {4.0F, 8.0F, 0.0F},
+                       {4.0F, -8.0F, 5.0F}};
+    border.indices = {0U, 1U, 2U, 0U, 3U, 1U};
+    contactDescription.collisionMeshes.push_back(std::move(border));
+    auto contactWorld =
+        createOriginalVehicleWorld(contactDescription, error);
+    if (!contactWorld)
+        return false;
+    input = {};
+    input.throttle = 1.0F;
+    bool sawBorderContact = false;
+    for (int step = 0; step < 1200 && !sawBorderContact; ++step)
+    {
+        contactWorld->step(1.0F / 120.0F, input);
+        sawBorderContact = std::any_of(
+            contactWorld->vehicle().bodyContacts.begin(),
+            contactWorld->vehicle().bodyContacts.end(),
+            [](const BodyContact& contact) {
+                return contact.surface ==
+                           CollisionSurface::TrackBorder &&
+                       contact.normalSpeed > 0.0F &&
+                       contact.force > 0.0F;
+            });
+    }
+    if (!sawBorderContact)
+    {
+        error =
+            "Jolt body contact listener did not preserve track-border "
+            "surface metadata";
         return false;
     }
     error.clear();

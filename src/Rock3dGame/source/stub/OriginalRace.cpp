@@ -108,6 +108,19 @@ Vec3 vector3(TiXmlElement* parent, std::string_view path,
     return result;
 }
 
+std::array<float, 2> vector2(TiXmlElement* parent, std::string_view path,
+                            std::string_view source)
+{
+    const std::string value = text(parent, path, source);
+    std::istringstream stream(value);
+    std::array<float, 2> result{};
+    if (!(stream >> result[0] >> result[1]) ||
+        (stream >> std::ws && !stream.eof()))
+        throw resource::ResourceError(std::string(source) + ": invalid " +
+                                      std::string(path));
+    return result;
+}
+
 Quat quaternion(TiXmlElement* parent, std::string_view path,
                 std::string_view source)
 {
@@ -2359,6 +2372,14 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
     auto* database = databaseDocument.RootElement();
 
     Race race;
+    race.touchBorderDamage = vector2(
+        garageDocument.RootElement(), "touchBorderDamage", "garage.xml");
+    race.touchBorderDamageForce = vector2(
+        garageDocument.RootElement(), "touchBorderDamageForce", "garage.xml");
+    race.touchCarDamage = vector2(
+        garageDocument.RootElement(), "touchCarDamage", "garage.xml");
+    race.touchCarDamageForce = vector2(
+        garageDocument.RootElement(), "touchCarDamageForce", "garage.xml");
     loadWeapons(resources, workshopDocument.RootElement(), database, race);
     loadAchievements(resources, race);
     auto* firstPlanet = require(tournament, "planets/planet0", "tournamet.xml");
@@ -2848,13 +2869,20 @@ r3d::physics::WorldDescription makePhysicsDescription(
     result.vehicle = prepareVehicle(race.vehicle);
 
     auto appendCollision = [&](const ObjectDefinition& definition,
-                               const ObjectInstance& instance) {
+                               const ObjectInstance& instance,
+                               bool track) {
         for (const auto& shape : definition.collisionShapes)
         {
             const auto mesh = resource::loadR3DMeshAsset(resources,
                                                          shape.meshPath);
             r3d::physics::TriangleMesh collision;
             collision.transform = instance.transform;
+            collision.surface =
+                track && shape.materialGroup == 1U
+                    ? r3d::physics::CollisionSurface::TrackBorder
+                    : (track
+                           ? r3d::physics::CollisionSurface::TrackPlane
+                           : r3d::physics::CollisionSurface::Decoration);
             collision.vertices.reserve(mesh.vertices.size());
             for (const auto& vertex : mesh.vertices)
                 collision.vertices.push_back({vertex.position[0],
@@ -2880,12 +2908,13 @@ r3d::physics::WorldDescription makePhysicsDescription(
     for (const auto& instance : race.trackInstances)
     {
         appendCollision(race.trackDefinitions.at(instance.definition),
-                        instance);
+                        instance, true);
     }
     for (const auto& instance : race.decorationInstances)
     {
         appendCollision(
-            race.decorationDefinitions.at(instance.definition), instance);
+            race.decorationDefinitions.at(instance.definition), instance,
+            false);
     }
 
     auto findPoint = [&](std::uint32_t id) -> const TracePoint& {
@@ -2977,8 +3006,14 @@ bool runOriginalRaceResourceSmokeTest(
     {
         const auto physics = makePhysicsDescription(race, resources);
         std::size_t triangleCount = 0;
+        std::size_t borderMeshCount = 0;
         for (const auto& mesh : physics.collisionMeshes)
+        {
             triangleCount += mesh.indices.size() / 3U;
+            if (mesh.surface ==
+                r3d::physics::CollisionSurface::TrackBorder)
+                ++borderMeshCount;
+        }
         const auto near = [](float first, float second) {
             return std::abs(first - second) <= 0.0001F;
         };
@@ -3053,7 +3088,16 @@ bool runOriginalRaceResourceSmokeTest(
             race.decorationInstances.size() != 234 ||
             race.bonuses.size() != 7 ||
             race.trackCatalog.size() != 88 ||
-            physics.collisionMeshes.empty() || triangleCount < 591 ||
+            physics.collisionMeshes.empty() || borderMeshCount == 0 ||
+            triangleCount < 591 ||
+            !near(race.touchBorderDamage[0], 5.0F) ||
+            !near(race.touchBorderDamage[1], 5.0F) ||
+            !near(race.touchBorderDamageForce[0], 3800000.0F) ||
+            !near(race.touchBorderDamageForce[1], 3800000.0F) ||
+            !near(race.touchCarDamage[0], 5.0F) ||
+            !near(race.touchCarDamage[1], 5.0F) ||
+            !near(race.touchCarDamageForce[0], 1100000.0F) ||
+            !near(race.touchCarDamageForce[1], 1100000.0F) ||
             !near(physics.vehicle.mass, 2000.0F) ||
             !near(physics.vehicle.shapePosition.x, 0.0654583F) ||
             !near(physics.vehicle.centerOfMass.z, -0.75F) ||

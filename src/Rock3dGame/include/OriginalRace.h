@@ -413,6 +413,10 @@ struct Race
     std::array<std::uint32_t, 3> rewardMoney{};
     std::array<std::uint32_t, 3> rewardPoints{};
     std::vector<std::uint32_t> requiredPoints;
+    std::array<float, 2> touchBorderDamage{};
+    std::array<float, 2> touchBorderDamageForce{};
+    std::array<float, 2> touchCarDamage{};
+    std::array<float, 2> touchCarDamageForce{};
     EnvironmentDescription environment;
     ObjectDefinition rainEffect;
     // Source ctEffects/trail record referenced by the wheel behavior type 9.

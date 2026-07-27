@@ -193,6 +193,7 @@ public:
     void applyAchievementProfile(const ProfileState& profile);
     void writeAchievementProfile(ProfileState& profile) const;
     void setEnableMineBug(bool enabled) noexcept;
+    void setSpringBorders(bool enabled) noexcept;
     void setPaused(bool paused) noexcept;
     void update(float seconds,
                 const std::vector<r3d::physics::VehicleState>& vehicles,
@@ -279,6 +280,7 @@ private:
     std::uint32_t achievementGlobalKills_ = 0;
     std::uint32_t achievementPreviousLapPlace_ = 0;
     bool enableMineBug_ = true;
+    bool springBorders_ = true;
 };
 
 bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error);

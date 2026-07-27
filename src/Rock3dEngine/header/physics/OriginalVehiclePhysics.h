@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,11 +32,20 @@ struct Transform
     Quat rotation;
 };
 
+enum class CollisionSurface : std::uint8_t
+{
+    TrackPlane,
+    TrackBorder,
+    Decoration,
+    Vehicle,
+};
+
 struct TriangleMesh
 {
     std::vector<Vec3> vertices;
     std::vector<std::uint32_t> indices;
     Transform transform;
+    CollisionSurface surface = CollisionSurface::TrackPlane;
 };
 
 struct WheelDescription
@@ -102,6 +112,15 @@ struct VehicleInput
     float steering = 0.0F;
 };
 
+struct BodyContact
+{
+    CollisionSurface surface = CollisionSurface::TrackPlane;
+    std::size_t otherVehicle = std::numeric_limits<std::size_t>::max();
+    Vec3 normal;
+    float normalSpeed = 0.0F;
+    float force = 0.0F;
+};
+
 struct VehicleState
 {
     Transform body;
@@ -111,6 +130,7 @@ struct VehicleState
     float engineRpm = 0.0F;
     std::uint32_t contactCount = 0;
     std::uint32_t resetCount = 0;
+    std::vector<BodyContact> bodyContacts;
 };
 
 class OriginalVehicleWorld

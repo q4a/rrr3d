@@ -463,6 +463,11 @@ void OriginalRaceSession::setEnableMineBug(bool enabled) noexcept
     enableMineBug_ = enabled;
 }
 
+void OriginalRaceSession::setSpringBorders(bool enabled) noexcept
+{
+    springBorders_ = enabled;
+}
+
 std::size_t OriginalRaceSession::findWeapon(
     std::string_view record, WeaponSlot slot) const noexcept
 {
@@ -1009,6 +1014,105 @@ void OriginalRaceSession::updateGameplay(
         }
         if (racer < vehicles.size())
             updateProgress(racer, vehicles[racer]);
+    }
+
+    auto damageFromContact =
+        [](const std::array<float, 2>& damage,
+           const std::array<float, 2>& forceRange,
+           float force, float& forcePart) {
+        forcePart = 0.0F;
+        if (forceRange[1] > forceRange[0])
+        {
+            forcePart = std::clamp(
+                (force - forceRange[0]) /
+                    (forceRange[1] - forceRange[0]),
+                0.0F, 1.0F);
+        }
+        else if (force > forceRange[0])
+        {
+            forcePart = 0.5F;
+        }
+        return damage[0] + (damage[1] - damage[0]) * forcePart;
+    };
+    auto applyTouchDamage =
+        [&](std::size_t target, std::size_t attacker,
+            float damage, Vec3 position) {
+        if (target >= racers_.size() || damage <= 0.0F)
+            return;
+        const float applied =
+            racers_[target].shieldSeconds > 0.0F ? 0.0F : damage;
+        racers_[target].life =
+            std::max(0.0F, racers_[target].life - applied);
+        events_.push_back(
+            {RaceEventKind::Damage, target, attacker, position, applied,
+             PickSlot::None, RacerRuntime::invalidWeapon, true});
+        if (racers_[target].life > 0.0F)
+            return;
+        events_.push_back(
+            {RaceEventKind::Kill, attacker, target, position, 0.0F,
+             PickSlot::None, RacerRuntime::invalidWeapon, true});
+        racers_[target].life = racers_[target].maximumLife;
+        queueRespawn(target, vehicles[target]);
+    };
+
+    for (std::size_t racer = 0;
+         racer < vehicles.size() && racer < racers_.size(); ++racer)
+    {
+        for (const auto& contact : vehicles[racer].bodyContacts)
+        {
+            if (contact.surface !=
+                    r3d::physics::CollisionSurface::TrackBorder ||
+                std::abs(contact.normal.z) >= 0.5F)
+                continue;
+            racers_[racer].clutchSeconds = 0.0F;
+            float forcePart = 0.0F;
+            const float damage = damageFromContact(
+                race_.touchBorderDamage, race_.touchBorderDamageForce,
+                contact.force, forcePart);
+            if ((!springBorders_ && forcePart == 0.0F) ||
+                vehicles[racer].speed <= 16.0F)
+                continue;
+
+            if (springBorders_)
+            {
+                const Vec3 normal = normalized3(contact.normal);
+                const Vec3 velocity = vehicles[racer].linearVelocity;
+                Vec3 tangent = subtract(
+                    velocity, multiply(normal, dot3(normal, velocity)));
+                const float tangentLength = length3(tangent);
+                if (tangentLength > 0.0001F)
+                    tangent = multiply(tangent, 1.0F / tangentLength);
+                else
+                    tangent = {};
+                const Vec3 travel = normalized3(velocity);
+                const float tangentDot =
+                    std::abs(dot3(travel, normal));
+                const Vec3 direction =
+                    normalized3(forward(vehicles[racer].body.rotation));
+                const float directionDot = dot3(direction, normal);
+                const float directionTravelDot =
+                    dot3(direction, travel);
+                if (tangentDot > 0.1F &&
+                    (directionDot < 0.707F ||
+                     directionTravelDot < -0.707F))
+                {
+                    const float normalVelocity = std::clamp(
+                        std::abs(dot3(normal, velocity)), 4.0F, 14.0F);
+                    const float tangentVelocity =
+                        dot3(tangent, velocity) * 0.5F;
+                    Vec3 wanted = add(
+                        multiply(normal, normalVelocity),
+                        multiply(tangent, tangentVelocity));
+                    wanted.z = 0.0F;
+                    velocityRequests_.push_back(
+                        {racer, subtract(wanted, velocity)});
+                }
+            }
+            if (forcePart > 0.0F && damage > 0.0F)
+                applyTouchDamage(
+                    racer, racer, damage,
+                    vehicles[racer].body.position);
+        }
     }
     for (auto& cooldown : touchCooldown_)
         cooldown = std::max(0.0F, cooldown - seconds);
@@ -2200,20 +2304,24 @@ void OriginalRaceSession::updateGameplay(
         std::min(vehicles.size(), racers_.size());
     for (std::size_t first = 0; first < collisionRacers; ++first)
     {
-        for (std::size_t second = first + 1U;
-             second < collisionRacers; ++second)
+        for (const auto& contact : vehicles[first].bodyContacts)
         {
-            if (distanceSquared(vehicles[first].body.position,
-                                vehicles[second].body.position) > 6.25F)
+            if (contact.surface !=
+                    r3d::physics::CollisionSurface::Vehicle ||
+                contact.otherVehicle <= first ||
+                contact.otherVehicle >= collisionRacers)
                 continue;
-            const float relativeSpeed = std::abs(
-                vehicles[first].speed - vehicles[second].speed);
-            if (relativeSpeed < 7.0F)
-                continue;
+            const std::size_t second = contact.otherVehicle;
             const std::size_t cooldownIndex =
                 first * collisionRacers + second;
             if (cooldownIndex >= touchCooldown_.size() ||
                 touchCooldown_[cooldownIndex] > 0.0F)
+                continue;
+            float forcePart = 0.0F;
+            const float damage = damageFromContact(
+                race_.touchCarDamage, race_.touchCarDamageForce,
+                contact.force, forcePart);
+            if (forcePart <= 0.0F || damage <= 0.0F)
                 continue;
             touchCooldown_[cooldownIndex] = 0.25F;
             auto kineticEnergy = [&](std::size_t racer) {
@@ -2232,28 +2340,9 @@ void OriginalRaceSession::updateGameplay(
                 firstEnergy > secondEnergy ? second : first;
             const std::size_t attacker =
                 target == first ? second : first;
-            // garage.xml stores touchCarDamage=5 5. The original only
-            // damages the lower-energy car after the contact-force threshold.
-            const float applied =
-                racers_[target].shieldSeconds > 0.0F ? 0.0F : 5.0F;
-            racers_[target].life = std::max(
-                0.0F, racers_[target].life - applied);
-            events_.push_back(
-                {RaceEventKind::Damage, target, attacker,
-                 vehicles[target].body.position, applied,
-                 PickSlot::None,
-                 RacerRuntime::invalidWeapon, true});
-            if (racers_[target].life <= 0.0F)
-            {
-                events_.push_back(
-                    {RaceEventKind::Kill, attacker, target,
-                     vehicles[target].body.position, 0.0F,
-                     PickSlot::None,
-                     RacerRuntime::invalidWeapon, true});
-                racers_[target].life =
-                    racers_[target].maximumLife;
-                queueRespawn(target, vehicles[target]);
-            }
+            applyTouchDamage(
+                target, attacker, damage,
+                vehicles[target].body.position);
         }
     }
 
@@ -2528,6 +2617,51 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.vehicleInputs().front().throttle < 0.9F)
             throw std::runtime_error("countdown/control transition failed");
 
+        const float lifeBeforeBorder = session.racers().front().life;
+        vehicles[0].speed = 25.0F;
+        vehicles[0].linearVelocity = {-25.0F, 5.0F, 0.0F};
+        vehicles[0].bodyContacts = {
+            {r3d::physics::CollisionSurface::TrackBorder,
+             std::numeric_limits<std::size_t>::max(),
+             {1.0F, 0.0F, 0.0F}, 25.0F, 4000000.0F}};
+        session.update(1.0F / 60.0F, vehicles, input);
+        if (session.takeVelocityRequests().empty() ||
+            session.racers().front().life >= lifeBeforeBorder)
+            throw std::runtime_error(
+                "source spring-border contact transition failed");
+
+        session.setSpringBorders(false);
+        session.update(1.0F / 60.0F, vehicles, input);
+        if (!session.takeVelocityRequests().empty())
+            throw std::runtime_error(
+                "disabled spring-border still changed velocity");
+        session.setSpringBorders(true);
+        vehicles[0].bodyContacts.clear();
+
+        if (vehicles.size() > 1U)
+        {
+            vehicles[1].body.position = vehicles[0].body.position;
+            vehicles[1].speed = 5.0F;
+            const float firstLife = session.racers()[0].life;
+            const float secondLife = session.racers()[1].life;
+            session.update(1.0F / 60.0F, vehicles, input);
+            if (session.racers()[0].life != firstLife ||
+                session.racers()[1].life != secondLife)
+                throw std::runtime_error(
+                    "car proximity caused damage without a body contact");
+
+            vehicles[0].bodyContacts = {
+                {r3d::physics::CollisionSurface::Vehicle, 1U,
+                 {-1.0F, 0.0F, 0.0F}, 20.0F, 1200000.0F}};
+            session.update(1.0F / 60.0F, vehicles, input);
+            if (session.racers()[1].life >= secondLife)
+                throw std::runtime_error(
+                    "source car-contact damage transition failed");
+            vehicles[0].bodyContacts.clear();
+        }
+
+        vehicles[0].speed = 0.0F;
+        vehicles[0].linearVelocity = {};
         for (std::size_t node = 1; node < race.tracePath.size(); ++node)
         {
             vehicles[0].body.position = point(node).position;
