@@ -56,8 +56,15 @@ Engine::Engine(HWND window, lsl::Point resolution, bool fullScreen, unsigned mul
 	// Create a font for statistics and help output
 	HRESULT hr = D3DXCreateFont(_driver->GetDevice(), nHeight, 0, FW_BOLD, 0,
 		FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, TEXT("Arial"), &g_pd3dxFont);
+	//A failure here used to stop the engine at a modal message box and then
+	//dereference the null font anyway, in the destructor and on every frame.
+	//This overlay is a debug convenience -- an FPS counter and a key hint -- so
+	//losing it is not worth losing the build to; the four uses below are guarded.
 	if (hr != D3D_OK)
-		MessageBox(NULL,"Call to D3DXCreateFont failed!", "ERROR", MB_OK | MB_ICONEXCLAMATION);
+	{
+		g_pd3dxFont = NULL;
+		LSL_LOG(lsl::StrFmt("D3DXCreateFont failed hr=%d, debug overlay disabled", hr));
+	}
 #endif
 }
 
@@ -76,7 +83,7 @@ Engine::~Engine()
 	delete _driver;
 
 #ifdef _DEBUG
-	g_pd3dxFont->Release();
+	lsl::SafeRelease(g_pd3dxFont);
 #endif
 }
 
@@ -101,6 +108,9 @@ float CalcDeltaTime(__int64& gTime, __int64& gLastTime)
 
 void Engine::DrawFPS()
 {
+	if (!g_pd3dxFont)
+		return;
+
 	static __int64 gTime, gLastTime;
 	float deltaTime = CalcDeltaTime(gTime, gLastTime);
 
@@ -252,7 +262,8 @@ bool Engine::ResetDevice()
 				(*iter)->OnResetDevice();
 
 #ifdef _DEBUG
-			g_pd3dxFont->OnResetDevice();
+			if (g_pd3dxFont)
+				g_pd3dxFont->OnResetDevice();
 #endif
 
 			UpdateScreenQuad();
@@ -272,7 +283,8 @@ void Engine::LostDevice()
 		_reset = false;
 
 #ifdef _DEBUG
-		g_pd3dxFont->OnLostDevice();
+		if (g_pd3dxFont)
+			g_pd3dxFont->OnLostDevice();
 #endif
 
 		for (_VideoResList::iterator iter = _videoResList.begin(); iter != _videoResList.end(); ++iter)

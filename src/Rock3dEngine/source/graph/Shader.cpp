@@ -106,14 +106,22 @@ void Shader::InitMacro(MacroBlock* value)
 	ID3DXBuffer* bufCompErr = 0;
 	HRESULT hr = D3DXCreateEffect(GetEngine()->GetDriver().GetDevice(), _data->GetData(), _data->GetSize(), macrosBuf, _include, flags, _effPool, &effect, &bufCompErr);
 	if (hr != D3D_OK)
-	{		
-		char* bufCompErrStr = (char*)bufCompErr->GetBufferPointer();
+	{
+		//The error buffer is only produced when the shader compiled and was
+		//rejected. Any failure before that point -- a missing file, a bad
+		//device, no effects runtime at all -- returns null here, and reading it
+		//turns a legible error into a segfault at the one moment the reason
+		//matters most.
+		const std::string error = bufCompErr
+			? std::string(static_cast<const char*>(bufCompErr->GetBufferPointer()))
+			: lsl::StrFmt("D3DXCreateEffect failed hr=0x%08x, no compiler output", hr);
+
 		lsl::appLog.Append("D3DXCreateEffect compile failed.");
-		lsl::appLog.Append(bufCompErrStr);
+		lsl::appLog.Append(error);
 
-		::MessageBox(0, bufCompErrStr, "", MB_OK);
+		::MessageBox(0, error.c_str(), "", MB_OK);
 
-		throw lsl::Error(bufCompErrStr);
+		throw lsl::Error(error);
 	}
 
 	value->SetEffect(effect);
