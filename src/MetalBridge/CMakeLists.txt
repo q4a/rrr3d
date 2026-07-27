@@ -7,8 +7,10 @@ project(MetalBridge)
 add_library(${PROJECT_NAME} STATIC
     source/metalbridge.mm
     source/metalbridge_commands.mm
+    source/metalbridge_pipeline.mm
     header/metalbridge.h
     header/metalbridge_commands.h
+    header/metalbridge_pipeline.h
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC header)
@@ -18,6 +20,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC header)
 set_source_files_properties(
     source/metalbridge.mm
     source/metalbridge_commands.mm
+    source/metalbridge_pipeline.mm
     PROPERTIES COMPILE_FLAGS "-fno-objc-arc"
 )
 
