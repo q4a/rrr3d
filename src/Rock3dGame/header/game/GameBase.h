@@ -4,7 +4,7 @@
 #include "GameEvent.h"
 
 #include "graph/Actor.h"
-#include "px/PhysX.h"
+#include "px/Physx.h"
 #include "snd/Audio.h"
 
 namespace r3d

@@ -3,7 +3,7 @@
 #include "ClassView.h"
 
 #include "MainFrm.h"
-#include "Resource.h"
+#include "resource.h"
 #include "MapEditor.h"
 
 class CClassViewMenuButton : public CMFCToolBarMenuButton

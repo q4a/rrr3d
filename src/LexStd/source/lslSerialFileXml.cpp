@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "lslSerialFileXml.h"
+#include "lslSerialFileXML.h"
 #include "lslResource.h"
 
 #define TIXML_USE_STL

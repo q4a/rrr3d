@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "mainfrm.h"
+#include "MainFrm.h"
 #include "FileView.h"
-#include "Resource.h"
+#include "resource.h"
 #include "MapEditor.h"
 
 #ifdef _DEBUG

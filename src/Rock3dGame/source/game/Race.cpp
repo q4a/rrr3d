@@ -2,7 +2,7 @@
 #include "game/World.h"
 
 #include "game/Race.h"
-#include "lslSerialFileXml.h"
+#include "lslSerialFileXML.h"
 
 #ifdef _DEBUG
 	//#define DEBUG_WEAPON 1

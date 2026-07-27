@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "game/AIPLayer.h"
+#include "game/AIPlayer.h"
 
 #include "game/World.h"
 

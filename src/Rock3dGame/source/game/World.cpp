@@ -3,7 +3,7 @@
 #include "game/World.h"
 #include "edit/Edit.h"
 
-#include "lslSerialFileXml.h"
+#include "lslSerialFileXML.h"
 
 //#define DEBUG_FRAME_SYNC 1
 //#define DEBUG_NET 1

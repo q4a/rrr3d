@@ -2,7 +2,7 @@
 #include "stdafx.h"
 
 #include "OutputWnd.h"
-#include "Resource.h"
+#include "resource.h"
 #include "MainFrm.h"
 
 #ifdef _DEBUG

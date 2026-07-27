@@ -3,12 +3,14 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  encoding:
+  portability:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@main
     - name: Check sources are valid UTF-8
       run: python3 tools/check-encoding.py
+    - name: Check include paths are portable
+      run: python3 tools/check-includes.py
 
   win:
     runs-on: windows-2022

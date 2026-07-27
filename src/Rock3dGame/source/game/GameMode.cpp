@@ -3,7 +3,7 @@
 
 #include "game/GameMode.h"
 #include <mbctype.h>
-#include "lslSerialFileXml.h"
+#include "lslSerialFileXML.h"
 
 namespace r3d
 {

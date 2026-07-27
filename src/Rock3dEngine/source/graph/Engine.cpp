@@ -2,7 +2,7 @@
 
 #include "graph/Engine.h"
 
-#include "graph/driver/D3D9RenderDriver.h"
+#include "graph/Driver/D3D9RenderDriver.h"
 #include "lslUtility.h"
 
 //#define OCCLUSION_QUERIES

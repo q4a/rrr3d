@@ -3,7 +3,7 @@
 #include "TraceView.h"
 
 #include "MainFrm.h"
-#include "Resource.h"
+#include "resource.h"
 #include "MapEditor.h"
 
 class CTraceSplitView: public CView
