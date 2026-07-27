@@ -2,6 +2,7 @@
 #include "OriginalAudioSpec.h"
 #include "OriginalMainMenu.h"
 #ifdef RRR3D_PHYSICS
+#include "OriginalGarage.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
 #include "OriginalRaceHud.h"
@@ -493,6 +494,8 @@ int main(int argc, char** argv)
     std::string activeLanguage = options->language;
 #ifdef RRR3D_PHYSICS
     std::optional<r3d::game::originalrace::Race> originalRace;
+    std::optional<r3d::game::originalrace::OriginalGarageCatalog>
+        originalGarage;
     std::optional<r3d::physics::WorldDescription> physicsDescription;
     r3d::game::originalrace::OriginalProfileStore profileStore(
         rrr3d::platform::save_directory(), dataDirectory);
@@ -516,6 +519,8 @@ int main(int argc, char** argv)
         model.emplace(
             menu::loadOriginalMainMenu(*resources, activeLanguage));
 #ifdef RRR3D_PHYSICS
+        originalGarage.emplace(
+            r3d::game::originalrace::loadOriginalGarage(*resources));
         originalRace.emplace(r3d::game::originalrace::loadOriginalRace(
             *resources, selectedTrack, selectedCar));
         // The provenance/physics smoke has exact World1/map1 assertions and
@@ -592,6 +597,8 @@ int main(int argc, char** argv)
         std::string physicsError;
         if (!r3d::game::originalrace::runOriginalRaceResourceSmokeTest(
                 *originalRace, *resources, physicsError) ||
+            !r3d::game::originalrace::runOriginalGarageSmokeTest(
+                *resources, physicsError) ||
             !r3d::game::originalrace::runOriginalRaceSessionSmokeTest(
                 *originalRace, physicsError) ||
             !r3d::physics::runOriginalVehiclePhysicsSmokeTest(
@@ -613,7 +620,8 @@ int main(int argc, char** argv)
                   << "/Jolt vehicle"
                      " acceleration, braking, steering, suspension contacts,"
                      " trace reset, countdown, checkpoint/lap/finish,"
-                     " weapon/damage, bonus, and respawn state passed\n";
+                     " weapon/damage, bonus, garage/workshop, and respawn "
+                     "state passed\n";
         return EXIT_SUCCESS;
     }
 #endif
@@ -789,6 +797,12 @@ int main(int argc, char** argv)
     MenuPageVisual optionsPage;
     MenuPageVisual creditsPage;
 #ifdef RRR3D_PHYSICS
+    MenuPageVisual raceMenuPage;
+    MenuPageVisual garagePage;
+    MenuPageVisual workshopSlotsPage;
+    MenuPageVisual workshopItemsPage;
+    MenuPageVisual planetsPage;
+    MenuPageVisual achievementsPage;
     MenuPageVisual gameOptionsPage;
     MenuPageVisual graphicsOptionsPage;
     MenuPageVisual soundOptionsPage;
@@ -866,14 +880,32 @@ int main(int argc, char** argv)
                 "svSpringBorders",
                 onOff(profileState.config.springBorders)),
             optionValue(
-                "svLapsCount",
-                std::to_string(profileState.config.lapsCount)),
+                "svUpgradeMaxLevel",
+                std::to_string(
+                    std::min(profileState.config.upgradeMaxLevel, 2U) +
+                    1U)),
+            optionValue(
+                "svWeaponMaxLevel",
+                std::to_string(
+                    std::clamp(
+                        profileState.config.weaponMaxLevel, 1U, 4U))),
+            optionValue(
+                "svMaxPlayers",
+                std::to_string(
+                    std::clamp(
+                        profileState.config.maxPlayers, 2U, 6U))),
             optionValue(
                 "svMaxComputers",
                 std::to_string(profileState.config.maxComputers)),
             optionValue(
+                "svLapsCount",
+                std::to_string(profileState.config.lapsCount)),
+            optionValue(
                 "svEnableMineBug",
                 onOff(profileState.config.enableMineBug)),
+            optionValue(
+                "svDisableVideo",
+                onOff(profileState.config.disableVideo)),
             localized("svBack")};
     };
     auto graphicsOptionsLabels = [&]() {
@@ -983,6 +1015,22 @@ int main(int argc, char** argv)
              "svBack"}));
         creditsPage = createPage(labels({"svBack"}));
 #ifdef RRR3D_PHYSICS
+        raceMenuPage = createPage(
+            {"Start race", localized("svWorkshop"),
+             localized("svGarage"), "Planets",
+             localized("svRewards"), localized("svOptions"),
+             localized("svExit")});
+        garagePage = createPage(
+            {localized("svGarage"), localized("svMoney"),
+             localized("svBuy"), localized("svBack")});
+        workshopSlotsPage = createPage(
+            {localized("svWorkshop"), localized("svBack")});
+        workshopItemsPage = createPage(
+            {localized("svWorkshop"), localized("svBack")});
+        planetsPage = createPage(
+            {"Planets", localized("svBack")});
+        achievementsPage = createPage(
+            {localized("svRewards"), localized("svBack")});
         gameOptionsPage = createPage(gameOptionsLabels());
         graphicsOptionsPage =
             createPage(graphicsOptionsLabels());
@@ -1040,6 +1088,12 @@ int main(int argc, char** argv)
         pageValid(optionsPage) && pageValid(creditsPage);
 #ifdef RRR3D_PHYSICS
     const bool optionsResourcesValid =
+        pageValid(raceMenuPage) &&
+        pageValid(garagePage) &&
+        pageValid(workshopSlotsPage) &&
+        pageValid(workshopItemsPage) &&
+        pageValid(planetsPage) &&
+        pageValid(achievementsPage) &&
         pageValid(gameOptionsPage) &&
         pageValid(graphicsOptionsPage) &&
         pageValid(soundOptionsPage) &&
@@ -1057,6 +1111,12 @@ int main(int argc, char** argv)
         device->destroy(credits.texture);
         device->destroy(version.texture);
 #ifdef RRR3D_PHYSICS
+        destroyPage(achievementsPage);
+        destroyPage(planetsPage);
+        destroyPage(workshopItemsPage);
+        destroyPage(workshopSlotsPage);
+        destroyPage(garagePage);
+        destroyPage(raceMenuPage);
         destroyPage(finishPage);
         destroyPage(controlsOptionsPage);
         destroyPage(soundOptionsPage);
@@ -1546,6 +1606,12 @@ int main(int argc, char** argv)
         Options,
         Credits,
 #ifdef RRR3D_PHYSICS
+        RaceMenu,
+        Garage,
+        WorkshopSlots,
+        WorkshopItems,
+        Planets,
+        Achievements,
         GameOptions,
         GraphicsOptions,
         SoundOptions,
@@ -1557,6 +1623,24 @@ int main(int argc, char** argv)
     std::size_t menuSelection = 0;
     bool championshipMode = true;
     bool newTournamentProfile = false;
+#ifdef RRR3D_PHYSICS
+    std::size_t garageCarIndex = 0;
+    for (std::size_t index = 0;
+         index < originalGarage->cars.size(); ++index)
+    {
+        if (originalGarage->cars[index].record ==
+            profileState.player.currentCar)
+        {
+            garageCarIndex = index;
+            break;
+        }
+    }
+    r3d::game::originalrace::GarageSlotType workshopSlot =
+        r3d::game::originalrace::GarageSlotType::Wheel;
+    std::vector<const r3d::game::originalrace::OriginalWorkshopItem*>
+        workshopItemChoices;
+    std::vector<std::string> achievementChoices;
+#endif
     auto activeMenuPage = [&]() -> MenuPageVisual& {
         switch (menuStack.back())
         {
@@ -1577,6 +1661,18 @@ int main(int argc, char** argv)
         case MenuScreen::Credits:
             return creditsPage;
 #ifdef RRR3D_PHYSICS
+        case MenuScreen::RaceMenu:
+            return raceMenuPage;
+        case MenuScreen::Garage:
+            return garagePage;
+        case MenuScreen::WorkshopSlots:
+            return workshopSlotsPage;
+        case MenuScreen::WorkshopItems:
+            return workshopItemsPage;
+        case MenuScreen::Planets:
+            return planetsPage;
+        case MenuScreen::Achievements:
+            return achievementsPage;
         case MenuScreen::GameOptions:
             return gameOptionsPage;
         case MenuScreen::GraphicsOptions:
@@ -1829,6 +1925,180 @@ int main(int argc, char** argv)
         menuSelection =
             std::min(menuSelection, page.labels.size() - 1U);
     };
+    auto currency = [](std::uint32_t value) {
+        return "$" + std::to_string(value);
+    };
+    auto itemLabel = [&](std::string_view record) {
+        const auto* item = originalGarage->findItem(record);
+        return item == nullptr ? std::string(record)
+                               : localized(item->name);
+    };
+    auto refreshGaragePage = [&]() {
+        if (originalGarage->cars.empty())
+            return;
+        garageCarIndex =
+            std::min(garageCarIndex,
+                     originalGarage->cars.size() - 1U);
+        const auto& car = originalGarage->cars[garageCarIndex];
+        const bool current =
+            car.record == profileState.player.currentCar;
+        const bool unlocked =
+            r3d::game::originalrace::originalCarUnlocked(
+                *originalGarage, profileState, car,
+                championshipMode);
+        std::string state =
+            current ? "Selected"
+                    : unlocked ? currency(car.cost)
+                               : localized("svLockedCarName");
+        replacePage(
+            garagePage,
+            {std::to_string(garageCarIndex + 1U) + "/" +
+                 std::to_string(originalGarage->cars.size()) + "  " +
+                 localized(car.name),
+             localized("svMoney") + ": " +
+                 currency(profileState.player.money),
+             state,
+             current
+                 ? "Selected"
+                 : unlocked ? localized("svBuy")
+                            : localized("svLockedCarName"),
+             localized("svBack")});
+    };
+    auto refreshWorkshopSlotsPage = [&]() {
+        static constexpr std::array<std::string_view, 10> names{
+            "Wheels", "Exhaust", "Armor", "Engine", "Hyper",
+            "Mine", "Weapon 1", "Weapon 2", "Weapon 3",
+            "Weapon 4"};
+        std::vector<std::string> output;
+        output.reserve(names.size() + 1U);
+        for (std::size_t index = 0; index < names.size(); ++index)
+        {
+            const auto& slot = profileState.player.slots[index];
+            std::string value =
+                slot.record.empty() ? "-" : itemLabel(slot.record);
+            if (slot.hasCharge)
+                value += "  " + std::to_string(slot.charge);
+            output.push_back(
+                std::string(names[index]) + ": " + value);
+        }
+        output.push_back(localized("svBack"));
+        replacePage(workshopSlotsPage, std::move(output));
+    };
+    auto refreshWorkshopItemsPage = [&]() {
+        workshopItemChoices.clear();
+        const auto slotIndex =
+            static_cast<std::size_t>(workshopSlot);
+        const auto* car =
+            originalGarage->findCar(profileState.player.currentCar);
+        if (car != nullptr &&
+            slotIndex < car->placements.size())
+        {
+            const auto& placement = car->placements[slotIndex];
+            for (const auto& record : placement.supportedItems)
+            {
+                const auto* item =
+                    originalGarage->findItem(record);
+                if (item == nullptr)
+                    continue;
+                if (record == profileState.player.slots[slotIndex].record ||
+                    record == placement.defaultItem ||
+                    r3d::game::originalrace::
+                        originalWorkshopItemUnlocked(
+                            *originalGarage, profileState, *item))
+                {
+                    workshopItemChoices.push_back(item);
+                }
+            }
+        }
+        std::vector<std::string> output;
+        output.reserve(workshopItemChoices.size() + 2U);
+        for (const auto* item : workshopItemChoices)
+        {
+            std::string label = localized(item->name);
+            if (profileState.player.slots[slotIndex].record ==
+                item->record)
+                label += "  [selected]";
+            else
+                label += "  " + currency(item->cost);
+            output.push_back(std::move(label));
+        }
+        const auto& installed =
+            profileState.player.slots[slotIndex];
+        if (const auto* item =
+                originalGarage->findItem(installed.record);
+            item != nullptr && item->maximumCharge > 0U)
+        {
+            const auto charge =
+                installed.hasCharge ? installed.charge
+                                    : item->defaultCharge;
+            const auto amount =
+                charge >= item->maximumCharge
+                    ? 0U
+                    : std::min(item->chargeStep,
+                               item->maximumCharge - charge);
+            output.push_back(
+                "Ammunition " + std::to_string(charge) + "/" +
+                std::to_string(item->maximumCharge) + "  " +
+                currency(item->chargeCost * amount));
+        }
+        output.push_back(localized("svBack"));
+        replacePage(workshopItemsPage, std::move(output));
+    };
+    auto refreshPlanetsPage = [&]() {
+        std::vector<std::string> output;
+        const auto count = std::min(
+            originalGarage->planets.size(),
+            profileState.player.planets.size());
+        output.reserve(count + 1U);
+        for (std::size_t index = 0; index < count; ++index)
+        {
+            const auto& progress =
+                profileState.player.planets[index];
+            std::string state =
+                progress.state == 2U
+                    ? localized("svLockedCarName")
+                    : index == profileState.player.currentPlanet
+                          ? "Selected"
+                          : "Pass " +
+                                std::to_string(progress.pass);
+            output.push_back(
+                localized(originalGarage->planets[index].name) +
+                "  [" + state + "]");
+        }
+        output.push_back(localized("svBack"));
+        replacePage(planetsPage, std::move(output));
+    };
+    auto refreshAchievementsPage = [&]() {
+        achievementChoices.clear();
+        std::vector<std::string> output;
+        for (const auto& [name, item] :
+             profileState.achievementItems)
+        {
+            achievementChoices.push_back(name);
+            const auto state = item.values.find("state");
+            const auto price = item.values.find("price");
+            std::string status =
+                state != item.values.end() &&
+                        state->second == "asOpened"
+                    ? "Opened"
+                    : state != item.values.end() &&
+                              state->second == "asLocked"
+                          ? "Locked"
+                          : price == item.values.end()
+                                ? "Unlocked"
+                                : price->second + " points";
+            output.push_back(name + "  [" + status + "]");
+        }
+        output.push_back(
+            "Points: " +
+            std::to_string(profileState.achievementPoints));
+        output.push_back(localized("svBack"));
+        replacePage(achievementsPage, std::move(output));
+    };
+    auto showOriginalRaceMenu = [&]() {
+        menuStack.push_back(MenuScreen::RaceMenu);
+        menuSelection = 0;
+    };
     auto refreshCurrentOptionsPage = [&]() {
         switch (menuStack.back())
         {
@@ -1910,6 +2180,38 @@ int main(int argc, char** argv)
                     !profileState.config.springBorders;
                 break;
             case 5:
+                profileState.config.upgradeMaxLevel =
+                    cycleValue(
+                        profileState.config.upgradeMaxLevel,
+                        3U, direction);
+                break;
+            case 6:
+                profileState.config.weaponMaxLevel =
+                    cycleValue(
+                        std::clamp(
+                            profileState.config.weaponMaxLevel,
+                            1U, 4U) -
+                            1U,
+                        4U, direction) +
+                    1U;
+                break;
+            case 7:
+                profileState.config.maxPlayers =
+                    cycleValue(
+                        std::clamp(
+                            profileState.config.maxPlayers,
+                            2U, 6U) -
+                            2U,
+                        5U, direction) +
+                    2U;
+                break;
+            case 8:
+                profileState.config.maxComputers =
+                    cycleValue(
+                        profileState.config.maxComputers,
+                        6U, direction);
+                break;
+            case 9:
                 profileState.config.lapsCount =
                     std::clamp(
                         static_cast<int>(
@@ -1917,17 +2219,15 @@ int main(int argc, char** argv)
                             direction,
                         1, 8);
                 break;
-            case 6:
-                profileState.config.maxComputers =
-                    cycleValue(
-                        profileState.config.maxComputers,
-                        6U, direction);
-                break;
-            case 7:
+            case 10:
                 profileState.config.enableMineBug =
                     !profileState.config.enableMineBug;
                 raceSession.setEnableMineBug(
                     profileState.config.enableMineBug);
+                break;
+            case 11:
+                profileState.config.disableVideo =
+                    !profileState.config.disableVideo;
                 break;
             default:
                 return;
@@ -2174,10 +2474,11 @@ int main(int argc, char** argv)
         // Do not enqueue all confirms before the event loop.  SDL's input
         // layer intentionally suppresses repeats while a key is held, and
         // the old batch therefore never exercised Main -> GameMode ->
-        // Tournament -> Continue.  Advance one real press/release pair per
+        // Tournament -> Continue -> RaceMenu/Start.  Advance one real
+        // press/release pair per
         // rendered menu frame instead.
         if (options->raceRenderSmokeTest && !inRace &&
-            raceSmokeMenuStep < 3U &&
+            raceSmokeMenuStep < 4U &&
             renderedFrames >= raceSmokeNextMenuFrame)
         {
             SDL_Event confirm{};
@@ -2426,6 +2727,33 @@ int main(int argc, char** argv)
                     continue;
                 }
 #ifdef RRR3D_PHYSICS
+                if (menuStack.back() == MenuScreen::Garage &&
+                    (inputEvent.action ==
+                         rrr3d::input::Action::TurnLeft ||
+                     inputEvent.action ==
+                         rrr3d::input::Action::TurnRight))
+                {
+                    if (!inputEvent.repeated &&
+                        !originalGarage->cars.empty())
+                    {
+                        if (inputEvent.action ==
+                            rrr3d::input::Action::TurnLeft)
+                        {
+                            garageCarIndex =
+                                garageCarIndex == 0U
+                                    ? originalGarage->cars.size() - 1U
+                                    : garageCarIndex - 1U;
+                        }
+                        else
+                        {
+                            garageCarIndex =
+                                (garageCarIndex + 1U) %
+                                originalGarage->cars.size();
+                        }
+                        refreshGaragePage();
+                    }
+                    continue;
+                }
                 const bool adjustableOptions =
                     menuStack.back() == MenuScreen::GameOptions ||
                     menuStack.back() ==
@@ -2516,7 +2844,7 @@ int main(int argc, char** argv)
                     if (menuSelection == 0U)
                     {
 #ifdef RRR3D_PHYSICS
-                        startCurrentRace();
+                        showOriginalRaceMenu();
 #endif
                     }
                     else if (menuSelection == 1U)
@@ -2558,7 +2886,7 @@ int main(int argc, char** argv)
                         selectedTrack = 0U;
                     }
                     saveRaceProfile();
-                    startCurrentRace();
+                    showOriginalRaceMenu();
 #endif
                     break;
                 case MenuScreen::Profiles:
@@ -2629,6 +2957,227 @@ int main(int argc, char** argv)
                     backMenu();
                     break;
 #ifdef RRR3D_PHYSICS
+                case MenuScreen::RaceMenu:
+                    if (menuSelection == 0U)
+                    {
+                        startCurrentRace();
+                    }
+                    else if (menuSelection == 1U)
+                    {
+                        refreshWorkshopSlotsPage();
+                        pushMenu(MenuScreen::WorkshopSlots);
+                    }
+                    else if (menuSelection == 2U)
+                    {
+                        refreshGaragePage();
+                        pushMenu(MenuScreen::Garage);
+                    }
+                    else if (menuSelection == 3U)
+                    {
+                        refreshPlanetsPage();
+                        pushMenu(MenuScreen::Planets);
+                    }
+                    else if (menuSelection == 4U)
+                    {
+                        refreshAchievementsPage();
+                        pushMenu(MenuScreen::Achievements);
+                    }
+                    else if (menuSelection == 5U)
+                    {
+                        pushMenu(MenuScreen::Options);
+                    }
+                    else
+                    {
+                        saveRaceProfile();
+                        menuStack = {MenuScreen::Main};
+                        menuSelection = 0;
+                    }
+                    break;
+                case MenuScreen::Garage:
+                    if (menuSelection == 0U)
+                    {
+                        garageCarIndex =
+                            (garageCarIndex + 1U) %
+                            originalGarage->cars.size();
+                        refreshGaragePage();
+                    }
+                    else if (menuSelection == 3U)
+                    {
+                        const auto& car =
+                            originalGarage->cars[garageCarIndex];
+                        std::string garageError;
+                        if (!r3d::game::originalrace::
+                                selectOriginalGarageCar(
+                                    *originalGarage, profileState,
+                                    car, championshipMode,
+                                    garageError))
+                        {
+                            std::cerr
+                                << "Original GarageFrame: "
+                                << garageError << '\n';
+                        }
+                        else
+                        {
+                            saveRaceProfile();
+                        }
+                        refreshGaragePage();
+                    }
+                    else if (menuSelection + 1U >=
+                             page.labels.size())
+                    {
+                        backMenu();
+                    }
+                    break;
+                case MenuScreen::WorkshopSlots:
+                    if (menuSelection <
+                        static_cast<std::size_t>(
+                            r3d::game::originalrace::
+                                GarageSlotType::Count))
+                    {
+                        workshopSlot =
+                            static_cast<r3d::game::originalrace::
+                                            GarageSlotType>(
+                                menuSelection);
+                        refreshWorkshopItemsPage();
+                        pushMenu(MenuScreen::WorkshopItems);
+                    }
+                    else
+                    {
+                        backMenu();
+                    }
+                    break;
+                case MenuScreen::WorkshopItems:
+                {
+                    const auto slotIndex =
+                        static_cast<std::size_t>(workshopSlot);
+                    if (menuSelection <
+                        workshopItemChoices.size())
+                    {
+                        std::string workshopError;
+                        if (!r3d::game::originalrace::
+                                installOriginalWorkshopItem(
+                                    *originalGarage, profileState,
+                                    workshopSlot,
+                                    *workshopItemChoices[
+                                        menuSelection],
+                                    championshipMode,
+                                    workshopError))
+                        {
+                            std::cerr
+                                << "Original WorkshopFrame: "
+                                << workshopError << '\n';
+                        }
+                        else
+                        {
+                            saveRaceProfile();
+                            refreshWorkshopSlotsPage();
+                        }
+                        refreshWorkshopItemsPage();
+                        break;
+                    }
+                    const auto* installed =
+                        originalGarage->findItem(
+                            profileState.player
+                                .slots[slotIndex]
+                                .record);
+                    const bool hasAmmunition =
+                        installed != nullptr &&
+                        installed->maximumCharge > 0U;
+                    if (hasAmmunition &&
+                        menuSelection ==
+                            workshopItemChoices.size())
+                    {
+                        std::string workshopError;
+                        if (!r3d::game::originalrace::
+                                rechargeOriginalWorkshopItem(
+                                    *originalGarage, profileState,
+                                    workshopSlot,
+                                    championshipMode,
+                                    workshopError))
+                        {
+                            std::cerr
+                                << "Original WorkshopFrame: "
+                                << workshopError << '\n';
+                        }
+                        else
+                        {
+                            saveRaceProfile();
+                            refreshWorkshopSlotsPage();
+                        }
+                        refreshWorkshopItemsPage();
+                    }
+                    else
+                    {
+                        backMenu();
+                    }
+                    break;
+                }
+                case MenuScreen::Planets:
+                    if (menuSelection <
+                        std::min(
+                            originalGarage->planets.size(),
+                            profileState.player.planets.size()))
+                    {
+                        const auto& progress =
+                            profileState.player
+                                .planets[menuSelection];
+                        if (progress.state != 2U)
+                        {
+                            profileState.player.currentPlanet =
+                                static_cast<std::uint32_t>(
+                                    menuSelection);
+                            profileState.player.currentTrack = 0U;
+                            selectedTrack =
+                                r3d::game::originalrace::
+                                    resolveOriginalTournamentTrack(
+                                        *originalRace,
+                                        profileState.player);
+                            saveRaceProfile();
+                            refreshPlanetsPage();
+                        }
+                    }
+                    else
+                    {
+                        backMenu();
+                    }
+                    break;
+                case MenuScreen::Achievements:
+                    if (menuSelection <
+                        achievementChoices.size())
+                    {
+                        auto& achievement =
+                            profileState.achievementItems[
+                                achievementChoices[menuSelection]];
+                        auto& state =
+                            achievement.values["state"];
+                        std::uint32_t price = 0U;
+                        if (const auto found =
+                                achievement.values.find("price");
+                            found != achievement.values.end())
+                        {
+                            const auto parsed = std::from_chars(
+                                found->second.data(),
+                                found->second.data() +
+                                    found->second.size(),
+                                price);
+                            if (parsed.ec != std::errc{})
+                                price = 0U;
+                        }
+                        if (state == "asUnlocked" &&
+                            profileState.achievementPoints >= price)
+                        {
+                            profileState.achievementPoints -= price;
+                            state = "asOpened";
+                            saveRaceProfile();
+                        }
+                        refreshAchievementsPage();
+                    }
+                    else if (menuSelection + 1U >=
+                             page.labels.size())
+                    {
+                        backMenu();
+                    }
+                    break;
                 case MenuScreen::GameOptions:
                 case MenuScreen::GraphicsOptions:
                 case MenuScreen::SoundOptions:
@@ -2667,11 +3216,13 @@ int main(int argc, char** argv)
                                 ? std::vector<MenuScreen>{
                                       MenuScreen::Main,
                                       MenuScreen::GameMode,
-                                      MenuScreen::Tournament}
+                                      MenuScreen::Tournament,
+                                      MenuScreen::RaceMenu}
                                 : std::vector<MenuScreen>{
                                       MenuScreen::Main,
-                                      MenuScreen::GameMode};
-                        startCurrentRace();
+                                      MenuScreen::GameMode,
+                                      MenuScreen::RaceMenu};
+                        menuSelection = 0;
                     }
                     else
                     {

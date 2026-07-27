@@ -57,9 +57,11 @@ else()
             source/stub/OriginalRace.cpp
             source/stub/OriginalRaceSession.cpp
             source/stub/OriginalProfile.cpp
+            source/stub/OriginalGarage.cpp
             include/OriginalRace.h
             include/OriginalRaceSession.h
             include/OriginalProfile.h
+            include/OriginalGarage.h
         )
     elseif(RRR3D_ENABLE_PHYSICS)
         list(APPEND _rrr3d_portable_game_sources
