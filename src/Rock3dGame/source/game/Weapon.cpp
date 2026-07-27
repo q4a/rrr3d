@@ -423,25 +423,30 @@ void Proj::RocketUpdate(float deltaTime)
 	const float cTrackHeight = 4.0f;
 
 	D3DXVECTOR3 size = _pxBox->GetDimensions();
-	PxVec3 pos = GetPxActor().GetNxActor()->getGlobalPosition(); 
-	NxRay nxRay(pos + PxVec3(0, 0, cTrackHeight), PxVec3(0, 0, -1.0f));
+	PxVec3 pos = GetPxActor().GetNxActor()->getGlobalPose().p;
 
-	PxRaycastHit hit;			
-	PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, 1 << px::Scene::cdgTrackPlane, PX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT);
+	PxRaycastHit hit;
+	//NX_STATIC_SHAPES.
+	PxShape* hitShape = GetLogic()->GetPxScene()->RaycastClosestShape(
+		px::FromPx(pos) + ZVector * cTrackHeight, -ZVector, PX_MAX_F32,
+		1 << px::Scene::cdgTrackPlane, PxQueryFlag::eSTATIC, hit);
 
 	if (hitShape)
 	{
 		GameObject* tes = GetGameObjFromShape(hitShape);
-		px::Scene::CollDisGroup gr = hitShape->getGroup();
+		px::Scene::CollDisGroup gr = static_cast<px::Scene::CollDisGroup>(px::Scene::GetShapeGroup(*hitShape));
 
-		float height = std::max(pos.z - hit.worldImpact.z, size.z);
+		//NxRaycastHit::worldImpact is PxRaycastHit::position.
+		float height = std::max(pos.z - hit.position.z, size.z);
 		if (_vec1.z == 0.0f)
 			_vec1.z = height;
 		else if (_vec1.z - height > 0.1f)
 			_vec1.z = height;
 
-		pos.z = hit.worldImpact.z + _vec1.z;
-		GetPxActor().GetNxActor()->setGlobalPosition(pos);
+		pos.z = hit.position.z + _vec1.z;
+		PxTransform pose = GetPxActor().GetNxActor()->getGlobalPose();
+		pose.p = pos;
+		GetPxActor().GetNxActor()->setGlobalPose(pose);
 	}
 }
 
@@ -589,17 +594,20 @@ bool Proj::MinePrepare(const ShotContext& ctx, bool lockMine)
 		D3DXVECTOR3 rayPos = _desc.pos;
 		if (_weapon)
 			_weapon->GetGrActor().LocalToWorldCoord(rayPos, rayPos);
-		NxRay nxRay(px::ToPx(rayPos) + PxVec3(0, 0, 2.0f), px::ToPx(-ZVector));
-
 		PxRaycastHit hit;
-		PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(nxRay, NX_STATIC_SHAPES, hit, (1 << px::Scene::cdgTrackPlane) | (1 << px::Scene::cdgShotTrack), PX_MAX_F32, NX_RAYCAST_SHAPE | NX_RAYCAST_IMPACT | NX_RAYCAST_NORMAL);
+		//NX_STATIC_SHAPES.
+		PxShape* hitShape = GetLogic()->GetPxScene()->RaycastClosestShape(
+			rayPos + ZVector * 2.0f, -ZVector, PX_MAX_F32,
+			(1 << px::Scene::cdgTrackPlane) | (1 << px::Scene::cdgShotTrack),
+			PxQueryFlag::eSTATIC, hit);
 
-		if (hitShape && hitShape->getGroup() != px::Scene::cdgShotTrack) //&& hit.distance < _desc.projMaxDist)
+		if (hitShape && px::Scene::GetShapeGroup(*hitShape) != px::Scene::cdgShotTrack) //&& hit.distance < _desc.projMaxDist)
 		{
-			float offs = std::max(-aabb.min.z, 0.01f);			
-			D3DXVECTOR3 normal = hit.worldNormal.get();
+			float offs = std::max(-aabb.min.z, 0.01f);
+			//NxRaycastHit::worldNormal is PxRaycastHit::normal.
+			D3DXVECTOR3 normal = px::FromPx(hit.normal);
 
-			SetWorldPos(px::FromPx(hit.worldImpact) + ZVector * offs);
+			SetWorldPos(px::FromPx(hit.position) + ZVector * offs);
 			SetWorldUp(normal);
 
 			if (lockMine)
@@ -848,14 +856,18 @@ GameObject* Proj::LaserUpdate(float deltaTime, bool distort)
 
 	EnableFilter(_weapon, px::Scene::gmTemp);
 
-	NxGroupsMask nxMask;
+	PxGroupsMask nxMask;
 	nxMask.bits0 = px::Scene::gmTemp;
 	nxMask.bits1 = 0;
 	nxMask.bits2 = 0;
 	nxMask.bits3 = 0;
 
-	PxRaycastHit rayhit;	
-	PxShape* hitShape = GetLogic()->GetPxScene()->GetNxScene()->raycastClosestShape(NxRay(px::ToPx(shotPos + _desc.sizeAddPx), px::ToPx(shotDir)), NX_ALL_SHAPES, rayhit, (1 << px::Scene::cdgDefault) | (1 << px::Scene::cdgShotTransparency) | (1 << px::Scene::cdgTrackPlane), _desc.maxDist, NX_RAYCAST_SHAPE | NX_RAYCAST_DISTANCE, &nxMask);
+	PxRaycastHit rayhit;
+	//NX_ALL_SHAPES.
+	PxShape* hitShape = GetLogic()->GetPxScene()->RaycastClosestShape(
+		shotPos + _desc.sizeAddPx, shotDir, _desc.maxDist,
+		(1 << px::Scene::cdgDefault) | (1 << px::Scene::cdgShotTransparency) | (1 << px::Scene::cdgTrackPlane),
+		PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC, rayhit, &nxMask);
 	GameObject* rayHitActor = hitShape ? GetGameObjFromShape(hitShape) : NULL;
 
 	DisableFilter(_weapon);

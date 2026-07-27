@@ -265,6 +265,21 @@ protected:
 public:
 	void Compute(float deltaTime);
 
+	//NxScene::raycastClosestShape. PhysX 3+ reports hits through a buffer and
+	//expresses the static/dynamic choice as query flags rather than an
+	//NxShapesType, so the 2.8 shape-group bitfield still selects candidates but
+	//goes in as filter data.
+	//groupsMask is optional and matches NxScene::raycastClosestShape's last
+	//argument; it goes into filter data words 2 and 3, the layout the default
+	//filter shader reads. See SetShapeGroupsMask.
+	PxShape* RaycastClosestShape(const D3DXVECTOR3& origin, const D3DXVECTOR3& dir,
+		float maxDist, unsigned groups, PxQueryFlags queryFlags, PxRaycastHit& outHit,
+		const PxGroupsMask* groupsMask = 0);
+
+	//NxShape::getGroup. The group lives in filter data word0, which is what the
+	//default filter shader reads.
+	static unsigned GetShapeGroup(const PxShape& shape);
+
 	//NxScene::setActorPairFlags(a, b, NX_IGNORE_PAIR).
 	void SetActorPairIgnored(PxRigidActor& actor0, PxRigidActor& actor1, bool ignored);
 	bool IsActorPairIgnored(const PxActor* actor0, const PxActor* actor1) const;

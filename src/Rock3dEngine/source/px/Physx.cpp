@@ -321,6 +321,39 @@ void Scene::SimulationEvents::onSleep(PxActor** actors, PxU32 count)
 	}
 }
 
+PxShape* Scene::RaycastClosestShape(const D3DXVECTOR3& origin, const D3DXVECTOR3& dir,
+	float maxDist, unsigned groups, PxQueryFlags queryFlags, PxRaycastHit& outHit,
+	const PxGroupsMask* groupsMask)
+{
+	PxQueryFilterData filterData;
+	filterData.data.word0 = groups;
+	filterData.flags = queryFlags;
+
+	if (groupsMask)
+	{
+		filterData.data.word2 = PxU32(groupsMask->bits0 | (PxU32(groupsMask->bits1) << 16));
+		filterData.data.word3 = PxU32(groupsMask->bits2 | (PxU32(groupsMask->bits3) << 16));
+	}
+
+	PxRaycastBuffer buffer;
+	//PhysX requires a normalized direction; 2.8's NxRay did not.
+	const PxVec3 unitDir = ToPx(dir).getNormalized();
+
+	if (!_nxScene->raycast(ToPx(origin), unitDir, maxDist, buffer, PxHitFlag::eDEFAULT, filterData) ||
+		!buffer.hasBlock)
+	{
+		return 0;
+	}
+
+	outHit = buffer.block;
+	return outHit.shape;
+}
+
+unsigned Scene::GetShapeGroup(const PxShape& shape)
+{
+	return shape.getSimulationFilterData().word0;
+}
+
 Scene::PairFilter::PairFilter(Scene* scene): _scene(scene)
 {
 }

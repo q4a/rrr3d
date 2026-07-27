@@ -1758,18 +1758,21 @@ void Player::ResetCar()
 					newDir2 = node->GetTile().GetDir();
 				}
 
-				NxRay nxRay(px::ToPx(rayPos), px::ToPx(-ZVector));
-				PxRaycastHit hit;		
-				PxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->GetNxScene()->raycastClosestShape(nxRay, NX_ALL_SHAPES, hit, 1 << px::Scene::cdgTrackPlane | 1 << px::Scene::cdgPlaneDeath | 1 << px::Scene::cdgDefault, PX_MAX_F32, NX_RAYCAST_SHAPE);
+				PxRaycastHit hit;
+				//NX_ALL_SHAPES.
+				PxShape* hitShape = _car.gameObj->GetPxActor().GetScene()->RaycastClosestShape(
+					rayPos, -ZVector, PX_MAX_F32,
+					1 << px::Scene::cdgTrackPlane | 1 << px::Scene::cdgPlaneDeath | 1 << px::Scene::cdgDefault,
+					PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC, hit);
 				GameObject* hitGameObj = GameObject::GetGameObjFromShape(hitShape);
 
-				if (!isDeathPlane && i == 0 && j == 0 && (hitShape == NULL || hitShape->getGroup() == px::Scene::cdgPlaneDeath))
+				if (!isDeathPlane && i == 0 && j == 0 && (hitShape == NULL || px::Scene::GetShapeGroup(*hitShape) == px::Scene::cdgPlaneDeath))
 				{
 					isDeathPlane = true;
 					distX = 0.0f;
 					j = -1;
 				}
-				else if ((hitShape == NULL || hitShape->getGroup() != px::Scene::cdgTrackPlane) && hitGameObj != _car.gameObj)
+				else if ((hitShape == NULL || px::Scene::GetShapeGroup(*hitShape) != px::Scene::cdgTrackPlane) && hitGameObj != _car.gameObj)
 				{
 					break;
 				}

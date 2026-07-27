@@ -485,7 +485,7 @@ void DataBase::LoadTrack(const std::string& name, const std::string& mesh, const
 {
 	//pxDefGroup = false;
 	//pxShotGroup = false;
-	D3DXVECTOR4 myVec3(vec3.a, vec3.b, vec3.c, vec3.d);
+	D3DXVECTOR4 myVec3 = vec3;
 	myVec3.x = -1;
 
 	MapObj* mapObj = NewMapObj();
@@ -566,7 +566,7 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 	aabb.Offset(carDesc.bodyOffset);
 	px::BoxShape* carShape = AddPxBox(mapObj, aabb);
 	
-	carShape->SetMaterialIndex(carDesc.wakeFrictionModel ? _nxCarMaterial2->getMaterialIndex() : _nxCarMaterial1->getMaterialIndex());
+	carShape->SetMaterialIndex(carDesc.wakeFrictionModel ? px::Manager::RegisterMaterial(_nxCarMaterial2) : px::Manager::RegisterMaterial(_nxCarMaterial1));
 
 	std::vector<D3DXVECTOR3> posWheels;
 	CarWheels::LoadPosTo("Data\\" + wheelCoords, posWheels);
