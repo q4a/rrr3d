@@ -3,6 +3,10 @@
 
 #include "res/GraphResource.h"
 
+// ID3DXFont / ID3DXMesh and the LOGFONT constants. These used to arrive
+// via Microsoft's d3dx9math.h, which included d3dx9.h.
+#include <d3dx9.h>
+
 namespace r3d
 {
 

@@ -4,6 +4,9 @@
 #include "Engine.h"
 #include "lslVariant.h"
 
+// ID3DXEffect, ID3DXInclude, D3DXMACRO, D3DXHANDLE
+#include <d3dx9.h>
+
 namespace r3d
 {
 
