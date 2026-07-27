@@ -45,6 +45,37 @@ Natively, the batching that command stream exists for — amortising Wine
 boundary crossings — is unnecessary. It can be honoured as-is first (simplest,
 matches the contract) and flattened later.
 
+### Does d9mt's backend compile natively? Measured: nearly.
+
+Probed 2026-07-28 by compiling `src/d3d9fe/*.cpp` as native arm64 C++20
+against the vendored DXVK, this project's XPlatform Win32 substitutes, and
+`winemetal.h`. **33 errors across 17,539 lines**, in four groups, none
+structural:
+
+| Group | ~Count | What it is |
+|---|---|---|
+| `MEM_COMMIT` / `MEM_RESERVE` / `MEM_RELEASE` | 6 | `VirtualAlloc` constants; XPlatform's to add |
+| Vulkan handle casts | 4 | i686 artifact — handles are u64, pointers were 32-bit. Both are 64-bit natively |
+| `D9MT_UnixCall` | 2 | the Wine boundary itself; replaced by calling directly |
+| `wsi::Win32WSI` | 1 | window system integration — the SDL shell |
+
+`d9mt_hud.cpp` and `d9mt_watcher.cpp` compile clean already.
+
+No missing Metal work and no D3D9 semantics to write. That is the whole
+distance between d9mt's backend and this build.
+
+Two traps worth recording, both of which cost time:
+
+- `-I` paths must reach `vendor/dxvk/include/vulkan/include` and
+  `vendor/dxvk/include/spirv/include`, not just `vendor/dxvk/include`.
+- `-include xplatform.h` supplies `QueryPerformanceCounter` and friends,
+  which d9mt's tracing uses and which XPlatform already implements.
+
+(And a shell trap that produced a wrong answer twice: an unquoted `$INC`
+variable of include flags does not word-split in zsh, so the compiler saw
+one concatenated argument and reported missing headers that were on the
+path. Use an array.)
+
 ### Order
 
 1. Native `winemetal` implementation in Objective-C++: the 90 functions and 66
