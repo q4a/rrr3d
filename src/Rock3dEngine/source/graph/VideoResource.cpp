@@ -679,9 +679,14 @@ void Tex2DResource::DoInit()
 	if (((usage & D3DUSAGE_AUTOGENMIPMAP) && _data->IsCompressed()) || _d3dxLoadUsed)
 		usage = usage & (~D3DUSAGE_AUTOGENMIPMAP);
 
+	// D3DX_DEFAULT rounds the source dimensions UP to the next power of two, which
+	// makes d3dx9 decompress -> resample -> recompress -> regenerate mips on the CPU
+	// for every non-power-of-two file, on every launch. Any device we care about
+	// reports full NPOT support (D3DPTEXTURECAPS_POW2 clear), so load at native size
+	// and skip that work entirely.
 	if (_d3dxLoadUsed)
 	{
-		hr = D3DXCreateTextureFromFileEx(GetEngine()->GetDriver().GetDevice(), _data->GetFileName().c_str(), _gui ? D3DX_DEFAULT_NONPOW2 : D3DX_DEFAULT, _gui ? D3DX_DEFAULT_NONPOW2 : D3DX_DEFAULT, GetLevelCnt(), usage, D3DFMT_UNKNOWN, GetMemoryPool(), D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL, &_texture);
+		hr = D3DXCreateTextureFromFileEx(GetEngine()->GetDriver().GetDevice(), _data->GetFileName().c_str(), D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, GetLevelCnt(), usage, D3DFMT_UNKNOWN, GetMemoryPool(), D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL, &_texture);
 
 		//hr = D3DXCreateTextureFromFileInMemoryEx(GetEngine()->GetDriver().GetDevice(), _data->GetData(), _data->GetSize(), D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, GetLevelCnt(), usage, D3DFMT_UNKNOWN, GetMemoryPool(), D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL, &_texture);
 	}
