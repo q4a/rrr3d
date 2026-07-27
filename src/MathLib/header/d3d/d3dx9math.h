@@ -103,6 +103,12 @@ typedef struct D3DXVECTOR4
     D3DXVECTOR4();
     D3DXVECTOR4(const FLOAT *pf);
     D3DXVECTOR4(FLOAT fx, FLOAT fy, FLOAT fz, FLOAT fw);
+    /* Deviation from upstream Wine. The first is real DirectX SDK API that
+       Wine's header omits; the latter two were added to the vendored Microsoft
+       header by this project and are used across the engine. */
+    D3DXVECTOR4(const D3DVECTOR& xyz, FLOAT fw);
+    D3DXVECTOR4(const struct D3DXVECTOR2& ref);
+    D3DXVECTOR4(const struct D3DXVECTOR3& ref);
 
     operator FLOAT* ();
     operator const FLOAT* () const;

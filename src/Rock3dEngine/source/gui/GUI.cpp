@@ -1055,10 +1055,14 @@ void Context::DrawView3d(View3d& view3d)
 	DrawPlane(plane);*/
 
 	//максимальный осевой размер меша
-	float maxScale = D3DXVec3Length(&aabb.GetSizes());
+	const D3DXVECTOR3 aabbSizes = aabb.GetSizes();
+	float maxScale = D3DXVec3Length(&aabbSizes);
 	//с учетом нецентрированности
 	if (!view3d.GetAlign())
-		maxScale += D3DXVec3Length(&aabb.GetCenter());
+	{
+		const D3DXVECTOR3 aabbCenter = aabb.GetCenter();
+		maxScale += D3DXVec3Length(&aabbCenter);
+	}
 	//размер поля в котором он отображается
 	D3DXVECTOR3 viewSize = D3DXVECTOR3(view3d.GetSize().x, view3d.GetSize().y, 0.0f);
 	//размер по оси z вычисляет с прикидкой
@@ -1070,7 +1074,9 @@ void Context::DrawView3d(View3d& view3d)
 	//центрируем
 	if (view3d.GetAlign())
 	{
-		D3DXVec3TransformCoord(&pos, &aabb.GetCenter(), &view3d.GetBox()->GetMat());
+		const D3DXVECTOR3 center = aabb.GetCenter();
+		const D3DXMATRIX boxMat = view3d.GetBox()->GetMat();
+		D3DXVec3TransformCoord(&pos, &center, &boxMat);
 		pos = pos * scale;
 	}
 
@@ -3541,7 +3547,9 @@ ViewPort3d::~ViewPort3d()
 void ViewPort3d::AnimProgress(float deltaTime)
 {
 	D3DXQUATERNION rot;
-	D3DXQuaternionSlerp(&rot, &GetBox()->GetRot(), &(_rot3dSpeed * GetBox()->GetRot()), deltaTime);
+	const D3DXQUATERNION boxRot = GetBox()->GetRot();
+	const D3DXQUATERNION target = _rot3dSpeed * boxRot;
+	D3DXQuaternionSlerp(&rot, &boxRot, &target, deltaTime);
 
 	GetBox()->SetRot(rot);
 }

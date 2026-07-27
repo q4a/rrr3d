@@ -1022,7 +1022,8 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 		D3DXMATRIX scaleMat = GetWorldScale();
 
 		D3DXMATRIX rotMat;
-		D3DXMatrixRotationQuaternion(&rotMat, &GetWorldRot());
+		const D3DXQUATERNION worldRot = GetWorldRot();
+		D3DXMatrixRotationQuaternion(&rotMat, &worldRot);
 
 		return scaleMat * rotMat;
 	}
@@ -1030,7 +1031,8 @@ D3DXMATRIX BaseSceneNode::GetWorldCombMat(CombMatType type) const
 	case cmtRotTrans:
 	{
 		D3DXMATRIX rotMat;
-		D3DXMatrixRotationQuaternion(&rotMat, &GetWorldRot());
+		const D3DXQUATERNION worldRot = GetWorldRot();
+		D3DXMatrixRotationQuaternion(&rotMat, &worldRot);
 
 		D3DXMATRIX transMat;
 		D3DXVECTOR3 pos = GetWorldPos();
@@ -1088,7 +1090,8 @@ D3DXMATRIX BaseSceneNode::GetWorldScale() const
 	do
 	{
 		//Применяем опреацию масштабирования
-		D3DXMatrixMultiply(&res, &res, &node->GetScaleMat());
+		const D3DXMATRIX scaleMat = node->GetScaleMat();
+		D3DXMatrixMultiply(&res, &res, &scaleMat);
 		//Переводим на уровень трансформации пониже
 		D3DXMatrixMultiply(&res, &res, &node->GetMat());		
 
@@ -1107,7 +1110,8 @@ D3DXMATRIX BaseSceneNode::GetWorldScale() const
 D3DXVECTOR3 BaseSceneNode::GetWorldDir() const
 {
 	D3DXVECTOR3 res;
-	D3DXVec3Normalize(&res, &D3DXVECTOR3(GetWorldMat().m[0]));
+	const D3DXVECTOR3 axis(GetWorldMat().m[0]);
+	D3DXVec3Normalize(&res, &axis);
 	return res;
 }
 
@@ -1135,7 +1139,9 @@ D3DXVECTOR3 BaseSceneNode::GetWorldCenterPos(bool includeChild) const
 
 bool AABBAreEqual(const AABB& bb1, const AABB& bb2)
 {
-	return D3DXVec3Length(&(bb1.min - bb2.min)) < floatErrComp && D3DXVec3Length(&(bb1.max - bb2.max)) < floatErrComp;
+	const D3DXVECTOR3 dMin = bb1.min - bb2.min;
+	const D3DXVECTOR3 dMax = bb1.max - bb2.max;
+	return D3DXVec3Length(&dMin) < floatErrComp && D3DXVec3Length(&dMax) < floatErrComp;
 }
 
 const AABB& BaseSceneNode::GetLocalAABB(bool includeChild) const

@@ -11,7 +11,7 @@
  * include "d3dx9.h" back, see it as already included.
  *
  * Only the sub-headers this project actually needs are pulled in. The rest
- * (d3dx9tex.h, d3dx9anim.h, d3dx9shape.h) are added when needed.
+ * (d3dx9anim.h, d3dx9xof.h) are added when needed.
  */
 
 #ifndef __D3DX9_H__
@@ -30,12 +30,35 @@
 #include "d3dx9core.h"
 #include "d3dx9mesh.h"
 
+/* D3DXIMAGE_INFO, D3DXCreateTextureFromFileEx, D3DX_DEFAULT, and
+ * D3DXCreateSphere. Declarations only, as with the effects framework. */
+#include "d3dx9shape.h"
+
 /*
  * Declarations only -- there is no open implementation of the D3DX effects
  * framework. Shader.cpp needs ID3DXEffect, ID3DXInclude, D3DXMACRO and
  * D3DXHANDLE to compile; something has to provide them before it links.
  */
+/*
+ * Constants the DirectX SDK defines but MinGW-w64's headers omit.
+ */
+#ifndef D3DX_DEFAULT
+#define D3DX_DEFAULT ((UINT) -1)
+#endif
+#ifndef D3DX_DEFAULT_NONPOW2
+#define D3DX_DEFAULT_NONPOW2 ((UINT) -2)
+#endif
+#ifndef D3DX_FROM_FILE
+#define D3DX_FROM_FILE ((UINT) -3)
+#endif
+#ifndef D3DXERR_INVALIDDATA
+#define D3DXERR_INVALIDDATA MAKE_D3DHRESULT(2900)
+#endif
+
 #include "d3dx9shader.h"
 #include "d3dx9effect.h"
+
+/* After d3dx9shader.h: d3dx9tex.h references ID3DXTextureShader. */
+#include "d3dx9tex.h"
 
 #endif /* __D3DX9_H__ */

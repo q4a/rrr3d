@@ -128,7 +128,7 @@ template<class _Key, class _BaseClass> class ArgClassList<_Key, _BaseClass, void
 public:
 	_BaseClass* CreateInst(const _Key& key)
 	{
-		return Get(key).CreateInst();
+		return this->Get(key).CreateInst();
 	}
 };
 

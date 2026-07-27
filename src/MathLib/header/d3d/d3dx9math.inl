@@ -257,6 +257,24 @@ inline D3DXVECTOR4::D3DXVECTOR4(FLOAT fx, FLOAT fy, FLOAT fz, FLOAT fw)
     w = fw;
 }
 
+inline D3DXVECTOR4::D3DXVECTOR4(const D3DVECTOR& xyz, FLOAT fw)
+{
+    x = xyz.x;
+    y = xyz.y;
+    z = xyz.z;
+    w = fw;
+}
+
+inline D3DXVECTOR4::D3DXVECTOR4(const D3DXVECTOR2& ref)
+{
+    x = ref.x; y = ref.y; z = 0.0f; w = 0.0f;
+}
+
+inline D3DXVECTOR4::D3DXVECTOR4(const D3DXVECTOR3& ref)
+{
+    x = ref.x; y = ref.y; z = ref.z; w = 0.0f;
+}
+
 inline D3DXVECTOR4::operator FLOAT* ()
 {
     return (FLOAT*)&x;

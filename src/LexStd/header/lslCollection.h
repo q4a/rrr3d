@@ -113,7 +113,7 @@ template<class _Item, class _IdType, class _Arg> void Collection<_Item, _IdType,
 
 template<class _Item, class _IdType, class _Arg> void Collection<_Item, _IdType, _Arg, void>::LoadItemFrom(SReader* reader, const _Arg& arg)
 {
-	ReadItem(reader, &Add(this->LoadType(reader), arg));
+	this->ReadItem(reader, &Add(this->LoadType(reader), arg));
 }
 
 template<class _Item, class _IdType, class _Arg> _Item& Collection<_Item, _IdType, _Arg, void>::Add(_IdType key, const _Arg& arg)
@@ -150,7 +150,7 @@ template<class _Item, class _IdType> void Collection<_Item, _IdType, void, void>
 
 template<class _Item, class _IdType> void Collection<_Item, _IdType, void, void>::LoadItem(SReader* reader)
 {
-	ReadItem(reader, &Add(this->LoadType(reader)));
+	this->ReadItem(reader, &Add(this->LoadType(reader)));
 }
 
 template<class _Item, class _IdType> _Item& Collection<_Item, _IdType, void, void>::Add(_IdType key)
@@ -188,7 +188,7 @@ template<class _Item, class _Arg, class _ArgThis> void Collection<_Item, void, _
 
 template<class _Item, class _Arg, class _ArgThis> void Collection<_Item, void, _Arg, _ArgThis>::LoadItem(SReader* reader)
 {
-	ReadItem(reader, &Add());
+	this->ReadItem(reader, &Add());
 }
 
 template<class _Item, class _Arg, class _ArgThis> _Item& Collection<_Item, void, _Arg, _ArgThis>::Add()
@@ -216,7 +216,7 @@ template<class _Item, class _Arg> void Collection<_Item, void, _Arg, void>::Dest
 
 template<class _Item, class _Arg> void Collection<_Item, void, _Arg, void>::LoadItemFrom(SReader* reader, const _Arg& arg)
 {
-	ReadItem(reader, &Add(arg));
+	this->ReadItem(reader, &Add(arg));
 }
 
 template<class _Item, class _Arg> _Item& Collection<_Item, void, _Arg, void>::Add(const _Arg& arg)
@@ -244,7 +244,7 @@ template<class _Item> void Collection<_Item, void, void, void>::DestroyItem(_Ite
 
 template<class _Item> void Collection<_Item, void, void, void>::LoadItem(SReader* reader)
 {
-	ReadItem(reader, &Add());
+	this->ReadItem(reader, &Add());
 }
 
 template<class _Item> _Item& Collection<_Item, void, void, void>::Add()

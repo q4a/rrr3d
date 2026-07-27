@@ -296,13 +296,16 @@ bool CameraCI::ComputeZBounds(const AABB& aabb, float& minZ, float& maxZ) const
 	{
 		D3DXVec3TransformCoord(&rayVec[i], &rayVec[i], &GetInvViewProj());
 		D3DXVec3TransformCoord(&rayPos[i], &rayPos[i], &GetInvViewProj());
-		D3DXVec3Normalize(&rayVec[i], &(rayVec[i] - rayPos[i]));
+		const D3DXVECTOR3 rayDelta = rayVec[i] - rayPos[i];
+		D3DXVec3Normalize(&rayVec[i], &rayDelta);
 
 		float tNear, tFar;
 		if (aabb.LineCastIntersect(rayPos[i], rayVec[i], tNear, tFar))
 		{
-			tNear = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tNear));
-			tFar = D3DXPlaneDotCoord(&posNearPlane, &(rayPos[i] + rayVec[i] * tFar));
+			const D3DXVECTOR3 nearPnt = rayPos[i] + rayVec[i] * tNear;
+			const D3DXVECTOR3 farPnt = rayPos[i] + rayVec[i] * tFar;
+			tNear = D3DXPlaneDotCoord(&posNearPlane, &nearPnt);
+			tFar = D3DXPlaneDotCoord(&posNearPlane, &farPnt);
 
 			if (tNear < minZ || !res)
 				minZ = tNear;			
@@ -445,7 +448,9 @@ D3DXVECTOR2 CameraCI::WorldToScreen(const D3DXVECTOR3& coord, const D3DXVECTOR2&
 {
 	D3DXVECTOR3 screenVec;
 	D3DXVec3TransformCoord(&screenVec, &coord, &GetViewProj());	
-	D3DXVECTOR2 vec = screenVec;
+	//Takes the first two components, which is what the implicit
+	//D3DXVECTOR3 -> FLOAT* -> D3DXVECTOR2 conversion did under MSVC.
+	D3DXVECTOR2 vec(screenVec.x, screenVec.y);
 
 	return ProjToView(vec, viewSize);
 }
@@ -479,7 +484,8 @@ const D3DXMATRIX& CameraCI::GetTransform(Transform transform) const
 
 			default:
 				//Используется правостороння система координат (как в 3dMax-e)
-				D3DXMatrixLookAtRH(&_matrices[transform], &_desc.pos, &(_desc.pos + _desc.dir), &_desc.up);
+				const D3DXVECTOR3 lookAt = _desc.pos + _desc.dir;
+				D3DXMatrixLookAtRH(&_matrices[transform], &_desc.pos, &lookAt, &_desc.up);
 			}			
 			break;
 

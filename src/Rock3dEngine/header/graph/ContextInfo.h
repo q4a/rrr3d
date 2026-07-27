@@ -73,7 +73,7 @@ public:
 	{
 		typename States::iterator iter = _states.find(state);
 		if (iter == _states.end())		
-			iter = _states.insert(_states.end(), States::value_type(state, ValueStatck()));
+			iter = _states.insert(_states.end(), typename States::value_type(state, ValueStatck()));
 
 		bool res = !iter->second.empty() && iter->second.top().value == value;
 		if (res)

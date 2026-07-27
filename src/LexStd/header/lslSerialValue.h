@@ -296,7 +296,7 @@ template<class _Value> SReader* SReadValueRange(SReader* reader, const char* nam
 		{
 			int res = lsl::ConvStrToEnum(str.c_str(), MyRange::cDistributionStr, MyRange::cDistributionEnd);
 			if (res > -1)
-				value.SetDistrib(MyRange::Distribution(res));
+				value.SetDistrib(typename MyRange::Distribution(res));
 		}
 		return child;
 	}
