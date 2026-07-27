@@ -22,6 +22,10 @@ VENDORED = (
     # Latin-1 "ø" in an attribution comment; transcoding it would make the
     # vendored copy no longer match upstream for the sake of one comment byte.
     "TinyXml",
+    # DXVK, d9mt and spirv-cross, vendored -- see src/D3D9Metal/README.md.
+    "D3D9Metal",
+    # d9mtmetal, vendored from d9mt.
+    "MetalBridge/d9mtmetal",
 )
 
 

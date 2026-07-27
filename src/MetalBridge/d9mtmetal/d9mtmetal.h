@@ -147,20 +147,33 @@ struct d9mt_newpso_params {
   uint64_t ret_error; /* out: retained NSError or 0 */
 };
 
+/*
+ * The entry point d9mt's Metal backend reaches the five companion functions
+ * through. On Windows this crossed a DLL boundary into the PE stub, which then
+ * made a wine unixlib syscall. Here it is a direct call -- see the note at the
+ * top of d9mtmetal.m.
+ */
 #ifdef _WIN32
-/* PE-side entry point exported by d9mtmetal.dll */
-#ifdef D9MTMETAL_EXPORTS
-#define D9MT_API __declspec(dllexport)
+    #ifdef D9MTMETAL_EXPORTS
+        #define D9MT_API __declspec(dllexport)
+    #else
+        #define D9MT_API __declspec(dllimport)
+    #endif
 #else
-#define D9MT_API __declspec(dllimport)
+    #define D9MT_API
+    #ifndef __cdecl
+        #define __cdecl
+    #endif
 #endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 D9MT_API int __cdecl D9MT_UnixCall(unsigned int code, void *params);
+
 #ifdef __cplusplus
 }
-#endif
 #endif
 
 #endif

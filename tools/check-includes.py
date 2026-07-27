@@ -29,6 +29,10 @@ VENDORED = (
     "XPlatform/header/directx",
     # TinyXML 2.5.3, kept byte-identical to the release.
     "TinyXml",
+    # DXVK, d9mt and spirv-cross, vendored -- see src/D3D9Metal/README.md.
+    "D3D9Metal",
+    # d9mtmetal, vendored from d9mt.
+    "MetalBridge/d9mtmetal",
 )
 
 
