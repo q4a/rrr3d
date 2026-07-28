@@ -45,6 +45,8 @@ if (APPLE)
     add_subdirectory(MetalBridge)
     # DXVK's D3D9 front-end over d9mt's Metal backend.
     add_subdirectory(D3D9Metal)
+    # Backend smoke test -- see its CMakeLists.
+    add_subdirectory(D3D9Triangle)
 endif()
 
 add_subdirectory(LexStd)

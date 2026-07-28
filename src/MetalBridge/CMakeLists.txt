@@ -46,3 +46,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     ${QUARTZCORE_FRAMEWORK}
     sqlite3
 )
+
+# Backend smoke test -- see test/CMakeLists.txt.
+add_subdirectory(test)
