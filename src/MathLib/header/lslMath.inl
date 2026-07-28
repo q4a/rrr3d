@@ -34,9 +34,30 @@ inline float RandomRange(float from, float to)
 }
 
 //from (inclusive) ... to (inclusive)
+//
+//RAND_MAX is not a portable constant: MSVC defines it as 32767, macOS and glibc
+//as 2147483647. The original expression was
+//
+//    from + Floor<int>(rand() * (to + 1 - from) / static_cast<float>(RAND_MAX + 1))
+//
+//which is correct only for the small one. With RAND_MAX at INT_MAX, RAND_MAX + 1
+//overflows to INT_MIN, so the divisor is negative and this returns a *negative*
+//index; `rand() * (to + 1 - from)` overflows for large draws as well.
+//
+//Callers index containers with the result -- weaponList[RandomRange(0, size-1)]
+//in AICar, nodes[...] in Trace -- so the effect was an out-of-bounds read and a
+//crash a few seconds into any race, with a garbage pointer rather than a
+//diagnosable fault.
+//
+//Done in double: RAND_MAX + 1 is exact there for every platform's value, and the
+//product cannot overflow.
 inline int RandomRange(int from, int to)
 {
-	return from + Floor<int>(rand() * (to + 1 - from) / static_cast<float>(RAND_MAX + 1));
+	if (to <= from)
+		return from;
+
+	const double unit = rand() / (static_cast<double>(RAND_MAX) + 1.0);
+	return from + static_cast<int>(unit * (static_cast<double>(to) - from + 1.0));
 }
 
 inline float NumAbsAdd(float absVal, float addVal)
