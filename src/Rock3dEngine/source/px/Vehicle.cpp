@@ -2,6 +2,8 @@
 
 #include "px/Vehicle.h"
 
+#include "rrr3d_trace.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -26,6 +28,30 @@ namespace
 const PxU32 cUndrivableSurface = 0xffff0000;
 const PxU32 cDrivableSurface   = 0x0000ffff;
 
+/*
+ * How hard a tire resists sliding, per unit of slip, per unit of load.
+ *
+ * The one number here with no counterpart in the 2.8 data, and it exists
+ * because of a modelling mismatch rather than a missing parameter: 2.8 solved
+ * the wheel contact as a static friction constraint, so there was no stiffness
+ * to specify -- the force was simply whatever the constraint needed. PxVehicle
+ * computes tire force from slip, so a constraint has to be approximated by a
+ * response stiff enough that slip stays negligible under ordinary demand.
+ *
+ * Higher is closer to a rigid contact. It is also less stable at this step
+ * rate, and the harness is unambiguous about where the knee is -- sweeping it
+ * against the four scenarios:
+ *
+ *   K = 2    wheels roll, slip 0.03, car tracks straight    1 failure
+ *   K = 5    wheels start sliding                           2 failures
+ *   K = 15                                                  3 failures
+ *   K = 40   wheels spinning at ten times road speed        5 failures
+ *
+ * RRR3D_TIRE_STIFFNESS overrides it, because this is the number to reach for
+ * when the cars feel wrong to drive rather than merely wrong on paper.
+ */
+const float cContactStiffness = 2.0f;
+
 PxQueryHitType::Enum SuspensionQueryPreFilter(
 	PxFilterData filterData0, PxFilterData filterData1,
 	const void* constantBlock, PxU32 constantBlockSize,
@@ -36,35 +62,7 @@ PxQueryHitType::Enum SuspensionQueryPreFilter(
 		: PxQueryHitType::eBLOCK;
 }
 
-/*
- * NxTireFunctionDesc, evaluated.
- *
- * Force(slip) is a two-piece curve through (0,0) -> (extremumSlip,
- * extremumValue) -> (asymptoteSlip, asymptoteValue) with a zero tangent at both
- * named points, flat at asymptoteValue beyond. A cubic Hermite with zero
- * tangents at both ends is exactly smoothstep, which is what each piece is.
- *
- * The result multiplies the tire's normal load.
- *
- * UNRESOLVED, and the reason the harness still fails one check. Every car in
- * this game sets wheelFlags = 64, which is NX_WF_CLAMPED_FRICTION, and the 2.8
- * header is explicit about what that means:
- *
- *   mu = NxTireFunctionDesc::extremumValue   (for the clamped friction model)
- *   (friction force) = mu * (normal force)
- *   "the wheel contacts are modeled as static friction contacts"
- *
- * So under the model this game actually shipped, the curve does not give the
- * applied force at all -- extremumValue alone is a friction *ceiling* on a
- * static contact, and the solver applied whatever force was needed below it.
- * That also explains why Player::ApplyMobility zeroes stiffnessFactor and never
- * adds anything back: the clamped model does not read it.
- *
- * Applying the curve as the force, which is what this does, produces 7x load of
- * thrust the moment a tire slips past extremumSlip -- enough to stand a 2000 kg
- * car on its back wheels. Reproducing a clamped static contact on top of
- * PxVehicle's slip-driven tire model is the piece that is still missing.
- */
+//A cubic Hermite with a zero tangent at both ends, which is smoothstep.
 float SmoothStepBetween(float x0, float y0, float x1, float y1, float x)
 {
 	if (x1 <= x0)
@@ -74,12 +72,42 @@ float SmoothStepBetween(float x0, float y0, float x1, float y1, float x)
 	return y0 + (y1 - y0) * t * t * (3.0f - 2.0f * t);
 }
 
-float EvalTireFunction(const TireFunctionDesc& function, float slip)
+/*
+ * How much grip a tire has at a given slip: NxTireFunctionDesc read as a
+ * friction ceiling rather than as a force.
+ *
+ * Every car in this game sets wheelFlags = 64, NX_WF_CLAMPED_FRICTION, and the
+ * 2.8 header says what that means:
+ *
+ *   mu = NxTireFunctionDesc::extremumValue   (for the clamped friction model)
+ *   (friction force) = mu * (normal force)
+ *   "the wheel contacts are modeled as static friction contacts"
+ *
+ * So the curve never gave the applied force. It gives what the contact may
+ * spend, and the solver spent whatever was needed below it. That also explains
+ * something in Player::ApplyMobility that reads like a bug and is not: it zeroes
+ * stiffnessFactor and never adds anything back, because the clamped model does
+ * not read it.
+ *
+ * The header names only extremumValue, but taking that literally throws away
+ * asymptoteSlip and asymptoteValue, and those two are what a tire *losing* grip
+ * is described by -- the shipped longitudinal curve falls from 7 to 6.4, the
+ * lateral one from 6.5 all the way to 3. A tire that keeps full grip however
+ * hard it is sliding cannot break away and cannot come back, and the slide is a
+ * large part of how this game drives. So grip holds at the extremum until the
+ * tire starts to slide and then falls along the curve the data already
+ * describes:
+ *
+ *   |slip| <= extremumSlip     full grip, extremumValue
+ *   up to asymptoteSlip        falling, extremumValue -> asymptoteValue
+ *   beyond                     asymptoteValue
+ */
+float EvalTireGripCeiling(const TireFunctionDesc& function, float slip)
 {
 	const float s = std::fabs(slip);
 
-	if (s < function.extremumSlip)
-		return SmoothStepBetween(0.0f, 0.0f, function.extremumSlip, function.extremumValue, s);
+	if (s <= function.extremumSlip)
+		return function.extremumValue;
 
 	if (s < function.asymptoteSlip)
 		return SmoothStepBetween(function.extremumSlip, function.extremumValue,
@@ -117,20 +145,82 @@ void Compute2_8TireForce(
 		return;
 	}
 
-	const float longMag = EvalTireFunction(tire.longitudal, longSlip) * tireLoad * tireFriction;
-	const float latMag  = EvalTireFunction(tire.lateral, latSlip) * tireLoad * tireFriction;
+	/*
+	 * A static friction contact, with the 2.8 curve supplying only the ceiling.
+	 *
+	 * Under NX_WF_CLAMPED_FRICTION -- which every car in this game selects --
+	 * mu is extremumValue and the contact supplies whatever force is needed to
+	 * stop the tire sliding, up to mu * load. It is not a force that grows with
+	 * slip. Making it one is what put 214 kN through a single tire and stood the
+	 * car on its back wheels.
+	 *
+	 * So: a very stiff response in slip, saturating at the ceiling. The
+	 * stiffness is high enough that under any ordinary demand the slip stays
+	 * near zero and the force settles at exactly what is being asked of it,
+	 * which is what a static contact does. Only when the demand exceeds mu *
+	 * load does the tire break away, which is the one behaviour the ceiling is
+	 * there to produce.
+	 */
+	float stiffness = cContactStiffness;
+	if (const char* override = std::getenv("RRR3D_TIRE_STIFFNESS"))
+		stiffness = static_cast<float>(std::atof(override));
 
-	//Longitudinal force follows the slip -- a driven wheel turning faster than
-	//the road is what pushes the car forward. Lateral force opposes it, which
-	//is what stops a car sliding sideways.
-	tireLongForceMag = (longSlip >= 0.0f) ? longMag : -longMag;
-	tireLatForceMag  = (latSlip  >= 0.0f) ? -latMag : latMag;
+	const float muLong = EvalTireGripCeiling(tire.longitudal, longSlip) * tireFriction;
+	const float muLat  = EvalTireGripCeiling(tire.lateral, latSlip) * tireFriction;
+
+	float longForce = stiffness * longSlip * tireLoad;
+	float latForce  = -stiffness * latSlip * tireLoad;
+
+	const float maxLong = muLong * tireLoad;
+	const float maxLat  = muLat * tireLoad;
+
+	longForce = std::min(std::max(longForce, -maxLong), maxLong);
+	latForce  = std::min(std::max(latForce, -maxLat), maxLat);
+
+	/*
+	 * The friction circle. A tire cannot spend more grip than it has, and
+	 * without this a wheel that is both spinning and sliding produces the full
+	 * ceiling in each direction at once -- which is where the diagonal launches
+	 * came from.
+	 */
+	const float limit = std::max(maxLong, maxLat);
+	const float demanded = std::sqrt(longForce * longForce + latForce * latForce);
+	if (demanded > limit && demanded > 0.0f)
+	{
+		const float scale = limit / demanded;
+		longForce *= scale;
+		latForce *= scale;
+	}
+
+	tireLongForceMag = longForce;
+	tireLatForceMag = latForce;
 
 	//Reaction on the wheel itself, which is what slows a spinning wheel down.
+	//
+	//This sign is load-bearing and it has been checked: inverting it turns the
+	//drive torque and the tire reaction into positive feedback, and the harness
+	//answers with a car doing 50 m/s straight up with 11350 rad/s wheels.
 	wheelTorque = -tireLongForceMag * wheelRadius;
 
 	//2.8 had no self-aligning torque; adding one would change handling.
 	tireAlignMoment = 0.0f;
+
+	//What the tire model is actually doing, from inside it. Everything else is
+	//inferred from a car's trajectory two integrations later.
+	//
+	//Sampled rather than taken from the front: the first calls of any run are
+	//the drop onto the ground, where the load is pinned at its clamp and every
+	//slip is zero, which says nothing about driving.
+	if (::rrr3d::TraceEnabled())
+	{
+		static unsigned long call = 0;
+		if ((++call % 331) == 0)
+			RRR3D_TRACE_FIRST(60,
+				"TIRE load=%.1f rest=%.1f norm=%.3f friction=%.2f longSlip=%.4f latSlip=%.4f "
+				"longF=%.1f latF=%.1f omega=%.2f torque=%.1f",
+				tireLoad, restTireLoad, normalisedTireLoad, tireFriction, longSlip, latSlip,
+				tireLongForceMag, tireLatForceMag, wheelOmega, wheelTorque);
+	}
 }
 
 PxVec3 ToPxVec(const D3DXVECTOR3& value)

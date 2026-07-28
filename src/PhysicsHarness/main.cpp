@@ -373,8 +373,41 @@ void TestStraightLineHasNoLateralSlip(r3d::px::Manager& manager, r3d::px::Scene*
 			car.GetWheel(i)->GetAxleSpeed());
 	}
 
+	//Precondition, and not a formality: an earlier version of this scenario
+	//passed cleanly while the car was 10 m in the air doing 50 m/s, because
+	//every slip reads zero when no wheel is touching anything. A check about
+	//grip has to establish there is grip to talk about.
+	Check(car.CountWheelsOnGround() == TestCar::cWheelCount,
+		Fmt("is still on the ground to be measured (%d of %d wheels down)",
+			car.CountWheelsOnGround(), TestCar::cWheelCount));
+
 	Check(car.MaxAbsLateralSlip() < 0.1f,
 		Fmt("no wheel is sliding sideways (worst |lateral slip| = %.4f)", car.MaxAbsLateralSlip()));
+
+	/*
+	 * And that the wheels are rolling rather than sliding.
+	 *
+	 * This is the check the others were missing. Every bound above can be
+	 * satisfied by a car that is skating along on four locked or spinning
+	 * wheels: position, velocity and lateral slip all look reasonable while the
+	 * tires do something entirely unphysical. A rolling wheel's contact patch is
+	 * stationary against the road, so its surface speed matches the car's.
+	 *
+	 * It matters beyond correctness. Whether a tire is gripping or sliding, and
+	 * by how much, is what the game's tire trails, slip effects and engine RPM
+	 * are all driven from -- and the skid is a large part of how this game
+	 * feels. A model that slides constantly has no headroom left to skid with.
+	 */
+	const float carSpeed = std::fabs(velocity.x);
+	for (int i = 0; i < TestCar::cWheelCount; ++i)
+	{
+		const float surfaceSpeed =
+			car.GetWheel(i)->GetAxleSpeed() * car.GetWheel(i)->GetRadius();
+
+		Check(std::fabs(std::fabs(surfaceSpeed) - carSpeed) < carSpeed * 0.5f + 1.0f,
+			Fmt("wheel %d is rolling, not sliding (surface %.2f m/s against car %.2f m/s)",
+				i, surfaceSpeed, carSpeed));
+	}
 
 	Check(std::fabs(velocity.y) < std::fabs(velocity.x) * 0.2f + 0.2f,
 		Fmt("travels along its own axis (vx = %.3f, vy = %.3f)", velocity.x, velocity.y));
