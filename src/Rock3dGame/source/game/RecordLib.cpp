@@ -245,7 +245,12 @@ RecordNode* RecordNode::FindNode(const std::string& path)
 void RecordNode::Clear()
 {
 	ClearStructure();
-	_src->Clear();
+
+	//_src is optional -- the constructor only takes a reference when one was
+	//given -- and RecordLib drops its own before the base destructor runs. See
+	//the note in ~RecordLib.
+	if (_src)
+		_src->Clear();
 }
 
 void RecordNode::SrcSync()
@@ -321,6 +326,19 @@ RecordLib::RecordLib(const std::string& name, lsl::SerialNode* rootSrc): _MyBase
 
 RecordLib::~RecordLib()
 {
+	//Order matters, and getting it wrong is a use-after-free rather than a leak.
+	//
+	//RecordLib is a RecordNode whose _src is a child of _rootSrc. Releasing
+	//_rootSrc can take the whole tree with it, and the base ~RecordNode runs
+	//*after* this body -- so it would then call Clear() on a destroyed node.
+	//
+	//Doing the node's own teardown here, while the tree is still alive, and
+	//leaving _src null for the base to find, keeps every access in front of the
+	//release. Latent on Windows too; it only ever survived because freed memory
+	//stayed readable.
+	Clear();
+	lsl::SafeRelease(_src);
+
 	_rootSrc->Release();
 }
 

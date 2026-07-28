@@ -28,6 +28,21 @@ D3DTRANSFORMSTATETYPE TransformStateTypeToD3D9[TRANSFORM_STATE_TYPE_END] = {D3DT
 
 D3D9RenderDriver::D3D9RenderDriver(D3DPRESENT_PARAMETERS& d3dpp): _d3d9(0), _d3dDevice9(0), _d3d9Ex(NULL), _d3dDevice9Ex(NULL), _frameLatencyOk(false)
 {
+	//Deliberately not a D3D9Ex device, though DXVK offers one.
+	//
+	//Ex looks attractive here: it brings SetMaximumFrameLatency, which sets
+	//_frameLatencyOk, which lets Engine::CreateQueries skip the event query and
+	//makes Engine::GPUSync a no-op -- and GPUSync is a spin with no yield that
+	//measures at ~88% of the main thread on this backend.
+	//
+	//But an Ex device forbids D3DPOOL_MANAGED, and this engine reaches it
+	//through mpManaged in MemoryPoolToD3D9 below. Managed resources are locked
+	//and written directly; the Ex equivalent is a DEFAULT-pool resource that
+	//cannot be locked at all, so every such upload would have to be rerouted
+	//through a staging surface. Tried, and it fails at the first texture.
+	//
+	//So the frame-latency spin stays for now, and fixing it means either that
+	//upload rework or bounding the queue some other way.
 	Init(d3dpp, false);
 }
 
