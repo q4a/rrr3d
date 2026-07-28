@@ -106,23 +106,39 @@ void MTLBlitCommandEncoder_encodeCommands(obj_handle_t encoder, const struct wmt
 		{
 			const auto& c = As<wmtcmd_blit_copy_from_buffer_to_texture>(cmd);
 
-			/* The alpha actually reaching the GPU -- this is how textures upload. */
-			if (::rrr3d::TraceEnabled() && c.bytes_per_row == c.size.width * 4 && c.src && c.level == 0 && c.size.width > 64)
+			/* The alpha actually reaching the GPU -- this is how textures upload.
+			 *
+			 * Select on the destination's pixel format, not on the source pitch.
+			 * A DXT3/DXT5 row is 16 bytes per 4x4 block, which is exactly
+			 * width * 4 -- so a pitch test admits compressed uploads and counts
+			 * block bits as if they were alpha. The first cut did that, and its
+			 * log filled with DDS uploads before a single GUI texture appeared. */
+			if (::rrr3d::TraceEnabled() && c.src && c.dst && c.level == 0)
 			{
+				id<MTLTexture> t = Unwrap<id<MTLTexture>>(c.dst);
+				const MTLPixelFormat pf = [t pixelFormat];
+				const bool rgba8 = pf == MTLPixelFormatBGRA8Unorm || pf == MTLPixelFormatRGBA8Unorm ||
+				                   pf == MTLPixelFormatBGRA8Unorm_sRGB || pf == MTLPixelFormatRGBA8Unorm_sRGB;
+
 				static int logged = 0;
-				if (logged < 14)
+				if (rgba8 && c.bytes_per_row >= c.size.width * 4 && logged < 64)
 				{
 					++logged;
 					id<MTLBuffer> b = Unwrap<id<MTLBuffer>>(c.src);
 					const unsigned char* px =
 						(const unsigned char*)[b contents] + c.src_offset;
 					unsigned translucent = 0;
-					for (uint64_t i = 0; i < c.size.width * c.size.height; ++i)
-						if (px[i * 4 + 3] != 255)
-							++translucent;
-					RRR3D_TRACE("BLITTEX %llux%llu level=%llu translucent=%u/%llu",
+					for (uint64_t y = 0; y < c.size.height; ++y)
+					{
+						const unsigned char* row = px + y * c.bytes_per_row;
+						for (uint64_t x = 0; x < c.size.width; ++x)
+							if (row[x * 4 + 3] != 255)
+								++translucent;
+					}
+					RRR3D_TRACE("BLITTEX %llux%llu level=%llu pf=%u pitch=%llu translucent=%u/%llu",
 						(unsigned long long)c.size.width, (unsigned long long)c.size.height,
-						(unsigned long long)c.level, translucent,
+						(unsigned long long)c.level, (unsigned)pf,
+						(unsigned long long)c.bytes_per_row, translucent,
 						(unsigned long long)(c.size.width * c.size.height));
 				}
 			}

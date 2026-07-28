@@ -47,6 +47,10 @@ completion.
 - **Every texture the game ships loads**: 312 DDS across DXT1/3/5 and
   uncompressed, 6 of them cubemaps, plus 213 PNG and 2 JPG.
 - **Text renders** through a real `ID3DXFont` over stb_truetype.
+- **Sprites blend.** Menus, character select and the garage draw their masked
+  art correctly — curved panels, the cursor and the HUD frames. This was a
+  defect until the effects runtime was made to restore the shaders it binds;
+  see lesson 7.
 - The bridge harness passes at every layer: plain draws, vertex descriptors,
   argument buffers, `newBufferWithBytesNoCopy`, function-constant
   specialisation, and blending.
@@ -57,7 +61,7 @@ completion.
 ## What is NOT verified
 
 - **The MSVC build.** Unverified since commit 12, and `Rock3dEngine` cannot
-  compile on Windows until it moves to PhysX 4.1 — see section 4.
+  compile on Windows until it moves to PhysX 4.1 — see section 5.
 - **Physics correctness.** The simulation runs; the car's behaviour is wrong
   (see section 2).
 - **Audio, video and input** remain stubs (section 3).
@@ -86,46 +90,12 @@ and a NaN average luminance would black the frame like this.
 This one fault explained several symptoms that looked unrelated: "the
 character portrait does not load", "the tick is missing", "there is no 3D".
 
-### 2. Sprites draw without transparency
+### 2. The car's position is wrong during a race
 
-Masked regions come out white, so curved panels render square. Affects menus,
-character select and race HUD alike.
-
-**It is not a blending bug**, despite appearances. `BridgeTriangle blend`
-proves blending works through this exact path, and DXVK does request it —
-pipelines carry `blend=1, src=4, dst=5`, which is
-`SourceAlpha`/`OneMinusSourceAlpha`. Forcing an alpha-test discard on every
-GUI draw changes nothing, which means **the fragment shader sees alpha = 1**
-exactly where the art is transparent.
-
-Traced present at every CPU stage (`RRR3D_TRACE=1`):
-
-| Stage | Trace | Result |
-|---|---|---|
-| PNG decode | `PNG` | alpha present — 380032 translucent px in one panel |
-| engine pixel data | `UPLOAD` | same counts, alpha intact |
-| texture creation | `TEX2D` | `D3DFMT_A8R8G8B8` |
-| texture views | `VIEW` | identity swizzle, not alpha→One |
-| samplers | `SAMPLER` | normalized coords, transparent-black border |
-
-Also established: `MTLTexture_replaceRegion` is never called — DXVK stages
-textures through a buffer and a `copyFromBuffer:toTexture:` blit, which is
-what the `BLITTEX` trace watches.
-
-So the gap is between the engine's system-memory copy and what the GPU texture
-actually holds. `UpdateTexture` staging into the DEFAULT pool is the prime
-suspect, being the one step not yet observed directly. A bypass was attempted
-— creating those textures MANAGED so `DoUpdate` writes them directly — and it
-fails with `D3DERR_INVALIDCALL` here, so confirming it needs another route:
-reading back the staged texture, or matching a `BLITTEX` against a known GUI
-texture by size.
-
-### 3. The car's position is wrong during a race
-
-Untouched. This is the vehicle model — see section 4, where it has been the
+Untouched. This is the vehicle model — see section 5, where it has been the
 identified highest-risk item since the original plan.
 
-### 4. The `GPUSync` spin
+### 3. The `GPUSync` spin
 
 `Engine::GPUSync` sits in `while (GetData(...) == S_FALSE);`, a spin with no
 yield that measures at **~88% of the main thread**, and deliberately holds a
@@ -163,7 +133,7 @@ RRR3D_TRACE=1              ABI-boundary tracing to rrr3d-trace.log
 RRR3D_DUMP_FRAME=<n>       back buffer to frame.tga on GUI frame n
 RRR3D_DUMP_SCENE=<n>       back buffer to frame3d.tga on 3D frame n
 RRR3D_NO_HDR=1             skip tone mapping (see defect 1)
-RRR3D_FORCE_ALPHATEST=1    discard low-alpha GUI fragments (see defect 2)
+RRR3D_FORCE_ALPHATEST=1    discard low-alpha GUI fragments
 MTL_DEBUG_LAYER=1 MTL_SHADER_VALIDATION=1
 ```
 
@@ -198,6 +168,18 @@ the shape of bug a Windows-to-anything port produces:
 6. **Verify the premise before bisecting the plumbing.** Transparency was
    chased through the entire blend path before a harness showed blending was
    never at fault.
+7. **A reimplemented API has to restore state, not just apply it.**
+   `ID3DXEffect::Begin` promises to preserve device state and `End` to put it
+   back. The port applied each pass's shaders and render states but only ever
+   restored the render states, so a 3D pass left its pixel shader bound. Every
+   later GUI draw — fixed-function, expecting no shader — ran that shader
+   instead, which writes alpha 1 and made every sprite opaque. It looked like a
+   texture-alpha bug for a long time, and the trail through PNG decode, the
+   engine's pixel data, the staging copy and the Metal blit found alpha correct
+   at every step, because it was. **The tell was that the main menu was fine and
+   character select was not**: the menu draws no 3D scene, so nothing had bound
+   a shader before it. A defect that depends on which screen you are on is a
+   defect in what the previous screen left behind.
 
 ## 5. PhysX: migrated, correctness open
 
@@ -209,7 +191,7 @@ Closed properly along the way: momentum (angular as `R·I·Rᵀ·ω`, not
 collision groups and masks via `PxDefaultSimulationFilterShader`, actor pair
 exceptions, and `NX_AF_LOCK_COM`.
 
-### The vehicle model — the cause of defect 3
+### The vehicle model — the cause of defect 2
 
 The highest-risk item in the port, and now the visible one. PhysX 3+ deleted
 the built-in wheel shape, so this is a rewrite rather than a rename.
@@ -296,15 +278,15 @@ change:
 
 ## Suggested order
 
-1. **Transparency** (defect 2) — affects every screen. Next step is observing
-   the staged texture directly, not re-checking blend state.
-2. **HDR** (defect 1) — currently gated off; the game looks right without it,
-   but it is one value in a working chain.
-3. **The vehicle model** (defect 3) — the port's highest-risk item, and now
+1. **HDR** (defect 1) — currently gated off; the game looks right without it,
+   but it is one value in a working chain. Worth re-checking now that the
+   effects runtime restores shaders, since the tone-mapping passes are effects
+   and the reduction runs several of them back to back.
+2. **The vehicle model** (defect 2) — the port's highest-risk item, and now
    judgeable because the game runs.
-4. **Audio** — the largest untouched subsystem, and self-contained.
-5. **Move Windows to PhysX 4.1** — unblocks CI as a regression signal for
+3. **Audio** — the largest untouched subsystem, and self-contained.
+4. **Move Windows to PhysX 4.1** — unblocks CI as a regression signal for
    everything since commit 12.
-6. **Input** (SDL_GameController), **video**, and the `GPUSync` spin.
+5. **Input** (SDL_GameController), **video**, and the `GPUSync` spin.
 
-Items 3, 4, 5 and 6 serve Linux as much as macOS.
+Items 2, 3, 4 and 5 serve Linux as much as macOS.

@@ -831,6 +831,92 @@ void Context::BeginDrawGraphic(Graphic& graphic)
 		GetCI().SetRenderState(graph::rsAlphaFunc, D3DCMP_GREATER);
 	}
 
+	//DIAGNOSTIC: what the device actually has, next to what the engine believes
+	//it has. This is the probe that found the leaked pixel shader; it is kept
+	//because it is the only view of the difference.
+	//
+	//A GUI draw is fixed-function, which means no shader bound and the texture
+	//stage states deciding the alpha. Two things can quietly break that and
+	//neither reports an error:
+	//
+	//  - a shader left bound by whoever drew last, which then runs instead of
+	//    the fixed-function pipeline;
+	//  - ContextInfo::SetRenderState forwarding nothing, because it only calls
+	//    the driver when its shadow copy disagrees -- so state written to the
+	//    device behind its back is invisible to it and never re-sent.
+	//
+	//Reading the device is the only way to see either; the shadow will always
+	//agree with itself.
+	if (::rrr3d::TraceEnabled())
+	{
+		IDirect3DDevice9* device = GetEngine().GetDriver().GetDevice();
+
+		DWORD devBlend = 0, devSrc = 0, devDst = 0, devTest = 0, devFunc = 0, devRef = 0, devWrite = 0;
+		device->GetRenderState(D3DRS_ALPHABLENDENABLE, &devBlend);
+		device->GetRenderState(D3DRS_SRCBLEND, &devSrc);
+		device->GetRenderState(D3DRS_DESTBLEND, &devDst);
+		device->GetRenderState(D3DRS_ALPHATESTENABLE, &devTest);
+		device->GetRenderState(D3DRS_ALPHAFUNC, &devFunc);
+		device->GetRenderState(D3DRS_ALPHAREF, &devRef);
+		device->GetRenderState(D3DRS_COLORWRITEENABLE, &devWrite);
+
+		DWORD devAlphaOp = 0, devAlphaArg1 = 0, devAlphaArg2 = 0;
+		device->GetTextureStageState(0, D3DTSS_ALPHAOP, &devAlphaOp);
+		device->GetTextureStageState(0, D3DTSS_ALPHAARG1, &devAlphaArg1);
+		device->GetTextureStageState(0, D3DTSS_ALPHAARG2, &devAlphaArg2);
+
+		//Which draw this is, so a state can be matched to the art it draws.
+		int blending = -1;
+		unsigned texW = 0, texH = 0;
+		std::string texName = "(none)";
+		if (graphic.GetMaterial())
+		{
+			blending = graphic.GetMaterial()->GetBlending();
+			if (graph::Tex2DResource* tex = graphic.GetMaterial()->GetSampler().GetTex())
+				if (const res::ImageResource* data = tex->GetData())
+				{
+					texW = data->GetWidth();
+					texH = data->GetHeight();
+					texName = data->GetFileName();
+				}
+		}
+
+		//What is still bound from whoever drew last. A GUI draw is fixed-function;
+		//an effect that leaves its shaders on the device would run them here.
+		IDirect3DVertexShader9* vs = 0;
+		IDirect3DPixelShader9* ps = 0;
+		device->GetVertexShader(&vs);
+		device->GetPixelShader(&ps);
+		if (vs) vs->Release();
+		if (ps) ps->Release();
+
+		const DWORD shadowBlend = GetCI().GetRenderState(graph::rsAlphaBlendEnable);
+
+		//Log the wrong draws, not the frame. Anything here contradicts what the
+		//material asked for, and a first-N trace would never reach it: the first
+		//few hundred GUI draws of a run are all startup, and every screen that
+		//shows the fault is several menus in.
+		const bool wrong = (blending == Material::bmTransparency && devBlend == 0) ||
+		                   (shadowBlend != 0) != (devBlend != 0) || vs || ps;
+
+		//And one ordinary draw in every two hundred, so that "nothing was wrong"
+		//can be told apart from "the screen was never reached".
+		static unsigned long seen = 0;
+		if (wrong || (++seen % 200) == 0)
+			RRR3D_TRACE_FIRST(400,
+				"GUIDRAW blending=%d tex=%ux%u device blend=%lu src=%lu dst=%lu test=%lu func=%lu ref=%lu "
+				"cwrite=0x%lx alphaOp=%lu arg1=%lu arg2=%lu vs=%p ps=%p | shadow blend=%lu | matDiffuseA=%.3f | %s",
+				blending, texW, texH,
+				(unsigned long)devBlend, (unsigned long)devSrc, (unsigned long)devDst,
+				(unsigned long)devTest, (unsigned long)devFunc, (unsigned long)devRef,
+				(unsigned long)devWrite,
+				(unsigned long)devAlphaOp, (unsigned long)devAlphaArg1, (unsigned long)devAlphaArg2,
+				(void*)vs, (void*)ps,
+				(unsigned long)shadowBlend,
+				GetCI().GetMaterial().diffuse.a,
+				texName.c_str());
+	}
+
 	GetCI().BeginDraw();
 }
 

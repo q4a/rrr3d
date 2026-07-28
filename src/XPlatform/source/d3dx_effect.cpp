@@ -604,7 +604,8 @@ class Effect: public ID3DXEffect
 public:
 	Effect(IDirect3DDevice9* device, EffectPool* pool)
 		: _refCount(1), _device(device), _pool(pool),
-		  _currentTechnique(NULL), _activePass(NULL), _began(false)
+		  _currentTechnique(NULL), _activePass(NULL), _began(false),
+		  _beginFlags(0), _savedVertexShader(NULL), _savedPixelShader(NULL)
 	{
 		_device->AddRef();
 		if (_pool)
@@ -741,6 +742,33 @@ private:
 
 	/* Saved on Begin, restored on End -- Begin's contract is that it preserves state. */
 	std::vector<RenderState> _savedStates;
+
+	/*
+	 * The shaders that were bound before Begin.
+	 *
+	 * A pass sets a vertex and a pixel shader and D3DX puts back whatever was
+	 * there when End is reached, unless the caller passed D3DXFX_DONOTSAVESTATE.
+	 * Leaving them bound is not a cosmetic deviation: the engine draws its GUI
+	 * through the fixed-function pipeline, which means "no shader bound". A 3D
+	 * pass that leaks its pixel shader turns every later GUI quad into a run of
+	 * that shader, which ignores the texture-stage alpha and writes 1 -- so
+	 * sprites go opaque and masked corners come out as squares. The main menu
+	 * escaped it only because nothing draws a 3D scene behind it.
+	 */
+	DWORD _beginFlags;
+	IDirect3DVertexShader9* _savedVertexShader;
+	IDirect3DPixelShader9* _savedPixelShader;
+
+	void ReleaseSavedShaders()
+	{
+		if (_savedVertexShader)
+			_savedVertexShader->Release();
+		if (_savedPixelShader)
+			_savedPixelShader->Release();
+
+		_savedVertexShader = NULL;
+		_savedPixelShader = NULL;
+	}
 };
 
 Effect::~Effect()
@@ -757,6 +785,8 @@ Effect::~Effect()
 		}
 		delete technique;
 	}
+
+	ReleaseSavedShaders();
 
 	if (_pool)
 		_pool->Release();
@@ -1161,6 +1191,15 @@ HRESULT STDMETHODCALLTYPE Effect::Begin(UINT* passes, DWORD flags)
 	if (passes)
 		*passes = static_cast<UINT>(_currentTechnique->passes.size());
 
+	/* Remember what was bound, so End can put it back. */
+	ReleaseSavedShaders();
+	_beginFlags = flags;
+	if (!(flags & D3DXFX_DONOTSAVESTATE))
+	{
+		_device->GetVertexShader(&_savedVertexShader);
+		_device->GetPixelShader(&_savedPixelShader);
+	}
+
 	_began = true;
 	return D3D_OK;
 }
@@ -1201,6 +1240,18 @@ HRESULT STDMETHODCALLTYPE Effect::EndPass()
 
 HRESULT STDMETHODCALLTYPE Effect::End()
 {
+	/*
+	 * Put the shaders back. NULL is a value here, not an absence -- restoring a
+	 * NULL pixel shader is what returns the device to fixed-function, which is
+	 * the whole point.
+	 */
+	if (!(_beginFlags & D3DXFX_DONOTSAVESTATE))
+	{
+		_device->SetVertexShader(_savedVertexShader);
+		_device->SetPixelShader(_savedPixelShader);
+	}
+	ReleaseSavedShaders();
+
 	_began = false;
 	return D3D_OK;
 }

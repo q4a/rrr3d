@@ -112,13 +112,6 @@ void MemPoolResource::OnResetDevice()
 
 D3DPOOL MemPoolResource::GetMemoryPool() const
 {
-	//DIAGNOSTIC: force MANAGED so Tex2DResource::DoUpdate takes the direct path
-	//(lock the real texture and write it) instead of staging through a
-	//SYSTEMMEM copy and UpdateTexture. If alpha appears, UpdateTexture is where
-	//it is being lost.
-	if (_memoryPool == D3DPOOL_DEFAULT && std::getenv("RRR3D_TEX_MANAGED"))
-		return D3DPOOL_MANAGED;
-
 	return _memoryPool;
 }
 
