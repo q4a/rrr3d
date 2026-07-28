@@ -2681,6 +2681,29 @@ void GraphManager::SetGraphOption(GraphOption option, bool value, GraphQuality q
 			break;
 
 		case goHDR:
+			//KNOWN ISSUE: HDR tone mapping renders the whole scene black on this
+			//backend, so RRR3D_NO_HDR=1 turns it off and everything else appears.
+			//
+			//This is not a workaround for a missing feature -- the HDR chain runs:
+			//the scene is drawn into an A16B16G16R16F target, reduced 128x128 ->
+			//1x1 for average luminance, and tone mapped. Every pass executes with
+			//draws in it. The output is black, which means the luminance coming
+			//out of that reduction is wrong rather than absent.
+			//
+			//Ruled out already: log(0), which the shader guards with a +0.0001
+			//epsilon in Down3x3LumLog; and the scene target itself, since the
+			//image is correct the moment tone mapping is skipped.
+			//
+			//Still to check: whether A16B16G16R16F render targets round-trip
+			//correctly here, and whether d9mt's unconditional fast-math MSL
+			//changes the exp/log reduction enough to matter -- its own notes warn
+			//that fast math can turn an unguarded intermediate into a NaN, and a
+			//NaN average luminance would black the frame exactly like this.
+			if (std::getenv("RRR3D_NO_HDR"))
+			{
+				FreeHDREff();
+				break;
+			}
 			value ? InitHDREff() : FreeHDREff();
 			break;
 
