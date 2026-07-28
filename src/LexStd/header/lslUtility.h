@@ -641,6 +641,50 @@ inline lsl::stringA ConvertStrWToA(const lsl::stringW& str, UINT codePage = CP_A
 	return ConvertStrWToA(str.c_str(), str.length(), codePage);
 }
 
+/*
+ * UTF-16LE file bytes to a wide string.
+ *
+ * The game's localisation files are UTF-16LE, and the original code read them
+ * by casting the raw bytes to wchar_t* and halving the length. That is correct
+ * only where wchar_t is 16 bits, which is a Windows property, not a portable
+ * one -- wchar_t is 32 bits on macOS and Linux, so the same cast reads two
+ * UTF-16 units as one nonsense code point.
+ *
+ * Decoding the units explicitly makes the encoding a property of the file
+ * rather than of the compiler, so this reads identically on both.
+ */
+inline lsl::stringW ConvertStrUtf16LEToW(const char* data, unsigned bytes)
+{
+	lsl::stringW out;
+	const unsigned units = bytes / 2;
+	out.reserve(units);
+
+	for (unsigned i = 0; i < units; ++i)
+	{
+		const unsigned char lo = static_cast<unsigned char>(data[i * 2]);
+		const unsigned char hi = static_cast<unsigned char>(data[i * 2 + 1]);
+		unsigned code = static_cast<unsigned>(lo) | (static_cast<unsigned>(hi) << 8);
+
+		/* Surrogate pair; on Windows these stay as-is, wchar_t being UTF-16. */
+		if (code >= 0xd800 && code <= 0xdbff && i + 1 < units && sizeof(wchar_t) > 2)
+		{
+			const unsigned char lo2 = static_cast<unsigned char>(data[(i + 1) * 2]);
+			const unsigned char hi2 = static_cast<unsigned char>(data[(i + 1) * 2 + 1]);
+			const unsigned trail = static_cast<unsigned>(lo2) | (static_cast<unsigned>(hi2) << 8);
+
+			if (trail >= 0xdc00 && trail <= 0xdfff)
+			{
+				code = 0x10000 + ((code - 0xd800) << 10) + (trail - 0xdc00);
+				++i;
+			}
+		}
+
+		out.push_back(static_cast<lsl::stringW::value_type>(code));
+	}
+
+	return out;
+}
+
 }
 
 #endif

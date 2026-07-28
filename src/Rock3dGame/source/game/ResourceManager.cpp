@@ -1077,7 +1077,9 @@ void StringLibrary::Load(std::istream& stream)
 	char* data = new char[size];
 	stream.read(data, size);
 
-	std::stringstream sstream(ConvertStrWToA((wchar_t*)data, size/2, CP_THREAD_ACP));
+	//The file is UTF-16LE. Casting its bytes to wchar_t* only works where
+	//wchar_t is 16 bits; see the note on ConvertStrUtf16LEToW.
+	std::stringstream sstream(ConvertStrWToA(lsl::ConvertStrUtf16LEToW(data, size), CP_THREAD_ACP));
 	sstream.get();
 	LSL_ASSERT(!sstream.fail());
 
