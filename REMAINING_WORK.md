@@ -51,6 +51,9 @@ completion.
   art correctly — curved panels, the cursor and the HUD frames. This was a
   defect until the effects runtime was made to restore the shaders it binds;
   see lesson 7.
+- **A race renders, with the post-processing chain on.** Track, cars, water
+  reflections, environment maps on bodywork, explosions, HDR and tone mapping.
+  This was three defects that turned out to be one; see lesson 8.
 - The bridge harness passes at every layer: plain draws, vertex descriptors,
   argument buffers, `newBufferWithBytesNoCopy`, function-constant
   specialisation, and blending.
@@ -68,45 +71,12 @@ completion.
 
 ## The known defects, in the order they hurt
 
-### 1. Tone mapping renders the scene black
-
-`RRR3D_NO_HDR=1` works around it. It now gates two things, and the second is
-the one that matters: `InitHDREff` in `GraphManager::SetGraphOption`, and
-`_toneMap->Render` in `GraphManager::Render`.
-
-**Gating only the first was never enough**, which is what made this look
-mysterious for so long. Bloom and sun shafts each call `InitToneMap`, so
-`_toneMapRef` stays non-zero and tone mapping ran anyway — reading and writing
-the scene target with its HDR luminance input missing, and blacking the frame.
-So "HDR is off" and "the scene is black" were both true at once. With tone
-mapping actually skipped, a race renders: track, cars, guard rails, particles.
-
-The menus were never affected because they take the direct-to-back-buffer leg
-and never reach a post-processing pass at all. That is why this looked like a
-3D-scene defect rather than a post-processing one.
-
-The HDR chain itself still runs and is still wrong: the scene draws into an
-`A16B16G16R16F` target, reduces 128×128 → 1×1 for average luminance, and tone
-maps. Every pass executes with draws in it, and the output is black, so the
-luminance coming out of that reduction is wrong rather than absent.
-
-Ruled out: `log(0)`, which `Down3x3LumLog` guards with a `+0.0001` epsilon; and
-the `A16B16G16R16F` scene target, which does round-trip — forcing it to
-`A8R8G8B8` changed nothing while the scene was black.
-
-Still to check: whether d9mt's unconditional fast-math MSL turns an
-intermediate in the exp/log reduction into a NaN — its own notes warn about
-exactly that, and a NaN average luminance would black the frame like this.
-`AdaptLum` is worth reading closely too: it assigns a `tex2D` result to a
-`float2` and clamps only `.x`, so `.y` carries the max-luminance channel
-unclamped into the exposure calculation.
-
-### 2. The car's position is wrong during a race
+### 1. The car's position is wrong during a race
 
 Untouched. This is the vehicle model — see section 5, where it has been the
 identified highest-risk item since the original plan.
 
-### 3. The `GPUSync` spin
+### 2. The `GPUSync` spin
 
 `Engine::GPUSync` sits in `while (GetData(...) == S_FALSE);`, a spin with no
 yield that measures at **~88% of the main thread**, and deliberately holds a
@@ -143,7 +113,7 @@ Which is what these are for:
 RRR3D_TRACE=1              ABI-boundary tracing to rrr3d-trace.log
 RRR3D_DUMP_FRAME=<n>       back buffer to frame.tga on GUI frame n
 RRR3D_DUMP_SCENE=<n>       back buffer to frame3d.tga on 3D frame n
-RRR3D_NO_HDR=1             skip the HDR pass and tone mapping (see defect 1)
+RRR3D_NO_HDR=1             skip the HDR pass and tone mapping
 RRR3D_AUTORACE=<planet>    skip the menus and start a race on that planet
 RRR3D_SCENE_CLEAR=1        clear the scene magenta and the back buffer green
 RRR3D_FORCE_ALPHATEST=1    discard low-alpha GUI fragments
@@ -152,9 +122,14 @@ MTL_DEBUG_LAYER=1 MTL_SHADER_VALIDATION=1
 
 `RRR3D_AUTORACE` matters more than it looks: a race is seven menus deep, and
 every graphics defect that only appears in one is otherwise expensive to look
-at twice. `RRR3D_SCENE_CLEAR` is what cracked defect 1 — the scene coming up
-green and turning black half a second later said the composite was fine and
-something later in the frame was painting over it.
+at twice. `RRR3D_SCENE_CLEAR` is what cracked the black race screen — the scene
+coming up green and turning black half a second later said the composite was
+fine and something later in the frame was painting over it.
+
+`RRR3D_TRACE=1` also reports two things worth knowing about the effects
+runtime: `FXSAMPLER` names every effect sampler as it is bound, or logs it if
+it cannot be, and `LUM` reads the HDR luminance chain back at each reduction
+stage. Both are one line each and both would have found lesson 8 in a minute.
 
 Metal's validation layer found the sampler-layout bug. It did **not** find the
 stencil bug, because a stencil compare of Never is perfectly legal — the
@@ -199,6 +174,21 @@ the shape of bug a Windows-to-anything port produces:
    character select was not**: the menu draws no 3D scene, so nothing had bound
    a shader before it. A defect that depends on which screen you are on is a
    defect in what the previous screen left behind.
+8. **A declaration that is not a constant is invisible to a constant table.**
+   An `.fx` writes `texture diffTex;` and `sampler2D diffMap = sampler_state {
+   Texture = diffTex; };`. The compiled shader's constant table lists `diffMap`
+   and never `diffTex`, because a texture object is not a shader constant. The
+   port built its parameter table from the constant table alone, so
+   `GetParameterByName("diffTex")` returned NULL, every `SetTexture` the engine
+   made was dropped without a word, and **not one effect sampler in the game was
+   ever bound**. It looked like three separate defects — the scene black under
+   tone mapping, no shadows, no environment maps — and it was one missing link.
+   The scene still drew because the engine independently binds material textures
+   to the same low stages; what broke was everything that does not go through a
+   material. The lesson is the shape: a silent `SetTexture` that hits no
+   parameter is indistinguishable from one that works, so the parameter table
+   has to be built from what the source declares, not only from what the
+   compiler emits.
 
 ## 5. PhysX: migrated, correctness open
 
@@ -297,15 +287,16 @@ change:
 
 ## Suggested order
 
-1. **HDR** (defect 1) — currently gated off; the game looks right without it,
-   but it is one value in a working chain. Worth re-checking now that the
-   effects runtime restores shaders, since the tone-mapping passes are effects
-   and the reduction runs several of them back to back.
-2. **The vehicle model** (defect 2) — the port's highest-risk item, and now
-   judgeable because the game runs.
+1. **The vehicle model** (defect 1) — the port's highest-risk item, and now
+   judgeable, because a race renders and can be reached in one command.
+2. **A second look at the rendering, now that it can be seen.** Every effect
+   sampler was unbound until this session, so nothing that depends on one has
+   ever been judged: shadow maps, environment maps, normal maps, water,
+   refraction, sun shafts. They draw. Whether they draw *correctly* is
+   unexamined, and the shadow-map path in particular binds two samplers.
 3. **Audio** — the largest untouched subsystem, and self-contained.
 4. **Move Windows to PhysX 4.1** — unblocks CI as a regression signal for
    everything since commit 12.
 5. **Input** (SDL_GameController), **video**, and the `GPUSync` spin.
 
-Items 2, 3, 4 and 5 serve Linux as much as macOS.
+Items 1, 3, 4 and 5 serve Linux as much as macOS.

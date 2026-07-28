@@ -34,6 +34,7 @@
 
 #include "xplatform.h"
 #include "directx/d3dx9.h"
+#include "rrr3d_trace.h"
 
 #include <map>
 #include <string>
@@ -358,6 +359,122 @@ size_t SkipBraceBlock(const std::string& text, size_t pos)
 			return pos + 1;
 	}
 	return text.size();
+}
+
+bool IsSamplerTypeKeyword(const std::string& word)
+{
+	return word == "sampler" || word == "sampler1D" || word == "sampler2D" ||
+	       word == "sampler3D" || word == "samplerCUBE";
+}
+
+/*
+ * Map each sampler an .fx declares to the texture it reads.
+ *
+ *   texture diffTex;
+ *   sampler2D diffMap: register(s0) = sampler_state { Texture = diffTex; };
+ *
+ * The compiled constant table names the *sampler* -- diffMap -- but the engine
+ * sets textures by their *texture* name, diffTex. Without this link every
+ * sampler in every effect resolves to a parameter that exists and holds no
+ * texture, and the stage is left with whatever was bound last. Nothing errors:
+ * the scene still draws, because the engine independently binds its material
+ * textures to the same low stages, so what breaks is everything that does not
+ * go through a material -- shadow maps, env maps, and the whole post-processing
+ * chain, whose samplers are the only thing feeding them.
+ *
+ * The value form varies across these files: `Texture = diffTex;`,
+ * `Texture = <diffTex>;` and `Texture = (depthTex);` all appear.
+ */
+void CollectSamplerTextures(const std::string& text, std::map<std::string, std::string>& out)
+{
+	size_t pos = 0;
+	while (pos < text.size())
+	{
+		const size_t found = text.find("sampler", pos);
+		if (found == std::string::npos)
+			break;
+
+		if (found != 0 && IsIdentChar(text[found - 1]))
+		{
+			pos = found + 7;
+			continue;
+		}
+
+		size_t cursor = found;
+		const std::string keyword = ReadIdent(text, cursor);
+		if (!IsSamplerTypeKeyword(keyword))
+		{
+			pos = found + 7;
+			continue;
+		}
+
+		const std::string samplerName = ReadIdent(text, cursor);
+		if (samplerName.empty())
+		{
+			pos = cursor;
+			continue;
+		}
+
+		/* Step over an optional `: register(sN)` before the initialiser. */
+		SkipSpace(text, cursor);
+		while (cursor < text.size() && text[cursor] != '=' && text[cursor] != ';' && text[cursor] != '{')
+			++cursor;
+
+		if (cursor >= text.size() || text[cursor] != '=')
+		{
+			pos = cursor;
+			continue;
+		}
+		++cursor;
+
+		const std::string init = ReadIdent(text, cursor);
+		SkipSpace(text, cursor);
+		if (init != "sampler_state" || cursor >= text.size() || text[cursor] != '{')
+		{
+			pos = cursor;
+			continue;
+		}
+
+		const size_t blockEnd = SkipBraceBlock(text, cursor);
+		const std::string block = text.substr(cursor, blockEnd - cursor);
+		pos = blockEnd;
+
+		size_t inner = 0;
+		while (inner < block.size())
+		{
+			const size_t at = block.find("Texture", inner);
+			if (at == std::string::npos)
+				break;
+
+			const bool leftOk = at == 0 || !IsIdentChar(block[at - 1]);
+			size_t after = at + 7;
+			if (!leftOk || (after < block.size() && IsIdentChar(block[after])))
+			{
+				inner = after;
+				continue;
+			}
+
+			SkipSpace(block, after);
+			if (after >= block.size() || block[after] != '=')
+			{
+				inner = after;
+				continue;
+			}
+			++after;
+
+			SkipSpace(block, after);
+			while (after < block.size() && (block[after] == '<' || block[after] == '('))
+			{
+				++after;
+				SkipSpace(block, after);
+			}
+
+			const std::string textureName = ReadIdent(block, after);
+			if (!textureName.empty())
+				out[samplerName] = textureName;
+			break;
+		}
+	}
 }
 
 /*
@@ -743,6 +860,9 @@ private:
 	/* Saved on Begin, restored on End -- Begin's contract is that it preserves state. */
 	std::vector<RenderState> _savedStates;
 
+	/* Sampler name -> texture name, read off each sampler_state block. */
+	std::map<std::string, std::string> _samplerTextures;
+
 	/*
 	 * The shaders that were bound before Begin.
 	 *
@@ -807,6 +927,10 @@ bool Effect::Build(const void* source, size_t size, const D3DXMACRO* macros,
 	std::string text;
 	if (!PreprocessSource(source, size, macros, include, "effect.fx", text, log))
 		return false;
+
+	//Before the technique blocks are lifted out: which texture each sampler
+	//reads. The compiled constant table only knows sampler names.
+	CollectSamplerTextures(text, _samplerTextures);
 
 	/* Lift out the technique blocks; what is left is the HLSL to compile. */
 	std::string hlsl;
@@ -987,6 +1111,37 @@ bool Effect::Build(const void* source, size_t size, const D3DXMACRO* macros,
 					}
 				}
 			}
+		}
+	}
+
+	/*
+	 * And a parameter for every texture a sampler_state names.
+	 *
+	 * A `texture diffTex;` declaration is not a shader constant -- only the
+	 * sampler that reads it is -- so it never appears in a constant table and
+	 * the loop above never sees it. Without this, GetParameterByName("diffTex")
+	 * returns NULL, the engine's SetTexture call is dropped without a word, and
+	 * every effect samples an unbound stage.
+	 */
+	for (std::map<std::string, std::string>::const_iterator iter = _samplerTextures.begin();
+		iter != _samplerTextures.end(); ++iter)
+	{
+		const std::string& textureName = iter->second;
+
+		if (parameters.find(textureName) == parameters.end())
+		{
+			Parameter parameter;
+			parameter.name = textureName;
+			parameters.insert(Parameters::value_type(textureName, parameter));
+		}
+
+		if (_parameterHandles.find(textureName) == _parameterHandles.end())
+		{
+			ParameterHandle handle;
+			handle.kind = hkParameter;
+			handle.name = textureName;
+			_parameterHandles.insert(std::map<std::string, ParameterHandle>::value_type(
+				textureName, handle));
 		}
 	}
 
@@ -1317,13 +1472,34 @@ void Effect::UploadConstants(const std::vector<Constant>& constants, bool vertex
 	{
 		const Constant& constant = constants[i];
 		const Parameter* parameter = FindParameter(constant.name);
-		if (!parameter)
-			continue;
 
 		if (constant.registerSet == cRegSetSampler)
 		{
-			if (!parameter->texture)
+			/*
+			 * The constant table names the sampler; the engine sets the texture.
+			 * Resolve the one to the other through the sampler_state block.
+			 *
+			 * A parameter under the sampler's own name wins if it carries a
+			 * texture, because SetTexture on a sampler handle is legal D3DX and
+			 * some call sites use it.
+			 */
+			if (!parameter || !parameter->texture)
+			{
+				const std::map<std::string, std::string>::const_iterator mapped =
+					_samplerTextures.find(constant.name);
+				if (mapped != _samplerTextures.end())
+					parameter = FindParameter(mapped->second);
+			}
+
+			if (!parameter || !parameter->texture)
+			{
+				RRR3D_TRACE_FIRST(400, "FXSAMPLER unbound '%s' reg=%u vertex=%d",
+					constant.name.c_str(), constant.registerIndex, (int)vertex);
 				continue;
+			}
+
+			RRR3D_TRACE_FIRST(400, "FXSAMPLER bound '%s' reg=%u tex=%p",
+				constant.name.c_str(), constant.registerIndex, (void*)parameter->texture);
 
 			/*
 			 * Vertex textures occupy a separate range on the device; D3D9 spells
@@ -1337,7 +1513,7 @@ void Effect::UploadConstants(const std::vector<Constant>& constants, bool vertex
 			continue;
 		}
 
-		if (parameter->data.empty() || constant.registerCount == 0)
+		if (!parameter || parameter->data.empty() || constant.registerCount == 0)
 			continue;
 
 		const float* source = reinterpret_cast<const float*>(parameter->data.data());

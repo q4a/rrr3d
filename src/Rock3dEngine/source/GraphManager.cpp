@@ -2371,15 +2371,10 @@ bool GraphManager::Render(float deltaTime, bool pause)
 				_hdrEff->Render(*_engine);
 			if (_bloomEff)
 				_bloomEff->Render(*_engine);
-			//RRR3D_NO_HDR skips this too.
-			//
-			//It used to gate only InitHDREff, which was never enough: bloom and
-			//sun shafts each call InitToneMap, so tone mapping ran anyway --
-			//reading and writing the scene target -- with its HDR luminance
-			//input missing, and blacked the frame. That is why "HDR is off" and
-			//"the scene is black" were both true at once, and why the menus
-			//looked fine: they take the direct-to-back-buffer leg and never
-			//reach this.
+			//RRR3D_NO_HDR skips this too, because gating only InitHDREff never
+			//covered it: bloom and sun shafts each call InitToneMap, so
+			//_toneMapRef stays non-zero and tone mapping runs regardless of
+			//whether the HDR pass does.
 			if (_toneMapRef && !std::getenv("RRR3D_NO_HDR"))
 				_toneMap->Render(*_engine);
 			if (_sunShaft && _engine->GetContext().GetCamera().GetDesc().style == graph::csPerspective)
@@ -2722,24 +2717,16 @@ void GraphManager::SetGraphOption(GraphOption option, bool value, GraphQuality q
 			break;
 
 		case goHDR:
-			//KNOWN ISSUE: HDR tone mapping renders the whole scene black on this
-			//backend, so RRR3D_NO_HDR=1 turns it off and everything else appears.
+			//RRR3D_NO_HDR=1 turns the whole post-processing chain off. It is a
+			//debugging switch now, not a workaround.
 			//
-			//This is not a workaround for a missing feature -- the HDR chain runs:
-			//the scene is drawn into an A16B16G16R16F target, reduced 128x128 ->
-			//1x1 for average luminance, and tone mapped. Every pass executes with
-			//draws in it. The output is black, which means the luminance coming
-			//out of that reduction is wrong rather than absent.
-			//
-			//Ruled out already: log(0), which the shader guards with a +0.0001
-			//epsilon in Down3x3LumLog; and the scene target itself, since the
-			//image is correct the moment tone mapping is skipped.
-			//
-			//Still to check: whether A16B16G16R16F render targets round-trip
-			//correctly here, and whether d9mt's unconditional fast-math MSL
-			//changes the exp/log reduction enough to matter -- its own notes warn
-			//that fast math can turn an unguarded intermediate into a NaN, and a
-			//NaN average luminance would black the frame exactly like this.
+			//It was a workaround: HDR used to black the scene, because the
+			//luminance reduction and the tone map both sample the scene target
+			//through an effect sampler, and no effect sampler was bound to
+			//anything -- a `texture` declaration is not a shader constant, so it
+			//never reached the parameter table and every SetTexture on one was
+			//dropped. Down3x3LumLog was reading black and returning log(0.0001),
+			//and tone mapping wrote that back over the frame. Both work now.
 			if (std::getenv("RRR3D_NO_HDR"))
 			{
 				FreeHDREff();
