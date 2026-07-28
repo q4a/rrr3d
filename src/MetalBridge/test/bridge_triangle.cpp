@@ -58,10 +58,11 @@ std::vector<char> ReadFile(const char* path)
 int main(int argc, char** argv)
 {
 	const char* mode = argc > 1 ? argv[1] : "vertexid";
+	const bool useBlend   = std::strcmp(mode, "blend") == 0;
 	const bool useSpec    = std::strcmp(mode, "speccnst") == 0;
 	const bool useNoCopy  = useSpec || std::strcmp(mode, "nocopy") == 0;
 	const bool useArgBuf  = useNoCopy || std::strcmp(mode, "argbuf") == 0;
-	const bool useStageIn = useArgBuf || std::strcmp(mode, "stagein") == 0;
+	const bool useStageIn = useArgBuf || useBlend || std::strcmp(mode, "stagein") == 0;
 	std::printf("mode: %s\n", mode);
 
 	obj_handle_t devices = WMTCopyAllDevices();
@@ -149,7 +150,7 @@ int main(int argc, char** argv)
 
 	/* ---- pipeline ---- */
 
-	std::vector<char> lib = ReadFile(useSpec ? "tri_speccnst.metallib" : useArgBuf ? "tri_argbuf.metallib" : (useStageIn ? "tri_stagein.metallib" : "tri.metallib"));
+	std::vector<char> lib = ReadFile(useBlend ? "tri_blend.metallib" : useSpec ? "tri_speccnst.metallib" : useArgBuf ? "tri_argbuf.metallib" : (useStageIn ? "tri_stagein.metallib" : "tri.metallib"));
 	if (lib.empty())
 	{
 		std::printf("FAIL: metallib not found beside the binary\n");
@@ -226,6 +227,18 @@ int main(int argc, char** argv)
 		info.colors[0].pixel_format = cFormatBGRA8Unorm;
 		info.colors[0].write_mask = 0xf;
 		info.raster_sample_count = 1;
+
+		if (useBlend)
+		{
+			/* Exactly what the engine asks for: SRCALPHA / INVSRCALPHA, add. */
+			info.colors[0].blending_enabled = 1;
+			info.colors[0].rgb_blend_op = 0;            /* MTLBlendOperationAdd */
+			info.colors[0].alpha_blend_op = 0;
+			info.colors[0].src_rgb_blend_factor = 4;    /* SourceAlpha */
+			info.colors[0].dst_rgb_blend_factor = 5;    /* OneMinusSourceAlpha */
+			info.colors[0].src_alpha_blend_factor = 4;
+			info.colors[0].dst_alpha_blend_factor = 5;
+		}
 
 		info.num_attributes = 1;
 		info.attributes[0].format = 31;        /* MTLVertexFormatFloat4 */
@@ -413,6 +426,25 @@ int main(int argc, char** argv)
 	at(4, 4);
 
 	const unsigned char* centre = &pixels[((cHeight / 2) * cWidth + cWidth / 2) * 4];
+
+	if (useBlend)
+	{
+		/*
+		 * Red at alpha 0.5 over a blue clear. Blended: roughly half red, half
+		 * blue. Unblended: fully red with no blue left, which is the game's
+		 * "sprites draw opaque" symptom reproduced in twenty lines.
+		 */
+		const int blue = centre[0];
+		const int red = centre[2];
+		const bool blended = red > 100 && red < 160 && blue > 100 && blue < 160;
+		std::printf("\ncentre B=%d G=%d R=%d -- expected ~128/0/128 blended\n",
+			centre[0], centre[1], centre[2]);
+		std::printf("%s\n", blended
+			? "PASS: blending works through this path."
+			: "FAIL: alpha ignored -- the game's transparency bug, reproduced here.");
+		return blended ? 0 : 1;
+	}
+
 	const bool green = centre[1] > 200 && centre[2] < 60;
 	std::printf("\n%s\n", green
 		? "PASS: the bridge encodes draws correctly."

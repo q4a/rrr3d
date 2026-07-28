@@ -692,6 +692,10 @@ void Tex2DResource::DoInit()
 	}
 	else
 	{
+		RRR3D_TRACE_FIRST(300, "TEX2D %ux%u fmt=%d usage=0x%lx pool=%d",
+			screenSz[0] + _data->GetWidth(), screenSz[1] + _data->GetHeight(),
+			(int)_data->GetFormat(), (unsigned long)usage, (int)GetMemoryPool());
+
 		hr = GetEngine()->GetDriver().GetDevice()->CreateTexture(screenSz[0] + _data->GetWidth(), screenSz [1] + _data->GetHeight(), GetLevelCnt(), usage, _data->GetFormat(), GetMemoryPool(), &_texture, 0);
 	}
 

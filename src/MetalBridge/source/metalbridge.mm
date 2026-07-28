@@ -268,6 +268,15 @@ obj_handle_t MTLDevice_newSamplerState(obj_handle_t device, struct WMTSamplerInf
 	/* Required before gpuResourceID can be read. */
 	desc.supportArgumentBuffers = info->support_argument_buffers;
 
+	RRR3D_TRACE_FIRST(10, "SAMPLER min=%u mag=%u mip=%u addr=%u/%u/%u border=%u cmp=%u "
+		"lod=%.1f..%.1f aniso=%u normalized=%d argbuf=%d",
+		(unsigned)info->min_filter, (unsigned)info->mag_filter, (unsigned)info->mip_filter,
+		(unsigned)info->s_address_mode, (unsigned)info->t_address_mode,
+		(unsigned)info->r_address_mode, (unsigned)info->border_color,
+		(unsigned)info->compare_function, info->lod_min_clamp, info->lod_max_clamp,
+		(unsigned)info->max_anisotroy, (int)info->normalized_coords,
+		(int)info->support_argument_buffers);
+
 	id<MTLSamplerState> sampler = [Unwrap<id<MTLDevice>>(device) newSamplerStateWithDescriptor:desc];
 	[desc release];
 

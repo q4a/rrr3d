@@ -17,7 +17,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 # encoding one.
 set(TRI_OUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug)
 
-foreach(shader tri tri_stagein tri_argbuf tri_speccnst)
+foreach(shader tri tri_stagein tri_argbuf tri_speccnst tri_blend)
     add_custom_command(
         OUTPUT ${TRI_OUT}/${shader}.metallib
         COMMAND ${CMAKE_COMMAND} -E make_directory ${TRI_OUT}
