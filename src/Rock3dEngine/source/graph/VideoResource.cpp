@@ -112,6 +112,13 @@ void MemPoolResource::OnResetDevice()
 
 D3DPOOL MemPoolResource::GetMemoryPool() const
 {
+	//DIAGNOSTIC: force MANAGED so Tex2DResource::DoUpdate takes the direct path
+	//(lock the real texture and write it) instead of staging through a
+	//SYSTEMMEM copy and UpdateTexture. If alpha appears, UpdateTexture is where
+	//it is being lost.
+	if (_memoryPool == D3DPOOL_DEFAULT && std::getenv("RRR3D_TEX_MANAGED"))
+		return D3DPOOL_MANAGED;
+
 	return _memoryPool;
 }
 
@@ -676,6 +683,7 @@ void Tex2DResource::DoInit()
 	HRESULT hr = D3D_OK;
 
 	DWORD usage = GetUsage();
+
 	if (((usage & D3DUSAGE_AUTOGENMIPMAP) && _data->IsCompressed()) || _d3dxLoadUsed)
 		usage = usage & (~D3DUSAGE_AUTOGENMIPMAP);
 
@@ -760,6 +768,21 @@ void Tex2DResource::DoUpdate()
 	default:
 		{
 			int rowSize = _data->GetWidth() * _data->GetPixelSize();
+
+			/* Does the engine's own copy still carry alpha at upload time? */
+			if (_data->GetFormat() == D3DFMT_A8R8G8B8 && _data->GetPixelSize() == 4)
+			{
+				const unsigned char* px = reinterpret_cast<const unsigned char*>(_data->GetData());
+				const unsigned count = _data->GetWidth() * _data->GetHeight();
+				unsigned translucent = 0;
+				for (unsigned i = 0; i < count; ++i)
+					if (px[i * 4 + 3] != 255)
+						++translucent;
+				RRR3D_TRACE_FIRST(12, "UPLOAD %ux%u pixelSize=%u translucent=%u/%u",
+					_data->GetWidth(), _data->GetHeight(), _data->GetPixelSize(),
+					translucent, count);
+			}
+
 			res::CopyPitchData(static_cast<char*>(source.pBits), source.Pitch, _data->GetData(), rowSize, rowSize, _data->GetHeight());
 			break;
 		}

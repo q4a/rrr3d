@@ -349,9 +349,11 @@ obj_handle_t MTLTexture_newTextureView(obj_handle_t texture, uint32_t format, ui
 	if (out_gpu_resource_id)
 		*out_gpu_resource_id = [view gpuResourceID]._impl;
 
-	RRR3D_TRACE_FIRST(16, "VIEW parent=%p fmt=%u type=%u levels=%u+%u slices=%u+%u",
+	RRR3D_TRACE_FIRST(16, "VIEW parent=%p fmt=%u type=%u levels=%u+%u slices=%u+%u "
+		"swizzle=%u/%u/%u/%u (0=Zero 1=One 2=R 3=G 4=B 5=A)",
 		(void*)(uintptr_t)texture, format, texture_type,
-		level_start, level_count, slice_start, slice_count);
+		level_start, level_count, slice_start, slice_count,
+		(unsigned)swizzle.r, (unsigned)swizzle.g, (unsigned)swizzle.b, (unsigned)swizzle.a);
 
 	return Wrap(view);
 }
@@ -362,6 +364,24 @@ void MTLTexture_replaceRegion(obj_handle_t texture, struct WMTOrigin origin, str
 {
 	if (!texture || !data.ptr)
 		return;
+
+	/*
+	 * The alpha actually reaching the GPU. This is the last step the CPU data
+	 * takes, so it decides whether a missing-transparency fault is above this
+	 * line or below it.
+	 */
+	if (bytes_per_row == size.width * 4 && ::rrr3d::TraceEnabled())
+	{
+		const unsigned char* px = static_cast<const unsigned char*>(data.ptr);
+		unsigned translucent = 0;
+		for (uint64_t i = 0; i < size.width * size.height; ++i)
+			if (px[i * 4 + 3] != 255)
+				++translucent;
+		RRR3D_TRACE_FIRST(14, "REPLACE %llux%llu level=%llu translucent=%u/%llu",
+			(unsigned long long)size.width, (unsigned long long)size.height,
+			(unsigned long long)level, translucent,
+			(unsigned long long)(size.width * size.height));
+	}
 
 	const MTLRegion region = {
 		{static_cast<NSUInteger>(origin.x), static_cast<NSUInteger>(origin.y), static_cast<NSUInteger>(origin.z)},

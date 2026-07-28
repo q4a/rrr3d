@@ -105,6 +105,27 @@ void MTLBlitCommandEncoder_encodeCommands(obj_handle_t encoder, const struct wmt
 		case WMTBlitCommandCopyFromBufferToTexture:
 		{
 			const auto& c = As<wmtcmd_blit_copy_from_buffer_to_texture>(cmd);
+
+			/* The alpha actually reaching the GPU -- this is how textures upload. */
+			if (::rrr3d::TraceEnabled() && c.bytes_per_row == c.size.width * 4 && c.src && c.level == 0 && c.size.width > 64)
+			{
+				static int logged = 0;
+				if (logged < 14)
+				{
+					++logged;
+					id<MTLBuffer> b = Unwrap<id<MTLBuffer>>(c.src);
+					const unsigned char* px =
+						(const unsigned char*)[b contents] + c.src_offset;
+					unsigned translucent = 0;
+					for (uint64_t i = 0; i < c.size.width * c.size.height; ++i)
+						if (px[i * 4 + 3] != 255)
+							++translucent;
+					RRR3D_TRACE("BLITTEX %llux%llu level=%llu translucent=%u/%llu",
+						(unsigned long long)c.size.width, (unsigned long long)c.size.height,
+						(unsigned long long)c.level, translucent,
+						(unsigned long long)(c.size.width * c.size.height));
+				}
+			}
 			[enc copyFromBuffer:Unwrap<id<MTLBuffer>>(c.src)
 			       sourceOffset:c.src_offset
 			  sourceBytesPerRow:c.bytes_per_row

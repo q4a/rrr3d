@@ -818,6 +818,19 @@ void Context::BeginDrawGraphic(Graphic& graphic)
 	if (graphic.GetMaterial())
 		ApplyMaterial(*graphic.GetMaterial(), graphic.GetAlpha());
 
+	//DIAGNOSTIC: discard fragments whose alpha is low, on every GUI draw.
+	//
+	//This asks one question and does not disturb blending: does the texture's
+	//alpha reach the fragment shader at all? If the white blocks disappear, the
+	//alpha is there and only the blend state on those draws is at fault. If they
+	//survive, the alpha never arrives and blending was never the place to look.
+	if (std::getenv("RRR3D_FORCE_ALPHATEST"))
+	{
+		GetCI().SetRenderState(graph::rsAlphaTestEnable, true);
+		GetCI().SetRenderState(graph::rsAlphaRef, 128);
+		GetCI().SetRenderState(graph::rsAlphaFunc, D3DCMP_GREATER);
+	}
+
 	GetCI().BeginDraw();
 }
 
