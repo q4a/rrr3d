@@ -374,6 +374,16 @@ HRESULT LoadStbImage(IDirect3DDevice9* device, const void* data, UINT dataSize,
 	}
 
 	(*texture)->UnlockRect(0);
+
+	{
+		unsigned translucent = 0;
+		for (int i = 0; i < width * height; ++i)
+			if (pixels[i * 4 + 3] != 255)
+				++translucent;
+		RRR3D_TRACE_FIRST(12, "PNG %dx%d channels=%d translucent=%u/%d",
+			width, height, channels, translucent, width * height);
+	}
+
 	stbi_image_free(pixels);
 
 	if (info)
