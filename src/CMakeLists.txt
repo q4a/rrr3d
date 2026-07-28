@@ -59,6 +59,8 @@ add_subdirectory(RRR3d)
 # Runtime tests for the ported layers
 enable_testing()
 add_subdirectory(Tests)
+# Behavioural checks for the vehicle model -- see its CMakeLists.
+add_subdirectory(PhysicsHarness)
 
 # MapEditor is an MFC application (CWinAppEx, CDockablePane, ribbon resources)
 # and has no non-Windows equivalent. It talks to the engine only through
