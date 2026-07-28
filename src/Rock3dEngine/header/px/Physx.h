@@ -1038,6 +1038,9 @@ public:
 
 	Actor* GetParent();
 	void SetParent(Actor* value);
+	//A car's wheels each live on their own child actor, so anything that works
+	//on a whole vehicle has to walk these.
+	const Children& GetChildren() const;
 
 	Body* GetBody();
 	void SetBody(const BodyDesc* value);

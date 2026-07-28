@@ -3,6 +3,8 @@
 #include "px/Physx.h"
 #include "px/Vehicle.h"
 
+#include "rrr3d_trace.h"
+
 #include "lslSerialValue.h"
 
 namespace r3d
@@ -537,6 +539,22 @@ void Scene::Compute(float deltaTime)
 
 void Scene::NotifyVehicleActor(Actor* actor)
 {
+	/*
+	 * OFF BY DEFAULT, until the suspension raycasts find the ground.
+	 *
+	 * The model is real and the harness likes it -- wheels roll, slips sit at
+	 * 0.03, a car tracks straight -- but in the game every wheel reports
+	 * inAir=1 with a null contact shape, so nothing supports the car and
+	 * PxVehicleUpdates overwrites its velocity each step. The result is worse
+	 * to play than the placeholder it replaces: cars hover above the track and
+	 * never fall.
+	 *
+	 * Leaving it on would trade a car with no suspension for a car with no
+	 * gravity, so it waits behind RRR3D_VEHICLE=1 until the raycast lands.
+	 */
+	if (!std::getenv("RRR3D_VEHICLE"))
+		return;
+
 	if (actor)
 		_pendingVehicles.insert(actor);
 }
@@ -559,16 +577,33 @@ void Scene::UpdateVehicles(float deltaTime)
 		if (!_vehicleScene)
 			_vehicleScene = new VehicleScene(_nxScene);
 
-		//Anything that fails to build is dropped rather than retried: a wheel
-		//count that is still short means the actor is not a car, and retrying
-		//every step would rebuild the same failure forever.
+		//An actor still short of four wheels stays pending rather than being
+		//dropped, because wheels arrive one at a time and the first one to
+		//arrive would otherwise decide the car is not a car. Anything with
+		//enough wheels is attempted once and then forgotten either way.
+		std::set<Actor*> stillPending;
+
 		for (std::set<Actor*>::iterator iter = _pendingVehicles.begin();
 			iter != _pendingVehicles.end(); ++iter)
 		{
-			_vehicleScene->Add(*iter);
+			Actor* actor = *iter;
+
+			std::vector<WheelShape*> found;
+			CollectWheelShapes(actor, found);
+			const unsigned wheels = static_cast<unsigned>(found.size());
+
+			if (wheels < 4)
+			{
+				stillPending.insert(actor);
+				continue;
+			}
+
+			const Vehicle* built = _vehicleScene->Add(actor);
+			RRR3D_TRACE_FIRST(20, "VEHICLE actor=%p wheels=%u built=%d",
+				(void*)actor, wheels, (int)(built != 0));
 		}
 
-		_pendingVehicles.clear();
+		_pendingVehicles.swap(stillPending);
 	}
 
 	if (_vehicleScene)
@@ -2109,6 +2144,28 @@ void Actor::CreateNxShape(Shape* shape)
 	//ApplyToShape carries the local pose through LocalToWorldPos, which is what
 	//the descriptor path did by hand before creating the shape.
 	shape->ApplyToShape(*nxShape);
+
+	/*
+	 * A wheel arriving after its actor already exists, which is the normal case
+	 * and not the exception.
+	 *
+	 * Two things make this the only place that works. CarWheel adds its
+	 * WheelShape to an actor the game built earlier, so looking for wheels when
+	 * the actor is created finds none. And each CarWheel is its own game object
+	 * with its own child actor, so the wheel lands on a child that shares the
+	 * root's PxRigidActor and has no body of its own -- the vehicle belongs to
+	 * the root. Get either wrong and every car silently keeps the placeholder
+	 * behaviour, which is what the game did until now.
+	 */
+	if (_scene && shape->GetType() == stWheel)
+	{
+		Actor* root = this;
+		while (root->_parent)
+			root = root->_parent;
+
+		if (root->_body)
+			_scene->NotifyVehicleActor(root);
+	}
 }
 
 void Actor::DestroyNxShape(Shape* shape)
@@ -2476,6 +2533,11 @@ void Actor::SetScene(Scene* value)
 Actor* Actor::GetParent()
 {
 	return _parent;
+}
+
+const Actor::Children& Actor::GetChildren() const
+{
+	return _children;
 }
 
 void Actor::SetParent(Actor* value)

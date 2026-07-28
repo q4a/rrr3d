@@ -230,6 +230,24 @@ PxVec3 ToPxVec(const D3DXVECTOR3& value)
 
 } // namespace
 
+void CollectWheelShapes(Actor* actor, std::vector<WheelShape*>& out)
+{
+	if (!actor)
+		return;
+
+	Shapes& shapes = actor->GetShapes();
+	for (Shapes::iterator iter = shapes.begin(); iter != shapes.end(); ++iter)
+	{
+		Shape* shape = *iter;
+		if (shape && shape->GetType() == stWheel)
+			out.push_back(static_cast<WheelShape*>(shape));
+	}
+
+	const Actor::Children& children = actor->GetChildren();
+	for (Actor::Children::const_iterator iter = children.begin(); iter != children.end(); ++iter)
+		CollectWheelShapes(*iter, out);
+}
+
 /* ---------------------------------------------------------------- scene --- */
 
 bool g_vehicleSdkInitialised = false;
@@ -418,15 +436,9 @@ Vehicle::Vehicle(Actor* actor): _actor(actor), _nxVehicle(0)
 	if (!body)
 		return;
 
-	//Collect the wheels in the order they were added, which is the order the
-	//game's CarWheel objects hold them in.
-	Shapes& shapes = actor->GetShapes();
-	for (Shapes::iterator iter = shapes.begin(); iter != shapes.end(); ++iter)
-	{
-		Shape* shape = *iter;
-		if (shape && shape->GetType() == stWheel)
-			_wheels.push_back(static_cast<WheelShape*>(shape));
-	}
+	//Root actor and every child, in the order they were added, which is the
+	//order the game's CarWheel objects hold them in.
+	CollectWheelShapes(actor, _wheels);
 
 	//PxVehicle wants at least four, and every car in this game has four.
 	if (_wheels.size() < 4)
@@ -667,6 +679,18 @@ void Vehicle::SyncOutputs()
 		contact.contactPosition = wheel->GetRadius() + travel - result.suspJounce;
 
 		wheel->SetContactData(contact, result.isInAir ? 0 : result.tireContactShape);
+
+		//Whether the suspension raycast found ground at all. A wheel that never
+		//does produces no tire force, so nothing downstream of it can be
+		//diagnosed until this reads what it should.
+		if (i == 0)
+			RRR3D_TRACE_FIRST(20,
+				"WHEELQ inAir=%d jounce=%.4f springForce=%.1f contactShape=%p "
+				"normal=%.2f,%.2f,%.2f suspDir=%.2f,%.2f,%.2f",
+				(int)result.isInAir, result.suspJounce, result.suspSpringForce,
+				(void*)result.tireContactShape,
+				result.tireContactNormal.x, result.tireContactNormal.y, result.tireContactNormal.z,
+				result.suspLineDir.x, result.suspLineDir.y, result.suspLineDir.z);
 	}
 }
 

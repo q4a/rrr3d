@@ -57,6 +57,17 @@ struct TireShaderData
 };
 
 /*
+ * Every WheelShape belonging to a vehicle, root actor and children together.
+ *
+ * A car's wheels are not shapes on the car's actor. Each CarWheel is its own
+ * game object with its own px::Actor, parented to the car's, and the WheelShape
+ * goes on that child -- which shares the root's PxRigidActor but has no body of
+ * its own. Anything that looks only at the actor it was handed finds no wheels
+ * and concludes the car is not a car.
+ */
+void CollectWheelShapes(Actor* actor, std::vector<WheelShape*>& out);
+
+/*
  * One PxVehicleNoDrive, built from an Actor's WheelShapes.
  *
  * Created and destroyed by the Scene, which is the only thing that knows when
