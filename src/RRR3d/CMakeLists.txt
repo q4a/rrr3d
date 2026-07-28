@@ -40,4 +40,11 @@ endif()
 if (APPLE)
     # Direct3D 9 itself: DXVK's front-end over d9mt's Metal backend.
     target_link_libraries(${PROJECT_NAME} PRIVATE D3D9Metal)
+
+    # The window and event loop -- see sdl_shell.cpp, which RRR3d.cpp includes
+    # in place of the Win32 shell. SDL is confined to this target on purpose:
+    # the graphics backend takes an NSWindow* and never learns where it came
+    # from.
+    find_package(SDL3 REQUIRED CONFIG)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
 endif()

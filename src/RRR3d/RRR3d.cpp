@@ -325,21 +325,17 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 #else
 
+/*
+ * The SDL window, event loop and key mapping -- MainWndProc and MainLoop's
+ * counterparts. Included rather than compiled separately so it shares this
+ * file's anonymous namespace and the forwarders above it.
+ */
+#include "sdl_shell.cpp"
+
 //Closes the anonymous namespace opened at the top of the file; the brace that
 //did so on Windows sits inside the guarded shell above.
 }
 
-/*
- * Placeholder entry point. Does what _tWinMain does apart from creating a
- * window: sets the working directory, opens the log, builds the world and
- * lets it fail where it will -- at device creation, since there is no
- * graphics backend yet (src/XPlatform/source/d3d9_stub.cpp).
- *
- * There is no message loop because there are no messages: input, window
- * resizing and the frame pump all arrive through the Win32 shell above. This
- * exists so the tree links and the failure is a clear one, not so the game
- * runs.
- */
 int main(int argc, char* argv[])
 {
 	int exitResult = EXIT_SUCCESS;
@@ -347,19 +343,39 @@ int main(int argc, char* argv[])
 	lsl::appLog.Clear();
 	lsl::appLog.Append("Init...");
 
+	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
+	{
+		std::fprintf(stderr, "rrr3d: SDL_Init failed: %s\n", SDL_GetError());
+		return EXIT_FAILURE;
+	}
+
 	try
 	{
+		/*
+		 * SDL_WINDOW_METAL so SDL gives the window a layer-hosting content
+		 * view. Without it the view is not set up for a CAMetalLayer and
+		 * attaching one in metalbridge_present.mm fights AppKit for it.
+		 */
+		sdlWindow = SDL_CreateWindow("Motor Rock", cResolution.x, cResolution.y,
+			SDL_WINDOW_METAL | (fullScreen ? SDL_WINDOW_FULLSCREEN : 0));
+
+		if (!sdlWindow)
+			throw lsl::Error(lsl::StrFmt("SDL_CreateWindow failed: %s", SDL_GetError()));
+
 		r3d::IView::Desc desc;
-		desc.fullscreen = false;
-		//No window to hand over; the graphics backend is what this waits on.
-		desc.handle = 0;
-		desc.resolution = cResolution;
+		desc.fullscreen = fullScreen;
+		//SDL's CAMetalLayer; CreateMetalViewFromHWND configures it in place.
+		desc.handle = MetalLayerHandle(sdlWindow);
+		desc.resolution = fullScreen ? lsl::Point(0, 0) : cResolution;
 
 		rock3dWorld = r3d::CreateWorld(desc, true);
 		rock3dWorld->RunGame();
 
 		lsl::appLog.Append("Run...");
-		lsl::appLog.Append("No window system yet -- see docs/macos-graphics-backend.md");
+
+		exitResult = MainLoop(rock3dWorld);
+
+		lsl::appLog.Append("Terminate...");
 
 		r3d::ReleaseWorld(rock3dWorld);
 	}
@@ -373,6 +389,12 @@ int main(int argc, char* argv[])
 		std::fprintf(stderr, "rrr3d: %s\n", err.what());
 		exitResult = EXIT_FAILURE;
 	}
+
+	if (sdlMetalView)
+		SDL_Metal_DestroyView(sdlMetalView);
+	if (sdlWindow)
+		SDL_DestroyWindow(sdlWindow);
+	SDL_Quit();
 
 	lsl::appLog.Append("Exit");
 	lsl::FileSystem::Release();

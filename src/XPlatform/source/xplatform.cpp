@@ -510,6 +510,33 @@ UINT timeEndPeriod(UINT)
 	return TIMERR_NOERROR;
 }
 
+namespace
+{
+
+/*
+ * The client size of the one window this game opens.
+ *
+ * There is no window system behind HWND here -- the handle is whatever the
+ * shell put in IView::Desc::handle -- so the size cannot be queried from it and
+ * has to be published by whoever created the window. RegisterClientSize is that
+ * publication, called from src/RRR3d/sdl_shell.cpp.
+ *
+ * Returning zero here, which is what this did before, is not harmless: View::
+ * ScreenToView divides the mouse position by the client size, so a zero size
+ * turns every click coordinate into infinity and the game stops responding to
+ * the mouse entirely, with nothing logged.
+ */
+int clientWidth = 0;
+int clientHeight = 0;
+
+}
+
+void RegisterClientSize(HWND, int width, int height)
+{
+	clientWidth = width;
+	clientHeight = height;
+}
+
 BOOL GetClientRect(HWND, RECT* rect)
 {
 	if (!rect)
@@ -517,7 +544,7 @@ BOOL GetClientRect(HWND, RECT* rect)
 
 	rect->left = 0;
 	rect->top = 0;
-	rect->right = 0;
-	rect->bottom = 0;
+	rect->right = clientWidth;
+	rect->bottom = clientHeight;
 	return TRUE;
 }

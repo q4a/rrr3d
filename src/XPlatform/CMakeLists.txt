@@ -6,7 +6,21 @@ list(APPEND PROJECT_DIRS
     )
 add_dir("${PROJECT_DIRS}" "${PROJECT_NAME}")
 
-add_library(${PROJECT_NAME} STATIC
+# SHARED, not STATIC, and that distinction is load-bearing.
+#
+# This library holds process-wide state: the registered client size, and the
+# map VirtualFree uses to recover an allocation's length. Linked statically it
+# is duplicated into every module that uses it -- the executable and
+# libRock3dGame.dylib each got their own copy -- so a value written through one
+# copy is invisible through the other.
+#
+# That is not theoretical. The SDL shell lives in the executable and published
+# the window size there; View::GetWndSize runs in the dylib and read its own
+# copy, still zero. ScreenToView divides the mouse position by it, so every
+# click arrived at INT_MAX and the game ignored the mouse entirely, silently.
+# The VirtualAlloc size map has the same hazard, where the consequence would be
+# a failed VirtualFree rather than a visible symptom.
+add_library(${PROJECT_NAME} SHARED
     ${${PROJECT_NAME}_SOURCE}
     ${${PROJECT_NAME}_INLINE}
     ${${PROJECT_NAME}_HEADER}

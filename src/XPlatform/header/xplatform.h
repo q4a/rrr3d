@@ -133,11 +133,13 @@ int  MessageBox(HWND owner, const char* text, const char* caption, UINT type);
 void OutputDebugStringA(const char* str);
 
 /*
- * The engine asks the window for its client area to size render targets. There
- * is no window system behind HWND yet -- RRR3d.cpp's Win32 shell has not been
- * replaced -- so this reports an empty rect and callers fall back to the size
- * they were configured with. Revisit when the SDL window lands.
+ * The engine asks the window for its client area -- to size render targets, and
+ * to scale mouse coordinates in View::ScreenToView. Nothing here can answer
+ * that from an HWND, because there is no window system behind it: the handle is
+ * whatever the shell chose to put in IView::Desc::handle. So the shell publishes
+ * the size instead, via RegisterClientSize.
  */
+void RegisterClientSize(HWND wnd, int width, int height);
 BOOL GetClientRect(HWND wnd, RECT* rect);
 
 /*
@@ -271,6 +273,7 @@ typedef const char* LPCTSTR;
 #define VK_UP           0x26
 #define VK_RIGHT        0x27
 #define VK_DOWN         0x28
+#define VK_INSERT       0x2D
 #define VK_DELETE       0x2E
 #define VK_NUMPAD0      0x60
 #define VK_NUMPAD1      0x61
