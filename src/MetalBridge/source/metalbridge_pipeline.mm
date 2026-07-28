@@ -24,8 +24,29 @@ inline obj_handle_t Wrap(id obj)
 	return (obj_handle_t)(__bridge void*)obj;
 }
 
+/*
+ * The stencil face state, applied only when it is enabled.
+ *
+ * WMTStencilInfo carries an `enabled` flag, and when it is false the rest of
+ * the struct is zeroed rather than meaningful. Zero is a legal value for every
+ * field, and for stencil_compare_function it is MTLCompareFunctionNever -- so
+ * applying a disabled stencil state unconditionally sets the stencil test to
+ * "never pass" and silently discards every fragment.
+ *
+ * That is not a hypothetical: it is what made the whole game render nothing but
+ * its clear colour. Clears survived because a loadAction does no fragment
+ * shading, and DXVK's own present blit survived because it never sets a
+ * depth-stencil state at all and so keeps Metal's default of Always. Metal's
+ * validation layer stays silent throughout, Never being perfectly legal.
+ *
+ * Leaving the descriptor untouched when disabled gives Metal's defaults --
+ * compare Always, operations Keep -- which is what "no stencil test" means.
+ */
 void ApplyStencil(MTLStencilDescriptor* dst, const WMTStencilInfo& src)
 {
+	if (!src.enabled)
+		return;
+
 	dst.stencilCompareFunction = static_cast<MTLCompareFunction>(src.stencil_compare_function);
 	dst.stencilFailureOperation = static_cast<MTLStencilOperation>(src.stencil_fail_op);
 	dst.depthFailureOperation = static_cast<MTLStencilOperation>(src.depth_fail_op);
@@ -100,10 +121,42 @@ obj_handle_t MTLDevice_newRenderPipelineState(obj_handle_t device,
 		dst.writeMask = static_cast<MTLColorWriteMask>(src.write_mask);
 	}
 
+	/* DIAGNOSTIC */
+	{
+		static int logged = 0;
+		if (logged < 6)
+		{
+			++logged;
+			if (FILE* f = fopen("psos.txt", "a"))
+			{
+				fprintf(f, "pso: c0 fmt=%u writeMask=0x%x blend=%d | depthFmt=%u stencilFmt=%u "
+					"raster=%d samples=%u vs=%p fs=%p topo=%u\n",
+					(unsigned)info->colors[0].pixel_format,
+					(unsigned)info->colors[0].write_mask,
+					(int)info->colors[0].blending_enabled,
+					(unsigned)info->depth_pixel_format,
+					(unsigned)info->stencil_pixel_format,
+					(int)info->rasterization_enabled,
+					(unsigned)info->raster_sample_count,
+					(void*)(uintptr_t)info->vertex_function,
+					(void*)(uintptr_t)info->fragment_function,
+					(unsigned)info->input_primitive_topology);
+				fclose(f);
+			}
+		}
+	}
+
 	NSError* error = nil;
 	id<MTLRenderPipelineState> pso =
 		[Unwrap<id<MTLDevice>>(device) newRenderPipelineStateWithDescriptor:desc error:&error];
 	[desc release];
+
+	if (!pso)
+		if (FILE* f = fopen("psos.txt", "a"))
+		{
+			fprintf(f, "pso: FAILED: %s\n", error ? [[error localizedDescription] UTF8String] : "(no error)");
+			fclose(f);
+		}
 
 	/* The backend logs this; it survives because NSError is autoreleased into the pool. */
 	if (!pso && out_error && error)
@@ -147,6 +200,17 @@ obj_handle_t MTLDevice_newDepthStencilState(obj_handle_t device, const struct WM
 	MTLDepthStencilDescriptor* desc = [[MTLDepthStencilDescriptor alloc] init];
 	desc.depthCompareFunction = static_cast<MTLCompareFunction>(info->depth_compare_function);
 	desc.depthWriteEnabled = info->depth_write_enabled;
+	/* DIAGNOSTIC */
+	{
+		static int n = 0;
+		if (n < 6) { ++n;
+			if (FILE* f = fopen("renderpasses.txt", "a")) {
+				fprintf(f, "  DSSO cmp=%u write=%d frontCmp=%u backCmp=%u\n",
+					(unsigned)info->depth_compare_function, (int)info->depth_write_enabled,
+					(unsigned)info->front_stencil.stencil_compare_function,
+					(unsigned)info->back_stencil.stencil_compare_function);
+				fclose(f); } }
+	}
 	ApplyStencil(desc.frontFaceStencil, info->front_stencil);
 	ApplyStencil(desc.backFaceStencil, info->back_stencil);
 
@@ -213,8 +277,49 @@ obj_handle_t MTLCommandBuffer_renderCommandEncoder(obj_handle_t cmdbuf, const st
 	if (info->visibility_buffer)
 		pass.visibilityResultBuffer = Unwrap<id<MTLBuffer>>(info->visibility_buffer);
 
+	/* DIAGNOSTIC: what render passes target, in steady state. */
+	{
+		static int seen = 0;
+		static int reported = 0;
+		++seen;
+		if (seen > 400 && reported < 10)
+		{
+			++reported;
+			if (FILE* f = fopen("renderpasses.txt", "a"))
+			{
+				fprintf(f, "pass: color0 tex=%p load=%u store=%u clear=(%.2f,%.2f,%.2f,%.2f) "
+					"rtw=%u rth=%u depthTex=%p",
+					(void*)(uintptr_t)info->colors[0].texture,
+					(unsigned)info->colors[0].load_action,
+					(unsigned)info->colors[0].store_action,
+					info->colors[0].clear_color.r, info->colors[0].clear_color.g,
+					info->colors[0].clear_color.b, info->colors[0].clear_color.a,
+					info->render_target_width, info->render_target_height,
+					(void*)(uintptr_t)info->depth.texture);
+				fprintf(f, "\n");
+				fclose(f);
+			}
+		}
+	}
+
 	/* Retained: Metal's encoders are autoreleased, the ABI hands over ownership. */
-	return Wrap([[Unwrap<id<MTLCommandBuffer>>(cmdbuf) renderCommandEncoderWithDescriptor:pass] retain]);
+	obj_handle_t encHandle = Wrap([[Unwrap<id<MTLCommandBuffer>>(cmdbuf) renderCommandEncoderWithDescriptor:pass] retain]);
+
+	/* DIAGNOSTIC */
+	{
+		static int seen = 0;
+		if (++seen < 60)
+			if (FILE* f = fopen("renderpasses.txt", "a"))
+			{
+				fprintf(f, "  created enc=%llx tex=%p load=%u\n",
+					(unsigned long long)encHandle,
+					(void*)(uintptr_t)info->colors[0].texture,
+					(unsigned)info->colors[0].load_action);
+				fclose(f);
+			}
+	}
+
+	return encHandle;
 }
 
 obj_handle_t MTLCommandBuffer_computeCommandEncoder(obj_handle_t cmdbuf, bool concurrent)
@@ -338,6 +443,25 @@ obj_handle_t MTLLibrary_newFunctionWithConstants(obj_handle_t library, const cha
 
 	if (!fn && err_out && error)
 		*err_out = Wrap(error);
+
+	/* DIAGNOSTIC */
+	{
+		static int logged = 0;
+		if (logged < 4)
+		{
+			++logged;
+			if (FILE* f = fopen("renderpasses.txt", "a"))
+			{
+				fprintf(f, "  FNCONST %s n=%u ok=%d :", name, num_constants, (int)(fn != nil));
+				for (uint32_t i = 0; i < num_constants && i < 12; ++i)
+					fprintf(f, " [idx=%u type=%u val=%u]", (unsigned)constants[i].index,
+						(unsigned)constants[i].type,
+						constants[i].data.ptr ? *(const uint32_t*)constants[i].data.ptr : 0u);
+				fprintf(f, "\n");
+				fclose(f);
+			}
+		}
+	}
 
 	return Wrap(fn);
 }
