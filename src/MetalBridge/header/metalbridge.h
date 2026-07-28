@@ -103,6 +103,12 @@ struct WMTBufferInfo
     uint64_t gpu_address; /* out */
 };
 
+static_assert(sizeof(struct WMTBufferInfo) == 32, "WMTBufferInfo must match winemetal.h");
+
+static_assert(sizeof(struct WMTConstMemoryPointer) == 8, "WMTConstMemoryPointer must match winemetal.h");
+
+static_assert(sizeof(struct WMTMemoryPointer) == 8, "WMTMemoryPointer must match winemetal.h");
+
 struct WMTTextureInfo
 {
     uint32_t pixel_format;
@@ -120,16 +126,27 @@ struct WMTTextureInfo
     uint64_t gpu_resource_id;     /* out */
 };
 
+/*
+ * Every filter and address-mode field is one byte, not four.
+ *
+ * The enums these mirror are declared `: uint8_t` in winemetal.h. Widening
+ * them to uint32_t here made the struct 48 bytes instead of 32 and shifted
+ * everything past the first field, so max_anisotroy read garbage -- Metal's
+ * validation layer caught it as "maxAnisotropy value (4094237408) is invalid",
+ * sampler creation then failed, and with it every textured draw. The static
+ * assert below is the ABI's own; it is mirrored here so the next such slip is
+ * a compile error rather than a blank screen.
+ */
 struct WMTSamplerInfo
 {
-    uint32_t min_filter;
-    uint32_t mag_filter;
-    uint32_t mip_filter;
-    uint32_t r_address_mode;
-    uint32_t s_address_mode;
-    uint32_t t_address_mode;
+    uint8_t  min_filter;
+    uint8_t  mag_filter;
+    uint8_t  mip_filter;
+    uint8_t  r_address_mode;
+    uint8_t  s_address_mode;
+    uint8_t  t_address_mode;
     uint8_t  border_color;
-    uint32_t compare_function;
+    uint8_t  compare_function;
     float    lod_min_clamp;
     float    lod_max_clamp;
     uint32_t max_anisotroy;       /* spelling is the ABI's */
@@ -138,6 +155,8 @@ struct WMTSamplerInfo
     bool     support_argument_buffers;
     uint64_t gpu_resource_id;     /* out */
 };
+
+static_assert(sizeof(struct WMTSamplerInfo) == 32, "WMTSamplerInfo must match winemetal.h");
 
 obj_handle_t MTLDevice_newBuffer(obj_handle_t device, struct WMTBufferInfo* info);
 obj_handle_t MTLDevice_newTexture(obj_handle_t device, struct WMTTextureInfo* info);
