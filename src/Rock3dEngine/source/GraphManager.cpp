@@ -2159,6 +2159,61 @@ void GraphManager::MainThread()
 	_engine->CheckReset();
 }
 
+/*
+ * DIAGNOSTIC: write the back buffer to a .tga when RRR3D_DUMP_FRAME=<n> is set.
+ *
+ * A CAMetalLayer's contents do not appear in screencapture, so there is no way
+ * to see what the game drew from outside the process. This reads the back
+ * buffer back and writes it once, on frame <n>. TGA because it needs no encoder.
+ */
+static void DumpFrameIfAsked(IDirect3DDevice9* device, const char* envVar, const char* path, int& countdown)
+{
+	if (countdown == -1)
+	{
+		const char* frames = std::getenv(envVar);
+		countdown = frames ? std::atoi(frames) : 0;
+	}
+	if (countdown <= 0 || --countdown != 0)
+		return;
+
+	IDirect3DSurface9* back = 0;
+	if (FAILED(device->GetRenderTarget(0, &back)) || !back)
+		return;
+
+	D3DSURFACE_DESC desc;
+	back->GetDesc(&desc);
+
+	IDirect3DSurface9* copy = 0;
+	if (SUCCEEDED(device->CreateOffscreenPlainSurface(desc.Width, desc.Height,
+			desc.Format, D3DPOOL_SYSTEMMEM, &copy, 0)) &&
+		SUCCEEDED(device->GetRenderTargetData(back, copy)))
+	{
+		D3DLOCKED_RECT rect;
+		if (SUCCEEDED(copy->LockRect(&rect, 0, D3DLOCK_READONLY)))
+		{
+			if (FILE* f = std::fopen(path, "wb"))
+			{
+				unsigned char header[18] = {0};
+				header[2] = 2;
+				header[12] = desc.Width & 0xff;  header[13] = (desc.Width >> 8) & 0xff;
+				header[14] = desc.Height & 0xff; header[15] = (desc.Height >> 8) & 0xff;
+				header[16] = 32;
+				header[17] = 0x20; /* top-down */
+				std::fwrite(header, 1, sizeof(header), f);
+				for (unsigned y = 0; y < desc.Height; ++y)
+					std::fwrite(static_cast<char*>(rect.pBits) + y * rect.Pitch, 4, desc.Width, f);
+				std::fclose(f);
+				lsl::appLog.Append(lsl::StrFmt("DIAGNOSTIC: wrote %s", path));
+			}
+			copy->UnlockRect();
+		}
+	}
+
+	if (copy)
+		copy->Release();
+	back->Release();
+}
+
 bool GraphManager::Render(float deltaTime, bool pause)
 {
 	typedef graph::RenderTarget<graph::Tex2DResource>::RtFlags RtFlags;
@@ -2171,6 +2226,8 @@ bool GraphManager::Render(float deltaTime, bool pause)
 		{
 			_engine->BeginBackBufOut(D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _guiMode ? clrBlack : _fogColor);
 			_gui->Draw();
+			static int guiDump = -1;
+			DumpFrameIfAsked(_engine->GetDriver().GetDevice(), "RRR3D_DUMP_FRAME", "frame.tga", guiDump);
 			_engine->EndBackBufOut();
 		}
 
@@ -2351,6 +2408,9 @@ bool GraphManager::Render(float deltaTime, bool pause)
 
 		_actorManager->ResetCache();
 	}
+	static int sceneDump = -1;
+	DumpFrameIfAsked(_engine->GetDriver().GetDevice(), "RRR3D_DUMP_SCENE", "frame3d.tga", sceneDump);
+
 	return _engine->EndScene();
 }
 

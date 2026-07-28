@@ -202,6 +202,11 @@ obj_handle_t MTLDevice_newBuffer(obj_handle_t device, struct WMTBufferInfo* info
 
 	info->memory.ptr = [buffer contents];
 	info->gpu_address = [buffer gpuAddress];
+
+	RRR3D_TRACE_FIRST(8, "BUF len=%llu opts=0x%llx nocopy=%d gpuAddr=0x%llx",
+		(unsigned long long)info->length, (unsigned long long)info->options,
+		(int)(info->memory.ptr != NULL), (unsigned long long)info->gpu_address);
+
 	return Wrap(buffer);
 }
 
@@ -334,6 +339,11 @@ obj_handle_t MTLTexture_newTextureView(obj_handle_t texture, uint32_t format, ui
 
 	if (out_gpu_resource_id)
 		*out_gpu_resource_id = [view gpuResourceID]._impl;
+
+	RRR3D_TRACE_FIRST(16, "VIEW parent=%p fmt=%u type=%u levels=%u+%u slices=%u+%u",
+		(void*)(uintptr_t)texture, format, texture_type,
+		level_start, level_count, slice_start, slice_count);
+
 	return Wrap(view);
 }
 

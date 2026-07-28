@@ -23,6 +23,9 @@
 /* Windows types, COM, LARGE_INTEGER. Also included from C. */
 #include "windows/windows_base.h"
 
+/* Graphics-stack tracing, off unless RRR3D_TRACE is set. */
+#include "rrr3d_trace.h"
+
 #ifdef __cplusplus
 	#include <cfloat>
 	#include <climits>

@@ -2,22 +2,27 @@
  * Presentation: the CAMetalLayer the backend renders into.
  *
  * On Wine this came from CreateMetalViewFromHWND, which found the NSView behind
- * a Win32 HWND and attached a layer to it. There is no HWND here and, until the
- * SDL shell lands, no window either -- so the layer is created standalone.
+ * a Win32 HWND. There is no Win32 here, so the "HWND" the engine carries is a
+ * CAMetalLayer* -- created by SDL in src/RRR3d/RRR3d.cpp, passed through
+ * IView::Desc::handle, and handed back to us untouched.
  *
- * A detached CAMetalLayer is still a working swapchain: nextDrawable hands back
- * real textures of the configured size and the backend renders into them
- * normally. What it cannot do is put them on a screen. That is exactly the
- * split we want for now -- it makes every part of the pipeline except the final
- * blit to a window testable, and a real NSView drops in later by setting
- * `layer` on it.
+ * A layer rather than a window, because SDL already made one. Asked for a Metal
+ * window, SDL builds its own layer-hosting view and owns it; attaching a second
+ * CAMetalLayer to the content view underneath means two layers competing, and
+ * the one that draws is not the one on screen -- which is exactly the symptom
+ * that produced a live process with an invisible window. Taking SDL's layer
+ * and configuring it leaves ownership unambiguous.
  *
- * When an HWND is eventually passed, it will be an SDL window handle and this
- * becomes a lookup rather than a construction.
+ * With no handle at all -- which is how this ran before the shell existed -- a
+ * standalone layer is created instead. That is still a working swapchain:
+ * nextDrawable hands back real textures and the backend renders into them, it
+ * just cannot show them. Kept because it makes everything except the final
+ * blit testable headlessly.
  */
 
 #include "metalbridge_pipeline.h"
 
+#import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
@@ -43,24 +48,36 @@ obj_handle_t CreateMetalViewFromHWND(intptr_t hwnd, obj_handle_t device, obj_han
 	if (!device)
 		return NULL_OBJECT_HANDLE;
 
-	CAMetalLayer* metalLayer = [[CAMetalLayer alloc] init];
+	CAMetalLayer* metalLayer = nil;
+
+	if (hwnd)
+	{
+		/* SDL's layer, already attached to a view that is already on screen. */
+		metalLayer = (__bridge CAMetalLayer*)(void*)hwnd;
+		[metalLayer retain];
+	}
+	else
+	{
+		metalLayer = [[CAMetalLayer alloc] init];
+		/*
+		 * Something has to be set before nextDrawable will produce anything;
+		 * the backend overwrites this through MetalLayer_setProps once it knows
+		 * the swapchain size. A real layer gets its size from its view.
+		 */
+		metalLayer.drawableSize = CGSizeMake(640, 480);
+	}
+
 	metalLayer.device = Unwrap<id<MTLDevice>>(device);
 	metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
 	metalLayer.framebufferOnly = YES;
-	/*
-	 * Something has to be set before nextDrawable will produce anything; the
-	 * backend overwrites this through MetalLayer_setProps once it knows the
-	 * swapchain size.
-	 */
-	metalLayer.drawableSize = CGSizeMake(640, 480);
 
 	if (layer)
 		*layer = Wrap(metalLayer);
 
 	/*
-	 * The "view" handle. With no NSView to own, the layer stands in for it, so
-	 * ReleaseMetalView has something meaningful to release and the ABI's
-	 * two-handle shape is preserved.
+	 * The "view" handle. The layer stands in for it -- there is no NSView we
+	 * own in either case -- so ReleaseMetalView has something to release and
+	 * the ABI's two-handle shape holds.
 	 */
 	return Wrap(metalLayer);
 }

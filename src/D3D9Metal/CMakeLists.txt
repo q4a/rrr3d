@@ -91,6 +91,13 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # tree, so the define stays on and the entry comes from d9mt_wsi_bootstrap.cpp.
 target_compile_definitions(${PROJECT_NAME} PRIVATE DXVK_WSI_WIN32)
 
+# d9mt's frontend trace writes a line per D3D9 call and fflushes each one. It
+# is a debugging instrument and it dominates everything: left on, it produced a
+# 2.3 GB log in under a minute and spent ~90% of frame time inside write().
+# D9MT_NO_LOG compiles every FETRACE call out. Turn it off again by removing
+# this, not by editing the vendored header.
+target_compile_definitions(${PROJECT_NAME} PRIVATE D9MT_NO_FETRACE)
+
 target_link_libraries(${PROJECT_NAME} PUBLIC XPlatform MetalBridge)
 
 # Both trees expect <windows.h> to have been seen already.

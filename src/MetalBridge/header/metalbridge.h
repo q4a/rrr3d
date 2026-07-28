@@ -26,6 +26,10 @@
 #ifndef METALBRIDGE_H
 #define METALBRIDGE_H
 
+/* Graphics-stack tracing, off unless RRR3D_TRACE is set. */
+#include "rrr3d_trace.h"
+
+
 #include <stdint.h>
 #ifndef __cplusplus
 #include <stdbool.h>

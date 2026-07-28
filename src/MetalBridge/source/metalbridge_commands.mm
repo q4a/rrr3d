@@ -136,6 +136,10 @@ void MTLBlitCommandEncoder_encodeCommands(obj_handle_t encoder, const struct wmt
 		case WMTBlitCommandCopyFromTextureToTexture:
 		{
 			const auto& c = As<wmtcmd_blit_copy_from_texture_to_texture>(cmd);
+			RRR3D_TRACE_FIRST(12, "BLIT tex %p -> %p size=%llux%llu",
+				(void*)(uintptr_t)c.src, (void*)(uintptr_t)c.dst,
+				(unsigned long long)c.src_size.width,
+				(unsigned long long)c.src_size.height);
 			[enc copyFromTexture:Unwrap<id<MTLTexture>>(c.src)
 			         sourceSlice:c.src_slice
 			         sourceLevel:c.src_level
@@ -328,8 +332,34 @@ void MTLRenderCommandEncoder_encodeCommands(obj_handle_t encoder, const struct w
 
 	id<MTLRenderCommandEncoder> enc = Unwrap<id<MTLRenderCommandEncoder>>(encoder);
 
+	/*
+	 * The command sequence handed to one encoder.
+	 *
+	 * This is the trace that found the stencil bug: diffing an encoder that
+	 * drew against one that did not showed they differed by a single command.
+	 * Command types are numeric because the enum is the ABI's, and the numbers
+	 * are what you match against winemetal.h.
+	 */
+	if (::rrr3d::TraceEnabled())
+	{
+		static int logged = 0;
+		if (logged < 8)
+		{
+			++logged;
+			char seq[512];
+			size_t used = 0;
+			for (const wmtcmd_base* c = cmd_head; c && used + 8 < sizeof(seq); c = Next(c))
+				used += std::snprintf(seq + used, sizeof(seq) - used, " %u", (unsigned)c->type);
+			seq[used] = '\0';
+			RRR3D_TRACE("SEQ enc=%llx :%s", (unsigned long long)encoder, seq);
+		}
+	}
+
 	for (const wmtcmd_base* cmd = cmd_head; cmd; cmd = Next(cmd))
 	{
+		if (cmd->type == WMTRenderCommandDraw)
+			RRR3D_TRACE_FIRST(60, "  draw on enc=%llx", (unsigned long long)encoder);
+
 		switch (static_cast<WMTRenderCommandType>(cmd->type))
 		{
 		case WMTRenderCommandNop:
@@ -344,6 +374,26 @@ void MTLRenderCommandEncoder_encodeCommands(obj_handle_t encoder, const struct w
 		case WMTRenderCommandSetVertexBuffer:
 		{
 			const auto& c = As<wmtcmd_render_setbuffer>(cmd);
+			/*
+			 * Argument buffer contents, as the 64-bit GPU addresses they hold.
+			 * Read them as anything else and a valid address looks like zero --
+			 * printed as floats these are denormals, which cost an hour once.
+			 */
+			if (c.index == 0 && c.buffer && ::rrr3d::TraceEnabled())
+			{
+				static int seen = 0;
+				static int logged = 0;
+				if (++seen > 300 && logged < 4)
+				{
+					++logged;
+					id<MTLBuffer> b = Unwrap<id<MTLBuffer>>(c.buffer);
+					const uint64_t* q = (const uint64_t*)((const char*)[b contents] + c.offset);
+					RRR3D_TRACE("AB@draw off=%llu : 0x%llx 0x%llx 0x%llx 0x%llx",
+						(unsigned long long)c.offset,
+						(unsigned long long)q[0], (unsigned long long)q[1],
+						(unsigned long long)q[2], (unsigned long long)q[3]);
+				}
+			}
 			[enc setVertexBuffer:Unwrap<id<MTLBuffer>>(c.buffer) offset:c.offset atIndex:c.index];
 			break;
 		}
@@ -452,6 +502,8 @@ void MTLRenderCommandEncoder_encodeCommands(obj_handle_t encoder, const struct w
 			const auto& c = As<wmtcmd_render_setviewport>(cmd);
 			MTLViewport vp = {c.viewport.originX, c.viewport.originY, c.viewport.width,
 			                  c.viewport.height, c.viewport.znear, c.viewport.zfar};
+			RRR3D_TRACE_FIRST(4, "VIEWPORT x=%.1f y=%.1f w=%.1f h=%.1f z=%.2f..%.2f",
+				vp.originX, vp.originY, vp.width, vp.height, vp.znear, vp.zfar);
 			[enc setViewport:vp];
 			break;
 		}
@@ -470,6 +522,9 @@ void MTLRenderCommandEncoder_encodeCommands(obj_handle_t encoder, const struct w
 			const auto& c = As<wmtcmd_render_setscissorrect>(cmd);
 			MTLScissorRect r = {c.scissor_rect.x, c.scissor_rect.y,
 			                    c.scissor_rect.width, c.scissor_rect.height};
+			RRR3D_TRACE_FIRST(4, "SCISSOR x=%llu y=%llu w=%llu h=%llu",
+				(unsigned long long)r.x, (unsigned long long)r.y,
+				(unsigned long long)r.width, (unsigned long long)r.height);
 			[enc setScissorRect:r];
 			break;
 		}

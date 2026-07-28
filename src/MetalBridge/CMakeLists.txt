@@ -19,6 +19,11 @@ add_library(${PROJECT_NAME} STATIC
 
 target_include_directories(${PROJECT_NAME} PUBLIC header d9mtmetal)
 
+# For rrr3d_trace.h, the shared tracing facility. Headers only -- MetalBridge
+# needs none of XPlatform's Win32 substitutes, and a link dependency would run
+# the wrong way round.
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src/XPlatform/header)
+
 # ARC off: the ABI's contract is manual retain/release, and the handles are
 # unowned bridged pointers. Letting ARC manage them would double-free.
 set_source_files_properties(

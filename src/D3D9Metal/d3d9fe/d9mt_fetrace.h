@@ -26,7 +26,12 @@ namespace dxvk { namespace d9mt {
   }
 } }
 // Gated off in RELEASE (D9MT_NO_LOG) so instrumentation adds zero perturbation.
-#ifdef D9MT_NO_LOG
+//
+// rrr3d: D9MT_NO_FETRACE added. D9MT_NO_LOG silences d9mt::logf too, and that
+// one is low-volume and worth keeping -- it is where the backend reports
+// pipeline and surface failures. This trace is per-call with an fflush each
+// time; left on it wrote 2.3 GB in a minute and dominated frame time.
+#if defined(D9MT_NO_LOG) || defined(D9MT_NO_FETRACE)
 #define FETRACE(...) ((void)0)
 #else
 #define FETRACE(...) ::dxvk::d9mt::fetrace(__VA_ARGS__)
