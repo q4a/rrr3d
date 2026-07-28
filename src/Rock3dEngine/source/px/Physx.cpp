@@ -1,6 +1,7 @@
 #include "stdafx.h"
 
 #include "px/Physx.h"
+#include "px/Vehicle.h"
 
 #include "lslSerialValue.h"
 
@@ -153,7 +154,7 @@ static PxFilterFlags SceneFilterShader(
 	return flags;
 }
 
-Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0)
+Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0), _vehicleScene(0)
 {
 	_contactModify = new ContactModify(this);
 	_simulationEvents = new SimulationEvents(this);
@@ -203,6 +204,10 @@ Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0)
 Scene::~Scene()
 {
 	LSL_ASSERT(_userList.empty());
+
+	//Before the scene: every vehicle holds a PxRigidDynamic from it.
+	delete _vehicleScene;
+	_vehicleScene = 0;
 
 	_nxScene->release();
 	_cpuDispatcher->release();
@@ -520,10 +525,54 @@ void Scene::Compute(float deltaTime)
 {
 	_lastDeltaTime = deltaTime;
 
+	//Suspension raycasts and the vehicle update run before the scene steps,
+	//because what they produce is the forces the step then integrates.
+	UpdateVehicles(deltaTime);
+
 	//flushStream is gone in PhysX 3+, and fetchResults no longer needs to be
 	//told which simulation stage to wait for.
 	_nxScene->simulate(deltaTime);
 	_nxScene->fetchResults(true);
+}
+
+void Scene::NotifyVehicleActor(Actor* actor)
+{
+	if (actor)
+		_pendingVehicles.insert(actor);
+}
+
+void Scene::ForgetVehicleActor(Actor* actor)
+{
+	_pendingVehicles.erase(actor);
+
+	if (_vehicleScene)
+		_vehicleScene->Remove(actor);
+}
+
+void Scene::UpdateVehicles(float deltaTime)
+{
+	if (_pendingVehicles.empty() && !_vehicleScene)
+		return;
+
+	if (!_pendingVehicles.empty())
+	{
+		if (!_vehicleScene)
+			_vehicleScene = new VehicleScene(_nxScene);
+
+		//Anything that fails to build is dropped rather than retried: a wheel
+		//count that is still short means the actor is not a car, and retrying
+		//every step would rebuild the same failure forever.
+		for (std::set<Actor*>::iterator iter = _pendingVehicles.begin();
+			iter != _pendingVehicles.end(); ++iter)
+		{
+			_vehicleScene->Add(*iter);
+		}
+
+		_pendingVehicles.clear();
+	}
+
+	if (_vehicleScene)
+		_vehicleScene->Update(deltaTime, cDefGravity);
 }
 
 void Scene::InsertUser(SceneUser* value)
@@ -610,6 +659,10 @@ void Manager::InitSDK()
 		//Index 0, matching NxScene's built-in material.
 		Manager::_materials.clear();
 		Manager::_materials.push_back(Manager::_defMaterial);
+
+		//The vehicle SDK is a separate library with its own init, and it needs
+		//the default material to exist first.
+		VehicleScene::InitSDK(*Manager::_nxSDK);
 	}
 }
 
@@ -626,6 +679,9 @@ void Manager::ReleaseSDK()
 
 		Manager::_defMaterial->release();
 		Manager::_defMaterial = 0;
+
+		//Before the extensions, and before the SDK it was initialised with.
+		VehicleScene::ReleaseSDK();
 
 		PxCloseExtensions();
 
@@ -1843,12 +1899,18 @@ void WheelShape::SetSteerAngle(float value)
 
 PxShape* WheelShape::GetContact(WheelContactData& data) const
 {
-	//No suspension raycast runs, so there is never a contact to report. Callers
-	//test the return value, so reporting none is the safe answer -- reporting a
-	//fabricated contact would drive tire trails and slip effects off invented
-	//numbers.
-	data = WheelContactData();
-	return 0;
+	//Filled in by Vehicle::SyncOutputs from the PxVehicleWheelQueryResult of
+	//the step that just ran, which is as live as 2.8's reading off the shape
+	//was. Null until a vehicle exists for this wheel's actor, and null whenever
+	//the wheel is in the air -- callers test the return value.
+	data = _contact;
+	return _contactShape;
+}
+
+void WheelShape::SetContactData(const WheelContactData& data, PxShape* contactShape)
+{
+	_contact = data;
+	_contactShape = contactShape;
 }
 
 float WheelShape::GetAxleSpeed() const
@@ -2139,6 +2201,17 @@ void Actor::InitRootNxActor()
 		if (_body)
 			ApplyBodyDesc();
 
+		//An actor carrying wheels wants a PxVehicleNoDrive. The scene builds it
+		//on the next step rather than here, because the body has to be applied
+		//first -- sprung masses are computed from its mass and centre of mass.
+		if (_body)
+			for (Shapes::iterator iter = _shapes->begin(); iter != _shapes->end(); ++iter)
+				if ((*iter)->GetType() == stWheel)
+				{
+					_scene->NotifyVehicleActor(this);
+					break;
+				}
+
 		if (_owner && _body)
 			_owner->OnSetBody(true);
 	}
@@ -2195,6 +2268,9 @@ void Actor::FreeRootNxActor()
 	if (_nxActor)
 	{
 		LSL_ASSERT(_scene);
+
+		//Before the actor goes: the vehicle holds a pointer to it.
+		_scene->ForgetVehicleActor(this);
 
 		_scene->ReleaseNxActor(_nxActor, this);
 		_nxActor = 0;

@@ -324,7 +324,11 @@ void TestMotorAccelerates(r3d::px::Manager& manager, r3d::px::Scene* scene)
 
 	const float restX = car.GetPos().x;
 
-	car.SetMotorTorque(1350.0f);
+	//Per wheel, not per car. The 1350 the game's overlay prints is the engine's
+	//whole output before the gearbox and the split across driven wheels;
+	//feeding that to each of four wheels is four times the crank torque and
+	//spins every tire up into its friction limit.
+	car.SetMotorTorque(300.0f);
 	Step(manager, 120);
 	car.SetMotorTorque(0.0f);
 
@@ -353,13 +357,25 @@ void TestStraightLineHasNoLateralSlip(r3d::px::Manager& manager, r3d::px::Scene*
 	TestCar car(scene, D3DXVECTOR3(0.0f, 0.0f, 1.0f));
 	Step(manager, 120);
 
-	car.SetMotorTorque(1350.0f);
+	car.SetMotorTorque(300.0f);
 	Step(manager, 120);
+
+	const D3DXVECTOR3 velocity = car.GetVelocity();
+
+	std::printf("   ... velocity %.3f, %.3f, %.3f\n", velocity.x, velocity.y, velocity.z);
+	for (int i = 0; i < TestCar::cWheelCount; ++i)
+	{
+		r3d::px::WheelContactData contact;
+		const bool onGround = car.GetWheel(i)->GetContact(contact) != 0;
+		std::printf("   ... wheel %d: %s long slip %.4f, lat slip %.4f, axle %.3f\n",
+			i, onGround ? "down" : "air ",
+			contact.longitudalSlip, contact.lateralSlip,
+			car.GetWheel(i)->GetAxleSpeed());
+	}
 
 	Check(car.MaxAbsLateralSlip() < 0.1f,
 		Fmt("no wheel is sliding sideways (worst |lateral slip| = %.4f)", car.MaxAbsLateralSlip()));
 
-	const D3DXVECTOR3 velocity = car.GetVelocity();
 	Check(std::fabs(velocity.y) < std::fabs(velocity.x) * 0.2f + 0.2f,
 		Fmt("travels along its own axis (vx = %.3f, vy = %.3f)", velocity.x, velocity.y));
 }

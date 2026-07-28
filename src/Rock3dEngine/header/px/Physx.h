@@ -115,6 +115,7 @@ class Actor;
 class Manager;
 class Shape;
 class Shapes;
+class VehicleScene;
 
 class Scene: public lsl::Component
 {
@@ -266,6 +267,18 @@ private:
 	PxDefaultCpuDispatcher* _cpuDispatcher;
 	PxScene* _nxScene;
 
+	//The vehicle model. Held by pointer and declared only as a forward
+	//reference so that the vehicle SDK headers stay out of this one, which
+	//every translation unit that touches physics already includes.
+	VehicleScene* _vehicleScene;
+
+	//A vehicle cannot be built until its actor has its body and all its wheels,
+	//and nothing signals when that is. So actors that carry WheelShapes are
+	//noted here and turned into vehicles at the start of the next step.
+	std::set<Actor*> _pendingVehicles;
+
+	void UpdateVehicles(float deltaTime);
+
 	UserList _userList;
 	float _lastDeltaTime;
 
@@ -281,6 +294,12 @@ protected:
 	void ReleaseNxActor(PxRigidActor* nxActor, Actor* actor);
 public:
 	void Compute(float deltaTime);
+
+	//An actor that carries WheelShapes wants a PxVehicleNoDrive built for it.
+	//Registration is deferred rather than immediate because the wheels arrive
+	//one at a time and the body may not be set yet.
+	void NotifyVehicleActor(Actor* actor);
+	void ForgetVehicleActor(Actor* actor);
 
 	//NxScene::raycastClosestShape. PhysX 3+ reports hits through a buffer and
 	//expresses the static/dynamic choice as query flags rather than an
@@ -783,9 +802,13 @@ private:
 	UINT _wheelFlags;
 	float _motorTorque;
 	float _steerAngle;
-	//Solver outputs in 2.8; cached here until PxVehicle drives them.
+	//Solver outputs. In 2.8 these were read live off a shape the solver
+	//updated; now Vehicle::SyncOutputs writes them from the step's
+	//PxVehicleWheelQueryResult, which amounts to the same freshness.
 	float _axleSpeed;
 	float _brakeTorque;
+	WheelContactData _contact;
+	PxShape* _contactShape;
 	ContactModify* _contactModify;
 protected:
 	virtual PxGeometryHolder CreateGeometry();
@@ -832,15 +855,12 @@ public:
 	ContactModify* GetContactModify();
 	void SetContactModify(ContactModify* value);
 
-	//NxWheelShape's runtime state. In 2.8 these were live readings off a shape
-	//the solver updated every step; there is no such object now.
-	//
-	//BEHAVIOUR GAP: GetContact always reports no contact and GetAxleSpeed always
-	//reports zero, because nothing computes them until the PxVehicle work lands.
-	//Wheels therefore never register ground contact: no tire trails, no slip,
-	//no engine RPM derived from axle speed. The accessors exist so the game
-	//layer keeps its shape and so there is one place to fill in.
+	//NxWheelShape's runtime state, now sourced from the PxVehicleNoDrive that
+	//px::Vehicle builds for this wheel's actor. Null until that vehicle exists,
+	//and null while the wheel is in the air; every caller tests the return.
 	PxShape* GetContact(WheelContactData& data) const;
+	//Written once per step by Vehicle::SyncOutputs. Not for the game layer.
+	void SetContactData(const WheelContactData& data, PxShape* contactShape);
 
 	float GetAxleSpeed() const;
 	void SetAxleSpeed(float value);
