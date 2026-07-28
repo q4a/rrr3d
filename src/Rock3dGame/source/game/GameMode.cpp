@@ -716,34 +716,81 @@ void GameMode::StartGame()
 #endif
 		CheckStartupMenu();
 
-	//debug
-/*#if DEBUG_PX
-	_menu->StartMatch(Race::rmSkirmish, gdHard, NULL, false);
+	AutoStartRaceIfAsked();
+}
 
-	Garage::Car* car = _race->GetGarage().FindCar("podushka");
-	_race->GetHuman()->GetPlayer()->SetColor(clrYellow);
-	_race->GetHuman()->GetPlayer()->AddPoints(999999);
-	_race->GetHuman()->GetPlayer()->AddMoney(999999);
+/*
+ * DIAGNOSTIC: RRR3D_AUTORACE=<planet> drops straight into a race.
+ *
+ * Reaching a race by hand is seven menus deep, which makes any graphics defect
+ * that only appears in one -- the HDR chain, the vehicle model -- expensive to
+ * look at twice. This is the DEBUG_PX block that used to sit here commented
+ * out, made to run off an environment variable instead of a rebuild.
+ *
+ * The value is the planet index, so RRR3D_AUTORACE=1 is what that block did.
+ * Every lookup is checked: the point of this is to fail with a log line naming
+ * what was missing, not to crash three frames into a screen nobody chose.
+ */
+void GameMode::AutoStartRaceIfAsked()
+{
+	const char* planetIndexStr = std::getenv("RRR3D_AUTORACE");
+	if (!planetIndexStr)
+		return;
+
+	const int planetIndex = std::atoi(planetIndexStr);
+
+	LSL_LOG(lsl::StrFmt("DIAGNOSTIC: RRR3D_AUTORACE=%d, skipping the menus", planetIndex).c_str());
+
+	_menu->StartMatch(Race::rmSkirmish, gdNormal, NULL, false);
+
+	HumanPlayer* human = _race->GetHuman();
+	Player* player = human ? human->GetPlayer() : NULL;
+	if (!player)
+	{
+		LSL_LOG("DIAGNOSTIC: RRR3D_AUTORACE found no human player, staying in the menus");
+		return;
+	}
+
+	//Enough of everything that nothing is gated behind progression.
+	player->SetColor(clrYellow);
+	player->AddPoints(999999);
+	player->AddMoney(999999);
 	_race->GetAchievment().AddPoints(999999);
-	_race->GetGarage().BuyCar(_race->GetHuman()->GetPlayer(), car);
+
+	if (Garage::Car* car = _race->GetGarage().FindCar("podushka"))
+		_race->GetGarage().BuyCar(player, car);
+	else
+		LSL_LOG("DIAGNOSTIC: RRR3D_AUTORACE could not find car 'podushka'");
 
 	for (int i = Player::stWeapon1; i <= Player::stWeapon4; ++i)
 	{
-		Slot* slot = _race->GetHuman()->GetPlayer()->GetSlotInst((Player::SlotType)i);
+		Slot* slot = player->GetSlotInst(static_cast<Player::SlotType>(i));
 		WeaponItem* weapon = slot ? slot->GetItem().IsWeaponItem() : 0;
 		if (weapon)
 			weapon->SetCntCharge(99);
 	}
-	
-	_race->GetTournament().SetCurPlanet(_race->GetTournament().GetPlanets()[1]);
-	_race->GetTournament().GetCurPlanet().Unlock();
-	_race->GetTournament().GetCurPlanet().Open();
-	//_race->GetTournament().GetCurPlanet().SetPass(2);
-	_race->GetTournament().SetCurTrack(_race->GetTournament().GetPlanets()[1]->GetTracks()[0]);
-	_race->GetHuman()->GetPlayer()->AddPoints(999999);
-	
+
+	Tournament& tournament = _race->GetTournament();
+	if (planetIndex < 0 || planetIndex >= static_cast<int>(tournament.GetPlanets().size()))
+	{
+		LSL_LOG(lsl::StrFmt("DIAGNOSTIC: RRR3D_AUTORACE planet %d is out of range (%u planets)",
+			planetIndex, static_cast<unsigned>(tournament.GetPlanets().size())).c_str());
+		return;
+	}
+
+	Planet* planet = tournament.GetPlanets()[planetIndex];
+	tournament.SetCurPlanet(planet);
+	tournament.GetCurPlanet().Unlock();
+	tournament.GetCurPlanet().Open();
+
+	if (planet->GetTracks().empty())
+	{
+		LSL_LOG("DIAGNOSTIC: RRR3D_AUTORACE planet has no tracks");
+		return;
+	}
+	tournament.SetCurTrack(planet->GetTracks()[0]);
+
 	StartRace();
-#endif*/
 }
 
 void GameMode::FreeIntro()

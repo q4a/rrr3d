@@ -661,7 +661,11 @@ void GraphManager::InitScRenderTex()
 	{
 		_scRenderTex = new graph::RenderToTexture();
 		graph::Tex2DResource* tex =  _scRenderTex->GetOrCreateRT();
-		tex->GetOrCreateData()->SetFormat(D3DFMT_A16B16G16R16F);		
+
+		//A16B16G16R16F round-trips correctly here -- forcing this to A8R8G8B8
+		//changed nothing when the scene was black, which is how that suspicion
+		//was retired.
+		tex->GetOrCreateData()->SetFormat(D3DFMT_A16B16G16R16F);
 		tex->SetScreenScale(D3DXVECTOR2(1.0f, 1.0f));		
 		tex->Init(*_engine);
 
@@ -2240,6 +2244,14 @@ bool GraphManager::Render(float deltaTime, bool pause)
 
 	if (_engine->BeginScene())
 	{
+		//DIAGNOSTIC: which of the two 3D legs a frame takes. A race draws a
+		//black screen with a live HUD over it, and neither leg's clear colour
+		//reaches the back buffer, so the first thing to establish is which one
+		//is even running.
+		RRR3D_TRACE_FIRST(8, "SCENE scRenderTexRef=%d msRT=%d cleanScTexRef=%d fogColor=%.2f,%.2f,%.2f",
+			(int)_scRenderTexRef, (int)(_msRT != NULL), (int)_cleanScTexRef,
+			_fogColor.r, _fogColor.g, _fogColor.b);
+
 		if (_msRT)
 		{
 			_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_depthSurface->GetSurface());
@@ -2287,6 +2299,16 @@ bool GraphManager::Render(float deltaTime, bool pause)
 			if ((*iter)->GetEnable())
 				(*iter)->GetSource()->Apply(*_engine, i);
 
+		//DIAGNOSTIC: RRR3D_SCENE_CLEAR=1 clears the scene to magenta.
+		//
+		//The scene is black in a race. That is either an empty scene or a broken
+		//composite, and a clear colour nothing else uses tells them apart in one
+		//frame: magenta on screen means the target and the screen quad that
+		//samples it are both fine and the scene drew nothing into it; still
+		//black means the path between the two is at fault.
+		const D3DXCOLOR sceneClear = std::getenv("RRR3D_SCENE_CLEAR")
+			? D3DXCOLOR(1.0f, 0.0f, 1.0f, 1.0f) : _fogColor;
+
 		//Рендер с постпроцессингом
 		if (_scRenderTexRef)
 		{
@@ -2294,10 +2316,10 @@ bool GraphManager::Render(float deltaTime, bool pause)
 			{
 				_engine->GetDriver().GetDevice()->SetRenderTarget(0, _msRT->GetSurface());
 				_engine->GetDriver().GetDevice()->SetDepthStencilSurface(_msDS->GetSurface());
-				_engine->GetDriver().GetDevice()->Clear(0, NULL, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor, 1.0f, 0);
+				_engine->GetDriver().GetDevice()->Clear(0, NULL, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, sceneClear, 1.0f, 0);
 			}
 			else
-				_scRenderTex->BeginRT(*_engine, RtFlags(0, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor));
+				_scRenderTex->BeginRT(*_engine, RtFlags(0, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, sceneClear));
 
 			_preNodeScene->Render(*_engine);
 
@@ -2349,7 +2371,16 @@ bool GraphManager::Render(float deltaTime, bool pause)
 				_hdrEff->Render(*_engine);
 			if (_bloomEff)
 				_bloomEff->Render(*_engine);
-			if (_toneMapRef)
+			//RRR3D_NO_HDR skips this too.
+			//
+			//It used to gate only InitHDREff, which was never enough: bloom and
+			//sun shafts each call InitToneMap, so tone mapping ran anyway --
+			//reading and writing the scene target -- with its HDR luminance
+			//input missing, and blacked the frame. That is why "HDR is off" and
+			//"the scene is black" were both true at once, and why the menus
+			//looked fine: they take the direct-to-back-buffer leg and never
+			//reach this.
+			if (_toneMapRef && !std::getenv("RRR3D_NO_HDR"))
 				_toneMap->Render(*_engine);
 			if (_sunShaft && _engine->GetContext().GetCamera().GetDesc().style == graph::csPerspective)
 			{
@@ -2370,7 +2401,17 @@ bool GraphManager::Render(float deltaTime, bool pause)
 				_sunShaft->Render(*_engine);
 			}
 
-			_engine->BeginBackBufOut(0, 0);
+			//DIAGNOSTIC: under RRR3D_SCENE_CLEAR, clear the back buffer too.
+			//
+			//This leg normally clears nothing -- the screen quad below covers
+			//every pixel. So if the scene target is magenta and the screen is
+			//still black, the quad is what is missing, and clearing the back
+			//buffer green says so directly: green means the clear reached the
+			//back buffer and the quad drew nothing over it.
+			if (std::getenv("RRR3D_SCENE_CLEAR"))
+				_engine->BeginBackBufOut(D3DCLEAR_TARGET, D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f));
+			else
+				_engine->BeginBackBufOut(0, 0);
 
 			_engine->GetContext().SetTexture(0, _scRenderTex->GetRT()->GetTex());
 			DrawScreenQuad(*_engine);
@@ -2386,7 +2427,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 		{
 			LSL_ASSERT(!_cleanScTexRef);
 
-			_engine->BeginBackBufOut(D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, _fogColor);
+			_engine->BeginBackBufOut(D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, sceneClear);
 
 			_preNodeScene->Render(*_engine);
 

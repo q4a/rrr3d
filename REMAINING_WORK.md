@@ -68,27 +68,38 @@ completion.
 
 ## The known defects, in the order they hurt
 
-### 1. HDR tone mapping renders the scene black
+### 1. Tone mapping renders the scene black
 
-`RRR3D_NO_HDR=1` works around it, and the gate is in
-`GraphManager::SetGraphOption` with the reasoning at the call site.
+`RRR3D_NO_HDR=1` works around it. It now gates two things, and the second is
+the one that matters: `InitHDREff` in `GraphManager::SetGraphOption`, and
+`_toneMap->Render` in `GraphManager::Render`.
 
-The HDR chain runs: the scene draws into an `A16B16G16R16F` target, reduces
-128×128 → 1×1 for average luminance, and tone maps. Every pass executes with
-draws in it. The output is black, so the luminance coming out of that
-reduction is wrong rather than absent.
+**Gating only the first was never enough**, which is what made this look
+mysterious for so long. Bloom and sun shafts each call `InitToneMap`, so
+`_toneMapRef` stays non-zero and tone mapping ran anyway — reading and writing
+the scene target with its HDR luminance input missing, and blacking the frame.
+So "HDR is off" and "the scene is black" were both true at once. With tone
+mapping actually skipped, a race renders: track, cars, guard rails, particles.
 
-Ruled out: `log(0)`, which `Down3x3LumLog` guards with a `+0.0001` epsilon;
-and the scene target itself, since the image is correct the moment tone
-mapping is skipped.
+The menus were never affected because they take the direct-to-back-buffer leg
+and never reach a post-processing pass at all. That is why this looked like a
+3D-scene defect rather than a post-processing one.
 
-Still to check: whether `A16B16G16R16F` render targets round-trip through this
-backend, and whether d9mt's unconditional fast-math MSL turns an intermediate
-in the exp/log reduction into a NaN — its own notes warn about exactly that,
-and a NaN average luminance would black the frame like this.
+The HDR chain itself still runs and is still wrong: the scene draws into an
+`A16B16G16R16F` target, reduces 128×128 → 1×1 for average luminance, and tone
+maps. Every pass executes with draws in it, and the output is black, so the
+luminance coming out of that reduction is wrong rather than absent.
 
-This one fault explained several symptoms that looked unrelated: "the
-character portrait does not load", "the tick is missing", "there is no 3D".
+Ruled out: `log(0)`, which `Down3x3LumLog` guards with a `+0.0001` epsilon; and
+the `A16B16G16R16F` scene target, which does round-trip — forcing it to
+`A8R8G8B8` changed nothing while the scene was black.
+
+Still to check: whether d9mt's unconditional fast-math MSL turns an
+intermediate in the exp/log reduction into a NaN — its own notes warn about
+exactly that, and a NaN average luminance would black the frame like this.
+`AdaptLum` is worth reading closely too: it assigns a `tex2D` result to a
+`float2` and clamps only `.x`, so `.y` carries the max-luminance channel
+unclamped into the exposure calculation.
 
 ### 2. The car's position is wrong during a race
 
@@ -132,10 +143,18 @@ Which is what these are for:
 RRR3D_TRACE=1              ABI-boundary tracing to rrr3d-trace.log
 RRR3D_DUMP_FRAME=<n>       back buffer to frame.tga on GUI frame n
 RRR3D_DUMP_SCENE=<n>       back buffer to frame3d.tga on 3D frame n
-RRR3D_NO_HDR=1             skip tone mapping (see defect 1)
+RRR3D_NO_HDR=1             skip the HDR pass and tone mapping (see defect 1)
+RRR3D_AUTORACE=<planet>    skip the menus and start a race on that planet
+RRR3D_SCENE_CLEAR=1        clear the scene magenta and the back buffer green
 RRR3D_FORCE_ALPHATEST=1    discard low-alpha GUI fragments
 MTL_DEBUG_LAYER=1 MTL_SHADER_VALIDATION=1
 ```
+
+`RRR3D_AUTORACE` matters more than it looks: a race is seven menus deep, and
+every graphics defect that only appears in one is otherwise expensive to look
+at twice. `RRR3D_SCENE_CLEAR` is what cracked defect 1 — the scene coming up
+green and turning black half a second later said the composite was fine and
+something later in the frame was painting over it.
 
 Metal's validation layer found the sampler-layout bug. It did **not** find the
 stencil bug, because a stencil compare of Never is perfectly legal — the

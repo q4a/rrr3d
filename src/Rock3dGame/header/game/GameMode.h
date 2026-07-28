@@ -226,6 +226,8 @@ private:
 	
 	void PrepareGame();
 	void StartGame();
+	//DIAGNOSTIC: RRR3D_AUTORACE=<planet> skips the menus and starts a race.
+	void AutoStartRaceIfAsked();
 	void FreeIntro();
 	void AdjustGameStartup();
 	void SetSemaphore(MapObj* value);
