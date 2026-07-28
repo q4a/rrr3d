@@ -27,3 +27,18 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/MathLib/header
 )
+
+if (APPLE)
+    # The HLSL compiler behind D3DXCreateEffect -- see d3dx_effect.cpp and
+    # tools/setup-vkd3d-macos.sh. PUBLIC because this is a static library:
+    # whatever links XPlatform is what resolves these symbols.
+    set(VKD3D ${CMAKE_SOURCE_DIR}/extern/vkd3d)
+
+    if (NOT EXISTS ${VKD3D}/build/.libs/libvkd3d-shader.a)
+        message(FATAL_ERROR
+            "libvkd3d-shader not found. Run tools/setup-vkd3d-macos.sh")
+    endif()
+
+    target_include_directories(${PROJECT_NAME} PRIVATE ${VKD3D}/include)
+    target_link_libraries(${PROJECT_NAME} PUBLIC ${VKD3D}/build/.libs/libvkd3d-shader.a)
+endif()

@@ -46,27 +46,7 @@ void ReportMissing(const char* what)
 
 }
 
-/* ---- D3DX: effects ---- */
-
-HRESULT WINAPI D3DXCreateEffectPool(ID3DXEffectPool** pool)
-{
-	ReportMissing("D3DXCreateEffectPool");
-	if (pool)
-		*pool = NULL;
-	return E_NOTIMPL;
-}
-
-HRESULT WINAPI D3DXCreateEffect(struct IDirect3DDevice9*, const void*, UINT,
-	const D3DXMACRO*, struct ID3DXInclude*, DWORD,
-	struct ID3DXEffectPool*, struct ID3DXEffect** effect, struct ID3DXBuffer** compilation_errors)
-{
-	ReportMissing("D3DXCreateEffect");
-	if (effect)
-		*effect = NULL;
-	if (compilation_errors)
-		*compilation_errors = NULL;
-	return E_NOTIMPL;
-}
+/* The effects framework is implemented in d3dx_effect.cpp. */
 
 /* ---- D3DX: texture loading ---- */
 

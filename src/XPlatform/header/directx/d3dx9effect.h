@@ -84,6 +84,13 @@ DEFINE_GUID(IID_ID3DXEffectPool, 0x9537ab04, 0x3250, 0x412e, 0x82, 0x13, 0xfc, 0
 #undef INTERFACE
 #define INTERFACE ID3DXEffectPool
 
+/*
+ * rrr3d: GetFunction and GetFunctionByName were missing PURE on all three
+ * interfaces below. Without it they are declared but never defined, so the
+ * interface is not abstract and any class deriving from it drags in a vtable
+ * for the interface itself -- which nothing provides, and the link fails.
+ * Everything else in these declarations is PURE; this is an upstream slip.
+ */
 DECLARE_INTERFACE_(ID3DXEffectPool, IUnknown)
 {
     /*** IUnknown methods ***/
@@ -119,8 +126,8 @@ DECLARE_INTERFACE_(ID3DXBaseEffect, IUnknown)
     STDMETHOD_(D3DXHANDLE, GetTechniqueByName)(THIS_ const char *name) PURE;
     STDMETHOD_(D3DXHANDLE, GetPass)(THIS_ D3DXHANDLE technique, UINT index) PURE;
     STDMETHOD_(D3DXHANDLE, GetPassByName)(THIS_ D3DXHANDLE technique, const char *name) PURE;
-    STDMETHOD_(D3DXHANDLE, GetFunction)(THIS_ UINT index);
-    STDMETHOD_(D3DXHANDLE, GetFunctionByName)(THIS_ const char *name);
+    STDMETHOD_(D3DXHANDLE, GetFunction)(THIS_ UINT index) PURE;
+    STDMETHOD_(D3DXHANDLE, GetFunctionByName)(THIS_ const char *name) PURE;
     STDMETHOD_(D3DXHANDLE, GetAnnotation)(THIS_ D3DXHANDLE object, UINT index) PURE;
     STDMETHOD_(D3DXHANDLE, GetAnnotationByName)(THIS_ D3DXHANDLE object, const char *name) PURE;
     STDMETHOD(SetValue)(THIS_ D3DXHANDLE parameter, const void *data, UINT bytes) PURE;
@@ -229,8 +236,8 @@ DECLARE_INTERFACE_(ID3DXEffect, ID3DXBaseEffect)
     STDMETHOD_(D3DXHANDLE, GetTechniqueByName)(THIS_ const char *name) PURE;
     STDMETHOD_(D3DXHANDLE, GetPass)(THIS_ D3DXHANDLE technique, UINT index) PURE;
     STDMETHOD_(D3DXHANDLE, GetPassByName)(THIS_ D3DXHANDLE technique, const char *name) PURE;
-    STDMETHOD_(D3DXHANDLE, GetFunction)(THIS_ UINT index);
-    STDMETHOD_(D3DXHANDLE, GetFunctionByName)(THIS_ const char *name);
+    STDMETHOD_(D3DXHANDLE, GetFunction)(THIS_ UINT index) PURE;
+    STDMETHOD_(D3DXHANDLE, GetFunctionByName)(THIS_ const char *name) PURE;
     STDMETHOD_(D3DXHANDLE, GetAnnotation)(THIS_ D3DXHANDLE object, UINT index) PURE;
     STDMETHOD_(D3DXHANDLE, GetAnnotationByName)(THIS_ D3DXHANDLE object, const char *name) PURE;
     STDMETHOD(SetValue)(THIS_ D3DXHANDLE parameter, const void *data, UINT bytes) PURE;
@@ -327,8 +334,8 @@ DECLARE_INTERFACE_(ID3DXEffectCompiler, ID3DXBaseEffect)
     STDMETHOD_(D3DXHANDLE, GetTechniqueByName)(THIS_ const char *name) PURE;
     STDMETHOD_(D3DXHANDLE, GetPass)(THIS_ D3DXHANDLE technique, UINT index) PURE;
     STDMETHOD_(D3DXHANDLE, GetPassByName)(THIS_ D3DXHANDLE technique, const char *name) PURE;
-    STDMETHOD_(D3DXHANDLE, GetFunction)(THIS_ UINT index);
-    STDMETHOD_(D3DXHANDLE, GetFunctionByName)(THIS_ const char *name);
+    STDMETHOD_(D3DXHANDLE, GetFunction)(THIS_ UINT index) PURE;
+    STDMETHOD_(D3DXHANDLE, GetFunctionByName)(THIS_ const char *name) PURE;
     STDMETHOD_(D3DXHANDLE, GetAnnotation)(THIS_ D3DXHANDLE object, UINT index) PURE;
     STDMETHOD_(D3DXHANDLE, GetAnnotationByName)(THIS_ D3DXHANDLE object, const char *name) PURE;
     STDMETHOD(SetValue)(THIS_ D3DXHANDLE parameter, const void *data, UINT bytes) PURE;
