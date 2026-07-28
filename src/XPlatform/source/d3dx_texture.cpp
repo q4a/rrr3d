@@ -1,20 +1,24 @@
 /*
- * D3DX texture loading: the DDS half.
+ * D3DX texture loading.
  *
  * D3DX is not part of Direct3D, so no backend choice provides it -- see the
- * note in d3d9_stub.cpp. This file is the first piece of it to stop reporting
- * failure and do the work.
+ * note in d3d9_stub.cpp.
  *
  * Scope is the two entry points the engine actually reaches, both in
  * res/D3DXImageFile.cpp:
  *
- *   D3DXCreateTextureFromFileInMemoryEx        303 of the 309 .dds files
- *   D3DXCreateCubeTextureFromFileInMemoryEx    the other 6, all skyboxes
+ *   D3DXCreateTextureFromFileInMemoryEx        all .dds but the skyboxes, and
+ *                                              every .png and .jpg
+ *   D3DXCreateCubeTextureFromFileInMemoryEx    the 6 skybox cubemaps
  *
- * Formats present in the game data: DXT1 200, DXT3 62, DXT5 19, uncompressed
- * 28. The remaining 213 textures are .png and go through the same registration
- * in D3DXImageFile::RegistredFile; they need a decoder and are not handled
- * here.
+ * The game ships 312 .dds (DXT1 200, DXT3 62, DXT5 19, uncompressed 28, of
+ * which 6 are cubemaps), 213 .png and 2 .jpg. DDS is parsed here; PNG and JPG
+ * go through the vendored stb_image -- see vendor/README.md for why that and
+ * not ImageIO.
+ *
+ * The split is deliberate. Block-compressed data is handed to the GPU still
+ * compressed, so decoding it to RGBA the way stb would is exactly the work
+ * worth avoiding; and stb does not read DDS anyway.
  *
  * The file-path variants (D3DXCreateTextureFromFileEx, and the cube one) are
  * deliberately left unimplemented, along with D3DXGetImageInfoFromFileW. Those
@@ -39,6 +43,21 @@
 
 #include <cstdio>
 #include <cstring>
+
+/*
+ * Only the decoders this game's data needs. The rest are switched off so the
+ * unused ones are not compiled in at all -- configuration, not modification;
+ * the header itself is unchanged. See vendor/README.md.
+ */
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_NO_STDIO
+#define STBI_NO_GIF
+#define STBI_NO_PSD
+#define STBI_NO_PIC
+#define STBI_NO_PNM
+#define STBI_NO_HDR
+#define STBI_NO_TGA
+#include "../vendor/stb_image.h"
 
 namespace
 {
@@ -234,6 +253,17 @@ void ReportFormat(const DdsPixelFormat& pf)
 		pf.flags, pf.fourCC, pf.rgbBitCount);
 }
 
+/* The four-byte magic only, so "not a DDS" is distinguishable from "a DDS this cannot read". */
+bool IsDds(const void* srcData, UINT srcDataSize)
+{
+	if (!srcData || srcDataSize < 4)
+		return false;
+
+	uint32_t magic = 0;
+	std::memcpy(&magic, srcData, sizeof(magic));
+	return magic == cDdsMagic;
+}
+
 /*
  * The header, validated. Returns false and leaves nothing set if the data is
  * not a DDS this file can read.
@@ -252,7 +282,11 @@ bool ReadHeader(const void* srcData, UINT srcDataSize, DdsHeader& header, D3DFOR
 
 	std::memcpy(&header, data + 4, sizeof(header));
 	if (header.size != sizeof(DdsHeader) || header.width == 0 || header.height == 0)
+	{
+		std::fprintf(stderr, "rrr3d: bad DDS header -- size %u, %ux%u\n",
+			header.size, header.width, header.height);
 		return false;
+	}
 
 	format = FormatFromDds(header.ddspf);
 	if (format == D3DFMT_UNKNOWN)
@@ -278,6 +312,83 @@ unsigned LevelCnt(UINT requested, const DdsHeader& header)
 		return fileLevels;
 
 	return requested < fileLevels ? requested : fileLevels;
+}
+
+/*
+ * PNG and JPG, through stb_image.
+ *
+ * Always decoded to four channels and handed over as D3DFMT_A8R8G8B8 -- the
+ * engine reads info.Format to size its own copy, so a texture that varies with
+ * whether the source had an alpha channel would make every caller guess. stb
+ * gives RGBA; D3D9's A8R8G8B8 is BGRA in memory, so red and blue are swapped
+ * on the way in.
+ *
+ * One mip level only. These are interface and decal art; the callers ask for
+ * one level, and generating a chain is D3DX work this deliberately does not do.
+ */
+HRESULT LoadStbImage(IDirect3DDevice9* device, const void* data, UINT dataSize,
+	D3DPOOL pool, D3DXIMAGE_INFO* info, IDirect3DTexture9** texture)
+{
+	int width = 0;
+	int height = 0;
+	int channels = 0;
+
+	stbi_uc* pixels = stbi_load_from_memory(static_cast<const stbi_uc*>(data),
+		static_cast<int>(dataSize), &width, &height, &channels, 4);
+
+	if (!pixels)
+	{
+		std::fprintf(stderr, "rrr3d: stb_image failed: %s\n", stbi_failure_reason());
+		return D3DXERR_INVALIDDATA;
+	}
+
+	HRESULT hr = device->CreateTexture(width, height, 1, 0, D3DFMT_A8R8G8B8, pool, texture, NULL);
+	if (FAILED(hr))
+	{
+		stbi_image_free(pixels);
+		return hr;
+	}
+
+	D3DLOCKED_RECT rect;
+	hr = (*texture)->LockRect(0, &rect, NULL, 0);
+	if (FAILED(hr))
+	{
+		stbi_image_free(pixels);
+		(*texture)->Release();
+		*texture = NULL;
+		return hr;
+	}
+
+	for (int y = 0; y < height; ++y)
+	{
+		const stbi_uc* src = pixels + static_cast<size_t>(y) * width * 4;
+		unsigned char* dst = static_cast<unsigned char*>(rect.pBits) + static_cast<size_t>(y) * rect.Pitch;
+
+		for (int x = 0; x < width; ++x)
+		{
+			dst[x * 4 + 0] = src[x * 4 + 2];   /* B */
+			dst[x * 4 + 1] = src[x * 4 + 1];   /* G */
+			dst[x * 4 + 2] = src[x * 4 + 0];   /* R */
+			dst[x * 4 + 3] = src[x * 4 + 3];   /* A */
+		}
+	}
+
+	(*texture)->UnlockRect(0);
+	stbi_image_free(pixels);
+
+	if (info)
+	{
+		std::memset(info, 0, sizeof(*info));
+		info->Width = width;
+		info->Height = height;
+		info->Depth = 1;
+		info->MipLevels = 1;
+		info->Format = D3DFMT_A8R8G8B8;
+		info->ResourceType = D3DRTYPE_TEXTURE;
+		info->ImageFileFormat = D3DXIFF_PNG;
+	}
+
+	return D3D_OK;
 }
 
 void FillInfo(D3DXIMAGE_INFO* info, const DdsHeader& header, D3DFORMAT format, unsigned levels, D3DRESOURCETYPE type)
@@ -315,6 +426,10 @@ HRESULT WINAPI D3DXCreateTextureFromFileInMemoryEx(IDirect3DDevice9* device, con
 
 	*texture = NULL;
 
+	/* The same entry point serves .dds, .png and .jpg; the data says which. */
+	if (!IsDds(srcData, srcDataSize))
+		return LoadStbImage(device, srcData, srcDataSize, pool, srcInfo, texture);
+
 	DdsHeader header;
 	D3DFORMAT ddsFormat = D3DFMT_UNKNOWN;
 	const char* bits = NULL;
@@ -323,8 +438,14 @@ HRESULT WINAPI D3DXCreateTextureFromFileInMemoryEx(IDirect3DDevice9* device, con
 
 	const unsigned levels = LevelCnt(mipLevels, header);
 	const char* end = static_cast<const char*>(srcData) + srcDataSize;
-	if (bits + ChainSize(ddsFormat, header.width, header.height, levels) > end)
+	const unsigned needed = ChainSize(ddsFormat, header.width, header.height, levels);
+	if (bits + needed > end)
+	{
+		std::fprintf(stderr, "rrr3d: truncated DDS -- %ux%u fmt %d, %u levels need %u bytes, have %ld\n",
+			header.width, header.height, static_cast<int>(ddsFormat), levels, needed,
+			static_cast<long>(end - bits));
 		return D3DXERR_INVALIDDATA;
+	}
 
 	HRESULT hr = device->CreateTexture(header.width, header.height, levels, usage, ddsFormat, pool, texture, NULL);
 	if (FAILED(hr))

@@ -88,14 +88,7 @@ HRESULT WINAPI D3DXGetImageInfoFromFileW(const WCHAR*, D3DXIMAGE_INFO* info)
 
 /* ---- D3DX: text and geometry ---- */
 
-HRESULT WINAPI D3DXCreateFontA(struct IDirect3DDevice9*, INT, UINT, UINT, UINT, BOOL,
-	DWORD, DWORD, DWORD, DWORD, const char*, struct ID3DXFont** font)
-{
-	ReportMissing("D3DXCreateFontA");
-	if (font)
-		*font = NULL;
-	return E_NOTIMPL;
-}
+/* D3DXCreateFontA is implemented in d3dx_font.cpp. */
 
 HRESULT WINAPI D3DXCreateSphere(struct IDirect3DDevice9*, float, UINT, UINT,
 	struct ID3DXMesh** mesh, struct ID3DXBuffer** adjacency)
