@@ -6,328 +6,305 @@ things.
 
 ## Where it stands
 
-**The tree builds and links.** `RRR3d` is an arm64 Mach-O that runs:
+**The game runs.** It opens a window, plays its menus, loads the garage, and
+starts and runs a race, at 60fps.
 
 ```
 $ ./bin/Debug/RRR3d
-rrr3d: no graphics backend on this platform yet -- Direct3DCreate9.
-       See docs/macos-graphics-backend.md.
 ```
+
+Working end to end: window and event loop, keyboard and mouse, the whole 2D
+interface, DDS/PNG/JPG textures, text, the effects runtime compiling all 23
+`.fx` files, the 3D scene renderer, PhysX simulation, and a race that runs to
+completion.
 
 | Target | LOC | Status |
 |---|---|---|
-| `XPlatform` | ~9,800 | **builds** — Win32 substitutes plus vendored headers |
-| `TinyXml` | ~5,800 | **builds** — vendored TinyXML 2.5.3 |
-| `MathLib` | ~4,900 | **builds** |
-| `LexStd` | ~7,100 | **builds** |
-| `NetLib` | ~5,100 | **builds** |
-| `Tests` | ~360 | **builds**, 50 runtime checks pass |
-| `Rock3dEngine` | ~36,100 | **builds** |
-| `Rock3dGame` | ~73,800 | **builds** — 52 of 52 translation units |
-| `RRR3d` | ~420 | **builds and links** |
+| `XPlatform` | ~10,400 | **shared library** — Win32 substitutes, D3DX, vendored headers |
+| `MetalBridge` | ~4,900 | **works** — the winemetal ABI over Metal |
+| `D3D9Metal` | ~40,000 | **works** — vendored DXVK D3D9 front-end + d9mt Metal backend |
+| `TinyXml` | ~5,800 | builds — vendored TinyXML 2.5.3 |
+| `MathLib` | ~4,900 | builds |
+| `LexStd` | ~7,100 | builds |
+| `NetLib` | ~5,100 | builds |
+| `Tests` | ~360 | builds, 50 runtime checks pass |
+| `Rock3dEngine` | ~36,100 | builds and runs |
+| `Rock3dGame` | ~73,800 | builds and runs |
+| `RRR3d` | ~700 | builds, links, runs, plays |
+| `D3D9Triangle` | ~130 | backend smoke test |
+| `BridgeTriangle` | ~300 | layer-by-layer bridge harness |
 | `MapEditor` | ~4,600 | excluded from non-Windows builds (MFC) |
 
-**Still nothing renders.** The game initialises and stops at device
-creation, which is exactly what the graphics seam is for. That is a real
-milestone and not a playable game.
+## What is verified
 
-## What is actually verified
-
+- **A race runs.** Menus, garage, character select, a race that starts and
+  keeps running.
+- **The graphics stack draws**, from `Direct3DCreate9` through DXVK, d9mt,
+  MetalBridge, to Metal, presenting through a CAMetalLayer in an SDL window.
+- **All 23 `.fx` files compile at runtime** through vkd3d-shader, across the
+  macro permutations `Shader::MacroBlock` drives — not just the default
+  permutation, which is all the offline check covered.
+- **Every texture the game ships loads**: 312 DDS across DXT1/3/5 and
+  uncompressed, 6 of them cubemaps, plus 213 PNG and 2 JPG.
+- **Text renders** through a real `ID3DXFont` over stb_truetype.
+- The bridge harness passes at every layer: plain draws, vertex descriptors,
+  argument buffers, `newBufferWithBytesNoCopy`, function-constant
+  specialisation, and blending.
 - The CP1251 → UTF-8 transcode round-trips byte-exactly, all 139 files.
-- The 32 D3DX math functions compute correct results — 50 runtime checks,
-  mutation-tested to confirm they fail when the code is wrong.
-- The `XPlatform` Win32 substitutes work: recursive critical sections,
-  auto/manual reset events, `WAIT_TIMEOUT`, cross-thread signalling, the
-  thread pool, non-ASCII UTF-8 round trips.
-- All 48 shader entry points compile DXSO → SPIR-V → MSL → metallib
-  (`tools/shader-pipeline/`).
-- PhysX 4.1 builds and links as arm64 static libraries
-  (`tools/setup-physx-macos.sh`).
-- The vendored TinyXML sources match the vendored headers: the release's
-  own headers are byte-identical to `extern/tinyxml/include` apart from
-  line endings.
+- The 32 D3DX math functions compute correct results, mutation-tested.
+- PhysX 4.1 builds and links as arm64 static libraries.
 
 ## What is NOT verified
 
-- **The MSVC build.** Unverified since commit 12. CI caught a real regression
-  once already (`d3dx9_compat.h` including only `d3d9types.h`, which does not
-  declare `D3D_OK`). Everything since is unchecked on Windows, and the
-  Windows physics build cannot pass until it moves to PhysX 4.1 — see below.
-- **Any rendering.** Shaders compile; none has been executed on a GPU.
-- **Any physics at runtime.** The engine links against PhysX 4.1 but no
-  simulation step has ever run.
-- Shader coverage is the **default macro permutation only** — every `#if`
-  false. The game drives each `.fx` through `Shader::MacroBlock` with many
-  different `#define` sets, so real coverage is a multiple of 48.
+- **The MSVC build.** Unverified since commit 12, and `Rock3dEngine` cannot
+  compile on Windows until it moves to PhysX 4.1 — see section 4.
+- **Physics correctness.** The simulation runs; the car's behaviour is wrong
+  (see section 2).
+- **Audio, video and input** remain stubs (section 3).
 
-## The three things between here and a playtest
+## The known defects, in the order they hurt
 
-1. **The graphics backend.** Twelve entry points, listed in
-   `src/XPlatform/source/d3d9_stub.cpp`. `Direct3DCreate9`/`Ex` is Direct3D
-   itself; the other ten are D3DX, which no backend provides. See section 3.
-2. **A window and a message loop.** `RRR3d.cpp`'s Win32 shell is compiled
-   out and the placeholder `main()` has no event pump, so there is nothing
-   to drive frames, input or resizing. SDL3 is the intended replacement.
-3. **Audio and input are silent stubs.** See section 2.
+### 1. HDR tone mapping renders the scene black
 
-Physics is no longer on this list, which is the change since the last
-revision.
+`RRR3D_NO_HDR=1` works around it, and the gate is in
+`GraphManager::SetGraphOption` with the reasoning at the call site.
 
-## 1. PhysX: done, with gaps
+The HDR chain runs: the scene draws into an `A16B16G16R16F` target, reduces
+128×128 → 1×1 for average luminance, and tone maps. Every pass executes with
+draws in it. The output is black, so the luminance coming out of that
+reduction is wrong rather than absent.
 
-**The migration is complete.** Every PhysX call site in the engine and the
-game is on PhysX 4.1: actors, shapes, scenes, cooking, contact callbacks,
-collision filtering, materials, raycasts, contact streams, momentum and the
-vehicle model. No `Nx*` type remains outside three project-local helpers in
-`GameCar.cpp` that were only ever named by convention, and one block of
-commented-out debug drawing.
+Ruled out: `log(0)`, which `Down3x3LumLog` guards with a `+0.0001` epsilon;
+and the scene target itself, since the image is correct the moment tone
+mapping is skipped.
 
-What is left is correctness, not compilation — and none of it can be checked
-until something runs. The gaps below are the whole of it.
+Still to check: whether `A16B16G16R16F` render targets round-trip through this
+backend, and whether d9mt's unconditional fast-math MSL turns an intermediate
+in the exp/log reduction into a NaN — its own notes warn about exactly that,
+and a NaN average luminance would black the frame like this.
 
-Closed along the way, each properly rather than approximated:
+This one fault explained several symptoms that looked unrelated: "the
+character portrait does not load", "the tick is missing", "there is no 3D".
 
-- **Momentum.** `px::GetLinearMomentum` and friends reproduce the 2.8
-  definitions, including angular momentum as `R·I·Rᵀ·ω` rather than
-  `mass × ω`, which would be wrong for every body with anisotropic inertia.
-- **Kinetic energy.** `px::ComputeKineticEnergy`, translational plus
-  rotational, replacing `NxActor::computeKineticEnergy`.
-- **The material table.** `px::Manager` keeps the index PhysX 3+ dropped, so
-  `Shape::_materialIndex` means something again — it is serialised in saved
-  games and the object database.
-- **Collision groups and masks.** `PxDefaultSimulationFilterShader` reproduces
-  2.8 filtering; the per-shape groups mask goes into the filter-data words the
-  shader reads.
-- **Actor pair exceptions.** `NX_IGNORE_PAIR` became a filter callback with a
-  marker bit, so weapons still decline to collide with the car that fired
-  them.
-- **`NX_AF_LOCK_COM`** drives `setCMassLocalPose`.
+### 2. Sprites draw without transparency
 
-### A note on error counts
+Masked regions come out white, so curved panels render square. Affects menus,
+character select and race HUD alike.
 
-Earlier revisions of this document quoted "221 errors, all in `px/Physx.h`".
-That was an artifact of compilation stopping at the first fatal error in the
-header, before the rest of the file was parsed. The true figure was higher and
-spread wider. **Treat any error count as a floor until the file actually
-compiles** — this bit twice.
+**It is not a blending bug**, despite appearances. `BridgeTriangle blend`
+proves blending works through this exact path, and DXVK does request it —
+pipelines carry `blend=1, src=4, dst=5`, which is
+`SourceAlpha`/`OneMinusSourceAlpha`. Forcing an alpha-test discard on every
+GUI draw changes nothing, which means **the fragment shader sees alpha = 1**
+exactly where the art is transparent.
 
-### Behaviour gaps currently open
+Traced present at every CPU stage (`RRR3D_TRACE=1`):
 
-Ordered by how much they will change what a player sees. All of them compile
-silently, which is why they are written down.
+| Stage | Trace | Result |
+|---|---|---|
+| PNG decode | `PNG` | alpha present — 380032 translucent px in one panel |
+| engine pixel data | `UPLOAD` | same counts, alpha intact |
+| texture creation | `TEX2D` | `D3DFMT_A8R8G8B8` |
+| texture views | `VIEW` | identity swizzle, not alpha→One |
+| samplers | `SAMPLER` | normalized coords, transparent-black border |
+
+Also established: `MTLTexture_replaceRegion` is never called — DXVK stages
+textures through a buffer and a `copyFromBuffer:toTexture:` blit, which is
+what the `BLITTEX` trace watches.
+
+So the gap is between the engine's system-memory copy and what the GPU texture
+actually holds. `UpdateTexture` staging into the DEFAULT pool is the prime
+suspect, being the one step not yet observed directly. A bypass was attempted
+— creating those textures MANAGED so `DoUpdate` writes them directly — and it
+fails with `D3DERR_INVALIDCALL` here, so confirming it needs another route:
+reading back the staged texture, or matching a `BLITTEX` against a known GUI
+texture by size.
+
+### 3. The car's position is wrong during a race
+
+Untouched. This is the vehicle model — see section 4, where it has been the
+identified highest-risk item since the original plan.
+
+### 4. The `GPUSync` spin
+
+`Engine::GPUSync` sits in `while (GetData(...) == S_FALSE);`, a spin with no
+yield that measures at **~88% of the main thread**, and deliberately holds a
+frame back.
+
+It is skipped when `_frameLatencyOk` is set, which needs
+`SetMaximumFrameLatency`, which needs a D3D9Ex device, which DXVK offers. That
+was tried and reverted: an Ex device forbids `D3DPOOL_MANAGED`, which this
+engine reaches through `mpManaged`, and managed resources here are locked and
+written directly — the Ex equivalent cannot be locked at all. It fails at the
+first texture. Fixing it means reworking texture upload through staging
+surfaces, or bounding the frame queue another way. Reasoning is recorded at
+the call site.
+
+## Debugging this port
+
+Two harnesses bracket the graphics stack, because a 130k-line game is a poor
+place to ask which layer broke:
+
+```
+bin/Debug/D3D9Triangle              a triangle through the whole stack
+bin/Debug/BridgeTriangle <mode>     through MetalBridge alone
+```
+
+`BridgeTriangle`'s modes add one layer at a time — `vertexid`, `stagein`,
+`argbuf`, `nocopy`, `speccnst`, `blend` — and each renders offscreen and reads
+the pixels back, so neither needs a window or a human. That matters: **a
+CAMetalLayer's contents never appear in `screencapture`**, so there is no way
+to see what the game drew from outside the process.
+
+Which is what these are for:
+
+```
+RRR3D_TRACE=1              ABI-boundary tracing to rrr3d-trace.log
+RRR3D_DUMP_FRAME=<n>       back buffer to frame.tga on GUI frame n
+RRR3D_DUMP_SCENE=<n>       back buffer to frame3d.tga on 3D frame n
+RRR3D_NO_HDR=1             skip tone mapping (see defect 1)
+RRR3D_FORCE_ALPHATEST=1    discard low-alpha GUI fragments (see defect 2)
+MTL_DEBUG_LAYER=1 MTL_SHADER_VALIDATION=1
+```
+
+Metal's validation layer found the sampler-layout bug. It did **not** find the
+stencil bug, because a stencil compare of Never is perfectly legal — the
+command-sequence trace found that one, by diffing an encoder that drew against
+one that did not.
+
+## Lessons this port keeps repeating
+
+Each of these cost hours and is worth a reviewer's attention, because they are
+the shape of bug a Windows-to-anything port produces:
+
+1. **A flag that gates the meaning of other fields.** `WMTStencilInfo::enabled`
+   was ignored; the zeroed struct behind it meant "stencil compare Never", so
+   the GPU discarded every fragment of every draw. The game rendered its clear
+   colour and nothing else, at a steady 60fps, with no validation error.
+2. **Enum underlying types are part of a struct's layout.** `WMTSamplerInfo`
+   widened seven `uint8_t` enums to `uint32_t`, making it 48 bytes instead of
+   32 and shifting every field after the first.
+3. **Platform constants differ.** `RAND_MAX` is 32767 on MSVC and 2147483647
+   on macOS, so `RAND_MAX + 1` overflowed to `INT_MIN` and `RandomRange`
+   returned negative array indices. Same code, same inputs: `1` on Windows,
+   `-2` here. It surfaced as a crash in AI weapon code seconds into a race.
+4. **Static libraries duplicate their globals.** `XPlatform` was linked into
+   both the executable and `libRock3dGame.dylib`; the SDL shell published the
+   window size into one copy and `View::GetWndSize` read the other, so
+   `ScreenToView` divided by zero and every click arrived as `INT_MAX`. It is
+   now `SHARED`.
+5. **`wchar_t` is not 16 bits.** The localisation loader cast UTF-16LE file
+   bytes to `wchar_t*` and halved the length.
+6. **Verify the premise before bisecting the plumbing.** Transparency was
+   chased through the entire blend path before a harness showed blending was
+   never at fault.
+
+## 5. PhysX: migrated, correctness open
+
+**The migration is complete** — every call site in the engine and the game is
+on PhysX 4.1, and the simulation runs. What is left is correctness.
+
+Closed properly along the way: momentum (angular as `R·I·Rᵀ·ω`, not
+`mass × ω`), kinetic energy, the material index table PhysX 3+ dropped,
+collision groups and masks via `PxDefaultSimulationFilterShader`, actor pair
+exceptions, and `NX_AF_LOCK_COM`.
+
+### The vehicle model — the cause of defect 3
+
+The highest-risk item in the port, and now the visible one. PhysX 3+ deleted
+the built-in wheel shape, so this is a rewrite rather than a rename.
+
+`PxVehicleTireData` uses lateral stiffness plus a friction-vs-slip graph;
+2.8's `NxTireFunctionDesc` is an extremum/asymptote slip curve. There is no
+parameter mapping, and **every car's tuning in `Data/Car/*Wheel.txt` and
+`db.xml` is written in the old terms**.
+
+The way out is `PxVehicleWheelsDynData::setTireForceShaderFunction`, which
+takes a custom `PxVehicleComputeTireForce`. Port the 2.8 curve maths into it
+and the existing tuning stays valid — handling preserved by construction
+rather than by ear.
+
+Note 2.8 capsules ran along **Y**, PhysX 3+ along **X**, and capsule height
+changed from full to half. Both are handled in `CapsuleShape`; the same class
+of trap is likely in the wheel work.
+
+### Other behaviour gaps
+
+All compile silently, which is why they are written down.
 
 **Wide:**
 
 - **Wheels never register ground contact.** `WheelShape::GetContact` reports
-  none and `GetAxleSpeed` reports zero, because nothing computes them until
-  the `PxVehicle` work lands. No tire trails, no slip effects, and no engine
-  RPM derived from axle speed. Reporting no contact is deliberate over
-  fabricating one: every caller tests the return value.
-- **Cars will climb walls they slide along.** The 2.8 contact-modify callback
-  rebuilt the friction *basis* per contact; `PxContactSet` has no friction
-  orientation at all, so that is deleted rather than ported. Only the friction
-  zeroing survives. Same concern as the next item.
-- **Anisotropic friction is gone.** PhysX 3 removed it outright, so
-  `staticFrictionV`, `dynamicFrictionV`, `dirOfAnisotropy` and
-  `NX_MF_ANISOTROPIC` have no equivalent. The car materials used it precisely
-  so a car sliding along a wall would skid rather than climb.
+  none and `GetAxleSpeed` zero until the `PxVehicle` work lands. No tire
+  trails, no slip effects, no engine RPM from axle speed. Reporting no contact
+  beats fabricating one: every caller tests the return value.
+- **Cars will climb walls they slide along.** `PxContactSet` has no friction
+  orientation, so the 2.8 contact-modify callback's friction-basis rebuild is
+  deleted rather than ported.
+- **Anisotropic friction is gone.** PhysX 3 removed it. The car materials used
+  it precisely so a car sliding along a wall would skid rather than climb.
 
-**Narrower:**
-
-- **`Shape::_density` is orphaned.** Serialised and settable, but no longer
-  reaches the physics — `AssignToDesc` was its only consumer. Belongs in
-  `PxRigidBodyExt::updateMassAndInertia`. Until then every body takes its mass
-  from `BodyDesc` alone.
-- **`NX_AF_DISABLE_RESPONSE` has no equivalent.** Expressed by clearing
-  `PxShapeFlag::eSIMULATION_SHAPE`. Mapping recorded in `px::BodyFlag`,
-  not yet applied.
-- **Contact reports fire on every pair.** 2.8 raised them per actor via
-  `contactReportFlags`; PhysX 3+ wants the pair flags requested in the filter
-  shader, before any actor is consulted, so the field is stored and serialised
-  but no longer reaches the simulation.
-- **Contact modification cannot reject a pair by return value.** 2.8 returned
-  `false`; the equivalent is ignoring every contact in the set, which is what
-  the callback now does.
-- **`sumFrictionForce` is always zero**, and `sumNormalForce` is an impulse
-  divided by the step. PhysX 3+ reports one per-point impulse combining both.
-- **Plane shapes now move with their actor.** `PxPlaneGeometry` has no normal
-  or distance, so the equation lives in the local pose. Every plane in this
-  game is on a static actor, so this is currently inert.
-- **`PxSetGroupCollisionFlag` and `PxSetFilterOps` are global** where the 2.8
-  calls were per-scene. One scene today, so equivalent; a second would
-  silently share the table.
-
-**Cosmetic, but worth closing:**
-
-- **`&temporary` is downgraded from an error, not fixed.** ~40 sites, an MSVC
-  extension; clang materializes the temporary identically, so behaviour
-  matches. Worth cleaning up once the port runs and can be tested.
-
-### The vehicle model
-
-The highest-risk item in the whole port. PhysX 3+ deleted the built-in wheel
-shape, so this is a rewrite rather than a rename.
-
-`PxVehicleTireData` uses lateral stiffness plus a friction-vs-slip graph;
-PhysX 2.8's `NxTireFunctionDesc` is an extremum/asymptote slip curve. There is
-no parameter mapping between them, and **every car's tuning in
-`Data/Car/*Wheel.txt` and `db.xml` is written in the old terms**. A naive
-migration means retuning every vehicle by feel against a game that does not
-run yet.
-
-The way out is `PxVehicleWheelsDynData::setTireForceShaderFunction`, which
-takes a custom `PxVehicleComputeTireForce` callback. Port the 2.8 curve maths
-into that and the existing tuning data stays valid — handling preserved by
-construction rather than by ear.
-
-Also note: PhysX 2.8 capsules ran along **Y**, PhysX 3+ along **X**, and
-capsule height changed from full to half. Both are handled in
-`CapsuleShape::CreateGeometry`/`ApplyToShape`; the same class of trap is
-likely in the wheel work.
+**Narrower:** `Shape::_density` is orphaned; `NX_AF_DISABLE_RESPONSE` is
+mapped but not applied; contact reports fire on every pair; contact
+modification cannot reject a pair by return value; `sumFrictionForce` is
+always zero; plane shapes move with their actor; `PxSetGroupCollisionFlag` is
+global where 2.8 was per-scene.
 
 ### Windows moves to PhysX 4.1 as well
 
-**Decided.** `Physx.h` branches at the include — `NxPhysics.h` on Windows,
-`PxPhysicsAPI.h` elsewhere — but the class bodies below it already carry 56
-unguarded `Px*` references. The Windows build of `Rock3dEngine` is therefore
-not merely unverified, it cannot compile, and no arrangement of the macOS work
-changes that.
+**Decided.** The class bodies in `Physx.h` carry 56 unguarded `Px*`
+references, so the Windows build of `Rock3dEngine` cannot compile regardless
+of the include branch. One backend serves all three platforms.
 
-The alternative was `#ifdef`-ing every affected member so Windows kept 2.8.4.
-Rejected: it makes `Physx.h` dual-API throughout and every future physics
-change has to be written twice — the opposite of the goal.
+Consequences: `extern.7z` supplies 2.8.4 for MSVC and needs a 4.1 Windows
+build; Windows physics behaviour changes when macOS's does, so capture any
+comparison data from the 2.8 build *first*.
 
-So the include branch comes out and one backend serves all three platforms.
-Consequences to handle:
+## 6. Audio, video and input
 
-- `extern.7z` supplies PhysX 2.8.4 for MSVC. Needs a 4.1 Windows build, or
-  `tools/setup-physx-macos.sh` generalised to fetch and build per platform.
-- Windows physics behaviour changes at the same moment macOS's does, so the
-  2.8 build stops being available as a reference. Capture whatever comparison
-  data is wanted from it *before* this lands.
-- `Stream.h`'s `MemoryWriteBuffer`/`MemoryReadBuffer` exist only to serve the
-  2.8 cooking API and get deleted here.
+Stubbed, not ported, with the original API shape kept so each is a contained
+change:
 
-## 2. Audio, video and input
+- **XAudio2 + X3DAudio** — `xaudio2.h`/`X3daudio.h` declare exactly what
+  `snd/Audio.cpp` uses, silently. **FAudio** (zlib, in Homebrew) reimplements
+  this API, so adopting it means implementing these interfaces rather than
+  rewriting 2,900 lines. The largest untouched subsystem and the most
+  noticeable absence.
+- **DirectShow video** — `video::Player` reports `STATE_NO_GRAPH`, which
+  `World::IsVideoMode()` already treats as no cutscene playing, so cutscenes
+  skip rather than stall. Check whether the 2013-era `.avi` files decode at
+  all before writing a player; transcoding may be cheaper.
+- **XInput** — reports no controller, so the game falls back to the keyboard.
+  `SDL_INIT_GAMEPAD` is already on but nothing is wired to it.
+  SDL_GameController maps nearly one-for-one; `XInputGetKeystroke` is the
+  exception, needing explicit edge detection.
 
-`Rock3dGame` compiles: all 52 translation units. The conformance patterns were
-the same ones the engine hit — dependent-base lookup, address-of-temporary,
-`friend class` not introducing names, in-class `static const` without a
-definition, MSVC-only STL.
-
-`Stream.h`'s `MemoryWriteBuffer`/`MemoryReadBuffer` are already deleted; the
-cooking moved to `PxDefaultMemoryOutputStream` and nothing referenced them.
-
-Audio, video and input are **stubbed, not ported** — the milestone is a tree
-that compiles and links first. All three stubs keep the original API shape so
-the real implementation is a contained change:
-
-- **XAudio2 + X3DAudio** — `src/XPlatform/header/xaudio2.h` and `X3daudio.h`
-  declare exactly what `snd/Audio.cpp` uses, with a silent implementation.
-  **FAudio** (zlib, in Homebrew) reimplements precisely this API, so adopting
-  it means implementing these interfaces rather than rewriting 2,900 lines.
-- **DirectShow** video — `video.cpp` and `playback.cpp` compile out;
-  `video::Player` reports `STATE_NO_GRAPH`, already the state
-  `World::IsVideoMode()` treats as no cutscene playing, so cutscenes skip
-  rather than stall. Check whether the 2013-era `.avi` files decode at all
-  before writing a player; transcoding the assets may be cheaper.
-- **XInput** → `src/XPlatform/header/xinput.h`, reporting no controller so the
-  game falls back to the keyboard. SDL_GameController maps onto this nearly
-  one-for-one. `XInputGetKeystroke` is the exception — SDL reports button
-  state, not press/release/repeat, so it needs explicit edge detection.
-- ~2,300 backslash separators in asset path literals, plus case sensitivity.
-
-## 3. The graphics backend
-
-**Reassessed 2026-07-28, and the previous assessment was wrong.** This was
-described as the long pole and the one genuine unknown. It is neither.
-
-`~/src/d9mt` is not a prior attempt to learn from — it is a **working
-D3D9-to-Metal layer**. Its `src/d3d9fe/` is 17,539 lines implementing exactly
-the `DxvkContext` contract in `docs/macos-graphics-backend.md`, and it runs
-GTA IV at 60fps at 3K.
-
-What stands between it and a native rrr3d is the Wine boundary, and only that.
-d9mt reaches Metal through **winemetal**, a flat C ABI vendored from DXMT whose
-Unix side lives in Wine. Measured:
-
-- **90** winemetal functions of 123 are actually called by d9mt v1
-- **66** command-stream cases in `encodeCommands`
-- both **fully specified** in `winemetal.h` — 225 struct and enum definitions
-
-The functions are thin Objective-C wrappers; the command cases are a switch
-over a linked list, each 1–3 Metal calls. This is transcription against a
-written contract, not design work.
-
-See `docs/macos-graphics-backend.md` for the order and the handle-smuggling
-scheme d9mt uses.
-
-**The one genuine unknown is smaller than it was**: d9mt never rendered 3D for
-*this game*, though it runs GTA IV. Whether that is a backend bug or an
-artefact of the Wine boundary is unestablished — and since a native build
-removes that boundary, doing the work also answers the question.
-`~/src/d9mt/traces/` holds captured frames of this game to diff against.
-
-## 4. D3DX is ours regardless
-
-Not part of D3D9, so no graphics backend provides it. All ten entry points
-are declared in `src/XPlatform/source/d3d9_stub.cpp` beside the two Direct3D
-ones, each failing rather than returning a half-built object:
-
-- **`ID3DXEffect`** — 23 `.fx` files, ≤4 techniques each, exactly one pass
-  each, no annotations. Bounded. MonoGame's MGFX, ReShade FX and Microsoft's
-  FX11 are precedent, not drop-ins.
-- **Texture loading** — `D3DXCreateTextureFromFileEx` and friends, 10 sites.
-  stb_image plus a DDS/BCn parser. `Engine::d3dxUse(bool)` is an existing
-  seam.
-- **`ID3DXFont`** — **not** a debug-only concern. `graph::TextFont` is a
-  first-class engine resource and every piece of UI text in the game renders
-  through it. Needs a real text backend.
-
-## 5. Loose ends
+## 7. Loose ends
 
 - `MapEditor` is MFC and excluded. Realistically a rewrite or a permanent
   Windows-only target.
-- `Data/` paths use backslashes throughout and the game is case-insensitive
-  by assumption. Untested — nothing has loaded an asset yet.
-- TinyXML 2.5.3 is vendored in `src/TinyXml` because `extern.7z` ships only a
-  prebuilt MSVC lib and Homebrew carries tinyxml2, a different API. Both
-  encoding and include checkers treat it as vendored.
-- `brew install libogg libvorbis` is now a build prerequisite on macOS.
+- Asset paths use backslashes throughout; normalised in one place,
+  `lsl::GetAppFilePath`, rather than at the ~2,300 literals.
+- TinyXML 2.5.3 is vendored because `extern.7z` ships only a prebuilt MSVC lib
+  and Homebrew carries tinyxml2, a different API.
+- Build prerequisites on macOS: `brew install libogg libvorbis sdl3`, plus
+  `tools/setup-physx-macos.sh` and `tools/setup-vkd3d-macos.sh`.
 - `d3dx9math.h`/`.inl` carry four documented deviations from upstream Wine.
-  Two are SDK-parity fixes (`D3DXPlaneDotCoord`/`DotNormal` typed
-  `D3DXVECTOR4*` by both Wine and MinGW, `D3DXVECTOR3*` by the SDK); two
-  restore constructors the previous maintainers had added to the vendored
-  Microsoft header.
+- The `.fx` files are game data, not source, and stay CP1251. Only comments
+  are non-ASCII and the preprocessor strips them; the repo's encoding checker
+  covers `src/`, which does not own them.
 
 ## Suggested order
 
-Steps 1–6 of the previous plan are **done**: the tree compiles and links and
-the executable runs to device creation. What follows is the second half.
+1. **Transparency** (defect 2) — affects every screen. Next step is observing
+   the staged texture directly, not re-checking blend state.
+2. **HDR** (defect 1) — currently gated off; the game looks right without it,
+   but it is one value in a working chain.
+3. **The vehicle model** (defect 3) — the port's highest-risk item, and now
+   judgeable because the game runs.
+4. **Audio** — the largest untouched subsystem, and self-contained.
+5. **Move Windows to PhysX 4.1** — unblocks CI as a regression signal for
+   everything since commit 12.
+6. **Input** (SDL_GameController), **video**, and the `GPUSync` spin.
 
-1. **Move Windows to PhysX 4.1.** Nothing else can be verified on Windows
-   until this lands — `Rock3dEngine` cannot compile there. It also unblocks
-   CI as a regression signal for everything since commit 12.
-2. **Write physics tests.** Now possible: the engine builds and links, and
-   `Tests` already has the harness. The behaviour gaps above are the list of
-   what to write. Do this before touching the vehicle model.
-3. **The graphics backend**, against `docs/macos-graphics-backend.md`. This
-   is the long pole and the only genuine unknown left.
-4. **D3DX** — effects, texture loading, `ID3DXFont`. Independent of step 3
-   and can proceed in parallel; needed regardless of which backend wins.
-5. **The SDL shell** — window, event loop, frame pump. Small next to steps 3
-   and 4, but nothing is playable without it.
-6. **Un-stub audio** (FAudio), **input** (SDL_GameController), **video**.
-7. **PhysX correctness**, closing the behaviour gaps test-first, with the
-   vehicle model last because it is the one that needs the game running to
-   judge.
-
-Steps 1, 2, 6 and 7 serve Linux as much as macOS. Steps 3 and 4 are where
-the remaining risk lives.
-
-## What would make a playtest possible
-
-The shortest path, ignoring polish: steps 3, 4 and 5. Physics, audio and
-input can all stay wrong or silent and the game would still be drivable
-enough to judge whether the port is on course — which is the point of a
-playtest. Everything else on this list can follow.
+Items 3, 4, 5 and 6 serve Linux as much as macOS.
