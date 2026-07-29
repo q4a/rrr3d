@@ -291,11 +291,18 @@ Network, video и Steam явно выключены.
    Euclidean/projectile-direction heuristic удалён. Сохранены три удара,
    damage `D`, `D/2`, `D/3`, прекращение chain при kill/no-target и
    игнорирование non-target contacts.
-8. Smoke проверяет serialized records
+8. `TorpedaUpdate` для `sphereGun`, `torpedaWeapon` и `ptImpulse` теперь
+   использует `QuatShortestArc(X, targetDir)` и quaternion `slerp`, а не
+   invented normalized direction lerp. После поворота `_vec1` и actor
+   velocity пересчитываются по исходным `speedRelative` /
+   `max(dot(_vec1, dir), desc.speed)` branches.
+9. Smoke проверяет serialized records
    `sonar`/`rezonator`/`rocketLauncher`/`phaseImpulse`,
    source border reflection, relative speed, time-based lifetime после
    прохождения `maxDist`, actor rotation, TrackPlane clearance и
-   различимый `FindClosestEnemy(pi/2)` target handoff.
+   различимый `FindClosestEnemy(pi/2)` target handoff. Отдельный
+   `sphereGun` regression проверяет viewAngle 0, 0.4-second homing delay,
+   shortest-arc slerp и non-relative speed projection.
 
 Следующим render/audio-блоком удалены эвристики оружия:
 

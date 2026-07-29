@@ -96,6 +96,65 @@ Quat multiply(const Quat& first, const Quat& second)
                 first.y * second.y - first.z * second.z};
 }
 
+Quat normalizedQuaternion(Quat value)
+{
+    const float length = std::sqrt(
+        value.x * value.x + value.y * value.y +
+        value.z * value.z + value.w * value.w);
+    if (length <= 0.000001F)
+        return {};
+    return {value.x / length, value.y / length,
+            value.z / length, value.w / length};
+}
+
+Quat shortestArcFromX(Vec3 direction)
+{
+    direction = normalized3(direction);
+    const float dot = std::clamp(direction.x, -1.0F, 1.0F);
+    if (dot < -0.999999F)
+        return {0.0F, 0.0F, 1.0F, 0.0F};
+    const float scale = std::sqrt((1.0F + dot) * 2.0F);
+    const float inverseScale =
+        scale > 0.000001F ? 1.0F / scale : 0.0F;
+    return normalizedQuaternion(
+        {0.0F, -direction.z * inverseScale,
+         direction.y * inverseScale, scale * 0.5F});
+}
+
+Quat quaternionSlerp(Quat first, Quat second, float alpha)
+{
+    first = normalizedQuaternion(first);
+    second = normalizedQuaternion(second);
+    float dot = first.x * second.x + first.y * second.y +
+                first.z * second.z + first.w * second.w;
+    if (dot < 0.0F)
+    {
+        second = {-second.x, -second.y, -second.z, -second.w};
+        dot = -dot;
+    }
+    dot = std::clamp(dot, -1.0F, 1.0F);
+    alpha = std::clamp(alpha, 0.0F, 1.0F);
+    if (dot > 0.9995F)
+    {
+        return normalizedQuaternion(
+            {first.x + (second.x - first.x) * alpha,
+             first.y + (second.y - first.y) * alpha,
+             first.z + (second.z - first.z) * alpha,
+             first.w + (second.w - first.w) * alpha});
+    }
+    const float angle = std::acos(dot);
+    const float sine = std::sin(angle);
+    const float firstWeight =
+        std::sin((1.0F - alpha) * angle) / sine;
+    const float secondWeight =
+        std::sin(alpha * angle) / sine;
+    return normalizedQuaternion(
+        {first.x * firstWeight + second.x * secondWeight,
+         first.y * firstWeight + second.y * secondWeight,
+         first.z * firstWeight + second.z * secondWeight,
+         first.w * firstWeight + second.w * secondWeight});
+}
+
 Transform compose(const Transform& parent, const Transform& local)
 {
     Transform result;
@@ -2366,28 +2425,47 @@ void OriginalRaceSession::updateGameplay(
                 std::max(0.0F, projectile.homingDelay - seconds);
             if (projectile.homingDelay <= 0.0F)
             {
-                const Vec3 targetDirection = normalized3(subtract(
+                const Vec3 difference = subtract(
                     vehicles[projectile.target].body.position,
-                    projectile.position));
-                if (length3(targetDirection) > 0.0F)
+                    projectile.position);
+                const float targetDistance = length3(difference);
+                if (targetDistance > 0.0001F)
                 {
+                    const Vec3 targetDirection =
+                        targetDistance > 1.0F
+                            ? multiply(
+                                  difference,
+                                  1.0F / targetDistance)
+                            : normalized3(rotate(
+                                  projectile.rotation,
+                                  {1.0F, 0.0F, 0.0F}));
+                    const Quat targetRotation =
+                        shortestArcFromX(targetDirection);
                     if (projectile.angularSpeed > 0.0F)
                     {
-                        const float alpha = std::clamp(
-                            seconds * projectile.angularSpeed,
-                            0.0F, 1.0F);
-                        projectile.direction = normalized3(add(
-                            multiply(projectile.direction, 1.0F - alpha),
-                            multiply(targetDirection, alpha)));
+                        projectile.rotation = quaternionSlerp(
+                            projectile.rotation, targetRotation,
+                            seconds * projectile.angularSpeed);
                     }
                     else
                     {
-                        projectile.direction = targetDirection;
+                        projectile.rotation = targetRotation;
                     }
+                    projectile.direction = normalized3(rotate(
+                        projectile.rotation,
+                        {1.0F, 0.0F, 0.0F}));
+                    const float steeredSpeed =
+                        projectileDefinition.relativeSpeed
+                            ? length3(projectile.velocity)
+                            : std::max(
+                                  dot3(
+                                      projectile.velocity,
+                                      projectile.direction),
+                                  projectileDefinition.speed);
+                    projectile.speed = std::max(
+                        projectileDefinition.speed, steeredSpeed);
                     projectile.velocity = multiply(
                         projectile.direction, projectile.speed);
-                    projectile.rotation =
-                        rotationWithForward(projectile.direction);
                 }
             }
         }
@@ -5344,6 +5422,146 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source ImpulseContact FindClosestEnemy(pi/2) "
                     "handoff failed");
+            }
+        }
+
+        const auto sphereGun = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "sphereGun";
+            });
+        if (sphereGun == race.weapons.end() ||
+            sphereGun->projectiles.size() != 1U ||
+            sphereGun->projectiles.front().type != 2U ||
+            sphereGun->projectiles.front().relativeSpeed ||
+            std::abs(
+                sphereGun->projectiles.front().relativeSpeedMinimum -
+                20.0F) > 0.001F ||
+            std::abs(
+                sphereGun->projectiles.front().angularSpeed -
+                12.5664F) > 0.001F)
+        {
+            throw std::runtime_error(
+                "source ptTorpeda definition was not preserved");
+        }
+        if (vehicles.size() > 1U)
+        {
+            OriginalRaceSession torpedaSession(race);
+            PlayerProfile torpedaProfile;
+            auto& slot = torpedaProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            slot.record = sphereGun->record;
+            slot.charge = 1U;
+            slot.hasCharge = true;
+            torpedaSession.applyPlayerProfile(torpedaProfile);
+            auto torpedaVehicles = vehicles;
+            const Vec3 base{100000.0F, -100000.0F, 1000.0F};
+            for (std::size_t index = 0;
+                 index < torpedaVehicles.size(); ++index)
+            {
+                torpedaVehicles[index].body.position = {
+                    base.x + 1000.0F +
+                        static_cast<float>(index) * 100.0F,
+                    base.y, base.z};
+                torpedaVehicles[index].body.rotation = {};
+                torpedaVehicles[index].linearVelocity = {};
+            }
+            torpedaVehicles[0].body.position = base;
+            // sphereGun passes viewAngle=0, so this off-axis target must
+            // still be selected.
+            torpedaVehicles[1].body.position = {
+                base.x + 100.0F, base.y + 100.0F, base.z};
+            RaceControl torpedaInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                torpedaSession.update(
+                    1.0F / 60.0F, torpedaVehicles,
+                    torpedaInput);
+            }
+            torpedaInput.useWeapon = true;
+            torpedaSession.update(
+                1.0F / 60.0F, torpedaVehicles,
+                torpedaInput);
+            torpedaInput.useWeapon = false;
+            const std::size_t sphereWeapon =
+                static_cast<std::size_t>(
+                    sphereGun - race.weapons.begin());
+            auto findSphereProjectile = [&]()
+                -> const ProjectileRuntime* {
+                const auto found = std::find_if(
+                    torpedaSession.projectiles().begin(),
+                    torpedaSession.projectiles().end(),
+                    [sphereWeapon](
+                        const ProjectileRuntime& value) {
+                        return value.owner == 0U &&
+                               value.weapon == sphereWeapon &&
+                               value.projectile == 0U;
+                    });
+                return found ==
+                               torpedaSession.projectiles().end()
+                           ? nullptr
+                           : &*found;
+            };
+            const auto* projectile = findSphereProjectile();
+            if (projectile == nullptr || projectile->target != 1U)
+            {
+                throw std::runtime_error(
+                    "source sphereGun viewAngle=0 target selection failed");
+            }
+            for (int frame = 0;
+                 frame < 30 && projectile != nullptr &&
+                 projectile->homingDelay >
+                     (1.0F / 60.0F + 0.00001F);
+                 ++frame)
+            {
+                torpedaSession.update(
+                    1.0F / 60.0F, torpedaVehicles,
+                    torpedaInput);
+                projectile = findSphereProjectile();
+            }
+            if (projectile == nullptr)
+            {
+                throw std::runtime_error(
+                    "source ptTorpeda expired before homing");
+            }
+            const ProjectileRuntime before = *projectile;
+            const Vec3 targetDirection = normalized3(subtract(
+                torpedaVehicles[1].body.position,
+                before.position));
+            const Quat targetRotation =
+                shortestArcFromX(targetDirection);
+            const Quat expectedRotation = quaternionSlerp(
+                before.rotation, targetRotation,
+                sphereGun->projectiles.front().angularSpeed /
+                    60.0F);
+            const Vec3 expectedDirection = normalized3(rotate(
+                expectedRotation, {1.0F, 0.0F, 0.0F}));
+            const float expectedSpeed = std::max(
+                dot3(before.velocity, expectedDirection),
+                sphereGun->projectiles.front().speed);
+            torpedaSession.update(
+                1.0F / 60.0F, torpedaVehicles,
+                torpedaInput);
+            projectile = findSphereProjectile();
+            if (projectile == nullptr ||
+                std::abs(
+                    projectile->rotation.x - expectedRotation.x) >
+                    0.001F ||
+                std::abs(
+                    projectile->rotation.y - expectedRotation.y) >
+                    0.001F ||
+                std::abs(
+                    projectile->rotation.z - expectedRotation.z) >
+                    0.001F ||
+                std::abs(
+                    projectile->rotation.w - expectedRotation.w) >
+                    0.001F ||
+                std::abs(projectile->speed - expectedSpeed) >
+                    0.001F)
+            {
+                throw std::runtime_error(
+                    "source TorpedaUpdate shortest-arc/slerp/speed "
+                    "transition failed");
             }
         }
 
