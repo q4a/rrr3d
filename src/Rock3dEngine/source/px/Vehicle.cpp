@@ -772,15 +772,21 @@ void Vehicle::SyncInputs()
 	{
 		static unsigned long sample = 0;
 		if ((++sample % 30) == 0 && _wheels.size() >= 4)
+			//muLong/muLat are the grip ceilings the tuning supplies. db.xml's
+			//defaults are 0.02; a set-up car should read about 7. Which of the
+			//two is present says whether Player::ApplyMobility ever ran.
 			RRR3D_TRACE_FIRST(60,
-				"VINPUT drive=%.0f,%.0f,%.0f,%.0f brake=%.0f omega=%.2f,%.2f,%.2f,%.2f",
+				"VINPUT drive=%.0f,%.0f,%.0f,%.0f brake=%.0f omega=%.2f,%.2f,%.2f,%.2f "
+				"muLong=%.3f muLat=%.3f",
 				_wheels[0]->GetMotorTorque(), _wheels[1]->GetMotorTorque(),
 				_wheels[2]->GetMotorTorque(), _wheels[3]->GetMotorTorque(),
 				std::fabs(_wheels[0]->GetBrakeTorque()),
 				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(0),
 				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(1),
 				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(2),
-				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(3));
+				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(3),
+				_wheels[0]->GetLongitudalTireForceFunction().extremumValue,
+				_wheels[0]->GetLateralTireForceFunction().extremumValue);
 	}
 }
 
