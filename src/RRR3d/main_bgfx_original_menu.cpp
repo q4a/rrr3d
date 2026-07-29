@@ -927,6 +927,121 @@ int main(int argc, char** argv)
     for (std::size_t index = 0U; index < raceWeatherIcons.size(); ++index)
         raceWeatherIcons[index] =
             createImageTexture(*device, raceWeatherImages[index]);
+    const auto garageTopPanelImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/topPanel2.png");
+    const auto garageBottomPanelImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/bottomPanel2.png");
+    const auto garageSidePanelImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/rightPanel2.png");
+    const auto garageMoneyImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/moneyBg.png");
+    const auto garageStatsImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/statFrame2.png");
+    const auto garageStatBarImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/statBar2.png");
+    const auto garageCarBoxImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/carBox.png");
+    const auto garageCarBoxSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/carBoxSel.png");
+    const auto garageLockImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/lock.png");
+    const auto garageColorBoxImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/colorBox.png");
+    const auto garageColorBoxBackgroundImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/colorBoxBg.png");
+    const auto garageColorBoxSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/colorBoxBgSel.png");
+    const auto garageArrowImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/arrow1.png");
+    const auto garageArrowSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/arrowSel1.png");
+    const auto garageBackImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBg2.png");
+    const auto garageBackSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBgSel2.png");
+    const std::string garageLanguage =
+        activeLanguage == "russian" ? "russian" : "english";
+    const auto garageBuyImage = menu::loadOriginalImage(
+        *resources,
+        "Data/GUI/buyButton_" + garageLanguage + ".png");
+    const auto garageBuySelectedImage = menu::loadOriginalImage(
+        *resources,
+        "Data/GUI/buyButtonSel_" + garageLanguage + ".png");
+    const Texture garageTopPanel =
+        createImageTexture(*device, garageTopPanelImage);
+    const Texture garageBottomPanel =
+        createImageTexture(*device, garageBottomPanelImage);
+    const Texture garageSidePanel =
+        createImageTexture(*device, garageSidePanelImage);
+    const Texture garageMoney =
+        createImageTexture(*device, garageMoneyImage);
+    const Texture garageStats =
+        createImageTexture(*device, garageStatsImage);
+    const Texture garageStatBar =
+        createImageTexture(*device, garageStatBarImage);
+    const Texture garageCarBox =
+        createImageTexture(*device, garageCarBoxImage);
+    const Texture garageCarBoxSelected =
+        createImageTexture(*device, garageCarBoxSelectedImage);
+    const Texture garageLock =
+        createImageTexture(*device, garageLockImage);
+    const Texture garageColorBox =
+        createImageTexture(*device, garageColorBoxImage);
+    const Texture garageColorBoxBackground =
+        createImageTexture(*device, garageColorBoxBackgroundImage);
+    const Texture garageColorBoxSelected =
+        createImageTexture(*device, garageColorBoxSelectedImage);
+    const Texture garageArrow =
+        createImageTexture(*device, garageArrowImage);
+    const Texture garageArrowSelected =
+        createImageTexture(*device, garageArrowSelectedImage);
+    const Texture garageBack =
+        createImageTexture(*device, garageBackImage);
+    const Texture garageBackSelected =
+        createImageTexture(*device, garageBackSelectedImage);
+    const Texture garageBuy =
+        createImageTexture(*device, garageBuyImage);
+    const Texture garageBuySelected =
+        createImageTexture(*device, garageBuySelectedImage);
+    std::vector<menu::Image> garageCarImages;
+    std::vector<Texture> garageCarTextures;
+    garageCarImages.reserve(originalGarage->cars.size());
+    garageCarTextures.reserve(originalGarage->cars.size());
+    for (const auto& car : originalGarage->cars)
+    {
+        garageCarImages.push_back(menu::loadOriginalImage(
+            *resources,
+            "Data/GUI/Cars/" +
+                std::string(recordName(car.record)) + ".png"));
+        garageCarTextures.push_back(
+            createImageTexture(*device, garageCarImages.back()));
+    }
+    constexpr std::array<std::array<std::uint8_t, 4>, 14>
+        garageColorPixels{{
+            {255U, 255U, 255U, 255U},
+            {0U, 0U, 255U, 255U},
+            {255U, 0U, 0U, 255U},
+            {0U, 255U, 0U, 255U},
+            {255U, 255U, 0U, 255U},
+            {255U, 144U, 0U, 255U},
+            {51U, 51U, 51U, 255U},
+            {6U, 175U, 250U, 255U},
+            {183U, 11U, 174U, 255U},
+            {177U, 201U, 3U, 255U},
+            {169U, 57U, 0U, 255U},
+            {48U, 55U, 61U, 255U},
+            {0U, 159U, 21U, 255U},
+            {112U, 118U, 156U, 255U},
+        }};
+    std::array<Texture, garageColorPixels.size()>
+        garageColorTextures{};
+    for (std::size_t index = 0U;
+         index < garageColorTextures.size(); ++index)
+    {
+        garageColorTextures[index] = device->createTextureRgba8(
+            1U, 1U, garageColorPixels[index].data(),
+            garageColorPixels[index].size());
+    }
 #endif
 
     struct MenuPageVisual
@@ -962,6 +1077,9 @@ int main(int argc, char** argv)
     MenuPageVisual raceMainHeadersPage;
     MenuPageVisual raceMainInfoPage;
     MenuPageVisual garagePage;
+    MenuPageVisual garageInfoPage;
+    MenuPageVisual garageStatsPage;
+    MenuPageVisual garagePurchasePage;
     MenuPageVisual workshopSlotsPage;
     MenuPageVisual workshopItemsPage;
     MenuPageVisual planetsPage;
@@ -1293,8 +1411,18 @@ int main(int argc, char** argv)
             raceMainInfoLabels(), menu::smallFontHeight,
             raceInfoColor, menu::selectedTextColor);
         garagePage = createPage(
-            {localized("svGarage"), localized("svMoney"),
-             localized("svBuy"), localized("svBack")});
+            {localized("svGarage"), localized("svMoney"), "-",
+             localized("svBack"), localized("svBuy")});
+        garageInfoPage = createStyledPage(
+            {" "}, menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        garageStatsPage = createStyledPage(
+            {"0/0", "0/0", "0/300"},
+            menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        garagePurchasePage = createStyledPage(
+            {localized("svBuyCar")}, menu::smallFontHeight,
+            menu::normalTextColor, menu::selectedTextColor);
         workshopSlotsPage = createPage(
             {localized("svWorkshop"), localized("svBack")});
         workshopItemsPage = createPage(
@@ -1423,6 +1551,9 @@ int main(int argc, char** argv)
         pageValid(raceMainHeadersPage) &&
         pageValid(raceMainInfoPage) &&
         pageValid(garagePage) &&
+        pageValid(garageInfoPage) &&
+        pageValid(garageStatsPage) &&
+        pageValid(garagePurchasePage) &&
         pageValid(workshopSlotsPage) &&
         pageValid(workshopItemsPage) &&
         pageValid(planetsPage) &&
@@ -1461,6 +1592,24 @@ int main(int argc, char** argv)
         std::all_of(
             raceWeatherIcons.begin(), raceWeatherIcons.end(),
             [](Texture texture) { return valid(texture); }) &&
+        valid(garageTopPanel) && valid(garageBottomPanel) &&
+        valid(garageSidePanel) && valid(garageMoney) &&
+        valid(garageStats) && valid(garageStatBar) &&
+        valid(garageCarBox) && valid(garageCarBoxSelected) &&
+        valid(garageLock) && valid(garageColorBox) &&
+        valid(garageColorBoxBackground) &&
+        valid(garageColorBoxSelected) && valid(garageArrow) &&
+        valid(garageArrowSelected) && valid(garageBack) &&
+        valid(garageBackSelected) && valid(garageBuy) &&
+        valid(garageBuySelected) &&
+        garageCarTextures.size() == originalGarage->cars.size() &&
+        std::all_of(
+            garageCarTextures.begin(), garageCarTextures.end(),
+            [](Texture texture) { return valid(texture); }) &&
+        std::all_of(
+            garageColorTextures.begin(),
+            garageColorTextures.end(),
+            [](Texture texture) { return valid(texture); }) &&
         valid(exitRaceMessage.texture) && valid(exitRaceYes.texture) &&
         valid(exitRaceYesSelected.texture) && valid(exitRaceNo.texture) &&
         valid(exitRaceNoSelected.texture);
@@ -1480,6 +1629,9 @@ int main(int argc, char** argv)
         device->destroy(credits.texture);
         device->destroy(version.texture);
 #ifdef RRR3D_PHYSICS
+        destroyPage(garagePurchasePage);
+        destroyPage(garageStatsPage);
+        destroyPage(garageInfoPage);
         destroyPage(achievementsPage);
         destroyPage(planetsPage);
         destroyPage(workshopItemsPage);
@@ -1502,6 +1654,28 @@ int main(int argc, char** argv)
         destroyPage(graphicsOptionNamesPage);
         destroyPage(gameOptionNamesPage);
         device->destroy(optionsMask);
+        for (const auto texture : garageColorTextures)
+            device->destroy(texture);
+        for (const auto texture : garageCarTextures)
+            device->destroy(texture);
+        device->destroy(garageBuySelected);
+        device->destroy(garageBuy);
+        device->destroy(garageBackSelected);
+        device->destroy(garageBack);
+        device->destroy(garageArrowSelected);
+        device->destroy(garageArrow);
+        device->destroy(garageColorBoxSelected);
+        device->destroy(garageColorBoxBackground);
+        device->destroy(garageColorBox);
+        device->destroy(garageLock);
+        device->destroy(garageCarBoxSelected);
+        device->destroy(garageCarBox);
+        device->destroy(garageStatBar);
+        device->destroy(garageStats);
+        device->destroy(garageMoney);
+        device->destroy(garageSidePanel);
+        device->destroy(garageBottomPanel);
+        device->destroy(garageTopPanel);
         for (const auto texture : raceWeatherIcons)
             device->destroy(texture);
         for (const auto texture : raceMenuIcons)
@@ -2086,7 +2260,16 @@ int main(int argc, char** argv)
     bool championshipMode = true;
     bool newTournamentProfile = false;
 #ifdef RRR3D_PHYSICS
+    struct GarageCarView
+    {
+        std::size_t catalogIndex = 0U;
+        bool locked = false;
+    };
+    std::vector<GarageCarView> garageCarOrder;
     std::size_t garageCarIndex = 0;
+    std::size_t garageViewIndex = 0;
+    bool garagePurchaseDialogVisible = false;
+    bool garagePurchaseYesFocused = true;
     for (std::size_t index = 0;
          index < originalGarage->cars.size(); ++index)
     {
@@ -2277,6 +2460,7 @@ int main(int argc, char** argv)
     float raceElapsedSeconds = 0.0F;
     std::uint64_t previousFrameTicks = SDL_GetTicksNS();
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
+    bool raceGarageFrameObserved = !options->raceRenderSmokeTest;
     bool racePauseDialogObserved = !options->raceRenderSmokeTest;
     bool racePauseResumeObserved = !options->raceRenderSmokeTest;
     bool racePauseFrozenObserved = !options->raceRenderSmokeTest;
@@ -2579,41 +2763,178 @@ int main(int argc, char** argv)
     auto currency = [](std::uint32_t value) {
         return "$" + std::to_string(value);
     };
+    auto originalCurrency = [](std::uint32_t value) {
+        std::string result = std::to_string(value);
+        for (std::ptrdiff_t index =
+                 static_cast<std::ptrdiff_t>(result.size()) - 3;
+             index > 0; index -= 3)
+        {
+            result.insert(static_cast<std::size_t>(index), ",");
+        }
+        return result;
+    };
+    auto wrapGarageInfo = [](std::string_view value) {
+        constexpr std::size_t maximumCharacters = 78U;
+        std::vector<std::string> lines;
+        std::istringstream words{std::string(value)};
+        std::string line;
+        std::string word;
+        while (words >> word)
+        {
+            if (!line.empty() &&
+                line.size() + 1U + word.size() >
+                    maximumCharacters)
+            {
+                lines.push_back(std::move(line));
+                line.clear();
+            }
+            if (!line.empty())
+                line.push_back(' ');
+            line += word;
+        }
+        if (!line.empty())
+            lines.push_back(std::move(line));
+        if (lines.empty())
+            lines.push_back(" ");
+        if (lines.size() > 4U)
+            lines.resize(4U);
+        return lines;
+    };
     auto itemLabel = [&](std::string_view record) {
         const auto* item = originalGarage->findItem(record);
         return item == nullptr ? std::string(record)
                                : localized(item->name);
     };
+    auto rebuildGarageCarOrder = [&]() {
+        garageCarOrder.clear();
+        std::vector<GarageCarView> available;
+        std::vector<GarageCarView> secret;
+        std::vector<GarageCarView> locked;
+        for (std::size_t index = 0U;
+             index < originalGarage->cars.size(); ++index)
+        {
+            const auto& car = originalGarage->cars[index];
+            const bool isSecret = std::none_of(
+                originalGarage->carUnlocks.begin(),
+                originalGarage->carUnlocks.end(),
+                [&](const auto& rule) {
+                    return rule.record == car.record;
+                });
+            if (championshipMode && isSecret)
+                continue;
+            const bool achievement =
+                r3d::game::originalrace::
+                    originalRecordAchievementUnlocked(
+                        profileState, car.record);
+            const bool unlocked =
+                r3d::game::originalrace::originalCarUnlocked(
+                    *originalGarage, profileState, car,
+                    championshipMode);
+            const GarageCarView view{index, !unlocked};
+            if (isSecret && achievement)
+                secret.push_back(view);
+            else if (unlocked && achievement)
+                available.push_back(view);
+            else
+                locked.push_back(view);
+        }
+        garageCarOrder.insert(
+            garageCarOrder.end(), available.begin(), available.end());
+        garageCarOrder.insert(
+            garageCarOrder.end(), secret.begin(), secret.end());
+        garageCarOrder.insert(
+            garageCarOrder.end(), locked.begin(), locked.end());
+        if (garageCarOrder.empty())
+            return;
+        const auto selected = std::find_if(
+            garageCarOrder.begin(), garageCarOrder.end(),
+            [&](const auto& view) {
+                return originalGarage->cars[view.catalogIndex].record ==
+                       profileState.player.currentCar;
+            });
+        garageViewIndex =
+            selected == garageCarOrder.end()
+                ? std::min(
+                      garageViewIndex,
+                      garageCarOrder.size() - 1U)
+                : static_cast<std::size_t>(
+                      std::distance(
+                          garageCarOrder.begin(), selected));
+        garageCarIndex =
+            garageCarOrder[garageViewIndex].catalogIndex;
+    };
     auto refreshGaragePage = [&]() {
         if (originalGarage->cars.empty())
             return;
+        if (garageCarOrder.empty())
+            rebuildGarageCarOrder();
+        if (garageCarOrder.empty())
+            return;
+        garageViewIndex =
+            std::min(garageViewIndex,
+                     garageCarOrder.size() - 1U);
+        garageCarIndex =
+            garageCarOrder[garageViewIndex].catalogIndex;
         garageCarIndex =
             std::min(garageCarIndex,
                      originalGarage->cars.size() - 1U);
         const auto& car = originalGarage->cars[garageCarIndex];
-        const bool current =
-            car.record == profileState.player.currentCar;
-        const bool unlocked =
-            r3d::game::originalrace::originalCarUnlocked(
-                *originalGarage, profileState, car,
-                championshipMode);
-        std::string state =
-            current ? "Selected"
-                    : unlocked ? currency(car.cost)
-                               : localized("svLockedCarName");
-        replacePage(
-            garagePage,
-            {std::to_string(garageCarIndex + 1U) + "/" +
-                 std::to_string(originalGarage->cars.size()) + "  " +
-                 localized(car.name),
-             localized("svMoney") + ": " +
-                 currency(profileState.player.money),
-             state,
-             current
-                 ? "Selected"
-                 : unlocked ? localized("svBuy")
-                            : localized("svLockedCarName"),
-             localized("svBack")});
+        const bool locked =
+            garageCarOrder[garageViewIndex].locked;
+        auto replacement = createPage(
+            {localized(
+                 locked ? "svLockedCarName" : car.name),
+             originalCurrency(profileState.player.money),
+             locked ? "-" : originalCurrency(car.cost),
+             localized("svBack"), localized("svBuy")});
+        destroyPage(garagePage);
+        garagePage = std::move(replacement);
+
+        auto infoReplacement = createStyledPage(
+            wrapGarageInfo(localized(
+                locked ? "svLockedCarInfo" : car.info)),
+            menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        destroyPage(garageInfoPage);
+        garageInfoPage = std::move(infoReplacement);
+
+        const auto stats =
+            r3d::game::originalrace::originalGarageStats(
+                *originalGarage, car);
+        auto statValue = [](float value) {
+            return std::to_string(
+                static_cast<int>(std::lround(value)));
+        };
+        auto statsReplacement = createStyledPage(
+            {locked
+                 ? "0/0"
+                 : statValue(stats.armor) + "/" +
+                       statValue(stats.maximumArmor),
+             locked
+                 ? "0/0"
+                 : statValue(stats.damage) + "/" +
+                       statValue(stats.maximumDamage),
+             locked
+                 ? "0/300"
+                 : statValue(stats.speedProgress * 300.0F) +
+                       "/300"},
+            menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        destroyPage(garageStatsPage);
+        garageStatsPage = std::move(statsReplacement);
+
+        std::string purchase = localized("svBuyCar");
+        if (const auto marker = purchase.find("%s");
+            marker != std::string::npos)
+        {
+            purchase.replace(
+                marker, 2U, originalCurrency(car.cost));
+        }
+        auto purchaseReplacement = createStyledPage(
+            {purchase}, menu::smallFontHeight,
+            menu::normalTextColor, menu::selectedTextColor);
+        destroyPage(garagePurchasePage);
+        garagePurchasePage = std::move(purchaseReplacement);
     };
     auto refreshWorkshopSlotsPage = [&]() {
         static constexpr std::array<std::string_view, 10> names{
@@ -3268,21 +3589,26 @@ int main(int argc, char** argv)
         // Do not enqueue all confirms before the event loop.  SDL's input
         // layer intentionally suppresses repeats while a key is held, and
         // the old batch therefore never exercised Main -> GameMode ->
-        // Tournament -> Continue -> RaceMenu/Start.  Advance one real
-        // press/release pair per
-        // rendered menu frame instead.
+        // Tournament -> Continue -> RaceMenu -> GarageFrame -> Race.
+        // Advance one real press/release pair per rendered menu frame.
         if (options->raceRenderSmokeTest && !inRace &&
-            raceSmokeMenuStep < 4U &&
+            raceSmokeMenuStep < 9U &&
             renderedFrames >= raceSmokeNextMenuFrame)
         {
-            SDL_Event confirm{};
-            confirm.key.type = SDL_EVENT_KEY_DOWN;
-            confirm.key.down = true;
-            confirm.key.scancode = SDL_SCANCODE_RETURN;
-            SDL_Event release = confirm;
+            constexpr std::array<SDL_Scancode, 9> smokeKeys{
+                SDL_SCANCODE_RETURN, SDL_SCANCODE_RETURN,
+                SDL_SCANCODE_RETURN, SDL_SCANCODE_RIGHT,
+                SDL_SCANCODE_RIGHT, SDL_SCANCODE_RETURN,
+                SDL_SCANCODE_RIGHT, SDL_SCANCODE_ESCAPE,
+                SDL_SCANCODE_RETURN};
+            SDL_Event press{};
+            press.key.type = SDL_EVENT_KEY_DOWN;
+            press.key.down = true;
+            press.key.scancode = smokeKeys[raceSmokeMenuStep];
+            SDL_Event release = press;
             release.key.type = SDL_EVENT_KEY_UP;
             release.key.down = false;
-            if (!SDL_PushEvent(&confirm) ||
+            if (!SDL_PushEvent(&press) ||
                 !SDL_PushEvent(&release))
             {
                 std::cerr << "Unable to queue integrated M9 menu step "
@@ -3467,6 +3793,145 @@ int main(int argc, char** argv)
             bool pointerHandledOriginalOptions = false;
 #ifdef RRR3D_PHYSICS
             if (!inRace &&
+                menuStack.back() == MenuScreen::Garage &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float pointerX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float pointerY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                std::optional<std::size_t> hoveredGarageItem;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        pointerX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        pointerY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    if (garagePurchaseDialogVisible)
+                    {
+                        const float buttonY =
+                            menu::virtualHeight * 0.5F + 32.0F;
+                        if (std::abs(virtualY - buttonY) <= 24.0F &&
+                            std::abs(
+                                virtualX -
+                                (menu::virtualWidth * 0.5F -
+                                 70.0F)) <= 55.0F)
+                        {
+                            garagePurchaseYesFocused = true;
+                            hoveredGarageItem = 1U;
+                        }
+                        else if (
+                            std::abs(virtualY - buttonY) <= 24.0F &&
+                            std::abs(
+                                virtualX -
+                                (menu::virtualWidth * 0.5F +
+                                 70.0F)) <= 55.0F)
+                        {
+                            garagePurchaseYesFocused = false;
+                            hoveredGarageItem = 1U;
+                        }
+                    }
+                    else
+                    {
+                        const float bottomCenterY =
+                            menu::virtualHeight -
+                            static_cast<float>(
+                                garageBottomPanelImage.height) *
+                                0.5F;
+                        if (virtualX <= 250.0F &&
+                            std::abs(
+                                virtualY -
+                                (bottomCenterY + 8.0F)) <= 45.0F)
+                        {
+                            hoveredGarageItem = 0U;
+                        }
+                        else if (
+                            std::abs(
+                                virtualX -
+                                (menu::virtualWidth * 0.5F +
+                                 15.0F)) <= 135.0F &&
+                            std::abs(
+                                virtualY -
+                                (menu::virtualHeight -
+                                 static_cast<float>(
+                                     garageBottomPanelImage.height))) <=
+                                40.0F)
+                        {
+                            hoveredGarageItem = 1U;
+                        }
+                        else if (
+                            std::abs(virtualX - 181.0F) <= 58.0F &&
+                            std::abs(
+                                virtualY -
+                                menu::virtualHeight * 0.5F) <= 80.0F)
+                        {
+                            hoveredGarageItem = 2U;
+                        }
+                        else if (
+                            std::abs(
+                                virtualX -
+                                (menu::virtualWidth - 181.0F)) <=
+                                58.0F &&
+                            std::abs(
+                                virtualY -
+                                menu::virtualHeight * 0.5F) <= 80.0F)
+                        {
+                            hoveredGarageItem = 3U;
+                        }
+                        else
+                        {
+                            const float firstColorY =
+                                menu::virtualHeight * 0.5F -
+                                144.0F;
+                            for (std::size_t index = 0U;
+                                 index < 7U; ++index)
+                            {
+                                const float colorY =
+                                    firstColorY +
+                                    static_cast<float>(index) *
+                                        48.0F;
+                                if (std::abs(virtualY - colorY) >
+                                    22.0F)
+                                {
+                                    continue;
+                                }
+                                if (virtualX <= 120.0F)
+                                    hoveredGarageItem = 4U + index;
+                                else if (
+                                    virtualX >=
+                                    menu::virtualWidth - 120.0F)
+                                {
+                                    hoveredGarageItem =
+                                        11U + index;
+                                }
+                                if (hoveredGarageItem)
+                                    break;
+                            }
+                        }
+                    }
+                }
+                if (hoveredGarageItem &&
+                    !garagePurchaseDialogVisible)
+                {
+                    menuSelection = *hoveredGarageItem;
+                }
+                pointerTargetsItem =
+                    hoveredGarageItem.has_value() ||
+                    event.type == SDL_EVENT_MOUSE_MOTION ||
+                    event.button.button != SDL_BUTTON_LEFT;
+            }
+            else if (!inRace &&
                 menuStack.back() == MenuScreen::RaceMenu &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
@@ -3888,6 +4353,220 @@ int main(int argc, char** argv)
                     continue;
                 if (!inputEvent.active)
                     continue;
+#ifdef RRR3D_PHYSICS
+                if (menuStack.back() == MenuScreen::Garage)
+                {
+                    if (garagePurchaseDialogVisible)
+                    {
+                        if (inputEvent.action ==
+                                rrr3d::input::Action::TurnLeft ||
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuUp)
+                        {
+                            garagePurchaseYesFocused = true;
+                        }
+                        else if (
+                            inputEvent.action ==
+                                rrr3d::input::Action::TurnRight ||
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuDown)
+                        {
+                            garagePurchaseYesFocused = false;
+                        }
+                        else if (
+                            !inputEvent.repeated &&
+                            (inputEvent.action ==
+                                 rrr3d::input::Action::MenuBack ||
+                             inputEvent.action ==
+                                 rrr3d::input::Action::Pause))
+                        {
+                            garagePurchaseDialogVisible = false;
+                        }
+                        else if (
+                            !inputEvent.repeated &&
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuConfirm)
+                        {
+#ifdef RRR3D_AUDIO
+                            playMainButtonClick();
+#endif
+                            if (!garagePurchaseYesFocused)
+                            {
+                                garagePurchaseDialogVisible = false;
+                            }
+                            else
+                            {
+                                const auto& car =
+                                    originalGarage
+                                        ->cars[garageCarIndex];
+                                std::string garageError;
+                                if (r3d::game::originalrace::
+                                        selectOriginalGarageCar(
+                                            *originalGarage,
+                                            profileState, car,
+                                            championshipMode,
+                                            garageError))
+                                {
+                                    garagePurchaseDialogVisible =
+                                        false;
+                                    saveRaceProfile();
+                                    backMenu();
+                                }
+                                else
+                                {
+                                    std::cerr
+                                        << "Original GarageFrame: "
+                                        << garageError << '\n';
+                                    garagePurchaseDialogVisible =
+                                        false;
+                                    refreshGaragePage();
+                                }
+                            }
+                        }
+                        continue;
+                    }
+
+                    constexpr std::size_t garageFocusCount = 18U;
+                    if (inputEvent.action ==
+                        rrr3d::input::Action::MenuUp)
+                    {
+                        menuSelection =
+                            menuSelection == 0U
+                                ? garageFocusCount - 1U
+                                : menuSelection - 1U;
+                        continue;
+                    }
+                    if (inputEvent.action ==
+                        rrr3d::input::Action::MenuDown)
+                    {
+                        menuSelection =
+                            (menuSelection + 1U) %
+                            garageFocusCount;
+                        continue;
+                    }
+                    if (inputEvent.action ==
+                            rrr3d::input::Action::TurnLeft ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::TurnRight)
+                    {
+                        if (!inputEvent.repeated &&
+                            !garageCarOrder.empty())
+                        {
+                            if (inputEvent.action ==
+                                    rrr3d::input::Action::
+                                        TurnLeft &&
+                                garageViewIndex > 0U)
+                            {
+                                --garageViewIndex;
+                            }
+                            else if (
+                                inputEvent.action ==
+                                    rrr3d::input::Action::
+                                        TurnRight &&
+                                garageViewIndex + 1U <
+                                    garageCarOrder.size())
+                            {
+                                ++garageViewIndex;
+                            }
+                            refreshGaragePage();
+                        }
+                        continue;
+                    }
+                    if (inputEvent.repeated)
+                        continue;
+                    if (inputEvent.action ==
+                            rrr3d::input::Action::MenuBack ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::Pause)
+                    {
+#ifdef RRR3D_AUDIO
+                        playMainButtonClick();
+#endif
+                        backMenu();
+                        continue;
+                    }
+                    if (inputEvent.action !=
+                        rrr3d::input::Action::MenuConfirm)
+                    {
+                        continue;
+                    }
+#ifdef RRR3D_AUDIO
+                    playMainButtonClick();
+#endif
+                    if (menuSelection == 0U)
+                    {
+                        backMenu();
+                    }
+                    else if (
+                        menuSelection == 1U &&
+                        !garageCarOrder[garageViewIndex].locked)
+                    {
+                        const auto& car =
+                            originalGarage->cars[garageCarIndex];
+                        if (car.record ==
+                            profileState.player.currentCar)
+                        {
+                            backMenu();
+                        }
+                        else if (championshipMode)
+                        {
+                            garagePurchaseYesFocused = true;
+                            garagePurchaseDialogVisible = true;
+                        }
+                        else
+                        {
+                            std::string garageError;
+                            if (r3d::game::originalrace::
+                                    selectOriginalGarageCar(
+                                        *originalGarage,
+                                        profileState, car, false,
+                                        garageError))
+                            {
+                                saveRaceProfile();
+                                backMenu();
+                            }
+                            else
+                            {
+                                std::cerr
+                                    << "Original GarageFrame: "
+                                    << garageError << '\n';
+                            }
+                        }
+                    }
+                    else if (menuSelection == 2U &&
+                             garageViewIndex > 0U)
+                    {
+                        --garageViewIndex;
+                        refreshGaragePage();
+                    }
+                    else if (
+                        menuSelection == 3U &&
+                        garageViewIndex + 1U <
+                            garageCarOrder.size())
+                    {
+                        ++garageViewIndex;
+                        refreshGaragePage();
+                    }
+                    else if (
+                        menuSelection >= 4U &&
+                        menuSelection < garageFocusCount)
+                    {
+                        const std::size_t colorIndex =
+                            menuSelection - 4U;
+                        for (std::size_t component = 0U;
+                             component < 4U; ++component)
+                        {
+                            profileState.player.color[component] =
+                                static_cast<float>(
+                                    garageColorPixels[colorIndex]
+                                                      [component]) /
+                                255.0F;
+                        }
+                        saveRaceProfile();
+                    }
+                    continue;
+                }
+#endif
                 auto& page = activeMenuPage();
                 if (inputEvent.action ==
                     rrr3d::input::Action::MenuUp)
@@ -4199,6 +4878,7 @@ int main(int argc, char** argv)
                     }
                     else if (menuSelection == 2U)
                     {
+                        rebuildGarageCarOrder();
                         refreshGaragePage();
                         pushMenu(MenuScreen::Garage);
                     }
@@ -5280,6 +5960,8 @@ int main(int argc, char** argv)
             isOriginalOptionsScreen(menuStack.back());
         const bool drawingOriginalRaceMenu =
             menuStack.back() == MenuScreen::RaceMenu;
+        const bool drawingOriginalGarage =
+            menuStack.back() == MenuScreen::Garage;
         if (drawingOriginalOptions)
         {
             const float optionsCenterX = menu::virtualWidth * 0.5F;
@@ -5813,6 +6495,454 @@ int main(int argc, char** argv)
                     itemX, itemY, 20.0F, transparent);
             }
         }
+        else if (drawingOriginalGarage)
+        {
+            raceGarageFrameObserved = true;
+            const float centerX = menu::virtualWidth * 0.5F;
+            const float centerY = menu::virtualHeight * 0.5F;
+            const float topCenterY =
+                static_cast<float>(garageTopPanelImage.height) *
+                0.5F;
+            const float bottomCenterY =
+                menu::virtualHeight -
+                static_cast<float>(
+                    garageBottomPanelImage.height) *
+                    0.5F;
+            const float sideCenterY =
+                (static_cast<float>(garageTopPanelImage.height) +
+                 menu::virtualHeight -
+                 static_cast<float>(
+                     garageBottomPanelImage.height)) *
+                0.5F;
+            drawQuad(
+                *device, quad, shader, garageTopPanel,
+                static_cast<float>(garageTopPanelImage.width),
+                static_cast<float>(garageTopPanelImage.height),
+                centerX, topCenterY, 60.0F, transparent);
+            drawQuad(
+                *device, quad, shader, garageBottomPanel,
+                static_cast<float>(garageBottomPanelImage.width),
+                static_cast<float>(
+                    garageBottomPanelImage.height),
+                centerX, bottomCenterY, 60.0F, transparent);
+            drawQuadRotated(
+                *device, quad, shader, garageSidePanel,
+                static_cast<float>(garageSidePanelImage.width),
+                static_cast<float>(garageSidePanelImage.height),
+                static_cast<float>(garageSidePanelImage.width) *
+                    0.5F,
+                sideCenterY, 55.0F, bx::kPi, transparent);
+            drawQuad(
+                *device, quad, shader, garageSidePanel,
+                static_cast<float>(garageSidePanelImage.width),
+                static_cast<float>(garageSidePanelImage.height),
+                menu::virtualWidth -
+                    static_cast<float>(
+                        garageSidePanelImage.width) *
+                        0.5F,
+                sideCenterY, 55.0F, transparent);
+
+            drawQuad(
+                *device, quad, shader, garageMoney,
+                static_cast<float>(garageMoneyImage.width),
+                static_cast<float>(garageMoneyImage.height),
+                menu::virtualWidth -
+                    static_cast<float>(garageMoneyImage.width) *
+                        0.5F,
+                menu::virtualHeight -
+                    static_cast<float>(
+                        garageMoneyImage.height) *
+                        0.5F,
+                42.0F, transparent);
+            constexpr float statsLeft = 418.0F;
+            constexpr float statsTop = 889.0F + 60.0F;
+            drawQuad(
+                *device, quad, shader, garageStats,
+                static_cast<float>(garageStatsImage.width),
+                static_cast<float>(garageStatsImage.height),
+                statsLeft +
+                    static_cast<float>(garageStatsImage.width) *
+                        0.5F,
+                statsTop +
+                    static_cast<float>(garageStatsImage.height) *
+                        0.5F,
+                42.0F, transparent);
+
+            const auto& selectedCar =
+                originalGarage->cars[garageCarIndex];
+            const bool selectedLocked =
+                garageCarOrder[garageViewIndex].locked;
+            const auto selectedStats =
+                r3d::game::originalrace::originalGarageStats(
+                    *originalGarage, selectedCar);
+            const std::array<float, 3> statProgress{
+                selectedLocked ? 0.0F
+                               : selectedStats.damageProgress,
+                selectedLocked ? 0.0F
+                               : selectedStats.armorProgress,
+                selectedLocked ? 0.0F
+                               : selectedStats.speedProgress};
+            constexpr std::array<float, 3> statOffsetY{
+                3.0F, 41.0F, 78.0F};
+            for (std::size_t index = 0U;
+                 index < statProgress.size(); ++index)
+            {
+                const float progress = std::clamp(
+                    statProgress[index], 0.0F, 1.0F);
+                if (progress > 0.0F)
+                {
+                    const float fullWidth = static_cast<float>(
+                        garageStatBarImage.width);
+                    drawQuad(
+                        *device, quad, shader, garageStatBar,
+                        fullWidth * progress,
+                        static_cast<float>(
+                            garageStatBarImage.height),
+                        statsLeft + 48.0F +
+                            fullWidth * progress * 0.5F,
+                        statsTop + statOffsetY[index] +
+                            static_cast<float>(
+                                garageStatBarImage.height) *
+                                0.5F,
+                        30.0F, transparent);
+                }
+                const auto& value =
+                    garageStatsPage.normal[index];
+                drawQuad(
+                    *device, quad, shader, value.texture,
+                    value.width, value.height,
+                    statsLeft + 48.0F +
+                        static_cast<float>(
+                            garageStatBarImage.width) -
+                        value.width * 0.5F - 4.0F,
+                    statsTop + statOffsetY[index] + 13.0F,
+                    15.0F, transparent);
+            }
+
+            const std::size_t visibleCars = std::max<std::size_t>(
+                1U,
+                static_cast<std::size_t>(
+                    (menu::virtualWidth - 10.0F) /
+                    static_cast<float>(
+                        garageCarBoxImage.width)));
+            std::size_t firstVisible = 0U;
+            if (garageCarOrder.size() > visibleCars)
+            {
+                const std::size_t right = std::min(
+                    garageViewIndex + visibleCars / 2U,
+                    garageCarOrder.size() - 1U);
+                firstVisible =
+                    right + 1U > visibleCars
+                        ? right + 1U - visibleCars
+                        : 0U;
+                firstVisible = std::min(
+                    firstVisible,
+                    garageCarOrder.size() - visibleCars);
+            }
+            const std::size_t visibleEnd = std::min(
+                firstVisible + visibleCars,
+                garageCarOrder.size());
+            const float visibleWidth =
+                static_cast<float>(
+                    visibleEnd - firstVisible) *
+                static_cast<float>(garageCarBoxImage.width);
+            const float firstCarX =
+                (menu::virtualWidth - visibleWidth) * 0.5F +
+                static_cast<float>(garageCarBoxImage.width) *
+                    0.5F;
+            for (std::size_t view = firstVisible;
+                 view < visibleEnd; ++view)
+            {
+                const auto& carView = garageCarOrder[view];
+                const bool selected = view == garageViewIndex;
+                const float x =
+                    firstCarX +
+                    static_cast<float>(view - firstVisible) *
+                        static_cast<float>(
+                            garageCarBoxImage.width);
+                drawQuad(
+                    *device, quad, shader,
+                    selected ? garageCarBoxSelected
+                             : garageCarBox,
+                    static_cast<float>(
+                        selected
+                            ? garageCarBoxSelectedImage.width
+                            : garageCarBoxImage.width),
+                    static_cast<float>(
+                        selected
+                            ? garageCarBoxSelectedImage.height
+                            : garageCarBoxImage.height),
+                    x, 71.5F, 35.0F, transparent);
+                if (carView.locked)
+                {
+                    drawQuad(
+                        *device, quad, shader, garageLock,
+                        static_cast<float>(garageLockImage.width),
+                        static_cast<float>(
+                            garageLockImage.height),
+                        x, 71.5F, 20.0F, transparent);
+                }
+                else
+                {
+                    const auto& image =
+                        garageCarImages[carView.catalogIndex];
+                    drawQuad(
+                        *device, quad, shader,
+                        garageCarTextures[
+                            carView.catalogIndex],
+                        static_cast<float>(image.width),
+                        static_cast<float>(image.height),
+                        x, 71.5F, 20.0F, transparent);
+                }
+            }
+
+            const bool leftArrowVisible = garageViewIndex > 0U;
+            const bool rightArrowVisible =
+                garageViewIndex + 1U < garageCarOrder.size();
+            if (leftArrowVisible)
+            {
+                const bool selected = menuSelection == 2U;
+                drawQuad(
+                    *device, quad, shader,
+                    selected ? garageArrowSelected
+                             : garageArrow,
+                    static_cast<float>(
+                        selected
+                            ? garageArrowSelectedImage.width
+                            : garageArrowImage.width),
+                    static_cast<float>(
+                        selected
+                            ? garageArrowSelectedImage.height
+                            : garageArrowImage.height),
+                    181.0F, centerY, 35.0F, transparent);
+            }
+            if (rightArrowVisible)
+            {
+                const bool selected = menuSelection == 3U;
+                drawQuadRotated(
+                    *device, quad, shader,
+                    selected ? garageArrowSelected
+                             : garageArrow,
+                    static_cast<float>(
+                        selected
+                            ? garageArrowSelectedImage.width
+                            : garageArrowImage.width),
+                    static_cast<float>(
+                        selected
+                            ? garageArrowSelectedImage.height
+                            : garageArrowImage.height),
+                    menu::virtualWidth - 181.0F, centerY,
+                    35.0F, bx::kPi, transparent);
+            }
+
+            const float firstColorY = centerY - 144.0F;
+            for (std::size_t side = 0U; side < 2U; ++side)
+            {
+                const float colorX =
+                    side == 0U
+                        ? static_cast<float>(
+                              garageSidePanelImage.width) *
+                              0.5F
+                        : menu::virtualWidth -
+                              static_cast<float>(
+                                  garageSidePanelImage.width) *
+                                  0.5F;
+                for (std::size_t index = 0U; index < 7U;
+                     ++index)
+                {
+                    const std::size_t colorIndex =
+                        side * 7U + index;
+                    const std::size_t focusIndex =
+                        4U + colorIndex;
+                    const bool focused =
+                        menuSelection == focusIndex;
+                    bool activeColor = true;
+                    for (std::size_t component = 0U;
+                         component < 4U; ++component)
+                    {
+                        const int profileComponent =
+                            static_cast<int>(std::lround(
+                                std::clamp(
+                                    profileState.player
+                                        .color[component],
+                                    0.0F, 1.0F) *
+                                255.0F));
+                        activeColor =
+                            activeColor &&
+                            profileComponent ==
+                                garageColorPixels[colorIndex]
+                                                  [component];
+                    }
+                    const float colorY =
+                        firstColorY +
+                        static_cast<float>(index) * 48.0F;
+                    drawQuad(
+                        *device, quad, shader,
+                        focused || activeColor
+                            ? garageColorBoxSelected
+                            : garageColorBoxBackground,
+                        static_cast<float>(
+                            focused || activeColor
+                                ? garageColorBoxSelectedImage.width
+                                : garageColorBoxBackgroundImage.width),
+                        static_cast<float>(
+                            focused || activeColor
+                                ? garageColorBoxSelectedImage.height
+                                : garageColorBoxBackgroundImage.height),
+                        colorX, colorY, 34.0F, transparent);
+                    drawQuad(
+                        *device, quad, shader,
+                        garageColorTextures[colorIndex],
+                        static_cast<float>(
+                            garageColorBoxImage.width),
+                        static_cast<float>(
+                            garageColorBoxImage.height),
+                        colorX, colorY, 20.0F, transparent);
+                    drawQuad(
+                        *device, quad, shader, garageColorBox,
+                        static_cast<float>(
+                            garageColorBoxImage.width),
+                        static_cast<float>(
+                            garageColorBoxImage.height),
+                        colorX, colorY, 18.0F, transparent);
+                }
+            }
+
+            const float carNameY = bottomCenterY - 155.0F;
+            const auto& carName = garagePage.normal[0];
+            drawQuad(
+                *device, quad, shader, carName.texture,
+                carName.width, carName.height, centerX + 10.0F,
+                carNameY, 18.0F, transparent);
+            for (std::size_t line = 0U;
+                 line < garageInfoPage.normal.size(); ++line)
+            {
+                const auto& text = garageInfoPage.normal[line];
+                drawQuad(
+                    *device, quad, shader, text.texture,
+                    text.width, text.height, centerX,
+                    bottomCenterY - 76.0F +
+                        static_cast<float>(line) * 20.0F,
+                    18.0F, transparent);
+            }
+            const auto& money = garagePage.normal[1];
+            drawQuad(
+                *device, quad, shader, money.texture,
+                money.width, money.height,
+                menu::virtualWidth - 53.0F -
+                    money.width * 0.5F,
+                menu::virtualHeight - 29.0F, 15.0F,
+                transparent);
+            const auto& price = garagePage.normal[2];
+            drawQuad(
+                *device, quad, shader, price.texture,
+                price.width, price.height, centerX - 523.0F,
+                bottomCenterY - 80.0F, 15.0F, transparent);
+
+            const bool backFocused = menuSelection == 0U;
+            const float backX =
+                static_cast<float>(garageBackImage.width) * 0.5F;
+            const float backY =
+                menu::virtualHeight -
+                static_cast<float>(
+                    garageBottomPanelImage.height) +
+                14.0F;
+            drawQuad(
+                *device, quad, shader,
+                backFocused ? garageBackSelected : garageBack,
+                static_cast<float>(
+                    backFocused
+                        ? garageBackSelectedImage.width
+                        : garageBackImage.width),
+                static_cast<float>(
+                    backFocused
+                        ? garageBackSelectedImage.height
+                        : garageBackImage.height),
+                backX, backY, 35.0F, transparent);
+            const auto& backText =
+                backFocused ? garagePage.selected[3]
+                            : garagePage.normal[3];
+            drawQuad(
+                *device, quad, shader, backText.texture,
+                backText.width, backText.height, backX, backY,
+                15.0F, transparent);
+
+            const bool buyFocused = menuSelection == 1U;
+            const float buyX = centerX + 15.0F;
+            const float buyY =
+                menu::virtualHeight -
+                static_cast<float>(
+                    garageBottomPanelImage.height) +
+                static_cast<float>(garageBuyImage.height) *
+                    0.5F;
+            drawQuad(
+                *device, quad, shader,
+                buyFocused && !selectedLocked
+                    ? garageBuySelected
+                    : garageBuy,
+                static_cast<float>(
+                    buyFocused && !selectedLocked
+                        ? garageBuySelectedImage.width
+                        : garageBuyImage.width),
+                static_cast<float>(
+                    buyFocused && !selectedLocked
+                        ? garageBuySelectedImage.height
+                        : garageBuyImage.height),
+                buyX, buyY, 35.0F, transparent);
+
+            if (garagePurchaseDialogVisible)
+            {
+                drawQuad(
+                    *device, quad, shader, acceptFrame,
+                    static_cast<float>(acceptFrameImage.width),
+                    static_cast<float>(acceptFrameImage.height),
+                    centerX, centerY, 10.0F, transparent);
+                const auto& message =
+                    garagePurchasePage.normal.front();
+                const float scale = std::min(
+                    1.0F,
+                    300.0F / std::max(message.width, 1.0F));
+                drawQuad(
+                    *device, quad, shader, message.texture,
+                    message.width * scale,
+                    message.height * scale, centerX,
+                    centerY - 35.0F, 5.0F, transparent);
+                auto drawChoice =
+                    [&](bool yes, float x) {
+                        const bool selected =
+                            garagePurchaseYesFocused == yes;
+                        drawQuad(
+                            *device, quad, shader,
+                            selected ? acceptButtonSelected
+                                     : acceptButton,
+                            static_cast<float>(
+                                selected
+                                    ? acceptButtonSelectedImage.width
+                                    : acceptButtonImage.width),
+                            static_cast<float>(
+                                selected
+                                    ? acceptButtonSelectedImage.height
+                                    : acceptButtonImage.height),
+                            x, centerY + 32.0F, 4.0F,
+                            transparent);
+                        const auto& label =
+                            yes
+                                ? (selected
+                                       ? exitRaceYesSelected
+                                       : exitRaceYes)
+                                : (selected
+                                       ? exitRaceNoSelected
+                                       : exitRaceNo);
+                        drawQuad(
+                            *device, quad, shader, label.texture,
+                            label.width, label.height, x,
+                            centerY + 32.0F, 3.0F,
+                            transparent);
+                    };
+                drawChoice(true, centerX - 70.0F);
+                drawChoice(false, centerX + 70.0F);
+            }
+        }
         else
 #endif
         {
@@ -5879,7 +7009,8 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef RRR3D_PHYSICS
-        if (!drawingOriginalOptions && !drawingOriginalRaceMenu)
+        if (!drawingOriginalOptions && !drawingOriginalRaceMenu &&
+            !drawingOriginalGarage)
 #endif
         {
             const float versionX =
@@ -5999,6 +7130,7 @@ int main(int argc, char** argv)
                         passObserved(
                             r3d::renderer::RenderPass::Water);
                 if (!integratedRaceStartObserved || !inRace ||
+                    !raceGarageFrameObserved ||
                     !racePauseDialogObserved ||
                     !racePauseResumeObserved ||
                     !racePauseFrozenObserved ||
@@ -6020,7 +7152,8 @@ int main(int argc, char** argv)
                         << "Milestone 9 integrated Single Player/race render "
                            "verification failed: started="
                         << integratedRaceStartObserved << ", inRace="
-                        << inRace << ", pause="
+                        << inRace << ", garage="
+                        << raceGarageFrameObserved << ", pause="
                         << racePauseDialogObserved << '/'
                         << racePauseResumeObserved << '/'
                         << racePauseFrozenObserved << ", destroyed="
@@ -6067,8 +7200,9 @@ int main(int argc, char** argv)
                            "an unshielded surviving player start (minimum "
                            "life "
                         << minimumRacePlayerLife << "), "
-                           "source HudMenu pause/accept/frozen-world and "
-                           "render-target resize round-trip passed\n";
+                           "source HudMenu pause/accept/frozen-world, "
+                           "GarageFrame and render-target resize "
+                           "round-trip passed\n";
                 }
             }
             else

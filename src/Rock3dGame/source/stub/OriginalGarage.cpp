@@ -78,6 +78,22 @@ std::uint32_t number(TiXmlElement* parent, const char* name,
     }
 }
 
+float real(TiXmlElement* parent, const char* name,
+           float fallback = 0.0F)
+{
+    const auto value = text(parent, name);
+    if (value.empty())
+        return fallback;
+    try
+    {
+        return std::stof(value);
+    }
+    catch (const std::exception&)
+    {
+        return fallback;
+    }
+}
+
 std::string leaf(std::string_view record)
 {
     const auto slash = record.find_last_of("\\/");
@@ -276,6 +292,39 @@ void loadWorkshop(TiXmlElement* root, OriginalGarageCatalog& catalog)
         item.chargeStep =
             std::max(number(itemNode, "chargeStep", 1U), 1U);
         item.chargeCost = number(itemNode, "chargeCost");
+        if (auto* functions = child(itemNode, "carFuncMap"))
+        {
+            for (auto* function = functions->FirstChildElement();
+                 function != nullptr;
+                 function = function->NextSiblingElement())
+            {
+                OriginalWorkshopItem::CarFunction value;
+                value.car = text(function, "car");
+                value.maximumTorque =
+                    real(function, "maxTorque");
+                value.life = real(function, "life");
+                value.longExtremumValue =
+                    real(child(function, "longTire"),
+                         "extremumValue");
+                value.lateralExtremumValue =
+                    real(child(function, "latTire"),
+                         "extremumValue");
+                if (!value.car.empty())
+                    item.carFunctions.push_back(
+                        std::move(value));
+            }
+        }
+        if (auto* projectiles = child(itemNode, "projList"))
+        {
+            for (auto* projectile =
+                     projectiles->FirstChildElement();
+                 projectile != nullptr;
+                 projectile = projectile->NextSiblingElement())
+            {
+                item.projectileDamage +=
+                    real(projectile, "damage");
+            }
+        }
         catalog.workshop.push_back(std::move(item));
     }
     if (catalog.workshop.empty())
@@ -316,6 +365,94 @@ void loadUnlocks(TiXmlElement* root, OriginalGarageCatalog& catalog)
     }
 }
 
+const OriginalWorkshopItem::CarFunction* carFunction(
+    const OriginalWorkshopItem* item,
+    std::string_view car) noexcept
+{
+    if (item == nullptr)
+        return nullptr;
+    const auto found = std::find_if(
+        item->carFunctions.begin(), item->carFunctions.end(),
+        [&](const auto& value) { return value.car == car; });
+    return found == item->carFunctions.end() ? nullptr : &*found;
+}
+
+float mobilitySkill(
+    const OriginalWorkshopItem::CarFunction* function) noexcept
+{
+    if (function == nullptr)
+        return 0.0F;
+    return function->maximumTorque +
+           std::max(function->longExtremumValue - 5.0F, 0.0F) *
+               300.0F +
+           std::max(function->lateralExtremumValue - 1.5F,
+                    0.0F) *
+               2000.0F;
+}
+
+const OriginalWorkshopItem* upgradeItem(
+    const OriginalGarageCatalog& catalog,
+    const OriginalGarageCar& car, GarageSlotType slot,
+    int level) noexcept
+{
+    if (level < 0 || level > 2)
+        return nullptr;
+    const auto slotIndex = static_cast<std::size_t>(slot);
+    if (slotIndex >= car.placements.size())
+        return nullptr;
+    const auto& placement = car.placements[slotIndex];
+    const auto found = std::find_if(
+        placement.supportedItems.begin(),
+        placement.supportedItems.end(),
+        [&](const auto& record) {
+            return upgradeLevel(record, slot) == level;
+        });
+    return found == placement.supportedItems.end()
+               ? nullptr
+               : catalog.findItem(*found);
+}
+
+float defaultMobilitySkill(
+    const OriginalGarageCatalog& catalog,
+    const OriginalGarageCar& car, GarageSlotType slot) noexcept
+{
+    const auto slotIndex = static_cast<std::size_t>(slot);
+    if (slotIndex >= car.placements.size())
+        return 0.0F;
+    const auto* item =
+        catalog.findItem(car.placements[slotIndex].defaultItem);
+    return mobilitySkill(carFunction(item, car.record));
+}
+
+float maximumMobilitySkill(
+    const OriginalGarageCatalog& catalog,
+    const OriginalGarageCar& car, GarageSlotType slot) noexcept
+{
+    return mobilitySkill(carFunction(
+        upgradeItem(catalog, car, slot, 2), car.record));
+}
+
+float defaultWeaponDamage(
+    const OriginalGarageCatalog& catalog,
+    const OriginalGaragePlacement& placement) noexcept
+{
+    const auto* item = catalog.findItem(placement.defaultItem);
+    return item == nullptr ? 0.0F : item->projectileDamage;
+}
+
+float maximumWeaponDamage(
+    const OriginalGarageCatalog& catalog,
+    const OriginalGaragePlacement& placement) noexcept
+{
+    float result = 0.0F;
+    for (const auto& record : placement.supportedItems)
+    {
+        if (const auto* item = catalog.findItem(record))
+            result = std::max(result, item->projectileDamage);
+    }
+    return result;
+}
+
 } // namespace
 
 const OriginalGarageCar* OriginalGarageCatalog::findCar(
@@ -347,6 +484,94 @@ OriginalGarageCatalog loadOriginalGarage(
     loadWorkshop(workshop.RootElement(), catalog);
     loadUnlocks(tournament.RootElement(), catalog);
     return catalog;
+}
+
+OriginalGarageStats originalGarageStats(
+    const OriginalGarageCatalog& catalog,
+    const OriginalGarageCar& car) noexcept
+{
+    OriginalGarageStats result;
+
+    float maximumSpeed = 0.0F;
+    for (const auto& candidate : catalog.cars)
+    {
+        const float speed =
+            maximumMobilitySkill(
+                catalog, candidate, GarageSlotType::Engine) +
+            maximumMobilitySkill(
+                catalog, candidate, GarageSlotType::Exhaust) +
+            maximumMobilitySkill(
+                catalog, candidate, GarageSlotType::Wheel);
+        maximumSpeed = std::max(maximumSpeed, speed);
+
+        const auto* maximumArmorItem = upgradeItem(
+            catalog, candidate, GarageSlotType::Armor, 2);
+        const auto* maximumArmorFunction =
+            carFunction(maximumArmorItem, candidate.record);
+        if (maximumArmorFunction != nullptr)
+            result.maximumArmor =
+                std::max(result.maximumArmor,
+                         maximumArmorFunction->life);
+
+        float candidateDamage = 0.0F;
+        for (std::size_t slot =
+                 static_cast<std::size_t>(
+                     GarageSlotType::Weapon1);
+             slot <= static_cast<std::size_t>(
+                         GarageSlotType::Weapon4);
+             ++slot)
+        {
+            const auto& placement = candidate.placements[slot];
+            if (!placement.active)
+                continue;
+            candidateDamage +=
+                placement.locked &&
+                        !placement.defaultItem.empty()
+                    ? defaultWeaponDamage(catalog, placement)
+                    : maximumWeaponDamage(catalog, placement);
+        }
+        result.maximumDamage =
+            std::max(result.maximumDamage, candidateDamage);
+    }
+
+    const auto& armorPlacement = car.placements[
+        static_cast<std::size_t>(GarageSlotType::Armor)];
+    if (const auto* function = carFunction(
+            catalog.findItem(armorPlacement.defaultItem),
+            car.record))
+    {
+        result.armor = function->life;
+    }
+
+    for (std::size_t slot =
+             static_cast<std::size_t>(
+                 GarageSlotType::Weapon1);
+         slot <= static_cast<std::size_t>(
+                     GarageSlotType::Weapon4);
+         ++slot)
+    {
+        result.damage += defaultWeaponDamage(
+            catalog, car.placements[slot]);
+    }
+
+    const float speed =
+        defaultMobilitySkill(
+            catalog, car, GarageSlotType::Engine) +
+        defaultMobilitySkill(
+            catalog, car, GarageSlotType::Exhaust) +
+        defaultMobilitySkill(
+            catalog, car, GarageSlotType::Wheel);
+    result.armorProgress =
+        result.maximumArmor == 0.0F
+            ? 1.0F
+            : result.armor / result.maximumArmor;
+    result.damageProgress =
+        result.maximumDamage == 0.0F
+            ? 1.0F
+            : result.damage / result.maximumDamage;
+    result.speedProgress =
+        maximumSpeed == 0.0F ? 1.0F : speed / maximumSpeed;
+    return result;
 }
 
 bool originalRecordAchievementUnlocked(
@@ -381,9 +606,13 @@ bool originalCarUnlocked(const OriginalGarageCatalog& catalog,
         return true;
     if (!originalRecordAchievementUnlocked(profile, car.record))
         return false;
+    // Race::SetMode(rmSkirmish) exposes the whole garage catalog.  The
+    // tournament's Garage::_items list gates regular cars only in campaign.
+    if (!championship)
+        return true;
     const bool regular = hasRule(catalog.carUnlocks, car.record);
     if (!regular)
-        return !championship;
+        return false;
     return unlockedByRules(catalog.carUnlocks, profile, car.record);
 }
 
@@ -647,10 +876,24 @@ bool runOriginalGarageSmokeTest(
             marauder->cost != 18000U ||
             dirtdevil->cost != 20000U ||
             bullet->maximumCharge != 28U ||
+            bullet->projectileDamage != 6.0F ||
             marauder->placements[0].defaultItem !=
                 workshopRecord("wheel1"))
         {
             error = "original garage/workshop catalog mismatch";
+            return false;
+        }
+        const auto stats = originalGarageStats(catalog, *marauder);
+        if (stats.maximumArmor <= 0.0F ||
+            stats.maximumDamage <= 0.0F ||
+            stats.armorProgress <= 0.0F ||
+            stats.armorProgress > 1.0F ||
+            stats.damageProgress <= 0.0F ||
+            stats.damageProgress > 1.0F ||
+            stats.speedProgress <= 0.0F ||
+            stats.speedProgress > 1.0F)
+        {
+            error = "original Garage::UpdateStats behavior mismatch";
             return false;
         }
 

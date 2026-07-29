@@ -50,6 +50,17 @@ icon-кнопок, money/stat/image frames, weather и charge bars исполь�
 исходная garage 3D scene `CarFrame` и subframes Garage/Workshop/Angar/
 Achievements остаются следующими блоками.
 
+Следующий follow-up заменил generic garage page двумерным
+`RaceMenu2::GarageFrame`. Загружаются исходные панели, кнопки, стрелки,
+карточки всех машин, lock/car/color boxes и обе палитры `Player.cpp`;
+доступные, secret и locked машины сортируются и фильтруются по исходным
+tournament/achievement rules. Покупка использует исходный confirm flow,
+skirmish открывает полный допустимый каталог, выбранный цвет сохраняется.
+В `OriginalGarage` также перенесены из `Race.cpp` точные вычисления
+armor/damage/speed на данных `workshop.xml`, а не условные полосы. Блок
+остаётся частичным только потому, что 3D `CarFrame` (`Misc/garage`, освещение,
+камера, модель машины и mounted slots) ещё не перенесён.
+
 Финальная проверка M9.5: arm64 Debug build и новые Metal shaders прошли без
 новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
 каждый подтвердил оба 2048 shadow split, шесть cube faces, `glRefl` и FxTrail,
@@ -814,7 +825,7 @@ SDL_AUDIO_DRIVER=dummy \
 ## Следующий рекомендуемый этап
 
 Для полного портирования следующий P0-блок — завершить `RaceMenu2`:
-`CarFrame` garage scene, затем Garage/Workshop/Angar/Achievement subframes.
+`CarFrame` garage scene, затем Workshop/Angar/Achievement subframes.
 После этого идут `GameMode`/профильные диалоги и `FinishMenu`/`FinalMenu`.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening

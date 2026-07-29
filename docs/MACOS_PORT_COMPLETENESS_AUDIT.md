@@ -76,12 +76,12 @@ Windows target не компилируется.
 | Главное меню, внешний вид | `MainMenu2.cpp` | часть оригинальных изображений/строк | Частично | Фон, панели и selection source-driven; полный widget tree, animation, layout и event code не перенесены |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | ручной `enum MenuScreen` и `createPage(...)` в одном `main` | Суррогат | Страницы GameMode/Tournament/Profile/Options/Credits создаются как универсальные текстовые списки |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | универсальная page + portable profile operations | Суррогат | Исходные dialogs, text input, transitions, animations и подтверждения отсутствуют |
-| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame` + portable subframes | Частично | Главный экран использует исходные top/bottom/stat/money/frame/icon/charge/weather assets, horizontal navigation и tournament data. `CarFrame` garage 3D scene и исходные Garage/Workshop/Angar/Achievement subframe layouts ещё не перенесены |
+| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame` + portable subframes | Частично | Главный экран и 2D GarageFrame используют исходные panels/buttons/icons/cards/locks/colors/stats и source navigation/data. `CarFrame` garage 3D scene и Workshop/Angar/Achievement subframe layouts ещё не перенесены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | generic finish page | Суррогат | Исходные panels, statistics, awards, credits/final flow не перенесены |
 | Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля tournament/workshop/options; полная схема, migration и все profile branches не доказаны |
 | Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + ручное advance | Частично | Основной выбор/rewards есть; полный state machine, dialogs, unlock/final sequences не перенесён |
-| Garage/workshop data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml` | `OriginalGarage.cpp` | Частично | Каталог, slots, buy/install/recharge есть; исходный 3D UI, preview behavior и все restrictions/animations не перенесены |
+| Garage/workshop data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml` | `OriginalGarage.cpp` + source-derived `GarageFrame` | Частично | Каталог, source available/secret/locked order, buy/install/recharge, colors и точные armor/damage/speed formulas есть; `CarFrame` 3D preview, Workshop UI и legacy animations ещё не перенесены |
 | Map/catalog loading | `Map`, `MapObj`, `DataBase` | `OriginalRace.cpp` | Частично | 88 записей и исходные placements читаются; generic GameObject/behavior/include lifecycle воспроизведён только для известных типов |
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
 | Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
@@ -426,12 +426,38 @@ Network, video и Steam явно выключены.
    preview пока не заменён — фон под панелями остаётся текущим menu scene.
    Поэтому строка получает статус «Частично», а не «Перенесено».
 
+Следующим отдельным коммитом перенесена двумерная часть
+`RaceMenu2::GarageFrame`:
+
+1. Generic вертикальная страница заменена исходными `topPanel2`,
+   `bottomPanel2`, двумя `rightPanel2`, `moneyBg`, `statFrame2`,
+   `statBar2`, `buttonBg2`, локализованной `buyButton_*`, `arrow1`,
+   `colorBox*`, `carBox*`, `lock` и всеми 17 исходными `GUI/Cars/*.png`.
+2. Воспроизведён `UpdateCarList`: доступные, открытые secret и закрытые
+   машины образуют три последовательные группы; secret cars скрываются в
+   campaign и доступны в skirmish только после achievement gate.
+3. Окно из восьми карточек следует логике `AdjustCarList`, стрелки не
+   зацикливаются, закрытая карточка показывает `lock.png`, а выбор машины,
+   покупка с подтверждением, недостаток денег и выход используют исходную
+   модель профиля/гаража.
+4. Перенесены обе палитры по семь цветов буквально из `Player.cpp`.
+   Выбранный цвет записывается в исходное поле профиля.
+5. Из `workshop.xml` теперь читаются `carFuncMap` и projectile damage.
+   `OriginalGarage.cpp` воспроизводит формулы `GetArmorSkill`,
+   `GetDamageSkill`, `GetSpeedSkill`, включая максимумы по всему каталогу,
+   default slots выбранной машины и source scaling скорости к `300`.
+6. Build, resource verifier, physics smoke (включая новый stat audit),
+   отдельный input smoke и 240-frame race-render smoke проходят.
+   `CarFrame` с `Misc/garage`, исходными lamp/camera transforms, 3D машиной
+   и mounted weapons всё ещё не перенесён; фон GarageFrame пока остаётся
+   menu scene, поэтому блок остаётся «Частично».
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
 
 1. Продолжить исходный menu/widget state machine: сначала `RaceMenu2`
-   `CarFrame` и его Garage/Workshop/Angar/Achievement subframes, затем
+   `CarFrame`, затем Workshop/Angar/Achievement subframes, после них
    `Menu`, `MenuSystem`, `MainMenu2`, `GameMode`, `DialogMenu2`,
    `FinishMenu`, `FinalMenu`. Активная структура `OptionsMenu` и
    `RaceMainFrame` уже source-derived, но legacy animation/widget classes

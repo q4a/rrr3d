@@ -34,6 +34,15 @@ enum class GarageSlotType : std::uint8_t
 
 struct OriginalWorkshopItem
 {
+    struct CarFunction
+    {
+        std::string car;
+        float longExtremumValue = 0.0F;
+        float lateralExtremumValue = 0.0F;
+        float maximumTorque = 0.0F;
+        float life = 0.0F;
+    };
+
     std::string record;
     std::string name;
     std::string info;
@@ -43,6 +52,8 @@ struct OriginalWorkshopItem
     std::uint32_t defaultCharge = 0;
     std::uint32_t chargeStep = 1;
     std::uint32_t chargeCost = 0;
+    float projectileDamage = 0.0F;
+    std::vector<CarFunction> carFunctions;
 };
 
 struct OriginalGaragePlacement
@@ -93,8 +104,23 @@ struct OriginalGarageCatalog
         std::string_view record) const noexcept;
 };
 
+struct OriginalGarageStats
+{
+    float armor = 0.0F;
+    float maximumArmor = 0.0F;
+    float damage = 0.0F;
+    float maximumDamage = 0.0F;
+    float armorProgress = 0.0F;
+    float damageProgress = 0.0F;
+    float speedProgress = 0.0F;
+};
+
 OriginalGarageCatalog loadOriginalGarage(
     const resource::ResourceFileSystem& resources);
+
+OriginalGarageStats originalGarageStats(
+    const OriginalGarageCatalog& catalog,
+    const OriginalGarageCar& car) noexcept;
 
 bool originalRecordAchievementUnlocked(
     const ProfileState& profile, std::string_view record) noexcept;
