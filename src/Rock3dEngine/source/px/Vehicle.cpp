@@ -239,6 +239,70 @@ PxVec3 ToPxVec(const D3DXVECTOR3& value)
 
 } // namespace
 
+/*
+ * Every shape on a car, in actor space, once.
+ *
+ * The question this answers is geometric and had been argued about from
+ * derived numbers for far too long: where is the chassis, where are the wheels,
+ * and does anything reach lower than the tyres? A car held up by its own body
+ * collision looks identical from every other reading -- the suspension reports
+ * contact, the spring force is right, the wheels simply never touch.
+ *
+ * Bounds come from PxGeometryQuery rather than per-type accessors so a convex
+ * chassis measures the same way a box wheel does.
+ */
+void DumpActorGeometry(PxRigidDynamic& body, const std::vector<WheelShape*>& wheels)
+{
+	if (!::rrr3d::TraceEnabled())
+		return;
+
+	static int dumped = 0;
+	if (dumped++ > 0)
+		return;
+
+	const PxVec3 cm = body.getCMassLocalPose().p;
+	RRR3D_TRACE("GEOM --- car: mass=%.1f centreOfMass=%.3f,%.3f,%.3f nbShapes=%u",
+		body.getMass(), cm.x, cm.y, cm.z, body.getNbShapes());
+
+	std::vector<PxShape*> shapes(body.getNbShapes());
+	if (shapes.empty())
+		return;
+	body.getShapes(&shapes[0], static_cast<PxU32>(shapes.size()));
+
+	static const char* cTypeName[] =
+		{ "sphere", "plane", "capsule", "box", "convex", "trimesh", "heightfield" };
+
+	for (size_t i = 0; i < shapes.size(); ++i)
+	{
+		const PxTransform pose = shapes[i]->getLocalPose();
+		const PxBounds3 bounds =
+			PxGeometryQuery::getWorldBounds(shapes[i]->getGeometry().any(), pose);
+
+		bool isWheel = false;
+		for (size_t w = 0; w < wheels.size(); ++w)
+			if (wheels[w]->GetNxShape() == shapes[i])
+				isWheel = true;
+
+		const int type = static_cast<int>(shapes[i]->getGeometryType());
+
+		RRR3D_TRACE("GEOM shape %u %-6s %s pos=%.3f,%.3f,%.3f "
+			"bounds z %.3f..%.3f  x %.3f..%.3f  y %.3f..%.3f",
+			(unsigned)i,
+			(type >= 0 && type < 7) ? cTypeName[type] : "?",
+			isWheel ? "WHEEL " : "chassis",
+			pose.p.x, pose.p.y, pose.p.z,
+			bounds.minimum.z, bounds.maximum.z,
+			bounds.minimum.x, bounds.maximum.x,
+			bounds.minimum.y, bounds.maximum.y);
+	}
+
+	for (size_t w = 0; w < wheels.size(); ++w)
+		RRR3D_TRACE("GEOM wheel %u radius=%.3f travel=%.3f  lowest reach z=%.3f",
+			(unsigned)w, wheels[w]->GetRadius(), wheels[w]->GetSuspensionTravel(),
+			(wheels[w]->GetNxShape() ? wheels[w]->GetNxShape()->getLocalPose().p.z : 0.0f)
+				- wheels[w]->GetRadius() - wheels[w]->GetSuspensionTravel());
+}
+
 void CollectWheelShapes(Actor* actor, std::vector<WheelShape*>& out)
 {
 	if (!actor)
@@ -477,6 +541,8 @@ Vehicle::Vehicle(Actor* actor): _actor(actor), _nxVehicle(0)
 		_wheels.clear();
 		return;
 	}
+
+	DumpActorGeometry(*body, _wheels);
 
 	PxVehicleWheelsSimData* simData =
 		PxVehicleWheelsSimData::allocate(static_cast<PxU32>(_wheels.size()));
@@ -795,9 +861,12 @@ void Vehicle::SyncOutputs()
 	if (!_nxVehicle)
 		return;
 
+	PxRigidDynamic* const body = _actor ? _actor->GetNxDynamic() : 0;
+
 	for (size_t i = 0; i < _wheels.size(); ++i)
 	{
 		WheelShape* wheel = _wheels[i];
+		const PxShape* nxShape = wheel->GetNxShape();
 		const PxWheelQueryResult& result = _wheelQueryResults[i];
 
 		wheel->SetAxleSpeed(_nxVehicle->mWheelsDynData.getWheelRotationSpeed(
@@ -831,8 +900,35 @@ void Vehicle::SyncOutputs()
 		 * the travel from full droop -- so it is converted rather than passed
 		 * through.
 		 */
-		const float travel = wheel->GetSuspensionTravel();
-		contact.contactPosition = wheel->GetRadius() + travel - result.suspJounce;
+		/*
+		 * Measured, not derived from PxVehicle's jounce convention.
+		 *
+		 * NxWheelContactData defines contactPosition as "the distance on the
+		 * spring travel distance where the wheel would end up if it was resting
+		 * on the contact point", and CarWheel::PxSyncWheel uses it as
+		 * `st = contactPosition - radius`, then draws the wheel st below the
+		 * shape's origin. So it is the distance from the suspension attachment
+		 * down to the ground, with the wheel centre one radius above that.
+		 *
+		 * Both of those points are known in world space, so projecting one onto
+		 * the suspension direction gives the answer outright. Deriving it from
+		 * suspJounce instead means guessing which end of the travel jounce is
+		 * measured from, and guessing wrong misplaces every rendered wheel by
+		 * the length of the travel -- which is how a car whose suspension is
+		 * demonstrably carrying it (jounce 0, spring force at rest load, flat
+		 * contact normal) still appears to float above its own shadow.
+		 */
+		const PxTransform shapePose = body
+			? body->getGlobalPose() * (nxShape ? nxShape->getLocalPose() : PxTransform(PxIdentity))
+			: PxTransform(PxIdentity);
+
+		const PxVec3 down = result.suspLineDir.isFinite() && !result.suspLineDir.isZero()
+			? result.suspLineDir.getNormalized()
+			: PxVec3(0.0f, 0.0f, -1.0f);
+
+		contact.contactPosition = result.isInAir
+			? wheel->GetRadius() + wheel->GetSuspensionTravel()
+			: (result.tireContactPoint - shapePose.p).dot(down);
 
 		wheel->SetContactData(contact, result.isInAir ? 0 : result.tireContactShape);
 
@@ -859,8 +955,22 @@ void Vehicle::SyncOutputs()
 			PxScene* scene = body ? body->getScene() : 0;
 			if (scene)
 			{
-				const PxTransform pose = body->getGlobalPose();
-				const PxVec3 origin = pose.transform(ToPxVec(wheel->GetPos()));
+				/*
+				 * From the wheel's real world centre.
+				 *
+				 * WheelShape::GetPos() is child-actor-relative, so transforming
+				 * it by the root body's pose lands somewhere that is not the
+				 * wheel -- which is what made earlier readings of this probe
+				 * meaningless. The PxShape's local pose is in the root actor's
+				 * frame, which is the one the body pose composes with.
+				 *
+				 * With the geometry dumped, the expected answer is known: the
+				 * wheel sits 0.340 above the road when it is touching. Anything
+				 * larger is the gap.
+				 */
+				const PxTransform pose = body->getGlobalPose() *
+					(nxShape ? nxShape->getLocalPose() : PxTransform(PxIdentity));
+				const PxVec3 origin = pose.p;
 
 				/*
 				 * From the wheel centre, with the car's own shapes filtered
@@ -903,7 +1013,7 @@ void Vehicle::SyncOutputs()
 				const PxVec3 velocity = body->getLinearVelocity();
 
 				RRR3D_TRACE_FIRST(12,
-					"RAWCAST wheelZ=%.2f groundBelowWheel=%.3f asleep=%d "
+					"RAWCAST wheelZ=%.2f groundBelowWheel=%.3f (radius 0.34) asleep=%d "
 					"vel=%.2f,%.2f,%.2f gravityOff=%d",
 					origin.z,
 					(found && hit.hasBlock) ? hit.block.distance : -1.0f,
