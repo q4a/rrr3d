@@ -765,10 +765,17 @@ SDL_AUDIO_DRIVER=dummy \
   force. Jolt применяет их на тех же границах, где PhysX-код вызывал
   `SetMotorTorqueK` и `SetWheelSteerK`.
 - `Map`-константа `Trace(4)` и `AISystem::ComputeTracks` больше не заменены
-  наведением всех AI на ось трассы. Portable session вычисляет signed
-  track-index, формирует цепочки продольно пересекающихся AI, распределяет
-  их по четырём полосам и ведёт к центру полосы с исходным look-ahead
+  наведением всех AI на ось трассы. Portable session воспроизводит исходный
+  `ComputeTrackInd`, формирует цепочки продольно пересекающихся AI и
+  per-car `lockTracks`, затем ведёт к доступному центру одной из четырёх
+  полос с исходным look-ahead
   `5 + |speed| × kSteerControl × 10`; `kSteerControl` читается из `db.xml`.
+- `AICar::PathState::ComputeMovDir` больше не пропускает подготовку к
+  повороту: из трёх исходных trace points вычисляются те же `midDir`,
+  `nodeRadius`, `edgeNorm` и `edgeLine`; AI заблаговременно выбирает
+  внутреннюю полосу, обходит занятые полосы и после пересечения границы
+  переключается на следующий tile. Отдельная regression использует
+  фактический поворот `map1`, а не синтетическую трассу.
 - `AICar::AttackState::FindEnemy/ShotByEnemy` теперь сохраняет front/back
   target между кадрами, использует исходные `±π/4`, plane-distance и
   line/Z gates. Задняя цель передаётся в projectile target, но source
