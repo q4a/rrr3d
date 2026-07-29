@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace rrr3d::input
@@ -35,6 +36,7 @@ class SdlInputManager
 	    const std::map<std::string, std::string> &bindings);
 
 	std::vector<ActionEvent> processEvent(const SDL_Event &event);
+	float heldValue(Action action) const noexcept;
 
 	std::size_t connectedGamepadCount() const noexcept;
 	bool hasGamepad(SDL_JoystickID device_id) const noexcept;
@@ -58,6 +60,8 @@ class SdlInputManager
 	bool openGamepad(SDL_JoystickID device_id) noexcept;
 	void closeGamepad(SDL_JoystickID device_id) noexcept;
 	void appendGamepadReleases(std::vector<ActionEvent> &events, SDL_JoystickID device_id) const;
+	void clearHeldSource(Source source) noexcept;
+	void clearHeldDevice(SDL_JoystickID device_id) noexcept;
 
 	bool initialized_ = false;
 	bool keyboard_bindings_configured_ = false;
@@ -67,6 +71,8 @@ class SdlInputManager
 	std::map<SDL_GamepadAxis, std::vector<GamepadAxisBinding>>
 	    gamepad_axis_actions_;
 	std::map<SDL_JoystickID, GamepadState> gamepads_;
+	std::map<std::tuple<Action, Source, SDL_JoystickID>, float>
+	    held_action_values_;
 };
 
 } // namespace rrr3d::input

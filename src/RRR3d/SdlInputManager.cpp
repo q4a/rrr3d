@@ -239,6 +239,7 @@ void SdlInputManager::shutdown() noexcept
 	keyboard_actions_.clear();
 	gamepad_button_actions_.clear();
 	gamepad_axis_actions_.clear();
+	held_action_values_.clear();
 	keyboard_bindings_configured_ = false;
 	initialized_ = false;
 }
@@ -246,6 +247,7 @@ void SdlInputManager::shutdown() noexcept
 void SdlInputManager::applyKeyboardBindings(
     const std::map<std::string, std::string> &bindings)
 {
+	clearHeldSource(Source::Keyboard);
 	keyboard_actions_.clear();
 	for (const auto &[name, key] : bindings)
 	{
@@ -264,6 +266,8 @@ void SdlInputManager::applyKeyboardBindings(
 void SdlInputManager::applyGamepadBindings(
     const std::map<std::string, std::string> &bindings)
 {
+	clearHeldSource(Source::GamepadButton);
+	clearHeldSource(Source::GamepadAxis);
 	gamepad_button_actions_.clear();
 	gamepad_axis_actions_.clear();
 	for (const auto &[name, key] : bindings)
@@ -643,7 +647,60 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 		else
 			*found = eventValue;
 	}
+	if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST)
+	{
+		held_action_values_.clear();
+	}
+	else
+	{
+		if (event.type == SDL_EVENT_GAMEPAD_REMOVED)
+			clearHeldDevice(event.gdevice.which);
+		for (const auto &eventValue : unique)
+		{
+			if (eventValue.source == Source::System)
+				continue;
+			held_action_values_[{eventValue.action, eventValue.source,
+			                     eventValue.device_id}] =
+			    eventValue.active ? std::clamp(eventValue.value, 0.0F, 1.0F)
+			                      : 0.0F;
+		}
+	}
 	return unique;
+}
+
+float SdlInputManager::heldValue(Action action) const noexcept
+{
+	float value = 0.0F;
+	for (const auto &[key, held] : held_action_values_)
+	{
+		if (std::get<0>(key) == action)
+			value = std::max(value, held);
+	}
+	return value;
+}
+
+void SdlInputManager::clearHeldSource(Source source) noexcept
+{
+	for (auto entry = held_action_values_.begin();
+	     entry != held_action_values_.end();)
+	{
+		if (std::get<1>(entry->first) == source)
+			entry = held_action_values_.erase(entry);
+		else
+			++entry;
+	}
+}
+
+void SdlInputManager::clearHeldDevice(SDL_JoystickID device_id) noexcept
+{
+	for (auto entry = held_action_values_.begin();
+	     entry != held_action_values_.end();)
+	{
+		if (std::get<2>(entry->first) == device_id)
+			entry = held_action_values_.erase(entry);
+		else
+			++entry;
+	}
 }
 
 std::size_t SdlInputManager::connectedGamepadCount() const noexcept

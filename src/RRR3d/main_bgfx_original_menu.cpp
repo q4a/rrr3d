@@ -1946,6 +1946,7 @@ int main(int argc, char** argv)
     bool finishMenuShown = false;
     std::uint32_t raceSmokeMenuStep = 0;
     std::uint32_t raceSmokeNextMenuFrame = 0;
+    bool raceSmokeAccelerateQueued = false;
     auto saveRaceProfile = [&]() {
         if (!raceSession.racers().empty())
         {
@@ -2804,6 +2805,22 @@ int main(int argc, char** argv)
         }
 #endif
 #ifdef RRR3D_PHYSICS
+        if (options->raceRenderSmokeTest && inRace &&
+            !raceSmokeAccelerateQueued)
+        {
+            SDL_Event accelerate{};
+            accelerate.key.type = SDL_EVENT_KEY_DOWN;
+            accelerate.key.down = true;
+            accelerate.key.scancode = SDL_SCANCODE_UP;
+            if (!SDL_PushEvent(&accelerate))
+            {
+                std::cerr
+                    << "Unable to queue integrated Up Arrow acceleration: "
+                    << SDL_GetError() << '\n';
+                runtimeSmokeFailed = true;
+            }
+            raceSmokeAccelerateQueued = true;
+        }
         if (options->raceRenderSmokeTest && inRace &&
             renderedFrames >= 20U + racePauseSmokeStep &&
             racePauseSmokeStep < 3U)
@@ -3755,18 +3772,27 @@ int main(int argc, char** argv)
         if (options->raceRenderSmokeTest)
             frameSeconds = 1.0F / 60.0F;
         previousFrameTicks = currentFrameTicks;
-        if (inRace && options->raceRenderSmokeTest)
-        {
-            raceInput.throttle = 1.0F;
-            raceInput.reverse = 0.0F;
-            raceInput.brake = 0.0F;
-            raceInput.steering = renderedFrames >= 90 &&
-                                         renderedFrames < 180
-                                     ? 0.35F
-                                     : 0.0F;
-        }
         if (inRace)
         {
+            // Windows ControlManager::GetGameActionState is polled every
+            // update.  Keeping only KEY_DOWN/KEY_UP events here lost an
+            // already-held accelerator across menu/race, countdown, pause,
+            // and focus transitions.
+            raceInput.throttle = input.heldValue(
+                rrr3d::input::Action::Accelerate);
+            raceInput.reverse = input.heldValue(
+                rrr3d::input::Action::Brake);
+            raceInput.brake = 0.0F;
+            raceInput.steering =
+                input.heldValue(rrr3d::input::Action::TurnRight) -
+                input.heldValue(rrr3d::input::Action::TurnLeft);
+            if (options->raceRenderSmokeTest)
+            {
+                raceInput.steering = renderedFrames >= 90 &&
+                                             renderedFrames < 180
+                                         ? 0.35F
+                                         : 0.0F;
+            }
             r3d::game::originalrace::RaceControl control;
             control.driving = raceInput;
             control.useWeapon = raceUseWeaponRequested;

@@ -117,6 +117,12 @@ bool waitForButton(SDL_Gamepad *gamepad, SDL_GamepadButton button, bool expected
 
 bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 {
+	input.applyKeyboardBindings({
+	    {"gaAccel", "Up Arrow"},
+	    {"gaBreak", "Down Arrow"},
+	    {"gaWheelLeft", "Left Arrow"},
+	    {"gaWheelRight", "Right Arrow"},
+	});
 	input.applyGamepadBindings({
 	    {"gaAccel", "A"},
 	    {"gaBreak", "B"},
@@ -129,8 +135,29 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	SDL_Event event{};
 	event.key.type = SDL_EVENT_KEY_DOWN;
 	event.key.down = true;
-	event.key.scancode = SDL_SCANCODE_DOWN;
+	event.key.scancode = SDL_SCANCODE_UP;
 	auto actions = input.processEvent(event);
+	if (!contains(actions, Action::Accelerate, Source::Keyboard, true) ||
+	    input.heldValue(Action::Accelerate) < 0.99F)
+	{
+		error = "configured Up Arrow did not latch the acceleration state";
+		return false;
+	}
+	event.key.type = SDL_EVENT_KEY_UP;
+	event.key.down = false;
+	actions = input.processEvent(event);
+	if (!contains(actions, Action::Accelerate, Source::Keyboard, false) ||
+	    input.heldValue(Action::Accelerate) != 0.0F)
+	{
+		error = "Up Arrow release did not clear the acceleration state";
+		return false;
+	}
+
+	event = {};
+	event.key.type = SDL_EVENT_KEY_DOWN;
+	event.key.down = true;
+	event.key.scancode = SDL_SCANCODE_DOWN;
+	actions = input.processEvent(event);
 	if (!contains(actions, Action::MenuDown, Source::Keyboard, true))
 	{
 		error = "keyboard action mapping failed";
@@ -165,6 +192,11 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	if (!contains(actions, Action::MenuConfirm, Source::System, false))
 	{
 		error = "focus-loss action reset failed";
+		return false;
+	}
+	if (input.heldValue(Action::Brake) != 0.0F)
+	{
+		error = "focus loss did not clear held driving controls";
 		return false;
 	}
 
