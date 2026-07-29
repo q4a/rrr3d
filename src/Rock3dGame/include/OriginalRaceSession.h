@@ -100,6 +100,10 @@ struct RacerRuntime
     float clutchSeconds = 0.0F;
     float restoreSeconds = 0.0F;
     float lowLifeEffectSeconds = 0.0F;
+    float shieldEffectSeconds = 0.0F;
+    float shieldFadeInSeconds = -1.0F;
+    float shieldFadeOutSeconds = -1.0F;
+    float shieldDamageSeconds = -1.0F;
     float finishTime = -1.0F;
     bool wrongWay = false;
     bool finished = false;

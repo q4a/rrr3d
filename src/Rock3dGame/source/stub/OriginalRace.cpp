@@ -525,6 +525,20 @@ MaterialDefinition materialDefinition(
             else if (record == "Effect\\thunder1")
                 material.color =
                     {236.0F / 255.0F, 0.0F, 140.0F / 255.0F, 1.0F};
+
+            // ResourceManager::LoadImage2dLibMatAnim creates the three
+            // shield2 materials with alpha 0.4 and translates the sampler
+            // over the node's normalized animation frame.
+            if (record == "Effect\\shield2" ||
+                record == "Effect\\shield2Hor" ||
+                record == "Effect\\shield2Vert")
+            {
+                material.color[3] = 0.4F;
+                if (record != "Effect\\shield2Vert")
+                    material.textureOffsetMaximum.x = 1.0F;
+                if (record != "Effect\\shield2Hor")
+                    material.textureOffsetMaximum.y = 1.0F;
+            }
         }
         if (record == "Car\\blend")
         {
@@ -1023,6 +1037,27 @@ std::vector<VisualNode> visualNodes(
                 canonicalDataPath(resources, mesh->Attribute("item"));
         }
         node.transform = elementTransform(item, source);
+        if (auto* mode = child(item, "animMode");
+            mode != nullptr && mode->GetText() != nullptr)
+        {
+            const auto value = unsignedValue(mode->GetText(), source);
+            if (value <= static_cast<unsigned>(
+                             VisualNode::AnimationMode::Inheritance))
+            {
+                node.animationMode =
+                    static_cast<VisualNode::AnimationMode>(value);
+            }
+        }
+        if (auto* duration = child(item, "animDuration");
+            duration != nullptr && duration->GetText() != nullptr)
+        {
+            node.animationDuration = scalar(item, "animDuration", source);
+        }
+        if (auto* frame = child(item, "frame");
+            frame != nullptr && frame->GetText() != nullptr)
+        {
+            node.animationFrame = scalar(item, "frame", source);
+        }
         if (plane)
         {
             auto* size = child(item, "size");
@@ -2168,6 +2203,12 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
     result.lowLifeEffect = objectDefinition(
         resources, database, "world\\db\\root\\ctEffects\\smoke6",
         source + "/LowLifePoints/smoke6");
+    // DataBase::LoadCar attaches ImmortalEffect to every car with this
+    // source record and the fixed non-uniform scale coefficient.
+    result.shieldEffect = objectDefinition(
+        resources, database, "world\\db\\root\\ctEffects\\shield1",
+        source + "/ImmortalEffect/shield1");
+    result.shieldEffectScale = {1.3F, 1.7F, 1.7F};
     result.deathEffects = deathEffectDefinitions(
         resources, database, record, source + "/death effects");
 
@@ -3345,6 +3386,69 @@ bool runOriginalRaceResourceSmokeTest(
                     ", graphOrder=" +
                     std::to_string(static_cast<int>(effect.graphOrder)) +
                     ", texture=" + texture;
+            return false;
+        }
+        const auto& shield = race.vehicle.shieldEffect;
+        static constexpr std::array<float, 3> shieldScales{
+            1.0F, 0.975F, 0.95F};
+        static constexpr std::array<float, 3> shieldDurations{
+            5.5F, 6.0F, 6.5F};
+        static constexpr std::array<std::string_view, 3>
+            shieldMaterials{
+                "shield2", "shield2Hor", "shield2Vert"};
+        bool shieldNodesMatchSource =
+            recordEndsWith(shield.record, "shield1") &&
+            shield.graphOrder == GraphOrder::Effect &&
+            shield.visualNodes.size() == shieldScales.size() &&
+            near(race.vehicle.shieldEffectScale.x, 1.3F) &&
+            near(race.vehicle.shieldEffectScale.y, 1.7F) &&
+            near(race.vehicle.shieldEffectScale.z, 1.7F);
+        for (std::size_t index = 0;
+             index < shield.visualNodes.size() &&
+             shieldNodesMatchSource; ++index)
+        {
+            const auto& node = shield.visualNodes[index];
+            shieldNodesMatchSource =
+                recordEndsWith(node.meshPath, "sphere.r3d") &&
+                near(node.transform.scale.x, shieldScales[index]) &&
+                near(node.transform.scale.y, shieldScales[index]) &&
+                near(node.transform.scale.z, shieldScales[index]) &&
+                node.animationMode ==
+                    VisualNode::AnimationMode::Repeat &&
+                near(node.animationDuration, shieldDurations[index]) &&
+                node.materials.size() == 1U &&
+                recordEndsWith(
+                    node.materials.front().record,
+                    shieldMaterials[index]) &&
+                recordEndsWith(
+                    node.materials.front().texturePath,
+                    "shield2.dds") &&
+                node.materials.front().blend ==
+                    MaterialBlend::Additive &&
+                near(node.materials.front().color[3], 0.4F);
+            if (!shieldNodesMatchSource)
+                break;
+            const auto& maximum =
+                node.materials.front().textureOffsetMaximum;
+            const Vec3 wanted =
+                index == 0U
+                    ? Vec3{1.0F, 1.0F, 0.0F}
+                    : (index == 1U
+                           ? Vec3{1.0F, 0.0F, 0.0F}
+                           : Vec3{0.0F, 1.0F, 0.0F});
+            shieldNodesMatchSource =
+                near(maximum.x, wanted.x) &&
+                near(maximum.y, wanted.y) &&
+                near(maximum.z, wanted.z);
+        }
+        if (!shieldNodesMatchSource)
+        {
+            error =
+                "source ImmortalEffect/shield1 provenance mismatch: " +
+                shield.record + ", nodes=" +
+                std::to_string(shield.visualNodes.size()) +
+                ", graphOrder=" +
+                std::to_string(static_cast<int>(shield.graphOrder));
             return false;
         }
         if (race.vehicle.deathEffects.size() != 2U ||

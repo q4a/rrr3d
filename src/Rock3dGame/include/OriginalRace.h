@@ -58,6 +58,22 @@ struct MaterialDefinition
     // Material::moZWrite is independent from D3D blending (for example the
     // opaque j_swell sprite disables depth writes).
     bool writeDepth = true;
+    // Animated Image2D sampler offset range.  The original renderer feeds
+    // the owning visual node's normalized animation frame into this range.
+    Vec3 textureOffsetMinimum;
+    Vec3 textureOffsetMaximum;
+
+    MaterialDefinition() = default;
+    MaterialDefinition(std::string sourceRecord,
+                       std::string sourceTexture,
+                       MaterialBlend sourceBlend,
+                       float sourceAlphaReference)
+        : record(sourceRecord),
+          texturePath(sourceTexture),
+          blend(sourceBlend),
+          alphaReference(sourceAlphaReference)
+    {
+    }
 };
 
 struct VisualNode
@@ -70,6 +86,17 @@ struct VisualNode
         None,
     };
 
+    enum class AnimationMode
+    {
+        None = 0,
+        Once = 1,
+        Repeat = 2,
+        Tile = 3,
+        TwoSide = 4,
+        Manual = 5,
+        Inheritance = 6,
+    };
+
     std::string meshPath;
     Transform transform;
     std::vector<MaterialDefinition> materials;
@@ -78,6 +105,9 @@ struct VisualNode
     bool fixedDirection = false;
     bool invertCullFace = false;
     CullMode cullMode = CullMode::Inherit;
+    AnimationMode animationMode = AnimationMode::None;
+    float animationDuration = 1.0F;
+    float animationFrame = 0.0F;
 };
 
 enum class ParticleRenderMode
@@ -280,6 +310,8 @@ struct Vehicle
     ObjectDefinition lowLifeEffect;
     Vec3 lowLifeEffectPosition{0.0F, 0.0F, 0.5F};
     float lowLifeLevel = 0.35F;
+    ObjectDefinition shieldEffect;
+    Vec3 shieldEffectScale{1.3F, 1.7F, 1.7F};
     std::vector<DeathEffectDefinition> deathEffects;
     r3d::physics::VehicleDescription physics;
     float maximumLife = 100.0F;

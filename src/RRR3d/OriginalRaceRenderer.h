@@ -143,6 +143,8 @@ private:
     std::vector<ObjectAsset> vehicleBodies_;
     std::vector<std::vector<ObjectAsset>> vehicleWheels_;
     std::vector<ObjectAsset> vehicleLowLifeEffects_;
+    std::vector<ObjectAsset> vehicleShieldEffects_;
+    std::vector<r3d::physics::Vec3> vehicleShieldScales_;
     std::vector<std::vector<ObjectAsset>> vehicleDeathEffects_;
     std::vector<ObjectAsset> weapons_;
     std::vector<std::vector<ProjectileAsset>> projectiles_;
@@ -152,7 +154,6 @@ private:
     r3d::renderer::Mesh skyMesh_;
     std::vector<r3d::renderer::Texture> weaponEffectTextures_;
     r3d::renderer::Texture destructionEffectTexture_;
-    r3d::renderer::Texture shieldEffectTexture_;
     r3d::renderer::Texture vehicleLightTexture_;
     r3d::renderer::Texture environmentSurfaceTexture_;
     r3d::renderer::Texture waterNormalTexture_;

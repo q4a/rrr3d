@@ -604,6 +604,42 @@ std::array<float, 4> animatedAtlas(std::uint16_t columns,
             std::max(std::floor(seconds * rate), 0.0F)));
 }
 
+float visualAnimationFrame(
+    const r3d::game::originalrace::VisualNode& node,
+    float seconds) noexcept
+{
+    using Mode =
+        r3d::game::originalrace::VisualNode::AnimationMode;
+    if (node.animationMode == Mode::None ||
+        node.animationMode == Mode::Manual ||
+        node.animationMode == Mode::Inheritance)
+    {
+        return std::clamp(node.animationFrame, 0.0F, 1.0F);
+    }
+    const float normalized =
+        std::max(seconds, 0.0F) /
+        std::max(node.animationDuration, 0.0001F);
+    switch (node.animationMode)
+    {
+    case Mode::Once:
+        return std::clamp(normalized, 0.0F, 1.0F);
+    case Mode::Repeat:
+    case Mode::Tile:
+        return normalized - std::floor(normalized);
+    case Mode::TwoSide:
+    {
+        const float cycle =
+            normalized - std::floor(normalized * 0.5F) * 2.0F;
+        return cycle <= 1.0F ? cycle : 2.0F - cycle;
+    }
+    case Mode::None:
+    case Mode::Manual:
+    case Mode::Inheritance:
+        break;
+    }
+    return std::clamp(node.animationFrame, 0.0F, 1.0F);
+}
+
 std::array<float, 4> effectTextureTransform(std::string_view path,
                                             float seconds)
 {
@@ -696,7 +732,8 @@ void drawGroups(GraphicsDevice& device,
         return;
     const auto geometryPipeline = nodePipeline(pipeline, node);
     auto materialState =
-        [&asset, elapsedSeconds, reflectionStrength, lighting, opacity, tint](
+        [&asset, elapsedSeconds, reflectionStrength, lighting, node,
+         opacity, tint](
             const auto& material, std::size_t materialIndex) {
             MaterialState state;
             state.color = material.color;
@@ -725,6 +762,18 @@ void drawGroups(GraphicsDevice& device,
             state.textureTransform = animatedAtlas(
                 material.atlasColumns, material.atlasRows, elapsedSeconds,
                 material.animationRate);
+            const float frame =
+                node != nullptr
+                    ? visualAnimationFrame(*node, elapsedSeconds)
+                    : 0.0F;
+            state.textureTransform[2] +=
+                material.textureOffsetMinimum.x +
+                (material.textureOffsetMaximum.x -
+                 material.textureOffsetMinimum.x) * frame;
+            state.textureTransform[3] +=
+                material.textureOffsetMinimum.y +
+                (material.textureOffsetMaximum.y -
+                 material.textureOffsetMinimum.y) * frame;
             return state;
         };
     auto materialPipeline = [&](std::size_t index) {
@@ -1343,6 +1392,8 @@ bool OriginalRaceRenderer::initialize(
         vehicleBodies_.resize(race.racers.size());
         vehicleWheels_.resize(race.racers.size());
         vehicleLowLifeEffects_.resize(race.racers.size());
+        vehicleShieldEffects_.resize(race.racers.size());
+        vehicleShieldScales_.resize(race.racers.size());
         vehicleDeathEffects_.resize(race.racers.size());
         for (std::size_t racer = 0; racer < race.racers.size(); ++racer)
         {
@@ -1356,6 +1407,43 @@ bool OriginalRaceRenderer::initialize(
             loadDefinition(
                 vehicleLowLifeEffects_[racer],
                 vehicle.lowLifeEffect);
+            loadDefinition(
+                vehicleShieldEffects_[racer],
+                vehicle.shieldEffect);
+            const r3d::physics::Transform identity;
+            const auto bodyBounds = objectBounds(
+                vehicleBodies_[racer], vehicle.bodyVisuals, identity);
+            const auto shieldBounds = objectBounds(
+                vehicleShieldEffects_[racer],
+                vehicle.shieldEffect.visualNodes, identity);
+            if (!bodyBounds.valid || !shieldBounds.valid)
+            {
+                throw r3d::resource::ResourceError(
+                    "Unable to calculate source ImmortalEffect bounds for " +
+                    vehicle.record);
+            }
+            const r3d::physics::Vec3 bodySize{
+                bodyBounds.maximum.x - bodyBounds.minimum.x,
+                bodyBounds.maximum.y - bodyBounds.minimum.y,
+                bodyBounds.maximum.z - bodyBounds.minimum.z};
+            const r3d::physics::Vec3 shieldSize{
+                shieldBounds.maximum.x - shieldBounds.minimum.x,
+                shieldBounds.maximum.y - shieldBounds.minimum.y,
+                shieldBounds.maximum.z - shieldBounds.minimum.z};
+            if (shieldSize.x <= 0.0001F ||
+                shieldSize.y <= 0.0001F ||
+                shieldSize.z <= 0.0001F)
+            {
+                throw r3d::resource::ResourceError(
+                    "Source ImmortalEffect has empty bounds for " +
+                    vehicle.record);
+            }
+            // ImmortalEffect::OnImmortalStatus fits the effect AABB around
+            // the source car AABB, then applies DataBase::LoadCar's scaleK.
+            vehicleShieldScales_[racer] = {
+                bodySize.x / shieldSize.x * vehicle.shieldEffectScale.x,
+                bodySize.y / shieldSize.y * vehicle.shieldEffectScale.y,
+                bodySize.z / shieldSize.z * vehicle.shieldEffectScale.z};
             vehicleWheels_[racer].resize(vehicle.wheelVisuals.size());
             for (std::size_t wheel = 0;
                  wheel < vehicle.wheelVisuals.size(); ++wheel)
@@ -1488,13 +1576,10 @@ bool OriginalRaceRenderer::initialize(
         };
         destructionEffectTexture_ =
             loadEffectTexture("Data/Effect/explosion2.dds");
-        shieldEffectTexture_ =
-            loadEffectTexture("Data/Effect/shield1.dds");
         vehicleLightTexture_ =
             loadEffectTexture("Data/Effect/flare2b.dds");
         if (!valid(effectMesh_) ||
             !valid(destructionEffectTexture_) ||
-            !valid(shieldEffectTexture_) ||
             !valid(vehicleLightTexture_) ||
             (race.environment.surface !=
                      r3d::game::originalrace::EnvironmentSurface::None &&
@@ -1588,6 +1673,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
             releaseObject(wheel);
     for (auto& effect : vehicleLowLifeEffects_)
         releaseObject(effect);
+    for (auto& effect : vehicleShieldEffects_)
+        releaseObject(effect);
     for (auto& effects : vehicleDeathEffects_)
         for (auto& effect : effects)
             releaseObject(effect);
@@ -1617,6 +1704,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     vehicleBodies_.clear();
     vehicleWheels_.clear();
     vehicleLowLifeEffects_.clear();
+    vehicleShieldEffects_.clear();
+    vehicleShieldScales_.clear();
     vehicleDeathEffects_.clear();
     bonuses_.clear();
     bonusDeathEffects_.clear();
@@ -1634,8 +1723,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
             device.destroy(texture);
     if (valid(destructionEffectTexture_))
         device.destroy(destructionEffectTexture_);
-    if (valid(shieldEffectTexture_))
-        device.destroy(shieldEffectTexture_);
     if (valid(vehicleLightTexture_))
         device.destroy(vehicleLightTexture_);
     if (valid(environmentSurfaceTexture_))
@@ -1648,7 +1735,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     skyMesh_ = {};
     weaponEffectTextures_.clear();
     destructionEffectTexture_ = {};
-    shieldEffectTexture_ = {};
     vehicleLightTexture_ = {};
     environmentSurfaceTexture_ = {};
     waterNormalTexture_ = {};
@@ -2046,7 +2132,9 @@ void OriginalRaceRenderer::draw(
         float opacity = 1.0F;
         RenderStage stage = RenderStage::Opacity;
         DrawLayer layer = DrawLayer::Transparency;
-        const std::array<float, 4>* tint = nullptr;
+        float animationSeconds = 0.0F;
+        std::array<float, 4> tint{1.0F, 1.0F, 1.0F, 1.0F};
+        bool hasTint = false;
     };
     std::vector<DeferredVisualDraw> deferredVisuals;
     auto drawObject = [&](const ObjectAsset& asset,
@@ -2056,7 +2144,12 @@ void OriginalRaceRenderer::draw(
                           r3d::game::originalrace::GraphOrder graphOrder,
                           bool cullOpacityActor,
                           float opacity,
-                          const std::array<float, 4>* tint) {
+                          const std::array<float, 4>* tint,
+                          float objectAnimationSeconds = -1.0F) {
+        const float animationSeconds =
+            objectAnimationSeconds >= 0.0F
+                ? objectAnimationSeconds
+                : elapsedSeconds;
         const std::size_t count = std::min(asset.nodes.size(), nodes.size());
         for (std::size_t index = 0; index < count; ++index)
         {
@@ -2085,7 +2178,7 @@ void OriginalRaceRenderer::draw(
             if (!deferredActor)
             {
                 drawGroups(device, asset.nodes[index], shader, model,
-                           pipeline, elapsedSeconds, reflectionStrength,
+                           pipeline, animationSeconds, reflectionStrength,
                            asset.lighting, DrawLayer::Opaque,
                            &nodes[index], 1.0F, tint);
             }
@@ -2110,7 +2203,12 @@ void OriginalRaceRenderer::draw(
                      renderStage(graphOrder, cullOpacityActor),
                      deferredActor ? DrawLayer::All
                                    : DrawLayer::Transparency,
-                     tint});
+                     animationSeconds,
+                     tint != nullptr
+                         ? *tint
+                         : std::array<float, 4>{
+                               1.0F, 1.0F, 1.0F, 1.0F},
+                     tint != nullptr});
             }
         }
     };
@@ -2633,7 +2731,7 @@ void OriginalRaceRenderer::draw(
                 opacity < 0.999F;
             drawObject(asset, definition.visualNodes, parent,
                        definition.graphOrder, cullOpacityActor, opacity,
-                       nullptr);
+                       nullptr, age);
             if (!definition.particleEmitters.empty())
             {
                 deferredParticles.push_back(
@@ -3281,26 +3379,52 @@ void OriginalRaceRenderer::draw(
 
     for (std::size_t racer = 0; racer < racerCount; ++racer)
     {
-        if (racer < racerRuntime.size() &&
-            racerRuntime[racer].destroyed)
+        if (racer >= racerRuntime.size() ||
+            racerRuntime[racer].destroyed ||
+            racer >= vehicleShieldEffects_.size() ||
+            racer >= vehicleShieldScales_.size())
             continue;
-        if (racer < racerRuntime.size() &&
-            racerRuntime[racer].shieldSeconds > 0.0F)
+        const auto& runtime = racerRuntime[racer];
+        if (runtime.shieldSeconds <= 0.0F &&
+            runtime.shieldFadeOutSeconds < 0.0F)
+            continue;
+        const auto& sourceRacer = race.racers[racer];
+        const auto& definition =
+            sourceRacer.hasConfiguredVehicle
+                ? sourceRacer.configuredVehicle
+                : race.vehicles.at(sourceRacer.vehicle);
+        float fade = 1.0F;
+        if (runtime.shieldFadeInSeconds >= 0.0F)
         {
-            r3d::physics::Transform shield = vehicles[racer].body;
-            shield.position.z += 0.8F;
-            const float size =
-                3.2F + 0.12F *
-                           std::sin(elapsedSeconds * 9.0F);
-            shield.scale = {size, size, size};
-            MaterialState shieldMaterial = glowMaterial;
-            shieldMaterial.color = {0.35F, 0.72F, 1.0F, 0.72F};
-            shieldMaterial.textureTransform =
-                animatedAtlas(5, 2, elapsedSeconds);
-            deferEffect(effectMesh_, shieldEffectTexture_,
-                        transform(shield), effectPipeline,
-                        shieldMaterial);
+            fade = std::clamp(
+                runtime.shieldFadeInSeconds / 0.5F, 0.0F, 1.0F);
         }
+        else if (runtime.shieldFadeOutSeconds >= 0.0F)
+        {
+            fade = 1.0F -
+                   std::clamp(
+                       runtime.shieldFadeOutSeconds / 0.5F,
+                       0.0F, 1.0F);
+        }
+        r3d::physics::Transform shield = vehicles[racer].body;
+        shield.scale = {
+            shield.scale.x * vehicleShieldScales_[racer].x * fade,
+            shield.scale.y * vehicleShieldScales_[racer].y * fade,
+            shield.scale.z * vehicleShieldScales_[racer].z * fade};
+        float damageAlpha = 1.0F;
+        if (runtime.shieldDamageSeconds >= 0.0F)
+        {
+            const float damageFrame = std::clamp(
+                runtime.shieldDamageSeconds / 0.25F, 0.0F, 1.0F);
+            damageAlpha = 1.0F + 2.5F * (1.0F - damageFrame);
+        }
+        const std::array<float, 4> shieldTint{
+            1.0F, 1.0F, 1.0F, damageAlpha};
+        drawObject(
+            vehicleShieldEffects_[racer],
+            definition.shieldEffect.visualNodes, shield,
+            definition.shieldEffect.graphOrder, false, 1.0F,
+            &shieldTint, runtime.shieldEffectSeconds);
     }
 
     if (race.environment.rain && !vehicles.empty())
@@ -3352,10 +3476,11 @@ void OriginalRaceRenderer::draw(
                 continue;
             drawGroups(device, *deferred.asset, shader,
                        deferred.model, stagePipeline,
-                       elapsedSeconds, deferred.reflectionStrength,
+                       deferred.animationSeconds,
+                       deferred.reflectionStrength,
                        deferred.lighting, deferred.layer,
                        deferred.node, deferred.opacity,
-                       deferred.tint);
+                       deferred.hasTint ? &deferred.tint : nullptr);
         }
         for (const auto& deferred : deferredParticles)
         {
