@@ -584,6 +584,15 @@ int main(int argc, char** argv)
         std::cout << "Milestone 6 original resource/MainMenu2 specification "
                      "verification passed\n";
 #ifdef RRR3D_PHYSICS
+        if (originalRace->vehicle.physics.maximumTorque <= 0.0F ||
+            originalRace->vehicle.maximumLife <= 1.0F)
+        {
+            std::cerr
+                << "Original player mobility loadout audit failed: torque="
+                << originalRace->vehicle.physics.maximumTorque
+                << ", life=" << originalRace->vehicle.maximumLife << '\n';
+            return EXIT_FAILURE;
+        }
         std::cout << "Milestone 9 selected race audit passed: track "
                   << selectedTrack << ' ' << originalRace->levelPath
                   << ", " << originalRace->trackInstances.size()
@@ -592,7 +601,11 @@ int main(int argc, char** argv)
                   << " decorations, " << originalRace->bonuses.size()
                   << " bonuses, " << originalRace->racers.size()
                   << " racers, car "
-                  << recordName(originalRace->vehicle.record) << '\n';
+                  << recordName(originalRace->vehicle.record)
+                  << ", torque "
+                  << originalRace->vehicle.physics.maximumTorque
+                  << ", life " << originalRace->vehicle.maximumLife
+                  << '\n';
 #endif
         return EXIT_SUCCESS;
     }
@@ -1927,7 +1940,9 @@ int main(int argc, char** argv)
     bool racePauseDialogObserved = !options->raceRenderSmokeTest;
     bool racePauseResumeObserved = !options->raceRenderSmokeTest;
     bool racePauseFrozenObserved = !options->raceRenderSmokeTest;
-    bool raceShieldObserved = !options->raceRenderSmokeTest;
+    bool racePlayerDestroyedObserved = false;
+    float minimumRacePlayerLife =
+        std::numeric_limits<float>::max();
     std::uint32_t racePauseSmokeStep = 0U;
     float racePauseElapsedSnapshot = -1.0F;
     r3d::physics::Vec3 racePausePositionSnapshot;
@@ -2024,27 +2039,6 @@ int main(int argc, char** argv)
             *physicsDescription =
                 r3d::game::originalrace::makePhysicsDescription(
                     *originalRace, *resources);
-            if (options->raceRenderSmokeTest &&
-                !physicsDescription->spawns.empty())
-            {
-                // map1 has no placed shield bonus.  Add the exact source
-                // bonus at the human spawn only for native render smoke so
-                // ctEffects/shield1 is exercised through the real menu race
-                // reload, session pickup, and GPU submission paths.
-                r3d::game::originalrace::BonusInstance shieldBonus;
-                shieldBonus.record =
-                    "world\\db\\root\\ctBonuses\\shield";
-                shieldBonus.kind =
-                    r3d::game::originalrace::BonusKind::Shield;
-                shieldBonus.value = 10.0F;
-                // The oversized test-only contact volume makes the pickup
-                // deterministic after Jolt settles the car on the track.
-                shieldBonus.size = {100.0F, 100.0F, 1.0F};
-                shieldBonus.transform.position =
-                    physicsDescription->spawns.front().position;
-                originalRace->bonuses.push_back(
-                    std::move(shieldBonus));
-            }
             std::string reloadError;
             physicsWorld =
                 r3d::physics::createOriginalVehicleWorld(
@@ -3804,18 +3798,11 @@ int main(int argc, char** argv)
             control.fireWeaponSlot = raceFireWeaponSlotRequested;
             control.reset = raceResetRequested;
             raceSession.update(frameSeconds, raceVehicles, control);
-            if (options->raceRenderSmokeTest)
-            {
-                raceShieldObserved =
-                    raceShieldObserved ||
-                    std::any_of(
-                        raceSession.racers().begin(),
-                        raceSession.racers().end(),
-                        [](const auto& racer) {
-                            return racer.shieldSeconds > 0.0F &&
-                                   racer.shieldEffectSeconds > 0.0F;
-                        });
-            }
+            if (options->raceRenderSmokeTest &&
+                !raceSession.racers().empty())
+                minimumRacePlayerLife = std::min(
+                    minimumRacePlayerLife,
+                    raceSession.racers().front().life);
             raceUseWeaponRequested = false;
             raceUseAllWeaponsRequested = false;
             raceChangeWeaponRequested = false;
@@ -3824,6 +3811,11 @@ int main(int argc, char** argv)
             raceResetRequested = false;
             for (const auto& event : raceSession.events())
             {
+                if (options->raceRenderSmokeTest &&
+                    event.kind ==
+                        r3d::game::originalrace::RaceEventKind::Kill &&
+                    event.target == 0U)
+                    racePlayerDestroyedObserved = true;
                 if (event.kind ==
                         r3d::game::originalrace::RaceEventKind::Kill &&
                     event.target < originalRace->racers.size() &&
@@ -4707,7 +4699,8 @@ int main(int argc, char** argv)
                     !racePauseDialogObserved ||
                     !racePauseResumeObserved ||
                     !racePauseFrozenObserved ||
-                    !raceShieldObserved ||
+                    racePlayerDestroyedObserved ||
+                    minimumRacePlayerLife <= 0.0F ||
                     maximumRaceSmokeContacts == 0 ||
                     maximumRaceSmokeSpeed < 0.2F ||
                     raceVehicles.size() < 2U ||
@@ -4727,8 +4720,9 @@ int main(int argc, char** argv)
                         << inRace << ", pause="
                         << racePauseDialogObserved << '/'
                         << racePauseResumeObserved << '/'
-                        << racePauseFrozenObserved << ", shield="
-                        << raceShieldObserved << ", contacts="
+                        << racePauseFrozenObserved << ", destroyed="
+                        << racePlayerDestroyedObserved << ", minLife="
+                        << minimumRacePlayerLife << ", contacts="
                         << maximumRaceSmokeContacts << ", maxSpeed="
                         << maximumRaceSmokeSpeed
                         << ", renderGraph="
@@ -4767,7 +4761,9 @@ int main(int argc, char** argv)
                         << maximumTransientDraws << "; "
                         << raceVehicles.size()
                         << " cars, both original camera modes and "
-                           "source ImmortalEffect shield, "
+                           "an unshielded surviving player start (minimum "
+                           "life "
+                        << minimumRacePlayerLife << "), "
                            "source HudMenu pause/accept/frozen-world and "
                            "render-target resize round-trip passed\n";
                 }

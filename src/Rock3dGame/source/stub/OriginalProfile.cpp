@@ -118,6 +118,20 @@ std::string workshopReference(std::string_view record)
            std::string(record);
 }
 
+void installOriginalMobilityDefaults(PlayerProfile& profile)
+{
+    // Garage::Car::InstallDefaults always equips the four locked mobility
+    // slots before a Windows profile is applied.  Some legacy/profile files
+    // omit those locked slots and serialize only charge-bearing equipment.
+    // Treating an omitted locked slot as unequipped gives Player::ApplyMobility
+    // zero engine torque and zero armour, so steering still works but the car
+    // cannot move and dies on the first damage event.
+    profile.slots[0].record = workshopReference("wheel1");
+    profile.slots[1].record = workshopReference("truba1");
+    profile.slots[2].record = workshopReference("armor1");
+    profile.slots[3].record = workshopReference("engine1");
+}
+
 void installOriginalDefaults(ProfileState& state)
 {
     state.config.keyboardControls = {
@@ -164,10 +178,7 @@ void installOriginalDefaults(ProfileState& state)
     };
 
     state.player.planets.front() = {0, 1};
-    state.player.slots[0].record = workshopReference("wheel1");
-    state.player.slots[1].record = workshopReference("truba1");
-    state.player.slots[2].record = workshopReference("armor1");
-    state.player.slots[3].record = workshopReference("engine1");
+    installOriginalMobilityDefaults(state.player);
     state.player.slots[4] = {workshopReference("spring"), 1, true};
     state.player.slots[5] = {workshopReference("maslo"), 1, true};
     state.player.slots[6] = {workshopReference("bulletGun"), 4, true};
@@ -367,6 +378,7 @@ void loadProfile(const std::filesystem::path& path,
         return;
     for (auto& slot : profile.slots)
         slot = {};
+    installOriginalMobilityDefaults(profile);
     if (const char* token = value(human, "car"))
         profile.currentCar = token;
     profile.playerId =
