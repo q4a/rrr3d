@@ -31,6 +31,7 @@ enum class RaceEventKind
     Finish,
     Respawn,
     WeaponFired,
+    WeaponShotEffect,
     Damage,
     Kill,
     Bonus,

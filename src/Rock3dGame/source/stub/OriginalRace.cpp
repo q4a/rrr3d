@@ -241,6 +241,8 @@ std::uint32_t unsignedValue(std::string_view value,
                             std::string_view source);
 float optionalScalar(TiXmlElement* parent, std::string_view path,
                      float fallback);
+bool optionalBoolean(TiXmlElement* parent, std::string_view path,
+                     bool fallback);
 
 void applyMobilityLoadout(
     Vehicle& vehicle, TiXmlElement* workshop,
@@ -1650,6 +1652,91 @@ DeathEffectDefinition deathEffectDefinition(
                                : std::move(definitions.front());
 }
 
+float effectiveEffectDuration(TiXmlElement* database,
+                              TiXmlElement* record,
+                              std::uint32_t depth = 0U)
+{
+    if (record == nullptr || depth > 16U)
+        return 0.0F;
+    float result = std::max(
+        optionalScalar(record, "maxTimeLife", -1.0F), 0.0F);
+    auto* includes = child(record, "includeList/items");
+    if (includes == nullptr)
+        return result;
+    for (auto* include = includes->FirstChildElement();
+         include != nullptr;
+         include = include->NextSiblingElement())
+    {
+        result = std::max(
+            result,
+            std::max(optionalScalar(
+                         include, "maxTimeLife", -1.0F),
+                     0.0F));
+        auto* reference = child(include, "record");
+        if (reference == nullptr || reference->GetText() == nullptr)
+            continue;
+        result = std::max(
+            result,
+            effectiveEffectDuration(
+                database,
+                databaseRecord(database, reference->GetText()),
+                depth + 1U));
+    }
+    return result;
+}
+
+ShotEffectDefinition shotEffectDefinition(
+    const resource::ResourceFileSystem& resources,
+    TiXmlElement* database, std::string_view weaponRecord,
+    std::string_view source)
+{
+    ShotEffectDefinition result;
+    auto* weapon = databaseRecord(database, weaponRecord);
+    auto* behaviors = child(weapon, "behaviors/items");
+    if (behaviors == nullptr)
+        return result;
+    for (auto* behavior = behaviors->FirstChildElement();
+         behavior != nullptr;
+         behavior = behavior->NextSiblingElement())
+    {
+        const char* type = behavior->Attribute("type");
+        if (type == nullptr || std::string_view(type) != "10")
+            continue;
+        if (auto* effect = child(behavior, "effect");
+            effect != nullptr && effect->GetText() != nullptr)
+        {
+            auto* effectRecord =
+                databaseRecord(database, effect->GetText());
+            result.visual = objectDefinition(
+                resources, database, effect->GetText(), source);
+            result.duration = effectiveEffectDuration(
+                database, effectRecord);
+        }
+        if (auto* sounds = child(behavior, "sounds"))
+        {
+            for (auto* sound = sounds->FirstChildElement();
+                 sound != nullptr;
+                 sound = sound->NextSiblingElement())
+            {
+                const char* path = sound->Attribute("item");
+                if (path != nullptr)
+                {
+                    result.soundPaths.push_back(
+                        canonicalDataPath(resources, path));
+                }
+            }
+        }
+        if (child(behavior, "pos") != nullptr)
+            result.position = vector3(behavior, "pos", source);
+        if (child(behavior, "impulse") != nullptr)
+            result.impulse = vector3(behavior, "impulse", source);
+        result.ignoreRotation = optionalBoolean(
+            behavior, "ignoreRot", false);
+        break;
+    }
+    return result;
+}
+
 TiXmlElement* garageCar(TiXmlElement* garage, std::string_view record)
 {
     auto* cars = require(garage, "cars", "garage.xml");
@@ -1832,81 +1919,6 @@ ProjectileCollisionBox projectileCollisionBox(
         (bounds.maximum.y - bounds.minimum.y) * 0.5F,
         (bounds.maximum.z - bounds.minimum.z) * 0.5F};
     return result;
-}
-
-std::string weaponEffectTexture(
-    const resource::ResourceFileSystem& resources,
-    std::uint32_t projectileType)
-{
-    static constexpr std::array<std::string_view, 25> effects{{
-        "Data/Effect/bullet.dds",
-        "Data/Effect/engine1.dds",
-        "Data/Effect/rocketAir.dds",
-        "Data/Effect/laser3-blue.dds",
-        "Data/Effect/smoke1.dds",
-        "Data/Effect/smoke1.dds",
-        "Data/Effect/rad_add.dds",
-        "Data/Effect/shield1.dds",
-        "Data/Effect/engine1.dds",
-        "Data/Effect/drop.dds",
-        "Data/Effect/smoke3.dds",
-        "Data/Effect/explosion2.dds",
-        "Data/Effect/explosion3.dds",
-        "Data/Effect/spark1.dds",
-        "Data/Effect/firePatron.dds",
-        "Data/Effect/gunEff2.dds",
-        "Data/Effect/sonar.dds",
-        "Data/Effect/ring1.dds",
-        "Data/Effect/frostRay.dds",
-        "Data/Effect/explosion4.dds",
-        "Data/Effect/crater.dds",
-        "Data/Effect/phaseRing.dds",
-        "Data/Effect/thunder1.dds",
-        "Data/Effect/protonRing.dds",
-        "Data/Effect/protonRay.dds",
-    }};
-    const auto path =
-        effects[std::min<std::size_t>(projectileType,
-                                      effects.size() - 1U)];
-    return resources.exists(path) ? std::string(path)
-                                  : "Data/Effect/bullet.dds";
-}
-
-std::string weaponSoundPath(std::string_view record,
-                            std::uint32_t projectileType)
-{
-    std::string name(record);
-    std::transform(name.begin(), name.end(), name.begin(),
-                   [](unsigned char value) {
-                       return static_cast<char>(std::tolower(value));
-                   });
-    if (name.find("sonar") != std::string::npos)
-        return "Data/Sounds/sonar.ogg";
-    if (name.find("turel") != std::string::npos)
-        return "Data/Sounds/turel.ogg";
-    if (name.find("pulsator") != std::string::npos)
-        return "Data/Sounds/pulsator.ogg";
-    if (name.find("mortira") != std::string::npos)
-        return "Data/Sounds/mortira.ogg";
-    if (name.find("frost") != std::string::npos ||
-        projectileType == 18U)
-        return "Data/Sounds/frost_ray.ogg";
-    if (name.find("rezonator") != std::string::npos)
-        return "Data/Sounds/rezonator.ogg";
-    if (name.find("drobilka") != std::string::npos)
-        return "Data/Sounds/shredder.ogg";
-    if (name.find("sphere") != std::string::npos)
-        return "Data/Sounds/phalanx_shot_a.ogg";
-    if (name.find("rocket") != std::string::npos ||
-        projectileType == 2U)
-        return "Data/Sounds/missile_launch.ogg";
-    if (name.find("phase") != std::string::npos ||
-        projectileType == 21U)
-        return "Data/Sounds/fazowij_izluchatel.ogg";
-    if (name.find("laser") != std::string::npos ||
-        projectileType == 3U)
-        return "Data/Sounds/laserGuseniza.ogg";
-    return "Data/Sounds/fireGun.ogg";
 }
 
 void loadWeapons(const resource::ResourceFileSystem& resources,
@@ -2142,10 +2154,19 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
         weapon.projectileType = firstProjectile.type;
         weapon.projectileSpeed = firstProjectile.speed;
         weapon.maximumDistance = firstProjectile.maximumDistance;
-        weapon.effectTexturePath =
-            weaponEffectTexture(resources, weapon.projectileType);
-        weapon.soundPath =
-            weaponSoundPath(weapon.record, weapon.projectileType);
+        auto* mapObject = child(item, "mapObj");
+        if (mapObject != nullptr && mapObject->GetText() != nullptr)
+        {
+            weapon.shotEffect = shotEffectDefinition(
+                resources, database, mapObject->GetText(),
+                "db.xml/ctWeapon ShotEffect");
+        }
+        else if (weapon.slot != WeaponSlot::Support)
+        {
+            throw resource::ResourceError(
+                "workshop.xml/weapon: missing source mapObj for firing "
+                "weapon " + weapon.record);
+        }
         race.weapons.push_back(std::move(weapon));
     }
     if (race.weapons.empty() ||
@@ -3570,6 +3591,58 @@ bool runOriginalRaceResourceSmokeTest(
                    record.compare(record.size() - name.size(),
                                   name.size(), name) == 0;
         };
+        const auto weaponNamed = [&](std::string_view name) {
+            const auto found = std::find_if(
+                race.weapons.begin(), race.weapons.end(),
+                [&](const WeaponDefinition& weapon) {
+                    return recordEndsWith(weapon.record, name);
+                });
+            return found == race.weapons.end()
+                       ? static_cast<const WeaponDefinition*>(nullptr)
+                       : &*found;
+        };
+        const auto* bulletGun = weaponNamed("bulletGun");
+        const auto* sphereGun = weaponNamed("sphereGun");
+        const auto* turel = weaponNamed("turel");
+        const auto* drobilka = weaponNamed("drobilka");
+        const bool bulletShotMatchesSource =
+            bulletGun != nullptr &&
+            recordEndsWith(
+                bulletGun->shotEffect.visual.record, "shotEff1") &&
+            bulletGun->shotEffect.soundPaths.size() == 1U &&
+            recordEndsWith(
+                bulletGun->shotEffect.soundPaths.front(),
+                "phalanx_shot_a.ogg") &&
+            near(bulletGun->shotEffect.duration, 0.15F);
+        const bool sphereSoundMatchesSource =
+            sphereGun != nullptr &&
+            sphereGun->shotEffect.visual.record.empty() &&
+            sphereGun->shotEffect.soundPaths.size() == 1U &&
+            recordEndsWith(
+                sphereGun->shotEffect.soundPaths.front(),
+                "gun_podushkat.ogg");
+        const bool turelShotMatchesSource =
+            turel != nullptr &&
+            recordEndsWith(
+                turel->shotEffect.visual.record, "powerShot1") &&
+            turel->shotEffect.soundPaths.size() == 1U &&
+            recordEndsWith(
+                turel->shotEffect.soundPaths.front(), "turel.ogg") &&
+            near(turel->shotEffect.position.x, 1.4F) &&
+            near(turel->shotEffect.position.z, 0.1F) &&
+            near(turel->shotEffect.duration, 1.0F);
+        const bool silentWeaponMatchesSource =
+            drobilka != nullptr &&
+            drobilka->shotEffect.visual.record.empty() &&
+            drobilka->shotEffect.soundPaths.empty();
+        if (!bulletShotMatchesSource || !sphereSoundMatchesSource ||
+            !turelShotMatchesSource || !silentWeaponMatchesSource)
+        {
+            error =
+                "source ctWeapon ShotEffect/effect/sounds provenance "
+                "mismatch";
+            return false;
+        }
         if (!recordEndsWith(
                 race.vehicle.lowLifeEffect.record, "smoke6") ||
             !near(race.vehicle.lowLifeLevel, 0.35F) ||

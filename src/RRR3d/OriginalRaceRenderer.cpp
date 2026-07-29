@@ -757,23 +757,6 @@ float visualAnimationFrame(
     return std::clamp(node.animationFrame, 0.0F, 1.0F);
 }
 
-std::array<float, 4> effectTextureTransform(std::string_view path,
-                                            float seconds)
-{
-    const auto name = recordName(path);
-    if (name == "engine1.dds" || name == "shield1.dds")
-        return animatedAtlas(5, 2, seconds);
-    if (name == "explosion2.dds")
-        return animatedAtlas(4, 4, seconds);
-    if (name == "explosion3.dds")
-        return animatedAtlas(6, 6, seconds);
-    if (name == "explosion4.dds")
-        return animatedAtlas(7, 7, seconds);
-    if (name == "gunEff2.dds")
-        return animatedAtlas(4, 1, seconds);
-    return {1.0F, 1.0F, 0.0F, 0.0F};
-}
-
 enum class DrawLayer
 {
     All,
@@ -1465,11 +1448,18 @@ bool OriginalRaceRenderer::initialize(
         loadDefinition(wheelTrailEffect_, race.wheelTrailEffect);
 
         weapons_.resize(race.weapons.size());
+        weaponShotEffects_.resize(race.weapons.size());
         for (std::size_t index = 0; index < weapons_.size(); ++index)
         {
             weapons_[index].nodes.resize(1);
             load(weapons_[index].nodes.front(),
                  race.weapons[index].visual);
+            const auto& shot = race.weapons[index].shotEffect.visual;
+            if (!shot.visualNodes.empty() ||
+                !shot.particleEmitters.empty())
+            {
+                loadDefinition(weaponShotEffects_[index], shot);
+            }
         }
         projectiles_.resize(race.weapons.size());
         for (std::size_t weapon = 0; weapon < race.weapons.size();
@@ -1683,16 +1673,6 @@ bool OriginalRaceRenderer::initialize(
                 r3d::game::originalrace::EnvironmentSurface::Grass)
                 environmentSurfaceCenter_.x = 0.0F;
         }
-        weaponEffectTextures_.reserve(race.weapons.size());
-        for (const auto& weapon : race.weapons)
-        {
-            const auto bytes =
-                resources.readBinary(weapon.effectTexturePath);
-            weaponEffectTextures_.push_back(
-                device.createTextureContainer(
-                    bytes.data(), bytes.size(),
-                    weapon.effectTexturePath));
-        }
         auto loadEffectTexture = [&](std::string_view path) {
             const auto bytes = resources.readBinary(path);
             return device.createTextureContainer(
@@ -1710,10 +1690,7 @@ bool OriginalRaceRenderer::initialize(
              !valid(environmentSurfaceTexture_)) ||
             (race.environment.surface ==
                      r3d::game::originalrace::EnvironmentSurface::Water &&
-             !valid(waterNormalTexture_)) ||
-            std::any_of(weaponEffectTextures_.begin(),
-                        weaponEffectTextures_.end(),
-                        [](Texture value) { return !valid(value); }))
+             !valid(waterNormalTexture_)))
             throw r3d::resource::ResourceError(
                 "Unable to create original material/effect particles");
         error.clear();
@@ -1808,6 +1785,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         releaseObject(effect);
     for (auto& weapon : weapons_)
         releaseObject(weapon);
+    for (auto& effect : weaponShotEffects_)
+        releaseObject(effect);
     for (auto& weapon : projectiles_)
         for (auto& projectile : weapon)
         {
@@ -1834,6 +1813,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     bonuses_.clear();
     bonusDeathEffects_.clear();
     weapons_.clear();
+    weaponShotEffects_.clear();
     projectiles_.clear();
     decorations_.clear();
     decorationPieces_.clear();
@@ -1842,9 +1822,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         device.destroy(skyTexture_);
     if (valid(skyMesh_))
         device.destroy(skyMesh_);
-    for (const auto texture : weaponEffectTextures_)
-        if (valid(texture))
-            device.destroy(texture);
     if (valid(destructionEffectTexture_))
         device.destroy(destructionEffectTexture_);
     if (valid(vehicleLightTexture_))
@@ -1857,7 +1834,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         device.destroy(effectMesh_);
     skyTexture_ = {};
     skyMesh_ = {};
-    weaponEffectTextures_.clear();
     destructionEffectTexture_ = {};
     vehicleLightTexture_ = {};
     environmentSurfaceTexture_ = {};
@@ -3382,11 +3358,6 @@ void OriginalRaceRenderer::draw(
     };
     for (const auto& effect : effects)
     {
-        const float dx = effect.target.x - effect.origin.x;
-        const float dy = effect.target.y - effect.origin.y;
-        const float dz = effect.target.z - effect.origin.z;
-        const float distance =
-            std::sqrt(dx * dx + dy * dy + dz * dz);
         const float progress =
             effect.totalSeconds <= 0.0F
                 ? 1.0F
@@ -3447,6 +3418,25 @@ void OriginalRaceRenderer::draw(
                 bonusDeathEffects_[effect.bonus],
                 race.bonuses[effect.bonus].deathEffect.visual, parent,
                 effect.totalSeconds - effect.seconds, 0.0F);
+            continue;
+        }
+        if (effect.kind ==
+            r3d::game::originalrace::RaceEventKind::WeaponShotEffect)
+        {
+            if (effect.weapon < race.weapons.size() &&
+                effect.weapon < weaponShotEffects_.size())
+            {
+                const auto& definition =
+                    race.weapons[effect.weapon].shotEffect.visual;
+                if (!definition.visualNodes.empty() ||
+                    !definition.particleEmitters.empty())
+                {
+                    drawDefinition(
+                        weaponShotEffects_[effect.weapon], definition,
+                        effect.transform,
+                        effect.totalSeconds - effect.seconds, 0.0F);
+                }
+            }
             continue;
         }
         if (effect.weapon < race.weapons.size() &&
@@ -3521,83 +3511,29 @@ void OriginalRaceRenderer::draw(
                 continue;
             }
         }
+        if (effect.kind ==
+                r3d::game::originalrace::RaceEventKind::WeaponFired ||
+            effect.kind ==
+                r3d::game::originalrace::RaceEventKind::HyperActivated)
+        {
+            // A projectile without a serialized visual is invisible in the
+            // Windows code.  Do not synthesize a beam or activation sphere.
+            continue;
+        }
         r3d::physics::Transform visual;
         Texture texture = destructionEffectTexture_;
-        if (effect.kind ==
-                r3d::game::originalrace::RaceEventKind::WeaponFired &&
-            effect.weapon < weaponEffectTextures_.size())
-        {
-            visual.position = {
-                (effect.origin.x + effect.target.x) * 0.5F,
-                (effect.origin.y + effect.target.y) * 0.5F,
-                (effect.origin.z + effect.target.z) * 0.5F + 0.6F};
-            visual.scale = {std::max(distance, 0.5F), 0.32F, 1.0F};
-            const float angle = std::atan2(dy, dx) * 0.5F;
-            visual.rotation = {0.0F, 0.0F, std::sin(angle),
-                               std::cos(angle)};
-            texture = weaponEffectTextures_[effect.weapon];
-        }
-        else if (effect.kind ==
-                     r3d::game::originalrace::RaceEventKind::
-                         HyperActivated &&
-                 effect.weapon < weaponEffectTextures_.size())
-        {
-            visual.position = effect.origin;
-            visual.position.z += 0.55F;
-            const float size = 2.0F + progress * 3.0F;
-            visual.scale = {size, size, size};
-            texture = weaponEffectTextures_[effect.weapon];
-        }
-        else
-        {
-            visual.position = effect.origin;
-            visual.position.z += 0.8F;
-            const float size = 1.5F + progress * 5.5F;
-            visual.scale = {size, size, size};
-        }
+        visual.position = effect.origin;
+        visual.position.z += 0.8F;
+        const float size = 1.5F + progress * 5.5F;
+        visual.scale = {size, size, size};
         MaterialState effectMaterial = glowMaterial;
         effectMaterial.color[3] =
             std::clamp(effect.seconds /
                            std::max(effect.totalSeconds, 0.001F),
                        0.0F, 1.0F);
-        if (effect.kind ==
-                r3d::game::originalrace::RaceEventKind::WeaponFired &&
-            effect.weapon < race.weapons.size())
-        {
-            const auto type = race.weapons[effect.weapon].projectileType;
-            if (type == 22U)
-            {
-                effectMaterial.color[0] =
-                    (236.0F / 255.0F) * (1.0F - progress);
-                effectMaterial.color[1] = 0.0F;
-                effectMaterial.color[2] =
-                    140.0F / 255.0F +
-                    (1.0F - 140.0F / 255.0F) * progress;
-            }
-            else if (type == 14U)
-            {
-                effectMaterial.color[1] = 1.0F - progress;
-                effectMaterial.color[2] = 1.0F - progress;
-            }
-            effectMaterial.textureTransform = effectTextureTransform(
-                race.weapons[effect.weapon].effectTexturePath,
-                effect.totalSeconds - effect.seconds);
-        }
-        else if (effect.kind ==
-                     r3d::game::originalrace::RaceEventKind::
-                         HyperActivated &&
-                 effect.weapon < race.weapons.size())
-        {
-            effectMaterial.textureTransform = effectTextureTransform(
-                race.weapons[effect.weapon].effectTexturePath,
-                effect.totalSeconds - effect.seconds);
-        }
-        else
-        {
-            const auto frame = static_cast<std::uint32_t>(
-                std::clamp(progress, 0.0F, 0.9999F) * 16.0F);
-            effectMaterial.textureTransform = atlasFrame(4, 4, frame);
-        }
+        const auto frame = static_cast<std::uint32_t>(
+            std::clamp(progress, 0.0F, 0.9999F) * 16.0F);
+        effectMaterial.textureTransform = atlasFrame(4, 4, frame);
         deferEffect(effectMesh_, texture, transform(visual),
                     effectPipeline, effectMaterial);
     }

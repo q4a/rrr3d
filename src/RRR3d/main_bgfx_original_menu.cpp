@@ -1573,11 +1573,15 @@ int main(int argc, char** argv)
     for (std::size_t weapon = 0;
          weapon < originalRace->weapons.size(); ++weapon)
     {
-        weaponAudio[weapon] =
-            loadEngineSound(originalRace->weapons[weapon].soundPath);
-        engineAudioValid =
-            engineAudioValid &&
-            weaponAudio[weapon] != r3d::audio::invalidSound;
+        const auto& sounds =
+            originalRace->weapons[weapon].shotEffect.soundPaths;
+        if (!sounds.empty())
+        {
+            weaponAudio[weapon] = loadEngineSound(sounds.front());
+            engineAudioValid =
+                engineAudioValid &&
+                weaponAudio[weapon] != r3d::audio::invalidSound;
+        }
     }
     const auto pickupAudio =
         loadEngineSound("Data/Sounds/UI/pickup_up.ogg");

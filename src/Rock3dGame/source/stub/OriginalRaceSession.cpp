@@ -1161,10 +1161,9 @@ void OriginalRaceSession::updateGameplay(
             syncSelectedWeapon(runtime);
         }
     }
-    auto projectileWorldTransform =
+    auto weaponWorldTransform =
         [&](std::size_t owner, std::size_t weaponIndex,
-            std::size_t mountSlot,
-            const ProjectileDefinition& projectile) {
+            std::size_t mountSlot) {
             Transform result = vehicles[owner].body;
             const auto& racerDefinition = race_.racers[owner];
             const auto& vehicleDefinition =
@@ -1195,6 +1194,14 @@ void OriginalRaceSession::updateGameplay(
             }
             result = compose(
                 result, race_.weapons[weaponIndex].visual.transform);
+            return result;
+        };
+    auto projectileWorldTransform =
+        [&](std::size_t owner, std::size_t weaponIndex,
+            std::size_t mountSlot,
+            const ProjectileDefinition& projectile) {
+            Transform result = weaponWorldTransform(
+                owner, weaponIndex, mountSlot);
             Transform localProjectile;
             localProjectile.position = projectile.position;
             localProjectile.rotation = projectile.rotation;
@@ -1922,6 +1929,38 @@ void OriginalRaceSession::updateGameplay(
             queueRespawn(racer, vehicles[racer]);
     }
 
+    auto pushShotEffect =
+        [&](std::size_t owner, std::size_t weapon,
+            std::size_t mountSlot,
+            const ProjectileDefinition& projectile) {
+            if (owner >= vehicles.size() ||
+                weapon >= race_.weapons.size())
+                return;
+            const auto& source = race_.weapons[weapon].shotEffect;
+            if ((source.visual.visualNodes.empty() &&
+                 source.visual.particleEmitters.empty()) ||
+                source.duration <= 0.0F)
+                return;
+            Transform local;
+            local.position = add(projectile.position, source.position);
+            RaceEffect effect;
+            effect.kind = RaceEventKind::WeaponShotEffect;
+            effect.transform = compose(
+                weaponWorldTransform(owner, weapon, mountSlot), local);
+            if (source.ignoreRotation)
+                effect.transform.rotation = {};
+            effect.origin = effect.transform.position;
+            effect.target = add(
+                effect.origin,
+                rotate(effect.transform.rotation,
+                       {1.0F, 0.0F, 0.0F}));
+            effect.totalSeconds = source.duration;
+            effect.seconds = source.duration;
+            effect.weapon = weapon;
+            effect.ignoreRotation = source.ignoreRotation;
+            effects_.push_back(std::move(effect));
+        };
+
     auto placeMine = [&](std::size_t owner) {
         if (owner >= vehicles.size() || owner >= racers_.size() ||
             racers_[owner].destroyed ||
@@ -1954,6 +1993,7 @@ void OriginalRaceSession::updateGameplay(
             mine.collision = projectile->collision;
             if (projectile->minimumLife > 0.0F)
                 mine.maximumLife = projectile->minimumLife;
+            pushShotEffect(owner, weapon, 0U, *projectile);
         }
         mines_.push_back(mine);
         events_.push_back({RaceEventKind::MinePlaced, owner, weapon,
@@ -2013,6 +2053,8 @@ void OriginalRaceSession::updateGameplay(
              RacerRuntime::invalidWeapon, false,
              RacerRuntime::invalidWeapon,
              RacerRuntime::invalidWeapon, {}});
+        pushShotEffect(owner, racers_[owner].hyperWeapon, 0U,
+                       projectile);
     };
     if (humanControl.useHyper)
         activateHyper(0);
@@ -2438,7 +2480,8 @@ void OriginalRaceSession::updateGameplay(
         syncSelectedWeapon(runtime);
         weaponCooldown_[shooter][firedSlot] =
             std::max(weapon->shotDelay, 0.03F);
-        const Vec3 eventOrigin = vehicles[shooter].body.position;
+        const Vec3 eventOrigin = weaponWorldTransform(
+            shooter, firedWeapon, firedSlot).position;
         std::size_t target = racers_.size();
         for (std::size_t projectileIndex = 0;
              projectileIndex < weapon->projectiles.size();
@@ -2638,6 +2681,8 @@ void OriginalRaceSession::updateGameplay(
                  RacerRuntime::invalidWeapon, false,
                  RacerRuntime::invalidWeapon,
                  RacerRuntime::invalidWeapon, {}});
+            pushShotEffect(
+                shooter, firedWeapon, firedSlot, projectile);
         }
         events_.push_back({RaceEventKind::WeaponFired, shooter, target,
                            eventOrigin, 5.0F,
@@ -3694,6 +3739,31 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source ShotAll/per-weapon cooldown transition failed");
+            }
+            for (const auto* sourceWeapon : primaryWeapons)
+            {
+                if (sourceWeapon->shotEffect.visual.visualNodes.empty() &&
+                    sourceWeapon->shotEffect.visual.particleEmitters.empty())
+                    continue;
+                const auto weaponIndex = static_cast<std::size_t>(
+                    sourceWeapon - race.weapons.data());
+                const bool emitted = std::any_of(
+                    weaponSession.effects().begin(),
+                    weaponSession.effects().end(),
+                    [&](const RaceEffect& effect) {
+                        return effect.kind ==
+                                   RaceEventKind::WeaponShotEffect &&
+                               effect.weapon == weaponIndex &&
+                               std::abs(
+                                   effect.totalSeconds -
+                                   sourceWeapon->shotEffect.duration) <
+                                   0.001F;
+                    });
+                if (!emitted)
+                {
+                    throw std::runtime_error(
+                        "source ctWeapon ShotEffect was not emitted");
+                }
             }
             weaponInput = {};
             for (int frame = 0; frame < 60; ++frame)

@@ -272,6 +272,16 @@ struct DeathEffectDefinition
     bool ignoreRotation = false;
 };
 
+struct ShotEffectDefinition
+{
+    ObjectDefinition visual;
+    std::vector<std::string> soundPaths;
+    Vec3 position;
+    Vec3 impulse;
+    float duration = 0.0F;
+    bool ignoreRotation = false;
+};
+
 struct TracePoint
 {
     std::uint32_t id = 0;
@@ -390,8 +400,7 @@ struct WeaponDefinition
     std::uint32_t projectileType = 0;
     float projectileSpeed = 0.0F;
     float maximumDistance = 85.0F;
-    std::string effectTexturePath;
-    std::string soundPath;
+    ShotEffectDefinition shotEffect;
 };
 
 enum class BonusKind

@@ -92,8 +92,8 @@ Windows target не компилируется.
 | Reset/respawn | `Race`/`Player` | trace-based requests | Частично | Базовый путь есть; точное raycast/orientation/penalty поведение не полностью перенесено |
 | AI | `AICar.cpp`, `AIPlayer.cpp` | steering/brake path по trace | Суррогат | Исходные AI classes, tactical state, avoidance, weapon selection и difficulty branches не компилируются |
 | Weapons/projectiles | `Weapon.cpp`, `Player.cpp`, `Logic.cpp` | type-switch runtime в `OriginalRaceSession` | Частично | Основные типы визуально/функционально представлены, но collision, homing, forces, timing и contacts частично упрощены |
-| Projectile effect selection | `DataBase.cpp`, serialized models/behaviors | таблица `weaponEffectTexture(type)` | Суррогат | Таблица и `bullet.dds` fallback не являются общим переносом исходного effect graph |
-| Weapon sound selection | исходные sound behaviors/DataBase | `weaponSoundPath` по подстроке имени | Суррогат | Это эвристика, её нужно заменить чтением исходных sound records |
+| Weapon shot effects | `Weapon::CreateShot`, `ShotEffect`, serialized `ctWeapon` behaviors | `mapObj` → behavior type 10 → source effect graph | Перенесено | Effect record, local position, ignore-rotation и effective nested lifetime читаются из `db.xml`; отдельный `WeaponShotEffect` создаётся один раз для каждого созданного projectile |
+| Weapon shot sounds | `ShotEffect::GiveSource3d`, serialized sound refs | source `ctWeapon/behaviors/items/*[@type=10]/sounds` | Перенесено | Удалено угадывание по имени; 24 source refs читаются напрямую, `drobilka` корректно остаётся без придуманного звука |
 | Damage/support/shield | `GameObject`, `Player`, `Weapon`, behaviors | ручные расчёты session | Частично | Основные transitions есть; полная damage type/force/reflect/immortality матрица не перенесена |
 | Bonuses | `Proj` types 4–10 | ручной switch + исходные values | Частично | Pickups/hazards есть; после ревизии shape contact source-driven, но остальной lifecycle ещё ручной |
 | Destructible decorations | `DestrObj`, `GameBase` | life flags, fragments/effects | Частично | Visual pieces и часть debris есть; полный PhysX body/contact/death behavior отсутствует |
@@ -142,11 +142,15 @@ Windows-кодом.
 
 ### 3. Render/audio mapping
 
-В `OriginalRace.cpp` остаются `weaponEffectTexture` и `weaponSoundPath`.
-Первая выбирает текстуру по номеру projectile type, вторая — по подстроке
-имени оружия. Это не общий исходный resource/behavior graph. Аналогично
-fallback/direct material mappings требуют записи о происхождении для каждого
-исключения.
+Эвристики `weaponEffectTexture` и `weaponSoundPath` удалены. Workshop
+`mapObj` теперь ведёт к исходной записи `ctWeapon`; из behavior type `10`
+переносятся effect record, local position, ignore-rotation, nested lifetime и
+sound refs. Если source behavior или visual отсутствует (`drobilka`, support
+`droid`/`reflector`), порт больше не создаёт fallback-вспышку, луч, сферу или
+звук.
+
+Оставшиеся fallback/direct material mappings всё ещё требуют записи о
+происхождении для каждого исключения.
 
 ### 4. Отключённые системы
 
@@ -200,6 +204,20 @@ Network, video и Steam явно выключены.
 Открытым остаётся исходное размещение mine raycast-ом по track shapes и общий
 shape/contact pipeline для летящих projectile types.
 
+Следующим render/audio-блоком удалены эвристики оружия:
+
+1. `workshop.xml/item/mapObj` связывает каталог с исходным `ctWeapon`.
+2. Behavior type `10` (`ShotEffect`) переносит effect graph, position,
+   impulse/ignore-rotation metadata, nested lifetime и sound refs.
+3. `WeaponShotEffect` отделён от движения projectile и создаётся на каждый
+   успешно созданный projectile, как `Weapon::CreateShot`.
+4. Renderer загружает полные source object/effect assets; синтетические
+   projectile-type textures, beam и hyper sphere удалены.
+5. Audio использует serialized sound refs. Отсутствие source sound означает
+   тишину, а не fallback.
+6. Resource/physics smoke проверяют `bulletGun`, `sphereGun`, `turel`,
+   `drobilka` и фактическое создание source ShotEffect.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
@@ -209,13 +227,11 @@ shape/contact pipeline для летящих projectile types.
    `FinishMenu`, `FinalMenu`, сохраняя bgfx/Metal только как backend.
 2. Заменить projectile segment approximations и ручное mine placement на
    исходные type-specific shapes, track raycast, contact groups и callbacks.
-3. Убрать `weaponEffectTexture`/`weaponSoundPath` heuristics; переносить
-   model/effect/sound behaviors из `DataBase.cpp`, `Weapon.cpp` и records.
-4. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно
+3. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно
    перенести `GameObject`, `Logic`, `Player`, `Race`, `Weapon`.
-5. Перенести `AICar`/`AIPlayer`: trace planning, avoidance, tactics,
+4. Перенести `AICar`/`AIPlayer`: trace planning, avoidance, tactics,
    difficulty и weapon decisions.
-6. Завершить tournament/profile/garage/finish flow и исходные UI transitions.
+5. Завершить tournament/profile/garage/finish flow и исходные UI transitions.
 
 ### P1 — visual/audio parity
 
