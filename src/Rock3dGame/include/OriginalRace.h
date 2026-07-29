@@ -520,6 +520,9 @@ struct Race
     std::uint32_t lapCount = 0;
     std::vector<ObjectDefinition> trackDefinitions;
     std::vector<ObjectInstance> trackInstances;
+    // Original ctTrack/ctDecoration PhysX triangle meshes retained for
+    // gameplay raycasts as well as the Jolt backend.
+    std::vector<r3d::physics::TriangleMesh> collisionMeshes;
     std::vector<ObjectDefinition> decorationDefinitions;
     std::vector<ObjectInstance> decorationInstances;
     std::vector<BonusInstance> bonuses;

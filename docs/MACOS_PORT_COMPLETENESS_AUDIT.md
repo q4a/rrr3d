@@ -88,6 +88,7 @@ Windows target не компилируется.
 | Vehicle simulation | PhysX 2.8.4 `NxWheelShape` | Jolt custom vehicle adapter | Частично | Нативная замена работает, но это semantic reimplementation; полная численная эквивалентность PhysX tire/suspension/solver не доказана |
 | Car-to-track/car contacts | PhysX filters/reports | Jolt contacts → session | Частично | Основной damage path есть; все group/mask/callback/force branches исходного `Logic`/`GameObject` отсутствуют |
 | Bonus/mine/crater contacts | `Proj::ComputeAABB` + `CreatePxBox` | после этой ревизии source AABB + OBB SAT | Перенесено | Удалены прежние сферы `3.5`; primary, `model2`, `model3` и death-projectile получают отдельные source boxes |
+| Mine placement | `Proj::MinePrepare` PhysX track raycast | source triangle raycast в `OriginalRaceSession` | Перенесено | Используются serialized `proj.pos`, ray `+2/-Z`, только `TrackPlane`, `max(-AABB.min.z, 0.01)`, hit normal; miss не расходует заряд |
 | Countdown/checkpoints/laps/place | `Race.cpp`, `Trace.cpp`, `Player.cpp` | `OriginalRaceSession.cpp` | Частично | Основная гонка работает; это ручной state machine, все special race modes/edge cases не сопоставлены |
 | Reset/respawn | `Race`/`Player` | trace-based requests | Частично | Базовый путь есть; точное raycast/orientation/penalty поведение не полностью перенесено |
 | AI | `AICar.cpp`, `AIPlayer.cpp` | steering/brake path по trace | Суррогат | Исходные AI classes, tactical state, avoidance, weapon selection и difficulty branches не компилируются |
@@ -201,8 +202,21 @@ Network, video и Steam явно выключены.
 5. Осколки сохраняют rotation родительской мины, как `MineRipUpdate`, вместо
    придуманного поворота модели по velocity.
 
-Открытым остаётся исходное размещение mine raycast-ом по track shapes и общий
-shape/contact pipeline для летящих projectile types.
+Открытым остаётся общий shape/contact pipeline для летящих projectile types.
+
+Следующим collision-блоком перенесён `Proj::MinePrepare`:
+
+1. Исходные triangle meshes сохраняются в `Race` и совместно используются
+   Jolt backend и gameplay raycasts.
+2. Ray начинается в преобразованном serialized `proj.pos + Z*2` и идёт по
+   `-Z`, как в Windows.
+3. Фильтр принимает только source `TrackPlane`, не borders/decorations.
+4. Mine position получает `worldImpact + Z*max(-AABB.min.z, 0.01)`, rotation
+   выравнивает local up по `worldNormal`.
+5. При отсутствии hit `PrepareProj` считается неуспешным: mine не создаётся,
+   заряд и cooldown не меняются.
+6. Physics smoke проверяет hit transform/normal и отдельный miss за пределами
+   карты.
 
 Следующим render/audio-блоком удалены эвристики оружия:
 
@@ -225,8 +239,8 @@ shape/contact pipeline для летящих projectile types.
 1. Перенести исходный menu/widget state machine: `Menu`, `MenuSystem`,
    `MainMenu2`, `GameMode`, `DialogMenu2`, `RaceMenu2`, `OptionsMenu`,
    `FinishMenu`, `FinalMenu`, сохраняя bgfx/Metal только как backend.
-2. Заменить projectile segment approximations и ручное mine placement на
-   исходные type-specific shapes, track raycast, contact groups и callbacks.
+2. Заменить projectile segment approximations на исходные type-specific
+   shapes, contact groups и callbacks.
 3. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно
    перенести `GameObject`, `Logic`, `Player`, `Race`, `Weapon`.
 4. Перенести `AICar`/`AIPlayer`: trace planning, avoidance, tactics,

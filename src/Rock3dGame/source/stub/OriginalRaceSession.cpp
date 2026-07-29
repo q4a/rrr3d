@@ -111,6 +111,154 @@ Transform compose(const Transform& parent, const Transform& local)
     return result;
 }
 
+Vec3 transformPoint(const Transform& transform, Vec3 point)
+{
+    return add(
+        transform.position,
+        rotate(transform.rotation,
+               {point.x * transform.scale.x,
+                point.y * transform.scale.y,
+                point.z * transform.scale.z}));
+}
+
+Quat quaternionFromAxes(Vec3 direction, Vec3 right, Vec3 up)
+{
+    const float m00 = direction.x;
+    const float m01 = right.x;
+    const float m02 = up.x;
+    const float m10 = direction.y;
+    const float m11 = right.y;
+    const float m12 = up.y;
+    const float m20 = direction.z;
+    const float m21 = right.z;
+    const float m22 = up.z;
+    Quat result;
+    const float trace = m00 + m11 + m22;
+    if (trace > 0.0F)
+    {
+        const float scale = std::sqrt(trace + 1.0F) * 2.0F;
+        result.w = 0.25F * scale;
+        result.x = (m21 - m12) / scale;
+        result.y = (m02 - m20) / scale;
+        result.z = (m10 - m01) / scale;
+    }
+    else if (m00 > m11 && m00 > m22)
+    {
+        const float scale =
+            std::sqrt(1.0F + m00 - m11 - m22) * 2.0F;
+        result.w = (m21 - m12) / scale;
+        result.x = 0.25F * scale;
+        result.y = (m01 + m10) / scale;
+        result.z = (m02 + m20) / scale;
+    }
+    else if (m11 > m22)
+    {
+        const float scale =
+            std::sqrt(1.0F + m11 - m00 - m22) * 2.0F;
+        result.w = (m02 - m20) / scale;
+        result.x = (m01 + m10) / scale;
+        result.y = 0.25F * scale;
+        result.z = (m12 + m21) / scale;
+    }
+    else
+    {
+        const float scale =
+            std::sqrt(1.0F + m22 - m00 - m11) * 2.0F;
+        result.w = (m10 - m01) / scale;
+        result.x = (m02 + m20) / scale;
+        result.y = (m12 + m21) / scale;
+        result.z = 0.25F * scale;
+    }
+    return result;
+}
+
+Quat rotationWithUp(Vec3 normal)
+{
+    const Vec3 up = normalized3(normal);
+    Vec3 right = subtract(
+        {0.0F, 1.0F, 0.0F},
+        multiply(up, dot3({0.0F, 1.0F, 0.0F}, up)));
+    if (length3(right) <= 0.0001F)
+    {
+        right = subtract(
+            {1.0F, 0.0F, 0.0F},
+            multiply(up, dot3({1.0F, 0.0F, 0.0F}, up)));
+    }
+    right = normalized3(right);
+    const Vec3 direction = normalized3(cross(right, up));
+    right = normalized3(cross(up, direction));
+    return quaternionFromAxes(direction, right, up);
+}
+
+struct TrackRayHit
+{
+    Vec3 position;
+    Vec3 normal;
+    float distance = std::numeric_limits<float>::max();
+    bool hit = false;
+};
+
+TrackRayHit raycastTrackPlane(const Race& race, Vec3 origin)
+{
+    const Vec3 rayDirection{0.0F, 0.0F, -1.0F};
+    TrackRayHit result;
+    for (const auto& mesh : race.collisionMeshes)
+    {
+        if (mesh.surface !=
+            r3d::physics::CollisionSurface::TrackPlane)
+            continue;
+        for (std::size_t index = 0;
+             index + 2U < mesh.indices.size(); index += 3U)
+        {
+            const auto firstIndex = mesh.indices[index];
+            const auto secondIndex = mesh.indices[index + 1U];
+            const auto thirdIndex = mesh.indices[index + 2U];
+            if (firstIndex >= mesh.vertices.size() ||
+                secondIndex >= mesh.vertices.size() ||
+                thirdIndex >= mesh.vertices.size())
+                continue;
+            const Vec3 first =
+                transformPoint(mesh.transform, mesh.vertices[firstIndex]);
+            const Vec3 second =
+                transformPoint(mesh.transform, mesh.vertices[secondIndex]);
+            const Vec3 third =
+                transformPoint(mesh.transform, mesh.vertices[thirdIndex]);
+            const Vec3 firstEdge = subtract(second, first);
+            const Vec3 secondEdge = subtract(third, first);
+            const Vec3 determinantAxis =
+                cross(rayDirection, secondEdge);
+            const float determinant =
+                dot3(firstEdge, determinantAxis);
+            if (std::abs(determinant) <= 0.000001F)
+                continue;
+            const float inverseDeterminant = 1.0F / determinant;
+            const Vec3 fromFirst = subtract(origin, first);
+            const float u =
+                dot3(fromFirst, determinantAxis) * inverseDeterminant;
+            if (u < 0.0F || u > 1.0F)
+                continue;
+            const Vec3 coordinateAxis = cross(fromFirst, firstEdge);
+            const float v =
+                dot3(rayDirection, coordinateAxis) *
+                inverseDeterminant;
+            if (v < 0.0F || u + v > 1.0F)
+                continue;
+            const float distance =
+                dot3(secondEdge, coordinateAxis) *
+                inverseDeterminant;
+            if (distance < 0.0F || distance >= result.distance)
+                continue;
+            result.hit = true;
+            result.distance = distance;
+            result.position =
+                add(origin, multiply(rayDirection, distance));
+            result.normal =
+                normalized3(cross(firstEdge, secondEdge));
+        }
+    }
+    return result;
+}
+
 Vec3 forward(const Quat& q)
 {
     return {1.0F - 2.0F * (q.y * q.y + q.z * q.z),
@@ -1161,6 +1309,12 @@ void OriginalRaceSession::updateGameplay(
             syncSelectedWeapon(runtime);
         }
     }
+    auto directWeaponWorldTransform =
+        [&](std::size_t owner, std::size_t weaponIndex) {
+            return compose(
+                vehicles[owner].body,
+                race_.weapons[weaponIndex].visual.transform);
+        };
     auto weaponWorldTransform =
         [&](std::size_t owner, std::size_t weaponIndex,
             std::size_t mountSlot) {
@@ -1930,11 +2084,10 @@ void OriginalRaceSession::updateGameplay(
     }
 
     auto pushShotEffect =
-        [&](std::size_t owner, std::size_t weapon,
-            std::size_t mountSlot,
+        [&](std::size_t weapon,
+            const Transform& weaponTransform,
             const ProjectileDefinition& projectile) {
-            if (owner >= vehicles.size() ||
-                weapon >= race_.weapons.size())
+            if (weapon >= race_.weapons.size())
                 return;
             const auto& source = race_.weapons[weapon].shotEffect;
             if ((source.visual.visualNodes.empty() &&
@@ -1946,7 +2099,7 @@ void OriginalRaceSession::updateGameplay(
             RaceEffect effect;
             effect.kind = RaceEventKind::WeaponShotEffect;
             effect.transform = compose(
-                weaponWorldTransform(owner, weapon, mountSlot), local);
+                weaponTransform, local);
             if (source.ignoreRotation)
                 effect.transform.rotation = {};
             effect.origin = effect.transform.position;
@@ -1970,34 +2123,45 @@ void OriginalRaceSession::updateGameplay(
         if (weapon == RacerRuntime::invalidWeapon ||
             weapon >= race_.weapons.size())
             return;
-        const auto direction =
-            normalized2(forward(vehicles[owner].body.rotation));
-        const Vec3 position =
-            add(vehicles[owner].body.position,
-                multiply(direction, -2.2F));
-        --racers_[owner].mines;
-        mineCooldown_[owner] = 0.75F;
         const auto& projectiles = race_.weapons[weapon].projectiles;
         const auto* projectile =
             projectiles.empty() ? nullptr : &projectiles.front();
+        if (projectile == nullptr)
+            return;
+        const Transform weaponTransform =
+            directWeaponWorldTransform(owner, weapon);
+        Transform localProjectile;
+        localProjectile.position = projectile->position;
+        localProjectile.rotation = projectile->rotation;
+        const Vec3 rayPosition =
+            compose(weaponTransform, localProjectile).position;
+        const auto hit = raycastTrackPlane(
+            race_, add(rayPosition, {0.0F, 0.0F, 2.0F}));
+        if (!hit.hit)
+            return;
+        const float minimumZ =
+            projectile->collision.center.z -
+            projectile->collision.halfExtents.z;
+        const float offset = std::max(-minimumZ, 0.01F);
+        const Vec3 position =
+            add(hit.position, {0.0F, 0.0F, offset});
+        --racers_[owner].mines;
+        mineCooldown_[owner] = 0.75F;
         MineRuntime mine;
         mine.owner = owner;
         mine.weapon = weapon;
         mine.projectile = 0U;
         mine.position = position;
-        mine.rotation = vehicles[owner].body.rotation;
-        if (projectile != nullptr)
-        {
-            mine.damage = projectile->damage;
-            mine.type = projectile->type;
-            mine.collision = projectile->collision;
-            if (projectile->minimumLife > 0.0F)
-                mine.maximumLife = projectile->minimumLife;
-            pushShotEffect(owner, weapon, 0U, *projectile);
-        }
+        mine.rotation = rotationWithUp(hit.normal);
+        mine.damage = projectile->damage;
+        mine.type = projectile->type;
+        mine.collision = projectile->collision;
+        if (projectile->minimumLife > 0.0F)
+            mine.maximumLife = projectile->minimumLife;
+        pushShotEffect(weapon, weaponTransform, *projectile);
         mines_.push_back(mine);
         events_.push_back({RaceEventKind::MinePlaced, owner, weapon,
-                           position, 0.0F});
+                           weaponTransform.position, 0.0F});
     };
     if (humanControl.useMine)
         placeMine(0);
@@ -2053,8 +2217,11 @@ void OriginalRaceSession::updateGameplay(
              RacerRuntime::invalidWeapon, false,
              RacerRuntime::invalidWeapon,
              RacerRuntime::invalidWeapon, {}});
-        pushShotEffect(owner, racers_[owner].hyperWeapon, 0U,
-                       projectile);
+        pushShotEffect(
+            racers_[owner].hyperWeapon,
+            directWeaponWorldTransform(
+                owner, racers_[owner].hyperWeapon),
+            projectile);
     };
     if (humanControl.useHyper)
         activateHyper(0);
@@ -2682,7 +2849,10 @@ void OriginalRaceSession::updateGameplay(
                  RacerRuntime::invalidWeapon,
                  RacerRuntime::invalidWeapon, {}});
             pushShotEffect(
-                shooter, firedWeapon, firedSlot, projectile);
+                firedWeapon,
+                weaponWorldTransform(
+                    shooter, firedWeapon, firedSlot),
+                projectile);
         }
         events_.push_back({RaceEventKind::WeaponFired, shooter, target,
                            eventOrigin, 5.0F,
@@ -3940,6 +4110,42 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             mineInput.useMine = false;
             if (mineSession.mines().empty())
                 throw std::runtime_error("source MineRip was not placed");
+            const auto& sourceProjectile =
+                mineRip->projectiles.front();
+            const Transform sourceWeaponTransform = compose(
+                vehicles[0].body, mineRip->visual.transform);
+            Transform sourceProjectileTransform;
+            sourceProjectileTransform.position =
+                sourceProjectile.position;
+            sourceProjectileTransform.rotation =
+                sourceProjectile.rotation;
+            const Vec3 sourceRayPosition =
+                compose(sourceWeaponTransform,
+                        sourceProjectileTransform).position;
+            const auto sourceHit = raycastTrackPlane(
+                race,
+                add(sourceRayPosition, {0.0F, 0.0F, 2.0F}));
+            const float sourceOffset = std::max(
+                -(sourceProjectile.collision.center.z -
+                  sourceProjectile.collision.halfExtents.z),
+                0.01F);
+            const Vec3 expectedMinePosition =
+                add(sourceHit.position,
+                    {0.0F, 0.0F, sourceOffset});
+            const auto& placedMine = mineSession.mines().front();
+            const Vec3 placedUp = normalized3(
+                rotate(placedMine.rotation,
+                       {0.0F, 0.0F, 1.0F}));
+            if (!sourceHit.hit ||
+                distanceSquared(
+                    placedMine.position, expectedMinePosition) >
+                    0.000001F ||
+                dot3(placedUp, sourceHit.normal) < 0.999F)
+            {
+                throw std::runtime_error(
+                    "source MinePrepare track raycast transform was not "
+                    "preserved");
+            }
             const Vec3 minePosition = mineSession.mines().front().position;
             vehicles[0].body.position = minePosition;
             for (int frame = 0; frame < 20; ++frame)
@@ -3962,6 +4168,34 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source MineRip contact DeathEffect was not emitted");
+            }
+        }
+        {
+            OriginalRaceSession rejectedMineSession(race);
+            PlayerProfile mineProfile;
+            auto& mineSlot =
+                mineProfile.slots[PlayerProfile::mineSlot];
+            mineSlot.record = mineRip->record;
+            mineSlot.charge = 1U;
+            mineSlot.hasCharge = true;
+            rejectedMineSession.applyPlayerProfile(mineProfile);
+            auto outsideVehicles = vehicles;
+            outsideVehicles[0].body.position = {
+                100000.0F, 100000.0F, 10.0F};
+            RaceControl mineInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                rejectedMineSession.update(
+                    1.0F / 60.0F, outsideVehicles, mineInput);
+            }
+            mineInput.useMine = true;
+            rejectedMineSession.update(
+                1.0F / 60.0F, outsideVehicles, mineInput);
+            if (!rejectedMineSession.mines().empty() ||
+                rejectedMineSession.racers().front().mines != 1U)
+            {
+                throw std::runtime_error(
+                    "source MinePrepare failed raycast consumed a mine");
             }
         }
 

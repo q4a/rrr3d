@@ -2656,6 +2656,66 @@ void applyPlanetEnvironment(
     }
 }
 
+std::vector<r3d::physics::TriangleMesh> loadCollisionMeshes(
+    const Race& race,
+    const resource::ResourceFileSystem& resources)
+{
+    std::vector<r3d::physics::TriangleMesh> result;
+    auto appendCollision = [&](const ObjectDefinition& definition,
+                               const ObjectInstance& instance,
+                               bool track) {
+        for (const auto& shape : definition.collisionShapes)
+        {
+            const auto mesh = resource::loadR3DMeshAsset(
+                resources, shape.meshPath);
+            r3d::physics::TriangleMesh collision;
+            collision.transform = instance.transform;
+            collision.surface =
+                track && shape.materialGroup == 1U
+                    ? r3d::physics::CollisionSurface::TrackBorder
+                    : (track
+                           ? r3d::physics::CollisionSurface::TrackPlane
+                           : r3d::physics::CollisionSurface::Decoration);
+            collision.vertices.reserve(mesh.vertices.size());
+            for (const auto& vertex : mesh.vertices)
+            {
+                collision.vertices.push_back(
+                    {vertex.position[0], vertex.position[1],
+                     vertex.position[2]});
+            }
+            if (shape.materialGroup < mesh.materialGroups.size())
+            {
+                const auto& group =
+                    mesh.materialGroups[shape.materialGroup];
+                collision.indices.insert(
+                    collision.indices.end(),
+                    mesh.indices.begin() + group.firstIndex,
+                    mesh.indices.begin() + group.firstIndex +
+                        group.indexCount);
+            }
+            else
+            {
+                collision.indices = mesh.indices;
+            }
+            if (!collision.indices.empty())
+                result.push_back(std::move(collision));
+        }
+    };
+    for (const auto& instance : race.trackInstances)
+    {
+        appendCollision(
+            race.trackDefinitions.at(instance.definition), instance,
+            true);
+    }
+    for (const auto& instance : race.decorationInstances)
+    {
+        appendCollision(
+            race.decorationDefinitions.at(instance.definition), instance,
+            false);
+    }
+    return result;
+}
+
 void loadMap(const resource::ResourceFileSystem& resources,
              TiXmlElement* database, Race& race)
 {
@@ -2801,6 +2861,7 @@ void loadMap(const resource::ResourceFileSystem& resources,
     race.environment.sunPosition = vector3(map, "sunPos", race.levelPath);
     race.environment.sunRotation = quaternion(map, "sunRot", race.levelPath);
     applyOriginalEnvironment(resources, race);
+    race.collisionMeshes = loadCollisionMeshes(race, resources);
 }
 
 std::uint32_t unsignedValue(std::string_view value,
@@ -3035,6 +3096,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
             "garage.xml: tournament player car is missing");
     race.vehicle = race.vehicles[humanVehicle->second];
     selectRacers(race, resources, firstPlanet, 1U, carRecord);
+    race.collisionMeshes = loadCollisionMeshes(race, resources);
     if (race.trackInstances.empty() || race.tracePath.size() < 2 ||
         race.vehicle.record.find(carName) == std::string::npos ||
         race.vehicles.size() != 17 || race.racers.size() < 2)
@@ -3343,55 +3405,7 @@ r3d::physics::WorldDescription makePhysicsDescription(
         return vehicle;
     };
     result.vehicle = prepareVehicle(race.vehicle);
-
-    auto appendCollision = [&](const ObjectDefinition& definition,
-                               const ObjectInstance& instance,
-                               bool track) {
-        for (const auto& shape : definition.collisionShapes)
-        {
-            const auto mesh = resource::loadR3DMeshAsset(resources,
-                                                         shape.meshPath);
-            r3d::physics::TriangleMesh collision;
-            collision.transform = instance.transform;
-            collision.surface =
-                track && shape.materialGroup == 1U
-                    ? r3d::physics::CollisionSurface::TrackBorder
-                    : (track
-                           ? r3d::physics::CollisionSurface::TrackPlane
-                           : r3d::physics::CollisionSurface::Decoration);
-            collision.vertices.reserve(mesh.vertices.size());
-            for (const auto& vertex : mesh.vertices)
-                collision.vertices.push_back({vertex.position[0],
-                                              vertex.position[1],
-                                              vertex.position[2]});
-            if (shape.materialGroup < mesh.materialGroups.size())
-            {
-                const auto& group = mesh.materialGroups[shape.materialGroup];
-                collision.indices.insert(
-                    collision.indices.end(),
-                    mesh.indices.begin() + group.firstIndex,
-                    mesh.indices.begin() + group.firstIndex +
-                        group.indexCount);
-            }
-            else
-            {
-                collision.indices = mesh.indices;
-            }
-            if (!collision.indices.empty())
-                result.collisionMeshes.push_back(std::move(collision));
-        }
-    };
-    for (const auto& instance : race.trackInstances)
-    {
-        appendCollision(race.trackDefinitions.at(instance.definition),
-                        instance, true);
-    }
-    for (const auto& instance : race.decorationInstances)
-    {
-        appendCollision(
-            race.decorationDefinitions.at(instance.definition), instance,
-            false);
-    }
+    result.collisionMeshes = race.collisionMeshes;
 
     auto findPoint = [&](std::uint32_t id) -> const TracePoint& {
         const auto found = std::find_if(
