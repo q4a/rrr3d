@@ -849,7 +849,11 @@ void Vehicle::SyncOutputs()
 		 * because routing it through the engine wrapper stopped SyncInputs
 		 * running at all.
 		 */
-		if (i == 0 && ::rrr3d::TraceEnabled())
+		//Sampled, not first-N. The first calls of a run are the frame a car
+		//spawns on, where the velocity is legitimately zero and the suspension
+		//has not settled -- which reads exactly like a car that never moves.
+		static unsigned long rawSample = 0;
+		if (i == 0 && ::rrr3d::TraceEnabled() && (++rawSample % 180) == 0)
 		{
 			PxRigidDynamic* body = _actor ? _actor->GetNxDynamic() : 0;
 			PxScene* scene = body ? body->getScene() : 0;
@@ -858,27 +862,61 @@ void Vehicle::SyncOutputs()
 				const PxTransform pose = body->getGlobalPose();
 				const PxVec3 origin = pose.transform(ToPxVec(wheel->GetPos()));
 
-				//Started a metre below the wheel, because a cast from the wheel
-				//itself begins inside the car's own chassis convex and returns
-				//distance 0 without ever reaching the ground.
-				const PxVec3 below = origin + PxVec3(0.0f, 0.0f, -1.0f);
+				/*
+				 * From the wheel centre, with the car's own shapes filtered
+				 * out.
+				 *
+				 * The first cut started the ray a metre below the wheel, to get
+				 * out of the chassis convex. That works right up until the car
+				 * is resting on the road, at which point the ray starts *under*
+				 * the road and reports whatever lies ten metres further down --
+				 * a car sitting correctly on the track reads as one floating
+				 * above a chasm. Filtering by the vehicle's own marker is the
+				 * honest way to skip the chassis.
+				 */
+				PxQueryFilterData filter;
+				filter.flags = PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC |
+					PxQueryFlag::ePREFILTER;
+
+				struct SkipVehicle: PxQueryFilterCallback
+				{
+					PxQueryHitType::Enum preFilter(const PxFilterData&, const PxShape* shape,
+						const PxRigidActor*, PxHitFlags&) override
+					{
+						return shape->getQueryFilterData().word1 == cUndrivableSurface
+							? PxQueryHitType::eNONE : PxQueryHitType::eBLOCK;
+					}
+					PxQueryHitType::Enum postFilter(const PxFilterData&, const PxQueryHit&) override
+					{
+						return PxQueryHitType::eBLOCK;
+					}
+				} skipVehicle;
 
 				PxRaycastBuffer hit;
-				const bool found = scene->raycast(below, PxVec3(0.0f, 0.0f, -1.0f),
-					200.0f, hit);
+				const bool found = scene->raycast(origin, PxVec3(0.0f, 0.0f, -1.0f),
+					200.0f, hit, PxHitFlag::eDEFAULT, filter, &skipVehicle);
+
+				//Sleeping is the first thing to rule out: a sleeping
+				//PxRigidDynamic does not fall, and PxVehicleUpdates skips it,
+				//which would hold a car in the air indefinitely while every
+				//other reading looks healthy.
+				const PxVec3 velocity = body->getLinearVelocity();
 
 				RRR3D_TRACE_FIRST(12,
-					"RAWCAST wheelZ=%.2f groundBelowWheel=%.3f shape=%p",
+					"RAWCAST wheelZ=%.2f groundBelowWheel=%.3f asleep=%d "
+					"vel=%.2f,%.2f,%.2f gravityOff=%d",
 					origin.z,
-					(found && hit.hasBlock) ? hit.block.distance + 1.0f : -1.0f,
-					(found && hit.hasBlock) ? (void*)hit.block.shape : 0);
+					(found && hit.hasBlock) ? hit.block.distance : -1.0f,
+					(int)body->isSleeping(), velocity.x, velocity.y, velocity.z,
+					(int)body->getActorFlags().isSet(PxActorFlag::eDISABLE_GRAVITY));
 			}
 		}
 
 		//Whether the suspension raycast found ground at all. A wheel that never
 		//does produces no tire force, so nothing downstream of it can be
 		//diagnosed until this reads what it should.
-		if (i == 0)
+		static unsigned long qSample = 0;
+		if (i == 0 && (++qSample % 180) == 0)
 			RRR3D_TRACE_FIRST(20,
 				"WHEELQ inAir=%d jounce=%.4f springForce=%.1f contactShape=%p "
 				"normal=%.2f,%.2f,%.2f suspDir=%.2f,%.2f,%.2f",
