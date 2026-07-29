@@ -37,6 +37,7 @@ binary="$contents/MacOS/RRR3d"
 plist="$contents/Info.plist"
 resources="$contents/Resources"
 frameworks="$contents/Frameworks"
+expected_version=1.3.1
 
 [ -x "$binary" ] || fail "arm64 executable is missing: $binary"
 [ -f "$plist" ] || fail "Info.plist is missing"
@@ -60,10 +61,22 @@ plist_read()
     fail "unexpected bundle identifier"
 [ "$(plist_read CFBundleExecutable)" = "RRR3d" ] ||
     fail "unexpected executable name"
+[ "$(plist_read CFBundlePackageType)" = "APPL" ] ||
+    fail "unexpected bundle package type"
+[ "$(plist_read CFBundleShortVersionString)" = "$expected_version" ] ||
+    fail "unexpected short version"
+[ "$(plist_read CFBundleVersion)" = "$expected_version" ] ||
+    fail "unexpected bundle version"
 [ "$(plist_read LSMinimumSystemVersion)" = "13.0" ] ||
     fail "unexpected minimum macOS version"
 [ "$(plist_read NSHighResolutionCapable)" = "true" ] ||
     fail "high-resolution support is disabled"
+
+framework_count=$(/usr/bin/find "$frameworks" -mindepth 1 -print |
+    /usr/bin/wc -l |
+    /usr/bin/tr -d ' ')
+[ "$framework_count" -eq 0 ] ||
+    fail "Contents/Frameworks must be empty for the autonomous static bundle"
 
 architectures=$(/usr/bin/lipo -archs "$binary")
 [ "$architectures" = "arm64" ] ||
@@ -100,5 +113,5 @@ expected_asset_count=$((catalog_count + 4))
 [ "$asset_count" -eq "$expected_asset_count" ] ||
     fail "game-data must contain exactly $expected_asset_count cataloged files; found $asset_count"
 
-printf 'RRR3d.app verified: arm64, minos %s, %s assets, signed, autonomous dependencies\n' \
-    "$minimum" "$asset_count"
+printf 'RRR3d.app verified: version %s, arm64, minos %s, %s assets, signed, autonomous dependencies\n' \
+    "$expected_version" "$minimum" "$asset_count"

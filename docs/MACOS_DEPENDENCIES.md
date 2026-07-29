@@ -5,7 +5,7 @@
 Пути Homebrew не зашиты: CMake ищет config package/target, поэтому формулы из
 нативного arm64 prefix обнаруживаются через стандартные механизмы CMake.
 
-## Текущий milestone: original-data physics race M9
+## Текущий milestone: autonomous original-data bundle M10
 
 | Имя | Зафиксированная/проверенная версия | Источник | Лицензия | CMake target | Включать в `.app` |
 | --- | --- | --- | --- | --- | --- |
@@ -35,7 +35,7 @@ Gamepad API/HIDAPI. Preset M8 включает SDL Audio с `coreaudio`, `disk` 
 Итоговый `RRR3d` и Ogg/Vorbis decoder статически слинкованы и зависят только
 от Apple system frameworks.
 
-В отменённом M10 portable bundle те же статические targets входят в
+В исправленном M10 original-data bundle те же статические targets входят в
 `RRR3d.app/Contents/MacOS/RRR3d`. `Contents/Frameworks` намеренно пуст:
 проверка `otool -L` не находит `/opt/homebrew`, `/usr/local`, локальный build
 directory или Windows runtime. Bundle получает `@executable_path/../Frameworks`
@@ -44,8 +44,8 @@ ad-hoc подписывается после копирования ресурс
 
 Jolt подключается только при `RRR3D_ENABLE_PHYSICS=ON` вместе с
 `RRR3D_BUILD_ORIGINAL_MENU=ON`. Windows PhysX targets и старые `.lib` при этом
-не меняются; preset M6–M8 Jolt не загружают и не собирают. Будущий исправленный
-M10 должен быть заново основан на M9 и включить Jolt notice в bundle.
+не меняются; preset M6–M8 Jolt не загружают и не собирают. Исправленный M10
+основан на M9.5 и включает `JoltPhysics.txt` в bundle.
 
 Homebrew GLM 1.0.3 экспортирует и header-only target, и optional compiled
 dylib. Этот проект использует только `glm::glm-header-only`: dylib также собран

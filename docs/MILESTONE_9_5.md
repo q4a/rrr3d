@@ -116,5 +116,5 @@ and submission still has a safety cap. Metal shadow depth precision and bias
 also cannot be pixel-identical to D3D9. These boundaries are explicit and do
 not replace source game data or game rules.
 
-The next step is to rebuild Milestone 10 from the corrected M5–M9.5 path,
-then run Debug/Release bundle verification and a clean-machine launch test.
+Milestone 10 subsequently rebuilt the autonomous Debug/Release bundles from
+this corrected M5–M9.5 path and completed bundle/ZIP/moved-launch acceptance.

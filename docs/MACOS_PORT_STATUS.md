@@ -1,6 +1,6 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
-> **Исправленный активный статус:** Milestone 5–9.5 переделаны от исходных
+> **Исправленный активный статус:** Milestone 5–10 выполнены от исходных
 > ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
 > bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки.
 > M7 подключает к этому же меню SDL3 keyboard/mouse/gamepad input и общий с
@@ -20,13 +20,14 @@
 > `CarMotorDesc` в Jolt. Follow-up устраняет подмену гоночных колёс огромными
 > workshop preview meshes и восстанавливает исходный D3D9 additive blend
 > `SRC_ALPHA, ONE` в bgfx backend. Loader охватывает все 88 турнирных карт и 17
-> машин гаража. Старые portable M6–M10 ниже остаются историей
+> машин гаража. Исправленный M10 упаковывает этот же путь в автономные
+> Debug/Release `RRR3d.app`. Старые portable-отчёты ниже остаются историей
 > отменённого самостоятельного vertical slice и не являются acceptance status.
 
 ## Активный этап
 
-Milestone 9.5: projected shadows, FxEmitter scheduling/sorting и
-source-calibrated Jolt на bgfx/Metal.
+Milestone 10: автономный arm64 Debug/Release `RRR3d.app` на исправленном
+M5–M9.5 original-data пути.
 
 ## Активный статус
 
@@ -44,7 +45,8 @@ race session. MusicCat ставится на паузу, а race sound graph и 
 Подробности M9.1 находятся в `docs/PHYSICS_PORT_PLAN.md`; последующие
 renderer stages описаны в `docs/MILESTONE_9_2.md`,
 `docs/MILESTONE_9_3.md`, `docs/MILESTONE_9_4.md` и
-`docs/MILESTONE_9_5.md`.
+`docs/MILESTONE_9_5.md`; упаковка и приёмка — в
+`docs/MILESTONE_10.md`.
 
 Финальная проверка M9.5: arm64 Debug build и новые Metal shaders прошли без
 новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
@@ -64,6 +66,15 @@ Continue -> Start race`: колёса Marauder и AI сохраняют исхо
 белые грани от прозрачных DDS-texels; после старта и на первом повороте кадр
 чистый, а тёмные wheel trails отображаются корректно. Physics, resource,
 240-frame race-render и bundle verification завершились с exit code 0.
+
+Исправленный M10 собран в Debug и Release. Оба bundle проходят усиленный
+verifier: `APPL`, version 1.3.1, arm64-only, minos 13.0, strict ad-hoc
+signature, пустой `Frameworks`, системные runtime dependencies и ровно 1200
+разрешённых game-data файлов. Оба варианта прошли resource, physics,
+input/audio/MusicCat и 240-frame M9.5 race smoke. Release ZIP извлечён в
+`/private/tmp`; перемещённый `.app` нашёл ресурсы внутри себя, прошёл гонку и
+отдельно успешно завершил запуск через LaunchServices. Хеши и полный протокол
+находятся в `docs/MILESTONE_10.md`.
 
 ## Исторический отчёт отменённого vertical slice
 
@@ -271,8 +282,8 @@ Portable core Milestone 3 не изменил поведение обычног�
 - Verification/packaging: `scripts/verify_macos_bundle.sh`,
   `scripts/package_macos_bundle.sh`.
 - Warning cleanup: `src/LexStd/header/lslAutoRef.h`.
-- Documentation: `docs/BUILDING_MACOS.md`, resource/renderer/dependency docs и
-  этот файл.
+- Documentation: `docs/MILESTONE_10.md`, `docs/BUILDING_MACOS.md`,
+  resource/renderer/dependency docs и этот файл.
 
 ## Изменённые файлы Milestone 9.1
 
@@ -555,7 +566,13 @@ scripts/verify_macos_bundle.sh \
 
 SDL_AUDIO_DRIVER=dummy \
   build/macos-arm64-release/Release/RRR3d.app/Contents/MacOS/RRR3d \
-  --physics-smoke-test --smoke-test-frames=120
+  --physics-smoke-test
+SDL_AUDIO_DRIVER=dummy \
+  build/macos-arm64-release/Release/RRR3d.app/Contents/MacOS/RRR3d \
+  --audio-smoke-test
+SDL_AUDIO_DRIVER=dummy \
+  build/macos-arm64-release/Release/RRR3d.app/Contents/MacOS/RRR3d \
+  --race-render-smoke-test --smoke-test-frames=240
 ```
 
 Результаты:
@@ -633,20 +650,22 @@ SDL_AUDIO_DRIVER=dummy \
 - catalog audit разрешил visual/material/collision data всех 88 tournament
   tracks и выбрал все 17 garage cars; отдельный rainy map2/Dirtdevil Metal
   smoke также завершился с exit code 0;
-- clean M10 Debug и Release builds завершены с exit code 0; финальная Release
-  сборка с icon/licence resources — 327 шагов. Остаются только два legacy
-  warning в `lslObject.h` о volatile increment/decrement;
+- текущие M10 Debug и Release configure/build завершены с exit code 0;
+  Release перестроен за 173 шага. Остаются только два legacy warning в
+  `lslObject.h` о volatile increment/decrement;
 - оба `RRR3d.app` содержат arm64-only Mach-O с `minos 13.0`, version 1.3.1,
   identifier `org.rrr3d.motorrock`, Retina metadata, `.icns`, пустой
   `Frameworks` и 1200 файлов в Resources;
 - M10 verifier подтвердил strict ad-hoc signature и отсутствие ссылок на
   Homebrew, `/usr/local`, build directory, Windows `.lib/.dll` и любую
   внешнюю абсолютную runtime dependency;
-- Debug bundle прошёл полный physics + virtual input + audio + 240 Metal frame
-  smoke. Release bundle прошёл physics/audio + 120 Metal frame smoke;
-- чистая копия bundle была перемещена в `/tmp` и запущена через macOS
-  LaunchServices (`open -W -n`): game-data найден внутри перемещённого
-  `Contents/Resources`, гонка стартовала, 120-frame smoke завершился с кодом 0.
+- Debug bundle прошёл resource/physics, virtual input + audio/MusicCat
+  480-frame smoke и отдельный 240-frame Metal race smoke. Release прошёл те же
+  resource/physics/input/audio/MusicCat проверки и 240-frame Metal race smoke;
+- Release ZIP извлечён в `/private/tmp`: game-data найден внутри перемещённого
+  `Contents/Resources`, прямой 240-frame race smoke завершился с кодом 0.
+  Отдельный запуск этого `.app` через macOS LaunchServices (`open -W -n`)
+  также завершился с кодом 0.
 
 ## Известные проблемы
 
@@ -696,6 +715,9 @@ SDL_AUDIO_DRIVER=dummy \
 
 ## Следующий рекомендуемый этап
 
-Следующий этап — заново собрать Milestone 10 на исправленном M5–M9.5 пути,
-прогнать Debug/Release bundle verifier, xattr-free ZIP и запуск перемещённого
-bundle. Старый M10 portable bundle не является текущим release-кандидатом.
+Функциональные milestones задания завершены. Следующий этап — release
+hardening: проверить права на распространение оригинальных ресурсов, подписать
+Release настоящим Developer ID с hardened runtime, выполнить notarization и
+stapling, затем проверить ZIP на отдельном чистом Apple Silicon Mac. После
+этого нужны hardware checks физического Bluetooth/USB gamepad и переключения
+CoreAudio device; Windows regression следует закрепить отдельным Windows CI.
