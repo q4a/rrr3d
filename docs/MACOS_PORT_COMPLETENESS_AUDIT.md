@@ -260,6 +260,34 @@ Network, video и Steam явно выключены.
 5. Physics smoke проверяет serialized type/angle/lifetime, вращение mount,
    continuous damage, создание primary contact model и её исчезновение.
 
+Следующим projectile-base блоком исправлены `RocketPrepare`,
+`RocketUpdate`, `ptThunder`, `ptResonanse` и legacy `ptSonar`:
+
+1. Moving projectile lifetime снова равен
+   `max(maxDist / desc.speed, minTimeLife)`. Прежний clamp по фактически
+   пройденному `maxDist` удалён: relative-speed projectile может пролететь
+   дальше, но живёт исходное время.
+2. `RocketUpdate` делает исходный vertical ray из `pos + Z*4` только в
+   `cdgTrackPlane`, сохраняет `_vec1.z` clearance и опускает его при
+   приближении рельефа.
+3. Rocket contact point берётся из пересечения source OBB; local
+   `NX_VELOCITY_CHANGE` torque больше не вычисляется от суррогатного
+   projectile position/world origin.
+4. Serialized предмет `sonar` этой версии фактически содержит `ptThunder`
+   (`type 22`, `Misc\thunder`). Его отражение теперь использует реальные
+   `materialGroup 1` / `cdgShotTransparency` triangle contacts, patch normal
+   и source cooldown `0.1`, а не ширину trace path.
+5. `ptResonanse` вращает runtime actor через `rot * angleAxis(local X)`;
+   renderer и contact OBB используют эту же rotation, без отдельной
+   возрастной render-анимации.
+6. Неиспользуемая текущим workshop, но существующая в Windows enum
+   `ptSonar` сохраняет живой projectile, наносит
+   `damage * contact.deltaTime` и прикладывает off-centre
+   `mass * linearVelocity` impulse вместо разового full damage.
+7. Smoke проверяет serialized records `sonar`/`rezonator`/`rocketLauncher`,
+   source border reflection, relative speed, time-based lifetime после
+   прохождения `maxDist`, actor rotation и TrackPlane clearance.
+
 Следующим render/audio-блоком удалены эвристики оружия:
 
 1. `workshop.xml/item/mapObj` связывает каталог с исходным `ctWeapon`.

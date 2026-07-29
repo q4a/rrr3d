@@ -203,6 +203,9 @@ struct ProjectileRuntime
     float lifeSeconds = 0.0F;
     float ageSeconds = 0.0F;
     float reflectionCooldown = 0.0F;
+    // Proj::RocketUpdate stores its current clearance above TrackPlane in
+    // _vec1.z and only lowers it when the terrain rises into the projectile.
+    float trackClearance = 0.0F;
     std::size_t target = RacerRuntime::invalidWeapon;
     std::uint32_t hitCount = 0;
     bool attached = false;

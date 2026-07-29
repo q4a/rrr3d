@@ -709,6 +709,11 @@ SDL_AUDIO_DRIVER=dummy \
   lifecycle `spark2`: модель отсутствует вне контакта, переезжает в contact
   point и удаляется через исходные 0,5 секунды; постоянный surrogate visual
   удалён.
+- Общий flying-projectile runtime использует source `maxDist/speed`
+  lifetime и `RocketUpdate` TrackPlane clearance. `sonar` из фактического
+  `workshop.xml` распознан как `ptThunder` и отражается от реальных border
+  triangles; `ptResonanse` вращает один actor transform для collision и
+  renderer.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,

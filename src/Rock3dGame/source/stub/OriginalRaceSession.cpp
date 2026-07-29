@@ -540,6 +540,55 @@ bool triangleOverlapsBox(Vec3 first, Vec3 second, Vec3 third,
     return true;
 }
 
+bool trackBorderContact(const Race& race, const OrientedBox& box,
+                        Vec3& normal)
+{
+    for (const auto& mesh : race.collisionMeshes)
+    {
+        if (mesh.surface !=
+            r3d::physics::CollisionSurface::TrackBorder)
+            continue;
+        for (std::size_t index = 0;
+             index + 2U < mesh.indices.size(); index += 3U)
+        {
+            const auto firstIndex = mesh.indices[index];
+            const auto secondIndex = mesh.indices[index + 1U];
+            const auto thirdIndex = mesh.indices[index + 2U];
+            if (firstIndex >= mesh.vertices.size() ||
+                secondIndex >= mesh.vertices.size() ||
+                thirdIndex >= mesh.vertices.size())
+                continue;
+            const Vec3 first = transformPoint(
+                mesh.transform, mesh.vertices[firstIndex]);
+            const Vec3 second = transformPoint(
+                mesh.transform, mesh.vertices[secondIndex]);
+            const Vec3 third = transformPoint(
+                mesh.transform, mesh.vertices[thirdIndex]);
+            if (!triangleOverlapsBox(first, second, third, box))
+                continue;
+            normal = normalized3(cross(
+                subtract(second, first), subtract(third, first)));
+            return true;
+        }
+    }
+    return false;
+}
+
+Vec3 thunderReflection(Vec3 velocity, Vec3 normal)
+{
+    const float speed = length3(velocity);
+    if (speed <= 0.0001F)
+        return velocity;
+    normal = normalized3(normal);
+    const float angle = dot3(multiply(velocity, 1.0F / speed), normal);
+    if (std::abs(angle) > 0.1F)
+    {
+        return subtract(
+            velocity, multiply(normal, 2.0F * dot3(velocity, normal)));
+    }
+    return multiply(velocity, -1.0F);
+}
+
 struct WorldRayHit
 {
     float distance = std::numeric_limits<float>::max();
@@ -2301,93 +2350,78 @@ void OriginalRaceSession::updateGameplay(
         }
         const Vec3 previous = projectile.position;
         const float speed = std::max(projectile.speed, 1.0F);
-        const float maximumDistance =
-            projectile.maximumDistance > 0.0F
-                ? projectile.maximumDistance
-                : 100.0F;
+        projectile.lifeSeconds -= seconds;
         if (projectile.ballistic)
             projectile.velocity.z -= 20.0F * seconds;
         Vec3 movement = projectile.ballistic
                             ? multiply(projectile.velocity, seconds)
                             : multiply(projectile.direction,
                                        speed * seconds);
-        const float remaining =
-            std::max(maximumDistance - projectile.distance, 0.0F);
-        float step = length3(movement);
-        if (step > remaining && step > 0.0F)
-        {
-            movement = multiply(movement, remaining / step);
-            step = remaining;
-        }
+        const float step = length3(movement);
         projectile.position = add(projectile.position, movement);
         if (length3(movement) > 0.0001F)
             projectile.direction = normalized3(movement);
         projectile.distance += step;
+        const bool sourceRocketUpdate =
+            projectileDefinition.type == 0U ||
+            projectileDefinition.type == 22U ||
+            projectileDefinition.type == 23U;
+        if (sourceRocketUpdate)
+        {
+            // Proj::RocketUpdate casts from pos + Z*4 against TrackPlane and
+            // preserves the projectile's lowest established clearance.
+            const auto trackHit = raycastTrackPlane(
+                race_, add(projectile.position, {0.0F, 0.0F, 4.0F}));
+            if (trackHit.hit)
+            {
+                const float height = std::max(
+                    projectile.position.z - trackHit.position.z,
+                    projectileDefinition.collision.halfExtents.z);
+                if (projectile.trackClearance == 0.0F ||
+                    projectile.trackClearance - height > 0.1F)
+                {
+                    projectile.trackClearance = height;
+                }
+                projectile.position.z =
+                    trackHit.position.z + projectile.trackClearance;
+            }
+        }
+        if (projectileDefinition.type == 23U &&
+            std::abs(projectileDefinition.angularSpeed) > 0.0001F)
+        {
+            const float halfAngle =
+                projectileDefinition.angularSpeed * seconds * 0.5F;
+            const Quat sourceSpin{
+                std::sin(halfAngle), 0.0F, 0.0F,
+                std::cos(halfAngle)};
+            projectile.rotation =
+                multiply(projectile.rotation, sourceSpin);
+        }
         projectile.reflectionCooldown =
             std::max(0.0F,
                      projectile.reflectionCooldown - seconds);
         if (projectileDefinition.type == 22U &&
             projectile.reflectionCooldown <= 0.0F)
         {
-            float nearestDistance =
-                std::numeric_limits<float>::max();
-            Vec3 nearestPoint;
-            float nearestWidth = 0.0F;
-            for (std::size_t node = 1U;
-                 node < race_.tracePath.size(); ++node)
+            Transform thunderTransform;
+            thunderTransform.position = projectile.position;
+            thunderTransform.rotation = projectile.rotation;
+            Vec3 normal;
+            if (length3(projectile.velocity) > 5.0F &&
+                trackBorderContact(
+                    race_,
+                    orientedBox(
+                        thunderTransform,
+                        projectileDefinition.collision),
+                    normal))
             {
-                const auto& first = tracePoint(node - 1U);
-                const auto& second = tracePoint(node);
-                const Vec3 segment =
-                    subtract(second.position, first.position);
-                const float segmentLengthSquared =
-                    std::max(dot2(segment, segment), 0.0001F);
-                const float coordinate = std::clamp(
-                    dot2(subtract(projectile.position,
-                                  first.position),
-                         segment) /
-                        segmentLengthSquared,
-                    0.0F, 1.0F);
-                const Vec3 closest = add(
-                    first.position,
-                    multiply(segment, coordinate));
-                const float distance = length2(subtract(
-                    projectile.position, closest));
-                if (distance >= nearestDistance)
-                    continue;
-                nearestDistance = distance;
-                nearestPoint = closest;
-                nearestWidth =
-                    first.width +
-                    (second.width - first.width) * coordinate;
-            }
-            if (nearestDistance >
-                std::max(nearestWidth * 0.5F, 2.0F))
-            {
-                const Vec3 normal = normalized2(subtract(
-                    projectile.position, nearestPoint));
-                const float alignment =
-                    dot2(projectile.direction, normal);
-                if (alignment > 0.0F)
-                {
-                    if (std::abs(alignment) > 0.1F)
-                    {
-                        projectile.direction = normalized3(
-                            subtract(
-                                projectile.direction,
-                                multiply(normal,
-                                         2.0F * alignment)));
-                    }
-                    else
-                    {
-                        projectile.direction = multiply(
-                            projectile.direction, -1.0F);
-                    }
-                    projectile.velocity = multiply(
-                        projectile.direction, projectile.speed);
-                    projectile.position = previous;
-                    projectile.reflectionCooldown = 0.1F;
-                }
+                projectile.velocity =
+                    thunderReflection(projectile.velocity, normal);
+                projectile.direction =
+                    normalized3(projectile.velocity);
+                projectile.rotation =
+                    rotationWithForward(projectile.direction);
+                projectile.reflectionCooldown = 0.1F;
             }
         }
         effects_.push_back(
@@ -2419,38 +2453,73 @@ void OriginalRaceSession::updateGameplay(
             Transform projectileTransform;
             projectileTransform.position = projectile.position;
             projectileTransform.rotation = projectile.rotation;
-            if (!boxesOverlap(
-                    orientedBox(
-                        projectileTransform,
-                        projectileDefinition.collision),
-                    vehicleBox(
-                        vehicles[target],
-                        vehicleDefinition.physics)))
+            const OrientedBox projectileBox = orientedBox(
+                projectileTransform,
+                projectileDefinition.collision);
+            const OrientedBox targetBox = vehicleBox(
+                vehicles[target], vehicleDefinition.physics);
+            if (!boxesOverlap(projectileBox, targetBox))
                 continue;
+            const Vec3 contactPoint =
+                closestPoint(targetBox, projectileBox.center);
+            const bool sonarContact =
+                projectileDefinition.type == 16U;
             const float damage =
                 racers_[target].shieldSeconds > 0.0F
                     ? 0.0F
                     : damageAfterSupport(
                           target,
-                          std::max(projectile.damage, 0.0F),
+                          std::max(
+                              projectile.damage *
+                                  (sonarContact ? seconds : 1.0F),
+                              0.0F),
                           false);
             racers_[target].life =
                 std::max(0.0F, racers_[target].life - damage);
             pushDamageEvent(
-                target, projectile.owner, projectile.position, damage);
-            if (projectileDefinition.type == 16U)
+                target, projectile.owner, contactPoint, damage);
+            if (sonarContact)
             {
-                const auto& targetRacer = race_.racers[target];
-                const auto& targetVehicle =
-                    targetRacer.hasConfiguredVehicle
-                        ? targetRacer.configuredVehicle
-                        : race_.vehicles.at(targetRacer.vehicle);
                 const float targetMass =
-                    std::max(targetVehicle.physics.mass, 1.0F);
+                    std::max(vehicleDefinition.physics.mass, 1.0F);
+                const Vec3 impulse = multiply(
+                    projectile.velocity, projectileDefinition.mass);
                 velocityRequests_.push_back(
+                    {target, multiply(impulse, 1.0F / targetMass)});
+                // AddContactForce(..., NX_IMPULSE) also applies the
+                // off-centre angular impulse.  Use the source box inertia
+                // with Jolt's world-space angular velocity boundary.
+                const Vec3 lever = subtract(
+                    contactPoint, vehicles[target].body.position);
+                const Vec3 worldTorque = cross(lever, impulse);
+                const Quat inverseRotation{
+                    -vehicles[target].body.rotation.x,
+                    -vehicles[target].body.rotation.y,
+                    -vehicles[target].body.rotation.z,
+                    vehicles[target].body.rotation.w};
+                const Vec3 localTorque =
+                    rotate(inverseRotation, worldTorque);
+                const Vec3 half =
+                    vehicleDefinition.physics.halfExtents;
+                const Vec3 inertia{
+                    targetMass *
+                        (half.y * half.y + half.z * half.z) /
+                        3.0F,
+                    targetMass *
+                        (half.x * half.x + half.z * half.z) /
+                        3.0F,
+                    targetMass *
+                        (half.x * half.x + half.y * half.y) /
+                        3.0F};
+                const Vec3 localAngularDelta{
+                    localTorque.x / std::max(inertia.x, 0.001F),
+                    localTorque.y / std::max(inertia.y, 0.001F),
+                    localTorque.z / std::max(inertia.z, 0.001F)};
+                angularVelocityRequests_.push_back(
                     {target,
-                     multiply(projectile.velocity,
-                              projectileDefinition.mass / targetMass)});
+                     rotate(
+                         vehicles[target].body.rotation,
+                         localAngularDelta)});
             }
             if (projectileDefinition.type == 0U ||
                 projectileDefinition.type == 2U ||
@@ -2459,14 +2528,27 @@ void OriginalRaceSession::updateGameplay(
                 projectileDefinition.type == 23U)
             {
                 const Vec3 torqueDirection =
-                    cross(projectile.position, projectile.direction);
+                    cross(contactPoint, projectile.direction);
                 if (length3(torqueDirection) > 0.01F)
                 {
                     angularVelocityRequests_.push_back(
                         {target,
-                         multiply(normalized3(torqueDirection),
-                                  projectileDefinition.mass * 0.2F)});
+                         rotate(
+                             vehicles[target].body.rotation,
+                             multiply(
+                                 normalized3(torqueDirection),
+                                 projectileDefinition.mass * 0.2F))});
                 }
+            }
+            if (sonarContact)
+            {
+                if (racers_[target].life <= 0.0F)
+                {
+                    destroyRacer(
+                        target, projectile.owner, contactPoint,
+                        vehicles[target]);
+                }
+                continue;
             }
             spawnProjectileImpact(
                 projectile, projectile.position);
@@ -2520,19 +2602,29 @@ void OriginalRaceSession::updateGameplay(
             projectile.active = false;
             break;
         }
+        Transform liveProjectileTransform;
+        liveProjectileTransform.position = projectile.position;
+        liveProjectileTransform.rotation = projectile.rotation;
         if (projectile.active &&
+            projectileDefinition.type == 16U)
+        {
             damageDecorationWithBox(
-                {projectile.position, {1.0F, 1.0F, 1.0F},
-                 projectile.rotation},
+                liveProjectileTransform,
                 projectileDefinition.collision,
-                projectile.damage, projectile.owner))
+                projectile.damage * seconds, projectile.owner);
+        }
+        else if (projectile.active &&
+                 damageDecorationWithBox(
+                     liveProjectileTransform,
+                     projectileDefinition.collision,
+                     projectile.damage, projectile.owner))
         {
             spawnProjectileImpact(
                 projectile, projectile.position);
             projectile.active = false;
         }
         if (projectile.active &&
-            projectile.distance >= maximumDistance)
+            projectile.lifeSeconds <= 0.0F)
         {
             spawnProjectileImpact(
                 projectile, projectile.position);
@@ -3298,6 +3390,12 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.damage = projectile.damage;
                 runtimeProjectile.angularSpeed =
                     projectile.angularSpeed;
+                runtimeProjectile.lifeSeconds = std::max(
+                    projectile.speed > 0.0F
+                        ? projectile.maximumDistance /
+                              projectile.speed
+                        : 0.0F,
+                    projectile.minimumLife);
                 runtimeProjectile.ballistic =
                     projectile.type == 19U;
                 if (projectile.type == 2U ||
@@ -4814,6 +4912,312 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source ptDrobilka contact model did not expire "
                     "after 0.5 seconds");
+            }
+        }
+
+        const auto thunder = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "sonar";
+            });
+        const auto resonator = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "rezonator";
+            });
+        const auto rocketLauncher = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) ==
+                       "rocketLauncher";
+            });
+        if (thunder == race.weapons.end() ||
+            thunder->projectiles.size() != 1U ||
+            thunder->projectiles.front().type != 22U ||
+            std::abs(thunder->projectiles.front().speed - 40.0F) >
+                0.001F ||
+            std::abs(
+                thunder->projectiles.front().maximumDistance -
+                200.0F) > 0.001F ||
+            resonator == race.weapons.end() ||
+            resonator->projectiles.size() != 1U ||
+            resonator->projectiles.front().type != 23U ||
+            std::abs(
+                resonator->projectiles.front().angularSpeed -
+                32.0F) > 0.001F ||
+            rocketLauncher == race.weapons.end() ||
+            rocketLauncher->projectiles.empty() ||
+            rocketLauncher->projectiles.front().type != 0U)
+        {
+            throw std::runtime_error(
+                "source Rocket/Thunder/Resonanse definitions were not "
+                "preserved");
+        }
+        {
+            bool testedBorder = false;
+            for (const auto& mesh : race.collisionMeshes)
+            {
+                if (mesh.surface !=
+                        r3d::physics::CollisionSurface::TrackBorder ||
+                    mesh.indices.size() < 3U)
+                    continue;
+                const auto firstIndex = mesh.indices[0];
+                const auto secondIndex = mesh.indices[1];
+                const auto thirdIndex = mesh.indices[2];
+                if (firstIndex >= mesh.vertices.size() ||
+                    secondIndex >= mesh.vertices.size() ||
+                    thirdIndex >= mesh.vertices.size())
+                    continue;
+                const Vec3 first = transformPoint(
+                    mesh.transform, mesh.vertices[firstIndex]);
+                const Vec3 second = transformPoint(
+                    mesh.transform, mesh.vertices[secondIndex]);
+                const Vec3 third = transformPoint(
+                    mesh.transform, mesh.vertices[thirdIndex]);
+                ProjectileCollisionBox testCollision;
+                testCollision.halfExtents = {0.1F, 0.1F, 0.1F};
+                Transform testTransform;
+                testTransform.position = multiply(
+                    add(add(first, second), third), 1.0F / 3.0F);
+                Vec3 normal;
+                if (!trackBorderContact(
+                        race,
+                        orientedBox(testTransform, testCollision),
+                        normal))
+                    continue;
+                const Vec3 incoming = multiply(normal, -10.0F);
+                const Vec3 reflected =
+                    thunderReflection(incoming, normal);
+                if (dot3(reflected, normal) <= 0.0F ||
+                    std::abs(length3(reflected) - 10.0F) > 0.001F)
+                {
+                    throw std::runtime_error(
+                        "source ThunderContact normal reflection failed");
+                }
+                testedBorder = true;
+                break;
+            }
+            if (!testedBorder)
+            {
+                throw std::runtime_error(
+                    "source cdgShotTransparency track border was not "
+                    "available to ThunderContact");
+            }
+        }
+        {
+            OriginalRaceSession thunderSession(race);
+            PlayerProfile thunderProfile;
+            auto& slot = thunderProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            slot.record = thunder->record;
+            slot.charge = 2U;
+            slot.hasCharge = true;
+            thunderSession.applyPlayerProfile(thunderProfile);
+            auto outsideVehicles = vehicles;
+            for (std::size_t index = 0;
+                 index < outsideVehicles.size(); ++index)
+            {
+                outsideVehicles[index].body.position = {
+                    100000.0F + static_cast<float>(index) * 10000.0F,
+                    100000.0F, 1000.0F};
+                outsideVehicles[index].body.rotation = {};
+                outsideVehicles[index].linearVelocity = {};
+            }
+            outsideVehicles[0].linearVelocity = {
+                80.0F, 0.0F, 0.0F};
+            RaceControl thunderInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                thunderSession.update(
+                    1.0F / 60.0F, outsideVehicles,
+                    thunderInput);
+            }
+            thunderInput.useWeapon = true;
+            thunderSession.update(
+                1.0F / 60.0F, outsideVehicles, thunderInput);
+            thunderInput.useWeapon = false;
+            const std::size_t thunderWeapon =
+                static_cast<std::size_t>(
+                    thunder - race.weapons.begin());
+            auto sourceProjectile = std::find_if(
+                thunderSession.projectiles().begin(),
+                thunderSession.projectiles().end(),
+                [thunderWeapon](
+                    const ProjectileRuntime& projectile) {
+                    return projectile.owner == 0U &&
+                           projectile.weapon == thunderWeapon &&
+                           projectile.projectile == 0U;
+                });
+            if (sourceProjectile ==
+                    thunderSession.projectiles().end() ||
+                std::abs(sourceProjectile->speed - 120.0F) > 0.001F ||
+                std::abs(sourceProjectile->lifeSeconds - 5.0F) >
+                    0.001F)
+            {
+                throw std::runtime_error(
+                    "source RocketPrepare relative speed/lifetime failed");
+            }
+            for (int frame = 0; frame < 121; ++frame)
+            {
+                thunderSession.update(
+                    1.0F / 60.0F, outsideVehicles,
+                    thunderInput);
+            }
+            sourceProjectile = std::find_if(
+                thunderSession.projectiles().begin(),
+                thunderSession.projectiles().end(),
+                [thunderWeapon](
+                    const ProjectileRuntime& projectile) {
+                    return projectile.owner == 0U &&
+                           projectile.weapon == thunderWeapon &&
+                           projectile.projectile == 0U;
+                });
+            if (sourceProjectile ==
+                    thunderSession.projectiles().end() ||
+                sourceProjectile->distance <=
+                    thunder->projectiles.front().maximumDistance)
+            {
+                throw std::runtime_error(
+                    "source maxDist/speed lifetime was replaced by a "
+                    "distance clamp");
+            }
+        }
+        {
+            OriginalRaceSession resonatorSession(race);
+            PlayerProfile resonatorProfile;
+            auto& slot = resonatorProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            slot.record = resonator->record;
+            slot.charge = 1U;
+            slot.hasCharge = true;
+            resonatorSession.applyPlayerProfile(resonatorProfile);
+            auto outsideVehicles = vehicles;
+            for (std::size_t index = 0;
+                 index < outsideVehicles.size(); ++index)
+            {
+                outsideVehicles[index].body.position = {
+                    100000.0F + static_cast<float>(index) * 10000.0F,
+                    -100000.0F, 1000.0F};
+                outsideVehicles[index].body.rotation = {};
+                outsideVehicles[index].linearVelocity = {};
+            }
+            RaceControl resonatorInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                resonatorSession.update(
+                    1.0F / 60.0F, outsideVehicles,
+                    resonatorInput);
+            }
+            resonatorInput.useWeapon = true;
+            resonatorSession.update(
+                1.0F / 60.0F, outsideVehicles,
+                resonatorInput);
+            resonatorInput.useWeapon = false;
+            const std::size_t resonatorWeapon =
+                static_cast<std::size_t>(
+                    resonator - race.weapons.begin());
+            auto projectile = std::find_if(
+                resonatorSession.projectiles().begin(),
+                resonatorSession.projectiles().end(),
+                [resonatorWeapon](
+                    const ProjectileRuntime& value) {
+                    return value.owner == 0U &&
+                           value.weapon == resonatorWeapon &&
+                           value.projectile == 0U;
+                });
+            if (projectile ==
+                resonatorSession.projectiles().end())
+            {
+                throw std::runtime_error(
+                    "source ptResonanse projectile was not created");
+            }
+            const Quat beforeRotation = projectile->rotation;
+            resonatorSession.update(
+                1.0F / 60.0F, outsideVehicles,
+                resonatorInput);
+            projectile = std::find_if(
+                resonatorSession.projectiles().begin(),
+                resonatorSession.projectiles().end(),
+                [resonatorWeapon](
+                    const ProjectileRuntime& value) {
+                    return value.owner == 0U &&
+                           value.weapon == resonatorWeapon &&
+                           value.projectile == 0U;
+                });
+            const float halfAngle =
+                resonator->projectiles.front().angularSpeed /
+                120.0F;
+            const Quat expectedRotation = multiply(
+                beforeRotation,
+                {std::sin(halfAngle), 0.0F, 0.0F,
+                 std::cos(halfAngle)});
+            if (projectile ==
+                    resonatorSession.projectiles().end() ||
+                std::abs(
+                    projectile->rotation.x - expectedRotation.x) >
+                    0.001F ||
+                std::abs(
+                    projectile->rotation.y - expectedRotation.y) >
+                    0.001F ||
+                std::abs(
+                    projectile->rotation.z - expectedRotation.z) >
+                    0.001F ||
+                std::abs(
+                    projectile->rotation.w - expectedRotation.w) >
+                    0.001F)
+            {
+                throw std::runtime_error(
+                    "source ResonanseUpdate actor rotation failed");
+            }
+        }
+        {
+            OriginalRaceSession rocketSession(race);
+            PlayerProfile rocketProfile;
+            auto& slot = rocketProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            slot.record = rocketLauncher->record;
+            slot.charge = 1U;
+            slot.hasCharge = true;
+            rocketSession.applyPlayerProfile(rocketProfile);
+            auto rocketVehicles = vehicles;
+            for (std::size_t index = 1;
+                 index < rocketVehicles.size(); ++index)
+            {
+                rocketVehicles[index].body.position = {
+                    100000.0F + static_cast<float>(index) * 1000.0F,
+                    100000.0F, 1000.0F};
+            }
+            RaceControl rocketInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                rocketSession.update(
+                    1.0F / 60.0F, rocketVehicles,
+                    rocketInput);
+            }
+            rocketInput.useWeapon = true;
+            rocketSession.update(
+                1.0F / 60.0F, rocketVehicles, rocketInput);
+            rocketInput.useWeapon = false;
+            rocketSession.update(
+                1.0F / 60.0F, rocketVehicles, rocketInput);
+            const std::size_t rocketWeapon =
+                static_cast<std::size_t>(
+                    rocketLauncher - race.weapons.begin());
+            const auto projectile = std::find_if(
+                rocketSession.projectiles().begin(),
+                rocketSession.projectiles().end(),
+                [rocketWeapon](
+                    const ProjectileRuntime& value) {
+                    return value.owner == 0U &&
+                           value.weapon == rocketWeapon &&
+                           value.projectile == 0U;
+                });
+            if (projectile ==
+                    rocketSession.projectiles().end() ||
+                projectile->trackClearance <= 0.0F)
+            {
+                throw std::runtime_error(
+                    "source RocketUpdate TrackPlane clearance failed");
             }
         }
 
