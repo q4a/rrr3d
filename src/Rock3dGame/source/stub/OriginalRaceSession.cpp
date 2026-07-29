@@ -1721,6 +1721,8 @@ void OriginalRaceSession::destroyRacer(
     runtime.shieldFadeInSeconds = -1.0F;
     runtime.shieldFadeOutSeconds = -1.0F;
     runtime.shieldDamageSeconds = -1.0F;
+    runtime.touchAttacker = RacerRuntime::invalidWeapon;
+    runtime.touchAttributionSeconds = 0.0F;
     // Player::cTimeRestoreCar in the Windows implementation.
     runtime.restoreSeconds = 2.0F;
     if (racer < vehicleInputs_.size())
@@ -2006,6 +2008,18 @@ void OriginalRaceSession::updateGameplay(
             std::max(0.0F, runtime.mineLockSeconds - seconds);
         runtime.springLockSeconds =
             std::max(0.0F, runtime.springLockSeconds - seconds);
+        if (runtime.touchAttributionSeconds > 0.0F)
+        {
+            runtime.touchAttributionSeconds =
+                std::max(
+                    0.0F,
+                    runtime.touchAttributionSeconds - seconds);
+            if (runtime.touchAttributionSeconds <= 0.0F)
+            {
+                runtime.touchAttacker =
+                    RacerRuntime::invalidWeapon;
+            }
+        }
         if (racer < vehicleInputs_.size())
         {
             vehicleInputs_[racer].springLocked =
@@ -2126,6 +2140,14 @@ void OriginalRaceSession::updateGameplay(
             const float incoming = damageAfterSupport(
                 target, sourceDamage, touch);
             auto& runtime = racers_[target];
+            if (touch &&
+                attacker != RacerRuntime::invalidWeapon)
+            {
+                // GameObject::Damage keeps _touchPlayerId for exactly
+                // three seconds, including immortal contacts.
+                runtime.touchAttacker = attacker;
+                runtime.touchAttributionSeconds = 3.0F;
+            }
             if (runtime.shieldSeconds <= 0.0F)
             {
                 runtime.life = std::max(
@@ -2865,11 +2887,35 @@ void OriginalRaceSession::updateGameplay(
     {
         if (humanControl.reset && !racers_[0].destroyed)
             queueRespawn(0, vehicles[0]);
-        if (vehicles[0].contactCount == 0 &&
-            vehicles[0].body.position.z < -5.0F &&
-            !racers_[0].destroyed)
-            queueRespawn(0, vehicles[0]);
         previousPositions_[0] = vehicles[0].body.position;
+    }
+    for (std::size_t racer = 0;
+         racer < vehicles.size() && racer < racers_.size(); ++racer)
+    {
+        if (racers_[racer].destroyed)
+            continue;
+        const auto& sourceRacer = race_.racers[racer];
+        const auto& definition =
+            sourceRacer.hasConfiguredVehicle
+                ? sourceRacer.configuredVehicle
+                : race_.vehicles.at(sourceRacer.vehicle);
+        const OrientedBox body =
+            vehicleBox(vehicles[racer], definition.physics);
+        const float verticalRadius =
+            std::abs(body.axes[0].z) * body.halfExtents[0] +
+            std::abs(body.axes[1].z) * body.halfExtents[1] +
+            std::abs(body.axes[2].z) * body.halfExtents[2];
+        // Map::Map creates a +Z plane at world Z=0 with TouchDeath.  Any
+        // car shape crossing that plane receives Death(dtDeathPlane).
+        if (body.center.z - verticalRadius > 0.0F)
+            continue;
+        const std::size_t attacker =
+            racers_[racer].touchAttributionSeconds > 0.0F
+                ? racers_[racer].touchAttacker
+                : RacerRuntime::invalidWeapon;
+        destroyRacer(
+            racer, attacker, vehicles[racer].body.position,
+            vehicles[racer], DamageType::DeathPlane, false);
     }
     for (std::size_t racer = 1;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
@@ -4279,8 +4325,10 @@ void OriginalRaceSession::updateAchievements(float seconds)
                     completeAchievement(index);
                 break;
             case 9U:
-                if (humanDeath && event.racer != 0U &&
-                    event.touchDamage)
+                if (event.kind == RaceEventKind::Kill &&
+                    event.target != 0U && event.racer == 0U &&
+                    (event.damageType == DamageType::Touch ||
+                     event.damageType == DamageType::DeathPlane))
                     completeAchievement(index);
                 break;
             default:
@@ -4908,6 +4956,55 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
 
         if (vehicles.size() > 1U)
         {
+            {
+                OriginalRaceSession overboardSession(race);
+                auto overboardVehicles = vehicles;
+                RaceControl overboardInput;
+                for (int frame = 0; frame < 190; ++frame)
+                    overboardSession.update(
+                        1.0F / 60.0F, overboardVehicles,
+                        overboardInput);
+                overboardVehicles[0].speed = 20.0F;
+                overboardVehicles[1].speed = 5.0F;
+                overboardVehicles[0].bodyContacts = {
+                    {r3d::physics::CollisionSurface::Vehicle, 1U,
+                     {-1.0F, 0.0F, 0.0F}, 20.0F,
+                     1200000.0F}};
+                overboardSession.update(
+                    1.0F / 60.0F, overboardVehicles,
+                    overboardInput);
+                if (overboardSession.racers()[1].touchAttacker != 0U ||
+                    overboardSession.racers()[1]
+                            .touchAttributionSeconds <= 0.0F)
+                {
+                    throw std::runtime_error(
+                        "source three-second touch attribution was not set");
+                }
+                overboardVehicles[0].bodyContacts.clear();
+                overboardVehicles[1].body.position.z = -20.0F;
+                overboardSession.update(
+                    1.0F / 60.0F, overboardVehicles,
+                    overboardInput);
+                const bool attributedOverboard = std::any_of(
+                    overboardSession.events().begin(),
+                    overboardSession.events().end(),
+                    [](const RaceEvent& event) {
+                        return event.kind == RaceEventKind::Kill &&
+                               event.target == 1U &&
+                               event.racer == 0U &&
+                               !event.killCredit &&
+                               event.damageType ==
+                                   DamageType::DeathPlane;
+                    });
+                if (!overboardSession.racers()[1].destroyed ||
+                    !attributedOverboard ||
+                    !overboardSession.takeRespawns().empty())
+                {
+                    throw std::runtime_error(
+                        "source TouchDeath/death-plane attribution failed");
+                }
+            }
+
             vehicles[1].body.position = vehicles[0].body.position;
             vehicles[1].speed = 5.0F;
             const float firstLife = session.racers()[0].life;

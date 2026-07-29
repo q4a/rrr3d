@@ -742,6 +742,11 @@ SDL_AUDIO_DRIVER=dummy \
   поэтому shield сохраняет жизнь, но `cPlayerDamage` несёт входящий урон, как
   в `GameObject::Damage`. Нулевые fake-damage events от `ptMaslo` удалены,
   Droid лечит на фактически зашитые в Windows `5.0f`.
+- Глобальная plane `Z=0` из `Map::Map` больше не заменяется тихим reset ниже
+  `Z=-5`: crossing вызывает `dtDeathPlane`, vehicle death effects и
+  двухсекундное восстановление для любой машины. `_touchPlayerId` хранится
+  исходные 3 секунды; touch-kill achievement теперь засчитывает человека,
+  вытолкнувшего соперника, а не обратный случай.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,

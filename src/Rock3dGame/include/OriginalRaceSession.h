@@ -119,6 +119,8 @@ struct RacerRuntime
     float clutchSeconds = 0.0F;
     float mineLockSeconds = 0.0F;
     float springLockSeconds = 0.0F;
+    std::size_t touchAttacker = invalidWeapon;
+    float touchAttributionSeconds = 0.0F;
     float restoreSeconds = 0.0F;
     float lowLifeEffectSeconds = 0.0F;
     float shieldEffectSeconds = 0.0F;
