@@ -174,6 +174,7 @@ private:
     r3d::renderer::RenderTarget reflectionTarget_;
     r3d::renderer::CubeRenderTarget environmentReflectionTarget_;
     r3d::renderer::RenderTarget shadowTarget_;
+    r3d::renderer::RenderTarget shadowTargetFar_;
     r3d::renderer::RenderTarget luminance64Target_;
     r3d::renderer::RenderTarget luminance16Target_;
     r3d::renderer::RenderTarget luminance4Target_;

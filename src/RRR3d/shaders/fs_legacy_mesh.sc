@@ -1,4 +1,4 @@
-$input v_normal, v_texcoord0, v_worldPosition, v_reflectionPosition, v_shadowPosition, v_linearDepth, v_tangent, v_bitangent
+$input v_normal, v_texcoord0, v_worldPosition, v_reflectionPosition, v_shadowPosition, v_linearDepth, v_tangent, v_bitangent, v_shadowPositionFar
 
 #include "bgfx_shader.sh"
 
@@ -7,6 +7,7 @@ SAMPLER2D(s_texReflection, 1);
 SAMPLER2D(s_texShadow, 2);
 SAMPLERCUBE(s_texEnvironment, 3);
 SAMPLER2D(s_texNormal, 4);
+SAMPLER2D(s_texShadowFar, 5);
 uniform vec4 u_sceneLightDirection;
 uniform vec4 u_sceneAmbient;
 uniform vec4 u_sceneFog;
@@ -21,6 +22,8 @@ uniform vec4 u_materialOptions;
 // w = original IActor::Lighting (glNone..glPlanarRefl).
 uniform vec4 u_postParams;
 uniform vec4 u_clipPlane;
+// x = source split distance, y = 2048 map size, z = depth bias.
+uniform vec4 u_shadowParams;
 
 void main()
 {
@@ -57,18 +60,51 @@ void main()
     if (u_materialOptions.z > 0.0 &&
         v_shadowPosition.w > 0.0001)
     {
+        bool farSplit = v_linearDepth > u_shadowParams.x;
+        vec4 shadowPosition =
+            farSplit ? v_shadowPositionFar : v_shadowPosition;
         vec3 shadowNdc =
-            v_shadowPosition.xyz / v_shadowPosition.w;
+            shadowPosition.xyz / shadowPosition.w;
         vec2 shadowUv =
             shadowNdc.xy * vec2(0.5, -0.5) + vec2(0.5, 0.5);
         if (shadowUv.x >= 0.0 && shadowUv.x <= 1.0 &&
             shadowUv.y >= 0.0 && shadowUv.y <= 1.0 &&
             shadowNdc.z >= 0.0 && shadowNdc.z <= 1.0)
         {
-            float storedDepth =
-                texture2D(s_texShadow, shadowUv).r;
-            float visibility =
-                shadowNdc.z - 0.0025 <= storedDepth ? 1.0 : 0.0;
+            float texel = 1.0 / max(u_shadowParams.y, 1.0);
+            float depth = shadowNdc.z - u_shadowParams.z;
+            float depth00;
+            float depth10;
+            float depth01;
+            float depth11;
+            if (farSplit)
+            {
+                depth00 = texture2D(s_texShadowFar, shadowUv).r;
+                depth10 = texture2D(
+                    s_texShadowFar, shadowUv + vec2(texel, 0.0)).r;
+                depth01 = texture2D(
+                    s_texShadowFar, shadowUv + vec2(0.0, texel)).r;
+                depth11 = texture2D(
+                    s_texShadowFar, shadowUv + vec2(texel, texel)).r;
+            }
+            else
+            {
+                depth00 = texture2D(s_texShadow, shadowUv).r;
+                depth10 = texture2D(
+                    s_texShadow, shadowUv + vec2(texel, 0.0)).r;
+                depth01 = texture2D(
+                    s_texShadow, shadowUv + vec2(0.0, texel)).r;
+                depth11 = texture2D(
+                    s_texShadow, shadowUv + vec2(texel, texel)).r;
+            }
+            vec2 frame = fract(shadowUv * u_shadowParams.y);
+            float visibility0 = mix(
+                depth <= depth00 ? 1.0 : 0.0,
+                depth <= depth10 ? 1.0 : 0.0, frame.x);
+            float visibility1 = mix(
+                depth <= depth01 ? 1.0 : 0.0,
+                depth <= depth11 ? 1.0 : 0.0, frame.x);
+            float visibility = mix(visibility0, visibility1, frame.y);
             shadowFactor =
                 mix(1.0 - u_materialOptions.z, 1.0, visibility);
         }

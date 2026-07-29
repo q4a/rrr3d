@@ -109,6 +109,7 @@ enum class RenderTargetFormat : std::uint8_t
 enum class RenderPass : std::uint8_t
 {
     Shadow,
+    ShadowFar,
     EnvironmentPositiveX,
     EnvironmentNegativeX,
     EnvironmentPositiveY,
@@ -236,6 +237,7 @@ struct RenderPassState
 {
     Texture reflectionTexture;
     Texture shadowTexture;
+    Texture shadowTextureFar;
     // Cube texture used by ReflMappShader/ReflBumpMappShader.
     Texture environmentTexture;
     std::array<float, 16> reflectionViewProjection{
@@ -248,11 +250,19 @@ struct RenderPassState
         0.0F, 1.0F, 0.0F, 0.0F,
         0.0F, 0.0F, 1.0F, 0.0F,
         0.0F, 0.0F, 0.0F, 1.0F};
+    std::array<float, 16> shadowViewProjectionFar{
+        1.0F, 0.0F, 0.0F, 0.0F,
+        0.0F, 1.0F, 0.0F, 0.0F,
+        0.0F, 0.0F, 1.0F, 0.0F,
+        0.0F, 0.0F, 0.0F, 1.0F};
     std::array<float, 4> clipPlane{0.0F, 0.0F, 1.0F, 0.0F};
     bool clipPlaneEnabled = false;
     bool shadowsEnabled = false;
     bool invertCulling = false;
     float shadowStrength = 0.62F;
+    float shadowSplitDistance = 60.0F;
+    float shadowMapSize = 2048.0F;
+    float shadowDepthBias = 0.0015F;
 };
 
 struct CubeRenderTarget

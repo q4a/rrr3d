@@ -2219,6 +2219,14 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
     vehicle.differentialRatio = scalar(car, "motor/gearDiff", source);
     vehicle.maximumRpm = scalar(car, "motor/maxRPM", source);
     vehicle.maximumTorque = scalar(car, "motor/maxTorque", source);
+    vehicle.torqueEfficiency =
+        scalar(car, "motor/SEM", source) * 1.15F;
+    vehicle.steerSpeed = scalar(car, "motor/steerSpeed", source);
+    vehicle.steerRotation = scalar(car, "motor/steerRot", source);
+    // These are CarMotorDesc constructor values and are not serialized per
+    // ctCar record by the original game.
+    vehicle.idlingRpm = 1000.0F;
+    vehicle.restBrakeTorque = 400.0F;
     // GameCar::cMaxSteerAngle from the Windows implementation.
     vehicle.steerAngle = 3.14159265358979323846F / 6.0F;
 
@@ -3578,6 +3586,11 @@ bool runOriginalRaceResourceSmokeTest(
             !near(physics.vehicle.maximumRpm, 7000.0F) ||
             // Original defaults install truba1 + engine1: 100 + 900.
             !near(physics.vehicle.maximumTorque, 1000.0F) ||
+            !near(physics.vehicle.idlingRpm, 1000.0F) ||
+            !near(physics.vehicle.torqueEfficiency, 0.805F) ||
+            !near(physics.vehicle.restBrakeTorque, 400.0F) ||
+            !near(physics.vehicle.steerSpeed, 3.5F) ||
+            !near(physics.vehicle.steerRotation, 3.5F) ||
             !near(race.vehicle.maximumLife, 70.0F) ||
             physics.vehicle.wheels.size() != 4 ||
             !near(physics.vehicle.wheels[0].radius, 0.42947F) ||

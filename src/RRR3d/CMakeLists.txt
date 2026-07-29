@@ -414,8 +414,22 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
 
     if(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU)
         set(_rrr3d_game_data_source "${CMAKE_SOURCE_DIR}/resources/game-data")
-        file(GLOB_RECURSE _rrr3d_game_data_files CONFIGURE_DEPENDS
-            "${_rrr3d_game_data_source}/*")
+        set(_rrr3d_game_data_catalog
+            "${_rrr3d_game_data_source}/legacy-assets.catalog")
+        file(STRINGS "${_rrr3d_game_data_catalog}"
+            _rrr3d_game_data_catalog_entries ENCODING UTF-8)
+        set(_rrr3d_game_data_files
+            "${_rrr3d_game_data_catalog}"
+            "${_rrr3d_game_data_source}/manifest.cfg"
+            "${_rrr3d_game_data_source}/menu/menu.cfg"
+            "${_rrr3d_game_data_source}/ui/font5x7.txt")
+        foreach(_rrr3d_catalog_entry
+                IN LISTS _rrr3d_game_data_catalog_entries)
+            string(REGEX REPLACE "^[^	]*	" ""
+                _rrr3d_catalog_path "${_rrr3d_catalog_entry}")
+            list(APPEND _rrr3d_game_data_files
+                "${_rrr3d_game_data_source}/${_rrr3d_catalog_path}")
+        endforeach()
         set_source_files_properties(${_rrr3d_game_data_files}
             PROPERTIES HEADER_FILE_ONLY TRUE)
         target_sources(${PROJECT_NAME} PRIVATE ${_rrr3d_game_data_files})
@@ -427,11 +441,10 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             add_custom_command(OUTPUT "${_rrr3d_bundle_stamp}"
                 COMMAND ${CMAKE_COMMAND} -E make_directory
                     "${_rrr3d_bundle_contents}/Frameworks"
-                COMMAND ${CMAKE_COMMAND} -E remove_directory
-                    "${_rrr3d_bundle_contents}/Resources/game-data"
-                COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    "${_rrr3d_game_data_source}"
-                    "${_rrr3d_bundle_contents}/Resources/game-data"
+                COMMAND ${CMAKE_COMMAND}
+                    -Dsource_root=${_rrr3d_game_data_source}
+                    -Ddestination_root=${_rrr3d_bundle_contents}/Resources/game-data
+                    -P "${CMAKE_SOURCE_DIR}/cmake/copy_catalog_game_data.cmake"
                 COMMAND /usr/bin/xattr -cr
                     "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>"
                 COMMAND /usr/bin/codesign ${_rrr3d_codesign_arguments}
@@ -441,6 +454,7 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                 DEPENDS
                     ${PROJECT_NAME}
                     ${_rrr3d_game_data_files}
+                    "${CMAKE_SOURCE_DIR}/cmake/copy_catalog_game_data.cmake"
                     "${_rrr3d_bundle_icon}"
                     ${_rrr3d_bundle_licenses}
                 COMMENT
@@ -450,11 +464,10 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                 DEPENDS "${_rrr3d_bundle_stamp}")
         else()
             add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E remove_directory
-                    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/game-data"
-                COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    "${_rrr3d_game_data_source}"
-                    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/game-data"
+                COMMAND ${CMAKE_COMMAND}
+                    -Dsource_root=${_rrr3d_game_data_source}
+                    -Ddestination_root=$<TARGET_FILE_DIR:${PROJECT_NAME}>/game-data
+                    -P "${CMAKE_SOURCE_DIR}/cmake/copy_catalog_game_data.cmake"
                 COMMENT "Copying original Motor Rock game-data resources"
                 VERBATIM)
         endif()

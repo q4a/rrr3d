@@ -4616,6 +4616,8 @@ int main(int argc, char** argv)
                         r3d::renderer::RenderPass::
                             EnvironmentNegativeZ) &&
                     passObserved(r3d::renderer::RenderPass::Shadow) &&
+                    passObserved(
+                        r3d::renderer::RenderPass::ShadowFar) &&
                     passObserved(r3d::renderer::RenderPass::Scene) &&
                     passObserved(
                         r3d::renderer::RenderPass::Luminance64) &&
@@ -4709,14 +4711,14 @@ int main(int argc, char** argv)
                 else
                 {
                     std::cout
-                        << "Milestone 9.4 original Single Player/"
+                        << "Milestone 9.5 original Single Player/"
                         << originalRace->levelPath << '/'
                         << recordName(originalRace->vehicle.record)
                         << "/Jolt/bgfx/Metal smoke test completed after "
                         << renderedFrames << " frames; max speed "
                         << maximumRaceSmokeSpeed << ", wheel contacts "
                         << maximumRaceSmokeContacts
-                        << ", renderer passes cube6/shadow/scene/HDR64-1/"
+                        << ", renderer passes cube6/shadow2/scene/HDR64-1/"
                            "adapt/bloom/composite/HUD"
                         << (expectsReflection ? "/reflection" : "")
                         << (expectsWater ? "/water" : "")

@@ -503,6 +503,7 @@ public:
         bodies.SetLinearAndAngularVelocity(
             vehicle.body, JPH::Vec3::sZero(), JPH::Vec3::sZero());
         vehicle.controller->SetDriverInput(0.0F, 0.0F, 1.0F, 0.0F);
+        vehicle.steeringAngle = 0.0F;
         vehicle.wheelTractionEnabled = true;
         ++vehicle.resetCount;
         updateState(vehicle);
@@ -597,6 +598,8 @@ public:
     void step(float seconds,
               const std::vector<VehicleInput>& rawInputs) noexcept override
     {
+        const float simulationSeconds =
+            std::clamp(seconds, 0.0F, 0.25F);
         for (std::size_t index = 0; index < vehicles_.size(); ++index)
         {
             VehicleInput input;
@@ -605,6 +608,9 @@ public:
             input.throttle = std::clamp(input.throttle, 0.0F, 1.0F);
             input.brake = std::clamp(input.brake, 0.0F, 1.0F);
             input.steering = std::clamp(input.steering, -1.0F, 1.0F);
+            const bool requestedActivity =
+                input.throttle != 0.0F || input.brake != 0.0F ||
+                input.steering != 0.0F;
             auto& vehicle = vehicles_[index];
             if (!vehicle.enabled)
                 continue;
@@ -612,15 +618,98 @@ public:
                 vehicle.state.speed >
                     vehicle.spawn.vehicle.maximumSpeed)
                 input.throttle = 0.0F;
+            const auto& source = vehicle.spawn.vehicle;
+            const float targetSteering =
+                input.steering * source.steerAngle;
+            if (std::abs(input.steering) >= 0.999F &&
+                source.steerSpeed > 0.0F)
+            {
+                if (targetSteering > 0.0F)
+                    vehicle.steeringAngle = std::min(
+                        std::max(vehicle.steeringAngle, 0.0F) +
+                            source.steerSpeed * simulationSeconds,
+                        source.steerAngle);
+                else
+                    vehicle.steeringAngle = std::max(
+                        std::min(vehicle.steeringAngle, 0.0F) -
+                            source.steerSpeed * simulationSeconds,
+                        -source.steerAngle);
+            }
+            else
+            {
+                // Legacy smManual (analogue pad and AI) writes the angle
+                // directly; keyboard left/right uses the ramp above.
+                vehicle.steeringAngle = targetSteering;
+            }
+            input.steering =
+                source.steerAngle > 0.0001F
+                    ? std::clamp(vehicle.steeringAngle /
+                                     source.steerAngle,
+                                 -1.0F, 1.0F)
+                    : 0.0F;
+            if (source.brakeTorque > 0.0F)
+            {
+                input.brake = std::max(
+                    input.brake,
+                    std::clamp(source.restBrakeTorque /
+                                   source.brakeTorque,
+                               0.0F, 1.0F));
+            }
+            const bool drivenWheelContact =
+                std::any_of(
+                    source.wheels.begin(), source.wheels.end(),
+                    [&](const WheelDescription& wheel) {
+                        const auto wheelIndex =
+                            static_cast<std::size_t>(
+                                &wheel - source.wheels.data());
+                        return wheel.driven &&
+                               wheelIndex <
+                                   vehicle.state.wheelContacts.size() &&
+                               vehicle.state.wheelContacts[wheelIndex]
+                                   .hasContact;
+                    });
+            if (drivenWheelContact &&
+                vehicle.wheelTractionEnabled &&
+                std::abs(vehicle.steeringAngle) > 0.0001F &&
+                simulationSeconds > 0.0F)
+            {
+                // GameCar::WheelsProgress applies a source steerRot yaw
+                // around the rear wheel in addition to PhysX wheel steer.
+                // Reproduce that pose correction at the Jolt boundary.
+                auto& bodies = system_.GetBodyInterface();
+                const auto rotation = bodies.GetRotation(vehicle.body);
+                const auto velocity =
+                    bodies.GetLinearVelocity(vehicle.body);
+                const float forwardSpeed = velocity.Dot(
+                    rotation * JPH::Vec3::sAxisX());
+                const float alpha =
+                    std::clamp(forwardSpeed / 10.0F, -1.0F, 1.0F);
+                const float sourceYaw =
+                    alpha *
+                    (vehicle.steeringAngle / source.steerAngle) *
+                    source.steerRotation * simulationSeconds;
+                const auto yaw = JPH::Quat::sRotation(
+                    JPH::Vec3::sAxisY(), -sourceYaw);
+                const auto correctedRotation = rotation * yaw;
+                float rearWheelX = 0.0F;
+                for (const auto& wheel : source.wheels)
+                    rearWheelX = std::min(rearWheelX, wheel.position.x);
+                const JPH::Vec3 rearPivot{rearWheelX, 0.0F, 0.0F};
+                const auto position = bodies.GetPosition(vehicle.body);
+                const auto pivot = position + rotation * rearPivot;
+                const auto correctedPosition =
+                    pivot - correctedRotation * rearPivot;
+                bodies.SetPositionAndRotation(
+                    vehicle.body, correctedPosition,
+                    correctedRotation,
+                    JPH::EActivation::Activate);
+            }
             vehicle.controller->SetDriverInput(
                 input.throttle, input.steering, input.brake, 0.0F);
-            if (input.throttle != 0.0F || input.brake != 0.0F ||
-                input.steering != 0.0F)
+            if (requestedActivity)
                 system_.GetBodyInterface().ActivateBody(vehicle.body);
         }
 
-        const float simulationSeconds =
-            std::clamp(seconds, 0.0F, 0.25F);
         float remaining = simulationSeconds;
         constexpr float fixedStep = 1.0F / 120.0F;
         contactListener_.beginStep();
@@ -732,6 +821,7 @@ private:
         JPH::Ref<JPH::VehicleConstraint> constraint;
         JPH::WheeledVehicleController* controller = nullptr;
         VehicleState state;
+        float steeringAngle = 0.0F;
         std::uint32_t resetCount = 0;
         bool wheelTractionEnabled = true;
         bool enabled = true;
@@ -950,16 +1040,27 @@ private:
         controllerSettings->mEngine.mMaxTorque = source.maximumTorque;
         controllerSettings->mEngine.mMaxRPM =
             std::max(source.maximumRpm, 100.0F);
-        controllerSettings->mEngine.mMinRPM = std::min(
-            controllerSettings->mEngine.mMinRPM,
-            controllerSettings->mEngine.mMaxRPM * 0.25F);
-        // Jolt's fixed 4000/2000 automatic shift defaults assert when an
-        // original opponent/upgrade has maxRPM <= 4000. Scale the shift
-        // points to each db.xml motor, as the legacy controller did.
+        controllerSettings->mEngine.mMinRPM = std::clamp(
+            source.idlingRpm, 1.0F,
+            controllerSettings->mEngine.mMaxRPM);
+        controllerSettings->mEngine.mNormalizedTorque.Clear();
+        controllerSettings->mEngine.mNormalizedTorque.Reserve(2);
+        controllerSettings->mEngine.mNormalizedTorque.AddPoint(
+            0.0F, source.torqueEfficiency);
+        controllerSettings->mEngine.mNormalizedTorque.AddPoint(
+            1.0F, source.torqueEfficiency);
+        controllerSettings->mTransmission.mGearRatios =
+            {2.66F, 1.78F, 1.30F, 1.00F, 0.74F};
+        controllerSettings->mTransmission.mReverseGearRatios = {-1.5F};
+        // CarMotorDesc shifts at maxRPM and maxRPM / 1.8 with no artificial
+        // clutch delay. Keep Jolt's thresholds just inside its assertions.
         controllerSettings->mTransmission.mShiftUpRPM =
-            controllerSettings->mEngine.mMaxRPM * 0.86F;
+            controllerSettings->mEngine.mMaxRPM * 0.999F;
         controllerSettings->mTransmission.mShiftDownRPM =
-            controllerSettings->mEngine.mMaxRPM * 0.48F;
+            controllerSettings->mEngine.mMaxRPM / 1.8F;
+        controllerSettings->mTransmission.mSwitchTime = 0.0F;
+        controllerSettings->mTransmission.mClutchReleaseTime = 0.0F;
+        controllerSettings->mTransmission.mSwitchLatency = 0.0F;
         std::vector<JPH::uint> driven;
         for (JPH::uint index = 0; index < source.wheels.size(); ++index)
             if (source.wheels[index].driven)
@@ -1127,6 +1228,17 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     for (int step = 0; step < 240; ++step)
         world->step(1.0F / 120.0F, input);
     const auto settled = world->vehicle();
+    const auto& sourceVehicle =
+        description.spawns.empty()
+            ? description.vehicle
+            : description.spawns.front().vehicle;
+    if (std::abs(settled.engineRpm - sourceVehicle.idlingRpm) > 1.0F)
+    {
+        error = "Jolt engine idle RPM did not preserve CarMotorDesc: " +
+                std::to_string(settled.engineRpm) + " vs " +
+                std::to_string(sourceVehicle.idlingRpm);
+        return false;
+    }
     const auto settledWheelContacts = static_cast<std::uint32_t>(
         std::count_if(
             settled.wheelContacts.begin(), settled.wheelContacts.end(),

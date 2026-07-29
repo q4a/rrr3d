@@ -176,9 +176,66 @@ Camera reflectedCamera(const Camera& camera, float height) noexcept
 }
 
 Camera shadowCamera(const GraphicsDevice& device,
-                    const r3d::physics::Vec3& target,
-                    const r3d::physics::Vec3& sun) noexcept
+                    const Camera& sceneCamera,
+                    const r3d::physics::Vec3& sun,
+                    float sliceNear, float sliceFar,
+                    float cameraFar) noexcept
 {
+    const auto sceneViewProjection = viewProjection(sceneCamera);
+    std::array<float, 16> inverseViewProjection{};
+    bx::mtxInverse(inverseViewProjection.data(),
+                   sceneViewProjection.data());
+    auto unproject = [&](float x, float y, float z) {
+        const auto& matrix = inverseViewProjection;
+        const float worldX = matrix[0] * x + matrix[4] * y +
+                             matrix[8] * z + matrix[12];
+        const float worldY = matrix[1] * x + matrix[5] * y +
+                             matrix[9] * z + matrix[13];
+        const float worldZ = matrix[2] * x + matrix[6] * y +
+                             matrix[10] * z + matrix[14];
+        const float worldW = matrix[3] * x + matrix[7] * y +
+                             matrix[11] * z + matrix[15];
+        const float inverseW =
+            std::abs(worldW) > 0.000001F ? 1.0F / worldW : 1.0F;
+        return r3d::physics::Vec3{
+            worldX * inverseW, worldY * inverseW,
+            worldZ * inverseW};
+    };
+    const float nearDepth =
+        device.usesHomogeneousDepth() ? -1.0F : 0.0F;
+    const float denominator = std::max(cameraFar - 1.0F, 0.001F);
+    const float nearFrame =
+        std::clamp((sliceNear - 1.0F) / denominator, 0.0F, 1.0F);
+    const float farFrame =
+        std::clamp((sliceFar - 1.0F) / denominator, 0.0F, 1.0F);
+    std::array<r3d::physics::Vec3, 8> corners{};
+    std::size_t corner = 0U;
+    for (const float y : {-1.0F, 1.0F})
+    {
+        for (const float x : {-1.0F, 1.0F})
+        {
+            const auto nearPoint = unproject(x, y, nearDepth);
+            const auto farPoint = unproject(x, y, 1.0F);
+            auto interpolate = [&](float frame) {
+                return r3d::physics::Vec3{
+                    nearPoint.x + (farPoint.x - nearPoint.x) * frame,
+                    nearPoint.y + (farPoint.y - nearPoint.y) * frame,
+                    nearPoint.z + (farPoint.z - nearPoint.z) * frame};
+            };
+            corners[corner++] = interpolate(nearFrame);
+            corners[corner++] = interpolate(farFrame);
+        }
+    }
+    r3d::physics::Vec3 target{};
+    for (const auto& point : corners)
+    {
+        target.x += point.x;
+        target.y += point.y;
+        target.z += point.z;
+    }
+    target.x /= static_cast<float>(corners.size());
+    target.y /= static_cast<float>(corners.size());
+    target.z /= static_cast<float>(corners.size());
     Camera camera;
     const float length =
         std::max(std::sqrt(sun.x * sun.x + sun.y * sun.y +
@@ -186,19 +243,79 @@ Camera shadowCamera(const GraphicsDevice& device,
                  0.001F);
     const bx::Vec3 center{target.x, target.y, target.z};
     const bx::Vec3 eye{
-        target.x + sun.x / length * 65.0F,
-        target.y + sun.y / length * 65.0F,
-        target.z + sun.z / length * 65.0F};
+        target.x + sun.x / length * 100.0F,
+        target.y + sun.y / length * 100.0F,
+        target.z + sun.z / length * 100.0F};
     const bx::Vec3 up =
         std::abs(sun.z / length) > 0.95F
             ? bx::Vec3{0.0F, 1.0F, 0.0F}
             : bx::Vec3{0.0F, 0.0F, 1.0F};
     bx::mtxLookAt(camera.view.data(), eye, center, up,
                   bx::Handedness::Right);
-    bx::mtxOrtho(camera.projection.data(), -60.0F, 60.0F,
-                 -60.0F, 60.0F, 1.0F, 140.0F, 0.0F,
-                 device.usesHomogeneousDepth());
+    auto lightPoint = [&](const r3d::physics::Vec3& point) {
+        const auto& matrix = camera.view;
+        return r3d::physics::Vec3{
+            matrix[0] * point.x + matrix[4] * point.y +
+                matrix[8] * point.z + matrix[12],
+            matrix[1] * point.x + matrix[5] * point.y +
+                matrix[9] * point.z + matrix[13],
+            matrix[2] * point.x + matrix[6] * point.y +
+                matrix[10] * point.z + matrix[14]};
+    };
+    auto first = lightPoint(corners.front());
+    float minimumX = first.x;
+    float maximumX = first.x;
+    float minimumY = first.y;
+    float maximumY = first.y;
+    float minimumDepth = -first.z;
+    float maximumDepth = -first.z;
+    for (std::size_t index = 1U; index < corners.size(); ++index)
+    {
+        const auto point = lightPoint(corners[index]);
+        minimumX = std::min(minimumX, point.x);
+        maximumX = std::max(maximumX, point.x);
+        minimumY = std::min(minimumY, point.y);
+        maximumY = std::max(maximumY, point.y);
+        minimumDepth = std::min(minimumDepth, -point.z);
+        maximumDepth = std::max(maximumDepth, -point.z);
+    }
+    constexpr float cropMargin = 2.0F;
+    float extentX =
+        std::max((maximumX - minimumX) * 0.5F + cropMargin, 1.0F);
+    float extentY =
+        std::max((maximumY - minimumY) * 0.5F + cropMargin, 1.0F);
+    float centerX = (minimumX + maximumX) * 0.5F;
+    float centerY = (minimumY + maximumY) * 0.5F;
+    // Snap the crop to shadow texels so sub-pixel camera motion does not
+    // shimmer the projected map.
+    const float texelX = extentX * 2.0F / 2048.0F;
+    const float texelY = extentY * 2.0F / 2048.0F;
+    centerX = std::round(centerX / texelX) * texelX;
+    centerY = std::round(centerY / texelY) * texelY;
+    const float depthNear = std::max(minimumDepth - 50.0F, 0.1F);
+    const float depthFar =
+        std::max(maximumDepth + 50.0F, depthNear + 1.0F);
+    bx::mtxOrtho(camera.projection.data(), centerX - extentX,
+                 centerX + extentX, centerY - extentY,
+                 centerY + extentY, depthNear, depthFar, 0.0F,
+                 device.usesHomogeneousDepth(),
+                 bx::Handedness::Right);
     return camera;
+}
+
+float sourceShadowSplit(bool orthographic) noexcept
+{
+    // ShadowMapRender::BuildViewProj uses the standard logarithmic/uniform
+    // blend with lambda 0.1 for the isometric camera and 0.7 for the
+    // perspective camera. CameraManager limits shadow depth to 55/60 m.
+    constexpr float nearDistance = 1.0F;
+    const float farDistance = orthographic ? 55.0F : 60.0F;
+    const float lambda = orthographic ? 0.1F : 0.7F;
+    const float logarithmic =
+        nearDistance * std::sqrt(farDistance / nearDistance);
+    const float uniform = nearDistance +
+                          (farDistance - nearDistance) * 0.5F;
+    return logarithmic * lambda + uniform * (1.0F - lambda);
 }
 
 constexpr std::array<RenderPass, 6> environmentPasses{{
@@ -964,8 +1081,11 @@ bool OriginalRaceRenderer::createFrameTargets(
         halfWidth, halfHeight, RenderTargetFormat::Rgba8,
         true, "Motor Rock planar reflection");
     shadowTarget_ = device.createRenderTarget(
-        1024, 1024, RenderTargetFormat::R32F,
-        true, "Motor Rock directional shadow");
+        2048, 2048, RenderTargetFormat::R32F,
+        true, "Motor Rock directional shadow near split");
+    shadowTargetFar_ = device.createRenderTarget(
+        2048, 2048, RenderTargetFormat::R32F,
+        true, "Motor Rock directional shadow far split");
     luminance64Target_ = device.createRenderTarget(
         64, 64, RenderTargetFormat::Rgba16F, false,
         "Motor Rock luminance 64");
@@ -992,13 +1112,14 @@ bool OriginalRaceRenderer::createFrameTargets(
         false, "Motor Rock bloom B");
     if (!valid(hdrTarget_) || !valid(waterSceneTarget_) ||
         !valid(reflectionTarget_) || !valid(shadowTarget_) ||
+        !valid(shadowTargetFar_) ||
         !valid(luminance64Target_) || !valid(luminance16Target_) ||
         !valid(luminance4Target_) || !valid(luminance1Target_) ||
         !valid(adaptedLuminanceTargetA_) ||
         !valid(adaptedLuminanceTargetB_) ||
         !valid(bloomTargetA_) || !valid(bloomTargetB_))
     {
-        error = "bgfx/Metal could not create M9.3 render targets";
+        error = "bgfx/Metal could not create M9.5 render targets";
         destroyFrameTargets(device);
         return false;
     }
@@ -1015,6 +1136,8 @@ void OriginalRaceRenderer::destroyFrameTargets(
         device.destroy(bloomTargetA_);
     if (valid(shadowTarget_))
         device.destroy(shadowTarget_);
+    if (valid(shadowTargetFar_))
+        device.destroy(shadowTargetFar_);
     if (valid(adaptedLuminanceTargetB_))
         device.destroy(adaptedLuminanceTargetB_);
     if (valid(adaptedLuminanceTargetA_))
@@ -1036,6 +1159,7 @@ void OriginalRaceRenderer::destroyFrameTargets(
     bloomTargetB_ = {};
     bloomTargetA_ = {};
     shadowTarget_ = {};
+    shadowTargetFar_ = {};
     adaptedLuminanceTargetB_ = {};
     adaptedLuminanceTargetA_ = {};
     luminance1Target_ = {};
@@ -2253,40 +2377,144 @@ void OriginalRaceRenderer::draw(
                     asset.particleTextures[emitterIndex];
                 if (textures.empty() || emitter.materials.empty())
                     continue;
-                float groupStep = std::max(
-                    (emitter.startTimeMinimum +
-                     emitter.startTimeMaximum) *
-                        0.5F,
-                    0.001F);
-                if (emitter.distanceTriggered)
-                    groupStep /= std::max(sourceSpeed, 1.0F);
-                const bool permanentGroup =
-                    emitter.lifeMinimum <= 0.0F &&
-                    emitter.lifeMaximum <= 0.0F &&
-                    emitter.maximumParticles > 0U;
-                const auto currentGroup =
-                    permanentGroup
-                        ? 0U
-                        :
-                    static_cast<std::uint32_t>(
-                        std::max(std::floor(age / groupStep), 0.0F));
-                const float maximumLife =
-                    std::max({emitter.lifeMinimum,
-                              emitter.lifeMaximum, 0.03F});
-                const float minimumStep = std::max(
-                    std::min(emitter.startTimeMinimum,
-                             emitter.startTimeMaximum),
-                    0.001F) /
-                    (emitter.distanceTriggered
-                         ? std::max(sourceSpeed, 1.0F)
-                         : 1.0F);
-                std::uint32_t groupsToVisit =
-                    static_cast<std::uint32_t>(
-                        std::ceil(maximumLife / minimumStep)) + 2U;
-                groupsToVisit =
-                    std::min({groupsToVisit, currentGroup + 1U, 96U});
-                if (permanentGroup)
-                    groupsToVisit = 1U;
+                struct ScheduledGroup
+                {
+                    std::uint32_t index = 0;
+                    std::uint32_t firstParticle = 0;
+                    std::uint32_t particleCount = 0;
+                    float birth = 0.0F;
+                    float life = 0.0F;
+                };
+                struct LiveGroup
+                {
+                    float death = 0.0F;
+                    std::uint32_t particleCount = 0;
+                };
+                std::vector<ScheduledGroup> scheduledGroups;
+                std::vector<LiveGroup> liveGroups;
+                const float distanceSpeed =
+                    std::max(sourceSpeed, 0.0F);
+                const float scheduleAge =
+                    emitter.distanceTriggered
+                        ? age * distanceSpeed
+                        : age;
+                const std::uint32_t sourceMaximum =
+                    emitter.maximumParticles;
+                std::uint32_t createdParticles = 0U;
+                std::uint32_t liveParticles = 0U;
+                float densityAccumulator = 0.0F;
+                float nextBirth = 0.0F;
+                // FxEmitter is stateful in the D3D9 graph. Replaying its
+                // deterministic schedule keeps the portable renderer free
+                // of pass-local state while preserving variable intervals,
+                // fractional density and mnaWaitingFree capacity.
+                for (std::uint32_t groupIndex = 0U;
+                     groupIndex < 4096U &&
+                     nextBirth <= scheduleAge + 0.0001F;
+                     ++groupIndex)
+                {
+                    const float birth =
+                        emitter.distanceTriggered
+                            ? (distanceSpeed > 0.0001F
+                                   ? nextBirth / distanceSpeed
+                                   : 0.0F)
+                            : nextBirth;
+                    if (emitter.startDuration > 0.0F &&
+                        birth >= emitter.startDuration)
+                        break;
+                    liveGroups.erase(
+                        std::remove_if(
+                            liveGroups.begin(), liveGroups.end(),
+                            [&](const LiveGroup& group) {
+                                if (group.death <= birth)
+                                {
+                                    liveParticles -= group.particleCount;
+                                    return true;
+                                }
+                                return false;
+                            }),
+                        liveGroups.end());
+                    const std::uint32_t groupSeed =
+                        groupIndex * 747796405U +
+                        static_cast<std::uint32_t>(emitterIndex) *
+                            2891336453U;
+                    const float sampledDensity =
+                        emitter.densityMinimum +
+                        (emitter.densityMaximum -
+                         emitter.densityMinimum) *
+                            unitNoise(groupSeed + 23U);
+                    densityAccumulator += std::max(sampledDensity, 0.0F);
+                    const auto requested =
+                        static_cast<std::uint32_t>(
+                            std::floor(densityAccumulator));
+                    densityAccumulator -=
+                        static_cast<float>(requested);
+                    const std::uint32_t capacity =
+                        sourceMaximum == 0U
+                            ? requested
+                            : std::min(
+                                  requested,
+                                  sourceMaximum -
+                                      std::min(liveParticles,
+                                               sourceMaximum));
+                    if (capacity > 0U)
+                    {
+                        const float rangeFrame =
+                            sourceMaximum > 1U
+                                ? static_cast<float>(
+                                      createdParticles % sourceMaximum) /
+                                      static_cast<float>(sourceMaximum - 1U)
+                                : unitNoise(groupSeed + 19U);
+                        float activeLife =
+                            emitter.lifeMinimum +
+                            (emitter.lifeMaximum -
+                             emitter.lifeMinimum) *
+                                unitNoise(groupSeed + 17U);
+                        activeLife +=
+                            emitter.rangeLifeMinimum +
+                            (emitter.rangeLifeMaximum -
+                             emitter.rangeLifeMinimum) *
+                                rangeFrame;
+                        if (activeLife > 0.0F)
+                        {
+                            liveGroups.push_back(
+                                {birth + activeLife, capacity});
+                            liveParticles += capacity;
+                        }
+                        else
+                        {
+                            liveGroups.push_back(
+                                {std::numeric_limits<float>::infinity(),
+                                 capacity});
+                            liveParticles += capacity;
+                        }
+                        const float particleAge =
+                            std::max(age - birth, 0.0F);
+                        if (activeLife <= 0.0F ||
+                            particleAge <= activeLife)
+                        {
+                            scheduledGroups.push_back(
+                                {groupIndex, createdParticles, capacity,
+                                 birth, activeLife});
+                        }
+                        createdParticles += capacity;
+                    }
+                    const float interval = std::max(
+                        emitter.startTimeMinimum +
+                            (emitter.startTimeMaximum -
+                             emitter.startTimeMinimum) *
+                                unitNoise(groupSeed + 29U),
+                        0.001F);
+                    nextBirth += interval;
+                    if (sourceMaximum > 0U &&
+                        liveParticles >= sourceMaximum &&
+                        std::all_of(
+                            liveGroups.begin(), liveGroups.end(),
+                            [](const LiveGroup& group) {
+                                return !std::isfinite(group.death);
+                            }))
+                        break;
+                }
                 const auto emitterWorld =
                     compose(parent, emitter.transform);
                 std::vector<r3d::physics::Vec3> trailPoints;
@@ -2295,67 +2523,31 @@ void OriginalRaceRenderer::draw(
                 Texture trailTexture;
                 bool trailConfigured = false;
                 std::uint32_t submittedParticles = 0;
-                const std::uint32_t maximumParticles =
-                    emitter.maximumParticles == 0U
-                        ? 96U
-                        : std::min(emitter.maximumParticles, 96U);
-                for (std::uint32_t groupOffset = 0;
-                     groupOffset < groupsToVisit &&
-                     submittedParticles < maximumParticles;
-                     ++groupOffset)
+                constexpr std::uint32_t renderParticleLimit = 96U;
+                for (const auto& scheduled : scheduledGroups)
                 {
-                    const auto groupIndex =
-                        currentGroup - groupOffset;
-                    const float birth =
-                        static_cast<float>(groupIndex) * groupStep;
-                    if (emitter.startDuration > 0.0F &&
-                        birth > emitter.startDuration)
-                        continue;
                     const float particleAge =
-                        std::max(age - birth, 0.0F);
+                        std::max(age - scheduled.birth, 0.0F);
                     const std::uint32_t groupSeed =
-                        groupIndex * 747796405U +
+                        scheduled.index * 747796405U +
                         static_cast<std::uint32_t>(
                             emitterIndex) *
                             2891336453U;
-                    float activeLife =
-                        emitter.lifeMinimum +
-                        (emitter.lifeMaximum -
-                         emitter.lifeMinimum) *
-                            unitNoise(groupSeed + 17U);
-                    activeLife +=
-                        emitter.rangeLifeMinimum +
-                        (emitter.rangeLifeMaximum -
-                         emitter.rangeLifeMinimum) *
-                            unitNoise(groupSeed + 19U);
-                    if (!permanentGroup &&
-                        particleAge > std::max(activeLife, 0.0F))
-                        continue;
-                    const float sampledDensity =
-                        emitter.densityMinimum +
-                        (emitter.densityMaximum -
-                         emitter.densityMinimum) *
-                            unitNoise(groupSeed + 23U);
-                    const auto groupParticles =
-                        static_cast<std::uint32_t>(
-                            std::max(std::floor(
-                                         sampledDensity +
-                                         unitNoise(groupSeed + 29U)),
-                                     1.0F));
                     for (std::uint32_t groupParticle = 0;
-                         groupParticle < groupParticles &&
-                         submittedParticles < maximumParticles;
+                         groupParticle < scheduled.particleCount &&
+                         submittedParticles < renderParticleLimit;
                          ++groupParticle, ++submittedParticles)
                     {
                         const std::uint32_t seed =
                             groupSeed + groupParticle * 2246822519U;
+                        const std::uint32_t particleIndex =
+                            scheduled.firstParticle + groupParticle;
                         const float rangeFrame =
-                            maximumParticles > 1U
+                            sourceMaximum > 1U
                                 ? static_cast<float>(
-                                      submittedParticles %
-                                      maximumParticles) /
+                                      particleIndex % sourceMaximum) /
                                       static_cast<float>(
-                                          maximumParticles - 1U)
+                                          sourceMaximum - 1U)
                                 : unitNoise(seed + 13U);
                         auto position = rangeVector(
                             emitter.startPositionMinimum,
@@ -2576,6 +2768,8 @@ void OriginalRaceRenderer::draw(
                             textures[textureIndex], model,
                             particlePipeline, {}, material);
                     }
+                    if (submittedParticles >= renderParticleLimit)
+                        break;
                 }
                 if (trailConfigured && trailOverride != nullptr &&
                     emitter.renderMode ==
@@ -2711,6 +2905,7 @@ void OriginalRaceRenderer::draw(
             nullptr;
         float opacity = 1.0F;
         RenderStage stage = RenderStage::Opacity;
+        float distanceSquared = 0.0F;
     };
     std::vector<DeferredParticleDraw> deferredParticles;
     auto drawDefinition =
@@ -2734,11 +2929,18 @@ void OriginalRaceRenderer::draw(
                        nullptr, age);
             if (!definition.particleEmitters.empty())
             {
+                const float dx =
+                    parent.position.x - cameraPosition_.x;
+                const float dy =
+                    parent.position.y - cameraPosition_.y;
+                const float dz =
+                    parent.position.z - cameraPosition_.z;
                 deferredParticles.push_back(
                     {&asset, &definition, parent, age, sourceSpeed,
                      trailOverride, opacity,
                      renderStage(definition.graphOrder,
-                                 cullOpacityActor)});
+                                 cullOpacityActor),
+                     dx * dx + dy * dy + dz * dz});
             }
         };
     for (std::size_t index = 0; index < race.trackInstances.size();
@@ -3484,6 +3686,14 @@ void OriginalRaceRenderer::draw(
         [](const auto& first, const auto& second) {
             return first.distanceSquared > second.distanceSquared;
         });
+    std::stable_sort(
+        deferredParticles.begin(), deferredParticles.end(),
+        [](const auto& first, const auto& second) {
+            if (first.stage != second.stage)
+                return static_cast<int>(first.stage) <
+                       static_cast<int>(second.stage);
+            return first.distanceSquared > second.distanceSquared;
+        });
     for (const auto stage : stages)
     {
         auto stagePipeline = pipeline;
@@ -3952,12 +4162,29 @@ void OriginalRaceRenderer::renderFrame(
         sun.x * sun.x + sun.y * sun.y + sun.z * sun.z);
     if (sunLength < 0.001F)
         sun = {45.0F, 30.0F, 60.0F};
-    const auto lightCamera = shadowCamera(device, renderCenter, sun);
+    const float shadowFarDistance = isometricCamera ? 55.0F : 60.0F;
+    const float shadowSplitDistance =
+        sourceShadowSplit(isometricCamera);
+    const float cameraFarDistance = isometricCamera ? 150.0F : 120.0F;
+    const auto lightCamera = shadowCamera(
+        device, camera, sun, 1.0F, shadowSplitDistance,
+        cameraFarDistance);
+    const auto lightCameraFar = shadowCamera(
+        device, camera, sun, shadowSplitDistance,
+        shadowFarDistance, cameraFarDistance);
     if (shadowsEnabled)
     {
         device.setPassState({});
         device.beginPass(RenderPass::Shadow, shadowTarget_, lightCamera,
                          0xffffffffU, true, true);
+        drawShadowCasters(device, race, vehicles, pipeline,
+                          decorationActive, decorationFragments,
+                          vehicleDeathFragments, racerRuntime,
+                          elapsedSeconds);
+        device.setPassState({});
+        device.beginPass(
+            RenderPass::ShadowFar, shadowTargetFar_, lightCameraFar,
+            0xffffffffU, true, true);
         drawShadowCasters(device, race, vehicles, pipeline,
                           decorationActive, decorationFragments,
                           vehicleDeathFragments, racerRuntime,
@@ -4026,9 +4253,16 @@ void OriginalRaceRenderer::renderFrame(
     {
         sceneState.shadowTexture =
             device.renderTargetTexture(shadowTarget_);
+        sceneState.shadowTextureFar =
+            device.renderTargetTexture(shadowTargetFar_);
         sceneState.shadowViewProjection = viewProjection(lightCamera);
+        sceneState.shadowViewProjectionFar =
+            viewProjection(lightCameraFar);
         sceneState.shadowsEnabled = true;
         sceneState.shadowStrength = 0.62F;
+        sceneState.shadowSplitDistance = shadowSplitDistance;
+        sceneState.shadowMapSize = 2048.0F;
+        sceneState.shadowDepthBias = 0.0015F;
     }
     device.setPassState(sceneState);
     device.beginPass(

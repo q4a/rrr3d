@@ -92,8 +92,13 @@ fi
 
 asset_count=$(/usr/bin/find "$resources/game-data" -type f | /usr/bin/wc -l |
     /usr/bin/tr -d ' ')
-[ "$asset_count" -ge 1196 ] ||
-    fail "game-data is incomplete: found $asset_count files"
+catalog_count=$(/usr/bin/wc -l < \
+    "$resources/game-data/legacy-assets.catalog" | /usr/bin/tr -d ' ')
+expected_asset_count=$((catalog_count + 4))
+[ "$catalog_count" -eq 1196 ] ||
+    fail "unexpected game-data catalog size: $catalog_count"
+[ "$asset_count" -eq "$expected_asset_count" ] ||
+    fail "game-data must contain exactly $expected_asset_count cataloged files; found $asset_count"
 
 printf 'RRR3d.app verified: arm64, minos %s, %s assets, signed, autonomous dependencies\n' \
     "$minimum" "$asset_count"

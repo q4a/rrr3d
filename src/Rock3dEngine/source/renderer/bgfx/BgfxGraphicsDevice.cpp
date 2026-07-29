@@ -72,6 +72,8 @@ public:
                 bgfx::destroy(reflection_sampler_);
             if (bgfx::isValid(shadow_sampler_))
                 bgfx::destroy(shadow_sampler_);
+            if (bgfx::isValid(shadow_far_sampler_))
+                bgfx::destroy(shadow_far_sampler_);
             if (bgfx::isValid(environment_sampler_))
                 bgfx::destroy(environment_sampler_);
             if (bgfx::isValid(normal_sampler_))
@@ -98,6 +100,10 @@ public:
                 bgfx::destroy(reflection_view_projection_);
             if (bgfx::isValid(shadow_view_projection_))
                 bgfx::destroy(shadow_view_projection_);
+            if (bgfx::isValid(shadow_view_projection_far_))
+                bgfx::destroy(shadow_view_projection_far_);
+            if (bgfx::isValid(shadow_parameters_))
+                bgfx::destroy(shadow_parameters_);
             if (bgfx::isValid(post_parameters_))
                 bgfx::destroy(post_parameters_);
             bgfx::shutdown();
@@ -167,6 +173,8 @@ public:
             "s_texReflection", bgfx::UniformType::Sampler);
         shadow_sampler_ = bgfx::createUniform(
             "s_texShadow", bgfx::UniformType::Sampler);
+        shadow_far_sampler_ = bgfx::createUniform(
+            "s_texShadowFar", bgfx::UniformType::Sampler);
         environment_sampler_ = bgfx::createUniform(
             "s_texEnvironment", bgfx::UniformType::Sampler);
         normal_sampler_ = bgfx::createUniform(
@@ -193,11 +201,16 @@ public:
             "u_reflectionViewProj", bgfx::UniformType::Mat4);
         shadow_view_projection_ = bgfx::createUniform(
             "u_shadowViewProj", bgfx::UniformType::Mat4);
+        shadow_view_projection_far_ = bgfx::createUniform(
+            "u_shadowViewProjFar", bgfx::UniformType::Mat4);
+        shadow_parameters_ = bgfx::createUniform(
+            "u_shadowParams", bgfx::UniformType::Vec4);
         post_parameters_ = bgfx::createUniform(
             "u_postParams", bgfx::UniformType::Vec4);
         if (!bgfx::isValid(texture_sampler_) ||
             !bgfx::isValid(reflection_sampler_) ||
             !bgfx::isValid(shadow_sampler_) ||
+            !bgfx::isValid(shadow_far_sampler_) ||
             !bgfx::isValid(environment_sampler_) ||
             !bgfx::isValid(normal_sampler_) ||
             !bgfx::isValid(scene_light_direction_) ||
@@ -211,6 +224,8 @@ public:
             !bgfx::isValid(clip_plane_) ||
             !bgfx::isValid(reflection_view_projection_) ||
             !bgfx::isValid(shadow_view_projection_) ||
+            !bgfx::isValid(shadow_view_projection_far_) ||
+            !bgfx::isValid(shadow_parameters_) ||
             !bgfx::isValid(post_parameters_))
         {
             error = "bgfx could not create the scene texture sampler";
@@ -234,7 +249,9 @@ public:
         bgfx::setViewName(viewId(RenderPass::Reflection),
                           "Motor Rock planar reflection");
         bgfx::setViewName(viewId(RenderPass::Shadow),
-                          "Motor Rock shadow map");
+                          "Motor Rock shadow map near split");
+        bgfx::setViewName(viewId(RenderPass::ShadowFar),
+                          "Motor Rock shadow map far split");
         bgfx::setViewName(scene_view, "Motor Rock HDR scene");
         bgfx::setViewName(viewId(RenderPass::Water),
                           "Motor Rock water/refraction");
@@ -783,12 +800,19 @@ private:
             valid(pass_state_.shadowTexture)
                 ? pass_state_.shadowTexture
                 : texture;
+        const auto shadowTextureFar =
+            valid(pass_state_.shadowTextureFar)
+                ? pass_state_.shadowTextureFar
+                : shadowTexture;
         bgfx::setTexture(
             1, reflection_sampler_,
             bgfx::TextureHandle{reflectionTexture.value});
         bgfx::setTexture(
             2, shadow_sampler_,
             bgfx::TextureHandle{shadowTexture.value});
+        bgfx::setTexture(
+            5, shadow_far_sampler_,
+            bgfx::TextureHandle{shadowTextureFar.value});
         const auto environmentTexture =
             valid(material.environmentTexture)
                 ? material.environmentTexture
@@ -833,6 +857,13 @@ private:
                          pass_state_.reflectionViewProjection.data());
         bgfx::setUniform(shadow_view_projection_,
                          pass_state_.shadowViewProjection.data());
+        bgfx::setUniform(shadow_view_projection_far_,
+                         pass_state_.shadowViewProjectionFar.data());
+        const std::array<float, 4> shadowParameters{
+            pass_state_.shadowSplitDistance,
+            pass_state_.shadowMapSize,
+            pass_state_.shadowDepthBias, 0.0F};
+        bgfx::setUniform(shadow_parameters_, shadowParameters.data());
         bgfx::setUniform(post_parameters_,
                          material.postParameters.data());
         bgfx::setState(state);
@@ -899,12 +930,16 @@ private:
         BGFX_INVALID_HANDLE;
     bgfx::UniformHandle shadow_view_projection_ =
         BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle shadow_view_projection_far_ =
+        BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle shadow_parameters_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle post_parameters_ = BGFX_INVALID_HANDLE;
     bgfx::VertexLayout color_vertex_layout_;
     bgfx::VertexLayout static_vertex_layout_;
     bgfx::UniformHandle texture_sampler_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle reflection_sampler_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle shadow_sampler_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle shadow_far_sampler_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle environment_sampler_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle normal_sampler_ = BGFX_INVALID_HANDLE;
 };

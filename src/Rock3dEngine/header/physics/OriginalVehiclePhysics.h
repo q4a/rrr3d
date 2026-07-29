@@ -80,9 +80,15 @@ struct VehicleDescription
     float brakeTorque = 0.0F;
     float differentialRatio = 0.0F;
     float maximumRpm = 0.0F;
+    float idlingRpm = 1000.0F;
     float maximumTorque = 0.0F;
+    // CarMotorDesc::SEM multiplied by its fixed cGameK (1.15).
+    float torqueEfficiency = 0.805F;
+    float restBrakeTorque = 400.0F;
     float maximumSpeed = 0.0F;
     float steerAngle = 0.0F;
+    float steerSpeed = 1.5707963267948966F;
+    float steerRotation = 3.1415926535897932F;
     std::vector<WheelDescription> wheels;
 };
 

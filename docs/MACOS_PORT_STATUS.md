@@ -1,6 +1,6 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
-> **Исправленный активный статус:** Milestone 5–9.4 переделаны от исходных
+> **Исправленный активный статус:** Milestone 5–9.5 переделаны от исходных
 > ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
 > bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки.
 > M7 подключает к этому же меню SDL3 keyboard/mouse/gamepad input и общий с
@@ -15,7 +15,9 @@
 > `ctEffects/rain`. M9.3 переносит source Water/HDR adaptation и добавляет
 > проверяемый render graph. M9.4 реализует 512×512 dynamic cube reflection,
 > настоящий tangent-space normal mapping и связный `FxTrailManager` strip
-> по истории колёс. Follow-up устраняет подмену гоночных колёс огромными
+> по истории колёс. M9.5 переносит два 2048 projected-shadow split,
+> исходный `FxEmitter` density/scheduling/sorting и параметры
+> `CarMotorDesc` в Jolt. Follow-up устраняет подмену гоночных колёс огромными
 > workshop preview meshes и восстанавливает исходный D3D9 additive blend
 > `SRC_ALPHA, ONE` в bgfx backend. Loader охватывает все 88 турнирных карт и 17
 > машин гаража. Старые portable M6–M10 ниже остаются историей
@@ -23,8 +25,8 @@
 
 ## Активный этап
 
-Milestone 9.4 follow-up: visual parity колёс и прозрачных эффектов на
-bgfx/Metal.
+Milestone 9.5: projected shadows, FxEmitter scheduling/sorting и
+source-calibrated Jolt на bgfx/Metal.
 
 ## Активный статус
 
@@ -41,13 +43,20 @@ race session. MusicCat ставится на паузу, а race sound graph и 
 выбирают остальные исходные данные.
 Подробности M9.1 находятся в `docs/PHYSICS_PORT_PLAN.md`; последующие
 renderer stages описаны в `docs/MILESTONE_9_2.md`,
-`docs/MILESTONE_9_3.md` и `docs/MILESTONE_9_4.md`.
+`docs/MILESTONE_9_3.md`, `docs/MILESTONE_9_4.md` и
+`docs/MILESTONE_9_5.md`.
 
-Финальная проверка M9.4: arm64 Debug build и новые Metal shaders прошли без
+Финальная проверка M9.5: arm64 Debug build и новые Metal shaders прошли без
 новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
-каждый подтвердил шесть cube faces, `glRefl` и FxTrail, а World2 дополнительно
-дал 768 draw submissions с исходными normal maps. Parallels не
-использовался. Подробные результаты находятся в `docs/MILESTONE_9_4.md`.
+каждый подтвердил оба 2048 shadow split, шесть cube faces, `glRefl` и FxTrail,
+а World2 дополнительно дал 768 draw submissions с исходными normal maps.
+Physics smoke проверил исходные idle RPM, torque/transmission/rest-brake и
+steering rules. Parallels не использовался. Подробные результаты находятся в
+`docs/MILESTONE_9_5.md`.
+
+Bundle M9.5 формируется строго по `legacy-assets.catalog`: 1196 исходных и
+четыре portable-файла. Незатреканные File Provider-копии с суффиксом ` 2` в
+`.app` и ZIP не попадают; verifier требует ровно 1200 файлов.
 
 Follow-up проверен вручную через штатный путь `Single Player -> Tournament ->
 Continue -> Start race`: колёса Marauder и AI сохраняют исходный масштаб и
@@ -655,13 +664,14 @@ SDL_AUDIO_DRIVER=dummy \
   исправленный M9 race используют action layer, но legacy `ControlManager` ещё не
   является его consumer.
 - DXVK Native/MoltenVK проверен и отклонён. bgfx backend покрывает
-  исправленные M5–M9.4 slices, включая HDR, planar reflection, shadow map,
+  исправленные M5–M9.5 slices, включая HDR, planar reflection, shadow map,
   true cube reflection, normal mapping и FxTrail.
-- Оригинальные game assets импортированы в `game-data`; M9.4 декодирует binary
+- Оригинальные game assets импортированы в `game-data`; M9.5 декодирует binary
   `.r3d` visual/collision meshes, materials, DDS, nested effect graph и
-  particle emitters. Portable particle scheduler/sorting и projected shadows
-  не являются побитовой копией D3D9 renderer. Перед публикацией нужно отдельно
-  проверить права на распространение данных.
+  particle emitters, воспроизводит source scheduler/sorting и два projected
+  shadow split. Не-trail distance emitters восстанавливают пройденный путь из
+  скорости, а Metal depth precision не является побитовой копией D3D9.
+  Перед публикацией нужно отдельно проверить права на распространение данных.
 - Длинная музыка M8 пока декодируется целиком и сохраняется в памяти, но decode
   и preload всех трёх menu-треков выполняются последовательно фоновым worker;
   render/input loop не ждёт их. Streaming/ring buffer остаётся оптимизацией
@@ -673,8 +683,8 @@ SDL_AUDIO_DRIVER=dummy \
   model. По требованию M9.1 Windows/Parallels A/B не выполняется; границы
   backend-эквивалентности описаны в `docs/PHYSICS_PORT_PLAN.md`.
 - AI/workshop/projectile/mine/support/material/effect data перенесены из
-  исходников, но порядок PhysX contacts, legacy particle scheduling и D3D9
-  multipass rendering не могут быть численно идентичны portable backend.
+  исходников, но порядок PhysX contacts и D3D9 multipass rendering не могут
+  быть численно идентичны portable backend.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,
@@ -686,7 +696,6 @@ SDL_AUDIO_DRIVER=dummy \
 
 ## Следующий рекомендуемый этап
 
-После M9.4 следующий технический этап — projected-shadow детали, оставшаяся
-точность particle scheduling/sorting и калибровка Jolt. После этого следует
-заново базировать bundle Milestone 10 на исправленный M5–M9.4 путь; старый M10
-portable bundle не является текущим release-кандидатом.
+Следующий этап — заново собрать Milestone 10 на исправленном M5–M9.5 пути,
+прогнать Debug/Release bundle verifier, xattr-free ZIP и запуск перемещённого
+bundle. Старый M10 portable bundle не является текущим release-кандидатом.
