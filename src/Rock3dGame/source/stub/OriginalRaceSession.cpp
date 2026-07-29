@@ -1,6 +1,7 @@
 #include "OriginalRaceSession.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <numeric>
 #include <stdexcept>
@@ -122,6 +123,122 @@ float distanceSquared(Vec3 first, Vec3 second)
     const auto difference = subtract(first, second);
     return difference.x * difference.x + difference.y * difference.y +
            difference.z * difference.z;
+}
+
+struct OrientedBox
+{
+    Vec3 center;
+    std::array<Vec3, 3> axes;
+    std::array<float, 3> halfExtents{};
+};
+
+OrientedBox orientedBox(Transform transform,
+                        ProjectileCollisionBox collision)
+{
+    const Vec3 localCenter{
+        collision.center.x * transform.scale.x,
+        collision.center.y * transform.scale.y,
+        collision.center.z * transform.scale.z};
+    OrientedBox result;
+    result.center = add(transform.position,
+                        rotate(transform.rotation, localCenter));
+    result.axes = {
+        normalized3(rotate(transform.rotation, {1.0F, 0.0F, 0.0F})),
+        normalized3(rotate(transform.rotation, {0.0F, 1.0F, 0.0F})),
+        normalized3(rotate(transform.rotation, {0.0F, 0.0F, 1.0F}))};
+    result.halfExtents = {
+        std::abs(collision.halfExtents.x * transform.scale.x),
+        std::abs(collision.halfExtents.y * transform.scale.y),
+        std::abs(collision.halfExtents.z * transform.scale.z)};
+    return result;
+}
+
+OrientedBox vehicleBox(
+    const r3d::physics::VehicleState& state,
+    const r3d::physics::VehicleDescription& description)
+{
+    Transform transform = state.body;
+    transform.position = add(
+        state.body.position,
+        rotate(state.body.rotation, description.shapePosition));
+    ProjectileCollisionBox collision;
+    collision.halfExtents = description.halfExtents;
+    return orientedBox(transform, collision);
+}
+
+bool boxesOverlap(const OrientedBox& first, const OrientedBox& second)
+{
+    // Separating Axis Theorem for the same oriented boxes PhysX receives
+    // from Proj::CreatePxBox and the vehicle body shape.
+    float rotation[3][3]{};
+    float absoluteRotation[3][3]{};
+    for (std::size_t i = 0; i < 3U; ++i)
+    {
+        for (std::size_t j = 0; j < 3U; ++j)
+        {
+            rotation[i][j] = dot3(first.axes[i], second.axes[j]);
+            absoluteRotation[i][j] =
+                std::abs(rotation[i][j]) + 1.0e-6F;
+        }
+    }
+
+    const Vec3 centerDifference =
+        subtract(second.center, first.center);
+    const std::array<float, 3> translation{
+        dot3(centerDifference, first.axes[0]),
+        dot3(centerDifference, first.axes[1]),
+        dot3(centerDifference, first.axes[2])};
+
+    for (std::size_t i = 0; i < 3U; ++i)
+    {
+        const float secondRadius =
+            second.halfExtents[0] * absoluteRotation[i][0] +
+            second.halfExtents[1] * absoluteRotation[i][1] +
+            second.halfExtents[2] * absoluteRotation[i][2];
+        if (std::abs(translation[i]) >
+            first.halfExtents[i] + secondRadius)
+            return false;
+    }
+    for (std::size_t j = 0; j < 3U; ++j)
+    {
+        const float firstRadius =
+            first.halfExtents[0] * absoluteRotation[0][j] +
+            first.halfExtents[1] * absoluteRotation[1][j] +
+            first.halfExtents[2] * absoluteRotation[2][j];
+        const float projected =
+            std::abs(translation[0] * rotation[0][j] +
+                     translation[1] * rotation[1][j] +
+                     translation[2] * rotation[2][j]);
+        if (projected > firstRadius + second.halfExtents[j])
+            return false;
+    }
+
+    for (std::size_t i = 0; i < 3U; ++i)
+    {
+        const std::size_t nextI = (i + 1U) % 3U;
+        const std::size_t lastI = (i + 2U) % 3U;
+        for (std::size_t j = 0; j < 3U; ++j)
+        {
+            const std::size_t nextJ = (j + 1U) % 3U;
+            const std::size_t lastJ = (j + 2U) % 3U;
+            const float firstRadius =
+                first.halfExtents[nextI] *
+                    absoluteRotation[lastI][j] +
+                first.halfExtents[lastI] *
+                    absoluteRotation[nextI][j];
+            const float secondRadius =
+                second.halfExtents[nextJ] *
+                    absoluteRotation[i][lastJ] +
+                second.halfExtents[lastJ] *
+                    absoluteRotation[i][nextJ];
+            const float projected = std::abs(
+                translation[lastI] * rotation[nextI][j] -
+                translation[nextI] * rotation[lastI][j]);
+            if (projected > firstRadius + secondRadius)
+                return false;
+        }
+    }
+    return true;
 }
 
 float clampSteering(float value)
@@ -2095,17 +2212,10 @@ void OriginalRaceSession::updateGameplay(
                 racerDefinition.hasConfiguredVehicle
                     ? racerDefinition.configuredVehicle
                     : race_.vehicles.at(racerDefinition.vehicle);
-            float contactRadius = 3.5F;
-            if (bonus.size.x > 0.0F || bonus.size.y > 0.0F)
-            {
-                contactRadius =
-                    std::max(bonus.size.x, bonus.size.y) * 0.5F +
-                    std::max(vehicleDefinition.physics.halfExtents.x,
-                             vehicleDefinition.physics.halfExtents.y);
-            }
-            if (distanceSquared(vehicles[racer].body.position,
-                                bonus.transform.position) >
-                contactRadius * contactRadius)
+            if (!boxesOverlap(
+                    vehicleBox(vehicles[racer],
+                               vehicleDefinition.physics),
+                    orientedBox(bonus.transform, bonus.collision)))
                 continue;
 
             if (bonus.kind == BonusKind::Speed)
@@ -3298,6 +3408,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             shieldBonus.kind = BonusKind::Shield;
             shieldBonus.value = 10.0F;
             shieldBonus.size = {1.0F, 1.0F, 1.0F};
+            shieldBonus.collision.halfExtents =
+                {0.5F, 0.5F, 0.5F};
             shieldBonus.transform.position =
                 vehicles.front().body.position;
             shieldBonus.transform.position.z += 100.0F;
@@ -3312,6 +3424,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             for (int frame = 0; frame < 190; ++frame)
                 shieldSession.update(
                     1.0F / 60.0F, shieldVehicles, shieldInput);
+            shieldVehicles[0].body.position =
+                shieldRace.bonuses.back().transform.position;
+            shieldVehicles[0].body.position.x += 3.25F;
+            shieldSession.update(
+                1.0F / 60.0F, shieldVehicles, shieldInput);
+            if (shieldSession.racers().front().shieldSeconds > 0.0F ||
+                !shieldSession.bonusActive().back())
+            {
+                throw std::runtime_error(
+                    "source projectile box rejected a separating axis");
+            }
             shieldVehicles[0].body.position =
                 shieldRace.bonuses.back().transform.position;
             shieldSession.update(

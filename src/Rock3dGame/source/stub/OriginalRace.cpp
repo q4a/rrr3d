@@ -1706,6 +1706,134 @@ std::uint32_t optionalUnsigned(TiXmlElement* parent,
     return stream >> result ? result : fallback;
 }
 
+bool optionalBoolean(TiXmlElement* parent, std::string_view path,
+                     bool fallback)
+{
+    auto* value = child(parent, path);
+    if (value == nullptr || value->GetText() == nullptr)
+        return fallback;
+    const std::string_view textValue(value->GetText());
+    if (textValue == "true" || textValue == "1")
+        return true;
+    if (textValue == "false" || textValue == "0")
+        return false;
+    return fallback;
+}
+
+struct LocalBounds
+{
+    Vec3 minimum;
+    Vec3 maximum;
+    bool valid = false;
+};
+
+void includePoint(LocalBounds& bounds, Vec3 point)
+{
+    if (!bounds.valid)
+    {
+        bounds.minimum = point;
+        bounds.maximum = point;
+        bounds.valid = true;
+        return;
+    }
+    bounds.minimum.x = std::min(bounds.minimum.x, point.x);
+    bounds.minimum.y = std::min(bounds.minimum.y, point.y);
+    bounds.minimum.z = std::min(bounds.minimum.z, point.z);
+    bounds.maximum.x = std::max(bounds.maximum.x, point.x);
+    bounds.maximum.y = std::max(bounds.maximum.y, point.y);
+    bounds.maximum.z = std::max(bounds.maximum.z, point.z);
+}
+
+Vec3 transformPoint(const Transform& transform, Vec3 point)
+{
+    point = {point.x * transform.scale.x,
+             point.y * transform.scale.y,
+             point.z * transform.scale.z};
+    const Vec3 rotated = rotate(transform.rotation, point);
+    return {transform.position.x + rotated.x,
+            transform.position.y + rotated.y,
+            transform.position.z + rotated.z};
+}
+
+LocalBounds objectLocalBounds(
+    const resource::ResourceFileSystem& resources,
+    const ObjectDefinition& definition)
+{
+    LocalBounds bounds;
+    for (const auto& node : definition.visualNodes)
+    {
+        std::array<float, 3> minimum{-0.5F, -0.5F, 0.0F};
+        std::array<float, 3> maximum{0.5F, 0.5F, 0.0F};
+        if (!node.meshPath.empty())
+        {
+            const auto mesh =
+                resource::loadR3DMeshAsset(resources, node.meshPath);
+            minimum = mesh.minimum;
+            maximum = mesh.maximum;
+        }
+        else if (!node.plane)
+        {
+            continue;
+        }
+
+        for (std::uint32_t corner = 0; corner < 8U; ++corner)
+        {
+            includePoint(
+                bounds,
+                transformPoint(
+                    node.transform,
+                    {(corner & 1U) != 0U ? maximum[0] : minimum[0],
+                     (corner & 2U) != 0U ? maximum[1] : minimum[1],
+                     (corner & 4U) != 0U ? maximum[2] : minimum[2]}));
+        }
+    }
+    return bounds;
+}
+
+ProjectileCollisionBox projectileCollisionBox(
+    const resource::ResourceFileSystem& resources,
+    const ObjectDefinition& visual, Vec3 size, Vec3 offset,
+    bool modelSize)
+{
+    // Exact Proj::ComputeAABB(false) construction: serialized size is a full
+    // box dimension, offset moves that box, and modelSize adds the actor's
+    // transformed local visual AABB.  AABB::Add also preserves the serialized
+    // size on axes where it is zero.
+    const Vec3 dimensions{
+        std::max(size.x * 0.5F, 0.0F),
+        std::max(size.y * 0.5F, 0.0F),
+        std::max(size.z * 0.5F, 0.0F)};
+    LocalBounds bounds;
+    bounds.minimum = {offset.x - dimensions.x,
+                      offset.y - dimensions.y,
+                      offset.z - dimensions.z};
+    bounds.maximum = {offset.x + dimensions.x,
+                      offset.y + dimensions.y,
+                      offset.z + dimensions.z};
+    bounds.valid = true;
+
+    if (modelSize)
+    {
+        const LocalBounds model = objectLocalBounds(resources, visual);
+        if (model.valid)
+        {
+            includePoint(bounds, model.minimum);
+            includePoint(bounds, model.maximum);
+        }
+    }
+
+    ProjectileCollisionBox result;
+    result.center = {
+        (bounds.minimum.x + bounds.maximum.x) * 0.5F,
+        (bounds.minimum.y + bounds.maximum.y) * 0.5F,
+        (bounds.minimum.z + bounds.maximum.z) * 0.5F};
+    result.halfExtents = {
+        (bounds.maximum.x - bounds.minimum.x) * 0.5F,
+        (bounds.maximum.y - bounds.minimum.y) * 0.5F,
+        (bounds.maximum.z - bounds.minimum.z) * 0.5F};
+    return result;
+}
+
 std::string weaponEffectTexture(
     const resource::ResourceFileSystem& resources,
     std::uint32_t projectileType)
@@ -1830,6 +1958,8 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
             definition.offset = vector3(
                 projectile, "offset", "workshop.xml/weapon/projectile");
         }
+        definition.modelSize = optionalBoolean(
+            projectile, "modelSize", true);
         if (child(projectile, "rot") != nullptr)
         {
             definition.rotation = quaternion(
@@ -1853,6 +1983,9 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
             optionalScalar(projectile, "minTimeLife/min", 0.0F);
         definition.mass = optionalScalar(projectile, "mass", 100.0F);
         definition.damage = optionalScalar(projectile, "damage", 0.0F);
+        definition.collision = projectileCollisionBox(
+            resources, definition.visual, definition.size,
+            definition.offset, definition.modelSize);
         return definition;
     };
     race.weapons.clear();
@@ -2548,6 +2681,14 @@ void loadMap(const resource::ResourceFileSystem& resources,
             bonusRecord, "proj/type", 0U);
         if (child(bonusRecord, "proj/size") != nullptr)
             bonus.size = vector3(bonusRecord, "proj/size", "db.xml/bonus");
+        if (child(bonusRecord, "proj/offset") != nullptr)
+            bonus.offset =
+                vector3(bonusRecord, "proj/offset", "db.xml/bonus");
+        bonus.modelSize = optionalBoolean(
+            bonusRecord, "proj/modelSize", true);
+        bonus.collision = projectileCollisionBox(
+            resources, bonus.visual, bonus.size, bonus.offset,
+            bonus.modelSize);
         bonus.speed = optionalScalar(bonusRecord, "proj/speed", 0.0F);
         if (bonus.projectileType == 6U)
             bonus.kind = BonusKind::Money;
@@ -2726,6 +2867,14 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
             bonusRecord, "proj/type", 0U);
         if (child(bonusRecord, "proj/size") != nullptr)
             bonus.size = vector3(bonusRecord, "proj/size", "db.xml/bonus");
+        if (child(bonusRecord, "proj/offset") != nullptr)
+            bonus.offset =
+                vector3(bonusRecord, "proj/offset", "db.xml/bonus");
+        bonus.modelSize = optionalBoolean(
+            bonusRecord, "proj/modelSize", true);
+        bonus.collision = projectileCollisionBox(
+            resources, bonus.visual, bonus.size, bonus.offset,
+            bonus.modelSize);
         bonus.speed = optionalScalar(bonusRecord, "proj/speed", 0.0F);
         if (bonus.projectileType == 6U)
             bonus.kind = BonusKind::Money;
@@ -3576,6 +3725,35 @@ bool runOriginalRaceResourceSmokeTest(
                 0.0F))
         {
             error = "marauder wheel source specular mismatch";
+            return false;
+        }
+        const bool bonusCollisionBoxesMatchSource = std::all_of(
+            race.bonuses.begin(), race.bonuses.end(),
+            [](const BonusInstance& bonus) {
+                return bonus.collision.halfExtents.x > 0.0F &&
+                       bonus.collision.halfExtents.y > 0.0F &&
+                       bonus.collision.halfExtents.z > 0.0F;
+            });
+        const auto mineSpike = std::find_if(
+            race.bonuses.begin(), race.bonuses.end(),
+            [](const BonusInstance& bonus) {
+                return bonus.record.size() >= 9U &&
+                       bonus.record.compare(
+                           bonus.record.size() - 9U, 9U,
+                           "mineSpike") == 0;
+            });
+        if (!bonusCollisionBoxesMatchSource ||
+            mineSpike == race.bonuses.end() ||
+            !mineSpike->modelSize ||
+            !near(mineSpike->size.x, 0.0F) ||
+            !near(mineSpike->size.y, 0.0F) ||
+            !near(mineSpike->size.z, 1.7F) ||
+            mineSpike->collision.halfExtents.x >= 3.5F ||
+            mineSpike->collision.halfExtents.y >= 3.5F)
+        {
+            error =
+                "source Proj::ComputeAABB/CreatePxBox bonus collision "
+                "provenance mismatch";
             return false;
         }
         if (race.levelPath != "Data/Map/World1/map1.r3dMap" ||

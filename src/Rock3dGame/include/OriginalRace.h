@@ -31,6 +31,15 @@ struct CollisionShape
     std::uint32_t materialGroup = 0;
 };
 
+// Proj::CreatePxBox stores ComputeAABB(false) as a PhysX box whose pose is
+// local to the projectile actor.  Keep that source representation separate
+// from visual bounds so gameplay contacts do not need guessed radii.
+struct ProjectileCollisionBox
+{
+    Vec3 center;
+    Vec3 halfExtents;
+};
+
 enum class MaterialBlend
 {
     Opaque,
@@ -343,6 +352,7 @@ struct ProjectileDefinition
     Vec3 size;
     Vec3 offset;
     Quat rotation;
+    ProjectileCollisionBox collision;
     float speed = 0.0F;
     float relativeSpeedMinimum = 13.0F;
     bool relativeSpeed = false;
@@ -351,6 +361,7 @@ struct ProjectileDefinition
     float minimumLife = 0.0F;
     float mass = 100.0F;
     float damage = 0.0F;
+    bool modelSize = true;
     // Some death effects are themselves gotProj records (the mortar impact
     // creates the source ptCrater contact field).  They live in the weapon's
     // projectile table for renderer asset ownership, but are not fired from
@@ -414,9 +425,12 @@ struct BonusInstance
     Transform transform;
     BonusKind kind = BonusKind::Unknown;
     Vec3 size;
+    Vec3 offset;
+    ProjectileCollisionBox collision;
     float value = 0.0F;
     float speed = 0.0F;
     std::uint32_t projectileType = 0U;
+    bool modelSize = true;
 };
 
 enum class Weather

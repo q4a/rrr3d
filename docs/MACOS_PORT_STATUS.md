@@ -1,28 +1,15 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
-> **Исправленный активный статус:** Milestone 5–10 выполнены от исходных
-> ресурсов. M5 отображает штатный Buggi через общий `.r3d` decoder и
-> bgfx/Metal. M6 загружает оригинальные `MainMenu2` изображения и строки.
-> M7 подключает к этому же меню SDL3 keyboard/mouse/gamepad input и общий с
-> legacy `MainMenu2.cpp` порядок команд. M8 воспроизводит все три исходных
-> menu-трека через перенесённую MusicCat-очередь и SDL3/CoreAudio, сохраняет
-> shuffle/позицию/паузу и использует штатный `ssButton1/click.ogg`, а также
-> проверяет реальные игровые эффекты. M9.1 переносит профиль, обе оригинальные
-> камеры, HUD/mini-map, четыре workshop slots, projectile/mine/hyper/support,
-> achievements, AI, materials, nested effect/particle graph, окружение всех
-> миров и spatial race audio. M9.2 добавляет source-driven planar reflection,
-> shadow map, HDR/bloom/tone mapping, render layers/billboards и оригинальный
-> `ctEffects/rain`. M9.3 переносит source Water/HDR adaptation и добавляет
-> проверяемый render graph. M9.4 реализует 512×512 dynamic cube reflection,
-> настоящий tangent-space normal mapping и связный `FxTrailManager` strip
-> по истории колёс. M9.5 переносит два 2048 projected-shadow split,
-> исходный `FxEmitter` density/scheduling/sorting и параметры
-> `CarMotorDesc` в Jolt. Follow-up устраняет подмену гоночных колёс огромными
-> workshop preview meshes и восстанавливает исходный D3D9 additive blend
-> `SRC_ALPHA, ONE` в bgfx backend. Loader охватывает все 88 турнирных карт и 17
-> машин гаража. Исправленный M10 упаковывает этот же путь в автономные
-> Debug/Release `RRR3d.app`. Старые portable-отчёты ниже остаются историей
-> отменённого самостоятельного vertical slice и не являются acceptance status.
+> **Актуальное заключение ревизии:** milestones 5–10 создали нативный arm64
+> bundle и source-driven vertical slice на оригинальных ресурсах, но не
+> доказали полный перенос Windows-игры. Исходные `Rock3dGame/source/game`
+> классы в macOS target не компилируются; меню, session, AI, weapons, HUD и
+> renderer частично воспроизведены новыми adapters, а network/video/Steam
+> выключены. Каноническая матрица «перенесено / частично / суррогат / не
+> перенесено» находится в
+> [`MACOS_PORT_COMPLETENESS_AUDIT.md`](MACOS_PORT_COMPLETENESS_AUDIT.md).
+> Приведённые ниже milestone-отчёты описывают реализованное покрытие и историю
+> сборки, но больше не считаются заявлением о feature parity.
 
 ## Активный этап
 
