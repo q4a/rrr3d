@@ -467,6 +467,15 @@ void World::MainProgress()
 	QueryPerformanceCounter((LARGE_INTEGER*)&tick);
 #endif
 
+	//DIAGNOSTIC: how much simulated time a frame actually buys.
+	//
+	//Game logic advances on dt and physics on maxTimeStep, once per iteration
+	//of the loop below, and the two only agree if the loop runs often enough. A
+	//countdown that races while cars and projectiles sit still is what it looks
+	//like when they come apart, so this reports both plus the gate that can
+	//stop the physics half outright.
+	int physicsSteps = 0;
+
 	if (!nextStep)
 		LateProgress(dt, false);
 	else
@@ -477,6 +486,7 @@ void World::MainProgress()
 
 			if (!_pause && startRace)
 			{
+				++physicsSteps;
 				//instead of PxSync. Always first! (after _pxScene->Compute(maxTimeStep))
 				if (!nextStep)
 					LateProgress(dt, true);
@@ -486,6 +496,16 @@ void World::MainProgress()
 				_pxScene->Compute(maxTimeStep);
 			}
 		}
+
+	if (::rrr3d::TraceEnabled())
+	{
+		static unsigned long frame = 0;
+		if ((++frame % 60) == 0)
+			RRR3D_TRACE_FIRST(40,
+				"STEP dt=%.4f real=%.4f accum=%.4f physicsSteps=%d pause=%d startRace=%d",
+				dt, _dTimeReal, static_cast<float>(_timeAccum), physicsSteps,
+				(int)_pause, (int)startRace);
+	}
 
 #ifdef DEBUG_FRAME_SYNC
 	__int64 pxTick;

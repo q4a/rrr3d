@@ -656,9 +656,36 @@ bool Vehicle::BuildWheelsSimData(PxVehicleWheelsSimData& simData, PxRigidDynamic
 		if (droop < travel * 0.1f)
 			droop = travel * 0.1f;
 
+		/*
+		 * The damper needs a floor, and the reason is a difference between the
+		 * two engines rather than a difference between the cars.
+		 *
+		 * NxSpringDesc says it plainly: "The spring is implicitly integrated, so
+		 * even high spring and damper coefficients should be robust." An
+		 * implicit integrator is unconditionally stable, so 2.8's suspensions
+		 * never had to be well damped to behave -- and the shipped ones are not.
+		 * Taking the damping ratio c / (2*sqrt(k*m)) across the cars:
+		 *
+		 *   spring 625000  damper 25000  ->  0.71, well damped
+		 *   spring 140000  damper  1000  ->  0.06, essentially undamped
+		 *
+		 * PxVehicle integrates explicitly. The second car rings, its tire load
+		 * swings between a quarter and nearly three times its rest load, and
+		 * traction arrives and leaves several times a second. That reads as a
+		 * grip problem and is not one.
+		 *
+		 * The spring rate is left exactly as tuned, because that is what sets
+		 * ride height and how a car feels over bumps. Only the damper is raised,
+		 * and only when it falls below what the explicit integrator needs.
+		 */
+		const float criticalDamping =
+			2.0f * std::sqrt(std::max(spring.spring, 1.0f) * std::max(sprungMasses[i], 1.0f));
+		const float minDampingRatio = 0.35f;
+
 		PxVehicleSuspensionData suspension;
 		suspension.mSpringStrength = spring.spring;
-		suspension.mSpringDamperRate = spring.damper;
+		suspension.mSpringDamperRate =
+			std::max(spring.damper, minDampingRatio * criticalDamping);
 		suspension.mMaxCompression = travel - droop;
 		suspension.mMaxDroop = droop;
 		suspension.mSprungMass = sprungMasses[i];
@@ -708,6 +735,29 @@ bool Vehicle::BuildWheelsSimData(PxVehicleWheelsSimData& simData, PxRigidDynamic
 			suspension.mMaxDroop,
 			offsets[i].x, offsets[i].y, offsets[i].z, (int)shapeIndex);
 	}
+
+	/*
+	 * Launching from rest, which is the case that had the cars stuck.
+	 *
+	 * PxVehicle computes longitudinal slip as
+	 *
+	 *     (w*r - vz) / max(|vz|, minLongSlipDenominator)
+	 *
+	 * and its own header points straight at the trap: as |vz| approaches zero
+	 * the slip approaches infinity. A stationary car with a spinning wheel is
+	 * exactly that -- slip pins at its limit, the tire force saturates at the
+	 * friction ceiling, and the wheel accelerates away from a car that never
+	 * starts moving. Which is what it looked like from the driver's seat: revs
+	 * climbing, speed zero.
+	 *
+	 * The floor is chosen against the top speed a car actually reaches; the
+	 * shipped maxSpeed is 48. Sub-steps are the other half -- the header says
+	 * raising them at low forward speed is what makes a stiff tire stable, and
+	 * stiffness is what this model needs, force being stiffness * slip * load.
+	 * A soft tire has to reach absurd slip before it pulls at all.
+	 */
+	simData.setMinLongSlipDenominator(4.0f);
+	simData.setSubStepCount(5.0f, 3, 1);
 
 	MarkShapesUndrivable();
 
@@ -1013,12 +1063,16 @@ void Vehicle::SyncOutputs()
 				const PxVec3 velocity = body->getLinearVelocity();
 
 				RRR3D_TRACE_FIRST(12,
-					"RAWCAST wheelZ=%.2f groundBelowWheel=%.3f (radius 0.34) asleep=%d "
-					"vel=%.2f,%.2f,%.2f gravityOff=%d",
-					origin.z,
+					//Per car, with its own radius, because the models differ:
+					//radius and suspension travel both vary between them, and
+					//"some cars float higher than others" is a statement about
+					//a gap that scales with something.
+					"RAWCAST car=%p radius=%.3f groundBelowWheel=%.3f gap=%+.3f "
+					"vel=%.2f,%.2f,%.2f",
+					(void*)body, wheel->GetRadius(),
 					(found && hit.hasBlock) ? hit.block.distance : -1.0f,
-					(int)body->isSleeping(), velocity.x, velocity.y, velocity.z,
-					(int)body->getActorFlags().isSet(PxActorFlag::eDISABLE_GRAVITY));
+					(found && hit.hasBlock) ? hit.block.distance - wheel->GetRadius() : 0.0f,
+					velocity.x, velocity.y, velocity.z);
 			}
 		}
 
