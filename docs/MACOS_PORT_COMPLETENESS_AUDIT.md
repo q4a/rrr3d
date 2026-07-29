@@ -85,14 +85,14 @@ Windows target не компилируется.
 | Map/catalog loading | `Map`, `MapObj`, `DataBase` | `OriginalRace.cpp` | Частично | 88 записей и исходные placements читаются; generic GameObject/behavior/include lifecycle воспроизведён только для известных типов |
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
 | Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
-| Vehicle simulation | PhysX 2.8.4 `NxWheelShape` | Jolt custom vehicle adapter | Частично | Нативная замена работает, но это semantic reimplementation; полная численная эквивалентность PhysX tire/suspension/solver не доказана |
+| Vehicle simulation | PhysX 2.8.4 `NxWheelShape` | Jolt custom vehicle adapter | Частично | Нативная замена работает; `GameCar::LockSpring` теперь подавляет airborne pitch как в source, но полная численная эквивалентность PhysX tire/suspension/solver не доказана |
 | Car-to-track/car contacts | PhysX filters/reports | Jolt contacts → session | Частично | Основной damage path есть; все group/mask/callback/force branches исходного `Logic`/`GameObject` отсутствуют |
 | Bonus/mine/crater contacts | `Proj::ComputeAABB` + `CreatePxBox` | после этой ревизии source AABB + OBB SAT | Перенесено | Удалены прежние сферы `3.5`; primary, `model2`, `model3` и death-projectile получают отдельные source boxes |
 | Mine placement | `Proj::MinePrepare` PhysX track raycast | source triangle raycast в `OriginalRaceSession` | Перенесено | Используются serialized `proj.pos`, ray `+2/-Z`, только `TrackPlane`, `max(-AABB.min.z, 0.01)`, hit normal; miss не расходует заряд |
 | Countdown/checkpoints/laps/place | `Race.cpp`, `Trace.cpp`, `Player.cpp` | `OriginalRaceSession.cpp` | Частично | Основная гонка работает; это ручной state machine, все special race modes/edge cases не сопоставлены |
 | Reset/respawn | `Race`/`Player` | trace-based requests | Частично | Базовый путь есть; точное raycast/orientation/penalty поведение не полностью перенесено |
 | AI | `AICar.cpp`, `AIPlayer.cpp` | steering/brake path по trace | Суррогат | Исходные AI classes, tactical state, avoidance, weapon selection и difficulty branches не компилируются |
-| Weapons/projectiles | `Weapon.cpp`, `Player.cpp`, `Logic.cpp` | type-switch runtime в `OriginalRaceSession` | Частично | Source `ComputeAABB` boxes, laser closest-shape ray, `sizeAddPx`, homing rotation и car/decor contacts перенесены; type-specific forces, timing, groups и callbacks ещё частичны |
+| Weapons/projectiles | `Weapon.cpp`, `Player.cpp`, `Logic.cpp` | type-switch runtime в `OriginalRaceSession` | Частично | Source boxes/ray, homing, contacts, `ptHyper` и `ptSpring` перенесены; остальные type-specific forces, timing, groups и callbacks ещё частичны |
 | Weapon shot effects | `Weapon::CreateShot`, `ShotEffect`, serialized `ctWeapon` behaviors | `mapObj` → behavior type 10 → source effect graph | Перенесено | Effect record, local position, ignore-rotation и effective nested lifetime читаются из `db.xml`; отдельный `WeaponShotEffect` создаётся один раз для каждого созданного projectile |
 | Weapon shot sounds | `ShotEffect::GiveSource3d`, serialized sound refs | source `ctWeapon/behaviors/items/*[@type=10]/sounds` | Перенесено | Удалено угадывание по имени; 24 source refs читаются напрямую, `drobilka` корректно остаётся без придуманного звука |
 | Damage/support/shield | `GameObject`, `Player`, `Weapon`, behaviors | ручные расчёты session | Частично | Основные transitions есть; полная damage type/force/reflect/immortality матрица не перенесена |
@@ -230,6 +230,20 @@ Network, video и Steam явно выключены.
    вызывается реальным OBB–triangle либо OBB–OBB контактом.
 5. Smoke ставит автомобиль на исходный triangle `crush1`, а не в
    придуманный proximity-radius около origin объекта.
+
+Следующим type-specific блоком исправлены `ptHyper` и `ptSpring`:
+
+1. `ptHyper` прикладывает `NX_SMOOTH_VELOCITY_CHANGE` вдоль local X машины,
+   использует serialized speed `10` и source `shotDelay=1.5`.
+2. `accelEff` теперь живёт как linked projectile в исходном weapon/projectile
+   transform и следует за машиной весь `minTimeLife=2`; временный
+   `HyperActivated` render effect с придуманным vertical transform удалён.
+3. `ptSpring` допускается только при контакте всех колёс, прикладывает local Z
+   impulse `17` и при неуспешном Prepare не расходует charge.
+4. `GameCar::LockSpring` (`1.5` секунды) проведён до Jolt input и отключает
+   автоматический airborne pitch torque на время блокировки.
+5. Smoke отдельно проверяет linked hyper visual, cooldown, grounded/airborne
+   spring branches и подавление pitch в physics backend.
 
 Следующим render/audio-блоком удалены эвристики оружия:
 

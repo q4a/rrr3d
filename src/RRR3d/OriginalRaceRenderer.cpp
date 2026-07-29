@@ -3443,27 +3443,6 @@ void OriginalRaceRenderer::draw(
                 continue;
             }
             if (effect.kind ==
-                r3d::game::originalrace::RaceEventKind::
-                    HyperActivated)
-            {
-                if (!projectileDefinition.visual.visualNodes.empty() ||
-                    !projectileDefinition.visual.particleEmitters.empty())
-                {
-                    r3d::physics::Transform parent;
-                    parent.position = effect.origin;
-                    parent.rotation = directionRotation(
-                        {effect.target.x - effect.origin.x,
-                         effect.target.y - effect.origin.y,
-                         effect.target.z - effect.origin.z});
-                    drawDefinition(
-                        projectileAssets.visual,
-                        projectileDefinition.visual, parent,
-                        effect.totalSeconds - effect.seconds,
-                        projectileDefinition.speed);
-                    continue;
-                }
-            }
-            if (effect.kind ==
                     r3d::game::originalrace::RaceEventKind::
                         WeaponFired &&
                 (!projectileDefinition.visual.visualNodes.empty() ||
@@ -3473,9 +3452,7 @@ void OriginalRaceRenderer::draw(
             }
         }
         if (effect.kind ==
-                r3d::game::originalrace::RaceEventKind::WeaponFired ||
-            effect.kind ==
-                r3d::game::originalrace::RaceEventKind::HyperActivated)
+            r3d::game::originalrace::RaceEventKind::WeaponFired)
         {
             // A projectile without a serialized visual is invisible in the
             // Windows code.  Do not synthesize a beam or activation sphere.

@@ -1129,6 +1129,7 @@ private:
             const JPH::Vec3 horizontal{
                 velocity.GetX(), 0.0F, velocity.GetZ()};
             if (horizontal.Length() > 1.0F &&
+                !input.springLocked &&
                 source.airbornePitchAcceleration != 0.0F)
             {
                 const JPH::Quat currentRotation =
@@ -1857,6 +1858,37 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     {
         error = "source JumpProgress extra gravity/pitch acceleration was "
                 "not preserved";
+        return false;
+    }
+
+    auto springLockedWorld =
+        createOriginalVehicleWorld(airborneDescription, error);
+    if (!springLockedWorld)
+        return false;
+    springLockedWorld->addLinearVelocity(
+        0U, {5.0F, 0.0F, 0.0F});
+    const Quat springLockedBefore =
+        springLockedWorld->vehicle().body.rotation;
+    input = {};
+    input.springLocked = true;
+    for (int step = 0; step < 30; ++step)
+        springLockedWorld->step(1.0F / 120.0F, input);
+    const Quat springLockedAfter =
+        springLockedWorld->vehicle().body.rotation;
+    const float springLockedRotation =
+        std::abs(
+            springLockedBefore.x - springLockedAfter.x) +
+        std::abs(
+            springLockedBefore.y - springLockedAfter.y) +
+        std::abs(
+            springLockedBefore.z - springLockedAfter.z) +
+        std::abs(
+            springLockedBefore.w - springLockedAfter.w);
+    if (selectedVehicle.airbornePitchAcceleration != 0.0F &&
+        springLockedRotation >= 0.005F)
+    {
+        error = "source GameCar::LockSpring did not suppress airborne "
+                "pitch acceleration";
         return false;
     }
 

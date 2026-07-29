@@ -129,6 +129,8 @@ struct VehicleInput
     float reverse = 0.0F;
     float brake = 0.0F;
     float steering = 0.0F;
+    // GameCar::LockSpring suppresses the automatic airborne pitch torque.
+    bool springLocked = false;
 };
 
 struct BodyContact

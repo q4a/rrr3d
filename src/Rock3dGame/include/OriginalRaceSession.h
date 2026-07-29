@@ -99,6 +99,7 @@ struct RacerRuntime
     float speedBoostSeconds = 0.0F;
     float slowSeconds = 0.0F;
     float clutchSeconds = 0.0F;
+    float springLockSeconds = 0.0F;
     float restoreSeconds = 0.0F;
     float lowLifeEffectSeconds = 0.0F;
     float shieldEffectSeconds = 0.0F;
@@ -200,6 +201,7 @@ struct ProjectileRuntime
     std::size_t target = RacerRuntime::invalidWeapon;
     std::uint32_t hitCount = 0;
     bool attached = false;
+    bool directWeapon = false;
     bool ballistic = false;
     bool active = true;
 };

@@ -1712,6 +1712,13 @@ void OriginalRaceSession::updateGameplay(
             std::max(0.0F, runtime.slowSeconds - seconds);
         runtime.clutchSeconds =
             std::max(0.0F, runtime.clutchSeconds - seconds);
+        runtime.springLockSeconds =
+            std::max(0.0F, runtime.springLockSeconds - seconds);
+        if (racer < vehicleInputs_.size())
+        {
+            vehicleInputs_[racer].springLocked =
+                runtime.springLockSeconds > 0.0F;
+        }
         for (auto& cooldown : weaponCooldown_[racer])
             cooldown = std::max(0.0F, cooldown - seconds);
         mineCooldown_[racer] =
@@ -1988,9 +1995,25 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             }
             projectile.lifeSeconds -= seconds;
-            const auto shotTransform = projectileWorldTransform(
-                projectile.owner, projectile.weapon,
-                projectile.mountSlot, projectileDefinition);
+            Transform shotTransform;
+            if (projectile.directWeapon)
+            {
+                Transform localProjectile;
+                localProjectile.position =
+                    projectileDefinition.position;
+                localProjectile.rotation =
+                    projectileDefinition.rotation;
+                shotTransform = compose(
+                    directWeaponWorldTransform(
+                        projectile.owner, projectile.weapon),
+                    localProjectile);
+            }
+            else
+            {
+                shotTransform = projectileWorldTransform(
+                    projectile.owner, projectile.weapon,
+                    projectile.mountSlot, projectileDefinition);
+            }
             projectile.position = shotTransform.position;
             projectile.rotation = shotTransform.rotation;
             projectile.direction = normalized3(
@@ -2003,6 +2026,9 @@ void OriginalRaceSession::updateGameplay(
             const bool sourceRay =
                 projectileDefinition.type == 3U ||
                 projectileDefinition.type == 18U;
+            const bool sourceContact =
+                projectileDefinition.type == 14U ||
+                projectileDefinition.type == 15U;
             const Vec3 rayOrigin =
                 add(projectile.position,
                     projectileDefinition.sizeAddPx);
@@ -2062,7 +2088,7 @@ void OriginalRaceSession::updateGameplay(
                         vehicles[target]);
                 }
             }
-            else if (!sourceRay)
+            else if (sourceContact)
             {
                 for (std::size_t target = 0;
                      target < vehicles.size() &&
@@ -2122,7 +2148,7 @@ void OriginalRaceSession::updateGameplay(
                     projectile.impactDistance, decorationDamage,
                     projectile.owner);
             }
-            else
+            else if (sourceContact)
             {
                 damageDecorationWithBox(
                     shotTransform, projectileDefinition.collision,
@@ -2530,48 +2556,82 @@ void OriginalRaceSession::updateGameplay(
         if (weapon.projectiles.empty())
             return;
         const auto& projectile = weapon.projectiles.front();
-        if (projectile.type == 17U &&
-            (owner >= vehicles.size() ||
-             vehicles[owner].contactCount == 0U))
+        if (owner >= vehicles.size())
             return;
+        const auto& racerDefinition = race_.racers[owner];
+        const auto& vehicleDefinition =
+            racerDefinition.hasConfiguredVehicle
+                ? racerDefinition.configuredVehicle
+                : race_.vehicles.at(racerDefinition.vehicle);
+        if (projectile.type == 17U)
+        {
+            const auto wheelCount =
+                vehicleDefinition.physics.wheels.size();
+            if (wheelCount == 0U ||
+                vehicles[owner].contactCount < wheelCount)
+                return;
+        }
         --racers_[owner].hyperCharge;
-        hyperCooldown_[owner] = 0.75F;
-        const Vec3 position =
-            owner < vehicles.size() ? vehicles[owner].body.position
-                                    : Vec3{};
+        hyperCooldown_[owner] =
+            std::max(weapon.shotDelay, 0.0F);
+        const Vec3 position = vehicles[owner].body.position;
         const float duration =
             projectile.minimumLife > 0.0F
                 ? projectile.minimumLife
                 : (projectile.type == 17U ? 0.5F : 2.0F);
-        if (owner < vehicles.size())
+        if (projectile.type == 17U)
         {
-            if (projectile.type == 17U)
-            {
-                velocityRequests_.push_back(
-                    {owner, {0.0F, 0.0F, projectile.speed}});
-            }
-            else
-            {
-                const Vec3 direction = normalized2(
-                    forward(vehicles[owner].body.rotation));
-                velocityRequests_.push_back(
-                    {owner, multiply(direction, projectile.speed)});
-            }
+            velocityRequests_.push_back(
+                {owner,
+                 rotate(
+                     vehicles[owner].body.rotation,
+                     {0.0F, 0.0F, projectile.speed})});
+            racers_[owner].springLockSeconds = 1.5F;
+            if (owner < vehicleInputs_.size())
+                vehicleInputs_[owner].springLocked = true;
+        }
+        else
+        {
+            velocityRequests_.push_back(
+                {owner,
+                 rotate(
+                     vehicles[owner].body.rotation,
+                     {projectile.speed, 0.0F, 0.0F})});
+        }
+        const Transform weaponTransform =
+            directWeaponWorldTransform(
+                owner, racers_[owner].hyperWeapon);
+        if (projectile.type == 1U)
+        {
+            Transform localProjectile;
+            localProjectile.position = projectile.position;
+            localProjectile.rotation = projectile.rotation;
+            const Transform projectileTransform =
+                compose(weaponTransform, localProjectile);
+            ProjectileRuntime runtimeProjectile;
+            runtimeProjectile.owner = owner;
+            runtimeProjectile.weapon =
+                racers_[owner].hyperWeapon;
+            runtimeProjectile.projectile = 0U;
+            runtimeProjectile.position =
+                projectileTransform.position;
+            runtimeProjectile.direction = normalized3(
+                rotate(
+                    projectileTransform.rotation,
+                    {1.0F, 0.0F, 0.0F}));
+            runtimeProjectile.rotation =
+                projectileTransform.rotation;
+            runtimeProjectile.lifeSeconds = duration;
+            runtimeProjectile.attached = true;
+            runtimeProjectile.directWeapon = true;
+            projectiles_.push_back(runtimeProjectile);
         }
         events_.push_back(
             {RaceEventKind::HyperActivated, owner,
              racers_[owner].hyperWeapon, position, duration});
-        effects_.push_back(
-            {RaceEventKind::HyperActivated, position,
-             add(position, {0.0F, 0.0F, 2.5F}), 0.4F, 0.4F,
-             racers_[owner].hyperWeapon, 0U, 0U,
-             RacerRuntime::invalidWeapon, false,
-             RacerRuntime::invalidWeapon,
-             RacerRuntime::invalidWeapon, {}});
         pushShotEffect(
             racers_[owner].hyperWeapon,
-            directWeaponWorldTransform(
-                owner, racers_[owner].hyperWeapon),
+            weaponTransform,
             projectile);
     };
     if (humanControl.useHyper)
@@ -4349,6 +4409,162 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
         }
 
+        const auto hyperdrive = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "hyperdrive";
+            });
+        const auto spring = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "spring";
+            });
+        if (hyperdrive == race.weapons.end() ||
+            hyperdrive->projectiles.size() != 1U ||
+            hyperdrive->projectiles.front().type != 1U ||
+            std::abs(
+                hyperdrive->projectiles.front().speed - 10.0F) >
+                0.001F ||
+            std::abs(hyperdrive->shotDelay - 1.5F) > 0.001F ||
+            spring == race.weapons.end() ||
+            spring->projectiles.size() != 1U ||
+            spring->projectiles.front().type != 17U ||
+            std::abs(spring->projectiles.front().speed - 17.0F) >
+                0.001F)
+        {
+            throw std::runtime_error(
+                "source hyperdrive/spring definitions were not preserved");
+        }
+        auto hyperVehicles = vehicles;
+        hyperVehicles[0].body.rotation = {};
+        {
+            OriginalRaceSession hyperSession(race);
+            PlayerProfile hyperProfile;
+            auto& slot =
+                hyperProfile.slots[PlayerProfile::hyperSlot];
+            slot.record = hyperdrive->record;
+            slot.charge = 2U;
+            slot.hasCharge = true;
+            hyperSession.applyPlayerProfile(hyperProfile);
+            RaceControl hyperInput;
+            for (int frame = 0; frame < 190; ++frame)
+                hyperSession.update(
+                    1.0F / 60.0F, hyperVehicles, hyperInput);
+            hyperSession.takeVelocityRequests();
+            hyperInput.useHyper = true;
+            hyperSession.update(
+                1.0F / 60.0F, hyperVehicles, hyperInput);
+            const auto requests =
+                hyperSession.takeVelocityRequests();
+            const bool attachedSourceEffect = std::any_of(
+                hyperSession.projectiles().begin(),
+                hyperSession.projectiles().end(),
+                [&](const ProjectileRuntime& projectile) {
+                    return projectile.weapon ==
+                               static_cast<std::size_t>(
+                                   hyperdrive -
+                                   race.weapons.begin()) &&
+                           projectile.projectile == 0U &&
+                           projectile.attached &&
+                           projectile.directWeapon;
+                });
+            const bool syntheticHyperEffect = std::any_of(
+                hyperSession.effects().begin(),
+                hyperSession.effects().end(),
+                [](const RaceEffect& effect) {
+                    return effect.kind ==
+                           RaceEventKind::HyperActivated;
+                });
+            if (requests.size() != 1U ||
+                std::abs(requests.front().delta.x - 10.0F) >
+                    0.001F ||
+                std::abs(requests.front().delta.y) > 0.001F ||
+                std::abs(requests.front().delta.z) > 0.001F ||
+                hyperSession.racers().front().hyperCharge != 1U ||
+                !attachedSourceEffect || syntheticHyperEffect)
+            {
+                throw std::runtime_error(
+                    "source ptHyper local impulse/linked visual failed");
+            }
+            hyperSession.update(
+                1.0F / 60.0F, hyperVehicles, hyperInput);
+            if (hyperSession.racers().front().hyperCharge != 1U)
+            {
+                throw std::runtime_error(
+                    "source ptHyper shotDelay cooldown failed");
+            }
+        }
+        {
+            OriginalRaceSession springSession(race);
+            PlayerProfile springProfile;
+            auto& slot =
+                springProfile.slots[PlayerProfile::hyperSlot];
+            slot.record = spring->record;
+            slot.charge = 1U;
+            slot.hasCharge = true;
+            springSession.applyPlayerProfile(springProfile);
+            RaceControl springInput;
+            const auto& playerDefinition =
+                race.racers.front().hasConfiguredVehicle
+                    ? race.racers.front().configuredVehicle
+                    : race.vehicles.at(
+                          race.racers.front().vehicle);
+            hyperVehicles[0].contactCount =
+                static_cast<std::uint32_t>(
+                    playerDefinition.physics.wheels.size());
+            for (int frame = 0; frame < 190; ++frame)
+                springSession.update(
+                    1.0F / 60.0F, hyperVehicles, springInput);
+            springSession.takeVelocityRequests();
+            springInput.useHyper = true;
+            springSession.update(
+                1.0F / 60.0F, hyperVehicles, springInput);
+            const auto requests =
+                springSession.takeVelocityRequests();
+            if (requests.size() != 1U ||
+                std::abs(requests.front().delta.x) > 0.001F ||
+                std::abs(requests.front().delta.y) > 0.001F ||
+                std::abs(requests.front().delta.z - 17.0F) >
+                    0.001F ||
+                springSession.racers().front().hyperCharge != 0U ||
+                springSession.racers().front().springLockSeconds <
+                    1.49F ||
+                !springSession.vehicleInputs().front().springLocked)
+            {
+                throw std::runtime_error(
+                    "source ptSpring wheel contact/local impulse/lock failed");
+            }
+        }
+        {
+            OriginalRaceSession airborneSpringSession(race);
+            PlayerProfile springProfile;
+            auto& slot =
+                springProfile.slots[PlayerProfile::hyperSlot];
+            slot.record = spring->record;
+            slot.charge = 1U;
+            slot.hasCharge = true;
+            airborneSpringSession.applyPlayerProfile(springProfile);
+            RaceControl springInput;
+            hyperVehicles[0].contactCount = 0U;
+            for (int frame = 0; frame < 190; ++frame)
+                airborneSpringSession.update(
+                    1.0F / 60.0F, hyperVehicles, springInput);
+            airborneSpringSession.takeVelocityRequests();
+            springInput.useHyper = true;
+            airborneSpringSession.update(
+                1.0F / 60.0F, hyperVehicles, springInput);
+            if (airborneSpringSession.racers()
+                    .front()
+                    .hyperCharge != 1U ||
+                !airborneSpringSession
+                     .takeVelocityRequests()
+                     .empty())
+            {
+                throw std::runtime_error(
+                    "source ptSpring airborne PrepareProj rejection failed");
+            }
+        }
+
         const auto mortar = std::find_if(
             race.weapons.begin(), race.weapons.end(),
             [](const WeaponDefinition& weapon) {
@@ -4369,6 +4585,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
         const auto craterIndex =
             mortar->projectiles.front().deathProjectile;
+        const std::size_t mortarWeapon =
+            static_cast<std::size_t>(
+                mortar - race.weapons.begin());
         const auto& craterDefinition =
             mortar->projectiles[craterIndex];
         if (craterDefinition.type != 20U ||
@@ -4397,17 +4616,53 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             mortarSession.update(
                 1.0F / 60.0F, vehicles, mortarInput);
             mortarInput.useWeapon = false;
-            if (mortarSession.projectiles().empty() ||
-                mortarSession.projectiles().front().projectile != 0U)
+            const auto launchedProjectile = std::find_if(
+                mortarSession.projectiles().begin(),
+                mortarSession.projectiles().end(),
+                [mortarWeapon](
+                    const ProjectileRuntime& projectile) {
+                    return projectile.owner == 0U &&
+                           projectile.weapon == mortarWeapon &&
+                           projectile.projectile == 0U &&
+                           projectile.active;
+                });
+            if (launchedProjectile ==
+                mortarSession.projectiles().end())
             {
                 throw std::runtime_error(
                     "source mortar did not launch its live projectile");
             }
-            const auto launched =
-                mortarSession.projectiles().front();
-            vehicles[1].body.position = add(
+            const auto launched = *launchedProjectile;
+            Vec3 nextVelocity = launched.velocity;
+            nextVelocity.z -= 20.0F / 60.0F;
+            const Vec3 nextProjectilePosition = add(
                 launched.position,
-                multiply(launched.direction, 0.5F));
+                multiply(nextVelocity, 1.0F / 60.0F));
+            const Vec3 nextProjectileCenter = add(
+                nextProjectilePosition,
+                rotate(
+                    launched.rotation,
+                    mortar->projectiles.front()
+                        .collision.center));
+            const auto& targetDefinition =
+                race.racers[1].hasConfiguredVehicle
+                    ? race.racers[1].configuredVehicle
+                    : race.vehicles.at(race.racers[1].vehicle);
+            vehicles[1].body.rotation = {};
+            vehicles[1].body.position = subtract(
+                nextProjectileCenter,
+                targetDefinition.physics.shapePosition);
+            Transform expectedProjectileTransform;
+            expectedProjectileTransform.position =
+                nextProjectilePosition;
+            expectedProjectileTransform.rotation =
+                launched.rotation;
+            const bool expectedOverlap = boxesOverlap(
+                orientedBox(
+                    expectedProjectileTransform,
+                    mortar->projectiles.front().collision),
+                vehicleBox(
+                    vehicles[1], targetDefinition.physics));
             const float lifeBeforeCrater =
                 mortarSession.racers()[1].life;
             mortarSession.update(
@@ -4430,10 +4685,25 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 mortarSession.racers()[1].life >= lifeBeforeCrater)
             {
                 throw std::runtime_error(
-                    "source mortar ptCrater contact field was not spawned");
+                    "source mortar ptCrater contact field was not spawned: "
+                    "mines=" +
+                    std::to_string(mortarSession.mines().size()) +
+                    ", projectiles=" +
+                    std::to_string(
+                        mortarSession.projectiles().size()) +
+                    ", expectedOverlap=" +
+                    std::string(
+                        expectedOverlap ? "true" : "false") +
+                    ", projectile=" +
+                    (crater == mortarSession.mines().end()
+                         ? std::string("missing")
+                         : std::to_string(crater->projectile)) +
+                    ", lifeBefore=" +
+                    std::to_string(lifeBeforeCrater) +
+                    ", lifeAfter=" +
+                    std::to_string(
+                        mortarSession.racers()[1].life));
             }
-            const std::size_t mortarWeapon =
-                static_cast<std::size_t>(mortar - race.weapons.begin());
             const bool hasSourceMortarDeath = std::any_of(
                 mortarSession.effects().begin(),
                 mortarSession.effects().end(),
