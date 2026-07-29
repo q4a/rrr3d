@@ -173,6 +173,12 @@ public:
 			//1 / 20 kg
 			wheel.SetInverseWheelMass(1.0f / 20.0f);
 
+			//As CarWheel::CreateWheelShape does. This matters more than it
+			//looks: SetGroup writes through to the shape's *query* filter data
+			//as well as its simulation filter data, and the suspension raycast
+			//filters on query filter data.
+			wheel.SetGroup(r3d::px::Scene::cdgWheel);
+
 			_wheels.push_back(&wheel);
 		}
 

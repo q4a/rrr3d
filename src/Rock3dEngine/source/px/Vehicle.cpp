@@ -22,11 +22,20 @@ namespace
  * A suspension raycast starts inside the car and points down, so without this
  * every wheel would immediately hit its own chassis. PhysX has no way to say
  * "ignore this actor" from inside a batch query pre-filter -- the shader sees
- * filter data and nothing else -- so the vehicle's own shapes are marked in
- * query filter data word3 and the pre-filter drops them.
+ * filter data and nothing else -- so the vehicle's own shapes carry a mark that
+ * the pre-filter drops.
+ *
+ * The mark lives in query filter data word1, and which word is not a detail.
+ * The engine already owns three of the four: word0 is the collision group,
+ * words 2 and 3 are the group mask, packed by Scene::SetShapeGroupsMask as
+ * `word3 = bits2 | (bits3 << 16)` and written to the query filter data as well
+ * as the simulation one. A mask with bits3 = 0xffff produces word3 = 0xffff0000
+ * exactly -- so a marker in word3 is a value the world hands out to itself, and
+ * the track ends up flagged undrivable. Every suspension raycast then misses
+ * and the cars hover. word1 is the only word the engine leaves alone in query
+ * filter data.
  */
-const PxU32 cUndrivableSurface = 0xffff0000;
-const PxU32 cDrivableSurface   = 0x0000ffff;
+const PxU32 cUndrivableSurface = 0x8000ffffu;
 
 /*
  * How hard a tire resists sliding, per unit of slip, per unit of load.
@@ -57,7 +66,7 @@ PxQueryHitType::Enum SuspensionQueryPreFilter(
 	const void* constantBlock, PxU32 constantBlockSize,
 	PxHitFlags& queryFlags)
 {
-	return (filterData1.word3 == cUndrivableSurface)
+	return (filterData1.word1 == cUndrivableSurface)
 		? PxQueryHitType::eNONE
 		: PxQueryHitType::eBLOCK;
 }
@@ -406,7 +415,14 @@ void VehicleScene::Update(float deltaTime, const PxVec3& gravity)
 
 	EnsureQueryCapacity(totalWheels);
 	if (!_batchQuery)
+	{
+		//Worth saying out loud: without a batch query there are no suspension
+		//raycasts, so nothing below this line runs and a car has no
+		//suspension at all -- which looks exactly like a car whose raycasts
+		//all miss.
+		RRR3D_TRACE_FIRST(4, "VEHICLE no batch query for %u wheels", totalWheels);
 		return;
+	}
 
 	std::vector<PxVehicleWheels*> vehicles(_vehicles.size());
 	std::vector<PxVehicleWheelQueryResult> queryResults(_vehicles.size());
@@ -569,15 +585,13 @@ bool Vehicle::BuildWheelsSimData(PxVehicleWheelsSimData& simData, PxRigidDynamic
 				shapeIndex = static_cast<PxI32>(s);
 		simData.setWheelShapeMapping(i, shapeIndex);
 
-		simData.setSceneQueryFilterData(i, PxFilterData(0, 0, 0, cDrivableSurface));
+		simData.setSceneQueryFilterData(i, PxFilterData(0, 0, 0, 0));
 
 		_tireData[i].longitudal = wheel->GetLongitudalTireForceFunction();
 		_tireData[i].lateral = wheel->GetLateralTireForceFunction();
 	}
 
-	//Every shape on this actor is off-limits to the suspension raycasts.
-	for (size_t s = 0; s < actorShapes.size(); ++s)
-		actorShapes[s]->setQueryFilterData(PxFilterData(0, 0, 0, cUndrivableSurface));
+	MarkShapesUndrivable();
 
 	return true;
 }
@@ -610,10 +624,47 @@ PxVehicleWheelQueryResult Vehicle::GetQueryResultBuffer()
 	return result;
 }
 
+void Vehicle::MarkShapesUndrivable()
+{
+	PxRigidDynamic* body = _actor ? _actor->GetNxDynamic() : 0;
+	if (!body)
+		return;
+
+	/*
+	 * Only word1, and re-applied every step.
+	 *
+	 * The other three words belong to the engine's collision groups, and it
+	 * rewrites all four together whenever a shape's group changes -- which
+	 * happens after a vehicle is built, not only before. Overwriting them here
+	 * would break the group filtering the game's own raycasts depend on;
+	 * writing only word1 leaves that intact and survives being rewritten,
+	 * because this runs again next step.
+	 */
+	std::vector<PxShape*> shapes(body->getNbShapes());
+	if (shapes.empty())
+		return;
+
+	body->getShapes(&shapes[0], static_cast<PxU32>(shapes.size()));
+
+	for (size_t i = 0; i < shapes.size(); ++i)
+	{
+		PxFilterData filter = shapes[i]->getQueryFilterData();
+		if (filter.word1 == cUndrivableSurface)
+			continue;
+
+		filter.word1 = cUndrivableSurface;
+		shapes[i]->setQueryFilterData(filter);
+	}
+}
+
 void Vehicle::SyncInputs()
 {
 	if (!_nxVehicle)
 		return;
+
+	//The engine may have rewritten filter data since the last step.
+	MarkShapesUndrivable();
+
 
 	//The tire shader is set every step rather than once, because the game is
 	//free to retune a wheel at any point -- the garage does exactly that -- and

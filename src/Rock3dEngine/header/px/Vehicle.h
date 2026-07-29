@@ -86,6 +86,8 @@ private:
 	std::vector<PxWheelQueryResult> _wheelQueryResults;
 
 	bool BuildWheelsSimData(PxVehicleWheelsSimData& simData, PxRigidDynamic& body);
+	//Keeps this vehicle's own shapes out of its suspension raycasts.
+	void MarkShapesUndrivable();
 public:
 	Vehicle(Actor* actor);
 	~Vehicle();
