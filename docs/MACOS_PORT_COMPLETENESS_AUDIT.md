@@ -97,7 +97,7 @@ Windows target не компилируется.
 | Weapon shot sounds | `ShotEffect::GiveSource3d`, serialized sound refs | source `ctWeapon/behaviors/items/*[@type=10]/sounds` | Перенесено | Удалено угадывание по имени; 24 source refs читаются напрямую, `drobilka` корректно остаётся без придуманного звука |
 | Damage/support/shield | `GameObject`, `Player`, `Weapon`, behaviors | ручные расчёты session | Частично | Основные transitions есть; полная damage type/force/reflect/immortality матрица не перенесена |
 | Bonuses | `Proj` types 4–10 | ручной switch + исходные values | Частично | Pickups/hazards есть; после ревизии shape contact source-driven, но остальной lifecycle ещё ручной |
-| Destructible decorations | `DestrObj`, `GameBase` | life flags, fragments/effects | Частично | Visual pieces и часть debris есть; полный PhysX body/contact/death behavior отсутствует |
+| Destructible decorations | `DestrObj`, `GameBase` | life flags, source fragments/debris | Частично | Все map destructibles обязаны иметь serialized `destrList`; выдуманный `explosion2.dds` fallback удалён, но полный PhysX body/contact/death behavior отсутствует |
 | Achievements | `AchievmentModel.cpp` | definitions + ручные counters | Частично | Часть условий поддержана; исходный model/event coverage не перенесён полностью |
 | HUD | `HudMenu.cpp` | `OriginalRaceHud.cpp` с исходными images/strings | Частично | Основные indicators, notifications и mini-map есть; исходный widget/animation object graph и все состояния не компилируются |
 | Mini-map | `HudMenu`, `TraceGfx` | trace-derived bgfx geometry | Частично | Работает по source trace; exact clipping/transforms/all markers требуют дальнейшего сопоставления |
@@ -231,6 +231,12 @@ Network, video и Steam явно выключены.
    тишину, а не fallback.
 6. Resource/physics smoke проверяют `bulletGun`, `sphereGun`, `turel`,
    `drobilka` и фактическое создание source ShotEffect.
+
+Также удалён общий decoration fallback `explosion2.dds`. В исходном каталоге
+каждая destructible map decoration содержит `destrList`; renderer использует
+эти source fragments. Resource smoke теперь запрещает destructible definition
+без serialized pieces, поэтому невозможный branch не маскируется придуманной
+вспышкой.
 
 ## Очередь дальнейшего переноса
 

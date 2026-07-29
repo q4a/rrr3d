@@ -851,18 +851,6 @@ bool OriginalRaceSession::damageDecorationAlongSegment(
     events_.push_back(
         {RaceEventKind::DecorationDestroyed, attacker, hit,
          position, damage});
-    const auto& definition = race_.decorationDefinitions.at(
-        race_.decorationInstances[hit].definition);
-    if (definition.destructionPieces.empty())
-    {
-        effects_.push_back(
-            {RaceEventKind::DecorationDestroyed, position,
-             add(position, {0.0F, 0.0F, 3.0F}),
-             0.5F, 0.5F, race_.weapons.size(), 0U, 0U,
-             RacerRuntime::invalidWeapon, false,
-             RacerRuntime::invalidWeapon,
-             RacerRuntime::invalidWeapon, {}});
-    }
     return true;
 }
 

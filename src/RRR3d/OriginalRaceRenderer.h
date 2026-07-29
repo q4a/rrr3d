@@ -153,7 +153,6 @@ private:
     ObjectAsset wheelTrailEffect_;
     r3d::renderer::Texture skyTexture_;
     r3d::renderer::Mesh skyMesh_;
-    r3d::renderer::Texture destructionEffectTexture_;
     r3d::renderer::Texture vehicleLightTexture_;
     r3d::renderer::Texture environmentSurfaceTexture_;
     r3d::renderer::Texture waterNormalTexture_;

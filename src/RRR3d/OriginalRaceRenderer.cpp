@@ -1678,12 +1678,9 @@ bool OriginalRaceRenderer::initialize(
             return device.createTextureContainer(
                 bytes.data(), bytes.size(), path);
         };
-        destructionEffectTexture_ =
-            loadEffectTexture("Data/Effect/explosion2.dds");
         vehicleLightTexture_ =
             loadEffectTexture("Data/Effect/flare2b.dds");
         if (!valid(effectMesh_) ||
-            !valid(destructionEffectTexture_) ||
             !valid(vehicleLightTexture_) ||
             (race.environment.surface !=
                      r3d::game::originalrace::EnvironmentSurface::None &&
@@ -1822,8 +1819,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         device.destroy(skyTexture_);
     if (valid(skyMesh_))
         device.destroy(skyMesh_);
-    if (valid(destructionEffectTexture_))
-        device.destroy(destructionEffectTexture_);
     if (valid(vehicleLightTexture_))
         device.destroy(vehicleLightTexture_);
     if (valid(environmentSurfaceTexture_))
@@ -1834,7 +1829,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         device.destroy(effectMesh_);
     skyTexture_ = {};
     skyMesh_ = {};
-    destructionEffectTexture_ = {};
     vehicleLightTexture_ = {};
     environmentSurfaceTexture_ = {};
     waterNormalTexture_ = {};
@@ -3327,41 +3321,8 @@ void OriginalRaceRenderer::draw(
                            mine.velocity.z * mine.velocity.z));
     }
 
-    auto effectPipeline = pipeline;
-    effectPipeline.blendMode = PipelineState::BlendMode::Additive;
-    effectPipeline.writeDepth = false;
-    effectPipeline.faceCulling = PipelineState::FaceCulling::None;
-    MaterialState glowMaterial;
-    glowMaterial.emissive = 1.0F;
-    glowMaterial.specular = 0.0F;
-    glowMaterial.ignoreFog = true;
-    struct DeferredEffectDraw
-    {
-        Mesh mesh;
-        Texture texture;
-        Transform model;
-        PipelineState pipeline;
-        MaterialState material;
-        float distanceSquared = 0.0F;
-    };
-    std::vector<DeferredEffectDraw> deferredEffects;
-    auto deferEffect = [&](Mesh mesh, Texture texture,
-                           const Transform& model,
-                           const PipelineState& effectState,
-                           const MaterialState& material) {
-        const float dx = model.matrix[12] - cameraPosition_.x;
-        const float dy = model.matrix[13] - cameraPosition_.y;
-        const float dz = model.matrix[14] - cameraPosition_.z;
-        deferredEffects.push_back(
-            {mesh, texture, model, effectState, material,
-             dx * dx + dy * dy + dz * dz});
-    };
     for (const auto& effect : effects)
     {
-        const float progress =
-            effect.totalSeconds <= 0.0F
-                ? 1.0F
-                : 1.0F - effect.seconds / effect.totalSeconds;
         if (effect.kind ==
                 r3d::game::originalrace::RaceEventKind::
                     VehicleDestroyed &&
@@ -3520,22 +3481,6 @@ void OriginalRaceRenderer::draw(
             // Windows code.  Do not synthesize a beam or activation sphere.
             continue;
         }
-        r3d::physics::Transform visual;
-        Texture texture = destructionEffectTexture_;
-        visual.position = effect.origin;
-        visual.position.z += 0.8F;
-        const float size = 1.5F + progress * 5.5F;
-        visual.scale = {size, size, size};
-        MaterialState effectMaterial = glowMaterial;
-        effectMaterial.color[3] =
-            std::clamp(effect.seconds /
-                           std::max(effect.totalSeconds, 0.001F),
-                       0.0F, 1.0F);
-        const auto frame = static_cast<std::uint32_t>(
-            std::clamp(progress, 0.0F, 0.9999F) * 16.0F);
-        effectMaterial.textureTransform = atlasFrame(4, 4, frame);
-        deferEffect(effectMesh_, texture, transform(visual),
-                    effectPipeline, effectMaterial);
     }
 
     for (std::size_t racer = 0; racer < racerCount; ++racer)
@@ -3599,7 +3544,7 @@ void OriginalRaceRenderer::draw(
     // GraphManager::RenderScenes renders surfaces, material-opacity actors,
     // ray-cull actors, effect actors with Z writes disabled, and finally
     // goLast actors.  Keep those queue boundaries instead of allowing
-    // particles and fallback effects to interleave with map geometry.
+    // particles to interleave with map geometry.
     if (deferredEnvironmentSurface)
     {
         device.draw(
@@ -3616,11 +3561,6 @@ void OriginalRaceRenderer::draw(
             if (first.stage != second.stage)
                 return static_cast<int>(first.stage) <
                        static_cast<int>(second.stage);
-            return first.distanceSquared > second.distanceSquared;
-        });
-    std::stable_sort(
-        deferredEffects.begin(), deferredEffects.end(),
-        [](const auto& first, const auto& second) {
             return first.distanceSquared > second.distanceSquared;
         });
     std::stable_sort(
@@ -3660,16 +3600,6 @@ void OriginalRaceRenderer::draw(
                           deferred.sourceSpeed,
                           deferred.trailOverride,
                           deferred.opacity, forceNoDepth);
-        }
-        if (stage == RenderStage::Effect)
-        {
-            for (const auto& deferred : deferredEffects)
-            {
-                device.draw(
-                    deferred.mesh, shader, deferred.texture,
-                    deferred.model, deferred.pipeline, {},
-                    deferred.material);
-            }
         }
     }
 }

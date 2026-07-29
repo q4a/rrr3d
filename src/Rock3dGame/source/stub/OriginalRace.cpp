@@ -3545,6 +3545,14 @@ bool runOriginalRaceResourceSmokeTest(
         const auto* crush1 = definitionNamed("crush1");
         const auto* reklama = definitionNamed("reklama");
         const auto* bochka = definitionNamed("bochka");
+        const bool hasDestructibleWithoutSourcePieces =
+            std::any_of(
+                race.decorationDefinitions.begin(),
+                race.decorationDefinitions.end(),
+                [](const ObjectDefinition& definition) {
+                    return definition.destructible &&
+                           definition.destructionPieces.empty();
+                });
         const auto sourcePiecesMatch = [&](const ObjectDefinition* definition,
                                            std::size_t pieces,
                                            std::size_t dynamicPieces) {
@@ -3570,7 +3578,8 @@ bool runOriginalRaceResourceSmokeTest(
         if (!sourcePiecesMatch(crush1, 14U, 12U) ||
             !sourcePiecesMatch(reklama, 11U, 10U) ||
             bochka == nullptr || bochka->destructible ||
-            !bochka->destructionPieces.empty())
+            !bochka->destructionPieces.empty() ||
+            hasDestructibleWithoutSourcePieces)
         {
             const auto audit = [](const ObjectDefinition* definition) {
                 if (definition == nullptr)
