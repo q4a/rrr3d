@@ -52,6 +52,18 @@ enum class PickSlot : std::uint8_t
     Mine,
 };
 
+// GameObjListener::DamageType in the Windows game.  Keep the source type on
+// portable events because HUD, achievements and death semantics distinguish
+// energy, mine, touch and death-plane damage.
+enum class DamageType : std::uint8_t
+{
+    Simple,
+    Energy,
+    Mine,
+    Touch,
+    DeathPlane,
+};
+
 struct RaceControl
 {
     r3d::physics::VehicleInput driving;
@@ -153,6 +165,7 @@ struct RaceEvent
     // not emit cPlayerKill.  Keep destruction consumers active while
     // excluding that event from kill HUD/commentary/achievements.
     bool killCredit = true;
+    DamageType damageType = DamageType::Simple;
 };
 
 struct RaceEffect
@@ -277,7 +290,8 @@ private:
     void destroyRacer(
         std::size_t racer, std::size_t attacker, Vec3 position,
         const r3d::physics::VehicleState& vehicle,
-        bool touchDamage = false, bool killCredit = true);
+        DamageType damageType = DamageType::Simple,
+        bool killCredit = true);
     std::size_t findWeapon(std::string_view record,
                            WeaponSlot slot) const noexcept;
     void syncSelectedWeapon(RacerRuntime& racer) const noexcept;

@@ -754,6 +754,26 @@ std::uint32_t sourceBonusCharge(
             1.0F));
 }
 
+DamageType sourceProjectileDamageType(std::uint32_t type)
+{
+    switch (type)
+    {
+    case 3U:  // ptLaser
+    case 16U: // ptSonar
+    case 18U: // ptFrostRay
+    case 21U: // ptImpulse
+        return DamageType::Energy;
+    case 11U: // ptMine
+    case 12U: // ptMineRip
+    case 13U: // ptMinePiece
+    case 20U: // ptCrater
+    case 24U: // ptMineProton
+        return DamageType::Mine;
+    default:
+        return DamageType::Simple;
+    }
+}
+
 float sampleSourceRange(float minimum, float maximum)
 {
     return minimum +
@@ -1194,6 +1214,10 @@ float OriginalRaceSession::damageAfterSupport(
         {
             result *= std::clamp(
                 1.0F - weapon.reflectValue, 0.0F, 1.0F);
+            // Logic::Damage asks Player::GetSlotInst(stReflector), which
+            // returns the first installed reflector rather than stacking
+            // every matching support slot.
+            break;
         }
     }
     return result;
@@ -1681,7 +1705,7 @@ void OriginalRaceSession::queueRespawn(
 
 void OriginalRaceSession::destroyRacer(
     std::size_t racer, std::size_t attacker, Vec3 position,
-    const r3d::physics::VehicleState& vehicle, bool touchDamage,
+    const r3d::physics::VehicleState& vehicle, DamageType damageType,
     bool killCredit)
 {
     if (racer >= racers_.size() || racer >= race_.racers.size() ||
@@ -1701,10 +1725,16 @@ void OriginalRaceSession::destroyRacer(
     runtime.restoreSeconds = 2.0F;
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
-    events_.push_back(
-        {RaceEventKind::Kill, attacker, racer, position, 0.0F,
-         PickSlot::None, RacerRuntime::invalidWeapon, touchDamage,
-         killCredit});
+    RaceEvent deathEvent;
+    deathEvent.kind = RaceEventKind::Kill;
+    deathEvent.racer = attacker;
+    deathEvent.target = racer;
+    deathEvent.position = position;
+    deathEvent.touchDamage =
+        damageType == DamageType::Touch;
+    deathEvent.killCredit = killCredit;
+    deathEvent.damageType = damageType;
+    events_.push_back(std::move(deathEvent));
 
     const auto& sourceRacer = race_.racers[racer];
     const auto& definition =
@@ -2019,10 +2049,7 @@ void OriginalRaceSession::updateGameplay(
             repairSeconds_[racer] -= repair->repairPeriod;
             runtime.life = std::min(
                 runtime.maximumLife,
-                runtime.life +
-                    (repair->repairValue > 0.0F
-                         ? repair->repairValue
-                         : 5.0F));
+                runtime.life + 5.0F);
         }
         const auto& sourceRacer = race_.racers[racer];
         const auto& vehicleDefinition =
@@ -2059,11 +2086,17 @@ void OriginalRaceSession::updateGameplay(
     auto pushDamageEvent =
         [&](std::size_t target, std::size_t attacker,
             const Vec3& position, float damage,
-            bool touchDamage = false) {
-            events_.push_back(
-                {RaceEventKind::Damage, target, attacker, position,
-                 damage, PickSlot::None,
-                 RacerRuntime::invalidWeapon, touchDamage});
+            DamageType damageType) {
+            RaceEvent event;
+            event.kind = RaceEventKind::Damage;
+            event.racer = target;
+            event.target = attacker;
+            event.position = position;
+            event.value = damage;
+            event.touchDamage =
+                damageType == DamageType::Touch;
+            event.damageType = damageType;
+            events_.push_back(std::move(event));
             if (target >= racers_.size())
                 return;
             auto& runtime = racers_[target];
@@ -2076,6 +2109,36 @@ void OriginalRaceSession::updateGameplay(
             {
                 runtime.shieldDamageSeconds = 0.0F;
             }
+        };
+    auto applyRacerDamage =
+        [&](std::size_t target, std::size_t attacker,
+            const Vec3& position, float sourceDamage,
+            DamageType damageType) {
+            if (target >= racers_.size() ||
+                target >= vehicles.size() ||
+                racers_[target].destroyed)
+                return false;
+            const bool touch =
+                damageType == DamageType::Touch;
+            // Logic::Damage applies the first reflector before
+            // GameObject::Damage tests immortality.  cPlayerDamage keeps
+            // this reflected incoming value even when life cannot change.
+            const float incoming = damageAfterSupport(
+                target, sourceDamage, touch);
+            auto& runtime = racers_[target];
+            if (runtime.shieldSeconds <= 0.0F)
+            {
+                runtime.life = std::max(
+                    0.0F, runtime.life - incoming);
+            }
+            pushDamageEvent(
+                target, attacker, position, incoming, damageType);
+            if (runtime.life > 0.0F)
+                return false;
+            destroyRacer(
+                target, attacker, position, vehicles[target],
+                damageType, damageType != DamageType::Mine);
+            return true;
         };
 
     auto damageFromContact =
@@ -2102,14 +2165,9 @@ void OriginalRaceSession::updateGameplay(
         if (target >= racers_.size() || damage <= 0.0F ||
             racers_[target].destroyed)
             return;
-        const float applied =
-            racers_[target].shieldSeconds > 0.0F ? 0.0F : damage;
-        racers_[target].life =
-            std::max(0.0F, racers_[target].life - applied);
-        pushDamageEvent(target, attacker, position, applied, true);
-        if (racers_[target].life > 0.0F)
-            return;
-        destroyRacer(target, attacker, position, vehicles[target], true);
+        applyRacerDamage(
+            target, attacker, position, damage,
+            DamageType::Touch);
     };
 
     for (std::size_t racer = 0;
@@ -2324,19 +2382,13 @@ void OriginalRaceSession::updateGameplay(
                 rayHit.vehicle < racers_.size())
             {
                 const std::size_t target = rayHit.vehicle;
-                const float damage =
-                    racers_[target].shieldSeconds > 0.0F
-                        ? 0.0F
-                        : damageAfterSupport(
-                              target,
-                              std::max(
-                                  projectileDefinition.damage * seconds,
-                                  0.0F),
-                              false);
-                racers_[target].life =
-                    std::max(0.0F, racers_[target].life - damage);
-                pushDamageEvent(
-                    target, projectile.owner, end, damage);
+                applyRacerDamage(
+                    target, projectile.owner, end,
+                    std::max(
+                        projectileDefinition.damage * seconds,
+                        0.0F),
+                    sourceProjectileDamageType(
+                        projectileDefinition.type));
                 if (projectileDefinition.type == 18U &&
                     racers_[target].slowSeconds <= 0.0F)
                 {
@@ -2352,12 +2404,6 @@ void OriginalRaceSession::updateGameplay(
                         projectile.weapon;
                     racers_[target].slowProjectile =
                         projectile.projectile;
-                }
-                if (racers_[target].life <= 0.0F)
-                {
-                    destroyRacer(
-                        target, projectile.owner, end,
-                        vehicles[target]);
                 }
             }
             else if (sourceContact)
@@ -2429,30 +2475,13 @@ void OriginalRaceSession::updateGameplay(
                     const Vec3 contactPoint =
                         closestPoint(targetBox, projectileBox.center);
                     refreshDrobilkaContact(contactPoint);
-                    const float damage =
-                        racers_[target].shieldSeconds > 0.0F
-                            ? 0.0F
-                            : damageAfterSupport(
-                                  target,
-                                  std::max(
-                                      projectileDefinition.damage *
-                                          seconds,
-                                      0.0F),
-                                  false);
-                    racers_[target].life =
-                        std::max(
-                            0.0F,
-                            racers_[target].life - damage);
-                    pushDamageEvent(
+                    applyRacerDamage(
                         target, projectile.owner,
-                        contactPoint, damage);
-                    if (racers_[target].life <= 0.0F)
-                    {
-                        destroyRacer(
-                            target, projectile.owner,
-                            contactPoint,
-                            vehicles[target]);
-                    }
+                        contactPoint,
+                        std::max(
+                            projectileDefinition.damage * seconds,
+                            0.0F),
+                        DamageType::Simple);
                 }
                 Vec3 decorationContact;
                 if (projectileDefinition.type == 15U &&
@@ -2680,20 +2709,14 @@ void OriginalRaceSession::updateGameplay(
                           static_cast<float>(
                               projectile.hitCount + 1U)
                     : projectile.damage;
-            const float damage =
-                racers_[target].shieldSeconds > 0.0F
-                    ? 0.0F
-                    : damageAfterSupport(
-                          target,
-                          std::max(
-                              sourceDamage *
-                                  (sonarContact ? seconds : 1.0F),
-                              0.0F),
-                          false);
-            racers_[target].life =
-                std::max(0.0F, racers_[target].life - damage);
-            pushDamageEvent(
-                target, projectile.owner, contactPoint, damage);
+            const bool targetDestroyed = applyRacerDamage(
+                target, projectile.owner, contactPoint,
+                std::max(
+                    sourceDamage *
+                        (sonarContact ? seconds : 1.0F),
+                    0.0F),
+                sourceProjectileDamageType(
+                    projectileDefinition.type));
             if (sonarContact)
             {
                 const float targetMass =
@@ -2758,24 +2781,10 @@ void OriginalRaceSession::updateGameplay(
             }
             if (sonarContact)
             {
-                if (racers_[target].life <= 0.0F)
-                {
-                    destroyRacer(
-                        target, projectile.owner, contactPoint,
-                        vehicles[target]);
-                }
                 continue;
             }
             if (projectileDefinition.type == 21U)
             {
-                const bool targetDestroyed =
-                    racers_[target].life <= 0.0F;
-                if (targetDestroyed)
-                {
-                    destroyRacer(
-                        target, projectile.owner, contactPoint,
-                        vehicles[target]);
-                }
                 if (!targetedImpulse ||
                     targetDestroyed ||
                     ++projectile.hitCount > 2U)
@@ -2810,12 +2819,6 @@ void OriginalRaceSession::updateGameplay(
             }
             spawnProjectileImpact(
                 projectile, projectile.position);
-            if (racers_[target].life <= 0.0F)
-            {
-                destroyRacer(
-                    target, projectile.owner, projectile.position,
-                    vehicles[target]);
-            }
             projectile.active = false;
             break;
         }
@@ -3253,11 +3256,7 @@ void OriginalRaceSession::updateGameplay(
                         vehicles[racer].linearVelocity) <= 3.0F)
                     continue;
                 if (clutchImmune(racer))
-                {
-                    pushDamageEvent(
-                        racer, mine.owner, mine.position, 0.0F);
                     continue;
-                }
                 const Vec3 direction = normalized2(
                     forward(vehicles[racer].body.rotation));
                 const Vec3 right{-direction.y, direction.x, 0.0F};
@@ -3272,25 +3271,16 @@ void OriginalRaceSession::updateGameplay(
                 racers_[racer].clutchSeconds = 0.38F;
                 angularVelocityRequests_.push_back(
                     {racer, {0.0F, 0.0F, strength}});
-                pushDamageEvent(
-                    racer, mine.owner, contactPoint, 0.0F);
                 continue;
             }
-            const float damage =
-                racers_[racer].shieldSeconds > 0.0F
-                    ? 0.0F
-                    : damageAfterSupport(
-                          racer,
-                          std::max(
-                              mine.type == 20U
-                                  ? mine.damage * seconds
-                                  : mine.damage,
-                              0.0F),
-                          false);
-            racers_[racer].life =
-                std::max(0.0F, racers_[racer].life - damage);
-            pushDamageEvent(
-                racer, mine.owner, contactPoint, damage);
+            applyRacerDamage(
+                racer, mine.owner, contactPoint,
+                std::max(
+                    mine.type == 20U
+                        ? mine.damage * seconds
+                        : mine.damage,
+                    0.0F),
+                DamageType::Mine);
             if (mine.type != 20U &&
                 mine.impulseSpeed != 0.0F)
             {
@@ -3344,12 +3334,6 @@ void OriginalRaceSession::updateGameplay(
             }
             if (mine.type != 20U)
                 spawnMineDeathEffect(mine);
-            if (racers_[racer].life <= 0.0F)
-            {
-                destroyRacer(
-                    racer, mine.owner, contactPoint,
-                    vehicles[racer], false, false);
-            }
             if (mine.type != 20U)
             {
                 mine.active = false;
@@ -3482,15 +3466,11 @@ void OriginalRaceSession::updateGameplay(
                 if (enableMineBug_ &&
                     runtime.mineLockSeconds > 0.0F)
                     continue;
-                const float damage =
-                    runtime.shieldSeconds > 0.0F
-                        ? 0.0F
-                        : damageAfterSupport(
-                              racer, std::max(bonus.value, 0.0F), false);
-                runtime.life = std::max(0.0F, runtime.life - damage);
-                pushDamageEvent(
+                applyRacerDamage(
                     racer, RacerRuntime::invalidWeapon,
-                    contactPoint, damage);
+                    contactPoint,
+                    std::max(bonus.value, 0.0F),
+                    DamageType::Mine);
                 spawnBonusDeathEffect(bonusIndex);
                 const float mass =
                     std::max(vehicleDefinition.physics.mass, 1.0F);
@@ -3540,13 +3520,6 @@ void OriginalRaceSession::updateGameplay(
                          rotate(
                              vehicles[racer].body.rotation,
                              localAngularDelta)});
-                }
-                if (runtime.life <= 0.0F)
-                {
-                    destroyRacer(
-                        racer, RacerRuntime::invalidWeapon,
-                        contactPoint, vehicles[racer], false,
-                        false);
                 }
                 bonusActive_[bonusIndex] = false;
                 break;
@@ -3817,21 +3790,10 @@ void OriginalRaceSession::updateGameplay(
             else if (projectileTarget < racers_.size())
             {
                 target = projectileTarget;
-                const float damage =
-                    racers_[target].shieldSeconds > 0.0F
-                        ? 0.0F
-                        : damageAfterSupport(
-                              target,
-                              std::max(projectile.damage, 0.0F),
-                              false);
-                racers_[target].life =
-                    std::max(0.0F, racers_[target].life - damage);
-                pushDamageEvent(target, shooter, end, damage);
-                if (racers_[target].life <= 0.0F)
-                {
-                    destroyRacer(
-                        target, shooter, end, vehicles[target]);
-                }
+                applyRacerDamage(
+                    target, shooter, end,
+                    std::max(projectile.damage, 0.0F),
+                    sourceProjectileDamageType(projectile.type));
             }
             effects_.push_back(
                 {RaceEventKind::WeaponFired, projectileOrigin, end,
@@ -4813,7 +4775,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 shieldSession.events().end(),
                 [](const RaceEvent& event) {
                     return event.kind == RaceEventKind::Damage &&
-                           event.racer == 0U && event.value == 0.0F;
+                           event.racer == 0U &&
+                           event.value > 0.0F &&
+                           event.damageType == DamageType::Touch;
                 });
             const auto& damaged = shieldSession.racers().front();
             if (damaged.life != lifeBeforeShieldDamage ||

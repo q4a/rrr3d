@@ -737,6 +737,11 @@ SDL_AUDIO_DRIVER=dummy \
   `Round((N-1)*Random())` и усечение charge. Придуманный общий
   `pickup_up` для игрового подбора удалён; persistent speed/lusha/oil
   по-прежнему не уничтожаются.
+- Damage dispatch хранит исходные `dtSimple/dtEnergy/dtMine/dtTouch`:
+  применяется только первый `stReflector`, затем проверяется immortality;
+  поэтому shield сохраняет жизнь, но `cPlayerDamage` несёт входящий урон, как
+  в `GameObject::Damage`. Нулевые fake-damage events от `ptMaslo` удалены,
+  Droid лечит на фактически зашитые в Windows `5.0f`.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,
