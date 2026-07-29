@@ -4481,10 +4481,119 @@ void OriginalRaceSession::update(
         if (racers_[0].speedBoostSeconds > 0.0F)
             vehicleInputs_[0].throttle = 1.0F;
     }
+    auto lapPosition =
+        [&](std::size_t racer,
+            const r3d::physics::VehicleState& vehicle) {
+            const auto segmentLength =
+                [&](std::size_t targetNode) {
+                    return length2(subtract(
+                        tracePoint(targetNode).position,
+                        tracePoint(targetNode - 1U).position));
+                };
+            float pathLength = 0.0F;
+            for (std::size_t node = 1U;
+                 node < race_.tracePath.size(); ++node)
+                pathLength += segmentLength(node);
+            if (pathLength <= 0.0001F)
+                return static_cast<float>(
+                    racers_[racer].completedLaps);
+            const std::size_t nextNode = std::clamp<std::size_t>(
+                racers_[racer].nextPathNode, 1U,
+                race_.tracePath.size() - 1U);
+            float distance = 0.0F;
+            for (std::size_t node = 1U; node < nextNode; ++node)
+                distance += segmentLength(node);
+            const Vec3 start =
+                tracePoint(nextNode - 1U).position;
+            const Vec3 end = tracePoint(nextNode).position;
+            const Vec3 segment = subtract(end, start);
+            const float length = std::max(length2(segment), 0.0001F);
+            const Vec3 direction = multiply(segment, 1.0F / length);
+            distance += std::clamp(
+                dot2(subtract(vehicle.body.position, start),
+                     direction),
+                0.0F, length);
+            return static_cast<float>(
+                       racers_[racer].completedLaps) +
+                   distance / pathLength;
+        };
+    const auto difficultyIndex =
+        initialPlayerProfile_.difficulty == "gdEasy"
+            ? 0U
+            : initialPlayerProfile_.difficulty == "gdHard" ? 2U : 1U;
+    static constexpr std::array<float, 3> easingMinimumDistance{
+        20.0F, 20.0F, 20.0F};
+    static constexpr std::array<float, 3> easingMaximumDistance{
+        200.0F, 200.0F, 200.0F};
+    static constexpr std::array<float, 3> easingMinimumSpeed{
+        95.0F * 1000.0F / 3600.0F,
+        110.0F * 1000.0F / 3600.0F,
+        125.0F * 1000.0F / 3600.0F};
+    static constexpr std::array<float, 3> easingMaximumSpeed{
+        55.0F * 1000.0F / 3600.0F,
+        65.0F * 1000.0F / 3600.0F,
+        75.0F * 1000.0F / 3600.0F};
+    static constexpr std::array<float, 3> cheatMinimumTorque{
+        1.05F, 1.20F, 1.30F};
+    static constexpr std::array<float, 3> cheatMaximumTorque{
+        1.30F, 1.65F, 1.85F};
+    const float pathLength = [&]() {
+        float result = 0.0F;
+        for (std::size_t node = 1U;
+             node < race_.tracePath.size(); ++node)
+        {
+            result += length2(subtract(
+                tracePoint(node).position,
+                tracePoint(node - 1U).position));
+        }
+        return std::max(result, 1.0F);
+    }();
+    const float humanLap =
+        !vehicles.empty() ? lapPosition(0U, vehicles.front()) : 0.0F;
     for (std::size_t racer = 1;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
+    {
         vehicleInputs_[racer] =
             aiInput(racer, vehicles[racer], seconds);
+        auto& aiInputValue = vehicleInputs_[racer];
+        const float aiLap = lapPosition(racer, vehicles[racer]);
+        float distance = std::abs(aiLap - humanLap);
+        distance -= std::floor(distance);
+        distance = std::min(distance, 1.0F - distance) *
+                   pathLength;
+        const float distancePart = std::clamp(
+            (distance - easingMinimumDistance[difficultyIndex]) /
+                (easingMaximumDistance[difficultyIndex] -
+                 easingMinimumDistance[difficultyIndex]),
+            0.0F, 1.0F);
+        if (aiLap > humanLap &&
+            distance >
+                easingMinimumDistance[difficultyIndex])
+        {
+            const float speedLimit =
+                easingMinimumSpeed[difficultyIndex] +
+                (easingMaximumSpeed[difficultyIndex] -
+                 easingMinimumSpeed[difficultyIndex]) *
+                    distancePart;
+            if (vehicles[racer].speed > speedLimit &&
+                aiInputValue.brake <= 0.0F)
+            {
+                aiInputValue.throttle = 0.0F;
+                aiInputValue.reverse = 0.0F;
+            }
+        }
+        else if (distance >
+                 easingMinimumDistance[difficultyIndex])
+        {
+            const float torqueScale =
+                cheatMinimumTorque[difficultyIndex] +
+                (cheatMaximumTorque[difficultyIndex] -
+                 cheatMinimumTorque[difficultyIndex]) *
+                    distancePart;
+            aiInputValue.motorTorqueScale = torqueScale;
+            aiInputValue.lateralGripScale = torqueScale;
+        }
+    }
 
     updateGameplay(seconds, vehicles, humanControl);
     updatePlaces(vehicles);
@@ -4556,6 +4665,25 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source AICar reverse/forward alternation failed");
+            }
+
+            OriginalRaceSession aiCheatSession(race);
+            auto cheatVehicles = vehicles;
+            for (int frame = 0; frame < 190; ++frame)
+                aiCheatSession.update(
+                    1.0F / 60.0F, cheatVehicles, input);
+            cheatVehicles[0].body.position = point(1U).position;
+            aiCheatSession.update(
+                1.0F / 60.0F, cheatVehicles, input);
+            aiCheatSession.update(
+                1.0F / 60.0F, cheatVehicles, input);
+            if (aiCheatSession.vehicleInputs()[1]
+                        .motorTorqueScale <= 1.0F ||
+                aiCheatSession.vehicleInputs()[1]
+                        .lateralGripScale <= 1.0F)
+            {
+                throw std::runtime_error(
+                    "source Player::CheatUpdate AI catch-up failed");
             }
         }
 

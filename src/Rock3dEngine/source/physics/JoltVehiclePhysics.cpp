@@ -825,6 +825,7 @@ private:
         float steeringAngle = 0.0F;
         float motorTorque = 0.0F;
         float engineRpm = 1000.0F;
+        float lateralGripScale = 1.0F;
         int currentGear = -1;
         std::uint32_t resetCount = 0;
         bool wheelTractionEnabled = true;
@@ -984,6 +985,11 @@ private:
         input.reverse = std::clamp(input.reverse, 0.0F, 1.0F);
         input.brake = std::clamp(input.brake, 0.0F, 1.0F);
         input.steering = std::clamp(input.steering, -1.0F, 1.0F);
+        input.motorTorqueScale =
+            std::max(input.motorTorqueScale, 0.0F);
+        input.lateralGripScale =
+            std::max(input.lateralGripScale, 0.0F);
+        vehicle.lateralGripScale = input.lateralGripScale;
 
         const auto& source = vehicle.spawn.vehicle;
         bool anyContact = false;
@@ -1080,6 +1086,8 @@ private:
         if (source.maximumSpeed > 0.0F &&
             velocity.Length() > source.maximumSpeed)
             motorTorque = brakeTorque;
+        else
+            motorTorque *= input.motorTorqueScale;
         vehicle.motorTorque = motorTorque;
         vehicle.engineRpm = rpm;
 
@@ -1439,6 +1447,8 @@ private:
                     lateral = 0.0F;
                     return;
                 }
+                lateral *=
+                    vehicles_[vehicleIndexValue].lateralGripScale;
                 // NxWheelShape evaluates its serialized tire functions
                 // directly; the contacted material index is passed to the
                 // callback but the original implementation does not scale

@@ -759,6 +759,11 @@ SDL_AUDIO_DRIVER=dummy \
   назад инвертирует steering и по-прежнему вызывает reset через три секунды.
   `AttackState` получил исходные minimum readiness 0,25 с, 25%-й случайный
   выбор из подходящих weapons и `placeMineRandom` в диапазоне `[-0.5, 0]`.
+- `Player::CheatUpdate` перенесён с исходными easy/normal/hard таблицами:
+  AI впереди человека отпускает газ по speed limit, отстающий AI получает
+  коэффициент `1.05..1.85` одновременно для motor torque и lateral tire
+  force. Jolt применяет их на тех же границах, где PhysX-код вызывал
+  `SetMotorTorqueK` и `SetWheelSteerK`.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,

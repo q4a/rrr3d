@@ -129,6 +129,10 @@ struct VehicleInput
     float reverse = 0.0F;
     float brake = 0.0F;
     float steering = 0.0F;
+    // Player::SetCheatK changes these independently of the driver controls.
+    // AI rubber-banding uses both; ordinary players retain the neutral 1.
+    float motorTorqueScale = 1.0F;
+    float lateralGripScale = 1.0F;
     // GameCar::LockSpring suppresses the automatic airborne pitch torque.
     bool springLocked = false;
 };
