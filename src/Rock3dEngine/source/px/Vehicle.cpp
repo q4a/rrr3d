@@ -276,10 +276,25 @@ void VehicleScene::InitSDK(PxPhysics& sdk)
 	//and every camera default in ContextInfo uses dir = XVector, up = ZVector.
 	PxVehicleSetBasisVectors(PxVec3(0.0f, 0.0f, 1.0f), PxVec3(1.0f, 0.0f, 0.0f));
 
-	//eVELOCITY_CHANGE applies the vehicle's result as an immediate velocity
-	//change rather than an acceleration, which is what keeps a car stable at
-	//the 1/60 step this game runs at.
-	PxVehicleSetUpdateMode(PxVehicleUpdateMode::eVELOCITY_CHANGE);
+	/*
+	 * eACCELERATION, not eVELOCITY_CHANGE.
+	 *
+	 * eVELOCITY_CHANGE has PxVehicleUpdates write the rigid body's velocity
+	 * outright. A car whose wheels are all in the air produces no forces, so
+	 * what gets written is the velocity it already had -- and the fall gravity
+	 * accumulated during the step is overwritten every step. The car hangs in
+	 * the air indefinitely.
+	 *
+	 * That is exactly what the game did: cars two metres above the track,
+	 * frozen, never falling. It read like a broken suspension raycast for a
+	 * long time, and the raycast was innocent -- a ray of travel + radius is
+	 * about half a metre and the ground was 2.045 m down, so reporting inAir
+	 * was the correct answer to the wrong question.
+	 *
+	 * eACCELERATION contributes accelerations instead and leaves the scene's
+	 * own integration, gravity included, alone.
+	 */
+	PxVehicleSetUpdateMode(PxVehicleUpdateMode::eACCELERATION);
 
 	g_vehicleSdkInitialised = true;
 }
@@ -498,9 +513,32 @@ bool Vehicle::BuildWheelsSimData(PxVehicleWheelsSimData& simData, PxRigidDynamic
 	//PxVehicleComputeSprungMasses and setWheelCentreOffset expect.
 	const PxVec3 centreOfMass = body.getCMassLocalPose().p;
 
+	/*
+	 * Wheel offsets come from the PxShape's local pose, not from
+	 * WheelShape::GetPos().
+	 *
+	 * GetPos() is the shape's position within *its own actor*, and a car's
+	 * wheels each live on their own child actor -- so those coordinates are
+	 * relative to a frame that is not the car's. Using them put all four wheels
+	 * near the body origin, inside the chassis convex and two metres above the
+	 * track, where a suspension ray of travel + radius could never reach the
+	 * ground. Every wheel then correctly reported being in the air, and the
+	 * cars hung there.
+	 *
+	 * Shape::ApplyToShape already resolves the child transform when it sets the
+	 * PxShape's local pose, and that pose is relative to the root PxRigidActor,
+	 * which is the frame PxVehicle wants.
+	 */
 	std::vector<PxVec3> offsets(wheelCount);
 	for (PxU32 i = 0; i < wheelCount; ++i)
-		offsets[i] = ToPxVec(_wheels[i]->GetPos()) - centreOfMass;
+	{
+		const PxShape* nxShape = _wheels[i]->GetNxShape();
+		const PxVec3 local = nxShape
+			? nxShape->getLocalPose().p
+			: ToPxVec(_wheels[i]->GetPos());
+
+		offsets[i] = local - centreOfMass;
+	}
 
 	std::vector<PxF32> sprungMasses(wheelCount);
 	PxVehicleComputeSprungMasses(wheelCount, &offsets[0], PxVec3(0.0f, 0.0f, 0.0f),
@@ -730,6 +768,45 @@ void Vehicle::SyncOutputs()
 		contact.contactPosition = wheel->GetRadius() + travel - result.suspJounce;
 
 		wheel->SetContactData(contact, result.isInAir ? 0 : result.tireContactShape);
+
+		/*
+		 * DIAGNOSTIC: the same cast, done by hand.
+		 *
+		 * The suspension raycasts miss everything in the game and hit fine in
+		 * the harness. A raw PxScene::raycast from the wheel's own world
+		 * position splits that: if this hits and the batch query does not, the
+		 * fault is in how the batch query is set up; if neither hits, there is
+		 * genuinely nothing under the car and the wheel origins are wrong.
+		 *
+		 * Straight onto PxScene rather than through Scene::RaycastClosestShape,
+		 * because routing it through the engine wrapper stopped SyncInputs
+		 * running at all.
+		 */
+		if (i == 0 && ::rrr3d::TraceEnabled())
+		{
+			PxRigidDynamic* body = _actor ? _actor->GetNxDynamic() : 0;
+			PxScene* scene = body ? body->getScene() : 0;
+			if (scene)
+			{
+				const PxTransform pose = body->getGlobalPose();
+				const PxVec3 origin = pose.transform(ToPxVec(wheel->GetPos()));
+
+				//Started a metre below the wheel, because a cast from the wheel
+				//itself begins inside the car's own chassis convex and returns
+				//distance 0 without ever reaching the ground.
+				const PxVec3 below = origin + PxVec3(0.0f, 0.0f, -1.0f);
+
+				PxRaycastBuffer hit;
+				const bool found = scene->raycast(below, PxVec3(0.0f, 0.0f, -1.0f),
+					200.0f, hit);
+
+				RRR3D_TRACE_FIRST(12,
+					"RAWCAST wheelZ=%.2f groundBelowWheel=%.3f shape=%p",
+					origin.z,
+					(found && hit.hasBlock) ? hit.block.distance + 1.0f : -1.0f,
+					(found && hit.hasBlock) ? (void*)hit.block.shape : 0);
+			}
+		}
 
 		//Whether the suspension raycast found ground at all. A wheel that never
 		//does produces no tire force, so nothing downstream of it can be
