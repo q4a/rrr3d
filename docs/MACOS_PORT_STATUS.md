@@ -15,13 +15,16 @@
 > `ctEffects/rain`. M9.3 переносит source Water/HDR adaptation и добавляет
 > проверяемый render graph. M9.4 реализует 512×512 dynamic cube reflection,
 > настоящий tangent-space normal mapping и связный `FxTrailManager` strip
-> по истории колёс. Loader охватывает все 88 турнирных карт и 17
+> по истории колёс. Follow-up устраняет подмену гоночных колёс огромными
+> workshop preview meshes и восстанавливает исходный D3D9 additive blend
+> `SRC_ALPHA, ONE` в bgfx backend. Loader охватывает все 88 турнирных карт и 17
 > машин гаража. Старые portable M6–M10 ниже остаются историей
 > отменённого самостоятельного vertical slice и не являются acceptance status.
 
 ## Активный этап
 
-Milestone 9.4: true cube reflection, normal mapping и FxTrail на bgfx/Metal.
+Milestone 9.4 follow-up: visual parity колёс и прозрачных эффектов на
+bgfx/Metal.
 
 ## Активный статус
 
@@ -45,6 +48,13 @@ renderer stages описаны в `docs/MILESTONE_9_2.md`,
 каждый подтвердил шесть cube faces, `glRefl` и FxTrail, а World2 дополнительно
 дал 768 draw submissions с исходными normal maps. Parallels не
 использовался. Подробные результаты находятся в `docs/MILESTONE_9_4.md`.
+
+Follow-up проверен вручную через штатный путь `Single Player -> Tournament ->
+Continue -> Start race`: колёса Marauder и AI сохраняют исходный масштаб и
+вращаются без увеличенных preview meshes. Исправление additive blending убрало
+белые грани от прозрачных DDS-texels; после старта и на первом повороте кадр
+чистый, а тёмные wheel trails отображаются корректно. Physics, resource,
+240-frame race-render и bundle verification завершились с exit code 0.
 
 ## Исторический отчёт отменённого vertical slice
 
@@ -94,6 +104,13 @@ Portable core Milestone 3 не изменил поведение обычног�
 - `Single Player` запускает bgfx/Metal scene с настоящими track/decor/bonus/car
   meshes, DDS materials, map lighting/fog/sky/rain и камерой по исходным
   `CameraManager` константам.
+- Race runtime не применяет `Data/Upgrade/wheel*.r3d` как колёса автомобиля:
+  как и в legacy `WheelItem`, эти крупные meshes используются только для
+  workshop preview. Контакт, slip и wheel trails получают состояние каждого
+  Jolt-колеса.
+- Bgfx additive pipeline повторяет исходный `Material::ApplyBlending`:
+  `SRC_ALPHA, ONE`, а не bgfx shortcut `ONE, ONE`. Поэтому RGB под прозрачными
+  texels исходных DDS больше не проявляется белыми полигонами.
 - `OriginalRaceSession` обслуживает countdown, checkpoints/laps/place/finish,
   wrong-way, reset/respawn, пять AI, life/damage/shield, bonuses,
   achievements, четыре workshop slots, projectiles/mines/hyper/support и

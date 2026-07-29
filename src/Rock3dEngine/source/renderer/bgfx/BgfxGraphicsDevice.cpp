@@ -756,7 +756,15 @@ private:
                  PipelineState::FaceCulling::CounterClockwise)
             state |= BGFX_STATE_CULL_CCW;
         if (pipeline.blendMode == PipelineState::BlendMode::Additive)
-            state |= BGFX_STATE_BLEND_ADD;
+        {
+            // Material::ApplyBlending(bmAdditive) in the original D3D9
+            // renderer uses SRCALPHA, ONE. BGFX_STATE_BLEND_ADD is ONE, ONE
+            // and therefore makes RGB stored under transparent DDS texels
+            // visible as opaque white mesh faces.
+            state |= BGFX_STATE_BLEND_FUNC(
+                BGFX_STATE_BLEND_SRC_ALPHA,
+                BGFX_STATE_BLEND_ONE);
+        }
         else if (pipeline.alphaBlend ||
                  pipeline.blendMode ==
                      PipelineState::BlendMode::Alpha)
