@@ -334,6 +334,18 @@ void drawQuad(GraphicsDevice& device, Mesh quad, Shader shader,
                 pipeline);
 }
 
+void drawQuadRotated(GraphicsDevice& device, Mesh quad, Shader shader,
+                     Texture texture, float width, float height,
+                     float centerX, float centerY, float depth,
+                     float rotation, const PipelineState& pipeline)
+{
+    Transform transform;
+    bx::mtxSRT(
+        transform.matrix.data(), width, height, 1.0F, 0.0F, 0.0F,
+        rotation, centerX, centerY, depth);
+    device.draw(quad, shader, texture, transform, pipeline);
+}
+
 #ifdef RRR3D_GAMEPAD_INPUT
 std::optional<std::size_t> hoveredItem(SDL_Window* window, float windowX,
                                        float windowY, std::size_t itemCount,
@@ -806,6 +818,62 @@ int main(int argc, char** argv)
         createImageTexture(*device, acceptButtonImage);
     const Texture acceptButtonSelected =
         createImageTexture(*device, acceptButtonSelectedImage);
+    const auto optionsBackgroundImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/optionsBg.png");
+    const auto optionsRowImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/labelBg1.png");
+    const auto controlsRowImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/labelBg2.png");
+    const auto optionsArrowImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/arrow3.png");
+    const auto optionsArrowSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/arrowSel3.png");
+    const auto optionsBarBackgroundImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/optBarBg.png");
+    const auto optionsBarImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/optBar.png");
+    const auto optionsButtonImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBg4.png");
+    const auto optionsButtonSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBgSel4.png");
+    const auto optionsKeyImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/keyBg.png");
+    const auto optionsKeySelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/keyBgSel.png");
+    const auto keyboardIconImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/ctKeyboard.png");
+    const auto gamepadIconImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/ctGamepad.png");
+    const Texture optionsBackground =
+        createImageTexture(*device, optionsBackgroundImage);
+    const Texture optionsRow =
+        createImageTexture(*device, optionsRowImage);
+    const Texture controlsRow =
+        createImageTexture(*device, controlsRowImage);
+    const Texture optionsArrow =
+        createImageTexture(*device, optionsArrowImage);
+    const Texture optionsArrowSelected =
+        createImageTexture(*device, optionsArrowSelectedImage);
+    const Texture optionsBarBackground =
+        createImageTexture(*device, optionsBarBackgroundImage);
+    const Texture optionsBar =
+        createImageTexture(*device, optionsBarImage);
+    const Texture optionsButton =
+        createImageTexture(*device, optionsButtonImage);
+    const Texture optionsButtonSelected =
+        createImageTexture(*device, optionsButtonSelectedImage);
+    const Texture optionsKey =
+        createImageTexture(*device, optionsKeyImage);
+    const Texture optionsKeySelected =
+        createImageTexture(*device, optionsKeySelectedImage);
+    const Texture keyboardIcon =
+        createImageTexture(*device, keyboardIconImage);
+    const Texture gamepadIcon =
+        createImageTexture(*device, gamepadIconImage);
+    const std::array<std::uint8_t, 4> optionsMaskPixel{
+        0U, 0U, 0U, 204U};
+    const Texture optionsMask = device->createTextureRgba8(
+        1U, 1U, optionsMaskPixel.data(), optionsMaskPixel.size());
 #endif
 
     struct MenuPageVisual
@@ -847,6 +915,14 @@ int main(int argc, char** argv)
     MenuPageVisual graphicsOptionsPage;
     MenuPageVisual soundOptionsPage;
     MenuPageVisual controlsOptionsPage;
+    MenuPageVisual gameOptionNamesPage;
+    MenuPageVisual graphicsOptionNamesPage;
+    MenuPageVisual soundOptionNamesPage;
+    MenuPageVisual controlsKeyboardValuesPage;
+    MenuPageVisual controlsGamepadValuesPage;
+    MenuPageVisual optionsHeaderPage;
+    MenuPageVisual optionsStatePage;
+    MenuPageVisual optionsActionPage;
     MenuPageVisual finishPage;
 #endif
     std::string resolvedFont;
@@ -864,6 +940,22 @@ int main(int argc, char** argv)
         }
         return page;
     };
+    auto createStyledPage =
+        [&](std::vector<std::string> pageLabels, float pointSize,
+            menu::Rgba8 normalColor, menu::Rgba8 selectedColor) {
+            MenuPageVisual page;
+            page.labels = std::move(pageLabels);
+            for (const auto& item : page.labels)
+            {
+                page.normal.push_back(createText(
+                    *device, item, pointSize, false, normalColor,
+                    resolvedFont));
+                page.selected.push_back(createText(
+                    *device, item, pointSize, false, selectedColor,
+                    resolvedFont));
+            }
+            return page;
+        };
     auto destroyPage = [&](const MenuPageVisual& page) {
         for (const auto& item : page.selected)
             device->destroy(item.texture);
@@ -871,10 +963,53 @@ int main(int argc, char** argv)
             device->destroy(item.texture);
     };
 #ifdef RRR3D_PHYSICS
-    auto optionValue = [&](std::string_view key,
-                           const std::string& value) {
-        return localized(key) + ": " + value;
-    };
+    constexpr menu::Rgba8 optionsTextColor{175, 175, 175, 255};
+    constexpr menu::Rgba8 optionsStateSelectedColor{235, 115, 62, 255};
+    auto optionsDraftConfig = profileState.config;
+    auto optionsDraftDifficulty = profileState.player.difficulty;
+    std::vector<std::pair<std::uint32_t, std::uint32_t>>
+        originalDisplayModes;
+    int displayModeCount = 0;
+    SDL_DisplayMode** displayModes = SDL_GetFullscreenDisplayModes(
+        SDL_GetDisplayForWindow(window), &displayModeCount);
+    for (int index = 0; displayModes != nullptr &&
+                        index < displayModeCount;
+         ++index)
+    {
+        if (displayModes[index] == nullptr ||
+            displayModes[index]->w <= 0 ||
+            displayModes[index]->h <= 0)
+        {
+            continue;
+        }
+        const auto mode = std::pair{
+            static_cast<std::uint32_t>(displayModes[index]->w),
+            static_cast<std::uint32_t>(displayModes[index]->h)};
+        if (std::find(
+                originalDisplayModes.begin(), originalDisplayModes.end(),
+                mode) == originalDisplayModes.end())
+        {
+            originalDisplayModes.push_back(mode);
+        }
+    }
+    SDL_free(displayModes);
+    const auto configuredDisplayMode = std::pair{
+        optionsDraftConfig.resolutionWidth,
+        optionsDraftConfig.resolutionHeight};
+    if (std::find(
+            originalDisplayModes.begin(), originalDisplayModes.end(),
+            configuredDisplayMode) == originalDisplayModes.end())
+    {
+        originalDisplayModes.push_back(configuredDisplayMode);
+    }
+    if (originalDisplayModes.empty())
+        originalDisplayModes.push_back({initialWidth, initialHeight});
+    std::sort(
+        originalDisplayModes.begin(), originalDisplayModes.end(),
+        [](const auto& first, const auto& second) {
+            return first.first * first.second <
+                   second.first * second.second;
+        });
     auto onOff = [&](bool value) {
         return localized(value ? "svOn" : "svOff");
     };
@@ -904,158 +1039,96 @@ int main(int argc, char** argv)
             "gaShotAll", "gaHyper", "gaMine", "gaWeaponDown",
             "gaWeaponUp", "gaViewSwitch", "gaAction", "gaEscape",
             "gaResetCar"};
-    static constexpr std::size_t controlsPerPage = 4U;
-    static constexpr std::size_t controlsPageCount =
-        (originalControlActions.size() + controlsPerPage - 1U) /
-        controlsPerPage;
-    std::size_t controlsPageIndex = 0U;
+    static constexpr std::size_t controlsVisibleRows = 6U;
     bool controlsUseGamepad = false;
     auto gameOptionsLabels = [&]() {
         return std::vector<std::string>{
-            optionValue(
-                "svCamera",
-                localized(
-                    profileState.config.preferredCamera ==
+            localized(
+                    optionsDraftConfig.preferredCamera ==
                             r3d::game::originalrace::
                                 PreferredCamera::ThirdPerson
                         ? "svCameraSecView"
-                        : "svCameraOrtho")),
-            optionValue(
-                "svCameraDist",
-                distanceName(profileState.config.cameraDistance)),
-            optionValue(
-                "svEnableHUD",
-                onOff(profileState.config.enableHud)),
-            optionValue(
-                "svDifficulty",
-                localized(profileState.player.difficulty)),
-            optionValue(
-                "svSpringBorders",
-                onOff(profileState.config.springBorders)),
-            optionValue(
-                "svUpgradeMaxLevel",
-                std::to_string(
-                    std::min(profileState.config.upgradeMaxLevel, 2U) +
-                    1U)),
-            optionValue(
-                "svWeaponMaxLevel",
-                std::to_string(
-                    std::clamp(
-                        profileState.config.weaponMaxLevel, 1U, 4U))),
-            optionValue(
-                "svMaxPlayers",
-                std::to_string(
-                    std::clamp(
-                        profileState.config.maxPlayers, 2U, 6U))),
-            optionValue(
-                "svMaxComputers",
-                std::to_string(profileState.config.maxComputers)),
-            optionValue(
-                "svLapsCount",
-                std::to_string(profileState.config.lapsCount)),
-            optionValue(
-                "svEnableMineBug",
-                onOff(profileState.config.enableMineBug)),
-            optionValue(
-                "svDisableVideo",
-                onOff(profileState.config.disableVideo)),
-            localized("svBack")};
+                        : "svCameraOrtho"),
+            distanceName(optionsDraftConfig.cameraDistance),
+            onOff(optionsDraftConfig.enableHud),
+            localized(optionsDraftDifficulty),
+            onOff(optionsDraftConfig.springBorders),
+            std::to_string(
+                std::min(optionsDraftConfig.upgradeMaxLevel, 2U) + 1U),
+            std::to_string(std::clamp(
+                optionsDraftConfig.weaponMaxLevel, 1U, 4U)),
+            std::to_string(std::clamp(
+                optionsDraftConfig.maxPlayers, 2U, 6U)),
+            std::to_string(optionsDraftConfig.maxComputers),
+            std::to_string(optionsDraftConfig.lapsCount),
+            onOff(optionsDraftConfig.enableMineBug),
+            onOff(optionsDraftConfig.disableVideo),
+            localized("svBack"), localized("svApply")};
     };
     auto graphicsOptionsLabels = [&]() {
+        // Preserve OptionsMenu.cpp's shipped ordering verbatim: its
+        // Filtering row uses aaLevel and Multisampling uses msLevel.
         static constexpr std::array<std::string_view, 4>
             filteringNames{
-                "linear", "af 2x", "af 4x", "af 8x"};
-        static constexpr std::array<std::string_view, 4> msaaNames{
-            "none", "aa 2x", "aa 4x", "aa 8x"};
+                "none", "aa 2x", "aa 4x", "aa 8x"};
+        static constexpr std::array<std::string_view, 3> msaaNames{
+            "linear", "af 2x", "af 4x"};
+        const std::string resolution =
+            std::to_string(optionsDraftConfig.resolutionWidth) + " x " +
+            std::to_string(optionsDraftConfig.resolutionHeight);
         return std::vector<std::string>{
-            optionValue(
-                "svFiltering",
-                std::string(filteringNames[
+            resolution,
+            std::string(filteringNames[
                     std::min<std::uint32_t>(
-                        profileState.config.quality.filtering,
-                        filteringNames.size() - 1U)])),
-            optionValue(
-                "svMultisampling",
-                std::string(msaaNames[
+                        optionsDraftConfig.quality.filtering,
+                        filteringNames.size() - 1U)]),
+            std::string(msaaNames[
                     std::min<std::uint32_t>(
-                        profileState.config.quality.msaa,
-                        msaaNames.size() - 1U)])),
-            optionValue(
-                "svShadow",
-                qualityName(profileState.config.quality.shadow)),
-            optionValue(
-                "svEnv",
-                qualityName(profileState.config.quality.environment)),
-            optionValue(
-                "svLight",
-                qualityName(profileState.config.quality.light)),
-            optionValue(
-                "svPostProcess",
-                qualityName(profileState.config.quality.postEffect)),
-            optionValue(
-                "svWindowMode",
-                onOff(profileState.config.fullScreen)),
-            localized("svBack")};
+                        optionsDraftConfig.quality.msaa,
+                        msaaNames.size() - 1U)]),
+            qualityName(optionsDraftConfig.quality.shadow),
+            qualityName(optionsDraftConfig.quality.environment),
+            qualityName(optionsDraftConfig.quality.light),
+            qualityName(optionsDraftConfig.quality.postEffect),
+            onOff(!optionsDraftConfig.fullScreen),
+            localized("svBack"), localized("svApply")};
     };
     auto soundOptionsLabels = [&]() {
         return std::vector<std::string>{
-            optionValue(
-                "svLanguage",
-                localized(profileState.config.language == "russian"
+            localized(optionsDraftConfig.language == "russian"
                               ? "svRussian"
-                              : "svEnglish")),
-            optionValue(
-                "svCommentator",
-                localized(
-                    profileState.config.commentatorStyle == "russian"
+                              : "svEnglish"),
+            localized(
+                    optionsDraftConfig.commentatorStyle == "russian"
                         ? "svRussian"
-                        : "svEnglish")),
-            optionValue(
-                "svMusic",
-                volumeName(profileState.config.musicVolume)),
-            optionValue(
-                "svSound",
-                volumeName(profileState.config.effectsVolume)),
-            optionValue(
-                "svSoundDicter",
-                volumeName(profileState.config.voiceVolume)),
-            localized("svBack")};
+                        : "svEnglish"),
+            volumeName(optionsDraftConfig.musicVolume),
+            volumeName(optionsDraftConfig.effectsVolume),
+            volumeName(optionsDraftConfig.voiceVolume),
+            localized("svBack"), localized("svApply")};
     };
     auto controlsOptionsLabels = [&]() {
         std::vector<std::string> output;
-        output.reserve(8U);
-        output.push_back(
-            std::string("Controller: ") +
-            (controlsUseGamepad ? "Gamepad" : "Keyboard"));
-        const auto& bindings =
-            controlsUseGamepad
-                ? profileState.config.gamepadControls
-                : profileState.config.keyboardControls;
-        const std::size_t first =
-            controlsPageIndex * controlsPerPage;
-        const std::size_t end = std::min(
-            first + controlsPerPage, originalControlActions.size());
-        for (std::size_t index = first; index < end; ++index)
-        {
-            const auto action = originalControlActions[index];
-            const auto found =
-                bindings.find(std::string(action));
-            output.push_back(
-                optionValue(
-                    action,
-                    found == bindings.end()
-                        ? localized("svNull")
-                        : found->second));
-        }
-        output.push_back(
-            "Previous page  [" +
-            std::to_string(controlsPageIndex + 1U) + "/" +
-            std::to_string(controlsPageCount) + "]");
-        output.push_back(
-            "Next page  [" +
-            std::to_string(controlsPageIndex + 1U) + "/" +
-            std::to_string(controlsPageCount) + "]");
+        output.reserve(originalControlActions.size() + 2U);
+        for (const auto action : originalControlActions)
+            output.push_back(localized(action));
         output.push_back(localized("svBack"));
+        output.push_back(localized("svApply"));
+        return output;
+    };
+    auto controlValues = [&](bool gamepad) {
+        std::vector<std::string> output;
+        output.reserve(originalControlActions.size());
+        const auto& bindings =
+            gamepad ? optionsDraftConfig.gamepadControls
+                    : optionsDraftConfig.keyboardControls;
+        for (const auto action : originalControlActions)
+        {
+            const auto found = bindings.find(std::string(action));
+            output.push_back(
+                found == bindings.end() ? localized("svNull")
+                                        : found->second);
+        }
         return output;
     };
 #endif
@@ -1099,12 +1172,56 @@ int main(int argc, char** argv)
             {"Planets", localized("svBack")});
         achievementsPage = createPage(
             {localized("svRewards"), localized("svBack")});
-        gameOptionsPage = createPage(gameOptionsLabels());
-        graphicsOptionsPage =
-            createPage(graphicsOptionsLabels());
-        soundOptionsPage = createPage(soundOptionsLabels());
-        controlsOptionsPage =
-            createPage(controlsOptionsLabels());
+        gameOptionsPage = createStyledPage(
+            gameOptionsLabels(), menu::smallFontHeight,
+            optionsTextColor, menu::selectedTextColor);
+        graphicsOptionsPage = createStyledPage(
+            graphicsOptionsLabels(), menu::smallFontHeight,
+            optionsTextColor, menu::selectedTextColor);
+        soundOptionsPage = createStyledPage(
+            soundOptionsLabels(), menu::smallFontHeight,
+            optionsTextColor, menu::selectedTextColor);
+        controlsOptionsPage = createStyledPage(
+            controlsOptionsLabels(), menu::smallFontHeight,
+            optionsTextColor, menu::selectedTextColor);
+        gameOptionNamesPage = createStyledPage(
+            labels(
+                {"svCamera", "svCameraDist", "svEnableHUD",
+                 "svDifficulty", "svSpringBorders",
+                 "svUpgradeMaxLevel", "svWeaponMaxLevel",
+                 "svMaxPlayers", "svMaxComputers", "svLapsCount",
+                 "svEnableMineBug", "svDisableVideo"}),
+            menu::smallFontHeight, optionsTextColor,
+            menu::selectedTextColor);
+        graphicsOptionNamesPage = createStyledPage(
+            labels(
+                {"svResolution", "svFiltering", "svMultisampling",
+                 "svShadow", "svEnv", "svLight", "svPostProcess",
+                 "svWindowMode"}),
+            menu::smallFontHeight, optionsTextColor,
+            menu::selectedTextColor);
+        soundOptionNamesPage = createStyledPage(
+            labels(
+                {"svLanguage", "svCommentator", "svMusic",
+                 "svSound", "svSoundDicter"}),
+            menu::smallFontHeight, optionsTextColor,
+            menu::selectedTextColor);
+        controlsKeyboardValuesPage = createStyledPage(
+            controlValues(false), menu::smallFontHeight,
+            optionsTextColor, menu::selectedTextColor);
+        controlsGamepadValuesPage = createStyledPage(
+            controlValues(true), menu::smallFontHeight,
+            optionsTextColor, menu::selectedTextColor);
+        optionsHeaderPage = createStyledPage(
+            labels({"svOptions"}), menu::headerFontHeight,
+            optionsTextColor, menu::selectedTextColor);
+        optionsStatePage = createStyledPage(
+            labels({"svGame", "svGraphic", "svNetwork", "svControls"}),
+            menu::headerFontHeight, optionsTextColor,
+            optionsStateSelectedColor);
+        optionsActionPage = createStyledPage(
+            labels({"svBack", "svApply"}), menu::headerFontHeight,
+            optionsTextColor, menu::selectedTextColor);
         finishPage = createPage(
             labels({"svContinue", "svBack"}));
 #endif
@@ -1181,9 +1298,25 @@ int main(int argc, char** argv)
         pageValid(graphicsOptionsPage) &&
         pageValid(soundOptionsPage) &&
         pageValid(controlsOptionsPage) &&
+        pageValid(gameOptionNamesPage) &&
+        pageValid(graphicsOptionNamesPage) &&
+        pageValid(soundOptionNamesPage) &&
+        pageValid(controlsKeyboardValuesPage) &&
+        pageValid(controlsGamepadValuesPage) &&
+        pageValid(optionsHeaderPage) &&
+        pageValid(optionsStatePage) &&
+        pageValid(optionsActionPage) &&
         pageValid(finishPage) &&
         valid(finishSummary.texture) && valid(acceptFrame) &&
         valid(acceptButton) && valid(acceptButtonSelected) &&
+        valid(optionsBackground) && valid(optionsRow) &&
+        valid(controlsRow) && valid(optionsArrow) &&
+        valid(optionsArrowSelected) &&
+        valid(optionsBarBackground) && valid(optionsBar) &&
+        valid(optionsButton) && valid(optionsButtonSelected) &&
+        valid(optionsKey) && valid(optionsKeySelected) &&
+        valid(keyboardIcon) && valid(gamepadIcon) &&
+        valid(optionsMask) &&
         valid(exitRaceMessage.texture) && valid(exitRaceYes.texture) &&
         valid(exitRaceYesSelected.texture) && valid(exitRaceNo.texture) &&
         valid(exitRaceNoSelected.texture);
@@ -1214,6 +1347,28 @@ int main(int argc, char** argv)
         destroyPage(soundOptionsPage);
         destroyPage(graphicsOptionsPage);
         destroyPage(gameOptionsPage);
+        destroyPage(optionsActionPage);
+        destroyPage(optionsStatePage);
+        destroyPage(optionsHeaderPage);
+        destroyPage(controlsGamepadValuesPage);
+        destroyPage(controlsKeyboardValuesPage);
+        destroyPage(soundOptionNamesPage);
+        destroyPage(graphicsOptionNamesPage);
+        destroyPage(gameOptionNamesPage);
+        device->destroy(optionsMask);
+        device->destroy(gamepadIcon);
+        device->destroy(keyboardIcon);
+        device->destroy(optionsKeySelected);
+        device->destroy(optionsKey);
+        device->destroy(optionsButtonSelected);
+        device->destroy(optionsButton);
+        device->destroy(optionsBar);
+        device->destroy(optionsBarBackground);
+        device->destroy(optionsArrowSelected);
+        device->destroy(optionsArrow);
+        device->destroy(controlsRow);
+        device->destroy(optionsRow);
+        device->destroy(optionsBackground);
         device->destroy(acceptButtonSelected);
         device->destroy(acceptButton);
         device->destroy(acceptFrame);
@@ -2252,6 +2407,17 @@ int main(int argc, char** argv)
         menuSelection =
             std::min(menuSelection, page.labels.size() - 1U);
     };
+    auto replaceOptionsPage =
+        [&](MenuPageVisual& page,
+            std::vector<std::string> pageLabels) {
+            auto replacement = createStyledPage(
+                std::move(pageLabels), menu::smallFontHeight,
+                optionsTextColor, menu::selectedTextColor);
+            destroyPage(page);
+            page = std::move(replacement);
+            menuSelection =
+                std::min(menuSelection, page.labels.size() - 1U);
+        };
     auto currency = [](std::uint32_t value) {
         return "$" + std::to_string(value);
     };
@@ -2430,22 +2596,158 @@ int main(int argc, char** argv)
         switch (menuStack.back())
         {
         case MenuScreen::GameOptions:
-            replacePage(gameOptionsPage, gameOptionsLabels());
+            replaceOptionsPage(
+                gameOptionsPage, gameOptionsLabels());
             break;
         case MenuScreen::GraphicsOptions:
-            replacePage(
+            replaceOptionsPage(
                 graphicsOptionsPage, graphicsOptionsLabels());
             break;
         case MenuScreen::SoundOptions:
-            replacePage(soundOptionsPage, soundOptionsLabels());
+            replaceOptionsPage(
+                soundOptionsPage, soundOptionsLabels());
             break;
         case MenuScreen::ControlsOptions:
-            replacePage(
+            replaceOptionsPage(
                 controlsOptionsPage, controlsOptionsLabels());
+            replaceOptionsPage(
+                controlsKeyboardValuesPage,
+                controlValues(false));
+            replaceOptionsPage(
+                controlsGamepadValuesPage,
+                controlValues(true));
             break;
         default:
             break;
         }
+    };
+    auto isOriginalOptionsScreen = [](MenuScreen screen) {
+        return screen == MenuScreen::GameOptions ||
+               screen == MenuScreen::GraphicsOptions ||
+               screen == MenuScreen::SoundOptions ||
+               screen == MenuScreen::ControlsOptions;
+    };
+    auto optionsStateIndex = [](MenuScreen screen) {
+        switch (screen)
+        {
+        case MenuScreen::GraphicsOptions:
+            return 1U;
+        case MenuScreen::SoundOptions:
+            return 2U;
+        case MenuScreen::ControlsOptions:
+            return 3U;
+        default:
+            return 0U;
+        }
+    };
+    auto setOptionsState = [&](std::size_t state) {
+        menuStack.back() =
+            std::array{
+                MenuScreen::GameOptions,
+                MenuScreen::GraphicsOptions,
+                MenuScreen::SoundOptions,
+                MenuScreen::ControlsOptions}
+                [std::min<std::size_t>(state, 3U)];
+        menuSelection = 0U;
+        bindingCaptureAction.reset();
+        refreshCurrentOptionsPage();
+    };
+    auto beginOriginalOptions = [&]() {
+        optionsDraftConfig = profileState.config;
+        optionsDraftDifficulty = profileState.player.difficulty;
+        controlsUseGamepad = false;
+        bindingCaptureAction.reset();
+        pushMenu(MenuScreen::GameOptions);
+        refreshCurrentOptionsPage();
+    };
+    auto cancelOriginalOptions = [&]() {
+#ifdef RRR3D_AUDIO
+        audio.setBusVolume(
+            r3d::audio::Bus::Music,
+            profileState.config.musicVolume);
+        audio.setBusVolume(
+            r3d::audio::Bus::Effects,
+            profileState.config.effectsVolume);
+        audio.setBusVolume(
+            r3d::audio::Bus::Voice,
+            profileState.config.voiceVolume);
+#endif
+        optionsDraftConfig = profileState.config;
+        optionsDraftDifficulty = profileState.player.difficulty;
+        bindingCaptureAction.reset();
+        backMenu();
+    };
+    auto applyOriginalOptions = [&]() {
+        const auto previousConfig = profileState.config;
+        profileState.config = optionsDraftConfig;
+        profileState.player.difficulty = optionsDraftDifficulty;
+
+        if (profileState.config.fullScreen !=
+            previousConfig.fullScreen)
+        {
+            if (!SDL_SetWindowFullscreen(
+                    window, profileState.config.fullScreen))
+            {
+                std::cerr
+                    << "Unable to apply original window mode: "
+                    << SDL_GetError() << '\n';
+                profileState.config.fullScreen =
+                    previousConfig.fullScreen;
+                optionsDraftConfig.fullScreen =
+                    previousConfig.fullScreen;
+            }
+        }
+        if (!profileState.config.fullScreen &&
+            (profileState.config.resolutionWidth !=
+                 previousConfig.resolutionWidth ||
+             profileState.config.resolutionHeight !=
+                 previousConfig.resolutionHeight))
+        {
+            SDL_SetWindowSize(
+                window,
+                static_cast<int>(
+                    profileState.config.resolutionWidth),
+                static_cast<int>(
+                    profileState.config.resolutionHeight));
+        }
+        raceRenderer.resetCamera();
+        raceSession.setSpringBorders(
+            profileState.config.springBorders);
+        raceSession.setEnableMineBug(
+            profileState.config.enableMineBug);
+#ifdef RRR3D_AUDIO
+        audio.setBusVolume(
+            r3d::audio::Bus::Music,
+            profileState.config.musicVolume);
+        audio.setBusVolume(
+            r3d::audio::Bus::Effects,
+            profileState.config.effectsVolume);
+        audio.setBusVolume(
+            r3d::audio::Bus::Voice,
+            profileState.config.voiceVolume);
+        if (profileState.config.commentatorStyle !=
+            previousConfig.commentatorStyle)
+        {
+            commentator.shutdown();
+            if (!commentator.initialize(
+                    profileState.config.commentatorStyle,
+                    audioError))
+            {
+                std::cerr
+                    << "Unable to switch original commentator: "
+                    << audioError << '\n';
+            }
+        }
+#endif
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.applyKeyboardBindings(
+            profileState.config.keyboardControls);
+        input.applyGamepadBindings(
+            profileState.config.gamepadControls);
+#endif
+        saveRaceProfile();
+        bindingCaptureAction.reset();
+        backMenu();
     };
     auto cycleValue = [](std::uint32_t value,
                          std::uint32_t count, int direction) {
@@ -2465,26 +2767,25 @@ int main(int argc, char** argv)
             switch (menuSelection)
             {
             case 0:
-                profileState.config.preferredCamera =
-                    profileState.config.preferredCamera ==
+                optionsDraftConfig.preferredCamera =
+                    optionsDraftConfig.preferredCamera ==
                             r3d::game::originalrace::
                                 PreferredCamera::ThirdPerson
                         ? r3d::game::originalrace::
                               PreferredCamera::Isometric
                         : r3d::game::originalrace::
                               PreferredCamera::ThirdPerson;
-                raceRenderer.resetCamera();
                 break;
             case 1:
-                profileState.config.cameraDistance =
+                optionsDraftConfig.cameraDistance =
                     std::clamp(
-                        profileState.config.cameraDistance +
+                        optionsDraftConfig.cameraDistance +
                             static_cast<float>(direction) * 0.25F,
                         1.0F, 2.0F);
                 break;
             case 2:
-                profileState.config.enableHud =
-                    !profileState.config.enableHud;
+                optionsDraftConfig.enableHud =
+                    !optionsDraftConfig.enableHud;
                 break;
             case 3: {
                 static constexpr std::array<std::string_view, 3>
@@ -2492,71 +2793,67 @@ int main(int argc, char** argv)
                         "gdEasy", "gdNormal", "gdHard"};
                 const auto found = std::find(
                     difficulties.begin(), difficulties.end(),
-                    profileState.player.difficulty);
+                    optionsDraftDifficulty);
                 const auto index =
                     found == difficulties.end()
                         ? 1U
                         : static_cast<std::uint32_t>(
                               found - difficulties.begin());
-                profileState.player.difficulty =
+                optionsDraftDifficulty =
                     difficulties[cycleValue(index, 3U, direction)];
                 break;
             }
             case 4:
-                profileState.config.springBorders =
-                    !profileState.config.springBorders;
-                raceSession.setSpringBorders(
-                    profileState.config.springBorders);
+                optionsDraftConfig.springBorders =
+                    !optionsDraftConfig.springBorders;
                 break;
             case 5:
-                profileState.config.upgradeMaxLevel =
+                optionsDraftConfig.upgradeMaxLevel =
                     cycleValue(
-                        profileState.config.upgradeMaxLevel,
+                        optionsDraftConfig.upgradeMaxLevel,
                         3U, direction);
                 break;
             case 6:
-                profileState.config.weaponMaxLevel =
+                optionsDraftConfig.weaponMaxLevel =
                     cycleValue(
                         std::clamp(
-                            profileState.config.weaponMaxLevel,
+                            optionsDraftConfig.weaponMaxLevel,
                             1U, 4U) -
                             1U,
                         4U, direction) +
                     1U;
                 break;
             case 7:
-                profileState.config.maxPlayers =
+                optionsDraftConfig.maxPlayers =
                     cycleValue(
                         std::clamp(
-                            profileState.config.maxPlayers,
+                            optionsDraftConfig.maxPlayers,
                             2U, 6U) -
                             2U,
                         5U, direction) +
                     2U;
                 break;
             case 8:
-                profileState.config.maxComputers =
+                optionsDraftConfig.maxComputers =
                     cycleValue(
-                        profileState.config.maxComputers,
+                        optionsDraftConfig.maxComputers,
                         6U, direction);
                 break;
             case 9:
-                profileState.config.lapsCount =
+                optionsDraftConfig.lapsCount =
                     std::clamp(
                         static_cast<int>(
-                            profileState.config.lapsCount) +
+                            optionsDraftConfig.lapsCount) +
                             direction,
                         1, 8);
                 break;
             case 10:
-                profileState.config.enableMineBug =
-                    !profileState.config.enableMineBug;
-                raceSession.setEnableMineBug(
-                    profileState.config.enableMineBug);
+                optionsDraftConfig.enableMineBug =
+                    !optionsDraftConfig.enableMineBug;
                 break;
             case 11:
-                profileState.config.disableVideo =
-                    !profileState.config.disableVideo;
+                optionsDraftConfig.disableVideo =
+                    !optionsDraftConfig.disableVideo;
                 break;
             default:
                 return;
@@ -2565,54 +2862,66 @@ int main(int argc, char** argv)
         case MenuScreen::GraphicsOptions:
             switch (menuSelection)
             {
-            case 0:
-                profileState.config.quality.filtering =
-                    cycleValue(
-                        profileState.config.quality.filtering,
-                        4U, direction);
+            case 0: {
+                const auto current = std::find(
+                    originalDisplayModes.begin(),
+                    originalDisplayModes.end(),
+                    std::pair{
+                        optionsDraftConfig.resolutionWidth,
+                        optionsDraftConfig.resolutionHeight});
+                const auto index =
+                    current == originalDisplayModes.end()
+                        ? 0U
+                        : static_cast<std::uint32_t>(
+                              current - originalDisplayModes.begin());
+                const auto& mode = originalDisplayModes[cycleValue(
+                    index,
+                    static_cast<std::uint32_t>(
+                        originalDisplayModes.size()),
+                    direction)];
+                optionsDraftConfig.resolutionWidth = mode.first;
+                optionsDraftConfig.resolutionHeight = mode.second;
                 break;
+            }
             case 1:
-                profileState.config.quality.msaa =
+                optionsDraftConfig.quality.filtering =
                     cycleValue(
-                        profileState.config.quality.msaa,
+                        optionsDraftConfig.quality.filtering,
                         4U, direction);
                 break;
             case 2:
-                profileState.config.quality.shadow =
+                optionsDraftConfig.quality.msaa =
                     cycleValue(
-                        profileState.config.quality.shadow,
+                        optionsDraftConfig.quality.msaa,
                         3U, direction);
                 break;
             case 3:
-                profileState.config.quality.environment =
+                optionsDraftConfig.quality.shadow =
                     cycleValue(
-                        profileState.config.quality.environment,
+                        optionsDraftConfig.quality.shadow,
                         3U, direction);
                 break;
             case 4:
-                profileState.config.quality.light =
+                optionsDraftConfig.quality.environment =
                     cycleValue(
-                        profileState.config.quality.light,
+                        optionsDraftConfig.quality.environment,
                         3U, direction);
                 break;
             case 5:
-                profileState.config.quality.postEffect =
+                optionsDraftConfig.quality.light =
                     cycleValue(
-                        profileState.config.quality.postEffect,
+                        optionsDraftConfig.quality.light,
                         3U, direction);
                 break;
             case 6:
-                profileState.config.fullScreen =
-                    !profileState.config.fullScreen;
-                if (!SDL_SetWindowFullscreen(
-                        window, profileState.config.fullScreen))
-                {
-                    std::cerr
-                        << "Unable to change original window mode: "
-                        << SDL_GetError() << '\n';
-                    profileState.config.fullScreen =
-                        !profileState.config.fullScreen;
-                }
+                optionsDraftConfig.quality.postEffect =
+                    cycleValue(
+                        optionsDraftConfig.quality.postEffect,
+                        3U, direction);
+                break;
+            case 7:
+                optionsDraftConfig.fullScreen =
+                    !optionsDraftConfig.fullScreen;
                 break;
             default:
                 return;
@@ -2622,62 +2931,51 @@ int main(int argc, char** argv)
             switch (menuSelection)
             {
             case 0:
-                profileState.config.language =
-                    profileState.config.language == "russian"
+                optionsDraftConfig.language =
+                    optionsDraftConfig.language == "russian"
                         ? "english"
                         : "russian";
                 break;
             case 1:
-                profileState.config.commentatorStyle =
-                    profileState.config.commentatorStyle == "russian"
+                optionsDraftConfig.commentatorStyle =
+                    optionsDraftConfig.commentatorStyle == "russian"
                         ? "english"
                         : "russian";
-#ifdef RRR3D_AUDIO
-                commentator.shutdown();
-                if (!commentator.initialize(
-                        profileState.config.commentatorStyle,
-                        audioError))
-                {
-                    std::cerr
-                        << "Unable to switch commentator: "
-                        << audioError << '\n';
-                }
-#endif
                 break;
             case 2:
-                profileState.config.musicVolume =
+                optionsDraftConfig.musicVolume =
                     std::clamp(
-                        profileState.config.musicVolume +
+                        optionsDraftConfig.musicVolume +
                             static_cast<float>(direction) * 0.1F,
                         0.0F, 2.0F);
 #ifdef RRR3D_AUDIO
                 audio.setBusVolume(
                     r3d::audio::Bus::Music,
-                    profileState.config.musicVolume);
+                    optionsDraftConfig.musicVolume);
 #endif
                 break;
             case 3:
-                profileState.config.effectsVolume =
+                optionsDraftConfig.effectsVolume =
                     std::clamp(
-                        profileState.config.effectsVolume +
+                        optionsDraftConfig.effectsVolume +
                             static_cast<float>(direction) * 0.1F,
                         0.0F, 2.0F);
 #ifdef RRR3D_AUDIO
                 audio.setBusVolume(
                     r3d::audio::Bus::Effects,
-                    profileState.config.effectsVolume);
+                    optionsDraftConfig.effectsVolume);
 #endif
                 break;
             case 4:
-                profileState.config.voiceVolume =
+                optionsDraftConfig.voiceVolume =
                     std::clamp(
-                        profileState.config.voiceVolume +
+                        optionsDraftConfig.voiceVolume +
                             static_cast<float>(direction) * 0.1F,
                         0.0F, 2.0F);
 #ifdef RRR3D_AUDIO
                 audio.setBusVolume(
                     r3d::audio::Bus::Voice,
-                    profileState.config.voiceVolume);
+                    optionsDraftConfig.voiceVolume);
 #endif
                 break;
             default:
@@ -2688,10 +2986,6 @@ int main(int argc, char** argv)
             return;
         }
         refreshCurrentOptionsPage();
-        std::string optionSaveError;
-        if (!profileStore.save(profileState, optionSaveError))
-            std::cerr << "Unable to save original options: "
-                      << optionSaveError << '\n';
     };
     auto showFinishMenu = [&]() {
         if (finishMenuShown || raceSession.racers().empty())
@@ -2934,33 +3228,15 @@ int main(int argc, char** argv)
                 {
                     auto& bindings =
                         bindingCaptureGamepad
-                            ? profileState.config.gamepadControls
-                            : profileState.config.keyboardControls;
+                            ? optionsDraftConfig.gamepadControls
+                            : optionsDraftConfig.keyboardControls;
                     bindings[*bindingCaptureAction] = *bindingName;
-                    if (bindingCaptureGamepad)
-                    {
-                        input.applyGamepadBindings(
-                            profileState.config.gamepadControls);
-                    }
-                    else
-                    {
-                        input.applyKeyboardBindings(
-                            profileState.config.keyboardControls);
-                    }
                     std::cout
                         << "Original ControlsFrame: "
                         << *bindingCaptureAction << " -> "
                         << *bindingName << '\n';
                     bindingCaptureAction.reset();
                     refreshCurrentOptionsPage();
-                    std::string bindingSaveError;
-                    if (!profileStore.save(
-                            profileState, bindingSaveError))
-                    {
-                        std::cerr
-                            << "Unable to save control binding: "
-                            << bindingSaveError << '\n';
-                    }
                 }
                 if (consumedCaptureEvent)
                     continue;
@@ -3022,6 +3298,175 @@ int main(int argc, char** argv)
             }
 #endif
             bool pointerTargetsItem = true;
+            bool pointerHandledOriginalOptions = false;
+#ifdef RRR3D_PHYSICS
+            if (!inRace &&
+                isOriginalOptionsScreen(menuStack.back()) &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float pointerX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float pointerY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                std::optional<std::size_t> hoveredOption;
+                std::optional<std::size_t> hoveredState;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        pointerX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        pointerY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    const float centerX =
+                        menu::virtualWidth * 0.5F;
+                    const float centerY =
+                        menu::virtualHeight * 0.5F;
+
+                    for (std::size_t state = 0U; state < 4U;
+                         ++state)
+                    {
+                        const float stateY =
+                            centerY - 125.0F +
+                            static_cast<float>(state) * 100.0F;
+                        if (virtualX >= centerX - 600.0F &&
+                            virtualX <= centerX - 250.0F &&
+                            std::abs(virtualY - stateY) <= 45.0F)
+                        {
+                            hoveredState = state;
+                            break;
+                        }
+                    }
+
+                    const std::size_t rowCount =
+                        menuStack.back() == MenuScreen::GameOptions
+                            ? gameOptionNamesPage.labels.size()
+                        : menuStack.back() ==
+                                  MenuScreen::GraphicsOptions
+                            ? graphicsOptionNamesPage.labels.size()
+                        : menuStack.back() ==
+                                  MenuScreen::SoundOptions
+                            ? soundOptionNamesPage.labels.size()
+                            : originalControlActions.size();
+                    const std::size_t visibleRows =
+                        menuStack.back() == MenuScreen::GameOptions
+                            ? 7U
+                        : menuStack.back() ==
+                                  MenuScreen::ControlsOptions
+                            ? controlsVisibleRows
+                            : rowCount;
+                    const std::size_t scrollAnchor =
+                        menuSelection < rowCount
+                            ? menuSelection
+                            : rowCount - 1U;
+                    const std::size_t firstVisible =
+                        scrollAnchor < visibleRows
+                            ? 0U
+                            : std::min(
+                                  scrollAnchor - visibleRows + 1U,
+                                  rowCount - visibleRows);
+                    const float firstRowY =
+                        centerY -
+                        (menuStack.back() ==
+                                 MenuScreen::ControlsOptions
+                             ? 130.0F
+                         : menuStack.back() ==
+                                   MenuScreen::GameOptions
+                             ? 178.0F
+                             : 174.0F);
+                    if (virtualX >= centerX - 420.0F &&
+                        virtualX <= centerX + 520.0F)
+                    {
+                        for (std::size_t slot = 0U;
+                             slot < visibleRows; ++slot)
+                        {
+                            const float rowY =
+                                firstRowY +
+                                static_cast<float>(slot) * 50.0F;
+                            if (std::abs(virtualY - rowY) <= 23.0F)
+                            {
+                                hoveredOption =
+                                    firstVisible + slot;
+                                if (menuStack.back() ==
+                                        MenuScreen::
+                                            ControlsOptions &&
+                                    virtualX >= centerX + 165.0F)
+                                {
+                                    controlsUseGamepad =
+                                        virtualX >=
+                                        centerX + 345.0F;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    const float actionY = centerY + 240.0F;
+                    if (std::abs(virtualY - actionY) <= 50.0F)
+                    {
+                        if (virtualX >= centerX - 80.0F &&
+                            virtualX <= centerX + 280.0F)
+                            hoveredOption = rowCount;
+                        else if (
+                            virtualX >= centerX + 280.0F &&
+                            virtualX <= centerX + 650.0F)
+                            hoveredOption = rowCount + 1U;
+                    }
+                    if (event.type ==
+                            SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                        event.button.button == SDL_BUTTON_LEFT)
+                    {
+                        const float upY =
+                            centerY -
+                            (menuStack.back() ==
+                                     MenuScreen::ControlsOptions
+                                 ? 150.0F
+                                 : 200.0F);
+                        const float downY = centerY + 195.0F;
+                        if (std::abs(
+                                virtualX -
+                                (centerX + 150.0F)) <= 35.0F &&
+                            std::abs(virtualY - upY) <= 35.0F &&
+                            menuSelection > 0U)
+                        {
+                            --menuSelection;
+                            pointerHandledOriginalOptions = true;
+                        }
+                        else if (
+                            std::abs(
+                                virtualX -
+                                (centerX + 150.0F)) <= 35.0F &&
+                            std::abs(virtualY - downY) <= 35.0F &&
+                            menuSelection + 1U < rowCount)
+                        {
+                            ++menuSelection;
+                            pointerHandledOriginalOptions = true;
+                        }
+                        else if (hoveredState)
+                        {
+                            setOptionsState(*hoveredState);
+                            pointerHandledOriginalOptions = true;
+                        }
+                    }
+                }
+                if (hoveredOption)
+                    menuSelection = *hoveredOption;
+                pointerTargetsItem =
+                    hoveredOption.has_value() ||
+                    hoveredState.has_value() ||
+                    event.type == SDL_EVENT_MOUSE_MOTION ||
+                    event.button.button != SDL_BUTTON_LEFT;
+            }
+            else
+#endif
             if (
 #ifdef RRR3D_PHYSICS
                 !inRace &&
@@ -3200,6 +3645,14 @@ int main(int argc, char** argv)
                     continue;
                 }
 #endif
+                if (pointerHandledOriginalOptions &&
+                    inputEvent.source ==
+                        rrr3d::input::Source::Mouse &&
+                    inputEvent.action ==
+                        rrr3d::input::Action::MenuConfirm)
+                {
+                    continue;
+                }
                 if (!pointerTargetsItem &&
                     inputEvent.source == rrr3d::input::Source::Mouse &&
                     inputEvent.action ==
@@ -3273,6 +3726,23 @@ int main(int argc, char** argv)
                     }
                     continue;
                 }
+                if (menuStack.back() ==
+                        MenuScreen::ControlsOptions &&
+                    (inputEvent.action ==
+                         rrr3d::input::Action::TurnLeft ||
+                     inputEvent.action ==
+                         rrr3d::input::Action::TurnRight))
+                {
+                    if (!inputEvent.repeated &&
+                        menuSelection <
+                            originalControlActions.size())
+                    {
+                        controlsUseGamepad =
+                            inputEvent.action ==
+                            rrr3d::input::Action::TurnRight;
+                    }
+                    continue;
+                }
 #endif
                 if (inputEvent.repeated)
                     continue;
@@ -3284,7 +3754,15 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
                     playMainButtonClick();
 #endif
-                    if (menuStack.size() == 1U)
+                    if (
+#ifdef RRR3D_PHYSICS
+                        isOriginalOptionsScreen(menuStack.back()))
+                    {
+                        cancelOriginalOptions();
+                    }
+                    else if (
+#endif
+                        menuStack.size() == 1U)
                         running = false;
                     else
                         backMenu();
@@ -3319,7 +3797,13 @@ int main(int argc, char** argv)
                     else if (menuSelection == 1U)
                         pushMenu(MenuScreen::Network);
                     else if (menuSelection == 2U)
+                    {
+#ifdef RRR3D_PHYSICS
+                        beginOriginalOptions();
+#else
                         pushMenu(MenuScreen::Options);
+#endif
+                    }
                     else if (menuSelection == 3U)
                         pushMenu(MenuScreen::Credits);
                     else
@@ -3441,19 +3925,7 @@ int main(int argc, char** argv)
                     break;
                 case MenuScreen::Options:
 #ifdef RRR3D_PHYSICS
-                    if (menuSelection == 0U)
-                        pushMenu(MenuScreen::GameOptions);
-                    else if (menuSelection == 1U)
-                        pushMenu(MenuScreen::GraphicsOptions);
-                    else if (menuSelection == 2U)
-                        pushMenu(MenuScreen::SoundOptions);
-                    else if (menuSelection == 3U)
-                    {
-                        pushMenu(MenuScreen::ControlsOptions);
-                        refreshCurrentOptionsPage();
-                    }
-                    else
-                        backMenu();
+                    beginOriginalOptions();
 #else
                     backMenu();
 #endif
@@ -3489,7 +3961,7 @@ int main(int argc, char** argv)
                     }
                     else if (menuSelection == 5U)
                     {
-                        pushMenu(MenuScreen::Options);
+                        beginOriginalOptions();
                     }
                     else
                     {
@@ -3684,59 +4156,48 @@ int main(int argc, char** argv)
                     }
                     break;
                 case MenuScreen::GameOptions:
+                    if (menuSelection == 12U)
+                        cancelOriginalOptions();
+                    else if (menuSelection == 13U)
+                        applyOriginalOptions();
+                    else
+                        adjustCurrentOption(1);
+                    break;
                 case MenuScreen::GraphicsOptions:
+                    if (menuSelection == 8U)
+                        cancelOriginalOptions();
+                    else if (menuSelection == 9U)
+                        applyOriginalOptions();
+                    else
+                        adjustCurrentOption(1);
+                    break;
                 case MenuScreen::SoundOptions:
-                    if (menuSelection + 1U >= page.labels.size())
-                        backMenu();
+                    if (menuSelection == 5U)
+                        cancelOriginalOptions();
+                    else if (menuSelection == 6U)
+                        applyOriginalOptions();
                     else
                         adjustCurrentOption(1);
                     break;
                 case MenuScreen::ControlsOptions:
                 {
-                    const std::size_t first =
-                        controlsPageIndex * controlsPerPage;
-                    const std::size_t actionCount = std::min(
-                        controlsPerPage,
-                        originalControlActions.size() - first);
-                    const std::size_t previousRow = 1U + actionCount;
-                    const std::size_t nextRow = previousRow + 1U;
-                    const std::size_t backRow = nextRow + 1U;
-                    if (menuSelection == 0U)
-                    {
-                        controlsUseGamepad = !controlsUseGamepad;
-                        refreshCurrentOptionsPage();
-                    }
-                    else if (menuSelection <= actionCount)
+                    if (menuSelection <
+                        originalControlActions.size())
                     {
                         bindingCaptureAction =
-                            originalControlActions[
-                                first + menuSelection - 1U];
+                            originalControlActions[menuSelection];
                         bindingCaptureGamepad = controlsUseGamepad;
                         std::cout
                             << "Original ControlsFrame: "
                             << localized("svPressKey") << " ("
                             << *bindingCaptureAction << ")\n";
                     }
-                    else if (menuSelection == previousRow)
-                    {
-                        controlsPageIndex =
-                            (controlsPageIndex + controlsPageCount - 1U) %
-                            controlsPageCount;
-                        menuSelection = 0U;
-                        refreshCurrentOptionsPage();
-                    }
-                    else if (menuSelection == nextRow)
-                    {
-                        controlsPageIndex =
-                            (controlsPageIndex + 1U) % controlsPageCount;
-                        menuSelection = 0U;
-                        refreshCurrentOptionsPage();
-                    }
-                    else if (menuSelection == backRow)
-                    {
-                        bindingCaptureAction.reset();
-                        backMenu();
-                    }
+                    else if (
+                        menuSelection ==
+                        originalControlActions.size())
+                        cancelOriginalOptions();
+                    else
+                        applyOriginalOptions();
                     break;
                 }
                 case MenuScreen::Finish:
@@ -4561,27 +5022,368 @@ int main(int argc, char** argv)
                  menu::virtualWidth * 0.5F, 200.0F, 70.0F, transparent);
 
         auto& activePage = activeMenuPage();
-        for (std::size_t index = 0;
-             index < activePage.normal.size(); ++index)
+#ifdef RRR3D_PHYSICS
+        const bool drawingOriginalOptions =
+            isOriginalOptionsScreen(menuStack.back());
+        if (drawingOriginalOptions)
         {
-            const float centerX = menu::virtualWidth * 0.5F +
-                                  menu::itemCenterOffsetX;
-            const float centerY = menu::virtualHeight * 0.5F +
-                                  menu::firstItemOffsetY +
-                                  static_cast<float>(index) *
-                                      menu::itemSpacing;
-            if (index == menuSelection)
+            const float optionsCenterX = menu::virtualWidth * 0.5F;
+            const float optionsCenterY = menu::virtualHeight * 0.5F;
+            drawQuad(
+                *device, quad, shader, optionsMask,
+                menu::virtualWidth, menu::virtualHeight,
+                optionsCenterX, optionsCenterY, 65.0F, transparent);
+            drawQuad(
+                *device, quad, shader, optionsBackground,
+                static_cast<float>(optionsBackgroundImage.width),
+                static_cast<float>(optionsBackgroundImage.height),
+                optionsCenterX, optionsCenterY, 60.0F, transparent);
+
+            const auto& header = optionsHeaderPage.normal.front();
+            drawQuad(
+                *device, quad, shader, header.texture,
+                header.width, header.height, optionsCenterX,
+                optionsCenterY - 317.0F, 20.0F, transparent);
+
+            const auto state = optionsStateIndex(menuStack.back());
+            for (std::size_t index = 0;
+                 index < optionsStatePage.labels.size(); ++index)
             {
-                drawQuad(*device, quad, shader, selection,
-                         static_cast<float>(model->selectionImage.width),
-                         static_cast<float>(model->selectionImage.height),
-                         centerX, centerY, 50.0F, transparent);
+                const bool selectedState = index == state;
+                const float buttonX = optionsCenterX - 558.0F;
+                const float buttonY =
+                    optionsCenterY - 125.0F +
+                    static_cast<float>(index) * 100.0F;
+                const auto& stateText =
+                    selectedState
+                        ? optionsStatePage.selected[index]
+                        : optionsStatePage.normal[index];
+                drawQuad(
+                    *device, quad, shader,
+                    selectedState ? optionsButtonSelected
+                                  : optionsButton,
+                    static_cast<float>(
+                        selectedState
+                            ? optionsButtonSelectedImage.width
+                            : optionsButtonImage.width),
+                    static_cast<float>(
+                        selectedState
+                            ? optionsButtonSelectedImage.height
+                            : optionsButtonImage.height),
+                    buttonX, buttonY, 45.0F, transparent);
+                drawQuad(
+                    *device, quad, shader, stateText.texture,
+                    stateText.width, stateText.height,
+                    buttonX + 62.0F + stateText.width * 0.5F,
+                    buttonY, 20.0F, transparent);
             }
-            const auto& text = index == menuSelection
-                                   ? activePage.selected[index]
-                                   : activePage.normal[index];
-            drawQuad(*device, quad, shader, text.texture, text.width,
-                     text.height, centerX, centerY, 25.0F, transparent);
+
+            const MenuPageVisual* names = nullptr;
+            std::size_t rowCount = 0U;
+            std::size_t visibleRows = 0U;
+            float firstRowY = optionsCenterY - 174.0F;
+            if (menuStack.back() == MenuScreen::GameOptions)
+            {
+                names = &gameOptionNamesPage;
+                rowCount = gameOptionNamesPage.labels.size();
+                visibleRows = 7U;
+                firstRowY = optionsCenterY - 178.0F;
+            }
+            else if (
+                menuStack.back() == MenuScreen::GraphicsOptions)
+            {
+                names = &graphicsOptionNamesPage;
+                rowCount = graphicsOptionNamesPage.labels.size();
+                visibleRows = rowCount;
+            }
+            else if (
+                menuStack.back() == MenuScreen::SoundOptions)
+            {
+                names = &soundOptionNamesPage;
+                rowCount = soundOptionNamesPage.labels.size();
+                visibleRows = rowCount;
+            }
+            else
+            {
+                names = &controlsOptionsPage;
+                rowCount = originalControlActions.size();
+                visibleRows = controlsVisibleRows;
+                firstRowY = optionsCenterY - 130.0F;
+                drawQuad(
+                    *device, quad, shader, keyboardIcon,
+                    static_cast<float>(keyboardIconImage.width),
+                    static_cast<float>(keyboardIconImage.height),
+                    optionsCenterX + 255.0F,
+                    optionsCenterY - 190.0F, 25.0F, transparent);
+                drawQuad(
+                    *device, quad, shader, gamepadIcon,
+                    static_cast<float>(gamepadIconImage.width),
+                    static_cast<float>(gamepadIconImage.height),
+                    optionsCenterX + 435.0F,
+                    optionsCenterY - 190.0F, 25.0F, transparent);
+            }
+            visibleRows = std::min(visibleRows, rowCount);
+            const std::size_t scrollAnchor =
+                menuSelection < rowCount ? menuSelection
+                                         : rowCount - 1U;
+            const std::size_t firstVisible =
+                scrollAnchor < visibleRows
+                    ? 0U
+                    : std::min(
+                          scrollAnchor - visibleRows + 1U,
+                          rowCount - visibleRows);
+
+            auto drawTextAt = [&](const TextVisual& text, float x,
+                                  float y, float maxWidth) {
+                const float scale = std::min(
+                    1.0F,
+                    maxWidth / std::max(text.width, 1.0F));
+                drawQuad(
+                    *device, quad, shader, text.texture,
+                    text.width * scale, text.height * scale,
+                    x + text.width * scale * 0.5F, y, 15.0F,
+                    transparent);
+            };
+            for (std::size_t slot = 0U; slot < visibleRows; ++slot)
+            {
+                const std::size_t index = firstVisible + slot;
+                const bool selectedRow = index == menuSelection;
+                const float rowY =
+                    firstRowY + static_cast<float>(slot) * 50.0F;
+                const bool controls =
+                    menuStack.back() == MenuScreen::ControlsOptions;
+                drawQuad(
+                    *device, quad, shader,
+                    controls ? controlsRow : optionsRow,
+                    static_cast<float>(
+                        controls ? controlsRowImage.width
+                                 : optionsRowImage.width),
+                    static_cast<float>(
+                        controls ? controlsRowImage.height
+                                 : optionsRowImage.height),
+                    optionsCenterX - 235.0F, rowY, 45.0F,
+                    transparent);
+                const auto& name =
+                    selectedRow ? names->selected[index]
+                                : names->normal[index];
+                drawTextAt(
+                    name,
+                    controls ? optionsCenterX - 374.0F
+                             : optionsCenterX - 200.0F,
+                    rowY, controls ? 300.0F : 420.0F);
+
+                if (controls)
+                {
+                    const std::array<const MenuPageVisual*, 2>
+                        valuePages{
+                            &controlsKeyboardValuesPage,
+                            &controlsGamepadValuesPage};
+                    for (std::size_t controller = 0U;
+                         controller < valuePages.size(); ++controller)
+                    {
+                        const bool selectedKey =
+                            selectedRow &&
+                            controlsUseGamepad ==
+                                (controller == 1U);
+                        const float keyX =
+                            optionsCenterX + 255.0F +
+                            static_cast<float>(controller) * 180.0F;
+                        drawQuad(
+                            *device, quad, shader,
+                            selectedKey ? optionsKeySelected
+                                        : optionsKey,
+                            static_cast<float>(
+                                selectedKey
+                                    ? optionsKeySelectedImage.width
+                                    : optionsKeyImage.width),
+                            static_cast<float>(
+                                selectedKey
+                                    ? optionsKeySelectedImage.height
+                                    : optionsKeyImage.height),
+                            keyX, rowY, 35.0F, transparent);
+                        const auto& value =
+                            selectedKey
+                                ? valuePages[controller]
+                                      ->selected[index]
+                                : valuePages[controller]
+                                      ->normal[index];
+                        const float scale = std::min(
+                            1.0F,
+                            135.0F /
+                                std::max(value.width, 1.0F));
+                        drawQuad(
+                            *device, quad, shader, value.texture,
+                            value.width * scale,
+                            value.height * scale, keyX, rowY,
+                            12.0F, transparent);
+                    }
+                    continue;
+                }
+
+                const bool volumeRow =
+                    menuStack.back() == MenuScreen::SoundOptions &&
+                    index >= 2U;
+                if (volumeRow)
+                {
+                    const float volume =
+                        std::array{
+                            optionsDraftConfig.musicVolume,
+                            optionsDraftConfig.effectsVolume,
+                            optionsDraftConfig.voiceVolume}
+                            [index - 2U];
+                    const float normalized =
+                        std::clamp(volume * 0.5F, 0.0F, 1.0F);
+                    const float barX = optionsCenterX + 260.0F;
+                    const float barWidth =
+                        static_cast<float>(
+                            optionsBarBackgroundImage.width);
+                    drawQuad(
+                        *device, quad, shader,
+                        optionsBarBackground, barWidth,
+                        static_cast<float>(
+                            optionsBarBackgroundImage.height),
+                        barX, rowY, 35.0F, transparent);
+                    if (normalized > 0.0F)
+                    {
+                        drawQuad(
+                            *device, quad, shader, optionsBar,
+                            barWidth * normalized,
+                            static_cast<float>(
+                                optionsBarImage.height),
+                            barX - barWidth * 0.5F +
+                                barWidth * normalized * 0.5F,
+                            rowY, 30.0F, transparent);
+                    }
+                }
+                else
+                {
+                    const auto& value =
+                        selectedRow
+                            ? activePage.selected[index]
+                            : activePage.normal[index];
+                    drawQuad(
+                        *device, quad, shader, value.texture,
+                        value.width, value.height,
+                        optionsCenterX + 260.0F, rowY, 12.0F,
+                        transparent);
+                }
+                const Texture arrow =
+                    selectedRow ? optionsArrowSelected
+                                : optionsArrow;
+                drawQuad(
+                    *device, quad, shader, arrow,
+                    static_cast<float>(
+                        selectedRow
+                            ? optionsArrowSelectedImage.width
+                            : optionsArrowImage.width),
+                    static_cast<float>(
+                        selectedRow
+                            ? optionsArrowSelectedImage.height
+                            : optionsArrowImage.height),
+                    optionsCenterX + 140.0F, rowY, 20.0F,
+                    transparent);
+                drawQuadRotated(
+                    *device, quad, shader, arrow,
+                    static_cast<float>(
+                        selectedRow
+                            ? optionsArrowSelectedImage.width
+                            : optionsArrowImage.width),
+                    static_cast<float>(
+                        selectedRow
+                            ? optionsArrowSelectedImage.height
+                            : optionsArrowImage.height),
+                    optionsCenterX + 380.0F, rowY, 20.0F,
+                    bx::kPi, transparent);
+            }
+
+            if (firstVisible > 0U)
+            {
+                drawQuadRotated(
+                    *device, quad, shader, optionsArrowSelected,
+                    30.0F, 30.0F, optionsCenterX + 150.0F,
+                    optionsCenterY -
+                        (menuStack.back() ==
+                                 MenuScreen::ControlsOptions
+                             ? 150.0F
+                             : 200.0F),
+                    20.0F, bx::kPiHalf, transparent);
+            }
+            if (firstVisible + visibleRows < rowCount)
+            {
+                drawQuadRotated(
+                    *device, quad, shader, optionsArrowSelected,
+                    30.0F, 30.0F, optionsCenterX + 150.0F,
+                    optionsCenterY + 195.0F, 20.0F,
+                    -bx::kPiHalf, transparent);
+            }
+
+            for (std::size_t action = 0U; action < 2U; ++action)
+            {
+                const std::size_t selectionIndex = rowCount + action;
+                const bool selectedAction =
+                    menuSelection == selectionIndex;
+                const float buttonX =
+                    optionsCenterX - 30.0F +
+                    static_cast<float>(action) * 360.0F;
+                const float buttonY = optionsCenterY + 240.0F;
+                drawQuad(
+                    *device, quad, shader,
+                    selectedAction ? optionsButtonSelected
+                                   : optionsButton,
+                    static_cast<float>(
+                        selectedAction
+                            ? optionsButtonSelectedImage.width
+                            : optionsButtonImage.width),
+                    static_cast<float>(
+                        selectedAction
+                            ? optionsButtonSelectedImage.height
+                            : optionsButtonImage.height),
+                    buttonX, buttonY, 40.0F, transparent);
+                const auto& actionText =
+                    selectedAction
+                        ? optionsActionPage.selected[action]
+                        : optionsActionPage.normal[action];
+                drawQuad(
+                    *device, quad, shader, actionText.texture,
+                    actionText.width, actionText.height,
+                    buttonX + 62.0F +
+                        actionText.width * 0.5F,
+                    buttonY, 15.0F, transparent);
+            }
+        }
+        else
+#endif
+        {
+            for (std::size_t index = 0;
+                 index < activePage.normal.size(); ++index)
+            {
+                const float centerX =
+                    menu::virtualWidth * 0.5F +
+                    menu::itemCenterOffsetX;
+                const float centerY =
+                    menu::virtualHeight * 0.5F +
+                    menu::firstItemOffsetY +
+                    static_cast<float>(index) *
+                        menu::itemSpacing;
+                if (index == menuSelection)
+                {
+                    drawQuad(
+                        *device, quad, shader, selection,
+                        static_cast<float>(
+                            model->selectionImage.width),
+                        static_cast<float>(
+                            model->selectionImage.height),
+                        centerX, centerY, 50.0F, transparent);
+                }
+                const auto& text =
+                    index == menuSelection
+                        ? activePage.selected[index]
+                        : activePage.normal[index];
+                drawQuad(
+                    *device, quad, shader, text.texture,
+                    text.width, text.height, centerX, centerY,
+                    25.0F, transparent);
+            }
         }
         if (menuStack.back() == MenuScreen::Credits)
         {
@@ -4614,12 +5416,21 @@ int main(int argc, char** argv)
         }
 #endif
 
-        const float versionX = menu::virtualWidth - 25.0F -
-                               version.width * 0.5F;
-        const float versionY = menu::virtualHeight - 25.0F -
-                               version.height * 0.5F;
-        drawQuad(*device, quad, shader, version.texture, version.width,
-                 version.height, versionX, versionY, 25.0F, transparent);
+#ifdef RRR3D_PHYSICS
+        if (!drawingOriginalOptions)
+#endif
+        {
+            const float versionX =
+                menu::virtualWidth - 25.0F -
+                version.width * 0.5F;
+            const float versionY =
+                menu::virtualHeight - 25.0F -
+                version.height * 0.5F;
+            drawQuad(
+                *device, quad, shader, version.texture,
+                version.width, version.height, versionX,
+                versionY, 25.0F, transparent);
+        }
         device->endFrame();
 #ifdef RRR3D_PHYSICS
         }

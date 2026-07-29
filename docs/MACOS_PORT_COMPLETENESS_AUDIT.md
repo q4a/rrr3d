@@ -1,6 +1,6 @@
 # Ревизия полноты порта Motor Rock на macOS
 
-Дата ревизии: 2026-07-29
+Дата ревизии: 2026-07-30
 
 Ветка: `macos-arm64`
 
@@ -69,7 +69,7 @@ Windows target не компилируется.
 | Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem`, exact-case catalog | Перенесено | Сам `ResourceManager.cpp` не компилируется; его игровые lifetime/cache semantics покрыты не полностью |
 | `.r3d`, DDS/PNG, XML | Исходные loaders | portable decoders + TinyXML | Перенесено | Поддержаны используемые форматы; это не перенос всего legacy resource object graph |
 | Окно и event loop | Win32/D3D window | SDL3/Cocoa | Замена платформы | Нативный путь работает |
-| Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | SDL3 action adapter | Частично | Actions и hot-plug есть; исходный `ControlManager.cpp`, переназначение всех legacy commands и UI их настройки не перенесены целиком |
+| Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | SDL3 action adapter | Частично | Actions и hot-plug есть; Options показывает обе исходные колонки и все 18 user actions, но сам `ControlManager.cpp` и полный legacy input object graph не компилируются |
 | Audio device/mixer | XAudio2/X3DAudio | SDL3/CoreAudio | Замена платформы | Backend полноценный, но весь исходный game-side `Audio.cpp` object graph не перенесён |
 | MusicCat/menu music | `MusicCat`, три Ogg | background decode, shuffle, next, pause/state | Перенесено | Поведение покрыто отдельным smoke |
 | Spatial race audio | X3DAudio game integration | ручные attenuation/pan/pitch voices | Частично | Основные car/race sounds есть; исходные emitters/listeners, все lifetime/priority rules и все sound behaviors не перенесены |
@@ -77,7 +77,7 @@ Windows target не компилируется.
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | ручной `enum MenuScreen` и `createPage(...)` в одном `main` | Суррогат | Страницы GameMode/Tournament/Profile/Options/Credits создаются как универсальные текстовые списки |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | универсальная page + portable profile operations | Суррогат | Исходные dialogs, text input, transitions, animations и подтверждения отсутствуют |
 | Race menu | `RaceMenu2.cpp` | список `Start race/Workshop/Garage/...` | Суррогат | Исходный RaceMenu widget graph и его режимы не перенесены |
-| Options UI | `OptionsMenu.cpp` | generic pages | Суррогат | Часть значений сохраняется, но исходные controls/layout/apply semantics отсутствуют |
+| Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | generic finish page | Суррогат | Исходные panels, statistics, awards, credits/final flow не перенесены |
 | Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля tournament/workshop/options; полная схема, migration и все profile branches не доказаны |
 | Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + ручное advance | Частично | Основной выбор/rewards есть; полный state machine, dialogs, unlock/final sequences не перенесён |
@@ -117,11 +117,14 @@ Windows target не компилируется.
 
 ### 1. Меню
 
-`main_bgfx_original_menu.cpp` вручную объявляет `MenuScreen` и создаёт
-универсальные страницы через `createPage`. Это главный источник визуального и
-поведенческого несоответствия Windows-версии. `OriginalMainMenu.cpp` загружает
-ресурсы и строки, но не переносит классы `MainMenu2`, `MenuSystem`,
-`GameMode`, `RaceMenu2`, `OptionsMenu`, `FinishMenu` и `FinalMenu`.
+`main_bgfx_original_menu.cpp` всё ещё вручную объявляет `MenuScreen` и для
+большинства экранов создаёт универсальные страницы через `createPage`. Это
+главный источник визуального и поведенческого несоответствия Windows-версии.
+`OptionsMenu` больше не является таким generic-списком: его активная
+компоновка и transaction semantics перенесены из исходника. Но
+`OriginalMainMenu.cpp` по-прежнему не переносит целиком классы `MainMenu2`,
+`MenuSystem`, `GameMode`, `DialogMenu2`, `RaceMenu2`, `FinishMenu` и
+`FinalMenu`.
 
 ### 2. Игровая логика
 
@@ -382,13 +385,37 @@ Network, video и Steam явно выключены.
 без serialized pieces, поэтому невозможный branch не маскируется придуманной
 вспышкой.
 
+Следующим menu-блоком заменён generic `Options`:
+
+1. Вход из `MainMenu2` и `RaceMenu2` теперь сразу открывает единый модальный
+   `OptionsMenu`, а не промежуточный придуманный список категорий.
+2. Загружаются оригинальные `optionsBg`, `labelBg1/2`, `arrow3/arrowSel3`,
+   `optBarBg/optBar`, `buttonBg4/buttonBgSel4`, `keyBg/keyBgSel` и
+   `ctKeyboard/ctGamepad`; позиции взяты из `AdjustLayout`,
+   `GameFrame::OnAdjustLayout`, `MediaFrame::OnAdjustLayout`,
+   `NetworkTab::OnAdjustLayout` и `ControlsFrame::OnAdjustLayout`.
+3. Восстановлены четыре source-вкладки Game/Graphic/Network/Controls,
+   семь видимых строк Game и шесть Controls, отдельные steppers, три
+   volume bars и обе control-колонки для всех 18 `cGameActionUserEnd`.
+4. Возвращён отсутствовавший выбор реального SDL display mode. Порядок
+   строк и даже необычное исходное соответствие `aaLevel`/`msLevel`
+   сохранены буквально из `OptionsMenu.cpp`.
+5. Изменения живут в draft, как в исходных Frame widgets. Громкости
+   прослушиваются сразу, Back откатывает их и все bindings, Apply применяет
+   fullscreen/resolution, race settings, camera, commentator, input maps и
+   только затем атомарно сохраняет профиль.
+6. arm64 build, resource verifier, physics smoke и 240-frame
+   bgfx/Metal race-render smoke проходят. Финальная визуальная проверка
+   Options отложена только потому, что macOS session была заблокирована.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
 
-1. Перенести исходный menu/widget state machine: `Menu`, `MenuSystem`,
-   `MainMenu2`, `GameMode`, `DialogMenu2`, `RaceMenu2`, `OptionsMenu`,
-   `FinishMenu`, `FinalMenu`, сохраняя bgfx/Metal только как backend.
+1. Продолжить исходный menu/widget state machine: `Menu`, `MenuSystem`,
+   `MainMenu2`, `GameMode`, `DialogMenu2`, `RaceMenu2`, `FinishMenu`,
+   `FinalMenu`; активная структура `OptionsMenu` уже перенесена, но legacy
+   animation/widget classes всё ещё заменены immediate-mode bgfx backend.
 2. Завершить исходные type-specific projectile contact groups, forces,
    callbacks и lifetime transitions поверх уже перенесённых shapes/raycasts.
 3. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно
@@ -438,4 +465,9 @@ build/macos-arm64-m10/Debug/RRR3d.app/Contents/MacOS/RRR3d \
 build/macos-arm64-m10/Debug/RRR3d.app/Contents/MacOS/RRR3d \
   --data-dir=resources/game-data \
   --physics-smoke-test
+
+SDL_AUDIO_DRIVER=dummy \
+build/macos-arm64-m10/Debug/RRR3d.app/Contents/MacOS/RRR3d \
+  --data-dir=resources/game-data \
+  --race-render-smoke-test --smoke-test-frames=240
 ```

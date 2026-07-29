@@ -35,6 +35,14 @@ renderer stages описаны в `docs/MILESTONE_9_2.md`,
 `docs/MILESTONE_9_5.md`; упаковка и приёмка — в
 `docs/MILESTONE_10.md`.
 
+Follow-up полной ревизии от 2026-07-30 заменил generic Options pages
+исходной структурой `OptionsMenu.cpp`: единый модальный экран использует
+оригинальные фон, строки, стрелки, полосы, key/button backgrounds и координаты
+четырёх вкладок. Работают все Game/Media/Network/Controls строки, реальный
+список display modes, обе колонки 18 control actions, scroll, live volume
+preview и исходные Apply/Cancel draft semantics. Этот блок не означает, что
+остальные generic `GameMode`/`RaceMenu`/`FinishMenu` уже перенесены.
+
 Финальная проверка M9.5: arm64 Debug build и новые Metal shaders прошли без
 новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
 каждый подтвердил оба 2048 shadow split, шесть cube faces, `glRefl` и FxTrail,
@@ -798,9 +806,10 @@ SDL_AUDIO_DRIVER=dummy \
 
 ## Следующий рекомендуемый этап
 
-Функциональные milestones задания завершены. Следующий этап — release
-hardening: проверить права на распространение оригинальных ресурсов, подписать
-Release настоящим Developer ID с hardened runtime, выполнить notarization и
-stapling, затем проверить ZIP на отдельном чистом Apple Silicon Mac. После
-этого нужны hardware checks физического Bluetooth/USB gamepad и переключения
-CoreAudio device; Windows regression следует закрепить отдельным Windows CI.
+Для полного портирования следующий P0-блок — заменить generic `RaceMenu`
+исходной структурой `RaceMenu2.cpp`, затем перенести `GameMode`/профильные
+диалоги и `FinishMenu`/`FinalMenu`. Параллельно остаются source-by-source
+ревизии projectile callbacks, material/effect graph и game-side audio
+behaviors. Release hardening (Developer ID, notarization, clean-Mac test)
+нужен только после закрытия этих функциональных расхождений; он не является
+заменой переноса.
