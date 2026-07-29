@@ -577,6 +577,30 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 			_steerAngle = 0;
 	}
 
+	//DIAGNOSTIC: the drive chain, sampled. Axle speed feeds RPM feeds torque, so
+	//a zero anywhere early reads the same as a car that is simply parked.
+	if (::rrr3d::TraceEnabled() && !_wheels->GetLeadGroup().empty())
+	{
+		static unsigned long sample = 0;
+		if ((++sample % 60) == 0)
+		{
+			//The lead group is the driven wheels, and the same one GetWheelRPM
+			//reads, so this is the chain the torque actually travels.
+			px::WheelShape* lead = _wheels->GetLeadGroup().front()->GetShape();
+			px::WheelContactData data;
+			const bool onGround = lead->GetContact(data) != 0;
+
+			//The actor identifies which car, because six of them are logging
+			//and only one of them has a human pressing the throttle.
+			RRR3D_TRACE_FIRST(200,
+				"DRIVE car=%p speed=%.2f gear=%d rpm=%.0f motorTorque=%.1f "
+				"brakeTorque=%.1f axle=%.2f onGround=%d",
+				(void*)GetPxActor().GetNxDynamic(),
+				speed, _curGear, GetWheelRPM(), motorTorque, breakTorque,
+				lead->GetAxleSpeed(), (int)onGround);
+		}
+	}
+
 	bool anyLeadWheelContact = false;
 	CarWheel* backWheel = NULL;
 

@@ -627,6 +627,20 @@ bool Vehicle::BuildWheelsSimData(PxVehicleWheelsSimData& simData, PxRigidDynamic
 
 		_tireData[i].longitudal = wheel->GetLongitudalTireForceFunction();
 		_tireData[i].lateral = wheel->GetLateralTireForceFunction();
+
+		//The numbers PxVehicle is actually given, once per wheel at build time.
+		//A wheel that will not turn under 12 kNm of drive torque has something
+		//wrong in here -- a zero mass or MOI, a radius the geometry does not
+		//agree with, a suspension that cannot carry the sprung mass.
+		RRR3D_TRACE_FIRST(24,
+			"VWHEEL %u radius=%.3f mass=%.1f MOI=%.3f sprung=%.1f "
+			"spring=%.0f damper=%.0f compression=%.3f droop=%.3f "
+			"offset=%.2f,%.2f,%.2f shape=%d",
+			(unsigned)i, wheelData.mRadius, wheelData.mMass, wheelData.mMOI,
+			suspension.mSprungMass, suspension.mSpringStrength,
+			suspension.mSpringDamperRate, suspension.mMaxCompression,
+			suspension.mMaxDroop,
+			offsets[i].x, offsets[i].y, offsets[i].z, (int)shapeIndex);
 	}
 
 	MarkShapesUndrivable();
@@ -717,9 +731,56 @@ void Vehicle::SyncInputs()
 		_tireData[i].lateral = wheel->GetLateralTireForceFunction();
 		_nxVehicle->mWheelsDynData.setTireForceShaderData(static_cast<PxU32>(i), &_tireData[i]);
 
-		_nxVehicle->setDriveTorque(static_cast<PxU32>(i), wheel->GetMotorTorque());
-		_nxVehicle->setBrakeTorque(static_cast<PxU32>(i), std::fabs(wheel->GetBrakeTorque()));
+		/*
+		 * 2.8 summed these on the axle; PxVehicle does not.
+		 *
+		 * NxWheelShapeDesc calls motorTorque the "sum engine torque on the
+		 * wheel axle" and brakeTorque "the amount of torque applied for
+		 * braking" -- two torques on one axle, and the wheel accelerates
+		 * whenever the first exceeds the second. PxVehicle instead treats brake
+		 * as a locking mechanism: any non-zero brake engages a sticky-wheel
+		 * constraint that pins the rotation at zero.
+		 *
+		 * That matters because GameCar applies _motor.restTorque, 400 Nm, on
+		 * every frame it is not braking. Harmless as a summand; as a lock it is
+		 * a permanent handbrake, and the wheels never turned -- 12450 Nm of
+		 * drive against a wheel of MOI 0.583 held at exactly zero.
+		 *
+		 * Netting them off restores the 2.8 arithmetic: brake only reaches
+		 * PxVehicle to the extent it exceeds the drive torque opposing it.
+		 */
+		const float drive = wheel->GetMotorTorque();
+		const float brake = std::fabs(wheel->GetBrakeTorque());
+		const float netBrake = std::max(0.0f, brake - std::fabs(drive));
+
+		_nxVehicle->setDriveTorque(static_cast<PxU32>(i), drive);
+		_nxVehicle->setBrakeTorque(static_cast<PxU32>(i), netBrake);
 		_nxVehicle->setSteerAngle(static_cast<PxU32>(i), wheel->GetSteerAngle());
+	}
+
+	/*
+	 * All four wheels of one vehicle on one line, sampled per vehicle.
+	 *
+	 * Sampling inside the wheel loop on a shared counter does not work: four
+	 * wheels across six cars is twenty-four calls a step, so a fixed modulo
+	 * lands on the same wheel index forever. The first cut did exactly that and
+	 * reported wheel 3 every time -- a wheel the game never drives -- which read
+	 * as "no drive torque anywhere" when the only wheel sampled was the one
+	 * legitimately getting none.
+	 */
+	if (::rrr3d::TraceEnabled())
+	{
+		static unsigned long sample = 0;
+		if ((++sample % 30) == 0 && _wheels.size() >= 4)
+			RRR3D_TRACE_FIRST(60,
+				"VINPUT drive=%.0f,%.0f,%.0f,%.0f brake=%.0f omega=%.2f,%.2f,%.2f,%.2f",
+				_wheels[0]->GetMotorTorque(), _wheels[1]->GetMotorTorque(),
+				_wheels[2]->GetMotorTorque(), _wheels[3]->GetMotorTorque(),
+				std::fabs(_wheels[0]->GetBrakeTorque()),
+				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(0),
+				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(1),
+				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(2),
+				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(3));
 	}
 }
 
