@@ -854,6 +854,7 @@ void OriginalRaceSession::reset()
     aiBackMovingMode_.assign(race_.racers.size(), false);
     aiBackMoving_.assign(race_.racers.size(), false);
     aiMineRandom_.assign(race_.racers.size(), -1.0F);
+    aiTracks_.assign(race_.racers.size(), 0U);
     previousPositions_.assign(race_.racers.size(), {});
     decorationActive_.assign(race_.decorationInstances.size(), true);
     decorationLife_.clear();
@@ -1578,6 +1579,125 @@ void OriginalRaceSession::updateProgress(
     }
 }
 
+void OriginalRaceSession::updateAiTracks(
+    const std::vector<r3d::physics::VehicleState>& vehicles)
+{
+    constexpr std::uint32_t trackCount = 4U;
+    struct AiTrackState
+    {
+        std::size_t racer = 0;
+        std::size_t nextNode = 1;
+        Vec3 direction{1.0F, 0.0F, 0.0F};
+        Vec3 normal{0.0F, -1.0F, 0.0F};
+        float longitudinal = 0.0F;
+        float lateral = 0.0F;
+        float radius = 0.5F;
+        std::uint32_t currentTrack = 0U;
+    };
+    std::vector<AiTrackState> states;
+    states.reserve(vehicles.size());
+    for (std::size_t racer = 1U;
+         racer < racers_.size() && racer < vehicles.size(); ++racer)
+    {
+        if (racers_[racer].destroyed || racers_[racer].finished)
+            continue;
+        const std::size_t nextNode = std::clamp<std::size_t>(
+            racers_[racer].nextPathNode, 1U,
+            race_.tracePath.size() - 1U);
+        const auto& previous = tracePoint(nextNode - 1U);
+        const auto& next = tracePoint(nextNode);
+        const Vec3 direction =
+            normalized2(subtract(next.position, previous.position));
+        const Vec3 normal{direction.y, -direction.x, 0.0F};
+        const Vec3 relative =
+            subtract(vehicles[racer].body.position, previous.position);
+        const float longitudinal = dot2(relative, direction);
+        const float segmentLength = std::max(
+            length2(subtract(next.position, previous.position)), 0.0001F);
+        const float part =
+            std::clamp(longitudinal / segmentLength, 0.0F, 1.0F);
+        const float width =
+            previous.width + (next.width - previous.width) * part;
+        const float trackWidth =
+            std::max(width / static_cast<float>(trackCount), 0.0001F);
+        const float lateral = dot2(relative, normal);
+        const auto rawTrack = static_cast<int>(
+            std::floor(lateral / trackWidth +
+                       static_cast<float>(trackCount) * 0.5F));
+        const auto currentTrack = static_cast<std::uint32_t>(
+            std::clamp(std::abs(rawTrack), 0,
+                       static_cast<int>(trackCount) - 1));
+        const auto& source = race_.racers[racer];
+        const auto& vehicleDefinition =
+            source.hasConfiguredVehicle
+                ? source.configuredVehicle
+                : race_.vehicles.at(source.vehicle);
+        const Vec3 half = vehicleDefinition.physics.halfExtents;
+        const float radius =
+            std::sqrt(half.x * half.x + half.y * half.y +
+                      half.z * half.z);
+        states.push_back(
+            {racer, nextNode, direction, normal, longitudinal,
+             lateral, radius, currentTrack});
+        aiTracks_[racer] = currentTrack;
+    }
+
+    std::vector<bool> assigned(states.size(), false);
+    for (std::size_t first = 0; first < states.size(); ++first)
+    {
+        if (assigned[first])
+            continue;
+        std::vector<std::size_t> chain{first};
+        assigned[first] = true;
+        for (std::size_t link = 0; link < chain.size(); ++link)
+        {
+            const auto& source = states[chain[link]];
+            for (std::size_t candidate = 0;
+                 candidate < states.size(); ++candidate)
+            {
+                if (assigned[candidate] ||
+                    states[candidate].nextNode != source.nextNode)
+                    continue;
+                const float longitudinalDistance = std::abs(
+                    states[candidate].longitudinal -
+                    source.longitudinal);
+                if (longitudinalDistance >
+                    states[candidate].radius + source.radius)
+                    continue;
+                assigned[candidate] = true;
+                chain.push_back(candidate);
+            }
+        }
+        if (chain.size() < 2U)
+            continue;
+        std::stable_sort(
+            chain.begin(), chain.end(),
+            [&](std::size_t left, std::size_t right) {
+                return states[left].lateral <
+                       states[right].lateral;
+            });
+        std::uint32_t nextMinimumTrack = 0U;
+        const auto occupied = static_cast<std::uint32_t>(
+            std::min<std::size_t>(chain.size(), trackCount));
+        for (std::size_t index = 0; index < chain.size(); ++index)
+        {
+            const auto& state = states[chain[index]];
+            const auto withinGroup =
+                static_cast<std::uint32_t>(index % trackCount);
+            const std::uint32_t maximumTrack =
+                trackCount - (occupied - withinGroup);
+            const std::uint32_t minimumTrack =
+                std::min(nextMinimumTrack, trackCount - 1U);
+            const std::uint32_t selected = std::clamp(
+                state.currentTrack, minimumTrack,
+                std::max(minimumTrack, maximumTrack));
+            aiTracks_[state.racer] = selected;
+            nextMinimumTrack =
+                std::min(selected + 1U, trackCount - 1U);
+        }
+    }
+}
+
 r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     std::size_t racer, const r3d::physics::VehicleState& vehicle,
     float seconds)
@@ -1591,8 +1711,49 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     constexpr float steerControl = 1.0F;
 
     const auto& target = tracePoint(racers_[racer].nextPathNode);
-    const Vec3 wanted = normalized2(subtract(target.position,
-                                             vehicle.body.position));
+    const auto& pathStart =
+        tracePoint(racers_[racer].nextPathNode - 1U);
+    const Vec3 pathDirection =
+        normalized2(subtract(target.position, pathStart.position));
+    const Vec3 pathNormal{
+        pathDirection.y, -pathDirection.x, 0.0F};
+    const auto& racerDefinition = race_.racers[racer];
+    const auto& vehicleDefinition =
+        racerDefinition.hasConfiguredVehicle
+            ? racerDefinition.configuredVehicle
+            : race_.vehicles.at(racerDefinition.vehicle);
+    const float lookAhead =
+        5.0F + std::abs(vehicle.speed) *
+                   vehicleDefinition.physics.steeringControl * 10.0F;
+    Vec3 laneTarget = add(
+        vehicle.body.position,
+        multiply(pathDirection, lookAhead));
+    const Vec3 segment =
+        subtract(target.position, pathStart.position);
+    const float segmentLength = std::max(length2(segment), 0.0001F);
+    const float segmentPart = std::clamp(
+        dot2(subtract(laneTarget, pathStart.position),
+             pathDirection) /
+            segmentLength,
+        0.0F, 1.0F);
+    const float pathWidth =
+        pathStart.width +
+        (target.width - pathStart.width) * segmentPart;
+    constexpr float trackCount = 4.0F;
+    const float trackWidth = pathWidth / trackCount;
+    const auto selectedTrack =
+        racer < aiTracks_.size() ? aiTracks_[racer] : 0U;
+    const float wantedLateral =
+        trackWidth *
+            (static_cast<float>(selectedTrack) + 0.5F) -
+        pathWidth * 0.5F;
+    const float currentLateral = dot2(
+        subtract(laneTarget, pathStart.position), pathNormal);
+    laneTarget = add(
+        laneTarget,
+        multiply(pathNormal, wantedLateral - currentLateral));
+    const Vec3 wanted = normalized2(
+        subtract(laneTarget, vehicle.body.position));
     const Vec3 carForward = normalized2(forward(vehicle.body.rotation));
     const float cross = carForward.x * wanted.y - carForward.y * wanted.x;
     const float alignment =
@@ -1684,11 +1845,6 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     }
 
     r3d::physics::VehicleInput input;
-    const auto& racerDefinition = race_.racers[racer];
-    const auto& vehicleDefinition =
-        racerDefinition.hasConfiguredVehicle
-            ? racerDefinition.configuredVehicle
-            : race_.vehicles.at(racerDefinition.vehicle);
     input.steering = clampSteering(
         steeringAngle /
         std::max(vehicleDefinition.physics.steerAngle, 0.01F));
@@ -4481,6 +4637,7 @@ void OriginalRaceSession::update(
         if (racers_[0].speedBoostSeconds > 0.0F)
             vehicleInputs_[0].throttle = 1.0F;
     }
+    updateAiTracks(vehicles);
     auto lapPosition =
         [&](std::size_t racer,
             const r3d::physics::VehicleState& vehicle) {
@@ -4644,6 +4801,41 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
 
         if (vehicles.size() > 1U)
         {
+            if (vehicles.size() > 2U)
+            {
+                Race laneRace = race;
+                laneRace.racers.resize(3U);
+                OriginalRaceSession laneSession(laneRace);
+                auto laneVehicles = vehicles;
+                laneVehicles.resize(3U);
+                const Vec3 laneDirection = normalized2(
+                    subtract(point(1U).position,
+                             point(0U).position));
+                const Quat laneRotation =
+                    shortestArcFromX(laneDirection);
+                for (auto& laneVehicle : laneVehicles)
+                {
+                    laneVehicle.body.position =
+                        point(0U).position;
+                    laneVehicle.body.position.z += 2.0F;
+                    laneVehicle.body.rotation = laneRotation;
+                    laneVehicle.speed = 0.0F;
+                }
+                for (int frame = 0; frame < 190; ++frame)
+                    laneSession.update(
+                        1.0F / 60.0F, laneVehicles, input);
+                laneSession.update(
+                    1.0F / 60.0F, laneVehicles, input);
+                if (std::abs(
+                        laneSession.vehicleInputs()[1].steering -
+                        laneSession.vehicleInputs()[2].steering) <
+                    0.05F)
+                {
+                    throw std::runtime_error(
+                        "source AISystem four-track chain assignment failed");
+                }
+            }
+
             OriginalRaceSession aiControlSession(race);
             for (int frame = 0; frame < 190; ++frame)
                 aiControlSession.update(

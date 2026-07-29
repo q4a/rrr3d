@@ -93,6 +93,7 @@ struct VehicleDescription
     float clampRollAngle = 0.0F;
     float clampPitchAngle = 0.0F;
     float steerAngle = 0.0F;
+    float steeringControl = 0.12F;
     float steerSpeed = 1.5707963267948966F;
     float steerRotation = 3.1415926535897932F;
     bool automaticGears = true;

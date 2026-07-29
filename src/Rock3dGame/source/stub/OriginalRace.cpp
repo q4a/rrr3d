@@ -2448,6 +2448,8 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
     vehicle.maximumTorque = scalar(car, "motor/maxTorque", source);
     vehicle.torqueEfficiency =
         scalar(car, "motor/SEM", source) * 1.15F;
+    vehicle.steeringControl =
+        scalar(car, "motor/kSteerControl", source);
     vehicle.steerSpeed = scalar(car, "motor/steerSpeed", source);
     vehicle.steerRotation = scalar(car, "motor/steerRot", source);
     vehicle.airbornePitchAcceleration =

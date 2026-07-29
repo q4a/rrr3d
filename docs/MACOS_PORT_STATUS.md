@@ -764,6 +764,11 @@ SDL_AUDIO_DRIVER=dummy \
   коэффициент `1.05..1.85` одновременно для motor torque и lateral tire
   force. Jolt применяет их на тех же границах, где PhysX-код вызывал
   `SetMotorTorqueK` и `SetWheelSteerK`.
+- `Map`-константа `Trace(4)` и `AISystem::ComputeTracks` больше не заменены
+  наведением всех AI на ось трассы. Portable session вычисляет signed
+  track-index, формирует цепочки продольно пересекающихся AI, распределяет
+  их по четырём полосам и ведёт к центру полосы с исходным look-ahead
+  `5 + |speed| × kSteerControl × 10`; `kSteerControl` читается из `db.xml`.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,

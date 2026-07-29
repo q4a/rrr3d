@@ -282,6 +282,8 @@ private:
         std::size_t racer,
         const r3d::physics::VehicleState& vehicle,
         float seconds);
+    void updateAiTracks(
+        const std::vector<r3d::physics::VehicleState>& vehicles);
     void updatePlaces(
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void updateGameplay(
@@ -337,6 +339,7 @@ private:
     std::vector<bool> aiBackMovingMode_;
     std::vector<bool> aiBackMoving_;
     std::vector<float> aiMineRandom_;
+    std::vector<std::uint32_t> aiTracks_;
     std::vector<Vec3> previousPositions_;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;
