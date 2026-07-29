@@ -45,8 +45,13 @@ Windows остаётся на PhysX 2.8.4. Apple Silicon использует Jo
 
 - Z-up игровая система преобразуется в Y-up Jolt;
 - static triangle collision строится из штатных `.r3d`;
-- параметры body, center of mass, колёс, suspension, differential, brakes,
-  RPM и torque берутся из `db.xml`;
+- параметры body/material, center of mass, колёс, suspension, brakes,
+  RPM, transmission, angular stabilization и torque берутся из `db.xml`;
+- `CarMotorDesc` остаётся владельцем правил двигателя: полный момент выдаётся
+  каждому ведущему колесу, а передачи используют исходные состояния
+  neutral/reverse/1..5 без Jolt clutch/inertia;
+- workshop `tireSpring` применяется как исходный cutoff реакции шины, а не
+  как добавка к жёсткости подвески;
 - игрок и все соперники имеют отдельные Jolt vehicles;
 - simulation выполняется фиксированными шагами 1/120 s;
 - стартовая решётка и reset/respawn повторяют исходные trace и формулы
@@ -155,9 +160,10 @@ build/macos-arm64-m9/Debug/RRR3d --verify-resources
 ```
 
 Configure и arm64 Debug build завершились успешно. Physics/session smoke
-проверил 1175 исходных collision triangles, Jolt acceleration/braking/
-steering/suspension, workshop mobility, countdown, checkpoints/laps/finish,
-weapon/damage, bonus и respawn. Audio/MusicCat smoke проверил 182 Ogg,
+проверил 1175 исходных collision triangles, source drivetrain/reverse/gears,
+Jolt braking/steering/suspension, airborne dynamics, workshop mobility,
+countdown, checkpoints/laps/finish, weapon/damage, bonus и respawn.
+Audio/MusicCat smoke проверил 182 Ogg,
 background decode, все три menu tracks, race sounds и lifecycle mixer.
 
 Resource sweep разрешил все 88 tournament tracks и все 17 garage cars.

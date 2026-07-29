@@ -73,9 +73,12 @@ The `ctCar` loader now preserves `motor/SEM`, `motor/steerSpeed` and
 - the source `steerRot` yaw correction around the rear wheel while a driven
   wheel has contact.
 
-The rest brake is converted to a fraction of each original wheel's maximum
-brake torque. The smoke test now also rejects an engine whose settled RPM does
-not match `CarMotorDesc::idlingRPM`.
+The later full physics revision supersedes the initial Jolt-transmission
+mapping described above. `docs/PHYSICS_ENGINE_REVISION.md` records the exact
+source comparison: the adapter now owns the Windows gear/RPM/reverse state and
+applies full `CarMotorDesc` torque to every driven wheel. The source rest brake
+is retained except while propulsion is active, where Jolt would turn the same
+low-speed value into a wheel lock.
 
 ## Validation
 

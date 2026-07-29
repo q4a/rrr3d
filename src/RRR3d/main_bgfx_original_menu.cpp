@@ -624,7 +624,8 @@ int main(int argc, char** argv)
                   << " original collision triangles, "
                   << recordName(originalRace->vehicle.record)
                   << "/Jolt vehicle"
-                     " acceleration, braking, steering, suspension contacts,"
+                     " source torque/gears/reverse, braking, steering,"
+                     " airborne/stabilization, suspension/tire contacts,"
                      " trace reset, countdown, checkpoint/lap/finish,"
                      " source border/car contacts, weapon/damage, bonus,"
                      " garage/workshop, and respawn state passed\n";
@@ -3061,9 +3062,9 @@ int main(int argc, char** argv)
                                                  : 0.0F;
                         break;
                     case rrr3d::input::Action::Brake:
-                        raceInput.brake = inputEvent.active
-                                              ? inputEvent.value
-                                              : 0.0F;
+                        raceInput.reverse = inputEvent.active
+                                                ? inputEvent.value
+                                                : 0.0F;
                         break;
                     case rrr3d::input::Action::TurnLeft:
                         if (inputEvent.active)
@@ -3757,6 +3758,7 @@ int main(int argc, char** argv)
         if (inRace && options->raceRenderSmokeTest)
         {
             raceInput.throttle = 1.0F;
+            raceInput.reverse = 0.0F;
             raceInput.brake = 0.0F;
             raceInput.steering = renderedFrames >= 90 &&
                                          renderedFrames < 180
@@ -4657,6 +4659,14 @@ int main(int argc, char** argv)
                                    r3d::game::originalrace::
                                        LightingMode::Bump;
                         });
+                // FxTrail is driven by the source per-wheel slip thresholds,
+                // not by vehicle speed. The canonical World1 smoke validates
+                // its render path; a high-grip surface is allowed to finish
+                // this short run without inventing a skid solely for test
+                // coverage.
+                const bool expectsWheelSlipTrail =
+                    originalRace->levelPath ==
+                    "Data/Map/World1/map1.r3dMap";
                 if (expectsReflection)
                     renderGraphComplete =
                         renderGraphComplete &&
@@ -4681,7 +4691,8 @@ int main(int argc, char** argv)
                     maximumEnvironmentMappedDraws == 0U ||
                     (expectsBumpMapping &&
                      maximumNormalMappedDraws == 0U) ||
-                    maximumTransientDraws == 0U)
+                    (expectsWheelSlipTrail &&
+                     maximumTransientDraws == 0U))
                 {
                     std::cerr
                         << "Milestone 9 integrated Single Player/race render "

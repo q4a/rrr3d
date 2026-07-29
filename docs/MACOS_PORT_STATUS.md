@@ -673,6 +673,12 @@ SDL_AUDIO_DRIVER=dummy \
   применяет исходное преобразование системы координат из `SkyBox.cpp`;
   World4 smoke прошёл на 240 и 1200 кадрах, горизонт проверен по захваченному
   кадру.
+- Полная ревизия vehicle physics сопоставила активный Jolt adapter с
+  `GameCar.cpp`, `Player.cpp`, `DataBase.cpp` и `Physx.cpp`: убрано деление
+  полного source torque между колёсами, перенесены reverse и source gear
+  state, `JumpProgress`, `StabilizeForce`, `tireSpring`, clutch immunity,
+  исходные материалы и axial-vector transform. Подробная таблица и граница
+  solver parity находятся в `docs/PHYSICS_ENGINE_REVISION.md`.
 
 ## Известные проблемы
 
@@ -705,9 +711,10 @@ SDL_AUDIO_DRIVER=dummy \
   но не точную X3DAudio DSP-матрицу с cones/obstruction.
 - Физическое переключение Bluetooth/USB playback device не выполнялось;
   SDL default-device migration и event path нужно повторить на release hardware.
-- Численная parity с legacy PhysX не доказана: Jolt имеет другой solver/tire
-  model. По требованию M9.1 Windows/Parallels A/B не выполняется; границы
-  backend-эквивалентности описаны в `docs/PHYSICS_PORT_PLAN.md`.
+- Численная parity с legacy PhysX не заявляется: Jolt имеет другой solver.
+  При этом game-side motor/gear/reverse/stabilization/tire/material semantics
+  перенесены по исходникам; оставшаяся backend-граница описана в
+  `docs/PHYSICS_ENGINE_REVISION.md`.
 - AI/workshop/projectile/mine/support/material/effect data перенесены из
   исходников, но порядок PhysX contacts и D3D9 multipass rendering не могут
   быть численно идентичны portable backend.

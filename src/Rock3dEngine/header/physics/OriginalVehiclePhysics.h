@@ -77,6 +77,8 @@ struct VehicleDescription
     Vec3 halfExtents;
     Vec3 shapePosition;
     Vec3 centerOfMass;
+    Vec3 angularDamping{1.0F, 1.0F, 1.0F};
+    float bodyFriction = 0.08F;
     float brakeTorque = 0.0F;
     float differentialRatio = 0.0F;
     float maximumRpm = 0.0F;
@@ -86,9 +88,16 @@ struct VehicleDescription
     float torqueEfficiency = 0.805F;
     float restBrakeTorque = 400.0F;
     float maximumSpeed = 0.0F;
+    float tireSpring = 0.0F;
+    float airbornePitchAcceleration = 1.9634954084936207F;
+    float clampRollAngle = 0.0F;
+    float clampPitchAngle = 0.0F;
     float steerAngle = 0.0F;
     float steerSpeed = 1.5707963267948966F;
     float steerRotation = 3.1415926535897932F;
+    bool automaticGears = true;
+    bool gravitySteering = false;
+    bool clutchImmunity = false;
     std::vector<WheelDescription> wheels;
 };
 
@@ -114,6 +123,10 @@ struct WorldDescription
 struct VehicleInput
 {
     float throttle = 0.0F;
+    // The Windows mcBack command first brakes forward motion and then
+    // engages the dedicated reverse gear. It is distinct from mcBrake,
+    // which AI uses as a brake-only command.
+    float reverse = 0.0F;
     float brake = 0.0F;
     float steering = 0.0F;
 };
@@ -144,6 +157,8 @@ struct VehicleState
     Vec3 linearVelocity;
     float speed = 0.0F;
     float engineRpm = 0.0F;
+    // Source CarMotorDesc convention: -1 neutral, 0 reverse, 1..5 forward.
+    int gear = -1;
     std::uint32_t contactCount = 0;
     std::uint32_t resetCount = 0;
     std::vector<BodyContact> bodyContacts;

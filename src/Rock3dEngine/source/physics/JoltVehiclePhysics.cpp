@@ -11,6 +11,7 @@
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Body/BodyFilter.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
+#include <Jolt/Physics/Collision/EstimateCollisionResponse.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -113,6 +114,13 @@ JPH::Vec3 toJolt(Vec3 value)
     return {value.x, value.z, value.y};
 }
 
+JPH::Vec3 toJoltAngular(Vec3 value)
+{
+    // Z-up -> Y-up swaps two axes and therefore changes handedness.
+    // Angular velocity is an axial vector and needs det(P) * P.
+    return {-value.x, -value.z, -value.y};
+}
+
 JPH::Quat toJolt(Quat value)
 {
     return {-value.x, -value.z, -value.y, value.w};
@@ -128,6 +136,37 @@ Quat fromJolt(JPH::QuatArg value)
     // Changing from game Z-up to Jolt Y-up is a reflection. Quaternion
     // imaginary components are axial, hence det(P) * P.
     return {-value.GetX(), -value.GetZ(), -value.GetY(), value.GetW()};
+}
+
+Vec3 quaternionToEulerXYZ(Quat value)
+{
+    const float sinRoll =
+        2.0F * (value.w * value.x + value.y * value.z);
+    const float cosRoll =
+        1.0F - 2.0F * (value.x * value.x + value.y * value.y);
+    const float sinPitch = std::clamp(
+        2.0F * (value.w * value.y - value.z * value.x),
+        -1.0F, 1.0F);
+    const float sinYaw =
+        2.0F * (value.w * value.z + value.x * value.y);
+    const float cosYaw =
+        1.0F - 2.0F * (value.y * value.y + value.z * value.z);
+    return {std::atan2(sinRoll, cosRoll), std::asin(sinPitch),
+            std::atan2(sinYaw, cosYaw)};
+}
+
+Quat quaternionFromEulerXYZ(Vec3 value)
+{
+    const float cr = std::cos(0.5F * value.x);
+    const float sr = std::sin(0.5F * value.x);
+    const float cp = std::cos(0.5F * value.y);
+    const float sp = std::sin(0.5F * value.y);
+    const float cy = std::cos(0.5F * value.z);
+    const float sy = std::sin(0.5F * value.z);
+    return {sr * cp * cy - cr * sp * sy,
+            cr * sp * cy + sr * cp * sy,
+            cr * cp * sy - sr * sp * cy,
+            cr * cp * cy + sr * sp * sy};
 }
 
 Vec3 transformPoint(const Transform& transform, Vec3 value)
@@ -206,22 +245,53 @@ public:
 
     void OnContactAdded(const JPH::Body& first, const JPH::Body& second,
                         const JPH::ContactManifold& manifold,
-                        JPH::ContactSettings&) override
+                        JPH::ContactSettings& settings) override
     {
-        record(first, second, manifold);
+        configureMaterial(first, second, settings);
+        record(first, second, manifold, settings);
     }
 
     void OnContactPersisted(const JPH::Body& first,
                             const JPH::Body& second,
                             const JPH::ContactManifold& manifold,
-                            JPH::ContactSettings&) override
+                            JPH::ContactSettings& settings) override
     {
-        record(first, second, manifold);
+        configureMaterial(first, second, settings);
+        record(first, second, manifold, settings);
     }
 
 private:
+    static void configureMaterial(
+        const JPH::Body& first, const JPH::Body& second,
+        JPH::ContactSettings& settings) noexcept
+    {
+        std::size_t firstVehicle = 0;
+        std::size_t secondVehicle = 0;
+        const bool firstIsVehicle =
+            vehicleIndex(first.GetUserData(), firstVehicle);
+        const bool secondIsVehicle =
+            vehicleIndex(second.GetUserData(), secondVehicle);
+        if (!firstIsVehicle && !secondIsVehicle)
+            return;
+        const JPH::Body& other = firstIsVehicle ? second : first;
+        if (collisionSurface(other.GetUserData()) ==
+            CollisionSurface::TrackBorder)
+        {
+            // The Windows border material uses NX_CM_MAX and dynamic
+            // friction 4.0.
+            settings.mCombinedFriction = 4.0F;
+        }
+        else
+        {
+            // Car materials use NX_CM_MIN (0.08 or the 0.02 wake model).
+            settings.mCombinedFriction =
+                std::min(first.GetFriction(), second.GetFriction());
+        }
+    }
+
     void recordOne(std::size_t vehicle, const JPH::Body& body,
-                   const JPH::Body& other, JPH::Vec3Arg outwardNormal)
+                   const JPH::Body& other, JPH::Vec3Arg outwardNormal,
+                   float estimatedForce)
     {
         const JPH::Vec3 bodyVelocity = body.GetLinearVelocity();
         std::size_t otherVehicle = std::numeric_limits<std::size_t>::max();
@@ -240,10 +310,12 @@ private:
                 : 0.0F;
         const float inverseMass = bodyInverseMass + otherInverseMass;
         constexpr float originalContactStep = 1.0F / 120.0F;
-        const float force =
+        const float effectiveMassForce =
             inverseMass > 0.0F
                 ? normalSpeed / (inverseMass * originalContactStep)
                 : 0.0F;
+        const float force =
+            std::max(effectiveMassForce, estimatedForce);
 
         BodyContact contact;
         contact.surface =
@@ -271,16 +343,31 @@ private:
     }
 
     void record(const JPH::Body& first, const JPH::Body& second,
-                const JPH::ContactManifold& manifold)
+                const JPH::ContactManifold& manifold,
+                const JPH::ContactSettings& settings)
     {
+        JPH::CollisionEstimationResult estimation;
+        JPH::EstimateCollisionResponse(
+            first, second, manifold, estimation,
+            settings.mCombinedFriction,
+            settings.mCombinedRestitution, 1.0F, 4U);
+        float estimatedForce = 0.0F;
+        constexpr float originalContactStep = 1.0F / 120.0F;
+        for (const auto& impulse : estimation.mImpulses)
+            estimatedForce +=
+                std::abs(impulse.mContactImpulse) / originalContactStep;
         std::size_t firstVehicle = 0;
         std::size_t secondVehicle = 0;
         if (vehicleIndex(first.GetUserData(), firstVehicle))
+        {
             recordOne(firstVehicle, first, second,
-                      -manifold.mWorldSpaceNormal);
+                      -manifold.mWorldSpaceNormal, estimatedForce);
+        }
         if (vehicleIndex(second.GetUserData(), secondVehicle))
+        {
             recordOne(secondVehicle, second, first,
-                      manifold.mWorldSpaceNormal);
+                      manifold.mWorldSpaceNormal, estimatedForce);
+        }
     }
 
     std::mutex mutex_;
@@ -340,6 +427,13 @@ public:
                 JPH::BodyLockRead lock(system.GetBodyLockInterfaceNoLock(),
                                        hit.mBodyID);
                 if (!lock.Succeeded() || lock.GetBody().IsSensor())
+                    return;
+                std::size_t vehicle = 0;
+                const JPH::uint64 userData = lock.GetBody().GetUserData();
+                if (vehicleIndex(userData, vehicle) ||
+                    ((userData & bodyKindMask) == surfaceBodyKind &&
+                     collisionSurface(userData) ==
+                         CollisionSurface::TrackBorder))
                     return;
                 const auto position = ray.GetPointOnRay(hit.mFraction);
                 auto normal = lock.GetBody().GetWorldSpaceSurfaceNormal(
@@ -502,9 +596,18 @@ public:
             JPH::EActivation::Activate);
         bodies.SetLinearAndAngularVelocity(
             vehicle.body, JPH::Vec3::sZero(), JPH::Vec3::sZero());
-        vehicle.controller->SetDriverInput(0.0F, 0.0F, 1.0F, 0.0F);
+        vehicle.controller->SetDriverInput(0.0F, 0.0F, 0.0F, 0.0F);
+        for (auto* wheel : vehicle.constraint->GetWheels())
+        {
+            wheel->SetAngularVelocity(0.0F);
+            wheel->SetRotationAngle(0.0F);
+            wheel->SetSteerAngle(0.0F);
+        }
         vehicle.steeringAngle = 0.0F;
         vehicle.wheelTractionEnabled = true;
+        vehicle.currentGear = -1;
+        vehicle.motorTorque = 0.0F;
+        vehicle.engineRpm = vehicle.spawn.vehicle.idlingRpm;
         ++vehicle.resetCount;
         updateState(vehicle);
     }
@@ -565,7 +668,7 @@ public:
         auto& bodies = system_.GetBodyInterface();
         bodies.AddLinearAndAngularVelocity(
             vehicles_[index].body, JPH::Vec3::sZero(),
-            toJolt(delta));
+            toJoltAngular(delta));
         bodies.ActivateBody(vehicles_[index].body);
     }
 
@@ -574,7 +677,8 @@ public:
     {
         if (index >= vehicles_.size())
             return;
-        vehicles_[index].wheelTractionEnabled = enabled;
+        vehicles_[index].wheelTractionEnabled =
+            enabled || vehicles_[index].spawn.vehicle.clutchImmunity;
     }
 
     void clampLinearSpeed(std::size_t index,
@@ -600,127 +704,19 @@ public:
     {
         const float simulationSeconds =
             std::clamp(seconds, 0.0F, 0.25F);
-        for (std::size_t index = 0; index < vehicles_.size(); ++index)
-        {
-            VehicleInput input;
-            if (index < rawInputs.size())
-                input = rawInputs[index];
-            input.throttle = std::clamp(input.throttle, 0.0F, 1.0F);
-            input.brake = std::clamp(input.brake, 0.0F, 1.0F);
-            input.steering = std::clamp(input.steering, -1.0F, 1.0F);
-            const bool requestedActivity =
-                input.throttle != 0.0F || input.brake != 0.0F ||
-                input.steering != 0.0F;
-            auto& vehicle = vehicles_[index];
-            if (!vehicle.enabled)
-                continue;
-            if (vehicle.spawn.vehicle.maximumSpeed > 0.0F &&
-                vehicle.state.speed >
-                    vehicle.spawn.vehicle.maximumSpeed)
-                input.throttle = 0.0F;
-            const auto& source = vehicle.spawn.vehicle;
-            const float targetSteering =
-                input.steering * source.steerAngle;
-            if (std::abs(input.steering) >= 0.999F &&
-                source.steerSpeed > 0.0F)
-            {
-                if (targetSteering > 0.0F)
-                    vehicle.steeringAngle = std::min(
-                        std::max(vehicle.steeringAngle, 0.0F) +
-                            source.steerSpeed * simulationSeconds,
-                        source.steerAngle);
-                else
-                    vehicle.steeringAngle = std::max(
-                        std::min(vehicle.steeringAngle, 0.0F) -
-                            source.steerSpeed * simulationSeconds,
-                        -source.steerAngle);
-            }
-            else
-            {
-                // Legacy smManual (analogue pad and AI) writes the angle
-                // directly; keyboard left/right uses the ramp above.
-                vehicle.steeringAngle = targetSteering;
-            }
-            input.steering =
-                source.steerAngle > 0.0001F
-                    ? std::clamp(vehicle.steeringAngle /
-                                     source.steerAngle,
-                                 -1.0F, 1.0F)
-                    : 0.0F;
-            if (source.brakeTorque > 0.0F &&
-                std::abs(input.throttle) <= 0.0001F)
-            {
-                // The source PhysX vehicle used restTorque as rolling
-                // resistance. Jolt's brake input locks a stationary wheel,
-                // so applying it under power makes the free rear axle drag
-                // instead of rolling.
-                input.brake = std::max(
-                    input.brake,
-                    std::clamp(source.restBrakeTorque /
-                                   source.brakeTorque,
-                               0.0F, 1.0F));
-            }
-            const bool drivenWheelContact =
-                std::any_of(
-                    source.wheels.begin(), source.wheels.end(),
-                    [&](const WheelDescription& wheel) {
-                        const auto wheelIndex =
-                            static_cast<std::size_t>(
-                                &wheel - source.wheels.data());
-                        return wheel.driven &&
-                               wheelIndex <
-                                   vehicle.state.wheelContacts.size() &&
-                               vehicle.state.wheelContacts[wheelIndex]
-                                   .hasContact;
-                    });
-            if (drivenWheelContact &&
-                vehicle.wheelTractionEnabled &&
-                std::abs(vehicle.steeringAngle) > 0.0001F &&
-                simulationSeconds > 0.0F)
-            {
-                // GameCar::WheelsProgress applies a source steerRot yaw
-                // around the rear wheel in addition to PhysX wheel steer.
-                // Reproduce that pose correction at the Jolt boundary.
-                auto& bodies = system_.GetBodyInterface();
-                const auto rotation = bodies.GetRotation(vehicle.body);
-                const auto velocity =
-                    bodies.GetLinearVelocity(vehicle.body);
-                const float forwardSpeed = velocity.Dot(
-                    rotation * JPH::Vec3::sAxisX());
-                const float alpha =
-                    std::clamp(forwardSpeed / 10.0F, -1.0F, 1.0F);
-                const float sourceYaw =
-                    alpha *
-                    (vehicle.steeringAngle / source.steerAngle) *
-                    source.steerRotation * simulationSeconds;
-                const auto yaw = JPH::Quat::sRotation(
-                    JPH::Vec3::sAxisY(), -sourceYaw);
-                const auto correctedRotation = rotation * yaw;
-                float rearWheelX = 0.0F;
-                for (const auto& wheel : source.wheels)
-                    rearWheelX = std::min(rearWheelX, wheel.position.x);
-                const JPH::Vec3 rearPivot{rearWheelX, 0.0F, 0.0F};
-                const auto position = bodies.GetPosition(vehicle.body);
-                const auto pivot = position + rotation * rearPivot;
-                const auto correctedPosition =
-                    pivot - correctedRotation * rearPivot;
-                bodies.SetPositionAndRotation(
-                    vehicle.body, correctedPosition,
-                    correctedRotation,
-                    JPH::EActivation::Activate);
-            }
-            vehicle.controller->SetDriverInput(
-                input.throttle, input.steering, input.brake, 0.0F);
-            if (requestedActivity)
-                system_.GetBodyInterface().ActivateBody(vehicle.body);
-        }
-
         float remaining = simulationSeconds;
         constexpr float fixedStep = 1.0F / 120.0F;
         contactListener_.beginStep();
         while (remaining > 0.0F)
         {
             const float delta = std::min(remaining, fixedStep);
+            for (std::size_t index = 0; index < vehicles_.size(); ++index)
+            {
+                VehicleInput input;
+                if (index < rawInputs.size())
+                    input = rawInputs[index];
+                prepareVehicleStep(vehicles_[index], input, delta);
+            }
             system_.Update(delta, 1, &tempAllocator_, &jobs_);
             remaining -= delta;
         }
@@ -827,6 +823,9 @@ private:
         JPH::WheeledVehicleController* controller = nullptr;
         VehicleState state;
         float steeringAngle = 0.0F;
+        float motorTorque = 0.0F;
+        float engineRpm = 1000.0F;
+        int currentGear = -1;
         std::uint32_t resetCount = 0;
         bool wheelTractionEnabled = true;
         bool enabled = true;
@@ -839,6 +838,314 @@ private:
         DebrisState state;
         float lifetime = -1.0F;
     };
+
+    static float sourceGearRatio(int gear) noexcept
+    {
+        constexpr std::array<float, 6> ratios{
+            1.5F, 2.66F, 1.78F, 1.30F, 1.00F, 0.74F};
+        return ratios[static_cast<std::size_t>(
+            std::clamp(gear, 0, static_cast<int>(ratios.size() - 1U)))];
+    }
+
+    static float sourceRpm(const VehicleDescription& source, int gear,
+                           float wheelAngularSpeed) noexcept
+    {
+        if (gear < 0)
+            return source.idlingRpm;
+        constexpr float radiansPerRevolution =
+            6.28318530717958647692F;
+        const float rpm =
+            std::abs(wheelAngularSpeed) * sourceGearRatio(gear) *
+            source.differentialRatio * 60.0F / radiansPerRevolution;
+        return std::min(rpm, source.maximumRpm);
+    }
+
+    static float sourceTorque(const VehicleDescription& source,
+                              int gear) noexcept
+    {
+        return source.maximumTorque * sourceGearRatio(gear) *
+               source.differentialRatio * source.torqueEfficiency;
+    }
+
+    void stabilizeVehicle(VehicleRuntime& vehicle, bool anyContact) noexcept
+    {
+        const auto& source = vehicle.spawn.vehicle;
+        auto& bodies = system_.GetBodyInterface();
+        const JPH::Quat rotation = bodies.GetRotation(vehicle.body);
+        JPH::Vec3 localAngularVelocity =
+            rotation.Conjugated() *
+            bodies.GetAngularVelocity(vehicle.body);
+        localAngularVelocity.SetX(
+            localAngularVelocity.GetX() * source.angularDamping.x);
+        localAngularVelocity.SetZ(
+            localAngularVelocity.GetZ() * source.angularDamping.y);
+        localAngularVelocity.SetY(
+            localAngularVelocity.GetY() *
+            (vehicle.wheelTractionEnabled
+                 ? source.angularDamping.z
+                 : 1.0F));
+        if (!anyContact)
+        {
+            if (source.clampRollAngle > 0.0F)
+                localAngularVelocity.SetX(std::clamp(
+                    localAngularVelocity.GetX(),
+                    -2.0F * source.clampRollAngle,
+                    2.0F * source.clampRollAngle));
+            if (source.clampPitchAngle > 0.0F)
+                localAngularVelocity.SetZ(std::clamp(
+                    localAngularVelocity.GetZ(),
+                    -2.0F * source.clampPitchAngle,
+                    2.0F * source.clampPitchAngle));
+        }
+        bodies.SetAngularVelocity(
+            vehicle.body, rotation * localAngularVelocity);
+
+        if (source.clampRollAngle > 0.0F ||
+            source.clampPitchAngle > 0.0F)
+        {
+            Vec3 euler = quaternionToEulerXYZ(fromJolt(rotation));
+            if (source.clampRollAngle > 0.0F)
+                euler.x = std::clamp(
+                    euler.x, -source.clampRollAngle,
+                    source.clampRollAngle);
+            if (source.clampPitchAngle > 0.0F)
+                euler.y = std::clamp(
+                    euler.y, -source.clampPitchAngle,
+                    source.clampPitchAngle);
+            bodies.SetPositionAndRotation(
+                vehicle.body, bodies.GetPosition(vehicle.body),
+                toJolt(quaternionFromEulerXYZ(euler)),
+                JPH::EActivation::Activate);
+        }
+    }
+
+    void applySourceSteering(VehicleRuntime& vehicle, float input,
+                             float delta, bool anyContact,
+                             bool drivenContact) noexcept
+    {
+        const auto& source = vehicle.spawn.vehicle;
+        const float target = input * source.steerAngle;
+        if (std::abs(input) >= 0.999F && source.steerSpeed > 0.0F)
+        {
+            if (target > 0.0F)
+                vehicle.steeringAngle = std::min(
+                    std::max(vehicle.steeringAngle, 0.0F) +
+                        source.steerSpeed * delta,
+                    source.steerAngle);
+            else
+                vehicle.steeringAngle = std::max(
+                    std::min(vehicle.steeringAngle, 0.0F) -
+                        source.steerSpeed * delta,
+                    -source.steerAngle);
+        }
+        else
+        {
+            // Legacy smManual (analogue pad and AI) writes the angle
+            // directly; keyboard left/right uses the ramp above.
+            vehicle.steeringAngle = target;
+        }
+
+        const bool steeringContact =
+            source.gravitySteering ? anyContact : drivenContact;
+        if (!steeringContact || !vehicle.wheelTractionEnabled ||
+            std::abs(vehicle.steeringAngle) <= 0.0001F ||
+            source.steerAngle <= 0.0001F)
+            return;
+        auto& bodies = system_.GetBodyInterface();
+        const auto rotation = bodies.GetRotation(vehicle.body);
+        const auto velocity = bodies.GetLinearVelocity(vehicle.body);
+        const float forwardSpeed =
+            velocity.Dot(rotation * JPH::Vec3::sAxisX());
+        const float alpha =
+            std::clamp(forwardSpeed / 10.0F, -1.0F, 1.0F);
+        const float sourceYaw =
+            alpha * (vehicle.steeringAngle / source.steerAngle) *
+            source.steerRotation * delta;
+        const auto yaw = JPH::Quat::sRotation(
+            JPH::Vec3::sAxisY(), -sourceYaw);
+        const auto correctedRotation = rotation * yaw;
+        float rearWheelX = 0.0F;
+        for (const auto& wheel : source.wheels)
+            rearWheelX = std::min(rearWheelX, wheel.position.x);
+        const JPH::Vec3 rearPivot{rearWheelX, 0.0F, 0.0F};
+        const auto position = bodies.GetPosition(vehicle.body);
+        const auto pivot = position + rotation * rearPivot;
+        bodies.SetPositionAndRotation(
+            vehicle.body, pivot - correctedRotation * rearPivot,
+            correctedRotation, JPH::EActivation::Activate);
+    }
+
+    void prepareVehicleStep(VehicleRuntime& vehicle, VehicleInput input,
+                            float delta) noexcept
+    {
+        if (!vehicle.enabled)
+            return;
+        input.throttle = std::clamp(input.throttle, 0.0F, 1.0F);
+        input.reverse = std::clamp(input.reverse, 0.0F, 1.0F);
+        input.brake = std::clamp(input.brake, 0.0F, 1.0F);
+        input.steering = std::clamp(input.steering, -1.0F, 1.0F);
+
+        const auto& source = vehicle.spawn.vehicle;
+        bool anyContact = false;
+        bool drivenContact = false;
+        float drivenWheelSpeed = 0.0F;
+        bool foundDrivenWheel = false;
+        for (JPH::uint index = 0;
+             index < vehicle.constraint->GetWheels().size(); ++index)
+        {
+            const auto* wheel = vehicle.constraint->GetWheel(index);
+            anyContact = anyContact || wheel->HasContact();
+            if (!source.wheels[index].driven)
+                continue;
+            drivenContact = drivenContact || wheel->HasContact();
+            if (!foundDrivenWheel)
+            {
+                drivenWheelSpeed = wheel->GetAngularVelocity();
+                foundDrivenWheel = true;
+            }
+        }
+
+        auto& bodies = system_.GetBodyInterface();
+        const JPH::Quat rotation = bodies.GetRotation(vehicle.body);
+        const JPH::Vec3 velocity =
+            bodies.GetLinearVelocity(vehicle.body);
+        const float signedSpeed =
+            velocity.Dot(rotation * JPH::Vec3::sAxisX());
+        // PhysX settles a braked wheel to exact zero. Jolt keeps tiny solver
+        // residuals, so use a narrow dead zone at the mcAccel/mcBack
+        // direction transition to preserve the source state change.
+        constexpr float directionDeadZone = 0.1F;
+
+        float brakeTorque = source.restBrakeTorque;
+        float motorTorque = 0.0F;
+        float rpm = sourceRpm(
+            source, vehicle.currentGear, drivenWheelSpeed);
+        if (input.brake > 0.0001F)
+        {
+            vehicle.currentGear = -1;
+            rpm = source.idlingRpm;
+            brakeTorque = source.brakeTorque * input.brake;
+        }
+        else if (input.reverse > 0.0001F)
+        {
+            if (signedSpeed > directionDeadZone)
+            {
+                rpm = sourceRpm(
+                    source, vehicle.currentGear, drivenWheelSpeed);
+                brakeTorque = source.brakeTorque;
+            }
+            else
+            {
+                vehicle.currentGear = 0;
+                rpm = sourceRpm(source, 0, drivenWheelSpeed);
+                if (rpm < source.maximumRpm)
+                    motorTorque =
+                        -sourceTorque(source, 0) * input.reverse;
+            }
+        }
+        else if (input.throttle > 0.0001F)
+        {
+            if (signedSpeed < -directionDeadZone)
+            {
+                vehicle.currentGear = -1;
+                rpm = source.idlingRpm;
+                brakeTorque = source.brakeTorque;
+            }
+            else
+            {
+                if (vehicle.currentGear <= 0)
+                    vehicle.currentGear = 1;
+                rpm = sourceRpm(
+                    source, vehicle.currentGear, drivenWheelSpeed);
+                motorTorque =
+                    sourceTorque(source, vehicle.currentGear) *
+                    input.throttle;
+            }
+        }
+
+        // GameCar::TransmissionProgress uses the first driven wheel and
+        // changes the gear only after the current frame's RPM/torque have
+        // already been calculated.
+        if (drivenContact && source.automaticGears &&
+            vehicle.currentGear > 0)
+        {
+            if (rpm < source.maximumRpm / 1.8F &&
+                vehicle.currentGear > 1)
+                --vehicle.currentGear;
+            if (rpm >= source.maximumRpm &&
+                vehicle.currentGear < 5)
+                ++vehicle.currentGear;
+        }
+
+        if (source.maximumSpeed > 0.0F &&
+            velocity.Length() > source.maximumSpeed)
+            motorTorque = brakeTorque;
+        vehicle.motorTorque = motorTorque;
+        vehicle.engineRpm = rpm;
+
+        stabilizeVehicle(vehicle, anyContact);
+        applySourceSteering(
+            vehicle, input.steering, delta, anyContact, drivenContact);
+
+        // PhysX accepts restTorque on a rolling powered wheel. Jolt treats
+        // the same value as a wheel lock at low speed, which previously held
+        // the free rear axle stationary. Keep full braking commands exact,
+        // but omit only this incompatible rest brake while power is applied.
+        if (std::abs(motorTorque) > 0.0001F &&
+            brakeTorque <= source.restBrakeTorque + 0.0001F)
+            brakeTorque = 0.0F;
+        const float brakeInput =
+            source.brakeTorque > 0.0F
+                ? std::clamp(
+                      brakeTorque / source.brakeTorque, 0.0F, 1.0F)
+                : 0.0F;
+        const float steeringInput =
+            source.steerAngle > 0.0001F
+                ? std::clamp(
+                      vehicle.steeringAngle / source.steerAngle,
+                      -1.0F, 1.0F)
+                : 0.0F;
+        // Motor/differential propagation is deliberately bypassed. The
+        // Windows code writes the complete CarMotorDesc torque to every
+        // driven NxWheelShape rather than splitting it across an axle.
+        vehicle.controller->SetDriverInput(
+            0.0F, steeringInput, brakeInput, 0.0F);
+        for (JPH::uint index = 0;
+             index < vehicle.constraint->GetWheels().size(); ++index)
+        {
+            if (!source.wheels[index].driven)
+                continue;
+            static_cast<JPH::WheelWV*>(
+                vehicle.constraint->GetWheel(index))
+                ->ApplyTorque(motorTorque, delta);
+        }
+
+        if (!anyContact)
+        {
+            bodies.AddForce(
+                vehicle.body,
+                toJolt(Vec3{0.0F, 0.0F,
+                            source.mass * description_.gravity}));
+            const JPH::Vec3 horizontal{
+                velocity.GetX(), 0.0F, velocity.GetZ()};
+            if (horizontal.Length() > 1.0F &&
+                source.airbornePitchAcceleration != 0.0F)
+            {
+                const JPH::Quat currentRotation =
+                    bodies.GetRotation(vehicle.body);
+                bodies.AddLinearAndAngularVelocity(
+                    vehicle.body, JPH::Vec3::sZero(),
+                    currentRotation *
+                        JPH::Vec3{
+                            0.0F, 0.0F,
+                            -source.airbornePitchAcceleration * delta});
+            }
+        }
+
+        if (input.throttle != 0.0F || input.reverse != 0.0F ||
+            input.brake != 0.0F || input.steering != 0.0F)
+            bodies.ActivateBody(vehicle.body);
+    }
 
     void destroyDebris(DebrisRuntime& debris) noexcept
     {
@@ -867,7 +1174,13 @@ private:
         for (const auto& spawn : description_.spawns)
         {
             if (spawn.vehicle.mass <= 0.0F ||
-                spawn.vehicle.wheels.size() != 4)
+                spawn.vehicle.wheels.size() != 4 ||
+                !std::any_of(
+                    spawn.vehicle.wheels.begin(),
+                    spawn.vehicle.wheels.end(),
+                    [](const WheelDescription& wheel) {
+                        return wheel.driven;
+                    }))
                 throw std::runtime_error(
                     "incomplete original vehicle physics data");
         }
@@ -914,6 +1227,10 @@ private:
             CollisionSurface::TrackPlane,
             CollisionSurface::TrackBorder,
             CollisionSurface::Decoration};
+        constexpr std::array<float, surfaceCount> frictions{
+            0.1F, 4.0F, 0.5F};
+        constexpr std::array<float, surfaceCount> restitutions{
+            0.0F, 0.0F, 0.5F};
         for (std::size_t index = 0; index < triangles.size(); ++index)
         {
             if (triangles[index].empty())
@@ -927,8 +1244,8 @@ private:
                 shapeResult.Get(), JPH::RVec3::sZero(),
                 JPH::Quat::sIdentity(), JPH::EMotionType::Static,
                 Layers::nonMoving);
-            settings.mFriction = 0.5F;
-            settings.mRestitution = 0.5F;
+            settings.mFriction = frictions[index];
+            settings.mRestitution = restitutions[index];
             settings.mUserData = surfaceUserData(surfaces[index]);
             const auto body =
                 system_.GetBodyInterface().CreateAndAddBody(
@@ -970,8 +1287,8 @@ private:
         bodySettings.mOverrideMassProperties =
             JPH::EOverrideMassProperties::CalculateInertia;
         bodySettings.mMassPropertiesOverride.mMass = source.mass;
-        bodySettings.mFriction = 0.5F;
-        bodySettings.mRestitution = 0.5F;
+        bodySettings.mFriction = source.bodyFriction;
+        bodySettings.mRestitution = 0.0F;
         bodySettings.mEnhancedInternalEdgeRemoval = true;
         bodySettings.mUserData = vehicleUserData(vehicles_.size());
         VehicleRuntime runtime;
@@ -1007,6 +1324,9 @@ private:
                                         : 10.0F;
             wheel->mInertia =
                 0.5F * wheelMass * sourceWheel.radius * sourceWheel.radius;
+            // NxWheelShape has no equivalent of Jolt's built-in wheel
+            // angular drag. Source rolling resistance comes from restTorque.
+            wheel->mAngularDamping = 0.0F;
             wheel->mMaxSteerAngle =
                 sourceWheel.steering ? source.steerAngle : 0.0F;
             wheel->mMaxBrakeTorque = source.brakeTorque;
@@ -1057,6 +1377,8 @@ private:
         controllerSettings->mTransmission.mGearRatios =
             {2.66F, 1.78F, 1.30F, 1.00F, 0.74F};
         controllerSettings->mTransmission.mReverseGearRatios = {-1.5F};
+        controllerSettings->mTransmission.mMode =
+            JPH::ETransmissionMode::Manual;
         // CarMotorDesc shifts at maxRPM and maxRPM / 1.8 with no artificial
         // clutch delay. Keep Jolt's thresholds just inside its assertions.
         controllerSettings->mTransmission.mShiftUpRPM =
@@ -1066,18 +1388,27 @@ private:
         controllerSettings->mTransmission.mSwitchTime = 0.0F;
         controllerSettings->mTransmission.mClutchReleaseTime = 0.0F;
         controllerSettings->mTransmission.mSwitchLatency = 0.0F;
+        // Jolt requires differential torque weights to sum to one even in
+        // neutral. Keep topology metadata, but leave the manual transmission
+        // permanently disengaged; propulsion is applied directly to WheelWV.
         std::vector<JPH::uint> driven;
         for (JPH::uint index = 0; index < source.wheels.size(); ++index)
             if (source.wheels[index].driven)
                 driven.push_back(index);
-        for (std::size_t index = 0; index + 1 < driven.size(); index += 2)
+        const std::size_t differentialCount =
+            (driven.size() + 1U) / 2U;
+        for (std::size_t index = 0; index < driven.size(); index += 2U)
         {
             JPH::VehicleDifferentialSettings differential;
-            differential.mLeftWheel = driven[index];
-            differential.mRightWheel = driven[index + 1];
+            differential.mLeftWheel =
+                static_cast<int>(driven[index]);
+            differential.mRightWheel =
+                index + 1U < driven.size()
+                    ? static_cast<int>(driven[index + 1U])
+                    : -1;
             differential.mDifferentialRatio = source.differentialRatio;
             differential.mEngineTorqueRatio =
-                2.0F / static_cast<float>(driven.size());
+                1.0F / static_cast<float>(differentialCount);
             controllerSettings->mDifferentials.push_back(differential);
         }
         settings.mController = controllerSettings;
@@ -1089,12 +1420,12 @@ private:
         system_.AddStepListener(runtime.constraint);
         runtime.controller = static_cast<JPH::WheeledVehicleController*>(
             runtime.constraint->GetController());
+        runtime.controller->GetTransmission().Set(0, 0.0F);
         vehicles_.push_back(std::move(runtime));
         const std::size_t vehicleIndexValue = vehicles_.size() - 1U;
         vehicles_.back().constraint->SetCombineFriction(
             [this, vehicleIndexValue](JPH::uint, float& longitudinal,
-                                      float& lateral,
-                                      const JPH::Body& contactBody,
+                                      float& lateral, const JPH::Body&,
                                       const JPH::SubShapeID&) {
                 // GameCar::IsClutchLocked makes the PhysX wheel contact
                 // modifier set every wheel's normal force to zero.  Jolt
@@ -1107,9 +1438,46 @@ private:
                     lateral = 0.0F;
                     return;
                 }
-                const float bodyFriction = contactBody.GetFriction();
-                longitudinal = std::sqrt(longitudinal * bodyFriction);
-                lateral = std::sqrt(lateral * bodyFriction);
+                // NxWheelShape evaluates its serialized tire functions
+                // directly; the contacted material index is passed to the
+                // callback but the original implementation does not scale
+                // either tire coefficient by ground friction.
+            });
+        vehicles_.back().controller->SetTireMaxImpulseCallback(
+            [this, vehicleIndexValue](
+                JPH::uint wheelIndex, float& longitudinal,
+                float& lateral, float suspensionImpulse,
+                float longitudinalFriction, float lateralFriction,
+                float, float, float deltaTime) {
+                const auto& vehicle = vehicles_[vehicleIndexValue];
+                const auto& source = vehicle.spawn.vehicle;
+                const auto* wheel =
+                    vehicle.constraint->GetWheel(wheelIndex);
+                float allowedSuspensionImpulse = suspensionImpulse;
+                if (wheel->HasContact() && !source.wheels.empty())
+                {
+                    const float normalAcceleration = std::abs(
+                        system_.GetGravity().Dot(
+                            wheel->GetContactNormal()));
+                    const float normalReactionImpulse =
+                        source.mass * normalAcceleration * deltaTime /
+                        static_cast<float>(source.wheels.size());
+                    if (normalReactionImpulse > 1.0e-6F)
+                    {
+                        const float reactionRatio =
+                            suspensionImpulse / normalReactionImpulse;
+                        if (source.tireSpring > 0.0F &&
+                            reactionRatio > source.tireSpring)
+                            allowedSuspensionImpulse = 0.0F;
+                        else
+                            allowedSuspensionImpulse = std::min(
+                                suspensionImpulse,
+                                normalReactionImpulse * 1.5F);
+                    }
+                }
+                longitudinal =
+                    longitudinalFriction * allowedSuspensionImpulse;
+                lateral = lateralFriction * allowedSuspensionImpulse;
             });
     }
 
@@ -1120,8 +1488,11 @@ private:
             vehicle.state.linearVelocity = {};
             vehicle.state.speed = 0.0F;
             vehicle.state.engineRpm = 0.0F;
+            vehicle.state.gear = -1;
             vehicle.state.contactCount = 0U;
             vehicle.state.bodyContacts.clear();
+            vehicle.state.wheels.clear();
+            vehicle.state.wheelAngularSpeeds.clear();
             vehicle.state.wheelContacts.clear();
             return;
         }
@@ -1135,8 +1506,8 @@ private:
         state.body.scale = {1.0F, 1.0F, 1.0F};
         state.linearVelocity = fromJolt(body.GetLinearVelocity());
         state.speed = body.GetLinearVelocity().Length();
-        state.engineRpm =
-            vehicle.controller->GetEngine().GetCurrentRPM();
+        state.engineRpm = vehicle.engineRpm;
+        state.gear = vehicle.currentGear;
         state.resetCount = vehicle.resetCount;
         std::size_t vehicleIndexValue =
             static_cast<std::size_t>(&vehicle - vehicles_.data());
@@ -1232,17 +1603,37 @@ std::unique_ptr<OriginalVehicleWorld> createOriginalVehicleWorld(
 bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                                         std::string& error)
 {
-    auto world = createOriginalVehicleWorld(description, error);
+    const auto& selectedVehicle =
+        description.spawns.empty()
+            ? description.vehicle
+            : description.spawns.front().vehicle;
+    WorldDescription drivetrainDescription;
+    drivetrainDescription.vehicle = selectedVehicle;
+    drivetrainDescription.startPosition = {0.0F, 0.0F, 2.0F};
+    drivetrainDescription.startDirection = {1.0F, 0.0F, 0.0F};
+    drivetrainDescription.gravity = description.gravity;
+    drivetrainDescription.spawns.push_back(
+        {selectedVehicle, drivetrainDescription.startPosition,
+         drivetrainDescription.startDirection});
+    TriangleMesh drivetrainFloor;
+    drivetrainFloor.surface = CollisionSurface::TrackPlane;
+    drivetrainFloor.vertices = {{-400.0F, -400.0F, 0.0F},
+                                {400.0F, -400.0F, 0.0F},
+                                {400.0F, 400.0F, 0.0F},
+                                {-400.0F, 400.0F, 0.0F}};
+    drivetrainFloor.indices = {0U, 1U, 2U, 0U, 2U, 3U};
+    drivetrainDescription.collisionMeshes.push_back(
+        std::move(drivetrainFloor));
+
+    auto world =
+        createOriginalVehicleWorld(drivetrainDescription, error);
     if (!world)
         return false;
     VehicleInput input;
     for (int step = 0; step < 240; ++step)
         world->step(1.0F / 120.0F, input);
     const auto settled = world->vehicle();
-    const auto& sourceVehicle =
-        description.spawns.empty()
-            ? description.vehicle
-            : description.spawns.front().vehicle;
+    const auto& sourceVehicle = selectedVehicle;
     if (std::abs(settled.engineRpm - sourceVehicle.idlingRpm) > 1.0F)
     {
         error = "Jolt engine idle RPM did not preserve CarMotorDesc: " +
@@ -1288,6 +1679,25 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         return false;
     }
     const float clutchLockedSpeed = world->vehicle().speed;
+    WorldDescription immuneDescription = drivetrainDescription;
+    immuneDescription.vehicle.clutchImmunity = true;
+    immuneDescription.spawns.front().vehicle.clutchImmunity = true;
+    auto immuneWorld =
+        createOriginalVehicleWorld(immuneDescription, error);
+    if (!immuneWorld)
+        return false;
+    input = {};
+    for (int step = 0; step < 240; ++step)
+        immuneWorld->step(1.0F / 120.0F, input);
+    immuneWorld->setWheelTractionEnabled(0U, false);
+    input.throttle = 1.0F;
+    for (int step = 0; step < 120; ++step)
+        immuneWorld->step(1.0F / 120.0F, input);
+    if (immuneWorld->vehicle().speed < 0.5F)
+    {
+        error = "source clutchImmunity did not preserve tire traction";
+        return false;
+    }
     world->reset();
     input = {};
     for (int step = 0; step < 240; ++step)
@@ -1298,7 +1708,12 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     const auto accelerated = world->vehicle();
     if (accelerated.speed < 1.0F || accelerated.engineRpm <= 0.0F)
     {
-        error = "original marauder engine did not accelerate on map1";
+        error = "original marauder engine did not accelerate on map1: "
+                "speed=" + std::to_string(accelerated.speed) +
+                ", rpm=" + std::to_string(accelerated.engineRpm) +
+                ", gear=" + std::to_string(accelerated.gear);
+        for (const float wheelSpeed : accelerated.wheelAngularSpeeds)
+            error += ", wheel=" + std::to_string(wheelSpeed);
         return false;
     }
     if (accelerated.speed <= clutchLockedSpeed + 0.5F)
@@ -1369,6 +1784,113 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     {
         error = "vehicle reset did not restore the original trace start";
         return false;
+    }
+    if (world->vehicle().gear != -1 ||
+        std::any_of(
+            world->vehicle().wheelAngularSpeeds.begin(),
+            world->vehicle().wheelAngularSpeeds.end(),
+            [](float speed) { return std::abs(speed) > 0.001F; }))
+    {
+        error = "vehicle reset did not clear source gear/wheel state";
+        return false;
+    }
+    input = {};
+    for (int step = 0; step < 240; ++step)
+        world->step(1.0F / 120.0F, input);
+    const float reverseStart = world->vehicle().body.position.x;
+    input.reverse = 1.0F;
+    for (int step = 0; step < 360; ++step)
+        world->step(1.0F / 120.0F, input);
+    const float reverseEnd = world->vehicle().body.position.x;
+    if (world->vehicle().gear != 0 ||
+        reverseEnd >= reverseStart - 0.25F)
+    {
+        error = "source mcBack/reverse gear did not move the vehicle "
+                "backwards";
+        return false;
+    }
+    input = {};
+    input.throttle = 1.0F;
+    for (int step = 0; step < 480; ++step)
+        world->step(1.0F / 120.0F, input);
+    if (world->vehicle().gear <= 0 ||
+        world->vehicle().body.position.x <= reverseEnd + 0.25F)
+    {
+        error = "mcAccel did not brake reverse motion and re-engage first "
+                "gear";
+        return false;
+    }
+
+    WorldDescription airborneDescription = drivetrainDescription;
+    airborneDescription.startPosition = {0.0F, 0.0F, 20.0F};
+    airborneDescription.spawns.front().position =
+        airborneDescription.startPosition;
+    for (auto& vertex :
+         airborneDescription.collisionMeshes.front().vertices)
+        vertex.z = -100.0F;
+    auto airborneWorld =
+        createOriginalVehicleWorld(airborneDescription, error);
+    if (!airborneWorld)
+        return false;
+    airborneWorld->addLinearVelocity(0U, {5.0F, 0.0F, 0.0F});
+    const Quat airborneBefore = airborneWorld->vehicle().body.rotation;
+    input = {};
+    for (int step = 0; step < 30; ++step)
+        airborneWorld->step(1.0F / 120.0F, input);
+    const auto airborne = airborneWorld->vehicle();
+    const float airborneRotation =
+        std::abs(airborneBefore.x - airborne.body.rotation.x) +
+        std::abs(airborneBefore.y - airborne.body.rotation.y) +
+        std::abs(airborneBefore.z - airborne.body.rotation.z) +
+        std::abs(airborneBefore.w - airborne.body.rotation.w);
+    if (airborne.linearVelocity.z > -8.0F ||
+        (selectedVehicle.airbornePitchAcceleration != 0.0F &&
+         airborneRotation < 0.005F))
+    {
+        error = "source JumpProgress extra gravity/pitch acceleration was "
+                "not preserved";
+        return false;
+    }
+
+    if (description.spawns.size() > 1U)
+    {
+        WorldDescription matrixDescription = drivetrainDescription;
+        matrixDescription.spawns.clear();
+        for (std::size_t index = 0; index < description.spawns.size();
+             ++index)
+        {
+            auto spawn = description.spawns[index];
+            spawn.position = {0.0F, static_cast<float>(index) * 15.0F,
+                              2.0F};
+            spawn.direction = {1.0F, 0.0F, 0.0F};
+            matrixDescription.spawns.push_back(std::move(spawn));
+        }
+        matrixDescription.vehicle =
+            matrixDescription.spawns.front().vehicle;
+        auto matrixWorld =
+            createOriginalVehicleWorld(matrixDescription, error);
+        if (!matrixWorld)
+            return false;
+        std::vector<VehicleInput> matrixInputs(
+            matrixWorld->vehicleCount());
+        for (int step = 0; step < 240; ++step)
+            matrixWorld->step(1.0F / 120.0F, matrixInputs);
+        for (auto& matrixInput : matrixInputs)
+            matrixInput.throttle = 1.0F;
+        for (int step = 0; step < 120; ++step)
+            matrixWorld->step(1.0F / 120.0F, matrixInputs);
+        for (std::size_t index = 0;
+             index < matrixWorld->vehicleCount(); ++index)
+        {
+            const auto& state = matrixWorld->vehicle(index);
+            if (state.gear <= 0 || state.contactCount == 0U ||
+                state.speed < 0.1F)
+            {
+                error = "original multi-car drivetrain matrix failed at "
+                        "vehicle " + std::to_string(index);
+                return false;
+            }
+        }
     }
 
     WorldDescription contactDescription;

@@ -248,6 +248,7 @@ void applyMobilityLoadout(
     std::string_view difficulty)
 {
     const float baseMaximumSpeed = vehicle.physics.maximumSpeed;
+    const float baseTireSpring = vehicle.physics.tireSpring;
     float maximumTorque = 0.0F;
     float maximumLife = 0.0F;
     float maximumSpeed = 0.0F;
@@ -329,6 +330,7 @@ void applyMobilityLoadout(
     // mobility slot, and then restores only the car's base maximum speed.
     vehicle.physics.maximumTorque = maximumTorque;
     vehicle.physics.maximumSpeed = baseMaximumSpeed + maximumSpeed;
+    vehicle.physics.tireSpring = baseTireSpring + tireSpring;
     float armorScale = 1.75F;
     if (difficulty == "gdEasy")
         armorScale = 2.0F;
@@ -337,7 +339,6 @@ void applyMobilityLoadout(
     vehicle.maximumLife = maximumLife * armorScale;
     for (auto& wheel : vehicle.physics.wheels)
     {
-        wheel.spring += tireSpring;
         wheel.longitudinalTire = longitudinalTire;
         wheel.lateralTire = lateralTire;
     }
@@ -2201,6 +2202,11 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
         vector3(car, "pxActor/shapes/items/item0/dimensions", source);
     vehicle.shapePosition =
         vector3(car, "pxActor/shapes/items/item0/pos", source);
+    vehicle.angularDamping = vector3(car, "angDamping", source);
+    const auto bodyMaterial = static_cast<unsigned>(
+        optionalScalar(
+            car, "pxActor/shapes/items/item0/materialIndex", 1.0F));
+    vehicle.bodyFriction = bodyMaterial == 2U ? 0.02F : 0.08F;
     {
         const std::string pose =
             text(car, "pxActor/body/massLocalPose", source);
@@ -2223,6 +2229,19 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
         scalar(car, "motor/SEM", source) * 1.15F;
     vehicle.steerSpeed = scalar(car, "motor/steerSpeed", source);
     vehicle.steerRotation = scalar(car, "motor/steerRot", source);
+    vehicle.airbornePitchAcceleration =
+        scalar(car, "motor/flyYTorque", source);
+    vehicle.clampRollAngle =
+        scalar(car, "motor/clampXTorque", source);
+    vehicle.clampPitchAngle =
+        scalar(car, "motor/clampYTorque", source);
+    vehicle.maximumSpeed = scalar(car, "motor/maxSpeed", source);
+    vehicle.tireSpring = scalar(car, "motor/tireSpring", source);
+    vehicle.automaticGears = boolean(car, "motor/autoGear", source);
+    vehicle.gravitySteering =
+        boolean(car, "motor/gravEngine", source);
+    vehicle.clutchImmunity =
+        boolean(car, "motor/clutchImmunity", source);
     // These are CarMotorDesc constructor values and are not serialized per
     // ctCar record by the original game.
     vehicle.idlingRpm = 1000.0F;
@@ -3581,6 +3600,10 @@ bool runOriginalRaceResourceSmokeTest(
             !near(physics.vehicle.mass, 2000.0F) ||
             !near(physics.vehicle.shapePosition.x, 0.0654583F) ||
             !near(physics.vehicle.centerOfMass.z, -0.75F) ||
+            !near(physics.vehicle.angularDamping.x, 1.0F) ||
+            !near(physics.vehicle.angularDamping.y, 1.0F) ||
+            !near(physics.vehicle.angularDamping.z, 0.0F) ||
+            !near(physics.vehicle.bodyFriction, 0.08F) ||
             !near(physics.vehicle.brakeTorque, 7500.0F) ||
             !near(physics.vehicle.differentialRatio, 3.42F) ||
             !near(physics.vehicle.maximumRpm, 7000.0F) ||
@@ -3589,8 +3612,15 @@ bool runOriginalRaceResourceSmokeTest(
             !near(physics.vehicle.idlingRpm, 1000.0F) ||
             !near(physics.vehicle.torqueEfficiency, 0.805F) ||
             !near(physics.vehicle.restBrakeTorque, 400.0F) ||
+            !near(physics.vehicle.maximumSpeed, 42.0F) ||
+            !near(physics.vehicle.airbornePitchAcceleration, 0.523599F) ||
+            !near(physics.vehicle.clampRollAngle, 0.261799F) ||
+            !near(physics.vehicle.clampPitchAngle, 0.523599F) ||
             !near(physics.vehicle.steerSpeed, 3.5F) ||
             !near(physics.vehicle.steerRotation, 3.5F) ||
+            !physics.vehicle.automaticGears ||
+            physics.vehicle.gravitySteering ||
+            physics.vehicle.clutchImmunity ||
             !near(race.vehicle.maximumLife, 70.0F) ||
             physics.vehicle.wheels.size() != 4 ||
             !near(physics.vehicle.wheels[0].radius, 0.42947F) ||
@@ -3599,9 +3629,10 @@ bool runOriginalRaceResourceSmokeTest(
             playerWheelRadius < 0.44F || playerWheelRadius > 0.46F ||
             usesWorkshopPreviewWheel ||
             !near(physics.vehicle.wheels[0].suspensionTravel, 0.3F) ||
-            // wheel1 adds 2 to the 140000 base tire spring.
-            !near(physics.vehicle.wheels[0].spring, 140002.0F) ||
+            // wheel1 adds a 2g tire-reaction cutoff, not coil stiffness.
+            !near(physics.vehicle.wheels[0].spring, 140000.0F) ||
             !near(physics.vehicle.wheels[0].damper, 1000.0F) ||
+            !near(physics.vehicle.tireSpring, 2.0F) ||
             !physics.vehicle.wheels[0].driven ||
             !physics.vehicle.wheels[0].steering ||
             physics.vehicle.wheels[2].driven ||

@@ -966,6 +966,17 @@ void OriginalRaceSession::updateGameplay(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const RaceControl& humanControl)
 {
+    const auto clutchImmune = [&](std::size_t racer) {
+        if (racer >= race_.racers.size())
+            return false;
+        const auto& sourceRacer = race_.racers[racer];
+        const auto& vehicle =
+            sourceRacer.hasConfiguredVehicle
+                ? sourceRacer.configuredVehicle
+                : race_.vehicles.at(std::min(
+                      sourceRacer.vehicle, race_.vehicles.size() - 1U));
+        return vehicle.physics.clutchImmunity;
+    };
     for (std::size_t racer = 0;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
@@ -2004,6 +2015,12 @@ void OriginalRaceSession::updateGameplay(
                 if (racers_[racer].clutchSeconds > 0.0F ||
                     vehicles[racer].speed <= 3.0F)
                     continue;
+                if (clutchImmune(racer))
+                {
+                    pushDamageEvent(
+                        racer, mine.owner, mine.position, 0.0F);
+                    continue;
+                }
                 const Vec3 direction = normalized2(
                     forward(vehicles[racer].body.rotation));
                 const Vec3 right{-direction.y, direction.x, 0.0F};
@@ -2120,7 +2137,8 @@ void OriginalRaceSession::updateGameplay(
             if (bonus.kind == BonusKind::OilHazard)
             {
                 if (runtime.clutchSeconds <= 0.0F &&
-                    vehicles[racer].speed > 3.0F)
+                    vehicles[racer].speed > 3.0F &&
+                    !clutchImmune(racer))
                 {
                     const Vec3 direction = normalized2(
                         forward(vehicles[racer].body.rotation));
