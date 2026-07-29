@@ -2148,6 +2148,11 @@ void OriginalRaceRenderer::draw(
         skyPipeline.faceCulling = PipelineState::FaceCulling::None;
         r3d::physics::Transform sky;
         sky.position = vehicles.front().body.position;
+        // SkyBox.cpp applied this left-handed source -> right-handed render
+        // conversion before sampling every original cubemap.
+        constexpr float sinHalfRightAngle = 0.7071067811865476F;
+        sky.rotation = {sinHalfRightAngle, 0.0F, 0.0F,
+                        sinHalfRightAngle};
         sky.scale = {90.0F, 90.0F, 90.0F};
         MaterialState skyMaterial;
         skyMaterial.environmentTexture = skyTexture_;

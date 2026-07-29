@@ -647,8 +647,13 @@ public:
                                      source.steerAngle,
                                  -1.0F, 1.0F)
                     : 0.0F;
-            if (source.brakeTorque > 0.0F)
+            if (source.brakeTorque > 0.0F &&
+                std::abs(input.throttle) <= 0.0001F)
             {
+                // The source PhysX vehicle used restTorque as rolling
+                // resistance. Jolt's brake input locks a stationary wheel,
+                // so applying it under power makes the free rear axle drag
+                // instead of rolling.
                 input.brake = std::max(
                     input.brake,
                     std::clamp(source.restBrakeTorque /
@@ -1137,7 +1142,11 @@ private:
             static_cast<std::size_t>(&vehicle - vehicles_.data());
         state.bodyContacts = contactListener_.take(vehicleIndexValue);
         state.wheels.clear();
+        state.wheelAngularSpeeds.clear();
         state.wheelContacts.clear();
+        state.wheels.reserve(vehicle.constraint->GetWheels().size());
+        state.wheelAngularSpeeds.reserve(
+            vehicle.constraint->GetWheels().size());
         state.wheelContacts.reserve(
             vehicle.constraint->GetWheels().size());
         JPH::uint contacts = 0;
@@ -1154,6 +1163,8 @@ private:
             state.wheels.push_back(wheel);
             const auto* joltWheel =
                 vehicle.constraint->GetWheel(index);
+            state.wheelAngularSpeeds.push_back(
+                joltWheel->GetAngularVelocity());
             WheelContactState contact;
             contact.hasContact = joltWheel->HasContact();
             if (contact.hasContact)
@@ -1293,6 +1304,39 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     if (accelerated.speed <= clutchLockedSpeed + 0.5F)
     {
         error = "source clutch lock did not suppress wheel traction";
+        return false;
+    }
+    if (accelerated.wheelAngularSpeeds.size() !=
+            sourceVehicle.wheels.size() ||
+        accelerated.wheelContacts.size() !=
+            sourceVehicle.wheels.size())
+    {
+        error = "Jolt did not expose every original wheel's angular speed";
+        return false;
+    }
+    bool drivenWheelRolling = false;
+    std::size_t freeWheelContacts = 0U;
+    std::size_t freeWheelsRolling = 0U;
+    for (std::size_t index = 0; index < sourceVehicle.wheels.size();
+         ++index)
+    {
+        if (!accelerated.wheelContacts[index].hasContact)
+            continue;
+        const bool rolling =
+            std::abs(accelerated.wheelAngularSpeeds[index]) > 0.5F;
+        if (sourceVehicle.wheels[index].driven)
+            drivenWheelRolling = drivenWheelRolling || rolling;
+        else
+        {
+            ++freeWheelContacts;
+            if (rolling)
+                ++freeWheelsRolling;
+        }
+    }
+    if (!drivenWheelRolling || freeWheelContacts == 0U ||
+        freeWheelsRolling != freeWheelContacts)
+    {
+        error = "non-driven rear wheels remained locked under throttle";
         return false;
     }
     input = {};

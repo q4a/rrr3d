@@ -666,6 +666,13 @@ SDL_AUDIO_DRIVER=dummy \
   `Contents/Resources`, прямой 240-frame race smoke завершился с кодом 0.
   Отдельный запуск этого `.app` через macOS LaunchServices (`open -W -n`)
   также завершился с кодом 0.
+- M10 wheel/sky follow-up устранил блокировку неприводных задних колёс:
+  исходный `restTorque` больше не преобразуется в Jolt brake при поданном газе,
+  а physics smoke теперь проверяет angular velocity каждого контактирующего
+  заднего колеса. Исправлен и повёрнутый World4/hell cubemap — Metal renderer
+  применяет исходное преобразование системы координат из `SkyBox.cpp`;
+  World4 smoke прошёл на 240 и 1200 кадрах, горизонт проверен по захваченному
+  кадру.
 
 ## Известные проблемы
 

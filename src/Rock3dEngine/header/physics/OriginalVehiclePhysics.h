@@ -139,6 +139,7 @@ struct VehicleState
 {
     Transform body;
     std::vector<Transform> wheels;
+    std::vector<float> wheelAngularSpeeds;
     std::vector<WheelContactState> wheelContacts;
     Vec3 linearVelocity;
     float speed = 0.0F;
