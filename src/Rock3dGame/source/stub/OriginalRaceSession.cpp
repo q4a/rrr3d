@@ -593,7 +593,10 @@ bool OriginalRaceSession::damageDecorationAlongSegment(
         effects_.push_back(
             {RaceEventKind::DecorationDestroyed, position,
              add(position, {0.0F, 0.0F, 3.0F}),
-             0.5F, 0.5F, race_.weapons.size()});
+             0.5F, 0.5F, race_.weapons.size(), 0U, 0U,
+             RacerRuntime::invalidWeapon, false,
+             RacerRuntime::invalidWeapon,
+             RacerRuntime::invalidWeapon, {}});
     }
     return true;
 }
@@ -708,7 +711,8 @@ void OriginalRaceSession::updateProgress(
     std::size_t racer, const r3d::physics::VehicleState& vehicle)
 {
     auto& runtime = racers_[racer];
-    if (runtime.finished || runtime.nextPathNode >= race_.tracePath.size())
+    if (runtime.finished || runtime.destroyed ||
+        runtime.nextPathNode >= race_.tracePath.size())
         return;
 
     const auto& target = tracePoint(runtime.nextPathNode);
@@ -769,7 +773,7 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     std::size_t racer, const r3d::physics::VehicleState& vehicle,
     float seconds)
 {
-    if (racers_[racer].finished)
+    if (racers_[racer].finished || racers_[racer].destroyed)
         return {};
     constexpr float steerAngleBias =
         3.14159265358979323846F / 128.0F;
@@ -903,11 +907,82 @@ void OriginalRaceSession::queueRespawn(
         {RaceEventKind::Respawn, racer, previousNode, position, 0.0F});
 }
 
+void OriginalRaceSession::destroyRacer(
+    std::size_t racer, std::size_t attacker, Vec3 position,
+    const r3d::physics::VehicleState& vehicle, bool touchDamage)
+{
+    if (racer >= racers_.size() || racer >= race_.racers.size() ||
+        racers_[racer].destroyed)
+        return;
+    auto& runtime = racers_[racer];
+    runtime.life = 0.0F;
+    runtime.destroyed = true;
+    // Player::cTimeRestoreCar in the Windows implementation.
+    runtime.restoreSeconds = 2.0F;
+    if (racer < vehicleInputs_.size())
+        vehicleInputs_[racer] = {};
+    events_.push_back(
+        {RaceEventKind::Kill, attacker, racer, position, 0.0F,
+         PickSlot::None, RacerRuntime::invalidWeapon, touchDamage});
+
+    const auto& sourceRacer = race_.racers[racer];
+    const auto& definition =
+        sourceRacer.hasConfiguredVehicle
+            ? sourceRacer.configuredVehicle
+            : race_.vehicles.at(sourceRacer.vehicle);
+    for (std::size_t index = 0;
+         index < definition.deathEffects.size(); ++index)
+    {
+        const auto& source = definition.deathEffects[index];
+        RaceEffect effect;
+        effect.kind = RaceEventKind::VehicleDestroyed;
+        effect.origin = add(vehicle.body.position, source.position);
+        effect.target = add(effect.origin, {1.0F, 0.0F, 0.0F});
+        effect.totalSeconds =
+            source.visual.maximumTimeLife > 0.0F
+                ? source.visual.maximumTimeLife
+                : 0.7F;
+        effect.seconds = effect.totalSeconds;
+        effect.ignoreRotation = source.ignoreRotation;
+        effect.racer = racer;
+        effect.vehicleEffect = index;
+        effect.transform = vehicle.body;
+        effect.transform.position = effect.origin;
+        if (source.ignoreRotation)
+            effect.transform.rotation = {};
+        effects_.push_back(std::move(effect));
+    }
+}
+
 void OriginalRaceSession::updateGameplay(
     float seconds,
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const RaceControl& humanControl)
 {
+    for (std::size_t racer = 0;
+         racer < racers_.size() && racer < vehicles.size(); ++racer)
+    {
+        auto& runtime = racers_[racer];
+        if (!runtime.destroyed)
+            continue;
+        vehicleInputs_[racer] = {};
+        if (runtime.restoreSeconds < 0.0F)
+        {
+            runtime.restoreSeconds = 0.0F;
+            runtime.destroyed = false;
+            continue;
+        }
+        runtime.restoreSeconds =
+            std::max(0.0F, runtime.restoreSeconds - seconds);
+        if (runtime.restoreSeconds <= 0.0F)
+        {
+            runtime.life = runtime.maximumLife;
+            queueRespawn(racer, vehicles[racer]);
+            // Keep the old car hidden until the reset request has reached
+            // Jolt; it becomes live on the next session update.
+            runtime.restoreSeconds = -1.0F;
+        }
+    }
     if (!racers_.empty() && humanControl.weaponSlot >= 0 &&
         humanControl.weaponSlot <
             static_cast<int>(PlayerProfile::weaponSlotCount))
@@ -1007,6 +1082,11 @@ void OriginalRaceSession::updateGameplay(
             std::max(0.0F, mineCooldown_[racer] - seconds);
         hyperCooldown_[racer] =
             std::max(0.0F, hyperCooldown_[racer] - seconds);
+        if (runtime.destroyed)
+        {
+            repairSeconds_[racer] = 0.0F;
+            continue;
+        }
         const WeaponDefinition* repair = nullptr;
         for (const auto weaponIndex : runtime.weaponSlots)
         {
@@ -1062,7 +1142,8 @@ void OriginalRaceSession::updateGameplay(
     auto applyTouchDamage =
         [&](std::size_t target, std::size_t attacker,
             float damage, Vec3 position) {
-        if (target >= racers_.size() || damage <= 0.0F)
+        if (target >= racers_.size() || damage <= 0.0F ||
+            racers_[target].destroyed)
             return;
         const float applied =
             racers_[target].shieldSeconds > 0.0F ? 0.0F : damage;
@@ -1073,11 +1154,7 @@ void OriginalRaceSession::updateGameplay(
              PickSlot::None, RacerRuntime::invalidWeapon, true});
         if (racers_[target].life > 0.0F)
             return;
-        events_.push_back(
-            {RaceEventKind::Kill, attacker, target, position, 0.0F,
-             PickSlot::None, RacerRuntime::invalidWeapon, true});
-        racers_[target].life = racers_[target].maximumLife;
-        queueRespawn(target, vehicles[target]);
+        destroyRacer(target, attacker, position, vehicles[target], true);
     };
 
     for (std::size_t racer = 0;
@@ -1246,13 +1323,17 @@ void OriginalRaceSession::updateGameplay(
                 {RaceEventKind::WeaponFired, projectile.position, end,
                  std::max(seconds, 0.03F),
                  std::max(seconds, 0.03F), projectile.weapon,
-                 projectile.projectile});
+                 projectile.projectile, 0U,
+                 RacerRuntime::invalidWeapon, false,
+                 RacerRuntime::invalidWeapon,
+                 RacerRuntime::invalidWeapon, {}});
             for (std::size_t target = 0;
                  target < vehicles.size() &&
                  target < racers_.size(); ++target)
             {
                 if (target == projectile.owner ||
-                    racers_[target].finished)
+                    racers_[target].finished ||
+                    racers_[target].destroyed)
                     continue;
                 const Vec3 difference = subtract(
                     vehicles[target].body.position,
@@ -1301,12 +1382,10 @@ void OriginalRaceSession::updateGameplay(
                 }
                 if (racers_[target].life <= 0.0F)
                 {
-                    events_.push_back(
-                        {RaceEventKind::Kill, projectile.owner, target,
-                         vehicles[target].body.position, 0.0F});
-                    racers_[target].life =
-                        racers_[target].maximumLife;
-                    queueRespawn(target, vehicles[target]);
+                    destroyRacer(
+                        target, projectile.owner,
+                        vehicles[target].body.position,
+                        vehicles[target]);
                 }
             }
             damageDecorationAlongSegment(
@@ -1324,7 +1403,8 @@ void OriginalRaceSession::updateGameplay(
              projectileDefinition.type == 21U) &&
             projectile.target < vehicles.size() &&
             projectile.target < racers_.size() &&
-            !racers_[projectile.target].finished)
+            !racers_[projectile.target].finished &&
+            !racers_[projectile.target].destroyed)
         {
             projectile.homingDelay =
                 std::max(0.0F, projectile.homingDelay - seconds);
@@ -1448,14 +1528,18 @@ void OriginalRaceSession::updateGameplay(
             {RaceEventKind::WeaponFired, previous,
              projectile.position, std::max(seconds, 0.03F),
              std::max(seconds, 0.03F), projectile.weapon,
-             projectile.projectile});
+             projectile.projectile, 0U,
+             RacerRuntime::invalidWeapon, false,
+             RacerRuntime::invalidWeapon,
+             RacerRuntime::invalidWeapon, {}});
 
         for (std::size_t target = 0;
              target < vehicles.size() && target < racers_.size();
              ++target)
         {
             if (target == projectile.owner ||
-                racers_[target].finished)
+                racers_[target].finished ||
+                racers_[target].destroyed)
                 continue;
             if (projectileDefinition.type == 21U &&
                 projectile.target < racers_.size() &&
@@ -1530,12 +1614,9 @@ void OriginalRaceSession::updateGameplay(
                 projectile, projectile.position);
             if (racers_[target].life <= 0.0F)
             {
-                events_.push_back(
-                    {RaceEventKind::Kill, projectile.owner, target,
-                     projectile.position, 0.0F});
-                racers_[target].life =
-                    racers_[target].maximumLife;
-                queueRespawn(target, vehicles[target]);
+                destroyRacer(
+                    target, projectile.owner, projectile.position,
+                    vehicles[target]);
             }
             if (projectileDefinition.type == 21U &&
                 projectile.target < racers_.size() &&
@@ -1550,7 +1631,8 @@ void OriginalRaceSession::updateGameplay(
                 {
                     if (candidate == projectile.owner ||
                         candidate == target ||
-                        racers_[candidate].finished)
+                        racers_[candidate].finished ||
+                        racers_[candidate].destroyed)
                         continue;
                     const Vec3 difference = subtract(
                         vehicles[candidate].body.position,
@@ -1612,22 +1694,25 @@ void OriginalRaceSession::updateGameplay(
 
     if (!vehicles.empty())
     {
-        if (humanControl.reset)
+        if (humanControl.reset && !racers_[0].destroyed)
             queueRespawn(0, vehicles[0]);
         if (vehicles[0].contactCount == 0 &&
-            vehicles[0].body.position.z < -5.0F)
+            vehicles[0].body.position.z < -5.0F &&
+            !racers_[0].destroyed)
             queueRespawn(0, vehicles[0]);
         previousPositions_[0] = vehicles[0].body.position;
     }
     for (std::size_t racer = 1;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
     {
-        if (stuckSeconds_[racer] > 3.0F)
+        if (stuckSeconds_[racer] > 3.0F &&
+            !racers_[racer].destroyed)
             queueRespawn(racer, vehicles[racer]);
     }
 
     auto placeMine = [&](std::size_t owner) {
         if (owner >= vehicles.size() || owner >= racers_.size() ||
+            racers_[owner].destroyed ||
             racers_[owner].mines == 0 || mineCooldown_[owner] > 0.0F)
             return;
         const std::size_t weapon = racers_[owner].mineWeapon;
@@ -1673,6 +1758,7 @@ void OriginalRaceSession::updateGameplay(
         placeMine(0);
     auto activateHyper = [&](std::size_t owner) {
         if (owner >= racers_.size() ||
+            racers_[owner].destroyed ||
             racers_[owner].hyperCharge == 0 ||
             racers_[owner].hyperWeapon ==
                 RacerRuntime::invalidWeapon ||
@@ -1718,7 +1804,10 @@ void OriginalRaceSession::updateGameplay(
         effects_.push_back(
             {RaceEventKind::HyperActivated, position,
              add(position, {0.0F, 0.0F, 2.5F}), 0.4F, 0.4F,
-             racers_[owner].hyperWeapon, 0U});
+             racers_[owner].hyperWeapon, 0U, 0U,
+             RacerRuntime::invalidWeapon, false,
+             RacerRuntime::invalidWeapon,
+             RacerRuntime::invalidWeapon, {}});
     };
     if (humanControl.useHyper)
         activateHyper(0);
@@ -1812,6 +1901,8 @@ void OriginalRaceSession::updateGameplay(
         for (std::size_t racer = 0;
              racer < vehicles.size() && racer < racers_.size(); ++racer)
         {
+            if (racers_[racer].destroyed)
+                continue;
             const bool ownerLocked =
                 racer == mine.owner && mine.seconds < 0.4F &&
                 (mine.type == 10U ||
@@ -1865,12 +1956,9 @@ void OriginalRaceSession::updateGameplay(
                 spawnMineDeathEffect(mine);
             if (racers_[racer].life <= 0.0F)
             {
-                events_.push_back(
-                    {RaceEventKind::Kill, mine.owner, racer,
-                     mine.position, 0.0F});
-                racers_[racer].life =
-                    racers_[racer].maximumLife;
-                queueRespawn(racer, vehicles[racer]);
+                destroyRacer(
+                    racer, mine.owner, mine.position,
+                    vehicles[racer]);
             }
             if (mine.type != 20U)
             {
@@ -1899,6 +1987,8 @@ void OriginalRaceSession::updateGameplay(
              racer < vehicles.size() && racer < racers_.size(); ++racer)
         {
             auto& runtime = racers_[racer];
+            if (runtime.destroyed)
+                continue;
             const auto& bonus = race_.bonuses[bonusIndex];
             const auto& racerDefinition = race_.racers[racer];
             const auto& vehicleDefinition =
@@ -2009,12 +2099,9 @@ void OriginalRaceSession::updateGameplay(
                 }
                 if (runtime.life <= 0.0F)
                 {
-                    events_.push_back(
-                        {RaceEventKind::Kill,
-                         RacerRuntime::invalidWeapon, racer,
-                         bonus.transform.position, 0.0F});
-                    runtime.life = runtime.maximumLife;
-                    queueRespawn(racer, vehicles[racer]);
+                    destroyRacer(
+                        racer, RacerRuntime::invalidWeapon,
+                        bonus.transform.position, vehicles[racer]);
                 }
                 bonusActive_[bonusIndex] = false;
                 break;
@@ -2110,7 +2197,8 @@ void OriginalRaceSession::updateGameplay(
 
     auto fireWeapon = [&](std::size_t shooter) {
         if (shooter >= vehicles.size() ||
-            shooter >= racers_.size() || racers_[shooter].finished)
+            shooter >= racers_.size() || racers_[shooter].finished ||
+            racers_[shooter].destroyed)
             return;
         auto& runtime = racers_[shooter];
         syncSelectedWeapon(runtime);
@@ -2161,7 +2249,8 @@ void OriginalRaceSession::updateGameplay(
                      ++candidate)
                 {
                     if (candidate == shooter ||
-                        racers_[candidate].finished)
+                        racers_[candidate].finished ||
+                        racers_[candidate].destroyed)
                         continue;
                     const Vec3 difference = subtract(
                         vehicles[candidate].body.position,
@@ -2201,7 +2290,8 @@ void OriginalRaceSession::updateGameplay(
                      ++candidate)
                 {
                     if (candidate == shooter ||
-                        racers_[candidate].finished)
+                        racers_[candidate].finished ||
+                        racers_[candidate].destroyed)
                         continue;
                     const auto difference = subtract(
                         vehicles[candidate].body.position,
@@ -2318,19 +2408,18 @@ void OriginalRaceSession::updateGameplay(
                      damage});
                 if (racers_[target].life <= 0.0F)
                 {
-                    events_.push_back(
-                        {RaceEventKind::Kill, shooter, target, end,
-                         0.0F});
-                    racers_[target].life =
-                        racers_[target].maximumLife;
-                    queueRespawn(target, vehicles[target]);
+                    destroyRacer(
+                        target, shooter, end, vehicles[target]);
                 }
             }
             effects_.push_back(
                 {RaceEventKind::WeaponFired, projectileOrigin, end,
                  (rayProjectile || attachedProjectile) ? 0.12F : 0.03F,
                  (rayProjectile || attachedProjectile) ? 0.12F : 0.03F,
-                 firedWeapon, projectileIndex});
+                 firedWeapon, projectileIndex, 0U,
+                 RacerRuntime::invalidWeapon, false,
+                 RacerRuntime::invalidWeapon,
+                 RacerRuntime::invalidWeapon, {}});
         }
         events_.push_back({RaceEventKind::WeaponFired, shooter, target,
                            eventOrigin, 5.0F,
@@ -2388,6 +2477,8 @@ void OriginalRaceSession::updateGameplay(
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
         auto& runtime = racers_[racer];
+        if (runtime.destroyed)
+            continue;
         const Vec3 carDirection =
             normalized2(forward(vehicles[racer].body.rotation));
         std::size_t frontTarget = racers_.size();
@@ -2398,7 +2489,8 @@ void OriginalRaceSession::updateGameplay(
              target < vehicles.size() && target < racers_.size();
              ++target)
         {
-            if (target == racer || racers_[target].finished)
+            if (target == racer || racers_[target].finished ||
+                racers_[target].destroyed)
                 continue;
             const auto difference = subtract(
                 vehicles[target].body.position,
@@ -2580,6 +2672,8 @@ void OriginalRaceSession::updateGameplay(
         std::min(vehicles.size(), racers_.size());
     for (std::size_t first = 0; first < collisionRacers; ++first)
     {
+        if (racers_[first].destroyed)
+            continue;
         for (const auto& contact : vehicles[first].bodyContacts)
         {
             if (contact.surface !=
@@ -2588,6 +2682,8 @@ void OriginalRaceSession::updateGameplay(
                 contact.otherVehicle >= collisionRacers)
                 continue;
             const std::size_t second = contact.otherVehicle;
+            if (racers_[second].destroyed)
+                continue;
             const std::size_t cooldownIndex =
                 first * collisionRacers + second;
             if (cooldownIndex >= touchCooldown_.size() ||
@@ -2625,7 +2721,7 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t racer = 0;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
     {
-        if (vehicles[racer].speed < 8.0F)
+        if (racers_[racer].destroyed || vehicles[racer].speed < 8.0F)
             continue;
         damageDecorationAlongSegment(
             vehicles[racer].body.position,
@@ -3026,6 +3122,84 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 "disabled spring-border still changed velocity");
         session.setSpringBorders(true);
         vehicles[0].bodyContacts.clear();
+
+        {
+            OriginalRaceSession deathSession(race);
+            auto deathVehicles = vehicles;
+            RaceControl deathInput;
+            for (int frame = 0; frame < 190; ++frame)
+                deathSession.update(
+                    1.0F / 60.0F, deathVehicles, deathInput);
+            deathVehicles[0].speed = 25.0F;
+            deathVehicles[0].linearVelocity = {-25.0F, 0.0F, 0.0F};
+            deathVehicles[0].bodyContacts = {
+                {r3d::physics::CollisionSurface::TrackBorder,
+                 std::numeric_limits<std::size_t>::max(),
+                 {1.0F, 0.0F, 0.0F}, 25.0F, 4000000.0F}};
+            for (int frame = 0;
+                 frame < 100 &&
+                 !deathSession.racers().front().destroyed;
+                 ++frame)
+            {
+                deathSession.update(
+                    1.0F / 60.0F, deathVehicles, deathInput);
+            }
+            const auto& sourceRacer = race.racers.front();
+            const auto& sourceVehicle =
+                sourceRacer.hasConfiguredVehicle
+                    ? sourceRacer.configuredVehicle
+                    : race.vehicles.at(sourceRacer.vehicle);
+            const auto sourceDeathEffectCount = static_cast<std::size_t>(
+                std::count_if(
+                    deathSession.effects().begin(),
+                    deathSession.effects().end(),
+                    [](const RaceEffect& effect) {
+                        return effect.kind ==
+                               RaceEventKind::VehicleDestroyed;
+                    }));
+            if (!deathSession.racers().front().destroyed ||
+                deathSession.racers().front().life != 0.0F ||
+                !deathSession.takeRespawns().empty() ||
+                sourceVehicle.deathEffects.size() != 2U ||
+                sourceDeathEffectCount !=
+                    sourceVehicle.deathEffects.size())
+            {
+                throw std::runtime_error(
+                    "source vehicle death effects/immediate removal failed");
+            }
+            deathVehicles[0].bodyContacts.clear();
+            deathVehicles[0].speed = 0.0F;
+            deathVehicles[0].linearVelocity = {};
+            for (int step = 0; step < 19; ++step)
+                deathSession.update(0.1F, deathVehicles, deathInput);
+            if (!deathSession.racers().front().destroyed ||
+                !deathSession.takeRespawns().empty())
+            {
+                throw std::runtime_error(
+                    "source two-second vehicle restore fired early");
+            }
+            std::vector<RespawnRequest> deathRespawns;
+            for (int step = 0;
+                 step < 2 && deathRespawns.empty(); ++step)
+            {
+                deathSession.update(0.1F, deathVehicles, deathInput);
+                deathRespawns = deathSession.takeRespawns();
+            }
+            if (deathRespawns.size() != 1U ||
+                deathSession.racers().front().life !=
+                    deathSession.racers().front().maximumLife ||
+                !deathSession.racers().front().destroyed)
+            {
+                throw std::runtime_error(
+                    "source two-second vehicle restore was not queued");
+            }
+            deathSession.update(0.1F, deathVehicles, deathInput);
+            if (deathSession.racers().front().destroyed)
+            {
+                throw std::runtime_error(
+                    "source restored vehicle did not re-enter gameplay");
+            }
+        }
 
         if (vehicles.size() > 1U)
         {

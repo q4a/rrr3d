@@ -139,12 +139,15 @@ struct DebrisDescription
     Vec3 shapePosition;
     Quat shapeRotation;
     Vec3 halfExtents{0.1F, 0.1F, 0.1F};
+    Vec3 localImpulse;
     float mass = 1.0F;
+    float lifetime = -1.0F;
 };
 
 struct DebrisState
 {
     Transform body;
+    bool active = false;
 };
 
 class OriginalVehicleWorld
@@ -154,6 +157,8 @@ public:
     virtual void reset() noexcept = 0;
     virtual void resetVehicle(std::size_t index, Vec3 position,
                               Vec3 direction) noexcept = 0;
+    virtual void setVehicleEnabled(std::size_t index,
+                                   bool enabled) noexcept = 0;
     virtual void addLinearVelocity(std::size_t index,
                                    Vec3 delta) noexcept = 0;
     virtual void addAngularVelocity(std::size_t index,

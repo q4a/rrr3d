@@ -442,7 +442,8 @@ public:
         {
             if (vehicle.constraint != nullptr)
             {
-                system_.RemoveStepListener(vehicle.constraint);
+                if (vehicle.stepListenerRegistered)
+                    system_.RemoveStepListener(vehicle.constraint);
                 system_.RemoveConstraint(vehicle.constraint);
                 vehicle.constraint = nullptr;
                 vehicle.controller = nullptr;
@@ -453,7 +454,8 @@ public:
         {
             if (!vehicle.body.IsInvalid())
             {
-                bodies.RemoveBody(vehicle.body);
+                if (vehicle.enabled)
+                    bodies.RemoveBody(vehicle.body);
                 bodies.DestroyBody(vehicle.body);
             }
         }
@@ -481,6 +483,7 @@ public:
     {
         if (index >= vehicles_.size())
             return;
+        setVehicleEnabled(index, true);
         auto& vehicle = vehicles_[index];
         const float length =
             std::sqrt(direction.x * direction.x + direction.y * direction.y);
@@ -505,6 +508,35 @@ public:
         updateState(vehicle);
     }
 
+    void setVehicleEnabled(std::size_t index,
+                           bool enabled) noexcept override
+    {
+        if (index >= vehicles_.size() ||
+            vehicles_[index].enabled == enabled)
+            return;
+        auto& vehicle = vehicles_[index];
+        auto& bodies = system_.GetBodyInterface();
+        if (enabled)
+        {
+            bodies.AddBody(vehicle.body, JPH::EActivation::Activate);
+            vehicle.constraint->SetEnabled(true);
+            system_.AddStepListener(vehicle.constraint);
+            vehicle.stepListenerRegistered = true;
+            vehicle.enabled = true;
+            updateState(vehicle);
+            return;
+        }
+        if (vehicle.stepListenerRegistered)
+        {
+            system_.RemoveStepListener(vehicle.constraint);
+            vehicle.stepListenerRegistered = false;
+        }
+        vehicle.constraint->SetEnabled(false);
+        bodies.RemoveBody(vehicle.body);
+        vehicle.enabled = false;
+        updateState(vehicle);
+    }
+
     void step(float seconds, const VehicleInput& input) noexcept override
     {
         std::vector<VehicleInput> inputs(vehicles_.size());
@@ -516,7 +548,7 @@ public:
     void addLinearVelocity(std::size_t index,
                            Vec3 delta) noexcept override
     {
-        if (index >= vehicles_.size())
+        if (index >= vehicles_.size() || !vehicles_[index].enabled)
             return;
         auto& bodies = system_.GetBodyInterface();
         bodies.AddLinearVelocity(
@@ -527,7 +559,7 @@ public:
     void addAngularVelocity(std::size_t index,
                             Vec3 delta) noexcept override
     {
-        if (index >= vehicles_.size())
+        if (index >= vehicles_.size() || !vehicles_[index].enabled)
             return;
         auto& bodies = system_.GetBodyInterface();
         bodies.AddLinearAndAngularVelocity(
@@ -547,7 +579,8 @@ public:
     void clampLinearSpeed(std::size_t index,
                           float maximumSpeed) noexcept override
     {
-        if (index >= vehicles_.size() || maximumSpeed <= 0.0F)
+        if (index >= vehicles_.size() || !vehicles_[index].enabled ||
+            maximumSpeed <= 0.0F)
             return;
         auto& bodies = system_.GetBodyInterface();
         const auto velocity =
@@ -573,6 +606,8 @@ public:
             input.brake = std::clamp(input.brake, 0.0F, 1.0F);
             input.steering = std::clamp(input.steering, -1.0F, 1.0F);
             auto& vehicle = vehicles_[index];
+            if (!vehicle.enabled)
+                continue;
             if (vehicle.spawn.vehicle.maximumSpeed > 0.0F &&
                 vehicle.state.speed >
                     vehicle.spawn.vehicle.maximumSpeed)
@@ -584,7 +619,9 @@ public:
                 system_.GetBodyInterface().ActivateBody(vehicle.body);
         }
 
-        float remaining = std::clamp(seconds, 0.0F, 0.25F);
+        const float simulationSeconds =
+            std::clamp(seconds, 0.0F, 0.25F);
+        float remaining = simulationSeconds;
         constexpr float fixedStep = 1.0F / 120.0F;
         contactListener_.beginStep();
         while (remaining > 0.0F)
@@ -596,7 +633,20 @@ public:
         for (auto& vehicle : vehicles_)
             updateState(vehicle);
         for (auto& debris : debris_)
+        {
+            if (!debris.state.active)
+                continue;
+            if (debris.lifetime > 0.0F)
+            {
+                debris.lifetime -= simulationSeconds;
+                if (debris.lifetime <= 0.0F)
+                {
+                    destroyDebris(debris);
+                    continue;
+                }
+            }
             updateState(debris);
+        }
     }
 
     const VehicleState& vehicle() const noexcept override
@@ -647,6 +697,18 @@ public:
         if (runtime.body.IsInvalid())
             return std::numeric_limits<std::size_t>::max();
         runtime.state.body = description.transform;
+        runtime.state.active = true;
+        runtime.lifetime = description.lifetime;
+        if (description.localImpulse.x != 0.0F ||
+            description.localImpulse.y != 0.0F ||
+            description.localImpulse.z != 0.0F)
+        {
+            const JPH::Vec3 worldImpulse =
+                toJolt(description.transform.rotation) *
+                toJolt(description.localImpulse);
+            system_.GetBodyInterface().AddImpulse(
+                runtime.body, worldImpulse);
+        }
         debris_.push_back(std::move(runtime));
         return debris_.size() - 1U;
     }
@@ -672,24 +734,33 @@ private:
         VehicleState state;
         std::uint32_t resetCount = 0;
         bool wheelTractionEnabled = true;
+        bool enabled = true;
+        bool stepListenerRegistered = true;
     };
 
     struct DebrisRuntime
     {
         JPH::BodyID body;
         DebrisState state;
+        float lifetime = -1.0F;
     };
+
+    void destroyDebris(DebrisRuntime& debris) noexcept
+    {
+        if (debris.body.IsInvalid())
+            return;
+        auto& bodies = system_.GetBodyInterface();
+        if (debris.state.active)
+            bodies.RemoveBody(debris.body);
+        bodies.DestroyBody(debris.body);
+        debris.body = JPH::BodyID();
+        debris.state.active = false;
+    }
 
     void clearDebris() noexcept
     {
-        auto& bodies = system_.GetBodyInterface();
-        for (const auto& debris : debris_)
-        {
-            if (debris.body.IsInvalid())
-                continue;
-            bodies.RemoveBody(debris.body);
-            bodies.DestroyBody(debris.body);
-        }
+        for (auto& debris : debris_)
+            destroyDebris(debris);
         debris_.clear();
     }
 
@@ -938,6 +1009,15 @@ private:
 
     void updateState(VehicleRuntime& vehicle) noexcept
     {
+        if (!vehicle.enabled)
+        {
+            vehicle.state.linearVelocity = {};
+            vehicle.state.speed = 0.0F;
+            vehicle.state.engineRpm = 0.0F;
+            vehicle.state.contactCount = 0U;
+            vehicle.state.bodyContacts.clear();
+            return;
+        }
         JPH::BodyLockRead lock(system_.GetBodyLockInterface(), vehicle.body);
         if (!lock.Succeeded())
             return;
@@ -975,6 +1055,8 @@ private:
 
     void updateState(DebrisRuntime& debris) noexcept
     {
+        if (!debris.state.active || debris.body.IsInvalid())
+            return;
         JPH::BodyLockRead lock(system_.GetBodyLockInterface(), debris.body);
         if (!lock.Succeeded())
             return;
@@ -1151,7 +1233,8 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     const std::size_t debrisIndex =
         contactWorld->addDebris(debrisDescription);
     if (debrisIndex == std::numeric_limits<std::size_t>::max() ||
-        contactWorld->debrisCount() != 1U)
+        contactWorld->debrisCount() != 1U ||
+        !contactWorld->debris(debrisIndex).active)
     {
         error = "source gotDestrObj dynamic body was not created";
         return false;
@@ -1165,6 +1248,53 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         debrisStartHeight - 0.1F)
     {
         error = "source gotDestrObj dynamic body did not enter Jolt physics";
+        return false;
+    }
+    DebrisDescription wreckDescription;
+    wreckDescription.transform.position = {0.0F, -15.0F, 4.0F};
+    wreckDescription.halfExtents = {1.46261F, 0.745738F, 0.534895F};
+    wreckDescription.localImpulse = {12000.0F, 0.0F, 0.0F};
+    wreckDescription.mass = 1200.0F;
+    wreckDescription.lifetime = 0.25F;
+    const std::size_t wreckIndex = contactWorld->addDebris(wreckDescription);
+    if (wreckIndex == std::numeric_limits<std::size_t>::max() ||
+        !contactWorld->debris(wreckIndex).active)
+    {
+        error = "source vehicle wreck dynamic body was not created";
+        return false;
+    }
+    const float wreckStartX =
+        contactWorld->debris(wreckIndex).body.position.x;
+    contactWorld->step(0.1F, input);
+    if (!contactWorld->debris(wreckIndex).active ||
+        contactWorld->debris(wreckIndex).body.position.x <=
+            wreckStartX + 0.01F)
+    {
+        error = "source vehicle wreck impulse was not applied";
+        return false;
+    }
+    contactWorld->step(0.1F, input);
+    contactWorld->step(0.1F, input);
+    if (contactWorld->debris(wreckIndex).active)
+    {
+        error = "source vehicle wreck maxTimeLife was not applied";
+        return false;
+    }
+    contactWorld->setVehicleEnabled(0U, false);
+    contactWorld->step(0.1F, input);
+    if (contactWorld->vehicle().speed != 0.0F ||
+        contactWorld->vehicle().contactCount != 0U)
+    {
+        error = "destroyed source vehicle remained in Jolt physics";
+        return false;
+    }
+    const auto resetBeforeRestore = contactWorld->vehicle().resetCount;
+    contactWorld->resetVehicle(
+        0U, contactDescription.spawns.front().position,
+        contactDescription.spawns.front().direction);
+    if (contactWorld->vehicle().resetCount != resetBeforeRestore + 1U)
+    {
+        error = "source vehicle restore did not re-enable Jolt body";
         return false;
     }
     contactWorld->reset();

@@ -1342,6 +1342,7 @@ bool OriginalRaceRenderer::initialize(
         // rather than by the shared garage record.
         vehicleBodies_.resize(race.racers.size());
         vehicleWheels_.resize(race.racers.size());
+        vehicleDeathEffects_.resize(race.racers.size());
         for (std::size_t racer = 0; racer < race.racers.size(); ++racer)
         {
             const auto& sourceRacer = race.racers[racer];
@@ -1358,6 +1359,15 @@ bool OriginalRaceRenderer::initialize(
                 auto& object = vehicleWheels_[racer][wheel];
                 object.nodes.resize(1);
                 load(object.nodes.front(), vehicle.wheelVisuals[wheel]);
+            }
+            vehicleDeathEffects_[racer].resize(
+                vehicle.deathEffects.size());
+            for (std::size_t effect = 0;
+                 effect < vehicle.deathEffects.size(); ++effect)
+            {
+                loadDefinition(
+                    vehicleDeathEffects_[racer][effect],
+                    vehicle.deathEffects[effect].visual);
             }
         }
         const auto skyCpuVertices = skyVertices();
@@ -1575,6 +1585,9 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     for (auto& wheels : vehicleWheels_)
         for (auto& wheel : wheels)
             releaseObject(wheel);
+    for (auto& effects : vehicleDeathEffects_)
+        for (auto& effect : effects)
+            releaseObject(effect);
     for (auto& bonus : bonuses_)
         releaseObject(bonus);
     for (auto& effect : bonusDeathEffects_)
@@ -1600,6 +1613,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     releaseObject(wheelTrailEffect_);
     vehicleBodies_.clear();
     vehicleWheels_.clear();
+    vehicleDeathEffects_.clear();
     bonuses_.clear();
     bonusDeathEffects_.clear();
     weapons_.clear();
@@ -1882,6 +1896,9 @@ void OriginalRaceRenderer::draw(
     const std::vector<
         r3d::game::originalrace::DecorationFragmentState>&
         decorationFragments,
+    const std::vector<
+        r3d::game::originalrace::VehicleDeathFragmentState>&
+        vehicleDeathFragments,
     const std::vector<bool>& bonusActive,
     const std::vector<r3d::game::originalrace::RacerRuntime>& racerRuntime,
     const std::vector<r3d::game::originalrace::RaceEffect>& effects,
@@ -2718,6 +2735,9 @@ void OriginalRaceRenderer::draw(
     lightPipeline.faceCulling = PipelineState::FaceCulling::None;
     for (std::size_t racer = 0; racer < racerCount; ++racer)
     {
+        if (racer < racerRuntime.size() &&
+            racerRuntime[racer].destroyed)
+            continue;
         const auto vehicleIndex = race.racers[racer].vehicle;
         if (vehicleIndex >= race.vehicles.size() ||
             racer >= vehicleBodies_.size())
@@ -3035,6 +3055,44 @@ void OriginalRaceRenderer::draw(
                 ? 1.0F
                 : 1.0F - effect.seconds / effect.totalSeconds;
         if (effect.kind ==
+                r3d::game::originalrace::RaceEventKind::
+                    VehicleDestroyed &&
+            effect.racer < race.racers.size() &&
+            effect.racer < vehicleDeathEffects_.size())
+        {
+            const auto& sourceRacer = race.racers[effect.racer];
+            const auto& vehicle =
+                sourceRacer.hasConfiguredVehicle
+                    ? sourceRacer.configuredVehicle
+                    : race.vehicles.at(sourceRacer.vehicle);
+            if (effect.vehicleEffect >= vehicle.deathEffects.size() ||
+                effect.vehicleEffect >=
+                    vehicleDeathEffects_[effect.racer].size())
+                continue;
+            const auto& definition =
+                vehicle.deathEffects[effect.vehicleEffect].visual;
+            auto parent = effect.transform;
+            if (definition.dynamicBody)
+            {
+                const auto fragment = std::find_if(
+                    vehicleDeathFragments.begin(),
+                    vehicleDeathFragments.end(),
+                    [&](const auto& value) {
+                        return value.racer == effect.racer &&
+                               value.effect == effect.vehicleEffect;
+                    });
+                if (fragment == vehicleDeathFragments.end())
+                    continue;
+                parent = fragment->transform;
+            }
+            drawDefinition(
+                vehicleDeathEffects_[effect.racer]
+                                    [effect.vehicleEffect],
+                definition, parent,
+                effect.totalSeconds - effect.seconds, 0.0F);
+            continue;
+        }
+        if (effect.kind ==
                 r3d::game::originalrace::RaceEventKind::ProjectileImpact &&
             effect.bonus < race.bonuses.size() &&
             effect.bonus < bonusDeathEffects_.size())
@@ -3218,6 +3276,9 @@ void OriginalRaceRenderer::draw(
     smokeMaterial.color = {0.72F, 0.64F, 0.55F, 0.28F};
     for (std::size_t racer = 0; racer < racerCount; ++racer)
     {
+        if (racer < racerRuntime.size() &&
+            racerRuntime[racer].destroyed)
+            continue;
         if (vehicles[racer].engineRpm >= 900.0F)
         {
             const auto direction =
@@ -3340,6 +3401,10 @@ void OriginalRaceRenderer::drawShadowCasters(
     const std::vector<
         r3d::game::originalrace::DecorationFragmentState>&
         decorationFragments,
+    const std::vector<
+        r3d::game::originalrace::VehicleDeathFragmentState>&
+        vehicleDeathFragments,
+    const std::vector<r3d::game::originalrace::RacerRuntime>& racerRuntime,
     float elapsedSeconds) const
 {
     auto shadowPipeline = pipeline;
@@ -3425,6 +3490,9 @@ void OriginalRaceRenderer::drawShadowCasters(
                   vehicleBodies_.size(), vehicleWheels_.size()});
     for (std::size_t racer = 0; racer < racerCount; ++racer)
     {
+        if (racer < racerRuntime.size() &&
+            racerRuntime[racer].destroyed)
+            continue;
         const auto vehicleIndex = race.racers[racer].vehicle;
         if (vehicleIndex >= race.vehicles.size())
             continue;
@@ -3462,6 +3530,28 @@ void OriginalRaceRenderer::drawShadowCasters(
             }
         }
     }
+    for (const auto& fragment : vehicleDeathFragments)
+    {
+        if (fragment.racer >= race.racers.size() ||
+            fragment.racer >= vehicleDeathEffects_.size())
+            continue;
+        const auto& sourceRacer = race.racers[fragment.racer];
+        const auto& vehicle =
+            sourceRacer.hasConfiguredVehicle
+                ? sourceRacer.configuredVehicle
+                : race.vehicles.at(sourceRacer.vehicle);
+        if (fragment.effect >= vehicle.deathEffects.size() ||
+            fragment.effect >=
+                vehicleDeathEffects_[fragment.racer].size())
+            continue;
+        const auto& asset =
+            vehicleDeathEffects_[fragment.racer][fragment.effect];
+        if (!asset.castsShadow)
+            continue;
+        drawObject(
+            asset, vehicle.deathEffects[fragment.effect].visual.visualNodes,
+            fragment.transform);
+    }
 }
 
 void OriginalRaceRenderer::renderFrame(
@@ -3474,6 +3564,9 @@ void OriginalRaceRenderer::renderFrame(
     const std::vector<
         r3d::game::originalrace::DecorationFragmentState>&
         decorationFragments,
+    const std::vector<
+        r3d::game::originalrace::VehicleDeathFragmentState>&
+        vehicleDeathFragments,
     const std::vector<bool>& bonusActive,
     const std::vector<r3d::game::originalrace::RacerRuntime>& racerRuntime,
     const std::vector<r3d::game::originalrace::RaceEffect>& effects,
@@ -3733,6 +3826,7 @@ void OriginalRaceRenderer::renderFrame(
                          0xffffffffU, true, true);
         drawShadowCasters(device, race, vehicles, pipeline,
                           decorationActive, decorationFragments,
+                          vehicleDeathFragments, racerRuntime,
                           elapsedSeconds);
     }
 
@@ -3754,7 +3848,8 @@ void OriginalRaceRenderer::renderFrame(
                 environmentCamera(device, environmentCenter, face),
                 clearRgba, true, true);
             draw(device, sceneShader, race, vehicles, pipeline,
-                 decorationActive, decorationFragments, bonusActive,
+                 decorationActive, decorationFragments,
+                 vehicleDeathFragments, bonusActive,
                  racerRuntime, effects, mines, projectiles,
                  elapsedSeconds, true, true);
         }
@@ -3774,7 +3869,8 @@ void OriginalRaceRenderer::renderFrame(
             RenderPass::Reflection, reflectionTarget_,
             reflectionCamera, clearRgba, true, true);
         draw(device, sceneShader, race, vehicles, pipeline,
-             decorationActive, decorationFragments, bonusActive,
+             decorationActive, decorationFragments,
+             vehicleDeathFragments, bonusActive,
              racerRuntime, effects, mines, projectiles,
              elapsedSeconds, true);
     }
@@ -3806,7 +3902,8 @@ void OriginalRaceRenderer::renderFrame(
         hasWater ? waterSceneTarget_ : hdrTarget_,
         camera, clearRgba, true, true);
     draw(device, sceneShader, race, vehicles, pipeline,
-         decorationActive, decorationFragments, bonusActive,
+         decorationActive, decorationFragments,
+         vehicleDeathFragments, bonusActive,
          racerRuntime, effects, mines, projectiles, elapsedSeconds,
          false, hasWater);
 

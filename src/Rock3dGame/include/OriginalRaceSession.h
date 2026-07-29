@@ -39,6 +39,7 @@ enum class RaceEventKind
     HyperActivated,
     Achievement,
     ProjectileImpact,
+    VehicleDestroyed,
 };
 
 enum class PickSlot : std::uint8_t
@@ -96,9 +97,11 @@ struct RacerRuntime
     float speedBoostSeconds = 0.0F;
     float slowSeconds = 0.0F;
     float clutchSeconds = 0.0F;
+    float restoreSeconds = 0.0F;
     float finishTime = -1.0F;
     bool wrongWay = false;
     bool finished = false;
+    bool destroyed = false;
 };
 
 struct RespawnRequest
@@ -144,6 +147,9 @@ struct RaceEffect
     std::uint8_t visualVariant = 0;
     std::size_t bonus = RacerRuntime::invalidWeapon;
     bool ignoreRotation = false;
+    std::size_t racer = RacerRuntime::invalidWeapon;
+    std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
+    Transform transform;
 };
 
 struct MineRuntime
@@ -237,6 +243,10 @@ private:
         const RaceControl& humanControl);
     void queueRespawn(std::size_t racer,
                       const r3d::physics::VehicleState& vehicle);
+    void destroyRacer(
+        std::size_t racer, std::size_t attacker, Vec3 position,
+        const r3d::physics::VehicleState& vehicle,
+        bool touchDamage = false);
     std::size_t findWeapon(std::string_view record,
                            WeaponSlot slot) const noexcept;
     void syncSelectedWeapon(RacerRuntime& racer) const noexcept;

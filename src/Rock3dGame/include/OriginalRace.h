@@ -187,6 +187,12 @@ struct ObjectDefinition
     Transform visualTransform;
     std::vector<CollisionShape> collisionShapes;
     std::vector<DestructionPieceDefinition> destructionPieces;
+    std::vector<std::string> soundPaths;
+    Vec3 bodyShapePosition;
+    Quat bodyShapeRotation;
+    Vec3 bodyHalfExtents;
+    float bodyMass = 0.0F;
+    bool dynamicBody = false;
     float maximumLife = -1.0F;
     float maximumTimeLife = -1.0F;
     bool destructible = false;
@@ -209,6 +215,13 @@ struct DecorationFragmentState
 {
     std::size_t instance = 0;
     std::size_t piece = 0;
+    Transform transform;
+};
+
+struct VehicleDeathFragmentState
+{
+    std::size_t racer = 0;
+    std::size_t effect = 0;
     Transform transform;
 };
 
@@ -264,6 +277,7 @@ struct Vehicle
     std::vector<Vec3> wheelVisualOffsets;
     std::array<VehicleWeaponMount, 4> weaponMounts;
     std::vector<VehicleNightLight> nightLights;
+    std::vector<DeathEffectDefinition> deathEffects;
     r3d::physics::VehicleDescription physics;
     float maximumLife = 100.0F;
     LightingMode lighting = LightingMode::Standard;

@@ -1542,8 +1542,11 @@ int main(int argc, char** argv)
     for (std::size_t racer = 0;
          racer < originalRace->racers.size(); ++racer)
     {
-        const auto& vehicle = originalRace->vehicles.at(
-            originalRace->racers[racer].vehicle);
+        const auto& sourceRacer = originalRace->racers[racer];
+        const auto& vehicle =
+            sourceRacer.hasConfiguredVehicle
+                ? sourceRacer.configuredVehicle
+                : originalRace->vehicles.at(sourceRacer.vehicle);
         engineAudio[racer].idle =
             loadEngineSound(vehicle.idleSoundPath);
         engineAudio[racer].rpm =
@@ -1570,8 +1573,26 @@ int main(int argc, char** argv)
         loadEngineSound("Data/Sounds/shieldOn.ogg");
     const auto crashAudio =
         loadEngineSound("Data/Sounds/carcrash05.ogg");
+    std::string destructionSoundPath;
+    if (!originalRace->racers.empty())
+    {
+        const auto& sourceRacer = originalRace->racers.front();
+        const auto& vehicle =
+            sourceRacer.hasConfiguredVehicle
+                ? sourceRacer.configuredVehicle
+                : originalRace->vehicles.at(sourceRacer.vehicle);
+        for (const auto& effect : vehicle.deathEffects)
+        {
+            if (effect.visual.soundPaths.empty())
+                continue;
+            destructionSoundPath = effect.visual.soundPaths.front();
+            break;
+        }
+    }
+    if (destructionSoundPath.empty())
+        destructionSoundPath = "Data/Sounds/carcrash05.ogg";
     const auto destructionAudio =
-        loadEngineSound("Data/Sounds/spherePulseDeath.ogg");
+        loadEngineSound(destructionSoundPath);
     std::array<r3d::audio::SoundHandle, 5> impactAudio{};
     std::vector<float> damageAudioCooldown(
         originalRace->racers.size(), 0.0F);
@@ -1887,6 +1908,15 @@ int main(int argc, char** argv)
     std::vector<DecorationDebrisBinding> decorationDebrisBindings;
     std::vector<r3d::game::originalrace::DecorationFragmentState>
         decorationFragments;
+    struct VehicleDebrisBinding
+    {
+        std::size_t racer = 0;
+        std::size_t effect = 0;
+        std::size_t debris = 0;
+    };
+    std::vector<VehicleDebrisBinding> vehicleDebrisBindings;
+    std::vector<r3d::game::originalrace::VehicleDeathFragmentState>
+        vehicleDeathFragments;
     for (std::size_t index = 0; index < physicsWorld->vehicleCount();
          ++index)
         raceVehicles[index] = physicsWorld->vehicle(index);
@@ -1997,6 +2027,8 @@ int main(int argc, char** argv)
                     *physicsDescription, reloadError);
             decorationDebrisBindings.clear();
             decorationFragments.clear();
+            vehicleDebrisBindings.clear();
+            vehicleDeathFragments.clear();
             if (!physicsWorld ||
                 !raceRenderer.initialize(
                     *device, *resources, *originalRace,
@@ -3730,6 +3762,63 @@ int main(int argc, char** argv)
             raceResetRequested = false;
             for (const auto& event : raceSession.events())
             {
+                if (event.kind ==
+                        r3d::game::originalrace::RaceEventKind::Kill &&
+                    event.target < originalRace->racers.size() &&
+                    event.target < raceVehicles.size())
+                {
+                    const auto& sourceRacer =
+                        originalRace->racers[event.target];
+                    const auto& vehicle =
+                        sourceRacer.hasConfiguredVehicle
+                            ? sourceRacer.configuredVehicle
+                            : originalRace->vehicles.at(
+                                  sourceRacer.vehicle);
+                    for (std::size_t effectIndex = 0;
+                         effectIndex < vehicle.deathEffects.size();
+                         ++effectIndex)
+                    {
+                        const auto& effect =
+                            vehicle.deathEffects[effectIndex];
+                        if (!effect.visual.dynamicBody)
+                            continue;
+                        const auto runtimeEffect = std::find_if(
+                            raceSession.effects().begin(),
+                            raceSession.effects().end(),
+                            [&](const auto& value) {
+                                return value.kind ==
+                                           r3d::game::originalrace::
+                                               RaceEventKind::
+                                                   VehicleDestroyed &&
+                                       value.racer == event.target &&
+                                       value.vehicleEffect == effectIndex;
+                            });
+                        r3d::physics::DebrisDescription debris;
+                        debris.transform =
+                            runtimeEffect != raceSession.effects().end()
+                                ? runtimeEffect->transform
+                                : raceVehicles[event.target].body;
+                        debris.shapePosition =
+                            effect.visual.bodyShapePosition;
+                        debris.shapeRotation =
+                            effect.visual.bodyShapeRotation;
+                        debris.halfExtents =
+                            effect.visual.bodyHalfExtents;
+                        debris.localImpulse = effect.impulse;
+                        debris.mass = effect.visual.bodyMass;
+                        debris.lifetime =
+                            effect.visual.maximumTimeLife;
+                        const auto debrisIndex =
+                            physicsWorld->addDebris(debris);
+                        if (debrisIndex ==
+                            std::numeric_limits<std::size_t>::max())
+                            continue;
+                        vehicleDebrisBindings.push_back(
+                            {event.target, effectIndex, debrisIndex});
+                    }
+                    physicsWorld->setVehicleEnabled(
+                        event.target, false);
+                }
                 if (event.kind !=
                         r3d::game::originalrace::RaceEventKind::
                             DecorationDestroyed ||
@@ -3922,20 +4011,11 @@ int main(int argc, char** argv)
                             event.touchDamage ? 0.75F : 0.62F);
                     }
                     else if (event.kind ==
-                                 r3d::game::originalrace::RaceEventKind::
-                                     Kill ||
-                             event.kind ==
-                                 r3d::game::originalrace::RaceEventKind::
-                                     Respawn)
+                             r3d::game::originalrace::RaceEventKind::Kill)
                     {
                         playSpatial(
                             destructionAudio, event.position,
-                            eventVelocity(
-                                event.kind ==
-                                        r3d::game::originalrace::
-                                            RaceEventKind::Kill
-                                    ? event.target
-                                    : event.racer),
+                            eventVelocity(event.target),
                             0.9F);
                     }
                     else if (event.kind ==
@@ -3992,9 +4072,27 @@ int main(int argc, char** argv)
             {
                 if (binding.debris >= physicsWorld->debrisCount())
                     continue;
+                const auto& debris =
+                    physicsWorld->debris(binding.debris);
+                if (!debris.active)
+                    continue;
                 decorationFragments.push_back(
                     {binding.instance, binding.piece,
-                     physicsWorld->debris(binding.debris).body});
+                     debris.body});
+            }
+            vehicleDeathFragments.clear();
+            vehicleDeathFragments.reserve(
+                vehicleDebrisBindings.size());
+            for (const auto& binding : vehicleDebrisBindings)
+            {
+                if (binding.debris >= physicsWorld->debrisCount())
+                    continue;
+                const auto& debris =
+                    physicsWorld->debris(binding.debris);
+                if (!debris.active)
+                    continue;
+                vehicleDeathFragments.push_back(
+                    {binding.racer, binding.effect, debris.body});
             }
             raceElapsedSeconds = raceSession.elapsedSeconds();
 #ifdef RRR3D_AUDIO
@@ -4283,7 +4381,8 @@ int main(int argc, char** argv)
                 *device, raceShader, raceCamera, 0x6b91b8ffU,
                 *originalRace, raceVehicles, racePipeline,
                 raceSession.decorationActive(),
-                decorationFragments, raceSession.bonusActive(),
+                decorationFragments, vehicleDeathFragments,
+                raceSession.bonusActive(),
                 raceSession.racers(),
                 raceSession.effects(), raceSession.mines(),
                 raceSession.projectiles(), raceElapsedSeconds,

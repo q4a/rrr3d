@@ -1439,6 +1439,27 @@ ObjectDefinition objectDefinition(
         resources, dbRecord, Transform{}, result, source);
     appendIncludedEffects(
         resources, database, dbRecord, Transform{}, result, source, 0U);
+    if (auto* behaviors = child(dbRecord, "behaviors/items"))
+    {
+        for (auto* behavior = behaviors->FirstChildElement();
+             behavior != nullptr;
+             behavior = behavior->NextSiblingElement())
+        {
+            auto* sounds = child(behavior, "sounds");
+            if (sounds == nullptr)
+                continue;
+            for (auto* sound = sounds->FirstChildElement(); sound != nullptr;
+                 sound = sound->NextSiblingElement())
+            {
+                const char* path = sound->Attribute("item");
+                if (path != nullptr)
+                {
+                    result.soundPaths.push_back(
+                        canonicalDataPath(resources, path));
+                }
+            }
+        }
+    }
     if (result.visualNodes.empty())
     {
         // gotDestrObj records keep their intact render pieces in destrList.
@@ -1516,6 +1537,33 @@ ObjectDefinition objectDefinition(
             result.visualNodes.front().materials.front().texturePath;
     }
     loadCollisionShapes(resources, result, dbRecord, source);
+    if (auto* body = child(dbRecord, "pxActor/body"))
+    {
+        result.bodyMass = optionalScalar(body, "mass", 0.0F);
+        if (auto* shapes = child(dbRecord, "pxActor/shapes/items"))
+        {
+            for (auto* shape = shapes->FirstChildElement(); shape != nullptr;
+                 shape = shape->NextSiblingElement())
+            {
+                const char* type = shape->Attribute("type");
+                if (type == nullptr || std::string_view(type) != "1" ||
+                    child(shape, "dimensions") == nullptr)
+                    continue;
+                result.bodyShapePosition =
+                    child(shape, "pos") != nullptr
+                        ? vector3(shape, "pos", source)
+                        : Vec3{};
+                result.bodyShapeRotation =
+                    child(shape, "rot") != nullptr
+                        ? quaternion(shape, "rot", source)
+                        : Quat{};
+                result.bodyHalfExtents =
+                    vector3(shape, "dimensions", source);
+                result.dynamicBody = result.bodyMass > 0.0F;
+                break;
+            }
+        }
+    }
     if (auto* life = child(dbRecord, "maxLife");
         life != nullptr && life->GetText() != nullptr)
     {
@@ -1536,14 +1584,15 @@ ObjectDefinition objectDefinition(
     return result;
 }
 
-DeathEffectDefinition deathEffectDefinition(
+std::vector<DeathEffectDefinition> deathEffectDefinitions(
     const resource::ResourceFileSystem& resources, TiXmlElement* database,
     std::string_view modelRecord, std::string_view source)
 {
+    std::vector<DeathEffectDefinition> results;
     auto* model = databaseRecord(database, modelRecord);
     auto* behaviors = child(model, "behaviors/items");
     if (behaviors == nullptr)
-        return {};
+        return results;
     for (auto* behavior = behaviors->FirstChildElement(); behavior != nullptr;
          behavior = behavior->NextSiblingElement())
     {
@@ -1567,9 +1616,19 @@ DeathEffectDefinition deathEffectDefinition(
                 std::string_view(ignore->GetText()) == "true" ||
                 std::string_view(ignore->GetText()) == "1";
         }
-        return result;
+        results.push_back(std::move(result));
     }
-    return {};
+    return results;
+}
+
+DeathEffectDefinition deathEffectDefinition(
+    const resource::ResourceFileSystem& resources, TiXmlElement* database,
+    std::string_view modelRecord, std::string_view source)
+{
+    auto definitions = deathEffectDefinitions(
+        resources, database, modelRecord, source);
+    return definitions.empty() ? DeathEffectDefinition{}
+                               : std::move(definitions.front());
 }
 
 TiXmlElement* garageCar(TiXmlElement* garage, std::string_view record)
@@ -2103,6 +2162,8 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
     result.rpmSoundPath = canonicalDataPath(
         resources,
         itemAttribute(engineSound, "sndRPM", source + "/engine sound"));
+    result.deathEffects = deathEffectDefinitions(
+        resources, database, record, source + "/death effects");
 
     auto& vehicle = result.physics;
     vehicle.mass = scalar(car, "pxActor/body/mass", source);
@@ -3242,6 +3303,46 @@ bool runOriginalRaceResourceSmokeTest(
             error = "source gotDestrObj provenance mismatch: crush1=" +
                     audit(crush1) + ", reklama=" + audit(reklama) +
                     ", bochka=" + audit(bochka);
+            return false;
+        }
+        const auto recordEndsWith = [](std::string_view record,
+                                       std::string_view name) {
+            return record.size() >= name.size() &&
+                   record.compare(record.size() - name.size(),
+                                  name.size(), name) == 0;
+        };
+        if (race.vehicle.deathEffects.size() != 2U ||
+            !recordEndsWith(
+                race.vehicle.deathEffects[0].visual.record, "death2") ||
+            !race.vehicle.deathEffects[0].ignoreRotation ||
+            race.vehicle.deathEffects[0].visual.maximumTimeLife != 10.0F ||
+            race.vehicle.deathEffects[0].visual.particleEmitters.empty() ||
+            race.vehicle.deathEffects[0].visual.soundPaths.empty() ||
+            !recordEndsWith(
+                race.vehicle.deathEffects[0].visual.soundPaths.front(),
+                "carcrash05.ogg") ||
+            !recordEndsWith(
+                race.vehicle.deathEffects[1].visual.record,
+                "marauderCrush") ||
+            race.vehicle.deathEffects[1].ignoreRotation ||
+            !near(race.vehicle.deathEffects[1].impulse.x, 20000.0F) ||
+            !race.vehicle.deathEffects[1].visual.dynamicBody ||
+            !near(race.vehicle.deathEffects[1].visual.bodyMass, 1200.0F) ||
+            !near(
+                race.vehicle.deathEffects[1].visual.bodyHalfExtents.x,
+                1.46261F) ||
+            !near(
+                race.vehicle.deathEffects[1].visual.bodyHalfExtents.y,
+                0.745738F) ||
+            !near(
+                race.vehicle.deathEffects[1].visual.bodyHalfExtents.z,
+                0.534895F) ||
+            race.vehicle.deathEffects[1].visual.maximumTimeLife != 10.0F ||
+            race.vehicle.deathEffects[1].visual.visualNodes.empty() ||
+            race.vehicle.deathEffects[1].visual.particleEmitters.size() < 2U)
+        {
+            error = "source vehicle DeathEffect/death2/marauderCrush "
+                    "provenance mismatch";
             return false;
         }
         std::size_t alphaTestMaterialCount = 0;
