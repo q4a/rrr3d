@@ -747,6 +747,13 @@ SDL_AUDIO_DRIVER=dummy \
   двухсекундное восстановление для любой машины. `_touchPlayerId` хранится
   исходные 3 секунды; touch-kill achievement теперь засчитывает человека,
   вытолкнувшего соперника, а не обратный случай.
+- Все девять `AchievmentCondition` сопоставлены с Windows event filters.
+  `AchievmentModel::AddPoints` перенесён с точной mode/difficulty
+  семантикой: campaign начисляет `Floor(reward × 1.0/1.2/1.5)`,
+  skirmish не начисляет points; completion event сохраняет serialized
+  `reward`, а points-плашка HUD в skirmish скрыта. Bonus condition считает
+  точный `MapObjRec`, а `LapPass` и `Dodge` сохраняют фактические
+  особенности исходной реализации.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,

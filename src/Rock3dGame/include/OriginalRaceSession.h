@@ -250,6 +250,7 @@ public:
     void writePlayerProfile(PlayerProfile& profile) const;
     void applyAchievementProfile(const ProfileState& profile);
     void writeAchievementProfile(ProfileState& profile) const;
+    void setCampaign(bool campaign) noexcept;
     void setEnableMineBug(bool enabled) noexcept;
     void setSpringBorders(bool enabled) noexcept;
     void setPaused(bool paused) noexcept;
@@ -343,12 +344,14 @@ private:
     std::map<std::string, std::uint32_t>
         initialAchievementIterations_;
     std::uint32_t achievementPoints_ = 0;
-    float achievementMultiplier_ = 1.2F;
     std::vector<std::uint32_t> achievementIterations_;
     std::vector<std::uint32_t> achievementConditionCounters_;
+    std::vector<std::uint32_t> achievementConditionTotals_;
     std::vector<float> achievementConditionTimers_;
     std::uint32_t achievementGlobalKills_ = 0;
     std::uint32_t achievementPreviousLapPlace_ = 0;
+    float achievementMultiplier_ = 1.2F;
+    bool campaign_ = true;
     bool enableMineBug_ = true;
     bool springBorders_ = true;
 };

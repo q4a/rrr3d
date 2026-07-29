@@ -873,6 +873,8 @@ void OriginalRaceSession::reset()
     achievementIterations_.assign(race_.achievements.size(), 0U);
     achievementConditionCounters_.assign(
         race_.achievements.size(), 0U);
+    achievementConditionTotals_.assign(
+        race_.achievements.size(), 0U);
     achievementConditionTimers_.assign(
         race_.achievements.size(), 0.0F);
     achievementGlobalKills_ = 0U;
@@ -1112,11 +1114,11 @@ void OriginalRaceSession::applyAchievementProfile(
     initialAchievementPoints_ = profile.achievementPoints;
     initialAchievementIterations_ =
         profile.achievementIterations;
+    achievementPoints_ = initialAchievementPoints_;
     achievementMultiplier_ =
         profile.player.difficulty == "gdHard"
             ? 1.5F
-            : (profile.player.difficulty == "gdEasy" ? 1.0F : 1.2F);
-    achievementPoints_ = initialAchievementPoints_;
+            : profile.player.difficulty == "gdNormal" ? 1.2F : 1.0F;
     achievementIterations_.assign(race_.achievements.size(), 0U);
     for (std::size_t index = 0;
          index < race_.achievements.size(); ++index)
@@ -1126,6 +1128,11 @@ void OriginalRaceSession::applyAchievementProfile(
         if (found != initialAchievementIterations_.end())
             achievementIterations_[index] = found->second;
     }
+}
+
+void OriginalRaceSession::setCampaign(bool campaign) noexcept
+{
+    campaign_ = campaign;
 }
 
 void OriginalRaceSession::writeAchievementProfile(
@@ -4184,9 +4191,15 @@ void OriginalRaceSession::completeAchievement(
         definition.iterationCount)
         return;
     achievementIterations_[achievement] = 0U;
-    achievementPoints_ += static_cast<std::uint32_t>(
-        std::floor(static_cast<float>(definition.reward) *
-                   achievementMultiplier_));
+    // AchievmentCondition::Complete passes the serialized reward to
+    // AchievmentModel::AddPoints.  That method ignores it in skirmish and
+    // applies the profile difficulty multiplier in championship.
+    if (campaign_)
+    {
+        achievementPoints_ += static_cast<std::uint32_t>(
+            std::floor(static_cast<float>(definition.reward) *
+                       achievementMultiplier_));
+    }
     events_.push_back(
         {RaceEventKind::Achievement, 0, achievement, {},
          static_cast<float>(definition.reward)});
@@ -4236,13 +4249,21 @@ void OriginalRaceSession::updateAchievements(float seconds)
                     race_.bonuses[event.target].kind ==
                         definition.bonusKind)
                 {
-                    const auto total = static_cast<std::uint32_t>(
-                        std::count_if(
-                            race_.bonuses.begin(), race_.bonuses.end(),
-                            [&](const BonusInstance& bonus) {
-                                return bonus.kind ==
-                                       definition.bonusKind;
-                            }));
+                    auto& total =
+                        achievementConditionTotals_[index];
+                    if (total == 0U)
+                    {
+                        const auto& sourceRecord =
+                            race_.bonuses[event.target].record;
+                        total = static_cast<std::uint32_t>(
+                            std::count_if(
+                                race_.bonuses.begin(),
+                                race_.bonuses.end(),
+                                [&](const BonusInstance& bonus) {
+                                    return bonus.record ==
+                                           sourceRecord;
+                                }));
+                    }
                     if (total > 0U && ++counter >= total)
                     {
                         counter = 0U;
@@ -4278,7 +4299,7 @@ void OriginalRaceSession::updateAchievements(float seconds)
                 break;
             case 4U:
                 if (humanLap && !racers_.empty() &&
-                    racers_.front().place == definition.place)
+                    racers_.front().place == 1U)
                     ++counter;
                 if (humanFinish && counter >= race_.lapCount)
                 {
@@ -4288,7 +4309,7 @@ void OriginalRaceSession::updateAchievements(float seconds)
                 break;
             case 5U:
                 if ((event.kind == RaceEventKind::Damage &&
-                     event.racer == 0U && event.value > 0.0F) ||
+                     event.target == 0U && event.value > 0.0F) ||
                     humanDeath)
                     ++counter;
                 if (humanLap && !racers_.empty())
@@ -4674,6 +4695,104 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source Player::TakeBonus DeathEffect transition failed");
+            }
+        }
+
+        const auto sourceMoney = std::find_if(
+            race.bonuses.begin(), race.bonuses.end(),
+            [](const BonusInstance& bonus) {
+                return bonus.kind == BonusKind::Money;
+            });
+        if (sourceMoney == race.bonuses.end())
+        {
+            throw std::runtime_error(
+                "source money bonus is missing for achievement regression");
+        }
+        {
+            Race achievementRace = race;
+            achievementRace.bonuses.assign(1U, *sourceMoney);
+            achievementRace.bonuses.front().transform.position =
+                vehicles.front().body.position;
+            achievementRace.bonuses.front().transform.position.z +=
+                100.0F;
+            AchievementDefinition condition;
+            condition.name = "sourceRewardRegression";
+            condition.classId = 1U;
+            condition.reward = 7U;
+            condition.iterationCount = 1U;
+            condition.bonusKind = BonusKind::Money;
+            achievementRace.achievements.assign(1U, condition);
+
+            ProfileState inputProfile;
+            inputProfile.achievementPoints = 100U;
+            inputProfile.player.difficulty = "gdHard";
+            OriginalRaceSession achievementSession(achievementRace);
+            achievementSession.setCampaign(true);
+            achievementSession.applyAchievementProfile(inputProfile);
+            auto achievementVehicles = vehicles;
+            RaceControl achievementInput;
+            achievementVehicles[0].speed = 0.0F;
+            achievementVehicles[0].linearVelocity = {};
+            achievementVehicles[0].bodyContacts.clear();
+            for (int frame = 0; frame < 190; ++frame)
+                achievementSession.update(
+                    1.0F / 60.0F, achievementVehicles,
+                    achievementInput);
+            achievementVehicles[0].body.position =
+                achievementRace.bonuses.front().transform.position;
+            achievementSession.update(
+                1.0F / 60.0F, achievementVehicles,
+                achievementInput);
+            ProfileState outputProfile;
+            achievementSession.writeAchievementProfile(outputProfile);
+            const bool completed = std::any_of(
+                achievementSession.events().begin(),
+                achievementSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind ==
+                               RaceEventKind::Achievement &&
+                           event.target == 0U &&
+                           event.value == 7.0F;
+                });
+            if (!completed ||
+                outputProfile.achievementPoints != 110U)
+            {
+                throw std::runtime_error(
+                    "source campaign achievement multiplier failed");
+            }
+
+            OriginalRaceSession skirmishSession(achievementRace);
+            skirmishSession.setCampaign(false);
+            skirmishSession.applyAchievementProfile(inputProfile);
+            achievementVehicles = vehicles;
+            achievementVehicles[0].speed = 0.0F;
+            achievementVehicles[0].linearVelocity = {};
+            achievementVehicles[0].bodyContacts.clear();
+            for (int frame = 0; frame < 190; ++frame)
+                skirmishSession.update(
+                    1.0F / 60.0F, achievementVehicles,
+                    achievementInput);
+            achievementVehicles[0].body.position =
+                achievementRace.bonuses.front().transform.position;
+            skirmishSession.update(
+                1.0F / 60.0F, achievementVehicles,
+                achievementInput);
+            ProfileState skirmishProfile;
+            skirmishSession.writeAchievementProfile(skirmishProfile);
+            const bool skirmishCompleted = std::any_of(
+                skirmishSession.events().begin(),
+                skirmishSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind ==
+                               RaceEventKind::Achievement &&
+                           event.target == 0U &&
+                           event.value == 7.0F;
+                });
+            if (!skirmishCompleted ||
+                skirmishProfile.achievementPoints != 100U)
+            {
+                throw std::runtime_error(
+                    "source skirmish achievement points suppression failed");
             }
         }
 

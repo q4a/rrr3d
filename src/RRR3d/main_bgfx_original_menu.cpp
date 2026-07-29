@@ -1270,6 +1270,7 @@ int main(int argc, char** argv)
     auto physicsWorld = r3d::physics::createOriginalVehicleWorld(
         *physicsDescription, physicsError);
     r3d::game::originalrace::OriginalRaceSession raceSession(*originalRace);
+    raceSession.setCampaign(true);
     raceSession.applyPlayerProfile(profileState.player);
     raceSession.applyAchievementProfile(profileState);
     raceSession.setEnableMineBug(profileState.config.enableMineBug);
@@ -1284,6 +1285,7 @@ int main(int argc, char** argv)
         !raceHud.initialize(*device, *resources, *originalRace,
                             activeLanguage,
                             profileState.player.difficulty,
+                            true,
                             physicsError))
     {
         std::cerr << "Original race initialization failed: " << physicsError
@@ -2081,6 +2083,7 @@ int main(int argc, char** argv)
                 !raceHud.initialize(
                     *device, *resources, *originalRace,
                     activeLanguage, profileState.player.difficulty,
+                    championshipMode,
                     reloadError))
             {
                 std::cerr
@@ -2089,6 +2092,7 @@ int main(int argc, char** argv)
                 return false;
             }
             raceSession.reset();
+            raceSession.setCampaign(championshipMode);
             raceSession.applyPlayerProfile(profileState.player);
             raceSession.applyAchievementProfile(profileState);
             raceSession.setEnableMineBug(

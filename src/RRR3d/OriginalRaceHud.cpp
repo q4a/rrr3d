@@ -212,8 +212,9 @@ bool OriginalRaceHud::initialize(
     GraphicsDevice& device,
     const r3d::resource::ResourceFileSystem& resources,
     const originalrace::Race& race, std::string_view language,
-    std::string_view difficulty, std::string& error)
+    std::string_view difficulty, bool campaign, std::string& error)
 {
+    campaign_ = campaign;
     // These are the same assets created by PlayerStateFrame and
     // MiniMapFrame in the Windows HUD.
     if (!loadImage(device, resources, "Data/GUI/placeMineHyper.png",
@@ -1797,24 +1798,27 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
             image.width * item.scale, image.height * item.scale,
             item.x, item.y, 12.0F, pipeline,
             {1.0F, 1.0F, 1.0F, item.alpha});
-        const float pointsY =
-            item.y + image.height * 0.5F + 15.0F +
-            points.height * 0.5F;
-        drawTintedAsset(
-            device, quad, shader, points.texture,
-            points.width, points.height, item.x, pointsY,
-            10.0F, pipeline,
-            {1.0F, 1.0F, 1.0F, item.pointsAlpha});
-        if (valid(achievementMultiplierImage_.texture))
+        if (campaign_)
         {
+            const float pointsY =
+                item.y + image.height * 0.5F + 15.0F +
+                points.height * 0.5F;
             drawTintedAsset(
-                device, quad, shader,
-                achievementMultiplierImage_.texture,
-                achievementMultiplierImage_.width,
-                achievementMultiplierImage_.height,
-                item.x + 95.0F, pointsY - 3.0F,
-                8.0F, pipeline,
+                device, quad, shader, points.texture,
+                points.width, points.height, item.x, pointsY,
+                10.0F, pipeline,
                 {1.0F, 1.0F, 1.0F, item.pointsAlpha});
+            if (valid(achievementMultiplierImage_.texture))
+            {
+                drawTintedAsset(
+                    device, quad, shader,
+                    achievementMultiplierImage_.texture,
+                    achievementMultiplierImage_.width,
+                    achievementMultiplierImage_.height,
+                    item.x + 95.0F, pointsY - 3.0F,
+                    8.0F, pipeline,
+                    {1.0F, 1.0F, 1.0F, item.pointsAlpha});
+            }
         }
     }
 

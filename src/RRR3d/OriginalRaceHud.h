@@ -27,7 +27,7 @@ public:
         const r3d::resource::ResourceFileSystem& resources,
         const r3d::game::originalrace::Race& race,
         std::string_view language, std::string_view difficulty,
-        std::string& error);
+        bool campaign, std::string& error);
     void shutdown(r3d::renderer::GraphicsDevice& device) noexcept;
     void update(r3d::renderer::GraphicsDevice& device,
                 const r3d::game::originalrace::Race& race,
@@ -233,6 +233,7 @@ private:
     std::size_t achievementSerial_ = 0;
     float finishStarted_ = -1.0F;
     bool finishVisible_ = false;
+    bool campaign_ = true;
 };
 
 } // namespace rrr3d::race
