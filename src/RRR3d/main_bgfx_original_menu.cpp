@@ -773,6 +773,20 @@ int main(int argc, char** argv)
     const Texture selection =
         createImageTexture(*device, model->selectionImage);
     const Texture cursor = createImageTexture(*device, model->cursorImage);
+#ifdef RRR3D_PHYSICS
+    const auto acceptFrameImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/dlgFrame1.png");
+    const auto acceptButtonImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/dlgButton1.png");
+    const auto acceptButtonSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/dlgButtonSel1.png");
+    const Texture acceptFrame =
+        createImageTexture(*device, acceptFrameImage);
+    const Texture acceptButton =
+        createImageTexture(*device, acceptButtonImage);
+    const Texture acceptButtonSelected =
+        createImageTexture(*device, acceptButtonSelectedImage);
+#endif
 
     struct MenuPageVisual
     {
@@ -1090,6 +1104,21 @@ int main(int argc, char** argv)
     TextVisual finishSummary = createText(
         *device, localized("svFinish"), menu::smallFontHeight, false,
         menu::normalTextColor, resolvedFont);
+    const TextVisual exitRaceMessage = createText(
+        *device, localized("svHintExitRace"), menu::smallFontHeight,
+        false, menu::normalTextColor, resolvedFont);
+    const TextVisual exitRaceYes = createText(
+        *device, localized("svYes"), menu::smallFontHeight,
+        false, menu::normalTextColor, resolvedFont);
+    const TextVisual exitRaceYesSelected = createText(
+        *device, localized("svYes"), menu::smallFontHeight,
+        false, menu::selectedTextColor, resolvedFont);
+    const TextVisual exitRaceNo = createText(
+        *device, localized("svNo"), menu::smallFontHeight,
+        false, menu::normalTextColor, resolvedFont);
+    const TextVisual exitRaceNoSelected = createText(
+        *device, localized("svNo"), menu::smallFontHeight,
+        false, menu::selectedTextColor, resolvedFont);
 #endif
 
     auto pageValid = [](const MenuPageVisual& page) {
@@ -1133,13 +1162,22 @@ int main(int argc, char** argv)
         pageValid(soundOptionsPage) &&
         pageValid(controlsOptionsPage) &&
         pageValid(finishPage) &&
-        valid(finishSummary.texture);
+        valid(finishSummary.texture) && valid(acceptFrame) &&
+        valid(acceptButton) && valid(acceptButtonSelected) &&
+        valid(exitRaceMessage.texture) && valid(exitRaceYes.texture) &&
+        valid(exitRaceYesSelected.texture) && valid(exitRaceNo.texture) &&
+        valid(exitRaceNoSelected.texture);
 #else
     const bool optionsResourcesValid = true;
 #endif
 
     auto releaseResources = [&]() {
 #ifdef RRR3D_PHYSICS
+        device->destroy(exitRaceNoSelected.texture);
+        device->destroy(exitRaceNo.texture);
+        device->destroy(exitRaceYesSelected.texture);
+        device->destroy(exitRaceYes.texture);
+        device->destroy(exitRaceMessage.texture);
         device->destroy(finishSummary.texture);
 #endif
         device->destroy(credits.texture);
@@ -1156,6 +1194,9 @@ int main(int argc, char** argv)
         destroyPage(soundOptionsPage);
         destroyPage(graphicsOptionsPage);
         destroyPage(gameOptionsPage);
+        device->destroy(acceptButtonSelected);
+        device->destroy(acceptButton);
+        device->destroy(acceptFrame);
 #endif
         destroyPage(creditsPage);
         destroyPage(optionsPage);
@@ -1517,6 +1558,8 @@ int main(int argc, char** argv)
     }
     const auto pickupAudio =
         loadEngineSound("Data/Sounds/UI/pickup_up.ogg");
+    const auto acceptanceAudio =
+        loadEngineSound("Data/Sounds/UI/acception.ogg");
     const auto shieldAudio =
         loadEngineSound("Data/Sounds/shieldOn.ogg");
     const auto crashAudio =
@@ -1539,6 +1582,7 @@ int main(int argc, char** argv)
     engineAudioValid =
         engineAudioValid &&
         pickupAudio != r3d::audio::invalidSound &&
+        acceptanceAudio != r3d::audio::invalidSound &&
         shieldAudio != r3d::audio::invalidSound &&
         crashAudio != r3d::audio::invalidSound &&
         destructionAudio != r3d::audio::invalidSound &&
@@ -1574,6 +1618,8 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
     auto startRaceAudio = [&]() {
+        audio.setBusVolume(r3d::audio::Bus::Effects,
+                           profileState.config.effectsVolume);
         music.pause(true, audioError);
         gameMusic.pause(false, audioError);
         commentator.pause(false);
@@ -1813,6 +1859,8 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_PHYSICS
     bool inRace = false;
+    bool exitRaceDialogVisible = false;
+    bool exitRaceYesFocused = true;
     r3d::physics::VehicleInput raceInput;
     bool raceUseWeaponRequested = false;
     bool raceUseAllWeaponsRequested = false;
@@ -1830,6 +1878,12 @@ int main(int argc, char** argv)
     float raceElapsedSeconds = 0.0F;
     std::uint64_t previousFrameTicks = SDL_GetTicksNS();
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
+    bool racePauseDialogObserved = !options->raceRenderSmokeTest;
+    bool racePauseResumeObserved = !options->raceRenderSmokeTest;
+    bool racePauseFrozenObserved = !options->raceRenderSmokeTest;
+    std::uint32_t racePauseSmokeStep = 0U;
+    float racePauseElapsedSnapshot = -1.0F;
+    r3d::physics::Vec3 racePausePositionSnapshot;
     float maximumRaceSmokeSpeed = 0.0F;
     std::uint32_t maximumRaceSmokeContacts = 0;
     std::array<std::uint32_t, r3d::renderer::renderPassCount>
@@ -2000,6 +2054,9 @@ int main(int argc, char** argv)
         raceWeaponChangeDirection = 1;
         raceFireWeaponSlotRequested = -1;
         raceResetRequested = false;
+        exitRaceDialogVisible = false;
+        exitRaceYesFocused = true;
+        racePauseElapsedSnapshot = -1.0F;
         raceElapsedSeconds = 0.0F;
         raceProgressSaved = false;
         finishMenuShown = false;
@@ -2016,6 +2073,73 @@ int main(int argc, char** argv)
 #endif
         std::cout << "MainMenu2 -> original race: "
                   << originalRace->levelPath << '\n';
+    };
+    auto clearRaceControls = [&]() {
+        raceInput = {};
+        raceUseWeaponRequested = false;
+        raceUseAllWeaponsRequested = false;
+        raceUseMine = false;
+        raceUseHyper = false;
+        raceChangeWeaponRequested = false;
+        raceWeaponChangeDirection = 1;
+        raceFireWeaponSlotRequested = -1;
+        raceResetRequested = false;
+    };
+    auto closeExitRaceDialog = [&]() {
+        if (options->raceRenderSmokeTest &&
+            racePauseElapsedSnapshot >= 0.0F &&
+            physicsWorld->vehicleCount() > 0U)
+        {
+            const auto currentPosition =
+                physicsWorld->vehicle().body.position;
+            const float dx = currentPosition.x -
+                             racePausePositionSnapshot.x;
+            const float dy = currentPosition.y -
+                             racePausePositionSnapshot.y;
+            const float dz = currentPosition.z -
+                             racePausePositionSnapshot.z;
+            racePauseFrozenObserved =
+                std::abs(raceSession.elapsedSeconds() -
+                         racePauseElapsedSnapshot) < 0.0001F &&
+                dx * dx + dy * dy + dz * dz < 0.000001F;
+        }
+        exitRaceDialogVisible = false;
+        raceSession.setPaused(false);
+        clearRaceControls();
+#ifdef RRR3D_AUDIO
+        commentator.pause(false);
+#endif
+        previousFrameTicks = SDL_GetTicksNS();
+        racePauseResumeObserved = true;
+    };
+    auto openExitRaceDialog = [&]() {
+        exitRaceDialogVisible = true;
+        exitRaceYesFocused = true;
+        raceSession.setPaused(true);
+        clearRaceControls();
+        racePauseElapsedSnapshot = raceSession.elapsedSeconds();
+        if (physicsWorld->vehicleCount() > 0U)
+            racePausePositionSnapshot =
+                physicsWorld->vehicle().body.position;
+#ifdef RRR3D_AUDIO
+        r3d::audio::PlayOptions acceptOptions;
+        acceptOptions.bus = r3d::audio::Bus::Effects;
+        audio.play(acceptanceAudio, acceptOptions, audioError);
+        commentator.pause(true);
+#endif
+        racePauseDialogObserved = true;
+    };
+    auto leaveCurrentRace = [&]() {
+        saveRaceProfile();
+        raceSession.setPaused(false);
+        exitRaceDialogVisible = false;
+        inRace = false;
+        clearRaceControls();
+#ifdef RRR3D_AUDIO
+        stopRaceAudio();
+#endif
+        previousFrameTicks = SDL_GetTicksNS();
+        std::cout << "Original HudMenu accept: Race -> RaceMenu2\n";
     };
     auto replacePage = [&](MenuPageVisual& page,
                            std::vector<std::string> pageLabels) {
@@ -2607,6 +2731,20 @@ int main(int argc, char** argv)
             raceSmokeNextMenuFrame = renderedFrames + 1U;
         }
 #endif
+#ifdef RRR3D_PHYSICS
+        if (options->raceRenderSmokeTest && inRace &&
+            renderedFrames >= 20U + racePauseSmokeStep &&
+            racePauseSmokeStep < 3U)
+        {
+            if (racePauseSmokeStep == 0U)
+                openExitRaceDialog();
+            else if (racePauseSmokeStep == 1U)
+                exitRaceYesFocused = false;
+            else
+                closeExitRaceDialog();
+            ++racePauseSmokeStep;
+        }
+#endif
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
@@ -2709,6 +2847,61 @@ int main(int argc, char** argv)
                     continue;
             }
 #endif
+            bool pointerTargetsExitChoice = true;
+#ifdef RRR3D_PHYSICS
+            if (inRace && exitRaceDialogVisible &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float mouseX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float mouseY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                std::optional<bool> hoveredYes;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        mouseX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        mouseY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    const float buttonY =
+                        menu::virtualHeight * 0.5F + 32.0F;
+                    const float yesX =
+                        menu::virtualWidth * 0.5F - 70.0F;
+                    const float noX =
+                        menu::virtualWidth * 0.5F + 70.0F;
+                    if (std::abs(virtualY - buttonY) <= 19.0F &&
+                        std::abs(virtualX - yesX) <= 45.0F)
+                    {
+                        hoveredYes = true;
+                    }
+                    else if (
+                        std::abs(virtualY - buttonY) <= 19.0F &&
+                        std::abs(virtualX - noX) <= 45.0F)
+                    {
+                        hoveredYes = false;
+                    }
+                }
+                if (hoveredYes)
+                    exitRaceYesFocused = *hoveredYes;
+                if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                    event.button.button == SDL_BUTTON_LEFT)
+                {
+                    pointerTargetsExitChoice =
+                        hoveredYes.has_value();
+                }
+            }
+#endif
             bool pointerTargetsItem = true;
             if (
 #ifdef RRR3D_PHYSICS
@@ -2744,6 +2937,49 @@ int main(int argc, char** argv)
             for (const auto& inputEvent : inputEvents)
             {
 #ifdef RRR3D_PHYSICS
+                if (inRace && exitRaceDialogVisible)
+                {
+                    if (!inputEvent.active || inputEvent.repeated)
+                        continue;
+                    if (inputEvent.action ==
+                            rrr3d::input::Action::TurnLeft ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::MenuUp)
+                    {
+                        exitRaceYesFocused = true;
+                    }
+                    else if (inputEvent.action ==
+                                 rrr3d::input::Action::TurnRight ||
+                             inputEvent.action ==
+                                 rrr3d::input::Action::MenuDown)
+                    {
+                        exitRaceYesFocused = false;
+                    }
+                    else if (inputEvent.action ==
+                                 rrr3d::input::Action::MenuBack ||
+                             inputEvent.action ==
+                                 rrr3d::input::Action::Pause)
+                    {
+                        closeExitRaceDialog();
+                        racePauseResumeObserved = true;
+                    }
+                    else if (inputEvent.action ==
+                             rrr3d::input::Action::MenuConfirm)
+                    {
+                        if (inputEvent.source ==
+                                rrr3d::input::Source::Mouse &&
+                            !pointerTargetsExitChoice)
+                            continue;
+                        if (exitRaceYesFocused)
+                            leaveCurrentRace();
+                        else
+                        {
+                            closeExitRaceDialog();
+                            racePauseResumeObserved = true;
+                        }
+                    }
+                    continue;
+                }
                 if (inRace)
                 {
                     switch (inputEvent.action)
@@ -2831,16 +3067,7 @@ int main(int argc, char** argv)
                         break;
                     case rrr3d::input::Action::Pause:
                         if (inputEvent.active && !inputEvent.repeated)
-                        {
-                            const bool paused =
-                                raceSession.phase() !=
-                                r3d::game::originalrace::RacePhase::Paused;
-                            raceSession.setPaused(paused);
-#ifdef RRR3D_AUDIO
-                            gameMusic.pause(paused, audioError);
-                            commentator.pause(paused);
-#endif
-                        }
+                            openExitRaceDialog();
                         break;
                     case rrr3d::input::Action::MenuBack:
                         // GUI Back is deliberately ignored during gameplay.
@@ -3659,33 +3886,38 @@ int main(int argc, char** argv)
                     *originalRace, raceSession, audioError);
             }
 #endif
-            for (const auto& respawn : raceSession.takeRespawns())
-                physicsWorld->resetVehicle(
-                    respawn.racer, respawn.position, respawn.direction);
-            for (const auto& velocity :
-                 raceSession.takeVelocityRequests())
+            if (raceSession.phase() !=
+                r3d::game::originalrace::RacePhase::Paused)
             {
-                physicsWorld->addLinearVelocity(
-                    velocity.racer, velocity.delta);
+                for (const auto& respawn : raceSession.takeRespawns())
+                    physicsWorld->resetVehicle(
+                        respawn.racer, respawn.position,
+                        respawn.direction);
+                for (const auto& velocity :
+                     raceSession.takeVelocityRequests())
+                {
+                    physicsWorld->addLinearVelocity(
+                        velocity.racer, velocity.delta);
+                }
+                for (const auto& velocity :
+                     raceSession.takeAngularVelocityRequests())
+                {
+                    physicsWorld->addAngularVelocity(
+                        velocity.racer, velocity.delta);
+                }
+                for (std::size_t racer = 0;
+                     racer < raceSession.racers().size(); ++racer)
+                {
+                    if (raceSession.racers()[racer].slowSeconds > 0.0F)
+                        physicsWorld->clampLinearSpeed(racer, 20.0F);
+                }
+                physicsWorld->step(
+                    frameSeconds, raceSession.vehicleInputs());
+                for (std::size_t index = 0;
+                     index < physicsWorld->vehicleCount(); ++index)
+                    raceVehicles[index] = physicsWorld->vehicle(index);
             }
-            for (const auto& velocity :
-                 raceSession.takeAngularVelocityRequests())
-            {
-                physicsWorld->addAngularVelocity(
-                    velocity.racer, velocity.delta);
-            }
-            for (std::size_t racer = 0;
-                 racer < raceSession.racers().size(); ++racer)
-            {
-                if (raceSession.racers()[racer].slowSeconds > 0.0F)
-                    physicsWorld->clampLinearSpeed(racer, 20.0F);
-            }
-            physicsWorld->step(frameSeconds,
-                               raceSession.vehicleInputs());
             raceElapsedSeconds = raceSession.elapsedSeconds();
-            for (std::size_t index = 0;
-                 index < physicsWorld->vehicleCount(); ++index)
-                raceVehicles[index] = physicsWorld->vehicle(index);
 #ifdef RRR3D_AUDIO
             if (!raceVehicles.empty())
             {
@@ -3943,6 +4175,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         if (inRace)
         {
+            const float raceRenderSeconds =
+                exitRaceDialogVisible ? 0.0F : frameSeconds;
             auto cameraStyle =
                 profileState.config.preferredCamera;
             if (options->raceRenderSmokeTest)
@@ -3965,7 +4199,7 @@ int main(int argc, char** argv)
                 static_cast<std::uint32_t>(pixelWidth),
                 static_cast<std::uint32_t>(pixelHeight),
                 cameraStyle,
-                profileState.config.cameraDistance, frameSeconds);
+                profileState.config.cameraDistance, raceRenderSeconds);
             raceRenderer.renderFrame(
                 *device, raceShader, raceCamera, 0x6b91b8ffU,
                 *originalRace, raceVehicles, racePipeline,
@@ -3975,10 +4209,53 @@ int main(int argc, char** argv)
                 raceSession.projectiles(), raceElapsedSeconds,
                 profileState.config.quality);
             raceHud.update(*device, *originalRace, raceSession,
-                           raceVehicles, raceCamera, frameSeconds);
+                           raceVehicles, raceCamera, raceRenderSeconds);
             device->beginOverlay(camera);
             if (profileState.config.enableHud)
                 raceHud.draw(*device, quad, shader, raceShader);
+            if (exitRaceDialogVisible)
+            {
+                const float centerX = menu::virtualWidth * 0.5F;
+                const float centerY = menu::virtualHeight * 0.5F;
+                drawQuad(
+                    *device, quad, shader, acceptFrame,
+                    static_cast<float>(acceptFrameImage.width),
+                    static_cast<float>(acceptFrameImage.height),
+                    centerX, centerY, 15.0F, transparent);
+                const float messageScale = std::min(
+                    {1.0F,
+                     325.0F / std::max(exitRaceMessage.width, 1.0F),
+                     65.0F / std::max(exitRaceMessage.height, 1.0F)});
+                drawQuad(
+                    *device, quad, shader, exitRaceMessage.texture,
+                    exitRaceMessage.width * messageScale,
+                    exitRaceMessage.height * messageScale,
+                    centerX, centerY - 25.0F, 8.0F, transparent);
+                auto drawChoice = [&](bool yes, float x) {
+                    const bool selectedChoice =
+                        exitRaceYesFocused == yes;
+                    drawQuad(
+                        *device, quad, shader,
+                        selectedChoice ? acceptButtonSelected
+                                       : acceptButton,
+                        static_cast<float>(acceptButtonImage.width),
+                        static_cast<float>(acceptButtonImage.height),
+                        x, centerY + 32.0F, 7.0F, transparent);
+                    const auto& label =
+                        yes ? (selectedChoice
+                                   ? exitRaceYesSelected
+                                   : exitRaceYes)
+                            : (selectedChoice
+                                   ? exitRaceNoSelected
+                                   : exitRaceNo);
+                    drawQuad(
+                        *device, quad, shader, label.texture,
+                        label.width, label.height, x,
+                        centerY + 32.0F, 4.0F, transparent);
+                };
+                drawChoice(true, centerX - 70.0F);
+                drawChoice(false, centerX + 70.0F);
+            }
             device->endFrame();
             const auto& telemetry = device->renderTelemetry();
             for (std::size_t pass = 0;
@@ -4176,6 +4453,9 @@ int main(int argc, char** argv)
                         passObserved(
                             r3d::renderer::RenderPass::Water);
                 if (!integratedRaceStartObserved || !inRace ||
+                    !racePauseDialogObserved ||
+                    !racePauseResumeObserved ||
+                    !racePauseFrozenObserved ||
                     maximumRaceSmokeContacts == 0 ||
                     maximumRaceSmokeSpeed < 0.2F ||
                     raceVehicles.size() < 2U ||
@@ -4191,7 +4471,10 @@ int main(int argc, char** argv)
                         << "Milestone 9 integrated Single Player/race render "
                            "verification failed: started="
                         << integratedRaceStartObserved << ", inRace="
-                        << inRace << ", contacts="
+                        << inRace << ", pause="
+                        << racePauseDialogObserved << '/'
+                        << racePauseResumeObserved << '/'
+                        << racePauseFrozenObserved << ", contacts="
                         << maximumRaceSmokeContacts << ", maxSpeed="
                         << maximumRaceSmokeSpeed
                         << ", renderGraph="
@@ -4230,6 +4513,7 @@ int main(int argc, char** argv)
                         << maximumTransientDraws << "; "
                         << raceVehicles.size()
                         << " cars, both original camera modes and "
+                           "source HudMenu pause/accept/frozen-world and "
                            "render-target resize round-trip passed\n";
                 }
             }

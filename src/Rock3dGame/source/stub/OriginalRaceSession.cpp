@@ -2580,6 +2580,10 @@ void OriginalRaceSession::update(
 {
     seconds = std::clamp(seconds, 0.0F, 0.1F);
     events_.clear();
+    std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
+              r3d::physics::VehicleInput{});
+    if (phase_ == RacePhase::Paused)
+        return;
     for (auto& effect : effects_)
         effect.seconds -= seconds;
     effects_.erase(
@@ -2588,11 +2592,6 @@ void OriginalRaceSession::update(
                            return effect.seconds <= 0.0F;
                        }),
         effects_.end());
-    std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
-              r3d::physics::VehicleInput{});
-    if (phase_ == RacePhase::Paused)
-        return;
-
     if (phase_ == RacePhase::Countdown)
     {
         countdownSeconds_ -= seconds;
