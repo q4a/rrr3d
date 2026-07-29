@@ -329,8 +329,14 @@ private:
     std::vector<float> hyperCooldown_;
     std::vector<float> repairSeconds_;
     std::vector<float> stuckSeconds_;
+    std::vector<float> aiBlockingSeconds_;
+    std::vector<float> aiBackMovingSeconds_;
     std::vector<float> touchCooldown_;
     std::vector<bool> aiBrake_;
+    std::vector<bool> aiBlocking_;
+    std::vector<bool> aiBackMovingMode_;
+    std::vector<bool> aiBackMoving_;
+    std::vector<float> aiMineRandom_;
     std::vector<Vec3> previousPositions_;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;

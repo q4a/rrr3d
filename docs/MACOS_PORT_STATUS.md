@@ -754,6 +754,11 @@ SDL_AUDIO_DRIVER=dummy \
   `reward`, а points-плашка HUD в skirmish скрыта. Bonus condition считает
   точный `MapObjRec`, а `LapPass` и `Dodge` сохраняют фактические
   особенности исходной реализации.
+- `AICar::ControlState` больше не заменён остановкой до respawn: после
+  исходной секунды блокировки AI чередует задний и передний ход, при движении
+  назад инвертирует steering и по-прежнему вызывает reset через три секунды.
+  `AttackState` получил исходные minimum readiness 0,25 с, 25%-й случайный
+  выбор из подходящих weapons и `placeMineRandom` в диапазоне `[-0.5, 0]`.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,

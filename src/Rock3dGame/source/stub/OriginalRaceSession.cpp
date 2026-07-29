@@ -845,9 +845,15 @@ void OriginalRaceSession::reset()
     hyperCooldown_.assign(race_.racers.size(), 0.0F);
     repairSeconds_.assign(race_.racers.size(), 0.0F);
     stuckSeconds_.assign(race_.racers.size(), 0.0F);
+    aiBlockingSeconds_.assign(race_.racers.size(), 0.0F);
+    aiBackMovingSeconds_.assign(race_.racers.size(), 0.0F);
     touchCooldown_.assign(
         race_.racers.size() * race_.racers.size(), 0.0F);
     aiBrake_.assign(race_.racers.size(), false);
+    aiBlocking_.assign(race_.racers.size(), false);
+    aiBackMovingMode_.assign(race_.racers.size(), false);
+    aiBackMoving_.assign(race_.racers.size(), false);
+    aiMineRandom_.assign(race_.racers.size(), -1.0F);
     previousPositions_.assign(race_.racers.size(), {});
     decorationActive_.assign(race_.decorationInstances.size(), true);
     decorationLife_.clear();
@@ -1633,10 +1639,49 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
         aiBrake_[racer] = false;
     }
 
-    if (std::abs(vehicle.speed) < maximumSpeedBlocking)
+    const bool belowBlockingSpeed =
+        std::abs(vehicle.speed) < maximumSpeedBlocking;
+    if (belowBlockingSpeed)
+    {
         stuckSeconds_[racer] += seconds;
+        aiBlockingSeconds_[racer] += seconds;
+        if (aiBlockingSeconds_[racer] > maximumTimeBlocking)
+        {
+            aiBlockingSeconds_[racer] = 0.0F;
+            aiBlocking_[racer] = true;
+        }
+    }
     else
+    {
         stuckSeconds_[racer] = 0.0F;
+        aiBlockingSeconds_[racer] = 0.0F;
+        aiBlocking_[racer] = false;
+    }
+
+    // AICar::ControlState does not wait passively for the three-second
+    // reset.  After one blocked second it alternates reverse and forward,
+    // reversing the steering angle while backing up.
+    if (!aiBackMovingMode_[racer])
+    {
+        aiBackMovingMode_[racer] = aiBlocking_[racer];
+        aiBackMoving_[racer] = aiBlocking_[racer];
+    }
+    if (aiBackMovingMode_[racer])
+    {
+        aiBackMovingSeconds_[racer] += seconds;
+        if (aiBackMovingSeconds_[racer] > maximumTimeBlocking ||
+            (aiBackMoving_[racer] &&
+             std::abs(steeringAngle) < steerAngleBias &&
+             aiBackMovingSeconds_[racer] >
+                 0.5F * maximumTimeBlocking))
+        {
+            aiBackMoving_[racer] = !aiBackMoving_[racer];
+            aiBackMovingSeconds_[racer] = 0.0F;
+            aiBackMovingMode_[racer] = aiBlocking_[racer];
+        }
+        if (aiBackMoving_[racer])
+            steeringAngle = -steeringAngle;
+    }
 
     r3d::physics::VehicleInput input;
     const auto& racerDefinition = race_.racers[racer];
@@ -1647,12 +1692,12 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     input.steering = clampSteering(
         steeringAngle /
         std::max(vehicleDefinition.physics.steerAngle, 0.01F));
-    input.throttle = aiBrake_[racer] ? 0.0F : 1.0F;
-    input.brake = aiBrake_[racer] ? 1.0F : 0.0F;
-    if (racers_[racer].speedBoostSeconds > 0.0F)
+    if (aiBrake_[racer])
+        input.brake = 1.0F;
+    else if (aiBackMoving_[racer])
+        input.reverse = 1.0F;
+    else
         input.throttle = 1.0F;
-    if (stuckSeconds_[racer] > 3.0F * maximumTimeBlocking)
-        input = {};
     return input;
 }
 
@@ -3680,7 +3725,8 @@ void OriginalRaceSession::updateGameplay(
         }
     }
 
-    auto fireWeapon = [&](std::size_t shooter) {
+    auto fireWeapon = [&](std::size_t shooter,
+                          float minimumCooldown = 0.03F) {
         if (shooter >= vehicles.size() ||
             shooter >= racers_.size() || racers_[shooter].finished ||
             racers_[shooter].destroyed)
@@ -3702,7 +3748,7 @@ void OriginalRaceSession::updateGameplay(
         --runtime.weaponCharges[firedSlot];
         syncSelectedWeapon(runtime);
         weaponCooldown_[shooter][firedSlot] =
-            std::max(weapon->shotDelay, 0.03F);
+            std::max(weapon->shotDelay, minimumCooldown);
         const Vec3 eventOrigin = weaponWorldTransform(
             shooter, firedWeapon, firedSlot).position;
         std::size_t target = racers_.size();
@@ -3972,6 +4018,7 @@ void OriginalRaceSession::updateGameplay(
         {
             std::vector<std::size_t> usableSlots;
             std::size_t chargedWeapons = 0;
+            bool allWeaponsReady = true;
             for (std::size_t slot = 0;
                  slot < runtime.weaponSlots.size(); ++slot)
             {
@@ -3982,6 +4029,8 @@ void OriginalRaceSession::updateGameplay(
                 const auto& weapon = race_.weapons[weaponIndex];
                 if (runtime.weaponCharges[slot] > 0U)
                     ++chargedWeapons;
+                if (weaponCooldown_[racer][slot] > 0.0F)
+                    allWeaponsReady = false;
                 const float range =
                     weapon.maximumDistance <= 0.0F
                         ? 100.0F
@@ -4008,9 +4057,14 @@ void OriginalRaceSession::updateGameplay(
                             : race_.weapons[secondWeapon].maximumDistance;
                     return firstRange < secondRange;
                 });
-            if (!usableSlots.empty())
+            if (allWeaponsReady && !usableSlots.empty())
             {
-                const auto slot = usableSlots.front();
+                const auto slot =
+                    sourceRandomUnit() < 0.25F
+                        ? usableSlots[sourceRoundedRandomIndex(
+                              usableSlots.size(),
+                              sourceRandomUnit())]
+                        : usableSlots.front();
                 const float summedPart = std::clamp(
                     raceProgress(runtime) / 0.7F, 0.0F, 1.0F);
                 const float weaponPart =
@@ -4030,7 +4084,7 @@ void OriginalRaceSession::updateGameplay(
                 {
                     runtime.selectedWeaponSlot = slot;
                     syncSelectedWeapon(runtime);
-                    fireWeapon(racer);
+                    fireWeapon(racer, 0.25F);
                 }
             }
         }
@@ -4038,11 +4092,22 @@ void OriginalRaceSession::updateGameplay(
         if (runtime.mines > 0 &&
             mineCooldown_[racer] <= 0.0F)
         {
+            if (aiMineRandom_[racer] < -0.5F)
+            {
+                aiMineRandom_[racer] =
+                    -0.5F + sourceRandomUnit() * 0.5F;
+            }
             float summedPart = std::clamp(
                 (raceProgress(runtime) - 0.05F) / 0.9F,
                 0.0F, 1.0F);
             if (backTarget < racers_.size() && backDistance < 30.0F)
-                summedPart = std::clamp(summedPart + 0.3F, 0.0F, 1.0F);
+                summedPart += 0.3F;
+            if (summedPart > 0.0F && summedPart < 1.0F)
+            {
+                summedPart = std::clamp(
+                    summedPart + aiMineRandom_[racer],
+                    0.0F, 1.0F);
+            }
             std::uint32_t maximumUsedCharge = 3U;
             if (runtime.mineWeapon < race_.weapons.size() &&
                 race_.weapons[runtime.mineWeapon].record.find("maslo") !=
@@ -4065,6 +4130,8 @@ void OriginalRaceSession::updateGameplay(
                 vehicles[racer].speed > 5.0F)
             {
                 placeMine(racer);
+                aiMineRandom_[racer] =
+                    -0.5F + sourceRandomUnit() * 0.5F;
             }
         }
         if (runtime.hyperCharge > 0 &&
@@ -4465,6 +4532,32 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.vehicleInputs().empty() ||
             session.vehicleInputs().front().throttle < 0.9F)
             throw std::runtime_error("countdown/control transition failed");
+
+        if (vehicles.size() > 1U)
+        {
+            OriginalRaceSession aiControlSession(race);
+            for (int frame = 0; frame < 190; ++frame)
+                aiControlSession.update(
+                    1.0F / 60.0F, vehicles, input);
+            for (int frame = 0; frame < 61; ++frame)
+                aiControlSession.update(
+                    1.0F / 60.0F, vehicles, input);
+            if (aiControlSession.vehicleInputs()[1].reverse < 0.9F ||
+                aiControlSession.vehicleInputs()[1].throttle > 0.1F)
+            {
+                throw std::runtime_error(
+                    "source AICar blocked reverse transition failed");
+            }
+            for (int frame = 0; frame < 61; ++frame)
+                aiControlSession.update(
+                    1.0F / 60.0F, vehicles, input);
+            if (aiControlSession.vehicleInputs()[1].throttle < 0.9F ||
+                aiControlSession.vehicleInputs()[1].reverse > 0.1F)
+            {
+                throw std::runtime_error(
+                    "source AICar reverse/forward alternation failed");
+            }
+        }
 
         const auto sourceDestruction = std::find_if(
             race.decorationInstances.begin(),
