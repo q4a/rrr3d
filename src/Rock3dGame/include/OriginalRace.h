@@ -362,6 +362,9 @@ struct ProjectileDefinition
     DeathEffectDefinition deathEffect;
     Vec3 position;
     Vec3 size;
+    // Proj::Desc::sizeAddPx offsets the start of LaserUpdate's PhysX ray.
+    // It is deliberately not folded into the projectile collision box.
+    Vec3 sizeAddPx;
     Vec3 offset;
     Quat rotation;
     ProjectileCollisionBox collision;
@@ -525,6 +528,9 @@ struct Race
     std::vector<r3d::physics::TriangleMesh> collisionMeshes;
     std::vector<ObjectDefinition> decorationDefinitions;
     std::vector<ObjectInstance> decorationInstances;
+    // Same index as collisionMeshes; invalid means track geometry, otherwise
+    // the source ctDecoration instance that owns the PhysX triangle mesh.
+    std::vector<std::size_t> collisionMeshDecorationInstances;
     std::vector<BonusInstance> bonuses;
     std::vector<TracePoint> tracePoints;
     std::vector<std::uint32_t> tracePath;

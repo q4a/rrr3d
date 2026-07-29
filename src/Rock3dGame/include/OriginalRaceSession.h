@@ -186,6 +186,7 @@ struct ProjectileRuntime
     Vec3 position;
     Vec3 direction{1.0F, 0.0F, 0.0F};
     Vec3 velocity;
+    Quat rotation;
     float speed = 0.0F;
     float maximumDistance = 0.0F;
     float impactDistance = 0.0F;
@@ -261,9 +262,14 @@ private:
     void syncSelectedWeapon(RacerRuntime& racer) const noexcept;
     float damageAfterSupport(std::size_t racer, float damage,
                              bool touchDamage) const noexcept;
-    bool damageDecorationAlongSegment(
-        Vec3 origin, Vec3 target, float damage,
-        std::size_t attacker, float radius);
+    bool damageDecorationAlongRay(
+        Vec3 origin, Vec3 direction, float maximumDistance,
+        float damage, std::size_t attacker);
+    bool damageDecorationWithBox(
+        Transform transform, ProjectileCollisionBox collision,
+        float damage, std::size_t attacker);
+    bool damageDecoration(std::size_t instance, float damage,
+                          std::size_t attacker);
     void updateAchievements(float seconds);
     void completeAchievement(std::size_t achievement);
 

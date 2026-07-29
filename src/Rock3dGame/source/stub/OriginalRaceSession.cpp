@@ -190,6 +190,17 @@ Quat rotationWithUp(Vec3 normal)
     return quaternionFromAxes(direction, right, up);
 }
 
+Quat rotationWithForward(Vec3 value)
+{
+    const Vec3 direction = normalized3(value);
+    Vec3 right = cross({0.0F, 0.0F, 1.0F}, direction);
+    if (length3(right) <= 0.0001F)
+        right = cross({0.0F, 1.0F, 0.0F}, direction);
+    right = normalized3(right);
+    const Vec3 up = normalized3(cross(direction, right));
+    return quaternionFromAxes(direction, right, up);
+}
+
 struct TrackRayHit
 {
     Vec3 position;
@@ -314,6 +325,24 @@ OrientedBox vehicleBox(
     return orientedBox(transform, collision);
 }
 
+bool hasBox(const ProjectileCollisionBox& collision)
+{
+    return collision.halfExtents.x > 0.0F &&
+           collision.halfExtents.y > 0.0F &&
+           collision.halfExtents.z > 0.0F;
+}
+
+OrientedBox decorationBox(const ObjectInstance& instance,
+                          const ObjectDefinition& definition)
+{
+    Transform local;
+    local.position = definition.bodyShapePosition;
+    local.rotation = definition.bodyShapeRotation;
+    ProjectileCollisionBox collision;
+    collision.halfExtents = definition.bodyHalfExtents;
+    return orientedBox(compose(instance.transform, local), collision);
+}
+
 bool boxesOverlap(const OrientedBox& first, const OrientedBox& second)
 {
     // Separating Axis Theorem for the same oriented boxes PhysX receives
@@ -387,6 +416,181 @@ bool boxesOverlap(const OrientedBox& first, const OrientedBox& second)
         }
     }
     return true;
+}
+
+bool raycastBox(Vec3 origin, Vec3 direction, float maximumDistance,
+                const OrientedBox& box, float& distance)
+{
+    const Vec3 fromCenter = subtract(origin, box.center);
+    float nearDistance = 0.0F;
+    float farDistance = maximumDistance;
+    for (std::size_t axis = 0; axis < 3U; ++axis)
+    {
+        const float originCoordinate =
+            dot3(fromCenter, box.axes[axis]);
+        const float directionCoordinate =
+            dot3(direction, box.axes[axis]);
+        if (std::abs(directionCoordinate) <= 0.000001F)
+        {
+            if (std::abs(originCoordinate) > box.halfExtents[axis])
+                return false;
+            continue;
+        }
+        float first =
+            (-box.halfExtents[axis] - originCoordinate) /
+            directionCoordinate;
+        float second =
+            (box.halfExtents[axis] - originCoordinate) /
+            directionCoordinate;
+        if (first > second)
+            std::swap(first, second);
+        nearDistance = std::max(nearDistance, first);
+        farDistance = std::min(farDistance, second);
+        if (nearDistance > farDistance)
+            return false;
+    }
+    if (farDistance < 0.0F || nearDistance > maximumDistance)
+        return false;
+    distance = std::max(nearDistance, 0.0F);
+    return true;
+}
+
+bool raycastTriangle(Vec3 origin, Vec3 direction, float maximumDistance,
+                     Vec3 first, Vec3 second, Vec3 third,
+                     float& distance)
+{
+    const Vec3 firstEdge = subtract(second, first);
+    const Vec3 secondEdge = subtract(third, first);
+    const Vec3 determinantAxis = cross(direction, secondEdge);
+    const float determinant = dot3(firstEdge, determinantAxis);
+    if (std::abs(determinant) <= 0.000001F)
+        return false;
+    const float inverseDeterminant = 1.0F / determinant;
+    const Vec3 fromFirst = subtract(origin, first);
+    const float u =
+        dot3(fromFirst, determinantAxis) * inverseDeterminant;
+    if (u < 0.0F || u > 1.0F)
+        return false;
+    const Vec3 coordinateAxis = cross(fromFirst, firstEdge);
+    const float v =
+        dot3(direction, coordinateAxis) * inverseDeterminant;
+    if (v < 0.0F || u + v > 1.0F)
+        return false;
+    const float hitDistance =
+        dot3(secondEdge, coordinateAxis) * inverseDeterminant;
+    if (hitDistance < 0.0F || hitDistance > maximumDistance)
+        return false;
+    distance = hitDistance;
+    return true;
+}
+
+bool triangleOverlapsBox(Vec3 first, Vec3 second, Vec3 third,
+                         const OrientedBox& box)
+{
+    const std::array<Vec3, 3> edges{
+        subtract(second, first), subtract(third, second),
+        subtract(first, third)};
+    std::array<Vec3, 13> axes{
+        box.axes[0], box.axes[1], box.axes[2],
+        cross(edges[0], edges[1])};
+    std::size_t axis = 4U;
+    for (const auto& edge : edges)
+    {
+        for (const auto& boxAxis : box.axes)
+            axes[axis++] = cross(edge, boxAxis);
+    }
+    for (const auto& testAxis : axes)
+    {
+        if (dot3(testAxis, testAxis) <= 0.0000001F)
+            continue;
+        const float firstProjection = dot3(first, testAxis);
+        const float secondProjection = dot3(second, testAxis);
+        const float thirdProjection = dot3(third, testAxis);
+        const float minimum = std::min(
+            {firstProjection, secondProjection, thirdProjection});
+        const float maximum = std::max(
+            {firstProjection, secondProjection, thirdProjection});
+        const float center = dot3(box.center, testAxis);
+        const float radius =
+            box.halfExtents[0] *
+                std::abs(dot3(box.axes[0], testAxis)) +
+            box.halfExtents[1] *
+                std::abs(dot3(box.axes[1], testAxis)) +
+            box.halfExtents[2] *
+                std::abs(dot3(box.axes[2], testAxis));
+        if (maximum < center - radius ||
+            minimum > center + radius)
+            return false;
+    }
+    return true;
+}
+
+struct WorldRayHit
+{
+    float distance = std::numeric_limits<float>::max();
+    std::size_t vehicle = RacerRuntime::invalidWeapon;
+    bool hit = false;
+};
+
+WorldRayHit raycastWorld(
+    const Race& race,
+    const std::vector<r3d::physics::VehicleState>& vehicles,
+    const std::vector<RacerRuntime>& racers, std::size_t ignoredVehicle,
+    Vec3 origin, Vec3 direction, float maximumDistance)
+{
+    WorldRayHit result;
+    result.distance = maximumDistance;
+    direction = normalized3(direction);
+    for (const auto& mesh : race.collisionMeshes)
+    {
+        for (std::size_t index = 0;
+             index + 2U < mesh.indices.size(); index += 3U)
+        {
+            const auto firstIndex = mesh.indices[index];
+            const auto secondIndex = mesh.indices[index + 1U];
+            const auto thirdIndex = mesh.indices[index + 2U];
+            if (firstIndex >= mesh.vertices.size() ||
+                secondIndex >= mesh.vertices.size() ||
+                thirdIndex >= mesh.vertices.size())
+                continue;
+            float distance = result.distance;
+            if (!raycastTriangle(
+                    origin, direction, result.distance,
+                    transformPoint(mesh.transform,
+                                   mesh.vertices[firstIndex]),
+                    transformPoint(mesh.transform,
+                                   mesh.vertices[secondIndex]),
+                    transformPoint(mesh.transform,
+                                   mesh.vertices[thirdIndex]),
+                    distance))
+                continue;
+            result.hit = true;
+            result.distance = distance;
+            result.vehicle = RacerRuntime::invalidWeapon;
+        }
+    }
+    for (std::size_t vehicle = 0;
+         vehicle < vehicles.size() && vehicle < racers.size(); ++vehicle)
+    {
+        if (vehicle == ignoredVehicle || racers[vehicle].destroyed ||
+            racers[vehicle].finished)
+            continue;
+        const auto& racer = race.racers.at(vehicle);
+        const auto& definition =
+            racer.hasConfiguredVehicle
+                ? racer.configuredVehicle
+                : race.vehicles.at(racer.vehicle);
+        float distance = result.distance;
+        if (!raycastBox(
+                origin, direction, result.distance,
+                vehicleBox(vehicles[vehicle], definition.physics),
+                distance))
+            continue;
+        result.hit = true;
+        result.distance = distance;
+        result.vehicle = vehicle;
+    }
+    return result;
 }
 
 float clampSteering(float value)
@@ -805,15 +1009,12 @@ float OriginalRaceSession::damageAfterSupport(
     return result;
 }
 
-bool OriginalRaceSession::damageDecorationAlongSegment(
-    Vec3 origin, Vec3 target, float damage,
-    std::size_t attacker, float radius)
+bool OriginalRaceSession::damageDecorationAlongRay(
+    Vec3 origin, Vec3 direction, float maximumDistance,
+    float damage, std::size_t attacker)
 {
-    const Vec3 segment = subtract(target, origin);
-    const float segmentLengthSquared =
-        std::max(dot3(segment, segment), 0.0001F);
     std::size_t hit = decorationActive_.size();
-    float hitCoordinate = std::numeric_limits<float>::max();
+    float hitDistance = maximumDistance;
     for (std::size_t index = 0;
          index < race_.decorationInstances.size() &&
          index < decorationActive_.size(); ++index)
@@ -823,24 +1024,145 @@ bool OriginalRaceSession::damageDecorationAlongSegment(
         const auto& instance = race_.decorationInstances[index];
         const auto& definition =
             race_.decorationDefinitions.at(instance.definition);
-        if (!definition.destructible)
+        if (!definition.destructible ||
+            definition.bodyHalfExtents.x <= 0.0F ||
+            definition.bodyHalfExtents.y <= 0.0F ||
+            definition.bodyHalfExtents.z <= 0.0F)
             continue;
-        const Vec3 toObject =
-            subtract(instance.transform.position, origin);
-        const float coordinate = std::clamp(
-            dot3(toObject, segment) / segmentLengthSquared,
-            0.0F, 1.0F);
-        if (coordinate >= hitCoordinate)
-            continue;
-        const Vec3 closest =
-            add(origin, multiply(segment, coordinate));
-        if (distanceSquared(closest, instance.transform.position) >
-            radius * radius)
+        float distance = hitDistance;
+        if (!raycastBox(
+                origin, normalized3(direction), hitDistance,
+                decorationBox(instance, definition), distance))
             continue;
         hit = index;
-        hitCoordinate = coordinate;
+        hitDistance = distance;
+    }
+    for (std::size_t meshIndex = 0;
+         meshIndex < race_.collisionMeshes.size() &&
+         meshIndex <
+             race_.collisionMeshDecorationInstances.size();
+         ++meshIndex)
+    {
+        const std::size_t instanceIndex =
+            race_.collisionMeshDecorationInstances[meshIndex];
+        if (instanceIndex >= decorationActive_.size() ||
+            instanceIndex >= race_.decorationInstances.size() ||
+            !decorationActive_[instanceIndex])
+            continue;
+        const auto& instance =
+            race_.decorationInstances[instanceIndex];
+        if (instance.definition >=
+                race_.decorationDefinitions.size() ||
+            !race_.decorationDefinitions[instance.definition]
+                 .destructible)
+            continue;
+        const auto& mesh = race_.collisionMeshes[meshIndex];
+        for (std::size_t index = 0;
+             index + 2U < mesh.indices.size(); index += 3U)
+        {
+            const auto firstIndex = mesh.indices[index];
+            const auto secondIndex = mesh.indices[index + 1U];
+            const auto thirdIndex = mesh.indices[index + 2U];
+            if (firstIndex >= mesh.vertices.size() ||
+                secondIndex >= mesh.vertices.size() ||
+                thirdIndex >= mesh.vertices.size())
+                continue;
+            float distance = hitDistance;
+            if (!raycastTriangle(
+                    origin, normalized3(direction), hitDistance,
+                    transformPoint(mesh.transform,
+                                   mesh.vertices[firstIndex]),
+                    transformPoint(mesh.transform,
+                                   mesh.vertices[secondIndex]),
+                    transformPoint(mesh.transform,
+                                   mesh.vertices[thirdIndex]),
+                    distance))
+                continue;
+            hit = instanceIndex;
+            hitDistance = distance;
+        }
     }
     if (hit >= decorationActive_.size())
+        return false;
+    return damageDecoration(hit, damage, attacker);
+}
+
+bool OriginalRaceSession::damageDecorationWithBox(
+    Transform transform, ProjectileCollisionBox collision,
+    float damage, std::size_t attacker)
+{
+    if (!hasBox(collision))
+        return false;
+    const OrientedBox source = orientedBox(transform, collision);
+    for (std::size_t index = 0;
+         index < race_.decorationInstances.size() &&
+         index < decorationActive_.size(); ++index)
+    {
+        if (!decorationActive_[index])
+            continue;
+        const auto& instance = race_.decorationInstances[index];
+        const auto& definition =
+            race_.decorationDefinitions.at(instance.definition);
+        if (!definition.destructible ||
+            definition.bodyHalfExtents.x <= 0.0F ||
+            definition.bodyHalfExtents.y <= 0.0F ||
+            definition.bodyHalfExtents.z <= 0.0F ||
+            !boxesOverlap(source, decorationBox(instance, definition)))
+            continue;
+        return damageDecoration(index, damage, attacker);
+    }
+    for (std::size_t meshIndex = 0;
+         meshIndex < race_.collisionMeshes.size() &&
+         meshIndex <
+             race_.collisionMeshDecorationInstances.size();
+         ++meshIndex)
+    {
+        const std::size_t instanceIndex =
+            race_.collisionMeshDecorationInstances[meshIndex];
+        if (instanceIndex >= decorationActive_.size() ||
+            instanceIndex >= race_.decorationInstances.size() ||
+            !decorationActive_[instanceIndex])
+            continue;
+        const auto& instance =
+            race_.decorationInstances[instanceIndex];
+        if (instance.definition >=
+                race_.decorationDefinitions.size() ||
+            !race_.decorationDefinitions[instance.definition]
+                 .destructible)
+            continue;
+        const auto& mesh = race_.collisionMeshes[meshIndex];
+        for (std::size_t index = 0;
+             index + 2U < mesh.indices.size(); index += 3U)
+        {
+            const auto firstIndex = mesh.indices[index];
+            const auto secondIndex = mesh.indices[index + 1U];
+            const auto thirdIndex = mesh.indices[index + 2U];
+            if (firstIndex >= mesh.vertices.size() ||
+                secondIndex >= mesh.vertices.size() ||
+                thirdIndex >= mesh.vertices.size())
+                continue;
+            if (!triangleOverlapsBox(
+                    transformPoint(mesh.transform,
+                                   mesh.vertices[firstIndex]),
+                    transformPoint(mesh.transform,
+                                   mesh.vertices[secondIndex]),
+                    transformPoint(mesh.transform,
+                                   mesh.vertices[thirdIndex]),
+                    source))
+                continue;
+            return damageDecoration(
+                instanceIndex, damage, attacker);
+        }
+    }
+    return false;
+}
+
+bool OriginalRaceSession::damageDecoration(
+    std::size_t hit, float damage, std::size_t attacker)
+{
+    if (hit >= decorationActive_.size() ||
+        hit >= race_.decorationInstances.size() ||
+        !decorationActive_[hit])
         return false;
     decorationLife_[hit] -= std::max(damage, 0.0F);
     if (decorationLife_[hit] > 0.0F)
@@ -1670,6 +1992,7 @@ void OriginalRaceSession::updateGameplay(
                 projectile.owner, projectile.weapon,
                 projectile.mountSlot, projectileDefinition);
             projectile.position = shotTransform.position;
+            projectile.rotation = shotTransform.rotation;
             projectile.direction = normalized3(
                 rotate(shotTransform.rotation,
                        {1.0F, 0.0F, 0.0F}));
@@ -1677,10 +2000,27 @@ void OriginalRaceSession::updateGameplay(
                 projectile.maximumDistance > 0.0F
                     ? projectile.maximumDistance
                     : 3.0F;
-            projectile.impactDistance = maximumDistance;
+            const bool sourceRay =
+                projectileDefinition.type == 3U ||
+                projectileDefinition.type == 18U;
+            const Vec3 rayOrigin =
+                add(projectile.position,
+                    projectileDefinition.sizeAddPx);
+            const WorldRayHit rayHit =
+                sourceRay
+                    ? raycastWorld(
+                          race_, vehicles, racers_,
+                          projectile.owner, rayOrigin,
+                          projectile.direction, maximumDistance)
+                    : WorldRayHit{};
+            projectile.impactDistance =
+                sourceRay && rayHit.hit
+                    ? rayHit.distance
+                    : (sourceRay ? maximumDistance : 0.0F);
             const Vec3 end = add(
                 projectile.position,
-                multiply(projectile.direction, maximumDistance));
+                multiply(projectile.direction,
+                         sourceRay ? projectile.impactDistance : 0.0F));
             effects_.push_back(
                 {RaceEventKind::WeaponFired, projectile.position, end,
                  std::max(seconds, 0.03F),
@@ -1689,39 +2029,11 @@ void OriginalRaceSession::updateGameplay(
                  RacerRuntime::invalidWeapon, false,
                  RacerRuntime::invalidWeapon,
                  RacerRuntime::invalidWeapon, {}});
-            for (std::size_t target = 0;
-                 target < vehicles.size() &&
-                 target < racers_.size(); ++target)
+            if (sourceRay &&
+                rayHit.vehicle < vehicles.size() &&
+                rayHit.vehicle < racers_.size())
             {
-                if (target == projectile.owner ||
-                    racers_[target].finished ||
-                    racers_[target].destroyed)
-                    continue;
-                const Vec3 difference = subtract(
-                    vehicles[target].body.position,
-                    projectile.position);
-                const float forwardDistance =
-                    dot3(projectile.direction, difference);
-                if (forwardDistance < 0.0F ||
-                    forwardDistance > maximumDistance)
-                    continue;
-                const auto& racerDefinition = race_.racers[target];
-                const auto& vehicleDefinition =
-                    racerDefinition.hasConfiguredVehicle
-                        ? racerDefinition.configuredVehicle
-                        : race_.vehicles.at(racerDefinition.vehicle);
-                const float radius = std::max(
-                    {vehicleDefinition.physics.halfExtents.x,
-                     vehicleDefinition.physics.halfExtents.y, 0.5F});
-                const float lateralDistance = length3(subtract(
-                    difference,
-                    multiply(projectile.direction,
-                             forwardDistance)));
-                if (lateralDistance >= radius)
-                    continue;
-                projectile.impactDistance =
-                    std::min(projectile.impactDistance,
-                             forwardDistance);
+                const std::size_t target = rayHit.vehicle;
                 const float damage =
                     racers_[target].shieldSeconds > 0.0F
                         ? 0.0F
@@ -1750,13 +2062,72 @@ void OriginalRaceSession::updateGameplay(
                         vehicles[target]);
                 }
             }
-            damageDecorationAlongSegment(
-                projectile.position, end,
-                std::max(projectileDefinition.damage * seconds,
-                         0.0F),
-                projectile.owner,
-                std::max(projectileDefinition.size.y * 0.5F,
-                         1.0F));
+            else if (!sourceRay)
+            {
+                for (std::size_t target = 0;
+                     target < vehicles.size() &&
+                     target < racers_.size(); ++target)
+                {
+                    if (target == projectile.owner ||
+                        racers_[target].finished ||
+                        racers_[target].destroyed)
+                        continue;
+                    const auto& racerDefinition =
+                        race_.racers[target];
+                    const auto& vehicleDefinition =
+                        racerDefinition.hasConfiguredVehicle
+                            ? racerDefinition.configuredVehicle
+                            : race_.vehicles.at(
+                                  racerDefinition.vehicle);
+                    if (!boxesOverlap(
+                            orientedBox(
+                                shotTransform,
+                                projectileDefinition.collision),
+                            vehicleBox(
+                                vehicles[target],
+                                vehicleDefinition.physics)))
+                        continue;
+                    const float damage =
+                        racers_[target].shieldSeconds > 0.0F
+                            ? 0.0F
+                            : damageAfterSupport(
+                                  target,
+                                  std::max(
+                                      projectileDefinition.damage *
+                                          seconds,
+                                      0.0F),
+                                  false);
+                    racers_[target].life =
+                        std::max(
+                            0.0F,
+                            racers_[target].life - damage);
+                    pushDamageEvent(
+                        target, projectile.owner,
+                        vehicles[target].body.position, damage);
+                    if (racers_[target].life <= 0.0F)
+                    {
+                        destroyRacer(
+                            target, projectile.owner,
+                            vehicles[target].body.position,
+                            vehicles[target]);
+                    }
+                }
+            }
+            const float decorationDamage = std::max(
+                projectileDefinition.damage * seconds, 0.0F);
+            if (sourceRay)
+            {
+                damageDecorationAlongRay(
+                    rayOrigin, projectile.direction,
+                    projectile.impactDistance, decorationDamage,
+                    projectile.owner);
+            }
+            else
+            {
+                damageDecorationWithBox(
+                    shotTransform, projectileDefinition.collision,
+                    decorationDamage, projectile.owner);
+            }
             if (projectile.lifeSeconds <= 0.0F)
                 projectile.active = false;
             continue;
@@ -1792,6 +2163,8 @@ void OriginalRaceSession::updateGameplay(
                     }
                     projectile.velocity = multiply(
                         projectile.direction, projectile.speed);
+                    projectile.rotation =
+                        rotationWithForward(projectile.direction);
                 }
             }
         }
@@ -1907,28 +2280,21 @@ void OriginalRaceSession::updateGameplay(
                 projectile.target < racers_.size() &&
                 target != projectile.target)
                 continue;
-            const auto segment =
-                subtract(projectile.position, previous);
-            const float segmentLengthSquared =
-                std::max(dot3(segment, segment), 0.0001F);
-            const auto toTarget =
-                subtract(vehicles[target].body.position, previous);
-            const float coordinate = std::clamp(
-                dot3(toTarget, segment) / segmentLengthSquared,
-                0.0F, 1.0F);
-            const auto closest =
-                add(previous, multiply(segment, coordinate));
             const auto& racerDefinition = race_.racers[target];
             const auto& vehicleDefinition =
                 racerDefinition.hasConfiguredVehicle
                     ? racerDefinition.configuredVehicle
                     : race_.vehicles.at(racerDefinition.vehicle);
-            const float radius = std::max(
-                {vehicleDefinition.physics.halfExtents.x,
-                 vehicleDefinition.physics.halfExtents.y, 0.5F});
-            if (distanceSquared(closest,
-                                vehicles[target].body.position) >
-                radius * radius)
+            Transform projectileTransform;
+            projectileTransform.position = projectile.position;
+            projectileTransform.rotation = projectile.rotation;
+            if (!boxesOverlap(
+                    orientedBox(
+                        projectileTransform,
+                        projectileDefinition.collision),
+                    vehicleBox(
+                        vehicles[target],
+                        vehicleDefinition.physics)))
                 continue;
             const float damage =
                 racers_[target].shieldSeconds > 0.0F
@@ -2024,14 +2390,11 @@ void OriginalRaceSession::updateGameplay(
             break;
         }
         if (projectile.active &&
-            damageDecorationAlongSegment(
-                previous, projectile.position,
-                projectile.damage, projectile.owner,
-                std::max(
-                    {projectileDefinition.size.x,
-                     projectileDefinition.size.y,
-                     projectileDefinition.size.z, 1.0F}) *
-                    0.5F))
+            damageDecorationWithBox(
+                {projectile.position, {1.0F, 1.0F, 1.0F},
+                 projectile.rotation},
+                projectileDefinition.collision,
+                projectile.damage, projectile.owner))
         {
             spawnProjectileImpact(
                 projectile, projectile.position);
@@ -2702,49 +3065,23 @@ void OriginalRaceSession::updateGameplay(
             std::size_t projectileTarget = racers_.size();
             if (rayProjectile && !attachedProjectile)
             {
-                for (std::size_t candidate = 0;
-                     candidate < vehicles.size() &&
-                     candidate < racers_.size();
-                     ++candidate)
+                const auto rayHit = raycastWorld(
+                    race_, vehicles, racers_, shooter,
+                    add(projectileOrigin, projectile.sizeAddPx),
+                    direction, projectileDistance);
+                if (rayHit.hit)
                 {
-                    if (candidate == shooter ||
-                        racers_[candidate].finished ||
-                        racers_[candidate].destroyed)
-                        continue;
-                    const auto difference = subtract(
-                        vehicles[candidate].body.position,
-                        projectileOrigin);
-                    const float distance = length3(difference);
-                    if (distance >= targetDistance ||
-                        distance <= 0.001F)
-                        continue;
-                    const auto& racerDefinition =
-                        race_.racers[candidate];
-                    const auto& vehicleDefinition =
-                        racerDefinition.hasConfiguredVehicle
-                            ? racerDefinition.configuredVehicle
-                            : race_.vehicles.at(
-                                  racerDefinition.vehicle);
-                    const float radius = std::max(
-                        {vehicleDefinition.physics.halfExtents.x,
-                         vehicleDefinition.physics.halfExtents.y,
-                         0.5F});
-                    const float forwardDistance =
-                        dot3(direction, difference);
-                    const float lateralDistance = length3(subtract(
-                        difference,
-                        multiply(direction, forwardDistance)));
-                    if (forwardDistance <= 0.0F ||
-                        lateralDistance >= radius ||
-                        forwardDistance >= projectileDistance)
-                        continue;
-                    projectileTarget = candidate;
-                    targetDistance = distance;
+                    targetDistance = rayHit.distance;
+                    projectileTarget = rayHit.vehicle;
                 }
             }
             Vec3 end = add(
                 projectileOrigin,
-                multiply(direction, projectileDistance));
+                multiply(
+                    direction,
+                    rayProjectile && !attachedProjectile
+                        ? targetDistance
+                        : projectileDistance));
             if (attachedProjectile)
             {
                 ProjectileRuntime runtimeProjectile;
@@ -2754,6 +3091,7 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.mountSlot = firedSlot;
                 runtimeProjectile.position = projectileOrigin;
                 runtimeProjectile.direction = direction;
+                runtimeProjectile.rotation = shotTransform.rotation;
                 runtimeProjectile.maximumDistance =
                     projectileDistance;
                 runtimeProjectile.damage = projectile.damage;
@@ -2784,6 +3122,7 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.mountSlot = firedSlot;
                 runtimeProjectile.position = projectileOrigin;
                 runtimeProjectile.direction = direction;
+                runtimeProjectile.rotation = shotTransform.rotation;
                 runtimeProjectile.speed = speed;
                 runtimeProjectile.velocity =
                     multiply(direction, speed);
@@ -2811,7 +3150,6 @@ void OriginalRaceSession::updateGameplay(
             else if (projectileTarget < racers_.size())
             {
                 target = projectileTarget;
-                end = vehicles[target].body.position;
                 const float damage =
                     racers_[target].shieldSeconds > 0.0F
                         ? 0.0F
@@ -3144,11 +3482,19 @@ void OriginalRaceSession::updateGameplay(
     {
         if (racers_[racer].destroyed || vehicles[racer].speed < 8.0F)
             continue;
-        damageDecorationAlongSegment(
-            vehicles[racer].body.position,
-            vehicles[racer].body.position,
-            vehicles[racer].speed * 2.0F,
-            racer, 3.0F);
+        const auto& racerDefinition = race_.racers[racer];
+        const auto& vehicleDefinition =
+            racerDefinition.hasConfiguredVehicle
+                ? racerDefinition.configuredVehicle
+                : race_.vehicles.at(racerDefinition.vehicle);
+        ProjectileCollisionBox vehicleCollision;
+        vehicleCollision.center =
+            vehicleDefinition.physics.shapePosition;
+        vehicleCollision.halfExtents =
+            vehicleDefinition.physics.halfExtents;
+        damageDecorationWithBox(
+            vehicles[racer].body, vehicleCollision,
+            vehicles[racer].speed * 2.0F, racer);
     }
 }
 
@@ -3432,7 +3778,45 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     1.0F / 60.0F, vehicles, destructionInput);
             const std::size_t instance = static_cast<std::size_t>(
                 sourceDestruction - race.decorationInstances.begin());
-            vehicles[0].body.position = sourceDestruction->transform.position;
+            Vec3 sourceContact = sourceDestruction->transform.position;
+            for (std::size_t meshIndex = 0;
+                 meshIndex < race.collisionMeshes.size() &&
+                 meshIndex <
+                     race.collisionMeshDecorationInstances.size();
+                 ++meshIndex)
+            {
+                if (race.collisionMeshDecorationInstances[meshIndex] !=
+                    instance)
+                    continue;
+                const auto& mesh = race.collisionMeshes[meshIndex];
+                if (mesh.indices.size() < 3U ||
+                    mesh.indices[0] >= mesh.vertices.size() ||
+                    mesh.indices[1] >= mesh.vertices.size() ||
+                    mesh.indices[2] >= mesh.vertices.size())
+                    continue;
+                sourceContact = multiply(
+                    add(
+                        add(
+                            transformPoint(
+                                mesh.transform,
+                                mesh.vertices[mesh.indices[0]]),
+                            transformPoint(
+                                mesh.transform,
+                                mesh.vertices[mesh.indices[1]])),
+                        transformPoint(
+                            mesh.transform,
+                            mesh.vertices[mesh.indices[2]])),
+                    1.0F / 3.0F);
+                break;
+            }
+            const auto& playerDefinition =
+                race.racers.front().hasConfiguredVehicle
+                    ? race.racers.front().configuredVehicle
+                    : race.vehicles.at(
+                          race.racers.front().vehicle);
+            vehicles[0].body.position = subtract(
+                sourceContact,
+                playerDefinition.physics.shapePosition);
             vehicles[0].speed = 10.0F;
             destructionSession.update(
                 1.0F / 60.0F, vehicles, destructionInput);
@@ -3454,8 +3838,30 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (destructionSession.decorationActive()[instance] ||
                 !hasSourceEvent || hasInventedFallback)
             {
+                const auto ownedMeshes = std::count(
+                    race.collisionMeshDecorationInstances.begin(),
+                    race.collisionMeshDecorationInstances.end(),
+                    instance);
+                const auto& sourceDefinition =
+                    race.decorationDefinitions.at(
+                        sourceDestruction->definition);
                 throw std::runtime_error(
-                    "source gotDestrObj separation transition failed");
+                    "source gotDestrObj separation transition failed: "
+                    "active=" +
+                    std::string(
+                        destructionSession.decorationActive()[instance]
+                            ? "true"
+                            : "false") +
+                    ", event=" +
+                    std::string(hasSourceEvent ? "true" : "false") +
+                    ", inventedFallback=" +
+                    std::string(
+                        hasInventedFallback ? "true" : "false") +
+                    ", sourceShapes=" +
+                    std::to_string(
+                        sourceDefinition.collisionShapes.size()) +
+                    ", ownedMeshes=" +
+                    std::to_string(ownedMeshes));
             }
             vehicles[0].speed = 0.0F;
         }

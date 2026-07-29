@@ -92,12 +92,12 @@ Windows target не компилируется.
 | Countdown/checkpoints/laps/place | `Race.cpp`, `Trace.cpp`, `Player.cpp` | `OriginalRaceSession.cpp` | Частично | Основная гонка работает; это ручной state machine, все special race modes/edge cases не сопоставлены |
 | Reset/respawn | `Race`/`Player` | trace-based requests | Частично | Базовый путь есть; точное raycast/orientation/penalty поведение не полностью перенесено |
 | AI | `AICar.cpp`, `AIPlayer.cpp` | steering/brake path по trace | Суррогат | Исходные AI classes, tactical state, avoidance, weapon selection и difficulty branches не компилируются |
-| Weapons/projectiles | `Weapon.cpp`, `Player.cpp`, `Logic.cpp` | type-switch runtime в `OriginalRaceSession` | Частично | Основные типы визуально/функционально представлены, но collision, homing, forces, timing и contacts частично упрощены |
+| Weapons/projectiles | `Weapon.cpp`, `Player.cpp`, `Logic.cpp` | type-switch runtime в `OriginalRaceSession` | Частично | Source `ComputeAABB` boxes, laser closest-shape ray, `sizeAddPx`, homing rotation и car/decor contacts перенесены; type-specific forces, timing, groups и callbacks ещё частичны |
 | Weapon shot effects | `Weapon::CreateShot`, `ShotEffect`, serialized `ctWeapon` behaviors | `mapObj` → behavior type 10 → source effect graph | Перенесено | Effect record, local position, ignore-rotation и effective nested lifetime читаются из `db.xml`; отдельный `WeaponShotEffect` создаётся один раз для каждого созданного projectile |
 | Weapon shot sounds | `ShotEffect::GiveSource3d`, serialized sound refs | source `ctWeapon/behaviors/items/*[@type=10]/sounds` | Перенесено | Удалено угадывание по имени; 24 source refs читаются напрямую, `drobilka` корректно остаётся без придуманного звука |
 | Damage/support/shield | `GameObject`, `Player`, `Weapon`, behaviors | ручные расчёты session | Частично | Основные transitions есть; полная damage type/force/reflect/immortality матрица не перенесена |
 | Bonuses | `Proj` types 4–10 | ручной switch + исходные values | Частично | Pickups/hazards есть; после ревизии shape contact source-driven, но остальной lifecycle ещё ручной |
-| Destructible decorations | `DestrObj`, `GameBase` | life flags, source fragments/debris | Частично | Все map destructibles обязаны иметь serialized `destrList`; выдуманный `explosion2.dds` fallback удалён, но полный PhysX body/contact/death behavior отсутствует |
+| Destructible decorations | `DestrObj`, `GameBase` | life flags, source fragments/debris и collision meshes | Частично | Все map destructibles обязаны иметь serialized `destrList` и source collider; OBB–triangle contact заменил proximity sphere, `explosion2.dds` fallback удалён; полный PhysX body/death lifecycle ещё отсутствует |
 | Achievements | `AchievmentModel.cpp` | definitions + ручные counters | Частично | Часть условий поддержана; исходный model/event coverage не перенесён полностью |
 | HUD | `HudMenu.cpp` | `OriginalRaceHud.cpp` с исходными images/strings | Частично | Основные indicators, notifications и mini-map есть; исходный widget/animation object graph и все состояния не компилируются |
 | Mini-map | `HudMenu`, `TraceGfx` | trace-derived bgfx geometry | Частично | Работает по source trace; exact clipping/transforms/all markers требуют дальнейшего сопоставления |
@@ -133,10 +133,8 @@ Windows-кодом.
 
 Оставшиеся явные приближения:
 
-- projectile `impactDistance`/segment contacts вместо общего PhysX shape
-  pipeline;
-- установка mine позади автомобиля вместо исходного raycast на track shape и
-  выравнивания по normal;
+- type-specific projectile contact groups/callbacks ещё не полностью заменяют
+  исходный PhysX dispatch;
 - trace-following AI вместо `AICar`/`AIPlayer`;
 - часть фиксированных timing/force/visual branches для сложных weapons;
 - ручные achievement counters.
@@ -202,7 +200,8 @@ Network, video и Steam явно выключены.
 5. Осколки сохраняют rotation родительской мины, как `MineRipUpdate`, вместо
    придуманного поворота модели по velocity.
 
-Открытым остаётся общий shape/contact pipeline для летящих projectile types.
+Общий source-box pipeline теперь используется и летящими projectile types;
+открытыми остаются их type-specific callbacks/contact groups.
 
 Следующим collision-блоком перенесён `Proj::MinePrepare`:
 
@@ -217,6 +216,20 @@ Network, video и Steam явно выключены.
    заряд и cooldown не меняются.
 6. Physics smoke проверяет hit transform/normal и отдельный miss за пределами
    карты.
+
+Следующим collision-блоком удалены segment/radius суррогаты:
+
+1. Перенесено поле `Proj::Desc::sizeAddPx`; `tankLaser` сохраняет исходное
+   смещение луча `0 0 -0.3`.
+2. `LaserUpdate`-ветви используют closest-shape ray по source OBB кузовов и
+   исходным triangle meshes трассы/декораций, поэтому луч поражает только
+   ближайшую машину и останавливается на геометрии.
+3. Летящие и attached contact-projectiles используют свой serialized
+   `ComputeAABB(false)` OBB, а не радиус кузова/снаряда.
+4. Collision meshes сохраняют владельца `ctDecoration`; разрушение теперь
+   вызывается реальным OBB–triangle либо OBB–OBB контактом.
+5. Smoke ставит автомобиль на исходный triangle `crush1`, а не в
+   придуманный proximity-radius около origin объекта.
 
 Следующим render/audio-блоком удалены эвристики оружия:
 
@@ -245,8 +258,8 @@ Network, video и Steam явно выключены.
 1. Перенести исходный menu/widget state machine: `Menu`, `MenuSystem`,
    `MainMenu2`, `GameMode`, `DialogMenu2`, `RaceMenu2`, `OptionsMenu`,
    `FinishMenu`, `FinalMenu`, сохраняя bgfx/Metal только как backend.
-2. Заменить projectile segment approximations на исходные type-specific
-   shapes, contact groups и callbacks.
+2. Завершить исходные type-specific projectile contact groups, forces,
+   callbacks и lifetime transitions поверх уже перенесённых shapes/raycasts.
 3. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно
    перенести `GameObject`, `Logic`, `Player`, `Race`, `Weapon`.
 4. Перенести `AICar`/`AIPlayer`: trace planning, avoidance, tactics,

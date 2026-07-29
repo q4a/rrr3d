@@ -1965,6 +1965,12 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
             definition.size = vector3(
                 projectile, "size", "workshop.xml/weapon/projectile");
         }
+        if (child(projectile, "sizeAddPx") != nullptr)
+        {
+            definition.sizeAddPx = vector3(
+                projectile, "sizeAddPx",
+                "workshop.xml/weapon/projectile");
+        }
         if (child(projectile, "offset") != nullptr)
         {
             definition.offset = vector3(
@@ -2658,12 +2664,15 @@ void applyPlanetEnvironment(
 
 std::vector<r3d::physics::TriangleMesh> loadCollisionMeshes(
     const Race& race,
-    const resource::ResourceFileSystem& resources)
+    const resource::ResourceFileSystem& resources,
+    std::vector<std::size_t>& decorationInstances)
 {
     std::vector<r3d::physics::TriangleMesh> result;
+    decorationInstances.clear();
     auto appendCollision = [&](const ObjectDefinition& definition,
                                const ObjectInstance& instance,
-                               bool track) {
+                               bool track,
+                               std::size_t decorationInstance) {
         for (const auto& shape : definition.collisionShapes)
         {
             const auto mesh = resource::loadR3DMeshAsset(
@@ -2698,20 +2707,25 @@ std::vector<r3d::physics::TriangleMesh> loadCollisionMeshes(
                 collision.indices = mesh.indices;
             }
             if (!collision.indices.empty())
+            {
                 result.push_back(std::move(collision));
+                decorationInstances.push_back(decorationInstance);
+            }
         }
     };
     for (const auto& instance : race.trackInstances)
     {
         appendCollision(
             race.trackDefinitions.at(instance.definition), instance,
-            true);
+            true, std::numeric_limits<std::size_t>::max());
     }
-    for (const auto& instance : race.decorationInstances)
+    for (std::size_t index = 0;
+         index < race.decorationInstances.size(); ++index)
     {
+        const auto& instance = race.decorationInstances[index];
         appendCollision(
             race.decorationDefinitions.at(instance.definition), instance,
-            false);
+            false, index);
     }
     return result;
 }
@@ -2861,7 +2875,8 @@ void loadMap(const resource::ResourceFileSystem& resources,
     race.environment.sunPosition = vector3(map, "sunPos", race.levelPath);
     race.environment.sunRotation = quaternion(map, "sunRot", race.levelPath);
     applyOriginalEnvironment(resources, race);
-    race.collisionMeshes = loadCollisionMeshes(race, resources);
+    race.collisionMeshes = loadCollisionMeshes(
+        race, resources, race.collisionMeshDecorationInstances);
 }
 
 std::uint32_t unsignedValue(std::string_view value,
@@ -3096,7 +3111,8 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
             "garage.xml: tournament player car is missing");
     race.vehicle = race.vehicles[humanVehicle->second];
     selectRacers(race, resources, firstPlanet, 1U, carRecord);
-    race.collisionMeshes = loadCollisionMeshes(race, resources);
+    race.collisionMeshes = loadCollisionMeshes(
+        race, resources, race.collisionMeshDecorationInstances);
     if (race.trackInstances.empty() || race.tracePath.size() < 2 ||
         race.vehicle.record.find(carName) == std::string::npos ||
         race.vehicles.size() != 17 || race.racers.size() < 2)
@@ -3553,6 +3569,17 @@ bool runOriginalRaceResourceSmokeTest(
                     return definition.destructible &&
                            definition.destructionPieces.empty();
                 });
+        const bool hasDestructibleWithoutSourceCollision =
+            std::any_of(
+                race.decorationDefinitions.begin(),
+                race.decorationDefinitions.end(),
+                [](const ObjectDefinition& definition) {
+                    return definition.destructible &&
+                           definition.collisionShapes.empty() &&
+                           (definition.bodyHalfExtents.x <= 0.0F ||
+                            definition.bodyHalfExtents.y <= 0.0F ||
+                            definition.bodyHalfExtents.z <= 0.0F);
+                });
         const auto sourcePiecesMatch = [&](const ObjectDefinition* definition,
                                            std::size_t pieces,
                                            std::size_t dynamicPieces) {
@@ -3579,7 +3606,10 @@ bool runOriginalRaceResourceSmokeTest(
             !sourcePiecesMatch(reklama, 11U, 10U) ||
             bochka == nullptr || bochka->destructible ||
             !bochka->destructionPieces.empty() ||
-            hasDestructibleWithoutSourcePieces)
+            hasDestructibleWithoutSourcePieces ||
+            hasDestructibleWithoutSourceCollision ||
+            race.collisionMeshes.size() !=
+                race.collisionMeshDecorationInstances.size())
         {
             const auto audit = [](const ObjectDefinition* definition) {
                 if (definition == nullptr)
@@ -3628,6 +3658,7 @@ bool runOriginalRaceResourceSmokeTest(
         const auto* sphereGun = weaponNamed("sphereGun");
         const auto* turel = weaponNamed("turel");
         const auto* drobilka = weaponNamed("drobilka");
+        const auto* tankLaser = weaponNamed("tankLaser");
         const bool bulletShotMatchesSource =
             bulletGun != nullptr &&
             recordEndsWith(
@@ -3658,8 +3689,16 @@ bool runOriginalRaceResourceSmokeTest(
             drobilka != nullptr &&
             drobilka->shotEffect.visual.record.empty() &&
             drobilka->shotEffect.soundPaths.empty();
+        const bool laserRayMatchesSource =
+            tankLaser != nullptr &&
+            tankLaser->projectiles.size() == 1U &&
+            tankLaser->projectiles.front().type == 3U &&
+            near(
+                tankLaser->projectiles.front().sizeAddPx.z,
+                -0.3F);
         if (!bulletShotMatchesSource || !sphereSoundMatchesSource ||
-            !turelShotMatchesSource || !silentWeaponMatchesSource)
+            !turelShotMatchesSource || !silentWeaponMatchesSource ||
+            !laserRayMatchesSource)
         {
             error =
                 "source ctWeapon ShotEffect/effect/sounds provenance "
