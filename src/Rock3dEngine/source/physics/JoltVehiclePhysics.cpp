@@ -492,6 +492,7 @@ public:
         bodies.SetLinearAndAngularVelocity(
             vehicle.body, JPH::Vec3::sZero(), JPH::Vec3::sZero());
         vehicle.controller->SetDriverInput(0.0F, 0.0F, 1.0F, 0.0F);
+        vehicle.wheelTractionEnabled = true;
         ++vehicle.resetCount;
         updateState(vehicle);
     }
@@ -525,6 +526,14 @@ public:
             vehicles_[index].body, JPH::Vec3::sZero(),
             toJolt(delta));
         bodies.ActivateBody(vehicles_[index].body);
+    }
+
+    void setWheelTractionEnabled(std::size_t index,
+                                 bool enabled) noexcept override
+    {
+        if (index >= vehicles_.size())
+            return;
+        vehicles_[index].wheelTractionEnabled = enabled;
     }
 
     void clampLinearSpeed(std::size_t index,
@@ -604,6 +613,7 @@ private:
         JPH::WheeledVehicleController* controller = nullptr;
         VehicleState state;
         std::uint32_t resetCount = 0;
+        bool wheelTractionEnabled = true;
     };
 
     void validate()
@@ -826,6 +836,27 @@ private:
         runtime.controller = static_cast<JPH::WheeledVehicleController*>(
             runtime.constraint->GetController());
         vehicles_.push_back(std::move(runtime));
+        const std::size_t vehicleIndexValue = vehicles_.size() - 1U;
+        vehicles_.back().constraint->SetCombineFriction(
+            [this, vehicleIndexValue](JPH::uint, float& longitudinal,
+                                      float& lateral,
+                                      const JPH::Body& contactBody,
+                                      const JPH::SubShapeID&) {
+                // GameCar::IsClutchLocked makes the PhysX wheel contact
+                // modifier set every wheel's normal force to zero.  Jolt
+                // exposes the equivalent at the tire/contact friction
+                // boundary, so oil disables both force components while the
+                // source clutch timer is active.
+                if (!vehicles_[vehicleIndexValue].wheelTractionEnabled)
+                {
+                    longitudinal = 0.0F;
+                    lateral = 0.0F;
+                    return;
+                }
+                const float bodyFriction = contactBody.GetFriction();
+                longitudinal = std::sqrt(longitudinal * bodyFriction);
+                lateral = std::sqrt(lateral * bodyFriction);
+            });
     }
 
     void updateState(VehicleRuntime& vehicle) noexcept
@@ -916,6 +947,15 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 std::to_string(settled.body.position.z);
         return false;
     }
+    world->setWheelTractionEnabled(0U, false);
+    input.throttle = 1.0F;
+    for (int step = 0; step < 480; ++step)
+        world->step(1.0F / 120.0F, input);
+    const float clutchLockedSpeed = world->vehicle().speed;
+    world->reset();
+    input = {};
+    for (int step = 0; step < 240; ++step)
+        world->step(1.0F / 120.0F, input);
     input.throttle = 1.0F;
     for (int step = 0; step < 480; ++step)
         world->step(1.0F / 120.0F, input);
@@ -923,6 +963,11 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     if (accelerated.speed < 1.0F || accelerated.engineRpm <= 0.0F)
     {
         error = "original marauder engine did not accelerate on map1";
+        return false;
+    }
+    if (accelerated.speed <= clutchLockedSpeed + 0.5F)
+    {
+        error = "source clutch lock did not suppress wheel traction";
         return false;
     }
     input = {};

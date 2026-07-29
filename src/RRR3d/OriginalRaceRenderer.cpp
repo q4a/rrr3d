@@ -1261,9 +1261,18 @@ bool OriginalRaceRenderer::initialize(
             loadDefinition(decorations_[index],
                            race.decorationDefinitions[index]);
         bonuses_.resize(race.bonuses.size());
+        bonusDeathEffects_.resize(race.bonuses.size());
         for (std::size_t index = 0; index < bonuses_.size(); ++index)
+        {
             loadDefinition(bonuses_[index],
                            race.bonuses[index].visual);
+            if (!race.bonuses[index].deathVisual.visualNodes.empty() ||
+                !race.bonuses[index].deathVisual.particleEmitters.empty())
+            {
+                loadDefinition(bonusDeathEffects_[index],
+                               race.bonuses[index].deathVisual);
+            }
+        }
         loadDefinition(rainEffect_, race.rainEffect);
         loadDefinition(wheelTrailEffect_, race.wheelTrailEffect);
 
@@ -1553,6 +1562,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
             releaseObject(wheel);
     for (auto& bonus : bonuses_)
         releaseObject(bonus);
+    for (auto& effect : bonusDeathEffects_)
+        releaseObject(effect);
     for (auto& weapon : weapons_)
         releaseObject(weapon);
     for (auto& weapon : projectiles_)
@@ -1572,6 +1583,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     vehicleBodies_.clear();
     vehicleWheels_.clear();
     bonuses_.clear();
+    bonusDeathEffects_.clear();
     weapons_.clear();
     projectiles_.clear();
     decorations_.clear();
@@ -2969,6 +2981,23 @@ void OriginalRaceRenderer::draw(
             effect.totalSeconds <= 0.0F
                 ? 1.0F
                 : 1.0F - effect.seconds / effect.totalSeconds;
+        if (effect.kind ==
+                r3d::game::originalrace::RaceEventKind::ProjectileImpact &&
+            effect.bonus < race.bonuses.size() &&
+            effect.bonus < bonusDeathEffects_.size())
+        {
+            r3d::physics::Transform parent;
+            parent.position = effect.origin;
+            parent.rotation = directionRotation(
+                {effect.target.x - effect.origin.x,
+                 effect.target.y - effect.origin.y,
+                 effect.target.z - effect.origin.z});
+            drawDefinition(
+                bonusDeathEffects_[effect.bonus],
+                race.bonuses[effect.bonus].deathVisual, parent,
+                effect.totalSeconds - effect.seconds, 0.0F);
+            continue;
+        }
         if (effect.weapon < race.weapons.size() &&
             effect.weapon < projectiles_.size() &&
             effect.projectile <

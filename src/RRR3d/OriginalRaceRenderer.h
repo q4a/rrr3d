@@ -118,6 +118,7 @@ private:
     std::vector<ObjectAsset> tracks_;
     std::vector<ObjectAsset> decorations_;
     std::vector<ObjectAsset> bonuses_;
+    std::vector<ObjectAsset> bonusDeathEffects_;
     std::vector<ObjectAsset> vehicleBodies_;
     std::vector<std::vector<ObjectAsset>> vehicleWheels_;
     std::vector<ObjectAsset> weapons_;

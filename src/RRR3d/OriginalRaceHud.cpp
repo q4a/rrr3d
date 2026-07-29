@@ -1060,9 +1060,6 @@ void OriginalRaceHud::update(
                 else
                     image = &pickAmmo_;
                 break;
-            case originalrace::BonusKind::Mine:
-                image = &pickMine_;
-                break;
             case originalrace::BonusKind::Money:
                 image = &pickMoney_;
                 break;
@@ -1070,6 +1067,9 @@ void OriginalRaceHud::update(
                 image = &pickShield_;
                 break;
             case originalrace::BonusKind::Speed:
+            case originalrace::BonusKind::SlowHazard:
+            case originalrace::BonusKind::OilHazard:
+            case originalrace::BonusKind::MineHazard:
             case originalrace::BonusKind::Unknown:
                 break;
             }
@@ -1746,9 +1746,6 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
             else
                 notification = &pickAmmo_;
             break;
-        case originalrace::BonusKind::Mine:
-            notification = &pickMine_;
-            break;
         case originalrace::BonusKind::Money:
             notification = &pickMoney_;
             break;
@@ -1756,6 +1753,9 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
             notification = &pickShield_;
             break;
         case originalrace::BonusKind::Speed:
+        case originalrace::BonusKind::SlowHazard:
+        case originalrace::BonusKind::OilHazard:
+        case originalrace::BonusKind::MineHazard:
         case originalrace::BonusKind::Unknown:
             break;
         }

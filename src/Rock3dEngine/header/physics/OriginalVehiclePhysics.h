@@ -144,6 +144,8 @@ public:
                                    Vec3 delta) noexcept = 0;
     virtual void addAngularVelocity(std::size_t index,
                                     Vec3 delta) noexcept = 0;
+    virtual void setWheelTractionEnabled(std::size_t index,
+                                         bool enabled) noexcept = 0;
     virtual void clampLinearSpeed(std::size_t index,
                                   float maximumSpeed) noexcept = 0;
     virtual void step(float seconds, const VehicleInput& input) noexcept = 0;

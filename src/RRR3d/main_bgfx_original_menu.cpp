@@ -3908,6 +3908,9 @@ int main(int argc, char** argv)
                 for (std::size_t racer = 0;
                      racer < raceSession.racers().size(); ++racer)
                 {
+                    physicsWorld->setWheelTractionEnabled(
+                        racer,
+                        raceSession.racers()[racer].clutchSeconds <= 0.0F);
                     if (raceSession.racers()[racer].slowSeconds > 0.0F)
                         physicsWorld->clampLinearSpeed(racer, 20.0F);
                 }

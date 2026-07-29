@@ -177,6 +177,7 @@ struct ObjectDefinition
     Transform visualTransform;
     std::vector<CollisionShape> collisionShapes;
     float maximumLife = -1.0F;
+    float maximumTimeLife = -1.0F;
     bool destructible = false;
     bool planarReflection = false;
     bool castsShadow = false;
@@ -310,9 +311,11 @@ enum class BonusKind
     Money,
     Medpack,
     Ammunition,
-    Mine,
     Shield,
     Speed,
+    SlowHazard,
+    OilHazard,
+    MineHazard,
     Unknown,
 };
 
@@ -332,9 +335,13 @@ struct BonusInstance
 {
     std::string record;
     ObjectDefinition visual;
+    ObjectDefinition deathVisual;
     Transform transform;
     BonusKind kind = BonusKind::Unknown;
+    Vec3 size;
     float value = 0.0F;
+    float speed = 0.0F;
+    std::uint32_t projectileType = 0U;
 };
 
 enum class Weather

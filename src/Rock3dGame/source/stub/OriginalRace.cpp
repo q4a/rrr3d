@@ -1476,10 +1476,38 @@ ObjectDefinition objectDefinition(
         std::istringstream stream(life->GetText());
         stream >> result.maximumLife;
     }
+    if (auto* timeLife = child(dbRecord, "maxTimeLife");
+        timeLife != nullptr && timeLife->GetText() != nullptr)
+    {
+        std::istringstream stream(timeLife->GetText());
+        stream >> result.maximumTimeLife;
+    }
     result.destructible =
         std::string(record).find("\\Crush\\") != std::string::npos ||
         result.maximumLife > 0.0F;
     return result;
+}
+
+ObjectDefinition deathEffectDefinition(
+    const resource::ResourceFileSystem& resources, TiXmlElement* database,
+    std::string_view modelRecord, std::string_view source)
+{
+    auto* model = databaseRecord(database, modelRecord);
+    auto* behaviors = child(model, "behaviors/items");
+    if (behaviors == nullptr)
+        return {};
+    for (auto* behavior = behaviors->FirstChildElement(); behavior != nullptr;
+         behavior = behavior->NextSiblingElement())
+    {
+        const char* type = behavior->Attribute("type");
+        if (type == nullptr || std::string_view(type) != "6")
+            continue;
+        auto* effect = child(behavior, "effect");
+        if (effect == nullptr || effect->GetText() == nullptr)
+            continue;
+        return objectDefinition(resources, database, effect->GetText(), source);
+    }
+    return {};
 }
 
 TiXmlElement* garageCar(TiXmlElement* garage, std::string_view record)
@@ -1861,8 +1889,6 @@ void loadAchievements(
                 definition.bonusKind = BonusKind::Medpack;
             else if (type == "btCharge")
                 definition.bonusKind = BonusKind::Ammunition;
-            else if (type == "btMine")
-                definition.bonusKind = BonusKind::Mine;
             else if (type == "btImmortal")
                 definition.bonusKind = BonusKind::Shield;
             else if (type == "btSpeedArrow")
@@ -2334,20 +2360,34 @@ void loadMap(const resource::ResourceFileSystem& resources,
             text(bonusRecord, "proj/model", "db.xml/bonus");
         bonus.visual = objectDefinition(
             resources, database, modelRecord, "db.xml/bonus model");
+        bonus.deathVisual = deathEffectDefinition(
+            resources, database, modelRecord,
+            "db.xml/map projectile death effect");
         bonus.transform = elementTransform(item, race.levelPath);
-        const std::string name = basename(bonus.record);
-        if (name == "money")
+        bonus.projectileType = optionalUnsigned(
+            bonusRecord, "proj/type", 0U);
+        if (child(bonusRecord, "proj/size") != nullptr)
+            bonus.size = vector3(bonusRecord, "proj/size", "db.xml/bonus");
+        bonus.speed = optionalScalar(bonusRecord, "proj/speed", 0.0F);
+        if (bonus.projectileType == 6U)
             bonus.kind = BonusKind::Money;
-        else if (name == "medpack")
+        else if (bonus.projectileType == 4U)
             bonus.kind = BonusKind::Medpack;
-        else if (name == "ammo")
+        else if (bonus.projectileType == 5U)
             bonus.kind = BonusKind::Ammunition;
-        else if (name.rfind("mine", 0) == 0)
-            bonus.kind = BonusKind::Mine;
-        else if (name == "shield")
+        else if (bonus.projectileType == 7U)
             bonus.kind = BonusKind::Shield;
-        else if (name == "speedArrow")
+        else if (bonus.projectileType == 8U)
             bonus.kind = BonusKind::Speed;
+        else if (bonus.projectileType == 9U)
+            bonus.kind = BonusKind::SlowHazard;
+        else if (bonus.projectileType == 10U)
+            bonus.kind = BonusKind::OilHazard;
+        else if (bonus.projectileType == 11U ||
+                 bonus.projectileType == 12U ||
+                 bonus.projectileType == 13U ||
+                 bonus.projectileType == 24U)
+            bonus.kind = BonusKind::MineHazard;
         bonus.value = scalar(bonusRecord, "proj/damage", "db.xml/bonus");
         race.bonuses.push_back(std::move(bonus));
     }
@@ -2498,20 +2538,34 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
             text(bonusRecord, "proj/model", "db.xml/bonus");
         bonus.visual = objectDefinition(
             resources, database, modelRecord, "db.xml/bonus model");
+        bonus.deathVisual = deathEffectDefinition(
+            resources, database, modelRecord,
+            "db.xml/map projectile death effect");
         bonus.transform = elementTransform(item, race.levelPath);
-        const std::string name = basename(bonus.record);
-        if (name == "money")
+        bonus.projectileType = optionalUnsigned(
+            bonusRecord, "proj/type", 0U);
+        if (child(bonusRecord, "proj/size") != nullptr)
+            bonus.size = vector3(bonusRecord, "proj/size", "db.xml/bonus");
+        bonus.speed = optionalScalar(bonusRecord, "proj/speed", 0.0F);
+        if (bonus.projectileType == 6U)
             bonus.kind = BonusKind::Money;
-        else if (name == "medpack")
+        else if (bonus.projectileType == 4U)
             bonus.kind = BonusKind::Medpack;
-        else if (name == "ammo")
+        else if (bonus.projectileType == 5U)
             bonus.kind = BonusKind::Ammunition;
-        else if (name.rfind("mine", 0) == 0)
-            bonus.kind = BonusKind::Mine;
-        else if (name == "shield")
+        else if (bonus.projectileType == 7U)
             bonus.kind = BonusKind::Shield;
-        else if (name == "speedArrow")
+        else if (bonus.projectileType == 8U)
             bonus.kind = BonusKind::Speed;
+        else if (bonus.projectileType == 9U)
+            bonus.kind = BonusKind::SlowHazard;
+        else if (bonus.projectileType == 10U)
+            bonus.kind = BonusKind::OilHazard;
+        else if (bonus.projectileType == 11U ||
+                 bonus.projectileType == 12U ||
+                 bonus.projectileType == 13U ||
+                 bonus.projectileType == 24U)
+            bonus.kind = BonusKind::MineHazard;
         bonus.value = scalar(bonusRecord, "proj/damage", "db.xml/bonus");
         race.bonuses.push_back(std::move(bonus));
     }

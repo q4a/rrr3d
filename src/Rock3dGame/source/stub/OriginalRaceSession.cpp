@@ -1153,10 +1153,14 @@ void OriginalRaceSession::updateGameplay(
                     if (visual.visualNodes.empty() &&
                         visual.particleEmitters.empty())
                         return;
+                    const float duration =
+                        visual.maximumTimeLife > 0.0F
+                            ? visual.maximumTimeLife
+                            : 0.9F;
                     effects_.push_back(
                         {RaceEventKind::ProjectileImpact, position,
-                         add(position, projectile.direction), 0.9F,
-                         0.9F, projectile.weapon,
+                         add(position, projectile.direction), duration,
+                         duration, projectile.weapon,
                          projectile.projectile, variant});
                 };
             addVisual(definition.secondaryVisual, 1U);
@@ -1862,12 +1866,124 @@ void OriginalRaceSession::updateGameplay(
         for (std::size_t racer = 0;
              racer < vehicles.size() && racer < racers_.size(); ++racer)
         {
-            if (distanceSquared(vehicles[racer].body.position,
-                                race_.bonuses[bonusIndex].transform.position) >
-                12.25F)
-                continue;
             auto& runtime = racers_[racer];
             const auto& bonus = race_.bonuses[bonusIndex];
+            const auto& racerDefinition = race_.racers[racer];
+            const auto& vehicleDefinition =
+                racerDefinition.hasConfiguredVehicle
+                    ? racerDefinition.configuredVehicle
+                    : race_.vehicles.at(racerDefinition.vehicle);
+            float contactRadius = 3.5F;
+            if (bonus.size.x > 0.0F || bonus.size.y > 0.0F)
+            {
+                contactRadius =
+                    std::max(bonus.size.x, bonus.size.y) * 0.5F +
+                    std::max(vehicleDefinition.physics.halfExtents.x,
+                             vehicleDefinition.physics.halfExtents.y);
+            }
+            if (distanceSquared(vehicles[racer].body.position,
+                                bonus.transform.position) >
+                contactRadius * contactRadius)
+                continue;
+
+            if (bonus.kind == BonusKind::Speed)
+            {
+                const Vec3 wanted = multiply(
+                    normalized3(forward(bonus.transform.rotation)),
+                    bonus.value);
+                velocityRequests_.push_back(
+                    {racer,
+                     subtract(wanted, vehicles[racer].linearVelocity)});
+                continue;
+            }
+            if (bonus.kind == BonusKind::SlowHazard)
+            {
+                const float speed =
+                    length3(vehicles[racer].linearVelocity);
+                if (speed > 1.0F && speed > bonus.value)
+                {
+                    const Vec3 wanted = multiply(
+                        normalized3(vehicles[racer].linearVelocity),
+                        bonus.value);
+                    velocityRequests_.push_back(
+                        {racer,
+                         subtract(wanted,
+                                  vehicles[racer].linearVelocity)});
+                }
+                continue;
+            }
+            if (bonus.kind == BonusKind::OilHazard)
+            {
+                if (runtime.clutchSeconds <= 0.0F &&
+                    vehicles[racer].speed > 3.0F)
+                {
+                    const Vec3 direction = normalized2(
+                        forward(vehicles[racer].body.rotation));
+                    const Vec3 right{-direction.y, direction.x, 0.0F};
+                    const float side = dot2(
+                        right,
+                        subtract(bonus.transform.position,
+                                 vehicles[racer].body.position));
+                    const float strength =
+                        std::abs(side) > 0.1F && side > 0.0F
+                            ? -bonus.value
+                            : bonus.value;
+                    runtime.clutchSeconds = 0.38F;
+                    angularVelocityRequests_.push_back(
+                        {racer, {0.0F, 0.0F, strength}});
+                }
+                continue;
+            }
+            if (bonus.kind == BonusKind::MineHazard)
+            {
+                const float damage =
+                    runtime.shieldSeconds > 0.0F
+                        ? 0.0F
+                        : damageAfterSupport(
+                              racer, std::max(bonus.value, 0.0F), false);
+                runtime.life = std::max(0.0F, runtime.life - damage);
+                events_.push_back(
+                    {RaceEventKind::Damage, racer,
+                     RacerRuntime::invalidWeapon,
+                     bonus.transform.position, damage});
+                if (!bonus.deathVisual.visualNodes.empty() ||
+                    !bonus.deathVisual.particleEmitters.empty())
+                {
+                    RaceEffect impact;
+                    impact.kind = RaceEventKind::ProjectileImpact;
+                    impact.origin = bonus.transform.position;
+                    impact.target = add(
+                        bonus.transform.position, {0.0F, 0.0F, 2.0F});
+                    impact.totalSeconds =
+                        bonus.deathVisual.maximumTimeLife > 0.0F
+                            ? bonus.deathVisual.maximumTimeLife
+                            : 0.7F;
+                    impact.seconds = impact.totalSeconds;
+                    impact.weapon = race_.weapons.size();
+                    impact.bonus = bonusIndex;
+                    effects_.push_back(std::move(impact));
+                }
+                const float mass =
+                    std::max(vehicleDefinition.physics.mass, 1.0F);
+                if (bonus.speed > 0.0F)
+                {
+                    velocityRequests_.push_back(
+                        {racer,
+                         {0.0F, 0.0F, bonus.speed / mass}});
+                }
+                if (runtime.life <= 0.0F)
+                {
+                    events_.push_back(
+                        {RaceEventKind::Kill,
+                         RacerRuntime::invalidWeapon, racer,
+                         bonus.transform.position, 0.0F});
+                    runtime.life = runtime.maximumLife;
+                    queueRespawn(racer, vehicles[racer]);
+                }
+                bonusActive_[bonusIndex] = false;
+                break;
+            }
+
             PickSlot pickSlot = PickSlot::None;
             switch (bonus.kind)
             {
@@ -1938,19 +2054,13 @@ void OriginalRaceSession::updateGameplay(
                 syncSelectedWeapon(runtime);
                 break;
             }
-            case BonusKind::Mine:
-                runtime.mines =
-                    runtime.mineCapacity > 0
-                        ? std::min(runtime.mines + 1U,
-                                   runtime.mineCapacity)
-                        : runtime.mines + 1U;
-                break;
             case BonusKind::Shield:
                 runtime.shieldSeconds = std::max(bonus.value, 5.0F);
                 break;
             case BonusKind::Speed:
-                runtime.speedBoostSeconds = std::max(bonus.value, 3.0F);
-                break;
+            case BonusKind::SlowHazard:
+            case BonusKind::OilHazard:
+            case BonusKind::MineHazard:
             case BonusKind::Unknown:
                 break;
             }
@@ -2745,6 +2855,69 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.vehicleInputs().empty() ||
             session.vehicleInputs().front().throttle < 0.9F)
             throw std::runtime_error("countdown/control transition failed");
+
+        const auto mapMine = std::find_if(
+            race.bonuses.begin(), race.bonuses.end(),
+            [](const BonusInstance& bonus) {
+                return bonus.kind == BonusKind::MineHazard;
+            });
+        if (mapMine != race.bonuses.end())
+        {
+            const std::size_t mineIndex = static_cast<std::size_t>(
+                mapMine - race.bonuses.begin());
+            if (mapMine->projectileType != 11U ||
+                std::abs(mapMine->value - 11.0F) > 0.001F ||
+                std::abs(mapMine->speed - 3000.0F) > 0.001F ||
+                (mapMine->deathVisual.visualNodes.empty() &&
+                 mapMine->deathVisual.particleEmitters.empty()))
+            {
+                throw std::runtime_error(
+                    "source map mine projectile data was not preserved");
+            }
+            OriginalRaceSession hazardSession(race);
+            RaceControl hazardInput;
+            for (int frame = 0; frame < 190; ++frame)
+                hazardSession.update(
+                    1.0F / 60.0F, vehicles, hazardInput);
+            vehicles[0].body.position = mapMine->transform.position;
+            vehicles[0].body.position.z += 1.0F;
+            const float lifeBeforeMine =
+                hazardSession.racers().front().life;
+            hazardSession.update(
+                1.0F / 60.0F, vehicles, hazardInput);
+            const auto mineVelocity =
+                hazardSession.takeVelocityRequests();
+            const bool hasDamageEvent = std::any_of(
+                hazardSession.events().begin(),
+                hazardSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::Damage &&
+                           event.racer == 0U;
+                });
+            const bool hasFalsePickup = std::any_of(
+                hazardSession.events().begin(),
+                hazardSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::Bonus;
+                });
+            const bool hasSourceDeathEffect = std::any_of(
+                hazardSession.effects().begin(),
+                hazardSession.effects().end(),
+                [mineIndex](const RaceEffect& effect) {
+                    return effect.kind == RaceEventKind::ProjectileImpact &&
+                           effect.bonus == mineIndex;
+                });
+            if (hazardSession.bonusActive()[mineIndex] ||
+                hazardSession.racers().front().life >= lifeBeforeMine ||
+                mineVelocity.empty() ||
+                mineVelocity.front().delta.z <= 0.0F ||
+                !hasDamageEvent || hasFalsePickup ||
+                !hasSourceDeathEffect)
+            {
+                throw std::runtime_error(
+                    "source map mine hazard contact transition failed");
+            }
+        }
 
         const float lifeBeforeBorder = session.racers().front().life;
         vehicles[0].speed = 25.0F;

@@ -142,6 +142,7 @@ struct RaceEffect
     std::size_t weapon = 0;
     std::size_t projectile = 0;
     std::uint8_t visualVariant = 0;
+    std::size_t bonus = RacerRuntime::invalidWeapon;
 };
 
 struct MineRuntime
