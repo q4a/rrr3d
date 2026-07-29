@@ -55,9 +55,11 @@ void appendDirectionalAxis(std::vector<ActionEvent> &events, float signed_value,
 	appendAnalog(events, Action::TurnRight, std::max(signed_value, 0.0F), Source::GamepadAxis, device_id);
 }
 
-constexpr std::array<Action, 19> allActions = {
+constexpr std::array<Action, 22> allActions = {
 	Action::Accelerate, Action::Brake, Action::TurnLeft, Action::TurnRight,
-	Action::UseWeapon, Action::UseMine, Action::UseHyper, Action::ChangeWeapon,
+	Action::UseWeapon, Action::UseAllWeapons, Action::UseMine,
+	Action::UseHyper, Action::ChangeWeapon, Action::PreviousWeapon,
+	Action::NextWeapon,
 	Action::SelectWeapon1, Action::SelectWeapon2, Action::SelectWeapon3, Action::SelectWeapon4,
 	Action::ToggleCamera, Action::ResetVehicle, Action::Pause, Action::MenuUp,
 	Action::MenuDown, Action::MenuConfirm, Action::MenuBack};
@@ -92,14 +94,18 @@ std::optional<Action> gameAction(std::string_view name) noexcept
 		return Action::TurnLeft;
 	if (name == "gaWheelRight")
 		return Action::TurnRight;
-	if (name == "gaShot" || name == "gaShotAll")
+	if (name == "gaShot")
 		return Action::UseWeapon;
+	if (name == "gaShotAll")
+		return Action::UseAllWeapons;
 	if (name == "gaMine")
 		return Action::UseMine;
 	if (name == "gaHyper")
 		return Action::UseHyper;
-	if (name == "gaWeaponDown" || name == "gaWeaponUp")
-		return Action::ChangeWeapon;
+	if (name == "gaWeaponDown")
+		return Action::PreviousWeapon;
+	if (name == "gaWeaponUp")
+		return Action::NextWeapon;
 	if (name == "gaShot1")
 		return Action::SelectWeapon1;
 	if (name == "gaShot2")
@@ -112,8 +118,84 @@ std::optional<Action> gameAction(std::string_view name) noexcept
 		return Action::ToggleCamera;
 	if (name == "gaResetCar")
 		return Action::ResetVehicle;
+	if (name == "gaAction")
+		return Action::MenuConfirm;
 	if (name == "gaEscape")
 		return Action::Pause;
+	return std::nullopt;
+}
+
+std::optional<SDL_GamepadButton>
+gamepadButton(std::string_view name) noexcept
+{
+	if (name == "A")
+		return SDL_GAMEPAD_BUTTON_SOUTH;
+	if (name == "B")
+		return SDL_GAMEPAD_BUTTON_EAST;
+	if (name == "X")
+		return SDL_GAMEPAD_BUTTON_WEST;
+	if (name == "Y")
+		return SDL_GAMEPAD_BUTTON_NORTH;
+	if (name == "DPad Up")
+		return SDL_GAMEPAD_BUTTON_DPAD_UP;
+	if (name == "DPad Down")
+		return SDL_GAMEPAD_BUTTON_DPAD_DOWN;
+	if (name == "DPad Left")
+		return SDL_GAMEPAD_BUTTON_DPAD_LEFT;
+	if (name == "DPad Right")
+		return SDL_GAMEPAD_BUTTON_DPAD_RIGHT;
+	if (name == "Left Shoulder")
+		return SDL_GAMEPAD_BUTTON_LEFT_SHOULDER;
+	if (name == "Right Shoulder")
+		return SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER;
+	if (name == "L.Thumb Press")
+		return SDL_GAMEPAD_BUTTON_LEFT_STICK;
+	if (name == "R.Thumb Press")
+		return SDL_GAMEPAD_BUTTON_RIGHT_STICK;
+	if (name == "Back")
+		return SDL_GAMEPAD_BUTTON_BACK;
+	if (name == "Start")
+		return SDL_GAMEPAD_BUTTON_START;
+	return std::nullopt;
+}
+
+struct ParsedAxis
+{
+	SDL_GamepadAxis axis = SDL_GAMEPAD_AXIS_INVALID;
+	int direction = 0;
+	bool trigger = false;
+};
+
+std::optional<ParsedAxis> gamepadAxis(std::string_view name) noexcept
+{
+	if (name == "Left Trigger")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFT_TRIGGER, 1, true};
+	if (name == "Right Trigger")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, 1, true};
+	if (name == "L.Thumb Move X")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTX, 0, false};
+	if (name == "L.Thumb Move Y")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTY, 0, false};
+	if (name == "R.Thumb Move X")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTX, 0, false};
+	if (name == "R.Thumb Move Y")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTY, 0, false};
+	if (name == "L.Thumb Left")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTX, -1, false};
+	if (name == "L.Thumb Right")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTX, 1, false};
+	if (name == "L.Thumb Up")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTY, -1, false};
+	if (name == "L.Thumb Down")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTY, 1, false};
+	if (name == "R.Thumb Left")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTX, -1, false};
+	if (name == "R.Thumb Right")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTX, 1, false};
+	if (name == "R.Thumb Up")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTY, -1, false};
+	if (name == "R.Thumb Down")
+		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTY, 1, false};
 	return std::nullopt;
 }
 
@@ -155,6 +237,8 @@ void SdlInputManager::shutdown() noexcept
 	}
 	gamepads_.clear();
 	keyboard_actions_.clear();
+	gamepad_button_actions_.clear();
+	gamepad_axis_actions_.clear();
 	keyboard_bindings_configured_ = false;
 	initialized_ = false;
 }
@@ -175,6 +259,41 @@ void SdlInputManager::applyKeyboardBindings(
 			actions.push_back(*action);
 	}
 	keyboard_bindings_configured_ = true;
+}
+
+void SdlInputManager::applyGamepadBindings(
+    const std::map<std::string, std::string> &bindings)
+{
+	gamepad_button_actions_.clear();
+	gamepad_axis_actions_.clear();
+	for (const auto &[name, key] : bindings)
+	{
+		const auto action = gameAction(name);
+		if (!action || key == "None")
+			continue;
+		if (const auto button = gamepadButton(key))
+		{
+			auto &actions = gamepad_button_actions_[*button];
+			if (std::find(actions.begin(), actions.end(), *action) ==
+			    actions.end())
+				actions.push_back(*action);
+			continue;
+		}
+		if (const auto axis = gamepadAxis(key))
+		{
+			auto &actions = gamepad_axis_actions_[axis->axis];
+			const auto duplicate = std::find_if(
+			    actions.begin(), actions.end(),
+			    [&](const GamepadAxisBinding &value) {
+				    return value.action == *action &&
+				           value.direction == axis->direction &&
+				           value.trigger == axis->trigger;
+			    });
+			if (duplicate == actions.end())
+				actions.push_back(
+				    {*action, axis->direction, axis->trigger});
+		}
+	}
 }
 
 bool SdlInputManager::openGamepad(SDL_JoystickID device_id) noexcept
@@ -263,7 +382,6 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 				appendDigital(events, Action::MenuConfirm, down, repeat,
 				              Source::Keyboard);
 				break;
-			case SDL_SCANCODE_ESCAPE:
 			case SDL_SCANCODE_BACKSPACE:
 				appendDigital(events, Action::MenuBack, down, repeat,
 				              Source::Keyboard);
@@ -348,7 +466,6 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			appendDigital(events, Action::ResetVehicle, down, repeat, Source::Keyboard);
 			break;
 		case SDL_SCANCODE_ESCAPE:
-			appendDigital(events, Action::MenuBack, down, repeat, Source::Keyboard);
 			appendDigital(events, Action::Pause, down, repeat, Source::Keyboard);
 			break;
 		case SDL_SCANCODE_BACKSPACE:
@@ -383,12 +500,14 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 		if (vertical > 0.0F)
 		{
 			appendDigital(events, Action::MenuUp, true, false, Source::Mouse);
-			appendDigital(events, Action::ChangeWeapon, true, false, Source::Mouse);
+			appendDigital(events, Action::PreviousWeapon, true, false,
+			              Source::Mouse);
 		}
 		else if (vertical < 0.0F)
 		{
 			appendDigital(events, Action::MenuDown, true, false, Source::Mouse);
-			appendDigital(events, Action::ChangeWeapon, true, false, Source::Mouse);
+			appendDigital(events, Action::NextWeapon, true, false,
+			              Source::Mouse);
 		}
 		break;
 	}
@@ -408,53 +527,27 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			              event.gbutton.which);
 			break;
 		case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
-			appendDigital(events, Action::TurnLeft, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
-			break;
 		case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
-			appendDigital(events, Action::TurnRight, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
 			break;
 		case SDL_GAMEPAD_BUTTON_SOUTH:
 			appendDigital(events, Action::MenuConfirm, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
-			appendDigital(events, Action::Accelerate, event.gbutton.down, false, Source::GamepadButton,
 			              event.gbutton.which);
 			break;
 		case SDL_GAMEPAD_BUTTON_EAST:
 			appendDigital(events, Action::MenuBack, event.gbutton.down, false, Source::GamepadButton,
 			              event.gbutton.which);
-			appendDigital(events, Action::Brake, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
-			break;
-		case SDL_GAMEPAD_BUTTON_BACK:
-			appendDigital(events, Action::ResetVehicle, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
-			break;
-		case SDL_GAMEPAD_BUTTON_START:
-			appendDigital(events, Action::MenuConfirm, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
-			appendDigital(events, Action::Pause, event.gbutton.down, false, Source::GamepadButton, event.gbutton.which);
-			break;
-		case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
-		case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
-			appendDigital(events, Action::ChangeWeapon, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
-			break;
-		case SDL_GAMEPAD_BUTTON_WEST:
-			appendDigital(events, Action::UseWeapon, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
-			break;
-		case SDL_GAMEPAD_BUTTON_NORTH:
-			appendDigital(events, Action::UseWeapon, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
-			break;
-		case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
-			appendDigital(events, Action::ToggleCamera, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
 			break;
 		default:
 			break;
+		}
+		if (const auto found = gamepad_button_actions_.find(
+		        static_cast<SDL_GamepadButton>(event.gbutton.button));
+		    found != gamepad_button_actions_.end())
+		{
+			for (const auto action : found->second)
+				appendDigital(events, action, event.gbutton.down, false,
+				              Source::GamepadButton,
+				              event.gbutton.which);
 		}
 		break;
 
@@ -510,15 +603,23 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			appendDirectionalAxis(events, applySignedDeadZone(normalizeSignedAxis(event.gaxis.value), stickDeadZone),
 			                      event.gaxis.which);
 		}
-		else if (axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
+		if (const auto found = gamepad_axis_actions_.find(axis);
+		    found != gamepad_axis_actions_.end())
 		{
-			appendAnalog(events, Action::UseMine, applyTriggerDeadZone(event.gaxis.value), Source::GamepadAxis,
-			             event.gaxis.which);
-		}
-		else if (axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER)
-		{
-			appendAnalog(events, Action::UseHyper, applyTriggerDeadZone(event.gaxis.value), Source::GamepadAxis,
-			             event.gaxis.which);
+			const float signedValue = applySignedDeadZone(
+			    normalizeSignedAxis(event.gaxis.value), stickDeadZone);
+			for (const auto &binding : found->second)
+			{
+				float value = binding.trigger
+				                  ? applyTriggerDeadZone(event.gaxis.value)
+				                  : std::abs(signedValue);
+				if (!binding.trigger && binding.direction < 0)
+					value = std::max(-signedValue, 0.0F);
+				else if (!binding.trigger && binding.direction > 0)
+					value = std::max(signedValue, 0.0F);
+				appendAnalog(events, binding.action, value,
+				             Source::GamepadAxis, event.gaxis.which);
+			}
 		}
 		break;
 	}
@@ -526,7 +627,23 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 	default:
 		break;
 	}
-	return events;
+	std::vector<ActionEvent> unique;
+	unique.reserve(events.size());
+	for (const auto &eventValue : events)
+	{
+		const auto found = std::find_if(
+		    unique.begin(), unique.end(),
+		    [&](const ActionEvent &value) {
+			    return value.action == eventValue.action &&
+			           value.source == eventValue.source &&
+			           value.device_id == eventValue.device_id;
+		    });
+		if (found == unique.end())
+			unique.push_back(eventValue);
+		else
+			*found = eventValue;
+	}
+	return unique;
 }
 
 std::size_t SdlInputManager::connectedGamepadCount() const noexcept

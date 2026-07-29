@@ -154,7 +154,7 @@ void OriginalRaceSession::reset()
     elapsedSeconds_ = 0.0F;
     racers_.assign(race_.racers.size(), {});
     vehicleInputs_.assign(race_.racers.size(), {});
-    weaponCooldown_.assign(race_.racers.size(), 0.0F);
+    weaponCooldown_.assign(race_.racers.size(), {});
     mineCooldown_.assign(race_.racers.size(), 0.0F);
     hyperCooldown_.assign(race_.racers.size(), 0.0F);
     repairSeconds_.assign(race_.racers.size(), 0.0F);
@@ -912,18 +912,31 @@ void OriginalRaceSession::updateGameplay(
     if (humanControl.changeWeapon && !racers_.empty())
     {
         auto& runtime = racers_[0];
-        for (std::size_t offset = 1;
-             offset <= runtime.weaponSlots.size(); ++offset)
+        std::vector<std::size_t> usable;
+        for (std::size_t slot = 0;
+             slot < runtime.weaponSlots.size(); ++slot)
         {
-            const auto slot =
-                (runtime.selectedWeaponSlot + offset) %
-                runtime.weaponSlots.size();
             if (runtime.weaponSlots[slot] ==
                 RacerRuntime::invalidWeapon)
                 continue;
-            runtime.selectedWeaponSlot = slot;
+            usable.push_back(slot);
+        }
+        if (!usable.empty())
+        {
+            const auto current = std::find(
+                usable.begin(), usable.end(),
+                runtime.selectedWeaponSlot);
+            const auto currentIndex =
+                current == usable.end()
+                    ? 0
+                    : static_cast<int>(current - usable.begin());
+            const int wanted = std::clamp(
+                currentIndex +
+                    (humanControl.weaponChange < 0 ? -1 : 1),
+                0, static_cast<int>(usable.size()) - 1);
+            runtime.selectedWeaponSlot =
+                usable[static_cast<std::size_t>(wanted)];
             syncSelectedWeapon(runtime);
-            break;
         }
     }
     auto projectileWorldTransform =
@@ -976,8 +989,8 @@ void OriginalRaceSession::updateGameplay(
             std::max(0.0F, runtime.slowSeconds - seconds);
         runtime.clutchSeconds =
             std::max(0.0F, runtime.clutchSeconds - seconds);
-        weaponCooldown_[racer] =
-            std::max(0.0F, weaponCooldown_[racer] - seconds);
+        for (auto& cooldown : weaponCooldown_[racer])
+            cooldown = std::max(0.0F, cooldown - seconds);
         mineCooldown_[racer] =
             std::max(0.0F, mineCooldown_[racer] - seconds);
         hyperCooldown_[racer] =
@@ -1869,25 +1882,25 @@ void OriginalRaceSession::updateGameplay(
 
     auto fireWeapon = [&](std::size_t shooter) {
         if (shooter >= vehicles.size() ||
-            shooter >= racers_.size() ||
-            weaponCooldown_[shooter] > 0.0F ||
-            racers_[shooter].finished)
+            shooter >= racers_.size() || racers_[shooter].finished)
             return;
         auto& runtime = racers_[shooter];
         syncSelectedWeapon(runtime);
         if (runtime.selectedWeapon == RacerRuntime::invalidWeapon ||
             runtime.selectedWeapon >= race_.weapons.size() ||
             runtime.selectedWeaponSlot >= runtime.weaponCharges.size() ||
+            weaponCooldown_[shooter][runtime.selectedWeaponSlot] > 0.0F ||
             runtime.weaponCharges[runtime.selectedWeaponSlot] == 0)
             return;
+        const std::size_t firedSlot = runtime.selectedWeaponSlot;
         const std::size_t firedWeapon = runtime.selectedWeapon;
         const auto* weapon =
             &race_.weapons[firedWeapon];
         if (weapon->slot == WeaponSlot::Support)
             return;
-        --runtime.weaponCharges[runtime.selectedWeaponSlot];
+        --runtime.weaponCharges[firedSlot];
         syncSelectedWeapon(runtime);
-        weaponCooldown_[shooter] =
+        weaponCooldown_[shooter][firedSlot] =
             std::max(weapon->shotDelay, 0.03F);
         const Vec3 eventOrigin = vehicles[shooter].body.position;
         std::size_t target = racers_.size();
@@ -1898,8 +1911,7 @@ void OriginalRaceSession::updateGameplay(
             const auto& projectile =
                 weapon->projectiles[projectileIndex];
             const auto shotTransform = projectileWorldTransform(
-                shooter, firedWeapon,
-                runtime.selectedWeaponSlot, projectile);
+                shooter, firedWeapon, firedSlot, projectile);
             const Vec3 projectileOrigin = shotTransform.position;
             Vec3 direction = normalized3(
                 rotate(shotTransform.rotation,
@@ -2098,6 +2110,42 @@ void OriginalRaceSession::updateGameplay(
     };
     if (humanControl.useWeapon)
         fireWeapon(0);
+    if (humanControl.fireWeaponSlot >= 0 && !racers_.empty() &&
+        humanControl.fireWeaponSlot <
+            static_cast<int>(PlayerProfile::weaponSlotCount))
+    {
+        auto& runtime = racers_.front();
+        const auto requested =
+            static_cast<std::size_t>(humanControl.fireWeaponSlot);
+        if (runtime.weaponSlots[requested] !=
+            RacerRuntime::invalidWeapon)
+        {
+            const auto selected = runtime.selectedWeaponSlot;
+            runtime.selectedWeaponSlot = requested;
+            syncSelectedWeapon(runtime);
+            fireWeapon(0);
+            runtime.selectedWeaponSlot = selected;
+            syncSelectedWeapon(runtime);
+        }
+    }
+    if (humanControl.useAllWeapons && !racers_.empty())
+    {
+        auto& runtime = racers_.front();
+        const auto selected = runtime.selectedWeaponSlot;
+        for (std::size_t slot = 0;
+             slot < runtime.weaponSlots.size(); ++slot)
+        {
+            if (runtime.weaponSlots[slot] ==
+                    RacerRuntime::invalidWeapon ||
+                runtime.weaponCharges[slot] == 0U)
+                continue;
+            runtime.selectedWeaponSlot = slot;
+            syncSelectedWeapon(runtime);
+            fireWeapon(0);
+        }
+        runtime.selectedWeaponSlot = selected;
+        syncSelectedWeapon(runtime);
+    }
     auto raceProgress = [&](const RacerRuntime& runtime) {
         const float pathLength = static_cast<float>(
             std::max<std::size_t>(race_.tracePath.size() - 1U, 1U));
@@ -2159,8 +2207,7 @@ void OriginalRaceSession::updateGameplay(
             }
         }
 
-        if (frontTarget < racers_.size() &&
-            weaponCooldown_[racer] <= 0.0F)
+        if (frontTarget < racers_.size())
         {
             std::vector<std::size_t> usableSlots;
             std::size_t chargedWeapons = 0;
@@ -2179,6 +2226,7 @@ void OriginalRaceSession::updateGameplay(
                         ? 100.0F
                         : std::min(weapon.maximumDistance, 100.0F);
                 if (runtime.weaponCharges[slot] > 0U &&
+                    weaponCooldown_[racer][slot] <= 0.0F &&
                     frontDistance < range)
                     usableSlots.push_back(slot);
             }
@@ -2684,6 +2732,80 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error("weapon/ammunition transition failed");
         }
         input.useWeapon = false;
+
+        std::vector<const WeaponDefinition*> primaryWeapons;
+        for (const auto& weapon : race.weapons)
+        {
+            if (weapon.slot == WeaponSlot::Primary)
+                primaryWeapons.push_back(&weapon);
+            if (primaryWeapons.size() == 2U)
+                break;
+        }
+        if (primaryWeapons.size() == 2U)
+        {
+            OriginalRaceSession weaponSession(race);
+            PlayerProfile weaponProfile;
+            for (std::size_t slot = 0; slot < 2U; ++slot)
+            {
+                auto& profileSlot = weaponProfile.slots[
+                    PlayerProfile::firstWeaponSlot + slot];
+                profileSlot.record = primaryWeapons[slot]->record;
+                profileSlot.charge = std::max(
+                    primaryWeapons[slot]->reloadCharge, 2U);
+                profileSlot.hasCharge = true;
+            }
+            weaponSession.applyPlayerProfile(weaponProfile);
+            RaceControl weaponInput;
+            for (int frame = 0; frame < 190; ++frame)
+                weaponSession.update(
+                    1.0F / 60.0F, vehicles, weaponInput);
+            weaponInput.changeWeapon = true;
+            weaponInput.weaponChange = 1;
+            weaponSession.update(
+                1.0F / 60.0F, vehicles, weaponInput);
+            if (weaponSession.racers().front().selectedWeaponSlot != 1U)
+                throw std::runtime_error(
+                    "source next-weapon transition failed");
+            weaponInput.weaponChange = -1;
+            weaponSession.update(
+                1.0F / 60.0F, vehicles, weaponInput);
+            if (weaponSession.racers().front().selectedWeaponSlot != 0U)
+                throw std::runtime_error(
+                    "source previous-weapon transition failed");
+            weaponInput = {};
+            const auto beforeAll =
+                weaponSession.racers().front().weaponCharges;
+            weaponInput.useAllWeapons = true;
+            weaponSession.update(
+                1.0F / 60.0F, vehicles, weaponInput);
+            const auto afterAll =
+                weaponSession.racers().front().weaponCharges;
+            if (afterAll[0] + 1U != beforeAll[0] ||
+                afterAll[1] + 1U != beforeAll[1])
+            {
+                throw std::runtime_error(
+                    "source ShotAll/per-weapon cooldown transition failed");
+            }
+            weaponInput = {};
+            for (int frame = 0; frame < 60; ++frame)
+                weaponSession.update(
+                    1.0F / 60.0F, vehicles, weaponInput);
+            const auto beforeDirect =
+                weaponSession.racers().front().weaponCharges;
+            weaponInput.fireWeaponSlot = 1;
+            weaponSession.update(
+                1.0F / 60.0F, vehicles, weaponInput);
+            const auto afterDirect =
+                weaponSession.racers().front().weaponCharges;
+            if (afterDirect[0] != beforeDirect[0] ||
+                afterDirect[1] + 1U != beforeDirect[1] ||
+                weaponSession.racers().front().selectedWeaponSlot != 0U)
+            {
+                throw std::runtime_error(
+                    "source Shot1..4 direct-slot transition failed");
+            }
+        }
+
         input.reset = true;
         session.update(1.0F / 60.0F, vehicles, input);
         if (session.takeRespawns().empty())

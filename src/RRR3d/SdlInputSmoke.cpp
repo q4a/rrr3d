@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <map>
 #include <utility>
 #include <vector>
 
@@ -116,6 +117,15 @@ bool waitForButton(SDL_Gamepad *gamepad, SDL_GamepadButton button, bool expected
 
 bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 {
+	input.applyGamepadBindings({
+	    {"gaAccel", "A"},
+	    {"gaBreak", "B"},
+	    {"gaShotAll", "Y"},
+	    {"gaHyper", "Left Trigger"},
+	    {"gaMine", "Right Trigger"},
+	    {"gaWeaponDown", "Left Shoulder"},
+	    {"gaWeaponUp", "Right Shoulder"},
+	});
 	SDL_Event event{};
 	event.key.type = SDL_EVENT_KEY_DOWN;
 	event.key.down = true;
@@ -321,6 +331,23 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_SOUTH, false);
 	waitForButton(gamepad, SDL_GAMEPAD_BUTTON_SOUTH, false);
 	processButton(input, virtual_id, SDL_GAMEPAD_BUTTON_SOUTH, false);
+
+	SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_NORTH, true);
+	if (!waitForButton(gamepad, SDL_GAMEPAD_BUTTON_NORTH, true))
+		return fail("virtual ShotAll state was not visible through SDL Gamepad");
+	actions = processButton(input, virtual_id, SDL_GAMEPAD_BUTTON_NORTH, true);
+	if (!contains(actions, Action::UseAllWeapons, Source::GamepadButton, true, virtual_id))
+		return fail("original ShotAll gamepad binding failed");
+	SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_NORTH, false);
+	waitForButton(gamepad, SDL_GAMEPAD_BUTTON_NORTH, false);
+	processButton(input, virtual_id, SDL_GAMEPAD_BUTTON_NORTH, false);
+
+	actions = processButton(input, virtual_id, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, true);
+	if (!contains(actions, Action::PreviousWeapon, Source::GamepadButton, true, virtual_id))
+		return fail("original previous-weapon gamepad binding failed");
+	actions = processButton(input, virtual_id, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, true);
+	if (!contains(actions, Action::NextWeapon, Source::GamepadButton, true, virtual_id))
+		return fail("original next-weapon gamepad binding failed");
 
 	SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_EAST, true);
 	if (!waitForButton(gamepad, SDL_GAMEPAD_BUTTON_EAST, true))

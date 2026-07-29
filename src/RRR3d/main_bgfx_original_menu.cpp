@@ -659,6 +659,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     input.applyKeyboardBindings(
         profileState.config.keyboardControls);
+    input.applyGamepadBindings(
+        profileState.config.gamepadControls);
 #endif
     bool runInputSmoke = options->inputSmokeTest;
 #ifdef RRR3D_AUDIO
@@ -679,6 +681,10 @@ int main(int argc, char** argv)
         std::cout << "Milestone 7 input smoke: keyboard, mouse, focus reset, "
                      "gamepad hot-plug, axes, dead zones, buttons, rumble, "
                      "and MainMenu2 command order passed\n";
+        input.applyKeyboardBindings(
+            profileState.config.keyboardControls);
+        input.applyGamepadBindings(
+            profileState.config.gamepadControls);
     }
 #endif
 
@@ -857,6 +863,19 @@ int main(int argc, char** argv)
         stream << value << " x";
         return stream.str();
     };
+    static constexpr std::array<std::string_view, 18>
+        originalControlActions{
+            "gaAccel", "gaBreak", "gaWheelLeft", "gaWheelRight",
+            "gaShot", "gaShot1", "gaShot2", "gaShot3", "gaShot4",
+            "gaShotAll", "gaHyper", "gaMine", "gaWeaponDown",
+            "gaWeaponUp", "gaViewSwitch", "gaAction", "gaEscape",
+            "gaResetCar"};
+    static constexpr std::size_t controlsPerPage = 4U;
+    static constexpr std::size_t controlsPageCount =
+        (originalControlActions.size() + controlsPerPage - 1U) /
+        controlsPerPage;
+    std::size_t controlsPageIndex = 0U;
+    bool controlsUseGamepad = false;
     auto gameOptionsLabels = [&]() {
         return std::vector<std::string>{
             optionValue(
@@ -969,24 +988,39 @@ int main(int argc, char** argv)
             localized("svBack")};
     };
     auto controlsOptionsLabels = [&]() {
-        static constexpr std::array<std::string_view, 7> actions{
-            "gaAccel", "gaBreak", "gaWheelLeft", "gaWheelRight",
-            "gaShot", "gaMine", "gaViewSwitch"};
         std::vector<std::string> output;
-        output.reserve(actions.size() + 1U);
-        for (const auto action : actions)
+        output.reserve(8U);
+        output.push_back(
+            std::string("Controller: ") +
+            (controlsUseGamepad ? "Gamepad" : "Keyboard"));
+        const auto& bindings =
+            controlsUseGamepad
+                ? profileState.config.gamepadControls
+                : profileState.config.keyboardControls;
+        const std::size_t first =
+            controlsPageIndex * controlsPerPage;
+        const std::size_t end = std::min(
+            first + controlsPerPage, originalControlActions.size());
+        for (std::size_t index = first; index < end; ++index)
         {
+            const auto action = originalControlActions[index];
             const auto found =
-                profileState.config.keyboardControls.find(
-                    std::string(action));
+                bindings.find(std::string(action));
             output.push_back(
                 optionValue(
                     action,
-                    found ==
-                            profileState.config.keyboardControls.end()
+                    found == bindings.end()
                         ? localized("svNull")
                         : found->second));
         }
+        output.push_back(
+            "Previous page  [" +
+            std::to_string(controlsPageIndex + 1U) + "/" +
+            std::to_string(controlsPageCount) + "]");
+        output.push_back(
+            "Next page  [" +
+            std::to_string(controlsPageIndex + 1U) + "/" +
+            std::to_string(controlsPageCount) + "]");
         output.push_back(localized("svBack"));
         return output;
     };
@@ -1699,6 +1733,7 @@ int main(int argc, char** argv)
     };
 #ifdef RRR3D_PHYSICS
     std::optional<std::string> bindingCaptureAction;
+    bool bindingCaptureGamepad = false;
     auto originalKeyName = [](SDL_Scancode scancode) {
         switch (scancode)
         {
@@ -1717,15 +1752,75 @@ int main(int argc, char** argv)
             return std::string(SDL_GetScancodeName(scancode));
         }
     };
+    auto originalGamepadButtonName = [](SDL_GamepadButton button)
+        -> std::optional<std::string> {
+        switch (button)
+        {
+        case SDL_GAMEPAD_BUTTON_SOUTH:
+            return "A";
+        case SDL_GAMEPAD_BUTTON_EAST:
+            return "B";
+        case SDL_GAMEPAD_BUTTON_WEST:
+            return "X";
+        case SDL_GAMEPAD_BUTTON_NORTH:
+            return "Y";
+        case SDL_GAMEPAD_BUTTON_DPAD_UP:
+            return "DPad Up";
+        case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+            return "DPad Down";
+        case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+            return "DPad Left";
+        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+            return "DPad Right";
+        case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
+            return "Left Shoulder";
+        case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
+            return "Right Shoulder";
+        case SDL_GAMEPAD_BUTTON_LEFT_STICK:
+            return "L.Thumb Press";
+        case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
+            return "R.Thumb Press";
+        case SDL_GAMEPAD_BUTTON_BACK:
+            return "Back";
+        case SDL_GAMEPAD_BUTTON_START:
+            return "Start";
+        default:
+            return std::nullopt;
+        }
+    };
+    auto originalGamepadAxisName = [](SDL_GamepadAxis axis, Sint16 value)
+        -> std::optional<std::string> {
+        if (axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER && value > 15000)
+            return "Left Trigger";
+        if (axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER && value > 15000)
+            return "Right Trigger";
+        if (std::abs(static_cast<int>(value)) < 20000)
+            return std::nullopt;
+        switch (axis)
+        {
+        case SDL_GAMEPAD_AXIS_LEFTX:
+            return value < 0 ? "L.Thumb Left" : "L.Thumb Right";
+        case SDL_GAMEPAD_AXIS_LEFTY:
+            return value < 0 ? "L.Thumb Up" : "L.Thumb Down";
+        case SDL_GAMEPAD_AXIS_RIGHTX:
+            return value < 0 ? "R.Thumb Left" : "R.Thumb Right";
+        case SDL_GAMEPAD_AXIS_RIGHTY:
+            return value < 0 ? "R.Thumb Up" : "R.Thumb Down";
+        default:
+            return std::nullopt;
+        }
+    };
 #endif
 #ifdef RRR3D_PHYSICS
     bool inRace = false;
     r3d::physics::VehicleInput raceInput;
-    bool raceUseWeapon = false;
+    bool raceUseWeaponRequested = false;
+    bool raceUseAllWeaponsRequested = false;
     bool raceUseMine = false;
     bool raceUseHyper = false;
     bool raceChangeWeaponRequested = false;
-    int raceWeaponSlotRequested = -1;
+    int raceWeaponChangeDirection = 1;
+    int raceFireWeaponSlotRequested = -1;
     bool raceResetRequested = false;
     std::vector<r3d::physics::VehicleState> raceVehicles(
         physicsWorld->vehicleCount());
@@ -1897,11 +1992,13 @@ int main(int argc, char** argv)
         }
         raceRenderer.resetCamera();
         raceInput = {};
-        raceUseWeapon = false;
+        raceUseWeaponRequested = false;
+        raceUseAllWeaponsRequested = false;
         raceUseMine = false;
         raceUseHyper = false;
         raceChangeWeaponRequested = false;
-        raceWeaponSlotRequested = -1;
+        raceWeaponChangeDirection = 1;
+        raceFireWeaponSlotRequested = -1;
         raceResetRequested = false;
         raceElapsedSeconds = 0.0F;
         raceProgressSaved = false;
@@ -2426,9 +2523,14 @@ int main(int argc, char** argv)
         }
         inRace = false;
         raceInput = {};
-        raceUseWeapon = false;
+        raceUseWeaponRequested = false;
+        raceUseAllWeaponsRequested = false;
         raceUseMine = false;
         raceUseHyper = false;
+        raceChangeWeaponRequested = false;
+        raceWeaponChangeDirection = 1;
+        raceFireWeaponSlotRequested = -1;
+        raceResetRequested = false;
         menuStack = {MenuScreen::Main, MenuScreen::Finish};
         menuSelection = 0;
         std::cout << "Original FinishMenu: place "
@@ -2536,22 +2638,62 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_GAMEPAD_INPUT
 #ifdef RRR3D_PHYSICS
-            if (!inRace && bindingCaptureAction &&
-                event.type == SDL_EVENT_KEY_DOWN &&
-                !event.key.repeat)
+            if (!inRace && bindingCaptureAction)
             {
-                const auto keyName =
-                    originalKeyName(event.key.scancode);
-                if (!keyName.empty())
+                std::optional<std::string> bindingName;
+                bool consumedCaptureEvent = false;
+                if (event.type == SDL_EVENT_KEY_DOWN &&
+                    !event.key.repeat)
                 {
-                    profileState.config.keyboardControls[
-                        *bindingCaptureAction] = keyName;
-                    input.applyKeyboardBindings(
-                        profileState.config.keyboardControls);
+                    consumedCaptureEvent = true;
+                    if (event.key.scancode == SDL_SCANCODE_BACKSPACE ||
+                        event.key.scancode == SDL_SCANCODE_DELETE)
+                    {
+                        bindingName = "None";
+                    }
+                    else if (!bindingCaptureGamepad)
+                    {
+                        bindingName =
+                            originalKeyName(event.key.scancode);
+                    }
+                }
+                else if (bindingCaptureGamepad &&
+                         event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
+                {
+                    consumedCaptureEvent = true;
+                    bindingName = originalGamepadButtonName(
+                        static_cast<SDL_GamepadButton>(
+                            event.gbutton.button));
+                }
+                else if (bindingCaptureGamepad &&
+                         event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION)
+                {
+                    bindingName = originalGamepadAxisName(
+                        static_cast<SDL_GamepadAxis>(event.gaxis.axis),
+                        event.gaxis.value);
+                    consumedCaptureEvent = bindingName.has_value();
+                }
+                if (bindingName && !bindingName->empty())
+                {
+                    auto& bindings =
+                        bindingCaptureGamepad
+                            ? profileState.config.gamepadControls
+                            : profileState.config.keyboardControls;
+                    bindings[*bindingCaptureAction] = *bindingName;
+                    if (bindingCaptureGamepad)
+                    {
+                        input.applyGamepadBindings(
+                            profileState.config.gamepadControls);
+                    }
+                    else
+                    {
+                        input.applyKeyboardBindings(
+                            profileState.config.keyboardControls);
+                    }
                     std::cout
                         << "Original ControlsFrame: "
                         << *bindingCaptureAction << " -> "
-                        << keyName << '\n';
+                        << *bindingName << '\n';
                     bindingCaptureAction.reset();
                     refreshCurrentOptionsPage();
                     std::string bindingSaveError;
@@ -2563,7 +2705,8 @@ int main(int argc, char** argv)
                             << bindingSaveError << '\n';
                     }
                 }
-                continue;
+                if (consumedCaptureEvent)
+                    continue;
             }
 #endif
             bool pointerTargetsItem = true;
@@ -2628,7 +2771,12 @@ int main(int argc, char** argv)
                             raceInput.steering = 0.0F;
                         break;
                     case rrr3d::input::Action::UseWeapon:
-                        raceUseWeapon = inputEvent.active;
+                        if (inputEvent.active && !inputEvent.repeated)
+                            raceUseWeaponRequested = true;
+                        break;
+                    case rrr3d::input::Action::UseAllWeapons:
+                        if (inputEvent.active && !inputEvent.repeated)
+                            raceUseAllWeaponsRequested = true;
                         break;
                     case rrr3d::input::Action::UseMine:
                         raceUseMine = inputEvent.active;
@@ -2637,8 +2785,19 @@ int main(int argc, char** argv)
                         raceUseHyper = inputEvent.active;
                         break;
                     case rrr3d::input::Action::ChangeWeapon:
+                    case rrr3d::input::Action::NextWeapon:
                         if (inputEvent.active && !inputEvent.repeated)
+                        {
                             raceChangeWeaponRequested = true;
+                            raceWeaponChangeDirection = 1;
+                        }
+                        break;
+                    case rrr3d::input::Action::PreviousWeapon:
+                        if (inputEvent.active && !inputEvent.repeated)
+                        {
+                            raceChangeWeaponRequested = true;
+                            raceWeaponChangeDirection = -1;
+                        }
                         break;
                     case rrr3d::input::Action::SelectWeapon1:
                     case rrr3d::input::Action::SelectWeapon2:
@@ -2646,7 +2805,7 @@ int main(int argc, char** argv)
                     case rrr3d::input::Action::SelectWeapon4:
                         if (inputEvent.active && !inputEvent.repeated)
                         {
-                            raceWeaponSlotRequested =
+                            raceFireWeaponSlotRequested =
                                 static_cast<int>(inputEvent.action) -
                                 static_cast<int>(
                                     rrr3d::input::Action::SelectWeapon1);
@@ -2684,22 +2843,10 @@ int main(int argc, char** argv)
                         }
                         break;
                     case rrr3d::input::Action::MenuBack:
-                        if (inputEvent.active && !inputEvent.repeated)
-                        {
-                            saveRaceProfile();
-                            inRace = false;
-                            raceInput = {};
-                            raceUseWeapon = false;
-                            raceUseMine = false;
-                            raceUseHyper = false;
-                            raceChangeWeaponRequested = false;
-                            raceWeaponSlotRequested = -1;
-                            raceResetRequested = false;
-#ifdef RRR3D_AUDIO
-                            stopRaceAudio();
-#endif
-                            std::cout << "Race -> MainMenu2\n";
-                        }
+                        // GUI Back is deliberately ignored during gameplay.
+                        // The source exits through gaEscape/Start; on the
+                        // default gamepad B is the brake and must never leave
+                        // the race merely because it is also GUI Back.
                         break;
                     default:
                         break;
@@ -2784,7 +2931,9 @@ int main(int argc, char** argv)
                 if (inputEvent.repeated)
                     continue;
                 if (inputEvent.action ==
-                    rrr3d::input::Action::MenuBack)
+                        rrr3d::input::Action::MenuBack ||
+                    inputEvent.action ==
+                        rrr3d::input::Action::Pause)
                 {
 #ifdef RRR3D_AUDIO
                     playMainButtonClick();
@@ -2929,6 +3078,8 @@ int main(int argc, char** argv)
                         }
                         input.applyKeyboardBindings(
                             profileState.config.keyboardControls);
+                        input.applyGamepadBindings(
+                            profileState.config.gamepadControls);
                         saveRaceProfile();
 #endif
                         backMenu();
@@ -2951,7 +3102,10 @@ int main(int argc, char** argv)
                     else if (menuSelection == 2U)
                         pushMenu(MenuScreen::SoundOptions);
                     else if (menuSelection == 3U)
+                    {
                         pushMenu(MenuScreen::ControlsOptions);
+                        refreshCurrentOptionsPage();
+                    }
                     else
                         backMenu();
 #else
@@ -3192,27 +3346,53 @@ int main(int argc, char** argv)
                         adjustCurrentOption(1);
                     break;
                 case MenuScreen::ControlsOptions:
-                    if (menuSelection + 1U >= page.labels.size())
+                {
+                    const std::size_t first =
+                        controlsPageIndex * controlsPerPage;
+                    const std::size_t actionCount = std::min(
+                        controlsPerPage,
+                        originalControlActions.size() - first);
+                    const std::size_t previousRow = 1U + actionCount;
+                    const std::size_t nextRow = previousRow + 1U;
+                    const std::size_t backRow = nextRow + 1U;
+                    if (menuSelection == 0U)
                     {
-                        backMenu();
+                        controlsUseGamepad = !controlsUseGamepad;
+                        refreshCurrentOptionsPage();
                     }
-                    else
+                    else if (menuSelection <= actionCount)
                     {
-                        static constexpr std::array<
-                            std::string_view, 7>
-                            controlActions{
-                                "gaAccel", "gaBreak",
-                                "gaWheelLeft", "gaWheelRight",
-                                "gaShot", "gaMine",
-                                "gaViewSwitch"};
                         bindingCaptureAction =
-                            controlActions[menuSelection];
+                            originalControlActions[
+                                first + menuSelection - 1U];
+                        bindingCaptureGamepad = controlsUseGamepad;
                         std::cout
                             << "Original ControlsFrame: "
                             << localized("svPressKey") << " ("
                             << *bindingCaptureAction << ")\n";
                     }
+                    else if (menuSelection == previousRow)
+                    {
+                        controlsPageIndex =
+                            (controlsPageIndex + controlsPageCount - 1U) %
+                            controlsPageCount;
+                        menuSelection = 0U;
+                        refreshCurrentOptionsPage();
+                    }
+                    else if (menuSelection == nextRow)
+                    {
+                        controlsPageIndex =
+                            (controlsPageIndex + 1U) % controlsPageCount;
+                        menuSelection = 0U;
+                        refreshCurrentOptionsPage();
+                    }
+                    else if (menuSelection == backRow)
+                    {
+                        bindingCaptureAction.reset();
+                        backMenu();
+                    }
                     break;
+                }
                 case MenuScreen::Finish:
                     if (menuSelection == 0U)
                     {
@@ -3289,15 +3469,20 @@ int main(int argc, char** argv)
         {
             r3d::game::originalrace::RaceControl control;
             control.driving = raceInput;
-            control.useWeapon = raceUseWeapon;
+            control.useWeapon = raceUseWeaponRequested;
+            control.useAllWeapons = raceUseAllWeaponsRequested;
             control.useMine = raceUseMine;
             control.useHyper = raceUseHyper;
             control.changeWeapon = raceChangeWeaponRequested;
-            control.weaponSlot = raceWeaponSlotRequested;
+            control.weaponChange = raceWeaponChangeDirection;
+            control.fireWeaponSlot = raceFireWeaponSlotRequested;
             control.reset = raceResetRequested;
             raceSession.update(frameSeconds, raceVehicles, control);
+            raceUseWeaponRequested = false;
+            raceUseAllWeaponsRequested = false;
             raceChangeWeaponRequested = false;
-            raceWeaponSlotRequested = -1;
+            raceWeaponChangeDirection = 1;
+            raceFireWeaponSlotRequested = -1;
             raceResetRequested = false;
 #ifdef RRR3D_AUDIO
             if (!raceVehicles.empty())

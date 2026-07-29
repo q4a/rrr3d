@@ -53,10 +53,13 @@ struct RaceControl
 {
     r3d::physics::VehicleInput driving;
     bool useWeapon = false;
+    bool useAllWeapons = false;
     bool useMine = false;
     bool useHyper = false;
     bool changeWeapon = false;
+    int weaponChange = 1;
     int weaponSlot = -1;
+    int fireWeaponSlot = -1;
     bool reset = false;
 };
 
@@ -253,7 +256,8 @@ private:
     std::vector<bool> decorationActive_;
     std::vector<float> decorationLife_;
     std::vector<bool> bonusActive_;
-    std::vector<float> weaponCooldown_;
+    std::vector<std::array<float, PlayerProfile::weaponSlotCount>>
+        weaponCooldown_;
     std::vector<float> mineCooldown_;
     std::vector<float> hyperCooldown_;
     std::vector<float> repairSeconds_;

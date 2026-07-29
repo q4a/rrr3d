@@ -31,6 +31,8 @@ class SdlInputManager
 	void shutdown() noexcept;
 	void applyKeyboardBindings(
 	    const std::map<std::string, std::string> &bindings);
+	void applyGamepadBindings(
+	    const std::map<std::string, std::string> &bindings);
 
 	std::vector<ActionEvent> processEvent(const SDL_Event &event);
 
@@ -46,6 +48,13 @@ class SdlInputManager
 		int menu_vertical_direction = 0;
 	};
 
+	struct GamepadAxisBinding
+	{
+		Action action = Action::Accelerate;
+		int direction = 0;
+		bool trigger = false;
+	};
+
 	bool openGamepad(SDL_JoystickID device_id) noexcept;
 	void closeGamepad(SDL_JoystickID device_id) noexcept;
 	void appendGamepadReleases(std::vector<ActionEvent> &events, SDL_JoystickID device_id) const;
@@ -53,6 +62,10 @@ class SdlInputManager
 	bool initialized_ = false;
 	bool keyboard_bindings_configured_ = false;
 	std::map<SDL_Scancode, std::vector<Action>> keyboard_actions_;
+	std::map<SDL_GamepadButton, std::vector<Action>>
+	    gamepad_button_actions_;
+	std::map<SDL_GamepadAxis, std::vector<GamepadAxisBinding>>
+	    gamepad_axis_actions_;
 	std::map<SDL_JoystickID, GamepadState> gamepads_;
 };
 
