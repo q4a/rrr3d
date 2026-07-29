@@ -257,7 +257,7 @@ void Compute2_8TireForce(
 	{
 		static unsigned long call = 0;
 		if ((++call % 331) == 0)
-			RRR3D_TRACE_FIRST(60,
+			RRR3D_TRACE_FIRST(::rrr3d::TraceLines(60),
 				"TIRE load=%.1f rest=%.1f norm=%.3f friction=%.2f longSlip=%.4f latSlip=%.4f "
 				"longF=%.1f latF=%.1f omega=%.2f torque=%.1f",
 				tireLoad, restTireLoad, normalisedTireLoad, tireFriction, longSlip, latSlip,
@@ -1081,7 +1081,7 @@ void Vehicle::SyncInputs()
 			//muLong/muLat are the grip ceilings the tuning supplies. db.xml's
 			//defaults are 0.02; a set-up car should read about 7. Which of the
 			//two is present says whether Player::ApplyMobility ever ran.
-			RRR3D_TRACE_FIRST(60,
+			RRR3D_TRACE_FIRST(::rrr3d::TraceLines(60),
 				"VINPUT drive=%.0f,%.0f,%.0f,%.0f brake=%.0f omega=%.2f,%.2f,%.2f,%.2f "
 				"muLong=%.3f muLat=%.3f maxAccel=%.0f maxBrake=%.0f accelIntent=%d",
 				_wheels[0]->GetMotorTorque(), _wheels[1]->GetMotorTorque(),
@@ -1255,7 +1255,7 @@ void Vehicle::SyncOutputs()
 				//other reading looks healthy.
 				const PxVec3 velocity = body->getLinearVelocity();
 
-				RRR3D_TRACE_FIRST(12,
+				RRR3D_TRACE_FIRST(::rrr3d::TraceLines(12),
 					//Per car, with its own radius, because the models differ:
 					//radius and suspension travel both vary between them, and
 					//"some cars float higher than others" is a statement about
@@ -1274,7 +1274,7 @@ void Vehicle::SyncOutputs()
 		//diagnosed until this reads what it should.
 		static unsigned long qSample = 0;
 		if (i == 0 && (++qSample % 180) == 0)
-			RRR3D_TRACE_FIRST(20,
+			RRR3D_TRACE_FIRST(::rrr3d::TraceLines(20),
 				"WHEELQ inAir=%d jounce=%.4f springForce=%.1f contactShape=%p "
 				"normal=%.2f,%.2f,%.2f suspDir=%.2f,%.2f,%.2f",
 				(int)result.isInAir, result.suspJounce, result.suspSpringForce,

@@ -620,7 +620,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 
 			//The actor identifies which car, because six of them are logging
 			//and only one of them has a human pressing the throttle.
-			RRR3D_TRACE_FIRST(200,
+			RRR3D_TRACE_FIRST(::rrr3d::TraceLines(200),
 				"DRIVE car=%p speed=%.2f gear=%d rpm=%.0f motorTorque=%.1f "
 				"brakeTorque=%.1f dragTorque=%.1f axle=%.2f onGround=%d",
 				(void*)GetPxActor().GetNxDynamic(),

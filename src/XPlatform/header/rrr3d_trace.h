@@ -65,6 +65,25 @@ inline void Trace(const char* fmt, ...)
 }
 
 /*
+ * How many lines a capped trace site keeps, when the default will not do.
+ *
+ * The per-site defaults are chosen for "what shape is a frame", which is the
+ * question the graphics traces answer. They are wrong for "what was the state
+ * fifteen seconds in", which is the question the vehicle work keeps asking: a
+ * cap of sixty lines is exhausted during the launch and the trace is silent by
+ * the time anything interesting happens. RRR3D_TRACE_LINES raises every capped
+ * site at once.
+ */
+inline int TraceLines(int fallback)
+{
+	static const int lines = [] {
+		const char* value = std::getenv("RRR3D_TRACE_LINES");
+		return value ? std::atoi(value) : 0;
+	}();
+	return lines > 0 ? lines : fallback;
+}
+
+/*
  * Most of these traces are only wanted for the first few occurrences -- the
  * interesting thing is the shape of a frame, not the millionth repeat of it.
  * Each call site gets its own counter.
