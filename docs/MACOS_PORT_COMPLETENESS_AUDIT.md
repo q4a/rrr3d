@@ -304,6 +304,26 @@ Network, video и Steam явно выключены.
    `sphereGun` regression проверяет viewAngle 0, 0.4-second homing delay,
    shortest-arc slerp и non-relative speed projection.
 
+Следующим attached-projectile блоком исправлены `ptLaser`, `ptFrostRay` и
+`ptFire`:
+
+1. Attached actor живёт ровно serialized `minTimeLife`; прежнее
+   искусственное `max(minTimeLife, shotDelay)` удалено. Это возвращает
+   `tankLaser`/`asyncFrost` время 1.0 при `shotDelay=1.1`, не меняя
+   `fireGun` 1.6.
+2. Обычный `LaserUpdate(distort=true)` использует исходную кусочно-линейную
+   fade-кривую толщины sprite от `timeLife/maxTimeLife`; beam length
+   по-прежнему определяется ближайшим source ray hit.
+3. `FrostRay` `model3` больше не рисуется как invented impact в конце луча.
+   Как в Windows `SlowEffect`, `frost` создаётся child-эффектом поражённой
+   машины, следует за её body transform и живёт serialized
+   `frost.maxTimeLife=1`.
+4. Повторный ray contact не сбрасывает время уже существующего
+   `SlowEffect`; model ownership и ограничение скорости заканчиваются
+   одновременно.
+5. Smoke проверяет serialized lifetimes всех трёх типов, точное создание,
+   owner/asset identity, отсутствие contact reset и удаление frost behavior.
+
 Следующим render/audio-блоком удалены эвристики оружия:
 
 1. `workshop.xml/item/mapObj` связывает каталог с исходным `ctWeapon`.

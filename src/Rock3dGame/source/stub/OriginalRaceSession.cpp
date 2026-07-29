@@ -1896,6 +1896,11 @@ void OriginalRaceSession::updateGameplay(
             std::max(0.0F, runtime.speedBoostSeconds - seconds);
         runtime.slowSeconds =
             std::max(0.0F, runtime.slowSeconds - seconds);
+        if (runtime.slowSeconds <= 0.0F)
+        {
+            runtime.slowWeapon = RacerRuntime::invalidWeapon;
+            runtime.slowProjectile = RacerRuntime::invalidWeapon;
+        }
         runtime.clutchSeconds =
             std::max(0.0F, runtime.clutchSeconds - seconds);
         runtime.springLockSeconds =
@@ -2258,19 +2263,27 @@ void OriginalRaceSession::updateGameplay(
                 racers_[target].life =
                     std::max(0.0F, racers_[target].life - damage);
                 pushDamageEvent(
-                    target, projectile.owner,
-                    vehicles[target].body.position, damage);
-                if (projectileDefinition.type == 18U)
+                    target, projectile.owner, end, damage);
+                if (projectileDefinition.type == 18U &&
+                    racers_[target].slowSeconds <= 0.0F)
                 {
-                    racers_[target].slowSeconds = std::max(
-                        racers_[target].slowSeconds,
-                        std::max(projectileDefinition.minimumLife, 1.0F));
+                    const float duration =
+                        projectileDefinition.tertiaryVisual
+                                    .maximumTimeLife >
+                                0.0F
+                            ? projectileDefinition.tertiaryVisual
+                                  .maximumTimeLife
+                            : 1.0F;
+                    racers_[target].slowSeconds = duration;
+                    racers_[target].slowWeapon =
+                        projectile.weapon;
+                    racers_[target].slowProjectile =
+                        projectile.projectile;
                 }
                 if (racers_[target].life <= 0.0F)
                 {
                     destroyRacer(
-                        target, projectile.owner,
-                        vehicles[target].body.position,
+                        target, projectile.owner, end,
                         vehicles[target]);
                 }
             }
@@ -3465,9 +3478,8 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.damage = projectile.damage;
                 runtimeProjectile.angularSpeed =
                     projectile.angularSpeed;
-                runtimeProjectile.lifeSeconds = std::max(
-                    projectile.minimumLife,
-                    std::max(weapon->shotDelay, 0.1F));
+                runtimeProjectile.lifeSeconds =
+                    projectile.minimumLife;
                 runtimeProjectile.attached = true;
                 projectiles_.push_back(runtimeProjectile);
             }
@@ -5562,6 +5574,149 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source TorpedaUpdate shortest-arc/slerp/speed "
                     "transition failed");
+            }
+        }
+
+        const auto frostRay = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "asyncFrost";
+            });
+        const auto tankLaser = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "tankLaser";
+            });
+        const auto fireGun = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "fireGun";
+            });
+        if (frostRay == race.weapons.end() ||
+            frostRay->projectiles.size() != 1U ||
+            frostRay->projectiles.front().type != 18U ||
+            std::abs(
+                frostRay->projectiles.front().minimumLife - 1.0F) >
+                0.001F ||
+            std::abs(
+                frostRay->projectiles.front()
+                        .tertiaryVisual.maximumTimeLife -
+                1.0F) > 0.001F ||
+            tankLaser == race.weapons.end() ||
+            tankLaser->projectiles.size() != 1U ||
+            tankLaser->projectiles.front().type != 3U ||
+            std::abs(
+                tankLaser->projectiles.front().minimumLife - 1.0F) >
+                0.001F ||
+            std::abs(tankLaser->shotDelay - 1.1F) > 0.001F ||
+            fireGun == race.weapons.end() ||
+            fireGun->projectiles.size() != 1U ||
+            fireGun->projectiles.front().type != 14U ||
+            std::abs(
+                fireGun->projectiles.front().minimumLife - 1.6F) >
+                0.001F)
+        {
+            throw std::runtime_error(
+                "source Laser/FrostRay/Fire lifetimes were not preserved");
+        }
+        if (vehicles.size() > 1U)
+        {
+            OriginalRaceSession frostSession(race);
+            PlayerProfile frostProfile;
+            auto& slot = frostProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            slot.record = frostRay->record;
+            slot.charge = 1U;
+            slot.hasCharge = true;
+            frostSession.applyPlayerProfile(frostProfile);
+            auto frostVehicles = vehicles;
+            for (std::size_t index = 0;
+                 index < frostVehicles.size(); ++index)
+            {
+                frostVehicles[index].body.position = {
+                    100000.0F + static_cast<float>(index) * 1000.0F,
+                    100000.0F, 1000.0F};
+                frostVehicles[index].body.rotation = {};
+                frostVehicles[index].linearVelocity = {};
+            }
+            RaceControl frostInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                frostSession.update(
+                    1.0F / 60.0F, frostVehicles, frostInput);
+            }
+            frostInput.useWeapon = true;
+            frostSession.update(
+                1.0F / 60.0F, frostVehicles, frostInput);
+            frostInput.useWeapon = false;
+            const std::size_t frostWeapon =
+                static_cast<std::size_t>(
+                    frostRay - race.weapons.begin());
+            const auto sourceRay = std::find_if(
+                frostSession.projectiles().begin(),
+                frostSession.projectiles().end(),
+                [frostWeapon](
+                    const ProjectileRuntime& projectile) {
+                    return projectile.owner == 0U &&
+                           projectile.weapon == frostWeapon &&
+                           projectile.projectile == 0U &&
+                           projectile.attached;
+                });
+            if (sourceRay == frostSession.projectiles().end() ||
+                std::abs(sourceRay->lifeSeconds - 1.0F) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source attached minTimeLife was replaced by "
+                    "shotDelay");
+            }
+            const auto& targetDefinition =
+                race.racers[1].hasConfiguredVehicle
+                    ? race.racers[1].configuredVehicle
+                    : race.vehicles.at(race.racers[1].vehicle);
+            const Vec3 targetCenter = add(
+                sourceRay->position,
+                multiply(sourceRay->direction, 5.0F));
+            frostVehicles[1].body.position = subtract(
+                targetCenter,
+                targetDefinition.physics.shapePosition);
+            const float lifeBeforeFrost =
+                frostSession.racers()[1].life;
+            frostSession.update(
+                1.0F / 60.0F, frostVehicles, frostInput);
+            if (frostSession.racers()[1].life >= lifeBeforeFrost ||
+                std::abs(
+                    frostSession.racers()[1].slowSeconds - 1.0F) >
+                    0.001F ||
+                frostSession.racers()[1].slowWeapon != frostWeapon ||
+                frostSession.racers()[1].slowProjectile != 0U)
+            {
+                throw std::runtime_error(
+                    "source FrostRay SlowEffect child was not created");
+            }
+            frostSession.update(
+                1.0F / 60.0F, frostVehicles, frostInput);
+            if (frostSession.racers()[1].slowSeconds >= 0.99F)
+            {
+                throw std::runtime_error(
+                    "source SlowEffect lifetime was reset by every ray "
+                    "contact");
+            }
+            frostVehicles[1].body.position = {
+                200000.0F, 200000.0F, 2000.0F};
+            for (int frame = 0; frame < 60; ++frame)
+            {
+                frostSession.update(
+                    1.0F / 60.0F, frostVehicles, frostInput);
+            }
+            if (frostSession.racers()[1].slowSeconds > 0.0F ||
+                frostSession.racers()[1].slowWeapon !=
+                    RacerRuntime::invalidWeapon ||
+                frostSession.racers()[1].slowProjectile !=
+                    RacerRuntime::invalidWeapon)
+            {
+                throw std::runtime_error(
+                    "source Frost SlowEffect did not expire with its "
+                    "model");
             }
         }
 

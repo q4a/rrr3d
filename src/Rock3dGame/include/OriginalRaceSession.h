@@ -102,6 +102,8 @@ struct RacerRuntime
     float shieldSeconds = 0.0F;
     float speedBoostSeconds = 0.0F;
     float slowSeconds = 0.0F;
+    std::size_t slowWeapon = invalidWeapon;
+    std::size_t slowProjectile = invalidWeapon;
     float clutchSeconds = 0.0F;
     float springLockSeconds = 0.0F;
     float restoreSeconds = 0.0F;

@@ -3030,6 +3030,38 @@ void OriginalRaceRenderer::draw(
         if (racer < racerRuntime.size())
         {
             const auto& runtime = racerRuntime[racer];
+            if (runtime.slowSeconds > 0.0F &&
+                runtime.slowWeapon < race.weapons.size() &&
+                runtime.slowWeapon < projectiles_.size() &&
+                runtime.slowProjectile <
+                    race.weapons[runtime.slowWeapon]
+                        .projectiles.size() &&
+                runtime.slowProjectile <
+                    projectiles_[runtime.slowWeapon].size())
+            {
+                const auto& slowDefinition =
+                    race.weapons[runtime.slowWeapon]
+                        .projectiles[runtime.slowProjectile];
+                const auto& slowAssets =
+                    projectiles_[runtime.slowWeapon]
+                                [runtime.slowProjectile];
+                if (!slowDefinition.tertiaryVisual.visualNodes.empty() ||
+                    !slowDefinition.tertiaryVisual
+                         .particleEmitters.empty())
+                {
+                    const float total =
+                        slowDefinition.tertiaryVisual.maximumTimeLife >
+                                0.0F
+                            ? slowDefinition.tertiaryVisual
+                                  .maximumTimeLife
+                            : 1.0F;
+                    drawDefinition(
+                        slowAssets.tertiaryVisual,
+                        slowDefinition.tertiaryVisual, state.body,
+                        std::max(total - runtime.slowSeconds, 0.0F),
+                        std::abs(state.speed));
+                }
+            }
             for (std::size_t slot = 0;
                  slot < runtime.weaponSlots.size() &&
                  slot < definition.weaponMounts.size(); ++slot)
@@ -3234,6 +3266,20 @@ void OriginalRaceRenderer::draw(
             parent.position.z +=
                 projectile.direction.z * distance * 0.5F;
             parent.scale.x = distance;
+            if (definition.type == 3U &&
+                definition.minimumLife > 0.0F)
+            {
+                const float alphaTime = std::clamp(
+                    projectile.ageSeconds / definition.minimumLife,
+                    0.0F, 1.0F);
+                const float fadeIn = std::clamp(
+                    alphaTime / 0.5F * 1.5F + 0.5F,
+                    0.0F, 2.0F);
+                const float fadeOut = std::clamp(
+                    (alphaTime - 0.6F) / 0.4F * 2.0F,
+                    0.0F, 2.0F);
+                parent.scale.y = fadeIn - fadeOut;
+            }
         }
         drawDefinition(
             asset, definition.visual, parent,
@@ -3268,15 +3314,6 @@ void OriginalRaceRenderer::draw(
                 drawDefinition(
                     projectileAssets.secondaryVisual,
                     definition.secondaryVisual, impact,
-                    projectile.ageSeconds, 0.0F);
-            }
-            if (definition.type == 18U &&
-                (!definition.tertiaryVisual.visualNodes.empty() ||
-                 !definition.tertiaryVisual.particleEmitters.empty()))
-            {
-                drawDefinition(
-                    projectileAssets.tertiaryVisual,
-                    definition.tertiaryVisual, impact,
                     projectile.ageSeconds, 0.0F);
             }
         }

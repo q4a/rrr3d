@@ -721,6 +721,10 @@ SDL_AUDIO_DRIVER=dummy \
 - `ptTorpeda`/`ptImpulse` homing использует source shortest-arc quaternion
   slerp и пересчёт `_vec1`, включая `sphereGun` viewAngle 0 и
   non-relative speed projection.
+- Attached `ptLaser`/`ptFrostRay`/`ptFire` живут serialized
+  `minTimeLife`. Frost `model3` перенесён из impact surrogate в исходный
+  target-child `SlowEffect`; его model lifetime больше не продлевается
+  каждым кадром beam contact.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,
