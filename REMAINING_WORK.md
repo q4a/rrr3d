@@ -53,7 +53,7 @@ completion.
   see lesson 7.
 - **A race renders, with the post-processing chain on.** Track, cars, water
   reflections, environment maps on bodywork, explosions, HDR and tone mapping.
-  This was three defects that turned out to be one; see lesson 8.
+  This was three defects that turned out to be one; see lesson 9.
 - The bridge harness passes at every layer: plain draws, vertex descriptors,
   argument buffers, `newBufferWithBytesNoCopy`, function-constant
   specialisation, and blending.
@@ -65,18 +65,56 @@ completion.
 
 - **The MSVC build.** Unverified since commit 12, and `Rock3dEngine` cannot
   compile on Windows until it moves to PhysX 4.1 — see section 5.
-- **Physics correctness.** The simulation runs; the car's behaviour is wrong
-  (see section 2).
-- **Audio, video and input** remain stubs (section 3).
+- **Physics correctness.** The simulation runs; cars do not drive
+  (see defects 1 and 2).
+- **Audio, video and input** remain stubs (section 6).
 
 ## The known defects, in the order they hurt
 
-### 1. The car's position is wrong during a race
+### 1. Cars do not drive
 
-Untouched. This is the vehicle model — see section 5, where it has been the
-identified highest-risk item since the original plan.
+`RRR3D_VEHICLE=1` builds a real `PxVehicleNoDrive` per car. Everything in the
+chain works and the car still does not go anywhere.
 
-### 2. The `GPUSync` spin
+What is measured and true:
+
+| | |
+|---|---|
+| timing | `dt = 0.0167`, one physics step per frame, `pause=0`, `startRace=1` |
+| wheels on the road | `groundBelowWheel = 0.336` against `radius = 0.340` |
+| suspension | carrying — spring force ≈ 10 kN against a rest load of 10230 |
+| wheels rotate | omega to 6000, gears shift, RPM real |
+| tire force | 54 kN longitudinal computed |
+| geometry | sound — wheel bottom sits 65 mm below the chassis bottom |
+| **the car moves** | **no** — creeps to ~2.5 m/s, then the AI resets it |
+
+54 kN on 2000 kg is 27 m/s². The forces exist and the body does not respond to
+them, and that is the whole remaining question.
+
+**The teleporting is a symptom, not a cause.** `AICar::UpdateResetCar` declares
+a car blocked below `cMaxSpeedBlocking` and `Player::ResetCar` teleports it to a
+track node with its velocity zeroed. Identical to `main`. Several cars stuck at
+similar progress get reset to nearby nodes, which is why they appear to jump
+onto one another. Fix the movement and this goes with it.
+
+**Do projectiles move?** A laser fired from a stationary car appears to hang in
+front of it. If that reproduces with `RRR3D_VEHICLE` unset, the fault is not in
+the vehicle model at all and everything above is downstream of something much
+more basic. This is the single cheapest question left and it should be asked
+first.
+
+**Suspect list, in order:** the two `setLinearVelocity(NullVector)` call sites
+(`Race.cpp`, `Player.cpp`) — both look like legitimate one-shot placement but
+neither has been observed at runtime; whether `setWheelShapeMapping` indices
+address what they are believed to; and `GameCar::StabilizeForce`, which was
+tuned against a car with no suspension and now runs alongside one that has it.
+
+### 2. The car's position is wrong during a race
+
+The vehicle model — see section 5, where it has been the identified
+highest-risk item since the original plan.
+
+### 3. The `GPUSync` spin
 
 `Engine::GPUSync` sits in `while (GetData(...) == S_FALSE);`, a spin with no
 yield that measures at **~88% of the main thread**, and deliberately holds a
@@ -117,8 +155,21 @@ RRR3D_NO_HDR=1             skip the HDR pass and tone mapping
 RRR3D_AUTORACE=<planet>    skip the menus and start a race on that planet
 RRR3D_SCENE_CLEAR=1        clear the scene magenta and the back buffer green
 RRR3D_FORCE_ALPHATEST=1    discard low-alpha GUI fragments
+RRR3D_VEHICLE=1            build a PxVehicleNoDrive per car (see defect 1)
+RRR3D_TIRE_STIFFNESS=<k>   tire force per unit slip per unit load
 MTL_DEBUG_LAYER=1 MTL_SHADER_VALIDATION=1
 ```
+
+The physics harness is the third of these, and the only one that can answer a
+question about a car in under a second:
+
+```
+bin/Debug/PhysicsHarness            a car on a plane, driven, with invariants
+```
+
+It is honest about one thing worth knowing before trusting it: it drives with
+300 Nm where the game uses 12450, so it under-tests everything that only breaks
+under real torque.
 
 `RRR3D_AUTORACE` matters more than it looks: a race is seven menus deep, and
 every graphics defect that only appears in one is otherwise expensive to look
@@ -129,7 +180,7 @@ fine and something later in the frame was painting over it.
 `RRR3D_TRACE=1` also reports two things worth knowing about the effects
 runtime: `FXSAMPLER` names every effect sampler as it is bound, or logs it if
 it cannot be, and `LUM` reads the HDR luminance chain back at each reduction
-stage. Both are one line each and both would have found lesson 8 in a minute.
+stage. Both are one line each and both would have found lesson 9 in a minute.
 
 Metal's validation layer found the sampler-layout bug. It did **not** find the
 stencil bug, because a stencil compare of Never is perfectly legal — the
@@ -174,7 +225,18 @@ the shape of bug a Windows-to-anything port produces:
    character select was not**: the menu draws no 3D scene, so nothing had bound
    a shader before it. A defect that depends on which screen you are on is a
    defect in what the previous screen left behind.
-8. **A declaration that is not a constant is invisible to a constant table.**
+8. **An implicit integrator forgives tuning an explicit one will not.**
+   `NxSpringDesc`: *"The spring is implicitly integrated, so even high spring and
+   damper coefficients should be robust."* So 2.8's suspensions never had to be
+   well damped, and are not — the damping ratio `c / (2·√(k·m))` across the
+   shipped cars runs from 0.71 down to **0.06**. PxVehicle integrates
+   explicitly, so the undamped ones ring, their tire load swings between a
+   quarter and three times rest, and traction arrives and leaves several times a
+   second. It reads as a grip problem and is not one. It is also *per car*,
+   which is why some sit and bounce differently to others. The general shape:
+   when a replacement solver integrates differently, data tuned against the old
+   one is not merely a different feel, it can be unstable.
+9. **A declaration that is not a constant is invisible to a constant table.**
    An `.fx` writes `texture diffTex;` and `sampler2D diffMap = sampler_state {
    Texture = diffTex; };`. The compiled shader's constant table lists `diffMap`
    and never `diffTex`, because a texture object is not a shader constant. The
@@ -287,16 +349,21 @@ change:
 
 ## Suggested order
 
-1. **The vehicle model** (defect 1) — the port's highest-risk item, and now
+1. **Ask whether anything moves.** Fire a weapon with `RRR3D_VEHICLE` unset and
+   watch the projectile. It costs one run and it halves the problem: a laser
+   that hangs in the air says the fault is not in the vehicle model, and every
+   hour spent inside `PxVehicle` after that is spent in the wrong place. This is
+   first because it was asked far too late.
+2. **The vehicle model** (defect 1) — the port's highest-risk item, and now
    judgeable, because a race renders and can be reached in one command.
-2. **A second look at the rendering, now that it can be seen.** Every effect
+3. **A second look at the rendering, now that it can be seen.** Every effect
    sampler was unbound until this session, so nothing that depends on one has
    ever been judged: shadow maps, environment maps, normal maps, water,
    refraction, sun shafts. They draw. Whether they draw *correctly* is
    unexamined, and the shadow-map path in particular binds two samplers.
-3. **Audio** — the largest untouched subsystem, and self-contained.
-4. **Move Windows to PhysX 4.1** — unblocks CI as a regression signal for
+4. **Audio** — the largest untouched subsystem, and self-contained.
+5. **Move Windows to PhysX 4.1** — unblocks CI as a regression signal for
    everything since commit 12.
-5. **Input** (SDL_GameController), **video**, and the `GPUSync` spin.
+6. **Input** (SDL_GameController), **video**, and the `GPUSync` spin.
 
-Items 1, 3, 4 and 5 serve Linux as much as macOS.
+Items 2, 4, 5 and 6 serve Linux as much as macOS.
