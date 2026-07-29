@@ -290,8 +290,9 @@ private:
         float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles,
         const RaceControl& humanControl);
-    void queueRespawn(std::size_t racer,
-                      const r3d::physics::VehicleState& vehicle);
+    void queueRespawn(
+        std::size_t racer,
+        const std::vector<r3d::physics::VehicleState>& vehicles);
     void destroyRacer(
         std::size_t racer, std::size_t attacker, Vec3 position,
         const r3d::physics::VehicleState& vehicle,
@@ -343,6 +344,7 @@ private:
     std::vector<std::array<bool, 4>> aiLockedTracks_;
     std::vector<std::size_t> aiFrontTargets_;
     std::vector<std::size_t> aiBackTargets_;
+    std::vector<float> lastPathCoordinates_;
     std::vector<Vec3> previousPositions_;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;

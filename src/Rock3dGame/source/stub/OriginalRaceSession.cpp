@@ -717,6 +717,112 @@ WorldRayHit raycastWorld(
     return result;
 }
 
+enum class ResetRayKind
+{
+    None,
+    TrackPlane,
+    DeathPlane,
+    OwnVehicle,
+    Blocked,
+};
+
+struct ResetRayHit
+{
+    ResetRayKind kind = ResetRayKind::None;
+    float distance = std::numeric_limits<float>::max();
+};
+
+ResetRayHit raycastResetWorld(
+    const Race& race, const std::vector<bool>& decorationActive,
+    const std::vector<r3d::physics::VehicleState>& vehicles,
+    const std::vector<RacerRuntime>& racers, std::size_t ownVehicle,
+    Vec3 origin)
+{
+    constexpr Vec3 direction{0.0F, 0.0F, -1.0F};
+    ResetRayHit result;
+    // Map::Map installs an infinite +Z TouchDeath plane at world Z=0.
+    if (origin.z >= 0.0F)
+    {
+        result.kind = ResetRayKind::DeathPlane;
+        result.distance = origin.z;
+    }
+    for (std::size_t meshIndex = 0;
+         meshIndex < race.collisionMeshes.size(); ++meshIndex)
+    {
+        const auto decoration =
+            meshIndex < race.collisionMeshDecorationInstances.size()
+                ? race.collisionMeshDecorationInstances[meshIndex]
+                : RacerRuntime::invalidWeapon;
+        if (decoration != RacerRuntime::invalidWeapon &&
+            decoration < decorationActive.size() &&
+            !decorationActive[decoration])
+        {
+            continue;
+        }
+        const auto& mesh = race.collisionMeshes[meshIndex];
+        for (std::size_t index = 0;
+             index + 2U < mesh.indices.size(); index += 3U)
+        {
+            const auto firstIndex = mesh.indices[index];
+            const auto secondIndex = mesh.indices[index + 1U];
+            const auto thirdIndex = mesh.indices[index + 2U];
+            if (firstIndex >= mesh.vertices.size() ||
+                secondIndex >= mesh.vertices.size() ||
+                thirdIndex >= mesh.vertices.size())
+            {
+                continue;
+            }
+            float distance = result.distance;
+            if (!raycastTriangle(
+                    origin, direction, result.distance,
+                    transformPoint(
+                        mesh.transform, mesh.vertices[firstIndex]),
+                    transformPoint(
+                        mesh.transform, mesh.vertices[secondIndex]),
+                    transformPoint(
+                        mesh.transform, mesh.vertices[thirdIndex]),
+                    distance))
+            {
+                continue;
+            }
+            result.distance = distance;
+            result.kind =
+                mesh.surface ==
+                        r3d::physics::CollisionSurface::TrackPlane
+                    ? ResetRayKind::TrackPlane
+                    : ResetRayKind::Blocked;
+        }
+    }
+    for (std::size_t vehicle = 0;
+         vehicle < vehicles.size() && vehicle < race.racers.size();
+         ++vehicle)
+    {
+        if (vehicle != ownVehicle && vehicle < racers.size() &&
+            racers[vehicle].destroyed)
+        {
+            continue;
+        }
+        const auto& source = race.racers[vehicle];
+        const auto& definition =
+            source.hasConfiguredVehicle
+                ? source.configuredVehicle
+                : race.vehicles.at(source.vehicle);
+        float distance = result.distance;
+        if (!raycastBox(
+                origin, direction, result.distance,
+                vehicleBox(vehicles[vehicle], definition.physics),
+                distance))
+        {
+            continue;
+        }
+        result.distance = distance;
+        result.kind =
+            vehicle == ownVehicle ? ResetRayKind::OwnVehicle
+                                  : ResetRayKind::Blocked;
+    }
+    return result;
+}
+
 float clampSteering(float value)
 {
     return std::clamp(value, -1.0F, 1.0F);
@@ -860,6 +966,7 @@ void OriginalRaceSession::reset()
         race_.racers.size(), RacerRuntime::invalidWeapon);
     aiBackTargets_.assign(
         race_.racers.size(), RacerRuntime::invalidWeapon);
+    lastPathCoordinates_.assign(race_.racers.size(), 0.0F);
     previousPositions_.assign(race_.racers.size(), {});
     decorationActive_.assign(race_.decorationInstances.size(), true);
     decorationLife_.clear();
@@ -1532,9 +1639,37 @@ void OriginalRaceSession::updateProgress(
 
     const auto& target = tracePoint(runtime.nextPathNode);
     const float radius = std::max(target.width * 0.55F, 7.0F);
-    const auto expectedDirection = normalized2(
-        subtract(target.position,
-                 tracePoint(runtime.nextPathNode - 1U).position));
+    const auto& previous =
+        tracePoint(runtime.nextPathNode - 1U);
+    const Vec3 segment =
+        subtract(target.position, previous.position);
+    const float segmentLength =
+        std::max(length2(segment), 0.0001F);
+    const auto expectedDirection =
+        normalized2(segment);
+    const Vec3 relative =
+        subtract(vehicle.body.position, previous.position);
+    const float pathDistance =
+        dot2(relative, expectedDirection);
+    const float pathCoordinate =
+        std::clamp(pathDistance / segmentLength, 0.0F, 1.0F);
+    const float pathWidth =
+        previous.width +
+        (target.width - previous.width) * pathCoordinate;
+    const Vec3 pathNormal{
+        expectedDirection.y, -expectedDirection.x, 0.0F};
+    const float pathZ =
+        previous.position.z +
+        (target.position.z - previous.position.z) * pathCoordinate;
+    // Player::CarState retains lastNodeCoordX only while the last tile
+    // contains the car. This is the same length/lateral/Z tile test for the
+    // linear portable trace representation.
+    if (pathDistance >= 0.0F && pathDistance <= segmentLength &&
+        std::abs(dot2(relative, pathNormal)) < pathWidth * 0.5F &&
+        std::abs(pathZ - vehicle.body.position.z) < pathWidth * 0.5F)
+    {
+        lastPathCoordinates_[racer] = pathCoordinate;
+    }
     runtime.wrongWay =
         vehicle.speed > 3.0F &&
         dot2(normalized2(forward(vehicle.body.rotation)),
@@ -1548,13 +1683,17 @@ void OriginalRaceSession::updateProgress(
                        runtime.nextPathNode, target.position, 0.0F});
     ++runtime.nextPathNode;
     if (runtime.nextPathNode < race_.tracePath.size())
+    {
+        lastPathCoordinates_[racer] = 0.0F;
         return;
+    }
 
     ++runtime.completedLaps;
     events_.push_back({RaceEventKind::Lap, racer, runtime.completedLaps,
                        vehicle.body.position,
                        static_cast<float>(runtime.completedLaps)});
     runtime.nextPathNode = 1;
+    lastPathCoordinates_[racer] = 0.0F;
     if (runtime.completedLaps >= race_.lapCount)
     {
         runtime.finished = true;
@@ -2005,22 +2144,111 @@ void OriginalRaceSession::updatePlaces(
 }
 
 void OriginalRaceSession::queueRespawn(
-    std::size_t racer, const r3d::physics::VehicleState& vehicle)
+    std::size_t racer,
+    const std::vector<r3d::physics::VehicleState>& vehicles)
 {
+    if (racer >= racers_.size() || racer >= vehicles.size())
+        return;
     const auto& runtime = racers_[racer];
-    const std::size_t previousNode =
-        runtime.nextPathNode > 0 ? runtime.nextPathNode - 1U : 0U;
-    const auto& point = tracePoint(previousNode);
-    const auto& next = tracePoint(
-        std::min(previousNode + 1U, race_.tracePath.size() - 1U));
-    const Vec3 direction =
-        normalized2(subtract(next.position, point.position));
-    const Vec3 position = add(point.position, {0.0F, 0.0F, 2.0F});
+    std::size_t nodeIndex = std::min<std::size_t>(
+        runtime.nextPathNode > 0U
+            ? runtime.nextPathNode - 1U
+            : 0U,
+        race_.tracePath.size() - 2U);
+    auto segmentLength = [&](std::size_t node) {
+        return std::max(
+            length2(subtract(
+                tracePoint(node + 1U).position,
+                tracePoint(node).position)),
+            0.0001F);
+    };
+    float distance =
+        segmentLength(nodeIndex) *
+        std::clamp(lastPathCoordinates_[racer], 0.0F, 1.0F);
+    constexpr std::array<float, 3> offsets{
+        0.0F, -2.0F, 2.0F};
+    bool initialDeathPlane = false;
+    Vec3 position{};
+    Vec3 direction{1.0F, 0.0F, 0.0F};
+
+    for (int attempt = 0; attempt < 5; ++attempt)
+    {
+        bool found = false;
+        int sample = 0;
+        while (sample < static_cast<int>(offsets.size()))
+        {
+            const auto& start = tracePoint(nodeIndex);
+            const auto& end = tracePoint(nodeIndex + 1U);
+            const float length = segmentLength(nodeIndex);
+            const float coordinate = std::clamp(
+                (distance + offsets[static_cast<std::size_t>(sample)]) /
+                    length,
+                0.0F, 1.0F);
+            const Vec3 tileDirection =
+                normalized2(subtract(end.position, start.position));
+            const float width =
+                start.width + (end.width - start.width) * coordinate;
+            Vec3 rayPosition = add(
+                start.position,
+                multiply(subtract(end.position, start.position),
+                         coordinate));
+            rayPosition.z += width * 0.25F;
+
+            if (attempt == 0 && sample == 0)
+            {
+                position = rayPosition;
+                direction = tileDirection;
+            }
+            if (sample == 0)
+            {
+                position = rayPosition;
+                direction = tileDirection;
+            }
+
+            const ResetRayHit hit = raycastResetWorld(
+                race_, decorationActive_, vehicles, racers_, racer,
+                rayPosition);
+            if (!initialDeathPlane && attempt == 0 && sample == 0 &&
+                (hit.kind == ResetRayKind::None ||
+                 hit.kind == ResetRayKind::DeathPlane))
+            {
+                initialDeathPlane = true;
+                distance = 0.0F;
+                sample = 0;
+                continue;
+            }
+            if (hit.kind != ResetRayKind::TrackPlane &&
+                hit.kind != ResetRayKind::OwnVehicle)
+            {
+                break;
+            }
+            if (sample == static_cast<int>(offsets.size()) - 1)
+                found = true;
+            ++sample;
+        }
+        if (found)
+            break;
+
+        const float previousDistance = distance - 6.0F;
+        if (previousDistance < 0.0F)
+        {
+            if (nodeIndex == 0U)
+                break;
+            --nodeIndex;
+            distance = std::max(
+                segmentLength(nodeIndex) + previousDistance, 0.0F);
+        }
+        else
+        {
+            distance = previousDistance;
+        }
+    }
+
     respawns_.push_back({racer, position, direction});
-    previousPositions_[racer] = vehicle.body.position;
+    previousPositions_[racer] = vehicles[racer].body.position;
     stuckSeconds_[racer] = 0.0F;
     events_.push_back(
-        {RaceEventKind::Respawn, racer, previousNode, position, 0.0F});
+        {RaceEventKind::Respawn, racer, nodeIndex, position, 0.0F});
 }
 
 void OriginalRaceSession::destroyRacer(
@@ -2121,7 +2349,7 @@ void OriginalRaceSession::updateGameplay(
         if (runtime.restoreSeconds <= 0.0F)
         {
             runtime.life = runtime.maximumLife;
-            queueRespawn(racer, vehicles[racer]);
+            queueRespawn(racer, vehicles);
             // Keep the old car hidden until the reset request has reached
             // Jolt; it becomes live on the next session update.
             runtime.restoreSeconds = -1.0F;
@@ -3206,7 +3434,7 @@ void OriginalRaceSession::updateGameplay(
     if (!vehicles.empty())
     {
         if (humanControl.reset && !racers_[0].destroyed)
-            queueRespawn(0, vehicles[0]);
+            queueRespawn(0, vehicles);
         previousPositions_[0] = vehicles[0].body.position;
     }
     for (std::size_t racer = 0;
@@ -3242,7 +3470,7 @@ void OriginalRaceSession::updateGameplay(
     {
         if (stuckSeconds_[racer] > 3.0F &&
             !racers_[racer].destroyed)
-            queueRespawn(racer, vehicles[racer]);
+            queueRespawn(racer, vehicles);
     }
 
     auto pushShotEffect =
@@ -7740,6 +7968,93 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source MineRip nested minTimeLife/DeathEffect "
                     "lifecycle failed");
+            }
+        }
+
+        {
+            std::size_t resetNode = 0U;
+            float resetSegmentLength = 0.0F;
+            for (std::size_t node = 0U;
+                 node + 1U < race.tracePath.size(); ++node)
+            {
+                const float length = length2(subtract(
+                    point(node + 1U).position,
+                    point(node).position));
+                if (length > 20.0F)
+                {
+                    resetNode = node;
+                    resetSegmentLength = length;
+                    break;
+                }
+            }
+            if (resetSegmentLength <= 20.0F)
+            {
+                throw std::runtime_error(
+                    "source trace has no usable ResetCar regression "
+                    "segment");
+            }
+            OriginalRaceSession resetSession(race);
+            auto resetVehicles = vehicles;
+            RaceControl resetInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                resetSession.update(
+                    1.0F / 60.0F, resetVehicles, resetInput);
+            }
+            for (std::size_t node = 1U; node <= resetNode; ++node)
+            {
+                resetVehicles[0].body.position =
+                    point(node).position;
+                resetVehicles[0].body.position.z += 2.0F;
+                resetVehicles[0].body.rotation =
+                    shortestArcFromX(normalized2(subtract(
+                        point(node).position,
+                        point(node - 1U).position)));
+                resetVehicles[0].speed = 5.0F;
+                resetSession.update(
+                    1.0F / 60.0F, resetVehicles, resetInput);
+            }
+            constexpr float resetCoordinate = 0.75F;
+            const auto& resetStart = point(resetNode);
+            const auto& resetEnd = point(resetNode + 1U);
+            const Vec3 resetSegment =
+                subtract(resetEnd.position, resetStart.position);
+            const Vec3 resetDirection =
+                normalized2(resetSegment);
+            resetVehicles[0].body.position = add(
+                resetStart.position,
+                multiply(resetSegment, resetCoordinate));
+            resetVehicles[0].body.position.z += 2.0F;
+            resetVehicles[0].body.rotation =
+                shortestArcFromX(resetDirection);
+            resetVehicles[0].speed = 5.0F;
+            resetInput.reset = true;
+            resetSession.update(
+                1.0F / 60.0F, resetVehicles, resetInput);
+            const auto resetRequests =
+                resetSession.takeRespawns();
+            if (resetRequests.size() != 1U)
+            {
+                throw std::runtime_error(
+                    "source ResetCar request count failed");
+            }
+            const float resetDistance = dot2(
+                subtract(
+                    resetRequests.front().position,
+                    resetStart.position),
+                resetDirection);
+            if (std::abs(
+                    resetDistance -
+                    resetSegmentLength * resetCoordinate) >
+                    0.25F ||
+                dot2(
+                    resetRequests.front().direction,
+                    resetDirection) <
+                    0.999F)
+            {
+                throw std::runtime_error(
+                    "source ResetCar retained tile coordinate/direction "
+                    "failed");
             }
         }
 

@@ -781,6 +781,12 @@ SDL_AUDIO_DRIVER=dummy \
   line/Z gates. Задняя цель передаётся в projectile target, но source
   `normLine` разрешает такой выстрел только `ptTorpeda`; unlimited
   `maxDist <= 0` больше не превращается в придуманный предел 100.
+- `Player::ResetCar` больше не телепортирует машину в начало предыдущего
+  checkpoint-сегмента. Session хранит исходный `lastNodeCoordX`, проверяет
+  вертикальными raycasts точки `0/-2/+2` м, при занятой позиции отступает на
+  6 м (до пяти попыток) и переходит на предыдущий tile. В запрос включены
+  `TrackPlane`, глобальный `PlaneDeath`, активные decorations и машины;
+  собственный collider допускается, как в проверке `hitGameObj == _car`.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,
