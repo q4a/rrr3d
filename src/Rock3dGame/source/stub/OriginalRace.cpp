@@ -243,9 +243,9 @@ float optionalScalar(TiXmlElement* parent, std::string_view path,
                      float fallback);
 
 void applyMobilityLoadout(
-    Vehicle& vehicle, const resource::ResourceFileSystem& resources,
-    TiXmlElement* workshop, const std::vector<RacerSlot>& loadout,
-    std::string_view difficulty, bool updateWheelVisual)
+    Vehicle& vehicle, TiXmlElement* workshop,
+    const std::vector<RacerSlot>& loadout,
+    std::string_view difficulty)
 {
     const float baseMaximumSpeed = vehicle.physics.maximumSpeed;
     float maximumTorque = 0.0F;
@@ -318,28 +318,11 @@ void applyMobilityLoadout(
         addTire(function, "longTire", longitudinalTire);
         addTire(function, "latTire", lateralTire);
 
-        if (updateWheelVisual && slot.type == "stWheel")
-        {
-            auto* mesh = child(item, "mesh");
-            auto* texture = child(item, "texture");
-            if (mesh != nullptr && texture != nullptr &&
-                mesh->Attribute("item") != nullptr &&
-                texture->Attribute("item") != nullptr)
-            {
-                const auto meshPath = canonicalDataPath(
-                    resources, mesh->Attribute("item"));
-                const auto texturePath = canonicalDataPath(
-                    resources, texture->Attribute("item"));
-                vehicle.wheelMeshPath = meshPath;
-                for (auto& visual : vehicle.wheelVisuals)
-                {
-                    visual.meshPath = meshPath;
-                    visual.materials = {
-                        {"Upgrade\\" + itemName, texturePath,
-                         MaterialBlend::Opaque, 0.0F}};
-                }
-            }
-        }
+        // WheelItem inherits SlotItem::OnCreateCar unchanged in the Windows
+        // game. Its Upgrade/wheel*.r3d mesh is only displayed by the garage
+        // viewport, which fits preview meshes to its box. It must not replace
+        // the wheel nodes created by DataBase::AddWheel: the preview meshes
+        // use a much larger unit scale and become giant rotating race meshes.
     }
 
     // Player::ApplyMobility resets these values, accumulates every installed
@@ -3091,8 +3074,8 @@ void applyOriginalPlayerProfile(
              profile.slots[profileSlot].charge});
     }
     human.loadout = humanLoadout;
-    applyMobilityLoadout(human.configuredVehicle, resources, workshop,
-                         human.loadout, profile.difficulty, true);
+    applyMobilityLoadout(human.configuredVehicle, workshop,
+                         human.loadout, profile.difficulty);
     race.vehicle = human.configuredVehicle;
 
     for (std::size_t index = 1; index < race.racers.size(); ++index)
@@ -3100,8 +3083,8 @@ void applyOriginalPlayerProfile(
         auto& racer = race.racers[index];
         racer.configuredVehicle = race.vehicles[racer.vehicle];
         racer.hasConfiguredVehicle = true;
-        applyMobilityLoadout(racer.configuredVehicle, resources, workshop,
-                             racer.loadout, profile.difficulty, true);
+        applyMobilityLoadout(racer.configuredVehicle, workshop,
+                             racer.loadout, profile.difficulty);
     }
 }
 
@@ -3269,6 +3252,27 @@ bool runOriginalRaceResourceSmokeTest(
     try
     {
         const auto physics = makePhysicsDescription(race, resources);
+        const auto playerWheel = resource::loadR3DMeshAsset(
+            resources, race.vehicle.wheelMeshPath);
+        const float playerWheelRadius = std::max(
+            {std::abs(playerWheel.minimum[0]),
+             std::abs(playerWheel.maximum[0]),
+             std::abs(playerWheel.minimum[2]),
+             std::abs(playerWheel.maximum[2])});
+        bool usesWorkshopPreviewWheel = false;
+        for (const auto& racer : race.racers)
+        {
+            if (!racer.hasConfiguredVehicle)
+                continue;
+            usesWorkshopPreviewWheel =
+                usesWorkshopPreviewWheel || std::any_of(
+                    racer.configuredVehicle.wheelVisuals.begin(),
+                    racer.configuredVehicle.wheelVisuals.end(),
+                    [](const VisualNode& visual) {
+                        return visual.meshPath.find("Data/Upgrade/wheel") !=
+                               std::string::npos;
+                    });
+        }
         std::size_t triangleCount = 0;
         std::size_t borderMeshCount = 0;
         for (const auto& mesh : physics.collisionMeshes)
@@ -3577,6 +3581,10 @@ bool runOriginalRaceResourceSmokeTest(
             !near(race.vehicle.maximumLife, 70.0F) ||
             physics.vehicle.wheels.size() != 4 ||
             !near(physics.vehicle.wheels[0].radius, 0.42947F) ||
+            race.vehicle.wheelMeshPath !=
+                "Data/Car/marauderWheel.r3d" ||
+            playerWheelRadius < 0.44F || playerWheelRadius > 0.46F ||
+            usesWorkshopPreviewWheel ||
             !near(physics.vehicle.wheels[0].suspensionTravel, 0.3F) ||
             // wheel1 adds 2 to the 140000 base tire spring.
             !near(physics.vehicle.wheels[0].spring, 140002.0F) ||

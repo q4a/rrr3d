@@ -1016,6 +1016,7 @@ private:
             vehicle.state.engineRpm = 0.0F;
             vehicle.state.contactCount = 0U;
             vehicle.state.bodyContacts.clear();
+            vehicle.state.wheelContacts.clear();
             return;
         }
         JPH::BodyLockRead lock(system_.GetBodyLockInterface(), vehicle.body);
@@ -1035,6 +1036,9 @@ private:
             static_cast<std::size_t>(&vehicle - vehicles_.data());
         state.bodyContacts = contactListener_.take(vehicleIndexValue);
         state.wheels.clear();
+        state.wheelContacts.clear();
+        state.wheelContacts.reserve(
+            vehicle.constraint->GetWheels().size());
         JPH::uint contacts = 0;
         for (JPH::uint index = 0;
              index < vehicle.constraint->GetWheels().size();
@@ -1047,8 +1051,21 @@ private:
             wheel.rotation = fromJolt(matrix.GetQuaternion());
             wheel.scale = {1.0F, 1.0F, 1.0F};
             state.wheels.push_back(wheel);
-            if (vehicle.constraint->GetWheel(index)->HasContact())
+            const auto* joltWheel =
+                vehicle.constraint->GetWheel(index);
+            WheelContactState contact;
+            contact.hasContact = joltWheel->HasContact();
+            if (contact.hasContact)
+            {
+                contact.position =
+                    fromJolt(joltWheel->GetContactPosition());
+                const auto* wheeled =
+                    static_cast<const JPH::WheelWV*>(joltWheel);
+                contact.longitudinalSlip = wheeled->mLongitudinalSlip;
+                contact.lateralSlip = wheeled->mLateralSlip;
                 ++contacts;
+            }
+            state.wheelContacts.push_back(contact);
         }
         state.contactCount = contacts;
     }
@@ -1110,9 +1127,18 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     for (int step = 0; step < 240; ++step)
         world->step(1.0F / 120.0F, input);
     const auto settled = world->vehicle();
-    if (settled.contactCount == 0)
+    const auto settledWheelContacts = static_cast<std::uint32_t>(
+        std::count_if(
+            settled.wheelContacts.begin(), settled.wheelContacts.end(),
+            [](const WheelContactState& contact) {
+                return contact.hasContact;
+            }));
+    if (settled.contactCount == 0 ||
+        settled.wheelContacts.size() != settled.wheels.size() ||
+        settledWheelContacts != settled.contactCount)
     {
-        error = "original vehicle wheels did not contact map1 collision mesh; "
+        error = "original per-wheel contact state did not match map1 "
+                "collision; "
                 "position=" + std::to_string(settled.body.position.x) + "," +
                 std::to_string(settled.body.position.y) + "," +
                 std::to_string(settled.body.position.z);
@@ -1120,8 +1146,24 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     }
     world->setWheelTractionEnabled(0U, false);
     input.throttle = 1.0F;
+    bool sawWheelSlip = false;
     for (int step = 0; step < 480; ++step)
+    {
         world->step(1.0F / 120.0F, input);
+        sawWheelSlip = sawWheelSlip || std::any_of(
+            world->vehicle().wheelContacts.begin(),
+            world->vehicle().wheelContacts.end(),
+            [](const WheelContactState& contact) {
+                return contact.hasContact &&
+                       (std::abs(contact.longitudinalSlip) > 0.4F ||
+                        std::abs(contact.lateralSlip) > 0.6F);
+            });
+    }
+    if (!sawWheelSlip)
+    {
+        error = "Jolt did not expose the source per-wheel slip trigger";
+        return false;
+    }
     const float clutchLockedSpeed = world->vehicle().speed;
     world->reset();
     input = {};

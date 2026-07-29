@@ -121,10 +121,19 @@ struct BodyContact
     float force = 0.0F;
 };
 
+struct WheelContactState
+{
+    Vec3 position;
+    float longitudinalSlip = 0.0F;
+    float lateralSlip = 0.0F;
+    bool hasContact = false;
+};
+
 struct VehicleState
 {
     Transform body;
     std::vector<Transform> wheels;
+    std::vector<WheelContactState> wheelContacts;
     Vec3 linearVelocity;
     float speed = 0.0F;
     float engineRpm = 0.0F;

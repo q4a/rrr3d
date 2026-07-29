@@ -2948,24 +2948,46 @@ void OriginalRaceRenderer::draw(
                     r3d::game::originalrace::LightingMode::Standard,
                     DrawLayer::All,
                     &definition.wheelVisuals[wheelIndex]);
-            // The original wheel behavior type 9 instantiates ctEffects/trail
-            // while a contacted wheel moves.  Jolt exposes aggregate contact
-            // state, so preserve that trigger boundary and feed the source
-            // speed into its distance-based emitter.
-            if (state.contactCount > 0U &&
-                std::abs(state.speed) > 1.0F)
+            // CarWheel::OnProgress and PxWheelSlipEffect use the PhysX
+            // contact point and per-wheel slip, not an aggregate vehicle
+            // contact/speed approximation.  The old approximation emitted
+            // four permanent strips for every moving car, compounding the
+            // visual clutter around player and AI wheels.
+            const auto* contact =
+                wheelIndex < state.wheelContacts.size()
+                    ? &state.wheelContacts[wheelIndex]
+                    : nullptr;
+            const bool slipping =
+                contact != nullptr && contact->hasContact &&
+                (std::abs(contact->longitudinalSlip) > 0.4F ||
+                 std::abs(contact->lateralSlip) > 0.6F);
+            const auto* trailPath =
+                racer < wheelTrailPaths_.size() &&
+                        wheelIndex < wheelTrailPaths_[racer].size()
+                    ? &wheelTrailPaths_[racer][wheelIndex]
+                    : nullptr;
+            if (slipping ||
+                (trailPath != nullptr && !trailPath->empty()))
             {
                 auto trailParent = wheel;
                 trailParent.rotation = state.body.rotation;
+                if (slipping)
+                {
+                    trailParent.position = contact->position;
+                    trailParent.position.z += 0.001F;
+                }
+                else
+                {
+                    // FxSystemWaitingEnd keeps the existing particles alive
+                    // after slip stops; anchor it at the final sample so a
+                    // new strip is not stretched to the moving wheel.
+                    trailParent.position = trailPath->back();
+                }
                 drawDefinition(
                     wheelTrailEffect_, race.wheelTrailEffect,
                     trailParent, elapsedSeconds,
                     std::abs(state.speed),
-                    racer < wheelTrailPaths_.size() &&
-                            wheelIndex <
-                                wheelTrailPaths_[racer].size()
-                        ? &wheelTrailPaths_[racer][wheelIndex]
-                        : nullptr);
+                    trailPath);
             }
         }
         if (racer < racerRuntime.size() &&
@@ -3732,8 +3754,8 @@ void OriginalRaceRenderer::renderFrame(
                 : race.vehicles[vehicleIndex];
         const auto& state = vehicles[racer];
         const auto wheelCount = std::min(
-            state.wheels.size(),
-            definition.wheelVisualOffsets.size());
+            {state.wheels.size(), state.wheelContacts.size(),
+             definition.wheelVisualOffsets.size()});
         auto& paths = wheelTrailPaths_[racer];
         auto& times = wheelTrailTimes_[racer];
         if (wheelTrailResetCounts_[racer] != state.resetCount)
@@ -3746,13 +3768,9 @@ void OriginalRaceRenderer::renderFrame(
         times.resize(wheelCount);
         for (std::size_t wheel = 0; wheel < wheelCount; ++wheel)
         {
-            auto position = state.wheels[wheel].position;
-            const auto offset = rotate(
-                state.body.rotation,
-                definition.wheelVisualOffsets[wheel]);
-            position.x += offset.x;
-            position.y += offset.y;
-            position.z += offset.z;
+            const auto& contact = state.wheelContacts[wheel];
+            auto position = contact.position;
+            position.z += 0.001F;
             auto& path = paths[wheel];
             auto& sampleTimes = times[wheel];
             while (!sampleTimes.empty() &&
@@ -3761,8 +3779,11 @@ void OriginalRaceRenderer::renderFrame(
                 sampleTimes.erase(sampleTimes.begin());
                 path.erase(path.begin());
             }
-            if (state.contactCount == 0U ||
-                std::abs(state.speed) <= 1.0F)
+            const bool slipping =
+                contact.hasContact &&
+                (std::abs(contact.longitudinalSlip) > 0.4F ||
+                 std::abs(contact.lateralSlip) > 0.6F);
+            if (!slipping)
                 continue;
             bool addPoint = path.empty();
             if (!path.empty())
