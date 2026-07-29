@@ -855,6 +855,10 @@ void OriginalRaceSession::reset()
     aiBackMoving_.assign(race_.racers.size(), false);
     aiMineRandom_.assign(race_.racers.size(), -1.0F);
     aiTracks_.assign(race_.racers.size(), 0U);
+    aiFrontTargets_.assign(
+        race_.racers.size(), RacerRuntime::invalidWeapon);
+    aiBackTargets_.assign(
+        race_.racers.size(), RacerRuntime::invalidWeapon);
     previousPositions_.assign(race_.racers.size(), {});
     decorationActive_.assign(race_.decorationInstances.size(), true);
     decorationLife_.clear();
@@ -3881,8 +3885,10 @@ void OriginalRaceSession::updateGameplay(
         }
     }
 
-    auto fireWeapon = [&](std::size_t shooter,
-                          float minimumCooldown = 0.03F) {
+    auto fireWeapon =
+        [&](std::size_t shooter, float minimumCooldown = 0.03F,
+            std::size_t requestedTarget =
+                RacerRuntime::invalidWeapon) {
         if (shooter >= vehicles.size() ||
             shooter >= racers_.size() || racers_[shooter].finished ||
             racers_[shooter].destroyed)
@@ -3934,7 +3940,9 @@ void OriginalRaceSession::updateGameplay(
                     ? 0.0F
                     : 3.14159265358979323846F / 5.5F;
             const std::size_t homingTarget =
-                findClosestEnemy(shooter, homingViewAngle);
+                requestedTarget < racers_.size()
+                    ? requestedTarget
+                    : findClosestEnemy(shooter, homingViewAngle);
             const bool rayProjectile =
                 projectile.speed <= 0.0F;
             const bool attachedProjectile =
@@ -4124,97 +4132,183 @@ void OriginalRaceSession::updateGameplay(
             continue;
         const Vec3 carDirection =
             normalized2(forward(vehicles[racer].body.rotation));
-        std::size_t frontTarget = racers_.size();
-        std::size_t backTarget = racers_.size();
-        float frontDistance = 100.0F;
-        float backDistance = 100.0F;
-        for (std::size_t target = 0;
-             target < vehicles.size() && target < racers_.size();
-             ++target)
-        {
-            if (target == racer || racers_[target].finished ||
-                racers_[target].destroyed)
-                continue;
-            const auto difference = subtract(
-                vehicles[target].body.position,
+        auto carRadius = [&](std::size_t target) {
+            const auto& definition = race_.racers[target];
+            const auto& vehicle =
+                definition.hasConfiguredVehicle
+                    ? definition.configuredVehicle
+                    : race_.vehicles.at(definition.vehicle);
+            const auto half = vehicle.physics.halfExtents;
+            return std::max(
+                std::sqrt(half.x * half.x + half.y * half.y +
+                          half.z * half.z),
+                0.5F);
+        };
+        auto zLevelContains = [&](std::size_t target) {
+            const std::size_t nextNode = std::clamp<std::size_t>(
+                runtime.nextPathNode, 1U,
+                race_.tracePath.size() - 1U);
+            const auto& start = tracePoint(nextNode - 1U);
+            const auto& end = tracePoint(nextNode);
+            const Vec3 direction = normalized2(
+                subtract(end.position, start.position));
+            const float segmentLength = std::max(
+                length2(subtract(end.position, start.position)),
+                0.0001F);
+            const float part = std::clamp(
+                dot2(subtract(
+                         vehicles[target].body.position,
+                         start.position),
+                     direction) /
+                    segmentLength,
+                0.0F, 1.0F);
+            const float level =
+                start.position.z +
+                (end.position.z - start.position.z) * part;
+            const float height =
+                (start.width +
+                 (end.width - start.width) * part) *
+                0.5F;
+            return level - vehicles[target].body.position.z <
+                   height;
+        };
+        auto findEnemy =
+            [&](int direction,
+                std::size_t currentTarget) {
+                std::size_t enemy =
+                    RacerRuntime::invalidWeapon;
+                float minimumPlaneDistance = 0.0F;
+                for (std::size_t target = 0;
+                     target < vehicles.size() &&
+                     target < racers_.size(); ++target)
+                {
+                    if (target == racer ||
+                        racers_[target].finished ||
+                        racers_[target].destroyed ||
+                        !zLevelContains(target))
+                        continue;
+                    const Vec3 difference = subtract(
+                        vehicles[target].body.position,
+                        vehicles[racer].body.position);
+                    const float distance = length3(difference);
+                    if (distance <= 0.0001F)
+                        continue;
+                    const float alignment = dot2(
+                        carDirection,
+                        multiply(difference, 1.0F / distance));
+                    const bool inView =
+                        direction > 0
+                            ? alignment >= 0.70710678F
+                            : alignment <= -0.70710678F;
+                    const float planeDistance = std::abs(
+                        dot2(carDirection, difference));
+                    if (!inView ||
+                        (enemy != RacerRuntime::invalidWeapon &&
+                         planeDistance >= minimumPlaneDistance))
+                        continue;
+                    enemy = target;
+                    minimumPlaneDistance = planeDistance;
+                }
+                if (currentTarget == enemy)
+                    return enemy;
+                const bool currentValid =
+                    currentTarget < racers_.size() &&
+                    currentTarget < vehicles.size() &&
+                    !racers_[currentTarget].finished &&
+                    !racers_[currentTarget].destroyed &&
+                    zLevelContains(currentTarget);
+                if (enemy == RacerRuntime::invalidWeapon)
+                {
+                    return currentValid
+                               ? currentTarget
+                               : RacerRuntime::invalidWeapon;
+                }
+                if (!currentValid ||
+                    length2(subtract(
+                        vehicles[currentTarget].body.position,
+                        vehicles[enemy].body.position)) >
+                        carRadius(currentTarget) * 2.0F)
+                    return enemy;
+                return currentTarget;
+            };
+        aiFrontTargets_[racer] =
+            findEnemy(1, aiFrontTargets_[racer]);
+        aiBackTargets_[racer] =
+            findEnemy(-1, aiBackTargets_[racer]);
+        const std::size_t frontTarget =
+            aiFrontTargets_[racer];
+        const std::size_t backTarget =
+            aiBackTargets_[racer];
+        const float backDistance =
+            backTarget < racers_.size()
+                ? length2(subtract(
+                      vehicles[backTarget].body.position,
+                      vehicles[racer].body.position))
+                : 0.0F;
+
+        auto shotByEnemy = [&](std::size_t enemy) {
+            if (enemy >= racers_.size() ||
+                enemy >= vehicles.size())
+                return;
+            const Vec3 difference = subtract(
+                vehicles[enemy].body.position,
                 vehicles[racer].body.position);
-            const float distance = length2(difference);
-            if (distance <= 0.001F || distance >= 100.0F)
-                continue;
-            const float alignment =
-                dot2(carDirection, normalized2(difference));
-            const auto& targetDefinition = race_.racers[target];
-            const auto& targetVehicle =
-                targetDefinition.hasConfiguredVehicle
-                    ? targetDefinition.configuredVehicle
-                    : race_.vehicles.at(targetDefinition.vehicle);
-            const float radius = std::max(
-                {targetVehicle.physics.halfExtents.x,
-                 targetVehicle.physics.halfExtents.y, 0.5F});
+            const float enemyRadius = carRadius(enemy);
+            const float sourceRadius = carRadius(racer);
             const float lineDistance = std::abs(
                 carDirection.x * difference.y -
                 carDirection.y * difference.x);
-            if (lineDistance >= radius ||
-                std::abs(difference.z) >= radius)
-                continue;
-            if (alignment > 0.70710678F && distance < frontDistance)
+            if (lineDistance >= enemyRadius ||
+                std::abs(difference.z) >=
+                    std::min(sourceRadius, enemyRadius))
+                return;
+            const float targetDistance = length2(difference);
+            const float targetForwardDistance =
+                dot2(carDirection, difference);
             {
-                frontTarget = target;
-                frontDistance = distance;
-            }
-            else if (alignment < -0.70710678F &&
-                     distance < backDistance)
-            {
-                backTarget = target;
-                backDistance = distance;
-            }
-        }
-
-        if (frontTarget < racers_.size())
-        {
-            std::vector<std::size_t> usableSlots;
-            std::size_t chargedWeapons = 0;
-            bool allWeaponsReady = true;
-            for (std::size_t slot = 0;
-                 slot < runtime.weaponSlots.size(); ++slot)
-            {
-                const auto weaponIndex = runtime.weaponSlots[slot];
-                if (weaponIndex == RacerRuntime::invalidWeapon ||
-                    weaponIndex >= race_.weapons.size())
-                    continue;
-                const auto& weapon = race_.weapons[weaponIndex];
-                if (runtime.weaponCharges[slot] > 0U)
-                    ++chargedWeapons;
-                if (weaponCooldown_[racer][slot] > 0.0F)
-                    allWeaponsReady = false;
-                const float range =
-                    weapon.maximumDistance <= 0.0F
-                        ? 100.0F
-                        : std::min(weapon.maximumDistance, 100.0F);
-                if (runtime.weaponCharges[slot] > 0U &&
-                    weaponCooldown_[racer][slot] <= 0.0F &&
-                    frontDistance < range)
-                    usableSlots.push_back(slot);
-            }
-            std::stable_sort(
-                usableSlots.begin(), usableSlots.end(),
-                [&](std::size_t first, std::size_t second) {
-                    const auto firstWeapon =
-                        runtime.weaponSlots[first];
-                    const auto secondWeapon =
-                        runtime.weaponSlots[second];
-                    const float firstRange =
-                        race_.weapons[firstWeapon].maximumDistance <= 0.0F
-                            ? 100.0F
-                            : race_.weapons[firstWeapon].maximumDistance;
-                    const float secondRange =
-                        race_.weapons[secondWeapon].maximumDistance <= 0.0F
-                            ? 100.0F
-                            : race_.weapons[secondWeapon].maximumDistance;
-                    return firstRange < secondRange;
-                });
-            if (allWeaponsReady && !usableSlots.empty())
-            {
+                std::vector<std::size_t> usableSlots;
+                std::size_t chargedWeapons = 0;
+                for (std::size_t slot = 0;
+                     slot < runtime.weaponSlots.size(); ++slot)
+                {
+                    const auto weaponIndex =
+                        runtime.weaponSlots[slot];
+                    if (weaponIndex ==
+                            RacerRuntime::invalidWeapon ||
+                        weaponIndex >= race_.weapons.size())
+                        continue;
+                    const auto& weapon =
+                        race_.weapons[weaponIndex];
+                    if (weaponCooldown_[racer][slot] > 0.0F)
+                        return;
+                    if (runtime.weaponCharges[slot] > 0U)
+                        ++chargedWeapons;
+                    const bool inRange =
+                        weapon.maximumDistance <= 0.0F ||
+                        targetDistance <
+                            std::min(
+                                weapon.maximumDistance, 100.0F);
+                    const bool forwardOrTorpedo =
+                        weapon.projectileType == 2U ||
+                        targetForwardDistance >
+                            sourceRadius * 0.5F;
+                    if (runtime.weaponCharges[slot] > 0U &&
+                        inRange && forwardOrTorpedo)
+                        usableSlots.push_back(slot);
+                }
+                std::stable_sort(
+                    usableSlots.begin(), usableSlots.end(),
+                    [&](std::size_t first,
+                        std::size_t second) {
+                        return race_
+                                   .weapons[runtime.weaponSlots[first]]
+                                   .maximumDistance <
+                               race_
+                                   .weapons[runtime.weaponSlots[second]]
+                                   .maximumDistance;
+                    });
+                if (usableSlots.empty())
+                    return;
                 const auto slot =
                     sourceRandomUnit() < 0.25F
                         ? usableSlots[sourceRoundedRandomIndex(
@@ -4225,25 +4319,28 @@ void OriginalRaceSession::updateGameplay(
                     raceProgress(runtime) / 0.7F, 0.0F, 1.0F);
                 const float weaponPart =
                     chargedWeapons > 0U
-                        ? 1.0F / static_cast<float>(chargedWeapons)
+                        ? 1.0F /
+                              static_cast<float>(chargedWeapons)
                         : 1.0F;
                 const float part =
                     std::min(summedPart / weaponPart, 1.0F);
                 const float ammunition = std::max(
-                    static_cast<float>(runtime.weaponCharges[slot]) -
+                    static_cast<float>(
+                        runtime.weaponCharges[slot]) -
                         (1.0F - part) *
                             static_cast<float>(
                                 runtime.weaponCapacity[slot]),
                     0.0F);
-                if (runtime.weaponCapacity[slot] == 0U ||
-                    ammunition > 0.0F)
-                {
-                    runtime.selectedWeaponSlot = slot;
-                    syncSelectedWeapon(runtime);
-                    fireWeapon(racer, 0.25F);
-                }
+                if (runtime.weaponCapacity[slot] != 0U &&
+                    ammunition <= 0.0F)
+                    return;
+                runtime.selectedWeaponSlot = slot;
+                syncSelectedWeapon(runtime);
+                fireWeapon(racer, 0.25F, enemy);
             }
-        }
+        };
+        shotByEnemy(frontTarget);
+        shotByEnemy(backTarget);
 
         if (runtime.mines > 0 &&
             mineCooldown_[racer] <= 0.0F)
@@ -4833,6 +4930,72 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 {
                     throw std::runtime_error(
                         "source AISystem four-track chain assignment failed");
+                }
+            }
+
+            const auto sourceTorpedo = std::find_if(
+                race.weapons.begin(), race.weapons.end(),
+                [](const WeaponDefinition& weapon) {
+                    return weapon.slot == WeaponSlot::Primary &&
+                           weapon.projectileType == 2U;
+                });
+            if (sourceTorpedo == race.weapons.end())
+            {
+                throw std::runtime_error(
+                    "source ptTorpeda is missing for AI back-target regression");
+            }
+            {
+                Race backTargetRace = race;
+                backTargetRace.racers.resize(2U);
+                backTargetRace.racers[1].loadout.clear();
+                backTargetRace.racers[1].loadout.push_back(
+                    {sourceTorpedo->record, "stWeapon1", 10U});
+                OriginalRaceSession backTargetSession(
+                    backTargetRace);
+                auto backTargetVehicles = vehicles;
+                backTargetVehicles.resize(2U);
+                const Vec3 direction = normalized2(
+                    subtract(point(1U).position,
+                             point(0U).position));
+                const Quat rotation =
+                    shortestArcFromX(direction);
+                for (auto& state : backTargetVehicles)
+                {
+                    state.body.position = point(0U).position;
+                    state.body.position.z += 2.0F;
+                    state.body.rotation = rotation;
+                    state.speed = 0.0F;
+                }
+                for (int frame = 0; frame < 190; ++frame)
+                    backTargetSession.update(
+                        1.0F / 60.0F,
+                        backTargetVehicles, input);
+                backTargetVehicles[1].body.position =
+                    point(0U).position;
+                backTargetVehicles[1].body.position.z += 2.0F;
+                backTargetVehicles[0].body.position =
+                    subtract(
+                        backTargetVehicles[1].body.position,
+                        multiply(direction, 10.0F));
+                backTargetSession.update(
+                    1.0F / 60.0F,
+                    backTargetVehicles, input);
+                const auto firedBack = std::any_of(
+                    backTargetSession.events().begin(),
+                    backTargetSession.events().end(),
+                    [&](const RaceEvent& event) {
+                        return event.kind ==
+                                   RaceEventKind::WeaponFired &&
+                               event.racer == 1U &&
+                               event.weapon ==
+                                   static_cast<std::size_t>(
+                                       sourceTorpedo -
+                                       race.weapons.begin());
+                    });
+                if (!firedBack)
+                {
+                    throw std::runtime_error(
+                        "source AICar ptTorpeda back-target shot failed");
                 }
             }
 

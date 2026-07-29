@@ -340,6 +340,8 @@ private:
     std::vector<bool> aiBackMoving_;
     std::vector<float> aiMineRandom_;
     std::vector<std::uint32_t> aiTracks_;
+    std::vector<std::size_t> aiFrontTargets_;
+    std::vector<std::size_t> aiBackTargets_;
     std::vector<Vec3> previousPositions_;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;

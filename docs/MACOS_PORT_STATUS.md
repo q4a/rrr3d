@@ -769,6 +769,11 @@ SDL_AUDIO_DRIVER=dummy \
   track-index, формирует цепочки продольно пересекающихся AI, распределяет
   их по четырём полосам и ведёт к центру полосы с исходным look-ahead
   `5 + |speed| × kSteerControl × 10`; `kSteerControl` читается из `db.xml`.
+- `AICar::AttackState::FindEnemy/ShotByEnemy` теперь сохраняет front/back
+  target между кадрами, использует исходные `±π/4`, plane-distance и
+  line/Z gates. Задняя цель передаётся в projectile target, но source
+  `normLine` разрешает такой выстрел только `ptTorpeda`; unlimited
+  `maxDist <= 0` больше не превращается в придуманный предел 100.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,
