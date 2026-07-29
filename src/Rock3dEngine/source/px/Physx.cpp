@@ -535,6 +535,48 @@ void Scene::Compute(float deltaTime)
 	//told which simulation stage to wait for.
 	_nxScene->simulate(deltaTime);
 	_nxScene->fetchResults(true);
+
+	/*
+	 * DIAGNOSTIC: is anything in this scene moving at all?
+	 *
+	 * Cars do not drive, and the entire investigation into why has been inside
+	 * the vehicle model. A projectile is a dynamic body with nothing to do with
+	 * PxVehicle, so if nothing anywhere has velocity then the fault is not where
+	 * it has been looked for. This asks the whole scene rather than one car, and
+	 * needs no input to answer.
+	 */
+	if (::rrr3d::TraceEnabled())
+	{
+		static unsigned long frame = 0;
+		if ((++frame % 120) == 0)
+		{
+			const PxU32 count = _nxScene->getNbActors(PxActorTypeFlag::eRIGID_DYNAMIC);
+			std::vector<PxActor*> actors(count);
+
+			unsigned moving = 0;
+			unsigned awake = 0;
+			float fastest = 0.0f;
+
+			if (count)
+			{
+				_nxScene->getActors(PxActorTypeFlag::eRIGID_DYNAMIC, &actors[0], count);
+				for (PxU32 i = 0; i < count; ++i)
+				{
+					PxRigidDynamic* dynamic = static_cast<PxRigidDynamic*>(actors[i]);
+					const float speed = dynamic->getLinearVelocity().magnitude();
+
+					if (!dynamic->isSleeping())
+						++awake;
+					if (speed > 0.1f)
+						++moving;
+					fastest = std::max(fastest, speed);
+				}
+			}
+
+			RRR3D_TRACE("DYNAMICS %u bodies, %u awake, %u moving, fastest %.2f m/s",
+				(unsigned)count, awake, moving, fastest);
+		}
+	}
 }
 
 void Scene::NotifyVehicleActor(Actor* actor)
