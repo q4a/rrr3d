@@ -1767,16 +1767,24 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     input = {};
     input.throttle = 0.7F;
     input.steering = 0.7F;
-    for (int step = 0; step < 360; ++step)
+    for (int step = 0; step < 60; ++step)
         world->step(1.0F / 120.0F, input);
     const Quat after = world->vehicle().body.rotation;
     const float rotationDelta = std::abs(before.x - after.x) +
                                 std::abs(before.y - after.y) +
                                 std::abs(before.z - after.z) +
                                 std::abs(before.w - after.w);
-    if (rotationDelta < 0.01F)
+    const float beforeYaw = quaternionToEulerXYZ(before).z;
+    const float afterYaw = quaternionToEulerXYZ(after).z;
+    const float yawDelta = std::atan2(
+        std::sin(afterYaw - beforeYaw),
+        std::cos(afterYaw - beforeYaw));
+    // GameCar::swOnLeft increases the source steering angle and rotates the
+    // +X car-forward vector toward +Y. Preserve that sign through the
+    // Z-up-to-Y-up Jolt conversion so player, AI, and wheel visuals agree.
+    if (rotationDelta < 0.01F || yawDelta <= 0.01F)
     {
-        error = "original front-wheel steering did not rotate the vehicle";
+        error = "positive original steering did not turn the vehicle left";
         return false;
     }
     world->reset();

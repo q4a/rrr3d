@@ -3079,14 +3079,14 @@ int main(int argc, char** argv)
                         break;
                     case rrr3d::input::Action::TurnLeft:
                         if (inputEvent.active)
-                            raceInput.steering = -inputEvent.value;
-                        else if (raceInput.steering < 0.0F)
+                            raceInput.steering = inputEvent.value;
+                        else if (raceInput.steering > 0.0F)
                             raceInput.steering = 0.0F;
                         break;
                     case rrr3d::input::Action::TurnRight:
                         if (inputEvent.active)
-                            raceInput.steering = inputEvent.value;
-                        else if (raceInput.steering > 0.0F)
+                            raceInput.steering = -inputEvent.value;
+                        else if (raceInput.steering < 0.0F)
                             raceInput.steering = 0.0F;
                         break;
                     case rrr3d::input::Action::UseWeapon:
@@ -3778,8 +3778,8 @@ int main(int argc, char** argv)
                 rrr3d::input::Action::Brake);
             raceInput.brake = 0.0F;
             raceInput.steering =
-                input.heldValue(rrr3d::input::Action::TurnRight) -
-                input.heldValue(rrr3d::input::Action::TurnLeft);
+                input.heldValue(rrr3d::input::Action::TurnLeft) -
+                input.heldValue(rrr3d::input::Action::TurnRight);
             if (options->raceRenderSmokeTest)
             {
                 raceInput.steering = renderedFrames >= 90 &&
