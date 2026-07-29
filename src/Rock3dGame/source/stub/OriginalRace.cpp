@@ -1986,6 +1986,38 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
         definition.collision = projectileCollisionBox(
             resources, definition.visual, definition.size,
             definition.offset, definition.modelSize);
+        auto nestedCollision =
+            [&](std::string_view elementName,
+                const ObjectDefinition& visual) {
+                Vec3 size = definition.size;
+                Vec3 offset = definition.offset;
+                bool modelSize = definition.modelSize;
+                auto* model = child(projectile, elementName);
+                if (model != nullptr && model->GetText() != nullptr)
+                {
+                    auto* record =
+                        databaseRecord(database, model->GetText());
+                    if (auto* nested = child(record, "proj"))
+                    {
+                        if (child(nested, "size") != nullptr)
+                            size = vector3(
+                                nested, "size",
+                                "db.xml/nested projectile");
+                        if (child(nested, "offset") != nullptr)
+                            offset = vector3(
+                                nested, "offset",
+                                "db.xml/nested projectile");
+                        modelSize = optionalBoolean(
+                            nested, "modelSize", true);
+                    }
+                }
+                return projectileCollisionBox(
+                    resources, visual, size, offset, modelSize);
+            };
+        definition.secondaryCollision =
+            nestedCollision("model2", definition.secondaryVisual);
+        definition.tertiaryCollision =
+            nestedCollision("model3", definition.tertiaryVisual);
         return definition;
     };
     race.weapons.clear();

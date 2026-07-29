@@ -3337,17 +3337,13 @@ void OriginalRaceRenderer::draw(
             continue;
         r3d::physics::Transform parent;
         parent.position = mine.position;
+        parent.rotation = mine.rotation;
         if (mine.type == 10U)
         {
             const float scale =
                 std::clamp(mine.seconds / 0.25F, 0.0F, 1.0F);
             parent.scale = {scale, scale, scale};
         }
-        if (mine.velocity.x * mine.velocity.x +
-                mine.velocity.y * mine.velocity.y +
-                mine.velocity.z * mine.velocity.z >
-            0.0001F)
-            parent.rotation = directionRotation(mine.velocity);
         drawDefinition(*asset, *visual, parent, mine.seconds,
                        std::sqrt(
                            mine.velocity.x * mine.velocity.x +

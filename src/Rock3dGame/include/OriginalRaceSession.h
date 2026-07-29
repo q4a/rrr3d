@@ -166,11 +166,12 @@ struct MineRuntime
     std::size_t projectile = 0;
     std::uint8_t visualVariant = 0;
     Vec3 position;
+    Quat rotation;
     Vec3 velocity;
+    ProjectileCollisionBox collision;
     float seconds = 0.0F;
     float damage = 0.0F;
     float maximumLife = -1.0F;
-    float triggerRadius = 3.5F;
     std::uint32_t type = 11U;
     bool active = true;
 };

@@ -87,7 +87,7 @@ Windows target не компилируется.
 | Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
 | Vehicle simulation | PhysX 2.8.4 `NxWheelShape` | Jolt custom vehicle adapter | Частично | Нативная замена работает, но это semantic reimplementation; полная численная эквивалентность PhysX tire/suspension/solver не доказана |
 | Car-to-track/car contacts | PhysX filters/reports | Jolt contacts → session | Частично | Основной damage path есть; все group/mask/callback/force branches исходного `Logic`/`GameObject` отсутствуют |
-| Map bonus/mine contacts | `Proj::ComputeAABB` + `CreatePxBox` | после этой ревизии source AABB + OBB SAT | Перенесено | Исправлена прежняя выдуманная сфера `3.5`; weapon-spawned `MineRuntime` всё ещё использует radius и вынесен в следующий блок |
+| Bonus/mine/crater contacts | `Proj::ComputeAABB` + `CreatePxBox` | после этой ревизии source AABB + OBB SAT | Перенесено | Удалены прежние сферы `3.5`; primary, `model2`, `model3` и death-projectile получают отдельные source boxes |
 | Countdown/checkpoints/laps/place | `Race.cpp`, `Trace.cpp`, `Player.cpp` | `OriginalRaceSession.cpp` | Частично | Основная гонка работает; это ручной state machine, все special race modes/edge cases не сопоставлены |
 | Reset/respawn | `Race`/`Player` | trace-based requests | Частично | Базовый путь есть; точное raycast/orientation/penalty поведение не полностью перенесено |
 | AI | `AICar.cpp`, `AIPlayer.cpp` | steering/brake path по trace | Суррогат | Исходные AI classes, tactical state, avoidance, weapon selection и difficulty branches не компилируются |
@@ -132,9 +132,10 @@ Windows-кодом.
 
 Оставшиеся явные приближения:
 
-- `MineRuntime::triggerRadius = 3.5`;
 - projectile `impactDistance`/segment contacts вместо общего PhysX shape
   pipeline;
+- установка mine позади автомобиля вместо исходного raycast на track shape и
+  выравнивания по normal;
 - trace-following AI вместо `AICar`/`AIPlayer`;
 - часть фиксированных timing/force/visual branches для сложных weapons;
 - ручные achievement counters.
@@ -185,9 +186,19 @@ Network, video и Steam явно выключены.
 6. Smoke проверяет separating-axis случай, который старая сфера ошибочно
    считала контактом.
 
-Weapon-spawned mines/craters пока используют старый `MineRuntime` radius.
-Этот пункт намеренно оставлен открытым в матрице и является следующим
-collision block.
+Следующим collision-блоком также удалён `MineRuntime::triggerRadius`:
+
+1. Primary weapon mine получает `ProjectileDefinition::collision`.
+2. `mineRipKern` и `mineRipPiece` читают собственные вложенные
+   `proj/size`, `offset`, `modelSize` и model AABB из `model2/model3`.
+3. Mortar death-projectile `ptCrater` получает исходный box `6×6×0.1`,
+   а не круг радиусом `3`.
+4. Mine/car contact использует тот же OBB SAT.
+5. Осколки сохраняют rotation родительской мины, как `MineRipUpdate`, вместо
+   придуманного поворота модели по velocity.
+
+Открытым остаётся исходное размещение mine raycast-ом по track shapes и общий
+shape/contact pipeline для летящих projectile types.
 
 ## Очередь дальнейшего переноса
 
@@ -196,9 +207,8 @@ collision block.
 1. Перенести исходный menu/widget state machine: `Menu`, `MenuSystem`,
    `MainMenu2`, `GameMode`, `DialogMenu2`, `RaceMenu2`, `OptionsMenu`,
    `FinishMenu`, `FinalMenu`, сохраняя bgfx/Metal только как backend.
-2. Заменить `MineRuntime`/projectile radius и segment approximations на
-   исходные `Proj::ComputeAABB`, type-specific shapes, contact groups и
-   callbacks.
+2. Заменить projectile segment approximations и ручное mine placement на
+   исходные type-specific shapes, track raycast, contact groups и callbacks.
 3. Убрать `weaponEffectTexture`/`weaponSoundPath` heuristics; переносить
    model/effect/sound behaviors из `DataBase.cpp`, `Weapon.cpp` и records.
 4. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно

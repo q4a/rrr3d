@@ -1492,9 +1492,7 @@ void OriginalRaceSession::updateGameplay(
             crater.position = add(position, spawned.position);
             crater.damage = spawned.damage;
             crater.maximumLife = spawned.minimumLife;
-            crater.triggerRadius = std::max(
-                std::max(spawned.size.x, spawned.size.y) * 0.5F,
-                0.1F);
+            crater.collision = spawned.collision;
             crater.type = spawned.type;
             mines_.push_back(crater);
         };
@@ -1948,19 +1946,12 @@ void OriginalRaceSession::updateGameplay(
         mine.weapon = weapon;
         mine.projectile = 0U;
         mine.position = position;
+        mine.rotation = vehicles[owner].body.rotation;
         if (projectile != nullptr)
         {
             mine.damage = projectile->damage;
             mine.type = projectile->type;
-            if (projectile->size.x > 0.0F ||
-                projectile->size.y > 0.0F)
-            {
-                mine.triggerRadius = std::max(
-                    std::max(projectile->size.x,
-                             projectile->size.y) *
-                        0.5F,
-                    0.1F);
-            }
+            mine.collision = projectile->collision;
             if (projectile->minimumLife > 0.0F)
                 mine.maximumLife = projectile->minimumLife;
         }
@@ -2087,6 +2078,7 @@ void OriginalRaceSession::updateGameplay(
                 core.seconds = 0.0F;
                 core.maximumLife = 4.25F;
                 core.velocity = {};
+                core.collision = projectile.secondaryCollision;
                 spawnedMines.push_back(core);
                 constexpr float pi =
                     3.14159265358979323846F;
@@ -2100,6 +2092,8 @@ void OriginalRaceSession::updateGameplay(
                     fragment.visualVariant = 2U;
                     fragment.damage = 4.0F;
                     fragment.seconds = 0.0F;
+                    fragment.collision =
+                        projectile.tertiaryCollision;
                     fragment.velocity = {
                         std::cos(angle) * 8.0F,
                         std::sin(angle) * 8.0F, 5.0F};
@@ -2122,10 +2116,19 @@ void OriginalRaceSession::updateGameplay(
                 (mine.type == 10U ||
                  (enableMineBug_ &&
                   (mine.type == 11U || mine.type == 12U)));
+            Transform mineTransform;
+            mineTransform.position = mine.position;
+            mineTransform.rotation = mine.rotation;
             if (ownerLocked ||
-                distanceSquared(vehicles[racer].body.position,
-                                mine.position) >
-                    mine.triggerRadius * mine.triggerRadius)
+                !boxesOverlap(
+                    vehicleBox(
+                        vehicles[racer],
+                        (race_.racers[racer].hasConfiguredVehicle
+                             ? race_.racers[racer].configuredVehicle
+                             : race_.vehicles.at(
+                                   race_.racers[racer].vehicle))
+                            .physics),
+                    orientedBox(mineTransform, mine.collision)))
                 continue;
             if (mine.type == 10U)
             {
@@ -3784,7 +3787,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (crater == mortarSession.mines().end() ||
                 crater->projectile != craterIndex ||
                 std::abs(crater->maximumLife - 3.0F) > 0.001F ||
-                std::abs(crater->triggerRadius - 3.0F) > 0.001F ||
+                std::abs(crater->collision.halfExtents.x - 3.0F) >
+                    0.001F ||
+                std::abs(crater->collision.halfExtents.y - 3.0F) >
+                    0.001F ||
+                std::abs(crater->collision.halfExtents.z - 0.05F) >
+                    0.001F ||
                 mortarSession.racers()[1].life >= lifeBeforeCrater)
             {
                 throw std::runtime_error(
@@ -3828,6 +3836,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             mineRip->projectiles.front().type != 12U ||
             mineRip->projectiles.front().deathEffect.visual.record.empty() ||
             !mineRip->projectiles.front().deathEffect.ignoreRotation ||
+            mineRip->projectiles.front()
+                    .secondaryCollision.halfExtents.x <= 0.0F ||
+            mineRip->projectiles.front()
+                    .secondaryCollision.halfExtents.y <= 0.0F ||
+            mineRip->projectiles.front()
+                    .tertiaryCollision.halfExtents.x <= 0.0F ||
+            mineRip->projectiles.front()
+                    .tertiaryCollision.halfExtents.y <= 0.0F ||
             std::abs(
                 mineRip->projectiles.front().deathEffect.position.z -
                 0.5F) > 0.001F)

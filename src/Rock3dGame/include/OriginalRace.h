@@ -344,6 +344,8 @@ struct ProjectileDefinition
     ObjectDefinition visual;
     ObjectDefinition secondaryVisual;
     ObjectDefinition tertiaryVisual;
+    ProjectileCollisionBox secondaryCollision;
+    ProjectileCollisionBox tertiaryCollision;
     // GameBase::DeathEffect attached to the projectile model.  This is
     // distinct from model2/model3, which the original weapon code uses for
     // type-specific live/impact visuals.
