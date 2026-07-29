@@ -284,9 +284,18 @@ Network, video и Steam явно выключены.
    `ptSonar` сохраняет живой projectile, наносит
    `damage * contact.deltaTime` и прикладывает off-centre
    `mass * linearVelocity` impulse вместо разового full damage.
-7. Smoke проверяет serialized records `sonar`/`rezonator`/`rocketLauncher`,
+7. `ptImpulse` получает initial target через исходный
+   `Player::FindClosestEnemy(pi/5.5)` (`sphereGun` использует viewAngle 0).
+   После контакта поиск начинается от поражённого Player с `pi/2` и
+   минимизирует абсолютную дистанцию до его forward-plane; прежний
+   Euclidean/projectile-direction heuristic удалён. Сохранены три удара,
+   damage `D`, `D/2`, `D/3`, прекращение chain при kill/no-target и
+   игнорирование non-target contacts.
+8. Smoke проверяет serialized records
+   `sonar`/`rezonator`/`rocketLauncher`/`phaseImpulse`,
    source border reflection, relative speed, time-based lifetime после
-   прохождения `maxDist`, actor rotation и TrackPlane clearance.
+   прохождения `maxDist`, actor rotation, TrackPlane clearance и
+   различимый `FindClosestEnemy(pi/2)` target handoff.
 
 Следующим render/audio-блоком удалены эвристики оружия:
 

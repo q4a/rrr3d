@@ -1755,6 +1755,49 @@ void OriginalRaceSession::updateGameplay(
             localProjectile.rotation = projectile.rotation;
             return compose(result, localProjectile);
         };
+    auto findClosestEnemy =
+        [&](std::size_t source, float viewAngle) {
+            if (source >= vehicles.size() ||
+                source >= racers_.size())
+                return RacerRuntime::invalidWeapon;
+            const Vec3 sourcePosition =
+                vehicles[source].body.position;
+            const Vec3 sourceDirection = normalized3(
+                forward(vehicles[source].body.rotation));
+            std::size_t result = RacerRuntime::invalidWeapon;
+            float minimumPlaneDistance = 0.0F;
+            for (std::size_t candidate = 0;
+                 candidate < vehicles.size() &&
+                 candidate < racers_.size(); ++candidate)
+            {
+                if (candidate == source ||
+                    racers_[candidate].finished ||
+                    racers_[candidate].destroyed)
+                    continue;
+                const Vec3 difference = subtract(
+                    vehicles[candidate].body.position,
+                    sourcePosition);
+                const float distance = length3(difference);
+                if (distance <= 0.0001F)
+                    continue;
+                const float angle = dot3(
+                    multiply(difference, 1.0F / distance),
+                    sourceDirection);
+                const float planeDistance =
+                    std::abs(dot3(sourceDirection, difference));
+                const bool nearest =
+                    result == RacerRuntime::invalidWeapon ||
+                    planeDistance < minimumPlaneDistance;
+                const bool insideView =
+                    viewAngle == 0.0F ||
+                    angle >= std::cos(viewAngle);
+                if (!nearest || !insideView)
+                    continue;
+                result = candidate;
+                minimumPlaneDistance = planeDistance;
+            }
+            return result;
+        };
     for (std::size_t racer = 0; racer < racers_.size(); ++racer)
     {
         auto& runtime = racers_[racer];
@@ -2464,13 +2507,22 @@ void OriginalRaceSession::updateGameplay(
                 closestPoint(targetBox, projectileBox.center);
             const bool sonarContact =
                 projectileDefinition.type == 16U;
+            const bool targetedImpulse =
+                projectileDefinition.type == 21U &&
+                projectile.target < racers_.size();
+            const float sourceDamage =
+                targetedImpulse
+                    ? projectileDefinition.damage /
+                          static_cast<float>(
+                              projectile.hitCount + 1U)
+                    : projectile.damage;
             const float damage =
                 racers_[target].shieldSeconds > 0.0F
                     ? 0.0F
                     : damageAfterSupport(
                           target,
                           std::max(
-                              projectile.damage *
+                              sourceDamage *
                                   (sonarContact ? seconds : 1.0F),
                               0.0F),
                           false);
@@ -2550,6 +2602,48 @@ void OriginalRaceSession::updateGameplay(
                 }
                 continue;
             }
+            if (projectileDefinition.type == 21U)
+            {
+                const bool targetDestroyed =
+                    racers_[target].life <= 0.0F;
+                if (targetDestroyed)
+                {
+                    destroyRacer(
+                        target, projectile.owner, contactPoint,
+                        vehicles[target]);
+                }
+                if (!targetedImpulse ||
+                    targetDestroyed ||
+                    ++projectile.hitCount > 2U)
+                {
+                    spawnProjectileImpact(
+                        projectile, projectile.position);
+                    projectile.active = false;
+                    break;
+                }
+                std::size_t nextTarget = findClosestEnemy(
+                    target, 1.57079632679489661923F);
+                if (nextTarget == projectile.owner)
+                {
+                    nextTarget = findClosestEnemy(
+                        nextTarget, 1.57079632679489661923F);
+                    if (nextTarget == target)
+                    {
+                        nextTarget =
+                            RacerRuntime::invalidWeapon;
+                    }
+                }
+                if (nextTarget == RacerRuntime::invalidWeapon)
+                {
+                    spawnProjectileImpact(
+                        projectile, projectile.position);
+                    projectile.active = false;
+                    break;
+                }
+                projectile.target = nextTarget;
+                projectile.homingDelay = 0.0F;
+                break;
+            }
             spawnProjectileImpact(
                 projectile, projectile.position);
             if (racers_[target].life <= 0.0F)
@@ -2557,47 +2651,6 @@ void OriginalRaceSession::updateGameplay(
                 destroyRacer(
                     target, projectile.owner, projectile.position,
                     vehicles[target]);
-            }
-            if (projectileDefinition.type == 21U &&
-                projectile.target < racers_.size() &&
-                ++projectile.hitCount <= 2U)
-            {
-                std::size_t nextTarget = RacerRuntime::invalidWeapon;
-                float nextDistance = std::numeric_limits<float>::max();
-                for (std::size_t candidate = 0;
-                     candidate < vehicles.size() &&
-                     candidate < racers_.size();
-                     ++candidate)
-                {
-                    if (candidate == projectile.owner ||
-                        candidate == target ||
-                        racers_[candidate].finished ||
-                        racers_[candidate].destroyed)
-                        continue;
-                    const Vec3 difference = subtract(
-                        vehicles[candidate].body.position,
-                        projectile.position);
-                    const float candidateDistance = length2(difference);
-                    if (candidateDistance <= 0.001F ||
-                        candidateDistance >= nextDistance)
-                        continue;
-                    const Vec3 candidateDirection =
-                        normalized2(difference);
-                    if (dot2(projectile.direction,
-                             candidateDirection) < 0.0F)
-                        continue;
-                    nextTarget = candidate;
-                    nextDistance = candidateDistance;
-                }
-                if (nextTarget != RacerRuntime::invalidWeapon)
-                {
-                    projectile.target = nextTarget;
-                    projectile.homingDelay = 0.0F;
-                    projectile.damage =
-                        projectileDefinition.damage /
-                        static_cast<float>(projectile.hitCount + 1U);
-                    break;
-                }
             }
             projectile.active = false;
             break;
@@ -2614,6 +2667,8 @@ void OriginalRaceSession::updateGameplay(
                 projectile.damage * seconds, projectile.owner);
         }
         else if (projectile.active &&
+                 !(projectileDefinition.type == 21U &&
+                   projectile.target < racers_.size()) &&
                  damageDecorationWithBox(
                      liveProjectileTransform,
                      projectileDefinition.collision,
@@ -3277,36 +3332,14 @@ void OriginalRaceSession::updateGameplay(
             const float forwardVehicleSpeed = std::max(
                 dot3(direction, vehicles[shooter].linearVelocity),
                 0.0F);
-            auto findHomingTarget = [&]() {
-                std::size_t result = RacerRuntime::invalidWeapon;
-                float nearest = std::numeric_limits<float>::max();
-                constexpr float minimumDirectionDot = 0.84125353F;
-                for (std::size_t candidate = 0;
-                     candidate < vehicles.size() &&
-                     candidate < racers_.size();
-                     ++candidate)
-                {
-                    if (candidate == shooter ||
-                        racers_[candidate].finished ||
-                        racers_[candidate].destroyed)
-                        continue;
-                    const Vec3 difference = subtract(
-                        vehicles[candidate].body.position,
-                        projectileOrigin);
-                    const float candidateDistance =
-                        length3(difference);
-                    if (candidateDistance <= 0.001F ||
-                        candidateDistance >= nearest)
-                        continue;
-                    if (dot3(direction, normalized3(difference)) <
-                        minimumDirectionDot)
-                        continue;
-                    result = candidate;
-                    nearest = candidateDistance;
-                }
-                return result;
-            };
-            const std::size_t homingTarget = findHomingTarget();
+            // HumanPlayer::Shot(WeaponType) asks Player for the closest
+            // enemy in pi/5.5, except sphereGun which passes viewAngle=0.
+            const float homingViewAngle =
+                recordName(weapon->record) == "sphereGun"
+                    ? 0.0F
+                    : 3.14159265358979323846F / 5.5F;
+            const std::size_t homingTarget =
+                findClosestEnemy(shooter, homingViewAngle);
             const bool rayProjectile =
                 projectile.speed <= 0.0F;
             const bool attachedProjectile =
@@ -5218,6 +5251,99 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source RocketUpdate TrackPlane clearance failed");
+            }
+        }
+
+        const auto phaseImpulse = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "phaseImpulse";
+            });
+        if (phaseImpulse == race.weapons.end() ||
+            phaseImpulse->projectiles.size() != 1U ||
+            phaseImpulse->projectiles.front().type != 21U ||
+            std::abs(
+                phaseImpulse->projectiles.front().damage - 8.0F) >
+                0.001F)
+        {
+            throw std::runtime_error(
+                "source ptImpulse definition was not preserved");
+        }
+        if (vehicles.size() > 3U)
+        {
+            OriginalRaceSession impulseSession(race);
+            PlayerProfile impulseProfile;
+            auto& slot = impulseProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            slot.record = phaseImpulse->record;
+            slot.charge = 1U;
+            slot.hasCharge = true;
+            impulseSession.applyPlayerProfile(impulseProfile);
+            auto impulseVehicles = vehicles;
+            const Vec3 base = vehicles[0].body.position;
+            for (std::size_t index = 0;
+                 index < impulseVehicles.size(); ++index)
+            {
+                impulseVehicles[index].body.rotation = {};
+                impulseVehicles[index].linearVelocity = {};
+                impulseVehicles[index].body.position = {
+                    base.x + 1000.0F +
+                        static_cast<float>(index) * 100.0F,
+                    base.y, base.z};
+            }
+            impulseVehicles[0].body.position = base;
+            impulseVehicles[1].body.position = {
+                base.x + 10.0F, base.y, base.z};
+            // FindClosestEnemy(pi/2) deliberately prefers candidate 2 by
+            // plane distance (2) even though candidate 3 is much closer in
+            // Euclidean distance.  This distinguishes the Windows rule
+            // from the former projectile-direction heuristic.
+            impulseVehicles[2].body.position = {
+                base.x + 12.0F, base.y + 100.0F, base.z};
+            impulseVehicles[3].body.position = {
+                base.x + 20.0F, base.y, base.z};
+            RaceControl impulseInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                impulseSession.update(
+                    1.0F / 60.0F, impulseVehicles,
+                    impulseInput);
+            }
+            impulseInput.useWeapon = true;
+            impulseSession.update(
+                1.0F / 60.0F, impulseVehicles, impulseInput);
+            impulseInput.useWeapon = false;
+            const std::size_t impulseWeapon =
+                static_cast<std::size_t>(
+                    phaseImpulse - race.weapons.begin());
+            bool handedOff = false;
+            for (int frame = 0; frame < 60 && !handedOff; ++frame)
+            {
+                impulseSession.update(
+                    1.0F / 60.0F, impulseVehicles,
+                    impulseInput);
+                const auto projectile = std::find_if(
+                    impulseSession.projectiles().begin(),
+                    impulseSession.projectiles().end(),
+                    [impulseWeapon](
+                        const ProjectileRuntime& value) {
+                        return value.owner == 0U &&
+                               value.weapon == impulseWeapon &&
+                               value.projectile == 0U;
+                    });
+                handedOff =
+                    projectile !=
+                        impulseSession.projectiles().end() &&
+                    projectile->hitCount == 1U &&
+                    projectile->target == 2U;
+            }
+            if (!handedOff ||
+                impulseSession.racers()[1].life >=
+                    impulseSession.racers()[1].maximumLife)
+            {
+                throw std::runtime_error(
+                    "source ImpulseContact FindClosestEnemy(pi/2) "
+                    "handoff failed");
             }
         }
 

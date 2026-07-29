@@ -714,6 +714,10 @@ SDL_AUDIO_DRIVER=dummy \
   `workshop.xml` распознан как `ptThunder` и отражается от реальных border
   triangles; `ptResonanse` вращает один actor transform для collision и
   renderer.
+- `ptImpulse` сохраняет исходный трёхконтактный chain, деление damage и
+  `Player::FindClosestEnemy` plane/view-angle selection; попадание в
+  non-target больше не завершает и не повреждает цель суррогатным generic
+  contact path.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,
