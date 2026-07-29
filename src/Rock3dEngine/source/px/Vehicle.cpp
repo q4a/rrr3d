@@ -358,7 +358,13 @@ void VehicleScene::InitSDK(PxPhysics& sdk)
 	 * eACCELERATION contributes accelerations instead and leaves the scene's
 	 * own integration, gravity included, alone.
 	 */
-	PxVehicleSetUpdateMode(PxVehicleUpdateMode::eACCELERATION);
+	//RRR3D_VEHICLE_VELCHANGE selects eVELOCITY_CHANGE instead. Both have been
+	//tried against the game and the cars behave identically under each, so the
+	//update mode is not what is stopping them; eACCELERATION stays the default
+	//because it leaves the scene's own gravity integration alone.
+	PxVehicleSetUpdateMode(std::getenv("RRR3D_VEHICLE_VELCHANGE")
+		? PxVehicleUpdateMode::eVELOCITY_CHANGE
+		: PxVehicleUpdateMode::eACCELERATION);
 
 	g_vehicleSdkInitialised = true;
 }
@@ -516,8 +522,40 @@ void VehicleScene::Update(float deltaTime, const PxVec3& gravity)
 	PxVehicleSuspensionRaycasts(_batchQuery, static_cast<PxU32>(vehicles.size()),
 		&vehicles[0], totalWheels, &_raycastResults[0]);
 
+	/*
+	 * DIAGNOSTIC: does PxVehicleUpdates move the body at all?
+	 *
+	 * The tire shader computes tens of kilonewtons and the car does not
+	 * accelerate. Everything between those two facts has been inspected except
+	 * the step that is supposed to connect them, so this reads the rigid body's
+	 * velocity either side of the call. If it is unchanged, the forces are being
+	 * computed and thrown away, and nothing upstream of that matters.
+	 */
+	PxVec3 before(0.0f);
+	PxRigidDynamic* firstBody = 0;
+	if (::rrr3d::TraceEnabled() && !_vehicles.empty())
+	{
+		firstBody = _vehicles[0]->GetActor() ? _vehicles[0]->GetActor()->GetNxDynamic() : 0;
+		if (firstBody)
+			before = firstBody->getLinearVelocity();
+	}
+
 	PxVehicleUpdates(deltaTime, gravity, *_frictionPairs,
 		static_cast<PxU32>(vehicles.size()), &vehicles[0], &queryResults[0]);
+
+	if (firstBody)
+	{
+		static unsigned long sample = 0;
+		if ((++sample % 120) == 0)
+		{
+			const PxVec3 after = firstBody->getLinearVelocity();
+			const PxVec3 delta = after - before;
+			RRR3D_TRACE("VAPPLY before=%.3f,%.3f,%.3f after=%.3f,%.3f,%.3f "
+				"delta=%.4f,%.4f,%.4f damping=%.2f",
+				before.x, before.y, before.z, after.x, after.y, after.z,
+				delta.x, delta.y, delta.z, firstBody->getLinearDamping());
+		}
+	}
 
 	for (size_t i = 0; i < _vehicles.size(); ++i)
 		_vehicles[i]->SyncOutputs();
