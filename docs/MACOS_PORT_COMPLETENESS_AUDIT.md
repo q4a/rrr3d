@@ -87,7 +87,7 @@ Windows target не компилируется.
 | Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
 | Vehicle simulation | PhysX 2.8.4 `NxWheelShape` | Jolt custom vehicle adapter | Частично | Нативная замена работает; `GameCar::LockSpring` теперь подавляет airborne pitch как в source, но полная численная эквивалентность PhysX tire/suspension/solver не доказана |
 | Car-to-track/car contacts | PhysX filters/reports | Jolt contacts → session | Частично | Основной damage path есть; все group/mask/callback/force branches исходного `Logic`/`GameObject` отсутствуют |
-| Bonus/mine/crater contacts | `Proj::ComputeAABB` + `CreatePxBox` | после этой ревизии source AABB + OBB SAT | Перенесено | Удалены прежние сферы `3.5`; primary, `model2`, `model3` и death-projectile получают отдельные source boxes |
+| Bonus/mine/crater contacts | `Proj::ComputeAABB`, `MineContact`, `MasloContact`, `MineRipUpdate` | source AABB/OBB, lock/contact state и nested-projectile runtime | Частично | Удалены сферы и hardcode осколков; source boxes, 0.25/0.4 lock rules, `ptMineProton`, impulse, oil clutch, nested lifetime/death effects перенесены. Динамика осколков остаётся адаптацией к Jolt, не численной копией PhysX |
 | Mine placement | `Proj::MinePrepare` PhysX track raycast | source triangle raycast в `OriginalRaceSession` | Перенесено | Используются serialized `proj.pos`, ray `+2/-Z`, только `TrackPlane`, `max(-AABB.min.z, 0.01)`, hit normal; miss не расходует заряд |
 | Countdown/checkpoints/laps/place | `Race.cpp`, `Trace.cpp`, `Player.cpp` | `OriginalRaceSession.cpp` | Частично | Основная гонка работает; это ручной state machine, все special race modes/edge cases не сопоставлены |
 | Reset/respawn | `Race`/`Player` | trace-based requests | Частично | Базовый путь есть; точное raycast/orientation/penalty поведение не полностью перенесено |
@@ -323,6 +323,36 @@ Network, video и Steam явно выключены.
    одновременно.
 5. Smoke проверяет serialized lifetimes всех трёх типов, точное создание,
    owner/asset identity, отсутствие contact reset и удаление frost behavior.
+
+Следующим mine/hazard-блоком восстановлены ветви `Proj::MinePrepare`,
+`MineContact`, `MasloContact`, `MineRipUpdate`, `MinePieceContact` и
+`MineProtonContact`:
+
+1. Успешный `MinePrepare` ставит исходный `GameCar::LockMine(0.4)` и
+   сбрасывает готовность оружия на serialized `shotDelay`; прежний общий
+   cooldown `0.75` удалён.
+2. `_time1/MineUpdate(0.25)` защищает только linked owner. Чужая машина может
+   задеть обычную/разрывную мину сразу; `enableMineBug` отдельно проверяет
+   `target->IsMineLocked()`. `ptMinePiece` и `ptMineProton` не используют эту
+   bug-проверку, как в Windows.
+3. Масло масштабируется во время arming, игнорирует любой car с mine lock,
+   требует полную скорость `>3`, вызывает исходный `LockClutch(0.38)` и не
+   исчезает после контакта.
+4. Mine contact использует реальную точку OBB-контакта и прикладывает
+   `addForceAtPos((0,0,desc.speed), NX_IMPULSE)`, включая линейную и
+   off-centre угловую составляющую. Та же ветвь восстановлена для
+   map `mineSpike`.
+5. `MineRip` больше не создаёт радиальный synthetic fan с hardcode
+   `10/4/4.25`. Вложенные `mineRipKern`/`mineRipPiece` читают из `db.xml`
+   собственные type, damage, speed, collision, диапазон `minTimeLife=4..4.5`
+   и model DeathEffect. Пять направлений воспроизводят исходный
+   `Vec3Range(..., vdVolume)` и `dir*10` impulse.
+6. Истечение жизни core/piece запускает их собственный `death3`; renderer
+   держит отдельные nested death assets. Уничтожение машины типом `dtMine`
+   остаётся death event, но больше не выдаёт ложный `cPlayerKill` credit.
+7. Smoke отдельно проверяет ранний non-owner contact, owner/proton arming,
+   вертикальный impulse, масло, шесть source MineRip объектов, случайный
+   диапазон жизни и оба nested DeathEffect.
 
 Следующим render/audio-блоком удалены эвристики оружия:
 

@@ -1999,14 +1999,17 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
             optionalScalar(projectile, "maxDist", 0.0F);
         definition.minimumLife =
             optionalScalar(projectile, "minTimeLife/min", 0.0F);
+        definition.maximumLife = optionalScalar(
+            projectile, "minTimeLife/max", definition.minimumLife);
         definition.mass = optionalScalar(projectile, "mass", 100.0F);
         definition.damage = optionalScalar(projectile, "damage", 0.0F);
         definition.collision = projectileCollisionBox(
             resources, definition.visual, definition.size,
             definition.offset, definition.modelSize);
-        auto nestedCollision =
+        auto nestedProjectile =
             [&](std::string_view elementName,
                 const ObjectDefinition& visual) {
+                NestedProjectileDefinition result;
                 Vec3 size = definition.size;
                 Vec3 offset = definition.offset;
                 bool modelSize = definition.modelSize;
@@ -2017,6 +2020,18 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
                         databaseRecord(database, model->GetText());
                     if (auto* nested = child(record, "proj"))
                     {
+                        result.valid = true;
+                        result.type = optionalUnsigned(
+                            nested, "type", definition.type);
+                        result.speed = optionalScalar(
+                            nested, "speed", definition.speed);
+                        result.minimumLife = optionalScalar(
+                            nested, "minTimeLife/min", 0.0F);
+                        result.maximumLife = optionalScalar(
+                            nested, "minTimeLife/max",
+                            result.minimumLife);
+                        result.damage = optionalScalar(
+                            nested, "damage", definition.damage);
                         if (child(nested, "size") != nullptr)
                             size = vector3(
                                 nested, "size",
@@ -2027,15 +2042,29 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
                                 "db.xml/nested projectile");
                         modelSize = optionalBoolean(
                             nested, "modelSize", true);
+                        if (auto* nestedModel = child(nested, "model");
+                            nestedModel != nullptr &&
+                            nestedModel->GetText() != nullptr)
+                        {
+                            result.deathEffect = deathEffectDefinition(
+                                resources, database,
+                                nestedModel->GetText(),
+                                "db.xml/nested projectile death effect");
+                        }
                     }
                 }
-                return projectileCollisionBox(
+                result.collision = projectileCollisionBox(
                     resources, visual, size, offset, modelSize);
+                return result;
             };
+        definition.secondaryProjectile =
+            nestedProjectile("model2", definition.secondaryVisual);
+        definition.tertiaryProjectile =
+            nestedProjectile("model3", definition.tertiaryVisual);
         definition.secondaryCollision =
-            nestedCollision("model2", definition.secondaryVisual);
+            definition.secondaryProjectile.collision;
         definition.tertiaryCollision =
-            nestedCollision("model3", definition.tertiaryVisual);
+            definition.tertiaryProjectile.collision;
         return definition;
     };
     race.weapons.clear();

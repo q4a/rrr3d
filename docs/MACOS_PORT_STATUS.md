@@ -725,6 +725,12 @@ SDL_AUDIO_DRIVER=dummy \
   `minTimeLife`. Frost `model3` перенесён из impact surrogate в исходный
   target-child `SlowEffect`; его model lifetime больше не продлевается
   каждым кадром beam contact.
+- `ptMaslo`, `ptMine`, `ptMineRip`, `ptMinePiece` и `ptMineProton`
+  используют исходные arming/mine-lock branches. Удалены cooldown `0.75`,
+  радиальный hardcode осколков и фиксированная жизнь `4.25`; nested
+  `mineRipKern`/`mineRipPiece` теперь читают gameplay/death data из `db.xml`.
+  Mine impulse прикладывается в OBB contact point, а `dtMine` death не
+  засчитывается как обычный kill.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,

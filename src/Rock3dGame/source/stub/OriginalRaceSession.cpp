@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <iterator>
 #include <numeric>
 #include <stdexcept>
@@ -719,6 +720,46 @@ WorldRayHit raycastWorld(
 float clampSteering(float value)
 {
     return std::clamp(value, -1.0F, 1.0F);
+}
+
+float sourceRandomUnit()
+{
+    return static_cast<float>(std::rand()) /
+           static_cast<float>(RAND_MAX);
+}
+
+float sampleSourceRange(float minimum, float maximum)
+{
+    return minimum +
+           (std::max(maximum, minimum) - minimum) *
+               sourceRandomUnit();
+}
+
+Vec3 sourceMineRipFragmentVelocity()
+{
+    // Weapon.cpp uses Vec3Range((-3,-3,3), (3,3,1), vdVolume)
+    // with the default 100^3 grid, normalizes it, then applies a
+    // mass*dir*10 NX_IMPULSE.  The mass cancels, leaving dir*10 as
+    // the fragment's linear-velocity change.
+    constexpr std::uint32_t frequency = 100U;
+    constexpr std::uint32_t volume =
+        frequency * frequency * frequency;
+    const float random = sourceRandomUnit();
+    const std::uint32_t cellIndex =
+        random >= 1.0F
+            ? volume - 1U
+            : static_cast<std::uint32_t>(
+                  static_cast<float>(volume) * random);
+    const std::uint32_t cellX = cellIndex % frequency;
+    const std::uint32_t cellY =
+        (cellIndex / frequency) % frequency;
+    const std::uint32_t cellZ =
+        (cellIndex / (frequency * frequency)) % frequency;
+    const Vec3 direction{
+        -3.0F + 6.0F * static_cast<float>(cellX) / 99.0F,
+        -3.0F + 6.0F * static_cast<float>(cellY) / 99.0F,
+        3.0F - 2.0F * static_cast<float>(cellZ) / 99.0F};
+    return multiply(normalized3(direction), 10.0F);
 }
 
 std::string_view recordName(std::string_view value)
@@ -1614,7 +1655,8 @@ void OriginalRaceSession::queueRespawn(
 
 void OriginalRaceSession::destroyRacer(
     std::size_t racer, std::size_t attacker, Vec3 position,
-    const r3d::physics::VehicleState& vehicle, bool touchDamage)
+    const r3d::physics::VehicleState& vehicle, bool touchDamage,
+    bool killCredit)
 {
     if (racer >= racers_.size() || racer >= race_.racers.size() ||
         racers_[racer].destroyed)
@@ -1635,7 +1677,8 @@ void OriginalRaceSession::destroyRacer(
         vehicleInputs_[racer] = {};
     events_.push_back(
         {RaceEventKind::Kill, attacker, racer, position, 0.0F,
-         PickSlot::None, RacerRuntime::invalidWeapon, touchDamage});
+         PickSlot::None, RacerRuntime::invalidWeapon, touchDamage,
+         killCredit});
 
     const auto& sourceRacer = race_.racers[racer];
     const auto& definition =
@@ -1903,6 +1946,8 @@ void OriginalRaceSession::updateGameplay(
         }
         runtime.clutchSeconds =
             std::max(0.0F, runtime.clutchSeconds - seconds);
+        runtime.mineLockSeconds =
+            std::max(0.0F, runtime.mineLockSeconds - seconds);
         runtime.springLockSeconds =
             std::max(0.0F, runtime.springLockSeconds - seconds);
         if (racer < vehicleInputs_.size())
@@ -2160,9 +2205,11 @@ void OriginalRaceSession::updateGameplay(
             crater.projectile = definition.deathProjectile;
             crater.position = add(position, spawned.position);
             crater.damage = spawned.damage;
-            crater.maximumLife = spawned.minimumLife;
+            crater.maximumLife = sampleSourceRange(
+                spawned.minimumLife, spawned.maximumLife);
             crater.collision = spawned.collision;
             crater.type = spawned.type;
+            crater.impulseSpeed = spawned.speed;
             mines_.push_back(crater);
         };
 
@@ -2866,7 +2913,9 @@ void OriginalRaceSession::updateGameplay(
         const Vec3 position =
             add(hit.position, {0.0F, 0.0F, offset});
         --racers_[owner].mines;
-        mineCooldown_[owner] = 0.75F;
+        mineCooldown_[owner] =
+            std::max(race_.weapons[weapon].shotDelay, 0.0F);
+        racers_[owner].mineLockSeconds = 0.4F;
         MineRuntime mine;
         mine.owner = owner;
         mine.weapon = weapon;
@@ -2874,10 +2923,15 @@ void OriginalRaceSession::updateGameplay(
         mine.position = position;
         mine.rotation = rotationWithUp(hit.normal);
         mine.damage = projectile->damage;
+        mine.impulseSpeed = projectile->speed;
         mine.type = projectile->type;
         mine.collision = projectile->collision;
         if (projectile->minimumLife > 0.0F)
-            mine.maximumLife = projectile->minimumLife;
+        {
+            mine.maximumLife = sampleSourceRange(
+                projectile->minimumLife,
+                projectile->maximumLife);
+        }
         pushShotEffect(weapon, weaponTransform, *projectile);
         mines_.push_back(mine);
         events_.push_back({RaceEventKind::MinePlaced, owner, weapon,
@@ -2920,7 +2974,9 @@ void OriginalRaceSession::updateGameplay(
         const Vec3 position = vehicles[owner].body.position;
         const float duration =
             projectile.minimumLife > 0.0F
-                ? projectile.minimumLife
+                ? sampleSourceRange(
+                      projectile.minimumLife,
+                      projectile.maximumLife)
                 : (projectile.type == 17U ? 0.5F : 2.0F);
         if (projectile.type == 17U)
         {
@@ -2986,25 +3042,39 @@ void OriginalRaceSession::updateGameplay(
             mine.projectile >=
                 race_.weapons[mine.weapon].projectiles.size())
             return;
-        const auto& death =
-            race_.weapons[mine.weapon]
-                .projectiles[mine.projectile].deathEffect;
-        if (death.visual.visualNodes.empty() &&
-            death.visual.particleEmitters.empty())
+        const auto& definition =
+            race_.weapons[mine.weapon].projectiles[mine.projectile];
+        const DeathEffectDefinition* death =
+            &definition.deathEffect;
+        std::uint8_t deathVariant = 3U;
+        if (mine.visualVariant == 1U &&
+            definition.secondaryProjectile.valid)
+        {
+            death = &definition.secondaryProjectile.deathEffect;
+            deathVariant = 5U;
+        }
+        else if (mine.visualVariant == 2U &&
+                 definition.tertiaryProjectile.valid)
+        {
+            death = &definition.tertiaryProjectile.deathEffect;
+            deathVariant = 6U;
+        }
+        if (death->visual.visualNodes.empty() &&
+            death->visual.particleEmitters.empty())
             return;
         RaceEffect impact;
         impact.kind = RaceEventKind::ProjectileImpact;
-        impact.origin = add(mine.position, death.position);
+        impact.origin = add(mine.position, death->position);
         impact.target = add(impact.origin, {0.0F, 0.0F, 1.0F});
         impact.totalSeconds =
-            death.visual.maximumTimeLife > 0.0F
-                ? death.visual.maximumTimeLife
+            death->visual.maximumTimeLife > 0.0F
+                ? death->visual.maximumTimeLife
                 : 0.7F;
         impact.seconds = impact.totalSeconds;
         impact.weapon = mine.weapon;
         impact.projectile = mine.projectile;
-        impact.visualVariant = 3U;
-        impact.ignoreRotation = death.ignoreRotation;
+        impact.visualVariant = deathVariant;
+        impact.ignoreRotation = death->ignoreRotation;
         effects_.push_back(std::move(impact));
     };
     for (auto& mine : mines_)
@@ -3018,11 +3088,27 @@ void OriginalRaceSession::updateGameplay(
             mine.position = add(
                 mine.position, multiply(mine.velocity, seconds));
             mine.velocity.z -= 20.0F * seconds;
-            if (mine.position.z < 0.05F)
+            const auto trackHit = raycastTrackPlane(
+                race_, add(mine.position, {0.0F, 0.0F, 2.0F}));
+            const float bottomOffset = std::max(
+                -mine.collision.center.z +
+                    mine.collision.halfExtents.z,
+                0.01F);
+            if (trackHit.hit &&
+                mine.position.z <
+                    trackHit.position.z + bottomOffset)
             {
-                mine.position.z = 0.05F;
+                mine.position.z =
+                    trackHit.position.z + bottomOffset;
                 mine.velocity = {};
             }
+        }
+        if (mine.maximumLife > 0.0F &&
+            mine.seconds > mine.maximumLife)
+        {
+            spawnMineDeathEffect(mine);
+            mine.active = false;
+            continue;
         }
         if (mine.type == 12U)
         {
@@ -3034,69 +3120,111 @@ void OriginalRaceSession::updateGameplay(
                     : 2.0F;
             if (mine.seconds >= splitTime)
             {
-                MineRuntime core = mine;
-                core.type = 11U;
-                core.visualVariant = 1U;
-                core.damage = 10.0F;
-                core.seconds = 0.0F;
-                core.maximumLife = 4.25F;
-                core.velocity = {};
-                core.collision = projectile.secondaryCollision;
-                spawnedMines.push_back(core);
-                constexpr float pi =
-                    3.14159265358979323846F;
-                for (std::size_t piece = 0; piece < 5U; ++piece)
+                if (projectile.secondaryProjectile.valid)
                 {
-                    const float angle =
-                        2.0F * pi *
-                        static_cast<float>(piece) / 5.0F;
-                    MineRuntime fragment = core;
-                    fragment.type = 13U;
-                    fragment.visualVariant = 2U;
-                    fragment.damage = 4.0F;
-                    fragment.seconds = 0.0F;
-                    fragment.collision =
-                        projectile.tertiaryCollision;
-                    fragment.velocity = {
-                        std::cos(angle) * 8.0F,
-                        std::sin(angle) * 8.0F, 5.0F};
-                    spawnedMines.push_back(fragment);
+                    const auto& source =
+                        projectile.secondaryProjectile;
+                    MineRuntime core = mine;
+                    core.owner = RacerRuntime::invalidWeapon;
+                    core.linkedToOwner = false;
+                    core.type = source.type;
+                    core.visualVariant = 1U;
+                    core.damage = source.damage;
+                    core.impulseSpeed = source.speed;
+                    core.seconds = 0.0F;
+                    core.maximumLife =
+                        source.minimumLife > 0.0F
+                            ? sampleSourceRange(
+                                  source.minimumLife,
+                                  source.maximumLife)
+                            : -1.0F;
+                    core.velocity = {};
+                    core.collision = source.collision;
+                    spawnedMines.push_back(core);
+                }
+                if (projectile.tertiaryProjectile.valid)
+                {
+                    const auto& source =
+                        projectile.tertiaryProjectile;
+                    for (std::size_t piece = 0; piece < 5U; ++piece)
+                    {
+                        MineRuntime fragment = mine;
+                        fragment.owner =
+                            RacerRuntime::invalidWeapon;
+                        fragment.linkedToOwner = false;
+                        fragment.type = source.type;
+                        fragment.visualVariant = 2U;
+                        fragment.damage = source.damage;
+                        fragment.impulseSpeed = source.speed;
+                        fragment.seconds = 0.0F;
+                        fragment.maximumLife =
+                            source.minimumLife > 0.0F
+                                ? sampleSourceRange(
+                                      source.minimumLife,
+                                      source.maximumLife)
+                                : -1.0F;
+                        fragment.collision = source.collision;
+                        fragment.velocity =
+                            sourceMineRipFragmentVelocity();
+                        spawnedMines.push_back(fragment);
+                    }
                 }
                 spawnMineDeathEffect(mine);
                 mine.active = false;
                 continue;
             }
         }
-        if (mine.type != 20U && mine.seconds < 0.25F)
-            continue;
         for (std::size_t racer = 0;
              racer < vehicles.size() && racer < racers_.size(); ++racer)
         {
             if (racers_[racer].destroyed)
                 continue;
-            const bool ownerLocked =
-                racer == mine.owner && mine.seconds < 0.4F &&
-                (mine.type == 10U ||
-                 (enableMineBug_ &&
-                  (mine.type == 11U || mine.type == 12U)));
+            const bool armingOwner =
+                mine.linkedToOwner &&
+                racer == mine.owner &&
+                mine.seconds < 0.25F;
+            const bool targetMineLocked =
+                racers_[racer].mineLockSeconds > 0.0F;
+            bool sourceContactLocked = false;
+            if (mine.type == 10U)
+            {
+                sourceContactLocked =
+                    mine.seconds < 0.25F ||
+                    targetMineLocked;
+            }
+            else if (mine.type != 20U)
+            {
+                const bool testsMineLock =
+                    mine.type == 11U || mine.type == 12U;
+                sourceContactLocked =
+                    armingOwner ||
+                    (testsMineLock && enableMineBug_ &&
+                     targetMineLocked);
+            }
             Transform mineTransform;
             mineTransform.position = mine.position;
             mineTransform.rotation = mine.rotation;
-            if (ownerLocked ||
-                !boxesOverlap(
-                    vehicleBox(
-                        vehicles[racer],
-                        (race_.racers[racer].hasConfiguredVehicle
-                             ? race_.racers[racer].configuredVehicle
-                             : race_.vehicles.at(
-                                   race_.racers[racer].vehicle))
-                            .physics),
-                    orientedBox(mineTransform, mine.collision)))
+            const auto& vehicleDefinition =
+                race_.racers[racer].hasConfiguredVehicle
+                    ? race_.racers[racer].configuredVehicle
+                    : race_.vehicles.at(
+                          race_.racers[racer].vehicle);
+            const OrientedBox targetBox =
+                vehicleBox(
+                    vehicles[racer],
+                    vehicleDefinition.physics);
+            const OrientedBox mineBox =
+                orientedBox(mineTransform, mine.collision);
+            if (sourceContactLocked ||
+                !boxesOverlap(targetBox, mineBox))
                 continue;
+            const Vec3 contactPoint =
+                closestPoint(targetBox, mineBox.center);
             if (mine.type == 10U)
             {
                 if (racers_[racer].clutchSeconds > 0.0F ||
-                    vehicles[racer].speed <= 3.0F)
+                    length3(
+                        vehicles[racer].linearVelocity) <= 3.0F)
                     continue;
                 if (clutchImmune(racer))
                 {
@@ -3118,7 +3246,8 @@ void OriginalRaceSession::updateGameplay(
                 racers_[racer].clutchSeconds = 0.38F;
                 angularVelocityRequests_.push_back(
                     {racer, {0.0F, 0.0F, strength}});
-                pushDamageEvent(racer, mine.owner, mine.position, 0.0F);
+                pushDamageEvent(
+                    racer, mine.owner, contactPoint, 0.0F);
                 continue;
             }
             const float damage =
@@ -3134,14 +3263,66 @@ void OriginalRaceSession::updateGameplay(
                           false);
             racers_[racer].life =
                 std::max(0.0F, racers_[racer].life - damage);
-            pushDamageEvent(racer, mine.owner, mine.position, damage);
+            pushDamageEvent(
+                racer, mine.owner, contactPoint, damage);
+            if (mine.type != 20U &&
+                mine.impulseSpeed != 0.0F)
+            {
+                const float targetMass =
+                    std::max(
+                        vehicleDefinition.physics.mass, 1.0F);
+                const Vec3 impulse{
+                    0.0F, 0.0F, mine.impulseSpeed};
+                velocityRequests_.push_back(
+                    {racer,
+                     multiply(impulse, 1.0F / targetMass)});
+                const Vec3 lever = subtract(
+                    contactPoint,
+                    vehicles[racer].body.position);
+                const Vec3 worldTorque =
+                    cross(lever, impulse);
+                const Quat inverseRotation{
+                    -vehicles[racer].body.rotation.x,
+                    -vehicles[racer].body.rotation.y,
+                    -vehicles[racer].body.rotation.z,
+                    vehicles[racer].body.rotation.w};
+                const Vec3 localTorque =
+                    rotate(inverseRotation, worldTorque);
+                const Vec3 half =
+                    vehicleDefinition.physics.halfExtents;
+                const Vec3 inertia{
+                    targetMass *
+                        (half.y * half.y +
+                         half.z * half.z) /
+                        3.0F,
+                    targetMass *
+                        (half.x * half.x +
+                         half.z * half.z) /
+                        3.0F,
+                    targetMass *
+                        (half.x * half.x +
+                         half.y * half.y) /
+                        3.0F};
+                const Vec3 localAngularDelta{
+                    localTorque.x /
+                        std::max(inertia.x, 0.001F),
+                    localTorque.y /
+                        std::max(inertia.y, 0.001F),
+                    localTorque.z /
+                        std::max(inertia.z, 0.001F)};
+                angularVelocityRequests_.push_back(
+                    {racer,
+                     rotate(
+                         vehicles[racer].body.rotation,
+                         localAngularDelta)});
+            }
             if (mine.type != 20U)
                 spawnMineDeathEffect(mine);
             if (racers_[racer].life <= 0.0F)
             {
                 destroyRacer(
-                    racer, mine.owner, mine.position,
-                    vehicles[racer]);
+                    racer, mine.owner, contactPoint,
+                    vehicles[racer], false, false);
             }
             if (mine.type != 20U)
             {
@@ -3178,11 +3359,17 @@ void OriginalRaceSession::updateGameplay(
                 racerDefinition.hasConfiguredVehicle
                     ? racerDefinition.configuredVehicle
                     : race_.vehicles.at(racerDefinition.vehicle);
-            if (!boxesOverlap(
-                    vehicleBox(vehicles[racer],
-                               vehicleDefinition.physics),
-                    orientedBox(bonus.transform, bonus.collision)))
+            const OrientedBox targetBox =
+                vehicleBox(
+                    vehicles[racer],
+                    vehicleDefinition.physics);
+            const OrientedBox bonusBox =
+                orientedBox(
+                    bonus.transform, bonus.collision);
+            if (!boxesOverlap(targetBox, bonusBox))
                 continue;
+            const Vec3 contactPoint =
+                closestPoint(targetBox, bonusBox.center);
 
             if (bonus.kind == BonusKind::Speed)
             {
@@ -3212,8 +3399,10 @@ void OriginalRaceSession::updateGameplay(
             }
             if (bonus.kind == BonusKind::OilHazard)
             {
-                if (runtime.clutchSeconds <= 0.0F &&
-                    vehicles[racer].speed > 3.0F &&
+                if (runtime.mineLockSeconds <= 0.0F &&
+                    runtime.clutchSeconds <= 0.0F &&
+                    length3(vehicles[racer].linearVelocity) >
+                        3.0F &&
                     !clutchImmune(racer))
                 {
                     const Vec3 direction = normalized2(
@@ -3235,6 +3424,9 @@ void OriginalRaceSession::updateGameplay(
             }
             if (bonus.kind == BonusKind::MineHazard)
             {
+                if (enableMineBug_ &&
+                    runtime.mineLockSeconds > 0.0F)
+                    continue;
                 const float damage =
                     runtime.shieldSeconds > 0.0F
                         ? 0.0F
@@ -3243,7 +3435,7 @@ void OriginalRaceSession::updateGameplay(
                 runtime.life = std::max(0.0F, runtime.life - damage);
                 pushDamageEvent(
                     racer, RacerRuntime::invalidWeapon,
-                    bonus.transform.position, damage);
+                    contactPoint, damage);
                 if (!bonus.deathEffect.visual.visualNodes.empty() ||
                     !bonus.deathEffect.visual.particleEmitters.empty())
                 {
@@ -3269,15 +3461,57 @@ void OriginalRaceSession::updateGameplay(
                     std::max(vehicleDefinition.physics.mass, 1.0F);
                 if (bonus.speed > 0.0F)
                 {
+                    const Vec3 impulse{
+                        0.0F, 0.0F, bonus.speed};
                     velocityRequests_.push_back(
                         {racer,
-                         {0.0F, 0.0F, bonus.speed / mass}});
+                         multiply(impulse, 1.0F / mass)});
+                    const Vec3 lever = subtract(
+                        contactPoint,
+                        vehicles[racer].body.position);
+                    const Vec3 worldTorque =
+                        cross(lever, impulse);
+                    const Quat inverseRotation{
+                        -vehicles[racer].body.rotation.x,
+                        -vehicles[racer].body.rotation.y,
+                        -vehicles[racer].body.rotation.z,
+                        vehicles[racer].body.rotation.w};
+                    const Vec3 localTorque =
+                        rotate(inverseRotation, worldTorque);
+                    const Vec3 half =
+                        vehicleDefinition.physics.halfExtents;
+                    const Vec3 inertia{
+                        mass *
+                            (half.y * half.y +
+                             half.z * half.z) /
+                            3.0F,
+                        mass *
+                            (half.x * half.x +
+                             half.z * half.z) /
+                            3.0F,
+                        mass *
+                            (half.x * half.x +
+                             half.y * half.y) /
+                            3.0F};
+                    const Vec3 localAngularDelta{
+                        localTorque.x /
+                            std::max(inertia.x, 0.001F),
+                        localTorque.y /
+                            std::max(inertia.y, 0.001F),
+                        localTorque.z /
+                            std::max(inertia.z, 0.001F)};
+                    angularVelocityRequests_.push_back(
+                        {racer,
+                         rotate(
+                             vehicles[racer].body.rotation,
+                             localAngularDelta)});
                 }
                 if (runtime.life <= 0.0F)
                 {
                     destroyRacer(
                         racer, RacerRuntime::invalidWeapon,
-                        bonus.transform.position, vehicles[racer]);
+                        contactPoint, vehicles[racer], false,
+                        false);
                 }
                 bonusActive_[bonusIndex] = false;
                 break;
@@ -3478,8 +3712,9 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.damage = projectile.damage;
                 runtimeProjectile.angularSpeed =
                     projectile.angularSpeed;
-                runtimeProjectile.lifeSeconds =
-                    projectile.minimumLife;
+                runtimeProjectile.lifeSeconds = sampleSourceRange(
+                    projectile.minimumLife,
+                    projectile.maximumLife);
                 runtimeProjectile.attached = true;
                 projectiles_.push_back(runtimeProjectile);
             }
@@ -3518,7 +3753,9 @@ void OriginalRaceSession::updateGameplay(
                         ? projectile.maximumDistance /
                               projectile.speed
                         : 0.0F,
-                    projectile.minimumLife);
+                    sampleSourceRange(
+                        projectile.minimumLife,
+                        projectile.maximumLife));
                 runtimeProjectile.ballistic =
                     projectile.type == 19U;
                 if (projectile.type == 2U ||
@@ -3926,7 +4163,8 @@ void OriginalRaceSession::updateAchievements(float seconds)
     {
         const RaceEvent event = events_[eventIndex];
         const bool humanKill =
-            event.kind == RaceEventKind::Kill && event.racer == 0U;
+            event.kind == RaceEventKind::Kill &&
+            event.killCredit && event.racer == 0U;
         const bool humanDeath =
             event.kind == RaceEventKind::Kill && event.target == 0U;
         const bool humanLap =
@@ -4045,7 +4283,8 @@ void OriginalRaceSession::updateAchievements(float seconds)
                 break;
             }
         }
-        if (event.kind == RaceEventKind::Kill)
+        if (event.kind == RaceEventKind::Kill &&
+            event.killCredit)
             ++achievementGlobalKills_;
         if (humanLap && !racers_.empty())
             achievementPreviousLapPlace_ = racers_.front().place;
@@ -5903,6 +6142,50 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     .tertiaryCollision.halfExtents.x <= 0.0F ||
             mineRip->projectiles.front()
                     .tertiaryCollision.halfExtents.y <= 0.0F ||
+            !mineRip->projectiles.front()
+                 .secondaryProjectile.valid ||
+            mineRip->projectiles.front()
+                    .secondaryProjectile.type != 11U ||
+            std::abs(
+                mineRip->projectiles.front()
+                    .secondaryProjectile.damage -
+                10.0F) > 0.001F ||
+            std::abs(
+                mineRip->projectiles.front()
+                    .secondaryProjectile.speed -
+                3000.0F) > 0.001F ||
+            std::abs(
+                mineRip->projectiles.front()
+                    .secondaryProjectile.minimumLife -
+                4.0F) > 0.001F ||
+            std::abs(
+                mineRip->projectiles.front()
+                    .secondaryProjectile.maximumLife -
+                4.5F) > 0.001F ||
+            mineRip->projectiles.front()
+                .secondaryProjectile.deathEffect.visual.record.empty() ||
+            !mineRip->projectiles.front()
+                 .tertiaryProjectile.valid ||
+            mineRip->projectiles.front()
+                    .tertiaryProjectile.type != 13U ||
+            std::abs(
+                mineRip->projectiles.front()
+                    .tertiaryProjectile.damage -
+                4.0F) > 0.001F ||
+            std::abs(
+                mineRip->projectiles.front()
+                    .tertiaryProjectile.speed -
+                3000.0F) > 0.001F ||
+            std::abs(
+                mineRip->projectiles.front()
+                    .tertiaryProjectile.minimumLife -
+                4.0F) > 0.001F ||
+            std::abs(
+                mineRip->projectiles.front()
+                    .tertiaryProjectile.maximumLife -
+                4.5F) > 0.001F ||
+            mineRip->projectiles.front()
+                .tertiaryProjectile.deathEffect.visual.record.empty() ||
             std::abs(
                 mineRip->projectiles.front().deathEffect.position.z -
                 0.5F) > 0.001F)
@@ -5912,6 +6195,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
         {
             OriginalRaceSession mineSession(race);
+            auto mineVehicles = vehicles;
+            for (std::size_t racer = 1U;
+                 racer < mineVehicles.size(); ++racer)
+            {
+                mineVehicles[racer].body.position.x +=
+                    1000.0F + 100.0F *
+                        static_cast<float>(racer);
+                mineVehicles[racer].body.position.y +=
+                    1000.0F;
+            }
             PlayerProfile mineProfile;
             auto& mineSlot =
                 mineProfile.slots[PlayerProfile::mineSlot];
@@ -5922,17 +6215,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             RaceControl mineInput;
             for (int frame = 0; frame < 190; ++frame)
                 mineSession.update(
-                    1.0F / 60.0F, vehicles, mineInput);
+                    1.0F / 60.0F, mineVehicles, mineInput);
             mineInput.useMine = true;
             mineSession.update(
-                1.0F / 60.0F, vehicles, mineInput);
+                1.0F / 60.0F, mineVehicles, mineInput);
             mineInput.useMine = false;
             if (mineSession.mines().empty())
                 throw std::runtime_error("source MineRip was not placed");
             const auto& sourceProjectile =
                 mineRip->projectiles.front();
             const Transform sourceWeaponTransform = compose(
-                vehicles[0].body, mineRip->visual.transform);
+                mineVehicles[0].body, mineRip->visual.transform);
             Transform sourceProjectileTransform;
             sourceProjectileTransform.position =
                 sourceProjectile.position;
@@ -5966,10 +6259,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "preserved");
             }
             const Vec3 minePosition = mineSession.mines().front().position;
-            vehicles[0].body.position = minePosition;
-            for (int frame = 0; frame < 20; ++frame)
+            mineVehicles[0].body.position = minePosition;
+            for (int frame = 0; frame < 30; ++frame)
                 mineSession.update(
-                    1.0F / 60.0F, vehicles, mineInput);
+                    1.0F / 60.0F, mineVehicles, mineInput);
             const std::size_t mineWeapon =
                 static_cast<std::size_t>(mineRip - race.weapons.begin());
             const bool hasSourceMineDeath = std::any_of(
@@ -6015,6 +6308,362 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source MinePrepare failed raycast consumed a mine");
+            }
+        }
+
+        const auto mineSpike = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "mine1";
+            });
+        const auto mineProton = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "mine3";
+            });
+        const auto oilMine = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "maslo";
+            });
+        if (mineSpike == race.weapons.end() ||
+            mineSpike->projectiles.empty() ||
+            mineSpike->projectiles.front().type != 11U ||
+            std::abs(
+                mineSpike->projectiles.front().speed -
+                3000.0F) > 0.001F ||
+            mineProton == race.weapons.end() ||
+            mineProton->projectiles.empty() ||
+            mineProton->projectiles.front().type != 24U ||
+            std::abs(
+                mineProton->projectiles.front().speed -
+                3000.0F) > 0.001F ||
+            oilMine == race.weapons.end() ||
+            oilMine->projectiles.empty() ||
+            oilMine->projectiles.front().type != 10U)
+        {
+            throw std::runtime_error(
+                "source mine/oil workshop records were not preserved");
+        }
+        auto isolatedMineVehicles = [&]() {
+            auto result = vehicles;
+            for (std::size_t racer = 1U;
+                 racer < result.size(); ++racer)
+            {
+                result[racer].body.position.x +=
+                    1000.0F + 100.0F *
+                        static_cast<float>(racer);
+                result[racer].body.position.y += 1000.0F;
+                result[racer].linearVelocity = {};
+                result[racer].speed = 0.0F;
+            }
+            return result;
+        };
+        auto mineProfileFor =
+            [](const WeaponDefinition& weapon) {
+                PlayerProfile profile;
+                auto& slot =
+                    profile.slots[PlayerProfile::mineSlot];
+                slot.record = weapon.record;
+                slot.charge = 1U;
+                slot.hasCharge = true;
+                return profile;
+            };
+        auto advanceMineCountdown =
+            [](OriginalRaceSession& sourceSession,
+               std::vector<r3d::physics::VehicleState>&
+                   sourceVehicles) {
+                RaceControl sourceInput;
+                for (int frame = 0; frame < 190; ++frame)
+                {
+                    sourceSession.update(
+                        1.0F / 60.0F, sourceVehicles,
+                        sourceInput);
+                }
+            };
+        auto expectedMineTransform =
+            [&](const WeaponDefinition& weapon,
+                const std::vector<
+                    r3d::physics::VehicleState>&
+                    sourceVehicles) {
+                const auto& projectile =
+                    weapon.projectiles.front();
+                const Transform weaponTransform = compose(
+                    sourceVehicles[0].body,
+                    weapon.visual.transform);
+                Transform projectileTransform;
+                projectileTransform.position =
+                    projectile.position;
+                projectileTransform.rotation =
+                    projectile.rotation;
+                const Vec3 rayPosition = compose(
+                    weaponTransform,
+                    projectileTransform).position;
+                const auto hit = raycastTrackPlane(
+                    race,
+                    add(rayPosition, {0.0F, 0.0F, 2.0F}));
+                if (!hit.hit)
+                {
+                    throw std::runtime_error(
+                        "source mine regression ray missed track");
+                }
+                const float offset = std::max(
+                    -(projectile.collision.center.z -
+                      projectile.collision.halfExtents.z),
+                    0.01F);
+                Transform result;
+                result.position = add(
+                    hit.position, {0.0F, 0.0F, offset});
+                result.rotation = rotationWithUp(hit.normal);
+                return result;
+            };
+
+        {
+            OriginalRaceSession contactSession(race);
+            contactSession.applyPlayerProfile(
+                mineProfileFor(*mineSpike));
+            auto sourceVehicles = isolatedMineVehicles();
+            advanceMineCountdown(
+                contactSession, sourceVehicles);
+            const Transform mineTransform =
+                expectedMineTransform(
+                    *mineSpike, sourceVehicles);
+            const auto& targetRacer = race.racers[1];
+            const auto& targetDefinition =
+                targetRacer.hasConfiguredVehicle
+                    ? targetRacer.configuredVehicle
+                    : race.vehicles.at(targetRacer.vehicle);
+            const Vec3 mineCenter = add(
+                mineTransform.position,
+                rotate(
+                    mineTransform.rotation,
+                    mineSpike->projectiles.front()
+                        .collision.center));
+            sourceVehicles[1].body.rotation = {};
+            sourceVehicles[1].body.position = subtract(
+                add(mineCenter, {0.0F, 0.25F, 0.0F}),
+                targetDefinition.physics.shapePosition);
+            const float lifeBefore =
+                contactSession.racers()[1].life;
+            RaceControl sourceInput;
+            sourceInput.useMine = true;
+            contactSession.update(
+                1.0F / 60.0F, sourceVehicles, sourceInput);
+            const auto impulses =
+                contactSession.takeVelocityRequests();
+            const bool hasVerticalImpulse = std::any_of(
+                impulses.begin(), impulses.end(),
+                [](const VelocityRequest& request) {
+                    return request.racer == 1U &&
+                           request.delta.z > 0.0F;
+                });
+            if (!contactSession.mines().empty() ||
+                contactSession.racers()[1].life >=
+                    lifeBefore ||
+                !hasVerticalImpulse ||
+                contactSession.racers()[0]
+                        .mineLockSeconds <= 0.0F)
+            {
+                throw std::runtime_error(
+                    "source MineContact early non-owner contact/impulse "
+                    "was not preserved");
+            }
+        }
+
+        {
+            OriginalRaceSession protonSession(race);
+            protonSession.applyPlayerProfile(
+                mineProfileFor(*mineProton));
+            auto sourceVehicles = isolatedMineVehicles();
+            advanceMineCountdown(
+                protonSession, sourceVehicles);
+            const float lifeBefore =
+                protonSession.racers()[0].life;
+            RaceControl sourceInput;
+            sourceInput.useMine = true;
+            protonSession.update(
+                1.0F / 60.0F, sourceVehicles, sourceInput);
+            sourceInput.useMine = false;
+            if (protonSession.mines().size() != 1U ||
+                protonSession.mines().front().type != 24U ||
+                protonSession.racers()[0].life != lifeBefore)
+            {
+                throw std::runtime_error(
+                    "source ptMineProton owner arming window failed");
+            }
+            for (int frame = 0; frame < 30; ++frame)
+            {
+                protonSession.update(
+                    1.0F / 60.0F, sourceVehicles,
+                    sourceInput);
+            }
+            if (!protonSession.mines().empty() ||
+                protonSession.racers()[0].life >= lifeBefore)
+            {
+                throw std::runtime_error(
+                    "source ptMineProton contact was not dispatched");
+            }
+        }
+
+        {
+            OriginalRaceSession oilSession(race);
+            oilSession.applyPlayerProfile(
+                mineProfileFor(*oilMine));
+            auto sourceVehicles = isolatedMineVehicles();
+            sourceVehicles[0].linearVelocity =
+                {10.0F, 0.0F, 0.0F};
+            sourceVehicles[0].speed = 10.0F;
+            advanceMineCountdown(
+                oilSession, sourceVehicles);
+            RaceControl sourceInput;
+            sourceInput.useMine = true;
+            oilSession.update(
+                1.0F / 60.0F, sourceVehicles, sourceInput);
+            sourceInput.useMine = false;
+            const auto earlyAngular =
+                oilSession.takeAngularVelocityRequests();
+            for (int frame = 0; frame < 30; ++frame)
+            {
+                oilSession.update(
+                    1.0F / 60.0F, sourceVehicles,
+                    sourceInput);
+            }
+            const auto armedAngular =
+                oilSession.takeAngularVelocityRequests();
+            const bool oilLockedClutch = std::any_of(
+                armedAngular.begin(), armedAngular.end(),
+                [](const AngularVelocityRequest& request) {
+                    return request.racer == 0U &&
+                           std::abs(request.delta.z) > 0.0F;
+                });
+            if (!earlyAngular.empty() ||
+                oilSession.mines().size() != 1U ||
+                !oilLockedClutch ||
+                oilSession.racers()[0].clutchSeconds <= 0.0F)
+            {
+                throw std::runtime_error(
+                    "source Maslo arming/mine-lock/clutch lifecycle "
+                    "failed");
+            }
+        }
+
+        {
+            OriginalRaceSession splitSession(race);
+            splitSession.applyPlayerProfile(
+                mineProfileFor(*mineRip));
+            auto sourceVehicles = isolatedMineVehicles();
+            advanceMineCountdown(
+                splitSession, sourceVehicles);
+            RaceControl sourceInput;
+            sourceInput.useMine = true;
+            splitSession.update(
+                1.0F / 60.0F, sourceVehicles, sourceInput);
+            sourceInput.useMine = false;
+            if (splitSession.mines().size() != 1U)
+            {
+                throw std::runtime_error(
+                    "source MineRip split regression was not placed");
+            }
+            sourceVehicles[0].body.position.x += 1000.0F;
+            sourceVehicles[0].body.position.y += 1000.0F;
+            bool splitObserved = false;
+            for (int frame = 0; frame < 130; ++frame)
+            {
+                splitSession.update(
+                    1.0F / 60.0F, sourceVehicles,
+                    sourceInput);
+                const auto coreCount = std::count_if(
+                    splitSession.mines().begin(),
+                    splitSession.mines().end(),
+                    [](const MineRuntime& mine) {
+                        return mine.visualVariant == 1U;
+                    });
+                const auto pieceCount = std::count_if(
+                    splitSession.mines().begin(),
+                    splitSession.mines().end(),
+                    [](const MineRuntime& mine) {
+                        return mine.visualVariant == 2U;
+                    });
+                if (coreCount == 1 && pieceCount == 5)
+                {
+                    splitObserved = true;
+                    break;
+                }
+            }
+            bool sourceFragments = splitObserved;
+            for (const auto& mine : splitSession.mines())
+            {
+                if (mine.visualVariant == 1U)
+                {
+                    sourceFragments =
+                        sourceFragments &&
+                        mine.owner ==
+                            RacerRuntime::invalidWeapon &&
+                        !mine.linkedToOwner &&
+                        mine.type == 11U &&
+                        std::abs(mine.damage - 10.0F) <
+                            0.001F &&
+                        std::abs(
+                            mine.impulseSpeed - 3000.0F) <
+                            0.001F &&
+                        mine.maximumLife >= 4.0F &&
+                        mine.maximumLife <= 4.5F;
+                }
+                else if (mine.visualVariant == 2U)
+                {
+                    sourceFragments =
+                        sourceFragments &&
+                        mine.owner ==
+                            RacerRuntime::invalidWeapon &&
+                        !mine.linkedToOwner &&
+                        mine.type == 13U &&
+                        std::abs(mine.damage - 4.0F) <
+                            0.001F &&
+                        std::abs(
+                            mine.impulseSpeed - 3000.0F) <
+                            0.001F &&
+                        mine.maximumLife >= 4.0F &&
+                        mine.maximumLife <= 4.5F &&
+                        std::abs(
+                            length3(mine.velocity) - 10.0F) <
+                            0.01F &&
+                        mine.velocity.z > 0.0F;
+                }
+            }
+            if (!sourceFragments)
+            {
+                throw std::runtime_error(
+                    "source MineRip nested projectile values/impulses "
+                    "were not preserved");
+            }
+            bool secondaryDeath = false;
+            bool tertiaryDeath = false;
+            for (int frame = 0; frame < 310; ++frame)
+            {
+                splitSession.update(
+                    1.0F / 60.0F, sourceVehicles,
+                    sourceInput);
+                for (const auto& effect :
+                     splitSession.effects())
+                {
+                    secondaryDeath =
+                        secondaryDeath ||
+                        (effect.kind ==
+                             RaceEventKind::ProjectileImpact &&
+                         effect.visualVariant == 5U);
+                    tertiaryDeath =
+                        tertiaryDeath ||
+                        (effect.kind ==
+                             RaceEventKind::ProjectileImpact &&
+                         effect.visualVariant == 6U);
+                }
+            }
+            if (!splitSession.mines().empty() ||
+                !secondaryDeath || !tertiaryDeath)
+            {
+                throw std::runtime_error(
+                    "source MineRip nested minTimeLife/DeathEffect "
+                    "lifecycle failed");
             }
         }
 

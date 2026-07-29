@@ -105,6 +105,7 @@ struct RacerRuntime
     std::size_t slowWeapon = invalidWeapon;
     std::size_t slowProjectile = invalidWeapon;
     float clutchSeconds = 0.0F;
+    float mineLockSeconds = 0.0F;
     float springLockSeconds = 0.0F;
     float restoreSeconds = 0.0F;
     float lowLifeEffectSeconds = 0.0F;
@@ -148,6 +149,10 @@ struct RaceEvent
     PickSlot pickSlot = PickSlot::None;
     std::size_t weapon = RacerRuntime::invalidWeapon;
     bool touchDamage = false;
+    // GameObject::Damage emits car death for dtMine but deliberately does
+    // not emit cPlayerKill.  Keep destruction consumers active while
+    // excluding that event from kill HUD/commentary/achievements.
+    bool killCredit = true;
 };
 
 struct RaceEffect
@@ -180,8 +185,12 @@ struct MineRuntime
     ProjectileCollisionBox collision;
     float seconds = 0.0F;
     float damage = 0.0F;
+    float impulseSpeed = 0.0F;
     float maximumLife = -1.0F;
     std::uint32_t type = 11U;
+    // Weapon-created mines retain their source car pointer during the
+    // 0.25-second MineUpdate arming window.  AutoProj fragments do not.
+    bool linkedToOwner = true;
     bool active = true;
 };
 
@@ -268,7 +277,7 @@ private:
     void destroyRacer(
         std::size_t racer, std::size_t attacker, Vec3 position,
         const r3d::physics::VehicleState& vehicle,
-        bool touchDamage = false);
+        bool touchDamage = false, bool killCredit = true);
     std::size_t findWeapon(std::string_view record,
                            WeaponSlot slot) const noexcept;
     void syncSelectedWeapon(RacerRuntime& racer) const noexcept;

@@ -345,6 +345,18 @@ enum class WeaponSlot
     Support,
 };
 
+struct NestedProjectileDefinition
+{
+    bool valid = false;
+    std::uint32_t type = 0U;
+    ProjectileCollisionBox collision;
+    DeathEffectDefinition deathEffect;
+    float speed = 0.0F;
+    float minimumLife = 0.0F;
+    float maximumLife = 0.0F;
+    float damage = 0.0F;
+};
+
 struct ProjectileDefinition
 {
     static constexpr std::size_t invalidProjectile =
@@ -374,9 +386,15 @@ struct ProjectileDefinition
     float angularSpeed = 0.0F;
     float maximumDistance = 0.0F;
     float minimumLife = 0.0F;
+    float maximumLife = 0.0F;
     float mass = 100.0F;
     float damage = 0.0F;
     bool modelSize = true;
+    // MineRipUpdate instantiates model2/model3 as autonomous gotProj
+    // records.  Their gameplay values belong to those nested records rather
+    // than to the parent mine projectile.
+    NestedProjectileDefinition secondaryProjectile;
+    NestedProjectileDefinition tertiaryProjectile;
     // Some death effects are themselves gotProj records (the mortar impact
     // creates the source ptCrater contact field).  They live in the weapon's
     // projectile table for renderer asset ownership, but are not fired from

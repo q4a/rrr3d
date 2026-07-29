@@ -1083,6 +1083,7 @@ void OriginalRaceHud::update(
             }
         }
         else if (event.kind == originalrace::RaceEventKind::Kill &&
+                 event.killCredit &&
                  event.racer == 0 &&
                  event.target < race.racers.size())
         {

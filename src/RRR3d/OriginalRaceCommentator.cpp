@@ -216,7 +216,7 @@ void OriginalRaceCommentator::update(
         }
         else if (event.kind == RaceEventKind::Kill)
         {
-            if (event.racer == 0U)
+            if (event.killCredit && event.racer == 0U)
                 enqueue(Cue::Kill, false, true);
             if (event.target == 0U)
                 enqueue(Cue::Death, false, true);

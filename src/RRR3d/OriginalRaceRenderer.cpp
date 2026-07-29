@@ -1496,6 +1496,26 @@ bool OriginalRaceRenderer::initialize(
                     loadDefinition(assets.deathVisual,
                                    definition.deathEffect.visual);
                 }
+                if (definition.secondaryProjectile.valid &&
+                    (!definition.secondaryProjectile.deathEffect.visual
+                          .visualNodes.empty() ||
+                     !definition.secondaryProjectile.deathEffect.visual
+                          .particleEmitters.empty()))
+                {
+                    loadDefinition(
+                        assets.secondaryDeathVisual,
+                        definition.secondaryProjectile.deathEffect.visual);
+                }
+                if (definition.tertiaryProjectile.valid &&
+                    (!definition.tertiaryProjectile.deathEffect.visual
+                          .visualNodes.empty() ||
+                     !definition.tertiaryProjectile.deathEffect.visual
+                          .particleEmitters.empty()))
+                {
+                    loadDefinition(
+                        assets.tertiaryDeathVisual,
+                        definition.tertiaryProjectile.deathEffect.visual);
+                }
             }
         }
 
@@ -1791,6 +1811,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
             releaseObject(projectile.secondaryVisual);
             releaseObject(projectile.tertiaryVisual);
             releaseObject(projectile.deathVisual);
+            releaseObject(projectile.secondaryDeathVisual);
+            releaseObject(projectile.tertiaryDeathVisual);
         }
     for (auto& decoration : decorations_)
         releaseObject(decoration);
@@ -3459,21 +3481,31 @@ void OriginalRaceRenderer::draw(
                     ProjectileImpact)
             {
                 const auto* definition =
-                    effect.visualVariant == 4U
+                    effect.visualVariant == 6U
+                        ? &projectileDefinition.tertiaryProjectile
+                               .deathEffect.visual
+                    : (effect.visualVariant == 5U
+                        ? &projectileDefinition.secondaryProjectile
+                               .deathEffect.visual
+                    : (effect.visualVariant == 4U
                         ? &projectileDefinition.visual
                         : (effect.visualVariant == 3U
                         ? &projectileDefinition.deathEffect.visual
                         : (effect.visualVariant == 2U
                                ? &projectileDefinition.tertiaryVisual
-                               : &projectileDefinition.secondaryVisual));
+                               : &projectileDefinition.secondaryVisual))));
                 const auto* asset =
-                    effect.visualVariant == 4U
+                    effect.visualVariant == 6U
+                        ? &projectileAssets.tertiaryDeathVisual
+                    : (effect.visualVariant == 5U
+                        ? &projectileAssets.secondaryDeathVisual
+                    : (effect.visualVariant == 4U
                         ? &projectileAssets.visual
                         : (effect.visualVariant == 3U
                         ? &projectileAssets.deathVisual
                         : (effect.visualVariant == 2U
                                ? &projectileAssets.tertiaryVisual
-                               : &projectileAssets.secondaryVisual));
+                               : &projectileAssets.secondaryVisual))));
                 r3d::physics::Transform parent;
                 parent.position = effect.origin;
                 if (!effect.ignoreRotation)
