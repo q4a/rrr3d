@@ -76,7 +76,7 @@ Windows target не компилируется.
 | Главное меню, внешний вид | `MainMenu2.cpp` | часть оригинальных изображений/строк | Частично | Фон, панели и selection source-driven; полный widget tree, animation, layout и event code не перенесены |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | ручной `enum MenuScreen` и `createPage(...)` в одном `main` | Суррогат | Страницы GameMode/Tournament/Profile/Options/Credits создаются как универсальные текстовые списки |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | универсальная page + portable profile operations | Суррогат | Исходные dialogs, text input, transitions, animations и подтверждения отсутствуют |
-| Race menu | `RaceMenu2.cpp` | список `Start race/Workshop/Garage/...` | Суррогат | Исходный RaceMenu widget graph и его режимы не перенесены |
+| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame` + portable subframes | Частично | Главный экран использует исходные top/bottom/stat/money/frame/icon/charge/weather assets, horizontal navigation и tournament data. `CarFrame` garage 3D scene и исходные Garage/Workshop/Angar/Achievement subframe layouts ещё не перенесены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | generic finish page | Суррогат | Исходные panels, statistics, awards, credits/final flow не перенесены |
 | Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля tournament/workshop/options; полная схема, migration и все profile branches не доказаны |
@@ -408,14 +408,34 @@ Network, video и Steam явно выключены.
    bgfx/Metal race-render smoke проходят. Финальная визуальная проверка
    Options отложена только потому, что macOS session была заблокирована.
 
+Следующим подблоком начат перенос `RaceMenu2::RaceMainFrame`:
+
+1. Вертикальный generic список больше не рисуется на главном race-menu
+   экране. Семь действий расположены горизонтально по формуле
+   `RaceMainFrame::OnAdjustLayout` с `menuItemSpaceX=50`.
+2. Загружаются исходные `topPanel`, `bottomPanel`, `buttonBg1`,
+   `buttonBgSel1`, семь `ico*`, `moneyBg`, `statFrame`, `imageFrame1`,
+   `chargeBar1` и четыре weather icons.
+3. Перенесены заголовки Player/Planet/Tournament/Weapons/Boss, имя профиля,
+   первый source boss текущей планеты, деньги, division/required/current
+   points, planet/track/pass и source weather mapping.
+4. Charge indicators берут исходный порядок Weapon1–4/Hyper/Mine и правило
+   `ClampValue(charge/7, 0, 1)`. Mouse hit boxes и Left/Right navigation
+   соответствуют горизонтальному меню.
+5. `CarFrame` с `Misc/garage`, garage lighting/camera и 3D car/loadout
+   preview пока не заменён — фон под панелями остаётся текущим menu scene.
+   Поэтому строка получает статус «Частично», а не «Перенесено».
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
 
-1. Продолжить исходный menu/widget state machine: `Menu`, `MenuSystem`,
-   `MainMenu2`, `GameMode`, `DialogMenu2`, `RaceMenu2`, `FinishMenu`,
-   `FinalMenu`; активная структура `OptionsMenu` уже перенесена, но legacy
-   animation/widget classes всё ещё заменены immediate-mode bgfx backend.
+1. Продолжить исходный menu/widget state machine: сначала `RaceMenu2`
+   `CarFrame` и его Garage/Workshop/Angar/Achievement subframes, затем
+   `Menu`, `MenuSystem`, `MainMenu2`, `GameMode`, `DialogMenu2`,
+   `FinishMenu`, `FinalMenu`. Активная структура `OptionsMenu` и
+   `RaceMainFrame` уже source-derived, но legacy animation/widget classes
+   всё ещё заменены immediate-mode bgfx backend.
 2. Завершить исходные type-specific projectile contact groups, forces,
    callbacks и lifetime transitions поверх уже перенесённых shapes/raycasts.
 3. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно

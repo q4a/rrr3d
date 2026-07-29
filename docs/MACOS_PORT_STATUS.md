@@ -43,6 +43,13 @@ Follow-up полной ревизии от 2026-07-30 заменил generic Opt
 preview и исходные Apply/Cancel draft semantics. Этот блок не означает, что
 остальные generic `GameMode`/`RaceMenu`/`FinishMenu` уже перенесены.
 
+Следующий follow-up заменил вертикальный generic `RaceMenu` главным экраном
+`RaceMenu2::RaceMainFrame`: исходные верхняя/нижняя панели, семь горизонтальных
+icon-кнопок, money/stat/image frames, weather и charge bars используют
+оригинальные координаты и tournament/profile data. Это пока частичный перенос:
+исходная garage 3D scene `CarFrame` и subframes Garage/Workshop/Angar/
+Achievements остаются следующими блоками.
+
 Финальная проверка M9.5: arm64 Debug build и новые Metal shaders прошли без
 новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
 каждый подтвердил оба 2048 shadow split, шесть cube faces, `glRefl` и FxTrail,
@@ -806,10 +813,10 @@ SDL_AUDIO_DRIVER=dummy \
 
 ## Следующий рекомендуемый этап
 
-Для полного портирования следующий P0-блок — заменить generic `RaceMenu`
-исходной структурой `RaceMenu2.cpp`, затем перенести `GameMode`/профильные
-диалоги и `FinishMenu`/`FinalMenu`. Параллельно остаются source-by-source
-ревизии projectile callbacks, material/effect graph и game-side audio
-behaviors. Release hardening (Developer ID, notarization, clean-Mac test)
-нужен только после закрытия этих функциональных расхождений; он не является
-заменой переноса.
+Для полного портирования следующий P0-блок — завершить `RaceMenu2`:
+`CarFrame` garage scene, затем Garage/Workshop/Angar/Achievement subframes.
+После этого идут `GameMode`/профильные диалоги и `FinishMenu`/`FinalMenu`.
+Параллельно остаются source-by-source ревизии projectile callbacks,
+material/effect graph и game-side audio behaviors. Release hardening
+(Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
+функциональных расхождений; он не является заменой переноса.

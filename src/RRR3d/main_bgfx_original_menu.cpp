@@ -874,6 +874,59 @@ int main(int argc, char** argv)
         0U, 0U, 0U, 204U};
     const Texture optionsMask = device->createTextureRgba8(
         1U, 1U, optionsMaskPixel.data(), optionsMaskPixel.size());
+    const auto raceTopPanelImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/topPanel.png");
+    const auto raceBottomPanelImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/bottomPanel.png");
+    const auto raceMenuButtonImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBg1.png");
+    const auto raceMenuButtonSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBgSel1.png");
+    const auto raceMoneyImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/moneyBg.png");
+    const auto raceStatsImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/statFrame.png");
+    const auto raceImageFrameImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/imageFrame1.png");
+    const auto raceChargeBarImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/chargeBar1.png");
+    const std::array<menu::Image, 7> raceMenuIconImages{
+        menu::loadOriginalImage(*resources, "Data/GUI/icoStart.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/icoWorkshop.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/icoGarage.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/icoSpace.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/icoAchivment.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/icoOptions.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/icoExit.png")};
+    const std::array<menu::Image, 4> raceWeatherImages{
+        menu::loadOriginalImage(*resources, "Data/GUI/fair.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/night.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/cloudy.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/rainy.png")};
+    const Texture raceTopPanel =
+        createImageTexture(*device, raceTopPanelImage);
+    const Texture raceBottomPanel =
+        createImageTexture(*device, raceBottomPanelImage);
+    const Texture raceMenuButton =
+        createImageTexture(*device, raceMenuButtonImage);
+    const Texture raceMenuButtonSelected =
+        createImageTexture(*device, raceMenuButtonSelectedImage);
+    const Texture raceMoney =
+        createImageTexture(*device, raceMoneyImage);
+    const Texture raceStats =
+        createImageTexture(*device, raceStatsImage);
+    const Texture raceImageFrame =
+        createImageTexture(*device, raceImageFrameImage);
+    const Texture raceChargeBar =
+        createImageTexture(*device, raceChargeBarImage);
+    std::array<Texture, 7> raceMenuIcons{};
+    for (std::size_t index = 0U; index < raceMenuIcons.size(); ++index)
+        raceMenuIcons[index] =
+            createImageTexture(*device, raceMenuIconImages[index]);
+    std::array<Texture, 4> raceWeatherIcons{};
+    for (std::size_t index = 0U; index < raceWeatherIcons.size(); ++index)
+        raceWeatherIcons[index] =
+            createImageTexture(*device, raceWeatherImages[index]);
 #endif
 
     struct MenuPageVisual
@@ -906,6 +959,8 @@ int main(int argc, char** argv)
     MenuPageVisual creditsPage;
 #ifdef RRR3D_PHYSICS
     MenuPageVisual raceMenuPage;
+    MenuPageVisual raceMainHeadersPage;
+    MenuPageVisual raceMainInfoPage;
     MenuPageVisual garagePage;
     MenuPageVisual workshopSlotsPage;
     MenuPageVisual workshopItemsPage;
@@ -965,6 +1020,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     constexpr menu::Rgba8 optionsTextColor{175, 175, 175, 255};
     constexpr menu::Rgba8 optionsStateSelectedColor{235, 115, 62, 255};
+    constexpr menu::Rgba8 raceTextColor{214, 214, 214, 255};
+    constexpr menu::Rgba8 raceInfoColor{214, 184, 164, 255};
     auto optionsDraftConfig = profileState.config;
     auto optionsDraftDifficulty = profileState.player.difficulty;
     std::vector<std::pair<std::uint32_t, std::uint32_t>>
@@ -1131,6 +1188,71 @@ int main(int argc, char** argv)
         }
         return output;
     };
+    auto formatOriginalRaceInfo =
+        [](std::string pattern, const std::string& textValue,
+           std::uint32_t firstValue, std::uint32_t secondValue) {
+            auto replaceFirst = [&](std::string_view token,
+                                    const std::string& value) {
+                const auto position = pattern.find(token);
+                if (position != std::string::npos)
+                    pattern.replace(position, token.size(), value);
+            };
+            replaceFirst("%s", textValue);
+            replaceFirst("%d", std::to_string(firstValue));
+            replaceFirst("%d", std::to_string(secondValue));
+            return pattern;
+        };
+    auto raceMainInfoLabels = [&]() {
+        const auto trackIndex = std::min(
+            selectedTrack, originalRace->trackCatalog.size() - 1U);
+        const auto& selected =
+            originalRace->trackCatalog[trackIndex];
+        std::uint32_t trackNumber = 0U;
+        std::uint32_t trackCount = 0U;
+        for (std::size_t index = 0U;
+             index < originalRace->trackCatalog.size(); ++index)
+        {
+            const auto& candidate =
+                originalRace->trackCatalog[index];
+            if (candidate.planetIndex != selected.planetIndex ||
+                candidate.racePass != selected.racePass)
+            {
+                continue;
+            }
+            ++trackCount;
+            if (index <= trackIndex)
+                ++trackNumber;
+        }
+        const std::string planetName =
+            selected.planetIndex < originalGarage->planets.size()
+                ? localized(
+                      originalGarage
+                          ->planets[selected.planetIndex]
+                          .name)
+                : selected.worldType;
+        const auto pass = std::max(selected.racePass, 1U);
+        const auto required =
+            pass <= originalRace->requiredPoints.size()
+                ? originalRace->requiredPoints[pass - 1U]
+                : 0U;
+        const std::string passInfo = formatOriginalRaceInfo(
+            localized("svPassInfo"), planetName,
+            std::max(trackNumber, 1U),
+            std::max(trackCount, 1U));
+        const std::string tournamentInfo =
+            formatOriginalRaceInfo(
+                localized("svTournamentInfo"),
+                pass <= 1U ? "B" : "A", required,
+                profileState.player.points);
+        const std::string bossName =
+            originalRace->racers.size() > 1U
+                ? localized(originalRace->racers[1].name)
+                : localized("svNull");
+        return std::vector<std::string>{
+            profileState.player.name, bossName, passInfo,
+            tournamentInfo,
+            "$" + std::to_string(profileState.player.money)};
+    };
 #endif
     try
     {
@@ -1161,6 +1283,15 @@ int main(int argc, char** argv)
              localized("svGarage"), "Planets",
              localized("svRewards"), localized("svOptions"),
              localized("svExit")});
+        raceMainHeadersPage = createStyledPage(
+            labels(
+                {"svPlayer", "svPassing", "svTournament",
+                 "svWeapons", "svBossName"}),
+            menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        raceMainInfoPage = createStyledPage(
+            raceMainInfoLabels(), menu::smallFontHeight,
+            raceInfoColor, menu::selectedTextColor);
         garagePage = createPage(
             {localized("svGarage"), localized("svMoney"),
              localized("svBuy"), localized("svBack")});
@@ -1289,6 +1420,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     const bool optionsResourcesValid =
         pageValid(raceMenuPage) &&
+        pageValid(raceMainHeadersPage) &&
+        pageValid(raceMainInfoPage) &&
         pageValid(garagePage) &&
         pageValid(workshopSlotsPage) &&
         pageValid(workshopItemsPage) &&
@@ -1317,6 +1450,17 @@ int main(int argc, char** argv)
         valid(optionsKey) && valid(optionsKeySelected) &&
         valid(keyboardIcon) && valid(gamepadIcon) &&
         valid(optionsMask) &&
+        valid(raceTopPanel) && valid(raceBottomPanel) &&
+        valid(raceMenuButton) &&
+        valid(raceMenuButtonSelected) &&
+        valid(raceMoney) && valid(raceStats) &&
+        valid(raceImageFrame) && valid(raceChargeBar) &&
+        std::all_of(
+            raceMenuIcons.begin(), raceMenuIcons.end(),
+            [](Texture texture) { return valid(texture); }) &&
+        std::all_of(
+            raceWeatherIcons.begin(), raceWeatherIcons.end(),
+            [](Texture texture) { return valid(texture); }) &&
         valid(exitRaceMessage.texture) && valid(exitRaceYes.texture) &&
         valid(exitRaceYesSelected.texture) && valid(exitRaceNo.texture) &&
         valid(exitRaceNoSelected.texture);
@@ -1341,6 +1485,8 @@ int main(int argc, char** argv)
         destroyPage(workshopItemsPage);
         destroyPage(workshopSlotsPage);
         destroyPage(garagePage);
+        destroyPage(raceMainInfoPage);
+        destroyPage(raceMainHeadersPage);
         destroyPage(raceMenuPage);
         destroyPage(finishPage);
         destroyPage(controlsOptionsPage);
@@ -1356,6 +1502,18 @@ int main(int argc, char** argv)
         destroyPage(graphicsOptionNamesPage);
         destroyPage(gameOptionNamesPage);
         device->destroy(optionsMask);
+        for (const auto texture : raceWeatherIcons)
+            device->destroy(texture);
+        for (const auto texture : raceMenuIcons)
+            device->destroy(texture);
+        device->destroy(raceChargeBar);
+        device->destroy(raceImageFrame);
+        device->destroy(raceStats);
+        device->destroy(raceMoney);
+        device->destroy(raceMenuButtonSelected);
+        device->destroy(raceMenuButton);
+        device->destroy(raceBottomPanel);
+        device->destroy(raceTopPanel);
         device->destroy(gamepadIcon);
         device->destroy(keyboardIcon);
         device->destroy(optionsKeySelected);
@@ -2588,7 +2746,15 @@ int main(int argc, char** argv)
         output.push_back(localized("svBack"));
         replacePage(achievementsPage, std::move(output));
     };
+    auto refreshRaceMainInfoPage = [&]() {
+        auto replacement = createStyledPage(
+            raceMainInfoLabels(), menu::smallFontHeight,
+            raceInfoColor, menu::selectedTextColor);
+        destroyPage(raceMainInfoPage);
+        raceMainInfoPage = std::move(replacement);
+    };
     auto showOriginalRaceMenu = [&]() {
+        refreshRaceMainInfoPage();
         menuStack.push_back(MenuScreen::RaceMenu);
         menuSelection = 0;
     };
@@ -3301,6 +3467,68 @@ int main(int argc, char** argv)
             bool pointerHandledOriginalOptions = false;
 #ifdef RRR3D_PHYSICS
             if (!inRace &&
+                menuStack.back() == MenuScreen::RaceMenu &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float pointerX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float pointerY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                std::optional<std::size_t> hoveredRaceMenuItem;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        pointerX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        pointerY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    constexpr float itemWidth = 110.0F;
+                    constexpr float itemSpacing = 50.0F;
+                    const float firstX =
+                        menu::virtualWidth * 0.5F -
+                        (7.0F * itemWidth +
+                         6.0F * itemSpacing) *
+                            0.5F +
+                        itemWidth * 0.5F;
+                    const float itemY =
+                        menu::virtualHeight -
+                        static_cast<float>(
+                            raceBottomPanelImage.height) *
+                            0.5F -
+                        72.0F;
+                    for (std::size_t index = 0U;
+                         index < raceMenuIcons.size(); ++index)
+                    {
+                        const float itemX =
+                            firstX +
+                            static_cast<float>(index) *
+                                (itemWidth + itemSpacing);
+                        if (std::abs(virtualX - itemX) <= 68.0F &&
+                            std::abs(virtualY - itemY) <= 62.0F)
+                        {
+                            hoveredRaceMenuItem = index;
+                            break;
+                        }
+                    }
+                }
+                if (hoveredRaceMenuItem)
+                    menuSelection = *hoveredRaceMenuItem;
+                pointerTargetsItem =
+                    hoveredRaceMenuItem.has_value() ||
+                    event.type == SDL_EVENT_MOUSE_MOTION ||
+                    event.button.button != SDL_BUTTON_LEFT;
+            }
+            else if (!inRace &&
                 isOriginalOptionsScreen(menuStack.back()) &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
@@ -3678,6 +3906,31 @@ int main(int argc, char** argv)
                     continue;
                 }
 #ifdef RRR3D_PHYSICS
+                if (menuStack.back() == MenuScreen::RaceMenu &&
+                    (inputEvent.action ==
+                         rrr3d::input::Action::TurnLeft ||
+                     inputEvent.action ==
+                         rrr3d::input::Action::TurnRight))
+                {
+                    if (!inputEvent.repeated)
+                    {
+                        if (inputEvent.action ==
+                            rrr3d::input::Action::TurnLeft)
+                        {
+                            menuSelection =
+                                menuSelection == 0U
+                                    ? raceMenuIcons.size() - 1U
+                                    : menuSelection - 1U;
+                        }
+                        else
+                        {
+                            menuSelection =
+                                (menuSelection + 1U) %
+                                raceMenuIcons.size();
+                        }
+                    }
+                    continue;
+                }
                 if (menuStack.back() == MenuScreen::Garage &&
                     (inputEvent.action ==
                          rrr3d::input::Action::TurnLeft ||
@@ -5025,6 +5278,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         const bool drawingOriginalOptions =
             isOriginalOptionsScreen(menuStack.back());
+        const bool drawingOriginalRaceMenu =
+            menuStack.back() == MenuScreen::RaceMenu;
         if (drawingOriginalOptions)
         {
             const float optionsCenterX = menu::virtualWidth * 0.5F;
@@ -5351,6 +5606,213 @@ int main(int argc, char** argv)
                     buttonY, 15.0F, transparent);
             }
         }
+        else if (drawingOriginalRaceMenu)
+        {
+            const float centerX = menu::virtualWidth * 0.5F;
+            const float topCenterY =
+                static_cast<float>(raceTopPanelImage.height) * 0.5F;
+            const float bottomCenterY =
+                menu::virtualHeight -
+                static_cast<float>(raceBottomPanelImage.height) *
+                    0.5F;
+            drawQuad(
+                *device, quad, shader, raceTopPanel,
+                static_cast<float>(raceTopPanelImage.width),
+                static_cast<float>(raceTopPanelImage.height),
+                centerX, topCenterY, 60.0F, transparent);
+            drawQuad(
+                *device, quad, shader, raceBottomPanel,
+                static_cast<float>(raceBottomPanelImage.width),
+                static_cast<float>(raceBottomPanelImage.height),
+                centerX, bottomCenterY, 60.0F, transparent);
+            drawQuad(
+                *device, quad, shader, raceStats,
+                static_cast<float>(raceStatsImage.width),
+                static_cast<float>(raceStatsImage.height),
+                static_cast<float>(raceStatsImage.width) * 0.5F,
+                menu::virtualHeight -
+                    static_cast<float>(raceStatsImage.height) *
+                        0.5F,
+                45.0F, transparent);
+            drawQuad(
+                *device, quad, shader, raceMoney,
+                static_cast<float>(raceMoneyImage.width),
+                static_cast<float>(raceMoneyImage.height),
+                menu::virtualWidth -
+                    static_cast<float>(raceMoneyImage.width) *
+                        0.5F,
+                menu::virtualHeight -
+                    static_cast<float>(raceMoneyImage.height) *
+                        0.5F,
+                45.0F, transparent);
+
+            constexpr std::array<float, 5> headerOffsets{
+                -548.0F, -273.0F, 2.0F, 277.0F, 552.0F};
+            for (std::size_t index = 0U;
+                 index < raceMainHeadersPage.normal.size(); ++index)
+            {
+                const auto& text =
+                    raceMainHeadersPage.normal[index];
+                drawQuad(
+                    *device, quad, shader, text.texture,
+                    text.width, text.height,
+                    centerX + headerOffsets[index],
+                    topCenterY + 18.0F, 20.0F, transparent);
+            }
+
+            constexpr std::array<float, 3> frameOffsets{
+                -550.0F, 475.0F, 590.0F};
+            for (const float offset : frameOffsets)
+            {
+                drawQuad(
+                    *device, quad, shader, raceImageFrame,
+                    static_cast<float>(raceImageFrameImage.width),
+                    static_cast<float>(raceImageFrameImage.height),
+                    centerX + offset, topCenterY + 87.0F,
+                    35.0F, transparent);
+            }
+            const auto& playerName = raceMainInfoPage.normal[0];
+            const auto& bossName = raceMainInfoPage.normal[1];
+            const auto& passInfo = raceMainInfoPage.normal[2];
+            const auto& tournamentInfo =
+                raceMainInfoPage.normal[3];
+            const auto& money = raceMainInfoPage.normal[4];
+            drawQuad(
+                *device, quad, shader, playerName.texture,
+                playerName.width, playerName.height,
+                centerX - 550.0F, topCenterY + 87.0F,
+                15.0F, transparent);
+            drawQuad(
+                *device, quad, shader, bossName.texture,
+                bossName.width, bossName.height,
+                centerX + 475.0F, topCenterY + 87.0F,
+                15.0F, transparent);
+            auto drawInfoLeft =
+                [&](const TextVisual& text, float x, float y,
+                    float maximumWidth) {
+                    const float scale = std::min(
+                        1.0F,
+                        maximumWidth /
+                            std::max(text.width, 1.0F));
+                    drawQuad(
+                        *device, quad, shader, text.texture,
+                        text.width * scale,
+                        text.height * scale,
+                        x + text.width * scale * 0.5F, y,
+                        15.0F, transparent);
+                };
+            drawInfoLeft(
+                passInfo, centerX - 377.0F,
+                topCenterY + 86.0F, 260.0F);
+            drawInfoLeft(
+                tournamentInfo, centerX - 102.0F,
+                topCenterY + 86.0F, 260.0F);
+            drawQuad(
+                *device, quad, shader, money.texture,
+                money.width, money.height,
+                menu::virtualWidth - 53.0F -
+                    money.width * 0.5F,
+                menu::virtualHeight - 29.0F, 15.0F,
+                transparent);
+
+            std::size_t weatherIndex = 0U;
+            using Weather =
+                r3d::game::originalrace::Weather;
+            if (originalRace->environment.weather == Weather::Night)
+                weatherIndex = 1U;
+            else if (
+                originalRace->environment.weather ==
+                    Weather::Cloudy ||
+                originalRace->environment.weather == Weather::Hell)
+                weatherIndex = 2U;
+            else if (
+                originalRace->environment.weather ==
+                Weather::Rainy)
+                weatherIndex = 3U;
+            drawQuad(
+                *device, quad, shader,
+                raceWeatherIcons[weatherIndex],
+                static_cast<float>(
+                    raceWeatherImages[weatherIndex].width),
+                static_cast<float>(
+                    raceWeatherImages[weatherIndex].height),
+                centerX - 282.0F, topCenterY + 112.0F,
+                15.0F, transparent);
+
+            constexpr std::array<std::size_t, 6> sourceChargeSlots{
+                6U, 7U, 8U, 9U, 4U, 5U};
+            std::size_t visibleCharge = 0U;
+            for (const auto slotIndex : sourceChargeSlots)
+            {
+                if (slotIndex >= profileState.player.slots.size())
+                    continue;
+                const auto& slot =
+                    profileState.player.slots[slotIndex];
+                if (slot.record.empty())
+                    continue;
+                const float progress = std::clamp(
+                    static_cast<float>(
+                        slot.hasCharge ? slot.charge : 0U) /
+                        7.0F,
+                    0.0F, 1.0F);
+                const float chargeX =
+                    centerX + 129.0F +
+                    static_cast<float>(visibleCharge) * 54.0F;
+                const float fullHeight =
+                    static_cast<float>(raceChargeBarImage.height);
+                if (progress > 0.0F)
+                {
+                    drawQuad(
+                        *device, quad, shader, raceChargeBar,
+                        static_cast<float>(
+                            raceChargeBarImage.width),
+                        fullHeight * progress, chargeX,
+                        topCenterY + 120.0F +
+                            fullHeight * (1.0F - progress) *
+                                0.5F,
+                        18.0F, transparent);
+                }
+                ++visibleCharge;
+            }
+
+            constexpr float itemWidth = 110.0F;
+            constexpr float itemSpacing = 50.0F;
+            const float firstX =
+                centerX -
+                (7.0F * itemWidth + 6.0F * itemSpacing) *
+                    0.5F +
+                itemWidth * 0.5F;
+            const float itemY = bottomCenterY - 72.0F;
+            for (std::size_t index = 0U;
+                 index < raceMenuIcons.size(); ++index)
+            {
+                const bool selectedItem = index == menuSelection;
+                const float itemX =
+                    firstX +
+                    static_cast<float>(index) *
+                        (itemWidth + itemSpacing);
+                drawQuad(
+                    *device, quad, shader,
+                    selectedItem ? raceMenuButtonSelected
+                                 : raceMenuButton,
+                    static_cast<float>(
+                        selectedItem
+                            ? raceMenuButtonSelectedImage.width
+                            : raceMenuButtonImage.width),
+                    static_cast<float>(
+                        selectedItem
+                            ? raceMenuButtonSelectedImage.height
+                            : raceMenuButtonImage.height),
+                    itemX, itemY, 35.0F, transparent);
+                drawQuad(
+                    *device, quad, shader, raceMenuIcons[index],
+                    static_cast<float>(
+                        raceMenuIconImages[index].width),
+                    static_cast<float>(
+                        raceMenuIconImages[index].height),
+                    itemX, itemY, 20.0F, transparent);
+            }
+        }
         else
 #endif
         {
@@ -5417,7 +5879,7 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef RRR3D_PHYSICS
-        if (!drawingOriginalOptions)
+        if (!drawingOriginalOptions && !drawingOriginalRaceMenu)
 #endif
         {
             const float versionX =
