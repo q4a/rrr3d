@@ -194,6 +194,14 @@ struct ObjectInstance
     Transform transform;
 };
 
+struct DeathEffectDefinition
+{
+    ObjectDefinition visual;
+    Vec3 position;
+    Vec3 impulse;
+    bool ignoreRotation = false;
+};
+
 struct TracePoint
 {
     std::uint32_t id = 0;
@@ -263,7 +271,7 @@ struct ProjectileDefinition
     // GameBase::DeathEffect attached to the projectile model.  This is
     // distinct from model2/model3, which the original weapon code uses for
     // type-specific live/impact visuals.
-    ObjectDefinition deathVisual;
+    DeathEffectDefinition deathEffect;
     Vec3 position;
     Vec3 size;
     Vec3 offset;
@@ -335,7 +343,7 @@ struct BonusInstance
 {
     std::string record;
     ObjectDefinition visual;
-    ObjectDefinition deathVisual;
+    DeathEffectDefinition deathEffect;
     Transform transform;
     BonusKind kind = BonusKind::Unknown;
     Vec3 size;

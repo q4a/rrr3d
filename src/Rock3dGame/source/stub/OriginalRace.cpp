@@ -1488,7 +1488,7 @@ ObjectDefinition objectDefinition(
     return result;
 }
 
-ObjectDefinition deathEffectDefinition(
+DeathEffectDefinition deathEffectDefinition(
     const resource::ResourceFileSystem& resources, TiXmlElement* database,
     std::string_view modelRecord, std::string_view source)
 {
@@ -1505,7 +1505,21 @@ ObjectDefinition deathEffectDefinition(
         auto* effect = child(behavior, "effect");
         if (effect == nullptr || effect->GetText() == nullptr)
             continue;
-        return objectDefinition(resources, database, effect->GetText(), source);
+        DeathEffectDefinition result;
+        result.visual = objectDefinition(
+            resources, database, effect->GetText(), source);
+        if (child(behavior, "pos") != nullptr)
+            result.position = vector3(behavior, "pos", source);
+        if (child(behavior, "impulse") != nullptr)
+            result.impulse = vector3(behavior, "impulse", source);
+        if (auto* ignore = child(behavior, "ignoreRot");
+            ignore != nullptr && ignore->GetText() != nullptr)
+        {
+            result.ignoreRotation =
+                std::string_view(ignore->GetText()) == "true" ||
+                std::string_view(ignore->GetText()) == "1";
+        }
+        return result;
     }
     return {};
 }
@@ -1806,9 +1820,9 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
                     if (effect == nullptr || effect->GetText() == nullptr)
                         continue;
                     const std::string effectRecord = effect->GetText();
-                    weapon.projectiles[projectileIndex].deathVisual =
-                        objectDefinition(
-                            resources, database, effectRecord,
+                    weapon.projectiles[projectileIndex].deathEffect =
+                        deathEffectDefinition(
+                            resources, database, visualRecord,
                             "db.xml/projectile death effect");
                     auto* effectSource =
                         databaseRecord(database, effectRecord);
@@ -2360,7 +2374,7 @@ void loadMap(const resource::ResourceFileSystem& resources,
             text(bonusRecord, "proj/model", "db.xml/bonus");
         bonus.visual = objectDefinition(
             resources, database, modelRecord, "db.xml/bonus model");
-        bonus.deathVisual = deathEffectDefinition(
+        bonus.deathEffect = deathEffectDefinition(
             resources, database, modelRecord,
             "db.xml/map projectile death effect");
         bonus.transform = elementTransform(item, race.levelPath);
@@ -2538,7 +2552,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
             text(bonusRecord, "proj/model", "db.xml/bonus");
         bonus.visual = objectDefinition(
             resources, database, modelRecord, "db.xml/bonus model");
-        bonus.deathVisual = deathEffectDefinition(
+        bonus.deathEffect = deathEffectDefinition(
             resources, database, modelRecord,
             "db.xml/map projectile death effect");
         bonus.transform = elementTransform(item, race.levelPath);

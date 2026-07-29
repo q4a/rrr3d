@@ -1149,7 +1149,8 @@ void OriginalRaceSession::updateGameplay(
                     .projectiles[projectile.projectile];
             auto addVisual =
                 [&](const ObjectDefinition& visual,
-                    std::uint8_t variant) {
+                    std::uint8_t variant, Vec3 offset = {},
+                    bool ignoreRotation = false) {
                     if (visual.visualNodes.empty() &&
                         visual.particleEmitters.empty())
                         return;
@@ -1157,15 +1158,24 @@ void OriginalRaceSession::updateGameplay(
                         visual.maximumTimeLife > 0.0F
                             ? visual.maximumTimeLife
                             : 0.9F;
-                    effects_.push_back(
-                        {RaceEventKind::ProjectileImpact, position,
-                         add(position, projectile.direction), duration,
-                         duration, projectile.weapon,
-                         projectile.projectile, variant});
+                    RaceEffect impact;
+                    impact.kind = RaceEventKind::ProjectileImpact;
+                    impact.origin = add(position, offset);
+                    impact.target =
+                        add(impact.origin, projectile.direction);
+                    impact.seconds = duration;
+                    impact.totalSeconds = duration;
+                    impact.weapon = projectile.weapon;
+                    impact.projectile = projectile.projectile;
+                    impact.visualVariant = variant;
+                    impact.ignoreRotation = ignoreRotation;
+                    effects_.push_back(std::move(impact));
                 };
             addVisual(definition.secondaryVisual, 1U);
             addVisual(definition.tertiaryVisual, 2U);
-            addVisual(definition.deathVisual, 3U);
+            addVisual(definition.deathEffect.visual, 3U,
+                      definition.deathEffect.position,
+                      definition.deathEffect.ignoreRotation);
 
             if (definition.deathProjectile ==
                     ProjectileDefinition::invalidProjectile ||
@@ -1709,6 +1719,32 @@ void OriginalRaceSession::updateGameplay(
         activateHyper(0);
 
     std::vector<MineRuntime> spawnedMines;
+    auto spawnMineDeathEffect = [&](const MineRuntime& mine) {
+        if (mine.weapon >= race_.weapons.size() ||
+            mine.projectile >=
+                race_.weapons[mine.weapon].projectiles.size())
+            return;
+        const auto& death =
+            race_.weapons[mine.weapon]
+                .projectiles[mine.projectile].deathEffect;
+        if (death.visual.visualNodes.empty() &&
+            death.visual.particleEmitters.empty())
+            return;
+        RaceEffect impact;
+        impact.kind = RaceEventKind::ProjectileImpact;
+        impact.origin = add(mine.position, death.position);
+        impact.target = add(impact.origin, {0.0F, 0.0F, 1.0F});
+        impact.totalSeconds =
+            death.visual.maximumTimeLife > 0.0F
+                ? death.visual.maximumTimeLife
+                : 0.7F;
+        impact.seconds = impact.totalSeconds;
+        impact.weapon = mine.weapon;
+        impact.projectile = mine.projectile;
+        impact.visualVariant = 3U;
+        impact.ignoreRotation = death.ignoreRotation;
+        effects_.push_back(std::move(impact));
+    };
     for (auto& mine : mines_)
     {
         if (!mine.active)
@@ -1761,11 +1797,7 @@ void OriginalRaceSession::updateGameplay(
                         std::sin(angle) * 8.0F, 5.0F};
                     spawnedMines.push_back(fragment);
                 }
-                effects_.push_back(
-                    {RaceEventKind::DecorationDestroyed,
-                     mine.position,
-                     add(mine.position, {0.0F, 0.0F, 3.0F}),
-                     0.5F, 0.5F, race_.weapons.size()});
+                spawnMineDeathEffect(mine);
                 mine.active = false;
                 continue;
             }
@@ -1825,12 +1857,7 @@ void OriginalRaceSession::updateGameplay(
             events_.push_back({RaceEventKind::Damage, racer, mine.owner,
                                mine.position, damage});
             if (mine.type != 20U)
-            {
-                effects_.push_back(
-                    {RaceEventKind::DecorationDestroyed, mine.position,
-                     add(mine.position, {0.0F, 0.0F, 3.0F}), 0.5F,
-                     0.5F, race_.weapons.size()});
-            }
+                spawnMineDeathEffect(mine);
             if (racers_[racer].life <= 0.0F)
             {
                 events_.push_back(
@@ -1946,21 +1973,25 @@ void OriginalRaceSession::updateGameplay(
                     {RaceEventKind::Damage, racer,
                      RacerRuntime::invalidWeapon,
                      bonus.transform.position, damage});
-                if (!bonus.deathVisual.visualNodes.empty() ||
-                    !bonus.deathVisual.particleEmitters.empty())
+                if (!bonus.deathEffect.visual.visualNodes.empty() ||
+                    !bonus.deathEffect.visual.particleEmitters.empty())
                 {
                     RaceEffect impact;
                     impact.kind = RaceEventKind::ProjectileImpact;
-                    impact.origin = bonus.transform.position;
+                    impact.origin = add(
+                        bonus.transform.position,
+                        bonus.deathEffect.position);
                     impact.target = add(
                         bonus.transform.position, {0.0F, 0.0F, 2.0F});
                     impact.totalSeconds =
-                        bonus.deathVisual.maximumTimeLife > 0.0F
-                            ? bonus.deathVisual.maximumTimeLife
+                        bonus.deathEffect.visual.maximumTimeLife > 0.0F
+                            ? bonus.deathEffect.visual.maximumTimeLife
                             : 0.7F;
                     impact.seconds = impact.totalSeconds;
                     impact.weapon = race_.weapons.size();
                     impact.bonus = bonusIndex;
+                    impact.ignoreRotation =
+                        bonus.deathEffect.ignoreRotation;
                     effects_.push_back(std::move(impact));
                 }
                 const float mass =
@@ -2868,8 +2899,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (mapMine->projectileType != 11U ||
                 std::abs(mapMine->value - 11.0F) > 0.001F ||
                 std::abs(mapMine->speed - 3000.0F) > 0.001F ||
-                (mapMine->deathVisual.visualNodes.empty() &&
-                 mapMine->deathVisual.particleEmitters.empty()))
+                (mapMine->deathEffect.visual.visualNodes.empty() &&
+                 mapMine->deathEffect.visual.particleEmitters.empty()))
             {
                 throw std::runtime_error(
                     "source map mine projectile data was not preserved");
@@ -3068,6 +3099,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         if (mortar == race.weapons.end() ||
             mortar->projectiles.empty() ||
             mortar->projectiles.front().type != 19U ||
+            mortar->projectiles.front().deathEffect.visual.record.empty() ||
+            !mortar->projectiles.front().deathEffect.ignoreRotation ||
             mortar->projectiles.front().deathProjectile ==
                 ProjectileDefinition::invalidProjectile ||
             mortar->projectiles.front().deathProjectile >=
@@ -3136,6 +3169,22 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source mortar ptCrater contact field was not spawned");
             }
+            const std::size_t mortarWeapon =
+                static_cast<std::size_t>(mortar - race.weapons.begin());
+            const bool hasSourceMortarDeath = std::any_of(
+                mortarSession.effects().begin(),
+                mortarSession.effects().end(),
+                [mortarWeapon](const RaceEffect& effect) {
+                    return effect.kind == RaceEventKind::ProjectileImpact &&
+                           effect.weapon == mortarWeapon &&
+                           effect.visualVariant == 3U &&
+                           effect.ignoreRotation;
+                });
+            if (!hasSourceMortarDeath)
+            {
+                throw std::runtime_error(
+                    "source mortar DeathEffect transform was not emitted");
+            }
             const float firstCraterLife =
                 mortarSession.racers()[1].life;
             mortarSession.update(
@@ -3145,6 +3194,67 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source ptCrater did not apply continuous contact damage");
+            }
+        }
+
+        const auto mineRip = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "mine2";
+            });
+        if (mineRip == race.weapons.end() ||
+            mineRip->projectiles.empty() ||
+            mineRip->projectiles.front().type != 12U ||
+            mineRip->projectiles.front().deathEffect.visual.record.empty() ||
+            !mineRip->projectiles.front().deathEffect.ignoreRotation ||
+            std::abs(
+                mineRip->projectiles.front().deathEffect.position.z -
+                0.5F) > 0.001F)
+        {
+            throw std::runtime_error(
+                "source MineRip DeathEffect metadata was not preserved");
+        }
+        {
+            OriginalRaceSession mineSession(race);
+            PlayerProfile mineProfile;
+            auto& mineSlot =
+                mineProfile.slots[PlayerProfile::mineSlot];
+            mineSlot.record = mineRip->record;
+            mineSlot.charge = 1U;
+            mineSlot.hasCharge = true;
+            mineSession.applyPlayerProfile(mineProfile);
+            RaceControl mineInput;
+            for (int frame = 0; frame < 190; ++frame)
+                mineSession.update(
+                    1.0F / 60.0F, vehicles, mineInput);
+            mineInput.useMine = true;
+            mineSession.update(
+                1.0F / 60.0F, vehicles, mineInput);
+            mineInput.useMine = false;
+            if (mineSession.mines().empty())
+                throw std::runtime_error("source MineRip was not placed");
+            const Vec3 minePosition = mineSession.mines().front().position;
+            vehicles[0].body.position = minePosition;
+            for (int frame = 0; frame < 20; ++frame)
+                mineSession.update(
+                    1.0F / 60.0F, vehicles, mineInput);
+            const std::size_t mineWeapon =
+                static_cast<std::size_t>(mineRip - race.weapons.begin());
+            const bool hasSourceMineDeath = std::any_of(
+                mineSession.effects().begin(),
+                mineSession.effects().end(),
+                [mineWeapon, minePosition](const RaceEffect& effect) {
+                    return effect.kind == RaceEventKind::ProjectileImpact &&
+                           effect.weapon == mineWeapon &&
+                           effect.visualVariant == 3U &&
+                           effect.ignoreRotation &&
+                           std::abs(effect.origin.z -
+                                    (minePosition.z + 0.5F)) < 0.001F;
+                });
+            if (!mineSession.mines().empty() || !hasSourceMineDeath)
+            {
+                throw std::runtime_error(
+                    "source MineRip contact DeathEffect was not emitted");
             }
         }
 

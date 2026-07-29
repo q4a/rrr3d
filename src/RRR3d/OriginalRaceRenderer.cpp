@@ -1266,11 +1266,11 @@ bool OriginalRaceRenderer::initialize(
         {
             loadDefinition(bonuses_[index],
                            race.bonuses[index].visual);
-            if (!race.bonuses[index].deathVisual.visualNodes.empty() ||
-                !race.bonuses[index].deathVisual.particleEmitters.empty())
+            if (!race.bonuses[index].deathEffect.visual.visualNodes.empty() ||
+                !race.bonuses[index].deathEffect.visual.particleEmitters.empty())
             {
                 loadDefinition(bonusDeathEffects_[index],
-                               race.bonuses[index].deathVisual);
+                               race.bonuses[index].deathEffect.visual);
             }
         }
         loadDefinition(rainEffect_, race.rainEffect);
@@ -1312,11 +1312,11 @@ bool OriginalRaceRenderer::initialize(
                     loadDefinition(assets.tertiaryVisual,
                                    definition.tertiaryVisual);
                 }
-                if (!definition.deathVisual.visualNodes.empty() ||
-                    !definition.deathVisual.particleEmitters.empty())
+                if (!definition.deathEffect.visual.visualNodes.empty() ||
+                    !definition.deathEffect.visual.particleEmitters.empty())
                 {
                     loadDefinition(assets.deathVisual,
-                                   definition.deathVisual);
+                                   definition.deathEffect.visual);
                 }
             }
         }
@@ -2988,13 +2988,16 @@ void OriginalRaceRenderer::draw(
         {
             r3d::physics::Transform parent;
             parent.position = effect.origin;
-            parent.rotation = directionRotation(
-                {effect.target.x - effect.origin.x,
-                 effect.target.y - effect.origin.y,
-                 effect.target.z - effect.origin.z});
+            if (!effect.ignoreRotation)
+            {
+                parent.rotation = directionRotation(
+                    {effect.target.x - effect.origin.x,
+                     effect.target.y - effect.origin.y,
+                     effect.target.z - effect.origin.z});
+            }
             drawDefinition(
                 bonusDeathEffects_[effect.bonus],
-                race.bonuses[effect.bonus].deathVisual, parent,
+                race.bonuses[effect.bonus].deathEffect.visual, parent,
                 effect.totalSeconds - effect.seconds, 0.0F);
             continue;
         }
@@ -3016,7 +3019,7 @@ void OriginalRaceRenderer::draw(
             {
                 const auto* definition =
                     effect.visualVariant == 3U
-                        ? &projectileDefinition.deathVisual
+                        ? &projectileDefinition.deathEffect.visual
                         : (effect.visualVariant == 2U
                                ? &projectileDefinition.tertiaryVisual
                                : &projectileDefinition.secondaryVisual);
@@ -3028,10 +3031,13 @@ void OriginalRaceRenderer::draw(
                                : &projectileAssets.secondaryVisual);
                 r3d::physics::Transform parent;
                 parent.position = effect.origin;
-                parent.rotation = directionRotation(
-                    {effect.target.x - effect.origin.x,
-                     effect.target.y - effect.origin.y,
-                     effect.target.z - effect.origin.z});
+                if (!effect.ignoreRotation)
+                {
+                    parent.rotation = directionRotation(
+                        {effect.target.x - effect.origin.x,
+                         effect.target.y - effect.origin.y,
+                         effect.target.z - effect.origin.z});
+                }
                 drawDefinition(
                     *asset, *definition, parent,
                     effect.totalSeconds - effect.seconds, 0.0F);
