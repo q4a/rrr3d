@@ -138,6 +138,11 @@ struct ProfileState
     std::uint32_t tutorialStage = 3;
 };
 
+// Deterministic copy of the defaults installed before original profile XML
+// is read.  Smoke tests use it so a player's saved workshop loadout cannot
+// change source-provenance assertions.
+ProfileState makeOriginalDefaultProfileState();
+
 class OriginalProfileStore
 {
 public:

@@ -167,6 +167,16 @@ enum class GraphOrder
     Last,
 };
 
+struct DestructionPieceDefinition
+{
+    std::vector<VisualNode> visualNodes;
+    Vec3 shapePosition;
+    Quat shapeRotation;
+    Vec3 halfExtents;
+    float mass = 0.0F;
+    bool dynamic = false;
+};
+
 struct ObjectDefinition
 {
     std::string record;
@@ -176,6 +186,7 @@ struct ObjectDefinition
     std::string texturePath;
     Transform visualTransform;
     std::vector<CollisionShape> collisionShapes;
+    std::vector<DestructionPieceDefinition> destructionPieces;
     float maximumLife = -1.0F;
     float maximumTimeLife = -1.0F;
     bool destructible = false;
@@ -191,6 +202,13 @@ struct ObjectDefinition
 struct ObjectInstance
 {
     std::uint32_t definition = 0;
+    Transform transform;
+};
+
+struct DecorationFragmentState
+{
+    std::size_t instance = 0;
+    std::size_t piece = 0;
     Transform transform;
 };
 

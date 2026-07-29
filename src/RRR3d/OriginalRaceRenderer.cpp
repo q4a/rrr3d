@@ -1257,9 +1257,24 @@ bool OriginalRaceRenderer::initialize(
             loadDefinition(tracks_[index],
                            race.trackDefinitions[index]);
         decorations_.resize(race.decorationDefinitions.size());
+        decorationPieces_.resize(race.decorationDefinitions.size());
         for (std::size_t index = 0; index < decorations_.size(); ++index)
+        {
             loadDefinition(decorations_[index],
                            race.decorationDefinitions[index]);
+            const auto& pieces =
+                race.decorationDefinitions[index].destructionPieces;
+            decorationPieces_[index].resize(pieces.size());
+            for (std::size_t piece = 0; piece < pieces.size(); ++piece)
+            {
+                auto& asset = decorationPieces_[index][piece];
+                asset.castsShadow =
+                    race.decorationDefinitions[index].castsShadow;
+                asset.lighting =
+                    race.decorationDefinitions[index].lighting;
+                loadObject(asset, pieces[piece].visualNodes);
+            }
+        }
         bonuses_.resize(race.bonuses.size());
         bonusDeathEffects_.resize(race.bonuses.size());
         for (std::size_t index = 0; index < bonuses_.size(); ++index)
@@ -1576,6 +1591,9 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         }
     for (auto& decoration : decorations_)
         releaseObject(decoration);
+    for (auto& definition : decorationPieces_)
+        for (auto& piece : definition)
+            releaseObject(piece);
     for (auto& track : tracks_)
         releaseObject(track);
     releaseObject(rainEffect_);
@@ -1587,6 +1605,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     weapons_.clear();
     projectiles_.clear();
     decorations_.clear();
+    decorationPieces_.clear();
     tracks_.clear();
     if (valid(skyTexture_))
         device.destroy(skyTexture_);
@@ -1860,6 +1879,9 @@ void OriginalRaceRenderer::draw(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const PipelineState& pipeline,
     const std::vector<bool>& decorationActive,
+    const std::vector<
+        r3d::game::originalrace::DecorationFragmentState>&
+        decorationFragments,
     const std::vector<bool>& bonusActive,
     const std::vector<r3d::game::originalrace::RacerRuntime>& racerRuntime,
     const std::vector<r3d::game::originalrace::RaceEffect>& effects,
@@ -2623,11 +2645,42 @@ void OriginalRaceRenderer::draw(
     for (std::size_t index = 0; index < race.decorationInstances.size();
          ++index)
     {
-        if (index < decorationActive.size() && !decorationActive[index])
-            continue;
         const auto& instance = race.decorationInstances[index];
         const auto& definition =
             race.decorationDefinitions.at(instance.definition);
+        if (index < decorationActive.size() && !decorationActive[index])
+        {
+            if (instance.definition >= decorationPieces_.size())
+                continue;
+            const auto& pieceAssets =
+                decorationPieces_[instance.definition];
+            for (std::size_t piece = 0;
+                 piece < definition.destructionPieces.size() &&
+                 piece < pieceAssets.size(); ++piece)
+            {
+                const auto& pieceDefinition =
+                    definition.destructionPieces[piece];
+                r3d::physics::Transform parent = instance.transform;
+                if (pieceDefinition.dynamic)
+                {
+                    const auto fragment = std::find_if(
+                        decorationFragments.begin(),
+                        decorationFragments.end(),
+                        [index, piece](const auto& value) {
+                            return value.instance == index &&
+                                   value.piece == piece;
+                        });
+                    if (fragment == decorationFragments.end())
+                        continue;
+                    parent = fragment->transform;
+                }
+                drawObject(
+                    pieceAssets[piece], pieceDefinition.visualNodes,
+                    parent, definition.graphOrder, false, 1.0F,
+                    nullptr);
+            }
+            continue;
+        }
         const float opacity =
             !reflectionPass && definition.cullOpacity &&
                     index < decorationCullOpacityTimes_.size()
@@ -3284,6 +3337,9 @@ void OriginalRaceRenderer::drawShadowCasters(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const PipelineState& pipeline,
     const std::vector<bool>& decorationActive,
+    const std::vector<
+        r3d::game::originalrace::DecorationFragmentState>&
+        decorationFragments,
     float elapsedSeconds) const
 {
     auto shadowPipeline = pipeline;
@@ -3320,15 +3376,47 @@ void OriginalRaceRenderer::drawShadowCasters(
     for (std::size_t index = 0;
          index < race.decorationInstances.size(); ++index)
     {
-        if (index < decorationActive.size() && !decorationActive[index])
-            continue;
         const auto& instance = race.decorationInstances[index];
+        const auto& definition =
+            race.decorationDefinitions.at(instance.definition);
+        if (index < decorationActive.size() && !decorationActive[index])
+        {
+            if (!definition.castsShadow ||
+                instance.definition >= decorationPieces_.size())
+                continue;
+            const auto& pieceAssets =
+                decorationPieces_[instance.definition];
+            for (std::size_t piece = 0;
+                 piece < definition.destructionPieces.size() &&
+                 piece < pieceAssets.size(); ++piece)
+            {
+                const auto& pieceDefinition =
+                    definition.destructionPieces[piece];
+                r3d::physics::Transform parent = instance.transform;
+                if (pieceDefinition.dynamic)
+                {
+                    const auto fragment = std::find_if(
+                        decorationFragments.begin(),
+                        decorationFragments.end(),
+                        [index, piece](const auto& value) {
+                            return value.instance == index &&
+                                   value.piece == piece;
+                        });
+                    if (fragment == decorationFragments.end())
+                        continue;
+                    parent = fragment->transform;
+                }
+                drawObject(pieceAssets[piece],
+                           pieceDefinition.visualNodes, parent);
+            }
+            continue;
+        }
         const auto& asset = decorations_.at(instance.definition);
         if (!asset.castsShadow)
             continue;
         drawObject(
             asset,
-            race.decorationDefinitions.at(instance.definition).visualNodes,
+            definition.visualNodes,
             instance.transform);
     }
 
@@ -3383,6 +3471,9 @@ void OriginalRaceRenderer::renderFrame(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const PipelineState& pipeline,
     const std::vector<bool>& decorationActive,
+    const std::vector<
+        r3d::game::originalrace::DecorationFragmentState>&
+        decorationFragments,
     const std::vector<bool>& bonusActive,
     const std::vector<r3d::game::originalrace::RacerRuntime>& racerRuntime,
     const std::vector<r3d::game::originalrace::RaceEffect>& effects,
@@ -3641,7 +3732,8 @@ void OriginalRaceRenderer::renderFrame(
         device.beginPass(RenderPass::Shadow, shadowTarget_, lightCamera,
                          0xffffffffU, true, true);
         drawShadowCasters(device, race, vehicles, pipeline,
-                          decorationActive, elapsedSeconds);
+                          decorationActive, decorationFragments,
+                          elapsedSeconds);
     }
 
     auto environmentCenter = renderCenter;
@@ -3662,8 +3754,9 @@ void OriginalRaceRenderer::renderFrame(
                 environmentCamera(device, environmentCenter, face),
                 clearRgba, true, true);
             draw(device, sceneShader, race, vehicles, pipeline,
-                 decorationActive, bonusActive, racerRuntime, effects,
-                 mines, projectiles, elapsedSeconds, true, true);
+                 decorationActive, decorationFragments, bonusActive,
+                 racerRuntime, effects, mines, projectiles,
+                 elapsedSeconds, true, true);
         }
     }
 
@@ -3681,8 +3774,9 @@ void OriginalRaceRenderer::renderFrame(
             RenderPass::Reflection, reflectionTarget_,
             reflectionCamera, clearRgba, true, true);
         draw(device, sceneShader, race, vehicles, pipeline,
-             decorationActive, bonusActive, racerRuntime, effects,
-             mines, projectiles, elapsedSeconds, true);
+             decorationActive, decorationFragments, bonusActive,
+             racerRuntime, effects, mines, projectiles,
+             elapsedSeconds, true);
     }
 
     RenderPassState sceneState;
@@ -3712,8 +3806,9 @@ void OriginalRaceRenderer::renderFrame(
         hasWater ? waterSceneTarget_ : hdrTarget_,
         camera, clearRgba, true, true);
     draw(device, sceneShader, race, vehicles, pipeline,
-         decorationActive, bonusActive, racerRuntime, effects, mines,
-         projectiles, elapsedSeconds, false, hasWater);
+         decorationActive, decorationFragments, bonusActive,
+         racerRuntime, effects, mines, projectiles, elapsedSeconds,
+         false, hasWater);
 
     Camera postCamera;
     postCamera.view = identityMatrix();

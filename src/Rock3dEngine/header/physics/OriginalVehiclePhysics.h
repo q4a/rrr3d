@@ -133,6 +133,20 @@ struct VehicleState
     std::vector<BodyContact> bodyContacts;
 };
 
+struct DebrisDescription
+{
+    Transform transform;
+    Vec3 shapePosition;
+    Quat shapeRotation;
+    Vec3 halfExtents{0.1F, 0.1F, 0.1F};
+    float mass = 1.0F;
+};
+
+struct DebrisState
+{
+    Transform body;
+};
+
 class OriginalVehicleWorld
 {
 public:
@@ -154,6 +168,10 @@ public:
     virtual const VehicleState& vehicle() const noexcept = 0;
     virtual const VehicleState& vehicle(std::size_t index) const noexcept = 0;
     virtual std::size_t vehicleCount() const noexcept = 0;
+    virtual std::size_t addDebris(
+        const DebrisDescription& description) noexcept = 0;
+    virtual const DebrisState& debris(std::size_t index) const noexcept = 0;
+    virtual std::size_t debrisCount() const noexcept = 0;
 };
 
 std::unique_ptr<OriginalVehicleWorld> createOriginalVehicleWorld(

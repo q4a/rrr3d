@@ -586,10 +586,15 @@ bool OriginalRaceSession::damageDecorationAlongSegment(
     events_.push_back(
         {RaceEventKind::DecorationDestroyed, attacker, hit,
          position, damage});
-    effects_.push_back(
-        {RaceEventKind::DecorationDestroyed, position,
-         add(position, {0.0F, 0.0F, 3.0F}),
-         0.5F, 0.5F, race_.weapons.size()});
+    const auto& definition = race_.decorationDefinitions.at(
+        race_.decorationInstances[hit].definition);
+    if (definition.destructionPieces.empty())
+    {
+        effects_.push_back(
+            {RaceEventKind::DecorationDestroyed, position,
+             add(position, {0.0F, 0.0F, 3.0F}),
+             0.5F, 0.5F, race_.weapons.size()});
+    }
     return true;
 }
 
@@ -2886,6 +2891,57 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.vehicleInputs().empty() ||
             session.vehicleInputs().front().throttle < 0.9F)
             throw std::runtime_error("countdown/control transition failed");
+
+        const auto sourceDestruction = std::find_if(
+            race.decorationInstances.begin(),
+            race.decorationInstances.end(),
+            [&](const ObjectInstance& instance) {
+                return instance.definition <
+                           race.decorationDefinitions.size() &&
+                       recordName(race.decorationDefinitions[
+                                      instance.definition]
+                                      .record) == "crush1";
+            });
+        if (sourceDestruction == race.decorationInstances.end())
+        {
+            throw std::runtime_error(
+                "source crush1 instance is missing from map1");
+        }
+        {
+            OriginalRaceSession destructionSession(race);
+            RaceControl destructionInput;
+            for (int frame = 0; frame < 190; ++frame)
+                destructionSession.update(
+                    1.0F / 60.0F, vehicles, destructionInput);
+            const std::size_t instance = static_cast<std::size_t>(
+                sourceDestruction - race.decorationInstances.begin());
+            vehicles[0].body.position = sourceDestruction->transform.position;
+            vehicles[0].speed = 10.0F;
+            destructionSession.update(
+                1.0F / 60.0F, vehicles, destructionInput);
+            const bool hasSourceEvent = std::any_of(
+                destructionSession.events().begin(),
+                destructionSession.events().end(),
+                [instance](const RaceEvent& event) {
+                    return event.kind ==
+                               RaceEventKind::DecorationDestroyed &&
+                           event.target == instance;
+                });
+            const bool hasInventedFallback = std::any_of(
+                destructionSession.effects().begin(),
+                destructionSession.effects().end(),
+                [](const RaceEffect& effect) {
+                    return effect.kind ==
+                           RaceEventKind::DecorationDestroyed;
+                });
+            if (destructionSession.decorationActive()[instance] ||
+                !hasSourceEvent || hasInventedFallback)
+            {
+                throw std::runtime_error(
+                    "source gotDestrObj separation transition failed");
+            }
+            vehicles[0].speed = 0.0F;
+        }
 
         const auto mapMine = std::find_if(
             race.bonuses.begin(), race.bonuses.end(),

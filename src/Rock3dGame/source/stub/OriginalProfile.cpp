@@ -531,6 +531,13 @@ TiXmlElement* appendReference(TiXmlNode& parent, const char* name,
 
 } // namespace
 
+ProfileState makeOriginalDefaultProfileState()
+{
+    ProfileState state;
+    installOriginalDefaults(state);
+    return state;
+}
+
 OriginalProfileStore::OriginalProfileStore(
     std::filesystem::path saveDirectory,
     std::filesystem::path legacyDirectory)

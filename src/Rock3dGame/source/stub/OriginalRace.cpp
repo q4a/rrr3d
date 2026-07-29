@@ -1452,13 +1452,59 @@ ObjectDefinition objectDefinition(
                 const Transform pieceTransform =
                     elementTransform(piece, source);
                 auto nodes = visualNodes(resources, piece, source);
+                DestructionPieceDefinition destructionPiece;
                 for (auto& node : nodes)
                 {
                     node.transform =
                         compose(pieceTransform, node.transform);
+                    destructionPiece.visualNodes.push_back(node);
                     result.visualNodes.push_back(std::move(node));
                 }
                 loadCollisionShapes(resources, result, piece, source);
+                auto* body = child(piece, "pxActor/body");
+                auto* shapes = child(piece, "pxActor/shapes/items");
+                if (body != nullptr && shapes != nullptr)
+                {
+                    destructionPiece.mass =
+                        optionalScalar(body, "mass", 0.0F);
+                    for (auto* shape = shapes->FirstChildElement();
+                         shape != nullptr;
+                         shape = shape->NextSiblingElement())
+                    {
+                        const char* type = shape->Attribute("type");
+                        if (type == nullptr || std::string_view(type) != "1" ||
+                            child(shape, "dimensions") == nullptr)
+                            continue;
+                        Transform shapeTransform;
+                        shapeTransform.position =
+                            child(shape, "pos") != nullptr
+                                ? vector3(shape, "pos", source)
+                                : Vec3{};
+                        shapeTransform.rotation =
+                            child(shape, "rot") != nullptr
+                                ? quaternion(shape, "rot", source)
+                                : Quat{};
+                        shapeTransform =
+                            compose(pieceTransform, shapeTransform);
+                        destructionPiece.shapePosition =
+                            shapeTransform.position;
+                        destructionPiece.shapeRotation =
+                            shapeTransform.rotation;
+                        destructionPiece.halfExtents =
+                            vector3(shape, "dimensions", source);
+                        destructionPiece.halfExtents.x *=
+                            pieceTransform.scale.x;
+                        destructionPiece.halfExtents.y *=
+                            pieceTransform.scale.y;
+                        destructionPiece.halfExtents.z *=
+                            pieceTransform.scale.z;
+                        destructionPiece.dynamic =
+                            destructionPiece.mass > 0.0F;
+                        break;
+                    }
+                }
+                result.destructionPieces.push_back(
+                    std::move(destructionPiece));
             }
         }
     }
@@ -1482,8 +1528,10 @@ ObjectDefinition objectDefinition(
         std::istringstream stream(timeLife->GetText());
         stream >> result.maximumTimeLife;
     }
+    const char* objectType = dbRecord->Attribute("type");
     result.destructible =
-        std::string(record).find("\\Crush\\") != std::string::npos ||
+        (objectType != nullptr &&
+         std::string_view(objectType) == "gotDestrObj") ||
         result.maximumLife > 0.0F;
     return result;
 }
@@ -3125,6 +3173,77 @@ bool runOriginalRaceResourceSmokeTest(
         const auto near = [](float first, float second) {
             return std::abs(first - second) <= 0.0001F;
         };
+        const auto definitionNamed = [&](std::string_view name) {
+            const auto found = std::find_if(
+                race.decorationDefinitions.begin(),
+                race.decorationDefinitions.end(),
+                [name](const ObjectDefinition& definition) {
+                    return definition.record.size() >= name.size() &&
+                           definition.record.compare(
+                               definition.record.size() - name.size(),
+                               name.size(), name) == 0;
+                });
+            return found == race.decorationDefinitions.end()
+                       ? static_cast<const ObjectDefinition*>(nullptr)
+                       : &*found;
+        };
+        const auto* crush1 = definitionNamed("crush1");
+        const auto* reklama = definitionNamed("reklama");
+        const auto* bochka = definitionNamed("bochka");
+        const auto sourcePiecesMatch = [&](const ObjectDefinition* definition,
+                                           std::size_t pieces,
+                                           std::size_t dynamicPieces) {
+            if (definition == nullptr || !definition->destructible ||
+                definition->destructionPieces.size() != pieces)
+                return false;
+            std::size_t dynamicCount = 0;
+            for (const auto& piece : definition->destructionPieces)
+            {
+                if (piece.visualNodes.empty())
+                    return false;
+                if (!piece.dynamic)
+                    continue;
+                ++dynamicCount;
+                if (!near(piece.mass, 200.0F) ||
+                    piece.halfExtents.x <= 0.0F ||
+                    piece.halfExtents.y <= 0.0F ||
+                    piece.halfExtents.z <= 0.0F)
+                    return false;
+            }
+            return dynamicCount == dynamicPieces;
+        };
+        if (!sourcePiecesMatch(crush1, 14U, 12U) ||
+            !sourcePiecesMatch(reklama, 11U, 10U) ||
+            bochka == nullptr || bochka->destructible ||
+            !bochka->destructionPieces.empty())
+        {
+            const auto audit = [](const ObjectDefinition* definition) {
+                if (definition == nullptr)
+                    return std::string("missing");
+                const auto dynamicCount = std::count_if(
+                    definition->destructionPieces.begin(),
+                    definition->destructionPieces.end(),
+                    [](const DestructionPieceDefinition& piece) {
+                        return piece.dynamic;
+                    });
+                const auto emptyVisualCount = std::count_if(
+                    definition->destructionPieces.begin(),
+                    definition->destructionPieces.end(),
+                    [](const DestructionPieceDefinition& piece) {
+                        return piece.visualNodes.empty();
+                    });
+                return std::to_string(
+                           definition->destructionPieces.size()) +
+                       " pieces/" + std::to_string(dynamicCount) +
+                       " dynamic/" + std::to_string(emptyVisualCount) +
+                       " empty visuals/destructible=" +
+                       (definition->destructible ? "true" : "false");
+            };
+            error = "source gotDestrObj provenance mismatch: crush1=" +
+                    audit(crush1) + ", reklama=" + audit(reklama) +
+                    ", bochka=" + audit(bochka);
+            return false;
+        }
         std::size_t alphaTestMaterialCount = 0;
         bool alphaTestThresholdMatchesSource = true;
         const auto auditAlphaTestMaterials =
@@ -3245,7 +3364,37 @@ bool runOriginalRaceResourceSmokeTest(
             race.rainEffect.graphOrder != GraphOrder::Effect ||
             race.wheelTrailEffect.graphOrder != GraphOrder::Effect)
         {
-            error = "original tournament/map/db/garage provenance mismatch";
+            error =
+                "original tournament/map/db/garage provenance mismatch: "
+                "level=" + race.levelPath +
+                ", laps=" + std::to_string(race.lapCount) +
+                ", tracks=" + std::to_string(race.trackDefinitions.size()) +
+                "/" + std::to_string(race.trackInstances.size()) +
+                ", trace=" + std::to_string(race.tracePoints.size()) +
+                "/" + std::to_string(race.tracePath.size()) +
+                ", decorations=" +
+                std::to_string(race.decorationInstances.size()) +
+                ", bonuses=" + std::to_string(race.bonuses.size()) +
+                ", catalog=" + std::to_string(race.trackCatalog.size()) +
+                ", triangles=" + std::to_string(triangleCount) +
+                ", borders=" + std::to_string(borderMeshCount) +
+                ", alpha=" + std::to_string(alphaTestMaterialCount) +
+                "/" +
+                (alphaTestThresholdMatchesSource ? "source" : "mismatch") +
+                ", cull=" +
+                std::to_string(cullOpacityDefinitionCount) +
+                ", vehicleMass=" + std::to_string(physics.vehicle.mass) +
+                ", torque=" +
+                std::to_string(physics.vehicle.maximumTorque) +
+                ", bodyScaleZ=" +
+                std::to_string(race.vehicle.bodyVisualTransform.scale.z) +
+                ", wheels=" +
+                std::to_string(physics.vehicle.wheels.size()) + "/" +
+                std::to_string(race.vehicle.wheelVisuals.size()) +
+                ", rainOrder=" +
+                std::to_string(static_cast<int>(race.rainEffect.graphOrder)) +
+                ", trailOrder=" + std::to_string(
+                    static_cast<int>(race.wheelTrailEffect.graphOrder));
             return false;
         }
         error.clear();

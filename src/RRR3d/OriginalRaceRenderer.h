@@ -69,6 +69,9 @@ public:
               const std::vector<r3d::physics::VehicleState>& vehicles,
               const r3d::renderer::PipelineState& pipeline,
               const std::vector<bool>& decorationActive,
+              const std::vector<
+                  r3d::game::originalrace::DecorationFragmentState>&
+                  decorationFragments,
               const std::vector<bool>& bonusActive,
               const std::vector<
                   r3d::game::originalrace::RacerRuntime>& racerRuntime,
@@ -90,6 +93,9 @@ public:
         const std::vector<r3d::physics::VehicleState>& vehicles,
         const r3d::renderer::PipelineState& pipeline,
         const std::vector<bool>& decorationActive,
+        const std::vector<
+            r3d::game::originalrace::DecorationFragmentState>&
+            decorationFragments,
         const std::vector<bool>& bonusActive,
         const std::vector<
             r3d::game::originalrace::RacerRuntime>& racerRuntime,
@@ -114,9 +120,13 @@ private:
         const std::vector<r3d::physics::VehicleState>& vehicles,
         const r3d::renderer::PipelineState& pipeline,
         const std::vector<bool>& decorationActive,
+        const std::vector<
+            r3d::game::originalrace::DecorationFragmentState>&
+            decorationFragments,
         float elapsedSeconds) const;
     std::vector<ObjectAsset> tracks_;
     std::vector<ObjectAsset> decorations_;
+    std::vector<std::vector<ObjectAsset>> decorationPieces_;
     std::vector<ObjectAsset> bonuses_;
     std::vector<ObjectAsset> bonusDeathEffects_;
     std::vector<ObjectAsset> vehicleBodies_;

@@ -113,6 +113,11 @@ JPH::Vec3 toJolt(Vec3 value)
     return {value.x, value.z, value.y};
 }
 
+JPH::Quat toJolt(Quat value)
+{
+    return {-value.x, -value.z, -value.y, value.w};
+}
+
 Vec3 fromJolt(JPH::Vec3Arg value)
 {
     return {value.GetX(), value.GetZ(), value.GetY()};
@@ -419,7 +424,8 @@ public:
                      objectVsBroadPhase_, objectLayerPairs_);
         contactListener_.resize(description_.spawns.size());
         system_.SetContactListener(&contactListener_);
-        system_.SetGravity(toJolt({0.0F, 0.0F, description_.gravity}));
+        system_.SetGravity(
+            toJolt(Vec3{0.0F, 0.0F, description_.gravity}));
         createTrack();
         vehicles_.reserve(description_.spawns.size());
         for (const auto& spawn : description_.spawns)
@@ -431,6 +437,7 @@ public:
     ~JoltVehicleWorld() override
     {
         system_.SetContactListener(nullptr);
+        clearDebris();
         for (auto& vehicle : vehicles_)
         {
             if (vehicle.constraint != nullptr)
@@ -461,6 +468,7 @@ public:
 
     void reset() noexcept override
     {
+        clearDebris();
         for (std::size_t index = 0; index < vehicles_.size(); ++index)
         {
             const auto& spawn = vehicles_[index].spawn;
@@ -587,6 +595,8 @@ public:
         }
         for (auto& vehicle : vehicles_)
             updateState(vehicle);
+        for (auto& debris : debris_)
+            updateState(debris);
     }
 
     const VehicleState& vehicle() const noexcept override
@@ -604,6 +614,54 @@ public:
         return vehicles_.size();
     }
 
+    std::size_t addDebris(
+        const DebrisDescription& description) noexcept override
+    {
+        const JPH::Vec3 halfExtents{
+            std::max(description.halfExtents.x, 0.05F),
+            std::max(description.halfExtents.z, 0.05F),
+            std::max(description.halfExtents.y, 0.05F)};
+        const auto box = new JPH::BoxShape(halfExtents);
+        const auto shifted = JPH::RotatedTranslatedShapeSettings(
+                                 toJolt(description.shapePosition),
+                                 toJolt(description.shapeRotation), box)
+                                 .Create();
+        if (shifted.HasError())
+            return std::numeric_limits<std::size_t>::max();
+        JPH::BodyCreationSettings settings(
+            shifted.Get(), toJolt(description.transform.position),
+            toJolt(description.transform.rotation),
+            JPH::EMotionType::Dynamic, Layers::moving);
+        settings.mOverrideMassProperties =
+            JPH::EOverrideMassProperties::CalculateInertia;
+        settings.mMassPropertiesOverride.mMass =
+            std::max(description.mass, 1.0F);
+        settings.mFriction = 0.5F;
+        settings.mRestitution = 0.5F;
+        settings.mEnhancedInternalEdgeRemoval = true;
+        settings.mUserData = surfaceUserData(
+            CollisionSurface::Decoration);
+        DebrisRuntime runtime;
+        runtime.body = system_.GetBodyInterface().CreateAndAddBody(
+            settings, JPH::EActivation::Activate);
+        if (runtime.body.IsInvalid())
+            return std::numeric_limits<std::size_t>::max();
+        runtime.state.body = description.transform;
+        debris_.push_back(std::move(runtime));
+        return debris_.size() - 1U;
+    }
+
+    const DebrisState& debris(std::size_t index) const noexcept override
+    {
+        return index < debris_.size() ? debris_[index].state
+                                      : emptyDebris_;
+    }
+
+    std::size_t debrisCount() const noexcept override
+    {
+        return debris_.size();
+    }
+
 private:
     struct VehicleRuntime
     {
@@ -615,6 +673,25 @@ private:
         std::uint32_t resetCount = 0;
         bool wheelTractionEnabled = true;
     };
+
+    struct DebrisRuntime
+    {
+        JPH::BodyID body;
+        DebrisState state;
+    };
+
+    void clearDebris() noexcept
+    {
+        auto& bodies = system_.GetBodyInterface();
+        for (const auto& debris : debris_)
+        {
+            if (debris.body.IsInvalid())
+                continue;
+            bodies.RemoveBody(debris.body);
+            bodies.DestroyBody(debris.body);
+        }
+        debris_.clear();
+    }
 
     void validate()
     {
@@ -896,6 +973,16 @@ private:
         state.contactCount = contacts;
     }
 
+    void updateState(DebrisRuntime& debris) noexcept
+    {
+        JPH::BodyLockRead lock(system_.GetBodyLockInterface(), debris.body);
+        if (!lock.Succeeded())
+            return;
+        const JPH::Body& body = lock.GetBody();
+        debris.state.body.position = fromJolt(body.GetPosition());
+        debris.state.body.rotation = fromJolt(body.GetRotation());
+    }
+
     WorldDescription description_;
     BroadPhaseLayerInterface broadPhaseInterface_;
     ObjectVsBroadPhaseFilter objectVsBroadPhase_;
@@ -906,6 +993,8 @@ private:
     JPH::JobSystemThreadPool jobs_;
     std::vector<JPH::BodyID> trackBodies_;
     std::vector<VehicleRuntime> vehicles_;
+    std::vector<DebrisRuntime> debris_;
+    DebrisState emptyDebris_;
 };
 
 } // namespace
@@ -1053,6 +1142,35 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         error =
             "Jolt body contact listener did not preserve track-border "
             "surface metadata";
+        return false;
+    }
+    DebrisDescription debrisDescription;
+    debrisDescription.transform.position = {0.0F, -10.0F, 4.0F};
+    debrisDescription.halfExtents = {0.5F, 0.5F, 0.5F};
+    debrisDescription.mass = 200.0F;
+    const std::size_t debrisIndex =
+        contactWorld->addDebris(debrisDescription);
+    if (debrisIndex == std::numeric_limits<std::size_t>::max() ||
+        contactWorld->debrisCount() != 1U)
+    {
+        error = "source gotDestrObj dynamic body was not created";
+        return false;
+    }
+    const float debrisStartHeight =
+        contactWorld->debris(debrisIndex).body.position.z;
+    input = {};
+    for (int step = 0; step < 120; ++step)
+        contactWorld->step(1.0F / 120.0F, input);
+    if (contactWorld->debris(debrisIndex).body.position.z >=
+        debrisStartHeight - 0.1F)
+    {
+        error = "source gotDestrObj dynamic body did not enter Jolt physics";
+        return false;
+    }
+    contactWorld->reset();
+    if (contactWorld->debrisCount() != 0U)
+    {
+        error = "source gotDestrObj dynamic bodies survived race reset";
         return false;
     }
     error.clear();

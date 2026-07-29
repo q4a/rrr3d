@@ -47,6 +47,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <optional>
 #include <sstream>
@@ -503,6 +504,11 @@ int main(int argc, char** argv)
     auto profileState = profileStore.load(profileWarning);
     if (!profileWarning.empty())
         std::cerr << "Profile import warning: " << profileWarning << '\n';
+    if (options->physicsSmokeTest)
+    {
+        profileState =
+            r3d::game::originalrace::makeOriginalDefaultProfileState();
+    }
     if (options->languageSelected)
         profileState.config.language = options->language;
     else
@@ -1872,6 +1878,15 @@ int main(int argc, char** argv)
     bool raceResetRequested = false;
     std::vector<r3d::physics::VehicleState> raceVehicles(
         physicsWorld->vehicleCount());
+    struct DecorationDebrisBinding
+    {
+        std::size_t instance = 0;
+        std::size_t piece = 0;
+        std::size_t debris = 0;
+    };
+    std::vector<DecorationDebrisBinding> decorationDebrisBindings;
+    std::vector<r3d::game::originalrace::DecorationFragmentState>
+        decorationFragments;
     for (std::size_t index = 0; index < physicsWorld->vehicleCount();
          ++index)
         raceVehicles[index] = physicsWorld->vehicle(index);
@@ -1980,6 +1995,8 @@ int main(int argc, char** argv)
             physicsWorld =
                 r3d::physics::createOriginalVehicleWorld(
                     *physicsDescription, reloadError);
+            decorationDebrisBindings.clear();
+            decorationFragments.clear();
             if (!physicsWorld ||
                 !raceRenderer.initialize(
                     *device, *resources, *originalRace,
@@ -3711,6 +3728,54 @@ int main(int argc, char** argv)
             raceWeaponChangeDirection = 1;
             raceFireWeaponSlotRequested = -1;
             raceResetRequested = false;
+            for (const auto& event : raceSession.events())
+            {
+                if (event.kind !=
+                        r3d::game::originalrace::RaceEventKind::
+                            DecorationDestroyed ||
+                    event.target >=
+                        originalRace->decorationInstances.size())
+                    continue;
+                const auto& instance =
+                    originalRace->decorationInstances[event.target];
+                const auto& definition =
+                    originalRace->decorationDefinitions.at(
+                        instance.definition);
+                for (std::size_t pieceIndex = 0;
+                     pieceIndex < definition.destructionPieces.size();
+                     ++pieceIndex)
+                {
+                    const auto& piece =
+                        definition.destructionPieces[pieceIndex];
+                    if (!piece.dynamic)
+                        continue;
+                    r3d::physics::DebrisDescription debris;
+                    debris.transform = instance.transform;
+                    debris.shapePosition = {
+                        piece.shapePosition.x *
+                            instance.transform.scale.x,
+                        piece.shapePosition.y *
+                            instance.transform.scale.y,
+                        piece.shapePosition.z *
+                            instance.transform.scale.z};
+                    debris.shapeRotation = piece.shapeRotation;
+                    debris.halfExtents = {
+                        std::abs(piece.halfExtents.x *
+                                 instance.transform.scale.x),
+                        std::abs(piece.halfExtents.y *
+                                 instance.transform.scale.y),
+                        std::abs(piece.halfExtents.z *
+                                 instance.transform.scale.z)};
+                    debris.mass = piece.mass;
+                    const auto debrisIndex =
+                        physicsWorld->addDebris(debris);
+                    if (debrisIndex ==
+                        std::numeric_limits<std::size_t>::max())
+                        continue;
+                    decorationDebrisBindings.push_back(
+                        {event.target, pieceIndex, debrisIndex});
+                }
+            }
 #ifdef RRR3D_AUDIO
             if (!raceVehicles.empty())
             {
@@ -3919,6 +3984,17 @@ int main(int argc, char** argv)
                 for (std::size_t index = 0;
                      index < physicsWorld->vehicleCount(); ++index)
                     raceVehicles[index] = physicsWorld->vehicle(index);
+            }
+            decorationFragments.clear();
+            decorationFragments.reserve(
+                decorationDebrisBindings.size());
+            for (const auto& binding : decorationDebrisBindings)
+            {
+                if (binding.debris >= physicsWorld->debrisCount())
+                    continue;
+                decorationFragments.push_back(
+                    {binding.instance, binding.piece,
+                     physicsWorld->debris(binding.debris).body});
             }
             raceElapsedSeconds = raceSession.elapsedSeconds();
 #ifdef RRR3D_AUDIO
@@ -4207,7 +4283,8 @@ int main(int argc, char** argv)
                 *device, raceShader, raceCamera, 0x6b91b8ffU,
                 *originalRace, raceVehicles, racePipeline,
                 raceSession.decorationActive(),
-                raceSession.bonusActive(), raceSession.racers(),
+                decorationFragments, raceSession.bonusActive(),
+                raceSession.racers(),
                 raceSession.effects(), raceSession.mines(),
                 raceSession.projectiles(), raceElapsedSeconds,
                 profileState.config.quality);
