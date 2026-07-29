@@ -731,6 +731,12 @@ SDL_AUDIO_DRIVER=dummy \
   `mineRipKern`/`mineRipPiece` теперь читают gameplay/death data из `db.xml`.
   Mine impulse прикладывается в OBB contact point, а `dtMine` death не
   засчитывается как обычный kill.
+- Map pickups следуют `Player::TakeBonus`: одноразовые объекты вызывают
+  serialized `DeathEffect`, race audio берётся из его behavior type `7`,
+  medpack лечит на source value, а ammo использует исходные
+  `Round((N-1)*Random())` и усечение charge. Придуманный общий
+  `pickup_up` для игрового подбора удалён; persistent speed/lusha/oil
+  по-прежнему не уничтожаются.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,

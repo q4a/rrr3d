@@ -1541,6 +1541,7 @@ int main(int argc, char** argv)
     std::vector<EngineAudio> engineAudio(originalRace->racers.size());
     std::vector<r3d::audio::SoundHandle> weaponAudio(
         originalRace->weapons.size(), r3d::audio::invalidSound);
+    std::vector<r3d::audio::SoundHandle> bonusDeathAudio;
     auto loadEngineSound = [&](const std::string& path) {
         const auto found = engineSounds.find(path);
         if (found != engineSounds.end())
@@ -1583,12 +1584,34 @@ int main(int argc, char** argv)
                 weaponAudio[weapon] != r3d::audio::invalidSound;
         }
     }
-    const auto pickupAudio =
-        loadEngineSound("Data/Sounds/UI/pickup_up.ogg");
+    auto reloadBonusDeathAudio = [&]() {
+        bonusDeathAudio.assign(
+            originalRace->bonuses.size(),
+            r3d::audio::invalidSound);
+        bool valid = true;
+        for (std::size_t bonus = 0;
+             bonus < originalRace->bonuses.size(); ++bonus)
+        {
+            const auto& sounds =
+                originalRace->bonuses[bonus]
+                    .deathEffect.visual.soundPaths;
+            if (sounds.empty())
+                continue;
+            bonusDeathAudio[bonus] =
+                loadEngineSound(sounds.front());
+            valid =
+                valid &&
+                bonusDeathAudio[bonus] !=
+                    r3d::audio::invalidSound;
+        }
+        return valid;
+    };
+    const bool bonusDeathAudioValid =
+        reloadBonusDeathAudio();
+    engineAudioValid =
+        engineAudioValid && bonusDeathAudioValid;
     const auto acceptanceAudio =
         loadEngineSound("Data/Sounds/UI/acception.ogg");
-    const auto shieldAudio =
-        loadEngineSound("Data/Sounds/shieldOn.ogg");
     const auto crashAudio =
         loadEngineSound("Data/Sounds/carcrash05.ogg");
     std::string destructionSoundPath;
@@ -1626,9 +1649,7 @@ int main(int argc, char** argv)
         profileState.config.commentatorStyle, audioError);
     engineAudioValid =
         engineAudioValid &&
-        pickupAudio != r3d::audio::invalidSound &&
         acceptanceAudio != r3d::audio::invalidSound &&
-        shieldAudio != r3d::audio::invalidSound &&
         crashAudio != r3d::audio::invalidSound &&
         destructionAudio != r3d::audio::invalidSound &&
         std::all_of(
@@ -2093,6 +2114,13 @@ int main(int argc, char** argv)
             }
             damageAudioCooldown.assign(
                 originalRace->racers.size(), 0.0F);
+            if (!reloadBonusDeathAudio())
+            {
+                std::cerr
+                    << "Unable to reload original bonus DeathEffect "
+                       "audio\n";
+                return false;
+            }
 #endif
             raceVehicles.resize(physicsWorld->vehicleCount());
             for (std::size_t index = 0;
@@ -4032,16 +4060,10 @@ int main(int argc, char** argv)
                     else if (event.kind ==
                                  r3d::game::originalrace::RaceEventKind::
                                      Bonus &&
-                             event.target < originalRace->bonuses.size())
+                             event.target < bonusDeathAudio.size())
                     {
-                        const auto kind =
-                            originalRace->bonuses[event.target].kind;
                         playSpatial(
-                            kind ==
-                                    r3d::game::originalrace::BonusKind::
-                                        Shield
-                                ? shieldAudio
-                                : pickupAudio,
+                            bonusDeathAudio[event.target],
                             event.position,
                             eventVelocity(event.racer), 0.75F);
                     }

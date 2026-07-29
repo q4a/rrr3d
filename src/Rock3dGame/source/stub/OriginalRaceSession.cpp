@@ -728,6 +728,32 @@ float sourceRandomUnit()
            static_cast<float>(RAND_MAX);
 }
 
+std::size_t sourceRoundedRandomIndex(
+    std::size_t count, float randomUnit)
+{
+    if (count <= 1U)
+        return 0U;
+    const float value =
+        static_cast<float>(count - 1U) *
+        std::clamp(randomUnit, 0.0F, 1.0F);
+    const float floorValue = std::floor(value);
+    const float rounded =
+        value - 0.5F < floorValue
+            ? floorValue
+            : floorValue + 1.0F;
+    return std::min(
+        static_cast<std::size_t>(rounded), count - 1U);
+}
+
+std::uint32_t sourceBonusCharge(
+    std::uint32_t maximumCharge, float value)
+{
+    return static_cast<std::uint32_t>(
+        std::max(
+            static_cast<float>(maximumCharge) * value,
+            1.0F));
+}
+
 float sampleSourceRange(float minimum, float maximum)
 {
     return minimum +
@@ -3342,6 +3368,35 @@ void OriginalRaceSession::updateGameplay(
                        }),
         mines_.end());
 
+    auto spawnBonusDeathEffect = [&](std::size_t bonusIndex) {
+        if (bonusIndex >= race_.bonuses.size())
+            return;
+        const auto& bonus = race_.bonuses[bonusIndex];
+        const auto& visual = bonus.deathEffect.visual;
+        if (visual.record.empty() &&
+            visual.visualNodes.empty() &&
+            visual.particleEmitters.empty() &&
+            visual.soundPaths.empty())
+            return;
+        RaceEffect impact;
+        impact.kind = RaceEventKind::ProjectileImpact;
+        impact.origin = add(
+            bonus.transform.position,
+            bonus.deathEffect.position);
+        impact.target = add(
+            bonus.transform.position, {0.0F, 0.0F, 2.0F});
+        impact.totalSeconds =
+            visual.maximumTimeLife > 0.0F
+                ? visual.maximumTimeLife
+                : 0.7F;
+        impact.seconds = impact.totalSeconds;
+        impact.weapon = race_.weapons.size();
+        impact.bonus = bonusIndex;
+        impact.ignoreRotation =
+            bonus.deathEffect.ignoreRotation;
+        effects_.push_back(std::move(impact));
+    };
+
     for (std::size_t bonusIndex = 0;
          bonusIndex < race_.bonuses.size(); ++bonusIndex)
     {
@@ -3436,27 +3491,7 @@ void OriginalRaceSession::updateGameplay(
                 pushDamageEvent(
                     racer, RacerRuntime::invalidWeapon,
                     contactPoint, damage);
-                if (!bonus.deathEffect.visual.visualNodes.empty() ||
-                    !bonus.deathEffect.visual.particleEmitters.empty())
-                {
-                    RaceEffect impact;
-                    impact.kind = RaceEventKind::ProjectileImpact;
-                    impact.origin = add(
-                        bonus.transform.position,
-                        bonus.deathEffect.position);
-                    impact.target = add(
-                        bonus.transform.position, {0.0F, 0.0F, 2.0F});
-                    impact.totalSeconds =
-                        bonus.deathEffect.visual.maximumTimeLife > 0.0F
-                            ? bonus.deathEffect.visual.maximumTimeLife
-                            : 0.7F;
-                    impact.seconds = impact.totalSeconds;
-                    impact.weapon = race_.weapons.size();
-                    impact.bonus = bonusIndex;
-                    impact.ignoreRotation =
-                        bonus.deathEffect.ignoreRotation;
-                    effects_.push_back(std::move(impact));
-                }
+                spawnBonusDeathEffect(bonusIndex);
                 const float mass =
                     std::max(vehicleDefinition.physics.mass, 1.0F);
                 if (bonus.speed > 0.0F)
@@ -3525,7 +3560,12 @@ void OriginalRaceSession::updateGameplay(
                     static_cast<std::uint32_t>(std::max(bonus.value, 0.0F));
                 break;
             case BonusKind::Medpack:
-                runtime.life = runtime.maximumLife;
+                runtime.life = std::min(
+                    runtime.life +
+                        (bonus.value > 0.0F
+                             ? bonus.value
+                             : runtime.maximumLife),
+                    runtime.maximumLife);
                 break;
             case BonusKind::Ammunition:
             {
@@ -3573,13 +3613,14 @@ void OriginalRaceSession::updateGameplay(
                 if (!targets.empty())
                 {
                     auto& target = targets[
-                        (bonusIndex + racer) % targets.size()];
+                        sourceRoundedRandomIndex(
+                            targets.size(),
+                            sourceRandomUnit())];
                     const auto maximumCharge =
                         race_.weapons[target.weapon].maximumCharge;
-                    const auto amount = std::max(
-                        1U, static_cast<std::uint32_t>(std::ceil(
-                                static_cast<float>(maximumCharge) *
-                                bonus.value)));
+                    const auto amount =
+                        sourceBonusCharge(
+                            maximumCharge, bonus.value);
                     *target.current = std::min(
                         *target.current + amount, target.capacity);
                     pickSlot = target.pickSlot;
@@ -3605,6 +3646,7 @@ void OriginalRaceSession::updateGameplay(
                 break;
             }
             bonusActive_[bonusIndex] = false;
+            spawnBonusDeathEffect(bonusIndex);
             events_.push_back({RaceEventKind::Bonus, racer, bonusIndex,
                                bonus.transform.position, bonus.value,
                                pickSlot});
@@ -4355,6 +4397,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
 {
     try
     {
+        if (sourceRoundedRandomIndex(4U, 0.0F) != 0U ||
+            sourceRoundedRandomIndex(4U, 0.16F) != 0U ||
+            sourceRoundedRandomIndex(4U, 0.5F) != 2U ||
+            sourceRoundedRandomIndex(4U, 1.0F) != 3U ||
+            sourceBonusCharge(3U, 0.5F) != 1U ||
+            sourceBonusCharge(6U, 0.5F) != 3U ||
+            sourceBonusCharge(10U, 0.0F) != 1U)
+        {
+            throw std::runtime_error(
+                "source Player::TakeBonus charge formula failed");
+        }
         OriginalRaceSession session(race);
         auto point = [&](std::size_t pathNode) -> const TracePoint& {
             const std::uint32_t id = race.tracePath.at(pathNode);
@@ -4553,6 +4606,64 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source map mine hazard contact transition failed");
+            }
+        }
+
+        const auto sourcePickup = std::find_if(
+            race.bonuses.begin(), race.bonuses.end(),
+            [](const BonusInstance& bonus) {
+                return bonus.kind != BonusKind::Speed &&
+                       bonus.kind != BonusKind::SlowHazard &&
+                       bonus.kind != BonusKind::OilHazard &&
+                       bonus.kind != BonusKind::MineHazard &&
+                       bonus.kind != BonusKind::Unknown &&
+                       !bonus.deathEffect.visual.soundPaths.empty();
+            });
+        if (sourcePickup == race.bonuses.end())
+        {
+            throw std::runtime_error(
+                "source pickup DeathEffect sound is missing");
+        }
+        {
+            Race pickupRace = race;
+            pickupRace.bonuses.assign(1U, *sourcePickup);
+            pickupRace.bonuses.front().transform.position =
+                vehicles.front().body.position;
+            pickupRace.bonuses.front().transform.position.z +=
+                100.0F;
+            OriginalRaceSession pickupSession(pickupRace);
+            auto pickupVehicles = vehicles;
+            RaceControl pickupInput;
+            pickupVehicles[0].speed = 0.0F;
+            pickupVehicles[0].linearVelocity = {};
+            pickupVehicles[0].bodyContacts.clear();
+            for (int frame = 0; frame < 190; ++frame)
+                pickupSession.update(
+                    1.0F / 60.0F, pickupVehicles, pickupInput);
+            pickupVehicles[0].body.position =
+                pickupRace.bonuses.front().transform.position;
+            pickupSession.update(
+                1.0F / 60.0F, pickupVehicles, pickupInput);
+            const bool hasPickupEvent = std::any_of(
+                pickupSession.events().begin(),
+                pickupSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::Bonus &&
+                           event.target == 0U;
+                });
+            const bool hasSourceDeathEffect = std::any_of(
+                pickupSession.effects().begin(),
+                pickupSession.effects().end(),
+                [](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::ProjectileImpact &&
+                           effect.bonus == 0U;
+                });
+            if (pickupSession.bonusActive().front() ||
+                !hasPickupEvent || !hasSourceDeathEffect)
+            {
+                throw std::runtime_error(
+                    "source Player::TakeBonus DeathEffect transition failed");
             }
         }
 

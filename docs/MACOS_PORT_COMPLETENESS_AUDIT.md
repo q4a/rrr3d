@@ -96,7 +96,7 @@ Windows target не компилируется.
 | Weapon shot effects | `Weapon::CreateShot`, `ShotEffect`, serialized `ctWeapon` behaviors | `mapObj` → behavior type 10 → source effect graph | Перенесено | Effect record, local position, ignore-rotation и effective nested lifetime читаются из `db.xml`; отдельный `WeaponShotEffect` создаётся один раз для каждого созданного projectile |
 | Weapon shot sounds | `ShotEffect::GiveSource3d`, serialized sound refs | source `ctWeapon/behaviors/items/*[@type=10]/sounds` | Перенесено | Удалено угадывание по имени; 24 source refs читаются напрямую, `drobilka` корректно остаётся без придуманного звука |
 | Damage/support/shield | `GameObject`, `Player`, `Weapon`, behaviors | ручные расчёты session | Частично | Основные transitions есть; полная damage type/force/reflect/immortality матрица не перенесена |
-| Bonuses | `Proj` types 4–10 | ручной switch + исходные values | Частично | Pickups/hazards есть; после ревизии shape contact source-driven, но остальной lifecycle ещё ручной |
+| Bonuses | `Proj` types 4–10, `Player::TakeBonus` | source boxes, serialized values/DeathEffect и сопоставленные contact branches | Частично | Перенесены persistent speed/lusha/oil, одноразовый `Death()`, medpack/charge/money/immortal, Windows `Round((N-1)*Random())`, charge truncation и source pickup sounds; остаётся ручной portable dispatch вместо исходных объектов/PhysX callbacks |
 | Destructible decorations | `DestrObj`, `GameBase` | life flags, source fragments/debris и collision meshes | Частично | Все map destructibles обязаны иметь serialized `destrList` и source collider; OBB–triangle contact заменил proximity sphere, `explosion2.dds` fallback удалён; полный PhysX body/death lifecycle ещё отсутствует |
 | Achievements | `AchievmentModel.cpp` | definitions + ручные counters | Частично | Часть условий поддержана; исходный model/event coverage не перенесён полностью |
 | HUD | `HudMenu.cpp` | `OriginalRaceHud.cpp` с исходными images/strings | Частично | Основные indicators, notifications и mini-map есть; исходный widget/animation object graph и все состояния не компилируются |
@@ -150,6 +150,14 @@ sound refs. Если source behavior или visual отсутствует (`drob
 
 Оставшиеся fallback/direct material mappings всё ещё требуют записи о
 происхождении для каждого исключения.
+
+Общие звуки подбора `pickup_up`/`acception`, ранее подставлявшиеся вместо
+игрового эффекта бонуса, удалены из race path. `Proj` model record теперь
+ведёт к его сериализованному `DeathEffect`, а behavior type `7` этого эффекта
+задаёт фактический звук (`klicka5` либо `shieldOn`). Как и в
+`Player::TakeBonus`, ammo выбирает только неполный слот через
+`Round((N-1)*Random())`; количество заряда усекается к `int`, а не округляется
+вверх.
 
 ### 4. Отключённые системы
 
