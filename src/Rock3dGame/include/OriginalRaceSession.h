@@ -40,6 +40,7 @@ enum class RaceEventKind
     Achievement,
     ProjectileImpact,
     VehicleDestroyed,
+    LowLife,
 };
 
 enum class PickSlot : std::uint8_t
@@ -98,10 +99,12 @@ struct RacerRuntime
     float slowSeconds = 0.0F;
     float clutchSeconds = 0.0F;
     float restoreSeconds = 0.0F;
+    float lowLifeEffectSeconds = 0.0F;
     float finishTime = -1.0F;
     bool wrongWay = false;
     bool finished = false;
     bool destroyed = false;
+    bool lowLife = false;
 };
 
 struct RespawnRequest

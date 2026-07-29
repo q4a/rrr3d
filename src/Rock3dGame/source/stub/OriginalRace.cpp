@@ -2162,6 +2162,12 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
     result.rpmSoundPath = canonicalDataPath(
         resources,
         itemAttribute(engineSound, "sndRPM", source + "/engine sound"));
+    // DataBase::LoadCar attaches the same source LowLifePoints behavior to
+    // every car; it is constructed at runtime rather than serialized in the
+    // individual ctCar record.
+    result.lowLifeEffect = objectDefinition(
+        resources, database, "world\\db\\root\\ctEffects\\smoke6",
+        source + "/LowLifePoints/smoke6");
     result.deathEffects = deathEffectDefinitions(
         resources, database, record, source + "/death effects");
 
@@ -3311,6 +3317,36 @@ bool runOriginalRaceResourceSmokeTest(
                    record.compare(record.size() - name.size(),
                                   name.size(), name) == 0;
         };
+        if (!recordEndsWith(
+                race.vehicle.lowLifeEffect.record, "smoke6") ||
+            !near(race.vehicle.lowLifeLevel, 0.35F) ||
+            !near(race.vehicle.lowLifeEffectPosition.z, 0.5F) ||
+            race.vehicle.lowLifeEffect.particleEmitters.size() != 1U ||
+            // goOpacity is mapped to the source runtime goEffect queue by
+            // the original mismatched enum string table.
+            race.vehicle.lowLifeEffect.graphOrder != GraphOrder::Effect ||
+            race.vehicle.lowLifeEffect.particleEmitters.front()
+                    .materials.empty() ||
+            !recordEndsWith(
+                race.vehicle.lowLifeEffect.particleEmitters.front()
+                    .materials.front().texturePath,
+                "smoke6.dds"))
+        {
+            const auto& effect = race.vehicle.lowLifeEffect;
+            const std::string texture =
+                effect.particleEmitters.empty() ||
+                        effect.particleEmitters.front().materials.empty()
+                    ? "<none>"
+                    : effect.particleEmitters.front()
+                          .materials.front().texturePath;
+            error = "source LowLifePoints/smoke6 provenance mismatch: " +
+                    effect.record + ", emitters=" +
+                    std::to_string(effect.particleEmitters.size()) +
+                    ", graphOrder=" +
+                    std::to_string(static_cast<int>(effect.graphOrder)) +
+                    ", texture=" + texture;
+            return false;
+        }
         if (race.vehicle.deathEffects.size() != 2U ||
             !recordEndsWith(
                 race.vehicle.deathEffects[0].visual.record, "death2") ||

@@ -136,7 +136,6 @@ void OriginalRaceCommentator::shutdown() noexcept
     initialized_ = false;
     paused_ = false;
     wrongWay_ = false;
-    lowLife_ = false;
 }
 
 void OriginalRaceCommentator::reset()
@@ -148,7 +147,6 @@ void OriginalRaceCommentator::reset()
     voice_ = r3d::audio::invalidVoice;
     queue_.clear();
     wrongWay_ = false;
-    lowLife_ = false;
     enqueue(Cue::Start, true, false);
 }
 
@@ -203,15 +201,14 @@ void OriginalRaceCommentator::update(
     if (human.wrongWay && !wrongWay_)
         enqueue(Cue::WrongWay, false, true);
     wrongWay_ = human.wrongWay;
-    const bool lowLife =
-        human.life <= human.maximumLife * 0.25F;
-    if (lowLife && !lowLife_)
-        enqueue(Cue::LowLife, false, true);
-    lowLife_ = lowLife;
-
     for (const auto& event : session.events())
     {
-        if (event.kind == RaceEventKind::Lap &&
+        if (event.kind == RaceEventKind::LowLife &&
+            event.racer == 0U)
+        {
+            enqueue(Cue::LowLife, false, true);
+        }
+        else if (event.kind == RaceEventKind::Lap &&
             event.racer == 0U &&
             human.completedLaps + 1U == race.lapCount)
         {

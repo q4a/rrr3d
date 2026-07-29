@@ -67,7 +67,6 @@ private:
     bool initialized_ = false;
     bool paused_ = false;
     bool wrongWay_ = false;
-    bool lowLife_ = false;
 };
 
 } // namespace rrr3d::audio

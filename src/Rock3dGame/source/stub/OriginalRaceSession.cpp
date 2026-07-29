@@ -917,6 +917,8 @@ void OriginalRaceSession::destroyRacer(
     auto& runtime = racers_[racer];
     runtime.life = 0.0F;
     runtime.destroyed = true;
+    runtime.lowLife = false;
+    runtime.lowLifeEffectSeconds = 0.0F;
     // Player::cTimeRestoreCar in the Windows implementation.
     runtime.restoreSeconds = 2.0F;
     if (racer < vehicleInputs_.size())
@@ -1085,6 +1087,8 @@ void OriginalRaceSession::updateGameplay(
         if (runtime.destroyed)
         {
             repairSeconds_[racer] = 0.0F;
+            runtime.lowLife = false;
+            runtime.lowLifeEffectSeconds = 0.0F;
             continue;
         }
         const WeaponDefinition* repair = nullptr;
@@ -1116,6 +1120,34 @@ void OriginalRaceSession::updateGameplay(
                     (repair->repairValue > 0.0F
                          ? repair->repairValue
                          : 5.0F));
+        }
+        const auto& sourceRacer = race_.racers[racer];
+        const auto& vehicleDefinition =
+            sourceRacer.hasConfiguredVehicle
+                ? sourceRacer.configuredVehicle
+                : race_.vehicles.at(sourceRacer.vehicle);
+        const bool lowLife =
+            runtime.maximumLife > 0.0F && runtime.life > 0.0F &&
+            runtime.life / runtime.maximumLife <
+                vehicleDefinition.lowLifeLevel;
+        if (lowLife)
+        {
+            runtime.lowLifeEffectSeconds += seconds;
+            if (!runtime.lowLife)
+            {
+                runtime.lowLife = true;
+                events_.push_back(
+                    {RaceEventKind::LowLife, racer, 0U,
+                     racer < vehicles.size()
+                         ? vehicles[racer].body.position
+                         : Vec3{},
+                     runtime.life / runtime.maximumLife});
+            }
+        }
+        else
+        {
+            runtime.lowLife = false;
+            runtime.lowLifeEffectSeconds = 0.0F;
         }
         if (racer < vehicles.size())
             updateProgress(racer, vehicles[racer]);
@@ -3124,6 +3156,68 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         vehicles[0].bodyContacts.clear();
 
         {
+            OriginalRaceSession lowLifeSession(race);
+            auto lowLifeVehicles = vehicles;
+            RaceControl lowLifeInput;
+            for (int frame = 0; frame < 190; ++frame)
+                lowLifeSession.update(
+                    1.0F / 60.0F, lowLifeVehicles, lowLifeInput);
+            const auto& sourceRacer = race.racers.front();
+            const auto& sourceVehicle =
+                sourceRacer.hasConfiguredVehicle
+                    ? sourceRacer.configuredVehicle
+                    : race.vehicles.at(sourceRacer.vehicle);
+            lowLifeVehicles[0].speed = 25.0F;
+            lowLifeVehicles[0].bodyContacts = {
+                {r3d::physics::CollisionSurface::TrackBorder,
+                 std::numeric_limits<std::size_t>::max(),
+                 {1.0F, 0.0F, 0.0F}, 25.0F, 4000000.0F}};
+            for (int frame = 0;
+                 frame < 100 &&
+                 lowLifeSession.racers().front().life /
+                         lowLifeSession.racers().front().maximumLife >=
+                     sourceVehicle.lowLifeLevel;
+                 ++frame)
+            {
+                lowLifeSession.update(
+                    1.0F / 60.0F, lowLifeVehicles, lowLifeInput);
+            }
+            lowLifeVehicles[0].bodyContacts.clear();
+            lowLifeVehicles[0].speed = 0.0F;
+            lowLifeSession.update(
+                1.0F / 60.0F, lowLifeVehicles, lowLifeInput);
+            const bool hasLowLifeEvent = std::any_of(
+                lowLifeSession.events().begin(),
+                lowLifeSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::LowLife &&
+                           event.racer == 0U;
+                });
+            if (!lowLifeSession.racers().front().lowLife ||
+                lowLifeSession.racers().front().destroyed ||
+                lowLifeSession.racers().front().life <= 0.0F ||
+                lowLifeSession.racers().front().lowLifeEffectSeconds <=
+                    0.0F ||
+                !hasLowLifeEvent)
+            {
+                throw std::runtime_error(
+                    "source LowLifePoints/smoke6 transition failed");
+            }
+            lowLifeSession.update(
+                1.0F / 60.0F, lowLifeVehicles, lowLifeInput);
+            if (std::any_of(
+                    lowLifeSession.events().begin(),
+                    lowLifeSession.events().end(),
+                    [](const RaceEvent& event) {
+                        return event.kind == RaceEventKind::LowLife;
+                    }))
+            {
+                throw std::runtime_error(
+                    "source LowLifePoints event repeated while active");
+            }
+        }
+
+        {
             OriginalRaceSession deathSession(race);
             auto deathVehicles = vehicles;
             RaceControl deathInput;
@@ -3159,6 +3253,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     }));
             if (!deathSession.racers().front().destroyed ||
                 deathSession.racers().front().life != 0.0F ||
+                deathSession.racers().front().lowLife ||
                 !deathSession.takeRespawns().empty() ||
                 sourceVehicle.deathEffects.size() != 2U ||
                 sourceDeathEffectCount !=

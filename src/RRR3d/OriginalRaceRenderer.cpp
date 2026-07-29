@@ -1342,6 +1342,7 @@ bool OriginalRaceRenderer::initialize(
         // rather than by the shared garage record.
         vehicleBodies_.resize(race.racers.size());
         vehicleWheels_.resize(race.racers.size());
+        vehicleLowLifeEffects_.resize(race.racers.size());
         vehicleDeathEffects_.resize(race.racers.size());
         for (std::size_t racer = 0; racer < race.racers.size(); ++racer)
         {
@@ -1352,6 +1353,9 @@ bool OriginalRaceRenderer::initialize(
                     : race.vehicles.at(sourceRacer.vehicle);
             loadObject(vehicleBodies_[racer], vehicle.bodyVisuals);
             vehicleBodies_[racer].lighting = vehicle.lighting;
+            loadDefinition(
+                vehicleLowLifeEffects_[racer],
+                vehicle.lowLifeEffect);
             vehicleWheels_[racer].resize(vehicle.wheelVisuals.size());
             for (std::size_t wheel = 0;
                  wheel < vehicle.wheelVisuals.size(); ++wheel)
@@ -1484,15 +1488,12 @@ bool OriginalRaceRenderer::initialize(
         };
         destructionEffectTexture_ =
             loadEffectTexture("Data/Effect/explosion2.dds");
-        engineSmokeTexture_ =
-            loadEffectTexture("Data/Effect/smoke2.dds");
         shieldEffectTexture_ =
             loadEffectTexture("Data/Effect/shield1.dds");
         vehicleLightTexture_ =
             loadEffectTexture("Data/Effect/flare2b.dds");
         if (!valid(effectMesh_) ||
             !valid(destructionEffectTexture_) ||
-            !valid(engineSmokeTexture_) ||
             !valid(shieldEffectTexture_) ||
             !valid(vehicleLightTexture_) ||
             (race.environment.surface !=
@@ -1585,6 +1586,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     for (auto& wheels : vehicleWheels_)
         for (auto& wheel : wheels)
             releaseObject(wheel);
+    for (auto& effect : vehicleLowLifeEffects_)
+        releaseObject(effect);
     for (auto& effects : vehicleDeathEffects_)
         for (auto& effect : effects)
             releaseObject(effect);
@@ -1613,6 +1616,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     releaseObject(wheelTrailEffect_);
     vehicleBodies_.clear();
     vehicleWheels_.clear();
+    vehicleLowLifeEffects_.clear();
     vehicleDeathEffects_.clear();
     bonuses_.clear();
     bonusDeathEffects_.clear();
@@ -1630,8 +1634,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
             device.destroy(texture);
     if (valid(destructionEffectTexture_))
         device.destroy(destructionEffectTexture_);
-    if (valid(engineSmokeTexture_))
-        device.destroy(engineSmokeTexture_);
     if (valid(shieldEffectTexture_))
         device.destroy(shieldEffectTexture_);
     if (valid(vehicleLightTexture_))
@@ -1646,7 +1648,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     skyMesh_ = {};
     weaponEffectTextures_.clear();
     destructionEffectTexture_ = {};
-    engineSmokeTexture_ = {};
     shieldEffectTexture_ = {};
     vehicleLightTexture_ = {};
     environmentSurfaceTexture_ = {};
@@ -2869,6 +2870,19 @@ void OriginalRaceRenderer::draw(
                         : nullptr);
             }
         }
+        if (racer < racerRuntime.size() &&
+            racer < vehicleLowLifeEffects_.size() &&
+            racerRuntime[racer].lowLife)
+        {
+            r3d::physics::Transform local;
+            local.position = definition.lowLifeEffectPosition;
+            drawDefinition(
+                vehicleLowLifeEffects_[racer],
+                definition.lowLifeEffect,
+                compose(state.body, local),
+                racerRuntime[racer].lowLifeEffectSeconds,
+                std::abs(state.speed));
+        }
     }
 
     for (const auto& projectile : projectiles)
@@ -3265,37 +3279,11 @@ void OriginalRaceRenderer::draw(
                     effectPipeline, effectMaterial);
     }
 
-    auto smokePipeline = pipeline;
-    smokePipeline.blendMode = PipelineState::BlendMode::Alpha;
-    smokePipeline.writeDepth = false;
-    smokePipeline.faceCulling = PipelineState::FaceCulling::None;
-    MaterialState smokeMaterial;
-    smokeMaterial.specular = 0.0F;
-    smokeMaterial.emissive = 1.0F;
-    smokeMaterial.ignoreFog = true;
-    smokeMaterial.color = {0.72F, 0.64F, 0.55F, 0.28F};
     for (std::size_t racer = 0; racer < racerCount; ++racer)
     {
         if (racer < racerRuntime.size() &&
             racerRuntime[racer].destroyed)
             continue;
-        if (vehicles[racer].engineRpm >= 900.0F)
-        {
-            const auto direction =
-                rotateX(vehicles[racer].body.rotation);
-            r3d::physics::Transform smoke;
-            smoke.position = vehicles[racer].body.position;
-            smoke.position.x -= direction.x * 1.5F;
-            smoke.position.y -= direction.y * 1.5F;
-            smoke.position.z += 0.45F;
-            const float pulse =
-                0.8F + 0.25F *
-                           std::sin(elapsedSeconds * 8.0F +
-                                    static_cast<float>(racer));
-            smoke.scale = {pulse * 1.8F, pulse, 1.0F};
-            deferEffect(effectMesh_, engineSmokeTexture_,
-                        transform(smoke), smokePipeline, smokeMaterial);
-        }
         if (racer < racerRuntime.size() &&
             racerRuntime[racer].shieldSeconds > 0.0F)
         {

@@ -277,6 +277,9 @@ struct Vehicle
     std::vector<Vec3> wheelVisualOffsets;
     std::array<VehicleWeaponMount, 4> weaponMounts;
     std::vector<VehicleNightLight> nightLights;
+    ObjectDefinition lowLifeEffect;
+    Vec3 lowLifeEffectPosition{0.0F, 0.0F, 0.5F};
+    float lowLifeLevel = 0.35F;
     std::vector<DeathEffectDefinition> deathEffects;
     r3d::physics::VehicleDescription physics;
     float maximumLife = 100.0F;
