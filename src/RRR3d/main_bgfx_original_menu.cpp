@@ -290,6 +290,52 @@ Camera makeCamera(const GraphicsDevice& device)
     return camera;
 }
 
+#ifdef RRR3D_PHYSICS
+r3d::physics::VehicleState makeGarageVehicleState(
+    const r3d::game::originalrace::Vehicle& vehicle)
+{
+    r3d::physics::VehicleState result;
+    float wheelOffset = 0.0F;
+    const std::size_t wheelCount = std::min(
+        vehicle.physics.wheels.size(),
+        vehicle.wheelVisualOffsets.size());
+    for (std::size_t index = 0; index < wheelCount; ++index)
+    {
+        const auto& wheel = vehicle.physics.wheels[index];
+        const auto& offset = vehicle.wheelVisualOffsets[index];
+        const float adjustedZ =
+            wheel.position.z - 0.5F * wheel.suspensionTravel +
+            offset.z;
+        // CarFrame::SetCar overwrites this on every wheel; four-wheel
+        // source cars therefore use the final serialized wheel exactly.
+        wheelOffset =
+            std::abs(adjustedZ) + wheel.radius + offset.z;
+    }
+    result.body.position = {0.0F, 0.0F, wheelOffset - 0.71F};
+    result.wheels.reserve(wheelCount);
+    result.wheelAngularSpeeds.assign(wheelCount, 0.0F);
+    result.wheelContacts.resize(wheelCount);
+    for (std::size_t index = 0; index < wheelCount; ++index)
+    {
+        const auto& wheel = vehicle.physics.wheels[index];
+        r3d::physics::Transform state;
+        state.position = {
+            wheel.position.x,
+            wheel.position.y,
+            result.body.position.z + wheel.position.z -
+                0.5F * wheel.suspensionTravel};
+        if (index < vehicle.wheelVisualTransforms.size() &&
+            vehicle.wheelVisualTransforms[index].scale.y < 0.0F)
+        {
+            // CarWheel::invertWheel in CarFrame::SetCar.
+            state.rotation = {0.0F, 0.0F, 1.0F, 0.0F};
+        }
+        result.wheels.push_back(state);
+    }
+    return result;
+}
+#endif
+
 Transform makeTransform(float width, float height, float centerX,
                         float centerY, float depth)
 {
@@ -507,6 +553,7 @@ int main(int argc, char** argv)
     std::string activeLanguage = options->language;
 #ifdef RRR3D_PHYSICS
     std::optional<r3d::game::originalrace::Race> originalRace;
+    std::optional<r3d::game::originalrace::Race> originalGarageScene;
     std::optional<r3d::game::originalrace::OriginalGarageCatalog>
         originalGarage;
     std::optional<r3d::physics::WorldDescription> physicsDescription;
@@ -566,6 +613,9 @@ int main(int argc, char** argv)
             *originalRace, *resources, profileState.player);
         r3d::game::originalrace::writeOriginalTournamentSelection(
             *originalRace, selectedTrack, profileState.player);
+        originalGarageScene.emplace(
+            r3d::game::originalrace::loadOriginalGarageScene(
+                *resources, *originalRace));
         physicsDescription.emplace(
             r3d::game::originalrace::makePhysicsDescription(
                 *originalRace, *resources));
@@ -1763,12 +1813,17 @@ int main(int argc, char** argv)
     raceSession.setEnableMineBug(profileState.config.enableMineBug);
     raceSession.setSpringBorders(profileState.config.springBorders);
     rrr3d::race::OriginalRaceRenderer raceRenderer;
+    rrr3d::race::OriginalRaceRenderer garageRenderer;
     rrr3d::race::OriginalRaceHud raceHud;
     if (!physicsWorld ||
         !raceRenderer.initialize(*device, *resources, *originalRace,
                                  static_cast<std::uint32_t>(pixelWidth),
                                  static_cast<std::uint32_t>(pixelHeight),
                                  physicsError) ||
+        !garageRenderer.initialize(
+            *device, *resources, *originalGarageScene,
+            static_cast<std::uint32_t>(pixelWidth),
+            static_cast<std::uint32_t>(pixelHeight), physicsError) ||
         !raceHud.initialize(*device, *resources, *originalRace,
                             activeLanguage,
                             profileState.player.difficulty,
@@ -1777,6 +1832,7 @@ int main(int argc, char** argv)
     {
         std::cerr << "Original race initialization failed: " << physicsError
                   << '\n';
+        garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
         raceHud.shutdown(*device);
         releaseResources();
@@ -1799,10 +1855,16 @@ int main(int argc, char** argv)
                 *device, smokeWidth, smokeHeight, resizeError) ||
             !raceRenderer.resize(
                 *device, static_cast<std::uint32_t>(pixelWidth),
+                static_cast<std::uint32_t>(pixelHeight), resizeError) ||
+            !garageRenderer.resize(
+                *device, smokeWidth, smokeHeight, resizeError) ||
+            !garageRenderer.resize(
+                *device, static_cast<std::uint32_t>(pixelWidth),
                 static_cast<std::uint32_t>(pixelHeight), resizeError))
         {
             std::cerr << "M9.3 renderer target resize round-trip failed: "
                       << resizeError << '\n';
+            garageRenderer.shutdown(*device);
             raceRenderer.shutdown(*device);
             raceHud.shutdown(*device);
             releaseResources();
@@ -1815,6 +1877,27 @@ int main(int argc, char** argv)
             return EXIT_FAILURE;
         }
     }
+    std::vector<r3d::physics::VehicleState> garageVehicles;
+    garageVehicles.reserve(originalGarageScene->vehicles.size());
+    for (const auto& vehicle : originalGarageScene->vehicles)
+        garageVehicles.push_back(makeGarageVehicleState(vehicle));
+    std::vector<r3d::game::originalrace::RacerRuntime>
+        garageRacerRuntime(originalGarageScene->racers.size());
+    std::vector<bool> garageDecorationActive{true, false};
+    const std::vector<
+        r3d::game::originalrace::DecorationFragmentState>
+        garageDecorationFragments;
+    const std::vector<
+        r3d::game::originalrace::VehicleDeathFragmentState>
+        garageVehicleDeathFragments;
+    const std::vector<bool> garageBonusActive;
+    const std::vector<r3d::game::originalrace::RaceEffect>
+        garageEffects;
+    const std::vector<r3d::game::originalrace::MineRuntime>
+        garageMines;
+    const std::vector<r3d::game::originalrace::ProjectileRuntime>
+        garageProjectiles;
+    float garageSceneSeconds = 0.0F;
     std::cout << "Milestone 9 race: " << originalRace->levelPath << ", "
               << originalRace->lapCount << " laps, "
               << originalRace->trackInstances.size()
@@ -2162,6 +2245,7 @@ int main(int argc, char** argv)
         audio.unloadSound(clickSound);
         audio.shutdown();
         raceHud.shutdown(*device);
+        garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
         releaseResources();
         device.reset();
@@ -2461,6 +2545,7 @@ int main(int argc, char** argv)
     std::uint64_t previousFrameTicks = SDL_GetTicksNS();
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
     bool raceGarageFrameObserved = !options->raceRenderSmokeTest;
+    bool raceGarage3DObserved = !options->raceRenderSmokeTest;
     bool racePauseDialogObserved = !options->raceRenderSmokeTest;
     bool racePauseResumeObserved = !options->raceRenderSmokeTest;
     bool racePauseFrozenObserved = !options->raceRenderSmokeTest;
@@ -5176,6 +5261,11 @@ int main(int argc, char** argv)
                         *device,
                         static_cast<std::uint32_t>(pixelWidth),
                         static_cast<std::uint32_t>(pixelHeight),
+                        resizeError) ||
+                    !garageRenderer.resize(
+                        *device,
+                        static_cast<std::uint32_t>(pixelWidth),
+                        static_cast<std::uint32_t>(pixelHeight),
                         resizeError))
                 {
                     std::cerr
@@ -5945,16 +6035,6 @@ int main(int argc, char** argv)
         else
         {
 #endif
-        device->beginFrame(camera, 0x040818ffU);
-        drawQuad(*device, quad, shader, background, menu::virtualWidth,
-                 menu::virtualHeight, menu::virtualWidth * 0.5F,
-                 menu::virtualHeight * 0.5F, 90.0F, opaque);
-        drawQuad(*device, quad, shader, topPanel,
-                 static_cast<float>(model->topPanelImage.width),
-                 static_cast<float>(model->topPanelImage.height),
-                 menu::virtualWidth * 0.5F, 200.0F, 70.0F, transparent);
-
-        auto& activePage = activeMenuPage();
 #ifdef RRR3D_PHYSICS
         const bool drawingOriginalOptions =
             isOriginalOptionsScreen(menuStack.back());
@@ -5962,6 +6042,133 @@ int main(int argc, char** argv)
             menuStack.back() == MenuScreen::RaceMenu;
         const bool drawingOriginalGarage =
             menuStack.back() == MenuScreen::Garage;
+        if (drawingOriginalGarage && !garageCarOrder.empty())
+        {
+            garageSceneSeconds += frameSeconds;
+            const auto& selectedView =
+                garageCarOrder[garageViewIndex];
+            const auto& selectedCar =
+                originalGarage->cars[selectedView.catalogIndex];
+            const auto selectedVehicle = std::find_if(
+                originalGarageScene->vehicles.begin(),
+                originalGarageScene->vehicles.end(),
+                [&](const auto& vehicle) {
+                    return vehicle.record == selectedCar.record ||
+                           recordName(vehicle.record) ==
+                               recordName(selectedCar.record);
+                });
+            const std::size_t selectedRacer =
+                selectedVehicle ==
+                        originalGarageScene->vehicles.end()
+                    ? originalGarageScene->racers.size()
+                    : static_cast<std::size_t>(
+                          std::distance(
+                              originalGarageScene->vehicles.begin(),
+                              selectedVehicle));
+            for (std::size_t racer = 0;
+                 racer < garageRacerRuntime.size(); ++racer)
+            {
+                auto& runtime = garageRacerRuntime[racer];
+                runtime.destroyed =
+                    selectedView.locked || racer != selectedRacer;
+                runtime.weaponSlots.fill(
+                    r3d::game::originalrace::RacerRuntime::
+                        invalidWeapon);
+                if (racer < originalGarageScene->racers.size())
+                    originalGarageScene->racers[racer].color =
+                        profileState.player.color;
+            }
+            if (!selectedView.locked &&
+                selectedRacer < garageRacerRuntime.size())
+            {
+                auto& runtime =
+                    garageRacerRuntime[selectedRacer];
+                constexpr std::size_t firstWeaponPlacement =
+                    static_cast<std::size_t>(
+                        r3d::game::originalrace::GarageSlotType::
+                            Weapon1);
+                for (std::size_t slot = 0;
+                     slot < runtime.weaponSlots.size(); ++slot)
+                {
+                    const auto& defaultRecord =
+                        selectedCar
+                            .placements[firstWeaponPlacement + slot]
+                            .defaultItem;
+                    const auto weapon = std::find_if(
+                        originalGarageScene->weapons.begin(),
+                        originalGarageScene->weapons.end(),
+                        [&](const auto& candidate) {
+                            return candidate.record == defaultRecord ||
+                                   recordName(candidate.record) ==
+                                       recordName(defaultRecord);
+                        });
+                    if (weapon !=
+                        originalGarageScene->weapons.end())
+                    {
+                        runtime.weaponSlots[slot] =
+                            static_cast<std::size_t>(
+                                std::distance(
+                                    originalGarageScene->weapons.begin(),
+                                    weapon));
+                    }
+                }
+            }
+            garageDecorationActive[1] = selectedView.locked;
+            const float halfQuestionAngle =
+                bx::kPi * garageSceneSeconds * 0.1F;
+            originalGarageScene->decorationInstances[1]
+                .transform.rotation = {
+                    0.0F, 0.0F,
+                    std::sin(halfQuestionAngle),
+                    std::cos(halfQuestionAngle)};
+            const auto garageCamera =
+                garageRenderer.makePresentationCamera(
+                    *device,
+                    originalGarageScene->presentationCamera,
+                    static_cast<std::uint32_t>(pixelWidth),
+                    static_cast<std::uint32_t>(pixelHeight));
+            garageRenderer.renderFrame(
+                *device, raceShader, garageCamera, 0x040818ffU,
+                *originalGarageScene, garageVehicles, racePipeline,
+                garageDecorationActive, garageDecorationFragments,
+                garageVehicleDeathFragments, garageBonusActive,
+                garageRacerRuntime, garageEffects, garageMines,
+                garageProjectiles, garageSceneSeconds,
+                profileState.config.quality);
+            const auto& garageTelemetry =
+                device->renderTelemetry();
+            const auto scenePass = static_cast<std::size_t>(
+                r3d::renderer::RenderPass::Scene);
+            raceGarage3DObserved =
+                raceGarage3DObserved ||
+                (garageTelemetry.drawCount[scenePass] > 0U &&
+                 std::any_of(
+                     garageTelemetry.lightingDrawCount.begin(),
+                     garageTelemetry.lightingDrawCount.end(),
+                     [](std::uint32_t draws) {
+                         return draws > 0U;
+                     }));
+            device->beginOverlay(camera);
+        }
+        else
+#endif
+        {
+            device->beginFrame(camera, 0x040818ffU);
+            drawQuad(
+                *device, quad, shader, background,
+                menu::virtualWidth, menu::virtualHeight,
+                menu::virtualWidth * 0.5F,
+                menu::virtualHeight * 0.5F, 90.0F, opaque);
+            drawQuad(
+                *device, quad, shader, topPanel,
+                static_cast<float>(model->topPanelImage.width),
+                static_cast<float>(model->topPanelImage.height),
+                menu::virtualWidth * 0.5F, 200.0F, 70.0F,
+                transparent);
+        }
+
+        auto& activePage = activeMenuPage();
+#ifdef RRR3D_PHYSICS
         if (drawingOriginalOptions)
         {
             const float optionsCenterX = menu::virtualWidth * 0.5F;
@@ -7131,6 +7338,7 @@ int main(int argc, char** argv)
                             r3d::renderer::RenderPass::Water);
                 if (!integratedRaceStartObserved || !inRace ||
                     !raceGarageFrameObserved ||
+                    !raceGarage3DObserved ||
                     !racePauseDialogObserved ||
                     !racePauseResumeObserved ||
                     !racePauseFrozenObserved ||
@@ -7153,7 +7361,8 @@ int main(int argc, char** argv)
                            "verification failed: started="
                         << integratedRaceStartObserved << ", inRace="
                         << inRace << ", garage="
-                        << raceGarageFrameObserved << ", pause="
+                        << raceGarageFrameObserved << '/'
+                        << raceGarage3DObserved << ", pause="
                         << racePauseDialogObserved << '/'
                         << racePauseResumeObserved << '/'
                         << racePauseFrozenObserved << ", destroyed="
@@ -7201,7 +7410,7 @@ int main(int argc, char** argv)
                            "life "
                         << minimumRacePlayerLife << "), "
                            "source HudMenu pause/accept/frozen-world, "
-                           "GarageFrame and render-target resize "
+                           "source GarageFrame/3D CarFrame and render-target resize "
                            "round-trip passed\n";
                 }
             }
@@ -7261,6 +7470,7 @@ int main(int argc, char** argv)
     saveRaceProfile();
     physicsWorld.reset();
     raceHud.shutdown(*device);
+    garageRenderer.shutdown(*device);
     raceRenderer.shutdown(*device);
 #endif
     releaseResources();

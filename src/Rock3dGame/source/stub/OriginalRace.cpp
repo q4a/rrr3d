@@ -533,6 +533,13 @@ MaterialDefinition materialDefinition(
             material.emissive = 1.0F;
             material.ignoreFog = true;
         }
+        if (record == "GUI\\question")
+        {
+            // ResourceManager::LoadGUI creates this mesh material through
+            // LoadSpecLibMat rather than the ordinary image-material path.
+            material.specular = 1.0F;
+            material.shininess = 64.0F;
+        }
         if (record == "Bonus\\shield")
         {
             material.emissive = 1.0F;
@@ -607,6 +614,16 @@ MaterialDefinition materialDefinition(
         {"Effect\\pieces", "Data/Effect/pieces.dds",
          MaterialBlend::Opaque},
         {"Effect\\j_swell", "Data/Effect/j_swell.dds",
+         MaterialBlend::Opaque},
+        {"GUI\\question", "Data/GUI/question.png",
+         MaterialBlend::Opaque},
+        {"GUI\\garage1", "Data/GUI/garage1.dds",
+         MaterialBlend::Opaque},
+        {"GUI\\garage2", "Data/GUI/garage2.dds",
+         MaterialBlend::Opaque},
+        {"GUI\\angar1", "Data/GUI/angar1.dds",
+         MaterialBlend::Opaque},
+        {"GUI\\angar2", "Data/GUI/angar2.dds",
          MaterialBlend::Opaque},
         {"World1\\Track\\track1", "Data/World1/Track/Texture/track1.dds",
          MaterialBlend::Opaque},
@@ -3206,6 +3223,113 @@ Race loadOriginalRace(const resource::ResourceFileSystem& resources,
     selectRacers(result, resources, selectedPlanet,
                  result.trackCatalog[trackIndex].racePass,
                  result.vehicle.record);
+    return result;
+}
+
+Race loadOriginalGarageScene(
+    const resource::ResourceFileSystem& resources,
+    const Race& sourceRace)
+{
+    auto databaseDocument = parseXml(resources, "db.xml");
+    auto* database = databaseDocument.RootElement();
+
+    Race result;
+    result.levelPath = "RaceMenu2::CarFrame";
+    result.vehicles = sourceRace.vehicles;
+    for (auto& vehicle : result.vehicles)
+    {
+        // CarFrame only creates the body, wheels and default mounted weapon
+        // actors.  Runtime damage/shield/death actors do not belong to this
+        // scene and would merely duplicate unused GPU resources.
+        vehicle.lowLifeEffect = {};
+        vehicle.shieldEffect = {};
+        vehicle.deathEffects.clear();
+        vehicle.nightLights.clear();
+    }
+    result.weapons = sourceRace.weapons;
+    for (auto& weapon : result.weapons)
+    {
+        weapon.shotEffect = {};
+        weapon.projectiles.clear();
+    }
+
+    constexpr std::array<std::string_view, 2> decorationRecords{
+        "world\\db\\root\\ctDecoration\\Misc\\garage",
+        "world\\db\\root\\ctDecoration\\Misc\\question"};
+    for (const auto record : decorationRecords)
+    {
+        auto definition = objectDefinition(
+            resources, database, record, "db.xml/RaceMenu2::CarFrame");
+        if (definition.visualNodes.empty())
+            throw resource::ResourceError(
+                std::string(record) +
+                ": CarFrame decoration has no original visual");
+        result.decorationDefinitions.push_back(std::move(definition));
+    }
+    result.decorationInstances.push_back({0U, {}});
+    Transform question;
+    question.position = {0.0F, 0.0F, 0.39F};
+    result.decorationInstances.push_back({1U, question});
+
+    result.racers.reserve(result.vehicles.size());
+    for (std::size_t index = 0; index < result.vehicles.size(); ++index)
+    {
+        Racer racer;
+        racer.name = result.vehicles[index].record;
+        racer.vehicle = index;
+        result.racers.push_back(std::move(racer));
+    }
+    if (!result.vehicles.empty())
+        result.vehicle = result.vehicles.front();
+
+    // Environment::ewGarage + Environment::wtGarage.
+    result.environment.weather = Weather::Fair;
+    result.environment.skyTexturePath = canonicalDataPath(
+        resources, "Data\\World1\\Texture\\skyTex1.dds");
+    result.environment.fogColor = {
+        148.0F / 255.0F, 193.0F / 255.0F,
+        235.0F / 255.0F, 1.0F};
+    result.environment.ambientColor = {0.6F, 0.6F, 0.6F, 1.0F};
+    result.environment.fogIntensity = 1.0F;
+    result.environment.skyEnabled = false;
+    result.environment.fogEnabled = false;
+    result.environment.directionalLightEnabled = false;
+    result.environment.dynamicReflectionsEnabled = false;
+    result.environment.surface = EnvironmentSurface::None;
+    result.environment.planarReflection = false;
+    result.environment.hdrLuminanceKey = 2.0F;
+    result.environment.hdrBrightThreshold = 4.0F;
+    result.environment.hdrGaussianScalar = 25.0F;
+    result.environment.hdrExposure = 2.0F;
+
+    // RaceMenu2.cpp CarFrame::OnShow.  glm::quat takes (w, x, y, z);
+    // portable Quat stores (x, y, z, w).
+    result.environment.lamps[0] = {
+        {-0.94673467F, 3.0021181F, 2.9447727F},
+        {0.19748747F, 0.34095559F, -0.46066701F, 0.79532242F},
+        {1.0F, 1.0F, 1.0F, 1.0F}, 20.0F, true};
+    result.environment.lamps[1] = {
+        {6.0344887F, -5.2521329F, 1.6322796F},
+        {-0.17059785F, 0.045529708F, 0.95100683F, 0.25379914F},
+        {1.0F, 1.0F, 1.0F, 1.0F}, 20.0F, true};
+
+    result.presentationCamera.position = {
+        2.9176455F, 3.8489482F, 1.2934232F};
+    result.presentationCamera.rotation = {
+        0.11683256F, 0.058045074F, -0.88791621F, 0.44111854F};
+    result.presentationCamera.verticalFovDegrees = 90.0F;
+    result.presentationCamera.nearDistance = 1.0F;
+    result.presentationCamera.farDistance = 20.0F;
+    result.presentationCamera.valid = true;
+
+    if (result.vehicles.size() != 17U ||
+        result.racers.size() != result.vehicles.size() ||
+        result.decorationDefinitions.size() != 2U ||
+        !result.presentationCamera.valid)
+    {
+        throw resource::ResourceError(
+            "RaceMenu2::CarFrame source scene is incomplete");
+    }
     return result;
 }
 

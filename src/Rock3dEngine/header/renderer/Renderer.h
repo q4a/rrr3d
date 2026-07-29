@@ -227,10 +227,16 @@ struct Camera
 
 struct SceneLighting
 {
-    std::array<float, 4> lightDirection{-0.45F, -0.35F, 0.82F, 0.0F};
+    // w is the source directional-light enable flag.
+    std::array<float, 4> lightDirection{-0.45F, -0.35F, 0.82F, 1.0F};
     std::array<float, 4> ambient{0.22F, 0.22F, 0.22F, 1.0F};
     std::array<float, 4> fogColor{0.58F, 0.76F, 0.92F, 0.5F};
     std::array<float, 4> cameraPosition{0.0F, 0.0F, 0.0F, 1.0F};
+    // Environment::wtGarage/CarFrame uses three D3D9 spot-light slots.
+    // Position.w is range; direction.w is the enabled flag.
+    std::array<std::array<float, 4>, 3> lampPositions{};
+    std::array<std::array<float, 4>, 3> lampDirections{};
+    std::array<std::array<float, 4>, 3> lampColors{};
 };
 
 struct RenderPassState

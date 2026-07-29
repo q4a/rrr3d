@@ -9,6 +9,9 @@ SAMPLERCUBE(s_texEnvironment, 3);
 SAMPLER2D(s_texNormal, 4);
 SAMPLER2D(s_texShadowFar, 5);
 uniform vec4 u_sceneLightDirection;
+uniform vec4 u_sceneLampPositions[3];
+uniform vec4 u_sceneLampDirections[3];
+uniform vec4 u_sceneLampColors[3];
 uniform vec4 u_sceneAmbient;
 uniform vec4 u_sceneFog;
 uniform vec4 u_sceneCamera;
@@ -44,7 +47,10 @@ void main()
             normal * tangentNormal.z);
     }
     vec3 lightDirection = normalize(u_sceneLightDirection.xyz);
-    float diffuse = max(dot(normal, lightDirection), 0.0);
+    float directionalEnabled = u_sceneLightDirection.w;
+    float diffuse =
+        max(dot(normal, lightDirection), 0.0) *
+        directionalEnabled;
     vec3 lighting = u_sceneAmbient.rgb + vec3_splat(diffuse * 0.82);
     vec4 albedo = texture2D(s_texColor, v_texcoord0) * u_materialColor;
     if (u_materialParams.x > 0.0 &&
@@ -55,7 +61,43 @@ void main()
     vec3 halfDirection = normalize(lightDirection + viewDirection);
     float specular = pow(max(dot(normal, halfDirection), 0.0),
                          max(u_materialParams.w, 1.0)) *
-                     u_materialParams.z;
+                     u_materialParams.z * directionalEnabled;
+    // LightSource defaults used by Environment::wtGarage:
+    // D3DLIGHT_SPOT, theta=pi/4, phi=pi/2, falloff=1,
+    // attenuation0=1 and range=20.
+    for (int lamp = 0; lamp < 3; ++lamp)
+    {
+        float enabled = u_sceneLampDirections[lamp].w;
+        vec3 fromLamp =
+            v_worldPosition - u_sceneLampPositions[lamp].xyz;
+        float distanceToLamp = length(fromLamp);
+        float range = u_sceneLampPositions[lamp].w;
+        if (enabled > 0.5 && distanceToLamp > 0.0001 &&
+            distanceToLamp < range)
+        {
+            vec3 lampRay = fromLamp / distanceToLamp;
+            vec3 lampDirection =
+                normalize(u_sceneLampDirections[lamp].xyz);
+            float coneCosine = dot(lampDirection, lampRay);
+            float spot = clamp(
+                (coneCosine - 0.70710678) /
+                    (0.92387953 - 0.70710678),
+                0.0, 1.0);
+            vec3 toLamp = -lampRay;
+            float lampDiffuse =
+                max(dot(normal, toLamp), 0.0) * spot;
+            lighting +=
+                u_sceneLampColors[lamp].rgb * lampDiffuse;
+            vec3 lampHalf = normalize(toLamp + viewDirection);
+            specular +=
+                pow(max(dot(normal, lampHalf), 0.0),
+                    max(u_materialParams.w, 1.0)) *
+                u_materialParams.z * spot *
+                max(max(u_sceneLampColors[lamp].r,
+                        u_sceneLampColors[lamp].g),
+                    u_sceneLampColors[lamp].b);
+        }
+    }
     float shadowFactor = 1.0;
     if (u_materialOptions.z > 0.0 &&
         v_shadowPosition.w > 0.0001)

@@ -76,12 +76,12 @@ Windows target не компилируется.
 | Главное меню, внешний вид | `MainMenu2.cpp` | часть оригинальных изображений/строк | Частично | Фон, панели и selection source-driven; полный widget tree, animation, layout и event code не перенесены |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | ручной `enum MenuScreen` и `createPage(...)` в одном `main` | Суррогат | Страницы GameMode/Tournament/Profile/Options/Credits создаются как универсальные текстовые списки |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | универсальная page + portable profile operations | Суррогат | Исходные dialogs, text input, transitions, animations и подтверждения отсутствуют |
-| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame` + portable subframes | Частично | Главный экран и 2D GarageFrame используют исходные panels/buttons/icons/cards/locks/colors/stats и source navigation/data. `CarFrame` garage 3D scene и Workshop/Angar/Achievement subframe layouts ещё не перенесены |
+| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame` + portable subframes | Частично | Главный экран, 2D GarageFrame и 3D CarFrame используют исходные panels/buttons/icons/cards/locks/colors/stats, `Misc/garage`, все 17 машин, camera/lamp/HDR transforms и source navigation/data. Workshop/Angar/Achievement subframe layouts ещё не перенесены; тени двух garage spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | generic finish page | Суррогат | Исходные panels, statistics, awards, credits/final flow не перенесены |
 | Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля tournament/workshop/options; полная схема, migration и все profile branches не доказаны |
 | Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + ручное advance | Частично | Основной выбор/rewards есть; полный state machine, dialogs, unlock/final sequences не перенесён |
-| Garage/workshop data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml` | `OriginalGarage.cpp` + source-derived `GarageFrame` | Частично | Каталог, source available/secret/locked order, buy/install/recharge, colors и точные armor/damage/speed formulas есть; `CarFrame` 3D preview, Workshop UI и legacy animations ещё не перенесены |
+| Garage/workshop data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml` | `OriginalGarage.cpp` + source-derived `GarageFrame`/`CarFrame` | Частично | Каталог, source available/secret/locked order, buy/install/recharge, colors, точные armor/damage/speed formulas и 3D preview с default Weapon1–4 есть; Workshop UI и legacy animations ещё не перенесены |
 | Map/catalog loading | `Map`, `MapObj`, `DataBase` | `OriginalRace.cpp` | Частично | 88 записей и исходные placements читаются; generic GameObject/behavior/include lifecycle воспроизведён только для известных типов |
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
 | Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
@@ -104,7 +104,7 @@ Windows target не компилируется.
 | Camera | `CameraManager.cpp`, `View.cpp` | source-derived formulas в renderer | Частично | Два режима есть; исходный manager, collision/culling transitions и все modes не перенесены |
 | Scene graph/render queues | `GraphManager`, `Actor`, `SceneManager` | custom queues в `OriginalRaceRenderer` | Частично | Основные order buckets есть; generic actor/proxy/octree graph не перенесён |
 | Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | parsed records + ручные mappings | Частично | Opaque/alpha/additive/bump/reflection реализованы; direct-name heuristics/fallback mappings остаются |
-| Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы выбранные passes; bit-for-bit и полное graph state parity не доказаны |
+| Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы directional race passes и source spot-lighting garage/HDR; отдельные shadow maps двух garage spot-lamps, bit-for-bit и полное graph state parity не доказаны |
 | Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Частично | Значимая часть serialized graph читается; не все node/emitter/action types и lifetime semantics перенесены |
 | Weather/water/magma/sky | `Environment.cpp`, graph effects | source records + bgfx passes | Частично | Все world variants загружаются; exact D3D shader/fixed-pipeline result не доказан |
 | Commentator | race/HUD sound events | `OriginalRaceCommentator.cpp` | Частично | Оригинальные clips используются; очередь и trigger selection написаны заново |
@@ -422,9 +422,9 @@ Network, video и Steam явно выключены.
 4. Charge indicators берут исходный порядок Weapon1–4/Hyper/Mine и правило
    `ClampValue(charge/7, 0, 1)`. Mouse hit boxes и Left/Right navigation
    соответствуют горизонтальному меню.
-5. `CarFrame` с `Misc/garage`, garage lighting/camera и 3D car/loadout
-   preview пока не заменён — фон под панелями остаётся текущим menu scene.
-   Поэтому строка получает статус «Частично», а не «Перенесено».
+5. На этом шаге `CarFrame` с `Misc/garage`, garage lighting/camera и 3D
+   car/loadout ещё отсутствовал. Этот разрыв закрыт последующим блоком ниже;
+   строка остаётся «Частично» из-за остальных subframes.
 
 Следующим отдельным коммитом перенесена двумерная часть
 `RaceMenu2::GarageFrame`:
@@ -447,17 +447,40 @@ Network, video и Steam явно выключены.
    `GetDamageSkill`, `GetSpeedSkill`, включая максимумы по всему каталогу,
    default slots выбранной машины и source scaling скорости к `300`.
 6. Build, resource verifier, physics smoke (включая новый stat audit),
-   отдельный input smoke и 240-frame race-render smoke проходят.
-   `CarFrame` с `Misc/garage`, исходными lamp/camera transforms, 3D машиной
-   и mounted weapons всё ещё не перенесён; фон GarageFrame пока остаётся
-   menu scene, поэтому блок остаётся «Частично».
+   отдельный input smoke и 240-frame race-render smoke проходят. На момент
+   этого коммита фон GarageFrame ещё оставался menu scene; следующий блок
+   заменил его исходным 3D `CarFrame`.
+
+Следующим отдельным блоком перенесён `RaceMenu2::CarFrame`:
+
+1. `loadOriginalGarageScene` читает из `db.xml` исходные
+   `ctDecoration/Misc/garage` и `Misc/question`, все 17 уже разобранных
+   `ctCar` и source weapon records; отдельной придуманной garage-модели нет.
+2. Статическая постановка кузова и колёс повторяет `CarFrame::SetCar`:
+   половина suspension travel, serialized wheel offsets/radius, последнее
+   колесо для body Z и `invertWheel` rotation. Preview meshes upgrades не
+   подменяют штатные колёса машины.
+3. Открытая машина использует цвет профиля и default Weapon1–4 из
+   `garage.xml`; закрытая скрывает машину и показывает вращающийся
+   `question.r3d` в source position со скоростью `0.1` оборота/с.
+4. Камера, near/far/FOV, обе позиции/quaternion spot-lamps, ambient/fog/sky
+   flags и четыре HDR-параметра перенесены буквально из
+   `RaceMenu2.cpp`/`Environment`.
+5. В legacy mesh shader добавлены source D3D spot cone/range/attenuation,
+   diffuse и specular. `GUI/question` загружается как
+   `LoadSpecLibMat(question.png)` со specular `1`/power `64`; общий renderer
+   теперь декодирует PNG-материалы, а не передаёт их как DDS container.
+6. Build, resource verifier, physics smoke и 240-frame bgfx/Metal menu/race
+   smoke проходят; telemetry требует реальный lighting draw 3D garage scene.
+   Не закрыто только отдельное создание shadow maps для двух spot-lamps:
+   освещение перенесено, их D3D shadow pass пока отсутствует.
 
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
 
 1. Продолжить исходный menu/widget state machine: сначала `RaceMenu2`
-   `CarFrame`, затем Workshop/Angar/Achievement subframes, после них
+   Workshop/Angar/Achievement subframes, после них
    `Menu`, `MenuSystem`, `MainMenu2`, `GameMode`, `DialogMenu2`,
    `FinishMenu`, `FinalMenu`. Активная структура `OptionsMenu` и
    `RaceMainFrame` уже source-derived, но legacy animation/widget classes

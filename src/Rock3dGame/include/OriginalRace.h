@@ -485,6 +485,15 @@ enum class EnvironmentSurface
     Magma,
 };
 
+struct EnvironmentLamp
+{
+    Vec3 position;
+    Quat rotation;
+    std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
+    float range = 0.0F;
+    bool enabled = false;
+};
+
 struct EnvironmentDescription
 {
     Weather weather = Weather::Fair;
@@ -505,6 +514,23 @@ struct EnvironmentDescription
     float hdrBrightThreshold = 1.5F;
     float hdrGaussianScalar = 30.0F;
     float hdrExposure = 15.0F;
+    // Environment::ewGarage disables the sky, fog and sun while wtGarage
+    // enables two source spot lamps.  Race worlds keep the legacy defaults.
+    bool skyEnabled = true;
+    bool fogEnabled = true;
+    bool directionalLightEnabled = true;
+    bool dynamicReflectionsEnabled = true;
+    std::array<EnvironmentLamp, 3> lamps;
+};
+
+struct PresentationCamera
+{
+    Vec3 position;
+    Quat rotation;
+    float verticalFovDegrees = 90.0F;
+    float nearDistance = 1.0F;
+    float farDistance = 100.0F;
+    bool valid = false;
 };
 
 struct RacerSlot
@@ -570,6 +596,7 @@ struct Race
     // Source ctEffects/trail record referenced by the wheel behavior type 9.
     ObjectDefinition wheelTrailEffect;
     Vehicle vehicle;
+    PresentationCamera presentationCamera;
 };
 
 struct TournamentAdvance
@@ -584,6 +611,12 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources);
 Race loadOriginalRace(const resource::ResourceFileSystem& resources,
                       std::size_t trackIndex,
                       std::string_view playerCar = {});
+// Builds the exact RaceMenu2::CarFrame scene from db.xml and the already
+// parsed garage vehicle/weapon definitions.  It deliberately contains no
+// invented track geometry or menu backdrop.
+Race loadOriginalGarageScene(
+    const resource::ResourceFileSystem& resources,
+    const Race& sourceRace);
 std::size_t resolveOriginalTournamentTrack(
     const Race& race, const PlayerProfile& profile) noexcept;
 void writeOriginalTournamentSelection(

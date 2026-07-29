@@ -1272,6 +1272,22 @@ bool OriginalRaceRenderer::initialize(
         }
         if (!createFrameTargets(device, width, height, error))
             throw r3d::resource::ResourceError(error);
+        auto uploadOriginalTexture =
+            [&](std::string path) {
+                const auto image =
+                    r3d::game::mainmenu2::loadOriginalImage(
+                        resources, std::move(path));
+                if (image.storage ==
+                    r3d::game::mainmenu2::ImageStorage::EncodedContainer)
+                {
+                    return device.createTextureContainer(
+                        image.bytes.data(), image.bytes.size(),
+                        image.virtualPath);
+                }
+                return device.createTextureRgba8(
+                    image.width, image.height, image.bytes.data(),
+                    image.bytes.size());
+            };
         auto load = [&](Asset& asset,
                         const r3d::game::originalrace::VisualNode& node) {
             if (node.plane)
@@ -1304,12 +1320,8 @@ bool OriginalRaceRenderer::initialize(
                 }
                 else
                 {
-                    const auto texture =
-                        resources.readBinary(material.texturePath);
                     asset.textures.push_back(
-                        device.createTextureContainer(
-                            texture.data(), texture.size(),
-                            material.texturePath));
+                        uploadOriginalTexture(material.texturePath));
                 }
                 if (material.normalTexturePath.empty())
                 {
@@ -1317,11 +1329,8 @@ bool OriginalRaceRenderer::initialize(
                 }
                 else
                 {
-                    const auto normal =
-                        resources.readBinary(material.normalTexturePath);
                     asset.normalTextures.push_back(
-                        device.createTextureContainer(
-                            normal.data(), normal.size(),
+                        uploadOriginalTexture(
                             material.normalTexturePath));
                 }
             }
@@ -1375,11 +1384,8 @@ bool OriginalRaceRenderer::initialize(
                         }
                         else
                         {
-                            const auto texture = resources.readBinary(
-                                material.texturePath);
                             output.push_back(
-                                device.createTextureContainer(
-                                    texture.data(), texture.size(),
+                                uploadOriginalTexture(
                                     material.texturePath));
                         }
                     }
@@ -1541,43 +1547,62 @@ bool OriginalRaceRenderer::initialize(
             loadDefinition(
                 vehicleLowLifeEffects_[racer],
                 vehicle.lowLifeEffect);
-            loadDefinition(
-                vehicleShieldEffects_[racer],
-                vehicle.shieldEffect);
+            const bool hasShieldEffect =
+                !vehicle.shieldEffect.visualNodes.empty() ||
+                !vehicle.shieldEffect.particleEmitters.empty();
+            if (hasShieldEffect)
+            {
+                loadDefinition(
+                    vehicleShieldEffects_[racer],
+                    vehicle.shieldEffect);
+            }
             const r3d::physics::Transform identity;
             const auto bodyBounds = objectBounds(
                 vehicleBodies_[racer], vehicle.bodyVisuals, identity);
-            const auto shieldBounds = objectBounds(
-                vehicleShieldEffects_[racer],
-                vehicle.shieldEffect.visualNodes, identity);
-            if (!bodyBounds.valid || !shieldBounds.valid)
+            if (!bodyBounds.valid)
             {
                 throw r3d::resource::ResourceError(
-                    "Unable to calculate source ImmortalEffect bounds for " +
+                    "Unable to calculate source vehicle bounds for " +
                     vehicle.record);
             }
-            const r3d::physics::Vec3 bodySize{
-                bodyBounds.maximum.x - bodyBounds.minimum.x,
-                bodyBounds.maximum.y - bodyBounds.minimum.y,
-                bodyBounds.maximum.z - bodyBounds.minimum.z};
-            const r3d::physics::Vec3 shieldSize{
-                shieldBounds.maximum.x - shieldBounds.minimum.x,
-                shieldBounds.maximum.y - shieldBounds.minimum.y,
-                shieldBounds.maximum.z - shieldBounds.minimum.z};
-            if (shieldSize.x <= 0.0001F ||
-                shieldSize.y <= 0.0001F ||
-                shieldSize.z <= 0.0001F)
+            if (hasShieldEffect)
             {
-                throw r3d::resource::ResourceError(
-                    "Source ImmortalEffect has empty bounds for " +
-                    vehicle.record);
+                const auto shieldBounds = objectBounds(
+                    vehicleShieldEffects_[racer],
+                    vehicle.shieldEffect.visualNodes, identity);
+                if (!shieldBounds.valid)
+                {
+                    throw r3d::resource::ResourceError(
+                        "Unable to calculate source ImmortalEffect bounds for " +
+                        vehicle.record);
+                }
+                const r3d::physics::Vec3 bodySize{
+                    bodyBounds.maximum.x - bodyBounds.minimum.x,
+                    bodyBounds.maximum.y - bodyBounds.minimum.y,
+                    bodyBounds.maximum.z - bodyBounds.minimum.z};
+                const r3d::physics::Vec3 shieldSize{
+                    shieldBounds.maximum.x - shieldBounds.minimum.x,
+                    shieldBounds.maximum.y - shieldBounds.minimum.y,
+                    shieldBounds.maximum.z - shieldBounds.minimum.z};
+                if (shieldSize.x <= 0.0001F ||
+                    shieldSize.y <= 0.0001F ||
+                    shieldSize.z <= 0.0001F)
+                {
+                    throw r3d::resource::ResourceError(
+                        "Source ImmortalEffect has empty bounds for " +
+                        vehicle.record);
+                }
+                // ImmortalEffect::OnImmortalStatus fits the effect AABB
+                // around the source car AABB, then applies
+                // DataBase::LoadCar's scaleK.
+                vehicleShieldScales_[racer] = {
+                    bodySize.x / shieldSize.x *
+                        vehicle.shieldEffectScale.x,
+                    bodySize.y / shieldSize.y *
+                        vehicle.shieldEffectScale.y,
+                    bodySize.z / shieldSize.z *
+                        vehicle.shieldEffectScale.z};
             }
-            // ImmortalEffect::OnImmortalStatus fits the effect AABB around
-            // the source car AABB, then applies DataBase::LoadCar's scaleK.
-            vehicleShieldScales_[racer] = {
-                bodySize.x / shieldSize.x * vehicle.shieldEffectScale.x,
-                bodySize.y / shieldSize.y * vehicle.shieldEffectScale.y,
-                bodySize.z / shieldSize.z * vehicle.shieldEffectScale.z};
             vehicleWheels_[racer].resize(vehicle.wheelVisuals.size());
             for (std::size_t wheel = 0;
                  wheel < vehicle.wheelVisuals.size(); ++wheel)
@@ -2076,6 +2101,42 @@ Camera OriginalRaceRenderer::makeCamera(
     return camera;
 }
 
+Camera OriginalRaceRenderer::makePresentationCamera(
+    const GraphicsDevice& device,
+    const r3d::game::originalrace::PresentationCamera& source,
+    std::uint32_t width, std::uint32_t height) noexcept
+{
+    const float aspect =
+        static_cast<float>(std::max(width, 1U)) /
+        static_cast<float>(std::max(height, 1U));
+    const auto direction = normalize(rotate(
+        source.rotation, {1.0F, 0.0F, 0.0F}));
+    auto up = normalize(rotate(
+        source.rotation, {0.0F, 0.0F, 1.0F}));
+    if (std::abs(
+            direction.x * up.x + direction.y * up.y +
+            direction.z * up.z) > 0.999F)
+        up = {0.0F, 0.0F, 1.0F};
+    const bx::Vec3 eye{
+        source.position.x, source.position.y, source.position.z};
+    const bx::Vec3 at{
+        eye.x + direction.x, eye.y + direction.y,
+        eye.z + direction.z};
+    Camera camera;
+    bx::mtxLookAt(
+        camera.view.data(), eye, at, {up.x, up.y, up.z},
+        bx::Handedness::Right);
+    bx::mtxProj(
+        camera.projection.data(), source.verticalFovDegrees, aspect,
+        source.nearDistance, source.farDistance,
+        device.usesHomogeneousDepth(), bx::Handedness::Right);
+    cameraPosition_ = source.position;
+    cameraViewDirection_ = direction;
+    previousCameraTarget_ = {};
+    cameraInitialized_ = true;
+    return camera;
+}
+
 void OriginalRaceRenderer::resetCamera() noexcept
 {
     cameraLead_ = {};
@@ -2115,42 +2176,66 @@ void OriginalRaceRenderer::draw(
     const auto sun = race.environment.sunPosition;
     const float sunLength =
         std::sqrt(sun.x * sun.x + sun.y * sun.y + sun.z * sun.z);
-    if (sunLength > 0.0001F)
+    if (race.environment.directionalLightEnabled &&
+        sunLength > 0.0001F)
     {
         sceneLighting.lightDirection =
             {sun.x / sunLength, sun.y / sunLength, sun.z / sunLength,
-             0.0F};
+             1.0F};
     }
+    else
+        sceneLighting.lightDirection = {1.0F, 0.0F, 0.0F, 0.0F};
     sceneLighting.ambient = race.environment.ambientColor;
     sceneLighting.fogColor = race.environment.fogColor;
-    sceneLighting.fogColor[3] = race.environment.fogIntensity;
+    sceneLighting.fogColor[3] =
+        race.environment.fogEnabled
+            ? race.environment.fogIntensity
+            : 0.0F;
+    for (std::size_t index = 0;
+         index < race.environment.lamps.size(); ++index)
+    {
+        const auto& lamp = race.environment.lamps[index];
+        const auto direction = normalize(rotate(
+            lamp.rotation, {1.0F, 0.0F, 0.0F}));
+        sceneLighting.lampPositions[index] = {
+            lamp.position.x, lamp.position.y, lamp.position.z,
+            lamp.range};
+        sceneLighting.lampDirections[index] = {
+            direction.x, direction.y, direction.z,
+            lamp.enabled ? 1.0F : 0.0F};
+        sceneLighting.lampColors[index] = lamp.color;
+    }
     if (!vehicles.empty())
     {
         sceneLighting.cameraPosition =
             {cameraPosition_.x, cameraPosition_.y, cameraPosition_.z,
              1.0F};
-        SceneLighting skyLighting = sceneLighting;
-        skyLighting.lightDirection = {0.0F, 0.0F, 1.0F, 0.0F};
-        skyLighting.ambient = {1.0F, 1.0F, 1.0F, 1.0F};
-        skyLighting.fogColor[3] = 0.0F;
-        device.setSceneLighting(skyLighting);
-        auto skyPipeline = pipeline;
-        skyPipeline.writeDepth = false;
-        skyPipeline.depthTest = false;
-        skyPipeline.faceCulling = PipelineState::FaceCulling::None;
-        r3d::physics::Transform sky;
-        sky.position = vehicles.front().body.position;
-        // SkyBox.cpp applied this left-handed source -> right-handed render
-        // conversion before sampling every original cubemap.
-        constexpr float sinHalfRightAngle = 0.7071067811865476F;
-        sky.rotation = {sinHalfRightAngle, 0.0F, 0.0F,
-                        sinHalfRightAngle};
-        sky.scale = {90.0F, 90.0F, 90.0F};
-        MaterialState skyMaterial;
-        skyMaterial.environmentTexture = skyTexture_;
-        skyMaterial.receivesShadow = false;
-        device.draw(skyMesh_, skyShader_, skyTexture_, transform(sky),
-                    skyPipeline, {}, skyMaterial);
+        if (race.environment.skyEnabled)
+        {
+            SceneLighting skyLighting = sceneLighting;
+            skyLighting.lightDirection = {0.0F, 0.0F, 1.0F, 0.0F};
+            skyLighting.ambient = {1.0F, 1.0F, 1.0F, 1.0F};
+            skyLighting.fogColor[3] = 0.0F;
+            device.setSceneLighting(skyLighting);
+            auto skyPipeline = pipeline;
+            skyPipeline.writeDepth = false;
+            skyPipeline.depthTest = false;
+            skyPipeline.faceCulling = PipelineState::FaceCulling::None;
+            r3d::physics::Transform sky;
+            sky.position = vehicles.front().body.position;
+            // SkyBox.cpp applied this left-handed source -> right-handed
+            // render conversion before sampling every original cubemap.
+            constexpr float sinHalfRightAngle = 0.7071067811865476F;
+            sky.rotation = {sinHalfRightAngle, 0.0F, 0.0F,
+                            sinHalfRightAngle};
+            sky.scale = {90.0F, 90.0F, 90.0F};
+            MaterialState skyMaterial;
+            skyMaterial.environmentTexture = skyTexture_;
+            skyMaterial.receivesShadow = false;
+            device.draw(
+                skyMesh_, skyShader_, skyTexture_, transform(sky),
+                skyPipeline, {}, skyMaterial);
+        }
     }
     device.setSceneLighting(sceneLighting);
 
@@ -4055,8 +4140,12 @@ void OriginalRaceRenderer::renderFrame(
     // Environment.cpp maps the three original quality levels to graph
     // options.  Keep those thresholds here instead of silently rendering the
     // high-quality graph for every profile.
-    const bool shadowsEnabled = quality.shadow >= 1U;
-    const bool trueReflectionsEnabled = quality.light >= 2U;
+    const bool shadowsEnabled =
+        quality.shadow >= 1U &&
+        race.environment.directionalLightEnabled;
+    const bool trueReflectionsEnabled =
+        quality.light >= 2U &&
+        race.environment.dynamicReflectionsEnabled;
     const bool planarReflectionsEnabled = quality.light >= 2U;
     const bool weatherAllowsPostEffects =
         race.environment.weather !=

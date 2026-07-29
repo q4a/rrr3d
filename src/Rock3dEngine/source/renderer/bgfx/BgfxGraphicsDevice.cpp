@@ -80,6 +80,12 @@ public:
                 bgfx::destroy(normal_sampler_);
             if (bgfx::isValid(scene_light_direction_))
                 bgfx::destroy(scene_light_direction_);
+            if (bgfx::isValid(scene_lamp_positions_))
+                bgfx::destroy(scene_lamp_positions_);
+            if (bgfx::isValid(scene_lamp_directions_))
+                bgfx::destroy(scene_lamp_directions_);
+            if (bgfx::isValid(scene_lamp_colors_))
+                bgfx::destroy(scene_lamp_colors_);
             if (bgfx::isValid(scene_ambient_))
                 bgfx::destroy(scene_ambient_);
             if (bgfx::isValid(scene_fog_))
@@ -181,6 +187,12 @@ public:
             "s_texNormal", bgfx::UniformType::Sampler);
         scene_light_direction_ = bgfx::createUniform(
             "u_sceneLightDirection", bgfx::UniformType::Vec4);
+        scene_lamp_positions_ = bgfx::createUniform(
+            "u_sceneLampPositions", bgfx::UniformType::Vec4, 3);
+        scene_lamp_directions_ = bgfx::createUniform(
+            "u_sceneLampDirections", bgfx::UniformType::Vec4, 3);
+        scene_lamp_colors_ = bgfx::createUniform(
+            "u_sceneLampColors", bgfx::UniformType::Vec4, 3);
         scene_ambient_ = bgfx::createUniform(
             "u_sceneAmbient", bgfx::UniformType::Vec4);
         scene_fog_ = bgfx::createUniform(
@@ -214,6 +226,9 @@ public:
             !bgfx::isValid(environment_sampler_) ||
             !bgfx::isValid(normal_sampler_) ||
             !bgfx::isValid(scene_light_direction_) ||
+            !bgfx::isValid(scene_lamp_positions_) ||
+            !bgfx::isValid(scene_lamp_directions_) ||
+            !bgfx::isValid(scene_lamp_colors_) ||
             !bgfx::isValid(scene_ambient_) ||
             !bgfx::isValid(scene_fog_) ||
             !bgfx::isValid(scene_camera_) ||
@@ -831,6 +846,15 @@ private:
             bgfx::TextureHandle{normalTexture.value});
         bgfx::setUniform(scene_light_direction_,
                          scene_lighting_.lightDirection.data());
+        bgfx::setUniform(
+            scene_lamp_positions_,
+            scene_lighting_.lampPositions.front().data(), 3);
+        bgfx::setUniform(
+            scene_lamp_directions_,
+            scene_lighting_.lampDirections.front().data(), 3);
+        bgfx::setUniform(
+            scene_lamp_colors_,
+            scene_lighting_.lampColors.front().data(), 3);
         bgfx::setUniform(scene_ambient_, scene_lighting_.ambient.data());
         bgfx::setUniform(scene_fog_, scene_lighting_.fogColor.data());
         bgfx::setUniform(scene_camera_,
@@ -918,6 +942,9 @@ private:
     std::unordered_map<std::uint16_t, TargetInfo> render_targets_;
     std::unordered_map<std::uint16_t, CubeTargetInfo> cube_targets_;
     bgfx::UniformHandle scene_light_direction_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle scene_lamp_positions_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle scene_lamp_directions_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle scene_lamp_colors_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_ambient_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_fog_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_camera_ = BGFX_INVALID_HANDLE;

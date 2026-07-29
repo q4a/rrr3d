@@ -47,8 +47,8 @@ preview и исходные Apply/Cancel draft semantics. Этот блок не
 `RaceMenu2::RaceMainFrame`: исходные верхняя/нижняя панели, семь горизонтальных
 icon-кнопок, money/stat/image frames, weather и charge bars используют
 оригинальные координаты и tournament/profile data. Это пока частичный перенос:
-исходная garage 3D scene `CarFrame` и subframes Garage/Workshop/Angar/
-Achievements остаются следующими блоками.
+на этом шаге исходная garage 3D scene `CarFrame` и subframes
+Garage/Workshop/Angar/Achievements ещё отсутствовали.
 
 Следующий follow-up заменил generic garage page двумерным
 `RaceMenu2::GarageFrame`. Загружаются исходные панели, кнопки, стрелки,
@@ -58,8 +58,17 @@ tournament/achievement rules. Покупка использует исходны
 skirmish открывает полный допустимый каталог, выбранный цвет сохраняется.
 В `OriginalGarage` также перенесены из `Race.cpp` точные вычисления
 armor/damage/speed на данных `workshop.xml`, а не условные полосы. Блок
-остаётся частичным только потому, что 3D `CarFrame` (`Misc/garage`, освещение,
-камера, модель машины и mounted slots) ещё не перенесён.
+оставался частичным до переноса 3D `CarFrame`.
+
+Следующий follow-up перенёс исходный 3D `RaceMenu2::CarFrame`. Runtime
+загружает `Misc/garage`, `Misc/question`, все 17 source `ctCar`, штатные
+колёса и default Weapon1–4; цвет берётся из профиля, а locked car заменяется
+вращающимся `question.r3d`. Camera quaternion/FOV/near/far, две spot-lamps,
+ambient/sky/fog flags и HDR constants взяты буквально из Windows-кода.
+Добавлена поддержка source GUI materials: `GUI/question` использует
+`question.png` и точный `LoadSpecLibMat` state. Metal smoke требует реальную
+отрисовку 3D scene. Остаются Workshop/Angar/Achievement subframes и отдельные
+shadow maps двух garage spot-lamps.
 
 Финальная проверка M9.5: arm64 Debug build и новые Metal shaders прошли без
 новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
@@ -824,8 +833,8 @@ SDL_AUDIO_DRIVER=dummy \
 
 ## Следующий рекомендуемый этап
 
-Для полного портирования следующий P0-блок — завершить `RaceMenu2`:
-`CarFrame` garage scene, затем Workshop/Angar/Achievement subframes.
+Для полного портирования следующий P0-блок — продолжить `RaceMenu2`:
+Workshop/Angar/Achievement subframes, затем source dialogs/transitions.
 После этого идут `GameMode`/профильные диалоги и `FinishMenu`/`FinalMenu`.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening

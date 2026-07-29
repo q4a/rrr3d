@@ -64,6 +64,10 @@ public:
         std::uint32_t height,
         r3d::game::originalrace::PreferredCamera style,
         float cameraDistance, float seconds) noexcept;
+    r3d::renderer::Camera makePresentationCamera(
+        const r3d::renderer::GraphicsDevice& device,
+        const r3d::game::originalrace::PresentationCamera& source,
+        std::uint32_t width, std::uint32_t height) noexcept;
     void resetCamera() noexcept;
     void draw(r3d::renderer::GraphicsDevice& device,
               r3d::renderer::Shader shader,
