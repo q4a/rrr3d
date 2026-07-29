@@ -25,6 +25,13 @@ Vec3 multiply(Vec3 value, float scale)
     return {value.x * scale, value.y * scale, value.z * scale};
 }
 
+Vec3 cross(Vec3 first, Vec3 second)
+{
+    return {first.y * second.z - first.z * second.y,
+            first.z * second.x - first.x * second.z,
+            first.x * second.y - first.y * second.x};
+}
+
 float dot2(Vec3 first, Vec3 second)
 {
     return first.x * second.x + first.y * second.y;
@@ -1154,6 +1161,31 @@ void OriginalRaceSession::updateGameplay(
                 };
             addVisual(definition.secondaryVisual, 1U);
             addVisual(definition.tertiaryVisual, 2U);
+            addVisual(definition.deathVisual, 3U);
+
+            if (definition.deathProjectile ==
+                    ProjectileDefinition::invalidProjectile ||
+                definition.deathProjectile >=
+                    race_.weapons[projectile.weapon]
+                        .projectiles.size())
+                return;
+            const auto& spawned =
+                race_.weapons[projectile.weapon]
+                    .projectiles[definition.deathProjectile];
+            if (spawned.type != 20U)
+                return;
+            MineRuntime crater;
+            crater.owner = projectile.owner;
+            crater.weapon = projectile.weapon;
+            crater.projectile = definition.deathProjectile;
+            crater.position = add(position, spawned.position);
+            crater.damage = spawned.damage;
+            crater.maximumLife = spawned.minimumLife;
+            crater.triggerRadius = std::max(
+                std::max(spawned.size.x, spawned.size.y) * 0.5F,
+                0.1F);
+            crater.type = spawned.type;
+            mines_.push_back(crater);
         };
 
     for (auto& projectile : projectiles_)
@@ -1445,6 +1477,36 @@ void OriginalRaceSession::updateGameplay(
             events_.push_back(
                 {RaceEventKind::Damage, target, projectile.owner,
                  projectile.position, damage});
+            if (projectileDefinition.type == 16U)
+            {
+                const auto& targetRacer = race_.racers[target];
+                const auto& targetVehicle =
+                    targetRacer.hasConfiguredVehicle
+                        ? targetRacer.configuredVehicle
+                        : race_.vehicles.at(targetRacer.vehicle);
+                const float targetMass =
+                    std::max(targetVehicle.physics.mass, 1.0F);
+                velocityRequests_.push_back(
+                    {target,
+                     multiply(projectile.velocity,
+                              projectileDefinition.mass / targetMass)});
+            }
+            if (projectileDefinition.type == 0U ||
+                projectileDefinition.type == 2U ||
+                projectileDefinition.type == 19U ||
+                projectileDefinition.type == 22U ||
+                projectileDefinition.type == 23U)
+            {
+                const Vec3 torqueDirection =
+                    cross(projectile.position, projectile.direction);
+                if (length3(torqueDirection) > 0.01F)
+                {
+                    angularVelocityRequests_.push_back(
+                        {target,
+                         multiply(normalized3(torqueDirection),
+                                  projectileDefinition.mass * 0.2F)});
+                }
+            }
             spawnProjectileImpact(
                 projectile, projectile.position);
             if (racers_[target].life <= 0.0F)
@@ -1572,6 +1634,15 @@ void OriginalRaceSession::updateGameplay(
         {
             mine.damage = projectile->damage;
             mine.type = projectile->type;
+            if (projectile->size.x > 0.0F ||
+                projectile->size.y > 0.0F)
+            {
+                mine.triggerRadius = std::max(
+                    std::max(projectile->size.x,
+                             projectile->size.y) *
+                        0.5F,
+                    0.1F);
+            }
             if (projectile->minimumLife > 0.0F)
                 mine.maximumLife = projectile->minimumLife;
         }
@@ -1695,7 +1766,7 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             }
         }
-        if (mine.seconds < 0.25F)
+        if (mine.type != 20U && mine.seconds < 0.25F)
             continue;
         for (std::size_t racer = 0;
              racer < vehicles.size() && racer < racers_.size(); ++racer)
@@ -1707,7 +1778,8 @@ void OriginalRaceSession::updateGameplay(
                   (mine.type == 11U || mine.type == 12U)));
             if (ownerLocked ||
                 distanceSquared(vehicles[racer].body.position,
-                                mine.position) > 12.25F)
+                                mine.position) >
+                    mine.triggerRadius * mine.triggerRadius)
                 continue;
             if (mine.type == 10U)
             {
@@ -1738,16 +1810,23 @@ void OriginalRaceSession::updateGameplay(
                     ? 0.0F
                     : damageAfterSupport(
                           racer,
-                          std::max(mine.damage, 0.0F),
+                          std::max(
+                              mine.type == 20U
+                                  ? mine.damage * seconds
+                                  : mine.damage,
+                              0.0F),
                           false);
             racers_[racer].life =
                 std::max(0.0F, racers_[racer].life - damage);
             events_.push_back({RaceEventKind::Damage, racer, mine.owner,
                                mine.position, damage});
-            effects_.push_back(
-                {RaceEventKind::DecorationDestroyed, mine.position,
-                 add(mine.position, {0.0F, 0.0F, 3.0F}), 0.5F,
-                 0.5F, race_.weapons.size()});
+            if (mine.type != 20U)
+            {
+                effects_.push_back(
+                    {RaceEventKind::DecorationDestroyed, mine.position,
+                     add(mine.position, {0.0F, 0.0F, 3.0F}), 0.5F,
+                     0.5F, race_.weapons.size()});
+            }
             if (racers_[racer].life <= 0.0F)
             {
                 events_.push_back(
@@ -1757,8 +1836,11 @@ void OriginalRaceSession::updateGameplay(
                     racers_[racer].maximumLife;
                 queueRespawn(racer, vehicles[racer]);
             }
-            mine.active = false;
-            break;
+            if (mine.type != 20U)
+            {
+                mine.active = false;
+                break;
+            }
         }
     }
     mines_.insert(mines_.end(), spawnedMines.begin(),
@@ -1910,6 +1992,8 @@ void OriginalRaceSession::updateGameplay(
         {
             const auto& projectile =
                 weapon->projectiles[projectileIndex];
+            if (projectile.spawnOnParentDeath)
+                continue;
             const auto shotTransform = projectileWorldTransform(
                 shooter, firedWeapon, firedSlot, projectile);
             const Vec3 projectileOrigin = shotTransform.position;
@@ -2013,8 +2097,7 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.owner = shooter;
                 runtimeProjectile.weapon = firedWeapon;
                 runtimeProjectile.projectile = projectileIndex;
-                runtimeProjectile.mountSlot =
-                    runtime.selectedWeaponSlot;
+                runtimeProjectile.mountSlot = firedSlot;
                 runtimeProjectile.position = projectileOrigin;
                 runtimeProjectile.direction = direction;
                 runtimeProjectile.maximumDistance =
@@ -2044,8 +2127,7 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.owner = shooter;
                 runtimeProjectile.weapon = firedWeapon;
                 runtimeProjectile.projectile = projectileIndex;
-                runtimeProjectile.mountSlot =
-                    runtime.selectedWeaponSlot;
+                runtimeProjectile.mountSlot = firedSlot;
                 runtimeProjectile.position = projectileOrigin;
                 runtimeProjectile.direction = direction;
                 runtimeProjectile.speed = speed;
@@ -2802,6 +2884,94 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source Shot1..4 direct-slot transition failed");
+            }
+        }
+
+        const auto mortar = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "mortira";
+            });
+        if (mortar == race.weapons.end() ||
+            mortar->projectiles.empty() ||
+            mortar->projectiles.front().type != 19U ||
+            mortar->projectiles.front().deathProjectile ==
+                ProjectileDefinition::invalidProjectile ||
+            mortar->projectiles.front().deathProjectile >=
+                mortar->projectiles.size())
+        {
+            throw std::runtime_error(
+                "source mortar DeathEffect projectile was not loaded");
+        }
+        const auto craterIndex =
+            mortar->projectiles.front().deathProjectile;
+        const auto& craterDefinition =
+            mortar->projectiles[craterIndex];
+        if (craterDefinition.type != 20U ||
+            !craterDefinition.spawnOnParentDeath ||
+            craterDefinition.minimumLife != 3.0F ||
+            craterDefinition.damage != 10.0F)
+        {
+            throw std::runtime_error(
+                "source ptCrater definition was not preserved");
+        }
+        if (vehicles.size() > 1U)
+        {
+            OriginalRaceSession mortarSession(race);
+            PlayerProfile mortarProfile;
+            auto& mortarSlot = mortarProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            mortarSlot.record = mortar->record;
+            mortarSlot.charge = 2U;
+            mortarSlot.hasCharge = true;
+            mortarSession.applyPlayerProfile(mortarProfile);
+            RaceControl mortarInput;
+            for (int frame = 0; frame < 190; ++frame)
+                mortarSession.update(
+                    1.0F / 60.0F, vehicles, mortarInput);
+            mortarInput.useWeapon = true;
+            mortarSession.update(
+                1.0F / 60.0F, vehicles, mortarInput);
+            mortarInput.useWeapon = false;
+            if (mortarSession.projectiles().empty() ||
+                mortarSession.projectiles().front().projectile != 0U)
+            {
+                throw std::runtime_error(
+                    "source mortar did not launch its live projectile");
+            }
+            const auto launched =
+                mortarSession.projectiles().front();
+            vehicles[1].body.position = add(
+                launched.position,
+                multiply(launched.direction, 0.5F));
+            const float lifeBeforeCrater =
+                mortarSession.racers()[1].life;
+            mortarSession.update(
+                1.0F / 60.0F, vehicles, mortarInput);
+            const auto crater = std::find_if(
+                mortarSession.mines().begin(),
+                mortarSession.mines().end(),
+                [](const MineRuntime& mine) {
+                    return mine.type == 20U;
+                });
+            if (crater == mortarSession.mines().end() ||
+                crater->projectile != craterIndex ||
+                std::abs(crater->maximumLife - 3.0F) > 0.001F ||
+                std::abs(crater->triggerRadius - 3.0F) > 0.001F ||
+                mortarSession.racers()[1].life >= lifeBeforeCrater)
+            {
+                throw std::runtime_error(
+                    "source mortar ptCrater contact field was not spawned");
+            }
+            const float firstCraterLife =
+                mortarSession.racers()[1].life;
+            mortarSession.update(
+                1.0F / 60.0F, vehicles, mortarInput);
+            if (mortarSession.mines().empty() ||
+                mortarSession.racers()[1].life >= firstCraterLife)
+            {
+                throw std::runtime_error(
+                    "source ptCrater did not apply continuous contact damage");
             }
         }
 

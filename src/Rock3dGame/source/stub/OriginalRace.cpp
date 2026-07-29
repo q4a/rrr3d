@@ -1639,6 +1639,54 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
         }
         return result;
     };
+    auto readProjectile = [&](TiXmlElement* projectile) {
+        ProjectileDefinition definition;
+        definition.type = optionalUnsigned(projectile, "type", 0U);
+        definition.visual = projectileVisual(projectile, "model");
+        definition.secondaryVisual =
+            projectileVisual(projectile, "model2");
+        definition.tertiaryVisual =
+            projectileVisual(projectile, "model3");
+        if (child(projectile, "pos") != nullptr)
+        {
+            definition.position = vector3(
+                projectile, "pos", "workshop.xml/weapon/projectile");
+        }
+        if (child(projectile, "size") != nullptr)
+        {
+            definition.size = vector3(
+                projectile, "size", "workshop.xml/weapon/projectile");
+        }
+        if (child(projectile, "offset") != nullptr)
+        {
+            definition.offset = vector3(
+                projectile, "offset", "workshop.xml/weapon/projectile");
+        }
+        if (child(projectile, "rot") != nullptr)
+        {
+            definition.rotation = quaternion(
+                projectile, "rot", "workshop.xml/weapon/projectile");
+        }
+        definition.speed = optionalScalar(projectile, "speed", 0.0F);
+        definition.relativeSpeedMinimum = optionalScalar(
+            projectile, "speedRelativeMin", 13.0F);
+        if (auto* relative = child(projectile, "speedRelative");
+            relative != nullptr && relative->GetText() != nullptr)
+        {
+            definition.relativeSpeed =
+                std::string_view(relative->GetText()) == "true" ||
+                std::string_view(relative->GetText()) == "1";
+        }
+        definition.angularSpeed =
+            optionalScalar(projectile, "angleSpeed", 0.0F);
+        definition.maximumDistance =
+            optionalScalar(projectile, "maxDist", 0.0F);
+        definition.minimumLife =
+            optionalScalar(projectile, "minTimeLife/min", 0.0F);
+        definition.mass = optionalScalar(projectile, "mass", 100.0F);
+        definition.damage = optionalScalar(projectile, "damage", 0.0F);
+        return definition;
+    };
     race.weapons.clear();
     auto* workshop = require(workshopRoot, "workshop", "workshop.xml");
     for (auto* entry = workshop->FirstChildElement(); entry != nullptr;
@@ -1700,63 +1748,55 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
                  projectile != nullptr;
                  projectile = projectile->NextSiblingElement())
             {
-                ProjectileDefinition definition;
-                definition.type =
-                    optionalUnsigned(projectile, "type", 0U);
-                definition.visual =
-                    projectileVisual(projectile, "model");
-                definition.secondaryVisual =
-                    projectileVisual(projectile, "model2");
-                definition.tertiaryVisual =
-                    projectileVisual(projectile, "model3");
-                if (child(projectile, "pos") != nullptr)
+                auto definition = readProjectile(projectile);
+                if (child(projectile, "damage") == nullptr)
+                    definition.damage = weapon.damage;
+                const std::size_t projectileIndex =
+                    weapon.projectiles.size();
+                weapon.projectiles.push_back(std::move(definition));
+
+                // DeathEffect::OnDeath instantiates the effect record attached
+                // to the projectile's model.  Most records are explosions;
+                // mortiraBallDeath is a gotProj and creates a live ptCrater.
+                const auto& visualRecord =
+                    weapon.projectiles[projectileIndex].visual.record;
+                if (visualRecord.empty())
+                    continue;
+                auto* modelRecord = databaseRecord(database, visualRecord);
+                auto* behaviors = child(modelRecord, "behaviors/items");
+                if (behaviors == nullptr)
+                    continue;
+                for (auto* behavior = behaviors->FirstChildElement();
+                     behavior != nullptr;
+                     behavior = behavior->NextSiblingElement())
                 {
-                    definition.position = vector3(
-                        projectile, "pos",
-                        "workshop.xml/weapon/projectile");
+                    const char* behaviorType = behavior->Attribute("type");
+                    if (behaviorType == nullptr ||
+                        std::string_view(behaviorType) != "6")
+                        continue;
+                    auto* effect = child(behavior, "effect");
+                    if (effect == nullptr || effect->GetText() == nullptr)
+                        continue;
+                    const std::string effectRecord = effect->GetText();
+                    weapon.projectiles[projectileIndex].deathVisual =
+                        objectDefinition(
+                            resources, database, effectRecord,
+                            "db.xml/projectile death effect");
+                    auto* effectSource =
+                        databaseRecord(database, effectRecord);
+                    auto* spawnedProjectile = child(effectSource, "proj");
+                    if (spawnedProjectile != nullptr)
+                    {
+                        auto spawned = readProjectile(spawnedProjectile);
+                        spawned.spawnOnParentDeath = true;
+                        const std::size_t spawnedIndex =
+                            weapon.projectiles.size();
+                        weapon.projectiles[projectileIndex]
+                            .deathProjectile = spawnedIndex;
+                        weapon.projectiles.push_back(std::move(spawned));
+                    }
+                    break;
                 }
-                if (child(projectile, "size") != nullptr)
-                {
-                    definition.size = vector3(
-                        projectile, "size",
-                        "workshop.xml/weapon/projectile");
-                }
-                if (child(projectile, "offset") != nullptr)
-                {
-                    definition.offset = vector3(
-                        projectile, "offset",
-                        "workshop.xml/weapon/projectile");
-                }
-                if (child(projectile, "rot") != nullptr)
-                {
-                    definition.rotation = quaternion(
-                        projectile, "rot",
-                        "workshop.xml/weapon/projectile");
-                }
-                definition.speed =
-                    optionalScalar(projectile, "speed", 0.0F);
-                definition.relativeSpeedMinimum = optionalScalar(
-                    projectile, "speedRelativeMin", 13.0F);
-                if (auto* relative =
-                        child(projectile, "speedRelative");
-                    relative != nullptr &&
-                    relative->GetText() != nullptr)
-                {
-                    definition.relativeSpeed =
-                        std::string_view(relative->GetText()) == "true" ||
-                        std::string_view(relative->GetText()) == "1";
-                }
-                definition.angularSpeed =
-                    optionalScalar(projectile, "angleSpeed", 0.0F);
-                definition.maximumDistance =
-                    optionalScalar(projectile, "maxDist", 0.0F);
-                definition.minimumLife =
-                    optionalScalar(projectile, "minTimeLife/min", 0.0F);
-                definition.mass =
-                    optionalScalar(projectile, "mass", 100.0F);
-                definition.damage =
-                    optionalScalar(projectile, "damage", weapon.damage);
-                weapon.projectiles.push_back(definition);
             }
         }
         if (weapon.projectiles.empty())

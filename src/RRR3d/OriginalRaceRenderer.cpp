@@ -1303,6 +1303,12 @@ bool OriginalRaceRenderer::initialize(
                     loadDefinition(assets.tertiaryVisual,
                                    definition.tertiaryVisual);
                 }
+                if (!definition.deathVisual.visualNodes.empty() ||
+                    !definition.deathVisual.particleEmitters.empty())
+                {
+                    loadDefinition(assets.deathVisual,
+                                   definition.deathVisual);
+                }
             }
         }
 
@@ -1555,6 +1561,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
             releaseObject(projectile.visual);
             releaseObject(projectile.secondaryVisual);
             releaseObject(projectile.tertiaryVisual);
+            releaseObject(projectile.deathVisual);
         }
     for (auto& decoration : decorations_)
         releaseObject(decoration);
@@ -2799,6 +2806,16 @@ void OriginalRaceRenderer::draw(
         r3d::physics::Transform parent;
         parent.position = projectile.position;
         parent.rotation = directionRotation(projectile.direction);
+        if (definition.type == 23U &&
+            std::abs(projectile.angularSpeed) > 0.0001F)
+        {
+            const float halfAngle =
+                projectile.ageSeconds * projectile.angularSpeed * 0.5F;
+            const r3d::physics::Quat sourceSpin{
+                std::sin(halfAngle), 0.0F, 0.0F,
+                std::cos(halfAngle)};
+            parent.rotation = multiply(parent.rotation, sourceSpin);
+        }
         const auto sourceParent = parent;
         if (projectile.attached &&
             (definition.type == 3U || definition.type == 18U))
@@ -2969,13 +2986,17 @@ void OriginalRaceRenderer::draw(
                     ProjectileImpact)
             {
                 const auto* definition =
-                    effect.visualVariant == 2U
-                        ? &projectileDefinition.tertiaryVisual
-                        : &projectileDefinition.secondaryVisual;
+                    effect.visualVariant == 3U
+                        ? &projectileDefinition.deathVisual
+                        : (effect.visualVariant == 2U
+                               ? &projectileDefinition.tertiaryVisual
+                               : &projectileDefinition.secondaryVisual);
                 const auto* asset =
-                    effect.visualVariant == 2U
-                        ? &projectileAssets.tertiaryVisual
-                        : &projectileAssets.secondaryVisual;
+                    effect.visualVariant == 3U
+                        ? &projectileAssets.deathVisual
+                        : (effect.visualVariant == 2U
+                               ? &projectileAssets.tertiaryVisual
+                               : &projectileAssets.secondaryVisual);
                 r3d::physics::Transform parent;
                 parent.position = effect.origin;
                 parent.rotation = directionRotation(

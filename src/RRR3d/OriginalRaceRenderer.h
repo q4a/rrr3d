@@ -43,6 +43,7 @@ public:
         ObjectAsset visual;
         ObjectAsset secondaryVisual;
         ObjectAsset tertiaryVisual;
+        ObjectAsset deathVisual;
     };
 
     bool initialize(r3d::renderer::GraphicsDevice& device,

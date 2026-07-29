@@ -5,6 +5,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -251,10 +252,17 @@ enum class WeaponSlot
 
 struct ProjectileDefinition
 {
+    static constexpr std::size_t invalidProjectile =
+        std::numeric_limits<std::size_t>::max();
+
     std::uint32_t type = 0;
     ObjectDefinition visual;
     ObjectDefinition secondaryVisual;
     ObjectDefinition tertiaryVisual;
+    // GameBase::DeathEffect attached to the projectile model.  This is
+    // distinct from model2/model3, which the original weapon code uses for
+    // type-specific live/impact visuals.
+    ObjectDefinition deathVisual;
     Vec3 position;
     Vec3 size;
     Vec3 offset;
@@ -267,6 +275,12 @@ struct ProjectileDefinition
     float minimumLife = 0.0F;
     float mass = 100.0F;
     float damage = 0.0F;
+    // Some death effects are themselves gotProj records (the mortar impact
+    // creates the source ptCrater contact field).  They live in the weapon's
+    // projectile table for renderer asset ownership, but are not fired from
+    // the weapon mount.
+    std::size_t deathProjectile = invalidProjectile;
+    bool spawnOnParentDeath = false;
 };
 
 struct WeaponDefinition

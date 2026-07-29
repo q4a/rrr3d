@@ -155,6 +155,7 @@ struct MineRuntime
     float seconds = 0.0F;
     float damage = 0.0F;
     float maximumLife = -1.0F;
+    float triggerRadius = 3.5F;
     std::uint32_t type = 11U;
     bool active = true;
 };
