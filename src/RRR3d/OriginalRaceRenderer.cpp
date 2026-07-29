@@ -3061,11 +3061,22 @@ void OriginalRaceRenderer::draw(
                 }
                 const auto& weaponNode =
                     race.weapons[weaponIndex].visual;
+                auto weaponTransform = weaponNode.transform;
+                if (slot < runtime.weaponSpinRadians.size())
+                {
+                    const float halfAngle =
+                        runtime.weaponSpinRadians[slot] * 0.5F;
+                    const r3d::physics::Quat sourceSpin{
+                        std::sin(halfAngle), 0.0F, 0.0F,
+                        std::cos(halfAngle)};
+                    weaponTransform.rotation = multiply(
+                        sourceSpin, weaponTransform.rotation);
+                }
                 drawGroups(
                     device, weapons_[weaponIndex].nodes.front(), shader,
                     transform(compose(
                         state.body,
-                        compose(local, weaponNode.transform))),
+                        compose(local, weaponTransform))),
                     pipeline, elapsedSeconds, 0.0F,
                     r3d::game::originalrace::LightingMode::Standard,
                     DrawLayer::All, &weaponNode);
@@ -3197,6 +3208,10 @@ void OriginalRaceRenderer::draw(
                 .projectiles[projectile.projectile];
         const auto& asset =
             projectiles_[projectile.weapon][projectile.projectile].visual;
+        // ptDrobilka's primary model is created lazily by DrobilkaContact;
+        // it is not a continuously visible projectile model.
+        if (definition.type == 15U)
+            continue;
         if (asset.nodes.empty() && asset.particleTextures.empty())
             continue;
         r3d::physics::Transform parent;
@@ -3417,17 +3432,21 @@ void OriginalRaceRenderer::draw(
                     ProjectileImpact)
             {
                 const auto* definition =
-                    effect.visualVariant == 3U
+                    effect.visualVariant == 4U
+                        ? &projectileDefinition.visual
+                        : (effect.visualVariant == 3U
                         ? &projectileDefinition.deathEffect.visual
                         : (effect.visualVariant == 2U
                                ? &projectileDefinition.tertiaryVisual
-                               : &projectileDefinition.secondaryVisual);
+                               : &projectileDefinition.secondaryVisual));
                 const auto* asset =
-                    effect.visualVariant == 3U
+                    effect.visualVariant == 4U
+                        ? &projectileAssets.visual
+                        : (effect.visualVariant == 3U
                         ? &projectileAssets.deathVisual
                         : (effect.visualVariant == 2U
                                ? &projectileAssets.tertiaryVisual
-                               : &projectileAssets.secondaryVisual);
+                               : &projectileAssets.secondaryVisual));
                 r3d::physics::Transform parent;
                 parent.position = effect.origin;
                 if (!effect.ignoreRotation)

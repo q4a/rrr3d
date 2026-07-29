@@ -84,6 +84,10 @@ struct RacerRuntime
     std::array<std::uint32_t, PlayerProfile::weaponSlotCount> weaponCharges{};
     std::array<std::uint32_t, PlayerProfile::weaponSlotCount>
         weaponCapacity{};
+    // Proj::DrobilkaUpdate rotates the mounted weapon actor itself.  Keep
+    // that per-slot actor state separate from projectile age so both the
+    // renderer and the contact transform observe the same source rotation.
+    std::array<float, PlayerProfile::weaponSlotCount> weaponSpinRadians{};
     std::size_t selectedWeaponSlot = 0;
     std::size_t selectedWeapon = invalidWeapon;
     std::size_t hyperWeapon = invalidWeapon;
@@ -159,6 +163,7 @@ struct RaceEffect
     std::size_t racer = RacerRuntime::invalidWeapon;
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
     Transform transform;
+    std::size_t mountSlot = RacerRuntime::invalidWeapon;
 };
 
 struct MineRuntime
@@ -269,7 +274,8 @@ private:
         float damage, std::size_t attacker);
     bool damageDecorationWithBox(
         Transform transform, ProjectileCollisionBox collision,
-        float damage, std::size_t attacker);
+        float damage, std::size_t attacker,
+        Vec3* contactPoint = nullptr);
     bool damageDecoration(std::size_t instance, float damage,
                           std::size_t attacker);
     void updateAchievements(float seconds);

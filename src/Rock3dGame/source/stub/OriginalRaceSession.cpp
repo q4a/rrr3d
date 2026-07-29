@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <iterator>
 #include <numeric>
 #include <stdexcept>
 
@@ -341,6 +342,20 @@ OrientedBox decorationBox(const ObjectInstance& instance,
     ProjectileCollisionBox collision;
     collision.halfExtents = definition.bodyHalfExtents;
     return orientedBox(compose(instance.transform, local), collision);
+}
+
+Vec3 closestPoint(const OrientedBox& box, Vec3 point)
+{
+    Vec3 result = box.center;
+    const Vec3 difference = subtract(point, box.center);
+    for (std::size_t axis = 0; axis < box.axes.size(); ++axis)
+    {
+        const float distance = std::clamp(
+            dot3(difference, box.axes[axis]),
+            -box.halfExtents[axis], box.halfExtents[axis]);
+        result = add(result, multiply(box.axes[axis], distance));
+    }
+    return result;
 }
 
 bool boxesOverlap(const OrientedBox& first, const OrientedBox& second)
@@ -1089,7 +1104,7 @@ bool OriginalRaceSession::damageDecorationAlongRay(
 
 bool OriginalRaceSession::damageDecorationWithBox(
     Transform transform, ProjectileCollisionBox collision,
-    float damage, std::size_t attacker)
+    float damage, std::size_t attacker, Vec3* contactPoint)
 {
     if (!hasBox(collision))
         return false;
@@ -1103,12 +1118,15 @@ bool OriginalRaceSession::damageDecorationWithBox(
         const auto& instance = race_.decorationInstances[index];
         const auto& definition =
             race_.decorationDefinitions.at(instance.definition);
+        const OrientedBox target = decorationBox(instance, definition);
         if (!definition.destructible ||
             definition.bodyHalfExtents.x <= 0.0F ||
             definition.bodyHalfExtents.y <= 0.0F ||
             definition.bodyHalfExtents.z <= 0.0F ||
-            !boxesOverlap(source, decorationBox(instance, definition)))
+            !boxesOverlap(source, target))
             continue;
+        if (contactPoint != nullptr)
+            *contactPoint = closestPoint(target, source.center);
         return damageDecoration(index, damage, attacker);
     }
     for (std::size_t meshIndex = 0;
@@ -1141,15 +1159,19 @@ bool OriginalRaceSession::damageDecorationWithBox(
                 secondIndex >= mesh.vertices.size() ||
                 thirdIndex >= mesh.vertices.size())
                 continue;
-            if (!triangleOverlapsBox(
-                    transformPoint(mesh.transform,
-                                   mesh.vertices[firstIndex]),
-                    transformPoint(mesh.transform,
-                                   mesh.vertices[secondIndex]),
-                    transformPoint(mesh.transform,
-                                   mesh.vertices[thirdIndex]),
-                    source))
+            const Vec3 first = transformPoint(
+                mesh.transform, mesh.vertices[firstIndex]);
+            const Vec3 second = transformPoint(
+                mesh.transform, mesh.vertices[secondIndex]);
+            const Vec3 third = transformPoint(
+                mesh.transform, mesh.vertices[thirdIndex]);
+            if (!triangleOverlapsBox(first, second, third, source))
                 continue;
+            if (contactPoint != nullptr)
+            {
+                *contactPoint = multiply(
+                    add(add(first, second), third), 1.0F / 3.0F);
+            }
             return damageDecoration(
                 instanceIndex, damage, attacker);
         }
@@ -1656,8 +1678,21 @@ void OriginalRaceSession::updateGameplay(
                 }
                 result = compose(result, local);
             }
-            result = compose(
-                result, race_.weapons[weaponIndex].visual.transform);
+            Transform weaponLocal =
+                race_.weapons[weaponIndex].visual.transform;
+            if (owner < racers_.size() &&
+                mountSlot <
+                    racers_[owner].weaponSpinRadians.size())
+            {
+                const float halfAngle =
+                    racers_[owner].weaponSpinRadians[mountSlot] * 0.5F;
+                const Quat sourceSpin{
+                    std::sin(halfAngle), 0.0F, 0.0F,
+                    std::cos(halfAngle)};
+                weaponLocal.rotation =
+                    multiply(sourceSpin, weaponLocal.rotation);
+            }
+            result = compose(result, weaponLocal);
             return result;
         };
     auto projectileWorldTransform =
@@ -2090,6 +2125,50 @@ void OriginalRaceSession::updateGameplay(
             }
             else if (sourceContact)
             {
+                const OrientedBox projectileBox = orientedBox(
+                    shotTransform, projectileDefinition.collision);
+                auto refreshDrobilkaContact =
+                    [&](const Vec3& contactPoint) {
+                        if (projectileDefinition.type != 15U)
+                            return;
+                        auto effect = std::find_if(
+                            effects_.begin(), effects_.end(),
+                            [&](const RaceEffect& value) {
+                                return value.kind ==
+                                           RaceEventKind::
+                                               ProjectileImpact &&
+                                       value.visualVariant == 4U &&
+                                       value.racer ==
+                                           projectile.owner &&
+                                       value.weapon ==
+                                           projectile.weapon &&
+                                       value.projectile ==
+                                           projectile.projectile &&
+                                       value.mountSlot ==
+                                           projectile.mountSlot;
+                            });
+                        if (effect == effects_.end())
+                        {
+                            RaceEffect contact;
+                            contact.kind =
+                                RaceEventKind::ProjectileImpact;
+                            contact.weapon = projectile.weapon;
+                            contact.projectile =
+                                projectile.projectile;
+                            contact.visualVariant = 4U;
+                            contact.racer = projectile.owner;
+                            contact.mountSlot =
+                                projectile.mountSlot;
+                            effects_.push_back(std::move(contact));
+                            effect = std::prev(effects_.end());
+                        }
+                        effect->origin = contactPoint;
+                        effect->target = add(
+                            contactPoint, projectile.direction);
+                        // Proj::DrobilkaContact resets _time1 to 0.5.
+                        effect->seconds = 0.5F;
+                        effect->totalSeconds = 0.5F;
+                    };
                 for (std::size_t target = 0;
                      target < vehicles.size() &&
                      target < racers_.size(); ++target)
@@ -2105,14 +2184,14 @@ void OriginalRaceSession::updateGameplay(
                             ? racerDefinition.configuredVehicle
                             : race_.vehicles.at(
                                   racerDefinition.vehicle);
-                    if (!boxesOverlap(
-                            orientedBox(
-                                shotTransform,
-                                projectileDefinition.collision),
-                            vehicleBox(
-                                vehicles[target],
-                                vehicleDefinition.physics)))
+                    const OrientedBox targetBox = vehicleBox(
+                        vehicles[target],
+                        vehicleDefinition.physics);
+                    if (!boxesOverlap(projectileBox, targetBox))
                         continue;
+                    const Vec3 contactPoint =
+                        closestPoint(targetBox, projectileBox.center);
+                    refreshDrobilkaContact(contactPoint);
                     const float damage =
                         racers_[target].shieldSeconds > 0.0F
                             ? 0.0F
@@ -2129,14 +2208,26 @@ void OriginalRaceSession::updateGameplay(
                             racers_[target].life - damage);
                     pushDamageEvent(
                         target, projectile.owner,
-                        vehicles[target].body.position, damage);
+                        contactPoint, damage);
                     if (racers_[target].life <= 0.0F)
                     {
                         destroyRacer(
                             target, projectile.owner,
-                            vehicles[target].body.position,
+                            contactPoint,
                             vehicles[target]);
                     }
+                }
+                Vec3 decorationContact;
+                if (projectileDefinition.type == 15U &&
+                    damageDecorationWithBox(
+                        shotTransform,
+                        projectileDefinition.collision,
+                        std::max(
+                            projectileDefinition.damage * seconds,
+                            0.0F),
+                        projectile.owner, &decorationContact))
+                {
+                    refreshDrobilkaContact(decorationContact);
                 }
             }
             const float decorationDamage = std::max(
@@ -2148,7 +2239,8 @@ void OriginalRaceSession::updateGameplay(
                     projectile.impactDistance, decorationDamage,
                     projectile.owner);
             }
-            else if (sourceContact)
+            else if (sourceContact &&
+                     projectileDefinition.type != 15U)
             {
                 damageDecorationWithBox(
                     shotTransform, projectileDefinition.collision,
@@ -2156,6 +2248,19 @@ void OriginalRaceSession::updateGameplay(
             }
             if (projectile.lifeSeconds <= 0.0F)
                 projectile.active = false;
+            if (projectileDefinition.type == 15U &&
+                projectile.owner < racers_.size() &&
+                projectile.mountSlot <
+                    racers_[projectile.owner]
+                        .weaponSpinRadians.size())
+            {
+                auto& angle =
+                    racers_[projectile.owner]
+                        .weaponSpinRadians[projectile.mountSlot];
+                angle = std::fmod(
+                    angle + projectileDefinition.angularSpeed * seconds,
+                    6.28318530717958647692F);
+            }
             continue;
         }
         if ((projectileDefinition.type == 2U ||
@@ -3155,6 +3260,8 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.maximumDistance =
                     projectileDistance;
                 runtimeProjectile.damage = projectile.damage;
+                runtimeProjectile.angularSpeed =
+                    projectile.angularSpeed;
                 runtimeProjectile.lifeSeconds = std::max(
                     projectile.minimumLife,
                     std::max(weapon->shotDelay, 0.1F));
@@ -4562,6 +4669,151 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source ptSpring airborne PrepareProj rejection failed");
+            }
+        }
+
+        const auto drobilka = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "drobilka";
+            });
+        if (drobilka == race.weapons.end() ||
+            drobilka->projectiles.size() != 1U ||
+            drobilka->projectiles.front().type != 15U ||
+            std::abs(
+                drobilka->projectiles.front().angularSpeed -
+                12.56637061435917295384F) > 0.001F ||
+            std::abs(
+                drobilka->projectiles.front().minimumLife - 4.0F) >
+                0.001F ||
+            (drobilka->projectiles.front().visual.visualNodes.empty() &&
+             drobilka->projectiles.front()
+                 .visual.particleEmitters.empty()))
+        {
+            throw std::runtime_error(
+                "source ptDrobilka definition was not preserved");
+        }
+        if (vehicles.size() > 1U)
+        {
+            OriginalRaceSession drobilkaSession(race);
+            PlayerProfile drobilkaProfile;
+            auto& drobilkaSlot = drobilkaProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            drobilkaSlot.record = drobilka->record;
+            drobilkaSlot.charge = 2U;
+            drobilkaSlot.hasCharge = true;
+            drobilkaSession.applyPlayerProfile(drobilkaProfile);
+            auto drobilkaVehicles = vehicles;
+            RaceControl drobilkaInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                drobilkaSession.update(
+                    1.0F / 60.0F, drobilkaVehicles,
+                    drobilkaInput);
+            }
+            drobilkaInput.useWeapon = true;
+            drobilkaSession.update(
+                1.0F / 60.0F, drobilkaVehicles,
+                drobilkaInput);
+            drobilkaInput.useWeapon = false;
+            const std::size_t drobilkaWeapon =
+                static_cast<std::size_t>(
+                    drobilka - race.weapons.begin());
+            const auto activeDrobilka = std::find_if(
+                drobilkaSession.projectiles().begin(),
+                drobilkaSession.projectiles().end(),
+                [drobilkaWeapon](
+                    const ProjectileRuntime& projectile) {
+                    return projectile.owner == 0U &&
+                           projectile.weapon == drobilkaWeapon &&
+                           projectile.projectile == 0U &&
+                           projectile.attached &&
+                           projectile.active;
+                });
+            if (activeDrobilka ==
+                    drobilkaSession.projectiles().end() ||
+                std::abs(
+                    activeDrobilka->angularSpeed -
+                    drobilka->projectiles.front().angularSpeed) >
+                    0.001F)
+            {
+                throw std::runtime_error(
+                    "source ptDrobilka attached contact actor was not "
+                    "created");
+            }
+            const auto& targetDefinition =
+                race.racers[1].hasConfiguredVehicle
+                    ? race.racers[1].configuredVehicle
+                    : race.vehicles.at(race.racers[1].vehicle);
+            Transform drobilkaTransform;
+            drobilkaTransform.position =
+                activeDrobilka->position;
+            drobilkaTransform.rotation =
+                activeDrobilka->rotation;
+            const OrientedBox drobilkaBox = orientedBox(
+                drobilkaTransform,
+                drobilka->projectiles.front().collision);
+            drobilkaVehicles[1].body.rotation = {};
+            drobilkaVehicles[1].body.position = subtract(
+                drobilkaBox.center,
+                targetDefinition.physics.shapePosition);
+            const float lifeBeforeDrobilka =
+                drobilkaSession.racers()[1].life;
+            drobilkaSession.update(
+                1.0F / 60.0F, drobilkaVehicles,
+                drobilkaInput);
+            const auto sourceContactEffect = std::find_if(
+                drobilkaSession.effects().begin(),
+                drobilkaSession.effects().end(),
+                [drobilkaWeapon](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::ProjectileImpact &&
+                           effect.weapon == drobilkaWeapon &&
+                           effect.projectile == 0U &&
+                           effect.visualVariant == 4U &&
+                           effect.racer == 0U &&
+                           effect.mountSlot == 0U &&
+                           std::abs(effect.totalSeconds - 0.5F) <
+                               0.001F;
+                });
+            const float expectedSpin =
+                drobilka->projectiles.front().angularSpeed / 60.0F;
+            if (sourceContactEffect ==
+                    drobilkaSession.effects().end() ||
+                drobilkaSession.racers()[1].life >=
+                    lifeBeforeDrobilka ||
+                std::abs(
+                    drobilkaSession.racers()[0]
+                            .weaponSpinRadians[0] -
+                    expectedSpin) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source DrobilkaContact/DrobilkaUpdate transition "
+                    "failed");
+            }
+            drobilkaVehicles[1].body.position = {
+                100000.0F, 100000.0F, 100000.0F};
+            for (int frame = 0; frame < 31; ++frame)
+            {
+                drobilkaSession.update(
+                    1.0F / 60.0F, drobilkaVehicles,
+                    drobilkaInput);
+            }
+            const bool staleContactEffect = std::any_of(
+                drobilkaSession.effects().begin(),
+                drobilkaSession.effects().end(),
+                [drobilkaWeapon](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::ProjectileImpact &&
+                           effect.weapon == drobilkaWeapon &&
+                           effect.visualVariant == 4U &&
+                           effect.racer == 0U;
+                });
+            if (staleContactEffect)
+            {
+                throw std::runtime_error(
+                    "source ptDrobilka contact model did not expire "
+                    "after 0.5 seconds");
             }
         }
 

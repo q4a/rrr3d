@@ -705,6 +705,10 @@ SDL_AUDIO_DRIVER=dummy \
 - AI/workshop/projectile/mine/support/material/effect data перенесены из
   исходников, но порядок PhysX contacts и D3D9 multipass rendering не могут
   быть численно идентичны portable backend.
+- `ptDrobilka` использует исходный вращающийся weapon actor и контактный
+  lifecycle `spark2`: модель отсутствует вне контакта, переезжает в contact
+  point и удаляется через исходные 0,5 секунды; постоянный surrogate visual
+  удалён.
 - Стандартный M10 bundle имеет только ad-hoc подпись: для распространения без
   Gatekeeper warning нужны Developer ID, hardened runtime, notarization и
   проверка на отдельной чистой машине. CMake options для подписи подготовлены,

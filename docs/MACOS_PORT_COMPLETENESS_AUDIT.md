@@ -245,6 +245,21 @@ Network, video и Steam явно выключены.
 5. Smoke отдельно проверяет linked hyper visual, cooldown, grounded/airborne
    spring branches и подавление pitch в physics backend.
 
+Следующим type-specific блоком исправлен `ptDrobilka`:
+
+1. `Proj::DrobilkaUpdate` вращает сам установленный weapon actor вокруг local
+   X на serialized `angleSpeed`; один per-slot угол теперь используется и
+   renderer, и contact transform.
+2. `spark2` больше не рисуется постоянно как придуманный projectile visual:
+   исходный `DrobilkaContact` создаёт его только при реальном OBB contact.
+3. Контактная модель перемещается в вычисленную точку соприкосновения, один
+   source instance переиспользуется при следующих contacts и после последнего
+   contact живёт ровно `_time1 = 0.5`.
+4. Непрерывный damage остаётся `desc.damage * contact.deltaTime`; тот же
+   contact path применяется к vehicle и destructible decoration actors.
+5. Physics smoke проверяет serialized type/angle/lifetime, вращение mount,
+   continuous damage, создание primary contact model и её исчезновение.
+
 Следующим render/audio-блоком удалены эвристики оружия:
 
 1. `workshop.xml/item/mapObj` связывает каталог с исходным `ctWeapon`.
