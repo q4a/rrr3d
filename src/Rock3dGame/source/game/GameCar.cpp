@@ -466,7 +466,7 @@ void CarWheels::SetSteerContactModify(ContactModify* value)
 
 
 
-GameCar::GameCar(): _clutchStrength(0), _clutchTime(0.0f), _springTime(0), _mineTime(0), _curGear(-1), _moveCar(mcNone), _steerWheel(swNone), _kSteerControl(1.0f), _steerSpeed(D3DX_PI/2.0f), _steerRot(D3DX_PI), _angDamping(IdentityVector), _flyYTorque(D3DX_PI/1.6f), _clampXTorque(0), _clampYTorque(0), _motorTorqueK(1), _wheelSteerK(1), _gravEngine(false), _clutchImmunity(false), _maxSpeed(0), _tireSpring(0), _disableColor(false), _steerAngle(0), _anyWheelContact(false), _wheelsContact(false), _bodyContact(false)
+GameCar::GameCar(): _clutchStrength(0), _clutchTime(0.0f), _springTime(0), _mineTime(0), _curGear(-1), _moveCar(mcNone), _steerWheel(swNone), _kSteerControl(1.0f), _steerSpeed(D3DX_PI/2.0f), _steerRot(D3DX_PI), _angDamping(IdentityVector), _flyYTorque(D3DX_PI/1.6f), _clampXTorque(0), _clampYTorque(0), _motorTorqueK(1), _wheelSteerK(1), _gravEngine(false), _clutchImmunity(false), _maxSpeed(0), _tireSpring(0), _disableColor(false), _traceSample(0), _steerAngle(0), _anyWheelContact(false), _wheelsContact(false), _bodyContact(false)
 {
 	_wheels = new Wheels(this);	
 
@@ -487,21 +487,38 @@ GameCar::~GameCar()
 	delete _wheels;
 }
 
-void GameCar::MotorProgress(float deltaTime, float& curMotorTorque, float& curBreakTorque, float& curRPM)
+/*
+ * restTorque goes to drag, brakeTorque to brake.
+ *
+ * 2.8 put both in one field because it summed whatever was there against the
+ * motor torque on the axle, so the distinction did not have to exist. Under
+ * PxVehicle it does: a brake is a lock *and* a statement that the driver is not
+ * accelerating, which arms the sticky-tire constraints on every slowly-turning
+ * wheel of the car. Idle drag is neither of those things.
+ *
+ * The two are already distinguishable at source -- restTorque is the engine
+ * idling against the drivetrain, brakeTorque is the pedal -- so they simply
+ * travel separately now. Nothing about the values changes.
+ */
+void GameCar::MotorProgress(float deltaTime, float& curMotorTorque, float& curBreakTorque,
+	float& curDragTorque, float& curRPM)
 {
+	curBreakTorque = 0;
+	curDragTorque = 0;
+
 	switch (_moveCar)
 	{
 	case mcNone:
 		curRPM = GetWheelRPM();
-		curBreakTorque = _motor.restTorque;
+		curDragTorque = _motor.restTorque;
 		curMotorTorque = 0;
-		break;			
-		
+		break;
+
 	case mcBrake:
 		SetCurGear(cNeutralGear);
 		curRPM = GetWheelRPM();
 		curBreakTorque = _motor.brakeTorque;
-		curMotorTorque = 0;		
+		curMotorTorque = 0;
 		break;
 
 	case mcBack:
@@ -515,7 +532,7 @@ void GameCar::MotorProgress(float deltaTime, float& curMotorTorque, float& curBr
 		{
 			SetCurGear(cBackGear);
 			curRPM = GetWheelRPM();
-			curBreakTorque = _motor.restTorque;
+			curDragTorque = _motor.restTorque;
 			if (curRPM < _motor.maxRPM)
 				curMotorTorque = -static_cast<float>(_motor.CalcTorque(curRPM, _curGear));
 		}
@@ -532,10 +549,10 @@ void GameCar::MotorProgress(float deltaTime, float& curMotorTorque, float& curBr
 		else
 		{
 			if (_curGear == cNeutralGear ||  _curGear == cBackGear)
-				SetCurGear(1);				
+				SetCurGear(1);
 
 			curRPM = GetWheelRPM();
-			curBreakTorque = _motor.restTorque;
+			curDragTorque = _motor.restTorque;
 			curMotorTorque = _motor.CalcTorque(curRPM, _curGear) * _motorTorqueK;
 		}
 		break;
@@ -552,15 +569,20 @@ inline const void NxQuatRotation(PxQuat& quat, const PxQuat& quat1, const PxQuat
 	quat = quat1.getConjugate() * quat2;
 }
 
-void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorque)
+void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorque, float dragTorque)
 {
 	PxRigidDynamic* nxActor = GetPxActor().GetNxDynamic();
 	float speed = GetSpeed(nxActor, px::FromPx(nxActor->getGlobalPose().q.rotate(PxVec3(1.0f, 0.0f, 0.0f))));
 	float absSpeed = GetPxActor().GetNxDynamic()->getLinearVelocity().magnitude();
 
+	//Over the car's top speed, lift off. This read `motorTorque = breakTorque`
+	//before drag and brake were separated, which while accelerating meant
+	//driving on with restTorque -- a positive 400 Nm, almost certainly not the
+	//intent. Dropping the throttle and leaving drag to slow it is the same
+	//arithmetic without the sign accident.
 	if (_maxSpeed > 0 && absSpeed > _maxSpeed)
 	{
-		motorTorque = breakTorque;
+		motorTorque = 0;
 	}
 
 	if (_steerWheel == smManual)
@@ -579,10 +601,16 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 
 	//DIAGNOSTIC: the drive chain, sampled. Axle speed feeds RPM feeds torque, so
 	//a zero anywhere early reads the same as a car that is simply parked.
+	//
+	//The counter is per car, not shared. A single static counter stepped by
+	//every car in the race lands on the same car forever -- six cars and a
+	//modulo of 60 samples car 0 and nothing else -- so a whole field driving
+	//normally reads as one car's troubles. That is the trap VINPUT documents,
+	//and this site had it too: it reported one car stuck on scenery while the
+	//other five held 50 m/s.
 	if (::rrr3d::TraceEnabled() && !_wheels->GetLeadGroup().empty())
 	{
-		static unsigned long sample = 0;
-		if ((++sample % 60) == 0)
+		if ((++_traceSample % 60) == 0)
 		{
 			//The lead group is the driven wheels, and the same one GetWheelRPM
 			//reads, so this is the chain the torque actually travels.
@@ -594,9 +622,9 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 			//and only one of them has a human pressing the throttle.
 			RRR3D_TRACE_FIRST(200,
 				"DRIVE car=%p speed=%.2f gear=%d rpm=%.0f motorTorque=%.1f "
-				"brakeTorque=%.1f axle=%.2f onGround=%d",
+				"brakeTorque=%.1f dragTorque=%.1f axle=%.2f onGround=%d",
 				(void*)GetPxActor().GetNxDynamic(),
-				speed, _curGear, GetWheelRPM(), motorTorque, breakTorque,
+				speed, _curGear, GetWheelRPM(), motorTorque, breakTorque, dragTorque,
 				lead->GetAxleSpeed(), (int)onGround);
 		}
 	}
@@ -610,6 +638,7 @@ void GameCar::WheelsProgress(float deltaTime, float motorTorque, float breakTorq
 		px::WheelShape* pxWheel = wheel->GetShape();
 
 		pxWheel->SetBrakeTorque(breakTorque);
+		pxWheel->SetDragTorque(dragTorque);
 
 		if ((*iter)->GetLead())
 		{
@@ -1104,6 +1133,7 @@ void GameCar::OnFixedStep(float deltaTime)
 
 	float curMotorTorque = 0;
 	float curBreakTorque = 0;
+	float curDragTorque = 0;
 	float curRPM = 0;
 	_anyWheelContact = false;	
 	_wheelsContact = true;
@@ -1115,9 +1145,9 @@ void GameCar::OnFixedStep(float deltaTime)
 	if (_mineTime > 0 && (_mineTime -= deltaTime) < 0.0f)
 		_mineTime = 0.0f;
 	
-	MotorProgress(deltaTime, curMotorTorque, curBreakTorque, curRPM);
+	MotorProgress(deltaTime, curMotorTorque, curBreakTorque, curDragTorque, curRPM);
 	TransmissionProgress(deltaTime, curRPM);
-	WheelsProgress(deltaTime, curMotorTorque, curBreakTorque);	
+	WheelsProgress(deltaTime, curMotorTorque, curBreakTorque, curDragTorque);
 	JumpProgress(deltaTime);	
 
 	GetBehaviors().OnMotor(deltaTime, curRPM, static_cast<float>(_motor.idlingRPM), static_cast<float>(_motor.maxRPM));	

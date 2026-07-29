@@ -27,6 +27,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -204,6 +205,28 @@ public:
 	{
 		for (size_t i = 0; i < _wheels.size(); ++i)
 			_wheels[i]->SetBrakeTorque(value);
+	}
+
+	//Wheels 0 and 1 are the front pair. GameCar drives its lead group and no
+	//other wheel, which is the configuration every scenario above misses.
+	void SetLeadMotorTorque(float value)
+	{
+		_wheels[0]->SetMotorTorque(value);
+		_wheels[1]->SetMotorTorque(value);
+	}
+
+	void SetDragTorque(float value)
+	{
+		for (size_t i = 0; i < _wheels.size(); ++i)
+			_wheels[i]->SetDragTorque(value);
+	}
+
+	float MaxAbsAxleSpeed() const
+	{
+		float worst = 0.0f;
+		for (size_t i = 0; i < _wheels.size(); ++i)
+			worst = std::max(worst, std::fabs(_wheels[i]->GetAxleSpeed()));
+		return worst;
 	}
 
 	D3DXVECTOR3 GetPos() const { return _actor->GetPos(); }
@@ -419,6 +442,94 @@ void TestStraightLineHasNoLateralSlip(r3d::px::Manager& manager, r3d::px::Scene*
 		Fmt("travels along its own axis (vx = %.3f, vy = %.3f)", velocity.x, velocity.y));
 }
 
+/*
+ * The game's own configuration: two driven wheels, four dragged, real torque.
+ *
+ * Every scenario above drives all four wheels with 300 Nm and no drag, and the
+ * gap between that and what GameCar actually does hid a defect for a long time.
+ * PxVehicle's updateNoDrive computes
+ *
+ *     isIntentionToAccelerate = (maxAccel > 0 && 0 == maxBrake)
+ *
+ * across the whole vehicle, so the undriven pair -- which the game gave rest
+ * torque and no drive -- declared every car to be coasting, and PxVehicle armed
+ * sticky-tire constraints that pinned them to the road. The harness could not
+ * reproduce it because it could not express it: all four wheels driven, no
+ * brake, so the predicate was always true and the constraints never fired.
+ *
+ * The lesson generalises past this bug. A harness that cannot express the
+ * configuration under test will confirm everything and catch nothing, and it
+ * will do so while looking thorough.
+ *
+ * Speed is measured sustained rather than peak, for the same reason the DRIVE
+ * trace in the game is: a peak reads whatever a transient left behind.
+ */
+void TestGameWheelConfiguration(r3d::px::Manager& manager, r3d::px::Scene* scene)
+{
+	Section("two driven wheels and idle drag on four -- the game's configuration");
+
+	Ground ground(scene);
+	TestCar car(scene, D3DXVECTOR3(0.0f, 0.0f, 1.0f));
+	Step(manager, 120);
+
+	const float restX = car.GetPos().x;
+
+	//The numbers GameCar uses: CalcTorque's first-gear output, and the 400 Nm
+	//_motor.restTorque it applies on every frame it is not braking.
+	car.SetLeadMotorTorque(12450.0f);
+	car.SetDragTorque(400.0f);
+
+	//Three seconds of throttle, then a second of sampling. The sticky-tire
+	//constraint needs one second of low forward speed to arm, so a scenario
+	//shorter than that would pass while the defect was present.
+	Step(manager, 180);
+
+	float total = 0.0f;
+	float slowest = 1.0e9f;
+	for (int i = 0; i < 60; ++i)
+	{
+		Step(manager, 1);
+		const float speed = std::fabs(car.GetVelocity().x);
+		total += speed;
+		slowest = std::min(slowest, speed);
+	}
+
+	const float sustained = total / 60.0f;
+	const float movedX = car.GetPos().x - restX;
+
+	std::printf("   ... moved %.2f m, sustained %.2f m/s, slowest %.2f m/s, "
+		"peak axle %.1f rad/s\n",
+		movedX, sustained, slowest, car.MaxAbsAxleSpeed());
+
+	Check(car.CountWheelsOnGround() == TestCar::cWheelCount,
+		Fmt("is on the ground to be measured (%d of %d wheels down)",
+			car.CountWheelsOnGround(), TestCar::cWheelCount));
+
+	//Before the drag/brake split this read 0.0 m/s: the car was held by a
+	//constraint while its tires computed tens of kilonewtons.
+	Check(sustained > 5.0f,
+		Fmt("reaches a sustained speed under throttle (%.2f m/s)", sustained));
+
+	Check(slowest > 1.0f,
+		Fmt("never stalls while the throttle is down (slowest %.2f m/s)", slowest));
+
+	Check(movedX > 10.0f, Fmt("has actually gone somewhere (moved %.2f m)", movedX));
+
+	/*
+	 * And that it is driving rather than sitting on spinning tires.
+	 *
+	 * This is the check that separates "the car moves" from "the model works".
+	 * A wheel whose surface speed is many times the road speed is a tire in a
+	 * limit cycle: slip saturates, the tire force reverses, the reaction torque
+	 * flips the wheel back, and the car creeps. Bounding it here means the
+	 * tuning has to hold up, not merely produce motion.
+	 */
+	const float surfaceSpeed = car.MaxAbsAxleSpeed() * 0.4f;
+	Check(surfaceSpeed < sustained * 3.0f + 2.0f,
+		Fmt("the driven tires are not just spinning (surface %.2f m/s against car %.2f m/s)",
+			surfaceSpeed, sustained));
+}
+
 void TestWheelsInAirReportNoContact(r3d::px::Manager& manager, r3d::px::Scene* scene)
 {
 	Section("a car in the air reports no wheel contact");
@@ -444,6 +555,17 @@ int main()
 {
 	std::printf("rrr3d physics harness\n=====================");
 
+	/*
+	 * The harness exists to test the vehicle model, so it turns it on.
+	 *
+	 * Scene::NotifyVehicleActor gates on RRR3D_VEHICLE, and without it a
+	 * WheelShape is an inert non-colliding sphere: no suspension, no contact,
+	 * no tire force. Every scenario here then fails with "0 of 4 wheels down",
+	 * which reads like a broken raycast and is nothing of the kind. The 0 means
+	 * do not overwrite -- setting it to 0 explicitly still opts out.
+	 */
+	setenv("RRR3D_VEHICLE", "1", 0);
+
 	r3d::px::Manager::InitSDK();
 
 	{
@@ -468,6 +590,11 @@ int main()
 		{
 			r3d::px::Scene* scene = manager.AddScene();
 			TestStraightLineHasNoLateralSlip(manager, scene);
+			manager.DelScene(scene);
+		}
+		{
+			r3d::px::Scene* scene = manager.AddScene();
+			TestGameWheelConfiguration(manager, scene);
 			manager.DelScene(scene);
 		}
 		{

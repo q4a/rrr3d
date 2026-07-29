@@ -176,13 +176,21 @@ private:
 	float _tireSpring;
 	bool _disableColor;
 
+	//DIAGNOSTIC: per car, so the DRIVE trace samples the whole field rather
+	//than whichever car a shared counter happens to land on.
+	unsigned long _traceSample;
+
 	float _steerAngle;
 	bool _anyWheelContact;
 	bool _wheelsContact;
 	bool _bodyContact;
 
-	void MotorProgress(float deltaTime, float& curMotorTorque, float& curBreakTorque, float& curRPM);
-	void WheelsProgress(float deltaTime, float motorTorque, float breakTorque);
+	//curBreakTorque is the driver's brake; curDragTorque is idle drag. 2.8 sent
+	//both down one channel because it summed them on the axle anyway -- see
+	//px::WheelShape::SetDragTorque for why PxVehicle cannot.
+	void MotorProgress(float deltaTime, float& curMotorTorque, float& curBreakTorque,
+		float& curDragTorque, float& curRPM);
+	void WheelsProgress(float deltaTime, float motorTorque, float breakTorque, float dragTorque);
 	void TransmissionProgress(float deltaTime, float curRPM);
 	void JumpProgress(float deltaTime);
 	void StabilizeForce(float deltaTime);

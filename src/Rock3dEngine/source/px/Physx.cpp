@@ -1743,7 +1743,7 @@ WheelContactData::WheelContactData():
 {
 }
 
-WheelShape::WheelShape(Shapes* owner): _MyBase(owner), _axleSpeed(0.0f), _brakeTorque(0.0f), _contactModify(0)
+WheelShape::WheelShape(Shapes* owner): _MyBase(owner), _axleSpeed(0.0f), _brakeTorque(0.0f), _dragTorque(0.0f), _contactModify(0)
 {
 	SetType(Type);
 
@@ -2011,6 +2011,16 @@ float WheelShape::GetBrakeTorque() const
 void WheelShape::SetBrakeTorque(float value)
 {
 	_brakeTorque = value;
+}
+
+float WheelShape::GetDragTorque() const
+{
+	return _dragTorque;
+}
+
+void WheelShape::SetDragTorque(float value)
+{
+	_dragTorque = value;
 }
 
 WheelShape::ContactModify* WheelShape::GetContactModify()

@@ -807,6 +807,9 @@ private:
 	//PxVehicleWheelQueryResult, which amounts to the same freshness.
 	float _axleSpeed;
 	float _brakeTorque;
+	//2.8 had no separate drag channel because it did not need one -- see the
+	//note on SetDragTorque.
+	float _dragTorque;
 	WheelContactData _contact;
 	PxShape* _contactShape;
 	ContactModify* _contactModify;
@@ -865,8 +868,40 @@ public:
 	float GetAxleSpeed() const;
 	void SetAxleSpeed(float value);
 
+	//The driver's brake. PxVehicle treats this as a lock -- and as a declaration
+	//that the car is not being accelerated -- so only real braking belongs here.
 	float GetBrakeTorque() const;
 	void SetBrakeTorque(float value);
+
+	/*
+	 * Idle drag: engine braking and rolling resistance, opposing whichever way
+	 * the wheel turns.
+	 *
+	 * A channel 2.8 did not need. NxWheelShapeDesc called motorTorque the "sum
+	 * engine torque on the wheel axle" and brakeTorque a torque summed against
+	 * it, so a car's 400 Nm rest torque could be handed over as a brake and the
+	 * arithmetic came out right. PxVehicle's brake is not a summand: it is a
+	 * lock, and beyond that a mode switch. PxVehicleUpdate.cpp's updateNoDrive
+	 * computes
+	 *
+	 *     isIntentionToAccelerate = (maxAccel > 0 && 0 == maxBrake)
+	 *
+	 * over *every* wheel of the vehicle, and when it is false each wheel turning
+	 * slowly accumulates a timer that, after one second, activates a sticky-tire
+	 * constraint holding the contact point at rest.
+	 *
+	 * The game brakes all four wheels and drives two, so the undriven pair kept
+	 * 400 Nm at all times, every car was permanently declared to be coasting,
+	 * and the constraints pinned it. A constraint is solved, not summed, so it
+	 * beat the 54 kN the tire shader was computing -- and nothing measured on
+	 * the force side could see it. Measured: mean speed 0.14 m/s with the brake,
+	 * 14.28 m/s without.
+	 *
+	 * So drag travels separately and reaches PxVehicle as a negative drive
+	 * torque, which is what 2.8 made of it anyway.
+	 */
+	float GetDragTorque() const;
+	void SetDragTorque(float value);
 };
 
 //PhysX 3+ has no body descriptor -- a rigid body is configured through

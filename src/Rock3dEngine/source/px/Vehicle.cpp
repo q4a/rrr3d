@@ -47,19 +47,35 @@ const PxU32 cUndrivableSurface = 0x8000ffffu;
  * computes tire force from slip, so a constraint has to be approximated by a
  * response stiff enough that slip stays negligible under ordinary demand.
  *
- * Higher is closer to a rigid contact. It is also less stable at this step
- * rate, and the harness is unambiguous about where the knee is -- sweeping it
- * against the four scenarios:
+ * Higher is closer to a rigid contact, and it trades against stability: the
+ * tire's reaction on the wheel is stiffness * load * radius, and a reaction
+ * large enough to overshoot in one sub-step reverses the wheel, flips the sign
+ * of the slip, and starts a limit cycle.
  *
- *   K = 2    wheels roll, slip 0.03, car tracks straight    1 failure
- *   K = 5    wheels start sliding                           2 failures
- *   K = 15                                                  3 failures
- *   K = 40   wheels spinning at ten times road speed        5 failures
+ * The value was 2.0, chosen from a harness sweep that is now void. That sweep
+ * ran while PxVehicle believed no car was ever accelerating -- see
+ * WheelShape::SetDragTorque -- which sent every wheel down the coasting branch
+ * of computeTireSlips and produced slips nothing like the ones a driven wheel
+ * sees. The old table is not reproduced here because none of its rows describe
+ * the model that now runs.
+ *
+ * Re-swept against the harness with the game's own configuration and torque,
+ * jointly with the wheel inertia it interacts with (see mMOI below):
+ *
+ *          MOI x10       MOI x20       MOI x30       MOI x50
+ *   K=2    1 failure     1 failure     1 failure     1 failure
+ *   K=4    1 failure     1 failure     none          1 failure
+ *   K=8    3 failures    3 failures    none          none
+ *
+ * K=4 at MOI x30 is the corner of that: it clears every check at the lowest
+ * stiffness that does, which leaves the most room for a tire to break away and
+ * come back. The slide is a large part of how this game drives, and a tire
+ * stiff enough to never lose grip cannot produce one.
  *
  * RRR3D_TIRE_STIFFNESS overrides it, because this is the number to reach for
  * when the cars feel wrong to drive rather than merely wrong on paper.
  */
-const float cContactStiffness = 2.0f;
+const float cContactStiffness = 4.0f;
 
 PxQueryHitType::Enum SuspensionQueryPreFilter(
 	PxFilterData filterData0, PxFilterData filterData1,
@@ -69,6 +85,23 @@ PxQueryHitType::Enum SuspensionQueryPreFilter(
 	return (filterData1.word1 == cUndrivableSurface)
 		? PxQueryHitType::eNONE
 		: PxQueryHitType::eBLOCK;
+}
+
+//The tire model has three numbers that decide whether it settles or rings, and
+//they interact. Each is overridable so a sweep needs no rebuild; the defaults
+//are the tuning.
+float EnvFloat(const char* name, float fallback)
+{
+	if (const char* value = std::getenv(name))
+		return static_cast<float>(std::atof(value));
+	return fallback;
+}
+
+int EnvInt(const char* name, int fallback)
+{
+	if (const char* value = std::getenv(name))
+		return std::atoi(value);
+	return fallback;
 }
 
 //A cubic Hermite with a zero tangent at both ends, which is smoothstep.
@@ -667,12 +700,42 @@ bool Vehicle::BuildWheelsSimData(PxVehicleWheelsSimData& simData, PxRigidDynamic
 		wheelData.mRadius = radius;
 		wheelData.mWidth = radius * 0.5f;
 		wheelData.mMass = mass;
-		//A disc about its axle.
-		wheelData.mMOI = 0.5f * mass * radius * radius;
+		/*
+		 * A disc about its axle, times whatever the drivetrain adds.
+		 *
+		 * The bare disc is 0.5*m*r^2, about 1.6 kg m^2, and against the torques
+		 * this game applies -- CalcTorque's first gear is 12450 Nm at the wheel
+		 * -- that is not an inertia, it is a rounding error. The tire reaction
+		 * needed to hold such a wheel is stiffness * load * radius, and over a
+		 * sub-step it overshoots by orders of magnitude: the wheel reverses, the
+		 * slip flips sign, the force reverses, and the wheel ends up alternating
+		 * between spinning and stopped while the car creeps.
+		 *
+		 * 2.8 never had this problem because it never had this loop. Its wheel
+		 * contact was a static friction *constraint*, so the solver held the
+		 * wheel whatever torque arrived and the wheel's inertia never entered
+		 * into it. PxVehicle integrates the wheel explicitly, so the inertia is
+		 * suddenly load-bearing and the value inherited from a bare disc is
+		 * wrong for the job.
+		 *
+		 * A driven wheel is rigidly coupled through the gearbox to the engine,
+		 * and a drivetrain's inertia reflects to the wheel by the square of the
+		 * gear ratio -- which is exactly why driveline models use an effective
+		 * inertia far above the bare wheel's. This is that, expressed as one
+		 * multiplier because the gear ratio is not visible from here.
+		 *
+		 * x30 puts it at about 48 kg m^2, which is the right order for an
+		 * engine of a few tenths reflected through a first gear of around ten,
+		 * and it is where the harness sweep in cContactStiffness stops failing.
+		 */
+		wheelData.mMOI = 0.5f * mass * radius * radius *
+			EnvFloat("RRR3D_WHEEL_MOI", 30.0f);
 		//The game sets the actual torque every step; these only cap it.
 		wheelData.mMaxBrakeTorque = 1.0e7f;
 		wheelData.mMaxSteer = PxPi;
-		wheelData.mDampingRate = 0.25f;
+		//RRR3D_WHEEL_DAMPING is a sweep knob: wheel damping is one of the three
+		//numbers that decide whether a stiff tire settles or oscillates.
+		wheelData.mDampingRate = EnvFloat("RRR3D_WHEEL_DAMPING", 0.25f);
 		simData.setWheelData(i, wheelData);
 
 		/*
@@ -775,27 +838,50 @@ bool Vehicle::BuildWheelsSimData(PxVehicleWheelsSimData& simData, PxRigidDynamic
 	}
 
 	/*
-	 * Launching from rest, which is the case that had the cars stuck.
+	 * A floor under the longitudinal slip denominator, which governs coasting
+	 * wheels and only coasting wheels.
 	 *
-	 * PxVehicle computes longitudinal slip as
+	 * PxVehicle computes longitudinal slip two ways, and computeTireSlips picks
+	 * between them per wheel. A wheel with drive or brake torque applied gets
 	 *
-	 *     (w*r - vz) / max(|vz|, minLongSlipDenominator)
+	 *     (w*r - vz) / (max(|vz|, |w*r|) + 0.1 * toleranceLength)
 	 *
-	 * and its own header points straight at the trap: as |vz| approaches zero
-	 * the slip approaches infinity. A stationary car with a spinning wheel is
-	 * exactly that -- slip pins at its limit, the tire force saturates at the
-	 * friction ceiling, and the wheel accelerates away from a car that never
-	 * starts moving. Which is what it looked like from the driver's seat: revs
-	 * climbing, speed zero.
+	 * which ignores this value entirely. A wheel with neither gets
+	 *
+	 *     (w*r - vz) / max(minLongSlipDenominator, |vz|, |w*r|)
+	 *
+	 * and the header points at the trap it exists for: as the denominator
+	 * approaches zero the slip approaches infinity, so a wheel freewheeling at
+	 * walking pace produces a force that overshoots zero and oscillates in sign.
+	 *
+	 * This was written believing it governed launching from rest, because at
+	 * the time it did: computeIsAccelApplied only runs when PxVehicle thinks
+	 * the driver is accelerating, and it never thought so -- see
+	 * WheelShape::SetDragTorque. With that fixed, driven wheels take the first
+	 * branch and this number stops reaching them.
 	 *
 	 * The floor is chosen against the top speed a car actually reaches; the
-	 * shipped maxSpeed is 48. Sub-steps are the other half -- the header says
-	 * raising them at low forward speed is what makes a stiff tire stable, and
-	 * stiffness is what this model needs, force being stiffness * slip * load.
-	 * A soft tire has to reach absurd slip before it pulls at all.
+	 * shipped maxSpeed is 48. Sub-steps are separate -- the header says raising
+	 * them at low forward speed is what makes a stiff tire stable, and stiffness
+	 * is what this model needs, force being stiffness * slip * load. A soft tire
+	 * has to reach absurd slip before it pulls at all.
 	 */
-	simData.setMinLongSlipDenominator(4.0f);
-	simData.setSubStepCount(5.0f, 3, 1);
+	simData.setMinLongSlipDenominator(EnvFloat("RRR3D_SLIP_DENOM", 4.0f));
+
+	/*
+	 * Sub-steps, which are what a stiff tire needs to stay stable.
+	 *
+	 * The signature is (thresholdSpeed, stepsBelow, stepsAbove), and the third
+	 * argument is the one that matters here: above the threshold the whole
+	 * vehicle takes a single step per frame, 1/60 s, and the tire reaction that
+	 * accelerates a wheel is integrated once over the whole of it. With this
+	 * model's stiffness that is enough to overshoot, and an overshoot flips the
+	 * sign of the slip, and the wheel ends up alternating between spinning and
+	 * stopped without the car ever moving.
+	 */
+	simData.setSubStepCount(EnvFloat("RRR3D_SUBSTEP_SPEED", 5.0f),
+		static_cast<PxU32>(EnvInt("RRR3D_SUBSTEPS_LO", 3)),
+		static_cast<PxU32>(EnvInt("RRR3D_SUBSTEPS_HI", 1)));
 
 	MarkShapesUndrivable();
 
@@ -877,6 +963,14 @@ void Vehicle::SyncInputs()
 	//the shader data is held by pointer.
 	_nxVehicle->mWheelsDynData.setTireForceShaderFunction(Compute2_8TireForce);
 
+	//RRR3D_VEHICLE_NOBRAKE=1 withholds every brake torque, which is the one-run
+	//test of the paragraph below: if the cars drive with it set, the brake is
+	//what stops them and nothing else needs investigating.
+	static const bool gNoBrake = std::getenv("RRR3D_VEHICLE_NOBRAKE") != 0;
+
+	float maxAccel = 0.0f;
+	float maxBrake = 0.0f;
+
 	for (size_t i = 0; i < _wheels.size(); ++i)
 	{
 		WheelShape* wheel = _wheels[i];
@@ -886,31 +980,89 @@ void Vehicle::SyncInputs()
 		_nxVehicle->mWheelsDynData.setTireForceShaderData(static_cast<PxU32>(i), &_tireData[i]);
 
 		/*
-		 * 2.8 summed these on the axle; PxVehicle does not.
+		 * 2.8 summed drive and brake on one axle; PxVehicle keeps them apart,
+		 * and the two halves of that difference cost a fix each.
 		 *
 		 * NxWheelShapeDesc calls motorTorque the "sum engine torque on the
 		 * wheel axle" and brakeTorque "the amount of torque applied for
 		 * braking" -- two torques on one axle, and the wheel accelerates
-		 * whenever the first exceeds the second. PxVehicle instead treats brake
-		 * as a locking mechanism: any non-zero brake engages a sticky-wheel
-		 * constraint that pins the rotation at zero.
+		 * whenever the first exceeds the second. PxVehicle treats brake as a
+		 * locking mechanism instead: any non-zero brake engages a sticky-wheel
+		 * constraint that pins the rotation at zero. So the game's 400 Nm rest
+		 * torque, harmless as a summand, became a permanent handbrake and the
+		 * wheels never turned.
 		 *
-		 * That matters because GameCar applies _motor.restTorque, 400 Nm, on
-		 * every frame it is not braking. Harmless as a summand; as a lock it is
-		 * a permanent handbrake, and the wheels never turned -- 12450 Nm of
-		 * drive against a wheel of MOI 0.583 held at exactly zero.
+		 * Netting the two off per wheel fixed that and was still not enough,
+		 * because brake is not only a lock -- it is also a declaration. See
+		 * WheelShape::SetDragTorque: one wheel carrying any brake at all makes
+		 * PxVehicle treat the whole car as coasting and arm the sticky-tire
+		 * constraints, and netting per wheel could never clear the undriven
+		 * pair, which is given brake and no drive.
 		 *
-		 * Netting them off restores the 2.8 arithmetic: brake only reaches
-		 * PxVehicle to the extent it exceeds the drive torque opposing it.
+		 * So the sum is done here rather than deferred to a mechanism that will
+		 * not perform it. Drag opposes the wheel's own rotation -- or, at a
+		 * standstill, the torque about to start it -- and PxVehicle sees a
+		 * single signed axle torque, exactly as 2.8 did. setBrakeTorque now
+		 * carries only what the driver asked for, which is the one case where
+		 * a lock and a coasting car are both what is wanted.
 		 */
 		const float drive = wheel->GetMotorTorque();
-		const float brake = std::fabs(wheel->GetBrakeTorque());
-		const float netBrake = std::max(0.0f, brake - std::fabs(drive));
+		const float brake = gNoBrake ? 0.0f : std::fabs(wheel->GetBrakeTorque());
+		const float drag = std::fabs(wheel->GetDragTorque());
 
-		_nxVehicle->setDriveTorque(static_cast<PxU32>(i), drive);
-		_nxVehicle->setBrakeTorque(static_cast<PxU32>(i), netBrake);
+		/*
+		 * Drag opposes rotation, and must never become rotation.
+		 *
+		 * The obvious form -- subtract drag in the direction the wheel turns --
+		 * has no answer for a wheel that is not turning, and the first cut
+		 * signed it by the drive torque instead. That drives a stationary
+		 * undriven wheel backwards at 400 Nm, which sends it negative, which
+		 * flips the sign, which sends it positive: a wheel chattering about zero
+		 * under its own idle drag. It showed up as all four wheels of a
+		 * stationary car reading tens of rad/s in opposite directions.
+		 *
+		 * Below the threshold PxVehicle itself calls stationary -- 0.2 m/s at
+		 * the contact patch, so 0.2/radius in rad/s -- drag can only cancel the
+		 * drive, never exceed it. A parked wheel with no drive gets nothing,
+		 * which is what a parked wheel should get.
+		 */
+		const float omega = _nxVehicle->mWheelsDynData.getWheelRotationSpeed(
+			static_cast<PxU32>(i));
+		const float stationary = 0.2f / std::max(wheel->GetRadius(), 0.01f);
+
+		float axleTorque = drive;
+		if (omega > stationary)
+			axleTorque -= drag;
+		else if (omega < -stationary)
+			axleTorque += drag;
+		else if (drive > 0.0f)
+			axleTorque -= std::min(drag, drive);
+		else if (drive < 0.0f)
+			axleTorque += std::min(drag, -drive);
+
+		_nxVehicle->setDriveTorque(static_cast<PxU32>(i), axleTorque);
+		_nxVehicle->setBrakeTorque(static_cast<PxU32>(i), brake);
 		_nxVehicle->setSteerAngle(static_cast<PxU32>(i), wheel->GetSteerAngle());
+
+		maxAccel = std::max(maxAccel, std::fabs(axleTorque));
+		maxBrake = std::max(maxBrake, brake);
 	}
+
+	//The predicate PxVehicleUpdates itself computes, printed rather than left to
+	//be derived, because everything downstream of it is invisible from here.
+	//
+	//PxVehicleUpdate.cpp, updateNoDrive:
+	//
+	//    const bool isIntentionToAccelerate = (maxAccel>0.0f && 0.0f==maxBrake);
+	//
+	//maxBrake is taken over *every* wheel of the vehicle, so one wheel carrying
+	//a brake torque declares the whole car to be coasting. When it does, each
+	//wheel that is turning slowly accumulates a low-forward-speed timer, and
+	//after a second PxVehicle activates a sticky-tire *constraint* that holds
+	//the contact point at rest. A constraint is not a force: it is solved, and
+	//it beats whatever the tire shader computed. That is why 54 kN through a
+	//tire could move nothing, and why no force-side measurement could see it.
+	const bool intentionToAccelerate = (maxAccel > 0.0f && 0.0f == maxBrake);
 
 	/*
 	 * All four wheels of one vehicle on one line, sampled per vehicle.
@@ -931,7 +1083,7 @@ void Vehicle::SyncInputs()
 			//two is present says whether Player::ApplyMobility ever ran.
 			RRR3D_TRACE_FIRST(60,
 				"VINPUT drive=%.0f,%.0f,%.0f,%.0f brake=%.0f omega=%.2f,%.2f,%.2f,%.2f "
-				"muLong=%.3f muLat=%.3f",
+				"muLong=%.3f muLat=%.3f maxAccel=%.0f maxBrake=%.0f accelIntent=%d",
 				_wheels[0]->GetMotorTorque(), _wheels[1]->GetMotorTorque(),
 				_wheels[2]->GetMotorTorque(), _wheels[3]->GetMotorTorque(),
 				std::fabs(_wheels[0]->GetBrakeTorque()),
@@ -940,7 +1092,10 @@ void Vehicle::SyncInputs()
 				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(2),
 				_nxVehicle->mWheelsDynData.getWheelRotationSpeed(3),
 				_wheels[0]->GetLongitudalTireForceFunction().extremumValue,
-				_wheels[0]->GetLateralTireForceFunction().extremumValue);
+				_wheels[0]->GetLateralTireForceFunction().extremumValue,
+				//accelIntent=0 while the throttle is down is the defect: it arms
+				//the sticky-tire constraints on every slowly-turning wheel.
+				maxAccel, maxBrake, (int)intentionToAccelerate);
 	}
 }
 
