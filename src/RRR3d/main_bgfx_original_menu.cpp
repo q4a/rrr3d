@@ -190,6 +190,27 @@ struct InfoDialogVisual
     float centerY = 0.0F;
     bool visible = false;
 };
+
+struct AcceptDialogVisual
+{
+    std::vector<TextVisual> info;
+    TextVisual yes;
+    TextVisual no;
+    float centerX = 0.0F;
+    float centerY = 0.0F;
+    float frameWidth = 0.0F;
+    float frameHeight = 0.0F;
+    float infoWidth = 0.0F;
+    float infoHeight = 0.0F;
+    float buttonWidth = 0.0F;
+    float buttonHeight = 0.0F;
+    float yesOffsetX = 0.0F;
+    float noOffsetX = 0.0F;
+    float buttonOffsetY = 0.0F;
+    bool maxMode = false;
+    bool disableFocus = false;
+    std::optional<bool> hoveredChoice;
+};
 #endif
 
 #ifdef RRR3D_AUDIO
@@ -592,6 +613,21 @@ void destroyInfoDialog(
     }
     if (valid(dialog.ok.texture))
         device.destroy(dialog.ok.texture);
+    dialog = {};
+}
+
+void destroyAcceptDialog(
+    GraphicsDevice& device, AcceptDialogVisual& dialog)
+{
+    for (auto& line : dialog.info)
+    {
+        if (valid(line.texture))
+            device.destroy(line.texture);
+    }
+    if (valid(dialog.yes.texture))
+        device.destroy(dialog.yes.texture);
+    if (valid(dialog.no.texture))
+        device.destroy(dialog.no.texture);
     dialog = {};
 }
 #endif
@@ -1623,14 +1659,13 @@ int main(int argc, char** argv)
     MenuPageVisual garagePage;
     MenuPageVisual garageInfoPage;
     MenuPageVisual garageStatsPage;
-    MenuPageVisual garagePurchasePage;
     MenuPageVisual workshopPage;
     MenuPageVisual workshopControlsPage;
     MenuPageVisual workshopStatsPage;
     MenuPageVisual workshopHintPage;
     WorkshopWeaponDialogVisual workshopWeaponDialog;
     InfoDialogVisual infoDialog;
-    MenuPageVisual workshopConfirmationPage;
+    AcceptDialogVisual acceptDialog;
     MenuPageVisual planetsPage;
     MenuPageVisual angarInfoPage;
     MenuPageVisual achievementsPage;
@@ -1987,9 +2022,6 @@ int main(int argc, char** argv)
             {"0/0", "0/0", "0/300"},
             menu::smallFontHeight, raceTextColor,
             menu::selectedTextColor);
-        garagePurchasePage = createStyledPage(
-            {localized("svBuyCar")}, menu::smallFontHeight,
-            menu::normalTextColor, menu::selectedTextColor);
         workshopPage = createStyledPage(
             {localized("svWorkshop")},
             menu::headerFontHeight, raceTextColor,
@@ -2006,9 +2038,6 @@ int main(int argc, char** argv)
         workshopHintPage = createStyledPage(
             {" "}, menu::smallFontHeight, raceTextColor,
             menu::selectedTextColor);
-        workshopConfirmationPage = createStyledPage(
-            {" "}, menu::smallFontHeight,
-            menu::normalTextColor, menu::selectedTextColor);
         planetsPage = createPage(
             {"Planets", localized("svBack")});
         angarInfoPage = createStyledPage(
@@ -2215,29 +2244,6 @@ int main(int argc, char** argv)
         }
         finishRows.clear();
     };
-    const TextVisual exitRaceMessage = createText(
-        *device, localized("svHintExitRace"), menu::smallFontHeight,
-        false, menu::normalTextColor, resolvedFont);
-    const TextVisual exitRaceYes = createText(
-        *device, localized("svYes"), menu::smallFontHeight,
-        false, menu::normalTextColor, resolvedFont);
-    const TextVisual exitRaceYesSelected = createText(
-        *device, localized("svYes"), menu::smallFontHeight,
-        false, menu::selectedTextColor, resolvedFont);
-    const TextVisual exitRaceNo = createText(
-        *device, localized("svNo"), menu::smallFontHeight,
-        false, menu::normalTextColor, resolvedFont);
-    const TextVisual exitRaceNoSelected = createText(
-        *device, localized("svNo"), menu::smallFontHeight,
-        false, menu::selectedTextColor, resolvedFont);
-    const TextVisual profileDeleteMessage = createText(
-        *device, localized("svHintDeleteProfile"),
-        menu::smallFontHeight, false,
-        menu::normalTextColor, resolvedFont);
-    TextVisual angarTravelMessage = createText(
-        *device, localized("svYouReadyStayPlanet"),
-        menu::smallFontHeight, false, menu::normalTextColor,
-        resolvedFont);
     const TextVisual achievementRewards = createText(
         *device, localized("svRewards"), menu::headerFontHeight,
         false, menu::normalTextColor, resolvedFont);
@@ -2247,9 +2253,6 @@ int main(int argc, char** argv)
             std::to_string(profileState.achievementPoints),
         menu::headerFontHeight, false,
         menu::Rgba8{250, 88, 0, 255}, resolvedFont);
-    const TextVisual achievementPurchaseMessage = createText(
-        *device, localized("svBuyReward"), menu::smallFontHeight,
-        false, menu::normalTextColor, resolvedFont);
 #endif
 
     auto pageValid = [](const MenuPageVisual& page) {
@@ -2329,7 +2332,6 @@ int main(int argc, char** argv)
         pageValid(garagePage) &&
         pageValid(garageInfoPage) &&
         pageValid(garageStatsPage) &&
-        pageValid(garagePurchasePage) &&
         pageValid(workshopPage) &&
         pageValid(planetsPage) &&
         pageValid(angarInfoPage) &&
@@ -2436,14 +2438,8 @@ int main(int argc, char** argv)
             garageColorTextures.begin(),
             garageColorTextures.end(),
             [](Texture texture) { return valid(texture); }) &&
-        valid(exitRaceMessage.texture) && valid(exitRaceYes.texture) &&
-        valid(exitRaceYesSelected.texture) && valid(exitRaceNo.texture) &&
-        valid(exitRaceNoSelected.texture) &&
-        valid(profileDeleteMessage.texture) &&
-        valid(angarTravelMessage.texture) &&
         valid(achievementRewards.texture) &&
-        valid(achievementPoints.texture) &&
-        valid(achievementPurchaseMessage.texture);
+        valid(achievementPoints.texture);
 #else
     const bool optionsResourcesValid = true;
 #endif
@@ -2469,14 +2465,6 @@ int main(int argc, char** argv)
         device->destroy(finishPointsTitle.texture);
         device->destroy(finishMoneyTitle.texture);
         device->destroy(finishRewardTitle.texture);
-        device->destroy(profileDeleteMessage.texture);
-        device->destroy(exitRaceNoSelected.texture);
-        device->destroy(exitRaceNo.texture);
-        device->destroy(exitRaceYesSelected.texture);
-        device->destroy(exitRaceYes.texture);
-        device->destroy(exitRaceMessage.texture);
-        device->destroy(angarTravelMessage.texture);
-        device->destroy(achievementPurchaseMessage.texture);
         device->destroy(achievementPoints.texture);
         device->destroy(achievementRewards.texture);
 #endif
@@ -2493,16 +2481,15 @@ int main(int argc, char** argv)
         device->destroy(finalBack);
         device->destroy(version.texture);
 #ifdef RRR3D_PHYSICS
-        destroyPage(garagePurchasePage);
         destroyPage(garageStatsPage);
         destroyPage(garageInfoPage);
         destroyPage(achievementPricePage);
         destroyPage(achievementsPage);
         destroyPage(angarInfoPage);
         destroyPage(planetsPage);
-        destroyPage(workshopConfirmationPage);
         destroyWorkshopWeaponDialog(*device, workshopWeaponDialog);
         destroyInfoDialog(*device, infoDialog);
+        destroyAcceptDialog(*device, acceptDialog);
         destroyPage(workshopHintPage);
         destroyPage(workshopStatsPage);
         destroyPage(workshopControlsPage);
@@ -3774,6 +3761,253 @@ int main(int argc, char** argv)
     bool angarTravelDialogVisible = false;
     bool angarTravelYesFocused = true;
     std::size_t angarTravelTarget = 0U;
+    auto acceptDialogVisible = [&]() {
+        return exitRaceDialogVisible ||
+               profileDeleteDialogVisible ||
+               garagePurchaseDialogVisible ||
+               workshopConfirmation !=
+                   WorkshopConfirmation::None ||
+               angarTravelDialogVisible ||
+               achievementPurchaseDialogVisible ||
+               bindingCaptureAction.has_value();
+    };
+    auto acceptDialogYesFocused = [&]() {
+        if (exitRaceDialogVisible)
+            return exitRaceYesFocused;
+        if (profileDeleteDialogVisible)
+            return profileDeleteYesFocused;
+        if (garagePurchaseDialogVisible)
+            return garagePurchaseYesFocused;
+        if (workshopConfirmation != WorkshopConfirmation::None)
+            return workshopConfirmationYesFocused;
+        if (angarTravelDialogVisible)
+            return angarTravelYesFocused;
+        if (achievementPurchaseDialogVisible)
+            return achievementPurchaseYesFocused;
+        return false;
+    };
+    auto setAcceptDialogFocus = [&](bool yes) {
+        acceptDialog.hoveredChoice = yes;
+        if (exitRaceDialogVisible)
+            exitRaceYesFocused = yes;
+        else if (profileDeleteDialogVisible)
+            profileDeleteYesFocused = yes;
+        else if (garagePurchaseDialogVisible)
+            garagePurchaseYesFocused = yes;
+        else if (
+            workshopConfirmation != WorkshopConfirmation::None)
+            workshopConfirmationYesFocused = yes;
+        else if (angarTravelDialogVisible)
+            angarTravelYesFocused = yes;
+        else if (achievementPurchaseDialogVisible)
+            achievementPurchaseYesFocused = yes;
+    };
+    auto wrapAcceptDialogMessage =
+        [&](std::string_view value, float maximumWidth,
+            float fontHeight, std::size_t maximumLines) {
+            constexpr menu::Rgba8 color{175, 175, 175, 255};
+            std::vector<std::string> lines;
+            std::istringstream words{std::string(value)};
+            std::string line;
+            std::string word;
+            while (words >> word)
+            {
+                std::string candidate = line;
+                if (!candidate.empty())
+                    candidate.push_back(' ');
+                candidate += word;
+                const auto measured =
+                    rrr3d::macos::rasterizeText(
+                        candidate, menu::fontFace, fontHeight,
+                        false, color);
+                if (!line.empty() &&
+                    static_cast<float>(measured.width) >
+                        maximumWidth)
+                {
+                    lines.push_back(std::move(line));
+                    line = std::move(word);
+                    if (lines.size() == maximumLines)
+                        break;
+                }
+                else
+                {
+                    line = std::move(candidate);
+                }
+            }
+            if (!line.empty() && lines.size() < maximumLines)
+                lines.push_back(std::move(line));
+            if (lines.empty())
+                lines.emplace_back(" ");
+            return lines;
+        };
+    auto showAcceptDialog =
+        [&](std::string_view message, std::string_view yesText,
+            std::string_view noText, float centerX, float centerY,
+            bool maxButtonsSize = false,
+            bool maxMode = false, bool disableFocus = false) {
+            const float sourceFrameWidth =
+                static_cast<float>(acceptFrameImage.width);
+            const float sourceFrameHeight =
+                static_cast<float>(acceptFrameImage.height);
+            const float sourceButtonWidth =
+                static_cast<float>(acceptButtonImage.width);
+            const float sourceButtonHeight =
+                static_cast<float>(acceptButtonImage.height);
+            const float frameScale = maxMode ? 1.7F : 1.0F;
+            const float infoScale = maxMode ? 1.7F : 1.0F;
+            float buttonScaleX = maxMode ? 1.5F : 1.0F;
+            float yesOffsetX = maxMode ? -100.0F : -70.0F;
+            float noOffsetX = maxMode ? 100.0F : 70.0F;
+            if (maxButtonsSize)
+            {
+                buttonScaleX *= 1.5F;
+                yesOffsetX -= 10.0F;
+                noOffsetX += 10.0F;
+            }
+            destroyAcceptDialog(*device, acceptDialog);
+            acceptDialog.frameWidth =
+                sourceFrameWidth * frameScale;
+            acceptDialog.frameHeight =
+                sourceFrameHeight * frameScale;
+            acceptDialog.infoWidth = 325.0F * infoScale;
+            acceptDialog.infoHeight = 65.0F * infoScale;
+            acceptDialog.buttonWidth =
+                sourceButtonWidth * buttonScaleX;
+            acceptDialog.buttonHeight = sourceButtonHeight;
+            acceptDialog.yesOffsetX = yesOffsetX;
+            acceptDialog.noOffsetX = noOffsetX;
+            acceptDialog.buttonOffsetY =
+                maxMode ? 72.0F : 32.0F;
+            acceptDialog.maxMode = maxMode;
+            acceptDialog.disableFocus = disableFocus;
+            acceptDialog.hoveredChoice.reset();
+            centerX = std::clamp(
+                centerX,
+                acceptDialog.frameWidth * 0.5F + 15.0F,
+                menu::virtualWidth -
+                    acceptDialog.frameWidth * 0.5F - 15.0F);
+            centerY = std::clamp(
+                centerY,
+                acceptDialog.frameHeight * 0.5F + 15.0F,
+                menu::virtualHeight -
+                    acceptDialog.frameHeight * 0.5F - 15.0F);
+            acceptDialog.centerX = centerX;
+            acceptDialog.centerY = centerY;
+            const float fontHeight =
+                maxMode ? 24.0F : 32.0F;
+            const std::size_t maximumLines =
+                maxMode ? 3U : 2U;
+            for (const auto& line : wrapAcceptDialogMessage(
+                     message, acceptDialog.infoWidth,
+                     fontHeight, maximumLines))
+            {
+                acceptDialog.info.push_back(createText(
+                    *device, line, fontHeight, false,
+                    menu::Rgba8{175, 175, 175, 255},
+                    resolvedFont));
+            }
+            acceptDialog.yes = createText(
+                *device, yesText, 32.0F, false,
+                menu::Rgba8{175, 175, 175, 255}, resolvedFont);
+            acceptDialog.no = createText(
+                *device, noText, 32.0F, false,
+                menu::Rgba8{175, 175, 175, 255}, resolvedFont);
+#ifdef RRR3D_AUDIO
+            r3d::audio::PlayOptions acceptOptions;
+            acceptOptions.bus = r3d::audio::Bus::Effects;
+            audio.play(
+                acceptanceAudio, acceptOptions, audioError);
+#endif
+        };
+    auto drawAcceptDialog = [&]() {
+        if (!acceptDialogVisible() ||
+            acceptDialog.info.empty())
+        {
+            return;
+        }
+        drawQuad(
+            *device, quad, shader, acceptFrame,
+            acceptDialog.frameWidth, acceptDialog.frameHeight,
+            acceptDialog.centerX, acceptDialog.centerY, 8.0F,
+            transparent);
+        const float fontHeight =
+            acceptDialog.maxMode ? 24.0F : 32.0F;
+        const float lineStep = fontHeight * 1.15F;
+        const float firstLineY =
+            acceptDialog.centerY - 25.0F -
+            static_cast<float>(acceptDialog.info.size() - 1U) *
+                lineStep * 0.5F;
+        for (std::size_t line = 0U;
+             line < acceptDialog.info.size(); ++line)
+        {
+            const auto& text = acceptDialog.info[line];
+            drawQuad(
+                *device, quad, shader, text.texture,
+                text.width, text.height, acceptDialog.centerX,
+                firstLineY +
+                    static_cast<float>(line) * lineStep,
+                6.0F, transparent);
+        }
+        auto drawChoice = [&](bool yes) {
+            const bool selected =
+                acceptDialog.disableFocus
+                    ? acceptDialog.hoveredChoice &&
+                          *acceptDialog.hoveredChoice == yes
+                    : acceptDialogYesFocused() == yes;
+            const float x =
+                acceptDialog.centerX +
+                (yes ? acceptDialog.yesOffsetX
+                     : acceptDialog.noOffsetX);
+            const float y =
+                acceptDialog.centerY +
+                acceptDialog.buttonOffsetY;
+            drawQuad(
+                *device, quad, shader,
+                selected ? acceptButtonSelected : acceptButton,
+                acceptDialog.buttonWidth,
+                acceptDialog.buttonHeight, x, y, 5.0F,
+                transparent);
+            const auto& label =
+                yes ? acceptDialog.yes : acceptDialog.no;
+            drawQuad(
+                *device, quad, shader, label.texture,
+                label.width, label.height, x, y, 3.0F,
+                transparent);
+        };
+        drawChoice(true);
+        drawChoice(false);
+        if (profileDeleteDialogVisible)
+        {
+            profileDeleteDialogObserved =
+                acceptDialog.frameWidth ==
+                    static_cast<float>(
+                        acceptFrameImage.width) &&
+                acceptDialog.frameHeight ==
+                    static_cast<float>(
+                        acceptFrameImage.height) &&
+                acceptDialog.infoWidth == 325.0F &&
+                acceptDialog.infoHeight == 65.0F &&
+                acceptDialog.buttonWidth ==
+                    static_cast<float>(
+                        acceptButtonImage.width) &&
+                acceptDialog.buttonHeight ==
+                    static_cast<float>(
+                        acceptButtonImage.height) &&
+                acceptDialog.yesOffsetX == -70.0F &&
+                acceptDialog.noOffsetX == 70.0F &&
+                acceptDialog.buttonOffsetY == 32.0F &&
+                !acceptDialog.maxMode &&
+                !acceptDialog.disableFocus &&
+                valid(acceptDialog.yes.texture) &&
+                valid(acceptDialog.no.texture) &&
+                std::all_of(
+                    acceptDialog.info.begin(),
+                    acceptDialog.info.end(),
+                    [](const TextVisual& line) {
+                        return valid(line.texture);
+                    });
+        }
+    };
     auto saveRaceProfile = [&]() {
         if (!raceSession.racers().empty())
         {
@@ -4031,6 +4265,10 @@ int main(int argc, char** argv)
     auto openExitRaceDialog = [&]() {
         exitRaceDialogVisible = true;
         exitRaceYesFocused = true;
+        showAcceptDialog(
+            localized("svHintExitRace"), localized("svYes"),
+            localized("svNo"), menu::virtualWidth * 0.5F,
+            menu::virtualHeight * 0.5F);
         raceSession.setPaused(true);
         clearRaceControls();
         racePauseElapsedSnapshot = raceSession.elapsedSeconds();
@@ -4038,9 +4276,6 @@ int main(int argc, char** argv)
             racePausePositionSnapshot =
                 physicsWorld->vehicle().body.position;
 #ifdef RRR3D_AUDIO
-        r3d::audio::PlayOptions acceptOptions;
-        acceptOptions.bus = r3d::audio::Bus::Effects;
-        audio.play(acceptanceAudio, acceptOptions, audioError);
         commentator.pause(true);
 #endif
         racePauseDialogObserved = true;
@@ -4390,18 +4625,6 @@ int main(int argc, char** argv)
         destroyPage(garageStatsPage);
         garageStatsPage = std::move(statsReplacement);
 
-        std::string purchase = localized("svBuyCar");
-        if (const auto marker = purchase.find("%s");
-            marker != std::string::npos)
-        {
-            purchase.replace(
-                marker, 2U, originalCurrency(car.cost));
-        }
-        auto purchaseReplacement = createStyledPage(
-            {purchase}, menu::smallFontHeight,
-            menu::normalTextColor, menu::selectedTextColor);
-        destroyPage(garagePurchasePage);
-        garagePurchasePage = std::move(purchaseReplacement);
     };
     auto refreshWorkshopPage = [&]() {
         workshopGoods.clear();
@@ -4604,13 +4827,6 @@ int main(int argc, char** argv)
                 message.replace(
                     marker, 2U, originalCurrency(value));
             }
-            auto replacement = createStyledPage(
-                {message}, menu::smallFontHeight,
-                menu::normalTextColor,
-                menu::selectedTextColor);
-            destroyPage(workshopConfirmationPage);
-            workshopConfirmationPage =
-                std::move(replacement);
             workshopConfirmation = confirmation;
             workshopPendingPurchase =
                 confirmation == WorkshopConfirmation::Buy
@@ -4618,6 +4834,44 @@ int main(int argc, char** argv)
                     : nullptr;
             workshopConfirmationYesFocused = true;
             hideWorkshopWeaponDialog();
+            const bool buying =
+                confirmation == WorkshopConfirmation::Buy;
+            float senderX = workshopDragX;
+            float senderY = workshopDragY;
+            float senderWidth =
+                static_cast<float>(workshopSlotImage.width);
+            float senderHeight =
+                static_cast<float>(workshopSlotImage.height);
+            if (buying)
+            {
+                constexpr std::size_t firstGoodFocus = 1U;
+                const std::size_t visible =
+                    menuSelection >= firstGoodFocus
+                        ? menuSelection - firstGoodFocus
+                        : 0U;
+                const auto centers = workshopGoodCenters();
+                const auto& sender =
+                    centers[std::min(
+                        visible, centers.size() - 1U)];
+                senderX = sender[0];
+                senderY = sender[1];
+                senderWidth = 100.0F;
+                senderHeight = 100.0F;
+            }
+            const float posX =
+                senderX + senderWidth * 0.25F;
+            const float posY =
+                senderY - senderHeight * 0.25F;
+            showAcceptDialog(
+                message, localized("svYes"), localized("svNo"),
+                posX +
+                    static_cast<float>(
+                        acceptFrameImage.width) *
+                        0.5F,
+                posY -
+                    static_cast<float>(
+                        acceptFrameImage.height) *
+                        0.5F);
         };
     auto showWorkshopGoodMessage = [&](std::string_view messageKey) {
         constexpr std::size_t firstGoodFocus = 1U;
@@ -5044,19 +5298,49 @@ int main(int argc, char** argv)
         angarTravelDialogVisible = false;
         backMenu();
     };
-    auto requestAngarTravel = [&](std::size_t index) {
+    auto requestAngarTravel =
+        [&](std::size_t index, bool fromPlanetSlot = true) {
         angarTravelTarget = index;
         angarTravelYesFocused = true;
         const auto key =
             index == profileState.player.currentPlanet
                 ? "svYouReadyStayPlanet"
                 : "svYouReadyFlyPlanet";
-        auto replacement = createText(
-            *device, localized(key), menu::smallFontHeight,
-            false, menu::normalTextColor, resolvedFont);
-        device->destroy(angarTravelMessage.texture);
-        angarTravelMessage = replacement;
         angarTravelDialogVisible = true;
+        float posX = menu::virtualWidth * 0.5F;
+        float posY = menu::virtualHeight * 0.5F;
+        if (fromPlanetSlot)
+        {
+            const float panelCenterY =
+                menu::virtualHeight -
+                static_cast<float>(
+                    angarBottomPanelImage.height) *
+                    0.5F -
+                20.0F;
+            posX =
+                menu::virtualWidth * 0.5F -
+                static_cast<float>(
+                    angarBottomPanelImage.width) *
+                    0.5F +
+                125.0F +
+                static_cast<float>(index) * 224.0F;
+            posY =
+                panelCenterY -
+                static_cast<float>(
+                    angarBottomPanelImage.height) *
+                    0.5F +
+                90.0F -
+                static_cast<float>(
+                    angarDoorSlotImage.height) *
+                    0.5F;
+        }
+        showAcceptDialog(
+            localized(key), localized("svYes"),
+            localized("svNo"), posX,
+            posY -
+                static_cast<float>(
+                    acceptFrameImage.height) *
+                    0.5F);
     };
     auto refreshAchievementsPage = [&]() {
         std::vector<std::string> prices;
@@ -6036,12 +6320,7 @@ int main(int argc, char** argv)
                     !event.key.repeat)
                 {
                     consumedCaptureEvent = true;
-                    if (event.key.scancode == SDL_SCANCODE_BACKSPACE ||
-                        event.key.scancode == SDL_SCANCODE_DELETE)
-                    {
-                        bindingName = "None";
-                    }
-                    else if (!bindingCaptureGamepad)
+                    if (!bindingCaptureGamepad)
                     {
                         bindingName =
                             originalKeyName(event.key.scancode);
@@ -6081,65 +6360,11 @@ int main(int argc, char** argv)
                     continue;
             }
 #endif
-            bool pointerTargetsExitChoice = true;
-#ifdef RRR3D_PHYSICS
-            if (inRace && exitRaceDialogVisible &&
-                (event.type == SDL_EVENT_MOUSE_MOTION ||
-                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
-            {
-                int windowWidth = 0;
-                int windowHeight = 0;
-                const float mouseX =
-                    event.type == SDL_EVENT_MOUSE_MOTION
-                        ? event.motion.x
-                        : event.button.x;
-                const float mouseY =
-                    event.type == SDL_EVENT_MOUSE_MOTION
-                        ? event.motion.y
-                        : event.button.y;
-                std::optional<bool> hoveredYes;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
-                {
-                    const float virtualX =
-                        mouseX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        mouseY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
-                    const float buttonY =
-                        menu::virtualHeight * 0.5F + 32.0F;
-                    const float yesX =
-                        menu::virtualWidth * 0.5F - 70.0F;
-                    const float noX =
-                        menu::virtualWidth * 0.5F + 70.0F;
-                    if (std::abs(virtualY - buttonY) <= 19.0F &&
-                        std::abs(virtualX - yesX) <= 45.0F)
-                    {
-                        hoveredYes = true;
-                    }
-                    else if (
-                        std::abs(virtualY - buttonY) <= 19.0F &&
-                        std::abs(virtualX - noX) <= 45.0F)
-                    {
-                        hoveredYes = false;
-                    }
-                }
-                if (hoveredYes)
-                    exitRaceYesFocused = *hoveredYes;
-                if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-                    event.button.button == SDL_BUTTON_LEFT)
-                {
-                    pointerTargetsExitChoice =
-                        hoveredYes.has_value();
-                }
-            }
-#endif
             bool pointerTargetsItem = true;
             bool pointerHandledOriginalOptions = false;
             bool workshopPointerSlotPlane = false;
 #ifdef RRR3D_PHYSICS
+            std::optional<bool> pointerAcceptChoice;
             if (infoDialog.visible &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
@@ -6183,6 +6408,63 @@ int main(int argc, char** argv)
                     event.type == SDL_EVENT_MOUSE_MOTION ||
                     event.button.button != SDL_BUTTON_LEFT;
             }
+            else if (acceptDialogVisible() &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float pointerX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float pointerY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        pointerX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        pointerY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    const float buttonY =
+                        acceptDialog.centerY +
+                        acceptDialog.buttonOffsetY;
+                    const float yesX =
+                        acceptDialog.centerX +
+                        acceptDialog.yesOffsetX;
+                    const float noX =
+                        acceptDialog.centerX +
+                        acceptDialog.noOffsetX;
+                    if (std::abs(virtualY - buttonY) <=
+                            acceptDialog.buttonHeight * 0.5F &&
+                        std::abs(virtualX - yesX) <=
+                            acceptDialog.buttonWidth * 0.5F)
+                    {
+                        pointerAcceptChoice = true;
+                    }
+                    else if (
+                        std::abs(virtualY - buttonY) <=
+                            acceptDialog.buttonHeight * 0.5F &&
+                        std::abs(virtualX - noX) <=
+                            acceptDialog.buttonWidth * 0.5F)
+                    {
+                        pointerAcceptChoice = false;
+                    }
+                }
+                acceptDialog.hoveredChoice = pointerAcceptChoice;
+                if (pointerAcceptChoice)
+                    setAcceptDialogFocus(*pointerAcceptChoice);
+                pointerTargetsItem =
+                    pointerAcceptChoice.has_value() ||
+                    event.type == SDL_EVENT_MOUSE_MOTION ||
+                    event.button.button != SDL_BUTTON_LEFT;
+            }
             else if (!inRace &&
                 menuStack.back() == MenuScreen::Profiles &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
@@ -6213,29 +6495,6 @@ int main(int argc, char** argv)
                         menu::virtualWidth * 0.5F;
                     const float centerY =
                         menu::virtualHeight * 0.5F;
-                    if (profileDeleteDialogVisible)
-                    {
-                        const float buttonY = centerY + 32.0F;
-                        if (std::abs(virtualY - buttonY) <= 24.0F &&
-                            std::abs(
-                                virtualX -
-                                (centerX - 70.0F)) <= 55.0F)
-                        {
-                            profileDeleteYesFocused = true;
-                            hoveredProfileControl = true;
-                        }
-                        else if (
-                            std::abs(virtualY - buttonY) <= 24.0F &&
-                            std::abs(
-                                virtualX -
-                                (centerX + 70.0F)) <= 55.0F)
-                        {
-                            profileDeleteYesFocused = false;
-                            hoveredProfileControl = true;
-                        }
-                    }
-                    else
-                    {
                         const auto visibleEnd = std::min(
                             profileGridScroll + 4U,
                             profileState.profiles.size());
@@ -6305,7 +6564,6 @@ int main(int argc, char** argv)
                             profileFocus = ProfileFocus::Down;
                             hoveredProfileControl = true;
                         }
-                    }
                 }
                 pointerTargetsItem =
                     hoveredProfileControl ||
@@ -6338,32 +6596,6 @@ int main(int argc, char** argv)
                     const float virtualY =
                         pointerY * menu::virtualHeight /
                         static_cast<float>(windowHeight);
-                    if (garagePurchaseDialogVisible)
-                    {
-                        const float buttonY =
-                            menu::virtualHeight * 0.5F + 32.0F;
-                        if (std::abs(virtualY - buttonY) <= 24.0F &&
-                            std::abs(
-                                virtualX -
-                                (menu::virtualWidth * 0.5F -
-                                 70.0F)) <= 55.0F)
-                        {
-                            garagePurchaseYesFocused = true;
-                            hoveredGarageItem = 1U;
-                        }
-                        else if (
-                            std::abs(virtualY - buttonY) <= 24.0F &&
-                            std::abs(
-                                virtualX -
-                                (menu::virtualWidth * 0.5F +
-                                 70.0F)) <= 55.0F)
-                        {
-                            garagePurchaseYesFocused = false;
-                            hoveredGarageItem = 1U;
-                        }
-                    }
-                    else
-                    {
                         const float bottomCenterY =
                             menu::virtualHeight -
                             static_cast<float>(
@@ -6439,10 +6671,8 @@ int main(int argc, char** argv)
                                     break;
                             }
                         }
-                    }
                 }
-                if (hoveredGarageItem &&
-                    !garagePurchaseDialogVisible)
+                if (hoveredGarageItem)
                 {
                     menuSelection = *hoveredGarageItem;
                 }
@@ -6481,34 +6711,6 @@ int main(int argc, char** argv)
                         static_cast<float>(windowHeight);
                     workshopDragX = virtualX;
                     workshopDragY = virtualY;
-                    if (workshopConfirmation !=
-                        WorkshopConfirmation::None)
-                    {
-                        hideWorkshopWeaponDialog();
-                        const float dialogCenterX =
-                            menu::virtualWidth * 0.5F;
-                        const float choiceY =
-                            menu::virtualHeight * 0.5F +
-                            32.0F;
-                        if (std::abs(
-                                virtualY - choiceY) <=
-                                30.0F &&
-                            (std::abs(
-                                 virtualX -
-                                 (dialogCenterX - 70.0F)) <=
-                                 55.0F ||
-                             std::abs(
-                                 virtualX -
-                                 (dialogCenterX + 70.0F)) <=
-                                 55.0F))
-                        {
-                            workshopConfirmationYesFocused =
-                                virtualX < dialogCenterX;
-                            hoveredWorkshopItem = 0U;
-                        }
-                    }
-                    else
-                    {
                     const float backY =
                         menu::virtualHeight -
                         static_cast<float>(
@@ -6737,7 +6939,6 @@ int main(int argc, char** argv)
                             pointerHandledOriginalOptions = true;
                         }
                     }
-                    }
                 }
                 if (!workshopDialogShown)
                     hideWorkshopWeaponDialog();
@@ -6781,29 +6982,6 @@ int main(int argc, char** argv)
                     const auto planetCount = std::min(
                         originalGarage->planets.size(),
                         profileState.player.planets.size());
-                    if (angarTravelDialogVisible)
-                    {
-                        const float choiceY =
-                            menu::virtualHeight * 0.5F +
-                            32.0F;
-                        if (std::abs(virtualY - choiceY) <= 30.0F &&
-                            (std::abs(
-                                 virtualX -
-                                 (menu::virtualWidth * 0.5F -
-                                  70.0F)) <= 55.0F ||
-                             std::abs(
-                                 virtualX -
-                                 (menu::virtualWidth * 0.5F +
-                                  70.0F)) <= 55.0F))
-                        {
-                            angarTravelYesFocused =
-                                virtualX <
-                                menu::virtualWidth * 0.5F;
-                            hoveredAngarItem = 0U;
-                        }
-                    }
-                    else
-                    {
                         const float panelCenterX =
                             menu::virtualWidth * 0.5F;
                         const float panelCenterY =
@@ -6892,10 +7070,8 @@ int main(int argc, char** argv)
                                 pointerHandledOriginalOptions = true;
                             }
                         }
-                    }
                 }
                 if (hoveredAngarItem &&
-                    !angarTravelDialogVisible &&
                     !pointerHandledOriginalOptions)
                 {
                     menuSelection = *hoveredAngarItem;
@@ -6938,28 +7114,6 @@ int main(int argc, char** argv)
                     const float virtualY =
                         pointerY * menu::virtualHeight /
                         static_cast<float>(windowHeight);
-                    if (achievementPurchaseDialogVisible)
-                    {
-                        const float choiceY =
-                            menu::virtualHeight * 0.5F + 32.0F;
-                        if (std::abs(virtualY - choiceY) <= 30.0F &&
-                            (std::abs(
-                                 virtualX -
-                                 (menu::virtualWidth * 0.5F -
-                                  70.0F)) <= 55.0F ||
-                             std::abs(
-                                 virtualX -
-                                 (menu::virtualWidth * 0.5F +
-                                  70.0F)) <= 55.0F))
-                        {
-                            achievementPurchaseYesFocused =
-                                virtualX <
-                                menu::virtualWidth * 0.5F;
-                            hoveredAchievement = 0U;
-                        }
-                    }
-                    else
-                    {
                         const float scale = std::min(
                             menu::virtualWidth / 1090.0F,
                             menu::virtualHeight / 720.0F);
@@ -7014,10 +7168,8 @@ int main(int argc, char** argv)
                             hoveredAchievement =
                                 originalAchievementBack;
                         }
-                    }
                 }
-                if (hoveredAchievement &&
-                    !achievementPurchaseDialogVisible)
+                if (hoveredAchievement)
                 {
                     menuSelection = *hoveredAchievement;
                 }
@@ -7340,6 +7492,34 @@ int main(int argc, char** argv)
             for (const auto& inputEvent : inputEvents)
             {
 #ifdef RRR3D_PHYSICS
+                if (bindingCaptureAction &&
+                    acceptDialog.disableFocus &&
+                    inputEvent.active &&
+                    !inputEvent.repeated &&
+                    inputEvent.source ==
+                        rrr3d::input::Source::Mouse &&
+                    inputEvent.action ==
+                        rrr3d::input::Action::MenuConfirm)
+                {
+                    if (!pointerAcceptChoice)
+                        continue;
+#ifdef RRR3D_AUDIO
+                    playMainButtonClick();
+#endif
+                    if (*pointerAcceptChoice)
+                    {
+                        auto& bindings =
+                            bindingCaptureGamepad
+                                ? optionsDraftConfig
+                                      .gamepadControls
+                                : optionsDraftConfig
+                                      .keyboardControls;
+                        bindings[*bindingCaptureAction] = "None";
+                    }
+                    bindingCaptureAction.reset();
+                    refreshCurrentOptionsPage();
+                    continue;
+                }
                 if (infoDialog.visible)
                 {
                     if (!inputEvent.active || inputEvent.repeated)
@@ -7391,7 +7571,7 @@ int main(int argc, char** argv)
                     {
                         if (inputEvent.source ==
                                 rrr3d::input::Source::Mouse &&
-                            !pointerTargetsExitChoice)
+                            !pointerTargetsItem)
                             continue;
                         if (exitRaceYesFocused)
                             leaveCurrentRace();
@@ -7741,6 +7921,13 @@ int main(int argc, char** argv)
                                 profileFocusIndex;
                             profileDeleteYesFocused = true;
                             profileDeleteDialogVisible = true;
+                            showAcceptDialog(
+                                localized(
+                                    "svHintDeleteProfile"),
+                                localized("svYes"),
+                                localized("svNo"),
+                                menu::virtualWidth * 0.5F,
+                                menu::virtualHeight * 0.5F);
                             std::cout
                                 << "ProfileFrame: "
                                 << localized(
@@ -7857,6 +8044,13 @@ int main(int argc, char** argv)
                                         << garageError << '\n';
                                     garagePurchaseDialogVisible =
                                         false;
+                                    showInfoDialog(
+                                        localized("svWarning"),
+                                        localized(
+                                            "svHintCantMoney"),
+                                        localized("svOk"),
+                                        menu::virtualWidth * 0.5F,
+                                        menu::virtualHeight * 0.5F);
                                     refreshGaragePage();
                                 }
                             }
@@ -7950,6 +8144,21 @@ int main(int argc, char** argv)
                         {
                             garagePurchaseYesFocused = true;
                             garagePurchaseDialogVisible = true;
+                            std::string purchase =
+                                localized("svBuyCar");
+                            if (const auto marker =
+                                    purchase.find("%s");
+                                marker != std::string::npos)
+                            {
+                                purchase.replace(
+                                    marker, 2U,
+                                    originalCurrency(car.cost));
+                            }
+                            showAcceptDialog(
+                                purchase, localized("svYes"),
+                                localized("svNo"),
+                                menu::virtualWidth * 0.5F,
+                                menu::virtualHeight * 0.5F);
                         }
                         else
                         {
@@ -8295,6 +8504,12 @@ int main(int argc, char** argv)
                                 menuSelection;
                             achievementPurchaseYesFocused = true;
                             achievementPurchaseDialogVisible = true;
+                            showAcceptDialog(
+                                localized("svBuyReward"),
+                                localized("svYes"),
+                                localized("svNo"),
+                                menu::virtualWidth * 0.5F,
+                                menu::virtualHeight * 0.5F);
                         }
                     }
                     continue;
@@ -8405,7 +8620,8 @@ int main(int argc, char** argv)
                             requestAngarTravel(
                                 std::min<std::size_t>(
                                     profileState.player.currentPlanet,
-                                    planetCount - 1U));
+                                    planetCount - 1U),
+                                false);
                         }
                         else
                         {
@@ -9006,6 +9222,13 @@ int main(int argc, char** argv)
                         bindingCaptureAction =
                             originalControlActions[menuSelection];
                         bindingCaptureGamepad = controlsUseGamepad;
+                        showAcceptDialog(
+                            localized("svPressKey"),
+                            localized("svDeleteKey"),
+                            localized("svCancel"),
+                            menu::virtualWidth * 0.5F,
+                            menu::virtualHeight * 0.5F,
+                            true, false, true);
                         std::cout
                             << "Original ControlsFrame: "
                             << localized("svPressKey") << " ("
@@ -9835,49 +10058,7 @@ int main(int argc, char** argv)
             device->beginOverlay(camera);
             if (profileState.config.enableHud)
                 raceHud.draw(*device, quad, shader, raceShader);
-            if (exitRaceDialogVisible)
-            {
-                const float centerX = menu::virtualWidth * 0.5F;
-                const float centerY = menu::virtualHeight * 0.5F;
-                drawQuad(
-                    *device, quad, shader, acceptFrame,
-                    static_cast<float>(acceptFrameImage.width),
-                    static_cast<float>(acceptFrameImage.height),
-                    centerX, centerY, 15.0F, transparent);
-                const float messageScale = std::min(
-                    {1.0F,
-                     325.0F / std::max(exitRaceMessage.width, 1.0F),
-                     65.0F / std::max(exitRaceMessage.height, 1.0F)});
-                drawQuad(
-                    *device, quad, shader, exitRaceMessage.texture,
-                    exitRaceMessage.width * messageScale,
-                    exitRaceMessage.height * messageScale,
-                    centerX, centerY - 25.0F, 8.0F, transparent);
-                auto drawChoice = [&](bool yes, float x) {
-                    const bool selectedChoice =
-                        exitRaceYesFocused == yes;
-                    drawQuad(
-                        *device, quad, shader,
-                        selectedChoice ? acceptButtonSelected
-                                       : acceptButton,
-                        static_cast<float>(acceptButtonImage.width),
-                        static_cast<float>(acceptButtonImage.height),
-                        x, centerY + 32.0F, 7.0F, transparent);
-                    const auto& label =
-                        yes ? (selectedChoice
-                                   ? exitRaceYesSelected
-                                   : exitRaceYes)
-                            : (selectedChoice
-                                   ? exitRaceNoSelected
-                                   : exitRaceNo);
-                    drawQuad(
-                        *device, quad, shader, label.texture,
-                        label.width, label.height, x,
-                        centerY + 32.0F, 4.0F, transparent);
-                };
-                drawChoice(true, centerX - 70.0F);
-                drawChoice(false, centerX + 70.0F);
-            }
+            drawAcceptDialog();
 #ifdef RRR3D_AUDIO
             drawOriginalMusicDialog();
 #endif
@@ -10279,8 +10460,6 @@ int main(int argc, char** argv)
                     (profileState.profiles.size() > 4U
                          ? profileState.profiles.size() - 4U
                          : 0U);
-            if (profileDeleteDialogVisible)
-                profileDeleteDialogObserved = true;
             const float centerX =
                 menu::virtualWidth * 0.5F;
             const float centerY =
@@ -10414,64 +10593,6 @@ int main(int argc, char** argv)
                 backText.width, backText.height,
                 centerX, backY, 25.0F, transparent);
 
-            if (profileDeleteDialogVisible)
-            {
-                drawQuad(
-                    *device, quad, shader, acceptFrame,
-                    static_cast<float>(acceptFrameImage.width),
-                    static_cast<float>(acceptFrameImage.height),
-                    centerX, centerY, 8.0F, transparent);
-                const float messageScale = std::min(
-                    1.0F,
-                    330.0F /
-                        std::max(
-                            profileDeleteMessage.width, 1.0F));
-                drawQuad(
-                    *device, quad, shader,
-                    profileDeleteMessage.texture,
-                    profileDeleteMessage.width * messageScale,
-                    profileDeleteMessage.height * messageScale,
-                    centerX, centerY - 35.0F,
-                    6.0F, transparent);
-                auto drawProfileDeleteChoice =
-                    [&](bool yes, float x) {
-                        const bool selected =
-                            profileDeleteYesFocused == yes;
-                        drawQuad(
-                            *device, quad, shader,
-                            selected
-                                ? acceptButtonSelected
-                                : acceptButton,
-                            static_cast<float>(
-                                selected
-                                    ? acceptButtonSelectedImage.width
-                                    : acceptButtonImage.width),
-                            static_cast<float>(
-                                selected
-                                    ? acceptButtonSelectedImage.height
-                                    : acceptButtonImage.height),
-                            x, centerY + 32.0F, 5.0F,
-                            transparent);
-                        const auto& label =
-                            yes
-                                ? (selected
-                                       ? exitRaceYesSelected
-                                       : exitRaceYes)
-                                : (selected
-                                       ? exitRaceNoSelected
-                                       : exitRaceNo);
-                        drawQuad(
-                            *device, quad, shader,
-                            label.texture, label.width,
-                            label.height, x,
-                            centerY + 32.0F, 3.0F,
-                            transparent);
-                    };
-                drawProfileDeleteChoice(
-                    true, centerX - 70.0F);
-                drawProfileDeleteChoice(
-                    false, centerX + 70.0F);
-            }
         }
         else if (drawingOriginalOptions)
         {
@@ -11401,58 +11522,6 @@ int main(int argc, char** argv)
                         : garageBuyImage.height),
                 buyX, buyY, 35.0F, transparent);
 
-            if (garagePurchaseDialogVisible)
-            {
-                drawQuad(
-                    *device, quad, shader, acceptFrame,
-                    static_cast<float>(acceptFrameImage.width),
-                    static_cast<float>(acceptFrameImage.height),
-                    centerX, centerY, 10.0F, transparent);
-                const auto& message =
-                    garagePurchasePage.normal.front();
-                const float scale = std::min(
-                    1.0F,
-                    300.0F / std::max(message.width, 1.0F));
-                drawQuad(
-                    *device, quad, shader, message.texture,
-                    message.width * scale,
-                    message.height * scale, centerX,
-                    centerY - 35.0F, 5.0F, transparent);
-                auto drawChoice =
-                    [&](bool yes, float x) {
-                        const bool selected =
-                            garagePurchaseYesFocused == yes;
-                        drawQuad(
-                            *device, quad, shader,
-                            selected ? acceptButtonSelected
-                                     : acceptButton,
-                            static_cast<float>(
-                                selected
-                                    ? acceptButtonSelectedImage.width
-                                    : acceptButtonImage.width),
-                            static_cast<float>(
-                                selected
-                                    ? acceptButtonSelectedImage.height
-                                    : acceptButtonImage.height),
-                            x, centerY + 32.0F, 4.0F,
-                            transparent);
-                        const auto& label =
-                            yes
-                                ? (selected
-                                       ? exitRaceYesSelected
-                                       : exitRaceYes)
-                                : (selected
-                                       ? exitRaceNoSelected
-                                       : exitRaceNo);
-                        drawQuad(
-                            *device, quad, shader, label.texture,
-                            label.width, label.height, x,
-                            centerY + 32.0F, 3.0F,
-                            transparent);
-                    };
-                drawChoice(true, centerX - 70.0F);
-                drawChoice(false, centerX + 70.0F);
-            }
         }
         else if (drawingOriginalWorkshop)
         {
@@ -12142,76 +12211,6 @@ int main(int argc, char** argv)
                         racePipeline);
                 }
             }
-            if (workshopConfirmation !=
-                WorkshopConfirmation::None)
-            {
-                const float dialogY =
-                    menu::virtualHeight * 0.5F;
-                drawQuad(
-                    *device, quad, shader, acceptFrame,
-                    static_cast<float>(
-                        acceptFrameImage.width),
-                    static_cast<float>(
-                        acceptFrameImage.height),
-                    centerX, dialogY, 6.0F, transparent);
-                if (!workshopConfirmationPage.normal.empty())
-                {
-                    const auto& message =
-                        workshopConfirmationPage.normal[0];
-                    const float scale = std::min(
-                        1.0F,
-                        300.0F /
-                            std::max(message.width, 1.0F));
-                    drawQuad(
-                        *device, quad, shader,
-                        message.texture,
-                        message.width * scale,
-                        message.height * scale, centerX,
-                        dialogY - 35.0F, 4.0F,
-                        transparent);
-                }
-                auto drawWorkshopChoice =
-                    [&](bool yes, float x) {
-                        const bool selected =
-                            workshopConfirmationYesFocused ==
-                            yes;
-                        drawQuad(
-                            *device, quad, shader,
-                            selected
-                                ? acceptButtonSelected
-                                : acceptButton,
-                            static_cast<float>(
-                                selected
-                                    ? acceptButtonSelectedImage
-                                          .width
-                                    : acceptButtonImage.width),
-                            static_cast<float>(
-                                selected
-                                    ? acceptButtonSelectedImage
-                                          .height
-                                    : acceptButtonImage.height),
-                            x, dialogY + 32.0F, 3.0F,
-                            transparent);
-                        const auto& label =
-                            yes
-                                ? (selected
-                                       ? exitRaceYesSelected
-                                       : exitRaceYes)
-                                : (selected
-                                       ? exitRaceNoSelected
-                                       : exitRaceNo);
-                        drawQuad(
-                            *device, quad, shader,
-                            label.texture, label.width,
-                            label.height, x,
-                            dialogY + 32.0F, 2.0F,
-                            transparent);
-                    };
-                drawWorkshopChoice(
-                    true, centerX - 70.0F);
-                drawWorkshopChoice(
-                    false, centerX + 70.0F);
-            }
         }
         else if (drawingOriginalAngar)
         {
@@ -12477,64 +12476,6 @@ int main(int argc, char** argv)
                 }
             }
 
-            if (angarTravelDialogVisible)
-            {
-                const float centerX =
-                    menu::virtualWidth * 0.5F;
-                const float centerY =
-                    menu::virtualHeight * 0.5F;
-                drawQuad(
-                    *device, quad, shader, acceptFrame,
-                    static_cast<float>(acceptFrameImage.width),
-                    static_cast<float>(acceptFrameImage.height),
-                    centerX, centerY, 6.0F, transparent);
-                const float messageScale = std::min(
-                    1.0F,
-                    300.0F /
-                        std::max(angarTravelMessage.width, 1.0F));
-                drawQuad(
-                    *device, quad, shader,
-                    angarTravelMessage.texture,
-                    angarTravelMessage.width * messageScale,
-                    angarTravelMessage.height * messageScale,
-                    centerX, centerY - 35.0F,
-                    4.0F, transparent);
-                auto drawAngarChoice =
-                    [&](bool yes, float x) {
-                        const bool selected =
-                            angarTravelYesFocused == yes;
-                        drawQuad(
-                            *device, quad, shader,
-                            selected ? acceptButtonSelected
-                                     : acceptButton,
-                            static_cast<float>(
-                                selected
-                                    ? acceptButtonSelectedImage.width
-                                    : acceptButtonImage.width),
-                            static_cast<float>(
-                                selected
-                                    ? acceptButtonSelectedImage.height
-                                    : acceptButtonImage.height),
-                            x, centerY + 32.0F, 3.0F,
-                            transparent);
-                        const auto& label =
-                            yes
-                                ? (selected
-                                       ? exitRaceYesSelected
-                                       : exitRaceYes)
-                                : (selected
-                                       ? exitRaceNoSelected
-                                       : exitRaceNo);
-                        drawQuad(
-                            *device, quad, shader,
-                            label.texture, label.width,
-                            label.height, x,
-                            centerY + 32.0F, 2.0F,
-                            transparent);
-                    };
-                drawAngarChoice(true, centerX - 70.0F);
-                drawAngarChoice(false, centerX + 70.0F);
-            }
         }
         else if (drawingOriginalFinish)
         {
@@ -12819,61 +12760,6 @@ int main(int argc, char** argv)
                 backText.width, backText.height, backX, backY,
                 15.0F, transparent);
 
-            if (achievementPurchaseDialogVisible)
-            {
-                drawQuad(
-                    *device, quad, shader, acceptFrame,
-                    static_cast<float>(acceptFrameImage.width),
-                    static_cast<float>(acceptFrameImage.height),
-                    centerX, centerY, 6.0F, transparent);
-                const float messageScale = std::min(
-                    1.0F,
-                    300.0F /
-                        std::max(
-                            achievementPurchaseMessage.width, 1.0F));
-                drawQuad(
-                    *device, quad, shader,
-                    achievementPurchaseMessage.texture,
-                    achievementPurchaseMessage.width * messageScale,
-                    achievementPurchaseMessage.height * messageScale,
-                    centerX, centerY - 35.0F,
-                    4.0F, transparent);
-                auto drawAchievementChoice =
-                    [&](bool yes, float x) {
-                        const bool selected =
-                            achievementPurchaseYesFocused == yes;
-                        drawQuad(
-                            *device, quad, shader,
-                            selected ? acceptButtonSelected
-                                     : acceptButton,
-                            static_cast<float>(
-                                selected
-                                    ? acceptButtonSelectedImage.width
-                                    : acceptButtonImage.width),
-                            static_cast<float>(
-                                selected
-                                    ? acceptButtonSelectedImage.height
-                                    : acceptButtonImage.height),
-                            x, centerY + 32.0F, 3.0F,
-                            transparent);
-                        const auto& label =
-                            yes
-                                ? (selected
-                                       ? exitRaceYesSelected
-                                       : exitRaceYes)
-                                : (selected
-                                       ? exitRaceNoSelected
-                                       : exitRaceNo);
-                        drawQuad(
-                            *device, quad, shader,
-                            label.texture, label.width,
-                            label.height, x,
-                            centerY + 32.0F, 2.0F,
-                            transparent);
-                    };
-                drawAchievementChoice(true, centerX - 70.0F);
-                drawAchievementChoice(false, centerX + 70.0F);
-            }
         }
         else
 #endif
@@ -12956,6 +12842,7 @@ int main(int argc, char** argv)
                 versionY, 25.0F, transparent);
         }
 #ifdef RRR3D_PHYSICS
+        drawAcceptDialog();
         if (infoDialog.visible)
         {
             drawQuad(

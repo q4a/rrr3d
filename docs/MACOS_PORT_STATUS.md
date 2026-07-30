@@ -969,14 +969,30 @@ SDL_AUDIO_DRIVER=dummy \
 - 300-frame M9 regression теперь отдельно требует фактическую отрисовку и
   input-close `InfoDialog`; M8 MusicCat и M10 verification подтвердили
   отсутствие regressions и все 1196 оригинальных файлов.
+- Все вызываемые offline подтверждения сведены к перенесённому
+  `DialogMenu2::AcceptDialog`: `dlgFrame1` 384×156,
+  `dlgButton1/dlgButtonSel1` 90×38, centered word-wrap Verdana 32 gray,
+  source offsets `(-70,32)/(70,32)`, начальный focus Yes и clamp 15 px.
+- Восстановлены `maxMode`, `maxButtonsSize` и `disableFocus`, поэтому
+  `OptionsMenu::Press key` использует исходный modal Delete/Cancel path, а не
+  специальную строку состояния. Любая клавиша назначается через тот же
+  callback; Delete очищает binding, Cancel оставляет его прежним.
+- HUD exit, Profile delete, Garage/Achievement buy остаются центрированными.
+  Workshop Buy/Sell используют исходные quarter-size sender offset и
+  `waLeftBottom`; Angar Stay/Fly — half-height offset и `waBottom`.
+  Ошибка Garage buy теперь показывает отдельный source `InfoDialog`.
+- 300-frame M9 smoke проверил точные размеры frame/info/buttons и offsets в
+  Profile/HUD paths. M8/M9/M10 Debug, audio/race-render, resource и bundle
+  verification прошли.
 
 ## Следующий рекомендуемый этап
 
 Основные offline subframes `RaceMenu2` и ветка GameMode/Tournament/
 Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` и workshop
-`WeaponDialog`, а также вызываемые offline `InfoDialog` теперь source-derived.
-Следующий P0-блок: нормализовать оставшиеся `AcceptDialog`, text input и их
-callback/transitions; после этого закрыть intro-video/final-unlock ветку.
+`WeaponDialog`, а также вызываемые offline `InfoDialog`/`AcceptDialog` теперь
+source-derived. Следующий P0-блок: перенести исходные text-input widgets
+`ProfileFrame`/`UserChat` и их callback/transitions; после этого закрыть
+intro-video/final-unlock ветку.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих

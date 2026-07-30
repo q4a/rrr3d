@@ -75,7 +75,7 @@ Windows target не компилируется.
 | Spatial race audio | X3DAudio game integration | ручные attenuation/pan/pitch voices | Частично | Основные car/race sounds есть; исходные emitters/listeners, все lifetime/priority rules и все sound behaviors не перенесены |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared/profile/final navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty, Profile и FinalMenu имеют исходные item order, NavElement/input branches, disabled skip и actions; Network и общий legacy event object graph ещё не завершены |
-| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, accept dialog, `MusicDialog`, `WeaponDialog` и offline `InfoDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, load/delete confirmation, popup текущего track, hover-dialog товара/слота и вызываемые Workshop/Angar/Achievement warnings перенесены; text input, оставшиеся `AcceptDialog` branches и transitions ещё отсутствуют |
+| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, `AcceptDialog`, `MusicDialog`, `WeaponDialog` и offline `InfoDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, все вызываемые offline confirmations, popup текущего track, hover-dialog товара/слота и Workshop/Angar/Achievement warnings перенесены; text input и оставшиеся UI transitions ещё отсутствуют |
 | Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph и тени menu spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | source-derived FinishMenu и FinalMenu | Перенесено | Оба активных экрана используют исходные assets/layout/timing/input; tournament unlock/video flow учитывается отдельно |
@@ -121,10 +121,10 @@ Windows target не компилируется.
 `GameModeFrame`, `TournamentFrame`, `DifficultyFrame` и активный
 `OptionsMenu` больше не являются произвольными generic-списками: их
 компоновка, доступность и переходы сопоставлены с исходником. Главные
-оставшиеся generic-блоки — другие dialogs и Network. Активные `FinishMenu`
-и `FinalMenu` уже используют исходные игровые ресурсы, layout, timing и
-ControlEvent semantics. Legacy `MenuSystem` animation/event object graph
-также не компилируется.
+оставшиеся generic-блоки — text-input widgets, Network и часть переходов.
+Активные `FinishMenu` и `FinalMenu` уже используют исходные игровые ресурсы,
+layout, timing и ControlEvent semantics. Legacy `MenuSystem`
+animation/event object graph также не компилируется.
 
 ### 2. Игровая логика
 
@@ -553,6 +553,32 @@ Network, video и Steam явно выключены.
    M8/M9/M10 Debug, последовательные audio/race-render и resource verifier
    прошли.
 
+### AcceptDialog
+
+1. Шесть раздельных immediate-mode вариантов удалены. Все вызываемые offline
+   подтверждения теперь проходят через один перенос
+   `DialogMenu2::AcceptDialog` с исходными `dlgFrame1.png` 384×156 и
+   `dlgButton1/dlgButtonSel1.png` 90×38.
+2. Сообщение использует centered word-wrap Verdana 32 gray `175/255` в
+   области 325×65 с локальной позицией `(0,-25)`. Yes/No используют тот же
+   шрифт и цвет в `(-70,32)`/`(70,32)`; при открытии исходный focus всегда
+   установлен на Yes.
+3. Перенесены оба специальных режима конструктора: `maxMode` масштабирует
+   frame/info в 1.7 раза, ширину кнопок в 1.5 раза, использует Small 24 и
+   offsets `±100/72`; `maxButtonsSize` дополнительно расширяет кнопки и
+   сводит их центры к `-10/+10`. `disableFocus` оставляет modal background
+   владельцем navigation, как требуется диалогу `OptionsMenu::Press key`.
+4. Сохранены исходные placement paths и clamp 15 px: HUD exit, Profile
+   delete, Garage buy и Achievement buy центрированы; Workshop Buy/Sell
+   используют quarter-size sender offset и `waLeftBottom`; Angar Stay/Fly —
+   half-height offset и `waBottom`.
+5. Callback-ветки выполняют фактические source actions: выход из гонки,
+   удаление профиля, покупку машины/товара/reward, смену планеты и
+   Delete/Cancel при переназначении controls. Ошибка покупки машины теперь
+   открывает отдельный исходный `InfoDialog`, а не меняет текст
+   confirmation. M9 smoke проверяет точные 384×156, 325×65, 90×38 и offsets
+   в Profile/HUD paths; M8/M9/M10 и bundle verifier прошли.
+
 ### SpaceshipFrame / AngarFrame
 
 1. Удалена generic-страница `Planets`. `loadOriginalAngarScene` создаёт
@@ -733,8 +759,9 @@ Network, video и Steam явно выключены.
    GameMode/Tournament/Difficulty/Profile, основные offline subframes
    `RaceMenu2`, `FinishMenu`, `FinalMenu` и активная структура
    `OptionsMenu`, `MusicDialog`, workshop `WeaponDialog` и вызываемые offline
-   `InfoDialog` уже source-derived; следующий конкретный разрыв — оставшиеся
-   `AcceptDialog`, text input и их callback/transitions.
+   `InfoDialog`/`AcceptDialog` уже source-derived; следующий конкретный
+   разрыв — исходные text-input widgets (`ProfileFrame`/`UserChat`) и их
+   callback/transitions.
    При этом
    legacy animation/widget classes всё ещё заменены immediate-mode bgfx
    backend.
@@ -744,7 +771,7 @@ Network, video и Steam явно выключены.
    перенести `GameObject`, `Logic`, `Player`, `Race`, `Weapon`.
 4. Перенести `AICar`/`AIPlayer`: trace planning, avoidance, tactics,
    difficulty и weapon decisions.
-5. Завершить остальные dialogs, intro video, unlock/final flow и исходные UI
+5. Завершить text input, intro video, unlock/final flow и исходные UI
    transitions.
 
 ### P1 — visual/audio parity
