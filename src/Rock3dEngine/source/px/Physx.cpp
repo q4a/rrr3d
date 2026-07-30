@@ -1,9 +1,12 @@
 #include "stdafx.h"
 
-#include "px\\Physx.h"
-#include "px\\Stream.h"
+#include "px/Physx.h"
 
 #include "lslSerialValue.h"
+#include "foundation/PxFoundationVersion.h"
+
+namespace physx
+{
 
 namespace r3d
 {
@@ -12,22 +15,29 @@ namespace px
 {
 
 #ifdef _DEBUG
-	#define SAMPLES_USE_VRD
+	#define SAMPLES_USE_PVD
 	//Change this setting to the IP number or DNS name of the computer that is running the VRD
-	const char* const cSamplesVRDHost = "localhost";
+	const char* const cPvdHost = "localhost";
 	//Change this setting to the port on which the VRD is listening, or keep the default: NX_DBG_DEFAULT_PORT
-	const DWORD cNxDbgDefaultPort = NX_DBG_DEFAULT_PORT;
+	const int cPvdPort = 5425;
 	//Change this setting to decide what type of information is sent to the VRD. Default: NX_DBG_EVENTMASK_EVERYTHING
-	const DWORD cSamplesVrdEventMask = NX_DBG_EVENTMASK_EVERYTHING;
+	const PxPvdInstrumentationFlags cPvdFlags = PxPvdInstrumentationFlag::ePROFILE;
 #endif
 
 //const float Scene::maxTimeStep = 1.0f/75.0f;
 //const unsigned Scene::maxSimIter = 8;
-const NxVec3 Scene::cDefGravity(0.0f, 0.0f, -20.0f);
+const PxVec3 Scene::cDefGravity(0.0f, 0.0f, -20.0f);
 const int Scene::cDefMatInd = 0;
 
-NxPhysicsSDK* Manager::_nxSDK = 0;
-NxCookingInterface* Manager::_nxCooking = 0;
+PxPhysics* Manager::_nxSDK = 0;
+PxFoundation *Manager::_nxFoundation = 0;
+PxCooking* Manager::_nxCooking = 0;
+/*
+PxDefaultErrorCallback Manager::_nxErrorCallback;
+PxDefaultAllocator Manager::_nxAllocator;
+PxPvd* Manager::_nxPvd = 0;
+PxPvdTransport* Manager::_nxTransport = 0;
+*/
 unsigned Manager::_sdkRefCnt = 0;
 
 Shapes::ClassList Shapes::classList;
@@ -38,11 +48,15 @@ Shapes::ClassList Shapes::classList;
 Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0)
 {
 	_contactModify = new ContactModify(this);
+#if 0 // check ApexSceneUserNotify.h
 	_contactReport = new ContactReport(this);
+#endif
 	_userNotify = new UserNotify(this);
 
-	NxSceneDesc sceneDesc;
+	PxPhysics &pxSDK = _manager->GetSDK();
+	PxSceneDesc sceneDesc(pxSDK.getTolerancesScale());
 	sceneDesc.gravity				= cDefGravity;
+#if 0
 	sceneDesc.userContactReport		= 0;
 	sceneDesc.upAxis                = 2; //ZVector
 	sceneDesc.timeStepMethod        = NX_TIMESTEP_VARIABLE;
@@ -51,42 +65,40 @@ Scene::Scene(Manager* manager): _manager(manager), _lastDeltaTime(0)
 	sceneDesc.userContactModify     = _contactModify;
 	sceneDesc.userContactReport     = _contactReport;
 	sceneDesc.userNotify            = _userNotify;
+#endif
 
-	_nxScene = _manager->GetSDK().createScene(sceneDesc);
+	_nxScene = pxSDK.createScene(sceneDesc);
 
-	NxMaterial* defMat = _nxScene->getMaterialFromIndex(0);
-	defMat->setStaticFriction(0.5f);
-	defMat->setDynamicFriction(0.5f);
-	defMat->setRestitution(0.5f);
-
-	_nxScene->setGroupCollisionFlag(cdgShot, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgShot, cdgShot, false);
 	//
-	_nxScene->setGroupCollisionFlag(cdgShotBorder, cdgShotBorder, false);
-	_nxScene->setGroupCollisionFlag(cdgShotBorder, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgShotBorder, cdgShotBorder, false);
+	PxSetGroupCollisionFlag(cdgShotBorder, cdgShot, false);
 	//
-	_nxScene->setGroupCollisionFlag(cdgShotTrack, cdgShot, false);
-	_nxScene->setGroupCollisionFlag(cdgShotTrack, cdgShotBorder, false);
-	_nxScene->setGroupCollisionFlag(cdgShotTrack, cdgShotTrack, false);		
+	PxSetGroupCollisionFlag(cdgShotTrack, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgShotTrack, cdgShotBorder, false);
+	PxSetGroupCollisionFlag(cdgShotTrack, cdgShotTrack, false);
 	//
-	_nxScene->setGroupCollisionFlag(cdgShotTransparency, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgShotTransparency, cdgShot, false);
 	//
-	_nxScene->setGroupCollisionFlag(cdgWheel, cdgShot, false);
-	_nxScene->setGroupCollisionFlag(cdgWheel, cdgShotBorder, false);
-	_nxScene->setGroupCollisionFlag(cdgWheel, cdgShotTrack, false);
-	_nxScene->setGroupCollisionFlag(cdgWheel, cdgShotTransparency, false);
+	PxSetGroupCollisionFlag(cdgWheel, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgWheel, cdgShotBorder, false);
+	PxSetGroupCollisionFlag(cdgWheel, cdgShotTrack, false);
+	PxSetGroupCollisionFlag(cdgWheel, cdgShotTransparency, false);
 	//
-	_nxScene->setGroupCollisionFlag(cdgTrackPlane, cdgShot, false);
-	_nxScene->setGroupCollisionFlag(cdgTrackPlane, cdgShotBorder, false);
+	PxSetGroupCollisionFlag(cdgTrackPlane, cdgShot, false);
+	PxSetGroupCollisionFlag(cdgTrackPlane, cdgShotBorder, false);
 }
 
 Scene::~Scene()
 {
 	LSL_ASSERT(_userList.empty());
 
-	_manager->GetSDK().releaseScene(*_nxScene);
+	_nxScene->release();
 
 	delete _userNotify;
+#if 0
 	delete _contactReport;
+#endif
 	delete _contactModify;
 }
 
@@ -94,10 +106,14 @@ Scene::ContactModify::ContactModify(Scene* scene): _scene(scene)
 {
 }
 
+#if 0
 bool Scene::ContactModify::onContactConstraint(NxU32& changeFlags, const NxShape* shape0, const NxShape* shape1, const NxU32 featureIndex0, const NxU32 featureIndex1, NxContactCallbackData& data)
+#endif
+void Scene::ContactModify::onContactModify(PxContactModifyPair* const pairs, PxU32 count)
 {
-	OnContactModifyEvent contactEvent;	
+	OnContactModifyEvent contactEvent;
 	
+#if 0
 	contactEvent.shape0 = shape0;
 	contactEvent.shape1 = shape1;
 	contactEvent.featureIndex0 = featureIndex0;
@@ -105,28 +121,34 @@ bool Scene::ContactModify::onContactConstraint(NxU32& changeFlags, const NxShape
 
 	contactEvent.changeFlags = &changeFlags;
 	contactEvent.data = &data;
+#endif
 
-	Actor* actor0 = _scene->GetActorFromNx(&shape0->getActor());
-	Actor* actor1 = _scene->GetActorFromNx(&shape1->getActor());
+	Actor* actor0 = _scene->GetActorFromNx(pairs->shape[0]->getActor());
+	Actor* actor1 = _scene->GetActorFromNx(pairs->shape[1]->getActor());
 
 	if (actor0 && actor1)
 	{
 		//Отправляем событие первому актеру
+#if 0
 		contactEvent.actor = actor1;
+#endif
 		contactEvent.actorIndex = 1;
 		if (actor0->GetOwner() && !actor0->GetOwner()->OnContactModify(contactEvent))
-			return false;
+			return; //false;
 
 		//Отправляем событие второму актеру
+#if 0
 		contactEvent.actor = actor0;
+#endif
 		contactEvent.actorIndex = 0;
 		if (actor1->GetOwner() && !actor1->GetOwner()->OnContactModify(contactEvent))
-			return false;
+			return; //false;
 	}
 
-	return true;
+	return; //true;
 }
 
+#if 0
 Scene::ContactReport::ContactReport(Scene* scene): _scene(scene)
 {
 }
@@ -161,12 +183,13 @@ void Scene::ContactReport::onContactNotify(NxContactPair& pair, NxU32 events)
 			(*iter)->OnContact(contact1, contact2);
 	}
 }
+#endif
 
 Scene::UserNotify::UserNotify(Scene* scene): _scene(scene)
 {
 }
 
-void Scene::UserNotify::onWake(NxActor** actors, NxU32 count)
+void Scene::UserNotify::onWake(PxActor** actors, PxU32 count)
 {
 	for (unsigned i = 0; i < count; ++i)
 	{
@@ -177,7 +200,7 @@ void Scene::UserNotify::onWake(NxActor** actors, NxU32 count)
 	}
 }
 
-void Scene::UserNotify::onSleep(NxActor** actors, NxU32 count)
+void Scene::UserNotify::onSleep(PxActor** actors, PxU32 count)
 {
 	for (unsigned i = 0; i < count; ++i)
 	{
@@ -188,14 +211,14 @@ void Scene::UserNotify::onSleep(NxActor** actors, NxU32 count)
 	}
 }
 
-Actor* Scene::GetActorFromNx(NxActor* actor)
+Actor* Scene::GetActorFromNx(PxActor* actor)
 {
 	return actor->userData ? reinterpret_cast<Actor*>(actor->userData) : 0;
 }
 
-Actor* Scene::GetActorFromNxShape(NxShape* shape)
+Actor* Scene::GetActorFromNxShape(PxShape* shape)
 {
-	return GetActorFromNx(&shape->getActor());
+	return GetActorFromNx(shape->getActor());
 }
 
 void Scene::CreateGroundPlane()
@@ -207,6 +230,7 @@ void Scene::CreateGroundPlane()
 	_nxScene->createActor(planeActor);*/
 }
 
+#if 0
 NxActor* Scene::CreateNxActor(const NxActorDesc& desc, Actor* actor)
 {
 	if (!desc.isValid())
@@ -221,14 +245,18 @@ void Scene::ReleaseNxActor(NxActor* nxActor, Actor* actor)
 {
 	_nxScene->releaseActor(*nxActor);
 }
+#endif
 
 void Scene::Compute(float deltaTime)
 {
 	_lastDeltaTime = deltaTime;
 
 	_nxScene->simulate(deltaTime);
+#if 0
 	_nxScene->flushStream();
 	_nxScene->fetchResults(NX_RIGID_BODY_FINISHED, true);
+#endif
+	_nxScene->fetchResults(true);
 }
 
 void Scene::InsertUser(SceneUser* value)
@@ -249,7 +277,7 @@ void Scene::RemoveUser(SceneUser* value)
 	value->Release();
 }
 
-NxScene* Scene::GetNxScene()
+PxScene* Scene::GetNxScene()
 {
 	return _nxScene;
 }
@@ -278,15 +306,25 @@ void Manager::InitSDK()
 	{
 		LSL_LOG("px create sdk");
 
+#if 0
 		NxPhysicsSDKDesc desc;
 		NxSDKCreateError errorCode = NXCE_NO_ERROR;
 		Manager::_nxSDK = NxCreatePhysicsSDK(NX_PHYSICS_SDK_VERSION, NULL, 0, desc, &errorCode);
 		NxPhysicsSDK* nxSDK = Manager::_nxSDK;
+#endif
+		_nxFoundation = PxCreateFoundation(PX_PHYSICS_VERSION, _nxAllocator, _nxErrorCallback);
+		_nxTransport = PxDefaultPvdSocketTransportCreate(cPvdHost, cPvdPort, 10);
+		_nxPvd = 0;
+#ifdef SAMPLES_USE_PVD
+		_nxPvd = PxCreatePvd(*_nxFoundation);
+		_nxPvd->connect(*_nxTransport, cPvdFlags);
+#endif
 
-		if(!nxSDK)
+
+		if (!_nxSDK)
 		{
 			std::stringstream sstream;
-			sstream << "\nSDK create error ("<<errorCode<<" - "<<errorCode<<").\nUnable to initialize the Physx SDK, exiting the sample.\n\n";
+			sstream << "\nPhysXSDK create error.\nUnable to initialize the PhysX SDK, exiting the sample.\n\n";
 			throw lsl::Error(sstream.str());
 		}
 
@@ -295,17 +333,23 @@ void Manager::InitSDK()
 		if (nxSDK->getFoundationSDK().getRemoteDebugger() && !nxSDK->getFoundationSDK().getRemoteDebugger()->isConnected())
 			nxSDK->getFoundationSDK().getRemoteDebugger()->connect(cSamplesVRDHost, cNxDbgDefaultPort, cSamplesVrdEventMask);
 #endif
+#if 0 //Check PxSceneFlag::eADAPTIVE_FORCE and PxShape::setContactOffset() + setRestOffset()
 		//Чтобы тачка не вела себя странно
 		nxSDK->setParameter(NX_ADAPTIVE_FORCE, 0.0f);
 		//Допустимое взаимопроникновение тел
 		nxSDK->setParameter(NX_SKIN_WIDTH, 0.025f);
+#endif
 
 		LSL_LOG("px create cooking");
 
-		Manager::_nxCooking = NxGetCookingLib(NX_PHYSICS_SDK_VERSION);
+		PxCookingParams params(_nxSDK->getTolerancesScale());
+		Manager::_nxCooking = PxCreateCooking(PX_PHYSICS_VERSION, *_nxFoundation, params);
 		if (!Manager::_nxCooking)
 			throw lsl::Error("The cooking library has not been initialized");
+#if 0
 		Manager::_nxCooking->NxInitCooking();
+#endif
+		PxInitExtensions(*_nxSDK, _nxPvd);
 	}
 
 	
@@ -318,10 +362,22 @@ void Manager::ReleaseSDK()
 	if (--_sdkRefCnt == 0)
 	{
 		Manager::_nxSDK->release();
+#if 0
 		Manager::_nxSDK = 0;
 
 		Manager::_nxCooking->NxCloseCooking();
 		Manager::_nxCooking = 0;
+#endif
+		Manager::_nxCooking->release();
+		if (_nxPvd)
+		{
+			_nxPvd->release();
+			_nxPvd = 0;
+		}
+		Manager::_nxFoundation->release();
+		Manager::_nxSDK = 0;
+		Manager::_nxCooking = 0;
+		Manager::_nxFoundation = 0;
 	}
 }
 
@@ -358,12 +414,12 @@ const Manager::SceneList& Manager::GetSceneList()
 	return _sceneList;
 }
 
-NxPhysicsSDK& Manager::GetSDK()
+PxPhysics& Manager::GetSDK()
 {
 	return *_nxSDK;
 }
 
-NxCookingInterface& Manager::GetCooking()
+PxCooking& Manager::GetCooking()
 {
 	return *_nxCooking;
 }
@@ -380,14 +436,14 @@ TriangleMesh::~TriangleMesh()
 	SetMeshData(0);
 }
 
-void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc& desc)
+void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, PxTriangleMeshDesc& desc)
 {
 	LSL_ASSERT(_meshData);
 
 	if (!_meshData->IsInit())
 		_meshData->Load();
 
-	if (!_meshData->vb.GetFormat(res::VertexData::vtPos3))
+	if (!_meshData->vb.GetFormat(::r3d::res::VertexData::vtPos3))
 		throw lsl::Error("NxTriangleMesh* TriangleMesh::GetOrCreateMesh(const D3DXVECTOR3& scale)");
 
 	bool scaling = (scale != IdentityVector) == TRUE;
@@ -416,18 +472,21 @@ void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc
 				vertices[i] = vertices[i] * scale;
 		}
 
-	desc.numVertices          = vertCnt;
-	desc.pointStrideBytes     = sizeof(D3DXVECTOR3);
-	desc.points               = vertices;
-	desc.numTriangles         = faceCnt;
-	desc.triangleStrideBytes  = _meshData->fb.GetFaceSize();		
-	desc.triangles            = _meshData->fb.GetData() + _meshData->fb.GetFaceSize() * sFace;
-	desc.flags                = 0;
+	desc.points.count     = vertCnt;
+	desc.points.stride    = sizeof(D3DXVECTOR3);
+	desc.points.data      = vertices;
+	desc.triangles.count  = faceCnt;
+	desc.triangles.stride = _meshData->fb.GetFaceSize();
+	desc.triangles.data   = _meshData->fb.GetData() + _meshData->fb.GetFaceSize() * sFace;
+	desc.flags            = PxMeshFlags();
 }
 
-void TriangleMesh::FreeMesh(NxTriangleMeshDesc& desc)
+void TriangleMesh::FreeMesh(PxTriangleMeshDesc& desc)
 {
+#if 0
 	delete desc.points;
+#endif
+	desc.setToDefault();
 }
 
 TriangleMesh::MeshList::iterator TriangleMesh::GetOrCreateMesh(const D3DXVECTOR3& scale, int id)
@@ -456,7 +515,7 @@ void TriangleMesh::ReleaseMesh(MeshList::iterator iter)
 	}
 }
 
-NxTriangleMesh* TriangleMesh::GetOrCreateTri(const D3DXVECTOR3& scale, int id)
+PxTriangleMesh* TriangleMesh::GetOrCreateTri(const D3DXVECTOR3& scale, int id)
 {
 	MeshList::iterator mesh = GetOrCreateMesh(scale, id);
 	++(mesh->triRef);
@@ -464,13 +523,13 @@ NxTriangleMesh* TriangleMesh::GetOrCreateTri(const D3DXVECTOR3& scale, int id)
 	if (mesh->tri)	
 		return mesh->tri;
 
-	NxTriangleMeshDesc desc;
+	PxTriangleMeshDesc desc;
 	LoadMesh(scale, id, desc);
 
-	MemoryWriteBuffer buf;
-	if (!px::GetCooking().NxCookTriangleMesh(desc, buf))
+	PxDefaultMemoryOutputStream buf;
+	if (!px::GetCooking().cookTriangleMesh(desc, buf))
 		throw lsl::Error("Error cooking TriangleMesh");
-	MemoryReadBuffer readBuffer(buf.data);
+	PxDefaultMemoryInputData readBuffer(buf.getData(), buf.getSize());
 
 	mesh->tri = px::GetSDK().createTriangleMesh(readBuffer);
 
@@ -479,7 +538,7 @@ NxTriangleMesh* TriangleMesh::GetOrCreateTri(const D3DXVECTOR3& scale, int id)
 	return mesh->tri;
 }
 
-void TriangleMesh::ReleaseTri(NxTriangleMesh* mesh)
+void TriangleMesh::ReleaseTri(PxTriangleMesh* mesh)
 {
 	for (MeshList::iterator iter = _meshList.begin(); iter != _meshList.end(); ++iter)
 	{
@@ -487,7 +546,10 @@ void TriangleMesh::ReleaseTri(NxTriangleMesh* mesh)
 		{
 			if (--(iter->triRef) == 0)
 			{
+#if 0
 				px::GetSDK().releaseTriangleMesh(*iter->tri);
+#endif
+				iter->tri->release();
 				iter->tri = 0;
 			}
 
@@ -499,7 +561,7 @@ void TriangleMesh::ReleaseTri(NxTriangleMesh* mesh)
 	LSL_ASSERT(false);
 }
 
-NxConvexMesh* TriangleMesh::GetOrCreateConvex(const D3DXVECTOR3& scale, int id)
+PxConvexMesh* TriangleMesh::GetOrCreateConvex(const D3DXVECTOR3& scale, int id)
 {
 	MeshList::iterator mesh = GetOrCreateMesh(scale, id);
 	++(mesh->convexRef);
@@ -507,23 +569,26 @@ NxConvexMesh* TriangleMesh::GetOrCreateConvex(const D3DXVECTOR3& scale, int id)
 	if (mesh->convex)	
 		return mesh->convex;
 
-	NxTriangleMeshDesc desc;
+	PxTriangleMeshDesc desc;
 	LoadMesh(scale, id, desc);
 
-	NxConvexMeshDesc convexDesc;
+	PxConvexMeshDesc convexDesc;
+#if 0
 	convexDesc.numVertices          = desc.numVertices;
 	convexDesc.pointStrideBytes     = desc.pointStrideBytes;
 	convexDesc.points               = desc.points;
 	convexDesc.numTriangles         = desc.numTriangles;
 	convexDesc.triangleStrideBytes  = desc.triangleStrideBytes;
 	convexDesc.triangles            = desc.triangles;
-	convexDesc.flags                |= NX_CF_COMPUTE_CONVEX;
+#endif
+	convexDesc.points               = desc.points;
+	convexDesc.flags                |= PxConvexFlag::eCOMPUTE_CONVEX;
 
 
-	MemoryWriteBuffer buf;
-	if (!px::GetCooking().NxCookConvexMesh(convexDesc, buf))
+	PxDefaultMemoryOutputStream buf;
+	if (!px::GetCooking().cookConvexMesh(convexDesc, buf))
 		throw lsl::Error("Error cooking TriangleMesh");
-	MemoryReadBuffer readBuffer(buf.data);
+	PxDefaultMemoryInputData readBuffer(buf.getData(), buf.getSize());
 
 	mesh->convex = px::GetSDK().createConvexMesh(readBuffer);
 
@@ -532,7 +597,7 @@ NxConvexMesh* TriangleMesh::GetOrCreateConvex(const D3DXVECTOR3& scale, int id)
 	return mesh->convex;
 }
 
-void TriangleMesh::ReleaseConvex(NxConvexMesh* mesh)
+void TriangleMesh::ReleaseConvex(PxConvexMesh* mesh)
 {
 	for (MeshList::iterator iter = _meshList.begin(); iter != _meshList.end(); ++iter)
 	{
@@ -540,7 +605,10 @@ void TriangleMesh::ReleaseConvex(NxConvexMesh* mesh)
 		{
 			if (--(iter->convexRef) == 0)
 			{
+#if 0
 				px::GetSDK().releaseConvexMesh(*iter->convex);
+#endif
+				iter->convex->release();
 				iter->convex = 0;
 			}
 
@@ -552,12 +620,12 @@ void TriangleMesh::ReleaseConvex(NxConvexMesh* mesh)
 	LSL_ASSERT(false);
 }
 
-res::MeshData* TriangleMesh::GetMeshData()
+::r3d::res::MeshData *TriangleMesh::GetMeshData()
 {
 	return _meshData;
 }
 
-void TriangleMesh::SetMeshData(res::MeshData* value)
+void TriangleMesh::SetMeshData(::r3d::res::MeshData *value)
 {
 	if (_meshData != value)
 	{
@@ -588,7 +656,7 @@ Shape::Shape(Shapes* owner): _owner(owner), _type(stUnknown), _nxShape(0), _pos(
 	SetType(Type);
 }
 
-void Shape::SetNxShape(NxShape* value)
+void Shape::SetNxShape(PxShape* value)
 {
 	_nxShape = value;
 	_delayInitialization = false;
@@ -604,27 +672,37 @@ void Shape::ReloadNxShape(bool allowInitialization)
 	GetActor()->ReloadNxShape(this, allowInitialization);
 }
 
-NxVec3 Shape::TransformLocalPos(const D3DXVECTOR3& inValue)
+PxVec3 Shape::TransformLocalPos(const D3DXVECTOR3& inValue)
 {
 	D3DXVECTOR3 tmp;
 	GetActor()->LocalToWorldPos(_pos, tmp, true);
-	return NxVec3(tmp.x, tmp.y, tmp.z);
+	return PxVec3(tmp.x, tmp.y, tmp.z);
 }
 
 void Shape::SyncPos()
 {
 	LSL_ASSERT(_nxShape);
 
+#if 0
 	_nxShape->setLocalPosition(TransformLocalPos(_pos));
+#endif
+	PxTransform pose = _nxShape->getLocalPose();
+	pose.p = PxVec3(TransformLocalPos(_pos));
+	_nxShape->setLocalPose(pose);
 }
 
 void Shape::SyncRot()
 {
 	LSL_ASSERT(_nxShape);
 
+#if 0
 	NxQuat quat;
 	quat.setXYZW(_rot);
 	_nxShape->setLocalOrientation(NxMat33(quat));
+#endif
+	PxTransform pose = _nxShape->getLocalPose();
+	pose.q = PxQuat(_rot.x, _rot.y, _rot.z, _rot.w);
+	_nxShape->setLocalPose(pose);
 }
 
 void Shape::SyncScale()
@@ -655,6 +733,7 @@ void Shape::Load(lsl::SReader* reader)
 	reader->ReadValue("group", _group);
 }
 
+#if 0
 void Shape::AssignFromDesc(const NxShapeDesc& desc, bool reloadShape)
 {
 	desc.localPose.t.get(_pos);
@@ -684,6 +763,7 @@ void Shape::AssignToDesc(NxShapeDesc& desc)
 	desc.skinWidth = _skinWidth;
 	desc.group = _group;
 }
+#endif
 
 ShapeType Shape::GetType() const
 {
@@ -700,7 +780,7 @@ Actor* Shape::GetActor()
 	return _owner->GetActor();
 }
 
-NxShape* Shape::GetNxShape()
+PxShape* Shape::GetNxShape()
 {
 	return _nxShape;
 }
@@ -741,18 +821,20 @@ void Shape::SetScale(D3DXVECTOR3& value)
 		SyncScale();
 }
 
-NxU16 Shape::GetMaterialIndex()
+PxU16 Shape::GetMaterialIndex()
 {
 	return _materialIndex;
 }
 
-void Shape::SetMaterialIndex(NxU16 value)
+void Shape::SetMaterialIndex(PxU16 value)
 {
 	if (_materialIndex != value)
 	{
 		_materialIndex = value;
+#if 0 // FIXME PxShape->setMaterial
 		if (_nxShape)
 			_nxShape->setMaterial(_materialIndex);
+#endif
 	}
 }
 
@@ -780,8 +862,10 @@ void Shape::SetSkinWidth(float value)
 	if (_skinWidth != value)
 	{
 		_skinWidth = value;
+#if 0 // FIXME PxShape->setMaterial
 		if (_nxShape)
 			_nxShape->setSkinWidth(value);
+#endif
 	}
 }
 
@@ -795,8 +879,10 @@ void Shape::SetGroup(unsigned value)
 	if (_group != value)
 	{
 		_group = value;
+#if 0 // FIXME PxShape->setGroup
 		if (_nxShape)
 			_nxShape->setGroup(_group);
+#endif
 	}
 }
 
@@ -2217,3 +2303,5 @@ D3DXVECTOR3 Actor::GetWorldScale() const
 }
 
 }
+
+} // namespace physx
