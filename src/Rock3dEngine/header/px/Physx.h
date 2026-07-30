@@ -267,7 +267,7 @@ protected:
 	virtual NxShapeDesc* CreateDesc() = 0;
 	void ReloadNxShape(bool allowInitialization = false);
 
-	D3DXVECTOR3 TransformLocalPos(const D3DXVECTOR3& inValue);
+	NxVec3 TransformLocalPos(const D3DXVECTOR3 &inValue);
 	void SyncPos();
 	void SyncRot();
 	virtual void SyncScale();
