@@ -71,11 +71,11 @@ Windows target не компилируется.
 | Окно и event loop | Win32/D3D window | SDL3/Cocoa | Замена платформы | Нативный путь работает |
 | Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | SDL3 action adapter | Частично | Actions и hot-plug есть; Options показывает обе исходные колонки и все 18 user actions, но сам `ControlManager.cpp` и полный legacy input object graph не компилируются |
 | Audio device/mixer | XAudio2/X3DAudio | SDL3/CoreAudio | Замена платформы | Backend полноценный, но весь исходный game-side `Audio.cpp` object graph не перенесён |
-| MusicCat/menu music | `MusicCat`, три Ogg | background decode, shuffle, next, pause/state | Перенесено | Поведение покрыто отдельным smoke |
+| MusicCat/menu music | `MusicCat`, `DialogMenu2::MusicDialog`, три menu Ogg и 11 game Ogg | background decode, shuffle, next, pause/state + source music popup | Перенесено | MusicDialog использует исходный `dlgFrame2`, metadata, layout и timing; поведение покрыто menu/race smoke |
 | Spatial race audio | X3DAudio game integration | ручные attenuation/pan/pitch voices | Частично | Основные car/race sounds есть; исходные emitters/listeners, все lifetime/priority rules и все sound behaviors не перенесены |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared/profile/final navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty, Profile и FinalMenu имеют исходные item order, NavElement/input branches, disabled skip и actions; Network и общий legacy event object graph ещё не завершены |
-| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | source-derived `ProfileFrame` + accept dialog | Частично | Четыре visible rows, scroll arrows, per-row close, load и delete confirmation перенесены; остальные DialogMenu2 variants, text input, transitions и animation objects отсутствуют |
+| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | source-derived `ProfileFrame`, accept dialog и `MusicDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, load/delete confirmation и popup текущего menu/game track перенесены; `WeaponDialog`, общие `InfoDialog`, text input и оставшиеся transitions ещё отсутствуют |
 | Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph и тени menu spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | source-derived FinishMenu и FinalMenu | Перенесено | Оба активных экрана используют исходные assets/layout/timing/input; tournament unlock/video flow учитывается отдельно |
@@ -658,6 +658,24 @@ Network, video и Steam явно выключены.
    проверка подтвердила первый и второй слайды, читаемые credits и
    Return → MainMenu2 без артефактов.
 
+### MusicDialog
+
+1. Из `DialogMenu2.cpp` перенесён вызываемый `MusicDialog`: исходная рамка
+   `Data/GUI/dlgFrame2.png` размером 334×99, белый Verdana 32 для band и
+   серый `175/255` Verdana 24 для track title.
+2. Сохранены source offsets `(-130,-21)` и `(-130,17)`, нижний левый anchor
+   и полностью показанная позиция 35 px от левого и 30 px от нижнего края.
+3. `ShowMusicInfo` вызывается при начальном menu track, каждой automatic/manual
+   смене menu track и запуске/смене одного из 11 game tracks. Пока popup
+   активен, metadata обновляется без перезапуска анимации, как в source.
+4. Сохранена исходная временная функция: 1 s задержки за экраном, 1 s въезда,
+   3 s жизни и 1 s выезда. UI z-order переведён в рабочую Metal overlay-полосу:
+   legacy `3/2` — это порядок widgets, а не camera-space depth.
+5. Popup отправляется последним в menu и race overlay. M8 audio smoke требует
+   menu popup, M9 race-render smoke — game popup; обе проверки прошли.
+6. Ручная arm64 Debug проверка через фактический экран подтвердила исходную
+   рамку и metadata `Stereoside / On our Way` поверх MainMenu2.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
@@ -666,7 +684,9 @@ Network, video и Steam явно выключены.
    вызываемыми `DialogMenu2`.
    GameMode/Tournament/Difficulty/Profile, основные offline subframes
    `RaceMenu2`, `FinishMenu`, `FinalMenu` и активная структура
-   `OptionsMenu` уже source-derived, но
+   `OptionsMenu`, а также `MusicDialog` уже source-derived; следующий
+   конкретный разрыв — workshop `WeaponDialog`, затем общие `InfoDialog`.
+   При этом
    legacy animation/widget classes всё ещё заменены immediate-mode bgfx
    backend.
 2. Завершить исходные type-specific projectile contact groups, forces,

@@ -43,6 +43,15 @@ metadata:
 - `Music\\Track14.ogg` — Social Distortion, Angel's wings (acoustic);
 - `Music\\Track15.ogg` — Stereoside, On our Way.
 
+The source `DialogMenu2::MusicDialog` is also active. It uses the shipped
+334×99 `GUI/dlgFrame2.png`, white 32 px band text, gray 24 px track text and
+the original offsets. `ShowMusicInfo` runs for the initial menu selection,
+automatic/manual `Next`, race start and later game-track changes. Its exact
+timeline remains one second offscreen, one second sliding in, three seconds
+shown and one second sliding out; changing metadata while it is visible does
+not restart that timeline. The same popup covers all three menu records and
+all 11 entries in the original game playlist.
+
 `Sounds\\fireGun.ogg`, used by the original fireGun `ShotEffect`, is decoded
 and mixed by the M8 test but is not triggered inside the main menu. Its real
 gameplay consumer belongs to the race port.
@@ -144,8 +153,9 @@ pause/resume, stop/unload and device notifications. The MusicCat follow-up
 requires render frames to continue while all three tracks decode, verifies a
 stable cursor while paused and progress after resume, seeks near the real Ogg
 end to exercise automatic `Next`, performs another explicit `Next`, proves the
-three selections are distinct and round-trips the persisted state. Its isolated
-smoke state is removed afterwards.
+three selections are distinct, observes the source `MusicDialog` and
+round-trips the persisted state. Its isolated smoke state is removed
+afterwards.
 
 ## Build and verification
 

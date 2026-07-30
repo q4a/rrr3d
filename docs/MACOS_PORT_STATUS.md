@@ -931,13 +931,26 @@ SDL_AUDIO_DRIVER=dummy \
   resource, physics и последовательный 300-frame race-render прошли.
   Ручная arm64 Debug проверка подтвердила два последовательных source slide,
   читаемые credits и Return → MainMenu2 без визуальных артефактов.
+- Перенесён вызываемый `DialogMenu2::MusicDialog`: `dlgFrame2.png`, Verdana
+  32/24, исходные white/gray цвета, offsets и нижний левый anchor.
+- Popup получает metadata всех трёх menu и 11 game tracks, появляется при
+  startup/Next/race start и сохраняет source правило «обновить текст, но не
+  перезапускать уже активную анимацию».
+- Сохранена формула 1 s delay + 1 s slide-in + 3 s life + 1 s slide-out.
+  Legacy widget z-order `3/2` переведён в видимую Metal overlay-полосу
+  `60/59`; буквальные значения отсекались ортопроекцией.
+- M8 Debug/audio smoke завершился за 625 frames и проверил menu popup; M9
+  300-frame race-render проверил game popup вместе с полным renderer/physics
+  regression. M10 `.app --verify-resources` подтвердил 1196 исходных файлов.
+- Фактический arm64 Debug кадр через Computer Use подтвердил исходную рамку
+  и metadata `Stereoside / On our Way` поверх MainMenu2.
 
 ## Следующий рекомендуемый этап
 
 Основные offline subframes `RaceMenu2` и ветка GameMode/Tournament/
-Difficulty/Profile/FinishMenu/FinalMenu теперь source-derived. Следующий
-P0-блок: перенести оставшиеся реально вызываемые `DialogMenu2` состояния,
-начиная с общих `InfoDialog`/`AcceptDialog` и workshop `WeaponDialog`;
+Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` теперь
+source-derived. Следующий P0-блок: перенести workshop `WeaponDialog`, затем
+оставшиеся общие `InfoDialog`/`AcceptDialog`;
 после этого закрыть intro-video/final-unlock ветку.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening

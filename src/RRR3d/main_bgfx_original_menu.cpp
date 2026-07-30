@@ -167,6 +167,14 @@ struct TextVisual
     float height = 0.0F;
 };
 
+#ifdef RRR3D_AUDIO
+struct MusicDialogVisual
+{
+    TextVisual title;
+    TextVisual info;
+};
+#endif
+
 std::string_view recordName(std::string_view record)
 {
     const auto separator = record.find_last_of("\\/");
@@ -947,10 +955,12 @@ int main(int argc, char** argv)
         std::cout << "Milestone 7 input smoke: keyboard, mouse, focus reset, "
                      "gamepad hot-plug, axes, dead zones, buttons, rumble, "
                      "and MainMenu2 command order passed\n";
+#ifdef RRR3D_PHYSICS
         input.applyKeyboardBindings(
             profileState.config.keyboardControls);
         input.applyGamepadBindings(
             profileState.config.gamepadControls);
+#endif
     }
 #endif
 
@@ -1039,6 +1049,12 @@ int main(int argc, char** argv)
     const Texture selection =
         createImageTexture(*device, model->selectionImage);
     const Texture cursor = createImageTexture(*device, model->cursorImage);
+#ifdef RRR3D_AUDIO
+    const auto musicDialogFrameImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/dlgFrame2.png");
+    const Texture musicDialogFrame =
+        createImageTexture(*device, musicDialogFrameImage);
+#endif
     const auto finalBackImage = menu::loadOriginalImage(
         *resources, "Data/GUI/buttonBg2.png");
     const auto finalBackSelectedImage = menu::loadOriginalImage(
@@ -1997,6 +2013,31 @@ int main(int argc, char** argv)
     const TextVisual version = createText(
         *device, model->versionText, menu::smallFontHeight, true,
         menu::selectedTextColor, resolvedFont);
+#ifdef RRR3D_AUDIO
+    auto createMusicDialogVisuals = [&](const auto& tracks) {
+        std::vector<MusicDialogVisual> result;
+        result.reserve(tracks.size());
+        for (const auto& track : tracks)
+        {
+            result.push_back(
+                {createText(
+                     *device, track.band, 32.0F, false,
+                     menu::Rgba8{255U, 255U, 255U, 255U},
+                     resolvedFont),
+                 createText(
+                     *device, track.name, 24.0F, false,
+                     menu::Rgba8{175U, 175U, 175U, 255U},
+                     resolvedFont)});
+        }
+        return result;
+    };
+    const auto menuMusicDialogVisuals =
+        createMusicDialogVisuals(originalaudio::menuTracks);
+#ifdef RRR3D_PHYSICS
+    const auto gameMusicDialogVisuals =
+        createMusicDialogVisuals(originalaudio::gameTracks);
+#endif
+#endif
     const TextVisual finalBackText = createText(
         *device, localized("svBack"), menu::headerFontHeight, false,
         menu::Rgba8{214U, 214U, 214U, 255U}, resolvedFont);
@@ -2180,6 +2221,25 @@ int main(int argc, char** argv)
 #endif
         valid(quad) && valid(background) && valid(topPanel) &&
         valid(bottomPanel) && valid(selection) && valid(cursor) &&
+#ifdef RRR3D_AUDIO
+        valid(musicDialogFrame) &&
+        std::all_of(
+            menuMusicDialogVisuals.begin(),
+            menuMusicDialogVisuals.end(),
+            [](const MusicDialogVisual& item) {
+                return valid(item.title.texture) &&
+                       valid(item.info.texture);
+            }) &&
+#ifdef RRR3D_PHYSICS
+        std::all_of(
+            gameMusicDialogVisuals.begin(),
+            gameMusicDialogVisuals.end(),
+            [](const MusicDialogVisual& item) {
+                return valid(item.title.texture) &&
+                       valid(item.info.texture);
+            }) &&
+#endif
+#endif
         valid(version.texture) && valid(finalBack) &&
         valid(finalBackSelected) && valid(finalBackText.texture) &&
         std::all_of(
@@ -2330,6 +2390,21 @@ int main(int argc, char** argv)
 #endif
 
     auto releaseResources = [&]() {
+#ifdef RRR3D_AUDIO
+#ifdef RRR3D_PHYSICS
+        for (const auto& item : gameMusicDialogVisuals)
+        {
+            device->destroy(item.info.texture);
+            device->destroy(item.title.texture);
+        }
+#endif
+        for (const auto& item : menuMusicDialogVisuals)
+        {
+            device->destroy(item.info.texture);
+            device->destroy(item.title.texture);
+        }
+        device->destroy(musicDialogFrame);
+#endif
 #ifdef RRR3D_PHYSICS
         clearFinishRows();
         device->destroy(finishPointsTitle.texture);
@@ -2853,6 +2928,51 @@ int main(int argc, char** argv)
     }
 #endif
 
+    enum class OriginalMusicDialogSource
+    {
+        Menu,
+#ifdef RRR3D_PHYSICS
+        Game,
+#endif
+    };
+    OriginalMusicDialogSource musicDialogSource =
+        OriginalMusicDialogSource::Menu;
+    std::size_t musicDialogTrack = 0U;
+    float musicDialogTime = -1.0F;
+    float musicDialogOffset = 0.0F;
+    bool musicDialogVisible = false;
+    bool menuMusicDialogObserved = false;
+#ifdef RRR3D_PHYSICS
+    bool raceMusicDialogObserved =
+        !options->raceRenderSmokeTest;
+#endif
+    auto lastMenuMusicTrack = music.currentTrack();
+#ifdef RRR3D_PHYSICS
+    auto lastGameMusicTrack = gameMusic.currentTrack();
+#endif
+    auto showOriginalMusicInfo =
+        [&](OriginalMusicDialogSource source,
+            std::optional<std::size_t> track) {
+            if (!track)
+                return;
+            std::size_t visualCount = menuMusicDialogVisuals.size();
+#ifdef RRR3D_PHYSICS
+            if (source == OriginalMusicDialogSource::Game)
+                visualCount = gameMusicDialogVisuals.size();
+#endif
+            if (*track >= visualCount)
+                return;
+            musicDialogSource = source;
+            musicDialogTrack = *track;
+            // Menu::ShowMusicInfo updates the two labels immediately but
+            // restarts the five-second animation only after the previous
+            // popup has completely hidden.
+            if (musicDialogTime == -1.0F)
+                musicDialogTime = -0.999F;
+        };
+    showOriginalMusicInfo(
+        OriginalMusicDialogSource::Menu, lastMenuMusicTrack);
+
     std::cout << "Original MusicCat: background decode, shuffled playlist, "
                  "auto Next, pause/resume, state "
               << musicStatePath << "\nOriginal menu tracks:";
@@ -3039,6 +3159,9 @@ int main(int argc, char** argv)
                            profileState.config.effectsVolume);
         music.pause(true, audioError);
         gameMusic.pause(false, audioError);
+        lastGameMusicTrack = gameMusic.currentTrack();
+        showOriginalMusicInfo(
+            OriginalMusicDialogSource::Game, lastGameMusicTrack);
         commentator.pause(false);
         commentator.reset();
         std::fill(damageAudioCooldown.begin(),
@@ -5367,6 +5490,64 @@ int main(int argc, char** argv)
     std::uint64_t smokePausePosition = 0;
     std::uint64_t smokePhaseTicks = SDL_GetTicks();
     const std::uint64_t musicSmokeDeadline = SDL_GetTicks() + 30000;
+    auto drawOriginalMusicDialog = [&]() {
+        if (!musicDialogVisible)
+            return;
+        const MusicDialogVisual* visual = nullptr;
+        if (musicDialogSource == OriginalMusicDialogSource::Menu)
+        {
+            if (musicDialogTrack < menuMusicDialogVisuals.size())
+                visual =
+                    &menuMusicDialogVisuals[musicDialogTrack];
+        }
+#ifdef RRR3D_PHYSICS
+        else if (musicDialogTrack < gameMusicDialogVisuals.size())
+        {
+            visual = &gameMusicDialogVisuals[musicDialogTrack];
+        }
+#endif
+        if (visual == nullptr)
+            return;
+
+        const float width =
+            static_cast<float>(musicDialogFrameImage.width);
+        const float height =
+            static_cast<float>(musicDialogFrameImage.height);
+        // Literal Menu::OnProgress placement.  Widget positions are their
+        // centres, hence subtracting half the dlgFrame2 size leaves the
+        // fully shown frame 35 px from the left and 30 px from the bottom.
+        const float centerX =
+            -5.0F + (40.0F + width) * musicDialogOffset -
+            width * 0.5F;
+        const float centerY =
+            menu::virtualHeight - 30.0F - height * 0.5F;
+        // DialogMenu2's z values express widget order, not camera-space
+        // depth.  Map that order into the established overlay depth band;
+        // literal z=3/2 is clipped by the Metal orthographic projection.
+        drawQuad(
+            *device, quad, shader, musicDialogFrame, width, height,
+            centerX, centerY, 60.0F, transparent);
+        drawQuad(
+            *device, quad, shader, visual->title.texture,
+            visual->title.width, visual->title.height,
+            centerX - 130.0F + visual->title.width * 0.5F,
+            centerY - 21.0F, 59.0F, transparent);
+        drawQuad(
+            *device, quad, shader, visual->info.texture,
+            visual->info.width, visual->info.height,
+            centerX - 130.0F + visual->info.width * 0.5F,
+            centerY + 17.0F, 59.0F, transparent);
+        if (musicDialogOffset > 0.01F)
+        {
+            if (musicDialogSource ==
+                OriginalMusicDialogSource::Menu)
+                menuMusicDialogObserved = true;
+#ifdef RRR3D_PHYSICS
+            else
+                raceMusicDialogObserved = true;
+#endif
+        }
+    };
 #endif
 #if defined(RRR3D_AUDIO) && defined(RRR3D_GAMEPAD_INPUT)
     if (options->audioSmokeTest)
@@ -8392,6 +8573,10 @@ int main(int argc, char** argv)
             options->finishMenuSmokeTest)
             frameSeconds = 1.0F / 60.0F;
 #endif
+#ifdef RRR3D_AUDIO
+        else if (options->audioSmokeTest)
+            frameSeconds = 1.0F / 60.0F;
+#endif
         previousFrameTicks = currentFrameTicks;
         if (menuStack.back() == MenuScreen::Credits)
         {
@@ -9044,6 +9229,53 @@ int main(int argc, char** argv)
                 }
             }
         }
+
+        const auto currentMenuMusicTrack = music.currentTrack();
+        if (currentMenuMusicTrack != lastMenuMusicTrack)
+        {
+            lastMenuMusicTrack = currentMenuMusicTrack;
+            showOriginalMusicInfo(
+                OriginalMusicDialogSource::Menu,
+                currentMenuMusicTrack);
+        }
+#ifdef RRR3D_PHYSICS
+        if (inRace)
+        {
+            const auto currentGameMusicTrack =
+                gameMusic.currentTrack();
+            if (currentGameMusicTrack != lastGameMusicTrack)
+            {
+                lastGameMusicTrack = currentGameMusicTrack;
+                showOriginalMusicInfo(
+                    OriginalMusicDialogSource::Game,
+                    currentGameMusicTrack);
+            }
+        }
+#endif
+        musicDialogVisible = false;
+        musicDialogOffset = 0.0F;
+        if (musicDialogTime != -1.0F)
+        {
+            constexpr float musicDelay = 1.0F;
+            constexpr float musicLife = 3.0F;
+            musicDialogOffset =
+                std::clamp(
+                    musicDialogTime / musicDelay, 0.0F, 1.0F) -
+                std::clamp(
+                    (musicDialogTime - musicDelay - musicLife) /
+                        musicDelay,
+                    0.0F, 1.0F);
+            if (musicDialogTime >=
+                musicLife + 2.0F * musicDelay)
+            {
+                musicDialogTime = -1.0F;
+            }
+            else
+            {
+                musicDialogTime += frameSeconds;
+                musicDialogVisible = true;
+            }
+        }
 #endif
 
 #ifdef RRR3D_PHYSICS
@@ -9132,6 +9364,9 @@ int main(int argc, char** argv)
                 drawChoice(true, centerX - 70.0F);
                 drawChoice(false, centerX + 70.0F);
             }
+#ifdef RRR3D_AUDIO
+            drawOriginalMusicDialog();
+#endif
             device->endFrame();
             const auto& telemetry = device->renderTelemetry();
             for (std::size_t pass = 0;
@@ -12252,6 +12487,7 @@ int main(int argc, char** argv)
         else
 #endif
         {
+#ifdef RRR3D_PHYSICS
             if (menuStack.back() == MenuScreen::GameMode)
             {
                 gameModeFrameObserved =
@@ -12274,6 +12510,7 @@ int main(int argc, char** argv)
                         MenuScreen::Tournament, 3U, 4U) ==
                         menu::virtualHeight * 0.5F + 150.0F;
             }
+#endif
             for (std::size_t index = 0;
                  index < activePage.normal.size(); ++index)
             {
@@ -12327,6 +12564,9 @@ int main(int argc, char** argv)
                 version.width, version.height, versionX,
                 versionY, 25.0F, transparent);
         }
+#ifdef RRR3D_AUDIO
+        drawOriginalMusicDialog();
+#endif
         device->endFrame();
 #ifdef RRR3D_PHYSICS
         }
@@ -12486,6 +12726,9 @@ int main(int argc, char** argv)
                     !raceAngarFrameObserved ||
                     !raceAngar3DObserved ||
                     !raceAchievementFrameObserved ||
+#ifdef RRR3D_AUDIO
+                    !raceMusicDialogObserved ||
+#endif
                     !racePauseDialogObserved ||
                     !racePauseResumeObserved ||
                     !racePauseFrozenObserved ||
@@ -12524,6 +12767,10 @@ int main(int argc, char** argv)
                         << raceAngar3DObserved
                         << ", achievement="
                         << raceAchievementFrameObserved
+#ifdef RRR3D_AUDIO
+                        << ", musicDialog="
+                        << raceMusicDialogObserved
+#endif
                         << ", pause="
                         << racePauseDialogObserved << '/'
                         << racePauseResumeObserved << '/'
@@ -12605,16 +12852,21 @@ int main(int argc, char** argv)
 #endif
             else
 #ifdef RRR3D_AUDIO
-            if (!integratedAudioInputObserved)
+            if (!integratedAudioInputObserved ||
+                !menuMusicDialogObserved)
             {
                 std::cerr << "Milestone 8 integrated input/MainMenu2/audio "
-                             "dispatch was not observed\n";
+                             "dispatch/source MusicDialog was not observed: "
+                          << "input=" << integratedAudioInputObserved
+                          << ", musicDialog="
+                          << menuMusicDialogObserved << '\n';
                 runtimeSmokeFailed = true;
             }
             else
             {
                 std::cout << "Milestone 8 original MainMenu2/input/audio/"
-                             "MusicCat/bgfx/Metal smoke test completed after "
+                             "MusicCat/source MusicDialog/bgfx/Metal smoke "
+                             "test completed after "
                           << renderedFrames << " frames\n";
             }
 #elif defined(RRR3D_GAMEPAD_INPUT)
