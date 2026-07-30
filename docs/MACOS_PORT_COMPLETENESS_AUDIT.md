@@ -75,7 +75,7 @@ Windows target не компилируется.
 | Spatial race audio | X3DAudio game integration | ручные attenuation/pan/pitch voices | Частично | Основные car/race sounds есть; исходные emitters/listeners, все lifetime/priority rules и все sound behaviors не перенесены |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared/profile/final navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty, Profile и FinalMenu имеют исходные item order, NavElement/input branches, disabled skip и actions; Network и общий legacy event object graph ещё не завершены |
-| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | source-derived `ProfileFrame`, accept dialog и `MusicDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, load/delete confirmation и popup текущего menu/game track перенесены; `WeaponDialog`, общие `InfoDialog`, text input и оставшиеся transitions ещё отсутствуют |
+| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, accept dialog, `MusicDialog` и workshop `WeaponDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, load/delete confirmation, popup текущего track и hover-dialog товара/слота перенесены; общие `InfoDialog`, text input и оставшиеся transitions ещё отсутствуют |
 | Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph и тени menu spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | source-derived FinishMenu и FinalMenu | Перенесено | Оба активных экрана используют исходные assets/layout/timing/input; tournament unlock/video flow учитывается отдельно |
@@ -504,6 +504,33 @@ Network, video и Steam явно выключены.
    планета уже `psOpen/pass 1`. Ранние сборки записывали невозможное
    `psUnavailable/pass>0`; loader переводит только эту комбинацию в `psOpen`,
    сохраняя заработанный pass и возвращая соответствующий source assortment.
+8. Удалена придуманная постоянная selection-панель товара. Перенесены
+   `WorkshopFrame::ShowInfo/UpdateSlotInfo` и `DialogMenu2::WeaponDialog`:
+   окно появляется только от mouse hover над товаром, slot plane, level или
+   charge button; клавиатурный focus его не открывает. Goods используют
+   исходный `cellSize=100`, slot plane — 125×100, а charge button передаёт
+   свой размер 36×31, умноженный на четыре.
+
+### WeaponDialog
+
+1. Используется исходный `Data/GUI/dlgFrame3.png` размером 325×138. Перенесены
+   `VerySmall` Verdana 18 bold серого `175/255` для word-wrapped info и
+   `Small` Verdana 24 white для name/money/damage.
+2. Сохранены label offsets: info `(3,-3)` в области 280×75, money `(-60,54)`,
+   damage `(80,54)`, name `(0,-58)`.
+3. `waLeftBottom` вычисляется буквально: к sender center добавляется
+   `(slotWidth/4,-slotHeight/4)`, затем `(frameWidth/2,-frameHeight/2)`.
+   `SetPos` ограничивает центр рамки половиной размера плюс исходный margin
+   15 px.
+4. Goods и slot plane показывают исходную цену предмета; charge button —
+   `chargeCost × chargeStep`; level button — следующий mobility upgrade.
+   Damage равен сумме serialized projectile damage с форматом `%0.0f`;
+   для не-оружейных деталей выводится `"-"`, для support weapon с нулевым
+   damage — `"0"`.
+5. Интеграционный M9 smoke задерживает keyboard-сценарий в Workshop, посылает
+   реальный mouse-motion на доступный source good и требует фактическую
+   отрисовку диалога до продолжения пути в Garage/Angar/Race. M8/M9/M10
+   Debug, audio/race-render и resource verifier прошли.
 
 ### SpaceshipFrame / AngarFrame
 
@@ -684,8 +711,9 @@ Network, video и Steam явно выключены.
    вызываемыми `DialogMenu2`.
    GameMode/Tournament/Difficulty/Profile, основные offline subframes
    `RaceMenu2`, `FinishMenu`, `FinalMenu` и активная структура
-   `OptionsMenu`, а также `MusicDialog` уже source-derived; следующий
-   конкретный разрыв — workshop `WeaponDialog`, затем общие `InfoDialog`.
+   `OptionsMenu`, `MusicDialog` и workshop `WeaponDialog` уже source-derived;
+   следующий конкретный разрыв — общие `InfoDialog`/оставшиеся
+   `AcceptDialog`.
    При этом
    legacy animation/widget classes всё ещё заменены immediate-mode bgfx
    backend.

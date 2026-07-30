@@ -944,13 +944,27 @@ SDL_AUDIO_DRIVER=dummy \
   regression. M10 `.app --verify-resources` подтвердил 1196 исходных файлов.
 - Фактический arm64 Debug кадр через Computer Use подтвердил исходную рамку
   и metadata `Stereoside / On our Way` поверх MainMenu2.
+- Придуманная selection-driven панель Workshop удалена. Перенесены
+  `WorkshopFrame::ShowInfo/UpdateSlotInfo` и
+  `DialogMenu2::WeaponDialog`: `dlgFrame3.png` 325×138, Verdana 18 bold
+  gray word-wrap, Verdana 24 white name/money/damage, все четыре исходных
+  label offsets и clamp с margin 15 px.
+- Диалог теперь вызывается только mouse hover. Goods, slot plane, mobility
+  level и weapon charge различаются; charge показывает
+  `chargeCost × chargeStep`, level — следующий исходный upgrade, а damage
+  сохраняет source `"-"` для деталей и округлённое число для оружия,
+  включая `"0"` для support items.
+- M9 smoke теперь задерживает keyboard navigation в Workshop, отправляет
+  mouse-motion на реальный доступный товар и требует отрисованный
+  `WeaponDialog`. M8/M9/M10 Debug, audio smoke, 300-frame race-render и
+  `.app --verify-resources` прошли.
 
 ## Следующий рекомендуемый этап
 
 Основные offline subframes `RaceMenu2` и ветка GameMode/Tournament/
-Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` теперь
-source-derived. Следующий P0-блок: перенести workshop `WeaponDialog`, затем
-оставшиеся общие `InfoDialog`/`AcceptDialog`;
+Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` и workshop
+`WeaponDialog` теперь source-derived. Следующий P0-блок: перенести оставшиеся
+общие `InfoDialog`/`AcceptDialog`;
 после этого закрыть intro-video/final-unlock ветку.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening
