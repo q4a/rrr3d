@@ -73,14 +73,14 @@ Windows target не компилируется.
 | Audio device/mixer | XAudio2/X3DAudio | SDL3/CoreAudio | Замена платформы | Backend полноценный, но весь исходный game-side `Audio.cpp` object graph не перенесён |
 | MusicCat/menu music | `MusicCat`, три Ogg | background decode, shuffle, next, pause/state | Перенесено | Поведение покрыто отдельным smoke |
 | Spatial race audio | X3DAudio game integration | ручные attenuation/pan/pitch voices | Частично | Основные car/race sounds есть; исходные emitters/listeners, все lifetime/priority rules и все sound behaviors не перенесены |
-| Главное меню, внешний вид | `MainMenu2.cpp` | часть оригинальных изображений/строк | Частично | Фон, панели и selection source-driven; полный widget tree, animation, layout и event code не перенесены |
-| Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | ручной `enum MenuScreen` и `createPage(...)` в одном `main` | Суррогат | Страницы GameMode/Tournament/Profile/Options/Credits создаются как универсальные текстовые списки |
+| Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
+| Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared-frame navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty имеют исходные item order, cyclic navigation, disabled skip и actions; Profile/Network/Credits и общий legacy event object graph ещё не завершены |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | универсальная page + portable profile operations | Суррогат | Исходные dialogs, text input, transitions, animations и подтверждения отсутствуют |
 | Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph и тени menu spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | generic finish page | Суррогат | Исходные panels, statistics, awards, credits/final flow не перенесены |
-| Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля tournament/workshop/options и source-инвариант `psUnavailable/pass 0 → psOpen/pass 1`; несовместимые `psUnavailable/pass>0`, записанные ранним macOS-портом, мигрируются без потери pass. Полная схема и все profile branches ещё не доказаны |
-| Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + ручное advance | Частично | Основной выбор/rewards есть; полный state machine, dialogs, unlock/final sequences не перенесён |
+| Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля, source-инвариант планет и `Race::MakeProfileName/NewProfile`: New Game создаёт первый свободный `profileN`, а временный `skirmish` не попадает в `race.xml` и не перезаписывает campaign. Полная схема и ProfileFrame delete flow ещё не доказаны |
+| Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + source-derived entry flow и advance | Частично | Continue/New/Load/Difficulty и отдельный SkProfile перенесены; dialogs, intro video, unlock/final sequences ещё не завершены |
 | Garage/workshop/tournament data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml`, `tournamet.xml`, `achievment.xml` | `OriginalGarage.cpp` + source-derived Garage/Workshop/Angar/Achievment frames | Частично | Каталог, source available/secret/locked order, buy/sell/install/swap/recharge/upgrade, reward purchase, campaign confirmations, charge-inclusive 50% resale, colors, stats фактической комплектации и bonus preview перенесены. 3D goods/slots/planets/boss cars читают исходные mesh/texture/vehicle transforms и повторяют `ViewPort3d` fitting/rotation. Legacy widget objects ещё отсутствуют |
 | Map/catalog loading | `Map`, `MapObj`, `DataBase` | `OriginalRace.cpp` | Частично | 88 записей и исходные placements читаются; generic GameObject/behavior/include lifecycle воспроизведён только для известных типов |
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
@@ -117,14 +117,13 @@ Windows target не компилируется.
 
 ### 1. Меню
 
-`main_bgfx_original_menu.cpp` всё ещё вручную объявляет `MenuScreen` и для
-большинства экранов создаёт универсальные страницы через `createPage`. Это
-главный источник визуального и поведенческого несоответствия Windows-версии.
-`OptionsMenu` больше не является таким generic-списком: его активная
-компоновка и transaction semantics перенесены из исходника. Но
-`OriginalMainMenu.cpp` по-прежнему не переносит целиком классы `MainMenu2`,
-`MenuSystem`, `GameMode`, `DialogMenu2`, `RaceMenu2`, `FinishMenu` и
-`FinalMenu`.
+`main_bgfx_original_menu.cpp` всё ещё вручную объявляет `MenuScreen`.
+`GameModeFrame`, `TournamentFrame`, `DifficultyFrame` и активный
+`OptionsMenu` больше не являются произвольными generic-списками: их
+компоновка, доступность и переходы сопоставлены с исходником. Главные
+оставшиеся generic-блоки — `ProfileFrame`, dialogs, Credits и
+`FinishMenu`/`FinalMenu`; legacy `MenuSystem` animation/event object graph
+также не компилируется.
 
 ### 2. Игровая логика
 
@@ -557,22 +556,46 @@ Network, video и Steam явно выключены.
    Ручная arm64 Debug проверка подтвердила все девять карточек, цены, points,
    selected `okButSel`, purchase dialog и warning без визуальных артефактов.
 
+### GameModeFrame / TournamentFrame / DifficultyFrame
+
+1. `MainMenu::AdjustMenuItems` перенесён для shared frames: обычные строки
+   начинаются на `centerY - 100` с шагом 53, а последний Back находится в
+   отдельной исходной точке `centerY + 150`. Mouse hit-testing использует те
+   же координаты.
+2. `GameModeFrame::OnShow` блокирует Skirmish до первого tutorial stage.
+   `TournamentFrame::OnShow` блокирует Continue и Load без профилей.
+   Disabled text получает исходную alpha 0.25; cyclic keyboard navigation и
+   mouse/confirm пропускают disabled items.
+3. `Race::MakeProfileName/NewProfile` больше не заменены сбросом текущего
+   профиля: New Game выбирает первый отсутствующий `profileN`, устанавливает
+   source defaults и сохраняет отдельный XML. Continue сохраняет текущую
+   difficulty, Load по-прежнему загружает выбранный исходный XML.
+4. Skirmish использует отдельный runtime-профиль `skirmish`, открывает
+   planet zero и `planetsCompleted`, не добавляется в campaign list и при
+   любом save/shutdown сохраняет global config/achievements через snapshot
+   последнего championship profile. Skirmish finish не продвигает tournament.
+5. Profile-flow regression проверяет уникальное имя, reset defaults,
+   временность SkProfile и open planets. 300-frame Metal smoke посещает оба
+   shared frame до RaceMenu; ручная проверка arm64 Debug подтвердила
+   координаты и отсутствие визуальных артефактов.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
 
-1. Продолжить исходный menu/widget state machine:
-   `Menu`, `MenuSystem`, `MainMenu2`, `GameMode`, `DialogMenu2`,
-   `FinishMenu`, `FinalMenu`. Основные offline subframes `RaceMenu2` и
-   активная структура `OptionsMenu` уже source-derived, но legacy
-   animation/widget classes всё ещё заменены immediate-mode bgfx backend.
+1. Продолжить исходный menu/widget state machine с `ProfileFrame` и
+   `DialogMenu2`, затем `FinishMenu`/`FinalMenu`. GameMode/Tournament/
+   Difficulty, основные offline subframes `RaceMenu2` и активная структура
+   `OptionsMenu` уже source-derived, но legacy animation/widget classes всё
+   ещё заменены immediate-mode bgfx backend.
 2. Завершить исходные type-specific projectile contact groups, forces,
    callbacks и lifetime transitions поверх уже перенесённых shapes/raycasts.
 3. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно
    перенести `GameObject`, `Logic`, `Player`, `Race`, `Weapon`.
 4. Перенести `AICar`/`AIPlayer`: trace planning, avoidance, tactics,
    difficulty и weapon decisions.
-5. Завершить tournament/profile/garage/finish flow и исходные UI transitions.
+5. Завершить Profile delete/load dialogs, intro video, unlock/final flow и
+   исходные UI transitions.
 
 ### P1 — visual/audio parity
 

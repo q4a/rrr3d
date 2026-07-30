@@ -515,7 +515,8 @@ void drawQuadRotated(GraphicsDevice& device, Mesh quad, Shader shader,
 #ifdef RRR3D_GAMEPAD_INPUT
 std::optional<std::size_t> hoveredItem(SDL_Window* window, float windowX,
                                        float windowY, std::size_t itemCount,
-                                       float itemWidth, float itemHeight)
+                                       float itemWidth, float itemHeight,
+                                       bool lastItemAtBackPosition)
 {
     int windowWidth = 0;
     int windowHeight = 0;
@@ -533,9 +534,13 @@ std::optional<std::size_t> hoveredItem(SDL_Window* window, float windowX,
         return std::nullopt;
     for (std::size_t index = 0; index < itemCount; ++index)
     {
-        const float centerY = menu::virtualHeight * 0.5F +
-                              menu::firstItemOffsetY +
-                              static_cast<float>(index) * menu::itemSpacing;
+        const float centerY =
+            lastItemAtBackPosition && index + 1U == itemCount
+                ? menu::virtualHeight * 0.5F + 150.0F
+                : menu::virtualHeight * 0.5F +
+                      menu::firstItemOffsetY +
+                      static_cast<float>(index) *
+                          menu::itemSpacing;
         if (std::abs(virtualY - centerY) <= itemHeight * 0.5F)
             return index;
     }
@@ -804,6 +809,8 @@ int main(int argc, char** argv)
                 *originalRace, *resources, physicsError) ||
             !r3d::game::originalrace::runOriginalGarageSmokeTest(
                 *resources, physicsError) ||
+            !r3d::game::originalrace::runOriginalProfileFlowSmokeTest(
+                physicsError) ||
             !r3d::game::originalrace::runOriginalRaceSessionSmokeTest(
                 *originalRace, physicsError) ||
             !r3d::physics::runOriginalVehiclePhysicsSmokeTest(
@@ -1380,6 +1387,8 @@ int main(int argc, char** argv)
         std::vector<std::string> labels;
         std::vector<TextVisual> normal;
         std::vector<TextVisual> selected;
+        std::vector<TextVisual> disabled;
+        std::vector<bool> enabled;
     };
     auto localized = [&](std::string_view key) {
         const auto found =
@@ -1439,6 +1448,7 @@ int main(int argc, char** argv)
     auto createPage = [&](std::vector<std::string> pageLabels) {
         MenuPageVisual page;
         page.labels = std::move(pageLabels);
+        page.enabled.assign(page.labels.size(), true);
         for (const auto& item : page.labels)
         {
             page.normal.push_back(createText(
@@ -1447,6 +1457,12 @@ int main(int argc, char** argv)
             page.selected.push_back(createText(
                 *device, item, menu::headerFontHeight, false,
                 menu::selectedTextColor, resolvedFont));
+            auto disabledColor = menu::normalTextColor;
+            disabledColor.alpha =
+                static_cast<std::uint8_t>(disabledColor.alpha / 4U);
+            page.disabled.push_back(createText(
+                *device, item, menu::headerFontHeight, false,
+                disabledColor, resolvedFont));
         }
         return page;
     };
@@ -1455,6 +1471,7 @@ int main(int argc, char** argv)
             menu::Rgba8 normalColor, menu::Rgba8 selectedColor) {
             MenuPageVisual page;
             page.labels = std::move(pageLabels);
+            page.enabled.assign(page.labels.size(), true);
             for (const auto& item : page.labels)
             {
                 page.normal.push_back(createText(
@@ -1463,10 +1480,19 @@ int main(int argc, char** argv)
                 page.selected.push_back(createText(
                     *device, item, pointSize, false, selectedColor,
                     resolvedFont));
+                auto disabledColor = normalColor;
+                disabledColor.alpha =
+                    static_cast<std::uint8_t>(
+                        disabledColor.alpha / 4U);
+                page.disabled.push_back(createText(
+                    *device, item, pointSize, false, disabledColor,
+                    resolvedFont));
             }
             return page;
         };
     auto destroyPage = [&](const MenuPageVisual& page) {
+        for (const auto& item : page.disabled)
+            device->destroy(item.texture);
         for (const auto& item : page.selected)
             device->destroy(item.texture);
         for (const auto& item : page.normal)
@@ -1913,6 +1939,8 @@ int main(int argc, char** argv)
         return !page.labels.empty() &&
                page.normal.size() == page.labels.size() &&
                page.selected.size() == page.labels.size() &&
+               page.disabled.size() == page.labels.size() &&
+               page.enabled.size() == page.labels.size() &&
                std::all_of(
                    page.normal.begin(), page.normal.end(),
                    [](const TextVisual& item) {
@@ -1920,6 +1948,11 @@ int main(int argc, char** argv)
                    }) &&
                std::all_of(
                    page.selected.begin(), page.selected.end(),
+                   [](const TextVisual& item) {
+                       return valid(item.texture);
+                   }) &&
+               std::all_of(
+                   page.disabled.begin(), page.disabled.end(),
                    [](const TextVisual& item) {
                        return valid(item.texture);
                    });
@@ -2800,6 +2833,8 @@ int main(int argc, char** argv)
     bool championshipMode = true;
     bool newTournamentProfile = false;
 #ifdef RRR3D_PHYSICS
+    std::optional<r3d::game::originalrace::PlayerProfile>
+        championshipPlayerBeforeSkirmish;
     struct GarageCarView
     {
         std::size_t catalogIndex = 0U;
@@ -2897,14 +2932,92 @@ int main(int argc, char** argv)
         }
         return mainPage;
     };
+    auto refreshProfilePage = [&]() {
+#ifdef RRR3D_PHYSICS
+        auto profileLabels = profileState.profiles;
+#else
+        std::vector<std::string> profileLabels{"profile1"};
+#endif
+        profileLabels.push_back(localized("svBack"));
+        auto replacement = createPage(std::move(profileLabels));
+        destroyPage(profilePage);
+        profilePage = std::move(replacement);
+    };
+    auto refreshSharedMenuAvailability = [&](MenuScreen screen) {
+        auto enableAll = [](MenuPageVisual& page) {
+            std::fill(
+                page.enabled.begin(), page.enabled.end(), true);
+        };
+        switch (screen)
+        {
+        case MenuScreen::GameMode:
+            enableAll(gameModePage);
+#ifdef RRR3D_PHYSICS
+            gameModePage.enabled[1] =
+                profileState.tutorialStage >= 1U;
+#endif
+            break;
+        case MenuScreen::Tournament:
+            enableAll(tournamentPage);
+#ifdef RRR3D_PHYSICS
+            tournamentPage.enabled[0] =
+                !profileState.profiles.empty();
+            tournamentPage.enabled[2] =
+                !profileState.profiles.empty();
+#endif
+            break;
+        default:
+            break;
+        }
+    };
+    auto firstEnabledMenuItem = [&]() {
+        const auto& page = activeMenuPage();
+        const auto first = std::find(
+            page.enabled.begin(), page.enabled.end(), true);
+        return first == page.enabled.end()
+                   ? std::size_t{0}
+                   : static_cast<std::size_t>(
+                         std::distance(page.enabled.begin(), first));
+    };
+    auto usesSharedBackPosition = [](MenuScreen screen) {
+        switch (screen)
+        {
+        case MenuScreen::GameMode:
+        case MenuScreen::Tournament:
+        case MenuScreen::Difficulty:
+        case MenuScreen::Profiles:
+        case MenuScreen::Network:
+        case MenuScreen::Credits:
+            return true;
+        default:
+            return false;
+        }
+    };
+    auto sharedMenuItemY =
+        [&](MenuScreen screen, std::size_t index,
+            std::size_t count) {
+            if (usesSharedBackPosition(screen) &&
+                index + 1U == count)
+            {
+                return menu::virtualHeight * 0.5F + 150.0F;
+            }
+            return menu::virtualHeight * 0.5F +
+                   menu::firstItemOffsetY +
+                   static_cast<float>(index) *
+                       menu::itemSpacing;
+        };
     auto pushMenu = [&](MenuScreen screen) {
+        if (screen == MenuScreen::Profiles)
+            refreshProfilePage();
         menuStack.push_back(screen);
-        menuSelection = 0;
+        refreshSharedMenuAvailability(screen);
+        menuSelection = firstEnabledMenuItem();
     };
     auto backMenu = [&]() {
         if (menuStack.size() > 1U)
             menuStack.pop_back();
-        menuSelection = 0;
+        refreshSharedMenuAvailability(menuStack.back());
+        menuSelection = firstEnabledMenuItem();
     };
 #ifdef RRR3D_PHYSICS
     std::optional<std::string> bindingCaptureAction;
@@ -3025,6 +3138,8 @@ int main(int argc, char** argv)
     float raceElapsedSeconds = 0.0F;
     std::uint64_t previousFrameTicks = SDL_GetTicksNS();
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
+    bool gameModeFrameObserved = !options->raceRenderSmokeTest;
+    bool tournamentFrameObserved = !options->raceRenderSmokeTest;
     bool raceGarageFrameObserved = !options->raceRenderSmokeTest;
     bool raceGarage3DObserved = !options->raceRenderSmokeTest;
     bool raceWorkshopFrameObserved = !options->raceRenderSmokeTest;
@@ -3072,7 +3187,8 @@ int main(int argc, char** argv)
         {
             raceSession.writePlayerProfile(profileState.player);
             raceSession.writeAchievementProfile(profileState);
-            if (raceSession.racers().front().finished &&
+            if (championshipMode &&
+                raceSession.racers().front().finished &&
                 !raceProgressSaved)
             {
                 const auto completedTrack = selectedTrack;
@@ -3092,8 +3208,17 @@ int main(int argc, char** argv)
                     << '\n';
             }
         }
+        auto persistedState = profileState;
+        if (championshipPlayerBeforeSkirmish)
+        {
+            persistedState =
+                r3d::game::originalrace::
+                    makeOriginalSkirmishPersistenceState(
+                        profileState,
+                        *championshipPlayerBeforeSkirmish);
+        }
         std::string profileError;
-        if (!profileStore.save(profileState, profileError))
+        if (!profileStore.save(persistedState, profileError))
             std::cerr << "Unable to save original profile: "
                       << profileError << '\n';
     };
@@ -3218,6 +3343,23 @@ int main(int argc, char** argv)
                 << exception.what() << '\n';
             return false;
         }
+    };
+    auto restoreChampionshipProfile = [&]() {
+        if (!championshipPlayerBeforeSkirmish)
+            return true;
+        profileState.player =
+            *championshipPlayerBeforeSkirmish;
+        championshipMode = true;
+        selectedTrack =
+            r3d::game::originalrace::
+                resolveOriginalTournamentTrack(
+                    *originalRace, profileState.player);
+        if (!reloadCurrentRace())
+            return false;
+        championshipPlayerBeforeSkirmish.reset();
+        raceProgressSaved = false;
+        refreshProfilePage();
+        return true;
     };
     auto startCurrentRace = [&]() {
         if (!reloadCurrentRace())
@@ -4105,12 +4247,7 @@ int main(int argc, char** argv)
         refreshPlanetsPage();
     };
     auto persistAngarProfile = [&]() {
-        std::string profileError;
-        if (!profileStore.save(profileState, profileError))
-        {
-            std::cerr << "Unable to save AngarFrame planet: "
-                      << profileError << '\n';
-        }
+        saveRaceProfile();
     };
     auto changeAngarPlanet = [&](std::size_t index) {
         const auto count = std::min(
@@ -5843,12 +5980,14 @@ int main(int argc, char** argv)
 #endif
                 event.type == SDL_EVENT_MOUSE_MOTION)
             {
+                const auto& hoverPage = activeMenuPage();
                 const auto hovered = hoveredItem(
                     window, event.motion.x, event.motion.y,
-                    activeMenuPage().labels.size(),
+                    hoverPage.labels.size(),
                     static_cast<float>(model->selectionImage.width),
-                    static_cast<float>(model->selectionImage.height));
-                if (hovered)
+                    static_cast<float>(model->selectionImage.height),
+                    usesSharedBackPosition(menuStack.back()));
+                if (hovered && hoverPage.enabled[*hovered])
                     menuSelection = *hovered;
             }
             else if (
@@ -5857,14 +5996,18 @@ int main(int argc, char** argv)
 #endif
                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
             {
+                const auto& hoverPage = activeMenuPage();
                 const auto hovered = hoveredItem(
                     window, event.button.x, event.button.y,
-                    activeMenuPage().labels.size(),
+                    hoverPage.labels.size(),
                     static_cast<float>(model->selectionImage.width),
-                    static_cast<float>(model->selectionImage.height));
-                pointerTargetsItem = hovered.has_value() ||
+                    static_cast<float>(model->selectionImage.height),
+                    usesSharedBackPosition(menuStack.back()));
+                const bool enabledHover =
+                    hovered && hoverPage.enabled[*hovered];
+                pointerTargetsItem = enabledHover ||
                                      event.button.button != SDL_BUTTON_LEFT;
-                if (hovered)
+                if (enabledHover)
                     menuSelection = *hovered;
             }
             const auto inputEvents = input.processEvent(event);
@@ -6714,17 +6857,30 @@ int main(int argc, char** argv)
                 if (inputEvent.action ==
                     rrr3d::input::Action::MenuUp)
                 {
-                    menuSelection =
-                        menuSelection == 0U
-                            ? page.labels.size() - 1U
-                            : menuSelection - 1U;
+                    for (std::size_t attempts = 0U;
+                         attempts < page.labels.size(); ++attempts)
+                    {
+                        menuSelection =
+                            menuSelection == 0U
+                                ? page.labels.size() - 1U
+                                : menuSelection - 1U;
+                        if (page.enabled[menuSelection])
+                            break;
+                    }
                     continue;
                 }
                 if (inputEvent.action ==
                     rrr3d::input::Action::MenuDown)
                 {
-                    menuSelection =
-                        (menuSelection + 1U) % page.labels.size();
+                    for (std::size_t attempts = 0U;
+                         attempts < page.labels.size(); ++attempts)
+                    {
+                        menuSelection =
+                            (menuSelection + 1U) %
+                            page.labels.size();
+                        if (page.enabled[menuSelection])
+                            break;
+                    }
                     continue;
                 }
 #ifdef RRR3D_PHYSICS
@@ -6846,6 +7002,11 @@ int main(int argc, char** argv)
                 if (inputEvent.action !=
                     rrr3d::input::Action::MenuConfirm)
                     continue;
+                if (menuSelection >= page.enabled.size() ||
+                    !page.enabled[menuSelection])
+                {
+                    continue;
+                }
 #ifdef RRR3D_AUDIO
                 // MainMenu2 creates these buttons with ssButton1. The legacy
                 // scheme plays click.ogg on press and has no navigation or
@@ -6918,43 +7079,66 @@ int main(int argc, char** argv)
                         backMenu();
                     break;
                 case MenuScreen::Difficulty:
+                {
                     if (menuSelection >= 3U)
                     {
                         backMenu();
                         break;
                     }
 #ifdef RRR3D_PHYSICS
-                    profileState.player.difficulty =
+                    const auto difficulty =
                         std::array<std::string, 3>{
                             "gdEasy", "gdNormal", "gdHard"}
                             [menuSelection];
                     if (championshipMode && newTournamentProfile)
                     {
-                        const auto profileName =
-                            profileState.player.name;
-                        const auto color =
-                            profileState.player.color;
-                        // Profile::Enter resets the source subsystems and
-                        // SnProfile::EnterGame then opens planet zero.  Reuse
-                        // the portable equivalent instead of a value-
-                        // initialized PlayerProfile, whose planets are all
-                        // psUnavailable and whose Workshop would stay empty.
+                        // Race::NewProfile(rmChampionship) creates the first
+                        // absent profileN.  It must not reset or overwrite the
+                        // campaign profile currently selected in race.xml.
+                        saveRaceProfile();
+                        const auto created =
+                            r3d::game::originalrace::
+                                beginOriginalChampionshipProfile(
+                                    profileState, difficulty);
+                        selectedTrack = 0U;
+                        newTournamentProfile = false;
+                        refreshProfilePage();
+                        std::cout
+                            << "Race::NewProfile championship: "
+                            << created << '\n';
+                    }
+                    else if (!championshipMode)
+                    {
+                        // Race owns one separate SkProfile named "skirmish".
+                        // Its SaveGame is empty and it is absent from the
+                        // persistent championship profile list.
+                        saveRaceProfile();
+                        championshipPlayerBeforeSkirmish =
+                            profileState.player;
                         profileState.player =
                             r3d::game::originalrace::
-                                makeOriginalDefaultProfileState()
-                                    .player;
-                        profileState.player.name = profileName;
-                        profileState.player.color = color;
-                        profileState.player.difficulty =
-                            std::array<std::string, 3>{
-                                "gdEasy", "gdNormal", "gdHard"}
-                                [menuSelection];
+                                makeOriginalSkirmishProfile(
+                                    profileState, difficulty);
                         selectedTrack = 0U;
+                        std::cout
+                            << "Race::NewProfile skirmish: temporary "
+                               "skirmish\n";
+                    }
+                    else
+                    {
+                        profileState.player.difficulty = difficulty;
+                    }
+                    if (!reloadCurrentRace())
+                    {
+                        runtimeSmokeFailed = true;
+                        running = false;
+                        break;
                     }
                     saveRaceProfile();
                     showOriginalRaceMenu();
 #endif
                     break;
+                }
                 case MenuScreen::Profiles:
                     if (menuSelection + 1U >= page.labels.size())
                         backMenu();
@@ -7077,6 +7261,12 @@ int main(int argc, char** argv)
                     else
                     {
                         saveRaceProfile();
+                        if (!restoreChampionshipProfile())
+                        {
+                            runtimeSmokeFailed = true;
+                            running = false;
+                            break;
+                        }
                         menuStack = {MenuScreen::Main};
                         menuSelection = 0;
                     }
@@ -7185,6 +7375,13 @@ int main(int argc, char** argv)
                     }
                     else
                     {
+                        saveRaceProfile();
+                        if (!restoreChampionshipProfile())
+                        {
+                            runtimeSmokeFailed = true;
+                            running = false;
+                            break;
+                        }
                         menuStack = {MenuScreen::Main};
                         menuSelection = 0;
                     }
@@ -10632,6 +10829,28 @@ int main(int argc, char** argv)
         else
 #endif
         {
+            if (menuStack.back() == MenuScreen::GameMode)
+            {
+                gameModeFrameObserved =
+                    activePage.labels.size() == 3U &&
+                    activePage.enabled[1] ==
+                        (profileState.tutorialStage >= 1U) &&
+                    sharedMenuItemY(
+                        MenuScreen::GameMode, 2U, 3U) ==
+                        menu::virtualHeight * 0.5F + 150.0F;
+            }
+            else if (menuStack.back() == MenuScreen::Tournament)
+            {
+                const bool hasProfiles =
+                    !profileState.profiles.empty();
+                tournamentFrameObserved =
+                    activePage.labels.size() == 4U &&
+                    activePage.enabled[0] == hasProfiles &&
+                    activePage.enabled[2] == hasProfiles &&
+                    sharedMenuItemY(
+                        MenuScreen::Tournament, 3U, 4U) ==
+                        menu::virtualHeight * 0.5F + 150.0F;
+            }
             for (std::size_t index = 0;
                  index < activePage.normal.size(); ++index)
             {
@@ -10639,11 +10858,11 @@ int main(int argc, char** argv)
                     menu::virtualWidth * 0.5F +
                     menu::itemCenterOffsetX;
                 const float centerY =
-                    menu::virtualHeight * 0.5F +
-                    menu::firstItemOffsetY +
-                    static_cast<float>(index) *
-                        menu::itemSpacing;
-                if (index == menuSelection)
+                    sharedMenuItemY(
+                        menuStack.back(), index,
+                        activePage.normal.size());
+                const bool enabled = activePage.enabled[index];
+                if (enabled && index == menuSelection)
                 {
                     drawQuad(
                         *device, quad, shader, selection,
@@ -10654,9 +10873,11 @@ int main(int argc, char** argv)
                         centerX, centerY, 50.0F, transparent);
                 }
                 const auto& text =
-                    index == menuSelection
-                        ? activePage.selected[index]
-                        : activePage.normal[index];
+                    !enabled
+                        ? activePage.disabled[index]
+                        : index == menuSelection
+                              ? activePage.selected[index]
+                              : activePage.normal[index];
                 drawQuad(
                     *device, quad, shader, text.texture,
                     text.width, text.height, centerX, centerY,
@@ -10817,6 +11038,8 @@ int main(int argc, char** argv)
                         passObserved(
                             r3d::renderer::RenderPass::Water);
                 if (!integratedRaceStartObserved || !inRace ||
+                    !gameModeFrameObserved ||
+                    !tournamentFrameObserved ||
                     !raceGarageFrameObserved ||
                     !raceGarage3DObserved ||
                     !raceWorkshopFrameObserved ||
@@ -10845,7 +11068,9 @@ int main(int argc, char** argv)
                         << "Milestone 9 integrated Single Player/race render "
                            "verification failed: started="
                         << integratedRaceStartObserved << ", inRace="
-                        << inRace << ", garage="
+                        << inRace << ", gameMode/tournament="
+                        << gameModeFrameObserved << '/'
+                        << tournamentFrameObserved << ", garage="
                         << raceGarageFrameObserved << '/'
                         << raceGarage3DObserved
                         << ", workshop="
@@ -10904,6 +11129,7 @@ int main(int argc, char** argv)
                            "life "
                         << minimumRacePlayerLife << "), "
                            "source HudMenu pause/accept/frozen-world, "
+                           "source GameModeFrame/TournamentFrame layout, "
                            "source WorkshopFrame/GarageFrame/3D CarFrame/"
                            "SpaceshipFrame/AngarFrame/AchievmentFrame and "
                            "render-target "

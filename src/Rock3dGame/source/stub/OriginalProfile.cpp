@@ -562,6 +562,136 @@ ProfileState makeOriginalDefaultProfileState()
     return state;
 }
 
+std::string makeOriginalProfileName(
+    const ProfileState& state, std::string_view base)
+{
+    const std::string prefix =
+        base.empty() ? std::string("profile") : std::string(base);
+    for (std::uint32_t suffix = 1U;; ++suffix)
+    {
+        const std::string candidate =
+            prefix + std::to_string(suffix);
+        if (std::find(state.profiles.begin(), state.profiles.end(),
+                      candidate) == state.profiles.end())
+        {
+            return candidate;
+        }
+    }
+}
+
+std::string beginOriginalChampionshipProfile(
+    ProfileState& state, std::string_view difficulty)
+{
+    const std::string name = makeOriginalProfileName(state);
+    auto player = makeOriginalDefaultProfileState().player;
+    player.name = name;
+    player.difficulty = std::string(difficulty);
+    state.player = std::move(player);
+    state.profiles.push_back(name);
+    return name;
+}
+
+PlayerProfile makeOriginalSkirmishProfile(
+    const ProfileState& state, std::string_view difficulty)
+{
+    auto player = makeOriginalDefaultProfileState().player;
+    player.name = "skirmish";
+    player.difficulty = std::string(difficulty);
+
+    // SkProfile::EnterGame opens every planet recorded by
+    // Race::GetPlanetsCompleted, then always opens planet zero and selects it.
+    for (const auto index : state.planetsCompleted)
+    {
+        if (index < player.planets.size())
+            player.planets[index] = {0U, 1U};
+    }
+    player.planets.front() = {0U, 1U};
+    player.currentPlanet = 0U;
+    player.currentTrack = 0U;
+    player.currentPass = 1U;
+    return player;
+}
+
+ProfileState makeOriginalSkirmishPersistenceState(
+    const ProfileState& runtimeState,
+    const PlayerProfile& championshipPlayer)
+{
+    auto persisted = runtimeState;
+    persisted.player = championshipPlayer;
+    return persisted;
+}
+
+bool runOriginalProfileFlowSmokeTest(std::string& error)
+{
+    error.clear();
+    auto state = makeOriginalDefaultProfileState();
+    state.profiles = {"profile1", "profile3"};
+    state.player.name = "profile1";
+    state.player.money = 999U;
+    state.player.points = 123U;
+    state.planetsCompleted = {2U, 4U, 99U};
+
+    const auto campaignBeforeSkirmish = state.player;
+    const auto skirmish =
+        makeOriginalSkirmishProfile(state, "gdEasy");
+    if (skirmish.name != "skirmish" ||
+        skirmish.difficulty != "gdEasy" ||
+        skirmish.money != 0U || skirmish.points != 0U ||
+        skirmish.planets[0].state != 0U ||
+        skirmish.planets[2].state != 0U ||
+        skirmish.planets[4].state != 0U ||
+        skirmish.planets[1].state != 2U ||
+        state.player.name != campaignBeforeSkirmish.name ||
+        state.player.money != campaignBeforeSkirmish.money ||
+        state.profiles.size() != 2U)
+    {
+        error =
+            "Race::SkProfile flow did not remain temporary or did not "
+            "open the source planets";
+        return false;
+    }
+
+    auto skirmishRuntime = state;
+    skirmishRuntime.player = skirmish;
+    skirmishRuntime.config.lapsCount = 7U;
+    skirmishRuntime.achievementPoints = 42U;
+    const auto persisted =
+        makeOriginalSkirmishPersistenceState(
+            skirmishRuntime, campaignBeforeSkirmish);
+    if (persisted.player.name != "profile1" ||
+        persisted.player.money != 999U ||
+        persisted.config.lapsCount != 7U ||
+        persisted.achievementPoints != 42U ||
+        std::find(
+            persisted.profiles.begin(), persisted.profiles.end(),
+            "skirmish") != persisted.profiles.end())
+    {
+        error =
+            "SkProfile persistence did not retain global state while "
+            "protecting the championship profile";
+        return false;
+    }
+
+    const auto newName =
+        beginOriginalChampionshipProfile(state, "gdHard");
+    if (newName != "profile2" ||
+        state.player.name != "profile2" ||
+        state.player.difficulty != "gdHard" ||
+        state.player.money != 0U || state.player.points != 0U ||
+        state.player.planets[0].state != 0U ||
+        state.player.planets[0].pass != 1U ||
+        state.profiles !=
+            std::vector<std::string>{
+                "profile1", "profile3", "profile2"})
+    {
+        error =
+            "Race::MakeProfileName/NewProfile championship semantics "
+            "did not match the source";
+        return false;
+    }
+    return true;
+}
+
 OriginalProfileStore::OriginalProfileStore(
     std::filesystem::path saveDirectory,
     std::filesystem::path legacyDirectory)

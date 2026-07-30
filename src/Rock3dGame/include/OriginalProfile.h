@@ -143,6 +143,21 @@ struct ProfileState
 // change source-provenance assertions.
 ProfileState makeOriginalDefaultProfileState();
 
+// Source-equivalent Race::MakeProfileName/NewProfile helpers used by the
+// portable MainMenu2 flow.  Championship profiles are persistent; the
+// original SkProfile named "skirmish" is temporary and is never added to
+// race.xml's profile list.
+std::string makeOriginalProfileName(
+    const ProfileState& state, std::string_view base = "profile");
+std::string beginOriginalChampionshipProfile(
+    ProfileState& state, std::string_view difficulty);
+PlayerProfile makeOriginalSkirmishProfile(
+    const ProfileState& state, std::string_view difficulty);
+ProfileState makeOriginalSkirmishPersistenceState(
+    const ProfileState& runtimeState,
+    const PlayerProfile& championshipPlayer);
+bool runOriginalProfileFlowSmokeTest(std::string& error);
+
 class OriginalProfileStore
 {
 public:

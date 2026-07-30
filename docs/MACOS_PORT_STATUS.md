@@ -864,13 +864,34 @@ SDL_AUDIO_DRIVER=dummy \
   прикреплять Finder xattr к build artifact. Verifier поэтому проверяет
   xattr-free transport copy; ZIP packager также исключает эти metadata.
 - Windows regression build требует Windows CI.
+- Shared `MainMenu2` flow больше не размещает все строки как generic list:
+  `GameModeFrame`, `TournamentFrame` и `DifficultyFrame` используют точные
+  source coordinates `centerY - 100 + n × 53`, а Back перенесён в
+  `centerY + 150`. Pointer hit-test совпадает с отрисовкой.
+- Перенесены исходные enabled branches: Skirmish зависит от первого tutorial
+  stage, Continue/Load — от наличия campaign profiles. Disabled items имеют
+  alpha 0.25 и пропускаются cyclic keyboard/mouse navigation.
+- `Race::MakeProfileName/NewProfile` больше не заменён сбросом активного
+  профиля. New Game создаёт первый свободный `profileN` с source defaults;
+  regression отдельно проверяет отсутствие перезаписи существующего
+  campaign.
+- Skirmish теперь использует временный `SkProfile` с именем `skirmish`,
+  открывает planet zero и глобальные `planetsCompleted`, не добавляется в
+  `race.xml`, не сохраняет временные деньги/progress поверх campaign и не
+  запускает tournament advance после finish. При выходе восстанавливается
+  точный campaign snapshot.
+- M9 и M10 Debug собраны без warnings. Resource verification, physics/profile
+  smoke и 300-frame bgfx/Metal integration прошли; последний посетил
+  GameMode/Tournament, Workshop, Garage, Angar, Achievment и гонку. Ручная
+  проверка arm64 Debug подтвердила shared-frame layout без артефактов.
 
 ## Следующий рекомендуемый этап
 
-Основные offline subframes `RaceMenu2` — Garage, Workshop, Angar и
-Achievment — теперь source-derived. Следующий P0-блок: заменить generic
-`GameMode`/Tournament/Profile ветви исходными `MainMenu2`, `GameMode` и
-`DialogMenu2`, затем перенести `FinishMenu`/`FinalMenu`.
+Основные offline subframes `RaceMenu2`, а также GameMode/Tournament/
+Difficulty теперь source-derived. Следующий P0-блок: перенести точный
+`ProfileFrame` (четыре видимые строки, scroll arrows, close buttons,
+delete-confirmation и выбор профиля) вместе с нужными `DialogMenu2`
+состояниями, затем `FinishMenu`/`FinalMenu`.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
