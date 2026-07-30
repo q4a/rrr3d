@@ -604,18 +604,18 @@ void Shape::ReloadNxShape(bool allowInitialization)
 	GetActor()->ReloadNxShape(this, allowInitialization);
 }
 
-D3DXVECTOR3 Shape::TransformLocalPos(const D3DXVECTOR3& inValue)
+NxVec3 Shape::TransformLocalPos(const D3DXVECTOR3& inValue)
 {
 	D3DXVECTOR3 tmp;
 	GetActor()->LocalToWorldPos(_pos, tmp, true);
-	return tmp;
+	return NxVec3(tmp.x, tmp.y, tmp.z);
 }
 
 void Shape::SyncPos()
 {
 	LSL_ASSERT(_nxShape);
 
-	_nxShape->setLocalPosition(NxVec3(TransformLocalPos(_pos)));
+	_nxShape->setLocalPosition(TransformLocalPos(_pos));
 }
 
 void Shape::SyncRot()
