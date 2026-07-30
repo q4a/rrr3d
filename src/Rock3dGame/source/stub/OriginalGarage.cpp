@@ -94,6 +94,38 @@ float real(TiXmlElement* parent, const char* name,
     }
 }
 
+template <std::size_t Count>
+std::array<float, Count> realVector(
+    TiXmlElement* parent, const char* name,
+    std::array<float, Count> fallback = {})
+{
+    const auto value = text(parent, name);
+    if (value.empty())
+        return fallback;
+    std::istringstream stream(value);
+    std::array<float, Count> result{};
+    for (float& component : result)
+    {
+        if (!(stream >> component))
+            return fallback;
+    }
+    return result;
+}
+
+std::string resourcePath(TiXmlElement* parent, const char* name)
+{
+    auto* element = child(parent, name);
+    if (element == nullptr)
+        return {};
+    const char* item = element->Attribute("item");
+    if (item == nullptr || *item == '\0')
+        return {};
+    std::string result = "Data/";
+    result += item;
+    std::replace(result.begin(), result.end(), '\\', '/');
+    return result;
+}
+
 std::string leaf(std::string_view record)
 {
     const auto slash = record.find_last_of("\\/");
@@ -286,6 +318,12 @@ void loadWorkshop(TiXmlElement* root, OriginalGarageCatalog& catalog)
         item.type = number(node, "type");
         item.name = text(itemNode, "name", node->Value());
         item.info = text(itemNode, "info");
+        item.meshPath = resourcePath(itemNode, "mesh");
+        item.texturePath = resourcePath(itemNode, "texture");
+        item.visualPosition =
+            realVector<3>(itemNode, "pos", item.visualPosition);
+        item.visualRotation =
+            realVector<4>(itemNode, "rot", item.visualRotation);
         item.cost = number(itemNode, "cost");
         item.maximumCharge = number(itemNode, "maxCharge");
         item.defaultCharge = number(itemNode, "cntCharge");
@@ -574,6 +612,71 @@ OriginalGarageStats originalGarageStats(
     return result;
 }
 
+OriginalGarageStats originalGarageStats(
+    const OriginalGarageCatalog& catalog,
+    const OriginalGarageCar& car,
+    const PlayerProfile& player) noexcept
+{
+    auto result = originalGarageStats(catalog, car);
+    result.armor = 0.0F;
+    result.damage = 0.0F;
+
+    const auto armorIndex =
+        static_cast<std::size_t>(GarageSlotType::Armor);
+    if (const auto* function = carFunction(
+            catalog.findItem(player.slots[armorIndex].record),
+            car.record))
+    {
+        result.armor = function->life;
+    }
+
+    for (std::size_t slot = PlayerProfile::firstWeaponSlot;
+         slot < player.slots.size(); ++slot)
+    {
+        if (const auto* item =
+                catalog.findItem(player.slots[slot].record))
+        {
+            result.damage += item->projectileDamage;
+        }
+    }
+
+    float speed = 0.0F;
+    for (const auto slot : {
+             GarageSlotType::Wheel, GarageSlotType::Exhaust,
+             GarageSlotType::Engine})
+    {
+        const auto index = static_cast<std::size_t>(slot);
+        speed += mobilitySkill(carFunction(
+            catalog.findItem(player.slots[index].record),
+            car.record));
+    }
+
+    result.armorProgress =
+        result.maximumArmor == 0.0F
+            ? 1.0F
+            : result.armor / result.maximumArmor;
+    result.damageProgress =
+        result.maximumDamage == 0.0F
+            ? 1.0F
+            : result.damage / result.maximumDamage;
+
+    float maximumSpeed = 0.0F;
+    for (const auto& candidate : catalog.cars)
+    {
+        maximumSpeed = std::max(
+            maximumSpeed,
+            maximumMobilitySkill(
+                catalog, candidate, GarageSlotType::Engine) +
+                maximumMobilitySkill(
+                    catalog, candidate, GarageSlotType::Exhaust) +
+                maximumMobilitySkill(
+                    catalog, candidate, GarageSlotType::Wheel));
+    }
+    result.speedProgress =
+        maximumSpeed == 0.0F ? 1.0F : speed / maximumSpeed;
+    return result;
+}
+
 bool originalRecordAchievementUnlocked(
     const ProfileState& profile, std::string_view record) noexcept
 {
@@ -629,6 +732,19 @@ bool originalWorkshopItemUnlocked(
         return true;
     return unlockedByRules(
         catalog.workshopUnlocks, profile, item.record);
+}
+
+int originalWorkshopUpgradeLevel(
+    std::string_view record, GarageSlotType slot) noexcept
+{
+    return upgradeLevel(record, slot);
+}
+
+const OriginalWorkshopItem* originalWorkshopUpgradeItem(
+    const OriginalGarageCatalog& catalog, const OriginalGarageCar& car,
+    GarageSlotType slot, int level) noexcept
+{
+    return upgradeItem(catalog, car, slot, level);
 }
 
 bool selectOriginalGarageCar(const OriginalGarageCatalog& catalog,
@@ -814,6 +930,120 @@ bool installOriginalWorkshopItem(
     return true;
 }
 
+bool buyOriginalWorkshopItem(
+    const OriginalGarageCatalog& catalog, ProfileState& profile,
+    const OriginalWorkshopItem& item, bool championship,
+    ProfileSlot& purchased, std::string& error)
+{
+    error.clear();
+    purchased = {};
+    const auto* catalogItem = catalog.findItem(item.record);
+    if (catalogItem == nullptr)
+    {
+        error = "workshop item is absent from original workshop.xml";
+        return false;
+    }
+    if (!originalWorkshopItemUnlocked(catalog, profile, *catalogItem))
+    {
+        error = "original workshop item is locked";
+        return false;
+    }
+    if (championship && profile.player.money < catalogItem->cost)
+    {
+        error = "not enough money for original workshop item";
+        return false;
+    }
+    if (championship)
+        profile.player.money -= catalogItem->cost;
+    purchased = defaultProfileSlot(
+        catalog, catalogItem->record, !championship);
+    return true;
+}
+
+bool installOriginalWorkshopSlot(
+    const OriginalGarageCatalog& catalog, ProfileState& profile,
+    GarageSlotType slot, const ProfileSlot& item, ProfileSlot& replaced,
+    std::string& error)
+{
+    error.clear();
+    const auto slotIndex = static_cast<std::size_t>(slot);
+    if (slotIndex >= profile.player.slots.size())
+    {
+        error = "invalid original workshop slot";
+        return false;
+    }
+    const auto* car = catalog.findCar(profile.player.currentCar);
+    if (car == nullptr)
+    {
+        error = "current original car is absent from garage.xml";
+        return false;
+    }
+    const auto& placement = car->placements[slotIndex];
+    if (!placement.active || placement.locked ||
+        item.record.empty() ||
+        !contains(placement.supportedItems, item.record))
+    {
+        error = "workshop item is unsupported by selected original slot";
+        return false;
+    }
+    if (catalog.findItem(item.record) == nullptr)
+    {
+        error = "workshop item is absent from original workshop.xml";
+        return false;
+    }
+    replaced = profile.player.slots[slotIndex];
+    profile.player.slots[slotIndex] = item;
+    return true;
+}
+
+std::uint32_t originalWorkshopSellValue(
+    const OriginalGarageCatalog& catalog, const ProfileSlot& slot,
+    bool discount) noexcept
+{
+    const auto* item = catalog.findItem(slot.record);
+    if (item == nullptr)
+        return 0U;
+    std::uint64_t cost = item->cost;
+    if (item->maximumCharge > 0U)
+    {
+        const std::uint32_t charge =
+            slot.hasCharge ? slot.charge : item->defaultCharge;
+        if (charge > 1U)
+        {
+            cost += static_cast<std::uint64_t>(charge - 1U) *
+                    item->chargeCost;
+        }
+    }
+    if (discount)
+        cost /= 2U;
+    return static_cast<std::uint32_t>(
+        std::min<std::uint64_t>(
+            cost, std::numeric_limits<std::uint32_t>::max()));
+}
+
+bool sellOriginalWorkshopItem(
+    const OriginalGarageCatalog& catalog, ProfileState& profile,
+    const ProfileSlot& item, bool discount, bool championship,
+    std::string& error)
+{
+    error.clear();
+    if (catalog.findItem(item.record) == nullptr)
+    {
+        error = "workshop item is absent from original workshop.xml";
+        return false;
+    }
+    if (!championship)
+        return true;
+    const auto value =
+        originalWorkshopSellValue(catalog, item, discount);
+    profile.player.money =
+        value > std::numeric_limits<std::uint32_t>::max() -
+                    profile.player.money
+            ? std::numeric_limits<std::uint32_t>::max()
+            : profile.player.money + value;
+    return true;
+}
+
 bool rechargeOriginalWorkshopItem(
     const OriginalGarageCatalog& catalog, ProfileState& profile,
     GarageSlotType slot, bool championship, std::string& error)
@@ -869,18 +1099,40 @@ bool runOriginalGarageSmokeTest(
             workshopRecord("wheel2"));
         const auto* bullet = catalog.findItem(
             workshopRecord("bulletGun"));
+        const auto* rocket = catalog.findItem(
+            workshopRecord("rocketLauncher"));
+        const auto* pulsator = catalog.findItem(
+            workshopRecord("pulsator"));
         if (catalog.cars.size() < 13U ||
             catalog.workshop.size() < 30U ||
             marauder == nullptr || dirtdevil == nullptr ||
             wheel2 == nullptr || bullet == nullptr ||
+            rocket == nullptr || pulsator == nullptr ||
             marauder->cost != 18000U ||
             dirtdevil->cost != 20000U ||
+            wheel2->meshPath != "Data/Upgrade/wheel2.r3d" ||
+            wheel2->texturePath != "Data/Upgrade/wheel2.dds" ||
+            bullet->meshPath != "Data/Weapon/bulletGun.r3d" ||
+            bullet->texturePath != "Data/Car/marauder.dds" ||
             bullet->maximumCharge != 28U ||
             bullet->projectileDamage != 6.0F ||
             marauder->placements[0].defaultItem !=
                 workshopRecord("wheel1"))
         {
             error = "original garage/workshop catalog mismatch";
+            return false;
+        }
+        const auto defaultProfile = makeOriginalDefaultProfileState();
+        if (defaultProfile.player.planets.front().state != 0U ||
+            defaultProfile.player.planets.front().pass != 1U ||
+            !originalWorkshopItemUnlocked(
+                catalog, defaultProfile, *rocket) ||
+            !originalWorkshopItemUnlocked(
+                catalog, defaultProfile, *pulsator))
+        {
+            error =
+                "source Profile::Enter/Workshop pass-zero assortment "
+                "mismatch";
             return false;
         }
         const auto stats = originalGarageStats(catalog, *marauder);
@@ -928,6 +1180,59 @@ bool runOriginalGarageSmokeTest(
         {
             if (error.empty())
                 error = "original workshop upgrade behavior mismatch";
+            return false;
+        }
+
+        ProfileState transactionProfile;
+        for (auto& planet : transactionProfile.player.planets)
+            planet = {0U, 99U};
+        transactionProfile.player.currentCar =
+            dirtdevil->record;
+        transactionProfile.player.money = 1000000U;
+        const auto startingMoney =
+            transactionProfile.player.money;
+        ProfileSlot purchasedRocket;
+        ProfileSlot purchasedPulsator;
+        ProfileSlot replaced;
+        if (!buyOriginalWorkshopItem(
+                catalog, transactionProfile, *rocket, true,
+                purchasedRocket, error) ||
+            !installOriginalWorkshopSlot(
+                catalog, transactionProfile,
+                GarageSlotType::Weapon2, purchasedRocket,
+                replaced, error) ||
+            !replaced.record.empty() ||
+            !buyOriginalWorkshopItem(
+                catalog, transactionProfile, *pulsator, true,
+                purchasedPulsator, error) ||
+            !installOriginalWorkshopSlot(
+                catalog, transactionProfile,
+                GarageSlotType::Weapon2, purchasedPulsator,
+                replaced, error) ||
+            replaced.record != rocket->record)
+        {
+            if (error.empty())
+                error =
+                    "original WorkshopFrame buy/install/swap behavior "
+                    "mismatch";
+            return false;
+        }
+        const auto discountedRocket =
+            originalWorkshopSellValue(
+                catalog, replaced, true);
+        if (!sellOriginalWorkshopItem(
+                catalog, transactionProfile, replaced, true,
+                true, error) ||
+            transactionProfile.player.slots[7].record !=
+                pulsator->record ||
+            transactionProfile.player.money !=
+                startingMoney - rocket->cost -
+                    pulsator->cost + discountedRocket)
+        {
+            if (error.empty())
+                error =
+                    "original WorkshopFrame discounted sale behavior "
+                    "mismatch";
             return false;
         }
         return true;

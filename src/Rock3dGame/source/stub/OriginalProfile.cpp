@@ -361,6 +361,18 @@ void loadProfile(const std::filesystem::path& path,
             value(planet, "state"), profile.planets[index].state);
         profile.planets[index].pass = parseUnsigned(
             value(planet, "pass"), profile.planets[index].pass);
+        // Planet::Reset starts at psUnavailable/pass 0.  In the Windows
+        // lifecycle, moving to pass 1 is only possible through
+        // Unlock()->Open()->SetPass(1), which stores psOpen.  Older macOS
+        // builds advanced `pass` directly and therefore wrote an impossible
+        // psUnavailable/pass>0 pair.  Preserve the earned pass while restoring
+        // the exact source invariant so CompletePass(pass - 1) can rebuild the
+        // original Workshop assortment.
+        if (profile.planets[index].state == 2U &&
+            profile.planets[index].pass > 0U)
+        {
+            profile.planets[index].state = 0U;
+        }
     }
     profile.currentPlanet = std::min<std::uint32_t>(
         parseUnsigned(value(root, "planet"), profile.currentPlanet),

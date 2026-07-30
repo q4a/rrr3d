@@ -46,6 +46,10 @@ struct OriginalWorkshopItem
     std::string record;
     std::string name;
     std::string info;
+    std::string meshPath;
+    std::string texturePath;
+    std::array<float, 3> visualPosition{};
+    std::array<float, 4> visualRotation{0.0F, 0.0F, 0.0F, 1.0F};
     std::uint32_t type = 0;
     std::uint32_t cost = 0;
     std::uint32_t maximumCharge = 0;
@@ -121,6 +125,10 @@ OriginalGarageCatalog loadOriginalGarage(
 OriginalGarageStats originalGarageStats(
     const OriginalGarageCatalog& catalog,
     const OriginalGarageCar& car) noexcept;
+OriginalGarageStats originalGarageStats(
+    const OriginalGarageCatalog& catalog,
+    const OriginalGarageCar& car,
+    const PlayerProfile& player) noexcept;
 
 bool originalRecordAchievementUnlocked(
     const ProfileState& profile, std::string_view record) noexcept;
@@ -131,6 +139,11 @@ bool originalCarUnlocked(const OriginalGarageCatalog& catalog,
 bool originalWorkshopItemUnlocked(
     const OriginalGarageCatalog& catalog, const ProfileState& profile,
     const OriginalWorkshopItem& item) noexcept;
+int originalWorkshopUpgradeLevel(
+    std::string_view record, GarageSlotType slot) noexcept;
+const OriginalWorkshopItem* originalWorkshopUpgradeItem(
+    const OriginalGarageCatalog& catalog, const OriginalGarageCar& car,
+    GarageSlotType slot, int level) noexcept;
 
 bool selectOriginalGarageCar(const OriginalGarageCatalog& catalog,
                              ProfileState& profile,
@@ -140,6 +153,21 @@ bool installOriginalWorkshopItem(
     const OriginalGarageCatalog& catalog, ProfileState& profile,
     GarageSlotType slot, const OriginalWorkshopItem& item,
     bool championship, std::string& error);
+bool buyOriginalWorkshopItem(
+    const OriginalGarageCatalog& catalog, ProfileState& profile,
+    const OriginalWorkshopItem& item, bool championship,
+    ProfileSlot& purchased, std::string& error);
+bool installOriginalWorkshopSlot(
+    const OriginalGarageCatalog& catalog, ProfileState& profile,
+    GarageSlotType slot, const ProfileSlot& item, ProfileSlot& replaced,
+    std::string& error);
+std::uint32_t originalWorkshopSellValue(
+    const OriginalGarageCatalog& catalog, const ProfileSlot& item,
+    bool discount) noexcept;
+bool sellOriginalWorkshopItem(
+    const OriginalGarageCatalog& catalog, ProfileState& profile,
+    const ProfileSlot& item, bool discount, bool championship,
+    std::string& error);
 bool rechargeOriginalWorkshopItem(
     const OriginalGarageCatalog& catalog, ProfileState& profile,
     GarageSlotType slot, bool championship, std::string& error);

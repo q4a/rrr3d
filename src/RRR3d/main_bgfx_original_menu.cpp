@@ -8,6 +8,7 @@
 #include "OriginalRaceHud.h"
 #include "OriginalRaceRenderer.h"
 #include "OriginalRaceSession.h"
+#include "OriginalWorkshopRenderer.h"
 #include "physics/OriginalVehiclePhysics.h"
 #endif
 #include "renderer/BgfxGraphicsDevice.h"
@@ -332,6 +333,67 @@ r3d::physics::VehicleState makeGarageVehicleState(
         }
         result.wheels.push_back(state);
     }
+    return result;
+}
+
+r3d::game::originalrace::PresentationCamera
+makeWorkshopPresentationCamera(
+    const r3d::game::originalrace::PresentationCamera& current) noexcept
+{
+    using Camera =
+        r3d::game::originalrace::PresentationCamera;
+    using Vec3 = r3d::physics::Vec3;
+    using Quat = r3d::physics::Quat;
+    constexpr std::array<Vec3, 8> positions{{
+        {-5.6156259F, 4.3894496F, 1.3072476F},
+        {1.0063084F, 6.9253764F, 1.7360222F},
+        {5.6724834F, 4.9537153F, 1.3952403F},
+        {7.0655332F, -1.0402107F, 1.2024049F},
+        {5.4610982F, -5.3067584F, 1.2650701F},
+        {-1.1062316F, -7.5020962F, 1.1599010F},
+        {-5.9399834F, -4.8825927F, 1.0367264F},
+        {-7.4102926F, 0.61909121F, 1.1492375F},
+    }};
+    constexpr std::array<Quat, 8> rotations{{
+        {0.021078700F, 0.10266567F, -0.20001189F, 0.97417259F},
+        {0.093931124F, 0.099822313F, -0.67882264F, 0.72140080F},
+        {0.098612130F, 0.053653944F, -0.87284911F, 0.47491166F},
+        {0.10475823F, 0.0032271212F, -0.99402952F, 0.030623097F},
+        {0.10137362F, -0.026610103F, -0.96191424F, -0.25249690F},
+        {0.070100352F, -0.063905962F, -0.73568070F, -0.67066783F},
+        {0.041057255F, -0.077143900F, -0.46803388F, -0.87939179F},
+        {0.0077582477F, -0.092043117F, -0.083636492F, -0.99221748F},
+    }};
+    auto length = [](const Quat& value) {
+        return std::sqrt(
+            value.x * value.x + value.y * value.y +
+            value.z * value.z + value.w * value.w);
+    };
+    const float currentLength = std::max(length(current.rotation), 0.0001F);
+    std::size_t nearest = 0U;
+    float smallestAngle = std::numeric_limits<float>::max();
+    for (std::size_t index = 0U; index < rotations.size(); ++index)
+    {
+        const auto& candidate = rotations[index];
+        const float dot =
+            current.rotation.x * candidate.x +
+            current.rotation.y * candidate.y +
+            current.rotation.z * candidate.z +
+            current.rotation.w * candidate.w;
+        const float cosine = std::clamp(
+            std::abs(dot) /
+                (currentLength * std::max(length(candidate), 0.0001F)),
+            0.0F, 1.0F);
+        const float angle = std::acos(cosine) * 2.0F;
+        if (angle < smallestAngle)
+        {
+            smallestAngle = angle;
+            nearest = index;
+        }
+    }
+    Camera result = current;
+    result.position = positions[nearest];
+    result.rotation = rotations[nearest];
     return result;
 }
 #endif
@@ -1053,6 +1115,74 @@ int main(int argc, char** argv)
         createImageTexture(*device, garageBuyImage);
     const Texture garageBuySelected =
         createImageTexture(*device, garageBuySelectedImage);
+    const auto workshopTopPanelImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/topPanel3.png");
+    const auto workshopBottomPanelImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/bottomPanel3.png");
+    const auto workshopLeftPanelImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/leftPanel3.png");
+    const auto workshopSlotImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/slot2.png");
+    const auto workshopSlotFrameImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/slot2Frame.png");
+    const auto workshopChargeBoxImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/chargeBox.png");
+    const auto workshopChargeBarImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/chargeBar.png");
+    const auto workshopChargeButtonImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/chargeButton.png");
+    const auto workshopChargeButtonSelectedImage =
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/chargeButtonSel.png");
+    const auto workshopStatBarPlusImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/statBar2Plus.png");
+    const std::array<menu::Image, 3> workshopUpgradeImages{
+        menu::loadOriginalImage(*resources, "Data/GUI/upLevel1.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/upLevel2.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/upLevel3.png")};
+    const std::array<menu::Image, 4> workshopSlotIconImages{
+        menu::loadOriginalImage(*resources, "Data/GUI/hyperSlot.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/mineSlot.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/wpnSlot.png"),
+        menu::loadOriginalImage(*resources, "Data/GUI/wpnSlotSel.png")};
+    const auto workshopInfoFrameImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/dlgFrame3.png");
+    const Texture workshopTopPanel =
+        createImageTexture(*device, workshopTopPanelImage);
+    const Texture workshopBottomPanel =
+        createImageTexture(*device, workshopBottomPanelImage);
+    const Texture workshopLeftPanel =
+        createImageTexture(*device, workshopLeftPanelImage);
+    const Texture workshopSlot =
+        createImageTexture(*device, workshopSlotImage);
+    const Texture workshopSlotFrame =
+        createImageTexture(*device, workshopSlotFrameImage);
+    const Texture workshopChargeBox =
+        createImageTexture(*device, workshopChargeBoxImage);
+    const Texture workshopChargeBar =
+        createImageTexture(*device, workshopChargeBarImage);
+    const Texture workshopChargeButton =
+        createImageTexture(*device, workshopChargeButtonImage);
+    const Texture workshopChargeButtonSelected =
+        createImageTexture(*device, workshopChargeButtonSelectedImage);
+    const Texture workshopStatBarPlus =
+        createImageTexture(*device, workshopStatBarPlusImage);
+    std::array<Texture, 3> workshopUpgradeTextures{};
+    for (std::size_t index = 0U;
+         index < workshopUpgradeTextures.size(); ++index)
+    {
+        workshopUpgradeTextures[index] =
+            createImageTexture(*device, workshopUpgradeImages[index]);
+    }
+    std::array<Texture, 4> workshopSlotIconTextures{};
+    for (std::size_t index = 0U;
+         index < workshopSlotIconTextures.size(); ++index)
+    {
+        workshopSlotIconTextures[index] =
+            createImageTexture(*device, workshopSlotIconImages[index]);
+    }
+    const Texture workshopInfoFrame =
+        createImageTexture(*device, workshopInfoFrameImage);
     std::vector<menu::Image> garageCarImages;
     std::vector<Texture> garageCarTextures;
     garageCarImages.reserve(originalGarage->cars.size());
@@ -1130,8 +1260,12 @@ int main(int argc, char** argv)
     MenuPageVisual garageInfoPage;
     MenuPageVisual garageStatsPage;
     MenuPageVisual garagePurchasePage;
-    MenuPageVisual workshopSlotsPage;
-    MenuPageVisual workshopItemsPage;
+    MenuPageVisual workshopPage;
+    MenuPageVisual workshopControlsPage;
+    MenuPageVisual workshopStatsPage;
+    MenuPageVisual workshopHintPage;
+    MenuPageVisual workshopInfoPage;
+    MenuPageVisual workshopConfirmationPage;
     MenuPageVisual planetsPage;
     MenuPageVisual achievementsPage;
     MenuPageVisual gameOptionsPage;
@@ -1473,10 +1607,28 @@ int main(int argc, char** argv)
         garagePurchasePage = createStyledPage(
             {localized("svBuyCar")}, menu::smallFontHeight,
             menu::normalTextColor, menu::selectedTextColor);
-        workshopSlotsPage = createPage(
-            {localized("svWorkshop"), localized("svBack")});
-        workshopItemsPage = createPage(
-            {localized("svWorkshop"), localized("svBack")});
+        workshopPage = createStyledPage(
+            {localized("svWorkshop")},
+            menu::headerFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        workshopControlsPage = createStyledPage(
+            {localized("svBack"),
+             std::to_string(profileState.player.money)},
+            menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        workshopStatsPage = createStyledPage(
+            {"0/0", "0/0", "0/300"},
+            menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        workshopHintPage = createStyledPage(
+            {" "}, menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        workshopInfoPage = createStyledPage(
+            {" ", " ", " "}, menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        workshopConfirmationPage = createStyledPage(
+            {" "}, menu::smallFontHeight,
+            menu::normalTextColor, menu::selectedTextColor);
         planetsPage = createPage(
             {"Planets", localized("svBack")});
         achievementsPage = createPage(
@@ -1604,8 +1756,8 @@ int main(int argc, char** argv)
         pageValid(garageInfoPage) &&
         pageValid(garageStatsPage) &&
         pageValid(garagePurchasePage) &&
-        pageValid(workshopSlotsPage) &&
-        pageValid(workshopItemsPage) &&
+        pageValid(workshopPage) &&
+        pageValid(workshopInfoPage) &&
         pageValid(planetsPage) &&
         pageValid(achievementsPage) &&
         pageValid(gameOptionsPage) &&
@@ -1651,7 +1803,21 @@ int main(int argc, char** argv)
         valid(garageColorBoxSelected) && valid(garageArrow) &&
         valid(garageArrowSelected) && valid(garageBack) &&
         valid(garageBackSelected) && valid(garageBuy) &&
-        valid(garageBuySelected) &&
+        valid(garageBuySelected) && valid(workshopTopPanel) &&
+        valid(workshopBottomPanel) && valid(workshopLeftPanel) &&
+        valid(workshopSlot) && valid(workshopSlotFrame) &&
+        valid(workshopChargeBox) && valid(workshopChargeBar) &&
+        valid(workshopChargeButton) &&
+        valid(workshopChargeButtonSelected) &&
+        valid(workshopStatBarPlus) && valid(workshopInfoFrame) &&
+        std::all_of(
+            workshopUpgradeTextures.begin(),
+            workshopUpgradeTextures.end(),
+            [](Texture texture) { return valid(texture); }) &&
+        std::all_of(
+            workshopSlotIconTextures.begin(),
+            workshopSlotIconTextures.end(),
+            [](Texture texture) { return valid(texture); }) &&
         garageCarTextures.size() == originalGarage->cars.size() &&
         std::all_of(
             garageCarTextures.begin(), garageCarTextures.end(),
@@ -1684,8 +1850,12 @@ int main(int argc, char** argv)
         destroyPage(garageInfoPage);
         destroyPage(achievementsPage);
         destroyPage(planetsPage);
-        destroyPage(workshopItemsPage);
-        destroyPage(workshopSlotsPage);
+        destroyPage(workshopConfirmationPage);
+        destroyPage(workshopInfoPage);
+        destroyPage(workshopHintPage);
+        destroyPage(workshopStatsPage);
+        destroyPage(workshopControlsPage);
+        destroyPage(workshopPage);
         destroyPage(garagePage);
         destroyPage(raceMainInfoPage);
         destroyPage(raceMainHeadersPage);
@@ -1708,6 +1878,21 @@ int main(int argc, char** argv)
             device->destroy(texture);
         for (const auto texture : garageCarTextures)
             device->destroy(texture);
+        for (const auto texture : workshopSlotIconTextures)
+            device->destroy(texture);
+        for (const auto texture : workshopUpgradeTextures)
+            device->destroy(texture);
+        device->destroy(workshopStatBarPlus);
+        device->destroy(workshopInfoFrame);
+        device->destroy(workshopChargeButtonSelected);
+        device->destroy(workshopChargeButton);
+        device->destroy(workshopChargeBar);
+        device->destroy(workshopChargeBox);
+        device->destroy(workshopSlotFrame);
+        device->destroy(workshopSlot);
+        device->destroy(workshopLeftPanel);
+        device->destroy(workshopBottomPanel);
+        device->destroy(workshopTopPanel);
         device->destroy(garageBuySelected);
         device->destroy(garageBuy);
         device->destroy(garageBackSelected);
@@ -1814,6 +1999,7 @@ int main(int argc, char** argv)
     raceSession.setSpringBorders(profileState.config.springBorders);
     rrr3d::race::OriginalRaceRenderer raceRenderer;
     rrr3d::race::OriginalRaceRenderer garageRenderer;
+    rrr3d::race::OriginalWorkshopRenderer workshopRenderer;
     rrr3d::race::OriginalRaceHud raceHud;
     if (!physicsWorld ||
         !raceRenderer.initialize(*device, *resources, *originalRace,
@@ -1824,6 +2010,8 @@ int main(int argc, char** argv)
             *device, *resources, *originalGarageScene,
             static_cast<std::uint32_t>(pixelWidth),
             static_cast<std::uint32_t>(pixelHeight), physicsError) ||
+        !workshopRenderer.initialize(
+            *device, *resources, *originalGarage, physicsError) ||
         !raceHud.initialize(*device, *resources, *originalRace,
                             activeLanguage,
                             profileState.player.difficulty,
@@ -1832,6 +2020,7 @@ int main(int argc, char** argv)
     {
         std::cerr << "Original race initialization failed: " << physicsError
                   << '\n';
+        workshopRenderer.shutdown(*device);
         garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
         raceHud.shutdown(*device);
@@ -1864,6 +2053,7 @@ int main(int argc, char** argv)
         {
             std::cerr << "M9.3 renderer target resize round-trip failed: "
                       << resizeError << '\n';
+            workshopRenderer.shutdown(*device);
             garageRenderer.shutdown(*device);
             raceRenderer.shutdown(*device);
             raceHud.shutdown(*device);
@@ -2245,6 +2435,7 @@ int main(int argc, char** argv)
         audio.unloadSound(clickSound);
         audio.shutdown();
         raceHud.shutdown(*device);
+        workshopRenderer.shutdown(*device);
         garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
         releaseResources();
@@ -2328,8 +2519,7 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         RaceMenu,
         Garage,
-        WorkshopSlots,
-        WorkshopItems,
+        Workshop,
         Planets,
         Achievements,
         GameOptions,
@@ -2364,10 +2554,33 @@ int main(int argc, char** argv)
             break;
         }
     }
-    r3d::game::originalrace::GarageSlotType workshopSlot =
-        r3d::game::originalrace::GarageSlotType::Wheel;
+    struct WorkshopDrag
+    {
+        r3d::game::originalrace::ProfileSlot item;
+        std::optional<r3d::game::originalrace::GarageSlotType> origin;
+
+        bool active() const noexcept
+        {
+            return !item.record.empty();
+        }
+    };
+    WorkshopDrag workshopDrag;
+    enum class WorkshopConfirmation
+    {
+        None,
+        Buy,
+        Sell
+    };
+    WorkshopConfirmation workshopConfirmation =
+        WorkshopConfirmation::None;
+    const r3d::game::originalrace::OriginalWorkshopItem*
+        workshopPendingPurchase = nullptr;
+    bool workshopConfirmationYesFocused = true;
+    float workshopDragX = menu::virtualWidth * 0.5F;
+    float workshopDragY = menu::virtualHeight * 0.5F;
     std::vector<const r3d::game::originalrace::OriginalWorkshopItem*>
-        workshopItemChoices;
+        workshopGoods;
+    std::size_t workshopGoodScroll = 0U;
     std::vector<std::string> achievementChoices;
 #endif
     auto activeMenuPage = [&]() -> MenuPageVisual& {
@@ -2394,10 +2607,8 @@ int main(int argc, char** argv)
             return raceMenuPage;
         case MenuScreen::Garage:
             return garagePage;
-        case MenuScreen::WorkshopSlots:
-            return workshopSlotsPage;
-        case MenuScreen::WorkshopItems:
-            return workshopItemsPage;
+        case MenuScreen::Workshop:
+            return workshopPage;
         case MenuScreen::Planets:
             return planetsPage;
         case MenuScreen::Achievements:
@@ -2546,6 +2757,8 @@ int main(int argc, char** argv)
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
     bool raceGarageFrameObserved = !options->raceRenderSmokeTest;
     bool raceGarage3DObserved = !options->raceRenderSmokeTest;
+    bool raceWorkshopFrameObserved = !options->raceRenderSmokeTest;
+    bool raceWorkshop3DObserved = !options->raceRenderSmokeTest;
     bool racePauseDialogObserved = !options->raceRenderSmokeTest;
     bool racePauseResumeObserved = !options->raceRenderSmokeTest;
     bool racePauseFrozenObserved = !options->raceRenderSmokeTest;
@@ -2845,9 +3058,6 @@ int main(int argc, char** argv)
             menuSelection =
                 std::min(menuSelection, page.labels.size() - 1U);
         };
-    auto currency = [](std::uint32_t value) {
-        return "$" + std::to_string(value);
-    };
     auto originalCurrency = [](std::uint32_t value) {
         std::string result = std::to_string(value);
         for (std::ptrdiff_t index =
@@ -2884,11 +3094,6 @@ int main(int argc, char** argv)
         if (lines.size() > 4U)
             lines.resize(4U);
         return lines;
-    };
-    auto itemLabel = [&](std::string_view record) {
-        const auto* item = originalGarage->findItem(record);
-        return item == nullptr ? std::string(record)
-                               : localized(item->name);
     };
     auto rebuildGarageCarOrder = [&]() {
         garageCarOrder.clear();
@@ -3021,86 +3226,506 @@ int main(int argc, char** argv)
         destroyPage(garagePurchasePage);
         garagePurchasePage = std::move(purchaseReplacement);
     };
-    auto refreshWorkshopSlotsPage = [&]() {
-        static constexpr std::array<std::string_view, 10> names{
-            "Wheels", "Exhaust", "Armor", "Engine", "Hyper",
-            "Mine", "Weapon 1", "Weapon 2", "Weapon 3",
-            "Weapon 4"};
-        std::vector<std::string> output;
-        output.reserve(names.size() + 1U);
-        for (std::size_t index = 0; index < names.size(); ++index)
+    auto refreshWorkshopPage = [&]() {
+        workshopGoods.clear();
+        for (const auto& item : originalGarage->workshop)
         {
-            const auto& slot = profileState.player.slots[index];
-            std::string value =
-                slot.record.empty() ? "-" : itemLabel(slot.record);
-            if (slot.hasCharge)
-                value += "  " + std::to_string(slot.charge);
-            output.push_back(
-                std::string(names[index]) + ": " + value);
-        }
-        output.push_back(localized("svBack"));
-        replacePage(workshopSlotsPage, std::move(output));
-    };
-    auto refreshWorkshopItemsPage = [&]() {
-        workshopItemChoices.clear();
-        const auto slotIndex =
-            static_cast<std::size_t>(workshopSlot);
-        const auto* car =
-            originalGarage->findCar(profileState.player.currentCar);
-        if (car != nullptr &&
-            slotIndex < car->placements.size())
-        {
-            const auto& placement = car->placements[slotIndex];
-            for (const auto& record : placement.supportedItems)
+            // Workshop::_items contains pass rewards.  The four mobility
+            // families are exposed only by the installed-slot level button.
+            if (item.type <= 4U ||
+                !r3d::game::originalrace::
+                    originalWorkshopItemUnlocked(
+                        *originalGarage, profileState, item))
             {
-                const auto* item =
-                    originalGarage->findItem(record);
-                if (item == nullptr)
-                    continue;
-                if (record == profileState.player.slots[slotIndex].record ||
-                    record == placement.defaultItem ||
-                    r3d::game::originalrace::
-                        originalWorkshopItemUnlocked(
-                            *originalGarage, profileState, *item))
-                {
-                    workshopItemChoices.push_back(item);
-                }
+                continue;
+            }
+            workshopGoods.push_back(&item);
+        }
+        std::stable_sort(
+            workshopGoods.begin(), workshopGoods.end(),
+            [](const auto* left, const auto* right) {
+                return left->cost < right->cost;
+            });
+        const std::size_t rowCount =
+            (workshopGoods.size() + 2U) / 3U;
+        const std::size_t maximumScroll =
+            rowCount > 4U ? rowCount - 4U : 0U;
+        workshopGoodScroll =
+            std::min(workshopGoodScroll, maximumScroll);
+
+        auto pageReplacement = createStyledPage(
+            {localized("svWorkshop")},
+            menu::headerFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        destroyPage(workshopPage);
+        workshopPage = std::move(pageReplacement);
+        auto controlsReplacement = createStyledPage(
+            {localized("svBack"),
+             originalCurrency(profileState.player.money)},
+            menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        destroyPage(workshopControlsPage);
+        workshopControlsPage = std::move(controlsReplacement);
+
+        if (const auto* car = originalGarage->findCar(
+                profileState.player.currentCar))
+        {
+            const auto stats =
+                r3d::game::originalrace::originalGarageStats(
+                    *originalGarage, *car, profileState.player);
+            auto statValue = [](float value) {
+                return std::to_string(
+                    static_cast<int>(std::lround(value)));
+            };
+            auto statsReplacement = createStyledPage(
+                {statValue(stats.damage) + "/" +
+                     statValue(stats.maximumDamage),
+                 statValue(stats.armor) + "/" +
+                     statValue(stats.maximumArmor),
+                 statValue(stats.speedProgress * 300.0F) +
+                     "/300"},
+                menu::smallFontHeight, raceTextColor,
+                menu::selectedTextColor);
+            destroyPage(workshopStatsPage);
+            workshopStatsPage =
+                std::move(statsReplacement);
+
+            auto hintReplacement = createStyledPage(
+                wrapGarageInfo(localized(car->info)),
+                menu::smallFontHeight, raceTextColor,
+                menu::selectedTextColor);
+            destroyPage(workshopHintPage);
+            workshopHintPage =
+                std::move(hintReplacement);
+        }
+
+        const r3d::game::originalrace::OriginalWorkshopItem* selected =
+            nullptr;
+        constexpr std::size_t firstGoodFocus = 1U;
+        constexpr std::size_t visibleGoods = 12U;
+        constexpr std::size_t firstSlotFocus =
+            firstGoodFocus + visibleGoods;
+        if (menuSelection >= firstGoodFocus &&
+            menuSelection < firstSlotFocus)
+        {
+            const std::size_t itemIndex =
+                workshopGoodScroll * 3U +
+                (menuSelection - firstGoodFocus);
+            if (itemIndex < workshopGoods.size())
+                selected = workshopGoods[itemIndex];
+        }
+        else if (
+            menuSelection >= firstSlotFocus &&
+            menuSelection <
+                firstSlotFocus +
+                    static_cast<std::size_t>(
+                        r3d::game::originalrace::
+                            GarageSlotType::Count))
+        {
+            const auto slotIndex =
+                menuSelection - firstSlotFocus;
+            selected = originalGarage->findItem(
+                profileState.player.slots[slotIndex].record);
+        }
+        if (selected == nullptr && workshopDrag.active())
+            selected =
+                originalGarage->findItem(workshopDrag.item.record);
+
+        std::vector<std::string> info;
+        if (selected != nullptr)
+        {
+            info.push_back(localized(selected->name));
+            auto description =
+                wrapGarageInfo(localized(selected->info));
+            info.insert(info.end(), description.begin(),
+                        description.end());
+            info.push_back(originalCurrency(selected->cost));
+            if (selected->projectileDamage > 0.0F)
+            {
+                info.push_back(
+                    std::to_string(static_cast<int>(std::lround(
+                        selected->projectileDamage))));
             }
         }
-        std::vector<std::string> output;
-        output.reserve(workshopItemChoices.size() + 2U);
-        for (const auto* item : workshopItemChoices)
-        {
-            std::string label = localized(item->name);
-            if (profileState.player.slots[slotIndex].record ==
-                item->record)
-                label += "  [selected]";
-            else
-                label += "  " + currency(item->cost);
-            output.push_back(std::move(label));
-        }
-        const auto& installed =
-            profileState.player.slots[slotIndex];
-        if (const auto* item =
-                originalGarage->findItem(installed.record);
-            item != nullptr && item->maximumCharge > 0U)
-        {
-            const auto charge =
-                installed.hasCharge ? installed.charge
-                                    : item->defaultCharge;
-            const auto amount =
-                charge >= item->maximumCharge
-                    ? 0U
-                    : std::min(item->chargeStep,
-                               item->maximumCharge - charge);
-            output.push_back(
-                "Ammunition " + std::to_string(charge) + "/" +
-                std::to_string(item->maximumCharge) + "  " +
-                currency(item->chargeCost * amount));
-        }
-        output.push_back(localized("svBack"));
-        replacePage(workshopItemsPage, std::move(output));
+        if (info.empty())
+            info.push_back(" ");
+        auto infoReplacement = createStyledPage(
+            std::move(info), menu::smallFontHeight, raceTextColor,
+            menu::selectedTextColor);
+        destroyPage(workshopInfoPage);
+        workshopInfoPage = std::move(infoReplacement);
     };
+    auto workshopSlotCenters = [&]() {
+        std::array<std::array<float, 2>,
+                   static_cast<std::size_t>(
+                       r3d::game::originalrace::
+                           GarageSlotType::Count)>
+            result{};
+        const float scale = menu::virtualHeight / 720.0F;
+        const float centerX = menu::virtualWidth * 0.63F;
+        const float centerY = menu::virtualHeight * 0.451F;
+        const float leftPanelRight =
+            30.0F +
+            static_cast<float>(workshopLeftPanelImage.width);
+        const float leftOffset = std::max(
+            centerX - 330.0F * scale, leftPanelRight + 80.0F);
+        const float rightOffset = std::min(
+            centerX + 330.0F * scale,
+            menu::virtualWidth - 120.0F);
+        const float topOffset = std::max(
+            centerY - 180.0F * scale,
+            static_cast<float>(workshopTopPanelImage.height) +
+                65.0F);
+        const float bottomOffset = std::min(
+            centerY + 180.0F * scale,
+            menu::virtualHeight -
+                static_cast<float>(
+                    workshopBottomPanelImage.height) -
+                65.0F);
+        const float slotWidth =
+            static_cast<float>(workshopSlotImage.width);
+        const float slotHeight =
+            static_cast<float>(workshopSlotImage.height);
+        constexpr float slotSpace = 15.0F;
+        result = {{
+            {leftOffset,
+             centerY + slotHeight * 0.5F + slotSpace},
+            {leftOffset,
+             centerY - slotHeight * 0.5F - slotSpace},
+            {centerX - slotWidth * 0.5F - 6.0F * slotSpace,
+             bottomOffset},
+            {centerX + slotWidth * 0.5F + 6.0F * slotSpace,
+             bottomOffset},
+            {rightOffset,
+             centerY - slotHeight * 0.5F - slotSpace},
+            {rightOffset,
+             centerY + slotHeight * 0.5F + slotSpace},
+            {centerX -
+                 (slotWidth + 4.5F * slotSpace) * 1.5F,
+             topOffset},
+            {centerX -
+                 (slotWidth + 4.5F * slotSpace) * 0.5F,
+             topOffset},
+            {centerX +
+                 (slotWidth + 4.5F * slotSpace) * 0.5F,
+             topOffset},
+            {centerX +
+                 (slotWidth + 4.5F * slotSpace) * 1.5F,
+             topOffset},
+        }};
+        return result;
+    };
+    auto workshopGoodCenters = [&]() {
+        std::array<std::array<float, 2>, 12> result{};
+        const float panelCenterY =
+            (static_cast<float>(workshopTopPanelImage.height) -
+                 30.0F +
+             menu::virtualHeight -
+             static_cast<float>(
+                 workshopBottomPanelImage.height)) *
+            0.5F;
+        const float panelTop =
+            panelCenterY -
+            static_cast<float>(workshopLeftPanelImage.height) *
+                0.5F;
+        constexpr float cell = 100.0F;
+        const float firstX = 30.0F + 22.0F + 39.0F;
+        const float firstY = panelTop + 11.0F + 38.0F;
+        for (std::size_t index = 0U; index < result.size(); ++index)
+        {
+            result[index] = {
+                firstX + static_cast<float>(index % 3U) * cell,
+                firstY + static_cast<float>(index / 3U) * cell};
+        }
+        return result;
+    };
+    auto workshopSlotAccepts =
+        [&](std::size_t slotIndex,
+            const r3d::game::originalrace::ProfileSlot& item) {
+            const auto* car = originalGarage->findCar(
+                profileState.player.currentCar);
+            if (car == nullptr ||
+                slotIndex >= car->placements.size())
+                return false;
+            const auto& placement = car->placements[slotIndex];
+            if (!placement.active || placement.locked)
+                return false;
+            if (!championshipMode &&
+                slotIndex >=
+                    r3d::game::originalrace::PlayerProfile::
+                        firstWeaponSlot &&
+                slotIndex -
+                        r3d::game::originalrace::PlayerProfile::
+                            firstWeaponSlot >=
+                    profileState.config.weaponMaxLevel)
+            {
+                return false;
+            }
+            return std::find(
+                       placement.supportedItems.begin(),
+                       placement.supportedItems.end(),
+                       item.record) !=
+                   placement.supportedItems.end();
+        };
+    auto showWorkshopConfirmation =
+        [&](WorkshopConfirmation confirmation,
+            const r3d::game::originalrace::
+                OriginalWorkshopItem& item,
+            std::uint32_t value) {
+            std::string message = localized(
+                confirmation == WorkshopConfirmation::Buy
+                    ? "svBuyWeapon"
+                    : "svSellWeapon");
+            if (const auto marker = message.find("%s");
+                marker != std::string::npos)
+            {
+                message.replace(
+                    marker, 2U, originalCurrency(value));
+            }
+            auto replacement = createStyledPage(
+                {message}, menu::smallFontHeight,
+                menu::normalTextColor,
+                menu::selectedTextColor);
+            destroyPage(workshopConfirmationPage);
+            workshopConfirmationPage =
+                std::move(replacement);
+            workshopConfirmation = confirmation;
+            workshopPendingPurchase =
+                confirmation == WorkshopConfirmation::Buy
+                    ? &item
+                    : nullptr;
+            workshopConfirmationYesFocused = true;
+        };
+    auto buyWorkshopGood =
+        [&](const r3d::game::originalrace::
+                OriginalWorkshopItem& item) {
+            r3d::game::originalrace::ProfileSlot purchased;
+            std::string workshopError;
+            if (!r3d::game::originalrace::
+                    buyOriginalWorkshopItem(
+                        *originalGarage, profileState, item,
+                        championshipMode, purchased,
+                        workshopError))
+            {
+                std::cerr
+                    << "Original WorkshopFrame buy: "
+                    << workshopError << '\n';
+                return false;
+            }
+            workshopDrag.item = std::move(purchased);
+            workshopDrag.origin.reset();
+            saveRaceProfile();
+            refreshWorkshopPage();
+            return true;
+        };
+    auto stopWorkshopDrag =
+        [&](bool intoGoods, bool accepted = false) {
+        if (!workshopDrag.active())
+            return true;
+        std::string workshopError;
+        if (!intoGoods && workshopDrag.origin)
+        {
+            const auto originIndex =
+                static_cast<std::size_t>(*workshopDrag.origin);
+            if (originIndex < profileState.player.slots.size() &&
+                profileState.player.slots[originIndex].record.empty())
+            {
+                r3d::game::originalrace::ProfileSlot replaced;
+                if (!r3d::game::originalrace::
+                        installOriginalWorkshopSlot(
+                            *originalGarage, profileState,
+                            *workshopDrag.origin, workshopDrag.item,
+                            replaced, workshopError))
+                {
+                    std::cerr
+                        << "Original WorkshopFrame restore: "
+                        << workshopError << '\n';
+                    return false;
+                }
+                workshopDrag = {};
+                saveRaceProfile();
+                refreshWorkshopPage();
+                return true;
+            }
+        }
+        const bool discount = workshopDrag.origin.has_value();
+        if (championshipMode && discount && !accepted)
+        {
+            const auto* item = originalGarage->findItem(
+                workshopDrag.item.record);
+            if (item == nullptr)
+                return false;
+            showWorkshopConfirmation(
+                WorkshopConfirmation::Sell, *item,
+                r3d::game::originalrace::
+                    originalWorkshopSellValue(
+                        *originalGarage,
+                        workshopDrag.item, true));
+            return false;
+        }
+        if (!r3d::game::originalrace::sellOriginalWorkshopItem(
+                *originalGarage, profileState, workshopDrag.item,
+                discount, championshipMode, workshopError))
+        {
+            std::cerr << "Original WorkshopFrame sell: "
+                      << workshopError << '\n';
+            return false;
+        }
+        workshopDrag = {};
+        saveRaceProfile();
+        refreshWorkshopPage();
+        return true;
+    };
+    auto activateWorkshopFocus =
+        [&](bool pointerSlotPlane) {
+            constexpr std::size_t firstGoodFocus = 1U;
+            constexpr std::size_t visibleGoods = 12U;
+            constexpr std::size_t firstSlotFocus =
+                firstGoodFocus + visibleGoods;
+            if (menuSelection == 0U)
+            {
+                if (workshopDrag.active())
+                    stopWorkshopDrag(false);
+                else
+                    backMenu();
+                return;
+            }
+            if (menuSelection < firstSlotFocus)
+            {
+                if (workshopDrag.active())
+                {
+                    stopWorkshopDrag(true);
+                    return;
+                }
+                const std::size_t itemIndex =
+                    workshopGoodScroll * 3U +
+                    menuSelection - firstGoodFocus;
+                if (itemIndex >= workshopGoods.size())
+                    return;
+                const auto* item = workshopGoods[itemIndex];
+                const bool hasCompatibleSlot = [&]() {
+                    for (std::size_t slot = 0U;
+                         slot < profileState.player.slots.size();
+                         ++slot)
+                    {
+                        if (workshopSlotAccepts(
+                                slot,
+                                r3d::game::originalrace::ProfileSlot{
+                                    item->record, item->defaultCharge,
+                                    item->maximumCharge > 0U}))
+                            return true;
+                    }
+                    return false;
+                }();
+                if (!hasCompatibleSlot)
+                {
+                    std::cerr
+                        << "Original WorkshopFrame: "
+                        << localized("svHintWeaponNotSupport")
+                        << '\n';
+                    return;
+                }
+                if (championshipMode)
+                {
+                    showWorkshopConfirmation(
+                        WorkshopConfirmation::Buy, *item,
+                        item->cost);
+                    return;
+                }
+                buyWorkshopGood(*item);
+                return;
+            }
+            const std::size_t slotIndex =
+                menuSelection - firstSlotFocus;
+            if (slotIndex >= profileState.player.slots.size())
+                return;
+            const auto slotType =
+                static_cast<r3d::game::originalrace::
+                                GarageSlotType>(slotIndex);
+            if (workshopDrag.active())
+            {
+                if (!workshopSlotAccepts(
+                        slotIndex, workshopDrag.item))
+                    return;
+                r3d::game::originalrace::ProfileSlot replaced;
+                std::string workshopError;
+                if (!r3d::game::originalrace::
+                        installOriginalWorkshopSlot(
+                            *originalGarage, profileState, slotType,
+                            workshopDrag.item, replaced,
+                            workshopError))
+                {
+                    std::cerr
+                        << "Original WorkshopFrame install: "
+                        << workshopError << '\n';
+                    return;
+                }
+                if (replaced.record.empty())
+                    workshopDrag = {};
+                else
+                {
+                    workshopDrag.item = std::move(replaced);
+                    workshopDrag.origin = slotType;
+                }
+                saveRaceProfile();
+                refreshWorkshopPage();
+                return;
+            }
+
+            auto& installed = profileState.player.slots[slotIndex];
+            const auto* item =
+                originalGarage->findItem(installed.record);
+            if (item == nullptr)
+                return;
+            if (pointerSlotPlane)
+            {
+                workshopDrag.item = installed;
+                workshopDrag.origin = slotType;
+                installed = {};
+                saveRaceProfile();
+                refreshWorkshopPage();
+                return;
+            }
+            std::string workshopError;
+            bool changed = false;
+            if (item->maximumCharge > 0U)
+            {
+                changed = r3d::game::originalrace::
+                    rechargeOriginalWorkshopItem(
+                        *originalGarage, profileState, slotType,
+                        championshipMode, workshopError);
+            }
+            else if (slotIndex < 4U)
+            {
+                const auto* car = originalGarage->findCar(
+                    profileState.player.currentCar);
+                const int level =
+                    r3d::game::originalrace::
+                        originalWorkshopUpgradeLevel(
+                            installed.record, slotType);
+                const auto* upgrade =
+                    car == nullptr
+                        ? nullptr
+                        : r3d::game::originalrace::
+                              originalWorkshopUpgradeItem(
+                                  *originalGarage, *car, slotType,
+                                  level + 1);
+                if (upgrade != nullptr)
+                {
+                    changed = r3d::game::originalrace::
+                        installOriginalWorkshopItem(
+                            *originalGarage, profileState, slotType,
+                            *upgrade, championshipMode,
+                            workshopError);
+                }
+            }
+            if (!changed && !workshopError.empty())
+                std::cerr << "Original WorkshopFrame upgrade: "
+                          << workshopError << '\n';
+            if (changed)
+                saveRaceProfile();
+            refreshWorkshopPage();
+        };
     auto refreshPlanetsPage = [&]() {
         std::vector<std::string> output;
         const auto count = std::min(
@@ -3674,17 +4299,20 @@ int main(int argc, char** argv)
         // Do not enqueue all confirms before the event loop.  SDL's input
         // layer intentionally suppresses repeats while a key is held, and
         // the old batch therefore never exercised Main -> GameMode ->
-        // Tournament -> Continue -> RaceMenu -> GarageFrame -> Race.
+        // Tournament -> Continue -> RaceMenu -> WorkshopFrame ->
+        // GarageFrame -> Race.
         // Advance one real press/release pair per rendered menu frame.
         if (options->raceRenderSmokeTest && !inRace &&
-            raceSmokeMenuStep < 9U &&
+            raceSmokeMenuStep < 12U &&
             renderedFrames >= raceSmokeNextMenuFrame)
         {
-            constexpr std::array<SDL_Scancode, 9> smokeKeys{
+            constexpr std::array<SDL_Scancode, 12> smokeKeys{
                 SDL_SCANCODE_RETURN, SDL_SCANCODE_RETURN,
                 SDL_SCANCODE_RETURN, SDL_SCANCODE_RIGHT,
-                SDL_SCANCODE_RIGHT, SDL_SCANCODE_RETURN,
-                SDL_SCANCODE_RIGHT, SDL_SCANCODE_ESCAPE,
+                SDL_SCANCODE_RETURN, SDL_SCANCODE_ESCAPE,
+                SDL_SCANCODE_RIGHT, SDL_SCANCODE_RIGHT,
+                SDL_SCANCODE_RETURN, SDL_SCANCODE_RIGHT,
+                SDL_SCANCODE_ESCAPE,
                 SDL_SCANCODE_RETURN};
             SDL_Event press{};
             press.key.type = SDL_EVENT_KEY_DOWN;
@@ -3876,6 +4504,7 @@ int main(int argc, char** argv)
 #endif
             bool pointerTargetsItem = true;
             bool pointerHandledOriginalOptions = false;
+            bool workshopPointerSlotPlane = false;
 #ifdef RRR3D_PHYSICS
             if (!inRace &&
                 menuStack.back() == MenuScreen::Garage &&
@@ -4013,6 +4642,185 @@ int main(int argc, char** argv)
                 }
                 pointerTargetsItem =
                     hoveredGarageItem.has_value() ||
+                    event.type == SDL_EVENT_MOUSE_MOTION ||
+                    event.button.button != SDL_BUTTON_LEFT;
+            }
+            else if (
+                !inRace &&
+                menuStack.back() == MenuScreen::Workshop &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float pointerX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float pointerY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                std::optional<std::size_t> hoveredWorkshopItem;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        pointerX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        pointerY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    workshopDragX = virtualX;
+                    workshopDragY = virtualY;
+                    if (workshopConfirmation !=
+                        WorkshopConfirmation::None)
+                    {
+                        const float dialogCenterX =
+                            menu::virtualWidth * 0.5F;
+                        const float choiceY =
+                            menu::virtualHeight * 0.5F +
+                            32.0F;
+                        if (std::abs(
+                                virtualY - choiceY) <=
+                                30.0F &&
+                            (std::abs(
+                                 virtualX -
+                                 (dialogCenterX - 70.0F)) <=
+                                 55.0F ||
+                             std::abs(
+                                 virtualX -
+                                 (dialogCenterX + 70.0F)) <=
+                                 55.0F))
+                        {
+                            workshopConfirmationYesFocused =
+                                virtualX < dialogCenterX;
+                            hoveredWorkshopItem = 0U;
+                        }
+                    }
+                    else
+                    {
+                    const float backY =
+                        menu::virtualHeight -
+                        static_cast<float>(
+                            workshopBottomPanelImage.height) +
+                        40.0F;
+                    if (virtualX <= 250.0F &&
+                        std::abs(virtualY - backY) <= 45.0F)
+                    {
+                        hoveredWorkshopItem = 0U;
+                    }
+                    const auto goodCenters =
+                        workshopGoodCenters();
+                    for (std::size_t index = 0U;
+                         !hoveredWorkshopItem &&
+                         index < goodCenters.size();
+                         ++index)
+                    {
+                        if (std::abs(
+                                virtualX -
+                                goodCenters[index][0]) <= 48.0F &&
+                            std::abs(
+                                virtualY -
+                                goodCenters[index][1]) <= 48.0F)
+                        {
+                            hoveredWorkshopItem = 1U + index;
+                        }
+                    }
+                    const auto slotCenters =
+                        workshopSlotCenters();
+                    for (std::size_t index = 0U;
+                         !hoveredWorkshopItem &&
+                         index < slotCenters.size();
+                         ++index)
+                    {
+                        if (std::abs(
+                                virtualX -
+                                slotCenters[index][0]) <=
+                                static_cast<float>(
+                                    workshopSlotImage.width) *
+                                    0.5F &&
+                            std::abs(
+                                virtualY -
+                                slotCenters[index][1]) <=
+                                static_cast<float>(
+                                    workshopSlotImage.height) *
+                                    0.5F)
+                        {
+                            hoveredWorkshopItem = 13U + index;
+                            workshopPointerSlotPlane =
+                                std::abs(
+                                    virtualX -
+                                    (slotCenters[index][0] +
+                                     51.0F)) > 25.0F ||
+                                std::abs(
+                                    virtualY -
+                                    (slotCenters[index][1] +
+                                     38.0F)) > 24.0F;
+                        }
+                    }
+                    if (event.type ==
+                            SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                        event.button.button == SDL_BUTTON_LEFT)
+                    {
+                        const float panelCenterY =
+                            (static_cast<float>(
+                                 workshopTopPanelImage.height) -
+                                 30.0F +
+                             menu::virtualHeight -
+                             static_cast<float>(
+                                 workshopBottomPanelImage.height)) *
+                            0.5F;
+                        const float upY =
+                            panelCenterY -
+                            static_cast<float>(
+                                workshopLeftPanelImage.height) *
+                                0.5F +
+                            65.0F;
+                        const float downY =
+                            panelCenterY +
+                            static_cast<float>(
+                                workshopLeftPanelImage.height) *
+                                0.5F -
+                            42.0F;
+                        const float arrowX =
+                            30.0F +
+                            static_cast<float>(
+                                workshopLeftPanelImage.width) *
+                                0.5F;
+                        const std::size_t rowCount =
+                            (workshopGoods.size() + 2U) / 3U;
+                        const std::size_t maximumScroll =
+                            rowCount > 4U ? rowCount - 4U : 0U;
+                        if (std::abs(virtualX - arrowX) <= 35.0F &&
+                            std::abs(virtualY - upY) <= 35.0F &&
+                            workshopGoodScroll > 0U)
+                        {
+                            --workshopGoodScroll;
+                            refreshWorkshopPage();
+                            pointerHandledOriginalOptions = true;
+                        }
+                        else if (
+                            std::abs(virtualX - arrowX) <= 35.0F &&
+                            std::abs(virtualY - downY) <= 35.0F &&
+                            workshopGoodScroll < maximumScroll)
+                        {
+                            ++workshopGoodScroll;
+                            refreshWorkshopPage();
+                            pointerHandledOriginalOptions = true;
+                        }
+                    }
+                    }
+                }
+                if (hoveredWorkshopItem)
+                {
+                    menuSelection = *hoveredWorkshopItem;
+                    refreshWorkshopPage();
+                }
+                pointerTargetsItem =
+                    hoveredWorkshopItem.has_value() ||
+                    pointerHandledOriginalOptions ||
                     event.type == SDL_EVENT_MOUSE_MOTION ||
                     event.button.button != SDL_BUTTON_LEFT;
             }
@@ -4651,6 +5459,149 @@ int main(int argc, char** argv)
                     }
                     continue;
                 }
+                if (menuStack.back() == MenuScreen::Workshop)
+                {
+                    if (workshopConfirmation !=
+                        WorkshopConfirmation::None)
+                    {
+                        if (inputEvent.action ==
+                                rrr3d::input::Action::TurnLeft ||
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuUp)
+                        {
+                            workshopConfirmationYesFocused = true;
+                        }
+                        else if (
+                            inputEvent.action ==
+                                rrr3d::input::Action::TurnRight ||
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuDown)
+                        {
+                            workshopConfirmationYesFocused = false;
+                        }
+                        else if (
+                            !inputEvent.repeated &&
+                            (inputEvent.action ==
+                                 rrr3d::input::Action::MenuBack ||
+                             inputEvent.action ==
+                                 rrr3d::input::Action::Pause))
+                        {
+                            workshopConfirmation =
+                                WorkshopConfirmation::None;
+                            workshopPendingPurchase = nullptr;
+                        }
+                        else if (
+                            !inputEvent.repeated &&
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuConfirm)
+                        {
+#ifdef RRR3D_AUDIO
+                            playMainButtonClick();
+#endif
+                            const auto confirmation =
+                                workshopConfirmation;
+                            const auto* pending =
+                                workshopPendingPurchase;
+                            const bool accepted =
+                                workshopConfirmationYesFocused;
+                            workshopConfirmation =
+                                WorkshopConfirmation::None;
+                            workshopPendingPurchase = nullptr;
+                            if (accepted)
+                            {
+                                if (confirmation ==
+                                        WorkshopConfirmation::Buy &&
+                                    pending != nullptr)
+                                {
+                                    buyWorkshopGood(*pending);
+                                }
+                                else if (
+                                    confirmation ==
+                                    WorkshopConfirmation::Sell)
+                                {
+                                    stopWorkshopDrag(true, true);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                    constexpr std::size_t workshopFocusCount = 23U;
+                    if (inputEvent.action ==
+                        rrr3d::input::Action::MenuUp)
+                    {
+                        menuSelection =
+                            menuSelection == 0U
+                                ? workshopFocusCount - 1U
+                                : menuSelection - 1U;
+                        refreshWorkshopPage();
+                        continue;
+                    }
+                    if (inputEvent.action ==
+                        rrr3d::input::Action::MenuDown)
+                    {
+                        menuSelection =
+                            (menuSelection + 1U) %
+                            workshopFocusCount;
+                        refreshWorkshopPage();
+                        continue;
+                    }
+                    if (inputEvent.action ==
+                            rrr3d::input::Action::TurnLeft ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::TurnRight)
+                    {
+                        if (!inputEvent.repeated)
+                        {
+                            const std::size_t rowCount =
+                                (workshopGoods.size() + 2U) / 3U;
+                            const std::size_t maximumScroll =
+                                rowCount > 4U ? rowCount - 4U : 0U;
+                            if (inputEvent.action ==
+                                    rrr3d::input::Action::TurnLeft &&
+                                workshopGoodScroll > 0U)
+                            {
+                                --workshopGoodScroll;
+                            }
+                            else if (
+                                inputEvent.action ==
+                                    rrr3d::input::Action::TurnRight &&
+                                workshopGoodScroll < maximumScroll)
+                            {
+                                ++workshopGoodScroll;
+                            }
+                            refreshWorkshopPage();
+                        }
+                        continue;
+                    }
+                    if (inputEvent.repeated)
+                        continue;
+                    if (inputEvent.action ==
+                            rrr3d::input::Action::MenuBack ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::Pause)
+                    {
+#ifdef RRR3D_AUDIO
+                        playMainButtonClick();
+#endif
+                        if (workshopDrag.active())
+                            stopWorkshopDrag(false);
+                        else
+                            backMenu();
+                        continue;
+                    }
+                    if (inputEvent.action ==
+                        rrr3d::input::Action::MenuConfirm)
+                    {
+#ifdef RRR3D_AUDIO
+                        playMainButtonClick();
+#endif
+                        activateWorkshopFocus(
+                            inputEvent.source ==
+                                rrr3d::input::Source::Mouse &&
+                            workshopPointerSlotPlane);
+                    }
+                    continue;
+                }
 #endif
                 auto& page = activeMenuPage();
                 if (inputEvent.action ==
@@ -4876,8 +5827,15 @@ int main(int argc, char** argv)
                             profileState.player.name;
                         const auto color =
                             profileState.player.color;
+                        // Profile::Enter resets the source subsystems and
+                        // SnProfile::EnterGame then opens planet zero.  Reuse
+                        // the portable equivalent instead of a value-
+                        // initialized PlayerProfile, whose planets are all
+                        // psUnavailable and whose Workshop would stay empty.
                         profileState.player =
-                            r3d::game::originalrace::PlayerProfile{};
+                            r3d::game::originalrace::
+                                makeOriginalDefaultProfileState()
+                                    .player;
                         profileState.player.name = profileName;
                         profileState.player.color = color;
                         profileState.player.difficulty =
@@ -4958,8 +5916,10 @@ int main(int argc, char** argv)
                     }
                     else if (menuSelection == 1U)
                     {
-                        refreshWorkshopSlotsPage();
-                        pushMenu(MenuScreen::WorkshopSlots);
+                        workshopDrag = {};
+                        workshopGoodScroll = 0U;
+                        pushMenu(MenuScreen::Workshop);
+                        refreshWorkshopPage();
                     }
                     else if (menuSelection == 2U)
                     {
@@ -5023,90 +5983,8 @@ int main(int argc, char** argv)
                         backMenu();
                     }
                     break;
-                case MenuScreen::WorkshopSlots:
-                    if (menuSelection <
-                        static_cast<std::size_t>(
-                            r3d::game::originalrace::
-                                GarageSlotType::Count))
-                    {
-                        workshopSlot =
-                            static_cast<r3d::game::originalrace::
-                                            GarageSlotType>(
-                                menuSelection);
-                        refreshWorkshopItemsPage();
-                        pushMenu(MenuScreen::WorkshopItems);
-                    }
-                    else
-                    {
-                        backMenu();
-                    }
+                case MenuScreen::Workshop:
                     break;
-                case MenuScreen::WorkshopItems:
-                {
-                    const auto slotIndex =
-                        static_cast<std::size_t>(workshopSlot);
-                    if (menuSelection <
-                        workshopItemChoices.size())
-                    {
-                        std::string workshopError;
-                        if (!r3d::game::originalrace::
-                                installOriginalWorkshopItem(
-                                    *originalGarage, profileState,
-                                    workshopSlot,
-                                    *workshopItemChoices[
-                                        menuSelection],
-                                    championshipMode,
-                                    workshopError))
-                        {
-                            std::cerr
-                                << "Original WorkshopFrame: "
-                                << workshopError << '\n';
-                        }
-                        else
-                        {
-                            saveRaceProfile();
-                            refreshWorkshopSlotsPage();
-                        }
-                        refreshWorkshopItemsPage();
-                        break;
-                    }
-                    const auto* installed =
-                        originalGarage->findItem(
-                            profileState.player
-                                .slots[slotIndex]
-                                .record);
-                    const bool hasAmmunition =
-                        installed != nullptr &&
-                        installed->maximumCharge > 0U;
-                    if (hasAmmunition &&
-                        menuSelection ==
-                            workshopItemChoices.size())
-                    {
-                        std::string workshopError;
-                        if (!r3d::game::originalrace::
-                                rechargeOriginalWorkshopItem(
-                                    *originalGarage, profileState,
-                                    workshopSlot,
-                                    championshipMode,
-                                    workshopError))
-                        {
-                            std::cerr
-                                << "Original WorkshopFrame: "
-                                << workshopError << '\n';
-                        }
-                        else
-                        {
-                            saveRaceProfile();
-                            refreshWorkshopSlotsPage();
-                        }
-                        refreshWorkshopItemsPage();
-                    }
-                    else
-                    {
-                        backMenu();
-                    }
-                    break;
-                }
                 case MenuScreen::Planets:
                     if (menuSelection <
                         std::min(
@@ -6042,13 +6920,28 @@ int main(int argc, char** argv)
             menuStack.back() == MenuScreen::RaceMenu;
         const bool drawingOriginalGarage =
             menuStack.back() == MenuScreen::Garage;
+        const bool drawingOriginalWorkshop =
+            menuStack.back() == MenuScreen::Workshop;
+        const r3d::game::originalrace::OriginalGarageCar*
+            presentationCar = nullptr;
+        bool presentationCarLocked = false;
         if (drawingOriginalGarage && !garageCarOrder.empty())
         {
-            garageSceneSeconds += frameSeconds;
             const auto& selectedView =
                 garageCarOrder[garageViewIndex];
-            const auto& selectedCar =
-                originalGarage->cars[selectedView.catalogIndex];
+            presentationCar =
+                &originalGarage->cars[selectedView.catalogIndex];
+            presentationCarLocked = selectedView.locked;
+        }
+        else if (drawingOriginalWorkshop)
+        {
+            presentationCar = originalGarage->findCar(
+                profileState.player.currentCar);
+        }
+        if (presentationCar != nullptr)
+        {
+            garageSceneSeconds += frameSeconds;
+            const auto& selectedCar = *presentationCar;
             const auto selectedVehicle = std::find_if(
                 originalGarageScene->vehicles.begin(),
                 originalGarageScene->vehicles.end(),
@@ -6070,7 +6963,8 @@ int main(int argc, char** argv)
             {
                 auto& runtime = garageRacerRuntime[racer];
                 runtime.destroyed =
-                    selectedView.locked || racer != selectedRacer;
+                    presentationCarLocked ||
+                    racer != selectedRacer;
                 runtime.weaponSlots.fill(
                     r3d::game::originalrace::RacerRuntime::
                         invalidWeapon);
@@ -6078,7 +6972,7 @@ int main(int argc, char** argv)
                     originalGarageScene->racers[racer].color =
                         profileState.player.color;
             }
-            if (!selectedView.locked &&
+            if (!presentationCarLocked &&
                 selectedRacer < garageRacerRuntime.size())
             {
                 auto& runtime =
@@ -6090,17 +6984,22 @@ int main(int argc, char** argv)
                 for (std::size_t slot = 0;
                      slot < runtime.weaponSlots.size(); ++slot)
                 {
-                    const auto& defaultRecord =
-                        selectedCar
-                            .placements[firstWeaponPlacement + slot]
-                            .defaultItem;
+                    const auto& weaponRecord =
+                        drawingOriginalWorkshop
+                            ? profileState.player
+                                  .slots[firstWeaponPlacement + slot]
+                                  .record
+                            : selectedCar
+                                  .placements[
+                                      firstWeaponPlacement + slot]
+                                  .defaultItem;
                     const auto weapon = std::find_if(
                         originalGarageScene->weapons.begin(),
                         originalGarageScene->weapons.end(),
                         [&](const auto& candidate) {
-                            return candidate.record == defaultRecord ||
+                            return candidate.record == weaponRecord ||
                                    recordName(candidate.record) ==
-                                       recordName(defaultRecord);
+                                       recordName(weaponRecord);
                         });
                     if (weapon !=
                         originalGarageScene->weapons.end())
@@ -6113,7 +7012,7 @@ int main(int argc, char** argv)
                     }
                 }
             }
-            garageDecorationActive[1] = selectedView.locked;
+            garageDecorationActive[1] = presentationCarLocked;
             const float halfQuestionAngle =
                 bx::kPi * garageSceneSeconds * 0.1F;
             originalGarageScene->decorationInstances[1]
@@ -6121,10 +7020,16 @@ int main(int argc, char** argv)
                     0.0F, 0.0F,
                     std::sin(halfQuestionAngle),
                     std::cos(halfQuestionAngle)};
+            const auto presentationSourceCamera =
+                drawingOriginalWorkshop
+                    ? makeWorkshopPresentationCamera(
+                          originalGarageScene
+                              ->presentationCamera)
+                    : originalGarageScene
+                          ->presentationCamera;
             const auto garageCamera =
                 garageRenderer.makePresentationCamera(
-                    *device,
-                    originalGarageScene->presentationCamera,
+                    *device, presentationSourceCamera,
                     static_cast<std::uint32_t>(pixelWidth),
                     static_cast<std::uint32_t>(pixelHeight));
             garageRenderer.renderFrame(
@@ -6139,16 +7044,30 @@ int main(int argc, char** argv)
                 device->renderTelemetry();
             const auto scenePass = static_cast<std::size_t>(
                 r3d::renderer::RenderPass::Scene);
-            raceGarage3DObserved =
-                raceGarage3DObserved ||
-                (garageTelemetry.drawCount[scenePass] > 0U &&
-                 std::any_of(
-                     garageTelemetry.lightingDrawCount.begin(),
-                     garageTelemetry.lightingDrawCount.end(),
-                     [](std::uint32_t draws) {
-                         return draws > 0U;
-                     }));
-            device->beginOverlay(camera);
+            const bool observedPresentation3D =
+                garageTelemetry.drawCount[scenePass] > 0U &&
+                std::any_of(
+                    garageTelemetry.lightingDrawCount.begin(),
+                    garageTelemetry.lightingDrawCount.end(),
+                    [](std::uint32_t draws) {
+                        return draws > 0U;
+                    });
+            if (drawingOriginalWorkshop)
+            {
+                raceWorkshop3DObserved =
+                    raceWorkshop3DObserved ||
+                    observedPresentation3D;
+                device->beginPass(
+                    r3d::renderer::RenderPass::Overlay, {}, camera,
+                    0U, false, true);
+            }
+            else
+            {
+                raceGarage3DObserved =
+                    raceGarage3DObserved ||
+                    observedPresentation3D;
+                device->beginOverlay(camera);
+            }
         }
         else
 #endif
@@ -7150,6 +8069,817 @@ int main(int argc, char** argv)
                 drawChoice(false, centerX + 70.0F);
             }
         }
+        else if (drawingOriginalWorkshop)
+        {
+            raceWorkshopFrameObserved = true;
+            const float centerX = menu::virtualWidth * 0.5F;
+            const float topCenterY =
+                static_cast<float>(
+                    workshopTopPanelImage.height) *
+                0.5F;
+            const float bottomCenterY =
+                menu::virtualHeight -
+                static_cast<float>(
+                    workshopBottomPanelImage.height) *
+                    0.5F;
+            const float leftPanelCenterY =
+                (static_cast<float>(
+                     workshopTopPanelImage.height) -
+                     30.0F +
+                 menu::virtualHeight -
+                 static_cast<float>(
+                     workshopBottomPanelImage.height)) *
+                0.5F;
+            const float leftPanelCenterX =
+                30.0F +
+                static_cast<float>(
+                    workshopLeftPanelImage.width) *
+                    0.5F;
+            drawQuad(
+                *device, quad, shader, workshopTopPanel,
+                static_cast<float>(
+                    workshopTopPanelImage.width),
+                static_cast<float>(
+                    workshopTopPanelImage.height),
+                centerX, topCenterY, 60.0F, transparent);
+            drawQuad(
+                *device, quad, shader, workshopBottomPanel,
+                static_cast<float>(
+                    workshopBottomPanelImage.width),
+                static_cast<float>(
+                    workshopBottomPanelImage.height),
+                centerX, bottomCenterY, 60.0F, transparent);
+            drawQuad(
+                *device, quad, shader, workshopLeftPanel,
+                static_cast<float>(
+                    workshopLeftPanelImage.width),
+                static_cast<float>(
+                    workshopLeftPanelImage.height),
+                leftPanelCenterX, leftPanelCenterY, 55.0F,
+                transparent);
+
+            drawQuad(
+                *device, quad, shader, garageMoney,
+                static_cast<float>(garageMoneyImage.width),
+                static_cast<float>(garageMoneyImage.height),
+                menu::virtualWidth -
+                    static_cast<float>(
+                        garageMoneyImage.width) *
+                        0.5F,
+                menu::virtualHeight -
+                    static_cast<float>(
+                        garageMoneyImage.height) *
+                        0.5F,
+                42.0F, transparent);
+            const float statsLeft =
+                menu::virtualWidth * 0.5F -
+                static_cast<float>(
+                    garageStatsImage.width) -
+                15.0F;
+            const float statsTop =
+                menu::virtualHeight -
+                static_cast<float>(
+                    workshopBottomPanelImage.height) +
+                25.0F;
+            drawQuad(
+                *device, quad, shader, garageStats,
+                static_cast<float>(garageStatsImage.width),
+                static_cast<float>(garageStatsImage.height),
+                statsLeft +
+                    static_cast<float>(
+                        garageStatsImage.width) *
+                        0.5F,
+                statsTop +
+                    static_cast<float>(
+                        garageStatsImage.height) *
+                        0.5F,
+                42.0F, transparent);
+
+            const auto* currentCar =
+                originalGarage->findCar(
+                    profileState.player.currentCar);
+            const auto baseStats =
+                currentCar == nullptr
+                    ? r3d::game::originalrace::
+                          OriginalGarageStats{}
+                    : r3d::game::originalrace::
+                          originalGarageStats(
+                              *originalGarage, *currentCar,
+                              profileState.player);
+            const r3d::game::originalrace::
+                OriginalWorkshopItem* previewItem = nullptr;
+            r3d::game::originalrace::ProfileSlot previewProfileSlot;
+            constexpr std::size_t firstGoodFocus = 1U;
+            constexpr std::size_t firstSlotFocus = 13U;
+            if (workshopDrag.active())
+            {
+                previewItem = originalGarage->findItem(
+                    workshopDrag.item.record);
+                previewProfileSlot = workshopDrag.item;
+            }
+            else if (
+                menuSelection >= firstGoodFocus &&
+                menuSelection < firstSlotFocus)
+            {
+                const std::size_t itemIndex =
+                    workshopGoodScroll * 3U +
+                    menuSelection - firstGoodFocus;
+                if (itemIndex < workshopGoods.size())
+                {
+                    previewItem = workshopGoods[itemIndex];
+                    previewProfileSlot = {
+                        previewItem->record,
+                        previewItem->defaultCharge,
+                        previewItem->maximumCharge > 0U};
+                }
+            }
+            else if (
+                currentCar != nullptr &&
+                menuSelection >= firstSlotFocus &&
+                menuSelection < firstSlotFocus + 4U)
+            {
+                const std::size_t slotIndex =
+                    menuSelection - firstSlotFocus;
+                const auto slotType =
+                    static_cast<r3d::game::originalrace::
+                                    GarageSlotType>(slotIndex);
+                const int level =
+                    r3d::game::originalrace::
+                        originalWorkshopUpgradeLevel(
+                            profileState.player
+                                .slots[slotIndex]
+                                .record,
+                            slotType);
+                previewItem =
+                    r3d::game::originalrace::
+                        originalWorkshopUpgradeItem(
+                            *originalGarage, *currentCar,
+                            slotType, level + 1);
+                if (previewItem != nullptr)
+                {
+                    previewProfileSlot = {
+                        previewItem->record,
+                        previewItem->defaultCharge,
+                        previewItem->maximumCharge > 0U};
+                }
+            }
+
+            std::optional<std::size_t> previewSlot;
+            float leastInstalledDamage =
+                std::numeric_limits<float>::max();
+            if (previewItem != nullptr &&
+                !previewProfileSlot.record.empty())
+            {
+                for (std::size_t slot = 0U;
+                     slot <
+                     profileState.player.slots.size();
+                     ++slot)
+                {
+                    if (!workshopSlotAccepts(
+                            slot, previewProfileSlot))
+                        continue;
+                    const auto* installed =
+                        originalGarage->findItem(
+                            profileState.player
+                                .slots[slot]
+                                .record);
+                    const float installedDamage =
+                        installed == nullptr
+                            ? 0.0F
+                            : installed->projectileDamage;
+                    if (!previewSlot ||
+                        installedDamage <
+                            leastInstalledDamage)
+                    {
+                        previewSlot = slot;
+                        leastInstalledDamage =
+                            installedDamage;
+                    }
+                    if (installed == nullptr)
+                        break;
+                }
+            }
+
+            auto bonusStats = baseStats;
+            if (currentCar != nullptr && previewSlot)
+            {
+                auto previewPlayer = profileState.player;
+                previewPlayer.slots[*previewSlot] =
+                    previewProfileSlot;
+                bonusStats =
+                    r3d::game::originalrace::
+                        originalGarageStats(
+                            *originalGarage, *currentCar,
+                            previewPlayer);
+            }
+            const std::array<float, 3> baseProgress{
+                baseStats.damageProgress,
+                baseStats.armorProgress,
+                baseStats.speedProgress};
+            const std::array<float, 3> bonusProgress{
+                bonusStats.damageProgress,
+                bonusStats.armorProgress,
+                bonusStats.speedProgress};
+            constexpr std::array<float, 3> statOffsetY{
+                3.0F, 41.0F, 78.0F};
+            const float fullStatWidth =
+                static_cast<float>(
+                    garageStatBarImage.width);
+            for (std::size_t index = 0U;
+                 index < baseProgress.size(); ++index)
+            {
+                const float preview = std::clamp(
+                    bonusProgress[index], 0.0F, 1.0F);
+                if (preview > 0.0F)
+                {
+                    drawQuad(
+                        *device, quad, shader,
+                        workshopStatBarPlus,
+                        fullStatWidth * preview,
+                        static_cast<float>(
+                            garageStatBarImage.height),
+                        statsLeft + 48.0F +
+                            fullStatWidth * preview * 0.5F,
+                        statsTop + statOffsetY[index] +
+                            static_cast<float>(
+                                garageStatBarImage.height) *
+                                0.5F,
+                        32.0F, transparent);
+                }
+                const float installed = std::clamp(
+                    baseProgress[index], 0.0F, 1.0F);
+                if (installed > 0.0F)
+                {
+                    drawQuad(
+                        *device, quad, shader,
+                        garageStatBar,
+                        fullStatWidth * installed,
+                        static_cast<float>(
+                            garageStatBarImage.height),
+                        statsLeft + 48.0F +
+                            fullStatWidth * installed *
+                                0.5F,
+                        statsTop + statOffsetY[index] +
+                            static_cast<float>(
+                                garageStatBarImage.height) *
+                                0.5F,
+                        30.0F, transparent);
+                }
+                if (index <
+                    workshopStatsPage.normal.size())
+                {
+                    const auto& value =
+                        workshopStatsPage.normal[index];
+                    drawQuad(
+                        *device, quad, shader,
+                        value.texture, value.width,
+                        value.height,
+                        statsLeft + 48.0F +
+                            fullStatWidth -
+                            value.width * 0.5F - 4.0F,
+                        statsTop + statOffsetY[index] +
+                            13.0F,
+                        15.0F, transparent);
+                }
+            }
+
+            const auto goodCenters =
+                workshopGoodCenters();
+            for (std::size_t visible = 0U;
+                 visible < goodCenters.size(); ++visible)
+            {
+                const std::size_t itemIndex =
+                    workshopGoodScroll * 3U + visible;
+                drawQuad(
+                    *device, quad, shader,
+                    workshopSlotFrame,
+                    static_cast<float>(
+                        workshopSlotFrameImage.width),
+                    static_cast<float>(
+                        workshopSlotFrameImage.height),
+                    goodCenters[visible][0],
+                    goodCenters[visible][1], 35.0F,
+                    transparent);
+                if (itemIndex >= workshopGoods.size())
+                    continue;
+                float itemRotation =
+                    2.0F * bx::kPi *
+                    static_cast<float>(itemIndex) / 12.0F;
+                if (menuSelection == 1U + visible)
+                {
+                    itemRotation +=
+                        garageSceneSeconds * bx::kPi * 0.5F;
+                }
+                workshopRenderer.drawItem(
+                    *device, raceShader,
+                    *workshopGoods[itemIndex],
+                    goodCenters[visible][0],
+                    goodCenters[visible][1],
+                    static_cast<float>(
+                        workshopSlotFrameImage.width),
+                    static_cast<float>(
+                        workshopSlotFrameImage.height),
+                    itemRotation, racePipeline);
+            }
+
+            const auto slotCenters =
+                workshopSlotCenters();
+            if (currentCar != nullptr)
+            {
+                for (std::size_t slot = 0U;
+                     slot < slotCenters.size(); ++slot)
+                {
+                    const auto& placement =
+                        currentCar->placements[slot];
+                    const bool enabled =
+                        placement.active &&
+                        (championshipMode ||
+                         slot <
+                             r3d::game::originalrace::
+                                 PlayerProfile::
+                                     firstWeaponSlot ||
+                         slot -
+                                 r3d::game::originalrace::
+                                     PlayerProfile::
+                                         firstWeaponSlot <
+                             profileState.config
+                                 .weaponMaxLevel);
+                    if (!enabled)
+                        continue;
+                    const float x = slotCenters[slot][0];
+                    const float y = slotCenters[slot][1];
+                    drawQuad(
+                        *device, quad, shader, workshopSlot,
+                        static_cast<float>(
+                            workshopSlotImage.width),
+                        static_cast<float>(
+                            workshopSlotImage.height),
+                        x, y, 48.0F, transparent);
+
+                    const auto& installed =
+                        profileState.player.slots[slot];
+                    const auto* installedItem =
+                        originalGarage->findItem(
+                            installed.record);
+                    const bool compatible =
+                        previewItem != nullptr &&
+                        workshopSlotAccepts(
+                            slot, previewProfileSlot);
+                    if (installedItem != nullptr)
+                    {
+                        const float rotation =
+                            menuSelection ==
+                                    firstSlotFocus + slot
+                                ? garageSceneSeconds *
+                                      bx::kPi * 0.5F
+                                : 0.0F;
+                        const float viewportSize = std::min(
+                            static_cast<float>(
+                                workshopSlotImage.width),
+                            static_cast<float>(
+                                workshopSlotImage.height));
+                        workshopRenderer.drawItem(
+                            *device, raceShader,
+                            *installedItem, x, y,
+                            viewportSize, viewportSize,
+                            rotation, racePipeline);
+                    }
+
+                    if (slot >= 4U &&
+                        (installedItem == nullptr ||
+                         compatible))
+                    {
+                        std::size_t iconIndex =
+                            slot == 4U
+                                ? 0U
+                                : slot == 5U ? 1U : 2U;
+                        if (slot >= 6U && compatible)
+                            iconIndex = 3U;
+                        drawQuad(
+                            *device, quad, shader,
+                            workshopSlotIconTextures[
+                                iconIndex],
+                            static_cast<float>(
+                                workshopSlotIconImages[
+                                    iconIndex]
+                                    .width),
+                            static_cast<float>(
+                                workshopSlotIconImages[
+                                    iconIndex]
+                                    .height),
+                            x, y, 20.0F, transparent);
+                    }
+
+                    if (installedItem == nullptr)
+                        continue;
+                    if (installedItem->maximumCharge == 0U)
+                    {
+                        const auto slotType =
+                            static_cast<
+                                r3d::game::originalrace::
+                                    GarageSlotType>(slot);
+                        const int level =
+                            std::clamp(
+                                r3d::game::originalrace::
+                                    originalWorkshopUpgradeLevel(
+                                        installed.record,
+                                        slotType),
+                                0, 2);
+                        const bool focused =
+                            menuSelection ==
+                            firstSlotFocus + slot;
+                        const std::size_t imageIndex =
+                            static_cast<std::size_t>(
+                                std::min(
+                                    level +
+                                        (focused ? 1 : 0),
+                                    2));
+                        drawQuad(
+                            *device, quad, shader,
+                            workshopUpgradeTextures[
+                                imageIndex],
+                            static_cast<float>(
+                                workshopUpgradeImages[
+                                    imageIndex]
+                                    .width),
+                            static_cast<float>(
+                                workshopUpgradeImages[
+                                    imageIndex]
+                                    .height),
+                            x + 51.0F, y + 38.0F,
+                            18.0F, transparent);
+                    }
+                    else
+                    {
+                        const float chargeX = x + 68.0F;
+                        const float chargeY = y - 12.0F;
+                        drawQuad(
+                            *device, quad, shader,
+                            workshopChargeBox,
+                            static_cast<float>(
+                                workshopChargeBoxImage.width),
+                            static_cast<float>(
+                                workshopChargeBoxImage.height),
+                            chargeX, chargeY, 22.0F,
+                            transparent);
+                        const float progress =
+                            std::clamp(
+                                static_cast<float>(
+                                    installed.hasCharge
+                                        ? installed.charge
+                                        : installedItem
+                                              ->defaultCharge) /
+                                    static_cast<float>(
+                                        std::max(
+                                            installedItem
+                                                ->maximumCharge,
+                                            1U)),
+                                0.0F, 1.0F);
+                        const float barHeight =
+                            static_cast<float>(
+                                workshopChargeBarImage.height) *
+                            progress;
+                        if (barHeight > 0.0F)
+                        {
+                            const float barBottom =
+                                chargeY + 24.0F;
+                            drawQuad(
+                                *device, quad, shader,
+                                workshopChargeBar,
+                                static_cast<float>(
+                                    workshopChargeBarImage.width),
+                                barHeight, chargeX,
+                                barBottom -
+                                    barHeight * 0.5F,
+                                18.0F, transparent);
+                        }
+                        const bool focused =
+                            menuSelection ==
+                            firstSlotFocus + slot;
+                        drawQuad(
+                            *device, quad, shader,
+                            focused
+                                ? workshopChargeButtonSelected
+                                : workshopChargeButton,
+                            static_cast<float>(
+                                focused
+                                    ? workshopChargeButtonSelectedImage
+                                          .width
+                                    : workshopChargeButtonImage
+                                          .width),
+                            static_cast<float>(
+                                focused
+                                    ? workshopChargeButtonSelectedImage
+                                          .height
+                                    : workshopChargeButtonImage
+                                          .height),
+                            chargeX, chargeY + 39.0F,
+                            16.0F, transparent);
+                    }
+                }
+            }
+
+            const std::size_t rowCount =
+                (workshopGoods.size() + 2U) / 3U;
+            const std::size_t maximumScroll =
+                rowCount > 4U ? rowCount - 4U : 0U;
+            const float upY =
+                leftPanelCenterY -
+                static_cast<float>(
+                    workshopLeftPanelImage.height) *
+                    0.5F +
+                65.0F;
+            const float downY =
+                leftPanelCenterY +
+                static_cast<float>(
+                    workshopLeftPanelImage.height) *
+                    0.5F -
+                42.0F;
+            if (workshopGoodScroll > 0U)
+            {
+                drawQuadRotated(
+                    *device, quad, shader, garageArrow,
+                    30.0F, 30.0F, leftPanelCenterX, upY,
+                    18.0F, bx::kPi * 0.5F, transparent);
+            }
+            if (workshopGoodScroll < maximumScroll)
+            {
+                drawQuadRotated(
+                    *device, quad, shader, garageArrow,
+                    30.0F, 30.0F, leftPanelCenterX, downY,
+                    18.0F, -bx::kPi * 0.5F, transparent);
+            }
+
+            const auto& header = workshopPage.normal[0];
+            drawQuad(
+                *device, quad, shader, header.texture,
+                header.width, header.height,
+                20.0F + header.width * 0.5F, 40.0F,
+                15.0F, transparent);
+            const auto& money =
+                workshopControlsPage.normal[1];
+            drawQuad(
+                *device, quad, shader, money.texture,
+                money.width, money.height,
+                menu::virtualWidth - 53.0F -
+                    money.width * 0.5F,
+                menu::virtualHeight - 29.0F,
+                15.0F, transparent);
+
+            const bool backFocused =
+                menuSelection == 0U;
+            const float backX =
+                static_cast<float>(
+                    garageBackImage.width) *
+                0.5F;
+            const float backY =
+                menu::virtualHeight -
+                static_cast<float>(
+                    workshopBottomPanelImage.height) +
+                40.0F;
+            drawQuad(
+                *device, quad, shader,
+                backFocused ? garageBackSelected
+                            : garageBack,
+                static_cast<float>(
+                    backFocused
+                        ? garageBackSelectedImage.width
+                        : garageBackImage.width),
+                static_cast<float>(
+                    backFocused
+                        ? garageBackSelectedImage.height
+                        : garageBackImage.height),
+                backX, backY, 35.0F, transparent);
+            const auto& backText =
+                backFocused
+                    ? workshopControlsPage.selected[0]
+                    : workshopControlsPage.normal[0];
+            drawQuad(
+                *device, quad, shader, backText.texture,
+                backText.width, backText.height, backX,
+                backY, 15.0F, transparent);
+
+            for (std::size_t line = 0U;
+                 line < workshopHintPage.normal.size();
+                 ++line)
+            {
+                const auto& hint =
+                    workshopHintPage.normal[line];
+                drawQuad(
+                    *device, quad, shader, hint.texture,
+                    hint.width, hint.height, 480.0F,
+                    menu::virtualHeight - 93.0F +
+                        static_cast<float>(line) *
+                            19.0F,
+                    15.0F, transparent);
+            }
+
+            if (previewItem != nullptr &&
+                !workshopDrag.active() &&
+                !workshopInfoPage.normal.empty())
+            {
+                float anchorX = centerX;
+                float anchorY =
+                    menu::virtualHeight * 0.5F;
+                if (menuSelection >= 1U &&
+                    menuSelection < 13U)
+                {
+                    const auto visible =
+                        menuSelection - 1U;
+                    anchorX =
+                        goodCenters[visible][0] + 130.0F;
+                    anchorY =
+                        goodCenters[visible][1] + 95.0F;
+                }
+                else if (menuSelection >= 13U &&
+                         menuSelection < 23U)
+                {
+                    const auto slot =
+                        menuSelection - 13U;
+                    anchorX =
+                        slotCenters[slot][0] + 130.0F;
+                    anchorY =
+                        slotCenters[slot][1] + 95.0F;
+                }
+                const float halfInfoWidth =
+                    static_cast<float>(
+                        workshopInfoFrameImage.width) *
+                    0.5F;
+                const float halfInfoHeight =
+                    static_cast<float>(
+                        workshopInfoFrameImage.height) *
+                    0.5F;
+                anchorX = std::clamp(
+                    anchorX, halfInfoWidth,
+                    menu::virtualWidth - halfInfoWidth);
+                anchorY = std::clamp(
+                    anchorY, halfInfoHeight,
+                    menu::virtualHeight - halfInfoHeight);
+                drawQuad(
+                    *device, quad, shader,
+                    workshopInfoFrame,
+                    static_cast<float>(
+                        workshopInfoFrameImage.width),
+                    static_cast<float>(
+                        workshopInfoFrameImage.height),
+                    anchorX, anchorY, 12.0F,
+                    transparent);
+
+                const bool hasDamage =
+                    previewItem->projectileDamage > 0.0F;
+                const std::size_t trailing =
+                    hasDamage ? 2U : 1U;
+                const std::size_t descriptionCount =
+                    workshopInfoPage.normal.size() >
+                            1U + trailing
+                        ? workshopInfoPage.normal.size() -
+                              1U - trailing
+                        : 0U;
+                const auto& name =
+                    workshopInfoPage.normal[0];
+                drawQuad(
+                    *device, quad, shader, name.texture,
+                    name.width, name.height, anchorX,
+                    anchorY - 58.0F, 8.0F,
+                    transparent);
+                for (std::size_t line = 0U;
+                     line < descriptionCount; ++line)
+                {
+                    const auto& info =
+                        workshopInfoPage.normal[1U + line];
+                    const float scale = std::min(
+                        1.0F,
+                        280.0F /
+                            std::max(info.width, 1.0F));
+                    drawQuad(
+                        *device, quad, shader,
+                        info.texture,
+                        info.width * scale,
+                        info.height * scale, anchorX,
+                        anchorY - 23.0F +
+                            static_cast<float>(line) *
+                                17.0F,
+                        8.0F, transparent);
+                }
+                const std::size_t costIndex =
+                    1U + descriptionCount;
+                if (costIndex <
+                    workshopInfoPage.normal.size())
+                {
+                    const auto& cost =
+                        workshopInfoPage.normal[costIndex];
+                    drawQuad(
+                        *device, quad, shader,
+                        cost.texture, cost.width,
+                        cost.height, anchorX - 60.0F,
+                        anchorY + 54.0F, 8.0F,
+                        transparent);
+                }
+                if (hasDamage &&
+                    costIndex + 1U <
+                        workshopInfoPage.normal.size())
+                {
+                    const auto& damage =
+                        workshopInfoPage
+                            .normal[costIndex + 1U];
+                    drawQuad(
+                        *device, quad, shader,
+                        damage.texture, damage.width,
+                        damage.height, anchorX + 80.0F,
+                        anchorY + 54.0F, 8.0F,
+                        transparent);
+                }
+            }
+
+            if (workshopDrag.active())
+            {
+                if (const auto* dragged =
+                        originalGarage->findItem(
+                            workshopDrag.item.record))
+                {
+                    const float viewportSize = std::min(
+                        static_cast<float>(
+                            workshopSlotImage.width),
+                        static_cast<float>(
+                            workshopSlotImage.height));
+                    workshopRenderer.drawItem(
+                        *device, raceShader, *dragged,
+                        workshopDragX, workshopDragY,
+                        viewportSize, viewportSize, 0.0F,
+                        racePipeline);
+                }
+            }
+            if (workshopConfirmation !=
+                WorkshopConfirmation::None)
+            {
+                const float dialogY =
+                    menu::virtualHeight * 0.5F;
+                drawQuad(
+                    *device, quad, shader, acceptFrame,
+                    static_cast<float>(
+                        acceptFrameImage.width),
+                    static_cast<float>(
+                        acceptFrameImage.height),
+                    centerX, dialogY, 6.0F, transparent);
+                if (!workshopConfirmationPage.normal.empty())
+                {
+                    const auto& message =
+                        workshopConfirmationPage.normal[0];
+                    const float scale = std::min(
+                        1.0F,
+                        300.0F /
+                            std::max(message.width, 1.0F));
+                    drawQuad(
+                        *device, quad, shader,
+                        message.texture,
+                        message.width * scale,
+                        message.height * scale, centerX,
+                        dialogY - 35.0F, 4.0F,
+                        transparent);
+                }
+                auto drawWorkshopChoice =
+                    [&](bool yes, float x) {
+                        const bool selected =
+                            workshopConfirmationYesFocused ==
+                            yes;
+                        drawQuad(
+                            *device, quad, shader,
+                            selected
+                                ? acceptButtonSelected
+                                : acceptButton,
+                            static_cast<float>(
+                                selected
+                                    ? acceptButtonSelectedImage
+                                          .width
+                                    : acceptButtonImage.width),
+                            static_cast<float>(
+                                selected
+                                    ? acceptButtonSelectedImage
+                                          .height
+                                    : acceptButtonImage.height),
+                            x, dialogY + 32.0F, 3.0F,
+                            transparent);
+                        const auto& label =
+                            yes
+                                ? (selected
+                                       ? exitRaceYesSelected
+                                       : exitRaceYes)
+                                : (selected
+                                       ? exitRaceNoSelected
+                                       : exitRaceNo);
+                        drawQuad(
+                            *device, quad, shader,
+                            label.texture, label.width,
+                            label.height, x,
+                            dialogY + 32.0F, 2.0F,
+                            transparent);
+                    };
+                drawWorkshopChoice(
+                    true, centerX - 70.0F);
+                drawWorkshopChoice(
+                    false, centerX + 70.0F);
+            }
+        }
         else
 #endif
         {
@@ -7217,7 +8947,7 @@ int main(int argc, char** argv)
 
 #ifdef RRR3D_PHYSICS
         if (!drawingOriginalOptions && !drawingOriginalRaceMenu &&
-            !drawingOriginalGarage)
+            !drawingOriginalGarage && !drawingOriginalWorkshop)
 #endif
         {
             const float versionX =
@@ -7339,6 +9069,8 @@ int main(int argc, char** argv)
                 if (!integratedRaceStartObserved || !inRace ||
                     !raceGarageFrameObserved ||
                     !raceGarage3DObserved ||
+                    !raceWorkshopFrameObserved ||
+                    !raceWorkshop3DObserved ||
                     !racePauseDialogObserved ||
                     !racePauseResumeObserved ||
                     !racePauseFrozenObserved ||
@@ -7362,7 +9094,10 @@ int main(int argc, char** argv)
                         << integratedRaceStartObserved << ", inRace="
                         << inRace << ", garage="
                         << raceGarageFrameObserved << '/'
-                        << raceGarage3DObserved << ", pause="
+                        << raceGarage3DObserved
+                        << ", workshop="
+                        << raceWorkshopFrameObserved << '/'
+                        << raceWorkshop3DObserved << ", pause="
                         << racePauseDialogObserved << '/'
                         << racePauseResumeObserved << '/'
                         << racePauseFrozenObserved << ", destroyed="
@@ -7410,7 +9145,7 @@ int main(int argc, char** argv)
                            "life "
                         << minimumRacePlayerLife << "), "
                            "source HudMenu pause/accept/frozen-world, "
-                           "source GarageFrame/3D CarFrame and render-target resize "
+                           "source WorkshopFrame/GarageFrame/3D CarFrame and render-target resize "
                            "round-trip passed\n";
                 }
             }
@@ -7470,6 +9205,7 @@ int main(int argc, char** argv)
     saveRaceProfile();
     physicsWorld.reset();
     raceHud.shutdown(*device);
+    workshopRenderer.shutdown(*device);
     garageRenderer.shutdown(*device);
     raceRenderer.shutdown(*device);
 #endif

@@ -67,8 +67,26 @@ armor/damage/speed на данных `workshop.xml`, а не условные п
 ambient/sky/fog flags и HDR constants взяты буквально из Windows-кода.
 Добавлена поддержка source GUI materials: `GUI/question` использует
 `question.png` и точный `LoadSpecLibMat` state. Metal smoke требует реальную
-отрисовку 3D scene. Остаются Workshop/Angar/Achievement subframes и отдельные
+отрисовку 3D scene. Остаются Angar/Achievement subframes и отдельные
 shadow maps двух garage spot-lamps.
+
+Следующий follow-up заменил придуманные раздельные Workshop pages исходным
+`RaceMenu2::WorkshopFrame`. Один экран использует `topPanel3`,
+`bottomPanel3`, `leftPanel3`, 3×4 goods grid, десять source slots, money/stat
+panels, slot/level/charge controls и `dlgFrame3`. Все goods/installed/drag
+preview загружают настоящие `.r3d` и DDS/PNG из `workshop.xml`; fitting,
+`Menu::GetIsoRot`, Y-flip, depth clear и вращение повторяют `ViewPort3d`.
+Перенесены tournament assortment, price sort/scroll, `CarFrame::csSlots`,
+совместимость placements, buy/sell confirmations, drag/install/swap/refund,
+50% resale с charge value, recharge и mobility upgrades. Stats теперь
+считаются по фактически установленным profile slots и показывают source
+bonus preview. Physics smoke проверяет транзакции, а 240-frame Metal smoke
+обязан посетить Workshop и подтвердить его 2D/3D draw до Garage и гонки.
+Новая кампания снова проходит исходный `Profile::Reset →
+SnProfile::EnterGame`: первая планета становится `psOpen/pass 1`, поэтому
+`CompletePass(0)` формирует стартовый ассортимент. Профили, испорченные
+ранним macOS-кодом сочетанием `psUnavailable/pass>0`, при загрузке
+нормализуются в `psOpen` без потери прогресса.
 
 Финальная проверка M9.5: arm64 Debug build и новые Metal shaders прошли без
 новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
@@ -834,7 +852,7 @@ SDL_AUDIO_DRIVER=dummy \
 ## Следующий рекомендуемый этап
 
 Для полного портирования следующий P0-блок — продолжить `RaceMenu2`:
-Workshop/Angar/Achievement subframes, затем source dialogs/transitions.
+Angar/Achievement subframes, затем source dialogs/transitions.
 После этого идут `GameMode`/профильные диалоги и `FinishMenu`/`FinalMenu`.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening

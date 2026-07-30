@@ -76,12 +76,12 @@ Windows target не компилируется.
 | Главное меню, внешний вид | `MainMenu2.cpp` | часть оригинальных изображений/строк | Частично | Фон, панели и selection source-driven; полный widget tree, animation, layout и event code не перенесены |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | ручной `enum MenuScreen` и `createPage(...)` в одном `main` | Суррогат | Страницы GameMode/Tournament/Profile/Options/Credits создаются как универсальные текстовые списки |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | универсальная page + portable profile operations | Суррогат | Исходные dialogs, text input, transitions, animations и подтверждения отсутствуют |
-| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame` + portable subframes | Частично | Главный экран, 2D GarageFrame и 3D CarFrame используют исходные panels/buttons/icons/cards/locks/colors/stats, `Misc/garage`, все 17 машин, camera/lamp/HDR transforms и source navigation/data. Workshop/Angar/Achievement subframe layouts ещё не перенесены; тени двух garage spot-lamps пока не воспроизведены |
+| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame` + portable subframes | Частично | Главный экран, Garage и Workshop используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, все 17 машин, camera/lamp/HDR transforms, `csSlots`, исходные View3d meshes и source data/transactions. Angar/Achievement subframe layouts ещё не перенесены; тени двух garage spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | generic finish page | Суррогат | Исходные panels, statistics, awards, credits/final flow не перенесены |
-| Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля tournament/workshop/options; полная схема, migration и все profile branches не доказаны |
+| Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля tournament/workshop/options и source-инвариант `psUnavailable/pass 0 → psOpen/pass 1`; несовместимые `psUnavailable/pass>0`, записанные ранним macOS-портом, мигрируются без потери pass. Полная схема и все profile branches ещё не доказаны |
 | Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + ручное advance | Частично | Основной выбор/rewards есть; полный state machine, dialogs, unlock/final sequences не перенесён |
-| Garage/workshop data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml` | `OriginalGarage.cpp` + source-derived `GarageFrame`/`CarFrame` | Частично | Каталог, source available/secret/locked order, buy/install/recharge, colors, точные armor/damage/speed formulas и 3D preview с default Weapon1–4 есть; Workshop UI и legacy animations ещё не перенесены |
+| Garage/workshop data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml` | `OriginalGarage.cpp` + source-derived `GarageFrame`/`CarFrame`/`WorkshopFrame` | Частично | Каталог, source available/secret/locked order, buy/sell/install/swap/recharge/upgrade, campaign confirmations, charge-inclusive 50% resale, colors, stats фактической комплектации и bonus preview перенесены. Все 3D goods/slots читают свои mesh/texture из `workshop.xml` и повторяют `ViewPort3d` fitting/iso rotation. Legacy widget objects и Angar/Achievement ещё отсутствуют |
 | Map/catalog loading | `Map`, `MapObj`, `DataBase` | `OriginalRace.cpp` | Частично | 88 записей и исходные placements читаются; generic GameObject/behavior/include lifecycle воспроизведён только для известных типов |
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
 | Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
@@ -475,12 +475,42 @@ Network, video и Steam явно выключены.
    Не закрыто только отдельное создание shadow maps для двух spot-lamps:
    освещение перенесено, их D3D shadow pass пока отсутствует.
 
+### WorkshopFrame
+
+1. Удалены придуманные раздельные страницы «slots/items». Один экран повторяет
+   `RaceMenu2::WorkshopFrame`: `topPanel3`, `bottomPanel3`, `leftPanel3`,
+   3×4 goods grid, десять слотов, money/stat panels, slot icons, level и
+   charge controls.
+2. Ассортимент восстанавливается из tournament pass rewards, сортируется по
+   исходной цене и показывает 12 элементов с тем же построчным scroll.
+   Mobility families 1–4, как в Windows, доступны через level-button, а не
+   добавляются в goods как выдуманный inventory.
+3. `OriginalWorkshopRenderer` загружает `<mesh item>`/`<texture item>` каждой
+   записи `workshop.xml`, применяет `Menu::GetIsoRot`,
+   `Context::DrawView3d` AABB fitting, Y inversion, depth clear и исходную
+   скорость вращения `pi/2`.
+4. Перенесены drag/drop, проверка совместимых `garage.xml` placements,
+   swap установленной детали, возврат купленной детали, campaign buy/sell
+   confirmations, продажа установленной детали за 50% с учётом оставшегося
+   charge, recharge step/cost и последовательные mobility upgrades.
+5. Полосы используют фактически установленные profile slots. Hover/drag
+   временно подставляет деталь в подходящий слот с минимальным текущим
+   weapon damage и показывает исходный bonus-stat preview.
+6. `CarFrame::csSlots` выбирает ближайшую из восьми исходных camera poses.
+   Интеграционный Metal smoke обязан посетить Workshop и увидеть как его
+   2D frame, так и освещённую 3D garage scene до перехода в Garage/Race.
+7. Восстановлен исходный lifecycle `Profile::Reset → SnProfile::EnterGame`:
+   новая кампания создаётся через полный portable default profile, где первая
+   планета уже `psOpen/pass 1`. Ранние сборки записывали невозможное
+   `psUnavailable/pass>0`; loader переводит только эту комбинацию в `psOpen`,
+   сохраняя заработанный pass и возвращая соответствующий source assortment.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
 
 1. Продолжить исходный menu/widget state machine: сначала `RaceMenu2`
-   Workshop/Angar/Achievement subframes, после них
+   Angar/Achievement subframes, после них
    `Menu`, `MenuSystem`, `MainMenu2`, `GameMode`, `DialogMenu2`,
    `FinishMenu`, `FinalMenu`. Активная структура `OptionsMenu` и
    `RaceMainFrame` уже source-derived, но legacy animation/widget classes
