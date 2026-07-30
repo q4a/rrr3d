@@ -852,7 +852,11 @@ SDL_AUDIO_DRIVER=dummy \
 ## Следующий рекомендуемый этап
 
 Для полного портирования следующий P0-блок — продолжить `RaceMenu2`:
-Angar/Achievement subframes, затем source dialogs/transitions.
+`AchievementFrame`, затем оставшиеся source dialogs/transitions.
+`SpaceshipFrame/AngarFrame` уже перенесены из `db.xml`, `tournamet.xml` и
+`RaceMenu2.cpp`: исходный ангар/космос, три лампы, HDR, `csAutoObserver`,
+шесть ViewPort3d planets, doors, boss photo/car и tournament transition
+branches заменили прежнюю generic-страницу.
 После этого идут `GameMode`/профильные диалоги и `FinishMenu`/`FinalMenu`.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening

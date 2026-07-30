@@ -3333,6 +3333,102 @@ Race loadOriginalGarageScene(
     return result;
 }
 
+Race loadOriginalAngarScene(
+    const resource::ResourceFileSystem& resources)
+{
+    auto databaseDocument = parseXml(resources, "db.xml");
+    auto* database = databaseDocument.RootElement();
+
+    Race result;
+    result.levelPath = "RaceMenu2::SpaceshipFrame";
+    constexpr std::array<std::string_view, 2> decorationRecords{
+        "world\\db\\root\\ctDecoration\\Misc\\space2",
+        "world\\db\\root\\ctDecoration\\Misc\\angar"};
+    for (const auto record : decorationRecords)
+    {
+        auto definition = objectDefinition(
+            resources, database, record,
+            "db.xml/RaceMenu2::SpaceshipFrame");
+        if (definition.visualNodes.empty())
+        {
+            throw resource::ResourceError(
+                std::string(record) +
+                ": SpaceshipFrame decoration has no original visual");
+        }
+        result.decorationDefinitions.push_back(std::move(definition));
+    }
+
+    // SpaceshipFrame mutates the source plane node after AddMapObj.  The
+    // bundled GUI\space2 texture is 1920x1200, hence the exact 1.6 aspect.
+    auto& space = result.decorationDefinitions.front().visualNodes.front();
+    space.transform.position = {63.0F, 0.0F, 23.0F};
+    space.transform.scale = {112.0F, 70.0F, 1.0F};
+    constexpr float sine45 = 0.70710678118654752440F;
+    const Quat roll{sine45, 0.0F, 0.0F, sine45};
+    const Quat pitch{0.0F, sine45, 0.0F, sine45};
+    // BaseSceneNode builds Eul_(+pi/2,+pi/2,0,EulOrdXYZs) for the two
+    // source setters SetPitchAngle(-pi/2), SetRollAngle(-pi/2).
+    space.transform.rotation = multiply(roll, pitch);
+
+    result.decorationInstances.push_back({0U, {}});
+    result.decorationInstances.push_back({1U, {}});
+
+    // Environment::ewAngar + Environment::wtAngar.
+    result.environment.weather = Weather::Fair;
+    result.environment.skyTexturePath = canonicalDataPath(
+        resources, "Data\\World1\\Texture\\skyTex1.dds");
+    result.environment.fogColor = {
+        148.0F / 255.0F, 193.0F / 255.0F,
+        235.0F / 255.0F, 1.0F};
+    result.environment.ambientColor = {0.6F, 0.6F, 0.6F, 1.0F};
+    result.environment.fogIntensity = 1.0F;
+    result.environment.skyEnabled = false;
+    result.environment.fogEnabled = false;
+    result.environment.directionalLightEnabled = false;
+    result.environment.dynamicReflectionsEnabled = false;
+    result.environment.surface = EnvironmentSurface::None;
+    result.environment.planarReflection = false;
+    result.environment.hdrLuminanceKey = 3.0F;
+    result.environment.hdrBrightThreshold = 3.5F;
+    result.environment.hdrGaussianScalar = 20.0F;
+    result.environment.hdrExposure = 5.0F;
+
+    result.environment.lamps[0] = {
+        {22.169474F, -5.9075522F, 35.802311F},
+        {-0.47304764F, 0.077942163F, 0.86590993F, 0.14267041F},
+        {1.0F, 1.0F, 1.0F, 1.0F}, 80.0F, true};
+    result.environment.lamps[1] = {
+        {-20.881384F, -21.184746F, 26.121809F},
+        {-0.16464995F, 0.34524971F, 0.39772648F, 0.83397770F},
+        {0.0F, 0.0F, 0.0F, 0.0F}, 80.0F, false};
+    result.environment.lamps[2] = {
+        {52.307316F, 24.327570F, 32.772705F},
+        {0.21948183F, 0.18329506F, -0.73549527F, 0.61423278F},
+        {136.0F / 255.0F, 254.0F / 255.0F,
+         254.0F / 255.0F, 1.0F},
+        100.0F, true};
+
+    result.presentationCamera.position = {
+        -43.756214F, -11.786510F, 21.129881F};
+    result.presentationCamera.rotation = {
+        -0.028391786F, 0.21455817F, 0.12807286F, 0.96786171F};
+    result.presentationCamera.verticalFovDegrees = 90.0F;
+    result.presentationCamera.nearDistance = 1.0F;
+    result.presentationCamera.farDistance = 130.0F;
+    result.presentationCamera.valid = true;
+
+    if (result.decorationDefinitions.size() != 2U ||
+        result.decorationInstances.size() != 2U ||
+        result.decorationDefinitions.front().visualNodes.front()
+            .materials.empty() ||
+        !result.presentationCamera.valid)
+    {
+        throw resource::ResourceError(
+            "RaceMenu2::SpaceshipFrame source scene is incomplete");
+    }
+    return result;
+}
+
 namespace
 {
 

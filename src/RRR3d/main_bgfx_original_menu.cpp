@@ -616,6 +616,7 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     std::optional<r3d::game::originalrace::Race> originalRace;
     std::optional<r3d::game::originalrace::Race> originalGarageScene;
+    std::optional<r3d::game::originalrace::Race> originalAngarScene;
     std::optional<r3d::game::originalrace::OriginalGarageCatalog>
         originalGarage;
     std::optional<r3d::physics::WorldDescription> physicsDescription;
@@ -678,6 +679,9 @@ int main(int argc, char** argv)
         originalGarageScene.emplace(
             r3d::game::originalrace::loadOriginalGarageScene(
                 *resources, *originalRace));
+        originalAngarScene.emplace(
+            r3d::game::originalrace::loadOriginalAngarScene(
+                *resources));
         physicsDescription.emplace(
             r3d::game::originalrace::makePhysicsDescription(
                 *originalRace, *resources));
@@ -1183,6 +1187,50 @@ int main(int argc, char** argv)
     }
     const Texture workshopInfoFrame =
         createImageTexture(*device, workshopInfoFrameImage);
+    const auto angarBottomPanelImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/bottomPanel6.png");
+    const auto angarPlanetInfoImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/planetInfo.png");
+    const auto angarCloseImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBg6.png");
+    const auto angarCloseSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBgSel6.png");
+    const auto angarDoorSlotImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/doorSlot.png");
+    const auto angarDoorSlotSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/doorSlotSel.png");
+    const auto angarDoorDownImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/doorDown.png");
+    const auto angarDoorUpImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/doorUp.png");
+    const Texture angarBottomPanel =
+        createImageTexture(*device, angarBottomPanelImage);
+    const Texture angarPlanetInfo =
+        createImageTexture(*device, angarPlanetInfoImage);
+    const Texture angarClose =
+        createImageTexture(*device, angarCloseImage);
+    const Texture angarCloseSelected =
+        createImageTexture(*device, angarCloseSelectedImage);
+    const Texture angarDoorSlot =
+        createImageTexture(*device, angarDoorSlotImage);
+    const Texture angarDoorSlotSelected =
+        createImageTexture(*device, angarDoorSlotSelectedImage);
+    const Texture angarDoorDown =
+        createImageTexture(*device, angarDoorDownImage);
+    const Texture angarDoorUp =
+        createImageTexture(*device, angarDoorUpImage);
+    std::vector<menu::Image> angarBossImages;
+    std::vector<Texture> angarBossTextures;
+    angarBossImages.reserve(originalGarage->planets.size());
+    angarBossTextures.reserve(originalGarage->planets.size());
+    for (const auto& planet : originalGarage->planets)
+    {
+        angarBossImages.push_back(
+            menu::loadOriginalImage(
+                *resources, planet.bossPhotoPath));
+        angarBossTextures.push_back(
+            createImageTexture(*device, angarBossImages.back()));
+    }
     std::vector<menu::Image> garageCarImages;
     std::vector<Texture> garageCarTextures;
     garageCarImages.reserve(originalGarage->cars.size());
@@ -1267,6 +1315,7 @@ int main(int argc, char** argv)
     MenuPageVisual workshopInfoPage;
     MenuPageVisual workshopConfirmationPage;
     MenuPageVisual planetsPage;
+    MenuPageVisual angarInfoPage;
     MenuPageVisual achievementsPage;
     MenuPageVisual gameOptionsPage;
     MenuPageVisual graphicsOptionsPage;
@@ -1631,6 +1680,10 @@ int main(int argc, char** argv)
             menu::normalTextColor, menu::selectedTextColor);
         planetsPage = createPage(
             {"Planets", localized("svBack")});
+        angarInfoPage = createStyledPage(
+            {" ", " ", " "}, menu::smallFontHeight,
+            menu::Rgba8{118, 206, 242, 255},
+            menu::selectedTextColor);
         achievementsPage = createPage(
             {localized("svRewards"), localized("svBack")});
         gameOptionsPage = createStyledPage(
@@ -1717,6 +1770,17 @@ int main(int argc, char** argv)
     const TextVisual exitRaceNoSelected = createText(
         *device, localized("svNo"), menu::smallFontHeight,
         false, menu::selectedTextColor, resolvedFont);
+    TextVisual angarTravelMessage = createText(
+        *device, localized("svYouReadyStayPlanet"),
+        menu::smallFontHeight, false, menu::normalTextColor,
+        resolvedFont);
+    const TextVisual angarWarningMessage = createText(
+        *device, localized("svHintCantFlyPlanet"),
+        menu::smallFontHeight, false, menu::normalTextColor,
+        resolvedFont);
+    const TextVisual angarOk = createText(
+        *device, localized("svOk"), menu::smallFontHeight,
+        false, menu::selectedTextColor, resolvedFont);
 #endif
 
     auto pageValid = [](const MenuPageVisual& page) {
@@ -1759,6 +1823,7 @@ int main(int argc, char** argv)
         pageValid(workshopPage) &&
         pageValid(workshopInfoPage) &&
         pageValid(planetsPage) &&
+        pageValid(angarInfoPage) &&
         pageValid(achievementsPage) &&
         pageValid(gameOptionsPage) &&
         pageValid(graphicsOptionsPage) &&
@@ -1810,6 +1875,15 @@ int main(int argc, char** argv)
         valid(workshopChargeButton) &&
         valid(workshopChargeButtonSelected) &&
         valid(workshopStatBarPlus) && valid(workshopInfoFrame) &&
+        valid(angarBottomPanel) && valid(angarPlanetInfo) &&
+        valid(angarClose) && valid(angarCloseSelected) &&
+        valid(angarDoorSlot) && valid(angarDoorSlotSelected) &&
+        valid(angarDoorDown) && valid(angarDoorUp) &&
+        angarBossTextures.size() ==
+            originalGarage->planets.size() &&
+        std::all_of(
+            angarBossTextures.begin(), angarBossTextures.end(),
+            [](Texture texture) { return valid(texture); }) &&
         std::all_of(
             workshopUpgradeTextures.begin(),
             workshopUpgradeTextures.end(),
@@ -1828,7 +1902,10 @@ int main(int argc, char** argv)
             [](Texture texture) { return valid(texture); }) &&
         valid(exitRaceMessage.texture) && valid(exitRaceYes.texture) &&
         valid(exitRaceYesSelected.texture) && valid(exitRaceNo.texture) &&
-        valid(exitRaceNoSelected.texture);
+        valid(exitRaceNoSelected.texture) &&
+        valid(angarTravelMessage.texture) &&
+        valid(angarWarningMessage.texture) &&
+        valid(angarOk.texture);
 #else
     const bool optionsResourcesValid = true;
 #endif
@@ -1840,6 +1917,9 @@ int main(int argc, char** argv)
         device->destroy(exitRaceYesSelected.texture);
         device->destroy(exitRaceYes.texture);
         device->destroy(exitRaceMessage.texture);
+        device->destroy(angarTravelMessage.texture);
+        device->destroy(angarWarningMessage.texture);
+        device->destroy(angarOk.texture);
         device->destroy(finishSummary.texture);
 #endif
         device->destroy(credits.texture);
@@ -1849,6 +1929,7 @@ int main(int argc, char** argv)
         destroyPage(garageStatsPage);
         destroyPage(garageInfoPage);
         destroyPage(achievementsPage);
+        destroyPage(angarInfoPage);
         destroyPage(planetsPage);
         destroyPage(workshopConfirmationPage);
         destroyPage(workshopInfoPage);
@@ -1882,6 +1963,16 @@ int main(int argc, char** argv)
             device->destroy(texture);
         for (const auto texture : workshopUpgradeTextures)
             device->destroy(texture);
+        for (const auto texture : angarBossTextures)
+            device->destroy(texture);
+        device->destroy(angarDoorUp);
+        device->destroy(angarDoorDown);
+        device->destroy(angarDoorSlotSelected);
+        device->destroy(angarDoorSlot);
+        device->destroy(angarCloseSelected);
+        device->destroy(angarClose);
+        device->destroy(angarPlanetInfo);
+        device->destroy(angarBottomPanel);
         device->destroy(workshopStatBarPlus);
         device->destroy(workshopInfoFrame);
         device->destroy(workshopChargeButtonSelected);
@@ -1999,6 +2090,7 @@ int main(int argc, char** argv)
     raceSession.setSpringBorders(profileState.config.springBorders);
     rrr3d::race::OriginalRaceRenderer raceRenderer;
     rrr3d::race::OriginalRaceRenderer garageRenderer;
+    rrr3d::race::OriginalRaceRenderer angarRenderer;
     rrr3d::race::OriginalWorkshopRenderer workshopRenderer;
     rrr3d::race::OriginalRaceHud raceHud;
     if (!physicsWorld ||
@@ -2010,8 +2102,13 @@ int main(int argc, char** argv)
             *device, *resources, *originalGarageScene,
             static_cast<std::uint32_t>(pixelWidth),
             static_cast<std::uint32_t>(pixelHeight), physicsError) ||
+        !angarRenderer.initialize(
+            *device, *resources, *originalAngarScene,
+            static_cast<std::uint32_t>(pixelWidth),
+            static_cast<std::uint32_t>(pixelHeight), physicsError) ||
         !workshopRenderer.initialize(
-            *device, *resources, *originalGarage, physicsError) ||
+            *device, *resources, *originalGarage, *originalRace,
+            physicsError) ||
         !raceHud.initialize(*device, *resources, *originalRace,
                             activeLanguage,
                             profileState.player.difficulty,
@@ -2021,6 +2118,7 @@ int main(int argc, char** argv)
         std::cerr << "Original race initialization failed: " << physicsError
                   << '\n';
         workshopRenderer.shutdown(*device);
+        angarRenderer.shutdown(*device);
         garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
         raceHud.shutdown(*device);
@@ -2054,6 +2152,7 @@ int main(int argc, char** argv)
             std::cerr << "M9.3 renderer target resize round-trip failed: "
                       << resizeError << '\n';
             workshopRenderer.shutdown(*device);
+            angarRenderer.shutdown(*device);
             garageRenderer.shutdown(*device);
             raceRenderer.shutdown(*device);
             raceHud.shutdown(*device);
@@ -2087,6 +2186,10 @@ int main(int argc, char** argv)
         garageMines;
     const std::vector<r3d::game::originalrace::ProjectileRuntime>
         garageProjectiles;
+    const std::vector<r3d::physics::VehicleState> angarVehicles;
+    const std::vector<
+        r3d::game::originalrace::RacerRuntime> angarRacerRuntime;
+    std::vector<bool> angarDecorationActive{true, true};
     float garageSceneSeconds = 0.0F;
     std::cout << "Milestone 9 race: " << originalRace->levelPath << ", "
               << originalRace->lapCount << " laps, "
@@ -2436,6 +2539,7 @@ int main(int argc, char** argv)
         audio.shutdown();
         raceHud.shutdown(*device);
         workshopRenderer.shutdown(*device);
+        angarRenderer.shutdown(*device);
         garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
         releaseResources();
@@ -2759,6 +2863,8 @@ int main(int argc, char** argv)
     bool raceGarage3DObserved = !options->raceRenderSmokeTest;
     bool raceWorkshopFrameObserved = !options->raceRenderSmokeTest;
     bool raceWorkshop3DObserved = !options->raceRenderSmokeTest;
+    bool raceAngarFrameObserved = !options->raceRenderSmokeTest;
+    bool raceAngar3DObserved = !options->raceRenderSmokeTest;
     bool racePauseDialogObserved = !options->raceRenderSmokeTest;
     bool racePauseResumeObserved = !options->raceRenderSmokeTest;
     bool racePauseFrozenObserved = !options->raceRenderSmokeTest;
@@ -2784,6 +2890,15 @@ int main(int argc, char** argv)
     std::uint32_t raceSmokeMenuStep = 0;
     std::uint32_t raceSmokeNextMenuFrame = 0;
     bool raceSmokeAccelerateQueued = false;
+    bool racePlanetChampion = false;
+    int angarPlanetIndex = -1;
+    int angarPreviousPlanetIndex = -1;
+    float angarDoorTime = -1.0F;
+    float angarSceneSeconds = 0.0F;
+    bool angarTravelDialogVisible = false;
+    bool angarWarningVisible = false;
+    bool angarTravelYesFocused = true;
+    std::size_t angarTravelTarget = 0U;
     auto saveRaceProfile = [&]() {
         if (!raceSession.racers().empty())
         {
@@ -2798,6 +2913,7 @@ int main(int argc, char** argv)
                         completeOriginalTournamentTrack(
                             *originalRace, selectedTrack, profileState);
                 selectedTrack = advance.trackIndex;
+                racePlanetChampion = advance.planetChampion;
                 raceProgressSaved = true;
                 std::cout
                     << "Original Tournament::CompleteTrack: track "
@@ -3732,23 +3848,149 @@ int main(int argc, char** argv)
             originalGarage->planets.size(),
             profileState.player.planets.size());
         output.reserve(count + 1U);
+        const std::size_t nextPlanet =
+            std::min<std::size_t>(
+                profileState.player.currentPlanet + 1U,
+                count);
         for (std::size_t index = 0; index < count; ++index)
         {
             const auto& progress =
                 profileState.player.planets[index];
-            std::string state =
-                progress.state == 2U
-                    ? localized("svLockedCarName")
-                    : index == profileState.player.currentPlanet
-                          ? "Selected"
-                          : "Pass " +
-                                std::to_string(progress.pass);
-            output.push_back(
-                localized(originalGarage->planets[index].name) +
-                "  [" + state + "]");
+            std::string state;
+            if (progress.state == 0U ||
+                (racePlanetChampion && index == nextPlanet))
+            {
+                state = localized("svOpen");
+            }
+            else if (progress.state == 1U)
+            {
+                const auto& points =
+                    originalGarage->planets[index].requestPoints;
+                const auto pass =
+                    std::max<std::uint32_t>(progress.pass, 1U);
+                const auto required =
+                    pass <= points.size() ? points[pass - 1U] : 0U;
+                state = localized("svRequestPoints");
+                const auto marker = state.find("%d");
+                if (marker != std::string::npos)
+                {
+                    state.replace(
+                        marker, 2U, std::to_string(required));
+                }
+            }
+            else if (progress.state == 2U)
+            {
+                state =
+                    championshipMode && index == nextPlanet
+                        ? localized("svUnavailableTitulA")
+                        : localized("svClosed");
+            }
+            else
+            {
+                state = localized("svCompleted");
+            }
+            output.push_back(std::move(state));
         }
         output.push_back(localized("svBack"));
-        replacePage(planetsPage, std::move(output));
+        auto replacement = createStyledPage(
+            std::move(output), menu::smallFontHeight,
+            menu::Rgba8{255, 255, 255, 255},
+            menu::selectedTextColor);
+        destroyPage(planetsPage);
+        planetsPage = std::move(replacement);
+        menuSelection = std::min(
+            menuSelection, planetsPage.labels.size() - 1U);
+
+        std::vector<std::string> info{" ", " ", " "};
+        if (angarPlanetIndex >= 0 &&
+            static_cast<std::size_t>(angarPlanetIndex) < count)
+        {
+            const auto& planet = originalGarage->planets[
+                static_cast<std::size_t>(angarPlanetIndex)];
+            info = {localized(planet.name),
+                    localized(planet.bossName)};
+            std::istringstream words(localized(planet.info));
+            std::string line;
+            std::string word;
+            while (words >> word)
+            {
+                if (!line.empty() &&
+                    line.size() + word.size() + 1U > 34U)
+                {
+                    info.push_back(std::move(line));
+                    line.clear();
+                }
+                if (!line.empty())
+                    line.push_back(' ');
+                line += word;
+            }
+            if (!line.empty())
+                info.push_back(std::move(line));
+            if (info.size() > 10U)
+                info.resize(10U);
+        }
+        auto infoReplacement = createStyledPage(
+            std::move(info), menu::smallFontHeight,
+            menu::Rgba8{118, 206, 242, 255},
+            menu::selectedTextColor);
+        destroyPage(angarInfoPage);
+        angarInfoPage = std::move(infoReplacement);
+    };
+    auto selectAngarPlanet = [&](int index) {
+        if (index == angarPlanetIndex)
+            return;
+        angarPreviousPlanetIndex = angarPlanetIndex;
+        angarPlanetIndex = index;
+        angarDoorTime = 0.0F;
+        refreshPlanetsPage();
+    };
+    auto persistAngarProfile = [&]() {
+        std::string profileError;
+        if (!profileStore.save(profileState, profileError))
+        {
+            std::cerr << "Unable to save AngarFrame planet: "
+                      << profileError << '\n';
+        }
+    };
+    auto changeAngarPlanet = [&](std::size_t index) {
+        const auto count = std::min(
+            originalGarage->planets.size(),
+            profileState.player.planets.size());
+        if (index >= count)
+            return;
+        auto& progress = profileState.player.planets[index];
+        if (progress.state == 1U || progress.state == 2U)
+        {
+            // Planet::Unlock followed by Tournament::ChangePlanet/Open.
+            progress.state = 0U;
+            progress.pass = 1U;
+        }
+        profileState.player.currentPlanet =
+            static_cast<std::uint32_t>(index);
+        profileState.player.currentPass =
+            std::max<std::uint32_t>(progress.pass, 1U);
+        profileState.player.currentTrack = 0U;
+        selectedTrack =
+            r3d::game::originalrace::resolveOriginalTournamentTrack(
+                *originalRace, profileState.player);
+        racePlanetChampion = false;
+        persistAngarProfile();
+        angarTravelDialogVisible = false;
+        backMenu();
+    };
+    auto requestAngarTravel = [&](std::size_t index) {
+        angarTravelTarget = index;
+        angarTravelYesFocused = true;
+        const auto key =
+            index == profileState.player.currentPlanet
+                ? "svYouReadyStayPlanet"
+                : "svYouReadyFlyPlanet";
+        auto replacement = createText(
+            *device, localized(key), menu::smallFontHeight,
+            false, menu::normalTextColor, resolvedFont);
+        device->destroy(angarTravelMessage.texture);
+        angarTravelMessage = replacement;
+        angarTravelDialogVisible = true;
     };
     auto refreshAchievementsPage = [&]() {
         achievementChoices.clear();
@@ -4303,15 +4545,18 @@ int main(int argc, char** argv)
         // GarageFrame -> Race.
         // Advance one real press/release pair per rendered menu frame.
         if (options->raceRenderSmokeTest && !inRace &&
-            raceSmokeMenuStep < 12U &&
+            raceSmokeMenuStep < 18U &&
             renderedFrames >= raceSmokeNextMenuFrame)
         {
-            constexpr std::array<SDL_Scancode, 12> smokeKeys{
+            constexpr std::array<SDL_Scancode, 18> smokeKeys{
                 SDL_SCANCODE_RETURN, SDL_SCANCODE_RETURN,
                 SDL_SCANCODE_RETURN, SDL_SCANCODE_RIGHT,
                 SDL_SCANCODE_RETURN, SDL_SCANCODE_ESCAPE,
                 SDL_SCANCODE_RIGHT, SDL_SCANCODE_RIGHT,
                 SDL_SCANCODE_RETURN, SDL_SCANCODE_RIGHT,
+                SDL_SCANCODE_ESCAPE, SDL_SCANCODE_RIGHT,
+                SDL_SCANCODE_RIGHT, SDL_SCANCODE_RIGHT,
+                SDL_SCANCODE_RETURN, SDL_SCANCODE_LEFT,
                 SDL_SCANCODE_ESCAPE,
                 SDL_SCANCODE_RETURN};
             SDL_Event press{};
@@ -4820,6 +5065,181 @@ int main(int argc, char** argv)
                 }
                 pointerTargetsItem =
                     hoveredWorkshopItem.has_value() ||
+                    pointerHandledOriginalOptions ||
+                    event.type == SDL_EVENT_MOUSE_MOTION ||
+                    event.button.button != SDL_BUTTON_LEFT;
+            }
+            else if (
+                !inRace &&
+                menuStack.back() == MenuScreen::Planets &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float pointerX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float pointerY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                std::optional<std::size_t> hoveredAngarItem;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        pointerX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        pointerY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    const auto planetCount = std::min(
+                        originalGarage->planets.size(),
+                        profileState.player.planets.size());
+                    if (angarWarningVisible)
+                    {
+                        const float okY =
+                            menu::virtualHeight * 0.5F +
+                            32.0F;
+                        if (std::abs(
+                                virtualX -
+                                menu::virtualWidth * 0.5F) <=
+                                55.0F &&
+                            std::abs(virtualY - okY) <= 30.0F)
+                        {
+                            hoveredAngarItem = 0U;
+                        }
+                    }
+                    else if (angarTravelDialogVisible)
+                    {
+                        const float choiceY =
+                            menu::virtualHeight * 0.5F +
+                            32.0F;
+                        if (std::abs(virtualY - choiceY) <= 30.0F &&
+                            (std::abs(
+                                 virtualX -
+                                 (menu::virtualWidth * 0.5F -
+                                  70.0F)) <= 55.0F ||
+                             std::abs(
+                                 virtualX -
+                                 (menu::virtualWidth * 0.5F +
+                                  70.0F)) <= 55.0F))
+                        {
+                            angarTravelYesFocused =
+                                virtualX <
+                                menu::virtualWidth * 0.5F;
+                            hoveredAngarItem = 0U;
+                        }
+                    }
+                    else
+                    {
+                        const float panelCenterX =
+                            menu::virtualWidth * 0.5F;
+                        const float panelCenterY =
+                            menu::virtualHeight -
+                            static_cast<float>(
+                                angarBottomPanelImage.height) *
+                                0.5F -
+                            20.0F;
+                        const float firstPlanetX =
+                            panelCenterX -
+                            static_cast<float>(
+                                angarBottomPanelImage.width) *
+                                0.5F +
+                            125.0F;
+                        const float planetY =
+                            panelCenterY -
+                            static_cast<float>(
+                                angarBottomPanelImage.height) *
+                                0.5F +
+                            90.0F;
+                        for (std::size_t index = 0U;
+                             index < planetCount; ++index)
+                        {
+                            const float centerX =
+                                firstPlanetX +
+                                static_cast<float>(index) *
+                                    224.0F;
+                            if (std::abs(virtualX - centerX) <=
+                                    90.0F &&
+                                std::abs(virtualY - planetY) <=
+                                    90.0F)
+                            {
+                                hoveredAngarItem = index;
+                                break;
+                            }
+                        }
+                        const float backX =
+                            static_cast<float>(
+                                garageBackImage.width) *
+                            0.5F;
+                        if (!hoveredAngarItem &&
+                            std::abs(virtualX - backX) <=
+                                static_cast<float>(
+                                    garageBackImage.width) *
+                                    0.5F &&
+                            std::abs(virtualY - 40.0F) <= 40.0F)
+                        {
+                            hoveredAngarItem = planetCount;
+                        }
+                        if (event.type ==
+                                SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                            event.button.button == SDL_BUTTON_LEFT &&
+                            angarPlanetIndex >= 0)
+                        {
+                            const auto selected =
+                                static_cast<std::size_t>(
+                                    angarPlanetIndex);
+                            const float selectedX =
+                                firstPlanetX +
+                                static_cast<float>(selected) *
+                                    224.0F;
+                            const float infoWidth =
+                                static_cast<float>(
+                                    angarPlanetInfoImage.width);
+                            const float infoX = std::clamp(
+                                selectedX, infoWidth * 0.5F,
+                                menu::virtualWidth -
+                                    infoWidth * 0.5F);
+                            const float infoY =
+                                panelCenterY - 260.0F;
+                            const float closeX =
+                                infoX + 180.0F;
+                            const float closeY =
+                                infoY -
+                                static_cast<float>(
+                                    angarPlanetInfoImage.height) *
+                                    0.5F +
+                                15.0F;
+                            if (std::abs(virtualX - closeX) <=
+                                    16.0F &&
+                                std::abs(virtualY - closeY) <=
+                                    16.0F)
+                            {
+                                menuSelection = planetCount;
+                                selectAngarPlanet(-1);
+                                pointerHandledOriginalOptions = true;
+                            }
+                        }
+                    }
+                }
+                if (hoveredAngarItem &&
+                    !angarTravelDialogVisible &&
+                    !angarWarningVisible &&
+                    !pointerHandledOriginalOptions)
+                {
+                    menuSelection = *hoveredAngarItem;
+                    selectAngarPlanet(
+                        menuSelection <
+                                originalGarage->planets.size()
+                            ? static_cast<int>(menuSelection)
+                            : -1);
+                }
+                pointerTargetsItem =
+                    hoveredAngarItem.has_value() ||
                     pointerHandledOriginalOptions ||
                     event.type == SDL_EVENT_MOUSE_MOTION ||
                     event.button.button != SDL_BUTTON_LEFT;
@@ -5602,6 +6022,171 @@ int main(int argc, char** argv)
                     }
                     continue;
                 }
+                if (menuStack.back() == MenuScreen::Planets)
+                {
+                    const auto planetCount = std::min(
+                        originalGarage->planets.size(),
+                        profileState.player.planets.size());
+                    if (angarWarningVisible)
+                    {
+                        if (!inputEvent.repeated &&
+                            (inputEvent.action ==
+                                 rrr3d::input::Action::MenuConfirm ||
+                             inputEvent.action ==
+                                 rrr3d::input::Action::MenuBack ||
+                             inputEvent.action ==
+                                 rrr3d::input::Action::Pause))
+                        {
+                            angarWarningVisible = false;
+                        }
+                        continue;
+                    }
+                    if (angarTravelDialogVisible)
+                    {
+                        if (inputEvent.action ==
+                                rrr3d::input::Action::TurnLeft ||
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuUp)
+                        {
+                            angarTravelYesFocused = true;
+                        }
+                        else if (
+                            inputEvent.action ==
+                                rrr3d::input::Action::TurnRight ||
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuDown)
+                        {
+                            angarTravelYesFocused = false;
+                        }
+                        else if (
+                            !inputEvent.repeated &&
+                            (inputEvent.action ==
+                                 rrr3d::input::Action::MenuBack ||
+                             inputEvent.action ==
+                                 rrr3d::input::Action::Pause))
+                        {
+                            angarTravelDialogVisible = false;
+                        }
+                        else if (
+                            !inputEvent.repeated &&
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuConfirm)
+                        {
+                            if (angarTravelYesFocused)
+                                changeAngarPlanet(angarTravelTarget);
+                            else
+                                angarTravelDialogVisible = false;
+                        }
+                        continue;
+                    }
+                    if (inputEvent.action ==
+                            rrr3d::input::Action::TurnLeft ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::TurnRight)
+                    {
+                        if (!inputEvent.repeated && planetCount > 0U)
+                        {
+                            if (menuSelection >= planetCount)
+                            {
+                                menuSelection = 0U;
+                            }
+                            else if (
+                                inputEvent.action ==
+                                rrr3d::input::Action::TurnLeft)
+                            {
+                                menuSelection =
+                                    menuSelection == 0U
+                                        ? planetCount - 1U
+                                        : menuSelection - 1U;
+                            }
+                            else
+                            {
+                                menuSelection =
+                                    (menuSelection + 1U) %
+                                    planetCount;
+                            }
+                            selectAngarPlanet(
+                                static_cast<int>(menuSelection));
+                        }
+                        continue;
+                    }
+                    if (inputEvent.action ==
+                            rrr3d::input::Action::MenuUp ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::MenuDown)
+                    {
+                        menuSelection =
+                            menuSelection < planetCount
+                                ? planetCount
+                                : 0U;
+                        selectAngarPlanet(
+                            menuSelection < planetCount
+                                ? static_cast<int>(menuSelection)
+                                : -1);
+                        continue;
+                    }
+                    if (inputEvent.repeated)
+                        continue;
+                    const bool backRequested =
+                        inputEvent.action ==
+                            rrr3d::input::Action::MenuBack ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::Pause ||
+                        (inputEvent.action ==
+                             rrr3d::input::Action::MenuConfirm &&
+                         menuSelection >= planetCount);
+                    if (backRequested)
+                    {
+                        if (racePlanetChampion)
+                        {
+                            requestAngarTravel(
+                                std::min<std::size_t>(
+                                    profileState.player.currentPlanet,
+                                    planetCount - 1U));
+                        }
+                        else
+                        {
+                            backMenu();
+                        }
+                        continue;
+                    }
+                    if (inputEvent.action !=
+                            rrr3d::input::Action::MenuConfirm ||
+                        menuSelection >= planetCount)
+                    {
+                        continue;
+                    }
+                    const auto index = menuSelection;
+                    const bool current =
+                        index == profileState.player.currentPlanet;
+                    const bool next =
+                        racePlanetChampion &&
+                        index ==
+                            profileState.player.currentPlanet + 1U;
+                    if (racePlanetChampion && (current || next))
+                    {
+                        requestAngarTravel(index);
+                    }
+                    else if (
+                        !championshipMode &&
+                        profileState.player.planets[index].state == 0U)
+                    {
+                        changeAngarPlanet(index);
+                    }
+                    else if (current)
+                    {
+                        backMenu();
+                    }
+                    else
+                    {
+                        angarWarningVisible = true;
+                        std::cout
+                            << "Original AngarFrame warning: "
+                            << localized("svHintCantFlyPlanet")
+                            << '\n';
+                    }
+                    continue;
+                }
 #endif
                 auto& page = activeMenuPage();
                 if (inputEvent.action ==
@@ -5929,8 +6514,30 @@ int main(int argc, char** argv)
                     }
                     else if (menuSelection == 3U)
                     {
-                        refreshPlanetsPage();
                         pushMenu(MenuScreen::Planets);
+                        const auto planetCount = std::min(
+                            originalGarage->planets.size(),
+                            profileState.player.planets.size());
+                        if (racePlanetChampion &&
+                            profileState.player.currentPlanet + 1U <
+                                planetCount)
+                        {
+                            angarPlanetIndex = static_cast<int>(
+                                profileState.player.currentPlanet + 1U);
+                            menuSelection =
+                                static_cast<std::size_t>(
+                                    angarPlanetIndex);
+                        }
+                        else
+                        {
+                            angarPlanetIndex = -1;
+                            menuSelection = planetCount;
+                        }
+                        angarPreviousPlanetIndex = -1;
+                        angarDoorTime = -1.0F;
+                        angarTravelDialogVisible = false;
+                        angarWarningVisible = false;
+                        refreshPlanetsPage();
                     }
                     else if (menuSelection == 4U)
                     {
@@ -5986,33 +6593,6 @@ int main(int argc, char** argv)
                 case MenuScreen::Workshop:
                     break;
                 case MenuScreen::Planets:
-                    if (menuSelection <
-                        std::min(
-                            originalGarage->planets.size(),
-                            profileState.player.planets.size()))
-                    {
-                        const auto& progress =
-                            profileState.player
-                                .planets[menuSelection];
-                        if (progress.state != 2U)
-                        {
-                            profileState.player.currentPlanet =
-                                static_cast<std::uint32_t>(
-                                    menuSelection);
-                            profileState.player.currentTrack = 0U;
-                            selectedTrack =
-                                r3d::game::originalrace::
-                                    resolveOriginalTournamentTrack(
-                                        *originalRace,
-                                        profileState.player);
-                            saveRaceProfile();
-                            refreshPlanetsPage();
-                        }
-                    }
-                    else
-                    {
-                        backMenu();
-                    }
                     break;
                 case MenuScreen::Achievements:
                     if (menuSelection <
@@ -6141,6 +6721,11 @@ int main(int argc, char** argv)
                         static_cast<std::uint32_t>(pixelHeight),
                         resizeError) ||
                     !garageRenderer.resize(
+                        *device,
+                        static_cast<std::uint32_t>(pixelWidth),
+                        static_cast<std::uint32_t>(pixelHeight),
+                        resizeError) ||
+                    !angarRenderer.resize(
                         *device,
                         static_cast<std::uint32_t>(pixelWidth),
                         static_cast<std::uint32_t>(pixelHeight),
@@ -6922,6 +7507,8 @@ int main(int argc, char** argv)
             menuStack.back() == MenuScreen::Garage;
         const bool drawingOriginalWorkshop =
             menuStack.back() == MenuScreen::Workshop;
+        const bool drawingOriginalAngar =
+            menuStack.back() == MenuScreen::Planets;
         const r3d::game::originalrace::OriginalGarageCar*
             presentationCar = nullptr;
         bool presentationCarLocked = false;
@@ -6938,7 +7525,81 @@ int main(int argc, char** argv)
             presentationCar = originalGarage->findCar(
                 profileState.player.currentCar);
         }
-        if (presentationCar != nullptr)
+        if (drawingOriginalAngar)
+        {
+            angarSceneSeconds += frameSeconds;
+            const float redTime =
+                std::fmod(angarSceneSeconds, 3.0F);
+            const float redIntensity = 0.7F * (
+                std::clamp(
+                    (redTime - 1.5F) / 0.15F, 0.0F, 1.0F) -
+                std::clamp(
+                    (redTime - 2.85F) / 0.15F, 0.0F, 1.0F));
+            auto& redLamp = originalAngarScene->environment.lamps[1];
+            redLamp.enabled = redTime >= 1.5F;
+            redLamp.color = {
+                redIntensity, 0.0F, 0.0F, redIntensity};
+            auto angarSourceCamera =
+                originalAngarScene->presentationCamera;
+            if (angarSceneSeconds >= 3.0F)
+            {
+                // CameraManager::csAutoObserver waits three seconds, then
+                // left-multiplies the source camera by dRotZ at pi/96 rad/s
+                // and recomputes position from the exact 50-unit target.
+                const float angle =
+                    (angarSceneSeconds - 3.0F) *
+                    bx::kPi / 96.0F;
+                const float sine = std::sin(angle);
+                const float cosine = std::cos(angle);
+                const auto base =
+                    originalAngarScene->presentationCamera;
+                angarSourceCamera.position = {
+                    cosine * base.position.x -
+                        sine * base.position.y,
+                    sine * base.position.x +
+                        cosine * base.position.y,
+                    base.position.z};
+                const float halfSine =
+                    std::sin(angle * 0.5F);
+                const float halfCosine =
+                    std::cos(angle * 0.5F);
+                angarSourceCamera.rotation = {
+                    halfCosine * base.rotation.x -
+                        halfSine * base.rotation.y,
+                    halfCosine * base.rotation.y +
+                        halfSine * base.rotation.x,
+                    halfCosine * base.rotation.z +
+                        halfSine * base.rotation.w,
+                    halfCosine * base.rotation.w -
+                        halfSine * base.rotation.z};
+            }
+            const auto angarCamera =
+                angarRenderer.makePresentationCamera(
+                    *device, angarSourceCamera,
+                    static_cast<std::uint32_t>(pixelWidth),
+                    static_cast<std::uint32_t>(pixelHeight));
+            angarRenderer.renderFrame(
+                *device, raceShader, angarCamera, 0x040818ffU,
+                *originalAngarScene, angarVehicles, racePipeline,
+                angarDecorationActive, garageDecorationFragments,
+                garageVehicleDeathFragments, garageBonusActive,
+                angarRacerRuntime, garageEffects, garageMines,
+                garageProjectiles, angarSceneSeconds,
+                profileState.config.quality);
+            const auto& telemetry = device->renderTelemetry();
+            const auto scenePass = static_cast<std::size_t>(
+                r3d::renderer::RenderPass::Scene);
+            raceAngar3DObserved =
+                raceAngar3DObserved ||
+                telemetry.drawCount[scenePass] > 0U;
+            // AngarFrame contains nested ViewPort3d widgets. The source
+            // GUI renders them against a fresh viewport depth buffer; keep
+            // the completed HDR scene color but clear its world depth.
+            device->beginPass(
+                r3d::renderer::RenderPass::Overlay, {}, camera,
+                0U, false, true);
+        }
+        else if (presentationCar != nullptr)
         {
             garageSceneSeconds += frameSeconds;
             const auto& selectedCar = *presentationCar;
@@ -8880,6 +9541,366 @@ int main(int argc, char** argv)
                     false, centerX + 70.0F);
             }
         }
+        else if (drawingOriginalAngar)
+        {
+            raceAngarFrameObserved = true;
+            const auto planetCount = std::min(
+                originalGarage->planets.size(),
+                profileState.player.planets.size());
+            const float panelCenterX = menu::virtualWidth * 0.5F;
+            const float panelCenterY =
+                menu::virtualHeight -
+                static_cast<float>(angarBottomPanelImage.height) *
+                    0.5F -
+                20.0F;
+            drawQuad(
+                *device, quad, shader, angarBottomPanel,
+                static_cast<float>(angarBottomPanelImage.width),
+                static_cast<float>(angarBottomPanelImage.height),
+                panelCenterX, panelCenterY, 60.0F, transparent);
+
+            float doorAlpha = 1.0F;
+            if (angarDoorTime >= 0.0F)
+            {
+                doorAlpha = std::clamp(
+                    angarDoorTime / 0.25F, 0.0F, 1.0F);
+                angarDoorTime += frameSeconds;
+                if (doorAlpha >= 1.0F)
+                    angarDoorTime = -1.0F;
+            }
+            constexpr float planetSpacing = 224.0F;
+            const float firstPlanetX =
+                panelCenterX -
+                static_cast<float>(
+                    angarBottomPanelImage.width) *
+                    0.5F +
+                35.0F + 90.0F;
+            const float planetY =
+                panelCenterY -
+                static_cast<float>(
+                    angarBottomPanelImage.height) *
+                    0.5F +
+                90.0F;
+            const float slotY = panelCenterY + 67.0F;
+            for (std::size_t index = 0U;
+                 index < planetCount; ++index)
+            {
+                const float x =
+                    firstPlanetX +
+                    static_cast<float>(index) * planetSpacing;
+                const bool selected =
+                    static_cast<int>(index) == angarPlanetIndex;
+                const bool previous =
+                    static_cast<int>(index) ==
+                    angarPreviousPlanetIndex;
+                const float animation =
+                    selected
+                        ? angarSceneSeconds * bx::kPi / 24.0F
+                        : 0.0F;
+                workshopRenderer.drawPlanet(
+                    *device, raceShader,
+                    originalGarage->planets[index],
+                    x, planetY, 180.0F, 180.0F,
+                    animation, racePipeline);
+
+                const bool focused =
+                    menuSelection == index && selected;
+                drawQuad(
+                    *device, quad, shader,
+                    focused ? angarDoorSlotSelected
+                            : angarDoorSlot,
+                    static_cast<float>(
+                        focused
+                            ? angarDoorSlotSelectedImage.width
+                            : angarDoorSlotImage.width),
+                    static_cast<float>(
+                        focused
+                            ? angarDoorSlotSelectedImage.height
+                            : angarDoorSlotImage.height),
+                    x, slotY, 35.0F, transparent);
+
+                float alpha = selected ? 1.0F : 0.0F;
+                if (angarDoorTime >= 0.0F ||
+                    doorAlpha < 1.0F)
+                {
+                    if (selected)
+                        alpha = doorAlpha;
+                    else if (previous)
+                        alpha = 1.0F - doorAlpha;
+                }
+                const float offset = 16.0F * alpha;
+                drawQuad(
+                    *device, quad, shader, angarDoorDown,
+                    static_cast<float>(angarDoorDownImage.width),
+                    static_cast<float>(angarDoorDownImage.height),
+                    x - 1.0F,
+                    slotY -
+                        static_cast<float>(
+                            angarDoorSlotImage.height) *
+                            0.5F +
+                        static_cast<float>(
+                            angarDoorDownImage.height) *
+                            0.5F -
+                        4.0F + offset,
+                    24.0F, transparent);
+                drawQuad(
+                    *device, quad, shader, angarDoorUp,
+                    static_cast<float>(angarDoorUpImage.width),
+                    static_cast<float>(angarDoorUpImage.height),
+                    x - 1.0F,
+                    slotY +
+                        static_cast<float>(
+                            angarDoorSlotImage.height) *
+                            0.5F -
+                        static_cast<float>(
+                            angarDoorUpImage.height) *
+                            0.5F +
+                        4.0F - offset,
+                    24.0F, transparent);
+                if (index < planetsPage.normal.size())
+                {
+                    const auto& status =
+                        focused
+                            ? planetsPage.selected[index]
+                            : planetsPage.normal[index];
+                    const float scale = std::min(
+                        1.0F,
+                        150.0F /
+                            std::max(status.width, 1.0F));
+                    drawQuad(
+                        *device, quad, shader,
+                        status.texture,
+                        status.width * scale,
+                        status.height * scale,
+                        x, slotY, 15.0F, transparent);
+                }
+            }
+
+            const std::size_t backIndex = planetCount;
+            const bool backFocused =
+                menuSelection == backIndex;
+            const float backX =
+                static_cast<float>(garageBackImage.width) * 0.5F;
+            const float backY = 40.0F;
+            drawQuad(
+                *device, quad, shader,
+                backFocused ? garageBackSelected : garageBack,
+                static_cast<float>(
+                    backFocused
+                        ? garageBackSelectedImage.width
+                        : garageBackImage.width),
+                static_cast<float>(
+                    backFocused
+                        ? garageBackSelectedImage.height
+                        : garageBackImage.height),
+                backX, backY, 35.0F, transparent);
+            if (backIndex < planetsPage.normal.size())
+            {
+                const auto& backText =
+                    backFocused
+                        ? planetsPage.selected[backIndex]
+                        : planetsPage.normal[backIndex];
+                drawQuad(
+                    *device, quad, shader, backText.texture,
+                    backText.width, backText.height,
+                    backX, backY, 15.0F, transparent);
+            }
+
+            if (angarPlanetIndex >= 0 &&
+                static_cast<std::size_t>(angarPlanetIndex) <
+                    planetCount)
+            {
+                const auto index =
+                    static_cast<std::size_t>(angarPlanetIndex);
+                const float planetX =
+                    firstPlanetX +
+                    static_cast<float>(index) * planetSpacing;
+                const float infoWidth =
+                    static_cast<float>(angarPlanetInfoImage.width);
+                const float infoHeight =
+                    static_cast<float>(angarPlanetInfoImage.height);
+                const float infoX = std::clamp(
+                    planetX, infoWidth * 0.5F,
+                    menu::virtualWidth - infoWidth * 0.5F);
+                const float infoY = panelCenterY - 260.0F;
+                const float infoLeft = infoX - infoWidth * 0.5F;
+                const float infoTop = infoY - infoHeight * 0.5F;
+                drawQuad(
+                    *device, quad, shader, angarPlanetInfo,
+                    infoWidth, infoHeight, infoX, infoY,
+                    13.0F, transparent);
+                drawQuad(
+                    *device, quad, shader, angarClose,
+                    static_cast<float>(angarCloseImage.width),
+                    static_cast<float>(angarCloseImage.height),
+                    infoX + 180.0F, infoTop + 15.0F,
+                    10.0F, transparent);
+
+                const auto& photoImage = angarBossImages[index];
+                const float photoScale = std::min(
+                    110.0F /
+                        std::max<float>(
+                            static_cast<float>(photoImage.width),
+                            1.0F),
+                    85.0F /
+                        std::max<float>(
+                            static_cast<float>(photoImage.height),
+                            1.0F));
+                drawQuad(
+                    *device, quad, shader,
+                    angarBossTextures[index],
+                    static_cast<float>(photoImage.width) *
+                        photoScale,
+                    static_cast<float>(photoImage.height) *
+                        photoScale,
+                    infoX + 107.0F, infoTop + 89.0F,
+                    9.0F, transparent);
+                workshopRenderer.drawCar(
+                    *device, raceShader,
+                    originalGarage->planets[index]
+                        .bossCarRecord,
+                    infoX + 107.0F, infoTop + 202.0F,
+                    110.0F, 110.0F,
+                    angarSceneSeconds * bx::kPi * 0.5F,
+                    racePipeline);
+
+                if (!angarInfoPage.normal.empty())
+                {
+                    const auto& name =
+                        angarInfoPage.normal[0];
+                    drawQuad(
+                        *device, quad, shader,
+                        name.texture, name.width,
+                        name.height, infoX,
+                        infoTop + 11.0F, 7.0F,
+                        transparent);
+                }
+                if (angarInfoPage.normal.size() > 1U)
+                {
+                    const auto& boss =
+                        angarInfoPage.normal[1];
+                    drawQuad(
+                        *device, quad, shader,
+                        boss.texture, boss.width,
+                        boss.height, infoX - 60.0F,
+                        infoTop + 42.0F, 7.0F,
+                        transparent);
+                }
+                for (std::size_t line = 2U;
+                     line < angarInfoPage.normal.size();
+                     ++line)
+                {
+                    const auto& text =
+                        angarInfoPage.normal[line];
+                    drawQuad(
+                        *device, quad, shader,
+                        text.texture, text.width,
+                        text.height,
+                        infoLeft + 15.0F +
+                            text.width * 0.5F,
+                        infoTop + 64.0F +
+                            static_cast<float>(line - 2U) *
+                                18.0F,
+                        7.0F, transparent);
+                }
+            }
+
+            if (angarWarningVisible)
+            {
+                const float centerX =
+                    menu::virtualWidth * 0.5F;
+                const float centerY =
+                    menu::virtualHeight * 0.5F;
+                drawQuad(
+                    *device, quad, shader, acceptFrame,
+                    static_cast<float>(acceptFrameImage.width),
+                    static_cast<float>(acceptFrameImage.height),
+                    centerX, centerY, 6.0F, transparent);
+                const float messageScale = std::min(
+                    1.0F,
+                    300.0F /
+                        std::max(angarWarningMessage.width, 1.0F));
+                drawQuad(
+                    *device, quad, shader,
+                    angarWarningMessage.texture,
+                    angarWarningMessage.width * messageScale,
+                    angarWarningMessage.height * messageScale,
+                    centerX, centerY - 35.0F,
+                    4.0F, transparent);
+                drawQuad(
+                    *device, quad, shader,
+                    acceptButtonSelected,
+                    static_cast<float>(
+                        acceptButtonSelectedImage.width),
+                    static_cast<float>(
+                        acceptButtonSelectedImage.height),
+                    centerX, centerY + 32.0F,
+                    3.0F, transparent);
+                drawQuad(
+                    *device, quad, shader, angarOk.texture,
+                    angarOk.width, angarOk.height,
+                    centerX, centerY + 32.0F,
+                    2.0F, transparent);
+            }
+            else if (angarTravelDialogVisible)
+            {
+                const float centerX =
+                    menu::virtualWidth * 0.5F;
+                const float centerY =
+                    menu::virtualHeight * 0.5F;
+                drawQuad(
+                    *device, quad, shader, acceptFrame,
+                    static_cast<float>(acceptFrameImage.width),
+                    static_cast<float>(acceptFrameImage.height),
+                    centerX, centerY, 6.0F, transparent);
+                const float messageScale = std::min(
+                    1.0F,
+                    300.0F /
+                        std::max(angarTravelMessage.width, 1.0F));
+                drawQuad(
+                    *device, quad, shader,
+                    angarTravelMessage.texture,
+                    angarTravelMessage.width * messageScale,
+                    angarTravelMessage.height * messageScale,
+                    centerX, centerY - 35.0F,
+                    4.0F, transparent);
+                auto drawAngarChoice =
+                    [&](bool yes, float x) {
+                        const bool selected =
+                            angarTravelYesFocused == yes;
+                        drawQuad(
+                            *device, quad, shader,
+                            selected ? acceptButtonSelected
+                                     : acceptButton,
+                            static_cast<float>(
+                                selected
+                                    ? acceptButtonSelectedImage.width
+                                    : acceptButtonImage.width),
+                            static_cast<float>(
+                                selected
+                                    ? acceptButtonSelectedImage.height
+                                    : acceptButtonImage.height),
+                            x, centerY + 32.0F, 3.0F,
+                            transparent);
+                        const auto& label =
+                            yes
+                                ? (selected
+                                       ? exitRaceYesSelected
+                                       : exitRaceYes)
+                                : (selected
+                                       ? exitRaceNoSelected
+                                       : exitRaceNo);
+                        drawQuad(
+                            *device, quad, shader,
+                            label.texture, label.width,
+                            label.height, x,
+                            centerY + 32.0F, 2.0F,
+                            transparent);
+                    };
+                drawAngarChoice(true, centerX - 70.0F);
+                drawAngarChoice(false, centerX + 70.0F);
+            }
+        }
         else
 #endif
         {
@@ -8947,7 +9968,8 @@ int main(int argc, char** argv)
 
 #ifdef RRR3D_PHYSICS
         if (!drawingOriginalOptions && !drawingOriginalRaceMenu &&
-            !drawingOriginalGarage && !drawingOriginalWorkshop)
+            !drawingOriginalGarage && !drawingOriginalWorkshop &&
+            !drawingOriginalAngar)
 #endif
         {
             const float versionX =
@@ -9071,6 +10093,8 @@ int main(int argc, char** argv)
                     !raceGarage3DObserved ||
                     !raceWorkshopFrameObserved ||
                     !raceWorkshop3DObserved ||
+                    !raceAngarFrameObserved ||
+                    !raceAngar3DObserved ||
                     !racePauseDialogObserved ||
                     !racePauseResumeObserved ||
                     !racePauseFrozenObserved ||
@@ -9097,7 +10121,10 @@ int main(int argc, char** argv)
                         << raceGarage3DObserved
                         << ", workshop="
                         << raceWorkshopFrameObserved << '/'
-                        << raceWorkshop3DObserved << ", pause="
+                        << raceWorkshop3DObserved
+                        << ", angar="
+                        << raceAngarFrameObserved << '/'
+                        << raceAngar3DObserved << ", pause="
                         << racePauseDialogObserved << '/'
                         << racePauseResumeObserved << '/'
                         << racePauseFrozenObserved << ", destroyed="
@@ -9145,7 +10172,9 @@ int main(int argc, char** argv)
                            "life "
                         << minimumRacePlayerLife << "), "
                            "source HudMenu pause/accept/frozen-world, "
-                           "source WorkshopFrame/GarageFrame/3D CarFrame and render-target resize "
+                           "source WorkshopFrame/GarageFrame/3D CarFrame/"
+                           "SpaceshipFrame/AngarFrame and render-target "
+                           "resize "
                            "round-trip passed\n";
                 }
             }
@@ -9206,6 +10235,7 @@ int main(int argc, char** argv)
     physicsWorld.reset();
     raceHud.shutdown(*device);
     workshopRenderer.shutdown(*device);
+    angarRenderer.shutdown(*device);
     garageRenderer.shutdown(*device);
     raceRenderer.shutdown(*device);
 #endif

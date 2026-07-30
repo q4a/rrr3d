@@ -617,6 +617,11 @@ Race loadOriginalRace(const resource::ResourceFileSystem& resources,
 Race loadOriginalGarageScene(
     const resource::ResourceFileSystem& resources,
     const Race& sourceRace);
+// Builds RaceMenu2::SpaceshipFrame exactly from the original Misc\space2
+// and Misc\angar records, Environment::wtAngar/ewAngar and the serialized
+// source camera/lamp transforms.
+Race loadOriginalAngarScene(
+    const resource::ResourceFileSystem& resources);
 std::size_t resolveOriginalTournamentTrack(
     const Race& race, const PlayerProfile& profile) noexcept;
 void writeOriginalTournamentSelection(

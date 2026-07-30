@@ -76,12 +76,12 @@ Windows target не компилируется.
 | Главное меню, внешний вид | `MainMenu2.cpp` | часть оригинальных изображений/строк | Частично | Фон, панели и selection source-driven; полный widget tree, animation, layout и event code не перенесены |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | ручной `enum MenuScreen` и `createPage(...)` в одном `main` | Суррогат | Страницы GameMode/Tournament/Profile/Options/Credits создаются как универсальные текстовые списки |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | универсальная page + portable profile operations | Суррогат | Исходные dialogs, text input, transitions, animations и подтверждения отсутствуют |
-| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame` + portable subframes | Частично | Главный экран, Garage и Workshop используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, все 17 машин, camera/lamp/HDR transforms, `csSlots`, исходные View3d meshes и source data/transactions. Angar/Achievement subframe layouts ещё не перенесены; тени двух garage spot-lamps пока не воспроизведены |
+| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame` + portable subframes | Частично | Главный экран, Garage, Workshop и Angar используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, шесть tournament planets, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Achievement subframe ещё не перенесён; тени menu spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | generic finish page | Суррогат | Исходные panels, statistics, awards, credits/final flow не перенесены |
 | Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля tournament/workshop/options и source-инвариант `psUnavailable/pass 0 → psOpen/pass 1`; несовместимые `psUnavailable/pass>0`, записанные ранним macOS-портом, мигрируются без потери pass. Полная схема и все profile branches ещё не доказаны |
 | Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + ручное advance | Частично | Основной выбор/rewards есть; полный state machine, dialogs, unlock/final sequences не перенесён |
-| Garage/workshop data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml` | `OriginalGarage.cpp` + source-derived `GarageFrame`/`CarFrame`/`WorkshopFrame` | Частично | Каталог, source available/secret/locked order, buy/sell/install/swap/recharge/upgrade, campaign confirmations, charge-inclusive 50% resale, colors, stats фактической комплектации и bonus preview перенесены. Все 3D goods/slots читают свои mesh/texture из `workshop.xml` и повторяют `ViewPort3d` fitting/iso rotation. Legacy widget objects и Angar/Achievement ещё отсутствуют |
+| Garage/workshop/tournament data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml`, `tournamet.xml` | `OriginalGarage.cpp` + source-derived `GarageFrame`/`CarFrame`/`WorkshopFrame`/`AngarFrame` | Частично | Каталог, source available/secret/locked order, buy/sell/install/swap/recharge/upgrade, campaign confirmations, charge-inclusive 50% resale, colors, stats фактической комплектации и bonus preview перенесены. 3D goods/slots/planets/boss cars читают исходные mesh/texture/vehicle transforms и повторяют `ViewPort3d` fitting/rotation. Legacy widget objects и Achievement ещё отсутствуют |
 | Map/catalog loading | `Map`, `MapObj`, `DataBase` | `OriginalRace.cpp` | Частично | 88 записей и исходные placements читаются; generic GameObject/behavior/include lifecycle воспроизведён только для известных типов |
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
 | Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
@@ -505,12 +505,42 @@ Network, video и Steam явно выключены.
    `psUnavailable/pass>0`; loader переводит только эту комбинацию в `psOpen`,
    сохраняя заработанный pass и возвращая соответствующий source assortment.
 
+### SpaceshipFrame / AngarFrame
+
+1. Удалена generic-страница `Planets`. `loadOriginalAngarScene` создаёт
+   `RaceMenu2::SpaceshipFrame` только из исходных
+   `ctDecoration/Misc/space2` и `Misc/angar`; положение/масштаб/поворот
+   космической plane повторяют изменения node после `AddMapObj`.
+2. `Environment::ewAngar/wtAngar` перенесён с тремя точными lamp
+   position/quaternion/range/color, красным циклом `1.5..3.0` секунды,
+   ambient/fog flags и HDR `3/3.5/20/5`. Камера начинает с source pose,
+   target radius `50` и после трёх секунд повторяет
+   `csAutoObserver` со скоростью `pi/96`.
+3. Из `tournamet.xml` читаются mesh/texture, request points и первый boss
+   каждой из шести campaign planets. На экран возвращены
+   `bottomPanel6`, `planetInfo`, `doorSlot*`, `doorUp/doorDown`,
+   `buttonBg6*`, вращающиеся `planet.r3d`, фото и составная машина босса.
+4. Общий menu ViewPort3d renderer теперь поддерживает multi-node car:
+   body meshes остаются в origin, а четыре wheel meshes получают координаты
+   из тех же serialized wheel positions, которые Windows
+   `CarWheels::LoadPosTo` читает из `*Wheel.txt`; отрицательная Y-сторона
+   зеркалируется. Это исключает overlap/гигантские колёса в boss preview.
+5. Состояния slot text повторяют `psOpen/psClosed/psUnavailable/psCompleted`,
+   `svRequestPoints`, champion-next и `svUnavailableTitulA`. Перенесены
+   выбор/закрытие planet info, 0.25-секундные doors, Stay/Fly accept,
+   current/next restrictions, skirmish open-planet branch, профильный
+   `Unlock → Open → ChangePlanet` и mouse/keyboard navigation.
+6. Overlay очищает только depth перед вложенными ViewPort3d, сохраняя HDR
+   color сцены. Интеграционный Metal smoke посещает Angar и требует отдельно
+   3D scene draw и 2D frame; ручная проверка arm64 Debug подтвердила шесть
+   планет, boss photo/car, панели и отсутствие wheel-scale артефактов.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
 
 1. Продолжить исходный menu/widget state machine: сначала `RaceMenu2`
-   Angar/Achievement subframes, после них
+   Achievement subframe, после него
    `Menu`, `MenuSystem`, `MainMenu2`, `GameMode`, `DialogMenu2`,
    `FinishMenu`, `FinalMenu`. Активная структура `OptionsMenu` и
    `RaceMainFrame` уже source-derived, но legacy animation/widget classes

@@ -380,9 +380,48 @@ void loadUnlocks(TiXmlElement* root, OriginalGarageCatalog& catalog)
     for (auto* planet = planets->FirstChildElement(); planet != nullptr;
          planet = planet->NextSiblingElement(), ++planetIndex)
     {
-        catalog.planets.push_back(
-            {text(planet, "name", planet->Value()),
-             text(planet, "info"), text(planet, "worldType")});
+        OriginalGaragePlanet planetValue;
+        planetValue.record = planet->Value();
+        planetValue.name =
+            text(planet, "name", planetValue.record);
+        planetValue.info = text(planet, "info");
+        planetValue.worldType = text(planet, "worldType");
+        planetValue.meshPath = resourcePath(planet, "mesh");
+        planetValue.texturePath = resourcePath(planet, "texture");
+        if (auto* points = child(planet, "points"))
+        {
+            for (auto* point = points->FirstChildElement();
+                 point != nullptr;
+                 point = point->NextSiblingElement())
+            {
+                const auto pass = number(point, "place");
+                if (pass == 0U)
+                    continue;
+                if (planetValue.requestPoints.size() < pass)
+                    planetValue.requestPoints.resize(pass, 0U);
+                planetValue.requestPoints[pass - 1U] =
+                    number(point, "value");
+            }
+        }
+        if (auto* players = child(planet, "players"))
+        {
+            if (auto* boss = players->FirstChildElement())
+            {
+                planetValue.bossName =
+                    text(boss, "name", boss->Value());
+                planetValue.bossPhotoPath =
+                    resourcePath(boss, "photo");
+                if (auto* cars = child(boss, "cars"))
+                {
+                    if (auto* car = cars->FirstChildElement())
+                    {
+                        planetValue.bossCarRecord =
+                            text(car, "record");
+                    }
+                }
+            }
+        }
+        catalog.planets.push_back(std::move(planetValue));
         auto readRules = [&](const char* groupName,
                              std::vector<OriginalUnlockRule>& output) {
             auto* group = child(planet, groupName);
@@ -1105,6 +1144,7 @@ bool runOriginalGarageSmokeTest(
             workshopRecord("pulsator"));
         if (catalog.cars.size() < 13U ||
             catalog.workshop.size() < 30U ||
+            catalog.planets.size() != 6U ||
             marauder == nullptr || dirtdevil == nullptr ||
             wheel2 == nullptr || bullet == nullptr ||
             rocket == nullptr || pulsator == nullptr ||
@@ -1116,6 +1156,18 @@ bool runOriginalGarageSmokeTest(
             bullet->texturePath != "Data/Car/marauder.dds" ||
             bullet->maximumCharge != 28U ||
             bullet->projectileDamage != 6.0F ||
+            catalog.planets.front().record != "planet0" ||
+            catalog.planets.front().meshPath !=
+                "Data/GUI/planet.r3d" ||
+            catalog.planets.front().texturePath !=
+                "Data/GUI/intaria.dds" ||
+            catalog.planets.front().requestPoints !=
+                std::vector<std::uint32_t>{1400U, 1600U} ||
+            catalog.planets.front().bossName != "scMardock" ||
+            catalog.planets.front().bossPhotoPath !=
+                "Data/GUI/Chars/mardock.png" ||
+            catalog.planets.front().bossCarRecord !=
+                "world\\db\\root\\ctCar\\manticoraBoss" ||
             marauder->placements[0].defaultItem !=
                 workshopRecord("wheel1"))
         {

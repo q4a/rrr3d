@@ -1,9 +1,11 @@
 #pragma once
 
 #include "OriginalGarage.h"
+#include "OriginalRace.h"
 #include "renderer/Renderer.h"
 #include "resource/R3DMeshAsset.h"
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -25,6 +27,7 @@ public:
         r3d::renderer::GraphicsDevice& device,
         const r3d::resource::ResourceFileSystem& resources,
         const r3d::game::originalrace::OriginalGarageCatalog& catalog,
+        const r3d::game::originalrace::Race& race,
         std::string& error);
     void shutdown(r3d::renderer::GraphicsDevice& device) noexcept;
 
@@ -35,17 +38,40 @@ public:
         float centerX, float centerY, float width, float height,
         float rotationRadians,
         const r3d::renderer::PipelineState& pipeline) const;
+    void drawPlanet(
+        r3d::renderer::GraphicsDevice& device,
+        r3d::renderer::Shader shader,
+        const r3d::game::originalrace::OriginalGaragePlanet& planet,
+        float centerX, float centerY, float width, float height,
+        float rotationRadians,
+        const r3d::renderer::PipelineState& pipeline) const;
+    void drawCar(
+        r3d::renderer::GraphicsDevice& device,
+        r3d::renderer::Shader shader, std::string_view record,
+        float centerX, float centerY, float width, float height,
+        float rotationRadians,
+        const r3d::renderer::PipelineState& pipeline) const;
 
 private:
-    struct Asset
+    struct NodeAsset
     {
-        std::string record;
         r3d::resource::R3DMeshAsset source;
         r3d::renderer::Mesh mesh;
-        r3d::renderer::Texture texture;
+        std::vector<r3d::renderer::Texture> textures;
+        r3d::game::originalrace::Transform local;
     };
 
-    std::vector<Asset> assets_;
+    struct ModelAsset
+    {
+        std::string record;
+        std::vector<NodeAsset> nodes;
+        std::array<float, 3> minimum{};
+        std::array<float, 3> maximum{};
+    };
+
+    std::vector<ModelAsset> workshopAssets_;
+    std::vector<ModelAsset> planetAssets_;
+    std::vector<ModelAsset> carAssets_;
 };
 
 } // namespace rrr3d::race

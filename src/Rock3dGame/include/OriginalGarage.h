@@ -90,9 +90,16 @@ struct OriginalUnlockRule
 
 struct OriginalGaragePlanet
 {
+    std::string record;
     std::string name;
     std::string info;
     std::string worldType;
+    std::string meshPath;
+    std::string texturePath;
+    std::vector<std::uint32_t> requestPoints;
+    std::string bossName;
+    std::string bossPhotoPath;
+    std::string bossCarRecord;
 };
 
 struct OriginalGarageCatalog

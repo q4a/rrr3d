@@ -15,6 +15,7 @@ namespace
 {
 
 using namespace r3d::renderer;
+using SourceTransform = r3d::game::originalrace::Transform;
 
 bool valid(Mesh value) noexcept
 {
@@ -44,13 +45,8 @@ std::vector<StaticMeshVertex> vertices(
     return result;
 }
 
-struct Quat
-{
-    float x = 0.0F;
-    float y = 0.0F;
-    float z = 0.0F;
-    float w = 1.0F;
-};
+using Quat = r3d::game::originalrace::Quat;
+using Vec3 = r3d::game::originalrace::Vec3;
 
 Quat multiply(const Quat& left, const Quat& right) noexcept
 {
@@ -72,43 +68,71 @@ Quat axisAngle(float x, float y, float z, float radians) noexcept
     return {x * sine, y * sine, z * sine, std::cos(half)};
 }
 
-std::array<float, 3> rotate(
-    const Quat& rotation, const std::array<float, 3>& point) noexcept
+Vec3 rotate(const Quat& rotation, const Vec3& point) noexcept
 {
-    const std::array<float, 3> q{rotation.x, rotation.y, rotation.z};
-    const std::array<float, 3> cross1{
-        q[1] * point[2] - q[2] * point[1],
-        q[2] * point[0] - q[0] * point[2],
-        q[0] * point[1] - q[1] * point[0]};
-    const std::array<float, 3> cross2{
-        q[1] * cross1[2] - q[2] * cross1[1],
-        q[2] * cross1[0] - q[0] * cross1[2],
-        q[0] * cross1[1] - q[1] * cross1[0]};
+    const Vec3 twiceCross{
+        2.0F * (rotation.y * point.z - rotation.z * point.y),
+        2.0F * (rotation.z * point.x - rotation.x * point.z),
+        2.0F * (rotation.x * point.y - rotation.y * point.x)};
     return {
-        point[0] + 2.0F *
-                           (rotation.w * cross1[0] + cross2[0]),
-        point[1] + 2.0F *
-                           (rotation.w * cross1[1] + cross2[1]),
-        point[2] + 2.0F *
-                           (rotation.w * cross1[2] + cross2[2])};
+        point.x + rotation.w * twiceCross.x +
+            (rotation.y * twiceCross.z -
+             rotation.z * twiceCross.y),
+        point.y + rotation.w * twiceCross.y +
+            (rotation.z * twiceCross.x -
+             rotation.x * twiceCross.z),
+        point.z + rotation.w * twiceCross.z +
+            (rotation.x * twiceCross.y -
+             rotation.y * twiceCross.x)};
 }
 
-Quat sourceRotation(float animation) noexcept
+Vec3 transformPoint(const SourceTransform& transform,
+                    const Vec3& point) noexcept
+{
+    const auto rotated = rotate(
+        transform.rotation,
+        {point.x * transform.scale.x,
+         point.y * transform.scale.y,
+         point.z * transform.scale.z});
+    return {rotated.x + transform.position.x,
+            rotated.y + transform.position.y,
+            rotated.z + transform.position.z};
+}
+
+enum class SourceView
+{
+    Workshop,
+    Planet,
+    Car,
+};
+
+Quat sourceRotation(SourceView view, float animation) noexcept
 {
     constexpr float pi = 3.14159265358979323846F;
+    const auto animated =
+        axisAngle(0.0F, 0.0F, 1.0F, animation);
+    if (view == SourceView::Planet)
+    {
+        return multiply(
+            axisAngle(1.0F, 0.0F, 0.0F, pi * 0.5F),
+            animated);
+    }
+    if (view == SourceView::Car)
+        return animated;
     // Menu::GetIsoRot returns rotX(-pi/3) * rotY(0) * rotZ(-2pi/3).
     const auto iso = multiply(
         axisAngle(1.0F, 0.0F, 0.0F, -pi / 3.0F),
         axisAngle(0.0F, 0.0F, 1.0F, -2.0F * pi / 3.0F));
-    return multiply(
-        iso, axisAngle(0.0F, 0.0F, 1.0F, animation));
+    return multiply(iso, animated);
 }
 
 Transform sourceViewTransform(
-    const r3d::resource::R3DMeshAsset& mesh, float centerX,
-    float centerY, float width, float height, float animation) noexcept
+    const std::array<float, 3>& sourceMinimum,
+    const std::array<float, 3>& sourceMaximum,
+    float centerX, float centerY, float width, float height,
+    SourceView view, float animation) noexcept
 {
-    const auto rotation = sourceRotation(animation);
+    const auto rotation = sourceRotation(view, animation);
     std::array<float, 3> minimum{
         std::numeric_limits<float>::max(),
         std::numeric_limits<float>::max(),
@@ -119,15 +143,20 @@ Transform sourceViewTransform(
         std::numeric_limits<float>::lowest()};
     for (std::size_t corner = 0; corner < 8U; ++corner)
     {
-        const std::array<float, 3> point{
-            (corner & 1U) != 0U ? mesh.maximum[0] : mesh.minimum[0],
-            (corner & 2U) != 0U ? mesh.maximum[1] : mesh.minimum[1],
-            (corner & 4U) != 0U ? mesh.maximum[2] : mesh.minimum[2]};
-        const auto rotated = rotate(rotation, point);
+        const auto rotated = rotate(
+            rotation,
+            {(corner & 1U) != 0U ? sourceMaximum[0]
+                                 : sourceMinimum[0],
+             (corner & 2U) != 0U ? sourceMaximum[1]
+                                 : sourceMinimum[1],
+             (corner & 4U) != 0U ? sourceMaximum[2]
+                                 : sourceMinimum[2]});
+        const std::array<float, 3> value{
+            rotated.x, rotated.y, rotated.z};
         for (std::size_t axis = 0; axis < 3U; ++axis)
         {
-            minimum[axis] = std::min(minimum[axis], rotated[axis]);
-            maximum[axis] = std::max(maximum[axis], rotated[axis]);
+            minimum[axis] = std::min(minimum[axis], value[axis]);
+            maximum[axis] = std::max(maximum[axis], value[axis]);
         }
     }
     std::array<float, 3> size{};
@@ -141,8 +170,8 @@ Transform sourceViewTransform(
         sizeLengthSquared += size[axis] * size[axis];
         centerLengthSquared += center[axis] * center[axis];
     }
-    // View3d defaults to align=false.  Context::DrawView3d therefore keeps
-    // the mesh origin fixed and adds the rotated AABB center length.
+    // View3d defaults to align=false. Context::DrawView3d therefore keeps
+    // the model origin and includes the rotated AABB centre in the fit.
     const float maximumScale =
         std::max(std::sqrt(sizeLengthSquared) +
                      std::sqrt(centerLengthSquared),
@@ -177,54 +206,218 @@ Transform sourceViewTransform(
     return result;
 }
 
+Transform localTransform(const SourceTransform& source) noexcept
+{
+    const auto& q = source.rotation;
+    const float xx = q.x * q.x;
+    const float yy = q.y * q.y;
+    const float zz = q.z * q.z;
+    const float xy = q.x * q.y;
+    const float xz = q.x * q.z;
+    const float yz = q.y * q.z;
+    const float wx = q.w * q.x;
+    const float wy = q.w * q.y;
+    const float wz = q.w * q.z;
+    Transform result;
+    result.matrix = {
+        (1.0F - 2.0F * (yy + zz)) * source.scale.x,
+        (2.0F * (xy + wz)) * source.scale.x,
+        (2.0F * (xz - wy)) * source.scale.x, 0.0F,
+        (2.0F * (xy - wz)) * source.scale.y,
+        (1.0F - 2.0F * (xx + zz)) * source.scale.y,
+        (2.0F * (yz + wx)) * source.scale.y, 0.0F,
+        (2.0F * (xz + wy)) * source.scale.z,
+        (2.0F * (yz - wx)) * source.scale.z,
+        (1.0F - 2.0F * (xx + yy)) * source.scale.z, 0.0F,
+        source.position.x, source.position.y, source.position.z, 1.0F};
+    return result;
+}
+
+Transform compose(const Transform& parent,
+                  const Transform& local) noexcept
+{
+    Transform result;
+    for (std::size_t column = 0; column < 4U; ++column)
+    {
+        for (std::size_t row = 0; row < 4U; ++row)
+        {
+            float value = 0.0F;
+            for (std::size_t index = 0; index < 4U; ++index)
+            {
+                value += parent.matrix[index * 4U + row] *
+                         local.matrix[column * 4U + index];
+            }
+            result.matrix[column * 4U + row] = value;
+        }
+    }
+    return result;
+}
+
+Texture uploadTexture(
+    GraphicsDevice& device,
+    const r3d::resource::ResourceFileSystem& resources,
+    const std::string& path)
+{
+    const auto image =
+        r3d::game::mainmenu2::loadOriginalImage(resources, path);
+    return image.storage ==
+                   r3d::game::mainmenu2::ImageStorage::EncodedContainer
+               ? device.createTextureContainer(
+                     image.bytes.data(), image.bytes.size(),
+                     image.virtualPath)
+               : device.createTextureRgba8(
+                     image.width, image.height, image.bytes.data(),
+                     image.bytes.size());
+}
+
 } // namespace
 
 bool OriginalWorkshopRenderer::initialize(
     GraphicsDevice& device,
     const r3d::resource::ResourceFileSystem& resources,
     const r3d::game::originalrace::OriginalGarageCatalog& catalog,
+    const r3d::game::originalrace::Race& race,
     std::string& error)
 {
     error.clear();
     shutdown(device);
     try
     {
-        assets_.reserve(catalog.workshop.size());
+        auto addNode =
+            [&](ModelAsset& model, std::string_view meshPath,
+                const std::vector<std::string>& textures,
+                const SourceTransform& local) {
+                if (meshPath.empty() || textures.empty())
+                {
+                    throw r3d::resource::ResourceError(
+                        model.record +
+                        ": original viewport node has no mesh/material");
+                }
+                NodeAsset node;
+                node.source = r3d::resource::loadR3DMeshAsset(
+                    resources, meshPath);
+                const auto gpuVertices = vertices(node.source);
+                node.mesh = device.createMesh(
+                    gpuVertices.data(), gpuVertices.size(),
+                    node.source.indices.data(),
+                    node.source.indices.size());
+                for (const auto& texture : textures)
+                    node.textures.push_back(
+                        uploadTexture(device, resources, texture));
+                node.local = local;
+                if (!valid(node.mesh) || node.textures.empty() ||
+                    std::any_of(
+                        node.textures.begin(), node.textures.end(),
+                        [](Texture value) { return !valid(value); }))
+                {
+                    throw r3d::resource::ResourceError(
+                        model.record +
+                        ": unable to upload original viewport node");
+                }
+                model.nodes.push_back(std::move(node));
+            };
+        auto finishBounds = [&](ModelAsset& model) {
+            model.minimum.fill(std::numeric_limits<float>::max());
+            model.maximum.fill(std::numeric_limits<float>::lowest());
+            for (const auto& node : model.nodes)
+            {
+                for (std::size_t corner = 0; corner < 8U; ++corner)
+                {
+                    const auto point = transformPoint(
+                        node.local,
+                        {(corner & 1U) != 0U
+                             ? node.source.maximum[0]
+                             : node.source.minimum[0],
+                         (corner & 2U) != 0U
+                             ? node.source.maximum[1]
+                             : node.source.minimum[1],
+                         (corner & 4U) != 0U
+                             ? node.source.maximum[2]
+                             : node.source.minimum[2]});
+                    const std::array<float, 3> value{
+                        point.x, point.y, point.z};
+                    for (std::size_t axis = 0; axis < 3U; ++axis)
+                    {
+                        model.minimum[axis] =
+                            std::min(model.minimum[axis], value[axis]);
+                        model.maximum[axis] =
+                            std::max(model.maximum[axis], value[axis]);
+                    }
+                }
+            }
+            if (model.nodes.empty())
+            {
+                throw r3d::resource::ResourceError(
+                    model.record +
+                    ": original viewport model has no nodes");
+            }
+        };
+
+        workshopAssets_.reserve(catalog.workshop.size());
         for (const auto& item : catalog.workshop)
         {
-            if (item.meshPath.empty() || item.texturePath.empty())
+            ModelAsset model;
+            model.record = item.record;
+            addNode(
+                model, item.meshPath, {item.texturePath}, {});
+            finishBounds(model);
+            workshopAssets_.push_back(std::move(model));
+        }
+
+        planetAssets_.reserve(catalog.planets.size());
+        for (const auto& planet : catalog.planets)
+        {
+            ModelAsset model;
+            model.record = planet.record;
+            addNode(
+                model, planet.meshPath, {planet.texturePath}, {});
+            finishBounds(model);
+            planetAssets_.push_back(std::move(model));
+        }
+
+        carAssets_.reserve(race.vehicles.size());
+        for (const auto& car : race.vehicles)
+        {
+            ModelAsset model;
+            model.record = car.record;
+            auto addVisual =
+                [&](const auto& visual,
+                    const SourceTransform& local) {
+                std::vector<std::string> textures;
+                for (const auto& material : visual.materials)
+                {
+                    if (!material.texturePath.empty())
+                        textures.push_back(material.texturePath);
+                }
+                if (textures.empty() && !car.texturePath.empty())
+                    textures.push_back(car.texturePath);
+                addNode(
+                    model, visual.meshPath, textures,
+                    local);
+            };
+            for (const auto& visual : car.bodyVisuals)
             {
-                throw r3d::resource::ResourceError(
-                    "workshop.xml item has no original mesh/texture: " +
-                    item.record);
+                // RaceMenu::CreateCar creates Garage::BodyMeshes directly;
+                // it does not apply the ctCar actor-node transform used by
+                // the in-race renderer.
+                addVisual(visual, {});
             }
-            Asset asset;
-            asset.record = item.record;
-            asset.source = r3d::resource::loadR3DMeshAsset(
-                resources, item.meshPath);
-            const auto gpuVertices = vertices(asset.source);
-            asset.mesh = device.createMesh(
-                gpuVertices.data(), gpuVertices.size(),
-                asset.source.indices.data(), asset.source.indices.size());
-            const auto image =
-                r3d::game::mainmenu2::loadOriginalImage(
-                    resources, item.texturePath);
-            asset.texture =
-                image.storage ==
-                        r3d::game::mainmenu2::ImageStorage::EncodedContainer
-                    ? device.createTextureContainer(
-                          image.bytes.data(), image.bytes.size(),
-                          image.virtualPath)
-                    : device.createTextureRgba8(
-                          image.width, image.height, image.bytes.data(),
-                          image.bytes.size());
-            if (!valid(asset.mesh) || !valid(asset.texture))
+            for (std::size_t index = 0U;
+                 index < car.wheelVisuals.size(); ++index)
             {
-                throw r3d::resource::ResourceError(
-                    "unable to upload original WorkshopFrame item " +
-                    item.record);
+                SourceTransform wheel;
+                if (index < car.physics.wheels.size())
+                {
+                    wheel.position =
+                        car.physics.wheels[index].position;
+                    // RaceMenu2 mirrors the wheels on the negative-Y side.
+                    if (wheel.position.y < 0.0F)
+                        wheel.scale.y = -1.0F;
+                }
+                addVisual(car.wheelVisuals[index], wheel);
             }
-            assets_.push_back(std::move(asset));
+            finishBounds(model);
+            carAssets_.push_back(std::move(model));
         }
         return true;
     }
@@ -239,26 +432,42 @@ bool OriginalWorkshopRenderer::initialize(
 void OriginalWorkshopRenderer::shutdown(
     GraphicsDevice& device) noexcept
 {
-    for (auto& asset : assets_)
-    {
-        if (valid(asset.mesh))
-            device.destroy(asset.mesh);
-        if (valid(asset.texture))
-            device.destroy(asset.texture);
-    }
-    assets_.clear();
+    auto destroy = [&](auto& models) {
+        for (auto& model : models)
+        {
+            for (auto& node : model.nodes)
+            {
+                if (valid(node.mesh))
+                    device.destroy(node.mesh);
+                for (const auto texture : node.textures)
+                {
+                    if (valid(texture))
+                        device.destroy(texture);
+                }
+            }
+        }
+        models.clear();
+    };
+    destroy(carAssets_);
+    destroy(planetAssets_);
+    destroy(workshopAssets_);
 }
 
-void OriginalWorkshopRenderer::drawItem(
+namespace
+{
+
+template <typename Models>
+void drawModel(
     GraphicsDevice& device, Shader shader,
-    const r3d::game::originalrace::OriginalWorkshopItem& item,
+    const Models& models, std::string_view record,
     float centerX, float centerY, float width, float height,
-    float rotationRadians, const PipelineState& sourcePipeline) const
+    SourceView view, float rotationRadians,
+    const PipelineState& sourcePipeline)
 {
     const auto found = std::find_if(
-        assets_.begin(), assets_.end(),
-        [&](const auto& asset) { return asset.record == item.record; });
-    if (found == assets_.end())
+        models.begin(), models.end(),
+        [&](const auto& asset) { return asset.record == record; });
+    if (found == models.end())
         return;
     auto pipeline = sourcePipeline;
     pipeline.writeDepth = true;
@@ -269,21 +478,69 @@ void OriginalWorkshopRenderer::drawItem(
     MaterialState material;
     material.ignoreFog = true;
     material.specular = 0.0F;
-    const auto transform = sourceViewTransform(
-        found->source, centerX, centerY, width, height,
-        rotationRadians);
-    if (found->source.materialGroups.empty())
+    const auto viewTransform = sourceViewTransform(
+        found->minimum, found->maximum, centerX, centerY,
+        width, height, view, rotationRadians);
+    for (const auto& node : found->nodes)
     {
-        device.draw(found->mesh, shader, found->texture, transform,
-                    pipeline, {}, material);
-        return;
+        const auto transform =
+            compose(viewTransform, localTransform(node.local));
+        if (node.source.materialGroups.empty())
+        {
+            device.draw(
+                node.mesh, shader, node.textures.front(), transform,
+                pipeline, {}, material);
+            continue;
+        }
+        for (std::size_t index = 0;
+             index < node.source.materialGroups.size(); ++index)
+        {
+            const auto& group = node.source.materialGroups[index];
+            device.draw(
+                node.mesh, shader,
+                node.textures[std::min(
+                    index, node.textures.size() - 1U)],
+                transform, pipeline,
+                {group.firstIndex, group.indexCount}, material);
+        }
     }
-    for (const auto& group : found->source.materialGroups)
-    {
-        device.draw(
-            found->mesh, shader, found->texture, transform, pipeline,
-            {group.firstIndex, group.indexCount}, material);
-    }
+}
+
+} // namespace
+
+void OriginalWorkshopRenderer::drawItem(
+    GraphicsDevice& device, Shader shader,
+    const r3d::game::originalrace::OriginalWorkshopItem& item,
+    float centerX, float centerY, float width, float height,
+    float rotationRadians, const PipelineState& sourcePipeline) const
+{
+    drawModel(
+        device, shader, workshopAssets_, item.record, centerX, centerY,
+        width, height, SourceView::Workshop, rotationRadians,
+        sourcePipeline);
+}
+
+void OriginalWorkshopRenderer::drawPlanet(
+    GraphicsDevice& device, Shader shader,
+    const r3d::game::originalrace::OriginalGaragePlanet& planet,
+    float centerX, float centerY, float width, float height,
+    float rotationRadians, const PipelineState& sourcePipeline) const
+{
+    drawModel(
+        device, shader, planetAssets_, planet.record, centerX, centerY,
+        width, height, SourceView::Planet, rotationRadians,
+        sourcePipeline);
+}
+
+void OriginalWorkshopRenderer::drawCar(
+    GraphicsDevice& device, Shader shader, std::string_view record,
+    float centerX, float centerY, float width, float height,
+    float rotationRadians, const PipelineState& sourcePipeline) const
+{
+    drawModel(
+        device, shader, carAssets_, record, centerX, centerY,
+        width, height, SourceView::Car, rotationRadians,
+        sourcePipeline);
 }
 
 } // namespace rrr3d::race
