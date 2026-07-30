@@ -901,14 +901,29 @@ SDL_AUDIO_DRIVER=dummy \
   Расширенный 300-frame Metal smoke посещает ProfileFrame/delete dialog,
   отменяет удаление и продолжает прежний маршрут. Ручная проверка arm64 Debug
   подтвердила grid, close и Yes/No dialog без артефактов.
+- Придуманный finish summary с `Continue/Back` удалён. Новый экран повторяет
+  `FinishMenu.cpp`: до трёх `Race::Results`, оригинальные
+  `playerLeftFrame/playerLineFrame/playerRightFrame`, photo paths из
+  `tournamet.xml`, `cup1..3.dds`, имена, Money/Points и picked-money
+  форматирование.
+- Перенесены source layout и reveal: три строки по 240 px, исходные label/
+  photo/cup coordinates, цвета, delay 0.15 s, reveal 0.5 s и
+  `voiceNameDur=1.5 s`. Чётные места въезжают слева, второе — справа.
+- В `FinishMenu` больше нет selectable page: Action, Escape и любой left
+  click выполняют `OnFinishClose` и возвращают в соответствующий
+  campaign/skirmish `RaceMenu2`.
+- Новый `--finish-menu-smoke-test` за 300 Metal frames проверяет три строки,
+  photo/cup textures, Money/Points, picked-money и полную анимацию без записи
+  профиля. Ручная проверка подтвердила итоговый кадр и Return-переход; найденная
+  при ней склейка multiline CoreText label устранена отдельными line layers.
 
 ## Следующий рекомендуемый этап
 
 Основные offline subframes `RaceMenu2` и ветка GameMode/Tournament/
-Difficulty/Profile теперь source-derived. Следующий P0-блок: перенести
-исходные `FinishMenu`/`FinalMenu` и оставшиеся реально вызываемые
-`DialogMenu2` состояния; после этого закрыть generic Credits и intro-video
-ветку.
+Difficulty/Profile/FinishMenu теперь source-derived. Следующий P0-блок:
+перенести исходный `FinalMenu` (девять slides, split credits, 107-second
+scroll, TrackFinal music) и оставшиеся реально вызываемые `DialogMenu2`
+состояния; после этого закрыть intro-video/final-unlock ветку.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
