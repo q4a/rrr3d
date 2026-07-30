@@ -21,6 +21,11 @@ inline constexpr std::array<TrackSpec, 3> menuTracks{{
 	{"Music\\Track15.ogg", "On our Way", "Stereoside", 0},
 }};
 
+// FinalMenu::OnShow stops MusicCat and starts this source track once.
+inline constexpr std::array<TrackSpec, 1> finalTracks{{
+	{"Music\\TrackFinal.ogg", "", "", 0},
+}};
+
 // Ordering, metadata and grouping are the serialized gameMusic/tracks catalog
 // from game.xml. UserConfig::gameMusicPlaylist stores indices into this list.
 inline constexpr std::array<TrackSpec, 11> gameTracks{{

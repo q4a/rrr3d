@@ -916,14 +916,29 @@ SDL_AUDIO_DRIVER=dummy \
   photo/cup textures, Money/Points, picked-money и полную анимацию без записи
   профиля. Ручная проверка подтвердила итоговый кадр и Return-переход; найденная
   при ней склейка multiline CoreText label устранена отдельными line layers.
+- Generic Authors/Credits заменён исходным `FinalMenu.cpp`: чёрный фон,
+  девять `GUI/Slides/slide1..9.dds`, секции `svCredits` с красными captions
+  и светлыми body-lines, source root `vp.x - 250`, 107-second scroll и
+  per-slide alpha.
+- Back использует исходные `buttonBg2/buttonBgSel2`, Header font и позицию
+  `vp.y - 60`. Return/Escape и left click по кнопке возвращают MainMenu2;
+  по истечении 107 секунд выполняется тот же автоматический переход.
+- `TrackFinal.ogg` декодируется отдельным фоновым `OriginalMenuMusic` без
+  сохранения состояния. При входе menu MusicCat приостанавливается, final
+  track запускается с нуля, при выходе menu MusicCat возобновляется.
+- Новый `--final-menu-smoke-test` проверяет девять slides, секционную
+  прокрутку, Back, реальный background decode/playback и auto-return. M9/M10,
+  resource, physics и последовательный 300-frame race-render прошли.
+  Ручная arm64 Debug проверка подтвердила два последовательных source slide,
+  читаемые credits и Return → MainMenu2 без визуальных артефактов.
 
 ## Следующий рекомендуемый этап
 
 Основные offline subframes `RaceMenu2` и ветка GameMode/Tournament/
-Difficulty/Profile/FinishMenu теперь source-derived. Следующий P0-блок:
-перенести исходный `FinalMenu` (девять slides, split credits, 107-second
-scroll, TrackFinal music) и оставшиеся реально вызываемые `DialogMenu2`
-состояния; после этого закрыть intro-video/final-unlock ветку.
+Difficulty/Profile/FinishMenu/FinalMenu теперь source-derived. Следующий
+P0-блок: перенести оставшиеся реально вызываемые `DialogMenu2` состояния,
+начиная с общих `InfoDialog`/`AcceptDialog` и workshop `WeaponDialog`;
+после этого закрыть intro-video/final-unlock ветку.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих

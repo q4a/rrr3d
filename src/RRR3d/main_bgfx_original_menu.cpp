@@ -42,6 +42,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -81,6 +82,7 @@ struct Options
     std::string language;
     bool languageSelected = false;
     bool verifyResources = false;
+    bool finalMenuSmokeTest = false;
 #ifdef RRR3D_PHYSICS
     bool physicsSmokeTest = false;
     bool raceRenderSmokeTest = false;
@@ -222,6 +224,13 @@ std::optional<Options> parseOptions(int argc, char** argv)
         if (argument == "--verify-resources")
         {
             options.verifyResources = true;
+            continue;
+        }
+        if (argument == "--final-menu-smoke-test")
+        {
+            options.finalMenuSmokeTest = true;
+            if (options.smokeFrames == 0)
+                options.smokeFrames = 1800;
             continue;
         }
 #ifdef RRR3D_PHYSICS
@@ -529,6 +538,19 @@ void drawQuad(GraphicsDevice& device, Mesh quad, Shader shader,
                 pipeline);
 }
 
+void drawQuadTinted(GraphicsDevice& device, Mesh quad, Shader shader,
+                    Texture texture, float width, float height,
+                    float centerX, float centerY, float depth,
+                    const PipelineState& pipeline,
+                    const std::array<float, 4>& color)
+{
+    MaterialState material;
+    material.color = color;
+    device.draw(quad, shader, texture,
+                makeTransform(width, height, centerX, centerY, depth),
+                pipeline, {}, material);
+}
+
 void drawQuadRotated(GraphicsDevice& device, Mesh quad, Shader shader,
                      Texture texture, float width, float height,
                      float centerX, float centerY, float depth,
@@ -673,7 +695,8 @@ int main(int argc, char** argv)
     {
         std::cerr << "Usage: RRR3d [--data-dir=PATH] "
                      "[--language=english|russian] [--verify-resources] "
-                     "[--smoke-test-frames=N]"
+                     "[--smoke-test-frames=N] "
+                     "[--final-menu-smoke-test]"
 #ifdef RRR3D_GAMEPAD_INPUT
                      " [--input-smoke-test]"
 #endif
@@ -1016,6 +1039,37 @@ int main(int argc, char** argv)
     const Texture selection =
         createImageTexture(*device, model->selectionImage);
     const Texture cursor = createImageTexture(*device, model->cursorImage);
+    const auto finalBackImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBg2.png");
+    const auto finalBackSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBgSel2.png");
+    const std::array<menu::Image, 9> finalSlideImages{
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/Slides/slide1.dds"),
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/Slides/slide2.dds"),
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/Slides/slide3.dds"),
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/Slides/slide4.dds"),
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/Slides/slide5.dds"),
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/Slides/slide6.dds"),
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/Slides/slide7.dds"),
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/Slides/slide8.dds"),
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/Slides/slide9.dds")};
+    const Texture finalBack =
+        createImageTexture(*device, finalBackImage);
+    const Texture finalBackSelected =
+        createImageTexture(*device, finalBackSelectedImage);
+    std::array<Texture, finalSlideImages.size()> finalSlides{};
+    for (std::size_t index = 0U; index < finalSlides.size(); ++index)
+        finalSlides[index] =
+            createImageTexture(*device, finalSlideImages[index]);
 #ifdef RRR3D_PHYSICS
     const auto acceptFrameImage = menu::loadOriginalImage(
         *resources, "Data/GUI/dlgFrame1.png");
@@ -1943,9 +1997,79 @@ int main(int argc, char** argv)
     const TextVisual version = createText(
         *device, model->versionText, menu::smallFontHeight, true,
         menu::selectedTextColor, resolvedFont);
-    const TextVisual credits = createText(
-        *device, localized("svCredits"), menu::smallFontHeight, false,
-        menu::normalTextColor, resolvedFont);
+    const TextVisual finalBackText = createText(
+        *device, localized("svBack"), menu::headerFontHeight, false,
+        menu::Rgba8{214U, 214U, 214U, 255U}, resolvedFont);
+    struct FinalCreditSection
+    {
+        TextVisual caption;
+        std::vector<TextVisual> lines;
+        float height = 0.0F;
+    };
+    std::vector<FinalCreditSection> finalCredits;
+    float finalCreditsHeight = 0.0F;
+    auto trimCreditText = [](std::string_view source) {
+        const auto first = source.find_first_not_of(" \t\r\n");
+        if (first == std::string_view::npos)
+            return std::string{};
+        const auto last = source.find_last_not_of(" \t\r\n");
+        return std::string(source.substr(first, last - first + 1U));
+    };
+    const std::string finalCreditSource = localized("svCredits");
+    std::size_t finalSectionBegin = 0U;
+    while (finalSectionBegin < finalCreditSource.size())
+    {
+        const auto separator =
+            finalCreditSource.find("\n\n", finalSectionBegin);
+        const auto block = trimCreditText(std::string_view(
+            finalCreditSource.data() + finalSectionBegin,
+            (separator == std::string::npos
+                 ? finalCreditSource.size()
+                 : separator) -
+                finalSectionBegin));
+        if (!block.empty())
+        {
+            const auto captionEnd = block.find('\n');
+            FinalCreditSection section;
+            section.caption = createText(
+                *device, block.substr(0U, captionEnd),
+                menu::smallFontHeight, false,
+                menu::Rgba8{220U, 0U, 0U, 255U}, resolvedFont);
+            section.height = section.caption.height + 10.0F;
+            if (captionEnd != std::string::npos)
+            {
+                std::size_t lineBegin = captionEnd + 1U;
+                while (lineBegin <= block.size())
+                {
+                    const auto lineEnd = block.find('\n', lineBegin);
+                    const auto line = trimCreditText(std::string_view(
+                        block.data() + lineBegin,
+                        (lineEnd == std::string::npos
+                             ? block.size()
+                             : lineEnd) -
+                            lineBegin));
+                    if (!line.empty())
+                    {
+                        section.lines.push_back(createText(
+                            *device, line, menu::smallFontHeight, false,
+                            menu::Rgba8{255U, 214U, 205U, 255U},
+                            resolvedFont));
+                        section.height +=
+                            section.lines.back().height;
+                    }
+                    if (lineEnd == std::string::npos)
+                        break;
+                    lineBegin = lineEnd + 1U;
+                }
+            }
+            section.height += 40.0F;
+            finalCreditsHeight += section.height;
+            finalCredits.push_back(std::move(section));
+        }
+        if (separator == std::string::npos)
+            break;
+        finalSectionBegin = separator + 2U;
+    }
 #ifdef RRR3D_PHYSICS
     const TextVisual finishRewardTitle = createText(
         *device, localized("svPrice"), menu::headerFontHeight, false,
@@ -2056,7 +2180,22 @@ int main(int argc, char** argv)
 #endif
         valid(quad) && valid(background) && valid(topPanel) &&
         valid(bottomPanel) && valid(selection) && valid(cursor) &&
-        valid(version.texture) && valid(credits.texture) &&
+        valid(version.texture) && valid(finalBack) &&
+        valid(finalBackSelected) && valid(finalBackText.texture) &&
+        std::all_of(
+            finalSlides.begin(), finalSlides.end(),
+            [](Texture texture) { return valid(texture); }) &&
+        !finalCredits.empty() &&
+        std::all_of(
+            finalCredits.begin(), finalCredits.end(),
+            [](const FinalCreditSection& section) {
+                return valid(section.caption.texture) &&
+                       std::all_of(
+                           section.lines.begin(), section.lines.end(),
+                           [](const TextVisual& line) {
+                               return valid(line.texture);
+                           });
+            }) &&
         pageValid(mainPage) && pageValid(gameModePage) &&
         pageValid(tournamentPage) && pageValid(difficultyPage) &&
         pageValid(profilePage) && pageValid(networkPage) &&
@@ -2210,7 +2349,17 @@ int main(int argc, char** argv)
         device->destroy(achievementPoints.texture);
         device->destroy(achievementRewards.texture);
 #endif
-        device->destroy(credits.texture);
+        for (const auto& section : finalCredits)
+        {
+            for (const auto& line : section.lines)
+                device->destroy(line.texture);
+            device->destroy(section.caption.texture);
+        }
+        device->destroy(finalBackText.texture);
+        for (const auto texture : finalSlides)
+            device->destroy(texture);
+        device->destroy(finalBackSelected);
+        device->destroy(finalBack);
         device->destroy(version.texture);
 #ifdef RRR3D_PHYSICS
         destroyPage(garagePurchasePage);
@@ -2647,6 +2796,32 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
+    const auto finalMusicStatePath =
+        rrr3d::platform::save_directory() / "final-music.state";
+    rrr3d::audio::OriginalMenuMusic finalMusic(
+        audio, *resources, finalMusicStatePath,
+        rrr3d::platform::steady_nanoseconds() ^
+            0x46696e616c4d7573ULL,
+        false, musicTracks(originalaudio::finalTracks), {0U});
+    if (!finalMusic.initialize(audioError) ||
+        !finalMusic.pause(true, audioError))
+    {
+        std::cerr << "Original FinalMenu music initialization failed: "
+                  << audioError << '\n';
+        finalMusic.shutdown();
+        music.shutdown();
+        audio.unloadSound(clickSound);
+        audio.shutdown();
+        releaseResources();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+
 #ifdef RRR3D_PHYSICS
     const auto gameMusicStatePath =
         rrr3d::platform::save_directory() / "game-music.state";
@@ -2663,6 +2838,7 @@ int main(int argc, char** argv)
         std::cerr << "Original game MusicCat initialization failed: "
                   << audioError << '\n';
         gameMusic.shutdown();
+        finalMusic.shutdown();
         music.shutdown();
         audio.unloadSound(clickSound);
         audio.shutdown();
@@ -2835,6 +3011,7 @@ int main(int argc, char** argv)
                   << audioError << '\n';
         commentator.shutdown();
         gameMusic.shutdown();
+        finalMusic.shutdown();
         music.shutdown();
         for (const auto& [path, sound] : engineSounds)
         {
@@ -2943,6 +3120,19 @@ int main(int argc, char** argv)
     std::size_t menuSelection = 0;
     bool championshipMode = true;
     bool newTournamentProfile = false;
+    std::uint64_t previousFrameTicks = SDL_GetTicksNS();
+    float finalMenuSeconds = 0.0F;
+    std::array<bool, 9> finalSlidesObserved{};
+    bool finalCreditsMotionObserved =
+        !options->finalMenuSmokeTest;
+    bool finalBackFrameObserved =
+        !options->finalMenuSmokeTest;
+    bool finalAutoCloseObserved =
+        !options->finalMenuSmokeTest;
+#ifdef RRR3D_AUDIO
+    bool finalMusicPlaybackObserved =
+        !options->finalMenuSmokeTest;
+#endif
 #ifdef RRR3D_PHYSICS
     std::optional<r3d::game::originalrace::PlayerProfile>
         championshipPlayerBeforeSkirmish;
@@ -3171,6 +3361,64 @@ int main(int argc, char** argv)
         refreshSharedMenuAvailability(menuStack.back());
         menuSelection = firstEnabledMenuItem();
     };
+    auto showOriginalFinalMenu = [&]() {
+        finalMenuSeconds = 0.0F;
+        finalSlidesObserved.fill(false);
+        finalCreditsMotionObserved =
+            !options->finalMenuSmokeTest;
+        finalBackFrameObserved =
+            !options->finalMenuSmokeTest;
+        finalAutoCloseObserved =
+            !options->finalMenuSmokeTest;
+#ifdef RRR3D_AUDIO
+        finalMusicPlaybackObserved =
+            !options->finalMenuSmokeTest;
+        bool audioReady = music.pause(true, audioError) &&
+                          finalMusic.pause(true, audioError);
+        if (audioReady)
+        {
+            const auto track = finalMusic.currentTrack();
+            if (track != std::nullopt &&
+                finalMusic.trackInfo(*track) != nullptr)
+            {
+                audioReady =
+                    finalMusic.seekCurrent(0U, audioError);
+            }
+        }
+        if (audioReady)
+            audioReady = finalMusic.pause(false, audioError);
+        if (!audioReady)
+        {
+            std::cerr << "Original FinalMenu::OnShow music failed: "
+                      << audioError << '\n';
+            runtimeSmokeFailed = true;
+            running = false;
+        }
+#endif
+        menuStack = {MenuScreen::Main, MenuScreen::Credits};
+        menuSelection = 0U;
+        std::cout
+            << "Original FinalMenu::OnShow: 9 slides, 107 seconds, "
+               "source credits and TrackFinal.ogg\n";
+    };
+    auto closeOriginalFinalMenu = [&]() {
+        if (menuStack.back() != MenuScreen::Credits)
+            return;
+#ifdef RRR3D_AUDIO
+        if (!finalMusic.pause(true, audioError) ||
+            !music.pause(false, audioError))
+        {
+            std::cerr << "Original FinalMenu::OnShow(false) music failed: "
+                      << audioError << '\n';
+            runtimeSmokeFailed = true;
+            running = false;
+        }
+#endif
+        menuStack = {MenuScreen::Main};
+        menuSelection = 0U;
+        finalMenuSeconds = 0.0F;
+        std::cout << "Original FinalMenu -> MainMenu2\n";
+    };
 #ifdef RRR3D_PHYSICS
     std::optional<std::string> bindingCaptureAction;
     bool bindingCaptureGamepad = false;
@@ -3288,7 +3536,6 @@ int main(int argc, char** argv)
          ++index)
         raceVehicles[index] = physicsWorld->vehicle(index);
     float raceElapsedSeconds = 0.0F;
-    std::uint64_t previousFrameTicks = SDL_GetTicksNS();
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
     bool gameModeFrameObserved = !options->raceRenderSmokeTest;
     bool tournamentFrameObserved = !options->raceRenderSmokeTest;
@@ -5102,6 +5349,8 @@ int main(int argc, char** argv)
         showFinishMenu(false);
     }
 #endif
+    if (options->finalMenuSmokeTest)
+        showOriginalFinalMenu();
 #ifdef RRR3D_AUDIO
     bool integratedAudioInputObserved = !options->audioSmokeTest;
     enum class MusicSmokePhase
@@ -6345,6 +6594,51 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
                 !inRace &&
 #endif
+                menuStack.back() == MenuScreen::Credits &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float pointerX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float pointerY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                bool hoveredBack = false;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        pointerX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        pointerY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    const float backX =
+                        static_cast<float>(finalBackImage.width) * 0.5F;
+                    const float backY =
+                        menu::virtualHeight - 60.0F;
+                    hoveredBack =
+                        std::abs(virtualX - backX) <=
+                            static_cast<float>(finalBackImage.width) * 0.5F &&
+                        std::abs(virtualY - backY) <=
+                            static_cast<float>(finalBackImage.height) * 0.5F;
+                }
+                menuSelection = 0U;
+                pointerTargetsItem =
+                    hoveredBack ||
+                    event.type == SDL_EVENT_MOUSE_MOTION ||
+                    event.button.button != SDL_BUTTON_LEFT;
+            }
+            else if (
+#ifdef RRR3D_PHYSICS
+                !inRace &&
+#endif
                 event.type == SDL_EVENT_MOUSE_MOTION)
             {
                 const auto& hoverPage = activeMenuPage();
@@ -7509,6 +7803,23 @@ int main(int argc, char** argv)
                     continue;
                 }
 #endif
+                if (menuStack.back() == MenuScreen::Credits)
+                {
+                    const bool closeRequested =
+                        !inputEvent.repeated &&
+                        (inputEvent.action ==
+                             rrr3d::input::Action::MenuBack ||
+                         inputEvent.action ==
+                             rrr3d::input::Action::Pause ||
+                         (inputEvent.action ==
+                              rrr3d::input::Action::MenuConfirm &&
+                          (inputEvent.source !=
+                               rrr3d::input::Source::Mouse ||
+                           pointerTargetsItem)));
+                    if (closeRequested)
+                        closeOriginalFinalMenu();
+                    continue;
+                }
                 auto& page = activeMenuPage();
                 if (inputEvent.action ==
                     rrr3d::input::Action::MenuUp)
@@ -7697,7 +8008,7 @@ int main(int argc, char** argv)
 #endif
                     }
                     else if (menuSelection == 3U)
-                        pushMenu(MenuScreen::Credits);
+                        showOriginalFinalMenu();
                     else
                         running = false;
                     break;
@@ -7853,7 +8164,7 @@ int main(int argc, char** argv)
 #endif
                     break;
                 case MenuScreen::Credits:
-                    backMenu();
+                    closeOriginalFinalMenu();
                     break;
 #ifdef RRR3D_PHYSICS
                 case MenuScreen::RaceMenu:
@@ -8059,16 +8370,39 @@ int main(int argc, char** argv)
             }
         }
 
-#ifdef RRR3D_PHYSICS
         const std::uint64_t currentFrameTicks = SDL_GetTicksNS();
         float frameSeconds = std::clamp(
             static_cast<float>(currentFrameTicks - previousFrameTicks) /
                 1000000000.0F,
             0.0F, 0.1F);
-        if (options->raceRenderSmokeTest ||
+        if (options->finalMenuSmokeTest)
+        {
+#ifdef RRR3D_AUDIO
+            frameSeconds =
+                menuStack.back() == MenuScreen::Credits &&
+                        !finalMusic.currentVoiceActive()
+                    ? 0.0F
+                    : 0.4F;
+#else
+            frameSeconds = 0.4F;
+#endif
+        }
+#ifdef RRR3D_PHYSICS
+        else if (options->raceRenderSmokeTest ||
             options->finishMenuSmokeTest)
             frameSeconds = 1.0F / 60.0F;
+#endif
         previousFrameTicks = currentFrameTicks;
+        if (menuStack.back() == MenuScreen::Credits)
+        {
+            finalMenuSeconds += frameSeconds;
+            if (finalMenuSeconds >= 107.0F)
+            {
+                finalAutoCloseObserved = true;
+                closeOriginalFinalMenu();
+            }
+        }
+#ifdef RRR3D_PHYSICS
         if (inRace)
         {
             // Windows ControlManager::GetGameActionState is polled every
@@ -8535,6 +8869,18 @@ int main(int argc, char** argv)
             running = false;
         }
 #endif
+        if (!finalMusic.update(audioError))
+        {
+            std::cerr << "Original FinalMenu music runtime failed: "
+                      << audioError << '\n';
+            runtimeSmokeFailed = true;
+            running = false;
+        }
+        else if (menuStack.back() == MenuScreen::Credits &&
+                 finalMusic.currentVoiceActive())
+        {
+            finalMusicPlaybackObserved = true;
+        }
         if (!music.update(audioError))
         {
             std::cerr << "Original MusicCat runtime failed: " << audioError
@@ -8818,6 +9164,8 @@ int main(int argc, char** argv)
         else
         {
 #endif
+        const bool drawingOriginalFinal =
+            menuStack.back() == MenuScreen::Credits;
 #ifdef RRR3D_PHYSICS
         const bool drawingOriginalProfiles =
             menuStack.back() == MenuScreen::Profiles;
@@ -9059,23 +9407,121 @@ int main(int argc, char** argv)
         else
 #endif
         {
-            device->beginFrame(camera, 0x040818ffU);
-            drawQuad(
-                *device, quad, shader, background,
-                menu::virtualWidth, menu::virtualHeight,
-                menu::virtualWidth * 0.5F,
-                menu::virtualHeight * 0.5F, 90.0F, opaque);
-            drawQuad(
-                *device, quad, shader, topPanel,
-                static_cast<float>(model->topPanelImage.width),
-                static_cast<float>(model->topPanelImage.height),
-                menu::virtualWidth * 0.5F, 200.0F, 70.0F,
-                transparent);
+            device->beginFrame(
+                camera, drawingOriginalFinal ? 0x000000ffU
+                                             : 0x040818ffU);
+            if (!drawingOriginalFinal)
+            {
+                drawQuad(
+                    *device, quad, shader, background,
+                    menu::virtualWidth, menu::virtualHeight,
+                    menu::virtualWidth * 0.5F,
+                    menu::virtualHeight * 0.5F, 90.0F, opaque);
+                drawQuad(
+                    *device, quad, shader, topPanel,
+                    static_cast<float>(model->topPanelImage.width),
+                    static_cast<float>(model->topPanelImage.height),
+                    menu::virtualWidth * 0.5F, 200.0F, 70.0F,
+                    transparent);
+            }
         }
 
         auto& activePage = activeMenuPage();
+        if (drawingOriginalFinal)
+        {
+            constexpr float duration = 107.0F;
+            const float progress =
+                std::clamp(finalMenuSeconds / duration, 0.0F, 1.0F);
+            const float slideMaximumWidth =
+                menu::virtualWidth - 500.0F;
+            const float slideMaximumHeight =
+                menu::virtualHeight - 300.0F;
+            const float slideAspect =
+                static_cast<float>(finalSlideImages.front().width) /
+                static_cast<float>(finalSlideImages.front().height);
+            const float slideWidth = std::min(
+                slideMaximumWidth, slideMaximumHeight * slideAspect);
+            const float slideHeight = slideWidth / slideAspect;
+            const float slideX =
+                (menu::virtualWidth - 400.0F) * 0.5F;
+            const float slideY = menu::virtualHeight * 0.5F;
+            for (std::size_t index = 0U;
+                 index < finalSlides.size(); ++index)
+            {
+                const float alpha1 =
+                    static_cast<float>(index) /
+                    static_cast<float>(finalSlides.size());
+                const float alpha2 =
+                    static_cast<float>(index + 1U) /
+                    static_cast<float>(finalSlides.size());
+                const float slideDuration =
+                    (alpha2 - alpha1) * duration;
+                const float slideTime = std::clamp(
+                    (progress - alpha1) * duration,
+                    0.0F, slideDuration);
+                const float alpha =
+                    std::clamp(slideTime, 0.0F, 1.0F) -
+                    std::clamp(
+                        slideTime - slideDuration, 0.0F, 1.0F);
+                if (alpha <= 0.0F)
+                    continue;
+                finalSlidesObserved[index] =
+                    finalSlidesObserved[index] || alpha >= 0.5F;
+                drawQuadTinted(
+                    *device, quad, shader, finalSlides[index],
+                    slideWidth, slideHeight, slideX, slideY,
+                    60.0F, transparent,
+                    {1.0F, 1.0F, 1.0F, alpha});
+            }
+
+            constexpr float creditWidth = 480.0F;
+            const float creditX = menu::virtualWidth - 250.0F;
+            const float creditRootY =
+                menu::virtualHeight -
+                progress *
+                    (finalCreditsHeight + menu::virtualHeight);
+            finalCreditsMotionObserved =
+                finalCreditsMotionObserved ||
+                creditRootY < menu::virtualHeight - 1.0F;
+            float sectionTop = creditRootY;
+            for (const auto& section : finalCredits)
+            {
+                drawQuad(
+                    *device, quad, shader, section.caption.texture,
+                    std::min(section.caption.width, creditWidth),
+                    section.caption.height, creditX,
+                    sectionTop + section.caption.height * 0.5F,
+                    35.0F, transparent);
+                float lineTop =
+                    sectionTop + section.caption.height + 10.0F;
+                for (const auto& line : section.lines)
+                {
+                    drawQuad(
+                        *device, quad, shader, line.texture,
+                        std::min(line.width, creditWidth), line.height,
+                        creditX, lineTop + line.height * 0.5F,
+                        35.0F, transparent);
+                    lineTop += line.height;
+                }
+                sectionTop += section.height;
+            }
+
+            const float backX =
+                static_cast<float>(finalBackSelectedImage.width) * 0.5F;
+            const float backY = menu::virtualHeight - 60.0F;
+            drawQuad(
+                *device, quad, shader, finalBackSelected,
+                static_cast<float>(finalBackSelectedImage.width),
+                static_cast<float>(finalBackSelectedImage.height),
+                backX, backY, 20.0F, transparent);
+            drawQuad(
+                *device, quad, shader, finalBackText.texture,
+                finalBackText.width, finalBackText.height,
+                backX, backY, 10.0F, transparent);
+            finalBackFrameObserved = true;
+        }
 #ifdef RRR3D_PHYSICS
-        if (drawingOriginalProfiles)
+        else if (drawingOriginalProfiles)
         {
             profileFrameObserved =
                 profilePage.labels.size() ==
@@ -11861,29 +12307,14 @@ int main(int argc, char** argv)
                     25.0F, transparent);
             }
         }
-        if (menuStack.back() == MenuScreen::Credits)
-        {
-            const float scroll =
-                std::fmod(
-                    static_cast<float>(SDL_GetTicks()) * 0.02F,
-                    credits.height + 400.0F);
-            drawQuad(
-                *device, quad, shader, credits.texture,
-                std::min(credits.width, 700.0F), credits.height,
-                menu::virtualWidth * 0.5F - 260.0F,
-                menu::virtualHeight + credits.height * 0.5F -
-                    scroll,
-                30.0F, transparent);
-        }
+        if (!drawingOriginalFinal
 #ifdef RRR3D_PHYSICS
-#endif
-
-#ifdef RRR3D_PHYSICS
-        if (!drawingOriginalOptions && !drawingOriginalRaceMenu &&
+            && !drawingOriginalOptions && !drawingOriginalRaceMenu &&
             !drawingOriginalGarage && !drawingOriginalWorkshop &&
             !drawingOriginalAngar && !drawingOriginalAchievements &&
-            !drawingOriginalFinish)
+            !drawingOriginalFinish
 #endif
+        )
         {
             const float versionX =
                 menu::virtualWidth - 25.0F -
@@ -11910,8 +12341,50 @@ int main(int argc, char** argv)
 #endif
         )
         {
+            if (options->finalMenuSmokeTest)
+            {
+                const bool allSlidesObserved =
+                    std::all_of(
+                        finalSlidesObserved.begin(),
+                        finalSlidesObserved.end(),
+                        [](bool observed) { return observed; });
+                const bool finalMusicObserved =
+#ifdef RRR3D_AUDIO
+                    finalMusicPlaybackObserved;
+#else
+                    true;
+#endif
+                if (!allSlidesObserved ||
+                    !finalCreditsMotionObserved ||
+                    !finalBackFrameObserved ||
+                    !finalAutoCloseObserved ||
+                    !finalMusicObserved ||
+                    menuStack.back() != MenuScreen::Main)
+                {
+                    std::cerr
+                        << "Source FinalMenu renderer smoke failed: "
+                        << "slides=" << allSlidesObserved
+                        << ", credits=" << finalCreditsMotionObserved
+                        << ", back=" << finalBackFrameObserved
+                        << ", autoClose=" << finalAutoCloseObserved
+                        << ", music=" << finalMusicObserved
+                        << ", main="
+                        << (menuStack.back() == MenuScreen::Main)
+                        << '\n';
+                    runtimeSmokeFailed = true;
+                }
+                else
+                {
+                    std::cout
+                        << "Source FinalMenu smoke passed after "
+                        << renderedFrames
+                        << " frames: nine source slides, fade timing, "
+                           "sectioned scrolling credits, Back, "
+                           "TrackFinal.ogg and 107-second return verified\n";
+                }
+            }
 #ifdef RRR3D_PHYSICS
-            if (options->raceRenderSmokeTest)
+            else if (options->raceRenderSmokeTest)
             {
                 auto passObserved =
                     [&](r3d::renderer::RenderPass pass,
@@ -12129,8 +12602,8 @@ int main(int argc, char** argv)
                            "reveal verified without profile writes\n";
                 }
             }
-            else
 #endif
+            else
 #ifdef RRR3D_AUDIO
             if (!integratedAudioInputObserved)
             {
@@ -12169,6 +12642,7 @@ int main(int argc, char** argv)
         audio.unloadSound(sound);
     }
 #endif
+    finalMusic.shutdown();
     music.shutdown();
     audio.unloadSound(clickSound);
     audio.shutdown();
@@ -12182,7 +12656,8 @@ int main(int argc, char** argv)
     }
 #endif
 #ifdef RRR3D_PHYSICS
-    if (!options->finishMenuSmokeTest)
+    if (!options->finishMenuSmokeTest &&
+        !options->finalMenuSmokeTest)
         saveRaceProfile();
     physicsWorld.reset();
     raceHud.shutdown(*device);
