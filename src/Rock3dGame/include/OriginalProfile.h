@@ -168,6 +168,8 @@ public:
     ProfileState load(std::string& warning) const;
     bool selectProfile(ProfileState& state, std::string_view name,
                        std::string& error) const;
+    bool deleteProfile(ProfileState& state, std::string_view name,
+                       std::string& error) const;
     bool save(const ProfileState& state, std::string& error) const;
 
     const std::filesystem::path& saveDirectory() const noexcept;

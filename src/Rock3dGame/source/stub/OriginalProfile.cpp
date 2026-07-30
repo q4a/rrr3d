@@ -323,13 +323,21 @@ void loadRaceLibrary(const std::filesystem::path& path,
     if (!document.LoadFile() || document.RootElement() == nullptr)
         return;
     auto* root = document.RootElement();
-    if (auto profiles = splitList(value(root, "profiles"));
-        !profiles.empty())
-        state.profiles = std::move(profiles);
+    state.profiles = splitList(value(root, "profiles"));
     state.networkProfiles = splitList(value(root, "netProfiles"));
-    if (const char* token = value(root, "lastProfile"))
-        state.player.name = cleanFileName(token);
-    else if (!state.profiles.empty())
+    state.player.name.clear();
+    if (const char* token = value(root, "lastProfile");
+        token != nullptr && *token != '\0')
+    {
+        const auto lastProfile = cleanFileName(token);
+        if (std::find(
+                state.profiles.begin(), state.profiles.end(),
+                lastProfile) != state.profiles.end())
+        {
+            state.player.name = lastProfile;
+        }
+    }
+    if (state.player.name.empty() && !state.profiles.empty())
         state.player.name = cleanFileName(state.profiles.front());
     if (const char* token = value(root, "lastNetProfile"))
         state.lastNetworkProfile = cleanFileName(token);
@@ -689,6 +697,37 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
             "did not match the source";
         return false;
     }
+
+    const auto smokeDirectory =
+        std::filesystem::temp_directory_path() /
+        ("rrr3d-profile-flow-smoke-" +
+         std::to_string(
+             reinterpret_cast<std::uintptr_t>(&state)));
+    std::error_code fileError;
+    std::filesystem::remove_all(smokeDirectory, fileError);
+    OriginalProfileStore smokeStore(smokeDirectory);
+    auto deleteState = makeOriginalDefaultProfileState();
+    if (!smokeStore.save(deleteState, error) ||
+        !smokeStore.deleteProfile(
+            deleteState, "profile1", error))
+    {
+        std::filesystem::remove_all(smokeDirectory, fileError);
+        return false;
+    }
+    std::string loadWarning;
+    const auto reloaded = smokeStore.load(loadWarning);
+    std::filesystem::remove_all(smokeDirectory, fileError);
+    if (!loadWarning.empty() ||
+        !deleteState.profiles.empty() ||
+        !deleteState.player.name.empty() ||
+        !reloaded.profiles.empty() ||
+        !reloaded.player.name.empty())
+    {
+        error =
+            "Race::DelProfile/SaveLib restored the deleted final "
+            "profile";
+        return false;
+    }
     return true;
 }
 
@@ -724,10 +763,13 @@ ProfileState OriginalProfileStore::load(std::string& warning) const
     {
         loadConfig(loadPath("user.xml"), state.config);
         loadRaceLibrary(loadPath("race.xml"), state);
-        loadProfile(
-            loadPath(std::filesystem::path("Profile") /
-                     (cleanFileName(state.player.name) + ".xml")),
-            state.player);
+        if (!state.player.name.empty())
+        {
+            loadProfile(
+                loadPath(std::filesystem::path("Profile") /
+                         (cleanFileName(state.player.name) + ".xml")),
+                state.player);
+        }
         const auto legacyAchievements =
             legacyDirectory_ / "achievment.xml";
         const auto savedAchievements =
@@ -749,9 +791,6 @@ ProfileState OriginalProfileStore::load(std::string& warning) const
             loadAchievements(savedAchievements, state);
         else if (!hasLegacyAchievements)
             loadAchievements(loadPath("achievment.xml"), state);
-        if (std::find(state.profiles.begin(), state.profiles.end(),
-                      state.player.name) == state.profiles.end())
-            state.profiles.push_back(state.player.name);
     }
     catch (const std::exception& exception)
     {
@@ -773,22 +812,57 @@ bool OriginalProfileStore::selectProfile(
         return false;
     }
 
-    const auto path = loadPath(
-        std::filesystem::path("Profile") /
-        (profileName + ".xml"));
-    std::error_code fileError;
-    if (!std::filesystem::is_regular_file(path, fileError))
+    // Profile::LoadGameFile catches EUnableToOpen after Profile::Enter has
+    // installed source defaults, so a library entry with a missing XML is
+    // still a valid selectable profile.
+    auto selected = makeOriginalDefaultProfileState().player;
+    selected.name = profileName;
+    loadProfile(
+        loadPath(
+            std::filesystem::path("Profile") /
+            (profileName + ".xml")),
+        selected);
+    state.player = std::move(selected);
+    return true;
+}
+
+bool OriginalProfileStore::deleteProfile(
+    ProfileState& state, std::string_view name,
+    std::string& error) const
+{
+    error.clear();
+    const auto profileName = cleanFileName(std::string(name));
+    const auto found = std::find(
+        state.profiles.begin(), state.profiles.end(), profileName);
+    if (found == state.profiles.end())
     {
-        error = "original profile file is missing: " +
-                path.string();
+        error = "unknown original profile: " + profileName;
         return false;
     }
 
-    PlayerProfile selected;
-    selected.name = profileName;
-    loadProfile(path, selected);
-    state.player = std::move(selected);
-    return true;
+    const bool deletingCurrent =
+        state.player.name == profileName;
+    state.profiles.erase(found);
+    if (deletingCurrent)
+    {
+        if (state.profiles.empty())
+        {
+            state.player = makeOriginalDefaultProfileState().player;
+            state.player.name.clear();
+        }
+        else
+        {
+            auto selected = makeOriginalDefaultProfileState().player;
+            selected.name = state.profiles.front();
+            loadProfile(
+                loadPath(
+                    std::filesystem::path("Profile") /
+                    (cleanFileName(selected.name) + ".xml")),
+                selected);
+            state.player = std::move(selected);
+        }
+    }
+    return save(state, error);
 }
 
 bool OriginalProfileStore::save(const ProfileState& state,
@@ -858,14 +932,19 @@ bool OriginalProfileStore::save(const ProfileState& state,
         new TiXmlDeclaration("1.0", "UTF-8", ""));
     auto* race = new TiXmlElement("raceRoot");
     raceDocument.LinkEndChild(race);
-    auto profiles = state.profiles;
-    const std::string profileName = cleanFileName(state.player.name);
-    if (std::find(profiles.begin(), profiles.end(), profileName) ==
-        profiles.end())
-        profiles.push_back(profileName);
-    append(*race, "profiles", joinList(profiles));
+    const std::string profileName =
+        state.player.name.empty()
+            ? std::string{}
+            : cleanFileName(state.player.name);
+    const bool hasCurrentProfile =
+        !profileName.empty() &&
+        std::find(
+            state.profiles.begin(), state.profiles.end(),
+            profileName) != state.profiles.end();
+    append(*race, "profiles", joinList(state.profiles));
     append(*race, "netProfiles", joinList(state.networkProfiles));
-    append(*race, "lastProfile", profileName);
+    if (hasCurrentProfile)
+        append(*race, "lastProfile", profileName);
     if (!state.lastNetworkProfile.empty())
         append(*race, "lastNetProfile",
                cleanFileName(state.lastNetworkProfile));
@@ -878,56 +957,69 @@ bool OriginalProfileStore::save(const ProfileState& state,
     if (!saveAtomic(raceDocument, saveDirectory_ / "race.xml", error))
         return false;
 
-    TiXmlDocument profileDocument;
-    profileDocument.LinkEndChild(
-        new TiXmlDeclaration("1.0", "UTF-8", ""));
-    auto* profile = new TiXmlElement("profile");
-    profileDocument.LinkEndChild(profile);
-    append(*profile, "carChanged", state.player.carChanged);
-    append(*profile, "minDifficulty",
-           state.player.minimumDifficulty);
-    for (std::size_t index = 0;
-         index < state.player.planets.size(); ++index)
+    if (hasCurrentProfile)
     {
-        auto* planet = new TiXmlElement(
-            ("planet" + std::to_string(index)).c_str());
-        profile->LinkEndChild(planet);
-        append(*planet, "state", state.player.planets[index].state);
-        append(*planet, "pass", state.player.planets[index].pass);
+        TiXmlDocument profileDocument;
+        profileDocument.LinkEndChild(
+            new TiXmlDeclaration("1.0", "UTF-8", ""));
+        auto* profile = new TiXmlElement("profile");
+        profileDocument.LinkEndChild(profile);
+        append(*profile, "carChanged", state.player.carChanged);
+        append(*profile, "minDifficulty",
+               state.player.minimumDifficulty);
+        for (std::size_t index = 0;
+             index < state.player.planets.size(); ++index)
+        {
+            auto* planet = new TiXmlElement(
+                ("planet" + std::to_string(index)).c_str());
+            profile->LinkEndChild(planet);
+            append(*planet, "state",
+                   state.player.planets[index].state);
+            append(*planet, "pass",
+                   state.player.planets[index].pass);
+        }
+        append(*profile, "planet", state.player.currentPlanet);
+        append(*profile, "track", state.player.currentTrack);
+        auto* humans = new TiXmlElement("humans");
+        profile->LinkEndChild(humans);
+        auto* human = new TiXmlElement("human0");
+        humans->LinkEndChild(human);
+        auto* car = new TiXmlElement("car");
+        car->SetAttribute("lib", "world\\db\\ctCar");
+        car->LinkEndChild(new TiXmlText(state.player.currentCar));
+        human->LinkEndChild(car);
+        append(*human, "plrId", state.player.playerId);
+        append(*human, "gamerId", state.player.gamerId);
+        append(*human, "netSlot", state.player.networkSlot);
+        std::ostringstream color;
+        color.precision(8);
+        color << state.player.color[0] << ' '
+              << state.player.color[1] << ' '
+              << state.player.color[2] << ' '
+              << state.player.color[3];
+        append(*human, "color", color.str());
+        append(*human, "money", state.player.money);
+        append(*human, "points", state.player.points);
+        for (std::size_t index = 0;
+             index < state.player.slots.size(); ++index)
+        {
+            if (state.player.slots[index].record.empty())
+                continue;
+            appendReference(
+                *human,
+                ("slot" + std::to_string(index)).c_str(),
+                state.player.slots[index]);
+        }
+        append(*profile, "dfficulty", state.player.difficulty);
+        if (!saveAtomic(
+                profileDocument,
+                saveDirectory_ / "Profile" /
+                    (profileName + ".xml"),
+                error))
+        {
+            return false;
+        }
     }
-    append(*profile, "planet", state.player.currentPlanet);
-    append(*profile, "track", state.player.currentTrack);
-    auto* humans = new TiXmlElement("humans");
-    profile->LinkEndChild(humans);
-    auto* human = new TiXmlElement("human0");
-    humans->LinkEndChild(human);
-    auto* car = new TiXmlElement("car");
-    car->SetAttribute("lib", "world\\db\\ctCar");
-    car->LinkEndChild(new TiXmlText(state.player.currentCar));
-    human->LinkEndChild(car);
-    append(*human, "plrId", state.player.playerId);
-    append(*human, "gamerId", state.player.gamerId);
-    append(*human, "netSlot", state.player.networkSlot);
-    std::ostringstream color;
-    color.precision(8);
-    color << state.player.color[0] << ' ' << state.player.color[1] << ' '
-          << state.player.color[2] << ' ' << state.player.color[3];
-    append(*human, "color", color.str());
-    append(*human, "money", state.player.money);
-    append(*human, "points", state.player.points);
-    for (std::size_t index = 0; index < state.player.slots.size(); ++index)
-    {
-        if (state.player.slots[index].record.empty())
-            continue;
-        appendReference(
-            *human, ("slot" + std::to_string(index)).c_str(),
-            state.player.slots[index]);
-    }
-    append(*profile, "dfficulty", state.player.difficulty);
-    if (!saveAtomic(
-            profileDocument,
-            saveDirectory_ / "Profile" / (profileName + ".xml"), error))
-        return false;
 
     TiXmlDocument achievementDocument;
     achievementDocument.LinkEndChild(

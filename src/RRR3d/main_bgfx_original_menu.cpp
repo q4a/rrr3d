@@ -477,6 +477,26 @@ Texture createImageTexture(GraphicsDevice& device, const menu::Image& image)
                                      image.bytes.data(), image.bytes.size());
 }
 
+Texture createImageTextureWithAlpha(
+    GraphicsDevice& device, const menu::Image& image,
+    std::uint8_t alphaNumerator, std::uint8_t alphaDenominator)
+{
+    if (image.storage != menu::ImageStorage::Rgba8 ||
+        alphaDenominator == 0U)
+    {
+        return createImageTexture(device, image);
+    }
+    auto bytes = image.bytes;
+    for (std::size_t index = 3U; index < bytes.size(); index += 4U)
+    {
+        bytes[index] = static_cast<std::uint8_t>(
+            static_cast<std::uint16_t>(bytes[index]) *
+            alphaNumerator / alphaDenominator);
+    }
+    return device.createTextureRgba8(
+        image.width, image.height, bytes.data(), bytes.size());
+}
+
 TextVisual createText(GraphicsDevice& device, std::string_view text,
                       float pointSize, bool bold, menu::Rgba8 color,
                       std::string& resolvedFont)
@@ -999,6 +1019,17 @@ int main(int argc, char** argv)
         createImageTexture(*device, acceptButtonImage);
     const Texture acceptButtonSelected =
         createImageTexture(*device, acceptButtonSelectedImage);
+    const auto profileArrowImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/arrow1.png");
+    const auto profileArrowSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/arrowSel1.png");
+    const Texture profileArrow =
+        createImageTexture(*device, profileArrowImage);
+    const Texture profileArrowSelected =
+        createImageTexture(*device, profileArrowSelectedImage);
+    const Texture profileArrowDisabled =
+        createImageTextureWithAlpha(
+            *device, profileArrowImage, 1U, 4U);
     const auto optionsBackgroundImage = menu::loadOriginalImage(
         *resources, "Data/GUI/optionsBg.png");
     const auto optionsRowImage = menu::loadOriginalImage(
@@ -1907,6 +1938,10 @@ int main(int argc, char** argv)
     const TextVisual exitRaceNoSelected = createText(
         *device, localized("svNo"), menu::smallFontHeight,
         false, menu::selectedTextColor, resolvedFont);
+    const TextVisual profileDeleteMessage = createText(
+        *device, localized("svHintDeleteProfile"),
+        menu::smallFontHeight, false,
+        menu::normalTextColor, resolvedFont);
     TextVisual angarTravelMessage = createText(
         *device, localized("svYouReadyStayPlanet"),
         menu::smallFontHeight, false, menu::normalTextColor,
@@ -2000,6 +2035,8 @@ int main(int argc, char** argv)
         pageValid(finishPage) &&
         valid(finishSummary.texture) && valid(acceptFrame) &&
         valid(acceptButton) && valid(acceptButtonSelected) &&
+        valid(profileArrow) && valid(profileArrowSelected) &&
+        valid(profileArrowDisabled) &&
         valid(optionsBackground) && valid(optionsRow) &&
         valid(controlsRow) && valid(optionsArrow) &&
         valid(optionsArrowSelected) &&
@@ -2079,6 +2116,7 @@ int main(int argc, char** argv)
         valid(exitRaceMessage.texture) && valid(exitRaceYes.texture) &&
         valid(exitRaceYesSelected.texture) && valid(exitRaceNo.texture) &&
         valid(exitRaceNoSelected.texture) &&
+        valid(profileDeleteMessage.texture) &&
         valid(angarTravelMessage.texture) &&
         valid(angarWarningMessage.texture) &&
         valid(angarOk.texture) &&
@@ -2092,6 +2130,7 @@ int main(int argc, char** argv)
 
     auto releaseResources = [&]() {
 #ifdef RRR3D_PHYSICS
+        device->destroy(profileDeleteMessage.texture);
         device->destroy(exitRaceNoSelected.texture);
         device->destroy(exitRaceNo.texture);
         device->destroy(exitRaceYesSelected.texture);
@@ -2225,6 +2264,9 @@ int main(int argc, char** argv)
         device->destroy(acceptButtonSelected);
         device->destroy(acceptButton);
         device->destroy(acceptFrame);
+        device->destroy(profileArrowDisabled);
+        device->destroy(profileArrowSelected);
+        device->destroy(profileArrow);
 #endif
         destroyPage(creditsPage);
         destroyPage(optionsPage);
@@ -2835,6 +2877,21 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     std::optional<r3d::game::originalrace::PlayerProfile>
         championshipPlayerBeforeSkirmish;
+    enum class ProfileFocus
+    {
+        Item,
+        Close,
+        Up,
+        Down,
+        Back
+    };
+    ProfileFocus profileFocus = ProfileFocus::Back;
+    std::size_t profileFocusIndex = 0U;
+    std::size_t profileGridScroll = 0U;
+    bool profileDeleteDialogVisible = false;
+    bool profileDeleteYesFocused = true;
+    std::size_t profileDeleteIndex =
+        std::numeric_limits<std::size_t>::max();
     struct GarageCarView
     {
         std::size_t catalogIndex = 0U;
@@ -2935,6 +2992,19 @@ int main(int argc, char** argv)
     auto refreshProfilePage = [&]() {
 #ifdef RRR3D_PHYSICS
         auto profileLabels = profileState.profiles;
+        const auto maximumScroll =
+            profileLabels.size() > 4U
+                ? profileLabels.size() - 4U
+                : 0U;
+        profileGridScroll =
+            std::min(profileGridScroll, maximumScroll);
+        if ((profileFocus == ProfileFocus::Item ||
+             profileFocus == ProfileFocus::Close) &&
+            profileFocusIndex >= profileLabels.size())
+        {
+            profileFocus = ProfileFocus::Back;
+            profileFocusIndex = 0U;
+        }
 #else
         std::vector<std::string> profileLabels{"profile1"};
 #endif
@@ -3008,7 +3078,17 @@ int main(int argc, char** argv)
         };
     auto pushMenu = [&](MenuScreen screen) {
         if (screen == MenuScreen::Profiles)
+        {
+#ifdef RRR3D_PHYSICS
+            profileGridScroll = 0U;
+            profileFocus = ProfileFocus::Back;
+            profileFocusIndex = 0U;
+            profileDeleteDialogVisible = false;
+            profileDeleteIndex =
+                std::numeric_limits<std::size_t>::max();
+#endif
             refreshProfilePage();
+        }
         menuStack.push_back(screen);
         refreshSharedMenuAvailability(screen);
         menuSelection = firstEnabledMenuItem();
@@ -3140,6 +3220,9 @@ int main(int argc, char** argv)
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
     bool gameModeFrameObserved = !options->raceRenderSmokeTest;
     bool tournamentFrameObserved = !options->raceRenderSmokeTest;
+    bool profileFrameObserved = !options->raceRenderSmokeTest;
+    bool profileDeleteDialogObserved =
+        !options->raceRenderSmokeTest;
     bool raceGarageFrameObserved = !options->raceRenderSmokeTest;
     bool raceGarage3DObserved = !options->raceRenderSmokeTest;
     bool raceWorkshopFrameObserved = !options->raceRenderSmokeTest;
@@ -4915,12 +4998,17 @@ int main(int argc, char** argv)
         // GarageFrame -> AngarFrame -> AchievmentFrame -> Race.
         // Advance one real press/release pair per rendered menu frame.
         if (options->raceRenderSmokeTest && !inRace &&
-            raceSmokeMenuStep < 24U &&
+            raceSmokeMenuStep < 33U &&
             renderedFrames >= raceSmokeNextMenuFrame)
         {
-            constexpr std::array<SDL_Scancode, 24> smokeKeys{
+            constexpr std::array<SDL_Scancode, 33> smokeKeys{
                 SDL_SCANCODE_RETURN, SDL_SCANCODE_RETURN,
-                SDL_SCANCODE_RETURN, SDL_SCANCODE_RIGHT,
+                SDL_SCANCODE_DOWN, SDL_SCANCODE_DOWN,
+                SDL_SCANCODE_RETURN, SDL_SCANCODE_DOWN,
+                SDL_SCANCODE_RIGHT, SDL_SCANCODE_RETURN,
+                SDL_SCANCODE_RIGHT, SDL_SCANCODE_RETURN,
+                SDL_SCANCODE_DOWN, SDL_SCANCODE_RETURN,
+                SDL_SCANCODE_RIGHT,
                 SDL_SCANCODE_RETURN, SDL_SCANCODE_ESCAPE,
                 SDL_SCANCODE_RIGHT, SDL_SCANCODE_RIGHT,
                 SDL_SCANCODE_RETURN, SDL_SCANCODE_RIGHT,
@@ -5125,6 +5213,135 @@ int main(int argc, char** argv)
             bool workshopPointerSlotPlane = false;
 #ifdef RRR3D_PHYSICS
             if (!inRace &&
+                menuStack.back() == MenuScreen::Profiles &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float pointerX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float pointerY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                bool hoveredProfileControl = false;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        pointerX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        pointerY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    const float centerX =
+                        menu::virtualWidth * 0.5F;
+                    const float centerY =
+                        menu::virtualHeight * 0.5F;
+                    if (profileDeleteDialogVisible)
+                    {
+                        const float buttonY = centerY + 32.0F;
+                        if (std::abs(virtualY - buttonY) <= 24.0F &&
+                            std::abs(
+                                virtualX -
+                                (centerX - 70.0F)) <= 55.0F)
+                        {
+                            profileDeleteYesFocused = true;
+                            hoveredProfileControl = true;
+                        }
+                        else if (
+                            std::abs(virtualY - buttonY) <= 24.0F &&
+                            std::abs(
+                                virtualX -
+                                (centerX + 70.0F)) <= 55.0F)
+                        {
+                            profileDeleteYesFocused = false;
+                            hoveredProfileControl = true;
+                        }
+                    }
+                    else
+                    {
+                        const auto visibleEnd = std::min(
+                            profileGridScroll + 4U,
+                            profileState.profiles.size());
+                        for (std::size_t index = profileGridScroll;
+                             index < visibleEnd; ++index)
+                        {
+                            const float rowY =
+                                centerY - 90.0F +
+                                static_cast<float>(
+                                    index - profileGridScroll) *
+                                    menu::itemSpacing;
+                            const float closeX =
+                                centerX +
+                                static_cast<float>(
+                                    model->selectionImage.width) *
+                                    0.5F -
+                                40.0F;
+                            if (std::abs(virtualX - closeX) <= 22.0F &&
+                                std::abs(virtualY - rowY) <= 22.0F)
+                            {
+                                profileFocus = ProfileFocus::Close;
+                                profileFocusIndex = index;
+                                hoveredProfileControl = true;
+                                break;
+                            }
+                            if (std::abs(virtualX - centerX) <=
+                                    static_cast<float>(
+                                        model->selectionImage.width) *
+                                        0.5F &&
+                                std::abs(virtualY - rowY) <= 24.0F)
+                            {
+                                profileFocus = ProfileFocus::Item;
+                                profileFocusIndex = index;
+                                hoveredProfileControl = true;
+                                break;
+                            }
+                        }
+                        const float backY = centerY + 150.0F;
+                        if (!hoveredProfileControl &&
+                            std::abs(virtualX - centerX) <=
+                                static_cast<float>(
+                                    model->selectionImage.width) *
+                                    0.5F &&
+                            std::abs(virtualY - backY) <= 24.0F)
+                        {
+                            profileFocus = ProfileFocus::Back;
+                            hoveredProfileControl = true;
+                        }
+                        if (!hoveredProfileControl &&
+                            std::abs(virtualX - centerX) <= 26.0F &&
+                            std::abs(
+                                virtualY -
+                                (centerY - 108.0F)) <= 22.0F &&
+                            profileGridScroll > 0U)
+                        {
+                            profileFocus = ProfileFocus::Up;
+                            hoveredProfileControl = true;
+                        }
+                        if (!hoveredProfileControl &&
+                            std::abs(virtualX - centerX) <= 26.0F &&
+                            std::abs(
+                                virtualY -
+                                (centerY + 120.0F)) <= 22.0F &&
+                            profileGridScroll + 4U <
+                                profileState.profiles.size())
+                        {
+                            profileFocus = ProfileFocus::Down;
+                            hoveredProfileControl = true;
+                        }
+                    }
+                }
+                pointerTargetsItem =
+                    hoveredProfileControl ||
+                    event.type == SDL_EVENT_MOUSE_MOTION ||
+                    event.button.button != SDL_BUTTON_LEFT;
+            }
+            else if (!inRace &&
                 menuStack.back() == MenuScreen::Garage &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
@@ -6174,6 +6391,278 @@ int main(int argc, char** argv)
                 if (!inputEvent.active)
                     continue;
 #ifdef RRR3D_PHYSICS
+                if (menuStack.back() == MenuScreen::Profiles)
+                {
+                    const auto profileCount =
+                        profileState.profiles.size();
+                    const auto visibleEnd = std::min(
+                        profileGridScroll + 4U, profileCount);
+                    const bool canScrollUp =
+                        profileGridScroll > 0U;
+                    const bool canScrollDown =
+                        profileGridScroll + 4U < profileCount;
+                    auto focusFirstVisible = [&]() {
+                        if (profileGridScroll < visibleEnd)
+                        {
+                            profileFocus = ProfileFocus::Item;
+                            profileFocusIndex = profileGridScroll;
+                        }
+                        else
+                        {
+                            profileFocus = ProfileFocus::Back;
+                        }
+                    };
+                    auto focusLastVisible = [&]() {
+                        if (profileGridScroll < visibleEnd)
+                        {
+                            profileFocus = ProfileFocus::Item;
+                            profileFocusIndex = visibleEnd - 1U;
+                        }
+                        else
+                        {
+                            profileFocus = ProfileFocus::Back;
+                        }
+                    };
+
+                    if (profileDeleteDialogVisible)
+                    {
+                        if (inputEvent.action ==
+                                rrr3d::input::Action::TurnLeft ||
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuUp)
+                        {
+                            profileDeleteYesFocused = true;
+                        }
+                        else if (
+                            inputEvent.action ==
+                                rrr3d::input::Action::TurnRight ||
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuDown)
+                        {
+                            profileDeleteYesFocused = false;
+                        }
+                        else if (
+                            !inputEvent.repeated &&
+                            (inputEvent.action ==
+                                 rrr3d::input::Action::MenuBack ||
+                             inputEvent.action ==
+                                 rrr3d::input::Action::Pause))
+                        {
+                            profileDeleteDialogVisible = false;
+                        }
+                        else if (
+                            !inputEvent.repeated &&
+                            inputEvent.action ==
+                                rrr3d::input::Action::MenuConfirm)
+                        {
+                            if (profileDeleteYesFocused &&
+                                profileDeleteIndex < profileCount)
+                            {
+                                saveRaceProfile();
+                                const auto previousProfile =
+                                    profileState.player.name;
+                                std::string profileError;
+                                if (!profileStore.deleteProfile(
+                                        profileState,
+                                        profileState.profiles[
+                                            profileDeleteIndex],
+                                        profileError))
+                                {
+                                    std::cerr
+                                        << "ProfileFrame delete failed: "
+                                        << profileError << '\n';
+                                }
+                                else
+                                {
+                                    refreshProfilePage();
+                                    if (!profileState.profiles.empty() &&
+                                        profileState.player.name !=
+                                            previousProfile)
+                                    {
+                                        selectedTrack =
+                                            r3d::game::originalrace::
+                                                resolveOriginalTournamentTrack(
+                                                    *originalRace,
+                                                    profileState.player);
+                                        if (!reloadCurrentRace())
+                                        {
+                                            runtimeSmokeFailed = true;
+                                            running = false;
+                                        }
+                                    }
+                                    std::cout
+                                        << "Race::DelProfile: "
+                                        << profileDeleteIndex << '\n';
+                                }
+                            }
+                            profileDeleteDialogVisible = false;
+                            profileDeleteIndex =
+                                std::numeric_limits<
+                                    std::size_t>::max();
+                            profileFocus = ProfileFocus::Back;
+                            profileFocusIndex = 0U;
+                        }
+                        continue;
+                    }
+
+                    if (!inputEvent.repeated &&
+                        (inputEvent.action ==
+                             rrr3d::input::Action::MenuBack ||
+                         inputEvent.action ==
+                             rrr3d::input::Action::Pause))
+                    {
+                        backMenu();
+                        continue;
+                    }
+                    if (inputEvent.action ==
+                            rrr3d::input::Action::TurnLeft ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::TurnRight)
+                    {
+                        if (profileFocus == ProfileFocus::Item)
+                            profileFocus = ProfileFocus::Close;
+                        else if (
+                            profileFocus == ProfileFocus::Close)
+                            profileFocus = ProfileFocus::Item;
+                        continue;
+                    }
+                    if (inputEvent.action ==
+                        rrr3d::input::Action::MenuUp)
+                    {
+                        switch (profileFocus)
+                        {
+                        case ProfileFocus::Item:
+                        case ProfileFocus::Close:
+                            if (profileFocusIndex >
+                                profileGridScroll)
+                                --profileFocusIndex;
+                            else if (canScrollUp)
+                                profileFocus = ProfileFocus::Up;
+                            else
+                                profileFocus = ProfileFocus::Back;
+                            break;
+                        case ProfileFocus::Up:
+                            profileFocus = ProfileFocus::Back;
+                            break;
+                        case ProfileFocus::Down:
+                            focusLastVisible();
+                            break;
+                        case ProfileFocus::Back:
+                            if (canScrollDown)
+                                profileFocus = ProfileFocus::Down;
+                            else
+                                focusLastVisible();
+                            break;
+                        }
+                        continue;
+                    }
+                    if (inputEvent.action ==
+                        rrr3d::input::Action::MenuDown)
+                    {
+                        switch (profileFocus)
+                        {
+                        case ProfileFocus::Item:
+                        case ProfileFocus::Close:
+                            if (profileFocusIndex + 1U <
+                                visibleEnd)
+                                ++profileFocusIndex;
+                            else if (canScrollDown)
+                                profileFocus = ProfileFocus::Down;
+                            else
+                                profileFocus = ProfileFocus::Back;
+                            break;
+                        case ProfileFocus::Up:
+                            focusFirstVisible();
+                            break;
+                        case ProfileFocus::Down:
+                            profileFocus = ProfileFocus::Back;
+                            break;
+                        case ProfileFocus::Back:
+                            if (canScrollUp)
+                                profileFocus = ProfileFocus::Up;
+                            else
+                                focusFirstVisible();
+                            break;
+                        }
+                        continue;
+                    }
+                    if (inputEvent.action !=
+                            rrr3d::input::Action::MenuConfirm ||
+                        inputEvent.repeated)
+                    {
+                        continue;
+                    }
+                    switch (profileFocus)
+                    {
+                    case ProfileFocus::Back:
+                        backMenu();
+                        break;
+                    case ProfileFocus::Up:
+                        if (canScrollUp)
+                            --profileGridScroll;
+                        break;
+                    case ProfileFocus::Down:
+                        if (canScrollDown)
+                            ++profileGridScroll;
+                        break;
+                    case ProfileFocus::Close:
+                        if (profileFocusIndex < profileCount)
+                        {
+                            profileDeleteIndex =
+                                profileFocusIndex;
+                            profileDeleteYesFocused = true;
+                            profileDeleteDialogVisible = true;
+                            std::cout
+                                << "ProfileFrame: "
+                                << localized(
+                                       "svHintDeleteProfile")
+                                << '\n';
+                        }
+                        break;
+                    case ProfileFocus::Item:
+                        if (profileFocusIndex < profileCount)
+                        {
+                            saveRaceProfile();
+                            std::string profileError;
+                            if (!profileStore.selectProfile(
+                                    profileState,
+                                    profileState.profiles[
+                                        profileFocusIndex],
+                                    profileError))
+                            {
+                                std::cerr
+                                    << "ProfileFrame load failed: "
+                                    << profileError << '\n';
+                                break;
+                            }
+                            std::cout
+                                << "ProfileFrame selection: "
+                                << profileState.player.name
+                                << '\n';
+                            championshipMode = true;
+                            selectedTrack =
+                                r3d::game::originalrace::
+                                    resolveOriginalTournamentTrack(
+                                        *originalRace,
+                                        profileState.player);
+                            if (!reloadCurrentRace())
+                            {
+                                runtimeSmokeFailed = true;
+                                running = false;
+                                break;
+                            }
+                            input.applyKeyboardBindings(
+                                profileState.config.keyboardControls);
+                            input.applyGamepadBindings(
+                                profileState.config.gamepadControls);
+                            saveRaceProfile();
+                            menuStack.pop_back();
+                            showOriginalRaceMenu();
+                        }
+                        break;
+                    }
+                    continue;
+                }
                 if (menuStack.back() == MenuScreen::Garage)
                 {
                     if (garagePurchaseDialogVisible)
@@ -8187,6 +8676,8 @@ int main(int argc, char** argv)
         {
 #endif
 #ifdef RRR3D_PHYSICS
+        const bool drawingOriginalProfiles =
+            menuStack.back() == MenuScreen::Profiles;
         const bool drawingOriginalOptions =
             isOriginalOptionsScreen(menuStack.back());
         const bool drawingOriginalRaceMenu =
@@ -8439,7 +8930,210 @@ int main(int argc, char** argv)
 
         auto& activePage = activeMenuPage();
 #ifdef RRR3D_PHYSICS
-        if (drawingOriginalOptions)
+        if (drawingOriginalProfiles)
+        {
+            profileFrameObserved =
+                profilePage.labels.size() ==
+                    profileState.profiles.size() + 1U &&
+                profileGridScroll <=
+                    (profileState.profiles.size() > 4U
+                         ? profileState.profiles.size() - 4U
+                         : 0U);
+            if (profileDeleteDialogVisible)
+                profileDeleteDialogObserved = true;
+            const float centerX =
+                menu::virtualWidth * 0.5F;
+            const float centerY =
+                menu::virtualHeight * 0.5F;
+            const auto visibleEnd = std::min(
+                profileGridScroll + 4U,
+                profileState.profiles.size());
+            for (std::size_t index = profileGridScroll;
+                 index < visibleEnd; ++index)
+            {
+                const float rowY =
+                    centerY - 90.0F +
+                    static_cast<float>(
+                        index - profileGridScroll) *
+                        menu::itemSpacing;
+                const bool itemFocused =
+                    profileFocus == ProfileFocus::Item &&
+                    profileFocusIndex == index &&
+                    !profileDeleteDialogVisible;
+                if (itemFocused)
+                {
+                    drawQuad(
+                        *device, quad, shader, selection,
+                        static_cast<float>(
+                            model->selectionImage.width),
+                        static_cast<float>(
+                            model->selectionImage.height),
+                        centerX, rowY, 50.0F, transparent);
+                }
+                const auto& profileText =
+                    itemFocused
+                        ? profilePage.selected[index]
+                        : profilePage.normal[index];
+                drawQuad(
+                    *device, quad, shader,
+                    profileText.texture, profileText.width,
+                    profileText.height, centerX, rowY,
+                    25.0F, transparent);
+
+                const bool closeFocused =
+                    profileFocus == ProfileFocus::Close &&
+                    profileFocusIndex == index &&
+                    !profileDeleteDialogVisible;
+                const float closeX =
+                    centerX +
+                    static_cast<float>(
+                        model->selectionImage.width) *
+                        0.5F -
+                    40.0F;
+                drawQuad(
+                    *device, quad, shader,
+                    closeFocused ? angarCloseSelected
+                                 : angarClose,
+                    static_cast<float>(
+                        closeFocused
+                            ? angarCloseSelectedImage.width
+                            : angarCloseImage.width) *
+                        1.8F,
+                    static_cast<float>(
+                        closeFocused
+                            ? angarCloseSelectedImage.height
+                            : angarCloseImage.height) *
+                        1.8F,
+                    closeX, rowY, 20.0F, transparent);
+            }
+
+            const bool canScrollUp =
+                profileGridScroll > 0U;
+            const bool canScrollDown =
+                profileGridScroll + 4U <
+                profileState.profiles.size();
+            auto drawProfileArrow =
+                [&](bool up, float y, bool enabled) {
+                    const bool focused =
+                        enabled && !profileDeleteDialogVisible &&
+                        profileFocus ==
+                            (up ? ProfileFocus::Up
+                                : ProfileFocus::Down);
+                    const auto texture =
+                        !enabled
+                            ? profileArrowDisabled
+                            : focused
+                                  ? profileArrowSelected
+                                  : profileArrow;
+                    const float sourceWidth =
+                        static_cast<float>(
+                            focused
+                                ? profileArrowSelectedImage.width
+                                : profileArrowImage.width);
+                    const float sourceHeight =
+                        static_cast<float>(
+                            focused
+                                ? profileArrowSelectedImage.height
+                                : profileArrowImage.height);
+                    constexpr float scale = 0.3F;
+                    drawQuadRotated(
+                        *device, quad, shader, texture,
+                        sourceWidth * scale,
+                        sourceHeight * scale,
+                        centerX, y, 22.0F,
+                        up ? bx::kPiHalf : -bx::kPiHalf,
+                        transparent);
+                };
+            drawProfileArrow(
+                true, centerY - 108.0F, canScrollUp);
+            drawProfileArrow(
+                false, centerY + 120.0F, canScrollDown);
+
+            const auto backIndex =
+                profilePage.labels.size() - 1U;
+            const float backY = centerY + 150.0F;
+            const bool backFocused =
+                profileFocus == ProfileFocus::Back &&
+                !profileDeleteDialogVisible;
+            if (backFocused)
+            {
+                drawQuad(
+                    *device, quad, shader, selection,
+                    static_cast<float>(
+                        model->selectionImage.width),
+                    static_cast<float>(
+                        model->selectionImage.height),
+                    centerX, backY, 50.0F, transparent);
+            }
+            const auto& backText =
+                backFocused
+                    ? profilePage.selected[backIndex]
+                    : profilePage.normal[backIndex];
+            drawQuad(
+                *device, quad, shader, backText.texture,
+                backText.width, backText.height,
+                centerX, backY, 25.0F, transparent);
+
+            if (profileDeleteDialogVisible)
+            {
+                drawQuad(
+                    *device, quad, shader, acceptFrame,
+                    static_cast<float>(acceptFrameImage.width),
+                    static_cast<float>(acceptFrameImage.height),
+                    centerX, centerY, 8.0F, transparent);
+                const float messageScale = std::min(
+                    1.0F,
+                    330.0F /
+                        std::max(
+                            profileDeleteMessage.width, 1.0F));
+                drawQuad(
+                    *device, quad, shader,
+                    profileDeleteMessage.texture,
+                    profileDeleteMessage.width * messageScale,
+                    profileDeleteMessage.height * messageScale,
+                    centerX, centerY - 35.0F,
+                    6.0F, transparent);
+                auto drawProfileDeleteChoice =
+                    [&](bool yes, float x) {
+                        const bool selected =
+                            profileDeleteYesFocused == yes;
+                        drawQuad(
+                            *device, quad, shader,
+                            selected
+                                ? acceptButtonSelected
+                                : acceptButton,
+                            static_cast<float>(
+                                selected
+                                    ? acceptButtonSelectedImage.width
+                                    : acceptButtonImage.width),
+                            static_cast<float>(
+                                selected
+                                    ? acceptButtonSelectedImage.height
+                                    : acceptButtonImage.height),
+                            x, centerY + 32.0F, 5.0F,
+                            transparent);
+                        const auto& label =
+                            yes
+                                ? (selected
+                                       ? exitRaceYesSelected
+                                       : exitRaceYes)
+                                : (selected
+                                       ? exitRaceNoSelected
+                                       : exitRaceNo);
+                        drawQuad(
+                            *device, quad, shader,
+                            label.texture, label.width,
+                            label.height, x,
+                            centerY + 32.0F, 3.0F,
+                            transparent);
+                    };
+                drawProfileDeleteChoice(
+                    true, centerX - 70.0F);
+                drawProfileDeleteChoice(
+                    false, centerX + 70.0F);
+            }
+        }
+        else if (drawingOriginalOptions)
         {
             const float optionsCenterX = menu::virtualWidth * 0.5F;
             const float optionsCenterY = menu::virtualHeight * 0.5F;
@@ -11040,6 +11734,8 @@ int main(int argc, char** argv)
                 if (!integratedRaceStartObserved || !inRace ||
                     !gameModeFrameObserved ||
                     !tournamentFrameObserved ||
+                    !profileFrameObserved ||
+                    !profileDeleteDialogObserved ||
                     !raceGarageFrameObserved ||
                     !raceGarage3DObserved ||
                     !raceWorkshopFrameObserved ||
@@ -11070,7 +11766,11 @@ int main(int argc, char** argv)
                         << integratedRaceStartObserved << ", inRace="
                         << inRace << ", gameMode/tournament="
                         << gameModeFrameObserved << '/'
-                        << tournamentFrameObserved << ", garage="
+                        << tournamentFrameObserved
+                        << ", profile/dialog="
+                        << profileFrameObserved << '/'
+                        << profileDeleteDialogObserved
+                        << ", garage="
                         << raceGarageFrameObserved << '/'
                         << raceGarage3DObserved
                         << ", workshop="
@@ -11130,6 +11830,7 @@ int main(int argc, char** argv)
                         << minimumRacePlayerLife << "), "
                            "source HudMenu pause/accept/frozen-world, "
                            "source GameModeFrame/TournamentFrame layout, "
+                           "source ProfileFrame/delete dialog, "
                            "source WorkshopFrame/GarageFrame/3D CarFrame/"
                            "SpaceshipFrame/AngarFrame/AchievmentFrame and "
                            "render-target "

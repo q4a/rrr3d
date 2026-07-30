@@ -884,14 +884,31 @@ SDL_AUDIO_DRIVER=dummy \
   smoke и 300-frame bgfx/Metal integration прошли; последний посетил
   GameMode/Tournament, Workshop, Garage, Angar, Achievment и гонку. Ручная
   проверка arm64 Debug подтвердила shared-frame layout без артефактов.
+- `ProfileFrame` больше не является generic page: перенесены vertical Grid,
+  четыре visible rows, one-row scroll, исходные координаты/rotation/размеры
+  `arrow1/arrowSel1`, alpha 0.25 для disabled arrows и отдельный Back.
+- Каждая profile row использует shared `mainItemSel5` и исходный
+  `buttonBg6/buttonBgSel6` close с scale 1.8. Перенесён двухколоночный
+  NavElement graph item/close и связи с обеими arrows/Back.
+- Выбор профиля сразу выполняет source `StartMatch`, загружает XML/defaults,
+  пересоздаёт race/session и открывает RaceMenu. Прежний суррогатный возврат
+  из Load в Tournament удалён.
+- Close показывает `svHintDeleteProfile` в исходном accept dialog.
+  `OriginalProfileStore::deleteProfile` повторяет `Race::DelProfile/SaveLib`:
+  удаляет reference, оставляет legacy XML и корректно сохраняет даже пустой
+  список. Serializer больше не добавляет удалённый последний профиль обратно.
+- Отдельный temp-directory regression проверяет save → delete last → reload.
+  Расширенный 300-frame Metal smoke посещает ProfileFrame/delete dialog,
+  отменяет удаление и продолжает прежний маршрут. Ручная проверка arm64 Debug
+  подтвердила grid, close и Yes/No dialog без артефактов.
 
 ## Следующий рекомендуемый этап
 
-Основные offline subframes `RaceMenu2`, а также GameMode/Tournament/
-Difficulty теперь source-derived. Следующий P0-блок: перенести точный
-`ProfileFrame` (четыре видимые строки, scroll arrows, close buttons,
-delete-confirmation и выбор профиля) вместе с нужными `DialogMenu2`
-состояниями, затем `FinishMenu`/`FinalMenu`.
+Основные offline subframes `RaceMenu2` и ветка GameMode/Tournament/
+Difficulty/Profile теперь source-derived. Следующий P0-блок: перенести
+исходные `FinishMenu`/`FinalMenu` и оставшиеся реально вызываемые
+`DialogMenu2` состояния; после этого закрыть generic Credits и intro-video
+ветку.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
