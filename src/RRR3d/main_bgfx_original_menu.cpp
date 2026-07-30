@@ -180,6 +180,16 @@ struct WorkshopWeaponDialogVisual
     float centerY = 0.0F;
     bool visible = false;
 };
+
+struct InfoDialogVisual
+{
+    TextVisual title;
+    std::vector<TextVisual> info;
+    TextVisual ok;
+    float centerX = 0.0F;
+    float centerY = 0.0F;
+    bool visible = false;
+};
 #endif
 
 #ifdef RRR3D_AUDIO
@@ -567,6 +577,21 @@ void destroyWorkshopWeaponDialog(
         device.destroy(dialog.money.texture);
     if (valid(dialog.damage.texture))
         device.destroy(dialog.damage.texture);
+    dialog = {};
+}
+
+void destroyInfoDialog(
+    GraphicsDevice& device, InfoDialogVisual& dialog)
+{
+    if (valid(dialog.title.texture))
+        device.destroy(dialog.title.texture);
+    for (auto& line : dialog.info)
+    {
+        if (valid(line.texture))
+            device.destroy(line.texture);
+    }
+    if (valid(dialog.ok.texture))
+        device.destroy(dialog.ok.texture);
     dialog = {};
 }
 #endif
@@ -1133,6 +1158,20 @@ int main(int argc, char** argv)
         createImageTexture(*device, acceptButtonImage);
     const Texture acceptButtonSelected =
         createImageTexture(*device, acceptButtonSelectedImage);
+    const auto infoDialogFrameImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/dlgFrame4.png");
+    const auto infoDialogButtonImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/dlgButton2.png");
+    const auto infoDialogButtonSelectedImage =
+        menu::loadOriginalImage(
+            *resources, "Data/GUI/dlgButtonSel2.png");
+    const Texture infoDialogFrame =
+        createImageTexture(*device, infoDialogFrameImage);
+    const Texture infoDialogButton =
+        createImageTexture(*device, infoDialogButtonImage);
+    const Texture infoDialogButtonSelected =
+        createImageTexture(
+            *device, infoDialogButtonSelectedImage);
     const auto profileArrowImage = menu::loadOriginalImage(
         *resources, "Data/GUI/arrow1.png");
     const auto profileArrowSelectedImage = menu::loadOriginalImage(
@@ -1590,6 +1629,7 @@ int main(int argc, char** argv)
     MenuPageVisual workshopStatsPage;
     MenuPageVisual workshopHintPage;
     WorkshopWeaponDialogVisual workshopWeaponDialog;
+    InfoDialogVisual infoDialog;
     MenuPageVisual workshopConfirmationPage;
     MenuPageVisual planetsPage;
     MenuPageVisual angarInfoPage;
@@ -2198,13 +2238,6 @@ int main(int argc, char** argv)
         *device, localized("svYouReadyStayPlanet"),
         menu::smallFontHeight, false, menu::normalTextColor,
         resolvedFont);
-    const TextVisual angarWarningMessage = createText(
-        *device, localized("svHintCantFlyPlanet"),
-        menu::smallFontHeight, false, menu::normalTextColor,
-        resolvedFont);
-    const TextVisual angarOk = createText(
-        *device, localized("svOk"), menu::smallFontHeight,
-        false, menu::selectedTextColor, resolvedFont);
     const TextVisual achievementRewards = createText(
         *device, localized("svRewards"), menu::headerFontHeight,
         false, menu::normalTextColor, resolvedFont);
@@ -2216,9 +2249,6 @@ int main(int argc, char** argv)
         menu::Rgba8{250, 88, 0, 255}, resolvedFont);
     const TextVisual achievementPurchaseMessage = createText(
         *device, localized("svBuyReward"), menu::smallFontHeight,
-        false, menu::normalTextColor, resolvedFont);
-    const TextVisual achievementNotEnoughPoints = createText(
-        *device, localized("svHintCantPoints"), menu::smallFontHeight,
         false, menu::normalTextColor, resolvedFont);
 #endif
 
@@ -2326,6 +2356,8 @@ int main(int argc, char** argv)
         valid(finishMoneyTitle.texture) &&
         valid(finishPointsTitle.texture) && valid(acceptFrame) &&
         valid(acceptButton) && valid(acceptButtonSelected) &&
+        valid(infoDialogFrame) && valid(infoDialogButton) &&
+        valid(infoDialogButtonSelected) &&
         valid(profileArrow) && valid(profileArrowSelected) &&
         valid(profileArrowDisabled) &&
         valid(optionsBackground) && valid(optionsRow) &&
@@ -2409,12 +2441,9 @@ int main(int argc, char** argv)
         valid(exitRaceNoSelected.texture) &&
         valid(profileDeleteMessage.texture) &&
         valid(angarTravelMessage.texture) &&
-        valid(angarWarningMessage.texture) &&
-        valid(angarOk.texture) &&
         valid(achievementRewards.texture) &&
         valid(achievementPoints.texture) &&
-        valid(achievementPurchaseMessage.texture) &&
-        valid(achievementNotEnoughPoints.texture);
+        valid(achievementPurchaseMessage.texture);
 #else
     const bool optionsResourcesValid = true;
 #endif
@@ -2447,9 +2476,6 @@ int main(int argc, char** argv)
         device->destroy(exitRaceYes.texture);
         device->destroy(exitRaceMessage.texture);
         device->destroy(angarTravelMessage.texture);
-        device->destroy(angarWarningMessage.texture);
-        device->destroy(angarOk.texture);
-        device->destroy(achievementNotEnoughPoints.texture);
         device->destroy(achievementPurchaseMessage.texture);
         device->destroy(achievementPoints.texture);
         device->destroy(achievementRewards.texture);
@@ -2476,6 +2502,7 @@ int main(int argc, char** argv)
         destroyPage(planetsPage);
         destroyPage(workshopConfirmationPage);
         destroyWorkshopWeaponDialog(*device, workshopWeaponDialog);
+        destroyInfoDialog(*device, infoDialog);
         destroyPage(workshopHintPage);
         destroyPage(workshopStatsPage);
         destroyPage(workshopControlsPage);
@@ -2587,6 +2614,9 @@ int main(int argc, char** argv)
         device->destroy(acceptButtonSelected);
         device->destroy(acceptButton);
         device->destroy(acceptFrame);
+        device->destroy(infoDialogButtonSelected);
+        device->destroy(infoDialogButton);
+        device->destroy(infoDialogFrame);
         device->destroy(profileArrowDisabled);
         device->destroy(profileArrowSelected);
         device->destroy(profileArrow);
@@ -3353,7 +3383,6 @@ int main(int argc, char** argv)
     std::size_t workshopGoodScroll = 0U;
     bool achievementPurchaseDialogVisible = false;
     bool achievementPurchaseYesFocused = true;
-    bool achievementPointsWarningVisible = false;
     std::size_t achievementPendingPurchase =
         originalAchievementNoTarget;
 #endif
@@ -3702,6 +3731,9 @@ int main(int argc, char** argv)
     bool raceWorkshopWeaponDialogObserved =
         !options->raceRenderSmokeTest;
     bool raceWorkshopWeaponDialogMotionQueued = false;
+    bool raceInfoDialogObserved = !options->raceRenderSmokeTest;
+    bool raceInfoDialogSmokeShown = false;
+    bool raceInfoDialogCloseQueued = false;
     bool raceAngarFrameObserved = !options->raceRenderSmokeTest;
     bool raceAngar3DObserved = !options->raceRenderSmokeTest;
     bool raceAchievementFrameObserved =
@@ -3740,7 +3772,6 @@ int main(int argc, char** argv)
     float angarDoorTime = -1.0F;
     float angarSceneSeconds = 0.0F;
     bool angarTravelDialogVisible = false;
-    bool angarWarningVisible = false;
     bool angarTravelYesFocused = true;
     std::size_t angarTravelTarget = 0U;
     auto saveRaceProfile = [&]() {
@@ -4143,6 +4174,77 @@ int main(int argc, char** argv)
             workshopWeaponDialog.centerY = centerY;
             workshopWeaponDialog.visible = true;
         };
+    auto wrapInfoDialogMessage = [&](std::string_view value) {
+        constexpr float maximumWidth = 245.0F;
+        constexpr std::size_t maximumLines = 5U;
+        constexpr menu::Rgba8 infoColor{255, 255, 255, 255};
+        std::vector<std::string> lines;
+        std::istringstream words{std::string(value)};
+        std::string line;
+        std::string word;
+        while (words >> word)
+        {
+            std::string candidate = line;
+            if (!candidate.empty())
+                candidate.push_back(' ');
+            candidate += word;
+            const auto measured = rrr3d::macos::rasterizeText(
+                candidate, menu::fontFace, 24.0F, false, infoColor);
+            if (!line.empty() &&
+                static_cast<float>(measured.width) > maximumWidth)
+            {
+                lines.push_back(std::move(line));
+                line = std::move(word);
+                if (lines.size() == maximumLines)
+                    break;
+            }
+            else
+            {
+                line = std::move(candidate);
+            }
+        }
+        if (!line.empty() && lines.size() < maximumLines)
+            lines.push_back(std::move(line));
+        if (lines.empty())
+            lines.emplace_back(" ");
+        return lines;
+    };
+    auto hideInfoDialog = [&]() {
+        infoDialog.visible = false;
+    };
+    auto showInfoDialog =
+        [&](std::string_view title, std::string_view message,
+            std::string_view ok, float centerX, float centerY) {
+            const float frameWidth =
+                static_cast<float>(infoDialogFrameImage.width);
+            const float frameHeight =
+                static_cast<float>(infoDialogFrameImage.height);
+            centerX = std::clamp(
+                centerX, frameWidth * 0.5F + 15.0F,
+                menu::virtualWidth - frameWidth * 0.5F - 15.0F);
+            centerY = std::clamp(
+                centerY, frameHeight * 0.5F + 15.0F,
+                menu::virtualHeight - frameHeight * 0.5F - 15.0F);
+            destroyInfoDialog(*device, infoDialog);
+            infoDialog.title = createText(
+                *device, title, 44.0F, false,
+                menu::Rgba8{175, 175, 175, 255}, resolvedFont);
+            for (const auto& line :
+                 wrapInfoDialogMessage(message))
+            {
+                infoDialog.info.push_back(createText(
+                    *device, line, 24.0F, false,
+                    menu::Rgba8{255, 255, 255, 255},
+                    resolvedFont));
+            }
+            infoDialog.ok = createText(
+                *device, ok, 32.0F, false,
+                menu::Rgba8{255, 255, 255, 255}, resolvedFont);
+            infoDialog.centerX = centerX;
+            infoDialog.centerY = centerY;
+            infoDialog.visible = true;
+            hideWorkshopWeaponDialog();
+        };
     auto wrapGarageInfo = [](std::string_view value) {
         constexpr std::size_t maximumCharacters = 78U;
         std::vector<std::string> lines;
@@ -4517,6 +4619,27 @@ int main(int argc, char** argv)
             workshopConfirmationYesFocused = true;
             hideWorkshopWeaponDialog();
         };
+    auto showWorkshopGoodMessage = [&](std::string_view messageKey) {
+        constexpr std::size_t firstGoodFocus = 1U;
+        const std::size_t visible =
+            menuSelection >= firstGoodFocus
+                ? menuSelection - firstGoodFocus
+                : 0U;
+        const auto centers = workshopGoodCenters();
+        const auto& sender =
+            centers[std::min(visible, centers.size() - 1U)];
+        const float posX = sender[0] + 25.0F;
+        const float posY = sender[1] - 25.0F;
+        showInfoDialog(
+            localized("svWarning"), localized(messageKey),
+            localized("svOk"),
+            posX +
+                static_cast<float>(infoDialogFrameImage.width) *
+                    0.5F,
+            posY -
+                static_cast<float>(infoDialogFrameImage.height) *
+                    0.5F);
+    };
     auto buyWorkshopGood =
         [&](const r3d::game::originalrace::
                 OriginalWorkshopItem& item) {
@@ -4531,6 +4654,7 @@ int main(int argc, char** argv)
                 std::cerr
                     << "Original WorkshopFrame buy: "
                     << workshopError << '\n';
+                showWorkshopGoodMessage("svHintCantMoney");
                 return false;
             }
             workshopDrag.item = std::move(purchased);
@@ -4645,6 +4769,8 @@ int main(int argc, char** argv)
                         << "Original WorkshopFrame: "
                         << localized("svHintWeaponNotSupport")
                         << '\n';
+                    showWorkshopGoodMessage(
+                        "svHintWeaponNotSupport");
                     return;
                 }
                 if (championshipMode)
@@ -4742,8 +4868,47 @@ int main(int argc, char** argv)
                 }
             }
             if (!changed && !workshopError.empty())
+            {
                 std::cerr << "Original WorkshopFrame upgrade: "
                           << workshopError << '\n';
+                const auto centers = workshopSlotCenters();
+                const float senderX =
+                    centers[slotIndex][0] +
+                    (item->maximumCharge > 0U ? 68.0F : 51.0F);
+                const float senderY =
+                    centers[slotIndex][1] +
+                    (item->maximumCharge > 0U ? 27.0F : 38.0F);
+                const float controlWidth =
+                    item->maximumCharge > 0U
+                        ? static_cast<float>(
+                              workshopChargeButtonImage.width) *
+                              4.0F
+                        : static_cast<float>(
+                              workshopUpgradeImages[0].width);
+                const float controlHeight =
+                    item->maximumCharge > 0U
+                        ? static_cast<float>(
+                              workshopChargeButtonImage.height) *
+                              4.0F
+                        : static_cast<float>(
+                              workshopUpgradeImages[0].height);
+                const float posX =
+                    senderX + controlWidth * 0.25F;
+                const float posY =
+                    senderY - controlHeight * 0.25F;
+                showInfoDialog(
+                    localized("svWarning"),
+                    localized("svHintCantMoney"),
+                    localized("svOk"),
+                    posX +
+                        static_cast<float>(
+                            infoDialogFrameImage.width) *
+                            0.5F,
+                    posY -
+                        static_cast<float>(
+                            infoDialogFrameImage.height) *
+                            0.5F);
+            }
             if (changed)
                 saveRaceProfile();
             refreshWorkshopPage();
@@ -5653,12 +5818,56 @@ int main(int argc, char** argv)
         // Tournament -> Continue -> RaceMenu -> WorkshopFrame ->
         // GarageFrame -> AngarFrame -> AchievmentFrame -> Race.
         // Advance one real press/release pair per rendered menu frame.
-        const bool waitingForWorkshopWeaponDialog =
+        if (options->raceRenderSmokeTest && !inRace &&
+            menuStack.back() == MenuScreen::Workshop &&
+            raceWorkshopWeaponDialogObserved &&
+            !raceInfoDialogSmokeShown)
+        {
+            const auto centers = workshopGoodCenters();
+            const auto& sender = centers.front();
+            const float posX = sender[0] + 25.0F;
+            const float posY = sender[1] - 25.0F;
+            showInfoDialog(
+                localized("svWarning"),
+                localized("svHintWeaponNotSupport"),
+                localized("svOk"),
+                posX +
+                    static_cast<float>(
+                        infoDialogFrameImage.width) *
+                        0.5F,
+                posY -
+                    static_cast<float>(
+                        infoDialogFrameImage.height) *
+                        0.5F);
+            raceInfoDialogSmokeShown = true;
+        }
+        if (options->raceRenderSmokeTest && infoDialog.visible &&
+            raceInfoDialogObserved && !raceInfoDialogCloseQueued)
+        {
+            SDL_Event press{};
+            press.key.type = SDL_EVENT_KEY_DOWN;
+            press.key.down = true;
+            press.key.scancode = SDL_SCANCODE_RETURN;
+            SDL_Event release = press;
+            release.key.type = SDL_EVENT_KEY_UP;
+            release.key.down = false;
+            if (!SDL_PushEvent(&press) ||
+                !SDL_PushEvent(&release))
+            {
+                std::cerr
+                    << "Unable to close source InfoDialog smoke: "
+                    << SDL_GetError() << '\n';
+                runtimeSmokeFailed = true;
+            }
+            raceInfoDialogCloseQueued = true;
+        }
+        const bool waitingForWorkshopDialogs =
             options->raceRenderSmokeTest && !inRace &&
             menuStack.back() == MenuScreen::Workshop &&
-            !raceWorkshopWeaponDialogObserved;
+            (!raceWorkshopWeaponDialogObserved ||
+             !raceInfoDialogObserved || infoDialog.visible);
         if (options->raceRenderSmokeTest && !inRace &&
-            !waitingForWorkshopWeaponDialog &&
+            !waitingForWorkshopDialogs &&
             raceSmokeMenuStep < 33U &&
             renderedFrames >= raceSmokeNextMenuFrame)
         {
@@ -5699,7 +5908,8 @@ int main(int argc, char** argv)
             ++raceSmokeMenuStep;
             raceSmokeNextMenuFrame = renderedFrames + 1U;
         }
-        if (waitingForWorkshopWeaponDialog &&
+        if (waitingForWorkshopDialogs &&
+            !raceWorkshopWeaponDialogObserved &&
             !raceWorkshopWeaponDialogMotionQueued)
         {
             std::optional<std::array<float, 2>> target;
@@ -5930,7 +6140,50 @@ int main(int argc, char** argv)
             bool pointerHandledOriginalOptions = false;
             bool workshopPointerSlotPlane = false;
 #ifdef RRR3D_PHYSICS
-            if (!inRace &&
+            if (infoDialog.visible &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float pointerX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float pointerY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                bool hoveredOk = false;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        pointerX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        pointerY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    hoveredOk =
+                        std::abs(
+                            virtualX - infoDialog.centerX) <=
+                            static_cast<float>(
+                                infoDialogButtonSelectedImage.width) *
+                                0.5F &&
+                        std::abs(
+                            virtualY -
+                            (infoDialog.centerY + 105.0F)) <=
+                            static_cast<float>(
+                                infoDialogButtonSelectedImage.height) *
+                                0.5F;
+                }
+                pointerTargetsItem =
+                    hoveredOk ||
+                    event.type == SDL_EVENT_MOUSE_MOTION ||
+                    event.button.button != SDL_BUTTON_LEFT;
+            }
+            else if (!inRace &&
                 menuStack.back() == MenuScreen::Profiles &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
@@ -6528,21 +6781,7 @@ int main(int argc, char** argv)
                     const auto planetCount = std::min(
                         originalGarage->planets.size(),
                         profileState.player.planets.size());
-                    if (angarWarningVisible)
-                    {
-                        const float okY =
-                            menu::virtualHeight * 0.5F +
-                            32.0F;
-                        if (std::abs(
-                                virtualX -
-                                menu::virtualWidth * 0.5F) <=
-                                55.0F &&
-                            std::abs(virtualY - okY) <= 30.0F)
-                        {
-                            hoveredAngarItem = 0U;
-                        }
-                    }
-                    else if (angarTravelDialogVisible)
+                    if (angarTravelDialogVisible)
                     {
                         const float choiceY =
                             menu::virtualHeight * 0.5F +
@@ -6657,7 +6896,6 @@ int main(int argc, char** argv)
                 }
                 if (hoveredAngarItem &&
                     !angarTravelDialogVisible &&
-                    !angarWarningVisible &&
                     !pointerHandledOriginalOptions)
                 {
                     menuSelection = *hoveredAngarItem;
@@ -6700,19 +6938,7 @@ int main(int argc, char** argv)
                     const float virtualY =
                         pointerY * menu::virtualHeight /
                         static_cast<float>(windowHeight);
-                    if (achievementPointsWarningVisible)
-                    {
-                        const float okY =
-                            menu::virtualHeight * 0.5F + 32.0F;
-                        if (std::abs(
-                                virtualX -
-                                menu::virtualWidth * 0.5F) <= 55.0F &&
-                            std::abs(virtualY - okY) <= 30.0F)
-                        {
-                            hoveredAchievement = 0U;
-                        }
-                    }
-                    else if (achievementPurchaseDialogVisible)
+                    if (achievementPurchaseDialogVisible)
                     {
                         const float choiceY =
                             menu::virtualHeight * 0.5F + 32.0F;
@@ -6791,8 +7017,7 @@ int main(int argc, char** argv)
                     }
                 }
                 if (hoveredAchievement &&
-                    !achievementPurchaseDialogVisible &&
-                    !achievementPointsWarningVisible)
+                    !achievementPurchaseDialogVisible)
                 {
                     menuSelection = *hoveredAchievement;
                 }
@@ -7115,6 +7340,26 @@ int main(int argc, char** argv)
             for (const auto& inputEvent : inputEvents)
             {
 #ifdef RRR3D_PHYSICS
+                if (infoDialog.visible)
+                {
+                    if (!inputEvent.active || inputEvent.repeated)
+                        continue;
+                    if (inputEvent.action ==
+                        rrr3d::input::Action::MenuConfirm)
+                    {
+                        if (inputEvent.source ==
+                                rrr3d::input::Source::Mouse &&
+                            !pointerTargetsItem)
+                        {
+                            continue;
+                        }
+#ifdef RRR3D_AUDIO
+                        playMainButtonClick();
+#endif
+                        hideInfoDialog();
+                    }
+                    continue;
+                }
                 if (inRace && exitRaceDialogVisible)
                 {
                     if (!inputEvent.active || inputEvent.repeated)
@@ -7907,20 +8152,6 @@ int main(int argc, char** argv)
                 }
                 if (menuStack.back() == MenuScreen::Achievements)
                 {
-                    if (achievementPointsWarningVisible)
-                    {
-                        if (!inputEvent.repeated &&
-                            (inputEvent.action ==
-                                 rrr3d::input::Action::MenuConfirm ||
-                             inputEvent.action ==
-                                 rrr3d::input::Action::MenuBack ||
-                             inputEvent.action ==
-                                 rrr3d::input::Action::Pause))
-                        {
-                            achievementPointsWarningVisible = false;
-                        }
-                        continue;
-                    }
                     if (achievementPurchaseDialogVisible)
                     {
                         if (inputEvent.action ==
@@ -7975,8 +8206,13 @@ int main(int argc, char** argv)
                                 if (profileState.achievementPoints <
                                     price)
                                 {
-                                    achievementPointsWarningVisible =
-                                        true;
+                                    showInfoDialog(
+                                        localized("svWarning"),
+                                        localized(
+                                            "svHintCantPoints"),
+                                        localized("svOk"),
+                                        menu::virtualWidth * 0.5F,
+                                        menu::virtualHeight * 0.5F);
                                 }
                                 else
                                 {
@@ -8068,20 +8304,6 @@ int main(int argc, char** argv)
                     const auto planetCount = std::min(
                         originalGarage->planets.size(),
                         profileState.player.planets.size());
-                    if (angarWarningVisible)
-                    {
-                        if (!inputEvent.repeated &&
-                            (inputEvent.action ==
-                                 rrr3d::input::Action::MenuConfirm ||
-                             inputEvent.action ==
-                                 rrr3d::input::Action::MenuBack ||
-                             inputEvent.action ==
-                                 rrr3d::input::Action::Pause))
-                        {
-                            angarWarningVisible = false;
-                        }
-                        continue;
-                    }
                     if (angarTravelDialogVisible)
                     {
                         if (inputEvent.action ==
@@ -8220,7 +8442,38 @@ int main(int argc, char** argv)
                     }
                     else
                     {
-                        angarWarningVisible = true;
+                        const float panelCenterX =
+                            menu::virtualWidth * 0.5F;
+                        const float panelCenterY =
+                            menu::virtualHeight -
+                            static_cast<float>(
+                                angarBottomPanelImage.height) *
+                                0.5F -
+                            20.0F;
+                        const float senderX =
+                            panelCenterX -
+                            static_cast<float>(
+                                angarBottomPanelImage.width) *
+                                0.5F +
+                            125.0F +
+                            static_cast<float>(index) * 224.0F;
+                        const float senderY =
+                            panelCenterY -
+                            static_cast<float>(
+                                angarBottomPanelImage.height) *
+                                0.5F +
+                            90.0F;
+                        showInfoDialog(
+                            localized("svWarning"),
+                            localized("svHintCantFlyPlanet"),
+                            localized("svOk"), senderX,
+                            senderY -
+                                static_cast<float>(
+                                    angarDoorSlotImage.height) *
+                                    0.5F -
+                                static_cast<float>(
+                                    infoDialogFrameImage.height) *
+                                    0.5F);
                         std::cout
                             << "Original AngarFrame warning: "
                             << localized("svHintCantFlyPlanet")
@@ -8653,13 +8906,11 @@ int main(int argc, char** argv)
                         angarPreviousPlanetIndex = -1;
                         angarDoorTime = -1.0F;
                         angarTravelDialogVisible = false;
-                        angarWarningVisible = false;
                         refreshPlanetsPage();
                     }
                     else if (menuSelection == 4U)
                     {
                         achievementPurchaseDialogVisible = false;
-                        achievementPointsWarningVisible = false;
                         achievementPendingPurchase =
                             originalAchievementNoTarget;
                         refreshAchievementsPage();
@@ -12226,44 +12477,7 @@ int main(int argc, char** argv)
                 }
             }
 
-            if (angarWarningVisible)
-            {
-                const float centerX =
-                    menu::virtualWidth * 0.5F;
-                const float centerY =
-                    menu::virtualHeight * 0.5F;
-                drawQuad(
-                    *device, quad, shader, acceptFrame,
-                    static_cast<float>(acceptFrameImage.width),
-                    static_cast<float>(acceptFrameImage.height),
-                    centerX, centerY, 6.0F, transparent);
-                const float messageScale = std::min(
-                    1.0F,
-                    300.0F /
-                        std::max(angarWarningMessage.width, 1.0F));
-                drawQuad(
-                    *device, quad, shader,
-                    angarWarningMessage.texture,
-                    angarWarningMessage.width * messageScale,
-                    angarWarningMessage.height * messageScale,
-                    centerX, centerY - 35.0F,
-                    4.0F, transparent);
-                drawQuad(
-                    *device, quad, shader,
-                    acceptButtonSelected,
-                    static_cast<float>(
-                        acceptButtonSelectedImage.width),
-                    static_cast<float>(
-                        acceptButtonSelectedImage.height),
-                    centerX, centerY + 32.0F,
-                    3.0F, transparent);
-                drawQuad(
-                    *device, quad, shader, angarOk.texture,
-                    angarOk.width, angarOk.height,
-                    centerX, centerY + 32.0F,
-                    2.0F, transparent);
-            }
-            else if (angarTravelDialogVisible)
+            if (angarTravelDialogVisible)
             {
                 const float centerX =
                     menu::virtualWidth * 0.5F;
@@ -12605,41 +12819,7 @@ int main(int argc, char** argv)
                 backText.width, backText.height, backX, backY,
                 15.0F, transparent);
 
-            if (achievementPointsWarningVisible)
-            {
-                drawQuad(
-                    *device, quad, shader, acceptFrame,
-                    static_cast<float>(acceptFrameImage.width),
-                    static_cast<float>(acceptFrameImage.height),
-                    centerX, centerY, 6.0F, transparent);
-                const float messageScale = std::min(
-                    1.0F,
-                    300.0F /
-                        std::max(
-                            achievementNotEnoughPoints.width, 1.0F));
-                drawQuad(
-                    *device, quad, shader,
-                    achievementNotEnoughPoints.texture,
-                    achievementNotEnoughPoints.width * messageScale,
-                    achievementNotEnoughPoints.height * messageScale,
-                    centerX, centerY - 35.0F,
-                    4.0F, transparent);
-                drawQuad(
-                    *device, quad, shader,
-                    acceptButtonSelected,
-                    static_cast<float>(
-                        acceptButtonSelectedImage.width),
-                    static_cast<float>(
-                        acceptButtonSelectedImage.height),
-                    centerX, centerY + 32.0F,
-                    3.0F, transparent);
-                drawQuad(
-                    *device, quad, shader, angarOk.texture,
-                    angarOk.width, angarOk.height,
-                    centerX, centerY + 32.0F,
-                    2.0F, transparent);
-            }
-            else if (achievementPurchaseDialogVisible)
+            if (achievementPurchaseDialogVisible)
             {
                 drawQuad(
                     *device, quad, shader, acceptFrame,
@@ -12775,6 +12955,68 @@ int main(int argc, char** argv)
                 version.width, version.height, versionX,
                 versionY, 25.0F, transparent);
         }
+#ifdef RRR3D_PHYSICS
+        if (infoDialog.visible)
+        {
+            drawQuad(
+                *device, quad, shader, infoDialogFrame,
+                static_cast<float>(infoDialogFrameImage.width),
+                static_cast<float>(infoDialogFrameImage.height),
+                infoDialog.centerX, infoDialog.centerY, 6.0F,
+                transparent);
+            drawQuad(
+                *device, quad, shader, infoDialog.title.texture,
+                infoDialog.title.width, infoDialog.title.height,
+                infoDialog.centerX - 27.0F,
+                infoDialog.centerY - 105.0F, 4.0F,
+                transparent);
+            constexpr float infoLineStep = 27.0F;
+            const float firstLineY =
+                infoDialog.centerY + 5.0F -
+                static_cast<float>(infoDialog.info.size() - 1U) *
+                    infoLineStep * 0.5F;
+            for (std::size_t line = 0U;
+                 line < infoDialog.info.size(); ++line)
+            {
+                const auto& text = infoDialog.info[line];
+                drawQuad(
+                    *device, quad, shader, text.texture,
+                    text.width, text.height,
+                    infoDialog.centerX - 122.5F +
+                        text.width * 0.5F,
+                    firstLineY +
+                        static_cast<float>(line) *
+                            infoLineStep,
+                    4.0F, transparent);
+            }
+            drawQuad(
+                *device, quad, shader,
+                infoDialogButtonSelected,
+                static_cast<float>(
+                    infoDialogButtonSelectedImage.width),
+                static_cast<float>(
+                    infoDialogButtonSelectedImage.height),
+                infoDialog.centerX,
+                infoDialog.centerY + 105.0F, 3.0F,
+                transparent);
+            drawQuad(
+                *device, quad, shader, infoDialog.ok.texture,
+                infoDialog.ok.width, infoDialog.ok.height,
+                infoDialog.centerX,
+                infoDialog.centerY + 105.0F, 2.0F,
+                transparent);
+            raceInfoDialogObserved =
+                valid(infoDialog.title.texture) &&
+                !infoDialog.info.empty() &&
+                std::all_of(
+                    infoDialog.info.begin(),
+                    infoDialog.info.end(),
+                    [](const TextVisual& line) {
+                        return valid(line.texture);
+                    }) &&
+                valid(infoDialog.ok.texture);
+        }
+#endif
 #ifdef RRR3D_AUDIO
         drawOriginalMusicDialog();
 #endif
@@ -12935,6 +13177,7 @@ int main(int argc, char** argv)
                     !raceWorkshopFrameObserved ||
                     !raceWorkshop3DObserved ||
                     !raceWorkshopWeaponDialogObserved ||
+                    !raceInfoDialogObserved ||
                     !raceAngarFrameObserved ||
                     !raceAngar3DObserved ||
                     !raceAchievementFrameObserved ||
@@ -12974,7 +13217,8 @@ int main(int argc, char** argv)
                         << ", workshop="
                         << raceWorkshopFrameObserved << '/'
                         << raceWorkshop3DObserved << '/'
-                        << raceWorkshopWeaponDialogObserved
+                        << raceWorkshopWeaponDialogObserved << '/'
+                        << raceInfoDialogObserved
                         << ", angar="
                         << raceAngarFrameObserved << '/'
                         << raceAngar3DObserved

@@ -75,7 +75,7 @@ Windows target не компилируется.
 | Spatial race audio | X3DAudio game integration | ручные attenuation/pan/pitch voices | Частично | Основные car/race sounds есть; исходные emitters/listeners, все lifetime/priority rules и все sound behaviors не перенесены |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared/profile/final navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty, Profile и FinalMenu имеют исходные item order, NavElement/input branches, disabled skip и actions; Network и общий legacy event object graph ещё не завершены |
-| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, accept dialog, `MusicDialog` и workshop `WeaponDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, load/delete confirmation, popup текущего track и hover-dialog товара/слота перенесены; общие `InfoDialog`, text input и оставшиеся transitions ещё отсутствуют |
+| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, accept dialog, `MusicDialog`, `WeaponDialog` и offline `InfoDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, load/delete confirmation, popup текущего track, hover-dialog товара/слота и вызываемые Workshop/Angar/Achievement warnings перенесены; text input, оставшиеся `AcceptDialog` branches и transitions ещё отсутствуют |
 | Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph и тени menu spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | source-derived FinishMenu и FinalMenu | Перенесено | Оба активных экрана используют исходные assets/layout/timing/input; tournament unlock/video flow учитывается отдельно |
@@ -532,6 +532,27 @@ Network, video и Steam явно выключены.
    отрисовку диалога до продолжения пути в Garage/Angar/Race. M8/M9/M10
    Debug, audio/race-render и resource verifier прошли.
 
+### InfoDialog
+
+1. Удалены три раздельных warning-флага и подмена рамкой `AcceptDialog`.
+   Перенесён вызываемый offline-путь `DialogMenu2::InfoDialog` с исходными
+   `dlgFrame4.png` 307×306 и `dlgButton2/dlgButtonSel2.png` 132×36.
+2. Title использует Verdana 44 gray `175/255` в `(-27,-105)`, сообщение —
+   left-aligned Verdana 24 white в word-wrap области 245×135 с центром
+   `(0,5)`, OK — Verdana 32 white в `(0,105)`.
+3. `MenuFrame::SetPos` повторён с margin 15. Workshop warnings используют
+   `waLeftBottom` и source quarter-size offset вызывающего good/level/charge
+   control; Angar `svHintCantFlyPlanet` привязан к door slot через `waBottom`;
+   Achievement `svHintCantPoints` остаётся центрированным.
+4. Подключены фактические ветки `svHintWeaponNotSupport`, `svHintCantMoney`,
+   `svHintCantFlyPlanet` и `svHintCantPoints`. Диалог модален: mouse не
+   проходит в нижний frame, а из source navigation закрыть его может только
+   OK/`gaAction`, не Escape/Pause.
+5. M9 smoke требует отрисовать исходные frame/title/wrapped message/selected
+   OK и закрыть их реальным input dispatch до продолжения Workshop path.
+   M8/M9/M10 Debug, последовательные audio/race-render и resource verifier
+   прошли.
+
 ### SpaceshipFrame / AngarFrame
 
 1. Удалена generic-страница `Planets`. `loadOriginalAngarScene` создаёт
@@ -711,9 +732,9 @@ Network, video и Steam явно выключены.
    вызываемыми `DialogMenu2`.
    GameMode/Tournament/Difficulty/Profile, основные offline subframes
    `RaceMenu2`, `FinishMenu`, `FinalMenu` и активная структура
-   `OptionsMenu`, `MusicDialog` и workshop `WeaponDialog` уже source-derived;
-   следующий конкретный разрыв — общие `InfoDialog`/оставшиеся
-   `AcceptDialog`.
+   `OptionsMenu`, `MusicDialog`, workshop `WeaponDialog` и вызываемые offline
+   `InfoDialog` уже source-derived; следующий конкретный разрыв — оставшиеся
+   `AcceptDialog`, text input и их callback/transitions.
    При этом
    legacy animation/widget classes всё ещё заменены immediate-mode bgfx
    backend.

@@ -958,14 +958,25 @@ SDL_AUDIO_DRIVER=dummy \
   mouse-motion на реальный доступный товар и требует отрисованный
   `WeaponDialog`. M8/M9/M10 Debug, audio smoke, 300-frame race-render и
   `.app --verify-resources` прошли.
+- Старые предупреждения Workshop/Angar/Achievement больше не рисуются
+  суррогатным `AcceptDialog`. Перенесён `DialogMenu2::InfoDialog` с
+  `dlgFrame4`, `dlgButton2/dlgButtonSel2`, Verdana 44/24/32, исходными
+  label offsets, word-wrap областью 245×135 и 15-pixel clamp.
+- `svHintWeaponNotSupport`/`svHintCantMoney` используют исходный
+  `waLeftBottom` от good/slot control, `svHintCantFlyPlanet` — `waBottom` от
+  door slot, `svHintCantPoints` — center. Модальный input закрывает окно
+  только через OK/Action и не пропускает mouse в underlying frame.
+- 300-frame M9 regression теперь отдельно требует фактическую отрисовку и
+  input-close `InfoDialog`; M8 MusicCat и M10 verification подтвердили
+  отсутствие regressions и все 1196 оригинальных файлов.
 
 ## Следующий рекомендуемый этап
 
 Основные offline subframes `RaceMenu2` и ветка GameMode/Tournament/
 Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` и workshop
-`WeaponDialog` теперь source-derived. Следующий P0-блок: перенести оставшиеся
-общие `InfoDialog`/`AcceptDialog`;
-после этого закрыть intro-video/final-unlock ветку.
+`WeaponDialog`, а также вызываемые offline `InfoDialog` теперь source-derived.
+Следующий P0-блок: нормализовать оставшиеся `AcceptDialog`, text input и их
+callback/transitions; после этого закрыть intro-video/final-unlock ветку.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
