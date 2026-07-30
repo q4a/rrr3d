@@ -76,12 +76,12 @@ Windows target не компилируется.
 | Главное меню, внешний вид | `MainMenu2.cpp` | часть оригинальных изображений/строк | Частично | Фон, панели и selection source-driven; полный widget tree, animation, layout и event code не перенесены |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | ручной `enum MenuScreen` и `createPage(...)` в одном `main` | Суррогат | Страницы GameMode/Tournament/Profile/Options/Credits создаются как универсальные текстовые списки |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp` | универсальная page + portable profile operations | Суррогат | Исходные dialogs, text input, transitions, animations и подтверждения отсутствуют |
-| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame` + portable subframes | Частично | Главный экран, Garage, Workshop и Angar используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, шесть tournament planets, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Achievement subframe ещё не перенесён; тени menu spot-lamps пока не воспроизведены |
+| Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph и тени menu spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | generic finish page | Суррогат | Исходные panels, statistics, awards, credits/final flow не перенесены |
 | Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля tournament/workshop/options и source-инвариант `psUnavailable/pass 0 → psOpen/pass 1`; несовместимые `psUnavailable/pass>0`, записанные ранним macOS-портом, мигрируются без потери pass. Полная схема и все profile branches ещё не доказаны |
 | Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + ручное advance | Частично | Основной выбор/rewards есть; полный state machine, dialogs, unlock/final sequences не перенесён |
-| Garage/workshop/tournament data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml`, `tournamet.xml` | `OriginalGarage.cpp` + source-derived `GarageFrame`/`CarFrame`/`WorkshopFrame`/`AngarFrame` | Частично | Каталог, source available/secret/locked order, buy/sell/install/swap/recharge/upgrade, campaign confirmations, charge-inclusive 50% resale, colors, stats фактической комплектации и bonus preview перенесены. 3D goods/slots/planets/boss cars читают исходные mesh/texture/vehicle transforms и повторяют `ViewPort3d` fitting/rotation. Legacy widget objects и Achievement ещё отсутствуют |
+| Garage/workshop/tournament data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml`, `tournamet.xml`, `achievment.xml` | `OriginalGarage.cpp` + source-derived Garage/Workshop/Angar/Achievment frames | Частично | Каталог, source available/secret/locked order, buy/sell/install/swap/recharge/upgrade, reward purchase, campaign confirmations, charge-inclusive 50% resale, colors, stats фактической комплектации и bonus preview перенесены. 3D goods/slots/planets/boss cars читают исходные mesh/texture/vehicle transforms и повторяют `ViewPort3d` fitting/rotation. Legacy widget objects ещё отсутствуют |
 | Map/catalog loading | `Map`, `MapObj`, `DataBase` | `OriginalRace.cpp` | Частично | 88 записей и исходные placements читаются; generic GameObject/behavior/include lifecycle воспроизведён только для известных типов |
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
 | Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
@@ -98,7 +98,7 @@ Windows target не компилируется.
 | Damage/support/shield | `GameObject::Damage`, `Logic::Damage`, `TouchDeath`, `DroidItem`, `ReflectorItem`, behaviors | source-typed central dispatch в session | Частично | Перенесены damage types, first-reflector rule, reflector-before-immortality, immortal incoming-damage event, 3-second touch attribution, Z=0 death plane, mine kill exclusion и фактический Droid heal 5; полный object listener graph ещё не закрыт |
 | Bonuses | `Proj` types 4–10, `Player::TakeBonus` | source boxes, serialized values/DeathEffect и сопоставленные contact branches | Частично | Перенесены persistent speed/lusha/oil, одноразовый `Death()`, medpack/charge/money/immortal, Windows `Round((N-1)*Random())`, charge truncation и source pickup sounds; остаётся ручной portable dispatch вместо исходных объектов/PhysX callbacks |
 | Destructible decorations | `DestrObj`, `GameBase` | life flags, source fragments/debris и collision meshes | Частично | Все map destructibles обязаны иметь serialized `destrList` и source collider; OBB–triangle contact заменил proximity sphere, `explosion2.dds` fallback удалён; полный PhysX body/death lifecycle ещё отсутствует |
-| Achievements | все 9 `AchievmentCondition*` classes, `AchievmentModel::AddPoints`, `PlayerStateFrame` | definitions + source-matched event counters | Частично | Сопоставлены Bonus/SpeedKill/RaceKill/LapPass/Dodge/LapBreak/Survival/FirstKill/TouchKill и exact record counts; campaign начисляет `Floor(reward × 1/1.2/1.5)`, skirmish не начисляет points и скрывает points HUD; generic legacy event/model object graph не компилируется |
+| Achievements | все 9 `AchievmentCondition*` classes, `AchievmentModel`, `AchievmentFrame`, `PlayerStateFrame` | definitions + source-matched counters + source reward frame | Частично | Сопоставлены Bonus/SpeedKill/RaceKill/LapPass/Dodge/LapBreak/Survival/FirstKill/TouchKill и exact record counts; campaign начисляет `Floor(reward × 1/1.2/1.5)`, skirmish не начисляет points и скрывает points HUD. Девять reward cards, state/price, purchase/points и навигация перенесены; generic legacy event/model object graph не компилируется |
 | HUD | `HudMenu.cpp` | `OriginalRaceHud.cpp` с исходными images/strings | Частично | Основные indicators, notifications и mini-map есть; исходный widget/animation object graph и все состояния не компилируются |
 | Mini-map | `HudMenu`, `TraceGfx` | trace-derived bgfx geometry | Частично | Работает по source trace; exact clipping/transforms/all markers требуют дальнейшего сопоставления |
 | Camera | `CameraManager.cpp`, `View.cpp` | source-derived formulas в renderer | Частично | Два режима есть; исходный manager, collision/culling transitions и все modes не перенесены |
@@ -535,16 +535,37 @@ Network, video и Steam явно выключены.
    3D scene draw и 2D frame; ручная проверка arm64 Debug подтвердила шесть
    планет, boss photo/car, панели и отсутствие wheel-scale артефактов.
 
+### AchievmentFrame
+
+1. Удалён generic вертикальный список внутренних achievement ID.
+   Загружаются исходные `achievmentBg.dds`, `achievmentPanel.png`,
+   `achievmentBottomPanel.png`, `closeBut`, `okBut/okButSel` и девять пар
+   `GUI/Rewards/*Lock.png`/открытых изображений.
+2. Box order, координаты и draw state взяты буквально из
+   `AchievmentFrame::UpdateAchievments`: `armor4` использует
+   `musicTrack.png`, locked и opened не показывают цену, unlocked показывает
+   serialized price и доступен для покупки.
+3. Перенесён точный граф `NavElement` для left/right/up/down. При locked
+   target выполняется исходный recursive skip `Menu::NavElementFind`;
+   mouse selection обходит перекрывающиеся cards в обратном порядке, как
+   `UpdateSelection`.
+4. Покупка теперь всегда проходит `svBuyReward` Yes/No, затем точный
+   `asUnlocked → ConsumePoints → asOpened`; недостаток points показывает
+   `svHintCantPoints`. Изменения сохраняются в portable-копию исходной схемы
+   `achievment.xml` и сразу влияют на garage/workshop unlock checks.
+5. 300-frame Metal smoke обязан открыть AchievmentFrame до старта гонки.
+   Ручная arm64 Debug проверка подтвердила все девять карточек, цены, points,
+   selected `okButSel`, purchase dialog и warning без визуальных артефактов.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
 
-1. Продолжить исходный menu/widget state machine: сначала `RaceMenu2`
-   Achievement subframe, после него
+1. Продолжить исходный menu/widget state machine:
    `Menu`, `MenuSystem`, `MainMenu2`, `GameMode`, `DialogMenu2`,
-   `FinishMenu`, `FinalMenu`. Активная структура `OptionsMenu` и
-   `RaceMainFrame` уже source-derived, но legacy animation/widget classes
-   всё ещё заменены immediate-mode bgfx backend.
+   `FinishMenu`, `FinalMenu`. Основные offline subframes `RaceMenu2` и
+   активная структура `OptionsMenu` уже source-derived, но legacy
+   animation/widget classes всё ещё заменены immediate-mode bgfx backend.
 2. Завершить исходные type-specific projectile contact groups, forces,
    callbacks и lifetime transitions поверх уже перенесённых shapes/raycasts.
 3. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно

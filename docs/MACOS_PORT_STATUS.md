@@ -88,6 +88,22 @@ SnProfile::EnterGame`: первая планета становится `psOpen/
 ранним macOS-кодом сочетанием `psUnavailable/pass>0`, при загрузке
 нормализуются в `psOpen` без потери прогресса.
 
+Следующий follow-up перенёс `RaceMenu2::SpaceshipFrame/AngarFrame`: сцена
+ангара и космоса читается из `db.xml`, шесть планет и boss data — из
+`tournamet.xml`; восстановлены исходные lamps/HDR/camera, doors, planet
+ViewPort3d, photo/car info и Stay/Fly transitions.
+
+После него generic-список наград заменён исходным
+`RaceMenu2::AchievmentFrame`. Экран использует `achievmentBg.dds`,
+`achievmentPanel.png`, нижнюю панель, девять точных locked/open reward
+изображений и координаты из `UpdateAchievments`. `armor4` намеренно
+показывается оригинальной карточкой `musicTrack`. Перенесены состояния
+`asLocked/asUnlocked/asOpened`, цены и points из `achievment.xml`, исходный
+четырёхнаправленный navigation graph с пропуском locked-кнопок, подтверждение
+покупки, `ConsumePoints`, предупреждение о нехватке очков и сохранение
+`asOpened`. Интеграционный Metal smoke обязан посетить этот frame до гонки;
+ручная проверка arm64 Debug подтвердила геометрию, диалог и warning.
+
 Финальная проверка M9.5: arm64 Debug build и новые Metal shaders прошли без
 новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
 каждый подтвердил оба 2048 shadow split, шесть cube faces, `glRefl` и FxTrail,
@@ -851,13 +867,10 @@ SDL_AUDIO_DRIVER=dummy \
 
 ## Следующий рекомендуемый этап
 
-Для полного портирования следующий P0-блок — продолжить `RaceMenu2`:
-`AchievementFrame`, затем оставшиеся source dialogs/transitions.
-`SpaceshipFrame/AngarFrame` уже перенесены из `db.xml`, `tournamet.xml` и
-`RaceMenu2.cpp`: исходный ангар/космос, три лампы, HDR, `csAutoObserver`,
-шесть ViewPort3d planets, doors, boss photo/car и tournament transition
-branches заменили прежнюю generic-страницу.
-После этого идут `GameMode`/профильные диалоги и `FinishMenu`/`FinalMenu`.
+Основные offline subframes `RaceMenu2` — Garage, Workshop, Angar и
+Achievment — теперь source-derived. Следующий P0-блок: заменить generic
+`GameMode`/Tournament/Profile ветви исходными `MainMenu2`, `GameMode` и
+`DialogMenu2`, затем перенести `FinishMenu`/`FinalMenu`.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
