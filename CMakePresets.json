@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "debug",
+      "hidden": true,
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "release",
+      "hidden": true,
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+
+    {
+      "name": "msvc-x86",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "architecture": { "value": "x86", "strategy": "external" },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl"
+      }
+    },
+    {
+      "name": "msvc-x86-debug",
+      "displayName": "MSVC x86 Debug",
+      "inherits": ["msvc-x86", "debug"]
+    },
+    {
+      "name": "msvc-x86-release",
+      "displayName": "MSVC x86 Release",
+      "inherits": ["msvc-x86", "release"]
+    },
+
+    {
+      "name": "macos-arm64",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "11.0"
+      }
+    },
+    {
+      "name": "macos-arm64-debug",
+      "displayName": "macOS arm64 Debug",
+      "inherits": ["macos-arm64", "debug"]
+    },
+    {
+      "name": "macos-arm64-release",
+      "displayName": "macOS arm64 Release",
+      "inherits": ["macos-arm64", "release"]
+    }
+  ],
+  "buildPresets": [
+    { "name": "msvc-x86-debug", "configurePreset": "msvc-x86-debug" },
+    { "name": "msvc-x86-release", "configurePreset": "msvc-x86-release" },
+    { "name": "macos-arm64-debug", "configurePreset": "macos-arm64-debug" },
+    { "name": "macos-arm64-release", "configurePreset": "macos-arm64-release" }
+  ]
+}
