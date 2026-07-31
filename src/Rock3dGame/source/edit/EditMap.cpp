@@ -122,7 +122,8 @@ game::MapObj* Map::PickInstMapObj(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& 
 
 		if (item->GetGameObj().GetGrActor().RayCastIntersBB(rayPos, rayVec, nearVec, farVec, true))
 		{
-			float dist = D3DXVec3Length(&(rayPos - nearVec));
+			const D3DXVECTOR3 toNear = rayPos - nearVec;
+			float dist = D3DXVec3Length(&toNear);
 			if (minDist > dist || mapObj == 0)
 			{
 				mapObj = item;

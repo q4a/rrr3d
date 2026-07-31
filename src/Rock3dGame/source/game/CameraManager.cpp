@@ -379,7 +379,8 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		D3DXVec3Lerp(&camPos, &camPos1, &camPos2, 8.0f * deltaTime);*/
 
 		D3DXQUATERNION yRot;
-		D3DXQuaternionRotationAxis(&yRot, &D3DXVECTOR3(0, 1, 0), D3DX_PI * 12.0f);
+		const D3DXVECTOR3 yAxisUp(0, 1, 0);
+		D3DXQuaternionRotationAxis(&yRot, &yAxisUp, D3DX_PI * 12.0f);
 		camQuat = yRot * camQuat;
 
 		pos = camPos;
@@ -414,7 +415,8 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		targOff.z = 0.0f;
 		D3DXVec3Normalize(&targOff, &targOff);
 		//
-		float yTargetDot = D3DXVec3Dot(&targOff, &D3DXVECTOR3(0.0f, 1.0f, 0.0f));
+		const D3DXVECTOR3 yAxisDot(0.0f, 1.0f, 0.0f);
+		float yTargetDot = D3DXVec3Dot(&targOff, &yAxisDot);
 		//Формируем вектор смещения
 		targOff *= camSize;
 
@@ -925,7 +927,8 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 		D3DXVec3Normalize(&xAxis, &xAxis);
 
 		D3DXVECTOR3 norm;
-		D3DXVec3Cross(&norm, &(-ZVector), &yAxis);
+		const D3DXVECTOR3 negZ = -ZVector;
+		D3DXVec3Cross(&norm, &negZ, &yAxis);
 		D3DXVec3Normalize(&norm, &norm);
 		float ang = 0;		
 		bool angClamp = false;
@@ -937,7 +940,8 @@ void CameraManager::GetObserverCoord(const D3DXVECTOR3& targetPos, float targetD
 		}
 		else
 		{
-			ang = acos(D3DXVec3Dot(&xAxis, &(-ZVector)));
+			const D3DXVECTOR3 negZAxis = -ZVector;
+			ang = acos(D3DXVec3Dot(&xAxis, &negZAxis));
 			angClamp = ang - angLow < -0.001f || ang - angUp > 0.001f;
 		}
 

@@ -187,7 +187,8 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 				D3DXQUATERNION rotZ;
 				D3DXQuaternionRotationAxis(&rotZ, &ZVector, angleZ);
 				D3DXQUATERNION rotY;
-				D3DXQuaternionRotationAxis(&rotY, &_owner->_edit->GetWorld()->GetCamera()->GetRight(), angleY);
+				const D3DXVECTOR3 cameraRight = _owner->_edit->GetWorld()->GetCamera()->GetRight();
+				D3DXQuaternionRotationAxis(&rotY, &cameraRight, angleY);
 				D3DXQUATERNION rot = abs(angleZ) > abs(angleY) ? rotZ : rotY;
 					
 				selNode->SetRot(_clStartRot * rot);

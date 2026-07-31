@@ -181,7 +181,7 @@ template<class _Record> void RecordList<_Record>::Load(lsl::SReader* reader)
 	lsl::SReader* child = reader->FirstChildValue();
 	while (child)
 	{
-		Insert(_Record::Lib::LoadRecordRefFrom(child));
+		this->Insert(_Record::Lib::LoadRecordRefFrom(child));
 		child = child->NextValue();
 	}
 }

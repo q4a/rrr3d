@@ -294,7 +294,8 @@ Player* AICar::AttackState::FindEnemy(AICar* owner, const Player::CarState& car,
 	currentEnemy = currentEnemy && car.curTile && car.curTile->GetTile().IsZLevelContains(currentEnemy->GetCar().pos3) ? currentEnemy : NULL;
 
 	//отличие от текущего target как минимум на target->GetCar().size
-	bool testEnemy = enemy && (!currentEnemy || D3DXVec2Length(&(currentEnemy->GetCar().pos - enemy->GetCar().pos)) > currentEnemy->GetCar().size);
+	const D3DXVECTOR2 enemySeparation = enemy && currentEnemy ? currentEnemy->GetCar().pos - enemy->GetCar().pos : NullVec2;
+	bool testEnemy = enemy && (!currentEnemy || D3DXVec2Length(&enemySeparation) > currentEnemy->GetCar().size);
 
 	return testEnemy ? enemy : currentEnemy;
 }
@@ -319,7 +320,8 @@ void AICar::AttackState::ShotByEnemy(AICar* owner, const CarState& car, Player* 
 
 		WeaponList weaponList;
 
-		float distToTarget = D3DXVec2Length(&(enemy->GetCar().pos - car.pos));
+		const D3DXVECTOR2 toEnemy = enemy->GetCar().pos - car.pos;
+		float distToTarget = D3DXVec2Length(&toEnemy);
 		int wpnCount = 0;
 
 		for (int i = Player::stWeapon1; i <= Player::stWeapon4; ++i)
@@ -433,7 +435,8 @@ void AICar::AttackState::PlaceMine(AICar* owner, const CarState& car, const Path
 		if (summPart > 0.0f && summPart < 1.0f)
 		{
 			//Цель сзади, +30% мин
-			if (backTarget && D3DXVec2Length(&(backTarget->GetCar().pos - car.pos)) < 30.0f)
+			const D3DXVECTOR2 toBackTarget = backTarget ? backTarget->GetCar().pos - car.pos : NullVec2;
+			if (backTarget && D3DXVec2Length(&toBackTarget) < 30.0f)
 				summPart += 0.3f;
 			summPart = ClampValue(summPart + placeMineRandom, 0.0f, 1.0f);
 		}

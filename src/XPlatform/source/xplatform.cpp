@@ -330,6 +330,37 @@ BOOL GetClientRect(HWND window, LPRECT rect)
 	return FALSE;
 }
 
+/* -------------------------------------------------------------------- COM */
+
+HRESULT CoInitializeEx(void*, DWORD)
+{
+	return S_OK;
+}
+
+void CoUninitialize(void)
+{
+}
+
+/* ---------------------------------------------------------------- threads */
+
+/* See the header: the TSC-coherence hazard this guards against on Windows does
+   not exist here, so accepting the mask and reporting the previous one -- which
+   is what Windows returns -- is accurate rather than a stub. */
+
+HANDLE GetCurrentThread(void)
+{
+	/* Windows returns a pseudo-handle meaning "the calling thread". The only
+	   consumer passes it straight to SetThreadAffinityMask, which ignores it. */
+	return reinterpret_cast<HANDLE>(-2);
+}
+
+ULONG_PTR SetThreadAffinityMask(HANDLE, ULONG_PTR)
+{
+	/* Non-zero is success; the value is the previous mask, and every core was
+	   permitted before and still is. */
+	return ~static_cast<ULONG_PTR>(0);
+}
+
 /* ------------------------------------------------------------- multimedia */
 
 /* See mmsystem.h: there is no global timer resolution to raise here, and the

@@ -39,9 +39,75 @@
    the port agrees on, and it may as well be the one it has always been. */
 #define WM_APP  0x8000
 
+/*
+ * Virtual key codes, the 35 the game names. Same source as the DT_ flags above.
+ *
+ * These are *virtual* keys -- a layout-dependent identity, which is why phase
+ * 5 maps SDL scancodes rather than keycodes for movement and then translates
+ * to these. VK_LBUTTON, VK_RBUTTON and VK_MBUTTON are in the same numbering
+ * because Windows treats mouse buttons as virtual keys; the engine's
+ * GetAsyncKeyState calls rely on that.
+ *
+ * XInput's own VK_PAD_ codes are not here. They live in xinput.h, which is
+ * where Windows puts them, in a 0x58xx range reserved so they cannot collide.
+ */
+#define VK_LBUTTON      0x01
+#define VK_RBUTTON      0x02
+#define VK_MBUTTON      0x04
+#define VK_BACK         0x08
+#define VK_RETURN       0x0D
+#define VK_CONTROL      0x11
+#define VK_ESCAPE       0x1B
+#define VK_SPACE        0x20
+#define VK_PRIOR        0x21
+#define VK_NEXT         0x22
+#define VK_LEFT         0x25
+#define VK_UP           0x26
+#define VK_RIGHT        0x27
+#define VK_DOWN         0x28
+#define VK_DELETE       0x2E
+#define VK_NUMPAD0      0x60
+#define VK_NUMPAD1      0x61
+#define VK_NUMPAD2      0x62
+#define VK_NUMPAD3      0x63
+#define VK_NUMPAD4      0x64
+#define VK_NUMPAD5      0x65
+#define VK_NUMPAD6      0x66
+#define VK_NUMPAD7      0x67
+#define VK_NUMPAD8      0x68
+#define VK_NUMPAD9      0x69
+#define VK_ADD          0x6B
+#define VK_SUBTRACT     0x6D
+#define VK_F1           0x70
+#define VK_F2           0x71
+#define VK_F3           0x72
+#define VK_F4           0x73
+#define VK_F5           0x74
+#define VK_F6           0x75
+#define VK_F7           0x76
+#define VK_OEM_PERIOD   0xBE
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* High bit set means down, low bit means pressed since the last call. Phase 5
+   answers it from SDL's keyboard state; the low bit has no SDL equivalent and
+   the engine only ever tests the high bit. */
+SHORT WINAPI GetAsyncKeyState(int virtualKey);
+
+/* Cursor position in screen coordinates, and the conversion into a window's
+   client coordinates. ControlManager.cpp:603 pairs them, and the "window" it
+   passes is the CAMetalLayer the shell hands over as an HWND -- so like
+   GetClientRect, ScreenToClient answers from what the shell published rather
+   than from the handle. Phase 5. */
+BOOL WINAPI GetCursorPos(LPPOINT point);
+BOOL WINAPI ScreenToClient(HWND window, LPPOINT point);
+
+/* Locale-aware on Windows; ControlManager.cpp:489 uses the pair to decide
+   whether a key press is a printable character for text entry. */
+BOOL WINAPI IsCharAlphaA(CHAR ch);
+BOOL WINAPI IsCharAlphaNumericA(CHAR ch);
 
 /* Assigns the four members and returns TRUE. It does not normalise the
    rectangle, which matters: every call site in the game passes 0 for right and
@@ -72,6 +138,8 @@ inline WINBOOL WINAPI SetRect(LPRECT lprc, int xLeft, int yTop, int xRight, int 
  * "cleaner" -- it would rename ID3DXFont::DrawText's call sites and nothing
  * else, which is the one inconsistent outcome.
  */
-#define DrawText  DrawTextA
+#define DrawText            DrawTextA
+#define IsCharAlpha         IsCharAlphaA
+#define IsCharAlphaNumeric  IsCharAlphaNumericA
 
 #endif

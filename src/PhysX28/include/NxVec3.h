@@ -98,14 +98,27 @@ class NxVec3
 	NX_INLINE void multiplyAdd(NxReal s, const NxVec3 &a, const NxVec3 &b)
 		{ x = s * a.x + b.x; y = s * a.y + b.y; z = s * a.z + b.z; }
 
-	/* Computes the cross product of its two arguments into this vector. It
-	   does not return one, and it is not `this` crossed with an argument. */
+	/* Two overloads, and they do opposite things -- which is exactly why the
+	   two-argument one is easy to mistake for the whole story.
+	 *
+	 * The two-argument form computes left x right *into* this vector and
+	 * returns nothing. The one-argument form returns this x v and leaves this
+	 * alone. Both are 2.8's; GameCar.cpp:925 and :931 use the returning one
+	 * ("NxVec3 firstFric = secFric.cross(triNorm);") and would not compile
+	 * without it, which is what settles that it exists. */
 	NX_INLINE void cross(const NxVec3 &left, const NxVec3 &right)
 		{
 		const NxReal cx = left.y * right.z - left.z * right.y;
 		const NxReal cy = left.z * right.x - left.x * right.z;
 		const NxReal cz = left.x * right.y - left.y * right.x;
 		x = cx; y = cy; z = cz;
+		}
+
+	NX_INLINE NxVec3 cross(const NxVec3 &v) const
+		{
+		return NxVec3(y * v.z - z * v.y,
+		              z * v.x - x * v.z,
+		              x * v.y - y * v.x);
 		}
 
 	NX_INLINE void min(const NxVec3 &v) { if (v.x < x) x = v.x; if (v.y < y) y = v.y; if (v.z < z) z = v.z; }

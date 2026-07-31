@@ -211,7 +211,12 @@ class NxWheelShape : public NxShape
 	virtual NxUserWheelContactModify* getUserWheelContactModify() = 0;
 
 	/** False when the wheel is not touching anything this step. */
-	virtual bool getContact(NxWheelContactData& contact) const = 0;
+	/* Returns the shape the wheel is resting on, or NULL when it is airborne --
+	   not a bool. GameCar.cpp:191 assigns the result to an NxShape* and :787
+	   returns it as one, so the game settles this; a bool would have compiled
+	   at neither site. The contact data is filled in only when the return is
+	   non-NULL. */
+	virtual NxShape* getContact(NxWheelContactData& contact) const = 0;
 
 	virtual void saveToDesc(NxWheelShapeDesc& desc) const = 0;
 	protected:

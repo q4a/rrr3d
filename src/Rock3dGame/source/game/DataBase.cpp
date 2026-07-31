@@ -552,7 +552,8 @@ void DataBase::LoadCar(const std::string& name, const std::string& mesh, const s
 	
 	AABB aabb = carDesc.bodyAABB;
 
-	if (D3DXVec3Length(&aabb.GetSizes()) < 0.001f)
+	const D3DXVECTOR3 aabbSizes = aabb.GetSizes();
+	if (D3DXVec3Length(&aabbSizes) < 0.001f)
 		aabb = mapObj->GetGameObj().GetGrActor().GetLocalAABB(false);
 
 	aabb.Scale(carDesc.bodyScale);
@@ -845,7 +846,8 @@ void DataBase::LoadEffects()
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 1.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
 		D3DXQUATERNION spRot1, spRot2;
-		D3DXQuaternionRotationAxis(&spRot1, &(-IdentityVector), D3DX_PI);
+		const D3DXVECTOR3 negIdentity = -IdentityVector;
+		D3DXQuaternionRotationAxis(&spRot1, &negIdentity, D3DX_PI);
 		D3DXQuaternionRotationAxis(&spRot2, &IdentityVector, 2.0f * D3DX_PI);
 		descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
 		descFlow.gravitation = D3DXVECTOR3(0, 0, -9.80f);
@@ -867,7 +869,8 @@ void DataBase::LoadEffects()
 		graph::FxFlowEmitter::FlowDesc descFlow;
 		descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 4.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
 		D3DXQUATERNION spRot1, spRot2;
-		D3DXQuaternionRotationAxis(&spRot1, &(-IdentityVector), D3DX_PI);
+		const D3DXVECTOR3 negIdentity = -IdentityVector;
+		D3DXQuaternionRotationAxis(&spRot1, &negIdentity, D3DX_PI);
 		D3DXQuaternionRotationAxis(&spRot2, &IdentityVector, 2.0f * D3DX_PI);
 		descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
 		descFlow.gravitation = D3DXVECTOR3(0, 0, -9.80f);
@@ -1017,9 +1020,10 @@ void DataBase::LoadEffects()
 		desc.startScale = Vec3Range(D3DXVECTOR3(0.8f, 0.8f, 0.8f), D3DXVECTOR3(1.1f, 1.1f, 1.1f));
 
 		D3DXQUATERNION rot1;
-		D3DXQuaternionRotationAxis(&rot1, &D3DXVECTOR3(0.0f, 0.0f, 1.0f), 0.0f);
+		const D3DXVECTOR3 zAxis(0.0f, 0.0f, 1.0f);
+		D3DXQuaternionRotationAxis(&rot1, &zAxis, 0.0f);
 		D3DXQUATERNION rot2;
-		D3DXQuaternionRotationAxis(&rot2, &D3DXVECTOR3(0.0f, 0.0f, 1.0f), 2*D3DX_PI);		
+		D3DXQuaternionRotationAxis(&rot2, &zAxis, 2*D3DX_PI);
 		desc.startRot = QuatRange(rot1, rot2, QuatRange::vdVolume);
 
 		graph::FxFlowEmitter::FlowDesc descFlow;
@@ -1283,7 +1287,8 @@ void DataBase::LoadEffects()
 		desc.density = FloatRange(2.0f, 3.0f);
 		desc.startPos = Vec3Range(D3DXVECTOR3(-0.1f, -0.1f, -0.5f), D3DXVECTOR3(0.1f, 0.1f, 0.1f), Vec3Range::vdVolume);
 		D3DXQUATERNION spRot1, spRot2;
-		D3DXQuaternionRotationAxis(&spRot1, &(-ZVector), D3DX_PI);
+		const D3DXVECTOR3 negZ = -ZVector;
+		D3DXQuaternionRotationAxis(&spRot1, &negZ, D3DX_PI);
 		D3DXQuaternionRotationAxis(&spRot2, &ZVector, 2.0f * D3DX_PI);
 		desc.startRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume);
 
@@ -1362,7 +1367,8 @@ void DataBase::LoadEffects()
 			descFlow.speedPos = Vec3Range(D3DXVECTOR3(-1.5f, -1.5f, 2.0f), D3DXVECTOR3(1.5f, 1.5f, 5.0f), Vec3Range::vdVolume) * 3.0f;
 			//
 			D3DXQUATERNION spRot1, spRot2;
-			D3DXQuaternionRotationAxis(&spRot1, &(-IdentityVector), D3DX_PI);
+			const D3DXVECTOR3 negIdentity = -IdentityVector;
+		D3DXQuaternionRotationAxis(&spRot1, &negIdentity, D3DX_PI);
 			D3DXQuaternionRotationAxis(&spRot2, &IdentityVector, 2.0f * D3DX_PI);
 			descFlow.speedRot = QuatRange(spRot1, spRot2, QuatRange::vdVolume, Point2U(100, 100));
 			//
@@ -1984,8 +1990,12 @@ void DataBase::LoadWorld1()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 vec1 = plane;
+	const D3DXVECTOR3 planePoint(0, 0, 6.2f);
+	const D3DXVECTOR3 planeNormal(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng);
+	D3DXPlaneFromPointNormal(&plane, &planePoint, &planeNormal);
+	//D3DXPLANE to D3DXVECTOR4 was two user-defined conversions in one sequence,
+	//which only MSVC allows. Componentwise, it is the same four floats.
+	D3DXVECTOR4 vec1(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.075f, 0.0f);
 
@@ -2057,8 +2067,12 @@ void DataBase::LoadWorld2()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 vec1 = plane;
+	const D3DXVECTOR3 planePoint(0, 0, 6.2f);
+	const D3DXVECTOR3 planeNormal(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng);
+	D3DXPlaneFromPointNormal(&plane, &planePoint, &planeNormal);
+	//D3DXPLANE to D3DXVECTOR4 was two user-defined conversions in one sequence,
+	//which only MSVC allows. Componentwise, it is the same four floats.
+	D3DXVECTOR4 vec1(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.10f, 0.0f);
 	
@@ -2111,11 +2125,15 @@ void DataBase::LoadWorld3()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 vec1 = plane;
+	const D3DXVECTOR3 planePoint(0, 0, 6.2f);
+	const D3DXVECTOR3 planeNormal(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng);
+	D3DXPlaneFromPointNormal(&plane, &planePoint, &planeNormal);
+	//D3DXPLANE to D3DXVECTOR4 was two user-defined conversions in one sequence,
+	//which only MSVC allows. Componentwise, it is the same four floats.
+	D3DXVECTOR4 vec1(plane.a, plane.b, plane.c, plane.d);
 
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &ZVector);
-	D3DXVECTOR4 vec1Up = plane;
+	D3DXPlaneFromPointNormal(&plane, &planePoint, &ZVector);
+	D3DXVECTOR4 vec1Up(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
@@ -2151,8 +2169,12 @@ void DataBase::LoadWorld4()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 vec1 = plane;
+	const D3DXVECTOR3 planePoint(0, 0, 6.2f);
+	const D3DXVECTOR3 planeNormal(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng);
+	D3DXPlaneFromPointNormal(&plane, &planePoint, &planeNormal);
+	//D3DXPLANE to D3DXVECTOR4 was two user-defined conversions in one sequence,
+	//which only MSVC allows. Componentwise, it is the same four floats.
+	D3DXVECTOR4 vec1(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.25f, 0.25f, 0.0f);	
 
@@ -2185,12 +2207,14 @@ void DataBase::LoadWorld5()
 
 	D3DXPLANE plane;
 
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &ZVector);
-	D3DXVECTOR4 plane1 = plane;
+	const D3DXVECTOR3 planePoint(0, 0, 6.2f);
+	D3DXPlaneFromPointNormal(&plane, &planePoint, &ZVector);
+	D3DXVECTOR4 plane1(plane.a, plane.b, plane.c, plane.d);
 
 	float cosAng = cos(20.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 plane2 = plane;
+	const D3DXVECTOR3 planeNormal(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng);
+	D3DXPlaneFromPointNormal(&plane, &planePoint, &planeNormal);
+	D3DXVECTOR4 plane2(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 
@@ -2221,11 +2245,15 @@ void DataBase::LoadWorld6()
 
 	D3DXPLANE plane;
 	float cosAng = cos(15.0f * D3DX_PI/180.0f);
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &D3DXVECTOR3(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng));
-	D3DXVECTOR4 vec1 = plane;
+	const D3DXVECTOR3 planePoint(0, 0, 6.2f);
+	const D3DXVECTOR3 planeNormal(-sqrt(1.0f - cosAng * cosAng), 0.0f, cosAng);
+	D3DXPlaneFromPointNormal(&plane, &planePoint, &planeNormal);
+	//D3DXPLANE to D3DXVECTOR4 was two user-defined conversions in one sequence,
+	//which only MSVC allows. Componentwise, it is the same four floats.
+	D3DXVECTOR4 vec1(plane.a, plane.b, plane.c, plane.d);
 
-	D3DXPlaneFromPointNormal(&plane, &D3DXVECTOR3(0, 0, 6.2f), &ZVector);
-	D3DXVECTOR4 vec1Up = plane;
+	D3DXPlaneFromPointNormal(&plane, &planePoint, &ZVector);
+	D3DXVECTOR4 vec1Up(plane.a, plane.b, plane.c, plane.d);
 
 	D3DXVECTOR4 vec3(0.0f, -0.15f, 0.125f, 0.0f);
 

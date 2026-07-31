@@ -255,8 +255,35 @@ DWORD GetModuleFileNameW(void* module, LPWSTR filename, DWORD size);
 /* --------------------------------------------------------------- misc --- */
 
 int  MulDiv(int number, int numerator, int denominator);
+
+/* COM apartment init. Rock3dGame.cpp calls CoInitializeEx at startup and
+   CoUninitialize at shutdown, purely so DirectShow can create its filter graph;
+   nothing else in the tree is a COM client. Both succeed and do nothing here --
+   there is no apartment model to enter. */
+#define COINIT_MULTITHREADED      0x0
+#define COINIT_APARTMENTTHREADED  0x2
+#define COINIT_DISABLE_OLE1DDE    0x4
+#define COINIT_SPEED_OVER_MEMORY  0x8
+
+HRESULT CoInitializeEx(void* reserved, DWORD coInit);
+void    CoUninitialize(void);
+
+/* Windows pins the main thread to one core so QueryPerformanceCounter cannot
+   jump between cores -- a workaround for old multi-socket and AMD machines
+   whose TSCs were not synchronised. Rock3dGame.cpp:18 does it for that reason
+   and says so in its comment.
+ *
+ * macOS has no thread-affinity API of this shape, and does not need one:
+   mach_absolute_time is coherent across cores, so the hazard being avoided
+   does not exist. Returning the previous mask, as Windows does, is accurate. */
+HANDLE    GetCurrentThread(void);
+ULONG_PTR SetThreadAffinityMask(HANDLE thread, ULONG_PTR affinityMask);
 int  MessageBoxA(void* owner, LPCSTR text, LPCSTR caption, UINT type);
 void OutputDebugStringA(LPCSTR text);
+/* ERROR_SUCCESS is the DWORD status zero that XInputGetState and friends
+   return; it is not an HRESULT and does not go through SUCCEEDED(). */
+#define ERROR_SUCCESS  0
+
 DWORD GetLastError(void);
 void  SetLastError(DWORD error);
 
@@ -332,6 +359,23 @@ inline int _snprintf(char* buffer, size_t count, const char* format, ...)
 	const int result = vsnprintf(buffer, count, format, args);
 	va_end(args);
 	return result;
+}
+
+/* Microsoft's array-length macro. A template rather than the usual
+   sizeof(a)/sizeof(a[0]), so that it refuses a pointer instead of silently
+   returning 1 or 2 -- which is the whole reason MSVC provides it. */
+template<class T, size_t size> char (&_countof_helper(T (&array)[size]))[size];
+#define _countof(array) (sizeof(_countof_helper(array)))
+
+/* Microsoft's explicitly-32-bit time(). The one caller seeds srand with it, so
+   the truncation that made _time32 a named function on Windows is harmless --
+   and reproducing it keeps the seed identical on both platforms. */
+inline long _time32(long* destTime)
+{
+	const long now = static_cast<long>(time(NULL));
+	if (destTime)
+		*destTime = now;
+	return now;
 }
 
 inline int strcpy_s(char* dst, size_t size, const char* src)

@@ -283,7 +283,8 @@ void AchievmentCondition::Complete()
 	_iterNum = 0;
 	_owner->AddPoints(_reward);
 
-	_owner->game()->SendEvent(cAchievmentConditionComplete, &MyEventData(Race::cHuman, this));
+	MyEventData eventData(Race::cHuman, this);
+	_owner->game()->SendEvent(cAchievmentConditionComplete, &eventData);
 }
 
 void AchievmentCondition::ResetRaceState()
