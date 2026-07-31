@@ -37,5 +37,6 @@ add_executable(PhysX28Tests
     test/Px28Enums.cpp
     test/Px28Vec3.cpp
     test/Px28Quat.cpp
+    test/Px28Mat.cpp
 )
 target_link_libraries(PhysX28Tests PRIVATE ${PROJECT_NAME})
