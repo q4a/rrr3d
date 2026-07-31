@@ -12,6 +12,8 @@
 #include "NxMaterialDesc.h"
 #include "NxSceneDesc.h"
 #include "NxTriangleMeshDesc.h"
+#include "NxUserContactReport.h"
+#include "NxWheelContactData.h"
 
 #include <cstdio>
 #include <cmath>
@@ -233,6 +235,37 @@ int RunDescTests()
 		      !convex.isValid());
 		convex.flags = NX_CF_COMPUTE_CONVEX;
 		Check("...and valid once asked to compute the hull", convex.isValid());
+	}
+
+	// The friction-basis change flags, nested in NxUserContactModify exactly as
+	// 2.8 nests them. These are why the backend is Bullet: PhysX 3+ and Jolt
+	// have no per-contact friction orientation and btManifoldPoint does.
+	{
+		Check("NX_CCC_LOCALORIENTATION0 is 1<<6",
+		      NxUserContactModify::NX_CCC_LOCALORIENTATION0 == (1 << 6));
+		Check("NX_CCC_LOCALORIENTATION1 is 1<<7",
+		      NxUserContactModify::NX_CCC_LOCALORIENTATION1 == (1 << 7));
+		Check("NX_CCC_STATICFRICTION0 is 1<<8",
+		      NxUserContactModify::NX_CCC_STATICFRICTION0 == (1 << 8));
+		Check("NX_CCC_DYNAMICFRICTION0 is 1<<10",
+		      NxUserContactModify::NX_CCC_DYNAMICFRICTION0 == (1 << 10));
+
+		// Physx.h reaches them through this typedef, so it has to work.
+		typedef NxUserContactModify ContactModifyTraits;
+		typedef ContactModifyTraits::NxContactCallbackData CallbackData;
+		CallbackData d;
+		d.staticFriction0 = 0.0f;
+		Check("the nested NxContactCallbackData is reachable via the traits typedef",
+		      d.staticFriction0 == 0.0f);
+	}
+
+	// The contact pair is a value the game copies and stores.
+	{
+		NxContactPair pair;
+		Check("a contact pair defaults to no actors and no stream",
+		      pair.actors[0] == NULL && pair.stream == NULL);
+		Check("...and to neither actor deleted",
+		      !pair.isDeletedActor[0] && !pair.isDeletedActor[1]);
 	}
 
 	printf("\n%s (%d failure%s)\n", gFailures ? "FAILED" : "all defaults hold",
