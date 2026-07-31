@@ -88,8 +88,12 @@ class NxBodyDesc
 class NxActorDescBase
 	{
 	public:
-	/** NULL means a STATIC actor. This pointer is the whole discriminator. */
-	NxBodyDesc*  body;
+	/** NULL means a STATIC actor. This pointer is the whole discriminator.
+	 *
+	 * const, and the game is the evidence: Physx.cpp:1819 assigns
+	 * &_body->GetDesc(), and GetDesc() returns const NxBodyDesc&. That line
+	 * compiles against the real SDK today, so 2.8 declares this const. */
+	const NxBodyDesc* body;
 	NxReal       density;
 	NxMat34      globalPose;
 	NxU32        flags;

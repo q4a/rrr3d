@@ -2,6 +2,9 @@
 
 #include "graph/GrassField.h"
 
+#include <algorithm>
+#include <random>
+
 namespace r3d
 {
 
@@ -44,7 +47,13 @@ void GrassField::BuildField()
 	for (int i = -Floor<int>(numX/2.0f); i < Ceil<int>(numX/2.0f) - 1; ++i)
 		for (int j = -Floor<int>(numY/2.0f); j < Ceil<int>(numY/2.0f) - 1; ++j, ++ind)
 			mapPos[ind] = D3DXVECTOR3(step.x/2 + i * step.x, step.y/2 + j * step.y, step.z);
-	std::random_shuffle(mapPos.begin(), mapPos.end());
+	//std::random_shuffle was removed in C++17. std::shuffle is the replacement
+	//and takes an explicit generator rather than reaching for rand(), which is
+	//also how the RAND_MAX overflow in lslMath.inl got in.
+	{
+		std::mt19937 generator(0);
+		std::shuffle(mapPos.begin(), mapPos.end(), generator);
+	}
 
 	//Суммарный вес
 	float summWeight = 0;

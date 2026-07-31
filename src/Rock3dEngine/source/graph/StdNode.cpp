@@ -993,7 +993,8 @@ void Sprite::DoRender(Engine& engine)
 	//Отрисовка
 	material.Apply(engine);
 
-	engine.RenderSpritePT(GetWorldPos(), D3DXVECTOR3(sizes.x, sizes.y, 1.0f), GetTurnAngle(), fixDirection ? &GetWorldDir() : 0, GetWorldScale());
+	const D3DXVECTOR3 worldDir = GetWorldDir();
+	engine.RenderSpritePT(GetWorldPos(), D3DXVECTOR3(sizes.x, sizes.y, 1.0f), GetTurnAngle(), fixDirection ? &worldDir : 0, GetWorldScale());
 
 	material.UnApply(engine);
 }
@@ -1174,7 +1175,8 @@ void MovCoordSys::DoRender(Engine& engine)
 
 
 	//Скалим перед рендером чтобы не было дерганий
-	float dist = D3DXVec3Length(&(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos()));
+	const D3DXVECTOR3 toCamera = engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos();
+	float dist = D3DXVec3Length(&toCamera);
 	float scaleF = dist / 15.0f;
 	SetScale(scaleF);
 
@@ -1391,7 +1393,8 @@ void ScaleCoordSys::DoRender(Engine& engine)
 	engine.GetContext().RestoreRenderState(graph::rsZWriteEnable);
 	engine.GetContext().RestoreRenderState(graph::rsZEnable);
 
-	float dist = D3DXVec3Length(&(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos()));
+	const D3DXVECTOR3 toCamera = engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos();
+	float dist = D3DXVec3Length(&toCamera);
 	float scaleF = dist / 15.0f;
 	SetScale(scaleF);
 }

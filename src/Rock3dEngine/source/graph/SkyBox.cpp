@@ -2,6 +2,8 @@
 
 #include "graph/SkyBox.h"
 
+#include <cfloat>
+
 namespace r3d
 {
 

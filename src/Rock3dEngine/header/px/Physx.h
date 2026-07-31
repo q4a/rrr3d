@@ -32,6 +32,13 @@ namespace px
 {
 
 class SceneUser;
+//Named by members below long before they are defined. The friend declarations
+//inside Scene do not introduce these into the namespace -- MSVC treats a friend
+//declaration as declaring the class in the nearest enclosing scope, which is
+//pre-standard behaviour it still allows.
+class Actor;
+class Manager;
+class Shape;
 
 class Scene: public lsl::Component
 {
@@ -711,8 +718,11 @@ public:
 };
 
 //
-static inline NxPhysicsSDK& GetSDK();
-static inline NxCookingInterface& GetCooking();
+//Not `static`: both are already declared at namespace scope above, and as
+//friends of Manager. Adding internal linkage here contradicts that -- MSVC
+//accepted the mismatch, and the standard does not.
+inline NxPhysicsSDK& GetSDK();
+inline NxCookingInterface& GetCooking();
 
 
 

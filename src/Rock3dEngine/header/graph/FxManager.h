@@ -71,8 +71,12 @@ public:
 	float life;
 };
 
+//Named by members below before it is defined; the friend declarations do not
+//put it in namespace scope.
+class FxParticleSystem;
+
 class FxEmitter: public lsl::Object, public lsl::Serializable
-{	
+{
 	friend class FxParticleSystem;
 	friend class FxManager;
 private:

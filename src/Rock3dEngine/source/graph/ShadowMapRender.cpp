@@ -3,6 +3,8 @@
 #include "graph/ShadowMapRender.h"
 #include "graph/SceneManager.h"
 
+#include <cfloat>
+
 namespace r3d
 {
 

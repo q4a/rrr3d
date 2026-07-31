@@ -2,41 +2,41 @@
 #define D3D_EXCEPTIONS
 
 #include "r3dMessages.h"
-#include <exception>
+#include <stdexcept>
 
 namespace r3d
 {
 
-class EInitD3D9Failed: public std::exception
+class EInitD3D9Failed: public std::runtime_error
 {
 public:
-	EInitD3D9Failed(const char* message = sInitD3D9Failed): exception(message){}
+	EInitD3D9Failed(const char* message = sInitD3D9Failed): runtime_error(message){}
 };
 
-class EInvalidParent: public std::exception
+class EInvalidParent: public std::runtime_error
 {
 public:
-	EInvalidParent(const char* message = sInvalidParent): exception(message){}
+	EInvalidParent(const char* message = sInvalidParent): runtime_error(message){}
 };
 
-class ERenderObjectError: public std::exception
+class ERenderObjectError: public std::runtime_error
 {
 public:
-	ERenderObjectError(const char* message = sRenderObjectError): exception(message){}
+	ERenderObjectError(const char* message = sRenderObjectError): runtime_error(message){}
 };
 
-class EInvalidData: public std::exception
+class EInvalidData: public std::runtime_error
 {
 public:
-	EInvalidData(const char* message = sInvalidData): exception(message){}
+	EInvalidData(const char* message = sInvalidData): runtime_error(message){}
 };
 
-class D3DException: public std::exception
+class D3DException: public std::runtime_error
 {
 private:
 	HRESULT _eCode;
 public:
-	D3DException(HRESULT eCode, const char* message): exception(message), _eCode(eCode){}
+	D3DException(HRESULT eCode, const char* message): runtime_error(message), _eCode(eCode){}
 };
 
 class EGetD3DCaps9Failed: public D3DException

@@ -309,7 +309,8 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	D3DXMatrixTranspose(&mat, &mat);
 
 	D3DXPLANE plane;
-	D3DXPlaneTransform(&plane, &D3DXPLANE(actor->vec1()), &mat);
+	const D3DXPLANE actorPlane(actor->vec1());
+	D3DXPlaneTransform(&plane, &actorPlane, &mat);
 	D3DXPlaneNormalize(&plane, &plane);
 
 	float minDist = 0;
@@ -320,7 +321,8 @@ const ActorManager::Planar& ActorManager::GetPlanar(Actor* actor)
 	{
 		const D3DXPLANE& testPlane = iter->plane;
 		float dist = abs(testPlane.d - plane.d);
-		float angle = abs(D3DXPlaneDotNormal(&testPlane, &D3DXVECTOR3(plane)));
+		const D3DXVECTOR3 planeNormal(plane);
+		float angle = abs(D3DXPlaneDotNormal(&testPlane, &planeNormal));
 
 		if (dist < 0.5f && angle > 0.99f 
 			//&& (planarIter == _planars.end() || 

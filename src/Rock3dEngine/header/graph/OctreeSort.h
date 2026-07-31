@@ -300,7 +300,7 @@ public:
 				(*_iterNode)->Unlock();
 		}
 
-		UserNode* OctreeSort::Position::Next(const Frustum& frustum)
+		UserNode* Next(const Frustum& frustum)
 		{
 			UserNode* res = 0;
 			bool next = false;
