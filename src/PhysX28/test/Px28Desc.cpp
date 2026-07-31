@@ -10,6 +10,8 @@
 #include "NxShapeDesc.h"
 #include "NxActorDesc.h"
 #include "NxMaterialDesc.h"
+#include "NxSceneDesc.h"
+#include "NxTriangleMeshDesc.h"
 
 #include <cstdio>
 #include <cmath>
@@ -191,6 +193,46 @@ int RunDescTests()
 		Check("a default material is valid", m.isValid());
 		m.restitution = 2.0f;
 		Check("a restitution above 1 is invalid", !m.isValid());
+	}
+
+	// maxTimestep settles a question the shim would otherwise have to guess at.
+	{
+		NxSceneDesc scene;
+		Check("maxTimestep defaults to 1/60", Near(scene.maxTimestep, 1.0f / 60.0f));
+		Check("...which is also the game's step, so 2.8 ran ONE substep",
+		      Near(scene.maxTimestep, 1.0f / 60.0f));
+		Check("upAxis defaults to 0; the game sets 2 for Z-up", scene.upAxis == 0);
+		Check("timeStepMethod defaults to FIXED; the game sets VARIABLE",
+		      scene.timeStepMethod == NX_TIMESTEP_FIXED);
+		Check("a default scene descriptor is valid", scene.isValid());
+	}
+
+	{
+		NxTriangleMeshDesc mesh;
+		Check("an empty mesh descriptor is invalid", !mesh.isValid());
+		Check("...reporting reason 1, too few vertices", mesh.checkValid() == 1);
+		Check("convexEdgeThreshold defaults to 0.001", Near(mesh.convexEdgeThreshold, 0.001f));
+
+		// A non-indexed mesh has to define a whole number of triangles.
+		static const float pts[12] = {0,0,0, 1,0,0, 0,1,0, 1,1,0};
+		mesh.numVertices = 4;
+		mesh.points = pts;
+		mesh.triangles = NULL;
+		Check("a non-indexed mesh with a vertex count not divisible by 3 is invalid",
+		      mesh.checkValid() == 2);
+		mesh.numVertices = 3;
+		Check("...and valid when it is", mesh.isValid());
+	}
+
+	{
+		NxConvexMeshDesc convex;
+		static const float pts[12] = {0,0,0, 1,0,0, 0,1,0, 0,0,1};
+		convex.numVertices = 4;
+		convex.points = pts;
+		Check("a convex descriptor without a hull or COMPUTE_CONVEX is invalid",
+		      !convex.isValid());
+		convex.flags = NX_CF_COMPUTE_CONVEX;
+		Check("...and valid once asked to compute the hull", convex.isValid());
 	}
 
 	printf("\n%s (%d failure%s)\n", gFailures ? "FAILED" : "all defaults hold",
