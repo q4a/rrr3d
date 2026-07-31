@@ -3,7 +3,7 @@
 #include <deque>
 
 #include <xaudio2.h>
-#include <X3daudio.h>
+#include <x3daudio.h>
 #include <vorbis/codec.h>
 #include <vorbis/vorbisfile.h>
 #include <vorbis/vorbisenc.h>
