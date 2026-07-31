@@ -333,7 +333,8 @@ D3DXVECTOR3 Proj::CalcSpeed(GameObject* weapon)
 		speed = std::max(speed, _desc.speedRelativeMin + std::max(D3DXVec3Dot(&dir, &weapon->GetPxVelocityLerp()), 0.0f));
 	}
 
-	float cosa = abs(D3DXVec3Dot(&dir, &D3DXVECTOR3(0, 0, 1)));	
+	const D3DXVECTOR3 zAxis(0, 0, 1);
+	float cosa = abs(D3DXVec3Dot(&dir, &zAxis));
 	if (cosa < 0.707f)
 	{
 		dir.z = 0;
@@ -402,7 +403,8 @@ void Proj::RocketContact(const px::Scene::OnContactEvent& contact)
 				target->GetPxActor().GetNxActor()->addLocalTorque(vec3 * _desc.mass * 0.2f, NX_VELOCITY_CHANGE);
 			}
 
-			D3DXVec3Normalize(&dir, &(dir - ZVector));
+			const D3DXVECTOR3 dirMinusZ = dir - ZVector;
+			D3DXVec3Normalize(&dir, &dirMinusZ);
 
 			//dir = dir * dirLength;
 			//AddContactForce(target, contact, 150.0f * dir, NX_IMPULSE);
@@ -659,7 +661,9 @@ void Proj::MasloContact(const px::Scene::OnContactEvent& contact)
 			return;
 
 		D3DXPLANE plane;
-		D3DXPlaneFromPointNormal(&plane, &car->GetGrActor().GetWorldPos(), &car->GetGrActor().GetWorldRight());
+		const D3DXVECTOR3 carPos = car->GetGrActor().GetWorldPos();
+		const D3DXVECTOR3 carRight = car->GetGrActor().GetWorldRight();
+		D3DXPlaneFromPointNormal(&plane, &carPos, &carRight);
 		float dist = PlaneDistToPoint(plane, GetWorldPos());
 
 		if (car->GetPxActor().GetNxActor()->getLinearVelocity().magnitude() > 3.0f)
@@ -1188,7 +1192,8 @@ void Proj::ThunderContact(const px::Scene::OnContactEvent& contact)
 		if (abs(angle) > 0.1f)
 		{
 			D3DXPLANE plane;
-			D3DXPlaneFromPointNormal(&plane, &NullVector, &D3DXVECTOR3(norm.get()));
+			const D3DXVECTOR3 normVec(norm.get());
+			D3DXPlaneFromPointNormal(&plane, &NullVector, &normVec);
 			D3DXMATRIX mat;
 			D3DXMatrixReflect(&mat, &plane);
 

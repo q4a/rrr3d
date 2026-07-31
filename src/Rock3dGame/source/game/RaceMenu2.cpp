@@ -104,7 +104,8 @@ void CarFrame::SetCar(Garage::Car* value, const D3DXCOLOR& color, bool secret)
 				if ((*iter)->invertWheel)
 				{
 					D3DXQUATERNION rot;
-					D3DXQuaternionRotationAxis(&rot, &D3DXVECTOR3(0, 0, 1), D3DX_PI);
+					const D3DXVECTOR3 zAxis(0, 0, 1);
+					D3DXQuaternionRotationAxis(&rot, &zAxis, D3DX_PI);
 					(*iter)->SetRot(rot);
 				}
 

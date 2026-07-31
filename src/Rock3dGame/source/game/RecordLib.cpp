@@ -32,7 +32,10 @@ void DevideStr(std::string::const_iterator sIter, std::string::const_iterator eI
 Record::Record(const Desc& desc): _lib(desc.lib), _parent(desc.parent), _name(desc.name), _src(desc.src)
 {
 	if (_src)
-		_src->AddRef();
+		//AddRef lives on lsl::ObjReference, which SerialNode reaches by two
+		//paths: publicly through `public virtual Object`, and protectedly
+		//through `protected Component`. Naming the public one explicitly.
+		static_cast<lsl::Object*>(_src)->AddRef();
 }
 
 Record::~Record()
@@ -88,7 +91,10 @@ void Record::SetName(const std::string& value)
 RecordNode::RecordNode(const Desc& desc): _lib(desc.lib), _parent(desc.parent), _name(desc.name), _src(desc.src)
 {
 	if (_src)
-		_src->AddRef();
+		//AddRef lives on lsl::ObjReference, which SerialNode reaches by two
+		//paths: publicly through `public virtual Object`, and protectedly
+		//through `protected Component`. Naming the public one explicitly.
+		static_cast<lsl::Object*>(_src)->AddRef();
 }
 
 RecordNode::~RecordNode()
@@ -301,7 +307,7 @@ RecordLib::RecordLib(const std::string& name, lsl::SerialNode* rootSrc): _MyBase
 {
 	LSL_ASSERT(_rootSrc);
 
-	_rootSrc->AddRef();
+	static_cast<lsl::Object*>(_rootSrc)->AddRef();
 
 	_lib = this;
 	RecordNode::_name = name;
@@ -310,12 +316,12 @@ RecordLib::RecordLib(const std::string& name, lsl::SerialNode* rootSrc): _MyBase
 	_src = rootSrc->GetElements().Find(name);
 	if (!_src)
 		_src = CreateSrc(name, 0, true);
-	_src->AddRef();
+	static_cast<lsl::Object*>(_src)->AddRef();
 }
 
 RecordLib::~RecordLib()
 {
-	_rootSrc->Release();
+	static_cast<lsl::Object*>(_rootSrc)->Release();
 }
 
 lsl::SWriter* RecordLib::SaveRecordRef(lsl::SWriter* writer, const std::string& name, Record* record)

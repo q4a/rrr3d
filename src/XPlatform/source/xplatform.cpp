@@ -10,6 +10,8 @@
 #include <thread>
 #include <vector>
 
+#include <cstdlib>
+
 #include <mach-o/dyld.h>
 #include <sys/stat.h>
 
@@ -328,6 +330,51 @@ BOOL GetClientRect(HWND window, LPRECT rect)
 		}
 
 	return FALSE;
+}
+
+/* ----------------------------------------------------------------- locale */
+
+/*
+ * GameMode::AutodetectLanguage takes PRIMARYLANGID of this and looks it up
+ * against the three languages the game ships -- English (9), Russian (25) and
+ * Portuguese (22), from GameMode.cpp:1105-1124. Anything it does not recognise
+ * leaves the language at its default, so returning a real answer for those
+ * three and English otherwise is the whole job.
+ *
+ * The source is the POSIX locale environment rather than CFLocale, which keeps
+ * this file free of Objective-C and Foundation. LANG is what the terminal and
+ * the launcher both set; LC_ALL wins over it when present, as POSIX says.
+ */
+LANGID GetUserDefaultUILanguage(void)
+{
+	const char* locale = getenv("LC_ALL");
+	if (!locale || !*locale)
+		locale = getenv("LANG");
+	if (!locale || !*locale)
+		return 9; /* LANG_ENGLISH */
+
+	/* Compare only the two-letter language, not the territory: pt_BR and pt_PT
+	   are one language as far as the game is concerned. */
+	if (strncmp(locale, "ru", 2) == 0)
+		return 25; /* LANG_RUSSIAN */
+	if (strncmp(locale, "pt", 2) == 0)
+		return 22; /* LANG_PORTUGUESE */
+
+	return 9;
+}
+
+/* Windows sets the CRT's per-thread locale for the multibyte conversions the
+   ANSI functions do. Everything in this tree is UTF-8 since the transcode, and
+   GameMode calls setlocale() on the same line -- which is the call that
+   actually changes anything. These two succeed and do nothing. */
+BOOL SetThreadLocale(DWORD)
+{
+	return TRUE;
+}
+
+int _setmbcp(int)
+{
+	return 0;
 }
 
 /* -------------------------------------------------------------------- COM */

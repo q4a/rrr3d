@@ -402,6 +402,15 @@ class SerialNode: protected Component, public virtual Object, public SWriter, pu
 private:
 	typedef Component _MyBase;
 public:
+	//ObjReference is reached by two paths: publicly through `public virtual
+	//Object` and protectedly through `protected Component`. MSVC picked the
+	//public one; clang reports the members as protected. Naming the public
+	//path once here fixes every caller -- and reference counting on a
+	//SerialNode is public either way, which is what the callers assume.
+	using Object::AddRef;
+	using Object::Release;
+	using Object::GetRefCnt;
+
 	typedef std::map<std::string, Value*> Attributes;
 	typedef SerialNodes Elements;
 

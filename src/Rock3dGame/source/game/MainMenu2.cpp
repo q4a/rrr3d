@@ -1545,7 +1545,7 @@ void NetworkFrame::OnShow(bool value)
 		{
 			lsl::string text = "";
 
-			for (unsigned i = 0; i < std::min(addrVec.size(), 6U); ++i)
+			for (unsigned i = 0; i < std::min((unsigned)addrVec.size(), 6U); ++i)
 				text += addrVec[i] + "\n";
 
 			_labels[mlIPAdress]->SetText(!text.empty() ? "My IP:\n" + text : "");

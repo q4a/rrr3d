@@ -682,7 +682,8 @@ void GameObject::SendEvent(unsigned id, int playerId, MyEventData* data)
 	if (data)
 		data->playerId = playerId;
 
-	game->SendEvent(id, data ? data : &MyEventData(playerId));
+	MyEventData ownData(playerId);
+	game->SendEvent(id, data ? data : &ownData);
 }
 
 void GameObject::SendEvent(unsigned id, MyEventData* data)

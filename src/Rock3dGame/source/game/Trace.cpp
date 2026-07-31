@@ -41,7 +41,8 @@ bool WayPoint::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, flo
 
 bool WayPoint::IsContains(const D3DXVECTOR3& point, float* dist) const
 {
-	float midDist = D3DXVec3Length(&(point - _pos));
+	const D3DXVECTOR3 toPoint = point - _pos;
+	float midDist = D3DXVec3Length(&toPoint);
 	if (dist)
 		*dist = midDist;
 
@@ -160,7 +161,10 @@ void WayNode::Tile::ApplyChanges() const
 	{
 		_changed = false;
 
-		D3DXVECTOR2 sPos = GetPos();
+		//GetPos() is a D3DXVECTOR3; MSVC reached D3DXVECTOR2 through two
+		//user-defined conversions. The x and y, which is what it meant.
+		const D3DXVECTOR3 pos3 = GetPos();
+		D3DXVECTOR2 sPos(pos3.x, pos3.y);
 		if (_node->GetNext())
 		{
 			_dir = D3DXVECTOR2(GetNextPos()) - sPos;
@@ -346,8 +350,11 @@ bool WayNode::Tile::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec
 		PlaneFromDirVec(dir, rayVec, GetPos(), plane);
 	//Вектора коллиниарны
 	else
+	{
 		//Строим плоскость через центр тайла перпендикулярно направлению
-		D3DXPlaneFromPointNormal(&plane, &((GetPos() + GetNextPos()) / 2.0f), &dir);
+		const D3DXVECTOR3 midPoint = (GetPos() + GetNextPos()) / 2.0f;
+		D3DXPlaneFromPointNormal(&plane, &midPoint, &dir);
+	}
 
 	float tmp;
 	bool res = RayCastIntersectPlane(rayPos, rayVec, plane, tmp) && IsContains(rayPos + rayVec * tmp);
@@ -365,7 +372,7 @@ bool WayNode::Tile::IsContains(const D3DXVECTOR3& point, bool lengthClamp, float
 	D3DXVECTOR3 pos2 = GetNextPos();
 
 	//Расстояние в 2д плоскости
-	D3DXVECTOR2 point2 = point;
+	D3DXVECTOR2 point2(point.x, point.y);
 	float dist1 = Line2DistToPoint(_midNormLine, point2);
 	float dist2 = Line2DistToPoint(GetNextNormLine(), point2);
 	float dirDist = Line2DistToPoint(_dirLine, point2);
@@ -603,7 +610,9 @@ bool WayNode::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, floa
 
 bool WayNode::IsContains2(const D3DXVECTOR2& point, float* dist) const
 {
-	float midDist = D3DXVec2Length(&(point - D3DXVECTOR2(_point->GetPos())));
+	const D3DXVECTOR3 pointPos = _point->GetPos();
+	const D3DXVECTOR2 toPoint2 = point - D3DXVECTOR2(pointPos.x, pointPos.y);
+	float midDist = D3DXVec2Length(&toPoint2);
 	if (dist)
 		*dist = midDist;
 
@@ -612,7 +621,8 @@ bool WayNode::IsContains2(const D3DXVECTOR2& point, float* dist) const
 
 bool WayNode::IsContains(const D3DXVECTOR3& point, float* dist) const
 {
-	float midDist = D3DXVec3Length(&(point - _point->GetPos()));
+	const D3DXVECTOR3 toPoint3 = point - _point->GetPos();
+	float midDist = D3DXVec3Length(&toPoint3);
 	if (dist)
 		*dist = midDist;
 

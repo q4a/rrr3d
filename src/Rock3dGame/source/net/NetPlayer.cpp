@@ -320,7 +320,8 @@ void NetPlayer::OnSetGamerId(const net::NetMessage& msg, const net::NetCmdHeader
 
 	_player->SetGamerId(gamerId);
 
-	_net->SendEvent(cNetPlayerSetGamerId, &NetEventData(id(), failed));
+	NetEventData gamerIdData(id(), failed);
+	_net->SendEvent(cNetPlayerSetGamerId, &gamerIdData);
 }
 
 void NetPlayer::OnSetColor(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)
@@ -343,7 +344,8 @@ void NetPlayer::OnSetColor(const net::NetMessage& msg, const net::NetCmdHeader& 
 
 	_player->SetColor(color);
 
-	_net->SendEvent(cNetPlayerSetColor, &NetEventData(id(), failed));
+	NetEventData colorData(id(), failed);
+	_net->SendEvent(cNetPlayerSetColor, &colorData);
 }
 
 void NetPlayer::OnSetCar(const net::NetMessage& msg, const net::NetCmdHeader& header, std::istream& stream)

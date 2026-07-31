@@ -350,7 +350,8 @@ void PlayerStateFrame::ProccessAchievments(float deltaTime)
 			item.image->SetPos(pos);
 
 			D3DXVECTOR2 imgSize = myThis->menu()->GetImageSize(item.image->GetMaterial());
-			D3DXVec2Lerp(&imgSize, &imgSize, &(2.0f * imgSize), pingAlpha);
+			const D3DXVECTOR2 doubleSize = 2.0f * imgSize;
+			D3DXVec2Lerp(&imgSize, &imgSize, &doubleSize, pingAlpha);
 			item.image->SetSize(imgSize);
 
 			item.image->GetMaterial().SetAlpha(1.0f - outAlpha);
@@ -438,7 +439,10 @@ void PlayerStateFrame::ProccessCarLifeBar(float deltaTime)
 		D3DXVECTOR3 pos = _carLifes[i].target->GetCar().gameObj->GetPos() + D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 		D3DXVECTOR4 projVec;
 		D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
-		D3DXVECTOR2 vec = projVec / projVec.w;
+		//The perspective divide, then the first two components. MSVC got there
+		//through two user-defined conversions in one sequence, which the
+		//standard does not allow; written out it is the same two floats.
+		D3DXVECTOR2 vec(projVec.x / projVec.w, projVec.y / projVec.w);
 
 		if (projVec.z < 0)
 		{		
@@ -687,7 +691,7 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			D3DXVECTOR3 pos = opponent.player->GetCar().gameObj->GetWorldPos() + D3DXVECTOR3(1.0f, -0.5f, 0);
 			D3DXVECTOR4 projVec;
 			D3DXVec3Transform(&projVec, &pos, &menu()->GetGUI()->GetCamera3d()->GetContextInfo().GetViewProj());
-			D3DXVECTOR2 vec = projVec / projVec.w;
+			D3DXVECTOR2 vec(projVec.x / projVec.w, projVec.y / projVec.w);
 
 			if (projVec.z < 0)
 			{		
@@ -719,7 +723,8 @@ void PlayerStateFrame::UpdateState(float deltaTime)
 			for (Opponents::iterator iter2 = _opponents.begin(); iter2 != iter; ++iter2)
 			{
 				float rad = opponent.radius + iter2->radius;
-				float dist = D3DXVec2Length(&(iter2->center - opponent.center));
+				const D3DXVECTOR2 centerDelta = iter2->center - opponent.center;
+				float dist = D3DXVec2Length(&centerDelta);
 				alpha = std::min(rad != 0 ? dist / rad : 0, alpha);				
 			}
 

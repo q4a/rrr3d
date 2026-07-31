@@ -1499,7 +1499,8 @@ void Player::SendEvent(unsigned id, EventData* data)
 	if (data)
 		data->playerId = _id;
 
-	GetRace()->SendEvent(id, data ? data : &MyEventData(_id));
+	MyEventData ownData(_id);
+	GetRace()->SendEvent(id, data ? data : &ownData);
 }
 
 void Player::OnDestroy(GameObject* sender)
@@ -1533,7 +1534,8 @@ void Player::OnDeath(GameObject* sender, DamageType damageType, GameObject* targ
 			break;
 		}		
 
-		SendEvent(cPlayerDeath, &MyEventData(Slot::cTypeEnd, GameObject::cBonusTypeEnd, NULL, sender->GetTouchPlayerId(), damageType));
+		MyEventData deathData(Slot::cTypeEnd, GameObject::cBonusTypeEnd, NULL, sender->GetTouchPlayerId(), damageType);
+		SendEvent(cPlayerDeath, &deathData);
 	}
 }
 
@@ -1602,7 +1604,8 @@ Player* Player::FindClosestEnemy(float viewAngle, bool zTest)
 			D3DXVECTOR3 enemyPos = tCar.pos3;
 
 			D3DXVECTOR3 dir;
-			D3DXVec3Normalize(&dir, &(enemyPos - carPos));
+			const D3DXVECTOR3 toEnemy = enemyPos - carPos;
+			D3DXVec3Normalize(&dir, &toEnemy);
 			float angle = D3DXVec3Dot(&dir, &carDir);
 
 			D3DXPLANE dirPlane;
@@ -1633,7 +1636,8 @@ float Player::ComputeCarBBSize()
 	AABB aabb = _car.grActor->GetLocalAABB(false);
 	aabb.Transform(_car.grActor->GetWorldScale());
 	
-	return D3DXVec3Length(&aabb.GetSizes());
+	const D3DXVECTOR3 aabbSizes = aabb.GetSizes();
+	return D3DXVec3Length(&aabbSizes);
 }
 
 void Player::CreateCar(bool newRace)
@@ -2010,8 +2014,11 @@ void Player::TakeBonus(GameObject* bonus, BonusType type, float value)
 	switch (type)
 	{
 		case btMoney:
+		{
 			_pickMoney += static_cast<int>(value);
-			SendEvent(cPlayerPickItem, &MyEventData(Slot::cTypeEnd, btMoney, record));
+			MyEventData moneyData(Slot::cTypeEnd, btMoney, record);
+			SendEvent(cPlayerPickItem, &moneyData);
+		}
 			break;
 
 		case btCharge:
@@ -2037,10 +2044,14 @@ void Player::TakeBonus(GameObject* bonus, BonusType type, float value)
 					int charge = static_cast<int>(std::max(item->GetMaxCharge() * value, 1.0f));
 					item->SetCurCharge(std::min(item->GetCurCharge() + charge, item->GetCntCharge()));
 
-					SendEvent(cPlayerPickItem, &MyEventData(item->GetSlot()->GetType(), btCharge, record));
+					MyEventData chargeData(item->GetSlot()->GetType(), btCharge, record);
+					SendEvent(cPlayerPickItem, &chargeData);
 				}
 				else
-					SendEvent(cPlayerPickItem, &MyEventData(Slot::cTypeEnd, btCharge, record));
+				{
+					MyEventData chargeData(Slot::cTypeEnd, btCharge, record);
+					SendEvent(cPlayerPickItem, &chargeData);
+				}
 				break;
 		}
 
@@ -2048,7 +2059,8 @@ void Player::TakeBonus(GameObject* bonus, BonusType type, float value)
 			if (_car.mapObj)
 			{
 				_car.gameObj->Healt(value);
-				SendEvent(cPlayerPickItem, &MyEventData(Slot::cTypeEnd, btMedpack, record));
+				MyEventData medpackData(Slot::cTypeEnd, btMedpack, record);
+				SendEvent(cPlayerPickItem, &medpackData);
 			}
 			break;
 
@@ -2056,7 +2068,8 @@ void Player::TakeBonus(GameObject* bonus, BonusType type, float value)
 			if (_car.mapObj)
 			{
 				_car.gameObj->Immortal(value);
-				SendEvent(cPlayerPickItem, &MyEventData(Slot::cTypeEnd, btImmortal, record));
+				MyEventData immortalData(Slot::cTypeEnd, btImmortal, record);
+				SendEvent(cPlayerPickItem, &immortalData);
 			}
 			break;
 	}

@@ -17,6 +17,13 @@ namespace game
 const float Race::cSellDiscount = 0.5f;
 const std::string Planet::cWorldTypeStr[cWorldTypeEnd] = {"wtWorld1", "wtWorld2", "wtWorld3", "wtWorld4", "wtWorld5", "wtWorld6"};
 
+//FillStandartSlots takes the wheel-slot offset by pointer, and every call site
+//passed a temporary. Named here rather than at each call because four of the
+//five want the same value, and one having a different z is easier to notice
+//when they have names.
+const D3DXVECTOR3 cWheelSlotOffset(-1.5f, 0.0f, 0.35f);
+const D3DXVECTOR3 cGusWheelSlotOffset(-1.5f, 0.0f, 0.25f);
+
 
 
 
@@ -2708,7 +2715,7 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\manticoraWheel.txt");
 		car->SetCost(90000);
 
-		FillStandartSlots(car, "wheel", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, true, false, false, false);
+		FillStandartSlots(car, "wheel", true, &cWheelSlotOffset, false, false, true, false, false, false);
 
 		{
 			PlaceSlot place;
@@ -2785,7 +2792,7 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\gusenizaWheel.txt");
 		car->SetCost(140000);
 
-		FillStandartSlots(car, "gusWheel", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.25f), false, false, false, true, false, false);
+		FillStandartSlots(car, "gusWheel", true, &cGusWheelSlotOffset, false, false, false, true, false, false);
 
 		{
 			PlaceSlot place;
@@ -2894,7 +2901,7 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\podushkaWheel.txt");
 		car->SetCost(165000);
 
-		FillStandartSlots(car, "", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, false, false, true, false);
+		FillStandartSlots(car, "", true, &cWheelSlotOffset, false, false, false, false, true, false);
 
 		{
 			PlaceSlot place;
@@ -2992,7 +2999,7 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\monstertruckWheelGUI.txt");
 		car->SetCost(200000);
 
-		FillStandartSlots(car, "wheel", true, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, false, true, false, false);
+		FillStandartSlots(car, "wheel", true, &cWheelSlotOffset, false, false, false, true, false, false);
 
 		{
 			PlaceSlot place;
@@ -3122,7 +3129,7 @@ void Garage::LoadCars()
 		car->SetWheels("Data\\Car\\devildriverWheel.txt");
 		car->SetCost(300000);
 
-		FillStandartSlots(car, "", false, &D3DXVECTOR3(-1.5f, 0.0f, 0.35f), false, false, false, false, true, false);
+		FillStandartSlots(car, "", false, &cWheelSlotOffset, false, false, false, false, true, false);
 
 		{
 			PlaceSlot place;
@@ -6095,7 +6102,7 @@ Planet::Track* Tournament::NextTrack(Planet::Track* track)
 				if (iter->second.size() > 0)
 				{
 					_trackList.insert(_trackList.end(), iter->second.begin(), iter->second.end());
-					std::random_shuffle(_trackList.end() - iter->second.size(), _trackList.end());
+					lsl::RandomShuffle(_trackList.end() - iter->second.size(), _trackList.end());
 				}
 			}
 
@@ -6675,7 +6682,8 @@ void Race::DisposePlayer(Player* player)
 	if (GetWorld()->GetCamera()->GetPlayer() == player)
 		GetWorld()->GetCamera()->SetPlayer(0);
 	
-	SendEvent(cPlayerDispose, &EventData(player->GetId()));
+	EventData disposeData(player->GetId());
+	SendEvent(cPlayerDispose, &disposeData);
 
 	player->Release();
 	delete player;
@@ -6971,7 +6979,8 @@ void Race::OnLateProgress(float deltaTime, bool pxStep)
 		//проверяем также на пустой результат так как речь идет о лидере гонки
 		if (leaderPlayer->GetCar().GetPathLength(true) * (newLeadPlace - _lastLeadPlace) > 300.0f && _results.empty())
 		{
-			SendEvent(cPlayerLeadChanged, &EventData(leaderPlayer->GetId()));
+			EventData leadChangedData(leaderPlayer->GetId());
+			SendEvent(cPlayerLeadChanged, &leadChangedData);
 		}
 		_lastLeadPlace = newLeadPlace;
 	}
@@ -6982,26 +6991,30 @@ void Race::OnLateProgress(float deltaTime, bool pxStep)
 		//проверяем также на пустой результат так как речь идет о лидере гонки
 		if (thirdPlayer->GetCar().GetPathLength(true) * (newPlace - _lastThirdPlace) > 300.0f && _results.empty())
 		{
-			SendEvent(cPlayerThirdChanged, &EventData(thirdPlayer->GetId()));
+			EventData thirdChangedData(thirdPlayer->GetId());
+			SendEvent(cPlayerThirdChanged, &thirdChangedData);
 		}
 		_lastThirdPlace = newPlace;
 	}
 
 	if (lastPlayer && nextLastPlayer && lastPlayer->GetCar().IsMainPath() && nextLastPlayer->GetCar().IsMainPath() && lastPlayer->GetCar().GetPathLength(true) * (nextLastPlayer->GetCar().GetLap(true) - lastPlayer->GetCar().GetLap(true)) > 70.0f)
 	{
-		SendEvent(cPlayerLastFar, &EventData(lastPlayer->GetId()));
+		EventData lastFarData(lastPlayer->GetId());
+		SendEvent(cPlayerLastFar, &lastFarData);
 	}
 
 	if (leaderPlayer && secondPlayer && leaderPlayer->GetCar().IsMainPath() && secondPlayer->GetCar().IsMainPath() && leaderPlayer->GetCar().GetPathLength(true) * (leaderPlayer->GetCar().GetLap(true) - secondPlayer->GetCar().GetLap(true)) > 70.0f)
 	{
+		EventData dominationData(leaderPlayer->GetId());
 		if (_results.empty())
-			SendEvent(cPlayerDomination, &EventData(leaderPlayer->GetId()));
+			SendEvent(cPlayerDomination, &dominationData);
 	}
 
 	if (secondPlayer && thirdPlayer && secondPlayer->GetCar().IsMainPath() && thirdPlayer->GetCar().IsMainPath() && thirdPlayer->GetCar().GetPathLength(true) * (secondPlayer->GetCar().GetLap(true) - thirdPlayer->GetCar().GetLap(true)) > 70.0f)
 	{
+		EventData thirdFarData(thirdPlayer->GetId());
 		if (_results.empty())
-			SendEvent(cPlayerThirdFar, &EventData(thirdPlayer->GetId()));
+			SendEvent(cPlayerThirdFar, &thirdFarData);
 	}
 }
 
@@ -7525,7 +7538,7 @@ void Race::ResetCarPos()
 	{
 		if ((i % cRowLength) == 0)
 		{
-			unsigned count = std::min(_playerList.size() - i, 4U);
+			unsigned count = std::min((unsigned)_playerList.size() - i, 4U);
 			plSize = 0.0f;
 			stepY = 0;
 
@@ -7790,14 +7803,17 @@ void Race::OnLapPass(Player* player)
 	{
 		CompleteRace(player);
 
+		//One local for the whole chain: every arm sends the same player id, and
+		//hoisting it keeps each arm a single statement.
+		EventData finishData(player->GetId());
 		if (_results.size() == 1)
-			SendEvent(cPlayerLeadFinish, &EventData(player->GetId()));
+			SendEvent(cPlayerLeadFinish, &finishData);
 		else if (_results.size() == 2)
-			SendEvent(cPlayerSecondFinish, &EventData(player->GetId()));
+			SendEvent(cPlayerSecondFinish, &finishData);
 		else if (_results.size() == 3)
-			SendEvent(cPlayerThirdFinish, &EventData(player->GetId()));
+			SendEvent(cPlayerThirdFinish, &finishData);
 		else if (_results.size() == _playerList.size())
-			SendEvent(cPlayerLastFinish, &EventData(player->GetId()));
+			SendEvent(cPlayerLastFinish, &finishData);
 
 		//услвоия завершения гонки, double completion def
 		bool isRaceComplete = isHuman || (_results.size() >= _playerList.size() && GetPlayerById(cHuman) == NULL);
@@ -7805,8 +7821,9 @@ void Race::OnLapPass(Player* player)
 			SendEvent(cRaceFinish, NULL);
 	}
 
+	EventData humanLapData(Race::cHuman);
 	if (isHuman)
-		SendEvent(cRacePassLap, &EventData(Race::cHuman));
+		SendEvent(cRacePassLap, &humanLapData);
 
 	if (isHuman && player->GetCar().numLaps == _tournament->GetCurTrack().GetLapsCount() - 1)
 	{
@@ -7819,7 +7836,8 @@ void Race::OnLapPass(Player* player)
 				break;
 			}
 
-		SendEvent(cRaceLastLap, &EventData(leader->GetId()));
+		EventData lastLapData(leader->GetId());
+		SendEvent(cRaceLastLap, &lastLapData);
 	}
 }
 

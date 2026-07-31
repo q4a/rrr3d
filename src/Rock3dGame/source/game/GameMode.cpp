@@ -2,7 +2,6 @@
 #include "game/World.h"
 
 #include "game/GameMode.h"
-#include <mbctype.h>
 #include "lslSerialFileXML.h"
 
 namespace r3d
@@ -88,7 +87,9 @@ void GameMode::MusicCat::GenRandom(int ignore)
 		int group;
 		GameMode::PlayList playList;
 
-		bool operator<(const Node& ref)
+		//const: std::list::sort compares through const references, so a
+		//non-const operator< is never callable and the sort does not compile.
+		bool operator<(const Node& ref) const
 		{
 			return group < ref.group;
 		}
@@ -142,13 +143,13 @@ void GameMode::MusicCat::GenRandom(int ignore)
 		Node& node = *iter;
 		PlayList list;
 
-		std::random_shuffle(node.playList.begin(), node.playList.end());
+		lsl::RandomShuffle(node.playList.begin(), node.playList.end());
 
 		for (unsigned j = 0; j < node.playList.size(); ++j)
 		{
-			unsigned slotsCount = std::max(slots.size() - Floor<unsigned>(slots.size() / (float)node.playList.size()), node.playList.size());
+			unsigned slotsCount = std::max((unsigned)slots.size() - Floor<unsigned>(slots.size() / (float)node.playList.size()), (unsigned)node.playList.size());
 			unsigned slotsOffset = slots.size() - slotsCount;
-			unsigned count = std::max(node.playList.size() - 1, 1U);
+			unsigned count = std::max((unsigned)node.playList.size() - 1, 1U);
 			int index = (count * slotsOffset + 2 * (slotsCount - 1) * j) / (2 * count);
 			
 			index = slots[index];
@@ -160,7 +161,7 @@ void GameMode::MusicCat::GenRandom(int ignore)
 			slots.Remove(list[i]);
 	}
 
-	std::random_shuffle(defGroupList.begin(), defGroupList.end());
+	lsl::RandomShuffle(defGroupList.begin(), defGroupList.end());
 
 	for (unsigned i = 0; i < defGroupList.size(); ++i)
 		_playList[slots[i]] = defGroupList[i];

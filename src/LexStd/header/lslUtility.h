@@ -8,6 +8,9 @@
 #include "lslContainer.h"
 #include <windows.h>
 
+#include <algorithm>
+#include <random>
+
 namespace lsl
 {
 
@@ -15,6 +18,23 @@ typedef std::string string;
 typedef std::string stringA;
 typedef std::wstring stringW;
 typedef char TCHAR;
+
+/*
+ * std::random_shuffle was removed in C++17. std::shuffle replaces it but takes
+ * an explicit generator, which is the whole point of the change -- and also the
+ * reason for this helper rather than three copies of the same three lines.
+ *
+ * Seeded from rand(), so it stays tied to the srand(_time32(NULL)) that
+ * CreateWorld does at startup: these shuffles pick music playlist order and
+ * track order, and are meant to differ between runs exactly as they did before.
+ * Anything that wants a repeatable shuffle should use std::shuffle directly
+ * with its own fixed seed, as GrassField does.
+ */
+template<class Iterator> void RandomShuffle(Iterator first, Iterator last)
+{
+	std::mt19937 generator(static_cast<std::mt19937::result_type>(rand()));
+	std::shuffle(first, last, generator);
+}
 
 typedef lsl::Vector<string> StringVec;
 

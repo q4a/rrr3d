@@ -414,7 +414,8 @@ void NetRace::OnPushLine(const net::NetMessage& msg, const net::NetCmdHeader& he
 	lsl::stringW line;
 	net::Read(stream, line);
 
-	_net->SendEvent(cNetRacePushLine, &MyEventData(id(), false, msg.sender, line));
+	MyEventData pushLineData(id(), false, msg.sender, line);
+	_net->SendEvent(cNetRacePushLine, &pushLineData);
 }
 
 void NetRace::Damage1(NetPlayer* sender, NetPlayer* target, float value, GameObject::DamageType damageType, unsigned netTarget)

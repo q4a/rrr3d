@@ -760,7 +760,8 @@ void GameCar::StabilizeForce(float deltaTime)
 				angles.x = lsl::ClampValue(angles.x, -_clampXTorque, _clampXTorque);
 			if (_clampYTorque > 0)
 				angles.y = lsl::ClampValue(angles.y, -_clampYTorque, _clampYTorque);
-			rot.setXYZW((float*)&Eul_ToQuat(angles));
+			Quat eulerQuat = Eul_ToQuat(angles);
+			rot.setXYZW((float*)&eulerQuat);
 
 			GetPxActor().GetNxActor()->setGlobalOrientationQuat(rot);
 		}
@@ -1513,7 +1514,8 @@ float GameCar::GetSpeed(NxActor* nxActor, const D3DXVECTOR3& dir)
 {
 	if (nxActor)
 	{
-		float speed = D3DXVec3Dot(&dir, &D3DXVECTOR3(nxActor->getLinearVelocity().get()));
+		const D3DXVECTOR3 linearVelocity(nxActor->getLinearVelocity().get());
+		float speed = D3DXVec3Dot(&dir, &linearVelocity);
 		//погрешность 1 м/с
 		if (abs(speed) < 1.0f)
 			speed = 0.0f;

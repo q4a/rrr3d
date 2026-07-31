@@ -204,6 +204,36 @@ BOOL QueueUserWorkItem(LPTHREAD_START_ROUTINE function, LPVOID context, DWORD fl
 DWORD GetFileAttributesA(LPCSTR filename);
 DWORD GetFileAttributesW(LPCWSTR filename);
 
+/* --------------------------------------------------------------- locale --- */
+
+/*
+ * GameMode::AutodetectLanguage picks a language from the OS, then
+ * SetLanguageParam applies it with _setmbcp, setlocale and SetThreadLocale.
+ *
+ * setlocale is the C library's and does the real work; the other two are
+ * Windows-specific ways of saying the same thing to the CRT's multibyte layer,
+ * which has no counterpart here -- everything in this tree is UTF-8 since the
+ * transcode. So they succeed and do nothing, and the language still changes,
+ * because setlocale is what changes it.
+ */
+#define CP_THREAD_ACP    3
+#define _MB_CP_LOCALE    (-4)
+
+#define SUBLANG_NEUTRAL  0x00
+#define SORT_DEFAULT     0x0
+
+typedef WORD LANGID;
+
+#define MAKELANGID(primary, sub)  ((WORD)(((WORD)(sub) << 10) | (WORD)(primary)))
+#define PRIMARYLANGID(lgid)       ((WORD)(lgid) & 0x3ff)
+#define SUBLANGID(lgid)           ((WORD)(lgid) >> 10)
+#define MAKELCID(lgid, srtid)     ((DWORD)((((DWORD)((WORD)(srtid))) << 16) | \
+                                           ((DWORD)((WORD)(lgid)))))
+
+LANGID GetUserDefaultUILanguage(void);
+BOOL   SetThreadLocale(DWORD locale);
+int    _setmbcp(int codepage);
+
 /* ---------------------------------------------------------- module entry --- */
 
 /* windows_base.h defines WINAPI as nothing; APIENTRY is its other spelling.
@@ -376,6 +406,28 @@ inline long _time32(long* destTime)
 	if (destTime)
 		*destTime = now;
 	return now;
+}
+
+/* Microsoft's checked wide-char fopen. There is no wide fopen here -- macOS
+   paths are bytes and this tree is UTF-8 since the transcode -- so the name and
+   mode are narrowed and handed to fopen. Returns 0 on success and errno-style
+   on failure, as the _s functions do, rather than the FILE* itself. */
+inline int _wfopen_s(FILE** file, const wchar_t* filename, const wchar_t* mode)
+{
+	if (!file || !filename || !mode)
+		return 22; /* EINVAL */
+	*file = NULL;
+
+	char narrowName[4096];
+	char narrowMode[16];
+	if (WideCharToMultiByte(CP_UTF8, 0, filename, -1, narrowName,
+	                        static_cast<int>(sizeof(narrowName)), NULL, NULL) == 0 ||
+	    WideCharToMultiByte(CP_UTF8, 0, mode, -1, narrowMode,
+	                        static_cast<int>(sizeof(narrowMode)), NULL, NULL) == 0)
+		return 22;
+
+	*file = fopen(narrowName, narrowMode);
+	return *file ? 0 : 2; /* ENOENT */
 }
 
 inline int strcpy_s(char* dst, size_t size, const char* src)

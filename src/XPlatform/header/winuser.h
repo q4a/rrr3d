@@ -109,6 +109,85 @@ BOOL WINAPI ScreenToClient(HWND window, LPPOINT point);
 BOOL WINAPI IsCharAlphaA(CHAR ch);
 BOOL WINAPI IsCharAlphaNumericA(CHAR ch);
 
+#ifdef __cplusplus
+}
+#endif
+
+/* ------------------------------------------------------ window styles --- */
+
+/*
+ * View.cpp:52-53 sets these on what it thinks is a window. Off Windows the
+ * handle is a CAMetalLayer, so SetWindowLong has nothing to set -- phase 5
+ * routes fullscreen through SDL_SetWindowFullscreen instead. The values are
+ * still exact, because View::SetWindowSize reads dwStyle back out of
+ * GetWindowInfo and hands it to AdjustWindowRect: the round trip has to agree
+ * with itself even when nothing outside the process ever sees it.
+ */
+#define GWL_STYLE             (-16)
+#define GWL_EXSTYLE           (-20)
+
+#define WS_OVERLAPPED         0x00000000L
+#define WS_MAXIMIZEBOX        0x00010000L
+#define WS_MINIMIZEBOX        0x00020000L
+#define WS_THICKFRAME         0x00040000L
+#define WS_SYSMENU            0x00080000L
+#define WS_CAPTION            0x00C00000L
+#define WS_VISIBLE            0x10000000L
+#define WS_POPUP              0x80000000L
+#define WS_OVERLAPPEDWINDOW   (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | \
+                               WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
+
+#define WS_EX_TOPMOST         0x00000008L
+
+#define SWP_NOSIZE            0x0001
+#define SWP_NOMOVE            0x0002
+#define SWP_NOZORDER          0x0004
+
+typedef struct tagWINDOWINFO
+{
+	DWORD cbSize;
+	RECT rcWindow;
+	RECT rcClient;
+	DWORD dwStyle;
+	DWORD dwExStyle;
+	DWORD dwWindowStatus;
+	UINT cxWindowBorders;
+	UINT cyWindowBorders;
+	WORD atomWindowType;  /* ATOM; windows_base.h does not declare the typedef */
+	WORD wCreatorVersion;
+} WINDOWINFO, *PWINDOWINFO, *LPWINDOWINFO;
+
+/* ---------------------------------------------------- display devices --- */
+
+#define DISPLAY_DEVICE_ATTACHED_TO_DESKTOP  0x00000001
+#define DISPLAY_DEVICE_PRIMARY_DEVICE       0x00000004
+
+typedef struct _DISPLAY_DEVICEA
+{
+	DWORD cb;
+	CHAR DeviceName[32];
+	CHAR DeviceString[128];
+	DWORD StateFlags;
+	CHAR DeviceID[128];
+	CHAR DeviceKey[128];
+} DISPLAY_DEVICEA, *PDISPLAY_DEVICEA, *LPDISPLAY_DEVICEA;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Window geometry and repainting. GameMode.cpp forces a repaint around
+   cutscene transitions and View.cpp resizes; both are phase 5's, and both are
+   no-ops or SDL calls once the shell owns the window. */
+LONG WINAPI SetWindowLongA(HWND window, int index, LONG value);
+LONG WINAPI GetWindowLongA(HWND window, int index);
+BOOL WINAPI GetWindowInfo(HWND window, PWINDOWINFO info);
+BOOL WINAPI AdjustWindowRect(LPRECT rect, DWORD style, BOOL menu);
+BOOL WINAPI SetWindowPos(HWND window, HWND insertAfter, int x, int y,
+                         int cx, int cy, UINT flags);
+BOOL WINAPI InvalidateRect(HWND window, const RECT* rect, BOOL erase);
+BOOL WINAPI UpdateWindow(HWND window);
+
 /* Assigns the four members and returns TRUE. It does not normalise the
    rectangle, which matters: every call site in the game passes 0 for right and
    bottom (Engine.cpp:121, AIPlayer.cpp:700) and relies on DT_NOCLIP to draw
@@ -141,5 +220,8 @@ inline WINBOOL WINAPI SetRect(LPRECT lprc, int xLeft, int yTop, int xRight, int 
 #define DrawText            DrawTextA
 #define IsCharAlpha         IsCharAlphaA
 #define IsCharAlphaNumeric  IsCharAlphaNumericA
+#define SetWindowLong       SetWindowLongA
+#define GetWindowLong       GetWindowLongA
+#define DISPLAY_DEVICE      DISPLAY_DEVICEA
 
 #endif

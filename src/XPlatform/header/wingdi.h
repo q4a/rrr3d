@@ -33,6 +33,8 @@
 #define DEFAULT_CHARSET     1
 #define SYMBOL_CHARSET      2
 #define RUSSIAN_CHARSET     204
+#define EASTEUROPE_CHARSET  238
+#define BALTIC_CHARSET      186
 #define OEM_CHARSET         255
 
 /* Output precision. */

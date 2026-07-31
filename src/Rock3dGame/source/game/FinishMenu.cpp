@@ -96,7 +96,7 @@ void FinishMenu::OnAdjustLayout(const D3DXVECTOR2& vpSize)
 void FinishMenu::OnInvalidate()
 {
 	const Race::Results& results = menu()->GetRace()->GetResults();
-	_playerCount = std::min(results.size(), (unsigned)cBoxCount);
+	_playerCount = std::min((unsigned)results.size(), (unsigned)cBoxCount);
 
 	for (unsigned i = 0; i < cBoxCount; ++i)
 	{
@@ -177,7 +177,10 @@ void FinishMenu::OnProgress(float deltaTime)
 
 			bool setVisible = alpha > 0.0f;
 			if (!box.leftFrame->GetVisible() && setVisible)
-				menu()->SendEvent(playerFinish[i], &EventData(box.plrId));
+			{
+				EventData boxEvent(box.plrId);
+				menu()->SendEvent(playerFinish[i], &boxEvent);
+			}
 			box.leftFrame->SetVisible(setVisible);
 
 			D3DXVECTOR2 vec = box.leftFrame->GetPos();
@@ -190,7 +193,10 @@ void FinishMenu::OnProgress(float deltaTime)
 			_time = -1.0f;
 			const Race::Results& results = menu()->GetRace()->GetResults();
 			if (results.size() >= 4)
-				menu()->SendEvent(playerFinish[3], &EventData(results[results.size() - 1].playerId));
+			{
+				EventData lastEvent(results[results.size() - 1].playerId);
+				menu()->SendEvent(playerFinish[3], &lastEvent);
+			}
 		}
 		else
 			_time += deltaTime;
