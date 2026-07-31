@@ -36,6 +36,34 @@ endif()
 # own, before anything that uses it compiles.
 add_subdirectory(PhysX28)
 
+# Which PhysX the engine compiles against.
+#
+# The option exists so that Windows -- deferred, not dropped -- can keep
+# building against the real 2.8 SDK while macOS uses the shim, and so that
+# turning it on there later is a flip rather than a redesign.
+#
+# Off Windows there is no choice to make: the 2.8 headers do not compile at all
+# on macOS (Nx.h stops with "Platforms pointer size ambiguous", NxMath.h wants a
+# Linux variant that does not ship), so the shim is forced on.
+if (MSVC)
+    option(RRR3D_PHYSX28_SHIM "Use the PhysX 2.8 shim instead of the real SDK" OFF)
+else()
+    set(RRR3D_PHYSX28_SHIM ON)
+endif()
+
+if (RRR3D_PHYSX28_SHIM)
+    set(RRR3D_PHYSX_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/src/PhysX28/include)
+    message(STATUS "physics: PhysX 2.8 shim (over Bullet)")
+else()
+    set(RRR3D_PHYSX_INCLUDE_DIRS
+        ${CMAKE_SOURCE_DIR}/extern/physx/include/Cooking
+        ${CMAKE_SOURCE_DIR}/extern/physx/include/Foundation
+        ${CMAKE_SOURCE_DIR}/extern/physx/include/Physics
+        ${CMAKE_SOURCE_DIR}/extern/physx/include/PhysXLoader
+    )
+    message(STATUS "physics: real PhysX 2.8 SDK")
+endif()
+
 add_subdirectory(LexStd)
 add_subdirectory(MathLib)
 add_subdirectory(NetLib)

@@ -33,10 +33,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     header
     ${CMAKE_SOURCE_DIR}/src/LexStd/header
     ${CMAKE_SOURCE_DIR}/src/MathLib/header
-    ${CMAKE_SOURCE_DIR}/extern/physx/include/Cooking
-    ${CMAKE_SOURCE_DIR}/extern/physx/include/Foundation
-    ${CMAKE_SOURCE_DIR}/extern/physx/include/Physics
-    ${CMAKE_SOURCE_DIR}/extern/physx/include/PhysXLoader
+    ${RRR3D_PHYSX_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/extern/directx/include
 )
 
