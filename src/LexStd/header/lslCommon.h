@@ -29,6 +29,8 @@
 #include <vector>
 #include <limits>
 #include <exception>
+#include <stdexcept>
+#include <memory>
 #include <list>
 #include <cstdio>
 

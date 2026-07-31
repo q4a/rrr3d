@@ -24,10 +24,14 @@ public:
 	std::string fileName;
 };
 
-class Error: public std::exception
+//std::runtime_error rather than std::exception: only MSVC gives std::exception
+//a constructor taking a message, and both constructors below pass one. This is
+//still caught by every `catch (std::exception&)` in the tree, and what()
+//returns the same string it always did.
+class Error: public std::runtime_error
 {
 private:
-	typedef std::exception _MyBase;
+	typedef std::runtime_error _MyBase;
 private:
 	void PrintToLog();
 public:

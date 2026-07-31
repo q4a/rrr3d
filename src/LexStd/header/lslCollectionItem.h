@@ -8,6 +8,10 @@
 namespace lsl
 {
 
+//A friend declaration does not introduce the name into the enclosing scope, so
+//the members below cannot name the type without this.
+class CollectionTraits;
+
 class CollectionItem: public virtual Object
 {
 public:

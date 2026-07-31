@@ -2,6 +2,8 @@
 
 #include "lslSDK.h"
 
+#include <cfloat>
+
 namespace lsl
 {
 

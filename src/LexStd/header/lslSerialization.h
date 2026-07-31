@@ -390,10 +390,14 @@ public:
 	virtual SReader* NextValue() = 0;
 };
 
+class SerialNodes;
+
 //Защищенное наследование, в котором октрывается доступ к ссылочному классу Object
 class SerialNode: protected Component, public virtual Object, public SWriter, public SReader
 {
 	//
+	//Forward-declared above the class: a friend declaration alone does not put
+	//the name in scope for the Elements typedef below to use.
 	friend class SerialNodes;
 private:
 	typedef Component _MyBase;

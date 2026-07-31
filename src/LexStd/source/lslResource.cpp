@@ -3,12 +3,13 @@
 #include "lslResource.h"
 #include "lslUtility.h"
 #include <fstream>
+#include <filesystem>
 #include <cassert>
 
 namespace lsl
 {
 
-std::auto_ptr<FileSystem> FileSystem::_instance;
+std::unique_ptr<FileSystem> FileSystem::_instance;
 
 
 
@@ -32,19 +33,25 @@ void FileSystem::Release()
 
 template<class _T> std::basic_istream<_T, std::char_traits<_T>>* FileSystem::NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
-	std::ios_base::open_mode ioOpMode = std::ios_base::in;
+	//open_mode is an MSVC alias for openmode, and openmode is a bitmask type
+	//rather than an int, so the arithmetic below has to be bitwise.
+	std::ios_base::openmode ioOpMode = std::ios_base::in;
 	switch (openMode)
 	{
 	case omBinary:
-		ioOpMode += std::ios::binary;
+		ioOpMode |= std::ios::binary;
 		break;
 	}
-	ioOpMode |= (flags & cAppend) ? std::ios::app : 0;
-	ioOpMode |= (flags & cTruncate) ? std::ios::trunc : 0;	
+	if (flags & cAppend)
+		ioOpMode |= std::ios::app;
+	if (flags & cTruncate)
+		ioOpMode |= std::ios::trunc;
 
 	std::wstring path = GetAppFilePath(fileName);
 
-	std::basic_ifstream<_T, std::char_traits<_T>>* fs = new std::basic_ifstream<_T, std::char_traits<_T>>(path.c_str(), ioOpMode);
+	//Only MSVC gives the fstreams a wchar_t* filename overload. std::filesystem::path
+	//takes the wide string on every implementation and is what C++17 offers instead.
+	std::basic_ifstream<_T, std::char_traits<_T>>* fs = new std::basic_ifstream<_T, std::char_traits<_T>>(std::filesystem::path(path), ioOpMode);
 	LSL_ASSERT(fs);
 
 	if (fs->fail())	
@@ -63,20 +70,22 @@ template<class _T> std::basic_istream<_T, std::char_traits<_T>>* FileSystem::New
 
 template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* FileSystem::NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
-	std::ios_base::open_mode ioOpMode = std::ios_base::out;
+	std::ios_base::openmode ioOpMode = std::ios_base::out;
 	switch (openMode)
 	{
 	case omBinary:
-		ioOpMode += std::ios::binary;
+		ioOpMode |= std::ios::binary;
 		break;
 	}
 
-	ioOpMode |= (flags & cAppend) ? std::ios::app : 0;
-	ioOpMode |= (flags & cTruncate) ? std::ios::trunc : 0;
+	if (flags & cAppend)
+		ioOpMode |= std::ios::app;
+	if (flags & cTruncate)
+		ioOpMode |= std::ios::trunc;
 
 	std::wstring path = GetAppFilePath(fileName);
 
-	std::basic_ofstream<_T, std::char_traits<_T>>* fs = new std::basic_ofstream<_T, std::char_traits<_T>>(path.c_str(), ioOpMode);
+	std::basic_ofstream<_T, std::char_traits<_T>>* fs = new std::basic_ofstream<_T, std::char_traits<_T>>(std::filesystem::path(path), ioOpMode);
 	LSL_ASSERT(fs);
 
 	if (fs->fail())	
@@ -95,22 +104,22 @@ template<class _T> std::basic_ostream<_T, std::char_traits<_T>>* FileSystem::New
 
 std::istream* FileSystem::NewInStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
-	return NewInStream<std::istream::_Ctype::_Elem>(fileName, openMode, flags);
+	return NewInStream<std::istream::char_type>(fileName, openMode, flags);
 }
 
 std::wistream* FileSystem::NewInStreamW(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
-	return NewInStream<std::wistream::_Ctype::_Elem>(fileName, openMode, flags);
+	return NewInStream<std::wistream::char_type>(fileName, openMode, flags);
 }
 
 std::ostream* FileSystem::NewOutStream(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
-	return NewOutStream<std::ostream::_Ctype::_Elem>(fileName, openMode, flags);
+	return NewOutStream<std::ostream::char_type>(fileName, openMode, flags);
 }
 
 std::wostream* FileSystem::NewOutStreamW(const std::string& fileName, OpenMode openMode, DWORD flags)
 {
-	return NewOutStream<std::wostream::_Ctype::_Elem>(fileName, openMode, flags);
+	return NewOutStream<std::wostream::char_type>(fileName, openMode, flags);
 }
 
 void FileSystem::FreeStream(std::ios_base* stream)

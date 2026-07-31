@@ -64,7 +64,9 @@ protected:
 //В качестве owner-a может задаваться сам арuумент ссылка (Ref), тогда будет происходить самоудаление объекта
 template<class _Ref> class AutoRef: public BaseAutoRef
 {
-	template<class _Ref> friend class AutoRef;
+	//The parameter name has to differ from the enclosing template's: naming it
+	//_Ref again shadows it, which MSVC allows and the standard does not.
+	template<class _OtherRef> friend class AutoRef;
 private:
 	typedef AutoRef<_Ref> _MyClass;	
 	typedef BaseAutoRef _MyBase;

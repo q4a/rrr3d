@@ -25,7 +25,8 @@ public:
 class FileSystem
 {
 private:
-	static std::auto_ptr<FileSystem> _instance;
+	//std::auto_ptr was removed in C++17.
+	static std::unique_ptr<FileSystem> _instance;
 public:
 	enum OpenMode {omText, omBinary};
 	
@@ -54,6 +55,8 @@ public:
 
 	const std::wstring& appPath() const;
 };
+
+class Resource;
 
 class ResourcesTraits
 {
@@ -174,13 +177,13 @@ template<class _Resource, class _IdType, class _Arg, class _ArgThis> class Resou
 private:
 	typedef ComCollection<_Resource, _IdType, _Arg, _ArgThis> _MyBase;
 protected:
-	virtual void InsertItem(const Value& value);
+	virtual void InsertItem(const typename _MyBase::Value& value);
 };
 
 
 
 
-template<class _Resource, class _IdType, class _Arg, class _ArgThis> void ResourceCollection<_Resource, _IdType, _Arg, _ArgThis>::InsertItem(const Value& value)
+template<class _Resource, class _IdType, class _Arg, class _ArgThis> void ResourceCollection<_Resource, _IdType, _Arg, _ArgThis>::InsertItem(const typename _MyBase::Value& value)
 {
 	_MyBase::InsertItem(value);
 

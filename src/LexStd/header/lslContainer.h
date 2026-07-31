@@ -8,6 +8,12 @@
 namespace lsl
 {
 
+//Defined in lslUtility.h, which includes this header -- so it cannot be
+//included back. The call below is qualified, and a qualified name is looked up
+//where it is written rather than at instantiation, so it has to be declared
+//here.
+template<class _Pnt> inline void SafeDelete(_Pnt& pnt);
+
 typedef std::vector<bool> BoolVec;
 typedef std::map<unsigned, bool> BoolMap;
 
@@ -20,10 +26,10 @@ private:
 	using _MyBase::remove_if;
 public:
 	//Удаляет один элемент с таким значением
-	iterator Remove(const _Item& item)
+	typename _MyBase::iterator Remove(const _Item& item)
 	{
-		iterator iter = Find(item);
-		if (iter != end())
+		typename _MyBase::iterator iter = Find(item);
+		if (iter != _MyBase::end())
 			return _MyBase::erase(iter);
 		return iter;
 	}
@@ -39,19 +45,19 @@ public:
 		_MyBase::remove(item);
 	}
 
-	iterator Find(const _Item& item)
+	typename _MyBase::iterator Find(const _Item& item)
 	{
-		return std::find(begin(), end(), item);
+		return std::find(_MyBase::begin(), _MyBase::end(), item);
 	}
 
-	const_iterator Find(const _Item& item) const
+	typename _MyBase::const_iterator Find(const _Item& item) const
 	{
-		return std::find(begin(), end(), item);
+		return std::find(_MyBase::begin(), _MyBase::end(), item);
 	}
 
 	bool IsFind(const _Item& item) const
 	{
-		return Find(item) != end();
+		return Find(item) != _MyBase::end();
 	}
 };
 
@@ -61,27 +67,27 @@ private:
 	typedef std::vector<_Item> _MyBase;
 public:
 	//Удаляет один элемент с таким значением
-	iterator Remove(const _Item& item)
+	typename _MyBase::iterator Remove(const _Item& item)
 	{
-		iterator iter = Find(item);
-		if (iter != end())
+		typename _MyBase::iterator iter = Find(item);
+		if (iter != _MyBase::end())
 			return _MyBase::erase(iter);
 		return iter;
 	}
 
-	iterator Find(const _Item& item)
+	typename _MyBase::iterator Find(const _Item& item)
 	{
-		return std::find(begin(), end(), item);
+		return std::find(_MyBase::begin(), _MyBase::end(), item);
 	}
 
-	const_iterator Find(const _Item& item) const
+	typename _MyBase::const_iterator Find(const _Item& item) const
 	{
-		return std::find(begin(), end(), item);
+		return std::find(_MyBase::begin(), _MyBase::end(), item);
 	}
 
 	bool IsFind(const _Item& item) const
 	{
-		return Find(item) != end();
+		return Find(item) != _MyBase::end();
 	}
 };
 
@@ -235,7 +241,7 @@ template<class _Item> void Container<_Item>::Insert(const _Item& item)
 	bool safe = !(_safeCont && !_safeCont->SafeInsert(item));
 
 	if (safe && AddItem(item))
-		InsertItem(_cont.back());
+		_MyBase::InsertItem(_cont.back());
 }
 
 template<class _Item> void Container<_Item>::Remove(iterator iter)
@@ -244,7 +250,7 @@ template<class _Item> void Container<_Item>::Remove(iterator iter)
 
 	if (safe)
 	{
-		RemoveItem(*iter);
+		_MyBase::RemoveItem(*iter);
 		DeleteItem(iter);
 	}
 }
@@ -268,7 +274,7 @@ template<class _Item> void Container<_Item>::Remove(iterator sIter, iterator eIt
 	if (safe)
 	{
 		for (iterator iter = sIter; iter != eIter; ++iter)
-			RemoveItem(*iter);
+			_MyBase::RemoveItem(*iter);
 		DeleteItem(sIter, eIter);
 	}
 }
