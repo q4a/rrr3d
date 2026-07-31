@@ -19,4 +19,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/extern/tinyxml/include
 )
 
-target_link_libraries(${PROJECT_NAME})
+if (NOT MSVC)
+    target_link_libraries(${PROJECT_NAME} PUBLIC XPlatform)
+endif()

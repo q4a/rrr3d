@@ -25,6 +25,12 @@ else()
     add_compile_definitions("$<$<CONFIG:Debug>:_DEBUG>")
 endif()
 
+# The Win32 substitute layer. On Windows the real headers are used and this
+# whole target is absent, so nothing here can shadow them.
+if (NOT MSVC)
+    add_subdirectory(XPlatform)
+endif()
+
 add_subdirectory(LexStd)
 add_subdirectory(MathLib)
 add_subdirectory(NetLib)
