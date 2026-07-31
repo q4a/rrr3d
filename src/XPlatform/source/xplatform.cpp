@@ -1,5 +1,6 @@
 #include "xplatform.h"
 
+#include "mmsystem.h"
 #include "wingdi.h"
 
 #include <chrono>
@@ -327,6 +328,22 @@ BOOL GetClientRect(HWND window, LPRECT rect)
 		}
 
 	return FALSE;
+}
+
+/* ------------------------------------------------------------- multimedia */
+
+/* See mmsystem.h: there is no global timer resolution to raise here, and the
+   fine-grained behaviour these ask for is what nanosleep and steady_clock
+   already provide. Accepting the period and succeeding is accurate. */
+
+MMRESULT timeBeginPeriod(UINT)
+{
+	return TIMERR_NOERROR;
+}
+
+MMRESULT timeEndPeriod(UINT)
+{
+	return TIMERR_NOERROR;
 }
 
 /* ------------------------------------------------------------------- misc */

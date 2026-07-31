@@ -4,7 +4,7 @@
 #include "lslCommon.h"
 
 #include <windows.h>
-#include <MMSystem.h>
+#include <mmsystem.h>
 
 #include "targetver.h"
 #include "lslObject.h"
