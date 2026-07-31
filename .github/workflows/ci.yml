@@ -9,20 +9,20 @@ jobs:
   hygiene:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Sources are UTF-8
       run: python3 tools/check-encoding.py
     - name: Include paths are portable
       run: python3 tools/check-includes.py
 
   win:
-    runs-on: windows-2019
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
         configuration: [msvc-x86-debug, msvc-x86-release]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Install Windows libs
@@ -34,11 +34,12 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: x86
-    - name: Configure with CMakeSettings.json and build
-      uses: lukka/run-cmake@v3
+    - name: Configure
+      run: cmake --preset=${{ matrix.configuration }}
+    - name: Build
+      run: cmake --build --preset=${{ matrix.configuration }}
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
-        cmakeListsOrSettingsJson: CMakeSettingsJson
-        cmakeSettingsJsonPath: '${{ github.workspace }}/CMakeSettings.json'
-        useVcpkgToolchainFile: false
-        buildDirectory: '${{ github.workspace }}/build'
-        configurationRegexFilter: '${{ matrix.configuration }}'
+        name: rrr3d.${{ matrix.configuration }}
+        path: bin
