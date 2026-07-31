@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "net\NetConnection.h"
-#include "net\NetService.h"
+#include "net/NetConnection.h"
+#include "net/NetService.h"
 
 namespace net
 {

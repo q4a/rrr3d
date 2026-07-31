@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "game\Trace.h"
+#include "game/Trace.h"
 
 namespace r3d
 {
@@ -177,37 +177,37 @@ void WayNode::Tile::ApplyChanges() const
 		Line2FromNorm(_norm, sPos, _dirLine);
 		Line2FromNorm(_dir, sPos, _normLine);
 
-		//вычисляем и нормализуем поскольку лубая из составляющих _midDir могла оказаться близкой к нулю
+		//РІС‹С‡РёСЃР»СЏРµРј Рё РЅРѕСЂРјР°Р»РёР·СѓРµРј РїРѕСЃРєРѕР»СЊРєСѓ Р»СѓР±Р°СЏ РёР· СЃРѕСЃС‚Р°РІР»СЏСЋС‰РёС… _midDir РјРѕРіР»Р° РѕРєР°Р·Р°С‚СЊСЃСЏ Р±Р»РёР·РєРѕР№ Рє РЅСѓР»СЋ
 		_midDir = (_dir + GetPrevDir()) / 2.0f;
 		D3DXVec2Normalize(&_midDir, &_midDir);
-		//линии через node
+		//Р»РёРЅРёРё С‡РµСЂРµР· node
 		Line2FromNorm(_midDir, sPos, _midNormLine);
-		//Вычисляем _midNorm
+		//Р’С‹С‡РёСЃР»СЏРµРј _midNorm
 		Line2GetDir(_midNormLine, _midNorm);
 
-		//Вычисляем _nodeRadius
+		//Р’С‹С‡РёСЃР»СЏРµРј _nodeRadius
 		float cosDelta = D3DXVec2Dot(&_dir, &GetPrevDir());
-		//sinA/2 = sin(180 - D/2) = cos(D/2) = №(1 + cosD)/2
+		//sinA/2 = sin(180 - D/2) = cos(D/2) = в„–(1 + cosD)/2
 		_nodeRadius = GetHeight() / sqrt((1.0f + cosDelta) / 2.0f);
 
-		//Вычисляем _edgeNorm
+		//Р’С‹С‡РёСЃР»СЏРµРј _edgeNorm
 		if (D3DXVec2CCW(&GetPrevDir(), &_dir) > 0)
 			Vec2NormCCW(_midDir, _edgeNorm);
 		else
 			Vec2NormCW(_midDir, _edgeNorm);
 		Line2FromNorm(_edgeNorm, sPos + _nodeRadius * _edgeNorm, _edgeLine);		
 
-		//Вычисляем turnAngle
+		//Р’С‹С‡РёСЃР»СЏРµРј turnAngle
 		if (_node->GetPrev())
 			_turnAngle = acos(D3DXVec2Dot(&GetPrevDir(), &_dir));
 		else
 			_turnAngle = 0.0f;
 
-		//Вычисляем дистанцию до конечного узла
+		//Р’С‹С‡РёСЃР»СЏРµРј РґРёСЃС‚Р°РЅС†РёСЋ РґРѕ РєРѕРЅРµС‡РЅРѕРіРѕ СѓР·Р»Р°
 		_finishDist = _dirLength;
 		if (_node->_next)
 			_finishDist += _node->_next->GetTile().GetFinishDist();
-		//Вычисляем дистанцию до начального узла
+		//Р’С‹С‡РёСЃР»СЏРµРј РґРёСЃС‚Р°РЅС†РёСЋ РґРѕ РЅР°С‡Р°Р»СЊРЅРѕРіРѕ СѓР·Р»Р°
 		//_startDist = _node->GetPath()->GetFirst()->GetTile().GetFinishDist() - _finishDist;
 	}
 }
@@ -340,13 +340,13 @@ bool WayNode::Tile::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec
 	D3DXVec3Normalize(&dir, &dir);
 
 	D3DXPLANE plane;
-	//Условие неколлинеарности векторов
+	//РЈСЃР»РѕРІРёРµ РЅРµРєРѕР»Р»РёРЅРµР°СЂРЅРѕСЃС‚Рё РІРµРєС‚РѕСЂРѕРІ
 	if (D3DXVec3Dot(&dir, &rayVec) > 0.001f)
-		//плоскость перепендикулярно лучу в центре цилиндра тайла
+		//РїР»РѕСЃРєРѕСЃС‚СЊ РїРµСЂРµРїРµРЅРґРёРєСѓР»СЏСЂРЅРѕ Р»СѓС‡Сѓ РІ С†РµРЅС‚СЂРµ С†РёР»РёРЅРґСЂР° С‚Р°Р№Р»Р°
 		PlaneFromDirVec(dir, rayVec, GetPos(), plane);
-	//Вектора коллиниарны
+	//Р’РµРєС‚РѕСЂР° РєРѕР»Р»РёРЅРёР°СЂРЅС‹
 	else
-		//Строим плоскость через центр тайла перпендикулярно направлению
+		//РЎС‚СЂРѕРёРј РїР»РѕСЃРєРѕСЃС‚СЊ С‡РµСЂРµР· С†РµРЅС‚СЂ С‚Р°Р№Р»Р° РїРµСЂРїРµРЅРґРёРєСѓР»СЏСЂРЅРѕ РЅР°РїСЂР°РІР»РµРЅРёСЋ
 		D3DXPlaneFromPointNormal(&plane, &((GetPos() + GetNextPos()) / 2.0f), &dir);
 
 	float tmp;
@@ -364,13 +364,13 @@ bool WayNode::Tile::IsContains(const D3DXVECTOR3& point, bool lengthClamp, float
 	D3DXVECTOR3 pos1 = GetPos();
 	D3DXVECTOR3 pos2 = GetNextPos();
 
-	//Расстояние в 2д плоскости
+	//Р Р°СЃСЃС‚РѕСЏРЅРёРµ РІ 2Рґ РїР»РѕСЃРєРѕСЃС‚Рё
 	D3DXVECTOR2 point2 = point;
 	float dist1 = Line2DistToPoint(_midNormLine, point2);
 	float dist2 = Line2DistToPoint(GetNextNormLine(), point2);
 	float dirDist = Line2DistToPoint(_dirLine, point2);
 	
-	//Высота от плоскости трасы до поверхности ограничивающего цилиндра
+	//Р’С‹СЃРѕС‚Р° РѕС‚ РїР»РѕСЃРєРѕСЃС‚Рё С‚СЂР°СЃС‹ РґРѕ РїРѕРІРµСЂС…РЅРѕСЃС‚Рё РѕРіСЂР°РЅРёС‡РёРІР°СЋС‰РµРіРѕ С†РёР»РёРЅРґСЂР°
 	float coordX = ComputeCoordX(dist1);
 	float coordZ = ComputeZCoord(coordX);
 	//
@@ -379,9 +379,9 @@ bool WayNode::Tile::IsContains(const D3DXVECTOR3& point, bool lengthClamp, float
 	if (dist)
 		*dist = height;
 
-	//Первое условие, ограничение по длине
-	//Второе условие, ограничение по ширине
-	//Третье условие, ограничение по высоте
+	//РџРµСЂРІРѕРµ СѓСЃР»РѕРІРёРµ, РѕРіСЂР°РЅРёС‡РµРЅРёРµ РїРѕ РґР»РёРЅРµ
+	//Р’С‚РѕСЂРѕРµ СѓСЃР»РѕРІРёРµ, РѕРіСЂР°РЅРёС‡РµРЅРёРµ РїРѕ С€РёСЂРёРЅРµ
+	//РўСЂРµС‚СЊРµ СѓСЃР»РѕРІРёРµ, РѕРіСЂР°РЅРёС‡РµРЅРёРµ РїРѕ РІС‹СЃРѕС‚Рµ
 	return (!lengthClamp || dist1 * dist2 < 0) && abs(dirDist) < (halfWidth + widthErr) && abs(coordZ - point.z) < height;
 }
 
@@ -471,7 +471,7 @@ float WayNode::Tile::GetFinishDist() const
 
 float WayNode::Tile::GetStartDist() const
 {
-	//пока не реализована
+	//РїРѕРєР° РЅРµ СЂРµР°Р»РёР·РѕРІР°РЅР°
 	LSL_ASSERT(false);
 
 	ApplyChanges();
@@ -567,16 +567,16 @@ void WayNode::Changed()
 {
 	_tile->Changed();
 
-	/*//Также изменяются соседние тайлы
-	//есть связные векторные данные
+	/*//РўР°РєР¶Рµ РёР·РјРµРЅСЏСЋС‚СЃСЏ СЃРѕСЃРµРґРЅРёРµ С‚Р°Р№Р»С‹
+	//РµСЃС‚СЊ СЃРІСЏР·РЅС‹Рµ РІРµРєС‚РѕСЂРЅС‹Рµ РґР°РЅРЅС‹Рµ
 	if (_prev)
 		_prev->_tile->Changed();
 	if (_next)
 		_next->_tile->Changed();*/
 
-	//Для упрощения изменяем все связные узлы патча (все равно статический)
-	//Есть связность дистанций до финиша
-	//назад
+	//Р”Р»СЏ СѓРїСЂРѕС‰РµРЅРёСЏ РёР·РјРµРЅСЏРµРј РІСЃРµ СЃРІСЏР·РЅС‹Рµ СѓР·Р»С‹ РїР°С‚С‡Р° (РІСЃРµ СЂР°РІРЅРѕ СЃС‚Р°С‚РёС‡РµСЃРєРёР№)
+	//Р•СЃС‚СЊ СЃРІСЏР·РЅРѕСЃС‚СЊ РґРёСЃС‚Р°РЅС†РёР№ РґРѕ С„РёРЅРёС€Р°
+	//РЅР°Р·Р°Рґ
 	WayNode* curNode = _prev;
 	while (curNode)
 	{
@@ -585,7 +585,7 @@ void WayNode::Changed()
 		curNode->_tile->Changed();
 		curNode = curNode->_prev;
 	}
-	//вперед
+	//РІРїРµСЂРµРґ
 	curNode = _next;
 	while (curNode)
 	{
@@ -683,7 +683,7 @@ WayNode* WayPath::Add(WayPoint* point, WayNode* mWhere)
 	WayNode* node = new WayNode(this, point);
 	++_count;
 
-	//Узел корневой
+	//РЈР·РµР» РєРѕСЂРЅРµРІРѕР№
 	if (_first == 0)
 	{
 		_first = node;
@@ -692,7 +692,7 @@ WayNode* WayPath::Add(WayPoint* point, WayNode* mWhere)
 		return node;
 	}
 
-	//Условие добавления в конец
+	//РЈСЃР»РѕРІРёРµ РґРѕР±Р°РІР»РµРЅРёСЏ РІ РєРѕРЅРµС†
 	if (mWhere == 0)
 	{
 		node->SetPrev(_last);
@@ -704,11 +704,11 @@ WayNode* WayPath::Add(WayPoint* point, WayNode* mWhere)
 
 	LSL_ASSERT(mWhere);
 
-	//Устанавливаем связи для node
+	//РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј СЃРІСЏР·Рё РґР»СЏ node
 	node->SetPrev(mWhere->_prev);
 	node->SetNext(mWhere);
 
-	//Корректируем существующие связи
+	//РљРѕСЂСЂРµРєС‚РёСЂСѓРµРј СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ СЃРІСЏР·Рё
 	if (mWhere->_prev)
 		mWhere->_prev->SetNext(node);
 	else
@@ -722,13 +722,13 @@ WayNode* WayPath::Add(WayPoint* point, WayNode* mWhere)
 
 void WayPath::Delete(WayNode* value)
 {
-	//Корректируем существующие связи
+	//РљРѕСЂСЂРµРєС‚РёСЂСѓРµРј СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ СЃРІСЏР·Рё
 	if (value->_prev)
 		value->_prev->SetNext(value->_next);
 	if (value->_next)
 		value->_next->SetPrev(value->_prev);
 
-	//Меняем при необходимости граничные узлы
+	//РњРµРЅСЏРµРј РїСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё РіСЂР°РЅРёС‡РЅС‹Рµ СѓР·Р»С‹
 	if (value == _first)
 		_first = value->_next;
 	if (value == _last)
@@ -778,7 +778,7 @@ WayNode* WayPath::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, 
 	float minDist = 0;
 	WayNode* resNode = 0;
 
-	//Сначала поиск по тайлам
+	//РЎРЅР°С‡Р°Р»Р° РїРѕРёСЃРє РїРѕ С‚Р°Р№Р»Р°Рј
 	WayNode* node = mWhere ? mWhere : _first;
 	while (node)
 	{
@@ -792,15 +792,15 @@ WayNode* WayPath::RayCast(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec, 
 		node = node->GetNext();
 	}
 
-	//Затем находится ближайщий узел
+	//Р—Р°С‚РµРј РЅР°С…РѕРґРёС‚СЃСЏ Р±Р»РёР¶Р°Р№С‰РёР№ СѓР·РµР»
 	float nodeDist;
 	if (resNode && resNode->GetNext() &&  resNode->GetNext()->RayCast(rayPos, rayVec, &nodeDist))
 	{
 		resNode = resNode->GetNext();
-		//Т.к. resNode != 0, то minDist инициализирован
+		//Рў.Рє. resNode != 0, С‚Рѕ minDist РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°РЅ
 		minDist = std::min(nodeDist, minDist);
 	}
-	//При отсутсвии результата проверям конечные узлы
+	//РџСЂРё РѕС‚СЃСѓС‚СЃРІРёРё СЂРµР·СѓР»СЊС‚Р°С‚Р° РїСЂРѕРІРµСЂСЏРј РєРѕРЅРµС‡РЅС‹Рµ СѓР·Р»С‹
 	if (!resNode && _first && _first->RayCast(rayPos, rayVec, &nodeDist))
 	{
 		resNode = _first;
@@ -833,7 +833,7 @@ WayNode* WayPath::IsTileContains(const D3DXVECTOR3& point, WayNode* mWhere) cons
 		node = node->GetNext();
 	}
 
-	//При отсутсвии результата проверям конечные узлы
+	//РџСЂРё РѕС‚СЃСѓС‚СЃРІРёРё СЂРµР·СѓР»СЊС‚Р°С‚Р° РїСЂРѕРІРµСЂСЏРј РєРѕРЅРµС‡РЅС‹Рµ СѓР·Р»С‹
 	if (!resNode && _first && _first->IsContains(point))
 	{
 		resNode = _first;		
@@ -865,7 +865,7 @@ void WayPath::GetTriStripVBuf(res::VertexData& data, const D3DXVECTOR3* upVec)
 	{
 		WayNode* nextNode = node->GetNext();
 		node->GetTile().GetVBuf(pVert.Pos3(), 4, upVec);
-		//Смещаем только на два индекса, поскольку строится стрип, а две соседних вершины тайла попарно совпадают
+		//РЎРјРµС‰Р°РµРј С‚РѕР»СЊРєРѕ РЅР° РґРІР° РёРЅРґРµРєСЃР°, РїРѕСЃРєРѕР»СЊРєСѓ СЃС‚СЂРѕРёС‚СЃСЏ СЃС‚СЂРёРї, Р° РґРІРµ СЃРѕСЃРµРґРЅРёС… РІРµСЂС€РёРЅС‹ С‚Р°Р№Р»Р° РїРѕРїР°СЂРЅРѕ СЃРѕРІРїР°РґР°СЋС‚
 		pVert += 2;
 		node = nextNode;
 	}

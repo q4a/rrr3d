@@ -3,7 +3,7 @@
 #include "ClassView.h"
 
 #include "MainFrm.h"
-#include "Resource.h"
+#include "resource.h"
 #include "MapEditor.h"
 
 class CClassViewMenuButton : public CMFCToolBarMenuButton
@@ -173,7 +173,7 @@ void CClassView::DeselectItem()
 {
 	if (_newMapObj)
 	{
-		//Проверяем, этот ли объект выделен (из-за несинхронности, например передачи фокуса, это может быть не так)
+		//РџСЂРѕРІРµСЂСЏРµРј, СЌС‚РѕС‚ Р»Рё РѕР±СЉРµРєС‚ РІС‹РґРµР»РµРЅ (РёР·-Р·Р° РЅРµСЃРёРЅС…СЂРѕРЅРЅРѕСЃС‚Рё, РЅР°РїСЂРёРјРµСЂ РїРµСЂРµРґР°С‡Рё С„РѕРєСѓСЃР°, СЌС‚Рѕ РјРѕР¶РµС‚ Р±С‹С‚СЊ РЅРµ С‚Р°Рє)
 		if (_mapDoc->GetSelMapObj() == _newMapObj)
 			_mapDoc->SelectMapObj(0);
 		if (_mapDoc->GetSelMode() == r3d::ISceneControl::smLink)
@@ -478,7 +478,7 @@ bool CClassView::OnMapViewMouseClickEvent(lsl::MouseKey key, lsl::KeyState state
 bool CClassView::OnMapViewKeyEvent(unsigned key, lsl::KeyState state)
 {
 	if (key == VK_DELETE && state == lsl::ksDown)
-		//Занимаем событие удаления, если существует _newMapObj
+		//Р—Р°РЅРёРјР°РµРј СЃРѕР±С‹С‚РёРµ СѓРґР°Р»РµРЅРёСЏ, РµСЃР»Рё СЃСѓС‰РµСЃС‚РІСѓРµС‚ _newMapObj
 		return _newMapObj;
 
 	return false;

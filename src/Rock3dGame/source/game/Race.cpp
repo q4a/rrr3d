@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "game\Race.h"
-#include "lslSerialFileXml.h"
+#include "game/Race.h"
+#include "lslSerialFileXML.h"
 
 #ifdef _DEBUG
 	//#define DEBUG_WEAPON 1
@@ -2541,7 +2541,7 @@ void Garage::FillStandartSlots(Car* car, const std::string& wheel, bool truba, c
 			
 		case Player::stHyper: 
 		{
-			//коллизинируют по свойству place.show, в этом суча необходимо его сделать частью PlaceItem
+			//РєРѕР»Р»РёР·РёРЅРёСЂСѓСЋС‚ РїРѕ СЃРІРѕР№СЃС‚РІСѓ place.show, РІ СЌС‚РѕРј СЃСѓС‡Р° РЅРµРѕР±С…РѕРґРёРјРѕ РµРіРѕ СЃРґРµР»Р°С‚СЊ С‡Р°СЃС‚СЊСЋ PlaceItem
 			LSL_ASSERT(!spring || !hyperDrive);
 
 			place.active = true;
@@ -3913,7 +3913,7 @@ unsigned Planet::Track::GetLapsCount()
 
 void Planet::StartPass(int pass, Player* player)
 {
-	//обрабатываем только события старта этапов на планете, потому что далее все старое состояние игроков сбрасывается
+	//РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј С‚РѕР»СЊРєРѕ СЃРѕР±С‹С‚РёСЏ СЃС‚Р°СЂС‚Р° СЌС‚Р°РїРѕРІ РЅР° РїР»Р°РЅРµС‚Рµ, РїРѕС‚РѕРјСѓ С‡С‚Рѕ РґР°Р»РµРµ РІСЃРµ СЃС‚Р°СЂРѕРµ СЃРѕСЃС‚РѕСЏРЅРёРµ РёРіСЂРѕРєРѕРІ СЃР±СЂР°СЃС‹РІР°РµС‚СЃСЏ
 	if (pass <= 0)
 		return;
 
@@ -6683,7 +6683,7 @@ void Race::DisposePlayer(Player* player)
 
 void Race::CompleteRace(Player* player)
 {	
-	//защита от двойного завершения трасы на всякий случай
+	//Р·Р°С‰РёС‚Р° РѕС‚ РґРІРѕР№РЅРѕРіРѕ Р·Р°РІРµСЂС€РµРЅРёСЏ С‚СЂР°СЃС‹ РЅР° РІСЃСЏРєРёР№ СЃР»СѓС‡Р°Р№
 	if (GetResult(player->GetId()) == NULL)
 	{
 		Result result;
@@ -6755,7 +6755,7 @@ void Race::CompleteRace(const Results* results)
 			MyPlayer plrRes;
 			plrRes.inst = player;
 
-			//человек который не завершил трасу всегда на последнем месте
+			//С‡РµР»РѕРІРµРє РєРѕС‚РѕСЂС‹Р№ РЅРµ Р·Р°РІРµСЂС€РёР» С‚СЂР°СЃСѓ РІСЃРµРіРґР° РЅР° РїРѕСЃР»РµРґРЅРµРј РјРµСЃС‚Рµ
 			if (player->IsHuman() || player->IsOpponent())
 				plrRes.placePos = -(int)_tournament->GetCurTrack().GetLapsCount() - 1.0f + player->GetCar().GetLap();
 			else
@@ -6767,7 +6767,7 @@ void Race::CompleteRace(const Results* results)
 
 	players.sort();
 
-	//принудительно завершаем гонку для сотавшихся игроков
+	//РїСЂРёРЅСѓРґРёС‚РµР»СЊРЅРѕ Р·Р°РІРµСЂС€Р°РµРј РіРѕРЅРєСѓ РґР»СЏ СЃРѕС‚Р°РІС€РёС…СЃСЏ РёРіСЂРѕРєРѕРІ
 	for (MyPlayers::iterator iter = players.begin(); iter != players.end(); ++iter)	
 		CompleteRace(iter->inst);
 
@@ -6968,7 +6968,7 @@ void Race::OnLateProgress(float deltaTime, bool pxStep)
 	if (leaderPlayer && lastLeader && leaderPlayer != lastLeader && leaderPlayer->GetCar().IsMainPath() && lastLeader->GetCar().IsMainPath())
 	{
 		float newLeadPlace = leaderPlayer->GetCar().GetLap(true);
-		//проверяем также на пустой результат так как речь идет о лидере гонки
+		//РїСЂРѕРІРµСЂСЏРµРј С‚Р°РєР¶Рµ РЅР° РїСѓСЃС‚РѕР№ СЂРµР·СѓР»СЊС‚Р°С‚ С‚Р°Рє РєР°Рє СЂРµС‡СЊ РёРґРµС‚ Рѕ Р»РёРґРµСЂРµ РіРѕРЅРєРё
 		if (leaderPlayer->GetCar().GetPathLength(true) * (newLeadPlace - _lastLeadPlace) > 300.0f && _results.empty())
 		{
 			SendEvent(cPlayerLeadChanged, &EventData(leaderPlayer->GetId()));
@@ -6979,7 +6979,7 @@ void Race::OnLateProgress(float deltaTime, bool pxStep)
 	if (thirdPlayer && lastThird && thirdPlayer != lastThird && thirdPlayer->GetCar().IsMainPath() && lastThird->GetCar().IsMainPath())
 	{
 		float newPlace = thirdPlayer->GetCar().GetLap(true);
-		//проверяем также на пустой результат так как речь идет о лидере гонки
+		//РїСЂРѕРІРµСЂСЏРµРј С‚Р°РєР¶Рµ РЅР° РїСѓСЃС‚РѕР№ СЂРµР·СѓР»СЊС‚Р°С‚ С‚Р°Рє РєР°Рє СЂРµС‡СЊ РёРґРµС‚ Рѕ Р»РёРґРµСЂРµ РіРѕРЅРєРё
 		if (thirdPlayer->GetCar().GetPathLength(true) * (newPlace - _lastThirdPlace) > 300.0f && _results.empty())
 		{
 			SendEvent(cPlayerThirdChanged, &EventData(thirdPlayer->GetId()));
@@ -7551,7 +7551,7 @@ void Race::ResetCarPos()
 			AABB aabb = gameObj->GetGrActor().GetLocalAABB(true);
 			D3DXVECTOR3 size = aabb.GetSizes();			
 
-			//dirVec начинается с небольшого порога чтобы машина не оказалась на последнем тайле
+			//dirVec РЅР°С‡РёРЅР°РµС‚СЃСЏ СЃ РЅРµР±РѕР»СЊС€РѕРіРѕ РїРѕСЂРѕРіР° С‡С‚РѕР±С‹ РјР°С€РёРЅР° РЅРµ РѕРєР°Р·Р°Р»Р°СЃСЊ РЅР° РїРѕСЃР»РµРґРЅРµРј С‚Р°Р№Р»Рµ
 			gameObj->SetWorldPos(stPos + dirVec * (0.1f - i / 4 * rowSpace) + lineVec * (-nodeWidth / 2.0f + spaceY + size.y/2.0f + stepY));
 			stepY += size.y + spaceY;
 
@@ -7799,7 +7799,7 @@ void Race::OnLapPass(Player* player)
 		else if (_results.size() == _playerList.size())
 			SendEvent(cPlayerLastFinish, &EventData(player->GetId()));
 
-		//услвоия завершения гонки, double completion def
+		//СѓСЃР»РІРѕРёСЏ Р·Р°РІРµСЂС€РµРЅРёСЏ РіРѕРЅРєРё, double completion def
 		bool isRaceComplete = isHuman || (_results.size() >= _playerList.size() && GetPlayerById(cHuman) == NULL);
 		if (isRaceComplete)
 			SendEvent(cRaceFinish, NULL);

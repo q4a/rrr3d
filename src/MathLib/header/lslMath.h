@@ -35,7 +35,7 @@ D3DXVECTOR2 Vec2TransformCoord(const D3DXVECTOR2& vec, const D3DXMATRIX& mat);
 void Vec2NormCCW(const D3DXVECTOR2& vec2, D3DXVECTOR2& outVec);
 D3DXVECTOR2 Vec2NormCCW(const D3DXVECTOR2& vec2);
 void Vec2NormCW(const D3DXVECTOR2& vec2, D3DXVECTOR2& outVec);
-//Длина проекции vec1 на vec2
+//Р”Р»РёРЅР° РїСЂРѕРµРєС†РёРё vec1 РЅР° vec2
 float Vec2Proj(const D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2);
 void operator*=(D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2);
 D3DXVECTOR2 operator*(const D3DXVECTOR2& vec1, const D3DXVECTOR2& vec2);
@@ -61,10 +61,10 @@ bool operator<(const D3DXVECTOR3& vec1, const D3DXVECTOR3& vec2);
 D3DXVECTOR4 Vec4FromVec2(const D3DXVECTOR2& vec);
 D3DXVECTOR4 Vec4FromVec3(const D3DXVECTOR3& vec);
 
-//Линия из нормали и точки
+//Р›РёРЅРёСЏ РёР· РЅРѕСЂРјР°Р»Рё Рё С‚РѕС‡РєРё
 void Line2FromNorm(const D3DXVECTOR2& norm, const D3DXVECTOR2& point, D3DXVECTOR3& outLine);
 D3DXVECTOR3 Line2FromNorm(const D3DXVECTOR2& norm, const D3DXVECTOR2& point);
-//Линия из направляющей и точки
+//Р›РёРЅРёСЏ РёР· РЅР°РїСЂР°РІР»СЏСЋС‰РµР№ Рё С‚РѕС‡РєРё
 void Line2FromDir(const D3DXVECTOR2& dir, const D3DXVECTOR2& point, D3DXVECTOR3& outLine);
 D3DXVECTOR3 Line2FromDir(const D3DXVECTOR2& dir, const D3DXVECTOR2& point);
 void Line2GetNorm(const D3DXVECTOR3& line, D3DXVECTOR2& norm);
@@ -72,9 +72,9 @@ void Line2GetDir(const D3DXVECTOR3& line, D3DXVECTOR2& dir);
 void Line2GetRadiusVec(const D3DXVECTOR3& line, D3DXVECTOR2& outVec);
 D3DXVECTOR2 Line2GetRadiusVec(const D3DXVECTOR3& line);
 D3DXVECTOR2 Line2GetNorm(const D3DXVECTOR3& line);
-//Расстояние от прямой до точки по направлению нормали. Если точка лежит за линией по направлению нормали то результат положительный, иначе отрицательный
+//Р Р°СЃСЃС‚РѕСЏРЅРёРµ РѕС‚ РїСЂСЏРјРѕР№ РґРѕ С‚РѕС‡РєРё РїРѕ РЅР°РїСЂР°РІР»РµРЅРёСЋ РЅРѕСЂРјР°Р»Рё. Р•СЃР»Рё С‚РѕС‡РєР° Р»РµР¶РёС‚ Р·Р° Р»РёРЅРёРµР№ РїРѕ РЅР°РїСЂР°РІР»РµРЅРёСЋ РЅРѕСЂРјР°Р»Рё С‚Рѕ СЂРµР·СѓР»СЊС‚Р°С‚ РїРѕР»РѕР¶РёС‚РµР»СЊРЅС‹Р№, РёРЅР°С‡Рµ РѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹Р№
 float Line2DistToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point);
-//Возвращает нормальный вектор до точки, этот вектор в общем случае неединичный
+//Р’РѕР·РІСЂР°С‰Р°РµС‚ РЅРѕСЂРјР°Р»СЊРЅС‹Р№ РІРµРєС‚РѕСЂ РґРѕ С‚РѕС‡РєРё, СЌС‚РѕС‚ РІРµРєС‚РѕСЂ РІ РѕР±С‰РµРј СЃР»СѓС‡Р°Рµ РЅРµРµРґРёРЅРёС‡РЅС‹Р№
 void Line2NormVecToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point, D3DXVECTOR2& outNormVec);
 D3DXVECTOR2 Line2NormVecToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point);
 
@@ -242,11 +242,11 @@ private:
 	_Value _max;
 	Distribution _distrib;
 
-	//Частота разделения по каждой оси (или число ячеек + 1)
+	//Р§Р°СЃС‚РѕС‚Р° СЂР°Р·РґРµР»РµРЅРёСЏ РїРѕ РєР°Р¶РґРѕР№ РѕСЃРё (РёР»Рё С‡РёСЃР»Рѕ СЏС‡РµРµРє + 1)
 	Point3U _freq;
-	//Объем фигуры
+	//РћР±СЉРµРј С„РёРіСѓСЂС‹
 	unsigned _volume;
-	//Шаг в интерполирвоанном значении относительно каждой ячейки
+	//РЁР°Рі РІ РёРЅС‚РµСЂРїРѕР»РёСЂРІРѕР°РЅРЅРѕРј Р·РЅР°С‡РµРЅРёРё РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РєР°Р¶РґРѕР№ СЏС‡РµР№РєРё
 	D3DXVECTOR3 _step;
 
 	void CompVolume()
@@ -324,17 +324,17 @@ public:
 
 		case vdVolume:
 		{
-			//Вычисляем текущий номер ячейки
-			//При range == 1 номер ячейки должен быть равным последнему
+			//Р’С‹С‡РёСЃР»СЏРµРј С‚РµРєСѓС‰РёР№ РЅРѕРјРµСЂ СЏС‡РµР№РєРё
+			//РџСЂРё range == 1 РЅРѕРјРµСЂ СЏС‡РµР№РєРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ СЂР°РІРЅС‹Рј РїРѕСЃР»РµРґРЅРµРјСѓ
 			unsigned num = range == 1 ? _volume - 1 : static_cast<unsigned>(_volume * range);
 
-			//Разделяем номер ячейки на секции по осям
+			//Р Р°Р·РґРµР»СЏРµРј РЅРѕРјРµСЂ СЏС‡РµР№РєРё РЅР° СЃРµРєС†РёРё РїРѕ РѕСЃСЏРј
 			Point3U cell;
 			cell.x = num % _freq.x;
 			cell.y = (num / _freq.x) % _freq.y;
 			cell.z = (num / (_freq.x * _freq.y)) % _freq.z;
 
-			//Итоговый результат
+			//РС‚РѕРіРѕРІС‹Р№ СЂРµР·СѓР»СЊС‚Р°С‚
 			D3DXVECTOR3 value;
 			value.x = _min.x + _step.x * cell.x;
 			value.y = _min.y + _step.y * cell.y;
@@ -381,7 +381,7 @@ typedef ValueRange<D3DXVECTOR3> Vec3Range;
 Vec3Range operator*(const Vec3Range& val1, float val2);
 Vec3Range operator*(const Vec3Range& val1, const D3DXVECTOR3& val2);
 
-//Объемная интерполяция пока схожа к кубической, хотя на самом деле нужна сферическая. Когда поверхность сферы ограничивается окружностью(двумя радиус векторами, которые определяют димаетр окружности на манер как сделано в BB), которая разбивается на сектора через углы. 
+//РћР±СЉРµРјРЅР°СЏ РёРЅС‚РµСЂРїРѕР»СЏС†РёСЏ РїРѕРєР° СЃС…РѕР¶Р° Рє РєСѓР±РёС‡РµСЃРєРѕР№, С…РѕС‚СЏ РЅР° СЃР°РјРѕРј РґРµР»Рµ РЅСѓР¶РЅР° СЃС„РµСЂРёС‡РµСЃРєР°СЏ. РљРѕРіРґР° РїРѕРІРµСЂС…РЅРѕСЃС‚СЊ СЃС„РµСЂС‹ РѕРіСЂР°РЅРёС‡РёРІР°РµС‚СЃСЏ РѕРєСЂСѓР¶РЅРѕСЃС‚СЊСЋ(РґРІСѓРјСЏ СЂР°РґРёСѓСЃ РІРµРєС‚РѕСЂР°РјРё, РєРѕС‚РѕСЂС‹Рµ РѕРїСЂРµРґРµР»СЏСЋС‚ РґРёРјР°РµС‚СЂ РѕРєСЂСѓР¶РЅРѕСЃС‚Рё РЅР° РјР°РЅРµСЂ РєР°Рє СЃРґРµР»Р°РЅРѕ РІ BB), РєРѕС‚РѕСЂР°СЏ СЂР°Р·Р±РёРІР°РµС‚СЃСЏ РЅР° СЃРµРєС‚РѕСЂР° С‡РµСЂРµР· СѓРіР»С‹. 
 template<> struct ValueRange<D3DXQUATERNION>
 {
 public:
@@ -395,11 +395,11 @@ private:
 	_Value _max;
 	Distribution _distrib;
 
-	//Частота разделения по каждой оси (или число ячеек + 1)
+	//Р§Р°СЃС‚РѕС‚Р° СЂР°Р·РґРµР»РµРЅРёСЏ РїРѕ РєР°Р¶РґРѕР№ РѕСЃРё (РёР»Рё С‡РёСЃР»Рѕ СЏС‡РµРµРє + 1)
 	Point2U _freq;
-	//Объем фигуры
+	//РћР±СЉРµРј С„РёРіСѓСЂС‹
 	unsigned _volume;
-	//Шаг в интерполирвоанном значении относительно каждой ячейки
+	//РЁР°Рі РІ РёРЅС‚РµСЂРїРѕР»РёСЂРІРѕР°РЅРЅРѕРј Р·РЅР°С‡РµРЅРёРё РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РєР°Р¶РґРѕР№ СЏС‡РµР№РєРё
 	D3DXVECTOR2 _step;
 	//
 	D3DXVECTOR3 _minAngle;
@@ -491,16 +491,16 @@ public:
 
 		case vdVolume:
 		{
-			//Вычисляем текущий номер ячейки
-			//При range == 1 номер ячейки должен быть равным последнему
+			//Р’С‹С‡РёСЃР»СЏРµРј С‚РµРєСѓС‰РёР№ РЅРѕРјРµСЂ СЏС‡РµР№РєРё
+			//РџСЂРё range == 1 РЅРѕРјРµСЂ СЏС‡РµР№РєРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ СЂР°РІРЅС‹Рј РїРѕСЃР»РµРґРЅРµРјСѓ
 			unsigned num = range == 1 ? _volume - 1 : static_cast<unsigned>(_volume * range);
 
-			//Разделяем номер ячейки на секции по осям
+			//Р Р°Р·РґРµР»СЏРµРј РЅРѕРјРµСЂ СЏС‡РµР№РєРё РЅР° СЃРµРєС†РёРё РїРѕ РѕСЃСЏРј
 			Point2U cell;
 			cell.x = num % _freq.x;
 			cell.y = (num / _freq.x) % _freq.y;			
 
-			//Итоговый результат
+			//РС‚РѕРіРѕРІС‹Р№ СЂРµР·СѓР»СЊС‚Р°С‚
 			D3DXVECTOR3 value;
 			value.x = _min.x + _step.x * cell.x;
 			value.y = _min.y + _step.y * cell.y;

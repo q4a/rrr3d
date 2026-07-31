@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "lslSerialFileXml.h"
+#include "lslSerialFileXML.h"
 #include "lslResource.h"
 
 #define TIXML_USE_STL
@@ -22,7 +22,7 @@ void SaveChunk(SerialNode& chunk, TiXmlNode& owner)
 	{
 		iter->second->CastTo(&str);
 		rootNode.SetAttribute(iter->first, str);
-		//èùåì èìåíà ýëåìåíòîâ êîòîðûå áóäóò âñòàâëåíû áåç îáðîáîòêè
+		//Ð¸Ñ‰ÐµÐ¼ Ð¸Ð¼ÐµÐ½Ð° ÑÐ»ÐµÐ¼ÐµÐ½Ñ‚Ð¾Ð² ÐºÐ¾Ñ‚Ð¾Ñ€Ñ‹Ðµ Ð±ÑƒÐ´ÑƒÑ‚ Ð²ÑÑ‚Ð°Ð²Ð»ÐµÐ½Ñ‹ Ð±ÐµÐ· Ð¾Ð±Ñ€Ð¾Ð±Ð¾Ñ‚ÐºÐ¸
 		if (!isParseValue)
 			isParseValue = iter->first == SerialFileXML::cParse && str == "value";
 	}
@@ -43,7 +43,7 @@ void SaveChunk(SerialNode& chunk, TiXmlNode& owner)
 		}
 	}
 
-	//ïîêà íå ïîääåðæèâàåòñÿ
+	//Ð¿Ð¾ÐºÐ° Ð½Ðµ Ð¿Ð¾Ð´Ð´ÐµÑ€Ð¶Ð¸Ð²Ð°ÐµÑ‚ÑÑ
 	if (isParseValue && chunk.GetElements().Count() > 0)
 	{
 		LSL_LOG("oid SaveChunk(SerialNode& chunk, TiXmlNode& owner) 1");
@@ -63,7 +63,7 @@ void SaveChunk(SerialNode& chunk, TiXmlNode& owner)
 void LoadChunk(SerialNode& chunk, TiXmlNode& node)
 {
 	bool isParseValue = false;
-	//àòòðèáóòû
+	//Ð°Ñ‚Ñ‚Ñ€Ð¸Ð±ÑƒÑ‚Ñ‹
 	TiXmlElement* elem = node.ToElement();
 	if (elem)
 	{
@@ -78,7 +78,7 @@ void LoadChunk(SerialNode& chunk, TiXmlNode& node)
 		}
 	}
 
-	//Åñëè íåò äî÷åðíèõ óçëîâ, òî îí ÿâëÿåòñÿ ïóñòûì(âîçìîæíû òîëüêî àòðèáóòû), ïîýòîìó âûõîä
+	//Ð•ÑÐ»Ð¸ Ð½ÐµÑ‚ Ð´Ð¾Ñ‡ÐµÑ€Ð½Ð¸Ñ… ÑƒÐ·Ð»Ð¾Ð², Ñ‚Ð¾ Ð¾Ð½ ÑÐ²Ð»ÑÐµÑ‚ÑÑ Ð¿ÑƒÑÑ‚Ñ‹Ð¼(Ð²Ð¾Ð·Ð¼Ð¾Ð¶Ð½Ñ‹ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð°Ñ‚Ñ€Ð¸Ð±ÑƒÑ‚Ñ‹), Ð¿Ð¾ÑÑ‚Ð¾Ð¼Ñƒ Ð²Ñ‹Ñ…Ð¾Ð´
 	if (node.NoChildren())
 		return;
 
@@ -93,7 +93,7 @@ void LoadChunk(SerialNode& chunk, TiXmlNode& node)
 		TiXmlNode* iter = node.FirstChild();
 		while (iter)
 		{
-			//Ýòî óçåë
+			//Ð­Ñ‚Ð¾ ÑƒÐ·ÐµÐ»
 			if (iter->ToElement())
 			{
 				const char* pName = iter->Value();
@@ -101,7 +101,7 @@ void LoadChunk(SerialNode& chunk, TiXmlNode& node)
 				LoadChunk(*chunk.GetElements().Add(iter->Value()), *iter);
 			}
 			else
-				//Ýòî çíà÷åíèå
+				//Ð­Ñ‚Ð¾ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ðµ
 				if (iter->ToText())				
 					chunk.SetValue(iter->ToText()->ValueTStr());
 

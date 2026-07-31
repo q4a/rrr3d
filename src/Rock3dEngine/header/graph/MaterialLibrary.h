@@ -240,8 +240,8 @@ public:
 	//
 	Blending GetBlending() const;
 	void SetBlending(Blending value);
-	//значение альфы для блендинга
-	//[0..1] --> [абсолютно прозрачно...непрозрачно]
+	//Р·РЅР°С‡РµРЅРёРµ Р°Р»СЊС„С‹ РґР»СЏ Р±Р»РµРЅРґРёРЅРіР°
+	//[0..1] --> [Р°Р±СЃРѕР»СЋС‚РЅРѕ РїСЂРѕР·СЂР°С‡РЅРѕ...РЅРµРїСЂРѕР·СЂР°С‡РЅРѕ]
 	const FloatRange& GetAlpha() const;
 	void SetAlpha(const FloatRange& value);
 

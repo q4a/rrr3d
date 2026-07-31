@@ -146,10 +146,10 @@ inline D3DXVECTOR2 Vec2TransformCoord(const D3DXVECTOR2& vec, const D3DXMATRIX& 
 	return res;
 }
 
-//Поворот вектора на 90 градуос против часовой стрелки, иначе говоря его нормаль
+//РџРѕРІРѕСЂРѕС‚ РІРµРєС‚РѕСЂР° РЅР° 90 РіСЂР°РґСѓРѕСЃ РїСЂРѕС‚РёРІ С‡Р°СЃРѕРІРѕР№ СЃС‚СЂРµР»РєРё, РёРЅР°С‡Рµ РіРѕРІРѕСЂСЏ РµРіРѕ РЅРѕСЂРјР°Р»СЊ
 inline void Vec2NormCCW(const D3DXVECTOR2& vec, D3DXVECTOR2& outVec)
 {
-	//На случай если &vec2 == &outVec
+	//РќР° СЃР»СѓС‡Р°Р№ РµСЃР»Рё &vec2 == &outVec
 	float tmpX = vec.x;
 
 	outVec.x = -vec.y;
@@ -163,10 +163,10 @@ inline D3DXVECTOR2 Vec2NormCCW(const D3DXVECTOR2& vec2)
 	return res;
 }
 
-//Поворот вектора на 90 градуос по часовой стрелки, иначе говоря его нормаль
+//РџРѕРІРѕСЂРѕС‚ РІРµРєС‚РѕСЂР° РЅР° 90 РіСЂР°РґСѓРѕСЃ РїРѕ С‡Р°СЃРѕРІРѕР№ СЃС‚СЂРµР»РєРё, РёРЅР°С‡Рµ РіРѕРІРѕСЂСЏ РµРіРѕ РЅРѕСЂРјР°Р»СЊ
 inline void Vec2NormCW(const D3DXVECTOR2& vec, D3DXVECTOR2& outVec)
 {
-	//На случай если &vec2 == &outVec
+	//РќР° СЃР»СѓС‡Р°Р№ РµСЃР»Рё &vec2 == &outVec
 	float tmpX = vec.x;
 
 	outVec.x = vec.y;
@@ -433,9 +433,9 @@ inline const D3DXVECTOR3& QuatRotateVec3(D3DXVECTOR3& res, const D3DXVECTOR3& ve
 
 inline void Line2FromNorm(const D3DXVECTOR2& norm, const D3DXVECTOR2& point, D3DXVECTOR3& outLine)
 {
-	//Уравнение разделяющей прямой через нормаль и точку
+	//РЈСЂР°РІРЅРµРЅРёРµ СЂР°Р·РґРµР»СЏСЋС‰РµР№ РїСЂСЏРјРѕР№ С‡РµСЂРµР· РЅРѕСЂРјР°Р»СЊ Рё С‚РѕС‡РєСѓ
 	//(N,X) + D = 0
-	//Нормаль
+	//РќРѕСЂРјР°Р»СЊ
 	outLine.x = norm.x;
 	outLine.y = norm.y;
 	outLine.z = -D3DXVec2Dot(&norm, &point);
@@ -545,9 +545,9 @@ inline bool RayCastIntersectSphere(const D3DXVECTOR3& rayPos, const D3DXVECTOR3&
 	float b = 2.0f * D3DXVec3Dot(&rayVec, &v);
 	float c = D3DXVec3Dot(&v, &v) - sphereRadius * sphereRadius;
 
-	// Находим дискриминант
+	// РќР°С…РѕРґРёРј РґРёСЃРєСЂРёРјРёРЅР°РЅС‚
 	float discriminant = (b * b) - (4.0f * c);
-	// Проверяем на мнимые числа
+	// РџСЂРѕРІРµСЂСЏРµРј РЅР° РјРЅРёРјС‹Рµ С‡РёСЃР»Р°
 	if(discriminant < 0.0f)
 		return false;
 
@@ -560,7 +560,7 @@ inline bool RayCastIntersectSphere(const D3DXVECTOR3& rayPos, const D3DXVECTOR3&
 	if (t)
 		*t = tRay;
 
-	// Если есть решение > 0, луч пересекает сферу
+	// Р•СЃР»Рё РµСЃС‚СЊ СЂРµС€РµРЅРёРµ > 0, Р»СѓС‡ РїРµСЂРµСЃРµРєР°РµС‚ СЃС„РµСЂСѓ
 	return tRay > 0;
 }
 

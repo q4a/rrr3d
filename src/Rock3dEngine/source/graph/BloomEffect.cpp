@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\BloomEffect.h"
+#include "graph/BloomEffect.h"
 
 namespace r3d
 {
@@ -102,7 +102,7 @@ void BloomRender::Render(Engine& engine)
 	D3DXVECTOR2 samplerOffsets4x4[16];
 	float  samplerWeights4x4[16];
 
-	//Синхонизация c RT
+	//РЎРёРЅС…РѕРЅРёР·Р°С†РёСЏ c RT
 	_bloomTex.SyncFrom(GetRT());
 	_bloomTex.Init(engine);	
 

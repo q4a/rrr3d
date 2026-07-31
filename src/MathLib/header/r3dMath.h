@@ -64,8 +64,8 @@ struct AABB
 	typedef D3DXVECTOR3 Corners[8];
 	enum SpaceContains {scNoOverlap, scContainsFully, scContainsPartially};
 
-	//Статические методы могут быть ползены для неконстантных операций, т.е. там где происходит преобразование объекта и результат может быть записан в другое место
-	//Эти методы в любом случае имеет смысл делать инлайновыми(и определять их в *.cpp), поскольку аналогичные унарные операции реализуются через них
+	//РЎС‚Р°С‚РёС‡РµСЃРєРёРµ РјРµС‚РѕРґС‹ РјРѕРіСѓС‚ Р±С‹С‚СЊ РїРѕР»Р·РµРЅС‹ РґР»СЏ РЅРµРєРѕРЅСЃС‚Р°РЅС‚РЅС‹С… РѕРїРµСЂР°С†РёР№, С‚.Рµ. С‚Р°Рј РіРґРµ РїСЂРѕРёСЃС…РѕРґРёС‚ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РѕР±СЉРµРєС‚Р° Рё СЂРµР·СѓР»СЊС‚Р°С‚ РјРѕР¶РµС‚ Р±С‹С‚СЊ Р·Р°РїРёСЃР°РЅ РІ РґСЂСѓРіРѕРµ РјРµСЃС‚Рѕ
+	//Р­С‚Рё РјРµС‚РѕРґС‹ РІ Р»СЋР±РѕРј СЃР»СѓС‡Р°Рµ РёРјРµРµС‚ СЃРјС‹СЃР» РґРµР»Р°С‚СЊ РёРЅР»Р°Р№РЅРѕРІС‹РјРё(Рё РѕРїСЂРµРґРµР»СЏС‚СЊ РёС… РІ *.cpp), РїРѕСЃРєРѕР»СЊРєСѓ Р°РЅР°Р»РѕРіРёС‡РЅС‹Рµ СѓРЅР°СЂРЅС‹Рµ РѕРїРµСЂР°С†РёРё СЂРµР°Р»РёР·СѓСЋС‚СЃСЏ С‡РµСЂРµР· РЅРёС…
 	static void Transform(const AABB& aabb, const D3DXMATRIX& m, AABB& rOut);
 	static void Offset(const AABB& aabb, const D3DXVECTOR3& vec, AABB& rOut);
 	static void Add(const AABB& aabb1, const AABB& aabb2, AABB& rOut);
@@ -92,26 +92,26 @@ struct AABB
 	bool ContainsPoint(const D3DXVECTOR3& point) const;
 	SpaceContains ContainsAABB(const AABB& test) const;
 
-	//Тест на пересечения с this
-	//Пересечения линией (прямой)
+	//РўРµСЃС‚ РЅР° РїРµСЂРµСЃРµС‡РµРЅРёСЏ СЃ this
+	//РџРµСЂРµСЃРµС‡РµРЅРёСЏ Р»РёРЅРёРµР№ (РїСЂСЏРјРѕР№)
 	bool LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECTOR3& lineVec, float& tNear, float& tFar) const;
-	//Пересечения линией (прямой)
+	//РџРµСЂРµСЃРµС‡РµРЅРёСЏ Р»РёРЅРёРµР№ (РїСЂСЏРјРѕР№)
 	bool LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECTOR3& lineVec, D3DXVECTOR3& nearVec, D3DXVECTOR3& farVec) const;
-	//Пересечение лучом
+	//РџРµСЂРµСЃРµС‡РµРЅРёРµ Р»СѓС‡РѕРј
 	unsigned RayCastIntersect(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, float& tNear, float& tFar) const;
-	//Пересечение лучом
+	//РџРµСЂРµСЃРµС‡РµРЅРёРµ Р»СѓС‡РѕРј
 	unsigned RayCastIntersect(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, D3DXVECTOR3& nearVec, D3DXVECTOR3& farVec) const;
 
-	//Пересечение направленным объемом AABB как линией
+	//РџРµСЂРµСЃРµС‡РµРЅРёРµ РЅР°РїСЂР°РІР»РµРЅРЅС‹Рј РѕР±СЉРµРјРѕРј AABB РєР°Рє Р»РёРЅРёРµР№
 	bool AABBLineCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, float& minDist) const;
 	//
-	//start - направленный объем
-	//vec - вектор направления в локальной мистеме координат start
-	//startTolocal - преобразование из start в локальную систему координат this
-	//localToStart - преобразование из this в локальную систему координат start
-	//minDist - выходная минимальная дистанция между this и направленным объемом start
+	//start - РЅР°РїСЂР°РІР»РµРЅРЅС‹Р№ РѕР±СЉРµРј
+	//vec - РІРµРєС‚РѕСЂ РЅР°РїСЂР°РІР»РµРЅРёСЏ РІ Р»РѕРєР°Р»СЊРЅРѕР№ РјРёСЃС‚РµРјРµ РєРѕРѕСЂРґРёРЅР°С‚ start
+	//startTolocal - РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РёР· start РІ Р»РѕРєР°Р»СЊРЅСѓСЋ СЃРёСЃС‚РµРјСѓ РєРѕРѕСЂРґРёРЅР°С‚ this
+	//localToStart - РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РёР· this РІ Р»РѕРєР°Р»СЊРЅСѓСЋ СЃРёСЃС‚РµРјСѓ РєРѕРѕСЂРґРёРЅР°С‚ start
+	//minDist - РІС‹С…РѕРґРЅР°СЏ РјРёРЅРёРјР°Р»СЊРЅР°СЏ РґРёСЃС‚Р°РЅС†РёСЏ РјРµР¶РґСѓ this Рё РЅР°РїСЂР°РІР»РµРЅРЅС‹Рј РѕР±СЉРµРјРѕРј start
 	bool AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, const D3DXMATRIX& startTolocal, const D3DXMATRIX& localToStart, float& minDist) const;
-	//Пересечение направленным объемом AABB как лучом
+	//РџРµСЂРµСЃРµС‡РµРЅРёРµ РЅР°РїСЂР°РІР»РµРЅРЅС‹Рј РѕР±СЉРµРјРѕРј AABB РєР°Рє Р»СѓС‡РѕРј
 	bool AABBRayCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, float& minDist, const float error = 0) const;
 
 	D3DXVECTOR3 GetCenter() const;
@@ -161,7 +161,7 @@ struct BoundBox
 	D3DXVECTOR3 v[8];
 };
 
-//Неопеределенность насчет допустимости конструкции...
+//РќРµРѕРїРµСЂРµРґРµР»РµРЅРЅРѕСЃС‚СЊ РЅР°СЃС‡РµС‚ РґРѕРїСѓСЃС‚РёРјРѕСЃС‚Рё РєРѕРЅСЃС‚СЂСѓРєС†РёРё...
 struct Frustum
 {
 	typedef D3DXVECTOR3 Corners[8];
@@ -194,10 +194,10 @@ struct Frustum
 	};
 };
 
-//error - ошибка проникновения, т.е. совпадающие координаты или координаты остающие на величину ошибки считаются нестабильными поэтому луч также проходит черех них даже если они сзади на величину error
+//error - РѕС€РёР±РєР° РїСЂРѕРЅРёРєРЅРѕРІРµРЅРёСЏ, С‚.Рµ. СЃРѕРІРїР°РґР°СЋС‰РёРµ РєРѕРѕСЂРґРёРЅР°С‚С‹ РёР»Рё РєРѕРѕСЂРґРёРЅР°С‚С‹ РѕСЃС‚Р°СЋС‰РёРµ РЅР° РІРµР»РёС‡РёРЅСѓ РѕС€РёР±РєРё СЃС‡РёС‚Р°СЋС‚СЃСЏ РЅРµСЃС‚Р°Р±РёР»СЊРЅС‹РјРё РїРѕСЌС‚РѕРјСѓ Р»СѓС‡ С‚Р°РєР¶Рµ РїСЂРѕС…РѕРґРёС‚ С‡РµСЂРµС… РЅРёС… РґР°Р¶Рµ РµСЃР»Рё РѕРЅРё СЃР·Р°РґРё РЅР° РІРµР»РёС‡РёРЅСѓ error
 bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXPLANE& plane, float& outT);
 bool RayCastIntersectPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXPLANE& plane, D3DXVECTOR3& outVec);
-//Погрешность 10%
+//РџРѕРіСЂРµС€РЅРѕСЃС‚СЊ 10%
 bool RayCastIntersectSquare(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec, const D3DXVECTOR3& min, const D3DXVECTOR3& max, const D3DXPLANE& plane, float* outT, D3DXVECTOR3* outVec, const float error = 0);
 void GetSampleOffsetsDownScale3x3(DWORD dwWidth, DWORD dwHeight, D3DXVECTOR2 avSampleOffsets[9]);
 void GetSampleOffsetsDownScale4x4(DWORD dwWidth, DWORD dwHeight, D3DXVECTOR2 avSampleOffsets[16]);

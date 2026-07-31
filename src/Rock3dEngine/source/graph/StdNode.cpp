@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\StdNode.h"
+#include "graph/StdNode.h"
 #include "lslSerialValue.h"
 
 namespace r3d
@@ -359,14 +359,14 @@ void IVBMeshNode::DoRender(Engine& engine)
 
 	for (int i = 0; i < cntPass; ++i)
 	{
-		//Индекс для субмеша
-		//Если количество проходов равно единице то meshId = -1, т.е. рендер всех субмешей
-		//Если определен субмеш, то рендерится только он
+		//РРЅРґРµРєСЃ РґР»СЏ СЃСѓР±РјРµС€Р°
+		//Р•СЃР»Рё РєРѕР»РёС‡РµСЃС‚РІРѕ РїСЂРѕС…РѕРґРѕРІ СЂР°РІРЅРѕ РµРґРёРЅРёС†Рµ С‚Рѕ meshId = -1, С‚.Рµ. СЂРµРЅРґРµСЂ РІСЃРµС… СЃСѓР±РјРµС€РµР№
+		//Р•СЃР»Рё РѕРїСЂРµРґРµР»РµРЅ СЃСѓР±РјРµС€, С‚Рѕ СЂРµРЅРґРµСЂРёС‚СЃСЏ С‚РѕР»СЊРєРѕ РѕРЅ
 		int meshId = curMeshId < 0 ? (cntPass > 1 ? i : -1) : curMeshId;
 		if (meshIgnore >= 0 && meshIgnore == meshId)
 			continue;
 
-		//Индекс для материала
+		//РРЅРґРµРєСЃ РґР»СЏ РјР°С‚РµСЂРёР°Р»Р°
 		int matInd = std::min(i, numMat - 1);
 
 		if (matInd >= 0)
@@ -399,7 +399,7 @@ void IVBMeshNode::DoRender(Engine& engine)
 			{
 				_mesh->DrawSubset(meshId);
 
-				//Рендерим оставшиеся субмеши для послденего материала. Только если не выбран конкретный субмеш
+				//Р РµРЅРґРµСЂРёРј РѕСЃС‚Р°РІС€РёРµСЃСЏ СЃСѓР±РјРµС€Рё РґР»СЏ РїРѕСЃР»РґРµРЅРµРіРѕ РјР°С‚РµСЂРёР°Р»Р°. РўРѕР»СЊРєРѕ РµСЃР»Рё РЅРµ РІС‹Р±СЂР°РЅ РєРѕРЅРєСЂРµС‚РЅС‹Р№ СЃСѓР±РјРµС€
 				if (meshId < 0 && i == cntPass - 1)
 					for (int j = i + 1; j < numFaceGr; ++j)
 						_mesh->DrawSubset(j);
@@ -575,11 +575,11 @@ void MeshXNode::DoRender(Engine& engine)
 
 	for (int i = 0; i < cntPass; ++i)
 	{
-		//Индекс для субмеша
-		//Если количество проходов равно единице то meshId = -1, т.е. рендер всех субмешей
-		//Если определен субмеш, то рендерится только он
+		//РРЅРґРµРєСЃ РґР»СЏ СЃСѓР±РјРµС€Р°
+		//Р•СЃР»Рё РєРѕР»РёС‡РµСЃС‚РІРѕ РїСЂРѕС…РѕРґРѕРІ СЂР°РІРЅРѕ РµРґРёРЅРёС†Рµ С‚Рѕ meshId = -1, С‚.Рµ. СЂРµРЅРґРµСЂ РІСЃРµС… СЃСѓР±РјРµС€РµР№
+		//Р•СЃР»Рё РѕРїСЂРµРґРµР»РµРЅ СЃСѓР±РјРµС€, С‚Рѕ СЂРµРЅРґРµСЂРёС‚СЃСЏ С‚РѕР»СЊРєРѕ РѕРЅ
 		int meshId = _meshId < 0 ? (cntPass > 1 ? i : -1) : _meshId;
-		//Индекс для материала
+		//РРЅРґРµРєСЃ РґР»СЏ РјР°С‚РµСЂРёР°Р»Р°
 		int matInd = std::min(i, numMat - 1);
 
 		if (matInd >= 0)
@@ -607,7 +607,7 @@ void MeshXNode::DoRender(Engine& engine)
 			{
 				_mesh->DrawSubset(meshId);
 
-				//Рендерим оставшиеся субмеши для послденего материала. Только если не выбран конкретный субмеш
+				//Р РµРЅРґРµСЂРёРј РѕСЃС‚Р°РІС€РёРµСЃСЏ СЃСѓР±РјРµС€Рё РґР»СЏ РїРѕСЃР»РґРµРЅРµРіРѕ РјР°С‚РµСЂРёР°Р»Р°. РўРѕР»СЊРєРѕ РµСЃР»Рё РЅРµ РІС‹Р±СЂР°РЅ РєРѕРЅРєСЂРµС‚РЅС‹Р№ СЃСѓР±РјРµС€
 				if (meshId < 0 && i == cntPass - 1)
 					for (int j = i + 1; j < numFaceGr; ++j)
 						_mesh->DrawSubset(j);
@@ -990,7 +990,7 @@ Sprite::Sprite(): sizes(IdentityVec2), fixDirection(false)
 
 void Sprite::DoRender(Engine& engine)
 {
-	//Отрисовка
+	//РћС‚СЂРёСЃРѕРІРєР°
 	material.Apply(engine);
 
 	engine.RenderSpritePT(GetWorldPos(), D3DXVECTOR3(sizes.x, sizes.y, 1.0f), GetTurnAngle(), fixDirection ? &GetWorldDir() : 0, GetWorldScale());
@@ -1112,7 +1112,7 @@ MovCoordSys::DirMove MovCoordSys::CompDirMove(const D3DXVECTOR3& rayStart, const
 	WorldToLocalCoord(rayStart, localRS);
 	WorldToLocalNorm(rayVec, localRV);
 
-	//Ищем близлежащую плоскость выделения
+	//РС‰РµРј Р±Р»РёР·Р»РµР¶Р°С‰СѓСЋ РїР»РѕСЃРєРѕСЃС‚СЊ РІС‹РґРµР»РµРЅРёСЏ
 	DirMove move = dmNone;
 	float minT = 0;
 	bool minTInit = false;
@@ -1132,7 +1132,7 @@ MovCoordSys::DirMove MovCoordSys::CompDirMove(const D3DXVECTOR3& rayStart, const
 
 	if (move == dmNone)
 	{
-		//Пересечениям с осями
+		//РџРµСЂРµСЃРµС‡РµРЅРёСЏРј СЃ РѕСЃСЏРјРё
 		const DirMove axeMoves[3] = {dmX, dmY, dmZ};
 		for (int i = 0; i < 3; ++i)
 		{
@@ -1155,11 +1155,11 @@ void MovCoordSys::DoRender(Engine& engine)
 
 	const DirMove planeMoves[3] = {dmXY, dmXZ, dmYZ};
 	
-	//Вершины плоскости
+	//Р’РµСЂС€РёРЅС‹ РїР»РѕСЃРєРѕСЃС‚Рё
 	const AxePlane cXYPlaneV = {NullVector, XVector, XVector + YVector, YVector};
 	const AxePlane cXZPlaneV = {NullVector, XVector, XVector + ZVector, ZVector};
 	const AxePlane cYZPlaneV = {NullVector, YVector, YVector + ZVector, ZVector};
-	//Плоскость и цвета осей образующих её
+	//РџР»РѕСЃРєРѕСЃС‚СЊ Рё С†РІРµС‚Р° РѕСЃРµР№ РѕР±СЂР°Р·СѓСЋС‰РёС… РµС‘
 	struct
 	{
 		const AxePlane* plane;
@@ -1167,13 +1167,13 @@ void MovCoordSys::DoRender(Engine& engine)
 		D3DXCOLOR col2;
 	} cPlanes[3] = {{&cXYPlaneV, clrRed, clrGreen}, {&cXZPlaneV, clrRed, clrBlue}, {&cYZPlaneV, clrGreen, clrBlue}};
 	
-	//Выеделенные оси
+	//Р’С‹РµРґРµР»РµРЅРЅС‹Рµ РѕСЃРё
 	const bool isAxe[3] = {_curMove == dmXY || _curMove == dmXZ || _curMove == dmX, _curMove == dmXY || _curMove == dmYZ || _curMove == dmY, _curMove == dmXZ || _curMove == dmYZ || _curMove == dmZ};
 
 
 
 
-	//Скалим перед рендером чтобы не было дерганий
+	//РЎРєР°Р»РёРј РїРµСЂРµРґ СЂРµРЅРґРµСЂРѕРј С‡С‚РѕР±С‹ РЅРµ Р±С‹Р»Рѕ РґРµСЂРіР°РЅРёР№
 	float dist = D3DXVec3Length(&(engine.GetContext().GetCamera().GetDesc().pos - GetWorldPos()));
 	float scaleF = dist / 15.0f;
 	SetScale(scaleF);
@@ -1182,24 +1182,24 @@ void MovCoordSys::DoRender(Engine& engine)
 	const AxePlane* planeVert = 0;
 	for (int i = 0; i < 3; ++i)
 	{
-		//Вычисляем линии осей
+		//Р’С‹С‡РёСЃР»СЏРµРј Р»РёРЅРёРё РѕСЃРµР№
 		lines[2 * i] = res::VertexPD(NullVector, isAxe[i] ? colSel : arCol[i]);
 		lines[2 * i + 1] = res::VertexPD(arPos[i], isAxe[i] ? colSel : arCol[i]);
 
-		//Выеделенная плоскость
+		//Р’С‹РµРґРµР»РµРЅРЅР°СЏ РїР»РѕСЃРєРѕСЃС‚СЊ
 		bool isPlane = _curMove == planeMoves[i];
 
-		//Цвета осей образующих плоскость
+		//Р¦РІРµС‚Р° РѕСЃРµР№ РѕР±СЂР°Р·СѓСЋС‰РёС… РїР»РѕСЃРєРѕСЃС‚СЊ
 		D3DXCOLOR col1 = isPlane ? colSel : cPlanes[i].col1;
 		D3DXCOLOR col2 = isPlane ? colSel : cPlanes[i].col2;
 
-		//Вычисляем линии плоскостей
+		//Р’С‹С‡РёСЃР»СЏРµРј Р»РёРЅРёРё РїР»РѕСЃРєРѕСЃС‚РµР№
 		lines[4 * i + 6 + 0] = res::VertexPD((*cPlanes[i].plane)[1], col1);
 		lines[4 * i + 6 + 1] = res::VertexPD((*cPlanes[i].plane)[2], col1);
 		lines[4 * i + 6 + 2] = res::VertexPD((*cPlanes[i].plane)[3], col2);
 		lines[4 * i + 6 + 3] = res::VertexPD((*cPlanes[i].plane)[2], col2);
 
-		//Запоминаем вершины выделенной плоскости
+		//Р—Р°РїРѕРјРёРЅР°РµРј РІРµСЂС€РёРЅС‹ РІС‹РґРµР»РµРЅРЅРѕР№ РїР»РѕСЃРєРѕСЃС‚Рё
 		if (isPlane)
 			planeVert = cPlanes[i].plane;
 	}
@@ -1211,11 +1211,11 @@ void MovCoordSys::DoRender(Engine& engine)
 	engine.GetContext().SetRenderState(graph::rsZEnable, false);
 	engine.GetContext().SetRenderState(graph::rsLighting, false);
 	
-	//Рисуем линии
+	//Р РёСЃСѓРµРј Р»РёРЅРёРё
 	engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 9, lines, sizeof(res::VertexPD));
 
-	//Рисуем выеделенную плоскость
+	//Р РёСЃСѓРµРј РІС‹РµРґРµР»РµРЅРЅСѓСЋ РїР»РѕСЃРєРѕСЃС‚СЊ
 	if (planeVert)
 	{
 		res::VertexPD plane[4] = {
@@ -1230,7 +1230,7 @@ void MovCoordSys::DoRender(Engine& engine)
 		engine.GetContext().RestoreRenderState(graph::rsCullMode);
 	}
 
-	//Рисуем конусы осей
+	//Р РёСЃСѓРµРј РєРѕРЅСѓСЃС‹ РѕСЃРµР№
 	for (int i = 0; i < 3; ++i)	
 		_arrows[i]->Render(engine);
 
@@ -1293,7 +1293,7 @@ ScaleCoordSys::DirMove ScaleCoordSys::CompDirMove(const D3DXVECTOR3& rayStart, c
 	D3DXVECTOR3 bbPlanes[3];
 	CompBBPlanes(camPos, bbPlanes);
 
-	//Пересечение с размерной плоскостью
+	//РџРµСЂРµСЃРµС‡РµРЅРёРµ СЃ СЂР°Р·РјРµСЂРЅРѕР№ РїР»РѕСЃРєРѕСЃС‚СЊСЋ
 	D3DXVECTOR3 plLine[3];
 	for (int i = 0; i < 3; ++i)
 		plLine[i] = bbPlanes[i] * plSize;
@@ -1310,7 +1310,7 @@ ScaleCoordSys::DirMove ScaleCoordSys::CompDirMove(const D3DXVECTOR3& rayStart, c
 	if (aabb.ContainsPoint(pnt))
 		return _curMove = dmXYZ;
 
-	//Пересечениям с осями
+	//РџРµСЂРµСЃРµС‡РµРЅРёСЏРј СЃ РѕСЃСЏРјРё
 	const DirMove axeMoves[3] = {dmX, dmY, dmZ};
 	for (int i = 0; i < 3; ++i)
 	{
@@ -1342,11 +1342,11 @@ void ScaleCoordSys::DoRender(Engine& engine)
 
 	const res::VertexPD lines[18] = 
 	{
-		//Линии осей
+		//Р›РёРЅРёРё РѕСЃРµР№
 		res::VertexPD(NullVector, plCol[0]), res::VertexPD(bbPlanes[0] * arSize, plCol[0]),
 		res::VertexPD(NullVector, plCol[1]), res::VertexPD(bbPlanes[1] * arSize, plCol[1]),
 		res::VertexPD(NullVector, plCol[2]), res::VertexPD(bbPlanes[2] * arSize, plCol[2]),
-		//Линии плоскости
+		//Р›РёРЅРёРё РїР»РѕСЃРєРѕСЃС‚Рё
 		res::VertexPD(plLine[0], arCol[0]), res::VertexPD(0.5f * (plLine[0] + plLine[2]), arCol[0]),
 		res::VertexPD(plLine[0], arCol[0]), res::VertexPD(0.5f * (plLine[0] + plLine[1]), arCol[0]),
 		res::VertexPD(plLine[1], arCol[1]), res::VertexPD(0.5f * (plLine[0] + plLine[1]), arCol[1]),
@@ -1354,14 +1354,14 @@ void ScaleCoordSys::DoRender(Engine& engine)
 		res::VertexPD(plLine[2], arCol[2]), res::VertexPD(0.5f * (plLine[2] + plLine[1]), arCol[2]),
 		res::VertexPD(plLine[2], arCol[2]), res::VertexPD(0.5f * (plLine[2] + plLine[0]), arCol[2])
 	};
-	//Вершины размерной плоскости
+	//Р’РµСЂС€РёРЅС‹ СЂР°Р·РјРµСЂРЅРѕР№ РїР»РѕСЃРєРѕСЃС‚Рё
 	const res::VertexPD plVertex[3] = 
 	{
 		res::VertexPD(plLine[0], colSel),
 		res::VertexPD(plLine[1], colSel),
 		res::VertexPD(plLine[2], colSel)
 	};
-	//Позиции спрайтов
+	//РџРѕР·РёС†РёРё СЃРїСЂР°Р№С‚РѕРІ
 	for (int i = 0; i < 3; ++i)	
 		_arrows[i]->SetPos(bbPlanes[i] * arSize);
 
@@ -1369,11 +1369,11 @@ void ScaleCoordSys::DoRender(Engine& engine)
 	engine.GetContext().SetRenderState(graph::rsZEnable, false);
 	engine.GetContext().SetRenderState(graph::rsLighting, false);
 
-	//Рисуем линии
+	//Р РёСЃСѓРµРј Р»РёРЅРёРё
 	engine.GetDriver().GetDevice()->SetFVF(res::VertexPD::fvf);
 	engine.GetDriver().GetDevice()->DrawPrimitiveUP(D3DPT_LINELIST, 9, lines, sizeof(res::VertexPD));
 
-	//Рисуем выеделенную плоскость
+	//Р РёСЃСѓРµРј РІС‹РµРґРµР»РµРЅРЅСѓСЋ РїР»РѕСЃРєРѕСЃС‚СЊ
 	if (_curMove == dmXYZ)
 	{
 		engine.GetContext().SetRenderState(graph::rsCullMode, D3DCULL_NONE);
@@ -1384,7 +1384,7 @@ void ScaleCoordSys::DoRender(Engine& engine)
 
 	engine.GetContext().RestoreRenderState(graph::rsLighting);
 
-	//Рисуем конусы осей
+	//Р РёСЃСѓРµРј РєРѕРЅСѓСЃС‹ РѕСЃРµР№
 	for (int i = 0; i < 3; ++i)	
 		_arrows[i]->Render(engine);
 
@@ -1461,7 +1461,7 @@ void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, flo
 	mesh.fb.Init();	
 	res::TriFace16* indices = reinterpret_cast<res::TriFace16*>(mesh.fb.GetData());
 
-	//Нижняя грань
+	//РќРёР¶РЅСЏСЏ РіСЂР°РЅСЊ
 	unsigned centBotInd = botVCnt - 1;
 	if (isBot)
 		for (unsigned i = 0; i < slices; ++i)
@@ -1475,14 +1475,14 @@ void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, flo
 
 			indices[i].v2 = centBotInd;
 			indices[i].v1 = i;
-			//Одна вершина в круге при обходе повторяется
+			//РћРґРЅР° РІРµСЂС€РёРЅР° РІ РєСЂСѓРіРµ РїСЂРё РѕР±С…РѕРґРµ РїРѕРІС‚РѕСЂСЏРµС‚СЃСЏ
 			indices[i].v3 = (i < slices - 1) ? i + 1 : 0;
 		}
-	//Центр круга
+	//Р¦РµРЅС‚СЂ РєСЂСѓРіР°
 	vertex[centBotInd].pos = NullVector;
 	vertex[centBotInd].diffuse = color;
 
-	//Верхняя грань
+	//Р’РµСЂС…РЅСЏСЏ РіСЂР°РЅСЊ
 	unsigned centTopInd = botVCnt + topVCnt - 1;
 	if (isTop)	
 		for (unsigned i = 0; i < slices; ++i)
@@ -1496,14 +1496,14 @@ void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, flo
 
 			indices[botFCnt + i].v1 = centTopInd;
 			indices[botFCnt + i].v2 = botVCnt + i;
-			//Одна вершина в круге при обходе повторяется
+			//РћРґРЅР° РІРµСЂС€РёРЅР° РІ РєСЂСѓРіРµ РїСЂРё РѕР±С…РѕРґРµ РїРѕРІС‚РѕСЂСЏРµС‚СЃСЏ
 			indices[botFCnt + i].v3 = (i < slices - 1) ? botVCnt + i + 1 : botVCnt;
 		}
-	//Центр круга
+	//Р¦РµРЅС‚СЂ РєСЂСѓРіР°
 	vertex[centTopInd].pos = ZVector * height;
 	vertex[centTopInd].diffuse = color;
 
-	//Боковая грань
+	//Р‘РѕРєРѕРІР°СЏ РіСЂР°РЅСЊ
 	unsigned curF = botFCnt + topFCnt;
 	for (unsigned i = 0; i < slices; ++i)
 	{

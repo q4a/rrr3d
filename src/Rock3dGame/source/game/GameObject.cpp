@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "game\\Logic.h"
+#include "game/Logic.h"
 
-#include "game\\GameObject.h"
-#include "game\\World.h"
+#include "game/GameObject.h"
+#include "game/World.h"
 #include "GraphManager.h"
 
 namespace r3d
@@ -353,7 +353,7 @@ void GameObject::SaveSource(lsl::SWriter* writer)
 
 	writer->WriteValue("maxLife", _maxLife);	
 
-	//Âíåøíèé ğîäèòåëü, ñîõğ. ññûëêó. Ïîêà íåò íåîáõîäèìîñòè â òàêîì ôóíêöèîíàëå
+	//Ğ’Ğ½ĞµÑˆĞ½Ğ¸Ğ¹ Ñ€Ğ¾Ğ´Ğ¸Ñ‚ĞµĞ»ÑŒ, ÑĞ¾Ñ…Ñ€. ÑÑÑ‹Ğ»ĞºÑƒ. ĞŸĞ¾ĞºĞ° Ğ½ĞµÑ‚ Ğ½ĞµĞ¾Ğ±Ñ…Ğ¾Ğ´Ğ¸Ğ¼Ğ¾ÑÑ‚Ğ¸ Ğ² Ñ‚Ğ°ĞºĞ¾Ğ¼ Ñ„ÑƒĞ½ĞºÑ†Ğ¸Ğ¾Ğ½Ğ°Ğ»Ğµ
 	//if (GetOwner() != GetParent())
 	//	writer->WriteRef("parent", _parent);
 }

@@ -12,7 +12,7 @@ public:
 // Overrides
 protected:
 	virtual BOOL OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult);
-	//В текущей версии NM_KEY не поддерживается, поэтому формируем это уведомление самостоятельно
+	//Р’ С‚РµРєСѓС‰РµР№ РІРµСЂСЃРёРё NM_KEY РЅРµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚СЃСЏ, РїРѕСЌС‚РѕРјСѓ С„РѕСЂРјРёСЂСѓРµРј СЌС‚Рѕ СѓРІРµРґРѕРјР»РµРЅРёРµ СЃР°РјРѕСЃС‚РѕСЏС‚РµР»СЊРЅРѕ
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 
 // Implementation
@@ -23,7 +23,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 };
 
-//Пересылает команды к родительскому окну
+//РџРµСЂРµСЃС‹Р»Р°РµС‚ РєРѕРјР°РЅРґС‹ Рє СЂРѕРґРёС‚РµР»СЊСЃРєРѕРјСѓ РѕРєРЅСѓ
 class CViewToolBar : public CMFCToolBar
 {
 	virtual void OnUpdateCmdUI(CFrameWnd* /*pTarget*/, BOOL bDisableIfNoHndler)
@@ -34,7 +34,7 @@ class CViewToolBar : public CMFCToolBar
 	virtual BOOL AllowShowOnList() const { return FALSE; }
 };
 
-//Базовый класс для вьеверов карты с управлением фокусом
+//Р‘Р°Р·РѕРІС‹Р№ РєР»Р°СЃСЃ РґР»СЏ РІСЊРµРІРµСЂРѕРІ РєР°СЂС‚С‹ СЃ СѓРїСЂР°РІР»РµРЅРёРµРј С„РѕРєСѓСЃРѕРј
 class CViewPane: public CDockablePane
 {
 	DECLARE_MESSAGE_MAP()

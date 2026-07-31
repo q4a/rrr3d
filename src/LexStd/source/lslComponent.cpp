@@ -96,14 +96,14 @@ Component* Component::FindComponent(const std::string& name)
 		std::string::const_iterator nextIter;
 		nextIter = std::find(curIter, name.end(), '\\');
 		std::string childName = std::string(curIter, nextIter);
-		//ищем дочь
+		//РёС‰РµРј РґРѕС‡СЊ
 		if (curComp)
 			curComp = curComp->FindChild(childName);
 		if (!curComp)
 			return 0;
 
 		curIter = nextIter;
-		//начинаем со следующего символа если не конец строки
+		//РЅР°С‡РёРЅР°РµРј СЃРѕ СЃР»РµРґСѓСЋС‰РµРіРѕ СЃРёРјРІРѕР»Р° РµСЃР»Рё РЅРµ РєРѕРЅРµС† СЃС‚СЂРѕРєРё
 		if (curIter != name.end())
 			++curIter;
 	}

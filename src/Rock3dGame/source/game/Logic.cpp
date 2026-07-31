@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\\World.h"
+#include "game/World.h"
 
-#include "game\\Logic.h"
+#include "game/Logic.h"
 
 namespace r3d
 {
@@ -209,7 +209,7 @@ void PairPxContactEffect::InsertContact(ContactMap::iterator iter, NxShape* shap
 
 		node->last = node->list.insert(node->list.end(), Contact());		
 	}
-	//effect может быть удален из вне, например в RemoveContactByEffect
+	//effect РјРѕР¶РµС‚ Р±С‹С‚СЊ СѓРґР°Р»РµРЅ РёР· РІРЅРµ, РЅР°РїСЂРёРјРµСЂ РІ RemoveContactByEffect
 	if (!node->last->effect)
 	{
 		node->last->effect = CreateEffect();
@@ -231,10 +231,10 @@ PairPxContactEffect::ContactMap::iterator PairPxContactEffect::ReleaseContact(Co
 	for (ContactList::iterator cIter = cIter1; cIter != cIter2; ++cIter)
 	{
 		cIter->time += deltaTime;
-		//если время ожидания закончилось - освобождаем
+		//РµСЃР»Рё РІСЂРµРјСЏ РѕР¶РёРґР°РЅРёСЏ Р·Р°РєРѕРЅС‡РёР»РѕСЃСЊ - РѕСЃРІРѕР±РѕР¶РґР°РµРј
 		if (cIter->time > cRelTime)
 		{
-			//effect может быть удален из вне, например в RemoveContactByEffect
+			//effect РјРѕР¶РµС‚ Р±С‹С‚СЊ СѓРґР°Р»РµРЅ РёР· РІРЅРµ, РЅР°РїСЂРёРјРµСЂ РІ RemoveContactByEffect
 			if (cIter->effect)
 			{
 				cIter->effect->Release();
@@ -242,7 +242,7 @@ PairPxContactEffect::ContactMap::iterator PairPxContactEffect::ReleaseContact(Co
 					cIter->effect->GetGameObj().Death();
 			}
 		}
-		//иначе исключаем из очереди удаления
+		//РёРЅР°С‡Рµ РёСЃРєР»СЋС‡Р°РµРј РёР· РѕС‡РµСЂРµРґРё СѓРґР°Р»РµРЅРёСЏ
 		else
 		{
 			cIter1 = cIter;
@@ -339,7 +339,7 @@ void PairPxContactEffect::OnContact(const px::Scene::OnContactEvent& contact1, c
 		}
 		else
 		{
-			//Нельзя пропускать!
+			//РќРµР»СЊР·СЏ РїСЂРѕРїСѓСЃРєР°С‚СЊ!
 			while (streamIter.goNextPatch())
 				while (streamIter.goNextPoint()) {}
 		}

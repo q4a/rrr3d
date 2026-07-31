@@ -29,7 +29,7 @@ private:
 
 		virtual void OnAddAndSelMapObj(const r3d::IMapObjRef& mapObj)
 		{
-			//Îáúåêò ìîæåò áûòü óíè÷òîæåí!
+			//ÐžÐ±ÑŠÐµÐºÑ‚ Ð¼Ð¾Ð¶ÐµÑ‚ Ð±Ñ‹Ñ‚ÑŒ ÑƒÐ½Ð¸Ñ‡Ñ‚Ð¾Ð¶ÐµÐ½!
 			CMapEditorDoc* doc = _doc;
 
 			for (ObserverList::Position pos = doc->_observerList.First(); MapDocObserver** iter = doc->_observerList.Current(pos); doc->_observerList.Next(pos))	

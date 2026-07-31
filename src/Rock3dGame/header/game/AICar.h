@@ -17,22 +17,22 @@ public:
 private:
 	typedef std::vector<bool> TrackVec;
 
-	//Описывает результаты поиска пути, показатели пути для машины
+	//РћРїРёСЃС‹РІР°РµС‚ СЂРµР·СѓР»СЊС‚Р°С‚С‹ РїРѕРёСЃРєР° РїСѓС‚Рё, РїРѕРєР°Р·Р°С‚РµР»Рё РїСѓС‚Рё РґР»СЏ РјР°С€РёРЅС‹
 	struct PathState
 	{
 		PathState(unsigned trackCnt);
 		~PathState();
 
-		//Поиск достижимой незаблокированной дорожки начиная со следющей за track и до target включая
-		//res == true успешный поиск
-		//res = false неудача
+		//РџРѕРёСЃРє РґРѕСЃС‚РёР¶РёРјРѕР№ РЅРµР·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅРѕР№ РґРѕСЂРѕР¶РєРё РЅР°С‡РёРЅР°СЏ СЃРѕ СЃР»РµРґСЋС‰РµР№ Р·Р° track Рё РґРѕ target РІРєР»СЋС‡Р°СЏ
+		//res == true СѓСЃРїРµС€РЅС‹Р№ РїРѕРёСЃРє
+		//res = false РЅРµСѓРґР°С‡Р°
 		bool FindFirstUnlockTrack(unsigned track, unsigned target, unsigned& res);
 		bool FindLastUnlockTrack(unsigned track, unsigned target, unsigned& res);
 		bool FindFirstSiblingUnlock(unsigned track, unsigned& res);
 		bool FindLastSiblingUnlock(unsigned track, unsigned& res);
-		//Вычисление movDir
+		//Р’С‹С‡РёСЃР»РµРЅРёРµ movDir
 		void ComputeMovDir(AICar* owner, float deltaTime, const Player::CarState& car);
-		//Update - обновляет все состояние
+		//Update - РѕР±РЅРѕРІР»СЏРµС‚ РІСЃРµ СЃРѕСЃС‚РѕСЏРЅРёРµ
 		void Update(AICar* owner, float deltaTime, const Player::CarState& car);
 
 		void SetCurTile(WayNode* value);
@@ -42,14 +42,14 @@ private:
 		WayNode* nextTile;
 		WayNode* curNode;
 
-		//Свободные дорожки на некотором расстояние обгона впереди, для движения
+		//РЎРІРѕР±РѕРґРЅС‹Рµ РґРѕСЂРѕР¶РєРё РЅР° РЅРµРєРѕС‚РѕСЂРѕРј СЂР°СЃСЃС‚РѕСЏРЅРёРµ РѕР±РіРѕРЅР° РІРїРµСЂРµРґРё, РґР»СЏ РґРІРёР¶РµРЅРёСЏ
 		TrackVec freeTracks;
-		//Заблокированные дорожки
+		//Р—Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅС‹Рµ РґРѕСЂРѕР¶РєРё
 		TrackVec lockTracks;
 		
-		//зона охвата по направлению движения машины
+		//Р·РѕРЅР° РѕС…РІР°С‚Р° РїРѕ РЅР°РїСЂР°РІР»РµРЅРёСЋ РґРІРёР¶РµРЅРёСЏ РјР°С€РёРЅС‹
 		float dirArea;
-		//результирующее направление движения относительно машины
+		//СЂРµР·СѓР»СЊС‚РёСЂСѓСЋС‰РµРµ РЅР°РїСЂР°РІР»РµРЅРёРµ РґРІРёР¶РµРЅРёСЏ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РјР°С€РёРЅС‹
 		D3DXVECTOR2 moveDir;
 		bool _break;
 
@@ -77,7 +77,7 @@ private:
 	};
 
 
-	//Состояние контроля за машиной с учетом пути, обгона, стрельбы
+	//РЎРѕСЃС‚РѕСЏРЅРёРµ РєРѕРЅС‚СЂРѕР»СЏ Р·Р° РјР°С€РёРЅРѕР№ СЃ СѓС‡РµС‚РѕРј РїСѓС‚Рё, РѕР±РіРѕРЅР°, СЃС‚СЂРµР»СЊР±С‹
 	struct ControlState
 	{
 		ControlState();
@@ -85,17 +85,17 @@ private:
 		void UpdateResetCar(AICar* owner, float deltaTime, const Player::CarState& car);
 		void Update(AICar* owner, float deltaTime, const Player::CarState& car, const PathState& path);
 
-		//угол поворота колес
+		//СѓРіРѕР» РїРѕРІРѕСЂРѕС‚Р° РєРѕР»РµСЃ
 		float steerAngle;
-		//время в заблокирвоанном состоянии
+		//РІСЂРµРјСЏ РІ Р·Р°Р±Р»РѕРєРёСЂРІРѕР°РЅРЅРѕРј СЃРѕСЃС‚РѕСЏРЅРёРё
 		float timeBlocking;
-		//заблокированность
+		//Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅРѕСЃС‚СЊ
 		bool blocking;
-		//движение назад
+		//РґРІРёР¶РµРЅРёРµ РЅР°Р·Р°Рґ
 		bool backMovingMode;
 		bool backMoving;
 		float timeBackMoving;
-		//время до сброса заблокирвоанной машины
+		//РІСЂРµРјСЏ РґРѕ СЃР±СЂРѕСЃР° Р·Р°Р±Р»РѕРєРёСЂРІРѕР°РЅРЅРѕР№ РјР°С€РёРЅС‹
 		float timeResetBlockCar;
 	};
 

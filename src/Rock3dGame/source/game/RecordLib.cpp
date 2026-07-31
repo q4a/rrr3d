@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "game\RecordLib.h"
+#include "game/RecordLib.h"
 
 namespace r3d
 {
@@ -398,7 +398,7 @@ void RecordLib::DestroySrc(lsl::SerialNode* src, RecordNode* parent)
 bool RecordLib::ValidateName(const std::string& name, RecordNode* parent)
 {
 	//parent == 0 --> sender is RecordLib
-	//проверка выполняется в узле Component
+	//РїСЂРѕРІРµСЂРєР° РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ РІ СѓР·Р»Рµ Component
 	if (!parent)
 		return true;
 

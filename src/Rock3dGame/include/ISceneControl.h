@@ -8,24 +8,24 @@ namespace r3d
 namespace edit
 {
 
-//На самом деле разумней было бы реализовать манипулятор, в которой передается пользовательский ввод и манипуляции с мышкой, а на выходе получаются действия зависимые от конкретного манипулятора. А также релизовать базовый манипулятор для управления объектами сцены
+//РќР° СЃР°РјРѕРј РґРµР»Рµ СЂР°Р·СѓРјРЅРµР№ Р±С‹Р»Рѕ Р±С‹ СЂРµР°Р»РёР·РѕРІР°С‚СЊ РјР°РЅРёРїСѓР»СЏС‚РѕСЂ, РІ РєРѕС‚РѕСЂРѕР№ РїРµСЂРµРґР°РµС‚СЃСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєРёР№ РІРІРѕРґ Рё РјР°РЅРёРїСѓР»СЏС†РёРё СЃ РјС‹С€РєРѕР№, Р° РЅР° РІС‹С…РѕРґРµ РїРѕР»СѓС‡Р°СЋС‚СЃСЏ РґРµР№СЃС‚РІРёСЏ Р·Р°РІРёСЃРёРјС‹Рµ РѕС‚ РєРѕРЅРєСЂРµС‚РЅРѕРіРѕ РјР°РЅРёРїСѓР»СЏС‚РѕСЂР°. Рђ С‚Р°РєР¶Рµ СЂРµР»РёР·РѕРІР°С‚СЊ Р±Р°Р·РѕРІС‹Р№ РјР°РЅРёРїСѓР»СЏС‚РѕСЂ РґР»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ РѕР±СЉРµРєС‚Р°РјРё СЃС†РµРЅС‹
 class IScNodeCont: public Object
 {
 public:
 	virtual void Select(bool active) = 0;
-	//Включая дочерние узлы
+	//Р’РєР»СЋС‡Р°СЏ РґРѕС‡РµСЂРЅРёРµ СѓР·Р»С‹
 	virtual bool RayCastInters(const D3DXVECTOR3& rayPos, const D3DXVECTOR3& rayVec) const = 0;
-	//Сравнить с объектом сцены
+	//РЎСЂР°РІРЅРёС‚СЊ СЃ РѕР±СЉРµРєС‚РѕРј СЃС†РµРЅС‹
 	virtual bool Compare(const IMapObjRef& node) const = 0;
 
-	//Перетягивание в режиме none
+	//РџРµСЂРµС‚СЏРіРёРІР°РЅРёРµ РІ СЂРµР¶РёРјРµ none
 	virtual void OnStartDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec) {};
 	virtual void OnEndDrag(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec) {};
 	virtual void OnDrag(const D3DXVECTOR3& pos, const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec) {};
-	//Действие при нажатом shift
+	//Р”РµР№СЃС‚РІРёРµ РїСЂРё РЅР°Р¶Р°С‚РѕРј shift
 	virtual void OnShiftAction(const D3DXVECTOR3& scrRayPos, const D3DXVECTOR3& scrRayVec) {};
 
-	//В мировых координатах
+	//Р’ РјРёСЂРѕРІС‹С… РєРѕРѕСЂРґРёРЅР°С‚Р°С…
 	virtual D3DXVECTOR3 GetPos() const = 0;
 	virtual void SetPos(const D3DXVECTOR3& value) = 0;
 	//
@@ -40,7 +40,7 @@ public:
 	virtual D3DXVECTOR3 GetUp() const = 0;
 
 	virtual D3DXMATRIX GetMat() const = 0;
-	//Включая дочерние узлы
+	//Р’РєР»СЋС‡Р°СЏ РґРѕС‡РµСЂРЅРёРµ СѓР·Р»С‹
 	virtual AABB GetAABB() const = 0;
 };
 

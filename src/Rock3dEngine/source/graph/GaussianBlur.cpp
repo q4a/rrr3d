@@ -1,4 +1,4 @@
-#include "graph\\GaussianBlur.h"
+#include "graph/GaussianBlur.h"
 
 namespace r3d
 {

@@ -1,10 +1,10 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "edit\Map.h"
-#include "edit\Edit.h"
+#include "edit/Map.h"
+#include "edit/Edit.h"
 
-#include "edit\Trace.h"
+#include "edit/Trace.h"
 
 
 namespace r3d
@@ -142,7 +142,7 @@ void Map::ApplyShowBB()
 	{
 		game::MapObj* mapObj = iter->second;
 
-		//Îáúåêò íå ïðèíàäëåæèò ê âûäåëåíîìó
+		//ÐžÐ±ÑŠÐµÐºÑ‚ Ð½Ðµ Ð¿Ñ€Ð¸Ð½Ð°Ð´Ð»ÐµÐ¶Ð¸Ñ‚ Ðº Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð¾Ð¼Ñƒ
 		if (!selNode || !selNode->Compare(IMapObjRef(new MapObj(mapObj), this)))
 		{
 			mapObj->GetGameObj().GetGrActor().showBB = _showBB;

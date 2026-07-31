@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "game\Menu.h"
-#include "game\HudMenu.h"
+#include "game/Menu.h"
+#include "game/HudMenu.h"
 
 namespace r3d
 {
@@ -912,27 +912,27 @@ void MiniMapFrame::ComputeNode(Nodes::iterator sIter, Nodes::iterator eIter, Nod
 	else
 		prevIter = eIter;
 
-	//âû÷èñëÿåì dir
+	//Ð²Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ dir
 	if (nextIter != eIter)
 		iter->dir = nextIter->pos - iter->pos;
 	else
 		iter->dir = iter->pos - prevIter->pos;
 	D3DXVec2Normalize(&iter->dir, &iter->dir);
-	//âû÷èñëÿåì prevDir
+	//Ð²Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ prevDir
 	if (prevIter != eIter)
 		iter->prevDir = iter->pos - prevIter->pos;
 	else
 		iter->prevDir = iter->dir;
 	D3DXVec2Normalize(&iter->prevDir, &iter->prevDir);
-	//âû÷èñëÿåì midDir
+	//Ð²Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ midDir
 	iter->midDir = (iter->prevDir + iter->dir);
 	D3DXVec2Normalize(&iter->midDir, &iter->midDir);
-	//âû÷èñëÿåì midNorm
+	//Ð²Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ midNorm
 	Vec2NormCCW(iter->midDir, iter->midNorm);
 
-	//Âû÷èñëÿåì _nodeRadius
+	//Ð’Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ _nodeRadius
 	iter->cosDelta = abs(D3DXVec2Dot(&iter->dir, &iter->prevDir));
-	//sinA/2 = sin(180 - D/2) = cos(D/2) = ¹(1 + cosD)/2
+	//sinA/2 = sin(180 - D/2) = cos(D/2) = â„–(1 + cosD)/2
 	iter->sinAlpha2 = sqrt((1.0f + iter->cosDelta) / 2.0f);
 	iter->nodeRadius = 0.5f*iter->size / iter->sinAlpha2;
 

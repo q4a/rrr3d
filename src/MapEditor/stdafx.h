@@ -100,7 +100,7 @@ inline bool StrEq(const TCHAR* str1, const TCHAR* str2)
 
 
 
-//func - функтор типа bool()(HTREEITEM), res == true - закончить обход
+//func - С„СѓРЅРєС‚РѕСЂ С‚РёРїР° bool()(HTREEITEM), res == true - Р·Р°РєРѕРЅС‡РёС‚СЊ РѕР±С…РѕРґ
 template<class _Func> HTREEITEM ForEachTreeCtrlItem(CTreeCtrl& tree, HTREEITEM item, _Func func)
 {
 	LSL_ASSERT(item);

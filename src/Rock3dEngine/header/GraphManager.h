@@ -1,26 +1,26 @@
 #ifndef R3D_GRAPH_MANAGER
 #define R3D_GRAPH_MANAGER
 
-#include "graph\\FogPlane.h"
-#include "graph\\ClearSurf.h"
-#include "graph\\GrassField.h"
-#include "graph\\WaterPlane.h"
-#include "graph\\MappingShaders.h"
-#include "graph\\ShadowMapRender.h"
-#include "graph\\HDREffect.h"
-#include "graph\\BloomEffect.h"
-#include "graph\\ToneMapping.h"
-#include "graph\\DepthMap.h"
-#include "graph\\SunShaft.h"
-#include "graph\\SkyBox.h"
-#include "graph\\RenderToTexture.h"
+#include "graph/FogPlane.h"
+#include "graph/ClearSurf.h"
+#include "graph/GrassField.h"
+#include "graph/WaterPlane.h"
+#include "graph/MappingShaders.h"
+#include "graph/ShadowMapRender.h"
+#include "graph/HDREffect.h"
+#include "graph/BloomEffect.h"
+#include "graph/ToneMapping.h"
+#include "graph/DepthMap.h"
+#include "graph/SunShaft.h"
+#include "graph/SkyBox.h"
+#include "graph/RenderToTexture.h"
 
-#include "graph\\StdNode.h"
-#include "graph\\OctreeRender.h"
-#include "graph\\Actor.h"
-#include "graph\\ActorManager.h"
+#include "graph/StdNode.h"
+#include "graph/OctreeRender.h"
+#include "graph/Actor.h"
+#include "graph/ActorManager.h"
 
-#include "gui\\GUI.h"
+#include "gui/GUI.h"
 
 namespace r3d
 {
@@ -52,7 +52,7 @@ private:
 	enum ShaderType {stWater, stSkyBox};
 	typedef lsl::ResourceCollection<graph::Shader, ShaderType, void, void> ShaderLib;
 
-	//В порядке рендера
+	//Р’ РїРѕСЂСЏРґРєРµ СЂРµРЅРґРµСЂР°
 	enum OctreeScene
 	{
 		osReflWater = 0,
@@ -62,14 +62,14 @@ private:
 		osShadowCast,
 		osShadowMapp,
 
-		//Спец. группы. Порядок не поддерживается. Если такая поддержка поребуется то необходимо устранить подобные группы, а шейдеры передавать в виде параметров менеджеру актеров
+		//РЎРїРµС†. РіСЂСѓРїРїС‹. РџРѕСЂСЏРґРѕРє РЅРµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚СЃСЏ. Р•СЃР»Рё С‚Р°РєР°СЏ РїРѕРґРґРµСЂР¶РєР° РїРѕСЂРµР±СѓРµС‚СЃСЏ С‚Рѕ РЅРµРѕР±С…РѕРґРёРјРѕ СѓСЃС‚СЂР°РЅРёС‚СЊ РїРѕРґРѕР±РЅС‹Рµ РіСЂСѓРїРїС‹, Р° С€РµР№РґРµСЂС‹ РїРµСЂРµРґР°РІР°С‚СЊ РІ РІРёРґРµ РїР°СЂР°РјРµС‚СЂРѕРІ РјРµРЅРµРґР¶РµСЂСѓ Р°РєС‚РµСЂРѕРІ
 		osColorPix,
 		osColorRefl,
 		osColorBump,
 		osColorRefr,
 		osColorPlanarRefl,
 
-		//Сортировка по порядку
+		//РЎРѕСЂС‚РёСЂРѕРІРєР° РїРѕ РїРѕСЂСЏРґРєСѓ
 		osColorDef,
 		osColorOpacity,
 		osColorCullOpacity,
@@ -361,9 +361,9 @@ public:
 	GraphManager(HWND window, lsl::Point resolution, bool fullScreen);
 	virtual ~GraphManager();
 
-	//Вызывается в главном потоке для внутренних нужд
+	//Р’С‹Р·С‹РІР°РµС‚СЃСЏ РІ РіР»Р°РІРЅРѕРј РїРѕС‚РѕРєРµ РґР»СЏ РІРЅСѓС‚СЂРµРЅРЅРёС… РЅСѓР¶Рґ
 	void MainThread();
-	//Рендер может идти в отдельном потоке
+	//Р РµРЅРґРµСЂ РјРѕР¶РµС‚ РёРґС‚Рё РІ РѕС‚РґРµР»СЊРЅРѕРј РїРѕС‚РѕРєРµ
 	bool Render(float deltaTime, bool pause);
 	//
 	void GPUSync();
@@ -435,7 +435,7 @@ public:
 	float GetCloudHeight() const;
 	void SetCloudHeight(float value);
 
-	//Камера
+	//РљР°РјРµСЂР°
 	graph::Camera* GetCamera();
 	void SetCamera(graph::Camera* value);
 	

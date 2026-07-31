@@ -1,7 +1,7 @@
 #ifndef R3D_GRAPH_VIDEORESOURCE
 #define R3D_GRAPH_VIDEORESOURCE
 
-#include "res\\GraphResource.h"
+#include "res/GraphResource.h"
 
 namespace r3d
 {
@@ -197,7 +197,7 @@ public:
 	IDirect3DBaseTexture9* GetTex();
 	
 	unsigned GetLevelCnt() const;
-	//value = 0 - генерация последовательности mip уровней до 1x1
+	//value = 0 - РіРµРЅРµСЂР°С†РёСЏ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚Рё mip СѓСЂРѕРІРЅРµР№ РґРѕ 1x1
 	void SetLevelCnt(unsigned value);
 
 	const D3DXVECTOR2& GetScreenScale() const;

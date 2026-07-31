@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "game\Environment.h"
+#include "game/Environment.h"
 
 namespace r3d
 {
@@ -72,7 +72,7 @@ Environment::Environment(World* world): _world(world), _wheater(ewClody), _world
 	D3DXQuaternionRotationAxis(&rot2, &ZVector, -D3DX_PI/4.0f);	
 	_sunRot = rot1 * rot2;
 
-	//òåêñòóðà ïî óìîë÷àíèþ. Îáÿçàòåëüíî äîëæíà áûòü!
+	//Ñ‚ÐµÐºÑÑ‚ÑƒÑ€Ð° Ð¿Ð¾ ÑƒÐ¼Ð¾Ð»Ñ‡Ð°Ð½Ð¸ÑŽ. ÐžÐ±ÑÐ·Ð°Ñ‚ÐµÐ»ÑŒÐ½Ð¾ Ð´Ð¾Ð»Ð¶Ð½Ð° Ð±Ñ‹Ñ‚ÑŒ!
 	GetGraph()->SetSkyTex("Data\\World1\\Texture\\skyTex1.dds");	
 }
 
@@ -122,12 +122,12 @@ void Environment::EnableSun(bool enable, bool enableShadow)
 		desc.shadow = enableShadow;
 		desc.shadowNumSplit = 2;
 		desc.shadowDisableCropLight = false;
-		//ìèíèìàëüíûé nearDist, îò íåãî çàâèñèò òî÷íîñòü ëèíåéíîé ãëóáèíû â depthMap, ÷åì íèæå òåì òî÷íîñòü ìåíüøå. Î÷åíü íèçêèå çíà÷åíèÿ ìîãóò ïðèâåñòè ê àðòåôàêòàì â òåíÿõ, â âèäå äðîæàíèÿ
+		//Ð¼Ð¸Ð½Ð¸Ð¼Ð°Ð»ÑŒÐ½Ñ‹Ð¹ nearDist, Ð¾Ñ‚ Ð½ÐµÐ³Ð¾ Ð·Ð°Ð²Ð¸ÑÐ¸Ñ‚ Ñ‚Ð¾Ñ‡Ð½Ð¾ÑÑ‚ÑŒ Ð»Ð¸Ð½ÐµÐ¹Ð½Ð¾Ð¹ Ð³Ð»ÑƒÐ±Ð¸Ð½Ñ‹ Ð² depthMap, Ñ‡ÐµÐ¼ Ð½Ð¸Ð¶Ðµ Ñ‚ÐµÐ¼ Ñ‚Ð¾Ñ‡Ð½Ð¾ÑÑ‚ÑŒ Ð¼ÐµÐ½ÑŒÑˆÐµ. ÐžÑ‡ÐµÐ½ÑŒ Ð½Ð¸Ð·ÐºÐ¸Ðµ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ñ Ð¼Ð¾Ð³ÑƒÑ‚ Ð¿Ñ€Ð¸Ð²ÐµÑÑ‚Ð¸ Ðº Ð°Ñ€Ñ‚ÐµÑ„Ð°ÐºÑ‚Ð°Ð¼ Ð² Ñ‚ÐµÐ½ÑÑ…, Ð² Ð²Ð¸Ð´Ðµ Ð´Ñ€Ð¾Ð¶Ð°Ð½Ð¸Ñ
 		desc.nearDist = 10;
 		desc.farDist = 400;
 		_sun = _world->GetGraph()->AddLight(desc);
 		_sun->AddRef();
-		//ñîëíöå ñîçäàåò àìáèåíò è îñâåøåíèå, ñóììà ðàâíà 1,2 ÷òîáû ïîäñâåòèòü ñöåíó ïðè ïðîãðàììèðóåìîì êîíâååðå
+		//ÑÐ¾Ð»Ð½Ñ†Ðµ ÑÐ¾Ð·Ð´Ð°ÐµÑ‚ Ð°Ð¼Ð±Ð¸ÐµÐ½Ñ‚ Ð¸ Ð¾ÑÐ²ÐµÑˆÐµÐ½Ð¸Ðµ, ÑÑƒÐ¼Ð¼Ð° Ñ€Ð°Ð²Ð½Ð° 1,2 Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð¿Ð¾Ð´ÑÐ²ÐµÑ‚Ð¸Ñ‚ÑŒ ÑÑ†ÐµÐ½Ñƒ Ð¿Ñ€Ð¸ Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ð¸Ñ€ÑƒÐµÐ¼Ð¾Ð¼ ÐºÐ¾Ð½Ð²ÐµÐµÑ€Ðµ
 		_sun->GetSource()->SetType(D3DLIGHT_DIRECTIONAL);
 		_sun->GetSource()->SetAmbient(clrGray60);
 		_sun->GetSource()->SetDiffuse(clrGray60);
@@ -163,12 +163,12 @@ void Environment::EnableLamp(bool enable, int index, float farDist)
 		desc.shadow = true;
 		desc.shadowNumSplit = 1;
 		desc.shadowDisableCropLight = true;
-		//ìèíèìàëüíûé nearDist, îò íåãî çàâèñèò òî÷íîñòü ëèíåéíîé ãëóáèíû â depthMap, ÷åì íèæå òåì òî÷íîñòü ìåíüøå. Î÷åíü íèçêèå çíà÷åíèÿ ìîãóò ïðèâåñòè ê àðòåôàêòàì â òåíÿõ, â âèäå äðîæàíèÿ
+		//Ð¼Ð¸Ð½Ð¸Ð¼Ð°Ð»ÑŒÐ½Ñ‹Ð¹ nearDist, Ð¾Ñ‚ Ð½ÐµÐ³Ð¾ Ð·Ð°Ð²Ð¸ÑÐ¸Ñ‚ Ñ‚Ð¾Ñ‡Ð½Ð¾ÑÑ‚ÑŒ Ð»Ð¸Ð½ÐµÐ¹Ð½Ð¾Ð¹ Ð³Ð»ÑƒÐ±Ð¸Ð½Ñ‹ Ð² depthMap, Ñ‡ÐµÐ¼ Ð½Ð¸Ð¶Ðµ Ñ‚ÐµÐ¼ Ñ‚Ð¾Ñ‡Ð½Ð¾ÑÑ‚ÑŒ Ð¼ÐµÐ½ÑŒÑˆÐµ. ÐžÑ‡ÐµÐ½ÑŒ Ð½Ð¸Ð·ÐºÐ¸Ðµ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ñ Ð¼Ð¾Ð³ÑƒÑ‚ Ð¿Ñ€Ð¸Ð²ÐµÑÑ‚Ð¸ Ðº Ð°Ñ€Ñ‚ÐµÑ„Ð°ÐºÑ‚Ð°Ð¼ Ð² Ñ‚ÐµÐ½ÑÑ…, Ð² Ð²Ð¸Ð´Ðµ Ð´Ñ€Ð¾Ð¶Ð°Ð½Ð¸Ñ
 		desc.nearDist = 1.0f;
 		desc.farDist = farDist;
 		_lamp[index] = _world->GetGraph()->AddLight(desc);
 		_lamp[index]->AddRef();
-		//ñîëíöå ñîçäàåò àìáèåíò è îñâåøåíèå, ñóììà ðàâíà 1,2 ÷òîáû ïîäñâåòèòü ñöåíó ïðè ïðîãðàììèðóåìîì êîíâååðå
+		//ÑÐ¾Ð»Ð½Ñ†Ðµ ÑÐ¾Ð·Ð´Ð°ÐµÑ‚ Ð°Ð¼Ð±Ð¸ÐµÐ½Ñ‚ Ð¸ Ð¾ÑÐ²ÐµÑˆÐµÐ½Ð¸Ðµ, ÑÑƒÐ¼Ð¼Ð° Ñ€Ð°Ð²Ð½Ð° 1,2 Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð¿Ð¾Ð´ÑÐ²ÐµÑ‚Ð¸Ñ‚ÑŒ ÑÑ†ÐµÐ½Ñƒ Ð¿Ñ€Ð¸ Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ð¸Ñ€ÑƒÐµÐ¼Ð¾Ð¼ ÐºÐ¾Ð½Ð²ÐµÐµÑ€Ðµ
 		_lamp[index]->GetSource()->SetType(D3DLIGHT_SPOT);
 		_lamp[index]->GetSource()->SetAmbient(clrBlack);
 		_lamp[index]->GetSource()->SetDiffuse(_lampColor[index]);

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\SkyBox.h"
+#include "graph/SkyBox.h"
 
 namespace r3d
 {
@@ -8,7 +8,7 @@ namespace r3d
 namespace graph
 {
 
-//Схема
+//РЎС…РµРјР°
 //+y; -y; +z; -z; +x; -x
 const D3DXMATRIX skyFromLeftToRightCS(1.0f,  0.0f,  0.0f,  0.0f,
 									  0.0f,  0.0f,  1.0f,  0.0f,
@@ -50,7 +50,7 @@ void SkyBox::Render(Engine& engine)
 	else
 		engine.GetContext().SetWorldMat(IdentityMatrix);
 
-	//Нужно обнулять 4-ую строку чтобы небо не растягивалось
+	//РќСѓР¶РЅРѕ РѕР±РЅСѓР»СЏС‚СЊ 4-СѓСЋ СЃС‚СЂРѕРєСѓ С‡С‚РѕР±С‹ РЅРµР±Рѕ РЅРµ СЂР°СЃС‚СЏРіРёРІР°Р»РѕСЃСЊ
 	D3DXMATRIX skyWVP = engine.GetContext().GetCamera().GetWVP();
 	skyWVP._41 = 0.0f;
 	skyWVP._42 = 0.0f;

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "net\NetConnectionTCP.h"
+#include "net/NetConnectionTCP.h"
 
 namespace net
 {

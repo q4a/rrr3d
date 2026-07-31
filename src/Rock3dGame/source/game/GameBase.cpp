@@ -1,10 +1,10 @@
 #include "stdafx.h"
-#include "game\\GameBase.h"
+#include "game/GameBase.h"
 
-#include "game\\GameObject.h"
-#include "game\\GameCar.h"
-#include "game\\Weapon.h"
-#include "game\\Logic.h"
+#include "game/GameObject.h"
+#include "game/GameCar.h"
+#include "game/Weapon.h"
+#include "game/Logic.h"
 
 namespace r3d
 {
@@ -279,7 +279,7 @@ void EventEffect::DestroyEffObj(MapObj* mapObj, bool destrWorld)
 	//
 	mapObj->GetGameObj().RemoveListener(_gameObjEvent);
 
-	//удаляем только дочерний объект
+	//СѓРґР°Р»СЏРµРј С‚РѕР»СЊРєРѕ РґРѕС‡РµСЂРЅРёР№ РѕР±СЉРµРєС‚
 	if (mapObj->GetOwner()->GetOwner() == GetGameObj())
 	{
 		GetGameObj()->GetIncludeList().Delete(mapObj);		
@@ -344,7 +344,7 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 
 	MapObj* mapObj = 0;	
 	
-	//дочерний объект
+	//РґРѕС‡РµСЂРЅРёР№ РѕР±СЉРµРєС‚
 	if (desc.parent)
 	{
 		mapObj = &desc.parent->GetIncludeList().Add(_effect);
@@ -353,7 +353,7 @@ MapObj* EventEffect::CreateEffect(const EffectDesc& desc)
 	{
 		mapObj = &GetGameObj()->GetIncludeList().Add(_effect);
 	}
-	//глобальный
+	//РіР»РѕР±Р°Р»СЊРЅС‹Р№
 	else
 	{
 		mapObj = &GetLogic()->GetMap()->AddMapObj(_effect);
@@ -1227,7 +1227,7 @@ void GusenizaAnim::OnProgress(float deltaTime)
 
 	float linSpeed = car->GetLeadWheelSpeed();
 	_xAnimOff -= linSpeed * deltaTime / gusLength;
-	//выделяем дробную часть
+	//РІС‹РґРµР»СЏРµРј РґСЂРѕР±РЅСѓСЋ С‡Р°СЃС‚СЊ
 	_xAnimOff = _xAnimOff - floor(_xAnimOff);
 	D3DXVECTOR3 offset(1.0f - _xAnimOff, 0, 0.0f);
 
@@ -1309,7 +1309,7 @@ Behaviors::Behaviors(GameObject* gameObj): _gameObj(gameObj), storeProxy(true), 
 
 Behaviors::~Behaviors()
 {
-	//Освобождаем занятые ресурсы
+	//РћСЃРІРѕР±РѕР¶РґР°РµРј Р·Р°РЅСЏС‚С‹Рµ СЂРµСЃСѓСЂСЃС‹
 	Clear();
 }
 

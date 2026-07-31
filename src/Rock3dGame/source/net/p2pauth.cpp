@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2004, Valve LLC, All rights reserved. ============
+//========= Copyright Â© 1996-2004, Valve LLC, All rights reserved. ============
 //
 // Purpose:
 //
@@ -7,11 +7,11 @@
 
 
 #include "stdafx.h"
-#include "net\p2pauth.h"
+#include "net/p2pauth.h"
 
 #ifdef STEAM_SERVICE
 
-#include "net\SteamService.h"
+#include "net/SteamService.h"
 
 
 

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\HDREffect.h"
+#include "graph/HDREffect.h"
 
 namespace r3d
 {
@@ -68,7 +68,7 @@ void HDRRender::MeasureLuminance(Engine& engine)
 	for( int i = cToneMapTexNum - 1; i > 0; i--)
     {
 		GetSampleOffsetsDownScale4x4(_toneVec[i - 1]->GetData()->GetWidth(), _toneVec[i - 1]->GetData()->GetHeight(), sampleOffsets4x4);		
-		//Если i == 1 окончательный вариант прохода в текстуру 1х1
+		//Р•СЃР»Рё i == 1 РѕРєРѕРЅС‡Р°С‚РµР»СЊРЅС‹Р№ РІР°СЂРёР°РЅС‚ РїСЂРѕС…РѕРґР° РІ С‚РµРєСЃС‚СѓСЂСѓ 1С…1
 		shader.SetTextureDir("lumTex", _toneVec[i]);
 		shader.SetValueDir("sampleOffsets4x4", sampleOffsets4x4, sizeof(sampleOffsets4x4));
 		
@@ -113,7 +113,7 @@ void HDRRender::Render(Engine& engine)
 		(*iter)->Init(engine);
 
 	MeasureLuminance(engine);
-	//Есть необходимость первого прохода без адаптации глаза.
+	//Р•СЃС‚СЊ РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚СЊ РїРµСЂРІРѕРіРѕ РїСЂРѕС…РѕРґР° Р±РµР· Р°РґР°РїС‚Р°С†РёРё РіР»Р°Р·Р°.
 	if (!engine.IsRestart() && !_restart)
 		AdaptationLuminance(engine);
 

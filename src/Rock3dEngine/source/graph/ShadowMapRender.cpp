@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "graph\\ShadowMapRender.h"
-#include "graph\\SceneManager.h"
+#include "graph/ShadowMapRender.h"
+#include "graph/SceneManager.h"
 
 namespace r3d
 {
@@ -106,12 +106,12 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
 		if (vTransformed.z < fMinZ) fMinZ = vTransformed.z;
 	}
 
-	//Обрезать проекционные границы до доп. значений, приводит к обрезанию теней
+	//РћР±СЂРµР·Р°С‚СЊ РїСЂРѕРµРєС†РёРѕРЅРЅС‹Рµ РіСЂР°РЅРёС†С‹ РґРѕ РґРѕРї. Р·РЅР°С‡РµРЅРёР№, РїСЂРёРІРѕРґРёС‚ Рє РѕР±СЂРµР·Р°РЅРёСЋ С‚РµРЅРµР№
 	//fMaxX = lsl::ClampValue(fMaxX, -1.0f, 1.0f);
 	//fMaxY = lsl::ClampValue(fMaxY, -1.0f, 1.0f);
 	//fMinX = lsl::ClampValue(fMinX, -1.0f, 1.0f);
 	//fMinY = lsl::ClampValue(fMinY, -1.0f, 1.0f);
-	//Если сплит камеры частично или полностью находится за пределами пирамиды ист. света, подгонять проекционную матрицу в данных направлениях нельзя(тени будут обрезаться)
+	//Р•СЃР»Рё СЃРїР»РёС‚ РєР°РјРµСЂС‹ С‡Р°СЃС‚РёС‡РЅРѕ РёР»Рё РїРѕР»РЅРѕСЃС‚СЊСЋ РЅР°С…РѕРґРёС‚СЃСЏ Р·Р° РїСЂРµРґРµР»Р°РјРё РїРёСЂР°РјРёРґС‹ РёСЃС‚. СЃРІРµС‚Р°, РїРѕРґРіРѕРЅСЏС‚СЊ РїСЂРѕРµРєС†РёРѕРЅРЅСѓСЋ РјР°С‚СЂРёС†Сѓ РІ РґР°РЅРЅС‹С… РЅР°РїСЂР°РІР»РµРЅРёСЏС… РЅРµР»СЊР·СЏ(С‚РµРЅРё Р±СѓРґСѓС‚ РѕР±СЂРµР·Р°С‚СЊСЃСЏ)
 	if (fMaxX < -1.0f || fMaxX > 1.0f ||
 		fMinX < -1.0f || fMinX > 1.0f)
 	{
@@ -150,9 +150,9 @@ void ShadowMapRender::ComputeCropMatrix(unsigned numSplit, const LightCI& light,
                         fOffsetX, fOffsetY,  fOffsetZ,   1.0f);
 
 	// multiply the projection matrix with it
-	//Итоговое значение глубины в z буффере будет линейным, в диапазоне от 0 до 1 (near; far), которое можно вычислить как:
+	//РС‚РѕРіРѕРІРѕРµ Р·РЅР°С‡РµРЅРёРµ РіР»СѓР±РёРЅС‹ РІ z Р±СѓС„С„РµСЂРµ Р±СѓРґРµС‚ Р»РёРЅРµР№РЅС‹Рј, РІ РґРёР°РїР°Р·РѕРЅРµ РѕС‚ 0 РґРѕ 1 (near; far), РєРѕС‚РѕСЂРѕРµ РјРѕР¶РЅРѕ РІС‹С‡РёСЃР»РёС‚СЊ РєР°Рє:
 	//depth = Zf/maxZ * (Z - Zn)/(Zf - Zn);
-	//Приблизительно depth = Z / maxZ.
+	//РџСЂРёР±Р»РёР·РёС‚РµР»СЊРЅРѕ depth = Z / maxZ.
 	_splitLightProjMat[numSplit] = light.GetCamera().GetProj() * mCropView;
 }
 
@@ -366,11 +366,11 @@ void ShadowMapRender::SetNumSplits(unsigned value)
 		_lightDist.resize(_numSplits);
 		_splitLightProjMat.resize(_numSplits);
 
-		//удаление всех текстур		
+		//СѓРґР°Р»РµРЅРёРµ РІСЃРµС… С‚РµРєСЃС‚СѓСЂ		
 		_shadowMaps.Clear();
 		//
 		_shadowVec.clear();
-		//создание		
+		//СЃРѕР·РґР°РЅРёРµ		
 		for (unsigned i = 0; i < _numSplits; ++i)
 		{
 			Tex2DResource& tex = _shadowMaps.Add();
@@ -455,7 +455,7 @@ void CombineLightMap::Render(Engine& engine)
 
 	for (LightMapList::iterator iter = _lightMapList.begin(); iter != _lightMapList.end(); ++iter)
 	{
-		//Со следующего прохода включается блендинг чтобы суммировать результаты проходов
+		//РЎРѕ СЃР»РµРґСѓСЋС‰РµРіРѕ РїСЂРѕС…РѕРґР° РІРєР»СЋС‡Р°РµС‚СЃСЏ Р±Р»РµРЅРґРёРЅРі С‡С‚РѕР±С‹ СЃСѓРјРјРёСЂРѕРІР°С‚СЊ СЂРµР·СѓР»СЊС‚Р°С‚С‹ РїСЂРѕС…РѕРґРѕРІ
 		if (iter != _lightMapList.begin())
 		{
 			engine.GetContext().SetRenderState(rsAlphaBlendEnable, true);

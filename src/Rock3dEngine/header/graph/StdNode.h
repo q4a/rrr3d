@@ -232,7 +232,7 @@ public:
 	MaterialNode material;
 
 	D3DXVECTOR2 sizes;
-	//Зафиксировать направление, по умолчанию false
+	//Р—Р°С„РёРєСЃРёСЂРѕРІР°С‚СЊ РЅР°РїСЂР°РІР»РµРЅРёРµ, РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ false
 	bool fixDirection;
 };
 
@@ -307,8 +307,8 @@ public:
 };
 
 void FillDataPlane(res::VertexData& vb, float width, float height, float u, float v);
-//0...bot = min(slices + 1, 1) - вершины нижней грани
-//bot...top = bot + min(slices + 1, 1) - вершины верхней грани
+//0...bot = min(slices + 1, 1) - РІРµСЂС€РёРЅС‹ РЅРёР¶РЅРµР№ РіСЂР°РЅРё
+//bot...top = bot + min(slices + 1, 1) - РІРµСЂС€РёРЅС‹ РІРµСЂС…РЅРµР№ РіСЂР°РЅРё
 void FillDataCylinder(res::MeshData& mesh, float botRadius, float topRadius, float height, unsigned slices, const D3DXCOLOR& color);
 
 }

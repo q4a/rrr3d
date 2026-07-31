@@ -359,14 +359,14 @@ bool AABB::AABBLineCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, fl
 		D3DXVECTOR3 curV = aabb.GetVertex(i);
 		float tNear;
 		float tFar;
-		//Прямое направление
+		//РџСЂСЏРјРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
 		if (LineCastIntersect(curV, rayVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
 			minDist = (res) ? AbsMin(minDist, t) : t;
 			res = true;			
 		}
-		//Обратное направление
+		//РћР±СЂР°С‚РЅРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
 		curV = GetVertex(i);
 		if (aabb.LineCastIntersect(curV, -rayVec, tNear, tFar))
 		{
@@ -376,21 +376,21 @@ bool AABB::AABBLineCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, fl
 		}
 	}
 
-	///Контроль на пересечение относительно центра. Берутся две проекции одного центра относительно линии пересечения чтобы учесть все возможные случаи проникновения
+	///РљРѕРЅС‚СЂРѕР»СЊ РЅР° РїРµСЂРµСЃРµС‡РµРЅРёРµ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ С†РµРЅС‚СЂР°. Р‘РµСЂСѓС‚СЃСЏ РґРІРµ РїСЂРѕРµРєС†РёРё РѕРґРЅРѕРіРѕ С†РµРЅС‚СЂР° РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ Р»РёРЅРёРё РїРµСЂРµСЃРµС‡РµРЅРёСЏ С‡С‚РѕР±С‹ СѓС‡РµСЃС‚СЊ РІСЃРµ РІРѕР·РјРѕР¶РЅС‹Рµ СЃР»СѓС‡Р°Рё РїСЂРѕРЅРёРєРЅРѕРІРµРЅРёСЏ
 	D3DXVECTOR3 centerNear;
 	D3DXVECTOR3 centerFar;
 	if (aabb.LineCastIntersect(aabb.GetCenter(), rayVec, centerNear, centerFar))
 	{
 		float tNear;
 		float tFar;
-		//Ближняя проекция
+		//Р‘Р»РёР¶РЅСЏСЏ РїСЂРѕРµРєС†РёСЏ
 		if (LineCastIntersect(centerNear, rayVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
 			minDist = (res) ? AbsMin(minDist, t) : t;
 			res = true;
 		}
-		//Дальняя проекция
+		//Р”Р°Р»СЊРЅСЏСЏ РїСЂРѕРµРєС†РёСЏ
 		if (LineCastIntersect(centerFar, rayVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
@@ -417,7 +417,7 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, cons
 	{
 		float tNear;
 		float tFar;
-		//Прямое направление
+		//РџСЂСЏРјРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
 		if (LineCastIntersect(startBB.v[i], localVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
@@ -432,7 +432,7 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, cons
 		}
 	}
 
-	///Контроль на пересечение относительно центра. Берутся две проекции одного центра относительно линии пересечения чтобы учесть все возможные случаи проникновения
+	///РљРѕРЅС‚СЂРѕР»СЊ РЅР° РїРµСЂРµСЃРµС‡РµРЅРёРµ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ С†РµРЅС‚СЂР°. Р‘РµСЂСѓС‚СЃСЏ РґРІРµ РїСЂРѕРµРєС†РёРё РѕРґРЅРѕРіРѕ С†РµРЅС‚СЂР° РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ Р»РёРЅРёРё РїРµСЂРµСЃРµС‡РµРЅРёСЏ С‡С‚РѕР±С‹ СѓС‡РµСЃС‚СЊ РІСЃРµ РІРѕР·РјРѕР¶РЅС‹Рµ СЃР»СѓС‡Р°Рё РїСЂРѕРЅРёРєРЅРѕРІРµРЅРёСЏ
 	D3DXVECTOR3 centerNear;
 	D3DXVECTOR3 centerFar;
 	if (start.LineCastIntersect(start.GetCenter(), vec, centerNear, centerFar))
@@ -441,14 +441,14 @@ bool AABB::AABBLineCastIntersect(const AABB& start, const D3DXVECTOR3& vec, cons
 		D3DXVec3TransformCoord(&centerFar, &centerFar, &startTolocal);
 		float tNear;
 		float tFar;
-		//Ближняя проекция
+		//Р‘Р»РёР¶РЅСЏСЏ РїСЂРѕРµРєС†РёСЏ
 		if (LineCastIntersect(centerNear, localVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
 			minDist = (res) ? AbsMin(minDist, t) : t;
 			res = true;
 		}
-		//Дальняя проекция
+		//Р”Р°Р»СЊРЅСЏСЏ РїСЂРѕРµРєС†РёСЏ
 		if (LineCastIntersect(centerFar, localVec, tNear, tFar))
 		{
 			float t = AbsMin(tNear, tFar);
@@ -468,13 +468,13 @@ bool AABB::AABBRayCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, flo
 		D3DXVECTOR3 curV = aabb.GetVertex(i);
 		float tNear;
 		float tFar;
-		//Прямое направление
+		//РџСЂСЏРјРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
 		if (RayCastIntersect(curV, rayVec, tNear, tFar))
 		{
 			minDist = (res) ? AbsMin(minDist, tNear) : tNear;
 			res = true;			
 		}
-		//Обратное направление
+		//РћР±СЂР°С‚РЅРѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ
 		curV = GetVertex(i);
 		if (aabb.RayCastIntersect(curV, -rayVec, tNear, tFar))
 		{
@@ -483,7 +483,7 @@ bool AABB::AABBRayCastIntersect(const AABB& aabb, const D3DXVECTOR3& rayVec, flo
 		}
 	}
 
-	///Контроль на пересечение относительно центра
+	///РљРѕРЅС‚СЂРѕР»СЊ РЅР° РїРµСЂРµСЃРµС‡РµРЅРёРµ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ С†РµРЅС‚СЂР°
 	D3DXVECTOR3 centerNear;
 	D3DXVECTOR3 centerFar;
 	if (aabb.RayCastIntersect(GetCenter(), rayVec, centerNear, centerFar))

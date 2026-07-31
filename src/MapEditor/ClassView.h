@@ -54,7 +54,7 @@ private:
 	bool _autoRot;
 	bool _autoScale;
 
-	//Функции обновление вида
+	//Р¤СѓРЅРєС†РёРё РѕР±РЅРѕРІР»РµРЅРёРµ РІРёРґР°
 	void ReleaseItem(HTREEITEM item);
 	void ReleaseItems();
 	void InsertItem(const r3d::IRecordNodeRef& node, HTREEITEM parent);
@@ -62,7 +62,7 @@ private:
 	void ClearList();
 	void UpdateList();
 
-	//Функции работы с моделью + обновление вида
+	//Р¤СѓРЅРєС†РёРё СЂР°Р±РѕС‚С‹ СЃ РјРѕРґРµР»СЊСЋ + РѕР±РЅРѕРІР»РµРЅРёРµ РІРёРґР°
 	void SelectItem(const D3DXVECTOR3& mapObjPos = D3DXVECTOR3(0, 0, 0));
 	void DeselectItem();
 

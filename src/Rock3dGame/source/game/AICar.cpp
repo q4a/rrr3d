@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\AICar.h"
+#include "game/AICar.h"
 
-#include "game\World.h"
+#include "game/World.h"
 
 namespace r3d
 {
@@ -125,14 +125,14 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 	LSL_ASSERT(curTile && nextTile);
 
 	unsigned newTrack = car.track;
-	//Поворот налево
+	//РџРѕРІРѕСЂРѕС‚ РЅР°Р»РµРІРѕ
 	bool onLeft = D3DXVec2CCW(&curTile->GetTile().GetDir(), &nextTile->GetTile().GetDir()) > 0;
 	//
 	WayNode* movNode = curTile;
 	//
 	dirArea = 5.0f + abs(car.speed) * car.kSteerControl * 10;
 
-	//Корректировка траектории движения относительно поворота
+	//РљРѕСЂСЂРµРєС‚РёСЂРѕРІРєР° С‚СЂР°РµРєС‚РѕСЂРёРё РґРІРёР¶РµРЅРёСЏ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РїРѕРІРѕСЂРѕС‚Р°
 	if (nextTile->GetTile().GetTurnAngle() > D3DX_PI/12)
 	{
 		float edgeDist = Line2DistToPoint(nextTile->GetTile().GetEdgeLine(), car.pos);
@@ -156,8 +156,8 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 		}
 	}
 
-	//расчет притормаживания
-	//Берм в качестве расчетного либо активный узел либо следующий тайл
+	//СЂР°СЃС‡РµС‚ РїСЂРёС‚РѕСЂРјР°Р¶РёРІР°РЅРёСЏ
+	//Р‘РµСЂРј РІ РєР°С‡РµСЃС‚РІРµ СЂР°СЃС‡РµС‚РЅРѕРіРѕ Р»РёР±Рѕ Р°РєС‚РёРІРЅС‹Р№ СѓР·РµР» Р»РёР±Рѕ СЃР»РµРґСѓСЋС‰РёР№ С‚Р°Р№Р»
 	WayNode* curBreakTile = curNode ? curNode : nextTile;
 	//
 	if (curBreakTile->GetTile().GetTurnAngle() > D3DX_PI/12)
@@ -169,7 +169,7 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 		float kRot = D3DXVec2Dot(&car.dir, &curBreakTile->GetTile().GetDir());
 		kRot = 1.0f - std::max(kRot, 0.0f);
 
-		//условия вхождения в торможение легче чем выхода из него
+		//СѓСЃР»РѕРІРёСЏ РІС…РѕР¶РґРµРЅРёСЏ РІ С‚РѕСЂРјРѕР¶РµРЅРёРµ Р»РµРіС‡Рµ С‡РµРј РІС‹С…РѕРґР° РёР· РЅРµРіРѕ
 		if (!_break && car.speed * car.speed * kLong * kRot > 1.5f * kBreak)		
 			_break = true;
 		else if (_break && car.speed * car.speed * kLong * kRot < 1.0f * kBreak)
@@ -178,26 +178,26 @@ void AICar::PathState::ComputeMovDir(AICar* owner, float deltaTime, const Player
 	else
 		_break = false;
 
-	//Корректировка newTrack с учетом заблокированных путей
+	//РљРѕСЂСЂРµРєС‚РёСЂРѕРІРєР° newTrack СЃ СѓС‡РµС‚РѕРј Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅС‹С… РїСѓС‚РµР№
 	{
-		//по умолчанию остаемся на car.track в случае неудач
+		//РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РѕСЃС‚Р°РµРјСЃСЏ РЅР° car.track РІ СЃР»СѓС‡Р°Рµ РЅРµСѓРґР°С‡
 		unsigned res = car.track;
-		//Поиск последней досутпной дорожки в направлении маршрута
+		//РџРѕРёСЃРє РїРѕСЃР»РµРґРЅРµР№ РґРѕСЃСѓС‚РїРЅРѕР№ РґРѕСЂРѕР¶РєРё РІ РЅР°РїСЂР°РІР»РµРЅРёРё РјР°СЂС€СЂСѓС‚Р°
 		if (FindLastUnlockTrack(car.track, newTrack, res))		
 		{
 			//Nothing
 		}
-		//Неудача, если дорожка car.track заблокирована, попытка перейти на другую
+		//РќРµСѓРґР°С‡Р°, РµСЃР»Рё РґРѕСЂРѕР¶РєР° car.track Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅР°, РїРѕРїС‹С‚РєР° РїРµСЂРµР№С‚Рё РЅР° РґСЂСѓРіСѓСЋ
 		else if (lockTracks[car.track])
 		{
-			//Поиск первой достижимой дорожки из car.track
+			//РџРѕРёСЃРє РїРµСЂРІРѕР№ РґРѕСЃС‚РёР¶РёРјРѕР№ РґРѕСЂРѕР¶РєРё РёР· car.track
 			FindFirstSiblingUnlock(car.track, res);
 		}
 
 		newTrack = res;
 	}
 
-	//расчет траектории движения
+	//СЂР°СЃС‡РµС‚ С‚СЂР°РµРєС‚РѕСЂРёРё РґРІРёР¶РµРЅРёСЏ
 	{
 		D3DXVECTOR2 dir = movNode->GetTile().GetDir();
 		D3DXVECTOR2 target = car.pos + dir * dirArea;
@@ -226,16 +226,16 @@ void AICar::PathState::Update(AICar* owner, float deltaTime, const Player::CarSt
 
 	if (curTile && nextTile == NULL)
 	{		
-		//Случайно выбираем предпочтительно нетупиковый узел принадлежайший WayPoint-у
-		//Если существует следующий узел, то в первую очередь выбираем из него
+		//РЎР»СѓС‡Р°Р№РЅРѕ РІС‹Р±РёСЂР°РµРј РїСЂРµРґРїРѕС‡С‚РёС‚РµР»СЊРЅРѕ РЅРµС‚СѓРїРёРєРѕРІС‹Р№ СѓР·РµР» РїСЂРёРЅР°РґР»РµР¶Р°Р№С€РёР№ WayPoint-Сѓ
+		//Р•СЃР»Рё СЃСѓС‰РµСЃС‚РІСѓРµС‚ СЃР»РµРґСѓСЋС‰РёР№ СѓР·РµР», С‚Рѕ РІ РїРµСЂРІСѓСЋ РѕС‡РµСЂРµРґСЊ РІС‹Р±РёСЂР°РµРј РёР· РЅРµРіРѕ
 		if (curTile->GetNext())
 			SetNextTile(curTile->GetNext());
-		//Иначе пытаемся найти ответвление от текущего узла
+		//РРЅР°С‡Рµ РїС‹С‚Р°РµРјСЃСЏ РЅР°Р№С‚Рё РѕС‚РІРµС‚РІР»РµРЅРёРµ РѕС‚ С‚РµРєСѓС‰РµРіРѕ СѓР·Р»Р°
 		else
 			SetNextTile(curTile->GetPoint()->GetRandomNode(curTile, true));
 
-		//езда по секретным путям. К сожалению сущесвтует проблема, когда  нас отсутсвует точка которую можно взять за текущую при заезде на секретный путь, поскольку в данном случае первая точка секретного пути может быть только следующей точкой, а текущую точкая также должна быть на расположена на этом пути и ее нету
-		//пытаемся найти ответвление от текущего узла, если мы в тупике или если сработал шанс на секретный путь
+		//РµР·РґР° РїРѕ СЃРµРєСЂРµС‚РЅС‹Рј РїСѓС‚СЏРј. Рљ СЃРѕР¶Р°Р»РµРЅРёСЋ СЃСѓС‰РµСЃРІС‚СѓРµС‚ РїСЂРѕР±Р»РµРјР°, РєРѕРіРґР°  РЅР°СЃ РѕС‚СЃСѓС‚СЃРІСѓРµС‚ С‚РѕС‡РєР° РєРѕС‚РѕСЂСѓСЋ РјРѕР¶РЅРѕ РІР·СЏС‚СЊ Р·Р° С‚РµРєСѓС‰СѓСЋ РїСЂРё Р·Р°РµР·РґРµ РЅР° СЃРµРєСЂРµС‚РЅС‹Р№ РїСѓС‚СЊ, РїРѕСЃРєРѕР»СЊРєСѓ РІ РґР°РЅРЅРѕРј СЃР»СѓС‡Р°Рµ РїРµСЂРІР°СЏ С‚РѕС‡РєР° СЃРµРєСЂРµС‚РЅРѕРіРѕ РїСѓС‚Рё РјРѕР¶РµС‚ Р±С‹С‚СЊ С‚РѕР»СЊРєРѕ СЃР»РµРґСѓСЋС‰РµР№ С‚РѕС‡РєРѕР№, Р° С‚РµРєСѓС‰СѓСЋ С‚РѕС‡РєР°СЏ С‚Р°РєР¶Рµ РґРѕР»Р¶РЅР° Р±С‹С‚СЊ РЅР° СЂР°СЃРїРѕР»РѕР¶РµРЅР° РЅР° СЌС‚РѕРј РїСѓС‚Рё Рё РµРµ РЅРµС‚Сѓ
+		//РїС‹С‚Р°РµРјСЃСЏ РЅР°Р№С‚Рё РѕС‚РІРµС‚РІР»РµРЅРёРµ РѕС‚ С‚РµРєСѓС‰РµРіРѕ СѓР·Р»Р°, РµСЃР»Рё РјС‹ РІ С‚СѓРїРёРєРµ РёР»Рё РµСЃР»Рё СЃСЂР°Р±РѕС‚Р°Р» С€Р°РЅСЃ РЅР° СЃРµРєСЂРµС‚РЅС‹Р№ РїСѓС‚СЊ
 		/*if (curTile->GetNext() == NULL || Random() < cSecretPathChance)
 		{
 			WayNode* nextTile = curTile->GetNext() != NULL ? curTile->GetNext()->GetPoint()->GetRandomNode(curTile->GetNext(), true) : curTile->GetPoint()->GetRandomNode(curTile, true);
@@ -281,19 +281,19 @@ AICar::AttackState::~AttackState()
 	SetBackTarget(0);
 }
 
-//поис более выгодного противника
+//РїРѕРёСЃ Р±РѕР»РµРµ РІС‹РіРѕРґРЅРѕРіРѕ РїСЂРѕС‚РёРІРЅРёРєР°
 Player* AICar::AttackState::FindEnemy(AICar* owner, const Player::CarState& car, int dir, Player* currentEnemy)
 {
-	//ищем новую или более доступную цель
+	//РёС‰РµРј РЅРѕРІСѓСЋ РёР»Рё Р±РѕР»РµРµ РґРѕСЃС‚СѓРїРЅСѓСЋ С†РµР»СЊ
 	Player* enemy = owner->_player->FindClosestEnemy(D3DX_PI/4 * dir, true);
 
 	if (currentEnemy && currentEnemy == enemy)
 		return enemy;
 
-	//проверяем текущую цель
+	//РїСЂРѕРІРµСЂСЏРµРј С‚РµРєСѓС‰СѓСЋ С†РµР»СЊ
 	currentEnemy = currentEnemy && car.curTile && car.curTile->GetTile().IsZLevelContains(currentEnemy->GetCar().pos3) ? currentEnemy : NULL;
 
-	//отличие от текущего target как минимум на target->GetCar().size
+	//РѕС‚Р»РёС‡РёРµ РѕС‚ С‚РµРєСѓС‰РµРіРѕ target РєР°Рє РјРёРЅРёРјСѓРј РЅР° target->GetCar().size
 	bool testEnemy = enemy && (!currentEnemy || D3DXVec2Length(&(currentEnemy->GetCar().pos - enemy->GetCar().pos)) > currentEnemy->GetCar().size);
 
 	return testEnemy ? enemy : currentEnemy;
@@ -301,9 +301,9 @@ Player* AICar::AttackState::FindEnemy(AICar* owner, const Player::CarState& car,
 
 void AICar::AttackState::ShotByEnemy(AICar* owner, const CarState& car, Player* enemy)
 {
-	//отклонение от напрваляющией в пределах enemy->GetCar().radius
+	//РѕС‚РєР»РѕРЅРµРЅРёРµ РѕС‚ РЅР°РїСЂРІР°Р»СЏСЋС‰РёРµР№ РІ РїСЂРµРґРµР»Р°С… enemy->GetCar().radius
 	bool bShoot = enemy && abs(Line2DistToPoint(car.dirLine, enemy->GetCar().pos)) < enemy->GetCar().radius;
-	//машина в передлах z достижимости
+	//РјР°С€РёРЅР° РІ РїРµСЂРµРґР»Р°С… z РґРѕСЃС‚РёР¶РёРјРѕСЃС‚Рё
 	bShoot = bShoot && abs(car.pos3.z - enemy->GetCar().pos3.z) < std::min(car.radius, enemy->GetCar().radius);
 	//
 	if (bShoot)
@@ -359,7 +359,7 @@ void AICar::AttackState::ShotByEnemy(AICar* owner, const CarState& car, Player* 
 
 		if (!weaponList.empty())
 		{
-			//сортируем по убыванию dist
+			//СЃРѕСЂС‚РёСЂСѓРµРј РїРѕ СѓР±С‹РІР°РЅРёСЋ dist
 			std::stable_sort(weaponList.begin(), weaponList.end(), DistSort());
 
 			Weapon weapon = weaponList.front();
@@ -373,7 +373,7 @@ void AICar::AttackState::ShotByEnemy(AICar* owner, const CarState& car, Player* 
 			const float highP = 0.7f;
 
 			float roadDist = car.GetDist(true) / car.GetPathLength(true);
-			//отсекаем до [lowP...highP], преобразуем к [0...1]
+			//РѕС‚СЃРµРєР°РµРј РґРѕ [lowP...highP], РїСЂРµРѕР±СЂР°Р·СѓРµРј Рє [0...1]
 			float summPart = ClampValue((roadDist - lowP) / (highP - lowP), 0.0f, 1.0f);
 
 			float wpPart = wpnCount > 0 ? 1.0f / wpnCount : 1.0f;
@@ -401,7 +401,7 @@ void AICar::AttackState::RunHyper(AICar* owner, const CarState& car, const PathS
 		const float highP = 0.7f;
 		
 		float roadDist = car.GetDist(true) / car.GetPathLength(true);
-		//отсекаем до [lowP...highP], преобразуем к [0...1]
+		//РѕС‚СЃРµРєР°РµРј РґРѕ [lowP...highP], РїСЂРµРѕР±СЂР°Р·СѓРµРј Рє [0...1]
 		float summPart = ClampValue((roadDist - lowP)/(highP - lowP), 0.0f, 1.0f);
 
 		unsigned cntCharge = hyperDrive->GetCntCharge();
@@ -428,11 +428,11 @@ void AICar::AttackState::PlaceMine(AICar* owner, const CarState& car, const Path
 			placeMineRandom = RandomRange(-0.5f, 0.0f);
 		
 		float roadDist = car.GetDist(true) / car.GetPathLength(true);		
-		//отсекаем до [lowP...highP], преобразуем к [0...1]
+		//РѕС‚СЃРµРєР°РµРј РґРѕ [lowP...highP], РїСЂРµРѕР±СЂР°Р·СѓРµРј Рє [0...1]
 		float summPart = ClampValue((roadDist - lowP)/(highP - lowP), 0.0f, 1.0f);
 		if (summPart > 0.0f && summPart < 1.0f)
 		{
-			//Цель сзади, +30% мин
+			//Р¦РµР»СЊ СЃР·Р°РґРё, +30% РјРёРЅ
 			if (backTarget && D3DXVec2Length(&(backTarget->GetCar().pos - car.pos)) < 30.0f)
 				summPart += 0.3f;
 			summPart = ClampValue(summPart + placeMineRandom, 0.0f, 1.0f);
@@ -459,9 +459,9 @@ void AICar::AttackState::Update(AICar* owner, float deltaTime, const Player::Car
 	if (car.curTile == NULL)
 		return;
 
-	//ищем цель спереди
+	//РёС‰РµРј С†РµР»СЊ СЃРїРµСЂРµРґРё
 	SetTarget(FindEnemy(owner, car, 1, target));
-	//ищем цель сзади
+	//РёС‰РµРј С†РµР»СЊ СЃР·Р°РґРё
 	SetBackTarget(FindEnemy(owner, car, -1, backTarget));
 
 	if (target)
@@ -492,7 +492,7 @@ AICar::ControlState::ControlState(): blocking(false), timeBlocking(0.0f), backMo
 
 void AICar::ControlState::UpdateResetCar(AICar* owner, float deltaTime, const Player::CarState& car)
 {
-	//Reset заблокированной машины
+	//Reset Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅРѕР№ РјР°С€РёРЅС‹
 	if (car.mapObj && (blocking || car.curTile == NULL || abs(car.speed) < cMaxSpeedBlocking))
 	{
 		timeResetBlockCar += deltaTime;
@@ -508,19 +508,19 @@ void AICar::ControlState::UpdateResetCar(AICar* owner, float deltaTime, const Pl
 
 void AICar::ControlState::Update(AICar* owner, float deltaTime, const Player::CarState& car, const PathState& path)
 {
-	//Вычисляем угол между направлением машины и направляющей движения
+	//Р’С‹С‡РёСЃР»СЏРµРј СѓРіРѕР» РјРµР¶РґСѓ РЅР°РїСЂР°РІР»РµРЅРёРµРј РјР°С€РёРЅС‹ Рё РЅР°РїСЂР°РІР»СЏСЋС‰РµР№ РґРІРёР¶РµРЅРёСЏ
 	steerAngle = abs(acos(D3DXVec2Dot(&car.dir, &path.moveDir)));
-	//учет инерционности рулевого управления
+	//СѓС‡РµС‚ РёРЅРµСЂС†РёРѕРЅРЅРѕСЃС‚Рё СЂСѓР»РµРІРѕРіРѕ СѓРїСЂР°РІР»РµРЅРёСЏ
 	//steerAngle = std::max(0.0f, steerAngle - D3DX_PI * deltaTime * 2.0f);
 	//float errorSteer = 
 		
-	//Угол поворота колес
+	//РЈРіРѕР» РїРѕРІРѕСЂРѕС‚Р° РєРѕР»РµСЃ
 	if (steerAngle > cSteerAngleBias)	
 		steerAngle = D3DXVec2CCW(&car.dir, &path.moveDir) > 0 ? steerAngle : -steerAngle;
 	else
 		steerAngle = 0;
 
-	//состояние заблокированности
+	//СЃРѕСЃС‚РѕСЏРЅРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅРѕСЃС‚Рё
 	if (abs(car.speed) < cMaxSpeedBlocking)
 	{
 		timeBlocking += deltaTime;
@@ -536,7 +536,7 @@ void AICar::ControlState::Update(AICar* owner, float deltaTime, const Player::Ca
 		blocking = false;
 	}
 
-	//движение назад
+	//РґРІРёР¶РµРЅРёРµ РЅР°Р·Р°Рґ
 	if (!backMovingMode)
 	{
 		backMovingMode = blocking;
@@ -563,9 +563,9 @@ void AICar::ControlState::Update(AICar* owner, float deltaTime, const Player::Ca
 			moveState = GameCar::mcNone;
 
 		car.gameObj->SetMoveCar(path._break ? GameCar::mcBrake : moveState);
-		//Контроль за поворотом
+		//РљРѕРЅС‚СЂРѕР»СЊ Р·Р° РїРѕРІРѕСЂРѕС‚РѕРј
 		car.gameObj->SetSteerWheel(game::GameCar::smManual);
-		//Поворот колес
+		//РџРѕРІРѕСЂРѕС‚ РєРѕР»РµСЃ
 		car.gameObj->SetSteerWheelAngle(steerAngle);
 	}
 }
@@ -602,7 +602,7 @@ void AICar::OnProgress(float deltaTime)
 		UpdateAI(deltaTime, GetCar());
 	}
 	
-	//в обход GetCar
+	//РІ РѕР±С…РѕРґ GetCar
 	if (_enbAI)
 		_control.UpdateResetCar(this, deltaTime, GetCar());
 }

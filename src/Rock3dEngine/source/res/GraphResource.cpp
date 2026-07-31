@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "res\\GraphResource.h"
+#include "res/GraphResource.h"
 
 namespace r3d
 {
@@ -944,10 +944,10 @@ unsigned GetPrimitivesCount(D3DPRIMITIVETYPE primitiveType, UINT numControlPoint
 
 void CopyPitchData(char* dest, unsigned destPitch, const char* src, unsigned srcPitch, unsigned srcRowSize, unsigned height)
 {	
-	//Размер шага совпадает с байтовой длиной, замечательно!
+	//Р Р°Р·РјРµСЂ С€Р°РіР° СЃРѕРІРїР°РґР°РµС‚ СЃ Р±Р°Р№С‚РѕРІРѕР№ РґР»РёРЅРѕР№, Р·Р°РјРµС‡Р°С‚РµР»СЊРЅРѕ!
 	if (destPitch == srcPitch == srcRowSize)
 		std::memcpy(dest, src, height * srcRowSize);
-	//Размер шага отличается от байтовой длины, плохо, издержки...
+	//Р Р°Р·РјРµСЂ С€Р°РіР° РѕС‚Р»РёС‡Р°РµС‚СЃСЏ РѕС‚ Р±Р°Р№С‚РѕРІРѕР№ РґР»РёРЅС‹, РїР»РѕС…Рѕ, РёР·РґРµСЂР¶РєРё...
 	else
 		for (unsigned i = 0; i < height; ++i)
 			std::memcpy(dest + destPitch * i, src + srcPitch * i, srcRowSize);

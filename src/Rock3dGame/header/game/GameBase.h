@@ -3,9 +3,9 @@
 #include "MapObj.h"
 #include "GameEvent.h"
 
-#include "graph\\Actor.h"
-#include "px\\PhysX.h"
-#include "snd\Audio.h"
+#include "graph/Actor.h"
+#include "px/Physx.h"
+#include "snd/Audio.h"
 
 namespace r3d
 {
@@ -48,14 +48,14 @@ public:
 
 	static const std::string cBonusTypeStr[cBonusTypeEnd];
 public:
-	//sender - отправитель сообщения, может быть сам this
-	//Удаление объекта из памяти
+	//sender - РѕС‚РїСЂР°РІРёС‚РµР»СЊ СЃРѕРѕР±С‰РµРЅРёСЏ, РјРѕР¶РµС‚ Р±С‹С‚СЊ СЃР°Рј this
+	//РЈРґР°Р»РµРЅРёРµ РѕР±СЉРµРєС‚Р° РёР· РїР°РјСЏС‚Рё
 	virtual void OnDestroy(GameObject* sender) {}
-	//Смерть от нанесенного повреждения
+	//РЎРјРµСЂС‚СЊ РѕС‚ РЅР°РЅРµСЃРµРЅРЅРѕРіРѕ РїРѕРІСЂРµР¶РґРµРЅРёСЏ
 	virtual void OnDeath(GameObject* sender, DamageType damageType, GameObject* target) {}
-	//Нанесено повреждение
+	//РќР°РЅРµСЃРµРЅРѕ РїРѕРІСЂРµР¶РґРµРЅРёРµ
 	virtual void OnDamage(GameObject* sender, float value, DamageType damageType) {}
-	//Мало жизней, посылается Behavior
+	//РњР°Р»Рѕ Р¶РёР·РЅРµР№, РїРѕСЃС‹Р»Р°РµС‚СЃСЏ Behavior
 	virtual void OnLowLife(GameObject* sender, Behavior* behavior) {}
 	//
 	virtual void OnContact(const px::Scene::OnContactEvent& contact) {}
@@ -167,9 +167,9 @@ protected:
 
 		D3DXVECTOR3 pos;
 		D3DXQUATERNION rot;
-		//дочерний
-		//true - время жизни совпадает с врменем жизни EventEffect, локальная система координат
-		//false - за удаление отвечает Logic, мировая система координат
+		//РґРѕС‡РµСЂРЅРёР№
+		//true - РІСЂРµРјСЏ Р¶РёР·РЅРё СЃРѕРІРїР°РґР°РµС‚ СЃ РІСЂРјРµРЅРµРј Р¶РёР·РЅРё EventEffect, Р»РѕРєР°Р»СЊРЅР°СЏ СЃРёСЃС‚РµРјР° РєРѕРѕСЂРґРёРЅР°С‚
+		//false - Р·Р° СѓРґР°Р»РµРЅРёРµ РѕС‚РІРµС‡Р°РµС‚ Logic, РјРёСЂРѕРІР°СЏ СЃРёСЃС‚РµРјР° РєРѕРѕСЂРґРёРЅР°С‚
 		bool child;
 		//
 		GameObject* parent;
@@ -218,7 +218,7 @@ protected:
 	MapObj* GetMakeEffect();
 	bool IsEffectMaked() const;
 
-	//Специально для effect-ов
+	//РЎРїРµС†РёР°Р»СЊРЅРѕ РґР»СЏ effect-РѕРІ
 	virtual void OnDestroyEffect(MapObj* sender) {}
 
 	virtual void SaveSource(lsl::SWriter* writer);
@@ -250,7 +250,7 @@ public:
 	const D3DXVECTOR3& GetImpulse() const;
 	void SetImpulse(const D3DXVECTOR3& value);
 
-	//игнорировать родительский поворот
+	//РёРіРЅРѕСЂРёСЂРѕРІР°С‚СЊ СЂРѕРґРёС‚РµР»СЊСЃРєРёР№ РїРѕРІРѕСЂРѕС‚
 	bool GetIgnoreRot() const;
 	void SetIgnoreRot(bool value);
 };
@@ -268,7 +268,7 @@ public:
 
 	virtual void OnProgress(float deltaTime);
 
-	//уровень жизней, [0..1]
+	//СѓСЂРѕРІРµРЅСЊ Р¶РёР·РЅРµР№, [0..1]
 	float GetLifeLevel() const;
 	void SetLifeLevel(float value);
 };
@@ -476,8 +476,8 @@ public:
 	template<class _Type> _Type* Find();
 
 	void OnProgress(float deltaTime);
-	//выстрел
-	//pos - относительные координаты
+	//РІС‹СЃС‚СЂРµР»
+	//pos - РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹
 	void OnShot(const D3DXVECTOR3& pos);
 	void OnMotor(float deltaTime, float rpm, float minRPM, float maxRPM);
 	void OnImmortalStatus(bool status);

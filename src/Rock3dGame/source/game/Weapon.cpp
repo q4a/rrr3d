@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "game\\Weapon.h"
+#include "game/Weapon.h"
 
-#include "game\\Logic.h"
-#include "game\\Race.h"
+#include "game/Logic.h"
+#include "game/Race.h"
 
 namespace r3d
 {
@@ -148,7 +148,7 @@ void Proj::InsertProjToGraph(GraphManager* graph)
 AABB Proj::ComputeAABB(bool onlyModel)
 {
 	AABB aabb(NullVector);
-	//необходимо быть осторожней со спецэфф.
+	//РЅРµРѕР±С…РѕРґРёРјРѕ Р±С‹С‚СЊ РѕСЃС‚РѕСЂРѕР¶РЅРµР№ СЃРѕ СЃРїРµС†СЌС„С„.
 	if (_desc.modelSize && _model)
 	{
 		if (!onlyModel)
@@ -1562,7 +1562,7 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 		break;
 	}
 
-	//nxActor у blaster manticora не был создан!!!
+	//nxActor Сѓ blaster manticora РЅРµ Р±С‹Р» СЃРѕР·РґР°РЅ!!!
 	GetPxActor().SetScene(ctx.logic->GetPxScene());
 
 	LSL_ASSERT(GetPxActor().GetNxActor());
@@ -1573,7 +1573,7 @@ bool Proj::PrepareProj(GameObject* weapon, const ShotContext& ctx)
 		return false;
 	}
 
-	//Игнорируем контакты снаряда с родителем (т.е. с самим собой)
+	//РРіРЅРѕСЂРёСЂСѓРµРј РєРѕРЅС‚Р°РєС‚С‹ СЃРЅР°СЂСЏРґР° СЃ СЂРѕРґРёС‚РµР»РµРј (С‚.Рµ. СЃ СЃР°РјРёРј СЃРѕР±РѕР№)
 	if (_ignoreContactProj && weapon && weapon->GetPxActor().GetNxActor())
 	{		
 		GetPxActor().GetScene()->GetNxScene()->setActorPairFlags(*weapon->GetPxActor().GetNxActor(), *GetPxActor().GetNxActor(), NX_IGNORE_PAIR);
@@ -1665,7 +1665,7 @@ void AutoProj::LoadSource(lsl::SReader* reader)
 
 	_MyBase::LoadSource(reader);
 
-	//начальная инициализация. Чтобы показывалась модель. Лучшего места к сожалению не найдено
+	//РЅР°С‡Р°Р»СЊРЅР°СЏ РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ. Р§С‚РѕР±С‹ РїРѕРєР°Р·С‹РІР°Р»Р°СЃСЊ РјРѕРґРµР»СЊ. Р›СѓС‡С€РµРіРѕ РјРµСЃС‚Р° Рє СЃРѕР¶Р°Р»РµРЅРёСЋ РЅРµ РЅР°Р№РґРµРЅРѕ
 	InitProj();
 }
 

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\SunShaft.h"
+#include "graph/SunShaft.h"
 
 namespace r3d
 {
@@ -39,7 +39,7 @@ void SunShaftRender::Render(Engine& engine)
 	for (Textures::iterator iter = _blurTex.begin(); iter != _blurTex.end(); ++iter)
 		(*iter)->Init(engine);
 
-	//Подготовка шафтов
+	//РџРѕРґРіРѕС‚РѕРІРєР° С€Р°С„С‚РѕРІ
 	IDirect3DSurface9* blurSurf;
 	_blurVec[0]->GetTex()->GetSurfaceLevel(0, &blurSurf);
 	engine.GetDriver().GetDevice()->SetRenderTarget(0, blurSurf);
@@ -49,7 +49,7 @@ void SunShaftRender::Render(Engine& engine)
 	DrawScreenQuad(engine);
 	shader.UnApply(engine);
 
-	//Ping Pong текстуры шафтов
+	//Ping Pong С‚РµРєСЃС‚СѓСЂС‹ С€Р°С„С‚РѕРІ
 	IDirect3DTexture9* swapingTex[2] = {_blurVec[0]->GetTex(), _blurVec[1]->GetTex()};
 	engine.GetContext().SetSamplerState(0, ssMagFilter, D3DTEXF_LINEAR);
 	engine.GetContext().SetSamplerState(0, ssMinFilter, D3DTEXF_LINEAR);
@@ -81,19 +81,19 @@ void SunShaftRender::Render(Engine& engine)
 	sunPos.x *= 0.5f;
 	sunPos.y *= 0.5f;
 
-	//Стд. техника учитывающая напрявление ист. света
+	//РЎС‚Рґ. С‚РµС…РЅРёРєР° СѓС‡РёС‚С‹РІР°СЋС‰Р°СЏ РЅР°РїСЂСЏРІР»РµРЅРёРµ РёСЃС‚. СЃРІРµС‚Р°
 	//D3DXVECTOR3 posNorm;
 	//D3DXVec3Normalize(&posNorm, &engine.GetLight()->GetDesc().pos);
 	//sunPos.w = D3DXVec3Dot(&posNorm, &engine.GetCamera()->GetDesc().dir);
 	//
 	if (sunPos.w > 0.0f)
 	{
-		//Не учитвает направление ист. света
+		//РќРµ СѓС‡РёС‚РІР°РµС‚ РЅР°РїСЂР°РІР»РµРЅРёРµ РёСЃС‚. СЃРІРµС‚Р°
 		//D3DXVECTOR3 posNorm;
 		//D3DXVec3Normalize(&posNorm, &D3DXVECTOR3(sunPos));
 		//sunPos.w = D3DXVec3Dot(&posNorm, &engine.GetCamera()->GetDesc().up);
 		//
-		//Без затухания
+		//Р‘РµР· Р·Р°С‚СѓС…Р°РЅРёСЏ
 		sunPos.w = 1.0f;
 	}
 	else

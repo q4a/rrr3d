@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "game\\ControlManager.h"
-#include "game\\World.h"
+#include "game/ControlManager.h"
+#include "game/World.h"
 
 #include <xinput.h>
 
@@ -568,8 +568,8 @@ void ControlManager::RemoveEvent(ControlEvent* value)
 AsyncKey ControlManager::GetAsyncKey(unsigned key)
 {
 	//GetAsyncKeyState return
-	//Последний бит - клавиша нажата в данный момент
-	//Первый бит - клавиша была нажата с момента последнего вызова
+	//РџРѕСЃР»РµРґРЅРёР№ Р±РёС‚ - РєР»Р°РІРёС€Р° РЅР°Р¶Р°С‚Р° РІ РґР°РЅРЅС‹Р№ РјРѕРјРµРЅС‚
+	//РџРµСЂРІС‹Р№ Р±РёС‚ - РєР»Р°РІРёС€Р° Р±С‹Р»Р° РЅР°Р¶Р°С‚Р° СЃ РјРѕРјРµРЅС‚Р° РїРѕСЃР»РµРґРЅРµРіРѕ РІС‹Р·РѕРІР°
 	unsigned res = GetAsyncKeyState(key);
 
 	if (res & 0x1)

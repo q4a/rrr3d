@@ -2,8 +2,8 @@
 
 #include "GraphManager.h"
 
-#include "res\\R3DFile.h"
-#include "res\\D3DXImageFile.h"
+#include "res/R3DFile.h"
+#include "res/D3DXImageFile.h"
 
 #include <DXGI.h>
 
@@ -554,7 +554,7 @@ void GraphManager::InitGrassField()
 		desc.props.set(graph::Actor::gpColor);
 		desc.props.set(graph::Actor::gpDynamic);
 		desc.props.set(graph::Actor::gpShadowApp);
-		//Осторожно. libMat->material.SetOption(graph::Material::moLighting, false);!!!. Только СТД освещение
+		//РћСЃС‚РѕСЂРѕР¶РЅРѕ. libMat->material.SetOption(graph::Material::moLighting, false);!!!. РўРѕР»СЊРєРѕ РЎРўР” РѕСЃРІРµС‰РµРЅРёРµ
 		desc.lighting = graph::Actor::glStd;
 		_grassPlane->SetGraph(this, desc);
 	}
@@ -1209,7 +1209,7 @@ void GraphManager::InitPlaneFog(lsl::string texture, const D3DXVECTOR2& tileScal
 			desc.props.set(graph::Actor::gpColor);
 			desc.props.set(graph::Actor::gpDynamic);
 			desc.props.set(graph::Actor::gpShadowApp);
-			//Осторожно. libMat->material.SetOption(graph::Material::moLighting, false);!!!. Только СТД освещение
+			//РћСЃС‚РѕСЂРѕР¶РЅРѕ. libMat->material.SetOption(graph::Material::moLighting, false);!!!. РўРѕР»СЊРєРѕ РЎРўР” РѕСЃРІРµС‰РµРЅРёРµ
 			desc.lighting = graph::Actor::glStd;
 			_fogPlaneActor->SetGraph(this, desc);
 		}
@@ -1421,35 +1421,35 @@ void GraphManager::PrepareActor(graph::Actor* actor, graph::ActorManager::UserDe
 		case osColorPix:
 			resDesc.scenes[ind] = props.test(Actor::gpColor) && lighting == Actor::glPix;
 
-			//Пока типы порядка отличный по умолчанию не поддерживаются
+			//РџРѕРєР° С‚РёРїС‹ РїРѕСЂСЏРґРєР° РѕС‚Р»РёС‡РЅС‹Р№ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РЅРµ РїРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ
 			LSL_ASSERT(!(resDesc.scenes[ind] && order != Actor::goDefault));
 			break;
 
 		case osColorRefl:
 			resDesc.scenes[ind] = props.test(Actor::gpColor) && lighting == Actor::glRefl;
 
-			//Пока типы порядка отличный по умолчанию не поддерживаются
+			//РџРѕРєР° С‚РёРїС‹ РїРѕСЂСЏРґРєР° РѕС‚Р»РёС‡РЅС‹Р№ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РЅРµ РїРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ
 			LSL_ASSERT(!(resDesc.scenes[ind] && order != Actor::goDefault));
 			break;
 
 		case osColorBump:
 			resDesc.scenes[ind] = props.test(Actor::gpColor) && lighting == Actor::glBump;
 
-			//Пока типы порядка отличный по умолчанию не поддерживаются
+			//РџРѕРєР° С‚РёРїС‹ РїРѕСЂСЏРґРєР° РѕС‚Р»РёС‡РЅС‹Р№ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РЅРµ РїРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ
 			LSL_ASSERT(!(resDesc.scenes[ind] && order != Actor::goDefault));
 			break;
 
 		case osColorRefr:
 			resDesc.scenes[ind] = props.test(Actor::gpColor) && lighting == Actor::glRefr;
 
-			//Пока типы порядка отличный по умолчанию не поддерживаются
+			//РџРѕРєР° С‚РёРїС‹ РїРѕСЂСЏРґРєР° РѕС‚Р»РёС‡РЅС‹Р№ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РЅРµ РїРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ
 			LSL_ASSERT(!(resDesc.scenes[ind] && order != Actor::goDefault));
 			break;
 
 		case osColorPlanarRefl:
 			resDesc.scenes[ind] = props.test(Actor::gpColor) && lighting == Actor::glPlanarRefl;
 
-			//Пока типы порядка отличный по умолчанию не поддерживаются
+			//РџРѕРєР° С‚РёРїС‹ РїРѕСЂСЏРґРєР° РѕС‚Р»РёС‡РЅС‹Р№ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РЅРµ РїРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ
 			LSL_ASSERT(!(resDesc.scenes[ind] && order != Actor::goDefault));
 			break;
 
@@ -1468,7 +1468,7 @@ void GraphManager::PrepareActor(graph::Actor* actor, graph::ActorManager::UserDe
 		case osColorCullOpacity:
 			resDesc.scenes[ind] = props.test(Actor::gpColor) && props.test(Actor::gpCullOpacity);
 
-			//Пока planar refl не поддерживаются
+			//РџРѕРєР° planar refl РЅРµ РїРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ
 			LSL_ASSERT(!(resDesc.scenes[ind] && lighting == Actor::glPlanarRefl));
 			break;
 
@@ -1507,7 +1507,7 @@ bool LineCastIntersPlane(const D3DXVECTOR3& rayStart, const D3DXVECTOR3& rayVec,
 
 unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, D3DXVECTOR3 points[])
 {
-	//конечные вершины ребер для каждого вертекса
+	//РєРѕРЅРµС‡РЅС‹Рµ РІРµСЂС€РёРЅС‹ СЂРµР±РµСЂ РґР»СЏ РєР°Р¶РґРѕРіРѕ РІРµСЂС‚РµРєСЃР°
 	const int lines[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
 
 	unsigned res = 0;
@@ -1521,11 +1521,11 @@ unsigned PlaneBBIntersect(const BoundBox& bb, const D3DXPLANE& plane, D3DXVECTOR
 		float vec3Len = D3DXVec3Length(&vec);
 		D3DXVec3Normalize(&vec, &vec);
 		float dist;
-		//есть пересечение
+		//РµСЃС‚СЊ РїРµСЂРµСЃРµС‡РµРЅРёРµ
 		if (LineCastIntersPlane(v1, vec, plane, dist) && dist > 0.0f && dist < vec3Len)
 		{
 			points[res] = v1 + vec * dist;
-			//больше 4-х точек не может быть
+			//Р±РѕР»СЊС€Рµ 4-С… С‚РѕС‡РµРє РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ
 			if (++res > 3)
 				return res;
 		}
@@ -1947,12 +1947,12 @@ void GraphManager::RenderScenes(graph::CameraCI& camera)
 
 	OctreeRender(osColorOpacity, false);
 	
-	//Рендерим с отключенной запись
+	//Р РµРЅРґРµСЂРёРј СЃ РѕС‚РєР»СЋС‡РµРЅРЅРѕР№ Р·Р°РїРёСЃСЊ
 	_engine->GetContext().SetRenderState(graph::rsZWriteEnable, false);
 
-	//также и объекты которые попали в отсечение камерой, чтобы не скрывать спецэффекты
+	//С‚Р°РєР¶Рµ Рё РѕР±СЉРµРєС‚С‹ РєРѕС‚РѕСЂС‹Рµ РїРѕРїР°Р»Рё РІ РѕС‚СЃРµС‡РµРЅРёРµ РєР°РјРµСЂРѕР№, С‡С‚РѕР±С‹ РЅРµ СЃРєСЂС‹РІР°С‚СЊ СЃРїРµС†СЌС„С„РµРєС‚С‹
 	_actorManager->RenderRayUsers(*_engine, 0.3f);
-	//Спецэффекты в обязательо порядке с откл. записью
+	//РЎРїРµС†СЌС„С„РµРєС‚С‹ РІ РѕР±СЏР·Р°С‚РµР»СЊРѕ РїРѕСЂСЏРґРєРµ СЃ РѕС‚РєР». Р·Р°РїРёСЃСЊСЋ
 	OctreeRender(osColorEffect, false);
 	
 	_engine->GetContext().RestoreRenderState(graph::rsZWriteEnable);	
@@ -2026,7 +2026,7 @@ void GraphManager::RenderShadow(graph::CameraCI& camera)
 			}
 		}
 
-		//выравниваем, исключая ortho
+		//РІС‹СЂР°РІРЅРёРІР°РµРј, РёСЃРєР»СЋС‡Р°СЏ ortho
 		if (_actorManager->IsBuildOctree() && camDesc.style != graph::csOrtho && !disableCrop)
 			camera.AdjustNearFarPlane(_actorManager->GetWorldAABB(), camDesc.nearDist, camDesc.farDist);
 
@@ -2070,7 +2070,7 @@ void GraphManager::RenderShadow(graph::CameraCI& camera)
 				shadowMap->BeginShadowMapp(*_engine);
 				do
 				{
-					//исключаем отскаемы орто камерой объекты, чтобы тени не обрезались (были видны за ними)
+					//РёСЃРєР»СЋС‡Р°РµРј РѕС‚СЃРєР°РµРјС‹ РѕСЂС‚Рѕ РєР°РјРµСЂРѕР№ РѕР±СЉРµРєС‚С‹, С‡С‚РѕР±С‹ С‚РµРЅРё РЅРµ РѕР±СЂРµР·Р°Р»РёСЃСЊ (Р±С‹Р»Рё РІРёРґРЅС‹ Р·Р° РЅРёРјРё)
 					OctreeRender(osShadowMapp, true);
 				}
 				while (!shadowMap->EndShadowMapp(*_engine, true));
@@ -2085,7 +2085,7 @@ void GraphManager::RenderShadow(graph::CameraCI& camera)
 		
 		_engine->GetContext().UnApplyCamera(&camera);		
 		
-		//При рендере сцены не требуется оптмизированный фрустум, наоборот он может вызывать артефакты с небом, дождем... 
+		//РџСЂРё СЂРµРЅРґРµСЂРµ СЃС†РµРЅС‹ РЅРµ С‚СЂРµР±СѓРµС‚СЃСЏ РѕРїС‚РјРёР·РёСЂРѕРІР°РЅРЅС‹Р№ С„СЂСѓСЃС‚СѓРј, РЅР°РѕР±РѕСЂРѕС‚ РѕРЅ РјРѕР¶РµС‚ РІС‹Р·С‹РІР°С‚СЊ Р°СЂС‚РµС„Р°РєС‚С‹ СЃ РЅРµР±РѕРј, РґРѕР¶РґРµРј... 
 		if (camDesc.style != graph::csOrtho)
 			camera.SetDesc(camDesc);
 	}
@@ -2188,7 +2188,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 		graph::CameraCI camera;
 		camera.SetDesc(_camera->GetContextInfo().GetDesc());
 
-		//выравнивание Ortho
+		//РІС‹СЂР°РІРЅРёРІР°РЅРёРµ Ortho
 		AdjustViewOrtho(camera);
 
 		if (rayTarget)
@@ -2196,23 +2196,23 @@ bool GraphManager::Render(float deltaTime, bool pause)
 
 		_engine->GetContext().SetRenderState(graph::rsMultiSampleAntialias, false);
 
-		//рендер ShadowMap
+		//СЂРµРЅРґРµСЂ ShadowMap
 		RenderShadow(camera);
 
 		_engine->GetContext().ApplyCamera(&camera);
 		
-		//Осветляем сцену для спец. эффектов (например для четкого кубемапа)
+		//РћСЃРІРµС‚Р»СЏРµРј СЃС†РµРЅСѓ РґР»СЏ СЃРїРµС†. СЌС„С„РµРєС‚РѕРІ (РЅР°РїСЂРёРјРµСЂ РґР»СЏ С‡РµС‚РєРѕРіРѕ РєСѓР±РµРјР°РїР°)
 		_engine->GetContext().SetRenderState(graph::rsAmbient, clrWhite);
-		//Рендер кубемапы сцены
+		//Р РµРЅРґРµСЂ РєСѓР±РµРјР°РїС‹ СЃС†РµРЅС‹
 		RenderCubeMap(camera);
-		//Рендер текстуры водных отражений
+		//Р РµРЅРґРµСЂ С‚РµРєСЃС‚СѓСЂС‹ РІРѕРґРЅС‹С… РѕС‚СЂР°Р¶РµРЅРёР№
 		RenderWaterRef(camera);		
-		//Рендер глубины сцены
+		//Р РµРЅРґРµСЂ РіР»СѓР±РёРЅС‹ СЃС†РµРЅС‹
 		RenderDepthScene(camera);
 
 		_engine->GetContext().RestoreRenderState(graph::rsMultiSampleAntialias);
 
-		//Глобальное фоновое освещение, если включены тени то для объектов он расчитывается через рендер теней в лихт мапе(чтобы скрывать артефакты в тенях)
+		//Р“Р»РѕР±Р°Р»СЊРЅРѕРµ С„РѕРЅРѕРІРѕРµ РѕСЃРІРµС‰РµРЅРёРµ, РµСЃР»Рё РІРєР»СЋС‡РµРЅС‹ С‚РµРЅРё С‚Рѕ РґР»СЏ РѕР±СЉРµРєС‚РѕРІ РѕРЅ СЂР°СЃС‡РёС‚С‹РІР°РµС‚СЃСЏ С‡РµСЂРµР· СЂРµРЅРґРµСЂ С‚РµРЅРµР№ РІ Р»РёС…С‚ РјР°РїРµ(С‡С‚РѕР±С‹ СЃРєСЂС‹РІР°С‚СЊ Р°СЂС‚РµС„Р°РєС‚С‹ РІ С‚РµРЅСЏС…)
 		_engine->GetContext().SetRenderState(graph::rsAmbient, _sceneAmbient);
 		
 		//
@@ -2221,7 +2221,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 			if ((*iter)->GetEnable())
 				(*iter)->GetSource()->Apply(*_engine, i);
 
-		//Рендер с постпроцессингом
+		//Р РµРЅРґРµСЂ СЃ РїРѕСЃС‚РїСЂРѕС†РµСЃСЃРёРЅРіРѕРј
 		if (_scRenderTexRef)
 		{
 			if (_msRT)
@@ -2287,7 +2287,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 				_toneMap->Render(*_engine);
 			if (_sunShaft && _engine->GetContext().GetCamera().GetDesc().style == graph::csPerspective)
 			{
-				//наложение
+				//РЅР°Р»РѕР¶РµРЅРёРµ
 				D3DXVECTOR3 lightPos = _engine->GetContext().GetLight(0).GetDesc().pos;
 				D3DXVECTOR3 radVec;
 				D3DXVec3Normalize(&radVec, &(lightPos - _actorManager->GetWorldAABB().GetCenter()));
@@ -2314,7 +2314,7 @@ bool GraphManager::Render(float deltaTime, bool pause)
 
 			_engine->EndBackBufOut();
 		}
-		//Прямой рендер в задний буффер
+		//РџСЂСЏРјРѕР№ СЂРµРЅРґРµСЂ РІ Р·Р°РґРЅРёР№ Р±СѓС„С„РµСЂ
 		else
 		{
 			LSL_ASSERT(!_cleanScTexRef);
@@ -2493,18 +2493,18 @@ D3DXVECTOR3 GraphManager::ScreenToWorld(const lsl::Point& coord, const float z)
 {
 	LSL_ASSERT(_camera);
 
-	//Получаем размеры окна куда выводится рендер
+	//РџРѕР»СѓС‡Р°РµРј СЂР°Р·РјРµСЂС‹ РѕРєРЅР° РєСѓРґР° РІС‹РІРѕРґРёС‚СЃСЏ СЂРµРЅРґРµСЂ
 	float width = static_cast<float>(GetWndRect().Width());
 	float height = static_cast<float>(GetWndRect().Height());
 
 	D3DXVECTOR3 screenVec(coord.x / width, coord.y / height, 0);
-	//Приводим к диапазону [-1, 1]
+	//РџСЂРёРІРѕРґРёРј Рє РґРёР°РїР°Р·РѕРЅСѓ [-1, 1]
 	screenVec = screenVec * 2 - IdentityVector;
 	screenVec.z = z;
-	//Ось Y у экрана и у заднего буфера(или иначе говоря экранной D3D поверхности) не совпадают
+	//РћСЃСЊ Y Сѓ СЌРєСЂР°РЅР° Рё Сѓ Р·Р°РґРЅРµРіРѕ Р±СѓС„РµСЂР°(РёР»Рё РёРЅР°С‡Рµ РіРѕРІРѕСЂСЏ СЌРєСЂР°РЅРЅРѕР№ D3D РїРѕРІРµСЂС…РЅРѕСЃС‚Рё) РЅРµ СЃРѕРІРїР°РґР°СЋС‚
 	screenVec.y = -screenVec.y;
 
-	 //Переводим в мировое пространство(домножая на инв. матрицу), что соотв. точке на near плоскости камеры
+	 //РџРµСЂРµРІРѕРґРёРј РІ РјРёСЂРѕРІРѕРµ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ(РґРѕРјРЅРѕР¶Р°СЏ РЅР° РёРЅРІ. РјР°С‚СЂРёС†Сѓ), С‡С‚Рѕ СЃРѕРѕС‚РІ. С‚РѕС‡РєРµ РЅР° near РїР»РѕСЃРєРѕСЃС‚Рё РєР°РјРµСЂС‹
 	D3DXVec3TransformCoord(&screenVec, &screenVec, &_camera->GetContextInfo().GetInvViewProj());
 
 	return screenVec;
@@ -2512,7 +2512,7 @@ D3DXVECTOR3 GraphManager::ScreenToWorld(const lsl::Point& coord, const float z)
 
 
 
-	/*//Алгоритм с импользованием D3DXVec3Unproject
+	/*//РђР»РіРѕСЂРёС‚Рј СЃ РёРјРїРѕР»СЊР·РѕРІР°РЅРёРµРј D3DXVec3Unproject
 	D3DVIEWPORT9 viewPort;
 	_engine->GetDriver().GetDevice()->GetViewport(&viewPort);
 	float width = static_cast<float>(GetWndWidth());

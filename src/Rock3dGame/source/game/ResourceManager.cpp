@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\ResourceManager.h"
+#include "game/ResourceManager.h"
 
-#include "game\World.h"
+#include "game/World.h"
 
 namespace r3d
 {
@@ -459,7 +459,7 @@ void ComplexMesh::Reload()
 		_ivbMesh->Reload();
 	if (_meshX && _meshX->IsInit())
 		_meshX->Reload();
-	//Не является ресурсом, значит операции недоступны
+	//РќРµ СЏРІР»СЏРµС‚СЃСЏ СЂРµСЃСѓСЂСЃРѕРј, Р·РЅР°С‡РёС‚ РѕРїРµСЂР°С†РёРё РЅРµРґРѕСЃС‚СѓРїРЅС‹
 	//if (_pxMesh && _pxMesh->IsInit())
 	//	_pxMesh->Reload();
 }
@@ -1253,7 +1253,7 @@ graph::Sampler2d& ResourceManager::AddSampler2dTo(graph::LibMaterial& libMat, co
 
 void ResourceManager::BuildAnimByOff(graph::Sampler2d& sampler, const Vec2Range& texCoord, const Point2U& tileCnt)
 {
-	//ОСТОРОЖНО! При загрузке анимированной текстуры необходимо подгрузить изображение чтобы получить размеры, что конечно змедляет загрузку. Необходимо кеширвоать данные, что в свою очередь требует вести сериализацию. Поэтому по так...
+	//РћРЎРўРћР РћР–РќРћ! РџСЂРё Р·Р°РіСЂСѓР·РєРµ Р°РЅРёРјРёСЂРѕРІР°РЅРЅРѕР№ С‚РµРєСЃС‚СѓСЂС‹ РЅРµРѕР±С…РѕРґРёРјРѕ РїРѕРґРіСЂСѓР·РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ С‡С‚РѕР±С‹ РїРѕР»СѓС‡РёС‚СЊ СЂР°Р·РјРµСЂС‹, С‡С‚Рѕ РєРѕРЅРµС‡РЅРѕ Р·РјРµРґР»СЏРµС‚ Р·Р°РіСЂСѓР·РєСѓ. РќРµРѕР±С…РѕРґРёРјРѕ РєРµС€РёСЂРІРѕР°С‚СЊ РґР°РЅРЅС‹Рµ, С‡С‚Рѕ РІ СЃРІРѕСЋ РѕС‡РµСЂРµРґСЊ С‚СЂРµР±СѓРµС‚ РІРµСЃС‚Рё СЃРµСЂРёР°Р»РёР·Р°С†РёСЋ. РџРѕСЌС‚РѕРјСѓ РїРѕ С‚Р°Рє...
 	if (texCoord.GetMin() != NullVec2 || texCoord.GetMax() != IdentityVec2 || tileCnt.x != 1 || tileCnt.y != 1)
 	{
 		if (!sampler.GetTex()->IsInit())
@@ -1270,7 +1270,7 @@ graph::LibMaterial& ResourceManager::LoadLibMat(const std::string& name, bool sp
 graph::LibMaterial& ResourceManager::LoadImage2dLibMat(const std::string& name, const std::string& imgName, bool sprite, graph::Material::Blending blending, const FloatRange& alpha, const ColorRange& color, const Vec2Range& texCoord, const Point2U& tileCnt)
 {
 	graph::LibMaterial& libMat = LoadLibMat(name, sprite, blending, alpha, color);
-	//режим альфы по умолчанию , modulate в виду наличия прозрачности при отсечении
+	//СЂРµР¶РёРј Р°Р»СЊС„С‹ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ , modulate РІ РІРёРґСѓ РЅР°Р»РёС‡РёСЏ РїСЂРѕР·СЂР°С‡РЅРѕСЃС‚Рё РїСЂРё РѕС‚СЃРµС‡РµРЅРёРё
 	graph::Sampler2d& sampler = AddSampler2dTo(libMat, imgName, graph::Sampler2d::tmModulate, sprite ? graph::BaseSampler::sfLinear : graph::BaseSampler::sfAnisotropic);
 
 	BuildAnimByOff(sampler, texCoord, tileCnt);
@@ -1281,7 +1281,7 @@ graph::LibMaterial& ResourceManager::LoadImage2dLibMat(const std::string& name, 
 graph::LibMaterial& ResourceManager::LoadImage2dLibMatAnim(const std::string& name, const std::string& imgName, bool sprite, graph::Material::Blending blending, const FloatRange& alpha, const ColorRange& color, const Vec3Range& texOffset, const Vec3Range& texScale, const QuatRange& texRot)
 {
 	graph::LibMaterial& libMat = LoadLibMat(name, sprite, blending, alpha, color);
-	//режим альфы по умолчанию , modulate в виду наличия прозрачности при отсечении
+	//СЂРµР¶РёРј Р°Р»СЊС„С‹ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ , modulate РІ РІРёРґСѓ РЅР°Р»РёС‡РёСЏ РїСЂРѕР·СЂР°С‡РЅРѕСЃС‚Рё РїСЂРё РѕС‚СЃРµС‡РµРЅРёРё
 	graph::Sampler2d& sampler = AddSampler2dTo(libMat, imgName, graph::Sampler2d::tmModulate, sprite ? graph::BaseSampler::sfLinear : graph::BaseSampler::sfAnisotropic);
 
 	sampler.SetOffset(texOffset);
@@ -1326,7 +1326,7 @@ graph::LibMaterial& ResourceManager::LoadBumpLibMat(const std::string& name, con
 graph::LibMaterial& ResourceManager::LoadAnimImage2dLibMat(const std::string& name, const std::string& imgName, const Vec3Range& offset, const Vec3Range& scale, const QuatRange& rot, bool sprite, graph::Material::Blending blending, const FloatRange& alpha, const ColorRange& color)
 {
 	graph::LibMaterial& libMat = LoadLibMat(name, sprite, blending, alpha, color);
-	//режим альфы по умолчанию , modulate в виду наличия прозрачности при отсечении
+	//СЂРµР¶РёРј Р°Р»СЊС„С‹ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ , modulate РІ РІРёРґСѓ РЅР°Р»РёС‡РёСЏ РїСЂРѕР·СЂР°С‡РЅРѕСЃС‚Рё РїСЂРё РѕС‚СЃРµС‡РµРЅРёРё
 	graph::Sampler2d& sampler = AddSampler2dTo(libMat, imgName, graph::Sampler2d::tmModulate, sprite ? graph::BaseSampler::sfLinear : graph::BaseSampler::sfAnisotropic);
 	sampler.SetOffset(offset);
 	sampler.SetScale(scale);

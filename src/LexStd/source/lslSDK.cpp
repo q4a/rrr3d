@@ -8,7 +8,7 @@ namespace lsl
 class Win32ThreadPool: public ThreadPool
 {
 public:
-	//Размещение работ в пуле. Происходит в порядке очереди: первый вошел первым вышел
+	//Р Р°Р·РјРµС‰РµРЅРёРµ СЂР°Р±РѕС‚ РІ РїСѓР»Рµ. РџСЂРѕРёСЃС…РѕРґРёС‚ РІ РїРѕСЂСЏРґРєРµ РѕС‡РµСЂРµРґРё: РїРµСЂРІС‹Р№ РІРѕС€РµР» РїРµСЂРІС‹Рј РІС‹С€РµР»
 	void QueueWork(UserWork* value, Object* arg, Flags flags = Flags(0));
 
 	unsigned GetMinThreads();
@@ -81,7 +81,7 @@ DWORD __stdcall ThreadPoolStart(void* lpThreadParameter)
 	try
 	{
 		work->Execute(arg);
-		//Источник опасности, поскольку внтуренние уведомления о завершении работы уже получены и задачу могут попытаться уничтожить
+		//РСЃС‚РѕС‡РЅРёРє РѕРїР°СЃРЅРѕСЃС‚Рё, РїРѕСЃРєРѕР»СЊРєСѓ РІРЅС‚СѓСЂРµРЅРЅРёРµ СѓРІРµРґРѕРјР»РµРЅРёСЏ Рѕ Р·Р°РІРµСЂС€РµРЅРёРё СЂР°Р±РѕС‚С‹ СѓР¶Рµ РїРѕР»СѓС‡РµРЅС‹ Рё Р·Р°РґР°С‡Сѓ РјРѕРіСѓС‚ РїРѕРїС‹С‚Р°С‚СЊСЃСЏ СѓРЅРёС‡С‚РѕР¶РёС‚СЊ
 		work->Release();
 	}
 	LSL_FINALLY(work->EndExecution();)
@@ -111,7 +111,7 @@ void Win32ThreadPool::QueueWork(UserWork* value, Object* arg, Flags flags)
 {
 	DWORD dwFlags = 0;
 	
-	//tfBackground эмулируется с помощью tfLongFunc
+	//tfBackground СЌРјСѓР»РёСЂСѓРµС‚СЃСЏ СЃ РїРѕРјРѕС‰СЊСЋ tfLongFunc
 	if (flags.test(tfLongFunc) || flags.test(tfBackground))
 		dwFlags |= WT_EXECUTELONGFUNCTION;
 

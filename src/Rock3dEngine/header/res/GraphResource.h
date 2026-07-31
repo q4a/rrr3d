@@ -3,7 +3,7 @@
 
 #include "lslResource.h"
 #include "r3dMath.h"
-#include "d3d9.h" //Временно
+#include "d3d9.h" //Р’СЂРµРјРµРЅРЅРѕ
 
 namespace r3d
 {

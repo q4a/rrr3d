@@ -2,7 +2,7 @@
 #define GRASS_FIELD
 
 #include "SceneManager.h"
-#include "graph\\MaterialLibrary.h"
+#include "graph/MaterialLibrary.h"
 
 namespace r3d
 {
@@ -68,21 +68,21 @@ public:
 	GrassField();
 	virtual ~GrassField();
 
-	//относительно начала координат
-	//ширина поля
+	//РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РЅР°С‡Р°Р»Р° РєРѕРѕСЂРґРёРЅР°С‚
+	//С€РёСЂРёРЅР° РїРѕР»СЏ
 	float GetWidth() const;
 	void SetWidth(float value);
-	//высота поля
+	//РІС‹СЃРѕС‚Р° РїРѕР»СЏ
 	float GetHeight() const;
 	void SetHeight(float value);
-	//общая плотность
+	//РѕР±С‰Р°СЏ РїР»РѕС‚РЅРѕСЃС‚СЊ
 	float GetDensity();
 	void SetDensity(float value);
-	//случайное рассеивание, в м
+	//СЃР»СѓС‡Р°Р№РЅРѕРµ СЂР°СЃСЃРµРёРІР°РЅРёРµ, РІ Рј
 	float GetDisp();
 	void SetDisp(float value);
 
-	//набор растений
+	//РЅР°Р±РѕСЂ СЂР°СЃС‚РµРЅРёР№
 	const GrassList& GetGrassList();
 	void SetGrassList(const GrassList& value);
 

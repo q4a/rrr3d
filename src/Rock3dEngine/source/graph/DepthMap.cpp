@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "graph\\DepthMap.h"
+#include "graph/DepthMap.h"
 
 namespace r3d
 {
@@ -19,7 +19,7 @@ void DepthMapShader::DoBeginDraw(Engine& engine)
 
 	ApplyTech(cTechniqueNames[tech], 0);
 
-	//При применении прохода в нулевой регистр должна быть записана карта прозрачности
+	//РџСЂРё РїСЂРёРјРµРЅРµРЅРёРё РїСЂРѕС…РѕРґР° РІ РЅСѓР»РµРІРѕР№ СЂРµРіРёСЃС‚СЂ РґРѕР»Р¶РЅР° Р±С‹С‚СЊ Р·Р°РїРёСЃР°РЅР° РєР°СЂС‚Р° РїСЂРѕР·СЂР°С‡РЅРѕСЃС‚Рё
 	if (tech == ttDepthMapAlphaTest)
 		SetTextureDir("opacityTex", engine.GetContext().GetTexture(0));
 

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "net\NetChat.h"
+#include "net/NetChat.h"
 
 namespace net
 {

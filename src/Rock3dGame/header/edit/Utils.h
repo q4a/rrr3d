@@ -35,7 +35,7 @@ public:
 	virtual D3DXVECTOR3 GetUp() const;
 
 	virtual D3DXMATRIX GetMat() const;
-	//В локальных координатах, включая дочерние узлы
+	//Р’ Р»РѕРєР°Р»СЊРЅС‹С… РєРѕРѕСЂРґРёРЅР°С‚Р°С…, РІРєР»СЋС‡Р°СЏ РґРѕС‡РµСЂРЅРёРµ СѓР·Р»С‹
 	virtual AABB GetAABB() const;
 
 	graph::BaseSceneNode* GetNode();

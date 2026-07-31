@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "game\CameraManager.h"
+#include "game/CameraManager.h"
 
 namespace r3d
 {
@@ -262,10 +262,10 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 			targetVel = player->GetCar().gameObj->GetPxVelocityLerp();
 			targetDrivenSpeed = player->GetCar().gameObj->GetDrivenWheelSpeed();
 
-			//принужденное движение назад, отвечат за блокировку камеры поворачивающейся наза при заднем ходе. Если закоментировать, блокирвока уберется, необходимо брать с неким запасом из за погрешностей синхронизации
+			//РїСЂРёРЅСѓР¶РґРµРЅРЅРѕРµ РґРІРёР¶РµРЅРёРµ РЅР°Р·Р°Рґ, РѕС‚РІРµС‡Р°С‚ Р·Р° Р±Р»РѕРєРёСЂРѕРІРєСѓ РєР°РјРµСЂС‹ РїРѕРІРѕСЂР°С‡РёРІР°СЋС‰РµР№СЃСЏ РЅР°Р·Р° РїСЂРё Р·Р°РґРЅРµРј С…РѕРґРµ. Р•СЃР»Рё Р·Р°РєРѕРјРµРЅС‚РёСЂРѕРІР°С‚СЊ, Р±Р»РѕРєРёСЂРІРѕРєР° СѓР±РµСЂРµС‚СЃСЏ, РЅРµРѕР±С…РѕРґРёРјРѕ Р±СЂР°С‚СЊ СЃ РЅРµРєРёРј Р·Р°РїР°СЃРѕРј РёР· Р·Р° РїРѕРіСЂРµС€РЅРѕСЃС‚РµР№ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё
 			if (targetDrivenSpeed < 0.1f)
 			{
-				//отсекаем отрицательную составляющую по направляющей локальной оси x
+				//РѕС‚СЃРµРєР°РµРј РѕС‚СЂРёС†Р°С‚РµР»СЊРЅСѓСЋ СЃРѕСЃС‚Р°РІР»СЏСЋС‰СѓСЋ РїРѕ РЅР°РїСЂР°РІР»СЏСЋС‰РµР№ Р»РѕРєР°Р»СЊРЅРѕР№ РѕСЃРё x
 				player->GetCar().grActor->WorldToLocalNorm(targetVel, targetVel);
 				targetVel.x = std::max(targetVel.x, 0.0f);
 				player->GetCar().grActor->LocalToWorldNorm(targetVel, targetVel);
@@ -328,7 +328,7 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		D3DXVECTOR3 velocity = targetDir + targetVel * 0.1f;
 		D3DXVec3Normalize(&velocity, &velocity);
 
-		//строим матрицу поворота относительно скорости
+		//СЃС‚СЂРѕРёРј РјР°С‚СЂРёС†Сѓ РїРѕРІРѕСЂРѕС‚Р° РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ СЃРєРѕСЂРѕСЃС‚Рё
 		D3DXVECTOR3 xVec;
 		D3DXVec3Normalize(&xVec, &velocity);
 		D3DXVECTOR3 yVec;
@@ -396,29 +396,29 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		//left, right, top, bottom
 		D3DXVECTOR4 camBorder = D3DXVECTOR4(cIsoBorder, cIsoBorder, cIsoBorder/camera->GetAspect(), cIsoBorder/camera->GetAspect());
 
-		//Обратный поворот
+		//РћР±СЂР°С‚РЅС‹Р№ РїРѕРІРѕСЂРѕС‚
 		D3DXQUATERNION cIsoInvRot;		
 		D3DXQuaternionInverse(&cIsoInvRot, &cIsoRot);
 
-		//Направление камеры в мировом пространстве
+		//РќР°РїСЂР°РІР»РµРЅРёРµ РєР°РјРµСЂС‹ РІ РјРёСЂРѕРІРѕРј РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРµ
 		D3DXVECTOR3 isoDir;
 		Vec3Rotate(XVector, cIsoRot, isoDir);
 		
-		//Преобразуем в пространство камеры, чтобы вычислять смещение отностиельно центра экрана. Для перспективной проекции это дает артефакт удаления-приближения камеры, поэтому может быть опущено
+		//РџСЂРµРѕР±СЂР°Р·СѓРµРј РІ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ РєР°РјРµСЂС‹, С‡С‚РѕР±С‹ РІС‹С‡РёСЃР»СЏС‚СЊ СЃРјРµС‰РµРЅРёРµ РѕС‚РЅРѕСЃС‚РёРµР»СЊРЅРѕ С†РµРЅС‚СЂР° СЌРєСЂР°РЅР°. Р”Р»СЏ РїРµСЂСЃРїРµРєС‚РёРІРЅРѕР№ РїСЂРѕРµРєС†РёРё СЌС‚Рѕ РґР°РµС‚ Р°СЂС‚РµС„Р°РєС‚ СѓРґР°Р»РµРЅРёСЏ-РїСЂРёР±Р»РёР¶РµРЅРёСЏ РєР°РјРµСЂС‹, РїРѕСЌС‚РѕРјСѓ РјРѕР¶РµС‚ Р±С‹С‚СЊ РѕРїСѓС‰РµРЅРѕ
 		D3DXVECTOR3 targOff = targetDir;
 		targOff.z = 0.0f;
 		Vec3Rotate(targOff, cIsoInvRot, targOff);
-		//Проецируем на плоскость смещения
+		//РџСЂРѕРµС†РёСЂСѓРµРј РЅР° РїР»РѕСЃРєРѕСЃС‚СЊ СЃРјРµС‰РµРЅРёСЏ
 		targOff.x = targOff.y;
 		targOff.y = targOff.z;
 		targOff.z = 0.0f;
 		D3DXVec3Normalize(&targOff, &targOff);
 		//
 		float yTargetDot = D3DXVec3Dot(&targOff, &D3DXVECTOR3(0.0f, 1.0f, 0.0f));
-		//Формируем вектор смещения
+		//Р¤РѕСЂРјРёСЂСѓРµРј РІРµРєС‚РѕСЂ СЃРјРµС‰РµРЅРёСЏ
 		targOff *= camSize;
 
-		//Ограничиваем смещение в пределах квадрата на плоскости смещения чтобы камера не уезжала за объект
+		//РћРіСЂР°РЅРёС‡РёРІР°РµРј СЃРјРµС‰РµРЅРёРµ РІ РїСЂРµРґРµР»Р°С… РєРІР°РґСЂР°С‚Р° РЅР° РїР»РѕСЃРєРѕСЃС‚Рё СЃРјРµС‰РµРЅРёСЏ С‡С‚РѕР±С‹ РєР°РјРµСЂР° РЅРµ СѓРµР·Р¶Р°Р»Р° Р·Р° РѕР±СЉРµРєС‚
 		//targOff.x = lsl::ClampValue(targOff.x, -camBorder.x, camBorder.y);
 		//targOff.y = lsl::ClampValue(targOff.y, -camBorder.w, camBorder.z);
 		if (abs(targOff.y) > 0.1f && abs(targOff.x/targOff.y) < camera->GetAspect())
@@ -446,23 +446,23 @@ void CameraManager::Control::OnInputFrame(float deltaTime)
 		targOff.y = targOff.x;
 		targOff.x = 0.0f;
 
-		//Обратное преобразование в мировое пространство
+		//РћР±СЂР°С‚РЅРѕРµ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РІ РјРёСЂРѕРІРѕРµ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ
 		Vec3Rotate(targOff, cIsoRot, targOff);
 
-		//Планва интерполяция смещения		
+		//РџР»Р°РЅРІР° РёРЅС‚РµСЂРїРѕР»СЏС†РёСЏ СЃРјРµС‰РµРЅРёСЏ		
 		D3DXVec3Lerp(&_staticVec1, &_staticVec1, &targOff, deltaTime);
 		//_staticVec1 = targOff;
-		//Позиция камеры
+		//РџРѕР·РёС†РёСЏ РєР°РјРµСЂС‹
 		D3DXVECTOR3 camPos = targetPos + (-isoDir) * targDist + _staticVec1;
 
-		//Плавная интерполяция при скачках машины
+		//РџР»Р°РІРЅР°СЏ РёРЅС‚РµСЂРїРѕР»СЏС†РёСЏ РїСЂРё СЃРєР°С‡РєР°С… РјР°С€РёРЅС‹
 		D3DXVECTOR3 dTargetPos = targetPos - _staticVec2;
 		_staticVec2 = targetPos;
 		float dTargetLength = D3DXVec3Length(&dTargetPos);
 
 		if (dTargetLength > 6.0f)
 		{
-			//только если это первый скачок
+			//С‚РѕР»СЊРєРѕ РµСЃР»Рё СЌС‚Рѕ РїРµСЂРІС‹Р№ СЃРєР°С‡РѕРє
 			_staticFloat2 = _staticFloat1 == 0.0f ? dTargetLength / 0.5f : _staticFloat2;
 			_staticFloat1 = dTargetLength;
 			_staticVec3 = dTargetPos / dTargetLength;			

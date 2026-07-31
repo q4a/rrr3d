@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "res\\D3DXImageFile.h"
-#include "graph\\Engine.h"
+#include "res/D3DXImageFile.h"
+#include "graph/Engine.h"
 
 namespace r3d
 {

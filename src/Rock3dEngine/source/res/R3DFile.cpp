@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "res\\R3DFile.h"
+#include "res/R3DFile.h"
 
 namespace r3d
 {
@@ -80,7 +80,7 @@ void R3DMeshFile::LoadFromStream(Resource& outData, std::istream& stream)
 	if (stream.fail())
 		throw lsl::Error("void R3DMeshFile::LoadFromStream(Resource& outData, std::istream& stream) failed");
 
-	//Чтобы бит переключился в eof нужна неудачная попытка извлечь байт
+	//Р§С‚РѕР±С‹ Р±РёС‚ РїРµСЂРµРєР»СЋС‡РёР»СЃСЏ РІ eof РЅСѓР¶РЅР° РЅРµСѓРґР°С‡РЅР°СЏ РїРѕРїС‹С‚РєР° РёР·РІР»РµС‡СЊ Р±Р°Р№С‚
 	stream.get();
 
 	if (!stream.eof())

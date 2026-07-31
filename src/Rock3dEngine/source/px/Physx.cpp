@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-#include "px\\Physx.h"
-#include "px\\Stream.h"
+#include "px/Physx.h"
+#include "px/Stream.h"
 
 #include "lslSerialValue.h"
 
@@ -111,13 +111,13 @@ bool Scene::ContactModify::onContactConstraint(NxU32& changeFlags, const NxShape
 
 	if (actor0 && actor1)
 	{
-		//Отправляем событие первому актеру
+		//РћС‚РїСЂР°РІР»СЏРµРј СЃРѕР±С‹С‚РёРµ РїРµСЂРІРѕРјСѓ Р°РєС‚РµСЂСѓ
 		contactEvent.actor = actor1;
 		contactEvent.actorIndex = 1;
 		if (actor0->GetOwner() && !actor0->GetOwner()->OnContactModify(contactEvent))
 			return false;
 
-		//Отправляем событие второму актеру
+		//РћС‚РїСЂР°РІР»СЏРµРј СЃРѕР±С‹С‚РёРµ РІС‚РѕСЂРѕРјСѓ Р°РєС‚РµСЂСѓ
 		contactEvent.actor = actor0;
 		contactEvent.actorIndex = 0;
 		if (actor1->GetOwner() && !actor1->GetOwner()->OnContactModify(contactEvent))
@@ -295,9 +295,9 @@ void Manager::InitSDK()
 		if (nxSDK->getFoundationSDK().getRemoteDebugger() && !nxSDK->getFoundationSDK().getRemoteDebugger()->isConnected())
 			nxSDK->getFoundationSDK().getRemoteDebugger()->connect(cSamplesVRDHost, cNxDbgDefaultPort, cSamplesVrdEventMask);
 #endif
-		//Чтобы тачка не вела себя странно
+		//Р§С‚РѕР±С‹ С‚Р°С‡РєР° РЅРµ РІРµР»Р° СЃРµР±СЏ СЃС‚СЂР°РЅРЅРѕ
 		nxSDK->setParameter(NX_ADAPTIVE_FORCE, 0.0f);
-		//Допустимое взаимопроникновение тел
+		//Р”РѕРїСѓСЃС‚РёРјРѕРµ РІР·Р°РёРјРѕРїСЂРѕРЅРёРєРЅРѕРІРµРЅРёРµ С‚РµР»
 		nxSDK->setParameter(NX_SKIN_WIDTH, 0.025f);
 
 		LSL_LOG("px create cooking");
@@ -399,7 +399,7 @@ void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc
 	int faceCnt = id < 0 ? _meshData->fb.GetFaceCount() : _meshData->faceGroups[id].faceCnt;
 
 	D3DXVECTOR3* vertices = new D3DXVECTOR3[vertCnt];	
-	//Если в формате вершины только позиция, то копируется буффер целиком
+	//Р•СЃР»Рё РІ С„РѕСЂРјР°С‚Рµ РІРµСЂС€РёРЅС‹ С‚РѕР»СЊРєРѕ РїРѕР·РёС†РёСЏ, С‚Рѕ РєРѕРїРёСЂСѓРµС‚СЃСЏ Р±СѓС„С„РµСЂ С†РµР»РёРєРѕРј
 	if (_meshData->vb.GetVertexSize() == sizeof(D3DXVECTOR3))
 	{
 		_meshData->vb.CopyDataTo(vertices, sVertex, vertCnt);
@@ -407,7 +407,7 @@ void TriangleMesh::LoadMesh(const D3DXVECTOR3& scale, int id, NxTriangleMeshDesc
 			for (unsigned i = 0; i < _meshData->vb.GetVertexCount(); ++i)
 				vertices[i] *= scale;
 	}
-	//Иначе копируется только часть вершины соответствующая позиции
+	//РРЅР°С‡Рµ РєРѕРїРёСЂСѓРµС‚СЃСЏ С‚РѕР»СЊРєРѕ С‡Р°СЃС‚СЊ РІРµСЂС€РёРЅС‹ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰Р°СЏ РїРѕР·РёС†РёРё
 	else		
 		for (int i = 0; i < vertCnt; ++i)
 		{
@@ -1156,7 +1156,7 @@ void TriangleMeshShape::Load(lsl::SReader* reader)
 	_MyBase::Load(reader);
 
 	//reader->ReadRef("mesh", true, this, 0);
-	//К сожалению инстанцирование актера происходит до фикса, поэтому пока без него
+	//Рљ СЃРѕР¶Р°Р»РµРЅРёСЋ РёРЅСЃС‚Р°РЅС†РёСЂРѕРІР°РЅРёРµ Р°РєС‚РµСЂР° РїСЂРѕРёСЃС…РѕРґРёС‚ РґРѕ С„РёРєСЃР°, РїРѕСЌС‚РѕРјСѓ РїРѕРєР° Р±РµР· РЅРµРіРѕ
 	FixUpName fixUp;
 	reader->ReadRef("mesh", true, 0, &fixUp);
 	reader->ReadValue("meshId", _meshId);
@@ -1258,7 +1258,7 @@ void ConvexShape::Load(lsl::SReader* reader)
 	_MyBase::Load(reader);
 
 	//reader->ReadRef("mesh", true, this, 0);
-	//К сожалению инстанцирование актера происходит до фикса, поэтому пока без него
+	//Рљ СЃРѕР¶Р°Р»РµРЅРёСЋ РёРЅСЃС‚Р°РЅС†РёСЂРѕРІР°РЅРёРµ Р°РєС‚РµСЂР° РїСЂРѕРёСЃС…РѕРґРёС‚ РґРѕ С„РёРєСЃР°, РїРѕСЌС‚РѕРјСѓ РїРѕРєР° Р±РµР· РЅРµРіРѕ
 	FixUpName fixUp;
 	reader->ReadRef("mesh", true, 0, &fixUp);
 	reader->ReadValue("meshId", _meshId);
@@ -1666,7 +1666,7 @@ void Shapes::InsertItem(const Value& value)
 {
 	_MyBase::InsertItem(value);
 	
-	//По идее все условия соотв. тому что фигура не будет создана к этому моменту, но однако при нескольких sender-ах может произойти преждевременный вызов ReloadNxActor() !!!!. На самом деле если объеденить все эвенты в один то здесь проверка не нужна, но пока...
+	//РџРѕ РёРґРµРµ РІСЃРµ СѓСЃР»РѕРІРёСЏ СЃРѕРѕС‚РІ. С‚РѕРјСѓ С‡С‚Рѕ С„РёРіСѓСЂР° РЅРµ Р±СѓРґРµС‚ СЃРѕР·РґР°РЅР° Рє СЌС‚РѕРјСѓ РјРѕРјРµРЅС‚Сѓ, РЅРѕ РѕРґРЅР°РєРѕ РїСЂРё РЅРµСЃРєРѕР»СЊРєРёС… sender-Р°С… РјРѕР¶РµС‚ РїСЂРѕРёР·РѕР№С‚Рё РїСЂРµР¶РґРµРІСЂРµРјРµРЅРЅС‹Р№ РІС‹Р·РѕРІ ReloadNxActor() !!!!. РќР° СЃР°РјРѕРј РґРµР»Рµ РµСЃР»Рё РѕР±СЉРµРґРµРЅРёС‚СЊ РІСЃРµ СЌРІРµРЅС‚С‹ РІ РѕРґРёРЅ С‚Рѕ Р·РґРµСЃСЊ РїСЂРѕРІРµСЂРєР° РЅРµ РЅСѓР¶РЅР°, РЅРѕ РїРѕРєР°...
 	if (_owner->_nxActor && !value->GetNxShape())
 		_owner->CreateNxShape(value);
 }
@@ -1735,7 +1735,7 @@ void Actor::ReloadNxShape(Shape* shape, bool allowInitialization)
 {
 	if (_nxActor && shape->_nxShape)
 	{
-		//У фигуры должен быть по крайней мере 1 shape
+		//РЈ С„РёРіСѓСЂС‹ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РїРѕ РєСЂР°Р№РЅРµР№ РјРµСЂРµ 1 shape
 		NxShape* oldNxShape = shape->_nxShape;
 		shape->SetNxShape(0);
 
@@ -1808,7 +1808,7 @@ void Actor::InitRootNxActor()
 		NxActorDesc actorDesc = _desc;
 
 		FillShapeDescListIncludeChildren(actorDesc.shapes);
-		//Пустые физические актеры не инстанцируем
+		//РџСѓСЃС‚С‹Рµ С„РёР·РёС‡РµСЃРєРёРµ Р°РєС‚РµСЂС‹ РЅРµ РёРЅСЃС‚Р°РЅС†РёСЂСѓРµРј
 		if (actorDesc.shapes.empty())
 			return;
 
@@ -1839,7 +1839,7 @@ void Actor::InitRootNxActor()
 		SetNxActorIncludeChildren(_nxActor);
 		UnpackActorShapeListIncludeChildren(_nxActor->getShapes(), _nxActor->getNbShapes(), 0);
 
-		//Если установлен такой флаг то центр масс не вычисляется при создании, а значит должен браться из значения указанного в body
+		//Р•СЃР»Рё СѓСЃС‚Р°РЅРѕРІР»РµРЅ С‚Р°РєРѕР№ С„Р»Р°Рі С‚Рѕ С†РµРЅС‚СЂ РјР°СЃСЃ РЅРµ РІС‹С‡РёСЃР»СЏРµС‚СЃСЏ РїСЂРё СЃРѕР·РґР°РЅРёРё, Р° Р·РЅР°С‡РёС‚ РґРѕР»Р¶РµРЅ Р±СЂР°С‚СЊСЃСЏ РёР· Р·РЅР°С‡РµРЅРёСЏ СѓРєР°Р·Р°РЅРЅРѕРіРѕ РІ body
 		if (_body && GetFlag(NX_AF_LOCK_COM))
 		{
 			_nxActor->setCMassOffsetLocalPose(_body->GetDesc().massLocalPose);
@@ -1869,7 +1869,7 @@ void Actor::InitChildNxActor()
 {
 	LSL_ASSERT(_parent);
 
-	//поле _nxActor также служит для индикации состояния инциализированности
+	//РїРѕР»Рµ _nxActor С‚Р°РєР¶Рµ СЃР»СѓР¶РёС‚ РґР»СЏ РёРЅРґРёРєР°С†РёРё СЃРѕСЃС‚РѕСЏРЅРёСЏ РёРЅС†РёР°Р»РёР·РёСЂРѕРІР°РЅРЅРѕСЃС‚Рё
 	if (!_nxActor && _parent->_nxActor)
 	{
 		_nxActor = _parent->_nxActor;
@@ -1954,7 +1954,7 @@ void Actor::Load(lsl::SReader* reader)
 	}
 
 	reader->ReadValue("shapes", _shapes);
-	//Читаем ссылку на сцену в саму последнию очередь, потому что после её фикса актер перегружается
+	//Р§РёС‚Р°РµРј СЃСЃС‹Р»РєСѓ РЅР° СЃС†РµРЅСѓ РІ СЃР°РјСѓ РїРѕСЃР»РµРґРЅРёСЋ РѕС‡РµСЂРµРґСЊ, РїРѕС‚РѕРјСѓ С‡С‚Рѕ РїРѕСЃР»Рµ РµС‘ С„РёРєСЃР° Р°РєС‚РµСЂ РїРµСЂРµРіСЂСѓР¶Р°РµС‚СЃСЏ
 	reader->ReadRef("scene", false, this, 0);
 }
 
@@ -2039,7 +2039,7 @@ void Actor::SetScene(Scene* value)
 	{
 		FreeNxActor();
 
-		//Если у родителя другой мэнеджер то происходит отсоеденение текущего узла
+		//Р•СЃР»Рё Сѓ СЂРѕРґРёС‚РµР»СЏ РґСЂСѓРіРѕР№ РјСЌРЅРµРґР¶РµСЂ С‚Рѕ РїСЂРѕРёСЃС…РѕРґРёС‚ РѕС‚СЃРѕРµРґРµРЅРµРЅРёРµ С‚РµРєСѓС‰РµРіРѕ СѓР·Р»Р°
 		//if (_parent && _parent->_scene != value)
 		//	SetParent(0);
 		_scene = value;

@@ -54,74 +54,74 @@ private:
 	};
 	typedef lsl::List<NodeCull> NodeCullList;
 
-	//Представляет узел сцены
+	//РџСЂРµРґСЃС‚Р°РІР»СЏРµС‚ СѓР·РµР» СЃС†РµРЅС‹
 	class Node
 	{
 		friend UserNode;
 	private:
-		//Ограничивающий бокс
+		//РћРіСЂР°РЅРёС‡РёРІР°СЋС‰РёР№ Р±РѕРєСЃ
 		AABB _aabb;
-		//Родитель
+		//Р РѕРґРёС‚РµР»СЊ
 		Node* _parent;
-		//Список дочерних узлов
+		//РЎРїРёСЃРѕРє РґРѕС‡РµСЂРЅРёС… СѓР·Р»РѕРІ
 		NodeList _nodeList;
 		
-		//Список листьев по группам, т.е. все пользователя разделяются по группам с возможным дублированием
+		//РЎРїРёСЃРѕРє Р»РёСЃС‚СЊРµРІ РїРѕ РіСЂСѓРїРїР°Рј, С‚.Рµ. РІСЃРµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ СЂР°Р·РґРµР»СЏСЋС‚СЃСЏ РїРѕ РіСЂСѓРїРїР°Рј СЃ РІРѕР·РјРѕР¶РЅС‹Рј РґСѓР±Р»РёСЂРѕРІР°РЅРёРµРј
 		Leaf* _leaf;
-		//Массив списков уникальных объектов текущего и дочерних узлов отсортированный по группам
+		//РњР°СЃСЃРёРІ СЃРїРёСЃРєРѕРІ СѓРЅРёРєР°Р»СЊРЅС‹С… РѕР±СЉРµРєС‚РѕРІ С‚РµРєСѓС‰РµРіРѕ Рё РґРѕС‡РµСЂРЅРёС… СѓР·Р»РѕРІ РѕС‚СЃРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Р№ РїРѕ РіСЂСѓРїРїР°Рј
 		UserMap* _userMap;
-		//Количество объектов в листе текущего узла
+		//РљРѕР»РёС‡РµСЃС‚РІРѕ РѕР±СЉРµРєС‚РѕРІ РІ Р»РёСЃС‚Рµ С‚РµРєСѓС‰РµРіРѕ СѓР·Р»Р°
 		unsigned _userCnt;
-		//Число ссылок на узел
+		//Р§РёСЃР»Рѕ СЃСЃС‹Р»РѕРє РЅР° СѓР·РµР»
 		unsigned _refCnt;
-		//Блокировка узла от изменения. Полезно допустим при итерационном чтении
+		//Р‘Р»РѕРєРёСЂРѕРІРєР° СѓР·Р»Р° РѕС‚ РёР·РјРµРЅРµРЅРёСЏ. РџРѕР»РµР·РЅРѕ РґРѕРїСѓСЃС‚РёРј РїСЂРё РёС‚РµСЂР°С†РёРѕРЅРЅРѕРј С‡С‚РµРЅРёРё
 		unsigned _lockCnt;
 
-		//Вставка включенного пользователя в список
+		//Р’СЃС‚Р°РІРєР° РІРєР»СЋС‡РµРЅРЅРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РІ СЃРїРёСЃРѕРє
 		void InsertToUserMap(UserNode* value, unsigned group);
 		void RemoveFromUserMap(UserNode* value, unsigned group);
 
-		//Манимпулирвоание списком пользователей без вызова внешних методов
+		//РњР°РЅРёРјРїСѓР»РёСЂРІРѕР°РЅРёРµ СЃРїРёСЃРєРѕРј РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ Р±РµР· РІС‹Р·РѕРІР° РІРЅРµС€РЅРёС… РјРµС‚РѕРґРѕРІ
 		void DoInsertUser(UserNode* value, unsigned group);
 		void DoRemoveUser(UserNode* value, unsigned group);
 	public:
 		Node(unsigned numGroups, const AABB& aabb, Node* parent);
 		~Node();
 
-		//Опреации над списком пользователей
+		//РћРїСЂРµР°С†РёРё РЅР°Рґ СЃРїРёСЃРєРѕРј РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
 		void InsertUser(UserNode* value, unsigned group);
 		void InsertUser(const UserList& value);
 		void RemoveUser(UserNode* value, unsigned group);		
 		void ClearUser(unsigned group);
 		void ClearUser();
 
-		//Опреации с дочерними узлами
+		//РћРїСЂРµР°С†РёРё СЃ РґРѕС‡РµСЂРЅРёРјРё СѓР·Р»Р°РјРё
 		Node& AddNode(const AABB& aabb);
 		void DelNode(Node* value);
 		void ClearChildNode();
 
-		//Ссылки
+		//РЎСЃС‹Р»РєРё
 		void AddRef();
 		void Release();
 
-		//Блокировка
+		//Р‘Р»РѕРєРёСЂРѕРІРєР°
 		void Lock();
 		void Unlock();
 
-		//Константные методы
+		//РљРѕРЅСЃС‚Р°РЅС‚РЅС‹Рµ РјРµС‚РѕРґС‹
 		const AABB& GetAABB() const;
 		const Leaf& GetLeaf(unsigned group) const;
 		const UserMap& GetUserMap(unsigned group) const;
 		const NodeList& GetNodeList() const;
 
-		//Число дочерних пользователей в узле
+		//Р§РёСЃР»Рѕ РґРѕС‡РµСЂРЅРёС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РІ СѓР·Р»Рµ
 		unsigned GetUserCnt() const;
 
-		//Общее число групп
+		//РћР±С‰РµРµ С‡РёСЃР»Рѕ РіСЂСѓРїРї
 		const unsigned cNumGroups;
 	};
 public:
-	//Пользователь системы
+	//РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЃРёСЃС‚РµРјС‹
 	class UserNode: public lsl::Object
 	{
 		friend Node;
@@ -130,31 +130,31 @@ public:
 	private:
 		typedef std::map<Node*, unsigned> NodeMap;
 	private:
-		//Владелец
+		//Р’Р»Р°РґРµР»РµС†
 		OctreeSort* _owner;
 		//
 		AABB _aabb;
 		//
 		lsl::Object* _data;
 		
-		//Список узлов в листья которых включен пользователь
+		//РЎРїРёСЃРѕРє СѓР·Р»РѕРІ РІ Р»РёСЃС‚СЊСЏ РєРѕС‚РѕСЂС‹С… РІРєР»СЋС‡РµРЅ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ
 		NodeMap _nodeMap;	
-		//Список групп в которые он добавлен
+		//РЎРїРёСЃРѕРє РіСЂСѓРїРї РІ РєРѕС‚РѕСЂС‹Рµ РѕРЅ РґРѕР±Р°РІР»РµРЅ
 		lsl::BoolVec _groups;
-		//Идентификатор прохода
+		//РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РїСЂРѕС…РѕРґР°
 		unsigned long _idPass;
 
 		UserNode() {}
 		UserNode(OctreeSort* owner, const AABB& aabb, const lsl::BoolVec& groups);
 		virtual ~UserNode();
 
-		//Опреации с узлами владельцами, без вызова внешних методов
+		//РћРїСЂРµР°С†РёРё СЃ СѓР·Р»Р°РјРё РІР»Р°РґРµР»СЊС†Р°РјРё, Р±РµР· РІС‹Р·РѕРІР° РІРЅРµС€РЅРёС… РјРµС‚РѕРґРѕРІ
 		void DoInsertToNode(const NodeMap::iterator& iter);
 		NodeMap::iterator DoInsertToNode(Node* value);
 		NodeMap::iterator DoRemoveFromNode(const NodeMap::iterator& iter);
 		NodeMap::iterator DoRemoveFromNode(Node* value);
 
-		//Опреации с узлами владельцами
+		//РћРїСЂРµР°С†РёРё СЃ СѓР·Р»Р°РјРё РІР»Р°РґРµР»СЊС†Р°РјРё
 		void InsertToNode(Node* value);
 		NodeMap::iterator RemoveFromNode(const NodeMap::iterator& iter);
 		NodeMap::iterator RemoveFromNode(Node* value);
@@ -169,7 +169,7 @@ public:
 
 		const AABB& GetAABB() const;
 
-		//Группа
+		//Р“СЂСѓРїРїР°
 		bool GetGroup(unsigned group) const;
 		//void SetGroup(unsigned group, bool value);
 		const lsl::BoolVec& GetGroups() const;
@@ -179,21 +179,21 @@ public:
 		void SetData(lsl::Object* value);
 	};
 
-	//Реализует хранение позиции в октарном дереве и итерирование пользователей
+	//Р РµР°Р»РёР·СѓРµС‚ С…СЂР°РЅРµРЅРёРµ РїРѕР·РёС†РёРё РІ РѕРєС‚Р°СЂРЅРѕРј РґРµСЂРµРІРµ Рё РёС‚РµСЂРёСЂРѕРІР°РЅРёРµ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
 	class Position
 	{
 		friend OctreeSort;
 	private:
-		//Владелец
+		//Р’Р»Р°РґРµР»РµС†
 		OctreeSort* _owner;
-		//Список узлов для итерирования
+		//РЎРїРёСЃРѕРє СѓР·Р»РѕРІ РґР»СЏ РёС‚РµСЂРёСЂРѕРІР°РЅРёСЏ
 		NodeCullList _nodeList;
 
-		//Начат процесс итерирования
+		//РќР°С‡Р°С‚ РїСЂРѕС†РµСЃСЃ РёС‚РµСЂРёСЂРѕРІР°РЅРёСЏ
 		bool _stIterate;
-		//Группа для итерирования
+		//Р“СЂСѓРїРїР° РґР»СЏ РёС‚РµСЂРёСЂРѕРІР°РЅРёСЏ
 		unsigned _group;
-		//Итераторы
+		//РС‚РµСЂР°С‚РѕСЂС‹
 		NodeCullList::const_iterator _iterNode;
 		UserMap::const_iterator _iterUser;
 
@@ -204,7 +204,7 @@ public:
 			_nodeList.push_back(NodeCull(value, contains));
 			value->AddRef();
 		}
-		//Допускается только внутреннее использование
+		//Р”РѕРїСѓСЃРєР°РµС‚СЃСЏ С‚РѕР»СЊРєРѕ РІРЅСѓС‚СЂРµРЅРЅРµРµ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ
 		void InsertNode(const NodeCullList& nodeList)
 		{
 			_nodeList.insert(_nodeList.end(), nodeList.begin(), nodeList.end());
@@ -236,14 +236,14 @@ public:
 				}
 				else
 				{
-					//Разблокируем старый узел
+					//Р Р°Р·Р±Р»РѕРєРёСЂСѓРµРј СЃС‚Р°СЂС‹Р№ СѓР·РµР»
 					(*_iterNode)->Unlock();
 					//
 					if (++_iterNode != _nodeList.end())
 					{
-						//Блокируем новый узел
+						//Р‘Р»РѕРєРёСЂСѓРµРј РЅРѕРІС‹Р№ СѓР·РµР»
 						(*_iterNode)->Lock();
-						//Новый пользователь
+						//РќРѕРІС‹Р№ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ
 						_iterUser = (*_iterNode)->GetUserMap(_group).begin();
 					}
 				}
@@ -278,7 +278,7 @@ public:
 			LSL_ASSERT(!_stIterate && _owner);
 
 			_stIterate = true;
-			//Увеличиваем идентификатор прохода на один, чтобы каждый проход был уникален
+			//РЈРІРµР»РёС‡РёРІР°РµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РїСЂРѕС…РѕРґР° РЅР° РѕРґРёРЅ, С‡С‚РѕР±С‹ РєР°Р¶РґС‹Р№ РїСЂРѕС…РѕРґ Р±С‹Р» СѓРЅРёРєР°Р»РµРЅ
 			++(_owner->_idPass);
 			_group = group;
 
@@ -308,12 +308,12 @@ public:
 			{
 				res = Iterate();
 
-				//Если idPass пользователя совпадает с idPass узла, то он уже участвовал в проходе
+				//Р•СЃР»Рё idPass РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ СЃРѕРІРїР°РґР°РµС‚ СЃ idPass СѓР·Р»Р°, С‚Рѕ РѕРЅ СѓР¶Рµ СѓС‡Р°СЃС‚РІРѕРІР°Р» РІ РїСЂРѕС…РѕРґРµ
 				next = res && res->_idPass == _owner->_idPass;
 				if (res && !next)
 				{
 					res->_idPass = _owner->_idPass;
-					//Определяем пересечение с реальным AABB объекта. Только если родительский нод не входит в камеру полностью
+					//РћРїСЂРµРґРµР»СЏРµРј РїРµСЂРµСЃРµС‡РµРЅРёРµ СЃ СЂРµР°Р»СЊРЅС‹Рј AABB РѕР±СЉРµРєС‚Р°. РўРѕР»СЊРєРѕ РµСЃР»Рё СЂРѕРґРёС‚РµР»СЊСЃРєРёР№ РЅРѕРґ РЅРµ РІС…РѕРґРёС‚ РІ РєР°РјРµСЂСѓ РїРѕР»РЅРѕСЃС‚СЊСЋ
 					next = _iterNode->contains != Frustum::scContainsFully && frustum.ContainsAABB(res->GetAABB()) == Frustum::scNoOverlap;
 				}
 			}			
@@ -364,10 +364,10 @@ public:
 		}
 	};	
 
-	//Условия разбияния дерева, при нарушении любого из них разбиение прекращается
-	//Минимальное количество объектов которое может быть в узле
+	//РЈСЃР»РѕРІРёСЏ СЂР°Р·Р±РёСЏРЅРёСЏ РґРµСЂРµРІР°, РїСЂРё РЅР°СЂСѓС€РµРЅРёРё Р»СЋР±РѕРіРѕ РёР· РЅРёС… СЂР°Р·Р±РёРµРЅРёРµ РїСЂРµРєСЂР°С‰Р°РµС‚СЃСЏ
+	//РњРёРЅРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РѕР±СЉРµРєС‚РѕРІ РєРѕС‚РѕСЂРѕРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РІ СѓР·Р»Рµ
 	static const unsigned cMinNodeUserCnt;
-	//Минимальный, допустимый размер узла
+	//РњРёРЅРёРјР°Р»СЊРЅС‹Р№, РґРѕРїСѓСЃС‚РёРјС‹Р№ СЂР°Р·РјРµСЂ СѓР·Р»Р°
 	static const unsigned cMinLeafSize;
 	//
 	static const unsigned cOctNum = 8;
@@ -376,7 +376,7 @@ private:
 	Node* _root;
 
 	D3DXVECTOR3 _nodeOff[cOctNum];
-	//Уникальный идентификатор прохода
+	//РЈРЅРёРєР°Р»СЊРЅС‹Р№ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РїСЂРѕС…РѕРґР°
 	unsigned long _idPass;
 
 	void BuildOctree(Node& node, const UserList& userList);
@@ -384,9 +384,9 @@ private:
 	void InsertUser(UserNode* user);
 	void RemoveUser(UserNode* user);
 
-	//Возвращает true если объект следует добавить полностью
+	//Р’РѕР·РІСЂР°С‰Р°РµС‚ true РµСЃР»Рё РѕР±СЉРµРєС‚ СЃР»РµРґСѓРµС‚ РґРѕР±Р°РІРёС‚СЊ РїРѕР»РЅРѕСЃС‚СЊСЋ
 	bool DoCulling(const Frustum& frustum, Frustum::SpaceContains spaceCont, Node& node, Position& pos);
-	//Тоже, только результат обработан в самом методе
+	//РўРѕР¶Рµ, С‚РѕР»СЊРєРѕ СЂРµР·СѓР»СЊС‚Р°С‚ РѕР±СЂР°Р±РѕС‚Р°РЅ РІ СЃР°РјРѕРј РјРµС‚РѕРґРµ
 	void DoCulling(const Frustum& frustum, Node& node, Position& pos);
 public:
 	OctreeSort(unsigned numGroups);

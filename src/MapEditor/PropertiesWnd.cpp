@@ -2,7 +2,7 @@
 #include "stdafx.h"
 
 #include "PropertiesWnd.h"
-#include "Resource.h"
+#include "resource.h"
 #include "MainFrm.h"
 #include "MapEditor.h"
 

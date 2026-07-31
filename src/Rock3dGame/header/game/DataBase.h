@@ -1,7 +1,7 @@
 #pragma once
 
-#include "game\MapObj.h"
-#include "game\RockCar.h"
+#include "game/MapObj.h"
+#include "game/RockCar.h"
 
 namespace r3d
 {
@@ -166,7 +166,7 @@ private:
 	void LoadCars();
 	void LoadDB();
 public:
-	//база данных инициализируется в конструктуре, поэтому уже должна иметь имя и владельца
+	//Р±Р°Р·Р° РґР°РЅРЅС‹С… РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµС‚СЃСЏ РІ РєРѕРЅСЃС‚СЂСѓРєС‚СѓСЂРµ, РїРѕСЌС‚РѕРјСѓ СѓР¶Рµ РґРѕР»Р¶РЅР° РёРјРµС‚СЊ РёРјСЏ Рё РІР»Р°РґРµР»СЊС†Р°
 	DataBase(World* world, const std::string& name);
 	virtual ~DataBase();
 

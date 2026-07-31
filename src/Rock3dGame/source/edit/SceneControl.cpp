@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "game\World.h"
+#include "game/World.h"
 
-#include "edit\SceneControl.h"
-#include "edit\Edit.h"
+#include "edit/SceneControl.h"
+#include "edit/Edit.h"
 
 namespace r3d
 {
@@ -54,11 +54,11 @@ bool SceneControl::Control::OnMouseClickEvent(const game::MouseClick& mClick)
 	if (!_owner->_selNode)
 		return false;
 	INode* selNode = _owner->_selNode.Pnt();
-	//Ñáðîñ ñîòîÿíèÿ ïåðåä êëèêîì
+	//Ð¡Ð±Ñ€Ð¾Ñ ÑÐ¾Ñ‚Ð¾ÑÐ½Ð¸Ñ Ð¿ÐµÑ€ÐµÐ´ ÐºÐ»Ð¸ÐºÐ¾Ð¼
 	if (mClick.state == lsl::ksDown)
 		ResetState();
 
-	//Íàæàòà ëåâàÿ êíîïêà ìûøè
+	//ÐÐ°Ð¶Ð°Ñ‚Ð° Ð»ÐµÐ²Ð°Ñ ÐºÐ½Ð¾Ð¿ÐºÐ° Ð¼Ñ‹ÑˆÐ¸
 	if (mClick.key == lsl::mkLeft && mClick.state == lsl::ksDown)
 	{
 		switch (_owner->_selMode)
@@ -87,7 +87,7 @@ bool SceneControl::Control::OnMouseClickEvent(const game::MouseClick& mClick)
 		}
 	}
 
-	//Îòïóùåíà ëåâàÿ êíîïêà ìûøè.
+	//ÐžÑ‚Ð¿ÑƒÑ‰ÐµÐ½Ð° Ð»ÐµÐ²Ð°Ñ ÐºÐ½Ð¾Ð¿ÐºÐ° Ð¼Ñ‹ÑˆÐ¸.
 	if (mClick.key == lsl::mkLeft && mClick.state == lsl::ksUp)
 	{
 		switch (_owner->_selMode)
@@ -113,7 +113,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 
 	D3DXVECTOR2 offCoord(static_cast<float>(mMove.offCoord.x), static_cast<float>(mMove.offCoord.y));
 	
-	//Íàæàòà ëåâàÿ êíîïêà ìûøè
+	//ÐÐ°Ð¶Ð°Ñ‚Ð° Ð»ÐµÐ²Ð°Ñ ÐºÐ½Ð¾Ð¿ÐºÐ° Ð¼Ñ‹ÑˆÐ¸
 	if (mMove.click.key == lsl::mkLeft && mMove.click.state == lsl::ksDown)
 	{
 		switch (_owner->_selMode)
@@ -231,7 +231,7 @@ bool SceneControl::Control::OnMouseMoveEvent(const game::MouseMove& mMove)
 		}
 	}
 
-	//Äâèæåíèå ìûøüþ
+	//Ð”Ð²Ð¸Ð¶ÐµÐ½Ð¸Ðµ Ð¼Ñ‹ÑˆÑŒÑŽ
 	switch (_owner->_selMode)
 	{
 	case smLink:
@@ -269,7 +269,7 @@ bool SceneControl::ComputeAxeLink(const AABB& aabb, const D3DXMATRIX& aabbToWorl
 			AABB test = testSc->GetLocalAABB(true);
 			
 			float dist;
-			//Âû÷èñëÿåì äâóõñòîðîíåå ïåðåñå÷åíèå test-à áîêñîì aabb. Âûáèðàåì  íàèìåíüøåå çíà÷åíèå äëèíû ïðîíèêíîâåíèÿ, íà÷èíàÿ ñ distLink.
+			//Ð’Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ Ð´Ð²ÑƒÑ…ÑÑ‚Ð¾Ñ€Ð¾Ð½ÐµÐµ Ð¿ÐµÑ€ÐµÑÐµÑ‡ÐµÐ½Ð¸Ðµ test-Ð° Ð±Ð¾ÐºÑÐ¾Ð¼ aabb. Ð’Ñ‹Ð±Ð¸Ñ€Ð°ÐµÐ¼  Ð½Ð°Ð¸Ð¼ÐµÐ½ÑŒÑˆÐµÐµ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ðµ Ð´Ð»Ð¸Ð½Ñ‹ Ð¿Ñ€Ð¾Ð½Ð¸ÐºÐ½Ð¾Ð²ÐµÐ½Ð¸Ñ, Ð½Ð°Ñ‡Ð¸Ð½Ð°Ñ Ñ distLink.
 			if (test.AABBLineCastIntersect(aabb, normOff, aabbToWorld * testSc->GetInvWorldMat(), testSc->GetWorldMat() * worldToAABB, dist) && abs(dist) < abs(outDistOff))
 			{
 				res = true;
@@ -290,8 +290,8 @@ void SceneControl::ComputeLink(INode* node, const D3DXVECTOR3& pos, D3DXVECTOR3&
 	D3DXVECTOR3 newOff = offset;
 	bool repeat = false;
 	unsigned repCnt = 0;
-	//Ïåðåìåùåíèå ðàñêëàäûâàåòñÿ íà îðòû â ñèñòåìå êîîðäèíàò mapObj, è ïî êàæäîé îðòå èùåòñÿ âîçìîæíûé  link. Åñëè èõ íåñêîëüêî òî ïðîöåññ ïðîäîëæàåòñÿ ïîêà íå áóäåò íàäåí áëèçêèé ê íóëþ link èëè ïîêà íå èñòå÷åò çàäàííîå ÷èñëî èòåðàöèé (ñäåëàíî íà ñëó÷àé íåîïðåäåííûõ ñèòóàöèé ÷òîáû èçáåæàòü çàöèêëèâàíèÿ)
-	//Ïîðÿäêîçàâèñèìà, òàêæå çàâèñèò îò íà÷àëüíîãî ïåðåìåùåíèÿ (ïðîâÿëåòñÿ íàïðèìåð ÷òî íóæíî íàäàëèâàòü íà ïîâðåçíîñòü äëÿ âûðàâíèâàíèÿ ïî êðàÿì)
+	//ÐŸÐµÑ€ÐµÐ¼ÐµÑ‰ÐµÐ½Ð¸Ðµ Ñ€Ð°ÑÐºÐ»Ð°Ð´Ñ‹Ð²Ð°ÐµÑ‚ÑÑ Ð½Ð° Ð¾Ñ€Ñ‚Ñ‹ Ð² ÑÐ¸ÑÑ‚ÐµÐ¼Ðµ ÐºÐ¾Ð¾Ñ€Ð´Ð¸Ð½Ð°Ñ‚ mapObj, Ð¸ Ð¿Ð¾ ÐºÐ°Ð¶Ð´Ð¾Ð¹ Ð¾Ñ€Ñ‚Ðµ Ð¸Ñ‰ÐµÑ‚ÑÑ Ð²Ð¾Ð·Ð¼Ð¾Ð¶Ð½Ñ‹Ð¹  link. Ð•ÑÐ»Ð¸ Ð¸Ñ… Ð½ÐµÑÐºÐ¾Ð»ÑŒÐºÐ¾ Ñ‚Ð¾ Ð¿Ñ€Ð¾Ñ†ÐµÑÑ Ð¿Ñ€Ð¾Ð´Ð¾Ð»Ð¶Ð°ÐµÑ‚ÑÑ Ð¿Ð¾ÐºÐ° Ð½Ðµ Ð±ÑƒÐ´ÐµÑ‚ Ð½Ð°Ð´ÐµÐ½ Ð±Ð»Ð¸Ð·ÐºÐ¸Ð¹ Ðº Ð½ÑƒÐ»ÑŽ link Ð¸Ð»Ð¸ Ð¿Ð¾ÐºÐ° Ð½Ðµ Ð¸ÑÑ‚ÐµÑ‡ÐµÑ‚ Ð·Ð°Ð´Ð°Ð½Ð½Ð¾Ðµ Ñ‡Ð¸ÑÐ»Ð¾ Ð¸Ñ‚ÐµÑ€Ð°Ñ†Ð¸Ð¹ (ÑÐ´ÐµÐ»Ð°Ð½Ð¾ Ð½Ð° ÑÐ»ÑƒÑ‡Ð°Ð¹ Ð½ÐµÐ¾Ð¿Ñ€ÐµÐ´ÐµÐ½Ð½Ñ‹Ñ… ÑÐ¸Ñ‚ÑƒÐ°Ñ†Ð¸Ð¹ Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð¸Ð·Ð±ÐµÐ¶Ð°Ñ‚ÑŒ Ð·Ð°Ñ†Ð¸ÐºÐ»Ð¸Ð²Ð°Ð½Ð¸Ñ)
+	//ÐŸÐ¾Ñ€ÑÐ´ÐºÐ¾Ð·Ð°Ð²Ð¸ÑÐ¸Ð¼Ð°, Ñ‚Ð°ÐºÐ¶Ðµ Ð·Ð°Ð²Ð¸ÑÐ¸Ñ‚ Ð¾Ñ‚ Ð½Ð°Ñ‡Ð°Ð»ÑŒÐ½Ð¾Ð³Ð¾ Ð¿ÐµÑ€ÐµÐ¼ÐµÑ‰ÐµÐ½Ð¸Ñ (Ð¿Ñ€Ð¾Ð²ÑÐ»ÐµÑ‚ÑÑ Ð½Ð°Ð¿Ñ€Ð¸Ð¼ÐµÑ€ Ñ‡Ñ‚Ð¾ Ð½ÑƒÐ¶Ð½Ð¾ Ð½Ð°Ð´Ð°Ð»Ð¸Ð²Ð°Ñ‚ÑŒ Ð½Ð° Ð¿Ð¾Ð²Ñ€ÐµÐ·Ð½Ð¾ÑÑ‚ÑŒ Ð´Ð»Ñ Ð²Ñ‹Ñ€Ð°Ð²Ð½Ð¸Ð²Ð°Ð½Ð¸Ñ Ð¿Ð¾ ÐºÑ€Ð°ÑÐ¼)
 	do
 	{
 		float xDist;
@@ -490,7 +490,7 @@ void SceneControl::SelectNode(const INodeRef& value)
 {
 	if (_selNode != value)
 	{
-		//Ñáðàñûâàåì ñîñòîÿíèå â ñëó÷àå èìçåíåíèÿ âûäåëåíèÿ
+		//Ð¡Ð±Ñ€Ð°ÑÑ‹Ð²Ð°ÐµÐ¼ ÑÐ¾ÑÑ‚Ð¾ÑÐ½Ð¸Ðµ Ð² ÑÐ»ÑƒÑ‡Ð°Ðµ Ð¸Ð¼Ð·ÐµÐ½ÐµÐ½Ð¸Ñ Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð¸Ñ
 		_control->ResetState();
 
 		if (_selNode)
@@ -516,7 +516,7 @@ void SceneControl::SetSelMode(SelMode value)
 {
 	if (_selMode != value)
 	{
-		//Ñáðàñûâàåì ñîñòîÿíèå â ñëó÷àå èìçåíåíèÿ âûäåëåíèÿ
+		//Ð¡Ð±Ñ€Ð°ÑÑ‹Ð²Ð°ÐµÐ¼ ÑÐ¾ÑÑ‚Ð¾ÑÐ½Ð¸Ðµ Ð² ÑÐ»ÑƒÑ‡Ð°Ðµ Ð¸Ð¼Ð·ÐµÐ½ÐµÐ½Ð¸Ñ Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð¸Ñ
 		_control->ResetState();
 
 		_selMode = value;
