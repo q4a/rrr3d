@@ -31,6 +31,11 @@ if (NOT MSVC)
     add_subdirectory(XPlatform)
 endif()
 
+# The PhysX 2.8 compatibility shim. Independent of the rest of the tree -- it
+# implements an API rather than consuming one -- so it builds and tests on its
+# own, before anything that uses it compiles.
+add_subdirectory(PhysX28)
+
 add_subdirectory(LexStd)
 add_subdirectory(MathLib)
 add_subdirectory(NetLib)
