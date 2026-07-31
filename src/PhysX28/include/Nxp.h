@@ -25,6 +25,43 @@
 
 /* ------------------------------------------------- Physics/Nxp.h -------- */
 
+#include "NxSimpleTypes.h"
+
+typedef NxU16 NxCollisionGroup;   /* must be < 32; NxShapeDesc::checkValid enforces it */
+typedef NxU16 NxMaterialIndex;
+
+/*
+ * The 128-bit collision mask. The game only ever writes bits0, and only two
+ * values (0 and 1), but all four words exist because Scene::SetShapeGroupsMask
+ * and the raycast filter both take the whole struct.
+ */
+class NxGroupsMask
+	{
+	public:
+	NxU32 bits0, bits1, bits2, bits3;
+	};
+
+enum NxShapeFlag
+	{
+	NX_SF_VISUALIZATION				= (1<<3),
+	NX_SF_DISABLE_COLLISION			= (1<<4),
+	NX_SF_FEATURE_INDICES			= (1<<5),
+	NX_SF_DISABLE_RAYCASTING		= (1<<6),
+	NX_SF_POINT_CONTACT_FORCE		= (1<<7),
+	NX_SF_FLUID_DRAIN				= (1<<8),
+	NX_SF_FLUID_DISABLE_COLLISION	= (1<<10),
+	NX_SF_FLUID_TWOWAY				= (1<<11),
+	NX_SF_DISABLE_RESPONSE			= (1<<12),
+	NX_SF_DYNAMIC_DYNAMIC_CCD		= (1<<13),
+	NX_SF_DISABLE_SCENE_QUERIES		= (1<<14),
+	NX_SF_CLOTH_DRAIN				= (1<<15),
+	NX_SF_CLOTH_DISABLE_COLLISION	= (1<<16),
+	NX_SF_CLOTH_TWOWAY				= (1<<17),
+	NX_SF_SOFTBODY_DRAIN			= (1<<18),
+	NX_SF_SOFTBODY_DISABLE_COLLISION = (1<<19),
+	NX_SF_SOFTBODY_TWOWAY			= (1<<20)
+	};
+
 enum NxShapeType
 	{
 	NX_SHAPE_PLANE			= 0,

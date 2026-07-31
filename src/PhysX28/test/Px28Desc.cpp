@@ -7,6 +7,7 @@
 
 #include "NxSpringDesc.h"
 #include "NxTireFunctionDesc.h"
+#include "NxShapeDesc.h"
 
 #include <cstdio>
 #include <cmath>
@@ -93,6 +94,58 @@ int RunDescTests()
 		NxTireFunctionDesc shipped;
 		Check("the default curve peaks at 0.02, not at a driveable value",
 		      Near(shipped.hermiteEval(1.0f), 0.02f));
+	}
+
+	// isValid() is not a formality. Actor::CreateNxShape uses !isValid() as its
+	// "the mesh has not loaded yet, defer this shape" signal, so a mesh
+	// descriptor with a null meshData must be INVALID -- returning true there
+	// creates every mesh shape in the game twice.
+	{
+		NxTriangleMeshShapeDesc mesh;
+		Check("a mesh descriptor with no meshData is INVALID", !mesh.isValid());
+		Check("...and reports reason 1", mesh.checkValid() == 1);
+
+		NxConvexShapeDesc convex;
+		Check("a convex descriptor with no meshData is INVALID", !convex.isValid());
+	}
+
+	// Shape descriptor defaults.
+	{
+		NxBoxShapeDesc box;
+		Check("box dimensions are HALF-extents, defaulting to 0.5",
+		      Near(box.dimensions.x, 0.5f));
+		Check("a default box is valid", box.isValid());
+		Check("skinWidth defaults to -1, meaning 'use the global'", Near(box.skinWidth, -1.0f));
+		Check("density defaults to 1 and mass to -1", Near(box.density, 1.0f) && Near(box.mass, -1.0f));
+		Check("group defaults to 0", box.group == 0);
+		box.group = 32;
+		Check("a group of 32 or more is invalid -- only 32 groups exist", !box.isValid());
+	}
+
+	{
+		NxCapsuleShapeDesc cap;
+		Check("a default capsule is INVALID (radius and height are 0)", !cap.isValid());
+		cap.radius = 0.5f; cap.height = 2.0f;
+		Check("...and valid once given a radius and height", cap.isValid());
+	}
+
+	// The wheel descriptor's defaults ARE the game's default wheel tuning,
+	// because WheelShape's constructor takes a default-constructed one.
+	{
+		NxWheelShapeDesc wheel;
+		Check("wheel radius defaults to 1", Near(wheel.radius, 1.0f));
+		Check("suspensionTravel defaults to 1", Near(wheel.suspensionTravel, 1.0f));
+		Check("inverseWheelMass defaults to 1", Near(wheel.inverseWheelMass, 1.0f));
+		Check("wheelFlags default to 0, NOT to clamped friction", wheel.wheelFlags == 0);
+		Check("torques and steer default to 0",
+		      wheel.motorTorque == 0 && wheel.brakeTorque == 0 && wheel.steerAngle == 0);
+
+		// The fromCtor path leaves the nested descriptors to their own
+		// constructors, so the tire curve still has the SDK's defaults.
+		Check("the nested tire curve kept its own defaults",
+		      Near(wheel.longitudalTireForceFunction.extremumValue, 0.02f));
+		Check("the nested spring kept its own defaults",
+		      wheel.suspension.spring == 0 && wheel.suspension.damper == 0);
 	}
 
 	printf("\n%s (%d failure%s)\n", gFailures ? "FAILED" : "all defaults hold",
