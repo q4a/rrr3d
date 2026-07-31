@@ -8,6 +8,7 @@
 
 int RunEnumTests();
 int RunVec3Tests();
+int RunQuatTests();
 
 int main()
 {
@@ -16,6 +17,8 @@ int main()
 	failures += RunEnumTests();
 	printf("\n");
 	failures += RunVec3Tests();
+	printf("\n");
+	failures += RunQuatTests();
 
 	printf("\n================================\n");
 	printf("%s: %d failure%s\n", failures ? "FAILED" : "OK",
