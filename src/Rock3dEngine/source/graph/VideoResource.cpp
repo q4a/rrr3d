@@ -681,7 +681,13 @@ void Tex2DResource::DoInit()
 
 	if (_d3dxLoadUsed)
 	{
-		hr = D3DXCreateTextureFromFileEx(GetEngine()->GetDriver().GetDevice(), _data->GetFileName().c_str(), _gui ? D3DX_DEFAULT_NONPOW2 : D3DX_DEFAULT, _gui ? D3DX_DEFAULT_NONPOW2 : D3DX_DEFAULT, GetLevelCnt(), usage, D3DFMT_UNKNOWN, GetMemoryPool(), D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL, &_texture);
+		//Always native size. D3DX_DEFAULT rounds the texture up to the next power
+		//of two and rescales to get there. No hardware has needed that for twenty
+		//years, and it quietly resamples every non-power-of-two texture the game
+		//loads. The GUI already asked for NONPOW2; there was never a reason for
+		//the rest to differ, and a reimplemented D3DX would otherwise have to
+		//reproduce the rounding to stay faithful to it.
+		hr = D3DXCreateTextureFromFileEx(GetEngine()->GetDriver().GetDevice(), _data->GetFileName().c_str(), D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, GetLevelCnt(), usage, D3DFMT_UNKNOWN, GetMemoryPool(), D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL, &_texture);
 
 		//hr = D3DXCreateTextureFromFileInMemoryEx(GetEngine()->GetDriver().GetDevice(), _data->GetData(), _data->GetSize(), D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, GetLevelCnt(), usage, D3DFMT_UNKNOWN, GetMemoryPool(), D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL, &_texture);
 	}
