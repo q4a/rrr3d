@@ -10,4 +10,12 @@
 
 #include "xplatform.h"
 
+/*
+ * IUnknown, and with it the COM vtable machinery the DirectX headers declare
+ * their interfaces against. On Windows this arrives through windows.h and
+ * objbase.h; DXVK's vendored objbase.h does not include unknwn.h itself, so the
+ * bridge is made here rather than by editing a vendored file.
+ */
+#include "windows/unknwn.h"
+
 #endif

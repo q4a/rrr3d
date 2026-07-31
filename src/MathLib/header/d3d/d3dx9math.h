@@ -20,9 +20,15 @@
 /*
  * Vendored from Wine by tools/vendor-wine-d3dx9math.py. Upstream includes the
  * whole of d3dx9.h here; this port needs only the D3D9 base types that the math
- * structs derive from, which XPlatform supplies.
+ * structs derive from -- D3DVECTOR, D3DMATRIX and D3DCOLORVALUE.
+ *
+ * windows.h first, because the DirectX headers name the Windows scalar types
+ * and do not include anything themselves -- the ordering the DirectX SDK
+ * assumes on Windows too. d3d9.h rather than d3d9types.h because the
+ * implementation also uses D3D_OK and D3DERR_INVALIDCALL, which live there.
  */
-#include "d3d9types.h"
+#include <windows.h>
+#include <d3d9.h>
 
 #ifndef __D3DX9MATH_H__
 #define __D3DX9MATH_H__

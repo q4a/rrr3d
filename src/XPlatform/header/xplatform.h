@@ -30,33 +30,21 @@
 
 /* ---------------------------------------------------------------- types -- */
 
-typedef int                 BOOL;
-typedef unsigned char       BYTE;
-typedef uint16_t            WORD;
-typedef uint32_t            DWORD;   /* 32 bits, as on Win32 -- not long */
-typedef int32_t             LONG;
-typedef uint32_t            ULONG;
-typedef int64_t             LONGLONG;
-typedef uint64_t            ULONGLONG;
-typedef unsigned int        UINT;
-typedef int                 INT;
-typedef void*               HANDLE;
-typedef void*               LPVOID;
-typedef const void*         LPCVOID;
-typedef char*               LPSTR;
-typedef const char*         LPCSTR;
-typedef wchar_t             WCHAR;
-typedef wchar_t*            LPWSTR;
-typedef const wchar_t*      LPCWSTR;
-typedef int32_t             HRESULT;
+/*
+ * The Windows scalar types, the COM declaration macros, HRESULT and its
+ * constants all come from DXVK's native base -- vendored by
+ * tools/vendor-directx-headers.py. Using DXVK's rather than a hand-written set
+ * is deliberate: the D3D9 implementation this port runs on is DXVK, so the game
+ * and the backend agree on those definitions by construction.
+ */
+#include "windows/windows_base.h"
+
 typedef int64_t             __int64;
 typedef int32_t             __int32;
 typedef int16_t             __int16;
 typedef int8_t              __int8;
 
-#define __stdcall
 #define __cdecl
-#define WINAPI
 #define CALLBACK
 
 /*
@@ -67,40 +55,15 @@ typedef int8_t              __int8;
  */
 #define __declspec(x)
 
-#ifndef TRUE
-#define TRUE  1
-#define FALSE 0
-#endif
-
-#ifndef NULL
-#define NULL 0
-#endif
-
+#ifndef MAX_PATH
 #define MAX_PATH 260
+#endif
 
 #define MAXUINT   ((UINT)~((UINT)0))
 #define MAXDWORD  ((DWORD)~((DWORD)0))
 #define MAXWORD   ((WORD)0xffff)
 #define MAXBYTE   ((BYTE)0xff)
 #define MAXLONG   ((LONG)0x7fffffff)
-
-#define S_OK            ((HRESULT)0)
-#define S_FALSE         ((HRESULT)1)
-#define E_FAIL          ((HRESULT)0x80004005)
-#define E_INVALIDARG    ((HRESULT)0x80070057)
-#define E_OUTOFMEMORY   ((HRESULT)0x8007000E)
-#define E_NOTIMPL       ((HRESULT)0x80004001)
-#define E_NOINTERFACE   ((HRESULT)0x80004002)
-#define E_POINTER       ((HRESULT)0x80004003)
-
-#define SUCCEEDED(hr)   (((HRESULT)(hr)) >= 0)
-#define FAILED(hr)      (((HRESULT)(hr)) < 0)
-
-typedef union _LARGE_INTEGER
-{
-	struct { DWORD LowPart; LONG HighPart; } u;
-	LONGLONG QuadPart;
-} LARGE_INTEGER;
 
 /* --------------------------------------------------------- code pages --- */
 
@@ -111,10 +74,19 @@ typedef union _LARGE_INTEGER
 
 /* ------------------------------------------------------------ waiting --- */
 
+/* windows_base.h already carries some of these. */
+#ifndef INFINITE
 #define INFINITE        0xFFFFFFFF
+#endif
+#ifndef WAIT_OBJECT_0
 #define WAIT_OBJECT_0   0x00000000
+#endif
+#ifndef WAIT_TIMEOUT
 #define WAIT_TIMEOUT    0x00000102
+#endif
+#ifndef WAIT_FAILED
 #define WAIT_FAILED     0xFFFFFFFF
+#endif
 
 /* --------------------------------------------------------- messagebox --- */
 

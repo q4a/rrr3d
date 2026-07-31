@@ -25,4 +25,9 @@ add_library(${PROJECT_NAME} SHARED
 # to find this one.
 target_include_directories(${PROJECT_NAME} PUBLIC
     header
+    # Vendored by tools/vendor-directx-headers.py. Both are include roots in
+    # their own right because d3d9.h includes <objbase.h> and <windows.h> by
+    # those bare names, exactly as it does on Windows.
+    header/windows
+    header/directx
 )
