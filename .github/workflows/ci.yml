@@ -34,6 +34,8 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: x86
+    - name: Fetch pinned Boost
+      run: python3 tools/setup-boost.py
     - name: Configure
       run: cmake --preset=${{ matrix.configuration }}
     - name: Build

@@ -41,9 +41,13 @@ public:
 
 
 
-template<class _Type> std::ostream& INetPlayer::NewModel()
-{
-	return NewModel(net()->modelClasses().GetByClass<_Type>().GetKey());
-}
+//INetPlayer::NewModel<_Type>() is defined at the bottom of INetService.h.
+//
+//Its body calls net()->modelClasses(), and net() returns INetService*, which is
+//only forward-declared here -- INetService.h includes this header, so it cannot
+//be included back. That expression does not depend on _Type, so it is checked
+//where the template is defined rather than where it is instantiated, and the
+//incomplete type is an error at that point. Moving the definition to after
+//INetService is complete is the whole fix.
 
 }

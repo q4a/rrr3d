@@ -5,7 +5,9 @@
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
-#include <boost/thread/thread.hpp>
+// boost/thread/thread.hpp was included here, but no boost::thread symbol
+// appears anywhere in the tree. Dropping it keeps Boost header-only for this
+// library -- Asio, bind and system all are; Thread is not.
 
 #include "net/NetLib.h"
 

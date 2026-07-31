@@ -86,4 +86,14 @@ public:
 	virtual void ReleaseStreamBuf(IStreamBuf* inst) = 0;
 };
 
+
+
+
+//Declared in INetPlayer.h, defined here: the body needs INetService complete,
+//and that header cannot include this one because this one includes it.
+template<class _Type> std::ostream& INetPlayer::NewModel()
+{
+	return NewModel(net()->modelClasses().template GetByClass<_Type>().GetKey());
+}
+
 }

@@ -3,8 +3,15 @@
 #include "net/NetService.h"
 #include "net/NetConnectionTCP.h"
 
-#include <winsock2.h>
-#include <Iphlpapi.h>
+#ifdef _WIN32
+	#include <winsock2.h>
+	#include <Iphlpapi.h>
+#else
+	#include <arpa/inet.h>
+	#include <ifaddrs.h>
+	#include <net/if.h>
+	#include <netinet/in.h>
+#endif
 
 namespace net
 {
@@ -518,6 +525,43 @@ INetAcceptorImpl* NetService::acceptorImpl() const
 	return _netAcceptorImpl;
 }
 
+#ifndef _WIN32
+
+/*
+ * The Windows version below enumerates adapters through IP_ADAPTER_ADDRESSES,
+ * collecting the IPv4 address of every non-loopback interface that is up.
+ * getifaddrs answers the same question directly, so this is a substitution of
+ * the platform service rather than an emulation of the Win32 structures --
+ * faking IP_ADAPTER_ADDRESSES would be a lot of shape for one call site.
+ */
+bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
+{
+	ifaddrs* interfaces = nullptr;
+	if (getifaddrs(&interfaces) != 0)
+	{
+		LSL_LOG("getifaddrs failed");
+		return false;
+	}
+
+	for (ifaddrs* iter = interfaces; iter; iter = iter->ifa_next)
+	{
+		if (!iter->ifa_addr || iter->ifa_addr->sa_family != AF_INET)
+			continue;
+		if ((iter->ifa_flags & IFF_UP) == 0 || (iter->ifa_flags & IFF_LOOPBACK) != 0)
+			continue;
+
+		char text[INET_ADDRSTRLEN] = {0};
+		const sockaddr_in* addr = reinterpret_cast<const sockaddr_in*>(iter->ifa_addr);
+		if (inet_ntop(AF_INET, &addr->sin_addr, text, sizeof(text)))
+			addrVec.push_back(text);
+	}
+
+	freeifaddrs(interfaces);
+	return true;
+}
+
+#else
+
 bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
 {
 	const unsigned WORKING_BUFFER_SIZE = 15000;
@@ -583,6 +627,8 @@ bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
 
 	return true;
 }
+
+#endif /* _WIN32 */
 
 IStreamBuf* NetService::CreateStreamBuf(unsigned maxSize, const std::allocator<char>& allocator)
 {

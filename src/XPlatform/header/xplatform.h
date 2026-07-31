@@ -59,6 +59,14 @@ typedef int8_t              __int8;
 #define WINAPI
 #define CALLBACK
 
+/*
+ * __declspec(dllexport) / __declspec(dllimport) become nothing. Symbols in a
+ * shared library here have default visibility already, so the export
+ * annotations Windows requires are simply unnecessary rather than translated.
+ * These are the only two forms the tree uses.
+ */
+#define __declspec(x)
+
 #ifndef TRUE
 #define TRUE  1
 #define FALSE 0
@@ -69,6 +77,12 @@ typedef int8_t              __int8;
 #endif
 
 #define MAX_PATH 260
+
+#define MAXUINT   ((UINT)~((UINT)0))
+#define MAXDWORD  ((DWORD)~((DWORD)0))
+#define MAXWORD   ((WORD)0xffff)
+#define MAXBYTE   ((BYTE)0xff)
+#define MAXLONG   ((LONG)0x7fffffff)
 
 #define S_OK            ((HRESULT)0)
 #define S_FALSE         ((HRESULT)1)

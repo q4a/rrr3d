@@ -119,7 +119,7 @@ template<class _Key, class _BaseClass, class _Arg> class ArgClassList: public Ba
 public:
 	_BaseClass* CreateInst(const _Key& key, const _Arg& arg)
 	{
-		return Get(key).CreateInst(arg);
+		return this->Get(key).CreateInst(arg);
 	}
 };
 
