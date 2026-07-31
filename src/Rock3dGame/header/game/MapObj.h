@@ -48,6 +48,11 @@ public:
 
 static const char* IMapObjLib_cCategoryStr[IMapObjLib::cCategoryEnd] = {"ctEffects", "ctDecoration", "ctTrack", "ctWeapon", "ctCar", "ctWaypoint", "ctBonus"};
 
+//Named by members below before they are defined; the friend declarations do
+//not put them in namespace scope. See RecordLib.h for the same case.
+class MapObjLib;
+class MapObjects;
+
 class MapObjRec: public Record
 {
 	friend class MapObjLib;

@@ -33,6 +33,12 @@
 #define DT_NOCLIP       0x00000100
 #define DT_CALCRECT     0x00000400
 
+/* The base of the range Windows reserves for an application's own messages.
+   IWorld.h derives WM_GRAPH_EVENT from it, which DirectShow posts cutscene
+   notifications through -- so the value only has to be a number the rest of
+   the port agrees on, and it may as well be the one it has always been. */
+#define WM_APP  0x8000
+
 #ifdef __cplusplus
 extern "C" {
 #endif

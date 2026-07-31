@@ -204,6 +204,21 @@ BOOL QueueUserWorkItem(LPTHREAD_START_ROUTINE function, LPVOID context, DWORD fl
 DWORD GetFileAttributesA(LPCSTR filename);
 DWORD GetFileAttributesW(LPCWSTR filename);
 
+/* ---------------------------------------------------------- module entry --- */
+
+/* windows_base.h defines WINAPI as nothing; APIENTRY is its other spelling.
+ *
+ * The DLL_* reasons let Rock3dGame's dllmain.cpp compile unchanged. Its DllMain
+ * does nothing but break out of a switch and return TRUE, and nothing calls it
+ * here -- a dylib has no such entry point. It is kept rather than excluded so
+ * the file stays identical on both platforms. */
+#define APIENTRY
+
+#define DLL_PROCESS_DETACH  0
+#define DLL_PROCESS_ATTACH  1
+#define DLL_THREAD_ATTACH   2
+#define DLL_THREAD_DETACH   3
+
 /* ------------------------------------------------------------ windows --- */
 
 /* An HWND here is not a window handle -- the SDL3 shell passes a CAMetalLayer

@@ -6,6 +6,13 @@ namespace r3d
 namespace game
 {
 
+//Named by Record's members below before either is defined. The friend
+//declarations inside Record do not introduce them into the namespace -- MSVC
+//treats a friend declaration as declaring the class in the nearest enclosing
+//scope, which is pre-standard behaviour it still allows.
+class RecordLib;
+class RecordNode;
+
 class Record: public lsl::Object
 {
 	friend class RecordLib;
@@ -153,7 +160,12 @@ protected:
 template<class _Record> void RecordList<_Record>::Save(lsl::SWriter* writer)
 {
 	unsigned i = 0;
-	for (iterator iter = begin(); iter != end(); ++iter, ++i)
+	//lsl::Container<_Record*> is a dependent base, so its members are not
+	//found by unqualified lookup. Spelled out rather than through the _MyCont
+	//typedef above, which names Container<_Record> -- without the pointer, and
+	//so not the base class at all.
+	typedef typename lsl::Container<_Record*>::iterator iterator;
+	for (iterator iter = this->begin(); iter != this->end(); ++iter, ++i)
 	{
 		std::stringstream sstream;
 		sstream << "item" << i;
@@ -164,7 +176,7 @@ template<class _Record> void RecordList<_Record>::Save(lsl::SWriter* writer)
 
 template<class _Record> void RecordList<_Record>::Load(lsl::SReader* reader)
 {
-	Clear();
+	this->Clear();
 
 	lsl::SReader* child = reader->FirstChildValue();
 	while (child)
