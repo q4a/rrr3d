@@ -1,10 +1,13 @@
 #include "xplatform.h"
 
+#include "wingdi.h"
+
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 #include <mach-o/dyld.h>
 #include <sys/stat.h>
@@ -253,6 +256,136 @@ DWORD GetFileAttributesW(LPCWSTR filename)
 		return INVALID_FILE_ATTRIBUTES;
 
 	return GetFileAttributesA(narrow);
+}
+
+/* ----------------------------------------------------------------- windows */
+
+namespace
+{
+	std::mutex& ClientSizeLock()
+	{
+		static std::mutex lock;
+		return lock;
+	}
+
+	/* Deliberately a flat list rather than a map: the game creates one window,
+	   the map editor two, and a linear scan of three entries under a lock costs
+	   nothing next to being able to read this in a debugger. */
+	struct ClientSize
+	{
+		HWND window;
+		long width;
+		long height;
+	};
+
+	std::vector<ClientSize>& ClientSizes()
+	{
+		static std::vector<ClientSize> sizes;
+		return sizes;
+	}
+} /* namespace */
+
+void RegisterClientSize(HWND window, long width, long height)
+{
+	std::lock_guard<std::mutex> guard(ClientSizeLock());
+
+	std::vector<ClientSize>& sizes = ClientSizes();
+	for (size_t i = 0; i < sizes.size(); ++i)
+		if (sizes[i].window == window)
+		{
+			sizes[i].width = width;
+			sizes[i].height = height;
+			return;
+		}
+
+	const ClientSize added = { window, width, height };
+	sizes.push_back(added);
+}
+
+BOOL GetClientRect(HWND window, LPRECT rect)
+{
+	if (!rect)
+		return FALSE;
+
+	/* Win32 zeroes the rect and returns FALSE for a bad handle. Callers here
+	   divide by the width to form an aspect ratio, so leaving it untouched
+	   would hand them whatever was on the stack. */
+	rect->left = 0;
+	rect->top = 0;
+	rect->right = 0;
+	rect->bottom = 0;
+
+	std::lock_guard<std::mutex> guard(ClientSizeLock());
+
+	const std::vector<ClientSize>& sizes = ClientSizes();
+	for (size_t i = 0; i < sizes.size(); ++i)
+		if (sizes[i].window == window)
+		{
+			rect->right = sizes[i].width;
+			rect->bottom = sizes[i].height;
+			return TRUE;
+		}
+
+	return FALSE;
+}
+
+/* ------------------------------------------------------------------- misc */
+
+int MulDiv(int number, int numerator, int denominator)
+{
+	/* Win32 rounds the quotient to nearest, away from zero on a tie, and
+	   returns -1 rather than trapping. Plain integer division truncates, which
+	   would quietly cost a pixel of font height at some DPI values. */
+	if (denominator == 0)
+		return -1;
+
+	const long long product = static_cast<long long>(number) * numerator;
+	const bool negative = (product < 0) != (denominator < 0);
+
+	/* Rounded on magnitudes, so the tie breaks away from zero in both signs.
+	   A tie only arises when the denominator is even, and then d / 2 is exact. */
+	const unsigned long long p = product < 0
+	                                 ? 0ULL - static_cast<unsigned long long>(product)
+	                                 : static_cast<unsigned long long>(product);
+	const unsigned long long d = denominator < 0
+	                                 ? 0ULL - static_cast<unsigned long long>(denominator)
+	                                 : static_cast<unsigned long long>(denominator);
+	const unsigned long long rounded = (p + d / 2) / d;
+
+	if (rounded > (negative ? 2147483648ULL : 2147483647ULL))
+		return -1;
+
+	return negative ? -static_cast<int>(rounded - 1) - 1 : static_cast<int>(rounded);
+}
+
+/* --------------------------------------------------------- device contexts */
+
+/* There is no GDI here, and the one caller only wants a handle to hand straight
+   back to GetDeviceCaps. A distinguishable non-null value is the whole contract:
+   NULL would read as failure. */
+static int TheScreenDC = 0;
+
+HDC GetDC(HWND)
+{
+	return &TheScreenDC;
+}
+
+int ReleaseDC(HWND, HDC)
+{
+	return 1;
+}
+
+int GetDeviceCaps(HDC, int index)
+{
+	/* 96, because that is what Windows answers on a default display, and the
+	   number is not a display property here -- it is a font size. Engine.cpp
+	   turns it into -MulDiv(9, dpi, 72), so 96 reproduces the same 12-pixel
+	   font the game has always drawn its FPS counter in. A Retina backing
+	   scale is the Metal layer's business, not this one's. */
+	if (index == LOGPIXELSY)
+		return 96;
+
+	return 0;
 }
 
 /* ------------------------------------------------------------------ timing */

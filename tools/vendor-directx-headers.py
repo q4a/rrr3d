@@ -90,6 +90,40 @@ def fetch(url):
     return result.stdout
 
 
+def adapt_vector4_ctor(text):
+    """Add the D3DXVECTOR4(D3DXVECTOR3, w) constructor the SDK has and Wine lacks.
+
+    Microsoft's d3dx9math.h declares D3DXVECTOR4(CONST D3DXVECTOR3& xyz, FLOAT
+    fw); Wine's -- and so MinGW's -- does not. The game uses it (GrassField.cpp
+    builds screen-space quads that way), so it is added rather than the call
+    sites being rewritten. This is the same class of deviation as the plane-dot
+    signatures: a difference between two reimplementations of one API, resolved
+    towards the one the game was written against.
+    """
+    anchor = "    D3DXVECTOR4(FLOAT fx, FLOAT fy, FLOAT fz, FLOAT fw);"
+    if anchor not in text:
+        raise SystemExit("d3dx9math.h: D3DXVECTOR4 constructors not found -- check --mingw-ref")
+    added = anchor + "\n    D3DXVECTOR4(const struct D3DXVECTOR3& xyz, FLOAT fw);"
+    text = text.replace(anchor, added, 1)
+
+    return text
+
+
+def adapt_vector4_inline(text):
+    """The body for the constructor adapt_vector4_ctor declares."""
+    anchor = "inline D3DXVECTOR4::D3DXVECTOR4(FLOAT fx, FLOAT fy, FLOAT fz, FLOAT fw)"
+    if anchor not in text:
+        raise SystemExit("d3dx9math.inl: D3DXVECTOR4 body not found -- check --mingw-ref")
+    body = ("inline D3DXVECTOR4::D3DXVECTOR4(const struct D3DXVECTOR3& xyz, FLOAT fw)\n"
+            "{\n"
+            "    x = xyz.x;\n"
+            "    y = xyz.y;\n"
+            "    z = xyz.z;\n"
+            "    w = fw;\n"
+            "}\n\n")
+    return text.replace(anchor, body + anchor, 1)
+
+
 def adapt_plane_dot(text):
     """Match the SDK's signature for the two plane-dot helpers.
 
@@ -127,7 +161,10 @@ def main():
         data = fetch(MINGW_RAW.format(ref=args.mingw_ref, name=name,
                                       dir=MINGW_DIRS.get(name, "include")))
         if name == "d3dx9math.inl":
-            data = adapt_plane_dot(data.decode("utf-8")).encode("utf-8")
+            text = adapt_plane_dot(data.decode("utf-8"))
+            data = adapt_vector4_inline(text).encode("utf-8")
+        elif name == "d3dx9math.h":
+            data = adapt_vector4_ctor(data.decode("utf-8")).encode("utf-8")
         (DIRECTX_DIR / name).write_bytes(data)
         print("mingw %-20s -> %s" % (name, DIRECTX_DIR / name))
 

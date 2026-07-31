@@ -249,6 +249,14 @@ inline D3DXVECTOR4::D3DXVECTOR4(const FLOAT *pf)
     w = pf[3];
 }
 
+inline D3DXVECTOR4::D3DXVECTOR4(const struct D3DXVECTOR3& xyz, FLOAT fw)
+{
+    x = xyz.x;
+    y = xyz.y;
+    z = xyz.z;
+    w = fw;
+}
+
 inline D3DXVECTOR4::D3DXVECTOR4(FLOAT fx, FLOAT fy, FLOAT fz, FLOAT fw)
 {
     x = fx;

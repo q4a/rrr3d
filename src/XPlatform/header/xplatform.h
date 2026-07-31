@@ -204,6 +204,19 @@ BOOL QueueUserWorkItem(LPTHREAD_START_ROUTINE function, LPVOID context, DWORD fl
 DWORD GetFileAttributesA(LPCSTR filename);
 DWORD GetFileAttributesW(LPCWSTR filename);
 
+/* ------------------------------------------------------------ windows --- */
+
+/* An HWND here is not a window handle -- the SDL3 shell passes a CAMetalLayer
+   through as one -- so nothing can be asked of it. GetClientRect therefore
+   answers from a size the shell publishes rather than from the handle.
+ *
+ * This is why XPlatform is built SHARED. A static archive is linked into both
+ * the executable and libRock3dGame.dylib, giving each its own copy of the size
+ * below: the shell would register into one and the engine would read the other,
+ * silently, forever. */
+void RegisterClientSize(HWND window, long width, long height);
+BOOL GetClientRect(HWND window, LPRECT rect);
+
 /* ------------------------------------------------------------- timing --- */
 
 DWORD GetTickCount(void);
@@ -226,6 +239,7 @@ DWORD GetModuleFileNameW(void* module, LPWSTR filename, DWORD size);
 
 /* --------------------------------------------------------------- misc --- */
 
+int  MulDiv(int number, int numerator, int denominator);
 int  MessageBoxA(void* owner, LPCSTR text, LPCSTR caption, UINT type);
 void OutputDebugStringA(LPCSTR text);
 DWORD GetLastError(void);
@@ -240,6 +254,10 @@ void  SetLastError(DWORD error);
 #define GetModuleFileName   GetModuleFileNameA
 #define MessageBox          MessageBoxA
 #define OutputDebugString   OutputDebugStringA
+
+/* winnt.h's, and it is the identity in an ANSI build. Two call sites, both
+   passing a literal font name to D3DXCreateFont. */
+#define TEXT(quote) quote
 
 /* ------------------------------------------------------- secure CRT ---- */
 

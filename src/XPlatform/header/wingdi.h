@@ -166,4 +166,24 @@ typedef PLOGFONTA   PLOGFONT;
 typedef LPLOGFONTA  LPLOGFONT;
 typedef TEXTMETRICA TEXTMETRIC;
 
+/* ------------------------------------------------------- device contexts --- */
+
+/* The engine asks for exactly one device-context capability, and only to size
+   a font: GetDeviceCaps(GetDC(NULL), LOGPIXELSY) at Engine.cpp:54. The other
+   indices are not defined, so a second caller gets a compile error rather than
+   a zero. */
+#define LOGPIXELSY  90
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+HDC  GetDC(HWND window);
+int  ReleaseDC(HWND window, HDC dc);
+int  GetDeviceCaps(HDC dc, int index);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

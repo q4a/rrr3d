@@ -22,4 +22,7 @@
    in terms of. */
 #include "wingdi.h"
 
+/* The DrawText format flags and SetRect, for the same reason. */
+#include "winuser.h"
+
 #endif
