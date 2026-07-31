@@ -48,7 +48,7 @@ private:
 	};
 public:
 	static const float cMaxSimStep;
-	static const int cMaxSimIter = 6;
+	static constexpr int cMaxSimIter = 6;
 private:
 	int _terminateResult;
 	bool _terminate;

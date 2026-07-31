@@ -330,7 +330,7 @@ public:
 	//
 	static const lsl::string cGameDir;
 	//
-	static const unsigned cMaxPlayers = MAX_PLAYERS_PER_SERVER;
+	static constexpr unsigned cMaxPlayers = MAX_PLAYERS_PER_SERVER;
 private:
 	SteamService* _service;
 

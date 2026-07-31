@@ -17,7 +17,7 @@ private:
 
 		r3d::IWayPointRef wp;
 	};
-	class DelDataFunc: public std::unary_function<HTREEITEM, bool>
+	class DelDataFunc
 	{
 	private:
 		CTraceView* _view;
@@ -34,7 +34,7 @@ private:
 			return false;
 		}
 	};
-	class FindItemByPointFunc: public std::unary_function<HTREEITEM, bool>
+	class FindItemByPointFunc
 	{
 	private:
 		CTraceView* _view;
@@ -59,7 +59,7 @@ private:
 		r3d::IWayPathRef path;
 		r3d::IWayNodeRef node;
 	};
-	class DelPathDataFunc: public std::unary_function<HTREEITEM, bool>
+	class DelPathDataFunc
 	{
 	private:
 		CTraceView* _view;
@@ -76,7 +76,7 @@ private:
 			return false;
 		}
 	};
-	class FindItemByPathFunc: public std::unary_function<HTREEITEM, bool>
+	class FindItemByPathFunc
 	{
 	private:
 		CTraceView* _view;

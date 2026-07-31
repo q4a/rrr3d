@@ -13,8 +13,8 @@ namespace game
 class CarMotorDesc
 {
 public:
-	static const int cNeutralGear = -1;
-	static const int cBackGear = 0;
+	static constexpr int cNeutralGear = -1;
+	static constexpr int cBackGear = 0;
 
 	CarMotorDesc();
 

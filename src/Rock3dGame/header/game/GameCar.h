@@ -134,8 +134,8 @@ class GameCar: public GameObject
 private:
 	typedef GameObject _MyBase;
 public:
-	static const int cNeutralGear = CarMotorDesc::cNeutralGear;
-	static const int cBackGear = CarMotorDesc::cBackGear;
+	static constexpr int cNeutralGear = CarMotorDesc::cNeutralGear;
+	static constexpr int cBackGear = CarMotorDesc::cBackGear;
 	static const float cMaxSteerAngle;
 
 	enum MoveCarState {mcNone, mcBrake, mcBack, mcAccel};

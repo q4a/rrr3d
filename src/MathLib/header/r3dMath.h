@@ -40,12 +40,12 @@ struct BoundBox;
 
 struct AABB
 {
-	static const unsigned cLeftPlane   = 0; //-X
-	static const unsigned cTopPlane    = 1; //-Y
-	static const unsigned cBackPlane   = 2; //-Z
-	static const unsigned cRightPlane  = 3; //X
-	static const unsigned cBottomPlane = 4; //Y
-	static const unsigned cFrontPlane  = 5; //Z
+	static constexpr unsigned cLeftPlane   = 0; //-X
+	static constexpr unsigned cTopPlane    = 1; //-Y
+	static constexpr unsigned cBackPlane   = 2; //-Z
+	static constexpr unsigned cRightPlane  = 3; //X
+	static constexpr unsigned cBottomPlane = 4; //Y
+	static constexpr unsigned cFrontPlane  = 5; //Z
 
 	//Edges are stored in this way:
     //                Y

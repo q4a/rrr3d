@@ -18,7 +18,7 @@ private:
 	typedef lsl::List<NetConnection*> Connections;
 	typedef lsl::List<NetChannel*> Channels;
 
-	static const unsigned cBufTickCount = 5;
+	static constexpr unsigned cBufTickCount = 5;
 private:
 	INetServiceUser* _user;	
 	INetAcceptorImpl* _netAcceptorImpl;

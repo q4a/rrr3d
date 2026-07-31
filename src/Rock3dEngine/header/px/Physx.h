@@ -245,7 +245,7 @@ class Shape: public lsl::CollectionItem, public lsl::Serializable
 {
 	friend class Actor;
 public:
-	static const ShapeType Type = stUnknown;
+	static constexpr ShapeType Type = stUnknown;
 private:
 	ShapeType _type;
 	Shapes* _owner;
@@ -313,7 +313,7 @@ class PlaneShape: public Shape
 {
 	typedef Shape _MyBase;
 public:
-	static const ShapeType Type = stPlane;
+	static constexpr ShapeType Type = stPlane;
 private:
 	D3DXVECTOR3 _normal;
 	float _dist;
@@ -342,7 +342,7 @@ class BoxShape: public Shape
 private:
 	typedef Shape _MyBase;
 public:
-	static const ShapeType Type = stBox;
+	static constexpr ShapeType Type = stBox;
 private:
 	D3DXVECTOR3 _dimensions;
 protected:
@@ -367,7 +367,7 @@ class SphereShape: public Shape
 private:
 	typedef Shape _MyBase;
 public:
-	static const ShapeType Type = stSphere;
+	static constexpr ShapeType Type = stSphere;
 private:
 	float _radius;	
 protected:
@@ -392,7 +392,7 @@ class CapsuleShape: public Shape
 private:
 	typedef Shape _MyBase;
 public:
-	static const ShapeType Type = stCapsule;
+	static constexpr ShapeType Type = stCapsule;
 private:
 	float _radius;
 	float _height;
@@ -425,7 +425,7 @@ class TriangleMeshShape: public Shape
 private:
 	typedef Shape _MyBase;
 public:
-	static const ShapeType Type = stTriangleMesh;
+	static constexpr ShapeType Type = stTriangleMesh;
 private:
 	TriangleMesh* _mesh;
 	int _meshId;
@@ -459,7 +459,7 @@ class ConvexShape: public Shape
 private:
 	typedef Shape _MyBase;
 public:
-	static const ShapeType Type = stConvexMesh;
+	static constexpr ShapeType Type = stConvexMesh;
 private:
 	TriangleMesh* _mesh;
 	int _meshId;
@@ -492,7 +492,7 @@ class WheelShape: public Shape
 private:
 	typedef Shape _MyBase;
 public:
-	static const ShapeType Type = stWheel;
+	static constexpr ShapeType Type = stWheel;
 
 	class ContactModify: public NxUserWheelContactModify, public lsl::Object
 	{};

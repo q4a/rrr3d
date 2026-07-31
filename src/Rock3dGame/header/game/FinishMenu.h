@@ -30,7 +30,7 @@ private:
 		int plrId;
 	};
 	
-	static const int cBoxCount = 3;
+	static constexpr int cBoxCount = 3;
 private:
 	Box _boxes[cBoxCount];
 	unsigned _playerCount;

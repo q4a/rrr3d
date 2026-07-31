@@ -11,7 +11,7 @@ class Variant
 {
 public:
 	enum Type {vtVoid = 0, vtInt, vtUInt, vtFloat, vtDouble, vtBool, vtChar, cTypeForce = 1000};
-	static const unsigned cTypeEnd = 7;
+	static constexpr unsigned cTypeEnd = 7;
 private:
 	static const unsigned cTypeSize[cTypeEnd];
 protected:
@@ -95,17 +95,17 @@ class VariantVec: private Variant
 private:
 	typedef Variant _MyBase;
 
-	static const unsigned cMyTypeEnd = 4;
+	static constexpr unsigned cMyTypeEnd = 4;
 	static const unsigned cMyTypeSize[cMyTypeEnd];
 
 	static unsigned GetTypeSize(Type type);
 public:
-	static const Type vtVec2 = (Type)(_MyBase::cTypeEnd + 0);
-	static const Type vtVec3 = (Type)(_MyBase::cTypeEnd + 1);
-	static const Type vtVec4 = (Type)(_MyBase::cTypeEnd + 2);
-	static const Type vtMatrix = (Type)(_MyBase::cTypeEnd + 3);
+	static constexpr Type vtVec2 = (Type)(_MyBase::cTypeEnd + 0);
+	static constexpr Type vtVec3 = (Type)(_MyBase::cTypeEnd + 1);
+	static constexpr Type vtVec4 = (Type)(_MyBase::cTypeEnd + 2);
+	static constexpr Type vtMatrix = (Type)(_MyBase::cTypeEnd + 3);
 
-	static const unsigned cTypeEnd = _MyBase::cTypeEnd + cMyTypeEnd;
+	static constexpr unsigned cTypeEnd = _MyBase::cTypeEnd + cMyTypeEnd;
 protected:
 	void AssignData(const void* value, Type type, unsigned count);
 	void AssignData(const VariantVec& value);

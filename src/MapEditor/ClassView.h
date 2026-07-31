@@ -20,7 +20,7 @@ private:
 		r3d::IMapObjRecRef record;
 	};
 
-	class DelDataFunc: public std::unary_function<HTREEITEM, bool>
+	class DelDataFunc
 	{
 	private:
 		CClassView* _view;

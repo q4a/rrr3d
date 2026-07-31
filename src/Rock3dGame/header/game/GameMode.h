@@ -161,11 +161,11 @@ private:
 
 	typedef lsl::Container<IGameUser*> Users;
 public:
-	static const int cGoRaceWait = 0;
-	static const int cGoRace1 = 1;
-	static const int cGoRace2 = 2;
-	static const int cGoRace3 = 3;
-	static const int cGoRace = 4;
+	static constexpr int cGoRaceWait = 0;
+	static constexpr int cGoRace1 = 1;
+	static constexpr int cGoRace2 = 2;
+	static constexpr int cGoRace3 = 3;
+	static constexpr int cGoRace = 4;
 
 	enum PrefCamera {pcThirdPerson = 0, pcIsometric, cPrefCameraEnd};	
 

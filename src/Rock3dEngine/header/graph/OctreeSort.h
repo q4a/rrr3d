@@ -370,7 +370,7 @@ public:
 	//Минимальный, допустимый размер узла
 	static const unsigned cMinLeafSize;
 	//
-	static const unsigned cOctNum = 8;
+	static constexpr unsigned cOctNum = 8;
 private:
 	Users* _users;
 	Node* _root;
