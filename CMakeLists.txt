@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 cmake_policy(VERSION 3.21)
 
 set(RRR3D_VERSION "1.3.1")
-project(rrr3d VERSION ${RRR3D_VERSION} LANGUAGES CXX)
+# C as well as C++: the D3DX math implementation is Wine's, and it is C.
+project(rrr3d VERSION ${RRR3D_VERSION} LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

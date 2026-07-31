@@ -15,10 +15,22 @@ add_library(${PROJECT_NAME} STATIC
     ${${PROJECT_NAME}_HEADER}
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+# PUBLIC: d3d/d3dx9math.h is the D3DX math surface for the whole engine, and
+# MathCommon.h -- which every consumer includes -- pulls it in from here.
+target_include_directories(${PROJECT_NAME} PUBLIC
     header
-    ${CMAKE_SOURCE_DIR}/src/LexStd/header
-    ${CMAKE_SOURCE_DIR}/extern/directx/include
 )
 
-target_link_libraries(${PROJECT_NAME})
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/LexStd/header
+)
+
+if (MSVC)
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/extern/directx/include
+    )
+else()
+    # XPlatform carries d3d9types.h, which d3dx9math.h needs for the base types
+    # its structs derive from.
+    target_link_libraries(${PROJECT_NAME} PUBLIC XPlatform)
+endif()

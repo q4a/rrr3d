@@ -19,11 +19,14 @@
 #error "xplatform.h is the substitute layer; on Windows include <windows.h>"
 #endif
 
-#include <cstddef>
-#include <cstdint>
-#include <cstdio>
-#include <cstdarg>
-#include <string>
+/* C headers, not the <c...> spellings: the vendored D3DX math implementation is
+   C and reaches this header through d3d9types.h. */
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+#include <wchar.h>
 
 /* ---------------------------------------------------------------- types -- */
 
@@ -45,6 +48,7 @@ typedef const char*         LPCSTR;
 typedef wchar_t             WCHAR;
 typedef wchar_t*            LPWSTR;
 typedef const wchar_t*      LPCWSTR;
+typedef int32_t             HRESULT;
 typedef int64_t             __int64;
 typedef int32_t             __int32;
 typedef int16_t             __int16;
@@ -65,6 +69,18 @@ typedef int8_t              __int8;
 #endif
 
 #define MAX_PATH 260
+
+#define S_OK            ((HRESULT)0)
+#define S_FALSE         ((HRESULT)1)
+#define E_FAIL          ((HRESULT)0x80004005)
+#define E_INVALIDARG    ((HRESULT)0x80070057)
+#define E_OUTOFMEMORY   ((HRESULT)0x8007000E)
+#define E_NOTIMPL       ((HRESULT)0x80004001)
+#define E_NOINTERFACE   ((HRESULT)0x80004002)
+#define E_POINTER       ((HRESULT)0x80004003)
+
+#define SUCCEEDED(hr)   (((HRESULT)(hr)) >= 0)
+#define FAILED(hr)      (((HRESULT)(hr)) < 0)
 
 typedef union _LARGE_INTEGER
 {
@@ -118,7 +134,9 @@ typedef struct _RTL_CRITICAL_SECTION
 
 typedef RTL_CRITICAL_SECTION* LPCRITICAL_SECTION;
 
+#ifdef __cplusplus
 extern "C" {
+#endif
 
 void  InitializeCriticalSection(LPCRITICAL_SECTION section);
 void  DeleteCriticalSection(LPCRITICAL_SECTION section);
@@ -189,7 +207,9 @@ void OutputDebugStringA(LPCSTR text);
 DWORD GetLastError(void);
 void  SetLastError(DWORD error);
 
+#ifdef __cplusplus
 } /* extern "C" */
+#endif
 
 #define CreateEvent         CreateEventA
 #define GetFileAttributes   GetFileAttributesA
@@ -198,6 +218,10 @@ void  SetLastError(DWORD error);
 #define OutputDebugString   OutputDebugStringA
 
 /* ------------------------------------------------------- secure CRT ---- */
+
+/* C++ only. Nothing compiled as C in this tree calls the _s functions, and the
+   array-size overloads below need templates. */
+#ifdef __cplusplus
 
 /*
  * The _s functions are Microsoft's. The array-size overloads are what the
@@ -268,5 +292,7 @@ template<size_t size> inline int strcpy_s(char (&dst)[size], const char* src)
 {
 	return strcpy_s(dst, size, src);
 }
+
+#endif /* __cplusplus */
 
 #endif /* XPLATFORM_H */

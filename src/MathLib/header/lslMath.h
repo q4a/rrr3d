@@ -413,7 +413,13 @@ private:
 			
 			LSL_ASSERT(_volume > 0);
 			
-			D3DXVECTOR2 leng = _max - _min;
+			//_min and _max are quaternions in this specialisation, so their
+			//difference is one too. Writing D3DXVECTOR2 here reached the same
+			//first two floats only by chaining two user-defined conversions --
+			//quaternion to FLOAT*, FLOAT* to vector -- which the standard does
+			//not allow and MSVC accepted. Reading x and y off the quaternion is
+			//what that produced, and is what happens now.
+			D3DXQUATERNION leng = _max - _min;
 			_step.x = _freq.x > 1 ? leng.x / (_freq.x - 1) : 0;
 			_step.y = _freq.y > 1 ? leng.y / (_freq.y - 1) : 0;
 

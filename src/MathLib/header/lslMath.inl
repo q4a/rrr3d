@@ -36,7 +36,12 @@ inline float RandomRange(float from, float to)
 //from (inclusive) ... to (inclusive)
 inline int RandomRange(int from, int to)
 {
-	return from + Floor<int>(rand() * (to + 1 - from) / static_cast<float>(RAND_MAX + 1));
+	//RAND_MAX is 32767 on MSVC and 2147483647 here. With the large value,
+	//RAND_MAX + 1 overflows a signed int to INT_MIN, so the divisor is negative
+	//and this returns indices below `from` -- which callers use to index
+	//containers. Computing the span in double keeps the same result on the
+	//small value and stops being undefined on the large one.
+	return from + Floor<int>(rand() * (to + 1 - from) / (static_cast<double>(RAND_MAX) + 1.0));
 }
 
 inline float NumAbsAdd(float absVal, float addVal)
@@ -47,7 +52,8 @@ inline float NumAbsAdd(float absVal, float addVal)
 inline float ScalarTransform(float scalar, const D3DXVECTOR3& vec, const D3DXMATRIX& mat)
 {
 	D3DXVECTOR3 res;
-	D3DXVec3TransformNormal(&res, &(vec * scalar), &mat);
+	const D3DXVECTOR3 scaled = vec * scalar;
+	D3DXVec3TransformNormal(&res, &scaled, &mat);
 	float len = D3DXVec3Length(&res);
 	return scalar < 0 ? -len : len;
 }
@@ -497,7 +503,8 @@ inline D3DXVECTOR2 Line2GetNorm(const D3DXVECTOR3& line)
 
 inline float Line2DistToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point)
 {
-	return D3DXVec3Dot(&line,  &D3DXVECTOR3(point.x, point.y, 1.0f));
+	const D3DXVECTOR3 homogeneous(point.x, point.y, 1.0f);
+	return D3DXVec3Dot(&line, &homogeneous);
 }
 
 inline void Line2NormVecToPoint(const D3DXVECTOR3& line, const D3DXVECTOR2& point, D3DXVECTOR2& outNormVec)
