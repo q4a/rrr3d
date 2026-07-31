@@ -190,7 +190,7 @@ template<class _Item, class _Arg, class _ArgThis> void Collection<_Item, void, _
 
 template<class _Item, class _Arg, class _ArgThis> void Collection<_Item, void, _Arg, _ArgThis>::LoadItem(SReader* reader)
 {
-	ReadItem(reader, &Add());
+	_MyBase::ReadItem(reader, &Add());
 }
 
 template<class _Item, class _Arg, class _ArgThis> _Item& Collection<_Item, void, _Arg, _ArgThis>::Add()
@@ -246,7 +246,7 @@ template<class _Item> void Collection<_Item, void, void, void>::DestroyItem(_Ite
 
 template<class _Item> void Collection<_Item, void, void, void>::LoadItem(SReader* reader)
 {
-	ReadItem(reader, &Add());
+	_MyBase::ReadItem(reader, &Add());
 }
 
 template<class _Item> _Item& Collection<_Item, void, void, void>::Add()

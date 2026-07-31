@@ -15,6 +15,12 @@ namespace graph
 
 class MaterialNode;
 
+//Defined further down, and named by members above their definitions. A friend
+//declaration does not introduce the name into the enclosing scope, so these
+//have to be real forward declarations.
+class SceneManager;
+class SceneRender;
+
 class BaseSceneNode: public lsl::Component, protected IProgressUser
 {
 	friend class SceneManager;
