@@ -26,8 +26,9 @@ import sys
 SOURCE_EXTENSIONS = {".cpp", ".c", ".h", ".inl", ".mm"}
 
 # Third-party trees whose include style is not ours to police. Paths are
-# relative to the root being checked.
-VENDORED = ()
+# relative to the root being checked. See check-encoding.py for why TinyXml is
+# here.
+VENDORED = ("TinyXml",)
 
 INCLUDE_RE = re.compile(r'^\s*#\s*include\s*(["<])([^">]*)([">])')
 
@@ -101,7 +102,10 @@ def main():
     errors = []
 
     for path in find_sources(args.root):
-        with open(path, "r", encoding="utf-8", newline="") as handle:
+        # errors="replace" rather than strict: a non-UTF-8 file is
+        # check-encoding.py's to report, and a traceback here would mask
+        # whatever include problems the rest of the tree has.
+        with open(path, "r", encoding="utf-8", errors="replace", newline="") as handle:
             for lineno, line in enumerate(handle, 1):
                 match = INCLUDE_RE.match(line)
                 if not match:

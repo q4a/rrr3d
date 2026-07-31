@@ -64,6 +64,7 @@ else()
     message(STATUS "physics: real PhysX 2.8 SDK")
 endif()
 
+add_subdirectory(TinyXml)
 add_subdirectory(LexStd)
 add_subdirectory(MathLib)
 add_subdirectory(NetLib)

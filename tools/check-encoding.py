@@ -20,7 +20,13 @@ SOURCE_EXTENSIONS = {".cpp", ".c", ".h", ".inl", ".ms", ".mm"}
 
 # Third-party trees whose encoding is not ours to police. Paths are relative to
 # the root being checked.
-VENDORED = ()
+#
+# TinyXml is upstream 2.5.3 verbatim (tools/vendor-tinyxml.py) and tinystr.cpp
+# carries a Latin-1 o-slash in "THIS FILE WAS ALTERED BY Tyge Lovset" -- an
+# authorship notice, and not something to rewrite. Excluding the tree is also
+# the durable answer: a future version bump could introduce more of the same,
+# and this checker exists to keep *our* sources readable by our tooling.
+VENDORED = ("TinyXml",)
 
 
 def find_sources(root):
