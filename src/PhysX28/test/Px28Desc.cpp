@@ -8,6 +8,8 @@
 #include "NxSpringDesc.h"
 #include "NxTireFunctionDesc.h"
 #include "NxShapeDesc.h"
+#include "NxActorDesc.h"
+#include "NxMaterialDesc.h"
 
 #include <cstdio>
 #include <cmath>
@@ -146,6 +148,49 @@ int RunDescTests()
 		      Near(wheel.longitudalTireForceFunction.extremumValue, 0.02f));
 		Check("the nested spring kept its own defaults",
 		      wheel.suspension.spring == 0 && wheel.suspension.damper == 0);
+	}
+
+	// NxBodyDesc's default flags are literally the number db.xml stores. That
+	// value was never a choice anyone made -- it is the default, serialised.
+	{
+		NxBodyDesc body;
+		Check("default body flags are 2304, which is what db.xml stores",
+		      body.flags == 2304);
+		Check("...being NX_BF_VISUALIZATION | NX_BF_ENERGY_SLEEP_TEST",
+		      body.flags == (NX_BF_VISUALIZATION | NX_BF_ENERGY_SLEEP_TEST));
+		Check("angularDamping defaults to 0.05", Near(body.angularDamping, 0.05f));
+		Check("solverIterationCount defaults to 4", body.solverIterationCount == 4);
+		Check("a default body is valid", body.isValid());
+	}
+
+	// body == NULL is the entire static-vs-dynamic discriminator, in 2.8 and
+	// in the engine's px::Actor alike.
+	{
+		NxActorDesc actor;
+		Check("an actor descriptor defaults to STATIC (body is null)", actor.body == NULL);
+		Check("...and has no shapes", actor.shapes.empty());
+		Check("a default actor descriptor is valid", actor.isValid());
+
+		NxBoxShapeDesc box;
+		actor.shapes.push_back(&box);
+		Check("a valid shape keeps the actor valid", actor.isValid());
+
+		NxTriangleMeshShapeDesc unloaded;   // meshData is null
+		actor.shapes.push_back(&unloaded);
+		Check("an actor holding an unloaded mesh shape is INVALID", !actor.isValid());
+	}
+
+	// The material fields that decided the backend.
+	{
+		NxMaterialDesc m;
+		Check("dirOfAnisotropy defaults to +X",
+		      Near(m.dirOfAnisotropy.x, 1.0f) && Near(m.dirOfAnisotropy.y, 0.0f));
+		Check("friction combine mode defaults to AVERAGE",
+		      m.frictionCombineMode == NX_CM_AVERAGE);
+		Check("anisotropy is off by default", (m.flags & NX_MF_ANISOTROPIC) == 0);
+		Check("a default material is valid", m.isValid());
+		m.restitution = 2.0f;
+		Check("a restitution above 1 is invalid", !m.isValid());
 	}
 
 	printf("\n%s (%d failure%s)\n", gFailures ? "FAILED" : "all defaults hold",
