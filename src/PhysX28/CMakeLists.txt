@@ -33,6 +33,8 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # silently, and checking them costs nothing.
 
 add_executable(PhysX28Tests
+    test/Px28Tests.cpp
     test/Px28Enums.cpp
+    test/Px28Vec3.cpp
 )
 target_link_libraries(PhysX28Tests PRIVATE ${PROJECT_NAME})

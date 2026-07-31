@@ -25,7 +25,7 @@ static void Expect(const char *what, long long actual, long long expected)
 	}
 }
 
-int main()
+int RunEnumTests()
 {
 	printf("PhysX 2.8 enumeration values\n\n");
 
@@ -92,5 +92,5 @@ int main()
 
 	printf("\n%s (%d failure%s)\n", gFailures ? "FAILED" : "all values match",
 	       gFailures, gFailures == 1 ? "" : "s");
-	return gFailures ? 1 : 0;
+	return gFailures;
 }
