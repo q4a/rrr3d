@@ -20,6 +20,23 @@ list(APPEND PROJECT_DIRS
     )
 add_dir("${PROJECT_DIRS}" "${PROJECT_NAME}")
 
+if (NOT MSVC)
+    # The three files that actually build a DirectShow filter graph. They need
+    # the real dshow.h plus Vmr9.h and Evr.h -- XPlatform's dshow.h deliberately
+    # goes only as deep as the game's *headers* do, which is pointer members.
+    #
+    # Excluded rather than stubbed: the game tolerates video being absent
+    # (World::IsVideoMode() treats a missing graph as no cutscene), so this is
+    # the one subsystem where not linking is a state it can really run in.
+    # Phase 11 puts them back. Nothing else changes -- World.h keeps its
+    # video::Player member and World.cpp keeps its EC_* handler.
+    list(REMOVE_ITEM ${PROJECT_NAME}_SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/video.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/playback.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/VideoPlayer.cpp"
+    )
+endif()
+
 add_library(${PROJECT_NAME} SHARED
     ${${PROJECT_NAME}_SOURCE}
     ${${PROJECT_NAME}_INLINE}
