@@ -10,6 +10,10 @@ namespace r3d
 namespace game
 {
 
+//Named by CarWheel's members below before it is defined; the friend declaration
+//inside CarWheel does not put it in namespace scope.
+class CarWheels;
+
 class CarWheel: public GameObject
 {
 	friend class CarWheels;

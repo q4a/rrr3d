@@ -20,6 +20,10 @@ private:
 public:
 	ComplexResCollection(_ComplexLib* complexLib): _complexLib(complexLib) {}
 
+	//Item comes from ComCollection, a dependent base, so it is not found by
+	//unqualified lookup.
+	typedef typename _MyBase::Item Item;
+
 	virtual Item* Find(const std::string& name)
 	{
 		Item* res = _MyBase::Find(name);

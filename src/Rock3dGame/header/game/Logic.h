@@ -16,6 +16,9 @@ class Map;
 class Race;
 class NetGame;
 class Logic;
+//Named by LogicBehavior's members below before it is defined; the friend
+//declaration inside it does not put it in namespace scope.
+class LogicBehaviors;
 
 class LogicBehavior: public lsl::Object, public Serializable, protected IProgressEvent
 {

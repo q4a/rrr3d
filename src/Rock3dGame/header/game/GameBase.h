@@ -15,6 +15,10 @@ namespace game
 
 class Logic;
 class Behavior;
+//Named by Behavior's members and by every subclass constructor below before it
+//is defined. The friend declaration inside Behavior does not put it in
+//namespace scope.
+class Behaviors;
 
 enum ScActorType {satBaseObj, satMeshObj, cScActorTypeEnd};
 enum Difficulty {gdEasy, gdNormal, gdHard, cDifficultyEnd};
