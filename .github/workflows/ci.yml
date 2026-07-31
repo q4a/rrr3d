@@ -3,6 +3,18 @@ name: CI
 on: [push, pull_request]
 
 jobs:
+  # Both faults these catch are invisible on MSVC and on a case-insensitive
+  # filesystem, and fatal everywhere else -- so they have to be checked on a
+  # case-sensitive one, and they cost seconds.
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Sources are UTF-8
+      run: python3 tools/check-encoding.py
+    - name: Include paths are portable
+      run: python3 tools/check-includes.py
+
   win:
     runs-on: windows-2019
     strategy:
