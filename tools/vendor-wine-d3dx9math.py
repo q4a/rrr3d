@@ -11,10 +11,11 @@ Why a script rather than a one-time copy: this lands in src/ rather than in
 gitignored extern/, so the adaptation has to be visible and re-derivable. Run it
 again to move to a newer Wine.
 
-Three adaptations, all mechanical:
+Only the implementation is taken here. The declarations come from MinGW via
+tools/vendor-directx-headers.py, and MinGW's D3DX headers *are* Wine's -- same
+authors, same text -- so the two halves agree by construction.
 
-  * d3dx9math.h includes the whole of d3dx9.h upstream. This port needs only the
-    D3D9 base types the math structs derive from, which XPlatform supplies.
+Two adaptations, both mechanical:
 
   * math.c includes d3dx9_private.h for Wine's debug channel. TRACE and WARN
     become no-ops -- 121 call sites, none of which this project wants.
@@ -36,31 +37,20 @@ from pathlib import Path
 
 RAW = "https://raw.githubusercontent.com/wine-mirror/wine/{ref}/{path}"
 
+# The implementation only. The declarations come from MinGW via
+# tools/vendor-directx-headers.py -- and MinGW's D3DX headers are Wine's, so the
+# two halves match by construction rather than by luck.
 FILES = {
-    "include/d3dx9math.h":   Path("src/MathLib/header/d3d/d3dx9math.h"),
-    "include/d3dx9math.inl": Path("src/MathLib/header/d3d/d3dx9math.inl"),
     "dlls/d3dx9_36/math.c":  Path("src/MathLib/source/d3dx9math.c"),
 }
-
-HEADER_ADAPTATION = ('''/*
- * Vendored from Wine by tools/vendor-wine-d3dx9math.py. Upstream includes the
- * whole of d3dx9.h here; this port needs only the D3D9 base types that the math
- * structs derive from -- D3DVECTOR, D3DMATRIX and D3DCOLORVALUE.
- *
- * windows.h first, because the DirectX headers name the Windows scalar types
- * and do not include anything themselves -- the ordering the DirectX SDK
- * assumes on Windows too. d3d9.h rather than d3d9types.h because the
- * implementation also uses D3D_OK and D3DERR_INVALIDCALL, which live there.
- */
-#include <windows.h>
-#include <d3d9.h>''')
 
 SOURCE_PROLOGUE = '''/*
  * Vendored from Wine by tools/vendor-wine-d3dx9math.py, with three changes
  * recorded in that script: d3dx9_private.h replaced by the shims below, TRACE
  * and WARN silenced, and the ID3DXMatrixStack COM class removed as dead code.
  */
-#include "d3d/d3dx9math.h"
+#include <windows.h>
+#include <d3dx9.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -90,49 +80,6 @@ def fetch(ref, path):
     if result.returncode != 0:
         raise SystemExit("failed to fetch %s" % url)
     return result.stdout.decode("utf-8")
-
-
-def adapt_header(text):
-    if '#include "d3dx9.h"' not in text:
-        raise SystemExit("d3dx9math.h: upstream include not found -- check the ref")
-    text = text.replace('#include "d3dx9.h"', HEADER_ADAPTATION, 1)
-
-    # Drop the ID3DXMatrixStack COM interface and D3DXCreateMatrixStack, whose
-    # implementation was removed from math.c for the same reason: nothing in
-    # this game calls them, and declaring them needs DECLARE_INTERFACE_,
-    # DEFINE_GUID, IUnknown and the rest of the COM preamble.
-    start = text.find("typedef interface ID3DXMatrixStack *LPD3DXMATRIXSTACK;")
-    end = text.find('#include "d3dx9math.inl"')
-    if start < 0 or end < 0 or end <= start:
-        raise SystemExit("d3dx9math.h: matrix-stack block not found -- check the ref")
-    text = text[:start] + text[end:]
-
-    if "ID3DXMatrixStack" in text:
-        raise SystemExit("d3dx9math.h: the matrix stack survived the cut")
-    return text
-
-
-def adapt_inl(text):
-    """Match the SDK's signature for the two plane-dot helpers.
-
-    Wine types D3DXPlaneDotCoord and D3DXPlaneDotNormal as taking a
-    D3DXVECTOR4*; Microsoft's SDK types them as D3DXVECTOR3*, and the game was
-    written against the SDK, so it passes vectors. Both implementations read
-    only x, y and z, so this is a signature change and not a behaviour one.
-
-    D3DXPlaneDot is left alone -- it reads w and takes a VECTOR4 in both.
-    """
-    changed = 0
-    for name in ("D3DXPlaneDotCoord", "D3DXPlaneDotNormal"):
-        before = "FLOAT %s(const D3DXPLANE *pp, const D3DXVECTOR4 *pv)" % name
-        after = "FLOAT %s(const D3DXPLANE *pp, const D3DXVECTOR3 *pv)" % name
-        if before not in text:
-            raise SystemExit("d3dx9math.inl: %s not found -- check the ref" % name)
-        text = text.replace(before, after)
-        changed += 1
-    if changed != 2:
-        raise SystemExit("d3dx9math.inl: expected two plane-dot signatures")
-    return text
 
 
 def adapt_source(text):
@@ -165,8 +112,8 @@ def adapt_source(text):
     # Drop D3DXSHProjectCubeMap. It walks a real cube texture through
     # IDirect3DCubeTexture9 and Wine's internal pixel-format tables, none of
     # which exist here -- and no spherical-harmonics function in this file is
-    # called by the game. Its prototype is removed from the header for C++
-    # callers; the definition has to go too or the object will not link.
+    # called by the game. The prototype stays in the vendored header; dropping
+    # only the definition is harmless because nothing calls it.
     start = text.find("/*\n * The following implementation of D3DXSHProjectCubeMap")
     end = text.find("FLOAT* WINAPI D3DXSHRotate(")
     if start < 0 or end < 0 or end <= start:
@@ -186,11 +133,7 @@ def main():
 
     for upstream, target in FILES.items():
         text = fetch(args.ref, upstream)
-        if upstream.endswith("d3dx9math.h"):
-            text = adapt_header(text)
-        elif upstream.endswith("d3dx9math.inl"):
-            text = adapt_inl(text)
-        elif upstream.endswith("math.c"):
+        if upstream.endswith("math.c"):
             text = adapt_source(text)
         target.write_text(text, encoding="utf-8")
         print("%-24s -> %s (%d lines)" % (upstream, target, text.count("\n") + 1))

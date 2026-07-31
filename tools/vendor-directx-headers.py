@@ -36,7 +36,11 @@ import sys
 from pathlib import Path
 
 DXVK_RAW = "https://raw.githubusercontent.com/doitsujin/dxvk/{ref}/include/native/windows/{name}"
-MINGW_RAW = "https://raw.githubusercontent.com/mingw-w64/mingw-w64/{ref}/mingw-w64-headers/include/{name}"
+MINGW_RAW = "https://raw.githubusercontent.com/mingw-w64/mingw-w64/{ref}/mingw-w64-headers/{dir}/{name}"
+
+# Nearly everything lives under include/; _mingw_unicode.h is CRT plumbing that
+# the D3DX headers pull in for their A/W name macros, and lives under crt/.
+MINGW_DIRS = {"_mingw_unicode.h": "crt"}
 
 # windows.h is intentionally absent -- see the note above.
 DXVK_HEADERS = [
@@ -51,9 +55,28 @@ DXVK_HEADERS = [
 ]
 
 MINGW_HEADERS = [
+    "_mingw_unicode.h",
     "d3d9.h",
     "d3d9types.h",
     "d3d9caps.h",
+    # The D3DX family. d3dx9.h pulls in all of these, and the engine uses
+    # ID3DXFont, ID3DXMesh, ID3DXEffect and the texture loaders.
+    #
+    # Worth knowing: MinGW's D3DX headers *are* Wine's -- same authors, same
+    # text. So there is one upstream for the declarations, not two, and the
+    # implementation vendored by tools/vendor-wine-d3dx9math.py matches them by
+    # construction rather than by luck.
+    "d3dx9.h",
+    "d3dx9math.h",
+    "d3dx9math.inl",
+    "d3dx9core.h",
+    "d3dx9xof.h",
+    "d3dx9mesh.h",
+    "d3dx9shader.h",
+    "d3dx9effect.h",
+    "d3dx9shape.h",
+    "d3dx9anim.h",
+    "d3dx9tex.h",
 ]
 
 WINDOWS_DIR = Path("src/XPlatform/header/windows")
@@ -65,6 +88,25 @@ def fetch(url):
     if result.returncode != 0:
         raise SystemExit("failed to fetch %s" % url)
     return result.stdout
+
+
+def adapt_plane_dot(text):
+    """Match the SDK's signature for the two plane-dot helpers.
+
+    Upstream types D3DXPlaneDotCoord and D3DXPlaneDotNormal as taking a
+    D3DXVECTOR4*; Microsoft's SDK types them as D3DXVECTOR3*, and the game was
+    written against the SDK, so it passes vectors. Both implementations read
+    only x, y and z, so this is a signature change and not a behaviour one.
+
+    D3DXPlaneDot is left alone -- it reads w and takes a VECTOR4 in both.
+    """
+    for name in ("D3DXPlaneDotCoord", "D3DXPlaneDotNormal"):
+        before = "FLOAT %s(const D3DXPLANE *pp, const D3DXVECTOR4 *pv)" % name
+        after = "FLOAT %s(const D3DXPLANE *pp, const D3DXVECTOR3 *pv)" % name
+        if before not in text:
+            raise SystemExit("d3dx9math.inl: %s not found -- check --mingw-ref" % name)
+        text = text.replace(before, after)
+    return text
 
 
 def main():
@@ -82,7 +124,10 @@ def main():
         print("dxvk  %-20s -> %s" % (name, WINDOWS_DIR / name))
 
     for name in MINGW_HEADERS:
-        data = fetch(MINGW_RAW.format(ref=args.mingw_ref, name=name))
+        data = fetch(MINGW_RAW.format(ref=args.mingw_ref, name=name,
+                                      dir=MINGW_DIRS.get(name, "include")))
+        if name == "d3dx9math.inl":
+            data = adapt_plane_dot(data.decode("utf-8")).encode("utf-8")
         (DIRECTX_DIR / name).write_bytes(data)
         print("mingw %-20s -> %s" % (name, DIRECTX_DIR / name))
 

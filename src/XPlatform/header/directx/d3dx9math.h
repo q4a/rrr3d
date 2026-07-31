@@ -1,3 +1,4 @@
+#undef INTERFACE
 /*
  * Copyright (C) 2007 David Adam
  * Copyright (C) 2007 Tony Wasserka
@@ -17,18 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/*
- * Vendored from Wine by tools/vendor-wine-d3dx9math.py. Upstream includes the
- * whole of d3dx9.h here; this port needs only the D3D9 base types that the math
- * structs derive from -- D3DVECTOR, D3DMATRIX and D3DCOLORVALUE.
- *
- * windows.h first, because the DirectX headers name the Windows scalar types
- * and do not include anything themselves -- the ordering the DirectX SDK
- * assumes on Windows too. d3d9.h rather than d3d9types.h because the
- * implementation also uses D3D_OK and D3DERR_INVALIDCALL, which live there.
- */
-#include <windows.h>
-#include <d3d9.h>
+#include "d3dx9.h"
 
 #ifndef __D3DX9MATH_H__
 #define __D3DX9MATH_H__
@@ -69,8 +59,8 @@ typedef struct D3DXVECTOR2
 
     friend D3DXVECTOR2 operator * (FLOAT, const D3DXVECTOR2&);
 
-    BOOL operator == (const D3DXVECTOR2&) const;
-    BOOL operator != (const D3DXVECTOR2&) const;
+    WINBOOL operator == (const D3DXVECTOR2&) const;
+    WINBOOL operator != (const D3DXVECTOR2&) const;
 #endif /* __cplusplus */
     FLOAT x, y;
 } D3DXVECTOR2, *LPD3DXVECTOR2;
@@ -101,8 +91,8 @@ typedef struct D3DXVECTOR3 : public D3DVECTOR
 
     friend D3DXVECTOR3 operator * (FLOAT, const struct D3DXVECTOR3&);
 
-    BOOL operator == (const D3DXVECTOR3&) const;
-    BOOL operator != (const D3DXVECTOR3&) const;
+    WINBOOL operator == (const D3DXVECTOR3&) const;
+    WINBOOL operator != (const D3DXVECTOR3&) const;
 } D3DXVECTOR3, *LPD3DXVECTOR3;
 #else /* !__cplusplus */
 typedef struct _D3DVECTOR D3DXVECTOR3, *LPD3DXVECTOR3;
@@ -133,8 +123,8 @@ typedef struct D3DXVECTOR4
 
     friend D3DXVECTOR4 operator * (FLOAT, const D3DXVECTOR4&);
 
-    BOOL operator == (const D3DXVECTOR4&) const;
-    BOOL operator != (const D3DXVECTOR4&) const;
+    WINBOOL operator == (const D3DXVECTOR4&) const;
+    WINBOOL operator != (const D3DXVECTOR4&) const;
 #endif /* __cplusplus */
     FLOAT x, y, z, w;
 } D3DXVECTOR4, *LPD3DXVECTOR4;
@@ -173,8 +163,8 @@ typedef struct D3DXMATRIX : public D3DMATRIX
 
     friend D3DXMATRIX operator * (FLOAT, const D3DXMATRIX&);
 
-    BOOL operator == (const D3DXMATRIX&) const;
-    BOOL operator != (const D3DXMATRIX&) const;
+    WINBOOL operator == (const D3DXMATRIX&) const;
+    WINBOOL operator != (const D3DXMATRIX&) const;
 } D3DXMATRIX, *LPD3DXMATRIX;
 #else /* !__cplusplus */
 typedef struct _D3DMATRIX D3DXMATRIX, *LPD3DXMATRIX;
@@ -207,8 +197,8 @@ typedef struct D3DXQUATERNION
 
     friend D3DXQUATERNION operator * (FLOAT, const D3DXQUATERNION&);
 
-    BOOL operator == (const D3DXQUATERNION&) const;
-    BOOL operator != (const D3DXQUATERNION&) const;
+    WINBOOL operator == (const D3DXQUATERNION&) const;
+    WINBOOL operator != (const D3DXQUATERNION&) const;
 #endif /* __cplusplus */
     FLOAT x, y, z, w;
 } D3DXQUATERNION, *LPD3DXQUATERNION;
@@ -226,8 +216,8 @@ typedef struct D3DXPLANE
     D3DXPLANE operator + () const;
     D3DXPLANE operator - () const;
 
-    BOOL operator == (const D3DXPLANE&) const;
-    BOOL operator != (const D3DXPLANE&) const;
+    WINBOOL operator == (const D3DXPLANE&) const;
+    WINBOOL operator != (const D3DXPLANE&) const;
 #endif /* __cplusplus */
     FLOAT a, b, c, d;
 } D3DXPLANE, *LPD3DXPLANE;
@@ -267,8 +257,8 @@ typedef struct D3DXCOLOR
 
     friend D3DXCOLOR operator * (FLOAT, const D3DXCOLOR&);
 
-    BOOL operator == (const D3DXCOLOR&) const;
-    BOOL operator != (const D3DXCOLOR&) const;
+    WINBOOL operator == (const D3DXCOLOR&) const;
+    WINBOOL operator != (const D3DXCOLOR&) const;
 #endif /* __cplusplus */
     FLOAT r, g, b, a;
 } D3DXCOLOR, *LPD3DXCOLOR;
@@ -282,8 +272,8 @@ typedef struct D3DXFLOAT16
 
     operator FLOAT ();
 
-    BOOL operator == (const D3DXFLOAT16 &) const;
-    BOOL operator != (const D3DXFLOAT16 &) const;
+    WINBOOL operator == (const D3DXFLOAT16 &) const;
+    WINBOOL operator != (const D3DXFLOAT16 &) const;
 #endif /* __cplusplus */
     WORD value;
 } D3DXFLOAT16, *LPD3DXFLOAT16;
@@ -411,6 +401,71 @@ HRESULT WINAPI D3DXSHProjectCubeMap(UINT order, IDirect3DCubeTexture9 *texture, 
 FLOAT* WINAPI D3DXSHRotate(FLOAT *out, UINT order, const D3DXMATRIX *matrix, const FLOAT *in);
 FLOAT* WINAPI D3DXSHRotateZ(FLOAT *out, UINT order, FLOAT angle, const FLOAT *in);
 FLOAT* WINAPI D3DXSHScale(FLOAT *out, UINT order, const FLOAT *a, const FLOAT scale);
+
+#ifdef __cplusplus
+}
+#endif
+
+typedef interface ID3DXMatrixStack *LPD3DXMATRIXSTACK;
+
+DEFINE_GUID(IID_ID3DXMatrixStack,
+0xc7885ba7, 0xf990, 0x4fe7, 0x92, 0x2d, 0x85, 0x15, 0xe4, 0x77, 0xdd, 0x85);
+
+#undef INTERFACE
+#define INTERFACE ID3DXMatrixStack
+
+DECLARE_INTERFACE_(ID3DXMatrixStack, IUnknown)
+{
+    STDMETHOD(QueryInterface)(THIS_ REFIID riid, void **out) PURE;
+    STDMETHOD_(ULONG,AddRef)(THIS) PURE;
+    STDMETHOD_(ULONG,Release)(THIS) PURE;
+    STDMETHOD(Pop)(THIS) PURE;
+    STDMETHOD(Push)(THIS) PURE;
+    STDMETHOD(LoadIdentity)(THIS) PURE;
+    STDMETHOD(LoadMatrix)(THIS_ const D3DXMATRIX* pM ) PURE;
+    STDMETHOD(MultMatrix)(THIS_ const D3DXMATRIX* pM ) PURE;
+    STDMETHOD(MultMatrixLocal)(THIS_ const D3DXMATRIX* pM ) PURE;
+    STDMETHOD(RotateAxis)(THIS_ const D3DXVECTOR3* pV, FLOAT Angle) PURE;
+    STDMETHOD(RotateAxisLocal)(THIS_ const D3DXVECTOR3* pV, FLOAT Angle) PURE;
+    STDMETHOD(RotateYawPitchRoll)(THIS_ FLOAT Yaw, FLOAT Pitch, FLOAT Roll) PURE;
+    STDMETHOD(RotateYawPitchRollLocal)(THIS_ FLOAT Yaw, FLOAT Pitch, FLOAT Roll) PURE;
+    STDMETHOD(Scale)(THIS_ FLOAT x, FLOAT y, FLOAT z) PURE;
+    STDMETHOD(ScaleLocal)(THIS_ FLOAT x, FLOAT y, FLOAT z) PURE;
+    STDMETHOD(Translate)(THIS_ FLOAT x, FLOAT y, FLOAT z ) PURE;
+    STDMETHOD(TranslateLocal)(THIS_ FLOAT x, FLOAT y, FLOAT z) PURE;
+    STDMETHOD_(D3DXMATRIX*, GetTop)(THIS) PURE;
+};
+
+#undef INTERFACE
+
+#if !defined(__cplusplus) || defined(CINTERFACE)
+
+#define ID3DXMatrixStack_QueryInterface(p,a,b)            (p)->lpVtbl->QueryInterface(p,a,b)
+#define ID3DXMatrixStack_AddRef(p)                        (p)->lpVtbl->AddRef(p)
+#define ID3DXMatrixStack_Release(p)                       (p)->lpVtbl->Release(p)
+#define ID3DXMatrixStack_Pop(p)                           (p)->lpVtbl->Pop(p)
+#define ID3DXMatrixStack_Push(p)                          (p)->lpVtbl->Push(p)
+#define ID3DXMatrixStack_LoadIdentity(p)                  (p)->lpVtbl->LoadIdentity(p)
+#define ID3DXMatrixStack_LoadMatrix(p,a)                  (p)->lpVtbl->LoadMatrix(p,a)
+#define ID3DXMatrixStack_MultMatrix(p,a)                  (p)->lpVtbl->MultMatrix(p,a)
+#define ID3DXMatrixStack_MultMatrixLocal(p,a)             (p)->lpVtbl->MultMatrixLocal(p,a)
+#define ID3DXMatrixStack_RotateAxis(p,a,b)                (p)->lpVtbl->RotateAxis(p,a,b)
+#define ID3DXMatrixStack_RotateAxisLocal(p,a,b)           (p)->lpVtbl->RotateAxisLocal(p,a,b)
+#define ID3DXMatrixStack_RotateYawPitchRoll(p,a,b,c)      (p)->lpVtbl->RotateYawPitchRoll(p,a,b,c)
+#define ID3DXMatrixStack_RotateYawPitchRollLocal(p,a,b,c) (p)->lpVtbl->RotateYawPitchRollLocal(p,a,b,c)
+#define ID3DXMatrixStack_Scale(p,a,b,c)                   (p)->lpVtbl->Scale(p,a,b,c)
+#define ID3DXMatrixStack_ScaleLocal(p,a,b,c)              (p)->lpVtbl->ScaleLocal(p,a,b,c)
+#define ID3DXMatrixStack_Translate(p,a,b,c)               (p)->lpVtbl->Translate(p,a,b,c)
+#define ID3DXMatrixStack_TranslateLocal(p,a,b,c)          (p)->lpVtbl->TranslateLocal(p,a,b,c)
+#define ID3DXMatrixStack_GetTop(p)                        (p)->lpVtbl->GetTop(p)
+
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+HRESULT WINAPI D3DXCreateMatrixStack(DWORD flags, ID3DXMatrixStack **stack);
 
 #ifdef __cplusplus
 }

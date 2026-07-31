@@ -18,4 +18,8 @@
  */
 #include "windows/unknwn.h"
 
+/* GDI's font types and constants, which the D3DX font interfaces are declared
+   in terms of. */
+#include "wingdi.h"
+
 #endif

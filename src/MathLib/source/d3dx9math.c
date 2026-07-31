@@ -30,7 +30,8 @@
  * recorded in that script: d3dx9_private.h replaced by the shims below, TRACE
  * and WARN silenced, and the ID3DXMatrixStack COM class removed as dead code.
  */
-#include "d3d/d3dx9math.h"
+#include <windows.h>
+#include <d3dx9.h>
 
 #include <stdlib.h>
 #include <string.h>

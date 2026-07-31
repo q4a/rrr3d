@@ -44,6 +44,44 @@ typedef int32_t             __int32;
 typedef int16_t             __int16;
 typedef int8_t              __int8;
 
+/* windows_base.h has FLOAT but not DOUBLE, which d3dx9anim.h uses. */
+#ifndef XPLATFORM_HAS_DOUBLE
+#define XPLATFORM_HAS_DOUBLE
+typedef double              DOUBLE;
+#endif
+
+/*
+ * The last few names the vendored D3DX headers reach for from headers this port
+ * does not carry. They appear only in declarations the engine never calls --
+ * .X-file loading, mesh streaming -- so IStream is left an incomplete type on
+ * purpose: a pointer to it is all those signatures need, and leaving it
+ * incomplete means any accidental use is a compile error rather than a link
+ * one.
+ */
+#ifndef LPGUID
+typedef GUID*               LPGUID;
+#endif
+
+/* Typedef, not a bare struct declaration: the vendored math implementation is C,
+   where a struct tag alone does not make `IStream` a type name. */
+typedef struct IStream IStream;
+
+#ifndef STDAPI
+#define STDAPI          HRESULT WINAPI
+#define STDAPI_(type)   type WINAPI
+#endif
+
+/*
+ * windows_base.h has DECLARE_INTERFACE and DECLARE_INTERFACE_ but not the
+ * IID-carrying form the D3DX headers use. The trailing string is only consumed
+ * by MSVC's __declspec(uuid), so the interface is declared exactly as the
+ * two-argument form does and the IID is discarded -- which is what MinGW's own
+ * headers do off MSVC.
+ */
+#ifndef DECLARE_INTERFACE_IID_
+#define DECLARE_INTERFACE_IID_(i, b, d) DECLARE_INTERFACE_(i, b)
+#endif
+
 #define __cdecl
 #define CALLBACK
 

@@ -71,9 +71,9 @@ public:
 
 	bool Push(const _State& state, const _Value& value)
 	{
-		States::iterator iter = _states.find(state);
+		typename States::iterator iter = _states.find(state);
 		if (iter == _states.end())		
-			iter = _states.insert(_states.end(), States::value_type(state, ValueStatck()));
+			iter = _states.insert(_states.end(), typename States::value_type(state, ValueStatck()));
 
 		bool res = !iter->second.empty() && iter->second.top().value == value;
 		if (res)
@@ -88,7 +88,7 @@ public:
 	}
 	bool Pop(const _State& state)
 	{
-		States::iterator iter = _states.find(state);
+		typename States::iterator iter = _states.find(state);
 		
 		LSL_ASSERT(iter != _states.end());
 
@@ -105,7 +105,7 @@ public:
 
 	const _Value& Back(const _State& state) const
 	{
-		States::const_iterator iter = _states.find(state);
+		typename States::const_iterator iter = _states.find(state);
 
 		LSL_ASSERT(iter != _states.end());
 
@@ -114,7 +114,7 @@ public:
 
 	const _Value* End(const _State& state) const
 	{
-		States::const_iterator iter = _states.find(state);
+		typename States::const_iterator iter = _states.find(state);
 
 		if (iter == _states.end())
 			return 0;
@@ -231,8 +231,9 @@ class CameraCI: public virtual lsl::Object
 public:
 	enum Transform {ctView = 0, ctProj, ctWorldView, ctViewProj, ctWVP, cTransformEnd};
 
-	static public D3DXVECTOR2 ViewToProj(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize);
-	static public D3DXVECTOR2 ProjToView(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize);
+	//`static public` is not valid C++ -- these are already in a public section.
+	static D3DXVECTOR2 ViewToProj(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize);
+	static D3DXVECTOR2 ProjToView(const D3DXVECTOR2& coord, const D3DXVECTOR2& viewSize);
 private:
 	CameraDesc _desc;
 	
@@ -324,7 +325,8 @@ class ContextInfo
 public:
 	static constexpr unsigned cMaxTexSamplers = 8;
 	
-	static const TransformStateType ContextInfo::cTexTransform[8];
+	//A member cannot be declared with its own class as a qualifier.
+	static const TransformStateType cTexTransform[8];
 	static DWORD defaultRenderStates[RENDER_STATE_END];
 	static DWORD defaultSamplerStates[SAMPLER_STATE_END];
 	static DWORD defaultTextureStageStates[TEXTURE_STAGE_STATE_END];
@@ -468,7 +470,7 @@ public:
 
 template<class _State, class _Value, _Value _defValue[]> _Value StateManager<_State, _Value, _defValue>::Get(_State state) const
 {
-	_States::const_iterator iter = _states.find(state);
+	typename _States::const_iterator iter = _states.find(state);
 	if (iter != _states.end())
 		return iter->second;
 	else
@@ -481,7 +483,7 @@ template<class _State, class _Value, _Value _defValue[]> void StateManager<_Stat
 		_states[state] = value;
 	else
 	{
-		_States::iterator iter = _states.find(state);
+		typename _States::iterator iter = _states.find(state);
 		if (iter != _states.end())
 			_states.erase(iter);
 	}
