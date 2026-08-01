@@ -1,6 +1,6 @@
 # Remaining work — macOS port, attempt 2
 
-Branch `macos-port-attempt-2`, based at `ec50208` (2021-06-14). 50 commits.
+Branch `macos-port-attempt-2`, based at `ec50208` (2021-06-14). 52 commits.
 
 The full plan lives in the plan document; this file is the state of play and
 the things that would be expensive to rediscover.
@@ -16,10 +16,10 @@ the things that would be expensive to rediscover.
 | 2 — Build system, C++17 | done |
 | 3 — XPlatform + D3DX math | done |
 | 4 — PhysX 2.8 shim over Bullet | done |
-| 5 — SDL3 shell | code done, **not verified end to end** (blocked on 7) |
+| 5 — SDL3 shell | code done, **not verified end to end** (blocked on 8) |
 | 6 — MetalBridge | done, all six test modes pass |
-| 7 — D3D9 on Metal | **builds and runs; the triangle does not draw** |
-| 8 — D3DX runtime, first pixels | not started, blocked on 7 |
+| 7 — D3D9 on Metal | done: the triangle draws, both paths verified by pixel |
+| 8 — D3DX runtime, first pixels | not started, and now unblocked |
 | 9 — `NxWheelShape` | not started |
 | 10 — Windows cutover | deferred by decision, not dropped |
 | 11 — Audio, gamepad, video | not started |
@@ -36,63 +36,67 @@ and 15 audio/video (phase 11).
     bin/Debug/PhysX28Tests       0 failures constants, conventions, no simulation
     bin/Debug/PhysX28Harness   460 checks   the shim against 2.8's specification
     bin/Debug/BridgeTriangle   6 modes      run from bin/Debug; takes a mode argument
+    bin/Debug/D3D9Triangle     2 modes      no argument = swapchain, `rtt` = own target
 
 `BridgeTriangle` modes: `vertexid stagein argbuf nocopy speccnst blend`. Each
 adds one layer over the last; all render offscreen with pixel readback.
 
+`D3D9Triangle` checks the pixels itself and exits non-zero if the triangle is
+missing; it also writes `tri.tga` / `tri_rtt.tga` to look at.
+
 ---
 
-## The blocker: the D3D9 triangle does not draw
+## Phase 7, and why the triangle appeared not to draw
 
-`bin/Debug/D3D9Triangle` connects the whole stack — `Direct3DCreate9` returns a
-device, `CreateDevice` succeeds against a `CAMetalLayer`, the swapchain reports
-800×600 A8R8G8B8 with D24X8 depth, `DrawPrimitiveUP` returns `S_OK`, 400 frames
-Present, and `GetRenderTargetData` reads a surface back.
+`bin/Debug/D3D9Triangle` connects the whole stack — `Direct3DCreate9`,
+`CreateDevice` against a `CAMetalLayer`, an 800×600 A8R8G8B8 swapchain with
+D24X8 depth, `DrawPrimitiveUP`, `Present`, `GetRenderTargetData` — and both the
+swapchain path and a program-owned render target now read back the triangle.
+The centre pixel is `0xff794343`, which is the Gouraud interpolation of the
+three vertex colours at that point to the byte.
 
-**Every pixel is exactly `D3DCOLOR_XRGB(40, 40, 90)` — the clear colour.**
+**The cause was asynchronous pipeline compilation, and nothing reports it.**
 
-### What has been ruled out
+d9mt mirrors dxvk-async: a pipeline state seen for the first time is handed to
+a background worker pool and **the draw is skipped** until it is hot.
+`getRenderPso` in `d9mt_context.cpp` says so plainly — *"pso stays 0 until the
+worker finishes; the draw site skips until then"* — and `commitGraphicsState`
+returns false, silently, with no log line and no HRESULT. The clear still lands,
+because a Metal clear is a `loadAction` on the render pass rather than
+something the draw carries. So the surface reads back as flat clear colour while
+`DrawPrimitiveUP` returns `S_OK`.
 
-- **Not the readback.** The clear reaches the surface and is read back exactly,
-  so the copy path works.
-- **Not `Present` or `D3DSWAPEFFECT_DISCARD`.** The test originally read the
-  back buffer *after* `Present`, where contents are undefined. That was a real
-  bug; fixing it changed nothing.
-- **Not the swapchain.** `./D3D9Triangle rtt` draws to a program-owned render
-  target via `CreateRenderTarget`/`SetRenderTarget`, with no swapchain and no
-  `Present`. Identical result.
-- **Not dropped draws.** Temporary instrumentation in
-  `DxvkContext::draw` (`extern/d9mt/src/d3d9fe/d9mt_context.cpp`, ~line 5254)
-  showed the *first* draw is rejected by `commitGraphicsState` and later draws
-  get past it and are encoded. `startRenderPass` binds successfully.
+For a game that is a reasonable trade: geometry pops in a frame or two late. For
+a program that draws once and reads the result it is fatal, and it is invisible.
 
-### The live hypothesis
+`D3D9Triangle` now sets `D9MT_ASYNC=0` before touching D3D9 (d9mt caches the
+answer in a function-local static, so it has to be before the first use). The
+variable is not overwritten if already set, so `D9MT_ASYNC=1 ./D3D9Triangle rtt`
+still reproduces the original failure — and the pixel check catches it:
 
-The draw is encoded into a render pass whose results never reach the texture
-that `GetRenderTargetData` copies. A Metal clear is a `loadAction` on a pass,
-so the clear arriving while the draw does not suggests **two passes**: an
-earlier one carrying the clear that gets committed, and the one carrying the
-draw that is still open when the copy is taken.
+    rtt: FAIL centre (400,300) is 0xff28285a, want 0xff794343
+         -- the clear colour, so the draw did not land
 
-### Next step
+### The two crashes this uncovered, both one bug
 
-Read d9mt's `GetRenderTargetData` / readback path and check whether it ends the
-open encoder and waits for the command buffer before copying. Compare against
-how `startRenderPass` and `endEncoder` are sequenced around deferred clears in
-`commitGraphicsState` (`d9mt_context.cpp` ~line 5166).
+The async PSO workers outlived static destruction. `PsoWorkers` is a
+namespace-scope static in `d9mt_context.cpp`, so it is constructed before the
+function-local statics of other translation units and destroyed after them; its
+destructor joins the threads, and a worker still compiling during that join
+touches storage that is already gone. Two victims were live:
 
-The plan's `RRR3D_SCENE_CLEAR` probe — paint render target and back buffer
-different colours — is the reference branch's own tool for exactly this, and
-has not been tried yet.
+- `d9mt_backend.h`'s `logf` mutex — `EINVAL` out of `pthread_mutex_lock`,
+  which libc++ turns into a `std::system_error` that nothing catches. **Every
+  single run ended in `SIGABRT`**, exit 134, after the work had completed.
+- spirv-cross's illegal-entry-point-name set, reached from
+  `CompilerMSL::compile` — `SIGSEGV`.
 
-### Also unexplained
+Fixed at the cause: the workers are joined in `~DxvkDevice` via a new
+`d9mt::shutdownPsoWorkers()`, so they cannot outlive the device whose Metal
+handles they compile against. The `logf` mutex is also made immortal, since
+logging has to stay usable for as long as anything can call it.
 
-    libc++abi: terminating due to uncaught exception of type
-    std::__1::system_error: mutex lock failed: Invalid argument
-
-Once per run, after the work completes, so probably teardown. `EINVAL` from a
-`std::mutex` lock usually means a destroyed mutex or reused storage. Rule it in
-or out before trusting any timing-sensitive conclusion about the encoder.
+Both are in `tools/patches/d3d9metal/d9mt.patch`.
 
 ---
 
@@ -115,11 +119,21 @@ Also required, via Homebrew: `sdl3`, `bullet`, `libogg`, `libvorbis`.
 
 ## Things that cost time to learn
 
-**Read pixels, not exit codes.** `D3D9Triangle` prints `wrote tri.tga`, writes a
-1.9 MB file and returns zero while drawing nothing. Every signal short of
-reading the image says success.
+**Read pixels, not exit codes.** `D3D9Triangle` used to print `wrote tri.tga`,
+write a 1.9 MB file and return zero while drawing nothing. Every signal short of
+reading the image said success. It now derives the expected colour from the same
+vertex data the draw uses and makes that its exit status — which is why running
+it with `D9MT_ASYNC=1` reports the original bug in one line instead of needing an
+afternoon.
+
+**A silent `return false` is worse than a crash.** The whole phase-7 blocker was
+one un-logged early return in a hot path that is *designed* to fail sometimes.
+When a backend can legitimately decline work, find out how it says so before
+assuming it does.
 
 **`grep -r` is `ugrep` on this machine and silently returns nothing.** Use `rg`.
+And beware that `-r` means `--replace` to `rg`: `rg -rn foo` prints every match
+rewritten to `n`, which looks like real output and is not.
 
 **Error counts are a floor until a file actually compiles.** A fatal include
 halts the count. The game went 7 → 21 → 240 → 120 → 12 → 39 → … as each fatal
@@ -184,6 +198,13 @@ non-recursive **hangs** the suite, which is what the engine would do.
 ---
 
 ## Notes on the remaining phases
+
+**Phase 8, and async pipelines.** The game keeps d9mt's default (`D9MT_ASYNC`
+unset, so on), which is the right trade for something that renders continuously:
+new state costs a frame or two of missing geometry and the PSO cache in
+`bin/Debug/d9mt_pso_cache.bin` warms it across runs. But the first frames of any
+scene will be incomplete, so **do not diagnose a first-frame capture** — run
+several frames, or set `D9MT_ASYNC=0` when a single frame has to be exact.
 
 **Phase 8** needs `libvkd3d-shader` for `ID3DXEffect`, plus DDS/PNG/JPG loading
 and `stb_truetype` for `ID3DXFont`. The traps are recorded in the plan; the

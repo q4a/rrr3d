@@ -42,11 +42,19 @@
 #                 fixes d9mt had not already made -- it carries four of its
 #                 own, listed in vendor/dxvk/DXVK-VERSION.
 #
-#   d9mt.patch    13 files. D9MT_API, which is __declspec on Windows and empty
+#   d9mt.patch    7 files. D9MT_API, which is __declspec on Windows and empty
 #                 here because there is no DLL boundary, and the handful of
 #                 places the Metal backend needs adjusting for a native build.
 #                 Notably NOT include rebasing: upstream's relative includes
 #                 are correct for this layout and are left alone.
+#
+#                 One change is a real upstream bug rather than a porting
+#                 adjustment: the async PSO worker threads outlive static
+#                 destruction, and were using other translation units' statics
+#                 after free -- the logf mutex (SIGABRT on every single run)
+#                 and spirv-cross's illegal-name set (SIGSEGV). They are now
+#                 joined in ~DxvkDevice. See the comment on shutdownPsoWorkers
+#                 in d9mt_context.cpp.
 #
 #   Two files are added rather than patched: d9mt_fetrace.h and
 #   d9mt_wsi_bootstrap.cpp, which defines Win32WSI instead of taking it from

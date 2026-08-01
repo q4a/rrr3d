@@ -17,7 +17,33 @@
  
  // Vendored Vulkan type definitions, configured exactly like the rest of the
  // front-end build (vulkan_loader.h self-defines VK_USE_PLATFORM_WIN32_KHR).
-@@ -47,6 +48,11 @@
+@@ -37,16 +38,34 @@
+ 
+   inline void logf(const char* fmt, ...) {
+ #ifndef D9MT_NO_LOG
+-    static std::mutex s_mutex;
+-    static FILE*      s_file = nullptr;
++    // Immortal, never destroyed.
++    //
++    // The async PSO workers outlive static destruction: PsoWorkers is a
++    // namespace-scope static in d9mt_context.cpp, so it is constructed before
++    // this function-local mutex and therefore destroyed after it. Its
++    // destructor joins the worker threads, and a worker that logs while that
++    // join is in progress locks a mutex whose storage is already gone --
++    // EINVAL out of pthread_mutex_lock, which libc++ turns into a
++    // std::system_error, which nothing catches. Every run ended in SIGABRT.
++    //
++    // Leaking it is the fix that matches the lifetime: logging must remain
++    // usable for as long as any thread can still call it, and that is past
++    // the end of static destruction.
++    static std::mutex* s_mutex = new std::mutex();
++    static FILE*       s_file  = nullptr;
+ 
+-    std::lock_guard<std::mutex> lock(s_mutex);
++    std::lock_guard<std::mutex> lock(*s_mutex);
+ 
+     if (!s_file) {
+       s_file = std::fopen("d3d9fe.log", "w");
        if (!s_file)
          return;
      }
@@ -31,17 +57,68 @@
      va_start(ap, fmt);
 --- a/src/d3d9fe/d9mt_context.cpp
 +++ b/src/d3d9fe/d9mt_context.cpp
-@@ -962,7 +962,10 @@
-     params.device   = mtlDevice();
-     params.info_ptr = uint64_t(uintptr_t(&info));
+@@ -1024,9 +1024,13 @@
+         m_cond.notify_one();
+       }
  
-+    logf("newRenderPSO: BEGIN vs=%llx fs=%llx",
-+      (unsigned long long)vs->getHash(), (unsigned long long)fs->getHash());
-     int status = D9MT_UnixCall(D9MT_FUNC_NEW_RENDER_PSO, &params);
-+    logf("newRenderPSO: END status=%d pso=%p", status, (void*)(uintptr_t)params.ret_pso);
-     if (status != 0 || !params.ret_pso) {
-       Logger::err(str::format("d9mt: PSO creation failed, status ", status));
-       if (params.ret_error)
+-      ~PsoWorkers() {
++      // Drop anything not yet started, stop the pool, and wait for the compile
++      // in flight (if any) to finish. Idempotent, and leaves the pool ready to
++      // be started again by the next enqueue().
++      void shutdown() {
+         {
+           std::unique_lock<dxvk::mutex> lk(m_mutex);
++          m_queue.clear();
+           m_stop = true;
+         }
+         m_cond.notify_all();
+@@ -1034,8 +1038,16 @@
+           if (t.joinable())
+             t.join();
+         }
++        std::unique_lock<dxvk::mutex> lk(m_mutex);
++        m_threads.clear();
++        m_started = false;
++        m_stop    = false;
+       }
+ 
++      ~PsoWorkers() {
++        shutdown();
++      }
++
+     private:
+ 
+       struct Job {
+@@ -1102,6 +1114,29 @@
+ 
+   }
+ 
++
++  // PUBLIC hook (external linkage): stop the compile workers while the process
++  // is still fully alive. Called from ~DxvkDevice.
++  //
++  // Relying on ~PsoWorkers to join at static-destruction time is too late. A
++  // worker that is still compiling then touches statics belonging to other
++  // translation units, and their destruction order relative to this one is
++  // arbitrary. Two of them were already being used after free:
++  //
++  //   - d9mt_backend.h's logf mutex, which threw EINVAL on lock and aborted
++  //     the process (fixed there by making it immortal);
++  //   - spirv-cross's illegal-entry-point-name set, reached from
++  //     CompilerMSL::compile, which segfaulted.
++  //
++  // Those are two symptoms of one cause, and this is the cause. The workers
++  // must not outlive the device whose Metal handles they compile against.
++  //
++  // Restartable: enqueue() calls ensureStartedLocked(), so a device created
++  // after this brings the pool back up.
++  void shutdownPsoWorkers() {
++    s_psoWorkers.shutdown();
++  }
++
+   // ==========================================================================
+   // Persistent PSO pre-warm ("state cache"). The metallib (shader source->AIR)
+   // is disk-cached, but the PSO objects (newRenderPipelineState, vs+fs+state)
 --- a/src/d3d9fe/d9mt_device.cpp
 +++ b/src/d3d9fe/d9mt_device.cpp
 @@ -1,3 +1,4 @@
@@ -85,7 +162,23 @@
        return VK_SUCCESS;
      }
  
-@@ -628,7 +629,11 @@
+@@ -266,7 +267,15 @@
+   }
+ 
+ 
++  namespace d9mt { void shutdownPsoWorkers(); }
++
+   DxvkDevice::~DxvkDevice() {
++    // Stop the background PSO compiles first: they run against this device's
++    // Metal handles, and left alone they outlive static destruction and use
++    // other translation units' statics after free. See the comment on
++    // shutdownPsoWorkers in d9mt_context.cpp.
++    d9mt::shutdownPsoWorkers();
++
+     // drain all in-flight GPU work so tracked resources are safe to destroy
+     this->waitForIdle();
+     d9mt::logf("DxvkDevice: destroyed");
+@@ -628,7 +637,11 @@
      // spin-yield until the status atomic leaves VK_NOT_READY
      VkResult result = status->result.load();
  
@@ -97,7 +190,7 @@
        dxvk::this_thread::yield();
        result = status->result.load();
      }
-@@ -639,7 +644,10 @@
+@@ -639,7 +652,10 @@
  
    void DxvkDevice::waitForFence(sync::Fence& fence, uint64_t value) {
      auto t0 = dxvk::high_resolution_clock::now();
@@ -108,7 +201,7 @@
      auto t1 = dxvk::high_resolution_clock::now();
  
      auto us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0);
-@@ -660,8 +668,13 @@
+@@ -660,8 +676,13 @@
      // tracking command list retires, so polling always makes progress.
      auto t0 = dxvk::high_resolution_clock::now();
  
@@ -123,7 +216,7 @@
  
      auto t1 = dxvk::high_resolution_clock::now();
      auto us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0);
-@@ -1459,7 +1472,8 @@
+@@ -1459,7 +1480,8 @@
      // No VkQueryPool on Metal; the pool handle is a unique non-zero cookie
      // so that getQuery() pairs remain distinguishable.
      Pool& pool = m_pools.emplace_back();

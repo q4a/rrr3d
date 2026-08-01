@@ -12,7 +12,9 @@
 #include "d3d9.h"
 
 #include <SDL3/SDL.h>
+#include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 struct Vertex
@@ -20,6 +22,91 @@ struct Vertex
 	float x, y, z, rhw;
 	D3DCOLOR color;
 };
+
+static const D3DCOLOR kClear = D3DCOLOR_XRGB(40, 40, 90);
+
+static const Vertex kTri[3] =
+{
+	{ 400.0f,  80.0f, 0.5f, 1.0f, 0xffff0000 },
+	{ 700.0f, 500.0f, 0.5f, 1.0f, 0xff00ff00 },
+	{ 100.0f, 500.0f, 0.5f, 1.0f, 0xff0000ff },
+};
+
+/*
+ * The Gouraud-interpolated colour the rasteriser owes at (x, y), from the same
+ * vertex data the draw uses -- so the expected value is derived rather than a
+ * hard-coded triple that would have to be re-derived if the triangle moved.
+ */
+static D3DCOLOR ExpectedAt(float x, float y)
+{
+	const Vertex& a = kTri[0];
+	const Vertex& b = kTri[1];
+	const Vertex& c = kTri[2];
+
+	const float det = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+	const float w0 = ((b.y - c.y) * (x - c.x) + (c.x - b.x) * (y - c.y)) / det;
+	const float w1 = ((c.y - a.y) * (x - c.x) + (a.x - c.x) * (y - c.y)) / det;
+	const float w2 = 1.0f - w0 - w1;
+
+	D3DCOLOR out = 0xff000000;
+	for (int shift = 0; shift <= 16; shift += 8)
+	{
+		const float v = w0 * ((a.color >> shift) & 0xff)
+		              + w1 * ((b.color >> shift) & 0xff)
+		              + w2 * ((c.color >> shift) & 0xff);
+		out |= D3DCOLOR(v + 0.5f) << shift;
+	}
+	return out;
+}
+
+static bool Near(D3DCOLOR got, D3DCOLOR want)
+{
+	for (int shift = 0; shift <= 16; shift += 8)
+		if (std::abs(int((got >> shift) & 0xff) - int((want >> shift) & 0xff)) > 2)
+			return false;
+	return true;
+}
+
+/*
+ * Reads the surface rather than trusting HRESULTs.
+ *
+ * Every signal short of the pixels says success even when nothing is drawn:
+ * the device is created, DrawPrimitiveUP returns S_OK, the readback succeeds
+ * and a 1.9 MB file is written. So this is the only check that means anything,
+ * and it is the program's exit status.
+ */
+static int CheckTriangle(const char* what, const D3DLOCKED_RECT& r, int w, int h)
+{
+	auto at = [&] (int x, int y) {
+		return *reinterpret_cast<const D3DCOLOR*>(
+			static_cast<const char*>(r.pBits) + y * r.Pitch + x * 4);
+	};
+
+	/* Outside the triangle: the clear must have survived the draw. */
+	const D3DCOLOR corner = at(4, 4);
+	if (!Near(corner, kClear))
+	{
+		std::printf("%s: FAIL corner (4,4) is 0x%08x, want clear 0x%08x\n",
+			what, corner, kClear);
+		return 1;
+	}
+
+	/* Inside it: the interpolated diffuse, which the clear colour is not. */
+	const int cx = w / 2, cy = h / 2;
+	const D3DCOLOR got = at(cx, cy);
+	const D3DCOLOR want = ExpectedAt(float(cx) + 0.5f, float(cy) + 0.5f);
+
+	if (!Near(got, want))
+	{
+		std::printf("%s: FAIL centre (%d,%d) is 0x%08x, want 0x%08x%s\n",
+			what, cx, cy, got, want,
+			Near(got, kClear) ? " -- the clear colour, so the draw did not land" : "");
+		return 1;
+	}
+
+	std::printf("%s: PASS centre 0x%08x matches the interpolated diffuse\n", what, got);
+	return 0;
+}
 
 /*
  * Writes a 32-bit TGA from a locked surface, so a result is inspectable
@@ -54,8 +141,10 @@ static void WriteTga(const char* path, const D3DLOCKED_RECT& r, int w, int h)
  * present path; if it is missing here too, the draw is not reaching any render
  * target and the swapchain is innocent.
  */
-static int RenderToTexture(IDirect3DDevice9* dev, const void* tri, int stride)
+static int RenderToTexture(IDirect3DDevice9* dev)
 {
+	int rc = 1;
+
 	IDirect3DSurface9* rt = NULL;
 	if (FAILED(dev->CreateRenderTarget(800, 600, D3DFMT_A8R8G8B8,
 			D3DMULTISAMPLE_NONE, 0, FALSE, &rt, NULL)) || !rt)
@@ -71,7 +160,7 @@ static int RenderToTexture(IDirect3DDevice9* dev, const void* tri, int stride)
 	/* No depth buffer on this target, so depth testing must be off. */
 	dev->SetDepthStencilSurface(NULL);
 
-	dev->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(40, 40, 90), 1.0f, 0);
+	dev->Clear(0, NULL, D3DCLEAR_TARGET, kClear, 1.0f, 0);
 
 	if (SUCCEEDED(dev->BeginScene()))
 	{
@@ -83,7 +172,7 @@ static int RenderToTexture(IDirect3DDevice9* dev, const void* tri, int stride)
 		dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
 		dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
 
-		HRESULT dr = dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, tri, stride);
+		HRESULT dr = dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, kTri, sizeof(Vertex));
 		std::printf("rtt DrawPrimitiveUP hr=0x%08x\n", (unsigned)dr);
 
 		dev->EndScene();
@@ -98,6 +187,7 @@ static int RenderToTexture(IDirect3DDevice9* dev, const void* tri, int stride)
 		if (SUCCEEDED(copy->LockRect(&r, NULL, D3DLOCK_READONLY)))
 		{
 			WriteTga("tri_rtt.tga", r, 800, 600);
+			rc = CheckTriangle("rtt", r, 800, 600);
 			copy->UnlockRect();
 		}
 	}
@@ -110,12 +200,32 @@ static int RenderToTexture(IDirect3DDevice9* dev, const void* tri, int stride)
 	if (oldRt) { dev->SetRenderTarget(0, oldRt); oldRt->Release(); }
 	rt->Release();
 
-	return 0;
+	return rc;
 }
 
 int main(int argc, char** argv)
 {
 	const bool rttMode = argc > 1 && std::string(argv[1]) == "rtt";
+
+	/*
+	 * Compile pipelines synchronously.
+	 *
+	 * d9mt mirrors dxvk-async: a pipeline state seen for the first time is
+	 * handed to a background worker and THE DRAW IS SKIPPED until it is hot
+	 * (d9mt_context.cpp, getRenderPso -- "pso stays 0 until the worker
+	 * finishes; the draw site skips until then"). Nothing reports this. The
+	 * draw returns S_OK, the clear still lands as the render pass's load
+	 * action, and the surface reads back as flat clear colour.
+	 *
+	 * That is fine for a game, which drops a frame or two of new geometry and
+	 * moves on. It is fatal for a test that draws once and reads the result,
+	 * and it is why this program appeared to render nothing at all.
+	 *
+	 * Set before anything touches D3D9: d9mt caches the answer in a
+	 * function-local static on first use. Not overwritten, so
+	 * `D9MT_ASYNC=1 ./D3D9Triangle` still reproduces the async behaviour.
+	 */
+	setenv("D9MT_ASYNC", "0", 0);
 
 	if (!SDL_Init(SDL_INIT_VIDEO))
 	{
@@ -157,16 +267,9 @@ int main(int argc, char** argv)
 	}
 	std::printf("device created\n");
 
-	const Vertex tri[3] =
-	{
-		{ 400.0f,  80.0f, 0.5f, 1.0f, 0xffff0000 },
-		{ 700.0f, 500.0f, 0.5f, 1.0f, 0xff00ff00 },
-		{ 100.0f, 500.0f, 0.5f, 1.0f, 0xff0000ff },
-	};
-
 	if (rttMode)
 	{
-		const int rc = RenderToTexture(dev, tri, sizeof(Vertex));
+		const int rc = RenderToTexture(dev);
 		dev->Release();
 		d3d->Release();
 		SDL_Metal_DestroyView(view);
@@ -175,14 +278,15 @@ int main(int argc, char** argv)
 		return rc;
 	}
 
+	int rc = 1;
+
 	for (int frame = 0; frame < 400; ++frame)
 	{
 		SDL_Event e;
 		while (SDL_PollEvent(&e))
 			if (e.type == SDL_EVENT_QUIT) frame = 400;
 
-		dev->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-			D3DCOLOR_XRGB(40, 40, 90), 1.0f, 0);
+		dev->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, kClear, 1.0f, 0);
 
 		if (SUCCEEDED(dev->BeginScene()))
 		{
@@ -193,7 +297,7 @@ int main(int argc, char** argv)
 			dev->SetTexture(0, NULL);
 			dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
 			dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-			HRESULT dr = dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, tri, sizeof(Vertex));
+			HRESULT dr = dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, kTri, sizeof(Vertex));
 			if (frame == 0)
 				std::printf("DrawPrimitiveUP hr=0x%08x\n", dr);
 			dev->EndScene();
@@ -230,17 +334,8 @@ int main(int argc, char** argv)
 				D3DLOCKED_RECT r;
 				if (SUCCEEDED(copy->LockRect(&r, NULL, D3DLOCK_READONLY)))
 				{
-					if (FILE* f = std::fopen("tri.tga", "wb"))
-					{
-						unsigned char h[18] = {0};
-						h[2] = 2; h[12] = 800 & 0xff; h[13] = 800 >> 8;
-						h[14] = 600 & 0xff; h[15] = 600 >> 8; h[16] = 32; h[17] = 0x20;
-						std::fwrite(h, 1, 18, f);
-						for (int y = 0; y < 600; ++y)
-							std::fwrite(static_cast<char*>(r.pBits) + y * r.Pitch, 4, 800, f);
-						std::fclose(f);
-						std::printf("wrote tri.tga\n");
-					}
+					WriteTga("tri.tga", r, 800, 600);
+					rc = CheckTriangle("swapchain", r, 800, 600);
 					copy->UnlockRect();
 				}
 			}
@@ -256,5 +351,5 @@ int main(int argc, char** argv)
 	SDL_Metal_DestroyView(view);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
-	return 0;
+	return rc;
 }
