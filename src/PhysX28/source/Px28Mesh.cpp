@@ -56,6 +56,25 @@ NxU32 TriangleMesh::getCount(NxU32, NxU32) const
 	return static_cast<NxU32>(_indices.size() / 3);
 	}
 
+bool TriangleMesh::getTriangleVertices(NxU32 triangleIndex, NxVec3 vertices[3]) const
+	{
+	if (triangleIndex * 3 + 2 >= _indices.size())
+		return false;
+
+	for (int corner = 0; corner < 3; ++corner)
+		{
+		const int index = _indices[triangleIndex * 3 + corner];
+		if (index < 0 || static_cast<size_t>(index) * 3 + 2 >= _vertices.size())
+			return false;
+
+		vertices[corner].set(_vertices[index * 3 + 0],
+		                     _vertices[index * 3 + 1],
+		                     _vertices[index * 3 + 2]);
+		}
+
+	return true;
+	}
+
 /* ---------------------------------------------------------------- cooking */
 
 class Cooking: public NxCookingInterface

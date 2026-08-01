@@ -39,7 +39,7 @@ namespace
 Scene::Scene(const NxSceneDesc& desc)
 	: _config(NULL), _dispatcher(NULL), _broadphase(NULL), _solver(NULL),
 	  _world(NULL), _skinWidth(0.025f), _pendingStep(0.0f), _filter(NULL),
-	  _contactReport(NULL)
+	  _contactReport(NULL), _contactModify(NULL)
 	{
 	_config = new btDefaultCollisionConfiguration();
 	_dispatcher = new btCollisionDispatcher(_config);
@@ -390,6 +390,22 @@ bool Scene::fetchResults(NxSimulationStatus, bool)
 		 * modes, and it is conditional on the step size -- which is why the
 		 * step is asserted rather than assumed once setTiming is implemented.
 		 */
+		/*
+		 * Collision detection, then modification, then the solver -- which is
+		 * 2.8's order and the only one that works: onContactConstraint exists
+		 * to rewrite a constraint *before* it is solved, so it has to run
+		 * after the manifolds exist and before stepSimulation solves them.
+		 *
+		 * performDiscreteCollisionDetection builds the manifolds; the
+		 * stepSimulation that follows reuses them rather than rebuilding, so
+		 * the edits survive into the solve.
+		 */
+		if (_contactModify)
+			{
+			_world->performDiscreteCollisionDetection();
+			modifyContacts();
+			}
+
 		_world->stepSimulation(_pendingStep, 0, _pendingStep);
 
 		collectContacts(_pendingStep);
@@ -398,6 +414,120 @@ bool Scene::fetchResults(NxSimulationStatus, bool)
 		}
 
 	return true;
+	}
+
+/* ----------------------------------------------------- contact modification */
+
+/*
+ * 2.8 calls onContactConstraint once per contact, before the solver runs, and
+ * lets the callback rewrite the constraint -- friction magnitudes and, crucially
+ * for this game, the friction *frame*.
+ *
+ * NX_CCC_LOCALORIENTATION0/1 is the reason the backend is Bullet.
+ * GameCar::OnContactModify rebuilds the friction basis from the touched track
+ * triangle, and PhysX 3+ and Jolt have no per-contact friction orientation at
+ * all. btManifoldPoint::m_lateralFrictionDir1/2 is the direct equivalent, and
+ * setting them with CF_HAS_FRICTION_ANCHOR off is what makes the solver use
+ * them rather than deriving its own from the relative velocity.
+ *
+ * Worth knowing while reading GameCar's handler: it sets dynamicFriction0 and
+ * staticFriction0 to zero unconditionally, with the computed velocity-dependent
+ * value commented out. So the basis construction currently decides only which
+ * tangent is made frictionless, and the magnitude is always zero.
+ */
+void Scene::setUserContactModify(NxUserContactModify* callback)
+	{
+	_contactModify = callback;
+	}
+
+void Scene::modifyContacts()
+	{
+	if (!_contactModify)
+		return;
+
+	const int manifolds = _dispatcher->getNumManifolds();
+
+	for (int i = 0; i < manifolds; ++i)
+		{
+		btPersistentManifold* manifold = _dispatcher->getManifoldByIndexInternal(i);
+
+		Actor* actor0 = static_cast<Actor*>(manifold->getBody0()->getUserPointer());
+		Actor* actor1 = static_cast<Actor*>(manifold->getBody1()->getUserPointer());
+		if (!actor0 || !actor1)
+			continue;
+
+		for (int p = 0; p < manifold->getNumContacts(); ++p)
+			{
+			btManifoldPoint& point = manifold->getContactPoint(p);
+
+			NxShape* shape0 = ShapeAt(*actor0, point.m_index0);
+			NxShape* shape1 = ShapeAt(*actor1, point.m_index1);
+			if (!shape0 || !shape1)
+				continue;
+
+			/*
+			 * The defaults 2.8 hands the callback: the material's own friction,
+			 * so a callback that changes nothing leaves the contact alone.
+			 */
+			NxUserContactModify::NxContactCallbackData data;
+			data.minImpulse = 0.0f;
+			data.maxImpulse = NX_MAX_REAL;
+			data.error.zero();
+			data.target.zero();
+			data.localpos0 = ToNx(point.m_localPointA);
+			data.localpos1 = ToNx(point.m_localPointB);
+			data.localorientation0.id();
+			data.localorientation1.id();
+			data.staticFriction0 = data.staticFriction1 = point.m_combinedFriction;
+			data.dynamicFriction0 = data.dynamicFriction1 = point.m_combinedFriction;
+			data.restitution = point.m_combinedRestitution;
+
+			NxU32 changeFlags = NxUserContactModify::NX_CCC_NONE;
+
+			if (!_contactModify->onContactConstraint(
+					changeFlags, shape0, shape1,
+					static_cast<NxU32>(point.m_index0),
+					static_cast<NxU32>(point.m_index1), data))
+				{
+				/* 2.8 lets the callback reject the contact outright. */
+				point.m_appliedImpulse = 0.0f;
+				point.m_combinedFriction = 0.0f;
+				point.m_combinedRestitution = 0.0f;
+				continue;
+				}
+
+			if (changeFlags & (NxUserContactModify::NX_CCC_STATICFRICTION0 |
+			                   NxUserContactModify::NX_CCC_DYNAMICFRICTION0))
+				point.m_combinedFriction = data.dynamicFriction0;
+
+			if (changeFlags & NxUserContactModify::NX_CCC_RESTITUTION)
+				point.m_combinedRestitution = data.restitution;
+
+			/*
+			 * The friction frame. 2.8 hands it over as a quaternion whose X and
+			 * Y axes are the two tangent directions; Bullet wants those two
+			 * directions directly.
+			 */
+			if (changeFlags & (NxUserContactModify::NX_CCC_LOCALORIENTATION0 |
+			                   NxUserContactModify::NX_CCC_LOCALORIENTATION1))
+				{
+				const btQuaternion frame = ToBullet(
+					(changeFlags & NxUserContactModify::NX_CCC_LOCALORIENTATION0)
+						? data.localorientation0 : data.localorientation1);
+
+				const btMatrix3x3 basis(frame);
+
+				point.m_lateralFrictionDir1 = basis.getColumn(0);
+				point.m_lateralFrictionDir2 = basis.getColumn(1);
+				/* Bullet 3.25 replaced m_lateralFrictionInitialized with a bit
+				   in m_contactPointFlags; setting it is what stops the solver
+				   deriving its own basis from the relative velocity and
+				   discarding the one the game just computed. */
+				point.m_contactPointFlags |=
+					BT_CONTACT_FLAG_LATERAL_FRICTION_INITIALIZED;
+				}
+			}
+		}
 	}
 
 /* --------------------------------------------------------------- contacts */
@@ -572,7 +702,6 @@ NxShape* Scene::raycastClosestShape(const NxRay& worldRay, NxShapesType shapeTyp
 	return hit.shape;
 	}
 
-void Scene::setUserContactModify(NxUserContactModify*)  { Unimplemented("NxScene::setUserContactModify"); }
-void Scene::setUserNotify(NxUserNotify*)                { Unimplemented("NxScene::setUserNotify"); }
+void Scene::setUserNotify(NxUserNotify*)  { Unimplemented("NxScene::setUserNotify"); }
 
 } /* namespace px28 */

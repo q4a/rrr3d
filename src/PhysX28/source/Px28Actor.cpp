@@ -252,6 +252,23 @@ void Actor::rebuildCompoundShape()
 	_body->setCollisionShape(_compound);
 
 	/*
+	 * Skin width is per shape in 2.8 but per object in Bullet, so the largest
+	 * of an actor's shapes wins. Every actor in this game has one skin width
+	 * across its shapes -- px::Shape carries it and Actor::CreateNxShape
+	 * applies the same descriptor value -- so the max is exact here and merely
+	 * conservative if that ever stops being true.
+	 */
+	NxReal skin = 0.0f;
+	for (size_t i = 0; i < _shapeStates.size(); ++i)
+		{
+		const NxReal shapeSkin = _shapeStates[i]->resolvedSkinWidth();
+		if (shapeSkin > skin)
+			skin = shapeSkin;
+		}
+
+	_body->setContactProcessingThreshold(skin);
+
+	/*
 	 * The broadphase AABB has to be recomputed, and this is not housekeeping.
 	 *
 	 * Bullet takes the AABB when the body is added to the world, and at that

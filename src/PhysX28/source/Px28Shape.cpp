@@ -15,6 +15,24 @@ ShapeState::ShapeState(Actor& actor, const NxShapeDesc& desc, NxShapeType type)
 	{
 	}
 
+/*
+ * 2.8's skin width is *permitted interpenetration*: shapes rest overlapping by
+ * this much rather than exactly touching, so reproducing it is the difference
+ * between objects sitting where 2.8 put them and sitting 25mm high.
+ *
+ * It is per shape, and that is not a theoretical distinction. bin/Debug/db.xml
+ * has 228 shapes at -1 -- meaning "use the SDK's global", which
+ * Manager::InitSDK sets to 0.025 -- and 69 at 0.1, four times that. A single
+ * scene-wide value would be wrong for a quarter of the shapes in the game.
+ *
+ * Bullet's per-object equivalent is the contact processing threshold, which is
+ * how far the solver lets a contact penetrate before pushing back.
+ */
+NxReal ShapeState::resolvedSkinWidth() const
+	{
+	return _skinWidth < 0.0f ? _actor->scene().skinWidth() : _skinWidth;
+	}
+
 ShapeState::~ShapeState()
 	{
 	if (_ownsBulletShape)
@@ -213,11 +231,45 @@ const NxTriangleMesh& TriangleMeshShape::getTriangleMesh() const
 	return *_mesh;
 	}
 
-void TriangleMeshShape::getTriangle(NxTriangle&, NxTriangle*, NxU32*, NxU32, bool, bool) const
+/*
+ * The touched triangle, which GameCar::OnContactModify uses to rebuild the
+ * friction frame from the track surface.
+ *
+ * worldSpaceTranslation and worldSpaceRotation are both true at the one call
+ * site (`getTriangle(tri, 0, 0, featureIndex, true, true)`), so the vertices
+ * come back in world space -- through the shape's local pose and then the
+ * actor's. edgeTri and edgeFlags are always null there and are not filled in.
+ */
+void TriangleMeshShape::getTriangle(NxTriangle& triangle, NxTriangle*, NxU32*,
+                                    NxU32 triangleIndex, bool worldSpaceTranslation,
+                                    bool worldSpaceRotation) const
 	{
-	/* GameCar::OnContactModify fetches the touched track triangle to rebuild the
-	   friction frame. That arrives with contact modification. */
-	Unimplemented("NxTriangleMeshShape::getTriangle");
+	NxVec3 vertices[3];
+	if (!_mesh->getTriangleVertices(triangleIndex, vertices))
+		{
+		triangle.verts[0].zero();
+		triangle.verts[1].zero();
+		triangle.verts[2].zero();
+		return;
+		}
+
+	if (worldSpaceTranslation || worldSpaceRotation)
+		{
+		const btTransform world = _actor->body()->getWorldTransform() * _localPose;
+
+		for (int i = 0; i < 3; ++i)
+			{
+			btVector3 v = ToBullet(vertices[i]);
+			v = worldSpaceRotation ? world.getBasis() * v : v;
+			if (worldSpaceTranslation)
+				v += world.getOrigin();
+			vertices[i] = ToNx(v);
+			}
+		}
+
+	triangle.verts[0] = vertices[0];
+	triangle.verts[1] = vertices[1];
+	triangle.verts[2] = vertices[2];
 	}
 
 void TriangleMeshShape::saveToDesc(NxTriangleMeshShapeDesc& desc) const

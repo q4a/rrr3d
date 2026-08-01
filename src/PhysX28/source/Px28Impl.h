@@ -88,6 +88,9 @@ class ShapeState
 	btCollisionShape* bulletShape() const { return _bulletShape; }
 	const btTransform& localPose() const { return _localPose; }
 
+	/* The shape's own, or the scene's global when it is left at -1. */
+	NxReal resolvedSkinWidth() const;
+
 	protected:
 	Actor* _actor;
 	btCollisionShape* _bulletShape;
@@ -358,6 +361,10 @@ class TriangleMesh: public NxTriangleMesh
 
 	btBvhTriangleMeshShape* shape() const { return _shape; }
 
+	/* In the mesh's own space; the shape applies its pose. False if the index
+	   is out of range, which is how a stale feature index fails visibly. */
+	bool getTriangleVertices(NxU32 triangleIndex, NxVec3 vertices[3]) const;
+
 	private:
 	/* Owned by value: btTriangleIndexVertexArray keeps pointers into these, and
 	   the descriptor they came from is freed by FreeMesh the moment the cook
@@ -495,7 +502,11 @@ class Scene: public NxScene
 	/* Walks Bullet's manifolds after a step and delivers onContactNotify. */
 	void collectContacts(NxReal elapsedTime);
 
+	/* And before the solver runs, offers each contact to onContactConstraint. */
+	void modifyContacts();
+
 	NxUserContactReport* _contactReport;
+	NxUserContactModify* _contactModify;
 
 	/* One record per reported pair, rebuilt each step. Held by the scene rather
 	   than by the callback so the storage the game's NxConstContactStream points

@@ -1008,6 +1008,205 @@ void TestTriangleMeshCooking()
 	NxReleasePhysicsSDK(sdk);
 	}
 
+/*
+ * Contact modification, which is the reason the backend is Bullet.
+ *
+ * GameCar::OnContactModify rebuilds the friction basis from the touched track
+ * triangle via NX_CCC_LOCALORIENTATION0/1. PhysX 3+ and Jolt have no
+ * per-contact friction orientation at all; btManifoldPoint's lateral friction
+ * directions are the direct equivalent.
+ */
+class RecordingModify: public NxUserContactModify
+	{
+	public:
+	RecordingModify(): calls(0), sawBothShapes(false), lastFriction(-1.0f) {}
+
+	virtual bool onContactConstraint(NxU32& changeFlags,
+	                                 const NxShape* shape0, const NxShape* shape1,
+	                                 const NxU32, const NxU32,
+	                                 NxContactCallbackData& data)
+		{
+		++calls;
+
+		if (shape0 && shape1)
+			sawBothShapes = true;
+
+		lastFriction = data.dynamicFriction0;
+
+		/* What GameCar does: zero the friction and hand back a basis. */
+		data.dynamicFriction0 = 0.0f;
+		data.staticFriction0 = 0.0f;
+		data.localorientation0.id();
+
+		changeFlags |= NX_CCC_LOCALORIENTATION0 | NX_CCC_LOCALORIENTATION1 |
+		               NX_CCC_STATICFRICTION0 | NX_CCC_DYNAMICFRICTION0;
+
+		return true;
+		}
+
+	int calls;
+	bool sawBothShapes;
+	NxReal lastFriction;
+	};
+
+void TestContactModification()
+	{
+	std::printf("contact modification\n");
+
+	NxSceneDesc sceneDesc;
+	sceneDesc.gravity.set(NxVec3(0.0f, 0.0f, -9.81f));
+
+	px28::Scene scene(sceneDesc);
+
+	RecordingModify modify;
+	scene.setUserContactModify(&modify);
+
+	NxActorDesc groundDesc;
+	groundDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, -1.0f));
+	NxActor* ground = scene.createActor(groundDesc);
+	NxBoxShapeDesc groundShape;
+	groundShape.dimensions.set(NxVec3(50.0f, 50.0f, 1.0f));
+	ground->createShape(groundShape);
+
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = 5.0f;
+	NxActorDesc boxDesc;
+	boxDesc.body = &bodyDesc;
+	boxDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, 2.0f));
+
+	NxActor* box = scene.createActor(boxDesc);
+	NxBoxShapeDesc boxShape;
+	boxShape.dimensions.set(NxVec3(0.5f, 0.5f, 0.5f));
+	box->createShape(boxShape);
+
+	for (int i = 0; i < 200; ++i)
+		{
+		scene.simulate(1.0f / 60.0f);
+		scene.flushStream();
+		scene.fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	Check(modify.calls > 0, "onContactConstraint was called");
+	Check(modify.sawBothShapes, "both shapes are passed to the callback");
+
+	/* The callback is handed the material's friction, not zero -- a callback
+	   that changes nothing must leave the contact as it was. */
+	Check(modify.lastFriction >= 0.0f, "the callback receives a friction to modify");
+
+	scene.setUserContactModify(NULL);
+	}
+
+/* getTriangle, which OnContactModify needs to rebuild the friction frame from
+   the touched track surface. */
+void TestMeshGetTriangle()
+	{
+	std::printf("mesh getTriangle\n");
+
+	NxPhysicsSDK* sdk = NxCreatePhysicsSDK(NX_PHYSICS_SDK_VERSION);
+	NxCookingInterface* cooking = NxGetCookingLib(NX_PHYSICS_SDK_VERSION);
+	if (!sdk || !cooking)
+		{
+		Check(false, "SDK and cooking are available");
+		return;
+		}
+
+	const float vertices[] =
+		{
+		0.0f, 0.0f, 0.0f,
+		2.0f, 0.0f, 0.0f,
+		0.0f, 3.0f, 0.0f,
+		};
+	const NxU32 indices[] = { 0, 1, 2 };
+
+	NxTriangleMeshDesc meshDesc;
+	meshDesc.numVertices = 3;
+	meshDesc.numTriangles = 1;
+	meshDesc.pointStrideBytes = 3 * sizeof(float);
+	meshDesc.triangleStrideBytes = 3 * sizeof(NxU32);
+	meshDesc.points = vertices;
+	meshDesc.triangles = indices;
+
+	MemoryStream stream;
+	cooking->NxCookTriangleMesh(meshDesc, stream);
+	NxTriangleMesh* mesh = sdk->createTriangleMesh(stream);
+
+	NxSceneDesc sceneDesc;
+	NxScene* scene = sdk->createScene(sceneDesc);
+
+	/* Offset the actor, so world space is distinguishable from mesh space. */
+	NxActorDesc actorDesc;
+	actorDesc.globalPose.t.set(NxVec3(10.0f, 20.0f, 30.0f));
+	NxActor* actor = scene->createActor(actorDesc);
+
+	NxTriangleMeshShapeDesc shapeDesc;
+	shapeDesc.meshData = mesh;
+	NxShape* shape = actor->createShape(shapeDesc);
+
+	const NxTriangleMeshShape* meshShape = shape->isTriangleMesh();
+	Check(meshShape != NULL, "the shape downcasts to a mesh shape");
+	if (!meshShape)
+		return;
+
+	NxTriangle tri;
+	meshShape->getTriangle(tri, 0, 0, 0, true, true);
+
+	/* World space: the mesh vertices plus the actor's position. */
+	CheckVecNear(tri.verts[0], NxVec3(10.0f, 20.0f, 30.0f), 1e-4f,
+	             "triangle vertex 0 in world space");
+	CheckVecNear(tri.verts[1], NxVec3(12.0f, 20.0f, 30.0f), 1e-4f,
+	             "triangle vertex 1 in world space");
+	CheckVecNear(tri.verts[2], NxVec3(10.0f, 23.0f, 30.0f), 1e-4f,
+	             "triangle vertex 2 in world space");
+
+	sdk->releaseScene(*scene);
+	NxReleasePhysicsSDK(sdk);
+	}
+
+/*
+ * Skin width resolution: -1 means "use the SDK's global", anything else is the
+ * shape's own. 228 shapes in db.xml take the global and 69 override it, so both
+ * paths are live in shipped data.
+ */
+void TestSkinWidthResolution()
+	{
+	std::printf("skin width\n");
+
+	NxPhysicsSDK* sdk = NxCreatePhysicsSDK(NX_PHYSICS_SDK_VERSION);
+	if (!sdk)
+		return;
+
+	Check(sdk->setParameter(NX_SKIN_WIDTH, 0.025f), "the global skin width is settable");
+	CheckNear(sdk->getParameter(NX_SKIN_WIDTH), 0.025f, 1e-6f,
+	          "and reads back -- Manager::InitSDK sets exactly this");
+
+	NxSceneDesc sceneDesc;
+	NxScene* scene = sdk->createScene(sceneDesc);
+
+	NxActorDesc actorDesc;
+	NxActor* actor = scene->createActor(actorDesc);
+
+	/* The default: -1, deferring to the global. */
+	NxBoxShapeDesc inherits;
+	inherits.dimensions.set(NxVec3(1.0f, 1.0f, 1.0f));
+	CheckNear(inherits.skinWidth, -1.0f, 1e-6f, "a shape descriptor defaults to -1");
+	NxShape* inheriting = actor->createShape(inherits);
+	CheckNear(inheriting->getSkinWidth(), -1.0f, 1e-6f,
+	          "and the shape reports -1, not the resolved value");
+
+	/* The override db.xml uses for 69 shapes. */
+	NxBoxShapeDesc overrides;
+	overrides.dimensions.set(NxVec3(1.0f, 1.0f, 1.0f));
+	overrides.skinWidth = 0.1f;
+	NxShape* overriding = actor->createShape(overrides);
+	CheckNear(overriding->getSkinWidth(), 0.1f, 1e-6f, "an override round trips");
+
+	overriding->setSkinWidth(0.2f);
+	CheckNear(overriding->getSkinWidth(), 0.2f, 1e-6f, "and is settable");
+
+	sdk->releaseScene(*scene);
+	NxReleasePhysicsSDK(sdk);
+	}
+
 } /* namespace */
 
 int main()
@@ -1027,6 +1226,9 @@ int main()
 	TestEmptyContactStream();
 	TestRaycasts();
 	TestTriangleMeshCooking();
+	TestContactModification();
+	TestMeshGetTriangle();
+	TestSkinWidthResolution();
 
 	std::printf("================================\n");
 	if (gFailures == 0)
