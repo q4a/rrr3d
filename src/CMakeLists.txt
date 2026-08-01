@@ -64,6 +64,10 @@ else()
     message(STATUS "physics: real PhysX 2.8 SDK")
 endif()
 
+if (NOT MSVC)
+    add_subdirectory(Tests)
+endif()
+
 add_subdirectory(TinyXml)
 add_subdirectory(LexStd)
 add_subdirectory(MathLib)
