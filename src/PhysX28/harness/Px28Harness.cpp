@@ -381,6 +381,86 @@ void TestShapeOrder()
 	scene.releaseActor(*actor);
 	}
 
+/*
+ * Material indices, reproducing DataBase.cpp:4364-4397 exactly.
+ *
+ * This is the highest-consequence check in the harness and it needs no
+ * simulation at all. The indices are serialised into db.xml, so getting the
+ * allocation order wrong swaps every track surface's friction for another's
+ * with no error anywhere -- the game would simply handle differently.
+ */
+void TestMaterialIndices()
+	{
+	std::printf("material indices\n");
+
+	NxSceneDesc sceneDesc;
+	px28::Scene scene(sceneDesc);
+
+	/* Before anything is created, slot 0 exists and is the scene default. */
+	Check(scene.getMaterialFromIndex(0) != NULL, "index 0 is the scene default");
+	Check(scene.getNbMaterials() == 1, "a fresh scene has one material");
+
+	/* The five DataBase creates, in its order. */
+	NxMaterialDesc carMaterial1;
+	carMaterial1.staticFriction = 0.08f;
+	carMaterial1.dynamicFriction = 0.08f;
+	carMaterial1.staticFrictionV = 3.2f;
+	carMaterial1.dynamicFrictionV = 2.0f;
+	carMaterial1.dirOfAnisotropy = NxVec3(0, 0, 1.0f);
+	carMaterial1.flags = NX_MF_ANISOTROPIC | NX_MF_DISABLE_STRONG_FRICTION;
+
+	NxMaterialDesc carMaterial2 = carMaterial1;
+	carMaterial2.staticFriction = 0.02f;
+	carMaterial2.dynamicFriction = 0.02f;
+
+	NxMaterialDesc wheelMaterial;
+	wheelMaterial.flags = NX_MF_DISABLE_FRICTION;
+
+	NxMaterialDesc trackMaterial;
+	NxMaterialDesc borderMaterial;
+
+	NxMaterial* car1   = scene.createMaterial(carMaterial1);
+	NxMaterial* car2   = scene.createMaterial(carMaterial2);
+	NxMaterial* wheel  = scene.createMaterial(wheelMaterial);
+	NxMaterial* track  = scene.createMaterial(trackMaterial);
+	NxMaterial* border = scene.createMaterial(borderMaterial);
+
+	Check(car1->getMaterialIndex() == 1, "car material 1 is index 1");
+	Check(car2->getMaterialIndex() == 2, "car material 2 is index 2");
+	Check(wheel->getMaterialIndex() == 3, "wheel material is index 3");
+
+	/* The two that db.xml stores: 66 shapes reference 4 and 59 reference 5. */
+	Check(track->getMaterialIndex() == 4, "track material is index 4, as db.xml stores");
+	Check(border->getMaterialIndex() == 5, "border material is index 5, as db.xml stores");
+
+	Check(scene.getNbMaterials() == 6, "six materials including the default");
+
+	/* Lookup by index round-trips, which is how a shape resolves its own. */
+	Check(scene.getMaterialFromIndex(4) == track, "index 4 resolves to the track material");
+	Check(scene.getMaterialFromIndex(5) == border, "index 5 resolves to the border material");
+	Check(scene.getMaterialFromIndex(99) == NULL, "an unused index resolves to NULL");
+
+	/* The descriptor survives, including the anisotropy the car materials set. */
+	NxMaterialDesc readBack;
+	car1->saveToDesc(readBack);
+	CheckNear(readBack.staticFriction, 0.08f, 1e-6f, "static friction round trips");
+	CheckNear(readBack.dynamicFrictionV, 2.0f, 1e-6f, "dynamicFrictionV round trips");
+	CheckVecNear(readBack.dirOfAnisotropy, NxVec3(0, 0, 1.0f), 1e-6f,
+	             "dirOfAnisotropy round trips");
+	Check((readBack.flags & NX_MF_ANISOTROPIC) != 0, "NX_MF_ANISOTROPIC round trips");
+
+	/*
+	 * Releasing must not compact. Indices are shape-visible and serialised, so
+	 * shifting later materials down would silently repoint every shape that
+	 * referenced one -- exactly the failure this ordering exists to prevent.
+	 */
+	scene.releaseMaterial(*wheel);
+	Check(scene.getMaterialFromIndex(3) == NULL, "a released material leaves a hole");
+	Check(scene.getMaterialFromIndex(4) == track, "the track material keeps index 4");
+	Check(scene.getMaterialFromIndex(5) == border, "the border material keeps index 5");
+	Check(scene.getNbMaterials() == 5, "the released material is no longer counted");
+	}
+
 } /* namespace */
 
 int main()
@@ -392,6 +472,7 @@ int main()
 	TestStaticActorDoesNotFall();
 	TestBoxRestsOnGround();
 	TestShapeOrder();
+	TestMaterialIndices();
 
 	std::printf("================================\n");
 	if (gFailures == 0)

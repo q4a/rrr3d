@@ -20,6 +20,11 @@ ShapeState::~ShapeState()
 	delete _bulletShape;
 	}
 
+Material::Material(const NxMaterialDesc& desc, NxMaterialIndex index)
+	: _desc(desc), _index(index)
+	{
+	}
+
 template<class NxInterface>
 NxActor& ShapeImpl<NxInterface>::getActor() const
 	{

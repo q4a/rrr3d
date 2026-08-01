@@ -18,6 +18,10 @@ Scene::Scene(const NxSceneDesc& desc)
 	_world = new btDiscreteDynamicsWorld(_dispatcher, _broadphase, _solver, _config);
 
 	_world->setGravity(ToBullet(desc.gravity));
+
+	/* Slot 0 is the scene's default material, reserved before any call to
+	   createMaterial so the game's first material lands on index 1. */
+	_materials.push_back(new Material(NxMaterialDesc(), 0));
 	}
 
 Scene::~Scene()
@@ -30,6 +34,9 @@ Scene::~Scene()
 		_actors.pop_back();
 		delete static_cast<Actor*>(actor);
 		}
+
+	for (size_t i = 0; i < _materials.size(); ++i)
+		delete _materials[i];
 
 	delete _world;
 	delete _solver;
@@ -71,6 +78,65 @@ NxU32 Scene::getNbActors() const
 NxActor** Scene::getActors()
 	{
 	return _actors.empty() ? NULL : &_actors[0];
+	}
+
+/* --------------------------------------------------------------- materials */
+
+/*
+ * The hidden contract, and the highest-consequence one in the whole shim.
+ *
+ * Indices are handed out sequentially from 1, with 0 reserved for the scene's
+ * default material. Nothing in 2.8's API says so, and nothing checks it -- but
+ * the result is serialised. DataBase.cpp:4364-4397 creates five materials in
+ * this order: car1, car2, wheel, track, border. So the track is index 4 and the
+ * border is 5, which is exactly what bin/Debug/db.xml stores: 66 shapes at
+ * materialIndex 4 and 59 at 5.
+ *
+ * Index 3 never appears in the shipped data, and that is the independent
+ * confirmation the ordering is right rather than merely plausible: the third
+ * material is _nxWheelMaterial, which DataBase creates with
+ * NX_MF_DISABLE_FRICTION and then never assigns to any shape.
+ *
+ * Get the allocation order wrong and every track surface silently swaps its
+ * friction for another's, with no error anywhere.
+ */
+NxMaterial* Scene::createMaterial(const NxMaterialDesc& desc)
+	{
+	const NxMaterialIndex index = static_cast<NxMaterialIndex>(_materials.size());
+
+	Material* material = new Material(desc, index);
+	_materials.push_back(material);
+
+	return material;
+	}
+
+void Scene::releaseMaterial(NxMaterial& material)
+	{
+	for (size_t i = 0; i < _materials.size(); ++i)
+		if (_materials[i] == &material)
+			{
+			/* The slot is emptied, not erased: indices are shape-visible and
+			   serialised, so compacting would repoint every shape that
+			   referenced a later material. */
+			delete _materials[i];
+			_materials[i] = NULL;
+			return;
+			}
+	}
+
+NxMaterial* Scene::getMaterialFromIndex(NxMaterialIndex index)
+	{
+	return index < _materials.size() ? _materials[index] : NULL;
+	}
+
+NxU32 Scene::getNbMaterials() const
+	{
+	NxU32 count = 0;
+	for (size_t i = 0; i < _materials.size(); ++i)
+		if (_materials[i])
+			++count;
+
+	return count;
 	}
 
 /* ---------------------------------------------------------------- stepping */
@@ -130,11 +196,6 @@ void Scene::getGravity(NxVec3& gravity) const
 	}
 
 /* ------------------------------------------------- not implemented yet ---- */
-
-NxMaterial* Scene::createMaterial(const NxMaterialDesc&)   { Unimplemented("NxScene::createMaterial"); }
-void Scene::releaseMaterial(NxMaterial&)                   { Unimplemented("NxScene::releaseMaterial"); }
-NxMaterial* Scene::getMaterialFromIndex(NxMaterialIndex)   { Unimplemented("NxScene::getMaterialFromIndex"); }
-NxU32 Scene::getNbMaterials() const                        { Unimplemented("NxScene::getNbMaterials"); }
 
 void Scene::setGroupCollisionFlag(NxCollisionGroup, NxCollisionGroup, bool)      { Unimplemented("NxScene::setGroupCollisionFlag"); }
 bool Scene::getGroupCollisionFlag(NxCollisionGroup, NxCollisionGroup) const      { Unimplemented("NxScene::getGroupCollisionFlag"); }

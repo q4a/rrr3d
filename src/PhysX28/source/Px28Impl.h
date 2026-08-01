@@ -287,6 +287,38 @@ class Actor: public NxActor
 	NxU32 _contactReportFlags;
 	};
 
+/* --------------------------------------------------------------- materials */
+
+class Material: public NxMaterial
+	{
+	public:
+	Material(const NxMaterialDesc& desc, NxMaterialIndex index);
+
+	virtual void   setDynamicFriction(NxReal value) { _desc.dynamicFriction = value; }
+	virtual NxReal getDynamicFriction() const       { return _desc.dynamicFriction; }
+	virtual void   setStaticFriction(NxReal value)  { _desc.staticFriction = value; }
+	virtual NxReal getStaticFriction() const        { return _desc.staticFriction; }
+	virtual void   setRestitution(NxReal value)     { _desc.restitution = value; }
+	virtual NxReal getRestitution() const           { return _desc.restitution; }
+	virtual void   setFlags(NxU32 flags)            { _desc.flags = flags; }
+	virtual NxU32  getFlags() const                 { return _desc.flags; }
+
+	virtual void   setDirOfAnisotropy(const NxVec3& dir) { _desc.dirOfAnisotropy = dir; }
+	virtual NxVec3 getDirOfAnisotropy() const            { return _desc.dirOfAnisotropy; }
+
+	virtual void loadFromDesc(const NxMaterialDesc& desc) { _desc = desc; }
+	virtual void saveToDesc(NxMaterialDesc& desc) const   { desc = _desc; }
+
+	/* Serialised into db.xml and saved games, so it round-trips verbatim. */
+	virtual NxMaterialIndex getMaterialIndex() const { return _index; }
+
+	const NxMaterialDesc& desc() const { return _desc; }
+
+	private:
+	NxMaterialDesc _desc;
+	NxMaterialIndex _index;
+	};
+
 /* ------------------------------------------------------------------- scene */
 
 class Scene: public NxScene
@@ -312,12 +344,12 @@ class Scene: public NxScene
 	virtual void setGravity(const NxVec3& gravity);
 	virtual void getGravity(NxVec3& gravity) const;
 
-	/* Not implemented yet -- each aborts naming itself. */
 	virtual NxMaterial* createMaterial(const NxMaterialDesc& desc);
 	virtual void        releaseMaterial(NxMaterial& material);
 	virtual NxMaterial* getMaterialFromIndex(NxMaterialIndex index);
 	virtual NxU32       getNbMaterials() const;
 
+	/* Not implemented yet -- each aborts naming itself. */
 	virtual void  setGroupCollisionFlag(NxCollisionGroup g1, NxCollisionGroup g2, bool enable);
 	virtual bool  getGroupCollisionFlag(NxCollisionGroup g1, NxCollisionGroup g2) const;
 	virtual void  setFilterOps(NxFilterOp op0, NxFilterOp op1, NxFilterOp op2);
@@ -343,6 +375,11 @@ class Scene: public NxScene
 	btDiscreteDynamicsWorld* _world;
 
 	std::vector<NxActor*> _actors;
+
+	/* Indexed BY material index, so slot 0 is the scene default and a released
+	   material leaves a hole rather than shifting everything after it down --
+	   which would silently repoint every shape that referenced a later one. */
+	std::vector<Material*> _materials;
 
 	/* 2.8's skin width is a *global* SDK parameter that shapes inherit by
 	   leaving their own at -1. Captured per scene at creation so a shape can
