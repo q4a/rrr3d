@@ -39,6 +39,9 @@
  */
 #include "windows/windows_base.h"
 
+/* Graphics-stack tracing, compiled to nothing unless RRR3D_TRACE is set. */
+#include "rrr3d_trace.h"
+
 typedef int64_t             __int64;
 typedef int32_t             __int32;
 typedef int16_t             __int16;

@@ -46,3 +46,4 @@ else()
 
     target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::SDL3)
 endif()
+

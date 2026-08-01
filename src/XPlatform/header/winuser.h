@@ -15,8 +15,8 @@
  * lines 3442-3455 -- the same upstream and tag the DirectX headers are vendored
  * from, so the two agree by construction.
  *
- * Only the ten the engine uses are defined. A DT_ flag that is not here is one
- * nothing calls, and it should stay a compile error rather than become a
+ * Only the eleven this port uses are defined. A DT_ flag that is not here is
+ * one nothing calls, and it should stay a compile error rather than become a
  * silently-wrong constant.
  */
 
@@ -29,6 +29,10 @@
 #define DT_VCENTER      0x00000004
 #define DT_BOTTOM       0x00000008
 #define DT_WORDBREAK    0x00000010
+/* Not passed by the engine, but ID3DXFont::DrawText owes it: it is the flag
+   that suppresses wrapping, so the layout code in d3dx_font.cpp has to test
+   for it whether or not this game's call sites set it. */
+#define DT_SINGLELINE   0x00000020
 #define DT_EXPANDTABS   0x00000040
 #define DT_NOCLIP       0x00000100
 #define DT_CALCRECT     0x00000400

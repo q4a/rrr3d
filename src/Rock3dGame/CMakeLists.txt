@@ -35,6 +35,11 @@ if (NOT MSVC)
         "${CMAKE_CURRENT_SOURCE_DIR}/source/video/playback.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/video/VideoPlayer.cpp"
     )
+else()
+    # ...and its replacement is excluded on Windows, where the real three build.
+    list(REMOVE_ITEM ${PROJECT_NAME}_SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/video_stub.cpp"
+    )
 endif()
 
 add_library(${PROJECT_NAME} SHARED
@@ -103,10 +108,21 @@ else()
         PkgConfig::VORBIS
     )
 
-    # Deliberately nothing here for D3D9, D3DX, XAudio2/X3DAudio, DirectShow or
-    # XInput. Each arrives with the phase that ports it -- 7, 8 and 11 -- and
-    # until then the undefined symbols at link time are the list of what is
-    # left, which is worth more than a stub that links and does nothing.
+    if (APPLE)
+        # Direct3D 9 itself: DXVK's D3D9 front-end over d9mt's Metal backend.
+        #
+        # Here rather than in the executable because this is where the calls
+        # are: D3D9RenderDriver is compiled into Rock3dEngine, which is a static
+        # archive absorbed into this shared library. D3D9Metal is also a static
+        # archive, so linking it here gives the process exactly one copy of
+        # DXVK's device and its state.
+        target_link_libraries(${PROJECT_NAME} PRIVATE D3D9Metal)
+    endif()
+
+    # Deliberately nothing here for XAudio2/X3DAudio, DirectShow or XInput.
+    # Each arrives with the phase that ports it -- 11 -- and until then the
+    # undefined symbols at link time are the list of what is left, which is
+    # worth more than a stub that links and does nothing.
 endif()
 
 target_compile_definitions(${PROJECT_NAME}

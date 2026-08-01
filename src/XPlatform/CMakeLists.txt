@@ -41,3 +41,29 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::SDL3)
+
+# d3dx9.h reaches for the D3DX math declarations, which live in MathLib.
+# Headers only, deliberately: MathLib links XPlatform, so a link dependency the
+# other way would be circular.
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/MathLib/header
+)
+
+# libvkd3d-shader: the HLSL compiler behind D3DXCreateEffect.
+#
+# Chosen because its d3dbc writer emits a standard constant table, so parameter
+# names map to registers the way D3DX does -- which is what makes ID3DXEffect
+# implementable from the compiler's output rather than guesswork. See
+# d3dx_effect.cpp and tools/setup-vkd3d-macos.sh.
+#
+# PRIVATE: this library is SHARED, so the static archive is absorbed here and
+# nothing downstream needs to know vkd3d exists.
+set(VKD3D ${CMAKE_SOURCE_DIR}/extern/vkd3d)
+
+if (NOT EXISTS ${VKD3D}/build/.libs/libvkd3d-shader.a)
+    message(FATAL_ERROR
+        "libvkd3d-shader not found. Run tools/setup-vkd3d-macos.sh")
+endif()
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${VKD3D}/include)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${VKD3D}/build/.libs/libvkd3d-shader.a)

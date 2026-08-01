@@ -180,6 +180,35 @@ def adapt_plane_dot(text):
     return text
 
 
+def adapt_effect_pure(text):
+    """Add the missing PURE to GetFunction and GetFunctionByName.
+
+    Upstream declares these two without PURE on all three of ID3DXBaseEffect,
+    ID3DXEffect and ID3DXEffectCompiler, while every other method on all three
+    has it. That makes the interfaces non-abstract, so a class deriving from one
+    of them needs a vtable for the interface itself -- which nothing defines, and
+    the link fails with "vtable for ID3DXEffect" undefined.
+
+    It is an upstream slip rather than a deliberate difference: an interface with
+    two non-pure virtual methods and no implementation anywhere is not something
+    that can be used.
+    """
+    count = 0
+    for name, ret in (("GetFunction", "UINT index"),
+                      ("GetFunctionByName", "const char *name")):
+        before = "    STDMETHOD_(D3DXHANDLE, %s)(THIS_ %s);" % (name, ret)
+        after = "    STDMETHOD_(D3DXHANDLE, %s)(THIS_ %s) PURE;" % (name, ret)
+        count += text.count(before)
+        text = text.replace(before, after)
+
+    # ID3DXBaseEffect, ID3DXEffect, ID3DXEffectCompiler: two methods each.
+    if count != 6:
+        raise SystemExit(
+            "d3dx9effect.h: expected 6 non-PURE GetFunction declarations, found %d "
+            "-- check --mingw-ref (upstream may have fixed it)" % count)
+    return text
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dxvk-ref", default="v2.7.1")
@@ -202,6 +231,8 @@ def main():
             data = adapt_vector4_inline(text).encode("utf-8")
         elif name == "d3dx9math.h":
             data = adapt_vector4_ctor(data.decode("utf-8")).encode("utf-8")
+        elif name == "d3dx9effect.h":
+            data = adapt_effect_pure(data.decode("utf-8")).encode("utf-8")
         (DIRECTX_DIR / name).write_bytes(data)
         print("mingw %-20s -> %s" % (name, DIRECTX_DIR / name))
 
