@@ -204,6 +204,11 @@ BOOL QueueUserWorkItem(LPTHREAD_START_ROUTINE function, LPVOID context, DWORD fl
 DWORD GetFileAttributesA(LPCSTR filename);
 DWORD GetFileAttributesW(LPCWSTR filename);
 
+/* The shell sets the working directory to the application path at startup, so
+   the game's relative Data/ paths resolve however it was launched. */
+BOOL SetCurrentDirectoryA(LPCSTR path);
+BOOL SetCurrentDirectoryW(LPCWSTR path);
+
 /* --------------------------------------------------------------- locale --- */
 
 /*
@@ -323,6 +328,7 @@ void  SetLastError(DWORD error);
 
 #define CreateEvent         CreateEventA
 #define GetFileAttributes   GetFileAttributesA
+#define SetCurrentDirectory SetCurrentDirectoryA
 #define GetModuleFileName   GetModuleFileNameA
 #define MessageBox          MessageBoxA
 #define OutputDebugString   OutputDebugStringA

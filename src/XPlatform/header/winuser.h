@@ -96,6 +96,21 @@ extern "C" {
    the engine only ever tests the high bit. */
 SHORT WINAPI GetAsyncKeyState(int virtualKey);
 
+/*
+ * SDL scancode to Win32 virtual key, and back.
+ *
+ * Declared with plain ints so <SDL3/SDL.h> stays out of this header, and kept
+ * here rather than in the shell because both need it -- the shell to translate
+ * key events, GetAsyncKeyState to answer polled state -- and two copies of a
+ * keyboard table is two copies that can disagree.
+ *
+ * By SCANCODE throughout: a scancode is the physical key, so WASD stays under
+ * the same fingers on AZERTY. Mapping from keycodes would move movement to
+ * ZQSD there.
+ */
+int VirtualKeyFromScancode(int scancode);
+int ScancodeFromVirtualKey(int virtualKey);
+
 /* Cursor position in screen coordinates, and the conversion into a window's
    client coordinates. ControlManager.cpp:603 pairs them, and the "window" it
    passes is the CAMetalLayer the shell hands over as an HWND -- so like

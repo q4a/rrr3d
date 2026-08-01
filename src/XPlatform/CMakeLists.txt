@@ -31,3 +31,13 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     header/windows
     header/directx
 )
+
+# SDL3, PRIVATE. Input and window state are what XPlatform cannot answer from a
+# handle -- the HWND the engine holds is a CAMetalLayer -- so GetAsyncKeyState,
+# GetCursorPos and XInputGetState read from SDL instead. Nothing in the headers
+# mentions it: the scancode table is declared with plain ints precisely so
+# <SDL3/SDL.h> stays out of every consumer.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::SDL3)

@@ -2,6 +2,10 @@
 
 #include "mmsystem.h"
 #include "wingdi.h"
+#include "winuser.h"
+#include "xinput.h"
+
+#include <SDL3/SDL.h>
 
 #include <chrono>
 #include <condition_variable>
@@ -11,6 +15,8 @@
 #include <vector>
 
 #include <cstdlib>
+
+#include <unistd.h>
 
 #include <mach-o/dyld.h>
 #include <sys/stat.h>
@@ -261,8 +267,29 @@ DWORD GetFileAttributesW(LPCWSTR filename)
 	return GetFileAttributesA(narrow);
 }
 
+BOOL SetCurrentDirectoryA(LPCSTR path)
+{
+	return path && chdir(path) == 0 ? TRUE : FALSE;
+}
+
+BOOL SetCurrentDirectoryW(LPCWSTR path)
+{
+	if (!path)
+		return FALSE;
+
+	char narrow[4096];
+	if (WideCharToMultiByte(CP_UTF8, 0, path, -1, narrow,
+	                        static_cast<int>(sizeof(narrow)), nullptr, nullptr) == 0)
+		return FALSE;
+
+	return SetCurrentDirectoryA(narrow);
+}
+
 /* ----------------------------------------------------------------- windows */
 
+/* extern "C++" because this file's definitions sit inside one big extern "C"
+   block, and an internal helper returning a std::mutex& is not a C function. */
+extern "C++" {
 namespace
 {
 	std::mutex& ClientSizeLock()
@@ -287,6 +314,7 @@ namespace
 		return sizes;
 	}
 } /* namespace */
+} /* extern "C++" */
 
 void RegisterClientSize(HWND window, long width, long height)
 {
@@ -451,6 +479,364 @@ int MulDiv(int number, int numerator, int denominator)
 		return -1;
 
 	return negative ? -static_cast<int>(rounded - 1) - 1 : static_cast<int>(rounded);
+}
+
+/* ------------------------------------------------------------------- input */
+
+namespace
+{
+	/*
+	 * The one keyboard table, in both directions.
+	 *
+	 * Only the keys the game names are here: the engine compares against VK_
+	 * constants -- Player's controls, the menu's escape handling, AIPlayer's
+	 * debug keys -- so VK_ is the target alphabet and anything unlisted is
+	 * dropped, which is what the Win32 shell effectively did with keys no
+	 * handler matched.
+	 */
+	struct KeyMapping
+	{
+		SDL_Scancode scancode;
+		int virtualKey;
+	};
+
+	const KeyMapping cKeyMap[] =
+	{
+		{ SDL_SCANCODE_BACKSPACE,  VK_BACK },
+		{ SDL_SCANCODE_RETURN,     VK_RETURN },
+		{ SDL_SCANCODE_KP_ENTER,   VK_RETURN },
+		{ SDL_SCANCODE_LCTRL,      VK_CONTROL },
+		{ SDL_SCANCODE_RCTRL,      VK_CONTROL },
+		{ SDL_SCANCODE_ESCAPE,     VK_ESCAPE },
+		{ SDL_SCANCODE_SPACE,      VK_SPACE },
+		{ SDL_SCANCODE_PAGEUP,     VK_PRIOR },
+		{ SDL_SCANCODE_PAGEDOWN,   VK_NEXT },
+		{ SDL_SCANCODE_LEFT,       VK_LEFT },
+		{ SDL_SCANCODE_UP,         VK_UP },
+		{ SDL_SCANCODE_RIGHT,      VK_RIGHT },
+		{ SDL_SCANCODE_DOWN,       VK_DOWN },
+		{ SDL_SCANCODE_DELETE,     VK_DELETE },
+		{ SDL_SCANCODE_KP_0,       VK_NUMPAD0 },
+		{ SDL_SCANCODE_KP_1,       VK_NUMPAD1 },
+		{ SDL_SCANCODE_KP_2,       VK_NUMPAD2 },
+		{ SDL_SCANCODE_KP_3,       VK_NUMPAD3 },
+		{ SDL_SCANCODE_KP_4,       VK_NUMPAD4 },
+		{ SDL_SCANCODE_KP_5,       VK_NUMPAD5 },
+		{ SDL_SCANCODE_KP_6,       VK_NUMPAD6 },
+		{ SDL_SCANCODE_KP_7,       VK_NUMPAD7 },
+		{ SDL_SCANCODE_KP_8,       VK_NUMPAD8 },
+		{ SDL_SCANCODE_KP_9,       VK_NUMPAD9 },
+		{ SDL_SCANCODE_KP_PLUS,    VK_ADD },
+		{ SDL_SCANCODE_KP_MINUS,   VK_SUBTRACT },
+		{ SDL_SCANCODE_F1,         VK_F1 },
+		{ SDL_SCANCODE_F2,         VK_F2 },
+		{ SDL_SCANCODE_F3,         VK_F3 },
+		{ SDL_SCANCODE_F4,         VK_F4 },
+		{ SDL_SCANCODE_F5,         VK_F5 },
+		{ SDL_SCANCODE_F6,         VK_F6 },
+		{ SDL_SCANCODE_F7,         VK_F7 },
+		{ SDL_SCANCODE_PERIOD,     VK_OEM_PERIOD },
+	};
+
+	const size_t cKeyMapCount = sizeof(cKeyMap) / sizeof(cKeyMap[0]);
+}
+
+/*
+ * Letters and digits are handled by range rather than by table: their virtual
+ * keys are their own ASCII codes, which is what makes 'W' work without an
+ * entry each.
+ */
+int VirtualKeyFromScancode(int scancode)
+{
+	for (size_t i = 0; i < cKeyMapCount; ++i)
+		if (cKeyMap[i].scancode == scancode)
+			return cKeyMap[i].virtualKey;
+
+	if (scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z)
+		return 'A' + (scancode - SDL_SCANCODE_A);
+
+	if (scancode >= SDL_SCANCODE_1 && scancode <= SDL_SCANCODE_9)
+		return '1' + (scancode - SDL_SCANCODE_1);
+
+	if (scancode == SDL_SCANCODE_0)
+		return '0';
+
+	return 0;
+}
+
+int ScancodeFromVirtualKey(int virtualKey)
+{
+	/* First match wins, so VK_RETURN maps back to the main Return key rather
+	   than the keypad one -- polled state should follow the key a player is
+	   most likely holding. */
+	for (size_t i = 0; i < cKeyMapCount; ++i)
+		if (cKeyMap[i].virtualKey == virtualKey)
+			return cKeyMap[i].scancode;
+
+	if (virtualKey >= 'A' && virtualKey <= 'Z')
+		return SDL_SCANCODE_A + (virtualKey - 'A');
+
+	if (virtualKey >= '1' && virtualKey <= '9')
+		return SDL_SCANCODE_1 + (virtualKey - '1');
+
+	if (virtualKey == '0')
+		return SDL_SCANCODE_0;
+
+	return SDL_SCANCODE_UNKNOWN;
+}
+
+/*
+ * The polled half of input. The engine reads keyboard and mouse state directly
+ * as well as receiving events, and SDL keeps both available.
+ *
+ * SDL_GetKeyboardState is by SCANCODE, for the same reason the shell maps by
+ * scancode: the physical key is what the game's controls mean.
+ */
+SHORT WINAPI GetAsyncKeyState(int virtualKey)
+{
+	/* Mouse buttons live in the same numbering as virtual keys on Windows, and
+	   the engine relies on it. */
+	if (virtualKey == VK_LBUTTON || virtualKey == VK_RBUTTON || virtualKey == VK_MBUTTON)
+	{
+		const SDL_MouseButtonFlags buttons = SDL_GetMouseState(NULL, NULL);
+		const SDL_MouseButtonFlags wanted =
+			virtualKey == VK_LBUTTON ? SDL_BUTTON_LMASK :
+			virtualKey == VK_RBUTTON ? SDL_BUTTON_RMASK : SDL_BUTTON_MMASK;
+
+		return (buttons & wanted) ? static_cast<SHORT>(0x8000) : 0;
+	}
+
+	const int scancode = ScancodeFromVirtualKey(virtualKey);
+	if (scancode == SDL_SCANCODE_UNKNOWN)
+		return 0;
+
+	int count = 0;
+	const bool* keys = SDL_GetKeyboardState(&count);
+	if (!keys || scancode >= count)
+		return 0;
+
+	/* The high bit is "down". The low bit -- "pressed since the last call" --
+	   has no SDL equivalent and the engine only ever tests the high one. */
+	return keys[scancode] ? static_cast<SHORT>(0x8000) : 0;
+}
+
+BOOL WINAPI GetCursorPos(LPPOINT point)
+{
+	if (!point)
+		return FALSE;
+
+	float x = 0.0f;
+	float y = 0.0f;
+	SDL_GetGlobalMouseState(&x, &y);
+
+	point->x = static_cast<LONG>(x);
+	point->y = static_cast<LONG>(y);
+
+	return TRUE;
+}
+
+/* Screen to client, answered from the window's position rather than from the
+   handle -- which is a CAMetalLayer and cannot be asked. */
+BOOL WINAPI ScreenToClient(HWND, LPPOINT point)
+{
+	if (!point)
+		return FALSE;
+
+	float globalX = 0.0f;
+	float globalY = 0.0f;
+	SDL_GetGlobalMouseState(&globalX, &globalY);
+
+	float windowX = 0.0f;
+	float windowY = 0.0f;
+	SDL_GetMouseState(&windowX, &windowY);
+
+	/* The difference between the two is the window's origin, which avoids
+	   needing the SDL_Window here at all. */
+	point->x -= static_cast<LONG>(globalX - windowX);
+	point->y -= static_cast<LONG>(globalY - windowY);
+
+	return TRUE;
+}
+
+/* Locale-aware on Windows. The game uses the pair to decide whether a key press
+   is printable for text entry, and every language it ships -- English, Russian,
+   Portuguese -- is covered by treating the input as UTF-8 bytes: a byte with
+   the high bit set is part of a multi-byte character and is printable. */
+BOOL WINAPI IsCharAlphaA(CHAR ch)
+{
+	const unsigned char c = static_cast<unsigned char>(ch);
+
+	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c >= 0x80;
+}
+
+BOOL WINAPI IsCharAlphaNumericA(CHAR ch)
+{
+	const unsigned char c = static_cast<unsigned char>(ch);
+
+	return IsCharAlphaA(ch) || (c >= '0' && c <= '9');
+}
+
+/* ------------------------------------------------------------------ XInput */
+
+extern "C++" {
+namespace
+{
+	/*
+	 * SDL's gamepad API is already an Xbox-shaped abstraction -- that is what
+	 * SDL_GAMEPAD_BUTTON_SOUTH and the axis set are -- so this is a relabelling
+	 * rather than a translation.
+	 *
+	 * The scales have to match exactly, because the game compares raw values
+	 * against XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE fourteen times: SDL reports
+	 * sticks as -32768..32767 and triggers as 0..32767, XInput reports sticks
+	 * the same and triggers as 0..255. So triggers are rescaled, sticks are not.
+	 */
+	SDL_Gamepad* OpenedGamepad(DWORD userIndex)
+	{
+		int count = 0;
+		SDL_JoystickID* ids = SDL_GetGamepads(&count);
+		if (!ids)
+			return NULL;
+
+		if (userIndex == XUSER_INDEX_ANY)
+			userIndex = 0;
+
+		SDL_Gamepad* gamepad = NULL;
+		if (static_cast<int>(userIndex) < count)
+			gamepad = SDL_OpenGamepad(ids[userIndex]);
+
+		SDL_free(ids);
+
+		return gamepad;
+	}
+
+	WORD ReadButtons(SDL_Gamepad* pad)
+	{
+		WORD buttons = 0;
+
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_DPAD_UP))        buttons |= XINPUT_GAMEPAD_DPAD_UP;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_DPAD_DOWN))      buttons |= XINPUT_GAMEPAD_DPAD_DOWN;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_DPAD_LEFT))      buttons |= XINPUT_GAMEPAD_DPAD_LEFT;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT))     buttons |= XINPUT_GAMEPAD_DPAD_RIGHT;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_START))          buttons |= XINPUT_GAMEPAD_START;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_BACK))           buttons |= XINPUT_GAMEPAD_BACK;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_LEFT_STICK))     buttons |= XINPUT_GAMEPAD_LEFT_THUMB;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_RIGHT_STICK))    buttons |= XINPUT_GAMEPAD_RIGHT_THUMB;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER))  buttons |= XINPUT_GAMEPAD_LEFT_SHOULDER;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)) buttons |= XINPUT_GAMEPAD_RIGHT_SHOULDER;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_SOUTH))          buttons |= XINPUT_GAMEPAD_A;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_EAST))           buttons |= XINPUT_GAMEPAD_B;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_WEST))           buttons |= XINPUT_GAMEPAD_X;
+		if (SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_NORTH))          buttons |= XINPUT_GAMEPAD_Y;
+
+		return buttons;
+	}
+}
+}
+
+DWORD WINAPI XInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
+{
+	if (!pState)
+		return ERROR_DEVICE_NOT_CONNECTED;
+
+	std::memset(pState, 0, sizeof(*pState));
+
+	SDL_Gamepad* pad = OpenedGamepad(dwUserIndex);
+	if (!pad)
+		return ERROR_DEVICE_NOT_CONNECTED;
+
+	pState->Gamepad.wButtons = ReadButtons(pad);
+
+	pState->Gamepad.sThumbLX = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_LEFTX);
+	pState->Gamepad.sThumbRX = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_RIGHTX);
+
+	/* Y is inverted between the two: SDL reports down as positive, XInput
+	   reports up as positive. Getting this wrong inverts steering. */
+	pState->Gamepad.sThumbLY = -SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_LEFTY);
+	pState->Gamepad.sThumbRY = -SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_RIGHTY);
+
+	/* 0..32767 down to 0..255, because the game compares triggers against
+	   XINPUT_GAMEPAD_TRIGGER_THRESHOLD, which is 30 on the XInput scale. */
+	pState->Gamepad.bLeftTrigger = static_cast<BYTE>(
+		SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) * 255 / 32767);
+	pState->Gamepad.bRightTrigger = static_cast<BYTE>(
+		SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) * 255 / 32767);
+
+	/* Windows increments this whenever the state changes and the game uses it
+	   to skip redundant work. SDL has no counter, so the state always reads as
+	   fresh -- which costs work rather than correctness. */
+	pState->dwPacketNumber = SDL_GetTicks();
+
+	return ERROR_SUCCESS;
+}
+
+/* Buffered gamepad keystrokes. SDL delivers gamepad input as events to the
+   shell rather than as a queue to poll here, and ControlManager discards
+   everything but the return value. */
+DWORD WINAPI XInputGetKeystroke(DWORD, DWORD, PXINPUT_KEYSTROKE pKeystroke)
+{
+	if (pKeystroke)
+		std::memset(pKeystroke, 0, sizeof(*pKeystroke));
+
+	return ERROR_DEVICE_NOT_CONNECTED;
+}
+
+/* ----------------------------------------------------------------- windows */
+
+/*
+ * The window functions the engine calls on what it thinks is an HWND.
+ *
+ * None of them can act, because the handle is a CAMetalLayer: fullscreen goes
+ * through SDL_SetWindowFullscreen in the shell, and the size the engine asks
+ * for comes back from the registry above. They succeed so the engine's own
+ * logic runs unchanged rather than being #ifdef'd out.
+ */
+LONG WINAPI SetWindowLongA(HWND, int, LONG value)
+{
+	return value;
+}
+
+LONG WINAPI GetWindowLongA(HWND, int)
+{
+	return 0;
+}
+
+BOOL WINAPI GetWindowInfo(HWND window, PWINDOWINFO info)
+{
+	if (!info)
+		return FALSE;
+
+	std::memset(info, 0, sizeof(*info));
+	info->cbSize = sizeof(*info);
+
+	GetClientRect(window, &info->rcClient);
+	info->rcWindow = info->rcClient;
+
+	return TRUE;
+}
+
+/* Grows a client rect by the window chrome. There is no chrome to account for
+   here -- SDL sizes its windows by their content -- so the rect is unchanged,
+   which is also what fullscreen did on Windows. */
+BOOL WINAPI AdjustWindowRect(LPRECT, DWORD, BOOL)
+{
+	return TRUE;
+}
+
+BOOL WINAPI SetWindowPos(HWND, HWND, int, int, int, int, UINT)
+{
+	return TRUE;
+}
+
+/* Repainting is driven by the render loop, not by an invalidation queue. */
+BOOL WINAPI InvalidateRect(HWND, const RECT*, BOOL)
+{
+	return TRUE;
+}
+
+BOOL WINAPI UpdateWindow(HWND)
+{
+	return TRUE;
 }
 
 /* --------------------------------------------------------- device contexts */
