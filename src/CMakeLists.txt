@@ -76,6 +76,7 @@ if (NOT MSVC)
     # without them, and failing to configure would hide that.
     if (EXISTS ${CMAKE_SOURCE_DIR}/extern/d9mt/vendor/dxvk/src/d3d9/d3d9_device.cpp)
         add_subdirectory(D3D9Metal)
+        add_subdirectory(D3D9Triangle)
     else()
         message(STATUS "d3d9metal: extern/ not populated -- "
                        "run tools/setup-d3d9metal-macos.sh for the D3D9 backend")
