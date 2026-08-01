@@ -39,7 +39,10 @@ namespace
 Scene::Scene(const NxSceneDesc& desc)
 	: _config(NULL), _dispatcher(NULL), _broadphase(NULL), _solver(NULL),
 	  _world(NULL), _skinWidth(0.025f), _pendingStep(0.0f), _filter(NULL),
-	  _contactReport(NULL), _contactModify(NULL)
+	  _contactReport(NULL), _contactModify(NULL), _userNotify(NULL),
+	  _filterOp0(NX_FILTEROP_AND), _filterOp1(NX_FILTEROP_AND),
+	  _filterOp2(NX_FILTEROP_AND), _filterBool(false),
+	  _maxTimestep(1.0f / 60.0f), _maxIter(8)
 	{
 	_config = new btDefaultCollisionConfiguration();
 	_dispatcher = new btCollisionDispatcher(_config);
@@ -211,6 +214,12 @@ namespace
 	std::pair<const NxActor*, const NxActor*> PairKey(const NxActor& a, const NxActor& b)
 		{
 		/* Ordered, so (a, b) and (b, a) are the same entry. */
+		return &a < &b ? std::make_pair(&a, &b) : std::make_pair(&b, &a);
+		}
+
+	std::pair<const NxShape*, const NxShape*> ShapePairKey(const NxShape& a,
+	                                                       const NxShape& b)
+		{
 		return &a < &b ? std::make_pair(&a, &b) : std::make_pair(&b, &a);
 		}
 
@@ -633,9 +642,24 @@ void Scene::collectContacts(NxReal elapsedTime)
 		}
 	}
 
-void Scene::setTiming(NxReal, NxU32, NxTimeStepMethod)
+/*
+ * Recorded, and the maxTimestep is the thing that matters.
+ *
+ * fetchResults runs exactly one substep, and that is only equivalent to 2.8
+ * because maxTimestep is 1/60 and World.cpp steps at 1/60. If the game ever
+ * asked for a different maximum, the substep count would diverge and
+ * NX_SMOOTH_IMPULSE would stop being identical to NX_IMPULSE -- so the
+ * assumption is asserted rather than left as a comment.
+ */
+void Scene::setTiming(NxReal maxTimestep, NxU32 maxIter, NxTimeStepMethod)
 	{
-	Unimplemented("NxScene::setTiming");
+	_maxTimestep = maxTimestep;
+	_maxIter = maxIter;
+
+	if (maxTimestep < 1.0f / 60.0f - 1e-6f)
+		Unimplemented("NxScene::setTiming with a maxTimestep below 1/60 "
+		              "-- fetchResults runs one substep, which is only "
+		              "equivalent to 2.8 while the step is 1/60");
 	}
 
 /* ----------------------------------------------------------------- gravity */
@@ -652,9 +676,30 @@ void Scene::getGravity(NxVec3& gravity) const
 
 /* ------------------------------------------------- not implemented yet ---- */
 
-void Scene::setFilterOps(NxFilterOp, NxFilterOp, NxFilterOp)  { Unimplemented("NxScene::setFilterOps"); }
-void Scene::setFilterBool(bool)                               { Unimplemented("NxScene::setFilterBool"); }
-void Scene::setShapePairFlags(NxShape&, NxShape&, NxU32)      { Unimplemented("NxScene::setShapePairFlags"); }
+/*
+ * How NxGroupsMask combines. Weapon.cpp:302 sets (OR, OR, AND) before a
+ * homing-missile raycast and :319 sets (AND, AND, AND) after -- so the ops are
+ * scene state the raycast reads, not a one-off.
+ */
+void Scene::setFilterOps(NxFilterOp op0, NxFilterOp op1, NxFilterOp op2)
+	{
+	_filterOp0 = op0;
+	_filterOp1 = op1;
+	_filterOp2 = op2;
+	}
+
+void Scene::setFilterBool(bool flag)
+	{
+	_filterBool = flag;
+	}
+
+void Scene::setShapePairFlags(NxShape& a, NxShape& b, NxU32 flags)
+	{
+	if (flags == 0)
+		_shapePairFlags.erase(ShapePairKey(a, b));
+	else
+		_shapePairFlags[ShapePairKey(a, b)] = flags;
+	}
 
 /*
  * `groups` is a 32-bit MASK of collision groups, not a group index -- which is
@@ -702,6 +747,13 @@ NxShape* Scene::raycastClosestShape(const NxRay& worldRay, NxShapesType shapeTyp
 	return hit.shape;
 	}
 
-void Scene::setUserNotify(NxUserNotify*)  { Unimplemented("NxScene::setUserNotify"); }
+/* Joint breakage and sleep transitions. The game passes a handler through
+   NxSceneDesc::userNotify but nothing in it is reachable: there are no joints,
+   and Bullet's own deactivation is disabled. Stored so a later sleep
+   implementation has somewhere to deliver. */
+void Scene::setUserNotify(NxUserNotify* callback)
+	{
+	_userNotify = callback;
+	}
 
 } /* namespace px28 */

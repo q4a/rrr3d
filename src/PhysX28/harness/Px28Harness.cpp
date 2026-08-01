@@ -1207,6 +1207,217 @@ void TestSkinWidthResolution()
 	NxReleasePhysicsSDK(sdk);
 	}
 
+/*
+ * The centre-of-mass offset, which is where 2.8 and Bullet genuinely disagree:
+ * 2.8 keeps globalPose (the actor origin) and massLocalPose (the COM) separate,
+ * while a btRigidBody's world transform *is* its centre of mass.
+ *
+ * Every car sets an offset through bfLockCenterOfMass and Physx.cpp:1845
+ * applies it on the actor creation path, so getting this wrong moves every
+ * shape and makes addLocalForce generate torque 2.8 never produced.
+ */
+void TestCentreOfMassOffset()
+	{
+	std::printf("centre of mass\n");
+
+	NxSceneDesc sceneDesc;
+	px28::Scene scene(sceneDesc);
+
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = 10.0f;
+	bodyDesc.massLocalPose.t.set(NxVec3(0.0f, 0.0f, -0.4f));
+
+	NxActorDesc actorDesc;
+	actorDesc.body = &bodyDesc;
+	actorDesc.globalPose.t.set(NxVec3(1.0f, 2.0f, 3.0f));
+
+	NxActor* actor = scene.createActor(actorDesc);
+	if (!actor)
+		{
+		Check(false, "actor created");
+		return;
+		}
+
+	NxBoxShapeDesc boxShape;
+	boxShape.dimensions.set(NxVec3(0.5f, 0.5f, 0.5f));
+	actor->createShape(boxShape);
+
+	/* getGlobalPose is the ACTOR origin, not the centre of mass. */
+	CheckVecNear(actor->getGlobalPosition(), NxVec3(1.0f, 2.0f, 3.0f), 1e-5f,
+	             "globalPose is the actor origin, not the centre of mass");
+
+	CheckVecNear(actor->getCMassLocalPosition(), NxVec3(0.0f, 0.0f, -0.4f), 1e-5f,
+	             "the descriptor's massLocalPose is the COM offset");
+
+	/* And the COM in world space is the actor origin plus the offset. */
+	CheckVecNear(actor->getCMassGlobalPose().t, NxVec3(1.0f, 2.0f, 2.6f), 1e-5f,
+	             "getCMassGlobalPose is the offset COM in world space");
+
+	/* Moving the actor moves both, keeping the offset. */
+	actor->setGlobalPosition(NxVec3(5.0f, 5.0f, 5.0f));
+	CheckVecNear(actor->getGlobalPosition(), NxVec3(5.0f, 5.0f, 5.0f), 1e-5f,
+	             "setGlobalPosition round trips through the offset");
+	CheckVecNear(actor->getCMassGlobalPose().t, NxVec3(5.0f, 5.0f, 4.6f), 1e-5f,
+	             "and the COM follows it");
+
+	/* Changing the offset must NOT move the actor. */
+	actor->setCMassOffsetLocalPosition(NxVec3(0.0f, 0.2f, 0.0f));
+	CheckVecNear(actor->getGlobalPosition(), NxVec3(5.0f, 5.0f, 5.0f), 1e-5f,
+	             "changing the COM offset leaves the actor where it was");
+	CheckVecNear(actor->getCMassLocalPosition(), NxVec3(0.0f, 0.2f, 0.0f), 1e-5f,
+	             "and the new offset reads back");
+
+	/*
+	 * addLocalForce applies at the centre of mass and must produce NO torque,
+	 * offset or not. That is the whole reason the offset is tracked: applying
+	 * at the actor origin would spin a car that 2.8 pushed straight.
+	 */
+	actor->setAngularVelocity(NxVec3(0.0f, 0.0f, 0.0f));
+	actor->addLocalForce(NxVec3(100.0f, 0.0f, 0.0f), NX_FORCE, true);
+
+	for (int i = 0; i < 10; ++i)
+		{
+		scene.simulate(1.0f / 60.0f);
+		scene.flushStream();
+		scene.fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	const NxVec3 spin = actor->getAngularVelocity();
+	Check(std::fabs(spin.x) < 1e-3f && std::fabs(spin.y) < 1e-3f &&
+	      std::fabs(spin.z) < 1e-3f,
+	      "addLocalForce at an offset COM produces no torque");
+
+	Check(actor->getLinearVelocity().x > 0.0f, "and it does accelerate the actor");
+
+	scene.releaseActor(*actor);
+	}
+
+/* The rest of the actor surface the game calls: inertia, kinetic energy,
+   damping, sleeping and saveToDesc. */
+void TestActorRemainder()
+	{
+	std::printf("actor remainder\n");
+
+	NxSceneDesc sceneDesc;
+	px28::Scene scene(sceneDesc);
+
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = 4.0f;
+
+	NxActorDesc actorDesc;
+	actorDesc.body = &bodyDesc;
+	actorDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, 10.0f));
+	actorDesc.flags = NX_AF_LOCK_COM;
+
+	NxActor* actor = scene.createActor(actorDesc);
+	NxBoxShapeDesc boxShape;
+	boxShape.dimensions.set(NxVec3(1.0f, 1.0f, 1.0f));
+	actor->createShape(boxShape);
+
+	/* A uniform box's inertia is m/3 * (b^2 + c^2) for half-extents; with
+	   half-extents 1 that is 4/3 * 2 = 2.667 on every axis. GameCar.cpp:733
+	   multiplies this by a torque clamp every step. */
+	const NxVec3 inertia = actor->getMassSpaceInertiaTensor();
+	CheckNear(inertia.x, 2.6667f, 1e-2f, "box inertia tensor x");
+	CheckNear(inertia.y, 2.6667f, 1e-2f, "box inertia tensor y");
+	CheckNear(inertia.z, 2.6667f, 1e-2f, "box inertia tensor z");
+
+	/* Kinetic energy: half m v^2 with no spin. */
+	actor->setLinearVelocity(NxVec3(3.0f, 0.0f, 0.0f));
+	actor->setAngularVelocity(NxVec3(0.0f, 0.0f, 0.0f));
+	CheckNear(actor->computeKineticEnergy(), 0.5f * 4.0f * 9.0f, 1e-3f,
+	          "kinetic energy is half m v squared");
+
+	/* Plus half w.I.w when it spins. */
+	actor->setLinearVelocity(NxVec3(0.0f, 0.0f, 0.0f));
+	actor->setAngularVelocity(NxVec3(2.0f, 0.0f, 0.0f));
+	CheckNear(actor->computeKineticEnergy(), 0.5f * 2.6667f * 4.0f, 1e-2f,
+	          "and half omega I omega when spinning");
+
+	actor->setLinearDamping(0.0f);
+
+	/* Sleeping: GameCar wakes an actor after teleporting it. */
+	actor->putToSleep();
+	Check(actor->isSleeping(), "putToSleep sleeps the actor");
+	actor->wakeUp();
+	Check(!actor->isSleeping(), "wakeUp wakes it again");
+
+	/* saveToDesc round-trips the pose and flags px::Actor reads back. */
+	NxActorDesc saved;
+	actor->saveToDesc(saved);
+	CheckVecNear(saved.globalPose.t, NxVec3(0.0f, 0.0f, 10.0f), 1e-4f,
+	             "saveToDesc carries the pose");
+	Check((saved.flags & NX_AF_LOCK_COM) != 0, "and the actor flags");
+
+	/* getGlobalOrientation, the NxMat33 form GameCar.cpp:725 uses. */
+	NxQuat quarterTurn;
+	quarterTurn.fromAngleAxis(90.0f, NxVec3(0, 0, 1));
+	actor->setGlobalOrientationQuat(quarterTurn);
+
+	NxVec3 rotatedX;
+	actor->getGlobalOrientation().multiply(NxVec3(1, 0, 0), rotatedX);
+	CheckVecNear(rotatedX, NxVec3(0, 1, 0), 1e-4f,
+	             "getGlobalOrientation agrees with the quaternion form");
+
+	scene.releaseActor(*actor);
+	}
+
+/* Convex cooking, the SDK's foundation, and the scene state the game sets. */
+void TestSdkRemainder()
+	{
+	std::printf("SDK remainder\n");
+
+	NxPhysicsSDK* sdk = NxCreatePhysicsSDK(NX_PHYSICS_SDK_VERSION);
+	NxCookingInterface* cooking = NxGetCookingLib(NX_PHYSICS_SDK_VERSION);
+	if (!sdk || !cooking)
+		return;
+
+	/* Physx.cpp:295 asks the foundation for a debugger and guards on
+	   isConnected() before using it. */
+	Check(sdk->getFoundationSDK().getRemoteDebugger() != NULL,
+	      "the foundation offers a remote debugger");
+	Check(!sdk->getFoundationSDK().getRemoteDebugger()->isConnected(),
+	      "which is never connected");
+
+	/* Convex cooking: TriangleMesh::GetOrCreateConvex cooks these, though
+	   nothing ever builds a shape from one. */
+	const float vertices[] =
+		{
+		0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f,
+		};
+
+	NxConvexMeshDesc convexDesc;
+	convexDesc.numVertices = 4;
+	convexDesc.pointStrideBytes = 3 * sizeof(float);
+	convexDesc.points = vertices;
+
+	MemoryStream stream;
+	Check(cooking->NxCookConvexMesh(convexDesc, stream), "a convex mesh cooks");
+
+	NxConvexMesh* convex = sdk->createConvexMesh(stream);
+	Check(convex != NULL, "and reads back");
+	if (convex)
+		{
+		Check(convex->getCount(0) == 4, "with its four points");
+		sdk->releaseConvexMesh(*convex);
+		}
+
+	NxScene* scene = sdk->createScene(NxSceneDesc());
+
+	/* Weapon.cpp changes the filter ops around a raycast. */
+	scene->setFilterOps(NX_FILTEROP_OR, NX_FILTEROP_OR, NX_FILTEROP_AND);
+	scene->setFilterBool(true);
+
+	/* World.cpp fixes the step at 1/60, which is what makes one substep
+	   equivalent to 2.8. setTiming records it. */
+	scene->setTiming(1.0f / 60.0f, 8, NX_TIMESTEP_FIXED);
+
+	scene->setUserNotify(NULL);
+
+	sdk->releaseScene(*scene);
+	NxReleasePhysicsSDK(sdk);
+	}
+
 } /* namespace */
 
 int main()
@@ -1229,6 +1440,9 @@ int main()
 	TestContactModification();
 	TestMeshGetTriangle();
 	TestSkinWidthResolution();
+	TestCentreOfMassOffset();
+	TestActorRemainder();
+	TestSdkRemainder();
 
 	std::printf("================================\n");
 	if (gFailures == 0)

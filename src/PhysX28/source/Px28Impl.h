@@ -305,7 +305,6 @@ class Actor: public NxActor
 	virtual NxU32 getContactReportFlags() const;
 	virtual void  setContactReportFlags(NxU32 flags);
 
-	/* Not implemented yet -- each aborts naming itself. */
 	virtual void    saveToDesc(NxActorDescBase& desc);
 	virtual void    setGlobalOrientation(const NxMat33& mat);
 	virtual NxMat33 getGlobalOrientation() const;
@@ -323,6 +322,10 @@ class Actor: public NxActor
 	private:
 	/* Pushes NX_AF_DISABLE_RESPONSE down to Bullet's CF_NO_CONTACT_RESPONSE. */
 	void applyResponseFlag();
+
+	/* The actor origin, which is the body transform with the COM offset undone. */
+	btTransform actorTransform() const;
+	void setActorTransform(const btTransform& actorWorld);
 
 	Scene* _scene;
 	btRigidBody* _body;
@@ -347,6 +350,25 @@ class Actor: public NxActor
 
 	NxU32 _actorFlags;
 	NxU32 _contactReportFlags;
+
+	/*
+	 * 2.8 keeps the actor's pose and its centre of mass separate: globalPose is
+	 * the actor origin and massLocalPose offsets the COM from it. Bullet does
+	 * not -- a btRigidBody's world transform *is* its centre of mass.
+	 *
+	 * So the offset is held here and applied at every boundary:
+	 *
+	 *   bodyWorld  = actorWorld * comOffset
+	 *   actorWorld = bodyWorld  * comOffset^-1
+	 *   compound child = comOffset^-1 * shapeLocalPose
+	 *
+	 * This is not bookkeeping. Every car sets a COM offset through
+	 * bfLockCenterOfMass, and Physx.cpp:1845 applies massLocalPose on the actor
+	 * creation path -- so treating the body origin as the actor origin would
+	 * put every shape in the wrong place and make addLocalForce generate torque
+	 * 2.8 never produced.
+	 */
+	btTransform _comOffset;
 	};
 
 /* ------------------------------------------------------------------ meshes */
@@ -507,6 +529,20 @@ class Scene: public NxScene
 
 	NxUserContactReport* _contactReport;
 	NxUserContactModify* _contactModify;
+	NxUserNotify* _userNotify;
+
+	/* How NxGroupsMask combines; Weapon.cpp changes these around a raycast. */
+	NxFilterOp _filterOp0;
+	NxFilterOp _filterOp1;
+	NxFilterOp _filterOp2;
+	bool _filterBool;
+
+	std::map<std::pair<const NxShape*, const NxShape*>, NxU32> _shapePairFlags;
+
+	/* Recorded by setTiming; the step is what fetchResults' single substep
+	   depends on being 1/60. */
+	NxReal _maxTimestep;
+	NxU32 _maxIter;
 
 	/* One record per reported pair, rebuilt each step. Held by the scene rather
 	   than by the callback so the storage the game's NxConstContactStream points

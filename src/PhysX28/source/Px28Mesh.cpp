@@ -24,8 +24,62 @@ namespace
 {
 	/* Distinguishes a stream this shim wrote from anything else that might be
 	   handed to createTriangleMesh -- a saved file from the real SDK, say. */
-	const NxU32 cMeshMagic = 0x50583238; /* "PX28" */
+	const NxU32 cMeshMagic = 0x50583238;   /* "PX28" */
+	const NxU32 cConvexMagic = 0x50583243; /* "PX2C" */
+
+	/* The remote debugger the engine connects to under _DEBUG. There is nothing
+	   to connect to, and Physx.cpp:295 guards on isConnected() before doing
+	   anything, so reporting "not connected" is the whole implementation. */
+	class RemoteDebugger: public NxRemoteDebugger
+		{
+		public:
+		virtual bool isConnected() const { return false; }
+		virtual void connect(const char*, NxU32, NxU32) {}
+		virtual void disconnect() {}
+		};
+
+	class Foundation: public NxFoundationSDK
+		{
+		public:
+		virtual NxRemoteDebugger* getRemoteDebugger() { return &_debugger; }
+
+		private:
+		RemoteDebugger _debugger;
+		};
 }
+
+/* ---------------------------------------------------------- convex meshes */
+
+class ConvexMesh: public NxConvexMesh
+	{
+	public:
+	explicit ConvexMesh(const std::vector<float>& vertices)
+		: _vertices(vertices), _shape(NULL)
+		{
+		if (_vertices.size() < 9)
+			return;
+
+		/* Bullet hulls the point cloud itself, so the cooked form is just the
+		   points. */
+		_shape = new btConvexHullShape(&_vertices[0],
+		                               static_cast<int>(_vertices.size() / 3),
+		                               3 * sizeof(float));
+		_shape->optimizeConvexHull();
+		}
+
+	virtual ~ConvexMesh() { delete _shape; }
+
+	virtual NxU32 getCount(NxU32) const
+		{
+		return static_cast<NxU32>(_vertices.size() / 3);
+		}
+
+	btConvexHullShape* shape() const { return _shape; }
+
+	private:
+	std::vector<float> _vertices;
+	btConvexHullShape* _shape;
+	};
 
 /* ------------------------------------------------------------ cooked mesh */
 
@@ -127,9 +181,32 @@ class Cooking: public NxCookingInterface
 		return true;
 		}
 
-	virtual bool NxCookConvexMesh(const NxConvexMeshDesc&, NxStream&)
+	/*
+	 * A convex hull is the same de-strided vertex dump minus the indices --
+	 * Bullet computes the hull itself from a point cloud, so nothing has to be
+	 * hulled at cook time.
+	 *
+	 * TriangleMesh::GetOrCreateConvex cooks these, but nothing in the game ever
+	 * builds an NxConvexShapeDesc from one, so they are created and released
+	 * and never made into a shape. Implemented anyway, because the cook and the
+	 * release are both on live paths.
+	 */
+	virtual bool NxCookConvexMesh(const NxConvexMeshDesc& desc, NxStream& stream)
 		{
-		Unimplemented("NxCookingInterface::NxCookConvexMesh");
+		stream.storeDword(cConvexMagic);
+		stream.storeDword(desc.numVertices);
+
+		const char* points = static_cast<const char*>(desc.points);
+		for (NxU32 i = 0; i < desc.numVertices; ++i)
+			{
+			const float* vertex =
+				reinterpret_cast<const float*>(points + i * desc.pointStrideBytes);
+			stream.storeFloat(vertex[0]);
+			stream.storeFloat(vertex[1]);
+			stream.storeFloat(vertex[2]);
+			}
+
+		return true;
 		}
 	};
 
@@ -221,25 +298,45 @@ class PhysicsSDK: public NxPhysicsSDK
 				}
 		}
 
-	virtual NxConvexMesh* createConvexMesh(NxStream&)
+	virtual NxConvexMesh* createConvexMesh(NxStream& stream)
 		{
-		Unimplemented("NxPhysicsSDK::createConvexMesh");
+		if (stream.readDword() != cConvexMagic)
+			return NULL;
+
+		const NxU32 numVertices = stream.readDword();
+
+		std::vector<float> vertices(numVertices * 3);
+		for (NxU32 i = 0; i < numVertices * 3; ++i)
+			vertices[i] = stream.readFloat();
+
+		ConvexMesh* mesh = new ConvexMesh(vertices);
+		_convexMeshes.push_back(mesh);
+
+		return mesh;
 		}
 
-	virtual void releaseConvexMesh(NxConvexMesh&)
+	virtual void releaseConvexMesh(NxConvexMesh& mesh)
 		{
-		Unimplemented("NxPhysicsSDK::releaseConvexMesh");
+		for (size_t i = 0; i < _convexMeshes.size(); ++i)
+			if (_convexMeshes[i] == &mesh)
+				{
+				_convexMeshes.erase(_convexMeshes.begin() + i);
+				delete static_cast<ConvexMesh*>(&mesh);
+				return;
+				}
 		}
 
 	virtual NxFoundationSDK& getFoundationSDK() const
 		{
-		Unimplemented("NxPhysicsSDK::getFoundationSDK");
+		return _foundation;
 		}
 
 	private:
 	std::vector<NxScene*> _scenes;
 	std::vector<NxTriangleMesh*> _meshes;
+	std::vector<NxConvexMesh*> _convexMeshes;
 	NxReal _skinWidth;
+	mutable Foundation _foundation;
 	};
 
 } /* namespace px28 */

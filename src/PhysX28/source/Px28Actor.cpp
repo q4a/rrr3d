@@ -18,11 +18,13 @@ Actor::Actor(Scene& scene, const NxActorDesc& desc)
 	  _actorFlags(desc.flags), _contactReportFlags(desc.contactReportFlags)
 	{
 	_compound = new btCompoundShape();
+	_comOffset.setIdentity();
 
 	btVector3 inertia(0, 0, 0);
 	if (_dynamic)
 		{
 		_mass = desc.body->mass;
+		_comOffset = ToBullet(desc.body->massLocalPose);
 
 		/*
 		 * 2.8 lets massSpaceInertia be zero, meaning "compute it from the
@@ -35,7 +37,9 @@ Actor::Actor(Scene& scene, const NxActorDesc& desc)
 			inertia = ToBullet(desc.body->massSpaceInertia);
 		}
 
-	btDefaultMotionState* motion = new btDefaultMotionState(ToBullet(desc.globalPose));
+	/* The body starts at the centre of mass, not at the actor origin. */
+	btDefaultMotionState* motion =
+		new btDefaultMotionState(ToBullet(desc.globalPose) * _comOffset);
 
 	btRigidBody::btRigidBodyConstructionInfo info(_dynamic ? _mass : 0.0f,
 	                                              motion, _compound, inertia);
@@ -87,45 +91,125 @@ NxScene& Actor::getScene() const
 
 /* -------------------------------------------------------------------- pose */
 
+/*
+ * Every pose accessor goes through the centre-of-mass offset, because Bullet's
+ * body transform is the COM and 2.8's globalPose is the actor origin.
+ */
+void Actor::setActorTransform(const btTransform& actorWorld)
+	{
+	const btTransform bodyWorld = actorWorld * _comOffset;
+
+	_body->setWorldTransform(bodyWorld);
+	if (_body->getMotionState())
+		_body->getMotionState()->setWorldTransform(bodyWorld);
+
+	_body->setInterpolationWorldTransform(bodyWorld);
+	_scene->world().updateSingleAabb(_body);
+	}
+
+btTransform Actor::actorTransform() const
+	{
+	return _body->getWorldTransform() * _comOffset.inverse();
+	}
+
 void Actor::setGlobalPose(const NxMat34& mat)
 	{
-	const btTransform transform = ToBullet(mat);
-	_body->setWorldTransform(transform);
-	if (_body->getMotionState())
-		_body->getMotionState()->setWorldTransform(transform);
+	setActorTransform(ToBullet(mat));
 	}
 
 void Actor::setGlobalPosition(const NxVec3& vec)
 	{
-	btTransform transform = _body->getWorldTransform();
-	transform.setOrigin(ToBullet(vec));
-	_body->setWorldTransform(transform);
-	if (_body->getMotionState())
-		_body->getMotionState()->setWorldTransform(transform);
+	btTransform actorWorld = actorTransform();
+	actorWorld.setOrigin(ToBullet(vec));
+	setActorTransform(actorWorld);
 	}
 
 void Actor::setGlobalOrientationQuat(const NxQuat& q)
 	{
-	btTransform transform = _body->getWorldTransform();
-	transform.setRotation(ToBullet(q));
-	_body->setWorldTransform(transform);
-	if (_body->getMotionState())
-		_body->getMotionState()->setWorldTransform(transform);
+	btTransform actorWorld = actorTransform();
+	actorWorld.setRotation(ToBullet(q));
+	setActorTransform(actorWorld);
+	}
+
+void Actor::setGlobalOrientation(const NxMat33& mat)
+	{
+	NxMat34 pose;
+	pose.M = mat;
+	pose.t = ToNx(actorTransform().getOrigin());
+
+	setActorTransform(ToBullet(pose));
 	}
 
 NxMat34 Actor::getGlobalPose() const
 	{
-	return ToNx(_body->getWorldTransform());
+	return ToNx(actorTransform());
 	}
 
 NxVec3 Actor::getGlobalPosition() const
 	{
-	return ToNx(_body->getWorldTransform().getOrigin());
+	return ToNx(actorTransform().getOrigin());
 	}
 
 NxQuat Actor::getGlobalOrientationQuat() const
 	{
-	return ToNx(_body->getWorldTransform().getRotation());
+	return ToNx(actorTransform().getRotation());
+	}
+
+NxMat33 Actor::getGlobalOrientation() const
+	{
+	return ToNx(actorTransform()).M;
+	}
+
+/* ------------------------------------------------------- centre of mass --- */
+
+void Actor::setCMassOffsetLocalPose(const NxMat34& mat)
+	{
+	/* The actor must not move: its world pose is held while the body's shifts
+	   to the new centre of mass. */
+	const btTransform actorWorld = actorTransform();
+
+	_comOffset = ToBullet(mat);
+
+	setActorTransform(actorWorld);
+	rebuildCompoundShape();
+	}
+
+void Actor::setCMassOffsetLocalPosition(const NxVec3& vec)
+	{
+	NxMat34 pose = ToNx(_comOffset);
+	pose.t = vec;
+
+	setCMassOffsetLocalPose(pose);
+	}
+
+NxVec3 Actor::getCMassLocalPosition() const
+	{
+	return ToNx(_comOffset.getOrigin());
+	}
+
+/* The body transform is the centre of mass, so this is it directly. */
+NxMat34 Actor::getCMassGlobalPose() const
+	{
+	return ToNx(_body->getWorldTransform());
+	}
+
+NxVec3 Actor::getMassSpaceInertiaTensor() const
+	{
+	return ToNx(_body->getLocalInertia());
+	}
+
+/* Half m v^2 for the linear part, half w.I.w for the angular one. GameCar
+   compares two actors' energies to decide which wins a collision. */
+NxReal Actor::computeKineticEnergy() const
+	{
+	const btVector3 v = _body->getLinearVelocity();
+	const btVector3 w = _body->getAngularVelocity();
+
+	const btMatrix3x3& basis = _body->getWorldTransform().getBasis();
+	const btMatrix3x3 inertiaWorld =
+		basis.scaled(_body->getLocalInertia()) * basis.transpose();
+
+	return 0.5f * (_mass * v.dot(v) + w.dot(inertiaWorld * w));
 	}
 
 /* ------------------------------------------------------------------ shapes */
@@ -231,8 +315,13 @@ void Actor::rebuildCompoundShape()
 	while (_compound->getNumChildShapes() > 0)
 		_compound->removeChildShapeByIndex(0);
 
+	/* Children sit at comOffset^-1 * shapeLocalPose, because Bullet places them
+	   relative to the body -- which is the centre of mass -- while 2.8's
+	   localPose is relative to the actor origin. */
+	const btTransform toBodySpace = _comOffset.inverse();
+
 	for (size_t i = 0; i < _shapeStates.size(); ++i)
-		_compound->addChildShape(_shapeStates[i]->localPose(),
+		_compound->addChildShape(toBodySpace * _shapeStates[i]->localPose(),
 		                         _shapeStates[i]->bulletShape());
 
 	/*
@@ -516,18 +605,44 @@ void Actor::setContactReportFlags(NxU32 flags)
 
 /* ------------------------------------------------- not implemented yet ---- */
 
-void Actor::saveToDesc(NxActorDescBase&)                { Unimplemented("NxActor::saveToDesc"); }
-void Actor::setGlobalOrientation(const NxMat33&)        { Unimplemented("NxActor::setGlobalOrientation"); }
-NxMat33 Actor::getGlobalOrientation() const             { Unimplemented("NxActor::getGlobalOrientation"); }
-void Actor::setCMassOffsetLocalPose(const NxMat34&)     { Unimplemented("NxActor::setCMassOffsetLocalPose"); }
-void Actor::setCMassOffsetLocalPosition(const NxVec3&)  { Unimplemented("NxActor::setCMassOffsetLocalPosition"); }
-NxVec3 Actor::getCMassLocalPosition() const             { Unimplemented("NxActor::getCMassLocalPosition"); }
-NxMat34 Actor::getCMassGlobalPose() const               { Unimplemented("NxActor::getCMassGlobalPose"); }
-NxVec3 Actor::getMassSpaceInertiaTensor() const         { Unimplemented("NxActor::getMassSpaceInertiaTensor"); }
-NxReal Actor::computeKineticEnergy() const              { Unimplemented("NxActor::computeKineticEnergy"); }
-void Actor::setLinearDamping(NxReal)                    { Unimplemented("NxActor::setLinearDamping"); }
-void Actor::wakeUp(NxReal)                              { Unimplemented("NxActor::wakeUp"); }
-void Actor::putToSleep()                                { Unimplemented("NxActor::putToSleep"); }
-bool Actor::isSleeping() const                          { Unimplemented("NxActor::isSleeping"); }
+void Actor::setLinearDamping(NxReal damping)
+	{
+	_body->setDamping(damping, _body->getAngularDamping());
+	}
+
+/*
+ * Sleeping. Bullet's own deactivation is disabled at construction -- it sleeps
+ * on its own thresholds and 2.8 sleeps on NX_BF_ENERGY_SLEEP_TEST and
+ * sleepLinearVelocity -- but the explicit calls still have to work, because
+ * GameCar.cpp:1268 wakes an actor after teleporting it and a body that stayed
+ * asleep would sit there.
+ */
+/* forceActivationState, not setActivationState: the latter refuses to change a
+   body that is in DISABLE_DEACTIVATION, which every dynamic actor here is. */
+void Actor::wakeUp(NxReal)
+	{
+	_body->forceActivationState(DISABLE_DEACTIVATION);
+	_body->activate(true);
+	}
+
+void Actor::putToSleep()
+	{
+	_body->forceActivationState(ISLAND_SLEEPING);
+	}
+
+bool Actor::isSleeping() const
+	{
+	return !_body->isActive();
+	}
+
+/* Enough of the descriptor to reconstruct the actor, which is what
+   px::Actor::SaveToDesc uses it for. */
+void Actor::saveToDesc(NxActorDescBase& desc)
+	{
+	desc.globalPose = getGlobalPose();
+	desc.flags = _actorFlags;
+	desc.contactReportFlags = _contactReportFlags;
+	desc.userData = userData;
+	}
 
 } /* namespace px28 */
