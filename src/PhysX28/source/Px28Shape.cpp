@@ -11,13 +11,14 @@ ShapeState::ShapeState(Actor& actor, const NxShapeDesc& desc, NxShapeType type)
 	: _actor(&actor), _bulletShape(NULL), _localPose(ToBullet(desc.localPose)),
 	  _group(desc.group), _groupsMask(desc.groupsMask),
 	  _material(desc.materialIndex), _flags(desc.shapeFlags),
-	  _skinWidth(desc.skinWidth), _type(type)
+	  _skinWidth(desc.skinWidth), _type(type), _ownsBulletShape(true)
 	{
 	}
 
 ShapeState::~ShapeState()
 	{
-	delete _bulletShape;
+	if (_ownsBulletShape)
+		delete _bulletShape;
 	}
 
 Material::Material(const NxMaterialDesc& desc, NxMaterialIndex index)
@@ -61,6 +62,8 @@ void ShapeImpl<NxInterface>::setLocalOrientation(const NxMat33& mat)
 template class ShapeImpl<NxBoxShape>;
 template class ShapeImpl<NxSphereShape>;
 template class ShapeImpl<NxCapsuleShape>;
+template class ShapeImpl<NxTriangleMeshShape>;
+template class ShapeImpl<NxPlaneShape>;
 
 /* --------------------------------------------------------------------- box */
 
@@ -181,6 +184,89 @@ void CapsuleShape::saveToDesc(NxCapsuleShapeDesc& desc) const
 	{
 	desc.radius = _radius;
 	desc.height = _height;
+	desc.localPose = getLocalPose();
+	desc.group = _group;
+	desc.materialIndex = _material;
+	desc.skinWidth = _skinWidth;
+	desc.shapeFlags = _flags;
+	}
+
+/* ----------------------------------------------------------- triangle mesh */
+
+TriangleMeshShape::TriangleMeshShape(Actor& actor, const NxTriangleMeshShapeDesc& desc)
+	: ShapeImpl<NxTriangleMeshShape>(actor, desc, NX_SHAPE_MESH),
+	  _mesh(static_cast<TriangleMesh*>(desc.meshData))
+	{
+	/* Shared with every other instance of the same cooked mesh, so this shape
+	   borrows it rather than owning it. */
+	_bulletShape = _mesh->shape();
+	_ownsBulletShape = false;
+	}
+
+NxTriangleMesh& TriangleMeshShape::getTriangleMesh()
+	{
+	return *_mesh;
+	}
+
+const NxTriangleMesh& TriangleMeshShape::getTriangleMesh() const
+	{
+	return *_mesh;
+	}
+
+void TriangleMeshShape::getTriangle(NxTriangle&, NxTriangle*, NxU32*, NxU32, bool, bool) const
+	{
+	/* GameCar::OnContactModify fetches the touched track triangle to rebuild the
+	   friction frame. That arrives with contact modification. */
+	Unimplemented("NxTriangleMeshShape::getTriangle");
+	}
+
+void TriangleMeshShape::saveToDesc(NxTriangleMeshShapeDesc& desc) const
+	{
+	desc.meshData = _mesh;
+	desc.localPose = getLocalPose();
+	desc.group = _group;
+	desc.materialIndex = _material;
+	desc.skinWidth = _skinWidth;
+	desc.shapeFlags = _flags;
+	}
+
+/* ------------------------------------------------------------------- plane */
+
+/*
+ * n.X = d, in world space, ignoring the shape's pose -- which is 2.8's
+ * convention and also Bullet's for btStaticPlaneShape(normal, constant).
+ */
+PlaneShape::PlaneShape(Actor& actor, const NxPlaneShapeDesc& desc)
+	: ShapeImpl<NxPlaneShape>(actor, desc, NX_SHAPE_PLANE),
+	  _normal(desc.normal), _d(desc.d)
+	{
+	_bulletShape = new btStaticPlaneShape(ToBullet(_normal), _d);
+	}
+
+void PlaneShape::setPlane(const NxVec3& normal, NxReal d)
+	{
+	_normal = normal;
+	_d = d;
+
+	delete _bulletShape;
+	_bulletShape = new btStaticPlaneShape(ToBullet(_normal), _d);
+	_actor->rebuildCompoundShape();
+	}
+
+NxVec3 PlaneShape::getPlaneNormal() const
+	{
+	return _normal;
+	}
+
+NxReal PlaneShape::getPlaneD() const
+	{
+	return _d;
+	}
+
+void PlaneShape::saveToDesc(NxPlaneShapeDesc& desc) const
+	{
+	desc.normal = _normal;
+	desc.d = _d;
 	desc.localPose = getLocalPose();
 	desc.group = _group;
 	desc.materialIndex = _material;

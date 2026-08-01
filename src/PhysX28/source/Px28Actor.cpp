@@ -164,7 +164,26 @@ NxShape* Actor::createShape(const NxShapeDesc& desc)
 			_shapeStates.push_back(capsule);
 			break;
 			}
+		case NX_SHAPE_MESH:
+			{
+			TriangleMeshShape* mesh = new TriangleMeshShape(
+				*this, static_cast<const NxTriangleMeshShapeDesc&>(desc));
+			_shapes.push_back(mesh);
+			_shapeStates.push_back(mesh);
+			break;
+			}
+		case NX_SHAPE_PLANE:
+			{
+			PlaneShape* plane = new PlaneShape(
+				*this, static_cast<const NxPlaneShapeDesc&>(desc));
+			_shapes.push_back(plane);
+			_shapeStates.push_back(plane);
+			break;
+			}
 		default:
+			/* NX_SHAPE_WHEEL is phase 9, and NX_SHAPE_CONVEX has no descriptor
+			   in the game at all -- convex meshes are cooked but never made
+			   into shapes. */
 			Unimplemented("NxActor::createShape for this shape type");
 		}
 
@@ -231,6 +250,21 @@ void Actor::rebuildCompoundShape()
 		}
 
 	_body->setCollisionShape(_compound);
+
+	/*
+	 * The broadphase AABB has to be recomputed, and this is not housekeeping.
+	 *
+	 * Bullet takes the AABB when the body is added to the world, and at that
+	 * moment the compound is empty -- 2.8 creates an actor and then adds shapes
+	 * to it, which is exactly what Actor::CreateNxShape does. Without this, a
+	 * body carries a degenerate AABB until the first step that happens to
+	 * refresh it, and a raycast before then finds nothing at all.
+	 *
+	 * That is not hypothetical: it is how the harness's raycast scenario
+	 * failed, and the game raycasts against freshly built track geometry in
+	 * Player::ResetCar.
+	 */
+	_scene->world().updateSingleAabb(_body);
 	}
 
 /* -------------------------------------------------------------------- body */

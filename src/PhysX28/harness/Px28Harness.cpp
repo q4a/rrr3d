@@ -13,8 +13,11 @@
 
 #include "../source/Px28Impl.h"
 
+#include "../include/NxCooking.h"
+
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 namespace
 {
@@ -812,6 +815,199 @@ void TestEmptyContactStream()
 	Check(iter.isDeletedShape(0), "a missing shape reads as deleted");
 	}
 
+/* Raycasts, with 2.8's three filters: static/dynamic, the 32-bit group mask,
+   and distance. Player.cpp:1727 uses all three at once. */
+void TestRaycasts()
+	{
+	std::printf("raycasts\n");
+
+	enum { cdgDefault = 0, cdgShot = 1, cdgTrackPlane = 6 };
+
+	NxSceneDesc sceneDesc;
+	px28::Scene scene(sceneDesc);
+
+	/* A static slab, top at z = 0, in the track-plane group. */
+	NxActorDesc groundDesc;
+	groundDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, -1.0f));
+	NxActor* ground = scene.createActor(groundDesc);
+
+	NxBoxShapeDesc groundShape;
+	groundShape.dimensions.set(NxVec3(50.0f, 50.0f, 1.0f));
+	groundShape.group = cdgTrackPlane;
+	NxShape* groundShapePtr = ground->createShape(groundShape);
+
+	NxRaycastHit hit;
+
+	/* Straight down from 10 units up: hits at z = 0, distance 10. */
+	NxRay down(NxVec3(0.0f, 0.0f, 10.0f), NxVec3(0.0f, 0.0f, -1.0f));
+	NxShape* found = scene.raycastClosestShape(down, NX_STATIC_SHAPES, hit,
+	                                           1 << cdgTrackPlane, NX_MAX_F32,
+	                                           NX_RAYCAST_SHAPE, NULL, NULL);
+
+	Check(found == groundShapePtr, "the ray hits the ground shape");
+	CheckNear(hit.distance, 10.0f, 1e-2f, "the hit distance is the drop");
+	CheckNear(hit.worldImpact.z, 0.0f, 1e-2f, "the impact is on the top face");
+	CheckNear(hit.worldNormal.z, 1.0f, 1e-2f, "the surface normal points up");
+
+	/* A group mask that excludes the ground's group finds nothing -- this is
+	   the filter Player::ResetCar leans on to ignore everything but the track. */
+	NxShape* filtered = scene.raycastClosestShape(down, NX_STATIC_SHAPES, hit,
+	                                              1 << cdgShot, NX_MAX_F32,
+	                                              NX_RAYCAST_SHAPE, NULL, NULL);
+	Check(filtered == NULL, "a group mask that excludes the shape finds nothing");
+
+	/* Asking only for dynamic shapes skips a static one. */
+	NxShape* dynamicOnly = scene.raycastClosestShape(down, NX_DYNAMIC_SHAPES, hit,
+	                                                 0xffffffff, NX_MAX_F32,
+	                                                 NX_RAYCAST_SHAPE, NULL, NULL);
+	Check(dynamicOnly == NULL, "NX_DYNAMIC_SHAPES skips a static actor");
+
+	/* maxDist that stops short finds nothing. */
+	NxShape* tooShort = scene.raycastClosestShape(down, NX_ALL_SHAPES, hit,
+	                                              0xffffffff, 5.0f,
+	                                              NX_RAYCAST_SHAPE, NULL, NULL);
+	Check(tooShort == NULL, "a ray that stops short of the shape misses");
+
+	/* Pointing away misses. */
+	NxRay up(NxVec3(0.0f, 0.0f, 10.0f), NxVec3(0.0f, 0.0f, 1.0f));
+	NxShape* wrongWay = scene.raycastClosestShape(up, NX_ALL_SHAPES, hit,
+	                                              0xffffffff, NX_MAX_F32,
+	                                              NX_RAYCAST_SHAPE, NULL, NULL);
+	Check(wrongWay == NULL, "a ray pointing away misses");
+
+	scene.releaseActor(*ground);
+	}
+
+/*
+ * Cooking a triangle mesh and instancing it, which is the track's path:
+ * Physx.cpp:470 cooks into a MemoryWriteBuffer and reads it straight back.
+ *
+ * The stream here is the harness's own NxStream, which is what makes this a
+ * real round trip rather than a shortcut -- the shim never sees the buffer.
+ */
+class MemoryStream: public NxStream
+	{
+	public:
+	MemoryStream(): _readPos(0) {}
+
+	virtual NxU8 readByte() const   { NxU8 v = 0; readBuffer(&v, sizeof(v)); return v; }
+	virtual NxU16 readWord() const  { NxU16 v = 0; readBuffer(&v, sizeof(v)); return v; }
+	virtual NxU32 readDword() const { NxU32 v = 0; readBuffer(&v, sizeof(v)); return v; }
+	virtual float readFloat() const { float v = 0; readBuffer(&v, sizeof(v)); return v; }
+	virtual double readDouble() const { double v = 0; readBuffer(&v, sizeof(v)); return v; }
+
+	virtual void readBuffer(void* buffer, NxU32 size) const
+		{
+		if (_readPos + size > _data.size())
+			return;
+		std::memcpy(buffer, &_data[_readPos], size);
+		_readPos += size;
+		}
+
+	virtual NxStream& storeByte(NxU8 b)     { return storeBuffer(&b, sizeof(b)); }
+	virtual NxStream& storeWord(NxU16 w)    { return storeBuffer(&w, sizeof(w)); }
+	virtual NxStream& storeDword(NxU32 d)   { return storeBuffer(&d, sizeof(d)); }
+	virtual NxStream& storeFloat(NxReal f)  { return storeBuffer(&f, sizeof(f)); }
+	virtual NxStream& storeDouble(NxF64 f)  { return storeBuffer(&f, sizeof(f)); }
+
+	virtual NxStream& storeBuffer(const void* buffer, NxU32 size)
+		{
+		const NxU8* bytes = static_cast<const NxU8*>(buffer);
+		_data.insert(_data.end(), bytes, bytes + size);
+		return *this;
+		}
+
+	private:
+	std::vector<NxU8> _data;
+	mutable size_t _readPos;
+	};
+
+void TestTriangleMeshCooking()
+	{
+	std::printf("triangle mesh cooking\n");
+
+	NxPhysicsSDK* sdk = NxCreatePhysicsSDK(NX_PHYSICS_SDK_VERSION);
+	Check(sdk != NULL, "the SDK is created at the right version");
+	if (!sdk)
+		return;
+
+	/* A wrong version is refused rather than half-served. */
+	NxSDKCreateError error = NXCE_NO_ERROR;
+	Check(NxCreatePhysicsSDK(0x01020304, NULL, NULL, NxPhysicsSDKDesc(), &error) == NULL,
+	      "a mismatched SDK version is refused");
+	Check(error == NXCE_WRONG_VERSION, "and reports NXCE_WRONG_VERSION");
+
+	NxCookingInterface* cooking = NxGetCookingLib(NX_PHYSICS_SDK_VERSION);
+	Check(cooking != NULL, "the cooking library is available");
+	Check(cooking->NxInitCooking(), "cooking initialises");
+
+	/* Two triangles making a 20x20 square at z = 0. */
+	const float vertices[] =
+		{
+		-10.0f, -10.0f, 0.0f,
+		 10.0f, -10.0f, 0.0f,
+		 10.0f,  10.0f, 0.0f,
+		-10.0f,  10.0f, 0.0f,
+		};
+	const NxU32 indices[] = { 0, 1, 2, 0, 2, 3 };
+
+	NxTriangleMeshDesc meshDesc;
+	meshDesc.numVertices = 4;
+	meshDesc.numTriangles = 2;
+	meshDesc.pointStrideBytes = 3 * sizeof(float);
+	meshDesc.triangleStrideBytes = 3 * sizeof(NxU32);
+	meshDesc.points = vertices;
+	meshDesc.triangles = indices;
+
+	MemoryStream stream;
+	Check(cooking->NxCookTriangleMesh(meshDesc, stream), "the mesh cooks");
+
+	NxTriangleMesh* mesh = sdk->createTriangleMesh(stream);
+	Check(mesh != NULL, "the cooked mesh reads back");
+	if (!mesh)
+		return;
+
+	Check(mesh->getCount(0, 0) == 2, "the mesh has two triangles");
+
+	/* An empty descriptor is rejected -- isValid() is the engine's "not loaded
+	   yet" signal and createShape depends on it. */
+	NxTriangleMeshShapeDesc emptyShape;
+	Check(!emptyShape.isValid(), "a mesh shape with no meshData is invalid");
+
+	/* Instance it, and check the geometry is really there by raycasting it. */
+	NxSceneDesc sceneDesc;
+	NxScene* scene = sdk->createScene(sceneDesc);
+
+	NxActorDesc actorDesc;
+	NxActor* actor = scene->createActor(actorDesc);
+
+	NxTriangleMeshShapeDesc shapeDesc;
+	shapeDesc.meshData = mesh;
+	Check(shapeDesc.isValid(), "a mesh shape with meshData is valid");
+
+	NxShape* shape = actor->createShape(shapeDesc);
+	Check(shape != NULL, "the mesh shape is created");
+	Check(shape && shape->isTriangleMesh() != NULL, "isTriangleMesh() downcasts");
+
+	NxRaycastHit hit;
+	NxRay down(NxVec3(1.0f, 1.0f, 5.0f), NxVec3(0.0f, 0.0f, -1.0f));
+	NxShape* found = scene->raycastClosestShape(down, NX_ALL_SHAPES, hit,
+	                                            0xffffffff, NX_MAX_F32,
+	                                            NX_RAYCAST_SHAPE, NULL, NULL);
+
+	Check(found == shape, "a ray hits the instanced mesh");
+	CheckNear(hit.distance, 5.0f, 1e-2f, "at the distance the geometry implies");
+
+	/* The same cooked mesh instanced twice -- TriangleMesh::GetOrCreateTri
+	   reference-counts one per (mesh, scale), so several actors share it. */
+	NxActor* second = scene->createActor(actorDesc);
+	Check(second->createShape(shapeDesc) != NULL, "the same mesh instances twice");
+
+	sdk->releaseScene(*scene);
+	sdk->releaseTriangleMesh(*mesh);
+	NxReleasePhysicsSDK(sdk);
+	}
+
 } /* namespace */
 
 int main()
@@ -829,6 +1025,8 @@ int main()
 	TestActorPairFlags();
 	TestContactReports();
 	TestEmptyContactStream();
+	TestRaycasts();
+	TestTriangleMeshCooking();
 
 	std::printf("================================\n");
 	if (gFailures == 0)

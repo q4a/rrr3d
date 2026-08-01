@@ -224,6 +224,93 @@ namespace
 
 		return actor.getShapes()[childIndex];
 		}
+
+	/*
+	 * Bullet's closest-hit callback, taught 2.8's three filters: the
+	 * static/dynamic split, the 32-bit group mask, and NxGroupsMask.
+	 *
+	 * needsCollision runs before the narrow phase and rejects by actor;
+	 * addSingleResult refines to the specific shape, because groups live on
+	 * shapes and a compound may hold several.
+	 */
+	class RayFilter: public btCollisionWorld::ClosestRayResultCallback
+		{
+		public:
+		RayFilter(const btVector3& from, const btVector3& to, const Scene& scene,
+		          NxShapesType shapeType, NxU32 groups, const NxGroupsMask* mask)
+			: btCollisionWorld::ClosestRayResultCallback(from, to),
+			  shape(NULL), _shapeType(shapeType), _groups(groups), _mask(mask)
+			{
+			(void)scene;
+			}
+
+		virtual bool needsCollision(btBroadphaseProxy* proxy) const
+			{
+			const btCollisionObject* object =
+				static_cast<const btCollisionObject*>(proxy->m_clientObject);
+			const Actor* actor = static_cast<const Actor*>(object->getUserPointer());
+			if (!actor)
+				return false;
+
+			const bool dynamic = actor->isDynamic();
+			if (dynamic && !(_shapeType & NX_DYNAMIC_SHAPES))
+				return false;
+			if (!dynamic && !(_shapeType & NX_STATIC_SHAPES))
+				return false;
+
+			return true;
+			}
+
+		virtual btScalar addSingleResult(btCollisionWorld::LocalRayResult& result,
+		                                 bool normalInWorldSpace)
+			{
+			const Actor* actor =
+				static_cast<const Actor*>(result.m_collisionObject->getUserPointer());
+			if (!actor || actor->getNbShapes() == 0)
+				return 1.0f;
+
+			/* m_localShapeInfo carries the compound child index, which is what
+			   turns a hit on a body into a hit on a 2.8 shape. */
+			int child = 0;
+			if (result.m_localShapeInfo)
+				child = result.m_localShapeInfo->m_triangleIndex;
+			if (child < 0 || static_cast<NxU32>(child) >= actor->getNbShapes())
+				child = 0;
+
+			NxShape* candidate = actor->getShapes()[child];
+
+			/* The 32-bit group mask: bit N set means group N is wanted. */
+			if (!(_groups & (1u << candidate->getGroup())))
+				return 1.0f;
+
+			/* NxGroupsMask, which the game only ever uses through bits0 --
+			   Weapon.cpp:293,310 and GameObject.cpp:202. A zero mask means
+			   "no constraint" rather than "match nothing". */
+			if (_mask)
+				{
+				const NxGroupsMask shapeMask = candidate->getGroupsMask();
+				const bool any = _mask->bits0 || _mask->bits1 ||
+				                 _mask->bits2 || _mask->bits3;
+				if (any && !((shapeMask.bits0 & _mask->bits0) ||
+				             (shapeMask.bits1 & _mask->bits1) ||
+				             (shapeMask.bits2 & _mask->bits2) ||
+				             (shapeMask.bits3 & _mask->bits3)))
+					return 1.0f;
+				}
+
+			shape = candidate;
+
+			return btCollisionWorld::ClosestRayResultCallback::addSingleResult(
+				result, normalInWorldSpace);
+			}
+
+		NxShape* shape;
+
+		private:
+		NxShapesType _shapeType;
+		NxU32 _groups;
+		const NxGroupsMask* _mask;
+		};
 }
 
 void Scene::setActorPairFlags(NxActor& a, NxActor& b, NxU32 flags)
@@ -439,10 +526,50 @@ void Scene::setFilterOps(NxFilterOp, NxFilterOp, NxFilterOp)  { Unimplemented("N
 void Scene::setFilterBool(bool)                               { Unimplemented("NxScene::setFilterBool"); }
 void Scene::setShapePairFlags(NxShape&, NxShape&, NxU32)      { Unimplemented("NxScene::setShapePairFlags"); }
 
-NxShape* Scene::raycastClosestShape(const NxRay&, NxShapesType, NxRaycastHit&, NxU32,
-                                    NxReal, NxU32, const NxGroupsMask*, NxShape**) const
+/*
+ * `groups` is a 32-bit MASK of collision groups, not a group index -- which is
+ * the other half of why NxShapeDesc::checkValid rejects a group of 32 or more.
+ * Player.cpp:1727 passes `1 << cdgTrackPlane`, and :1764 ORs three of them
+ * together.
+ *
+ * The ray is a point and a direction, and 2.8 does not require the direction to
+ * be normalised -- Player.cpp passes NxVec3(-ZVector), which happens to be, but
+ * GameObject::RayCast forwards whatever the caller had. maxDist is measured
+ * along the normalised direction either way, so it is normalised here.
+ */
+NxShape* Scene::raycastClosestShape(const NxRay& worldRay, NxShapesType shapeType,
+                                    NxRaycastHit& hit, NxU32 groups, NxReal maxDist,
+                                    NxU32, const NxGroupsMask* groupsMask,
+                                    NxShape**) const
 	{
-	Unimplemented("NxScene::raycastClosestShape");
+	hit.shape = NULL;
+	hit.distance = 0.0f;
+
+	NxVec3 direction = worldRay.dir;
+	const NxReal length = direction.magnitude();
+	if (length <= 0.0f)
+		return NULL;
+	direction *= 1.0f / length;
+
+	/* NX_MAX_F32 means "as far as it goes"; Bullet needs a real endpoint. */
+	const NxReal distance = maxDist >= NX_MAX_F32 ? 1.0e6f : maxDist;
+
+	const btVector3 from = ToBullet(worldRay.orig);
+	const btVector3 to = ToBullet(worldRay.orig + direction * distance);
+
+	RayFilter callback(from, to, *this, shapeType, groups, groupsMask);
+	_world->rayTest(from, to, callback);
+
+	if (!callback.hasHit())
+		return NULL;
+
+	hit.shape = callback.shape;
+	hit.worldImpact = ToNx(callback.m_hitPointWorld);
+	hit.worldNormal = ToNx(callback.m_hitNormalWorld);
+	hit.distance = callback.m_closestHitFraction * distance;
+	hit.material = NULL;
+
+	return hit.shape;
 	}
 
 void Scene::setUserContactModify(NxUserContactModify*)  { Unimplemented("NxScene::setUserContactModify"); }

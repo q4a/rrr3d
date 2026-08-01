@@ -17,6 +17,7 @@
  */
 
 #include "NxPhysics.h"
+#include "NxCooking.h"
 #include "Px28Contact.h"
 
 #include <btBulletDynamicsCommon.h>
@@ -60,6 +61,7 @@ NxMat34     ToNx(const btTransform& t);
 
 class Scene;
 class Actor;
+class TriangleMesh;
 
 /* ------------------------------------------------------------------ shapes */
 
@@ -96,6 +98,10 @@ class ShapeState
 	NxU32 _flags;
 	NxReal _skinWidth;
 	NxShapeType _type;
+
+	/* False for a mesh shape: the btBvhTriangleMeshShape belongs to the cooked
+	   TriangleMesh and is shared between every instance of it. */
+	bool _ownsBulletShape;
 	};
 
 /*
@@ -171,6 +177,55 @@ class SphereShape: public ShapeImpl<NxSphereShape>
 	virtual void   setRadius(NxReal radius);
 	virtual NxReal getRadius() const;
 	virtual void   saveToDesc(NxSphereShapeDesc& desc) const;
+	};
+
+/*
+ * A mesh instance. The btBvhTriangleMeshShape is owned by the TriangleMesh and
+ * shared between every shape that references it -- TriangleMesh::GetOrCreateTri
+ * reference-counts one per (mesh, scale) pair, so several actors legitimately
+ * point at the same cooked mesh.
+ *
+ * Which is why ~ShapeState must not delete this one, and why _ownsBulletShape
+ * exists.
+ */
+class TriangleMeshShape: public ShapeImpl<NxTriangleMeshShape>
+	{
+	public:
+	TriangleMeshShape(Actor& actor, const NxTriangleMeshShapeDesc& desc);
+
+	virtual NxTriangleMesh& getTriangleMesh();
+	virtual const NxTriangleMesh& getTriangleMesh() const;
+	virtual void getTriangle(NxTriangle& triangle, NxTriangle* edgeTri, NxU32* edgeFlags,
+	                         NxU32 triangleIndex, bool worldSpaceTranslation,
+	                         bool worldSpaceRotation) const;
+	virtual void saveToDesc(NxTriangleMeshShapeDesc& desc) const;
+
+	private:
+	TriangleMesh* _mesh;
+	};
+
+/*
+ * A plane. Only Scene::CreateGroundPlane makes one and its body is entirely
+ * commented out, so nothing in the game currently creates a plane shape -- but
+ * db.xml can deserialise one, so it exists.
+ *
+ * 2.8's plane is n.X = d in WORLD space, ignoring the shape's pose. Note also
+ * the pre-existing bug at Physx.cpp:878, where SetDist passes NxVec3(value) as
+ * the normal; that is the game's and is inherited faithfully rather than fixed.
+ */
+class PlaneShape: public ShapeImpl<NxPlaneShape>
+	{
+	public:
+	PlaneShape(Actor& actor, const NxPlaneShapeDesc& desc);
+
+	virtual void   setPlane(const NxVec3& normal, NxReal d);
+	virtual NxVec3 getPlaneNormal() const;
+	virtual NxReal getPlaneD() const;
+	virtual void   saveToDesc(NxPlaneShapeDesc& desc) const;
+
+	private:
+	NxVec3 _normal;
+	NxReal _d;
 	};
 
 class CapsuleShape: public ShapeImpl<NxCapsuleShape>
@@ -289,6 +344,29 @@ class Actor: public NxActor
 
 	NxU32 _actorFlags;
 	NxU32 _contactReportFlags;
+	};
+
+/* ------------------------------------------------------------------ meshes */
+
+class TriangleMesh: public NxTriangleMesh
+	{
+	public:
+	TriangleMesh(const std::vector<float>& vertices, const std::vector<int>& indices);
+	virtual ~TriangleMesh();
+
+	virtual NxU32 getCount(NxU32 subMeshIndex, NxU32 flags) const;
+
+	btBvhTriangleMeshShape* shape() const { return _shape; }
+
+	private:
+	/* Owned by value: btTriangleIndexVertexArray keeps pointers into these, and
+	   the descriptor they came from is freed by FreeMesh the moment the cook
+	   returns. */
+	std::vector<float> _vertices;
+	std::vector<int> _indices;
+
+	btTriangleIndexVertexArray* _array;
+	btBvhTriangleMeshShape* _shape;
 	};
 
 /* --------------------------------------------------------------- materials */
