@@ -1,18 +1,5 @@
---- a/src/util/util_small_vector.h
-+++ b/src/util/util_small_vector.h
-@@ -194,7 +194,9 @@
- 
-     size_t pick_capacity(size_t n) {
-       // Pick next largest power of two for the new capacity
--      return size_t(1u) << ((sizeof(n) * 8u) - bit::lzcnt(n - 1));
-+      // d9mt patch: size_t is unsigned long on macOS, ambiguous between the
-+      // uint32_t/uint64_t overloads; pick the 64-bit one explicitly.
-+      return size_t(1u) << ((sizeof(n) * 8u) - bit::lzcnt(uint64_t(n - 1)));
-     }
- 
-     T* ptr(size_t idx) {
---- a/src/util/util_env.cpp
-+++ b/src/util/util_env.cpp
+--- a/vendor/dxvk/src/util/util_env.cpp
++++ b/vendor/dxvk/src/util/util_env.cpp
 @@ -1,3 +1,7 @@
 +#if defined(__APPLE__)
 +#include <mach-o/dyld.h>
@@ -43,105 +30,8 @@
  #endif
    }
    
-@@ -127,8 +146,14 @@
- #else
-     std::array<char, 16> posixName = {};
-     dxvk::str::strlcpy(posixName.data(), name.c_str(), 16);
-+#ifdef __APPLE__
-+    // d9mt patch: macOS pthread_setname_np takes only the name and applies
-+    // to the calling thread
-+    ::pthread_setname_np(posixName.data());
-+#else
-     ::pthread_setname_np(pthread_self(), posixName.data());
- #endif
-+#endif
-   }
- 
- 
---- a/src/dxvk/dxvk_unbound.h
-+++ b/src/dxvk/dxvk_unbound.h
-@@ -1,5 +1,13 @@
- #pragma once
- 
-+// d9mt: local extension over v2.7.1 — adds dummy image/buffer view descriptors
-+// (imageViewDescriptor/bufferViewDescriptor, m_image1D/2D/3D, view arrays,
-+// createImage/createImages/createBufferViews) as fallback resources for unbound
-+// bindings on devices without the nullDescriptor feature (Metal backend).
-+// Conceptually backports the pre-2022 upstream dummy-resource feature; not a
-+// copy of any upstream version. Re-apply after any re-vendor.
-+
-+#include <array>
- #include <mutex>
- 
- #include "dxvk_buffer.h"
-@@ -43,21 +51,61 @@
-      */
-     DxvkSamplerDescriptor samplerInfo();
- 
-+    /**
-+     * \brief Dummy image view descriptor
-+     *
-+     * Returns a descriptor for a view of a small image with
-+     * zero-initialized contents. Used for unbound image bindings
-+     * on devices that do not support the nullDescriptor feature.
-+     * \param [in] type Image view type required by the binding
-+     * \param [in] storage Whether a storage image is required
-+     * \returns Dummy image view descriptor
-+     */
-+    const DxvkDescriptor* imageViewDescriptor(VkImageViewType type, bool storage);
-+
-+    /**
-+     * \brief Dummy texel buffer view descriptor
-+     *
-+     * Returns a descriptor for a formatted view of the zero
-+     * buffer. Used for unbound texel buffer bindings on devices
-+     * that do not support the nullDescriptor feature.
-+     * \param [in] storage Whether a storage texel buffer is required
-+     * \returns Dummy buffer view descriptor
-+     */
-+    const DxvkDescriptor* bufferViewDescriptor(bool storage);
-+
-   private:
--    
-+
-     DxvkDevice*             m_device;
- 
-     std::atomic<bool>       m_bufferCreated = { false };
-     std::atomic<bool>       m_samplerCreated = { false };
-+    std::atomic<bool>       m_imagesCreated = { false };
-+    std::atomic<bool>       m_bufferViewsCreated = { false };
- 
-     dxvk::mutex             m_mutex;
-     Rc<DxvkSampler>         m_sampler;
-     Rc<DxvkBuffer>          m_buffer;
--    
-+
-+    Rc<DxvkImage>           m_image1D;
-+    Rc<DxvkImage>           m_image2D;
-+    Rc<DxvkImage>           m_image3D;
-+
-+    std::array<Rc<DxvkImageView>, 2u * (VK_IMAGE_VIEW_TYPE_CUBE_ARRAY + 1u)> m_imageViews;
-+
-+    Rc<DxvkBufferView>      m_bufferViewSampled;
-+    Rc<DxvkBufferView>      m_bufferViewStorage;
-+
-     Rc<DxvkSampler> createSampler();
--    
-+
-     Rc<DxvkBuffer> createBuffer();
--    
-+
-+    Rc<DxvkImage> createImage(VkImageType type, VkImageCreateFlags flags, uint32_t layers);
-+
-+    void createImages();
-+
-+    void createBufferViews();
-+
-   };
-   
- }
---- a/src/d3d9/d3d9_swapchain.cpp
-+++ b/src/d3d9/d3d9_swapchain.cpp
+--- a/vendor/dxvk/src/d3d9/d3d9_swapchain.cpp
++++ b/vendor/dxvk/src/d3d9/d3d9_swapchain.cpp
 @@ -5,6 +5,8 @@
  #include "d3d9_hud.h"
  #include "d3d9_window.h"
@@ -183,15 +73,16 @@
    }
  
    uint32_t D3D9SwapChainEx::GetActualFrameLatency() {
---- a/src/d3d9/d3d9_device.cpp
-+++ b/src/d3d9/d3d9_device.cpp
-@@ -1,4 +1,6 @@
+--- a/vendor/dxvk/src/d3d9/d3d9_device.cpp
++++ b/vendor/dxvk/src/d3d9/d3d9_device.cpp
+@@ -1,5 +1,7 @@
  #include "d3d9_device.h"
-+
-+#include "d9mt_fetrace.h" // DEBUG-ONLY, remove before final
  
++#include "d9mt_fetrace.h" // DEBUG-ONLY, remove before final
++
  #include "d3d9_annotation.h"
  #include "d3d9_common_texture.h"
+ #include "d3d9_interface.h"
 @@ -266,10 +268,13 @@
  
      // Equivelant of D3D11/DXGI present tests. We can always present.
@@ -206,29 +97,18 @@
        return D3DERR_DEVICELOST;
      }
    }
-@@ -643,6 +648,10 @@
- 
+@@ -644,6 +649,10 @@
      if (unlikely(ppTexture == nullptr))
        return D3DERR_INVALIDCALL;
-+
+ 
 +    FETRACE("CreateTexture %ux%u levels=%u fmt=%u pool=%u",
 +      (unsigned) Width, (unsigned) Height, (unsigned) Levels,
 +      (unsigned) Format, (unsigned) Pool);
- 
++
      D3D9_COMMON_TEXTURE_DESC desc;
      desc.Width              = Width;
-@@ -3455,6 +3464,10 @@
-     return D3D_OK;
-   }
- 
-+
-+  // d9mt: pre-warm hook — pre-compile this shader's recorded PSOs at shader-creation
-+  // (load) time, before any draw. Defined in src/d3d9fe/d9mt_context.cpp.
-+  namespace d9mt { void prewarmOnShaderCreated(const Rc<DxvkShader>&); }
- 
-   HRESULT STDMETHODCALLTYPE D3D9DeviceEx::CreateVertexShader(
-     const DWORD*                   pFunction,
-@@ -3464,6 +3477,8 @@
+     desc.Height             = Height;
+@@ -3468,6 +3477,8 @@
  
      if (unlikely(ppShader == nullptr))
        return D3DERR_INVALIDCALL;
@@ -237,34 +117,16 @@
  
      DxsoModuleInfo moduleInfo;
      moduleInfo.options = m_dxsoOptions;
-@@ -3477,6 +3492,8 @@
-       pFunction,
-       &moduleInfo)))
-       return D3DERR_INVALIDCALL;
-+
-+    d9mt::prewarmOnShaderCreated(module.GetShader());
+@@ -3825,6 +3836,8 @@
  
-     *ppShader = ref(new D3D9VertexShader(this,
-       &m_shaderAllocator,
-@@ -3820,6 +3837,8 @@
      if (unlikely(ppShader == nullptr))
        return D3DERR_INVALIDCALL;
- 
-+    FETRACE("CreatePixelShader");
 +
++    FETRACE("CreatePixelShader");
+ 
      DxsoModuleInfo moduleInfo;
      moduleInfo.options = m_dxsoOptions;
- 
-@@ -3833,6 +3852,8 @@
-       &moduleInfo)))
-       return D3DERR_INVALIDCALL;
- 
-+    d9mt::prewarmOnShaderCreated(module.GetShader());
-+
-     *ppShader = ref(new D3D9PixelShader(this,
-       &m_shaderAllocator,
-       module,
-@@ -4181,6 +4202,7 @@
+@@ -4189,6 +4202,7 @@
            HWND hDestWindowOverride,
      const RGNDATA* pDirtyRegion,
            DWORD dwFlags) {
@@ -272,7 +134,7 @@
  
      if (m_cursor.IsSoftwareCursor()) {
        D3D9_SOFTWARE_CURSOR* pSoftwareCursor = m_cursor.GetSoftwareCursor();
-@@ -4875,6 +4897,7 @@
+@@ -4883,6 +4897,7 @@
              D3DLOCKED_BOX*          pLockedBox,
        const D3DBOX*                 pBox,
              DWORD                   Flags) {
@@ -280,7 +142,7 @@
      D3D9DeviceLock lock = LockDevice();
  
      UINT Subresource = pResource->CalcSubresource(Face, MipLevel);
-@@ -5125,6 +5148,8 @@
+@@ -5133,6 +5148,8 @@
      uint8_t* data = reinterpret_cast<uint8_t*>(mapPtr);
      data += offset;
      pLockedBox->pBits = data;
@@ -289,7 +151,7 @@
      return D3D_OK;
    }
  
-@@ -5133,6 +5158,7 @@
+@@ -5141,6 +5158,7 @@
          D3D9CommonTexture*      pResource,
          UINT                    Face,
          UINT                    MipLevel) {
@@ -297,7 +159,7 @@
      D3D9DeviceLock lock = LockDevice();
  
      UINT Subresource = pResource->CalcSubresource(Face, MipLevel);
-@@ -5806,7 +5832,9 @@
+@@ -5814,7 +5832,9 @@
      if (SequenceNumber > m_csSeqNum)
        FlushCsChunk();
  
@@ -307,8 +169,8 @@
    }
  
  
---- a/src/d3d9/d3d9_query.cpp
-+++ b/src/d3d9/d3d9_query.cpp
+--- a/vendor/dxvk/src/d3d9/d3d9_query.cpp
++++ b/vendor/dxvk/src/d3d9/d3d9_query.cpp
 @@ -2,6 +2,8 @@
  
  #include "d3d9_device.h"
@@ -328,8 +190,8 @@
      // If we get S_FALSE and it's not from the fact
      // they didn't call end, do some flushy stuff...
      if (flush && hr == S_FALSE && m_state != D3D9_VK_QUERY_BEGUN) {
---- a/src/util/sync/sync_signal.h
-+++ b/src/util/sync/sync_signal.h
+--- a/vendor/dxvk/src/util/sync/sync_signal.h
++++ b/vendor/dxvk/src/util/sync/sync_signal.h
 @@ -8,6 +8,8 @@
  
  #include "../thread.h"
@@ -371,21 +233,3 @@
      }
  
      template<typename Fn>
---- a/src/util/com/com_guid.cpp
-+++ b/src/util/com/com_guid.cpp
-@@ -3,10 +3,12 @@
- 
- #include "com_guid.h"
- 
--#include "../../d3d11/d3d11_interfaces.h"
-+// d9mt: d3d11/dxgi interface headers are not vendored and nothing in this
-+// TU uses them (mingw resolves IIDs via __CRT_UUID_DECL templates).
-+//#include "../../d3d11/d3d11_interfaces.h"
-+//#include "../../dxgi/dxgi_interfaces.h"
-+#include "../log/log.h" // d9mt: Logger came in transitively via the above
- 
--#include "../../dxgi/dxgi_interfaces.h"
--
- #include "../../dxvk/dxvk_hash.h"
- 
- #include "../thread.h"

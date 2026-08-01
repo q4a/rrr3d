@@ -77,6 +77,43 @@ MINGW_HEADERS = [
     "d3dx9shape.h",
     "d3dx9anim.h",
     "d3dx9tex.h",
+    # D3D11 and D3D12, for DXVK rather than for the game.
+    #
+    # dxvk/src/d3d9/d3d9_include.h includes <d3d12.h> unconditionally, for its
+    # D3D9On12 interop surface -- D3D9ON12_ARGS and IDirect3DDevice9On12. The
+    # game never touches any of it, but the front-end does not compile without
+    # the header, and d3d12.h in turn needs the d3d11 chain.
+    #
+    # DXVK carries its own copies under include/native/directx. Those are not
+    # used: they include a d3d9.h of their own, and having two on the path is
+    # how a build ends up compiling one header against another's declarations.
+    "d3d11.h",
+    "d3d11_1.h",
+    "d3d11_2.h",
+    "d3d11_3.h",
+    "d3d11_4.h",
+    "d3d11sdklayers.h",
+    "d3d11shader.h",
+    "d3d11on12.h",
+    "d3d12.h",
+    "d3d12sdklayers.h",
+    "d3d10.h",
+    "d3d10_1.h",
+    "d3d10shader.h",
+    "d3d10_1shader.h",
+    "d3d10misc.h",
+    "d3d10effect.h",
+    "d3d10sdklayers.h",
+    "d3dcommon.h",
+    "dxgi.h",
+    "dxgi1_2.h",
+    "dxgi1_3.h",
+    "dxgi1_4.h",
+    "dxgi1_5.h",
+    "dxgi1_6.h",
+    "dxgiformat.h",
+    "dxgitype.h",
+    "dxgicommon.h",
 ]
 
 WINDOWS_DIR = Path("src/XPlatform/header/windows")

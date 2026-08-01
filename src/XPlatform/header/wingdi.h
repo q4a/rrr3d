@@ -184,6 +184,13 @@ HDC  GetDC(HWND window);
 int  ReleaseDC(HWND window, HDC dc);
 int  GetDeviceCaps(HDC dc, int index);
 
+/* DXVK's util_gdi.cpp wraps D3DKMTCreateDCFromMemory, which it reaches through
+   LoadLibraryA("gdi32.dll") -- a load that fails here, so the wrapper never
+   runs. These exist so the file compiles; returning NULL is what a failed
+   CreateCompatibleDC means on Windows too. */
+HDC  CreateCompatibleDC(HDC dc);
+BOOL DeleteDC(HDC dc);
+
 #ifdef __cplusplus
 }
 #endif

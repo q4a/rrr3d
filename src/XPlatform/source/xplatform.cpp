@@ -17,6 +17,7 @@
 
 #include <cstdlib>
 
+#include <dlfcn.h>
 #include <unistd.h>
 
 #include <mach-o/dyld.h>
@@ -678,6 +679,67 @@ BOOL WINAPI IsCharAlphaNumericA(CHAR ch)
 	return IsCharAlphaA(ch) || (c >= '0' && c <= '9');
 }
 
+/* -------------------------------------------------------- dynamic loading */
+
+/*
+ * See the header: every caller here is probing for a Windows DLL that does not
+ * exist, so failing is the answer rather than a shortfall.
+ *
+ * dlopen is still used rather than returning NULL unconditionally, because a
+ * .dylib name would work and there is no reason to refuse one.
+ */
+HMODULE LoadLibraryA(LPCSTR name)
+{
+	return name ? static_cast<HMODULE>(dlopen(name, RTLD_LAZY | RTLD_LOCAL)) : NULL;
+}
+
+HMODULE LoadLibraryW(LPCWSTR name)
+{
+	if (!name)
+		return NULL;
+
+	char narrow[4096];
+	if (WideCharToMultiByte(CP_UTF8, 0, name, -1, narrow,
+	                        static_cast<int>(sizeof(narrow)), nullptr, nullptr) == 0)
+		return NULL;
+
+	return LoadLibraryA(narrow);
+}
+
+/* GetModuleHandle asks for something already loaded. NULL means "this
+   executable", which dlopen(NULL) gives; anything else is a Windows DLL and is
+   not here. */
+HMODULE GetModuleHandleA(LPCSTR name)
+{
+	if (!name)
+		return static_cast<HMODULE>(dlopen(NULL, RTLD_LAZY | RTLD_LOCAL));
+
+	return static_cast<HMODULE>(dlopen(name, RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD));
+}
+
+HMODULE GetModuleHandleW(LPCWSTR name)
+{
+	if (!name)
+		return GetModuleHandleA(NULL);
+
+	char narrow[4096];
+	if (WideCharToMultiByte(CP_UTF8, 0, name, -1, narrow,
+	                        static_cast<int>(sizeof(narrow)), nullptr, nullptr) == 0)
+		return NULL;
+
+	return GetModuleHandleA(narrow);
+}
+
+BOOL FreeLibrary(HMODULE module)
+{
+	return module && dlclose(module) == 0 ? TRUE : FALSE;
+}
+
+void* GetProcAddress(HMODULE module, LPCSTR name)
+{
+	return module && name ? dlsym(module, name) : NULL;
+}
+
 /* --------------------------------------------------------- virtual memory */
 
 extern "C++" {
@@ -929,6 +991,18 @@ HDC GetDC(HWND)
 int ReleaseDC(HWND, HDC)
 {
 	return 1;
+}
+
+/* See wingdi.h: the only caller reaches these through a gdi32.dll that does not
+   load, so neither runs. NULL is a failed CreateCompatibleDC on Windows too. */
+HDC CreateCompatibleDC(HDC)
+{
+	return NULL;
+}
+
+BOOL DeleteDC(HDC)
+{
+	return FALSE;
 }
 
 int GetDeviceCaps(HDC, int index)

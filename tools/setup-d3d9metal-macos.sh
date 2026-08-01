@@ -7,8 +7,20 @@
 #   D3D9 API -> DXVK front-end -> DxvkContext -> d9mt's Metal backend
 #            -> winemetal ABI -> src/MetalBridge -> Metal
 #
-#   dxvk/   DXVK v2.7.1, the D3D9 front-end (~22,400 lines of d3d9 alone)
-#   d9mt/   d9mt, which replaces DxvkDevice/DxvkContext with a Metal one
+# ONE clone, not two. d9mt carries its own vendored snapshot of DXVK v2.7.1
+# under vendor/dxvk, documented in vendor/dxvk/DXVK-VERSION, and that is the
+# configuration d9mt supports: its own manifest records an include-closure
+# check showing every quoted include reachable from the 36 d3d9 translation
+# units resolves inside that tree.
+#
+# Fetching DXVK separately looked reasonable and was wrong. It produced two
+# copies of the same v2.7.1 on the include path -- the classic way to compile
+# one header against another's declarations -- and it duplicated four patches
+# d9mt had already applied. It also broke d9mt's own relative includes, which
+# reach into ../../vendor/dxvk and are correct as they stand.
+#
+# It also means the Vulkan and SPIR-V headers arrive populated: upstream DXVK
+# carries them as submodules, and d9mt's snapshot has them filled in.
 #
 # No Wine. d9mt targets Wine and reaches Metal through winemetal, an ABI whose
 # job is crossing the wow64 boundary. There is no boundary here, so
@@ -18,29 +30,27 @@
 #
 # WHY THIS IS A SCRIPT rather than a vendored tree:
 #
-#   Together these are about 40,000 lines that are not ours. Checking them in
-#   would put a second project's history in this repository and make tracking
-#   upstream a merge rather than a re-run. So extern/ is gitignored and this
-#   script is the record -- every change to either tree lives in
-#   tools/patches/d3d9metal/ as a patch, which is both the documentation and
-#   the mechanism.
+#   This is about 40,000 lines that are not ours. Checking them in would put a
+#   second project's history in this repository and make tracking upstream a
+#   merge rather than a re-run. So extern/ is gitignored and this script is the
+#   record -- every change lives in tools/patches/d3d9metal/ as a patch, which
+#   is both the documentation and the mechanism.
 #
-# WHAT THE PATCHES ARE. Every one is a 32-bit or Wine artefact rather than a
-# design change, and the count is small enough to state exactly:
+# WHAT THE PATCHES ARE, and the counts are small enough to state exactly:
 #
-#   dxvk.patch    8 files.  Vulkan non-dispatchable handles are uint64 on i686
-#                 and pointers on arm64; d9mt smuggles Metal handles through
-#                 them, which is fine either way, but the cast has to change
-#                 shape. Plus the Win32 bits DXVK's native build assumes.
+#   dxvk.patch    5 files, against d9mt's vendored DXVK. The macOS and arm64
+#                 fixes d9mt had not already made -- it carries four of its
+#                 own, listed in vendor/dxvk/DXVK-VERSION.
 #
-#   d9mt.patch    12 files. Relative includes rebased -- d9mt reached into
-#                 ../../vendor/... and assumed its own layout -- and D9MT_API,
-#                 which is __declspec on Windows and empty here because there
-#                 is no DLL boundary.
+#   d9mt.patch    13 files. D9MT_API, which is __declspec on Windows and empty
+#                 here because there is no DLL boundary, and the handful of
+#                 places the Metal backend needs adjusting for a native build.
+#                 Notably NOT include rebasing: upstream's relative includes
+#                 are correct for this layout and are left alone.
 #
-#   Three files are added rather than patched: d9mt_fetrace.h and
-#   d9mt_wsi_bootstrap.cpp (Win32WSI is defined there instead of coming from
-#   DXVK's Win32 file -- see the file for why), and dxvk_dummy_frag.h.
+#   Two files are added rather than patched: d9mt_fetrace.h and
+#   d9mt_wsi_bootstrap.cpp, which defines Win32WSI instead of taking it from
+#   DXVK's Win32 file -- see that file for why.
 #
 # Usage:  tools/setup-d3d9metal-macos.sh [--force]
 #
@@ -72,24 +82,7 @@ done
 
 mkdir -p "$EXTERN"
 
-# --- DXVK -------------------------------------------------------------------
-
-if [[ -d "$EXTERN/dxvk" && $FORCE -eq 0 ]]; then
-    echo "dxvk already present; pass --force to refetch"
-else
-    rm -rf "$EXTERN/dxvk"
-    echo "fetching DXVK $DXVK_TAG..."
-    # Submodules matter: include/spirv and include/vulkan are 112 headers that
-    # DXVK does not carry itself, and it will not compile without them.
-    git clone --quiet --depth 1 --branch "$DXVK_TAG" --recurse-submodules \
-        "$DXVK_URL" "$EXTERN/dxvk"
-
-    echo "patching DXVK..."
-    ( cd "$EXTERN/dxvk" && patch -p1 --silent < "$PATCHES/dxvk.patch" )
-    cp "$PATCHES/dxvk_dummy_frag.h" "$EXTERN/dxvk/src/dxvk/dxvk_dummy_frag.h"
-fi
-
-# --- d9mt -------------------------------------------------------------------
+# --- d9mt (which carries DXVK) -----------------------------------------------
 
 if [[ -d "$EXTERN/d9mt" && $FORCE -eq 0 ]]; then
     echo "d9mt already present; pass --force to refetch"
@@ -99,8 +92,11 @@ else
     git clone --quiet "$D9MT_URL" "$EXTERN/d9mt"
     ( cd "$EXTERN/d9mt" && git -c advice.detachedHead=false checkout --quiet "$D9MT_REV" )
 
+    echo "patching d9mt's vendored DXVK..."
+    ( cd "$EXTERN/d9mt" && patch -p1 --batch --forward --silent < "$PATCHES/dxvk.patch" )
+
     echo "patching d9mt..."
-    ( cd "$EXTERN/d9mt" && patch -p1 --silent < "$PATCHES/d9mt.patch" )
+    ( cd "$EXTERN/d9mt" && patch -p1 --batch --forward --silent < "$PATCHES/d9mt.patch" )
     cp "$PATCHES/d9mt_fetrace.h" "$EXTERN/d9mt/src/d3d9fe/d9mt_fetrace.h"
     cp "$PATCHES/d9mt_wsi_bootstrap.cpp" "$EXTERN/d9mt/src/d3d9fe/d9mt_wsi_bootstrap.cpp"
 fi
@@ -118,10 +114,11 @@ check() {
     fi
 }
 
-check "$EXTERN/dxvk/src/d3d9/d3d9_device.cpp"
-check "$EXTERN/dxvk/include/spirv/include/spirv/unified1/spirv.hpp"
-check "$EXTERN/dxvk/include/vulkan/include/vulkan/vulkan_core.h"
-check "$EXTERN/dxvk/src/dxvk/dxvk_dummy_frag.h"
+check "$EXTERN/d9mt/vendor/dxvk/src/d3d9/d3d9_device.cpp"
+check "$EXTERN/d9mt/vendor/dxvk/include/spirv/include/spirv/unified1/spirv.hpp"
+check "$EXTERN/d9mt/vendor/dxvk/include/vulkan/include/vulkan/vulkan_core.h"
+check "$EXTERN/d9mt/vendor/dxvk/src/dxvk/dxvk_dummy_frag.h"
+check "$EXTERN/d9mt/vendor/dxvk/generated/d3d9_convert_nv12.h"
 check "$EXTERN/d9mt/src/d3d9fe/d9mt_device.cpp"
 check "$EXTERN/d9mt/src/d3d9fe/d9mt_wsi_bootstrap.cpp"
 check "$EXTERN/d9mt/src/winemetal.h"
@@ -131,8 +128,8 @@ check "$EXTERN/d9mt/vendor/spirv-cross"
 
 echo
 echo "d3d9metal ready:"
-echo "  extern/dxvk   $DXVK_TAG + $(rg -c '^--- a/' "$PATCHES/dxvk.patch") patched files"
-echo "  extern/d9mt   $D9MT_REV + $(rg -c '^--- a/' "$PATCHES/d9mt.patch") patched files"
+echo "  extern/d9mt              $D9MT_REV"
+echo "  extern/d9mt/vendor/dxvk  $DXVK_TAG (d9mt's snapshot)"
 echo
 echo "winemetal ABI is implemented by src/MetalBridge, not fetched."
 

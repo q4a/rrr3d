@@ -239,6 +239,29 @@ LANGID GetUserDefaultUILanguage(void);
 BOOL   SetThreadLocale(DWORD locale);
 int    _setmbcp(int codepage);
 
+/* ------------------------------------------------------ dynamic loading --- */
+
+/*
+ * Backed by dlopen/dlsym, and every caller in this tree is a probe that is
+ * expected to fail.
+ *
+ * DXVK's util_gdi.cpp does LoadLibraryA("gdi32.dll") and then looks up
+ * D3DKMTCreateDCFromMemory; util_env.cpp looks up SetThreadDescription in
+ * kernel32. Neither library exists here, so both return NULL and DXVK takes
+ * the path it takes on a Windows where those entry points are missing -- which
+ * is a path it already supports.
+ *
+ * Returning NULL is therefore the correct answer rather than a limitation, and
+ * a stub that pretended to succeed would be much worse: DXVK would call
+ * through a null pointer it believed was valid.
+ */
+HMODULE LoadLibraryA(LPCSTR name);
+HMODULE LoadLibraryW(LPCWSTR name);
+HMODULE GetModuleHandleA(LPCSTR name);
+HMODULE GetModuleHandleW(LPCWSTR name);
+BOOL    FreeLibrary(HMODULE module);
+void*   GetProcAddress(HMODULE module, LPCSTR name);
+
 /* ------------------------------------------------------- virtual memory --- */
 
 /*

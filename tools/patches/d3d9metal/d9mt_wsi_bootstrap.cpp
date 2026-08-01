@@ -20,9 +20,9 @@
  * these become SDL_GetDisplayMode and friends.
  */
 
-#include "../dxvk/src/wsi/wsi_platform.h"
-#include "../dxvk/src/wsi/win32/wsi_platform_win32.h"
-#include "../dxvk/src/dxvk/dxvk_cmdlist.h"
+#include "../../vendor/dxvk/src/wsi/wsi_platform.h"
+#include "../../vendor/dxvk/src/wsi/win32/wsi_platform_win32.h"
+#include "../../vendor/dxvk/src/dxvk/dxvk_cmdlist.h"
 
 #include <cstring>
 

@@ -70,6 +70,16 @@ if (NOT MSVC)
     # The Metal backend. Apple-only by construction, and absent on Windows
     # where the real D3D9 runtime is what draws.
     add_subdirectory(MetalBridge)
+
+    # D3D9 over it, from the trees tools/setup-d3d9metal-macos.sh fetches. Only
+    # if they are actually there: the rest of the tree builds and its tests run
+    # without them, and failing to configure would hide that.
+    if (EXISTS ${CMAKE_SOURCE_DIR}/extern/d9mt/vendor/dxvk/src/d3d9/d3d9_device.cpp)
+        add_subdirectory(D3D9Metal)
+    else()
+        message(STATUS "d3d9metal: extern/ not populated -- "
+                       "run tools/setup-d3d9metal-macos.sh for the D3D9 backend")
+    endif()
 endif()
 
 add_subdirectory(TinyXml)

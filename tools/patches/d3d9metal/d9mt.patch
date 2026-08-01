@@ -1,6 +1,6 @@
 --- a/src/d3d9fe/d9mt_backend.h
 +++ b/src/d3d9fe/d9mt_backend.h
-@@ -14,18 +14,19 @@
+@@ -14,6 +14,7 @@
  
  #pragma once
  
@@ -8,57 +8,29 @@
  #include <cstdarg>
  #include <cstdint>
  #include <cstdio>
- #include <functional>
+@@ -21,7 +22,7 @@
  #include <mutex>
  
--#include "../winemetal.h"
+ #include "../winemetal.h"
 -#include "../d9mtmetal/d9mtmetal.h"
-+#include "../winemetal/winemetal.h"
 +#include "d9mtmetal.h"
  
  // Vendored Vulkan type definitions, configured exactly like the rest of the
  // front-end build (vulkan_loader.h self-defines VK_USE_PLATFORM_WIN32_KHR).
--#include "../../vendor/dxvk/src/vulkan/vulkan_loader.h"
-+#include "../dxvk/src/vulkan/vulkan_loader.h"
- 
- namespace dxvk::d9mt {
- 
-@@ -48,6 +49,11 @@
+@@ -47,6 +48,11 @@
+       if (!s_file)
          return;
      }
- 
++
 +    // ms since first log call, so phase durations can be attributed offline.
 +    static const auto s_t0 = std::chrono::steady_clock::now();
 +    std::fprintf(s_file, "[%8lld] ", (long long) std::chrono::duration_cast<
 +      std::chrono::milliseconds>(std::chrono::steady_clock::now() - s_t0).count());
-+
+ 
      va_list ap;
      va_start(ap, fmt);
-     std::vfprintf(s_file, fmt, ap);
 --- a/src/d3d9fe/d9mt_context.cpp
 +++ b/src/d3d9fe/d9mt_context.cpp
-@@ -35,14 +35,14 @@
- #include "d9mt_hud.h"
- #include "d9mt_draw.h"
- 
--#include "../../vendor/dxvk/src/util/thread.h"
-+#include "../dxvk/src/util/thread.h"
- 
--#include "../../vendor/dxvk/src/dxvk/dxvk_cmdlist.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_context.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_device.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_gpu_event.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_gpu_query.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_staging.h"
-+#include "../dxvk/src/dxvk/dxvk_cmdlist.h"
-+#include "../dxvk/src/dxvk/dxvk_context.h"
-+#include "../dxvk/src/dxvk/dxvk_device.h"
-+#include "../dxvk/src/dxvk/dxvk_gpu_event.h"
-+#include "../dxvk/src/dxvk/dxvk_gpu_query.h"
-+#include "../dxvk/src/dxvk/dxvk_staging.h"
- 
- namespace dxvk::d9mt {
- 
 @@ -962,7 +962,10 @@
      params.device   = mtlDevice();
      params.info_ptr = uint64_t(uintptr_t(&info));
@@ -77,14 +49,9 @@
  // d9mt: Metal backend — DxvkDevice + DxvkObjects member classes.
  //
  // Implements the device-level surface of docs/BACKEND-SURFACE.md §2.3/§2.4:
-@@ -17,10 +18,10 @@
- #include "d9mt_backend.h"
- #include "d9mt_trace.h"
- 
--#include "../../vendor/dxvk/src/dxvk/dxvk_device.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_queue.h"
-+#include "../dxvk/src/dxvk/dxvk_device.h"
-+#include "../dxvk/src/dxvk/dxvk_queue.h"
+@@ -20,7 +21,7 @@
+ #include "../../vendor/dxvk/src/dxvk/dxvk_device.h"
+ #include "../../vendor/dxvk/src/dxvk/dxvk_queue.h"
  
 -#include "../../vendor/spirv-cross/spirv_msl.hpp"
 +#include "../spirv-cross/spirv_msl.hpp"
@@ -166,43 +133,8 @@
      pool.queries = new DxvkGpuQuery[m_queryPoolSize];
  
      for (uint32_t i = 0; i < m_queryPoolSize; i++) {
---- a/src/d3d9fe/d9mt_draw.h
-+++ b/src/d3d9fe/d9mt_draw.h
-@@ -20,7 +20,7 @@
- 
- #include "d9mt_backend.h"
- 
--#include "../../vendor/dxvk/src/dxvk/dxvk_shader.h"
-+#include "../dxvk/src/dxvk/dxvk_shader.h"
- 
- namespace dxvk::d9mt {
- 
---- a/src/d3d9fe/d9mt_hud.cpp
-+++ b/src/d3d9fe/d9mt_hud.cpp
-@@ -4,7 +4,7 @@
- 
- #ifdef D9MT_HUD
- 
--#include "../winemetal.h"
-+#include "../winemetal/winemetal.h"
- #include "../d9mtmetal/d9mtmetal.h"  // D9MT_UnixCall + d9mt_hud_color_params
- #include <cstdio>
- 
 --- a/src/d3d9fe/d9mt_instance.cpp
 +++ b/src/d3d9fe/d9mt_instance.cpp
-@@ -8,9 +8,9 @@
- 
- #include "d9mt_backend.h"
- 
--#include "../../vendor/dxvk/src/dxvk/dxvk_adapter.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_instance.h"
--#include "../../vendor/dxvk/src/wsi/wsi_platform.h"
-+#include "../dxvk/src/dxvk/dxvk_adapter.h"
-+#include "../dxvk/src/dxvk/dxvk_instance.h"
-+#include "../dxvk/src/wsi/wsi_platform.h"
- 
- namespace dxvk::d9mt {
- 
 @@ -265,8 +265,12 @@
        if (!pCreateInfo || !pCreateInfo->hwnd || !pSurface)
          return VK_ERROR_INITIALIZATION_FAILED;
@@ -220,23 +152,6 @@
  
 --- a/src/d3d9fe/d9mt_presenter.cpp
 +++ b/src/d3d9fe/d9mt_presenter.cpp
-@@ -38,11 +38,11 @@
- #include <sys/stat.h>
- #include <unistd.h>
- 
--#include "../../vendor/dxvk/src/dxvk/dxvk_device.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_presenter.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_swapchain_blitter.h"
--#include "../../vendor/dxvk/src/dxvk/hud/dxvk_hud.h"
--#include "../../vendor/dxvk/src/wsi/wsi_window.h"
-+#include "../dxvk/src/dxvk/dxvk_device.h"
-+#include "../dxvk/src/dxvk/dxvk_presenter.h"
-+#include "../dxvk/src/dxvk/dxvk_swapchain_blitter.h"
-+#include "../dxvk/src/dxvk/hud/dxvk_hud.h"
-+#include "../dxvk/src/wsi/wsi_window.h"
- 
- namespace dxvk::d9mt {
- 
 @@ -799,6 +799,7 @@
      if (tracker != nullptr)
        tracker->notifyGpuPresentEnd(frameId);
@@ -245,56 +160,26 @@
      m_signal->signal(frameId);
      m_lastSignaled = frameId;
    }
---- a/src/d3d9fe/d9mt_resources.cpp
-+++ b/src/d3d9fe/d9mt_resources.cpp
-@@ -31,10 +31,10 @@
- #include "d9mt_trace.h"
- #include "d9mt_hud.h"
- 
--#include "../../vendor/dxvk/src/dxvk/dxvk_buffer.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_device.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_image.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_staging.h"
-+#include "../dxvk/src/dxvk/dxvk_buffer.h"
-+#include "../dxvk/src/dxvk/dxvk_device.h"
-+#include "../dxvk/src/dxvk/dxvk_image.h"
-+#include "../dxvk/src/dxvk/dxvk_staging.h"
- 
- namespace dxvk {
- 
 --- a/src/d3d9fe/d9mt_shader.cpp
 +++ b/src/d3d9fe/d9mt_shader.cpp
-@@ -30,8 +30,8 @@
+@@ -30,7 +30,7 @@
  #include "d9mt_draw.h"
  #include "d9mt_trace.h"
  
 -#include "../../vendor/spirv-cross/spirv_msl.hpp"
--#include "../../vendor/dxvk/src/util/sha1/sha1_util.h"
 +#include "../spirv-cross/spirv_msl.hpp"
-+#include "../dxvk/src/util/sha1/sha1_util.h"
+ #include "../../vendor/dxvk/src/util/sha1/sha1_util.h"
  
  namespace dxvk::d9mt {
- 
 --- a/src/d3d9fe/d9mt_watcher.cpp
 +++ b/src/d3d9fe/d9mt_watcher.cpp
-@@ -8,14 +8,15 @@
+@@ -8,6 +8,7 @@
  // submission fence, staging fence) and resource track-release run through
  // here.
  
 +#include <atomic>
  #include <queue>
  #include <utility>
- 
- #include "d9mt_backend.h"
- 
--#include "../../vendor/dxvk/src/util/thread.h"
--#include "../../vendor/dxvk/src/util/util_env.h"
--#include "../../vendor/dxvk/src/util/log/log.h"
-+#include "../dxvk/src/util/thread.h"
-+#include "../dxvk/src/util/util_env.h"
-+#include "../dxvk/src/util/log/log.h"
- 
- namespace dxvk::d9mt {
  
 @@ -82,8 +83,16 @@
  
@@ -326,89 +211,3 @@
  
            if (entry.cmdbuf)
              NSObject_release(entry.cmdbuf);
---- a/src/d3d9fe/d9mt_wsi.cpp
-+++ b/src/d3d9fe/d9mt_wsi.cpp
-@@ -40,9 +40,9 @@
- 
- #include "d9mt_backend.h"
- 
--#include "../../vendor/dxvk/src/wsi/win32/wsi_platform_win32.h"
--#include "../../vendor/dxvk/src/util/log/log.h"
--#include "../../vendor/dxvk/src/util/util_string.h"
-+#include "../dxvk/src/wsi/win32/wsi_platform_win32.h"
-+#include "../dxvk/src/util/log/log.h"
-+#include "../dxvk/src/util/util_string.h"
- 
- namespace dxvk::d9mt {
- 
---- a/src/d3d9fe/stubs.cpp
-+++ b/src/d3d9fe/stubs.cpp
-@@ -13,37 +13,37 @@
- #include <cstdio>
- #include <cstdlib>
- 
--#include "../../vendor/dxvk/src/dxvk/dxvk_access.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_adapter.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_buffer.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_cmdlist.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_compute.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_context.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_descriptor_heap.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_descriptor_pool.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_device.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_fence.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_graphics.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_meta_blit.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_meta_clear.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_meta_copy.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_meta_resolve.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_gpu_event.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_gpu_query.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_image.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_instance.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_latency.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_memory.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_pipemanager.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_presenter.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_queue.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_sampler.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_sparse.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_staging.h"
--#include "../../vendor/dxvk/src/dxvk/dxvk_swapchain_blitter.h"
--#include "../../vendor/dxvk/src/dxvk/hud/dxvk_hud.h"
--#include "../../vendor/dxvk/src/vulkan/vulkan_loader.h"
--#include "../../vendor/dxvk/src/wsi/wsi_edid.h"
-+#include "../dxvk/src/dxvk/dxvk_access.h"
-+#include "../dxvk/src/dxvk/dxvk_adapter.h"
-+#include "../dxvk/src/dxvk/dxvk_buffer.h"
-+#include "../dxvk/src/dxvk/dxvk_cmdlist.h"
-+#include "../dxvk/src/dxvk/dxvk_compute.h"
-+#include "../dxvk/src/dxvk/dxvk_context.h"
-+#include "../dxvk/src/dxvk/dxvk_descriptor_heap.h"
-+#include "../dxvk/src/dxvk/dxvk_descriptor_pool.h"
-+#include "../dxvk/src/dxvk/dxvk_device.h"
-+#include "../dxvk/src/dxvk/dxvk_fence.h"
-+#include "../dxvk/src/dxvk/dxvk_graphics.h"
-+#include "../dxvk/src/dxvk/dxvk_meta_blit.h"
-+#include "../dxvk/src/dxvk/dxvk_meta_clear.h"
-+#include "../dxvk/src/dxvk/dxvk_meta_copy.h"
-+#include "../dxvk/src/dxvk/dxvk_meta_resolve.h"
-+#include "../dxvk/src/dxvk/dxvk_gpu_event.h"
-+#include "../dxvk/src/dxvk/dxvk_gpu_query.h"
-+#include "../dxvk/src/dxvk/dxvk_image.h"
-+#include "../dxvk/src/dxvk/dxvk_instance.h"
-+#include "../dxvk/src/dxvk/dxvk_latency.h"
-+#include "../dxvk/src/dxvk/dxvk_memory.h"
-+#include "../dxvk/src/dxvk/dxvk_pipemanager.h"
-+#include "../dxvk/src/dxvk/dxvk_presenter.h"
-+#include "../dxvk/src/dxvk/dxvk_queue.h"
-+#include "../dxvk/src/dxvk/dxvk_sampler.h"
-+#include "../dxvk/src/dxvk/dxvk_sparse.h"
-+#include "../dxvk/src/dxvk/dxvk_staging.h"
-+#include "../dxvk/src/dxvk/dxvk_swapchain_blitter.h"
-+#include "../dxvk/src/dxvk/hud/dxvk_hud.h"
-+#include "../dxvk/src/vulkan/vulkan_loader.h"
-+#include "../dxvk/src/wsi/wsi_edid.h"
- 
- // Logs the hit both to stderr AND to d3d9fe-stub.log in the process cwd
- // (winewrapper swallows stderr, the file survives the abort).
