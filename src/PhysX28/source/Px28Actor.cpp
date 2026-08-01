@@ -419,14 +419,33 @@ void Actor::addLocalTorque(const NxVec3& torque, NxForceMode mode, bool wakeup)
 
 /* ------------------------------------------------------------------- flags */
 
+/*
+ * NX_AF_DISABLE_RESPONSE is the one flag with a Bullet counterpart, and every
+ * weapon in the game depends on it: Weapon.cpp sets it on six projectile types
+ * so a shot passes *through* what it hits while still reporting the contact
+ * that scores the damage. CF_NO_CONTACT_RESPONSE is exactly that -- Bullet
+ * still detects and reports the contact, it just applies no impulse.
+ */
+void Actor::applyResponseFlag()
+	{
+	const int flags = _body->getCollisionFlags();
+
+	if (_actorFlags & NX_AF_DISABLE_RESPONSE)
+		_body->setCollisionFlags(flags | btCollisionObject::CF_NO_CONTACT_RESPONSE);
+	else
+		_body->setCollisionFlags(flags & ~btCollisionObject::CF_NO_CONTACT_RESPONSE);
+	}
+
 void Actor::raiseActorFlag(NxActorFlag flag)
 	{
 	_actorFlags |= flag;
+	applyResponseFlag();
 	}
 
 void Actor::clearActorFlag(NxActorFlag flag)
 	{
 	_actorFlags &= ~static_cast<NxU32>(flag);
+	applyResponseFlag();
 	}
 
 bool Actor::readActorFlag(NxActorFlag flag) const

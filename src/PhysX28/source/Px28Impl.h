@@ -262,6 +262,9 @@ class Actor: public NxActor
 	virtual bool    isSleeping() const;
 
 	private:
+	/* Pushes NX_AF_DISABLE_RESPONSE down to Bullet's CF_NO_CONTACT_RESPONSE. */
+	void applyResponseFlag();
+
 	Scene* _scene;
 	btRigidBody* _body;
 	btCompoundShape* _compound;
@@ -349,13 +352,17 @@ class Scene: public NxScene
 	virtual NxMaterial* getMaterialFromIndex(NxMaterialIndex index);
 	virtual NxU32       getNbMaterials() const;
 
-	/* Not implemented yet -- each aborts naming itself. */
 	virtual void  setGroupCollisionFlag(NxCollisionGroup g1, NxCollisionGroup g2, bool enable);
 	virtual bool  getGroupCollisionFlag(NxCollisionGroup g1, NxCollisionGroup g2) const;
-	virtual void  setFilterOps(NxFilterOp op0, NxFilterOp op1, NxFilterOp op2);
-	virtual void  setFilterBool(bool flag);
 	virtual void  setActorPairFlags(NxActor& a, NxActor& b, NxU32 flags);
 	virtual NxU32 getActorPairFlags(NxActor& a, NxActor& b) const;
+
+	/* Consulted from Bullet's broadphase filter callback. */
+	bool shouldCollide(const Actor& a, const Actor& b) const;
+
+	/* Not implemented yet -- each aborts naming itself. */
+	virtual void  setFilterOps(NxFilterOp op0, NxFilterOp op1, NxFilterOp op2);
+	virtual void  setFilterBool(bool flag);
 	virtual void  setShapePairFlags(NxShape& a, NxShape& b, NxU32 flags);
 
 	virtual NxShape* raycastClosestShape(const NxRay& worldRay, NxShapesType shapeType,
@@ -387,6 +394,23 @@ class Scene: public NxScene
 	NxReal _skinWidth;
 
 	NxReal _pendingStep;
+
+	/*
+	 * 2.8 supports exactly 32 collision groups -- NxShapeDesc::checkValid
+	 * rejects a group of 32 or more -- and the matrix is per scene, not global,
+	 * which is worth knowing because the obvious modern equivalents are global.
+	 *
+	 * Every pair starts enabled, and Scene::Scene disables fifteen of them.
+	 */
+	bool _groupCollision[32][32];
+
+	/* setActorPairFlags(NX_IGNORE_PAIR) is per-pair and cannot live in filter
+	   data, so it belongs here and is consulted from the pair filter. Keyed on
+	   the ordered pair with the lower pointer first, so lookup does not depend
+	   on which way round the caller passed them. */
+	std::map<std::pair<const NxActor*, const NxActor*>, NxU32> _actorPairFlags;
+
+	btOverlapFilterCallback* _filter;
 	};
 
 } /* namespace px28 */

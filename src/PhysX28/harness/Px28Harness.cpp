@@ -461,6 +461,219 @@ void TestMaterialIndices()
 	Check(scene.getNbMaterials() == 5, "the released material is no longer counted");
 	}
 
+/*
+ * The exact 8x8 group matrix from Scene::Scene (Physx.cpp:62-79), pair by pair.
+ *
+ * The group names are the engine's own CollDisGroup enum, repeated here rather
+ * than included: the harness deliberately does not depend on Rock3dEngine, and
+ * a check that read the same header it is verifying would agree with itself
+ * whatever the values were.
+ */
+void TestGroupCollisionMatrix()
+	{
+	std::printf("collision group matrix\n");
+
+	enum
+		{
+		cdgDefault = 0, cdgShot = 1, cdgShotBorder = 2, cdgShotTransparency = 3,
+		cdgWheel = 4, cdgShotTrack = 5, cdgTrackPlane = 6, cdgPlaneDeath = 7
+		};
+
+	NxSceneDesc sceneDesc;
+	px28::Scene scene(sceneDesc);
+
+	/* Everything collides until told otherwise. */
+	Check(scene.getGroupCollisionFlag(cdgShot, cdgShot), "pairs start enabled");
+	Check(scene.getGroupCollisionFlag(cdgDefault, cdgPlaneDeath), "pairs start enabled");
+
+	scene.setGroupCollisionFlag(cdgShot, cdgShot, false);
+	scene.setGroupCollisionFlag(cdgShotBorder, cdgShotBorder, false);
+	scene.setGroupCollisionFlag(cdgShotBorder, cdgShot, false);
+	scene.setGroupCollisionFlag(cdgShotTrack, cdgShot, false);
+	scene.setGroupCollisionFlag(cdgShotTrack, cdgShotBorder, false);
+	scene.setGroupCollisionFlag(cdgShotTrack, cdgShotTrack, false);
+	scene.setGroupCollisionFlag(cdgShotTransparency, cdgShot, false);
+	scene.setGroupCollisionFlag(cdgWheel, cdgShot, false);
+	scene.setGroupCollisionFlag(cdgWheel, cdgShotBorder, false);
+	scene.setGroupCollisionFlag(cdgWheel, cdgShotTrack, false);
+	scene.setGroupCollisionFlag(cdgWheel, cdgShotTransparency, false);
+	scene.setGroupCollisionFlag(cdgTrackPlane, cdgShot, false);
+	scene.setGroupCollisionFlag(cdgTrackPlane, cdgShotBorder, false);
+
+	/* The thirteen pairs the game disables, each read back both ways round --
+	   Scene::Scene only ever sets one direction and expects both off. */
+	const int disabled[][2] =
+		{
+		{cdgShot, cdgShot},
+		{cdgShotBorder, cdgShotBorder},
+		{cdgShotBorder, cdgShot},
+		{cdgShotTrack, cdgShot},
+		{cdgShotTrack, cdgShotBorder},
+		{cdgShotTrack, cdgShotTrack},
+		{cdgShotTransparency, cdgShot},
+		{cdgWheel, cdgShot},
+		{cdgWheel, cdgShotBorder},
+		{cdgWheel, cdgShotTrack},
+		{cdgWheel, cdgShotTransparency},
+		{cdgTrackPlane, cdgShot},
+		{cdgTrackPlane, cdgShotBorder},
+		};
+
+	const int disabledCount = sizeof(disabled) / sizeof(disabled[0]);
+
+	for (int i = 0; i < disabledCount; ++i)
+		{
+		char label[96];
+		std::snprintf(label, sizeof(label), "group pair (%d,%d) is disabled",
+		              disabled[i][0], disabled[i][1]);
+		Check(!scene.getGroupCollisionFlag(disabled[i][0], disabled[i][1]), label);
+
+		std::snprintf(label, sizeof(label), "group pair (%d,%d) is disabled symmetrically",
+		              disabled[i][1], disabled[i][0]);
+		Check(!scene.getGroupCollisionFlag(disabled[i][1], disabled[i][0]), label);
+		}
+
+	/*
+	 * And every other pair of the eight groups in use is still enabled. This is
+	 * the half that catches an over-broad disable -- checking only the thirteen
+	 * would pass just as well if setGroupCollisionFlag turned everything off.
+	 */
+	int stillEnabled = 0;
+	for (int a = 0; a <= cdgPlaneDeath; ++a)
+		for (int b = a; b <= cdgPlaneDeath; ++b)
+			{
+			bool expected = true;
+			for (int i = 0; i < disabledCount; ++i)
+				if ((disabled[i][0] == a && disabled[i][1] == b) ||
+				    (disabled[i][0] == b && disabled[i][1] == a))
+					expected = false;
+
+			if (expected)
+				{
+				char label[96];
+				std::snprintf(label, sizeof(label), "group pair (%d,%d) is still enabled", a, b);
+				Check(scene.getGroupCollisionFlag(a, b), label);
+				++stillEnabled;
+				}
+			}
+
+	Check(stillEnabled == 23, "23 of the 36 pairs among the eight groups remain enabled");
+	}
+
+/*
+ * A projectile with NX_AF_DISABLE_RESPONSE passes through what it hits.
+ *
+ * Every weapon in the game depends on this: Weapon.cpp sets the flag on six
+ * projectile types so a shot scores its damage from the contact without being
+ * deflected by it. The contact still has to be *reported* -- that half waits on
+ * contact reports, and is noted here rather than silently untested.
+ */
+void TestDisableResponsePassesThrough()
+	{
+	std::printf("NX_AF_DISABLE_RESPONSE\n");
+
+	NxSceneDesc sceneDesc;
+	sceneDesc.gravity.set(NxVec3(0.0f, 0.0f, -9.81f));
+
+	px28::Scene scene(sceneDesc);
+
+	NxActorDesc wallDesc;
+	wallDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, 0.0f));
+	NxActor* wall = scene.createActor(wallDesc);
+
+	NxBoxShapeDesc wallShape;
+	wallShape.dimensions.set(NxVec3(50.0f, 50.0f, 1.0f));
+	wall->createShape(wallShape);
+
+	/* Two identical projectiles, one of which ignores contact response. */
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = 1.0f;
+
+	NxActorDesc shotDesc;
+	shotDesc.body = &bodyDesc;
+	shotDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, 5.0f));
+
+	NxActor* solid = scene.createActor(shotDesc);
+	NxActor* ghost = scene.createActor(shotDesc);
+
+	NxBoxShapeDesc shotShape;
+	shotShape.dimensions.set(NxVec3(0.2f, 0.2f, 0.2f));
+	solid->createShape(shotShape);
+	ghost->createShape(shotShape);
+
+	ghost->raiseActorFlag(NX_AF_DISABLE_RESPONSE);
+	Check(ghost->readActorFlag(NX_AF_DISABLE_RESPONSE), "the flag reads back");
+	Check(!solid->readActorFlag(NX_AF_DISABLE_RESPONSE), "the other actor is unaffected");
+
+	for (int i = 0; i < 180; ++i)
+		{
+		scene.simulate(1.0f / 60.0f);
+		scene.flushStream();
+		scene.fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	/* The ordinary one stops on top of the wall. */
+	Check(solid->getGlobalPosition().z > 0.5f,
+	      "the ordinary projectile is stopped by the wall");
+
+	/* The flagged one is somewhere below it, still falling. */
+	Check(ghost->getGlobalPosition().z < -1.0f,
+	      "the NX_AF_DISABLE_RESPONSE projectile passes through");
+
+	/* Clearing the flag puts it back, so the mapping is not one-way. */
+	ghost->clearActorFlag(NX_AF_DISABLE_RESPONSE);
+	Check(!ghost->readActorFlag(NX_AF_DISABLE_RESPONSE), "the flag clears");
+	}
+
+/* setActorPairFlags(NX_IGNORE_PAIR) stops one specific pair colliding,
+   whatever the group matrix says -- GameBase.cpp:722 and Weapon.cpp:1584 use it
+   so a weapon does not hit the car that fired it. */
+void TestActorPairFlags()
+	{
+	std::printf("actor pair flags\n");
+
+	NxSceneDesc sceneDesc;
+	sceneDesc.gravity.set(NxVec3(0.0f, 0.0f, -9.81f));
+
+	px28::Scene scene(sceneDesc);
+
+	NxActorDesc groundDesc;
+	NxActor* ground = scene.createActor(groundDesc);
+	NxBoxShapeDesc groundShape;
+	groundShape.dimensions.set(NxVec3(50.0f, 50.0f, 1.0f));
+	ground->createShape(groundShape);
+
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = 1.0f;
+	NxActorDesc boxDesc;
+	boxDesc.body = &bodyDesc;
+	boxDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, 5.0f));
+
+	NxActor* box = scene.createActor(boxDesc);
+	NxBoxShapeDesc boxShape;
+	boxShape.dimensions.set(NxVec3(0.2f, 0.2f, 0.2f));
+	box->createShape(boxShape);
+
+	Check(scene.getActorPairFlags(*box, *ground) == 0, "no pair flags by default");
+
+	scene.setActorPairFlags(*box, *ground, NX_IGNORE_PAIR);
+	Check(scene.getActorPairFlags(*box, *ground) == NX_IGNORE_PAIR, "the flag reads back");
+
+	/* And the other way round, because the game sets it in one order and the
+	   filter is asked in whichever order Bullet happens to use. */
+	Check(scene.getActorPairFlags(*ground, *box) == NX_IGNORE_PAIR,
+	      "pair flags are order-independent");
+
+	for (int i = 0; i < 180; ++i)
+		{
+		scene.simulate(1.0f / 60.0f);
+		scene.flushStream();
+		scene.fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	Check(box->getGlobalPosition().z < -1.0f, "an ignored pair does not collide");
+	}
+
 } /* namespace */
 
 int main()
@@ -473,6 +686,9 @@ int main()
 	TestBoxRestsOnGround();
 	TestShapeOrder();
 	TestMaterialIndices();
+	TestGroupCollisionMatrix();
+	TestDisableResponsePassesThrough();
+	TestActorPairFlags();
 
 	std::printf("================================\n");
 	if (gFailures == 0)

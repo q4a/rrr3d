@@ -7,9 +7,38 @@
 namespace px28
 {
 
+namespace
+{
+	/* Bullet asks this for every broadphase pair; it forwards the question to
+	   the scene, which answers it in 2.8's terms. */
+	class PairFilter: public btOverlapFilterCallback
+		{
+		public:
+		explicit PairFilter(const Scene& scene): _scene(&scene) {}
+
+		virtual bool needBroadphaseCollision(btBroadphaseProxy* a, btBroadphaseProxy* b) const
+			{
+			const btCollisionObject* objectA =
+				static_cast<const btCollisionObject*>(a->m_clientObject);
+			const btCollisionObject* objectB =
+				static_cast<const btCollisionObject*>(b->m_clientObject);
+
+			const Actor* actorA = static_cast<const Actor*>(objectA->getUserPointer());
+			const Actor* actorB = static_cast<const Actor*>(objectB->getUserPointer());
+			if (!actorA || !actorB)
+				return true;
+
+			return _scene->shouldCollide(*actorA, *actorB);
+			}
+
+		private:
+		const Scene* _scene;
+		};
+}
+
 Scene::Scene(const NxSceneDesc& desc)
 	: _config(NULL), _dispatcher(NULL), _broadphase(NULL), _solver(NULL),
-	  _world(NULL), _skinWidth(0.025f), _pendingStep(0.0f)
+	  _world(NULL), _skinWidth(0.025f), _pendingStep(0.0f), _filter(NULL)
 	{
 	_config = new btDefaultCollisionConfiguration();
 	_dispatcher = new btCollisionDispatcher(_config);
@@ -22,6 +51,14 @@ Scene::Scene(const NxSceneDesc& desc)
 	/* Slot 0 is the scene's default material, reserved before any call to
 	   createMaterial so the game's first material lands on index 1. */
 	_materials.push_back(new Material(NxMaterialDesc(), 0));
+
+	/* Every group pair starts enabled; Scene::Scene turns fifteen of them off. */
+	for (int i = 0; i < 32; ++i)
+		for (int j = 0; j < 32; ++j)
+			_groupCollision[i][j] = true;
+
+	_filter = new PairFilter(*this);
+	_broadphase->getOverlappingPairCache()->setOverlapFilterCallback(_filter);
 	}
 
 Scene::~Scene()
@@ -40,6 +77,7 @@ Scene::~Scene()
 
 	delete _world;
 	delete _solver;
+	delete _filter;
 	delete _broadphase;
 	delete _dispatcher;
 	delete _config;
@@ -139,6 +177,85 @@ NxU32 Scene::getNbMaterials() const
 	return count;
 	}
 
+/* --------------------------------------------------------------- filtering */
+
+/*
+ * Symmetric, because 2.8's is: Scene::Scene sets (cdgWheel, cdgShot) and never
+ * (cdgShot, cdgWheel), and expects both directions off. Storing one triangle
+ * would work equally well; storing both makes the lookup a single read and
+ * makes getGroupCollisionFlag(b, a) answer without thinking about it.
+ */
+void Scene::setGroupCollisionFlag(NxCollisionGroup g1, NxCollisionGroup g2, bool enable)
+	{
+	if (g1 >= 32 || g2 >= 32)
+		return;
+
+	_groupCollision[g1][g2] = enable;
+	_groupCollision[g2][g1] = enable;
+	}
+
+bool Scene::getGroupCollisionFlag(NxCollisionGroup g1, NxCollisionGroup g2) const
+	{
+	if (g1 >= 32 || g2 >= 32)
+		return false;
+
+	return _groupCollision[g1][g2];
+	}
+
+namespace
+{
+	std::pair<const NxActor*, const NxActor*> PairKey(const NxActor& a, const NxActor& b)
+		{
+		/* Ordered, so (a, b) and (b, a) are the same entry. */
+		return &a < &b ? std::make_pair(&a, &b) : std::make_pair(&b, &a);
+		}
+}
+
+void Scene::setActorPairFlags(NxActor& a, NxActor& b, NxU32 flags)
+	{
+	if (flags == 0)
+		_actorPairFlags.erase(PairKey(a, b));
+	else
+		_actorPairFlags[PairKey(a, b)] = flags;
+	}
+
+NxU32 Scene::getActorPairFlags(NxActor& a, NxActor& b) const
+	{
+	std::map<std::pair<const NxActor*, const NxActor*>, NxU32>::const_iterator iter =
+		_actorPairFlags.find(PairKey(a, b));
+
+	return iter == _actorPairFlags.end() ? 0 : iter->second;
+	}
+
+/*
+ * The question Bullet's broadphase filter asks, answered in 2.8's terms.
+ *
+ * NX_IGNORE_PAIR is checked first because it is the more specific rule:
+ * GameBase.cpp:722 and Weapon.cpp:1584 use it to stop a weapon colliding with
+ * the car that fired it, regardless of what the group matrix says.
+ *
+ * Group is read from the actor's first shape. 2.8 puts the group on the shape,
+ * not the actor, and Bullet's broadphase proxy is per body -- so an actor whose
+ * shapes span several groups cannot be filtered exactly here. That does not
+ * arise in this game (px::Actor assigns one group to every shape it creates),
+ * but it is an assumption rather than a guarantee, so it is written down.
+ */
+bool Scene::shouldCollide(const Actor& a, const Actor& b) const
+	{
+	std::map<std::pair<const NxActor*, const NxActor*>, NxU32>::const_iterator iter =
+		_actorPairFlags.find(PairKey(a, b));
+	if (iter != _actorPairFlags.end() && (iter->second & NX_IGNORE_PAIR))
+		return false;
+
+	const NxShape*const* shapesA = a.getShapes();
+	const NxShape*const* shapesB = b.getShapes();
+	if (a.getNbShapes() == 0 || b.getNbShapes() == 0)
+		return true;
+
+	return getGroupCollisionFlag(shapesA[0]->getGroup(), shapesB[0]->getGroup());
+	}
+
+
 /* ---------------------------------------------------------------- stepping */
 
 /*
@@ -197,13 +314,9 @@ void Scene::getGravity(NxVec3& gravity) const
 
 /* ------------------------------------------------- not implemented yet ---- */
 
-void Scene::setGroupCollisionFlag(NxCollisionGroup, NxCollisionGroup, bool)      { Unimplemented("NxScene::setGroupCollisionFlag"); }
-bool Scene::getGroupCollisionFlag(NxCollisionGroup, NxCollisionGroup) const      { Unimplemented("NxScene::getGroupCollisionFlag"); }
-void Scene::setFilterOps(NxFilterOp, NxFilterOp, NxFilterOp)                     { Unimplemented("NxScene::setFilterOps"); }
-void Scene::setFilterBool(bool)                                                  { Unimplemented("NxScene::setFilterBool"); }
-void Scene::setActorPairFlags(NxActor&, NxActor&, NxU32)                         { Unimplemented("NxScene::setActorPairFlags"); }
-NxU32 Scene::getActorPairFlags(NxActor&, NxActor&) const                         { Unimplemented("NxScene::getActorPairFlags"); }
-void Scene::setShapePairFlags(NxShape&, NxShape&, NxU32)                         { Unimplemented("NxScene::setShapePairFlags"); }
+void Scene::setFilterOps(NxFilterOp, NxFilterOp, NxFilterOp)  { Unimplemented("NxScene::setFilterOps"); }
+void Scene::setFilterBool(bool)                               { Unimplemented("NxScene::setFilterBool"); }
+void Scene::setShapePairFlags(NxShape&, NxShape&, NxU32)      { Unimplemented("NxScene::setShapePairFlags"); }
 
 NxShape* Scene::raycastClosestShape(const NxRay&, NxShapesType, NxRaycastHit&, NxU32,
                                     NxReal, NxU32, const NxGroupsMask*, NxShape**) const
