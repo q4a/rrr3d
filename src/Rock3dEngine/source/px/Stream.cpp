@@ -2,9 +2,13 @@
 
 #include <stdio.h>
 
-#include "px\\Physx.h"
-#include "px\\Stream.h"
+//#include "px/Physx.h"
+#include "PxPhysicsAPI.h"
+#include "internal/include/PsArray.h"
+#include "px/Stream.h"
 
+namespace physx
+{
 
 MemoryWriteBuffer::MemoryWriteBuffer() : currentSize(0), maxSize(0), data(NULL)
 	{
@@ -12,7 +16,7 @@ MemoryWriteBuffer::MemoryWriteBuffer() : currentSize(0), maxSize(0), data(NULL)
 
 MemoryWriteBuffer::~MemoryWriteBuffer()
 	{
-	NX_DELETE_ARRAY(data);
+	PX_DELETE_ARRAY(data);
 	}
 
 void MemoryWriteBuffer::clear()
@@ -20,40 +24,40 @@ void MemoryWriteBuffer::clear()
 	currentSize = 0;
 	}
 
-NxStream& MemoryWriteBuffer::storeByte(NxU8 b)
+PxStream& MemoryWriteBuffer::storeByte(PxU8 b)
 	{
-	storeBuffer(&b, sizeof(NxU8));
+	storeBuffer(&b, sizeof(PxU8));
 	return *this;
 	}
-NxStream& MemoryWriteBuffer::storeWord(NxU16 w)
+PxStream& MemoryWriteBuffer::storeWord(PxU16 w)
 	{
-	storeBuffer(&w, sizeof(NxU16));
+	storeBuffer(&w, sizeof(PxU16));
 	return *this;
 	}
-NxStream& MemoryWriteBuffer::storeDword(NxU32 d)
+PxStream& MemoryWriteBuffer::storeDword(PxU32 d)
 	{
-	storeBuffer(&d, sizeof(NxU32));
+	storeBuffer(&d, sizeof(PxU32));
 	return *this;
 	}
-NxStream& MemoryWriteBuffer::storeFloat(NxReal f)
+PxStream& MemoryWriteBuffer::storeFloat(PxReal f)
 	{
-	storeBuffer(&f, sizeof(NxReal));
+	storeBuffer(&f, sizeof(PxReal));
 	return *this;
 	}
-NxStream& MemoryWriteBuffer::storeDouble(NxF64 f)
+PxStream& MemoryWriteBuffer::storeDouble(PxF64 f)
 	{
-	storeBuffer(&f, sizeof(NxF64));
+	storeBuffer(&f, sizeof(PxF64));
 	return *this;
 	}
-NxStream& MemoryWriteBuffer::storeBuffer(const void* buffer, NxU32 size)
+PxStream& MemoryWriteBuffer::storeBuffer(const void* buffer, PxU32 size)
 	{
-	NxU32 expectedSize = currentSize + size;
+	PxU32 expectedSize = currentSize + size;
 	if(expectedSize > maxSize)
 		{
 		maxSize = expectedSize + 4096;
 
-		NxU8* newData = new NxU8[maxSize];
-		NX_ASSERT(newData!=NULL);
+		PxU8* newData = new PxU8[maxSize];
+		PX_ASSERT(newData!=NULL);
 
 		if(data)
 			{
@@ -68,7 +72,7 @@ NxStream& MemoryWriteBuffer::storeBuffer(const void* buffer, NxU32 size)
 	}
 
 
-MemoryReadBuffer::MemoryReadBuffer(const NxU8* data) : buffer(data)
+MemoryReadBuffer::MemoryReadBuffer(const PxU8* data) : buffer(data)
 	{
 	}
 
@@ -77,27 +81,27 @@ MemoryReadBuffer::~MemoryReadBuffer()
 	// We don't own the data => no delete
 	}
 
-NxU8 MemoryReadBuffer::readByte() const
+PxU8 MemoryReadBuffer::readByte() const
 	{
-	NxU8 b;
-	memcpy(&b, buffer, sizeof(NxU8));
-	buffer += sizeof(NxU8);
+	PxU8 b;
+	memcpy(&b, buffer, sizeof(PxU8));
+	buffer += sizeof(PxU8);
 	return b;
 	}
 
-NxU16 MemoryReadBuffer::readWord() const
+PxU16 MemoryReadBuffer::readWord() const
 	{
-	NxU16 w;
-	memcpy(&w, buffer, sizeof(NxU16));
-	buffer += sizeof(NxU16);
+	PxU16 w;
+	memcpy(&w, buffer, sizeof(PxU16));
+	buffer += sizeof(PxU16);
 	return w;
 	}
 
-NxU32 MemoryReadBuffer::readDword() const
+PxU32 MemoryReadBuffer::readDword() const
 	{
-	NxU32 d;
-	memcpy(&d, buffer, sizeof(NxU32));
-	buffer += sizeof(NxU32);
+	PxU32 d;
+	memcpy(&d, buffer, sizeof(PxU32));
+	buffer += sizeof(PxU32);
 	return d;
 	}
 
@@ -117,8 +121,10 @@ double MemoryReadBuffer::readDouble() const
 	return f;
 	}
 
-void MemoryReadBuffer::readBuffer(void* dest, NxU32 size) const
+void MemoryReadBuffer::readBuffer(void* dest, PxU32 size) const
 	{
 	memcpy(dest, buffer, size); 
 	buffer += size; 
 	}
+
+}
