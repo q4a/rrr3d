@@ -13,6 +13,7 @@
 
 #include <SDL3/SDL.h>
 #include <cstdio>
+#include <string>
 
 struct Vertex
 {
@@ -20,8 +21,102 @@ struct Vertex
 	D3DCOLOR color;
 };
 
-int main()
+/*
+ * Writes a 32-bit TGA from a locked surface, so a result is inspectable
+ * without a screenshot -- a CAMetalLayer's contents never appear in one.
+ */
+static void WriteTga(const char* path, const D3DLOCKED_RECT& r, int w, int h)
 {
+	FILE* f = std::fopen(path, "wb");
+	if (!f)
+		return;
+
+	unsigned char hdr[18] = {0};
+	hdr[2] = 2;
+	hdr[12] = w & 0xff; hdr[13] = w >> 8;
+	hdr[14] = h & 0xff; hdr[15] = h >> 8;
+	hdr[16] = 32; hdr[17] = 0x20;
+
+	std::fwrite(hdr, 1, 18, f);
+	for (int y = 0; y < h; ++y)
+		std::fwrite(static_cast<char*>(r.pBits) + y * r.Pitch, 4, w, f);
+
+	std::fclose(f);
+	std::printf("wrote %s\n", path);
+}
+
+/*
+ * The same triangle, drawn to a render target this program owns rather than to
+ * the swapchain's back buffer.
+ *
+ * This is the experiment that separates two candidates for a missing triangle:
+ * if it appears here, rasterisation works and the fault is in the swapchain or
+ * present path; if it is missing here too, the draw is not reaching any render
+ * target and the swapchain is innocent.
+ */
+static int RenderToTexture(IDirect3DDevice9* dev, const void* tri, int stride)
+{
+	IDirect3DSurface9* rt = NULL;
+	if (FAILED(dev->CreateRenderTarget(800, 600, D3DFMT_A8R8G8B8,
+			D3DMULTISAMPLE_NONE, 0, FALSE, &rt, NULL)) || !rt)
+	{
+		std::fprintf(stderr, "CreateRenderTarget failed\n");
+		return 1;
+	}
+
+	IDirect3DSurface9* oldRt = NULL;
+	dev->GetRenderTarget(0, &oldRt);
+	dev->SetRenderTarget(0, rt);
+
+	/* No depth buffer on this target, so depth testing must be off. */
+	dev->SetDepthStencilSurface(NULL);
+
+	dev->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(40, 40, 90), 1.0f, 0);
+
+	if (SUCCEEDED(dev->BeginScene()))
+	{
+		dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+		dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+		dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+		dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+		dev->SetTexture(0, NULL);
+		dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+		dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+
+		HRESULT dr = dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, tri, stride);
+		std::printf("rtt DrawPrimitiveUP hr=0x%08x\n", (unsigned)dr);
+
+		dev->EndScene();
+	}
+
+	IDirect3DSurface9* copy = NULL;
+	if (SUCCEEDED(dev->CreateOffscreenPlainSurface(800, 600, D3DFMT_A8R8G8B8,
+			D3DPOOL_SYSTEMMEM, &copy, NULL)) &&
+		SUCCEEDED(dev->GetRenderTargetData(rt, copy)))
+	{
+		D3DLOCKED_RECT r;
+		if (SUCCEEDED(copy->LockRect(&r, NULL, D3DLOCK_READONLY)))
+		{
+			WriteTga("tri_rtt.tga", r, 800, 600);
+			copy->UnlockRect();
+		}
+	}
+	else
+	{
+		std::fprintf(stderr, "rtt readback failed\n");
+	}
+
+	if (copy) copy->Release();
+	if (oldRt) { dev->SetRenderTarget(0, oldRt); oldRt->Release(); }
+	rt->Release();
+
+	return 0;
+}
+
+int main(int argc, char** argv)
+{
+	const bool rttMode = argc > 1 && std::string(argv[1]) == "rtt";
+
 	if (!SDL_Init(SDL_INIT_VIDEO))
 	{
 		std::fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
@@ -68,6 +163,17 @@ int main()
 		{ 700.0f, 500.0f, 0.5f, 1.0f, 0xff00ff00 },
 		{ 100.0f, 500.0f, 0.5f, 1.0f, 0xff0000ff },
 	};
+
+	if (rttMode)
+	{
+		const int rc = RenderToTexture(dev, tri, sizeof(Vertex));
+		dev->Release();
+		d3d->Release();
+		SDL_Metal_DestroyView(view);
+		SDL_DestroyWindow(window);
+		SDL_Quit();
+		return rc;
+	}
 
 	for (int frame = 0; frame < 400; ++frame)
 	{
