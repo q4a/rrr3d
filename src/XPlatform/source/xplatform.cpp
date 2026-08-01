@@ -10,6 +10,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
+#include <map>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -19,6 +20,7 @@
 #include <unistd.h>
 
 #include <mach-o/dyld.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 
 namespace
@@ -674,6 +676,79 @@ BOOL WINAPI IsCharAlphaNumericA(CHAR ch)
 	const unsigned char c = static_cast<unsigned char>(ch);
 
 	return IsCharAlphaA(ch) || (c >= '0' && c <= '9');
+}
+
+/* --------------------------------------------------------- virtual memory */
+
+extern "C++" {
+namespace
+{
+	std::mutex& VirtualAllocMutex()
+	{
+		static std::mutex lock;
+		return lock;
+	}
+
+	/*
+	 * Address to length, so VirtualFree can call munmap -- which needs a
+	 * length that VirtualFree(p, 0, MEM_RELEASE) does not pass.
+	 *
+	 * A side map rather than a header before the pointer, because a header
+	 * would shift the returned address off the page boundary that
+	 * newBufferWithBytesNoCopy requires. That alignment is the entire reason
+	 * this is not malloc.
+	 */
+	std::map<void*, size_t>& VirtualAllocSizes()
+	{
+		static std::map<void*, size_t> sizes;
+		return sizes;
+	}
+}
+}
+
+void* VirtualAlloc(void* address, size_t size, DWORD allocationType, DWORD protect)
+{
+	/* The backend only ever reserves and commits in one call. */
+	if (address || size == 0 || !(allocationType & MEM_COMMIT))
+		return NULL;
+
+	int prot = PROT_NONE;
+	if (protect == PAGE_READONLY)
+		prot = PROT_READ;
+	else if (protect == PAGE_READWRITE)
+		prot = PROT_READ | PROT_WRITE;
+
+	void* mem = mmap(NULL, size, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
+	if (mem == MAP_FAILED)
+		return NULL;
+
+	std::lock_guard<std::mutex> lock(VirtualAllocMutex());
+	VirtualAllocSizes()[mem] = size;
+
+	return mem;
+}
+
+BOOL VirtualFree(void* address, size_t size, DWORD freeType)
+{
+	if (!address)
+		return FALSE;
+
+	if (freeType & MEM_RELEASE)
+	{
+		std::lock_guard<std::mutex> lock(VirtualAllocMutex());
+
+		std::map<void*, size_t>::iterator iter = VirtualAllocSizes().find(address);
+		if (iter == VirtualAllocSizes().end())
+			return FALSE;
+
+		const size_t length = iter->second;
+		VirtualAllocSizes().erase(iter);
+
+		return munmap(address, length) == 0 ? TRUE : FALSE;
+	}
+
+	/* MEM_DECOMMIT: hand the pages back but keep the reservation. */
+	return madvise(address, size, MADV_FREE) == 0 ? TRUE : FALSE;
 }
 
 /* ------------------------------------------------------------------ XInput */

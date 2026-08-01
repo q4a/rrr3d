@@ -239,6 +239,30 @@ LANGID GetUserDefaultUILanguage(void);
 BOOL   SetThreadLocale(DWORD locale);
 int    _setmbcp(int codepage);
 
+/* ------------------------------------------------------- virtual memory --- */
+
+/*
+ * Page-granular allocation, and the reason it is not just malloc: Metal's
+ * newBufferWithBytesNoCopy requires page-aligned memory, and the D3D9 backend
+ * allocates its buffers through this.
+ *
+ * Which is also why the size is kept in a side map rather than in a header
+ * before the pointer -- a header would shift the returned address off the page
+ * boundary that was the whole point. VirtualFree(p, 0, MEM_RELEASE) passes no
+ * length, so the size has to come from somewhere, and munmap needs it.
+ */
+#define MEM_COMMIT      0x00001000
+#define MEM_RESERVE     0x00002000
+#define MEM_DECOMMIT    0x00004000
+#define MEM_RELEASE     0x00008000
+
+#define PAGE_NOACCESS   0x01
+#define PAGE_READONLY   0x02
+#define PAGE_READWRITE  0x04
+
+void* VirtualAlloc(void* address, size_t size, DWORD allocationType, DWORD protect);
+BOOL  VirtualFree(void* address, size_t size, DWORD freeType);
+
 /* ---------------------------------------------------------- module entry --- */
 
 /* windows_base.h defines WINAPI as nothing; APIENTRY is its other spelling.

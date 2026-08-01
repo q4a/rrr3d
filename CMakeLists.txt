@@ -5,6 +5,18 @@ set(RRR3D_VERSION "1.3.1")
 # C as well as C++: the D3DX math implementation is Wine's, and it is C.
 project(rrr3d VERSION ${RRR3D_VERSION} LANGUAGES C CXX)
 
+# Objective-C and Objective-C++, for the Metal backend, and Apple-only because
+# nothing else can compile them. Enabled here rather than in the project() line
+# so the Windows build never asks for a compiler it does not have.
+#
+# Both, not one: MetalBridge is Objective-C++, but d9mt's d9mtmetal.m must be
+# built as plain Objective-C -- it relies on void* converting implicitly, which
+# C++ does not allow.
+if (APPLE)
+    enable_language(OBJC)
+    enable_language(OBJCXX)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # No compiler extensions. The point of pinning C++17 here is to stop depending

@@ -66,6 +66,10 @@ endif()
 
 if (NOT MSVC)
     add_subdirectory(Tests)
+
+    # The Metal backend. Apple-only by construction, and absent on Windows
+    # where the real D3D9 runtime is what draws.
+    add_subdirectory(MetalBridge)
 endif()
 
 add_subdirectory(TinyXml)
