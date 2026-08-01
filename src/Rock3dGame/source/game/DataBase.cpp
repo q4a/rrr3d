@@ -347,7 +347,7 @@ px::ConvexShape* DataBase::AddPxConvex(MapObj* mapObj, const std::string& meshNa
 	return &triShape;
 }
 
-px::Body* DataBase::AddPxBody(MapObj* mapObj, const NxBodyDesc& desc)
+px::Body* DataBase::AddPxBody(MapObj* mapObj, const MrBodyDesc& desc)
 {
 	mapObj->GetGameObj().GetPxActor().SetBody(&desc);
 
@@ -356,7 +356,7 @@ px::Body* DataBase::AddPxBody(MapObj* mapObj, const NxBodyDesc& desc)
 
 px::Body* DataBase::AddPxBody(MapObj* mapObj, float mass, const D3DXVECTOR3* massPos)
 {
-	NxBodyDesc body;
+	MrBodyDesc body;
 	body.mass = mass;
 	body.sleepEnergyThreshold = 0.05f;
 

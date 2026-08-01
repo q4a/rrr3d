@@ -103,9 +103,9 @@ void Proj::FreeModel2(bool remove)
 	}
 }
 
-px::Body* Proj::CreateBody(const NxBodyDesc& desc)
+px::Body* Proj::CreateBody(const MrBodyDesc& desc)
 {
-	NxBodyDesc body = desc;
+	MrBodyDesc body = desc;
 	body.mass = _desc.mass;
 
 	this->GetPxActor().SetBody(&body);
@@ -355,8 +355,8 @@ bool Proj::RocketPrepare(GameObject* weapon, bool disableGravity, D3DXVECTOR3* s
 	InitModel();
 	CreatePxBox(pxGroup);
 
-	NxBodyDesc bodyDesc;
-	bodyDesc.flags |= disableGravity ? NX_BF_DISABLE_GRAVITY : 0;
+	MrBodyDesc bodyDesc;
+	bodyDesc.flags |= disableGravity ? MR_BF_DISABLE_GRAVITY : 0;
 	bodyDesc.linearVelocity = NxVec3(speed);
 
 	CreateBody(bodyDesc);
@@ -733,7 +733,7 @@ bool Proj::MinePiecePrepare(const ShotContext& ctx)
 	CreatePxBox(px::Scene::cdgShotTrack);
 	_time1 = -1.0f;
 
-	NxBodyDesc bodyDesc;
+	MrBodyDesc bodyDesc;
 	CreateBody(bodyDesc);
 
 	GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL);
@@ -922,7 +922,7 @@ bool Proj::DrobilkaPrepare(GameObject* weapon)
 	LocateProj(weapon, true, true, NULL);
 	CreatePxBox();
 
-	NxBodyDesc desc;
+	MrBodyDesc desc;
 	CreateBody(desc);
 
 	this->GetPxActor().SetContactReportFlags(NX_NOTIFY_ALL);

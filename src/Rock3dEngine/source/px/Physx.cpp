@@ -1625,12 +1625,12 @@ void Body::Load(lsl::SReader* reader)
 	_desc.linearVelocity = NxVec3(linearVelocity);
 }
 
-const NxBodyDesc& Body::GetDesc()
+const MrBodyDesc& Body::GetDesc()
 {
 	return _desc;
 }
 
-void Body::SetDesc(const NxBodyDesc& value)
+void Body::SetDesc(const MrBodyDesc& value)
 {
 	_desc = value;
 
@@ -2075,7 +2075,7 @@ Body* Actor::GetBody()
 	return _body;
 }
 
-void Actor::SetBody(const NxBodyDesc* value)
+void Actor::SetBody(const MrBodyDesc* value)
 {
 	if (value)
 	{

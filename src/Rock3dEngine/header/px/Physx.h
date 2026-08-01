@@ -24,6 +24,7 @@
 #include "r3dMath.h"
 #include "lslCollection.h"
 #include "lslException.h"
+#include "PhysX2Wrapper.h"
 
 namespace r3d
 {
@@ -560,15 +561,15 @@ class Body: public lsl::Serializable
 {
 private:
 	Actor* _actor;
-	NxBodyDesc _desc;
+	MrBodyDesc _desc;
 protected:
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);	
 public:
 	Body(Actor* actor);
 
-	const NxBodyDesc& GetDesc();
-	void SetDesc(const NxBodyDesc& value);
+	const MrBodyDesc& GetDesc();
+	void SetDesc(const MrBodyDesc& value);
 };
 
 // ласс предусматривает отложенную инициализацию NxActor. ƒл€ этого следует методы измен€ющие его состо€ние заключать в блок BeginUpdate/EndUpdate.
@@ -684,7 +685,7 @@ public:
 	void SetParent(Actor* value);
 
 	Body* GetBody();
-	void SetBody(const NxBodyDesc* value);
+	void SetBody(const MrBodyDesc* value);
 	Shapes& GetShapes();
 
 	unsigned GetFlags() const;

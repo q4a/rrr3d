@@ -128,7 +128,7 @@ private:
 	px::SphereShape* AddPxSpere(MapObj* mapObj, float radius);
 	px::TriangleMeshShape* AddPxMesh(MapObj* mapObj, const std::string& meshName, int meshId = -1);
 	px::ConvexShape* AddPxConvex(MapObj* mapObj, const std::string& meshName, int meshId = -1);	
-	px::Body* AddPxBody(MapObj* mapObj, const NxBodyDesc& desc);
+	px::Body* AddPxBody(MapObj* mapObj, const MrBodyDesc& desc);
 	px::Body* AddPxBody(MapObj* mapObj, float mass, const D3DXVECTOR3* massPos);
 	
 	//

@@ -271,7 +271,7 @@ private:
 	void InitModel2();
 	void FreeModel2(bool remove);
 
-	px::Body* CreateBody(const NxBodyDesc& desc);
+	px::Body* CreateBody(const MrBodyDesc& desc);
 	graph::Sprite* CreateSprite();
 	void FreeSprite();
 	void InsertProjToGraph(GraphManager* graph);
