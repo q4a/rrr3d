@@ -21,6 +21,7 @@ add_library(${PROJECT_NAME} STATIC
     source/Px28Impl.cpp
     source/Px28Scene.cpp
     source/Px28Actor.cpp
+    source/Px28Shape.cpp
 )
 
 # Bullet, and this is the only target in the tree that names it. It stays

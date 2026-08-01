@@ -241,6 +241,146 @@ void TestStaticActorDoesNotFall()
 	scene.releaseActor(*actor);
 	}
 
+/*
+ * A box dropped onto a static box comes to rest on top of it.
+ *
+ * This is the first scenario that needs shapes, contacts and the solver, and
+ * the resting height is the thing worth measuring: 2.8's skin width is
+ * *permitted interpenetration*, so shapes rest overlapping rather than exactly
+ * touching. Bullet resolves to its own allowed penetration instead, which is
+ * why the tolerance below is loose and why the check is asserted as a bound
+ * rather than an equality -- see the note in NxShapeDesc.h. Tightening it is
+ * what implementing skin width properly will look like.
+ */
+void TestBoxRestsOnGround()
+	{
+	std::printf("resting on a static box\n");
+
+	NxSceneDesc sceneDesc;
+	sceneDesc.gravity.set(NxVec3(0.0f, 0.0f, -9.81f));
+
+	px28::Scene scene(sceneDesc);
+
+	/* Ground: a static actor with a wide, flat box, top surface at z = 0. */
+	NxActorDesc groundDesc;
+	groundDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, -1.0f));
+
+	NxActor* ground = scene.createActor(groundDesc);
+	Check(ground != NULL, "ground actor created");
+	if (!ground)
+		return;
+
+	NxBoxShapeDesc groundShape;
+	groundShape.dimensions.set(NxVec3(50.0f, 50.0f, 1.0f));
+	Check(ground->createShape(groundShape) != NULL, "ground shape created");
+	Check(ground->getNbShapes() == 1, "ground has one shape");
+
+	/* Faller: a unit cube (half-extent 0.5) starting well above. */
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = 5.0f;
+
+	NxActorDesc boxDesc;
+	boxDesc.body = &bodyDesc;
+	boxDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, 6.0f));
+
+	NxActor* box = scene.createActor(boxDesc);
+	Check(box != NULL, "falling actor created");
+	if (!box)
+		return;
+
+	NxBoxShapeDesc boxShape;
+	boxShape.dimensions.set(NxVec3(0.5f, 0.5f, 0.5f));
+	NxShape* shape = box->createShape(boxShape);
+	Check(shape != NULL, "falling shape created");
+
+	/* The downcasts the game relies on. */
+	Check(shape->isBox() != NULL, "isBox() downcasts a box shape");
+	Check(shape->isSphere() == NULL, "isSphere() returns NULL for a box");
+	Check(shape->isWheel() == NULL, "isWheel() returns NULL for a box");
+	Check(shape->getType() == NX_SHAPE_BOX, "getType() reports NX_SHAPE_BOX");
+	Check(&shape->getActor() == box, "getActor() returns the owning actor");
+	CheckVecNear(shape->isBox()->getDimensions(), NxVec3(0.5f, 0.5f, 0.5f), 1e-5f,
+	             "box half-extents survive the round trip");
+
+	for (int i = 0; i < 240; ++i)
+		{
+		scene.simulate(1.0f / 60.0f);
+		scene.flushStream();
+		scene.fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	const NxVec3 pos = box->getGlobalPosition();
+
+	/* It fell -- the precondition that stops everything below passing by
+	   accident on a scene that never simulated. */
+	Check(pos.z < 6.0f, "the box actually fell");
+
+	/* And it stopped, on top of the ground rather than through it. Centre at
+	   half-extent above z = 0, give or take the resting penetration. */
+	CheckNear(pos.z, 0.5f, 0.05f, "the box rests on the ground");
+
+	const NxVec3 velocity = box->getLinearVelocity();
+	Check(std::fabs(velocity.z) < 0.1f, "the box has come to rest");
+
+	scene.releaseActor(*box);
+	scene.releaseActor(*ground);
+	}
+
+/* getShapes() must come back in creation order: the engine's
+   Actor::UnpackActorShapeListIncludeChildren walks it positionally. */
+void TestShapeOrder()
+	{
+	std::printf("shape order\n");
+
+	NxSceneDesc sceneDesc;
+	px28::Scene scene(sceneDesc);
+
+	NxActorDesc actorDesc;
+	NxActor* actor = scene.createActor(actorDesc);
+	if (!actor)
+		{
+		Check(false, "actor created");
+		return;
+		}
+
+	NxBoxShapeDesc box;
+	box.dimensions.set(NxVec3(1.0f, 1.0f, 1.0f));
+	NxSphereShapeDesc sphere;
+	sphere.radius = 2.0f;
+	NxCapsuleShapeDesc capsule;
+	capsule.radius = 0.5f;
+	capsule.height = 3.0f;
+
+	NxShape* first = actor->createShape(box);
+	NxShape* second = actor->createShape(sphere);
+	NxShape* third = actor->createShape(capsule);
+
+	Check(actor->getNbShapes() == 3, "three shapes");
+
+	NxShape*const* shapes = actor->getShapes();
+	Check(shapes[0] == first, "getShapes()[0] is the first created");
+	Check(shapes[1] == second, "getShapes()[1] is the second created");
+	Check(shapes[2] == third, "getShapes()[2] is the third created");
+
+	Check(shapes[1]->isSphere() != NULL, "the sphere downcasts");
+	CheckNear(shapes[1]->isSphere()->getRadius(), 2.0f, 1e-5f, "sphere radius");
+
+	/* 2.8's capsule: Y axis, and `height` is the full cylinder length between
+	   cap centres -- so total length is height + 2*radius, not height. */
+	Check(shapes[2]->isCapsule() != NULL, "the capsule downcasts");
+	CheckNear(shapes[2]->isCapsule()->getRadius(), 0.5f, 1e-5f, "capsule radius");
+	CheckNear(shapes[2]->isCapsule()->getHeight(), 3.0f, 1e-5f, "capsule height");
+
+	/* Releasing the middle one keeps the rest in order. */
+	actor->releaseShape(*second);
+	Check(actor->getNbShapes() == 2, "two shapes after a release");
+	shapes = actor->getShapes();
+	Check(shapes[0] == first, "order survives a release: [0]");
+	Check(shapes[1] == third, "order survives a release: [1]");
+
+	scene.releaseActor(*actor);
+	}
+
 } /* namespace */
 
 int main()
@@ -250,6 +390,8 @@ int main()
 	TestTransformConversion();
 	TestFreeFall();
 	TestStaticActorDoesNotFall();
+	TestBoxRestsOnGround();
+	TestShapeOrder();
 
 	std::printf("================================\n");
 	if (gFailures == 0)

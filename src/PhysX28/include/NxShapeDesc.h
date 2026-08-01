@@ -52,8 +52,14 @@ class NxShapeDesc
 	NxMaterialIndex		materialIndex;
 	NxReal				density;
 	NxReal				mass;
-	/** -1 means "use the SDK's global skin width", which is what every shape
-	    in this game leaves it at. */
+	/** -1 means "use the SDK's global skin width" -- which Manager::InitSDK
+	    sets to 0.025.
+
+	    Not every shape leaves it there, and the difference is shipped data:
+	    bin/Debug/db.xml has 228 shapes at -1 and 69 at 0.1, four times the
+	    global. So skin width cannot be implemented as one scene-wide value;
+	    whatever reproduces 2.8's resting interpenetration has to do it per
+	    shape. */
 	NxReal				skinWidth;
 	void*				userData;
 	const char*			name;

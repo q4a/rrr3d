@@ -62,31 +62,28 @@ class Actor;
 
 /* ------------------------------------------------------------------ shapes */
 
-class Shape: public NxShape
+/*
+ * The state every shape carries, independent of which Nx*Shape interface the
+ * concrete class has to derive from.
+ *
+ * The split exists because 2.8's downcasts are real inheritance -- isBox()
+ * returns an NxBoxShape*, and the game does static_cast<NxWheelShape*>(shape)
+ * -- so BoxShape must derive from NxBoxShape, not from a shared Shape class.
+ * Without the split, each of the seven shape types would repeat the same
+ * fifteen accessors.
+ */
+class ShapeState
 	{
 	public:
-	Shape(Actor& actor, const NxShapeDesc& desc);
-	virtual ~Shape();
+	ShapeState(Actor& actor, const NxShapeDesc& desc, NxShapeType type);
+
+	/* Virtual, and that is why shapes are owned through ShapeState* rather than
+	   NxShape*: 2.8 declares ~NxShape() protected, so the owner cannot delete
+	   through the interface it hands the game. */
+	virtual ~ShapeState();
 
 	btCollisionShape* bulletShape() const { return _bulletShape; }
 	const btTransform& localPose() const { return _localPose; }
-
-	/* --- NxShape ---------------------------------------------------------- */
-	virtual NxActor& getActor() const;
-	virtual void     setGroup(NxCollisionGroup group);
-	virtual NxCollisionGroup getGroup() const;
-	virtual void     setGroupsMask(const NxGroupsMask& mask);
-	virtual const NxGroupsMask getGroupsMask() const;
-	virtual void     setFlag(NxShapeFlag flag, bool value);
-	virtual bool     getFlag(NxShapeFlag flag) const;
-	virtual void     setLocalPose(const NxMat34& mat);
-	virtual NxMat34  getLocalPose() const;
-	virtual NxMat34  getGlobalPose() const;
-	virtual void     setMaterial(NxMaterialIndex index);
-	virtual NxMaterialIndex getMaterial() const;
-	virtual void     setSkinWidth(NxReal width);
-	virtual NxReal   getSkinWidth() const;
-	virtual NxShapeType getType() const;
 
 	protected:
 	Actor* _actor;
@@ -100,13 +97,95 @@ class Shape: public NxShape
 	NxShapeType _type;
 	};
 
-class BoxShape: public Shape
+/*
+ * The common NxShape surface, mixed into whichever Nx*Shape interface a
+ * concrete shape implements.
+ */
+template<class NxInterface>
+class ShapeImpl: public NxInterface, public ShapeState
+	{
+	public:
+	ShapeImpl(Actor& actor, const NxShapeDesc& desc, NxShapeType type)
+		: ShapeState(actor, desc, type) {}
+
+	virtual NxActor& getActor() const;
+
+	virtual NxShapeType getType() const { return _type; }
+
+	virtual void setGroup(NxCollisionGroup group) { _group = group; }
+	virtual NxCollisionGroup getGroup() const     { return _group; }
+
+	/* Written directly by Weapon.cpp:293,310 and GameObject.cpp:202, and
+	   round-tripped verbatim -- getGroup() is serialised. */
+	virtual void setGroupsMask(const NxGroupsMask& mask) { _groupsMask = mask; }
+	virtual const NxGroupsMask getGroupsMask() const     { return _groupsMask; }
+
+	virtual void setFlag(NxShapeFlag flag, bool value)
+		{
+		if (value)
+			_flags |= flag;
+		else
+			_flags &= ~static_cast<NxU32>(flag);
+		}
+	virtual bool getFlag(NxShapeFlag flag) const { return (_flags & flag) != 0; }
+
+	virtual void setLocalPose(const NxMat34& mat);
+	virtual void setLocalPosition(const NxVec3& vec);
+	virtual void setLocalOrientation(const NxMat33& mat);
+	virtual NxMat34 getLocalPose() const { return ToNx(_localPose); }
+
+	virtual void setMaterial(NxMaterialIndex index) { _material = index; }
+	virtual NxMaterialIndex getMaterial() const     { return _material; }
+
+	virtual void   setSkinWidth(NxReal width) { _skinWidth = width; }
+	virtual NxReal getSkinWidth() const       { return _skinWidth; }
+
+	protected:
+	/* One virtual behind all fourteen of 2.8's isX() helpers. */
+	virtual void* is(NxShapeType type)
+		{
+		return type == _type ? static_cast<NxInterface*>(this) : NULL;
+		}
+	virtual const void* is(NxShapeType type) const
+		{
+		return type == _type ? static_cast<const NxInterface*>(this) : NULL;
+		}
+	};
+
+class BoxShape: public ShapeImpl<NxBoxShape>
 	{
 	public:
 	BoxShape(Actor& actor, const NxBoxShapeDesc& desc);
 
-	virtual void   setDimensions(const NxVec3& dim);
+	virtual void   setDimensions(const NxVec3& dimensions);
 	virtual NxVec3 getDimensions() const;
+	virtual void   saveToDesc(NxBoxShapeDesc& desc) const;
+	};
+
+class SphereShape: public ShapeImpl<NxSphereShape>
+	{
+	public:
+	SphereShape(Actor& actor, const NxSphereShapeDesc& desc);
+
+	virtual void   setRadius(NxReal radius);
+	virtual NxReal getRadius() const;
+	virtual void   saveToDesc(NxSphereShapeDesc& desc) const;
+	};
+
+class CapsuleShape: public ShapeImpl<NxCapsuleShape>
+	{
+	public:
+	CapsuleShape(Actor& actor, const NxCapsuleShapeDesc& desc);
+
+	virtual void   setRadius(NxReal radius);
+	virtual NxReal getRadius() const;
+	virtual void   setHeight(NxReal height);
+	virtual NxReal getHeight() const;
+	virtual void   saveToDesc(NxCapsuleShapeDesc& desc) const;
+
+	private:
+	NxReal _radius;
+	NxReal _height;
 	};
 
 /* ------------------------------------------------------------------ actors */
@@ -189,8 +268,13 @@ class Actor: public NxActor
 
 	/* Descriptor order, not Bullet's. Actor::UnpackActorShapeListIncludeChildren
 	   walks getShapes() positionally, so creation order is part of the
-	   contract. */
+	   contract.
+	 *
+	   Two vectors over one because getShapes() has to hand back a contiguous
+	   NxShape*const*, while ownership and the compound rebuild need the
+	   ShapeState side. Same length, same order, always. */
 	std::vector<NxShape*> _shapes;
+	std::vector<ShapeState*> _shapeStates;
 
 	bool _dynamic;
 

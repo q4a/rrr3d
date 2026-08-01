@@ -74,8 +74,8 @@ Actor::~Actor()
 	delete _body->getMotionState();
 	delete _body;
 
-	for (size_t i = 0; i < _shapes.size(); ++i)
-		delete static_cast<Shape*>(_shapes[i]);
+	for (size_t i = 0; i < _shapeStates.size(); ++i)
+		delete _shapeStates[i];
 
 	delete _compound;
 	}
@@ -130,14 +130,60 @@ NxQuat Actor::getGlobalOrientationQuat() const
 
 /* ------------------------------------------------------------------ shapes */
 
-NxShape* Actor::createShape(const NxShapeDesc&)
+NxShape* Actor::createShape(const NxShapeDesc& desc)
 	{
-	Unimplemented("NxActor::createShape");
+	/*
+	 * isValid() is load-bearing here, not a sanity check.
+	 * Actor::CreateNxShape uses !isValid() as its "mesh not loaded yet, defer"
+	 * signal, so returning a shape for an invalid descriptor makes the engine
+	 * create every mesh shape twice.
+	 */
+	if (!desc.isValid())
+		return NULL;
+
+	switch (desc.type)
+		{
+		case NX_SHAPE_BOX:
+			{
+			BoxShape* box = new BoxShape(*this, static_cast<const NxBoxShapeDesc&>(desc));
+			_shapes.push_back(box);
+			_shapeStates.push_back(box);
+			break;
+			}
+		case NX_SHAPE_SPHERE:
+			{
+			SphereShape* sphere = new SphereShape(*this, static_cast<const NxSphereShapeDesc&>(desc));
+			_shapes.push_back(sphere);
+			_shapeStates.push_back(sphere);
+			break;
+			}
+		case NX_SHAPE_CAPSULE:
+			{
+			CapsuleShape* capsule = new CapsuleShape(*this, static_cast<const NxCapsuleShapeDesc&>(desc));
+			_shapes.push_back(capsule);
+			_shapeStates.push_back(capsule);
+			break;
+			}
+		default:
+			Unimplemented("NxActor::createShape for this shape type");
+		}
+
+	rebuildCompoundShape();
+
+	return _shapes.back();
 	}
 
-void Actor::releaseShape(NxShape&)
+void Actor::releaseShape(NxShape& shape)
 	{
-	Unimplemented("NxActor::releaseShape");
+	for (size_t i = 0; i < _shapes.size(); ++i)
+		if (_shapes[i] == &shape)
+			{
+			delete _shapeStates[i];
+			_shapes.erase(_shapes.begin() + i);
+			_shapeStates.erase(_shapeStates.begin() + i);
+			rebuildCompoundShape();
+			return;
+			}
 	}
 
 NxU32 Actor::getNbShapes() const
@@ -152,9 +198,39 @@ NxShape*const* Actor::getShapes() const
 	return _shapes.empty() ? NULL : &_shapes[0];
 	}
 
+/*
+ * Bullet wants one collision shape per body, so the shape set is a compound and
+ * it is rebuilt whenever that set changes.
+ *
+ * What is deliberately NOT done here is recompute the mass. 2.8 did not
+ * recompute when shapes were added to or removed from a live actor, and
+ * Actor::CreateNxShape and DestroyNxShape do exactly that. Recomputing would be
+ * "more correct" and would silently change every car's handling.
+ */
 void Actor::rebuildCompoundShape()
 	{
-	Unimplemented("px28::Actor::rebuildCompoundShape");
+	while (_compound->getNumChildShapes() > 0)
+		_compound->removeChildShapeByIndex(0);
+
+	for (size_t i = 0; i < _shapeStates.size(); ++i)
+		_compound->addChildShape(_shapeStates[i]->localPose(),
+		                         _shapeStates[i]->bulletShape());
+
+	/*
+	 * The inertia tensor follows the shapes -- unlike the mass. 2.8 computed
+	 * the tensor from the shape set at creation and the descriptor may leave it
+	 * zero meaning "work it out", which cannot happen in the constructor
+	 * because the compound is empty until the first shape arrives.
+	 */
+	if (_dynamic && _mass > 0.0f && _compound->getNumChildShapes() > 0)
+		{
+		btVector3 inertia(0, 0, 0);
+		_compound->calculateLocalInertia(_mass, inertia);
+		_body->setMassProps(_mass, inertia);
+		_body->updateInertiaTensor();
+		}
+
+	_body->setCollisionShape(_compound);
 	}
 
 /* -------------------------------------------------------------------- body */
