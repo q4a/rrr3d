@@ -17,6 +17,7 @@
  */
 
 #include "NxPhysics.h"
+#include "Px28Contact.h"
 
 #include <btBulletDynamicsCommon.h>
 
@@ -371,6 +372,7 @@ class Scene: public NxScene
 	                                     NxShape** cache) const;
 
 	virtual void setUserContactReport(NxUserContactReport* callback);
+
 	virtual void setUserContactModify(NxUserContactModify* callback);
 	virtual void setUserNotify(NxUserNotify* callback);
 
@@ -411,6 +413,17 @@ class Scene: public NxScene
 	std::map<std::pair<const NxActor*, const NxActor*>, NxU32> _actorPairFlags;
 
 	btOverlapFilterCallback* _filter;
+
+	/* Walks Bullet's manifolds after a step and delivers onContactNotify. */
+	void collectContacts(NxReal elapsedTime);
+
+	NxUserContactReport* _contactReport;
+
+	/* One record per reported pair, rebuilt each step. Held by the scene rather
+	   than by the callback so the storage the game's NxConstContactStream points
+	   at outlives the call it was handed to -- 2.8 required it be read
+	   synchronously, and this keeps that true without depending on it. */
+	std::vector<ContactStreamRecord*> _contactStreams;
 	};
 
 } /* namespace px28 */

@@ -674,6 +674,144 @@ void TestActorPairFlags()
 	Check(box->getGlobalPosition().z < -1.0f, "an ignored pair does not collide");
 	}
 
+/*
+ * Contact reports and the stream iterator.
+ *
+ * A box is dropped on a static box and the contacts it generates while resting
+ * are inspected. Resting is the right moment to measure: the impulse over a
+ * step is then exactly what holds the box up, so sumNormalForce has a closed
+ * form -- m*g -- and can be checked against arithmetic rather than against
+ * whatever the solver happened to produce.
+ */
+class RecordingReport: public NxUserContactReport
+	{
+	public:
+	RecordingReport()
+		: pairs(0), points(0), lastForce(0.0f, 0.0f, 0.0f),
+		  normalPointsUp(false), shapesResolved(false), patchesSeen(0) {}
+
+	virtual void onContactNotify(NxContactPair& pair, NxU32)
+		{
+		++pairs;
+		lastForce = pair.sumNormalForce;
+
+		Check(!pair.isDeletedActor[0] && !pair.isDeletedActor[1],
+		      "neither actor in a live contact is reported deleted");
+
+		NxContactStreamIterator iter(pair.stream);
+
+		while (iter.goNextPair())
+			{
+			/* Both sides resolve to a real shape -- this is what
+			   GameObject::ContainsContactGroup depends on. */
+			if (iter.getShape(0) && iter.getShape(1))
+				shapesResolved = true;
+
+			while (iter.goNextPatch())
+				{
+				++patchesSeen;
+
+				/* The contact is on top of the ground, so the normal is along
+				   z. Which sign depends on which body Bullet made body0, so
+				   the magnitude is what is asserted. */
+				if (std::fabs(iter.getPatchNormal().z) > 0.9f)
+					normalPointsUp = true;
+
+				while (iter.goNextPoint())
+					{
+					++points;
+					iter.getPoint();
+					iter.getSeparation();
+					iter.getPointNormalForce();
+					}
+				}
+			}
+		}
+
+	int pairs;
+	int points;
+	NxVec3 lastForce;
+	bool normalPointsUp;
+	bool shapesResolved;
+	int patchesSeen;
+	};
+
+void TestContactReports()
+	{
+	std::printf("contact reports\n");
+
+	NxSceneDesc sceneDesc;
+	sceneDesc.gravity.set(NxVec3(0.0f, 0.0f, -9.81f));
+
+	px28::Scene scene(sceneDesc);
+
+	RecordingReport report;
+	scene.setUserContactReport(&report);
+
+	NxActorDesc groundDesc;
+	groundDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, -1.0f));
+	NxActor* ground = scene.createActor(groundDesc);
+	NxBoxShapeDesc groundShape;
+	groundShape.dimensions.set(NxVec3(50.0f, 50.0f, 1.0f));
+	ground->createShape(groundShape);
+
+	const float mass = 5.0f;
+
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = mass;
+	NxActorDesc boxDesc;
+	boxDesc.body = &bodyDesc;
+	boxDesc.globalPose.t.set(NxVec3(0.0f, 0.0f, 3.0f));
+
+	NxActor* box = scene.createActor(boxDesc);
+	NxBoxShapeDesc boxShape;
+	boxShape.dimensions.set(NxVec3(0.5f, 0.5f, 0.5f));
+	box->createShape(boxShape);
+
+	/* Let it land and settle. */
+	for (int i = 0; i < 300; ++i)
+		{
+		scene.simulate(1.0f / 60.0f);
+		scene.flushStream();
+		scene.fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	Check(report.pairs > 0, "a contact pair was reported");
+	Check(report.points > 0, "the stream yielded contact points");
+	Check(report.patchesSeen > 0, "the stream yielded a patch");
+	Check(report.shapesResolved, "getShape() resolves both sides to a shape");
+	Check(report.normalPointsUp, "the patch normal is along the contact axis");
+
+	/*
+	 * A resting box is held up by exactly its weight, so the normal force over
+	 * the last step should be m*g. This is the check that would catch the
+	 * impulse-versus-force confusion: Bullet accumulates an impulse over the
+	 * step and 2.8 reports a force, and forgetting to divide by dt would make
+	 * this come out 60 times too small.
+	 */
+	const float weight = mass * 9.81f;
+	CheckNear(std::fabs(report.lastForce.z), weight, weight * 0.2f,
+	          "sumNormalForce on a resting box is its weight");
+
+	scene.setUserContactReport(NULL);
+	}
+
+/* An iterator over an empty stream yields nothing and does not walk off the
+   end -- the game constructs one per contact without checking first. */
+void TestEmptyContactStream()
+	{
+	std::printf("empty contact stream\n");
+
+	NxContactStreamIterator iter(NULL);
+
+	Check(!iter.goNextPair(), "an empty stream has no pairs");
+	Check(!iter.goNextPatch(), "an empty stream has no patches");
+	Check(!iter.goNextPoint(), "an empty stream has no points");
+	Check(iter.getNumPairs() == 0, "an empty stream reports zero pairs");
+	Check(iter.getShape(0) == NULL, "an empty stream has no shape 0");
+	Check(iter.isDeletedShape(0), "a missing shape reads as deleted");
+	}
+
 } /* namespace */
 
 int main()
@@ -689,6 +827,8 @@ int main()
 	TestGroupCollisionMatrix();
 	TestDisableResponsePassesThrough();
 	TestActorPairFlags();
+	TestContactReports();
+	TestEmptyContactStream();
 
 	std::printf("================================\n");
 	if (gFailures == 0)

@@ -38,7 +38,8 @@ namespace
 
 Scene::Scene(const NxSceneDesc& desc)
 	: _config(NULL), _dispatcher(NULL), _broadphase(NULL), _solver(NULL),
-	  _world(NULL), _skinWidth(0.025f), _pendingStep(0.0f), _filter(NULL)
+	  _world(NULL), _skinWidth(0.025f), _pendingStep(0.0f), _filter(NULL),
+	  _contactReport(NULL)
 	{
 	_config = new btDefaultCollisionConfiguration();
 	_dispatcher = new btCollisionDispatcher(_config);
@@ -74,6 +75,9 @@ Scene::~Scene()
 
 	for (size_t i = 0; i < _materials.size(); ++i)
 		delete _materials[i];
+
+	for (size_t i = 0; i < _contactStreams.size(); ++i)
+		delete _contactStreams[i];
 
 	delete _world;
 	delete _solver;
@@ -209,6 +213,17 @@ namespace
 		/* Ordered, so (a, b) and (b, a) are the same entry. */
 		return &a < &b ? std::make_pair(&a, &b) : std::make_pair(&b, &a);
 		}
+
+	/* Bullet reports -1 for a child index when the body is not a compound. The
+	   shim always builds a compound, so a valid index is the normal case and
+	   this is the guard for the degenerate one. */
+	NxShape* ShapeAt(const Actor& actor, int childIndex)
+		{
+		if (childIndex < 0 || static_cast<NxU32>(childIndex) >= actor.getNbShapes())
+			return actor.getNbShapes() > 0 ? actor.getShapes()[0] : NULL;
+
+		return actor.getShapes()[childIndex];
+		}
 }
 
 void Scene::setActorPairFlags(NxActor& a, NxActor& b, NxU32 flags)
@@ -289,10 +304,116 @@ bool Scene::fetchResults(NxSimulationStatus, bool)
 		 * step is asserted rather than assumed once setTiming is implemented.
 		 */
 		_world->stepSimulation(_pendingStep, 0, _pendingStep);
+
+		collectContacts(_pendingStep);
+
 		_pendingStep = 0.0f;
 		}
 
 	return true;
+	}
+
+/* --------------------------------------------------------------- contacts */
+
+void Scene::setUserContactReport(NxUserContactReport* callback)
+	{
+	_contactReport = callback;
+	}
+
+/*
+ * Walk Bullet's manifolds and deliver one onContactNotify per pair.
+ *
+ * Bullet's btPersistentManifold is already one per shape pair with its points
+ * sharing a normal, so a manifold maps to a 2.8 pair holding a single patch.
+ * The patch level still exists because the game walks all three -- GameObject,
+ * Logic, Weapon and GameCar all nest goNextPair/goNextPatch/goNextPoint.
+ *
+ * Impulse to force: Bullet accumulates m_appliedImpulse over the step, and 2.8
+ * reports a force. Dividing by the step converts one to the other, which is
+ * what makes sumNormalForce comparable to m*dv/dt.
+ */
+void Scene::collectContacts(NxReal elapsedTime)
+	{
+	if (!_contactReport || elapsedTime <= 0.0f)
+		return;
+
+	/* Last step's records die here rather than at the end of the callback, so
+	   nothing the game was handed is freed while it might still be looking. */
+	for (size_t i = 0; i < _contactStreams.size(); ++i)
+		delete _contactStreams[i];
+	_contactStreams.clear();
+
+	const int manifolds = _dispatcher->getNumManifolds();
+
+	for (int i = 0; i < manifolds; ++i)
+		{
+		const btPersistentManifold* manifold =
+			_dispatcher->getManifoldByIndexInternal(i);
+
+		if (manifold->getNumContacts() == 0)
+			continue;
+
+		Actor* actor0 = static_cast<Actor*>(manifold->getBody0()->getUserPointer());
+		Actor* actor1 = static_cast<Actor*>(manifold->getBody1()->getUserPointer());
+		if (!actor0 || !actor1)
+			continue;
+
+		ContactStreamRecord* record = new ContactStreamRecord();
+		_contactStreams.push_back(record);
+
+		ContactPairRecord pairRecord;
+		pairRecord.shapes[0] = NULL;
+		pairRecord.shapes[1] = NULL;
+		pairRecord.shapeFlags = 0;
+
+		ContactPatchRecord patch;
+		patch.normal.zero();
+
+		NxVec3 sumNormalForce;
+		sumNormalForce.zero();
+
+		for (int p = 0; p < manifold->getNumContacts(); ++p)
+			{
+			const btManifoldPoint& point = manifold->getContactPoint(p);
+
+			/*
+			 * m_index0 and m_index1 are the child indices within a compound,
+			 * which is how a contact resolves back to a 2.8 shape rather than
+			 * merely to an actor. The game needs it:
+			 * GameObject::ContainsContactGroup reads
+			 * getShape(actorIndex)->getGroup().
+			 */
+			if (!pairRecord.shapes[0])
+				pairRecord.shapes[0] = ShapeAt(*actor0, point.m_index0);
+			if (!pairRecord.shapes[1])
+				pairRecord.shapes[1] = ShapeAt(*actor1, point.m_index1);
+
+			ContactPointRecord pointRecord;
+			pointRecord.point = ToNx(point.getPositionWorldOnB());
+			pointRecord.separation = point.getDistance();
+			pointRecord.normalForce = point.getAppliedImpulse() / elapsedTime;
+			pointRecord.featureIndex0 = static_cast<NxU32>(point.m_index0);
+			pointRecord.featureIndex1 = static_cast<NxU32>(point.m_index1);
+
+			patch.normal = ToNx(point.m_normalWorldOnB);
+			sumNormalForce += patch.normal * pointRecord.normalForce;
+
+			patch.points.push_back(pointRecord);
+			}
+
+		pairRecord.patches.push_back(patch);
+		record->pairs.push_back(pairRecord);
+
+		NxContactPair pair;
+		pair.actors[0] = actor0;
+		pair.actors[1] = actor1;
+		pair.stream = ToStream(record);
+		pair.sumNormalForce = sumNormalForce;
+		pair.isDeletedActor[0] = false;
+		pair.isDeletedActor[1] = false;
+
+		_contactReport->onContactNotify(pair, NX_NOTIFY_ON_TOUCH);
+		}
 	}
 
 void Scene::setTiming(NxReal, NxU32, NxTimeStepMethod)
@@ -324,7 +445,6 @@ NxShape* Scene::raycastClosestShape(const NxRay&, NxShapesType, NxRaycastHit&, N
 	Unimplemented("NxScene::raycastClosestShape");
 	}
 
-void Scene::setUserContactReport(NxUserContactReport*)  { Unimplemented("NxScene::setUserContactReport"); }
 void Scene::setUserContactModify(NxUserContactModify*)  { Unimplemented("NxScene::setUserContactModify"); }
 void Scene::setUserNotify(NxUserNotify*)                { Unimplemented("NxScene::setUserNotify"); }
 

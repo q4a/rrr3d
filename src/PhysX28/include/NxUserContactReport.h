@@ -88,8 +88,18 @@ class NxContactStreamIterator
 	NxU32         getFeatureIndex1();
 
 	private:
+	/*
+	 * Cursor state, and private to the shim in the same way 2.8's was private
+	 * to the SDK. Nothing outside reads these -- the game only ever constructs
+	 * an iterator and walks it -- so the layout is free to be whatever the
+	 * shim's record format needs.
+	 *
+	 * Each index starts one before the beginning, because 2.8's traversal is
+	 * `while (goNextPair())`: the first call moves to the first element rather
+	 * than past it.
+	 */
 	NxConstContactStream _stream;
-	const void*          _pair;    /* shim-private cursor state */
+	NxU32                _pair;
 	NxU32                _patch;
 	NxU32                _point;
 	};
