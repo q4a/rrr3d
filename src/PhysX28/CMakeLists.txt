@@ -18,7 +18,18 @@ project(PhysX28)
 
 add_library(${PROJECT_NAME} STATIC
     source/Px28Enums.cpp
+    source/Px28Impl.cpp
+    source/Px28Scene.cpp
+    source/Px28Actor.cpp
 )
+
+# Bullet, and this is the only target in the tree that names it. It stays
+# PRIVATE so no Bullet header, type or macro can reach a consumer -- the whole
+# point of the abstract interfaces in include/ is that Rock3dGame's 52
+# translation units never see a backend.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(BULLET REQUIRED IMPORTED_TARGET bullet)
+target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::BULLET)
 
 # PUBLIC: consumers include <NxPhysics.h> and friends by those names, exactly as
 # they do against the real SDK.
@@ -41,3 +52,14 @@ add_executable(PhysX28Tests
     test/Px28Desc.cpp
 )
 target_link_libraries(PhysX28Tests PRIVATE ${PROJECT_NAME})
+
+# --- harness -----------------------------------------------------------------
+#
+# Scenarios that need the backend, which is why they are not in PhysX28Tests.
+# Still no Rock3dEngine and no windows.h, so this runs long before the graphics
+# port does and fails on its own terms.
+
+add_executable(PhysX28Harness
+    harness/Px28Harness.cpp
+)
+target_link_libraries(PhysX28Harness PRIVATE ${PROJECT_NAME} PkgConfig::BULLET)
