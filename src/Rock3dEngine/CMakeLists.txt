@@ -40,3 +40,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE
     LexStd
 )
+
+# PUBLIC, because px/Physx.h is part of Rock3dEngine's own interface: it reaches
+# Rock3dGame through stdafx.h, so anything linking the engine needs the Nx
+# symbols too.
+if (RRR3D_PHYSX28_SHIM)
+    target_link_libraries(${PROJECT_NAME} PUBLIC PhysX28)
+endif()

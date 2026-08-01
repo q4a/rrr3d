@@ -127,7 +127,12 @@ public:
 
 	template<class _Class> _Class* GetImpl()
 	{
-		return ExternInterf::GetImpl()->template CastTo<_Class>();
+		//Unqualified, and that is the fix: ExternInterf::GetImpl() names the
+		//pure virtual *without* dispatching to the override, so it needs a
+		//definition that does not exist. Unqualified, overload resolution still
+		//picks the non-template -- _Class is not deducible, so the template
+		//cannot be called with no arguments -- and the call dispatches.
+		return GetImpl()->template CastTo<_Class>();
 	}
 	template<class _Class> const _Class* GetImpl() const
 	{
