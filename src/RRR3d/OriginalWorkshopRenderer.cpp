@@ -364,16 +364,20 @@ bool OriginalWorkshopRenderer::initialize(
             workshopAssets_.push_back(std::move(model));
         }
 
-        planetAssets_.reserve(catalog.planets.size());
-        for (const auto& planet : catalog.planets)
-        {
+        planetAssets_.reserve(
+            catalog.planets.size() + catalog.gamers.size());
+        auto addPlanet = [&](const auto& planet) {
             ModelAsset model;
             model.record = planet.record;
             addNode(
                 model, planet.meshPath, {planet.texturePath}, {});
             finishBounds(model);
             planetAssets_.push_back(std::move(model));
-        }
+        };
+        for (const auto& planet : catalog.planets)
+            addPlanet(planet);
+        for (const auto& gamer : catalog.gamers)
+            addPlanet(gamer);
 
         carAssets_.reserve(race.vehicles.size());
         for (const auto& car : race.vehicles)

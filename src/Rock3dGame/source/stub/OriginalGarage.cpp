@@ -376,10 +376,7 @@ void loadUnlocks(TiXmlElement* root, OriginalGarageCatalog& catalog)
     if (planets == nullptr)
         throw resource::ResourceError(
             "tournamet.xml: missing planets");
-    std::size_t planetIndex = 0;
-    for (auto* planet = planets->FirstChildElement(); planet != nullptr;
-         planet = planet->NextSiblingElement(), ++planetIndex)
-    {
+    auto readPlanet = [&](TiXmlElement* planet) {
         OriginalGaragePlanet planetValue;
         planetValue.record = planet->Value();
         planetValue.name =
@@ -407,8 +404,10 @@ void loadUnlocks(TiXmlElement* root, OriginalGarageCatalog& catalog)
         {
             if (auto* boss = players->FirstChildElement())
             {
+                planetValue.bossId = number(boss, "id");
                 planetValue.bossName =
                     text(boss, "name", boss->Value());
+                planetValue.bossBonus = text(boss, "bonus");
                 planetValue.bossPhotoPath =
                     resourcePath(boss, "photo");
                 if (auto* cars = child(boss, "cars"))
@@ -421,7 +420,13 @@ void loadUnlocks(TiXmlElement* root, OriginalGarageCatalog& catalog)
                 }
             }
         }
-        catalog.planets.push_back(std::move(planetValue));
+        return planetValue;
+    };
+    std::size_t planetIndex = 0;
+    for (auto* planet = planets->FirstChildElement(); planet != nullptr;
+         planet = planet->NextSiblingElement(), ++planetIndex)
+    {
+        catalog.planets.push_back(readPlanet(planet));
         auto readRules = [&](const char* groupName,
                              std::vector<OriginalUnlockRule>& output) {
             auto* group = child(planet, groupName);
@@ -440,6 +445,19 @@ void loadUnlocks(TiXmlElement* root, OriginalGarageCatalog& catalog)
         readRules("cars", catalog.carUnlocks);
         readRules("slots", catalog.workshopUnlocks);
     }
+
+    auto* gamers = child(root, "gamers");
+    if (gamers == nullptr)
+        throw resource::ResourceError(
+            "tournamet.xml: missing gamers");
+    for (auto* gamer = gamers->FirstChildElement(); gamer != nullptr;
+         gamer = gamer->NextSiblingElement())
+    {
+        catalog.gamers.push_back(readPlanet(gamer));
+    }
+    if (catalog.gamers.empty())
+        throw resource::ResourceError(
+            "tournamet.xml: no original gamers");
 }
 
 const OriginalWorkshopItem::CarFunction* carFunction(
@@ -731,6 +749,34 @@ bool originalRecordAchievementUnlocked(
             });
         if (!containsRecord)
             continue;
+        const auto state = item.values.find("state");
+        if (state == item.values.end() ||
+            state->second != "asOpened")
+            return false;
+    }
+    return true;
+}
+
+bool originalGamerUnlocked(
+    const ProfileState& profile, std::uint32_t gamerId) noexcept
+{
+    for (const auto& [name, item] : profile.achievementItems)
+    {
+        (void)name;
+        if (item.classId != 2U)
+            continue;
+        const auto id = item.values.find("gamerId");
+        if (id == item.values.end())
+            continue;
+        try
+        {
+            if (std::stoul(id->second) != gamerId)
+                continue;
+        }
+        catch (const std::exception&)
+        {
+            continue;
+        }
         const auto state = item.values.find("state");
         if (state == item.values.end() ||
             state->second != "asOpened")
@@ -1145,6 +1191,7 @@ bool runOriginalGarageSmokeTest(
         if (catalog.cars.size() < 13U ||
             catalog.workshop.size() < 30U ||
             catalog.planets.size() != 6U ||
+            catalog.gamers.size() != 7U ||
             marauder == nullptr || dirtdevil == nullptr ||
             wheel2 == nullptr || bullet == nullptr ||
             rocket == nullptr || pulsator == nullptr ||
@@ -1168,15 +1215,30 @@ bool runOriginalGarageSmokeTest(
                 "Data/GUI/Chars/mardock.png" ||
             catalog.planets.front().bossCarRecord !=
                 "world\\db\\root\\ctCar\\manticoraBoss" ||
+            catalog.gamers.front().record != "gamer6" ||
+            catalog.gamers.front().bossId != 10U ||
+            catalog.gamers.front().name != "svTyler" ||
+            catalog.gamers.front().bossBonus != "svTylerBonus" ||
+            catalog.gamers.front().bossPhotoPath !=
+                "Data/GUI/Chars/tyler.png" ||
+            catalog.gamers.back().record != "gamer5" ||
+            catalog.gamers.back().bossId != 9U ||
             marauder->placements[0].defaultItem !=
                 workshopRecord("wheel1"))
         {
             error = "original garage/workshop catalog mismatch";
             return false;
         }
-        const auto defaultProfile = makeOriginalDefaultProfileState();
+        auto defaultProfile = makeOriginalDefaultProfileState();
+        defaultProfile.achievementItems["viper"].classId = 2U;
+        defaultProfile.achievementItems["viper"]
+            .values["gamerId"] = "9";
+        defaultProfile.achievementItems["viper"]
+            .values["state"] = "asUnlocked";
         if (defaultProfile.player.planets.front().state != 0U ||
             defaultProfile.player.planets.front().pass != 1U ||
+            !originalGamerUnlocked(defaultProfile, 10U) ||
+            originalGamerUnlocked(defaultProfile, 9U) ||
             !originalWorkshopItemUnlocked(
                 catalog, defaultProfile, *rocket) ||
             !originalWorkshopItemUnlocked(
@@ -1185,6 +1247,14 @@ bool runOriginalGarageSmokeTest(
             error =
                 "source Profile::Enter/Workshop pass-zero assortment "
                 "mismatch";
+            return false;
+        }
+        auto openedViperProfile = defaultProfile;
+        openedViperProfile.achievementItems["viper"]
+            .values["state"] = "asOpened";
+        if (!originalGamerUnlocked(openedViperProfile, 9U))
+        {
+            error = "source AchievementModel::CheckGamerId mismatch";
             return false;
         }
         const auto stats = originalGarageStats(catalog, *marauder);

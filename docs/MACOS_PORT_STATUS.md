@@ -1003,16 +1003,27 @@ SDL_AUDIO_DRIVER=dummy \
   `Race::MakeProfileName` создаёт `profileN`; `UserChat` и `NetIPAddress`
   принадлежат только сетевым экранам и не должны переноситься как выдуманный
   offline widget.
+- Перенесён `RaceMenu2::GamersFrame`, который раньше полностью пропускался.
+  Новый championship и Skirmish теперь проходят выбор одного из семи
+  персонажей из `tournamet.xml`; Tyler выбран по source default `gamerId=10`,
+  Viper закрыт `AchievementModel::CheckGamerId` до `asOpened`, а выбор
+  записывается в `PlayerProfile.gamerId` и применяется к race data.
+- Экран использует исходные `space1`, `bottomPanel4`, `wndLight4`, обе пары
+  arrows, gamer photos/texts и вращающийся `planet.r3d` с source ViewPort3d
+  fitting/layout/navigation. Campaign запускает `Intaria/Intaria_eng` и
+  переходит в Garage только по `cVideoStopped`; Skirmish идёт в Garage сразу.
+- Отдельный `--gamers-frame-smoke-test` подтвердил catalog/gate, 3D draw,
+  Tyler → Snake, `gamerId=4` и Garage transition без записи профиля.
 
 ## Следующий рекомендуемый этап
 
 Основные offline subframes `RaceMenu2` и ветка GameMode/Tournament/
 Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` и workshop
-`WeaponDialog`, а также вызываемые offline `InfoDialog`/`AcceptDialog` теперь
+`WeaponDialog`, вызываемые offline `InfoDialog`/`AcceptDialog` и `GamersFrame` теперь
 source-derived. Source finish progression, planet/final movies и нативный
-video backend также подключены. Следующий P0-блок: перенести исходный
-`GamersFrame`, выбор стартового соперника и его Intaria intro transition.
-Параллельно остаются source-by-source ревизии projectile callbacks,
+video backend, включая Intaria transition, также подключены. Следующий P0-блок:
+продолжить source-by-source ревизию оставшихся вызываемых offline
+`RaceMenu2`/HUD/gameplay callbacks. Параллельно остаются ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
 функциональных расхождений; он не является заменой переноса.

@@ -97,7 +97,9 @@ struct OriginalGaragePlanet
     std::string meshPath;
     std::string texturePath;
     std::vector<std::uint32_t> requestPoints;
+    std::uint32_t bossId = 0;
     std::string bossName;
+    std::string bossBonus;
     std::string bossPhotoPath;
     std::string bossCarRecord;
 };
@@ -107,6 +109,7 @@ struct OriginalGarageCatalog
     std::vector<OriginalGarageCar> cars;
     std::vector<OriginalWorkshopItem> workshop;
     std::vector<OriginalGaragePlanet> planets;
+    std::vector<OriginalGaragePlanet> gamers;
     std::vector<OriginalUnlockRule> carUnlocks;
     std::vector<OriginalUnlockRule> workshopUnlocks;
 
@@ -139,6 +142,8 @@ OriginalGarageStats originalGarageStats(
 
 bool originalRecordAchievementUnlocked(
     const ProfileState& profile, std::string_view record) noexcept;
+bool originalGamerUnlocked(
+    const ProfileState& profile, std::uint32_t gamerId) noexcept;
 bool originalCarUnlocked(const OriginalGarageCatalog& catalog,
                          const ProfileState& profile,
                          const OriginalGarageCar& car,

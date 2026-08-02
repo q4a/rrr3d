@@ -94,6 +94,7 @@ struct Options
     bool physicsSmokeTest = false;
     bool raceRenderSmokeTest = false;
     bool finishMenuSmokeTest = false;
+    bool gamersFrameSmokeTest = false;
     std::uint32_t trackIndex = 0;
     bool trackSelected = false;
     std::string car;
@@ -368,6 +369,13 @@ std::optional<Options> parseOptions(int argc, char** argv)
             options.finishMenuSmokeTest = true;
             if (options.smokeFrames == 0)
                 options.smokeFrames = 300;
+            continue;
+        }
+        if (argument == "--gamers-frame-smoke-test")
+        {
+            options.gamersFrameSmokeTest = true;
+            if (options.smokeFrames == 0)
+                options.smokeFrames = 120;
             continue;
         }
 #endif
@@ -842,7 +850,8 @@ int main(int argc, char** argv)
                      " [--track=0..87] [--car=garage-record] "
                      "[--weather=fair|night|cloudy|rainy|sahara|hell|snow] "
                      "[--physics-smoke-test] [--race-render-smoke-test] "
-                     "[--finish-menu-smoke-test]"
+                     "[--finish-menu-smoke-test] "
+                     "[--gamers-frame-smoke-test]"
 #endif
                      "\n";
         return EXIT_FAILURE;
@@ -1257,6 +1266,37 @@ int main(int argc, char** argv)
     const Texture profileArrowDisabled =
         createImageTextureWithAlpha(
             *device, profileArrowImage, 1U, 4U);
+    const auto gamersSpaceImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/space1.dds");
+    const auto gamersBottomPanelImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/bottomPanel4.png");
+    const auto gamersPhotoLightImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/wndLight4.png");
+    const auto gamersNextArrowImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/arrow2.png");
+    const auto gamersNextArrowSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/arrowSel2.png");
+    const Texture gamersSpace =
+        createImageTexture(*device, gamersSpaceImage);
+    const Texture gamersBottomPanel =
+        createImageTexture(*device, gamersBottomPanelImage);
+    const Texture gamersPhotoLight =
+        createImageTexture(*device, gamersPhotoLightImage);
+    const Texture gamersNextArrow =
+        createImageTexture(*device, gamersNextArrowImage);
+    const Texture gamersNextArrowSelected =
+        createImageTexture(*device, gamersNextArrowSelectedImage);
+    std::vector<menu::Image> gamersBossImages;
+    std::vector<Texture> gamersBossTextures;
+    gamersBossImages.reserve(originalGarage->gamers.size());
+    gamersBossTextures.reserve(originalGarage->gamers.size());
+    for (const auto& gamer : originalGarage->gamers)
+    {
+        gamersBossImages.push_back(menu::loadOriginalImage(
+            *resources, gamer.bossPhotoPath));
+        gamersBossTextures.push_back(
+            createImageTexture(*device, gamersBossImages.back()));
+    }
     const auto optionsBackgroundImage = menu::loadOriginalImage(
         *resources, "Data/GUI/optionsBg.png");
     const auto optionsRowImage = menu::loadOriginalImage(
@@ -1692,6 +1732,9 @@ int main(int argc, char** argv)
     MenuPageVisual creditsPage;
 #ifdef RRR3D_PHYSICS
     MenuPageVisual raceMenuPage;
+    MenuPageVisual gamersNamePage;
+    MenuPageVisual gamersInfoPage;
+    MenuPageVisual gamersBonusPage;
     MenuPageVisual raceMainHeadersPage;
     MenuPageVisual raceMainInfoPage;
     MenuPageVisual garagePage;
@@ -2041,6 +2084,18 @@ int main(int argc, char** argv)
              localized("svGarage"), "Planets",
              localized("svRewards"), localized("svOptions"),
              localized("svExit")});
+        gamersNamePage = createStyledPage(
+            {" "}, menu::headerFontHeight,
+            menu::Rgba8{255, 255, 255, 255},
+            menu::selectedTextColor);
+        gamersInfoPage = createStyledPage(
+            {" "}, menu::smallFontHeight,
+            menu::Rgba8{214, 214, 214, 255},
+            menu::selectedTextColor);
+        gamersBonusPage = createStyledPage(
+            {" "}, 30.0F,
+            menu::Rgba8{214, 214, 214, 255},
+            menu::selectedTextColor);
         raceMainHeadersPage = createStyledPage(
             labels(
                 {"svPlayer", "svPassing", "svTournament",
@@ -2365,6 +2420,9 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     const bool optionsResourcesValid =
         pageValid(raceMenuPage) &&
+        pageValid(gamersNamePage) &&
+        pageValid(gamersInfoPage) &&
+        pageValid(gamersBonusPage) &&
         pageValid(raceMainHeadersPage) &&
         pageValid(raceMainInfoPage) &&
         pageValid(garagePage) &&
@@ -2400,6 +2458,13 @@ int main(int argc, char** argv)
         valid(infoDialogButtonSelected) &&
         valid(profileArrow) && valid(profileArrowSelected) &&
         valid(profileArrowDisabled) &&
+        valid(gamersSpace) && valid(gamersBottomPanel) &&
+        valid(gamersPhotoLight) && valid(gamersNextArrow) &&
+        valid(gamersNextArrowSelected) &&
+        gamersBossTextures.size() == originalGarage->gamers.size() &&
+        std::all_of(
+            gamersBossTextures.begin(), gamersBossTextures.end(),
+            [](Texture texture) { return valid(texture); }) &&
         valid(optionsBackground) && valid(optionsRow) &&
         valid(controlsRow) && valid(optionsArrow) &&
         valid(optionsArrowSelected) &&
@@ -2535,6 +2600,9 @@ int main(int argc, char** argv)
         destroyPage(garagePage);
         destroyPage(raceMainInfoPage);
         destroyPage(raceMainHeadersPage);
+        destroyPage(gamersBonusPage);
+        destroyPage(gamersInfoPage);
+        destroyPage(gamersNamePage);
         destroyPage(raceMenuPage);
         destroyPage(controlsOptionsPage);
         destroyPage(soundOptionsPage);
@@ -2645,6 +2713,13 @@ int main(int argc, char** argv)
         device->destroy(profileArrowDisabled);
         device->destroy(profileArrowSelected);
         device->destroy(profileArrow);
+        for (const auto texture : gamersBossTextures)
+            device->destroy(texture);
+        device->destroy(gamersNextArrowSelected);
+        device->destroy(gamersNextArrow);
+        device->destroy(gamersPhotoLight);
+        device->destroy(gamersBottomPanel);
+        device->destroy(gamersSpace);
 #endif
         destroyPage(creditsPage);
         destroyPage(optionsPage);
@@ -3312,6 +3387,7 @@ int main(int argc, char** argv)
         Options,
         Credits,
 #ifdef RRR3D_PHYSICS
+        Gamers,
         RaceMenu,
         Garage,
         Workshop,
@@ -3342,6 +3418,22 @@ int main(int argc, char** argv)
         !options->finalMenuSmokeTest;
 #endif
 #ifdef RRR3D_PHYSICS
+    enum class GamersFocus
+    {
+        Next,
+        Left,
+        Right,
+    };
+    GamersFocus gamersFocus = GamersFocus::Next;
+    std::size_t gamerPlanetIndex = 0U;
+    float gamersSceneSeconds = 0.0F;
+    bool gamersFrameObserved = !options->gamersFrameSmokeTest;
+    bool gamersPlanet3DObserved = !options->gamersFrameSmokeTest;
+    bool gamersSelectionChangedObserved =
+        !options->gamersFrameSmokeTest;
+    bool gamersGarageObserved = !options->gamersFrameSmokeTest;
+    std::uint32_t gamersSmokeStep = 0U;
+    std::uint32_t gamersSmokeNextFrame = 0U;
     std::optional<r3d::game::originalrace::PlayerProfile>
         championshipPlayerBeforeSkirmish;
     enum class ProfileFocus
@@ -3431,6 +3523,10 @@ int main(int argc, char** argv)
         case MenuScreen::Credits:
             return creditsPage;
 #ifdef RRR3D_PHYSICS
+        case MenuScreen::Gamers:
+            // GamersFrame owns a three-widget navigation graph and is
+            // rendered from the source layout rather than this list page.
+            return gamersNamePage;
         case MenuScreen::RaceMenu:
             return raceMenuPage;
         case MenuScreen::Garage:
@@ -3631,10 +3727,12 @@ int main(int argc, char** argv)
     {
         None,
         RaceMenu,
+        GamersGarage,
         FinalMenu,
         TournamentStart,
     };
     std::function<void()> originalMovieStartMatch;
+    std::function<void()> originalMovieGamersGarage;
     OriginalMovieCompletion originalMovieCompletion =
         OriginalMovieCompletion::None;
     bool originalMovieActive = false;
@@ -3669,6 +3767,10 @@ int main(int argc, char** argv)
             {
                 backMenu();
             }
+            break;
+        case OriginalMovieCompletion::GamersGarage:
+            if (originalMovieGamersGarage)
+                originalMovieGamersGarage();
             break;
         case OriginalMovieCompletion::FinalMenu:
             showOriginalFinalMenu();
@@ -4779,6 +4881,216 @@ int main(int argc, char** argv)
         destroyPage(garageStatsPage);
         garageStatsPage = std::move(statsReplacement);
 
+    };
+    auto gamerUnlocked = [&](std::size_t index) {
+        return index < originalGarage->gamers.size() &&
+               r3d::game::originalrace::originalGamerUnlocked(
+                   profileState,
+                   originalGarage->gamers[index].bossId);
+    };
+    auto adjacentGamerIndex =
+        [&](std::size_t from, int direction)
+            -> std::optional<std::size_t> {
+            if (direction > 0)
+            {
+                for (std::size_t index = from + 1U;
+                     index < originalGarage->gamers.size(); ++index)
+                {
+                    if (gamerUnlocked(index))
+                        return index;
+                }
+            }
+            else
+            {
+                for (std::size_t index = from; index > 0U; --index)
+                {
+                    if (gamerUnlocked(index - 1U))
+                        return index - 1U;
+                }
+            }
+            return std::nullopt;
+        };
+    auto wrapGamersInfo = [&](std::string_view value) {
+        constexpr float maximumWidth = 475.0F;
+        constexpr std::size_t maximumLines = 7U;
+        constexpr menu::Rgba8 color{214, 214, 214, 255};
+        std::vector<std::string> lines;
+        std::istringstream words{std::string(value)};
+        std::string line;
+        std::string word;
+        while (words >> word)
+        {
+            std::string candidate = line;
+            if (!candidate.empty())
+                candidate.push_back(' ');
+            candidate += word;
+            const auto measured = rrr3d::macos::rasterizeText(
+                candidate, menu::fontFace, menu::smallFontHeight,
+                false, color);
+            if (!line.empty() &&
+                static_cast<float>(measured.width) > maximumWidth)
+            {
+                lines.push_back(std::move(line));
+                line = std::move(word);
+                if (lines.size() == maximumLines)
+                    break;
+            }
+            else
+            {
+                line = std::move(candidate);
+            }
+        }
+        if (!line.empty() && lines.size() < maximumLines)
+            lines.push_back(std::move(line));
+        if (lines.empty())
+            lines.emplace_back(" ");
+        return lines;
+    };
+    auto refreshGamersFrame = [&]() {
+        if (originalGarage->gamers.empty())
+            return;
+        gamerPlanetIndex = std::min(
+            gamerPlanetIndex, originalGarage->gamers.size() - 1U);
+        const auto& gamer =
+            originalGarage->gamers[gamerPlanetIndex];
+        auto nameReplacement = createStyledPage(
+            {localized(gamer.name)}, menu::headerFontHeight,
+            menu::Rgba8{255, 255, 255, 255},
+            menu::selectedTextColor);
+        auto infoReplacement = createStyledPage(
+            wrapGamersInfo(localized(gamer.info)),
+            menu::smallFontHeight,
+            menu::Rgba8{214, 214, 214, 255},
+            menu::selectedTextColor);
+        auto bonusReplacement = createStyledPage(
+            {localized(gamer.bossBonus)}, 30.0F,
+            menu::Rgba8{214, 214, 214, 255},
+            menu::selectedTextColor);
+        destroyPage(gamersNamePage);
+        destroyPage(gamersInfoPage);
+        destroyPage(gamersBonusPage);
+        gamersNamePage = std::move(nameReplacement);
+        gamersInfoPage = std::move(infoReplacement);
+        gamersBonusPage = std::move(bonusReplacement);
+    };
+    auto selectGamerPlanet = [&](std::size_t index) {
+        if (index >= originalGarage->gamers.size() ||
+            !gamerUnlocked(index) || index == gamerPlanetIndex)
+            return;
+        gamerPlanetIndex = index;
+        gamersSelectionChangedObserved = true;
+        refreshGamersFrame();
+    };
+    auto showOriginalGamers = [&]() {
+        gamerPlanetIndex = 0U;
+        const auto selected = std::find_if(
+            originalGarage->gamers.begin(),
+            originalGarage->gamers.end(),
+            [&](const auto& gamer) {
+                return gamer.bossId ==
+                           profileState.player.gamerId &&
+                       r3d::game::originalrace::originalGamerUnlocked(
+                           profileState, gamer.bossId);
+            });
+        if (selected != originalGarage->gamers.end())
+        {
+            gamerPlanetIndex = static_cast<std::size_t>(
+                std::distance(
+                    originalGarage->gamers.begin(), selected));
+        }
+        else
+        {
+            const auto first = std::find_if(
+                originalGarage->gamers.begin(),
+                originalGarage->gamers.end(),
+                [&](const auto& gamer) {
+                    return r3d::game::originalrace::
+                        originalGamerUnlocked(
+                            profileState, gamer.bossId);
+                });
+            if (first != originalGarage->gamers.end())
+            {
+                gamerPlanetIndex = static_cast<std::size_t>(
+                    std::distance(
+                        originalGarage->gamers.begin(), first));
+            }
+        }
+        gamersFocus = GamersFocus::Next;
+        gamersSceneSeconds = 0.0F;
+        refreshGamersFrame();
+        menuStack = championshipMode
+                        ? std::vector<MenuScreen>{
+                              MenuScreen::Main,
+                              MenuScreen::GameMode,
+                              MenuScreen::Tournament,
+                              MenuScreen::Gamers}
+                        : std::vector<MenuScreen>{
+                              MenuScreen::Main,
+                              MenuScreen::GameMode,
+                              MenuScreen::Gamers};
+        menuSelection = 0U;
+        std::cout << "Original RaceMenu2::GamersFrame: gamer "
+                  << originalGarage->gamers[gamerPlanetIndex].record
+                  << '\n';
+    };
+    auto showOriginalGarageAfterGamers = [&]() {
+        auto raceInfoReplacement = createStyledPage(
+            raceMainInfoLabels(), menu::smallFontHeight,
+            raceInfoColor, menu::selectedTextColor);
+        destroyPage(raceMainInfoPage);
+        raceMainInfoPage = std::move(raceInfoReplacement);
+        rebuildGarageCarOrder();
+        refreshGaragePage();
+        menuStack = championshipMode
+                        ? std::vector<MenuScreen>{
+                              MenuScreen::Main,
+                              MenuScreen::GameMode,
+                              MenuScreen::Tournament,
+                              MenuScreen::RaceMenu,
+                              MenuScreen::Garage}
+                        : std::vector<MenuScreen>{
+                              MenuScreen::Main,
+                              MenuScreen::GameMode,
+                              MenuScreen::RaceMenu,
+                              MenuScreen::Garage};
+        menuSelection = 0U;
+        std::cout
+            << "Original GamersFrame::cVideoStopped -> GarageFrame\n";
+    };
+#ifdef RRR3D_VIDEO
+    originalMovieGamersGarage = showOriginalGarageAfterGamers;
+#endif
+    auto confirmOriginalGamer = [&]() {
+        if (gamerPlanetIndex >= originalGarage->gamers.size())
+            return;
+        const auto& gamer =
+            originalGarage->gamers[gamerPlanetIndex];
+        profileState.player.gamerId = gamer.bossId;
+        if (!reloadCurrentRace())
+        {
+            runtimeSmokeFailed = true;
+            running = false;
+            return;
+        }
+        if (championshipMode && !options->gamersFrameSmokeTest)
+            saveRaceProfile();
+#ifdef RRR3D_VIDEO
+        if (championshipMode &&
+            !profileState.config.disableVideo)
+        {
+            const auto movie =
+                activeLanguage == "russian"
+                    ? "Data/Video/intaria.avi"
+                    : "Data/Video/intaria_eng.avi";
+            if (playOriginalMovie(
+                    movie,
+                    OriginalMovieCompletion::GamersGarage))
+            {
+                return;
+            }
+        }
+#endif
+        showOriginalGarageAfterGamers();
     };
     auto refreshWorkshopPage = [&]() {
         workshopGoods.clear();
@@ -6263,6 +6575,11 @@ int main(int argc, char** argv)
         }
         showFinishMenu(false);
     }
+    if (options->gamersFrameSmokeTest)
+    {
+        championshipMode = false;
+        showOriginalGamers();
+    }
 #endif
     if (options->finalMenuSmokeTest)
         showOriginalFinalMenu();
@@ -6363,6 +6680,36 @@ int main(int argc, char** argv)
     while (running)
     {
 #if defined(RRR3D_PHYSICS) && defined(RRR3D_GAMEPAD_INPUT)
+        if (options->gamersFrameSmokeTest && !inRace &&
+            menuStack.back() == MenuScreen::Gamers &&
+            gamersSmokeStep < 4U &&
+            renderedFrames >= gamersSmokeNextFrame)
+        {
+            constexpr std::array<SDL_Scancode, 4> gamersSmokeKeys{
+                SDL_SCANCODE_UP, SDL_SCANCODE_RETURN,
+                SDL_SCANCODE_DOWN, SDL_SCANCODE_RETURN};
+            SDL_Event press{};
+            press.key.type = SDL_EVENT_KEY_DOWN;
+            press.key.down = true;
+            press.key.scancode = gamersSmokeKeys[gamersSmokeStep];
+            SDL_Event release = press;
+            release.key.type = SDL_EVENT_KEY_UP;
+            release.key.down = false;
+            if (!SDL_PushEvent(&press) || !SDL_PushEvent(&release))
+            {
+                std::cerr
+                    << "Unable to queue GamersFrame smoke step "
+                    << gamersSmokeStep << ": " << SDL_GetError()
+                    << '\n';
+                runtimeSmokeFailed = true;
+            }
+            ++gamersSmokeStep;
+            // Keep each source focus/selection state visible for several
+            // frames so the renderer fixture checks sustained presentation,
+            // not only one event-loop tick.
+            gamersSmokeNextFrame = renderedFrames + std::max(
+                30U, options->smokeFrames / 5U);
+        }
         // Do not enqueue all confirms before the event loop.  SDL's input
         // layer intentionally suppresses repeats while a key is held, and
         // the old batch therefore never exercised Main -> GameMode ->
@@ -6752,6 +7099,81 @@ int main(int argc, char** argv)
                     setAcceptDialogFocus(*pointerAcceptChoice);
                 pointerTargetsItem =
                     pointerAcceptChoice.has_value() ||
+                    event.type == SDL_EVENT_MOUSE_MOTION ||
+                    event.button.button != SDL_BUTTON_LEFT;
+            }
+            else if (!inRace &&
+                menuStack.back() == MenuScreen::Gamers &&
+                (event.type == SDL_EVENT_MOUSE_MOTION ||
+                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
+            {
+                int windowWidth = 0;
+                int windowHeight = 0;
+                const float pointerX =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.x
+                        : event.button.x;
+                const float pointerY =
+                    event.type == SDL_EVENT_MOUSE_MOTION
+                        ? event.motion.y
+                        : event.button.y;
+                bool hoveredGamerControl = false;
+                if (SDL_GetWindowSize(
+                        window, &windowWidth, &windowHeight) &&
+                    windowWidth > 0 && windowHeight > 0)
+                {
+                    const float virtualX =
+                        pointerX * menu::virtualWidth /
+                        static_cast<float>(windowWidth);
+                    const float virtualY =
+                        pointerY * menu::virtualHeight /
+                        static_cast<float>(windowHeight);
+                    constexpr float planetRadius =
+                        (menu::virtualHeight - 254.0F) * 0.5F;
+                    constexpr float planetX =
+                        menu::virtualWidth * 0.5F - 25.0F;
+                    const float leftX =
+                        planetX - planetRadius - 40.0F + 3.0F -
+                        static_cast<float>(
+                            garageArrowSelectedImage.width) *
+                            0.5F;
+                    const float rightX =
+                        planetX + planetRadius + 40.0F + 3.0F +
+                        static_cast<float>(
+                            garageArrowSelectedImage.width) *
+                            0.5F;
+                    const float nextX =
+                        menu::virtualWidth * 0.5F + 400.0F +
+                        static_cast<float>(
+                            gamersNextArrowSelectedImage.width) *
+                            0.5F;
+                    constexpr float nextY =
+                        menu::virtualHeight - 100.0F;
+                    if (adjacentGamerIndex(gamerPlanetIndex, -1) &&
+                        std::abs(virtualX - leftX) <= 62.0F &&
+                        std::abs(virtualY - planetRadius) <= 82.0F)
+                    {
+                        gamersFocus = GamersFocus::Left;
+                        hoveredGamerControl = true;
+                    }
+                    else if (
+                        adjacentGamerIndex(gamerPlanetIndex, 1) &&
+                        std::abs(virtualX - rightX) <= 62.0F &&
+                        std::abs(virtualY - planetRadius) <= 82.0F)
+                    {
+                        gamersFocus = GamersFocus::Right;
+                        hoveredGamerControl = true;
+                    }
+                    else if (
+                        std::abs(virtualX - nextX) <= 85.0F &&
+                        std::abs(virtualY - nextY) <= 75.0F)
+                    {
+                        gamersFocus = GamersFocus::Next;
+                        hoveredGamerControl = true;
+                    }
+                }
+                pointerTargetsItem =
+                    hoveredGamerControl ||
                     event.type == SDL_EVENT_MOUSE_MOTION ||
                     event.button.button != SDL_BUTTON_LEFT;
             }
@@ -7990,6 +8412,69 @@ int main(int argc, char** argv)
                 if (!inputEvent.active)
                     continue;
 #ifdef RRR3D_PHYSICS
+                if (menuStack.back() == MenuScreen::Gamers)
+                {
+                    const auto previous =
+                        adjacentGamerIndex(gamerPlanetIndex, -1);
+                    const auto next =
+                        adjacentGamerIndex(gamerPlanetIndex, 1);
+                    if (inputEvent.action ==
+                            rrr3d::input::Action::MenuUp ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::MenuDown)
+                    {
+                        if (gamersFocus == GamersFocus::Next)
+                            gamersFocus = next ? GamersFocus::Right
+                                               : GamersFocus::Left;
+                        else
+                            gamersFocus = GamersFocus::Next;
+                    }
+                    else if (
+                        inputEvent.action ==
+                            rrr3d::input::Action::TurnLeft ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::TurnRight)
+                    {
+                        if (gamersFocus == GamersFocus::Left && next)
+                            gamersFocus = GamersFocus::Right;
+                        else if (
+                            gamersFocus == GamersFocus::Right &&
+                            previous)
+                            gamersFocus = GamersFocus::Left;
+                    }
+                    else if (
+                        !inputEvent.repeated &&
+                        inputEvent.action ==
+                            rrr3d::input::Action::PreviousWeapon &&
+                        previous)
+                    {
+                        selectGamerPlanet(*previous);
+                    }
+                    else if (
+                        !inputEvent.repeated &&
+                        inputEvent.action ==
+                            rrr3d::input::Action::NextWeapon && next)
+                    {
+                        selectGamerPlanet(*next);
+                    }
+                    else if (
+                        !inputEvent.repeated &&
+                        inputEvent.action ==
+                            rrr3d::input::Action::MenuConfirm)
+                    {
+#ifdef RRR3D_AUDIO
+                        playMainButtonClick();
+#endif
+                        if (gamersFocus == GamersFocus::Left && previous)
+                            selectGamerPlanet(*previous);
+                        else if (
+                            gamersFocus == GamersFocus::Right && next)
+                            selectGamerPlanet(*next);
+                        else if (gamersFocus == GamersFocus::Next)
+                            confirmOriginalGamer();
+                    }
+                    continue;
+                }
                 if (menuStack.back() == MenuScreen::Profiles)
                 {
                     const auto profileCount =
@@ -9260,6 +9745,8 @@ int main(int argc, char** argv)
                             "gdEasy", "gdNormal", "gdHard"}
                             [menuSelection];
                     const auto startSelectedMatch = [&, difficulty]() {
+                        const bool needsGamerSelection =
+                            !championshipMode || newTournamentProfile;
                         if (championshipMode &&
                             newTournamentProfile)
                         {
@@ -9307,7 +9794,10 @@ int main(int argc, char** argv)
                             return;
                         }
                         saveRaceProfile();
-                        showOriginalRaceMenu();
+                        if (needsGamerSelection)
+                            showOriginalGamers();
+                        else
+                            showOriginalRaceMenu();
                     };
 #ifdef RRR3D_VIDEO
                     if (championshipMode &&
@@ -9397,6 +9887,10 @@ int main(int argc, char** argv)
                     closeOriginalFinalMenu();
                     break;
 #ifdef RRR3D_PHYSICS
+                case MenuScreen::Gamers:
+                    // Handled by the literal GamersFrame navigation graph
+                    // before shared list-page dispatch.
+                    break;
                 case MenuScreen::RaceMenu:
                     if (menuSelection == 0U)
                     {
@@ -10468,6 +10962,8 @@ int main(int argc, char** argv)
             menuStack.back() == MenuScreen::Profiles;
         const bool drawingOriginalOptions =
             isOriginalOptionsScreen(menuStack.back());
+        const bool drawingOriginalGamers =
+            menuStack.back() == MenuScreen::Gamers;
         const bool drawingOriginalRaceMenu =
             menuStack.back() == MenuScreen::RaceMenu;
         const bool drawingOriginalGarage =
@@ -10496,6 +10992,8 @@ int main(int argc, char** argv)
             presentationCar = originalGarage->findCar(
                 profileState.player.currentCar);
         }
+        if (drawingOriginalGamers)
+            gamersSceneSeconds += frameSeconds;
         if (drawingOriginalAngar)
         {
             angarSceneSeconds += frameSeconds;
@@ -11287,6 +11785,178 @@ int main(int argc, char** argv)
                     buttonY, 15.0F, transparent);
             }
         }
+        else if (drawingOriginalGamers)
+        {
+            gamersFrameObserved = true;
+            drawQuad(
+                *device, quad, shader, gamersSpace,
+                static_cast<float>(gamersSpaceImage.width),
+                static_cast<float>(gamersSpaceImage.height),
+                menu::virtualWidth * 0.5F,
+                menu::virtualHeight * 0.5F, 65.0F, opaque);
+
+            constexpr float planetRadius =
+                (menu::virtualHeight - 254.0F) * 0.5F;
+            constexpr float planetX =
+                menu::virtualWidth * 0.5F - 25.0F;
+            constexpr float viewportSize =
+                (planetRadius < 300.0F ? planetRadius : 300.0F) *
+                3.1F;
+            if (gamerPlanetIndex < originalGarage->gamers.size())
+            {
+                const auto& telemetry = device->renderTelemetry();
+                const auto before = std::accumulate(
+                    telemetry.drawCount.begin(),
+                    telemetry.drawCount.end(), 0U);
+                workshopRenderer.drawPlanet(
+                    *device, raceShader,
+                    originalGarage->gamers[gamerPlanetIndex],
+                    planetX, planetRadius, viewportSize, viewportSize,
+                    gamersSceneSeconds * bx::kPi / 24.0F,
+                    racePipeline);
+                const auto after = std::accumulate(
+                    telemetry.drawCount.begin(),
+                    telemetry.drawCount.end(), 0U);
+                gamersPlanet3DObserved =
+                    gamersPlanet3DObserved || after > before;
+            }
+
+            const float panelCenterY =
+                menu::virtualHeight -
+                static_cast<float>(gamersBottomPanelImage.height) *
+                    0.5F;
+            drawQuad(
+                *device, quad, shader, gamersBottomPanel,
+                static_cast<float>(gamersBottomPanelImage.width),
+                static_cast<float>(gamersBottomPanelImage.height),
+                menu::virtualWidth * 0.5F, panelCenterY,
+                40.0F, transparent);
+
+            if (gamerPlanetIndex < gamersBossTextures.size())
+            {
+                const auto& photo =
+                    gamersBossImages[gamerPlanetIndex];
+                const float photoScale = std::min(
+                    {1.0F,
+                     190.0F /
+                         std::max(
+                             static_cast<float>(photo.width), 1.0F),
+                     190.0F /
+                         std::max(
+                             static_cast<float>(photo.height), 1.0F)});
+                const float photoWidth =
+                    static_cast<float>(photo.width) * photoScale;
+                const float photoHeight =
+                    static_cast<float>(photo.height) * photoScale;
+                drawQuad(
+                    *device, quad, shader,
+                    gamersBossTextures[gamerPlanetIndex],
+                    photoWidth, photoHeight,
+                    menu::virtualWidth * 0.5F - 30.0F,
+                    menu::virtualHeight - 18.0F -
+                        photoHeight * 0.5F,
+                    20.0F, transparent);
+            }
+            drawQuad(
+                *device, quad, shader, gamersPhotoLight,
+                static_cast<float>(gamersPhotoLightImage.width),
+                static_cast<float>(gamersPhotoLightImage.height),
+                menu::virtualWidth * 0.5F - 30.0F,
+                menu::virtualHeight - 100.0F, 18.0F,
+                transparent);
+
+            if (!gamersNamePage.normal.empty())
+            {
+                const auto& name = gamersNamePage.normal.front();
+                drawQuad(
+                    *device, quad, shader, name.texture,
+                    name.width, name.height,
+                    menu::virtualWidth * 0.5F - 25.0F,
+                    menu::virtualHeight -
+                        static_cast<float>(
+                            gamersBottomPanelImage.height) +
+                        23.0F,
+                    15.0F, transparent);
+            }
+            const float infoLeft =
+                menu::virtualWidth * 0.5F - 390.0F - 237.5F;
+            const float infoTop =
+                menu::virtualHeight - 100.0F - 80.0F;
+            for (std::size_t line = 0U;
+                 line < gamersInfoPage.normal.size(); ++line)
+            {
+                const auto& text = gamersInfoPage.normal[line];
+                drawQuad(
+                    *device, quad, shader, text.texture,
+                    text.width, text.height,
+                    infoLeft + text.width * 0.5F,
+                    infoTop + text.height * 0.5F +
+                        static_cast<float>(line) * 21.0F,
+                    15.0F, transparent);
+            }
+            if (!gamersBonusPage.normal.empty())
+            {
+                const auto& bonus = gamersBonusPage.normal.front();
+                drawQuad(
+                    *device, quad, shader, bonus.texture,
+                    bonus.width, bonus.height,
+                    menu::virtualWidth * 0.5F + 245.0F,
+                    menu::virtualHeight - 105.0F,
+                    15.0F, transparent);
+            }
+
+            const auto previous =
+                adjacentGamerIndex(gamerPlanetIndex, -1);
+            const auto next =
+                adjacentGamerIndex(gamerPlanetIndex, 1);
+            if (previous)
+            {
+                const bool focused =
+                    gamersFocus == GamersFocus::Left;
+                const auto& image =
+                    focused ? garageArrowSelectedImage
+                            : garageArrowImage;
+                drawQuadRotated(
+                    *device, quad, shader,
+                    focused ? garageArrowSelected : garageArrow,
+                    static_cast<float>(image.width),
+                    static_cast<float>(image.height),
+                    planetX - planetRadius - 40.0F + 3.0F -
+                        static_cast<float>(image.width) * 0.5F,
+                    planetRadius, 12.0F, 0.0F, transparent);
+            }
+            if (next)
+            {
+                const bool focused =
+                    gamersFocus == GamersFocus::Right;
+                const auto& image =
+                    focused ? garageArrowSelectedImage
+                            : garageArrowImage;
+                drawQuadRotated(
+                    *device, quad, shader,
+                    focused ? garageArrowSelected : garageArrow,
+                    static_cast<float>(image.width),
+                    static_cast<float>(image.height),
+                    planetX + planetRadius + 40.0F + 3.0F +
+                        static_cast<float>(image.width) * 0.5F,
+                    planetRadius, 12.0F, bx::kPi, transparent);
+            }
+            const bool nextFocused =
+                gamersFocus == GamersFocus::Next;
+            const auto& nextImage =
+                nextFocused ? gamersNextArrowSelectedImage
+                            : gamersNextArrowImage;
+            drawQuad(
+                *device, quad, shader,
+                nextFocused ? gamersNextArrowSelected
+                            : gamersNextArrow,
+                static_cast<float>(nextImage.width),
+                static_cast<float>(nextImage.height),
+                menu::virtualWidth * 0.5F + 400.0F +
+                    static_cast<float>(nextImage.width) * 0.5F,
+                menu::virtualHeight - 100.0F, 12.0F,
+                transparent);
+        }
         else if (drawingOriginalRaceMenu)
         {
             const float centerX = menu::virtualWidth * 0.5F;
@@ -11497,6 +12167,8 @@ int main(int argc, char** argv)
         else if (drawingOriginalGarage)
         {
             raceGarageFrameObserved = true;
+            if (options->gamersFrameSmokeTest)
+                gamersGarageObserved = true;
             const float centerX = menu::virtualWidth * 0.5F;
             const float centerY = menu::virtualHeight * 0.5F;
             const float topCenterY =
@@ -13190,7 +13862,8 @@ int main(int argc, char** argv)
         }
         if (!drawingOriginalFinal
 #ifdef RRR3D_PHYSICS
-            && !drawingOriginalOptions && !drawingOriginalRaceMenu &&
+            && !drawingOriginalOptions && !drawingOriginalGamers &&
+            !drawingOriginalRaceMenu &&
             !drawingOriginalGarage && !drawingOriginalWorkshop &&
             !drawingOriginalAngar && !drawingOriginalAchievements &&
             !drawingOriginalFinish
@@ -13366,6 +14039,37 @@ int main(int argc, char** argv)
                 }
             }
 #ifdef RRR3D_PHYSICS
+            else if (options->gamersFrameSmokeTest)
+            {
+                if (!gamersFrameObserved ||
+                    !gamersPlanet3DObserved ||
+                    !gamersSelectionChangedObserved ||
+                    !gamersGarageObserved || gamersSmokeStep != 4U ||
+                    profileState.player.gamerId != 4U ||
+                    menuStack.back() != MenuScreen::Garage)
+                {
+                    std::cerr
+                        << "Source GamersFrame smoke failed: frame/3D="
+                        << gamersFrameObserved << '/'
+                        << gamersPlanet3DObserved
+                        << ", selection/garage="
+                        << gamersSelectionChangedObserved << '/'
+                        << gamersGarageObserved << ", steps="
+                        << gamersSmokeStep << ", gamerId="
+                        << profileState.player.gamerId << '\n';
+                    runtimeSmokeFailed = true;
+                }
+                else
+                {
+                    std::cout
+                        << "Source GamersFrame smoke passed after "
+                        << renderedFrames
+                        << " frames: seven source gamers, achievement gate, "
+                           "rotating planet, photo/text layout, navigation, "
+                           "gamerId and Garage transition verified without "
+                           "profile writes\n";
+                }
+            }
             else if (options->raceRenderSmokeTest)
             {
                 auto passObserved =
@@ -13655,6 +14359,7 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_PHYSICS
     if (!options->finishMenuSmokeTest &&
+        !options->gamersFrameSmokeTest &&
         !options->finalMenuSmokeTest)
         saveRaceProfile();
     physicsWorld.reset();
