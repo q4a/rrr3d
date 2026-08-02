@@ -27,14 +27,13 @@ the things that would be expensive to rediscover.
 | 7 — D3D9 on Metal | done: the triangle draws, both paths verified by pixel |
 | 8 — D3DX runtime, first pixels | done: menu and race both render |
 | 9 — `NxWheelShape` | done: implemented and covered; **cars do not drive yet** |
-| 10 — Windows cutover | deferred by decision, not dropped |
-| 11 — Audio, gamepad, video | audio over FAudio **done**, gamepad done, video stubbed |
-| 12 — MapEditor on Dear ImGui | not started |
+| 10 — Windows cutover | build unbroken and CI added; never compiled on Windows |
+| 11 — Audio, gamepad, video | audio **done**, gamepad done, video **done** |
+| 12 — MapEditor on Dear ImGui | **done**: `bin/Debug/MapEditor` |
 
 Zero undefined symbols. Audio is a real FAudio backend
-(`xaudio2_faudio.cpp`); video is still a stub (`video_stub.cpp`) reporting
-`STATE_NO_GRAPH`, which the game tolerates, so cutscenes are skipped rather
-than broken.
+(`xaudio2_faudio.cpp`) and video is a real player over VideoToolbox
+(`video_avf.cpp`) -- `video_stub.cpp` is gone from this build.
 
 ### Running it
 
@@ -50,8 +49,17 @@ than broken.
     RRR3D_AUDIO_NO_CALLBACKS=1 ./RRR3d        # audio plays, game callbacks withheld
     RRR3D_AUDIO_OFF=1 ./RRR3d                 # no FAudio engine at all
 
+    RRR3D_PLAYVIDEO=<path> ./RRR3d            # play one cutscene
+    RRR3D_VIDEO_TRACE=1 ./RRR3d               # cutscene pacing, once a second
+
+    ./MapEditor                               # the map editor
+    RRR3D_EDITOR_OPEN=<map> ./MapEditor       # ...with a level loaded
+    RRR3D_EDITOR_FRAMES=<n> ./MapEditor       # run n frames and exit
+
     bin/Debug/AudioSweep                      # the rev sweep, without the game
     bin/Asan/AudioSweep 0 0 2                 # the same, held at the worst ratio
+    bin/Debug/VideoProbe <file.avi>           # demux and decode, writes video.tga
+    bin/Debug/D3D9ImGui                       # ImGui through D3D9, pixel-checked
 
 A `CAMetalLayer`'s contents never appear in `screencapture` — the screenshot
 comes back as the window frame with a hole where the game is — so the dumper is
