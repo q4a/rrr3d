@@ -493,6 +493,16 @@ public:
 
 	HRESULT STDMETHODCALLTYPE SetFrequencyRatio(float ratio, UINT32 set) override
 	{
+		/*
+		 * SoundMotor drives its RPM layer through ratios from zero to one.
+		 * FAudio 26.08 cannot safely process a source below unity: zero is
+		 * clamped to 1/1024 and overruns the stream-start tap buffer, while any
+		 * sustained sub-unity ratio eventually underflows its unsigned decode
+		 * count. Keep the voice at its previous safe pitch until FAudio fixes
+		 * that resampler accounting. Volume still provides the intended fade.
+		 */
+		if (ratio < 1.0f)
+			return E_INVALIDARG;
 		return FAudioSourceVoice_SetFrequencyRatio(source(), ratio, set) ? E_FAIL : S_OK;
 	}
 
@@ -720,8 +730,15 @@ HRESULT XAudio2Create(IXAudio2** xaudio2, UINT32 flags, XAUDIO2_PROCESSOR proces
 		return E_POINTER;
 	*xaudio2 = NULL;
 
+	/* Disable audio entirely for diagnostics and headless runs. */
+	const char* audioOff = std::getenv("RRR3D_AUDIO_OFF");
+	if (audioOff && audioOff[0] != '\0' && std::strcmp(audioOff, "0") != 0)
+		return E_FAIL;
+
 	FAudio* audio = NULL;
-	if (FAudioCreate(&audio, flags, processor) != 0 || !audio)
+	/* FAudio only accepts its all-processors sentinel, unlike XAudio2 2.7's
+	   Processor1 default used by the game-facing header. */
+	if (FAudioCreate(&audio, flags, FAUDIO_DEFAULT_PROCESSOR) != 0 || !audio)
 		return E_FAIL;
 
 	Engine* engine = new (std::nothrow) Engine(audio);
