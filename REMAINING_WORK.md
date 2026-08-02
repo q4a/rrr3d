@@ -65,11 +65,12 @@ is the same sequence.
 
 ### Test suites, all green
 
-    bin/Debug/Tests            156 checks   XPlatform, D3DX math, string and RNG properties
+    bin/Debug/Tests            167 checks   XPlatform, D3DX math, BCn codec, string and RNG
     bin/Debug/PhysX28Tests       0 failures constants, conventions, no simulation
     bin/Debug/PhysX28Harness   512 checks   the shim against 2.8's specification
     bin/Debug/BridgeTriangle   6 modes      run from bin/Debug; takes a mode argument
     bin/Debug/D3D9Triangle     2 modes      no argument = swapchain, `rtt` = own target
+    bin/Debug/AudioSweep                    the rev sweep; run it under bin/Asan too
 
 `BridgeTriangle` modes: `vertexid stagein argbuf nocopy speccnst blend`. Each
 adds one layer over the last; all render offscreen with pixel readback.
@@ -171,9 +172,23 @@ before every key and confirm the keystroke arrived, or the experiment measures
 the window manager rather than the game.** `RRR3D_INPUT_TRACE=1` prints what the
 game actually received and settles it in a line.
 
-**`D3DXFilterTexture` is unimplemented**, reported once per race. It generates
-the mip chain for a texture the engine rendered into, so the lower levels are
-undefined rather than absent — aliasing at distance, not a black surface.
+**~~`D3DXFilterTexture` is unimplemented.~~ Implemented**, in
+`d3dx_texture.cpp`. The old note here was wrong twice: it is never called on a
+render target, and the symptom was not aliasing.
+
+It is only ever called on a `D3DPOOL_SYSTEMMEM`, usage-0, DXT1/3/5 texture whose
+level 0 has just been filled from file data — `Tex2DResource::DoInit` strips
+`D3DUSAGE_AUTOGENMIPMAP` from exactly the block-compressed formats, because D3D9
+drivers cannot autogenerate mips for them, which is why the manual call exists.
+Levels 1..N were left untouched and copied to the real texture by
+`UpdateTexture`, and an all-zero DXT1 block decodes to solid black — so the
+symptom was surfaces going black with distance, across 201 of the game's
+textures.
+
+DXT cannot be filtered compressed, so each level is decoded to RGBA, box
+filtered, and re-encoded via the vendored `stb_dxt.h`. Covered by six checks in
+`src/Tests` against the pixel half, which is declared in
+`d3dx_texture_internal.h` precisely so that suite can reach it without a device.
 Either implement a box filter down the chain or record it as accepted.
 
 ---
