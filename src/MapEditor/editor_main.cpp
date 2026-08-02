@@ -53,6 +53,7 @@
 #include "imgui_impl_dx9.h"
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_dialog.h>
 
 #include "xplatform.h"
 
@@ -159,6 +160,103 @@ void SetStatus(const std::string& text)
 	LSL_LOG(text.c_str());
 }
 
+/*
+ * Placement, which is CClassView's link mode.
+ *
+ * The object is created the moment a library record is chosen, not when the
+ * viewport is clicked, and the scene control is put into smLink so the engine
+ * drags it under the cursor. A click then commits it and creates a fresh one at
+ * the same position, so repeated placement is click-click-click.
+ *
+ * Doing it the other way round -- create on click -- was the first attempt, and
+ * it had no way to know where to put the object: nothing has raycast the world
+ * at that point, so everything landed at the origin. smLink is what already
+ * solves that, and it is the engine's own mechanism rather than a new one.
+ */
+edit::IMapObjRecRef gPendingRecord;
+edit::IMapObjRef gPendingObject;
+bool gAutoRotate = false;
+bool gAutoScale = false;
+
+/*
+ * The jitter from ClassView.cpp:155-164, unchanged.
+ *
+ * Scale is uniform, +/-30%; rotation is +/-15 degrees on each of yaw, pitch and
+ * roll. Both are what makes a hand-placed forest not look stamped, and the
+ * constants are the shipped ones rather than a guess.
+ */
+void ApplyPlacementJitter(const edit::IMapObjRef& obj)
+{
+	if (!obj)
+		return;
+
+	if (gAutoScale)
+		obj->SetScale(IdentityVector * (1.0f + 0.3f * RandomRange(-1.0f, 1.0f)));
+
+	if (gAutoRotate)
+	{
+		D3DXQUATERNION rot;
+		D3DXQuaternionRotationYawPitchRoll(&rot,
+			D3DX_PI / 12 * RandomRange(-1.0f, 1.0f),
+			D3DX_PI / 12 * RandomRange(-1.0f, 1.0f),
+			D3DX_PI / 12 * RandomRange(-1.0f, 1.0f));
+		obj->SetRot(rot);
+	}
+}
+
+void CancelPlacement();
+
+void BeginPlacement(const edit::IMapObjRecRef& record, const D3DXVECTOR3& pos)
+{
+	CancelPlacement();
+
+	edit::IMap* map = gDoc.Map();
+	edit::ISceneControl* sc = gDoc.ScControl();
+	if (!map || !sc || !record)
+		return;
+
+	sc->SetSelMode(edit::ISceneControl::smLink);
+
+	gPendingRecord = record;
+	gPendingObject = map->AddMapObj(record);
+	if (!gPendingObject)
+		return;
+
+	gPendingObject->SetPos(pos);
+	ApplyPlacementJitter(gPendingObject);
+	gDoc.SelectMapObj(gPendingObject);
+}
+
+void CancelPlacement()
+{
+	if (!gPendingObject)
+	{
+		gPendingRecord = edit::IMapObjRecRef();
+		return;
+	}
+
+	edit::IMap* map = gDoc.Map();
+	edit::ISceneControl* sc = gDoc.ScControl();
+
+	/*
+	 * Deselect before deleting, and only if this is still what is selected.
+	 * CClassView::DeselectItem guards the same way, and its comment says why:
+	 * focus could move between the two, leaving the selection pointing at an
+	 * object about to be destroyed.
+	 */
+	if (gDoc.selMapObj && gDoc.selMapObj->Equal(gPendingObject.Pnt()))
+		gDoc.SelectMapObj(edit::IMapObjRef());
+
+	if (sc && sc->GetSelMode() == edit::ISceneControl::smLink)
+		sc->SetSelMode(edit::ISceneControl::smNone);
+
+	if (map)
+		map->DelMapObj(gPendingObject);
+
+	gPendingObject = edit::IMapObjRef();
+	gPendingRecord = edit::IMapObjRecRef();
+}
+
 /* ------------------------------------------------------------------ panes -- */
 
 /*
@@ -214,11 +312,6 @@ void BuildLibrary()
 	}
 }
 
-/* The record waiting to be dropped into the world on the next viewport click,
-   which is what CClassView's link mode was. */
-edit::IMapObjRecRef gPendingRecord;
-bool gAutoRotate = false;
-bool gAutoScale = false;
 
 void DrawLibraryNode(const LibraryNode& node)
 {
@@ -236,8 +329,9 @@ void DrawLibraryNode(const LibraryNode& node)
 
 		if (ImGui::Selectable(node.records[i].first.c_str(), selected))
 		{
-			gPendingRecord = node.records[i].second;
-			SetStatus("place: " + node.records[i].first + " -- click in the viewport");
+			BeginPlacement(node.records[i].second, D3DXVECTOR3(0.0f, 0.0f, 0.0f));
+			SetStatus("placing " + node.records[i].first +
+				" -- move to position, click to drop, Escape to cancel");
 		}
 		ImGui::PopID();
 	}
@@ -272,7 +366,10 @@ void DrawLibraryPane()
 			gPendingRecord->GetName().c_str());
 		ImGui::SameLine();
 		if (ImGui::SmallButton("cancel"))
-			gPendingRecord = edit::IMapObjRecRef();
+		{
+			CancelPlacement();
+			SetStatus("placement cancelled");
+		}
 	}
 
 	ImGui::Separator();
@@ -598,6 +695,105 @@ void DrawToolbar()
 	}
 }
 
+/* ------------------------------------------------------------ file dialogs --
+ *
+ * SDL's dialogs are asynchronous and answer on a callback, which may arrive on
+ * another thread. So the callback does nothing but record the path, and the
+ * frame loop acts on it -- loading a level from a arbitrary thread while the
+ * engine is mid-frame is not a thing to attempt.
+ *
+ * This is better than the modal dialog MFC used, not a workaround for lacking
+ * one: the engine keeps rendering while the sheet is open.
+ */
+enum PendingFileAction { pfNone, pfOpen, pfSave };
+
+PendingFileAction gPendingFile = pfNone;
+std::string gPendingFilePath;
+bool gDialogOpen = false;
+
+void SDLCALL OnFileChosen(void* userdata, const char* const* filelist, int filter)
+{
+	(void)filter;
+
+	const PendingFileAction action =
+		static_cast<PendingFileAction>(reinterpret_cast<intptr_t>(userdata));
+
+	gDialogOpen = false;
+
+	/* NULL means an error, an empty list means the user cancelled. Neither is
+	   worth reporting as a fault. */
+	if (!filelist || !filelist[0])
+		return;
+
+	gPendingFilePath = filelist[0];
+	gPendingFile = action;
+}
+
+void ShowLevelDialog(PendingFileAction action)
+{
+	if (gDialogOpen)
+		return;
+
+	gDialogOpen = true;
+
+	static const SDL_DialogFileFilter cFilters[] =
+	{
+		{ "Rock3D map", "r3dMap" },
+		{ "All files", "*" },
+	};
+
+	void* tag = reinterpret_cast<void*>(static_cast<intptr_t>(action));
+
+	if (action == pfOpen)
+		SDL_ShowOpenFileDialog(OnFileChosen, tag, gWindow, cFilters, 2, NULL, false);
+	else
+		SDL_ShowSaveFileDialog(OnFileChosen, tag, gWindow, cFilters, 2, NULL);
+}
+
+/*
+ * Acted on from the frame loop, never from the callback.
+ *
+ * Note LoadLevel and SaveLevel both go through GetAppFilePath, which PREPENDS
+ * the application directory -- so an absolute path from a dialog produces
+ * nonsense on the first attempt and succeeds only through the raw-name retry at
+ * lslResource.cpp:58-66. MFC relied on exactly the same fallback with its own
+ * absolute paths, so this is long-standing rather than new, but it means level
+ * loading has an untested primary path and a load-bearing secondary one.
+ */
+void ProcessPendingFile()
+{
+	if (gPendingFile == pfNone)
+		return;
+
+	const PendingFileAction action = gPendingFile;
+	gPendingFile = pfNone;
+
+	CancelPlacement();
+
+	try
+	{
+		if (action == pfOpen)
+		{
+			gDoc.SelectMapObj(edit::IMapObjRef());
+			gDoc.selWayPoint = edit::IWayPointRef();
+			gWorld->LoadLevel(gPendingFilePath);
+			gDoc.path = gPendingFilePath;
+			gLibraryBuilt = false;      /* the database may have changed */
+			SetStatus("opened " + gPendingFilePath);
+		}
+		else
+		{
+			gWorld->SaveLevel(gPendingFilePath);
+			gDoc.path = gPendingFilePath;
+			SetStatus("saved " + gPendingFilePath);
+		}
+	}
+	catch (const std::exception& e)
+	{
+		SetStatus(std::string("failed: ") + e.what());
+	}
+}
+
 /* ---------------------------------------------------------------- overlay -- */
 
 /*
@@ -678,11 +874,17 @@ void BuildUi()
 				SetStatus("new map");
 			}
 
-			if (ImGui::MenuItem("Save") && !gDoc.path.empty())
+			if (ImGui::MenuItem("Open..."))
+				ShowLevelDialog(pfOpen);
+
+			if (ImGui::MenuItem("Save", NULL, false, !gDoc.path.empty()))
 			{
-				gWorld->SaveLevel(gDoc.path);
-				SetStatus("saved " + gDoc.path);
+				gPendingFilePath = gDoc.path;
+				gPendingFile = pfSave;
 			}
+
+			if (ImGui::MenuItem("Save As..."))
+				ShowLevelDialog(pfSave);
 
 			ImGui::Separator();
 			if (ImGui::MenuItem("Quit"))
@@ -728,15 +930,21 @@ void OnViewportClick(const lsl::Point& coord, bool down, bool shift, bool ctrl)
 	if (!map)
 		return;
 
-	if (gPendingRecord)
+	/*
+	 * A click commits the object being dragged and starts another at the same
+	 * place, so a row of trees is one click each -- CClassView's
+	 * OnMapViewMouseClickEvent.
+	 */
+	if (gPendingObject)
 	{
-		edit::IMapObjRef placed = map->AddMapObj(gPendingRecord);
-		if (placed)
-		{
-			gDoc.SelectMapObj(placed);
-			SetStatus("placed " + placed->GetName());
-		}
-		gPendingRecord = edit::IMapObjRecRef();
+		const D3DXVECTOR3 dropped = gPendingObject->GetPos();
+		const std::string name = gPendingObject->GetName();
+
+		/* Committed: forget it without deleting it. */
+		gPendingObject = edit::IMapObjRef();
+
+		BeginPlacement(gPendingRecord, dropped);
+		SetStatus("placed " + name);
 		return;
 	}
 
@@ -859,6 +1067,16 @@ int main(int argc, char** argv)
 						event.type == SDL_EVENT_MOUSE_BUTTON_DOWN, false, false);
 				break;
 
+			case SDL_EVENT_KEY_DOWN:
+				/* Escape abandons a placement, which is the only way out of
+				   link mode that does not leave an object behind. */
+				if (event.key.key == SDLK_ESCAPE && gPendingObject)
+				{
+					CancelPlacement();
+					SetStatus("placement cancelled");
+				}
+				break;
+
 			case SDL_EVENT_MOUSE_MOTION:
 				gWorld->GetView()->OnMouseMoveEvent(
 					lsl::Point(int(event.motion.x), int(event.motion.y)), false, false);
@@ -893,6 +1111,8 @@ int main(int argc, char** argv)
 			gWorld->MainProgress();
 			continue;
 		}
+
+		ProcessPendingFile();
 
 		ImGui_ImplDX9_NewFrame();
 		ImGui_ImplSDL3_NewFrame();
