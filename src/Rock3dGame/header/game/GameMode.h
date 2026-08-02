@@ -228,6 +228,8 @@ private:
 #ifndef _WIN32
 	//RRR3D_AUTORACE=<planet> -- see the comment on the definition.
 	void AutoRace();
+	//...and the driver for the car it starts. Also on the definition.
+	void EnableAutoRaceDriver();
 #endif
 	void StartGame();
 	void FreeIntro();

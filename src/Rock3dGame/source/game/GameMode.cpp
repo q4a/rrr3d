@@ -889,12 +889,66 @@ void GameMode::DoStartRace()
 	_menuMusic->Pause(true);
 	_gameMusic->Play();
 
+#ifndef _WIN32
+	EnableAutoRaceDriver();
+#endif
+
 #if DEBUG_PX
 	GoRace(cGoRace);
 #else
 	GoRace(cGoRaceWait);
 #endif
 }
+
+#ifndef _WIN32
+
+/*
+ * Let the AI drive the player's car under RRR3D_AUTORACE.
+ *
+ * Without this the camera follows a car that never moves, so any frame from an
+ * unattended race shows a stationary player while the AI field races off -- and
+ * "does a car drive" cannot be answered without somebody at the keyboard.
+ *
+ * The driver already exists and is switched off on purpose. Race::CreatePlayers
+ * attaches an AIPlayer to the human's Player under `#if _DEBUG | DEBUG_PX`
+ * (Race.cpp:7148), and Race::StartRace then calls AISystem::CreateDebug, whose
+ * constructor clears `_enbAI` so the human can drive (AIPlayer.cpp:353). This
+ * turns it back on. AICar::ControlState::Update gates on that flag
+ * (AICar.cpp:562) and HumanPlayer::Control::OnInputProgress already yields when
+ * it is set (HumanPlayer.cpp:142), so the two never fight over the same car.
+ *
+ * It must run after Race::StartRace for the reason above -- CreateDebug clears
+ * the flag -- which is why it is here and not in AutoRace(). AutoRace ends with
+ * Menu::StartRace, which only sets _startRace; the race actually starts here.
+ *
+ * The authors' own runtime toggle for the same flag is F7 (AIPlayer.cpp:830),
+ * so this is their debug path rather than a new one.
+ */
+void GameMode::EnableAutoRaceDriver()
+{
+	if (!std::getenv("RRR3D_AUTORACE"))
+		return;
+
+	HumanPlayer* human = _race ? _race->GetHuman() : NULL;
+	if (!human)
+		return;
+
+	AIPlayer* ai = _race->FindAIPlayer(human->GetPlayer());
+	if (!ai || !ai->GetCar())
+	{
+		/* Only built under _DEBUG | DEBUG_PX -- a release build has no AI on
+		   the human's car and there is nothing to enable. */
+		LSL_LOG("autorace: no AI driver on the player's car");
+		return;
+	}
+
+	ai->GetCar()->_enbAI = true;
+	LSL_LOG("autorace: AI driving the player's car");
+
+
+}
+
+#endif
 
 void GameMode::SaveGameOpt(lsl::SWriter* writer)
 {
@@ -1857,6 +1911,43 @@ void GameMode::OnFinishFrameClose()
 
 void GameMode::OnFrame(float deltaTime, float pxAlpha)
 {	
+#ifndef _WIN32
+	/*
+	 * RRR3D_CAR_TRACE=1 -- where the player's car is, once a second.
+	 *
+	 * The question phase 9 left open is whether a car *drives* the way 2.8 drove
+	 * it, and that cannot be read from a frame: a screenshot of a race shows a
+	 * car somewhere, not whether it accelerated, held a line, or crept while
+	 * parked. A position every second answers all three, and pairs with
+	 * RRR3D_AUTORACE so it needs nobody at the keyboard.
+	 *
+	 * Sampled rather than per-frame for the reason RRR3D_WHEEL_TRACE is: the
+	 * first frames of a race are spawn transient, and a trace dense enough to
+	 * bury that is a trace nobody reads.
+	 */
+	static const bool carTrace = [] {
+		const char* v = std::getenv("RRR3D_CAR_TRACE");
+		return v && v[0] != '0';
+	}();
+
+	if (carTrace && _race && _race->GetHuman())
+	{
+		static int frames = 0;
+		if ((frames++ % 60) == 0)
+		{
+			Player* pl = _race->GetHuman()->GetPlayer();
+			MapObj* mo = pl ? pl->GetCar().mapObj : NULL;
+			if (mo)
+			{
+				const D3DXVECTOR3 p = mo->GetGameObj().GetPos();
+				std::fprintf(stderr, "car %4d  %8.2f %8.2f %8.2f\n",
+					frames / 60, double(p.x), double(p.y), double(p.z));
+				std::fflush(stderr);
+			}
+		}
+	}
+#endif
+
 	const float logoDelay = 1.0f;
 	const float logoFadeTime = 1.0f;
 	const float logoTime = 3.0f;
