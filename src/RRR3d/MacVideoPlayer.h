@@ -31,6 +31,7 @@ public:
     void seek(double seconds);
     PlaybackState update(std::string& error) const;
     bool readyForDisplay() const;
+    bool hasAudioTrack() const;
     double durationSeconds() const;
 
 private:

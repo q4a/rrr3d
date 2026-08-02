@@ -124,6 +124,10 @@ unexpected_movies=$(/usr/bin/find "$video_cache" -type f ! -name '*.mp4' |
     /usr/bin/wc -l | /usr/bin/tr -d ' ')
 [ "$unexpected_movies" -eq 0 ] ||
     fail "video-cache contains non-MP4 files"
+for movie in "$video_cache"/*.mp4; do
+    /usr/bin/afinfo "$movie" 2>/dev/null | /usr/bin/grep -q 'aac' ||
+        fail "movie has no AVFoundation-compatible AAC audio: $movie"
+done
 
 printf 'RRR3d.app verified: version %s, arm64, minos %s, %s assets, %s movies, signed, autonomous dependencies\n' \
     "$expected_version" "$minimum" "$asset_count" "$movie_count"

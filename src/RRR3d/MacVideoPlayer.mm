@@ -55,6 +55,7 @@ bool MacVideoPlayer::play(const std::filesystem::path& path, float volume,
     AVPlayerItem* item = [AVPlayerItem playerItemWithURL:url];
     impl_->player = [AVPlayer playerWithPlayerItem:item];
     impl_->player.actionAtItemEnd = AVPlayerActionAtItemEndPause;
+    impl_->player.automaticallyWaitsToMinimizeStalling = YES;
     impl_->player.volume = std::clamp(volume, 0.0F, 1.0F);
     impl_->layer =
         [AVPlayerLayer playerLayerWithPlayer:impl_->player];
@@ -63,10 +64,13 @@ bool MacVideoPlayer::play(const std::filesystem::path& path, float volume,
 
     NSView* contentView = impl_->window.contentView;
     contentView.wantsLayer = YES;
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
     impl_->layer.frame = contentView.bounds;
     impl_->layer.autoresizingMask =
         kCALayerWidthSizable | kCALayerHeightSizable;
     [contentView.layer addSublayer:impl_->layer];
+    [CATransaction commit];
 
     impl_->completed.store(false);
     Impl* state = impl_.get();
@@ -106,7 +110,12 @@ void MacVideoPlayer::stop()
 void MacVideoPlayer::resize()
 {
     if (impl_->layer != nil && impl_->window.contentView != nil)
+    {
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
         impl_->layer.frame = impl_->window.contentView.bounds;
+        [CATransaction commit];
+    }
 }
 
 void MacVideoPlayer::seek(double seconds)
@@ -141,6 +150,15 @@ PlaybackState MacVideoPlayer::update(std::string& error) const
 bool MacVideoPlayer::readyForDisplay() const
 {
     return impl_->layer != nil && impl_->layer.readyForDisplay;
+}
+
+bool MacVideoPlayer::hasAudioTrack() const
+{
+    if (impl_->player == nil || impl_->player.currentItem == nil)
+        return false;
+    AVAsset* asset = impl_->player.currentItem.asset;
+    return asset != nil &&
+           [asset tracksWithMediaType:AVMediaTypeAudio].count > 0U;
 }
 
 double MacVideoPlayer::durationSeconds() const

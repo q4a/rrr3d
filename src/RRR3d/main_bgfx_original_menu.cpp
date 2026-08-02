@@ -3808,6 +3808,7 @@ int main(int argc, char** argv)
         OriginalMovieCompletion::None;
     bool originalMovieActive = false;
     bool videoFrameObserved = !options->videoSmokeTest;
+    bool videoAudioObserved = !options->videoSmokeTest;
     bool videoCompletionObserved = !options->videoSmokeTest;
     bool videoTournamentStartObserved = !options->videoSmokeTest;
     bool videoSmokeSeeked = false;
@@ -3876,12 +3877,7 @@ int main(int argc, char** argv)
             std::string videoError;
             if (!videoPlayer.play(
                     cache,
-                    options->videoSmokeTest
-                        ? 0.0F
-                        : std::clamp(
-                              profileState.config.musicVolume,
-                              0.0F,
-                              1.0F),
+                    options->videoSmokeTest ? 0.0F : 1.0F,
                     videoError))
             {
                 std::cerr << "Original movie playback failed for "
@@ -10174,6 +10170,8 @@ int main(int argc, char** argv)
             const auto state = videoPlayer.update(videoError);
             videoFrameObserved =
                 videoFrameObserved || videoPlayer.readyForDisplay();
+            videoAudioObserved =
+                videoAudioObserved || videoPlayer.hasAudioTrack();
             if (options->videoSmokeTest && videoFrameObserved &&
                 !videoSmokeSeeked)
             {
@@ -10937,6 +10935,17 @@ int main(int argc, char** argv)
                 musicDialogTime += frameSeconds;
                 musicDialogVisible = true;
             }
+        }
+#endif
+
+#ifdef RRR3D_VIDEO
+        if (originalMovieActive)
+        {
+            // GameMode::OnProgress switched the Windows renderer to a
+            // dedicated video mode.  Continuing to submit the complete
+            // bgfx/Metal frame below contends with hardware movie decode.
+            SDL_Delay(4U);
+            continue;
         }
 #endif
 
@@ -14218,7 +14227,7 @@ int main(int argc, char** argv)
 #ifdef RRR3D_VIDEO
             if (options->videoSmokeTest)
             {
-                if (!videoFrameObserved ||
+                if (!videoFrameObserved || !videoAudioObserved ||
                     !videoCompletionObserved ||
                     !videoTournamentStartObserved ||
                     !videoSmokeSeeked)
@@ -14226,6 +14235,7 @@ int main(int argc, char** argv)
                     std::cerr
                         << "Source movie smoke failed: frame="
                         << videoFrameObserved
+                        << ", audio=" << videoAudioObserved
                         << ", completion="
                         << videoCompletionObserved
                         << ", tournament-start="
@@ -14238,8 +14248,8 @@ int main(int argc, char** argv)
                     std::cout
                         << "Source movie smoke passed after "
                         << renderedFrames
-                        << " frames: original AVI payload remux, "
-                           "AVFoundation H.264/MP3 playback, display, "
+                        << " frames: original H.264/AAC movie, "
+                           "AVFoundation audio/video playback, display, "
                            "seek, cVideoStopped and tournament callback "
                            "verified\n";
                 }

@@ -496,13 +496,16 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                         "${_rrr3d_video_cache_dir}"
                     COMMAND "${RRR3D_FFMPEG_EXECUTABLE}"
                         -nostdin -hide_banner -loglevel error -y
+                        -fflags +genpts
                         -i "${_rrr3d_video_source}"
-                        -map 0:v:0 -map 0:a:0 -c copy
+                        -map 0:v:0 -map 0:a:0
+                        -c:v copy -c:a aac -b:a 192k
+                        -avoid_negative_ts make_zero
                         -movflags +faststart
                         "${_rrr3d_video_cache}"
                     DEPENDS "${_rrr3d_video_source}"
                     COMMENT
-                        "Remuxing original ${_rrr3d_video_stem}.avi for AVFoundation"
+                        "Preparing original ${_rrr3d_video_stem}.avi H.264/AAC movie for AVFoundation"
                     VERBATIM)
                 list(APPEND _rrr3d_video_cache_files
                     "${_rrr3d_video_cache}")
