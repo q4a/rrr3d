@@ -23,6 +23,17 @@
  * it clamps to XAUDIO2_MIN_FREQ_RATIO, 1/1024 -- so the sub-unity range is not
  * an edge case, it is the entire rev sweep.
  *
+ * It is also the version guard for FAudio.
+ *
+ * extern/faudio is pinned to 26.06 because 26.07 and 26.08 corrupt memory on
+ * exactly this path -- see tools/setup-faudio-macos.sh for the two defects and
+ * how they were measured. That pin is the kind of decision that rots quietly:
+ * someone upgrades to pick up an unrelated fix, the game still starts, and the
+ * heap corruption comes back as an intermittent death several seconds into a
+ * race. Running this under the asan preset after any version change is what
+ * turns that into one line of output. Holding the ratio at zero
+ * (`AudioSweep 0 0 2`) is the shortest reproduction of the worse of the two.
+ *
  * Run it under the asan preset, where FAudio is instrumented too:
  *
  *     cmake --preset=macos-arm64-asan && cmake --build build/macos-arm64-asan

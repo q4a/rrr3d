@@ -49,12 +49,19 @@ target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::SDL3)
 # xaudio2 DLL that puts the IXAudio2 interfaces on top. That layer is ours, and
 # it is confined to this target -- nothing downstream learns FAudio exists.
 #
-# From source rather than Homebrew, and the reason is diagnostic rather than
-# packaging: a prebuilt dylib is invisible to Address Sanitizer, so the
-# out-of-bounds write in FAudio's resampler could only ever be reported as
-# "unknown address". Built here it is instrumented with everything else, and it
-# is where tools/patches/faudio/faudio.patch applies. See
-# tools/setup-faudio-macos.sh.
+# From source rather than Homebrew, and pinned to 26.06 rather than the newest
+# release. Both parts matter and neither is packaging tidiness:
+#
+#   - A prebuilt dylib is invisible to Address Sanitizer, so the out-of-bounds
+#     write in FAudio's resampler could only ever be reported as "unknown
+#     address". Built here it is instrumented with everything else.
+#   - Homebrew ships 26.08, and 26.07 onwards cannot play this game's engine
+#     sound without corrupting memory: the June 2026 resampler rewrite added an
+#     unbounded write and an unsigned underflow, both on the frequency-ratio
+#     path the rev sweep drives. 26.06 predates that rewrite.
+#
+# tools/setup-faudio-macos.sh carries the full account and the measurements.
+# The source is unmodified upstream -- there is no patch.
 #
 # PRIVATE, and static: this library is SHARED, so the archive is absorbed here
 # and the process has exactly one FAudio.

@@ -13,24 +13,69 @@
 #   were wrong.
 #
 #   Building FAudio from source puts it inside the sanitizer. The report then
-#   names the buffer and the line instead of an address nobody owns. This is a
-#   measurement instrument before it is a packaging decision.
+#   names the buffer and the line instead of an address nobody owns. It also
+#   makes the version a decision this repository records rather than whatever
+#   Homebrew happens to have installed -- which, as below, is the fix.
 #
-#   It also lets tools/patches/faudio/faudio.patch apply, which is how the fix
-#   is carried until it lands upstream -- the same arrangement
-#   tools/patches/d3d9metal/d9mt.patch already uses for d9mt.
+# ---------------------------------------------------------------------------
+# WHY 26.06 AND NOT THE NEWEST RELEASE
+# ---------------------------------------------------------------------------
 #
-# Pinned to a tag rather than a moving branch, for the reason every other
-# dependency here is pinned: a build that changes under you is not a
-# measurement. 26.08 is the version this port has been running against, and
-# upstream master is byte-identical to it in the file the patch touches.
+# This is a deliberate downgrade. Homebrew ships 26.08; that version, and 26.07,
+# cannot play this game's engine sound without corrupting memory.
+#
+# FAudio rewrote its resampler in June 2026 to interpolate the start of each
+# quantum from the previous quantum's last two samples -- its "taps"
+# (5acd7526, "Store taps of the last two samples when resampling", 2026-06-19,
+# first released in 26.07). That rewrite introduced two defects, both on the
+# frequency-ratio path, and both were measured here rather than guessed at:
+#
+#   1. The tap loops are unbounded against the buffer they write into. They emit
+#      one output frame per iteration and stop when the source offset reaches
+#      the previous sample count, advancing by the resample step each time, so
+#      they run about (leftover samples / step) times -- while the destination
+#      is sized to the *output* quantum, which does not depend on the ratio. A
+#      low enough ratio overruns it. AddressSanitizer, with FAudio instrumented:
+#      heap-buffer-overflow, WRITE of size 4, zero bytes past a 1764-byte
+#      region, which is a 441-frame quantum of floats exactly. Measured with
+#      src/AudioSweep: ratios of 0.004 and below overrun, 0.008 and above do
+#      not.
+#
+#   2. toDecode is computed as (offset + 1 - totalSamples) into a uint64_t, and
+#      goes negative when the ratio falls between one quantum and the next --
+#      the source is consumed more slowly than it was, so the samples already
+#      decoded exceed what the new ratio needs. It wraps to about 2^64 and trips
+#      the decodeSamples assertion in FAudio_INTERNAL_DecodeBuffers. Measured at
+#      steps of 0.97-0.99, i.e. the *top* of the rev sweep. A race on 26.08
+#      survived 1 run in 8 with this alone.
+#
+# The game drives exactly this: every car in db.xml carries
+# <rpmFreqRange>0 1</rpmFreqRange>, and SoundMotor::OnMotor computes the ratio
+# as x + alpha*(y - x) (GameBase.cpp:1099), so the ratio *is* alpha -- a sweep
+# from 0.0 at minRPM to 1.0 at maxRPM, rising and falling with the engine. Both
+# defects are on that path and neither is avoidable from outside the library.
+#
+# 26.06 predates the rewrite: it has no tap loops at all, and it computes
+# toDecode as resampleSamples * resampleStep -- a plain product with nothing to
+# underflow. Both defects are absent by construction rather than worked around.
+#
+# The alternative was to patch 26.08, and that is ruled out: FAudio's
+# contribution policy forbids AI-generated code, so a patch written here could
+# never go upstream, and carrying a permanent private fork of an audio library
+# to avoid a two-month-old regression is the worse trade.
+#
+# What the downgrade costs: two months of upstream fixes, most of that same
+# resampler rework. Revisit when a release lands that fixes both -- as of 26.08
+# neither is fixed, and upstream master is byte-identical to 26.08 in this file.
+# src/AudioSweep is the check: point this script at a newer tag, rebuild, and
+# run it under the asan preset.
 #
 # SDL3 is FAudio's platform backend and is already a dependency of XPlatform,
 # so this adds no new library to the process -- only a second consumer of the
 # one that is there.
 #
-# extern/ is gitignored. Nothing here modifies FAudio's source except the
-# committed patch, which is applied on top and reported when it is.
+# extern/ is gitignored, and nothing here modifies FAudio's source. This builds
+# an unmodified upstream release.
 #
 # Usage:  tools/setup-faudio-macos.sh
 #
@@ -39,8 +84,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FAUDIO_DIR="$REPO_ROOT/extern/faudio"
 FAUDIO_URL="https://github.com/FNA-XNA/FAudio.git"
-FAUDIO_TAG="26.08"
-PATCH="$REPO_ROOT/tools/patches/faudio/faudio.patch"
+# See the header. Not the newest on purpose.
+FAUDIO_TAG="26.06"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
     echo "error: this script is for macOS" >&2
@@ -59,18 +104,22 @@ else
     echo "==> $FAUDIO_DIR already present, skipping clone"
 fi
 
-# Applied with --reverse --check first, so re-running the script on an already
-# patched tree is a no-op rather than a failure. A patch that neither applies
-# nor is already applied is a real error and stops here.
-if [[ -f "$PATCH" ]]; then
-    if git -C "$FAUDIO_DIR" apply --reverse --check "$PATCH" 2>/dev/null; then
-        echo "==> patch already applied"
-    else
-        echo "==> applying $(basename "$PATCH")"
-        git -C "$FAUDIO_DIR" apply "$PATCH"
-    fi
-else
-    echo "==> no patch to apply ($PATCH not present)"
+# A clone left from an earlier run is on whatever tag that run wanted, so move
+# it. Checked rather than assumed: the difference between 26.06 and 26.08 here
+# is the difference between working audio and a corrupted heap.
+CURRENT="$(git -C "$FAUDIO_DIR" describe --tags --exact-match 2>/dev/null || echo none)"
+if [[ "$CURRENT" != "$FAUDIO_TAG" ]]; then
+    echo "==> switching from $CURRENT to $FAUDIO_TAG"
+    git -C "$FAUDIO_DIR" fetch --depth 1 origin "refs/tags/$FAUDIO_TAG:refs/tags/$FAUDIO_TAG" 2>/dev/null || true
+    git -C "$FAUDIO_DIR" checkout -q --force "$FAUDIO_TAG"
+    rm -rf "$FAUDIO_DIR/build" "$FAUDIO_DIR/build-asan"
+fi
+
+# Unmodified upstream. If this reports anything, something has edited the tree
+# and the version this repository thinks it is testing is not the one it built.
+if ! git -C "$FAUDIO_DIR" diff --quiet; then
+    echo "warning: extern/faudio has local modifications:" >&2
+    git -C "$FAUDIO_DIR" diff --stat >&2
 fi
 
 # Two builds, because a sanitized library and an unsanitized one cannot be the

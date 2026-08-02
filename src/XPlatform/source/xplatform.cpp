@@ -1184,3 +1184,34 @@ DWORD GetLastError(void)         { return gLastError; }
 void  SetLastError(DWORD error)  { gLastError = error; }
 
 } /* extern "C" */
+
+/*
+ * Sanitizer defaults, compiled in rather than left to the environment.
+ *
+ * Address Sanitizer calls this if it is present, before main, and it is how a
+ * program states its own defaults. ASAN_OPTIONS in the environment still wins,
+ * so this sets a floor rather than a policy.
+ *
+ * Both settings exist because the default is neither. By default ASan prints
+ * its report and calls _exit(1): no abort, no core, and -- the reason this is
+ * here -- a game that dies with a bare exit status looks exactly like a game
+ * that was killed by the harness timing it, so a real memory error can be
+ * counted as a survivor. halt_on_error stops it continuing past the first
+ * report, and abort_on_error turns the exit into a SIGABRT that a debugger
+ * catches and a shell reports distinctly.
+ *
+ * The __attribute__((used)) matters: this is in a shared library that nothing
+ * calls this symbol from, and without it the linker is free to drop it.
+ */
+#if defined(__has_feature)
+#  if __has_feature(address_sanitizer)
+#    define RRR3D_ASAN 1
+#  endif
+#endif
+
+#ifdef RRR3D_ASAN
+extern "C" __attribute__((used)) const char* __asan_default_options()
+{
+	return "abort_on_error=1:halt_on_error=1";
+}
+#endif
