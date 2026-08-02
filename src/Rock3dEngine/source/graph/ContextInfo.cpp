@@ -786,9 +786,21 @@ void ContextInfo::SetDefaults()
 		//Эти значения по умолчанию зависят от установленной текстуры в данном stage, приводим их к стд виду
 		_driver->SetTexture(i, 0);
 
+		//And the cache has to agree with what the driver was just told.
+		//
+		//SetTexture only forwards to the driver when the cached value CHANGES,
+		//so a cache that still names a texture the driver no longer has bound
+		//suppresses the very call that would rebind it. SetDefaults runs after
+		//a device reset, which is exactly when those pointers are stale --
+		//D3DPOOL_DEFAULT resources have just been destroyed -- so leaving the
+		//cache alone means holding freed pointers and comparing against them.
+		_textures[i] = NULL;
+
 		for (int j = 0; j < TEXTURE_STAGE_STATE_END; ++j)
 			_driver->SetTextureStageState(i, graph::TextureStageState(j), GetDefTextureStageState(i, (TextureStageState)j));
 	}
+
+	_maxTextureStage = -1;
 
 	for (int i = 0; i < RENDER_STATE_END; ++i)
 		_driver->SetRenderState(RenderState(i), _renderStates[i]);
