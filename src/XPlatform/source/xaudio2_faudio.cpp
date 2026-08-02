@@ -492,31 +492,24 @@ public:
 	}
 
 	/*
-	 * The lowest pitch FAudio can be asked for safely.
+	 * Passed through unchanged, deliberately -- including ratios far below one.
 	 *
-	 * FAudio 26.08's resampler prefixes each output quantum with samples
-	 * interpolated from the previous quantum's last two -- its "taps". Those
-	 * loops emit one output frame per iteration and stop when the source offset
-	 * reaches the previous sample count, advancing by the resample step each
-	 * time, so they run about (leftover source samples / step) times. Nothing
-	 * bounds that against the buffer they write into, whose size is the *output*
-	 * quantum and is independent of the ratio. A small enough ratio therefore
-	 * overruns it -- confirmed by AddressSanitizer as a 4-byte write one float
-	 * past a 1764-byte allocation, which is the 441-frame quantum exactly.
+	 * This is worth a comment because two different workarounds have lived here
+	 * and both are gone. SoundMotor drives the engine note through this: all 17
+	 * cars in db.xml carry <rpmFreqRange>0 1</rpmFreqRange> and OnMotor computes
+	 * the ratio as x + alpha*(y - x) (GameBase.cpp:1099), so the ratio *is*
+	 * alpha -- a sweep from 0 at minRPM to 1 at maxRPM. _srcRPM is a sample
+	 * recorded at redline and pitched down for lower revs, so the sub-unity
+	 * range is not an edge case, it is the whole effect. Real XAudio2 clamps to
+	 * XAUDIO2_MIN_FREQ_RATIO (1/1024) and refuses nothing.
 	 *
-	 * Measured on stock FAudio with src/AudioSweep, holding each ratio for two
-	 * seconds: 0.004 and below overrun, 0.008 and above do not. That puts the
-	 * real threshold near three leftover samples over a 441-frame quantum. The
-	 * quantum is a property of the audio device, so a machine with a shorter one
-	 * would have a higher threshold; 1/16 is chosen to leave room for that
-	 * rather than to sit just above what was measured here.
-	 *
-	 * Nothing audible is lost. The floor is four octaves down, and SoundMotor
-	 * gates _srcRPM's volume by idleAlpha (GameBase.cpp:1098), which is zero at
-	 * the bottom of the rev range -- so every ratio this clamps is applied to a
-	 * voice that is silent anyway. That is the difference between this and the
-	 * rejection it replaces, which refused everything below 1.0 and removed the
-	 * whole rev sweep.
+	 * Rejecting sub-unity ratios, and later clamping them to a floor, both
+	 * avoided a memory-corrupting bug in FAudio's resampler. Neither is needed:
+	 * extern/faudio is pinned to 26.06, which predates the rewrite that
+	 * introduced it. tools/setup-faudio-macos.sh has the measurements and says
+	 * what to re-check before moving that pin. Verified in game -- ratios reach
+	 * FAudio spanning 0.0 to 1.0, 38 distinct values on the RPM voice in a
+	 * twenty-second race.
 	 */
 	HRESULT STDMETHODCALLTYPE SetFrequencyRatio(float ratio, UINT32 set) override
 	{

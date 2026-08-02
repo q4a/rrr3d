@@ -1,11 +1,12 @@
 # Remaining work — macOS port, attempt 2
 
-Branch `macos-port-attempt-2`, based at `ec50208` (2021-06-14). 63 commits.
+Branch `macos-port-attempt-2`, based at `ec50208` (2021-06-14). 69 commits.
 
-**The game runs.** It reaches its main menu, loads a track and renders a race
-at 60fps, with sound. `bin/Debug/race2.tga` is a frame from three thousand
-frames in. It is not yet playable: with audio enabled a race dies within a
-second, and the menu does not respond to the keyboard.
+**The game runs, with working sound.** It reaches its main menu, loads a track
+and renders a race at 60fps. `bin/Debug/race2.tga` is a frame from three
+thousand frames in. A race with audio now survives indefinitely -- the FAudio
+crash is fixed. It is still not playable: the menu does not respond to the
+keyboard.
 
 The full plan lives in the plan document; this file is the state of play and
 the things that would be expensive to rediscover.
@@ -27,7 +28,7 @@ the things that would be expensive to rediscover.
 | 8 — D3DX runtime, first pixels | done: menu and race both render |
 | 9 — `NxWheelShape` | done: implemented and covered; **cars do not drive yet** |
 | 10 — Windows cutover | deferred by decision, not dropped |
-| 11 — Audio, gamepad, video | audio over FAudio (**crashes a race**), gamepad done, video stubbed |
+| 11 — Audio, gamepad, video | audio over FAudio **done**, gamepad done, video stubbed |
 | 12 — MapEditor on Dear ImGui | not started |
 
 Zero undefined symbols. Audio is a real FAudio backend
@@ -46,6 +47,10 @@ than broken.
     RRR3D_WHEEL_TRACE=1 ./RRR3d               # suspension rays and what they hit
     RRR3D_INPUT_TRACE=1 ./RRR3d               # keystrokes as the game receives them
     RRR3D_AUDIO_NO_CALLBACKS=1 ./RRR3d        # audio plays, game callbacks withheld
+    RRR3D_AUDIO_OFF=1 ./RRR3d                 # no FAudio engine at all
+
+    bin/Debug/AudioSweep                      # the rev sweep, without the game
+    bin/Asan/AudioSweep 0 0 2                 # the same, held at the worst ratio
 
 A `CAMetalLayer`'s contents never appear in `screencapture` — the screenshot
 comes back as the window frame with a hole where the game is — so the dumper is
@@ -75,61 +80,43 @@ missing; it also writes `tri.tga` / `tri_rtt.tga` to look at.
 
 ## What is actually left
 
-### The blocker: FAudio's resampler writes out of bounds
+### Audio: fixed, and the fix was a version pin
 
-Audio works — the game plays sound — but with audio enabled a race dies within
-about a second of starting. This is the one thing standing between the port and
-being playable.
+**Resolved.** A race survives 8/8 at eleven seconds and 3/3 at thirty-five, with
+the full rev sweep reaching FAudio unmodified. Was 0/8.
 
-**Address Sanitizer names the write** (`build/macos-arm64-asan` is configured and
-working):
+The cause was two defects in FAudio's resampler, both introduced by its June
+2026 rewrite (upstream `5acd7526`, first released in **26.07**), and both on the
+frequency-ratio path the engine note drives:
 
-    ERROR: AddressSanitizer: BUS on unknown address ... caused by a WRITE
-      #0 FAudio_INTERNAL_ResampleMono_NEON
-      #1 FAudio_INTERNAL_MixCallback
-      #2 SDL_GetAudioStreamDataAdjustGain      (SDL audio thread)
+1. The tap loops are unbounded against the buffer they write into — they run
+   about (leftover samples / resample step) times while the destination is sized
+   to the *output* quantum, which does not depend on the ratio. ASan:
+   heap-buffer-overflow, WRITE of size 4, zero bytes past a 1764-byte region — a
+   441-frame quantum of floats exactly. Ratios ≤ 0.004 overrun; ≥ 0.008 do not.
+2. `toDecode` is `(offset + 1 - totalSamples)` into a `uint64_t` and goes
+   negative when the ratio *falls* between quanta, wrapping to ~2^64 and tripping
+   the `decodeSamples` assertion. Measured at steps of 0.97–0.99 — the top of the
+   sweep, not the bottom.
 
-"unknown address" rather than a heap overflow because FAudio is an
-uninstrumented Homebrew dylib — the sanitizer cannot see its buffers.
+`extern/faudio` is now pinned to **26.06**, which predates the rewrite: no tap
+loops, and `toDecode` is a plain product. Both defects are absent by
+construction. Nothing is patched and nothing compensates for it in our code —
+patching was rejected because FAudio's contribution policy forbids AI-generated
+code, and a shim-side clamp was rejected because it was *measured* not to work
+(stock 26.08 with a 1/16 floor still died 7/8; defect 2 is unreachable from
+outside the library).
 
-**Measured, eight short runs per condition:**
+`src/AudioSweep` is the guard, and `tools/setup-faudio-macos.sh` carries the
+full account and what to re-check before moving the pin.
 
-| condition | died early |
-|---|---|
-| audio off entirely (`RRR3D_AUDIO_OFF=1`) | **0/8** |
-| audio on, callbacks withheld (`RRR3D_AUDIO_NO_CALLBACKS=1`) | 8/8 |
-| audio on, `SetFrequencyRatio` clamped to the voice's max | 8/8 |
-| audio on, redundant identical `SetOutputVoices` skipped | 8/8 |
-| audio on, unmodified | 8/8 |
-
-So it is **not** the callbacks, the sends, the frequency ratio, or voice
-destruction. The only variable that changes the outcome is whether a FAudio
-engine exists and mixes at all. Everything the shim hands FAudio has been
-checked and is sane: every voice is PCM 44100/16-bit with correct block align,
-flags 0, maxRatio 2.0; every buffer has `PlayBegin=0, PlayLength=0` with a
-frame count consistent with `AudioBytes`; every send resolves through
-`FaudioOf` to a real `FAudioVoice*`, never NULL.
-
-**Next step, and it is a measurement rather than a patch.** In FAudio's source,
-the write target is the *shared* `audio->resampled_audio`, grown by
-
-    static void resize_resampled_audio_buffer(FAudio *audio, uint32_t samples)
-    {
-        if (samples > audio->resampleSamples) {
-            audio->resampleSamples = samples;
-            audio->resampled_audio = audio->pRealloc(...);   /* never NULL-checked */
-        }
-    }
-
-`FAudioCreateWithCustomAllocatorEXT` lets the shim supply malloc/realloc/free.
-Installing one and logging every size and result names the fault exactly — an
-absurd size or a NULL return — with nothing left to theorise about. Roughly ten
-lines in `XAudio2Create`, and it cannot be confounded by anything else.
-
-**Five fixes were attempted before that and all were wrong.** They are listed
-above so nobody repeats them. Each came from a plausible story about the crash;
-plausible stories are cheap. Only the measurements were worth anything, and the
-lesson is the one already in this file — measure first.
+**Two lessons worth keeping.** Building FAudio from source is what made any of
+this findable — an uninstrumented Homebrew dylib is why the original report could
+only say "unknown address", and why the investigation had to proceed by
+elimination over eight runs per condition with five wrong fixes. And the earlier
+conclusion in this file that the frequency ratio was *not* implicated was drawn
+from an experiment that clamped only the ratio's upper bound; the low end, which
+was the whole problem, went straight through.
 
 ### Everything else
 
@@ -225,6 +212,7 @@ Both are in `tools/patches/d3d9metal/d9mt.patch`.
 tools/setup-d3d9metal-macos.sh     # d9mt + its vendored DXVK into extern/
 tools/setup-vkd3d-macos.sh         # libvkd3d-shader, needed by phase 8
 tools/setup-boost.py               # Boost 1.69 headers for NetLib
+tools/setup-faudio-macos.sh        # FAudio 26.06 -- see below, the version matters
 cmake --preset=macos-arm64-debug
 cmake --build build/macos-arm64-debug
 ```
@@ -232,7 +220,19 @@ cmake --build build/macos-arm64-debug
 `extern/` is gitignored. Every dependency comes from a committed script; if
 something is missing, the script is the record, not this file.
 
-Also required, via Homebrew: `sdl3`, `bullet`, `libogg`, `libvorbis`.
+Also required, via Homebrew: `sdl3`, `bullet`, `libogg`, `libvorbis`. **Not**
+`faudio` — it is built from source at a pinned version, because the one Homebrew
+ships corrupts memory on this game's engine sound. See
+`tools/setup-faudio-macos.sh`.
+
+The sanitizer build is a preset and writes to `bin/Asan`, separately from
+`bin/Debug` — they are both Debug builds and would otherwise overwrite each
+other's libraries:
+
+```sh
+cmake --preset=macos-arm64-asan
+cmake --build build/macos-arm64-asan
+```
 
 ---
 
