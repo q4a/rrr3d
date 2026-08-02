@@ -122,7 +122,9 @@ int main(int argc, char** argv)
 	std::printf("  SPS %zu bytes, PPS %zu bytes\n", sps.size(), pps.size());
 
 	r3d::video::H264Decoder decoder;
-	if (!decoder.Start(&sps[0], sps.size(), &pps[0], pps.size()))
+	const double frameDuration = reader.FrameDuration();
+	if (!decoder.Start(&sps[0], sps.size(), &pps[0], pps.size(),
+			frameDuration > 0.0 ? frameDuration : 1.0 / 30.0))
 	{
 		std::fprintf(stderr, "VideoProbe: FAIL %s\n",
 			decoder.Error() ? decoder.Error() : "decoder would not start");
@@ -143,9 +145,20 @@ int main(int argc, char** argv)
 		if (!r3d::video::AnnexBToAvcc(reader.PacketData(packet), packet.size, avcc))
 			continue;
 
+		decoder.Push(&avcc[0], avcc.size());
+
 		std::vector<unsigned char> got;
-		if (decoder.Decode(&avcc[0], avcc.size(), got))
+		double pts = -1.0;
+		const bool atEnd = i + 1 >= limit;
+		while (decoder.Pop(got, pts, atEnd))
 		{
+			/* The first few presentation times, which is how the reordering is
+			   checked: VideoToolbox derives these from the bitstream because the
+			   AVI carries none, and if they came back invalid (-1) the queue
+			   would silently fall back to decode order -- which for these
+			   B-frame streams is the stutter this exists to catch. */
+			if (decoded < 8)
+				std::printf("  frame %d pts %.4f\n", decoded, pts);
 			++decoded;
 			if (!IsUniform(got))
 			{

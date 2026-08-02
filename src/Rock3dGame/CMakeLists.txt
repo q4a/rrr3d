@@ -34,11 +34,23 @@ if (NOT MSVC)
         "${CMAKE_CURRENT_SOURCE_DIR}/source/video/video.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/video/playback.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/video/VideoPlayer.cpp"
+        # ...and the stub they were replaced by, now that there is a real one.
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/video_stub.cpp"
     )
 else()
     # ...and its replacement is excluded on Windows, where the real three build.
     list(REMOVE_ITEM ${PROJECT_NAME}_SOURCE
         "${CMAKE_CURRENT_SOURCE_DIR}/source/video/video_stub.cpp"
+    )
+endif()
+
+# The Objective-C++ half of the cutscene player. Listed rather than globbed
+# because cmake/utils.cmake's add_dir does not match .mm -- nothing else in the
+# tree needed it until now.
+if (APPLE)
+    list(APPEND ${PROJECT_NAME}_SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/h264_decoder.mm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/mp3_decoder.mm"
     )
 endif()
 
@@ -117,6 +129,16 @@ else()
     )
 
     if (APPLE)
+        # The cutscene player: VideoToolbox decodes, AudioToolbox decodes the
+        # MP3 soundtrack, and both are presented through the engine's own
+        # device and XAudio2 rather than a second layer or a second output.
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            "-framework CoreMedia"
+            "-framework CoreVideo"
+            "-framework VideoToolbox"
+            "-framework AudioToolbox"
+        )
+
         # Direct3D 9 itself: DXVK's D3D9 front-end over d9mt's Metal backend.
         #
         # Here rather than in the executable because this is where the calls

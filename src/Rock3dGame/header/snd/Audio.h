@@ -616,9 +616,15 @@ private:
 	void RegisterSource3d(Source3d* proxy);
 	void UnregisterSource3d(Source3d* proxy);
 
-	IXAudio2* GetXAudio();
 	X3DAUDIO_HANDLE* GetX3dAudio();
 public:
+	/*
+	 * Public for the cutscene player, which plays its soundtrack through this
+	 * engine's XAudio2 rather than opening a second output device -- see
+	 * video/video_avf.mm. Everything else that needs it is a member.
+	 */
+	IXAudio2* GetXAudio();
+
 	Engine();
 	virtual ~Engine();
 

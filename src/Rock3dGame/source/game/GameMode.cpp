@@ -793,6 +793,7 @@ void GameMode::StartGame()
 
 #ifndef _WIN32
 	AutoRace();
+	AutoVideo();
 #endif
 
 	//debug
@@ -924,6 +925,35 @@ void GameMode::DoStartRace()
  * The authors' own runtime toggle for the same flag is F7 (AIPlayer.cpp:830),
  * so this is their debug path rather than a new one.
  */
+/*
+ * RRR3D_PLAYVIDEO=<path> -- play one cutscene and nothing else.
+ *
+ * The shipped code cannot be asked to play the intro on demand: the startup
+ * path's SetVideoMode(true) is commented out (see the `_startUpTime == -3`
+ * branch in OnFrame), so `_startUpTime` runs straight to StartGame and the
+ * `-8` branch that opens main.avi is unreachable. The other cutscenes are
+ * driven by `_movieTime` between races, which needs a race to finish first.
+ *
+ * That leaves the presentation path -- decode to a D3D9 texture, letterbox,
+ * present -- with no way to exercise it short of playing the game through.
+ * VideoProbe covers the demuxer and the decoder without a device; this covers
+ * the half VideoProbe cannot see.
+ *
+ * Off Windows only, like AutoRace above.
+ */
+void GameMode::AutoVideo()
+{
+	const char* file = std::getenv("RRR3D_PLAYVIDEO");
+	if (!file || !file[0])
+		return;
+
+	LSL_LOG(lsl::StrFmt("autovideo: %s", file));
+
+	_world->SetVideoMode(true);
+	_world->GetVideo()->Open(file);
+	_world->GetVideo()->Play();
+}
+
 void GameMode::EnableAutoRaceDriver()
 {
 	if (!std::getenv("RRR3D_AUTORACE"))

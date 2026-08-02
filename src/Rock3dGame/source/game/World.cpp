@@ -110,6 +110,13 @@ void World::Init(IView::Desc viewDesc)
 	_videoPlayer->Initialize(viewDesc.handle);
 	_videoPlayer->UpdateVideoWindow(viewDesc.resolution);
 
+#ifndef _WIN32
+	/* The player presents through the engine's own device and plays its
+	   soundtrack through the engine's own XAudio2 -- see Player::Progress. Both
+	   exist by now: _audio above, and _graph from Init's caller. */
+	_videoPlayer->SetOutputs(_audio->GetXAudio(), &_graph->GetEngine());
+#endif
+
 	LSL_LOG("px init");
 
 	_pxManager = new px::Manager();
@@ -507,7 +514,18 @@ void World::MainProgress()
 #endif
 
 	if (_videoMode)
+	{
+#ifndef _WIN32
+		/*
+		 * With DirectShow the video renderer owned the client area and painted
+		 * it, which is why this returns before the engine renders. Nothing on
+		 * macOS does that, so the player draws and presents here instead.
+		 */
+		if (_videoPlayer)
+			_videoPlayer->Progress(_dTimeReal);
+#endif
 		return;
+	}
 
 #ifdef DEBUG_FRAME_SYNC
 	QueryPerformanceCounter((LARGE_INTEGER*)&tick);

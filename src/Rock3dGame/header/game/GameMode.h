@@ -230,6 +230,8 @@ private:
 	void AutoRace();
 	//...and the driver for the car it starts. Also on the definition.
 	void EnableAutoRaceDriver();
+	//RRR3D_PLAYVIDEO=<path> -- see the comment on the definition.
+	void AutoVideo();
 #endif
 	void StartGame();
 	void FreeIntro();
