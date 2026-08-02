@@ -84,6 +84,29 @@ if (NOT EXISTS ${FAUDIO_BUILD}/libFAudio.a)
         "${FAUDIO_BUILD}/libFAudio.a not found. Run tools/setup-faudio-macos.sh")
 endif()
 
+# The version is load-bearing, so it is checked here rather than trusted.
+#
+# 26.07 and 26.08 corrupt the heap on this game's engine sound -- the June 2026
+# resampler rewrite writes past its output buffer at low frequency ratios and
+# underflows its decode count when the ratio falls. Neither is reachable from
+# our side of the API. An upgrade would still build, still start, and still
+# reach the main menu; it would fail as an intermittent death several seconds
+# into a race, which is the most expensive way to find out.
+set(FAUDIO_EXPECTED_TAG "26.06")
+execute_process(
+    COMMAND git -C ${FAUDIO} describe --tags --exact-match
+    OUTPUT_VARIABLE FAUDIO_ACTUAL_TAG
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+
+if (NOT FAUDIO_ACTUAL_TAG STREQUAL FAUDIO_EXPECTED_TAG)
+    message(WARNING
+        "extern/faudio is at '${FAUDIO_ACTUAL_TAG}', expected ${FAUDIO_EXPECTED_TAG}.\n"
+        "  26.07+ corrupt memory on the engine rev sweep -- see "
+        "tools/setup-faudio-macos.sh.\n"
+        "  Run bin/Asan/AudioSweep 0 0 2 under the asan preset before trusting this build.")
+endif()
+
 message(STATUS "faudio: ${FAUDIO_BUILD}")
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${FAUDIO}/include)
