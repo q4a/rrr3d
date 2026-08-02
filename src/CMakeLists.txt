@@ -31,11 +31,6 @@ if (NOT MSVC)
     add_subdirectory(XPlatform)
 endif()
 
-# The PhysX 2.8 compatibility shim. Independent of the rest of the tree -- it
-# implements an API rather than consuming one -- so it builds and tests on its
-# own, before anything that uses it compiles.
-add_subdirectory(PhysX28)
-
 # Which PhysX the engine compiles against.
 #
 # The option exists so that Windows -- deferred, not dropped -- can keep
@@ -45,10 +40,25 @@ add_subdirectory(PhysX28)
 # Off Windows there is no choice to make: the 2.8 headers do not compile at all
 # on macOS (Nx.h stops with "Platforms pointer size ambiguous", NxMath.h wants a
 # Linux variant that does not ship), so the shim is forced on.
+#
+# Declared before add_subdirectory(PhysX28) because it now gates it.
 if (MSVC)
     option(RRR3D_PHYSX28_SHIM "Use the PhysX 2.8 shim instead of the real SDK" OFF)
 else()
     set(RRR3D_PHYSX28_SHIM ON)
+endif()
+
+# The PhysX 2.8 compatibility shim. Independent of the rest of the tree -- it
+# implements an API rather than consuming one -- so it builds and tests on its
+# own, before anything that uses it compiles.
+#
+# Only when it is actually wanted. The shim is built on Bullet and its
+# CMakeLists does pkg_check_modules(BULLET REQUIRED), which hard-fails configure
+# on a machine without pkg-config and Bullet -- i.e. every Windows runner. A
+# Windows build using the real SDK has no business demanding the shim's
+# dependencies.
+if (RRR3D_PHYSX28_SHIM)
+    add_subdirectory(PhysX28)
 endif()
 
 if (RRR3D_PHYSX28_SHIM)

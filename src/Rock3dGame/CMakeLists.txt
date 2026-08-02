@@ -76,8 +76,6 @@ if (MSVC)
         libogg_static.lib
         libvorbis_static.lib
         libvorbisfile_static.lib
-        PhysXLoader.lib
-        PhysXCooking.lib
         dxerr.lib
         dxguid.lib
         d3dx9.lib
@@ -87,6 +85,16 @@ if (MSVC)
         X3daudio.lib
         xinput.lib
     )
+
+    # The real SDK, and only when the shim is off -- otherwise the process gets
+    # both implementations of the same API and whichever the linker picks first
+    # wins silently. Rock3dEngine already links PhysX28 when the shim is on.
+    if (NOT RRR3D_PHYSX28_SHIM)
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            PhysXLoader.lib
+            PhysXCooking.lib
+        )
+    endif()
 
     target_link_directories(${PROJECT_NAME} PRIVATE
         "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/ogg/lib/release>"

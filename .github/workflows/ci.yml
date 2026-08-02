@@ -45,3 +45,81 @@ jobs:
       with:
         name: rrr3d.${{ matrix.configuration }}
         path: bin
+
+  # The macOS port. Until this existed nothing checked it at all -- the branch
+  # was never pushed, so the only thing CI had ever compiled was Windows.
+  #
+  # It builds and runs the suites that need no display. The graphics tests
+  # (D3D9Triangle, BridgeTriangle) are deliberately absent: they need a real
+  # Metal device and a window server, and a runner that fails them for that
+  # reason would teach everyone to ignore this job.
+  macos:
+    runs-on: macos-14
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install dependencies
+      run: brew install ninja sdl3 bullet libogg libvorbis
+      # Deliberately NOT faudio. It is built from source at a pinned version by
+      # the step below, because the version Homebrew ships corrupts memory on
+      # this game's engine sound. See tools/setup-faudio-macos.sh.
+
+    # extern/ is gitignored and every entry in it is produced by a committed
+    # script, so it is reproducible and therefore cacheable. Keyed on those
+    # scripts: change how a dependency is fetched or built and the cache is
+    # rebuilt, which is exactly when it must be.
+    - name: Cache extern/
+      uses: actions/cache@v4
+      with:
+        path: extern
+        key: extern-${{ runner.os }}-${{ hashFiles('tools/setup-*.sh', 'tools/setup-*.py') }}
+
+    - name: Fetch pinned Boost
+      run: python3 tools/setup-boost.py
+
+    # libvkd3d-shader is not optional: it is the HLSL compiler behind
+    # D3DXCreateEffect, and src/XPlatform stops configure with a FATAL_ERROR
+    # without it. It is also the slowest step here by a distance, which is what
+    # the cache above is for.
+    - name: Build libvkd3d-shader
+      run: tools/setup-vkd3d-macos.sh
+
+    - name: Fetch d3d9metal and its vendored DXVK
+      run: tools/setup-d3d9metal-macos.sh
+
+    - name: Build FAudio 26.06
+      run: tools/setup-faudio-macos.sh
+
+    - name: Configure
+      run: cmake --preset=macos-arm64-debug
+
+    - name: Build
+      run: cmake --build --preset=macos-arm64-debug
+
+    - name: XPlatform, D3DX math, string and RNG properties
+      run: bin/Debug/Tests
+
+    - name: PhysX 2.8 constants and conventions
+      run: bin/Debug/PhysX28Tests
+
+    - name: PhysX 2.8 shim against the specification
+      run: bin/Debug/PhysX28Harness
+
+    # The guard on the FAudio version pin. 26.07+ overrun their resampler on
+    # the rev sweep, and an upgrade would still build and still reach the menu
+    # -- it fails as an intermittent death seconds into a race. Held at the
+    # worst ratio, this reproduces it in two seconds.
+    #
+    # Under the sanitizer, because without it the overrun is a silent write
+    # into adjacent heap and this passes.
+    - name: Build with AddressSanitizer
+      run: |
+        cmake --preset=macos-arm64-asan
+        cmake --build --preset=macos-arm64-asan --target AudioSweep
+
+    - name: FAudio resampler, swept and held at zero
+      run: |
+        bin/Asan/AudioSweep
+        bin/Asan/AudioSweep 0 0 2
