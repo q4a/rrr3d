@@ -33,6 +33,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 namespace px28
 {
@@ -84,6 +86,15 @@ NxReal lateralSlip(NxReal lateralSpeed, NxReal forwardSpeed)
 	{
 	const NxReal denom = std::max(std::fabs(forwardSpeed), cSlipEpsilon);
 	return lateralSpeed / denom;
+	}
+
+bool wheelTraceEnabled()
+	{
+	static const bool on = [] {
+		const char* v = std::getenv("RRR3D_WHEEL_TRACE");
+		return v && v[0] != '0';
+	}();
+	return on;
 	}
 
 }
@@ -269,6 +280,29 @@ void WheelShape::step(NxReal dt)
 
 	NxRaycastHit hit;
 	NxShape* other = _actor->scene().raycastForWheel(origin, to, _actor, hit);
+
+	/*
+	 * RRR3D_WHEEL_TRACE=1 reports the first few suspension rays and what they
+	 * found. A wheel that never finds the ground is invisible from outside --
+	 * the car simply rests on its hull and does not drive -- and the numbers
+	 * that settle it are the ray's endpoints, which nothing else can show.
+	 */
+	if (wheelTraceEnabled())
+		{
+		/* Sampled, not the first N: a wheel's interesting state is the one it
+		   settles into, and the first frames are all spawn. */
+		static long calls = 0;
+		if ((calls++ % 997) == 0)
+			{
+			std::fprintf(stderr,
+				"wheel: origin (%.3f %.3f %.3f) down (%.3f %.3f %.3f) "
+				"reach %.3f -> %s\n",
+				double(origin.x()), double(origin.y()), double(origin.z()),
+				double(down.x()), double(down.y()), double(down.z()),
+				double(reach),
+				other ? "HIT" : "nothing");
+			}
+		}
 
 	if (!other)
 		{
