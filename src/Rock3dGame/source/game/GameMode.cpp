@@ -1284,6 +1284,38 @@ void GameMode::LoadGameData()
 
 bool GameMode::OnHandleInput(const InputMessage& msg)
 {
+#ifndef _WIN32
+	/*
+	 * RRR3D_INPUT_TRACE=1 -- does a keystroke reach the game?
+	 *
+	 * Placed here, and not in the SDL shell, because here is the far end of
+	 * the whole chain: a line means the event crossed SDL, was mapped from a
+	 * scancode to a virtual key, reached the view, and was resolved against
+	 * the player's key bindings into a GameAction. Tracing it at the shell
+	 * would only prove SDL delivered something.
+	 *
+	 * Before the filter below, so held keys and key-ups show up too -- an
+	 * accelerator that arrives but never repeats is a different fault from one
+	 * that never arrives.
+	 */
+	static const bool trace = [] {
+		const char* v = std::getenv("RRR3D_INPUT_TRACE");
+		return v && v[0] != '0';
+	}();
+
+	if (trace)
+	{
+		const char* action = (msg.action >= 0 && msg.action < cGameActionEnd)
+			? cGameActionStr[msg.action].c_str() : "?";
+
+		std::fprintf(stderr, "input: key=%d action=%s state=%s%s\n",
+			int(msg.key), action,
+			msg.state == ksDown ? "down" : "up",
+			msg.repeat ? " repeat" : "");
+		std::fflush(stderr);
+	}
+#endif
+
 	if (msg.state != ksDown || msg.repeat)
 		return false;
 
