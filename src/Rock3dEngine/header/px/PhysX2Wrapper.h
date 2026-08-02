@@ -1,5 +1,8 @@
 #pragma once
 
+namespace physx
+{
+
 enum MrBodyFlag
 {
 	// Set if gravity should be disabled for the body
@@ -24,34 +27,36 @@ class MrBodyDesc
 {
 public:
 	// Mass of body
-	NxReal	mass;
+	PxReal	mass;
 
 	// Position and orientation of the center of mass
-	NxMat34	massLocalPose;
+	PxVec3 massLocalPose; // call PxTransform(const PxVec3& position)
 
 	// Combination of MrBodyFlag flags
-	NxU32	flags;
+	PxU32	flags;
 
 	// Threshold for the energy-based sleeping algorithm
-	NxReal	sleepEnergyThreshold;
+	PxReal	sleepEnergyThreshold;
 
 	// Linear Velocity of the body
-	NxVec3	linearVelocity;
+	PxVec3	linearVelocity;
 
-	NX_INLINE MrBodyDesc();
-	NX_INLINE void setToDefault();
+	PX_INLINE MrBodyDesc();
+	PX_INLINE void setToDefault();
 };
 
-NX_INLINE MrBodyDesc::MrBodyDesc() // constructor sets to default
+PX_INLINE MrBodyDesc::MrBodyDesc() // constructor sets to default
 {
 	setToDefault();
 }
 
-NX_INLINE void MrBodyDesc::setToDefault()
+PX_INLINE void MrBodyDesc::setToDefault()
 {
 	mass					= 0.0f;
-	massLocalPose			.id();
+	massLocalPose			= PxVec3(0.0f, 0.0f, 0.0f);
 	flags					= MR_BF_VISUALIZATION;
 	sleepEnergyThreshold	= -1.0f;
-	linearVelocity			.zero();
+	linearVelocity			= PxVec3(0.0f, 0.0f, 0.0f);
+}
+
 }
