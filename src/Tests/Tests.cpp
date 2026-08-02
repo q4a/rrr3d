@@ -16,6 +16,8 @@
 #include <windows.h>
 
 #include "MathCommon.h"
+/* Header-only, so no link dependency on LexStd comes with it. */
+#include "lslUtility.h"
 
 #include <cmath>
 #include <cstdio>
@@ -173,6 +175,56 @@ void TestStringConversion()
 	MultiByteToWideChar(CP_UTF8, 0, "\xf0\x9f\x8f\x8e", -1, wide, 8);
 	Check(wide[0] == 0x1F3CE && wide[1] == 0,
 	      "a non-BMP character is one 32-bit wchar_t, not a surrogate pair");
+}
+
+/*
+ * UTF-16LE decoding, which is a file format and not a compiler property.
+ *
+ * The game's language files (Data/english.txt and the rest) are UTF-16LE with a
+ * BOM. The original code cast the byte buffer to wchar_t* -- correct only where
+ * wchar_t is 16 bits, which is Windows and nowhere else. With a 32-bit wchar_t
+ * every pair of code units becomes one nonsense character, and the failure is
+ * silent: the file still parses, the string table still fills, and the menu
+ * shows its internal ids instead of any text.
+ */
+void TestUtf16Decoding()
+{
+	std::printf("UTF-16LE decoding\n");
+
+	/* BOM + "svExit" as the files actually store it. */
+	const char withBom[] =
+		"\xff\xfe" "s\0v\0" "E\0x\0i\0t\0";
+	Check(lsl::ConvertUtf16LEToA(withBom, sizeof(withBom) - 1) == "svExit",
+	      "a BOM is consumed and ASCII decodes");
+
+	const char noBom[] = "O\0K\0";
+	Check(lsl::ConvertUtf16LEToA(noBom, sizeof(noBom) - 1) == "OK",
+	      "and a file without a BOM still decodes");
+
+	Check(lsl::ConvertUtf16LEToA("", 0).empty(), "empty input gives empty output");
+
+	/* U+0420 U+0430 -- Russian, two units, and the reason a byte-wise reading
+	   cannot be substituted for this. */
+	const char cyrillic[] = "\x20\x04\x30\x04";
+	Check(lsl::ConvertUtf16LEToA(cyrillic, 4) == "\xd0\xa0\xd0\xb0",
+	      "a two-byte code unit becomes its UTF-8 encoding");
+
+	/* U+1F3CE, stored as the surrogate pair D83C DFCE. Combining these is the
+	   whole difference between UTF-16 and "an array of 16-bit characters". */
+	const char surrogatePair[] = "\x3c\xd8\xce\xdf";
+	Check(lsl::ConvertUtf16LEToA(surrogatePair, 4) == "\xf0\x9f\x8f\x8e",
+	      "a surrogate pair becomes one code point");
+
+	/* A high surrogate with nothing after it is malformed input, not a
+	   character -- it must not be passed through as if it were one. */
+	const char loneHigh[] = "\x3c\xd8";
+	Check(lsl::ConvertUtf16LEToA(loneHigh, 2) == "\xef\xbf\xbd",
+	      "a lone surrogate becomes U+FFFD");
+
+	/* An odd trailing byte is dropped rather than read past the end. */
+	const char odd[] = "A\0B";
+	Check(lsl::ConvertUtf16LEToA(odd, 3) == "A",
+	      "a trailing half code unit is discarded");
 }
 
 /* MulDiv rounds to nearest away from zero, which is not what integer division
@@ -421,6 +473,7 @@ int main()
 	TestEventResetSemantics();
 	TestEventAcrossThreads();
 	TestStringConversion();
+	TestUtf16Decoding();
 	TestMulDiv();
 	TestKeyboardMapping();
 	TestClientSizeRegistry();

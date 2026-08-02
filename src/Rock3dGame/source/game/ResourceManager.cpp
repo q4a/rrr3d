@@ -1077,8 +1077,10 @@ void StringLibrary::Load(std::istream& stream)
 	char* data = new char[size];
 	stream.read(data, size);
 
-	std::stringstream sstream(ConvertStrWToA((wchar_t*)data, size/2, CP_THREAD_ACP));
-	sstream.get();
+	//The language files are UTF-16LE with a BOM. Casting the buffer to wchar_t*
+	//is only correct where wchar_t is 16 bits; ConvertUtf16LEToA reads the
+	//encoding the file actually has, and eats the BOM itself.
+	std::stringstream sstream(lsl::ConvertUtf16LEToA(data, size));
 	LSL_ASSERT(!sstream.fail());
 
 	delete[] data;

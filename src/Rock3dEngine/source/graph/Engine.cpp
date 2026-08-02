@@ -429,8 +429,109 @@ bool Engine::IsSyncSupported()
 #endif
 }
 
+#ifndef _WIN32
+
+namespace
+{
+
+/*
+ * Frame dumping, because there is no other way to see this.
+ *
+ * The engine draws into a CAMetalLayer, and a CAMetalLayer's contents do not
+ * appear in screencapture -- the screenshot comes back as the window frame with
+ * a hole where the game is. So the only way to look at a frame is to read it
+ * out of the process, and Engine::Present is the one place every frame passes
+ * through. (D3D9RenderDriver::Present is NOT: the line below goes straight to
+ * the device and skips the wrapper entirely.)
+ *
+ *   RRR3D_DUMP_FRAME=<n>   write frame n, numbered from 1, then carry on
+ *   RRR3D_DUMP_PATH=<file> defaults to frame.tga
+ *
+ * Read BEFORE Present, not after. The swap effect is D3DSWAPEFFECT_DISCARD, so
+ * once Present has been called the back buffer's contents are undefined and a
+ * dump taken there shows a cleared surface however much was drawn into it. That
+ * is not hypothetical -- it is how the D3D9Triangle reproducer first appeared
+ * to draw nothing.
+ */
+void WriteTga(const char* path, const D3DLOCKED_RECT& rect, unsigned w, unsigned h)
+{
+	FILE* f = std::fopen(path, "wb");
+	if (!f)
+	{
+		LSL_LOG(lsl::StrFmt("dump: cannot write %s", path));
+		return;
+	}
+
+	unsigned char hdr[18] = {0};
+	hdr[2] = 2;					/* uncompressed true-colour */
+	hdr[12] = w & 0xff; hdr[13] = (w >> 8) & 0xff;
+	hdr[14] = h & 0xff; hdr[15] = (h >> 8) & 0xff;
+	hdr[16] = 32;
+	hdr[17] = 0x20;				/* top-left origin, so it is not upside down */
+
+	std::fwrite(hdr, 1, sizeof(hdr), f);
+	for (unsigned y = 0; y < h; ++y)
+		std::fwrite(static_cast<const char*>(rect.pBits) + y * rect.Pitch, 4, w, f);
+
+	std::fclose(f);
+	LSL_LOG(lsl::StrFmt("dump: wrote %s (%ux%u)", path, w, h));
+}
+
+void DumpBackBuffer(IDirect3DDevice9* device)
+{
+	IDirect3DSurface9* back = NULL;
+	if (FAILED(device->GetRenderTarget(0, &back)) || !back)
+	{
+		LSL_LOG("dump: no render target");
+		return;
+	}
+
+	D3DSURFACE_DESC desc = {};
+	back->GetDesc(&desc);
+
+	IDirect3DSurface9* copy = NULL;
+	if (SUCCEEDED(device->CreateOffscreenPlainSurface(desc.Width, desc.Height,
+			desc.Format, D3DPOOL_SYSTEMMEM, &copy, NULL)) &&
+		SUCCEEDED(device->GetRenderTargetData(back, copy)))
+	{
+		D3DLOCKED_RECT rect;
+		if (SUCCEEDED(copy->LockRect(&rect, NULL, D3DLOCK_READONLY)))
+		{
+			const char* path = std::getenv("RRR3D_DUMP_PATH");
+			WriteTga(path ? path : "frame.tga", rect, desc.Width, desc.Height);
+			copy->UnlockRect();
+		}
+	}
+	else
+	{
+		LSL_LOG("dump: readback failed");
+	}
+
+	if (copy)
+		copy->Release();
+	back->Release();
+}
+
+}
+
+#endif
+
 bool Engine::Present()
 {
+#ifndef _WIN32
+	static const long dumpFrame = [] {
+		const char* v = std::getenv("RRR3D_DUMP_FRAME");
+		return v ? std::strtol(v, NULL, 10) : 0L;
+	}();
+
+	if (dumpFrame > 0 && !_lost)
+	{
+		static long frame = 0;
+		if (++frame == dumpFrame)
+			DumpBackBuffer(_driver->GetDevice());
+	}
+#endif
+
 	if (!_lost && _driver->GetDevice()->Present(0, 0, 0, 0) != D3D_OK)
 	{
 		_lost = true;

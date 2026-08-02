@@ -385,6 +385,99 @@ void TestShapeOrder()
 	}
 
 /*
+ * Shapes listed in the ACTOR DESCRIPTOR, which is the other way in.
+ *
+ * 2.8 builds an actor and its shapes in one call: NxActorDesc::shapes holds
+ * shape descriptors and createActor makes one shape from each. The engine uses
+ * both routes -- Actor::InitRootNxActor fills actorDesc.shapes through
+ * FillShapeDescListIncludeChildren for the initial set, and calls createShape
+ * only for shapes added afterwards.
+ *
+ * This scenario exists because the harness previously exercised createShape
+ * alone, and the shim was silently ignoring desc.shapes entirely: every actor
+ * the game built came back with zero shapes. Nothing failed at that point --
+ * createActor returned a perfectly good actor -- and the engine only noticed
+ * one call later, in UnpackActorShapeListIncludeChildren, where the assert
+ * names a shape index rather than the actor that has no shapes.
+ *
+ * Order is the same contract as TestShapeOrder: shape i must come from
+ * descriptor i, because the engine pairs the two lists positionally.
+ */
+void TestActorDescShapes()
+	{
+	std::printf("shapes from the actor descriptor\n");
+
+	NxSceneDesc sceneDesc;
+	px28::Scene scene(sceneDesc);
+
+	/* Three distinguishable shapes, so a reordering cannot pass. */
+	NxBoxShapeDesc box;
+	box.dimensions.set(NxVec3(1.0f, 2.0f, 3.0f));
+	NxSphereShapeDesc sphere;
+	sphere.radius = 4.0f;
+	NxCapsuleShapeDesc capsule;
+	capsule.radius = 0.5f;
+	capsule.height = 6.0f;
+
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = 10.0f;
+
+	NxActorDesc actorDesc;
+	actorDesc.body = &bodyDesc;
+	actorDesc.shapes.push_back(&box);
+	actorDesc.shapes.push_back(&sphere);
+	actorDesc.shapes.push_back(&capsule);
+
+	NxActor* actor = scene.createActor(actorDesc);
+	if (!actor)
+		{
+		Check(false, "actor created from a descriptor carrying shapes");
+		return;
+		}
+
+	Check(actor->getNbShapes() == 3, "three shapes, one per descriptor");
+
+	NxShape*const* shapes = actor->getShapes();
+	if (actor->getNbShapes() == 3)
+		{
+		Check(shapes[0]->isBox() != NULL, "descriptor 0 became the box");
+		Check(shapes[1]->isSphere() != NULL, "descriptor 1 became the sphere");
+		Check(shapes[2]->isCapsule() != NULL, "descriptor 2 became the capsule");
+
+		if (shapes[0]->isBox())
+			{
+			NxVec3 dims = shapes[0]->isBox()->getDimensions();
+			CheckNear(dims.x, 1.0f, 1e-5f, "box dimensions survive the descriptor");
+			CheckNear(dims.y, 2.0f, 1e-5f, "box dimensions survive the descriptor: y");
+			CheckNear(dims.z, 3.0f, 1e-5f, "box dimensions survive the descriptor: z");
+			}
+		if (shapes[1]->isSphere())
+			CheckNear(shapes[1]->isSphere()->getRadius(), 4.0f, 1e-5f,
+				"sphere radius survives the descriptor");
+		if (shapes[2]->isCapsule())
+			CheckNear(shapes[2]->isCapsule()->getHeight(), 6.0f, 1e-5f,
+				"capsule height survives the descriptor");
+
+		/* Each shape knows the actor it belongs to, exactly as createShape's do. */
+		Check(&shapes[0]->getActor() == actor, "shape 0 reports its actor");
+		Check(&shapes[2]->getActor() == actor, "shape 2 reports its actor");
+		}
+
+	/* Mass comes from the body descriptor and is not recomputed from the
+	   shapes -- the same contract createShape has. */
+	CheckNear(actor->getMass(), 10.0f, 1e-5f, "mass is the descriptor's");
+
+	/* And createShape still appends after the descriptor's shapes. */
+	NxSphereShapeDesc extra;
+	extra.radius = 7.0f;
+	NxShape* appended = actor->createShape(extra);
+	Check(actor->getNbShapes() == 4, "createShape appends to the descriptor's shapes");
+	Check(actor->getShapes()[3] == appended, "the appended shape is last");
+
+	scene.releaseActor(*actor);
+	}
+
+/*
  * Material indices, reproducing DataBase.cpp:4364-4397 exactly.
  *
  * This is the highest-consequence check in the harness and it needs no
@@ -1429,6 +1522,7 @@ int main()
 	TestStaticActorDoesNotFall();
 	TestBoxRestsOnGround();
 	TestShapeOrder();
+	TestActorDescShapes();
 	TestMaterialIndices();
 	TestGroupCollisionMatrix();
 	TestDisableResponsePassesThrough();

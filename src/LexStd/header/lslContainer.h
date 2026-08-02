@@ -240,8 +240,27 @@ template<class _Item> void Container<_Item>::Insert(const _Item& item)
 {
 	bool safe = !(_safeCont && !_safeCont->SafeInsert(item));
 
+	//
+	// this->, NOT _MyBase::.
+	//
+	// InsertItem and RemoveItem are virtual, and every useful implementation is
+	// an override in a derived class -- Component::Elements sets the child's
+	// owner, BaseContainer<Object*> does the AddRef/Release that keeps every
+	// reference-counted container's contents alive. The base bodies here are
+	// empty.
+	//
+	// An unqualified call does not compile: the name comes from a dependent
+	// base, so two-phase lookup does not find it. Qualifying it with _MyBase::
+	// does compile -- and silently turns a virtual call into a static one, so
+	// the empty base body runs and no override ever does. this-> makes the name
+	// dependent, which is what the lookup needs, while leaving the dispatch
+	// alone.
+	//
+	// The damage was invisible: components never learned their owner, so any
+	// path saved as an absolute component path failed to resolve on load, and
+	// every Object* container quietly stopped reference counting.
 	if (safe && AddItem(item))
-		_MyBase::InsertItem(_cont.back());
+		this->InsertItem(_cont.back());
 }
 
 template<class _Item> void Container<_Item>::Remove(iterator iter)
@@ -250,7 +269,7 @@ template<class _Item> void Container<_Item>::Remove(iterator iter)
 
 	if (safe)
 	{
-		_MyBase::RemoveItem(*iter);
+		this->RemoveItem(*iter);	/* virtual -- see Insert */
 		DeleteItem(iter);
 	}
 }
@@ -274,7 +293,7 @@ template<class _Item> void Container<_Item>::Remove(iterator sIter, iterator eIt
 	if (safe)
 	{
 		for (iterator iter = sIter; iter != eIter; ++iter)
-			_MyBase::RemoveItem(*iter);
+			this->RemoveItem(*iter);	/* virtual -- see Insert */
 		DeleteItem(sIter, eIter);
 	}
 }

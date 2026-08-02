@@ -655,6 +655,63 @@ inline lsl::stringA ConvertStrWToA(const lsl::stringW& str, UINT codePage = CP_A
 	return ConvertStrWToA(str.c_str(), str.length(), codePage);
 }
 
+/*
+ * UTF-16LE bytes, straight from a file, to a narrow string.
+ *
+ * Separate from ConvertStrWToA because wchar_t is not UTF-16 everywhere. It is
+ * 16 bits on Windows, where casting a UTF-16LE buffer to wchar_t* happens to be
+ * right; it is 32 bits under clang and gcc, where the same cast makes every
+ * pair of UTF-16 code units into one nonsense character and the whole file
+ * decodes to garbage that still parses without error.
+ *
+ * The file's encoding is a property of the file, not of the compiler, so this
+ * reads the bytes as what they actually are. Surrogate pairs are combined; a
+ * lone surrogate becomes U+FFFD rather than being passed on.
+ *
+ * `bytes` is a byte count. A leading BOM is skipped if present.
+ */
+inline lsl::stringA ConvertUtf16LEToA(const char* data, size_t bytes)
+{
+	const unsigned char* p = reinterpret_cast<const unsigned char*>(data);
+	size_t i = 0;
+
+	if (bytes >= 2 && p[0] == 0xFF && p[1] == 0xFE)
+		i = 2;
+
+	lsl::stringW wide;
+	wide.reserve((bytes - i) / 2);
+
+	while (i + 1 < bytes)
+	{
+		unsigned unit = unsigned(p[i]) | (unsigned(p[i + 1]) << 8);
+		i += 2;
+
+		if (unit >= 0xD800 && unit <= 0xDBFF)
+		{
+			if (i + 1 < bytes)
+			{
+				const unsigned low = unsigned(p[i]) | (unsigned(p[i + 1]) << 8);
+				if (low >= 0xDC00 && low <= 0xDFFF)
+				{
+					i += 2;
+					wide.push_back(static_cast<lsl::stringW::value_type>(
+						0x10000u + ((unit - 0xD800u) << 10) + (low - 0xDC00u)));
+					continue;
+				}
+			}
+			unit = 0xFFFD;
+		}
+		else if (unit >= 0xDC00 && unit <= 0xDFFF)
+		{
+			unit = 0xFFFD;
+		}
+
+		wide.push_back(static_cast<lsl::stringW::value_type>(unit));
+	}
+
+	return ConvertStrWToA(wide);
+}
+
 }
 
 #endif

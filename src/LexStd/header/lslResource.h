@@ -1,6 +1,8 @@
 #ifndef IO_TYPES
 #define IO_TYPES
 
+#include <algorithm>
+
 #include "lslCommon.h"
 #include "lslCollection.h"
 #include "lslUtility.h"
@@ -197,16 +199,42 @@ inline std::wstring GetAppPath()
 {
 	wchar_t buf[1024];
 	unsigned size = GetModuleFileNameW(NULL, buf, 1024);
-	
+
 	std::wstring res(buf, size);
+
+#ifdef _WIN32
 	lsl::ExtractFilePath(res, res);
+#else
+	//ExtractFilePath splits on a backslash, and the executable path here is a
+	//POSIX one. Splitting it on a backslash finds none, which makes
+	//ExtractFilePathBase erase the whole string -- so this would silently
+	//return an empty app path and every asset would be looked up relative to
+	//the working directory instead. That happens to work when the game is
+	//started from its own directory and fails everywhere else.
+	lsl::ExtractFilePathBase(res, res, L'/');
+#endif
 
 	return res;
 }
 
 inline std::wstring GetAppFilePath(const std::string& localFileName)
 {
-	return GetAppPath() + ConvertStrAToW(localFileName);
+	std::wstring path = GetAppPath() + ConvertStrAToW(localFileName);
+
+#ifndef _WIN32
+	//Every asset path in this game is written Windows-style --
+	//"Data\\Misc\\StadiumGrass1.dds" and some 2,300 others, in source literals
+	//and in db.xml alike. A backslash is an ordinary filename character on a
+	//POSIX filesystem, so without this the whole path is one long name and
+	//nothing loads at all.
+	//
+	//Done here rather than at the literals: this is the single point every
+	//asset load passes through, and rewriting 2,300 strings would break the
+	//Windows build for no gain.
+	std::replace(path.begin(), path.end(), L'\\', L'/');
+#endif
+
+	return path;
 }
 
 }

@@ -167,7 +167,12 @@ int MainLoop()
 		while (SDL_PollEvent(&event))
 		{
 			if (event.type == SDL_EVENT_QUIT)
+			{
+				/* Which way the loop ended, because all three look identical
+				   from outside and the difference is the whole diagnosis. */
+				LSL_LOG("MainLoop: SDL_EVENT_QUIT");
 				return EXIT_SUCCESS;
+			}
 
 			/* Input is dropped while a reset is pending, exactly as the Win32
 			   loop skipped every message but WM_SETCURSOR and WM_DESTROY. */
@@ -175,13 +180,20 @@ int MainLoop()
 				continue;
 
 			if (!HandleEvent(event))
+			{
+				LSL_LOG("MainLoop: HandleEvent asked to stop");
 				return EXIT_SUCCESS;
+			}
 
 			inputWasReset = inputWasReset || rock3dWorld->InputWasReset();
 		}
 
 		if (rock3dWorld->IsTerminate())
+		{
+			LSL_LOG(lsl::StrFmt("MainLoop: world terminated, result %d",
+				rock3dWorld->GetTerminateResult()));
 			return rock3dWorld->GetTerminateResult();
+		}
 
 		/* Rendered here rather than inside the event pump, so a slow frame
 		   does not stall input. */

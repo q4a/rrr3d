@@ -15,3 +15,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     MathLib
     XPlatform
 )
+
+# LexStd's headers, for the string helpers. Headers only -- lslUtility.h is
+# entirely inline, so there is nothing to link and no dependency on the rest of
+# LexStd comes with it.
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/LexStd/header
+)

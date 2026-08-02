@@ -205,6 +205,15 @@ unsigned D3D9RenderDriver::FindPrefRate()
 	return minHz;
 }
 
+/*
+ * NOT the engine's present path, despite the name.
+ *
+ * Engine::Present calls _driver->GetDevice()->Present directly, so this
+ * wrapper is only used by callers that hold a driver rather than an engine.
+ * Anything that has to happen once per frame belongs in Engine::Present --
+ * which is where the frame dumper lives, after this was tried here and never
+ * fired once.
+ */
 HRESULT D3D9RenderDriver::Present(const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion)
 {
 	return _d3dDevice9->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);

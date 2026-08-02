@@ -27,34 +27,45 @@
 #include "directx/d3dx9.h"
 
 #include <cstdio>
+#include <cstring>
 
 namespace
 {
 
-/* Logged once so a failed launch says which piece is missing, not just that it failed. */
-void ReportMissing(const char* what)
+/*
+ * Reported once, for the two that are genuinely absent.
+ *
+ * The other three say nothing at all. Failing is what they are FOR -- the
+ * engine reads E_NOTIMPL as "take the other branch" -- and
+ * D3DXGetImageInfoFromFileW is called once per texture, so reporting it would
+ * put several hundred lines of "error" on stderr to describe the design
+ * working. See this file's header.
+ */
+void ReportMissing(const char* what, bool& reported)
 {
-	static bool reported = false;
-	if (!reported)
-	{
-		reported = true;
-		std::fprintf(stderr,
-			"rrr3d: no graphics backend on this platform yet -- %s.\n"
-			"       See docs/macos-graphics-backend.md.\n", what);
-	}
+	if (reported)
+		return;
+	reported = true;
+
+	std::fprintf(stderr, "rrr3d: %s is not implemented.\n", what);
 }
 
 }
 
 /* The effects framework is implemented in d3dx_effect.cpp. */
 
-/* ---- D3DX: texture loading ---- */
+/* ---- D3DX: texture loading ----
+ *
+ * These three are the DELIBERATE failures. VideoResource.cpp probes with
+ * GetImageInfo and only hands the filename to D3DX if that succeeds; failing
+ * it keeps every texture on the decode-in-memory branch, which is one code
+ * path instead of two and owes D3DX no resampling or mip generation. Silent,
+ * because this is the intended outcome and not a fault. */
 
 HRESULT WINAPI D3DXCreateTextureFromFileExA(struct IDirect3DDevice9*, const char*,
 	UINT, UINT, UINT, DWORD, D3DFORMAT, D3DPOOL, DWORD, DWORD, D3DCOLOR,
 	D3DXIMAGE_INFO*, PALETTEENTRY*, struct IDirect3DTexture9** texture)
 {
-	ReportMissing("D3DXCreateTextureFromFileExA");
 	if (texture)
 		*texture = NULL;
 	return E_NOTIMPL;
@@ -64,36 +75,46 @@ HRESULT WINAPI D3DXCreateCubeTextureFromFileExA(struct IDirect3DDevice9*, const 
 	UINT, UINT, DWORD, D3DFORMAT, D3DPOOL, DWORD, DWORD, D3DCOLOR,
 	D3DXIMAGE_INFO*, PALETTEENTRY*, struct IDirect3DCubeTexture9** cube)
 {
-	ReportMissing("D3DXCreateCubeTextureFromFileExA");
 	if (cube)
 		*cube = NULL;
 	return E_NOTIMPL;
 }
 
-/* The two in-memory loaders are implemented in d3dx_texture.cpp. */
-
-HRESULT WINAPI D3DXFilterTexture(struct IDirect3DBaseTexture9*, const PALETTEENTRY*, UINT, DWORD)
-{
-	ReportMissing("D3DXFilterTexture");
-	return E_NOTIMPL;
-}
-
 HRESULT WINAPI D3DXGetImageInfoFromFileW(const WCHAR*, D3DXIMAGE_INFO* info)
 {
-	ReportMissing("D3DXGetImageInfoFromFileW");
 	if (info)
 		std::memset(info, 0, sizeof(*info));
 	return E_NOTIMPL;
 }
 
-/* ---- D3DX: text and geometry ---- */
+/* The two in-memory loaders are implemented in d3dx_texture.cpp. */
+
+/* ---- and these two are genuinely absent ---- */
+
+/*
+ * Mip generation for a texture the engine built itself. Called after rendering
+ * to a texture, so the result is a chain whose lower levels are undefined
+ * rather than a missing texture -- visible as aliasing at distance, not as a
+ * black surface.
+ */
+HRESULT WINAPI D3DXFilterTexture(struct IDirect3DBaseTexture9*, const PALETTEENTRY*, UINT, DWORD)
+{
+	static bool reported = false;
+	ReportMissing("D3DXFilterTexture", reported);
+	return E_NOTIMPL;
+}
 
 /* D3DXCreateFontA is implemented in d3dx_font.cpp. */
 
+/*
+ * VideoResource.cpp:449 builds a sphere mesh for one primitive kind. A null
+ * mesh is handled by the caller; the primitive simply does not appear.
+ */
 HRESULT WINAPI D3DXCreateSphere(struct IDirect3DDevice9*, float, UINT, UINT,
 	struct ID3DXMesh** mesh, struct ID3DXBuffer** adjacency)
 {
-	ReportMissing("D3DXCreateSphere");
+	static bool reported = false;
+	ReportMissing("D3DXCreateSphere", reported);
 	if (mesh)
 		*mesh = NULL;
 	if (adjacency)

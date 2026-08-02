@@ -117,7 +117,9 @@ Component* Component::AbsoluteFindComponent(const std::string& name)
 	
 	std::string rootName(name.begin(), nextIter);
 	if (rootName != _name)
-		throw lsl::Error("Component* Component::AbsoluteFindComponent(const std::string& name)");
+		//Naming both halves, because this is a deserialisation failure and the
+		//function name alone says nothing about which reference broke.
+		throw lsl::Error("AbsoluteFindComponent: '" + name + "' is not rooted at '" + _name + "'");
 
 	std::string path(++nextIter, name.end());	
 	return FindComponent(path);

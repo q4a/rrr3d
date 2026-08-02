@@ -69,6 +69,28 @@ Actor::Actor(Scene& scene, const NxActorDesc& desc)
 		}
 
 	scene.world().addRigidBody(_body);
+
+	/*
+	 * The descriptor's shapes, in descriptor order.
+	 *
+	 * 2.8 creates an actor and its shapes in one call: NxActorDesc::shapes is a
+	 * list of shape descriptors and createActor builds one shape from each.
+	 * This is not an alternative to createShape -- the engine uses both. It
+	 * fills actorDesc.shapes for the actor's initial shape set and calls
+	 * createShape for anything added afterwards.
+	 *
+	 * Order is a contract, not an implementation detail.
+	 * Actor::UnpackActorShapeListIncludeChildren (Physx.cpp:1776) walks
+	 * getShapes() positionally against its own list to hand each px::Shape the
+	 * NxShape it owns, so shape i here must be the shape built from descriptor
+	 * i. Building them in any other order would wire every shape to the wrong
+	 * engine object without failing anything.
+	 *
+	 * After addRigidBody, because createShape calls rebuildCompoundShape, which
+	 * ends in updateSingleAabb -- and that needs the body to be in the world.
+	 */
+	for (NxU32 i = 0; i < desc.shapes.size(); ++i)
+		createShape(*desc.shapes[i]);
 	}
 
 Actor::~Actor()
