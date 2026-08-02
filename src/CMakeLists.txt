@@ -82,6 +82,12 @@ if (NOT MSVC)
     # enough to run under the sanitizer on every build.
     add_subdirectory(AudioSweep)
 
+    # The cutscene demuxer and decoder, likewise without the game. Apple-only,
+    # because VideoToolbox is.
+    if (APPLE)
+        add_subdirectory(VideoProbe)
+    endif()
+
     # The Metal backend. Apple-only by construction, and absent on Windows
     # where the real D3D9 runtime is what draws.
     add_subdirectory(MetalBridge)
