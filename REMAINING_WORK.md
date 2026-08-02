@@ -39,6 +39,7 @@ Zero undefined symbols. Audio and video are stubs rather than gaps —
 
     RRR3D_DUMP_FRAME=<n> ./RRR3d              # write frame n and carry on
     RRR3D_DUMP_PATH=<file>                    # default frame.tga
+    RRR3D_WHEEL_TRACE=1 ./RRR3d               # suspension rays and what they hit
 
 A `CAMetalLayer`'s contents never appear in `screencapture` — the screenshot
 comes back as the window frame with a hole where the game is — so the dumper is
@@ -68,20 +69,22 @@ missing; it also writes `tri.tga` / `tri_rtt.tga` to look at.
 
 ## What is actually left
 
-**The cars do not drive.** At frame 3000 of a race they are still on the start
-line, and the debug overlay reads `Speed = 0` with `AxleSpeed = -71.47` and
-`wheel0..3 lat=0 long=0`. The wheels spin freely and report no contact while the
-car rests on its hull shapes, so the suspension raycast is not finding the
-track. This is the single most valuable thing to fix and it is the only reason
-the port is not playable.
+**Handling has not been compared against 2.8.** The wheels work —
+`RRR3D_WHEEL_TRACE=1` shows every sampled suspension ray hitting, with wheel
+origins spread around the whole circuit, so the AI cars race properly. What has
+not been checked is whether a car *drives* the way 2.8 drove it: acceleration,
+cornering, that it does not creep when parked, and that the suspension does not
+ring at the low damping ratios the shipped cars use.
 
-Two things to know before digging. `Actor::InitRootNxActor` calls
-`FillShapeDescListIncludeChildren`, so a car's wheels are shapes on the **one
-root NxActor** — which means excluding that actor from the raycast (as
-`raycastForWheel` does, and must, or every ray hits the car's own hull) is
-correct and not the cause. And the game's world is **Z-up** while 2.8's
-suspension is the shape's own local **−Y**, so the first thing to check is
-where that axis actually points once the actor pose is applied.
+That needs a driver. The player's car has none under `RRR3D_AUTORACE` — the
+camera follows it, so a frame from a race shows a stationary car while the AI
+races off. Either hold the throttle from the autorace hook, or verify input and
+drive it.
+
+A caution earned the hard way: **do not diagnose the physics from one frame.**
+Reading a single frame is what produced a confident and wrong conclusion that
+the suspension raycast was broken. The trace samples periodically for exactly
+this reason — the first frames are all spawn transient.
 
 **Input has never been shown to work.** The shell drives the game — window,
 device, main loop, both menu and race render — but `RRR3D_AUTORACE` bypasses
