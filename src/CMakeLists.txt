@@ -98,6 +98,17 @@ if (NOT MSVC)
     if (EXISTS ${CMAKE_SOURCE_DIR}/extern/d9mt/vendor/dxvk/src/d3d9/d3d9_device.cpp)
         add_subdirectory(D3D9Metal)
         add_subdirectory(D3D9Triangle)
+
+        # Dear ImGui, and the one test that says whether its D3D9 backend works
+        # here. Both only if it has been fetched -- the rest of the tree builds
+        # and its tests run without it, which is the same rule extern/d9mt gets.
+        if (EXISTS ${CMAKE_SOURCE_DIR}/extern/imgui/imgui.cpp)
+            add_subdirectory(ImGui)
+            add_subdirectory(D3D9ImGui)
+        else()
+            message(STATUS "imgui: extern/ not populated -- "
+                           "run tools/setup-imgui.py for the map editor")
+        endif()
     else()
         message(STATUS "d3d9metal: extern/ not populated -- "
                        "run tools/setup-d3d9metal-macos.sh for the D3D9 backend")
