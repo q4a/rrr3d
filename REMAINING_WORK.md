@@ -110,7 +110,20 @@ code, and a shim-side clamp was rejected because it was *measured* not to work
 outside the library).
 
 `src/AudioSweep` is the guard, and `tools/setup-faudio-macos.sh` carries the
-full account and what to re-check before moving the pin.
+full account and what to re-check before moving the pin. CI runs it under the
+sanitizer, which is the only way it catches anything: uninstrumented, the
+overrun is a silent write into adjacent heap and the test passes.
+
+**What is verified, and what is not.** Verified: 8/8 short races, a two-minute
+soak with no fault, the menu alone for sixteen seconds, and — by tracing every
+`SetFrequencyRatio` the game makes — 2,923 calls across 19 voices spanning 0.0
+to 1.0, with 38 distinct values on the RPM voice. So the sweep genuinely
+reaches FAudio across its whole range.
+
+Not verified: that any of it *sounds* right. Nobody has listened to it. The
+evidence is that correct values arrive and nothing corrupts memory, which is
+not the same claim. Also unchecked: X3DAudio's positional panning
+specifically, and a full race → results → menu cycle.
 
 **Two lessons worth keeping.** Building FAudio from source is what made any of
 this findable — an uninstrumented Homebrew dylib is why the original report could
