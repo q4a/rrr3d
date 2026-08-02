@@ -72,12 +72,24 @@
       "name": "macos-arm64-release",
       "displayName": "macOS arm64 Release",
       "inherits": ["macos-arm64", "release"]
+    },
+    {
+      "name": "macos-arm64-asan",
+      "displayName": "macOS arm64 Debug + AddressSanitizer",
+      "inherits": ["macos-arm64", "debug"],
+      "cacheVariables": {
+        "CMAKE_C_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address"
+      }
     }
   ],
   "buildPresets": [
     { "name": "msvc-x86-debug", "configurePreset": "msvc-x86-debug" },
     { "name": "msvc-x86-release", "configurePreset": "msvc-x86-release" },
     { "name": "macos-arm64-debug", "configurePreset": "macos-arm64-debug" },
-    { "name": "macos-arm64-release", "configurePreset": "macos-arm64-release" }
+    { "name": "macos-arm64-release", "configurePreset": "macos-arm64-release" },
+    { "name": "macos-arm64-asan", "configurePreset": "macos-arm64-asan" }
   ]
 }

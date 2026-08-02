@@ -38,4 +38,23 @@ if(CMAKE_BUILD_TYPE)
   set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 endif()
 
+# ...except the sanitizer build, which needs its own.
+#
+# It is a Debug build too, so without this it writes into bin/Debug alongside
+# the ordinary one -- and since the two trees keep separate object files but
+# share that destination, whichever built last silently owns the .dylibs there.
+# A non-instrumented executable then loads an instrumented library and aborts in
+# libc++ container annotations, which reads as a bug in whatever function
+# happened to be running rather than as a build accident. Measured the hard way.
+# The per-config variables have to go too: this is a Debug build, so the
+# CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG set above would otherwise still win for
+# executables, and only the libraries would move -- which splits the build in
+# half and is worse than not moving it at all.
+if(CMAKE_CXX_FLAGS MATCHES "sanitize=address")
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin/Asan")
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+endif()
+
 add_subdirectory(src)

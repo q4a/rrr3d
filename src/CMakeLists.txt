@@ -67,6 +67,11 @@ endif()
 if (NOT MSVC)
     add_subdirectory(Tests)
 
+    # The FAudio resampler reproducer. Here rather than beside the graphics
+    # tests because it needs nothing but XPlatform, which is what makes it cheap
+    # enough to run under the sanitizer on every build.
+    add_subdirectory(AudioSweep)
+
     # The Metal backend. Apple-only by construction, and absent on Windows
     # where the real D3D9 runtime is what draws.
     add_subdirectory(MetalBridge)

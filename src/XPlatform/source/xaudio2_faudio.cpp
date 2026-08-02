@@ -493,16 +493,6 @@ public:
 
 	HRESULT STDMETHODCALLTYPE SetFrequencyRatio(float ratio, UINT32 set) override
 	{
-		/*
-		 * SoundMotor drives its RPM layer through ratios from zero to one.
-		 * FAudio 26.08 cannot safely process a source below unity: zero is
-		 * clamped to 1/1024 and overruns the stream-start tap buffer, while any
-		 * sustained sub-unity ratio eventually underflows its unsigned decode
-		 * count. Keep the voice at its previous safe pitch until FAudio fixes
-		 * that resampler accounting. Volume still provides the intended fade.
-		 */
-		if (ratio < 1.0f)
-			return E_INVALIDARG;
 		return FAudioSourceVoice_SetFrequencyRatio(source(), ratio, set) ? E_FAIL : S_OK;
 	}
 

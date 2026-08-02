@@ -48,9 +48,39 @@ target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::SDL3)
 # the same semantics but exposes it as a C API, and on Wine it is Wine's own
 # xaudio2 DLL that puts the IXAudio2 interfaces on top. That layer is ours, and
 # it is confined to this target -- nothing downstream learns FAudio exists.
-pkg_check_modules(FAUDIO REQUIRED IMPORTED_TARGET FAudio)
+#
+# From source rather than Homebrew, and the reason is diagnostic rather than
+# packaging: a prebuilt dylib is invisible to Address Sanitizer, so the
+# out-of-bounds write in FAudio's resampler could only ever be reported as
+# "unknown address". Built here it is instrumented with everything else, and it
+# is where tools/patches/faudio/faudio.patch applies. See
+# tools/setup-faudio-macos.sh.
+#
+# PRIVATE, and static: this library is SHARED, so the archive is absorbed here
+# and the process has exactly one FAudio.
+set(FAUDIO ${CMAKE_SOURCE_DIR}/extern/faudio)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::FAUDIO)
+# Which of the two the setup script built. A library compiled with
+# -fsanitize=address is not linkable into a program compiled without it, so this
+# has to follow the configuration rather than be chosen once -- and picking the
+# wrong one silently de-instruments the sanitizer build, which is the exact
+# blindness that made the resampler bug take eight runs per condition to
+# characterise.
+if (CMAKE_CXX_FLAGS MATCHES "sanitize=address")
+    set(FAUDIO_BUILD ${FAUDIO}/build-asan)
+else()
+    set(FAUDIO_BUILD ${FAUDIO}/build)
+endif()
+
+if (NOT EXISTS ${FAUDIO_BUILD}/libFAudio.a)
+    message(FATAL_ERROR
+        "${FAUDIO_BUILD}/libFAudio.a not found. Run tools/setup-faudio-macos.sh")
+endif()
+
+message(STATUS "faudio: ${FAUDIO_BUILD}")
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${FAUDIO}/include)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${FAUDIO_BUILD}/libFAudio.a)
 
 # d3dx9.h reaches for the D3DX math declarations, which live in MathLib.
 # Headers only, deliberately: MathLib links XPlatform, so a link dependency the
