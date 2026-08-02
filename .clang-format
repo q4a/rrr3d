@@ -1,4 +1,12 @@
 BasedOnStyle: Microsoft
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+DerivePointerAlignment: false
+PointerAlignment: Left
+SpaceBeforeCtorInitializerColon: false
+SpaceBeforeInheritanceColon: false
+SpaceBeforeRangeBasedForLoopColon: false
 
 # To apply code style please run:
 # find ./src -iname *.h -o -iname *.cpp | xargs clang-format -i
