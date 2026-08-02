@@ -292,7 +292,19 @@ AABB::SpaceContains AABB::ContainsAABB(const AABB& test) const
 		return AABB::scNoOverlap;
 }
 
-inline bool AABB::LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECTOR3& lineVec, float& tNear, float& tFar) const
+/*
+ * Not `inline`, though it was.
+ *
+ * r3dMath.h:97 declares it without, and the definition lives only here, so
+ * marking it inline made it a function every other translation unit may call
+ * and none can see a definition of. Debug builds hid that: at -O0 the compiler
+ * emits an out-of-line copy anyway. At -O2 it inlines the two uses inside this
+ * file and emits nothing, and GraphManager, ActorManager and ContextInfo fail
+ * to link.
+ *
+ * Found the first time macos-arm64-release was ever configured.
+ */
+bool AABB::LineCastIntersect(const D3DXVECTOR3& lineStart, const D3DXVECTOR3& lineVec, float& tNear, float& tFar) const
 {
 	D3DXVECTOR3 oMin = (min - lineStart) / lineVec;
 	D3DXVECTOR3 oMax = (max - lineStart) / lineVec;

@@ -244,19 +244,6 @@ void GameObject::OnPxSync(float alpha)
 	if (nxActor == NULL)
 		return;
 
-	static unsigned physicsSyncTrace = 0;
-	const bool traceSync = std::getenv("RRR3D_PHYSICS_TRACE") != NULL &&
-		nxActor->getMass() >= 1000.0f && physicsSyncTrace < 240;
-	if (traceSync)
-	{
-		const NxVec3 pxPos = nxActor->getGlobalPosition();
-		const D3DXVECTOR3 renderPos = _grActor->GetPos();
-		std::fprintf(stderr,
-			"physics sync %u actor %p alpha %.3f pxZ %.6f renderZ-before %.6f\n",
-			physicsSyncTrace++, static_cast<void*>(nxActor), double(alpha),
-			double(pxPos.z), double(renderPos.z));
-	}
-
 	D3DXVECTOR3 pxVelocityLerp = nxActor->getLinearVelocity().get();
 
 	if (alpha < 1.0f)

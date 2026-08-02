@@ -3,6 +3,23 @@
 #include "lslException.h"
 #include "lslResource.h"
 
+/*
+ * _CrtDbgBreak, for the IDRETRY branch of the assert box below.
+ *
+ * lslCommon.h includes <crtdbg.h> only under _DEBUG, because what it wants from
+ * it there is the debug heap. MSVC gets the macro anyway through its own header
+ * chain, so this file has always compiled on Windows in both configurations --
+ * but off Windows it is XPlatform's crtdbg.h or nothing, and a Release build
+ * stopped here with "use of undeclared identifier '_CrtDbgBreak'".
+ *
+ * Only on non-MSVC, so the Windows build is left exactly as it was. XPlatform's
+ * header is safe to include outside a debug build: the allocator entry points
+ * it declares are macros onto plain malloc and free.
+ */
+#ifndef _MSC_VER
+#include <crtdbg.h>
+#endif
+
 namespace lsl
 {
 
