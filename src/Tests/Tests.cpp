@@ -16,6 +16,7 @@
 #include <windows.h>
 
 #include "MathCommon.h"
+#include "lslMath.h"
 /* Header-only, so no link dependency on LexStd comes with it. */
 #include "lslUtility.h"
 
@@ -225,6 +226,77 @@ void TestUtf16Decoding()
 	const char odd[] = "A\0B";
 	Check(lsl::ConvertUtf16LEToA(odd, 3) == "A",
 	      "a trailing half code unit is discarded");
+}
+
+/*
+ * RandomRange must stay inside its range, which is not a formality: callers
+ * index containers with the result.
+ *
+ * RAND_MAX is 32767 on MSVC and 2147483647 here, and at the large value both
+ * ends of the original expression overflowed a signed int -- the divisor to
+ * INT_MIN, and rand() * span to anywhere at all. AICar.cpp:369 picks a weapon
+ * out of a list with this, so an out-of-range draw was a wild pointer and a
+ * crash several frames later, inside the AI, with nothing pointing here.
+ *
+ * A property test rather than fixed values: the point is that no draw escapes,
+ * so the check is over many draws and over the small ranges the game actually
+ * asks for. A single sample would pass against the broken version most of the
+ * time.
+ */
+void TestRandomRangeStaysInRange()
+{
+	std::printf("RandomRange bounds\n");
+
+	std::srand(12345);
+
+	bool inRange = true;
+	int worst = 0;
+
+	/* Small spans, because that is what indexing a weapon list looks like. */
+	for (int to = 0; to <= 8 && inRange; ++to)
+	{
+		for (int draw = 0; draw < 20000; ++draw)
+		{
+			const int value = RandomRange(0, to);
+			if (value < 0 || value > to)
+			{
+				inRange = false;
+				worst = value;
+				break;
+			}
+		}
+	}
+
+	Check(inRange, "RandomRange(0, n) stays within [0, n] over 180000 draws");
+	if (!inRange)
+		std::printf("        escaped with %d\n", worst);
+
+	/* Negative and offset ranges are used too, and have the same failure. */
+	bool offsetInRange = true;
+	for (int draw = 0; draw < 20000; ++draw)
+	{
+		const int value = RandomRange(-5, 5);
+		if (value < -5 || value > 5)
+		{
+			offsetInRange = false;
+			break;
+		}
+	}
+	Check(offsetInRange, "and within [-5, 5] for a range spanning zero");
+
+	/* Both ends are reachable -- a generator that never returns `to` would
+	   pass the bounds check and still be wrong. */
+	bool sawLow = false, sawHigh = false;
+	for (int draw = 0; draw < 20000 && !(sawLow && sawHigh); ++draw)
+	{
+		const int value = RandomRange(0, 3);
+		sawLow = sawLow || value == 0;
+		sawHigh = sawHigh || value == 3;
+	}
+	Check(sawLow && sawHigh, "both ends of the range are reachable");
+
+	/* A degenerate range is the one value, not a coin toss. */
+	Check(RandomRange(7, 7) == 7, "a single-value range returns that value");
 }
 
 /* MulDiv rounds to nearest away from zero, which is not what integer division
@@ -474,6 +546,7 @@ int main()
 	TestEventAcrossThreads();
 	TestStringConversion();
 	TestUtf16Decoding();
+	TestRandomRangeStaysInRange();
 	TestMulDiv();
 	TestKeyboardMapping();
 	TestClientSizeRegistry();

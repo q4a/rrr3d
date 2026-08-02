@@ -36,12 +36,21 @@ inline float RandomRange(float from, float to)
 //from (inclusive) ... to (inclusive)
 inline int RandomRange(int from, int to)
 {
-	//RAND_MAX is 32767 on MSVC and 2147483647 here. With the large value,
-	//RAND_MAX + 1 overflows a signed int to INT_MIN, so the divisor is negative
-	//and this returns indices below `from` -- which callers use to index
-	//containers. Computing the span in double keeps the same result on the
-	//small value and stops being undefined on the large one.
-	return from + Floor<int>(rand() * (to + 1 - from) / (static_cast<double>(RAND_MAX) + 1.0));
+	//RAND_MAX is 32767 on MSVC and 2147483647 here, and BOTH ends of this
+	//expression overflow a signed int at the large value.
+	//
+	//RAND_MAX + 1 overflows to INT_MIN, making the divisor negative and the
+	//result smaller than `from`. And rand() * (to + 1 - from) overflows for any
+	//span above 1, which is worse: it is undefined, and in practice it returns
+	//an index anywhere at all. Callers index containers with this --
+	//AICar.cpp:369 picks a weapon out of a list with it -- so an out-of-range
+	//draw is a wild pointer and a crash several frames later, in the AI.
+	//
+	//Everything is computed in double, which is exact for both operands at
+	//either RAND_MAX and gives the identical result on the small one.
+	return from + Floor<int>(static_cast<double>(rand())
+		* (static_cast<double>(to) + 1.0 - static_cast<double>(from))
+		/ (static_cast<double>(RAND_MAX) + 1.0));
 }
 
 inline float NumAbsAdd(float absVal, float addVal)
