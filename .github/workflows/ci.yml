@@ -123,3 +123,19 @@ jobs:
       run: |
         bin/Asan/AudioSweep
         bin/Asan/AudioSweep 0 0 2
+
+    # Release as well as Debug, because the first time it was ever configured it
+    # did not link, and both faults were ones only -O2 finds: an `inline`
+    # definition with no out-of-line copy, and a debug-only macro reached from
+    # unguarded code. Neither is visible from a Debug build, so a job that
+    # builds only Debug would let them come straight back.
+    - name: Configure and build Release
+      run: |
+        cmake --preset=macos-arm64-release
+        cmake --build --preset=macos-arm64-release
+
+    - name: Release suites
+      run: |
+        bin/Release/Tests
+        bin/Release/PhysX28Tests
+        bin/Release/PhysX28Harness
