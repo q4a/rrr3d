@@ -749,7 +749,20 @@ void GameMode::AutoRace()
 	}
 	tournament.SetCurTrack(tracks[0]);
 
-	StartRace();
+	/*
+	 * Menu::StartRace, not GameMode::StartRace.
+	 *
+	 * They are not the same thing and the difference is the whole race.
+	 * GameMode::StartRace sets _goRaceTime to -1 and shows the info screen;
+	 * it is the menu that follows it with GoRaceTimer(), which sets
+	 * _goRaceTime to 0 and starts the countdown. Calling only the first left
+	 * the semaphore permanently red -- the cars sat on the start line and
+	 * nothing was wrong with the physics at all.
+	 *
+	 * Going through the menu's entry point rather than repeating its two
+	 * calls, so a net game is dispatched the way the menu dispatches it.
+	 */
+	_menu->StartRace();
 }
 
 #endif

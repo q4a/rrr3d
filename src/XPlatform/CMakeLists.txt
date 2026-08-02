@@ -42,6 +42,16 @@ pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::SDL3)
 
+# FAudio, behind xaudio2.h -- see source/xaudio2_faudio.cpp.
+#
+# FAudio ships no xaudio2.h of its own: it reimplements the same engine with
+# the same semantics but exposes it as a C API, and on Wine it is Wine's own
+# xaudio2 DLL that puts the IXAudio2 interfaces on top. That layer is ours, and
+# it is confined to this target -- nothing downstream learns FAudio exists.
+pkg_check_modules(FAUDIO REQUIRED IMPORTED_TARGET FAudio)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::FAUDIO)
+
 # d3dx9.h reaches for the D3DX math declarations, which live in MathLib.
 # Headers only, deliberately: MathLib links XPlatform, so a link dependency the
 # other way would be circular.
