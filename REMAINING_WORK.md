@@ -46,6 +46,7 @@ than broken.
     RRR3D_DUMP_PATH=<file>                    # default frame.tga
     RRR3D_WHEEL_TRACE=1 ./RRR3d               # suspension rays and what they hit
     RRR3D_INPUT_TRACE=1 ./RRR3d               # keystrokes as the game receives them
+    RRR3D_CAR_TRACE=1 ./RRR3d                 # the player car's position, once a second
     RRR3D_AUDIO_NO_CALLBACKS=1 ./RRR3d        # audio plays, game callbacks withheld
     RRR3D_AUDIO_OFF=1 ./RRR3d                 # no FAudio engine at all
 
@@ -127,10 +128,18 @@ not been checked is whether a car *drives* the way 2.8 drove it: acceleration,
 cornering, that it does not creep when parked, and that the suspension does not
 ring at the low damping ratios the shipped cars use.
 
-That needs a driver. The player's car has none under `RRR3D_AUTORACE` — the
-camera follows it, so a frame from a race shows a stationary car while the AI
-races off. Either hold the throttle from the autorace hook, or verify input and
-drive it.
+It now has a driver. The AI attached to the human's car under
+`#if _DEBUG | DEBUG_PX` is switched back on by `GameMode::EnableAutoRaceDriver`,
+so `RRR3D_AUTORACE=1 RRR3D_CAR_TRACE=1` drives unattended and prints the car's
+position every second.
+
+**First result: the car drives, then gets stuck.** It accelerates off the line
+and covers about 170 units — roughly 28 units per second down the opening
+straight, turning correctly at the end of it — then oscillates around one corner
+instead of continuing. So acceleration, steering and the suspension are all
+doing something reasonable, and the open question is narrower than "does a car
+drive": it is what happens at that corner, and whether it is the AI's line or
+the handling underneath it.
 
 A caution earned the hard way: **do not diagnose the physics from one frame.**
 Reading a single frame is what produced a confident and wrong conclusion that
