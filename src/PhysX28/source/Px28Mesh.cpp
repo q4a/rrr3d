@@ -85,7 +85,8 @@ class ConvexMesh: public NxConvexMesh
 
 TriangleMesh::TriangleMesh(const std::vector<float>& vertices,
                            const std::vector<int>& indices)
-	: _vertices(vertices), _indices(indices), _array(NULL), _shape(NULL)
+	: _vertices(vertices), _indices(indices), _array(NULL), _shape(NULL),
+	  _shapeRefs(0), _sdkReleased(false)
 	{
 	if (_indices.empty() || _vertices.empty())
 		return;
@@ -103,6 +104,30 @@ TriangleMesh::~TriangleMesh()
 	{
 	delete _shape;
 	delete _array;
+	}
+
+/*
+ * The two halves of 2.8's deferred destruction -- see the note on the class.
+ * Neither one destroys unless the other has already said it can.
+ */
+void TriangleMesh::releaseShapeRef(TriangleMesh* mesh)
+	{
+	if (!mesh || mesh->_shapeRefs == 0)
+		return;
+
+	if (--mesh->_shapeRefs == 0 && mesh->_sdkReleased)
+		delete mesh;
+	}
+
+void TriangleMesh::releaseFromSdk(TriangleMesh* mesh)
+	{
+	if (!mesh || mesh->_sdkReleased)
+		return;
+
+	mesh->_sdkReleased = true;
+
+	if (mesh->_shapeRefs == 0)
+		delete mesh;
 	}
 
 NxU32 TriangleMesh::getCount(NxU32, NxU32) const
@@ -287,13 +312,18 @@ class PhysicsSDK: public NxPhysicsSDK
 		return mesh;
 		}
 
+	/*
+	 * The mesh leaves the SDK's list here, but it is only destroyed once no
+	 * shape references it -- 2.8's rule, and the game relies on it. See the
+	 * comment on TriangleMesh::releaseShapeRef.
+	 */
 	virtual void releaseTriangleMesh(NxTriangleMesh& mesh)
 		{
 		for (size_t i = 0; i < _meshes.size(); ++i)
 			if (_meshes[i] == &mesh)
 				{
 				_meshes.erase(_meshes.begin() + i);
-				delete static_cast<TriangleMesh*>(&mesh);
+				TriangleMesh::releaseFromSdk(static_cast<TriangleMesh*>(&mesh));
 				return;
 				}
 		}

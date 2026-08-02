@@ -225,6 +225,10 @@ private:
 	float _finishTime;
 	
 	void PrepareGame();
+#ifndef _WIN32
+	//RRR3D_AUTORACE=<planet> -- see the comment on the definition.
+	void AutoRace();
+#endif
 	void StartGame();
 	void FreeIntro();
 	void AdjustGameStartup();

@@ -216,9 +216,16 @@ TriangleMeshShape::TriangleMeshShape(Actor& actor, const NxTriangleMeshShapeDesc
 	  _mesh(static_cast<TriangleMesh*>(desc.meshData))
 	{
 	/* Shared with every other instance of the same cooked mesh, so this shape
-	   borrows it rather than owning it. */
+	   borrows it rather than owning it -- but the borrow is counted, because
+	   2.8 keeps a released mesh alive while shapes still point at it. */
 	_bulletShape = _mesh->shape();
 	_ownsBulletShape = false;
+	_mesh->addShapeRef();
+	}
+
+TriangleMeshShape::~TriangleMeshShape()
+	{
+	TriangleMesh::releaseShapeRef(_mesh);
 	}
 
 NxTriangleMesh& TriangleMeshShape::getTriangleMesh()

@@ -689,6 +689,71 @@ void GameMode::PrepareGame()
 	_netGame = new NetGame(this);
 }
 
+#ifndef _WIN32
+
+/*
+ * RRR3D_AUTORACE=<planet index> -- start a skirmish on that planet's first
+ * track instead of stopping at the menu.
+ *
+ * The port has to be able to answer "does a race render" without a person at
+ * the keyboard: a CAMetalLayer's contents never appear in a screenshot, the
+ * menus need several keystrokes to get through, and synthetic input lands in
+ * whatever application happens to be frontmost. With this and
+ * RRR3D_DUMP_FRAME a race is one command.
+ *
+ * This is the authors' own debug path, not a new one. The block below it --
+ * `#if DEBUG_PX` in StartGame, commented out in the shipped source -- is
+ * exactly this sequence, and it is followed here rather than invented: start
+ * a skirmish, buy the human a car, unlock the planet, pick its first track,
+ * and hand over to StartRace.
+ *
+ * Off Windows only, so nothing about the Windows build changes.
+ */
+void GameMode::AutoRace()
+{
+	const char* planetEnv = std::getenv("RRR3D_AUTORACE");
+	if (!planetEnv)
+		return;
+
+	Tournament& tournament = _race->GetTournament();
+	const Tournament::Planets& planets = tournament.GetPlanets();
+
+	const unsigned index = static_cast<unsigned>(std::atoi(planetEnv));
+	if (index >= planets.size())
+	{
+		LSL_LOG(lsl::StrFmt("autorace: planet %u of %u does not exist",
+			index, static_cast<unsigned>(planets.size())));
+		return;
+	}
+
+	LSL_LOG(lsl::StrFmt("autorace: planet %u", index));
+
+	_menu->StartMatch(Race::rmSkirmish, gdNormal, NULL, false);
+
+	Player* human = _race->GetHuman()->GetPlayer();
+	human->AddMoney(999999);
+	human->AddPoints(999999);
+
+	if (Garage::Car* car = _race->GetGarage().FindCar("podushka"))
+		_race->GetGarage().BuyCar(human, car);
+
+	tournament.SetCurPlanet(planets[index]);
+	tournament.GetCurPlanet().Unlock();
+	tournament.GetCurPlanet().Open();
+
+	const Planet::Tracks& tracks = planets[index]->GetTracks();
+	if (tracks.empty())
+	{
+		LSL_LOG("autorace: that planet has no tracks");
+		return;
+	}
+	tournament.SetCurTrack(tracks[0]);
+
+	StartRace();
+}
+
+#endif
+
 void GameMode::StartGame()
 {
 	if (_startGame)
@@ -712,6 +777,10 @@ void GameMode::StartGame()
 	else
 #endif
 		CheckStartupMenu();
+
+#ifndef _WIN32
+	AutoRace();
+#endif
 
 	//debug
 /*#if DEBUG_PX

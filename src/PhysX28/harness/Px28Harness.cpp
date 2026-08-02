@@ -1256,6 +1256,103 @@ void TestMeshGetTriangle()
 	}
 
 /*
+ * releaseTriangleMesh while a shape still references the mesh.
+ *
+ * 2.8 reference counts meshes -- that is why NxTriangleMesh has a
+ * getReferenceCount() -- so releasing one that is still in use marks it and
+ * defers destruction until the last shape referencing it goes.
+ *
+ * The game does exactly this, and not in a corner. px::Actor::ReloadNxShape
+ * (Physx.cpp:1735) builds the replacement shape BEFORE releasing the one it
+ * replaces, and TriangleMeshShape::SyncScale releases the mesh before either:
+ *
+ *     FreeNxMesh();                  // releaseTriangleMesh
+ *     shape->SetNxShape(0);
+ *     CreateNxShape(shape);          // <- the actor still holds the old shape
+ *     releaseShape(*oldNxShape);
+ *
+ * Creating a shape rebuilds the actor's compound from every shape it holds, so
+ * with eager destruction that middle line walks a freed
+ * btBvhTriangleMeshShape. It crashed inside Bullet with a stack naming neither
+ * the mesh nor the release, which is why this is a scenario and not a comment.
+ */
+void TestMeshReleaseWhileInUse()
+	{
+	std::printf("mesh released while a shape holds it\n");
+
+	NxPhysicsSDK* sdk = NxCreatePhysicsSDK(NX_PHYSICS_SDK_VERSION);
+	NxCookingInterface* cooking = NxGetCookingLib(NX_PHYSICS_SDK_VERSION);
+	if (!sdk || !cooking)
+		{
+		Check(false, "SDK and cooking are available");
+		return;
+		}
+
+	const float vertices[] =
+		{
+		0.0f, 0.0f, 0.0f,
+		2.0f, 0.0f, 0.0f,
+		0.0f, 3.0f, 0.0f,
+		};
+	const NxU32 indices[] = { 0, 1, 2 };
+
+	NxTriangleMeshDesc meshDesc;
+	meshDesc.numVertices = 3;
+	meshDesc.numTriangles = 1;
+	meshDesc.pointStrideBytes = 3 * sizeof(float);
+	meshDesc.triangleStrideBytes = 3 * sizeof(NxU32);
+	meshDesc.points = vertices;
+	meshDesc.triangles = indices;
+
+	MemoryStream stream;
+	cooking->NxCookTriangleMesh(meshDesc, stream);
+	NxTriangleMesh* mesh = sdk->createTriangleMesh(stream);
+
+	NxSceneDesc sceneDesc;
+	NxScene* scene = sdk->createScene(sceneDesc);
+
+	NxActorDesc actorDesc;
+	NxActor* actor = scene->createActor(actorDesc);
+
+	NxTriangleMeshShapeDesc shapeDesc;
+	shapeDesc.meshData = mesh;
+	NxShape* meshShape = actor->createShape(shapeDesc);
+	Check(meshShape != NULL, "a mesh shape is created");
+
+	/* The game's order: the mesh goes first, the shape second. */
+	sdk->releaseTriangleMesh(*mesh);
+
+	/*
+	 * The mesh must still be usable through the shape that holds it. Reading a
+	 * triangle back touches the vertex data the mesh owns, so a freed mesh
+	 * fails here rather than merely being unobservable.
+	 */
+	NxTriangle tri;
+	static_cast<NxTriangleMeshShape*>(meshShape)->getTriangle(tri, 0, 0, 0, true, true);
+	CheckVecNear(tri.verts[1], NxVec3(2.0f, 0.0f, 0.0f), 1e-4f,
+	             "the released mesh is still readable through its shape");
+
+	/*
+	 * And adding another shape rebuilds the compound over every shape the actor
+	 * holds -- including the mesh one. This is the operation that crashed.
+	 */
+	NxBoxShapeDesc box;
+	box.dimensions.set(NxVec3(1.0f, 1.0f, 1.0f));
+	Check(actor->createShape(box) != NULL,
+	      "the actor takes another shape with a released mesh still attached");
+	Check(actor->getNbShapes() == 2, "and ends up with both");
+
+	/* Releasing the last shape is what finally destroys the mesh. Nothing
+	   observable is left to check -- the point is that it neither leaks nor
+	   double-frees, which the sanitiser build and this teardown cover. */
+	actor->releaseShape(*meshShape);
+	Check(actor->getNbShapes() == 1, "releasing the mesh shape leaves the box");
+
+	sdk->releaseScene(*scene);
+	NxReleasePhysicsSDK(sdk);
+	}
+
+/*
  * Skin width resolution: -1 means "use the SDK's global", anything else is the
  * shape's own. 228 shapes in db.xml take the global and 69 override it, so both
  * paths are live in shipped data.
@@ -1533,6 +1630,7 @@ int main()
 	TestTriangleMeshCooking();
 	TestContactModification();
 	TestMeshGetTriangle();
+	TestMeshReleaseWhileInUse();
 	TestSkinWidthResolution();
 	TestCentreOfMassOffset();
 	TestActorRemainder();

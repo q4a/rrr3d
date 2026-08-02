@@ -195,6 +195,7 @@ class TriangleMeshShape: public ShapeImpl<NxTriangleMeshShape>
 	{
 	public:
 	TriangleMeshShape(Actor& actor, const NxTriangleMeshShapeDesc& desc);
+	virtual ~TriangleMeshShape();
 
 	virtual NxTriangleMesh& getTriangleMesh();
 	virtual const NxTriangleMesh& getTriangleMesh() const;
@@ -383,6 +384,30 @@ class TriangleMesh: public NxTriangleMesh
 
 	btBvhTriangleMeshShape* shape() const { return _shape; }
 
+	/*
+	 * Deferred destruction, which is 2.8's contract and not an improvement on
+	 * it. releaseTriangleMesh does not destroy a mesh that shapes still
+	 * reference -- 2.8 reference counts it, which is why NxTriangleMesh has a
+	 * getReferenceCount() at all -- and destruction happens when the last
+	 * shape referencing it goes away.
+	 *
+	 * The game depends on this and the sequence is not obscure.
+	 * px::Actor::ReloadNxShape (Physx.cpp:1735) reads
+	 *
+	 *     shape->SetNxShape(0); CreateNxShape(shape); releaseShape(*oldNxShape);
+	 *
+	 * -- the new shape is built BEFORE the old one is released -- and
+	 * TriangleMeshShape::SyncScale releases the mesh before either. So between
+	 * those two lines the actor holds a shape whose mesh the game has already
+	 * released, and building the new shape walks every shape on the actor to
+	 * rebuild the compound. Destroying the mesh eagerly makes that a
+	 * use-after-free of the btBvhTriangleMeshShape, which crashes inside
+	 * Bullet with a stack that names neither the mesh nor the release.
+	 */
+	void addShapeRef() { ++_shapeRefs; }
+	static void releaseShapeRef(TriangleMesh* mesh);
+	static void releaseFromSdk(TriangleMesh* mesh);
+
 	/* In the mesh's own space; the shape applies its pose. False if the index
 	   is out of range, which is how a stale feature index fails visibly. */
 	bool getTriangleVertices(NxU32 triangleIndex, NxVec3 vertices[3]) const;
@@ -396,6 +421,11 @@ class TriangleMesh: public NxTriangleMesh
 
 	btTriangleIndexVertexArray* _array;
 	btBvhTriangleMeshShape* _shape;
+
+	/* Shapes currently referencing this mesh, and whether the game has asked
+	   for it to go. It is destroyed when both say it can be. */
+	unsigned _shapeRefs;
+	bool _sdkReleased;
 	};
 
 /* --------------------------------------------------------------- materials */
