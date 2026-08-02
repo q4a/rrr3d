@@ -70,6 +70,12 @@
 # src/AudioSweep is the check: point this script at a newer tag, rebuild, and
 # run it under the asan preset.
 #
+# There IS a working fix for 26.08, and it is deliberately not used:
+# tools/patches/faudio/26.08-not-applied.patch. Nothing applies it. It is kept
+# because it is the analysis in executable form and would otherwise exist only
+# inside one commit's diff -- read its header before doing anything with it, in
+# particular the part about why it cannot be sent upstream.
+#
 # SDL3 is FAudio's platform backend and is already a dependency of XPlatform,
 # so this adds no new library to the process -- only a second consumer of the
 # one that is there.

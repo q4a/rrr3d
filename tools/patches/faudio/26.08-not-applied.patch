@@ -1,0 +1,172 @@
+NOT APPLIED. NOT TO BE SUBMITTED UPSTREAM. Kept as a record.
+=============================================================================
+
+This is a working fix for two defects in FAudio 26.07/26.08's resampler. It is
+correct: verified under AddressSanitizer, mutation-tested in both directions,
+and a race survived 8/8 with it where it had survived 0/8 without. It is
+deliberately unused, and nothing in the build applies it.
+
+WHY IT IS NOT USED
+
+  extern/faudio is pinned to 26.06 instead, which predates the rewrite that
+  introduced both defects and therefore does not have them at all. Carrying a
+  private fork of an audio library to work around a two-month-old regression is
+  a worse long-term trade than pinning to the last release without it.
+  tools/setup-faudio-macos.sh carries the full account of both bugs and how
+  they were measured.
+
+WHY IT MUST NOT GO UPSTREAM
+
+  FAudio's contribution policy forbids AI-generated code -- see CLAUDE.md in
+  the FAudio repository. This patch was written by an AI assistant, so it
+  cannot be offered to that project, and re-typing it by hand from this file
+  would not change that.
+
+  What the policy does permit is REPORTING the issue: it explicitly allows AI
+  to identify problems, provided a human independently confirms them before
+  filing. There is a strong case to report here -- an ASan trace naming the
+  write, a mutation test, and src/AudioSweep as a two-second reproducer -- and
+  doing so would be the useful thing. The fix itself would need a different
+  author.
+
+WHY IT IS KEPT AT ALL
+
+  It is the only copy. It was removed from the tree when the version pin
+  replaced it, and survived solely inside commit c4c20f7's diff -- one squash
+  away from being lost. If a newer FAudio ever fixes only one of the two
+  defects, or if someone wants to write their own, this is the analysis in
+  executable form.
+
+  It is emphatically NOT an example of what not to do. The patch was right. It
+  was rejected for licensing and maintenance reasons that have nothing to do
+  with its quality, and mislabelling it as a mistake would mislead whoever
+  finds it next.
+
+WHAT IT FIXES, against FAudio 26.08's src/FAudio_internal.c
+
+  1. FAudio_INTERNAL_MixSource's resample tap loops are unbounded against the
+     buffer they write into. They emit one output frame per iteration and stop
+     when the source offset reaches prev_sample_count, advancing by
+     resampleStep each time, so they run about (leftover samples / step) times
+     -- while the destination is sized to the *output* quantum, which does not
+     depend on the frequency ratio. A low enough ratio overruns it. ASan:
+     heap-buffer-overflow, WRITE of size 4, zero bytes past a 1764-byte region,
+     which is a 441-frame quantum of floats exactly.
+
+  2. toDecode is computed as (offset + 1 - totalSamples) into a uint64_t and
+     goes negative when the ratio *falls* between quanta -- the source is
+     consumed more slowly than before, so the samples already decoded exceed
+     what the new ratio needs. It wraps to ~2^64 and trips the decodeSamples
+     assertion in FAudio_INTERNAL_DecodeBuffers.
+
+  The game reaches both: every car in db.xml carries
+  <rpmFreqRange>0 1</rpmFreqRange> and SoundMotor::OnMotor computes the ratio
+  as x + alpha*(y - x), so the ratio *is* alpha -- a sweep from 0 at minRPM to
+  1 at maxRPM, rising and falling with the engine.
+
+=============================================================================
+
+diff --git a/src/FAudio_internal.c b/src/FAudio_internal.c
+index c193ff5..e586a26 100644
+--- a/src/FAudio_internal.c
++++ b/src/FAudio_internal.c
+@@ -1006,8 +1006,26 @@ static void FAudio_INTERNAL_MixSource(FAudioSourceVoice *voice)
+ 		fixed_offset = (fixed_offset + FIXED_FRACTION_MASK) & ~FIXED_FRACTION_MASK;
+
+ 		/* The number of samples we need is that offset, plus one
+-		 * (for 0-indexing; we are converting an offset to a count). */
+-		toDecode = (fixed_offset >> FIXED_PRECISION) + 1 - voice->src.totalSamples;
++		 * (for 0-indexing; we are converting an offset to a count).
++		 *
++		 * This can come out negative, and toDecode is unsigned: when the
++		 * frequency ratio falls between one quantum and the next, the
++		 * source is consumed more slowly than it was, so the samples
++		 * already decoded (totalSamples) can exceed what the new, lower
++		 * ratio needs. The subtraction then wraps to around 2^64 and is
++		 * passed to FAudio_INTERNAL_DecodeBuffers as a sample count,
++		 * where it trips the decodeSamples assertion.
++		 *
++		 * Nothing left to decode is the honest answer -- the samples are
++		 * already in the buffer. */
++		if ((fixed_offset >> FIXED_PRECISION) + 1 < (int64_t) voice->src.totalSamples)
++		{
++			toDecode = 0;
++		}
++		else
++		{
++			toDecode = (fixed_offset >> FIXED_PRECISION) + 1 - voice->src.totalSamples;
++		}
+ 	}
+
+ 	/* First voice callback */
+@@ -1165,9 +1183,24 @@ static void FAudio_INTERNAL_MixSource(FAudioSourceVoice *voice)
+ 		 * a silent sample in front, despite the fact that this
+ 		 * contradicts the behaviour when the sample rates match. */
+
+-		/* First, everything between the last 2 samples of the
+-		 * previous quantum, if we didn't output them all yet. */
+-		while ((voice->src.resampleOffset >> FIXED_PRECISION) < (prev_sample_count - 1))
++		/* The tap loops below emit one output frame per iteration and
++		 * terminate on resampleOffset reaching prev_sample_count,
++		 * advancing by resampleStep each time -- so they run about
++		 * prev_sample_count/resampleStep times, with nothing bounding
++		 * that against the size of the buffer they are writing into.
++		 *
++		 * resampleSamples is the *output* quantum and is independent of
++		 * the frequency ratio, so a sufficiently small ratio overruns
++		 * resampled_audio. XAudio2 permits ratios down to 1/1024
++		 * (XAUDIO2_MIN_FREQ_RATIO), which at a 441-frame quantum asks
++		 * for around 1024 frames -- and a game pitching a sample down
++		 * for a low engine speed does exactly that.
++		 *
++		 * Capping here also keeps toResample - tap_samples below from
++		 * underflowing its uint64_t, which is the same fault one step
++		 * further on. */
++		while (	(tap_samples < voice->src.resampleSamples) &&
++			((voice->src.resampleOffset >> FIXED_PRECISION) < (prev_sample_count - 1))	)
+ 		{
+ 			float frac = fixed_to_float(voice->src.resampleOffset & FIXED_FRACTION_MASK);
+
+@@ -1180,7 +1213,8 @@ static void FAudio_INTERNAL_MixSource(FAudioSourceVoice *voice)
+
+ 		/* Then the samples between the last sample of the
+ 		 * previous quantum and the first sample of this one. */
+-		while ((voice->src.resampleOffset >> FIXED_PRECISION) < prev_sample_count)
++		while (	(tap_samples < voice->src.resampleSamples) &&
++			((voice->src.resampleOffset >> FIXED_PRECISION) < prev_sample_count)	)
+ 		{
+ 			float frac = fixed_to_float(voice->src.resampleOffset & FIXED_FRACTION_MASK);
+
+@@ -1191,14 +1225,24 @@ static void FAudio_INTERNAL_MixSource(FAudioSourceVoice *voice)
+ 			++tap_samples;
+ 		}
+
+-		voice->src.resample(
+-			voice->audio->decoded_audio,
+-			dst,
+-			&voice->src.resampleOffset,
+-			voice->src.resampleStep,
+-			toResample - tap_samples,
+-			channels
+-		);
++		/* The taps can supply the whole quantum on their own when the
++		 * ratio is low enough, in which case there is nothing left for
++		 * the resampler and toResample - tap_samples would underflow. */
++		if (toResample > tap_samples)
++		{
++			voice->src.resample(
++				voice->audio->decoded_audio,
++				dst,
++				&voice->src.resampleOffset,
++				voice->src.resampleStep,
++				toResample - tap_samples,
++				channels
++			);
++		}
++		else
++		{
++			toResample = tap_samples;
++		}
+ 		finalSamples = voice->audio->resampled_audio;
+
+ 		/* Actually this is probably wrong in the case we do get a
