@@ -52,8 +52,8 @@ Zero undefined symbols. Audio is a real FAudio backend
     RRR3D_PLAYVIDEO=<path> ./RRR3d            # play one cutscene
     RRR3D_VIDEO_TRACE=1 ./RRR3d               # cutscene pacing, once a second
 
-    ./MapEditor                               # the map editor
-    RRR3D_EDITOR_OPEN=<map> ./MapEditor       # ...with a level loaded
+    ./MapEditor                               # the map editor; File > Open... for a level
+    RRR3D_EDITOR_OPEN=<map> ./MapEditor       # ...or skip the dialog
     RRR3D_EDITOR_FRAMES=<n> ./MapEditor       # run n frames and exit
 
     bin/Debug/AudioSweep                      # the rev sweep, without the game
