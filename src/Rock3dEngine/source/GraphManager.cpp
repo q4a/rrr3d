@@ -1,6 +1,7 @@
 #include "stdafx.h"
 
 #include "GraphManager.h"
+#include "IOverlay.h"
 
 #include "res/R3DFile.h"
 #include "res/D3DXImageFile.h"
@@ -2351,6 +2352,35 @@ bool GraphManager::Render(float deltaTime, bool pause)
 void GraphManager::GPUSync()
 {
 	_engine->GPUSync();
+}
+
+void GraphManager::SetOverlay(game::IOverlay* value)
+{
+	_overlay = value;
+}
+
+/*
+ * Its own BeginScene and BeginBackBufOut, rather than riding the ones Render
+ * just closed.
+ *
+ * Render ends with EndScene, and EndBackBufOut only drops a reference -- so the
+ * back buffer does happen to still be bound here. Depending on that is exactly
+ * the class of assumption this port keeps finding broken, and two calls buy an
+ * explicit contract instead. A clearFlags of 0 means no Clear, so the scene
+ * underneath survives.
+ */
+void GraphManager::DrawOverlay()
+{
+	if (!_overlay)
+		return;
+
+	if (_engine->BeginScene())
+	{
+		_engine->BeginBackBufOut(0, 0);
+		_overlay->OnDraw(_engine->GetDriver().GetDevice());
+		_engine->EndBackBufOut();
+		_engine->EndScene();
+	}
 }
 
 bool GraphManager::IsSyncSupported()

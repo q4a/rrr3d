@@ -363,6 +363,11 @@ void World::OnReset(HWND window, lsl::Point resolution, bool fullScreen)
 	ResetCamera();
 }
 
+void World::SetOverlay(IOverlay* value)
+{
+	_graph->SetOverlay(value);
+}
+
 bool World::OnPaint(HWND handle)
 {
 	if (_videoPlayer && _videoPlayer->OnPaint(handle))
@@ -610,6 +615,7 @@ void World::MainProgress()
 	Profiler::I().Begin("presentTime");
 #endif
 
+	_graph->DrawOverlay();
 	_graph->Present();
 
 #ifdef DEBUG_FRAME_SYNC

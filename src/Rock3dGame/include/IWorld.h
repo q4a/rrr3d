@@ -19,6 +19,8 @@ const UINT WM_GRAPH_EVENT = WM_APP + 1;
 namespace game
 {
 
+class IOverlay;
+
 class IWorld: public Object
 {
 public:
@@ -44,6 +46,10 @@ public:
 
 	virtual bool IsTerminate() const = 0;
 	virtual int GetTerminateResult() const = 0;
+
+	/* Something drawn on top of the frame, before the present -- see IOverlay.
+	   The map editor's panes arrive this way. */
+	virtual void SetOverlay(IOverlay* value) = 0;
 
 	virtual bool OnPaint(HWND handle) = 0;
 	virtual void OnDisplayChange() = 0;

@@ -30,6 +30,9 @@ add_library(${PROJECT_NAME} STATIC
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
+    # IOverlay.h only: the one game-side interface the engine names, so a UI can
+    # be drawn inside its frame. No link dependency comes with it.
+    ${CMAKE_SOURCE_DIR}/src/Rock3dGame/include
     header
     ${CMAKE_SOURCE_DIR}/src/LexStd/header
     ${CMAKE_SOURCE_DIR}/src/MathLib/header

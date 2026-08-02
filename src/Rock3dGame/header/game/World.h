@@ -112,6 +112,7 @@ private:
 	void OnKeyChar(unsigned key, lsl::KeyState state, bool repeat);
 
 	void OnReset(HWND window, lsl::Point resolution, bool fullScreen);
+	void SetOverlay(IOverlay* value);
 	bool OnPaint(HWND handle);
 	void OnDisplayChange();
 	void OnWMGraphEvent();

@@ -25,6 +25,10 @@
 namespace r3d
 {
 
+/* Forward declaration: the engine does not depend on the game, and this is the
+   one place a game-side interface is named. */
+namespace game { class IOverlay; }
+
 struct Rect
 {
 	int left;
@@ -357,6 +361,10 @@ private:
 	void RenderCubeMap(graph::CameraCI& camera);
 	void RenderWaterRef(graph::CameraCI& camera);	
 	void RenderDepthScene(graph::CameraCI& camera);
+
+	/* Drawn on top of the finished scene, before the present -- see IOverlay.
+	   A bare pointer, never owned; NULL is the normal case. */
+	game::IOverlay* _overlay = NULL;
 public:
 	GraphManager(HWND window, lsl::Point resolution, bool fullScreen);
 	virtual ~GraphManager();
@@ -367,6 +375,14 @@ public:
 	bool Render(float deltaTime, bool pause);
 	//
 	void GPUSync();
+
+	/*
+	 * Something drawn on top of the finished scene, before the present -- see
+	 * Rock3dGame's IOverlay. A bare pointer, never owned; NULL is the normal
+	 * case and costs one branch a frame.
+	 */
+	void SetOverlay(game::IOverlay* value);
+	void DrawOverlay();
 	bool IsSyncSupported();
 	//
 	bool Present();

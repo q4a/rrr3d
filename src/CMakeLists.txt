@@ -123,8 +123,6 @@ add_subdirectory(Rock3dEngine)
 add_subdirectory(Rock3dGame)
 add_subdirectory(RRR3d)
 
-# MFC, and Windows-only by construction. It moves to Dear ImGui later in the
-# port; until then it is simply absent off Windows.
-if (MSVC)
-    add_subdirectory(MapEditor)
-endif()
+# The map editor: MFC on Windows, Dear ImGui everywhere else. Both live in the
+# same directory and the CMakeLists there chooses.
+add_subdirectory(MapEditor)
