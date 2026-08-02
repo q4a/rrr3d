@@ -5,8 +5,8 @@ Branch `macos-port-attempt-2`, based at `ec50208` (2021-06-14). 69 commits.
 **The game runs, with working sound.** It reaches its main menu, loads a track
 and renders a race at 60fps. `bin/Debug/race2.tga` is a frame from three
 thousand frames in. A race with audio now survives indefinitely -- the FAudio
-crash is fixed. It is still not playable: the menu does not respond to the
-keyboard.
+crash is fixed, and the menu responds to the keyboard. What is not yet
+confirmed is whether a car drives the way 2.8 drove it.
 
 The full plan lives in the plan document; this file is the state of play and
 the things that would be expensive to rediscover.
@@ -137,13 +137,30 @@ Reading a single frame is what produced a confident and wrong conclusion that
 the suspension raycast was broken. The trace samples periodically for exactly
 this reason — the first frames are all spawn transient.
 
-**The menu ignores the keyboard, though the keyboard works.**
-`RRR3D_INPUT_TRACE=1` shows real keystrokes arriving at
-`GameMode::OnHandleInput` correctly mapped — Down to `gaBreak`, Up to
-`gaAccel`, Return to `gaAction` — so SDL, the scancode table, the view and the
-binding table are all sound. But a frame taken after Down, Return, Down, Return
-is the unchanged main menu with nothing highlighted. The break is between the
-game receiving a `GameAction` and the GUI acting on it.
+**~~The menu ignores the keyboard.~~ It does not — the menu works.**
+Confirmed by hand at the keyboard. This entry was wrong, and how it was wrong is
+worth more than the entry was.
+
+The evidence for it was a frame dumped after synthetic Down, Return, Down,
+Return showing an unchanged main menu. But **`osascript` keystrokes go to
+whatever application is frontmost**, and the game is not reliably frontmost —
+launched from a shell it usually is not. The keys landed elsewhere. Reproduced
+twice while re-investigating this: a run that looked like it sent two Downs and
+a Return recorded exactly one keystroke, `key=209`, which is `vkChar + 'Q'` —
+a letter from an unrelated window, mapped to `gaHyper`.
+
+Traced properly, with the process verified frontmost before each key, the menu
+receives `vkDown` (3) and `vkStart` (27) and acts on them. `Menu::OnHandleInput`
+(`Menu.cpp:664`) is the keyboard menu — `gui::Manager` has no keyboard entry
+point, so this function walks a hand-built navigation table and drives widgets
+by synthesising mouse events — and all of its gates are open at the main menu:
+`GetVideoMode()` is false, `_navElementsList` has one screen registered, and
+the chat is not visible.
+
+**So: when checking synthetic input, verify the target process is frontmost
+before every key and confirm the keystroke arrived, or the experiment measures
+the window manager rather than the game.** `RRR3D_INPUT_TRACE=1` prints what the
+game actually received and settles it in a line.
 
 **`D3DXFilterTexture` is unimplemented**, reported once per race. It generates
 the mip chain for a texture the engine rendered into, so the lower levels are
@@ -244,6 +261,16 @@ reading the image said success. It now derives the expected colour from the same
 vertex data the draw uses and makes that its exit status — which is why running
 it with `D9MT_ASYNC=1` reports the original bug in one line instead of needing an
 afternoon.
+
+**Synthetic keystrokes measure the window manager unless you check.**
+`osascript ... key code N` goes to whatever application is frontmost, and a game
+launched from a shell usually is not. This produced a wrong entry in this file
+that stood for weeks — "the menu ignores the keyboard" — when the menu was fine
+and the keys were going somewhere else. It is not a rare failure either: it
+happened twice more while disproving it. Verify the process is frontmost
+*before every key*, and confirm what arrived with `RRR3D_INPUT_TRACE=1` rather
+than inferring it from a screenshot. A keystroke that silently goes elsewhere
+looks exactly like a keystroke the game ignored.
 
 **A silent `return false` is worse than a crash.** The whole phase-7 blocker was
 one un-logged early return in a hot path that is *designed* to fail sometimes.
