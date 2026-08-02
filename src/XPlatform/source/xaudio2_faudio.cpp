@@ -36,6 +36,7 @@
 #include <FAudio.h>
 #include <F3DAudio.h>
 
+#include <cstdlib>
 #include <cstring>
 #include <new>
 #include <vector>
@@ -355,7 +356,28 @@ public:
 	{
 		if (_voice)
 		{
-			FAudioVoice_DestroyVoice(_voice);
+			/*
+			 * SafeEXT, and this is the difference between a working game and
+			 * one that crashes minutes into a race.
+			 *
+			 * A source voice owns the CallbackBridge that FAudio's mixer
+			 * thread calls through, and `delete this` frees it. Plain
+			 * DestroyVoice does not wait for a callback already in flight, so
+			 * a voice destroyed on the game thread while OnBufferEnd is
+			 * running on the audio thread pulls the bridge -- and the game's
+			 * own callback object behind it -- out from under it. The result
+			 * is a wild call from the mixer, landing anywhere.
+			 *
+			 * Nothing exercised this before: the silent stub never invoked a
+			 * callback at all, so the whole hazard arrived with the real
+			 * backend rather than being uncovered by it.
+			 *
+			 * SafeEXT refuses while the voice is in use, so the loop is the
+			 * wait. It is bounded in practice by one mixer quantum.
+			 */
+			while (FAudioVoice_DestroyVoiceSafeEXT(_voice) != 0)
+				{ }
+
 			_voice = NULL;
 		}
 		delete this;
@@ -382,9 +404,28 @@ public:
 		if (format)
 			CopyFormat(_format, *format);
 
+		/*
+		 * RRR3D_AUDIO_NO_CALLBACKS=1 -- a diagnostic, not an option.
+		 *
+		 * The game's callbacks mutate game state from the mixer thread:
+		 * Proxy::VoiceCallback::OnStreamEnd calls Proxy::Stop() and SetPos().
+		 * XAudio2 calls them on its own worker thread too, so the game was
+		 * written for that -- but the silent stub never called them at all,
+		 * so nothing in this port has ever exercised it. Withholding them
+		 * isolates that from every other difference between stub and backend:
+		 * audio still plays, and only the concurrency goes away.
+		 */
+		static const bool noCallbacks = [] {
+			const char* v = std::getenv("RRR3D_AUDIO_NO_CALLBACKS");
+			return v && v[0] != '0';
+		}();
+
+		FAudioVoiceCallback* bridge =
+			(callback && !noCallbacks) ? &_bridge.base : NULL;
+
 		FAudioSourceVoice* voice = NULL;
 		if (FAudio_CreateSourceVoice(engine, &voice, format ? &_format : NULL, flags,
-				maxFrequencyRatio, callback ? &_bridge.base : NULL, NULL, NULL) == 0)
+				maxFrequencyRatio, bridge, NULL, NULL) == 0)
 			_voice = voice;
 	}
 
