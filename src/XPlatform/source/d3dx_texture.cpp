@@ -40,9 +40,11 @@
 
 #include "xplatform.h"
 #include "directx/d3dx9.h"
+#include "d3dx_texture_internal.h"
 
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 /*
  * Only the decoders this game's data needs. The rest are switched off so the
@@ -58,6 +60,10 @@
 #define STBI_NO_HDR
 #define STBI_NO_TGA
 #include "../vendor/stb_image.h"
+
+/* The BC1/BC3 encoder behind D3DXFilterTexture, at the bottom of this file. */
+#define STB_DXT_IMPLEMENTATION
+#include "../vendor/stb_dxt.h"
 
 namespace
 {
@@ -550,5 +556,397 @@ HRESULT WINAPI D3DXCreateCubeTextureFromFileInMemoryEx(IDirect3DDevice9* device,
 
 	/* Width is the face edge; the caller multiplies by six for its own atlas. */
 	FillInfo(srcInfo, header, ddsFormat, levels, D3DRTYPE_CUBETEXTURE);
+	return D3D_OK;
+}
+
+/* ------------------------------------------------------- D3DXFilterTexture --
+ *
+ * Mip generation, for the one shape the engine actually asks for.
+ *
+ * VideoResource.cpp:732 sets
+ *
+ *     manualFilter = GetLevelCnt() != 1 && (GetUsage() & D3DUSAGE_AUTOGENMIPMAP)
+ *                    && _data->IsCompressed()
+ *
+ * and Tex2DResource::DoInit strips D3DUSAGE_AUTOGENMIPMAP from exactly the
+ * block-compressed formats, because D3D9 drivers cannot autogenerate mips for
+ * them. So this is never called on a render target and never on an uncompressed
+ * surface: it is always a D3DPOOL_SYSTEMMEM, usage-0, DXT1/3/5 texture whose
+ * level 0 has just been filled from file data and whose levels 1..N are
+ * untouched. UpdateTexture then copies the whole chain to the real texture.
+ *
+ * That "untouched" matters more than the old note in REMAINING_WORK.md
+ * suggested. An all-zero DXT1 block decodes to solid black and an all-zero
+ * DXT3/DXT5 block to black and fully transparent, so the symptom of not
+ * implementing this is surfaces going black with distance -- on 201 of the
+ * game's textures -- rather than aliasing.
+ *
+ * DXT cannot be filtered in the compressed domain, so each level is produced by
+ * decoding its parent to RGBA, box filtering, and re-encoding. The decode is
+ * ours (stb has none); the encode is stb_dxt.
+ *
+ * Uncompressed formats are handled too, because the API permits them and a
+ * caller that hits one should get mips rather than silence -- it is the same
+ * box filter without the codec on either side.
+ */
+
+namespace
+{
+
+void DecodeColorBlock(const unsigned char* block, unsigned char rgba[16][4], bool dxt1)
+{
+	const unsigned c0 = unsigned(block[0]) | (unsigned(block[1]) << 8);
+	const unsigned c1 = unsigned(block[2]) | (unsigned(block[3]) << 8);
+
+	unsigned char c[4][4];
+	for (int i = 0; i < 2; ++i)
+	{
+		const unsigned v = i ? c1 : c0;
+		/* 5:6:5, expanded by replicating the high bits into the low ones --
+		   which is what the hardware does, and what makes 31 -> 255 rather
+		   than 248. */
+		c[i][0] = static_cast<unsigned char>(((v >> 11) & 0x1F) * 255 / 31);
+		c[i][1] = static_cast<unsigned char>(((v >> 5) & 0x3F) * 255 / 63);
+		c[i][2] = static_cast<unsigned char>((v & 0x1F) * 255 / 31);
+		c[i][3] = 255;
+	}
+
+	/* c0 <= c1 selects the punch-through mode, and only DXT1 has it: with an
+	   explicit alpha block the comparison is meaningless and the four-colour
+	   interpolation is always used. */
+	const bool punchThrough = dxt1 && c0 <= c1;
+
+	for (int i = 0; i < 3; ++i)
+	{
+		if (punchThrough)
+		{
+			c[2][i] = static_cast<unsigned char>((int(c[0][i]) + int(c[1][i])) / 2);
+			c[3][i] = 0;
+		}
+		else
+		{
+			c[2][i] = static_cast<unsigned char>((2 * int(c[0][i]) + int(c[1][i])) / 3);
+			c[3][i] = static_cast<unsigned char>((int(c[0][i]) + 2 * int(c[1][i])) / 3);
+		}
+	}
+	c[2][3] = 255;
+	c[3][3] = punchThrough ? 0 : 255;
+
+	for (int p = 0; p < 16; ++p)
+	{
+		const unsigned index = (unsigned(block[4 + (p >> 2)]) >> ((p & 3) * 2)) & 3;
+		for (int i = 0; i < 4; ++i)
+			rgba[p][i] = c[index][i];
+	}
+}
+
+void DecodeDxt3Alpha(const unsigned char* block, unsigned char rgba[16][4])
+{
+	for (int p = 0; p < 16; ++p)
+	{
+		const unsigned nibble = (unsigned(block[p >> 1]) >> ((p & 1) * 4)) & 0xF;
+		rgba[p][3] = static_cast<unsigned char>(nibble * 255 / 15);
+	}
+}
+
+void DecodeDxt5Alpha(const unsigned char* block, unsigned char rgba[16][4])
+{
+	unsigned char a[8];
+	a[0] = block[0];
+	a[1] = block[1];
+
+	if (a[0] > a[1])
+	{
+		for (int i = 0; i < 6; ++i)
+			a[2 + i] = static_cast<unsigned char>(((6 - i) * int(a[0]) + (1 + i) * int(a[1])) / 7);
+	}
+	else
+	{
+		for (int i = 0; i < 4; ++i)
+			a[2 + i] = static_cast<unsigned char>(((4 - i) * int(a[0]) + (1 + i) * int(a[1])) / 5);
+		a[6] = 0;
+		a[7] = 255;
+	}
+
+	/* Sixteen 3-bit indices packed into six bytes, low bit first. */
+	unsigned long long bits = 0;
+	for (int i = 0; i < 6; ++i)
+		bits |= static_cast<unsigned long long>(block[2 + i]) << (8 * i);
+
+	for (int p = 0; p < 16; ++p)
+		rgba[p][3] = a[(bits >> (3 * p)) & 7];
+}
+
+/* One BCn level to RGBA8. Dimensions are the level's, which need not be
+   multiples of four -- the trailing blocks are partial and their surplus texels
+   are simply not written. */
+}  /* anonymous */
+
+namespace rrr3d { namespace d3dxtex {
+
+void DecodeSurface(D3DFORMAT format, unsigned width, unsigned height,
+	const unsigned char* src, unsigned pitch, unsigned char* dst)
+{
+	const bool dxt1 = format == D3DFMT_DXT1;
+	const unsigned blockBytes = dxt1 ? 8u : 16u;
+	const unsigned blocksX = (width + 3) / 4;
+	const unsigned blocksY = (height + 3) / 4;
+
+	for (unsigned by = 0; by < blocksY; ++by)
+	{
+		const unsigned char* row = src + by * pitch;
+
+		for (unsigned bx = 0; bx < blocksX; ++bx)
+		{
+			const unsigned char* block = row + bx * blockBytes;
+			unsigned char rgba[16][4];
+
+			if (dxt1)
+			{
+				DecodeColorBlock(block, rgba, true);
+			}
+			else
+			{
+				DecodeColorBlock(block + 8, rgba, false);
+				if (format == D3DFMT_DXT2 || format == D3DFMT_DXT3)
+					DecodeDxt3Alpha(block, rgba);
+				else
+					DecodeDxt5Alpha(block, rgba);
+			}
+
+			for (unsigned py = 0; py < 4; ++py)
+			{
+				const unsigned y = by * 4 + py;
+				if (y >= height)
+					break;
+
+				for (unsigned px = 0; px < 4; ++px)
+				{
+					const unsigned x = bx * 4 + px;
+					if (x >= width)
+						break;
+
+					unsigned char* out = dst + (y * width + x) * 4;
+					for (int i = 0; i < 4; ++i)
+						out[i] = rgba[py * 4 + px][i];
+				}
+			}
+		}
+	}
+}
+
+void EncodeSurface(D3DFORMAT format, unsigned width, unsigned height,
+	const unsigned char* src, unsigned char* dst, unsigned pitch)
+{
+	const bool dxt1 = format == D3DFMT_DXT1;
+	const unsigned blockBytes = dxt1 ? 8u : 16u;
+	const unsigned blocksX = (width + 3) / 4;
+	const unsigned blocksY = (height + 3) / 4;
+
+	for (unsigned by = 0; by < blocksY; ++by)
+	{
+		unsigned char* row = dst + by * pitch;
+
+		for (unsigned bx = 0; bx < blocksX; ++bx)
+		{
+			/* A partial block is filled by clamping to the edge rather than
+			   left undefined: stb reads all sixteen texels regardless, and
+			   uninitialised ones would encode noise into the endpoints. */
+			unsigned char block[64];
+			for (unsigned py = 0; py < 4; ++py)
+			{
+				const unsigned y = by * 4 + py < height ? by * 4 + py : height - 1;
+				for (unsigned px = 0; px < 4; ++px)
+				{
+					const unsigned x = bx * 4 + px < width ? bx * 4 + px : width - 1;
+					const unsigned char* in = src + (y * width + x) * 4;
+					for (int i = 0; i < 4; ++i)
+						block[(py * 4 + px) * 4 + i] = in[i];
+				}
+			}
+
+			unsigned char* out = row + bx * blockBytes;
+
+			if (format == D3DFMT_DXT2 || format == D3DFMT_DXT3)
+			{
+				/* Explicit 4-bit alpha, which stb does not write: DXT3's alpha
+				   block is a straight quantise, so it is done here and stb is
+				   asked for the colour half only. */
+				for (int p = 0; p < 16; p += 2)
+				{
+					const unsigned lo = block[p * 4 + 3] * 15 / 255;
+					const unsigned hi = block[(p + 1) * 4 + 3] * 15 / 255;
+					out[p / 2] = static_cast<unsigned char>(lo | (hi << 4));
+				}
+				stb_compress_dxt_block(out + 8, block, 0, STB_DXT_HIGHQUAL);
+			}
+			else
+			{
+				stb_compress_dxt_block(out, block, dxt1 ? 0 : 1, STB_DXT_HIGHQUAL);
+			}
+		}
+	}
+}
+
+/* A 2x2 box, which is what a mip level is. Odd dimensions clamp rather than
+   wrap, so the last column or row is averaged with itself. */
+void BoxFilter(const unsigned char* src, unsigned srcW, unsigned srcH,
+	unsigned char* dst, unsigned dstW, unsigned dstH)
+{
+	for (unsigned y = 0; y < dstH; ++y)
+	{
+		const unsigned y0 = y * 2 < srcH ? y * 2 : srcH - 1;
+		const unsigned y1 = y * 2 + 1 < srcH ? y * 2 + 1 : y0;
+
+		for (unsigned x = 0; x < dstW; ++x)
+		{
+			const unsigned x0 = x * 2 < srcW ? x * 2 : srcW - 1;
+			const unsigned x1 = x * 2 + 1 < srcW ? x * 2 + 1 : x0;
+
+			const unsigned char* a = src + (y0 * srcW + x0) * 4;
+			const unsigned char* b = src + (y0 * srcW + x1) * 4;
+			const unsigned char* c = src + (y1 * srcW + x0) * 4;
+			const unsigned char* d = src + (y1 * srcW + x1) * 4;
+
+			unsigned char* out = dst + (y * dstW + x) * 4;
+			for (int i = 0; i < 4; ++i)
+				out[i] = static_cast<unsigned char>(
+					(unsigned(a[i]) + unsigned(b[i]) + unsigned(c[i]) + unsigned(d[i]) + 2) / 4);
+		}
+	}
+}
+
+}}  /* rrr3d::d3dxtex */
+
+namespace
+{
+
+using rrr3d::d3dxtex::DecodeSurface;
+using rrr3d::d3dxtex::EncodeSurface;
+using rrr3d::d3dxtex::BoxFilter;
+
+/* IsBlockCompressed is already defined above, for the DDS reader. */
+
+/* Bytes per texel for the uncompressed formats this can meet. Zero means "not
+   something to filter", and the caller declines rather than guessing. */
+unsigned UncompressedTexelSize(D3DFORMAT format)
+{
+	switch (format)
+	{
+	case D3DFMT_A8R8G8B8:
+	case D3DFMT_X8R8G8B8:
+		return 4;
+	default:
+		return 0;
+	}
+}
+
+/* One surface of a texture, filtered from its parent. */
+HRESULT FilterLevel(IDirect3DTexture9* texture, UINT level, D3DFORMAT format,
+	unsigned parentW, unsigned parentH, unsigned width, unsigned height)
+{
+	const unsigned texel = UncompressedTexelSize(format);
+	const bool compressed = IsBlockCompressed(format);
+	if (!compressed && !texel)
+		return D3DERR_INVALIDCALL;
+
+	D3DLOCKED_RECT parent;
+	HRESULT hr = texture->LockRect(level - 1, &parent, NULL, D3DLOCK_READONLY);
+	if (FAILED(hr))
+		return hr;
+
+	std::vector<unsigned char> parentRgba(size_t(parentW) * parentH * 4);
+	if (compressed)
+	{
+		DecodeSurface(format, parentW, parentH,
+			static_cast<const unsigned char*>(parent.pBits), unsigned(parent.Pitch),
+			&parentRgba[0]);
+	}
+	else
+	{
+		for (unsigned y = 0; y < parentH; ++y)
+			std::memcpy(&parentRgba[size_t(y) * parentW * 4],
+				static_cast<const unsigned char*>(parent.pBits) + size_t(y) * parent.Pitch,
+				size_t(parentW) * 4);
+	}
+	texture->UnlockRect(level - 1);
+
+	std::vector<unsigned char> rgba(size_t(width) * height * 4);
+	BoxFilter(&parentRgba[0], parentW, parentH, &rgba[0], width, height);
+
+	D3DLOCKED_RECT dst;
+	hr = texture->LockRect(level, &dst, NULL, 0);
+	if (FAILED(hr))
+		return hr;
+
+	if (compressed)
+	{
+		EncodeSurface(format, width, height, &rgba[0],
+			static_cast<unsigned char*>(dst.pBits), unsigned(dst.Pitch));
+	}
+	else
+	{
+		for (unsigned y = 0; y < height; ++y)
+			std::memcpy(static_cast<unsigned char*>(dst.pBits) + size_t(y) * dst.Pitch,
+				&rgba[size_t(y) * width * 4], size_t(width) * 4);
+	}
+	texture->UnlockRect(level);
+
+	return D3D_OK;
+}
+
+}
+
+HRESULT WINAPI D3DXFilterTexture(IDirect3DBaseTexture9* baseTexture,
+	const PALETTEENTRY* palette, UINT srcLevel, DWORD filter)
+{
+	if (!baseTexture)
+		return D3DERR_INVALIDCALL;
+
+	/*
+	 * D3DXFilterCubeTexture and D3DXFilterVolumeTexture are #defined to this
+	 * same symbol (d3dx9tex.h), so the type has to be asked rather than assumed.
+	 * Only 2D arrives from this game -- the cube call site at
+	 * VideoResource.cpp:998 is unreachable, because ResourceManager.cpp:757
+	 * pins cube textures to one level and the guard requires more than one --
+	 * so anything else is declined rather than half-implemented.
+	 */
+	if (baseTexture->GetType() != D3DRTYPE_TEXTURE)
+		return D3DERR_INVALIDCALL;
+
+	IDirect3DTexture9* texture = static_cast<IDirect3DTexture9*>(baseTexture);
+
+	const UINT levels = texture->GetLevelCount();
+	if (levels <= 1)
+		return D3D_OK;
+
+	const UINT first = (srcLevel == D3DX_DEFAULT) ? 0 : srcLevel;
+	if (first + 1 >= levels)
+		return D3D_OK;
+
+	D3DSURFACE_DESC desc;
+	HRESULT hr = texture->GetLevelDesc(first, &desc);
+	if (FAILED(hr))
+		return hr;
+
+	unsigned parentW = desc.Width;
+	unsigned parentH = desc.Height;
+
+	for (UINT level = first + 1; level < levels; ++level)
+	{
+		D3DSURFACE_DESC levelDesc;
+		hr = texture->GetLevelDesc(level, &levelDesc);
+		if (FAILED(hr))
+			return hr;
+
+		hr = FilterLevel(texture, level, desc.Format, parentW, parentH,
+			levelDesc.Width, levelDesc.Height);
+		if (FAILED(hr))
+			return hr;
+
+		parentW = levelDesc.Width;
+		parentH = levelDesc.Height;
+	}
+
 	return D3D_OK;
 }

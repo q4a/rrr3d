@@ -42,3 +42,22 @@ Both would work, and both would be less code than this. Both are also
 macOS-only, and the point of this port is a codebase that is cross-platform with
 the minimum of platform-specific parts. These two headers compile the same
 everywhere, which is worth more than the lines they cost.
+
+## stb_dxt.h
+
+`stb_dxt` v1.12, from the same pinned commit. Same dual licence.
+
+Used by `src/XPlatform/source/d3dx_texture.cpp` to implement
+`D3DXFilterTexture`. The engine calls that on block-compressed textures whose
+level 0 it has just filled from file data (`VideoResource.cpp:732`), so the mip
+chain has to be produced in the compressed domain: decode each level, box
+filter in RGBA, re-encode. This is the re-encode half; the decode is ours,
+because stb does not provide one.
+
+201 of the game's 202 mip-generating textures are DXT, so this is essentially
+every world, track and car surface. Without it their lower levels are
+whatever `CreateTexture` left in system memory — and an all-zero DXT1 block
+decodes to solid black, not to something merely blurry.
+
+**Unmodified.** Compiled with `STB_DXT_IMPLEMENTATION` in exactly one
+translation unit.

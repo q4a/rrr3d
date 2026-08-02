@@ -19,8 +19,10 @@
 #include "lslMath.h"
 /* Header-only, so no link dependency on LexStd comes with it. */
 #include "lslUtility.h"
+#include "d3dx_texture_internal.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -537,6 +539,188 @@ void TestVectorConstructors()
 
 } /* namespace */
 
+/* ------------------------------------------- D3DXFilterTexture's pixel half --
+ *
+ * The function itself needs a device and is not testable here by design. Its
+ * codec and its box filter are pure and are where the faults would be, so those
+ * are declared in d3dx_texture_internal.h and checked below.
+ *
+ * Properties, not golden blocks: a BC1 block encoded from a flat colour must
+ * decode back to it, and a box-filtered level must be the average of its
+ * parents. Both hold regardless of how the encoder chooses endpoints.
+ */
+
+void TestBoxFilterAverages()
+{
+	/* 4x4 RGBA, each texel carrying its own index in every channel. */
+	unsigned char src[4 * 4 * 4];
+	for (unsigned i = 0; i < 16; ++i)
+		for (int c = 0; c < 4; ++c)
+			src[i * 4 + c] = static_cast<unsigned char>(i * 16);
+
+	unsigned char dst[2 * 2 * 4];
+	rrr3d::d3dxtex::BoxFilter(src, 4, 4, dst, 2, 2);
+
+	/* Top-left output is the mean of source texels 0, 1, 4, 5. */
+	const unsigned expected = (0 + 16 + 64 + 80 + 2) / 4;
+	Check(dst[0] == expected, "box filter averages its four parents");
+
+	/* Bottom-right is the mean of 10, 11, 14, 15. */
+	const unsigned expectedBR = (160 + 176 + 224 + 240 + 2) / 4;
+	Check(dst[(2 * 1 + 1) * 4] == expectedBR, "box filter reaches the last quad");
+}
+
+void TestBoxFilterClampsOddSizes()
+{
+	/*
+	 * 3x1 -> 2x1. The second output column is the one that matters: its partner
+	 * would be source x=3, which is off the end, so it must clamp back onto
+	 * x=2.
+	 *
+	 * The destination has to be 2 wide for this to test anything. Written first
+	 * as 3x1 -> 1x1, where x never exceeds 0 and both parents are in range --
+	 * removing the clamp entirely left that version passing, which is how the
+	 * mistake was found.
+	 */
+	unsigned char src[3 * 1 * 4];
+	for (unsigned i = 0; i < 3; ++i)
+		for (int c = 0; c < 4; ++c)
+			src[i * 4 + c] = static_cast<unsigned char>(i == 0 ? 0 : (i == 1 ? 100 : 200));
+
+	unsigned char dst[2 * 4] = {0, 0, 0, 0, 0, 0, 0, 0};
+	rrr3d::d3dxtex::BoxFilter(src, 3, 1, dst, 2, 1);
+
+	/* x=0: parents 0 and 100, y clamped onto itself -> 50. */
+	Check(dst[0] == 50, "box filter averages the in-range column");
+
+	/* x=1: parent 200 twice, y clamped -> 200. Reading past the row gives
+	   whatever follows in memory, which is not 200. */
+	Check(dst[4] == 200, "box filter clamps odd dimensions instead of reading past");
+}
+
+void TestDxtRoundTripsFlatColour()
+{
+	/* A flat block is the one case an encoder must reproduce exactly: both
+	   endpoints land on the same colour and every index selects it. Anything
+	   less means the endpoints are being computed wrongly. */
+	unsigned char src[4 * 4 * 4];
+	for (unsigned i = 0; i < 16; ++i)
+	{
+		src[i * 4 + 0] = 200;
+		src[i * 4 + 1] = 100;
+		src[i * 4 + 2] = 50;
+		src[i * 4 + 3] = 255;
+	}
+
+	for (int pass = 0; pass < 2; ++pass)
+	{
+		const D3DFORMAT format = pass ? D3DFMT_DXT5 : D3DFMT_DXT1;
+		const unsigned blockBytes = pass ? 16u : 8u;
+		const char* what = pass ? "DXT5 round-trips a flat colour"
+		                        : "DXT1 round-trips a flat colour";
+
+		unsigned char encoded[16];
+		rrr3d::d3dxtex::EncodeSurface(format, 4, 4, src, encoded, blockBytes);
+
+		unsigned char decoded[4 * 4 * 4];
+		rrr3d::d3dxtex::DecodeSurface(format, 4, 4, encoded, blockBytes, decoded);
+
+		/* 5:6:5 endpoints, so exactness is per-channel quantisation, not zero. */
+		bool ok = true;
+		for (unsigned i = 0; i < 16; ++i)
+		{
+			if (std::abs(int(decoded[i * 4 + 0]) - 200) > 8) ok = false;
+			if (std::abs(int(decoded[i * 4 + 1]) - 100) > 8) ok = false;
+			if (std::abs(int(decoded[i * 4 + 2]) - 50) > 8)  ok = false;
+		}
+		Check(ok, what);
+	}
+}
+
+void TestDxt5PreservesAlpha()
+{
+	/* DXT5's alpha is a separate 8-point interpolator, and getting its index
+	   packing wrong is invisible in the colour channels. A gradient makes it
+	   visible: opaque one end, transparent the other. */
+	unsigned char src[4 * 4 * 4];
+	for (unsigned i = 0; i < 16; ++i)
+	{
+		src[i * 4 + 0] = src[i * 4 + 1] = src[i * 4 + 2] = 128;
+		src[i * 4 + 3] = static_cast<unsigned char>(i * 17);
+	}
+
+	unsigned char encoded[16];
+	rrr3d::d3dxtex::EncodeSurface(D3DFMT_DXT5, 4, 4, src, encoded, 16);
+
+	unsigned char decoded[4 * 4 * 4];
+	rrr3d::d3dxtex::DecodeSurface(D3DFMT_DXT5, 4, 4, encoded, 16, decoded);
+
+	Check(decoded[3] < 40, "DXT5 keeps the transparent end transparent");
+	Check(decoded[15 * 4 + 3] > 215, "DXT5 keeps the opaque end opaque");
+
+	bool monotonic = true;
+	for (unsigned i = 1; i < 16; ++i)
+		if (decoded[i * 4 + 3] + 24 < decoded[(i - 1) * 4 + 3])
+			monotonic = false;
+	Check(monotonic, "DXT5 alpha stays monotonic across the block");
+}
+
+void TestDxt3PreservesAlpha()
+{
+	/* DXT3's alpha is four explicit bits per texel, written by us rather than
+	   by stb -- so a nibble packed into the wrong half would swap neighbours. */
+	unsigned char src[4 * 4 * 4];
+	for (unsigned i = 0; i < 16; ++i)
+	{
+		src[i * 4 + 0] = src[i * 4 + 1] = src[i * 4 + 2] = 64;
+		src[i * 4 + 3] = static_cast<unsigned char>((i % 2) ? 255 : 0);
+	}
+
+	unsigned char encoded[16];
+	rrr3d::d3dxtex::EncodeSurface(D3DFMT_DXT3, 4, 4, src, encoded, 16);
+
+	unsigned char decoded[4 * 4 * 4];
+	rrr3d::d3dxtex::DecodeSurface(D3DFMT_DXT3, 4, 4, encoded, 16, decoded);
+
+	bool alternating = true;
+	for (unsigned i = 0; i < 16; ++i)
+	{
+		const unsigned char a = decoded[i * 4 + 3];
+		if ((i % 2) ? (a < 200) : (a > 55))
+			alternating = false;
+	}
+	Check(alternating, "DXT3 alpha nibbles land on the right texels");
+}
+
+void TestDxtHandlesPartialBlocks()
+{
+	/* 5x5 is two blocks across and down, three of the four partial. The check
+	   is that the in-range texels survive; the surplus ones are undefined and
+	   are not read. */
+	unsigned char src[5 * 5 * 4];
+	for (unsigned i = 0; i < 25; ++i)
+	{
+		src[i * 4 + 0] = 30;
+		src[i * 4 + 1] = 90;
+		src[i * 4 + 2] = 180;
+		src[i * 4 + 3] = 255;
+	}
+
+	const unsigned pitch = 2 * 8;                 /* two DXT1 blocks per row */
+	unsigned char encoded[2 * 2 * 8];
+	rrr3d::d3dxtex::EncodeSurface(D3DFMT_DXT1, 5, 5, src, encoded, pitch);
+
+	unsigned char decoded[5 * 5 * 4];
+	std::memset(decoded, 0, sizeof(decoded));
+	rrr3d::d3dxtex::DecodeSurface(D3DFMT_DXT1, 5, 5, encoded, pitch, decoded);
+
+	bool ok = true;
+	for (unsigned i = 0; i < 25; ++i)
+		if (std::abs(int(decoded[i * 4 + 2]) - 180) > 12)
+			ok = false;
+	Check(ok, "DXT survives dimensions that are not multiples of four");
+}
+
 int main()
 {
 	std::printf("Tests\n================================\n");
@@ -556,6 +740,13 @@ int main()
 	TestPerspectiveHandedness();
 	TestQuaternionSlerp();
 	TestVectorConstructors();
+
+	TestBoxFilterAverages();
+	TestBoxFilterClampsOddSizes();
+	TestDxtRoundTripsFlatColour();
+	TestDxt5PreservesAlpha();
+	TestDxt3PreservesAlpha();
+	TestDxtHandlesPartialBlocks();
 
 	std::printf("================================\n");
 	if (gFailures == 0)

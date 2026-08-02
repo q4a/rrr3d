@@ -89,20 +89,9 @@ HRESULT WINAPI D3DXGetImageInfoFromFileW(const WCHAR*, D3DXIMAGE_INFO* info)
 
 /* The two in-memory loaders are implemented in d3dx_texture.cpp. */
 
-/* ---- and these two are genuinely absent ---- */
+/* ---- and this one is genuinely absent ---- */
 
-/*
- * Mip generation for a texture the engine built itself. Called after rendering
- * to a texture, so the result is a chain whose lower levels are undefined
- * rather than a missing texture -- visible as aliasing at distance, not as a
- * black surface.
- */
-HRESULT WINAPI D3DXFilterTexture(struct IDirect3DBaseTexture9*, const PALETTEENTRY*, UINT, DWORD)
-{
-	static bool reported = false;
-	ReportMissing("D3DXFilterTexture", reported);
-	return E_NOTIMPL;
-}
+/* D3DXFilterTexture is implemented in d3dx_texture.cpp. */
 
 /* D3DXCreateFontA is implemented in d3dx_font.cpp. */
 

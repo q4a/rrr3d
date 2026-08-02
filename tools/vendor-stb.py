@@ -14,6 +14,13 @@ licensed public domain / MIT (the licence text is at the bottom of each header).
                   graph::TextFont is a first-class engine resource and every
                   piece of UI text in the game renders through it.
 
+  stb_dxt.h       encodes BC1/BC3 blocks for D3DXFilterTexture. The engine
+                  calls that on block-compressed textures whose level 0 it has
+                  just filled, so the mip chain has to be built in the
+                  compressed domain -- decode, box filter in RGBA, re-encode --
+                  and this is the re-encode. 201 of the game's textures reach
+                  it, which is essentially every world, track and car surface.
+
 Chosen over macOS ImageIO and CoreText deliberately. Both would work and would
 be less code, but both are macOS-only, and the point of this port is a codebase
 that is cross-platform with the minimum of platform-specific parts. These
@@ -24,7 +31,7 @@ principle that a dependency arriving by script has to be *built*; these are
 headers with no build system, so the script is a provenance record and the
 files live in the tree.
 
-Both are used unmodified. d3dx_texture.cpp compiles stb_image with the decoders
+All are used unmodified. d3dx_texture.cpp compiles stb_image with the decoders
 the game does not need switched off (STBI_NO_*), which is configuration rather
 than a change to the source.
 
@@ -48,6 +55,8 @@ FILES = {
         "594c2fe35d49488b4382dbfaec8f98366defca819d916ac95becf3e75f4200b3",
     "stb_truetype.h":
         "ecd30b05e0dd4fea3a13c26810dd9e1992dc379049482c393d5a19e6b5090aab",
+    "stb_dxt.h":
+        "807667ef98e0fd749cdb65cca0c2d980bc148109d2fed6f1873c81ae0f449933",
 }
 
 DEST = Path("src/XPlatform/vendor")
@@ -77,7 +86,7 @@ def main():
         (DEST / name).write_bytes(data)
         print("%s  %s (%d bytes)" % (digest[:12], DEST / name, len(data)))
 
-    print("\nBoth unmodified. See %s/README.md." % DEST)
+    print("\nAll unmodified. See %s/README.md." % DEST)
     return 0
 
 
