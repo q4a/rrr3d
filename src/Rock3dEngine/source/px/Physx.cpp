@@ -1816,7 +1816,20 @@ void Actor::InitRootNxActor()
 		NxQuat rot;
 		rot.setXYZW(_rot);
 		actorDesc.globalPose.M.fromQuat(rot);
-		actorDesc.body = _body ? &_body->GetDesc() : 0;
+		//actorDesc.body = _body ? &_body->GetDesc() : 0;
+		if (_body)
+		{
+			auto tmp = _body->GetDesc();
+			NxBodyDesc actorBbodyDesc;
+			actorBbodyDesc.mass					= tmp.mass;
+			actorBbodyDesc.massLocalPose		= tmp.massLocalPose;
+			actorBbodyDesc.flags				= tmp.flags;
+			actorBbodyDesc.sleepEnergyThreshold	= tmp.sleepEnergyThreshold;
+			actorBbodyDesc.linearVelocity		= tmp.linearVelocity;
+			actorDesc.body = &actorBbodyDesc;
+		}
+		else
+			actorDesc.body = 0;
 
 		LSL_ASSERT(actorDesc.isValid());
 		if (!actorDesc.isValid())
