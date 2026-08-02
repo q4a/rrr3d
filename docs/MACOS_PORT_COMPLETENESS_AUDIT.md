@@ -1,6 +1,6 @@
 # Ревизия полноты порта Motor Rock на macOS
 
-Дата ревизии: 2026-07-30
+Дата ревизии: 2026-08-02
 
 Ветка: `macos-arm64`
 
@@ -51,7 +51,7 @@ Windows-кода, но не являются автоматически экви
 но не D3D9/PhysX engine. Финальная конфигурация оставляет:
 
 - `RRR3D_ENABLE_NETWORK=OFF`;
-- `RRR3D_ENABLE_VIDEO=OFF`;
+- `RRR3D_ENABLE_VIDEO=ON` в M9, M10 и Release (`OFF` в ранних presets);
 - `RRR3D_ENABLE_STEAM=OFF`;
 - `RRR3D_PORTABLE_GAME_STUBS=1`;
 - `RRR3D_PORTABLE_ENGINE_STUBS=1`.
@@ -75,12 +75,12 @@ Windows target не компилируется.
 | Spatial race audio | X3DAudio game integration | ручные attenuation/pan/pitch voices | Частично | Основные car/race sounds есть; исходные emitters/listeners, все lifetime/priority rules и все sound behaviors не перенесены |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared/profile/final navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty, Profile и FinalMenu имеют исходные item order, NavElement/input branches, disabled skip и actions; Network и общий legacy event object graph ещё не завершены |
-| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, `AcceptDialog`, `MusicDialog`, `WeaponDialog` и offline `InfoDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, все вызываемые offline confirmations, popup текущего track, hover-dialog товара/слота и Workshop/Angar/Achievement warnings перенесены; text input и оставшиеся UI transitions ещё отсутствуют |
+| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, `AcceptDialog`, `MusicDialog`, `WeaponDialog` и offline `InfoDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, все вызываемые offline confirmations, popup текущего track, hover-dialog товара/слота и Workshop/Angar/Achievement warnings перенесены. Offline-профили по исходнику автоматически называются `profileN`; `UserChat` и `NetIPAddress` относятся только к пока отключённой сети |
 | Race menu | `RaceMenu2.cpp` | source-derived `RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph и тени menu spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
-| Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp` | source-derived FinishMenu и FinalMenu | Перенесено | Оба активных экрана используют исходные assets/layout/timing/input; tournament unlock/video flow учитывается отдельно |
+| Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp`, `Menu::OnFinishClose` | source-derived FinishMenu, finish transition и FinalMenu | Перенесено | Активные экраны используют исходные assets/layout/timing/input; pass fail/complete, planet unlock и final movie branches сопоставлены с Windows source |
 | Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля, source-инвариант планет, `Race::MakeProfileName/NewProfile` и `DelProfile/SaveLib`: New Game создаёт `profileN`, `skirmish` временный, удаление последнего профиля сохраняет пустой library и не воскрешает XML reference. Полная схема ещё не доказана |
-| Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + source-derived entry flow и advance | Частично | Continue/New/Load/Difficulty и отдельный SkProfile перенесены; dialogs, intro video, unlock/final sequences ещё не завершены |
+| Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + source-derived entry flow, advance и finish transitions | Частично | Continue/New/Load/Difficulty, отдельный SkProfile, pass/planet completion и final branch перенесены; начальный `GamersFrame`/opponent-selection flow ещё отсутствует |
 | Garage/workshop/tournament data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml`, `tournamet.xml`, `achievment.xml` | `OriginalGarage.cpp` + source-derived Garage/Workshop/Angar/Achievment frames | Частично | Каталог, source available/secret/locked order, buy/sell/install/swap/recharge/upgrade, reward purchase, campaign confirmations, charge-inclusive 50% resale, colors, stats фактической комплектации и bonus preview перенесены. 3D goods/slots/planets/boss cars читают исходные mesh/texture/vehicle transforms и повторяют `ViewPort3d` fitting/rotation. Legacy widget objects ещё отсутствуют |
 | Map/catalog loading | `Map`, `MapObj`, `DataBase` | `OriginalRace.cpp` | Частично | 88 записей и исходные placements читаются; generic GameObject/behavior/include lifecycle воспроизведён только для известных типов |
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
@@ -108,7 +108,7 @@ Windows target не компилируется.
 | Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Частично | Значимая часть serialized graph читается; не все node/emitter/action types и lifetime semantics перенесены |
 | Weather/water/magma/sky | `Environment.cpp`, graph effects | source records + bgfx passes | Частично | Все world variants загружаются; exact D3D shader/fixed-pipeline result не доказан |
 | Commentator | race/HUD sound events | `OriginalRaceCommentator.cpp` | Частично | Оригинальные clips используются; очередь и trigger selection написаны заново |
-| Intro/video | `VideoPlayer.cpp`, DirectShow playback | выключено | Не перенесено | Видеозаставки и video UI отсутствуют |
+| Intro/video | `VideoPlayer.cpp`, DirectShow playback | AVPlayer/AVPlayerLayer, 14 lossless-remuxed MP4 | Замена платформы | Все исходные H.264/MP3 потоки проигрываются нативно, Difficulty `Main`, planet и final transitions подключены; ветка `GamersFrame` с Intaria movie ещё не перенесена |
 | LAN/network | `NetGame`, `NetRace`, `NetPlayer`, NetLib | выключено | Не перенесено | Offline acceptance не требует сеть, но это часть Windows-продукта |
 | Steam | `SteamService`, auth | выключено | Не перенесено | Не относится к offline race, но не должно называться перенесённым |
 | Editor | `source/edit`, MapEditor | не входит в `.app` | Не переносился | Редактор не является обязательной частью пользовательской игры |
@@ -121,7 +121,7 @@ Windows target не компилируется.
 `GameModeFrame`, `TournamentFrame`, `DifficultyFrame` и активный
 `OptionsMenu` больше не являются произвольными generic-списками: их
 компоновка, доступность и переходы сопоставлены с исходником. Главные
-оставшиеся generic-блоки — text-input widgets, Network и часть переходов.
+оставшиеся generic-блоки — `GamersFrame`, Network и часть переходов.
 Активные `FinishMenu` и `FinalMenu` уже используют исходные игровые ресурсы,
 layout, timing и ControlEvent semantics. Legacy `MenuSystem`
 animation/event object graph также не компилируется.
@@ -732,6 +732,35 @@ Network, video и Steam явно выключены.
    проверка подтвердила первый и второй слайды, читаемые credits и
    Return → MainMenu2 без артефактов.
 
+### Finish transition / VideoPlayer
+
+1. Прежний безусловный возврат `FinishMenu → RaceMenu2` заменён точной
+   развилкой `Menu::OnFinishClose`: незавершённый pass показывает
+   `svHintYouNotCompletePass`, завершённый pass —
+   `svHintYouCompletePass`, победа на planet открывает следующий Angar и
+   `svHintYouCanFlyPlanet`, а последний tournament planet запускает final
+   movie и `FinalMenu`.
+2. `Race::CompletePlanet(4)` теперь, как Windows source, добавляет в
+   `planetsCompleted` также все скрытые planets с индексом 5 и выше.
+   Отдельная deterministic regression проверяет все пять вариантов перехода,
+   включая Skirmish, где tournament advance не выполняется.
+3. DirectShow заменён нативным `AVPlayer`/`AVPlayerLayer` поверх Cocoa content
+   view. Во время ролика menu MusicCat приостанавливается, game/menu time
+   заморожено, Escape/Pause вызывает тот же completion callback, resize
+   обновляет video layer, а после ролика MusicCat возобновляется.
+4. AVFoundation не открывает исходный AVI-контейнер. Все 14 файлов
+   `Data/Video/*.avi` поэтому на этапе сборки remux-ятся FFmpeg с `-c copy` в
+   MP4 cache; H.264/MP3 elementary streams не перекодируются, и FFmpeg не
+   входит в runtime. M10 verifier требует ровно 14 таких файлов.
+5. `DifficultyFrame` новой кампании теперь, как source, проигрывает
+   `Main/Main_eng` до создания `profileN`: сам `StartMatch` вызывается только
+   callback-ом `cVideoStopped`. Подключены также language branches для planet
+   movies и буквальная legacy-развилка `final_eng` для русского/`final` для
+   остальных языков.
+6. `--video-smoke-test` проверяет кадр `Main_eng`, near-end seek, completion
+   и фактический tournament callback. Не закрыта только следующая стартовая
+   ветка `GamersFrame`, которая выбирает соперника и инициирует Intaria movie.
+
 ### MusicDialog
 
 1. Из `DialogMenu2.cpp` перенесён вызываемый `MusicDialog`: исходная рамка
@@ -760,8 +789,10 @@ Network, video и Steam явно выключены.
    `RaceMenu2`, `FinishMenu`, `FinalMenu` и активная структура
    `OptionsMenu`, `MusicDialog`, workshop `WeaponDialog` и вызываемые offline
    `InfoDialog`/`AcceptDialog` уже source-derived; следующий конкретный
-   разрыв — исходные text-input widgets (`ProfileFrame`/`UserChat`) и их
-   callback/transitions.
+   offline-разрыв — `GamersFrame`, выбор первого соперника и его переход к
+   Intaria movie. Отдельного ввода имени offline-профиля в Windows source нет:
+   `Race::MakeProfileName` создаёт `profileN`; `UserChat`/`NetIPAddress`
+   принадлежат только сетевым экранам.
    При этом
    legacy animation/widget classes всё ещё заменены immediate-mode bgfx
    backend.
@@ -769,10 +800,10 @@ Network, video и Steam явно выключены.
    callbacks и lifetime transitions поверх уже перенесённых shapes/raycasts.
 3. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно
    перенести `GameObject`, `Logic`, `Player`, `Race`, `Weapon`.
-4. Перенести `AICar`/`AIPlayer`: trace planning, avoidance, tactics,
-   difficulty и weapon decisions.
-5. Завершить text input, intro video, unlock/final flow и исходные UI
-   transitions.
+4. Продолжить точное сопоставление `AICar`/`AIPlayer`: оставшиеся
+   PhysX-зависимые branches, avoidance, tactics и weapon decisions.
+5. Перенести `GamersFrame`, начальный opponent/intro flow и оставшиеся
+   исходные UI transitions.
 
 ### P1 — visual/audio parity
 
@@ -785,7 +816,7 @@ Network, video и Steam явно выключены.
 
 ### P2 — полная продуктовая функциональность
 
-1. Video/intros.
+1. Оставшиеся startup/intros после переноса `GamersFrame`.
 2. LAN/network.
 3. Steam integration, если требуется целевая дистрибуция.
 

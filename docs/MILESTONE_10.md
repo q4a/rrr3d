@@ -6,8 +6,9 @@ Milestone 10 is complete on top of the corrected M5–M9.5 original-data path.
 The Debug and Release presets package the same `MainMenu2`, MusicCat,
 original race/session/HUD/effects runtime, bgfx/Metal renderer and
 source-calibrated Jolt adapter that were accepted in the preceding milestones.
-The cancelled standalone portable race is not compiled by either bundle
-preset.
+They also package the native AVFoundation replacement for the legacy
+DirectShow player. The cancelled standalone portable race is not compiled by
+either bundle preset.
 
 The canonical artifacts are:
 
@@ -33,8 +34,10 @@ files. This excludes untracked File Provider duplicates. The application
 resolves this directory relative to its own executable and does not depend on
 the build tree or the Terminal working directory.
 
-The bundle also contains the native icon and all project/dependency notices.
-It is ad-hoc signed after resources are copied.
+The bundle also contains `Contents/Resources/video-cache` with all 14 original
+movies remuxed from AVI to MP4 without re-encoding their H.264/MP3 streams, the
+native icon and all project/dependency notices. FFmpeg is only a build-time
+tool. The application is ad-hoc signed after resources are copied.
 
 ## Verification
 
@@ -46,7 +49,8 @@ following are true:
 - valid strict code signature;
 - empty `Contents/Frameworks`;
 - no Homebrew, local build, Windows or other external absolute dependency;
-- valid icon/notices/catalog/manifest and exactly 1200 game-data files.
+- valid icon/notices/catalog/manifest and exactly 1200 game-data files;
+- exactly 14 cached MP4 movies and no unexpected files in `video-cache`.
 
 Both Debug and Release bundles pass this verifier. Both also pass:
 
@@ -55,6 +59,8 @@ Both Debug and Release bundles pass this verifier. Both also pass:
 - SDL keyboard/mouse/virtual-gamepad input;
 - 182 original Ogg audit and the MusicCat background decode, shuffle,
   automatic/manual Next, pause/resume and state round-trip;
+- AVFoundation playback, displayed frame, near-end seek, completion and
+  `cVideoStopped` tournament callback of an original H.264/MP3 movie;
 - bgfx/Metal original menu dispatch and 240-frame M9.5 race render smoke.
 
 The final race smoke starts through

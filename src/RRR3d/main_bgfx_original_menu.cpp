@@ -28,6 +28,9 @@
 #include "SdlAudioSmoke.h"
 #include "audio/AudioBackend.h"
 #endif
+#ifdef RRR3D_VIDEO
+#include "MacVideoPlayer.h"
+#endif
 
 #include <SDL3/SDL.h>
 #include <bx/math.h>
@@ -47,6 +50,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -83,6 +87,9 @@ struct Options
     bool languageSelected = false;
     bool verifyResources = false;
     bool finalMenuSmokeTest = false;
+#ifdef RRR3D_VIDEO
+    bool videoSmokeTest = false;
+#endif
 #ifdef RRR3D_PHYSICS
     bool physicsSmokeTest = false;
     bool raceRenderSmokeTest = false;
@@ -229,6 +236,19 @@ std::string_view recordName(std::string_view record)
                              : separator + 1);
 }
 
+#ifdef RRR3D_VIDEO
+std::filesystem::path movieCachePath(
+    const std::filesystem::path& gameDataRoot,
+    std::string_view sourceMovie)
+{
+    std::string normalized(sourceMovie);
+    std::replace(normalized.begin(), normalized.end(), '\\', '/');
+    auto name = std::filesystem::path(normalized).stem();
+    name += ".mp4";
+    return gameDataRoot.parent_path() / "video-cache" / name;
+}
+#endif
+
 #ifdef RRR3D_AUDIO
 template <std::size_t Count>
 std::vector<r3d::game::MusicCatTrack> musicTracks(
@@ -287,6 +307,15 @@ std::optional<Options> parseOptions(int argc, char** argv)
                 options.smokeFrames = 1800;
             continue;
         }
+#ifdef RRR3D_VIDEO
+        if (argument == "--video-smoke-test")
+        {
+            options.videoSmokeTest = true;
+            if (options.smokeFrames == 0)
+                options.smokeFrames = 600;
+            continue;
+        }
+#endif
 #ifdef RRR3D_PHYSICS
         if (argument.substr(0, trackPrefix.size()) == trackPrefix)
         {
@@ -800,6 +829,9 @@ int main(int argc, char** argv)
                      "[--language=english|russian] [--verify-resources] "
                      "[--smoke-test-frames=N] "
                      "[--final-menu-smoke-test]"
+#ifdef RRR3D_VIDEO
+                     " [--video-smoke-test]"
+#endif
 #ifdef RRR3D_GAMEPAD_INPUT
                      " [--input-smoke-test]"
 #endif
@@ -967,6 +999,9 @@ int main(int argc, char** argv)
                 *resources, physicsError) ||
             !r3d::game::originalrace::runOriginalProfileFlowSmokeTest(
                 physicsError) ||
+            !r3d::game::originalrace::
+                runOriginalTournamentProgressSmokeTest(
+                    physicsError) ||
             !r3d::game::originalrace::runOriginalRaceSessionSmokeTest(
                 *originalRace, physicsError) ||
             !r3d::physics::runOriginalVehiclePhysicsSmokeTest(
@@ -1097,6 +1132,9 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
+#ifdef RRR3D_VIDEO
+    rrr3d::video::MacVideoPlayer videoPlayer(nativeWindow);
+#endif
 
     auto device = createBgfxGraphicsDevice();
     std::string rendererError;
@@ -3588,6 +3626,119 @@ int main(int argc, char** argv)
         finalMenuSeconds = 0.0F;
         std::cout << "Original FinalMenu -> MainMenu2\n";
     };
+#ifdef RRR3D_VIDEO
+    enum class OriginalMovieCompletion
+    {
+        None,
+        RaceMenu,
+        FinalMenu,
+        TournamentStart,
+    };
+    std::function<void()> originalMovieStartMatch;
+    OriginalMovieCompletion originalMovieCompletion =
+        OriginalMovieCompletion::None;
+    bool originalMovieActive = false;
+    bool videoFrameObserved = !options->videoSmokeTest;
+    bool videoCompletionObserved = !options->videoSmokeTest;
+    bool videoTournamentStartObserved = !options->videoSmokeTest;
+    bool videoSmokeSeeked = false;
+    const std::uint64_t videoSmokeDeadline =
+        options->videoSmokeTest ? SDL_GetTicks() + 15000U : 0U;
+    auto finishOriginalMovie = [&]() {
+        if (!originalMovieActive)
+            return;
+        const auto completion = originalMovieCompletion;
+        videoPlayer.stop();
+        originalMovieActive = false;
+        originalMovieCompletion = OriginalMovieCompletion::None;
+#ifdef RRR3D_AUDIO
+        if (!music.pause(false, audioError))
+        {
+            std::cerr
+                << "Original movie menu-music resume failed: "
+                << audioError << '\n';
+            runtimeSmokeFailed = true;
+            running = false;
+        }
+#endif
+        switch (completion)
+        {
+        case OriginalMovieCompletion::RaceMenu:
+            if (menuStack.size() > 1U &&
+                menuStack.back() == MenuScreen::Planets)
+            {
+                backMenu();
+            }
+            break;
+        case OriginalMovieCompletion::FinalMenu:
+            showOriginalFinalMenu();
+            break;
+        case OriginalMovieCompletion::TournamentStart:
+            if (originalMovieStartMatch)
+            {
+                const auto startMatch = originalMovieStartMatch;
+                originalMovieStartMatch = {};
+                startMatch();
+            }
+            break;
+        case OriginalMovieCompletion::None:
+            break;
+        }
+    };
+    auto playOriginalMovie =
+        [&](std::string_view sourceMovie,
+            OriginalMovieCompletion completion) {
+            const auto cache =
+                movieCachePath(resources->root(), sourceMovie);
+#ifdef RRR3D_AUDIO
+            if (!music.pause(true, audioError))
+            {
+                std::cerr
+                    << "Original movie menu-music pause failed: "
+                    << audioError << '\n';
+                runtimeSmokeFailed = true;
+                return false;
+            }
+#endif
+            std::string videoError;
+            if (!videoPlayer.play(
+                    cache,
+                    options->videoSmokeTest
+                        ? 0.0F
+                        : std::clamp(
+                              profileState.config.musicVolume,
+                              0.0F,
+                              1.0F),
+                    videoError))
+            {
+                std::cerr << "Original movie playback failed for "
+                          << sourceMovie << ": " << videoError << '\n';
+#ifdef RRR3D_AUDIO
+                music.pause(false, audioError);
+#endif
+                runtimeSmokeFailed = true;
+                return false;
+            }
+            originalMovieActive = true;
+            originalMovieCompletion = completion;
+            std::cout << "Original GameMode::PlayMovie: "
+                      << sourceMovie << '\n';
+            return true;
+        };
+    if (options->videoSmokeTest)
+    {
+        originalMovieStartMatch = [&]() {
+            videoCompletionObserved = true;
+            videoTournamentStartObserved = true;
+        };
+        if (!playOriginalMovie(
+                "Data/Video/Main_eng.avi",
+                OriginalMovieCompletion::TournamentStart))
+        {
+            running = false;
+        }
+    }
+#endif
 #ifdef RRR3D_PHYSICS
     std::optional<std::string> bindingCaptureAction;
     bool bindingCaptureGamepad = false;
@@ -3753,6 +3904,8 @@ int main(int argc, char** argv)
     std::uint32_t raceSmokeMenuStep = 0;
     std::uint32_t raceSmokeNextMenuFrame = 0;
     bool raceSmokeAccelerateQueued = false;
+    r3d::game::originalrace::TournamentAdvance
+        raceTournamentAdvance;
     bool racePlanetChampion = false;
     int angarPlanetIndex = -1;
     int angarPreviousPlanetIndex = -1;
@@ -4022,6 +4175,7 @@ int main(int argc, char** argv)
                     r3d::game::originalrace::
                         completeOriginalTournamentTrack(
                             *originalRace, selectedTrack, profileState);
+                raceTournamentAdvance = advance;
                 selectedTrack = advance.trackIndex;
                 racePlanetChampion = advance.planetChampion;
                 raceProgressSaved = true;
@@ -5279,6 +5433,8 @@ int main(int argc, char** argv)
         if (index >= count)
             return;
         auto& progress = profileState.player.planets[index];
+        const bool newPlanet =
+            progress.state == 1U || progress.state == 2U;
         if (progress.state == 1U || progress.state == 2U)
         {
             // Planet::Unlock followed by Tournament::ChangePlanet/Open.
@@ -5293,9 +5449,28 @@ int main(int argc, char** argv)
         selectedTrack =
             r3d::game::originalrace::resolveOriginalTournamentTrack(
                 *originalRace, profileState.player);
+        raceTournamentAdvance = {};
         racePlanetChampion = false;
         persistAngarProfile();
         angarTravelDialogVisible = false;
+#ifdef RRR3D_VIDEO
+        if (newPlanet && championshipMode &&
+            !profileState.config.disableVideo)
+        {
+            const std::string movie =
+                "Data/Video/" +
+                originalGarage->planets[index].name +
+                (activeLanguage == "russian"
+                     ? ".avi"
+                     : "_eng.avi");
+            if (playOriginalMovie(
+                    movie,
+                    OriginalMovieCompletion::RaceMenu))
+            {
+                return;
+            }
+        }
+#endif
         backMenu();
     };
     auto requestAngarTravel =
@@ -5960,19 +6135,111 @@ int main(int argc, char** argv)
     auto closeFinishMenu = [&]() {
         if (!finishMenuShown)
             return;
-        menuStack =
-            championshipMode
-                ? std::vector<MenuScreen>{
-                      MenuScreen::Main, MenuScreen::GameMode,
-                      MenuScreen::Tournament, MenuScreen::RaceMenu}
-                : std::vector<MenuScreen>{
-                      MenuScreen::Main, MenuScreen::GameMode,
-                      MenuScreen::RaceMenu};
-        menuSelection = 0U;
         finishMenuShown = false;
         finishAnimationSeconds = 0.0F;
-        std::cout
-            << "Original FinishMenu::OnFinishClose -> RaceMenu2\n";
+        const auto raceMenuPath = [&]() {
+            return championshipMode
+                       ? std::vector<MenuScreen>{
+                             MenuScreen::Main, MenuScreen::GameMode,
+                             MenuScreen::Tournament,
+                             MenuScreen::RaceMenu}
+                       : std::vector<MenuScreen>{
+                             MenuScreen::Main, MenuScreen::GameMode,
+                             MenuScreen::RaceMenu};
+        };
+        menuStack = raceMenuPath();
+        menuSelection = 0U;
+        const auto transition =
+            r3d::game::originalrace::originalFinishTransition(
+                raceTournamentAdvance,
+                profileState.player.currentPlanet,
+                championshipMode);
+        switch (transition)
+        {
+        case r3d::game::originalrace::FinishTransition::Final:
+#ifdef RRR3D_VIDEO
+            if (!profileState.config.disableVideo)
+            {
+                // Preserve the legacy Menu.cpp language branch literally:
+                // Russian selects final_eng, all other languages final.
+                const auto movie =
+                    activeLanguage == "russian"
+                        ? "Data/Video/final_eng.avi"
+                        : "Data/Video/final.avi";
+                if (playOriginalMovie(
+                        movie,
+                        OriginalMovieCompletion::FinalMenu))
+                {
+                    std::cout
+                        << "Original Menu::OnFinishClose -> final movie\n";
+                    break;
+                }
+            }
+#endif
+            showOriginalFinalMenu();
+            std::cout
+                << "Original Menu::OnFinishClose -> FinalMenu\n";
+            break;
+        case r3d::game::originalrace::FinishTransition::
+            PlanetCompleted:
+        {
+            menuStack.push_back(MenuScreen::Planets);
+            const auto planetCount = std::min(
+                originalGarage->planets.size(),
+                profileState.player.planets.size());
+            const auto nextPlanet =
+                std::min<std::size_t>(
+                    profileState.player.currentPlanet + 1U,
+                    planetCount > 0U ? planetCount - 1U : 0U);
+            angarPlanetIndex =
+                planetCount > 0U
+                    ? static_cast<int>(nextPlanet)
+                    : -1;
+            angarPreviousPlanetIndex = -1;
+            angarDoorTime = -1.0F;
+            angarTravelDialogVisible = false;
+            menuSelection =
+                planetCount > 0U ? nextPlanet : planetCount;
+            refreshPlanetsPage();
+            showInfoDialog(
+                localized("svWarning"),
+                localized("svHintYouCanFlyPlanet"),
+                localized("svOk"),
+                menu::virtualWidth * 0.5F,
+                menu::virtualHeight * 0.5F);
+            std::cout
+                << "Original Menu::OnFinishClose -> AngarFrame: "
+                << localized("svHintYouCanFlyPlanet") << '\n';
+            break;
+        }
+        case r3d::game::originalrace::FinishTransition::
+            PassCompleted:
+            showInfoDialog(
+                localized("svWarning"),
+                localized("svHintYouCompletePass"),
+                localized("svOk"),
+                menu::virtualWidth * 0.5F,
+                menu::virtualHeight * 0.5F);
+            std::cout
+                << "Original Menu::OnFinishClose: "
+                << localized("svHintYouCompletePass") << '\n';
+            break;
+        case r3d::game::originalrace::FinishTransition::PassFailed:
+            showInfoDialog(
+                localized("svWarning"),
+                localized("svHintYouNotCompletePass"),
+                localized("svOk"),
+                menu::virtualWidth * 0.5F,
+                menu::virtualHeight * 0.5F);
+            std::cout
+                << "Original Menu::OnFinishClose: "
+                << localized("svHintYouNotCompletePass") << '\n';
+            break;
+        case r3d::game::originalrace::FinishTransition::RaceMenu:
+            std::cout
+                << "Original FinishMenu::OnFinishClose -> RaceMenu2\n";
+            break;
+        }
     };
     if (options->finishMenuSmokeTest)
     {
@@ -6308,6 +6575,29 @@ int main(int argc, char** argv)
                         r3d::audio::PlaybackDeviceEvent::FormatChanged,
                         event.adevice.which);
                 }
+            }
+#endif
+#ifdef RRR3D_VIDEO
+            if (originalMovieActive &&
+                event.type != SDL_EVENT_QUIT &&
+                event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
+                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+            {
+                const auto movieInputEvents =
+                    input.processEvent(event);
+                for (const auto& inputEvent : movieInputEvents)
+                {
+                    if (inputEvent.active && !inputEvent.repeated &&
+                        (inputEvent.action ==
+                             rrr3d::input::Action::MenuBack ||
+                         inputEvent.action ==
+                             rrr3d::input::Action::Pause))
+                    {
+                        finishOriginalMovie();
+                        break;
+                    }
+                }
+                continue;
             }
 #endif
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -8969,52 +9259,80 @@ int main(int argc, char** argv)
                         std::array<std::string, 3>{
                             "gdEasy", "gdNormal", "gdHard"}
                             [menuSelection];
-                    if (championshipMode && newTournamentProfile)
-                    {
-                        // Race::NewProfile(rmChampionship) creates the first
-                        // absent profileN.  It must not reset or overwrite the
-                        // campaign profile currently selected in race.xml.
+                    const auto startSelectedMatch = [&, difficulty]() {
+                        if (championshipMode &&
+                            newTournamentProfile)
+                        {
+                            // Race::NewProfile(rmChampionship) creates the
+                            // first absent profileN. It must not reset or
+                            // overwrite the campaign profile selected in
+                            // race.xml.
+                            saveRaceProfile();
+                            const auto created =
+                                r3d::game::originalrace::
+                                    beginOriginalChampionshipProfile(
+                                        profileState, difficulty);
+                            selectedTrack = 0U;
+                            newTournamentProfile = false;
+                            refreshProfilePage();
+                            std::cout
+                                << "Race::NewProfile championship: "
+                                << created << '\n';
+                        }
+                        else if (!championshipMode)
+                        {
+                            // Race owns one separate SkProfile named
+                            // "skirmish". Its SaveGame is empty and it is
+                            // absent from the persistent championship list.
+                            saveRaceProfile();
+                            championshipPlayerBeforeSkirmish =
+                                profileState.player;
+                            profileState.player =
+                                r3d::game::originalrace::
+                                    makeOriginalSkirmishProfile(
+                                        profileState, difficulty);
+                            selectedTrack = 0U;
+                            std::cout
+                                << "Race::NewProfile skirmish: temporary "
+                                   "skirmish\n";
+                        }
+                        else
+                        {
+                            profileState.player.difficulty = difficulty;
+                        }
+                        if (!reloadCurrentRace())
+                        {
+                            runtimeSmokeFailed = true;
+                            running = false;
+                            return;
+                        }
                         saveRaceProfile();
-                        const auto created =
-                            r3d::game::originalrace::
-                                beginOriginalChampionshipProfile(
-                                    profileState, difficulty);
-                        selectedTrack = 0U;
-                        newTournamentProfile = false;
-                        refreshProfilePage();
-                        std::cout
-                            << "Race::NewProfile championship: "
-                            << created << '\n';
-                    }
-                    else if (!championshipMode)
+                        showOriginalRaceMenu();
+                    };
+#ifdef RRR3D_VIDEO
+                    if (championshipMode &&
+                        newTournamentProfile &&
+                        !profileState.config.disableVideo)
                     {
-                        // Race owns one separate SkProfile named "skirmish".
-                        // Its SaveGame is empty and it is absent from the
-                        // persistent championship profile list.
-                        saveRaceProfile();
-                        championshipPlayerBeforeSkirmish =
-                            profileState.player;
-                        profileState.player =
-                            r3d::game::originalrace::
-                                makeOriginalSkirmishProfile(
-                                    profileState, difficulty);
-                        selectedTrack = 0U;
-                        std::cout
-                            << "Race::NewProfile skirmish: temporary "
-                               "skirmish\n";
+                        // DifficultyFrame::OnClick hides the menu, plays
+                        // main/main_eng, and calls StartMatch only from
+                        // cVideoStopped.
+                        originalMovieStartMatch = startSelectedMatch;
+                        const auto movie =
+                            activeLanguage == "russian"
+                                ? "Data/Video/Main.avi"
+                                : "Data/Video/Main_eng.avi";
+                        if (playOriginalMovie(
+                                movie,
+                                OriginalMovieCompletion::
+                                    TournamentStart))
+                        {
+                            break;
+                        }
+                        originalMovieStartMatch = {};
                     }
-                    else
-                    {
-                        profileState.player.difficulty = difficulty;
-                    }
-                    if (!reloadCurrentRace())
-                    {
-                        runtimeSmokeFailed = true;
-                        running = false;
-                        break;
-                    }
-                    saveRaceProfile();
-                    showOriginalRaceMenu();
+#endif
+                    startSelectedMatch();
 #endif
                     break;
                 }
@@ -9261,6 +9579,9 @@ int main(int argc, char** argv)
                 pixelHeight = std::max(event.window.data2, 1);
                 device->resize(static_cast<std::uint32_t>(pixelWidth),
                                static_cast<std::uint32_t>(pixelHeight));
+#ifdef RRR3D_VIDEO
+                videoPlayer.resize();
+#endif
 #ifdef RRR3D_PHYSICS
                 std::string resizeError;
                 if (!raceRenderer.resize(
@@ -9288,6 +9609,48 @@ int main(int argc, char** argv)
             }
         }
 
+#ifdef RRR3D_VIDEO
+        if (originalMovieActive)
+        {
+            std::string videoError;
+            const auto state = videoPlayer.update(videoError);
+            videoFrameObserved =
+                videoFrameObserved || videoPlayer.readyForDisplay();
+            if (options->videoSmokeTest && videoFrameObserved &&
+                !videoSmokeSeeked)
+            {
+                const double duration =
+                    videoPlayer.durationSeconds();
+                if (duration > 1.0)
+                {
+                    videoPlayer.seek(duration - 0.5);
+                    videoSmokeSeeked = true;
+                }
+            }
+            if (state == rrr3d::video::PlaybackState::Completed)
+            {
+                finishOriginalMovie();
+            }
+            else if (state ==
+                     rrr3d::video::PlaybackState::Failed)
+            {
+                std::cerr
+                    << "Original movie runtime failed: "
+                    << videoError << '\n';
+                runtimeSmokeFailed = true;
+                finishOriginalMovie();
+            }
+            else if (options->videoSmokeTest &&
+                     SDL_GetTicks() >= videoSmokeDeadline)
+            {
+                std::cerr
+                    << "Source movie smoke timed out after 15 seconds\n";
+                runtimeSmokeFailed = true;
+                finishOriginalMovie();
+            }
+        }
+#endif
+
         const std::uint64_t currentFrameTicks = SDL_GetTicksNS();
         float frameSeconds = std::clamp(
             static_cast<float>(currentFrameTicks - previousFrameTicks) /
@@ -9313,6 +9676,10 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
         else if (options->audioSmokeTest)
             frameSeconds = 1.0F / 60.0F;
+#endif
+#ifdef RRR3D_VIDEO
+        if (originalMovieActive)
+            frameSeconds = 0.0F;
 #endif
         previousFrameTicks = currentFrameTicks;
         if (menuStack.back() == MenuScreen::Credits)
@@ -12919,8 +13286,43 @@ int main(int argc, char** argv)
             && (!options->audioSmokeTest ||
                 musicSmokePhase == MusicSmokePhase::Complete)
 #endif
+#ifdef RRR3D_VIDEO
+            && (!options->videoSmokeTest ||
+                videoCompletionObserved)
+#endif
         )
         {
+#ifdef RRR3D_VIDEO
+            if (options->videoSmokeTest)
+            {
+                if (!videoFrameObserved ||
+                    !videoCompletionObserved ||
+                    !videoTournamentStartObserved ||
+                    !videoSmokeSeeked)
+                {
+                    std::cerr
+                        << "Source movie smoke failed: frame="
+                        << videoFrameObserved
+                        << ", completion="
+                        << videoCompletionObserved
+                        << ", tournament-start="
+                        << videoTournamentStartObserved
+                        << ", seek=" << videoSmokeSeeked << '\n';
+                    runtimeSmokeFailed = true;
+                }
+                else
+                {
+                    std::cout
+                        << "Source movie smoke passed after "
+                        << renderedFrames
+                        << " frames: original AVI payload remux, "
+                           "AVFoundation H.264/MP3 playback, display, "
+                           "seek, cVideoStopped and tournament callback "
+                           "verified\n";
+                }
+            }
+            else
+#endif
             if (options->finalMenuSmokeTest)
             {
                 const bool allSlidesObserved =

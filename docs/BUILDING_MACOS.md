@@ -5,8 +5,9 @@
 - Apple Silicon (`arm64`): M1, M2, M3, M4 and newer;
 - macOS 13.0 or newer;
 - Xcode Command Line Tools with AppleClang;
-- CMake 3.21 or newer, Ninja and Git;
-- enough free space for the 530 MiB game-data package and build trees.
+- CMake 3.21 or newer, Ninja, Git and FFmpeg;
+- enough free space for the 530 MiB game-data package, the generated video
+  cache and build trees.
 
 Rosetta, Wine, CrossOver and the Windows PhysX/DirectX libraries are not used.
 The first configure may download pinned SDL3, TinyXML, libogg, libvorbis and
@@ -39,8 +40,8 @@ cmake --build --preset macos-arm64-release --parallel 8
 
 Both presets run the corrected original-data path accepted in M5–M9.5:
 `MainMenu2`, MusicCat, the original race/session/HUD/effects data,
-source-calibrated Jolt physics and bgfx/Metal. They do not compile the
-cancelled standalone portable race.
+source-calibrated Jolt physics, bgfx/Metal and the native AVFoundation movie
+adapter. They do not compile the cancelled standalone portable race.
 
 ## Debug application bundle
 
@@ -78,13 +79,20 @@ RRR3d.app/Contents
 └── Resources
     ├── RRR3d.icns
     ├── Licenses
-    └── game-data
+    ├── game-data
+    └── video-cache
 ```
 
 SDL3, libogg, libvorbis, bgfx, bx and bimg are linked statically. Therefore
 `Frameworks` is currently empty and the runtime link graph contains only
-Apple system libraries and frameworks. The executable resolves resources from
-`Contents/Resources` and does not depend on the Terminal working directory.
+Apple system libraries and frameworks, including AVFoundation. The executable
+resolves resources from `Contents/Resources` and does not depend on the
+Terminal working directory.
+
+The original 14 AVI resources contain H.264 video and MP3 audio, but
+AVFoundation does not accept their AVI container. During the build, FFmpeg
+remuxes them with `-c copy` into `video-cache/*.mp4`; neither stream is
+re-encoded. FFmpeg is a build-time tool only and is not a runtime dependency.
 
 ## Running
 
@@ -118,6 +126,9 @@ SDL_AUDIO_DRIVER=dummy \
 SDL_AUDIO_DRIVER=dummy \
   build/macos-arm64-release/Release/RRR3d.app/Contents/MacOS/RRR3d \
   --race-render-smoke-test --smoke-test-frames=240
+
+build/macos-arm64-release/Release/RRR3d.app/Contents/MacOS/RRR3d \
+  --video-smoke-test --smoke-test-frames=600
 ```
 
 ## Bundle verification and transport ZIP
@@ -133,9 +144,10 @@ scripts/package_macos_bundle.sh \
 
 The verifier checks package type, version 1.3.1, bundle identifier,
 high-resolution support, arm64-only architecture, deployment target 13.0,
-the intentionally empty `Frameworks`, exact resource completeness, strict code
-signature and the absence of Homebrew, local build and Windows runtime
-dependencies. It uses an xattr-free temporary transport copy because
+the intentionally empty `Frameworks`, all 14 remuxed source movies, exact
+game-data completeness, strict code signature and the absence of Homebrew,
+local build and Windows runtime dependencies. It uses an xattr-free temporary
+transport copy because
 file-provider-backed folders may attach Finder metadata to their contents.
 
 The packaging script emits a clean ZIP whose contained `.app` retains its

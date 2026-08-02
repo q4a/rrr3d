@@ -492,7 +492,7 @@ libvorbis 1.3.7 собираются проектом из зафиксиров�
 - `RRR3D_BUILD_MAP_EDITOR=OFF`;
 - `RRR3D_ENABLE_RENDERER=OFF` в обычном preset;
 - `RRR3D_ENABLE_NETWORK=OFF`;
-- `RRR3D_ENABLE_VIDEO=OFF`;
+- `RRR3D_ENABLE_VIDEO=OFF` в M3–M8 и `ON` в M9/M10/Release;
 - `RRR3D_ENABLE_PHYSICS=OFF` в M3–M8 и `ON` в исправленном M9;
 - `RRR3D_ENABLE_STEAM=OFF`;
 - `RRR3D_ENABLE_GAMEPAD=OFF` в обычных M3/M5/M6 preset и `ON` в M7–M9;
@@ -504,7 +504,8 @@ libvorbis 1.3.7 собираются проектом из зафиксиров�
   legacy D3D9 renderer и gameplay scene graph не компилируются;
 - legacy world/gameplay source set, D3D9/D3DX renderer, PhysX 2.8.4, полный
   `.r3d` material/effect scene graph, DirectShow, WinMM/XAudio, legacy XInput
-  implementation и полные игровые consumers всё ещё отключены. Узкие
+  implementation и полные игровые consumers всё ещё отключены. DirectShow
+  заменён AVFoundation adapter в актуальных presets. Узкие
   decoders для original menu, `map1`, track/car `.r3d`, DDS/Ogg и localization
   включены только в исправленные milestone targets.
 
@@ -984,15 +985,33 @@ SDL_AUDIO_DRIVER=dummy \
 - 300-frame M9 smoke проверил точные размеры frame/info/buttons и offsets в
   Profile/HUD paths. M8/M9/M10 Debug, audio/race-render, resource и bundle
   verification прошли.
+- Устранён безусловный `FinishMenu → RaceMenu2`: новая развилка повторяет
+  `Menu::OnFinishClose` для pass failed/completed, planet unlock и final.
+  `Race::CompletePlanet(4)` открывает также скрытые planets 5+, как в source;
+  deterministic physics regression проверяет все transition variants.
+- Legacy DirectShow player заменён `AVPlayer`/`AVPlayerLayer`. Все 14
+  оригинальных AVI remux-ятся на этапе сборки в MP4 без перекодирования
+  H.264/MP3, копируются в M9/M10 runtime и проверяются bundle verifier.
+  Во время ролика MusicCat и game/menu time приостановлены; Escape/Pause,
+  resize, normal completion и переходы к Angar/RaceMenu/FinalMenu совпадают
+  с исходным control flow.
+- `DifficultyFrame` новой кампании проигрывает `Main/Main_eng` до создания
+  профиля и запускает `StartMatch` только через source `cVideoStopped`
+  callback. `--video-smoke-test` подтвердил отображённый кадр `Main_eng`,
+  near-end seek, completion и этот callback.
+- В исходном offline-коде нет ввода имени профиля:
+  `Race::MakeProfileName` создаёт `profileN`; `UserChat` и `NetIPAddress`
+  принадлежат только сетевым экранам и не должны переноситься как выдуманный
+  offline widget.
 
 ## Следующий рекомендуемый этап
 
 Основные offline subframes `RaceMenu2` и ветка GameMode/Tournament/
 Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` и workshop
 `WeaponDialog`, а также вызываемые offline `InfoDialog`/`AcceptDialog` теперь
-source-derived. Следующий P0-блок: перенести исходные text-input widgets
-`ProfileFrame`/`UserChat` и их callback/transitions; после этого закрыть
-intro-video/final-unlock ветку.
+source-derived. Source finish progression, planet/final movies и нативный
+video backend также подключены. Следующий P0-блок: перенести исходный
+`GamersFrame`, выбор стартового соперника и его Intaria intro transition.
 Параллельно остаются source-by-source ревизии projectile callbacks,
 material/effect graph и game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих

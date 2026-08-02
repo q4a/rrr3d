@@ -360,6 +360,38 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             ${RRR3D_VORBISFILE_TARGET}
         )
     endif()
+    if(RRR3D_ENABLE_VIDEO)
+        if(NOT APPLE OR NOT RRR3D_BUILD_ORIGINAL_MENU)
+            message(FATAL_ERROR
+                "The portable video player requires the original macOS menu")
+        endif()
+        if(NOT RRR3D_ENABLE_AUDIO)
+            message(FATAL_ERROR
+                "The source movie flow requires menu audio pause/resume")
+        endif()
+        if(NOT RRR3D_ENABLE_GAMEPAD OR NOT RRR3D_ENABLE_PHYSICS)
+            message(FATAL_ERROR
+                "The source movie flow requires the active SDL input/race runtime")
+        endif()
+        find_library(RRR3D_AVFOUNDATION_FRAMEWORK AVFoundation REQUIRED)
+        find_library(RRR3D_APPKIT_FRAMEWORK AppKit REQUIRED)
+        find_library(RRR3D_QUARTZCORE_FRAMEWORK QuartzCore REQUIRED)
+        find_program(RRR3D_FFMPEG_EXECUTABLE NAMES ffmpeg REQUIRED)
+        target_sources(${PROJECT_NAME} PRIVATE
+            MacVideoPlayer.h
+            MacVideoPlayer.mm
+        )
+        set_source_files_properties(MacVideoPlayer.mm PROPERTIES
+            COMPILE_OPTIONS "-fobjc-arc")
+        target_compile_definitions(${PROJECT_NAME} PRIVATE
+            RRR3D_VIDEO=1
+        )
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            ${RRR3D_AVFOUNDATION_FRAMEWORK}
+            ${RRR3D_APPKIT_FRAMEWORK}
+            ${RRR3D_QUARTZCORE_FRAMEWORK}
+        )
+    endif()
     if(RRR3D_ENABLE_PHYSICS)
         if(RRR3D_BUILD_ORIGINAL_MENU)
             target_sources(${PROJECT_NAME} PRIVATE
@@ -434,6 +466,51 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
         set_source_files_properties(${_rrr3d_game_data_files}
             PROPERTIES HEADER_FILE_ONLY TRUE)
         target_sources(${PROJECT_NAME} PRIVATE ${_rrr3d_game_data_files})
+        if(RRR3D_ENABLE_VIDEO)
+            set(_rrr3d_video_cache_dir
+                "${CMAKE_CURRENT_BINARY_DIR}/video-cache")
+            set(_rrr3d_video_stems
+                Intaria
+                Intaria_eng
+                Main
+                Main_eng
+                final
+                final_eng
+                scHemi5
+                scHemi5_eng
+                scInferno
+                scInferno_eng
+                scNho
+                scNho_eng
+                scPatagonis
+                scPatagonis_eng)
+            set(_rrr3d_video_cache_files)
+            foreach(_rrr3d_video_stem IN LISTS _rrr3d_video_stems)
+                set(_rrr3d_video_source
+                    "${_rrr3d_game_data_source}/Data/Video/${_rrr3d_video_stem}.avi")
+                set(_rrr3d_video_cache
+                    "${_rrr3d_video_cache_dir}/${_rrr3d_video_stem}.mp4")
+                add_custom_command(
+                    OUTPUT "${_rrr3d_video_cache}"
+                    COMMAND ${CMAKE_COMMAND} -E make_directory
+                        "${_rrr3d_video_cache_dir}"
+                    COMMAND "${RRR3D_FFMPEG_EXECUTABLE}"
+                        -nostdin -hide_banner -loglevel error -y
+                        -i "${_rrr3d_video_source}"
+                        -map 0:v:0 -map 0:a:0 -c copy
+                        -movflags +faststart
+                        "${_rrr3d_video_cache}"
+                    DEPENDS "${_rrr3d_video_source}"
+                    COMMENT
+                        "Remuxing original ${_rrr3d_video_stem}.avi for AVFoundation"
+                    VERBATIM)
+                list(APPEND _rrr3d_video_cache_files
+                    "${_rrr3d_video_cache}")
+            endforeach()
+            add_custom_target(RRR3dVideoCache ALL
+                DEPENDS ${_rrr3d_video_cache_files})
+            add_dependencies(${PROJECT_NAME} RRR3dVideoCache)
+        endif()
         if(APPLE AND RRR3D_BUILD_MACOS_BUNDLE)
             set(_rrr3d_bundle_contents
                 "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>")
@@ -446,6 +523,11 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                     -Dsource_root=${_rrr3d_game_data_source}
                     -Ddestination_root=${_rrr3d_bundle_contents}/Resources/game-data
                     -P "${CMAKE_SOURCE_DIR}/cmake/copy_catalog_game_data.cmake"
+                COMMAND ${CMAKE_COMMAND} -E remove_directory
+                    "${_rrr3d_bundle_contents}/Resources/video-cache"
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${_rrr3d_video_cache_dir}"
+                    "${_rrr3d_bundle_contents}/Resources/video-cache"
                 COMMAND /usr/bin/xattr -cr
                     "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>"
                 COMMAND /usr/bin/codesign ${_rrr3d_codesign_arguments}
@@ -455,6 +537,7 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                 DEPENDS
                     ${PROJECT_NAME}
                     ${_rrr3d_game_data_files}
+                    ${_rrr3d_video_cache_files}
                     "${CMAKE_SOURCE_DIR}/cmake/copy_catalog_game_data.cmake"
                     "${_rrr3d_bundle_icon}"
                     ${_rrr3d_bundle_licenses}
@@ -471,6 +554,17 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                     -P "${CMAKE_SOURCE_DIR}/cmake/copy_catalog_game_data.cmake"
                 COMMENT "Copying original Motor Rock game-data resources"
                 VERBATIM)
+            if(RRR3D_ENABLE_VIDEO)
+                add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E remove_directory
+                        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/video-cache"
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                        "${_rrr3d_video_cache_dir}"
+                        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/video-cache"
+                    COMMENT
+                        "Copying AVFoundation-compatible original movie cache"
+                    VERBATIM)
+            endif()
         endif()
     endif()
 elseif(RRR3D_BUILD_SDL_SHELL)

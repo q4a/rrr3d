@@ -37,6 +37,7 @@ binary="$contents/MacOS/RRR3d"
 plist="$contents/Info.plist"
 resources="$contents/Resources"
 frameworks="$contents/Frameworks"
+video_cache="$resources/video-cache"
 expected_version=1.3.1
 
 [ -x "$binary" ] || fail "arm64 executable is missing: $binary"
@@ -49,6 +50,8 @@ expected_version=1.3.1
     fail "game-data catalog is missing"
 [ -f "$resources/game-data/manifest.cfg" ] ||
     fail "game-data manifest is missing"
+[ -d "$video_cache" ] ||
+    fail "AVFoundation movie cache is missing"
 
 /usr/bin/plutil -lint "$plist" >/dev/null || fail "Info.plist is invalid"
 
@@ -113,5 +116,14 @@ expected_asset_count=$((catalog_count + 4))
 [ "$asset_count" -eq "$expected_asset_count" ] ||
     fail "game-data must contain exactly $expected_asset_count cataloged files; found $asset_count"
 
-printf 'RRR3d.app verified: version %s, arm64, minos %s, %s assets, signed, autonomous dependencies\n' \
-    "$expected_version" "$minimum" "$asset_count"
+movie_count=$(/usr/bin/find "$video_cache" -type f -name '*.mp4' |
+    /usr/bin/wc -l | /usr/bin/tr -d ' ')
+[ "$movie_count" -eq 14 ] ||
+    fail "video-cache must contain exactly 14 remuxed original movies; found $movie_count"
+unexpected_movies=$(/usr/bin/find "$video_cache" -type f ! -name '*.mp4' |
+    /usr/bin/wc -l | /usr/bin/tr -d ' ')
+[ "$unexpected_movies" -eq 0 ] ||
+    fail "video-cache contains non-MP4 files"
+
+printf 'RRR3d.app verified: version %s, arm64, minos %s, %s assets, %s movies, signed, autonomous dependencies\n' \
+    "$expected_version" "$minimum" "$asset_count" "$movie_count"

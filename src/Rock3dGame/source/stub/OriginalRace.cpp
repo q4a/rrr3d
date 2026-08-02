@@ -3538,12 +3538,29 @@ TournamentAdvance completeOriginalTournamentTrack(
             {
                 progress.state = 3U;
                 result.planetChampion = true;
-                if (std::find(profile.planetsCompleted.begin(),
-                              profile.planetsCompleted.end(),
-                              planet) ==
-                    profile.planetsCompleted.end())
+                const auto rememberCompleted =
+                    [&](std::uint32_t completed) {
+                    if (std::find(
+                            profile.planetsCompleted.begin(),
+                            profile.planetsCompleted.end(),
+                            completed) ==
+                        profile.planetsCompleted.end())
+                    {
+                        profile.planetsCompleted.push_back(completed);
+                    }
+                };
+                rememberCompleted(planet);
+                // Race::CompletePlanet unlocks every tournament entry after
+                // the fifth campaign planet when Inferno is completed.
+                if (planet ==
+                    originalTournamentPlanetCount - 1U)
                 {
-                    profile.planetsCompleted.push_back(planet);
+                    for (std::uint32_t hidden =
+                             originalTournamentPlanetCount;
+                         hidden < profile.player.planets.size(); ++hidden)
+                    {
+                        rememberCompleted(hidden);
+                    }
                 }
             }
         }
@@ -3560,6 +3577,93 @@ TournamentAdvance completeOriginalTournamentTrack(
             profile.player.planets[planet].pass = pass + 1U;
     }
     return result;
+}
+
+FinishTransition originalFinishTransition(
+    const TournamentAdvance& advance, std::uint32_t currentPlanet,
+    bool campaign) noexcept
+{
+    if (!campaign)
+        return FinishTransition::RaceMenu;
+    if (advance.planetChampion)
+    {
+        return currentPlanet + 1U >= originalTournamentPlanetCount
+                   ? FinishTransition::Final
+                   : FinishTransition::PlanetCompleted;
+    }
+    if (advance.passChampion)
+        return FinishTransition::PassCompleted;
+    if (advance.passComplete)
+        return FinishTransition::PassFailed;
+    return FinishTransition::RaceMenu;
+}
+
+bool runOriginalTournamentProgressSmokeTest(std::string& error)
+{
+    Race race;
+    race.requiredPoints = {100U, 200U};
+    race.trackCatalog = {
+        {"Data/Map/World5/map15.r3dMap", 4U, "wtWorld5", 4U, 2U},
+    };
+    auto profile = makeOriginalDefaultProfileState();
+    profile.player.currentPlanet = 4U;
+    profile.player.currentPass = 2U;
+    profile.player.currentTrack = 0U;
+    profile.player.points = 200U;
+    profile.player.planets[4].state = 0U;
+    profile.player.planets[4].pass = 2U;
+    profile.planetsCompleted.clear();
+    const auto finalAdvance =
+        completeOriginalTournamentTrack(race, 0U, profile);
+    const auto completed = [&](std::uint32_t planet) {
+        return std::find(
+                   profile.planetsCompleted.begin(),
+                   profile.planetsCompleted.end(),
+                   planet) != profile.planetsCompleted.end();
+    };
+    if (!finalAdvance.passComplete ||
+        !finalAdvance.passChampion ||
+        !finalAdvance.planetChampion ||
+        profile.player.planets[4].state != 3U ||
+        !completed(4U) || !completed(5U) ||
+        originalFinishTransition(
+            finalAdvance, 4U, true) !=
+            FinishTransition::Final)
+    {
+        error =
+            "source final-planet completion/unlock transition mismatch";
+        return false;
+    }
+
+    TournamentAdvance transition;
+    transition.passComplete = true;
+    if (originalFinishTransition(
+            transition, 0U, true) !=
+            FinishTransition::PassFailed)
+    {
+        error = "source failed-pass finish transition mismatch";
+        return false;
+    }
+    transition.passChampion = true;
+    if (originalFinishTransition(
+            transition, 0U, true) !=
+            FinishTransition::PassCompleted)
+    {
+        error = "source pass-champion finish transition mismatch";
+        return false;
+    }
+    transition.planetChampion = true;
+    if (originalFinishTransition(
+            transition, 3U, true) !=
+            FinishTransition::PlanetCompleted ||
+        originalFinishTransition(
+            transition, 3U, false) !=
+            FinishTransition::RaceMenu)
+    {
+        error = "source planet/skirmish finish transition mismatch";
+        return false;
+    }
+    return true;
 }
 
 void applyOriginalPlayerProfile(

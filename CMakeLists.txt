@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 
 set(RRR3D_VERSION "1.3.1")
-project(rrr3d VERSION ${RRR3D_VERSION} LANGUAGES C CXX)
+if(APPLE)
+    project(rrr3d VERSION ${RRR3D_VERSION} LANGUAGES C CXX OBJCXX)
+else()
+    project(rrr3d VERSION ${RRR3D_VERSION} LANGUAGES C CXX)
+endif()
 
 option(RRR3D_BUILD_GAME "Build RRR3D game" ON)
 option(RRR3D_BUILD_MAP_EDITOR "Build map editor" OFF)
@@ -49,10 +53,11 @@ if(RRR3D_BUILD_MACOS_BUNDLE)
        NOT RRR3D_ENABLE_RENDERER OR
        NOT RRR3D_ENABLE_GAMEPAD OR
        NOT RRR3D_ENABLE_AUDIO OR
+       NOT RRR3D_ENABLE_VIDEO OR
        NOT RRR3D_ENABLE_PHYSICS)
         message(FATAL_ERROR
             "The macOS bundle requires the active source-driven runtime: "
-            "original menu/resources, renderer, gamepad, audio, and physics; "
+            "original menu/resources, renderer, gamepad, audio, video, and physics; "
             "the superseded portable vertical slice must be disabled")
     endif()
     if(RRR3D_MACOS_CODESIGN_IDENTITY STREQUAL "")

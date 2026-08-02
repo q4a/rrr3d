@@ -607,6 +607,17 @@ struct TournamentAdvance
     bool planetChampion = false;
 };
 
+inline constexpr std::uint32_t originalTournamentPlanetCount = 5U;
+
+enum class FinishTransition
+{
+    RaceMenu,
+    PassFailed,
+    PassCompleted,
+    PlanetCompleted,
+    Final,
+};
+
 Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources);
 Race loadOriginalRace(const resource::ResourceFileSystem& resources,
                       std::size_t trackIndex,
@@ -630,6 +641,9 @@ void writeOriginalTournamentSelection(
 TournamentAdvance completeOriginalTournamentTrack(
     const Race& race, std::size_t trackIndex,
     ProfileState& profile) noexcept;
+FinishTransition originalFinishTransition(
+    const TournamentAdvance& advance, std::uint32_t currentPlanet,
+    bool campaign) noexcept;
 void applyOriginalPlayerProfile(
     Race& race, const resource::ResourceFileSystem& resources,
     const PlayerProfile& profile);
@@ -638,5 +652,6 @@ r3d::physics::WorldDescription makePhysicsDescription(
 bool runOriginalRaceResourceSmokeTest(
     const Race& race, const resource::ResourceFileSystem& resources,
     std::string& error);
+bool runOriginalTournamentProgressSmokeTest(std::string& error);
 
 } // namespace r3d::game::originalrace
