@@ -4,6 +4,9 @@
 
 #include "Px28Impl.h"
 
+#include <cstdio>
+#include <cstdlib>
+
 namespace px28
 {
 
@@ -389,6 +392,27 @@ bool Scene::fetchResults(NxSimulationStatus, bool)
 	{
 	if (_pendingStep > 0.0f)
 		{
+		static unsigned physicsTraceStep = 0;
+		const bool physicsTrace = std::getenv("RRR3D_PHYSICS_TRACE") != NULL;
+		Actor* traceActor = NULL;
+		if (physicsTrace && !_wheels.empty() && physicsTraceStep < 120)
+			traceActor = static_cast<Actor*>(&_wheels.front()->getActor());
+
+		if (traceActor)
+			{
+			const NxVec3 pos = traceActor->getGlobalPosition();
+			const NxVec3 vel = traceActor->getLinearVelocity();
+			const btVector3 gravity = _world->getGravity();
+			std::fprintf(stderr,
+				"physics step %u before actor %p dt %.6f mass %.3f sleeping %d "
+				"posZ %.6f velZ %.6f gravityZ %.3f ccdRadius %.3f ccdThreshold %.3f\n",
+				physicsTraceStep, static_cast<void*>(traceActor), double(_pendingStep),
+				double(traceActor->getMass()), traceActor->isSleeping() ? 1 : 0,
+				double(pos.z), double(vel.z), double(gravity.z()),
+				double(traceActor->body()->getCcdSweptSphereRadius()),
+				double(traceActor->body()->getCcdMotionThreshold()));
+			}
+
 		/*
 		 * One substep, and the maxSubSteps argument is what enforces it.
 		 *
@@ -412,6 +436,40 @@ bool Scene::fetchResults(NxSimulationStatus, bool)
 		if (_contactModify)
 			{
 			_world->performDiscreteCollisionDetection();
+			if (traceActor)
+				{
+				for (int m = 0; m < _dispatcher->getNumManifolds(); ++m)
+					{
+					btPersistentManifold* manifold =
+						_dispatcher->getManifoldByIndexInternal(m);
+					Actor* actor0 = static_cast<Actor*>(
+						manifold->getBody0()->getUserPointer());
+					Actor* actor1 = static_cast<Actor*>(
+						manifold->getBody1()->getUserPointer());
+					if (actor0 != traceActor && actor1 != traceActor)
+						continue;
+
+					for (int p = 0; p < manifold->getNumContacts(); ++p)
+						{
+						const btManifoldPoint& point = manifold->getContactPoint(p);
+						const btVector3& normal = point.m_normalWorldOnB;
+						const btVector3 worldA = point.getPositionWorldOnA();
+						const btVector3 worldB = point.getPositionWorldOnB();
+						std::fprintf(stderr,
+							"physics contact step %u targetSide %d otherMass %.3f "
+							"distance %.6f normal %.3f %.3f %.3f "
+							"pointA %.3f %.3f %.3f pointB %.3f %.3f %.3f "
+							"child %d %d\n",
+							physicsTraceStep, actor0 == traceActor ? 0 : 1,
+							double(actor0 == traceActor ? actor1->getMass() : actor0->getMass()),
+							double(point.getDistance()), double(normal.x()),
+							double(normal.y()), double(normal.z()),
+							double(worldA.x()), double(worldA.y()), double(worldA.z()),
+							double(worldB.x()), double(worldB.y()), double(worldB.z()),
+							point.m_index0, point.m_index1);
+						}
+					}
+				}
 			modifyContacts();
 			}
 
@@ -427,7 +485,68 @@ bool Scene::fetchResults(NxSimulationStatus, bool)
 		for (size_t i = 0; i < _wheels.size(); ++i)
 			_wheels[i]->step(_pendingStep);
 
-		_world->stepSimulation(_pendingStep, 0, _pendingStep);
+		/*
+		 * A car deliberately dropped onto a thin triangle track can move farther
+		 * than Bullet's contact envelope in one 60 Hz interval. Bullet does not
+		 * run its swept CCD path for compound shapes (cars are compounds because
+		 * their wheel placeholders share the actor), so the chassis can cross the
+		 * one-sided road before the penetration solver recovers.
+		 *
+		 * Substep only that impact interval: a wheel has already found ground and
+		 * the owning body can move farther than the scene skin width. Controls and
+		 * wheel forces are still evaluated once above; ordinary free fall and
+		 * settled driving retain the game's single 60 Hz rigid-body step.
+		 */
+		bool substepImpact = false;
+		for (size_t i = 0; i < _wheels.size() && !substepImpact; ++i)
+			{
+			NxWheelContactData contact;
+			if (_wheels[i]->getContact(contact) &&
+				_wheels[i]->getActor().getLinearVelocity().magnitude() * _pendingStep > _skinWidth)
+				substepImpact = true;
+			}
+
+		if (substepImpact)
+			_world->stepSimulation(_pendingStep, 4, _pendingStep / 4.0f);
+		else
+			_world->stepSimulation(_pendingStep, 0, _pendingStep);
+
+		if (traceActor)
+			{
+			for (int m = 0; m < _dispatcher->getNumManifolds(); ++m)
+				{
+				btPersistentManifold* manifold =
+					_dispatcher->getManifoldByIndexInternal(m);
+				Actor* actor0 = static_cast<Actor*>(
+					manifold->getBody0()->getUserPointer());
+				Actor* actor1 = static_cast<Actor*>(
+					manifold->getBody1()->getUserPointer());
+				if (actor0 != traceActor && actor1 != traceActor)
+					continue;
+
+				for (int p = 0; p < manifold->getNumContacts(); ++p)
+					{
+					const btManifoldPoint& point = manifold->getContactPoint(p);
+					const btVector3& normal = point.m_normalWorldOnB;
+					std::fprintf(stderr,
+						"physics solved-contact step %u targetSide %d otherMass %.3f "
+						"distance %.6f impulse %.3f normal %.3f %.3f %.3f child %d %d\n",
+						physicsTraceStep, actor0 == traceActor ? 0 : 1,
+						double(actor0 == traceActor ? actor1->getMass() : actor0->getMass()),
+						double(point.getDistance()), double(point.getAppliedImpulse()),
+						double(normal.x()), double(normal.y()), double(normal.z()),
+						point.m_index0, point.m_index1);
+					}
+				}
+
+			const NxVec3 pos = traceActor->getGlobalPosition();
+			const NxVec3 vel = traceActor->getLinearVelocity();
+			std::fprintf(stderr,
+				"physics step %u after  actor %p posZ %.6f velZ %.6f sleeping %d\n",
+				physicsTraceStep, static_cast<void*>(traceActor), double(pos.z),
+				double(vel.z), traceActor->isSleeping() ? 1 : 0);
+			++physicsTraceStep;
+			}
 
 		collectContacts(_pendingStep);
 

@@ -133,6 +133,7 @@ protected:
 
 	virtual bool OnContactModify(const px::Scene::OnContactModifyEvent& contact) {return true;}
 	virtual void OnContact(const px::Scene::OnContactEvent& contact);	
+	virtual void OnSetBody(bool enable);
 	virtual void OnWake();
 	virtual void OnSleep();
 

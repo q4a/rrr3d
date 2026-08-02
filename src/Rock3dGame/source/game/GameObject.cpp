@@ -184,6 +184,19 @@ void GameObject::OnContact(const px::Scene::OnContactEvent& contact)
 		(*iter)->OnContact(contact);
 }
 
+void GameObject::OnSetBody(bool enable)
+{
+	/*
+	 * PhysX 2.8's wake notification used to start render/physics
+	 * synchronization for a live body. The Bullet compatibility layer keeps
+	 * dynamic bodies awake (its automatic sleeping is deliberately disabled),
+	 * so there is no asleep-to-awake transition after creation and therefore no
+	 * notification to turn synchronization on. Body attachment is the one
+	 * reliable lifetime edge shared by both implementations.
+	 */
+	SetBodyProgressEvent(enable);
+}
+
 void GameObject::OnWake()
 {
 	SetBodyProgressEvent(true);
@@ -230,6 +243,19 @@ void GameObject::OnPxSync(float alpha)
 	NxActor* nxActor = _pxActor->GetNxActor();
 	if (nxActor == NULL)
 		return;
+
+	static unsigned physicsSyncTrace = 0;
+	const bool traceSync = std::getenv("RRR3D_PHYSICS_TRACE") != NULL &&
+		nxActor->getMass() >= 1000.0f && physicsSyncTrace < 240;
+	if (traceSync)
+	{
+		const NxVec3 pxPos = nxActor->getGlobalPosition();
+		const D3DXVECTOR3 renderPos = _grActor->GetPos();
+		std::fprintf(stderr,
+			"physics sync %u actor %p alpha %.3f pxZ %.6f renderZ-before %.6f\n",
+			physicsSyncTrace++, static_cast<void*>(nxActor), double(alpha),
+			double(pxPos.z), double(renderPos.z));
+	}
 
 	D3DXVECTOR3 pxVelocityLerp = nxActor->getLinearVelocity().get();
 
