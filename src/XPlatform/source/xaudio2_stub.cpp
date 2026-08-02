@@ -46,6 +46,21 @@ template <class Interface>
 class StubVoice: public Interface
 {
 public:
+	/*
+	 * Virtual, and required.
+	 *
+	 * DestroyVoice does `delete this` with `this` typed as StubVoice, but a
+	 * source voice is really a StubSourceVoice -- deleting a derived object
+	 * through a base with a non-virtual destructor is undefined, and clang
+	 * emits a trap for it rather than quietly getting it wrong. The game hits
+	 * this every time it stops a sound.
+	 *
+	 * The Nx-style "protected destructor" rule that applies to the IXAudio2
+	 * interfaces does not apply here: these are the implementation, not the
+	 * interface, and the implementation is what owns the lifetime.
+	 */
+	virtual ~StubVoice() {}
+
 	void STDMETHODCALLTYPE GetVoiceDetails(XAUDIO2_VOICE_DETAILS* details) override
 	{
 		if (details)

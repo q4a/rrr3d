@@ -15,6 +15,7 @@
 
 #include "../include/NxCooking.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -1352,6 +1353,404 @@ void TestMeshReleaseWhileInUse()
 	NxReleasePhysicsSDK(sdk);
 	}
 
+/* ------------------------------------------------------------- wheels ---- */
+
+/*
+ * The tire curve, against hand-computed values.
+ *
+ * Two cubic Hermite pieces with zero tangent at each knot, flat beyond
+ * asymptoteSlip, signed by the slip so the curve is odd. Grip RISES with slip
+ * up to extremumSlip -- it is not flat below it, which is the reading that
+ * would make a tire behave like a friction block.
+ *
+ * The values below are computed from the construction, not read off an
+ * implementation: with extremumSlip 1 and extremumValue 1 the rising piece is
+ * v*(-a^3 + a^2 + a) at a = slip, so a = 0.5 gives 0.25 - ... worked through
+ * below at each point.
+ */
+void TestTireFunctionCurve()
+	{
+	std::printf("tire function curve\n");
+
+	NxTireFunctionDesc fn;
+	fn.extremumSlip = 1.0f;
+	fn.extremumValue = 1.0f;
+	fn.asymptoteSlip = 2.0f;
+	fn.asymptoteValue = 0.5f;
+
+	Check(fn.isValid() == 0, "the descriptor is valid");
+
+	CheckNear(fn.hermiteEval(0.0f), 0.0f, 1e-6f, "zero slip gives zero");
+
+	/* a = 0.5: -0.125 + 0.25 + 0.5 = 0.625 */
+	CheckNear(fn.hermiteEval(0.5f), 0.625f, 1e-6f, "the rising piece at half slip");
+
+	/* a = 1: -1 + 1 + 1 = 1, the peak. */
+	CheckNear(fn.hermiteEval(1.0f), 1.0f, 1e-6f, "the peak is extremumValue");
+
+	/* Falling piece, a = 0.5, diff = -0.5:
+	   -2*(-0.5)*0.125 + 3*(-0.5)*0.25 + 1 = 0.125 - 0.375 + 1 = 0.75 */
+	CheckNear(fn.hermiteEval(1.5f), 0.75f, 1e-6f, "the falling piece halfway down");
+
+	CheckNear(fn.hermiteEval(2.0f), 0.5f, 1e-6f, "it reaches asymptoteValue");
+	CheckNear(fn.hermiteEval(5.0f), 0.5f, 1e-6f, "and stays flat beyond it");
+
+	/* Odd: the same magnitude with the sign of the slip. */
+	CheckNear(fn.hermiteEval(-0.5f), -0.625f, 1e-6f, "the curve is odd");
+	CheckNear(fn.hermiteEval(-3.0f), -0.5f, 1e-6f, "including past the asymptote");
+
+	/* Grip rises to the peak: the failure mode this catches is a curve that is
+	   flat below extremumSlip, which drives entirely differently. */
+	Check(fn.hermiteEval(0.25f) < fn.hermiteEval(0.5f), "grip rises with slip...");
+	Check(fn.hermiteEval(0.5f) < fn.hermiteEval(0.9f), "...all the way to the peak");
+	Check(fn.hermiteEval(1.2f) < fn.hermiteEval(1.0f), "and falls away after it");
+	}
+
+/*
+ * A wheel resting on the ground: the suspension holds the car up, the contact
+ * is reported, and contactPosition means what CarWheel::PxSyncWheel reads it as.
+ */
+void TestWheelSuspension()
+	{
+	std::printf("wheel suspension and contact\n");
+
+	NxPhysicsSDK* sdk = NxCreatePhysicsSDK(NX_PHYSICS_SDK_VERSION);
+	if (!sdk)
+		{
+		Check(false, "SDK available");
+		return;
+		}
+
+	NxSceneDesc sceneDesc;
+	sceneDesc.gravity.set(NxVec3(0.0f, -9.81f, 0.0f));
+	NxScene* scene = sdk->createScene(sceneDesc);
+
+	/* A static floor at y = 0, as a large thin box. */
+	NxActorDesc floorDesc;
+	floorDesc.globalPose.t.set(NxVec3(0.0f, -0.5f, 0.0f));
+	NxBoxShapeDesc floorShape;
+	floorShape.dimensions.set(NxVec3(50.0f, 0.5f, 50.0f));
+	floorDesc.shapes.push_back(&floorShape);
+	NxActor* floor = scene->createActor(floorDesc);
+	Check(floor != NULL, "a floor exists");
+
+	/*
+	 * The body, with its wheel shape one metre up. Travel 0.5 and radius 0.3,
+	 * so at full extension the wheel's contact would be 0.8 below the shape --
+	 * i.e. at y = 0.2, which is above the floor. The suspension therefore rests
+	 * partly compressed and the numbers are all determined.
+	 */
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = 100.0f;
+
+	NxActorDesc carDesc;
+	carDesc.body = &bodyDesc;
+	carDesc.globalPose.t.set(NxVec3(0.0f, 1.0f, 0.0f));
+
+	NxWheelShapeDesc wheelDesc;
+	wheelDesc.radius = 0.3f;
+	wheelDesc.suspensionTravel = 0.5f;
+	wheelDesc.suspension.spring = 20000.0f;
+	wheelDesc.suspension.damper = 2000.0f;
+	wheelDesc.inverseWheelMass = 0.1f;
+	wheelDesc.wheelFlags = NX_WF_CLAMPED_FRICTION;
+	carDesc.shapes.push_back(&wheelDesc);
+
+	NxActor* car = scene->createActor(carDesc);
+	if (!car)
+		{
+		Check(false, "the car actor is created");
+		return;
+		}
+
+	Check(car->getNbShapes() == 1, "the wheel shape exists");
+	NxWheelShape* wheel = car->getShapes()[0]->isWheel();
+	Check(wheel != NULL, "and downcasts to a wheel");
+	if (!wheel)
+		return;
+
+	CheckNear(wheel->getRadius(), 0.3f, 1e-5f, "radius survives the descriptor");
+	CheckNear(wheel->getSuspensionTravel(), 0.5f, 1e-5f, "so does the travel");
+
+	/* Before any step there is no contact -- and getContact returns a shape,
+	   not a bool, which is what the game assigns it to. */
+	NxWheelContactData contact;
+	Check(wheel->getContact(contact) == NULL, "no contact before the first step");
+
+	/* Let it settle. */
+	for (int i = 0; i < 200; ++i)
+		{
+		scene->simulate(1.0f / 60.0f);
+		scene->flushStream();
+		scene->fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	NxShape* resting = wheel->getContact(contact);
+	Check(resting != NULL, "the wheel finds the floor");
+
+	if (resting)
+		{
+		/*
+		 * contactPosition is the distance from the shape origin DOWN TO THE
+		 * CONTACT, which is the convention CarWheel::PxSyncWheel fixes by
+		 * reading it as `st = contactPosition - radius` and drawing the wheel
+		 * st below the origin. The contact is the floor at y = 0, so this must
+		 * equal the shape's height above it.
+		 */
+		const NxReal shapeHeight = car->getGlobalPosition().y;
+		CheckNear(contact.contactPosition, shapeHeight, 1e-2f,
+		          "contactPosition is the origin-to-contact distance");
+
+		/* The wheel centre is one radius short of the contact, and it must be
+		   within the travel -- not hanging below the fully extended position. */
+		const NxReal centreDrop = contact.contactPosition - wheel->getRadius();
+		Check(centreDrop >= -1e-3f && centreDrop <= wheel->getSuspensionTravel() + 1e-3f,
+		      "the wheel centre sits within the suspension travel");
+
+		CheckNear(contact.contactPoint.y, 0.0f, 1e-2f, "the contact is on the floor");
+		CheckNear(contact.contactNormal.y, 1.0f, 1e-2f, "and its normal points up");
+
+		/*
+		 * At rest the suspension carries the body's weight. This is the check
+		 * that the spring equation is being solved rather than approximated:
+		 * m*g for a 100kg body is 981N, and one wheel carries all of it.
+		 */
+		CheckNear(contact.contactForce, 100.0f * 9.81f, 20.0f,
+		          "the suspension carries the body's weight at rest");
+
+		/* And the body is held up rather than sinking through. */
+		Check(car->getGlobalPosition().y > 0.0f, "the car is above the floor");
+		}
+
+	/*
+	 * Stability, which is the reason the integrator is implicit. This
+	 * suspension has a damping ratio of about 0.22 -- inside the range the
+	 * shipped cars use, and low enough that an explicit integrator at 1/60
+	 * would ring or diverge. The body must be at rest, not oscillating.
+	 */
+	const NxReal settledHeight = car->getGlobalPosition().y;
+	for (int i = 0; i < 60; ++i)
+		{
+		scene->simulate(1.0f / 60.0f);
+		scene->flushStream();
+		scene->fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+	CheckNear(car->getGlobalPosition().y, settledHeight, 1e-2f,
+	          "the suspension is settled, not ringing");
+
+	sdk->releaseScene(*scene);
+	NxReleasePhysicsSDK(sdk);
+	}
+
+/*
+ * The friction ceiling, which is the specified meaning of the curve under
+ * NX_WF_CLAMPED_FRICTION: "the output from the tire force function is
+ * interpreted as friction coefficients... the maximum friction impulse
+ * available is computed by scaling the output with the normal impulse".
+ *
+ * A ceiling on what the contact may spend, not the force applied. Reading it as
+ * a force is the difference between a car that drives and one that stands on
+ * its back wheels, so this checks the impulse never exceeds mu times the normal
+ * impulse.
+ */
+void TestWheelFrictionCeiling()
+	{
+	std::printf("wheel friction ceiling\n");
+
+	NxPhysicsSDK* sdk = NxCreatePhysicsSDK(NX_PHYSICS_SDK_VERSION);
+	if (!sdk)
+		{
+		Check(false, "SDK available");
+		return;
+		}
+
+	NxSceneDesc sceneDesc;
+	sceneDesc.gravity.set(NxVec3(0.0f, -9.81f, 0.0f));
+	NxScene* scene = sdk->createScene(sceneDesc);
+
+	NxActorDesc floorDesc;
+	floorDesc.globalPose.t.set(NxVec3(0.0f, -0.5f, 0.0f));
+	NxBoxShapeDesc floorShape;
+	floorShape.dimensions.set(NxVec3(50.0f, 0.5f, 50.0f));
+	floorDesc.shapes.push_back(&floorShape);
+	scene->createActor(floorDesc);
+
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = 100.0f;
+
+	NxActorDesc carDesc;
+	carDesc.body = &bodyDesc;
+	carDesc.globalPose.t.set(NxVec3(0.0f, 0.6f, 0.0f));
+
+	NxWheelShapeDesc wheelDesc;
+	wheelDesc.radius = 0.3f;
+	wheelDesc.suspensionTravel = 0.5f;
+	wheelDesc.suspension.spring = 20000.0f;
+	wheelDesc.suspension.damper = 2000.0f;
+	wheelDesc.inverseWheelMass = 0.1f;
+	wheelDesc.wheelFlags = NX_WF_CLAMPED_FRICTION;
+
+	/* A deliberately low peak, so the ceiling bites and can be seen to. */
+	wheelDesc.longitudalTireForceFunction.extremumSlip = 0.3f;
+	wheelDesc.longitudalTireForceFunction.extremumValue = 0.4f;
+	wheelDesc.longitudalTireForceFunction.asymptoteSlip = 1.0f;
+	wheelDesc.longitudalTireForceFunction.asymptoteValue = 0.3f;
+	wheelDesc.lateralTireForceFunction = wheelDesc.longitudalTireForceFunction;
+
+	carDesc.shapes.push_back(&wheelDesc);
+	NxActor* car = scene->createActor(carDesc);
+	if (!car || car->getNbShapes() == 0)
+		{
+		Check(false, "the car actor is created");
+		return;
+		}
+
+	NxWheelShape* wheel = car->getShapes()[0]->isWheel();
+	if (!wheel)
+		{
+		Check(false, "the wheel downcasts");
+		return;
+		}
+
+	/* Settle, then apply enough torque to break traction. */
+	for (int i = 0; i < 120; ++i)
+		{
+		scene->simulate(1.0f / 60.0f);
+		scene->flushStream();
+		scene->fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	wheel->setMotorTorque(5000.0f);
+
+	bool everContacted = false;
+	bool ceilingHeld = true;
+	NxReal worstExcess = 0.0f;
+
+	for (int i = 0; i < 120; ++i)
+		{
+		scene->simulate(1.0f / 60.0f);
+		scene->flushStream();
+		scene->fetchResults(NX_RIGID_BODY_FINISHED, true);
+
+		NxWheelContactData contact;
+		if (!wheel->getContact(contact))
+			continue;
+
+		everContacted = true;
+
+		const NxReal normalImpulse = contact.contactForce / 60.0f;
+		const NxReal mu = std::fabs(
+			wheel->getLongitudalTireForceFunction().hermiteEval(contact.longitudalSlip));
+		const NxReal peak = wheel->getLongitudalTireForceFunction().extremumValue;
+
+		/* Either regime is allowed -- rolling uses the curve, a stationary
+		   contact uses extremumValue -- so the ceiling is the larger of the
+		   two, and it must not be exceeded. */
+		const NxReal ceiling = std::max(mu, peak) * normalImpulse;
+		const NxReal spent = std::fabs(contact.longitudalImpulse);
+
+		if (spent > ceiling + 1e-3f)
+			{
+			ceilingHeld = false;
+			worstExcess = std::max(worstExcess, spent - ceiling);
+			}
+		}
+
+	Check(everContacted, "the wheel stays on the ground under torque");
+	Check(ceilingHeld, "the friction impulse never exceeds mu times the normal impulse");
+	if (!ceilingHeld)
+		std::printf("        worst excess %f\n", double(worstExcess));
+
+	/* A torqued wheel spins up: axle speed is an output the game reads, and a
+	   wheel that never turns would report a car that never moves. */
+	Check(wheel->getAxleSpeed() > 0.0f, "the driven wheel spins up");
+
+	sdk->releaseScene(*scene);
+	NxReleasePhysicsSDK(sdk);
+	}
+
+/*
+ * Motor and brake are SUMMED on one axle, as 2.8 sums them. They are not a
+ * lock and not separate channels, so equal amounts of each cancel.
+ */
+void TestWheelTorqueSummation()
+	{
+	std::printf("wheel motor and brake summation\n");
+
+	NxPhysicsSDK* sdk = NxCreatePhysicsSDK(NX_PHYSICS_SDK_VERSION);
+	if (!sdk)
+		{
+		Check(false, "SDK available");
+		return;
+		}
+
+	NxSceneDesc sceneDesc;
+	sceneDesc.gravity.set(NxVec3(0.0f, 0.0f, 0.0f));
+	NxScene* scene = sdk->createScene(sceneDesc);
+
+	NxBodyDesc bodyDesc;
+	bodyDesc.mass = 100.0f;
+
+	NxActorDesc carDesc;
+	carDesc.body = &bodyDesc;
+	carDesc.globalPose.t.set(NxVec3(0.0f, 100.0f, 0.0f));   /* airborne */
+
+	NxWheelShapeDesc wheelDesc;
+	wheelDesc.radius = 0.5f;
+	wheelDesc.suspensionTravel = 0.2f;
+	wheelDesc.inverseWheelMass = 1.0f;
+	wheelDesc.wheelFlags = NX_WF_CLAMPED_FRICTION;
+	carDesc.shapes.push_back(&wheelDesc);
+
+	NxActor* car = scene->createActor(carDesc);
+	NxWheelShape* wheel = (car && car->getNbShapes()) ? car->getShapes()[0]->isWheel() : NULL;
+	if (!wheel)
+		{
+		Check(false, "the wheel exists");
+		return;
+		}
+
+	/* Airborne, so nothing but the torques act on the axle. */
+	wheel->setMotorTorque(100.0f);
+	for (int i = 0; i < 10; ++i)
+		{
+		scene->simulate(1.0f / 60.0f);
+		scene->flushStream();
+		scene->fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	const NxReal driven = wheel->getAxleSpeed();
+	Check(driven > 0.0f, "motor torque spins an airborne wheel up");
+
+	/* Equal brake torque cancels the motor exactly: summed, not a lock. */
+	wheel->setBrakeTorque(100.0f);
+	for (int i = 0; i < 10; ++i)
+		{
+		scene->simulate(1.0f / 60.0f);
+		scene->flushStream();
+		scene->fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	CheckNear(wheel->getAxleSpeed(), driven, 1e-3f,
+	          "equal motor and brake torque cancel");
+
+	/* And a brake alone slows it, without driving it backwards -- a brake that
+	   reverses a stopped wheel is how a parked car creeps. */
+	wheel->setMotorTorque(0.0f);
+	for (int i = 0; i < 600; ++i)
+		{
+		scene->simulate(1.0f / 60.0f);
+		scene->flushStream();
+		scene->fetchResults(NX_RIGID_BODY_FINISHED, true);
+		}
+
+	Check(wheel->getAxleSpeed() >= -1e-3f, "braking does not reverse the wheel");
+	Check(wheel->getAxleSpeed() < driven, "but it does slow it");
+
+	sdk->releaseScene(*scene);
+	NxReleasePhysicsSDK(sdk);
+	}
+
 /*
  * Skin width resolution: -1 means "use the SDK's global", anything else is the
  * shape's own. 228 shapes in db.xml take the global and 69 override it, so both
@@ -1631,6 +2030,11 @@ int main()
 	TestContactModification();
 	TestMeshGetTriangle();
 	TestMeshReleaseWhileInUse();
+
+	TestTireFunctionCurve();
+	TestWheelSuspension();
+	TestWheelFrictionCeiling();
+	TestWheelTorqueSummation();
 	TestSkinWidthResolution();
 	TestCentreOfMassOffset();
 	TestActorRemainder();

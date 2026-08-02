@@ -286,10 +286,17 @@ NxShape* Actor::createShape(const NxShapeDesc& desc)
 			_shapeStates.push_back(plane);
 			break;
 			}
+		case NX_SHAPE_WHEEL:
+			{
+			WheelShape* wheel = new WheelShape(
+				*this, static_cast<const NxWheelShapeDesc&>(desc));
+			_shapes.push_back(wheel);
+			_shapeStates.push_back(wheel);
+			break;
+			}
 		default:
-			/* NX_SHAPE_WHEEL is phase 9, and NX_SHAPE_CONVEX has no descriptor
-			   in the game at all -- convex meshes are cooked but never made
-			   into shapes. */
+			/* NX_SHAPE_CONVEX has no descriptor in the game at all -- convex
+			   meshes are cooked but never made into shapes. */
 			Unimplemented("NxActor::createShape for this shape type");
 		}
 

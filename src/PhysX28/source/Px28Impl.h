@@ -209,6 +209,83 @@ class TriangleMeshShape: public ShapeImpl<NxTriangleMeshShape>
 	};
 
 /*
+ * A wheel: a raycast down the suspension axis plus a force model, run once per
+ * step before the solver. It occupies no collision volume -- see Px28Wheel.cpp,
+ * which is the whole implementation and carries the specification it is written
+ * against.
+ */
+class WheelShape: public ShapeImpl<NxWheelShape>
+	{
+	public:
+	WheelShape(Actor& actor, const NxWheelShapeDesc& desc);
+	virtual ~WheelShape();
+
+	virtual void   setRadius(NxReal radius);
+	virtual NxReal getRadius() const;
+	virtual void   setSuspensionTravel(NxReal travel);
+	virtual NxReal getSuspensionTravel() const;
+
+	virtual void setSuspension(const NxSpringDesc& spring);
+	virtual const NxSpringDesc& getSuspension() const;
+
+	virtual void setLongitudalTireForceFunction(const NxTireFunctionDesc& fn);
+	virtual const NxTireFunctionDesc& getLongitudalTireForceFunction() const;
+	virtual void setLateralTireForceFunction(const NxTireFunctionDesc& fn);
+	virtual const NxTireFunctionDesc& getLateralTireForceFunction() const;
+
+	virtual void   setInverseWheelMass(NxReal mass);
+	virtual NxReal getInverseWheelMass() const;
+	virtual void   setWheelFlags(NxU32 flags);
+	virtual NxU32  getWheelFlags() const;
+
+	virtual void   setMotorTorque(NxReal torque);
+	virtual NxReal getMotorTorque() const;
+	virtual void   setBrakeTorque(NxReal torque);
+	virtual NxReal getBrakeTorque() const;
+	virtual void   setSteerAngle(NxReal angle);
+	virtual NxReal getSteerAngle() const;
+	virtual void   setAxleSpeed(NxReal speed);
+	virtual NxReal getAxleSpeed() const;
+
+	virtual void setUserWheelContactModify(NxUserWheelContactModify* callback);
+	virtual NxUserWheelContactModify* getUserWheelContactModify();
+
+	virtual NxShape* getContact(NxWheelContactData& contact) const;
+	virtual void     saveToDesc(NxWheelShapeDesc& desc) const;
+
+	/* Driven by Scene::fetchResults, before the solver. */
+	void step(NxReal dt);
+
+	private:
+	btTransform worldPose() const;
+	void frame(btVector3& origin, btVector3& suspensionDir,
+	           btVector3& forward, btVector3& lateral) const;
+	void airborne(NxReal dt);
+	NxReal brakeTorqueSign() const;
+	NxReal effectiveInverseMass(const btRigidBody* body, const btVector3& point,
+	                            const btVector3& dir) const;
+
+	NxReal _radius;
+	NxReal _suspensionTravel;
+	NxSpringDesc _suspension;
+	NxTireFunctionDesc _longitudalTireForceFunction;
+	NxTireFunctionDesc _lateralTireForceFunction;
+	NxReal _inverseWheelMass;
+	NxU32 _wheelFlags;
+	NxReal _motorTorque;
+	NxReal _brakeTorque;
+	NxReal _steerAngle;
+	NxReal _axleSpeed;
+
+	NxUserWheelContactModify* _contactModify;
+
+	NxWheelContactData _contact;
+	NxShape* _contactShape;
+	btVector3 _lastContactPoint;
+	bool _hadContact;
+	};
+
+/*
  * A plane. Only Scene::CreateGroundPlane makes one and its body is entirely
  * commented out, so nothing in the game currently creates a plane shape -- but
  * db.xml can deserialise one, so it exists.
@@ -320,12 +397,14 @@ class Actor: public NxActor
 	virtual void    putToSleep();
 	virtual bool    isSleeping() const;
 
+	/* The actor origin, which is the body transform with the COM offset undone.
+	   Public because a wheel resolves its own pose against it every step. */
+	btTransform actorTransform() const;
+
 	private:
 	/* Pushes NX_AF_DISABLE_RESPONSE down to Bullet's CF_NO_CONTACT_RESPONSE. */
 	void applyResponseFlag();
 
-	/* The actor origin, which is the body transform with the COM offset undone. */
-	btTransform actorTransform() const;
 	void setActorTransform(const btTransform& actorWorld);
 
 	Scene* _scene;
@@ -513,6 +592,23 @@ class Scene: public NxScene
 	virtual void setUserContactModify(NxUserContactModify* callback);
 	virtual void setUserNotify(NxUserNotify* callback);
 
+	/*
+	 * Wheels, which the scene steps itself.
+	 *
+	 * A registry rather than a walk over every actor's shapes: the wheels are a
+	 * handful and the actors are thousands, and the step runs every frame.
+	 */
+	void registerWheel(WheelShape* wheel);
+	void unregisterWheel(WheelShape* wheel);
+
+	/*
+	 * The suspension raycast. Separate from raycastClosestShape because it has
+	 * a different exclusion rule -- a wheel must not find the car it is bolted
+	 * to -- and because it takes world points rather than an NxRay.
+	 */
+	NxShape* raycastForWheel(const btVector3& from, const btVector3& to,
+	                         const Actor* exclude, NxRaycastHit& hit) const;
+
 	private:
 	btDefaultCollisionConfiguration* _config;
 	btCollisionDispatcher* _dispatcher;
@@ -533,6 +629,8 @@ class Scene: public NxScene
 	NxReal _skinWidth;
 
 	NxReal _pendingStep;
+
+	std::vector<WheelShape*> _wheels;
 
 	/*
 	 * 2.8 supports exactly 32 collision groups -- NxShapeDesc::checkValid

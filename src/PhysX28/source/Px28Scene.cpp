@@ -415,6 +415,18 @@ bool Scene::fetchResults(NxSimulationStatus, bool)
 			modifyContacts();
 			}
 
+		/*
+		 * Wheels, before the solver.
+		 *
+		 * A 2.8 wheel's suspension and tire forces are part of the step, not
+		 * something applied between steps: they are computed from the state at
+		 * the start of the step and solved along with everything else. Running
+		 * them afterwards would delay every wheel by a frame, which at 60Hz is
+		 * a car that responds late to its own suspension.
+		 */
+		for (size_t i = 0; i < _wheels.size(); ++i)
+			_wheels[i]->step(_pendingStep);
+
 		_world->stepSimulation(_pendingStep, 0, _pendingStep);
 
 		collectContacts(_pendingStep);
@@ -743,6 +755,98 @@ NxShape* Scene::raycastClosestShape(const NxRay& worldRay, NxShapesType shapeTyp
 	hit.worldNormal = ToNx(callback.m_hitNormalWorld);
 	hit.distance = callback.m_closestHitFraction * distance;
 	hit.material = NULL;
+
+	return hit.shape;
+	}
+
+/* ----------------------------------------------------------------- wheels */
+
+void Scene::registerWheel(WheelShape* wheel)
+	{
+	_wheels.push_back(wheel);
+	}
+
+void Scene::unregisterWheel(WheelShape* wheel)
+	{
+	for (size_t i = 0; i < _wheels.size(); ++i)
+		if (_wheels[i] == wheel)
+			{
+			_wheels.erase(_wheels.begin() + i);
+			return;
+			}
+	}
+
+/*
+ * The suspension raycast.
+ *
+ * Its own function rather than raycastClosestShape, because the exclusion rule
+ * is different and load-bearing: a wheel must not find the car it is bolted to.
+ * A car's own hull sits directly in the path of every one of its suspension
+ * rays, so without this every wheel rests on its own body at zero travel and
+ * the car never touches the ground.
+ *
+ * The whole actor is excluded, not just the wheel's own shape -- 2.8's wheels
+ * ignore the actor they belong to, and a car's hull is one actor with several
+ * shapes.
+ */
+NxShape* Scene::raycastForWheel(const btVector3& from, const btVector3& to,
+                                const Actor* exclude, NxRaycastHit& hit) const
+	{
+	class WheelRay: public btCollisionWorld::ClosestRayResultCallback
+		{
+		public:
+		WheelRay(const btVector3& from, const btVector3& to, const Actor* exclude)
+			: btCollisionWorld::ClosestRayResultCallback(from, to),
+			  shape(NULL), _exclude(exclude)
+			{
+			}
+
+		virtual bool needsCollision(btBroadphaseProxy* proxy) const
+			{
+			const btCollisionObject* object =
+				static_cast<const btCollisionObject*>(proxy->m_clientObject);
+			return static_cast<const Actor*>(object->getUserPointer()) != _exclude;
+			}
+
+		virtual btScalar addSingleResult(btCollisionWorld::LocalRayResult& result,
+		                                 bool normalInWorldSpace)
+			{
+			/* m_localShapeInfo carries the compound child index, which is what
+			   turns a hit on a body into a hit on a 2.8 shape -- the same
+			   resolution RayFilter does. */
+			const Actor* actor =
+				static_cast<const Actor*>(result.m_collisionObject->getUserPointer());
+			if (actor && actor->getNbShapes() > 0)
+				{
+				int child = result.m_localShapeInfo
+					? result.m_localShapeInfo->m_triangleIndex : 0;
+				if (child < 0 || static_cast<NxU32>(child) >= actor->getNbShapes())
+					child = 0;
+
+				shape = actor->getShapes()[child];
+				}
+
+			return ClosestRayResultCallback::addSingleResult(result, normalInWorldSpace);
+			}
+
+		NxShape* shape;
+
+		private:
+		const Actor* _exclude;
+		};
+
+	WheelRay callback(from, to, exclude);
+	_world->rayTest(from, to, callback);
+
+	if (!callback.hasHit())
+		return NULL;
+
+	hit.shape = callback.shape;
+	hit.worldImpact = ToNx(callback.m_hitPointWorld);
+	hit.worldNormal = ToNx(callback.m_hitNormalWorld);
+	hit.distance = callback.m_closestHitFraction * (to - from).length();
+	hit.material = NULL;
+	hit.faceID = 0;
 
 	return hit.shape;
 	}

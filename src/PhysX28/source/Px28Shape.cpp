@@ -82,6 +82,7 @@ template class ShapeImpl<NxSphereShape>;
 template class ShapeImpl<NxCapsuleShape>;
 template class ShapeImpl<NxTriangleMeshShape>;
 template class ShapeImpl<NxPlaneShape>;
+template class ShapeImpl<NxWheelShape>;
 
 /* --------------------------------------------------------------------- box */
 
