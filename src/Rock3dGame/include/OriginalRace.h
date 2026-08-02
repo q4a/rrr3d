@@ -110,7 +110,10 @@ struct VisualNode
     Transform transform;
     std::vector<MaterialDefinition> materials;
     int subMesh = -1;
+    // Both ntPlane and ntSprite use generated quad geometry, but only
+    // Sprite::DoRender calls Engine::RenderSpritePT and faces the camera.
     bool plane = false;
+    bool billboard = false;
     bool fixedDirection = false;
     bool invertCullFace = false;
     CullMode cullMode = CullMode::Inherit;

@@ -2362,7 +2362,7 @@ void OriginalRaceRenderer::draw(
             const auto world =
                 compose(parent, nodes[index].transform);
             auto model = transform(world);
-            if (nodes[index].plane)
+            if (nodes[index].billboard)
             {
                 const float turnAngle =
                     2.0F * std::acos(std::clamp(

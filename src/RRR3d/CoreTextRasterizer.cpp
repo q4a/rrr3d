@@ -8,6 +8,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace rrr3d::macos
@@ -47,6 +48,20 @@ class ScopedObject
 {
 public:
     explicit ScopedObject(Type value = nullptr) : value_(value) {}
+    ScopedObject(ScopedObject&& source) noexcept : value_(source.value_)
+    {
+        source.value_ = nullptr;
+    }
+    ScopedObject& operator=(ScopedObject&& source) noexcept
+    {
+        if (this == &source)
+            return *this;
+        if (value_ != nullptr)
+            Releaser{}(value_);
+        value_ = source.value_;
+        source.value_ = nullptr;
+        return *this;
+    }
     ~ScopedObject()
     {
         if (value_ != nullptr)
@@ -122,9 +137,8 @@ TextBitmap rasterizeText(std::string_view utf8,
 
     const std::string fontName =
         std::string(requestedFont) + (bold ? " Bold" : "");
-    const auto text = makeString(utf8);
     const auto requestedName = makeString(fontName);
-    if (text.get() == nullptr || requestedName.get() == nullptr)
+    if (requestedName.get() == nullptr)
         throw std::runtime_error("Unable to create CoreFoundation string");
 
     ScopedFont font(
@@ -147,21 +161,45 @@ TextBitmap rasterizeText(std::string_view utf8,
         kCFAllocatorDefault, keys, values, 2,
         &kCFTypeDictionaryKeyCallBacks,
         &kCFTypeDictionaryValueCallBacks));
-    ScopedAttributedString attributed(CFAttributedStringCreate(
-        kCFAllocatorDefault, text.get(), attributes.get()));
-    ScopedLine line(CTLineCreateWithAttributedString(attributed.get()));
-    if (line.get() == nullptr)
-        throw std::runtime_error("Unable to shape menu text");
-
-    CGFloat ascent = 0.0;
-    CGFloat descent = 0.0;
-    CGFloat leading = 0.0;
-    const double typographicWidth =
-        CTLineGetTypographicBounds(line.get(), &ascent, &descent, &leading);
+    struct TextLine
+    {
+        ScopedLine line;
+        double width = 0.0;
+    };
+    std::vector<TextLine> lines;
+    std::size_t lineStart = 0U;
+    double typographicWidth = 0.0;
+    while (lineStart <= utf8.size())
+    {
+        const auto lineEnd = utf8.find('\n', lineStart);
+        const auto count =
+            (lineEnd == std::string_view::npos ? utf8.size() : lineEnd) -
+            lineStart;
+        const auto lineText = makeString(utf8.substr(lineStart, count));
+        if (lineText.get() == nullptr)
+            throw std::runtime_error("Unable to create text line");
+        ScopedAttributedString attributed(CFAttributedStringCreate(
+            kCFAllocatorDefault, lineText.get(), attributes.get()));
+        ScopedLine line(CTLineCreateWithAttributedString(attributed.get()));
+        if (line.get() == nullptr)
+            throw std::runtime_error("Unable to shape menu text");
+        const double lineWidth =
+            CTLineGetTypographicBounds(line.get(), nullptr, nullptr, nullptr);
+        typographicWidth = std::max(typographicWidth, lineWidth);
+        lines.push_back({std::move(line), lineWidth});
+        if (lineEnd == std::string_view::npos)
+            break;
+        lineStart = lineEnd + 1U;
+    }
+    const CGFloat ascent = CTFontGetAscent(font.get());
+    const CGFloat descent = CTFontGetDescent(font.get());
+    const CGFloat leading = CTFontGetLeading(font.get());
+    const CGFloat lineHeight =
+        std::max(ascent + descent + leading, 1.0);
     const std::size_t width = static_cast<std::size_t>(
         std::ceil(std::max(typographicWidth, 1.0))) + 4U;
     const std::size_t height = static_cast<std::size_t>(
-        std::ceil(std::max(ascent + descent + leading, 1.0))) + 4U;
+        std::ceil(lineHeight * static_cast<CGFloat>(lines.size()))) + 4U;
     if (width > UINT16_MAX || height > UINT16_MAX ||
         width > std::numeric_limits<std::size_t>::max() / height / 4U)
         throw std::runtime_error("Rasterized menu text is too large");
@@ -181,8 +219,16 @@ TextBitmap rasterizeText(std::string_view utf8,
     CGContextSetTextMatrix(context.get(), CGAffineTransformIdentity);
     CGContextSetShouldAntialias(context.get(), true);
     CGContextSetShouldSmoothFonts(context.get(), true);
-    CGContextSetTextPosition(context.get(), 2.0, descent + 2.0);
-    CTLineDraw(line.get(), context.get());
+    for (std::size_t index = 0U; index < lines.size(); ++index)
+    {
+        const CGFloat x =
+            2.0 + (typographicWidth - lines[index].width) * 0.5;
+        const CGFloat y =
+            2.0 + descent +
+            lineHeight * static_cast<CGFloat>(lines.size() - index - 1U);
+        CGContextSetTextPosition(context.get(), x, y);
+        CTLineDraw(lines[index].line.get(), context.get());
+    }
 
     // CGBitmapContext memory order already matches the texture coordinates
     // used by the bgfx UI quad. Convert only premultiplied alpha to straight

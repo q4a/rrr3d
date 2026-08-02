@@ -997,6 +997,8 @@ std::vector<VisualNode> visualNodes(
             continue;
         VisualNode node;
         node.plane = plane;
+        node.billboard =
+            type != nullptr && std::string_view(type) == "ntSprite";
         node.invertCullFace = actorInvertCullFace;
         if (auto* invert = child(item, "invertCullFace");
             invert != nullptr && invert->GetText() != nullptr)
@@ -1029,7 +1031,7 @@ std::vector<VisualNode> visualNodes(
             }
         }
         node.fixedDirection =
-            type != nullptr && std::string_view(type) == "ntSprite" &&
+            node.billboard &&
             child(item, "fixDirection") != nullptr &&
             child(item, "fixDirection")->GetText() != nullptr &&
             std::string_view(child(item, "fixDirection")->GetText()) ==
@@ -3937,6 +3939,68 @@ bool runOriginalRaceResourceSmokeTest(
                         return visual.meshPath.find("Data/Upgrade/wheel") !=
                                std::string::npos;
                     });
+        }
+        std::size_t fixedPlaneCount = 0U;
+        std::size_t billboardCount = 0U;
+        bool invalidBillboard = false;
+        const auto auditVisual = [&](const VisualNode& visual) {
+            invalidBillboard =
+                invalidBillboard || (visual.billboard && !visual.plane) ||
+                (visual.fixedDirection && !visual.billboard);
+            if (visual.billboard)
+                ++billboardCount;
+            else if (visual.plane)
+                ++fixedPlaneCount;
+        };
+        const auto auditDefinition = [&](const ObjectDefinition& definition) {
+            for (const auto& visual : definition.visualNodes)
+                auditVisual(visual);
+            for (const auto& piece : definition.destructionPieces)
+            {
+                for (const auto& visual : piece.visualNodes)
+                    auditVisual(visual);
+            }
+        };
+        for (const auto& definition : race.trackDefinitions)
+            auditDefinition(definition);
+        for (const auto& definition : race.decorationDefinitions)
+            auditDefinition(definition);
+        for (const auto& bonus : race.bonuses)
+        {
+            auditDefinition(bonus.visual);
+            auditDefinition(bonus.deathEffect.visual);
+        }
+        for (const auto& weapon : race.weapons)
+        {
+            auditVisual(weapon.visual);
+            auditDefinition(weapon.shotEffect.visual);
+            for (const auto& projectile : weapon.projectiles)
+            {
+                auditDefinition(projectile.visual);
+                auditDefinition(projectile.secondaryVisual);
+                auditDefinition(projectile.tertiaryVisual);
+                auditDefinition(projectile.deathEffect.visual);
+            }
+        }
+        for (const auto& visual : race.vehicle.bodyVisuals)
+            auditVisual(visual);
+        for (const auto& visual : race.vehicle.wheelVisuals)
+            auditVisual(visual);
+        auditDefinition(race.vehicle.lowLifeEffect);
+        auditDefinition(race.vehicle.shieldEffect);
+        for (const auto& effect : race.vehicle.deathEffects)
+            auditDefinition(effect.visual);
+        auditDefinition(race.rainEffect);
+        auditDefinition(race.wheelTrailEffect);
+        if (invalidBillboard || fixedPlaneCount == 0U ||
+            billboardCount == 0U)
+        {
+            error = "source ntPlane/ntSprite provenance mismatch: planes=" +
+                    std::to_string(fixedPlaneCount) +
+                    ", billboards=" + std::to_string(billboardCount) +
+                    ", invalid=" +
+                    (invalidBillboard ? "true" : "false");
+            return false;
         }
         std::size_t triangleCount = 0;
         std::size_t borderMeshCount = 0;
