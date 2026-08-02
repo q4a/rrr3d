@@ -77,17 +77,6 @@ void drawTintedAsset(
                 pipeline, {}, material);
 }
 
-originalrace::Vec3 forward(const originalrace::Quat& rotation)
-{
-    return {1.0F - 2.0F *
-                       (rotation.y * rotation.y +
-                        rotation.z * rotation.z),
-            2.0F * (rotation.x * rotation.y +
-                    rotation.w * rotation.z),
-            2.0F * (rotation.x * rotation.z -
-                    rotation.w * rotation.y)};
-}
-
 std::string decodeUtf16Le(std::string_view bytes)
 {
     if (bytes.size() < 2U ||
@@ -1249,12 +1238,15 @@ void OriginalRaceHud::update(
     for (std::size_t index = 0;
          index < vehicles.size() && index < race.racers.size(); ++index)
     {
-        const auto& position = vehicles[index].body.position;
-        const auto direction = forward(vehicles[index].body.rotation);
+        // MiniMapFrame::UpdatePlayers uses CarState::GetMapPos(), which is a
+        // trace projection and retains the last valid tile coordinate while
+        // a car is off-road. A raw body coordinate makes an AI reset look
+        // like a marker teleport across the map.
+        const auto position = session.mapPosition(index);
         mapMarkers_.push_back(
             {mapOriginX_ + (position.x - mapMinimumX_) * mapScale_,
              mapOriginY_ + (mapMaximumY_ - position.y) * mapScale_,
-             std::atan2(-direction.y, direction.x),
+             0.0F,
              race.racers[index].color});
     }
 

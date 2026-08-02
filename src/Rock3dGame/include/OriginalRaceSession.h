@@ -264,6 +264,7 @@ public:
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;
+    Vec3 mapPosition(std::size_t racer) const noexcept;
     const std::vector<bool>& decorationActive() const noexcept;
     const std::vector<bool>& bonusActive() const noexcept;
     const std::vector<RaceEvent>& events() const noexcept;
@@ -349,6 +350,9 @@ private:
     // orientation timer. A negative value means that reverse travel has not
     // started on a valid trace tile.
     std::vector<float> wrongWayStartDistances_;
+    // Player::CarState::GetMapPos projects onto curTile and retains the last
+    // valid tile position while the car is outside the trace corridor.
+    std::vector<Vec3> mapPositions_;
     std::vector<Vec3> previousPositions_;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;

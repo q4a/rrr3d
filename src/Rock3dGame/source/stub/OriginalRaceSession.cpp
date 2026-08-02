@@ -968,6 +968,7 @@ void OriginalRaceSession::reset()
         race_.racers.size(), RacerRuntime::invalidWeapon);
     lastPathCoordinates_.assign(race_.racers.size(), 0.0F);
     wrongWayStartDistances_.assign(race_.racers.size(), -1.0F);
+    mapPositions_.assign(race_.racers.size(), tracePoint(0U).position);
     previousPositions_.assign(race_.racers.size(), {});
     decorationActive_.assign(race_.decorationInstances.size(), true);
     decorationLife_.clear();
@@ -1563,6 +1564,11 @@ const std::vector<RacerRuntime>& OriginalRaceSession::racers() const noexcept
     return racers_;
 }
 
+Vec3 OriginalRaceSession::mapPosition(std::size_t racer) const noexcept
+{
+    return racer < mapPositions_.size() ? mapPositions_[racer] : Vec3{};
+}
+
 const std::vector<bool>& OriginalRaceSession::decorationActive() const noexcept
 {
     return decorationActive_;
@@ -1736,6 +1742,12 @@ void OriginalRaceSession::updateProgress(
     if (tile.contains)
     {
         lastPathCoordinates_[racer] = tile.coordinate;
+        const auto& tileStart = tracePoint(tile.segment);
+        const auto& tileEnd = tracePoint(tile.segment + 1U);
+        mapPositions_[racer] = add(
+            tileStart.position,
+            multiply(subtract(tileEnd.position, tileStart.position),
+                     tile.coordinate));
         const Vec3 carDirection =
             normalized2(forward(vehicle.body.rotation));
         if (dot2(tile.direction, carDirection) < 0.0F)
@@ -5362,6 +5374,19 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source moveInverse did not clear on forward tile");
+            }
+
+            const Vec3 lastValidMapPosition =
+                traceSession.mapPosition(0U);
+            traceVehicles[0].body.position.x += 1000.0F;
+            traceVehicles[0].body.position.y += 1000.0F;
+            traceSession.update(
+                1.0F / 60.0F, traceVehicles, input);
+            if (distanceSquared(traceSession.mapPosition(0U),
+                                lastValidMapPosition) > 0.0001F)
+            {
+                throw std::runtime_error(
+                    "source GetMapPos did not retain the last trace position");
             }
 
             if (race.tracePath.size() > 3U)
