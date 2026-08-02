@@ -297,15 +297,17 @@ private:
         std::size_t otherVehicle = std::numeric_limits<std::size_t>::max();
         const bool otherIsVehicle =
             vehicleIndex(other.GetUserData(), otherVehicle);
+        const bool otherIsMoving =
+            other.GetMotionType() != JPH::EMotionType::Static;
         const JPH::Vec3 otherVelocity =
-            otherIsVehicle ? other.GetLinearVelocity()
-                           : JPH::Vec3::sZero();
+            otherIsMoving ? other.GetLinearVelocity()
+                          : JPH::Vec3::sZero();
         const float normalSpeed = std::max(
             0.0F, -(bodyVelocity - otherVelocity).Dot(outwardNormal));
         const float bodyInverseMass =
             body.GetMotionProperties()->GetInverseMass();
         const float otherInverseMass =
-            otherIsVehicle
+            otherIsMoving
                 ? other.GetMotionProperties()->GetInverseMass()
                 : 0.0F;
         const float inverseMass = bodyInverseMass + otherInverseMass;
@@ -520,7 +522,15 @@ public:
         system_.SetContactListener(&contactListener_);
         system_.SetGravity(
             toJolt(Vec3{0.0F, 0.0F, description_.gravity}));
+        decorations_.resize(description_.decorations.size());
+        for (std::size_t index = 0; index < decorations_.size(); ++index)
+        {
+            decorations_[index].state.body =
+                description_.decorations[index].transform;
+            decorations_[index].state.active = true;
+        }
         createTrack();
+        createDecorationBodies();
         vehicles_.reserve(description_.spawns.size());
         for (const auto& spawn : description_.spawns)
             createVehicle(spawn);
@@ -532,6 +542,7 @@ public:
     {
         system_.SetContactListener(nullptr);
         clearDebris();
+        destroyDecorations();
         for (auto& vehicle : vehicles_)
         {
             if (vehicle.constraint != nullptr)
@@ -565,6 +576,29 @@ public:
     void reset() noexcept override
     {
         clearDebris();
+        auto& bodies = system_.GetBodyInterface();
+        for (std::size_t index = 0; index < decorations_.size(); ++index)
+        {
+            setDecorationEnabled(index, true);
+            auto& decoration = decorations_[index];
+            if (index >= description_.decorations.size())
+                continue;
+            const auto& source = description_.decorations[index];
+            decoration.state.body = source.transform;
+            if (decoration.shapeBody.IsInvalid())
+                continue;
+            bodies.SetPositionAndRotation(
+                decoration.shapeBody, toJolt(source.transform.position),
+                toJolt(source.transform.rotation),
+                source.dynamic ? JPH::EActivation::Activate
+                               : JPH::EActivation::DontActivate);
+            if (source.dynamic)
+            {
+                bodies.SetLinearAndAngularVelocity(
+                    decoration.shapeBody, JPH::Vec3::sZero(),
+                    JPH::Vec3::sZero());
+            }
+        }
         for (std::size_t index = 0; index < vehicles_.size(); ++index)
         {
             const auto& spawn = vehicles_[index].spawn;
@@ -722,6 +756,8 @@ public:
         }
         for (auto& vehicle : vehicles_)
             updateState(vehicle);
+        for (std::size_t index = 0; index < decorations_.size(); ++index)
+            updateState(index);
         for (auto& debris : debris_)
         {
             if (!debris.state.active)
@@ -754,28 +790,108 @@ public:
         return vehicles_.size();
     }
 
+    void setDecorationEnabled(std::size_t index,
+                              bool enabled) noexcept override
+    {
+        if (index >= decorations_.size() ||
+            decorations_[index].state.active == enabled)
+            return;
+        auto& decoration = decorations_[index];
+        auto& bodies = system_.GetBodyInterface();
+        auto setBodyEnabled = [&](JPH::BodyID body) {
+            if (body.IsInvalid())
+                return;
+            if (enabled)
+                bodies.AddBody(body, JPH::EActivation::Activate);
+            else
+                bodies.RemoveBody(body);
+        };
+        for (const auto body : decoration.meshBodies)
+            setBodyEnabled(body);
+        setBodyEnabled(decoration.shapeBody);
+        decoration.state.active = enabled;
+        if (enabled)
+            updateState(index);
+    }
+
+    const DecorationState& decoration(
+        std::size_t index) const noexcept override
+    {
+        return index < decorations_.size() ? decorations_[index].state
+                                           : emptyDecoration_;
+    }
+
+    std::size_t decorationCount() const noexcept override
+    {
+        return decorations_.size();
+    }
+
     std::size_t addDebris(
         const DebrisDescription& description) noexcept override
     {
-        const JPH::Vec3 halfExtents{
-            std::max(description.halfExtents.x, 0.05F),
-            std::max(description.halfExtents.z, 0.05F),
-            std::max(description.halfExtents.y, 0.05F)};
-        const auto box = new JPH::BoxShape(halfExtents);
-        const auto shifted = JPH::RotatedTranslatedShapeSettings(
-                                 toJolt(description.shapePosition),
-                                 toJolt(description.shapeRotation), box)
-                                 .Create();
-        if (shifted.HasError())
-            return std::numeric_limits<std::size_t>::max();
+        JPH::RefConst<JPH::Shape> shape;
+        if (!description.collisionMeshes.empty())
+        {
+            JPH::TriangleList triangles;
+            for (const auto& mesh : description.collisionMeshes)
+            {
+                triangles.reserve(triangles.size() +
+                                  mesh.indices.size() / 3U);
+                for (std::size_t index = 0;
+                     index + 2U < mesh.indices.size(); index += 3U)
+                {
+                    if (mesh.indices[index] >= mesh.vertices.size() ||
+                        mesh.indices[index + 1U] >= mesh.vertices.size() ||
+                        mesh.indices[index + 2U] >= mesh.vertices.size())
+                        return std::numeric_limits<std::size_t>::max();
+                    const Vec3 a = transformPoint(
+                        mesh.transform, mesh.vertices[mesh.indices[index]]);
+                    const Vec3 b = transformPoint(
+                        mesh.transform,
+                        mesh.vertices[mesh.indices[index + 1U]]);
+                    const Vec3 c = transformPoint(
+                        mesh.transform,
+                        mesh.vertices[mesh.indices[index + 2U]]);
+                    triangles.emplace_back(toJolt(a), toJolt(c), toJolt(b));
+                }
+            }
+            if (triangles.empty())
+                return std::numeric_limits<std::size_t>::max();
+            JPH::MeshShapeSettings meshSettings(triangles);
+            const auto meshResult = meshSettings.Create();
+            if (meshResult.HasError())
+                return std::numeric_limits<std::size_t>::max();
+            shape = meshResult.Get();
+        }
+        else
+        {
+            const JPH::Vec3 halfExtents{
+                std::max(description.halfExtents.x, 0.05F),
+                std::max(description.halfExtents.z, 0.05F),
+                std::max(description.halfExtents.y, 0.05F)};
+            const auto box = new JPH::BoxShape(halfExtents);
+            const auto shifted = JPH::RotatedTranslatedShapeSettings(
+                                     toJolt(description.shapePosition),
+                                     toJolt(description.shapeRotation), box)
+                                     .Create();
+            if (shifted.HasError())
+                return std::numeric_limits<std::size_t>::max();
+            shape = shifted.Get();
+        }
+        const auto motion =
+            description.dynamic ? JPH::EMotionType::Dynamic
+                                : JPH::EMotionType::Static;
         JPH::BodyCreationSettings settings(
-            shifted.Get(), toJolt(description.transform.position),
-            toJolt(description.transform.rotation),
-            JPH::EMotionType::Dynamic, Layers::moving);
-        settings.mOverrideMassProperties =
-            JPH::EOverrideMassProperties::CalculateInertia;
-        settings.mMassPropertiesOverride.mMass =
-            std::max(description.mass, 1.0F);
+            shape, toJolt(description.transform.position),
+            toJolt(description.transform.rotation), motion,
+            description.dynamic ? Layers::moving : Layers::nonMoving);
+        if (description.dynamic)
+        {
+            settings.mOverrideMassProperties =
+                JPH::EOverrideMassProperties::CalculateInertia;
+            settings.mMassPropertiesOverride.mMass =
+                std::max(description.mass, 1.0F);
+        }
         settings.mFriction = 0.5F;
         settings.mRestitution = 0.5F;
         settings.mEnhancedInternalEdgeRemoval = true;
@@ -783,15 +899,18 @@ public:
             CollisionSurface::Decoration);
         DebrisRuntime runtime;
         runtime.body = system_.GetBodyInterface().CreateAndAddBody(
-            settings, JPH::EActivation::Activate);
+            settings, description.dynamic
+                          ? JPH::EActivation::Activate
+                          : JPH::EActivation::DontActivate);
         if (runtime.body.IsInvalid())
             return std::numeric_limits<std::size_t>::max();
         runtime.state.body = description.transform;
         runtime.state.active = true;
         runtime.lifetime = description.lifetime;
-        if (description.localImpulse.x != 0.0F ||
+        if (description.dynamic &&
+            (description.localImpulse.x != 0.0F ||
             description.localImpulse.y != 0.0F ||
-            description.localImpulse.z != 0.0F)
+             description.localImpulse.z != 0.0F))
         {
             const JPH::Vec3 worldImpulse =
                 toJolt(description.transform.rotation) *
@@ -838,6 +957,13 @@ private:
         JPH::BodyID body;
         DebrisState state;
         float lifetime = -1.0F;
+    };
+
+    struct DecorationRuntime
+    {
+        std::vector<JPH::BodyID> meshBodies;
+        JPH::BodyID shapeBody;
+        DecorationState state;
     };
 
     static float sourceGearRatio(int gear) noexcept
@@ -1175,6 +1301,27 @@ private:
         debris_.clear();
     }
 
+    void destroyDecorations() noexcept
+    {
+        auto& bodies = system_.GetBodyInterface();
+        for (auto& decoration : decorations_)
+        {
+            auto destroyBody = [&](JPH::BodyID& body) {
+                if (body.IsInvalid())
+                    return;
+                if (decoration.state.active)
+                    bodies.RemoveBody(body);
+                bodies.DestroyBody(body);
+                body = JPH::BodyID();
+            };
+            for (auto& body : decoration.meshBodies)
+                destroyBody(body);
+            decoration.meshBodies.clear();
+            destroyBody(decoration.shapeBody);
+            decoration.state.active = false;
+        }
+    }
+
     void validate()
     {
         if (description_.collisionMeshes.empty() ||
@@ -1199,6 +1346,8 @@ private:
     {
         constexpr std::size_t surfaceCount = 3U;
         std::array<JPH::TriangleList, surfaceCount> triangles;
+        std::vector<JPH::TriangleList> decorationTriangles(
+            decorations_.size());
         auto surfaceIndex = [](CollisionSurface surface) {
             switch (surface)
             {
@@ -1211,12 +1360,21 @@ private:
             }
         };
         for (const auto& mesh : description_.collisionMeshes)
-            triangles[surfaceIndex(mesh.surface)].reserve(
-                triangles[surfaceIndex(mesh.surface)].size() +
-                mesh.indices.size() / 3U);
-        for (const auto& mesh : description_.collisionMeshes)
         {
-            auto& surfaceTriangles = triangles[surfaceIndex(mesh.surface)];
+            const bool ownedDecoration =
+                mesh.surface == CollisionSurface::Decoration &&
+                mesh.decorationInstance < decorationTriangles.size();
+            if (ownedDecoration &&
+                mesh.decorationInstance < description_.decorations.size() &&
+                !description_.decorations[mesh.decorationInstance]
+                     .collisionResponse)
+                continue;
+            auto& surfaceTriangles =
+                ownedDecoration
+                    ? decorationTriangles[mesh.decorationInstance]
+                    : triangles[surfaceIndex(mesh.surface)];
+            surfaceTriangles.reserve(surfaceTriangles.size() +
+                                     mesh.indices.size() / 3U);
             for (std::size_t index = 0; index + 2 < mesh.indices.size();
                  index += 3)
             {
@@ -1240,11 +1398,12 @@ private:
             0.1F, 4.0F, 0.5F};
         constexpr std::array<float, surfaceCount> restitutions{
             0.0F, 0.0F, 0.5F};
-        for (std::size_t index = 0; index < triangles.size(); ++index)
-        {
-            if (triangles[index].empty())
-                continue;
-            JPH::MeshShapeSettings shapeSettings(triangles[index]);
+        auto createMeshBody = [&](const JPH::TriangleList& source,
+                                  CollisionSurface surface, float friction,
+                                  float restitution) {
+            if (source.empty())
+                return JPH::BodyID();
+            JPH::MeshShapeSettings shapeSettings(source);
             const auto shapeResult = shapeSettings.Create();
             if (shapeResult.HasError())
                 throw std::runtime_error(
@@ -1253,16 +1412,86 @@ private:
                 shapeResult.Get(), JPH::RVec3::sZero(),
                 JPH::Quat::sIdentity(), JPH::EMotionType::Static,
                 Layers::nonMoving);
-            settings.mFriction = frictions[index];
-            settings.mRestitution = restitutions[index];
-            settings.mUserData = surfaceUserData(surfaces[index]);
+            settings.mFriction = friction;
+            settings.mRestitution = restitution;
+            settings.mUserData = surfaceUserData(surface);
             const auto body =
                 system_.GetBodyInterface().CreateAndAddBody(
                     settings, JPH::EActivation::DontActivate);
             if (body.IsInvalid())
                 throw std::runtime_error(
                     "Jolt could not create track body");
-            trackBodies_.push_back(body);
+            return body;
+        };
+        for (std::size_t index = 0; index < triangles.size(); ++index)
+        {
+            if (triangles[index].empty())
+                continue;
+            trackBodies_.push_back(createMeshBody(
+                triangles[index], surfaces[index], frictions[index],
+                restitutions[index]));
+        }
+        for (std::size_t index = 0;
+             index < decorationTriangles.size(); ++index)
+        {
+            if (decorationTriangles[index].empty())
+                continue;
+            decorations_[index].meshBodies.push_back(createMeshBody(
+                decorationTriangles[index], CollisionSurface::Decoration,
+                0.5F, 0.5F));
+        }
+    }
+
+    void createDecorationBodies()
+    {
+        for (std::size_t index = 0;
+             index < description_.decorations.size(); ++index)
+        {
+            const auto& source = description_.decorations[index];
+            if (!source.hasBodyShape)
+                continue;
+            const auto box = new JPH::BoxShape(toJolt(source.halfExtents));
+            const auto shifted = JPH::RotatedTranslatedShapeSettings(
+                                     toJolt(source.shapePosition),
+                                     toJolt(source.shapeRotation), box)
+                                     .Create();
+            if (shifted.HasError())
+            {
+                throw std::runtime_error(
+                    ("Jolt decoration shape transform: " +
+                     shifted.GetError())
+                        .c_str());
+            }
+            const auto motion =
+                source.dynamic ? JPH::EMotionType::Dynamic
+                               : JPH::EMotionType::Static;
+            JPH::BodyCreationSettings settings(
+                shifted.Get(), toJolt(source.transform.position),
+                toJolt(source.transform.rotation), motion,
+                source.dynamic ? Layers::moving : Layers::nonMoving);
+            if (source.dynamic)
+            {
+                settings.mOverrideMassProperties =
+                    JPH::EOverrideMassProperties::CalculateInertia;
+                settings.mMassPropertiesOverride.mMass =
+                    std::max(source.mass, 1.0F);
+            }
+            settings.mFriction = 0.5F;
+            settings.mRestitution = 0.5F;
+            settings.mEnhancedInternalEdgeRemoval = true;
+            settings.mUserData =
+                surfaceUserData(CollisionSurface::Decoration);
+            auto& decoration = decorations_[index];
+            decoration.shapeBody =
+                system_.GetBodyInterface().CreateAndAddBody(
+                    settings, source.dynamic
+                                  ? JPH::EActivation::Activate
+                                  : JPH::EActivation::DontActivate);
+            if (decoration.shapeBody.IsInvalid())
+            {
+                throw std::runtime_error(
+                    "Jolt could not create decoration body");
+            }
         }
     }
 
@@ -1576,6 +1805,22 @@ private:
         debris.state.body.rotation = fromJolt(body.GetRotation());
     }
 
+    void updateState(std::size_t index) noexcept
+    {
+        if (index >= decorations_.size())
+            return;
+        auto& decoration = decorations_[index];
+        if (!decoration.state.active || decoration.shapeBody.IsInvalid())
+            return;
+        JPH::BodyLockRead lock(system_.GetBodyLockInterface(),
+                               decoration.shapeBody);
+        if (!lock.Succeeded())
+            return;
+        const JPH::Body& body = lock.GetBody();
+        decoration.state.body.position = fromJolt(body.GetPosition());
+        decoration.state.body.rotation = fromJolt(body.GetRotation());
+    }
+
     WorldDescription description_;
     BroadPhaseLayerInterface broadPhaseInterface_;
     ObjectVsBroadPhaseFilter objectVsBroadPhase_;
@@ -1586,7 +1831,9 @@ private:
     JPH::JobSystemThreadPool jobs_;
     std::vector<JPH::BodyID> trackBodies_;
     std::vector<VehicleRuntime> vehicles_;
+    std::vector<DecorationRuntime> decorations_;
     std::vector<DebrisRuntime> debris_;
+    DecorationState emptyDecoration_;
     DebrisState emptyDebris_;
 };
 
@@ -1969,10 +2216,64 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                        {4.0F, -8.0F, 5.0F}};
     border.indices = {0U, 1U, 2U, 0U, 3U, 1U};
     contactDescription.collisionMeshes.push_back(std::move(border));
+    DecorationDescription barrel;
+    barrel.transform.position = {0.0F, -10.0F, 4.0F};
+    barrel.shapePosition = {0.0F, 0.0F, 0.5F};
+    barrel.halfExtents = {0.5F, 0.5F, 0.75F};
+    barrel.mass = 200.0F;
+    barrel.hasBodyShape = true;
+    barrel.dynamic = true;
+    contactDescription.decorations.push_back(barrel);
+    contactDescription.decorations.emplace_back();
+    TriangleMesh destructibleMesh;
+    destructibleMesh.surface = CollisionSurface::Decoration;
+    destructibleMesh.decorationInstance = 1U;
+    destructibleMesh.vertices = {{-12.0F, -2.0F, 0.0F},
+                                 {-12.0F, 2.0F, 3.0F},
+                                 {-12.0F, 2.0F, 0.0F},
+                                 {-12.0F, -2.0F, 3.0F}};
+    destructibleMesh.indices = {0U, 1U, 2U, 0U, 3U, 1U};
+    contactDescription.collisionMeshes.push_back(
+        std::move(destructibleMesh));
     auto contactWorld =
         createOriginalVehicleWorld(contactDescription, error);
     if (!contactWorld)
         return false;
+    if (contactWorld->decorationCount() != 2U ||
+        !contactWorld->decoration(0U).active ||
+        !contactWorld->decoration(1U).active)
+    {
+        error = "source ctDecoration bodies were not created independently";
+        return false;
+    }
+    const float barrelStartHeight =
+        contactWorld->decoration(0U).body.position.z;
+    input = {};
+    for (int step = 0; step < 120; ++step)
+        contactWorld->step(1.0F / 120.0F, input);
+    if (contactWorld->decoration(0U).body.position.z >=
+        barrelStartHeight - 0.1F)
+    {
+        error = "source dynamic decoration did not enter Jolt physics";
+        return false;
+    }
+    contactWorld->setDecorationEnabled(0U, false);
+    contactWorld->setDecorationEnabled(1U, false);
+    if (contactWorld->decoration(0U).active ||
+        contactWorld->decoration(1U).active)
+    {
+        error = "destroyed ctDecoration collision remained enabled";
+        return false;
+    }
+    contactWorld->reset();
+    if (!contactWorld->decoration(0U).active ||
+        !contactWorld->decoration(1U).active ||
+        std::abs(contactWorld->decoration(0U).body.position.z -
+                 barrelStartHeight) > 0.001F)
+    {
+        error = "race reset did not restore source ctDecoration bodies";
+        return false;
+    }
     input = {};
     input.throttle = 1.0F;
     bool sawBorderContact = false;
@@ -2018,6 +2319,38 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         debrisStartHeight - 0.1F)
     {
         error = "source gotDestrObj dynamic body did not enter Jolt physics";
+        return false;
+    }
+    DebrisDescription staticPieceDescription;
+    staticPieceDescription.transform.position = {15.0F, -15.0F, 0.0F};
+    staticPieceDescription.dynamic = false;
+    TriangleMesh staticPieceMesh;
+    staticPieceMesh.surface = CollisionSurface::Decoration;
+    staticPieceMesh.vertices = {{-1.0F, -1.0F, 0.0F},
+                                {1.0F, -1.0F, 0.0F},
+                                {1.0F, 1.0F, 0.0F},
+                                {-1.0F, 1.0F, 0.0F}};
+    staticPieceMesh.indices = {0U, 1U, 2U, 0U, 2U, 3U};
+    staticPieceDescription.collisionMeshes.push_back(
+        std::move(staticPieceMesh));
+    const std::size_t staticPieceIndex =
+        contactWorld->addDebris(staticPieceDescription);
+    if (staticPieceIndex == std::numeric_limits<std::size_t>::max() ||
+        !contactWorld->debris(staticPieceIndex).active)
+    {
+        error = "source static destruction-list body was not created";
+        return false;
+    }
+    const auto staticPieceStart =
+        contactWorld->debris(staticPieceIndex).body.position;
+    contactWorld->step(0.1F, input);
+    const auto staticPieceEnd =
+        contactWorld->debris(staticPieceIndex).body.position;
+    if (std::abs(staticPieceStart.x - staticPieceEnd.x) > 0.001F ||
+        std::abs(staticPieceStart.y - staticPieceEnd.y) > 0.001F ||
+        std::abs(staticPieceStart.z - staticPieceEnd.z) > 0.001F)
+    {
+        error = "source static destruction-list body entered dynamics";
         return false;
     }
     DebrisDescription wreckDescription;

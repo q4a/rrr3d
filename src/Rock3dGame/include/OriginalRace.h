@@ -209,6 +209,8 @@ enum class GraphOrder
 struct DestructionPieceDefinition
 {
     std::vector<VisualNode> visualNodes;
+    std::vector<CollisionShape> collisionShapes;
+    Transform transform;
     Vec3 shapePosition;
     Quat shapeRotation;
     Vec3 halfExtents;

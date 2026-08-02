@@ -1512,6 +1512,7 @@ ObjectDefinition objectDefinition(
                     elementTransform(piece, source);
                 auto nodes = visualNodes(resources, piece, source);
                 DestructionPieceDefinition destructionPiece;
+                destructionPiece.transform = pieceTransform;
                 for (auto& node : nodes)
                 {
                     node.transform =
@@ -1519,7 +1520,13 @@ ObjectDefinition objectDefinition(
                     destructionPiece.visualNodes.push_back(node);
                     result.visualNodes.push_back(std::move(node));
                 }
+                const auto collisionBegin = result.collisionShapes.size();
                 loadCollisionShapes(resources, result, piece, source);
+                destructionPiece.collisionShapes.insert(
+                    destructionPiece.collisionShapes.end(),
+                    result.collisionShapes.begin() +
+                        static_cast<std::ptrdiff_t>(collisionBegin),
+                    result.collisionShapes.end());
                 auto* body = child(piece, "pxActor/body");
                 auto* shapes = child(piece, "pxActor/shapes/items");
                 if (body != nullptr && shapes != nullptr)
@@ -2733,6 +2740,7 @@ std::vector<r3d::physics::TriangleMesh> loadCollisionMeshes(
                     : (track
                            ? r3d::physics::CollisionSurface::TrackPlane
                            : r3d::physics::CollisionSurface::Decoration);
+            collision.decorationInstance = decorationInstance;
             collision.vertices.reserve(mesh.vertices.size());
             for (const auto& vertex : mesh.vertices)
             {
@@ -3777,6 +3785,49 @@ r3d::physics::WorldDescription makePhysicsDescription(
     };
     result.vehicle = prepareVehicle(race.vehicle);
     result.collisionMeshes = race.collisionMeshes;
+    if (result.collisionMeshes.size() !=
+        race.collisionMeshDecorationInstances.size())
+    {
+        throw resource::ResourceError(
+            race.levelPath + ": collision decoration owner mismatch");
+    }
+    for (std::size_t index = 0; index < result.collisionMeshes.size();
+         ++index)
+    {
+        result.collisionMeshes[index].decorationInstance =
+            race.collisionMeshDecorationInstances[index];
+    }
+    result.decorations.reserve(race.decorationInstances.size());
+    for (const auto& instance : race.decorationInstances)
+    {
+        const auto& definition =
+            race.decorationDefinitions.at(instance.definition);
+        r3d::physics::DecorationDescription decoration;
+        decoration.transform = instance.transform;
+        decoration.shapePosition = {
+            definition.bodyShapePosition.x * instance.transform.scale.x,
+            definition.bodyShapePosition.y * instance.transform.scale.y,
+            definition.bodyShapePosition.z * instance.transform.scale.z};
+        decoration.shapeRotation = definition.bodyShapeRotation;
+        decoration.halfExtents = {
+            std::abs(definition.bodyHalfExtents.x *
+                     instance.transform.scale.x),
+            std::abs(definition.bodyHalfExtents.y *
+                     instance.transform.scale.y),
+            std::abs(definition.bodyHalfExtents.z *
+                     instance.transform.scale.z)};
+        decoration.mass = definition.bodyMass;
+        decoration.hasBodyShape =
+            decoration.halfExtents.x > 0.0F &&
+            decoration.halfExtents.y > 0.0F &&
+            decoration.halfExtents.z > 0.0F;
+        decoration.dynamic =
+            definition.dynamicBody && decoration.hasBodyShape;
+        // DestrObj sets NX_AF_DISABLE_RESPONSE on its parent actor. Its child
+        // shapes become independent responding actors only after OnDeath.
+        decoration.collisionResponse = !definition.destructible;
+        result.decorations.push_back(std::move(decoration));
+    }
 
     auto findPoint = [&](std::uint32_t id) -> const TracePoint& {
         const auto found = std::find_if(
@@ -3889,13 +3940,29 @@ bool runOriginalRaceResourceSmokeTest(
         }
         std::size_t triangleCount = 0;
         std::size_t borderMeshCount = 0;
+        std::size_t ownedDecorationMeshCount = 0;
+        bool hasUnownedDecorationMesh = false;
         for (const auto& mesh : physics.collisionMeshes)
         {
             triangleCount += mesh.indices.size() / 3U;
             if (mesh.surface ==
                 r3d::physics::CollisionSurface::TrackBorder)
                 ++borderMeshCount;
+            if (mesh.surface ==
+                r3d::physics::CollisionSurface::Decoration)
+            {
+                if (mesh.decorationInstance < physics.decorations.size())
+                    ++ownedDecorationMeshCount;
+                else
+                    hasUnownedDecorationMesh = true;
+            }
         }
+        const auto dynamicDecorationBodyCount = static_cast<std::size_t>(
+            std::count_if(
+                physics.decorations.begin(), physics.decorations.end(),
+                [](const r3d::physics::DecorationDescription& decoration) {
+                    return decoration.hasBodyShape && decoration.dynamic;
+                }));
         const auto near = [](float first, float second) {
             return std::abs(first - second) <= 0.0001F;
         };
@@ -3947,7 +4014,11 @@ bool runOriginalRaceResourceSmokeTest(
                 if (piece.visualNodes.empty())
                     return false;
                 if (!piece.dynamic)
+                {
+                    if (piece.collisionShapes.empty())
+                        return false;
                     continue;
+                }
                 ++dynamicCount;
                 if (!near(piece.mass, 200.0F) ||
                     piece.halfExtents.x <= 0.0F ||
@@ -3964,7 +4035,12 @@ bool runOriginalRaceResourceSmokeTest(
             hasDestructibleWithoutSourcePieces ||
             hasDestructibleWithoutSourceCollision ||
             race.collisionMeshes.size() !=
-                race.collisionMeshDecorationInstances.size())
+                race.collisionMeshDecorationInstances.size() ||
+            physics.decorations.size() !=
+                race.decorationInstances.size() ||
+            ownedDecorationMeshCount == 0U ||
+            hasUnownedDecorationMesh ||
+            dynamicDecorationBodyCount != 8U)
         {
             const auto audit = [](const ObjectDefinition* definition) {
                 if (definition == nullptr)
@@ -3990,7 +4066,11 @@ bool runOriginalRaceResourceSmokeTest(
             };
             error = "source gotDestrObj provenance mismatch: crush1=" +
                     audit(crush1) + ", reklama=" + audit(reklama) +
-                    ", bochka=" + audit(bochka);
+                    ", bochka=" + audit(bochka) +
+                    ", ownedMeshes=" +
+                    std::to_string(ownedDecorationMeshCount) +
+                    ", dynamicBodies=" +
+                    std::to_string(dynamicDecorationBodyCount);
             return false;
         }
         const auto recordEndsWith = [](std::string_view record,

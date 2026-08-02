@@ -46,6 +46,29 @@ struct TriangleMesh
     std::vector<std::uint32_t> indices;
     Transform transform;
     CollisionSurface surface = CollisionSurface::TrackPlane;
+    // Source ctDecoration instance that owns this PhysX mesh. Keeping the
+    // owner is required to remove only that collision body when a gotDestrObj
+    // is destroyed; track geometry has no owner.
+    std::size_t decorationInstance =
+        std::numeric_limits<std::size_t>::max();
+};
+
+struct DecorationDescription
+{
+    Transform transform;
+    Vec3 shapePosition;
+    Quat shapeRotation;
+    Vec3 halfExtents;
+    float mass = 0.0F;
+    bool hasBodyShape = false;
+    bool dynamic = false;
+    bool collisionResponse = true;
+};
+
+struct DecorationState
+{
+    Transform body;
+    bool active = false;
 };
 
 struct WheelDescription
@@ -112,6 +135,7 @@ struct VehicleSpawn
 struct WorldDescription
 {
     std::vector<TriangleMesh> collisionMeshes;
+    std::vector<DecorationDescription> decorations;
     // The legacy fields keep the Windows/M9 single-car data contract intact.
     // Multi-car races populate spawns; the first spawn is always the human.
     VehicleDescription vehicle;
@@ -174,12 +198,14 @@ struct VehicleState
 struct DebrisDescription
 {
     Transform transform;
+    std::vector<TriangleMesh> collisionMeshes;
     Vec3 shapePosition;
     Quat shapeRotation;
     Vec3 halfExtents{0.1F, 0.1F, 0.1F};
     Vec3 localImpulse;
     float mass = 1.0F;
     float lifetime = -1.0F;
+    bool dynamic = true;
 };
 
 struct DebrisState
@@ -211,6 +237,11 @@ public:
     virtual const VehicleState& vehicle() const noexcept = 0;
     virtual const VehicleState& vehicle(std::size_t index) const noexcept = 0;
     virtual std::size_t vehicleCount() const noexcept = 0;
+    virtual void setDecorationEnabled(std::size_t index,
+                                      bool enabled) noexcept = 0;
+    virtual const DecorationState& decoration(
+        std::size_t index) const noexcept = 0;
+    virtual std::size_t decorationCount() const noexcept = 0;
     virtual std::size_t addDebris(
         const DebrisDescription& description) noexcept = 0;
     virtual const DebrisState& debris(std::size_t index) const noexcept = 0;
