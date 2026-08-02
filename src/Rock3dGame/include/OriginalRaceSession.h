@@ -345,6 +345,10 @@ private:
     std::vector<std::size_t> aiFrontTargets_;
     std::vector<std::size_t> aiBackTargets_;
     std::vector<float> lastPathCoordinates_;
+    // Player::CarState::moveInverseStart stores source-path distance, not an
+    // orientation timer. A negative value means that reverse travel has not
+    // started on a valid trace tile.
+    std::vector<float> wrongWayStartDistances_;
     std::vector<Vec3> previousPositions_;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;
