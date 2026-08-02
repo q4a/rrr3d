@@ -563,6 +563,33 @@ makeWorkshopPresentationCamera(
     result.rotation = rotations[nearest];
     return result;
 }
+
+r3d::game::originalrace::PresentationCamera
+makeAutoObserverPresentationCamera(
+    const r3d::game::originalrace::PresentationCamera& source,
+    float seconds, float angularSpeed) noexcept
+{
+    auto result = source;
+    const float angle = seconds * angularSpeed;
+    const float sine = std::sin(angle);
+    const float cosine = std::cos(angle);
+    result.position = {
+        cosine * source.position.x - sine * source.position.y,
+        sine * source.position.x + cosine * source.position.y,
+        source.position.z};
+    const float halfSine = std::sin(angle * 0.5F);
+    const float halfCosine = std::cos(angle * 0.5F);
+    result.rotation = {
+        halfCosine * source.rotation.x -
+            halfSine * source.rotation.y,
+        halfCosine * source.rotation.y +
+            halfSine * source.rotation.x,
+        halfCosine * source.rotation.z +
+            halfSine * source.rotation.w,
+        halfCosine * source.rotation.w -
+            halfSine * source.rotation.z};
+    return result;
+}
 #endif
 
 Transform makeTransform(float width, float height, float centerX,
@@ -1369,6 +1396,8 @@ int main(int argc, char** argv)
         *resources, "Data/GUI/imageFrame1.png");
     const auto raceChargeBarImage = menu::loadOriginalImage(
         *resources, "Data/GUI/chargeBar1.png");
+    const auto raceStatBarImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/statBar.png");
     const std::array<menu::Image, 7> raceMenuIconImages{
         menu::loadOriginalImage(*resources, "Data/GUI/icoStart.png"),
         menu::loadOriginalImage(*resources, "Data/GUI/icoWorkshop.png"),
@@ -1398,6 +1427,8 @@ int main(int argc, char** argv)
         createImageTexture(*device, raceImageFrameImage);
     const Texture raceChargeBar =
         createImageTexture(*device, raceChargeBarImage);
+    const Texture raceStatBar =
+        createImageTexture(*device, raceStatBarImage);
     std::array<Texture, 7> raceMenuIcons{};
     for (std::size_t index = 0U; index < raceMenuIcons.size(); ++index)
         raceMenuIcons[index] =
@@ -1737,6 +1768,7 @@ int main(int argc, char** argv)
     MenuPageVisual gamersBonusPage;
     MenuPageVisual raceMainHeadersPage;
     MenuPageVisual raceMainInfoPage;
+    MenuPageVisual raceMainStatsPage;
     MenuPageVisual garagePage;
     MenuPageVisual garageInfoPage;
     MenuPageVisual garageStatsPage;
@@ -2045,14 +2077,28 @@ int main(int argc, char** argv)
                 localized("svTournamentInfo"),
                 pass <= 1U ? "B" : "A", required,
                 profileState.player.points);
-        const std::string bossName =
-            originalRace->racers.size() > 1U
-                ? localized(originalRace->racers[1].name)
-                : localized("svNull");
         return std::vector<std::string>{
-            profileState.player.name, bossName, passInfo,
-            tournamentInfo,
+            passInfo, tournamentInfo,
             "$" + std::to_string(profileState.player.money)};
+    };
+    auto raceMainStatsLabels = [&]() {
+        const auto* car = originalGarage->findCar(
+            profileState.player.currentCar);
+        const auto stats =
+            car != nullptr
+                ? r3d::game::originalrace::originalGarageStats(
+                      *originalGarage, *car, profileState.player)
+                : r3d::game::originalrace::OriginalGarageStats{};
+        auto rounded = [](float value) {
+            return std::to_string(
+                static_cast<long long>(std::llround(value)));
+        };
+        return std::vector<std::string>{
+            rounded(stats.damage) + "/" +
+                rounded(stats.maximumDamage),
+            rounded(stats.armor) + "/" +
+                rounded(stats.maximumArmor),
+            rounded(stats.speedProgress * 300.0F) + "/300"};
     };
 #endif
     try
@@ -2105,6 +2151,9 @@ int main(int argc, char** argv)
         raceMainInfoPage = createStyledPage(
             raceMainInfoLabels(), menu::smallFontHeight,
             raceInfoColor, menu::selectedTextColor);
+        raceMainStatsPage = createStyledPage(
+            raceMainStatsLabels(), menu::smallFontHeight,
+            raceTextColor, menu::selectedTextColor);
         garagePage = createPage(
             {localized("svGarage"), localized("svMoney"), "-",
              localized("svBack"), localized("svBuy")});
@@ -2425,6 +2474,7 @@ int main(int argc, char** argv)
         pageValid(gamersBonusPage) &&
         pageValid(raceMainHeadersPage) &&
         pageValid(raceMainInfoPage) &&
+        pageValid(raceMainStatsPage) &&
         pageValid(garagePage) &&
         pageValid(garageInfoPage) &&
         pageValid(garageStatsPage) &&
@@ -2478,6 +2528,7 @@ int main(int argc, char** argv)
         valid(raceMenuButtonSelected) &&
         valid(raceMoney) && valid(raceStats) &&
         valid(raceImageFrame) && valid(raceChargeBar) &&
+        valid(raceStatBar) &&
         std::all_of(
             raceMenuIcons.begin(), raceMenuIcons.end(),
             [](Texture texture) { return valid(texture); }) &&
@@ -2565,6 +2616,7 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_PHYSICS
         clearFinishRows();
+        destroyPage(raceMainStatsPage);
         device->destroy(finishPointsTitle.texture);
         device->destroy(finishMoneyTitle.texture);
         device->destroy(finishRewardTitle.texture);
@@ -2683,6 +2735,7 @@ int main(int argc, char** argv)
             device->destroy(texture);
         for (const auto texture : raceMenuIcons)
             device->destroy(texture);
+        device->destroy(raceStatBar);
         device->destroy(raceChargeBar);
         device->destroy(raceImageFrame);
         device->destroy(raceStats);
@@ -3578,6 +3631,20 @@ int main(int argc, char** argv)
         destroyPage(profilePage);
         profilePage = std::move(replacement);
     };
+#ifdef RRR3D_PHYSICS
+    auto refreshRaceMainPages = [&]() {
+        auto infoReplacement = createStyledPage(
+            raceMainInfoLabels(), menu::smallFontHeight,
+            raceInfoColor, menu::selectedTextColor);
+        auto statsReplacement = createStyledPage(
+            raceMainStatsLabels(), menu::smallFontHeight,
+            raceTextColor, menu::selectedTextColor);
+        destroyPage(raceMainInfoPage);
+        destroyPage(raceMainStatsPage);
+        raceMainInfoPage = std::move(infoReplacement);
+        raceMainStatsPage = std::move(statsReplacement);
+    };
+#endif
     auto refreshSharedMenuAvailability = [&](MenuScreen screen) {
         auto enableAll = [](MenuPageVisual& page) {
             std::fill(
@@ -3661,6 +3728,10 @@ int main(int argc, char** argv)
     auto backMenu = [&]() {
         if (menuStack.size() > 1U)
             menuStack.pop_back();
+#ifdef RRR3D_PHYSICS
+        if (menuStack.back() == MenuScreen::RaceMenu)
+            refreshRaceMainPages();
+#endif
         refreshSharedMenuAvailability(menuStack.back());
         menuSelection = firstEnabledMenuItem();
     };
@@ -3963,6 +4034,10 @@ int main(int argc, char** argv)
     bool tournamentFrameObserved = !options->raceRenderSmokeTest;
     bool profileFrameObserved = !options->raceRenderSmokeTest;
     bool profileDeleteDialogObserved =
+        !options->raceRenderSmokeTest;
+    bool raceMainFrameObserved = !options->raceRenderSmokeTest;
+    bool raceMain3DObserved = !options->raceRenderSmokeTest;
+    bool raceMainSourceVisualsObserved =
         !options->raceRenderSmokeTest;
     bool raceGarageFrameObserved = !options->raceRenderSmokeTest;
     bool raceGarage3DObserved = !options->raceRenderSmokeTest;
@@ -5034,11 +5109,7 @@ int main(int argc, char** argv)
                   << '\n';
     };
     auto showOriginalGarageAfterGamers = [&]() {
-        auto raceInfoReplacement = createStyledPage(
-            raceMainInfoLabels(), menu::smallFontHeight,
-            raceInfoColor, menu::selectedTextColor);
-        destroyPage(raceMainInfoPage);
-        raceMainInfoPage = std::move(raceInfoReplacement);
+        refreshRaceMainPages();
         rebuildGarageCarOrder();
         refreshGaragePage();
         menuStack = championshipMode
@@ -5929,15 +6000,8 @@ int main(int argc, char** argv)
             next = originalAchievementNavigation[next][direction];
         }
     };
-    auto refreshRaceMainInfoPage = [&]() {
-        auto replacement = createStyledPage(
-            raceMainInfoLabels(), menu::smallFontHeight,
-            raceInfoColor, menu::selectedTextColor);
-        destroyPage(raceMainInfoPage);
-        raceMainInfoPage = std::move(replacement);
-    };
     auto showOriginalRaceMenu = [&]() {
-        refreshRaceMainInfoPage();
+        refreshRaceMainPages();
         menuStack.push_back(MenuScreen::RaceMenu);
         menuSelection = 0;
     };
@@ -10992,6 +11056,14 @@ int main(int argc, char** argv)
             presentationCar = originalGarage->findCar(
                 profileState.player.currentCar);
         }
+        else if (drawingOriginalRaceMenu)
+        {
+            // RaceMenu::ApplyState keeps CarFrame visible in msMain and
+            // RaceMainFrame::OnInvalidate applies the player's actual
+            // car/loadout rather than the Garage defaults.
+            presentationCar = originalGarage->findCar(
+                profileState.player.currentCar);
+        }
         if (drawingOriginalGamers)
             gamersSceneSeconds += frameSeconds;
         if (drawingOriginalAngar)
@@ -11115,7 +11187,8 @@ int main(int argc, char** argv)
                      slot < runtime.weaponSlots.size(); ++slot)
                 {
                     const auto& weaponRecord =
-                        drawingOriginalWorkshop
+                        (drawingOriginalWorkshop ||
+                         drawingOriginalRaceMenu)
                             ? profileState.player
                                   .slots[firstWeaponPlacement + slot]
                                   .record
@@ -11155,8 +11228,10 @@ int main(int argc, char** argv)
                     ? makeWorkshopPresentationCamera(
                           originalGarageScene
                               ->presentationCamera)
-                    : originalGarageScene
-                          ->presentationCamera;
+                    : makeAutoObserverPresentationCamera(
+                          originalGarageScene
+                              ->presentationCamera,
+                          garageSceneSeconds, bx::kPi / 48.0F);
             const auto garageCamera =
                 garageRenderer.makePresentationCamera(
                     *device, presentationSourceCamera,
@@ -11186,6 +11261,15 @@ int main(int argc, char** argv)
             {
                 raceWorkshop3DObserved =
                     raceWorkshop3DObserved ||
+                    observedPresentation3D;
+                device->beginPass(
+                    r3d::renderer::RenderPass::Overlay, {}, camera,
+                    0U, false, true);
+            }
+            else if (drawingOriginalRaceMenu)
+            {
+                raceMain3DObserved =
+                    raceMain3DObserved ||
                     observedPresentation3D;
                 device->beginPass(
                     r3d::renderer::RenderPass::Overlay, {}, camera,
@@ -11959,6 +12043,7 @@ int main(int argc, char** argv)
         }
         else if (drawingOriginalRaceMenu)
         {
+            raceMainFrameObserved = true;
             const float centerX = menu::virtualWidth * 0.5F;
             const float topCenterY =
                 static_cast<float>(raceTopPanelImage.height) * 0.5F;
@@ -12011,8 +12096,86 @@ int main(int argc, char** argv)
                     topCenterY + 18.0F, 20.0F, transparent);
             }
 
+            bool sourcePortraitsDrawn = false;
+            bool sourceBossCarDrawn = false;
+            bool sourceLoadoutDrawn = false;
+            const float frameWidth = static_cast<float>(
+                raceImageFrameImage.width);
+            const float frameHeight = static_cast<float>(
+                raceImageFrameImage.height);
+            auto drawFittedPortrait =
+                [&](const menu::Image& image, Texture texture,
+                    float x) {
+                    const float scale = std::min(
+                        frameWidth /
+                            std::max(
+                                static_cast<float>(image.width), 1.0F),
+                        frameHeight /
+                            std::max(
+                                static_cast<float>(image.height), 1.0F));
+                    drawQuad(
+                        *device, quad, shader, texture,
+                        static_cast<float>(image.width) * scale,
+                        static_cast<float>(image.height) * scale,
+                        x, topCenterY + 87.0F, 40.0F,
+                        transparent);
+                };
+            const auto playerGamer = std::find_if(
+                originalGarage->gamers.begin(),
+                originalGarage->gamers.end(),
+                [&](const auto& gamer) {
+                    return gamer.bossId ==
+                           profileState.player.gamerId;
+                });
+            const auto planetIndex =
+                profileState.player.currentPlanet;
+            if (playerGamer != originalGarage->gamers.end() &&
+                planetIndex < originalGarage->planets.size())
+            {
+                const auto gamerIndex = static_cast<std::size_t>(
+                    std::distance(
+                        originalGarage->gamers.begin(), playerGamer));
+                if (gamerIndex < gamersBossTextures.size() &&
+                    planetIndex < angarBossTextures.size())
+                {
+                    drawFittedPortrait(
+                        gamersBossImages[gamerIndex],
+                        gamersBossTextures[gamerIndex],
+                        centerX - 550.0F);
+                    drawFittedPortrait(
+                        angarBossImages[planetIndex],
+                        angarBossTextures[planetIndex],
+                        centerX + 475.0F);
+                    sourcePortraitsDrawn = true;
+                }
+                const auto& bossCar =
+                    originalGarage->planets[planetIndex]
+                        .bossCarRecord;
+                if (!bossCar.empty())
+                {
+                    const auto& telemetry =
+                        device->renderTelemetry();
+                    const auto before = std::accumulate(
+                        telemetry.drawCount.begin(),
+                        telemetry.drawCount.end(), 0U);
+                    const float viewportSize =
+                        std::max(frameWidth, frameHeight);
+                    workshopRenderer.drawCar(
+                        *device, raceShader, bossCar,
+                        centerX + 605.0F,
+                        topCenterY + 87.0F,
+                        viewportSize, viewportSize,
+                        garageSceneSeconds * bx::kPi * 0.5F,
+                        racePipeline);
+                    const auto after = std::accumulate(
+                        telemetry.drawCount.begin(),
+                        telemetry.drawCount.end(), 0U);
+                    sourceBossCarDrawn = after > before;
+                }
+            }
+
             constexpr std::array<float, 3> frameOffsets{
-                -550.0F, 475.0F, 590.0F};
+                -550.0F, 475.0F, 605.0F};
             for (const float offset : frameOffsets)
             {
                 drawQuad(
@@ -12022,22 +12185,10 @@ int main(int argc, char** argv)
                     centerX + offset, topCenterY + 87.0F,
                     35.0F, transparent);
             }
-            const auto& playerName = raceMainInfoPage.normal[0];
-            const auto& bossName = raceMainInfoPage.normal[1];
-            const auto& passInfo = raceMainInfoPage.normal[2];
+            const auto& passInfo = raceMainInfoPage.normal[0];
             const auto& tournamentInfo =
-                raceMainInfoPage.normal[3];
-            const auto& money = raceMainInfoPage.normal[4];
-            drawQuad(
-                *device, quad, shader, playerName.texture,
-                playerName.width, playerName.height,
-                centerX - 550.0F, topCenterY + 87.0F,
-                15.0F, transparent);
-            drawQuad(
-                *device, quad, shader, bossName.texture,
-                bossName.width, bossName.height,
-                centerX + 475.0F, topCenterY + 87.0F,
-                15.0F, transparent);
+                raceMainInfoPage.normal[1];
+            const auto& money = raceMainInfoPage.normal[2];
             auto drawInfoLeft =
                 [&](const TextVisual& text, float x, float y,
                     float maximumWidth) {
@@ -12092,7 +12243,30 @@ int main(int argc, char** argv)
 
             constexpr std::array<std::size_t, 6> sourceChargeSlots{
                 6U, 7U, 8U, 9U, 4U, 5U};
+            const std::size_t visibleChargeCount =
+                static_cast<std::size_t>(std::count_if(
+                    sourceChargeSlots.begin(),
+                    sourceChargeSlots.end(),
+                    [&](std::size_t slotIndex) {
+                        return slotIndex <
+                                   profileState.player.slots.size() &&
+                               !profileState.player.slots[slotIndex]
+                                    .record.empty();
+                    }));
             std::size_t visibleCharge = 0U;
+            const float chargeStride =
+                static_cast<float>(raceChargeBarImage.width) +
+                40.0F;
+            const float chargeWidth =
+                visibleChargeCount > 1U
+                    ? static_cast<float>(visibleChargeCount - 1U) *
+                          chargeStride
+                    : 0.0F;
+            const auto& loadoutTelemetry =
+                device->renderTelemetry();
+            const auto loadoutDrawsBefore = std::accumulate(
+                loadoutTelemetry.drawCount.begin(),
+                loadoutTelemetry.drawCount.end(), 0U);
             for (const auto slotIndex : sourceChargeSlots)
             {
                 if (slotIndex >= profileState.player.slots.size())
@@ -12107,8 +12281,12 @@ int main(int argc, char** argv)
                         7.0F,
                     0.0F, 1.0F);
                 const float chargeX =
-                    centerX + 129.0F +
-                    static_cast<float>(visibleCharge) * 54.0F;
+                    centerX + 257.0F +
+                    static_cast<float>(raceChargeBarImage.width) *
+                        0.5F -
+                    chargeWidth * 0.5F +
+                    static_cast<float>(visibleCharge) *
+                        chargeStride;
                 const float fullHeight =
                     static_cast<float>(raceChargeBarImage.height);
                 if (progress > 0.0F)
@@ -12123,8 +12301,80 @@ int main(int argc, char** argv)
                                 0.5F,
                         18.0F, transparent);
                 }
+                if (const auto* item =
+                        originalGarage->findItem(slot.record))
+                {
+                    workshopRenderer.drawItem(
+                        *device, raceShader, *item,
+                        chargeX, topCenterY + 65.0F,
+                        50.0F, 50.0F,
+                        garageSceneSeconds * bx::kPi * 0.5F,
+                        racePipeline);
+                }
                 ++visibleCharge;
             }
+            const auto loadoutDrawsAfter = std::accumulate(
+                loadoutTelemetry.drawCount.begin(),
+                loadoutTelemetry.drawCount.end(), 0U);
+            sourceLoadoutDrawn =
+                visibleChargeCount == 0U ||
+                loadoutDrawsAfter > loadoutDrawsBefore;
+
+            const auto* currentCar = originalGarage->findCar(
+                profileState.player.currentCar);
+            const auto stats =
+                currentCar != nullptr
+                    ? r3d::game::originalrace::originalGarageStats(
+                          *originalGarage, *currentCar,
+                          profileState.player)
+                    : r3d::game::originalrace::
+                          OriginalGarageStats{};
+            const std::array<float, 3> statProgress{
+                stats.damageProgress, stats.armorProgress,
+                stats.speedProgress};
+            constexpr std::array<float, 3> statOffsetX{
+                128.0F, 150.0F, 173.0F};
+            constexpr std::array<float, 3> statOffsetY{
+                -98.0F, -61.0F, -23.0F};
+            const float statsCenterX =
+                static_cast<float>(raceStatsImage.width) * 0.5F;
+            const float statsCenterY =
+                menu::virtualHeight -
+                static_cast<float>(raceStatsImage.height) * 0.5F;
+            for (std::size_t index = 0U;
+                 index < statProgress.size(); ++index)
+            {
+                const float progress = std::clamp(
+                    statProgress[index], 0.0F, 1.0F);
+                const float barWidth =
+                    static_cast<float>(raceStatBarImage.width);
+                const float barCenterX =
+                    statsCenterX + statOffsetX[index];
+                const float barCenterY =
+                    statsCenterY + statOffsetY[index];
+                if (progress > 0.0F)
+                {
+                    drawQuad(
+                        *device, quad, shader, raceStatBar,
+                        barWidth * progress,
+                        static_cast<float>(raceStatBarImage.height),
+                        barCenterX - barWidth * 0.5F +
+                            barWidth * progress * 0.5F,
+                        barCenterY, 30.0F, transparent);
+                }
+                const auto& value =
+                    raceMainStatsPage.normal[index];
+                drawQuad(
+                    *device, quad, shader, value.texture,
+                    value.width, value.height,
+                    barCenterX + barWidth * 0.5F - 15.0F -
+                        value.width * 0.5F,
+                    barCenterY, 15.0F, transparent);
+            }
+            raceMainSourceVisualsObserved =
+                raceMainSourceVisualsObserved ||
+                (sourcePortraitsDrawn && sourceBossCarDrawn &&
+                 sourceLoadoutDrawn);
 
             constexpr float itemWidth = 110.0F;
             constexpr float itemSpacing = 50.0F;
@@ -14165,6 +14415,9 @@ int main(int argc, char** argv)
                     !tournamentFrameObserved ||
                     !profileFrameObserved ||
                     !profileDeleteDialogObserved ||
+                    !raceMainFrameObserved ||
+                    !raceMain3DObserved ||
+                    !raceMainSourceVisualsObserved ||
                     !raceGarageFrameObserved ||
                     !raceGarage3DObserved ||
                     !raceWorkshopFrameObserved ||
@@ -14204,6 +14457,10 @@ int main(int argc, char** argv)
                         << ", profile/dialog="
                         << profileFrameObserved << '/'
                         << profileDeleteDialogObserved
+                        << ", raceMain="
+                        << raceMainFrameObserved << '/'
+                        << raceMain3DObserved << '/'
+                        << raceMainSourceVisualsObserved
                         << ", garage="
                         << raceGarageFrameObserved << '/'
                         << raceGarage3DObserved
@@ -14271,6 +14528,7 @@ int main(int argc, char** argv)
                            "source HudMenu pause/accept/frozen-world, "
                            "source GameModeFrame/TournamentFrame layout, "
                            "source ProfileFrame/delete dialog, "
+                           "source RaceMain portraits/boss/loadout/stats, "
                            "source WorkshopFrame/GarageFrame/3D CarFrame/"
                            "SpaceshipFrame/AngarFrame/AchievmentFrame and "
                            "render-target "

@@ -1014,6 +1014,20 @@ SDL_AUDIO_DRIVER=dummy \
   переходит в Garage только по `cVideoStopped`; Skirmish идёт в Garage сразу.
 - Отдельный `--gamers-frame-smoke-test` подтвердил catalog/gate, 3D draw,
   Tyler → Snake, `gamerId=4` и Garage transition без записи профиля.
+- Повторная source-ревизия обнаружила, что ранний перенос
+  `RaceMainFrame` был неполным: вместо `Player::GetPhoto` и boss photo в двух
+  `imageFrame1` рисовались придуманные имена, boss-car viewport, шесть
+  loadout viewports и `statBar` отсутствовали, а `CarFrame` не включался в
+  состоянии `msMain`.
+- Разрыв закрыт по `RaceMainFrame::OnInvalidate/OnAdjustLayout` и
+  `CarFrame::SetSlots`: используются photo выбранного gamer и босса текущей
+  планеты, вращающийся boss car, реальные Weapon1–4/Hyper/Mine meshes,
+  charge и Damage/Armor/Speed values. `msMain` теперь показывает текущую
+  машину с profile slots в `Misc/garage`, а `csAutoObserver` вращается с
+  исходной скоростью `pi/48`.
+- 300-frame Metal regression теперь требует все эти элементы и отдельный
+  lighting draw `CarFrame` до перехода в Garage/Workshop; World4/map1 тест
+  прошёл с шестью машинами, четырьмя wheel contacts и max speed `22.3117`.
 
 ## Следующий рекомендуемый этап
 
@@ -1022,8 +1036,8 @@ Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` и workshop
 `WeaponDialog`, вызываемые offline `InfoDialog`/`AcceptDialog` и `GamersFrame` теперь
 source-derived. Source finish progression, planet/final movies и нативный
 video backend, включая Intaria transition, также подключены. Следующий P0-блок:
-продолжить source-by-source ревизию оставшихся вызываемых offline
-`RaceMenu2`/HUD/gameplay callbacks. Параллельно остаются ревизии projectile callbacks,
-material/effect graph и game-side audio behaviors. Release hardening
+продолжить source-by-source ревизию projectile callbacks и убрать оставшиеся
+неподтверждённые direct material mappings; затем проверить graph effect и
+game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
 функциональных расхождений; он не является заменой переноса.

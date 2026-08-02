@@ -76,7 +76,7 @@ Windows target не компилируется.
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared/profile/gamer/final navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty, Profile, Gamers и FinalMenu имеют исходные item order, NavElement/input branches, disabled skip и actions; Network и общий legacy event object graph ещё не завершены |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, `AcceptDialog`, `MusicDialog`, `WeaponDialog` и offline `InfoDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, все вызываемые offline confirmations, popup текущего track, hover-dialog товара/слота и Workshop/Angar/Achievement warnings перенесены. Offline-профили по исходнику автоматически называются `profileN`; `UserChat` и `NetIPAddress` относятся только к пока отключённой сети |
-| Race menu | `RaceMenu2.cpp` | source-derived `GamersFrame`/`RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Gamers, главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, семь gamer planets, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph и тени menu spot-lamps пока не воспроизведены |
+| Race menu | `RaceMenu2.cpp` | source-derived `GamersFrame`/`RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Gamers, главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/portraits/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, семь gamer planets, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph и тени menu spot-lamps пока не воспроизведены |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp`, `Menu::OnFinishClose` | source-derived FinishMenu, finish transition и FinalMenu | Перенесено | Активные экраны используют исходные assets/layout/timing/input; pass fail/complete, planet unlock и final movie branches сопоставлены с Windows source |
 | Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля, source-инвариант планет, `Race::MakeProfileName/NewProfile` и `DelProfile/SaveLib`: New Game создаёт `profileN`, `skirmish` временный, удаление последнего профиля сохраняет пустой library и не воскрешает XML reference. Полная схема ещё не доказана |
@@ -415,16 +415,18 @@ Network, video и Steam явно выключены.
    `RaceMainFrame::OnAdjustLayout` с `menuItemSpaceX=50`.
 2. Загружаются исходные `topPanel`, `bottomPanel`, `buttonBg1`,
    `buttonBgSel1`, семь `ico*`, `moneyBg`, `statFrame`, `imageFrame1`,
-   `chargeBar1` и четыре weather icons.
-3. Перенесены заголовки Player/Planet/Tournament/Weapons/Boss, имя профиля,
-   первый source boss текущей планеты, деньги, division/required/current
-   points, planet/track/pass и source weather mapping.
+   `chargeBar1`, `statBar` и четыре weather icons.
+3. Вызов `OnInvalidate` теперь повторён без придуманной подмены: первая рамка
+   содержит photo выбранного через `gamerId` персонажа, вторая — photo босса
+   текущей планеты, третья — вращающийся source boss car. Имена, которые
+   прежний macOS-код ошибочно рисовал вместо двух photo, удалены.
 4. Charge indicators берут исходный порядок Weapon1–4/Hyper/Mine и правило
-   `ClampValue(charge/7, 0, 1)`. Mouse hit boxes и Left/Right navigation
-   соответствуют горизонтальному меню.
-5. На этом шаге `CarFrame` с `Misc/garage`, garage lighting/camera и 3D
-   car/loadout ещё отсутствовал. Этот разрыв закрыт последующим блоком ниже;
-   строка остаётся «Частично» из-за остальных subframes.
+   `ClampValue(charge/7, 0, 1)`. Рядом восстановлены шесть 50×50
+   `ViewPort3d` установленного loadout и три реальные Damage/Armor/Speed
+   полосы со значениями `current/maximum` и шкалой скорости `300`.
+5. Mouse hit boxes и Left/Right navigation соответствуют горизонтальному
+   меню. Интеграционный smoke отдельно требует frame, portraits, boss car,
+   loadout, stat bars и активный 3D `CarFrame` в состоянии `msMain`.
 
 Следующим отдельным коммитом перенесена двумерная часть
 `RaceMenu2::GarageFrame`:
@@ -460,18 +462,22 @@ Network, video и Steam явно выключены.
    половина suspension travel, serialized wheel offsets/radius, последнее
    колесо для body Z и `invertWheel` rotation. Preview meshes upgrades не
    подменяют штатные колёса машины.
-3. Открытая машина использует цвет профиля и default Weapon1–4 из
-   `garage.xml`; закрытая скрывает машину и показывает вращающийся
-   `question.r3d` в source position со скоростью `0.1` оборота/с.
+3. Открытая машина в Garage использует цвет профиля и default Weapon1–4 из
+   `garage.xml`; в `RaceMainFrame` тот же `CarFrame` использует фактически
+   установленные profile slots, как `SetSlots(player, false)`. Закрытая
+   скрывает машину и показывает вращающийся `question.r3d` в source position
+   со скоростью `0.1` оборота/с.
 4. Камера, near/far/FOV, обе позиции/quaternion spot-lamps, ambient/fog/sky
    flags и четыре HDR-параметра перенесены буквально из
-   `RaceMenu2.cpp`/`Environment`.
+   `RaceMenu2.cpp`/`Environment`; `csAutoObserver` вращает камеру вокруг
+   target со скоростью `pi/48`, а Workshop сохраняет отдельный `csSlots`.
 5. В legacy mesh shader добавлены source D3D spot cone/range/attenuation,
    diffuse и specular. `GUI/question` загружается как
    `LoadSpecLibMat(question.png)` со specular `1`/power `64`; общий renderer
    теперь декодирует PNG-материалы, а не передаёт их как DDS container.
-6. Build, resource verifier, physics smoke и 240-frame bgfx/Metal menu/race
-   smoke проходят; telemetry требует реальный lighting draw 3D garage scene.
+6. Build, resource verifier, physics smoke и bgfx/Metal menu/race smoke
+   проходят; telemetry требует реальный lighting draw 3D garage scene как в
+   Garage, так и в `RaceMainFrame`.
    Не закрыто только отдельное создание shadow maps для двух spot-lamps:
    освещение перенесено, их D3D shadow pass пока отсутствует.
 
