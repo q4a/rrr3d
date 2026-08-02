@@ -276,7 +276,54 @@ public:
     std::vector<AngularVelocityRequest> takeAngularVelocityRequests();
 
 private:
+    struct TraceNodeRef
+    {
+        std::size_t path = RacerRuntime::invalidWeapon;
+        std::size_t node = RacerRuntime::invalidWeapon;
+
+        bool valid() const noexcept
+        {
+            return path != RacerRuntime::invalidWeapon &&
+                   node != RacerRuntime::invalidWeapon;
+        }
+
+        bool operator==(const TraceNodeRef& other) const noexcept
+        {
+            return path == other.path && node == other.node;
+        }
+
+        bool operator!=(const TraceNodeRef& other) const noexcept
+        {
+            return !(*this == other);
+        }
+    };
+
+    struct TraceTileProjection
+    {
+        TraceNodeRef node;
+        Vec3 direction{1.0F, 0.0F, 0.0F};
+        float coordinate = 0.0F;
+        float pathDistance = 0.0F;
+        bool contains = false;
+    };
+
+    const std::vector<std::uint32_t>& tracePathAt(
+        std::size_t path) const;
     const TracePoint& tracePoint(std::size_t pathNode) const;
+    const TracePoint& tracePoint(std::size_t path,
+                                 std::size_t pathNode) const;
+    TraceTileProjection projectTraceTile(
+        std::size_t path, std::size_t segment, Vec3 position) const;
+    TraceTileProjection findTraceTile(
+        Vec3 position, TraceNodeRef preferred) const;
+    bool linkedTraceTransition(TraceNodeRef previous,
+                               TraceNodeRef current) const;
+    TraceNodeRef racerTraceNode(std::size_t racer) const noexcept;
+    float tracePathLength(std::size_t path) const;
+    float traceDistance(TraceNodeRef node, float coordinate) const;
+    float lapPosition(
+        std::size_t racer,
+        const r3d::physics::VehicleState& vehicle) const;
     void updateProgress(std::size_t racer,
                         const r3d::physics::VehicleState& vehicle);
     r3d::physics::VehicleInput aiInput(
@@ -345,6 +392,11 @@ private:
     std::vector<std::array<bool, 4>> aiLockedTracks_;
     std::vector<std::size_t> aiFrontTargets_;
     std::vector<std::size_t> aiBackTargets_;
+    // Player::CarState retains both the tile physically occupied this frame
+    // and the last source-linked tile.  A path/node pair is required because
+    // shipped maps contain alternate WayPath branches that share endpoints.
+    std::vector<TraceNodeRef> currentTraceNodes_;
+    std::vector<TraceNodeRef> lastTraceNodes_;
     std::vector<float> lastPathCoordinates_;
     // Player::CarState::moveInverseStart stores source-path distance, not an
     // orientation timer. A negative value means that reverse travel has not

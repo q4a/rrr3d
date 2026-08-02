@@ -966,6 +966,8 @@ void OriginalRaceSession::reset()
         race_.racers.size(), RacerRuntime::invalidWeapon);
     aiBackTargets_.assign(
         race_.racers.size(), RacerRuntime::invalidWeapon);
+    currentTraceNodes_.assign(race_.racers.size(), {});
+    lastTraceNodes_.assign(race_.racers.size(), {});
     lastPathCoordinates_.assign(race_.racers.size(), 0.0F);
     wrongWayStartDistances_.assign(race_.racers.size(), -1.0F);
     mapPositions_.assign(race_.racers.size(), tracePoint(0U).position);
@@ -1623,11 +1625,27 @@ OriginalRaceSession::takeAngularVelocityRequests()
     return result;
 }
 
+const std::vector<std::uint32_t>& OriginalRaceSession::tracePathAt(
+    std::size_t path) const
+{
+    if (!race_.tracePaths.empty())
+        return race_.tracePaths.at(path);
+    if (path == 0U)
+        return race_.tracePath;
+    throw std::out_of_range("Original race trace path is unresolved");
+}
+
 const TracePoint& OriginalRaceSession::tracePoint(
     std::size_t pathNode) const
 {
-    const std::uint32_t id =
-        race_.tracePath.at(pathNode % race_.tracePath.size());
+    return tracePoint(0U, pathNode);
+}
+
+const TracePoint& OriginalRaceSession::tracePoint(
+    std::size_t path, std::size_t pathNode) const
+{
+    const auto& nodes = tracePathAt(path);
+    const std::uint32_t id = nodes.at(pathNode % nodes.size());
     const auto found = std::find_if(
         race_.tracePoints.begin(), race_.tracePoints.end(),
         [id](const TracePoint& point) { return point.id == id; });
@@ -1636,158 +1654,311 @@ const TracePoint& OriginalRaceSession::tracePoint(
     return *found;
 }
 
-void OriginalRaceSession::updateProgress(
-    std::size_t racer, const r3d::physics::VehicleState& vehicle)
+OriginalRaceSession::TraceTileProjection
+OriginalRaceSession::projectTraceTile(
+    std::size_t path, std::size_t segment, Vec3 position) const
 {
-    auto& runtime = racers_[racer];
-    if (runtime.finished || runtime.destroyed ||
-        runtime.nextPathNode >= race_.tracePath.size())
-        return;
-
-    // Player::CarState uses Trace::IsTileContains and accepts only a linked
-    // WayNode transition. Reconstruct the shipped WayNode::Tile corridor
-    // from the serialized points instead of treating each point as a loose
-    // checkpoint sphere.
-    const std::size_t segmentCount = race_.tracePath.size() - 1U;
-    auto segmentDirection = [&](std::size_t segment) {
+    TraceTileProjection result;
+    result.node = {path, segment};
+    const auto& nodes = tracePathAt(path);
+    const std::size_t segmentCount = nodes.size() - 1U;
+    auto segmentDirection = [&](std::size_t index) {
         return normalized2(subtract(
-            tracePoint(segment + 1U).position,
-            tracePoint(segment).position));
+            tracePoint(path, index + 1U).position,
+            tracePoint(path, index).position));
     };
     auto miterDirection = [&](Vec3 first, Vec3 second) {
         const Vec3 sum = add(first, second);
         return length2(sum) > 0.0001F ? normalized2(sum) : second;
     };
-    struct TileProjection
+    const auto& start = tracePoint(path, segment);
+    const auto& end = tracePoint(path, segment + 1U);
+    result.direction = segmentDirection(segment);
+    const float length = std::max(
+        length2(subtract(end.position, start.position)), 0.0001F);
+    const Vec3 relative = subtract(position, start.position);
+    const float along = dot2(relative, result.direction);
+    result.coordinate = std::clamp(along / length, 0.0F, 1.0F);
+    const float width =
+        start.width + (end.width - start.width) * result.coordinate;
+    const Vec3 normal{result.direction.y, -result.direction.x, 0.0F};
+    const float pathZ =
+        start.position.z +
+        (end.position.z - start.position.z) * result.coordinate;
+    const Vec3 previousDirection =
+        segment > 0U ? segmentDirection(segment - 1U)
+                     : result.direction;
+    const Vec3 followingDirection =
+        segment + 1U < segmentCount
+            ? segmentDirection(segment + 1U)
+            : result.direction;
+    const Vec3 startMiter =
+        miterDirection(previousDirection, result.direction);
+    const Vec3 endMiter =
+        miterDirection(result.direction, followingDirection);
+    constexpr float boundaryEpsilon = 0.05F;
+    const bool betweenMiterPlanes =
+        dot2(relative, startMiter) >= -boundaryEpsilon &&
+        dot2(subtract(position, end.position), endMiter) <=
+            boundaryEpsilon;
+    result.contains =
+        betweenMiterPlanes &&
+        std::abs(dot2(relative, normal)) < width * 0.5F &&
+        std::abs(pathZ - position.z) < width * 0.5F;
+    for (std::size_t index = 0U; index < segment; ++index)
     {
-        std::size_t segment = 0U;
-        Vec3 direction{1.0F, 0.0F, 0.0F};
-        float coordinate = 0.0F;
-        float pathDistance = 0.0F;
-        bool contains = false;
-    };
-    auto projectTile = [&](std::size_t segment) {
-        TileProjection result;
-        result.segment = segment;
-        const auto& start = tracePoint(segment);
-        const auto& end = tracePoint(segment + 1U);
-        result.direction = segmentDirection(segment);
-        const float length = std::max(
-            length2(subtract(end.position, start.position)), 0.0001F);
-        const Vec3 relative =
-            subtract(vehicle.body.position, start.position);
-        const float along = dot2(relative, result.direction);
-        result.coordinate = std::clamp(along / length, 0.0F, 1.0F);
-        const float width =
-            start.width + (end.width - start.width) * result.coordinate;
-        const Vec3 normal{result.direction.y, -result.direction.x, 0.0F};
-        const float pathZ =
-            start.position.z +
-            (end.position.z - start.position.z) * result.coordinate;
-        const Vec3 previousDirection =
-            segment > 0U ? segmentDirection(segment - 1U)
-                         : result.direction;
-        const Vec3 followingDirection =
-            segment + 1U < segmentCount
-                ? segmentDirection(segment + 1U)
-                : result.direction;
-        const Vec3 startMiter =
-            miterDirection(previousDirection, result.direction);
-        const Vec3 endMiter =
-            miterDirection(result.direction, followingDirection);
-        constexpr float boundaryEpsilon = 0.05F;
-        const bool betweenMiterPlanes =
-            dot2(relative, startMiter) >= -boundaryEpsilon &&
-            dot2(subtract(vehicle.body.position, end.position), endMiter) <=
-                boundaryEpsilon;
-        result.contains =
-            betweenMiterPlanes &&
-            std::abs(dot2(relative, normal)) < width * 0.5F &&
-            std::abs(pathZ - vehicle.body.position.z) < width * 0.5F;
-        for (std::size_t index = 0U; index < segment; ++index)
+        result.pathDistance += length2(subtract(
+            tracePoint(path, index + 1U).position,
+            tracePoint(path, index).position));
+    }
+    result.pathDistance += along;
+    return result;
+}
+
+OriginalRaceSession::TraceTileProjection
+OriginalRaceSession::findTraceTile(
+    Vec3 position, TraceNodeRef preferred) const
+{
+    TraceTileProjection result;
+    auto scanPath = [&](std::size_t path,
+                        std::size_t firstSegment) {
+        const auto& nodes = tracePathAt(path);
+        const std::size_t segmentCount = nodes.size() - 1U;
+        firstSegment = std::min(firstSegment, segmentCount - 1U);
+        for (std::size_t segment = firstSegment;
+             segment < segmentCount; ++segment)
         {
-            result.pathDistance += length2(subtract(
-                tracePoint(index + 1U).position,
-                tracePoint(index).position));
+            auto candidate =
+                projectTraceTile(path, segment, position);
+            if (candidate.contains)
+                return candidate;
         }
-        result.pathDistance += along;
-        return result;
+        // WayPath::IsTileContains separately tests its first WayNode after
+        // the forward scan.  This is the source loop-closing transition.
+        if (firstSegment > 0U)
+        {
+            auto first = projectTraceTile(path, 0U, position);
+            const float nodeRadius =
+                std::max(tracePoint(path, 0U).width * 0.5F, 0.0001F);
+            if (first.contains &&
+                length3(subtract(position,
+                                 tracePoint(path, 0U).position)) <
+                    nodeRadius)
+                return first;
+        }
+        return TraceTileProjection{};
     };
 
-    const std::size_t currentSegment = std::min<std::size_t>(
-        runtime.nextPathNode - 1U, segmentCount - 1U);
-    const std::size_t expectedSegment =
-        currentSegment + 1U < segmentCount ? currentSegment + 1U : 0U;
-    TileProjection tile = projectTile(expectedSegment);
+    if (preferred.valid() && preferred.path <
+                                 (race_.tracePaths.empty()
+                                      ? 1U
+                                      : race_.tracePaths.size()))
+    {
+        const auto& path = tracePathAt(preferred.path);
+        if (path.size() > 1U)
+        {
+            const std::size_t first =
+                preferred.node > 0U ? preferred.node - 1U : 0U;
+            result = scanPath(preferred.path, first);
+            if (result.contains)
+                return result;
+        }
+    }
+
+    const std::size_t pathCount =
+        race_.tracePaths.empty() ? 1U : race_.tracePaths.size();
+    for (std::size_t path = 0U; path < pathCount; ++path)
+    {
+        if (preferred.valid() && path == preferred.path)
+            continue;
+        if (tracePathAt(path).size() < 2U)
+            continue;
+        result = scanPath(path, 0U);
+        if (result.contains)
+            return result;
+    }
+    return {};
+}
+
+bool OriginalRaceSession::linkedTraceTransition(
+    TraceNodeRef previous, TraceNodeRef current) const
+{
+    if (!previous.valid() || !current.valid())
+        return false;
+    const auto& previousPath = tracePathAt(previous.path);
+    const auto& currentPath = tracePathAt(current.path);
+    if (previous.node >= previousPath.size() ||
+        current.node >= currentPath.size())
+        return false;
+    const std::uint32_t currentPoint = currentPath[current.node];
+    const bool linkedFromNext =
+        previous.node + 1U < previousPath.size() &&
+        previousPath[previous.node + 1U] == currentPoint;
+    const bool linkedAtCurrent =
+        previous != current &&
+        previousPath[previous.node] == currentPoint;
+    const bool linkedAtPathStart =
+        previous != current && !previousPath.empty() &&
+        previousPath.front() == currentPoint;
+    return linkedFromNext || linkedAtCurrent || linkedAtPathStart;
+}
+
+OriginalRaceSession::TraceNodeRef
+OriginalRaceSession::racerTraceNode(std::size_t racer) const noexcept
+{
+    if (racer < currentTraceNodes_.size() &&
+        currentTraceNodes_[racer].valid())
+        return currentTraceNodes_[racer];
+    if (racer < lastTraceNodes_.size())
+        return lastTraceNodes_[racer];
+    return {};
+}
+
+float OriginalRaceSession::tracePathLength(std::size_t path) const
+{
+    const auto& nodes = tracePathAt(path);
+    float result = 0.0F;
+    for (std::size_t node = 1U; node < nodes.size(); ++node)
+    {
+        result += length2(subtract(
+            tracePoint(path, node).position,
+            tracePoint(path, node - 1U).position));
+    }
+    return result;
+}
+
+float OriginalRaceSession::traceDistance(
+    TraceNodeRef node, float coordinate) const
+{
+    if (!node.valid())
+        return 0.0F;
+    const auto& path = tracePathAt(node.path);
+    if (path.size() < 2U)
+        return 0.0F;
+    const std::size_t segment =
+        std::min(node.node, path.size() - 2U);
+    float result = 0.0F;
+    for (std::size_t index = 0U; index < segment; ++index)
+    {
+        result += length2(subtract(
+            tracePoint(node.path, index + 1U).position,
+            tracePoint(node.path, index).position));
+    }
+    result += length2(subtract(
+                  tracePoint(node.path, segment + 1U).position,
+                  tracePoint(node.path, segment).position)) *
+              std::clamp(coordinate, 0.0F, 1.0F);
+    return result;
+}
+
+float OriginalRaceSession::lapPosition(
+    std::size_t racer,
+    const r3d::physics::VehicleState& vehicle) const
+{
+    if (racer >= racers_.size())
+        return 0.0F;
+    const TraceNodeRef node = racerTraceNode(racer);
+    if (!node.valid())
+        return static_cast<float>(racers_[racer].completedLaps);
+    float coordinate =
+        racer < lastPathCoordinates_.size()
+            ? lastPathCoordinates_[racer]
+            : 0.0F;
+    if (racer < currentTraceNodes_.size() &&
+        currentTraceNodes_[racer] == node)
+    {
+        coordinate = projectTraceTile(
+                         node.path, node.node,
+                         vehicle.body.position)
+                         .coordinate;
+    }
+    const float length = tracePathLength(node.path);
+    if (length <= 0.0001F)
+        return static_cast<float>(racers_[racer].completedLaps);
+    return static_cast<float>(racers_[racer].completedLaps) +
+           traceDistance(node, coordinate) / length;
+}
+
+void OriginalRaceSession::updateProgress(
+    std::size_t racer, const r3d::physics::VehicleState& vehicle)
+{
+    auto& runtime = racers_[racer];
+    if (runtime.finished || runtime.destroyed)
+        return;
+
+    // Trace::IsTileContains checks the current WayPath first, then every
+    // other path.  Keep curTile separate from lastNode: an unlinked tile is
+    // valid for map/wrong-way state but cannot skip race progress.
+    const TraceTileProjection tile = findTraceTile(
+        vehicle.body.position, currentTraceNodes_[racer]);
     if (!tile.contains)
     {
-        tile = projectTile(currentSegment);
-        if (!tile.contains)
-        {
-            // Trace::IsTileContains falls back to the other linked tiles.
-            // This keeps wrong-way measurement correct after leaving and
-            // re-entering the road, but it does not authorize skipped laps.
-            for (std::size_t segment = 0U; segment < segmentCount;
-                 ++segment)
-            {
-                const auto candidate = projectTile(segment);
-                if (!candidate.contains)
-                    continue;
-                tile = candidate;
-                break;
-            }
-        }
-    }
-
-    if (tile.contains)
-    {
-        lastPathCoordinates_[racer] = tile.coordinate;
-        const auto& tileStart = tracePoint(tile.segment);
-        const auto& tileEnd = tracePoint(tile.segment + 1U);
-        mapPositions_[racer] = add(
-            tileStart.position,
-            multiply(subtract(tileEnd.position, tileStart.position),
-                     tile.coordinate));
-        const Vec3 carDirection =
-            normalized2(forward(vehicle.body.rotation));
-        if (dot2(tile.direction, carDirection) < 0.0F)
-        {
-            auto& inverseStart = wrongWayStartDistances_[racer];
-            if (inverseStart < 0.0F)
-                inverseStart = tile.pathDistance;
-            if (!runtime.wrongWay &&
-                inverseStart - tile.pathDistance > 20.0F)
-                runtime.wrongWay = true;
-        }
-        else
-        {
-            runtime.wrongWay = false;
-            wrongWayStartDistances_[racer] = -1.0F;
-        }
-    }
-
-    if (!tile.contains || tile.segment != expectedSegment)
+        currentTraceNodes_[racer] = {};
         return;
+    }
+    currentTraceNodes_[racer] = tile.node;
 
-    const std::size_t targetNode =
-        expectedSegment == 0U ? race_.tracePath.size() - 1U
-                              : expectedSegment;
-    const auto& target = tracePoint(targetNode);
-    events_.push_back({RaceEventKind::Checkpoint, racer,
-                       targetNode, target.position, 0.0F});
-    if (expectedSegment != 0U)
+    const auto& tilePath = tracePathAt(tile.node.path);
+    const auto& tileStart =
+        tracePoint(tile.node.path, tile.node.node);
+    const auto& tileEnd =
+        tracePoint(tile.node.path, tile.node.node + 1U);
+    mapPositions_[racer] = add(
+        tileStart.position,
+        multiply(subtract(tileEnd.position, tileStart.position),
+                 tile.coordinate));
+    const Vec3 carDirection = normalized2(forward(vehicle.body.rotation));
+    if (dot2(tile.direction, carDirection) < 0.0F)
     {
-        runtime.nextPathNode = expectedSegment + 1U;
+        auto& inverseStart = wrongWayStartDistances_[racer];
+        if (inverseStart < 0.0F)
+            inverseStart = tile.pathDistance;
+        if (!runtime.wrongWay &&
+            inverseStart - tile.pathDistance > 20.0F)
+            runtime.wrongWay = true;
+    }
+    else
+    {
+        runtime.wrongWay = false;
+        wrongWayStartDistances_[racer] = -1.0F;
+    }
+
+    const TraceNodeRef previous = lastTraceNodes_[racer];
+    if (tile.node == previous)
+    {
         lastPathCoordinates_[racer] = tile.coordinate;
         return;
     }
+    if (previous.valid() &&
+        !linkedTraceTransition(previous, tile.node))
+        return;
+
+    const bool onLapPass =
+        previous.valid() && tile.node.path == 0U &&
+        tile.node.node == 0U;
+    lastTraceNodes_[racer] = tile.node;
+    lastPathCoordinates_[racer] = tile.coordinate;
+    if (previous.valid())
+    {
+        const std::size_t checkpoint =
+            onLapPass ? tracePathAt(0U).size() - 1U
+                      : tile.node.node;
+        events_.push_back({RaceEventKind::Checkpoint, racer,
+                           checkpoint, tileStart.position, 0.0F});
+    }
+    if (tile.node.path == 0U && !onLapPass)
+    {
+        runtime.nextPathNode = std::clamp<std::size_t>(
+            tile.node.node + 1U, 1U, tilePath.size() - 1U);
+    }
+    if (!onLapPass)
+        return;
 
     ++runtime.completedLaps;
     events_.push_back({RaceEventKind::Lap, racer, runtime.completedLaps,
                        vehicle.body.position,
                        static_cast<float>(runtime.completedLaps)});
     runtime.nextPathNode = 1;
-    lastPathCoordinates_[racer] = tile.coordinate;
     if (runtime.completedLaps >= race_.lapCount)
     {
         runtime.finished = true;
@@ -1826,6 +1997,7 @@ void OriginalRaceSession::updateAiTracks(
     struct AiTrackState
     {
         std::size_t racer = 0;
+        std::size_t path = 0;
         std::size_t nextNode = 1;
         Vec3 direction{1.0F, 0.0F, 0.0F};
         Vec3 normal{0.0F, -1.0F, 0.0F};
@@ -1841,11 +2013,18 @@ void OriginalRaceSession::updateAiTracks(
     {
         if (racers_[racer].destroyed || racers_[racer].finished)
             continue;
-        const std::size_t nextNode = std::clamp<std::size_t>(
-            racers_[racer].nextPathNode, 1U,
-            race_.tracePath.size() - 1U);
-        const auto& previous = tracePoint(nextNode - 1U);
-        const auto& next = tracePoint(nextNode);
+        TraceNodeRef traceNode = racerTraceNode(racer);
+        if (!traceNode.valid())
+        {
+            traceNode = {0U, std::clamp<std::size_t>(
+                                  racers_[racer].nextPathNode - 1U,
+                                  0U, race_.tracePath.size() - 2U)};
+        }
+        const auto& path = tracePathAt(traceNode.path);
+        traceNode.node = std::min(traceNode.node, path.size() - 2U);
+        const std::size_t nextNode = traceNode.node + 1U;
+        const auto& previous = tracePoint(traceNode.path, traceNode.node);
+        const auto& next = tracePoint(traceNode.path, nextNode);
         const Vec3 direction =
             normalized2(subtract(next.position, previous.position));
         const Vec3 normal{direction.y, -direction.x, 0.0F};
@@ -1877,7 +2056,7 @@ void OriginalRaceSession::updateAiTracks(
             std::sqrt(half.x * half.x + half.y * half.y +
                       half.z * half.z);
         states.push_back(
-            {racer, nextNode, direction, normal, longitudinal,
+            {racer, traceNode.path, nextNode, direction, normal, longitudinal,
              lateral, radius, currentTrack});
         aiTracks_[racer] = currentTrack;
     }
@@ -1896,6 +2075,7 @@ void OriginalRaceSession::updateAiTracks(
                  candidate < states.size(); ++candidate)
             {
                 if (assigned[candidate] ||
+                    states[candidate].path != source.path ||
                     states[candidate].nextNode != source.nextNode)
                     continue;
                 const float longitudinalDistance = std::abs(
@@ -1970,15 +2150,30 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     constexpr float maximumTimeBlocking = 1.0F;
     constexpr float steerControl = 1.0F;
 
-    const std::size_t nextPathNode = racers_[racer].nextPathNode;
-    const auto& target = tracePoint(nextPathNode);
-    const auto& pathStart = tracePoint(nextPathNode - 1U);
-    const auto& following = tracePoint(std::min(
-        nextPathNode + 1U, race_.tracePath.size() - 1U));
+    TraceNodeRef traceNode = racerTraceNode(racer);
+    if (!traceNode.valid())
+    {
+        traceNode = {0U, std::clamp<std::size_t>(
+                              racers_[racer].nextPathNode > 0U
+                                  ? racers_[racer].nextPathNode - 1U
+                                  : 0U,
+                              0U, race_.tracePath.size() - 2U)};
+    }
+    const auto& path = tracePathAt(traceNode.path);
+    traceNode.node = std::min(traceNode.node, path.size() - 2U);
+    const std::size_t nextPathNode = traceNode.node + 1U;
+    const auto& target = tracePoint(traceNode.path, nextPathNode);
+    const auto& pathStart = tracePoint(traceNode.path, traceNode.node);
     const Vec3 currentDirection =
         normalized2(subtract(target.position, pathStart.position));
-    const Vec3 followingDirection =
-        normalized2(subtract(following.position, target.position));
+    const TracePoint* following = &target;
+    Vec3 followingDirection = currentDirection;
+    if (nextPathNode + 1U < path.size())
+    {
+        following = &tracePoint(traceNode.path, nextPathNode + 1U);
+        followingDirection = normalized2(
+            subtract(following->position, target.position));
+    }
     const auto& racerDefinition = race_.racers[racer];
     const auto& vehicleDefinition =
         racerDefinition.hasConfiguredVehicle
@@ -2040,9 +2235,9 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
             if (projection < carSize)
             {
                 movementStart = target.position;
-                movementEnd = following.position;
+                movementEnd = following->position;
                 movementStartWidth = target.width;
-                movementEndWidth = following.width;
+                movementEndWidth = following->width;
                 movementDirection = followingDirection;
             }
             else
@@ -2209,24 +2404,14 @@ void OriginalRaceSession::updatePlaces(
     std::iota(order.begin(), order.end(), 0U);
     auto score = [&](std::size_t racer) {
         const auto& runtime = racers_[racer];
-        const float base =
-            static_cast<float>(runtime.completedLaps *
-                                   (race_.tracePath.size() - 1U) +
-                               runtime.nextPathNode);
-        if (racer >= vehicles.size() || runtime.finished)
-            return base + (runtime.finished ? 100000.0F -
-                                                 runtime.finishTime
-                                           : 0.0F);
-        const auto& target = tracePoint(runtime.nextPathNode);
-        const auto& previous = tracePoint(runtime.nextPathNode - 1U);
-        const float segment =
-            std::max(length2(subtract(target.position, previous.position)),
-                     1.0F);
-        return base - std::clamp(
-                          length2(subtract(target.position,
-                                           vehicles[racer].body.position)) /
-                              segment,
-                          0.0F, 1.0F);
+        if (runtime.finished)
+            return 100000.0F - runtime.finishTime;
+        if (racer >= vehicles.size())
+            return static_cast<float>(runtime.completedLaps);
+        // Race::OnLateProgress orders Player::CarState::GetLap(), which is
+        // normalized against the currently occupied WayPath (including a
+        // branch), rather than an invented main-path checkpoint index.
+        return lapPosition(racer, vehicles[racer]);
     };
     std::stable_sort(order.begin(), order.end(),
                      [&](std::size_t first, std::size_t second) {
@@ -2244,16 +2429,27 @@ void OriginalRaceSession::queueRespawn(
     if (racer >= racers_.size() || racer >= vehicles.size())
         return;
     const auto& runtime = racers_[racer];
-    std::size_t nodeIndex = std::min<std::size_t>(
-        runtime.nextPathNode > 0U
-            ? runtime.nextPathNode - 1U
-            : 0U,
-        race_.tracePath.size() - 2U);
+    TraceNodeRef traceNode =
+        racer < lastTraceNodes_.size() &&
+                lastTraceNodes_[racer].valid()
+            ? lastTraceNodes_[racer]
+            : racerTraceNode(racer);
+    if (!traceNode.valid())
+    {
+        traceNode = {0U, std::min<std::size_t>(
+                              runtime.nextPathNode > 0U
+                                  ? runtime.nextPathNode - 1U
+                                  : 0U,
+                              race_.tracePath.size() - 2U)};
+    }
+    const auto& path = tracePathAt(traceNode.path);
+    std::size_t nodeIndex =
+        std::min(traceNode.node, path.size() - 2U);
     auto segmentLength = [&](std::size_t node) {
         return std::max(
             length2(subtract(
-                tracePoint(node + 1U).position,
-                tracePoint(node).position)),
+                tracePoint(traceNode.path, node + 1U).position,
+                tracePoint(traceNode.path, node).position)),
             0.0001F);
     };
     float distance =
@@ -2271,8 +2467,8 @@ void OriginalRaceSession::queueRespawn(
         int sample = 0;
         while (sample < static_cast<int>(offsets.size()))
         {
-            const auto& start = tracePoint(nodeIndex);
-            const auto& end = tracePoint(nodeIndex + 1U);
+            const auto& start = tracePoint(traceNode.path, nodeIndex);
+            const auto& end = tracePoint(traceNode.path, nodeIndex + 1U);
             const float length = segmentLength(nodeIndex);
             const float coordinate = std::clamp(
                 (distance + offsets[static_cast<std::size_t>(sample)]) /
@@ -2735,8 +2931,6 @@ void OriginalRaceSession::updateGameplay(
             runtime.lowLife = false;
             runtime.lowLifeEffectSeconds = 0.0F;
         }
-        if (racer < vehicles.size())
-            updateProgress(racer, vehicles[racer]);
     }
 
     auto pushDamageEvent =
@@ -4544,15 +4738,24 @@ void OriginalRaceSession::updateGameplay(
         runtime.selectedWeaponSlot = selected;
         syncSelectedWeapon(runtime);
     }
-    auto raceProgress = [&](const RacerRuntime& runtime) {
-        const float pathLength = static_cast<float>(
-            std::max<std::size_t>(race_.tracePath.size() - 1U, 1U));
-        const float total =
-            pathLength * static_cast<float>(std::max(race_.lapCount, 1U));
-        const float current =
-            static_cast<float>(runtime.completedLaps) * pathLength +
-            static_cast<float>(runtime.nextPathNode);
-        return std::clamp(current / total, 0.0F, 1.0F);
+    auto raceProgress = [&](std::size_t racer) {
+        TraceNodeRef node =
+            racer < lastTraceNodes_.size() &&
+                    lastTraceNodes_[racer].valid()
+                ? lastTraceNodes_[racer]
+                : racerTraceNode(racer);
+        if (!node.valid())
+            return 0.0F;
+        const float pathLength = tracePathLength(node.path);
+        if (pathLength <= 0.0001F)
+            return 0.0F;
+        const float coordinate =
+            racer < lastPathCoordinates_.size()
+                ? lastPathCoordinates_[racer]
+                : 0.0F;
+        return std::clamp(
+            traceDistance(node, coordinate) / pathLength,
+            0.0F, 1.0F);
     };
     for (std::size_t racer = 1;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
@@ -4575,11 +4778,13 @@ void OriginalRaceSession::updateGameplay(
                 0.5F);
         };
         auto zLevelContains = [&](std::size_t target) {
-            const std::size_t nextNode = std::clamp<std::size_t>(
-                runtime.nextPathNode, 1U,
-                race_.tracePath.size() - 1U);
-            const auto& start = tracePoint(nextNode - 1U);
-            const auto& end = tracePoint(nextNode);
+            TraceNodeRef node = racerTraceNode(racer);
+            if (!node.valid())
+                return false;
+            const auto& path = tracePathAt(node.path);
+            node.node = std::min(node.node, path.size() - 2U);
+            const auto& start = tracePoint(node.path, node.node);
+            const auto& end = tracePoint(node.path, node.node + 1U);
             const Vec3 direction = normalized2(
                 subtract(end.position, start.position));
             const float segmentLength = std::max(
@@ -4746,7 +4951,7 @@ void OriginalRaceSession::updateGameplay(
                               sourceRandomUnit())]
                         : usableSlots.front();
                 const float summedPart = std::clamp(
-                    raceProgress(runtime) / 0.7F, 0.0F, 1.0F);
+                    raceProgress(racer) / 0.7F, 0.0F, 1.0F);
                 const float weaponPart =
                     chargedWeapons > 0U
                         ? 1.0F /
@@ -4781,7 +4986,7 @@ void OriginalRaceSession::updateGameplay(
                     -0.5F + sourceRandomUnit() * 0.5F;
             }
             float summedPart = std::clamp(
-                (raceProgress(runtime) - 0.05F) / 0.9F,
+                (raceProgress(racer) - 0.05F) / 0.9F,
                 0.0F, 1.0F);
             if (backTarget < racers_.size() && backDistance < 30.0F)
                 summedPart += 0.3F;
@@ -4822,32 +5027,40 @@ void OriginalRaceSession::updateGameplay(
             vehicles[racer].speed > 1.0F &&
             runtime.hyperWeapon < race_.weapons.size())
         {
-            const auto& target =
-                tracePoint(runtime.nextPathNode);
-            const auto& following = tracePoint(std::min(
-                runtime.nextPathNode + 1U,
-                race_.tracePath.size() - 1U));
+            TraceNodeRef node = racerTraceNode(racer);
+            if (!node.valid())
+                continue;
+            const auto& path = tracePathAt(node.path);
+            node.node = std::min(node.node, path.size() - 2U);
+            const auto& start = tracePoint(node.path, node.node);
+            const auto& target = tracePoint(node.path, node.node + 1U);
             const auto currentDirection = normalized2(
-                subtract(target.position, vehicles[racer].body.position));
-            const auto nextDirection =
-                normalized2(subtract(following.position,
-                                     target.position));
-            const float turnAngle = std::acos(std::clamp(
-                dot2(currentDirection, nextDirection),
-                -1.0F, 1.0F));
-            const float distanceToTurn = length2(
-                subtract(target.position,
-                         vehicles[racer].body.position));
+                subtract(target.position, start.position));
+            float turnAngle = 0.0F;
+            if (node.node + 2U < path.size())
+            {
+                const auto& following =
+                    tracePoint(node.path, node.node + 2U);
+                const auto nextDirection = normalized2(
+                    subtract(following.position, target.position));
+                turnAngle = std::acos(std::clamp(
+                    dot2(currentDirection, nextDirection),
+                    -1.0F, 1.0F));
+            }
+            const auto tile = projectTraceTile(
+                node.path, node.node, vehicles[racer].body.position);
+            const float distanceToTurn =
+                length2(subtract(target.position, start.position)) *
+                (1.0F - tile.coordinate);
             const float hyperDistance =
                 race_.weapons[runtime.hyperWeapon].projectileSpeed +
                 vehicles[racer].speed;
             const bool safeDistance =
-                runtime.nextPathNode + 1U >=
-                    race_.tracePath.size() ||
+                node.node + 2U >= path.size() ||
                 turnAngle < 3.14159265358979323846F / 6.0F ||
                 distanceToTurn > hyperDistance;
             const float summedPart = std::clamp(
-                raceProgress(runtime) / 0.7F, 0.0F, 1.0F);
+                raceProgress(racer) / 0.7F, 0.0F, 1.0F);
             const float ammunition = std::max(
                 static_cast<float>(runtime.hyperCharge) -
                     (1.0F - summedPart) *
@@ -5164,43 +5377,13 @@ void OriginalRaceSession::update(
         if (racers_[0].speedBoostSeconds > 0.0F)
             vehicleInputs_[0].throttle = 1.0F;
     }
+    // Player::CarState::Update resolves curTile/lastNode before AICar and
+    // Race consume them.  Doing the same here prevents AI from steering for
+    // the previous branch for one frame and keeps HUD/place state coherent.
+    for (std::size_t racer = 0U;
+         racer < racers_.size() && racer < vehicles.size(); ++racer)
+        updateProgress(racer, vehicles[racer]);
     updateAiTracks(vehicles);
-    auto lapPosition =
-        [&](std::size_t racer,
-            const r3d::physics::VehicleState& vehicle) {
-            const auto segmentLength =
-                [&](std::size_t targetNode) {
-                    return length2(subtract(
-                        tracePoint(targetNode).position,
-                        tracePoint(targetNode - 1U).position));
-                };
-            float pathLength = 0.0F;
-            for (std::size_t node = 1U;
-                 node < race_.tracePath.size(); ++node)
-                pathLength += segmentLength(node);
-            if (pathLength <= 0.0001F)
-                return static_cast<float>(
-                    racers_[racer].completedLaps);
-            const std::size_t nextNode = std::clamp<std::size_t>(
-                racers_[racer].nextPathNode, 1U,
-                race_.tracePath.size() - 1U);
-            float distance = 0.0F;
-            for (std::size_t node = 1U; node < nextNode; ++node)
-                distance += segmentLength(node);
-            const Vec3 start =
-                tracePoint(nextNode - 1U).position;
-            const Vec3 end = tracePoint(nextNode).position;
-            const Vec3 segment = subtract(end, start);
-            const float length = std::max(length2(segment), 0.0001F);
-            const Vec3 direction = multiply(segment, 1.0F / length);
-            distance += std::clamp(
-                dot2(subtract(vehicle.body.position, start),
-                     direction),
-                0.0F, length);
-            return static_cast<float>(
-                       racers_[racer].completedLaps) +
-                   distance / pathLength;
-        };
     const auto difficultyIndex =
         initialPlayerProfile_.difficulty == "gdEasy"
             ? 0U
@@ -5233,18 +5416,23 @@ void OriginalRaceSession::update(
         return std::max(result, 1.0F);
     }();
     const float humanLap =
-        !vehicles.empty() ? lapPosition(0U, vehicles.front()) : 0.0F;
+        !vehicles.empty() ? this->lapPosition(0U, vehicles.front()) : 0.0F;
     for (std::size_t racer = 1;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
         vehicleInputs_[racer] =
             aiInput(racer, vehicles[racer], seconds);
         auto& aiInputValue = vehicleInputs_[racer];
-        const float aiLap = lapPosition(racer, vehicles[racer]);
+        const float aiLap = this->lapPosition(racer, vehicles[racer]);
         float distance = std::abs(aiLap - humanLap);
         distance -= std::floor(distance);
+        const TraceNodeRef aiTrace = racerTraceNode(racer);
+        const float aiPathLength =
+            aiTrace.valid()
+                ? std::max(tracePathLength(aiTrace.path), 1.0F)
+                : pathLength;
         distance = std::min(distance, 1.0F - distance) *
-                   pathLength;
+                   aiPathLength;
         const float distancePart = std::clamp(
             (distance - easingMinimumDistance[difficultyIndex]) /
                 (easingMaximumDistance[difficultyIndex] -
@@ -5403,12 +5591,120 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 skipVehicles[0].body.position.z += 2.0F;
                 skipSession.update(
                     1.0F / 60.0F, skipVehicles, input);
-                if (skipSession.racers().front().nextPathNode != 1U ||
-                    skipSession.racers().front().completedLaps != 0U)
+                if (skipSession.racers().front().completedLaps != 0U)
                 {
                     throw std::runtime_error(
-                        "unlinked trace tile skipped a source checkpoint");
+                        "first source trace tile incorrectly counted a lap");
                 }
+            }
+        }
+
+        {
+            // The first shipped map has a single WayPath and cannot regress
+            // branch tracking.  Reproduce a source-style alternate path with
+            // shared start/end WayPoints and verify map, wrong-way and lap
+            // state across it.
+            Race branchRace = race;
+            const Vec3 base = point(0U).position;
+            std::uint32_t id = 100000U;
+            for (const auto& tracePoint : race.tracePoints)
+                id = std::max(id, tracePoint.id + 1U);
+            branchRace.tracePoints = {
+                {id + 0U, add(base, {0.0F, 0.0F, 0.0F}), 30.0F},
+                {id + 1U, add(base, {80.0F, 0.0F, 0.0F}), 30.0F},
+                {id + 2U, add(base, {160.0F, 0.0F, 0.0F}), 30.0F},
+                {id + 3U, add(base, {160.0F, 100.0F, 0.0F}), 30.0F},
+                {id + 4U, add(base, {0.0F, 100.0F, 0.0F}), 30.0F},
+                {id + 5U, add(base, {100.0F, 50.0F, 0.0F}), 30.0F},
+            };
+            branchRace.tracePaths = {
+                {id + 0U, id + 1U, id + 2U, id + 3U,
+                 id + 4U, id + 0U},
+                {id + 1U, id + 5U, id + 3U},
+            };
+            branchRace.tracePath = branchRace.tracePaths.front();
+            branchRace.lapCount = std::max(branchRace.lapCount, 2U);
+            auto branchVehicles = vehicles;
+            auto branchPoint = [&](std::size_t path,
+                                   std::size_t node)
+                -> const TracePoint& {
+                const std::uint32_t wanted =
+                    branchRace.tracePaths.at(path).at(node);
+                const auto found = std::find_if(
+                    branchRace.tracePoints.begin(),
+                    branchRace.tracePoints.end(),
+                    [wanted](const TracePoint& value) {
+                        return value.id == wanted;
+                    });
+                if (found == branchRace.tracePoints.end())
+                    throw std::runtime_error(
+                        "unresolved branch smoke-test trace point");
+                return *found;
+            };
+            auto placeOnBranch = [&](OriginalRaceSession& branchSession,
+                                     std::size_t racer,
+                                     std::size_t path,
+                                     std::size_t node,
+                                     float coordinate,
+                                     bool reverseDirection) {
+                const auto& start = branchPoint(path, node);
+                const auto& end = branchPoint(path, node + 1U);
+                const Vec3 direction = normalized2(
+                    subtract(end.position, start.position));
+                branchVehicles[racer].body.position = add(
+                    start.position,
+                    multiply(subtract(end.position, start.position),
+                             coordinate));
+                branchVehicles[racer].body.position.z += 2.0F;
+                branchVehicles[racer].body.rotation = shortestArcFromX(
+                    reverseDirection ? multiply(direction, -1.0F)
+                                     : direction);
+                branchVehicles[racer].speed = 10.0F;
+                branchSession.update(
+                    1.0F / 60.0F, branchVehicles, input);
+            };
+
+            OriginalRaceSession branchSession(branchRace);
+            for (int frame = 0; frame < 190; ++frame)
+                branchSession.update(
+                    1.0F / 60.0F, branchVehicles, input);
+            placeOnBranch(branchSession, 0U, 0U, 0U, 0.5F, false);
+            placeOnBranch(branchSession, 0U, 1U, 0U, 0.5F, false);
+            const Vec3 expectedBranchMap = multiply(
+                add(branchPoint(1U, 0U).position,
+                    branchPoint(1U, 1U).position),
+                0.5F);
+            if (distanceSquared(branchSession.mapPosition(0U),
+                                expectedBranchMap) > 0.01F)
+            {
+                throw std::runtime_error(
+                    "alternate WayPath map projection failed");
+            }
+            placeOnBranch(branchSession, 0U, 1U, 1U, 0.5F, false);
+            placeOnBranch(branchSession, 0U, 0U, 3U, 0.5F, false);
+            placeOnBranch(branchSession, 0U, 0U, 4U, 0.5F, false);
+            // WayPath first releases the final tile once the car leaves its
+            // half-width, then reacquires the first tile on the next update.
+            placeOnBranch(branchSession, 0U, 0U, 0U, 0.25F, false);
+            placeOnBranch(branchSession, 0U, 0U, 0U, 0.5F, false);
+            if (branchSession.racers().front().completedLaps != 1U)
+            {
+                throw std::runtime_error(
+                    "alternate WayPath lap transition failed");
+            }
+
+            OriginalRaceSession branchWrongWay(branchRace);
+            for (int frame = 0; frame < 190; ++frame)
+                branchWrongWay.update(
+                    1.0F / 60.0F, branchVehicles, input);
+            placeOnBranch(
+                branchWrongWay, 0U, 1U, 0U, 0.9F, true);
+            placeOnBranch(
+                branchWrongWay, 0U, 1U, 0U, 0.4F, true);
+            if (!branchWrongWay.racers().front().wrongWay)
+            {
+                throw std::runtime_error(
+                    "alternate WayPath wrong-way distance failed");
             }
         }
 
@@ -5587,9 +5883,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     backTargetSession.update(
                         1.0F / 60.0F,
                         backTargetVehicles, input);
-                backTargetVehicles[1].body.position =
-                    point(0U).position;
-                backTargetVehicles[1].body.position.z += 2.0F;
+                backTargetVehicles[1].body.position = multiply(
+                    add(point(0U).position, point(1U).position),
+                    0.5F);
+                backTargetVehicles[1].body.position.z =
+                    (point(0U).position.z + point(1U).position.z) *
+                        0.5F +
+                    2.0F;
                 backTargetVehicles[0].body.position =
                     subtract(
                         backTargetVehicles[1].body.position,
@@ -6337,19 +6637,53 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             vehicles[0].bodyContacts.clear();
         }
 
+        OriginalRaceSession lapSession(race);
+        auto lapVehicles = vehicles;
+        for (auto& vehicle : lapVehicles)
+        {
+            vehicle.bodyContacts.clear();
+            vehicle.speed = 0.0F;
+            vehicle.linearVelocity = {};
+        }
+        for (int frame = 0; frame < 190; ++frame)
+            lapSession.update(
+                1.0F / 60.0F, lapVehicles, input);
+        auto placeOnMainSegment = [&](std::size_t segment) {
+            const auto& start = point(segment);
+            const auto& end = point(segment + 1U);
+            lapVehicles[0].body.position = multiply(
+                add(start.position, end.position), 0.5F);
+            lapVehicles[0].body.position.z =
+                (start.position.z + end.position.z) * 0.5F + 2.0F;
+            lapVehicles[0].body.rotation = shortestArcFromX(
+                normalized2(subtract(end.position, start.position)));
+            lapSession.update(
+                1.0F / 60.0F, lapVehicles, input);
+        };
+        for (std::size_t segment = 0U;
+             segment + 1U < race.tracePath.size(); ++segment)
+            placeOnMainSegment(segment);
+        // The source WayPath can retain its final tile at the shared finish
+        // point for one update.  Losing curTile and reacquiring the linked
+        // first node is the exact CarState lap transition.
+        lapVehicles[0].body.position.x += 1000.0F;
+        lapVehicles[0].body.position.y += 1000.0F;
+        lapSession.update(
+            1.0F / 60.0F, lapVehicles, input);
+        placeOnMainSegment(0U);
+        if (lapSession.racers().front().completedLaps != 1 ||
+            lapSession.racers().front().nextPathNode != 1)
+            throw std::runtime_error("checkpoint/lap transition failed");
+        lapSession.update(
+            1.0F / 60.0F, lapVehicles, input);
+        if (lapSession.racers().front().completedLaps != 1U)
+            throw std::runtime_error("finish tile counted the same lap twice");
+        // Preserve the shared fixture position used by the subsequent
+        // projectile/mine source regressions.
+        vehicles[0].body.position = point(
+            race.tracePath.size() - 1U).position;
         vehicles[0].speed = 0.0F;
         vehicles[0].linearVelocity = {};
-        for (std::size_t node = 1; node < race.tracePath.size(); ++node)
-        {
-            vehicles[0].body.position = point(node).position;
-            session.update(1.0F / 60.0F, vehicles, input);
-        }
-        if (session.racers().front().completedLaps != 1 ||
-            session.racers().front().nextPathNode != 1)
-            throw std::runtime_error("checkpoint/lap transition failed");
-        session.update(1.0F / 60.0F, vehicles, input);
-        if (session.racers().front().completedLaps != 1U)
-            throw std::runtime_error("finish tile counted the same lap twice");
 
         input.useWeapon = true;
         if (vehicles.size() > 1)
