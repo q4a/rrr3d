@@ -1,9 +1,11 @@
 # Remaining work — macOS port, attempt 2
 
-Branch `macos-port-attempt-2`, based at `ec50208` (2021-06-14). 58 commits.
+Branch `macos-port-attempt-2`, based at `ec50208` (2021-06-14). 63 commits.
 
 **The game runs.** It reaches its main menu, loads a track and renders a race
-at 60fps. `bin/Debug/race2.tga` is a frame from three thousand frames in.
+at 60fps, with sound. `bin/Debug/race2.tga` is a frame from three thousand
+frames in. It is not yet playable: with audio enabled a race dies within a
+second, and the menu does not respond to the keyboard.
 
 The full plan lives in the plan document; this file is the state of play and
 the things that would be expensive to rediscover.
@@ -19,17 +21,19 @@ the things that would be expensive to rediscover.
 | 2 — Build system, C++17 | done |
 | 3 — XPlatform + D3DX math | done |
 | 4 — PhysX 2.8 shim over Bullet | done |
-| 5 — SDL3 shell | drives the game; **input still unverified** — see below |
+| 5 — SDL3 shell | done: keystrokes reach the game, verified by trace |
 | 6 — MetalBridge | done, all six test modes pass |
 | 7 — D3D9 on Metal | done: the triangle draws, both paths verified by pixel |
 | 8 — D3DX runtime, first pixels | done: menu and race both render |
 | 9 — `NxWheelShape` | done: implemented and covered; **cars do not drive yet** |
 | 10 — Windows cutover | deferred by decision, not dropped |
-| 11 — Audio, gamepad, video | seams only: silent audio, no video graph |
+| 11 — Audio, gamepad, video | audio over FAudio (**crashes a race**), gamepad done, video stubbed |
 | 12 — MapEditor on Dear ImGui | not started |
 
-Zero undefined symbols. Audio and video are stubs rather than gaps —
-`xaudio2_stub.cpp` and `video_stub.cpp`, both replaced by phase 11.
+Zero undefined symbols. Audio is a real FAudio backend
+(`xaudio2_faudio.cpp`); video is still a stub (`video_stub.cpp`) reporting
+`STATE_NO_GRAPH`, which the game tolerates, so cutscenes are skipped rather
+than broken.
 
 ### Running it
 
@@ -40,6 +44,8 @@ Zero undefined symbols. Audio and video are stubs rather than gaps —
     RRR3D_DUMP_FRAME=<n> ./RRR3d              # write frame n and carry on
     RRR3D_DUMP_PATH=<file>                    # default frame.tga
     RRR3D_WHEEL_TRACE=1 ./RRR3d               # suspension rays and what they hit
+    RRR3D_INPUT_TRACE=1 ./RRR3d               # keystrokes as the game receives them
+    RRR3D_AUDIO_NO_CALLBACKS=1 ./RRR3d        # audio plays, game callbacks withheld
 
 A `CAMetalLayer`'s contents never appear in `screencapture` — the screenshot
 comes back as the window frame with a hole where the game is — so the dumper is
@@ -69,6 +75,64 @@ missing; it also writes `tri.tga` / `tri_rtt.tga` to look at.
 
 ## What is actually left
 
+### The blocker: FAudio's resampler writes out of bounds
+
+Audio works — the game plays sound — but with audio enabled a race dies within
+about a second of starting. This is the one thing standing between the port and
+being playable.
+
+**Address Sanitizer names the write** (`build/macos-arm64-asan` is configured and
+working):
+
+    ERROR: AddressSanitizer: BUS on unknown address ... caused by a WRITE
+      #0 FAudio_INTERNAL_ResampleMono_NEON
+      #1 FAudio_INTERNAL_MixCallback
+      #2 SDL_GetAudioStreamDataAdjustGain      (SDL audio thread)
+
+"unknown address" rather than a heap overflow because FAudio is an
+uninstrumented Homebrew dylib — the sanitizer cannot see its buffers.
+
+**Measured, eight short runs per condition:**
+
+| condition | died early |
+|---|---|
+| audio off entirely (`RRR3D_AUDIO_OFF=1`) | **0/8** |
+| audio on, callbacks withheld (`RRR3D_AUDIO_NO_CALLBACKS=1`) | 8/8 |
+| audio on, `SetFrequencyRatio` clamped to the voice's max | 8/8 |
+| audio on, redundant identical `SetOutputVoices` skipped | 8/8 |
+| audio on, unmodified | 8/8 |
+
+So it is **not** the callbacks, the sends, the frequency ratio, or voice
+destruction. The only variable that changes the outcome is whether a FAudio
+engine exists and mixes at all. Everything the shim hands FAudio has been
+checked and is sane: every voice is PCM 44100/16-bit with correct block align,
+flags 0, maxRatio 2.0; every buffer has `PlayBegin=0, PlayLength=0` with a
+frame count consistent with `AudioBytes`; every send resolves through
+`FaudioOf` to a real `FAudioVoice*`, never NULL.
+
+**Next step, and it is a measurement rather than a patch.** In FAudio's source,
+the write target is the *shared* `audio->resampled_audio`, grown by
+
+    static void resize_resampled_audio_buffer(FAudio *audio, uint32_t samples)
+    {
+        if (samples > audio->resampleSamples) {
+            audio->resampleSamples = samples;
+            audio->resampled_audio = audio->pRealloc(...);   /* never NULL-checked */
+        }
+    }
+
+`FAudioCreateWithCustomAllocatorEXT` lets the shim supply malloc/realloc/free.
+Installing one and logging every size and result names the fault exactly — an
+absurd size or a NULL return — with nothing left to theorise about. Roughly ten
+lines in `XAudio2Create`, and it cannot be confounded by anything else.
+
+**Five fixes were attempted before that and all were wrong.** They are listed
+above so nobody repeats them. Each came from a plausible story about the crash;
+plausible stories are cheap. Only the measurements were worth anything, and the
+lesson is the one already in this file — measure first.
+
+### Everything else
+
 **Handling has not been compared against 2.8.** The wheels work —
 `RRR3D_WHEEL_TRACE=1` shows every sampled suspension ray hitting, with wheel
 origins spread around the whole circuit, so the AI cars race properly. What has
@@ -86,10 +150,13 @@ Reading a single frame is what produced a confident and wrong conclusion that
 the suspension raycast was broken. The trace samples periodically for exactly
 this reason — the first frames are all spawn transient.
 
-**Input has never been shown to work.** The shell drives the game — window,
-device, main loop, both menu and race render — but `RRR3D_AUTORACE` bypasses
-the menus, so no keyboard or mouse event has been demonstrated to reach the
-game. Driving the menu with real keystrokes would settle it.
+**The menu ignores the keyboard, though the keyboard works.**
+`RRR3D_INPUT_TRACE=1` shows real keystrokes arriving at
+`GameMode::OnHandleInput` correctly mapped — Down to `gaBreak`, Up to
+`gaAccel`, Return to `gaAction` — so SDL, the scancode table, the view and the
+binding table are all sound. But a frame taken after Down, Return, Down, Return
+is the unchanged main menu with nothing highlighted. The break is between the
+game receiving a `GameAction` and the GUI acting on it.
 
 **`D3DXFilterTexture` is unimplemented**, reported once per race. It generates
 the mip chain for a texture the engine rendered into, so the lower levels are
