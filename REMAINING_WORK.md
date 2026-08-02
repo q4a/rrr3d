@@ -1,6 +1,9 @@
 # Remaining work — macOS port, attempt 2
 
-Branch `macos-port-attempt-2`, based at `ec50208` (2021-06-14). 52 commits.
+Branch `macos-port-attempt-2`, based at `ec50208` (2021-06-14). 58 commits.
+
+**The game runs.** It reaches its main menu, loads a track and renders a race
+at 60fps. `bin/Debug/race2.tga` is a frame from three thousand frames in.
 
 The full plan lives in the plan document; this file is the state of play and
 the things that would be expensive to rediscover.
@@ -16,25 +19,42 @@ the things that would be expensive to rediscover.
 | 2 — Build system, C++17 | done |
 | 3 — XPlatform + D3DX math | done |
 | 4 — PhysX 2.8 shim over Bullet | done |
-| 5 — SDL3 shell | code done, **not verified end to end** (blocked on 8) |
+| 5 — SDL3 shell | drives the game; **input still unverified** — see below |
 | 6 — MetalBridge | done, all six test modes pass |
 | 7 — D3D9 on Metal | done: the triangle draws, both paths verified by pixel |
-| 8 — D3DX runtime, first pixels | not started, and now unblocked |
-| 9 — `NxWheelShape` | not started |
+| 8 — D3DX runtime, first pixels | done: menu and race both render |
+| 9 — `NxWheelShape` | done: implemented and covered; **cars do not drive yet** |
 | 10 — Windows cutover | deferred by decision, not dropped |
-| 11 — Audio, gamepad, video | not started |
+| 11 — Audio, gamepad, video | seams only: silent audio, no video graph |
 | 12 — MapEditor on Dear ImGui | not started |
 
-Everything compiles. `Rock3dGame`'s 55 translation units build and **zero `Nx`
-symbols are undefined** — the shim carries the whole physics surface the game
-calls. 27 undefined symbols remain across the tree: 12 D3DX/D3D9 (phases 7–8)
-and 15 audio/video (phase 11).
+Zero undefined symbols. Audio and video are stubs rather than gaps —
+`xaudio2_stub.cpp` and `video_stub.cpp`, both replaced by phase 11.
+
+### Running it
+
+    cd bin/Debug
+    ./RRR3d                                   # the menu
+    RRR3D_AUTORACE=1 ./RRR3d                  # straight into a race
+
+    RRR3D_DUMP_FRAME=<n> ./RRR3d              # write frame n and carry on
+    RRR3D_DUMP_PATH=<file>                    # default frame.tga
+
+A `CAMetalLayer`'s contents never appear in `screencapture` — the screenshot
+comes back as the window frame with a hole where the game is — so the dumper is
+the only way to see anything. It lives in `Engine::Present`, **not**
+`D3D9RenderDriver::Present`: the engine calls the device directly and skips
+that wrapper, which took one dump that never fired to discover.
+
+`RRR3D_AUTORACE` is the authors' own debug path, not a new one — the `#if
+DEBUG_PX` block in `GameMode::StartGame`, commented out in the shipped source,
+is the same sequence.
 
 ### Test suites, all green
 
-    bin/Debug/Tests            145 checks   XPlatform + D3DX math properties
+    bin/Debug/Tests            156 checks   XPlatform, D3DX math, string and RNG properties
     bin/Debug/PhysX28Tests       0 failures constants, conventions, no simulation
-    bin/Debug/PhysX28Harness   460 checks   the shim against 2.8's specification
+    bin/Debug/PhysX28Harness   512 checks   the shim against 2.8's specification
     bin/Debug/BridgeTriangle   6 modes      run from bin/Debug; takes a mode argument
     bin/Debug/D3D9Triangle     2 modes      no argument = swapchain, `rtt` = own target
 
@@ -43,6 +63,35 @@ adds one layer over the last; all render offscreen with pixel readback.
 
 `D3D9Triangle` checks the pixels itself and exits non-zero if the triangle is
 missing; it also writes `tri.tga` / `tri_rtt.tga` to look at.
+
+---
+
+## What is actually left
+
+**The cars do not drive.** At frame 3000 of a race they are still on the start
+line, and the debug overlay reads `Speed = 0` with `AxleSpeed = -71.47` and
+`wheel0..3 lat=0 long=0`. The wheels spin freely and report no contact while the
+car rests on its hull shapes, so the suspension raycast is not finding the
+track. This is the single most valuable thing to fix and it is the only reason
+the port is not playable.
+
+Two things to know before digging. `Actor::InitRootNxActor` calls
+`FillShapeDescListIncludeChildren`, so a car's wheels are shapes on the **one
+root NxActor** — which means excluding that actor from the raycast (as
+`raycastForWheel` does, and must, or every ray hits the car's own hull) is
+correct and not the cause. And the game's world is **Z-up** while 2.8's
+suspension is the shape's own local **−Y**, so the first thing to check is
+where that axis actually points once the actor pose is applied.
+
+**Input has never been shown to work.** The shell drives the game — window,
+device, main loop, both menu and race render — but `RRR3D_AUTORACE` bypasses
+the menus, so no keyboard or mouse event has been demonstrated to reach the
+game. Driving the menu with real keystrokes would settle it.
+
+**`D3DXFilterTexture` is unimplemented**, reported once per race. It generates
+the mip chain for a texture the engine rendered into, so the lower levels are
+undefined rather than absent — aliasing at distance, not a black surface.
+Either implement a box filter down the chain or record it as accepted.
 
 ---
 
@@ -153,9 +202,41 @@ two-phase lookup (`this->`, `typename`), `friend class X;` not introducing `X`
 into namespace scope (eleven occurrences), address-of-temporary passed to D3DX
 (~60 sites), and two user-defined conversions in one sequence.
 
+**`_MyBase::f(x)` is not a virtual call.** Fixing a two-phase-lookup error by
+qualifying the name compiles and silently turns virtual dispatch into a static
+call to the empty base body. It cost the whole component tree: no child ever
+learned its owner, so every cross-reference saved as an absolute component path
+failed to resolve on load, and every `Object*` container quietly stopped
+reference counting. `this->f(x)` is the fix — it makes the name dependent,
+which is all the lookup needed, and leaves dispatch alone. When sweeping for
+this, only names that are actually `virtual` matter; the tree has dozens of
+deliberate `_MyBase::Save(...)` chaining calls that are exactly right.
+
 **When splitting one statement into two, check for a single-statement `if`.**
 Doing this turned conditional `SendEvent` calls into unconditional ones three
 times.
+
+**Three Windows assumptions are baked into this codebase's data, not its
+code**, and each failed silently rather than loudly:
+
+- Paths are written with backslashes, in source literals and in `db.xml` alike.
+  A backslash is an ordinary filename character on POSIX, so the whole path
+  becomes one name. Translated once in `GetAppFilePath`, which every asset load
+  passes through.
+- The language files are UTF-16LE, and the loader cast the buffer to `wchar_t*`
+  — right only where `wchar_t` is 16 bits. The menu drew `svSingleGame` instead
+  of `Single Player` and nothing errored.
+- `RAND_MAX` is 32767 on MSVC and 2147483647 here, so an expression that fits an
+  `int` there overflows here. `RandomRange` did it twice, in the divisor and in
+  the numerator, and the second one produced indices anywhere at all — which
+  crashed in the AI, several frames later, with nothing pointing back.
+
+**A crash is a gift; behaving differently is not.** Of the eight bugs found
+between the first build and a rendering race, six were silent: the qualified
+virtual call, the path separators, the UTF-16 cast, `createActor` ignoring its
+shape list, async PSO compilation skipping draws, and `RandomRange`. Only the
+mesh use-after-free and the audio stub's missing virtual destructor announced
+themselves.
 
 ---
 
@@ -166,8 +247,9 @@ scene, actors, box/sphere/capsule/plane/mesh shapes, materials, collision
 filtering, contact reports and the stream iterator, contact modification,
 raycasts, triangle-mesh cooking, per-shape skin width, centre-of-mass offset.
 
-Two `Unimplemented()` calls remain: `NxWheelShape` (phase 9, by design) and a
-`setTiming` guard that fires only if `maxTimestep` drops below 1/60.
+Phase 9 added `NxWheelShape` — see `src/PhysX28/source/Px28Wheel.cpp`, which
+carries the specification it is written against. One `Unimplemented()` call
+remains: a `setTiming` guard that fires only if `maxTimestep` drops below 1/60.
 
 ### Contracts that fail silently if broken
 
@@ -185,15 +267,38 @@ Two `Unimplemented()` calls remain: `NxWheelShape` (phase 9, by design) and a
   2.8 did not and `Actor::CreateNxShape` does exactly that.
 - **`addLocalForce` applies at the centre of mass**, producing no torque. Every
   car sets a COM offset; applying at the actor origin invents torque.
+- **`createActor` builds the shapes its descriptor lists**, in descriptor
+  order. `UnpackActorShapeListIncludeChildren` walks `getShapes()` positionally
+  against its own list, so shape *i* must come from descriptor *i* — any other
+  order wires every shape to the wrong engine object without failing anything.
+- **Releasing a mesh does not destroy it** while shapes still reference it. 2.8
+  reference counts them, which is why `NxTriangleMesh` has a
+  `getReferenceCount()`. `px::Actor::ReloadNxShape` builds the replacement shape
+  *before* releasing the one it replaces, so eager destruction is a
+  use-after-free on every track load.
+- **A wheel's tire curve is a friction ceiling, not a force**, under
+  `NX_WF_CLAMPED_FRICTION` — which every car sets. Reading it as a force is the
+  difference between a car that drives and one that stands on its back wheels.
+- **The wheel suspension must be implicitly integrated.** The shipped cars run
+  damping ratios from 0.71 down to about 0.06; explicit integration lets the
+  undamped ones ring, which swings tire load and reads as a grip problem.
 
 ### Verification style
 
-Every scenario was checked with a deliberate mutation to prove it fails. Five
-did their job: transposing both transform directions (round-trip alone cannot
-see it), half-extents as full extents, dropping the material slot-0 reservation
-(12 failures), asymmetric group matrix, and reporting impulse as force (0.8175
-instead of 49.05 — exactly 1/60). In `src/Tests`, making critical sections
-non-recursive **hangs** the suite, which is what the engine would do.
+Every scenario is checked with a deliberate mutation to prove it fails, and the
+mutation is recorded rather than just performed. The ones that earned their
+place: transposing both transform directions (a round trip alone cannot see
+it), half-extents as full extents, dropping the material slot-0 reservation (12
+failures), an asymmetric group matrix, reporting impulse as force (0.8175
+instead of 49.05 — exactly 1/60), removing `createActor`'s shape loop (3
+failures), and restoring `RandomRange`'s int multiply (3 failures, escaping
+with −1).
+
+Two mutations do something better than fail. Making critical sections
+non-recursive **hangs** `src/Tests`, which is what the engine would do. And
+restoring eager mesh destruction **segfaults** the harness, in the same place
+the game did — the scenario reproduces the crash rather than merely detecting
+its absence.
 
 ---
 
@@ -206,13 +311,25 @@ new state costs a frame or two of missing geometry and the PSO cache in
 scene will be incomplete, so **do not diagnose a first-frame capture** — run
 several frames, or set `D9MT_ASYNC=0` when a single frame has to be exact.
 
-**Phase 8** needs `libvkd3d-shader` for `ID3DXEffect`, plus DDS/PNG/JPG loading
-and `stb_truetype` for `ID3DXFont`. The traps are recorded in the plan; the
-most expensive one on the reference branch was that `texture diffTex;` never
-appears in a compiled constant table, so **no effect sampler was ever bound** —
-which presented as three unrelated-looking rendering defects.
+**Phase 9's wheel, and what is chosen rather than specified.** Two things the
+SDK does not define are marked in `Px28Wheel.cpp` where they occur: how
+`inverseWheelMass` becomes a rotational inertia (a disc, `I = m·r²/2`, which is
+the SDK's own word for the wheel), and the exact implicit spring integration.
+Both are derived from what the API states, and neither reads a game constant.
+If handling ever needs investigating, those two are the honest places to look
+first — and the answer is still not to tune them against how the car feels.
 
-**Phase 11 — the plan is wrong about FAudio.** It ships no `xaudio2.h`; its
+**Phase 11's seams are already in place and are not equivalent.**
+`xaudio2_stub.cpp` is a silent *implementation*, because three of its answers
+are read back and acted on: `GetState` must report an empty queue or the
+streaming code stops feeding, `GetVolume` must return what `SetVolume` was
+given or fades freeze instead of silencing, and `X3DAudioCalculate` must fill
+the matrix the caller allocates and passes straight on. `video_stub.cpp` is a
+true stub, because `STATE_NO_GRAPH` is a state the game already knows how to be
+in — `World::IsVideoPlaying()` tests for exactly it.
+
+**Phase 11's other half.** The plan is wrong about FAudio: it ships no
+`xaudio2.h`; its
 headers are `FAudio.h`, `F3DAudio.h`, `FACT*.h`, `FAPO*.h`, `FAudioFX.h`, and
 it is a C API. Wine's xaudio2 DLL supplies the `IXAudio2` interfaces on top.
 `src/XPlatform/header/xaudio2.h` already declares the surface `Audio.cpp` uses
