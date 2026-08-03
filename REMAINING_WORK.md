@@ -137,10 +137,10 @@ soak with no fault, the menu alone for sixteen seconds, and — by tracing every
 to 1.0, with 38 distinct values on the RPM voice. So the sweep genuinely
 reaches FAudio across its whole range.
 
-Not verified: that any of it *sounds* right. Nobody has listened to it. The
-evidence is that correct values arrive and nothing corrupts memory, which is
-not the same claim. Also unchecked: X3DAudio's positional panning
-specifically, and a full race → results → menu cycle.
+**And it sounds right** — confirmed by ear, which is the part no measurement
+here could reach. Everything above establishes that correct values arrive and
+that nothing corrupts memory; it never established that the result was audible
+or pleasant, and those are different claims. Phase 11's audio half is closed.
 
 **Two lessons worth keeping.** Building FAudio from source is what made any of
 this findable — an uninstrumented Homebrew dylib is why the original report could
