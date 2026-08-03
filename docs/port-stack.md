@@ -128,6 +128,83 @@ the MSVC auto-link pragma wanted a 1.69 binary that nothing provides, so
 `BOOST_ALL_NO_LIB` turns it off and the header-only guarantee carries it.
 TinyXml was vendored into `src/TinyXml`.
 
+## Making the source portable at all
+
+Before any library could be swapped, the source had to become something a
+non-MSVC toolchain -- and a human or a model reading it -- could process. Four
+one-shot migrations, each kept in the tree because the transform had to be
+reproducible and reviewable rather than a hand-edit nobody could audit.
+
+- **CP1251 -> UTF-8** (`tools/transcode-cp1251.py`). The game was written on
+  Russian Windows and its comments were CP1251. clang rejects those bytes
+  outright, every text tool on a UTF-8 system mangles them, and `sed` fails with
+  "illegal byte sequence" -- so the tree was not merely ugly to read, it was not
+  reliably *editable* by ordinary tooling. The script aborts without writing
+  anything unless every file round-trips back to CP1251 byte-exactly, which is
+  the guarantee that the commit changed encoding and nothing else. 202 files
+  (`f117e78`).
+- **Backslash include separators** (`tools/fix-include-separators.py`).
+  `#include "game\TraceGfx.h"` is fine on MSVC and fatal on clang. Both
+  spellings existed -- `"snd\Audio.h"`, where the backslash is an invalid escape
+  the compiler quietly allows, and `"snd\\Audio.h"`, where it is a real escaped
+  backslash.
+- **Include path case.** `#include "px/PhysX.h"` for a file named `Physx.h`
+  works on a case-insensitive volume and fails everywhere else. Invisible until
+  it isn't.
+- **`static const` -> `static constexpr`** (`tools/static-const-to-constexpr.py`).
+  113 in-class members were declared with initialisers and never defined out of
+  line. That is an MSVC extension; every other compiler fails at link time with
+  an undefined symbol. C++17 makes `static constexpr` members implicitly inline,
+  so the declaration *is* the definition -- fixing it without adding 113
+  definitions to `.cpp` files.
+
+Two of these have CI gates so the tree cannot drift back:
+`tools/check-encoding.py` (fails on any file that is not valid UTF-8, reporting
+the byte offset) and `tools/check-includes.py` (fails on backslash separators
+and wrong-case paths, checking only includes that resolve inside `src/`). They
+are the `hygiene` job, and they run on every push.
+
+## Proving it works
+
+A port is a long sequence of claims about code nobody can see running, so the
+tree grew its own evidence tools.
+
+- **An in-process frame dumper** (`RRR3D_DUMP_FRAME`, `RRR3D_DUMP_PATH`). macOS
+  `screencapture` cannot see the game's Metal-backed window, so external
+  screenshots were never an option; the frame has to be read back from inside
+  the process. This is what turned "the renderer looks wrong" into pixels.
+- **`D9MT_ASYNC=0`.** d9mt compiles pipeline state asynchronously and silently
+  *skips* draws whose state is not ready yet. Anything that draws once -- a pixel
+  test, a first frame, the ImGui editor -- has to disable it or it will measure
+  an empty frame and call it a bug.
+- **Standalone evidence binaries**, each isolating one layer so a failure has one
+  possible cause: `BridgeTriangle` (Metal alone), `D3D9Triangle` (DXVK over
+  d9mt), `D3D9ImGui` (the editor's rendering path, pixel-checked against the
+  clear colour), `AudioSweep` (the FAudio frequency sweep, seconds under ASan
+  where the game needed a full race), `VideoProbe` (demux and decode to a TGA
+  without the engine), plus `Tests`, `PhysX28Tests` and `PhysX28Harness`.
+- **Unattended-run switches**, so behaviour could be measured without a person at
+  the keyboard: `RRR3D_AUTORACE`, `RRR3D_EDITOR_CHECK=roundtrip`,
+  `RRR3D_PLAYVIDEO`, and targeted tracing (`RRR3D_PHYSICS_TRACE`,
+  `RRR3D_CAR_TRACE`, `RRR3D_WHEEL_TRACE`, `RRR3D_INPUT_TRACE`,
+  `RRR3D_VIDEO_TRACE`, `RRR3D_AUDIO_NO_CALLBACKS`, `RRR3D_AUDIO_OFF`).
+- **AddressSanitizer as a first-class configuration** (`macos-arm64-asan`), with
+  its own `bin/Asan` output directory. The split matters: sharing `bin/Debug` let
+  a non-instrumented executable load an instrumented dylib, which aborts inside
+  libc++ container annotations and looks like a real bug.
+
+## Build and CI
+
+CMake presets replace the hand-driven MSVC configuration: `msvc-x86-debug`,
+`msvc-x86-release`, `macos-arm64-debug`, `macos-arm64-release` and
+`macos-arm64-asan`, over shared `base`/`debug`/`release` bases -- so the build
+that found a given crash can be reproduced from the repo rather than described.
+
+GitHub Actions runs three jobs: `hygiene` (the two source gates above), `win`
+(both MSVC configurations, which compile *and link*, uploading the executables as
+artifacts), and `macos` (full build, the three test suites, the ASan build with
+`AudioSweep` under it, then Release and the Release suites).
+
 ## The pattern
 
 Almost none of this is engine rewriting. It is substitution at the library
