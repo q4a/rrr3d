@@ -87,6 +87,13 @@ adds one layer over the last; all render offscreen with pixel readback.
 `D3D9Triangle` checks the pixels itself and exits non-zero if the triangle is
 missing; it also writes `tri.tga` / `tri_rtt.tga` to look at.
 
+`RRR3D_EDITOR_CHECK=roundtrip ./MapEditor` places an object, saves, reloads and
+verifies it survived — checking both the reloaded scene and the file's text, so
+a save that writes nothing cannot agree with a load that reads nothing. It is
+**not** in CI, for the same reason the graphics tests are not: it needs a Metal
+device and a window server. Run it locally after touching the editor, the
+serialisation, or anything in `source/edit`.
+
 ---
 
 ## What is actually left
