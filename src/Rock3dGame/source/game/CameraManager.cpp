@@ -690,8 +690,25 @@ void CameraManager::ChangeStyle(Style value)
 
 	if (value == csIsometric || value == csIsoView)
 	{
+		/*
+		 * There may be no GameMode. World::RunWorldEdit does not create one --
+		 * the map editor is CreateWorld(desc, false) plus RunWorldEdit, and
+		 * _game stays NULL for the life of the process -- so this dereferenced
+		 * null for anything that offered an isometric camera outside a game.
+		 * The MFC editor's toolbar offered exactly that (MainFrm.cpp's Iso
+		 * button), so this is latent in the original rather than new; the
+		 * ImGui editor is simply the first thing to press it.
+		 *
+		 * 1.25 is GameMode's own default for _cameraDistance, in its
+		 * constructor and again in ResetConfig, so an editor without a game
+		 * gets the same framing a game would start with.
+		 */
+		const float distance = _world->GetGame()
+			? _world->GetGame()->GetCameraDistance()
+			: 1.25f;
+
 		_camera->SetStyle(graph::csOrtho);
-		_camera->SetWidth(28.0f * _world->GetGame()->GetCameraDistance());
+		_camera->SetWidth(28.0f * distance);
 
 		SetNear(1.0f);
 		if (_world->GetEnv())

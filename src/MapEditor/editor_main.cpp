@@ -85,6 +85,17 @@ const int cHeight = 900;
 SDL_Window* gWindow = NULL;
 SDL_MetalView gMetalView = NULL;
 void* gLayer = NULL;
+/* Physical pixels per point. 1 on an ordinary display, 2 on a Retina one. */
+float gPixelDensity = 1.0f;
+/* Physical pixels per UI unit -- see where it is computed in main. */
+float gUiScale = 1.0f;
+
+/* SDL reports mouse positions in points; the engine's client size and back
+   buffer are in pixels. Everything crossing that boundary goes through here. */
+lsl::Point ToEnginePoint(float x, float y)
+{
+	return lsl::Point(int(x * gPixelDensity), int(y * gPixelDensity));
+}
 game::IWorld* gWorld = NULL;
 bool gQuit = false;
 
@@ -258,6 +269,32 @@ void CancelPlacement()
 	gPendingRecord = edit::IMapObjRecRef();
 }
 
+/*
+ * Default pane geometry, in UI units rather than pixels.
+ *
+ * The positions below were written against an unscaled 1600x900 window. With
+ * the interface scaled up they have to move and grow with it, or the panes on
+ * the right hang off the edge of the screen -- which is what happened the first
+ * time this was tried. Anchored from the right and bottom where that is what
+ * was meant, so a wider window puts them where a wider window should.
+ */
+ImVec2 ScaledSize(float w, float h)
+{
+	return ImVec2(w * gUiScale, h * gUiScale);
+}
+
+ImVec2 ScaledPos(float x, float y)
+{
+	const ImVec2 display = ImGui::GetIO().DisplaySize;
+
+	/* Negative means "from the far edge", which is how the right-hand panes
+	   were expressed against the original 1600x900. */
+	const float px = x >= 0.0f ? x * gUiScale : display.x + x * gUiScale;
+	const float py = y >= 0.0f ? y * gUiScale : display.y + y * gUiScale;
+
+	return ImVec2(px, py);
+}
+
 /* ------------------------------------------------------------------ panes -- */
 
 /*
@@ -342,8 +379,8 @@ void DrawLibraryNode(const LibraryNode& node)
 
 void DrawLibraryPane()
 {
-	ImGui::SetNextWindowPos(ImVec2(10.0f, 30.0f), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(320.0f, 420.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ScaledPos(10.0f, 30.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ScaledSize(320.0f, 420.0f), ImGuiCond_FirstUseEver);
 	if (!ImGui::Begin("Library"))
 	{
 		ImGui::End();
@@ -388,8 +425,8 @@ void DrawLibraryPane()
  */
 void DrawScenePane()
 {
-	ImGui::SetNextWindowPos(ImVec2(10.0f, 460.0f), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(320.0f, 420.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ScaledPos(10.0f, 460.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ScaledSize(320.0f, 420.0f), ImGuiCond_FirstUseEver);
 	if (!ImGui::Begin("Scene"))
 	{
 		ImGui::End();
@@ -439,8 +476,8 @@ void DrawScenePane()
  */
 void DrawTracePane()
 {
-	ImGui::SetNextWindowPos(ImVec2(1270.0f, 30.0f), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(320.0f, 500.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ScaledPos(-330.0f, 30.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ScaledSize(320.0f, 500.0f), ImGuiCond_FirstUseEver);
 	if (!ImGui::Begin("Trace"))
 	{
 		ImGui::End();
@@ -580,8 +617,8 @@ void DrawTracePane()
  */
 void DrawInspectorPane()
 {
-	ImGui::SetNextWindowPos(ImVec2(1270.0f, 540.0f), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(320.0f, 300.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ScaledPos(-330.0f, 540.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ScaledSize(320.0f, 300.0f), ImGuiCond_FirstUseEver);
 	if (!ImGui::Begin("Inspector"))
 	{
 		ImGui::End();
@@ -877,6 +914,20 @@ int RunRoundTripCheck()
 	for (int i = 0; i < 10; ++i)
 		gWorld->MainProgress();
 
+	/*
+	 * Every camera style the toolbar offers, before anything else. csIsoView
+	 * dereferenced a null GameMode -- the editor never creates one -- so the
+	 * Iso button crashed the process, and only pressing it found that.
+	 */
+	if (game::ICameraManager* cam = gWorld->GetICamera())
+	{
+		cam->ChangeStyle(game::ICameraManager::csIsoView);
+		gWorld->MainProgress();
+		cam->ChangeStyle(game::ICameraManager::csFreeView);
+		gWorld->MainProgress();
+		std::fprintf(stderr, "  camera styles ok\n");
+	}
+
 	BuildLibrary();
 
 	edit::IMapObjRecRef record;
@@ -1109,8 +1160,8 @@ void BuildUi()
 	DrawTracePane();
 	DrawInspectorPane();
 
-	ImGui::SetNextWindowPos(ImVec2(340.0f, 850.0f), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(900.0f, 40.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ScaledPos(340.0f, -50.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ScaledSize(900.0f, 40.0f), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Status"))
 		ImGui::TextUnformatted(gDoc.status.c_str());
 	ImGui::End();
@@ -1185,8 +1236,38 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	gWindow = SDL_CreateWindow("RRR3D Map Editor", cWidth, cHeight,
-		SDL_WINDOW_METAL | SDL_WINDOW_RESIZABLE);
+	/*
+	 * HIGH_PIXEL_DENSITY, so the drawable is the display's real resolution.
+	 *
+	 * Without it a Retina screen gets a 1600x900 drawable stretched over
+	 * 3200x1800 physical pixels, and everything -- the 3D view and every glyph
+	 * -- is visibly soft. The game has the same flag missing; it matters less
+	 * there because nobody reads text in a race, and it is left alone here
+	 * rather than changed as a side effect of an editor fix.
+	 *
+	 * Turning this on is what makes the points-versus-pixels mismatch real
+	 * rather than latent: SDL reports mouse positions in POINTS, while
+	 * RegisterClientSize and the back buffer are in PIXELS. Every coordinate
+	 * handed to the engine below is scaled by the density for that reason.
+	 */
+	/*
+	 * Sized to the display rather than to a fixed 1600x900, which is a small
+	 * window on a 4K screen and most of one on a laptop. Three quarters of the
+	 * usable area, clamped so it can never come out smaller than the old
+	 * default.
+	 */
+	int windowW = cWidth;
+	int windowH = cHeight;
+	if (const SDL_DisplayMode* mode = SDL_GetDesktopDisplayMode(SDL_GetPrimaryDisplay()))
+	{
+		const int w = int(mode->w * 0.75f);
+		const int h = int(mode->h * 0.75f);
+		if (w > windowW) windowW = w;
+		if (h > windowH) windowH = h;
+	}
+
+	gWindow = SDL_CreateWindow("RRR3D Map Editor", windowW, windowH,
+		SDL_WINDOW_METAL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 	if (!gWindow)
 	{
 		std::fprintf(stderr, "SDL_CreateWindow: %s\n", SDL_GetError());
@@ -1222,6 +1303,66 @@ int main(int argc, char** argv)
 	   swapchain, and this device is bound to one CAMetalLayer. */
 
 	ImGui::StyleColorsDark();
+
+	/*
+	 * Crisp text on a high-density display.
+	 *
+	 * ImGui works in points and lets the backend scale to pixels, so geometry
+	 * comes out the right size either way -- but the default font is a bitmap
+	 * baked at 13px, and stretching it is exactly the blur this is fixing. The
+	 * standard remedy is to bake it at the physical size and scale it back
+	 * down, which renders every glyph at native resolution.
+	 */
+	gPixelDensity = SDL_GetWindowPixelDensity(gWindow);
+
+	/*
+	 * How large the interface should be, in physical pixels per UI unit.
+	 *
+	 * Two different displays make ImGui's 13px default unreadable for opposite
+	 * reasons, and one number covers both:
+	 *
+	 *   A Retina panel reports a pixel density of 2, so an unscaled UI is baked
+	 *   at half the resolution it is shown at, and every glyph is soft.
+	 *
+	 *   A 4K display running 1:1 reports a density of 1 and a display scale of
+	 *   1, so nothing is soft -- but 13px text on a 3840-wide screen is simply
+	 *   very small. SDL_GetWindowDisplayScale is what macOS thinks the content
+	 *   scale should be, and it is 1 there too, so neither figure alone is
+	 *   enough.
+	 *
+	 * So: the larger of the two, floored at 1, and overridable, because how big
+	 * a UI should be is partly a preference and no measurement settles it.
+	 *
+	 * NOTE the ceiling on what any of this can achieve: a bare Unix executable
+	 * never gets a density above 1 on macOS at all. High DPI requires
+	 * NSHighResolutionCapable in an Info.plist, which means an .app bundle,
+	 * which this port does not build yet. Until it does, the Retina case is
+	 * scaled rather than sharp -- bigger, not crisper.
+	 */
+	const float displayScale = SDL_GetWindowDisplayScale(gWindow);
+	gUiScale = gPixelDensity > displayScale ? gPixelDensity : displayScale;
+	if (gUiScale < 1.0f)
+		gUiScale = 1.0f;
+
+	if (const char* override = std::getenv("RRR3D_EDITOR_SCALE"))
+	{
+		const float value = float(std::atof(override));
+		if (value > 0.1f)
+			gUiScale = value;
+	}
+
+	if (gUiScale != 1.0f)
+	{
+		/* Baked at the physical size rather than stretched, which is the
+		   difference between large text and large blurry text. */
+		ImFontConfig font;
+		font.SizePixels = 13.0f * gUiScale;
+		io.Fonts->AddFontDefault(&font);
+
+		/* Padding, borders and the rest, so the layout grows with the text. */
+		ImGui::GetStyle().ScaleAllSizes(gUiScale);
+	}
+
 	ImGui_ImplSDL3_InitForOther(gWindow);
 	/* The D3D9 backend starts on the first overlay draw -- see EditorOverlay. */
 
@@ -1300,7 +1441,7 @@ int main(int argc, char** argv)
 			case SDL_EVENT_MOUSE_BUTTON_DOWN:
 			case SDL_EVENT_MOUSE_BUTTON_UP:
 				if (event.button.button == SDL_BUTTON_LEFT)
-					OnViewportClick(lsl::Point(int(event.button.x), int(event.button.y)),
+					OnViewportClick(ToEnginePoint(event.button.x, event.button.y),
 						event.type == SDL_EVENT_MOUSE_BUTTON_DOWN, false, false);
 				break;
 
@@ -1316,7 +1457,7 @@ int main(int argc, char** argv)
 
 			case SDL_EVENT_MOUSE_MOTION:
 				gWorld->GetView()->OnMouseMoveEvent(
-					lsl::Point(int(event.motion.x), int(event.motion.y)), false, false);
+					ToEnginePoint(event.motion.x, event.motion.y), false, false);
 				break;
 
 			case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:

@@ -56,6 +56,7 @@ Zero undefined symbols. Audio is a real FAudio backend
     RRR3D_EDITOR_OPEN=<map> ./MapEditor       # ...or skip the dialog
     RRR3D_EDITOR_FRAMES=<n> ./MapEditor       # run n frames and exit
     RRR3D_EDITOR_CHECK=roundtrip ./MapEditor  # place, save, reload, verify; exits non-zero
+    RRR3D_EDITOR_SCALE=1.5 ./MapEditor        # bigger interface; default follows the display
 
     bin/Debug/AudioSweep                      # the rev sweep, without the game
     bin/Asan/AudioSweep 0 0 2                 # the same, held at the worst ratio
@@ -314,6 +315,17 @@ reading the image said success. It now derives the expected colour from the same
 vertex data the draw uses and makes that its exit status — which is why running
 it with `D9MT_ASYNC=1` reports the original bug in one line instead of needing an
 afternoon.
+
+**High DPI needs an `.app` bundle, and there isn't one.** macOS only gives a
+window a Retina-resolution drawable if the application declares
+`NSHighResolutionCapable`, and that lives in a bundle's `Info.plist` — a bare
+Unix executable never gets one, whatever `SDL_WINDOW_HIGH_PIXEL_DENSITY` says.
+`SDL_GetWindowPixelDensity` returns 1.0 and everything is rendered at half
+resolution and upscaled by the compositor. The editor has the flag and scales
+its interface by the density anyway, so it is correct the moment a bundle
+exists; until then the Retina case is *larger*, not *sharper*, and
+`RRR3D_EDITOR_SCALE` is the knob. This is the first user-visible consequence of
+the missing bundle — it was previously filed as latent.
 
 **Nothing had ever shut down cleanly.** The game is always killed rather than
 quit, so `World::Free` had never run to the end -- and when the map editor
