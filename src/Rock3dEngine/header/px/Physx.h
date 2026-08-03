@@ -395,7 +395,9 @@ public:
 private:
 	D3DXVECTOR3 _dimensions;
 protected:
-	//virtual NxShapeDesc* CreateDesc();
+#if 0
+	virtual NxShapeDesc* CreateDesc();
+#endif
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
@@ -413,7 +415,6 @@ public:
 	void SetDimensions(const D3DXVECTOR3& value);
 };
 
-#if 0
 class SphereShape: public Shape
 {
 private:
@@ -423,17 +424,21 @@ public:
 private:
 	float _radius;	
 protected:
+#if 0
 	virtual NxShapeDesc* CreateDesc();
+#endif
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
 	SphereShape(Shapes* owner);
 
+#if 0
 	void AssignFromDesc(const NxSphereShapeDesc& desc, bool reloadShape = true);
 	void AssignToDesc(NxSphereShapeDesc& desc);
+#endif
 
-	NxSphereShape* GetNxShape();
+	PxShape* GetNxShape();
 
 	float GetRadius() const;
 	void SetRadius(float value);
@@ -450,17 +455,21 @@ private:
 	float _height;
 	unsigned _capsuleFlags;
 protected:
+#if 0
 	virtual NxShapeDesc* CreateDesc();
+#endif
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
 public:
 	CapsuleShape(Shapes* owner);
 
+#if 0
 	void AssignFromDesc(const NxCapsuleShapeDesc& desc, bool reloadShape = true);
 	void AssignToDesc(NxCapsuleShapeDesc& desc);
+#endif
 
-	NxCapsuleShape* GetNxShape();
+	PxShape* GetNxShape();
 
 	float GetRadius() const;
 	void SetRadius(float value);
@@ -481,11 +490,13 @@ public:
 private:
 	TriangleMesh* _mesh;
 	int _meshId;
-	NxTriangleMesh* _nxMesh;
+	PxTriangleMesh* _nxMesh;
 
 	void FreeNxMesh();
 protected:
+#if 0
 	virtual NxShapeDesc* CreateDesc();
+#endif
 	virtual void SyncScale();
 
 	virtual void Save(lsl::SWriter* writer);
@@ -495,10 +506,12 @@ public:
 	TriangleMeshShape(Shapes* owner);
 	virtual ~TriangleMeshShape();
 
+#if 0
 	void AssignFromDesc(const NxTriangleMeshShapeDesc& desc, bool reloadShape = true);
 	void AssignToDesc(NxTriangleMeshShapeDesc& desc);
+#endif
 
-	NxTriangleMeshShape* GetNxShape();
+	PxShape* GetNxShape();
 
 	TriangleMesh* GetMesh();
 	void SetMesh(TriangleMesh* value, int meshId = -1);
@@ -515,11 +528,13 @@ public:
 private:
 	TriangleMesh* _mesh;
 	int _meshId;
-	NxConvexMesh* _nxMesh;
+	PxConvexMesh* _nxMesh;
 
 	void FreeNxMesh();
 protected:
+#if 0
 	virtual NxShapeDesc* CreateDesc();
+#endif
 
 	virtual void Save(lsl::SWriter* writer);
 	virtual void Load(lsl::SReader* reader);
@@ -528,10 +543,12 @@ public:
 	ConvexShape(Shapes* owner);
 	virtual ~ConvexShape();
 
+#if 0
 	void AssignFromDesc(const NxConvexShapeDesc& desc, bool reloadShape = true);
 	void AssignToDesc(NxConvexShapeDesc& desc);
+#endif
 
-	NxConvexShape* GetNxShape();
+	PxShape* GetNxShape();
 
 	TriangleMesh* GetMesh();
 	void SetMesh(TriangleMesh* value, int meshId = -1);
@@ -539,6 +556,7 @@ public:
 	int GetMeshId();
 };
 
+#if 0 // FIXME WheelShape
 class WheelShape: public Shape
 {
 private:
@@ -551,7 +569,7 @@ public:
 private:
 	float _radius;
 	float _suspensionTravel;
-	NxSpringDesc _suspension;
+	PxSpringDesc _suspension;
 
 	NxTireFunctionDesc _longitudalTireForceFunction;
 	NxTireFunctionDesc _lateralTireForceFunction;

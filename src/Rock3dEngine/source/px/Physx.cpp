@@ -894,12 +894,14 @@ PlaneShape::PlaneShape(Shapes* owner): _MyBase(owner), _normal(ZVector), _dist(0
 	SetType(Type);
 }
 
+#if 0
 NxShapeDesc* PlaneShape::CreateDesc()
 {
 	NxPlaneShapeDesc* desc = new NxPlaneShapeDesc();
 	AssignToDesc(*desc);
 	return desc;
 }
+#endif
 
 void PlaneShape::Save(lsl::SWriter* writer)
 {
@@ -917,6 +919,7 @@ void PlaneShape::Load(lsl::SReader* reader)
 	reader->ReadValue("dist", _dist);
 }
 
+#if 0
 void PlaneShape::AssignFromDesc(const NxPlaneShapeDesc& desc, bool reloadShape)
 {
 	_normal = desc.normal.get();
@@ -937,6 +940,12 @@ NxPlaneShape* PlaneShape::GetNxShape()
 {
 	return static_cast<NxPlaneShape*>(_MyBase::GetNxShape());
 }
+#endif
+
+PxShape* PlaneShape::GetNxShape()
+{
+	return _MyBase::GetNxShape();
+}
 
 const D3DXVECTOR3& PlaneShape::GetNormal() const
 {
@@ -947,8 +956,13 @@ void PlaneShape::SetNormal(const D3DXVECTOR3& value)
 {
 	_normal = value;
 	
-	if (GetNxShape())	
+	if (GetNxShape())
+	{
+		LSL_ASSERT(!GetNxShape());
+#if 0
 		GetNxShape()->setPlane(NxVec3(value), _dist);
+#endif
+	}
 }
 
 float PlaneShape::GetDist() const
@@ -960,8 +974,13 @@ void PlaneShape::SetDist(float value)
 {
 	_dist = value;
 	
-	if (GetNxShape())	
+	if (GetNxShape())
+	{
+		LSL_ASSERT(!GetNxShape());
+#if 0
 		GetNxShape()->setPlane(NxVec3(value), _dist);
+#endif
+	}
 }
 
 
@@ -972,6 +991,7 @@ BoxShape::BoxShape(Shapes* owner): _MyBase(owner), _dimensions(NullVector)
 	SetType(Type);
 }
 
+#if 0
 NxShapeDesc* BoxShape::CreateDesc()
 {
 	NxBoxShapeDesc* desc = new NxBoxShapeDesc();
@@ -979,6 +999,7 @@ NxShapeDesc* BoxShape::CreateDesc()
 
 	return desc;
 }
+#endif
 
 void BoxShape::Save(lsl::SWriter* writer)
 {
@@ -994,6 +1015,7 @@ void BoxShape::Load(lsl::SReader* reader)
 	reader->ReadValue("dimensions", _dimensions, 3);
 }
 
+#if 0
 void BoxShape::AssignFromDesc(const NxBoxShapeDesc& desc, bool reloadShape)
 {
 	_dimensions = desc.dimensions.get();
@@ -1012,6 +1034,12 @@ NxBoxShape* BoxShape::GetNxShape()
 {
 	return static_cast<NxBoxShape*>(_MyBase::GetNxShape());
 }
+#endif
+
+PxShape* BoxShape::GetNxShape()
+{
+	return _MyBase::GetNxShape();
+}
 
 const D3DXVECTOR3& BoxShape::GetDimensions() const
 {
@@ -1026,9 +1054,12 @@ void BoxShape::SetDimensions(const D3DXVECTOR3& value)
 		
 		if (GetNxShape())
 		{
+			LSL_ASSERT(!GetNxShape());
+#if 0
 			NxVec3 vec3;
 			vec3.set(_dimensions);
 			GetNxShape()->setDimensions(vec3);
+#endif
 		}
 	}
 }
@@ -1041,6 +1072,7 @@ SphereShape::SphereShape(Shapes* owner): _MyBase(owner), _radius(1.0f)
 	SetType(Type);
 }
 
+#if 0
 NxShapeDesc* SphereShape::CreateDesc()
 {
 	NxSphereShapeDesc* desc = new NxSphereShapeDesc();
@@ -1048,6 +1080,7 @@ NxShapeDesc* SphereShape::CreateDesc()
 	
 	return desc;	
 }
+#endif
 
 void SphereShape::Save(lsl::SWriter* writer)
 {
@@ -1063,6 +1096,7 @@ void SphereShape::Load(lsl::SReader* reader)
 	reader->ReadValue("radius", _radius);	
 }
 
+#if 0
 void SphereShape::AssignFromDesc(const NxSphereShapeDesc& desc, bool reloadShape)
 {
 	_radius = desc.radius;
@@ -1081,6 +1115,12 @@ NxSphereShape* SphereShape::GetNxShape()
 {
 	return static_cast<NxSphereShape*>(_MyBase::GetNxShape());
 }
+#endif
+
+PxShape* SphereShape::GetNxShape()
+{
+	return _MyBase::GetNxShape();
+}
 
 float SphereShape::GetRadius() const
 {
@@ -1092,7 +1132,12 @@ void SphereShape::SetRadius(float value)
 	_radius = value;
 
 	if (GetNxShape())
+	{
+		LSL_ASSERT(!GetNxShape());
+#if 0
 		GetNxShape()->setRadius(value);		
+#endif
+	}
 }
 
 
@@ -1103,6 +1148,7 @@ CapsuleShape::CapsuleShape(Shapes* owner): _MyBase(owner), _radius(1.0f), _heigh
 	SetType(Type);
 }
 
+#if 0
 NxShapeDesc* CapsuleShape::CreateDesc()
 {
 	NxCapsuleShapeDesc* desc = new NxCapsuleShapeDesc();
@@ -1110,6 +1156,7 @@ NxShapeDesc* CapsuleShape::CreateDesc()
 	
 	return desc;	
 }
+#endif
 
 void CapsuleShape::Save(lsl::SWriter* writer)
 {
@@ -1129,6 +1176,7 @@ void CapsuleShape::Load(lsl::SReader* reader)
 	reader->ReadValue("capsuleFlags", _capsuleFlags);
 }
 
+#if 0
 void CapsuleShape::AssignFromDesc(const NxCapsuleShapeDesc& desc, bool reloadShape)
 {
 	_radius = desc.radius;
@@ -1151,6 +1199,12 @@ NxCapsuleShape* CapsuleShape::GetNxShape()
 {
 	return static_cast<NxCapsuleShape*>(_MyBase::GetNxShape());
 }
+#endif
+
+PxShape* CapsuleShape::GetNxShape()
+{
+	return _MyBase::GetNxShape();
+}
 
 float CapsuleShape::GetRadius() const
 {
@@ -1162,7 +1216,12 @@ void CapsuleShape::SetRadius(float value)
 	_radius = value;
 
 	if (GetNxShape())
+	{
+		LSL_ASSERT(!GetNxShape());
+#if 0
 		GetNxShape()->setRadius(value);		
+#endif
+	}
 }
 
 float CapsuleShape::GetHeight() const
@@ -1175,7 +1234,12 @@ void CapsuleShape::SetHeight(float value)
 	_height = value;
 
 	if (GetNxShape())
+	{
+		LSL_ASSERT(!GetNxShape());
+#if 0
 		GetNxShape()->setHeight(value);
+#endif
+	}
 }
 
 unsigned CapsuleShape::GetCapsuleFlags() const
@@ -1215,6 +1279,7 @@ void TriangleMeshShape::FreeNxMesh()
 	}
 }
 
+#if 0
 NxShapeDesc* TriangleMeshShape::CreateDesc()
 {
 	NxTriangleMeshShapeDesc* desc = new NxTriangleMeshShapeDesc();
@@ -1222,6 +1287,7 @@ NxShapeDesc* TriangleMeshShape::CreateDesc()
 
 	return desc;
 }
+#endif
 
 void TriangleMeshShape::SyncScale()
 {
@@ -1259,6 +1325,7 @@ void TriangleMeshShape::OnFixUp(const FixUpNames& fixUpNames)
 			SetMesh(iter->GetCollItem<TriangleMesh*>(), _meshId);
 }
 
+#if 0
 void TriangleMeshShape::AssignFromDesc(const NxTriangleMeshShapeDesc& desc, bool reloadShape)
 {
 	_MyBase::AssignFromDesc(desc, reloadShape);
@@ -1276,6 +1343,12 @@ void TriangleMeshShape::AssignToDesc(NxTriangleMeshShapeDesc& desc)
 NxTriangleMeshShape* TriangleMeshShape::GetNxShape()
 {
 	return static_cast<NxTriangleMeshShape*>(_MyBase::GetNxShape());
+}
+#endif
+
+PxShape* TriangleMeshShape::GetNxShape()
+{
+	return _MyBase::GetNxShape();
 }
 
 TriangleMesh* TriangleMeshShape::GetMesh()
@@ -1323,6 +1396,7 @@ void ConvexShape::FreeNxMesh()
 	}
 }
 
+#if 0
 NxShapeDesc* ConvexShape::CreateDesc()
 {
 	NxConvexShapeDesc* desc = new NxConvexShapeDesc();
@@ -1330,6 +1404,7 @@ NxShapeDesc* ConvexShape::CreateDesc()
 
 	return desc;
 }
+#endif
 
 void ConvexShape::Save(lsl::SWriter* writer)
 {
@@ -1361,6 +1436,7 @@ void ConvexShape::OnFixUp(const FixUpNames& fixUpNames)
 			SetMesh(iter->GetCollItem<TriangleMesh*>(), _meshId);
 }
 
+#if 0
 void ConvexShape::AssignFromDesc(const NxConvexShapeDesc& desc, bool reloadShape)
 {
 	_MyBase::AssignFromDesc(desc, reloadShape);
@@ -1378,6 +1454,12 @@ void ConvexShape::AssignToDesc(NxConvexShapeDesc& desc)
 NxConvexShape* ConvexShape::GetNxShape()
 {
 	return static_cast<NxConvexShape*>(_MyBase::GetNxShape());
+}
+#endif
+
+PxShape* ConvexShape::GetNxShape()
+{
+	return _MyBase::GetNxShape();
 }
 
 TriangleMesh* ConvexShape::GetMesh()
@@ -1404,6 +1486,7 @@ int ConvexShape::GetMeshId()
 
 
 
+#if 0
 WheelShape::WheelShape(Shapes* owner): _MyBase(owner), _contactModify(0)
 {
 	SetType(Type);
@@ -1665,6 +1748,7 @@ void WheelShape::SetContactModify(ContactModify* value)
 			GetNxShape()->setUserWheelContactModify(_contactModify);
 	}
 }
+#endif
 
 
 
@@ -1678,9 +1762,15 @@ void Body::Save(lsl::SWriter* writer)
 	writer->WriteValue("mass", _desc.mass);	
 
 	D3DXVECTOR3 massLocalPose[4];
+#if 0
 	for (int i = 0; i < 3; ++i)
 		massLocalPose[i] = _desc.massLocalPose.M.getRow(i).get();
 	massLocalPose[3] = _desc.massLocalPose.t.get();
+#endif
+	massLocalPose[0] = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
+	massLocalPose[1] = D3DXVECTOR3(0.0f, 1.0f, 0.0f);
+	massLocalPose[2] = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
+	massLocalPose[3] = _desc.massLocalPose.get();
 	writer->WriteValue("massLocalPose", massLocalPose[0], 12);
 
 	writer->WriteValue("flags", _desc.flags);
