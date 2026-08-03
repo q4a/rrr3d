@@ -38,9 +38,24 @@ if (NOT MSVC)
         "${CMAKE_CURRENT_SOURCE_DIR}/source/video/video_stub.cpp"
     )
 else()
-    # ...and its replacement is excluded on Windows, where the real three build.
+    # ...and the macOS player is excluded on Windows, where the real DirectShow
+    # trio builds instead.
+    #
+    # These are globbed like everything else, and being plain .cpp they are
+    # picked up on every platform -- unlike the two .mm files, which are added
+    # explicitly under if(APPLE) below and so were never a problem. video_avf.cpp
+    # is the one that actually breaks: PlayerImpl and Player::_impl are declared
+    # under #ifndef _WIN32, so MSVC compiled the definitions with no member to
+    # match and produced a hundred errors before giving up. avi_reader.cpp and
+    # h264_poc.cpp are portable and did compile, but they are dead code on
+    # Windows -- their only consumers are the macOS player and src/VideoProbe.
+    #
+    # video_stub.cpp goes too: the real player is there.
     list(REMOVE_ITEM ${PROJECT_NAME}_SOURCE
         "${CMAKE_CURRENT_SOURCE_DIR}/source/video/video_stub.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/video_avf.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/avi_reader.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/h264_poc.cpp"
     )
 endif()
 

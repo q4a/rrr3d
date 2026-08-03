@@ -41,11 +41,16 @@ fi
 # ships is 2.3, which cannot build vkd3d's HLSL grammar. widl comes from
 # mingw-w64 and generates headers from vkd3d's .idl files.
 #
-# vulkan-headers and molten-vk are needed only to get through configure, which
-# has no option to build the shader library alone. Nothing in what we link
-# against calls Vulkan.
+# vulkan-headers, spirv-headers and molten-vk are needed only to get through
+# configure, which has no option to build the shader library alone. Nothing in
+# what we link against calls Vulkan.
+#
+# spirv-headers supplies three of configure's checks at once -- spirv.h,
+# GLSL.std.450.h and the "SPIR-V headers are too old" version test. It is a
+# separate formula from vulkan-headers, which is easy to miss because a machine
+# that has ever built anything Vulkan-adjacent already has it.
 MISSING=()
-for pkg in bison automake libtool mingw-w64 vulkan-headers molten-vk; do
+for pkg in bison automake libtool mingw-w64 vulkan-headers spirv-headers molten-vk; do
     brew list "$pkg" >/dev/null 2>&1 || MISSING+=("$pkg")
 done
 if (( ${#MISSING[@]} )); then
@@ -76,6 +81,23 @@ if ! perl -MJSON -e '1' >/dev/null 2>&1; then
     echo "error: the Perl JSON module is still missing; vkd3d cannot configure" >&2
     exit 1
 fi
+
+# Headers, checked by presence rather than by formula.
+#
+# `brew list <formula>` answers "is it installed", which is not the question --
+# a formula can be installed and unlinked, in which case nothing is on the
+# include path and configure fails exactly as it does on a machine that never
+# had it. Same lesson as the Perl module above: check the capability, not the
+# package.
+BREW_INCLUDE="$(brew --prefix)/include"
+for header in vulkan/vulkan.h spirv/unified1/spirv.h spirv/unified1/GLSL.std.450.h; do
+    if [[ ! -f "$BREW_INCLUDE/$header" ]]; then
+        echo "error: $BREW_INCLUDE/$header is missing." >&2
+        echo "       vkd3d's configure needs it. If the formula is installed," >&2
+        echo "       it may only need linking: brew link vulkan-headers spirv-headers" >&2
+        exit 1
+    fi
+done
 
 BISON_BIN="$(brew --prefix bison)/bin"
 BREW_PREFIX="$(brew --prefix)"
