@@ -38,6 +38,33 @@ extern char **environ;
 typedef int NTSTATUS; /* wine unixlib_entry_t contract */
 #define STATUS_SUCCESS 0
 
+
+/*
+ * Fast math on a compile options object, across SDK versions.
+ *
+ * MTLCompileOptions.mathMode and MTLMathModeFast arrived in macOS 15 / Xcode
+ * 16; before that the same thing is fastMathEnabled, which 15 deprecates. This
+ * tree targets macOS 11.0, so using the new name unguarded is wrong regardless
+ * of what the build machine happens to ship -- it was caught by a CI runner on
+ * macOS 14, but it would fail for anyone on an older Xcode.
+ *
+ * The choice of fast math itself is unchanged and deliberate; see the call
+ * sites.
+ */
+static void d9mtSetFastMath(MTLCompileOptions *opts)
+{
+#if defined(__MAC_OS_X_VERSION_MAX_ALLOWED) && __MAC_OS_X_VERSION_MAX_ALLOWED >= 150000
+  if (@available(macOS 15.0, *)) {
+    opts.mathMode = MTLMathModeFast;
+    return;
+  }
+#endif
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  opts.fastMathEnabled = YES;
+#pragma clang diagnostic pop
+}
+
 static NTSTATUS d9mt_new_library_from_source(void *args) {
   struct d9mt_newlibrary_params *p = args;
   p->ret_library = 0;
@@ -59,7 +86,7 @@ static NTSTATUS d9mt_new_library_from_source(void *args) {
   // geometry) and cost framerate. Any precision artifact from .fast is a per-shader
   // translation bug (e.g. unguarded normalize()/rsqrt producing unclamped NaN),
   // fixed in the SPIR-V->MSL path — never by globally slowing every game's math.
-  opts.mathMode = MTLMathModeFast;
+  d9mtSetFastMath(opts);
 
   NSError *err = nil;
   id<MTLLibrary> lib = [device newLibraryWithSource:src
@@ -572,7 +599,7 @@ d9mt_source_compile(id<MTLDevice> device, const char *source,
     return nil;
   MTLCompileOptions *opts = [[MTLCompileOptions alloc] init];
   opts.languageVersion = MTLLanguageVersion3_0;
-  opts.mathMode = MTLMathModeFast;  // fast always
+  d9mtSetFastMath(opts);  // fast always
 
   __block id<MTLLibrary> out_lib = nil;
   __block NSError *out_err = nil;

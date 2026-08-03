@@ -18,6 +18,13 @@ list(APPEND PROJECT_DIRS
     )
 add_dir("${PROJECT_DIRS}" "${PROJECT_NAME}")
 
+# The ImGui editor's entry point lives in this directory too, and add_dir globs
+# the whole directory -- so MSVC compiled it and stopped on a missing imgui.h.
+# The MFC editor is these sources minus that one.
+list(REMOVE_ITEM ${PROJECT_NAME}_SOURCE
+    "${CMAKE_CURRENT_SOURCE_DIR}/editor_main.cpp"
+)
+
 add_definitions(-D_AFXDLL)
 set(CMAKE_MFC_FLAG 2)
 
