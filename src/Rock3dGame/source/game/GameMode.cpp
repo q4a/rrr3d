@@ -1,4 +1,16 @@
 #include "stdafx.h"
+
+#ifdef _MSC_VER
+/*
+ * _setmbcp and _MB_CP_LOCALE, used by ApplyLanguage below.
+ *
+ * These used to arrive transitively -- the include-hygiene pass that made this
+ * tree compile on clang removed whatever dragged <mbctype.h> in, and nothing
+ * noticed because off Windows they come from XPlatform, which declares both.
+ * Windows CI found it the first time it got this far.
+ */
+#include <mbctype.h>
+#endif
 #include "game/World.h"
 
 #include "game/GameMode.h"

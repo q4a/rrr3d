@@ -64,7 +64,12 @@ if ! perl -MJSON -e '1' >/dev/null 2>&1; then
     echo "==> installing the Perl JSON module"
     brew list cpanminus >/dev/null 2>&1 || brew install cpanminus
     cpanm --notest --local-lib="$HOME/perl5" JSON
-    eval "$(perl -I"$HOME/perl5/lib/perl5" -Mlocal::lib="$HOME/perl5" 2>/dev/null)" || true
+
+    # PERL5LIB directly, rather than through local::lib -- which is itself a
+    # CPAN module and is not necessarily installed, so the eval that was here
+    # first failed silently and left @INC untouched. The module installed fine
+    # and the check right below still said it was missing.
+    export PERL5LIB="$HOME/perl5/lib/perl5${PERL5LIB:+:$PERL5LIB}"
 fi
 
 if ! perl -MJSON -e '1' >/dev/null 2>&1; then
