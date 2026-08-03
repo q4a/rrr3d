@@ -245,7 +245,20 @@ RecordNode* RecordNode::FindNode(const std::string& path)
 void RecordNode::Clear()
 {
 	ClearStructure();
-	_src->Clear();
+
+	/*
+	 * _src can already be gone, and only during destruction.
+	 *
+	 * RecordLib derives from RecordNode, so ~RecordLib's body runs before the
+	 * base ~RecordNode. That body releases _rootSrc, and a node's _src is a
+	 * child of it, so by the time ~RecordNode calls this the SerialNode has
+	 * been destroyed with its parent. ~RecordLib now clears and releases _src
+	 * itself, before letting go of the root, which leaves this null rather
+	 * than dangling -- and a destructor that tolerates having already been
+	 * partly torn down is the right shape for that.
+	 */
+	if (_src)
+		_src->Clear();
 }
 
 void RecordNode::SrcSync()
@@ -321,6 +334,30 @@ RecordLib::RecordLib(const std::string& name, lsl::SerialNode* rootSrc): _MyBase
 
 RecordLib::~RecordLib()
 {
+	/*
+	 * Tear the node tree down while _rootSrc is still alive.
+	 *
+	 * This class derives from RecordNode, so the base destructor runs AFTER
+	 * this body -- and RecordNode::~RecordNode calls Clear(), which reaches
+	 * _src, which is a child of _rootSrc. Releasing the root first destroyed
+	 * the child with it, and the base destructor then called through a
+	 * SerialNode that no longer existed:
+	 *
+	 *     SEGV on 0xffffffffffffff58   (a garbage vtable)
+	 *       RecordNode::Clear()      RecordLib.cpp
+	 *       RecordNode::~RecordNode()
+	 *       RecordLib::~RecordLib()
+	 *       DataBase::FreeMapObjLib()
+	 *       DataBase::Release()
+	 *       World::Free()
+	 *
+	 * Every process that initialised the database and then shut down cleanly
+	 * hit this. Nothing had, until the map editor: the game is killed rather
+	 * than quit, so its teardown had never run to the end.
+	 */
+	Clear();
+	lsl::SafeRelease(_src);
+
 	static_cast<lsl::Object*>(_rootSrc)->Release();
 }
 

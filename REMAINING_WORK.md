@@ -55,6 +55,7 @@ Zero undefined symbols. Audio is a real FAudio backend
     ./MapEditor                               # the map editor; File > Open... for a level
     RRR3D_EDITOR_OPEN=<map> ./MapEditor       # ...or skip the dialog
     RRR3D_EDITOR_FRAMES=<n> ./MapEditor       # run n frames and exit
+    RRR3D_EDITOR_CHECK=roundtrip ./MapEditor  # place, save, reload, verify; exits non-zero
 
     bin/Debug/AudioSweep                      # the rev sweep, without the game
     bin/Asan/AudioSweep 0 0 2                 # the same, held at the worst ratio
@@ -306,6 +307,19 @@ reading the image said success. It now derives the expected colour from the same
 vertex data the draw uses and makes that its exit status — which is why running
 it with `D9MT_ASYNC=1` reports the original bug in one line instead of needing an
 afternoon.
+
+**Nothing had ever shut down cleanly.** The game is always killed rather than
+quit, so `World::Free` had never run to the end -- and when the map editor
+became the first binary to exit properly, it segfaulted every time, in
+`RecordNode::~RecordNode`. `RecordLib` derives from `RecordNode`, so its own
+destructor body released `_rootSrc` *before* the base destructor ran, and the
+base then called through a `_src` that had been destroyed as a child of that
+root. Every process that initialised the database and exited cleanly would have
+hit it; none did.
+
+Two things follow. A subsystem nobody has ever torn down is untested no matter
+how much it has been run, and "we would have noticed" is not evidence when the
+exit path is `kill -9`.
 
 **Synthetic keystrokes measure the window manager unless you check.**
 `osascript ... key code N` goes to whatever application is frontmost, and a game

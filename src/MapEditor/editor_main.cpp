@@ -68,6 +68,7 @@
 #include "ICameraManager.h"
 #include "Rock3dGame.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -794,6 +795,211 @@ void ProcessPendingFile()
 	}
 }
 
+/* ----------------------------------------------------- the round-trip check --
+ *
+ * RRR3D_EDITOR_CHECK=roundtrip -- does an edit actually reach the file?
+ *
+ * This is the one thing about an editor that cannot be checked by looking at
+ * it. A screenshot proves an object is in the scene graph; it says nothing
+ * about whether saving wrote it, or whether loading reads back what was
+ * written. Everything in between -- the placement, the transform, the
+ * serialisation, the reload -- either survives that round trip or the editor is
+ * a viewer with extra steps.
+ *
+ * Verified two ways on purpose, because they can fail independently: the
+ * reloaded scene is asked what it holds, AND the file on disk is searched for
+ * the coordinates as text. A save that writes nothing and a load that ignores
+ * the file would agree with each other; neither agrees with grep.
+ */
+const D3DXVECTOR3 cCheckPos(1234.5f, 678.25f, 90.125f);
+
+unsigned CountMapObjects()
+{
+	edit::IMap* map = gDoc.Map();
+	if (!map)
+		return 0;
+
+	unsigned total = 0;
+	for (unsigned cat = 0; cat < map->GetCatCount(); ++cat)
+		for (edit::IMapObjRef obj = map->GetFirst(cat); obj; map->GetNext(cat, obj))
+			++total;
+
+	return total;
+}
+
+/* The first record anywhere in the library -- which one does not matter, only
+   that it is a real one the database will serialise. */
+bool FirstRecord(const std::vector<LibraryNode>& nodes, edit::IMapObjRecRef& out,
+	std::string& name)
+{
+	for (size_t i = 0; i < nodes.size(); ++i)
+	{
+		if (!nodes[i].records.empty())
+		{
+			out = nodes[i].records[0].second;
+			name = nodes[i].records[0].first;
+			return true;
+		}
+
+		if (FirstRecord(nodes[i].children, out, name))
+			return true;
+	}
+
+	return false;
+}
+
+bool FileContains(const std::string& path, const std::string& needle)
+{
+	std::FILE* f = std::fopen(path.c_str(), "rb");
+	if (!f)
+		return false;
+
+	std::string contents;
+	char buffer[8192];
+	size_t got = 0;
+	while ((got = std::fread(buffer, 1, sizeof(buffer), f)) > 0)
+		contents.append(buffer, got);
+	std::fclose(f);
+
+	return contents.find(needle) != std::string::npos;
+}
+
+int RunRoundTripCheck()
+{
+	std::fprintf(stderr, "MapEditor: round trip\n");
+
+	/*
+	 * Frames first. The interactive editor has always rendered several times
+	 * before anyone can click a library entry, and parts of the engine finish
+	 * arriving on those frames -- running the check against a world that has
+	 * never stepped crashes in the database walk. Ten is arbitrary and cheap.
+	 */
+	for (int i = 0; i < 10; ++i)
+		gWorld->MainProgress();
+
+	BuildLibrary();
+
+	edit::IMapObjRecRef record;
+	std::string recordName;
+	if (!FirstRecord(gLibrary, record, recordName))
+	{
+		std::fprintf(stderr, "  FAIL no records in the library\n");
+		return 1;
+	}
+
+	const unsigned before = CountMapObjects();
+	std::fprintf(stderr, "  record '%s', %u objects before\n", recordName.c_str(), before);
+
+	/* Place it the way a click does, then commit it the way the next click
+	   does -- through the same code, so this tests the editor and not a
+	   parallel path written for the test. */
+	BeginPlacement(record, cCheckPos);
+	if (!gPendingObject)
+	{
+		std::fprintf(stderr, "  FAIL placement produced nothing\n");
+		return 1;
+	}
+
+	gPendingObject->SetPos(cCheckPos);
+	const std::string placedName = gPendingObject->GetName();
+	gPendingObject = edit::IMapObjRef();          /* committed */
+	CancelPlacement();                            /* leaves link mode */
+
+	const unsigned placed = CountMapObjects();
+	if (placed != before + 1)
+	{
+		std::fprintf(stderr, "  FAIL after placing: %u objects, expected %u\n",
+			placed, before + 1);
+		return 1;
+	}
+	std::fprintf(stderr, "  placed '%s' at %.3f %.3f %.3f\n", placedName.c_str(),
+		double(cCheckPos.x), double(cCheckPos.y), double(cCheckPos.z));
+
+	const std::string path = "roundtrip_check.r3dMap";
+	gWorld->SaveLevel(path);
+
+	/* The file, read as text. GetAppFilePath prepends the application
+	   directory, and the level was saved through it, so look there. */
+	char coords[128];
+	std::snprintf(coords, sizeof(coords), "%g %g %g",
+		double(cCheckPos.x), double(cCheckPos.y), double(cCheckPos.z));
+
+	if (!FileContains(path, coords))
+	{
+		std::fprintf(stderr,
+			"  FAIL '%s' is not in the saved file -- the edit did not reach disk\n",
+			coords);
+		return 1;
+	}
+	std::fprintf(stderr, "  saved, and '%s' is in the file\n", coords);
+
+	/* Reload, and ask the scene rather than trusting the save. */
+	gDoc.SelectMapObj(edit::IMapObjRef());
+	gWorld->LoadLevel(path);
+
+	const unsigned after = CountMapObjects();
+	if (after != placed)
+	{
+		std::fprintf(stderr, "  FAIL after reload: %u objects, expected %u\n",
+			after, placed);
+		return 1;
+	}
+
+	bool found = false;
+	edit::IMap* map = gDoc.Map();
+	for (unsigned cat = 0; cat < map->GetCatCount() && !found; ++cat)
+	{
+		for (edit::IMapObjRef obj = map->GetFirst(cat); obj; map->GetNext(cat, obj))
+		{
+			const D3DXVECTOR3 p = obj->GetPos();
+			if (std::fabs(p.x - cCheckPos.x) < 0.01f &&
+			    std::fabs(p.y - cCheckPos.y) < 0.01f &&
+			    std::fabs(p.z - cCheckPos.z) < 0.01f)
+			{
+				found = true;
+				break;
+			}
+		}
+	}
+
+	if (!found)
+	{
+		std::fprintf(stderr,
+			"  FAIL nothing at %.3f %.3f %.3f after reload\n",
+			double(cCheckPos.x), double(cCheckPos.y), double(cCheckPos.z));
+		return 1;
+	}
+
+	std::fprintf(stderr, "  reloaded: %u objects, and one is where it was put\n", after);
+	std::fprintf(stderr, "MapEditor: round trip ok\n");
+	return 0;
+}
+
+/*
+ * Every engine reference this file holds, dropped before the world goes.
+ *
+ * gDoc's selection, the pending placement and the whole library cache are
+ * AutoRefs, and they live at file scope -- so without this they are destroyed
+ * after main returns, which is after ReleaseWorld has freed what they point at.
+ * AutoRef's destructor unhooks itself from the object's back-reference list, so
+ * it reads a vtable that is no longer there.
+ *
+ * That crashed on exit with a corrupt stack, EXC_BAD_ACCESS on an address that
+ * is plainly not a pointer, and it did so AFTER all the work had succeeded --
+ * so the process reported failure about a run that had gone perfectly. The
+ * round-trip check made it visible because its exit status is the whole point
+ * of it; the interactive editor had been doing it silently every time it quit.
+ */
+void ReleaseEditorRefs()
+{
+	gDoc.selMapObj = edit::IMapObjRef();
+	gDoc.selWayPoint = edit::IWayPointRef();
+	gPendingObject = edit::IMapObjRef();
+	gPendingRecord = edit::IMapObjRecRef();
+	gLibrary.clear();
+	gLibraryBuilt = false;
+}
+
 /* ---------------------------------------------------------------- overlay -- */
 
 /*
@@ -1028,6 +1234,37 @@ int main(int argc, char** argv)
 		SetStatus("opened " + gDoc.path);
 	}
 
+	if (const char* check = std::getenv("RRR3D_EDITOR_CHECK"))
+	{
+		int rc = 1;
+		if (std::strcmp(check, "roundtrip") == 0)
+			rc = RunRoundTripCheck();
+		else
+			std::fprintf(stderr, "unknown RRR3D_EDITOR_CHECK: %s\n", check);
+
+		/*
+		 * The same teardown as the normal exit, in the same order. Written
+		 * short the first time -- no Metal view, no window -- and it crashed
+		 * after the check had already passed, so the exit status said failure
+		 * about work that had succeeded. A test whose status is wrong either
+		 * way is worse than no test.
+		 */
+		gWorld->SetOverlay(NULL);
+
+		if (gOverlay.started())
+			ImGui_ImplDX9_Shutdown();
+		ImGui_ImplSDL3_Shutdown();
+		ImGui::DestroyContext();
+
+		ReleaseEditorRefs();
+		r3d::ReleaseWorld(gWorld);
+
+		SDL_Metal_DestroyView(gMetalView);
+		SDL_DestroyWindow(gWindow);
+		SDL_Quit();
+		return rc;
+	}
+
 	const long frameLimit = [] {
 		const char* v = std::getenv("RRR3D_EDITOR_FRAMES");
 		return v ? std::strtol(v, NULL, 10) : 0L;
@@ -1134,6 +1371,7 @@ int main(int argc, char** argv)
 	ImGui_ImplSDL3_Shutdown();
 	ImGui::DestroyContext();
 
+	ReleaseEditorRefs();
 	r3d::ReleaseWorld(gWorld);
 
 	SDL_Metal_DestroyView(gMetalView);
