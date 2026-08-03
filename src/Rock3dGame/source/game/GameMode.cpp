@@ -1955,23 +1955,52 @@ void GameMode::OnFrame(float deltaTime, float pxAlpha)
 	 * first frames of a race are spawn transient, and a trace dense enough to
 	 * bury that is a trace nobody reads.
 	 */
-	static const bool carTrace = [] {
+	/* RRR3D_CAR_TRACE=<n> samples every n frames; =1 means every frame. Plain
+	   "1" is the old behaviour of once a second, which is what a lap needs;
+	   a larger rate is for watching a single event go wrong. */
+	static const int carTrace = [] {
 		const char* v = std::getenv("RRR3D_CAR_TRACE");
-		return v && v[0] != '0';
+		if (!v || v[0] == '0')
+			return 0;
+		const int n = std::atoi(v);
+		return n > 1 ? n : 60;
 	}();
 
 	if (carTrace && _race && _race->GetHuman())
 	{
 		static int frames = 0;
-		if ((frames++ % 60) == 0)
+		if ((frames++ % carTrace) == 0)
 		{
 			Player* pl = _race->GetHuman()->GetPlayer();
 			MapObj* mo = pl ? pl->GetCar().mapObj : NULL;
 			if (mo)
 			{
 				const D3DXVECTOR3 p = mo->GetGameObj().GetPos();
-				std::fprintf(stderr, "car %4d  %8.2f %8.2f %8.2f\n",
-					frames / 60, double(p.x), double(p.y), double(p.z));
+				GameCar& gc = mo->GetGameObj<GameCar>();
+
+				/*
+				 * How far the car is pointing away from where it is going.
+				 * 1 is straight ahead, 0 is fully sideways, -1 is travelling
+				 * backwards -- which is what a spin looks like from here, and
+				 * is not the same thing as being commanded to reverse.
+				 */
+				const D3DXVECTOR3 dir = gc.GetGrActor().GetWorldDir();
+				D3DXVECTOR3 vel = gc.GetPxActor().GetNxActor()
+					? D3DXVECTOR3(gc.GetPxActor().GetNxActor()->getLinearVelocity().get())
+					: D3DXVECTOR3(0, 0, 0);
+				const float speedAbs = D3DXVec3Length(&vel);
+				float align = 1.0f;
+				if (speedAbs > 0.5f)
+				{
+					D3DXVec3Normalize(&vel, &vel);
+					align = D3DXVec3Dot(&dir, &vel);
+				}
+
+				std::fprintf(stderr,
+					"car %5d  %8.2f %8.2f %8.2f  fwd %7.2f  |v| %6.2f  align %6.2f  steer %6.2f\n",
+					frames, double(p.x), double(p.y), double(p.z),
+					double(gc.GetSpeed()), double(speedAbs), double(align),
+					double(gc.GetSteerWheelAngle()));
 				std::fflush(stderr);
 			}
 		}

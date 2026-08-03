@@ -45,7 +45,8 @@ Zero undefined symbols. Audio is a real FAudio backend
     RRR3D_DUMP_PATH=<file>                    # default frame.tga
     RRR3D_WHEEL_TRACE=1 ./RRR3d               # suspension rays and what they hit
     RRR3D_INPUT_TRACE=1 ./RRR3d               # keystrokes as the game receives them
-    RRR3D_CAR_TRACE=1 ./RRR3d                 # the player car's position, once a second
+    RRR3D_CAR_TRACE=1 ./RRR3d                 # player car: pos, speed, align; once a second
+    RRR3D_CAR_TRACE=6 ./RRR3d                 # ...every 6 frames, to watch one event
     RRR3D_AUDIO_NO_CALLBACKS=1 ./RRR3d        # audio plays, game callbacks withheld
     RRR3D_AUDIO_OFF=1 ./RRR3d                 # no FAudio engine at all
 
@@ -164,13 +165,38 @@ It now has a driver. The AI attached to the human's car under
 so `RRR3D_AUTORACE=1 RRR3D_CAR_TRACE=1` drives unattended and prints the car's
 position every second.
 
-**First result: the car drives, then gets stuck.** It accelerates off the line
-and covers about 170 units — roughly 28 units per second down the opening
-straight, turning correctly at the end of it — then oscillates around one corner
-instead of continuing. So acceleration, steering and the suspension are all
-doing something reasonable, and the open question is narrower than "does a car
-drive": it is what happens at that corner, and whether it is the AI's line or
-the handling underneath it.
+**The car drives. What it does not do is recover from a crash.** Measured with
+`RRR3D_CAR_TRACE=6`, which samples ten times a second and reports the car's
+speed, the magnitude of its velocity, and the dot product of its facing with
+its direction of travel:
+
+    car 865  51.37 15.40 6.83  fwd  48.99  |v| 48.99  align  1.00  steer 0.00
+    car 871  50.18 15.36 6.77  fwd  -3.42  |v|  3.78  align -0.91  steer 0.19
+
+One tenth of a second. It hits track geometry at x≈50 at full speed and
+rebounds. `align` of −1 is the rebound, not a spin: the car still faces
+forward while travelling backwards.
+
+Three things this rules out. The speed is right — `maxSpeed` is **48** in
+`db.xml` for every car that has one, and the peak measured was 48.99, so the
+shim is not over-driving it. The AI is right — its logic is 2.8's, the diff
+against `ec50208` being address-of-temporary fixes, include separators and a
+`binary_function` removal, nothing else. And the AI is not commanding the
+reverse: `backMovingMode` is never set on the player's car in any run traced.
+
+**What actually holds it there is a threshold.** Both of the AI's recovery
+mechanisms — backing up (`AICar.cpp:541`) and `Player::ResetCar`
+(`UpdateResetCar`, `:501`) — are gated on `abs(car.speed) < cMaxSpeedBlocking`,
+which is 0.5. A car pinned against geometry is not still: the engine keeps
+driving it and it grinds along at 2 to 3 units per second, comfortably above
+the threshold, so `blocking` never latches and neither escape hatch ever fires.
+It rebounds, accelerates, hits the same wall, and repeats.
+
+So the remaining question is narrow and it is not answerable here: does a 2.8
+car hit that wall at all? The AI's line is unchanged and the top speed is the
+shipped one, so if 2.8 got round that corner the difference is in how the car
+carries speed through it — which is exactly the comparison phase 9 has always
+owed, and which needs the Windows build that has never been compiled.
 
 A caution earned the hard way: **do not diagnose the physics from one frame.**
 Reading a single frame is what produced a confident and wrong conclusion that
