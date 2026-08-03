@@ -53,6 +53,25 @@ if (( ${#MISSING[@]} )); then
     brew install "${MISSING[@]}"
 fi
 
+# vkd3d's configure hard-fails without the Perl JSON module: it generates
+# include/private/spirv_grammar.h from spirv.core.grammar.json, which is part of
+# vkd3d-shader itself and not of the demos. macOS ships perl but not this
+# module, and JSON::PP -- which IS core -- is not what configure looks for.
+#
+# Missed until CI ran, because the machine this was developed on happened to
+# have it already. That is the whole reason the macOS job exists.
+if ! perl -MJSON -e '1' >/dev/null 2>&1; then
+    echo "==> installing the Perl JSON module"
+    brew list cpanminus >/dev/null 2>&1 || brew install cpanminus
+    cpanm --notest --local-lib="$HOME/perl5" JSON
+    eval "$(perl -I"$HOME/perl5/lib/perl5" -Mlocal::lib="$HOME/perl5" 2>/dev/null)" || true
+fi
+
+if ! perl -MJSON -e '1' >/dev/null 2>&1; then
+    echo "error: the Perl JSON module is still missing; vkd3d cannot configure" >&2
+    exit 1
+fi
+
 BISON_BIN="$(brew --prefix bison)/bin"
 BREW_PREFIX="$(brew --prefix)"
 WIDL="$BREW_PREFIX/bin/x86_64-w64-mingw32-widl"

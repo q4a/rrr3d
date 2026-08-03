@@ -55,4 +55,19 @@ endif()
 target_compile_definitions(${PROJECT_NAME}
     PRIVATE
     -DNETLIB_EXPORTS
+    # Boost's MSVC auto-linking, off.
+    #
+    # Boost headers emit `#pragma comment(lib, ...)` naming a compiled library
+    # for the exact toolset and version they were included from -- so pinning
+    # the headers to 1.69 (tools/setup-boost.py) made MSVC demand
+    # libboost_date_time-vc141-mt-gd-x32-1_69.lib, which nothing provides:
+    # extern.7z carries 1.59 binaries. Asio pulls date_time in for
+    # deadline_timer, so it happens even though nothing here uses date_time
+    # directly.
+    #
+    # Nothing to link, and that is the point of the pin: NetLib uses Asio, bind
+    # and system, all header-only in 1.69. This says so rather than shipping a
+    # binary to satisfy a pragma. Off Windows the pragma does not exist and the
+    # definition is harmless, so it is not conditional.
+    -DBOOST_ALL_NO_LIB
 )
