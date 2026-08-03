@@ -316,6 +316,15 @@ vertex data the draw uses and makes that its exit status — which is why runnin
 it with `D9MT_ASYNC=1` reports the original bug in one line instead of needing an
 afternoon.
 
+**`#ifdef` on a macro defined as an expression is always true.** `World.cpp`
+had `#define DRAW_DEBUG_INFO DEBUG_FRAME_SYNC | DEBUG_NET` with both switches
+commented out, guarded by `#ifdef` — so a debug overlay that was meant to be
+off has been compiled in the whole time, building a `gui::Label` that nothing
+ever deletes and holding a font reference forever. `#if` gives what was meant,
+because undefined identifiers evaluate to 0. It surfaced as
+`LSL_ASSERT(_refCnt == 0)` on shutdown, and only in the editor — the game never
+tears down, so nothing had ever checked.
+
 **High DPI needs an `.app` bundle, and there isn't one.** macOS only gives a
 window a Retina-resolution drawable if the application declares
 `NSHighResolutionCapable`, and that lives in a bundle's `Info.plist` — a bare

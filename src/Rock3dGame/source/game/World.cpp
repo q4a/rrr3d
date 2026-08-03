@@ -7,6 +7,21 @@
 
 //#define DEBUG_FRAME_SYNC 1
 //#define DEBUG_NET 1
+/*
+ * `#if`, not `#ifdef`, and the difference is the whole point.
+ *
+ * Both switches above are commented out, so this is meant to be off -- and in
+ * an `#if` it is: undefined identifiers evaluate to 0, so `0 | 0` is false.
+ * Under `#ifdef` the macro is *defined* regardless of what it expands to, so
+ * every site below has been compiled in the entire time.
+ *
+ * That is not free. LoadRes builds a gui::Label for it and gives it the
+ * "VerySmall" font; the label is a file-scope pointer that nothing ever
+ * deletes, so the font is left with a reference forever and its destructor
+ * trips LSL_ASSERT(_refCnt == 0) on shutdown. Found by breaking on that assert
+ * in the map editor -- which is the only binary here that shuts down at all,
+ * the game being killed rather than quit.
+ */
 #define DRAW_DEBUG_INFO DEBUG_FRAME_SYNC | DEBUG_NET
 
 namespace r3d
@@ -17,7 +32,7 @@ namespace game
 
 const float World::cMaxSimStep = 1/60.0f;
 
-#ifdef DRAW_DEBUG_INFO
+#if DRAW_DEBUG_INFO
 
 namespace
 {
@@ -203,7 +218,7 @@ void World::LoadRes()
 
 	_db->Init();
 
-#ifdef DRAW_DEBUG_INFO
+#if DRAW_DEBUG_INFO
 	if (_dbgInfo == NULL)
 	{
 		_dbgInfo = _graph->GetGUI().CreateLabel();
@@ -356,7 +371,7 @@ void World::OnReset(HWND window, lsl::Point resolution, bool fullScreen)
 	if (_game)
 		_game->OnResetView();	
 
-#ifdef DRAW_DEBUG_INFO
+#if DRAW_DEBUG_INFO
 	AdjustDbgInfo(_graph->GetGUI().GetVPSize());
 #endif
 
@@ -1092,7 +1107,7 @@ void World::ExitGame()
 	if (_game == NULL)
 		return;
 
-#ifdef DRAW_DEBUG_INFO
+#if DRAW_DEBUG_INFO
 	if (_dbgInfo)
 		_graph->GetGUI().ReleaseWidget(_dbgInfo);
 #endif
