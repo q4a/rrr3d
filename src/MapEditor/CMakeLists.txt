@@ -21,9 +21,15 @@ add_dir("${PROJECT_DIRS}" "${PROJECT_NAME}")
 # The ImGui editor's entry point lives in this directory too, and add_dir globs
 # the whole directory -- so MSVC compiled it and stopped on a missing imgui.h.
 # The MFC editor is these sources minus that one.
-list(REMOVE_ITEM ${PROJECT_NAME}_SOURCE
-    "${CMAKE_CURRENT_SOURCE_DIR}/editor_main.cpp"
-)
+#
+# FILTER on a regex rather than REMOVE_ITEM on a path, and that is not a style
+# choice. add_dir is called here with "." as the directory, so its
+# file(GLOB "./*.cpp") returns paths of the form
+# .../src/MapEditor/./editor_main.cpp -- with the "./" still in them. An exact
+# REMOVE_ITEM never matches that and removes nothing, silently. The other
+# exclusions in this tree happen to work only because their projects name real
+# subdirectories, so no "./" appears.
+list(FILTER ${PROJECT_NAME}_SOURCE EXCLUDE REGEX "editor_main\\.cpp$")
 
 add_definitions(-D_AFXDLL)
 set(CMAKE_MFC_FLAG 2)
