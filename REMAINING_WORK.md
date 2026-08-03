@@ -325,16 +325,26 @@ because undefined identifiers evaluate to 0. It surfaced as
 `LSL_ASSERT(_refCnt == 0)` on shutdown, and only in the editor — the game never
 tears down, so nothing had ever checked.
 
-**High DPI needs an `.app` bundle, and there isn't one.** macOS only gives a
-window a Retina-resolution drawable if the application declares
-`NSHighResolutionCapable`, and that lives in a bundle's `Info.plist` — a bare
-Unix executable never gets one, whatever `SDL_WINDOW_HIGH_PIXEL_DENSITY` says.
-`SDL_GetWindowPixelDensity` returns 1.0 and everything is rendered at half
-resolution and upscaled by the compositor. The editor has the flag and scales
-its interface by the density anyway, so it is correct the moment a bundle
-exists; until then the Retina case is *larger*, not *sharper*, and
-`RRR3D_EDITOR_SCALE` is the knob. This is the first user-visible consequence of
-the missing bundle — it was previously filed as latent.
+**High DPI does not need an `.app` bundle.** macOS only gives a window a
+Retina drawable if the application declares `NSHighResolutionCapable`, which
+normally lives in a bundle's `Info.plist` — and a bundle is expensive here,
+because `lsl::GetAppPath` returns the executable's directory and every asset is
+resolved against it, so moving the binary into `Contents/MacOS` moves the whole
+`Data` tree with it.
+
+The linker will embed a plist in a `__TEXT,__info_plist` section instead, which
+the system reads for a bare executable. `cmake/macos-info.plist` plus
+`rrr3d_high_dpi()` in `cmake/utils.cmake`, applied to both binaries.
+
+Measured across both displays, which is the only way to tell — the primary here
+is a 4K panel running 1:1, where a density of 1.0 is *correct* and proves
+nothing either way:
+
+    LG HDR 4K            3840x2160  ->  density 1.00
+    Built-in Retina      1970x1273  ->  density 2.00, 2x drawable
+
+A real bundle is still a packaging job for whenever this ships — icon, version,
+signature. It is no longer a prerequisite for a sharp picture.
 
 **Nothing had ever shut down cleanly.** The game is always killed rather than
 quit, so `World::Free` had never run to the end -- and when the map editor

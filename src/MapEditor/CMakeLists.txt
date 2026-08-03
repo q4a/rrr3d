@@ -72,3 +72,9 @@ else()
     endif()
 
 endif()
+
+# Retina drawables need NSHighResolutionCapable; see cmake/utils.cmake.
+# Guarded because this target does not exist when its dependencies are absent.
+if (TARGET ${PROJECT_NAME})
+    rrr3d_high_dpi(${PROJECT_NAME})
+endif()

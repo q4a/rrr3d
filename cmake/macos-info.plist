@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Embedded into the executable, not placed in an .app bundle.
+
+  macOS only grants a window a Retina-resolution drawable when the running
+  application declares NSHighResolutionCapable. Without it SDL_WINDOW_HIGH_
+  PIXEL_DENSITY does nothing, SDL_GetWindowPixelDensity returns 1.0, and
+  everything is rendered at half resolution and upscaled by the compositor --
+  which is why the map editor's text looked soft on a Retina panel.
+
+  That key normally lives in Contents/Info.plist of an .app bundle, and a bundle
+  is exactly what this port cannot cheaply produce: lsl::GetAppPath returns the
+  directory holding the executable, and every asset in the game is resolved
+  relative to it. In a bundle the executable sits in Contents/MacOS, so either
+  the whole Data tree moves in beside it or GetAppPath has to learn about
+  bundles -- and that function is on the path of every texture, sound, mesh and
+  level the game loads.
+
+  The linker will place a plist in a __TEXT,__info_plist section instead, and
+  the system reads it from there for a bare executable. Same declaration, no
+  bundle, no change to how anything is found on disk.
+
+  Kept deliberately minimal: this is not an application bundle and should not
+  pretend to be one. A real bundle -- with an icon, a version, a signature --
+  is a packaging job for whenever this port ships something.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+</dict>
+</plist>
