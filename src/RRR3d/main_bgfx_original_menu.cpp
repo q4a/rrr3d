@@ -4074,6 +4074,7 @@ int main(int argc, char** argv)
     bool finishMenuFrameObserved =
         !options->finishMenuSmokeTest;
     float finishAnimationSeconds = 0.0F;
+    std::size_t finishVoiceIndex = 0U;
     std::uint32_t raceSmokeMenuStep = 0;
     std::uint32_t raceSmokeNextMenuFrame = 0;
     bool raceSmokeAccelerateQueued = false;
@@ -4537,6 +4538,7 @@ int main(int argc, char** argv)
         raceElapsedSeconds = 0.0F;
         raceProgressSaved = false;
         finishMenuShown = false;
+        finishVoiceIndex = 0U;
         raceVehicles.resize(physicsWorld->vehicleCount());
         for (std::size_t index = 0;
              index < physicsWorld->vehicleCount(); ++index)
@@ -6401,11 +6403,17 @@ int main(int argc, char** argv)
             return;
         finishMenuShown = true;
         finishAnimationSeconds = 0.0F;
+        finishVoiceIndex = 0U;
         if (persistProgress)
             saveRaceProfile();
 #ifdef RRR3D_AUDIO
         if (persistProgress)
+        {
             stopRaceAudio();
+            // GameMode keeps its commentator alive during FinishMenu: the
+            // result boxes emit their own cPlayerFinish* events.
+            commentator.pause(false);
+        }
 #endif
         std::vector<std::size_t> order(
             raceSession.racers().size(), 0U);
@@ -6509,6 +6517,7 @@ int main(int argc, char** argv)
             return;
         finishMenuShown = false;
         finishAnimationSeconds = 0.0F;
+        finishVoiceIndex = 0U;
         const auto raceMenuPath = [&]() {
             return championshipMode
                        ? std::vector<MenuScreen>{
@@ -10780,7 +10789,7 @@ int main(int argc, char** argv)
                 maximumRaceSmokeContacts,
                 physicsWorld->vehicle().contactCount);
             if (!raceSession.racers().empty() &&
-                raceSession.racers().front().finished)
+                raceSession.finishPresentationReady())
                 showFinishMenu();
         }
 #endif
@@ -13884,6 +13893,17 @@ int main(int argc, char** argv)
                 accumulatedDuration += voiceDuration;
                 if (alpha <= 0.0F)
                     continue;
+#ifdef RRR3D_AUDIO
+                if (index == finishVoiceIndex)
+                {
+                    const auto& result =
+                        raceSession.racers()[finishRows[index].racer];
+                    commentator.finishPlace(
+                        *originalRace, finishRows[index].racer,
+                        result.place, audioError);
+                    ++finishVoiceIndex;
+                }
+#endif
                 const float offsetX =
                     (1.0F - alpha) *
                     (menu::virtualWidth + 25.0F) *

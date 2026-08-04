@@ -37,13 +37,23 @@ public:
         const r3d::game::originalrace::Race& race,
         const r3d::game::originalrace::OriginalRaceSession& session,
         std::string& error);
+    void finishPlace(
+        const r3d::game::originalrace::Race& race,
+        std::size_t racer, std::uint32_t place,
+        std::string& error);
     void pause(bool paused) noexcept;
 
     enum class Cue
     {
         Start,
         LastLap,
+        Overboard,
+        DeathMine,
         WrongWay,
+        LostControl,
+        LeaderFinish,
+        LeaderChanged,
+        LastFar,
         LowLife,
         Kill,
         Death,
@@ -55,18 +65,34 @@ public:
     };
 
 private:
-    void enqueue(Cue cue, bool replace, bool skipWhenBusy);
+    struct CueVoice
+    {
+        r3d::audio::SoundHandle sound = r3d::audio::invalidSound;
+        bool playerPrefix = false;
+        bool humanOnly = false;
+    };
+
+    void enqueue(
+        Cue cue,
+        const r3d::game::originalrace::Race* race,
+        std::size_t racer,
+        bool replace, bool skipWhenBusy,
+        float now = 0.0F,
+        float delay = 0.0F,
+        bool repeatPlayer = true);
     void playNext(std::string& error);
 
     r3d::audio::AudioBackend& audio_;
     const r3d::resource::ResourceFileSystem& resources_;
-    std::map<Cue, std::vector<r3d::audio::SoundHandle>> sounds_;
+    std::map<Cue, std::vector<CueVoice>> sounds_;
+    std::map<std::string, r3d::audio::SoundHandle> playerSounds_;
     std::map<Cue, std::size_t> nextSound_;
+    std::map<Cue, float> nextCueSeconds_;
+    std::map<Cue, std::size_t> lastCuePlayer_;
     std::deque<r3d::audio::SoundHandle> queue_;
     r3d::audio::VoiceHandle voice_ = r3d::audio::invalidVoice;
     bool initialized_ = false;
     bool paused_ = false;
-    bool wrongWay_ = false;
 };
 
 } // namespace rrr3d::audio

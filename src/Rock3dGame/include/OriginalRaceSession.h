@@ -42,6 +42,26 @@ enum class RaceEventKind
     ProjectileImpact,
     VehicleDestroyed,
     LowLife,
+    RaceFinish,
+    LastLap,
+    Overboard,
+    DeathMine,
+    MoveInverse,
+    LostControl,
+    LeadFinish,
+    SecondFinish,
+    ThirdFinish,
+    LastFinish,
+    LeadChanged,
+    ThirdChanged,
+    ThirdFar,
+    LastFar,
+    Domination,
+    Death,
+    FinishFirst,
+    FinishSecond,
+    FinishThird,
+    FinishLast,
 };
 
 enum class PickSlot : std::uint8_t
@@ -261,6 +281,7 @@ public:
     RacePhase phase() const noexcept;
     float countdownSeconds() const noexcept;
     float elapsedSeconds() const noexcept;
+    bool finishPresentationReady() const noexcept;
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;
@@ -313,19 +334,25 @@ private:
     const TracePoint& tracePoint(std::size_t path,
                                  std::size_t pathNode) const;
     TraceTileProjection projectTraceTile(
-        std::size_t path, std::size_t segment, Vec3 position) const;
+        std::size_t path, std::size_t segment, Vec3 position,
+        float widthError = 0.0F) const;
     TraceTileProjection findTraceTile(
         Vec3 position, TraceNodeRef preferred) const;
     bool linkedTraceTransition(TraceNodeRef previous,
                                TraceNodeRef current) const;
     TraceNodeRef racerTraceNode(std::size_t racer) const noexcept;
+    TraceNodeRef aiTraceNode(
+        std::size_t racer,
+        const r3d::physics::VehicleState& vehicle) const;
     float tracePathLength(std::size_t path) const;
     float traceDistance(TraceNodeRef node, float coordinate) const;
     float lapPosition(
         std::size_t racer,
         const r3d::physics::VehicleState& vehicle) const;
+    float lastCorrectLapPosition(std::size_t racer) const;
     void updateProgress(std::size_t racer,
-                        const r3d::physics::VehicleState& vehicle);
+                        const r3d::physics::VehicleState& vehicle,
+                        float seconds);
     r3d::physics::VehicleInput aiInput(
         std::size_t racer,
         const r3d::physics::VehicleState& vehicle,
@@ -362,12 +389,15 @@ private:
                           std::size_t attacker);
     void updateAchievements(float seconds);
     void completeAchievement(std::size_t achievement);
+    void completeRemainingRacers(
+        const std::vector<r3d::physics::VehicleState>& vehicles);
 
     const Race& race_;
     RacePhase phase_ = RacePhase::Countdown;
     RacePhase phaseBeforePause_ = RacePhase::Countdown;
     float countdownSeconds_ = 3.0F;
     float elapsedSeconds_ = 0.0F;
+    float finishSecondsRemaining_ = -1.0F;
     int countdownDisplay_ = 3;
     std::vector<RacerRuntime> racers_;
     std::vector<r3d::physics::VehicleInput> vehicleInputs_;
@@ -406,6 +436,15 @@ private:
     // valid tile position while the car is outside the trace corridor.
     std::vector<Vec3> mapPositions_;
     std::vector<Vec3> previousPositions_;
+    // Player::CarState::Update keeps the fastest speed observed during the
+    // current one-second window and emits cPlayerLostControl for the exact
+    // source 80 m/s collapse condition.
+    std::vector<float> maximumSpeeds_;
+    std::vector<float> maximumSpeedSeconds_;
+    // Race::OnLateProgress uses last-correct path positions to debounce
+    // leader/third-place changes by 300 source units.
+    float lastLeadPlace_ = 0.0F;
+    float lastThirdPlace_ = 0.0F;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;
     std::vector<MineRuntime> mines_;
