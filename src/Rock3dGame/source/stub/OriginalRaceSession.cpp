@@ -251,17 +251,6 @@ Quat rotationWithUp(Vec3 normal)
     return quaternionFromAxes(direction, right, up);
 }
 
-Quat rotationWithForward(Vec3 value)
-{
-    const Vec3 direction = normalized3(value);
-    Vec3 right = cross({0.0F, 0.0F, 1.0F}, direction);
-    if (length3(right) <= 0.0001F)
-        right = cross({0.0F, 1.0F, 0.0F}, direction);
-    right = normalized3(right);
-    const Vec3 up = normalized3(cross(direction, right));
-    return quaternionFromAxes(direction, right, up);
-}
-
 struct TrackRayHit
 {
     Vec3 position;
@@ -3200,6 +3189,41 @@ void OriginalRaceSession::updateGameplay(
             {
                 runtime.shieldDamageSeconds = 0.0F;
             }
+            if (damageType != DamageType::Energy ||
+                target >= race_.racers.size())
+                return;
+            // DataBase::LoadCar attaches one dtEnergy DamageEffect to each
+            // car. EventEffect::MakeEffect does not replace or restart the
+            // active 0.5-second damageEnergy<car> child.
+            const bool alreadyActive = std::any_of(
+                effects_.begin(), effects_.end(),
+                [&](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::VehicleEnergyDamage &&
+                           effect.racer == target;
+                });
+            if (alreadyActive)
+                return;
+            const auto& sourceRacer = race_.racers[target];
+            const auto& vehicleDefinition =
+                sourceRacer.hasConfiguredVehicle
+                    ? sourceRacer.configuredVehicle
+                    : race_.vehicles.at(sourceRacer.vehicle);
+            const auto& visual =
+                vehicleDefinition.energyDamageEffect;
+            if (visual.visualNodes.empty() &&
+                visual.particleEmitters.empty())
+                return;
+            RaceEffect effect;
+            effect.kind = RaceEventKind::VehicleEnergyDamage;
+            effect.racer = target;
+            effect.origin = position;
+            effect.totalSeconds =
+                visual.maximumTimeLife > 0.0F
+                    ? visual.maximumTimeLife
+                    : 0.5F;
+            effect.seconds = effect.totalSeconds;
+            effects_.push_back(std::move(effect));
         };
     auto applyRacerDamage =
         [&](std::size_t target, std::size_t attacker,
@@ -3440,6 +3464,15 @@ void OriginalRaceSession::updateGameplay(
             projectile.direction = normalized3(
                 rotate(shotTransform.rotation,
                        {1.0F, 0.0F, 0.0F}));
+            if (projectileDefinition.type == 14U)
+            {
+                // Proj::FireUpdate mirrors the current mounted weapon/car
+                // actor velocity, allowing world-coordinate emitters to
+                // subtract the correct source motion.
+                projectile.velocity =
+                    vehicles[projectile.owner].linearVelocity;
+                projectile.speed = length3(projectile.velocity);
+            }
             const float maximumDistance =
                 projectile.maximumDistance > 0.0F
                     ? projectile.maximumDistance
@@ -3754,8 +3787,10 @@ void OriginalRaceSession::updateGameplay(
                     thunderReflection(projectile.velocity, normal);
                 projectile.direction =
                     normalized3(projectile.velocity);
-                projectile.rotation =
-                    rotationWithForward(projectile.direction);
+                // ThunderContact only changes PhysX linear velocity. The
+                // projectile actor/model rotation remains the shot rotation
+                // (and Resonanse is the only RocketUpdate variant that spins
+                // its actor explicitly).
                 projectile.reflectionCooldown = 0.1F;
             }
         }
@@ -4790,13 +4825,25 @@ void OriginalRaceSession::updateGameplay(
             const auto shotTransform = projectileWorldTransform(
                 shooter, firedWeapon, firedSlot, projectile);
             const Vec3 projectileOrigin = shotTransform.position;
-            Vec3 direction = normalized3(
+            const Vec3 sourceDirection = normalized3(
                 rotate(shotTransform.rotation,
                        {1.0F, 0.0F, 0.0F}));
-            if (std::abs(direction.z) < 0.707F)
-                direction = normalized2(direction);
+            Vec3 launchDirection = sourceDirection;
+            // Proj::CalcSpeed levels only projectiles prepared through
+            // RocketPrepare. Laser/FrostRay/Drobilka keep the weapon actor's
+            // full 3D direction; applying CalcSpeed to them changed both ray
+            // hits and visible beam alignment on slopes.
+            const bool rocketPrepared =
+                projectile.type == 0U || projectile.type == 2U ||
+                projectile.type == 14U || projectile.type == 16U ||
+                projectile.type == 19U || projectile.type == 21U ||
+                projectile.type == 22U || projectile.type == 23U;
+            if (rocketPrepared &&
+                std::abs(launchDirection.z) < 0.707F)
+                launchDirection = normalized2(launchDirection);
             const float forwardVehicleSpeed = std::max(
-                dot3(direction, vehicles[shooter].linearVelocity),
+                dot3(launchDirection,
+                     vehicles[shooter].linearVelocity),
                 0.0F);
             // HumanPlayer::Shot(WeaponType) asks Player for the closest
             // enemy in pi/5.5, except sphereGun which passes viewAngle=0.
@@ -4826,7 +4873,7 @@ void OriginalRaceSession::updateGameplay(
                 const auto rayHit = raycastWorld(
                     race_, vehicles, racers_, shooter,
                     add(projectileOrigin, projectile.sizeAddPx),
-                    direction, projectileDistance);
+                    sourceDirection, projectileDistance);
                 if (rayHit.hit)
                 {
                     targetDistance = rayHit.distance;
@@ -4836,7 +4883,9 @@ void OriginalRaceSession::updateGameplay(
             Vec3 end = add(
                 projectileOrigin,
                 multiply(
-                    direction,
+                    rayProjectile || attachedProjectile
+                        ? sourceDirection
+                        : launchDirection,
                     rayProjectile && !attachedProjectile
                         ? targetDistance
                         : projectileDistance));
@@ -4848,8 +4897,15 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.projectile = projectileIndex;
                 runtimeProjectile.mountSlot = firedSlot;
                 runtimeProjectile.position = projectileOrigin;
-                runtimeProjectile.direction = direction;
+                runtimeProjectile.direction = sourceDirection;
                 runtimeProjectile.rotation = shotTransform.rotation;
+                if (projectile.type == 14U)
+                {
+                    // FireUpdate copies the mounted weapon actor velocity on
+                    // every source tick before relocating the contact box.
+                    runtimeProjectile.velocity =
+                        vehicles[shooter].linearVelocity;
+                }
                 runtimeProjectile.maximumDistance =
                     projectileDistance;
                 runtimeProjectile.damage = projectile.damage;
@@ -4881,11 +4937,11 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.projectile = projectileIndex;
                 runtimeProjectile.mountSlot = firedSlot;
                 runtimeProjectile.position = projectileOrigin;
-                runtimeProjectile.direction = direction;
+                runtimeProjectile.direction = launchDirection;
                 runtimeProjectile.rotation = shotTransform.rotation;
                 runtimeProjectile.speed = speed;
                 runtimeProjectile.velocity =
-                    multiply(direction, speed);
+                    multiply(launchDirection, speed);
                 runtimeProjectile.maximumDistance =
                     projectileDistance;
                 runtimeProjectile.damage = projectile.damage;
@@ -4911,7 +4967,7 @@ void OriginalRaceSession::updateGameplay(
                 end = add(
                     projectileOrigin,
                     multiply(
-                        direction,
+                        launchDirection,
                         std::min(std::max(speed * 0.03F, 0.5F),
                                  projectileDistance)));
             }
@@ -7510,6 +7566,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             outsideVehicles[0].linearVelocity = {
                 80.0F, 0.0F, 0.0F};
+            constexpr float sourcePitch = 0.25F;
+            outsideVehicles[0].body.rotation = {
+                0.0F, std::sin(sourcePitch * 0.5F), 0.0F,
+                std::cos(sourcePitch * 0.5F)};
             RaceControl thunderInput;
             for (int frame = 0; frame < 190; ++frame)
             {
@@ -7537,10 +7597,15 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     thunderSession.projectiles().end() ||
                 std::abs(sourceProjectile->speed - 120.0F) > 0.001F ||
                 std::abs(sourceProjectile->lifeSeconds - 5.0F) >
-                    0.001F)
+                    0.001F ||
+                std::abs(sourceProjectile->direction.z) > 0.001F ||
+                std::abs(rotate(
+                             sourceProjectile->rotation,
+                             {1.0F, 0.0F, 0.0F})
+                             .z) < 0.05F)
             {
                 throw std::runtime_error(
-                    "source RocketPrepare relative speed/lifetime failed");
+                    "source RocketPrepare direction/speed/lifetime failed");
             }
             for (int frame = 0; frame < 121; ++frame)
             {
@@ -8001,6 +8066,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 frostVehicles[index].body.rotation = {};
                 frostVehicles[index].linearVelocity = {};
             }
+            constexpr float sourcePitch = 0.25F;
+            frostVehicles[0].body.rotation = {
+                0.0F, std::sin(sourcePitch * 0.5F), 0.0F,
+                std::cos(sourcePitch * 0.5F)};
             RaceControl frostInput;
             for (int frame = 0; frame < 190; ++frame)
             {
@@ -8025,11 +8094,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            projectile.attached;
                 });
             if (sourceRay == frostSession.projectiles().end() ||
-                std::abs(sourceRay->lifeSeconds - 1.0F) > 0.001F)
+                std::abs(sourceRay->lifeSeconds - 1.0F) > 0.001F ||
+                std::abs(sourceRay->direction.z) < 0.05F)
             {
                 throw std::runtime_error(
-                    "source attached minTimeLife was replaced by "
-                    "shotDelay");
+                    "source attached minTimeLife/full weapon direction "
+                    "was not preserved");
             }
             const auto& targetDefinition =
                 race.racers[1].hasConfiguredVehicle
@@ -8055,12 +8125,30 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source FrostRay SlowEffect child was not created");
             }
-            frostSession.update(
-                1.0F / 60.0F, frostVehicles, frostInput);
-            if (frostSession.racers()[1].slowSeconds >= 0.99F)
+            const auto energyDamageCount = [&]() {
+                return std::count_if(
+                    frostSession.effects().begin(),
+                    frostSession.effects().end(),
+                    [](const RaceEffect& effect) {
+                        return effect.kind ==
+                                   RaceEventKind::VehicleEnergyDamage &&
+                               effect.racer == 1U &&
+                               std::abs(effect.totalSeconds - 0.5F) <
+                                   0.001F;
+                    });
+            };
+            if (energyDamageCount() != 1)
             {
                 throw std::runtime_error(
-                    "source SlowEffect lifetime was reset by every ray "
+                    "source dtEnergy DamageEffect was not created");
+            }
+            frostSession.update(
+                1.0F / 60.0F, frostVehicles, frostInput);
+            if (frostSession.racers()[1].slowSeconds >= 0.99F ||
+                energyDamageCount() != 1)
+            {
+                throw std::runtime_error(
+                    "source EventEffect lifetime was reset by every ray "
                     "contact");
             }
             frostVehicles[1].body.position = {
@@ -8074,7 +8162,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 frostSession.racers()[1].slowWeapon !=
                     RacerRuntime::invalidWeapon ||
                 frostSession.racers()[1].slowProjectile !=
-                    RacerRuntime::invalidWeapon)
+                    RacerRuntime::invalidWeapon ||
+                energyDamageCount() != 0)
             {
                 throw std::runtime_error(
                     "source Frost SlowEffect did not expire with its "

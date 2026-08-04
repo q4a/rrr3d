@@ -125,6 +125,12 @@ struct VisualNode
     AnimationMode animationMode = AnimationMode::None;
     float animationDuration = 1.0F;
     float animationFrame = 0.0F;
+    // BaseSceneNode::OnProgress applies these serialized velocities whenever
+    // animMode is not amNone. They animate the node transform itself rather
+    // than the material frame.
+    Vec3 speedPosition;
+    Vec3 speedScale;
+    Quat speedRotation;
 };
 
 enum class ParticleRenderMode
@@ -189,6 +195,11 @@ struct ParticleEmitterDefinition
         VisualNode::AnimationMode::None;
     float animationDuration = 1.0F;
     float animationFrame = 0.0F;
+    // FxParticleSystem is a BaseSceneNode too. Its node transform advances
+    // before the emitter evaluates its individual particles.
+    Vec3 nodeSpeedPosition;
+    Vec3 nodeSpeedScale;
+    Quat nodeSpeedRotation;
     ParticleMaximumAction maximumAction =
         ParticleMaximumAction::WaitForFree;
     // FxTrailManager is configured once in DataBase.cpp and shared by the
@@ -345,6 +356,9 @@ struct Vehicle
     ObjectDefinition lowLifeEffect;
     Vec3 lowLifeEffectPosition{0.0F, 0.0F, 0.5F};
     float lowLifeLevel = 0.35F;
+    // DataBase::LoadCar creates damageEnergy<car> and attaches a
+    // DamageEffect filtered to dtEnergy for every vehicle.
+    ObjectDefinition energyDamageEffect;
     ObjectDefinition shieldEffect;
     Vec3 shieldEffectScale{1.3F, 1.7F, 1.7F};
     std::vector<DeathEffectDefinition> deathEffects;

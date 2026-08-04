@@ -149,6 +149,7 @@ private:
     std::vector<ObjectAsset> vehicleBodies_;
     std::vector<std::vector<ObjectAsset>> vehicleWheels_;
     std::vector<ObjectAsset> vehicleLowLifeEffects_;
+    std::vector<ObjectAsset> vehicleEnergyDamageEffects_;
     std::vector<ObjectAsset> vehicleShieldEffects_;
     std::vector<r3d::physics::Vec3> vehicleShieldScales_;
     std::vector<std::vector<ObjectAsset>> vehicleDeathEffects_;

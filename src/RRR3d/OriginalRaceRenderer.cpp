@@ -768,6 +768,77 @@ float visualAnimationFrame(
         node.animationFrame, seconds);
 }
 
+r3d::physics::Transform sourceAnimatedNodeTransform(
+    r3d::physics::Transform result,
+    r3d::game::originalrace::VisualNode::AnimationMode mode,
+    const r3d::physics::Vec3& speedPosition,
+    const r3d::physics::Vec3& speedScale,
+    r3d::physics::Quat speedRotation, float seconds) noexcept
+{
+    using Mode =
+        r3d::game::originalrace::VisualNode::AnimationMode;
+    // BaseSceneNode::OnProgress gates all three transform velocities on
+    // animMode != amNone.  Once only clamps the graph frame; it does not
+    // stop the transform velocity before the owning object dies.
+    if (mode == Mode::None)
+        return result;
+    seconds = std::max(seconds, 0.0F);
+    result.position.x += speedPosition.x * seconds;
+    result.position.y += speedPosition.y * seconds;
+    result.position.z += speedPosition.z * seconds;
+    result.scale.x += speedScale.x * seconds;
+    result.scale.y += speedScale.y * seconds;
+    result.scale.z += speedScale.z * seconds;
+
+    const float quaternionLength = std::sqrt(
+        speedRotation.x * speedRotation.x +
+        speedRotation.y * speedRotation.y +
+        speedRotation.z * speedRotation.z +
+        speedRotation.w * speedRotation.w);
+    if (quaternionLength <= 0.0001F)
+        return result;
+    speedRotation.x /= quaternionLength;
+    speedRotation.y /= quaternionLength;
+    speedRotation.z /= quaternionLength;
+    speedRotation.w /= quaternionLength;
+    const float axisLength = std::sqrt(
+        speedRotation.x * speedRotation.x +
+        speedRotation.y * speedRotation.y +
+        speedRotation.z * speedRotation.z);
+    if (axisLength <= 0.0001F)
+        return result;
+    const float angle =
+        2.0F * std::acos(std::clamp(speedRotation.w, -1.0F, 1.0F));
+    const float halfAngle = angle * seconds * 0.5F;
+    const float sine = std::sin(halfAngle);
+    const r3d::physics::Quat delta{
+        speedRotation.x / axisLength * sine,
+        speedRotation.y / axisLength * sine,
+        speedRotation.z / axisLength * sine,
+        std::cos(halfAngle)};
+    result.rotation = multiply(delta, result.rotation);
+    return result;
+}
+
+r3d::physics::Transform sourceAnimatedNodeTransform(
+    const r3d::game::originalrace::VisualNode& node,
+    float seconds) noexcept
+{
+    return sourceAnimatedNodeTransform(
+        node.transform, node.animationMode, node.speedPosition,
+        node.speedScale, node.speedRotation, seconds);
+}
+
+r3d::physics::Transform sourceAnimatedNodeTransform(
+    const r3d::game::originalrace::ParticleEmitterDefinition& emitter,
+    float seconds) noexcept
+{
+    return sourceAnimatedNodeTransform(
+        emitter.transform, emitter.animationMode,
+        emitter.nodeSpeedPosition, emitter.nodeSpeedScale,
+        emitter.nodeSpeedRotation, seconds);
+}
+
 std::array<float, 4> materialColor(
     const r3d::game::originalrace::MaterialDefinition& material,
     float frame) noexcept
@@ -1571,6 +1642,7 @@ bool OriginalRaceRenderer::initialize(
         vehicleBodies_.resize(race.racers.size());
         vehicleWheels_.resize(race.racers.size());
         vehicleLowLifeEffects_.resize(race.racers.size());
+        vehicleEnergyDamageEffects_.resize(race.racers.size());
         vehicleShieldEffects_.resize(race.racers.size());
         vehicleShieldScales_.resize(race.racers.size());
         vehicleDeathEffects_.resize(race.racers.size());
@@ -1586,6 +1658,9 @@ bool OriginalRaceRenderer::initialize(
             loadDefinition(
                 vehicleLowLifeEffects_[racer],
                 vehicle.lowLifeEffect);
+            loadDefinition(
+                vehicleEnergyDamageEffects_[racer],
+                vehicle.energyDamageEffect);
             const bool hasShieldEffect =
                 !vehicle.shieldEffect.visualNodes.empty() ||
                 !vehicle.shieldEffect.particleEmitters.empty();
@@ -1855,6 +1930,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
             releaseObject(wheel);
     for (auto& effect : vehicleLowLifeEffects_)
         releaseObject(effect);
+    for (auto& effect : vehicleEnergyDamageEffects_)
+        releaseObject(effect);
     for (auto& effect : vehicleShieldEffects_)
         releaseObject(effect);
     for (auto& effects : vehicleDeathEffects_)
@@ -1890,6 +1967,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     vehicleBodies_.clear();
     vehicleWheels_.clear();
     vehicleLowLifeEffects_.clear();
+    vehicleEnergyDamageEffects_.clear();
     vehicleShieldEffects_.clear();
     vehicleShieldScales_.clear();
     vehicleDeathEffects_.clear();
@@ -2453,8 +2531,10 @@ void OriginalRaceRenderer::draw(
         const std::size_t count = std::min(asset.nodes.size(), nodes.size());
         for (std::size_t index = 0; index < count; ++index)
         {
-            const auto world =
-                compose(parent, nodes[index].transform);
+            const auto world = compose(
+                parent,
+                sourceAnimatedNodeTransform(
+                    nodes[index], animationSeconds));
             auto model = transform(world);
             if (nodes[index].billboard)
             {
@@ -2691,8 +2771,9 @@ void OriginalRaceRenderer::draw(
                             }))
                         break;
                 }
-                const auto emitterWorld =
-                    compose(parent, emitter.transform);
+                const auto emitterWorld = compose(
+                    parent,
+                    sourceAnimatedNodeTransform(emitter, age));
                 std::vector<r3d::physics::Vec3> trailPoints;
                 MaterialState trailMaterial;
                 PipelineState trailPipeline;
@@ -3216,18 +3297,13 @@ void OriginalRaceRenderer::draw(
     {
         if (index < bonusActive.size() && !bonusActive[index])
             continue;
-        auto animated = race.bonuses[index].transform;
-        animated.position.z +=
-            0.35F * std::sin(elapsedSeconds * 2.0F +
-                            static_cast<float>(index));
-        const float halfAngle = elapsedSeconds * 0.75F;
-        animated.rotation = multiply(
-            animated.rotation,
-            {0.0F, 0.0F, std::sin(halfAngle),
-             std::cos(halfAngle)});
+        // The shipped ctBonus actors have amNone and zero transform
+        // velocities. They remain at their serialized map transform; the
+        // former bob/spin was a portable invention and made pickup collision
+        // appear detached from the visible object.
         drawDefinition(
             bonuses_.at(index), race.bonuses[index].visual,
-            animated, elapsedSeconds, 0.0F);
+            race.bonuses[index].transform, elapsedSeconds, 0.0F);
     }
 
     const std::size_t racerCount =
@@ -3594,6 +3670,26 @@ void OriginalRaceRenderer::draw(
     {
         if (effect.kind ==
                 r3d::game::originalrace::RaceEventKind::
+                    VehicleEnergyDamage &&
+            effect.racer < vehicles.size() &&
+            effect.racer < race.racers.size() &&
+            effect.racer < vehicleEnergyDamageEffects_.size())
+        {
+            const auto& sourceRacer = race.racers[effect.racer];
+            const auto& vehicle =
+                sourceRacer.hasConfiguredVehicle
+                    ? sourceRacer.configuredVehicle
+                    : race.vehicles.at(sourceRacer.vehicle);
+            drawDefinition(
+                vehicleEnergyDamageEffects_[effect.racer],
+                vehicle.energyDamageEffect,
+                vehicles[effect.racer].body,
+                effect.totalSeconds - effect.seconds,
+                std::abs(vehicles[effect.racer].speed));
+            continue;
+        }
+        if (effect.kind ==
+                r3d::game::originalrace::RaceEventKind::
                     VehicleDestroyed &&
             effect.racer < race.racers.size() &&
             effect.racer < vehicleDeathEffects_.size())
@@ -3896,7 +3992,10 @@ void OriginalRaceRenderer::drawShadowCasters(
             {
                 drawShadowGroups(
                     device, asset.nodes[index], shadowShader_,
-                    transform(compose(parent, nodes[index].transform)),
+                    transform(compose(
+                        parent,
+                        sourceAnimatedNodeTransform(
+                            nodes[index], elapsedSeconds))),
                     shadowPipeline, elapsedSeconds, &nodes[index]);
             }
         };

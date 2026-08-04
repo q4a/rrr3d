@@ -41,6 +41,7 @@ enum class RaceEventKind
     Achievement,
     ProjectileImpact,
     VehicleDestroyed,
+    VehicleEnergyDamage,
     LowLife,
     RaceFinish,
     LastLap,

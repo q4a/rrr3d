@@ -1070,6 +1070,45 @@ Transform compose(const Transform& parent, const Transform& local)
     return result;
 }
 
+Quat inverseRotation(const Quat& value)
+{
+    const float norm = value.x * value.x + value.y * value.y +
+                       value.z * value.z + value.w * value.w;
+    if (norm <= 0.000001F)
+        return {};
+    return {-value.x / norm, -value.y / norm, -value.z / norm,
+            value.w / norm};
+}
+
+Vec3 parentVector(const Transform& parent, const Vec3& value)
+{
+    return rotate(
+        parent.rotation,
+        {value.x * parent.scale.x, value.y * parent.scale.y,
+         value.z * parent.scale.z});
+}
+
+Quat parentRotationVelocity(const Transform& parent, const Quat& value)
+{
+    // Flatten parent * (delta * child) into
+    // (parent * delta * inverse(parent)) * (parent * child).
+    return multiply(
+        multiply(parent.rotation, value),
+        inverseRotation(parent.rotation));
+}
+
+void flattenVisualNode(VisualNode& node, const Transform& parent)
+{
+    node.speedPosition = parentVector(parent, node.speedPosition);
+    node.speedScale = {
+        node.speedScale.x * parent.scale.x,
+        node.speedScale.y * parent.scale.y,
+        node.speedScale.z * parent.scale.z};
+    node.speedRotation =
+        parentRotationVelocity(parent, node.speedRotation);
+    node.transform = compose(parent, node.transform);
+}
+
 std::vector<VisualNode> visualNodes(
     const resource::ResourceFileSystem& resources, TiXmlElement* record,
     std::string_view source, std::string_view textureOverride = {})
@@ -1165,6 +1204,12 @@ std::vector<VisualNode> visualNodes(
         {
             node.animationFrame = scalar(item, "frame", source);
         }
+        if (child(item, "speedPos") != nullptr)
+            node.speedPosition = vector3(item, "speedPos", source);
+        if (child(item, "speedScale") != nullptr)
+            node.speedScale = vector3(item, "speedScale", source);
+        if (child(item, "speedRot") != nullptr)
+            node.speedRotation = quaternion(item, "speedRot", source);
         if (plane)
         {
             auto* size = child(item, "size");
@@ -1276,6 +1321,26 @@ void appendParticleEmitters(
             continue;
         const Transform nodeTransform =
             compose(parentTransform, elementTransform(node, source));
+        const Vec3 nodeSpeedPosition =
+            child(node, "speedPos") != nullptr
+                ? parentVector(
+                      parentTransform,
+                      vector3(node, "speedPos", source))
+                : Vec3{};
+        const Vec3 rawNodeSpeedScale =
+            child(node, "speedScale") != nullptr
+                ? vector3(node, "speedScale", source)
+                : Vec3{};
+        const Vec3 nodeSpeedScale{
+            rawNodeSpeedScale.x * parentTransform.scale.x,
+            rawNodeSpeedScale.y * parentTransform.scale.y,
+            rawNodeSpeedScale.z * parentTransform.scale.z};
+        const Quat nodeSpeedRotation =
+            child(node, "speedRot") != nullptr
+                ? parentRotationVelocity(
+                      parentTransform,
+                      quaternion(node, "speedRot", source))
+                : Quat{};
         VisualNode::AnimationMode animationMode =
             VisualNode::AnimationMode::None;
         float animationDuration = 1.0F;
@@ -1361,6 +1426,9 @@ void appendParticleEmitters(
             emitter.animationMode = animationMode;
             emitter.animationDuration = animationDuration;
             emitter.animationFrame = animationFrame;
+            emitter.nodeSpeedPosition = nodeSpeedPosition;
+            emitter.nodeSpeedScale = nodeSpeedScale;
+            emitter.nodeSpeedRotation = nodeSpeedRotation;
             if (renderMode == ParticleRenderMode::Trail)
             {
                 // DataBase::Init uses one FxTrailManager with width 0.3,
@@ -1520,8 +1588,7 @@ void appendIncludedEffects(
         auto nodes = visualNodes(resources, includedRecord, source);
         for (auto& node : nodes)
         {
-            node.transform =
-                compose(includeTransform, node.transform);
+            flattenVisualNode(node, includeTransform);
             definition.visualNodes.push_back(std::move(node));
         }
         appendParticleEmitters(
@@ -1648,8 +1715,7 @@ ObjectDefinition objectDefinition(
                 destructionPiece.transform = pieceTransform;
                 for (auto& node : nodes)
                 {
-                    node.transform =
-                        compose(pieceTransform, node.transform);
+                    flattenVisualNode(node, pieceTransform);
                     destructionPiece.visualNodes.push_back(node);
                     result.visualNodes.push_back(std::move(node));
                 }
@@ -2565,6 +2631,13 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
     result.lowLifeEffect = objectDefinition(
         resources, database, "world\\db\\root\\ctEffects\\smoke6",
         source + "/LowLifePoints/smoke6");
+    // DataBase::LoadCar constructs this record from the actual car mesh,
+    // body visual transform and Effect\\shield1, then attaches a
+    // DamageEffect whose filter is dtEnergy.
+    result.energyDamageEffect = objectDefinition(
+        resources, database,
+        "world\\db\\root\\ctEffects\\damageEnergy" + basename(record),
+        source + "/DamageEffect/damageEnergy");
     // DataBase::LoadCar attaches ImmortalEffect to every car with this
     // source record and the fixed non-uniform scale coefficient.
     result.shieldEffect = objectDefinition(
@@ -4438,6 +4511,36 @@ bool runOriginalRaceResourceSmokeTest(
                 std::to_string(static_cast<int>(shield.graphOrder));
             return false;
         }
+        const auto& energyDamage = race.vehicle.energyDamageEffect;
+        const bool energyDamageMatchesSource =
+            recordEndsWith(
+                energyDamage.record, "damageEnergymarauder") &&
+            near(energyDamage.maximumTimeLife, 0.5F) &&
+            energyDamage.graphOrder == GraphOrder::Effect &&
+            energyDamage.visualNodes.size() == 1U &&
+            recordEndsWith(
+                energyDamage.visualNodes.front().meshPath,
+                "marauder.r3d") &&
+            near(energyDamage.visualNodes.front().transform.scale.x,
+                 1.1F) &&
+            energyDamage.visualNodes.front().animationMode ==
+                VisualNode::AnimationMode::TwoSide &&
+            near(energyDamage.visualNodes.front().animationDuration,
+                 0.5F) &&
+            energyDamage.visualNodes.front().materials.size() == 1U &&
+            recordEndsWith(
+                energyDamage.visualNodes.front()
+                    .materials.front().record,
+                "shield1");
+        if (!energyDamageMatchesSource)
+        {
+            error =
+                "source dtEnergy DamageEffect/damageEnergymarauder "
+                "provenance mismatch: " +
+                energyDamage.record + ", nodes=" +
+                std::to_string(energyDamage.visualNodes.size());
+            return false;
+        }
         if (race.vehicle.deathEffects.size() != 2U ||
             !recordEndsWith(
                 race.vehicle.deathEffects[0].visual.record, "death2") ||
@@ -4470,6 +4573,29 @@ bool runOriginalRaceResourceSmokeTest(
         {
             error = "source vehicle DeathEffect/death2/marauderCrush "
                     "provenance mismatch";
+            return false;
+        }
+        const auto expandingExplosion = std::find_if(
+            race.vehicle.deathEffects[0].visual.visualNodes.begin(),
+            race.vehicle.deathEffects[0].visual.visualNodes.end(),
+            [&](const VisualNode& node) {
+                return node.materials.size() == 1U &&
+                       recordEndsWith(
+                           node.materials.front().record,
+                           "explosion2");
+            });
+        if (expandingExplosion ==
+                race.vehicle.deathEffects[0].visual.visualNodes.end() ||
+            expandingExplosion->animationMode !=
+                VisualNode::AnimationMode::Once ||
+            !near(expandingExplosion->animationDuration, 1.0F) ||
+            !near(expandingExplosion->speedScale.x, 25.0F) ||
+            !near(expandingExplosion->speedScale.y, 25.0F) ||
+            !near(expandingExplosion->speedScale.z, 25.0F))
+        {
+            error =
+                "source BaseSceneNode speedScale/explosion2 "
+                "provenance mismatch";
             return false;
         }
         std::size_t alphaTestMaterialCount = 0;
