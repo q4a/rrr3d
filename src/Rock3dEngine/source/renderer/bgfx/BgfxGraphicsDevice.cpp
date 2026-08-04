@@ -86,6 +86,8 @@ public:
                 bgfx::destroy(scene_lamp_directions_);
             if (bgfx::isValid(scene_lamp_colors_))
                 bgfx::destroy(scene_lamp_colors_);
+            if (bgfx::isValid(scene_lamp_cones_))
+                bgfx::destroy(scene_lamp_cones_);
             if (bgfx::isValid(scene_ambient_))
                 bgfx::destroy(scene_ambient_);
             if (bgfx::isValid(scene_fog_))
@@ -188,11 +190,17 @@ public:
         scene_light_direction_ = bgfx::createUniform(
             "u_sceneLightDirection", bgfx::UniformType::Vec4);
         scene_lamp_positions_ = bgfx::createUniform(
-            "u_sceneLampPositions", bgfx::UniformType::Vec4, 3);
+            "u_sceneLampPositions", bgfx::UniformType::Vec4,
+            SceneLighting::maximumSpotLights);
         scene_lamp_directions_ = bgfx::createUniform(
-            "u_sceneLampDirections", bgfx::UniformType::Vec4, 3);
+            "u_sceneLampDirections", bgfx::UniformType::Vec4,
+            SceneLighting::maximumSpotLights);
         scene_lamp_colors_ = bgfx::createUniform(
-            "u_sceneLampColors", bgfx::UniformType::Vec4, 3);
+            "u_sceneLampColors", bgfx::UniformType::Vec4,
+            SceneLighting::maximumSpotLights);
+        scene_lamp_cones_ = bgfx::createUniform(
+            "u_sceneLampCones", bgfx::UniformType::Vec4,
+            SceneLighting::maximumSpotLights);
         scene_ambient_ = bgfx::createUniform(
             "u_sceneAmbient", bgfx::UniformType::Vec4);
         scene_fog_ = bgfx::createUniform(
@@ -229,6 +237,7 @@ public:
             !bgfx::isValid(scene_lamp_positions_) ||
             !bgfx::isValid(scene_lamp_directions_) ||
             !bgfx::isValid(scene_lamp_colors_) ||
+            !bgfx::isValid(scene_lamp_cones_) ||
             !bgfx::isValid(scene_ambient_) ||
             !bgfx::isValid(scene_fog_) ||
             !bgfx::isValid(scene_camera_) ||
@@ -683,6 +692,15 @@ public:
     void setSceneLighting(const SceneLighting& lighting) override
     {
         scene_lighting_ = lighting;
+        const auto active = static_cast<std::uint32_t>(
+            std::count_if(
+                lighting.lampDirections.begin(),
+                lighting.lampDirections.end(),
+                [](const auto& direction) {
+                    return direction[3] > 0.5F;
+                }));
+        telemetry_.activeSpotLightCount =
+            std::max(telemetry_.activeSpotLightCount, active);
     }
 
     void setPassState(const RenderPassState& state) override
@@ -848,13 +866,20 @@ private:
                          scene_lighting_.lightDirection.data());
         bgfx::setUniform(
             scene_lamp_positions_,
-            scene_lighting_.lampPositions.front().data(), 3);
+            scene_lighting_.lampPositions.front().data(),
+            SceneLighting::maximumSpotLights);
         bgfx::setUniform(
             scene_lamp_directions_,
-            scene_lighting_.lampDirections.front().data(), 3);
+            scene_lighting_.lampDirections.front().data(),
+            SceneLighting::maximumSpotLights);
         bgfx::setUniform(
             scene_lamp_colors_,
-            scene_lighting_.lampColors.front().data(), 3);
+            scene_lighting_.lampColors.front().data(),
+            SceneLighting::maximumSpotLights);
+        bgfx::setUniform(
+            scene_lamp_cones_,
+            scene_lighting_.lampCones.front().data(),
+            SceneLighting::maximumSpotLights);
         bgfx::setUniform(scene_ambient_, scene_lighting_.ambient.data());
         bgfx::setUniform(scene_fog_, scene_lighting_.fogColor.data());
         bgfx::setUniform(scene_camera_,
@@ -945,6 +970,7 @@ private:
     bgfx::UniformHandle scene_lamp_positions_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_lamp_directions_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_lamp_colors_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle scene_lamp_cones_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_ambient_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_fog_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_camera_ = BGFX_INVALID_HANDLE;

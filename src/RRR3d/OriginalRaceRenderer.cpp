@@ -711,50 +711,79 @@ std::array<float, 4> atlasFrame(std::uint16_t columns,
             static_cast<float>(frame / columns) * scaleY};
 }
 
-std::array<float, 4> animatedAtlas(std::uint16_t columns,
-                                   std::uint16_t rows, float seconds,
-                                   float rate = 24.0F)
+std::array<float, 4> normalizedAtlas(std::uint16_t columns,
+                                    std::uint16_t rows, float frame)
 {
-    return atlasFrame(
-        columns, rows,
-        static_cast<std::uint32_t>(
-            std::max(std::floor(seconds * rate), 0.0F)));
+    const std::uint32_t count =
+        std::max<std::uint32_t>(
+            static_cast<std::uint32_t>(columns) * rows, 1U);
+    const float normalized = std::clamp(frame, 0.0F, 1.0F);
+    const auto index =
+        normalized >= 1.0F
+            ? count - 1U
+            : static_cast<std::uint32_t>(normalized * count);
+    return atlasFrame(columns, rows, index);
 }
 
-float visualAnimationFrame(
-    const r3d::game::originalrace::VisualNode& node,
-    float seconds) noexcept
+float sourceAnimationFrame(
+    r3d::game::originalrace::VisualNode::AnimationMode mode,
+    float duration, float storedFrame, float time) noexcept
 {
     using Mode =
         r3d::game::originalrace::VisualNode::AnimationMode;
-    if (node.animationMode == Mode::None ||
-        node.animationMode == Mode::Manual ||
-        node.animationMode == Mode::Inheritance)
+    if (mode == Mode::None || mode == Mode::Manual ||
+        mode == Mode::Inheritance)
     {
-        return std::clamp(node.animationFrame, 0.0F, 1.0F);
+        return storedFrame;
     }
     const float normalized =
-        std::max(seconds, 0.0F) /
-        std::max(node.animationDuration, 0.0001F);
-    switch (node.animationMode)
+        std::max(time, 0.0F) / std::max(duration, 0.0001F);
+    switch (mode)
     {
     case Mode::Once:
         return std::clamp(normalized, 0.0F, 1.0F);
     case Mode::Repeat:
-    case Mode::Tile:
         return normalized - std::floor(normalized);
+    case Mode::Tile:
+        return normalized;
     case Mode::TwoSide:
     {
-        const float cycle =
-            normalized - std::floor(normalized * 0.5F) * 2.0F;
-        return cycle <= 1.0F ? cycle : 2.0F - cycle;
+        const float cycle = normalized - std::floor(normalized);
+        return (cycle > 0.5F ? 1.0F - cycle : cycle) * 2.0F;
     }
     case Mode::None:
     case Mode::Manual:
     case Mode::Inheritance:
         break;
     }
-    return std::clamp(node.animationFrame, 0.0F, 1.0F);
+    return storedFrame;
+}
+
+float visualAnimationFrame(
+    const r3d::game::originalrace::VisualNode& node,
+    float seconds) noexcept
+{
+    return sourceAnimationFrame(
+        node.animationMode, node.animationDuration,
+        node.animationFrame, seconds);
+}
+
+std::array<float, 4> materialColor(
+    const r3d::game::originalrace::MaterialDefinition& material,
+    float frame) noexcept
+{
+    std::array<float, 4> result{};
+    for (std::size_t component = 0; component < result.size(); ++component)
+    {
+        result[component] =
+            material.color[component] +
+            (material.colorMaximum[component] -
+             material.color[component]) * frame;
+    }
+    result[3] =
+        material.alphaMinimum +
+        (material.alphaMaximum - material.alphaMinimum) * frame;
+    return result;
 }
 
 enum class DrawLayer
@@ -836,7 +865,11 @@ void drawGroups(GraphicsDevice& device,
          opacity, tint](
             const auto& material, std::size_t materialIndex) {
             MaterialState state;
-            state.color = material.color;
+            const float frame =
+                node != nullptr
+                    ? visualAnimationFrame(*node, elapsedSeconds)
+                    : 0.0F;
+            state.color = materialColor(material, frame);
             if (tint != nullptr)
             {
                 state.color[0] *= (*tint)[0];
@@ -859,13 +892,8 @@ void drawGroups(GraphicsDevice& device,
             if (materialIndex < asset.normalTextures.size())
                 state.normalTexture =
                     asset.normalTextures[materialIndex];
-            state.textureTransform = animatedAtlas(
-                material.atlasColumns, material.atlasRows, elapsedSeconds,
-                material.animationRate);
-            const float frame =
-                node != nullptr
-                    ? visualAnimationFrame(*node, elapsedSeconds)
-                    : 0.0F;
+            state.textureTransform = normalizedAtlas(
+                material.atlasColumns, material.atlasRows, frame);
             state.textureTransform[2] +=
                 material.textureOffsetMinimum.x +
                 (material.textureOffsetMaximum.x -
@@ -983,12 +1011,23 @@ void drawShadowGroups(GraphicsDevice& device,
     if (asset.textures.empty())
         return;
     const auto geometryPipeline = nodePipeline(pipeline, node);
-    auto stateFor = [elapsedSeconds](const auto& material) {
+    auto stateFor = [elapsedSeconds, node](const auto& material) {
         MaterialState state;
         state.alphaReference = material.alphaReference;
-        state.textureTransform = animatedAtlas(
-            material.atlasColumns, material.atlasRows, elapsedSeconds,
-            material.animationRate);
+        const float frame =
+            node != nullptr
+                ? visualAnimationFrame(*node, elapsedSeconds)
+                : 0.0F;
+        state.textureTransform = normalizedAtlas(
+            material.atlasColumns, material.atlasRows, frame);
+        state.textureTransform[2] +=
+            material.textureOffsetMinimum.x +
+            (material.textureOffsetMaximum.x -
+             material.textureOffsetMinimum.x) * frame;
+        state.textureTransform[3] +=
+            material.textureOffsetMinimum.y +
+            (material.textureOffsetMaximum.y -
+             material.textureOffsetMinimum.y) * frame;
         state.receivesShadow = false;
         return state;
     };
@@ -2191,19 +2230,74 @@ void OriginalRaceRenderer::draw(
         race.environment.fogEnabled
             ? race.environment.fogIntensity
             : 0.0F;
-    for (std::size_t index = 0;
-         index < race.environment.lamps.size(); ++index)
+    std::size_t lampIndex = 0U;
+    for (const auto& lamp : race.environment.lamps)
     {
-        const auto& lamp = race.environment.lamps[index];
+        if (!lamp.enabled ||
+            lampIndex >= SceneLighting::maximumSpotLights)
+            continue;
         const auto direction = normalize(rotate(
             lamp.rotation, {1.0F, 0.0F, 0.0F}));
-        sceneLighting.lampPositions[index] = {
+        sceneLighting.lampPositions[lampIndex] = {
             lamp.position.x, lamp.position.y, lamp.position.z,
             lamp.range};
-        sceneLighting.lampDirections[index] = {
-            direction.x, direction.y, direction.z,
-            lamp.enabled ? 1.0F : 0.0F};
-        sceneLighting.lampColors[index] = lamp.color;
+        sceneLighting.lampDirections[lampIndex] = {
+            direction.x, direction.y, direction.z, 1.0F};
+        sceneLighting.lampColors[lampIndex] = lamp.color;
+        // LightSource defaults: phi=pi/2 and theta=pi/4.
+        sceneLighting.lampCones[lampIndex] = {
+            0.7071067812F, 0.9238795325F, 0.0F, 0.0F};
+        ++lampIndex;
+    }
+
+    // Race::SetWheater calls Player::SetHeadlight(hlmTwo) for the human and
+    // hlmOne for every AI in ewNight.  Recreate the source child-light
+    // transforms here so the spots follow the physics bodies rather than
+    // leaving only the decorative flare sprites visible.
+    if (race.environment.weather ==
+        r3d::game::originalrace::Weather::Night)
+    {
+        constexpr r3d::physics::Quat headlightRotation{
+            0.0009F, 0.344F, -0.029F, 0.939F};
+        const std::size_t racerCount =
+            std::min(vehicles.size(), race.racers.size());
+        for (std::size_t racerIndex = 0;
+             racerIndex < racerCount &&
+             lampIndex < SceneLighting::maximumSpotLights;
+             ++racerIndex)
+        {
+            const bool human = race.racers[racerIndex].human;
+            const std::size_t headlightCount = human ? 2U : 1U;
+            for (std::size_t headlight = 0;
+                 headlight < headlightCount &&
+                 lampIndex < SceneLighting::maximumSpotLights;
+                 ++headlight)
+            {
+                r3d::physics::Transform local;
+                local.position = {
+                    0.3F,
+                    headlightCount == 1U
+                        ? 0.0F
+                        : (headlight == 0U ? 1.0F : -1.0F),
+                    3.190F};
+                local.rotation = headlightRotation;
+                const auto world =
+                    compose(vehicles[racerIndex].body, local);
+                const auto direction = normalize(rotate(
+                    world.rotation, {1.0F, 0.0F, 0.0F}));
+                sceneLighting.lampPositions[lampIndex] = {
+                    world.position.x, world.position.y, world.position.z,
+                    50.0F};
+                sceneLighting.lampDirections[lampIndex] = {
+                    direction.x, direction.y, direction.z, 1.0F};
+                sceneLighting.lampColors[lampIndex] =
+                    {1.0F, 1.0F, 1.0F, 1.0F};
+                // Player::InitLight: phi=pi/3 and theta=pi/6.
+                sceneLighting.lampCones[lampIndex] = {
+                    0.8660254038F, 0.9659258263F, 0.0F, 0.0F};
+                ++lampIndex;
+            }
+        }
     }
     if (!vehicles.empty())
     {
@@ -2790,8 +2884,25 @@ void OriginalRaceRenderer::draw(
                             submittedParticles % textures.size();
                         const auto& sourceMaterial =
                             emitter.materials[materialIndex];
+                        float materialFrame =
+                            scheduled.life > 0.0F
+                                ? std::clamp(
+                                      particleAge / scheduled.life,
+                                      0.0F, 1.0F)
+                                : 0.0F;
+                        if (emitter.animationMode !=
+                            r3d::game::originalrace::VisualNode::
+                                AnimationMode::None)
+                        {
+                            materialFrame = sourceAnimationFrame(
+                                emitter.animationMode,
+                                emitter.animationDuration,
+                                emitter.animationFrame,
+                                materialFrame);
+                        }
                         MaterialState material;
-                        material.color = sourceMaterial.color;
+                        material.color = materialColor(
+                            sourceMaterial, materialFrame);
                         material.color[3] *= opacity;
                         material.alphaReference =
                             sourceMaterial.alphaReference;
@@ -2800,10 +2911,19 @@ void OriginalRaceRenderer::draw(
                         material.shininess = sourceMaterial.shininess;
                         material.ignoreFog = sourceMaterial.ignoreFog;
                         material.receivesShadow = false;
-                        material.textureTransform = animatedAtlas(
+                        material.textureTransform = normalizedAtlas(
                             sourceMaterial.atlasColumns,
-                            sourceMaterial.atlasRows, particleAge,
-                            sourceMaterial.animationRate);
+                            sourceMaterial.atlasRows, materialFrame);
+                        material.textureTransform[2] +=
+                            sourceMaterial.textureOffsetMinimum.x +
+                            (sourceMaterial.textureOffsetMaximum.x -
+                             sourceMaterial.textureOffsetMinimum.x) *
+                                materialFrame;
+                        material.textureTransform[3] +=
+                            sourceMaterial.textureOffsetMinimum.y +
+                            (sourceMaterial.textureOffsetMaximum.y -
+                             sourceMaterial.textureOffsetMinimum.y) *
+                                materialFrame;
                         auto particlePipeline = pipeline;
                         if (forceNoDepth)
                             particlePipeline.writeDepth = false;

@@ -143,6 +143,7 @@ struct RenderTelemetry
     std::uint32_t environmentMappedDrawCount = 0;
     std::uint32_t normalMappedDrawCount = 0;
     std::uint32_t transientDrawCount = 0;
+    std::uint32_t activeSpotLightCount = 0;
 };
 
 struct DepthBuffer
@@ -227,16 +228,24 @@ struct Camera
 
 struct SceneLighting
 {
+    // Six racers require seven headlights (two for the human and one per AI),
+    // while Environment owns three additional fixed slots.  Keep two spare
+    // slots so source data can add lights without silently dropping a car.
+    static constexpr std::size_t maximumSpotLights = 12U;
+
     // w is the source directional-light enable flag.
     std::array<float, 4> lightDirection{-0.45F, -0.35F, 0.82F, 1.0F};
     std::array<float, 4> ambient{0.22F, 0.22F, 0.22F, 1.0F};
     std::array<float, 4> fogColor{0.58F, 0.76F, 0.92F, 0.5F};
     std::array<float, 4> cameraPosition{0.0F, 0.0F, 0.0F, 1.0F};
-    // Environment::wtGarage/CarFrame uses three D3D9 spot-light slots.
-    // Position.w is range; direction.w is the enabled flag.
-    std::array<std::array<float, 4>, 3> lampPositions{};
-    std::array<std::array<float, 4>, 3> lampDirections{};
-    std::array<std::array<float, 4>, 3> lampColors{};
+    // Environment uses up to three fixed spots; Player::SetHeadlight adds
+    // two moving spots for the human and one for each AI in ewNight.
+    // Position.w is range; direction.w is the enabled flag. Cone.x/y are
+    // cos(phi/2) and cos(theta/2), matching D3DLIGHT9 spotlight semantics.
+    std::array<std::array<float, 4>, maximumSpotLights> lampPositions{};
+    std::array<std::array<float, 4>, maximumSpotLights> lampDirections{};
+    std::array<std::array<float, 4>, maximumSpotLights> lampColors{};
+    std::array<std::array<float, 4>, maximumSpotLights> lampCones{};
 };
 
 struct RenderPassState

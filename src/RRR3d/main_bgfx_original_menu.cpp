@@ -4068,6 +4068,7 @@ int main(int argc, char** argv)
     std::uint32_t maximumEnvironmentMappedDraws = 0;
     std::uint32_t maximumNormalMappedDraws = 0;
     std::uint32_t maximumTransientDraws = 0;
+    std::uint32_t maximumActiveSpotLights = 0;
     std::array<bool, 2> raceCameraStylesObserved{};
     bool raceProgressSaved = false;
     bool finishMenuShown = false;
@@ -11114,6 +11115,9 @@ int main(int argc, char** argv)
             maximumTransientDraws = std::max(
                 maximumTransientDraws,
                 telemetry.transientDrawCount);
+            maximumActiveSpotLights = std::max(
+                maximumActiveSpotLights,
+                telemetry.activeSpotLightCount);
         }
         else
         {
@@ -14442,49 +14446,86 @@ int main(int argc, char** argv)
                                (!requireDraw ||
                                 maximumRacePassDraws[index] > 0U);
                     };
+                const auto& smokeQuality = profileState.config.quality;
+                const bool expectsTrueReflections =
+                    smokeQuality.light >= 2U &&
+                    originalRace->environment.dynamicReflectionsEnabled;
+                const bool expectsShadows =
+                    smokeQuality.shadow >= 1U &&
+                    originalRace->environment.directionalLightEnabled;
+                const bool weatherAllowsPostEffects =
+                    originalRace->environment.weather !=
+                    r3d::game::originalrace::Weather::Night;
+                const bool expectsBloom =
+                    smokeQuality.postEffect >= 1U &&
+                    weatherAllowsPostEffects;
+                const bool expectsHdr =
+                    smokeQuality.postEffect >= 2U &&
+                    weatherAllowsPostEffects;
                 bool renderGraphComplete =
-                    passObserved(
-                        r3d::renderer::RenderPass::
-                            EnvironmentPositiveX) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::
-                            EnvironmentNegativeX) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::
-                            EnvironmentPositiveY) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::
-                            EnvironmentNegativeY) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::
-                            EnvironmentPositiveZ) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::
-                            EnvironmentNegativeZ) &&
-                    passObserved(r3d::renderer::RenderPass::Shadow) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::ShadowFar) &&
                     passObserved(r3d::renderer::RenderPass::Scene) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::Luminance64) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::Luminance16) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::Luminance4) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::Luminance1) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::LuminanceAdapt) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::BloomExtract) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::BloomHorizontal) &&
-                    passObserved(
-                        r3d::renderer::RenderPass::BloomVertical) &&
                     passObserved(
                         r3d::renderer::RenderPass::Composite) &&
                     passObserved(
                         r3d::renderer::RenderPass::Overlay, false);
+                if (expectsTrueReflections)
+                {
+                    renderGraphComplete =
+                        renderGraphComplete &&
+                        passObserved(
+                            r3d::renderer::RenderPass::
+                                EnvironmentPositiveX) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::
+                                EnvironmentNegativeX) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::
+                                EnvironmentPositiveY) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::
+                                EnvironmentNegativeY) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::
+                                EnvironmentPositiveZ) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::
+                                EnvironmentNegativeZ);
+                }
+                if (expectsShadows)
+                {
+                    renderGraphComplete =
+                        renderGraphComplete &&
+                        passObserved(
+                            r3d::renderer::RenderPass::Shadow) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::ShadowFar);
+                }
+                if (expectsHdr)
+                {
+                    renderGraphComplete =
+                        renderGraphComplete &&
+                        passObserved(
+                            r3d::renderer::RenderPass::Luminance64) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::Luminance16) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::Luminance4) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::Luminance1) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::LuminanceAdapt);
+                }
+                if (expectsBloom)
+                {
+                    renderGraphComplete =
+                        renderGraphComplete &&
+                        passObserved(
+                            r3d::renderer::RenderPass::BloomExtract) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::BloomHorizontal) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::BloomVertical);
+                }
                 const bool expectsReflection =
                     originalRace->environment.planarReflection ||
                     originalRace->environment.surface ==
@@ -14511,6 +14552,18 @@ int main(int argc, char** argv)
                 const bool expectsWheelSlipTrail =
                     originalRace->levelPath ==
                     "Data/Map/World1/map1.r3dMap";
+                const bool expectsHeadlights =
+                    originalRace->environment.weather ==
+                    r3d::game::originalrace::Weather::Night;
+                const auto expectedHeadlightCount =
+                    static_cast<std::uint32_t>(
+                        originalRace->racers.size() +
+                        std::count_if(
+                            originalRace->racers.begin(),
+                            originalRace->racers.end(),
+                            [](const auto& racer) {
+                                return racer.human;
+                            }));
                 if (expectsReflection)
                     renderGraphComplete =
                         renderGraphComplete &&
@@ -14556,7 +14609,10 @@ int main(int argc, char** argv)
                     (expectsBumpMapping &&
                      maximumNormalMappedDraws == 0U) ||
                     (expectsWheelSlipTrail &&
-                     maximumTransientDraws == 0U))
+                     maximumTransientDraws == 0U) ||
+                    (expectsHeadlights &&
+                     maximumActiveSpotLights <
+                         expectedHeadlightCount))
                 {
                     std::cerr
                         << "Milestone 9 integrated Single Player/race render "
@@ -14605,6 +14661,9 @@ int main(int argc, char** argv)
                         << maximumNormalMappedDraws
                         << ", transient="
                         << maximumTransientDraws
+                        << ", spotLights="
+                        << maximumActiveSpotLights << '/'
+                        << expectedHeadlightCount
                         << ", cars=" << raceVehicles.size()
                         << ", cameras="
                         << raceCameraStylesObserved[0] << '/'

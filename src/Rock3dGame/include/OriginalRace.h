@@ -54,7 +54,12 @@ struct MaterialDefinition
     std::string texturePath;
     MaterialBlend blend = MaterialBlend::Opaque;
     float alphaReference = 0.0F;
+    // Material stores source ValueRange values.  D3D9 evaluates both ranges
+    // with the active graph/Fx frame immediately before every draw.
     std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
+    std::array<float, 4> colorMaximum{1.0F, 1.0F, 1.0F, 1.0F};
+    float alphaMinimum = 1.0F;
+    float alphaMaximum = 1.0F;
     float emissive = 0.0F;
     float specular = 0.0F;
     float shininess = 128.0F;
@@ -178,6 +183,12 @@ struct ParticleEmitterDefinition
     bool distanceTriggered = false;
     bool fixedDirection = false;
     ParticleRenderMode renderMode = ParticleRenderMode::Sprite;
+    // FxManager transforms the normalized particle-group lifetime through
+    // the particle-system node animation before applying LibMaterial.
+    VisualNode::AnimationMode animationMode =
+        VisualNode::AnimationMode::None;
+    float animationDuration = 1.0F;
+    float animationFrame = 0.0F;
     ParticleMaximumAction maximumAction =
         ParticleMaximumAction::WaitForFree;
     // FxTrailManager is configured once in DataBase.cpp and shared by the

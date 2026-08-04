@@ -9,9 +9,11 @@ SAMPLERCUBE(s_texEnvironment, 3);
 SAMPLER2D(s_texNormal, 4);
 SAMPLER2D(s_texShadowFar, 5);
 uniform vec4 u_sceneLightDirection;
-uniform vec4 u_sceneLampPositions[3];
-uniform vec4 u_sceneLampDirections[3];
-uniform vec4 u_sceneLampColors[3];
+uniform vec4 u_sceneLampPositions[12];
+uniform vec4 u_sceneLampDirections[12];
+uniform vec4 u_sceneLampColors[12];
+// x = cos(phi/2), y = cos(theta/2), matching D3DLIGHT9.
+uniform vec4 u_sceneLampCones[12];
 uniform vec4 u_sceneAmbient;
 uniform vec4 u_sceneFog;
 uniform vec4 u_sceneCamera;
@@ -62,10 +64,10 @@ void main()
     float specular = pow(max(dot(normal, halfDirection), 0.0),
                          max(u_materialParams.w, 1.0)) *
                      u_materialParams.z * directionalEnabled;
-    // LightSource defaults used by Environment::wtGarage:
-    // D3DLIGHT_SPOT, theta=pi/4, phi=pi/2, falloff=1,
-    // attenuation0=1 and range=20.
-    for (int lamp = 0; lamp < 3; ++lamp)
+    // Both Environment::wtGarage lamps and Player::SetHeadlight use the
+    // source D3DLIGHT_SPOT attenuation0=1/falloff=1 model.  Their theta/phi
+    // differ, so the exact source cone cosines are supplied per light.
+    for (int lamp = 0; lamp < 12; ++lamp)
     {
         float enabled = u_sceneLampDirections[lamp].w;
         vec3 fromLamp =
@@ -79,9 +81,11 @@ void main()
             vec3 lampDirection =
                 normalize(u_sceneLampDirections[lamp].xyz);
             float coneCosine = dot(lampDirection, lampRay);
+            float outerCosine = u_sceneLampCones[lamp].x;
+            float innerCosine = u_sceneLampCones[lamp].y;
             float spot = clamp(
-                (coneCosine - 0.70710678) /
-                    (0.92387953 - 0.70710678),
+                (coneCosine - outerCosine) /
+                    max(innerCosine - outerCosine, 0.0001),
                 0.0, 1.0);
             vec3 toLamp = -lampRay;
             float lampDiffuse =

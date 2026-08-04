@@ -449,6 +449,19 @@ MaterialDefinition materialDefinition(
 {
     const std::string record(legacy);
     auto tune = [&](MaterialDefinition material) {
+        auto setAlphaRange = [&](float minimum, float maximum) {
+            material.alphaMinimum = minimum;
+            material.alphaMaximum = maximum;
+        };
+        auto setColorRange = [&material](
+                                 std::array<float, 4> minimum,
+                                 std::array<float, 4> maximum) {
+            material.color = minimum;
+            material.colorMaximum = maximum;
+        };
+        auto setColor = [&](std::array<float, 4> value) {
+            setColorRange(value, value);
+        };
         if (material.blend == MaterialBlend::AlphaTest)
         {
             // ResourceManager::cAlphaTestRef is 0.933, but the D3D9
@@ -492,25 +505,100 @@ MaterialDefinition materialDefinition(
                 material.writeDepth = false;
             }
             if (record == "Effect\\smoke1")
-                material.color = {0.25F, 0.25F, 0.25F, 1.0F};
+                setColor({0.25F, 0.25F, 0.25F, 1.0F});
             else if (record == "Effect\\smoke2")
-                material.color = {0.5F, 0.32F, 0.25F, 1.0F};
+                setColorRange(
+                    {0.5F, 0.32F, 0.25F, 1.0F},
+                    {0.25F, 0.25F, 0.25F, 1.0F});
             else if (record == "Effect\\flare1" ||
                      record == "Effect\\flare3")
-                material.color = {1.0F, 0.58F, 0.36F, 1.0F};
+                setColor({1.0F, 0.58F, 0.36F, 1.0F});
             else if (record == "Effect\\flare2" ||
                      record == "Effect\\flare7Red")
-                material.color = {1.0F, 0.0F, 0.0F, 1.0F};
+                setColor({1.0F, 0.0F, 0.0F, 1.0F});
             else if (record == "Effect\\dust_smoke_06")
-                material.color = {0.2F, 0.2F, 1.0F, 1.0F};
+                setColor({0.2F, 0.2F, 1.0F, 1.0F});
             else if (record == "Effect\\ExplosionRay" ||
                      record == "Effect\\lens1")
-                material.color = {0.0F, 0.0F, 1.0F, 1.0F};
+                setColor({0.0F, 0.0F, 1.0F, 1.0F});
             else if (record == "Effect\\ExplosionRing")
-                material.color = {1.0F, 1.0F, 0.0F, 1.0F};
+                setColor({1.0F, 1.0F, 0.0F, 1.0F});
+            else if (record == "Effect\\fireTrail" ||
+                     record == "Effect\\fire1" ||
+                     record == "Effect\\fire2")
+                setColorRange(
+                    {1.0F, 1.0F, 1.0F, 1.0F},
+                    {1.0F, 0.0F, 0.0F, 1.0F});
             else if (record == "Effect\\thunder1")
-                material.color =
-                    {236.0F / 255.0F, 0.0F, 140.0F / 255.0F, 1.0F};
+                setColorRange(
+                    {236.0F / 255.0F, 0.0F,
+                     140.0F / 255.0F, 1.0F},
+                    {0.0F, 0.0F, 1.0F, 1.0F});
+            else if (record == "Effect\\smoke6")
+                setColorRange(
+                    {1.0F, 1.0F, 1.0F, 1.0F},
+                    {0.0F, 0.0F, 0.0F, 1.0F});
+
+            struct AlphaRange
+            {
+                std::string_view record;
+                float minimum;
+                float maximum;
+            };
+            // Exact FloatRange arguments from ResourceManager::LoadEffect.
+            static constexpr AlphaRange alphaRanges[] = {
+                {"Effect\\frost", 0.5F, 0.0F},
+                {"Effect\\smoke1", 0.5F, 0.0F},
+                {"Effect\\smoke2", 0.8F, 0.0F},
+                {"Effect\\smoke3", 1.0F, 0.0F},
+                {"Effect\\smoke7", 1.0F, 0.0F},
+                {"Effect\\asphaltMarks", 1.0F, 0.0F},
+                {"Effect\\drop", 0.8F, 0.8F},
+                {"Effect\\frostRay", 0.0F, 1.0F},
+                {"Effect\\frostSmoke", 0.0F, 0.5F},
+                {"Effect\\frostHit", 1.0F, 0.0F},
+                {"Effect\\crater", 1.0F, 0.0F},
+                {"Effect\\flare1", 0.5F, 0.5F},
+                {"Effect\\flare2", 0.0F, 1.0F},
+                {"Effect\\flare3", 1.0F, 0.0F},
+                {"Effect\\blaster", 1.0F, 0.0F},
+                {"Effect\\heatTrail", 0.8F, 0.0F},
+                {"Effect\\laser3-red2", 0.0F, 1.0F},
+                {"Effect\\dust_smoke_06", 1.0F, 0.0F},
+                {"Effect\\sonar", 1.0F, 0.0F},
+                {"Effect\\ExplosionRay", 1.0F, 0.0F},
+                {"Effect\\ExplosionRing", 1.0F, 0.0F},
+                {"Effect\\streak1", 1.0F, 0.0F},
+                {"Effect\\blink", 1.0F, 0.0F},
+                {"Effect\\lightning1", 1.0F, 0.0F},
+                {"Effect\\trail1", 1.0F, 0.0F},
+                {"Effect\\ring1", 1.0F, 0.0F},
+                {"Effect\\ring2", 0.0F, 1.0F},
+                {"Effect\\frostLine", 0.0F, 1.0F},
+                {"Effect\\firePatron", 1.0F, 0.0F},
+                {"Effect\\fireTrail", 1.0F, 0.0F},
+                {"Effect\\protonRay", 1.0F, 0.0F},
+                {"Effect\\protonRing", 1.0F, 0.0F},
+                {"Effect\\thunder1", 1.0F, 0.0F},
+                {"Effect\\flareLaser1", 0.7F, 0.0F},
+                {"Effect\\flareLaser2", 1.0F, 0.0F},
+                {"Effect\\flareLaser3", 1.0F, 0.0F},
+                {"Effect\\smoke6", 1.0F, 0.1F},
+                {"Effect\\spark1", 1.0F, 0.0F},
+                {"Effect\\boomSpark1", 1.0F, 0.0F},
+                {"Effect\\boomSpark2", 1.0F, 0.0F},
+                {"Effect\\fire1", 1.0F, 0.0F},
+                {"Effect\\gunEff2", 1.0F, 0.0F},
+                {"Effect\\shield1", 0.0F, 1.0F},
+            };
+            const auto alphaRange = std::find_if(
+                std::begin(alphaRanges), std::end(alphaRanges),
+                [&](const AlphaRange& value) {
+                    return value.record == record;
+                });
+            if (alphaRange != std::end(alphaRanges))
+                setAlphaRange(
+                    alphaRange->minimum, alphaRange->maximum);
 
             // ResourceManager::LoadImage2dLibMatAnim creates the three
             // shield2 materials with alpha 0.4 and translates the sampler
@@ -519,17 +607,30 @@ MaterialDefinition materialDefinition(
                 record == "Effect\\shield2Hor" ||
                 record == "Effect\\shield2Vert")
             {
-                material.color[3] = 0.4F;
+                setAlphaRange(0.4F, 0.4F);
                 if (record != "Effect\\shield2Vert")
                     material.textureOffsetMaximum.x = 1.0F;
                 if (record != "Effect\\shield2Hor")
                     material.textureOffsetMaximum.y = 1.0F;
             }
+            else if (record == "Effect\\phaserBolt")
+            {
+                material.textureOffsetMaximum =
+                    {1.0F, 1.0F, 1.0F};
+            }
+            else if (record == "Effect\\frostRay")
+            {
+                material.textureOffsetMaximum.x = -1.0F;
+            }
+            else if (record == "Effect\\laserRay")
+            {
+                material.textureOffsetMaximum.x = -2.5F;
+            }
         }
         if (record == "Car\\blend")
         {
             material.blend = MaterialBlend::Additive;
-            material.color[3] = 0.7F;
+            setAlphaRange(0.7F, 0.7F);
             material.emissive = 1.0F;
             material.ignoreFog = true;
         }
@@ -806,6 +907,7 @@ MaterialDefinition materialDefinition(
             record == "Effect\\gravBall"
                 ? std::array<float, 4>{1.0F, 0.0F, 0.0F, 1.0F}
                 : std::array<float, 4>{0.0F, 0.0F, 0.0F, 1.0F};
+        material.colorMaximum = material.color;
         return tune(material);
     }
     for (const auto& mapping : mappings)
@@ -1174,6 +1276,32 @@ void appendParticleEmitters(
             continue;
         const Transform nodeTransform =
             compose(parentTransform, elementTransform(node, source));
+        VisualNode::AnimationMode animationMode =
+            VisualNode::AnimationMode::None;
+        float animationDuration = 1.0F;
+        float animationFrame = 0.0F;
+        if (auto* mode = child(node, "animMode");
+            mode != nullptr && mode->GetText() != nullptr)
+        {
+            const auto value = unsignedValue(mode->GetText(), source);
+            if (value <= static_cast<unsigned>(
+                             VisualNode::AnimationMode::Inheritance))
+            {
+                animationMode =
+                    static_cast<VisualNode::AnimationMode>(value);
+            }
+        }
+        if (auto* duration = child(node, "animDuration");
+            duration != nullptr && duration->GetText() != nullptr)
+        {
+            animationDuration =
+                scalar(node, "animDuration", source);
+        }
+        if (auto* frame = child(node, "frame");
+            frame != nullptr && frame->GetText() != nullptr)
+        {
+            animationFrame = scalar(node, "frame", source);
+        }
         bool fixedDirection = false;
         ParticleRenderMode renderMode = ParticleRenderMode::Sprite;
         if (auto* manager = child(node, "fxManager");
@@ -1230,6 +1358,9 @@ void appendParticleEmitters(
             emitter.materials = materials;
             emitter.fixedDirection = fixedDirection;
             emitter.renderMode = renderMode;
+            emitter.animationMode = animationMode;
+            emitter.animationDuration = animationDuration;
+            emitter.animationFrame = animationFrame;
             if (renderMode == ParticleRenderMode::Trail)
             {
                 // DataBase::Init uses one FxTrailManager with width 0.3,
@@ -4217,7 +4348,16 @@ bool runOriginalRaceResourceSmokeTest(
             !recordEndsWith(
                 race.vehicle.lowLifeEffect.particleEmitters.front()
                     .materials.front().texturePath,
-                "smoke6.dds"))
+                "smoke6.dds") ||
+            !near(race.vehicle.lowLifeEffect.particleEmitters.front()
+                      .materials.front().alphaMinimum,
+                  1.0F) ||
+            !near(race.vehicle.lowLifeEffect.particleEmitters.front()
+                      .materials.front().alphaMaximum,
+                  0.1F) ||
+            !near(race.vehicle.lowLifeEffect.particleEmitters.front()
+                      .materials.front().colorMaximum[0],
+                  0.0F))
         {
             const auto& effect = race.vehicle.lowLifeEffect;
             const std::string texture =
@@ -4271,7 +4411,8 @@ bool runOriginalRaceResourceSmokeTest(
                     "shield2.dds") &&
                 node.materials.front().blend ==
                     MaterialBlend::Additive &&
-                near(node.materials.front().color[3], 0.4F);
+                near(node.materials.front().alphaMinimum, 0.4F) &&
+                near(node.materials.front().alphaMaximum, 0.4F);
             if (!shieldNodesMatchSource)
                 break;
             const auto& maximum =
