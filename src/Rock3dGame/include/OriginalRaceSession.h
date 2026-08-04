@@ -32,6 +32,7 @@ enum class RaceEventKind
     Respawn,
     WeaponFired,
     EffectSound,
+    ContactImpact,
     WeaponShotEffect,
     Damage,
     Kill,
@@ -211,6 +212,16 @@ struct RaceEffect
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
     Transform transform;
     std::size_t mountSlot = RacerRuntime::invalidWeapon;
+    // PairPxContactEffect state. The source groups contacts by actor pair,
+    // keeps no more than two points and stops emitting 0.1 seconds after a
+    // point disappears while already emitted particles finish their lives.
+    r3d::physics::CollisionSurface contactSurface =
+        r3d::physics::CollisionSurface::TrackPlane;
+    std::uint32_t contactActor =
+        std::numeric_limits<std::uint32_t>::max();
+    std::uint8_t contactIndex = 0;
+    float ageSeconds = 0.0F;
+    float emissionEndSeconds = -1.0F;
 };
 
 struct MineRuntime

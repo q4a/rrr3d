@@ -3569,6 +3569,17 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
     race.wheelTrailEffect = objectDefinition(
         resources, database, "world\\db\\root\\ctEffects\\trail",
         "db.xml/original wheel trail");
+    race.contactEffect = objectDefinition(
+        resources, database, "world\\db\\root\\ctEffects\\spark2",
+        "db.xml/PairPxContactEffect");
+    race.contactSoundPaths.clear();
+    for (std::uint32_t index = 1U; index <= 5U; ++index)
+    {
+        race.contactSoundPaths.push_back(canonicalDataPath(
+            resources,
+            "Data/Sounds/light_impact0" + std::to_string(index) +
+                ".ogg"));
+    }
 
     auto* planets = require(tournament, "planets", "tournamet.xml");
     std::uint32_t planetIndex = 0;
@@ -4443,6 +4454,7 @@ bool runOriginalRaceResourceSmokeTest(
             auditDefinition(effect.visual);
         auditDefinition(race.rainEffect);
         auditDefinition(race.wheelTrailEffect);
+        auditDefinition(race.contactEffect);
         if (invalidBillboard || fixedPlaneCount == 0U ||
             billboardCount == 0U)
         {
@@ -4980,6 +4992,55 @@ bool runOriginalRaceResourceSmokeTest(
                      ? oilMaterial->reflectionTexturePath
                      : std::string{"<missing>"});
             return false;
+        }
+        const bool contactEffectMatchesSource =
+            recordEndsWith(race.contactEffect.record, "spark2") &&
+            race.contactEffect.maximumTimeLife < 0.0F &&
+            race.contactEffect.graphOrder == GraphOrder::Effect &&
+            race.contactEffect.particleEmitters.size() == 1U &&
+            race.contactSoundPaths.size() == 5U;
+        if (contactEffectMatchesSource)
+        {
+            const auto& emitter =
+                race.contactEffect.particleEmitters.front();
+            if (emitter.maximumParticles != 0U ||
+                !near(emitter.lifeMinimum, 0.3F) ||
+                !near(emitter.lifeMaximum, 0.7F) ||
+                !near(emitter.startTimeMinimum, 0.1F) ||
+                !near(emitter.startTimeMaximum, 0.1F) ||
+                !near(emitter.densityMinimum, 7.0F) ||
+                !near(emitter.densityMaximum, 10.0F) ||
+                !near(emitter.gravity.z, -2.0F) ||
+                emitter.materials.size() != 1U ||
+                !recordEndsWith(
+                    emitter.materials.front().record,
+                    "Effect\\spark1"))
+            {
+                error =
+                    "source PairPxContactEffect/spark2 emitter provenance "
+                    "mismatch";
+                return false;
+            }
+        }
+        if (!contactEffectMatchesSource)
+        {
+            error =
+                "source DataBase::Init PairPxContactEffect provenance "
+                "mismatch";
+            return false;
+        }
+        for (std::size_t index = 0;
+             index < race.contactSoundPaths.size(); ++index)
+        {
+            if (!recordEndsWith(
+                    race.contactSoundPaths[index],
+                    "light_impact0" + std::to_string(index + 1U) +
+                        ".ogg"))
+            {
+                error =
+                    "source PairPxContactEffect sound catalog mismatch";
+                return false;
+            }
         }
         if (race.levelPath != "Data/Map/World1/map1.r3dMap" ||
             race.lapCount != 4 || race.vehicle.record.find("marauder") ==

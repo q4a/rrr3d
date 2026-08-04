@@ -291,7 +291,8 @@ private:
 
     void recordOne(std::size_t vehicle, const JPH::Body& body,
                    const JPH::Body& other, JPH::Vec3Arg outwardNormal,
-                   float estimatedForce)
+                   float estimatedForce, float estimatedFrictionForce,
+                   const JPH::ContactManifold& manifold)
     {
         const JPH::Vec3 bodyVelocity = body.GetLinearVelocity();
         std::size_t otherVehicle = std::numeric_limits<std::size_t>::max();
@@ -327,6 +328,29 @@ private:
         contact.normal = fromJolt(outwardNormal);
         contact.normalSpeed = normalSpeed;
         contact.force = force;
+        contact.otherActor =
+            other.GetID().GetIndexAndSequenceNumber();
+        contact.frictionForce = estimatedFrictionForce;
+        const auto pointCount = std::min<std::size_t>(
+            {manifold.mRelativeContactPointsOn1.size(),
+             manifold.mRelativeContactPointsOn2.size(), 2U});
+        contact.points.reserve(pointCount);
+        for (std::size_t index = 0; index < pointCount; ++index)
+        {
+            const JPH::RVec3 firstPoint =
+                manifold.GetWorldSpaceContactPointOn1(
+                    static_cast<JPH::uint>(index));
+            const JPH::RVec3 secondPoint =
+                manifold.GetWorldSpaceContactPointOn2(
+                    static_cast<JPH::uint>(index));
+            contact.points.push_back(fromJolt(JPH::Vec3(
+                firstPoint + 0.5F * (secondPoint - firstPoint))));
+        }
+        if (!contact.points.empty())
+        {
+            contact.point = contact.points.front();
+            contact.hasPoint = true;
+        }
 
         std::scoped_lock lock(mutex_);
         if (vehicle >= pending_.size())
@@ -336,12 +360,27 @@ private:
             contacts.begin(), contacts.end(),
             [&](const BodyContact& value) {
                 return value.surface == contact.surface &&
-                       value.otherVehicle == contact.otherVehicle;
+                       value.otherVehicle == contact.otherVehicle &&
+                       value.otherActor == contact.otherActor;
             });
         if (found == contacts.end())
             contacts.push_back(contact);
-        else if (contact.force > found->force)
-            *found = contact;
+        else
+        {
+            if (contact.force > found->force)
+            {
+                found->normal = contact.normal;
+                found->normalSpeed = contact.normalSpeed;
+                found->force = contact.force;
+            }
+            if (contact.frictionForce > found->frictionForce)
+            {
+                found->frictionForce = contact.frictionForce;
+                found->point = contact.point;
+                found->points = std::move(contact.points);
+                found->hasPoint = contact.hasPoint;
+            }
+        }
     }
 
     void record(const JPH::Body& first, const JPH::Body& second,
@@ -354,21 +393,34 @@ private:
             settings.mCombinedFriction,
             settings.mCombinedRestitution, 1.0F, 4U);
         float estimatedForce = 0.0F;
+        float frictionImpulse1 = 0.0F;
+        float frictionImpulse2 = 0.0F;
         constexpr float originalContactStep = 1.0F / 120.0F;
         for (const auto& impulse : estimation.mImpulses)
+        {
             estimatedForce +=
                 std::abs(impulse.mContactImpulse) / originalContactStep;
+            frictionImpulse1 += impulse.mFrictionImpulse1;
+            frictionImpulse2 += impulse.mFrictionImpulse2;
+        }
+        const float estimatedFrictionForce =
+            std::sqrt(
+                frictionImpulse1 * frictionImpulse1 +
+                frictionImpulse2 * frictionImpulse2) /
+            originalContactStep;
         std::size_t firstVehicle = 0;
         std::size_t secondVehicle = 0;
         if (vehicleIndex(first.GetUserData(), firstVehicle))
         {
             recordOne(firstVehicle, first, second,
-                      -manifold.mWorldSpaceNormal, estimatedForce);
+                      -manifold.mWorldSpaceNormal, estimatedForce,
+                      estimatedFrictionForce, manifold);
         }
         if (vehicleIndex(second.GetUserData(), secondVehicle))
         {
             recordOne(secondVehicle, second, first,
-                      manifold.mWorldSpaceNormal, estimatedForce);
+                      manifold.mWorldSpaceNormal, estimatedForce,
+                      estimatedFrictionForce, manifold);
         }
     }
 
@@ -2287,7 +2339,13 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 return contact.surface ==
                            CollisionSurface::TrackBorder &&
                        contact.normalSpeed > 0.0F &&
-                       contact.force > 0.0F;
+                       contact.force > 0.0F &&
+                       contact.otherActor !=
+                           std::numeric_limits<std::uint32_t>::max() &&
+                       contact.hasPoint &&
+                       !contact.points.empty() &&
+                       std::isfinite(contact.frictionForce) &&
+                       contact.frictionForce >= 0.0F;
             });
     }
     if (!sawBorderContact)

@@ -1570,6 +1570,7 @@ bool OriginalRaceRenderer::initialize(
         }
         loadDefinition(rainEffect_, race.rainEffect);
         loadDefinition(wheelTrailEffect_, race.wheelTrailEffect);
+        loadDefinition(contactEffect_, race.contactEffect);
 
         weapons_.resize(race.weapons.size());
         weaponShotEffects_.resize(race.weapons.size());
@@ -1972,6 +1973,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         releaseObject(track);
     releaseObject(rainEffect_);
     releaseObject(wheelTrailEffect_);
+    releaseObject(contactEffect_);
     vehicleBodies_.clear();
     vehicleWheels_.clear();
     vehicleLowLifeEffects_.clear();
@@ -2628,7 +2630,8 @@ void OriginalRaceRenderer::draw(
             float sourceSpeed,
             const std::vector<r3d::physics::Vec3>*
                 trailOverride,
-            float opacity, bool forceNoDepth) {
+            float opacity, bool forceNoDepth,
+            float emissionEndSeconds) {
             const std::size_t emitterCount = std::min(
                 asset.particleTextures.size(),
                 definition.particleEmitters.size());
@@ -2662,6 +2665,12 @@ void OriginalRaceRenderer::draw(
                     emitter.distanceTriggered
                         ? age * distanceSpeed
                         : age;
+                const float scheduleEnd =
+                    emitter.distanceTriggered
+                        ? emissionEndSeconds * distanceSpeed
+                        : emissionEndSeconds;
+                const float effectiveScheduleAge =
+                    std::min(scheduleAge, scheduleEnd);
                 const std::uint32_t sourceMaximum =
                     emitter.maximumParticles;
                 std::uint32_t createdParticles = 0U;
@@ -2674,7 +2683,7 @@ void OriginalRaceRenderer::draw(
                 // fractional density and mnaWaitingFree capacity.
                 for (std::uint32_t groupIndex = 0U;
                      groupIndex < 4096U &&
-                     nextBirth <= scheduleAge + 0.0001F;
+                     nextBirth <= effectiveScheduleAge + 0.0001F;
                      ++groupIndex)
                 {
                     const float birth =
@@ -3195,6 +3204,8 @@ void OriginalRaceRenderer::draw(
         const std::vector<r3d::physics::Vec3>* trailOverride =
             nullptr;
         float opacity = 1.0F;
+        float emissionEndSeconds =
+            std::numeric_limits<float>::infinity();
         RenderStage stage = RenderStage::Opacity;
         float distanceSquared = 0.0F;
     };
@@ -3206,7 +3217,9 @@ void OriginalRaceRenderer::draw(
             float sourceSpeed,
             const std::vector<r3d::physics::Vec3>*
                 trailOverride = nullptr,
-            float opacity = 1.0F) {
+            float opacity = 1.0F,
+            float emissionEndSeconds =
+                std::numeric_limits<float>::infinity()) {
             // gpCullOpacity only makes an actor a RayUser after the
             // camera-to-player cast hits it.  ActorManager renders every
             // other actor through its normal graph-order/depth pass.
@@ -3228,7 +3241,7 @@ void OriginalRaceRenderer::draw(
                     parent.position.z - cameraPosition_.z;
                 deferredParticles.push_back(
                     {&asset, &definition, parent, age, sourceSpeed,
-                     trailOverride, opacity,
+                     trailOverride, opacity, emissionEndSeconds,
                      renderStage(definition.graphOrder,
                                  cullOpacityActor),
                      dx * dx + dy * dy + dz * dz});
@@ -3677,6 +3690,17 @@ void OriginalRaceRenderer::draw(
     for (const auto& effect : effects)
     {
         if (effect.kind ==
+            r3d::game::originalrace::RaceEventKind::ContactImpact)
+        {
+            r3d::physics::Transform parent;
+            parent.position = effect.origin;
+            drawDefinition(
+                contactEffect_, race.contactEffect, parent,
+                effect.ageSeconds, 0.0F, nullptr, 1.0F,
+                effect.emissionEndSeconds);
+            continue;
+        }
+        if (effect.kind ==
                 r3d::game::originalrace::RaceEventKind::
                     VehicleEnergyDamage &&
             effect.racer < vehicles.size() &&
@@ -3963,7 +3987,8 @@ void OriginalRaceRenderer::draw(
                           deferred.parent, deferred.age,
                           deferred.sourceSpeed,
                           deferred.trailOverride,
-                          deferred.opacity, forceNoDepth);
+                          deferred.opacity, forceNoDepth,
+                          deferred.emissionEndSeconds);
         }
     }
 }

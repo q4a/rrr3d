@@ -169,6 +169,16 @@ struct BodyContact
     Vec3 normal;
     float normalSpeed = 0.0F;
     float force = 0.0F;
+    // PairPxContactEffect in the Windows engine is keyed by the two PhysX
+    // actors and tests sumFrictionForce rather than the normal impulse used
+    // by touch damage. Preserve both values and the real manifold points at
+    // the backend boundary instead of reconstructing them from a car pose.
+    std::uint32_t otherActor =
+        std::numeric_limits<std::uint32_t>::max();
+    float frictionForce = 0.0F;
+    Vec3 point{};
+    std::vector<Vec3> points{};
+    bool hasPoint = false;
 };
 
 struct WheelContactState

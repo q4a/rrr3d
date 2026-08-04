@@ -158,6 +158,7 @@ private:
     std::vector<std::vector<ProjectileAsset>> projectiles_;
     ObjectAsset rainEffect_;
     ObjectAsset wheelTrailEffect_;
+    ObjectAsset contactEffect_;
     r3d::renderer::Texture skyTexture_;
     r3d::renderer::Mesh skyMesh_;
     r3d::renderer::Texture vehicleLightTexture_;

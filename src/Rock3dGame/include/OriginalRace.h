@@ -629,6 +629,10 @@ struct Race
     ObjectDefinition rainEffect;
     // Source ctEffects/trail record referenced by the wheel behavior type 9.
     ObjectDefinition wheelTrailEffect;
+    // DataBase::Init installs one global PairPxContactEffect using spark2
+    // and the five original light-impact clips.
+    ObjectDefinition contactEffect;
+    std::vector<std::string> contactSoundPaths;
     Vehicle vehicle;
     PresentationCamera presentationCamera;
 };

@@ -3310,22 +3310,19 @@ int main(int argc, char** argv)
                             .deathEffect.visual);
             }
         }
+        preloadDefinition(originalRace->contactEffect);
+        for (const auto& path : originalRace->contactSoundPaths)
+        {
+            valid =
+                loadEngineSound(path) !=
+                    r3d::audio::invalidSound &&
+                valid;
+        }
         return valid;
     };
     engineAudioValid = engineAudioValid && preloadEffectAudio();
     const auto acceptanceAudio =
         loadEngineSound("Data/Sounds/UI/acception.ogg");
-    const auto crashAudio =
-        loadEngineSound("Data/Sounds/carcrash05.ogg");
-    std::array<r3d::audio::SoundHandle, 5> impactAudio{};
-    std::vector<float> damageAudioCooldown(
-        originalRace->racers.size(), 0.0F);
-    for (std::size_t index = 0; index < impactAudio.size(); ++index)
-    {
-        impactAudio[index] = loadEngineSound(
-            "Data/Sounds/light_impact0" +
-            std::to_string(index + 1U) + ".ogg");
-    }
     rrr3d::audio::OriginalRaceCommentator commentator(
         audio, *resources);
     const bool commentatorValid = commentator.initialize(
@@ -3333,12 +3330,6 @@ int main(int argc, char** argv)
     engineAudioValid =
         engineAudioValid &&
         acceptanceAudio != r3d::audio::invalidSound &&
-        crashAudio != r3d::audio::invalidSound &&
-        std::all_of(
-            impactAudio.begin(), impactAudio.end(),
-            [](r3d::audio::SoundHandle sound) {
-                return sound != r3d::audio::invalidSound;
-            }) &&
         commentatorValid;
     if (!engineAudioValid)
     {
@@ -3379,8 +3370,6 @@ int main(int argc, char** argv)
             OriginalMusicDialogSource::Game, lastGameMusicTrack);
         commentator.pause(false);
         commentator.reset();
-        std::fill(damageAudioCooldown.begin(),
-                  damageAudioCooldown.end(), 0.0F);
         for (std::size_t racer = 0; racer < engineAudio.size();
              ++racer)
         {
@@ -4477,8 +4466,6 @@ int main(int argc, char** argv)
                 engineAudio[racer].rpm =
                     loadEngineSound(vehicle.rpmSoundPath);
             }
-            damageAudioCooldown.assign(
-                originalRace->racers.size(), 0.0F);
             if (!preloadEffectAudio())
             {
                 std::cerr
@@ -10548,9 +10535,6 @@ int main(int argc, char** argv)
                                    ? raceVehicles[racer].linearVelocity
                                    : r3d::physics::Vec3{};
                     };
-                for (auto& cooldown : damageAudioCooldown)
-                    cooldown =
-                        std::max(0.0F, cooldown - frameSeconds);
                 for (const auto& event : raceSession.events())
                 {
                     if (event.kind ==
@@ -10592,40 +10576,6 @@ int main(int argc, char** argv)
                             loadEngineSound(event.soundPath),
                             event.position,
                             eventVelocity(event.racer), 0.9F);
-                    }
-                    else if (event.kind ==
-                                 r3d::game::originalrace::RaceEventKind::
-                                     Damage)
-                    {
-                        if (event.racer <
-                                damageAudioCooldown.size() &&
-                            damageAudioCooldown[event.racer] > 0.0F)
-                            continue;
-                        if (event.racer <
-                            damageAudioCooldown.size())
-                            damageAudioCooldown[event.racer] =
-                                event.touchDamage ? 0.2F : 0.08F;
-                        const auto sound =
-                            event.touchDamage
-                                ? crashAudio
-                                : impactAudio[
-                                      (event.racer + event.target) %
-                                      impactAudio.size()];
-                        playSpatial(
-                            sound, event.position,
-                            eventVelocity(event.racer),
-                            event.touchDamage ? 0.75F : 0.62F);
-                    }
-                    else if (event.kind ==
-                                 r3d::game::originalrace::RaceEventKind::
-                                     DecorationDestroyed)
-                    {
-                        playSpatial(
-                            impactAudio[
-                                (event.racer + event.target) %
-                                impactAudio.size()],
-                            event.position,
-                            eventVelocity(event.racer), 0.72F);
                     }
                 }
                 commentator.update(

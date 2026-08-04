@@ -3318,6 +3318,98 @@ void OriginalRaceSession::updateGameplay(
             DamageType::Touch);
     };
 
+    // DataBase::Init installs PairPxContactEffect globally. PhysX reports
+    // every non-wheel manifold, the effect keeps at most two points per
+    // actor pair, and OnProgress releases a missing point after 0.1 seconds.
+    // spark2 then waits for its already emitted particles (maximum life 0.7)
+    // before disappearing.
+    constexpr float sourceContactForce = 10000.0F;
+    constexpr float sourceContactRelease = 0.1F;
+    constexpr float sourceContactParticleLife = 0.7F;
+    for (std::size_t racer = 0;
+         racer < vehicles.size() && racer < racers_.size(); ++racer)
+    {
+        if (racers_[racer].destroyed)
+            continue;
+        for (const auto& contact : vehicles[racer].bodyContacts)
+        {
+            if (contact.frictionForce <= sourceContactForce ||
+                (contact.surface ==
+                     r3d::physics::CollisionSurface::Vehicle &&
+                 contact.otherVehicle < racer))
+            {
+                continue;
+            }
+            std::array<Vec3, 2> points{};
+            std::size_t pointCount = std::min<std::size_t>(
+                contact.points.size(), points.size());
+            for (std::size_t index = 0; index < pointCount; ++index)
+                points[index] = contact.points[index];
+            if (pointCount == 0U)
+            {
+                points[0] = contact.hasPoint
+                                ? contact.point
+                                : vehicles[racer].body.position;
+                pointCount = 1U;
+            }
+            const auto activePair = std::find_if(
+                effects_.begin(), effects_.end(),
+                [&](const RaceEffect& effect) {
+                    return effect.kind == RaceEventKind::ContactImpact &&
+                           effect.racer == racer &&
+                           effect.contactSurface == contact.surface &&
+                           effect.contactActor == contact.otherActor &&
+                           effect.emissionEndSeconds >= effect.ageSeconds;
+                });
+            if (activePair == effects_.end())
+            {
+                pushEffectSound(
+                    race_.contactSoundPaths, points[0], racer);
+            }
+            for (std::size_t index = 0; index < pointCount; ++index)
+            {
+                auto effect = std::find_if(
+                    effects_.begin(), effects_.end(),
+                    [&](const RaceEffect& value) {
+                        return value.kind ==
+                                   RaceEventKind::ContactImpact &&
+                               value.racer == racer &&
+                               value.contactSurface == contact.surface &&
+                               value.contactActor == contact.otherActor &&
+                               value.contactIndex == index &&
+                               value.emissionEndSeconds >=
+                                   value.ageSeconds;
+                    });
+                if (effect == effects_.end())
+                {
+                    RaceEffect created;
+                    created.kind = RaceEventKind::ContactImpact;
+                    created.racer = racer;
+                    created.contactSurface = contact.surface;
+                    created.contactActor = contact.otherActor;
+                    created.contactIndex =
+                        static_cast<std::uint8_t>(index);
+                    created.totalSeconds =
+                        sourceContactRelease +
+                        sourceContactParticleLife;
+                    created.seconds = created.totalSeconds;
+                    created.ageSeconds = 0.0F;
+                    created.emissionEndSeconds =
+                        sourceContactRelease;
+                    effects_.push_back(std::move(created));
+                    effect = std::prev(effects_.end());
+                }
+                effect->origin = points[index];
+                effect->target = add(points[index], contact.normal);
+                effect->seconds =
+                    sourceContactRelease +
+                    sourceContactParticleLife;
+                effect->emissionEndSeconds =
+                    effect->ageSeconds + sourceContactRelease;
+            }
+        }
+    }
+
     for (std::size_t racer = 0;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
     {
@@ -5719,7 +5811,10 @@ void OriginalRaceSession::update(
     if (phase_ == RacePhase::Paused)
         return;
     for (auto& effect : effects_)
+    {
         effect.seconds -= seconds;
+        effect.ageSeconds += seconds;
+    }
     effects_.erase(
         std::remove_if(effects_.begin(), effects_.end(),
                        [](const RaceEffect& effect) {
@@ -6715,6 +6810,100 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 "disabled spring-border still changed velocity");
         session.setSpringBorders(true);
         vehicles[0].bodyContacts.clear();
+
+        {
+            OriginalRaceSession contactSession(race);
+            auto contactVehicles = vehicles;
+            RaceControl contactInput;
+            for (auto& vehicle : contactVehicles)
+                vehicle.bodyContacts.clear();
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                contactSession.update(
+                    1.0F / 60.0F, contactVehicles,
+                    contactInput);
+            }
+            r3d::physics::BodyContact contact;
+            contact.surface =
+                r3d::physics::CollisionSurface::TrackBorder;
+            contact.normal = {1.0F, 0.0F, 0.0F};
+            contact.normalSpeed = 20.0F;
+            contact.force = 1200000.0F;
+            contact.otherActor = 77U;
+            contact.frictionForce = 12001.0F;
+            contact.point = add(
+                contactVehicles[0].body.position,
+                {0.5F, 0.0F, 0.5F});
+            contact.points = {
+                contact.point,
+                add(contact.point, {0.0F, 0.25F, 0.0F})};
+            contact.hasPoint = true;
+            contactVehicles[0].bodyContacts = {contact};
+            contactSession.update(
+                1.0F / 60.0F, contactVehicles,
+                contactInput);
+            const auto contactEffectCount =
+                static_cast<std::size_t>(std::count_if(
+                    contactSession.effects().begin(),
+                    contactSession.effects().end(),
+                    [](const RaceEffect& effect) {
+                        return effect.kind ==
+                               RaceEventKind::ContactImpact;
+                    }));
+            const bool hasContactSound = std::any_of(
+                contactSession.events().begin(),
+                contactSession.events().end(),
+                [&](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::EffectSound &&
+                           std::find(
+                               race.contactSoundPaths.begin(),
+                               race.contactSoundPaths.end(),
+                               event.soundPath) !=
+                               race.contactSoundPaths.end();
+                });
+            const bool sourceContactMetadata = std::all_of(
+                contactSession.effects().begin(),
+                contactSession.effects().end(),
+                [](const RaceEffect& effect) {
+                    return effect.kind != RaceEventKind::ContactImpact ||
+                           (effect.contactActor == 77U &&
+                            std::abs(
+                                effect.emissionEndSeconds - 0.1F) <
+                                0.0001F &&
+                            std::abs(effect.totalSeconds - 0.8F) <
+                                0.0001F);
+                });
+            if (contactEffectCount != 2U ||
+                !hasContactSound || !sourceContactMetadata)
+            {
+                throw std::runtime_error(
+                    "source PairPxContactEffect create/sound failed");
+            }
+            contactVehicles[0].bodyContacts.clear();
+            for (int step = 0; step < 6; ++step)
+                contactSession.update(
+                    0.1F, contactVehicles, contactInput);
+            const bool particlesStillAlive = std::any_of(
+                contactSession.effects().begin(),
+                contactSession.effects().end(),
+                [](const RaceEffect& effect) {
+                    return effect.kind == RaceEventKind::ContactImpact;
+                });
+            for (int step = 0; step < 3; ++step)
+                contactSession.update(
+                    0.1F, contactVehicles, contactInput);
+            const bool released = std::none_of(
+                contactSession.effects().begin(),
+                contactSession.effects().end(),
+                [](const RaceEffect& effect) {
+                    return effect.kind == RaceEventKind::ContactImpact;
+                });
+            if (!particlesStillAlive || !released)
+            {
+                throw std::runtime_error(
+                    "source PairPxContactEffect release/waiting-end failed");
+            }
+        }
 
         {
             OriginalRaceSession lowLifeSession(race);
