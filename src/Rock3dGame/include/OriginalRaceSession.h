@@ -31,6 +31,7 @@ enum class RaceEventKind
     Finish,
     Respawn,
     WeaponFired,
+    EffectSound,
     WeaponShotEffect,
     Damage,
     Kill,
@@ -189,6 +190,9 @@ struct RaceEvent
     // excluding that event from kill HUD/commentary/achievements.
     bool killCredit = true;
     DamageType damageType = DamageType::Simple;
+    // Exact EventEffect/LifeEffect sound selected when its source object is
+    // created. Empty for non-audio race events.
+    std::string soundPath{};
 };
 
 struct RaceEffect

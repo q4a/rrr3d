@@ -646,6 +646,19 @@ MaterialDefinition materialDefinition(
             material.emissive = 1.0F;
             material.ignoreFog = true;
         }
+        if (record == "Bonus\\maslo")
+        {
+            // ResourceManager::LoadBonus builds the oil material manually:
+            // transparent/no-Z-write, specular and a second reflection-vector
+            // sampler that replaces RGB with maslo_top.
+            material.blend = MaterialBlend::Transparency;
+            material.writeDepth = false;
+            material.specular = 1.0F;
+            material.shininess = 64.0F;
+            material.reflectionTexturePath = canonicalDataPath(
+                resources, "Data/Bonus/maslo_top.dds");
+            material.reflectionTextureCoordinates = true;
+        }
         struct Atlas
         {
             std::string_view record;
@@ -674,25 +687,18 @@ MaterialDefinition materialDefinition(
             material.atlasColumns = atlas->columns;
             material.atlasRows = atlas->rows;
         }
-        // ResourceManager::LoadBumpLibMat binds a second sampler whose
-        // shipped name follows the diffuse texture with `_norm`. This is
-        // active for the World2 track and bridge materials.
-        if (!material.texturePath.empty() &&
-            material.normalTexturePath.empty())
+        // ResourceManager::LoadWorld2 calls LoadBumpLibMat for exactly these
+        // two materials. Do not infer bump mapping from filenames.
+        if (record == "World2\\Track\\track1" ||
+            record == "World2\\Track\\most")
         {
-            const auto extension = material.texturePath.find_last_of('.');
-            if (extension != std::string::npos)
-            {
-                auto candidate = material.texturePath;
-                candidate.insert(extension, "_norm");
-                if (resources.exists(candidate))
-                {
-                    material.normalTexturePath = std::move(candidate);
-                    // LoadBumpLibMat uses this exact D3D material state.
-                    material.specular = 0.5F;
-                    material.shininess = 128.0F;
-                }
-            }
+            material.normalTexturePath = canonicalDataPath(
+                resources,
+                record == "World2\\Track\\track1"
+                    ? "Data/World2/Track/Texture/track1_norm.dds"
+                    : "Data/World2/Track/Texture/most_norm.dds");
+            material.specular = 0.5F;
+            material.shininess = 128.0F;
         }
         return material;
     };
@@ -882,8 +888,6 @@ MaterialDefinition materialDefinition(
         {"Bonus\\medpack", "Data/Bonus/medpack.dds",
          MaterialBlend::Opaque},
         {"Bonus\\ammo", "Data/Bonus/ammo.dds", MaterialBlend::Opaque},
-        {"Bonus\\mineSpike", "Data/Bonus/mineSpike.dds",
-         MaterialBlend::AlphaTest},
         {"Bonus\\shield", "Data/Bonus/shield.dds",
          MaterialBlend::Opaque},
         {"Bonus\\speedArrow", "Data/Bonus/speedArrow.dds",
@@ -896,17 +900,344 @@ MaterialDefinition materialDefinition(
          MaterialBlend::Transparency},
         {"Bonus\\hellLusha", "Data/Bonus/hellLusha.dds",
          MaterialBlend::Transparency},
+        {"Bonus\\maslo", "Data/Bonus/maslo.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\frostRay", "Data/Effect/frostRay.dds",
+         MaterialBlend::Transparency},
+        {"GUI\\space2", "Data/GUI/space2.dds",
+         MaterialBlend::Opaque},
+        {"Car\\airblade", "Data/Car/airblade.dds",
+         MaterialBlend::Opaque},
+        {"Car\\airbladeCrush", "Data/Car/airbladeCrush.dds",
+         MaterialBlend::Opaque},
+        {"Car\\buggi", "Data/Car/buggi.dds",
+         MaterialBlend::Opaque},
+        {"Car\\devildriver", "Data/Car/devildriver.dds",
+         MaterialBlend::Opaque},
+        {"Car\\devildriverBoss", "Data/Car/devildriverBoss.dds",
+         MaterialBlend::Opaque},
+        {"Car\\devildriverCrush", "Data/Car/devildriverCrush.dds",
+         MaterialBlend::Opaque},
+        {"Car\\dirtdevil", "Data/Car/dirtdevil.dds",
+         MaterialBlend::Opaque},
+        {"Car\\dirtdevilCrush", "Data/Car/dirtdevilCrush.dds",
+         MaterialBlend::Opaque},
+        {"Car\\guseniza", "Data/Car/guseniza.dds",
+         MaterialBlend::Opaque},
+        {"Car\\gusenizaBoss", "Data/Car/gusenizaBoss.dds",
+         MaterialBlend::Opaque},
+        {"Car\\gusenizaCrush", "Data/Car/gusenizaCrush.dds",
+         MaterialBlend::Opaque},
+        {"Car\\manticora", "Data/Car/manticora.dds",
+         MaterialBlend::Opaque},
+        {"Car\\manticoraBoss", "Data/Car/manticoraBoss.dds",
+         MaterialBlend::Opaque},
+        {"Car\\manticoraCrush", "Data/Car/manticoraCrush.dds",
+         MaterialBlend::Opaque},
+        {"Car\\marauder", "Data/Car/marauder.dds",
+         MaterialBlend::Opaque},
+        {"Car\\marauderCrush", "Data/Car/marauderCrush.dds",
+         MaterialBlend::Opaque},
+        {"Car\\monstertruck", "Data/Car/monstertruck.dds",
+         MaterialBlend::Opaque},
+        {"Car\\monstertruckBoss", "Data/Car/monstertruckBoss.dds",
+         MaterialBlend::Opaque},
+        {"Car\\monstertruckCrush", "Data/Car/monstertruckCrush.dds",
+         MaterialBlend::Opaque},
+        {"Car\\mustang", "Data/Car/mustang.dds",
+         MaterialBlend::Opaque},
+        {"Car\\podushka", "Data/Car/podushka.dds",
+         MaterialBlend::Opaque},
+        {"Car\\podushkaBoss", "Data/Car/podushkaBoss.dds",
+         MaterialBlend::Opaque},
+        {"Car\\podushkaCrush", "Data/Car/podushkaCrush.dds",
+         MaterialBlend::Opaque},
+        {"Car\\tankchetti", "Data/Car/tankchetti.dds",
+         MaterialBlend::Opaque},
+        {"Car\\xCar", "Data/Car/xCar.dds",
+         MaterialBlend::Opaque},
+        {"Effect\\ExplosionRay", "Data/Effect/ExplosionRay.dds",
+         MaterialBlend::Additive},
+        {"Effect\\ExplosionRing", "Data/Effect/ExplosionRing.dds",
+         MaterialBlend::Additive},
+        {"Effect\\asphaltMarks", "Data/Effect/asphaltMarks.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\blaster", "Data/Effect/blaster.dds",
+         MaterialBlend::Additive},
+        {"Effect\\blaster2", "Data/Effect/blaster2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\blink", "Data/Effect/blink.dds",
+         MaterialBlend::Additive},
+        {"Effect\\bullet", "Data/Effect/bullet.dds",
+         MaterialBlend::Additive},
+        {"Effect\\crater", "Data/Effect/crater.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\drop", "Data/Effect/drop.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\engine1", "Data/Effect/engine1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\explosion2", "Data/Effect/explosion2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\explosion3", "Data/Effect/explosion3.dds",
+         MaterialBlend::Additive},
+        {"Effect\\explosion4", "Data/Effect/explosion4.dds",
+         MaterialBlend::Additive},
+        {"Effect\\fire1", "Data/Effect/fire1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\fire2", "Data/Effect/fire2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\firePatron", "Data/Effect/firePatron.dds",
+         MaterialBlend::Additive},
+        {"Effect\\fireTrail", "Data/Effect/fireTrail.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flare1", "Data/Effect/flare1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flash1", "Data/Effect/flash1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\flash2", "Data/Effect/flash2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\frost", "Data/Effect/frost.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\frostLine", "Data/Effect/frostLine.dds",
+         MaterialBlend::Additive},
+        {"Effect\\frostSmoke", "Data/Effect/frostSmoke.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\gunEff2", "Data/Effect/gunEff2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\heatTrail", "Data/Effect/heatTrail.dds",
+         MaterialBlend::Additive},
+        {"Effect\\laser3-blue", "Data/Effect/laser3-blue.dds",
+         MaterialBlend::Additive},
+        {"Effect\\laser3-red2", "Data/Effect/laser3-red2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\lens1", "Data/Effect/lens1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\lightning1", "Data/Effect/lightning1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\phaseRing", "Data/Effect/phaseRing.dds",
+         MaterialBlend::Additive},
+        {"Effect\\protonRay", "Data/Effect/protonRay.dds",
+         MaterialBlend::Additive},
+        {"Effect\\protonRing", "Data/Effect/protonRing.dds",
+         MaterialBlend::Additive},
+        {"Effect\\rad_add", "Data/Effect/rad_add.dds",
+         MaterialBlend::Additive},
+        {"Effect\\ring1", "Data/Effect/ring1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\ring2", "Data/Effect/ring2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\shield1", "Data/Effect/shield1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\shield2", "Data/Effect/shield2.dds",
+         MaterialBlend::Additive},
+        {"Effect\\smoke1", "Data/Effect/smoke1.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\smoke2", "Data/Effect/smoke2.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\smoke3", "Data/Effect/smoke3.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\smoke6", "Data/Effect/smoke6.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\smoke7", "Data/Effect/smoke7.dds",
+         MaterialBlend::Transparency},
+        {"Effect\\sonar", "Data/Effect/sonar.dds",
+         MaterialBlend::Additive},
+        {"Effect\\spark1", "Data/Effect/spark1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\streak1", "Data/Effect/streak1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\thunder1", "Data/Effect/thunder1.dds",
+         MaterialBlend::Additive},
+        {"Effect\\trail1", "Data/Effect/trail1.dds",
+         MaterialBlend::Additive},
+        {"Weapon\\blaster1", "Data/Weapon/blaster1.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\drobilka", "Data/Weapon/drobilka.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\droid", "Data/Weapon/droid.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\fireGun", "Data/Weapon/fireGun.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\gun", "Data/Weapon/gun.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\hyperBlaster", "Data/Weapon/hyperBlaster.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\hyperdrive", "Data/Weapon/hyperdrive.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\maslo", "Data/Weapon/maslo.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\mine1", "Data/Weapon/mine1.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\mine2", "Data/Weapon/mine2.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\mine3", "Data/Weapon/mine3.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\mortira", "Data/Weapon/mortira.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\phaseImpulse", "Data/Weapon/phaseImpulse.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\pulsator", "Data/Weapon/pulsator.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\reflector", "Data/Weapon/reflector.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\rezonator", "Data/Weapon/rezonator.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\rifleProj", "Data/Weapon/rifleProj.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\rocket", "Data/Weapon/rocket.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\rocketAir", "Data/Weapon/rocketAir.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\rocketLauncher", "Data/Weapon/rocketLauncher.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\shotBall", "Data/Weapon/shotBall.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\spring", "Data/Weapon/spring.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\tankLaser", "Data/Weapon/tankLaser.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\torpeda", "Data/Weapon/torpeda.dds",
+         MaterialBlend::Opaque},
+        {"Weapon\\turel", "Data/Weapon/turel.dds",
+         MaterialBlend::Opaque},
+        {"World2\\Haus3", "Data/World2/Texture/Haus3.dds",
+         MaterialBlend::Opaque},
+        {"World2\\Track\\most", "Data/World2/Track/Texture/most.dds",
+         MaterialBlend::Opaque},
+        {"World2\\Track\\track1", "Data/World2/Track/Texture/track1.dds",
+         MaterialBlend::Opaque},
+        {"World2\\atom", "Data/World2/Texture/atom.dds",
+         MaterialBlend::Opaque},
+        {"World2\\bochki", "Data/World2/Texture/bochki.dds",
+         MaterialBlend::Opaque},
+        {"World2\\deadtree3", "Data/World2/Texture/deadtree3.dds",
+         MaterialBlend::Opaque},
+        {"World2\\factory", "Data/World2/Texture/factory.dds",
+         MaterialBlend::Opaque},
+        {"World2\\haus1", "Data/World2/Texture/haus1.dds",
+         MaterialBlend::Opaque},
+        {"World2\\isle1", "Data/World2/Texture/isle1.dds",
+         MaterialBlend::Opaque},
+        {"World2\\machineFactory", "Data/World2/Texture/machineFactory.dds",
+         MaterialBlend::Opaque},
+        {"World2\\metal1", "Data/World2/Texture/metal1.dds",
+         MaterialBlend::Opaque},
+        {"World2\\naves1", "Data/World2/Texture/naves1.dds",
+         MaterialBlend::Opaque},
+        {"World2\\pregrada", "Data/World2/Texture/pregrada.dds",
+         MaterialBlend::Opaque},
+        {"World2\\projektor", "Data/World2/Texture/projektor.dds",
+         MaterialBlend::Opaque},
+        {"World2\\pumpjack", "Data/World2/Texture/pumpjack.dds",
+         MaterialBlend::Opaque},
+        {"World2\\skelet1", "Data/World2/Texture/skelet1.dds",
+         MaterialBlend::Opaque},
+        {"World2\\strelka1", "Data/World2/Texture/strelka1.dds",
+         MaterialBlend::Opaque},
+        {"World2\\tramplin1", "Data/World2/Texture/tramplin1.dds",
+         MaterialBlend::Opaque},
+        {"World2\\truba1", "Data/World2/Texture/truba1.dds",
+         MaterialBlend::Opaque},
+        {"World2\\truba2", "Data/World2/Texture/truba2.dds",
+         MaterialBlend::Opaque},
+        {"World2\\truba3", "Data/World2/Texture/truba3.dds",
+         MaterialBlend::Opaque},
+        {"World2\\truba4", "Data/World2/Texture/truba4.dds",
+         MaterialBlend::Opaque},
+        {"World3\\Track\\most", "Data/World3/Track/Texture/most.dds",
+         MaterialBlend::Opaque},
+        {"World3\\fabrika", "Data/World3/Texture/fabrika.dds",
+         MaterialBlend::Opaque},
+        {"World3\\tower", "Data/World3/Texture/tower.dds",
+         MaterialBlend::Opaque},
+        {"World3\\tower2", "Data/World3/Texture/tower2.dds",
+         MaterialBlend::Opaque},
+        {"World3\\ventil1", "Data/World3/Texture/ventil1.dds",
+         MaterialBlend::Opaque},
+        {"World3\\ventil2", "Data/World3/Texture/ventil2.dds",
+         MaterialBlend::Opaque},
+        {"World3\\windmil", "Data/World3/Texture/windmil.dds",
+         MaterialBlend::Opaque},
+        {"World4\\Track\\track1", "Data/World4/Track/Texture/track1.dds",
+         MaterialBlend::Opaque},
+        {"World4\\Track\\track2", "Data/World4/Track/Texture/track2.dds",
+         MaterialBlend::Opaque},
+        {"World4\\architect1", "Data/World4/Texture/architect1.dds",
+         MaterialBlend::Opaque},
+        {"World4\\architect2", "Data/World4/Texture/architect2.dds",
+         MaterialBlend::Opaque},
+        {"World4\\architect3", "Data/World4/Texture/architect3.dds",
+         MaterialBlend::Opaque},
+        {"World4\\architect4", "Data/World4/Texture/architect4.dds",
+         MaterialBlend::Opaque},
+        {"World4\\build", "Data/World4/Texture/build.dds",
+         MaterialBlend::Opaque},
+        {"World4\\crystals", "Data/World4/Texture/crystals.dds",
+         MaterialBlend::Opaque},
+        {"World4\\gora1", "Data/World4/Texture/gora1.dds",
+         MaterialBlend::Opaque},
+        {"World4\\gora2", "Data/World4/Texture/gora2.dds",
+         MaterialBlend::Opaque},
+        {"World4\\kolba", "Data/World4/Texture/kolba.dds",
+         MaterialBlend::Opaque},
+        {"World4\\lavaplace", "Data/World4/Texture/lavaplace.dds",
+         MaterialBlend::Opaque},
+        {"World4\\naves", "Data/World4/Texture/naves.dds",
+         MaterialBlend::Opaque},
+        {"World4\\pushka", "Data/World4/Texture/pushka.dds",
+         MaterialBlend::Opaque},
+        {"World4\\volcano", "Data/World4/Texture/volcano.dds",
+         MaterialBlend::Opaque},
+        {"World5\\Track\\most", "Data/World5/Track/Texture/most.dds",
+         MaterialBlend::Opaque},
+        {"World5\\cannon2", "Data/World5/Texture/cannon2.dds",
+         MaterialBlend::Opaque},
+        {"World5\\piece", "Data/World5/Texture/piece.dds",
+         MaterialBlend::Opaque},
+        {"World5\\snowPlate", "Data/World5/Texture/snowPlate.dds",
+         MaterialBlend::Opaque},
+        {"World5\\snowstone2", "Data/World5/Texture/snowstone2.dds",
+         MaterialBlend::Opaque},
+        {"World5\\transportship", "Data/World5/Texture/transportship.dds",
+         MaterialBlend::Opaque},
+        {"World6\\Track\\tonnel", "Data/World6/Track/Texture/tonnel.dds",
+         MaterialBlend::Opaque},
+        {"World6\\Track\\track1", "Data/World6/Track/Texture/track1.dds",
+         MaterialBlend::Opaque},
+        {"World6\\Track\\tramplin3", "Data/World6/Track/Texture/tramplin3.dds",
+         MaterialBlend::Opaque},
+        {"World6\\haus1", "Data/World6/Texture/haus1.dds",
+         MaterialBlend::Opaque},
+        {"World6\\haus2", "Data/World6/Texture/haus2.dds",
+         MaterialBlend::Opaque},
+        {"World6\\haus3", "Data/World6/Texture/haus3.dds",
+         MaterialBlend::Opaque},
+        {"World6\\haus4", "Data/World6/Texture/haus4.dds",
+         MaterialBlend::Opaque},
+        {"World6\\naves", "Data/World6/Texture/naves.dds",
+         MaterialBlend::Opaque},
+        {"World6\\nuke", "Data/World6/Texture/nuke.dds",
+         MaterialBlend::Opaque},
+        {"World6\\stone", "Data/World6/Texture/stone.dds",
+         MaterialBlend::Opaque},
     };
     if (record == "Effect\\gravBall" ||
-        record == "Weapon\\mortiraBall")
+        record == "Weapon\\mortiraBall" ||
+        record == "Car\\blend")
     {
         MaterialDefinition material;
         material.record = record;
-        material.blend = MaterialBlend::Opaque;
-        material.color =
-            record == "Effect\\gravBall"
-                ? std::array<float, 4>{1.0F, 0.0F, 0.0F, 1.0F}
-                : std::array<float, 4>{0.0F, 0.0F, 0.0F, 1.0F};
+        material.blend = record == "Car\\blend"
+                             ? MaterialBlend::Additive
+                             : MaterialBlend::Opaque;
+        material.color = record == "Effect\\gravBall"
+                             ? std::array<float, 4>{
+                                   1.0F, 0.0F, 0.0F, 1.0F}
+                         : (record == "Weapon\\mortiraBall"
+                                ? std::array<float, 4>{
+                                      0.0F, 0.0F, 0.0F, 1.0F}
+                                : std::array<float, 4>{
+                                      1.0F, 1.0F, 1.0F, 1.0F});
         material.colorMaximum = material.color;
         return tune(material);
     }
@@ -927,92 +1258,6 @@ MaterialDefinition materialDefinition(
         }
     }
 
-    auto directMapping = [&](std::string_view prefix,
-                             std::string_view directory)
-        -> std::optional<MaterialDefinition> {
-        if (record.rfind(prefix, 0) != 0)
-            return std::nullopt;
-        std::string name = record.substr(prefix.size());
-        std::string path(directory);
-        path += name;
-        path += ".dds";
-        path = canonicalDataPath(resources, path);
-        if (resources.exists(path))
-        {
-            MaterialBlend blend = MaterialBlend::Opaque;
-            if (prefix == "Effect\\")
-            {
-                const bool transparency =
-                    name.find("smoke") != std::string::npos ||
-                    name.find("frost") != std::string::npos ||
-                    name == "asphaltMarks" || name == "drop" ||
-                    name == "crater" || name == "boom1" ||
-                    name == "boom2";
-                blend = transparency ? MaterialBlend::Transparency
-                                     : MaterialBlend::Additive;
-            }
-            else if (prefix == "Bonus\\")
-            {
-                blend = MaterialBlend::Opaque;
-            }
-            return tune(MaterialDefinition{
-                record, path, blend, 0.0F});
-        }
-        return std::nullopt;
-    };
-    if (auto value = directMapping("Car\\", "Data/Car/"))
-        return *value;
-    if (auto value = directMapping("Weapon\\", "Data/Weapon/"))
-        return *value;
-    if (auto value = directMapping("Effect\\", "Data/Effect/"))
-        return *value;
-    if (auto value = directMapping("Bonus\\", "Data/Bonus/"))
-        return *value;
-
-    const auto slash = record.find('\\');
-    if (slash != std::string::npos)
-    {
-        const std::string world = record.substr(0, slash);
-        const std::string name = basename(record);
-        std::vector<std::string> candidates;
-        if (record.find("\\Track\\") != std::string::npos)
-        {
-            candidates.push_back("Data/" + world +
-                                 "/Track/Texture/" + name + ".dds");
-            candidates.push_back("Data/" + world +
-                                 "/Track/texture/" + name + ".dds");
-            candidates.push_back("Data/" + world +
-                                 "/Track/Texture/track1.dds");
-            candidates.push_back("Data/" + world +
-                                 "/Track/texture/track1.dds");
-        }
-        candidates.push_back("Data/" + world + "/Texture/" + name +
-                             ".dds");
-        candidates.push_back("Data/" + world + "/texture/" + name +
-                             ".dds");
-        candidates.push_back("Data/" + world + "/" + name + ".dds");
-        for (const auto& requested : candidates)
-        {
-            const auto candidate =
-                canonicalDataPath(resources, requested);
-            if (!resources.exists(candidate))
-                continue;
-            const bool transparent =
-                name.find("tree") != std::string::npos ||
-                name.find("palma") != std::string::npos ||
-                name.find("grass") != std::string::npos ||
-                name.find("bush") != std::string::npos ||
-                name.find("fern") != std::string::npos ||
-                name.find("tree") != std::string::npos ||
-                name.find("Tree") != std::string::npos ||
-                name.find("elka") != std::string::npos ||
-                name.find("poplar") != std::string::npos;
-            return tune({record, candidate,
-                         transparent ? MaterialBlend::AlphaTest
-                                     : MaterialBlend::Opaque,
-                         transparent ? 0.1F : 0.0F});
-        }
-    }
     throw resource::ResourceError("No original material mapping for " +
                                   record);
 }
@@ -1253,6 +1498,8 @@ std::vector<VisualNode> visualNodes(
                         // source material behavior.
                         definition.texturePath = textureOverride;
                         definition.normalTexturePath.clear();
+                        definition.reflectionTexturePath.clear();
+                        definition.reflectionTextureCoordinates = false;
                     }
                     node.materials.push_back(std::move(definition));
                 }
@@ -4675,6 +4922,12 @@ bool runOriginalRaceResourceSmokeTest(
                            bonus.record.size() - 9U, 9U,
                            "mineSpike") == 0;
             });
+        // World1/map1 does not place an oil hazard. Validate the material
+        // library record itself so the source-only Bonus::maslo path remains
+        // covered independently of the selected map's ctBonus instances.
+        const auto sourceOilMaterial =
+            materialDefinition(resources, "Bonus\\maslo");
+        const auto* oilMaterial = &sourceOilMaterial;
         if (!bonusCollisionBoxesMatchSource ||
             mineSpike == race.bonuses.end() ||
             !mineSpike->modelSize ||
@@ -4687,6 +4940,45 @@ bool runOriginalRaceResourceSmokeTest(
             error =
                 "source Proj::ComputeAABB/CreatePxBox bonus collision "
                 "provenance mismatch";
+            return false;
+        }
+        if (oilMaterial == nullptr ||
+            oilMaterial->record != "Bonus\\maslo" ||
+            oilMaterial->blend != MaterialBlend::Transparency ||
+            oilMaterial->writeDepth ||
+            !near(oilMaterial->specular, 1.0F) ||
+            !near(oilMaterial->shininess, 64.0F) ||
+            !oilMaterial->reflectionTextureCoordinates ||
+            !recordEndsWith(
+                oilMaterial->reflectionTexturePath,
+                "maslo_top.dds"))
+        {
+            error =
+                "source Bonus\\\\maslo two-stage reflection material "
+                "provenance mismatch: record=" +
+                (oilMaterial != nullptr ? oilMaterial->record : "<missing>") +
+                ", blend=" +
+                std::to_string(
+                    oilMaterial != nullptr
+                        ? static_cast<int>(oilMaterial->blend)
+                        : -1) +
+                ", writeDepth=" +
+                std::to_string(
+                    oilMaterial != nullptr && oilMaterial->writeDepth) +
+                ", specular=" +
+                std::to_string(
+                    oilMaterial != nullptr ? oilMaterial->specular : -1.0F) +
+                ", shininess=" +
+                std::to_string(
+                    oilMaterial != nullptr ? oilMaterial->shininess : -1.0F) +
+                ", reflectionCoordinates=" +
+                std::to_string(
+                    oilMaterial != nullptr &&
+                    oilMaterial->reflectionTextureCoordinates) +
+                ", reflection=" +
+                (oilMaterial != nullptr
+                     ? oilMaterial->reflectionTexturePath
+                     : std::string{"<missing>"});
             return false;
         }
         if (race.levelPath != "Data/Map/World1/map1.r3dMap" ||

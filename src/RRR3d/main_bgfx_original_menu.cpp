@@ -3221,7 +3221,6 @@ int main(int argc, char** argv)
     std::vector<EngineAudio> engineAudio(originalRace->racers.size());
     std::vector<r3d::audio::SoundHandle> weaponAudio(
         originalRace->weapons.size(), r3d::audio::invalidSound);
-    std::vector<r3d::audio::SoundHandle> bonusDeathAudio;
     auto loadEngineSound = [&](const std::string& path) {
         const auto found = engineSounds.find(path);
         if (found != engineSounds.end())
@@ -3264,56 +3263,60 @@ int main(int argc, char** argv)
                 weaponAudio[weapon] != r3d::audio::invalidSound;
         }
     }
-    auto reloadBonusDeathAudio = [&]() {
-        bonusDeathAudio.assign(
-            originalRace->bonuses.size(),
-            r3d::audio::invalidSound);
+    auto preloadEffectAudio = [&]() {
         bool valid = true;
-        for (std::size_t bonus = 0;
-             bonus < originalRace->bonuses.size(); ++bonus)
+        const auto preloadDefinition = [&](const auto& definition) {
+            for (const auto& path : definition.soundPaths)
+            {
+                valid =
+                    loadEngineSound(path) !=
+                        r3d::audio::invalidSound &&
+                    valid;
+            }
+        };
+        for (const auto& sourceRacer : originalRace->racers)
         {
-            const auto& sounds =
-                originalRace->bonuses[bonus]
-                    .deathEffect.visual.soundPaths;
-            if (sounds.empty())
-                continue;
-            bonusDeathAudio[bonus] =
-                loadEngineSound(sounds.front());
-            valid =
-                valid &&
-                bonusDeathAudio[bonus] !=
-                    r3d::audio::invalidSound;
+            const auto& vehicle =
+                sourceRacer.hasConfiguredVehicle
+                    ? sourceRacer.configuredVehicle
+                    : originalRace->vehicles.at(sourceRacer.vehicle);
+            preloadDefinition(vehicle.lowLifeEffect);
+            preloadDefinition(vehicle.energyDamageEffect);
+            preloadDefinition(vehicle.shieldEffect);
+            for (const auto& death : vehicle.deathEffects)
+                preloadDefinition(death.visual);
+        }
+        for (const auto& bonus : originalRace->bonuses)
+        {
+            preloadDefinition(bonus.visual);
+            preloadDefinition(bonus.deathEffect.visual);
+        }
+        for (const auto& weapon : originalRace->weapons)
+        {
+            preloadDefinition(weapon.shotEffect.visual);
+            for (const auto& projectile : weapon.projectiles)
+            {
+                preloadDefinition(projectile.visual);
+                preloadDefinition(projectile.secondaryVisual);
+                preloadDefinition(projectile.tertiaryVisual);
+                preloadDefinition(projectile.deathEffect.visual);
+                if (projectile.secondaryProjectile.valid)
+                    preloadDefinition(
+                        projectile.secondaryProjectile
+                            .deathEffect.visual);
+                if (projectile.tertiaryProjectile.valid)
+                    preloadDefinition(
+                        projectile.tertiaryProjectile
+                            .deathEffect.visual);
+            }
         }
         return valid;
     };
-    const bool bonusDeathAudioValid =
-        reloadBonusDeathAudio();
-    engineAudioValid =
-        engineAudioValid && bonusDeathAudioValid;
+    engineAudioValid = engineAudioValid && preloadEffectAudio();
     const auto acceptanceAudio =
         loadEngineSound("Data/Sounds/UI/acception.ogg");
     const auto crashAudio =
         loadEngineSound("Data/Sounds/carcrash05.ogg");
-    std::string destructionSoundPath;
-    if (!originalRace->racers.empty())
-    {
-        const auto& sourceRacer = originalRace->racers.front();
-        const auto& vehicle =
-            sourceRacer.hasConfiguredVehicle
-                ? sourceRacer.configuredVehicle
-                : originalRace->vehicles.at(sourceRacer.vehicle);
-        for (const auto& effect : vehicle.deathEffects)
-        {
-            if (effect.visual.soundPaths.empty())
-                continue;
-            destructionSoundPath = effect.visual.soundPaths.front();
-            break;
-        }
-    }
-    if (destructionSoundPath.empty())
-        destructionSoundPath = "Data/Sounds/carcrash05.ogg";
-    const auto destructionAudio =
-        loadEngineSound(destructionSoundPath);
     std::array<r3d::audio::SoundHandle, 5> impactAudio{};
     std::vector<float> damageAudioCooldown(
         originalRace->racers.size(), 0.0F);
@@ -3331,7 +3334,6 @@ int main(int argc, char** argv)
         engineAudioValid &&
         acceptanceAudio != r3d::audio::invalidSound &&
         crashAudio != r3d::audio::invalidSound &&
-        destructionAudio != r3d::audio::invalidSound &&
         std::all_of(
             impactAudio.begin(), impactAudio.end(),
             [](r3d::audio::SoundHandle sound) {
@@ -4477,11 +4479,10 @@ int main(int argc, char** argv)
             }
             damageAudioCooldown.assign(
                 originalRace->racers.size(), 0.0F);
-            if (!reloadBonusDeathAudio())
+            if (!preloadEffectAudio())
             {
                 std::cerr
-                    << "Unable to reload original bonus DeathEffect "
-                       "audio\n";
+                    << "Unable to preload original EventEffect audio\n";
                 return false;
             }
 #endif
@@ -10584,13 +10585,13 @@ int main(int argc, char** argv)
                     }
                     else if (event.kind ==
                                  r3d::game::originalrace::RaceEventKind::
-                                     Bonus &&
-                             event.target < bonusDeathAudio.size())
+                                     EffectSound &&
+                             !event.soundPath.empty())
                     {
                         playSpatial(
-                            bonusDeathAudio[event.target],
+                            loadEngineSound(event.soundPath),
                             event.position,
-                            eventVelocity(event.racer), 0.75F);
+                            eventVelocity(event.racer), 0.9F);
                     }
                     else if (event.kind ==
                                  r3d::game::originalrace::RaceEventKind::
@@ -10616,19 +10617,14 @@ int main(int argc, char** argv)
                             event.touchDamage ? 0.75F : 0.62F);
                     }
                     else if (event.kind ==
-                             r3d::game::originalrace::RaceEventKind::Kill)
-                    {
-                        playSpatial(
-                            destructionAudio, event.position,
-                            eventVelocity(event.target),
-                            0.9F);
-                    }
-                    else if (event.kind ==
                                  r3d::game::originalrace::RaceEventKind::
                                      DecorationDestroyed)
                     {
                         playSpatial(
-                            crashAudio, event.position,
+                            impactAudio[
+                                (event.racer + event.target) %
+                                impactAudio.size()],
+                            event.position,
                             eventVelocity(event.racer), 0.72F);
                     }
                 }

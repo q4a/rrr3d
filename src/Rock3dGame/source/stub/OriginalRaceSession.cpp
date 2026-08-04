@@ -2815,6 +2815,18 @@ void OriginalRaceSession::destroyRacer(
          index < definition.deathEffects.size(); ++index)
     {
         const auto& source = definition.deathEffects[index];
+        if (!source.visual.soundPaths.empty())
+        {
+            RaceEvent sound;
+            sound.kind = RaceEventKind::EffectSound;
+            sound.racer = racer;
+            sound.position = add(vehicle.body.position, source.position);
+            sound.soundPath = source.visual.soundPaths[
+                sourceRoundedRandomIndex(
+                    source.visual.soundPaths.size(),
+                    sourceRandomUnit())];
+            events_.push_back(std::move(sound));
+        }
         RaceEffect effect;
         effect.kind = RaceEventKind::VehicleDestroyed;
         effect.origin = add(vehicle.body.position, source.position);
@@ -2851,6 +2863,19 @@ void OriginalRaceSession::updateGameplay(
                       sourceRacer.vehicle, race_.vehicles.size() - 1U));
         return vehicle.physics.clutchImmunity;
     };
+    const auto pushEffectSound =
+        [&](const std::vector<std::string>& sounds,
+            const Vec3& position, std::size_t racer) {
+            if (sounds.empty())
+                return;
+            RaceEvent event;
+            event.kind = RaceEventKind::EffectSound;
+            event.racer = racer;
+            event.position = position;
+            event.soundPath = sounds[sourceRoundedRandomIndex(
+                sounds.size(), sourceRandomUnit())];
+            events_.push_back(std::move(event));
+        };
     for (std::size_t racer = 0;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
@@ -3369,6 +3394,9 @@ void OriginalRaceSession::updateGameplay(
                 [&](const ObjectDefinition& visual,
                     std::uint8_t variant, Vec3 offset = {},
                     bool ignoreRotation = false) {
+                    pushEffectSound(
+                        visual.soundPaths, add(position, offset),
+                        projectile.owner);
                     if (visual.visualNodes.empty() &&
                         visual.particleEmitters.empty())
                         return;
@@ -4246,6 +4274,9 @@ void OriginalRaceSession::updateGameplay(
             death = &definition.tertiaryProjectile.deathEffect;
             deathVariant = 6U;
         }
+        pushEffectSound(
+            death->visual.soundPaths,
+            add(mine.position, death->position), mine.owner);
         if (death->visual.visualNodes.empty() &&
             death->visual.particleEmitters.empty())
             return;
@@ -4520,6 +4551,11 @@ void OriginalRaceSession::updateGameplay(
             visual.particleEmitters.empty() &&
             visual.soundPaths.empty())
             return;
+        pushEffectSound(
+            visual.soundPaths,
+            add(bonus.transform.position,
+                bonus.deathEffect.position),
+            RacerRuntime::invalidWeapon);
         RaceEffect impact;
         impact.kind = RaceEventKind::ProjectileImpact;
         impact.origin = add(
@@ -6541,11 +6577,23 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                RaceEventKind::ProjectileImpact &&
                            effect.bonus == 0U;
                 });
+            const bool hasSourceDeathSound = std::any_of(
+                pickupSession.events().begin(),
+                pickupSession.events().end(),
+                [&](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::EffectSound &&
+                           std::find(
+                               sourcePickup->deathEffect.visual.soundPaths.begin(),
+                               sourcePickup->deathEffect.visual.soundPaths.end(),
+                               event.soundPath) !=
+                               sourcePickup->deathEffect.visual.soundPaths.end();
+                });
             if (pickupSession.bonusActive().front() ||
-                !hasPickupEvent || !hasSourceDeathEffect)
+                !hasPickupEvent || !hasSourceDeathEffect ||
+                !hasSourceDeathSound)
             {
                 throw std::runtime_error(
-                    "source Player::TakeBonus DeathEffect transition failed");
+                    "source Player::TakeBonus DeathEffect sound/transition failed");
             }
         }
 
@@ -6879,16 +6927,33 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         return effect.kind ==
                                RaceEventKind::VehicleDestroyed;
                     }));
+            const auto sourceDeathSoundCount = static_cast<std::size_t>(
+                std::count_if(
+                    deathSession.events().begin(),
+                    deathSession.events().end(),
+                    [](const RaceEvent& event) {
+                        return event.kind == RaceEventKind::EffectSound &&
+                               event.soundPath.find("carcrash05.ogg") !=
+                                   std::string::npos;
+                    }));
+            const auto expectedDeathSoundCount = static_cast<std::size_t>(
+                std::count_if(
+                    sourceVehicle.deathEffects.begin(),
+                    sourceVehicle.deathEffects.end(),
+                    [](const DeathEffectDefinition& effect) {
+                        return !effect.visual.soundPaths.empty();
+                    }));
             if (!deathSession.racers().front().destroyed ||
                 deathSession.racers().front().life != 0.0F ||
                 deathSession.racers().front().lowLife ||
                 !deathSession.takeRespawns().empty() ||
                 sourceVehicle.deathEffects.size() != 2U ||
                 sourceDeathEffectCount !=
-                    sourceVehicle.deathEffects.size())
+                    sourceVehicle.deathEffects.size() ||
+                sourceDeathSoundCount != expectedDeathSoundCount)
             {
                 throw std::runtime_error(
-                    "source vehicle death effects/immediate removal failed");
+                    "source vehicle death effects/sounds/immediate removal failed");
             }
             deathVehicles[0].bodyContacts.clear();
             deathVehicles[0].speed = 0.0F;

@@ -60,6 +60,21 @@ void main()
         discard;
     vec3 viewDirection =
         normalize(u_sceneCamera.xyz - v_worldPosition);
+    if (u_postParams.x > 0.5)
+    {
+        // Bonus\\maslo's second fixed-function stage uses
+        // D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR, SELECTARG1 for RGB and
+        // keeps the default alpha modulation with the first oil sampler.
+        vec3 reflectionVector =
+            reflect(-viewDirection, normal);
+        vec2 reflectionUv =
+            reflectionVector.xy * 0.5 + vec2(0.5);
+        vec4 reflectionLayer =
+            texture2D(s_texNormal, reflectionUv);
+        albedo = vec4(
+            reflectionLayer.rgb * u_materialColor.rgb,
+            albedo.a * reflectionLayer.a);
+    }
     vec3 halfDirection = normalize(lightDirection + viewDirection);
     float specular = pow(max(dot(normal, halfDirection), 0.0),
                          max(u_materialParams.w, 1.0)) *

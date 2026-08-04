@@ -957,6 +957,8 @@ void drawGroups(GraphicsDevice& device,
             state.reflectionStrength = reflectionStrength;
             state.postParameters[3] =
                 static_cast<float>(lighting);
+            state.postParameters[0] =
+                material.reflectionTextureCoordinates ? 1.0F : 0.0F;
             state.receivesShadow =
                 !isBlended(material.blend) &&
                 material.emissive < 0.999F;
@@ -1433,7 +1435,11 @@ bool OriginalRaceRenderer::initialize(
                     asset.textures.push_back(
                         uploadOriginalTexture(material.texturePath));
                 }
-                if (material.normalTexturePath.empty())
+                const auto& auxiliaryTexturePath =
+                    !material.normalTexturePath.empty()
+                        ? material.normalTexturePath
+                        : material.reflectionTexturePath;
+                if (auxiliaryTexturePath.empty())
                 {
                     asset.normalTextures.push_back({});
                 }
@@ -1441,7 +1447,7 @@ bool OriginalRaceRenderer::initialize(
                 {
                     asset.normalTextures.push_back(
                         uploadOriginalTexture(
-                            material.normalTexturePath));
+                            auxiliaryTexturePath));
                 }
             }
             bool normalTexturesValid =
@@ -1451,7 +1457,9 @@ bool OriginalRaceRenderer::initialize(
                  ++index)
             {
                 normalTexturesValid =
-                    node.materials[index].normalTexturePath.empty() ||
+                    (node.materials[index].normalTexturePath.empty() &&
+                     node.materials[index]
+                         .reflectionTexturePath.empty()) ||
                     valid(asset.normalTextures[index]);
             }
             if (!valid(asset.mesh) || asset.textures.empty() ||

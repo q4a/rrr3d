@@ -69,6 +69,10 @@ struct MaterialDefinition
     float animationRate = 24.0F;
     // Optional second sampler from LibMaterial (the source bump/normal map).
     std::string normalTexturePath{};
+    // Bonus\\maslo uses its second 2D sampler with
+    // D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR rather than as a normal map.
+    std::string reflectionTexturePath{};
+    bool reflectionTextureCoordinates = false;
     // Material::moZWrite is independent from D3D blending (for example the
     // opaque j_swell sprite disables depth writes).
     bool writeDepth = true;
