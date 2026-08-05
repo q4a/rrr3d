@@ -131,6 +131,9 @@ distance attenuation, stereo pan и doppler-like pitch.
 
 Из исходных ресурсов загружаются weapon/projectile, impact, collision,
 damage/destruction, pickup/shield, lap/finish и commentator cues. Pause/resume
-останавливает race voices, а возврат в меню продолжает тот же MusicCat track.
+замораживает Effects/world вместе с гонкой, но Voice-диктор продолжает очередь,
+как отдельная source-категория Windows; возврат в меню продолжает тот же
+MusicCat track. `Menu::SoundSheme` использует один прерываемый Effects voice
+и полный набор из девяти исходных UI cues вместо общего `click.ogg`.
 Точная X3DAudio DSP-матрица, cones и obstruction остаются Windows-only и
 заменены явно ограниченным portable spatial backend.

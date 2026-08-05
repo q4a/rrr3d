@@ -72,6 +72,7 @@ Windows target не компилируется.
 | Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | SDL3 action adapter | Частично | Actions и hot-plug есть; Options показывает обе исходные колонки и все 18 user actions, но сам `ControlManager.cpp` и полный legacy input object graph не компилируются |
 | Audio device/mixer | XAudio2/X3DAudio | SDL3/CoreAudio | Замена платформы | Backend полноценный, но весь исходный game-side `Audio.cpp` object graph не перенесён |
 | MusicCat/menu music | `MusicCat`, `DialogMenu2::MusicDialog`, три menu Ogg и 11 game Ogg | background decode, shuffle, next, pause/state + source music popup | Перенесено | MusicDialog использует исходный `dlgFrame2`, metadata, layout и timing; поведение покрыто menu/race smoke |
+| Menu SoundSheme | `Menu::SoundSheme`, один Effects source | девять source UI cues и один interrupting SDL voice | Перенесено | `ssButton1..5`, `ssStepper`, Accept/Info и Workshop drag используют исходные click/hover/pickup/repaint/planet/option/accept/warning события без наложения |
 | Spatial race audio | X3DAudio game integration | ручные attenuation/pan/pitch voices | Частично | Основные car/race sounds есть; исходные emitters/listeners, все lifetime/priority rules и все sound behaviors не перенесены |
 | Commentator | `GameMode::Commentator`, serialized `game.xml/commentator/comments` | исходная таблица и state machine поверх SDL Voice bus | Перенесено | Загружаются доступные файлы выбранного языка; chance/delay/busy/repeatPlayer, weighted choice, prefix/suffix имён и все offline race events повторяют source semantics |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
@@ -108,7 +109,6 @@ Windows target не компилируется.
 | Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы directional race passes и отдельные source shadow maps всех двух Garage/до трёх Angar spot-lamps с исходными cone/near/far и per-light diffuse/specular application; bit-for-bit и полное graph state parity не доказаны |
 | Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Частично | Значимая часть serialized graph читается; не все node/emitter/action types и lifetime semantics перенесены |
 | Weather/water/magma/sky | `Environment.cpp`, graph effects | source records + bgfx passes | Частично | Все world variants загружаются; exact D3D shader/fixed-pipeline result не доказан |
-| Commentator | race/HUD sound events | `OriginalRaceCommentator.cpp` | Частично | Оригинальные clips используются; очередь и trigger selection написаны заново |
 | Intro/video | `VideoPlayer.cpp`, DirectShow playback | AVPlayer/AVPlayerLayer, 14 lossless-remuxed MP4 | Замена платформы | Все исходные H.264/MP3 потоки проигрываются нативно; Difficulty `Main`, Gamers `Intaria`, planet и final transitions подключены |
 | LAN/network | `NetGame`, `NetRace`, `NetPlayer`, NetLib | выключено | Не перенесено | Offline acceptance не требует сеть, но это часть Windows-продукта |
 | Steam | `SteamService`, auth | выключено | Не перенесено | Не относится к offline race, но не должно называться перенесённым |
@@ -425,6 +425,17 @@ Network, video и Steam явно выключены.
 5. `ResetState` больше не проигрывает раннюю придуманную реплику: старт
    приходит от `raceStartTime2`. Таймер Voice продолжает идти при открытом
    race pause dialog, как отдельная от Effects source-категория Windows.
+
+Следующим menu-audio блоком перенесён `Menu::SoundSheme`:
+
+1. Загружаются все девять исходных UI Ogg: click, navedenie, pickup down/up,
+   repaint, showPlanet, changeOption, acception и warning.
+2. Как `Menu::_audioSource`, portable runtime держит один Effects voice и
+   останавливает предыдущую UI-реплику перед каждой новой — быстрые действия
+   больше не накладывают несколько `click.ogg`.
+3. Восстановлены `ssButton2::mouseEnter`, `ssButton3`, `ssButton4`,
+   `ssButton5::focused/clickDown`, `ssStepper::selectItem`, а также звуки
+   `ShowAccept`, `ShowMessage`, `WorkshopFrame::StartDrag/ResetDrag`.
 
 Следующим подблоком начат перенос `RaceMenu2::RaceMainFrame`:
 

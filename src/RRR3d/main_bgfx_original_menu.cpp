@@ -21,6 +21,7 @@
 #endif
 #ifdef RRR3D_AUDIO
 #include "OriginalMenuMusic.h"
+#include "OriginalMenuSounds.h"
 #ifdef RRR3D_PHYSICS
 #include "OriginalRaceCommentator.h"
 #include "OriginalSpatialAudio.h"
@@ -764,15 +765,6 @@ std::optional<std::size_t> hoveredItem(SDL_Window* window, float windowX,
             return index;
     }
     return std::nullopt;
-}
-#endif
-
-#ifdef RRR3D_AUDIO
-std::string dataAudioPath(std::string_view legacyPath)
-{
-    std::string path = "Data\\";
-    path.append(legacyPath);
-    return path;
 }
 #endif
 
@@ -3016,28 +3008,12 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    auto loadAudio = [&](std::string_view legacyPath,
-                         r3d::audio::SoundInfo& info) {
-        try
-        {
-            return audio.loadOgg(
-                resources->resolve(dataAudioPath(legacyPath)), info,
-                audioError);
-        }
-        catch (const std::exception& exception)
-        {
-            audioError = exception.what();
-            return r3d::audio::invalidSound;
-        }
-    };
-
-    r3d::audio::SoundInfo clickInfo;
-    const auto clickSound =
-        loadAudio(originalaudio::mainButtonClick, clickInfo);
-    if (clickSound == r3d::audio::invalidSound)
+    rrr3d::audio::OriginalMenuSounds menuSounds(audio, *resources);
+    if (!menuSounds.initialize(audioError))
     {
-        std::cerr << "Original MainMenu2 audio loading failed: "
+        std::cerr << "Original Menu SoundSheme loading failed: "
                   << audioError << '\n';
+        menuSounds.shutdown();
         audio.shutdown();
         releaseResources();
         device.reset();
@@ -3088,7 +3064,7 @@ int main(int argc, char** argv)
         std::cerr << "Original MusicCat initialization failed: "
                   << audioError << '\n';
         music.shutdown();
-        audio.unloadSound(clickSound);
+        menuSounds.shutdown();
         audio.shutdown();
         releaseResources();
         device.reset();
@@ -3114,7 +3090,7 @@ int main(int argc, char** argv)
                   << audioError << '\n';
         finalMusic.shutdown();
         music.shutdown();
-        audio.unloadSound(clickSound);
+        menuSounds.shutdown();
         audio.shutdown();
         releaseResources();
         device.reset();
@@ -3144,7 +3120,7 @@ int main(int argc, char** argv)
         gameMusic.shutdown();
         finalMusic.shutdown();
         music.shutdown();
-        audio.unloadSound(clickSound);
+        menuSounds.shutdown();
         audio.shutdown();
         releaseResources();
         device.reset();
@@ -3208,22 +3184,25 @@ int main(int argc, char** argv)
     for (const auto& track : originalaudio::menuTracks)
         std::cout << " [" << track.band << " - " << track.name
                   << ": Data/" << track.path << ']';
-    std::cout << "\nMainMenu2 ssButton1: Data/"
-              << originalaudio::mainButtonClick << '\n';
+    std::cout << "\nOriginal Menu SoundSheme: "
+              << menuSounds.loadedSoundCount()
+              << " source UI sounds, one interrupting Effects voice\n";
 
-    auto playMainButtonClick = [&]() {
-        r3d::audio::PlayOptions clickOptions;
-        clickOptions.bus = r3d::audio::Bus::Effects;
+    auto playOriginalMenuSound =
+        [&](rrr3d::audio::OriginalMenuSound sound) {
         std::string clickError;
-        if (audio.play(clickSound, clickOptions, clickError) ==
-            r3d::audio::invalidVoice)
+        if (!menuSounds.play(sound, clickError))
         {
             SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO,
-                        "Unable to play original MainMenu2 click: %s",
+                        "Unable to play original Menu SoundSheme: %s",
                         clickError.c_str());
             return false;
         }
         return true;
+    };
+    auto playMainButtonClick = [&]() {
+        return playOriginalMenuSound(
+            rrr3d::audio::OriginalMenuSound::ButtonClick);
     };
 #ifdef RRR3D_PHYSICS
     struct EngineAudio
@@ -3359,8 +3338,6 @@ int main(int argc, char** argv)
         return valid;
     };
     engineAudioValid = engineAudioValid && preloadEffectAudio();
-    const auto acceptanceAudio =
-        loadEngineSound("Data/Sounds/UI/acception.ogg");
     rrr3d::audio::OriginalRaceCommentator commentator(
         audio, *resources);
     const bool commentatorValid = commentator.initialize(
@@ -3375,7 +3352,6 @@ int main(int argc, char** argv)
     }
     engineAudioValid =
         engineAudioValid &&
-        acceptanceAudio != r3d::audio::invalidSound &&
         commentatorValid;
     if (!engineAudioValid)
     {
@@ -3390,7 +3366,7 @@ int main(int argc, char** argv)
             static_cast<void>(path);
             audio.unloadSound(sound);
         }
-        audio.unloadSound(clickSound);
+        menuSounds.shutdown();
         audio.shutdown();
         raceHud.shutdown(*device);
         workshopRenderer.shutdown(*device);
@@ -4296,10 +4272,8 @@ int main(int argc, char** argv)
                 *device, noText, 32.0F, false,
                 menu::Rgba8{175, 175, 175, 255}, resolvedFont);
 #ifdef RRR3D_AUDIO
-            r3d::audio::PlayOptions acceptOptions;
-            acceptOptions.bus = r3d::audio::Bus::Effects;
-            audio.play(
-                acceptanceAudio, acceptOptions, audioError);
+            playOriginalMenuSound(
+                rrr3d::audio::OriginalMenuSound::Acceptance);
 #endif
         };
     auto drawAcceptDialog = [&]() {
@@ -4871,6 +4845,10 @@ int main(int argc, char** argv)
             infoDialog.centerY = centerY;
             infoDialog.visible = true;
             hideWorkshopWeaponDialog();
+#ifdef RRR3D_AUDIO
+            playOriginalMenuSound(
+                rrr3d::audio::OriginalMenuSound::Warning);
+#endif
         };
     auto wrapGarageInfo = [](std::string_view value) {
         constexpr std::size_t maximumCharacters = 78U;
@@ -5511,6 +5489,10 @@ int main(int argc, char** argv)
             }
             workshopDrag.item = std::move(purchased);
             workshopDrag.origin.reset();
+#ifdef RRR3D_AUDIO
+            playOriginalMenuSound(
+                rrr3d::audio::OriginalMenuSound::PickupDown);
+#endif
             saveRaceProfile();
             refreshWorkshopPage();
             return true;
@@ -5540,6 +5522,10 @@ int main(int argc, char** argv)
                     return false;
                 }
                 workshopDrag = {};
+#ifdef RRR3D_AUDIO
+                playOriginalMenuSound(
+                    rrr3d::audio::OriginalMenuSound::PickupUp);
+#endif
                 saveRaceProfile();
                 refreshWorkshopPage();
                 return true;
@@ -5569,6 +5555,10 @@ int main(int argc, char** argv)
             return false;
         }
         workshopDrag = {};
+#ifdef RRR3D_AUDIO
+        playOriginalMenuSound(
+            rrr3d::audio::OriginalMenuSound::PickupUp);
+#endif
         saveRaceProfile();
         refreshWorkshopPage();
         return true;
@@ -5661,7 +5651,13 @@ int main(int argc, char** argv)
                     return;
                 }
                 if (replaced.record.empty())
+                {
                     workshopDrag = {};
+#ifdef RRR3D_AUDIO
+                    playOriginalMenuSound(
+                        rrr3d::audio::OriginalMenuSound::PickupUp);
+#endif
+                }
                 else
                 {
                     workshopDrag.item = std::move(replaced);
@@ -5682,12 +5678,22 @@ int main(int argc, char** argv)
                 workshopDrag.item = installed;
                 workshopDrag.origin = slotType;
                 installed = {};
+#ifdef RRR3D_AUDIO
+                playOriginalMenuSound(
+                    rrr3d::audio::OriginalMenuSound::PickupDown);
+#endif
                 saveRaceProfile();
                 refreshWorkshopPage();
                 return;
             }
             std::string workshopError;
             bool changed = false;
+#ifdef RRR3D_AUDIO
+            // Charge/upgrade controls are RaceMenu::CreatePlusButton and
+            // therefore use ssButton3 rather than the generic button sound.
+            playOriginalMenuSound(
+                rrr3d::audio::OriginalMenuSound::PickupDown);
+#endif
             if (item->maximumCharge > 0U)
             {
                 changed = r3d::game::originalrace::
@@ -5865,6 +5871,14 @@ int main(int argc, char** argv)
         angarPreviousPlanetIndex = angarPlanetIndex;
         angarPlanetIndex = index;
         angarDoorTime = 0.0F;
+#ifdef RRR3D_AUDIO
+        if (index >= 0)
+        {
+            // Planet ViewPort3d registers ssButton5::focused.
+            playOriginalMenuSound(
+                rrr3d::audio::OriginalMenuSound::ShowPlanet);
+        }
+#endif
         refreshPlanetsPage();
     };
     auto persistAngarProfile = [&]() {
@@ -6235,6 +6249,11 @@ int main(int argc, char** argv)
     };
     auto adjustCurrentOption = [&](int direction) {
         direction = direction < 0 ? -1 : 1;
+#ifdef RRR3D_AUDIO
+        // Options steppers and volume bars emit SoundSheme::selectItem.
+        playOriginalMenuSound(
+            rrr3d::audio::OriginalMenuSound::ChangeOption);
+#endif
         switch (menuStack.back())
         {
         case MenuScreen::GameOptions:
@@ -8078,7 +8097,18 @@ int main(int argc, char** argv)
                     }
                 }
                 if (hoveredRaceMenuItem)
+                {
+#ifdef RRR3D_AUDIO
+                    if (event.type == SDL_EVENT_MOUSE_MOTION &&
+                        menuSelection != *hoveredRaceMenuItem)
+                    {
+                        // RaceMenu icon buttons use ssButton2::mouseEnter.
+                        playOriginalMenuSound(
+                            rrr3d::audio::OriginalMenuSound::Rollover);
+                    }
+#endif
                     menuSelection = *hoveredRaceMenuItem;
+                }
                 pointerTargetsItem =
                     hoveredRaceMenuItem.has_value() ||
                     event.type == SDL_EVENT_MOUSE_MOTION ||
@@ -9030,7 +9060,10 @@ int main(int argc, char** argv)
                         continue;
                     }
 #ifdef RRR3D_AUDIO
-                    playMainButtonClick();
+                    playOriginalMenuSound(
+                        menuSelection >= 4U
+                            ? rrr3d::audio::OriginalMenuSound::Repaint
+                            : rrr3d::audio::OriginalMenuSound::ButtonClick);
 #endif
                     if (menuSelection == 0U)
                     {
@@ -9457,6 +9490,9 @@ int main(int argc, char** argv)
                             inputEvent.action ==
                                 rrr3d::input::Action::MenuConfirm)
                         {
+#ifdef RRR3D_AUDIO
+                            playMainButtonClick();
+#endif
                             if (angarTravelYesFocused)
                                 changeAngarPlanet(angarTravelTarget);
                             else
@@ -9522,6 +9558,9 @@ int main(int argc, char** argv)
                          menuSelection >= planetCount);
                     if (backRequested)
                     {
+#ifdef RRR3D_AUDIO
+                        playMainButtonClick();
+#endif
                         if (racePlanetChampion)
                         {
                             requestAngarTravel(
@@ -9543,6 +9582,11 @@ int main(int argc, char** argv)
                         continue;
                     }
                     const auto index = menuSelection;
+#ifdef RRR3D_AUDIO
+                    // Planet ViewPort3d uses ssButton5::clickDown.
+                    playOriginalMenuSound(
+                        rrr3d::audio::OriginalMenuSound::ShowPlanet);
+#endif
                     const bool current =
                         index == profileState.player.currentPlanet;
                     const bool next =
@@ -9794,10 +9838,21 @@ int main(int argc, char** argv)
                     continue;
                 }
 #ifdef RRR3D_AUDIO
-                // MainMenu2 creates these buttons with ssButton1. The legacy
-                // scheme plays click.ogg on press and has no navigation or
-                // hover sound, so only a successful confirm reaches here.
-                const bool clickStarted = playMainButtonClick();
+                const bool optionValue =
+#ifdef RRR3D_PHYSICS
+                    (menuStack.back() == MenuScreen::GameOptions &&
+                     menuSelection < 12U) ||
+                    (menuStack.back() == MenuScreen::GraphicsOptions &&
+                     menuSelection < 8U) ||
+                    (menuStack.back() == MenuScreen::SoundOptions &&
+                     menuSelection < 5U);
+#else
+                    false;
+#endif
+                // Value rows emit ssStepper::selectItem from
+                // adjustCurrentOption. Other shared buttons use ssButton1.
+                const bool clickStarted =
+                    optionValue ? true : playMainButtonClick();
 #if defined(RRR3D_GAMEPAD_INPUT)
                 if (options->audioSmokeTest && clickStarted &&
                     menuStack.back() == MenuScreen::Main &&
@@ -14886,7 +14941,7 @@ int main(int argc, char** argv)
 #endif
     finalMusic.shutdown();
     music.shutdown();
-    audio.unloadSound(clickSound);
+    menuSounds.shutdown();
     audio.shutdown();
     if (options->audioSmokeTest)
     {
