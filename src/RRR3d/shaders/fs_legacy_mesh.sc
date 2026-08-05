@@ -27,7 +27,8 @@ uniform vec4 u_materialOptions;
 // w = original IActor::Lighting (glNone..glPlanarRefl).
 uniform vec4 u_postParams;
 uniform vec4 u_clipPlane;
-// x = source split distance, y = 2048 map size, z = depth bias.
+// x = source split distance, y = 2048 map size, z = depth bias,
+// w = one unsplit map per Environment spot lamp instead of sun cascades.
 uniform vec4 u_shadowParams;
 
 void main()
@@ -53,7 +54,7 @@ void main()
     float diffuse =
         max(dot(normal, lightDirection), 0.0) *
         directionalEnabled;
-    vec3 lighting = u_sceneAmbient.rgb + vec3_splat(diffuse * 0.82);
+    vec3 lighting = u_sceneAmbient.rgb;
     vec4 albedo = texture2D(s_texColor, v_texcoord0) * u_materialColor;
     if (u_materialParams.x > 0.0 &&
         albedo.a <= u_materialParams.x)
@@ -76,9 +77,11 @@ void main()
             albedo.a * reflectionLayer.a);
     }
     vec3 halfDirection = normalize(lightDirection + viewDirection);
-    float specular = pow(max(dot(normal, halfDirection), 0.0),
-                         max(u_materialParams.w, 1.0)) *
-                     u_materialParams.z * directionalEnabled;
+    float directionalSpecular =
+        pow(max(dot(normal, halfDirection), 0.0),
+            max(u_materialParams.w, 1.0)) *
+        u_materialParams.z * directionalEnabled;
+    float specular = 0.0;
     // Both Environment::wtGarage lamps and Player::SetHeadlight use the
     // source D3DLIGHT_SPOT attenuation0=1/falloff=1 model.  Their theta/phi
     // differ, so the exact source cone cosines are supplied per light.
@@ -105,8 +108,115 @@ void main()
             vec3 toLamp = -lampRay;
             float lampDiffuse =
                 max(dot(normal, toLamp), 0.0) * spot;
+            float lampShadowFactor = 1.0;
+            if (u_shadowParams.w > 0.5 && lamp < 3 &&
+                u_materialOptions.z > 0.0)
+            {
+                vec4 spotShadowPosition =
+                    lamp == 0
+                        ? v_shadowPosition
+                        : (lamp == 1
+                               ? v_shadowPositionFar
+                               : v_reflectionPosition);
+                if (spotShadowPosition.w > 0.0001)
+                {
+                    vec3 spotShadowNdc =
+                        spotShadowPosition.xyz /
+                        spotShadowPosition.w;
+                    vec2 spotShadowUv =
+                        spotShadowNdc.xy * vec2(0.5, -0.5) +
+                        vec2(0.5, 0.5);
+                    if (spotShadowUv.x >= 0.0 &&
+                        spotShadowUv.x <= 1.0 &&
+                        spotShadowUv.y >= 0.0 &&
+                        spotShadowUv.y <= 1.0 &&
+                        spotShadowNdc.z >= 0.0 &&
+                        spotShadowNdc.z <= 1.0)
+                    {
+                        float spotTexel =
+                            1.0 / max(u_shadowParams.y, 1.0);
+                        float spotDepth =
+                            spotShadowNdc.z - u_shadowParams.z;
+                        float spotDepth00;
+                        float spotDepth10;
+                        float spotDepth01;
+                        float spotDepth11;
+                        if (lamp == 0)
+                        {
+                            spotDepth00 = texture2D(
+                                s_texShadow, spotShadowUv).r;
+                            spotDepth10 = texture2D(
+                                s_texShadow,
+                                spotShadowUv +
+                                    vec2(spotTexel, 0.0)).r;
+                            spotDepth01 = texture2D(
+                                s_texShadow,
+                                spotShadowUv +
+                                    vec2(0.0, spotTexel)).r;
+                            spotDepth11 = texture2D(
+                                s_texShadow,
+                                spotShadowUv +
+                                    vec2(spotTexel, spotTexel)).r;
+                        }
+                        else if (lamp == 1)
+                        {
+                            spotDepth00 = texture2D(
+                                s_texShadowFar, spotShadowUv).r;
+                            spotDepth10 = texture2D(
+                                s_texShadowFar,
+                                spotShadowUv +
+                                    vec2(spotTexel, 0.0)).r;
+                            spotDepth01 = texture2D(
+                                s_texShadowFar,
+                                spotShadowUv +
+                                    vec2(0.0, spotTexel)).r;
+                            spotDepth11 = texture2D(
+                                s_texShadowFar,
+                                spotShadowUv +
+                                    vec2(spotTexel, spotTexel)).r;
+                        }
+                        else
+                        {
+                            spotDepth00 = texture2D(
+                                s_texReflection, spotShadowUv).r;
+                            spotDepth10 = texture2D(
+                                s_texReflection,
+                                spotShadowUv +
+                                    vec2(spotTexel, 0.0)).r;
+                            spotDepth01 = texture2D(
+                                s_texReflection,
+                                spotShadowUv +
+                                    vec2(0.0, spotTexel)).r;
+                            spotDepth11 = texture2D(
+                                s_texReflection,
+                                spotShadowUv +
+                                    vec2(spotTexel, spotTexel)).r;
+                        }
+                        vec2 spotFrame = fract(
+                            spotShadowUv * u_shadowParams.y);
+                        float spotVisibility0 = mix(
+                            spotDepth <= spotDepth00 ? 1.0 : 0.0,
+                            spotDepth <= spotDepth10 ? 1.0 : 0.0,
+                            spotFrame.x);
+                        float spotVisibility1 = mix(
+                            spotDepth <= spotDepth01 ? 1.0 : 0.0,
+                            spotDepth <= spotDepth11 ? 1.0 : 0.0,
+                            spotFrame.x);
+                        float spotVisibility = mix(
+                            spotVisibility0, spotVisibility1,
+                            spotFrame.y);
+                        lampShadowFactor = mix(
+                            1.0 - u_materialOptions.z, 1.0,
+                            spotVisibility);
+                    }
+                    else
+                        lampShadowFactor =
+                            1.0 - u_materialOptions.z;
+                }
+            }
             lighting +=
-                u_sceneLampColors[lamp].rgb * lampDiffuse;
+                u_sceneLampColors[lamp].rgb * lampDiffuse *
+                lampShadowFactor;
             vec3 lampHalf = normalize(toLamp + viewDirection);
             specular +=
                 pow(max(dot(normal, lampHalf), 0.0),
@@ -114,11 +224,13 @@ void main()
                 u_materialParams.z * spot *
                 max(max(u_sceneLampColors[lamp].r,
                         u_sceneLampColors[lamp].g),
-                    u_sceneLampColors[lamp].b);
+                    u_sceneLampColors[lamp].b) *
+                lampShadowFactor;
         }
     }
     float shadowFactor = 1.0;
-    if (u_materialOptions.z > 0.0 &&
+    if (u_shadowParams.w < 0.5 &&
+        u_materialOptions.z > 0.0 &&
         v_shadowPosition.w > 0.0001)
     {
         bool farSplit = v_linearDepth > u_shadowParams.x;
@@ -170,11 +282,14 @@ void main()
                 mix(1.0 - u_materialOptions.z, 1.0, visibility);
         }
     }
+    // lighting.fx applies the shadow texture to this light's diffuse and
+    // specular terms, never to global ambient or to other lights.
+    lighting += vec3_splat(diffuse * 0.82 * shadowFactor);
+    specular += directionalSpecular * shadowFactor;
     vec3 lit =
         mappingMode < 0.5
             ? albedo.rgb
-            : albedo.rgb * lighting * shadowFactor +
-                  vec3_splat(specular * shadowFactor);
+            : albedo.rgb * lighting + vec3_splat(specular);
     if (abs(mappingMode - 3.0) < 0.5)
     {
         vec3 reflected = textureCube(

@@ -11327,9 +11327,18 @@ int main(int argc, char** argv)
             const auto& telemetry = device->renderTelemetry();
             const auto scenePass = static_cast<std::size_t>(
                 r3d::renderer::RenderPass::Scene);
+            const auto shadowPass = static_cast<std::size_t>(
+                r3d::renderer::RenderPass::Shadow);
+            const auto shadowFarPass = static_cast<std::size_t>(
+                r3d::renderer::RenderPass::ShadowFar);
+            const bool sourceLampShadowsObserved =
+                profileState.config.quality.shadow < 1U ||
+                (telemetry.beginCount[shadowPass] > 0U &&
+                 telemetry.beginCount[shadowFarPass] > 0U);
             raceAngar3DObserved =
                 raceAngar3DObserved ||
-                telemetry.drawCount[scenePass] > 0U;
+                (telemetry.drawCount[scenePass] > 0U &&
+                 sourceLampShadowsObserved);
             // AngarFrame contains nested ViewPort3d widgets. The source
             // GUI renders them against a fresh viewport depth buffer; keep
             // the completed HDR scene color but clear its world depth.
@@ -11446,8 +11455,15 @@ int main(int argc, char** argv)
                 device->renderTelemetry();
             const auto scenePass = static_cast<std::size_t>(
                 r3d::renderer::RenderPass::Scene);
+            const auto shadowPass = static_cast<std::size_t>(
+                r3d::renderer::RenderPass::Shadow);
+            const auto shadowFarPass = static_cast<std::size_t>(
+                r3d::renderer::RenderPass::ShadowFar);
             const bool observedPresentation3D =
                 garageTelemetry.drawCount[scenePass] > 0U &&
+                (profileState.config.quality.shadow < 1U ||
+                 (garageTelemetry.beginCount[shadowPass] > 0U &&
+                  garageTelemetry.beginCount[shadowFarPass] > 0U)) &&
                 std::any_of(
                     garageTelemetry.lightingDrawCount.begin(),
                     garageTelemetry.lightingDrawCount.end(),

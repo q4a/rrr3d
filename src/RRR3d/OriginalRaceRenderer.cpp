@@ -536,6 +536,39 @@ r3d::physics::Vec3 normalize(r3d::physics::Vec3 value) noexcept
     return value;
 }
 
+Camera spotShadowCamera(
+    const GraphicsDevice& device,
+    const r3d::game::originalrace::EnvironmentLamp& lamp) noexcept
+{
+    // Environment::EnableLamp creates an uncropped, single-split shadow
+    // camera with the source light's local +X axis, nearDist=1 and the
+    // weather-specific farDist (20 for Garage, 80/100 for Angar).
+    const auto direction = normalize(rotate(
+        lamp.rotation, {1.0F, 0.0F, 0.0F}));
+    auto up = normalize(rotate(
+        lamp.rotation, {0.0F, 0.0F, 1.0F}));
+    const float alignment = std::abs(
+        direction.x * up.x + direction.y * up.y +
+        direction.z * up.z);
+    if (alignment > 0.99F)
+        up = {0.0F, 1.0F, 0.0F};
+    const bx::Vec3 eye{
+        lamp.position.x, lamp.position.y, lamp.position.z};
+    const bx::Vec3 target{
+        lamp.position.x + direction.x,
+        lamp.position.y + direction.y,
+        lamp.position.z + direction.z};
+    Camera camera;
+    bx::mtxLookAt(camera.view.data(), eye, target,
+                  {up.x, up.y, up.z}, bx::Handedness::Right);
+    // LightSource defaults to phi=pi/2, i.e. a 90-degree outer cone.
+    bx::mtxProj(camera.projection.data(), 90.0F, 1.0F, 1.0F,
+                std::max(lamp.range, 1.001F),
+                device.usesHomogeneousDepth(),
+                bx::Handedness::Right);
+    return camera;
+}
+
 r3d::physics::Vec3 cross(const r3d::physics::Vec3& first,
                          const r3d::physics::Vec3& second) noexcept
 {
@@ -1418,6 +1451,9 @@ bool OriginalRaceRenderer::createFrameTargets(
     shadowTargetFar_ = device.createRenderTarget(
         2048, 2048, RenderTargetFormat::R32F,
         true, "Motor Rock directional shadow far split");
+    shadowTargetThird_ = device.createRenderTarget(
+        2048, 2048, RenderTargetFormat::R32F,
+        true, "Motor Rock third spot shadow map");
     luminance64Target_ = device.createRenderTarget(
         64, 64, RenderTargetFormat::Rgba16F, false,
         "Motor Rock luminance 64");
@@ -1444,7 +1480,7 @@ bool OriginalRaceRenderer::createFrameTargets(
         false, "Motor Rock bloom B");
     if (!valid(hdrTarget_) || !valid(waterSceneTarget_) ||
         !valid(reflectionTarget_) || !valid(shadowTarget_) ||
-        !valid(shadowTargetFar_) ||
+        !valid(shadowTargetFar_) || !valid(shadowTargetThird_) ||
         !valid(luminance64Target_) || !valid(luminance16Target_) ||
         !valid(luminance4Target_) || !valid(luminance1Target_) ||
         !valid(adaptedLuminanceTargetA_) ||
@@ -1470,6 +1506,8 @@ void OriginalRaceRenderer::destroyFrameTargets(
         device.destroy(shadowTarget_);
     if (valid(shadowTargetFar_))
         device.destroy(shadowTargetFar_);
+    if (valid(shadowTargetThird_))
+        device.destroy(shadowTargetThird_);
     if (valid(adaptedLuminanceTargetB_))
         device.destroy(adaptedLuminanceTargetB_);
     if (valid(adaptedLuminanceTargetA_))
@@ -1492,6 +1530,7 @@ void OriginalRaceRenderer::destroyFrameTargets(
     bloomTargetA_ = {};
     shadowTarget_ = {};
     shadowTargetFar_ = {};
+    shadowTargetThird_ = {};
     adaptedLuminanceTargetB_ = {};
     adaptedLuminanceTargetA_ = {};
     luminance1Target_ = {};
@@ -5283,9 +5322,25 @@ void OriginalRaceRenderer::renderFrame(
     // Environment.cpp maps the three original quality levels to graph
     // options.  Keep those thresholds here instead of silently rendering the
     // high-quality graph for every profile.
-    const bool shadowsEnabled =
+    const bool directionalShadowsEnabled =
         quality.shadow >= 1U &&
         race.environment.directionalLightEnabled;
+    std::array<
+        const r3d::game::originalrace::EnvironmentLamp*, 3>
+        shadowLamps{};
+    std::size_t shadowLampCount = 0U;
+    for (const auto& lamp : race.environment.lamps)
+    {
+        if (!lamp.enabled || shadowLampCount >= shadowLamps.size())
+            continue;
+        shadowLamps[shadowLampCount++] = &lamp;
+    }
+    const bool spotShadowsEnabled =
+        quality.shadow >= 1U &&
+        !race.environment.directionalLightEnabled &&
+        shadowLampCount > 0U;
+    const bool shadowsEnabled =
+        directionalShadowsEnabled || spotShadowsEnabled;
     const bool trueReflectionsEnabled =
         quality.light >= 2U &&
         race.environment.dynamicReflectionsEnabled;
@@ -5320,12 +5375,31 @@ void OriginalRaceRenderer::renderFrame(
     const float shadowSplitDistance =
         sourceShadowSplit(isometricCamera);
     const float cameraFarDistance = isometricCamera ? 150.0F : 120.0F;
-    const auto lightCamera = shadowCamera(
-        device, camera, sun, 1.0F, shadowSplitDistance,
-        cameraFarDistance);
-    const auto lightCameraFar = shadowCamera(
-        device, camera, sun, shadowSplitDistance,
-        shadowFarDistance, cameraFarDistance);
+    Camera lightCamera;
+    Camera lightCameraFar;
+    Camera lightCameraThird;
+    if (directionalShadowsEnabled)
+    {
+        lightCamera = shadowCamera(
+            device, camera, sun, 1.0F, shadowSplitDistance,
+            cameraFarDistance);
+        lightCameraFar = shadowCamera(
+            device, camera, sun, shadowSplitDistance,
+            shadowFarDistance, cameraFarDistance);
+        lightCameraThird = lightCameraFar;
+    }
+    else if (spotShadowsEnabled)
+    {
+        lightCamera = spotShadowCamera(device, *shadowLamps[0]);
+        lightCameraFar = shadowLampCount > 1U
+                             ? spotShadowCamera(
+                                   device, *shadowLamps[1])
+                             : lightCamera;
+        lightCameraThird = shadowLampCount > 2U
+                               ? spotShadowCamera(
+                                     device, *shadowLamps[2])
+                               : lightCameraFar;
+    }
     if (shadowsEnabled)
     {
         device.setPassState({});
@@ -5335,14 +5409,28 @@ void OriginalRaceRenderer::renderFrame(
                           decorationActive, decorationFragments,
                           vehicleDeathFragments, racerRuntime,
                           elapsedSeconds);
-        device.setPassState({});
-        device.beginPass(
-            RenderPass::ShadowFar, shadowTargetFar_, lightCameraFar,
-            0xffffffffU, true, true);
-        drawShadowCasters(device, race, vehicles, pipeline,
-                          decorationActive, decorationFragments,
-                          vehicleDeathFragments, racerRuntime,
-                          elapsedSeconds);
+        if (directionalShadowsEnabled || shadowLampCount > 1U)
+        {
+            device.setPassState({});
+            device.beginPass(
+                RenderPass::ShadowFar, shadowTargetFar_, lightCameraFar,
+                0xffffffffU, true, true);
+            drawShadowCasters(device, race, vehicles, pipeline,
+                              decorationActive, decorationFragments,
+                              vehicleDeathFragments, racerRuntime,
+                              elapsedSeconds);
+        }
+        if (spotShadowsEnabled && shadowLampCount > 2U)
+        {
+            device.setPassState({});
+            device.beginPass(
+                RenderPass::ShadowThird, shadowTargetThird_,
+                lightCameraThird, 0xffffffffU, true, true);
+            drawShadowCasters(device, race, vehicles, pipeline,
+                              decorationActive, decorationFragments,
+                              vehicleDeathFragments, racerRuntime,
+                              elapsedSeconds);
+        }
     }
 
     auto environmentCenter = renderCenter;
@@ -5408,15 +5496,34 @@ void OriginalRaceRenderer::renderFrame(
         sceneState.shadowTexture =
             device.renderTargetTexture(shadowTarget_);
         sceneState.shadowTextureFar =
-            device.renderTargetTexture(shadowTargetFar_);
+            device.renderTargetTexture(
+                directionalShadowsEnabled || shadowLampCount > 1U
+                    ? shadowTargetFar_
+                    : shadowTarget_);
         sceneState.shadowViewProjection = viewProjection(lightCamera);
         sceneState.shadowViewProjectionFar =
             viewProjection(lightCameraFar);
         sceneState.shadowsEnabled = true;
-        sceneState.shadowStrength = 0.62F;
+        sceneState.spotShadows = spotShadowsEnabled;
+        sceneState.shadowStrength =
+            spotShadowsEnabled ? 1.0F : 0.62F;
         sceneState.shadowSplitDistance = shadowSplitDistance;
         sceneState.shadowMapSize = 2048.0F;
-        sceneState.shadowDepthBias = 0.0015F;
+        sceneState.shadowDepthBias =
+            spotShadowsEnabled ? 0.0F : 0.0015F;
+        if (spotShadowsEnabled)
+        {
+            // Garage/Angar never enable planar reflection, so the original
+            // reflection pair is available for Environment lamp #3 without
+            // adding another varying or sampler to the legacy mesh shader.
+            sceneState.reflectionTexture =
+                device.renderTargetTexture(
+                    shadowLampCount > 2U
+                        ? shadowTargetThird_
+                        : shadowTargetFar_);
+            sceneState.reflectionViewProjection =
+                viewProjection(lightCameraThird);
+        }
     }
     device.setPassState(sceneState);
     device.beginPass(

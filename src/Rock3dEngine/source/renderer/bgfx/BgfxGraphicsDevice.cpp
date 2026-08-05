@@ -276,6 +276,8 @@ public:
                           "Motor Rock shadow map near split");
         bgfx::setViewName(viewId(RenderPass::ShadowFar),
                           "Motor Rock shadow map far split");
+        bgfx::setViewName(viewId(RenderPass::ShadowThird),
+                          "Motor Rock third spot shadow map");
         bgfx::setViewName(scene_view, "Motor Rock HDR scene");
         bgfx::setViewName(viewId(RenderPass::Water),
                           "Motor Rock water/refraction");
@@ -911,7 +913,8 @@ private:
         const std::array<float, 4> shadowParameters{
             pass_state_.shadowSplitDistance,
             pass_state_.shadowMapSize,
-            pass_state_.shadowDepthBias, 0.0F};
+            pass_state_.shadowDepthBias,
+            pass_state_.spotShadows ? 1.0F : 0.0F};
         bgfx::setUniform(shadow_parameters_, shadowParameters.data());
         bgfx::setUniform(post_parameters_,
                          material.postParameters.data());

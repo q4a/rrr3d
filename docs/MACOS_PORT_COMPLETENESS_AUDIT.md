@@ -76,7 +76,7 @@ Windows target не компилируется.
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared/profile/gamer/final navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty, Profile, Gamers и FinalMenu имеют исходные item order, NavElement/input branches, disabled skip и actions; Network и общий legacy event object graph ещё не завершены |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, `AcceptDialog`, `MusicDialog`, `WeaponDialog` и offline `InfoDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, все вызываемые offline confirmations, popup текущего track, hover-dialog товара/слота и Workshop/Angar/Achievement warnings перенесены. Offline-профили по исходнику автоматически называются `profileN`; `UserChat` и `NetIPAddress` относятся только к пока отключённой сети |
-| Race menu | `RaceMenu2.cpp` | source-derived `GamersFrame`/`RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Gamers, главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/portraits/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, семь gamer planets, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph и тени menu spot-lamps пока не воспроизведены |
+| Race menu | `RaceMenu2.cpp` | source-derived `GamersFrame`/`RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Gamers, главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/portraits/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, семь gamer planets, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms и shadow maps, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph ещё не воспроизведён |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp`, `Menu::OnFinishClose` | source-derived FinishMenu, finish transition и FinalMenu | Перенесено | Активные экраны используют исходные assets/layout/timing/input; pass fail/complete, planet unlock и final movie branches сопоставлены с Windows source |
 | Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля, source-инвариант планет, `Race::MakeProfileName/NewProfile` и `DelProfile/SaveLib`: New Game создаёт `profileN`, `skirmish` временный, удаление последнего профиля сохраняет пустой library и не воскрешает XML reference. Полная схема ещё не доказана |
@@ -104,7 +104,7 @@ Windows target не компилируется.
 | Camera | `CameraManager.cpp`, `View.cpp` | source-derived formulas в renderer | Частично | Два режима есть; исходный manager, collision/culling transitions и все modes не перенесены |
 | Scene graph/render queues | `GraphManager`, `Actor`, `SceneManager` | custom queues в `OriginalRaceRenderer` | Частично | Основные order buckets есть; generic actor/proxy/octree graph не перенесён |
 | Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | parsed records + ручные mappings | Частично | Opaque/alpha/additive/bump/reflection реализованы; direct-name heuristics/fallback mappings остаются |
-| Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы directional race passes и source spot-lighting garage/HDR; отдельные shadow maps двух garage spot-lamps, bit-for-bit и полное graph state parity не доказаны |
+| Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы directional race passes и отдельные source shadow maps всех двух Garage/до трёх Angar spot-lamps с исходными cone/near/far и per-light diffuse/specular application; bit-for-bit и полное graph state parity не доказаны |
 | Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Частично | Значимая часть serialized graph читается; не все node/emitter/action types и lifetime semantics перенесены |
 | Weather/water/magma/sky | `Environment.cpp`, graph effects | source records + bgfx passes | Частично | Все world variants загружаются; exact D3D shader/fixed-pipeline result не доказан |
 | Commentator | race/HUD sound events | `OriginalRaceCommentator.cpp` | Частично | Оригинальные clips используются; очередь и trigger selection написаны заново |
@@ -476,10 +476,13 @@ Network, video и Steam явно выключены.
    `LoadSpecLibMat(question.png)` со specular `1`/power `64`; общий renderer
    теперь декодирует PNG-материалы, а не передаёт их как DDS container.
 6. Build, resource verifier, physics smoke и bgfx/Metal menu/race smoke
-   проходят; telemetry требует реальный lighting draw 3D garage scene как в
-   Garage, так и в `RaceMainFrame`.
-   Не закрыто только отдельное создание shadow maps для двух spot-lamps:
-   освещение перенесено, их D3D shadow pass пока отсутствует.
+   проходят; telemetry требует реальный lighting draw и оба source shadow
+   pass 3D garage scene как в Garage, так и в `RaceMainFrame`.
+7. `Environment::EnableLamp` перенесён отдельными 2048² single-split shadow
+   maps: две лампы Garage используют near/far `1/20`, Angar поддерживает до
+   трёх карт с `1/80`, `1/80`, `1/100`, включая мигающую красную лампу.
+   `lighting.fx` semantics сохранены: карта каждой лампы умножает только её
+   diffuse/specular, не global ambient и не вклад остальных источников.
 
 ### WorkshopFrame
 

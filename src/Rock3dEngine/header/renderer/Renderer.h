@@ -110,6 +110,7 @@ enum class RenderPass : std::uint8_t
 {
     Shadow,
     ShadowFar,
+    ShadowThird,
     EnvironmentPositiveX,
     EnvironmentNegativeX,
     EnvironmentPositiveY,
@@ -273,6 +274,10 @@ struct RenderPassState
     std::array<float, 4> clipPlane{0.0F, 0.0F, 1.0F, 0.0F};
     bool clipPlaneEnabled = false;
     bool shadowsEnabled = false;
+    // Environment::EnableLamp creates one unsplit shadow map per spot
+    // light. In that mode the three fixed environment lamps use the near,
+    // far and otherwise-idle reflection texture/matrix slots.
+    bool spotShadows = false;
     bool invertCulling = false;
     float shadowStrength = 0.62F;
     float shadowSplitDistance = 60.0F;
