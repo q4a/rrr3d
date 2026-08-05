@@ -858,6 +858,28 @@ float sourceRandomUnit()
            static_cast<float>(RAND_MAX);
 }
 
+double sourceUniformRandomUnit()
+{
+    // lsl::RandomRange(int, int) uses RAND_MAX + 1, unlike Random().
+    // The resulting unit value never reaches one and gives every inclusive
+    // integer result the same-width bucket.
+    return static_cast<double>(std::rand()) /
+           (static_cast<double>(RAND_MAX) + 1.0);
+}
+
+std::size_t sourceUniformRandomIndex(
+    std::size_t count, double randomUnit)
+{
+    if (count <= 1U)
+        return 0U;
+    const double unit = std::clamp(
+        randomUnit, 0.0, std::nextafter(1.0, 0.0));
+    return std::min(
+        static_cast<std::size_t>(
+            std::floor(unit * static_cast<double>(count))),
+        count - 1U);
+}
+
 std::size_t sourceRoundedRandomIndex(
     std::size_t count, float randomUnit)
 {
@@ -2151,10 +2173,9 @@ void OriginalRaceSession::updateAiTracks(
     {
         std::size_t racer = 0;
         std::size_t path = 0;
-        std::size_t nextNode = 1;
+        std::size_t collisionNode = 0;
         Vec3 direction{1.0F, 0.0F, 0.0F};
-        Vec3 normal{0.0F, -1.0F, 0.0F};
-        float longitudinal = 0.0F;
+        Vec3 position{};
         float lateral = 0.0F;
         float radius = 0.5F;
         std::uint32_t currentTrack = 0U;
@@ -2166,13 +2187,15 @@ void OriginalRaceSession::updateAiTracks(
     {
         if (racers_[racer].destroyed || racers_[racer].finished)
             continue;
-        TraceNodeRef traceNode = aiTraceNode(racer, vehicles[racer]);
+        // AISystem::ComputeTracks only inserts AI players whose live
+        // CarState::curTile exists.  PathState may retain lastNode for
+        // steering, but that fallback must not reserve lanes off-trace.
+        TraceNodeRef traceNode =
+            racer < currentTraceNodes_.size()
+                ? currentTraceNodes_[racer]
+                : TraceNodeRef{};
         if (!traceNode.valid())
-        {
-            traceNode = {0U, std::clamp<std::size_t>(
-                                  racers_[racer].nextPathNode - 1U,
-                                  0U, race_.tracePath.size() - 2U)};
-        }
+            continue;
         const auto& path = tracePathAt(traceNode.path);
         traceNode.node = std::min(traceNode.node, path.size() - 2U);
         const std::size_t nextNode = traceNode.node + 1U;
@@ -2199,6 +2222,35 @@ void OriginalRaceSession::updateAiTracks(
         const auto currentTrack = static_cast<std::uint32_t>(
             std::clamp(std::abs(rawTrack), 0,
                        static_cast<int>(trackCount) - 1));
+        // Player::CarState::curNode switches to curTile->next while the car
+        // is inside the next WayNode sphere.  AISystem uses that node's
+        // infinite tile strip when building overlap chains at corners.
+        std::size_t collisionNode = traceNode.node;
+        if (nextNode < path.size())
+        {
+            Vec3 incoming = direction;
+            Vec3 outgoing = direction;
+            if (nextNode + 1U < path.size())
+            {
+                outgoing = normalized2(subtract(
+                    tracePoint(traceNode.path, nextNode + 1U).position,
+                    next.position));
+            }
+            const float turnAngle = std::acos(std::clamp(
+                dot2(incoming, outgoing), -1.0F, 1.0F));
+            const float nodeRadius =
+                next.width * 0.5F /
+                std::sqrt(std::max(
+                    (1.0F + std::cos(turnAngle)) * 0.5F,
+                    0.000001F));
+            if (length3(subtract(
+                    vehicles[racer].body.position,
+                    next.position)) < nodeRadius)
+            {
+                collisionNode = std::min(
+                    nextNode, path.size() - 2U);
+            }
+        }
         const auto& source = race_.racers[racer];
         const auto& vehicleDefinition =
             source.hasConfiguredVehicle
@@ -2209,10 +2261,37 @@ void OriginalRaceSession::updateAiTracks(
             std::sqrt(half.x * half.x + half.y * half.y +
                       half.z * half.z);
         states.push_back(
-            {racer, traceNode.path, nextNode, direction, normal, longitudinal,
-             lateral, radius, currentTrack});
+            {racer, traceNode.path, collisionNode, direction,
+             vehicles[racer].body.position, lateral, radius,
+             currentTrack});
         aiTracks_[racer] = currentTrack;
     }
+
+    auto tileStripContains = [&](const AiTrackState& source,
+                                 Vec3 position) {
+        const auto& start = tracePoint(
+            source.path, source.collisionNode);
+        const auto& end = tracePoint(
+            source.path, source.collisionNode + 1U);
+        const Vec3 direction = normalized2(
+            subtract(end.position, start.position));
+        const Vec3 relative = subtract(position, start.position);
+        const float segmentLength = std::max(
+            length2(subtract(end.position, start.position)),
+            0.0001F);
+        const float coordinate = std::clamp(
+            dot2(relative, direction) / segmentLength, 0.0F, 1.0F);
+        const float width =
+            start.width + (end.width - start.width) * coordinate;
+        const float pathZ =
+            start.position.z +
+            (end.position.z - start.position.z) * coordinate;
+        const Vec3 normal{direction.y, -direction.x, 0.0F};
+        // WayNode::Tile::IsContains(..., false) deliberately omits the two
+        // end planes while retaining lateral and Z bounds.
+        return std::abs(dot2(relative, normal)) < width * 0.5F &&
+               std::abs(pathZ - position.z) < width * 0.5F;
+    };
 
     std::vector<bool> assigned(states.size(), false);
     for (std::size_t first = 0; first < states.size(); ++first)
@@ -2227,15 +2306,16 @@ void OriginalRaceSession::updateAiTracks(
             for (std::size_t candidate = 0;
                  candidate < states.size(); ++candidate)
             {
-                if (assigned[candidate] ||
-                    states[candidate].path != source.path ||
-                    states[candidate].nextNode != source.nextNode)
+                if (assigned[candidate])
                     continue;
                 const float longitudinalDistance = std::abs(
-                    states[candidate].longitudinal -
-                    source.longitudinal);
+                    dot2(source.direction,
+                         subtract(states[candidate].position,
+                                  source.position)));
                 if (longitudinalDistance >
-                    states[candidate].radius + source.radius)
+                        states[candidate].radius + source.radius ||
+                    !tileStripContains(
+                        source, states[candidate].position))
                     continue;
                 assigned[candidate] = true;
                 chain.push_back(candidate);
@@ -2303,6 +2383,9 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     constexpr float maximumTimeBlocking = 1.0F;
     constexpr float steerControl = 1.0F;
 
+    const bool sourceTileMissing =
+        racer >= currentTraceNodes_.size() ||
+        !currentTraceNodes_[racer].valid();
     TraceNodeRef traceNode = aiTraceNode(racer, vehicle);
     if (!traceNode.valid())
     {
@@ -2471,15 +2554,53 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     else
         steeringAngle = 0.0F;
 
-    if (turnAngle > 3.14159265358979323846F / 12.0F)
+    // PathState selects curNode while the car is inside the current
+    // WayNode sphere; otherwise it brakes for nextTile.  Use that exact
+    // source node and its miter-normal distance instead of an approximation
+    // along the incoming segment.
+    auto nodeTurn = [&](std::size_t node) {
+        if (node == 0U || node + 1U >= path.size())
+            return 0.0F;
+        const Vec3 incoming = normalized2(subtract(
+            tracePoint(traceNode.path, node).position,
+            tracePoint(traceNode.path, node - 1U).position));
+        const Vec3 outgoing = normalized2(subtract(
+            tracePoint(traceNode.path, node + 1U).position,
+            tracePoint(traceNode.path, node).position));
+        return std::acos(std::clamp(
+            dot2(incoming, outgoing), -1.0F, 1.0F));
+    };
+    const float currentNodeTurn = nodeTurn(traceNode.node);
+    const float currentNodeRadius =
+        pathStart.width * 0.5F /
+        std::sqrt(std::max(
+            (1.0F + std::cos(currentNodeTurn)) * 0.5F,
+            0.000001F));
+    const bool insideCurrentNode =
+        length2(subtract(vehicle.body.position,
+                         pathStart.position)) < currentNodeRadius;
+    const std::size_t brakeNode =
+        insideCurrentNode ? traceNode.node : nextPathNode;
+    const float brakeTurnAngle = nodeTurn(brakeNode);
+    if (brakeTurnAngle > 3.14159265358979323846F / 12.0F)
     {
-        const float distanceToTurn = std::max(
-            dot2(subtract(target.position, vehicle.body.position),
-                 currentDirection),
-            0.0F);
-        const float brakeDistance = distanceToTurn + target.width;
+        const auto& brakePoint =
+            tracePoint(traceNode.path, brakeNode);
+        const Vec3 brakeIncoming = normalized2(subtract(
+            brakePoint.position,
+            tracePoint(traceNode.path, brakeNode - 1U).position));
+        const Vec3 brakeDirection = normalized2(subtract(
+            tracePoint(traceNode.path, brakeNode + 1U).position,
+            brakePoint.position));
+        const Vec3 middleDirection = normalized2(
+            add(brakeIncoming, brakeDirection));
+        const float normalDistance = dot2(
+            middleDirection,
+            subtract(vehicle.body.position, brakePoint.position));
+        const float brakeDistance =
+            -normalDistance + brakePoint.width;
         const float rotation =
-            1.0F - std::max(dot2(carForward, followingDirection), 0.0F);
+            1.0F - std::max(dot2(carForward, brakeDirection), 0.0F);
         const float demand =
             vehicle.speed * vehicle.speed * steerControl *
             steerControl * rotation;
@@ -2497,7 +2618,6 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
         std::abs(vehicle.speed) < maximumSpeedBlocking;
     if (belowBlockingSpeed)
     {
-        stuckSeconds_[racer] += seconds;
         aiBlockingSeconds_[racer] += seconds;
         if (aiBlockingSeconds_[racer] > maximumTimeBlocking)
         {
@@ -2507,10 +2627,16 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     }
     else
     {
-        stuckSeconds_[racer] = 0.0F;
         aiBlockingSeconds_[racer] = 0.0F;
         aiBlocking_[racer] = false;
     }
+    // UpdateResetCar has its own timer and also advances while curTile is
+    // null, even if the car still has speed.  It must not set ControlState's
+    // blocking flag or force reverse while the car is moving.
+    if (belowBlockingSpeed || sourceTileMissing)
+        stuckSeconds_[racer] += seconds;
+    else
+        stuckSeconds_[racer] = 0.0F;
 
     // AICar::ControlState does not wait passively for the three-second
     // reset.  After one blocked second it alternates reverse and forward,
@@ -2857,9 +2983,9 @@ void OriginalRaceSession::destroyRacer(
             sound.racer = racer;
             sound.position = add(vehicle.body.position, source.position);
             sound.soundPath = source.visual.soundPaths[
-                sourceRoundedRandomIndex(
+                sourceUniformRandomIndex(
                     source.visual.soundPaths.size(),
-                    sourceRandomUnit())];
+                    sourceUniformRandomUnit())];
             events_.push_back(std::move(sound));
         }
         RaceEffect effect;
@@ -2906,8 +3032,8 @@ void OriginalRaceSession::updateGameplay(
             event.kind = RaceEventKind::EffectSound;
             event.racer = racer;
             event.position = position;
-            event.soundPath = sounds[sourceRoundedRandomIndex(
-                sounds.size(), sourceRandomUnit())];
+            event.soundPath = sounds[sourceUniformRandomIndex(
+                sounds.size(), sourceUniformRandomUnit())];
             events_.push_back(std::move(event));
         };
     for (std::size_t racer = 0;
@@ -5263,10 +5389,17 @@ void OriginalRaceSession::updateGameplay(
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
         auto& runtime = racers_[racer];
-        if (runtime.destroyed)
+        // AttackState::Update returns immediately for curTile == NULL.  A
+        // retained lastNode is valid for progress/respawn, not for aiming,
+        // mine placement or Hyper activation.
+        if (runtime.destroyed ||
+            racer >= currentTraceNodes_.size() ||
+            !currentTraceNodes_[racer].valid())
             continue;
         const Vec3 carDirection =
             normalized2(forward(vehicles[racer].body.rotation));
+        const Vec3 carDirection3 =
+            normalized3(forward(vehicles[racer].body.rotation));
         auto carRadius = [&](std::size_t target) {
             const auto& definition = race_.racers[target];
             const auto& vehicle =
@@ -5280,9 +5413,7 @@ void OriginalRaceSession::updateGameplay(
                 0.5F);
         };
         auto zLevelContains = [&](std::size_t target) {
-            TraceNodeRef node = racerTraceNode(racer);
-            if (!node.valid())
-                return false;
+            TraceNodeRef node = currentTraceNodes_[racer];
             const auto& path = tracePathAt(node.path);
             node.node = std::min(node.node, path.size() - 2U);
             const auto& start = tracePoint(node.path, node.node);
@@ -5330,15 +5461,15 @@ void OriginalRaceSession::updateGameplay(
                     const float distance = length3(difference);
                     if (distance <= 0.0001F)
                         continue;
-                    const float alignment = dot2(
-                        carDirection,
+                    const float alignment = dot3(
+                        carDirection3,
                         multiply(difference, 1.0F / distance));
                     const bool inView =
                         direction > 0
                             ? alignment >= 0.70710678F
                             : alignment <= -0.70710678F;
                     const float planeDistance = std::abs(
-                        dot2(carDirection, difference));
+                        dot3(carDirection3, difference));
                     if (!inView ||
                         (enemy != RacerRuntime::invalidWeapon &&
                          planeDistance >= minimumPlaneDistance))
@@ -5448,9 +5579,9 @@ void OriginalRaceSession::updateGameplay(
                     return;
                 const auto slot =
                     sourceRandomUnit() < 0.25F
-                        ? usableSlots[sourceRoundedRandomIndex(
+                        ? usableSlots[sourceUniformRandomIndex(
                               usableSlots.size(),
-                              sourceRandomUnit())]
+                              sourceUniformRandomUnit())]
                         : usableSlots.front();
                 const float summedPart = std::clamp(
                     raceProgress(racer) / 0.7F, 0.0F, 1.0F);
@@ -5479,59 +5610,12 @@ void OriginalRaceSession::updateGameplay(
         shotByEnemy(frontTarget);
         shotByEnemy(backTarget);
 
-        if (runtime.mines > 0 &&
-            mineCooldown_[racer] <= 0.0F)
-        {
-            if (aiMineRandom_[racer] < -0.5F)
-            {
-                aiMineRandom_[racer] =
-                    -0.5F + sourceRandomUnit() * 0.5F;
-            }
-            float summedPart = std::clamp(
-                (raceProgress(racer) - 0.05F) / 0.9F,
-                0.0F, 1.0F);
-            if (backTarget < racers_.size() && backDistance < 30.0F)
-                summedPart += 0.3F;
-            if (summedPart > 0.0F && summedPart < 1.0F)
-            {
-                summedPart = std::clamp(
-                    summedPart + aiMineRandom_[racer],
-                    0.0F, 1.0F);
-            }
-            std::uint32_t maximumUsedCharge = 3U;
-            if (runtime.mineWeapon < race_.weapons.size() &&
-                race_.weapons[runtime.mineWeapon].record.find("maslo") !=
-                    std::string::npos)
-                maximumUsedCharge = 2U;
-            const auto capacity =
-                std::min(runtime.mineCapacity, maximumUsedCharge);
-            const auto spent =
-                runtime.mineCapacity > runtime.mines
-                    ? runtime.mineCapacity - runtime.mines
-                    : 0U;
-            const auto current =
-                capacity - std::min(spent, capacity);
-            const float ammunition = std::max(
-                static_cast<float>(current) -
-                    (1.0F - summedPart) *
-                        static_cast<float>(capacity),
-                0.0F);
-            if ((capacity == 0U || ammunition > 0.0F) &&
-                vehicles[racer].speed > 5.0F)
-            {
-                placeMine(racer);
-                aiMineRandom_[racer] =
-                    -0.5F + sourceRandomUnit() * 0.5F;
-            }
-        }
         if (runtime.hyperCharge > 0 &&
             hyperCooldown_[racer] <= 0.0F &&
             vehicles[racer].speed > 1.0F &&
             runtime.hyperWeapon < race_.weapons.size())
         {
-            TraceNodeRef node = racerTraceNode(racer);
-            if (!node.valid())
-                continue;
+            TraceNodeRef node = currentTraceNodes_[racer];
             const auto& path = tracePathAt(node.path);
             node.node = std::min(node.node, path.size() - 2U);
             const auto& start = tracePoint(node.path, node.node);
@@ -5568,9 +5652,58 @@ void OriginalRaceSession::updateGameplay(
                     (1.0F - summedPart) *
                         static_cast<float>(runtime.hyperCapacity),
                 0.0F);
-            if (safeDistance &&
+            if (safeDistance && !aiBrake_[racer] &&
                 (runtime.hyperCapacity == 0U || ammunition > 0.0F))
                 activateHyper(racer);
+        }
+        // AttackState::Update invokes RunHyper before PlaceMine.  Keep the
+        // order because both shots may emit effects and consume slots in a
+        // single source progress tick.
+        if (runtime.mines > 0 &&
+            mineCooldown_[racer] <= 0.0F)
+        {
+            if (aiMineRandom_[racer] == -1.0F)
+            {
+                aiMineRandom_[racer] =
+                    -0.5F + sourceRandomUnit() * 0.5F;
+            }
+            float summedPart = std::clamp(
+                (raceProgress(racer) - 0.05F) / 0.9F,
+                0.0F, 1.0F);
+            if (summedPart > 0.0F && summedPart < 1.0F)
+            {
+                if (backTarget < racers_.size() &&
+                    backDistance < 30.0F)
+                    summedPart += 0.3F;
+                summedPart = std::clamp(
+                    summedPart + aiMineRandom_[racer],
+                    0.0F, 1.0F);
+            }
+            std::uint32_t maximumUsedCharge = 3U;
+            if (runtime.mineWeapon < race_.weapons.size() &&
+                race_.weapons[runtime.mineWeapon].record.find("maslo") !=
+                    std::string::npos)
+                maximumUsedCharge = 2U;
+            const auto capacity =
+                std::min(runtime.mineCapacity, maximumUsedCharge);
+            const auto spent =
+                runtime.mineCapacity > runtime.mines
+                    ? runtime.mineCapacity - runtime.mines
+                    : 0U;
+            const auto current =
+                capacity - std::min(spent, capacity);
+            const float ammunition = std::max(
+                static_cast<float>(current) -
+                    (1.0F - summedPart) *
+                        static_cast<float>(capacity),
+                0.0F);
+            if ((capacity == 0U || ammunition > 0.0F) &&
+                vehicles[racer].speed > 5.0F)
+            {
+                placeMine(racer);
+                aiMineRandom_[racer] =
+                    -0.5F + sourceRandomUnit() * 0.5F;
+            }
         }
     }
 
@@ -5975,43 +6108,79 @@ void OriginalRaceSession::update(
         }
         return std::max(result, 1.0F);
     }();
-    const float humanLap =
-        !vehicles.empty() ? this->lapPosition(0U, vehicles.front()) : 0.0F;
     for (std::size_t racer = 1;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
         vehicleInputs_[racer] =
             aiInput(racer, vehicles[racer], seconds);
-        auto& aiInputValue = vehicleInputs_[racer];
-        const float aiLap = this->lapPosition(racer, vehicles[racer]);
-        float distance = std::abs(aiLap - humanLap);
+    }
+
+    // Player::CheatUpdate runs for both HumanPlayer and every AIPlayer.  It
+    // compares each car with the racer having the greatest signed lap lead,
+    // not only with the human.  HumanPlayer enables the faster bit; AIPlayer
+    // enables both faster and slower bits.
+    for (std::size_t racer = 0U;
+         racer < racers_.size() && racer < vehicles.size(); ++racer)
+    {
+        if (racers_[racer].destroyed)
+            continue;
+        const float racerLap =
+            this->lapPosition(racer, vehicles[racer]);
+        std::size_t opponent = RacerRuntime::invalidWeapon;
+        float maximumLapDistance = 0.0F;
+        for (std::size_t candidate = 0U;
+             candidate < racers_.size() &&
+             candidate < vehicles.size(); ++candidate)
+        {
+            if (candidate == racer)
+                continue;
+            const float lapDistance =
+                this->lapPosition(candidate, vehicles[candidate]) -
+                racerLap;
+            if (opponent == RacerRuntime::invalidWeapon ||
+                lapDistance > maximumLapDistance)
+            {
+                opponent = candidate;
+                maximumLapDistance = lapDistance;
+            }
+        }
+        if (opponent == RacerRuntime::invalidWeapon)
+            continue;
+        const float opponentLap =
+            this->lapPosition(opponent, vehicles[opponent]);
+        float distance = std::abs(racerLap - opponentLap);
         distance -= std::floor(distance);
-        const TraceNodeRef aiTrace = racerTraceNode(racer);
-        const float aiPathLength =
-            aiTrace.valid()
-                ? std::max(tracePathLength(aiTrace.path), 1.0F)
+        const TraceNodeRef trace = racerTraceNode(racer);
+        const float racerPathLength =
+            trace.valid()
+                ? std::max(tracePathLength(trace.path), 1.0F)
                 : pathLength;
         distance = std::min(distance, 1.0F - distance) *
-                   aiPathLength;
+                   racerPathLength;
         const float distancePart = std::clamp(
             (distance - easingMinimumDistance[difficultyIndex]) /
                 (easingMaximumDistance[difficultyIndex] -
                  easingMinimumDistance[difficultyIndex]),
             0.0F, 1.0F);
-        if (aiLap > humanLap &&
+        auto& control = vehicleInputs_[racer];
+        if (racerLap > opponentLap &&
             distance >
                 easingMinimumDistance[difficultyIndex])
         {
-            const float speedLimit =
-                easingMinimumSpeed[difficultyIndex] +
-                (easingMaximumSpeed[difficultyIndex] -
-                 easingMinimumSpeed[difficultyIndex]) *
-                    distancePart;
-            if (vehicles[racer].speed > speedLimit &&
-                aiInputValue.brake <= 0.0F)
+            // HumanPlayer does not enable cCheatEnableSlower.
+            if (racer != 0U)
             {
-                aiInputValue.throttle = 0.0F;
-                aiInputValue.reverse = 0.0F;
+                const float speedLimit =
+                    easingMinimumSpeed[difficultyIndex] +
+                    (easingMaximumSpeed[difficultyIndex] -
+                     easingMinimumSpeed[difficultyIndex]) *
+                        distancePart;
+                if (vehicles[racer].speed > speedLimit &&
+                    control.brake <= 0.0F)
+                {
+                    control.throttle = 0.0F;
+                    control.reverse = 0.0F;
+                }
             }
         }
         else if (distance >
@@ -6022,8 +6191,8 @@ void OriginalRaceSession::update(
                 (cheatMaximumTorque[difficultyIndex] -
                  cheatMinimumTorque[difficultyIndex]) *
                     distancePart;
-            aiInputValue.motorTorqueScale = torqueScale;
-            aiInputValue.lateralGripScale = torqueScale;
+            control.motorTorqueScale = torqueScale;
+            control.lateralGripScale = torqueScale;
         }
     }
 
@@ -6042,7 +6211,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
 {
     try
     {
-        if (sourceRoundedRandomIndex(4U, 0.0F) != 0U ||
+        if (sourceUniformRandomIndex(4U, 0.0) != 0U ||
+            sourceUniformRandomIndex(4U, 0.249999) != 0U ||
+            sourceUniformRandomIndex(4U, 0.25) != 1U ||
+            sourceUniformRandomIndex(4U, 0.5) != 2U ||
+            sourceUniformRandomIndex(4U, 0.999999) != 3U ||
+            sourceRoundedRandomIndex(4U, 0.0F) != 0U ||
             sourceRoundedRandomIndex(4U, 0.16F) != 0U ||
             sourceRoundedRandomIndex(4U, 0.5F) != 2U ||
             sourceRoundedRandomIndex(4U, 1.0F) != 3U ||
@@ -6051,7 +6225,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             sourceBonusCharge(10U, 0.0F) != 1U)
         {
             throw std::runtime_error(
-                "source Player::TakeBonus charge formula failed");
+                "source RandomRange/Player::TakeBonus formula failed");
         }
         OriginalRaceSession session(race);
         auto point = [&](std::size_t pathNode) -> const TracePoint& {
@@ -6412,6 +6586,114 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 }
             }
 
+            const auto aiHyperdrive = std::find_if(
+                race.weapons.begin(), race.weapons.end(),
+                [](const WeaponDefinition& weapon) {
+                    return weapon.slot == WeaponSlot::Hyper &&
+                           recordName(weapon.record) == "hyperdrive";
+                });
+            if (aiHyperdrive == race.weapons.end())
+            {
+                throw std::runtime_error(
+                    "source hyperdrive is missing for AICar regressions");
+            }
+            {
+                Race brakeHyperRace = race;
+                brakeHyperRace.racers.resize(2U);
+                brakeHyperRace.racers[1].loadout.clear();
+                brakeHyperRace.racers[1].loadout.push_back(
+                    {aiHyperdrive->record, "stHyper", 2U});
+                OriginalRaceSession brakeHyperSession(
+                    brakeHyperRace);
+                auto brakeHyperVehicles = vehicles;
+                brakeHyperVehicles.resize(2U);
+                for (std::size_t racer = 0U;
+                     racer < brakeHyperVehicles.size(); ++racer)
+                {
+                    brakeHyperVehicles[racer].body.position = {
+                        100000.0F + static_cast<float>(racer) * 1000.0F,
+                        100000.0F, 1000.0F};
+                    brakeHyperVehicles[racer].speed = 0.0F;
+                }
+                for (int frame = 0; frame < 190; ++frame)
+                {
+                    brakeHyperSession.update(
+                        1.0F / 60.0F,
+                        brakeHyperVehicles, input);
+                }
+                const Vec3 incoming = normalized2(subtract(
+                    point(cornerNode).position,
+                    point(cornerNode - 1U).position));
+                brakeHyperVehicles[1].body.position = subtract(
+                    point(cornerNode).position,
+                    multiply(incoming, 30.0F));
+                brakeHyperVehicles[1].body.position.z =
+                    point(cornerNode).position.z + 2.0F;
+                brakeHyperVehicles[1].body.rotation =
+                    shortestArcFromX(incoming);
+                brakeHyperVehicles[1].speed = 10.0F;
+                brakeHyperSession.update(
+                    1.0F / 60.0F,
+                    brakeHyperVehicles, input);
+                if (brakeHyperSession.vehicleInputs()[1].brake < 0.9F ||
+                    brakeHyperSession.racers()[1].hyperCharge != 2U)
+                {
+                    throw std::runtime_error(
+                        "source AICar corner brake/Hyper exclusion failed");
+                }
+            }
+            {
+                Race offTraceAttackRace = race;
+                offTraceAttackRace.racers.resize(2U);
+                offTraceAttackRace.racers[1].loadout.clear();
+                offTraceAttackRace.racers[1].loadout.push_back(
+                    {aiHyperdrive->record, "stHyper", 2U});
+                OriginalRaceSession offTraceAttackSession(
+                    offTraceAttackRace);
+                auto offTraceAttackVehicles = vehicles;
+                offTraceAttackVehicles.resize(2U);
+                for (std::size_t racer = 0U;
+                     racer < offTraceAttackVehicles.size(); ++racer)
+                {
+                    offTraceAttackVehicles[racer].body.position = {
+                        100000.0F + static_cast<float>(racer) * 1000.0F,
+                        100000.0F, 1000.0F};
+                    offTraceAttackVehicles[racer].speed = 0.0F;
+                }
+                for (int frame = 0; frame < 190; ++frame)
+                {
+                    offTraceAttackSession.update(
+                        1.0F / 60.0F,
+                        offTraceAttackVehicles, input);
+                }
+                const Vec3 firstDirection = normalized2(subtract(
+                    point(1U).position, point(0U).position));
+                offTraceAttackVehicles[1].body.position = multiply(
+                    add(point(0U).position, point(1U).position),
+                    0.5F);
+                offTraceAttackVehicles[1].body.position.z =
+                    (point(0U).position.z + point(1U).position.z) *
+                        0.5F +
+                    2.0F;
+                offTraceAttackVehicles[1].body.rotation =
+                    shortestArcFromX(firstDirection);
+                offTraceAttackSession.update(
+                    1.0F / 60.0F,
+                    offTraceAttackVehicles, input);
+                offTraceAttackSession.takeVelocityRequests();
+                offTraceAttackVehicles[1].body.position.z += 1000.0F;
+                offTraceAttackVehicles[1].speed = 2.0F;
+                offTraceAttackSession.update(
+                    1.0F / 60.0F,
+                    offTraceAttackVehicles, input);
+                if (offTraceAttackSession.racers()[1].hyperCharge != 2U ||
+                    !offTraceAttackSession.takeVelocityRequests().empty())
+                {
+                    throw std::runtime_error(
+                        "source AICar curTile-null attack suppression failed");
+                }
+            }
+
             const auto sourceTorpedo = std::find_if(
                 race.weapons.begin(), race.weapons.end(),
                 [](const WeaponDefinition& weapon) {
@@ -6482,6 +6764,71 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 }
             }
 
+            if (vehicles.size() > 2U)
+            {
+                Race pitchedTargetRace = race;
+                pitchedTargetRace.racers.resize(3U);
+                pitchedTargetRace.racers[1].loadout.clear();
+                pitchedTargetRace.racers[1].loadout.push_back(
+                    {sourceTorpedo->record, "stWeapon1", 10U});
+                OriginalRaceSession pitchedTargetSession(
+                    pitchedTargetRace);
+                auto pitchedTargetVehicles = vehicles;
+                pitchedTargetVehicles.resize(3U);
+                for (std::size_t racer = 0;
+                     racer < pitchedTargetVehicles.size(); ++racer)
+                {
+                    pitchedTargetVehicles[racer].body.position = {
+                        100000.0F + static_cast<float>(racer) * 1000.0F,
+                        100000.0F, 1000.0F};
+                    pitchedTargetVehicles[racer].speed = 5.0F;
+                }
+                for (int frame = 0; frame < 190; ++frame)
+                {
+                    pitchedTargetSession.update(
+                        1.0F / 60.0F,
+                        pitchedTargetVehicles, input);
+                }
+                const Vec3 direction = normalized2(
+                    subtract(point(1U).position,
+                             point(0U).position));
+                Vec3 base = multiply(
+                    add(point(0U).position, point(1U).position),
+                    0.5F);
+                base.z += 2.0F;
+                pitchedTargetVehicles[1].body.position = base;
+                pitchedTargetVehicles[1].body.rotation =
+                    shortestArcFromX(normalized3(add(
+                        multiply(direction, 0.70710678F),
+                        {0.0F, 0.0F, 0.70710678F})));
+                // Candidate zero is nearer in the old XY-only plane but is
+                // outside the source 3D forward cone of the pitched car.
+                pitchedTargetVehicles[0].body.position = add(
+                    add(base, direction), {0.0F, 0.0F, -0.5F});
+                // Candidate two is farther in XY but inside the true 3D
+                // cone and within ShotByEnemy's vertical car-radius test.
+                pitchedTargetVehicles[2].body.position = add(
+                    add(base, multiply(direction, 2.0F)),
+                    {0.0F, 0.0F, 0.7F});
+                pitchedTargetSession.update(
+                    1.0F / 60.0F,
+                    pitchedTargetVehicles, input);
+                const auto pitchedShot = std::find_if(
+                    pitchedTargetSession.projectiles().begin(),
+                    pitchedTargetSession.projectiles().end(),
+                    [](const ProjectileRuntime& projectile) {
+                        return projectile.owner == 1U &&
+                               projectile.projectile == 0U &&
+                               projectile.target == 2U;
+                    });
+                if (pitchedShot ==
+                    pitchedTargetSession.projectiles().end())
+                {
+                    throw std::runtime_error(
+                        "source AICar 3D target-plane selection failed");
+                }
+            }
+
             OriginalRaceSession aiControlSession(race);
             for (int frame = 0; frame < 190; ++frame)
                 aiControlSession.update(
@@ -6505,6 +6852,37 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "source AICar reverse/forward alternation failed");
             }
 
+            OriginalRaceSession aiOffTraceSession(race);
+            auto offTraceVehicles = vehicles;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                aiOffTraceSession.update(
+                    1.0F / 60.0F, offTraceVehicles, input);
+            }
+            offTraceVehicles[1].body.position = {
+                100000.0F, 100000.0F, 1000.0F};
+            offTraceVehicles[1].speed = 10.0F;
+            offTraceVehicles[1].linearVelocity =
+                {10.0F, 0.0F, 0.0F};
+            bool offTraceReset = false;
+            for (int frame = 0; frame < 240 && !offTraceReset; ++frame)
+            {
+                aiOffTraceSession.update(
+                    1.0F / 60.0F, offTraceVehicles, input);
+                offTraceReset = std::any_of(
+                    aiOffTraceSession.events().begin(),
+                    aiOffTraceSession.events().end(),
+                    [](const RaceEvent& event) {
+                        return event.kind == RaceEventKind::Respawn &&
+                               event.racer == 1U;
+                    });
+            }
+            if (!offTraceReset)
+            {
+                throw std::runtime_error(
+                    "source AICar moving off-trace reset transition failed");
+            }
+
             OriginalRaceSession aiCheatSession(race);
             auto cheatVehicles = vehicles;
             for (int frame = 0; frame < 190; ++frame)
@@ -6522,6 +6900,61 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source Player::CheatUpdate AI catch-up failed");
+            }
+
+            if (vehicles.size() > 2U)
+            {
+                Race fieldCheatRace = race;
+                fieldCheatRace.racers.resize(3U);
+                OriginalRaceSession fieldCheatSession(
+                    fieldCheatRace);
+                auto fieldCheatVehicles = vehicles;
+                fieldCheatVehicles.resize(3U);
+                for (std::size_t racer = 0U;
+                     racer < fieldCheatVehicles.size(); ++racer)
+                {
+                    fieldCheatVehicles[racer].body.position = {
+                        100000.0F + static_cast<float>(racer) * 1000.0F,
+                        100000.0F, 1000.0F};
+                    fieldCheatVehicles[racer].speed = 5.0F;
+                }
+                for (int frame = 0; frame < 190; ++frame)
+                {
+                    fieldCheatSession.update(
+                        1.0F / 60.0F,
+                        fieldCheatVehicles, input);
+                }
+                auto placeAt = [&](std::size_t racer,
+                                   std::size_t segment,
+                                   float coordinate) {
+                    const Vec3 direction = normalized2(subtract(
+                        point(segment + 1U).position,
+                        point(segment).position));
+                    fieldCheatVehicles[racer].body.position = add(
+                        point(segment).position,
+                        multiply(
+                            subtract(point(segment + 1U).position,
+                                     point(segment).position),
+                            coordinate));
+                    fieldCheatVehicles[racer].body.position.z += 2.0F;
+                    fieldCheatVehicles[racer].body.rotation =
+                        shortestArcFromX(direction);
+                };
+                placeAt(0U, 0U, 0.1F);
+                placeAt(1U, 1U, 0.2F);
+                placeAt(2U, 2U, 0.2F);
+                fieldCheatSession.update(
+                    1.0F / 60.0F,
+                    fieldCheatVehicles, input);
+                if (fieldCheatSession.vehicleInputs()[0]
+                            .motorTorqueScale <= 1.0F ||
+                    fieldCheatSession.vehicleInputs()[1]
+                            .motorTorqueScale <= 1.0F)
+                {
+                    throw std::runtime_error(
+                        "source Player::CheatUpdate full-field opponent "
+                        "selection failed");
+                }
             }
         }
 
