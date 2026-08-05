@@ -23,6 +23,7 @@
 #include "OriginalMenuMusic.h"
 #ifdef RRR3D_PHYSICS
 #include "OriginalRaceCommentator.h"
+#include "OriginalSpatialAudio.h"
 #endif
 #include "SdlAudioBackend.h"
 #include "SdlAudioSmoke.h"
@@ -3234,10 +3235,17 @@ int main(int argc, char** argv)
         // SoundMotor approaches the reported RPM at 10000 RPM/s before it
         // mixes the idle and high layers.
         float currentRpm = 0.0F;
+        bool spatialProxyPlaying = true;
+    };
+    struct WheelSlipAudio
+    {
+        r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
+        bool spatialProxyPlaying = false;
     };
     std::map<std::string, r3d::audio::SoundHandle> engineSounds;
+    std::map<r3d::audio::SoundHandle, float> engineSoundVolumes;
     std::vector<EngineAudio> engineAudio(originalRace->racers.size());
-    std::vector<std::vector<r3d::audio::VoiceHandle>>
+    std::vector<std::vector<WheelSlipAudio>>
         wheelSlipVoices(originalRace->racers.size());
     std::vector<r3d::audio::SoundHandle> weaponAudio(
         originalRace->weapons.size(), r3d::audio::invalidSound);
@@ -3249,10 +3257,15 @@ int main(int argc, char** argv)
         const auto sound =
             audio.loadOgg(resources->resolve(path), info, audioError);
         if (sound != r3d::audio::invalidSound)
+        {
             engineSounds.emplace(path, sound);
+            engineSoundVolumes.emplace(
+                sound, rrr3d::audio::originalSoundVolume(path));
+        }
         return sound;
     };
-    bool engineAudioValid = true;
+    bool engineAudioValid =
+        rrr3d::audio::runOriginalSpatialAudioSmokeTest();
     const auto wheelSlipSound =
         loadEngineSound(originalRace->wheelSlipSoundPath);
     engineAudioValid =
@@ -3399,6 +3412,7 @@ int main(int argc, char** argv)
              ++racer)
         {
             engineAudio[racer].currentRpm = 0.0F;
+            engineAudio[racer].spatialProxyPlaying = true;
             r3d::audio::PlayOptions options;
             options.bus = r3d::audio::Bus::Effects;
             options.loop = true;
@@ -3415,7 +3429,7 @@ int main(int argc, char** argv)
                     : originalRace->vehicles.at(sourceRacer.vehicle);
             wheelSlipVoices[racer].assign(
                 vehicle.physics.wheels.size(),
-                r3d::audio::invalidVoice);
+                WheelSlipAudio{});
         }
     };
     auto stopRaceAudio = [&](bool advanceGameTrack = true) {
@@ -3430,8 +3444,8 @@ int main(int argc, char** argv)
         {
             for (auto& voice : wheels)
             {
-                audio.stop(voice);
-                voice = r3d::audio::invalidVoice;
+                audio.stop(voice.voice);
+                voice = {};
             }
         }
         commentator.pause(true);
@@ -4514,7 +4528,11 @@ int main(int argc, char** argv)
                 if (vehicleIndex >= originalRace->vehicles.size())
                     continue;
                 const auto& vehicle =
-                    originalRace->vehicles[vehicleIndex];
+                    originalRace->racers[racer]
+                            .hasConfiguredVehicle
+                        ? originalRace->racers[racer]
+                              .configuredVehicle
+                        : originalRace->vehicles[vehicleIndex];
                 engineAudio[racer].idle =
                     loadEngineSound(vehicle.idleSoundPath);
                 engineAudio[racer].rpm =
@@ -10523,72 +10541,40 @@ int main(int argc, char** argv)
             {
                 const auto listener =
                     raceVehicles.front().body.position;
-                const auto listenerRotation =
-                    raceVehicles.front().body.rotation;
-                const r3d::physics::Vec3 listenerRight{
-                    2.0F * (listenerRotation.x * listenerRotation.y -
-                            listenerRotation.w * listenerRotation.z),
-                    1.0F -
-                        2.0F *
-                            (listenerRotation.x * listenerRotation.x +
-                             listenerRotation.z * listenerRotation.z),
-                    0.0F};
                 auto playSpatial =
                     [&](r3d::audio::SoundHandle sound,
-                        const r3d::physics::Vec3& source,
-                        const r3d::physics::Vec3& sourceVelocity,
-                        float gain) {
+                        const r3d::physics::Vec3& source) {
                     if (sound == r3d::audio::invalidSound)
                         return;
                     const float dx = source.x - listener.x;
                     const float dy = source.y - listener.y;
+                    const float dz = source.z - listener.z;
                     const float distance =
-                        std::sqrt(dx * dx + dy * dy);
-                    const float attenuation =
-                        std::clamp(1.0F - distance / 70.0F,
-                                   0.0F, 1.0F);
-                    float pan = 0.0F;
-                    if (distance > 0.001F)
-                        pan = std::clamp(
-                            (dx * listenerRight.x +
-                             dy * listenerRight.y) /
-                                distance,
-                            -1.0F, 1.0F);
-                    float pitch = 1.0F;
-                    if (distance > 0.001F)
-                    {
-                        constexpr float speedOfSound = 343.0F;
-                        const float nx = dx / distance;
-                        const float ny = dy / distance;
-                        const auto& listenerVelocity =
-                            raceVehicles.front().linearVelocity;
-                        const float listenerRadial =
-                            listenerVelocity.x * nx +
-                            listenerVelocity.y * ny;
-                        const float sourceRadial =
-                            sourceVelocity.x * nx +
-                            sourceVelocity.y * ny;
-                        pitch = std::clamp(
-                            (speedOfSound + listenerRadial) /
-                                std::max(speedOfSound + sourceRadial,
-                                         1.0F),
-                            0.8F, 1.25F);
-                    }
+                        std::sqrt(dx * dx + dy * dy + dz * dz);
+                    // snd::Engine defaults to m3dFlat. A newly created
+                    // Source3d starts only inside CurveDistanceScaler and
+                    // has neither stereo pan nor Doppler in this mode.
+                    const auto spatial =
+                        rrr3d::audio::originalSource3dFlatMix(
+                            distance, false);
+                    if (!spatial.proxyPlaying)
+                        return;
+                    const auto sourceVolume =
+                        engineSoundVolumes.find(sound);
+                    const float volume =
+                        spatial.gain *
+                        (sourceVolume != engineSoundVolumes.end()
+                             ? sourceVolume->second
+                             : 1.0F);
                     r3d::audio::PlayOptions playOptions;
                     playOptions.bus = r3d::audio::Bus::Effects;
-                    playOptions.volume = gain * attenuation;
+                    playOptions.volume = volume;
                     const auto voice =
                         audio.play(sound, playOptions, audioError);
                     if (voice != r3d::audio::invalidVoice)
                         audio.setVoiceParameters(
-                            voice, gain * attenuation, pitch, pan);
+                            voice, volume, 1.0F, 0.0F);
                 };
-                auto eventVelocity =
-                    [&](std::size_t racer) {
-                        return racer < raceVehicles.size()
-                                   ? raceVehicles[racer].linearVelocity
-                                   : r3d::physics::Vec3{};
-                    };
                 for (const auto& event : raceSession.events())
                 {
                     if (event.kind ==
@@ -10599,9 +10585,7 @@ int main(int argc, char** argv)
                         const auto weapon = event.weapon;
                         if (weapon < weaponAudio.size())
                             playSpatial(weaponAudio[weapon],
-                                        event.position,
-                                        eventVelocity(event.racer),
-                                        0.9F);
+                                        event.position);
                     }
                     else if (event.kind ==
                                  r3d::game::originalrace::RaceEventKind::
@@ -10609,8 +10593,7 @@ int main(int argc, char** argv)
                              event.target < weaponAudio.size())
                     {
                         playSpatial(weaponAudio[event.target],
-                                    event.position,
-                                    eventVelocity(event.racer), 0.8F);
+                                    event.position);
                     }
                     else if (event.kind ==
                                  r3d::game::originalrace::RaceEventKind::
@@ -10618,8 +10601,7 @@ int main(int argc, char** argv)
                              event.target < weaponAudio.size())
                     {
                         playSpatial(weaponAudio[event.target],
-                                    event.position,
-                                    eventVelocity(event.racer), 0.9F);
+                                    event.position);
                     }
                     else if (event.kind ==
                                  r3d::game::originalrace::RaceEventKind::
@@ -10628,8 +10610,7 @@ int main(int argc, char** argv)
                     {
                         playSpatial(
                             loadEngineSound(event.soundPath),
-                            event.position,
-                            eventVelocity(event.racer), 0.9F);
+                            event.position);
                     }
                 }
                 commentator.update(
@@ -10721,15 +10702,6 @@ int main(int argc, char** argv)
             {
                 const auto& listener =
                     raceVehicles.front().body.position;
-                const auto& rotation =
-                    raceVehicles.front().body.rotation;
-                const r3d::physics::Vec3 listenerRight{
-                    2.0F * (rotation.x * rotation.y -
-                            rotation.w * rotation.z),
-                    1.0F - 2.0F *
-                               (rotation.x * rotation.x +
-                                rotation.z * rotation.z),
-                    0.0F};
                 const bool audioPaused =
                     raceSession.phase() ==
                     r3d::game::originalrace::RacePhase::Paused;
@@ -10767,49 +10739,55 @@ int main(int argc, char** argv)
                         (motorAudio.currentRpm - minimumRpm) /
                             (maximumRpm - minimumRpm),
                         0.0F, 1.0F);
-                    float attenuation = 1.0F;
-                    float pan = 0.0F;
-                    if (racer != 0)
-                    {
-                        const auto& source =
-                            raceVehicles[racer].body.position;
-                        const float dx = source.x - listener.x;
-                        const float dy = source.y - listener.y;
-                        const float distance =
-                            std::sqrt(dx * dx + dy * dy);
-                        attenuation =
-                            std::clamp(1.0F - distance / 50.0F,
-                                       0.0F, 1.0F) *
-                            0.65F;
-                        if (distance > 0.001F)
-                            pan = std::clamp(
-                                (dx * listenerRight.x +
-                                 dy * listenerRight.y) /
-                                    distance,
-                                -1.0F, 1.0F);
-                    }
+                    const auto& source =
+                        raceVehicles[racer].body.position;
+                    const float dx = source.x - listener.x;
+                    const float dy = source.y - listener.y;
+                    const float dz = source.z - listener.z;
+                    const float distance =
+                        std::sqrt(dx * dx + dy * dy + dz * dz);
+                    const auto spatial =
+                        rrr3d::audio::originalSource3dFlatMix(
+                            distance,
+                            motorAudio.spatialProxyPlaying);
+                    motorAudio.spatialProxyPlaying =
+                        spatial.proxyPlaying;
+                    const auto idleSourceVolume =
+                        engineSoundVolumes.find(motorAudio.idle);
+                    const auto rpmSourceVolume =
+                        engineSoundVolumes.find(motorAudio.rpm);
                     const float idleVolume =
-                        attenuation * (1.0F - idleAlpha);
+                        spatial.gain * (1.0F - idleAlpha) *
+                        (idleSourceVolume != engineSoundVolumes.end()
+                             ? idleSourceVolume->second
+                             : 1.0F);
                     const float rpmVolume =
-                        attenuation * idleAlpha *
+                        spatial.gain * idleAlpha *
                         (definition.rpmVolumeRange[0] +
                          rpmAlpha *
                              (definition.rpmVolumeRange[1] -
-                              definition.rpmVolumeRange[0]));
+                              definition.rpmVolumeRange[0])) *
+                        (rpmSourceVolume != engineSoundVolumes.end()
+                             ? rpmSourceVolume->second
+                             : 1.0F);
                     const float pitch =
                         definition.rpmFrequencyRange[0] +
                         rpmAlpha *
                             (definition.rpmFrequencyRange[1] -
                              definition.rpmFrequencyRange[0]);
                     audio.setVoiceParameters(
-                        motorAudio.idleVoice, idleVolume, 1.0F, pan);
+                        motorAudio.idleVoice, idleVolume, 1.0F, 0.0F);
                     audio.setVoiceParameters(
                         motorAudio.rpmVoice, rpmVolume, pitch,
-                        pan);
+                        0.0F);
                     audio.setVoicePaused(
-                        motorAudio.idleVoice, audioPaused);
+                        motorAudio.idleVoice,
+                        audioPaused ||
+                            !motorAudio.spatialProxyPlaying);
                     audio.setVoicePaused(
-                        motorAudio.rpmVoice, audioPaused);
+                        motorAudio.rpmVoice,
+                        audioPaused ||
+                            !motorAudio.spatialProxyPlaying);
                     if (racer >= wheelSlipVoices.size())
                         continue;
                     auto& slipVoices = wheelSlipVoices[racer];
@@ -10839,31 +10817,62 @@ int main(int argc, char** argv)
                         auto& voice = slipVoices[wheel];
                         if (slip <= 0.0F)
                         {
-                            if (voice != r3d::audio::invalidVoice)
+                            if (voice.voice !=
+                                r3d::audio::invalidVoice)
                             {
-                                audio.stop(voice);
-                                voice = r3d::audio::invalidVoice;
+                                audio.stop(voice.voice);
+                                voice = {};
                             }
                             continue;
                         }
-                        if (voice == r3d::audio::invalidVoice)
+                        const auto& wheelPosition =
+                            contact.position;
+                        const float wheelDx =
+                            wheelPosition.x - listener.x;
+                        const float wheelDy =
+                            wheelPosition.y - listener.y;
+                        const float wheelDz =
+                            wheelPosition.z - listener.z;
+                        const auto wheelSpatial =
+                            rrr3d::audio::originalSource3dFlatMix(
+                                std::sqrt(
+                                    wheelDx * wheelDx +
+                                    wheelDy * wheelDy +
+                                    wheelDz * wheelDz),
+                                voice.spatialProxyPlaying);
+                        voice.spatialProxyPlaying =
+                            wheelSpatial.proxyPlaying;
+                        if (voice.voice ==
+                                r3d::audio::invalidVoice &&
+                            voice.spatialProxyPlaying)
                         {
                             r3d::audio::PlayOptions options;
                             options.bus = r3d::audio::Bus::Effects;
                             options.loop = true;
                             options.volume = 0.0F;
-                            voice = audio.play(
+                            voice.voice = audio.play(
                                 wheelSlipSound, options, audioError);
                         }
-                        if (voice != r3d::audio::invalidVoice)
+                        if (voice.voice !=
+                            r3d::audio::invalidVoice)
                         {
+                            const auto slipSourceVolume =
+                                engineSoundVolumes.find(
+                                    wheelSlipSound);
                             audio.setVoiceParameters(
-                                voice,
-                                attenuation *
+                                voice.voice,
+                                wheelSpatial.gain *
                                     std::clamp(
-                                        slip * 4.0F, 0.0F, 1.0F),
-                                1.0F, pan);
-                            audio.setVoicePaused(voice, audioPaused);
+                                        slip * 4.0F, 0.0F, 1.0F) *
+                                    (slipSourceVolume !=
+                                             engineSoundVolumes.end()
+                                         ? slipSourceVolume->second
+                                         : 1.0F),
+                                1.0F, 0.0F);
+                            audio.setVoicePaused(
+                                voice.voice,
+                                audioPaused ||
+                                    !voice.spatialProxyPlaying);
                         }
                     }
                 }

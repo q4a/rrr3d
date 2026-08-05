@@ -350,6 +350,8 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                 target_sources(${PROJECT_NAME} PRIVATE
                     OriginalRaceCommentator.cpp
                     OriginalRaceCommentator.h
+                    OriginalSpatialAudio.cpp
+                    OriginalSpatialAudio.h
                 )
             endif()
         endif()
