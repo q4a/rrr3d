@@ -197,6 +197,11 @@ struct VehicleState
     std::vector<WheelContactState> wheelContacts;
     Vec3 linearVelocity;
     float speed = 0.0F;
+    // GameCar::GetDrivenWheelSpeed is the axle speed of the first wheel
+    // outside GetLeadGroup multiplied by its radius. CameraManager uses its
+    // signed value to suppress backwards body jitter while that wheel is
+    // stopped or rotating in reverse.
+    float drivenWheelSpeed = 0.0F;
     float engineRpm = 0.0F;
     // Source CarMotorDesc convention: -1 neutral, 0 reverse, 1..5 forward.
     int gear = -1;

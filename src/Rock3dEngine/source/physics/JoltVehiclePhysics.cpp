@@ -1779,6 +1779,7 @@ private:
         {
             vehicle.state.linearVelocity = {};
             vehicle.state.speed = 0.0F;
+            vehicle.state.drivenWheelSpeed = 0.0F;
             vehicle.state.engineRpm = 0.0F;
             vehicle.state.gear = -1;
             vehicle.state.contactCount = 0U;
@@ -1798,6 +1799,7 @@ private:
         state.body.scale = {1.0F, 1.0F, 1.0F};
         state.linearVelocity = fromJolt(body.GetLinearVelocity());
         state.speed = body.GetLinearVelocity().Length();
+        state.drivenWheelSpeed = 0.0F;
         state.engineRpm = vehicle.engineRpm;
         state.gear = vehicle.currentGear;
         state.resetCount = vehicle.resetCount;
@@ -1813,6 +1815,7 @@ private:
         state.wheelContacts.reserve(
             vehicle.constraint->GetWheels().size());
         JPH::uint contacts = 0;
+        bool freeWheelSpeedRead = false;
         for (JPH::uint index = 0;
              index < vehicle.constraint->GetWheels().size();
              ++index)
@@ -1828,6 +1831,20 @@ private:
                 vehicle.constraint->GetWheel(index);
             state.wheelAngularSpeeds.push_back(
                 joltWheel->GetAngularVelocity());
+            // GameCar::GetDrivenWheelSpeed searches the first !lead wheel.
+            // Despite the historical method name, lead is the powered
+            // group and the camera deliberately observes a free wheel.
+            if (!freeWheelSpeedRead &&
+                index < vehicle.spawn.vehicle.wheels.size() &&
+                !vehicle.spawn.vehicle.wheels[index].driven)
+            {
+                freeWheelSpeedRead = true;
+                const float speed =
+                    joltWheel->GetAngularVelocity() *
+                    vehicle.spawn.vehicle.wheels[index].radius;
+                state.drivenWheelSpeed =
+                    std::abs(speed) > 0.1F ? speed : 0.0F;
+            }
             WheelContactState contact;
             contact.hasContact = joltWheel->HasContact();
             if (contact.hasContact)
@@ -2064,6 +2081,27 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         error = "non-driven rear wheels remained locked under throttle";
         return false;
     }
+    float expectedDrivenWheelSpeed = 0.0F;
+    for (std::size_t index = 0; index < sourceVehicle.wheels.size();
+         ++index)
+    {
+        if (sourceVehicle.wheels[index].driven)
+            continue;
+        expectedDrivenWheelSpeed =
+            accelerated.wheelAngularSpeeds[index] *
+            sourceVehicle.wheels[index].radius;
+        if (std::abs(expectedDrivenWheelSpeed) <= 0.1F)
+            expectedDrivenWheelSpeed = 0.0F;
+        break;
+    }
+    if (!std::isfinite(accelerated.drivenWheelSpeed) ||
+        std::abs(accelerated.drivenWheelSpeed -
+                 expectedDrivenWheelSpeed) > 0.001F)
+    {
+        error = "GameCar::GetDrivenWheelSpeed did not expose the first "
+                "non-lead wheel";
+        return false;
+    }
     input = {};
     input.brake = 1.0F;
     for (int step = 0; step < 240; ++step)
@@ -2104,6 +2142,7 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         return false;
     }
     if (world->vehicle().gear != -1 ||
+        world->vehicle().drivenWheelSpeed != 0.0F ||
         std::any_of(
             world->vehicle().wheelAngularSpeeds.begin(),
             world->vehicle().wheelAngularSpeeds.end(),

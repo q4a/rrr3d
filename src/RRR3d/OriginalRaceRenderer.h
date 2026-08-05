@@ -205,7 +205,10 @@ private:
     r3d::physics::Vec3 cameraPosition_;
     r3d::physics::Vec3 cameraViewDirection_{1.0F, 0.0F, 0.0F};
     r3d::physics::Vec3 cameraJumpDirection_;
-    r3d::physics::Vec3 thirdPersonDirection_{1.0F, 0.0F, 0.0F};
+    r3d::physics::Quat cameraRotation_;
+    r3d::physics::Quat thirdPersonRotation_;
+    r3d::game::originalrace::PreferredCamera cameraStyle_ =
+        r3d::game::originalrace::PreferredCamera::Isometric;
     std::vector<std::vector<std::vector<r3d::physics::Vec3>>>
         wheelTrailPaths_;
     std::vector<std::vector<std::vector<float>>> wheelTrailTimes_;
@@ -229,6 +232,7 @@ private:
     bool adaptedLuminanceAIsCurrent_ = false;
     bool luminanceAdaptationInitialized_ = false;
     bool cameraInitialized_ = false;
+    bool cameraStyleInitialized_ = false;
 };
 
 } // namespace rrr3d::race
