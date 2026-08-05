@@ -5592,15 +5592,39 @@ bool runOriginalRaceResourceSmokeTest(
                  0.6F) &&
             recordEndsWith(
                 race.wheelSlipSoundPath, "SkidAsphalt.ogg");
+        const bool trailMatchesSource =
+            recordEndsWith(race.wheelTrailEffect.record, "trail") &&
+            race.wheelTrailEffect.particleEmitters.size() == 1U &&
+            race.wheelTrailEffect.particleEmitters.front().renderMode ==
+                ParticleRenderMode::Trail &&
+            race.wheelTrailEffect.particleEmitters.front()
+                .distanceTriggered &&
+            race.wheelTrailEffect.particleEmitters.front()
+                    .maximumParticles == 100U &&
+            near(race.wheelTrailEffect.particleEmitters.front()
+                     .lifeMinimum,
+                 10.0F) &&
+            near(race.wheelTrailEffect.particleEmitters.front()
+                     .lifeMaximum,
+                 10.0F) &&
+            near(race.wheelTrailEffect.particleEmitters.front()
+                     .startTimeMinimum,
+                 1.0F) &&
+            near(race.wheelTrailEffect.particleEmitters.front()
+                     .trailWidth,
+                 0.3F) &&
+            race.wheelTrailEffect.particleEmitters.front()
+                .trailFixedUpEnabled;
         if (!trackMatchesSource(guseniza) ||
             !trackMatchesSource(gusenizaBoss) ||
             !cushionMatchesSource(podushka) ||
             !cushionMatchesSource(podushkaBoss) ||
-            !motorRangesMatchSource || !smokeMatchesSource)
+            !motorRangesMatchSource || !smokeMatchesSource ||
+            !trailMatchesSource)
         {
             error =
                 "source GusenizaAnim/PodushkaAnim/SoundMotor/"
-                "PxWheelSlipEffect provenance mismatch";
+                "PxWheelSlipEffect/FxTrailManager provenance mismatch";
             return false;
         }
         if (race.levelPath != "Data/Map/World1/map1.r3dMap" ||

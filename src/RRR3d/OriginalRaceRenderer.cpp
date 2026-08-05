@@ -625,6 +625,19 @@ r3d::physics::Transform worldCoordinateParticle(
     return result;
 }
 
+r3d::physics::Vec3 transformNormal(
+    const r3d::physics::Transform& transform,
+    const r3d::physics::Vec3& value)
+{
+    // BaseSceneNode::LocalToWorldNorm uses Vec3TransformNormal with the
+    // complete world matrix, including its scale but excluding translation.
+    return rotate(
+        transform.rotation,
+        {value.x * transform.scale.x,
+         value.y * transform.scale.y,
+         value.z * transform.scale.z});
+}
+
 struct WorldBounds
 {
     r3d::physics::Vec3 minimum{
@@ -3097,12 +3110,18 @@ void OriginalRaceRenderer::draw(
                     parent,
                     sourceAnimatedNodeTransform(emitter, age));
                 std::vector<r3d::physics::Vec3> trailPoints;
+                struct TrailStyle
+                {
+                    MaterialState material;
+                    PipelineState pipeline;
+                    Texture texture;
+                };
+                std::vector<TrailStyle> trailStyles;
                 MaterialState trailMaterial;
                 PipelineState trailPipeline;
                 Texture trailTexture;
                 bool trailConfigured = false;
                 std::uint32_t submittedParticles = 0;
-                constexpr std::uint32_t renderParticleLimit = 96U;
                 for (const auto& scheduled : scheduledGroups)
                 {
                     const float particleAge =
@@ -3112,9 +3131,15 @@ void OriginalRaceRenderer::draw(
                         static_cast<std::uint32_t>(
                             emitterIndex) *
                             2891336453U;
+                    const auto particleEmitterWorld =
+                        emitter.worldCoordinates
+                            ? compose(
+                                  parent,
+                                  sourceAnimatedNodeTransform(
+                                      emitter, scheduled.birth))
+                            : emitterWorld;
                     for (std::uint32_t groupParticle = 0;
-                         groupParticle < scheduled.particleCount &&
-                         submittedParticles < renderParticleLimit;
+                         groupParticle < scheduled.particleCount;
                          ++groupParticle, ++submittedParticles)
                     {
                         const std::uint32_t seed =
@@ -3229,8 +3254,8 @@ void OriginalRaceRenderer::draw(
                                 integratedAcceleration.y * particleAge,
                             velocity.z +
                                 integratedAcceleration.z * particleAge};
-                        auto particleVelocity = rotate(
-                            emitterWorld.rotation,
+                        auto particleVelocity = transformNormal(
+                            particleEmitterWorld,
                             localParticleVelocity);
                         if (emitter.worldCoordinates)
                         {
@@ -3273,7 +3298,7 @@ void OriginalRaceRenderer::draw(
                         auto world =
                             emitter.worldCoordinates
                                 ? worldCoordinateParticle(
-                                      emitterWorld, particle)
+                                      particleEmitterWorld, particle)
                                 : compose(emitterWorld, particle);
                         if (emitter.worldCoordinates)
                         {
@@ -3436,6 +3461,9 @@ void OriginalRaceRenderer::draw(
                         auto particlePipeline = pipeline;
                         if (forceNoDepth)
                             particlePipeline.writeDepth = false;
+                        particlePipeline.writeDepth =
+                            particlePipeline.writeDepth &&
+                            sourceMaterial.writeDepth;
                         if (sourceMaterial.blend ==
                             r3d::game::originalrace::
                                 MaterialBlend::Additive)
@@ -3458,6 +3486,14 @@ void OriginalRaceRenderer::draw(
                                 PipelineState::BlendMode::Alpha;
                             particlePipeline.writeDepth = false;
                         }
+                        if (emitter.renderMode ==
+                            r3d::game::originalrace::
+                                ParticleRenderMode::PointSprite)
+                        {
+                            // FxPointSpritesManager forces Z writes off for
+                            // the complete point-sprite system.
+                            particlePipeline.writeDepth = false;
+                        }
                         particlePipeline.faceCulling =
                             PipelineState::FaceCulling::None;
                         if (emitter.renderMode ==
@@ -3465,6 +3501,9 @@ void OriginalRaceRenderer::draw(
                                 ParticleRenderMode::Trail)
                         {
                             trailPoints.push_back(world.position);
+                            trailStyles.push_back(
+                                {material, particlePipeline,
+                                 textures[textureIndex]});
                             if (!trailConfigured)
                             {
                                 trailMaterial = material;
@@ -3479,8 +3518,6 @@ void OriginalRaceRenderer::draw(
                             textures[textureIndex], model,
                             particlePipeline, {}, material);
                     }
-                    if (submittedParticles >= renderParticleLimit)
-                        break;
                 }
                 if (trailConfigured && trailOverride != nullptr &&
                     emitter.renderMode ==
@@ -3488,54 +3525,60 @@ void OriginalRaceRenderer::draw(
                             ParticleRenderMode::Trail)
                 {
                     trailPoints.clear();
-                    trailPoints.push_back(emitterWorld.position);
-                    for (auto point = trailOverride->rbegin();
-                         point != trailOverride->rend(); ++point)
+                    trailStyles.clear();
+                    for (const auto& point : *trailOverride)
                     {
+                        if (trailPoints.empty())
+                        {
+                            trailPoints.push_back(point);
+                            continue;
+                        }
                         const auto& previous = trailPoints.back();
-                        const float dx = point->x - previous.x;
-                        const float dy = point->y - previous.y;
-                        const float dz = point->z - previous.z;
+                        const float dx = point.x - previous.x;
+                        const float dy = point.y - previous.y;
+                        const float dz = point.z - previous.z;
                         if (dx * dx + dy * dy + dz * dz > 0.0001F)
-                            trailPoints.push_back(*point);
+                            trailPoints.push_back(point);
                     }
+                    if (trailPoints.empty() ||
+                        std::abs(trailPoints.back().x -
+                                 emitterWorld.position.x) +
+                                std::abs(trailPoints.back().y -
+                                         emitterWorld.position.y) +
+                                std::abs(trailPoints.back().z -
+                                         emitterWorld.position.z) >
+                            0.0001F)
+                        trailPoints.push_back(emitterWorld.position);
                 }
                 else if (trailConfigured && !trailPoints.empty())
                 {
-                    trailPoints.insert(
-                        trailPoints.begin(), emitterWorld.position);
+                    // FxTrailManager appends the current system position to
+                    // the particles ordered from oldest to newest.
+                    trailPoints.push_back(emitterWorld.position);
                 }
                 if (trailConfigured && trailPoints.size() >= 2U)
                 {
                     std::vector<StaticMeshVertex> trailVertices;
-                    std::vector<std::uint32_t> trailIndices;
                     trailVertices.reserve(trailPoints.size() * 2U);
-                    trailIndices.reserve(
-                        (trailPoints.size() - 1U) * 6U);
                     const auto fixedUp =
                         normalize(emitter.trailFixedUp);
+                    auto direction = normalize(
+                        {trailPoints[1].x - trailPoints[0].x,
+                         trailPoints[1].y - trailPoints[0].y,
+                         trailPoints[1].z - trailPoints[0].z});
+                    if (std::abs(direction.x) +
+                            std::abs(direction.y) +
+                            std::abs(direction.z) <
+                        0.0001F)
+                        direction = {1.0F, 0.0F, 0.0F};
+                    r3d::physics::Vec3 lastPosition{
+                        trailPoints.front().x - direction.x,
+                        trailPoints.front().y - direction.y,
+                        trailPoints.front().z - direction.z};
                     for (std::size_t point = 0;
                          point < trailPoints.size(); ++point)
                     {
-                        const auto previous =
-                            trailPoints[
-                                point == 0U ? point : point - 1U];
-                        const auto next =
-                            trailPoints[
-                                std::min(
-                                    point + 1U,
-                                    trailPoints.size() - 1U)];
-                        auto direction = normalize(
-                            {next.x - previous.x,
-                             next.y - previous.y,
-                             next.z - previous.z});
-                        if (std::abs(direction.x) +
-                                std::abs(direction.y) +
-                                std::abs(direction.z) <
-                            0.0001F)
-                        {
-                            direction = {1.0F, 0.0F, 0.0F};
-                        }
+                        const auto& position = trailPoints[point];
                         auto side =
                             emitter.trailFixedUpEnabled
                                 ? normalize(
@@ -3543,12 +3586,12 @@ void OriginalRaceRenderer::draw(
                                 : normalize(cross(
                                       direction,
                                       normalize(
-                                          {cameraPosition_.x -
-                                               trailPoints[point].x,
-                                           cameraPosition_.y -
-                                               trailPoints[point].y,
-                                           cameraPosition_.z -
-                                               trailPoints[point].z})));
+                                          {position.x -
+                                               cameraPosition_.x,
+                                           position.y -
+                                               cameraPosition_.y,
+                                           position.z -
+                                               cameraPosition_.z})));
                         if (std::abs(side.x) + std::abs(side.y) +
                                 std::abs(side.z) <
                             0.0001F)
@@ -3557,19 +3600,14 @@ void OriginalRaceRenderer::draw(
                         }
                         const float width =
                             std::max(emitter.trailWidth, 0.001F);
-                        const float pathV =
-                            trailPoints.size() > 1U
-                                ? static_cast<float>(point) /
-                                      static_cast<float>(
-                                          trailPoints.size() - 1U)
-                                : 0.0F;
-                        const auto& position = trailPoints[point];
+                        const float pathTexture =
+                            static_cast<float>(point % 2U);
                         trailVertices.push_back(
                             {position.x + side.x * width,
                              position.y + side.y * width,
                              position.z + side.z * width,
                              fixedUp.x, fixedUp.y, fixedUp.z,
-                             0.0F, pathV,
+                             pathTexture, 0.0F,
                              direction.x, direction.y, direction.z,
                              side.x, side.y, side.z});
                         trailVertices.push_back(
@@ -3577,30 +3615,45 @@ void OriginalRaceRenderer::draw(
                              position.y - side.y * width,
                              position.z - side.z * width,
                              fixedUp.x, fixedUp.y, fixedUp.z,
-                             1.0F, pathV,
+                             pathTexture, 1.0F,
                              direction.x, direction.y, direction.z,
                              side.x, side.y, side.z});
-                        if (point + 1U < trailPoints.size())
+                        const auto nextDirection = normalize(
+                            {position.x - lastPosition.x,
+                             position.y - lastPosition.y,
+                             position.z - lastPosition.z});
+                        if (std::abs(nextDirection.x) +
+                                std::abs(nextDirection.y) +
+                                std::abs(nextDirection.z) >=
+                            0.0001F)
                         {
-                            const auto first =
-                                static_cast<std::uint32_t>(
-                                    point * 2U);
-                            trailIndices.insert(
-                                trailIndices.end(),
-                                {first, first + 1U, first + 2U,
-                                 first + 1U, first + 3U,
-                                 first + 2U});
+                            direction = nextDirection;
                         }
+                        lastPosition = position;
                     }
                     Transform trailTransform;
                     trailTransform.matrix = identityMatrix();
-                    device.drawTransient(
-                        trailVertices.data(),
-                        trailVertices.size(),
-                        trailIndices.data(),
-                        trailIndices.size(), shader,
-                        trailTexture, trailTransform,
-                        trailPipeline, trailMaterial);
+                    static constexpr std::array<std::uint32_t, 6>
+                        trailIndices{0U, 1U, 2U, 1U, 3U, 2U};
+                    for (std::size_t segment = 0;
+                         segment + 1U < trailPoints.size(); ++segment)
+                    {
+                        const auto* style =
+                            segment < trailStyles.size()
+                                ? &trailStyles[segment]
+                                : nullptr;
+                        device.drawTransient(
+                            trailVertices.data() + segment * 2U, 4U,
+                            trailIndices.data(), trailIndices.size(),
+                            shader,
+                            style != nullptr ? style->texture
+                                             : trailTexture,
+                            trailTransform,
+                            style != nullptr ? style->pipeline
+                                             : trailPipeline,
+                            style != nullptr ? style->material
+                                             : trailMaterial);
+                    }
                 }
                 }
             }
