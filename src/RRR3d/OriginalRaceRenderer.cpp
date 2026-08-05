@@ -1533,9 +1533,32 @@ bool OriginalRaceRenderer::initialize(
                     r3d::game::originalrace::
                         ParticleEmitterDefinition>& emitters) {
                 asset.particleTextures.resize(emitters.size());
+                asset.particleNodes.resize(emitters.size());
                 for (std::size_t emitter = 0;
                      emitter < emitters.size(); ++emitter)
                 {
+                    if (emitters[emitter].renderMode ==
+                        r3d::game::originalrace::
+                            ParticleRenderMode::Node)
+                    {
+                        auto& output = asset.particleNodes[emitter];
+                        output.resize(
+                            emitters[emitter].nodeVisuals.size());
+                        for (std::size_t node = 0;
+                             node < output.size(); ++node)
+                        {
+                            load(output[node],
+                                 emitters[emitter]
+                                     .nodeVisuals[node]);
+                        }
+                        if (output.empty())
+                        {
+                            throw r3d::resource::ResourceError(
+                                "Original FxNodeManager has no node "
+                                "visuals");
+                        }
+                        continue;
+                    }
                     auto& output = asset.particleTextures[emitter];
                     for (const auto& material :
                          emitters[emitter].materials)
@@ -1992,6 +2015,13 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
             emitter.clear();
         }
         object.particleTextures.clear();
+        for (auto& emitter : object.particleNodes)
+        {
+            for (auto& node : emitter)
+                release(node);
+            emitter.clear();
+        }
+        object.particleNodes.clear();
     };
     for (auto& body : vehicleBodies_)
         releaseObject(body);
@@ -2126,6 +2156,7 @@ Camera OriginalRaceRenderer::makeCamera(
     if (style ==
         r3d::game::originalrace::PreferredCamera::Isometric)
     {
+        pointSpriteScale_ = 0.75F;
         // CameraManager::csIsometric: Y=15.5 degrees, Z=45 degrees,
         // target distance 20 and an orthographic width of
         // 28 * GameMode::cameraDistance.
@@ -2259,6 +2290,7 @@ Camera OriginalRaceRenderer::makeCamera(
 
     const float speedFactor =
         std::clamp(velocityLength / (150.0F / 3.6F), 0.0F, 1.0F);
+    pointSpriteScale_ = 0.25F;
     // CameraManager::csThirdPerson uses cCamTargetOff(-4.6, 0, 2.4),
     // an additional -1 m offset, and up to 1.5 m of speed pull-back.
     const float directionBlend = std::clamp(seconds * 6.0F, 0.0F, 1.0F);
@@ -2306,6 +2338,7 @@ Camera OriginalRaceRenderer::makePresentationCamera(
     const r3d::game::originalrace::PresentationCamera& source,
     std::uint32_t width, std::uint32_t height) noexcept
 {
+    pointSpriteScale_ = 0.25F;
     const float aspect =
         static_cast<float>(std::max(width, 1U)) /
         static_cast<float>(std::max(height, 1U));
@@ -2708,6 +2741,14 @@ void OriginalRaceRenderer::draw(
             const std::size_t emitterCount = std::min(
                 asset.particleTextures.size(),
                 definition.particleEmitters.size());
+            struct ParticleSystemInstance
+            {
+                r3d::physics::Transform parent;
+                float age = 0.0F;
+                r3d::physics::Vec3 velocity;
+            };
+            std::vector<std::vector<ParticleSystemInstance>>
+                liveParentParticles(emitterCount);
             for (std::size_t emitterIndex = 0;
                  emitterIndex < emitterCount; ++emitterIndex)
             {
@@ -2715,8 +2756,39 @@ void OriginalRaceRenderer::draw(
                     definition.particleEmitters[emitterIndex];
                 const auto& textures =
                     asset.particleTextures[emitterIndex];
-                if (textures.empty() || emitter.materials.empty())
+                const auto* nodeAssets =
+                    emitterIndex < asset.particleNodes.size()
+                        ? &asset.particleNodes[emitterIndex]
+                        : nullptr;
+                const bool nodeEmitter =
+                    emitter.renderMode ==
+                    r3d::game::originalrace::
+                        ParticleRenderMode::Node;
+                if ((!nodeEmitter &&
+                     (textures.empty() || emitter.materials.empty())) ||
+                    (nodeEmitter &&
+                     (nodeAssets == nullptr || nodeAssets->empty() ||
+                      nodeAssets->size() !=
+                          emitter.nodeVisuals.size())))
                     continue;
+                std::vector<ParticleSystemInstance> instances;
+                if (emitter.parentEmitter >= 0)
+                {
+                    const auto owner = static_cast<std::size_t>(
+                        emitter.parentEmitter);
+                    if (owner < liveParentParticles.size())
+                        instances = liveParentParticles[owner];
+                }
+                else
+                {
+                    instances.push_back(
+                        {parent, age, sourceVelocity});
+                }
+                for (const auto& instance : instances)
+                {
+                const auto& parent = instance.parent;
+                const float age = instance.age;
+                const auto& sourceVelocity = instance.velocity;
                 struct ScheduledGroup
                 {
                     std::uint32_t index = 0;
@@ -2929,20 +3001,27 @@ void OriginalRaceRenderer::draw(
                         auto acceleration = rangeVector(
                             emitter.accelerationMinimum,
                             emitter.accelerationMaximum, seed + 101U);
-                        acceleration.x += emitter.gravity.x;
-                        acceleration.y += emitter.gravity.y;
-                        acceleration.z += emitter.gravity.z;
+                        auto integratedAcceleration = acceleration;
+                        if (!emitter.worldCoordinates)
+                        {
+                            integratedAcceleration.x +=
+                                emitter.gravity.x;
+                            integratedAcceleration.y +=
+                                emitter.gravity.y;
+                            integratedAcceleration.z +=
+                                emitter.gravity.z;
+                        }
                         position.x +=
                             velocity.x * particleAge +
-                            acceleration.x * particleAge *
+                            integratedAcceleration.x * particleAge *
                                 particleAge * 0.5F;
                         position.y +=
                             velocity.y * particleAge +
-                            acceleration.y * particleAge *
+                            integratedAcceleration.y * particleAge *
                                 particleAge * 0.5F;
                         position.z +=
                             velocity.z * particleAge +
-                            acceleration.z * particleAge *
+                            integratedAcceleration.z * particleAge *
                                 particleAge * 0.5F;
                         auto scale = rangeVector(
                             emitter.startScaleMinimum,
@@ -3002,28 +3081,97 @@ void OriginalRaceRenderer::draw(
                                     1.0F)),
                             particle.rotation);
                         auto world = compose(emitterWorld, particle);
+                        if (emitter.worldCoordinates)
+                        {
+                            // FxEmitter transforms the initial particle
+                            // position at birth. Reconstruct that earlier
+                            // emitter position from the current source
+                            // velocity; the serialized gravity vector is
+                            // already world-space and is intentionally not
+                            // rotated by FxFlowEmitter.
+                            world.position.x -=
+                                sourceVelocity.x * particleAge;
+                            world.position.y -=
+                                sourceVelocity.y * particleAge;
+                            world.position.z -=
+                                sourceVelocity.z * particleAge;
+                            world.position.x +=
+                                emitter.gravity.x * particleAge *
+                                particleAge * 0.5F;
+                            world.position.y +=
+                                emitter.gravity.y * particleAge *
+                                particleAge * 0.5F;
+                            world.position.z +=
+                                emitter.gravity.z * particleAge *
+                                particleAge * 0.5F;
+                        }
+                        auto particleVelocity = rotate(
+                            emitterWorld.rotation,
+                            {velocity.x +
+                                 integratedAcceleration.x * particleAge,
+                             velocity.y +
+                                 integratedAcceleration.y * particleAge,
+                             velocity.z +
+                                 integratedAcceleration.z * particleAge});
+                        if (emitter.worldCoordinates)
+                        {
+                            particleVelocity.x +=
+                                emitter.gravity.x * particleAge;
+                            particleVelocity.y +=
+                                emitter.gravity.y * particleAge;
+                            particleVelocity.z +=
+                                emitter.gravity.z * particleAge;
+                        }
                         if (emitter.inheritSourceVelocity)
                         {
                             // FxFlowEmitter adds FxSystem::srcSpeed to the
                             // particle velocity at birth.  SrcSpeed is the
                             // owning PhysX actor's full linear velocity; it
-                            // is not a backwards scalar correction and is
-                            // only set by FxSystemSrcSpeed.
+                            // only set by FxSystemSrcSpeed. It is separate
+                            // from the world-coordinate birth-position
+                            // reconstruction above.
                             world.position.x +=
                                 sourceVelocity.x * particleAge;
                             world.position.y +=
                                 sourceVelocity.y * particleAge;
                             world.position.z +=
                                 sourceVelocity.z * particleAge;
+                            particleVelocity.x += sourceVelocity.x;
+                            particleVelocity.y += sourceVelocity.y;
+                            particleVelocity.z += sourceVelocity.z;
                         }
-                        auto direction = rotate(
-                            emitterWorld.rotation,
-                            {velocity.x +
-                                 acceleration.x * particleAge,
-                             velocity.y +
-                                 acceleration.y * particleAge,
-                             velocity.z +
-                                 acceleration.z * particleAge});
+                        // FxParticleSystem::OnUpdateParticle only copies the
+                        // particle's world position into its child node; the
+                        // child keeps identity rotation/scale and advances
+                        // from the parent's particle lifetime.
+                        r3d::physics::Transform childParent;
+                        childParent.position = world.position;
+                        liveParentParticles[emitterIndex].push_back(
+                            {childParent, particleAge,
+                             particleVelocity});
+                        if (nodeEmitter)
+                        {
+                            auto particlePipeline = pipeline;
+                            if (forceNoDepth)
+                                particlePipeline.writeDepth = false;
+                            for (std::size_t node = 0;
+                                 node < nodeAssets->size(); ++node)
+                            {
+                                const auto nodeWorld = compose(
+                                    world,
+                                    sourceAnimatedNodeTransform(
+                                        emitter.nodeVisuals[node],
+                                        particleAge));
+                                drawGroups(
+                                    device, (*nodeAssets)[node], shader,
+                                    transform(nodeWorld),
+                                    particlePipeline, particleAge, 0.0F,
+                                    asset.lighting, DrawLayer::All,
+                                    &emitter.nodeVisuals[node], opacity);
+                            }
+                            continue;
+                        }
+                        auto direction = particleVelocity;
                         const auto unitDirection =
                             normalize(direction);
                         const float turnAngle =
@@ -3043,6 +3191,18 @@ void OriginalRaceRenderer::draw(
                         }
                         else
                         {
+                            if (emitter.renderMode ==
+                                r3d::game::originalrace::
+                                    ParticleRenderMode::PointSprite)
+                            {
+                                const float pointSize = std::sqrt(
+                                    world.scale.x * world.scale.x +
+                                    world.scale.y * world.scale.y +
+                                    world.scale.z * world.scale.z) *
+                                    pointSpriteScale_;
+                                world.scale =
+                                    {pointSize, pointSize, pointSize};
+                            }
                             const bool directed =
                                 emitter.fixedDirection ||
                                 emitter.renderMode ==
@@ -3272,6 +3432,7 @@ void OriginalRaceRenderer::draw(
                         trailIndices.size(), shader,
                         trailTexture, trailTransform,
                         trailPipeline, trailMaterial);
+                }
                 }
             }
         };

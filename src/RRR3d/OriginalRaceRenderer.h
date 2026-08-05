@@ -32,6 +32,9 @@ public:
         std::vector<Asset> nodes;
         std::vector<std::vector<r3d::renderer::Texture>>
             particleTextures;
+        // FxNodeManager owns ordinary mesh nodes instead of sprite
+        // materials. The outer index remains aligned with particleEmitters.
+        std::vector<std::vector<Asset>> particleNodes;
         bool planarReflection = false;
         bool castsShadow = false;
         r3d::game::originalrace::LightingMode lighting =
@@ -218,6 +221,9 @@ private:
     float cameraJumpSpeed_ = 0.0F;
     float thirdPersonPullback_ = 0.0F;
     float previousRenderSeconds_ = 0.0F;
+    // FxPointSpritesManager multiplies the particle scale length by 0.75
+    // for the orthographic camera and by 0.25 for perspective cameras.
+    float pointSpriteScale_ = 0.25F;
     float wheelTrailUpdateSeconds_ = -1.0F;
     float vehicleAnimationUpdateSeconds_ = -1.0F;
     bool adaptedLuminanceAIsCurrent_ = false;

@@ -164,6 +164,15 @@ struct ParticleEmitterDefinition
     std::string sourceRecord;
     Transform transform;
     std::vector<MaterialDefinition> materials;
+    // FxNodeManager renders a source SceneNode for every live particle.
+    // These visuals are configured in DataBase.cpp rather than serialized
+    // under the particle-system node, so retain them explicitly alongside
+    // the flow descriptor.
+    std::vector<VisualNode> nodeVisuals;
+    // Index of the owning particle emitter for FxParticleSystem child nodes.
+    // A negative value identifies an ordinary top-level system. csUnique and
+    // csProxy both position one child graph at every live parent particle.
+    std::int32_t parentEmitter = -1;
     std::uint32_t maximumParticles = 0;
     float lifeMinimum = 0.0F;
     float lifeMaximum = 0.0F;

@@ -1589,25 +1589,45 @@ void appendParticleEmitters(
     const resource::ResourceFileSystem& resources,
     TiXmlElement* record, const Transform& parentTransform,
     ObjectDefinition& definition, std::string_view source,
-    float ownerMaximumTimeLife)
+    float ownerMaximumTimeLife, TiXmlElement* nestedNodes = nullptr,
+    std::int32_t parentEmitter = -1)
 {
     // BehaviorType: 2 = FxSystemWaitingEnd, 3 = FxSystemSrcSpeed.
     // These are properties of the source GameObject, not of the flattened
     // parent definition.
     const bool waitForParticleEnd = hasBehaviorType(record, "2");
     const bool inheritSourceVelocity = hasBehaviorType(record, "3");
-    auto* nodes = child(record, "grActor/nodes/items");
+    auto* nodes = nestedNodes != nullptr
+                      ? nestedNodes
+                      : child(record, "grActor/nodes/items");
     if (nodes == nullptr)
         return;
     for (auto* node = nodes->FirstChildElement(); node != nullptr;
          node = node->NextSiblingElement())
     {
+        const Transform nodeTransform =
+            compose(parentTransform, elementTransform(node, source));
         const char* type = node->Attribute("type");
         if (type == nullptr ||
             std::string_view(type) != "ntParticleSystem")
+        {
+            if (auto* childNode = child(node, "child");
+                childNode != nullptr)
+            {
+                if (auto* childNodes =
+                        child(childNode, "nodes/items");
+                    childNodes != nullptr)
+                {
+                    appendParticleEmitters(
+                        resources, record,
+                        compose(nodeTransform,
+                                elementTransform(childNode, source)),
+                        definition, source, ownerMaximumTimeLife,
+                        childNodes, parentEmitter);
+                }
+            }
             continue;
-        const Transform nodeTransform =
-            compose(parentTransform, elementTransform(node, source));
+        }
         const Vec3 nodeSpeedPosition =
             child(node, "speedPos") != nullptr
                 ? parentVector(
@@ -1656,6 +1676,7 @@ void appendParticleEmitters(
         }
         bool fixedDirection = false;
         ParticleRenderMode renderMode = ParticleRenderMode::Sprite;
+        std::vector<VisualNode> nodeVisuals;
         if (auto* manager = child(node, "fxManager");
             manager != nullptr && manager->GetText() != nullptr)
         {
@@ -1663,8 +1684,10 @@ void appendParticleEmitters(
             fixedDirection =
                 managerName.find("fxDirSpriteManager") !=
                 std::string_view::npos;
-            if (managerName.find("fxPointSpritesManager") !=
-                std::string_view::npos)
+            if (managerName.find("fxPSpriteManager") !=
+                    std::string_view::npos ||
+                managerName.find("fxPointSpritesManager") !=
+                    std::string_view::npos)
                 renderMode = ParticleRenderMode::PointSprite;
             else if (fixedDirection)
                 renderMode = ParticleRenderMode::DirectionalSprite;
@@ -1674,9 +1697,44 @@ void appendParticleEmitters(
             else if (managerName.find("fxTrailManager") !=
                      std::string_view::npos)
                 renderMode = ParticleRenderMode::Trail;
+            else if (managerName.find("fxWheelManager") !=
+                     std::string_view::npos)
+            {
+                renderMode = ParticleRenderMode::Node;
+                VisualNode visual;
+                visual.meshPath = canonicalDataPath(
+                    resources, "Effect\\wheel.r3d");
+                visual.materials.push_back(
+                    materialDefinition(resources, "Effect\\wheel"));
+                nodeVisuals.push_back(std::move(visual));
+            }
+            else if (managerName.find("fxTrubaManager") !=
+                     std::string_view::npos)
+            {
+                renderMode = ParticleRenderMode::Node;
+                VisualNode visual;
+                visual.meshPath = canonicalDataPath(
+                    resources, "Effect\\truba.r3d");
+                visual.materials.push_back(
+                    materialDefinition(resources, "Effect\\truba"));
+                nodeVisuals.push_back(std::move(visual));
+            }
+            else if (managerName.find("fxPiecesManager") !=
+                     std::string_view::npos)
+            {
+                renderMode = ParticleRenderMode::Node;
+                VisualNode visual;
+                visual.meshPath = canonicalDataPath(
+                    resources, "Effect\\pieces1.r3d");
+                visual.materials.push_back(
+                    materialDefinition(resources, "Effect\\pieces"));
+                nodeVisuals.push_back(std::move(visual));
+            }
             else if (managerName.find("fxNodeManager") !=
                      std::string_view::npos)
+            {
                 renderMode = ParticleRenderMode::Node;
+            }
         }
         std::vector<MaterialDefinition> materials;
         if (auto* sourceMaterials = child(node, "materials"))
@@ -1692,11 +1750,13 @@ void appendParticleEmitters(
                         materialDefinition(resources, item));
             }
         }
-        if (materials.empty())
+        if (materials.empty() && nodeVisuals.empty())
             continue;
         auto* emitters = child(node, "emitters/items");
         if (emitters == nullptr)
             continue;
+        const std::size_t firstEmitter =
+            definition.particleEmitters.size();
         for (auto* sourceEmitter = emitters->FirstChildElement();
              sourceEmitter != nullptr;
              sourceEmitter = sourceEmitter->NextSiblingElement())
@@ -1711,6 +1771,8 @@ void appendParticleEmitters(
                                        : std::string{};
             emitter.transform = nodeTransform;
             emitter.materials = materials;
+            emitter.nodeVisuals = nodeVisuals;
+            emitter.parentEmitter = parentEmitter;
             emitter.fixedDirection = fixedDirection;
             emitter.renderMode = renderMode;
             emitter.animationMode = animationMode;
@@ -1852,6 +1914,30 @@ void appendParticleEmitters(
             }
             definition.particleEmitters.push_back(
                 std::move(emitter));
+        }
+        // FxParticleSystem::OnCreateParticle instantiates/proxies the child
+        // SceneNode once for every parent particle, then OnUpdateParticle
+        // updates that child node's world position. Keep the child systems
+        // linked to each owning source emitter instead of flattening them at
+        // the effect origin.
+        if (auto* childNode = child(node, "child");
+            childNode != nullptr)
+        {
+            if (auto* childNodes = child(childNode, "nodes/items");
+                childNodes != nullptr)
+            {
+                const std::size_t lastEmitter =
+                    definition.particleEmitters.size();
+                for (std::size_t owner = firstEmitter;
+                     owner < lastEmitter; ++owner)
+                {
+                    appendParticleEmitters(
+                        resources, record,
+                        elementTransform(childNode, source), definition,
+                        source, ownerMaximumTimeLife, childNodes,
+                        static_cast<std::int32_t>(owner));
+                }
+            }
         }
     }
 }
@@ -5049,12 +5135,49 @@ bool runOriginalRaceResourceSmokeTest(
                 std::to_string(energyDamage.visualNodes.size());
             return false;
         }
+        const auto& sourceDeathVisual =
+            race.vehicle.deathEffects.front().visual;
+        const auto particleNodeIndex =
+            [&](std::string_view meshName) {
+                const auto found = std::find_if(
+                    sourceDeathVisual.particleEmitters.begin(),
+                    sourceDeathVisual.particleEmitters.end(),
+                    [&](const ParticleEmitterDefinition& emitter) {
+                        return emitter.renderMode ==
+                                   ParticleRenderMode::Node &&
+                               emitter.nodeVisuals.size() == 1U &&
+                               recordEndsWith(
+                                   emitter.nodeVisuals.front().meshPath,
+                                   meshName);
+                    });
+                return found ==
+                               sourceDeathVisual.particleEmitters.end()
+                           ? -1
+                           : static_cast<int>(std::distance(
+                                 sourceDeathVisual.particleEmitters.begin(),
+                                 found));
+            };
+        const int piecesEmitter = particleNodeIndex("pieces1.r3d");
+        const int wheelEmitter = particleNodeIndex("wheel.r3d");
+        const int trubaEmitter = particleNodeIndex("truba.r3d");
+        const auto nestedPointEmitterCount =
+            static_cast<std::size_t>(std::count_if(
+                sourceDeathVisual.particleEmitters.begin(),
+                sourceDeathVisual.particleEmitters.end(),
+                [&](const ParticleEmitterDefinition& emitter) {
+                    return emitter.renderMode ==
+                               ParticleRenderMode::PointSprite &&
+                           emitter.parentEmitter == piecesEmitter &&
+                           emitter.sourceRecord == "death2";
+                }));
         if (race.vehicle.deathEffects.size() != 2U ||
             !recordEndsWith(
                 race.vehicle.deathEffects[0].visual.record, "death2") ||
             !race.vehicle.deathEffects[0].ignoreRotation ||
             race.vehicle.deathEffects[0].visual.maximumTimeLife != 10.0F ||
             race.vehicle.deathEffects[0].visual.particleEmitters.empty() ||
+            piecesEmitter < 0 || wheelEmitter < 0 || trubaEmitter < 0 ||
+            nestedPointEmitterCount != 2U ||
             race.vehicle.deathEffects[0].visual.soundPaths.empty() ||
             !recordEndsWith(
                 race.vehicle.deathEffects[0].visual.soundPaths.front(),
@@ -5079,8 +5202,14 @@ bool runOriginalRaceResourceSmokeTest(
             race.vehicle.deathEffects[1].visual.visualNodes.empty() ||
             race.vehicle.deathEffects[1].visual.particleEmitters.size() < 2U)
         {
-            error = "source vehicle DeathEffect/death2/marauderCrush "
-                    "provenance mismatch";
+            error =
+                "source vehicle DeathEffect/death2 FxNode/child graph/"
+                "marauderCrush provenance mismatch: node emitters=" +
+                std::to_string(piecesEmitter >= 0 ? 1 : 0) + "/" +
+                std::to_string(wheelEmitter >= 0 ? 1 : 0) + "/" +
+                std::to_string(trubaEmitter >= 0 ? 1 : 0) +
+                ", nested point emitters=" +
+                std::to_string(nestedPointEmitterCount);
             return false;
         }
         const auto expandingExplosion = std::find_if(
