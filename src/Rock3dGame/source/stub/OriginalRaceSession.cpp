@@ -677,11 +677,13 @@ struct WorldRayHit
 {
     float distance = std::numeric_limits<float>::max();
     std::size_t vehicle = RacerRuntime::invalidWeapon;
+    std::size_t decoration = RacerRuntime::invalidWeapon;
     bool hit = false;
 };
 
 WorldRayHit raycastWorld(
     const Race& race,
+    const std::vector<bool>& decorationActive,
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const std::vector<RacerRuntime>& racers, std::size_t ignoredVehicle,
     Vec3 origin, Vec3 direction, float maximumDistance)
@@ -689,8 +691,22 @@ WorldRayHit raycastWorld(
     WorldRayHit result;
     result.distance = maximumDistance;
     direction = normalized3(direction);
-    for (const auto& mesh : race.collisionMeshes)
+    for (std::size_t meshIndex = 0U;
+         meshIndex < race.collisionMeshes.size(); ++meshIndex)
     {
+        const auto& mesh = race.collisionMeshes[meshIndex];
+        const std::size_t decoration =
+            meshIndex < race.collisionMeshDecorationInstances.size()
+                ? race.collisionMeshDecorationInstances[meshIndex]
+                : RacerRuntime::invalidWeapon;
+        // DestrObj::OnDeath removes its PhysX actor.  Keeping its old triangle
+        // mesh in the ray query made Laser/FrostRay stop on invisible debris.
+        if (decoration != RacerRuntime::invalidWeapon &&
+            decoration < decorationActive.size() &&
+            !decorationActive[decoration])
+        {
+            continue;
+        }
         for (std::size_t index = 0;
              index + 2U < mesh.indices.size(); index += 3U)
         {
@@ -715,6 +731,7 @@ WorldRayHit raycastWorld(
             result.hit = true;
             result.distance = distance;
             result.vehicle = RacerRuntime::invalidWeapon;
+            result.decoration = decoration;
         }
     }
     for (std::size_t vehicle = 0;
@@ -736,6 +753,7 @@ WorldRayHit raycastWorld(
         result.hit = true;
         result.distance = distance;
         result.vehicle = vehicle;
+        result.decoration = RacerRuntime::invalidWeapon;
     }
     return result;
 }
@@ -1401,84 +1419,6 @@ float OriginalRaceSession::damageAfterSupport(
         }
     }
     return result;
-}
-
-bool OriginalRaceSession::damageDecorationAlongRay(
-    Vec3 origin, Vec3 direction, float maximumDistance,
-    float damage, std::size_t attacker)
-{
-    std::size_t hit = decorationActive_.size();
-    float hitDistance = maximumDistance;
-    for (std::size_t index = 0;
-         index < race_.decorationInstances.size() &&
-         index < decorationActive_.size(); ++index)
-    {
-        if (!decorationActive_[index])
-            continue;
-        const auto& instance = race_.decorationInstances[index];
-        const auto& definition =
-            race_.decorationDefinitions.at(instance.definition);
-        if (!definition.destructible ||
-            definition.bodyHalfExtents.x <= 0.0F ||
-            definition.bodyHalfExtents.y <= 0.0F ||
-            definition.bodyHalfExtents.z <= 0.0F)
-            continue;
-        float distance = hitDistance;
-        if (!raycastBox(
-                origin, normalized3(direction), hitDistance,
-                decorationBox(instance, definition), distance))
-            continue;
-        hit = index;
-        hitDistance = distance;
-    }
-    for (std::size_t meshIndex = 0;
-         meshIndex < race_.collisionMeshes.size() &&
-         meshIndex <
-             race_.collisionMeshDecorationInstances.size();
-         ++meshIndex)
-    {
-        const std::size_t instanceIndex =
-            race_.collisionMeshDecorationInstances[meshIndex];
-        if (instanceIndex >= decorationActive_.size() ||
-            instanceIndex >= race_.decorationInstances.size() ||
-            !decorationActive_[instanceIndex])
-            continue;
-        const auto& instance =
-            race_.decorationInstances[instanceIndex];
-        if (instance.definition >=
-                race_.decorationDefinitions.size() ||
-            !race_.decorationDefinitions[instance.definition]
-                 .destructible)
-            continue;
-        const auto& mesh = race_.collisionMeshes[meshIndex];
-        for (std::size_t index = 0;
-             index + 2U < mesh.indices.size(); index += 3U)
-        {
-            const auto firstIndex = mesh.indices[index];
-            const auto secondIndex = mesh.indices[index + 1U];
-            const auto thirdIndex = mesh.indices[index + 2U];
-            if (firstIndex >= mesh.vertices.size() ||
-                secondIndex >= mesh.vertices.size() ||
-                thirdIndex >= mesh.vertices.size())
-                continue;
-            float distance = hitDistance;
-            if (!raycastTriangle(
-                    origin, normalized3(direction), hitDistance,
-                    transformPoint(mesh.transform,
-                                   mesh.vertices[firstIndex]),
-                    transformPoint(mesh.transform,
-                                   mesh.vertices[secondIndex]),
-                    transformPoint(mesh.transform,
-                                   mesh.vertices[thirdIndex]),
-                    distance))
-                continue;
-            hit = instanceIndex;
-            hitDistance = distance;
-        }
-    }
-    if (hit >= decorationActive_.size())
-        return false;
-    return damageDecoration(hit, damage, attacker);
 }
 
 bool OriginalRaceSession::damageDecorationWithBox(
@@ -3823,7 +3763,7 @@ void OriginalRaceSession::updateGameplay(
             const WorldRayHit rayHit =
                 sourceRay
                     ? raycastWorld(
-                          race_, vehicles, racers_,
+                          race_, decorationActive_, vehicles, racers_,
                           projectile.owner, rayOrigin,
                           projectile.direction, maximumDistance)
                     : WorldRayHit{};
@@ -3871,6 +3811,19 @@ void OriginalRaceSession::updateGameplay(
                     racers_[target].slowProjectile =
                         projectile.projectile;
                 }
+            }
+            else if (sourceRay &&
+                     rayHit.decoration < decorationActive_.size())
+            {
+                // RaycastClosestShape reports one concrete PhysX actor.  Do
+                // not perform a second broad ray query here: that used to
+                // damage a different decoration behind the actual hit.
+                damageDecoration(
+                    rayHit.decoration,
+                    std::max(
+                        projectileDefinition.damage * seconds,
+                        0.0F),
+                    projectile.owner);
             }
             else if (sourceContact)
             {
@@ -3963,21 +3916,16 @@ void OriginalRaceSession::updateGameplay(
             }
             const float decorationDamage = std::max(
                 projectileDefinition.damage * seconds, 0.0F);
-            if (sourceRay)
-            {
-                damageDecorationAlongRay(
-                    rayOrigin, projectile.direction,
-                    projectile.impactDistance, decorationDamage,
-                    projectile.owner);
-            }
-            else if (sourceContact &&
+            if (sourceContact &&
                      projectileDefinition.type != 15U)
             {
                 damageDecorationWithBox(
                     shotTransform, projectileDefinition.collision,
                     decorationDamage, projectile.owner);
             }
-            if (projectile.lifeSeconds <= 0.0F)
+            // GameObject::OnProgress expires only after _timeLife becomes
+            // strictly greater than _maxTimeLife.
+            if (projectile.lifeSeconds < 0.0F)
                 projectile.active = false;
             if (projectileDefinition.type == 15U &&
                 projectile.owner < racers_.size() &&
@@ -4135,11 +4083,37 @@ void OriginalRaceSession::updateGameplay(
              RacerRuntime::invalidWeapon,
              RacerRuntime::invalidWeapon, {}});
 
+        Transform projectileTransform;
+        projectileTransform.position = projectile.position;
+        projectileTransform.rotation = projectile.rotation;
+        const OrientedBox projectileBox = orientedBox(
+            projectileTransform, projectileDefinition.collision);
+        if (!projectile.ownerCollisionArmed &&
+            projectile.owner < vehicles.size() &&
+            projectile.owner < race_.racers.size())
+        {
+            const auto& ownerRacer = race_.racers[projectile.owner];
+            const auto& ownerVehicle =
+                ownerRacer.hasConfiguredVehicle
+                    ? ownerRacer.configuredVehicle
+                    : race_.vehicles.at(ownerRacer.vehicle);
+            // PhysX ignores only the projectile/weapon actor pair, not the
+            // owning car forever.  Arm owner contacts after the shot has
+            // cleared our coarser portable vehicle box, so reflected and
+            // homing projectiles can return to their shooter.
+            projectile.ownerCollisionArmed = !boxesOverlap(
+                projectileBox,
+                vehicleBox(
+                    vehicles[projectile.owner],
+                    ownerVehicle.physics));
+        }
+
         for (std::size_t target = 0;
              target < vehicles.size() && target < racers_.size();
              ++target)
         {
-            if (target == projectile.owner ||
+            if ((target == projectile.owner &&
+                 !projectile.ownerCollisionArmed) ||
                 racers_[target].destroyed)
                 continue;
             if (projectileDefinition.type == 21U &&
@@ -4151,12 +4125,6 @@ void OriginalRaceSession::updateGameplay(
                 racerDefinition.hasConfiguredVehicle
                     ? racerDefinition.configuredVehicle
                     : race_.vehicles.at(racerDefinition.vehicle);
-            Transform projectileTransform;
-            projectileTransform.position = projectile.position;
-            projectileTransform.rotation = projectile.rotation;
-            const OrientedBox projectileBox = orientedBox(
-                projectileTransform,
-                projectileDefinition.collision);
             const OrientedBox targetBox = vehicleBox(
                 vehicles[target], vehicleDefinition.physics);
             if (!boxesOverlap(projectileBox, targetBox))
@@ -4174,7 +4142,7 @@ void OriginalRaceSession::updateGameplay(
                           static_cast<float>(
                               projectile.hitCount + 1U)
                     : projectile.damage;
-            const bool targetDestroyed = applyRacerDamage(
+            applyRacerDamage(
                 target, projectile.owner, contactPoint,
                 std::max(
                     sourceDamage *
@@ -4251,7 +4219,6 @@ void OriginalRaceSession::updateGameplay(
             if (projectileDefinition.type == 21U)
             {
                 if (!targetedImpulse ||
-                    targetDestroyed ||
                     ++projectile.hitCount > 2U)
                 {
                     spawnProjectileImpact(
@@ -4312,7 +4279,7 @@ void OriginalRaceSession::updateGameplay(
             projectile.active = false;
         }
         if (projectile.active &&
-            projectile.lifeSeconds <= 0.0F)
+            projectile.lifeSeconds < 0.0F)
         {
             spawnProjectileImpact(
                 projectile, projectile.position,
@@ -5212,16 +5179,19 @@ void OriginalRaceSession::updateGameplay(
                     : 100.0F;
             float targetDistance = projectileDistance;
             std::size_t projectileTarget = racers_.size();
+            std::size_t projectileDecoration =
+                RacerRuntime::invalidWeapon;
             if (rayProjectile && !attachedProjectile)
             {
                 const auto rayHit = raycastWorld(
-                    race_, vehicles, racers_, shooter,
+                    race_, decorationActive_, vehicles, racers_, shooter,
                     add(projectileOrigin, projectile.sizeAddPx),
                     sourceDirection, projectileDistance);
                 if (rayHit.hit)
                 {
                     targetDistance = rayHit.distance;
                     projectileTarget = rayHit.vehicle;
+                    projectileDecoration = rayHit.decoration;
                 }
             }
             Vec3 end = add(
@@ -5322,6 +5292,12 @@ void OriginalRaceSession::updateGameplay(
                     target, shooter, end,
                     std::max(projectile.damage, 0.0F),
                     sourceProjectileDamageType(projectile.type));
+            }
+            else if (projectileDecoration < decorationActive_.size())
+            {
+                damageDecoration(
+                    projectileDecoration,
+                    std::max(projectile.damage, 0.0F), shooter);
             }
             effects_.push_back(
                 {RaceEventKind::WeaponFired, projectileOrigin, end,
@@ -7009,6 +6985,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             const std::size_t instance = static_cast<std::size_t>(
                 sourceDestruction - race.decorationInstances.begin());
             Vec3 sourceContact = sourceDestruction->transform.position;
+            Vec3 sourceRayOrigin;
+            Vec3 sourceRayDirection;
+            bool foundOwnedRayShape = false;
+            const std::vector<r3d::physics::VehicleState> noRayVehicles;
+            const std::vector<RacerRuntime> noRayRacers;
             for (std::size_t meshIndex = 0;
                  meshIndex < race.collisionMeshes.size() &&
                  meshIndex <
@@ -7019,25 +7000,53 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     instance)
                     continue;
                 const auto& mesh = race.collisionMeshes[meshIndex];
-                if (mesh.indices.size() < 3U ||
-                    mesh.indices[0] >= mesh.vertices.size() ||
-                    mesh.indices[1] >= mesh.vertices.size() ||
-                    mesh.indices[2] >= mesh.vertices.size())
-                    continue;
-                sourceContact = multiply(
-                    add(
-                        add(
-                            transformPoint(
-                                mesh.transform,
-                                mesh.vertices[mesh.indices[0]]),
-                            transformPoint(
-                                mesh.transform,
-                                mesh.vertices[mesh.indices[1]])),
-                        transformPoint(
-                            mesh.transform,
-                            mesh.vertices[mesh.indices[2]])),
-                    1.0F / 3.0F);
-                break;
+                for (std::size_t triangle = 0U;
+                     triangle + 2U < mesh.indices.size();
+                     triangle += 3U)
+                {
+                    const auto firstIndex = mesh.indices[triangle];
+                    const auto secondIndex = mesh.indices[triangle + 1U];
+                    const auto thirdIndex = mesh.indices[triangle + 2U];
+                    if (firstIndex >= mesh.vertices.size() ||
+                        secondIndex >= mesh.vertices.size() ||
+                        thirdIndex >= mesh.vertices.size())
+                        continue;
+                    const Vec3 first = transformPoint(
+                        mesh.transform, mesh.vertices[firstIndex]);
+                    const Vec3 second = transformPoint(
+                        mesh.transform, mesh.vertices[secondIndex]);
+                    const Vec3 third = transformPoint(
+                        mesh.transform, mesh.vertices[thirdIndex]);
+                    const Vec3 normal = normalized3(cross(
+                        subtract(second, first),
+                        subtract(third, first)));
+                    if (length3(normal) < 0.5F)
+                        continue;
+                    const Vec3 center = multiply(
+                        add(add(first, second), third), 1.0F / 3.0F);
+                    const Vec3 origin = add(
+                        center, multiply(normal, 0.1F));
+                    const auto rayHit = raycastWorld(
+                        race, destructionSession.decorationActive(),
+                        noRayVehicles, noRayRacers,
+                        RacerRuntime::invalidWeapon, origin,
+                        multiply(normal, -1.0F), 0.2F);
+                    if (!rayHit.hit || rayHit.decoration != instance)
+                        continue;
+                    sourceContact = center;
+                    sourceRayOrigin = origin;
+                    sourceRayDirection = multiply(normal, -1.0F);
+                    foundOwnedRayShape = true;
+                    break;
+                }
+                if (foundOwnedRayShape)
+                    break;
+            }
+            if (!foundOwnedRayShape)
+            {
+                throw std::runtime_error(
+                    "source destructible PhysX actor was not returned by "
+                    "the world ray query");
             }
             const auto& playerDefinition =
                 race.racers.front().hasConfiguredVehicle
@@ -7092,6 +7101,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         sourceDefinition.collisionShapes.size()) +
                     ", ownedMeshes=" +
                     std::to_string(ownedMeshes));
+            }
+            const auto removedActorRay = raycastWorld(
+                race, destructionSession.decorationActive(),
+                noRayVehicles, noRayRacers,
+                RacerRuntime::invalidWeapon, sourceRayOrigin,
+                sourceRayDirection, 0.2F);
+            if (removedActorRay.decoration == instance)
+            {
+                throw std::runtime_error(
+                    "destroyed decoration actor remained in the source "
+                    "Laser/FrostRay collision group");
             }
             vehicles[0].speed = 0.0F;
         }
@@ -8620,11 +8640,54 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (sourceProjectile ==
                     thunderSession.projectiles().end() ||
                 sourceProjectile->distance <=
-                    thunder->projectiles.front().maximumDistance)
+                    thunder->projectiles.front().maximumDistance ||
+                !sourceProjectile->ownerCollisionArmed)
             {
                 throw std::runtime_error(
                     "source maxDist/speed lifetime was replaced by a "
-                    "distance clamp");
+                    "distance clamp or owner contact never armed");
+            }
+            const float stepSeconds = 1.0F / 60.0F;
+            Transform returnedProjectile;
+            returnedProjectile.position = add(
+                sourceProjectile->position,
+                multiply(
+                    sourceProjectile->direction,
+                    std::max(sourceProjectile->speed, 1.0F) *
+                        stepSeconds));
+            returnedProjectile.rotation = sourceProjectile->rotation;
+            const OrientedBox returnedBox = orientedBox(
+                returnedProjectile,
+                thunder->projectiles.front().collision);
+            const auto& ownerRacer = race.racers.front();
+            const auto& ownerVehicle =
+                ownerRacer.hasConfiguredVehicle
+                    ? ownerRacer.configuredVehicle
+                    : race.vehicles.at(ownerRacer.vehicle);
+            outsideVehicles[0].body.rotation = {};
+            outsideVehicles[0].body.position = subtract(
+                returnedBox.center,
+                ownerVehicle.physics.shapePosition);
+            const float ownerLife =
+                thunderSession.racers().front().life;
+            thunderSession.update(
+                stepSeconds, outsideVehicles, thunderInput);
+            sourceProjectile = std::find_if(
+                thunderSession.projectiles().begin(),
+                thunderSession.projectiles().end(),
+                [thunderWeapon](
+                    const ProjectileRuntime& projectile) {
+                    return projectile.owner == 0U &&
+                           projectile.weapon == thunderWeapon &&
+                           projectile.projectile == 0U;
+                });
+            if (sourceProjectile !=
+                    thunderSession.projectiles().end() ||
+                thunderSession.racers().front().life >= ownerLife)
+            {
+                throw std::runtime_error(
+                    "source projectile-to-owner contact after launch "
+                    "separation failed");
             }
         }
         {
@@ -8783,7 +8846,19 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
         if (vehicles.size() > 3U)
         {
-            OriginalRaceSession impulseSession(race);
+            Race impulseRace = race;
+            auto& lethalTarget = impulseRace.racers[1];
+            if (!lethalTarget.hasConfiguredVehicle)
+            {
+                lethalTarget.configuredVehicle =
+                    impulseRace.vehicles.at(lethalTarget.vehicle);
+                lethalTarget.hasConfiguredVehicle = true;
+            }
+            // ImpulseContact continues FindClosestEnemy from the contacted
+            // player even when Damage killed that player in the same
+            // callback.
+            lethalTarget.configuredVehicle.maximumLife = 1.0F;
+            OriginalRaceSession impulseSession(impulseRace);
             PlayerProfile impulseProfile;
             auto& slot = impulseProfile.slots[
                 PlayerProfile::firstWeaponSlot];
@@ -8850,11 +8925,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     projectile->target == 2U;
             }
             if (!handedOff ||
+                !impulseSession.racers()[1].destroyed ||
                 impulseSession.racers()[1].life >=
                     impulseSession.racers()[1].maximumLife)
             {
                 throw std::runtime_error(
-                    "source ImpulseContact FindClosestEnemy(pi/2) "
+                    "source lethal ImpulseContact FindClosestEnemy(pi/2) "
                     "handoff failed");
             }
         }
@@ -9163,6 +9239,85 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source Frost SlowEffect did not expire with its "
                     "model");
+            }
+        }
+        {
+            Race lifetimeRace = race;
+            const std::size_t lifetimeWeapon =
+                static_cast<std::size_t>(
+                    tankLaser - race.weapons.begin());
+            auto& lifetimeDefinition =
+                lifetimeRace.weapons[lifetimeWeapon]
+                    .projectiles.front();
+            lifetimeDefinition.minimumLife = 0.05F;
+            lifetimeDefinition.maximumLife = 0.05F;
+            OriginalRaceSession lifetimeSession(lifetimeRace);
+            PlayerProfile lifetimeProfile;
+            auto& slot = lifetimeProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            slot.record = tankLaser->record;
+            slot.charge = 1U;
+            slot.hasCharge = true;
+            lifetimeSession.applyPlayerProfile(lifetimeProfile);
+            auto lifetimeVehicles = vehicles;
+            for (std::size_t index = 0U;
+                 index < lifetimeVehicles.size(); ++index)
+            {
+                lifetimeVehicles[index].body.position = {
+                    300000.0F + static_cast<float>(index) * 1000.0F,
+                    300000.0F, 3000.0F};
+                lifetimeVehicles[index].body.rotation = {};
+                lifetimeVehicles[index].linearVelocity = {};
+            }
+            RaceControl lifetimeInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                lifetimeSession.update(
+                    1.0F / 60.0F, lifetimeVehicles,
+                    lifetimeInput);
+            }
+            lifetimeInput.useWeapon = true;
+            lifetimeSession.update(
+                1.0F / 60.0F, lifetimeVehicles, lifetimeInput);
+            lifetimeInput.useWeapon = false;
+            const auto isLifetimeRay =
+                [lifetimeWeapon](const ProjectileRuntime& projectile) {
+                    return projectile.owner == 0U &&
+                           projectile.weapon == lifetimeWeapon &&
+                           projectile.projectile == 0U &&
+                           projectile.attached;
+                };
+            auto lifetimeRay = std::find_if(
+                lifetimeSession.projectiles().begin(),
+                lifetimeSession.projectiles().end(), isLifetimeRay);
+            if (lifetimeRay == lifetimeSession.projectiles().end() ||
+                lifetimeRay->lifeSeconds <= 0.0F)
+            {
+                throw std::runtime_error(
+                    "source GameObject lifetime was not sampled");
+            }
+            const float sampledLifetime = lifetimeRay->lifeSeconds;
+            lifetimeSession.update(
+                sampledLifetime, lifetimeVehicles, lifetimeInput);
+            lifetimeRay = std::find_if(
+                lifetimeSession.projectiles().begin(),
+                lifetimeSession.projectiles().end(), isLifetimeRay);
+            if (lifetimeRay == lifetimeSession.projectiles().end() ||
+                std::abs(lifetimeRay->lifeSeconds) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source GameObject lifetime expired at equality");
+            }
+            lifetimeSession.update(
+                0.001F, lifetimeVehicles, lifetimeInput);
+            lifetimeRay = std::find_if(
+                lifetimeSession.projectiles().begin(),
+                lifetimeSession.projectiles().end(), isLifetimeRay);
+            if (lifetimeRay != lifetimeSession.projectiles().end())
+            {
+                throw std::runtime_error(
+                    "source GameObject strict lifetime did not expire "
+                    "after crossing the limit");
             }
         }
 

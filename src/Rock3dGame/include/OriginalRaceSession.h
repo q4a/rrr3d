@@ -279,6 +279,12 @@ struct ProjectileRuntime
     bool attached = false;
     bool directWeapon = false;
     bool ballistic = false;
+    // PhysX can report the shooter's car after a free projectile has left
+    // its launch overlap (for example a reflected ptThunder).  The portable
+    // vehicle box is coarser than the source shapes, so arm that contact only
+    // after the projectile has separated once instead of ignoring the owner
+    // for its entire lifetime.
+    bool ownerCollisionArmed = false;
     bool active = true;
 };
 
@@ -400,9 +406,6 @@ private:
     void syncSelectedWeapon(RacerRuntime& racer) const noexcept;
     float damageAfterSupport(std::size_t racer, float damage,
                              bool touchDamage) const noexcept;
-    bool damageDecorationAlongRay(
-        Vec3 origin, Vec3 direction, float maximumDistance,
-        float damage, std::size_t attacker);
     bool damageDecorationWithBox(
         Transform transform, ProjectileCollisionBox collision,
         float damage, std::size_t attacker,
