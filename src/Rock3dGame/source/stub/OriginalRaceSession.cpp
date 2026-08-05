@@ -4887,6 +4887,9 @@ void OriginalRaceSession::updateGameplay(
                 velocityRequests_.push_back(
                     {racer,
                      subtract(wanted, vehicles[racer].linearVelocity)});
+                events_.push_back(
+                    {RaceEventKind::SpeedArrow, racer, bonusIndex,
+                     contactPoint, bonus.value});
                 continue;
             }
             if (bonus.kind == BonusKind::SlowHazard)

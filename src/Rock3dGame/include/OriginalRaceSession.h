@@ -37,6 +37,7 @@ enum class RaceEventKind
     Damage,
     Kill,
     Bonus,
+    SpeedArrow,
     DecorationDestroyed,
     MinePlaced,
     HyperActivated,

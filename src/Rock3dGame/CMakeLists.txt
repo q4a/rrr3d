@@ -128,7 +128,10 @@ else()
         RRR3D_PORTABLE_GAME_STUBS=1
     )
     if(RRR3D_ENABLE_PHYSICS AND RRR3D_BUILD_ORIGINAL_MENU)
-        target_link_libraries(${PROJECT_NAME} PRIVATE ${RRR3D_TINYXML_TARGET})
+        # OriginalRace data and the portable commentator share the serialized
+        # TinyXML schema, so consumers need the TinyXML 1 headers as well as
+        # the static implementation.
+        target_link_libraries(${PROJECT_NAME} PUBLIC ${RRR3D_TINYXML_TARGET})
     endif()
 endif()
 

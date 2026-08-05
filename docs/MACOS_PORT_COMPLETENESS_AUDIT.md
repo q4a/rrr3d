@@ -73,6 +73,7 @@ Windows target не компилируется.
 | Audio device/mixer | XAudio2/X3DAudio | SDL3/CoreAudio | Замена платформы | Backend полноценный, но весь исходный game-side `Audio.cpp` object graph не перенесён |
 | MusicCat/menu music | `MusicCat`, `DialogMenu2::MusicDialog`, три menu Ogg и 11 game Ogg | background decode, shuffle, next, pause/state + source music popup | Перенесено | MusicDialog использует исходный `dlgFrame2`, metadata, layout и timing; поведение покрыто menu/race smoke |
 | Spatial race audio | X3DAudio game integration | ручные attenuation/pan/pitch voices | Частично | Основные car/race sounds есть; исходные emitters/listeners, все lifetime/priority rules и все sound behaviors не перенесены |
+| Commentator | `GameMode::Commentator`, serialized `game.xml/commentator/comments` | исходная таблица и state machine поверх SDL Voice bus | Перенесено | Загружаются доступные файлы выбранного языка; chance/delay/busy/repeatPlayer, weighted choice, prefix/suffix имён и все offline race events повторяют source semantics |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared/profile/gamer/final navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty, Profile, Gamers и FinalMenu имеют исходные item order, NavElement/input branches, disabled skip и actions; Network и общий legacy event object graph ещё не завершены |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, `AcceptDialog`, `MusicDialog`, `WeaponDialog` и offline `InfoDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, все вызываемые offline confirmations, popup текущего track, hover-dialog товара/слота и Workshop/Angar/Achievement warnings перенесены. Offline-профили по исходнику автоматически называются `profileN`; `UserChat` и `NetIPAddress` относятся только к пока отключённой сети |
@@ -407,6 +408,23 @@ Network, video и Steam явно выключены.
 6. arm64 build, resource verifier, physics smoke и 240-frame
    bgfx/Metal race-render smoke проходят. Финальная визуальная проверка
    Options отложена только потому, что macOS session была заблокирована.
+
+Следующим audio-блоком удалён ручной суррогат диктора:
+
+1. `OriginalRaceCommentator` теперь читает полную исходную таблицу
+   `commentator/comments` из `game.xml`, а не содержит отдельный список Ogg.
+2. Перенесены `chance`, per-comment/global `delay`, `baSkip`/`baQueue`/
+   `baReplace`, `repeatPlayer`, weighted random и фильтр `forHuman` из
+   `GameMode::Commentator::Generate`.
+3. Имена гонщиков также являются serialized comments. Поэтому source
+   `sPlayer`/`ePlayer` работает для всего каталога персонажей, а не для
+   четырёх вручную выбранных ключей.
+4. Подключены пропущенные second/third/last finish, third changed/far,
+   domination и speed-arrow события. FinishMenu различает все четыре
+   исходных place-comment, включая настоящий `playerFinishThird`.
+5. `ResetState` больше не проигрывает раннюю придуманную реплику: старт
+   приходит от `raceStartTime2`. Таймер Voice продолжает идти при открытом
+   race pause dialog, как отдельная от Effects source-категория Windows.
 
 Следующим подблоком начат перенос `RaceMenu2::RaceMainFrame`:
 

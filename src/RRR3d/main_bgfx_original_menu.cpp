@@ -3365,6 +3365,14 @@ int main(int argc, char** argv)
         audio, *resources);
     const bool commentatorValid = commentator.initialize(
         profileState.config.commentatorStyle, audioError);
+    if (commentatorValid)
+    {
+        std::cout << "Original commentator: "
+                  << commentator.commentCount()
+                  << " serialized comments, "
+                  << commentator.loadedVoiceCount()
+                  << " available voice files\n";
+    }
     engineAudioValid =
         engineAudioValid &&
         acceptanceAudio != r3d::audio::invalidSound &&
@@ -4646,9 +4654,6 @@ int main(int argc, char** argv)
         exitRaceDialogVisible = false;
         raceSession.setPaused(false);
         clearRaceControls();
-#ifdef RRR3D_AUDIO
-        commentator.pause(false);
-#endif
         previousFrameTicks = SDL_GetTicksNS();
         racePauseResumeObserved = true;
     };
@@ -4665,9 +4670,6 @@ int main(int argc, char** argv)
         if (physicsWorld->vehicleCount() > 0U)
             racePausePositionSnapshot =
                 physicsWorld->vehicle().body.position;
-#ifdef RRR3D_AUDIO
-        commentator.pause(true);
-#endif
         racePauseDialogObserved = true;
     };
     auto leaveCurrentRace = [&]() {
@@ -10614,7 +10616,7 @@ int main(int argc, char** argv)
                     }
                 }
                 commentator.update(
-                    *originalRace, raceSession, audioError);
+                    *originalRace, raceSession, frameSeconds, audioError);
             }
 #endif
             if (raceSession.phase() !=

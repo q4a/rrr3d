@@ -2,9 +2,13 @@
 
 #include "resource/ResourceFileSystem.h"
 
+#include <tinyxml.h>
+
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <exception>
+#include <limits>
 #include <utility>
 
 namespace rrr3d::audio
@@ -12,66 +16,63 @@ namespace rrr3d::audio
 namespace
 {
 
-using Cue = OriginalRaceCommentator::Cue;
+constexpr std::size_t invalidPlayer =
+    std::numeric_limits<std::size_t>::max();
 
-struct CueFiles
+const char* textOf(const TiXmlElement* parent, const char* name)
 {
-    Cue cue;
-    std::vector<std::string_view> files;
-    bool playerPrefix = false;
-    bool humanOnly = false;
-};
+    if (parent == nullptr)
+        return nullptr;
+    const auto* element = parent->FirstChildElement(name);
+    return element != nullptr ? element->GetText() : nullptr;
+}
 
-const std::array<CueFiles, 17> cueFiles{{
-    {Cue::Start, {"start1.ogg", "start2.ogg", "start3.ogg",
-                  "start4.ogg"}},
-    {Cue::LastLap, {"lastLap1.ogg", "lastLap2.ogg", "lastLap3.ogg",
-                    "lastLap4.ogg", "lastLap5.ogg", "lastLap6.ogg",
-                    "lastLap7.ogg"}},
-    {Cue::Overboard, {"lowLuck1.ogg", "overboard1.ogg"},
-     false, true},
-    {Cue::Overboard, {"playerLostControl1.ogg",
-                      "playerLostControl2.ogg",
-                      "playerLostControl3.ogg"},
-     true, true},
-    {Cue::DeathMine, {"lowLuck1.ogg"}, false, true},
-    {Cue::WrongWay, {"playerMoveInverse1.ogg"}, true},
-    {Cue::LostControl, {"playerLostControl1.ogg",
-                        "playerLostControl2.ogg",
-                        "playerLostControl3.ogg"}, true},
-    {Cue::LeaderFinish, {"leaderFinish1.ogg", "leaderFinish2.ogg",
-                         "leaderFinish3.ogg", "leaderFinish4.ogg",
-                         "leaderFinish5.ogg", "leaderFinish6.ogg"},
-     true},
-    {Cue::LeaderChanged, {"leaderChanged1.ogg", "leaderChanged2.ogg",
-                          "leaderChanged3.ogg", "leaderChanged4.ogg",
-                          "leaderChanged5.ogg", "leaderChanged6.ogg"},
-     true},
-    {Cue::LastFar, {"lastFar1.ogg", "lastFar2.ogg", "lastFar3.ogg",
-                    "lastFar4.ogg", "lastFar5.ogg", "lastFar6.ogg",
-                    "lastFar7.ogg", "lastFar8.ogg", "lastFar9.ogg",
-                    "lastFar10.ogg"}, true},
-    {Cue::LowLife, {"lowLife1.ogg", "lowLife2.ogg", "lowLife3.ogg",
-                    "lowLife4.ogg", "lowLife5.ogg", "lowLife6.ogg",
-                    "lowLife7.ogg"}, true},
-    {Cue::Kill, {"playerKill1.ogg", "playerKill2.ogg",
-                 "playerKill3.ogg"}, false, true},
-    {Cue::Death, {"death1.ogg"}, true},
-    {Cue::FinishFirst, {"finishFirst1.ogg"}, true},
-    {Cue::FinishSecond, {"finishSecond1.ogg"}, true},
-    // GameMode::Start registers finishLast1 for cPlayerFinishThird.  This
-    // surprising mapping is intentional and is not corrected in the port.
-    {Cue::FinishThird, {"finishLast1.ogg"}, true},
-    {Cue::RaceFinish, {"finish1.ogg"}},
-}};
+float floatOf(
+    const TiXmlElement* parent, const char* name, float fallback)
+{
+    const char* value = textOf(parent, name);
+    if (value == nullptr)
+        return fallback;
+    try
+    {
+        return std::stof(value);
+    }
+    catch (const std::exception&)
+    {
+        return fallback;
+    }
+}
 
-const std::array<std::pair<std::string_view, std::string_view>, 4>
-    playerFiles{{
-        {"svRip", "rip.ogg"},
-        {"svSnake", "snake.ogg"},
-        {"svTyler", "tailer.ogg"},
-        {"svTarkvin", "tarkvin.ogg"},
-    }};
+bool boolOf(
+    const TiXmlElement* parent, const char* name, bool fallback)
+{
+    const char* value = textOf(parent, name);
+    if (value == nullptr)
+        return fallback;
+    const std::string_view parsed(value);
+    if (parsed == "true" || parsed == "1")
+        return true;
+    if (parsed == "false" || parsed == "0")
+        return false;
+    return fallback;
+}
+
+std::string voiceFile(const char* serialized)
+{
+    if (serialized == nullptr)
+        return {};
+    std::string result(serialized);
+    const auto separator = result.find_last_of("\\/");
+    if (separator != std::string::npos)
+        result.erase(0U, separator + 1U);
+    return result;
+}
+
+float randomUnit()
+{
+    // lsl::Random() in the Windows source uses this exact expression.
+    return std::rand() / static_cast<float>(RAND_MAX);
+}
 
 } // namespace
 
@@ -95,39 +96,82 @@ bool OriginalRaceCommentator::initialize(
         style == "russian" ? "russian" : "english";
     try
     {
-        for (const auto& definition : cueFiles)
+        const std::string xml = resources_.readText("game.xml");
+        TiXmlDocument document;
+        document.Parse(xml.c_str(), nullptr, TIXML_ENCODING_UTF8);
+        if (document.Error())
         {
-            auto& loaded = sounds_[definition.cue];
-            for (const auto file : definition.files)
-            {
-                const std::string path =
-                    "Data/Voice/" + selected + "/" +
-                    std::string(file);
-                if (!resources_.exists(path))
-                    continue;
-                r3d::audio::SoundInfo info;
-                auto sound = audio_.loadOgg(
-                    resources_.resolve(path), info, error);
-                if (sound == r3d::audio::invalidSound)
-                    continue;
-                loaded.push_back(
-                    {sound, definition.playerPrefix,
-                     definition.humanOnly});
-            }
+            error = "Cannot parse serialized commentator table: " +
+                    std::string(document.ErrorDesc());
+            return false;
         }
-        for (const auto& [player, file] : playerFiles)
+        const auto* root = document.RootElement();
+        const auto* commentator = root != nullptr
+            ? root->FirstChildElement("commentator") : nullptr;
+        const auto* serializedComments = commentator != nullptr
+            ? commentator->FirstChildElement("comments") : nullptr;
+        if (serializedComments == nullptr)
         {
-            const std::string path =
-                "Data/Voice/" + selected + "/" +
-                std::string(file);
-            if (!resources_.exists(path))
-                continue;
-            r3d::audio::SoundInfo info;
-            auto sound = audio_.loadOgg(
-                resources_.resolve(path), info, error);
-            if (sound == r3d::audio::invalidSound)
-                continue;
-            playerSounds_[std::string(player)] = sound;
+            error = "game.xml has no commentator/comments table";
+            return false;
+        }
+
+        globalDelaySeconds_ = floatOf(commentator, "delay", 0.0F);
+        for (auto* element = serializedComments->FirstChildElement();
+             element != nullptr;
+             element = element->NextSiblingElement())
+        {
+            Comment comment;
+            comment.chance = floatOf(element, "chance", 0.0F);
+            comment.delay = floatOf(element, "delay", 0.0F);
+            comment.repeatPlayer =
+                boolOf(element, "repeatPlayer", true);
+            const std::string_view busy =
+                textOf(element, "busy") != nullptr
+                    ? textOf(element, "busy") : "baSkip";
+            if (busy == "baQueue")
+                comment.busy = BusyAction::Queue;
+            else if (busy == "baReplace")
+                comment.busy = BusyAction::Replace;
+
+            const auto* voices = element->FirstChildElement("voices");
+            for (auto* voice = voices != nullptr
+                     ? voices->FirstChildElement() : nullptr;
+                 voice != nullptr;
+                 voice = voice->NextSiblingElement())
+            {
+                CommentVoice loadedVoice;
+                loadedVoice.weight = floatOf(voice, "weight", 0.0F);
+                loadedVoice.startPlayer = boolOf(voice, "sPlayer", false);
+                loadedVoice.endPlayer = boolOf(voice, "ePlayer", false);
+                loadedVoice.humanOnly = boolOf(voice, "forHuman", false);
+                const std::string file = voiceFile(textOf(voice, "sound"));
+                const std::string path =
+                    "Data/Voice/" + selected + "/" + file;
+                if (!file.empty() && resources_.exists(path))
+                {
+                    const auto cached = loadedSounds_.find(path);
+                    if (cached != loadedSounds_.end())
+                    {
+                        loadedVoice.sound = cached->second;
+                    }
+                    else
+                    {
+                        r3d::audio::SoundInfo info;
+                        const auto sound = audio_.loadOgg(
+                            resources_.resolve(path), info, error);
+                        if (sound != r3d::audio::invalidSound)
+                        {
+                            loadedSounds_.emplace(path, sound);
+                            loadedVoice.sound = sound;
+                        }
+                    }
+                }
+                // ResourceManager::LoadCommentator preserves unavailable
+                // per-language alternatives and filters them in Generate.
+                comment.voices.push_back(loadedVoice);
+            }
+            comments_.emplace(element->Value(), std::move(comment));
         }
     }
     catch (const std::exception& exception)
@@ -136,16 +180,23 @@ bool OriginalRaceCommentator::initialize(
         shutdown();
         return false;
     }
-    // ResourceManager::LoadCommentator also tolerates absent per-style
-    // variants.  The shipped English set has no finish1.ogg, while the
-    // finish-place lines are present and remain playable.
-    if (sounds_[Cue::Start].empty())
+
+    constexpr std::array<std::string_view, 5> required{{
+        "raceStartTime2", "playerMoveInverse", "playerFinishLast",
+        "playerDomination", "raceFinish"}};
+    const bool definitionsComplete = std::all_of(
+        required.begin(), required.end(), [&](std::string_view name) {
+            return comments_.find(std::string(name)) != comments_.end();
+        });
+    if (!definitionsComplete || loadedSounds_.empty())
     {
-        error = "Original commentator voice set is incomplete";
+        error = "Original serialized commentator table is incomplete";
         shutdown();
         return false;
     }
+
     initialized_ = true;
+    reset();
     error.clear();
     return true;
 }
@@ -156,22 +207,16 @@ void OriginalRaceCommentator::shutdown() noexcept
         audio_.stop(voice_);
     voice_ = r3d::audio::invalidVoice;
     queue_.clear();
-    for (auto& [cue, sounds] : sounds_)
+    for (const auto& [path, sound] : loadedSounds_)
     {
-        static_cast<void>(cue);
-        for (const auto& voice : sounds)
-            audio_.unloadSound(voice.sound);
-    }
-    for (const auto& [player, sound] : playerSounds_)
-    {
-        static_cast<void>(player);
+        static_cast<void>(path);
         audio_.unloadSound(sound);
     }
-    sounds_.clear();
-    playerSounds_.clear();
-    nextSound_.clear();
-    nextCueSeconds_.clear();
-    lastCuePlayer_.clear();
+    comments_.clear();
+    loadedSounds_.clear();
+    globalDelaySeconds_ = 0.0F;
+    timeSeconds_ = 0.0F;
+    silenceSeconds_ = 0.0F;
     initialized_ = false;
     paused_ = false;
 }
@@ -184,37 +229,105 @@ void OriginalRaceCommentator::reset()
         audio_.stop(voice_);
     voice_ = r3d::audio::invalidVoice;
     queue_.clear();
-    nextCueSeconds_.clear();
-    lastCuePlayer_.clear();
-    enqueue(Cue::Start, nullptr,
-            r3d::game::originalrace::RacerRuntime::invalidWeapon,
-            false, true);
+    timeSeconds_ = 0.0F;
+    silenceSeconds_ = 0.0F;
+    for (auto& [name, comment] : comments_)
+    {
+        static_cast<void>(name);
+        comment.nextSeconds = 0.0F;
+        comment.lastPlayer = invalidPlayer;
+    }
+}
+
+const OriginalRaceCommentator::CommentVoice*
+OriginalRaceCommentator::generate(Comment& comment, std::size_t racer)
+{
+    if (comment.chance < randomUnit() * 100.0F)
+        return nullptr;
+    if (!comment.repeatPlayer && racer != invalidPlayer &&
+        comment.lastPlayer == racer)
+        return nullptr;
+    if (timeSeconds_ < comment.nextSeconds)
+        return nullptr;
+
+    comment.nextSeconds = timeSeconds_ + comment.delay;
+    comment.lastPlayer = racer;
+    float totalWeight = 0.0F;
+    for (const auto& voice : comment.voices)
+    {
+        if (voice.sound != r3d::audio::invalidSound &&
+            (!voice.humanOnly || racer == 0U))
+            totalWeight += voice.weight;
+    }
+    const float selectedWeight = totalWeight * randomUnit();
+    float accumulatedWeight = 0.0F;
+    for (const auto& voice : comment.voices)
+    {
+        if (voice.sound == r3d::audio::invalidSound ||
+            (voice.humanOnly && racer != 0U))
+            continue;
+        if (selectedWeight >= accumulatedWeight &&
+            selectedWeight <= accumulatedWeight + voice.weight)
+            return &voice;
+        accumulatedWeight += voice.weight;
+    }
+    return nullptr;
+}
+
+bool OriginalRaceCommentator::isSpeaking() const noexcept
+{
+    return (voice_ != r3d::audio::invalidVoice &&
+            audio_.isVoiceActive(voice_)) ||
+           !queue_.empty();
 }
 
 void OriginalRaceCommentator::enqueue(
-    Cue cue,
+    std::string_view commentName,
     const r3d::game::originalrace::Race* race,
     std::size_t racer,
-    bool replace, bool skipWhenBusy,
-    float now, float delay, bool repeatPlayer)
+    std::string& error)
 {
-    const auto found = sounds_.find(cue);
-    if (found == sounds_.end() || found->second.empty())
+    const auto found = comments_.find(std::string(commentName));
+    if (found == comments_.end())
         return;
-    const bool busy =
-        voice_ != r3d::audio::invalidVoice &&
-        audio_.isVoiceActive(voice_);
-    if (skipWhenBusy && (busy || !queue_.empty()))
+    auto& comment = found->second;
+    if (comment.busy == BusyAction::Skip &&
+        (globalDelaySeconds_ > silenceSeconds_ || isSpeaking()))
         return;
-    const auto ready = nextCueSeconds_.find(cue);
-    if (ready != nextCueSeconds_.end() && now < ready->second)
+
+    const CommentVoice* selected = generate(comment, racer);
+    if (selected == nullptr)
         return;
-    const auto previousPlayer = lastCuePlayer_.find(cue);
-    if (!repeatPlayer &&
-        racer != r3d::game::originalrace::RacerRuntime::invalidWeapon &&
-        previousPlayer != lastCuePlayer_.end() &&
-        previousPlayer->second == racer)
-        return;
+    std::deque<r3d::audio::SoundHandle> utterance;
+    if (selected->startPlayer)
+    {
+        if (race == nullptr || racer >= race->racers.size())
+            return;
+        const auto player = comments_.find(race->racers[racer].name);
+        if (player == comments_.end())
+            return;
+        const auto* prefix = generate(player->second, racer);
+        if (prefix == nullptr)
+            return;
+        utterance.push_back(prefix->sound);
+    }
+    utterance.push_back(selected->sound);
+    if (selected->endPlayer)
+    {
+        if (race == nullptr || racer >= race->racers.size())
+            return;
+        const auto player = comments_.find(race->racers[racer].name);
+        if (player == comments_.end())
+            return;
+        const auto* suffix = generate(player->second, racer);
+        if (suffix == nullptr)
+            return;
+        utterance.push_back(suffix->sound);
+    }
+
+    const bool wasSpeaking = isSpeaking();
+    const bool replace = comment.busy == BusyAction::Replace ||
+                         comment.busy == BusyAction::Skip;
     if (replace)
     {
         if (voice_ != r3d::audio::invalidVoice)
@@ -222,35 +335,12 @@ void OriginalRaceCommentator::enqueue(
         voice_ = r3d::audio::invalidVoice;
         queue_.clear();
     }
-    auto& index = nextSound_[cue];
-    const CueVoice* selected = nullptr;
-    for (std::size_t attempt = 0U;
-         attempt < found->second.size(); ++attempt)
+    queue_.insert(queue_.end(), utterance.begin(), utterance.end());
+    if (replace || !wasSpeaking)
     {
-        const auto& candidate = found->second[
-            (index + attempt) % found->second.size()];
-        if (!candidate.humanOnly || racer == 0U)
-        {
-            selected = &candidate;
-            index += attempt + 1U;
-            break;
-        }
+        playNext(error);
+        silenceSeconds_ = 0.0F;
     }
-    if (selected == nullptr)
-        return;
-    nextCueSeconds_[cue] = now + delay;
-    if (racer != r3d::game::originalrace::RacerRuntime::invalidWeapon)
-        lastCuePlayer_[cue] = racer;
-    if (selected->playerPrefix)
-    {
-        if (race == nullptr || racer >= race->racers.size())
-            return;
-        const auto player = playerSounds_.find(race->racers[racer].name);
-        if (player == playerSounds_.end())
-            return;
-        queue_.push_back(player->second);
-    }
-    queue_.push_back(selected->sound);
 }
 
 void OriginalRaceCommentator::playNext(std::string& error)
@@ -271,70 +361,87 @@ void OriginalRaceCommentator::playNext(std::string& error)
 void OriginalRaceCommentator::update(
     const r3d::game::originalrace::Race& race,
     const r3d::game::originalrace::OriginalRaceSession& session,
+    float seconds,
     std::string& error)
 {
     using namespace r3d::game::originalrace;
-    if (!initialized_ || session.racers().empty())
+    if (!initialized_)
         return;
-    const float now = session.elapsedSeconds();
+    const float elapsed = std::max(seconds, 0.0F);
+    timeSeconds_ += elapsed;
+    silenceSeconds_ += elapsed;
     for (const auto& event : session.events())
     {
+        std::string_view name;
         switch (event.kind)
         {
+        case RaceEventKind::CountdownChanged:
+            if (event.value == 2.0F)
+                name = "raceStartTime2";
+            break;
         case RaceEventKind::LastLap:
-            enqueue(Cue::LastLap, &race, event.racer,
-                    false, false, now);
+            name = "raceLastLap";
             break;
         case RaceEventKind::Overboard:
-            enqueue(Cue::Overboard, &race, event.racer,
-                    false, true, now);
+            name = "playerOverboard";
             break;
         case RaceEventKind::DeathMine:
-            enqueue(Cue::DeathMine, &race, event.racer,
-                    false, true, now);
+            name = "playerDeathMine";
             break;
         case RaceEventKind::MoveInverse:
-            enqueue(Cue::WrongWay, &race, event.racer,
-                    false, false, now, 0.0F, false);
+            name = "playerMoveInverse";
             break;
         case RaceEventKind::LostControl:
-            enqueue(Cue::LostControl, &race, event.racer,
-                    false, true, now);
+            name = "playerLostControl";
             break;
         case RaceEventKind::LeadFinish:
-            enqueue(Cue::LeaderFinish, &race, event.racer,
-                    false, false, now);
+            name = "playerLeadFinish";
+            break;
+        case RaceEventKind::SecondFinish:
+            name = "playerSecondFinish";
+            break;
+        case RaceEventKind::ThirdFinish:
+            name = "playerThirdFinish";
+            break;
+        case RaceEventKind::LastFinish:
+            name = "playerLastFinish";
             break;
         case RaceEventKind::LeadChanged:
-            enqueue(Cue::LeaderChanged, &race, event.racer,
-                    false, false, now);
+            name = "playerLeadChanged";
+            break;
+        case RaceEventKind::ThirdChanged:
+            name = "playerThirdChanged";
+            break;
+        case RaceEventKind::ThirdFar:
+            name = "playerThirdFar";
             break;
         case RaceEventKind::LastFar:
-            enqueue(Cue::LastFar, &race, event.racer,
-                    false, true, now, 0.0F, false);
+            name = "playerLastFar";
+            break;
+        case RaceEventKind::Domination:
+            name = "playerDomination";
             break;
         case RaceEventKind::LowLife:
-            enqueue(Cue::LowLife, &race, event.racer,
-                    false, true, now, 40.0F);
+            name = "playerLowLife";
             break;
         case RaceEventKind::Death:
-            enqueue(Cue::Death, &race, event.racer,
-                    false, true, now, 40.0F);
+            name = "playerDeath";
             break;
         case RaceEventKind::Kill:
-            if (event.killCredit && event.racer == 0U)
-            {
-                enqueue(Cue::Kill, &race, event.racer,
-                        false, true, now);
-            }
+            if (event.killCredit)
+                name = "playerKill";
+            break;
+        case RaceEventKind::SpeedArrow:
+            name = "playerSpeedArrow";
             break;
         case RaceEventKind::RaceFinish:
-            enqueue(Cue::RaceFinish, &race, event.racer,
-                    false, false, now);
+            name = "raceFinish";
             break;
         default:
             break;
         }
+        if (!name.empty())
+            enqueue(name, &race, event.racer, error);
     }
     playNext(error);
 }
@@ -346,17 +453,14 @@ void OriginalRaceCommentator::finishPlace(
 {
     if (!initialized_)
         return;
-    Cue cue = Cue::FinishLast;
+    std::string_view name = "playerFinishLast";
     if (place == 1U)
-        cue = Cue::FinishFirst;
+        name = "playerFinishFirst";
     else if (place == 2U)
-        cue = Cue::FinishSecond;
+        name = "playerFinishSecond";
     else if (place == 3U)
-        cue = Cue::FinishThird;
-    // cPlayerFinishLast is emitted by FinishMenu in the Windows game but
-    // has no registered commentator comment in GameMode::Start.
-    if (cue != Cue::FinishLast)
-        enqueue(cue, &race, racer, false, true);
+        name = "playerFinishThird";
+    enqueue(name, &race, racer, error);
     playNext(error);
 }
 
@@ -365,6 +469,16 @@ void OriginalRaceCommentator::pause(bool paused) noexcept
     paused_ = paused;
     if (voice_ != r3d::audio::invalidVoice)
         audio_.setVoicePaused(voice_, paused);
+}
+
+std::size_t OriginalRaceCommentator::commentCount() const noexcept
+{
+    return comments_.size();
+}
+
+std::size_t OriginalRaceCommentator::loadedVoiceCount() const noexcept
+{
+    return loadedSounds_.size();
 }
 
 } // namespace rrr3d::audio
