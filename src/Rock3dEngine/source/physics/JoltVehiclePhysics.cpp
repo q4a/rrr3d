@@ -190,6 +190,7 @@ Vec3 transformPoint(const Transform& transform, Vec3 value)
 constexpr JPH::uint64 bodyKindMask = 0xf000000000000000ULL;
 constexpr JPH::uint64 vehicleBodyKind = 0x1000000000000000ULL;
 constexpr JPH::uint64 surfaceBodyKind = 0x2000000000000000ULL;
+constexpr JPH::uint64 decorationBodyKind = 0x3000000000000000ULL;
 
 JPH::uint64 vehicleUserData(std::size_t index)
 {
@@ -201,6 +202,11 @@ JPH::uint64 surfaceUserData(CollisionSurface surface)
     return surfaceBodyKind | static_cast<JPH::uint64>(surface);
 }
 
+JPH::uint64 decorationUserData(std::size_t index)
+{
+    return decorationBodyKind | static_cast<JPH::uint64>(index);
+}
+
 bool vehicleIndex(JPH::uint64 userData, std::size_t& index)
 {
     if ((userData & bodyKindMask) != vehicleBodyKind)
@@ -209,8 +215,18 @@ bool vehicleIndex(JPH::uint64 userData, std::size_t& index)
     return true;
 }
 
+bool decorationIndex(JPH::uint64 userData, std::size_t& index)
+{
+    if ((userData & bodyKindMask) != decorationBodyKind)
+        return false;
+    index = static_cast<std::size_t>(userData & ~bodyKindMask);
+    return true;
+}
+
 CollisionSurface collisionSurface(JPH::uint64 userData)
 {
+    if ((userData & bodyKindMask) == decorationBodyKind)
+        return CollisionSurface::Decoration;
     if ((userData & bodyKindMask) != surfaceBodyKind)
         return CollisionSurface::TrackPlane;
     const auto value = static_cast<std::uint8_t>(userData & ~bodyKindMask);
@@ -299,6 +315,9 @@ private:
         std::size_t otherVehicle = std::numeric_limits<std::size_t>::max();
         const bool otherIsVehicle =
             vehicleIndex(other.GetUserData(), otherVehicle);
+        std::size_t otherDecoration =
+            std::numeric_limits<std::size_t>::max();
+        decorationIndex(other.GetUserData(), otherDecoration);
         const bool otherIsMoving =
             other.GetMotionType() != JPH::EMotionType::Static;
         const JPH::Vec3 otherVelocity =
@@ -326,6 +345,7 @@ private:
             otherIsVehicle ? CollisionSurface::Vehicle
                            : collisionSurface(other.GetUserData());
         contact.otherVehicle = otherVehicle;
+        contact.otherDecoration = otherDecoration;
         contact.normal = fromJolt(outwardNormal);
         contact.normalSpeed = normalSpeed;
         contact.force = force;
@@ -364,6 +384,7 @@ private:
             [&](const BodyContact& value) {
                 return value.surface == contact.surface &&
                        value.otherVehicle == contact.otherVehicle &&
+                       value.otherDecoration == contact.otherDecoration &&
                        value.otherActor == contact.otherActor;
             });
         if (found == contacts.end())
@@ -1431,11 +1452,6 @@ private:
             const bool ownedDecoration =
                 mesh.surface == CollisionSurface::Decoration &&
                 mesh.decorationInstance < decorationTriangles.size();
-            if (ownedDecoration &&
-                mesh.decorationInstance < description_.decorations.size() &&
-                !description_.decorations[mesh.decorationInstance]
-                     .collisionResponse)
-                continue;
             auto& surfaceTriangles =
                 ownedDecoration
                     ? decorationTriangles[mesh.decorationInstance]
@@ -1466,8 +1482,9 @@ private:
         constexpr std::array<float, surfaceCount> restitutions{
             0.0F, 0.0F, 0.5F};
         auto createMeshBody = [&](const JPH::TriangleList& source,
-                                  CollisionSurface surface, float friction,
-                                  float restitution) {
+                                  float friction,
+                                  float restitution, JPH::uint64 userData,
+                                  bool sensor) {
             if (source.empty())
                 return JPH::BodyID();
             JPH::MeshShapeSettings shapeSettings(source);
@@ -1481,7 +1498,8 @@ private:
                 Layers::nonMoving);
             settings.mFriction = friction;
             settings.mRestitution = restitution;
-            settings.mUserData = surfaceUserData(surface);
+            settings.mUserData = userData;
+            settings.mIsSensor = sensor;
             const auto body =
                 system_.GetBodyInterface().CreateAndAddBody(
                     settings, JPH::EActivation::DontActivate);
@@ -1495,17 +1513,21 @@ private:
             if (triangles[index].empty())
                 continue;
             trackBodies_.push_back(createMeshBody(
-                triangles[index], surfaces[index], frictions[index],
-                restitutions[index]));
+                triangles[index], frictions[index], restitutions[index],
+                surfaceUserData(surfaces[index]),
+                false));
         }
         for (std::size_t index = 0;
              index < decorationTriangles.size(); ++index)
         {
             if (decorationTriangles[index].empty())
                 continue;
+            const bool sensor =
+                index < description_.decorations.size() &&
+                !description_.decorations[index].collisionResponse;
             decorations_[index].meshBodies.push_back(createMeshBody(
-                decorationTriangles[index], CollisionSurface::Decoration,
-                0.5F, 0.5F));
+                decorationTriangles[index], 0.5F, 0.5F,
+                decorationUserData(index), sensor));
         }
     }
 
@@ -1546,8 +1568,8 @@ private:
             settings.mFriction = 0.5F;
             settings.mRestitution = 0.5F;
             settings.mEnhancedInternalEdgeRemoval = true;
-            settings.mUserData =
-                surfaceUserData(CollisionSurface::Decoration);
+            settings.mUserData = decorationUserData(index);
+            settings.mIsSensor = !source.collisionResponse;
             auto& decoration = decorations_[index];
             decoration.shapeBody =
                 system_.GetBodyInterface().CreateAndAddBody(
@@ -2330,14 +2352,16 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     barrel.hasBodyShape = true;
     barrel.dynamic = true;
     contactDescription.decorations.push_back(barrel);
-    contactDescription.decorations.emplace_back();
+    DecorationDescription destructible;
+    destructible.collisionResponse = false;
+    contactDescription.decorations.push_back(destructible);
     TriangleMesh destructibleMesh;
     destructibleMesh.surface = CollisionSurface::Decoration;
     destructibleMesh.decorationInstance = 1U;
-    destructibleMesh.vertices = {{-12.0F, -2.0F, 0.0F},
-                                 {-12.0F, 2.0F, 3.0F},
-                                 {-12.0F, 2.0F, 0.0F},
-                                 {-12.0F, -2.0F, 3.0F}};
+    destructibleMesh.vertices = {{2.0F, -2.0F, 0.0F},
+                                 {2.0F, 2.0F, 3.0F},
+                                 {2.0F, 2.0F, 0.0F},
+                                 {2.0F, -2.0F, 3.0F}};
     destructibleMesh.indices = {0U, 1U, 2U, 0U, 3U, 1U};
     contactDescription.collisionMeshes.push_back(
         std::move(destructibleMesh));
@@ -2383,14 +2407,20 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     input = {};
     input.throttle = 1.0F;
     bool sawBorderContact = false;
-    for (int step = 0; step < 1200 && !sawBorderContact; ++step)
+    bool sawDestructibleSensor = false;
+    for (int step = 0;
+         step < 1200 && (!sawBorderContact || !sawDestructibleSensor);
+         ++step)
     {
         contactWorld->step(1.0F / 120.0F, input);
-        sawBorderContact = std::any_of(
-            contactWorld->vehicle().bodyContacts.begin(),
-            contactWorld->vehicle().bodyContacts.end(),
-            [](const BodyContact& contact) {
-                return contact.surface ==
+        for (const auto& contact : contactWorld->vehicle().bodyContacts)
+        {
+            sawDestructibleSensor =
+                sawDestructibleSensor ||
+                (contact.surface == CollisionSurface::Decoration &&
+                 contact.otherDecoration == 1U && contact.hasPoint);
+            sawBorderContact = sawBorderContact ||
+                (contact.surface ==
                            CollisionSurface::TrackBorder &&
                        contact.normalSpeed > 0.0F &&
                        contact.force > 0.0F &&
@@ -2413,14 +2443,21 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                                    contact.frictionForceVector.z) -
                            contact.frictionForce) <=
                            std::max(1.0F,
-                                    contact.frictionForce * 0.001F);
-            });
+                                    contact.frictionForce * 0.001F));
+        }
     }
     if (!sawBorderContact)
     {
         error =
             "Jolt body contact listener did not preserve track-border "
             "surface metadata";
+        return false;
+    }
+    if (!sawDestructibleSensor)
+    {
+        error =
+            "source NX_AF_DISABLE_RESPONSE decoration did not report its "
+            "owning MapObj contact";
         return false;
     }
     DebrisDescription debrisDescription;

@@ -169,6 +169,10 @@ struct BodyContact
     Vec3 normal;
     float normalSpeed = 0.0F;
     float force = 0.0F;
+    // Source MapObj owning a ctDecoration PhysX actor. DestrObj disables
+    // solver response but still receives GameCar::OnContact, so the backend
+    // must preserve actor identity even for a sensor manifold.
+    std::size_t otherDecoration = std::numeric_limits<std::size_t>::max();
     // PairPxContactEffect in the Windows engine is keyed by the two PhysX
     // actors and tests sumFrictionForce rather than the normal impulse used
     // by touch damage. Preserve both values and the real manifold points at

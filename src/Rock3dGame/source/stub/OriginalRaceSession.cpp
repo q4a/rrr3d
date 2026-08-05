@@ -1048,9 +1048,9 @@ void OriginalRaceSession::reset()
         const auto& definition =
             race_.decorationDefinitions.at(instance.definition);
         decorationLife_.push_back(
-            definition.maximumLife > 0.0F
+            definition.maximumLife >= 0.0F
                 ? definition.maximumLife
-                : (definition.destructible ? 1.0F : -1.0F));
+                : -1.0F);
     }
     bonusActive_.assign(race_.bonuses.size(), true);
     events_.clear();
@@ -5764,21 +5764,29 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t racer = 0;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
     {
-        if (racers_[racer].destroyed || vehicles[racer].speed < 8.0F)
+        if (racers_[racer].destroyed)
             continue;
-        const auto& racerDefinition = race_.racers[racer];
-        const auto& vehicleDefinition =
-            racerDefinition.hasConfiguredVehicle
-                ? racerDefinition.configuredVehicle
-                : race_.vehicles.at(racerDefinition.vehicle);
-        ProjectileCollisionBox vehicleCollision;
-        vehicleCollision.center =
-            vehicleDefinition.physics.shapePosition;
-        vehicleCollision.halfExtents =
-            vehicleDefinition.physics.halfExtents;
-        damageDecorationWithBox(
-            vehicles[racer].body, vehicleCollision,
-            vehicles[racer].speed * 2.0F, racer);
+        for (const auto& contact : vehicles[racer].bodyContacts)
+        {
+            if (contact.surface !=
+                    r3d::physics::CollisionSurface::Decoration ||
+                contact.otherDecoration >=
+                    race_.decorationInstances.size() ||
+                contact.otherDecoration >= decorationActive_.size())
+                continue;
+            const auto& instance =
+                race_.decorationInstances[contact.otherDecoration];
+            if (instance.definition >=
+                    race_.decorationDefinitions.size() ||
+                !race_.decorationDefinitions[instance.definition]
+                     .destructible)
+                continue;
+            // GameCar::OnContact calls target->Damage(playerId, 0, dtTouch)
+            // for every non-car GameObject. A gotDestrObj has maxLife == 0,
+            // so that zero-value contact is immediately lethal even though
+            // its NX_AF_DISABLE_RESPONSE actor never blocks the car.
+            damageDecoration(contact.otherDecoration, 0.0F, racer);
+        }
     }
 }
 
@@ -7073,9 +7081,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             vehicles[0].body.position = subtract(
                 sourceContact,
                 playerDefinition.physics.shapePosition);
-            vehicles[0].speed = 10.0F;
+            r3d::physics::BodyContact sourceTouch;
+            sourceTouch.surface =
+                r3d::physics::CollisionSurface::Decoration;
+            sourceTouch.otherDecoration = instance;
+            sourceTouch.point = sourceContact;
+            sourceTouch.points = {sourceContact};
+            sourceTouch.hasPoint = true;
+            vehicles[0].bodyContacts = {sourceTouch};
             destructionSession.update(
                 1.0F / 60.0F, vehicles, destructionInput);
+            vehicles[0].bodyContacts.clear();
             const bool hasSourceEvent = std::any_of(
                 destructionSession.events().begin(),
                 destructionSession.events().end(),
