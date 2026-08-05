@@ -157,6 +157,15 @@ enum class ParticleMaximumAction
     ReplaceLatest,
 };
 
+// ValueRange<vec3>/ValueRange<quat> in lslMath supports either one
+// continuous interpolation parameter or a discrete multidimensional grid.
+// The distinction is part of the serialized effect, not a renderer detail.
+enum class ParticleDistribution
+{
+    Linear,
+    Volume,
+};
+
 struct ParticleEmitterDefinition
 {
     // Leaf database record which owns this emitter. Includes are flattened,
@@ -183,26 +192,59 @@ struct ParticleEmitterDefinition
     float densityMaximum = 0.0F;
     Vec3 startPositionMinimum;
     Vec3 startPositionMaximum;
+    ParticleDistribution startPositionDistribution =
+        ParticleDistribution::Linear;
+    std::array<std::uint32_t, 3> startPositionFrequency{100U, 100U,
+                                                        100U};
     Vec3 startScaleMinimum{1.0F, 1.0F, 1.0F};
     Vec3 startScaleMaximum{1.0F, 1.0F, 1.0F};
+    ParticleDistribution startScaleDistribution =
+        ParticleDistribution::Linear;
+    std::array<std::uint32_t, 3> startScaleFrequency{100U, 100U, 100U};
     Quat startRotationMinimum;
     Quat startRotationMaximum;
+    ParticleDistribution startRotationDistribution =
+        ParticleDistribution::Linear;
+    std::array<std::uint32_t, 2> startRotationFrequency{100U, 100U};
     float rangeLifeMinimum = 0.0F;
     float rangeLifeMaximum = 0.0F;
     Vec3 rangePositionMinimum;
     Vec3 rangePositionMaximum;
+    ParticleDistribution rangePositionDistribution =
+        ParticleDistribution::Linear;
+    std::array<std::uint32_t, 3> rangePositionFrequency{100U, 100U,
+                                                        100U};
     Vec3 rangeScaleMinimum;
     Vec3 rangeScaleMaximum;
+    ParticleDistribution rangeScaleDistribution =
+        ParticleDistribution::Linear;
+    std::array<std::uint32_t, 3> rangeScaleFrequency{100U, 100U, 100U};
     Quat rangeRotationMinimum;
     Quat rangeRotationMaximum;
+    ParticleDistribution rangeRotationDistribution =
+        ParticleDistribution::Linear;
+    std::array<std::uint32_t, 2> rangeRotationFrequency{100U, 100U};
     Vec3 velocityMinimum;
     Vec3 velocityMaximum;
+    ParticleDistribution velocityDistribution =
+        ParticleDistribution::Linear;
+    std::array<std::uint32_t, 3> velocityFrequency{100U, 100U, 100U};
     Quat rotationVelocityMinimum;
     Quat rotationVelocityMaximum;
+    ParticleDistribution rotationVelocityDistribution =
+        ParticleDistribution::Linear;
+    std::array<std::uint32_t, 2> rotationVelocityFrequency{100U, 100U};
     Vec3 scaleVelocityMinimum;
     Vec3 scaleVelocityMaximum;
+    ParticleDistribution scaleVelocityDistribution =
+        ParticleDistribution::Linear;
+    std::array<std::uint32_t, 3> scaleVelocityFrequency{100U, 100U,
+                                                        100U};
     Vec3 accelerationMinimum;
     Vec3 accelerationMaximum;
+    ParticleDistribution accelerationDistribution =
+        ParticleDistribution::Linear;
+    std::array<std::uint32_t, 3> accelerationFrequency{100U, 100U, 100U};
     Vec3 gravity;
     bool worldCoordinates = true;
     // FxSystemSrcSpeed is attached to the GameObject which owns this

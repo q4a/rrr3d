@@ -1557,6 +1557,41 @@ Quat optionalParticleQuaternion(TiXmlElement* parent,
                : fallback;
 }
 
+ParticleDistribution particleDistribution(TiXmlElement* parent,
+                                          std::string_view path)
+{
+    auto* value = child(parent, std::string(path) + "/distrib");
+    return value != nullptr && value->GetText() != nullptr &&
+                   std::string_view(value->GetText()) == "vdVolume"
+               ? ParticleDistribution::Volume
+               : ParticleDistribution::Linear;
+}
+
+template <std::size_t Size>
+std::array<std::uint32_t, Size> particleFrequency(
+    TiXmlElement* parent, std::string_view path,
+    std::string_view source)
+{
+    std::array<std::uint32_t, Size> result{};
+    result.fill(100U);
+    auto* value = child(parent, std::string(path) + "/freq");
+    if (value == nullptr || value->GetText() == nullptr)
+        return result;
+    std::istringstream stream(value->GetText());
+    for (auto& component : result)
+    {
+        if (!(stream >> component) || component == 0U)
+            throw resource::ResourceError(
+                std::string(source) + ": invalid " +
+                std::string(path) + "/freq");
+    }
+    if (stream >> std::ws && !stream.eof())
+        throw resource::ResourceError(
+            std::string(source) + ": invalid " +
+            std::string(path) + "/freq");
+    return result;
+}
+
 bool hasBehaviorType(TiXmlElement* record, std::string_view wanted)
 {
     auto* behaviors = child(record, "behaviors/items");
@@ -1814,12 +1849,20 @@ void appendParticleEmitters(
             emitter.startPositionMaximum = optionalParticleVector(
                 part, "startPos/max",
                 emitter.startPositionMinimum, source);
+            emitter.startPositionDistribution =
+                particleDistribution(part, "startPos");
+            emitter.startPositionFrequency =
+                particleFrequency<3U>(part, "startPos", source);
             emitter.startScaleMinimum = optionalParticleVector(
                 part, "startScale/min", {1.0F, 1.0F, 1.0F},
                 source);
             emitter.startScaleMaximum = optionalParticleVector(
                 part, "startScale/max",
                 emitter.startScaleMinimum, source);
+            emitter.startScaleDistribution =
+                particleDistribution(part, "startScale");
+            emitter.startScaleFrequency =
+                particleFrequency<3U>(part, "startScale", source);
             emitter.startRotationMinimum =
                 optionalParticleQuaternion(
                     part, "startRot/min", {}, source);
@@ -1827,6 +1870,10 @@ void appendParticleEmitters(
                 optionalParticleQuaternion(
                     part, "startRot/max",
                     emitter.startRotationMinimum, source);
+            emitter.startRotationDistribution =
+                particleDistribution(part, "startRot");
+            emitter.startRotationFrequency =
+                particleFrequency<2U>(part, "startRot", source);
             emitter.rangeLifeMinimum = optionalParticleScalar(
                 part, "rangeLife/min", 0.0F, source);
             emitter.rangeLifeMaximum = optionalParticleScalar(
@@ -1837,11 +1884,19 @@ void appendParticleEmitters(
             emitter.rangePositionMaximum = optionalParticleVector(
                 part, "rangePos/max",
                 emitter.rangePositionMinimum, source);
+            emitter.rangePositionDistribution =
+                particleDistribution(part, "rangePos");
+            emitter.rangePositionFrequency =
+                particleFrequency<3U>(part, "rangePos", source);
             emitter.rangeScaleMinimum = optionalParticleVector(
                 part, "rangeScale/min", {}, source);
             emitter.rangeScaleMaximum = optionalParticleVector(
                 part, "rangeScale/max",
                 emitter.rangeScaleMinimum, source);
+            emitter.rangeScaleDistribution =
+                particleDistribution(part, "rangeScale");
+            emitter.rangeScaleFrequency =
+                particleFrequency<3U>(part, "rangeScale", source);
             emitter.rangeRotationMinimum =
                 optionalParticleQuaternion(
                     part, "rangeRot/min", {}, source);
@@ -1849,11 +1904,19 @@ void appendParticleEmitters(
                 optionalParticleQuaternion(
                     part, "rangeRot/max",
                     emitter.rangeRotationMinimum, source);
+            emitter.rangeRotationDistribution =
+                particleDistribution(part, "rangeRot");
+            emitter.rangeRotationFrequency =
+                particleFrequency<2U>(part, "rangeRot", source);
             emitter.velocityMinimum = optionalParticleVector(
                 flow, "speedPos/min", {}, source);
             emitter.velocityMaximum = optionalParticleVector(
                 flow, "speedPos/max", emitter.velocityMinimum,
                 source);
+            emitter.velocityDistribution =
+                particleDistribution(flow, "speedPos");
+            emitter.velocityFrequency =
+                particleFrequency<3U>(flow, "speedPos", source);
             emitter.rotationVelocityMinimum =
                 optionalParticleQuaternion(
                     flow, "speedRot/min", {}, source);
@@ -1861,16 +1924,28 @@ void appendParticleEmitters(
                 optionalParticleQuaternion(
                     flow, "speedRot/max",
                     emitter.rotationVelocityMinimum, source);
+            emitter.rotationVelocityDistribution =
+                particleDistribution(flow, "speedRot");
+            emitter.rotationVelocityFrequency =
+                particleFrequency<2U>(flow, "speedRot", source);
             emitter.scaleVelocityMinimum = optionalParticleVector(
                 flow, "speedScale/min", {}, source);
             emitter.scaleVelocityMaximum = optionalParticleVector(
                 flow, "speedScale/max",
                 emitter.scaleVelocityMinimum, source);
+            emitter.scaleVelocityDistribution =
+                particleDistribution(flow, "speedScale");
+            emitter.scaleVelocityFrequency =
+                particleFrequency<3U>(flow, "speedScale", source);
             emitter.accelerationMinimum = optionalParticleVector(
                 flow, "acceleration/min", {}, source);
             emitter.accelerationMaximum = optionalParticleVector(
                 flow, "acceleration/max",
                 emitter.accelerationMinimum, source);
+            emitter.accelerationDistribution =
+                particleDistribution(flow, "acceleration");
+            emitter.accelerationFrequency =
+                particleFrequency<3U>(flow, "acceleration", source);
             emitter.gravity = optionalParticleVector(
                 flow, "gravitation", {}, source);
             if (auto* coordinates =
@@ -5160,6 +5235,28 @@ bool runOriginalRaceResourceSmokeTest(
         const int piecesEmitter = particleNodeIndex("pieces1.r3d");
         const int wheelEmitter = particleNodeIndex("wheel.r3d");
         const int trubaEmitter = particleNodeIndex("truba.r3d");
+        const auto volumeNodeRangesMatchSource =
+            [&](int index) {
+                if (index < 0)
+                    return false;
+                const auto& emitter =
+                    sourceDeathVisual.particleEmitters[
+                        static_cast<std::size_t>(index)];
+                return emitter.startPositionDistribution ==
+                           ParticleDistribution::Volume &&
+                       emitter.velocityDistribution ==
+                           ParticleDistribution::Volume &&
+                       emitter.rotationVelocityDistribution ==
+                           ParticleDistribution::Volume &&
+                       emitter.startPositionFrequency ==
+                           std::array<std::uint32_t, 3>{100U, 100U,
+                                                        100U} &&
+                       emitter.velocityFrequency ==
+                           std::array<std::uint32_t, 3>{100U, 100U,
+                                                        100U} &&
+                       emitter.rotationVelocityFrequency ==
+                           std::array<std::uint32_t, 2>{100U, 100U};
+            };
         const auto nestedPointEmitterCount =
             static_cast<std::size_t>(std::count_if(
                 sourceDeathVisual.particleEmitters.begin(),
@@ -5177,6 +5274,8 @@ bool runOriginalRaceResourceSmokeTest(
             race.vehicle.deathEffects[0].visual.maximumTimeLife != 10.0F ||
             race.vehicle.deathEffects[0].visual.particleEmitters.empty() ||
             piecesEmitter < 0 || wheelEmitter < 0 || trubaEmitter < 0 ||
+            !volumeNodeRangesMatchSource(wheelEmitter) ||
+            !volumeNodeRangesMatchSource(trubaEmitter) ||
             nestedPointEmitterCount != 2U ||
             race.vehicle.deathEffects[0].visual.soundPaths.empty() ||
             !recordEndsWith(
@@ -5209,7 +5308,11 @@ bool runOriginalRaceResourceSmokeTest(
                 std::to_string(wheelEmitter >= 0 ? 1 : 0) + "/" +
                 std::to_string(trubaEmitter >= 0 ? 1 : 0) +
                 ", nested point emitters=" +
-                std::to_string(nestedPointEmitterCount);
+                std::to_string(nestedPointEmitterCount) +
+                ", volume ranges=" +
+                (volumeNodeRangesMatchSource(wheelEmitter) ? "1" : "0") +
+                "/" +
+                (volumeNodeRangesMatchSource(trubaEmitter) ? "1" : "0");
             return false;
         }
         const auto expandingExplosion = std::find_if(

@@ -517,35 +517,79 @@ r3d::physics::Quat multiply(const r3d::physics::Quat& first,
                 first.y * second.y - first.z * second.z};
 }
 
-r3d::physics::Quat normalizedLerp(
+r3d::physics::Quat normalizeQuaternion(r3d::physics::Quat value)
+{
+    const float length = std::sqrt(
+        value.x * value.x + value.y * value.y + value.z * value.z +
+        value.w * value.w);
+    if (length <= 0.0001F)
+        return {};
+    value.x /= length;
+    value.y /= length;
+    value.z /= length;
+    value.w /= length;
+    return value;
+}
+
+r3d::physics::Quat sphericalMix(
     r3d::physics::Quat first, r3d::physics::Quat second,
     float amount)
 {
     amount = std::clamp(amount, 0.0F, 1.0F);
-    const float dot = first.x * second.x + first.y * second.y +
-                      first.z * second.z + first.w * second.w;
-    if (dot < 0.0F)
+    first = normalizeQuaternion(first);
+    second = normalizeQuaternion(second);
+    const float cosine = std::clamp(
+        first.x * second.x + first.y * second.y +
+            first.z * second.z + first.w * second.w,
+        -1.0F, 1.0F);
+    const float angle = std::acos(cosine);
+    const float sine = std::sin(angle);
+    if (std::abs(sine) <= 0.0001F)
     {
-        second.x = -second.x;
-        second.y = -second.y;
-        second.z = -second.z;
-        second.w = -second.w;
+        return normalizeQuaternion({
+            first.x + (second.x - first.x) * amount,
+            first.y + (second.y - first.y) * amount,
+            first.z + (second.z - first.z) * amount,
+            first.w + (second.w - first.w) * amount});
     }
-    r3d::physics::Quat result{
-        first.x + (second.x - first.x) * amount,
-        first.y + (second.y - first.y) * amount,
-        first.z + (second.z - first.z) * amount,
-        first.w + (second.w - first.w) * amount};
-    const float length = std::sqrt(
-        result.x * result.x + result.y * result.y +
-        result.z * result.z + result.w * result.w);
-    if (length <= 0.0001F)
-        return {};
-    result.x /= length;
-    result.y /= length;
-    result.z /= length;
-    result.w /= length;
-    return result;
+    const float firstWeight = std::sin((1.0F - amount) * angle) / sine;
+    const float secondWeight = std::sin(amount * angle) / sine;
+    return {first.x * firstWeight + second.x * secondWeight,
+            first.y * firstWeight + second.y * secondWeight,
+            first.z * firstWeight + second.z * secondWeight,
+            first.w * firstWeight + second.w * secondWeight};
+}
+
+float quaternionAngle(r3d::physics::Quat value)
+{
+    value = normalizeQuaternion(value);
+    return 2.0F * std::acos(std::clamp(value.w, -1.0F, 1.0F));
+}
+
+r3d::physics::Vec3 quaternionAxis(r3d::physics::Quat value)
+{
+    value = normalizeQuaternion(value);
+    const float sine = std::sqrt(
+        std::max(1.0F - value.w * value.w, 0.0F));
+    if (sine <= 0.0001F)
+        return {0.0F, 0.0F, 1.0F};
+    return {value.x / sine, value.y / sine, value.z / sine};
+}
+
+r3d::physics::Quat angleAxis(float angle,
+                             const r3d::physics::Vec3& axis)
+{
+    const float halfAngle = angle * 0.5F;
+    const float sine = std::sin(halfAngle);
+    return {axis.x * sine, axis.y * sine, axis.z * sine,
+            std::cos(halfAngle)};
+}
+
+r3d::physics::Quat integrateRotation(
+    const r3d::physics::Quat& angularVelocity, float seconds)
+{
+    const auto axis = quaternionAxis(angularVelocity);
+    return angleAxis(quaternionAngle(angularVelocity) * seconds, axis);
 }
 
 r3d::physics::Transform compose(
@@ -565,6 +609,19 @@ r3d::physics::Transform compose(
                     parent.scale.y * local.scale.y,
                     parent.scale.z * local.scale.z};
     result.rotation = multiply(parent.rotation, local.rotation);
+    return result;
+}
+
+r3d::physics::Transform worldCoordinateParticle(
+    const r3d::physics::Transform& emitter,
+    const r3d::physics::Transform& particle)
+{
+    auto result = compose(emitter, particle);
+    // FxEmitter::UpdateParticle transforms only startPos through
+    // LocalToWorldCoord. Rotation and scale remain particle properties and
+    // FxNode/FxPlane managers render them against IdentityMatrix.
+    result.rotation = particle.rotation;
+    result.scale = particle.scale;
     return result;
 }
 
@@ -2720,14 +2777,108 @@ void OriginalRaceRenderer::draw(
     auto rangeVector =
         [&](const r3d::physics::Vec3& minimum,
             const r3d::physics::Vec3& maximum,
-            std::uint32_t seed) {
-            const float x = unitNoise(seed);
-            const float y = unitNoise(seed + 0x9e3779b9U);
-            const float z = unitNoise(seed + 0x3c6ef372U);
+            r3d::game::originalrace::ParticleDistribution distribution,
+            const std::array<std::uint32_t, 3>& frequency,
+            float range) {
+            range = std::clamp(range, 0.0F, 1.0F);
+            if (distribution ==
+                r3d::game::originalrace::ParticleDistribution::Linear)
+            {
+                return r3d::physics::Vec3{
+                    minimum.x + (maximum.x - minimum.x) * range,
+                    minimum.y + (maximum.y - minimum.y) * range,
+                    minimum.z + (maximum.z - minimum.z) * range};
+            }
+            const std::uint32_t xFrequency =
+                std::max(frequency[0], 1U);
+            const std::uint32_t yFrequency =
+                std::max(frequency[1], 1U);
+            const std::uint32_t zFrequency =
+                std::max(frequency[2], 1U);
+            const std::uint64_t volume =
+                static_cast<std::uint64_t>(xFrequency) * yFrequency *
+                zFrequency;
+            const std::uint64_t cellNumber =
+                range == 1.0F
+                    ? volume - 1U
+                    : std::min(
+                          static_cast<std::uint64_t>(volume * range),
+                          volume - 1U);
+            const std::uint32_t xCell = static_cast<std::uint32_t>(
+                cellNumber % xFrequency);
+            const std::uint32_t yCell = static_cast<std::uint32_t>(
+                (cellNumber / xFrequency) % yFrequency);
+            const std::uint32_t zCell = static_cast<std::uint32_t>(
+                (cellNumber /
+                 (static_cast<std::uint64_t>(xFrequency) * yFrequency)) %
+                zFrequency);
+            const r3d::physics::Vec3 step{
+                xFrequency > 1U
+                    ? (maximum.x - minimum.x) /
+                          static_cast<float>(xFrequency - 1U)
+                    : 0.0F,
+                yFrequency > 1U
+                    ? (maximum.y - minimum.y) /
+                          static_cast<float>(yFrequency - 1U)
+                    : 0.0F,
+                zFrequency > 1U
+                    ? (maximum.z - minimum.z) /
+                          static_cast<float>(zFrequency - 1U)
+                    : 0.0F};
             return r3d::physics::Vec3{
-                minimum.x + (maximum.x - minimum.x) * x,
-                minimum.y + (maximum.y - minimum.y) * y,
-                minimum.z + (maximum.z - minimum.z) * z};
+                minimum.x + step.x * static_cast<float>(xCell),
+                minimum.y + step.y * static_cast<float>(yCell),
+                minimum.z + step.z * static_cast<float>(zCell)};
+        };
+    auto rangeQuaternion =
+        [&](const r3d::physics::Quat& minimum,
+            const r3d::physics::Quat& maximum,
+            r3d::game::originalrace::ParticleDistribution distribution,
+            const std::array<std::uint32_t, 2>& frequency,
+            float range) {
+            range = std::clamp(range, 0.0F, 1.0F);
+            if (distribution ==
+                r3d::game::originalrace::ParticleDistribution::Linear)
+                return sphericalMix(minimum, maximum, range);
+            const std::uint32_t xFrequency =
+                std::max(frequency[0], 1U);
+            const std::uint32_t yFrequency =
+                std::max(frequency[1], 1U);
+            const std::uint64_t volume =
+                static_cast<std::uint64_t>(xFrequency) * yFrequency;
+            const std::uint64_t cellNumber =
+                range == 1.0F
+                    ? volume - 1U
+                    : std::min(
+                          static_cast<std::uint64_t>(volume * range),
+                          volume - 1U);
+            const std::uint32_t xCell = static_cast<std::uint32_t>(
+                cellNumber % xFrequency);
+            const std::uint32_t yCell = static_cast<std::uint32_t>(
+                (cellNumber / xFrequency) % yFrequency);
+            const float xStep =
+                xFrequency > 1U
+                    ? (maximum.x - minimum.x) /
+                          static_cast<float>(xFrequency - 1U)
+                    : 0.0F;
+            const float yStep =
+                yFrequency > 1U
+                    ? (maximum.y - minimum.y) /
+                          static_cast<float>(yFrequency - 1U)
+                    : 0.0F;
+            r3d::physics::Vec3 axis{
+                minimum.x + xStep * static_cast<float>(xCell),
+                minimum.y + yStep * static_cast<float>(yCell), 0.0F};
+            axis.z = std::sqrt(std::max(
+                1.0F - axis.x * axis.x - axis.y * axis.y, 0.0F));
+            if (range > 0.5F)
+                axis.z = -axis.z;
+            return angleAxis(
+                quaternionAngle(minimum) +
+                    (quaternionAngle(maximum) -
+                     quaternionAngle(minimum)) *
+                        range,
+                axis);
         };
     auto drawParticles =
         [&](const ObjectAsset& asset,
@@ -2979,28 +3130,30 @@ void OriginalRaceRenderer::draw(
                                 : unitNoise(seed + 13U);
                         auto position = rangeVector(
                             emitter.startPositionMinimum,
-                            emitter.startPositionMaximum, seed + 31U);
-                        position.x +=
-                            emitter.rangePositionMinimum.x +
-                            (emitter.rangePositionMaximum.x -
-                             emitter.rangePositionMinimum.x) *
-                                rangeFrame;
-                        position.y +=
-                            emitter.rangePositionMinimum.y +
-                            (emitter.rangePositionMaximum.y -
-                             emitter.rangePositionMinimum.y) *
-                                rangeFrame;
-                        position.z +=
-                            emitter.rangePositionMinimum.z +
-                            (emitter.rangePositionMaximum.z -
-                             emitter.rangePositionMinimum.z) *
-                                rangeFrame;
+                            emitter.startPositionMaximum,
+                            emitter.startPositionDistribution,
+                            emitter.startPositionFrequency,
+                            unitNoise(seed + 31U));
+                        const auto rangePosition = rangeVector(
+                            emitter.rangePositionMinimum,
+                            emitter.rangePositionMaximum,
+                            emitter.rangePositionDistribution,
+                            emitter.rangePositionFrequency, rangeFrame);
+                        position.x += rangePosition.x;
+                        position.y += rangePosition.y;
+                        position.z += rangePosition.z;
                         const auto velocity = rangeVector(
                             emitter.velocityMinimum,
-                            emitter.velocityMaximum, seed + 67U);
+                            emitter.velocityMaximum,
+                            emitter.velocityDistribution,
+                            emitter.velocityFrequency,
+                            unitNoise(seed + 67U));
                         auto acceleration = rangeVector(
                             emitter.accelerationMinimum,
-                            emitter.accelerationMaximum, seed + 101U);
+                            emitter.accelerationMaximum,
+                            emitter.accelerationDistribution,
+                            emitter.accelerationFrequency,
+                            unitNoise(seed + 101U));
                         auto integratedAcceleration = acceleration;
                         if (!emitter.worldCoordinates)
                         {
@@ -3025,62 +3178,103 @@ void OriginalRaceRenderer::draw(
                                 particleAge * 0.5F;
                         auto scale = rangeVector(
                             emitter.startScaleMinimum,
-                            emitter.startScaleMaximum, seed + 149U);
-                        scale.x +=
-                            emitter.rangeScaleMinimum.x +
-                            (emitter.rangeScaleMaximum.x -
-                             emitter.rangeScaleMinimum.x) *
-                                rangeFrame;
-                        scale.y +=
-                            emitter.rangeScaleMinimum.y +
-                            (emitter.rangeScaleMaximum.y -
-                             emitter.rangeScaleMinimum.y) *
-                                rangeFrame;
-                        scale.z +=
-                            emitter.rangeScaleMinimum.z +
-                            (emitter.rangeScaleMaximum.z -
-                             emitter.rangeScaleMinimum.z) *
-                                rangeFrame;
+                            emitter.startScaleMaximum,
+                            emitter.startScaleDistribution,
+                            emitter.startScaleFrequency,
+                            unitNoise(seed + 149U));
+                        const auto rangeScale = rangeVector(
+                            emitter.rangeScaleMinimum,
+                            emitter.rangeScaleMaximum,
+                            emitter.rangeScaleDistribution,
+                            emitter.rangeScaleFrequency, rangeFrame);
+                        scale.x += rangeScale.x;
+                        scale.y += rangeScale.y;
+                        scale.z += rangeScale.z;
                         const auto scaleVelocity = rangeVector(
                             emitter.scaleVelocityMinimum,
-                            emitter.scaleVelocityMaximum, seed + 193U);
-                        scale.x = std::max(
-                            scale.x +
-                                scaleVelocity.x * particleAge,
-                            0.01F);
-                        scale.y = std::max(
-                            scale.y +
-                                scaleVelocity.y * particleAge,
-                            0.01F);
-                        scale.z = std::max(
-                            scale.z +
-                                scaleVelocity.z * particleAge,
-                            0.01F);
+                            emitter.scaleVelocityMaximum,
+                            emitter.scaleVelocityDistribution,
+                            emitter.scaleVelocityFrequency,
+                            unitNoise(seed + 193U));
+                        scale.x += scaleVelocity.x * particleAge;
+                        scale.y += scaleVelocity.y * particleAge;
+                        scale.z += scaleVelocity.z * particleAge;
                         r3d::physics::Transform particle;
                         particle.position = position;
                         particle.scale = scale;
                         particle.rotation = multiply(
-                            normalizedLerp(
+                            rangeQuaternion(
                                 emitter.startRotationMinimum,
                                 emitter.startRotationMaximum,
+                                emitter.startRotationDistribution,
+                                emitter.startRotationFrequency,
                                 unitNoise(seed + 211U)),
-                            normalizedLerp(
+                            rangeQuaternion(
                                 emitter.rangeRotationMinimum,
                                 emitter.rangeRotationMaximum,
+                                emitter.rangeRotationDistribution,
+                                emitter.rangeRotationFrequency,
                                 rangeFrame));
                         const auto rotationVelocity =
-                            normalizedLerp(
+                            rangeQuaternion(
                                 emitter.rotationVelocityMinimum,
                                 emitter.rotationVelocityMaximum,
+                                emitter.rotationVelocityDistribution,
+                                emitter.rotationVelocityFrequency,
                                 unitNoise(seed + 223U));
-                        particle.rotation = multiply(
-                            normalizedLerp(
-                                {}, rotationVelocity,
-                                std::fmod(
-                                    std::max(particleAge, 0.0F),
-                                    1.0F)),
-                            particle.rotation);
-                        auto world = compose(emitterWorld, particle);
+                        const r3d::physics::Vec3 localParticleVelocity{
+                            velocity.x +
+                                integratedAcceleration.x * particleAge,
+                            velocity.y +
+                                integratedAcceleration.y * particleAge,
+                            velocity.z +
+                                integratedAcceleration.z * particleAge};
+                        auto particleVelocity = rotate(
+                            emitterWorld.rotation,
+                            localParticleVelocity);
+                        if (emitter.worldCoordinates)
+                        {
+                            particleVelocity.x +=
+                                emitter.gravity.x * particleAge;
+                            particleVelocity.y +=
+                                emitter.gravity.y * particleAge;
+                            particleVelocity.z +=
+                                emitter.gravity.z * particleAge;
+                        }
+                        if (emitter.inheritSourceVelocity)
+                        {
+                            // FxFlowEmitter adds FxSystem::srcSpeed to the
+                            // particle velocity at birth.  SrcSpeed is the
+                            // owning PhysX actor's full linear velocity; it
+                            // only set by FxSystemSrcSpeed. It is separate
+                            // from the world-coordinate birth-position
+                            // reconstruction above.
+                            particleVelocity.x += sourceVelocity.x;
+                            particleVelocity.y += sourceVelocity.y;
+                            particleVelocity.z += sourceVelocity.z;
+                        }
+                        if (emitter.autoRotate)
+                        {
+                            const auto rotationDirection =
+                                emitter.worldCoordinates
+                                    ? particleVelocity
+                                    : localParticleVelocity;
+                            particle.rotation = multiply(
+                                rotationVelocity,
+                                directionRotation(rotationDirection));
+                        }
+                        else
+                        {
+                            particle.rotation = multiply(
+                                integrateRotation(
+                                    rotationVelocity, particleAge),
+                                particle.rotation);
+                        }
+                        auto world =
+                            emitter.worldCoordinates
+                                ? worldCoordinateParticle(
+                                      emitterWorld, particle)
+                                : compose(emitterWorld, particle);
                         if (emitter.worldCoordinates)
                         {
                             // FxEmitter transforms the initial particle
@@ -3105,40 +3299,14 @@ void OriginalRaceRenderer::draw(
                                 emitter.gravity.z * particleAge *
                                 particleAge * 0.5F;
                         }
-                        auto particleVelocity = rotate(
-                            emitterWorld.rotation,
-                            {velocity.x +
-                                 integratedAcceleration.x * particleAge,
-                             velocity.y +
-                                 integratedAcceleration.y * particleAge,
-                             velocity.z +
-                                 integratedAcceleration.z * particleAge});
-                        if (emitter.worldCoordinates)
-                        {
-                            particleVelocity.x +=
-                                emitter.gravity.x * particleAge;
-                            particleVelocity.y +=
-                                emitter.gravity.y * particleAge;
-                            particleVelocity.z +=
-                                emitter.gravity.z * particleAge;
-                        }
                         if (emitter.inheritSourceVelocity)
                         {
-                            // FxFlowEmitter adds FxSystem::srcSpeed to the
-                            // particle velocity at birth.  SrcSpeed is the
-                            // owning PhysX actor's full linear velocity; it
-                            // only set by FxSystemSrcSpeed. It is separate
-                            // from the world-coordinate birth-position
-                            // reconstruction above.
                             world.position.x +=
                                 sourceVelocity.x * particleAge;
                             world.position.y +=
                                 sourceVelocity.y * particleAge;
                             world.position.z +=
                                 sourceVelocity.z * particleAge;
-                            particleVelocity.x += sourceVelocity.x;
-                            particleVelocity.y += sourceVelocity.y;
-                            particleVelocity.z += sourceVelocity.z;
                         }
                         // FxParticleSystem::OnUpdateParticle only copies the
                         // particle's world position into its child node; the
@@ -3171,14 +3339,14 @@ void OriginalRaceRenderer::draw(
                             }
                             continue;
                         }
-                        auto direction = particleVelocity;
-                        const auto unitDirection =
-                            normalize(direction);
+                        // FxSpritesManager derives both sprite modes from
+                        // the particle quaternion: dirSprite rotates the X
+                        // vector, while the ordinary mode uses its angle.
+                        // It also renders the particle's own scale against
+                        // IdentityMatrix, independent of emitter scale.
+                        auto direction = rotateX(particle.rotation);
                         const float turnAngle =
-                            emitter.autoRotate
-                                ? std::acos(std::clamp(
-                                      unitDirection.x, -1.0F, 1.0F))
-                                : 0.0F;
+                            quaternionAngle(particle.rotation);
                         Transform model;
                         if (emitter.renderMode ==
                                 r3d::game::originalrace::
@@ -3191,16 +3359,17 @@ void OriginalRaceRenderer::draw(
                         }
                         else
                         {
+                            auto spriteScale = particle.scale;
                             if (emitter.renderMode ==
                                 r3d::game::originalrace::
                                     ParticleRenderMode::PointSprite)
                             {
                                 const float pointSize = std::sqrt(
-                                    world.scale.x * world.scale.x +
-                                    world.scale.y * world.scale.y +
-                                    world.scale.z * world.scale.z) *
+                                    spriteScale.x * spriteScale.x +
+                                    spriteScale.y * spriteScale.y +
+                                    spriteScale.z * spriteScale.z) *
                                     pointSpriteScale_;
-                                world.scale =
+                                spriteScale =
                                     {pointSize, pointSize, pointSize};
                             }
                             const bool directed =
@@ -3213,7 +3382,7 @@ void OriginalRaceRenderer::draw(
                                     r3d::game::originalrace::
                                         ParticleRenderMode::Trail;
                             model = billboardTransform(
-                                world.position, world.scale,
+                                world.position, spriteScale,
                                 cameraPosition_, turnAngle,
                                 directed ? &direction : nullptr);
                         }
