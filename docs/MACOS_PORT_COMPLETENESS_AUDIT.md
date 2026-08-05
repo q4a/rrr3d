@@ -105,9 +105,9 @@ Windows target не компилируется.
 | Mini-map | `MiniMapFrame`, `TraceGfx` | source trace-path geometry | Перенесено | Перенесены все pathes, Align/ComputeNode/smoothing, 320×320 align, start marker, 20×20 car markers/colors и `CarState::GetMapPos`-совместимая удерживаемая trace projection |
 | Camera | `CameraManager.cpp`, `View.cpp`, `ActorManager::PullInRayTargetGroup` | source formulas и cull-opacity runtime в renderer | Перенесено для offline race | Release-переключение содержит только `csThirdPerson`/`csIsometric`; перенесены velocity pose, pull-back, ortho lead/teleport compensation, profile distance, projection и 0.25 s `gpCullOpacity` transitions. Debug/editor modes исключены |
 | Scene graph/render queues | `GraphManager`, `Actor`, `SceneManager` | custom queues в `OriginalRaceRenderer` | Частично | Основные order buckets есть; generic actor/proxy/octree graph не перенесён |
-| Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | source-derived material catalog + bgfx mappings | Перенесено с renderer-адаптацией | Проверены все 238 активных `Load*LibMat` records; два отсутствующих texture records являются source no-texture projectiles, ещё два — закомментированные `World2/track2` calls. Opaque/alpha/additive/bump/reflection и material flags сопоставлены без active name fallback |
-| Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы directional race passes, source shadow maps Garage/Angar, HDR/bloom/tone map и High-quality perspective SunShaft с prepare mask, фиксированными 640×512/320×256 targets, восемью ping-pong resample и исходным radial composite; bit-for-bit и полное graph state parity не доказаны |
-| Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Перенесено для active catalog | В фактическом `db.xml` покрыты все 8 manager classes, все 37 `ntParticleSystem`, единственный активный `FxFlowEmitter`, все 14 `partDesc` и 5 `flowDesc` fields, child systems, distributions, lifetime/fading и `ntIVBMesh`/`ntSprite`/`ntPlane`; D3D sorting заменён bgfx |
+| Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | source-derived material catalog + bgfx mappings | Перенесено с renderer-адаптацией | Проверены все 238 активных `Load*LibMat` records; два отсутствующих texture records являются source no-texture projectiles, ещё два — закомментированные `World2/track2` calls. Opaque/alpha/additive/bump/reflection/refraction и material flags сопоставлены без active name fallback; `refract.fx` использует исходные LINEAR/WRAP/MIRROR samplers |
+| Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы directional race passes, source shadow maps Garage/Angar, HDR/bloom/tone map, Middle+ `goRefr` clean-scene/refraction и High-quality perspective SunShaft с prepare mask, фиксированными 640×512/320×256 targets, восемью ping-pong resample и исходным radial composite; bit-for-bit и полное graph state parity не доказаны |
+| Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Перенесено для active catalog | В фактическом `db.xml` покрыты все 8 manager classes, все 37 `ntParticleSystem`, единственный активный `FxFlowEmitter`, все 14 `partDesc` и 5 `flowDesc` fields, child systems, distributions, lifetime/fading и `ntIVBMesh`/`ntSprite`/`ntPlane`. Flattened include сохраняет собственные lighting/order/lifetime каждого child Actor; D3D sorting заменён bgfx |
 | Weather/water/magma/sky | `Environment.cpp`, `GraphManager`, `WaterPlane`, `FogPlane`, `GrassField`, source `.fx` | source graph + bgfx/Metal shader equivalents | Перенесено с backend-адаптацией | Перенесены шесть world branches, weather fog/ambient/sky/far, quality gates, rain/isometric exclusions, scene AABB +300, UV scale 4/25/50, Low/volume paths, water reflection, depth reconstruction, cloud animation/color/intensity, source grass atlas/density/scale и sky без camera translation; D3D9 заменён Metal |
 | Intro/video | `VideoPlayer.cpp`, DirectShow playback | AVPlayer/AVPlayerLayer, 14 lossless-remuxed MP4 | Замена платформы | Все исходные H.264/MP3 потоки проигрываются нативно; Difficulty `Main`, Gamers `Intaria`, planet и final transitions подключены |
 | LAN/network | `NetGame`, `NetRace`, `NetPlayer`, NetLib | выключено | Не перенесено | Offline acceptance не требует сеть, но это часть Windows-продукта |
@@ -871,6 +871,14 @@ Network, video и Steam явно выключены.
    ping-pong resample, расчёт позиции солнца через world AABB и исходный
    восьмисэмпловый radial/soft-light composite. Ветка включается только на
    High post-effect, при дневном directional light и perspective camera.
+7. `goRefr` перенесён отдельным Middle+ проходом между Scene и Water:
+   refractive Actors исключаются из обычных `osColor` queues, чистый кадр
+   копируется POINT в свободный полноразмерный scene target, а `osColorRefr`
+   рисуется обратно с depth test и без depth write. Metal-эквивалент
+   `refract.fx` повторяет `j_swell` distortion, `vScene = 1 - frame`, LINEAR
+   sampling и MIRROR addressing чистой сцены. `death2/refr1` сохраняет
+   собственные `glRefr`, `goDefault`, `amOnce`, lifetime 0.5 s и scale
+   velocity 100, поэтому sprite больше не растёт все 10 s жизни родителя.
 
 ## Очередь дальнейшего переноса
 
@@ -902,8 +910,9 @@ Network, video и Steam явно выключены.
 
 1. Продолжить shader-level parity для D3D9 fixed pipeline/HDR/reflection,
    где backend-замена всё ещё даёт визуально измеримое отличие.
-2. Сопоставлять новые graph/effect types только если они обнаружены в
-   активном resource catalog; текущий catalog закрыт полностью.
+2. Сопоставлять новые graph/effect types по активному resource catalog и
+   проверять не только загрузку record, но и фактический renderer branch:
+   прежняя проверка catalog не обнаружила потерю `goRefr` при flattening.
 3. Проверить offline HUD/camera на всех aspect ratios; активные source states
    и culling semantics перенесены.
 4. Сопоставлять новые sound behaviors только по конкретному active record;

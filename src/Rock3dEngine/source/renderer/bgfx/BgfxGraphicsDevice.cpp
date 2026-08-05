@@ -830,23 +830,48 @@ private:
             state |= BGFX_STATE_MSAA;
 
         bgfx::setTransform(transform.matrix.data());
-        auto samplerFlags = [](MaterialState::TextureFilter filter) {
+        auto samplerFlags = [](
+            MaterialState::TextureFilter filter,
+            MaterialState::TextureAddress address) {
+            const bool inheritedFilter =
+                filter == MaterialState::TextureFilter::Inherited;
+            const bool inheritedAddress =
+                address == MaterialState::TextureAddress::Inherited;
+            if (inheritedFilter && inheritedAddress)
+                return std::numeric_limits<std::uint32_t>::max();
+            std::uint32_t flags = 0U;
             switch (filter)
             {
             case MaterialState::TextureFilter::Point:
-                return static_cast<std::uint32_t>(
+                flags |= static_cast<std::uint32_t>(
                     BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT |
                     BGFX_SAMPLER_MIP_POINT);
+                break;
             case MaterialState::TextureFilter::Linear:
-                return static_cast<std::uint32_t>(BGFX_SAMPLER_MIP_POINT);
+                // No bgfx filter flags means source D3DTEXF_LINEAR for
+                // minification, magnification and mip interpolation.
+                break;
             case MaterialState::TextureFilter::Inherited:
-                return std::numeric_limits<std::uint32_t>::max();
+                break;
             }
-            return std::numeric_limits<std::uint32_t>::max();
+            switch (address)
+            {
+            case MaterialState::TextureAddress::Clamp:
+                flags |= BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+                break;
+            case MaterialState::TextureAddress::Mirror:
+                flags |= BGFX_SAMPLER_U_MIRROR | BGFX_SAMPLER_V_MIRROR;
+                break;
+            case MaterialState::TextureAddress::Wrap:
+            case MaterialState::TextureAddress::Inherited:
+                break;
+            }
+            return flags;
         };
         bgfx::setTexture(
             0, texture_sampler_, bgfx::TextureHandle{texture.value},
-            samplerFlags(material.textureFilter));
+            samplerFlags(material.textureFilter,
+                         material.textureAddress));
         const auto reflectionTexture =
             valid(pass_state_.reflectionTexture)
                 ? pass_state_.reflectionTexture
@@ -862,7 +887,8 @@ private:
         bgfx::setTexture(
             1, reflection_sampler_,
             bgfx::TextureHandle{reflectionTexture.value},
-            samplerFlags(material.reflectionTextureFilter));
+            samplerFlags(material.reflectionTextureFilter,
+                         material.reflectionTextureAddress));
         bgfx::setTexture(
             2, shadow_sampler_,
             bgfx::TextureHandle{shadowTexture.value});
@@ -949,7 +975,8 @@ private:
             (current_pass_ >= RenderPass::EnvironmentPositiveX &&
              current_pass_ <= RenderPass::EnvironmentNegativeZ) ||
             current_pass_ == RenderPass::Reflection ||
-            current_pass_ == RenderPass::Scene;
+            current_pass_ == RenderPass::Scene ||
+            current_pass_ == RenderPass::Refraction;
         if (sceneGeometry)
         {
             const int mode = std::clamp(

@@ -10,6 +10,7 @@
 #include "rrr3d_fs_luminance_adapt.bin.h"
 #include "rrr3d_fs_luminance_downsample.bin.h"
 #include "rrr3d_fs_luminance_log.bin.h"
+#include "rrr3d_fs_refraction.bin.h"
 #include "rrr3d_fs_shadow_map.bin.h"
 #include "rrr3d_fs_skybox.bin.h"
 #include "rrr3d_fs_sun_shaft_composite.bin.h"
@@ -17,6 +18,7 @@
 #include "rrr3d_fs_tone_map.bin.h"
 #include "rrr3d_fs_water.bin.h"
 #include "rrr3d_vs_post_process.bin.h"
+#include "rrr3d_vs_refraction.bin.h"
 #include "rrr3d_vs_shadow_map.bin.h"
 #include "rrr3d_vs_skybox.bin.h"
 #include "rrr3d_vs_grass_field.bin.h"
@@ -1325,8 +1327,27 @@ void drawGroups(GraphicsDevice& device,
             state.reflectionStrength = reflectionStrength;
             state.postParameters[3] =
                 static_cast<float>(lighting);
-            state.postParameters[0] =
-                material.reflectionTextureCoordinates ? 1.0F : 0.0F;
+            if (lighting ==
+                r3d::game::originalrace::LightingMode::Refraction)
+            {
+                // RefrShader::DoBeginDraw supplies (1 - Context::frame).
+                // The frame belongs to refr1's amOnce sprite, not to the
+                // flattened parent death effect.
+                state.postParameters[0] = 1.0F - frame;
+                state.textureFilter =
+                    MaterialState::TextureFilter::Linear;
+                state.reflectionTextureFilter =
+                    MaterialState::TextureFilter::Linear;
+                state.textureAddress =
+                    MaterialState::TextureAddress::Wrap;
+                state.reflectionTextureAddress =
+                    MaterialState::TextureAddress::Mirror;
+            }
+            else
+            {
+                state.postParameters[0] =
+                    material.reflectionTextureCoordinates ? 1.0F : 0.0F;
+            }
             state.receivesShadow =
                 !isBlended(material.blend) &&
                 material.emissive < 0.999F;
@@ -1379,6 +1400,15 @@ void drawGroups(GraphicsDevice& device,
             // gpCullOpacity actors.
             result.blendMode = PipelineState::BlendMode::Alpha;
             result.writeDepth = false;
+        }
+        if (lighting ==
+            r3d::game::originalrace::LightingMode::Refraction)
+        {
+            result.blendMode = PipelineState::BlendMode::Opaque;
+            result.alphaBlend = false;
+            result.writeDepth = false;
+            result.depthTest = true;
+            result.faceCulling = PipelineState::FaceCulling::None;
         }
         return result;
     };
@@ -1825,6 +1855,10 @@ bool OriginalRaceRenderer::initialize(
             {rrr3d_fs_sun_shaft_composite,
              sizeof(rrr3d_fs_sun_shaft_composite)},
             "original-sun-shaft-composite");
+        refractionShader_ = device.createShader(
+            {rrr3d_vs_refraction, sizeof(rrr3d_vs_refraction)},
+            {rrr3d_fs_refraction, sizeof(rrr3d_fs_refraction)},
+            "original-refraction");
         postProcessMesh_ = device.createMesh(
             postProcessVertices.data(), postProcessVertices.size(),
             postProcessIndices.data(), postProcessIndices.size());
@@ -1842,6 +1876,7 @@ bool OriginalRaceRenderer::initialize(
             !valid(luminanceAdaptShader_) ||
             !valid(sunShaftPrepareShader_) ||
             !valid(sunShaftCompositeShader_) ||
+            !valid(refractionShader_) ||
             !valid(postProcessMesh_))
         {
             error =
@@ -2451,6 +2486,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     destroyFrameTargets(device);
     if (valid(environmentReflectionTarget_))
         device.destroy(environmentReflectionTarget_);
+    if (valid(refractionShader_))
+        device.destroy(refractionShader_);
     if (valid(sunShaftCompositeShader_))
         device.destroy(sunShaftCompositeShader_);
     if (valid(sunShaftPrepareShader_))
@@ -2491,6 +2528,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     luminanceAdaptShader_ = {};
     sunShaftPrepareShader_ = {};
     sunShaftCompositeShader_ = {};
+    refractionShader_ = {};
     bloomBlurShader_ = {};
     bloomExtractShader_ = {};
     shadowShader_ = {};
@@ -2974,7 +3012,7 @@ void OriginalRaceRenderer::draw(
     const std::vector<
         r3d::game::originalrace::ProjectileRuntime>& projectiles,
     float elapsedSeconds, bool reflectionPass,
-    bool omitEnvironmentSurface)
+    bool omitEnvironmentSurface, bool refractionPass)
 {
     SceneLighting sceneLighting;
     const auto sourceSunRay = normalize(rotate(
@@ -3079,7 +3117,7 @@ void OriginalRaceRenderer::draw(
     sceneLighting.cameraPosition =
         {cameraPosition_.x, cameraPosition_.y, cameraPosition_.z,
          activeCameraFarDistance_};
-    if (!vehicles.empty())
+    if (!refractionPass && !vehicles.empty())
     {
         if (race.environment.skyEnabled &&
             activeEnvironmentQuality_ >= 1U)
@@ -3119,7 +3157,8 @@ void OriginalRaceRenderer::draw(
     PipelineState deferredSurfacePipeline;
     MaterialState deferredSurfaceMaterial;
     Transform deferredSurfaceTransform;
-    if (!reflectionPass && !omitEnvironmentSurface &&
+    if (!refractionPass && !reflectionPass &&
+        !omitEnvironmentSurface &&
         valid(environmentSurfaceTexture_) &&
         race.environment.surface !=
             r3d::game::originalrace::EnvironmentSurface::None)
@@ -3177,7 +3216,8 @@ void OriginalRaceRenderer::draw(
         }
     }
 
-    if (!reflectionPass && activeEnvironmentQuality_ >= 1U &&
+    if (!refractionPass && !reflectionPass &&
+        activeEnvironmentQuality_ >= 1U &&
         race.environment.surface ==
             r3d::game::originalrace::EnvironmentSurface::Grass &&
         valid(grassMesh_) && valid(grassTexture_))
@@ -3265,6 +3305,24 @@ void OriginalRaceRenderer::draw(
         const std::size_t count = std::min(asset.nodes.size(), nodes.size());
         for (std::size_t index = 0; index < count; ++index)
         {
+            if (nodes[index].maximumTimeLife > 0.0F &&
+                animationSeconds >= nodes[index].maximumTimeLife)
+            {
+                continue;
+            }
+            const auto nodeLighting =
+                nodes[index].overridesLighting
+                    ? nodes[index].lighting
+                    : asset.lighting;
+            const bool nodeIsRefraction =
+                nodeLighting ==
+                r3d::game::originalrace::LightingMode::Refraction;
+            if (nodeIsRefraction != refractionPass)
+                continue;
+            const auto nodeGraphOrder =
+                nodes[index].overridesGraphOrder
+                    ? nodes[index].graphOrder
+                    : graphOrder;
             const auto world = compose(
                 parent,
                 sourceAnimatedNodeTransform(
@@ -3282,18 +3340,21 @@ void OriginalRaceRenderer::draw(
                     nodes[index].fixedDirection ? &fixed : nullptr);
             }
             const float reflectionStrength =
-                asset.planarReflection && !reflectionPass
+                (asset.planarReflection ||
+                 nodeLighting == r3d::game::originalrace::
+                                     LightingMode::PlanarReflection) &&
+                        !reflectionPass
                     ? 0.58F
                     : 0.0F;
             const bool deferredActor =
                 cullOpacityActor ||
-                graphOrder !=
+                nodeGraphOrder !=
                     r3d::game::originalrace::GraphOrder::Default;
             if (!deferredActor)
             {
                 drawGroups(device, asset.nodes[index], shader, model,
                            pipeline, animationSeconds, reflectionStrength,
-                           asset.lighting, DrawLayer::Opaque,
+                           nodeLighting, DrawLayer::Opaque,
                            &nodes[index], 1.0F, tint);
             }
             if (deferredActor ||
@@ -3312,9 +3373,9 @@ void OriginalRaceRenderer::draw(
                     model.matrix[14] - cameraPosition_.z;
                 deferredVisuals.push_back(
                     {&asset.nodes[index], &nodes[index], model,
-                     reflectionStrength, asset.lighting,
+                     reflectionStrength, nodeLighting,
                      dx * dx + dy * dy + dz * dz, opacity,
-                     renderStage(graphOrder, cullOpacityActor),
+                     renderStage(nodeGraphOrder, cullOpacityActor),
                      deferredActor ? DrawLayer::All
                                    : DrawLayer::Transparency,
                      animationSeconds,
@@ -4244,7 +4305,8 @@ void OriginalRaceRenderer::draw(
             drawObject(asset, definition.visualNodes, parent,
                        definition.graphOrder, cullOpacityActor, opacity,
                        nullptr, age);
-            if (!definition.particleEmitters.empty())
+            if (!refractionPass &&
+                !definition.particleEmitters.empty())
             {
                 const float dx =
                     parent.position.x - cameraPosition_.x;
@@ -4367,7 +4429,8 @@ void OriginalRaceRenderer::draw(
                    definition.bodyVisuals, state.body,
                    r3d::game::originalrace::GraphOrder::Default,
                    false, 1.0F, &race.racers[racer].color);
-        if (racer < vehicleTrackVisuals_.size() &&
+        if (!refractionPass &&
+            racer < vehicleTrackVisuals_.size() &&
             racer < vehicleTrackAnimationOffsets_.size())
         {
             const auto& animatedAsset =
@@ -4389,7 +4452,8 @@ void OriginalRaceRenderer::draw(
                     sourceTextureOffset);
             }
         }
-        if (racer < vehicleCushionVisuals_.size() &&
+        if (!refractionPass &&
+            racer < vehicleCushionVisuals_.size() &&
             racer < vehicleCushionAnimationAngles_.size())
         {
             const auto& animatedAsset =
@@ -4467,7 +4531,7 @@ void OriginalRaceRenderer::draw(
             {
                 const auto weaponIndex = runtime.weaponSlots[slot];
                 const auto& mount = definition.weaponMounts[slot];
-                if (!mount.active || !mount.show ||
+                if (refractionPass || !mount.active || !mount.show ||
                     weaponIndex == r3d::game::originalrace::
                                        RacerRuntime::invalidWeapon ||
                     weaponIndex >= race.weapons.size() ||
@@ -4516,7 +4580,7 @@ void OriginalRaceRenderer::draw(
         const bool showNightLights =
             race.environment.weather ==
                 r3d::game::originalrace::Weather::Night;
-        if (showNightLights)
+        if (!refractionPass && showNightLights)
         {
             for (const auto& source : definition.nightLights)
             {
@@ -4557,7 +4621,7 @@ void OriginalRaceRenderer::draw(
             wheel.position.z += offset.z;
             const auto& wheelAsset =
                 vehicleWheels_[racer][wheelIndex];
-            if (!wheelAsset.nodes.empty())
+            if (!refractionPass && !wheelAsset.nodes.empty())
                 drawGroups(
                     device, wheelAsset.nodes.front(), shader,
                     transform(compose(
@@ -5693,6 +5757,7 @@ void OriginalRaceRenderer::renderFrame(
         r3d::game::originalrace::Weather::Night;
     const bool bloomEnabled =
         quality.postEffect >= 1U && weatherAllowsPostEffects;
+    const bool refractionEnabled = quality.postEffect >= 1U;
     const bool hdrEnabled =
         quality.postEffect >= 2U && weatherAllowsPostEffects;
     const bool sunShaftEnabled =
@@ -5905,6 +5970,44 @@ void OriginalRaceRenderer::renderFrame(
     postPipeline.depthTest = false;
     postPipeline.faceCulling = PipelineState::FaceCulling::None;
     postPipeline.multisampling = false;
+
+    if (refractionEnabled)
+    {
+        const auto sceneTarget =
+            usesSceneDepthSurface ? waterSceneTarget_ : hdrTarget_;
+        const auto cleanSceneTarget =
+            usesSceneDepthSurface ? hdrTarget_ : waterSceneTarget_;
+        const auto sceneColor =
+            device.renderTargetTexture(sceneTarget);
+
+        // GraphManager copies _scRenderTex to _cleanScTex immediately after
+        // RenderScenes, then renders only osColorRefr back into the original
+        // scene target.  This separate texture is required by Metal as well:
+        // reading and writing the same color attachment is undefined.
+        device.setPassState({});
+        device.beginPass(
+            RenderPass::RefractionCopy, cleanSceneTarget,
+            postCamera, 0x000000ffU, true, false);
+        MaterialState copyMaterial;
+        copyMaterial.textureFilter =
+            MaterialState::TextureFilter::Point;
+        device.draw(
+            postProcessMesh_, copyShader_, sceneColor,
+            postTransform, postPipeline, {}, copyMaterial);
+
+        auto refractionState = sceneState;
+        refractionState.reflectionTexture =
+            device.renderTargetTexture(cleanSceneTarget);
+        device.setPassState(refractionState);
+        device.beginPass(
+            RenderPass::Refraction, sceneTarget, camera,
+            clearRgba, false, false);
+        draw(device, refractionShader_, race, vehicles, pipeline,
+             decorationActive, decorationFragments,
+             vehicleDeathFragments, bonusActive,
+             racerRuntime, effects, mines, projectiles,
+             elapsedSeconds, false, usesSceneDepthSurface, true);
+    }
 
     if (usesSceneDepthSurface)
     {

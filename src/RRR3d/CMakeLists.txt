@@ -168,6 +168,10 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_shader_output_dir}/rrr3d_fs_sun_shaft_prepare.bin.h")
         set(_rrr3d_sun_shaft_composite_shader
             "${_rrr3d_shader_output_dir}/rrr3d_fs_sun_shaft_composite.bin.h")
+        set(_rrr3d_refraction_vertex_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_vs_refraction.bin.h")
+        set(_rrr3d_refraction_fragment_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_refraction.bin.h")
         set(_rrr3d_legacy_varying
             "${_rrr3d_shader_source_dir}/varying_legacy_mesh.def.sc")
         set(_rrr3d_post_varying
@@ -178,6 +182,8 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_shader_source_dir}/varying_grass_field.def.sc")
         set(_rrr3d_sky_varying
             "${_rrr3d_shader_source_dir}/varying_skybox.def.sc")
+        set(_rrr3d_refraction_varying
+            "${_rrr3d_shader_source_dir}/varying_refraction.def.sc")
         _rrr3d_compile_m9_2_shader(
             "${_rrr3d_shadow_vertex_shader}" vertex
             "${_rrr3d_shader_source_dir}/vs_shadow_map.sc"
@@ -254,6 +260,14 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_sun_shaft_composite_shader}" fragment
             "${_rrr3d_shader_source_dir}/fs_sun_shaft_composite.sc"
             "${_rrr3d_post_varying}" rrr3d_fs_sun_shaft_composite)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_refraction_vertex_shader}" vertex
+            "${_rrr3d_shader_source_dir}/vs_refraction.sc"
+            "${_rrr3d_refraction_varying}" rrr3d_vs_refraction)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_refraction_fragment_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_refraction.sc"
+            "${_rrr3d_refraction_varying}" rrr3d_fs_refraction)
         set(_rrr3d_race_post_shaders
             "${_rrr3d_shadow_vertex_shader}"
             "${_rrr3d_shadow_fragment_shader}"
@@ -273,7 +287,9 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_luminance_downsample_shader}"
             "${_rrr3d_luminance_adapt_shader}"
             "${_rrr3d_sun_shaft_prepare_shader}"
-            "${_rrr3d_sun_shaft_composite_shader}")
+            "${_rrr3d_sun_shaft_composite_shader}"
+            "${_rrr3d_refraction_vertex_shader}"
+            "${_rrr3d_refraction_fragment_shader}")
     endif()
 
     if(RRR3D_BUILD_ORIGINAL_MENU)

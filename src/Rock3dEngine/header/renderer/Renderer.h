@@ -119,6 +119,8 @@ enum class RenderPass : std::uint8_t
     EnvironmentNegativeZ,
     Reflection,
     Scene,
+    RefractionCopy,
+    Refraction,
     Water,
     Luminance64,
     Luminance16,
@@ -211,6 +213,14 @@ struct MaterialState
         Linear,
     };
 
+    enum class TextureAddress : std::uint8_t
+    {
+        Inherited,
+        Wrap,
+        Clamp,
+        Mirror,
+    };
+
     std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
     // xy scales source UVs and zw offsets them.  Original LibMaterial uses
     // this for animated texture atlases and scrolling effect materials.
@@ -232,6 +242,8 @@ struct MaterialState
     // sampler choice into render-target creation.
     TextureFilter textureFilter = TextureFilter::Inherited;
     TextureFilter reflectionTextureFilter = TextureFilter::Inherited;
+    TextureAddress textureAddress = TextureAddress::Inherited;
+    TextureAddress reflectionTextureAddress = TextureAddress::Inherited;
     // Generic parameters used by the source-derived post-process shaders.
     std::array<float, 4> postParameters{};
 };

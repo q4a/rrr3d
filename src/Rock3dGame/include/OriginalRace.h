@@ -94,6 +94,28 @@ struct MaterialDefinition
     }
 };
 
+enum class LightingMode
+{
+    None,
+    Standard,
+    Pixel,
+    Reflection,
+    Bump,
+    Refraction,
+    PlanarReflection,
+};
+
+// Runtime render queues used by GraphManager::RenderScenes.  The legacy
+// serializer has a known enum/string-table mismatch; definitions keep the
+// runtime meaning after that mapping has been applied.
+enum class GraphOrder
+{
+    Default,
+    Opacity,
+    Effect,
+    Last,
+};
+
 struct VisualNode
 {
     enum class CullMode
@@ -139,6 +161,18 @@ struct VisualNode
     Vec3 speedPosition;
     Vec3 speedScale;
     Quat speedRotation;
+    // Included GameObjects remain independent Actors in the Windows scene
+    // graph.  The portable loader flattens their transforms, so retain an
+    // explicit per-node lighting override instead of accidentally applying
+    // the parent actor's mapping shader (notably death2/refr1).
+    LightingMode lighting = LightingMode::Standard;
+    bool overridesLighting = false;
+    GraphOrder graphOrder = GraphOrder::Default;
+    bool overridesGraphOrder = false;
+    // Positive lifetime of the included GameObject which owns this visual.
+    // Flattening must not make a 0.5 s refr1 sprite live for its parent's
+    // complete 10 s death2 lifetime while speedScale keeps increasing it.
+    float maximumTimeLife = -1.0F;
 };
 
 enum class ParticleRenderMode
@@ -280,28 +314,6 @@ struct ParticleEmitterDefinition
     float trailWidth = 0.3F;
     Vec3 trailFixedUp{0.0F, 0.0F, 1.0F};
     bool trailFixedUpEnabled = true;
-};
-
-enum class LightingMode
-{
-    None,
-    Standard,
-    Pixel,
-    Reflection,
-    Bump,
-    Refraction,
-    PlanarReflection,
-};
-
-// Runtime render queues used by GraphManager::RenderScenes.  The legacy
-// serializer has a known enum/string-table mismatch; ObjectDefinition keeps
-// the runtime meaning after that mapping has been applied.
-enum class GraphOrder
-{
-    Default,
-    Opacity,
-    Effect,
-    Last,
 };
 
 struct DestructionPieceDefinition

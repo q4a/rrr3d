@@ -2046,10 +2046,47 @@ void appendIncludedEffects(
                 : positiveTimeLife(includedRecord);
         const float ownerMaximumTimeLife = earlierPositiveTimeLife(
             parentMaximumTimeLife, includeTimeLife);
+        LightingMode includedLighting = LightingMode::Standard;
+        GraphOrder includedGraphOrder = GraphOrder::Default;
+        if (auto* lighting =
+                child(includedRecord, "grActor/graphLighting");
+            lighting != nullptr && lighting->GetText() != nullptr)
+        {
+            const std::string_view value(lighting->GetText());
+            if (value == "glNone")
+                includedLighting = LightingMode::None;
+            else if (value == "glPix")
+                includedLighting = LightingMode::Pixel;
+            else if (value == "glRefl")
+                includedLighting = LightingMode::Reflection;
+            else if (value == "glBump")
+                includedLighting = LightingMode::Bump;
+            else if (value == "glRefr")
+                includedLighting = LightingMode::Refraction;
+            else if (value == "glPlanarRefl")
+                includedLighting = LightingMode::PlanarReflection;
+        }
+        if (auto* order = child(includedRecord, "grActor/graphOrder");
+            order != nullptr && order->GetText() != nullptr)
+        {
+            const std::string_view value(order->GetText());
+            // Preserve SReadEnum's source string-table/runtime enum mismatch.
+            if (value == "goOpacity")
+                includedGraphOrder = GraphOrder::Effect;
+            else if (value == "goEffect")
+                includedGraphOrder = GraphOrder::Opacity;
+            else if (value == "goLast")
+                includedGraphOrder = GraphOrder::Last;
+        }
         auto nodes = visualNodes(resources, includedRecord, source);
         for (auto& node : nodes)
         {
             flattenVisualNode(node, includeTransform);
+            node.lighting = includedLighting;
+            node.overridesLighting = true;
+            node.graphOrder = includedGraphOrder;
+            node.overridesGraphOrder = true;
+            node.maximumTimeLife = ownerMaximumTimeLife;
             definition.visualNodes.push_back(std::move(node));
         }
         appendParticleEmitters(
@@ -5506,6 +5543,27 @@ bool runOriginalRaceResourceSmokeTest(
                            emitter.parentEmitter == piecesEmitter &&
                            emitter.sourceRecord == "death2";
                 }));
+        const auto refractionNode = std::find_if(
+            sourceDeathVisual.visualNodes.begin(),
+            sourceDeathVisual.visualNodes.end(),
+            [&](const VisualNode& node) {
+                return node.materials.size() == 1U &&
+                       recordEndsWith(
+                           node.materials.front().record, "j_swell");
+            });
+        const bool refractionNodeMatchesSource =
+            refractionNode != sourceDeathVisual.visualNodes.end() &&
+            refractionNode->overridesLighting &&
+            refractionNode->lighting == LightingMode::Refraction &&
+            refractionNode->overridesGraphOrder &&
+            refractionNode->graphOrder == GraphOrder::Default &&
+            refractionNode->animationMode ==
+                VisualNode::AnimationMode::Once &&
+            near(refractionNode->animationDuration, 0.5F) &&
+            near(refractionNode->maximumTimeLife, 0.5F) &&
+            near(refractionNode->speedScale.x, 100.0F) &&
+            near(refractionNode->speedScale.y, 100.0F) &&
+            near(refractionNode->speedScale.z, 100.0F);
         if (race.vehicle.deathEffects.size() != 2U ||
             !recordEndsWith(
                 race.vehicle.deathEffects[0].visual.record, "death2") ||
@@ -5516,6 +5574,7 @@ bool runOriginalRaceResourceSmokeTest(
             !volumeNodeRangesMatchSource(wheelEmitter) ||
             !volumeNodeRangesMatchSource(trubaEmitter) ||
             nestedPointEmitterCount != 2U ||
+            !refractionNodeMatchesSource ||
             race.vehicle.deathEffects[0].visual.soundPaths.empty() ||
             !recordEndsWith(
                 race.vehicle.deathEffects[0].visual.soundPaths.front(),
@@ -5548,6 +5607,8 @@ bool runOriginalRaceResourceSmokeTest(
                 std::to_string(trubaEmitter >= 0 ? 1 : 0) +
                 ", nested point emitters=" +
                 std::to_string(nestedPointEmitterCount) +
+                ", refr1=" +
+                (refractionNodeMatchesSource ? "1" : "0") +
                 ", volume ranges=" +
                 (volumeNodeRangesMatchSource(wheelEmitter) ? "1" : "0") +
                 "/" +

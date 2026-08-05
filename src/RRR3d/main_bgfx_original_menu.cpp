@@ -14568,6 +14568,8 @@ int main(int argc, char** argv)
                 const bool expectsBloom =
                     smokeQuality.postEffect >= 1U &&
                     weatherAllowsPostEffects;
+                const bool expectsRefraction =
+                    smokeQuality.postEffect >= 1U;
                 const bool expectsHdr =
                     smokeQuality.postEffect >= 2U &&
                     weatherAllowsPostEffects;
@@ -14638,6 +14640,27 @@ int main(int argc, char** argv)
                             r3d::renderer::RenderPass::BloomHorizontal) &&
                         passObserved(
                             r3d::renderer::RenderPass::BloomVertical);
+                }
+                if (expectsRefraction)
+                {
+                    renderGraphComplete =
+                        renderGraphComplete &&
+                        passObserved(
+                            r3d::renderer::RenderPass::RefractionCopy) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::Refraction,
+                            false);
+                }
+                else
+                {
+                    const auto copyPass = static_cast<std::size_t>(
+                        r3d::renderer::RenderPass::RefractionCopy);
+                    const auto refractionPass = static_cast<std::size_t>(
+                        r3d::renderer::RenderPass::Refraction);
+                    renderGraphComplete =
+                        renderGraphComplete &&
+                        maximumRacePassBegins[copyPass] == 0U &&
+                        maximumRacePassBegins[refractionPass] == 0U;
                 }
                 if (expectsSunShaft)
                 {
@@ -14832,6 +14855,7 @@ int main(int argc, char** argv)
                         << (expectsReflection ? "/reflection" : "")
                         << (expectsWater ? "/water" : "")
                         << (expectsVolumeSurface ? "/volume-surface" : "")
+                        << (expectsRefraction ? "/refraction" : "")
                         << (expectsSunShaft ? "/sun-shaft8" : "")
                         << " verified; cube reflection "
                         << maximumEnvironmentMappedDraws

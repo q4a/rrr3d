@@ -95,7 +95,8 @@ public:
                   r3d::game::originalrace::ProjectileRuntime>& projectiles,
               float elapsedSeconds,
               bool reflectionPass = false,
-              bool omitEnvironmentSurface = false);
+              bool omitEnvironmentSurface = false,
+              bool refractionPass = false);
     void renderFrame(
         r3d::renderer::GraphicsDevice& device,
         r3d::renderer::Shader sceneShader,
@@ -188,6 +189,7 @@ private:
     r3d::renderer::Shader luminanceAdaptShader_;
     r3d::renderer::Shader sunShaftPrepareShader_;
     r3d::renderer::Shader sunShaftCompositeShader_;
+    r3d::renderer::Shader refractionShader_;
     r3d::renderer::RenderTarget hdrTarget_;
     r3d::renderer::RenderTarget waterSceneTarget_;
     r3d::renderer::RenderTarget reflectionTarget_;
