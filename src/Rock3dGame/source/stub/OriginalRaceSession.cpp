@@ -720,8 +720,7 @@ WorldRayHit raycastWorld(
     for (std::size_t vehicle = 0;
          vehicle < vehicles.size() && vehicle < racers.size(); ++vehicle)
     {
-        if (vehicle == ignoredVehicle || racers[vehicle].destroyed ||
-            racers[vehicle].finished)
+        if (vehicle == ignoredVehicle || racers[vehicle].destroyed)
             continue;
         const auto& racer = race.racers.at(vehicle);
         const auto& definition =
@@ -2097,6 +2096,21 @@ void OriginalRaceSession::updateProgress(
         return;
 
     ++runtime.completedLaps;
+    // Player::OnLapPass reloads every WeaponItem from stHyper through
+    // stWeapon4 before Race receives cRacePassLap/cRaceLastLap/finish.
+    for (std::size_t slot = 0U;
+         slot < runtime.weaponCharges.size(); ++slot)
+    {
+        if (runtime.weaponSlots[slot] !=
+            RacerRuntime::invalidWeapon)
+            runtime.weaponCharges[slot] =
+                runtime.weaponCapacity[slot];
+    }
+    if (runtime.hyperWeapon != RacerRuntime::invalidWeapon)
+        runtime.hyperCharge = runtime.hyperCapacity;
+    if (runtime.mineWeapon != RacerRuntime::invalidWeapon)
+        runtime.mines = runtime.mineCapacity;
+    syncSelectedWeapon(runtime);
     events_.push_back({RaceEventKind::Lap, racer, runtime.completedLaps,
                        vehicle.body.position,
                        static_cast<float>(runtime.completedLaps)});
@@ -3184,7 +3198,6 @@ void OriginalRaceSession::updateGameplay(
                  candidate < racers_.size(); ++candidate)
             {
                 if (candidate == source ||
-                    racers_[candidate].finished ||
                     racers_[candidate].destroyed)
                     continue;
                 const Vec3 difference = subtract(
@@ -3433,7 +3446,10 @@ void OriginalRaceSession::updateGameplay(
                 runtime.touchAttacker = attacker;
                 runtime.touchAttributionSeconds = 3.0F;
             }
-            if (runtime.shieldSeconds <= 0.0F)
+            // Race::CompleteRace calls Player::SetFinished(true), which
+            // sets GameObject::_immortalFlag. Damage and listener events
+            // still run, but the finished car's life cannot change.
+            if (runtime.shieldSeconds <= 0.0F && !runtime.finished)
             {
                 runtime.life = std::max(
                     0.0F, runtime.life - incoming);
@@ -3907,7 +3923,6 @@ void OriginalRaceSession::updateGameplay(
                      target < racers_.size(); ++target)
                 {
                     if (target == projectile.owner ||
-                        racers_[target].finished ||
                         racers_[target].destroyed)
                         continue;
                     const auto& racerDefinition =
@@ -3983,7 +3998,6 @@ void OriginalRaceSession::updateGameplay(
              projectileDefinition.type == 21U) &&
             projectile.target < vehicles.size() &&
             projectile.target < racers_.size() &&
-            !racers_[projectile.target].finished &&
             !racers_[projectile.target].destroyed)
         {
             projectile.homingDelay =
@@ -4126,7 +4140,6 @@ void OriginalRaceSession::updateGameplay(
              ++target)
         {
             if (target == projectile.owner ||
-                racers_[target].finished ||
                 racers_[target].destroyed)
                 continue;
             if (projectileDefinition.type == 21U &&
@@ -5451,7 +5464,6 @@ void OriginalRaceSession::updateGameplay(
                      target < racers_.size(); ++target)
                 {
                     if (target == racer ||
-                        racers_[target].finished ||
                         racers_[target].destroyed ||
                         !zLevelContains(target))
                         continue;
@@ -5482,7 +5494,6 @@ void OriginalRaceSession::updateGameplay(
                 const bool currentValid =
                     currentTarget < racers_.size() &&
                     currentTarget < vehicles.size() &&
-                    !racers_[currentTarget].finished &&
                     !racers_[currentTarget].destroyed &&
                     zLevelContains(currentTarget);
                 if (enemy == RacerRuntime::invalidWeapon)
@@ -6194,6 +6205,22 @@ void OriginalRaceSession::update(
             control.motorTorqueScale = torqueScale;
             control.lateralGripScale = torqueScale;
         }
+    }
+
+    for (std::size_t racer = 0U;
+         racer < racers_.size() && racer < vehicleInputs_.size(); ++racer)
+    {
+        const auto& runtime = racers_[racer];
+        if (!runtime.finished)
+            continue;
+        auto& control = vehicleInputs_[racer];
+        control.throttle = 0.0F;
+        control.reverse = 0.0F;
+        control.steering = 0.0F;
+        // CompleteRace sets Player::_block to 0.3. Player::OnProgress then
+        // emits mcNone until it reaches zero and mcBrake thereafter.
+        control.brake =
+            elapsedSeconds_ - runtime.finishTime >= 0.3F ? 1.0F : 0.0F;
     }
 
     updateGameplay(seconds, vehicles, humanControl);
@@ -7800,6 +7827,207 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             1.0F / 60.0F, lapVehicles, input);
         if (lapSession.racers().front().completedLaps != 1U)
             throw std::runtime_error("finish tile counted the same lap twice");
+
+        const auto lapPrimary = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return weapon.slot == WeaponSlot::Primary &&
+                       !weapon.projectiles.empty();
+            });
+        const auto lapHyper = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return weapon.slot == WeaponSlot::Hyper &&
+                       !weapon.projectiles.empty();
+            });
+        const auto lapMine = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return weapon.slot == WeaponSlot::Mine &&
+                       !weapon.projectiles.empty();
+            });
+        if (lapPrimary == race.weapons.end() ||
+            lapHyper == race.weapons.end() ||
+            lapMine == race.weapons.end())
+        {
+            throw std::runtime_error(
+                "source lap reload weapon fixtures are incomplete");
+        }
+        {
+            Race reloadRace = race;
+            reloadRace.racers.resize(1U);
+            OriginalRaceSession reloadSession(reloadRace);
+            PlayerProfile reloadProfile;
+            auto setReloadSlot = [&](std::size_t slot,
+                                     const WeaponDefinition& weapon) {
+                reloadProfile.slots[slot].record = weapon.record;
+                reloadProfile.slots[slot].charge = 2U;
+                reloadProfile.slots[slot].hasCharge = true;
+            };
+            setReloadSlot(
+                PlayerProfile::firstWeaponSlot, *lapPrimary);
+            setReloadSlot(PlayerProfile::hyperSlot, *lapHyper);
+            setReloadSlot(PlayerProfile::mineSlot, *lapMine);
+            reloadSession.applyPlayerProfile(reloadProfile);
+            auto reloadVehicles = vehicles;
+            reloadVehicles.resize(1U);
+            reloadVehicles[0].bodyContacts.clear();
+            reloadVehicles[0].speed = 0.0F;
+            reloadVehicles[0].linearVelocity = {};
+            RaceControl reloadInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                reloadSession.update(
+                    1.0F / 60.0F,
+                    reloadVehicles, reloadInput);
+            }
+            reloadInput.fireWeaponSlot = 0;
+            reloadSession.update(
+                1.0F / 60.0F,
+                reloadVehicles, reloadInput);
+            reloadInput = {};
+            reloadInput.useHyper = true;
+            reloadSession.update(
+                1.0F / 60.0F,
+                reloadVehicles, reloadInput);
+            reloadSession.takeVelocityRequests();
+            reloadInput = {};
+            reloadInput.useMine = true;
+            reloadSession.update(
+                1.0F / 60.0F,
+                reloadVehicles, reloadInput);
+            if (reloadSession.racers()[0].weaponCharges[0] != 1U ||
+                reloadSession.racers()[0].hyperCharge != 1U ||
+                reloadSession.racers()[0].mines != 1U)
+            {
+                throw std::runtime_error(
+                    "source lap reload precondition shot failed");
+            }
+            reloadInput = {};
+            auto placeReloadOnSegment = [&](std::size_t segment) {
+                const auto& start = point(segment);
+                const auto& end = point(segment + 1U);
+                reloadVehicles[0].body.position = multiply(
+                    add(start.position, end.position), 0.5F);
+                reloadVehicles[0].body.position.z =
+                    (start.position.z + end.position.z) * 0.5F + 2.0F;
+                reloadVehicles[0].body.rotation = shortestArcFromX(
+                    normalized2(subtract(
+                        end.position, start.position)));
+                reloadSession.update(
+                    1.0F / 60.0F,
+                    reloadVehicles, reloadInput);
+            };
+            for (std::size_t segment = 0U;
+                 segment + 1U < race.tracePath.size(); ++segment)
+                placeReloadOnSegment(segment);
+            reloadVehicles[0].body.position.x += 1000.0F;
+            reloadVehicles[0].body.position.y += 1000.0F;
+            reloadSession.update(
+                1.0F / 60.0F,
+                reloadVehicles, reloadInput);
+            placeReloadOnSegment(0U);
+            if (reloadSession.racers()[0].completedLaps != 1U ||
+                reloadSession.racers()[0].weaponCharges[0] != 2U ||
+                reloadSession.racers()[0].hyperCharge != 2U ||
+                reloadSession.racers()[0].mines != 2U)
+            {
+                throw std::runtime_error(
+                    "source Player::OnLapPass ReloadWeapons failed");
+            }
+        }
+        {
+            Race finishImmortalRace = race;
+            finishImmortalRace.lapCount = 1U;
+            finishImmortalRace.racers.resize(2U);
+            OriginalRaceSession finishImmortalSession(
+                finishImmortalRace);
+            auto finishVehicles = vehicles;
+            finishVehicles.resize(2U);
+            for (auto& state : finishVehicles)
+            {
+                state.bodyContacts.clear();
+                state.speed = 0.0F;
+                state.linearVelocity = {};
+            }
+            RaceControl finishInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                finishImmortalSession.update(
+                    1.0F / 60.0F,
+                    finishVehicles, finishInput);
+            }
+            auto placeFinishOnSegment = [&](std::size_t segment) {
+                const auto& start = point(segment);
+                const auto& end = point(segment + 1U);
+                finishVehicles[0].body.position = multiply(
+                    add(start.position, end.position), 0.5F);
+                finishVehicles[0].body.position.z =
+                    (start.position.z + end.position.z) * 0.5F + 2.0F;
+                finishVehicles[0].body.rotation = shortestArcFromX(
+                    normalized2(subtract(
+                        end.position, start.position)));
+                finishImmortalSession.update(
+                    1.0F / 60.0F,
+                    finishVehicles, finishInput);
+            };
+            for (std::size_t segment = 0U;
+                 segment + 1U < race.tracePath.size(); ++segment)
+                placeFinishOnSegment(segment);
+            finishVehicles[0].body.position.x += 1000.0F;
+            finishVehicles[0].body.position.y += 1000.0F;
+            finishImmortalSession.update(
+                1.0F / 60.0F,
+                finishVehicles, finishInput);
+            placeFinishOnSegment(0U);
+            if (!finishImmortalSession.racers()[0].finished)
+            {
+                throw std::runtime_error(
+                    "source finished-immortality precondition failed");
+            }
+            const float finishedLife =
+                finishImmortalSession.racers()[0].life;
+            finishVehicles[1].body.position = add(
+                finishVehicles[0].body.position,
+                {1000.0F, 1000.0F, 0.0F});
+            finishVehicles[1].speed = 10.0F;
+            finishVehicles[0].bodyContacts = {
+                {r3d::physics::CollisionSurface::Vehicle, 1U,
+                 {-1.0F, 0.0F, 0.0F}, 20.0F, 1200000.0F}};
+            finishImmortalSession.update(
+                1.0F / 60.0F,
+                finishVehicles, finishInput);
+            const bool finishedDamageEvent = std::any_of(
+                finishImmortalSession.events().begin(),
+                finishImmortalSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::Damage &&
+                           event.racer == 0U;
+                });
+            if (finishImmortalSession.racers()[0].destroyed ||
+                std::abs(
+                    finishImmortalSession.racers()[0].life -
+                    finishedLife) > 0.001F ||
+                !finishedDamageEvent)
+            {
+                throw std::runtime_error(
+                    "source Player::SetFinished immortal damage event failed");
+            }
+            finishVehicles[0].bodyContacts.clear();
+            for (int frame = 0; frame < 20; ++frame)
+            {
+                finishImmortalSession.update(
+                    1.0F / 60.0F,
+                    finishVehicles, finishInput);
+            }
+            if (finishImmortalSession.vehicleInputs()[0].brake < 0.9F ||
+                finishImmortalSession.vehicleInputs()[0].throttle > 0.1F ||
+                finishImmortalSession.vehicleInputs()[0].reverse > 0.1F)
+            {
+                throw std::runtime_error(
+                    "source CompleteRace 0.3-second brake transition failed");
+            }
+        }
         // Preserve the shared fixture position used by the subsequent
         // projectile/mine source regressions.
         vehicles[0].body.position = point(
