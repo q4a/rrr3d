@@ -1478,6 +1478,12 @@ std::vector<VisualNode> visualNodes(
             std::istringstream stream(meshId->GetText());
             stream >> node.subMesh;
         }
+        if (auto* tag = child(item, "tag");
+            tag != nullptr && tag->GetText() != nullptr)
+        {
+            std::istringstream stream(tag->GetText());
+            stream >> node.tag;
+        }
         if (auto* materials = child(item, "materials"))
         {
             for (auto* material = materials->FirstChildElement();
@@ -2864,14 +2870,94 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
         }
     }
 
-    auto* engineSound =
-        require(car, "behaviors/items/item5", source + "/engine sound");
+    auto* engineSound = static_cast<TiXmlElement*>(nullptr);
+    if (auto* behaviors = child(car, "behaviors/items"))
+    {
+        for (auto* behavior = behaviors->FirstChildElement();
+             behavior != nullptr;
+             behavior = behavior->NextSiblingElement())
+        {
+            const char* type = behavior->Attribute("type");
+            if (type != nullptr && std::string_view(type) == "12")
+            {
+                engineSound = behavior;
+                break;
+            }
+        }
+    }
+    if (engineSound == nullptr)
+        throw resource::ResourceError(source +
+                                      ": missing SoundMotor behavior");
     result.idleSoundPath = canonicalDataPath(
         resources,
         itemAttribute(engineSound, "sndIdle", source + "/engine sound"));
     result.rpmSoundPath = canonicalDataPath(
         resources,
         itemAttribute(engineSound, "sndRPM", source + "/engine sound"));
+    const auto readSoundRange = [&](std::string_view name) {
+        std::array<float, 2> range{};
+        std::istringstream stream(text(engineSound, name, source));
+        if (!(stream >> range[0] >> range[1]))
+            throw resource::ResourceError(
+                source + ": invalid SoundMotor " + std::string(name));
+        return range;
+    };
+    result.rpmVolumeRange = readSoundRange("rpmVolumeRange");
+    result.rpmFrequencyRange = readSoundRange("rpmFreqRange");
+
+    // These actors are constructed by DataBase::LoadCar and serialized in
+    // each affected ctCar record. Preserve their child transform, submesh,
+    // material and behavior tag rather than redrawing the entire body as a
+    // guessed overlay.
+    if (auto* includes = child(car, "includeList/items"))
+    {
+        for (auto* include = includes->FirstChildElement();
+             include != nullptr; include = include->NextSiblingElement())
+        {
+            bool trackAnimation = false;
+            std::vector<int> cushionTags;
+            if (auto* behaviors = child(include, "behaviors/items"))
+            {
+                for (auto* behavior = behaviors->FirstChildElement();
+                     behavior != nullptr;
+                     behavior = behavior->NextSiblingElement())
+                {
+                    const char* type = behavior->Attribute("type");
+                    if (type == nullptr)
+                        continue;
+                    if (std::string_view(type) == "13")
+                    {
+                        trackAnimation = true;
+                    }
+                    else if (std::string_view(type) == "14")
+                    {
+                        auto* target = child(behavior, "targetTag");
+                        if (target == nullptr || target->GetText() == nullptr)
+                            throw resource::ResourceError(
+                                source +
+                                ": PodushkaAnim has no targetTag");
+                        cushionTags.push_back(static_cast<int>(
+                            unsignedValue(target->GetText(), source)));
+                    }
+                }
+            }
+            if (!trackAnimation && cushionTags.empty())
+                continue;
+            const Transform includeTransform =
+                elementTransform(include, source + "/animated child");
+            auto nodes = visualNodes(
+                resources, include, source + "/animated child");
+            for (auto& node : nodes)
+            {
+                flattenVisualNode(node, includeTransform);
+                if (trackAnimation)
+                    result.trackVisuals.push_back(node);
+                if (std::find(cushionTags.begin(), cushionTags.end(),
+                              node.tag) != cushionTags.end())
+                    result.cushionVisuals.push_back(std::move(node));
+            }
+        }
+    }
     // DataBase::LoadCar attaches the same source LowLifePoints behavior to
     // every car; it is constructed at runtime rather than serialized in the
     // individual ctCar record.
@@ -2968,7 +3054,22 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
             scalar(shape, "inverseWheelMass", source + "/wheel");
         wheel.driven = boolean(item, "lead", source + "/wheel");
         wheel.steering = boolean(item, "steer", source + "/wheel");
+        bool hasSlipEffect = false;
+        if (auto* behaviors = child(item, "behaviors/items"))
+        {
+            for (auto* behavior = behaviors->FirstChildElement();
+                 behavior != nullptr;
+                 behavior = behavior->NextSiblingElement())
+            {
+                const char* type = behavior->Attribute("type");
+                hasSlipEffect =
+                    hasSlipEffect ||
+                    (type != nullptr &&
+                     std::string_view(type) == "9");
+            }
+        }
         vehicle.wheels.push_back(wheel);
+        result.wheelSlipEffects.push_back(hasSlipEffect);
         result.wheelVisualOffsets.push_back(
             vector3(item, "offset", source + "/wheel"));
         auto wheelNodes = visualNodes(
@@ -3569,6 +3670,11 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
     race.wheelTrailEffect = objectDefinition(
         resources, database, "world\\db\\root\\ctEffects\\trail",
         "db.xml/original wheel trail");
+    race.wheelSmokeEffect = objectDefinition(
+        resources, database, "world\\db\\root\\ctEffects\\smoke7",
+        "db.xml/original wheel smoke");
+    race.wheelSlipSoundPath = canonicalDataPath(
+        resources, "Data/Sounds/SkidAsphalt.ogg");
     race.contactEffect = objectDefinition(
         resources, database, "world\\db\\root\\ctEffects\\spark2",
         "db.xml/PairPxContactEffect");
@@ -4454,6 +4560,7 @@ bool runOriginalRaceResourceSmokeTest(
             auditDefinition(effect.visual);
         auditDefinition(race.rainEffect);
         auditDefinition(race.wheelTrailEffect);
+        auditDefinition(race.wheelSmokeEffect);
         auditDefinition(race.contactEffect);
         if (invalidBillboard || fixedPlaneCount == 0U ||
             billboardCount == 0U)
@@ -5041,6 +5148,86 @@ bool runOriginalRaceResourceSmokeTest(
                     "source PairPxContactEffect sound catalog mismatch";
                 return false;
             }
+        }
+        const auto vehicleNamed = [&](std::string_view name) {
+            const auto found = std::find_if(
+                race.vehicles.begin(), race.vehicles.end(),
+                [&](const Vehicle& vehicle) {
+                    return recordEndsWith(vehicle.record, name);
+                });
+            return found == race.vehicles.end()
+                       ? static_cast<const Vehicle*>(nullptr)
+                       : &*found;
+        };
+        const auto* guseniza = vehicleNamed("guseniza");
+        const auto* gusenizaBoss = vehicleNamed("gusenizaBoss");
+        const auto* podushka = vehicleNamed("podushka");
+        const auto* podushkaBoss = vehicleNamed("podushkaBoss");
+        const auto trackMatchesSource = [&](const Vehicle* vehicle) {
+            return vehicle != nullptr &&
+                   vehicle->trackVisuals.size() == 1U &&
+                   vehicle->cushionVisuals.empty() &&
+                   vehicle->trackVisuals.front().subMesh == 1 &&
+                   vehicle->trackVisuals.front().materials.size() == 1U &&
+                   recordEndsWith(
+                       vehicle->trackVisuals.front()
+                           .materials.front().record,
+                       "gusenizaChain") &&
+                   std::count(vehicle->wheelSlipEffects.begin(),
+                              vehicle->wheelSlipEffects.end(), true) == 2;
+        };
+        const auto cushionMatchesSource = [&](const Vehicle* vehicle) {
+            return vehicle != nullptr && vehicle->trackVisuals.empty() &&
+                   vehicle->cushionVisuals.size() == 2U &&
+                   vehicle->cushionVisuals[0].tag == 1 &&
+                   vehicle->cushionVisuals[1].tag == 2 &&
+                   vehicle->cushionVisuals[0].subMesh == 1 &&
+                   vehicle->cushionVisuals[1].subMesh == 2 &&
+                   near(vehicle->cushionVisuals[0]
+                            .transform.position.z,
+                        -0.09F) &&
+                   near(vehicle->cushionVisuals[1]
+                            .transform.position.z,
+                        -0.09F) &&
+                   std::count(vehicle->wheelSlipEffects.begin(),
+                              vehicle->wheelSlipEffects.end(), true) == 2;
+        };
+        const bool motorRangesMatchSource = std::all_of(
+            race.vehicles.begin(), race.vehicles.end(),
+            [&](const Vehicle& vehicle) {
+                return !vehicle.idleSoundPath.empty() &&
+                       !vehicle.rpmSoundPath.empty() &&
+                       near(vehicle.rpmVolumeRange[0], 0.0F) &&
+                       near(vehicle.rpmVolumeRange[1], 1.0F) &&
+                       near(vehicle.rpmFrequencyRange[0], 0.0F) &&
+                       near(vehicle.rpmFrequencyRange[1], 1.0F) &&
+                       vehicle.wheelSlipEffects.size() ==
+                           vehicle.physics.wheels.size();
+            });
+        const bool smokeMatchesSource =
+            recordEndsWith(race.wheelSmokeEffect.record, "smoke7") &&
+            race.wheelSmokeEffect.graphOrder == GraphOrder::Effect &&
+            race.wheelSmokeEffect.particleEmitters.size() == 1U &&
+            race.wheelSmokeEffect.particleEmitters.front()
+                .distanceTriggered &&
+            near(race.wheelSmokeEffect.particleEmitters.front()
+                     .lifeMinimum,
+                 0.5F) &&
+            near(race.wheelSmokeEffect.particleEmitters.front()
+                     .lifeMaximum,
+                 0.6F) &&
+            recordEndsWith(
+                race.wheelSlipSoundPath, "SkidAsphalt.ogg");
+        if (!trackMatchesSource(guseniza) ||
+            !trackMatchesSource(gusenizaBoss) ||
+            !cushionMatchesSource(podushka) ||
+            !cushionMatchesSource(podushkaBoss) ||
+            !motorRangesMatchSource || !smokeMatchesSource)
+        {
+            error =
+                "source GusenizaAnim/PodushkaAnim/SoundMotor/"
+                "PxWheelSlipEffect provenance mismatch";
+            return false;
         }
         if (race.levelPath != "Data/Map/World1/map1.r3dMap" ||
             race.lapCount != 4 || race.vehicle.record.find("marauder") ==

@@ -148,6 +148,8 @@ private:
     std::vector<ObjectAsset> bonusDeathEffects_;
     std::vector<ObjectAsset> vehicleBodies_;
     std::vector<std::vector<ObjectAsset>> vehicleWheels_;
+    std::vector<ObjectAsset> vehicleTrackVisuals_;
+    std::vector<ObjectAsset> vehicleCushionVisuals_;
     std::vector<ObjectAsset> vehicleLowLifeEffects_;
     std::vector<ObjectAsset> vehicleEnergyDamageEffects_;
     std::vector<ObjectAsset> vehicleShieldEffects_;
@@ -158,6 +160,7 @@ private:
     std::vector<std::vector<ProjectileAsset>> projectiles_;
     ObjectAsset rainEffect_;
     ObjectAsset wheelTrailEffect_;
+    ObjectAsset wheelSmokeEffect_;
     ObjectAsset contactEffect_;
     r3d::renderer::Texture skyTexture_;
     r3d::renderer::Mesh skyMesh_;
@@ -204,6 +207,10 @@ private:
         wheelTrailPaths_;
     std::vector<std::vector<std::vector<float>>> wheelTrailTimes_;
     std::vector<std::uint32_t> wheelTrailResetCounts_;
+    std::vector<std::vector<float>> wheelSmokeStartTimes_;
+    std::vector<std::vector<float>> wheelSmokeEndTimes_;
+    std::vector<float> vehicleTrackAnimationOffsets_;
+    std::vector<float> vehicleCushionAnimationAngles_;
     // ActorManager::RayUser fade timers for original gpCullOpacity actors.
     std::vector<float> trackCullOpacityTimes_;
     std::vector<float> decorationCullOpacityTimes_;
@@ -212,6 +219,7 @@ private:
     float thirdPersonPullback_ = 0.0F;
     float previousRenderSeconds_ = 0.0F;
     float wheelTrailUpdateSeconds_ = -1.0F;
+    float vehicleAnimationUpdateSeconds_ = -1.0F;
     bool adaptedLuminanceAIsCurrent_ = false;
     bool luminanceAdaptationInitialized_ = false;
     bool cameraInitialized_ = false;

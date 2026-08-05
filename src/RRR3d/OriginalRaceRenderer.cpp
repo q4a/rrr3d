@@ -926,14 +926,15 @@ void drawGroups(GraphicsDevice& device,
                 DrawLayer layer = DrawLayer::All,
                 const r3d::game::originalrace::VisualNode* node = nullptr,
                 float opacity = 1.0F,
-                const std::array<float, 4>* tint = nullptr)
+                const std::array<float, 4>* tint = nullptr,
+                float textureOffsetX = 0.0F)
 {
     if (asset.textures.empty())
         return;
     const auto geometryPipeline = nodePipeline(pipeline, node);
     auto materialState =
         [&asset, elapsedSeconds, reflectionStrength, lighting, node,
-         opacity, tint](
+         opacity, tint, textureOffsetX](
             const auto& material, std::size_t materialIndex) {
             MaterialState state;
             const float frame =
@@ -970,7 +971,8 @@ void drawGroups(GraphicsDevice& device,
             state.textureTransform[2] +=
                 material.textureOffsetMinimum.x +
                 (material.textureOffsetMaximum.x -
-                 material.textureOffsetMinimum.x) * frame;
+                 material.textureOffsetMinimum.x) * frame +
+                textureOffsetX;
             state.textureTransform[3] +=
                 material.textureOffsetMinimum.y +
                 (material.textureOffsetMaximum.y -
@@ -1072,6 +1074,53 @@ void drawGroups(GraphicsDevice& device,
                     groupPipeline,
                     {group.firstIndex, group.indexCount}, material);
     }
+}
+
+r3d::physics::Vec3 meshGroupCenter(
+    const OriginalRaceRenderer::Asset& asset) noexcept
+{
+    if (asset.subMesh < 0 ||
+        static_cast<std::size_t>(asset.subMesh) >=
+            asset.source.materialGroups.size())
+    {
+        return {(asset.source.minimum[0] + asset.source.maximum[0]) * 0.5F,
+                (asset.source.minimum[1] + asset.source.maximum[1]) * 0.5F,
+                (asset.source.minimum[2] + asset.source.maximum[2]) * 0.5F};
+    }
+    const auto& group = asset.source.materialGroups[
+        static_cast<std::size_t>(asset.subMesh)];
+    r3d::physics::Vec3 minimum{
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max()};
+    r3d::physics::Vec3 maximum{
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest()};
+    bool found = false;
+    const std::size_t end = std::min<std::size_t>(
+        static_cast<std::size_t>(group.firstIndex) + group.indexCount,
+        asset.source.indices.size());
+    for (std::size_t index = group.firstIndex; index < end; ++index)
+    {
+        const auto vertexIndex = asset.source.indices[index];
+        if (vertexIndex >= asset.source.vertices.size())
+            continue;
+        const auto& position =
+            asset.source.vertices[vertexIndex].position;
+        minimum.x = std::min(minimum.x, position[0]);
+        minimum.y = std::min(minimum.y, position[1]);
+        minimum.z = std::min(minimum.z, position[2]);
+        maximum.x = std::max(maximum.x, position[0]);
+        maximum.y = std::max(maximum.y, position[1]);
+        maximum.z = std::max(maximum.z, position[2]);
+        found = true;
+    }
+    if (!found)
+        return {};
+    return {(minimum.x + maximum.x) * 0.5F,
+            (minimum.y + maximum.y) * 0.5F,
+            (minimum.z + maximum.z) * 0.5F};
 }
 
 void drawShadowGroups(GraphicsDevice& device,
@@ -1570,6 +1619,7 @@ bool OriginalRaceRenderer::initialize(
         }
         loadDefinition(rainEffect_, race.rainEffect);
         loadDefinition(wheelTrailEffect_, race.wheelTrailEffect);
+        loadDefinition(wheelSmokeEffect_, race.wheelSmokeEffect);
         loadDefinition(contactEffect_, race.contactEffect);
 
         weapons_.resize(race.weapons.size());
@@ -1650,6 +1700,8 @@ bool OriginalRaceRenderer::initialize(
         // rather than by the shared garage record.
         vehicleBodies_.resize(race.racers.size());
         vehicleWheels_.resize(race.racers.size());
+        vehicleTrackVisuals_.resize(race.racers.size());
+        vehicleCushionVisuals_.resize(race.racers.size());
         vehicleLowLifeEffects_.resize(race.racers.size());
         vehicleEnergyDamageEffects_.resize(race.racers.size());
         vehicleShieldEffects_.resize(race.racers.size());
@@ -1664,6 +1716,15 @@ bool OriginalRaceRenderer::initialize(
                     : race.vehicles.at(sourceRacer.vehicle);
             loadObject(vehicleBodies_[racer], vehicle.bodyVisuals);
             vehicleBodies_[racer].lighting = vehicle.lighting;
+            loadObject(
+                vehicleTrackVisuals_[racer], vehicle.trackVisuals);
+            vehicleTrackVisuals_[racer].lighting =
+                r3d::game::originalrace::LightingMode::Standard;
+            loadObject(
+                vehicleCushionVisuals_[racer],
+                vehicle.cushionVisuals);
+            vehicleCushionVisuals_[racer].lighting =
+                r3d::game::originalrace::LightingMode::Reflection;
             loadDefinition(
                 vehicleLowLifeEffects_[racer],
                 vehicle.lowLifeEffect);
@@ -1937,6 +1998,10 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     for (auto& wheels : vehicleWheels_)
         for (auto& wheel : wheels)
             releaseObject(wheel);
+    for (auto& track : vehicleTrackVisuals_)
+        releaseObject(track);
+    for (auto& cushion : vehicleCushionVisuals_)
+        releaseObject(cushion);
     for (auto& effect : vehicleLowLifeEffects_)
         releaseObject(effect);
     for (auto& effect : vehicleEnergyDamageEffects_)
@@ -1973,14 +2038,22 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         releaseObject(track);
     releaseObject(rainEffect_);
     releaseObject(wheelTrailEffect_);
+    releaseObject(wheelSmokeEffect_);
     releaseObject(contactEffect_);
     vehicleBodies_.clear();
     vehicleWheels_.clear();
+    vehicleTrackVisuals_.clear();
+    vehicleCushionVisuals_.clear();
     vehicleLowLifeEffects_.clear();
     vehicleEnergyDamageEffects_.clear();
     vehicleShieldEffects_.clear();
     vehicleShieldScales_.clear();
     vehicleDeathEffects_.clear();
+    vehicleTrackAnimationOffsets_.clear();
+    vehicleCushionAnimationAngles_.clear();
+    wheelSmokeStartTimes_.clear();
+    wheelSmokeEndTimes_.clear();
+    vehicleAnimationUpdateSeconds_ = -1.0F;
     bonuses_.clear();
     bonusDeathEffects_.clear();
     weapons_.clear();
@@ -3351,6 +3424,65 @@ void OriginalRaceRenderer::draw(
                    definition.bodyVisuals, state.body,
                    r3d::game::originalrace::GraphOrder::Default,
                    false, 1.0F, &race.racers[racer].color);
+        if (racer < vehicleTrackVisuals_.size() &&
+            racer < vehicleTrackAnimationOffsets_.size())
+        {
+            const auto& animatedAsset =
+                vehicleTrackVisuals_[racer];
+            const auto count = std::min(
+                animatedAsset.nodes.size(),
+                definition.trackVisuals.size());
+            const float sourceTextureOffset =
+                1.0F - vehicleTrackAnimationOffsets_[racer];
+            for (std::size_t index = 0; index < count; ++index)
+            {
+                const auto& node = definition.trackVisuals[index];
+                drawGroups(
+                    device, animatedAsset.nodes[index], shader,
+                    transform(compose(state.body, node.transform)),
+                    pipeline, elapsedSeconds, 0.0F,
+                    animatedAsset.lighting, DrawLayer::All, &node,
+                    1.0F, &race.racers[racer].color,
+                    sourceTextureOffset);
+            }
+        }
+        if (racer < vehicleCushionVisuals_.size() &&
+            racer < vehicleCushionAnimationAngles_.size())
+        {
+            const auto& animatedAsset =
+                vehicleCushionVisuals_[racer];
+            const auto count = std::min(
+                animatedAsset.nodes.size(),
+                definition.cushionVisuals.size());
+            const float angle =
+                vehicleCushionAnimationAngles_[racer];
+            const float halfAngle = angle * 0.5F;
+            for (std::size_t index = 0; index < count; ++index)
+            {
+                const auto& node = definition.cushionVisuals[index];
+                const auto center =
+                    meshGroupCenter(animatedAsset.nodes[index]);
+                r3d::physics::Transform toCenter;
+                toCenter.position = center;
+                r3d::physics::Transform rotation;
+                rotation.rotation = {
+                    std::sin(halfAngle), 0.0F, 0.0F,
+                    std::cos(halfAngle)};
+                r3d::physics::Transform fromCenter;
+                fromCenter.position = {
+                    -center.x, -center.y, -center.z};
+                const auto local = compose(
+                    node.transform,
+                    compose(toCenter,
+                            compose(rotation, fromCenter)));
+                drawGroups(
+                    device, animatedAsset.nodes[index], shader,
+                    transform(compose(state.body, local)), pipeline,
+                    elapsedSeconds, 0.0F, animatedAsset.lighting,
+                    DrawLayer::All, &node, 1.0F,
+                    &race.racers[racer].color);
+            }
+        }
         if (racer < racerRuntime.size())
         {
             const auto& runtime = racerRuntime[racer];
@@ -3501,10 +3633,14 @@ void OriginalRaceRenderer::draw(
                 wheelIndex < state.wheelContacts.size()
                     ? &state.wheelContacts[wheelIndex]
                     : nullptr;
+            const bool wheelEffectEnabled =
+                wheelIndex < definition.wheelSlipEffects.size() &&
+                definition.wheelSlipEffects[wheelIndex];
             const bool slipping =
-                contact != nullptr && contact->hasContact &&
+                wheelEffectEnabled && contact != nullptr &&
+                contact->hasContact &&
                 (std::abs(contact->longitudinalSlip) > 0.4F ||
-                 std::abs(contact->lateralSlip) > 0.6F);
+                 std::abs(contact->lateralSlip) > 0.7F);
             const auto* trailPath =
                 racer < wheelTrailPaths_.size() &&
                         wheelIndex < wheelTrailPaths_[racer].size()
@@ -3532,6 +3668,36 @@ void OriginalRaceRenderer::draw(
                     trailParent, elapsedSeconds,
                     std::abs(state.speed),
                     trailPath);
+            }
+            if (wheelEffectEnabled &&
+                racer < wheelSmokeStartTimes_.size() &&
+                wheelIndex < wheelSmokeStartTimes_[racer].size())
+            {
+                const float smokeStart =
+                    wheelSmokeStartTimes_[racer][wheelIndex];
+                const float smokeEnd =
+                    wheelSmokeEndTimes_[racer][wheelIndex];
+                if (smokeStart >= 0.0F)
+                {
+                    auto smokeParent = wheel;
+                    smokeParent.rotation = state.body.rotation;
+                    if (slipping)
+                    {
+                        smokeParent.position = contact->position;
+                    }
+                    else if (trailPath != nullptr &&
+                             !trailPath->empty())
+                    {
+                        smokeParent.position = trailPath->back();
+                    }
+                    drawDefinition(
+                        wheelSmokeEffect_, race.wheelSmokeEffect,
+                        smokeParent, elapsedSeconds - smokeStart,
+                        std::abs(state.speed), nullptr, 1.0F,
+                        smokeEnd >= 0.0F
+                            ? smokeEnd
+                            : std::numeric_limits<float>::infinity());
+                }
             }
         }
         if (racer < racerRuntime.size() &&
@@ -4107,6 +4273,54 @@ void OriginalRaceRenderer::drawShadowCasters(
         const auto& state = vehicles[racer];
         drawObject(vehicleBodies_[racer], definition.bodyVisuals,
                    state.body);
+        if (racer < vehicleTrackVisuals_.size())
+        {
+            const auto count = std::min(
+                vehicleTrackVisuals_[racer].nodes.size(),
+                definition.trackVisuals.size());
+            for (std::size_t index = 0; index < count; ++index)
+            {
+                const auto& node = definition.trackVisuals[index];
+                drawShadowGroups(
+                    device, vehicleTrackVisuals_[racer].nodes[index],
+                    shadowShader_,
+                    transform(compose(state.body, node.transform)),
+                    shadowPipeline, elapsedSeconds, &node);
+            }
+        }
+        if (racer < vehicleCushionVisuals_.size() &&
+            racer < vehicleCushionAnimationAngles_.size())
+        {
+            const auto count = std::min(
+                vehicleCushionVisuals_[racer].nodes.size(),
+                definition.cushionVisuals.size());
+            const float halfAngle =
+                vehicleCushionAnimationAngles_[racer] * 0.5F;
+            for (std::size_t index = 0; index < count; ++index)
+            {
+                const auto& node = definition.cushionVisuals[index];
+                const auto center = meshGroupCenter(
+                    vehicleCushionVisuals_[racer].nodes[index]);
+                r3d::physics::Transform toCenter;
+                toCenter.position = center;
+                r3d::physics::Transform rotation;
+                rotation.rotation = {
+                    std::sin(halfAngle), 0.0F, 0.0F,
+                    std::cos(halfAngle)};
+                r3d::physics::Transform fromCenter;
+                fromCenter.position = {
+                    -center.x, -center.y, -center.z};
+                const auto local = compose(
+                    node.transform,
+                    compose(toCenter,
+                            compose(rotation, fromCenter)));
+                drawShadowGroups(
+                    device,
+                    vehicleCushionVisuals_[racer].nodes[index],
+                    shadowShader_, transform(compose(state.body, local)),
+                    shadowPipeline, elapsedSeconds, &node);
+            }
+        }
         const auto wheelCount = std::min(
             {state.wheels.size(), definition.wheelVisuals.size(),
              definition.wheelVisualOffsets.size(),
@@ -4180,23 +4394,92 @@ void OriginalRaceRenderer::renderFrame(
     float elapsedSeconds,
     const r3d::game::originalrace::QualityConfig& quality)
 {
+    const bool resetVehicleAnimation =
+        vehicleAnimationUpdateSeconds_ < 0.0F ||
+        elapsedSeconds < vehicleAnimationUpdateSeconds_;
+    if (resetVehicleAnimation)
+    {
+        vehicleTrackAnimationOffsets_.assign(vehicles.size(), 0.0F);
+        vehicleCushionAnimationAngles_.assign(vehicles.size(), 0.0F);
+    }
+    else
+    {
+        vehicleTrackAnimationOffsets_.resize(vehicles.size(), 0.0F);
+        vehicleCushionAnimationAngles_.resize(vehicles.size(), 0.0F);
+    }
+    const float vehicleAnimationDelta =
+        resetVehicleAnimation
+            ? 0.0F
+            : std::max(elapsedSeconds -
+                           vehicleAnimationUpdateSeconds_,
+                       0.0F);
+    const std::size_t animatedVehicleCount =
+        std::min(vehicles.size(), race.racers.size());
+    for (std::size_t racer = 0; racer < animatedVehicleCount; ++racer)
+    {
+        const auto vehicleIndex = race.racers[racer].vehicle;
+        if (vehicleIndex >= race.vehicles.size())
+            continue;
+        const auto& definition =
+            race.racers[racer].hasConfiguredVehicle
+                ? race.racers[racer].configuredVehicle
+                : race.vehicles[vehicleIndex];
+        const auto& state = vehicles[racer];
+        float leadWheelSpeed = 0.0F;
+        const auto wheelCount = std::min(
+            state.wheelAngularSpeeds.size(),
+            definition.physics.wheels.size());
+        for (std::size_t wheel = 0; wheel < wheelCount; ++wheel)
+        {
+            if (!definition.physics.wheels[wheel].driven)
+                continue;
+            leadWheelSpeed =
+                state.wheelAngularSpeeds[wheel] *
+                definition.physics.wheels[wheel].radius;
+            break;
+        }
+        // GameCar::GetLeadWheelSpeed suppresses axle jitter below 0.1 m/s.
+        if (std::abs(leadWheelSpeed) <= 0.1F)
+            leadWheelSpeed = 0.0F;
+        auto& trackOffset = vehicleTrackAnimationOffsets_[racer];
+        trackOffset -= leadWheelSpeed * vehicleAnimationDelta / 5.0F;
+        trackOffset -= std::floor(trackOffset);
+        auto& cushionAngle = vehicleCushionAnimationAngles_[racer];
+        cushionAngle = std::fmod(
+            cushionAngle +
+                3.14159265358979323846F * vehicleAnimationDelta *
+                    leadWheelSpeed * 0.1F,
+            6.28318530717958647692F);
+    }
+    vehicleAnimationUpdateSeconds_ = elapsedSeconds;
+
     if (wheelTrailUpdateSeconds_ < 0.0F ||
         elapsedSeconds < wheelTrailUpdateSeconds_)
     {
         wheelTrailPaths_.clear();
         wheelTrailTimes_.clear();
         wheelTrailResetCounts_.clear();
+        wheelSmokeStartTimes_.clear();
+        wheelSmokeEndTimes_.clear();
     }
     wheelTrailUpdateSeconds_ = elapsedSeconds;
     wheelTrailPaths_.resize(vehicles.size());
     wheelTrailTimes_.resize(vehicles.size());
     wheelTrailResetCounts_.resize(vehicles.size());
+    wheelSmokeStartTimes_.resize(vehicles.size());
+    wheelSmokeEndTimes_.resize(vehicles.size());
     const auto& trailEmitters = race.wheelTrailEffect.particleEmitters;
     const float trailLife =
         trailEmitters.empty()
             ? 10.0F
             : std::max({trailEmitters.front().lifeMinimum,
                         trailEmitters.front().lifeMaximum, 0.1F});
+    const auto& smokeEmitters = race.wheelSmokeEffect.particleEmitters;
+    const float smokeLife =
+        smokeEmitters.empty()
+            ? 0.6F
+            : std::max({smokeEmitters.front().lifeMinimum,
+                        smokeEmitters.front().lifeMaximum, 0.1F});
     const float trailSpacing =
         trailEmitters.empty()
             ? 1.0F
@@ -4227,14 +4510,20 @@ void OriginalRaceRenderer::renderFrame(
              definition.wheelVisualOffsets.size()});
         auto& paths = wheelTrailPaths_[racer];
         auto& times = wheelTrailTimes_[racer];
+        auto& smokeStarts = wheelSmokeStartTimes_[racer];
+        auto& smokeEnds = wheelSmokeEndTimes_[racer];
         if (wheelTrailResetCounts_[racer] != state.resetCount)
         {
             paths.clear();
             times.clear();
+            smokeStarts.clear();
+            smokeEnds.clear();
             wheelTrailResetCounts_[racer] = state.resetCount;
         }
         paths.resize(wheelCount);
         times.resize(wheelCount);
+        smokeStarts.resize(wheelCount, -1.0F);
+        smokeEnds.resize(wheelCount, -1.0F);
         for (std::size_t wheel = 0; wheel < wheelCount; ++wheel)
         {
             const auto& contact = state.wheelContacts[wheel];
@@ -4248,10 +4537,31 @@ void OriginalRaceRenderer::renderFrame(
                 sampleTimes.erase(sampleTimes.begin());
                 path.erase(path.begin());
             }
+            const bool wheelEffectEnabled =
+                wheel < definition.wheelSlipEffects.size() &&
+                definition.wheelSlipEffects[wheel];
             const bool slipping =
-                contact.hasContact &&
+                wheelEffectEnabled && contact.hasContact &&
                 (std::abs(contact.longitudinalSlip) > 0.4F ||
-                 std::abs(contact.lateralSlip) > 0.6F);
+                 std::abs(contact.lateralSlip) > 0.7F);
+            if (slipping)
+            {
+                if (smokeStarts[wheel] < 0.0F)
+                    smokeStarts[wheel] = elapsedSeconds;
+                smokeEnds[wheel] = -1.0F;
+            }
+            else if (smokeStarts[wheel] >= 0.0F)
+            {
+                if (smokeEnds[wheel] < 0.0F)
+                    smokeEnds[wheel] =
+                        elapsedSeconds - smokeStarts[wheel];
+                if (elapsedSeconds - smokeStarts[wheel] >
+                    smokeEnds[wheel] + smokeLife)
+                {
+                    smokeStarts[wheel] = -1.0F;
+                    smokeEnds[wheel] = -1.0F;
+                }
+            }
             if (!slipping)
                 continue;
             bool addPoint = path.empty();

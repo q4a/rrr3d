@@ -3216,9 +3216,14 @@ int main(int argc, char** argv)
         r3d::audio::SoundHandle rpm = r3d::audio::invalidSound;
         r3d::audio::VoiceHandle idleVoice = r3d::audio::invalidVoice;
         r3d::audio::VoiceHandle rpmVoice = r3d::audio::invalidVoice;
+        // SoundMotor approaches the reported RPM at 10000 RPM/s before it
+        // mixes the idle and high layers.
+        float currentRpm = 0.0F;
     };
     std::map<std::string, r3d::audio::SoundHandle> engineSounds;
     std::vector<EngineAudio> engineAudio(originalRace->racers.size());
+    std::vector<std::vector<r3d::audio::VoiceHandle>>
+        wheelSlipVoices(originalRace->racers.size());
     std::vector<r3d::audio::SoundHandle> weaponAudio(
         originalRace->weapons.size(), r3d::audio::invalidSound);
     auto loadEngineSound = [&](const std::string& path) {
@@ -3233,6 +3238,10 @@ int main(int argc, char** argv)
         return sound;
     };
     bool engineAudioValid = true;
+    const auto wheelSlipSound =
+        loadEngineSound(originalRace->wheelSlipSoundPath);
+    engineAudioValid =
+        wheelSlipSound != r3d::audio::invalidSound;
     for (std::size_t racer = 0;
          racer < originalRace->racers.size(); ++racer)
     {
@@ -3311,6 +3320,7 @@ int main(int argc, char** argv)
             }
         }
         preloadDefinition(originalRace->contactEffect);
+        preloadDefinition(originalRace->wheelSmokeEffect);
         for (const auto& path : originalRace->contactSoundPaths)
         {
             valid =
@@ -3373,6 +3383,7 @@ int main(int argc, char** argv)
         for (std::size_t racer = 0; racer < engineAudio.size();
              ++racer)
         {
+            engineAudio[racer].currentRpm = 0.0F;
             r3d::audio::PlayOptions options;
             options.bus = r3d::audio::Bus::Effects;
             options.loop = true;
@@ -3382,6 +3393,14 @@ int main(int argc, char** argv)
             options.volume = racer == 0 ? 0.2F : 0.0F;
             engineAudio[racer].rpmVoice = audio.play(
                 engineAudio[racer].rpm, options, audioError);
+            const auto& sourceRacer = originalRace->racers[racer];
+            const auto& vehicle =
+                sourceRacer.hasConfiguredVehicle
+                    ? sourceRacer.configuredVehicle
+                    : originalRace->vehicles.at(sourceRacer.vehicle);
+            wheelSlipVoices[racer].assign(
+                vehicle.physics.wheels.size(),
+                r3d::audio::invalidVoice);
         }
     };
     auto stopRaceAudio = [&](bool advanceGameTrack = true) {
@@ -3391,6 +3410,14 @@ int main(int argc, char** argv)
             audio.stop(engine.rpmVoice);
             engine.idleVoice = r3d::audio::invalidVoice;
             engine.rpmVoice = r3d::audio::invalidVoice;
+        }
+        for (auto& wheels : wheelSlipVoices)
+        {
+            for (auto& voice : wheels)
+            {
+                audio.stop(voice);
+                voice = r3d::audio::invalidVoice;
+            }
         }
         commentator.pause(true);
         gameMusic.pause(true, audioError);
@@ -4452,6 +4479,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
             engineAudio.assign(
                 originalRace->racers.size(), EngineAudio{});
+            wheelSlipVoices.assign(
+                originalRace->racers.size(), {});
             for (std::size_t racer = 0;
                  racer < originalRace->racers.size(); ++racer)
             {
@@ -10683,13 +10712,35 @@ int main(int argc, char** argv)
                      racer < engineAudio.size() &&
                      racer < raceVehicles.size(); ++racer)
                 {
+                    const auto& sourceRacer =
+                        originalRace->racers[racer];
                     const auto& definition =
-                        originalRace->vehicles.at(
-                            originalRace->racers[racer].vehicle);
-                    const float rpm = std::clamp(
-                        raceVehicles[racer].engineRpm /
-                            std::max(
-                                definition.physics.maximumRpm, 1.0F),
+                        sourceRacer.hasConfiguredVehicle
+                            ? sourceRacer.configuredVehicle
+                            : originalRace->vehicles.at(
+                                  sourceRacer.vehicle);
+                    auto& motorAudio = engineAudio[racer];
+                    const float targetRpm =
+                        raceVehicles[racer].engineRpm;
+                    const float distanceRpm =
+                        targetRpm - motorAudio.currentRpm;
+                    const float motorStep =
+                        10000.0F * (audioPaused ? 0.0F : frameSeconds);
+                    motorAudio.currentRpm += std::clamp(
+                        distanceRpm, -motorStep, motorStep);
+                    const float minimumRpm = std::max(
+                        definition.physics.idlingRpm, 1.0F);
+                    const float maximumRpm = std::max(
+                        definition.physics.maximumRpm,
+                        minimumRpm + 1.0F);
+                    const float idleAlpha = std::clamp(
+                        0.5F *
+                            (motorAudio.currentRpm - minimumRpm) /
+                            minimumRpm,
+                        0.0F, 1.0F);
+                    const float rpmAlpha = std::clamp(
+                        (motorAudio.currentRpm - minimumRpm) /
+                            (maximumRpm - minimumRpm),
                         0.0F, 1.0F);
                     float attenuation = 1.0F;
                     float pan = 0.0F;
@@ -10713,20 +10764,83 @@ int main(int argc, char** argv)
                                 -1.0F, 1.0F);
                     }
                     const float idleVolume =
-                        attenuation * (0.55F - rpm * 0.42F);
+                        attenuation * (1.0F - idleAlpha);
                     const float rpmVolume =
-                        attenuation * (0.10F + rpm * 0.58F);
-                    const float pitch = 0.70F + rpm * 0.65F;
+                        attenuation * idleAlpha *
+                        (definition.rpmVolumeRange[0] +
+                         rpmAlpha *
+                             (definition.rpmVolumeRange[1] -
+                              definition.rpmVolumeRange[0]));
+                    const float pitch =
+                        definition.rpmFrequencyRange[0] +
+                        rpmAlpha *
+                            (definition.rpmFrequencyRange[1] -
+                             definition.rpmFrequencyRange[0]);
                     audio.setVoiceParameters(
-                        engineAudio[racer].idleVoice, idleVolume,
-                        0.92F + rpm * 0.12F, pan);
+                        motorAudio.idleVoice, idleVolume, 1.0F, pan);
                     audio.setVoiceParameters(
-                        engineAudio[racer].rpmVoice, rpmVolume, pitch,
+                        motorAudio.rpmVoice, rpmVolume, pitch,
                         pan);
                     audio.setVoicePaused(
-                        engineAudio[racer].idleVoice, audioPaused);
+                        motorAudio.idleVoice, audioPaused);
                     audio.setVoicePaused(
-                        engineAudio[racer].rpmVoice, audioPaused);
+                        motorAudio.rpmVoice, audioPaused);
+                    if (racer >= wheelSlipVoices.size())
+                        continue;
+                    auto& slipVoices = wheelSlipVoices[racer];
+                    const auto wheelCount = std::min(
+                        {raceVehicles[racer].wheelContacts.size(),
+                         definition.wheelSlipEffects.size(),
+                         slipVoices.size()});
+                    for (std::size_t wheel = 0;
+                         wheel < wheelCount; ++wheel)
+                    {
+                        const auto& contact =
+                            raceVehicles[racer].wheelContacts[wheel];
+                        const float slip =
+                            definition.wheelSlipEffects[wheel] &&
+                                    contact.hasContact
+                                ? std::max(
+                                      std::abs(
+                                          contact.longitudinalSlip) -
+                                          0.4F,
+                                      0.0F) +
+                                      std::max(
+                                          std::abs(
+                                              contact.lateralSlip) -
+                                              0.7F,
+                                          0.0F)
+                                : 0.0F;
+                        auto& voice = slipVoices[wheel];
+                        if (slip <= 0.0F)
+                        {
+                            if (voice != r3d::audio::invalidVoice)
+                            {
+                                audio.stop(voice);
+                                voice = r3d::audio::invalidVoice;
+                            }
+                            continue;
+                        }
+                        if (voice == r3d::audio::invalidVoice)
+                        {
+                            r3d::audio::PlayOptions options;
+                            options.bus = r3d::audio::Bus::Effects;
+                            options.loop = true;
+                            options.volume = 0.0F;
+                            voice = audio.play(
+                                wheelSlipSound, options, audioError);
+                        }
+                        if (voice != r3d::audio::invalidVoice)
+                        {
+                            audio.setVoiceParameters(
+                                voice,
+                                attenuation *
+                                    std::clamp(
+                                        slip * 4.0F, 0.0F, 1.0F),
+                                1.0F, pan);
+                            audio.setVoicePaused(voice, audioPaused);
+                        }
+                    }
                 }
             }
 #endif

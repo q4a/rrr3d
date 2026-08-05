@@ -119,6 +119,10 @@ struct VisualNode
     Transform transform;
     std::vector<MaterialDefinition> materials;
     int subMesh = -1;
+    // SceneNode::tag is used by behavior implementations such as
+    // PodushkaAnim to address individual mesh groups without relying on
+    // their serialized list order.
+    int tag = 0;
     // Both ntPlane and ntSprite use generated quad geometry, but only
     // Sprite::DoRender calls Engine::RenderSpritePT and faces the camera.
     bool plane = false;
@@ -347,14 +351,22 @@ struct Vehicle
     std::string record;
     std::vector<VisualNode> bodyVisuals;
     std::vector<VisualNode> wheelVisuals;
+    // DataBase::LoadCar creates these child actors from the source body
+    // mesh. GusenizaAnim scrolls the chain UVs, while PodushkaAnim rotates
+    // the two tagged cushion groups around their own mesh-space centres.
+    std::vector<VisualNode> trackVisuals;
+    std::vector<VisualNode> cushionVisuals;
     std::string bodyMeshPath;
     std::string wheelMeshPath;
     std::string texturePath;
     std::string idleSoundPath;
     std::string rpmSoundPath;
+    std::array<float, 2> rpmVolumeRange{0.0F, 1.0F};
+    std::array<float, 2> rpmFrequencyRange{0.0F, 1.0F};
     Transform bodyVisualTransform;
     std::vector<Transform> wheelVisualTransforms;
     std::vector<Vec3> wheelVisualOffsets;
+    std::vector<bool> wheelSlipEffects;
     std::array<VehicleWeaponMount, 4> weaponMounts;
     std::vector<VehicleNightLight> nightLights;
     ObjectDefinition lowLifeEffect;
@@ -629,6 +641,10 @@ struct Race
     ObjectDefinition rainEffect;
     // Source ctEffects/trail record referenced by the wheel behavior type 9.
     ObjectDefinition wheelTrailEffect;
+    // The second PxWheelSlipEffect attached by LoadCar uses smoke7. The
+    // first behavior also owns the looping asphalt-skid sound.
+    ObjectDefinition wheelSmokeEffect;
+    std::string wheelSlipSoundPath;
     // DataBase::Init installs one global PairPxContactEffect using spark2
     // and the five original light-impact clips.
     ObjectDefinition contactEffect;
