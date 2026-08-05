@@ -106,7 +106,7 @@ Windows target не компилируется.
 | Camera | `CameraManager.cpp`, `View.cpp`, `ActorManager::PullInRayTargetGroup` | source formulas и cull-opacity runtime в renderer | Перенесено для offline race | Release-переключение содержит только `csThirdPerson`/`csIsometric`; перенесены velocity pose, pull-back, ortho lead/teleport compensation, profile distance, projection и 0.25 s `gpCullOpacity` transitions. Debug/editor modes исключены |
 | Scene graph/render queues | `GraphManager`, `Actor`, `SceneManager` | custom queues в `OriginalRaceRenderer` | Частично | Основные order buckets есть; generic actor/proxy/octree graph не перенесён |
 | Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | source-derived material catalog + bgfx mappings | Перенесено с renderer-адаптацией | Проверены все 238 активных `Load*LibMat` records; два отсутствующих texture records являются source no-texture projectiles, ещё два — закомментированные `World2/track2` calls. Opaque/alpha/additive/bump/reflection и material flags сопоставлены без active name fallback |
-| Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы directional race passes и отдельные source shadow maps всех двух Garage/до трёх Angar spot-lamps с исходными cone/near/far и per-light diffuse/specular application; bit-for-bit и полное graph state parity не доказаны |
+| Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы directional race passes, source shadow maps Garage/Angar, HDR/bloom/tone map и High-quality perspective SunShaft с prepare mask, фиксированными 640×512/320×256 targets, восемью ping-pong resample и исходным radial composite; bit-for-bit и полное graph state parity не доказаны |
 | Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Перенесено для active catalog | В фактическом `db.xml` покрыты все 8 manager classes, все 37 `ntParticleSystem`, единственный активный `FxFlowEmitter`, все 14 `partDesc` и 5 `flowDesc` fields, child systems, distributions, lifetime/fading и `ntIVBMesh`/`ntSprite`/`ntPlane`; D3D sorting заменён bgfx |
 | Weather/water/magma/sky | `Environment.cpp`, `GraphManager`, `WaterPlane`, `FogPlane`, `GrassField`, source `.fx` | source graph + bgfx/Metal shader equivalents | Перенесено с backend-адаптацией | Перенесены шесть world branches, weather fog/ambient/sky/far, quality gates, rain/isometric exclusions, scene AABB +300, UV scale 4/25/50, Low/volume paths, water reflection, depth reconstruction, cloud animation/color/intensity, source grass atlas/density/scale и sky без camera translation; D3D9 заменён Metal |
 | Intro/video | `VideoPlayer.cpp`, DirectShow playback | AVPlayer/AVPlayerLayer, 14 lossless-remuxed MP4 | Замена платформы | Все исходные H.264/MP3 потоки проигрываются нативно; Difficulty `Main`, Gamers `Intaria`, planet и final transitions подключены |
@@ -866,6 +866,11 @@ Network, video и Steam явно выключены.
 5. Skybox следует за фактической камерой без translation; perspective far
    равен `120/100` по weather, Garage — 20, Angar — 130, isometric — 150.
    Multi-world render smoke отдельно проверяет Water/volume-surface pass.
+6. `SunShaftRender` перенесён после HDR/Bloom/ToneMapping: source depth mask,
+   POINT prepare, фиксированные `1280/2` и `1280/4` targets, восемь LINEAR
+   ping-pong resample, расчёт позиции солнца через world AABB и исходный
+   восьмисэмпловый radial/soft-light composite. Ветка включается только на
+   High post-effect, при дневном directional light и perspective camera.
 
 ## Очередь дальнейшего переноса
 

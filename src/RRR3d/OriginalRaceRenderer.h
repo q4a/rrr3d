@@ -186,6 +186,8 @@ private:
     r3d::renderer::Shader luminanceLogShader_;
     r3d::renderer::Shader luminanceDownsampleShader_;
     r3d::renderer::Shader luminanceAdaptShader_;
+    r3d::renderer::Shader sunShaftPrepareShader_;
+    r3d::renderer::Shader sunShaftCompositeShader_;
     r3d::renderer::RenderTarget hdrTarget_;
     r3d::renderer::RenderTarget waterSceneTarget_;
     r3d::renderer::RenderTarget reflectionTarget_;
@@ -201,10 +203,14 @@ private:
     r3d::renderer::RenderTarget adaptedLuminanceTargetB_;
     r3d::renderer::RenderTarget bloomTargetA_;
     r3d::renderer::RenderTarget bloomTargetB_;
+    r3d::renderer::RenderTarget sunShaftSceneTarget_;
+    r3d::renderer::RenderTarget sunShaftBlurTargetA_;
+    r3d::renderer::RenderTarget sunShaftBlurTargetB_;
     std::uint32_t frameWidth_ = 0;
     std::uint32_t frameHeight_ = 0;
     r3d::physics::Vec3 environmentSurfaceCenter_;
     r3d::physics::Vec3 environmentSurfaceSize_;
+    r3d::physics::Vec3 sceneWorldCenter_;
     std::vector<r3d::physics::Vec3> grassFieldOffsets_;
     r3d::physics::Vec3 cameraLead_;
     r3d::physics::Vec3 previousCameraTarget_;
@@ -240,6 +246,7 @@ private:
     float vehicleAnimationUpdateSeconds_ = -1.0F;
     bool adaptedLuminanceAIsCurrent_ = false;
     bool luminanceAdaptationInitialized_ = false;
+    bool sunShaftResourcesEnabled_ = false;
     bool cameraInitialized_ = false;
     bool cameraStyleInitialized_ = false;
 };

@@ -830,8 +830,23 @@ private:
             state |= BGFX_STATE_MSAA;
 
         bgfx::setTransform(transform.matrix.data());
-        bgfx::setTexture(0, texture_sampler_,
-                         bgfx::TextureHandle{texture.value});
+        auto samplerFlags = [](MaterialState::TextureFilter filter) {
+            switch (filter)
+            {
+            case MaterialState::TextureFilter::Point:
+                return static_cast<std::uint32_t>(
+                    BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT |
+                    BGFX_SAMPLER_MIP_POINT);
+            case MaterialState::TextureFilter::Linear:
+                return static_cast<std::uint32_t>(BGFX_SAMPLER_MIP_POINT);
+            case MaterialState::TextureFilter::Inherited:
+                return std::numeric_limits<std::uint32_t>::max();
+            }
+            return std::numeric_limits<std::uint32_t>::max();
+        };
+        bgfx::setTexture(
+            0, texture_sampler_, bgfx::TextureHandle{texture.value},
+            samplerFlags(material.textureFilter));
         const auto reflectionTexture =
             valid(pass_state_.reflectionTexture)
                 ? pass_state_.reflectionTexture
@@ -846,7 +861,8 @@ private:
                 : shadowTexture;
         bgfx::setTexture(
             1, reflection_sampler_,
-            bgfx::TextureHandle{reflectionTexture.value});
+            bgfx::TextureHandle{reflectionTexture.value},
+            samplerFlags(material.reflectionTextureFilter));
         bgfx::setTexture(
             2, shadow_sampler_,
             bgfx::TextureHandle{shadowTexture.value});

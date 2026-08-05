@@ -128,6 +128,9 @@ enum class RenderPass : std::uint8_t
     BloomExtract,
     BloomHorizontal,
     BloomVertical,
+    ToneMap,
+    SunShaftPrepare,
+    SunShaftBlur,
     Composite,
     Overlay,
     Count,
@@ -201,6 +204,13 @@ struct PipelineState
 
 struct MaterialState
 {
+    enum class TextureFilter : std::uint8_t
+    {
+        Inherited,
+        Point,
+        Linear,
+    };
+
     std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
     // xy scales source UVs and zw offsets them.  Original LibMaterial uses
     // this for animated texture atlases and scrolling effect materials.
@@ -217,6 +227,11 @@ struct MaterialState
     Texture environmentTexture;
     // Optional second LibMaterial sampler used by BumpMapShader.
     Texture normalTexture;
+    // D3D post effects switch color/depth samplers between POINT and
+    // LINEAR.  Keep that source state per draw instead of baking a backend
+    // sampler choice into render-target creation.
+    TextureFilter textureFilter = TextureFilter::Inherited;
+    TextureFilter reflectionTextureFilter = TextureFilter::Inherited;
     // Generic parameters used by the source-derived post-process shaders.
     std::array<float, 4> postParameters{};
 };

@@ -164,6 +164,10 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_shader_output_dir}/rrr3d_fs_luminance_downsample.bin.h")
         set(_rrr3d_luminance_adapt_shader
             "${_rrr3d_shader_output_dir}/rrr3d_fs_luminance_adapt.bin.h")
+        set(_rrr3d_sun_shaft_prepare_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_sun_shaft_prepare.bin.h")
+        set(_rrr3d_sun_shaft_composite_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_sun_shaft_composite.bin.h")
         set(_rrr3d_legacy_varying
             "${_rrr3d_shader_source_dir}/varying_legacy_mesh.def.sc")
         set(_rrr3d_post_varying
@@ -242,6 +246,14 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_luminance_adapt_shader}" fragment
             "${_rrr3d_shader_source_dir}/fs_luminance_adapt.sc"
             "${_rrr3d_post_varying}" rrr3d_fs_luminance_adapt)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_sun_shaft_prepare_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_sun_shaft_prepare.sc"
+            "${_rrr3d_post_varying}" rrr3d_fs_sun_shaft_prepare)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_sun_shaft_composite_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_sun_shaft_composite.sc"
+            "${_rrr3d_post_varying}" rrr3d_fs_sun_shaft_composite)
         set(_rrr3d_race_post_shaders
             "${_rrr3d_shadow_vertex_shader}"
             "${_rrr3d_shadow_fragment_shader}"
@@ -259,7 +271,9 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_copy_shader}"
             "${_rrr3d_luminance_log_shader}"
             "${_rrr3d_luminance_downsample_shader}"
-            "${_rrr3d_luminance_adapt_shader}")
+            "${_rrr3d_luminance_adapt_shader}"
+            "${_rrr3d_sun_shaft_prepare_shader}"
+            "${_rrr3d_sun_shaft_composite_shader}")
     endif()
 
     if(RRR3D_BUILD_ORIGINAL_MENU)

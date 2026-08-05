@@ -14571,6 +14571,10 @@ int main(int argc, char** argv)
                 const bool expectsHdr =
                     smokeQuality.postEffect >= 2U &&
                     weatherAllowsPostEffects;
+                const bool expectsSunShaft =
+                    smokeQuality.postEffect >= 2U &&
+                    weatherAllowsPostEffects &&
+                    originalRace->environment.directionalLightEnabled;
                 bool renderGraphComplete =
                     passObserved(r3d::renderer::RenderPass::Scene) &&
                     passObserved(
@@ -14634,6 +14638,30 @@ int main(int argc, char** argv)
                             r3d::renderer::RenderPass::BloomHorizontal) &&
                         passObserved(
                             r3d::renderer::RenderPass::BloomVertical);
+                }
+                if (expectsSunShaft)
+                {
+                    const auto blurPass = static_cast<std::size_t>(
+                        r3d::renderer::RenderPass::SunShaftBlur);
+                    renderGraphComplete =
+                        renderGraphComplete &&
+                        passObserved(
+                            r3d::renderer::RenderPass::ToneMap) &&
+                        passObserved(
+                            r3d::renderer::RenderPass::SunShaftPrepare) &&
+                        maximumRacePassBegins[blurPass] >= 8U &&
+                        maximumRacePassDraws[blurPass] >= 8U;
+                }
+                else
+                {
+                    const auto preparePass = static_cast<std::size_t>(
+                        r3d::renderer::RenderPass::SunShaftPrepare);
+                    const auto blurPass = static_cast<std::size_t>(
+                        r3d::renderer::RenderPass::SunShaftBlur);
+                    renderGraphComplete =
+                        renderGraphComplete &&
+                        maximumRacePassBegins[preparePass] == 0U &&
+                        maximumRacePassBegins[blurPass] == 0U;
                 }
                 const bool expectsReflection =
                     originalRace->environment.planarReflection ||
@@ -14804,6 +14832,7 @@ int main(int argc, char** argv)
                         << (expectsReflection ? "/reflection" : "")
                         << (expectsWater ? "/water" : "")
                         << (expectsVolumeSurface ? "/volume-surface" : "")
+                        << (expectsSunShaft ? "/sun-shaft8" : "")
                         << " verified; cube reflection "
                         << maximumEnvironmentMappedDraws
                         << ", normal map "

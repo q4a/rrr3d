@@ -12,6 +12,8 @@
 #include "rrr3d_fs_luminance_log.bin.h"
 #include "rrr3d_fs_shadow_map.bin.h"
 #include "rrr3d_fs_skybox.bin.h"
+#include "rrr3d_fs_sun_shaft_composite.bin.h"
+#include "rrr3d_fs_sun_shaft_prepare.bin.h"
 #include "rrr3d_fs_tone_map.bin.h"
 #include "rrr3d_fs_water.bin.h"
 #include "rrr3d_vs_post_process.bin.h"
@@ -1622,6 +1624,18 @@ bool OriginalRaceRenderer::createFrameTargets(
     bloomTargetB_ = device.createRenderTarget(
         128, 128, RenderTargetFormat::Rgba16F,
         false, "Motor Rock bloom B");
+    if (sunShaftResourcesEnabled_)
+    {
+        sunShaftSceneTarget_ = device.createRenderTarget(
+            targetWidth, targetHeight, RenderTargetFormat::Rgba8,
+            false, "Motor Rock sun shaft source color");
+        sunShaftBlurTargetA_ = device.createRenderTarget(
+            640, 512, RenderTargetFormat::Rgba8,
+            false, "Motor Rock sun shaft blur 2x");
+        sunShaftBlurTargetB_ = device.createRenderTarget(
+            320, 256, RenderTargetFormat::Rgba8,
+            false, "Motor Rock sun shaft blur 4x");
+    }
     if (!valid(hdrTarget_) || !valid(waterSceneTarget_) ||
         !valid(reflectionTarget_) || !valid(shadowTarget_) ||
         !valid(shadowTargetFar_) || !valid(shadowTargetThird_) ||
@@ -1629,7 +1643,11 @@ bool OriginalRaceRenderer::createFrameTargets(
         !valid(luminance4Target_) || !valid(luminance1Target_) ||
         !valid(adaptedLuminanceTargetA_) ||
         !valid(adaptedLuminanceTargetB_) ||
-        !valid(bloomTargetA_) || !valid(bloomTargetB_))
+        !valid(bloomTargetA_) || !valid(bloomTargetB_) ||
+        (sunShaftResourcesEnabled_ &&
+         (!valid(sunShaftSceneTarget_) ||
+          !valid(sunShaftBlurTargetA_) ||
+          !valid(sunShaftBlurTargetB_))))
     {
         error = "bgfx/Metal could not create M9.5 render targets";
         destroyFrameTargets(device);
@@ -1642,6 +1660,12 @@ bool OriginalRaceRenderer::createFrameTargets(
 void OriginalRaceRenderer::destroyFrameTargets(
     GraphicsDevice& device) noexcept
 {
+    if (valid(sunShaftBlurTargetB_))
+        device.destroy(sunShaftBlurTargetB_);
+    if (valid(sunShaftBlurTargetA_))
+        device.destroy(sunShaftBlurTargetA_);
+    if (valid(sunShaftSceneTarget_))
+        device.destroy(sunShaftSceneTarget_);
     if (valid(bloomTargetB_))
         device.destroy(bloomTargetB_);
     if (valid(bloomTargetA_))
@@ -1670,6 +1694,9 @@ void OriginalRaceRenderer::destroyFrameTargets(
         device.destroy(hdrTarget_);
     if (valid(waterSceneTarget_))
         device.destroy(waterSceneTarget_);
+    sunShaftBlurTargetB_ = {};
+    sunShaftBlurTargetA_ = {};
+    sunShaftSceneTarget_ = {};
     bloomTargetB_ = {};
     bloomTargetA_ = {};
     shadowTarget_ = {};
@@ -1719,6 +1746,13 @@ bool OriginalRaceRenderer::initialize(
         }
         perspectiveFarDistance_ =
             std::max(race.environment.perspectiveFarDistance, 1.0F);
+        // GraphManager creates SunShaft only for daytime worlds with an
+        // active directional light. Garage, Angar and Night therefore do
+        // not consume its three render-target handles.
+        sunShaftResourcesEnabled_ =
+            race.environment.directionalLightEnabled &&
+            race.environment.weather !=
+                r3d::game::originalrace::Weather::Night;
         shadowShader_ = device.createShader(
             {rrr3d_vs_shadow_map, sizeof(rrr3d_vs_shadow_map)},
             {rrr3d_fs_shadow_map, sizeof(rrr3d_fs_shadow_map)},
@@ -1779,6 +1813,18 @@ bool OriginalRaceRenderer::initialize(
             {rrr3d_fs_luminance_adapt,
              sizeof(rrr3d_fs_luminance_adapt)},
             "original-hdr-luminance-adapt");
+        sunShaftPrepareShader_ = device.createShader(
+            {rrr3d_vs_post_process,
+             sizeof(rrr3d_vs_post_process)},
+            {rrr3d_fs_sun_shaft_prepare,
+             sizeof(rrr3d_fs_sun_shaft_prepare)},
+            "original-sun-shaft-prepare");
+        sunShaftCompositeShader_ = device.createShader(
+            {rrr3d_vs_post_process,
+             sizeof(rrr3d_vs_post_process)},
+            {rrr3d_fs_sun_shaft_composite,
+             sizeof(rrr3d_fs_sun_shaft_composite)},
+            "original-sun-shaft-composite");
         postProcessMesh_ = device.createMesh(
             postProcessVertices.data(), postProcessVertices.size(),
             postProcessIndices.data(), postProcessIndices.size());
@@ -1794,6 +1840,8 @@ bool OriginalRaceRenderer::initialize(
             !valid(luminanceLogShader_) ||
             !valid(luminanceDownsampleShader_) ||
             !valid(luminanceAdaptShader_) ||
+            !valid(sunShaftPrepareShader_) ||
+            !valid(sunShaftCompositeShader_) ||
             !valid(postProcessMesh_))
         {
             error =
@@ -1816,6 +1864,9 @@ bool OriginalRaceRenderer::initialize(
                     std::to_string(valid(luminanceLogShader_) &&
                                    valid(luminanceDownsampleShader_) &&
                                    valid(luminanceAdaptShader_)) +
+                ", sunShaft=" +
+                    std::to_string(valid(sunShaftPrepareShader_) &&
+                                   valid(sunShaftCompositeShader_)) +
                 ", postMesh=" +
                     std::to_string(valid(postProcessMesh_));
             throw r3d::resource::ResourceError(
@@ -2235,6 +2286,64 @@ bool OriginalRaceRenderer::initialize(
         effectMesh_ = device.createMesh(
             effectVertices.data(), effectVertices.size(),
             effectIndices.data(), effectIndices.size());
+
+        // GraphManager::BuildOctree derives _groundAABB and the world AABB
+        // used by SunShaft from all map actors before cars are created.
+        WorldBounds sceneBounds;
+        for (const auto& instance : race.trackInstances)
+        {
+            if (instance.definition >= tracks_.size() ||
+                instance.definition >= race.trackDefinitions.size())
+                continue;
+            include(
+                sceneBounds,
+                objectBounds(
+                    tracks_[instance.definition],
+                    race.trackDefinitions[instance.definition].visualNodes,
+                    instance.transform));
+        }
+        for (const auto& instance : race.decorationInstances)
+        {
+            if (instance.definition >= decorations_.size() ||
+                instance.definition >= race.decorationDefinitions.size())
+                continue;
+            include(
+                sceneBounds,
+                objectBounds(
+                    decorations_[instance.definition],
+                    race.decorationDefinitions[instance.definition]
+                        .visualNodes,
+                    instance.transform));
+        }
+        for (std::size_t index = 0;
+             index < race.bonuses.size() && index < bonuses_.size();
+             ++index)
+        {
+            include(
+                sceneBounds,
+                objectBounds(
+                    bonuses_[index], race.bonuses[index].visual.visualNodes,
+                    race.bonuses[index].transform));
+        }
+        if (!sceneBounds.valid)
+        {
+            for (const auto& point : race.tracePoints)
+            {
+                const float radius = std::max(point.width * 0.5F, 1.0F);
+                include(sceneBounds,
+                        r3d::physics::Vec3{
+                            point.position.x - radius,
+                            point.position.y - radius, 0.0F});
+                include(sceneBounds,
+                        r3d::physics::Vec3{
+                            point.position.x + radius,
+                            point.position.y + radius, 0.0F});
+            }
+        }
+        sceneWorldCenter_ = {
+            (sceneBounds.minimum.x + sceneBounds.maximum.x) * 0.5F,
+            (sceneBounds.minimum.y + sceneBounds.maximum.y) * 0.5F,
+            (sceneBounds.minimum.z + sceneBounds.maximum.z) * 0.5F};
         if (race.environment.surface !=
             r3d::game::originalrace::EnvironmentSurface::None)
         {
@@ -2275,61 +2384,6 @@ bool OriginalRaceRenderer::initialize(
                         normalImage.bytes.size());
             }
 
-            // GraphManager::BuildOctree derives _groundAABB from all actors
-            // already loaded for the map, before cars are created. Water,
-            // grass and FogPlane then share that AABB with a 300 m border.
-            WorldBounds sceneBounds;
-            for (const auto& instance : race.trackInstances)
-            {
-                if (instance.definition >= tracks_.size() ||
-                    instance.definition >= race.trackDefinitions.size())
-                    continue;
-                include(
-                    sceneBounds,
-                    objectBounds(
-                        tracks_[instance.definition],
-                        race.trackDefinitions[instance.definition].visualNodes,
-                        instance.transform));
-            }
-            for (const auto& instance : race.decorationInstances)
-            {
-                if (instance.definition >= decorations_.size() ||
-                    instance.definition >= race.decorationDefinitions.size())
-                    continue;
-                include(
-                    sceneBounds,
-                    objectBounds(
-                        decorations_[instance.definition],
-                        race.decorationDefinitions[instance.definition]
-                            .visualNodes,
-                        instance.transform));
-            }
-            for (std::size_t index = 0;
-                 index < race.bonuses.size() && index < bonuses_.size();
-                 ++index)
-            {
-                include(
-                    sceneBounds,
-                    objectBounds(
-                        bonuses_[index], race.bonuses[index].visual.visualNodes,
-                        race.bonuses[index].transform));
-            }
-            if (!sceneBounds.valid)
-            {
-                for (const auto& point : race.tracePoints)
-                {
-                    const float radius =
-                        std::max(point.width * 0.5F, 1.0F);
-                    include(sceneBounds,
-                            r3d::physics::Vec3{
-                                point.position.x - radius,
-                                point.position.y - radius, 0.0F});
-                    include(sceneBounds,
-                            r3d::physics::Vec3{
-                                point.position.x + radius,
-                                point.position.y + radius, 0.0F});
-                }
-            }
             environmentSurfaceCenter_ = {
                 (sceneBounds.minimum.x + sceneBounds.maximum.x) * 0.5F,
                 (sceneBounds.minimum.y + sceneBounds.maximum.y) * 0.5F,
@@ -2397,6 +2451,10 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     destroyFrameTargets(device);
     if (valid(environmentReflectionTarget_))
         device.destroy(environmentReflectionTarget_);
+    if (valid(sunShaftCompositeShader_))
+        device.destroy(sunShaftCompositeShader_);
+    if (valid(sunShaftPrepareShader_))
+        device.destroy(sunShaftPrepareShader_);
     if (valid(luminanceAdaptShader_))
         device.destroy(luminanceAdaptShader_);
     if (valid(luminanceDownsampleShader_))
@@ -2431,6 +2489,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     luminanceLogShader_ = {};
     luminanceDownsampleShader_ = {};
     luminanceAdaptShader_ = {};
+    sunShaftPrepareShader_ = {};
+    sunShaftCompositeShader_ = {};
     bloomBlurShader_ = {};
     bloomExtractShader_ = {};
     shadowShader_ = {};
@@ -2569,10 +2629,12 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     wheelTrailUpdateSeconds_ = -1.0F;
     environmentSurfaceCenter_ = {};
     environmentSurfaceSize_ = {};
+    sceneWorldCenter_ = {};
     grassFieldOffsets_.clear();
     activeCameraFarDistance_ = 120.0F;
     perspectiveFarDistance_ = 120.0F;
     activeEnvironmentQuality_ = 2U;
+    sunShaftResourcesEnabled_ = false;
 }
 
 Camera OriginalRaceRenderer::makeCamera(
@@ -5633,6 +5695,9 @@ void OriginalRaceRenderer::renderFrame(
         quality.postEffect >= 1U && weatherAllowsPostEffects;
     const bool hdrEnabled =
         quality.postEffect >= 2U && weatherAllowsPostEffects;
+    const bool sunShaftEnabled =
+        quality.postEffect >= 2U && weatherAllowsPostEffects &&
+        race.environment.directionalLightEnabled && !isometricCamera;
     const bool hasWater =
         race.environment.surface ==
         r3d::game::originalrace::EnvironmentSurface::Water;
@@ -6087,10 +6152,118 @@ void OriginalRaceRenderer::renderFrame(
     postMaterial.postParameters = {
         race.environment.hdrGaussianScalar,
         race.environment.hdrExposure, 0.5F, 0.0F};
-    device.beginPass(RenderPass::Composite, {}, postCamera, clearRgba,
-                     false, false);
+    if (!sunShaftEnabled)
+    {
+        device.beginPass(RenderPass::Composite, {}, postCamera, clearRgba,
+                         false, false);
+        device.draw(postProcessMesh_, toneMapShader_, hdrTexture,
+                    postTransform, postPipeline, {}, postMaterial);
+        return;
+    }
+
+    // GraphManager runs SunShaft after HDR/Bloom/ToneMapping.  Preserve the
+    // tone-mapped scene because PrepareShafts and GenShafts both sample it.
+    device.beginPass(RenderPass::ToneMap, sunShaftSceneTarget_, postCamera,
+                     0x000000ffU, true, false);
     device.draw(postProcessMesh_, toneMapShader_, hdrTexture,
                 postTransform, postPipeline, {}, postMaterial);
+    const auto toneMappedScene =
+        device.renderTargetTexture(sunShaftSceneTarget_);
+    const auto sceneDepth = device.renderTargetTexture(
+        usesSceneDepthSurface ? waterSceneTarget_ : hdrTarget_, 1);
+
+    RenderPassState shaftPrepareState;
+    shaftPrepareState.reflectionTexture = sceneDepth;
+    device.setPassState(shaftPrepareState);
+    postMaterial.textureFilter =
+        MaterialState::TextureFilter::Point;
+    postMaterial.reflectionTextureFilter =
+        MaterialState::TextureFilter::Point;
+    device.beginPass(RenderPass::SunShaftPrepare,
+                     sunShaftBlurTargetA_, postCamera,
+                     0x000000ffU, true, false);
+    device.draw(postProcessMesh_, sunShaftPrepareShader_, toneMappedScene,
+                postTransform, postPipeline, {}, postMaterial);
+
+    // SunShaftRender creates fixed 1280/2 and 1280/4 targets and performs
+    // eight alternating LINEAR resamples before the radial accumulation.
+    device.setPassState({});
+    postMaterial.textureFilter =
+        MaterialState::TextureFilter::Linear;
+    postMaterial.reflectionTextureFilter =
+        MaterialState::TextureFilter::Inherited;
+    auto shaftBlur = device.renderTargetTexture(sunShaftBlurTargetA_);
+    for (std::uint32_t pass = 0; pass < 8U; ++pass)
+    {
+        const auto target =
+            pass % 2U == 0U ? sunShaftBlurTargetB_
+                            : sunShaftBlurTargetA_;
+        device.beginPass(RenderPass::SunShaftBlur, target, postCamera,
+                         0x000000ffU, false, false);
+        device.draw(postProcessMesh_, copyShader_, shaftBlur,
+                    postTransform, postPipeline, {}, postMaterial);
+        shaftBlur = device.renderTargetTexture(target);
+    }
+
+    auto lightDirection = normalize(
+        {race.environment.sunPosition.x - sceneWorldCenter_.x,
+         race.environment.sunPosition.y - sceneWorldCenter_.y,
+         race.environment.sunPosition.z - sceneWorldCenter_.z});
+    auto radialAxis = cross(
+        {0.0F, 0.0F, 1.0F}, lightDirection);
+    const float radialAxisLength = std::sqrt(
+        radialAxis.x * radialAxis.x + radialAxis.y * radialAxis.y +
+        radialAxis.z * radialAxis.z);
+    if (radialAxisLength < 0.1F)
+        radialAxis = {1.0F, 0.0F, 0.0F};
+    constexpr float sourceShaftAngle =
+        3.14159265358979323846F / 2.5F;
+    const float shaftSin = std::sin(sourceShaftAngle * 0.5F);
+    auto radialRotation = normalizeQuaternion(
+        {radialAxis.x * shaftSin,
+         radialAxis.y * shaftSin,
+         radialAxis.z * shaftSin,
+         std::cos(sourceShaftAngle * 0.5F)});
+    auto radialPosition = rotate(
+        radialRotation, {0.0F, 0.0F, 1.0F});
+    radialPosition.x *= 1000.0F;
+    radialPosition.y *= 1000.0F;
+    radialPosition.z *= 1000.0F;
+    const auto cameraViewProjection = viewProjection(camera);
+    const float clipX =
+        cameraViewProjection[0] * radialPosition.x +
+        cameraViewProjection[4] * radialPosition.y +
+        cameraViewProjection[8] * radialPosition.z +
+        cameraViewProjection[12];
+    const float clipY =
+        cameraViewProjection[1] * radialPosition.x +
+        cameraViewProjection[5] * radialPosition.y +
+        cameraViewProjection[9] * radialPosition.z +
+        cameraViewProjection[13];
+    const float clipW =
+        cameraViewProjection[3] * radialPosition.x +
+        cameraViewProjection[7] * radialPosition.y +
+        cameraViewProjection[11] * radialPosition.z +
+        cameraViewProjection[15];
+    const float inverseClipW =
+        std::abs(clipW) > 0.000001F ? 1.0F / clipW : 0.0F;
+
+    RenderPassState shaftCompositeState;
+    shaftCompositeState.reflectionTexture = shaftBlur;
+    device.setPassState(shaftCompositeState);
+    postMaterial.textureFilter =
+        MaterialState::TextureFilter::Point;
+    postMaterial.reflectionTextureFilter =
+        MaterialState::TextureFilter::Linear;
+    postMaterial.postParameters = {
+        clipX * inverseClipW * 0.5F,
+        clipY * inverseClipW * 0.5F,
+        clipW > 0.0F ? 1.0F : 0.0F, 0.0F};
+    device.beginPass(RenderPass::Composite, {}, postCamera, clearRgba,
+                     false, false);
+    device.draw(postProcessMesh_, sunShaftCompositeShader_,
+                toneMappedScene, postTransform, postPipeline, {},
+                postMaterial);
 }
 
 } // namespace rrr3d::race
