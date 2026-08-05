@@ -170,7 +170,9 @@ private:
     r3d::renderer::Texture vehicleLightTexture_;
     r3d::renderer::Texture environmentSurfaceTexture_;
     r3d::renderer::Texture waterNormalTexture_;
+    r3d::renderer::Texture grassTexture_;
     r3d::renderer::Mesh effectMesh_;
+    r3d::renderer::Mesh grassMesh_;
     r3d::renderer::Mesh postProcessMesh_;
     r3d::renderer::Shader shadowShader_;
     r3d::renderer::Shader skyShader_;
@@ -179,6 +181,8 @@ private:
     r3d::renderer::Shader toneMapShader_;
     r3d::renderer::Shader copyShader_;
     r3d::renderer::Shader waterShader_;
+    r3d::renderer::Shader fogPlaneShader_;
+    r3d::renderer::Shader grassShader_;
     r3d::renderer::Shader luminanceLogShader_;
     r3d::renderer::Shader luminanceDownsampleShader_;
     r3d::renderer::Shader luminanceAdaptShader_;
@@ -201,6 +205,7 @@ private:
     std::uint32_t frameHeight_ = 0;
     r3d::physics::Vec3 environmentSurfaceCenter_;
     r3d::physics::Vec3 environmentSurfaceSize_;
+    std::vector<r3d::physics::Vec3> grassFieldOffsets_;
     r3d::physics::Vec3 cameraLead_;
     r3d::physics::Vec3 previousCameraTarget_;
     r3d::physics::Vec3 cameraPosition_;
@@ -225,6 +230,9 @@ private:
     float cameraJumpSpeed_ = 0.0F;
     float thirdPersonPullback_ = 0.0F;
     float previousRenderSeconds_ = 0.0F;
+    float perspectiveFarDistance_ = 120.0F;
+    float activeCameraFarDistance_ = 120.0F;
+    std::uint32_t activeEnvironmentQuality_ = 2U;
     // FxPointSpritesManager multiplies the particle scale length by 0.75
     // for the orthographic camera and by 0.25 for perspective cameras.
     float pointSpriteScale_ = 0.25F;

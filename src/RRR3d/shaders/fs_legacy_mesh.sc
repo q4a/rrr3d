@@ -322,8 +322,12 @@ void main()
     }
     lit = mix(lit, albedo.rgb, clamp(u_materialParams.y, 0.0, 1.0));
     float distanceToCamera = length(v_worldPosition - u_sceneCamera.xyz);
-    float fog = clamp(distanceToCamera / 120.0 * u_sceneFog.a,
-                      0.0, 0.92) *
+    float fogFar = max(u_sceneCamera.w, 1.0);
+    float fogStart = fogFar * (1.0 - clamp(u_sceneFog.a, 0.0, 1.0));
+    float fog = clamp(
+                    (distanceToCamera - fogStart) /
+                        max(fogFar - fogStart, 0.0001),
+                    0.0, 1.0) *
                 (1.0 - clamp(u_materialOptions.x, 0.0, 1.0));
     vec3 color = mix(lit, u_sceneFog.rgb, fog);
     gl_FragColor = vec4(color, albedo.a);

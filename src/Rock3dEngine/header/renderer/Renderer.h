@@ -236,6 +236,9 @@ struct SceneLighting
 
     // w is the source directional-light enable flag.
     std::array<float, 4> lightDirection{-0.45F, -0.35F, 0.82F, 1.0F};
+    // WaterPlane uses Environment::sunPos as a positional light, while the
+    // fixed directional scene light above is derived from sunRot.
+    std::array<float, 4> sunPosition{45.0F, 30.0F, 60.0F, 1.0F};
     std::array<float, 4> ambient{0.22F, 0.22F, 0.22F, 1.0F};
     std::array<float, 4> fogColor{0.58F, 0.76F, 0.92F, 0.5F};
     std::array<float, 4> cameraPosition{0.0F, 0.0F, 0.0F, 1.0F};

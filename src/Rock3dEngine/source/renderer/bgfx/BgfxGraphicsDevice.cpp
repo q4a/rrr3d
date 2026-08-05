@@ -80,6 +80,8 @@ public:
                 bgfx::destroy(normal_sampler_);
             if (bgfx::isValid(scene_light_direction_))
                 bgfx::destroy(scene_light_direction_);
+            if (bgfx::isValid(scene_sun_position_))
+                bgfx::destroy(scene_sun_position_);
             if (bgfx::isValid(scene_lamp_positions_))
                 bgfx::destroy(scene_lamp_positions_);
             if (bgfx::isValid(scene_lamp_directions_))
@@ -189,6 +191,8 @@ public:
             "s_texNormal", bgfx::UniformType::Sampler);
         scene_light_direction_ = bgfx::createUniform(
             "u_sceneLightDirection", bgfx::UniformType::Vec4);
+        scene_sun_position_ = bgfx::createUniform(
+            "u_sceneSunPosition", bgfx::UniformType::Vec4);
         scene_lamp_positions_ = bgfx::createUniform(
             "u_sceneLampPositions", bgfx::UniformType::Vec4,
             SceneLighting::maximumSpotLights);
@@ -234,6 +238,7 @@ public:
             !bgfx::isValid(environment_sampler_) ||
             !bgfx::isValid(normal_sampler_) ||
             !bgfx::isValid(scene_light_direction_) ||
+            !bgfx::isValid(scene_sun_position_) ||
             !bgfx::isValid(scene_lamp_positions_) ||
             !bgfx::isValid(scene_lamp_directions_) ||
             !bgfx::isValid(scene_lamp_colors_) ||
@@ -866,6 +871,8 @@ private:
             bgfx::TextureHandle{normalTexture.value});
         bgfx::setUniform(scene_light_direction_,
                          scene_lighting_.lightDirection.data());
+        bgfx::setUniform(scene_sun_position_,
+                         scene_lighting_.sunPosition.data());
         bgfx::setUniform(
             scene_lamp_positions_,
             scene_lighting_.lampPositions.front().data(),
@@ -970,6 +977,7 @@ private:
     std::unordered_map<std::uint16_t, TargetInfo> render_targets_;
     std::unordered_map<std::uint16_t, CubeTargetInfo> cube_targets_;
     bgfx::UniformHandle scene_light_direction_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle scene_sun_position_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_lamp_positions_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_lamp_directions_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_lamp_colors_ = BGFX_INVALID_HANDLE;

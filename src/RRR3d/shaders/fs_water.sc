@@ -8,7 +8,7 @@ $input v_texcoord0, v_worldPosition, v_projectedPosition
 SAMPLER2D(s_texColor, 0);
 SAMPLER2D(s_texReflection, 1);
 SAMPLER2D(s_texShadow, 2);
-uniform vec4 u_sceneLightDirection;
+uniform vec4 u_sceneSunPosition;
 uniform vec4 u_sceneFog;
 uniform vec4 u_sceneCamera;
 uniform vec4 u_materialColor;
@@ -36,9 +36,8 @@ void main()
     vec3 viewDirection =
         normalize(u_sceneCamera.xyz - v_worldPosition);
     vec3 lightDirection =
-        normalize(u_sceneLightDirection.xyz);
-    float fresnel =
-        clamp(1.0 - dot(viewDirection, normal), 0.0, 1.0);
+        normalize(u_sceneSunPosition.xyz - v_worldPosition);
+    float fresnel = 1.0 - dot(viewDirection, normal);
     float highlight = pow(
         max(dot(normalize(lightDirection + viewDirection), normal),
             0.0),
@@ -51,21 +50,25 @@ void main()
         u_materialColor.rgb * u_materialColor.a * (1.0 - fresnel) +
         reflection * fresnel + vec3_splat(highlight * 0.5);
 
-    float cameraDistance =
-        length(v_worldPosition - u_sceneCamera.xyz);
-    float fog = clamp(cameraDistance / 120.0 * u_sceneFog.a,
-                      0.0, 0.92);
+    float cameraDistance = length(v_worldPosition - u_sceneCamera.xyz);
+    float fogFar = max(u_sceneCamera.w, 1.0);
+    float fogStart = fogFar * (1.0 - clamp(u_sceneFog.a, 0.0, 1.0));
+    float fog = clamp(
+        (cameraDistance - fogStart) /
+            max(fogFar - fogStart, 0.0001),
+        0.0, 1.0);
     color = mix(color, u_sceneFog.rgb, fog);
 
     float sceneDepth = texture2D(s_texColor, screenUv).r;
-    float surfaceDepth =
-        v_projectedPosition.z /
-        max(abs(v_projectedPosition.w), 0.0001);
+    vec4 sceneView = mul(
+        u_invProj, vec4(0.0, 0.0, sceneDepth, 1.0));
+    float sceneViewDepth =
+        abs(sceneView.z / max(abs(sceneView.w), 0.0001));
     float depthDistance =
-        max(sceneDepth - surfaceDepth, 0.0) * 120.0;
-    float waterAlpha =
-        1.0 - exp(-depthDistance * depthDistance *
-                  max(u_materialParams.y, 0.001));
-    gl_FragColor =
-        vec4(color, clamp(waterAlpha, 0.03, 0.96));
+        sceneViewDepth - v_projectedPosition.z;
+    float transmittance = depthDistance > 0.001
+        ? 1.0 / exp(depthDistance * depthDistance *
+                    u_materialParams.y)
+        : 0.0;
+    gl_FragColor = vec4(color, 1.0 - transmittance);
 }

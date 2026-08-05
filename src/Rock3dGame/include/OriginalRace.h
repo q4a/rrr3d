@@ -637,11 +637,17 @@ struct EnvironmentDescription
                                   235.0F / 255.0F, 1.0F};
     std::array<float, 4> ambientColor{0.18F, 0.18F, 0.18F, 1.0F};
     float fogIntensity = 0.5F;
+    // Environment::GetPerspectiveCameraFar varies with serialized weather;
+    // the orthographic race camera always uses 150 metres.
+    float perspectiveFarDistance = 120.0F;
     bool rain = false;
     EnvironmentSurface surface = EnvironmentSurface::None;
     bool planarReflection = false;
     float surfaceHeight = 0.0F;
     float surfaceScroll = 0.0F;
+    float surfaceTileScale = 1.0F;
+    float surfaceCloudIntensity = 0.0F;
+    std::array<float, 4> surfaceCloudColor{1.0F, 1.0F, 1.0F, 1.0F};
     float hdrLuminanceKey = 1.1F;
     float hdrBrightThreshold = 1.5F;
     float hdrGaussianScalar = 30.0F;
@@ -651,6 +657,9 @@ struct EnvironmentDescription
     bool skyEnabled = true;
     bool fogEnabled = true;
     bool directionalLightEnabled = true;
+    // goShadow starts at Middle, except ewSnow where ApplyWheater enables
+    // the directional shadow only at High.
+    std::uint32_t directionalShadowMinimumQuality = 1U;
     bool dynamicReflectionsEnabled = true;
     std::array<EnvironmentLamp, 3> lamps;
     // Planet::Wheaters retained so Tournament::SetCurTrack can perform the

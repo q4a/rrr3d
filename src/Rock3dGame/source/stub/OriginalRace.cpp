@@ -3337,6 +3337,38 @@ void applyWeatherDescription(
         // Environment::ApplyWheater disables the sun only for ewNight.
         race.environment.directionalLightEnabled =
             weather != Weather::Night;
+        race.environment.directionalShadowMinimumQuality =
+            weather == Weather::Snow ? 2U : 1U;
+        switch (weather)
+        {
+        case Weather::Rainy:
+            race.environment.perspectiveFarDistance = 100.0F;
+            break;
+        case Weather::Sahara:
+        case Weather::Hell:
+        case Weather::Snow:
+            race.environment.perspectiveFarDistance = 100.0F;
+            break;
+        case Weather::Fair:
+        case Weather::Night:
+        case Weather::Cloudy:
+            race.environment.perspectiveFarDistance = 120.0F;
+            break;
+        }
+        // Environment::ApplyCloudColor runs after ApplyWheater. World3 and
+        // World4 override the weather fog colour; all other worlds use it.
+        race.environment.surfaceCloudColor = fog;
+        if (race.levelPath.find("World3") != std::string::npos)
+        {
+            race.environment.surfaceCloudColor = {
+                87.0F / 255.0F, 81.0F / 255.0F,
+                115.0F / 255.0F, 1.0F};
+        }
+        else if (race.levelPath.find("World4") != std::string::npos)
+        {
+            race.environment.surfaceCloudColor =
+                {1.0F, 1.0F, 1.0F, 1.0F};
+        }
     };
     switch (weather)
     {
@@ -3407,6 +3439,10 @@ void applyOriginalEnvironment(
 {
     race.environment.surface = EnvironmentSurface::None;
     race.environment.planarReflection = false;
+    race.environment.surfaceHeight = 0.0F;
+    race.environment.surfaceScroll = 0.0F;
+    race.environment.surfaceTileScale = 1.0F;
+    race.environment.surfaceCloudIntensity = 0.0F;
     if (race.levelPath.find("World1") != std::string::npos)
     {
         race.environment.surface = EnvironmentSurface::Grass;
@@ -3418,6 +3454,8 @@ void applyOriginalEnvironment(
     else if (race.levelPath.find("World2") != std::string::npos)
     {
         race.environment.surface = EnvironmentSurface::Water;
+        race.environment.surfaceTileScale = 4.0F;
+        race.environment.surfaceCloudIntensity = 0.1F;
         race.environment.hdrLuminanceKey = 1.7F;
         race.environment.hdrBrightThreshold = 1.9F;
         race.environment.hdrGaussianScalar = 30.0F;
@@ -3428,6 +3466,8 @@ void applyOriginalEnvironment(
         race.environment.surface = EnvironmentSurface::GroundFog;
         race.environment.surfaceHeight = 3.0F;
         race.environment.surfaceScroll = 0.02F;
+        race.environment.surfaceTileScale = 50.0F;
+        race.environment.surfaceCloudIntensity = 0.1F;
         race.environment.hdrLuminanceKey = 4.0F;
         race.environment.hdrBrightThreshold = 4.5F;
         race.environment.hdrGaussianScalar = 20.0F;
@@ -3438,6 +3478,8 @@ void applyOriginalEnvironment(
         race.environment.surface = EnvironmentSurface::Magma;
         race.environment.surfaceHeight = 0.5F;
         race.environment.surfaceScroll = 0.01F;
+        race.environment.surfaceTileScale = 25.0F;
+        race.environment.surfaceCloudIntensity = 1.0F;
         race.environment.hdrLuminanceKey = 1.9F;
         race.environment.hdrBrightThreshold = 1.9F;
         race.environment.hdrGaussianScalar = 30.0F;
@@ -3456,6 +3498,8 @@ void applyOriginalEnvironment(
         race.environment.surface = EnvironmentSurface::GroundFog;
         race.environment.surfaceHeight = 3.0F;
         race.environment.surfaceScroll = 0.02F;
+        race.environment.surfaceTileScale = 50.0F;
+        race.environment.surfaceCloudIntensity = 0.1F;
         race.environment.hdrLuminanceKey = 1.7F;
         race.environment.hdrBrightThreshold = 1.9F;
         race.environment.hdrGaussianScalar = 30.0F;
@@ -4165,6 +4209,8 @@ Race loadOriginalGarageScene(
         235.0F / 255.0F, 1.0F};
     result.environment.ambientColor = {0.6F, 0.6F, 0.6F, 1.0F};
     result.environment.fogIntensity = 1.0F;
+    result.environment.perspectiveFarDistance = 20.0F;
+    result.environment.surfaceCloudColor = result.environment.fogColor;
     result.environment.skyEnabled = false;
     result.environment.fogEnabled = false;
     result.environment.directionalLightEnabled = false;
@@ -4256,6 +4302,8 @@ Race loadOriginalAngarScene(
         235.0F / 255.0F, 1.0F};
     result.environment.ambientColor = {0.6F, 0.6F, 0.6F, 1.0F};
     result.environment.fogIntensity = 1.0F;
+    result.environment.perspectiveFarDistance = 130.0F;
+    result.environment.surfaceCloudColor = result.environment.fogColor;
     result.environment.skyEnabled = false;
     result.environment.fogEnabled = false;
     result.environment.directionalLightEnabled = false;

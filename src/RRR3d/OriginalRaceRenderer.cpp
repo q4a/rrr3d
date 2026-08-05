@@ -5,6 +5,8 @@
 #include "rrr3d_fs_bloom_blur.bin.h"
 #include "rrr3d_fs_bloom_extract.bin.h"
 #include "rrr3d_fs_copy.bin.h"
+#include "rrr3d_fs_fog_plane.bin.h"
+#include "rrr3d_fs_grass_field.bin.h"
 #include "rrr3d_fs_luminance_adapt.bin.h"
 #include "rrr3d_fs_luminance_downsample.bin.h"
 #include "rrr3d_fs_luminance_log.bin.h"
@@ -15,6 +17,7 @@
 #include "rrr3d_vs_post_process.bin.h"
 #include "rrr3d_vs_shadow_map.bin.h"
 #include "rrr3d_vs_skybox.bin.h"
+#include "rrr3d_vs_grass_field.bin.h"
 #include "rrr3d_vs_water.bin.h"
 
 #include <bx/math.h>
@@ -827,6 +830,14 @@ void include(WorldBounds& bounds,
     bounds.valid = true;
 }
 
+void include(WorldBounds& bounds, const WorldBounds& other) noexcept
+{
+    if (!other.valid)
+        return;
+    include(bounds, other.minimum);
+    include(bounds, other.maximum);
+}
+
 WorldBounds objectBounds(
     const OriginalRaceRenderer::ObjectAsset& asset,
     const std::vector<r3d::game::originalrace::VisualNode>& nodes,
@@ -849,6 +860,139 @@ WorldBounds objectBounds(
                      (corner & 2U) != 0U ? maximum[1] : minimum[1],
                      (corner & 4U) != 0U ? maximum[2] : minimum[2]}));
         }
+    }
+    return result;
+}
+
+struct GrassFieldGeometry
+{
+    std::vector<StaticMeshVertex> vertices;
+    std::vector<std::uint32_t> indices;
+    std::vector<r3d::physics::Vec3> fieldOffsets;
+};
+
+GrassFieldGeometry sourceGrassField(float width, float height)
+{
+    GrassFieldGeometry result;
+    width = std::max(width, 1.0F);
+    height = std::max(height, 1.0F);
+
+    // GrassField::Rebuild uses this multiplication (rather than a struct
+    // size) to keep one reusable field mesh below cMaxBufSize.
+    constexpr float maximumBufferBytes = 4194304.0F;
+    constexpr float sourceGrassBytes =
+        static_cast<float>(sizeof(float) * 4U * sizeof(float) * 2U);
+    constexpr float density = 1.0F;
+    const float aspect = width / height;
+    const float grassCount = width * height * density;
+    const float fieldCapacity = maximumBufferBytes / sourceGrassBytes;
+    const float fieldCount = grassCount / fieldCapacity;
+    const int fieldCountY = std::max(
+        static_cast<int>(std::ceil(std::sqrt(fieldCount / aspect))), 1);
+    const int fieldCountX = std::max(
+        static_cast<int>(std::ceil(
+            static_cast<float>(fieldCountY) * aspect)),
+        1);
+    const float fieldWidth = width / static_cast<float>(fieldCountX);
+    const float fieldHeight = height / static_cast<float>(fieldCountY);
+    for (int x = 0; x < fieldCountX; ++x)
+    {
+        for (int y = 0; y < fieldCountY; ++y)
+        {
+            result.fieldOffsets.push_back({
+                (static_cast<float>(x) + 0.5F) * fieldWidth - width * 0.5F,
+                (static_cast<float>(y) + 0.5F) * fieldHeight - height * 0.5F,
+                0.0F});
+        }
+    }
+
+    const int countX = std::max(static_cast<int>(fieldWidth * density), 1);
+    const int countY = std::max(static_cast<int>(fieldHeight * density), 1);
+    const std::size_t maximumSprites =
+        static_cast<std::size_t>(countX) * static_cast<std::size_t>(countY);
+    std::vector<r3d::physics::Vec3> positions(maximumSprites);
+    const r3d::physics::Vec3 step{
+        fieldWidth / static_cast<float>(countX),
+        fieldHeight / static_cast<float>(countY), 0.0F};
+    std::size_t positionIndex = 0U;
+    for (int x = -static_cast<int>(std::floor(countX / 2.0F));
+         x < static_cast<int>(std::ceil(countX / 2.0F)) - 1; ++x)
+    {
+        for (int y = -static_cast<int>(std::floor(countY / 2.0F));
+             y < static_cast<int>(std::ceil(countY / 2.0F)) - 1; ++y)
+        {
+            if (positionIndex >= positions.size())
+                break;
+            positions[positionIndex++] = {
+                step.x * 0.5F + static_cast<float>(x) * step.x,
+                step.y * 0.5F + static_cast<float>(y) * step.y, 0.0F};
+        }
+    }
+
+    // The Windows field is intentionally random on every process start.
+    // Use the same shuffle/random distribution with a fixed renderer-local
+    // sequence so a captured macOS frame remains reproducible.
+    std::uint32_t randomState = 0x4d6f746fU;
+    auto randomUnit = [&]() {
+        randomState = randomState * 214013U + 2531011U;
+        return static_cast<float>((randomState >> 16U) & 0x7fffU) /
+               32767.0F;
+    };
+    for (std::size_t index = positions.size(); index > 1U; --index)
+    {
+        const std::size_t selected = std::min(
+            static_cast<std::size_t>(randomUnit() * index), index - 1U);
+        std::swap(positions[index - 1U], positions[selected]);
+    }
+
+    struct Tile
+    {
+        float weight;
+        std::array<float, 4> uv;
+    };
+    constexpr std::array<Tile, 4> tiles{{
+        {2.0F, {0.0F, 0.5F, 0.5F, 0.0F}},
+        {1.0F, {0.5F, 0.5F, 1.0F, 0.0F}},
+        {10.0F, {0.0F, 1.0F, 0.5F, 0.5F}},
+        {1.0F, {0.5F, 1.0F, 1.0F, 0.5F}},
+    }};
+    constexpr std::array<std::array<float, 2>, 4> corners{{
+        {-1.0F, -1.0F}, {1.0F, -1.0F},
+        {1.0F, 1.0F}, {-1.0F, 1.0F},
+    }};
+    constexpr std::array<std::uint32_t, 6> cornerIndices{
+        0U, 1U, 2U, 0U, 2U, 3U};
+    constexpr float weightSum = 14.0F;
+    const float spritesPerWeight =
+        static_cast<float>(maximumSprites) / weightSum;
+    std::size_t spriteOffset = 0U;
+    for (const auto& tile : tiles)
+    {
+        std::size_t tileSprites = static_cast<std::size_t>(
+            std::floor(tile.weight * spritesPerWeight + 0.5F));
+        tileSprites = std::min(tileSprites, maximumSprites - spriteOffset);
+        for (std::size_t item = 0; item < tileSprites; ++item)
+        {
+            auto center = positions[spriteOffset + item];
+            center.x += 2.0F * randomUnit();
+            center.y += 2.0F * randomUnit();
+            const std::uint32_t first =
+                static_cast<std::uint32_t>(result.vertices.size());
+            for (std::size_t corner = 0; corner < corners.size(); ++corner)
+            {
+                const float u = (corner == 0U || corner == 3U)
+                                    ? tile.uv[0]
+                                    : tile.uv[2];
+                const float v = corner < 2U ? tile.uv[1] : tile.uv[3];
+                result.vertices.push_back({
+                    center.x, center.y, center.z,
+                    corners[corner][0], corners[corner][1], 0.0F,
+                    u, v});
+            }
+            for (const auto corner : cornerIndices)
+                result.indices.push_back(first + corner);
+        }
+        spriteOffset += tileSprites;
     }
     return result;
 }
@@ -1573,6 +1717,8 @@ bool OriginalRaceRenderer::initialize(
             error = "source CameraManager axis rotation regression";
             return false;
         }
+        perspectiveFarDistance_ =
+            std::max(race.environment.perspectiveFarDistance, 1.0F);
         shadowShader_ = device.createShader(
             {rrr3d_vs_shadow_map, sizeof(rrr3d_vs_shadow_map)},
             {rrr3d_fs_shadow_map, sizeof(rrr3d_fs_shadow_map)},
@@ -1607,6 +1753,14 @@ bool OriginalRaceRenderer::initialize(
             {rrr3d_vs_water, sizeof(rrr3d_vs_water)},
             {rrr3d_fs_water, sizeof(rrr3d_fs_water)},
             "original-water-plane");
+        fogPlaneShader_ = device.createShader(
+            {rrr3d_vs_water, sizeof(rrr3d_vs_water)},
+            {rrr3d_fs_fog_plane, sizeof(rrr3d_fs_fog_plane)},
+            "original-volume-fog-plane");
+        grassShader_ = device.createShader(
+            {rrr3d_vs_grass_field, sizeof(rrr3d_vs_grass_field)},
+            {rrr3d_fs_grass_field, sizeof(rrr3d_fs_grass_field)},
+            "original-grass-field");
         luminanceLogShader_ = device.createShader(
             {rrr3d_vs_post_process,
              sizeof(rrr3d_vs_post_process)},
@@ -1636,6 +1790,7 @@ bool OriginalRaceRenderer::initialize(
             !valid(bloomExtractShader_) ||
             !valid(bloomBlurShader_) || !valid(toneMapShader_) ||
             !valid(copyShader_) || !valid(waterShader_) ||
+            !valid(fogPlaneShader_) || !valid(grassShader_) ||
             !valid(luminanceLogShader_) ||
             !valid(luminanceDownsampleShader_) ||
             !valid(luminanceAdaptShader_) ||
@@ -1654,6 +1809,9 @@ bool OriginalRaceRenderer::initialize(
                 ", toneMap=" + std::to_string(valid(toneMapShader_)) +
                 ", copy=" + std::to_string(valid(copyShader_)) +
                 ", water=" + std::to_string(valid(waterShader_)) +
+                ", fogPlane=" +
+                    std::to_string(valid(fogPlaneShader_)) +
+                ", grass=" + std::to_string(valid(grassShader_)) +
                 ", luminance=" +
                     std::to_string(valid(luminanceLogShader_) &&
                                    valid(luminanceDownsampleShader_) &&
@@ -2117,45 +2275,90 @@ bool OriginalRaceRenderer::initialize(
                         normalImage.bytes.size());
             }
 
-            float minimumX = 0.0F;
-            float maximumX = 0.0F;
-            float minimumY = 0.0F;
-            float maximumY = 0.0F;
-            bool firstPoint = true;
-            for (const auto& point : race.tracePoints)
+            // GraphManager::BuildOctree derives _groundAABB from all actors
+            // already loaded for the map, before cars are created. Water,
+            // grass and FogPlane then share that AABB with a 300 m border.
+            WorldBounds sceneBounds;
+            for (const auto& instance : race.trackInstances)
             {
-                const float radius = std::max(point.width * 0.5F, 1.0F);
-                if (firstPoint)
+                if (instance.definition >= tracks_.size() ||
+                    instance.definition >= race.trackDefinitions.size())
+                    continue;
+                include(
+                    sceneBounds,
+                    objectBounds(
+                        tracks_[instance.definition],
+                        race.trackDefinitions[instance.definition].visualNodes,
+                        instance.transform));
+            }
+            for (const auto& instance : race.decorationInstances)
+            {
+                if (instance.definition >= decorations_.size() ||
+                    instance.definition >= race.decorationDefinitions.size())
+                    continue;
+                include(
+                    sceneBounds,
+                    objectBounds(
+                        decorations_[instance.definition],
+                        race.decorationDefinitions[instance.definition]
+                            .visualNodes,
+                        instance.transform));
+            }
+            for (std::size_t index = 0;
+                 index < race.bonuses.size() && index < bonuses_.size();
+                 ++index)
+            {
+                include(
+                    sceneBounds,
+                    objectBounds(
+                        bonuses_[index], race.bonuses[index].visual.visualNodes,
+                        race.bonuses[index].transform));
+            }
+            if (!sceneBounds.valid)
+            {
+                for (const auto& point : race.tracePoints)
                 {
-                    minimumX = point.position.x - radius;
-                    maximumX = point.position.x + radius;
-                    minimumY = point.position.y - radius;
-                    maximumY = point.position.y + radius;
-                    firstPoint = false;
-                }
-                else
-                {
-                    minimumX =
-                        std::min(minimumX, point.position.x - radius);
-                    maximumX =
-                        std::max(maximumX, point.position.x + radius);
-                    minimumY =
-                        std::min(minimumY, point.position.y - radius);
-                    maximumY =
-                        std::max(maximumY, point.position.y + radius);
+                    const float radius =
+                        std::max(point.width * 0.5F, 1.0F);
+                    include(sceneBounds,
+                            r3d::physics::Vec3{
+                                point.position.x - radius,
+                                point.position.y - radius, 0.0F});
+                    include(sceneBounds,
+                            r3d::physics::Vec3{
+                                point.position.x + radius,
+                                point.position.y + radius, 0.0F});
                 }
             }
             environmentSurfaceCenter_ = {
-                (minimumX + maximumX) * 0.5F,
-                (minimumY + maximumY) * 0.5F,
+                (sceneBounds.minimum.x + sceneBounds.maximum.x) * 0.5F,
+                (sceneBounds.minimum.y + sceneBounds.maximum.y) * 0.5F,
                 race.environment.surfaceHeight};
             environmentSurfaceSize_ = {
-                std::max(maximumX - minimumX + 300.0F, 300.0F),
-                std::max(maximumY - minimumY + 300.0F, 300.0F),
+                std::max(sceneBounds.maximum.x - sceneBounds.minimum.x +
+                             300.0F,
+                         300.0F),
+                std::max(sceneBounds.maximum.y - sceneBounds.minimum.y +
+                             300.0F,
+                         300.0F),
                 1.0F};
             if (race.environment.surface ==
                 r3d::game::originalrace::EnvironmentSurface::Grass)
+            {
                 environmentSurfaceCenter_.x = 0.0F;
+                const auto grassBytes =
+                    resources.readBinary("Data/Misc/flower2.dds");
+                grassTexture_ = device.createTextureContainer(
+                    grassBytes.data(), grassBytes.size(),
+                    "Data/Misc/flower2.dds");
+                auto grass = sourceGrassField(
+                    environmentSurfaceSize_.x,
+                    environmentSurfaceSize_.y);
+                grassMesh_ = device.createMesh(
+                    grass.vertices.data(), grass.vertices.size(),
+                    grass.indices.data(), grass.indices.size());
+                grassFieldOffsets_ = std::move(grass.fieldOffsets);
+            }
         }
         auto loadEffectTexture = [&](std::string_view path) {
             const auto bytes = resources.readBinary(path);
@@ -2171,7 +2374,11 @@ bool OriginalRaceRenderer::initialize(
              !valid(environmentSurfaceTexture_)) ||
             (race.environment.surface ==
                      r3d::game::originalrace::EnvironmentSurface::Water &&
-             !valid(waterNormalTexture_)))
+             !valid(waterNormalTexture_)) ||
+            (race.environment.surface ==
+                     r3d::game::originalrace::EnvironmentSurface::Grass &&
+             (!valid(grassTexture_) || !valid(grassMesh_) ||
+              grassFieldOffsets_.empty())))
             throw r3d::resource::ResourceError(
                 "Unable to create original material/effect particles");
         error.clear();
@@ -2198,6 +2405,10 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         device.destroy(luminanceLogShader_);
     if (valid(waterShader_))
         device.destroy(waterShader_);
+    if (valid(fogPlaneShader_))
+        device.destroy(fogPlaneShader_);
+    if (valid(grassShader_))
+        device.destroy(grassShader_);
     if (valid(copyShader_))
         device.destroy(copyShader_);
     if (valid(toneMapShader_))
@@ -2215,6 +2426,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     toneMapShader_ = {};
     copyShader_ = {};
     waterShader_ = {};
+    fogPlaneShader_ = {};
+    grassShader_ = {};
     luminanceLogShader_ = {};
     luminanceDownsampleShader_ = {};
     luminanceAdaptShader_ = {};
@@ -2334,14 +2547,20 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         device.destroy(environmentSurfaceTexture_);
     if (valid(waterNormalTexture_))
         device.destroy(waterNormalTexture_);
+    if (valid(grassTexture_))
+        device.destroy(grassTexture_);
     if (valid(effectMesh_))
         device.destroy(effectMesh_);
+    if (valid(grassMesh_))
+        device.destroy(grassMesh_);
     skyTexture_ = {};
     skyMesh_ = {};
     vehicleLightTexture_ = {};
     environmentSurfaceTexture_ = {};
     waterNormalTexture_ = {};
+    grassTexture_ = {};
     effectMesh_ = {};
+    grassMesh_ = {};
     wheelTrailPaths_.clear();
     wheelTrailTimes_.clear();
     wheelTrailResetCounts_.clear();
@@ -2350,6 +2569,10 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     wheelTrailUpdateSeconds_ = -1.0F;
     environmentSurfaceCenter_ = {};
     environmentSurfaceSize_ = {};
+    grassFieldOffsets_.clear();
+    activeCameraFarDistance_ = 120.0F;
+    perspectiveFarDistance_ = 120.0F;
+    activeEnvironmentQuality_ = 2U;
 }
 
 Camera OriginalRaceRenderer::makeCamera(
@@ -2542,6 +2765,7 @@ Camera OriginalRaceRenderer::makeCamera(
             at.z - isoDirection.z * 20.0F};
         cameraPosition_ = {eye.x, eye.y, eye.z};
         cameraRotation_ = isoRotation;
+        activeCameraFarDistance_ = 150.0F;
         Camera camera;
         bx::mtxLookAt(camera.view.data(), eye, at,
                       {0.0F, 0.0F, 1.0F},
@@ -2599,13 +2823,15 @@ Camera OriginalRaceRenderer::makeCamera(
     cameraRotation_ = thirdPersonRotation_;
     previousCameraTarget_ = position;
     cameraInitialized_ = true;
+    activeCameraFarDistance_ = perspectiveFarDistance_;
     Camera camera;
     bx::mtxLookAt(camera.view.data(), eye, at,
                   {cameraUp.x, cameraUp.y, cameraUp.z},
                   bx::Handedness::Right);
     bx::mtxProj(camera.projection.data(), 75.0F,
                 aspect,
-                1.0F, 120.0F, device.usesHomogeneousDepth(),
+                1.0F, activeCameraFarDistance_,
+                device.usesHomogeneousDepth(),
                 bx::Handedness::Right);
     return camera;
 }
@@ -2642,6 +2868,10 @@ Camera OriginalRaceRenderer::makePresentationCamera(
         device.usesHomogeneousDepth(), bx::Handedness::Right);
     cameraPosition_ = source.position;
     cameraViewDirection_ = direction;
+    cameraStyle_ =
+        r3d::game::originalrace::PreferredCamera::ThirdPerson;
+    cameraStyleInitialized_ = true;
+    activeCameraFarDistance_ = std::max(source.farDistance, 1.0F);
     previousCameraTarget_ = {};
     cameraInitialized_ = true;
     return camera;
@@ -2685,7 +2915,13 @@ void OriginalRaceRenderer::draw(
     bool omitEnvironmentSurface)
 {
     SceneLighting sceneLighting;
-    const auto sun = race.environment.sunPosition;
+    const auto sourceSunRay = normalize(rotate(
+        race.environment.sunRotation, {1.0F, 0.0F, 0.0F}));
+    // D3DLIGHT_DIRECTIONAL.Direction points along the emitted ray, while
+    // the portable lighting equation expects the vector from the surface
+    // toward the light.
+    const r3d::physics::Vec3 sun{
+        -sourceSunRay.x, -sourceSunRay.y, -sourceSunRay.z};
     const float sunLength =
         std::sqrt(sun.x * sun.x + sun.y * sun.y + sun.z * sun.z);
     if (race.environment.directionalLightEnabled &&
@@ -2697,10 +2933,16 @@ void OriginalRaceRenderer::draw(
     }
     else
         sceneLighting.lightDirection = {1.0F, 0.0F, 0.0F, 0.0F};
+    sceneLighting.sunPosition = {
+        race.environment.sunPosition.x,
+        race.environment.sunPosition.y,
+        race.environment.sunPosition.z, 1.0F};
     sceneLighting.ambient = race.environment.ambientColor;
     sceneLighting.fogColor = race.environment.fogColor;
     sceneLighting.fogColor[3] =
-        race.environment.fogEnabled
+        race.environment.fogEnabled &&
+                cameraStyle_ !=
+                    r3d::game::originalrace::PreferredCamera::Isometric
             ? race.environment.fogIntensity
             : 0.0F;
     std::size_t lampIndex = 0U;
@@ -2772,12 +3014,13 @@ void OriginalRaceRenderer::draw(
             }
         }
     }
+    sceneLighting.cameraPosition =
+        {cameraPosition_.x, cameraPosition_.y, cameraPosition_.z,
+         activeCameraFarDistance_};
     if (!vehicles.empty())
     {
-        sceneLighting.cameraPosition =
-            {cameraPosition_.x, cameraPosition_.y, cameraPosition_.z,
-             1.0F};
-        if (race.environment.skyEnabled)
+        if (race.environment.skyEnabled &&
+            activeEnvironmentQuality_ >= 1U)
         {
             SceneLighting skyLighting = sceneLighting;
             skyLighting.lightDirection = {0.0F, 0.0F, 1.0F, 0.0F};
@@ -2789,7 +3032,11 @@ void OriginalRaceRenderer::draw(
             skyPipeline.depthTest = false;
             skyPipeline.faceCulling = PipelineState::FaceCulling::None;
             r3d::physics::Transform sky;
-            sky.position = vehicles.front().body.position;
+            // SkyBox strips view translation. Keeping the cube on the
+            // actual camera is the equivalent geometry implementation and
+            // avoids parallax/edge clipping when camera lead moves away
+            // from the player's body.
+            sky.position = cameraPosition_;
             // SkyBox.cpp applied this left-handed source -> right-handed
             // render conversion before sampling every original cubemap.
             constexpr float sinHalfRightAngle = 0.7071067811865476F;
@@ -2827,30 +3074,29 @@ void OriginalRaceRenderer::draw(
         {
             surfaceMaterial.reflectionStrength = 0.62F;
         }
-        if (race.environment.surface ==
-                r3d::game::originalrace::EnvironmentSurface::GroundFog ||
-            race.environment.surface ==
-                r3d::game::originalrace::EnvironmentSurface::Magma)
-        {
-            surfacePipeline.blendMode =
-                PipelineState::BlendMode::Alpha;
-            surfacePipeline.writeDepth = false;
-            surfaceMaterial.color =
-                race.environment.surface ==
-                        r3d::game::originalrace::
-                            EnvironmentSurface::Magma
-                    ? std::array<float, 4>{1.0F, 1.0F, 1.0F, 0.72F}
-                    : std::array<float, 4>{
-                          race.environment.fogColor[0],
-                          race.environment.fogColor[1],
-                          race.environment.fogColor[2], 0.28F};
-            const float offset = std::fmod(
-                elapsedSeconds * race.environment.surfaceScroll, 1.0F);
-            surfaceMaterial.textureTransform =
-                {1.0F, 1.0F, offset, 0.0F};
-        }
+        surfaceMaterial.color = race.environment.surfaceCloudColor;
+        const float tileScale =
+            std::max(race.environment.surfaceTileScale, 0.0001F);
+        // PlaneNode::FillDataPlane uses its local size as the UV range.
+        // GraphManager then scales the node by 4/25/50, so the original
+        // texture repeats at that world-space interval instead of being
+        // stretched once across the complete map.
+        surfaceMaterial.textureTransform = {
+            environmentSurfaceSize_.x / tileScale,
+            environmentSurfaceSize_.y / tileScale, 0.0F, 0.0F};
         r3d::physics::Transform surface;
         surface.position = environmentSurfaceCenter_;
+        if (activeEnvironmentQuality_ == 0U &&
+            (race.environment.surface ==
+                 r3d::game::originalrace::EnvironmentSurface::GroundFog ||
+             race.environment.surface ==
+                 r3d::game::originalrace::EnvironmentSurface::Magma))
+        {
+            // GraphManager::UpdateFogPlane preserves this source Low-quality
+            // quirk: the simple actor stays at ground AABB Z, while the
+            // depth-aware FogPlane uses Environment cloudHeight.
+            surface.position.z = 0.0F;
+        }
         surface.scale = environmentSurfaceSize_;
         if (surfacePipeline.blendMode ==
             PipelineState::BlendMode::Opaque)
@@ -2866,6 +3112,37 @@ void OriginalRaceRenderer::draw(
             deferredSurfacePipeline = surfacePipeline;
             deferredSurfaceMaterial = surfaceMaterial;
             deferredSurfaceTransform = transform(surface);
+        }
+    }
+
+    if (!reflectionPass && activeEnvironmentQuality_ >= 1U &&
+        race.environment.surface ==
+            r3d::game::originalrace::EnvironmentSurface::Grass &&
+        valid(grassMesh_) && valid(grassTexture_))
+    {
+        auto grassPipeline = pipeline;
+        grassPipeline.faceCulling = PipelineState::FaceCulling::None;
+        grassPipeline.blendMode = PipelineState::BlendMode::Opaque;
+        grassPipeline.alphaBlend = false;
+        grassPipeline.writeDepth = true;
+        grassPipeline.depthTest = true;
+        MaterialState grassMaterial;
+        grassMaterial.alphaReference = 17.0F / 255.0F;
+        grassMaterial.color =
+            race.environment.weather ==
+                    r3d::game::originalrace::Weather::Night
+                ? race.environment.ambientColor
+                : std::array<float, 4>{1.0F, 1.0F, 1.0F, 1.0F};
+        for (const auto& offset : grassFieldOffsets_)
+        {
+            r3d::physics::Transform grass;
+            grass.position = {
+                environmentSurfaceCenter_.x + offset.x * 1.5F,
+                environmentSurfaceCenter_.y + offset.y * 1.5F, 0.9F};
+            grass.scale = {1.5F, 1.5F, 1.5F};
+            device.draw(
+                grassMesh_, grassShader_, grassTexture_, transform(grass),
+                grassPipeline, {}, grassMaterial);
         }
     }
 
@@ -4707,7 +4984,9 @@ void OriginalRaceRenderer::draw(
             &shieldTint, runtime.shieldEffectSeconds);
     }
 
-    if (race.environment.rain && !vehicles.empty())
+    if (race.environment.rain && !vehicles.empty() &&
+        cameraStyle_ !=
+            r3d::game::originalrace::PreferredCamera::Isometric)
     {
         r3d::physics::Transform rainParent;
         rainParent.position = cameraPosition_;
@@ -5319,11 +5598,13 @@ void OriginalRaceRenderer::renderFrame(
     }
 
     device.resetRenderTelemetry();
+    activeEnvironmentQuality_ = std::min(quality.environment, 2U);
     // Environment.cpp maps the three original quality levels to graph
     // options.  Keep those thresholds here instead of silently rendering the
     // high-quality graph for every profile.
     const bool directionalShadowsEnabled =
-        quality.shadow >= 1U &&
+        quality.shadow >=
+            race.environment.directionalShadowMinimumQuality &&
         race.environment.directionalLightEnabled;
     std::array<
         const r3d::game::originalrace::EnvironmentLamp*, 3>
@@ -5355,9 +5636,19 @@ void OriginalRaceRenderer::renderFrame(
     const bool hasWater =
         race.environment.surface ==
         r3d::game::originalrace::EnvironmentSurface::Water;
+    const bool hasHighQualityWater =
+        hasWater && activeEnvironmentQuality_ >= 1U;
+    const bool hasVolumeFog =
+        activeEnvironmentQuality_ >= 1U &&
+        (race.environment.surface ==
+             r3d::game::originalrace::EnvironmentSurface::GroundFog ||
+         race.environment.surface ==
+             r3d::game::originalrace::EnvironmentSurface::Magma);
+    const bool usesSceneDepthSurface =
+        hasHighQualityWater || hasVolumeFog;
     const bool hasReflection =
         planarReflectionsEnabled &&
-        (race.environment.planarReflection || hasWater);
+        (race.environment.planarReflection || hasHighQualityWater);
     const auto reflectionCamera =
         reflectedCamera(camera, race.environment.surfaceHeight);
 
@@ -5366,7 +5657,10 @@ void OriginalRaceRenderer::renderFrame(
         renderCenter = vehicles.front().body.position;
     else if (!race.tracePoints.empty())
         renderCenter = race.tracePoints.front().position;
-    auto sun = race.environment.sunPosition;
+    const auto sourceSunRay = normalize(rotate(
+        race.environment.sunRotation, {1.0F, 0.0F, 0.0F}));
+    r3d::physics::Vec3 sun{
+        -sourceSunRay.x, -sourceSunRay.y, -sourceSunRay.z};
     const float sunLength = std::sqrt(
         sun.x * sun.x + sun.y * sun.y + sun.z * sun.z);
     if (sunLength < 0.001F)
@@ -5374,7 +5668,7 @@ void OriginalRaceRenderer::renderFrame(
     const float shadowFarDistance = isometricCamera ? 55.0F : 60.0F;
     const float shadowSplitDistance =
         sourceShadowSplit(isometricCamera);
-    const float cameraFarDistance = isometricCamera ? 150.0F : 120.0F;
+    const float cameraFarDistance = activeCameraFarDistance_;
     Camera lightCamera;
     Camera lightCameraFar;
     Camera lightCameraThird;
@@ -5528,13 +5822,13 @@ void OriginalRaceRenderer::renderFrame(
     device.setPassState(sceneState);
     device.beginPass(
         RenderPass::Scene,
-        hasWater ? waterSceneTarget_ : hdrTarget_,
+        usesSceneDepthSurface ? waterSceneTarget_ : hdrTarget_,
         camera, clearRgba, true, true);
     draw(device, sceneShader, race, vehicles, pipeline,
          decorationActive, decorationFragments,
          vehicleDeathFragments, bonusActive,
          racerRuntime, effects, mines, projectiles, elapsedSeconds,
-         false, hasWater);
+         false, usesSceneDepthSurface);
 
     Camera postCamera;
     postCamera.view = identityMatrix();
@@ -5547,7 +5841,7 @@ void OriginalRaceRenderer::renderFrame(
     postPipeline.faceCulling = PipelineState::FaceCulling::None;
     postPipeline.multisampling = false;
 
-    if (hasWater)
+    if (usesSceneDepthSurface)
     {
         const auto sourceColor =
             device.renderTargetTexture(waterSceneTarget_);
@@ -5568,31 +5862,55 @@ void OriginalRaceRenderer::renderFrame(
         device.draw(postProcessMesh_, copyShader_, sourceColor,
                     postTransform, postPipeline);
 
-        RenderPassState waterState;
-        waterState.reflectionTexture = waterNormalTexture_;
-        waterState.shadowTexture = reflectionTexture;
-        device.setPassState(waterState);
-        auto waterPipeline = pipeline;
-        waterPipeline.writeDepth = false;
-        waterPipeline.depthTest = false;
-        waterPipeline.faceCulling =
+        auto surfacePipeline = pipeline;
+        surfacePipeline.writeDepth = false;
+        surfacePipeline.depthTest = false;
+        surfacePipeline.faceCulling =
             PipelineState::FaceCulling::None;
-        waterPipeline.blendMode =
+        surfacePipeline.blendMode =
             PipelineState::BlendMode::Alpha;
-        MaterialState waterMaterial;
-        waterMaterial.color = {0.0F, 0.2F, 0.5F, 1.0F};
-        waterMaterial.alphaReference =
-            std::fmod(std::max(elapsedSeconds, 0.0F) * 0.15F,
-                      1.0F);
-        waterMaterial.emissive = 0.1F;
-        waterMaterial.textureTransform =
-            {1.0F, 1.0F, 0.0F, 0.0F};
-        r3d::physics::Transform water;
-        water.position = environmentSurfaceCenter_;
-        water.scale = environmentSurfaceSize_;
-        device.draw(effectMesh_, waterShader_, sourceDepth,
-                    transform(water), waterPipeline, {},
-                    waterMaterial);
+        MaterialState surfaceMaterial;
+        surfaceMaterial.textureTransform = {
+            environmentSurfaceSize_.x /
+                std::max(race.environment.surfaceTileScale, 0.0001F),
+            environmentSurfaceSize_.y /
+                std::max(race.environment.surfaceTileScale, 0.0001F),
+            0.0F, 0.0F};
+        r3d::physics::Transform surface;
+        surface.position = environmentSurfaceCenter_;
+        surface.scale = environmentSurfaceSize_;
+        if (hasHighQualityWater)
+        {
+            RenderPassState waterState;
+            waterState.reflectionTexture = waterNormalTexture_;
+            waterState.shadowTexture = reflectionTexture;
+            device.setPassState(waterState);
+            surfaceMaterial.color = {0.0F, 0.2F, 0.5F, 1.0F};
+            surfaceMaterial.alphaReference =
+                std::fmod(std::max(elapsedSeconds, 0.0F) * 0.15F,
+                          1.0F);
+            surfaceMaterial.emissive =
+                race.environment.surfaceCloudIntensity;
+            device.draw(effectMesh_, waterShader_, sourceDepth,
+                        transform(surface), surfacePipeline, {},
+                        surfaceMaterial);
+        }
+        else
+        {
+            RenderPassState fogState;
+            fogState.reflectionTexture = sourceDepth;
+            device.setPassState(fogState);
+            surfaceMaterial.color = race.environment.surfaceCloudColor;
+            surfaceMaterial.alphaReference = std::fmod(
+                std::max(elapsedSeconds, 0.0F) *
+                    race.environment.surfaceScroll,
+                1.0F);
+            surfaceMaterial.emissive =
+                race.environment.surfaceCloudIntensity;
+            device.draw(effectMesh_, fogPlaneShader_,
+                        environmentSurfaceTexture_, transform(surface),
+                        surfacePipeline, {}, surfaceMaterial);
+        }
     }
 
     const auto hdrTexture = device.renderTargetTexture(hdrTarget_);

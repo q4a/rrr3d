@@ -108,7 +108,7 @@ Windows target не компилируется.
 | Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | source-derived material catalog + bgfx mappings | Перенесено с renderer-адаптацией | Проверены все 238 активных `Load*LibMat` records; два отсутствующих texture records являются source no-texture projectiles, ещё два — закомментированные `World2/track2` calls. Opaque/alpha/additive/bump/reflection и material flags сопоставлены без active name fallback |
 | Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы directional race passes и отдельные source shadow maps всех двух Garage/до трёх Angar spot-lamps с исходными cone/near/far и per-light diffuse/specular application; bit-for-bit и полное graph state parity не доказаны |
 | Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Перенесено для active catalog | В фактическом `db.xml` покрыты все 8 manager classes, все 37 `ntParticleSystem`, единственный активный `FxFlowEmitter`, все 14 `partDesc` и 5 `flowDesc` fields, child systems, distributions, lifetime/fading и `ntIVBMesh`/`ntSprite`/`ntPlane`; D3D sorting заменён bgfx |
-| Weather/water/magma/sky | `Environment.cpp`, graph effects | source records + bgfx passes | Частично | Все world variants загружаются; exact D3D shader/fixed-pipeline result не доказан |
+| Weather/water/magma/sky | `Environment.cpp`, `GraphManager`, `WaterPlane`, `FogPlane`, `GrassField`, source `.fx` | source graph + bgfx/Metal shader equivalents | Перенесено с backend-адаптацией | Перенесены шесть world branches, weather fog/ambient/sky/far, quality gates, rain/isometric exclusions, scene AABB +300, UV scale 4/25/50, Low/volume paths, water reflection, depth reconstruction, cloud animation/color/intensity, source grass atlas/density/scale и sky без camera translation; D3D9 заменён Metal |
 | Intro/video | `VideoPlayer.cpp`, DirectShow playback | AVPlayer/AVPlayerLayer, 14 lossless-remuxed MP4 | Замена платформы | Все исходные H.264/MP3 потоки проигрываются нативно; Difficulty `Main`, Gamers `Intaria`, planet и final transitions подключены |
 | LAN/network | `NetGame`, `NetRace`, `NetPlayer`, NetLib | выключено | Не перенесено | Offline acceptance не требует сеть, но это часть Windows-продукта |
 | Steam | `SteamService`, auth | выключено | Не перенесено | Не относится к offline race, но не должно называться перенесённым |
@@ -842,6 +842,30 @@ Network, video и Steam явно выключены.
    menu popup, M9 race-render smoke — game popup; обе проверки прошли.
 6. Ручная arm64 Debug проверка через фактический экран подтвердила исходную
    рамку и metadata `Stereoside / On our Way` поверх MainMenu2.
+
+### Source environment graph
+
+1. `Environment::ApplyWheater`, `GetPerspectiveCameraFar` и quality map
+   перенесены со всеми значениями Fair/Night/Cloudy/Rainy/Sahara/Hell/Snow,
+   отдельным High-only shadow для Snow и отключением fog/rain в
+   ортографической камере.
+2. `GraphManager::BuildOctree` ground AABB теперь вычисляется по всем
+   track/decoration/bonus actors до машин и расширяется на 300 м. На этой
+   геометрии восстановлены ground grass, Water scale 4, World3/World6 fog
+   scale 50/height 3/speed 0.02 и World4 magma scale 25/height 0.5/speed
+   0.01, включая различие Low и depth-aware Middle/High.
+3. `WaterPlane` и `FogPlane` используют исходное восстановление view-space
+   depth через inverse projection, два движущихся texture sample, serialized
+   cloud intensity/color и линейный source fog. Вода отдельно получает
+   `sunPos`; diffuse/shadow сцены получают направление из `sunRot`, как в
+   Windows.
+4. `GrassField` перенесён с source partition limit, density 1, scale 1.5,
+   displacement 2, четырьмя atlas rectangles и весами `2/1/10/1` из
+   `flower2.dds`; indexed Metal mesh является эквивалентной backend-формой
+   исходных шести дублированных vertices на sprite.
+5. Skybox следует за фактической камерой без translation; perspective far
+   равен `120/100` по weather, Garage — 20, Angar — 130, isometric — 150.
+   Multi-world render smoke отдельно проверяет Water/volume-surface pass.
 
 ## Очередь дальнейшего переноса
 

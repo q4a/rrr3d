@@ -771,11 +771,13 @@ std::optional<std::size_t> hoveredItem(SDL_Window* window, float windowX,
 #ifdef RRR3D_PHYSICS
 void applyWeather(
     r3d::game::originalrace::EnvironmentDescription& environment,
-    std::string_view weather)
+    std::string_view weather, std::string_view levelPath)
 {
     using r3d::game::originalrace::Weather;
     environment.rain = false;
     environment.directionalLightEnabled = weather != "night";
+    environment.directionalShadowMinimumQuality =
+        weather == "snow" ? 2U : 1U;
     if (weather == "night")
     {
         environment.weather = Weather::Night;
@@ -786,6 +788,7 @@ void applyWeather(
             {138.0F / 255.0F, 144.0F / 255.0F,
              174.0F / 255.0F, 1.0F};
         environment.fogIntensity = 1.0F;
+        environment.perspectiveFarDistance = 120.0F;
     }
     else if (weather == "cloudy" || weather == "rainy")
     {
@@ -799,6 +802,8 @@ void applyWeather(
         environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
         environment.fogIntensity = 1.0F;
         environment.rain = weather == "rainy";
+        environment.perspectiveFarDistance =
+            weather == "rainy" ? 100.0F : 120.0F;
     }
     else if (weather == "sahara")
     {
@@ -810,6 +815,7 @@ void applyWeather(
              115.0F / 255.0F, 1.0F};
         environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
         environment.fogIntensity = 0.5F;
+        environment.perspectiveFarDistance = 100.0F;
     }
     else if (weather == "hell")
     {
@@ -821,6 +827,7 @@ void applyWeather(
              8.0F / 255.0F, 1.0F};
         environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
         environment.fogIntensity = 0.5F;
+        environment.perspectiveFarDistance = 100.0F;
     }
     else if (weather == "snow")
     {
@@ -832,6 +839,7 @@ void applyWeather(
              181.0F / 255.0F, 1.0F};
         environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
         environment.fogIntensity = 0.5F;
+        environment.perspectiveFarDistance = 100.0F;
     }
     else
     {
@@ -843,6 +851,18 @@ void applyWeather(
              235.0F / 255.0F, 1.0F};
         environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
         environment.fogIntensity = 0.5F;
+        environment.perspectiveFarDistance = 120.0F;
+    }
+    environment.surfaceCloudColor = environment.fogColor;
+    if (levelPath.find("World3") != std::string_view::npos)
+    {
+        environment.surfaceCloudColor = {
+            87.0F / 255.0F, 81.0F / 255.0F,
+            115.0F / 255.0F, 1.0F};
+    }
+    else if (levelPath.find("World4") != std::string_view::npos)
+    {
+        environment.surfaceCloudColor = {1.0F, 1.0F, 1.0F, 1.0F};
     }
 }
 #endif
@@ -962,7 +982,8 @@ int main(int argc, char** argv)
                 r3d::game::originalrace::Weather::Night;
         }
         if (options->weatherSelected)
-            applyWeather(originalRace->environment, options->weather);
+            applyWeather(originalRace->environment, options->weather,
+                         originalRace->levelPath);
         profileState.player.currentCar = originalRace->vehicle.record;
         if (!originalRace->racers.empty())
             originalRace->racers.front().name =
@@ -4430,7 +4451,8 @@ int main(int argc, char** argv)
                     r3d::game::originalrace::Weather::Night;
             if (options->weatherSelected)
                 applyWeather(
-                    originalRace->environment, options->weather);
+                    originalRace->environment, options->weather,
+                    originalRace->levelPath);
             profileState.player.currentCar =
                 originalRace->vehicle.record;
             if (!originalRace->racers.empty())
@@ -14536,7 +14558,9 @@ int main(int argc, char** argv)
                     smokeQuality.light >= 2U &&
                     originalRace->environment.dynamicReflectionsEnabled;
                 const bool expectsShadows =
-                    smokeQuality.shadow >= 1U &&
+                    smokeQuality.shadow >=
+                        originalRace->environment
+                            .directionalShadowMinimumQuality &&
                     originalRace->environment.directionalLightEnabled;
                 const bool weatherAllowsPostEffects =
                     originalRace->environment.weather !=
@@ -14613,13 +14637,23 @@ int main(int argc, char** argv)
                 }
                 const bool expectsReflection =
                     originalRace->environment.planarReflection ||
-                    originalRace->environment.surface ==
+                    (smokeQuality.environment >= 1U &&
+                     originalRace->environment.surface ==
                         r3d::game::originalrace::
-                            EnvironmentSurface::Water;
+                            EnvironmentSurface::Water);
                 const bool expectsWater =
+                    smokeQuality.environment >= 1U &&
                     originalRace->environment.surface ==
                     r3d::game::originalrace::
                         EnvironmentSurface::Water;
+                const bool expectsVolumeSurface =
+                    smokeQuality.environment >= 1U &&
+                    (originalRace->environment.surface ==
+                         r3d::game::originalrace::
+                             EnvironmentSurface::GroundFog ||
+                     originalRace->environment.surface ==
+                         r3d::game::originalrace::
+                             EnvironmentSurface::Magma);
                 const bool expectsBumpMapping =
                     std::any_of(
                         originalRace->trackDefinitions.begin(),
@@ -14654,7 +14688,7 @@ int main(int argc, char** argv)
                         renderGraphComplete &&
                         passObserved(
                             r3d::renderer::RenderPass::Reflection);
-                if (expectsWater)
+                if (expectsWater || expectsVolumeSurface)
                     renderGraphComplete =
                         renderGraphComplete &&
                         passObserved(
@@ -14769,6 +14803,7 @@ int main(int argc, char** argv)
                            "adapt/bloom/composite/HUD"
                         << (expectsReflection ? "/reflection" : "")
                         << (expectsWater ? "/water" : "")
+                        << (expectsVolumeSurface ? "/volume-surface" : "")
                         << " verified; cube reflection "
                         << maximumEnvironmentMappedDraws
                         << ", normal map "

@@ -146,6 +146,12 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_shader_output_dir}/rrr3d_vs_water.bin.h")
         set(_rrr3d_water_fragment_shader
             "${_rrr3d_shader_output_dir}/rrr3d_fs_water.bin.h")
+        set(_rrr3d_fog_fragment_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_fog_plane.bin.h")
+        set(_rrr3d_grass_vertex_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_vs_grass_field.bin.h")
+        set(_rrr3d_grass_fragment_shader
+            "${_rrr3d_shader_output_dir}/rrr3d_fs_grass_field.bin.h")
         set(_rrr3d_sky_vertex_shader
             "${_rrr3d_shader_output_dir}/rrr3d_vs_skybox.bin.h")
         set(_rrr3d_sky_fragment_shader
@@ -164,6 +170,8 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_shader_source_dir}/varying_post_process.def.sc")
         set(_rrr3d_water_varying
             "${_rrr3d_shader_source_dir}/varying_water.def.sc")
+        set(_rrr3d_grass_varying
+            "${_rrr3d_shader_source_dir}/varying_grass_field.def.sc")
         set(_rrr3d_sky_varying
             "${_rrr3d_shader_source_dir}/varying_skybox.def.sc")
         _rrr3d_compile_m9_2_shader(
@@ -199,6 +207,18 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_shader_source_dir}/fs_water.sc"
             "${_rrr3d_water_varying}" rrr3d_fs_water)
         _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_fog_fragment_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_fog_plane.sc"
+            "${_rrr3d_water_varying}" rrr3d_fs_fog_plane)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_grass_vertex_shader}" vertex
+            "${_rrr3d_shader_source_dir}/vs_grass_field.sc"
+            "${_rrr3d_grass_varying}" rrr3d_vs_grass_field)
+        _rrr3d_compile_m9_2_shader(
+            "${_rrr3d_grass_fragment_shader}" fragment
+            "${_rrr3d_shader_source_dir}/fs_grass_field.sc"
+            "${_rrr3d_grass_varying}" rrr3d_fs_grass_field)
+        _rrr3d_compile_m9_2_shader(
             "${_rrr3d_sky_vertex_shader}" vertex
             "${_rrr3d_shader_source_dir}/vs_skybox.sc"
             "${_rrr3d_sky_varying}" rrr3d_vs_skybox)
@@ -231,6 +251,9 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             "${_rrr3d_tone_map_shader}"
             "${_rrr3d_water_vertex_shader}"
             "${_rrr3d_water_fragment_shader}"
+            "${_rrr3d_fog_fragment_shader}"
+            "${_rrr3d_grass_vertex_shader}"
+            "${_rrr3d_grass_fragment_shader}"
             "${_rrr3d_sky_vertex_shader}"
             "${_rrr3d_sky_fragment_shader}"
             "${_rrr3d_copy_shader}"
