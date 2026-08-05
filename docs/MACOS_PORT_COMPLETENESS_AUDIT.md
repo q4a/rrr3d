@@ -99,7 +99,7 @@ Windows target не компилируется.
 | Weapon shot sounds | `ShotEffect::GiveSource3d`, serialized sound refs | source `ctWeapon/behaviors/items/*[@type=10]/sounds` | Перенесено | Удалено угадывание по имени; 24 source refs читаются напрямую, `drobilka` корректно остаётся без придуманного звука |
 | Damage/support/shield | `GameObject::Damage`, `Logic::Damage`, `TouchDeath`, `DroidItem`, `ReflectorItem`, behaviors | source-typed central dispatch в session | Частично | Перенесены damage types, first-reflector rule, reflector-before-immortality, immortal incoming-damage event, 3-second touch attribution, Z=0 death plane, mine kill exclusion и фактический Droid heal 5; полный object listener graph ещё не закрыт |
 | Bonuses | `Proj` types 4–10, `Player::TakeBonus` | source boxes, serialized values/DeathEffect и сопоставленные contact branches | Частично | Перенесены persistent speed/lusha/oil, одноразовый `Death()`, medpack/charge/money/immortal, Windows `Round((N-1)*Random())`, charge truncation и source pickup sounds; остаётся ручной portable dispatch вместо исходных объектов/PhysX callbacks |
-| Destructible decorations | `DestrObj`, `GameBase` | life flags, source fragments/debris и collision meshes | Частично | Все map destructibles обязаны иметь serialized `destrList` и source collider; OBB–triangle contact заменил proximity sphere, `explosion2.dds` fallback удалён; полный PhysX body/death lifecycle ещё отсутствует |
+| Destructible decorations | `DestrObj`, `GameBase` | life flags, source fragments/debris и collision meshes | Перенесено с backend-адаптацией | Все map destructibles имеют serialized `destrList` и source collider; `OnDeath`/отложенный `OnProgress` дают каждой части world pose родителя, static/dynamic PhysX shapes заменены эквивалентными Jolt bodies, parent response удаляется, распад одноразовый; в source нет impulse или lifetime для этих частей |
 | Achievements | все 9 `AchievmentCondition*` classes, `AchievmentModel`, `AchievmentFrame`, `PlayerStateFrame` | definitions + source-matched counters + source reward frame | Частично | Сопоставлены Bonus/SpeedKill/RaceKill/LapPass/Dodge/LapBreak/Survival/FirstKill/TouchKill и exact record counts; campaign начисляет `Floor(reward × 1/1.2/1.5)`, skirmish не начисляет points и скрывает points HUD. Девять reward cards, state/price, purchase/points и навигация перенесены; generic legacy event/model object graph не компилируется |
 | HUD | `PlayerStateFrame`, `MiniMapFrame`, `HudMenu` | `OriginalRaceHud.cpp` с исходными images/strings | Перенесено для offline race | Сопоставлены единственное активное состояние `msMain`, slots/life/place/lap, countdown, pick/kill/achievement, opponent/life overlays и finish. `enableHUD` скрывает только `_raceState` и lap, сохраняя map/event siblings как Windows |
 | Mini-map | `MiniMapFrame`, `TraceGfx` | source trace-path geometry | Перенесено | Перенесены все pathes, Align/ComputeNode/smoothing, 320×320 align, start marker, 20×20 car markers/colors и `CarState::GetMapPos`-совместимая удерживаемая trace projection |
@@ -861,15 +861,12 @@ Network, video и Steam явно выключены.
    При этом
    legacy animation/widget classes всё ещё заменены immediate-mode bgfx
    backend.
-2. Завершить dynamic `DestrObj` body/death lifecycle: точное движение частей,
-   collision-response removal и lifetime вместо оставшихся Jolt-adapted
-   debris branches.
-3. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно
+2. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно
    перенести `GameObject`, `Logic`, `Player`, `Race`, `Weapon`.
-4. Искать дальнейшие gameplay-разрывы только через конкретные активные
+3. Искать дальнейшие gameplay-разрывы только через конкретные активные
    Windows branches или воспроизводимое отличие, не по отсутствию legacy
    class graph как такового.
-5. Перенести оставшиеся исходные offline UI transitions и вызываемые dialog
+4. Перенести оставшиеся исходные offline UI transitions и вызываемые dialog
    branches, найденные следующей ревизией Windows call graph.
 
 ### P1 — visual/audio parity

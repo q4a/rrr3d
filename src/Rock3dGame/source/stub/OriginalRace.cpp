@@ -4624,6 +4624,103 @@ void applyOriginalPlayerProfile(
     }
 }
 
+std::vector<DecorationDebrisDefinition> makeDecorationDestruction(
+    const Race& race, const resource::ResourceFileSystem& resources,
+    std::size_t instanceIndex)
+{
+    if (instanceIndex >= race.decorationInstances.size())
+    {
+        throw resource::ResourceError(
+            race.levelPath + ": invalid destruction instance " +
+            std::to_string(instanceIndex));
+    }
+    const auto& instance = race.decorationInstances[instanceIndex];
+    if (instance.definition >= race.decorationDefinitions.size())
+    {
+        throw resource::ResourceError(
+            race.levelPath + ": invalid destruction definition " +
+            std::to_string(instance.definition));
+    }
+    const auto& definition =
+        race.decorationDefinitions[instance.definition];
+    std::vector<DecorationDebrisDefinition> result;
+    result.reserve(definition.destructionPieces.size());
+    for (std::size_t pieceIndex = 0;
+         pieceIndex < definition.destructionPieces.size(); ++pieceIndex)
+    {
+        const auto& piece = definition.destructionPieces[pieceIndex];
+        r3d::physics::DebrisDescription debris;
+        // DestrObj::OnProgress explicitly overwrites each detached child's
+        // world position and rotation with its former parent's pose.  The
+        // child's serialized transform remains local in its visual/shape.
+        debris.transform = instance.transform;
+        debris.dynamic = piece.dynamic;
+        debris.shapePosition = {
+            piece.shapePosition.x * instance.transform.scale.x,
+            piece.shapePosition.y * instance.transform.scale.y,
+            piece.shapePosition.z * instance.transform.scale.z};
+        debris.shapeRotation = piece.shapeRotation;
+        debris.halfExtents = {
+            std::abs(piece.halfExtents.x * instance.transform.scale.x),
+            std::abs(piece.halfExtents.y * instance.transform.scale.y),
+            std::abs(piece.halfExtents.z * instance.transform.scale.z)};
+        debris.mass = piece.mass;
+        if (!piece.dynamic)
+        {
+            for (const auto& shape : piece.collisionShapes)
+            {
+                const auto sourceMesh =
+                    resource::loadR3DMeshAsset(resources, shape.meshPath);
+                r3d::physics::TriangleMesh collision;
+                collision.surface =
+                    r3d::physics::CollisionSurface::Decoration;
+                collision.transform = piece.transform;
+                collision.transform.position.x *=
+                    instance.transform.scale.x;
+                collision.transform.position.y *=
+                    instance.transform.scale.y;
+                collision.transform.position.z *=
+                    instance.transform.scale.z;
+                collision.transform.scale.x *= instance.transform.scale.x;
+                collision.transform.scale.y *= instance.transform.scale.y;
+                collision.transform.scale.z *= instance.transform.scale.z;
+                collision.vertices.reserve(sourceMesh.vertices.size());
+                for (const auto& vertex : sourceMesh.vertices)
+                {
+                    collision.vertices.push_back(
+                        {vertex.position[0], vertex.position[1],
+                         vertex.position[2]});
+                }
+                if (shape.materialGroup < sourceMesh.materialGroups.size())
+                {
+                    const auto& group =
+                        sourceMesh.materialGroups[shape.materialGroup];
+                    collision.indices.insert(
+                        collision.indices.end(),
+                        sourceMesh.indices.begin() + group.firstIndex,
+                        sourceMesh.indices.begin() + group.firstIndex +
+                            group.indexCount);
+                }
+                else
+                {
+                    collision.indices = sourceMesh.indices;
+                }
+                if (!collision.indices.empty())
+                    debris.collisionMeshes.push_back(std::move(collision));
+            }
+            // A detached source child without a PhysX shape remains visual
+            // only.  It therefore needs no backend body or render binding.
+            if (debris.collisionMeshes.empty())
+                continue;
+        }
+        // Destruction-list children have neither an added launch impulse nor
+        // maxTimeLife in the Windows catalog.  DebrisDescription defaults
+        // deliberately preserve both facts.
+        result.push_back({pieceIndex, std::move(debris)});
+    }
+    return result;
+}
+
 r3d::physics::WorldDescription makePhysicsDescription(
     const Race& race, const resource::ResourceFileSystem& resources)
 {
@@ -4935,6 +5032,69 @@ bool runOriginalRaceResourceSmokeTest(
         const auto* crush1 = definitionNamed("crush1");
         const auto* reklama = definitionNamed("reklama");
         const auto* bochka = definitionNamed("bochka");
+        const auto crush1Instance = std::find_if(
+            race.decorationInstances.begin(),
+            race.decorationInstances.end(),
+            [&](const ObjectInstance& instance) {
+                return instance.definition <
+                           race.decorationDefinitions.size() &&
+                       &race.decorationDefinitions[instance.definition] ==
+                           crush1;
+            });
+        bool destructionBodiesMatch = false;
+        std::size_t destructionBodyCount = 0U;
+        std::size_t destructionDynamicCount = 0U;
+        if (crush1Instance != race.decorationInstances.end())
+        {
+            const auto instanceIndex = static_cast<std::size_t>(
+                crush1Instance - race.decorationInstances.begin());
+            const auto bodies = makeDecorationDestruction(
+                race, resources, instanceIndex);
+            destructionBodyCount = bodies.size();
+            destructionDynamicCount = static_cast<std::size_t>(
+                std::count_if(
+                    bodies.begin(), bodies.end(),
+                    [](const DecorationDebrisDefinition& body) {
+                        return body.physics.dynamic;
+                    }));
+            destructionBodiesMatch =
+                bodies.size() == 14U && destructionDynamicCount == 12U &&
+                std::all_of(
+                    bodies.begin(), bodies.end(),
+                    [&](const DecorationDebrisDefinition& body) {
+                        if (body.piece >= crush1->destructionPieces.size())
+                            return false;
+                        const auto& source =
+                            crush1->destructionPieces[body.piece];
+                        const auto& physicsBody = body.physics;
+                        const bool parentPose =
+                            near(physicsBody.transform.position.x,
+                                 crush1Instance->transform.position.x) &&
+                            near(physicsBody.transform.position.y,
+                                 crush1Instance->transform.position.y) &&
+                            near(physicsBody.transform.position.z,
+                                 crush1Instance->transform.position.z) &&
+                            near(physicsBody.transform.rotation.x,
+                                 crush1Instance->transform.rotation.x) &&
+                            near(physicsBody.transform.rotation.y,
+                                 crush1Instance->transform.rotation.y) &&
+                            near(physicsBody.transform.rotation.z,
+                                 crush1Instance->transform.rotation.z) &&
+                            near(physicsBody.transform.rotation.w,
+                                 crush1Instance->transform.rotation.w);
+                        const bool sourceLifetimeAndImpulse =
+                            physicsBody.lifetime < 0.0F &&
+                            near(physicsBody.localImpulse.x, 0.0F) &&
+                            near(physicsBody.localImpulse.y, 0.0F) &&
+                            near(physicsBody.localImpulse.z, 0.0F);
+                        return parentPose && sourceLifetimeAndImpulse &&
+                               physicsBody.dynamic == source.dynamic &&
+                               (source.dynamic
+                                    ? physicsBody.collisionMeshes.empty() &&
+                                          near(physicsBody.mass, 200.0F)
+                                    : !physicsBody.collisionMeshes.empty());
+                    });
+        }
         const bool hasDestructibleWithoutSourcePieces =
             std::any_of(
                 race.decorationDefinitions.begin(),
@@ -4984,6 +5144,7 @@ bool runOriginalRaceResourceSmokeTest(
             !sourcePiecesMatch(reklama, 11U, 10U) ||
             bochka == nullptr || bochka->destructible ||
             !bochka->destructionPieces.empty() ||
+            !destructionBodiesMatch ||
             hasDestructibleWithoutSourcePieces ||
             hasDestructibleWithoutSourceCollision ||
             race.collisionMeshes.size() !=
@@ -5021,6 +5182,9 @@ bool runOriginalRaceResourceSmokeTest(
                     ", bochka=" + audit(bochka) +
                     ", ownedMeshes=" +
                     std::to_string(ownedDecorationMeshCount) +
+                    ", detachedBodies=" +
+                    std::to_string(destructionBodyCount) + "/" +
+                    std::to_string(destructionDynamicCount) + " dynamic" +
                     ", dynamicBodies=" +
                     std::to_string(dynamicDecorationBodyCount);
             return false;

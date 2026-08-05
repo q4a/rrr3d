@@ -357,6 +357,15 @@ struct DecorationFragmentState
     Transform transform;
 };
 
+// DestrObj::OnProgress detaches every serialized child from destrList and
+// gives it the parent's world pose.  Keep the source piece index beside the
+// backend body so render bindings cannot silently depend on vector order.
+struct DecorationDebrisDefinition
+{
+    std::size_t piece = 0;
+    r3d::physics::DebrisDescription physics;
+};
+
 struct VehicleDeathFragmentState
 {
     std::size_t racer = 0;
@@ -786,6 +795,9 @@ void applyOriginalPlayerProfile(
     const PlayerProfile& profile);
 r3d::physics::WorldDescription makePhysicsDescription(
     const Race& race, const resource::ResourceFileSystem& resources);
+std::vector<DecorationDebrisDefinition> makeDecorationDestruction(
+    const Race& race, const resource::ResourceFileSystem& resources,
+    std::size_t instance);
 bool runOriginalRaceResourceSmokeTest(
     const Race& race, const resource::ResourceFileSystem& resources,
     std::string& error);

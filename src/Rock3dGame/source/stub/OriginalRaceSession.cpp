@@ -7130,6 +7130,22 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "destroyed decoration actor remained in the source "
                     "Laser/FrostRay collision group");
             }
+            destructionSession.update(
+                1.0F / 60.0F, vehicles, destructionInput);
+            const bool repeatedDestruction = std::any_of(
+                destructionSession.events().begin(),
+                destructionSession.events().end(),
+                [instance](const RaceEvent& event) {
+                    return event.kind ==
+                               RaceEventKind::DecorationDestroyed &&
+                           event.target == instance;
+                });
+            if (repeatedDestruction)
+            {
+                throw std::runtime_error(
+                    "source gotDestrObj separation was emitted more than "
+                    "once");
+            }
             vehicles[0].speed = 0.0F;
         }
 

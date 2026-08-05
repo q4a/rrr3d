@@ -10488,109 +10488,24 @@ int main(int argc, char** argv)
                     event.target >=
                         originalRace->decorationInstances.size())
                     continue;
-                const auto& instance =
-                    originalRace->decorationInstances[event.target];
-                const auto& definition =
-                    originalRace->decorationDefinitions.at(
-                        instance.definition);
                 // The source removed the destroyed ctDecoration actor from
                 // PhysX before spawning its destruction-list actors.  The
                 // Jolt port must do the same for this individual instance;
                 // leaving it in a map-wide merged mesh creates invisible
                 // walls after the board/sign has disappeared.
                 physicsWorld->setDecorationEnabled(event.target, false);
-                for (std::size_t pieceIndex = 0;
-                     pieceIndex < definition.destructionPieces.size();
-                     ++pieceIndex)
+                const auto destruction =
+                    r3d::game::originalrace::makeDecorationDestruction(
+                        *originalRace, *resources, event.target);
+                for (const auto& piece : destruction)
                 {
-                    const auto& piece =
-                        definition.destructionPieces[pieceIndex];
-                    r3d::physics::DebrisDescription debris;
-                    debris.transform = instance.transform;
-                    debris.dynamic = piece.dynamic;
-                    debris.shapePosition = {
-                        piece.shapePosition.x *
-                            instance.transform.scale.x,
-                        piece.shapePosition.y *
-                            instance.transform.scale.y,
-                        piece.shapePosition.z *
-                            instance.transform.scale.z};
-                    debris.shapeRotation = piece.shapeRotation;
-                    debris.halfExtents = {
-                        std::abs(piece.halfExtents.x *
-                                 instance.transform.scale.x),
-                        std::abs(piece.halfExtents.y *
-                                 instance.transform.scale.y),
-                        std::abs(piece.halfExtents.z *
-                                 instance.transform.scale.z)};
-                    debris.mass = piece.mass;
-                    if (!piece.dynamic)
-                    {
-                        for (const auto& shape : piece.collisionShapes)
-                        {
-                            const auto sourceMesh =
-                                r3d::resource::loadR3DMeshAsset(
-                                    *resources, shape.meshPath);
-                            r3d::physics::TriangleMesh collision;
-                            collision.surface =
-                                r3d::physics::CollisionSurface::Decoration;
-                            collision.transform = piece.transform;
-                            collision.transform.position.x *=
-                                instance.transform.scale.x;
-                            collision.transform.position.y *=
-                                instance.transform.scale.y;
-                            collision.transform.position.z *=
-                                instance.transform.scale.z;
-                            collision.transform.scale.x *=
-                                instance.transform.scale.x;
-                            collision.transform.scale.y *=
-                                instance.transform.scale.y;
-                            collision.transform.scale.z *=
-                                instance.transform.scale.z;
-                            collision.vertices.reserve(
-                                sourceMesh.vertices.size());
-                            for (const auto& vertex : sourceMesh.vertices)
-                            {
-                                collision.vertices.push_back(
-                                    {vertex.position[0], vertex.position[1],
-                                     vertex.position[2]});
-                            }
-                            if (shape.materialGroup <
-                                sourceMesh.materialGroups.size())
-                            {
-                                const auto& group =
-                                    sourceMesh.materialGroups[
-                                        shape.materialGroup];
-                                collision.indices.insert(
-                                    collision.indices.end(),
-                                    sourceMesh.indices.begin() +
-                                        group.firstIndex,
-                                    sourceMesh.indices.begin() +
-                                        group.firstIndex +
-                                        group.indexCount);
-                            }
-                            else
-                            {
-                                collision.indices = sourceMesh.indices;
-                            }
-                            if (!collision.indices.empty())
-                            {
-                                debris.collisionMeshes.push_back(
-                                    std::move(collision));
-                            }
-                        }
-                        // A source static destruction part without a PhysX
-                        // shape remains visual-only after detachment.
-                        if (debris.collisionMeshes.empty())
-                            continue;
-                    }
                     const auto debrisIndex =
-                        physicsWorld->addDebris(debris);
+                        physicsWorld->addDebris(piece.physics);
                     if (debrisIndex ==
                         std::numeric_limits<std::size_t>::max())
                         continue;
                     decorationDebrisBindings.push_back(
-                        {event.target, pieceIndex, debrisIndex});
+                        {event.target, piece.piece, debrisIndex});
                 }
             }
 #ifdef RRR3D_AUDIO
