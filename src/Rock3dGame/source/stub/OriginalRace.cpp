@@ -1557,11 +1557,45 @@ Quat optionalParticleQuaternion(TiXmlElement* parent,
                : fallback;
 }
 
+bool hasBehaviorType(TiXmlElement* record, std::string_view wanted)
+{
+    auto* behaviors = child(record, "behaviors/items");
+    if (behaviors == nullptr)
+        return false;
+    for (auto* behavior = behaviors->FirstChildElement();
+         behavior != nullptr; behavior = behavior->NextSiblingElement())
+    {
+        const char* type = behavior->Attribute("type");
+        if (type != nullptr && std::string_view(type) == wanted)
+            return true;
+    }
+    return false;
+}
+
+float positiveTimeLife(TiXmlElement* record)
+{
+    return std::max(optionalScalar(record, "maxTimeLife", -1.0F),
+                    -1.0F);
+}
+
+float earlierPositiveTimeLife(float parent, float child)
+{
+    if (parent > 0.0F && child > 0.0F)
+        return std::min(parent, child);
+    return parent > 0.0F ? parent : child;
+}
+
 void appendParticleEmitters(
     const resource::ResourceFileSystem& resources,
     TiXmlElement* record, const Transform& parentTransform,
-    ObjectDefinition& definition, std::string_view source)
+    ObjectDefinition& definition, std::string_view source,
+    float ownerMaximumTimeLife)
 {
+    // BehaviorType: 2 = FxSystemWaitingEnd, 3 = FxSystemSrcSpeed.
+    // These are properties of the source GameObject, not of the flattened
+    // parent definition.
+    const bool waitForParticleEnd = hasBehaviorType(record, "2");
+    const bool inheritSourceVelocity = hasBehaviorType(record, "3");
     auto* nodes = child(record, "grActor/nodes/items");
     if (nodes == nullptr)
         return;
@@ -1672,6 +1706,9 @@ void appendParticleEmitters(
             if (part == nullptr || flow == nullptr)
                 continue;
             ParticleEmitterDefinition emitter;
+            emitter.sourceRecord = record->Value() != nullptr
+                                       ? record->Value()
+                                       : std::string{};
             emitter.transform = nodeTransform;
             emitter.materials = materials;
             emitter.fixedDirection = fixedDirection;
@@ -1783,6 +1820,9 @@ void appendParticleEmitters(
                     std::string_view(coordinates->GetText()) ==
                     "true";
             }
+            emitter.inheritSourceVelocity = inheritSourceVelocity;
+            emitter.waitForParticleEnd = waitForParticleEnd;
+            emitter.emissionDuration = ownerMaximumTimeLife;
             if (auto* rotateNode = child(sourceEmitter, "autoRot");
                 rotateNode != nullptr &&
                 rotateNode->GetText() != nullptr)
@@ -1820,7 +1860,8 @@ void appendIncludedEffects(
     const resource::ResourceFileSystem& resources,
     TiXmlElement* database, TiXmlElement* record,
     const Transform& parentTransform, ObjectDefinition& definition,
-    std::string_view source, std::uint32_t depth)
+    std::string_view source, std::uint32_t depth,
+    float parentMaximumTimeLife)
 {
     if (depth >= 8U)
         throw resource::ResourceError(
@@ -1838,6 +1879,12 @@ void appendIncludedEffects(
             compose(parentTransform, elementTransform(include, source));
         auto* includedRecord =
             databaseRecord(database, reference->GetText());
+        const float includeTimeLife =
+            optionalScalar(include, "maxTimeLife", -1.0F) > 0.0F
+                ? optionalScalar(include, "maxTimeLife", -1.0F)
+                : positiveTimeLife(includedRecord);
+        const float ownerMaximumTimeLife = earlierPositiveTimeLife(
+            parentMaximumTimeLife, includeTimeLife);
         auto nodes = visualNodes(resources, includedRecord, source);
         for (auto& node : nodes)
         {
@@ -1846,10 +1893,11 @@ void appendIncludedEffects(
         }
         appendParticleEmitters(
             resources, includedRecord, includeTransform, definition,
-            source);
+            source, ownerMaximumTimeLife);
         appendIncludedEffects(
             resources, database, includedRecord, includeTransform,
-            definition, source, depth + 1U);
+            definition, source, depth + 1U,
+            ownerMaximumTimeLife);
     }
 }
 
@@ -1926,10 +1974,13 @@ ObjectDefinition objectDefinition(
             result.graphOrder = GraphOrder::Last;
     }
     result.visualNodes = visualNodes(resources, dbRecord, source);
+    const float rootMaximumTimeLife = positiveTimeLife(dbRecord);
     appendParticleEmitters(
-        resources, dbRecord, Transform{}, result, source);
+        resources, dbRecord, Transform{}, result, source,
+        rootMaximumTimeLife);
     appendIncludedEffects(
-        resources, database, dbRecord, Transform{}, result, source, 0U);
+        resources, database, dbRecord, Transform{}, result, source, 0U,
+        rootMaximumTimeLife);
     if (auto* behaviors = child(dbRecord, "behaviors/items"))
     {
         for (auto* behavior = behaviors->FirstChildElement();
@@ -3105,6 +3156,11 @@ void applyWeatherDescription(
         race.environment.fogIntensity = intensity;
         race.environment.ambientColor = ambient;
         race.environment.rain = weather == Weather::Rainy;
+        race.environment.skyEnabled = true;
+        race.environment.fogEnabled = true;
+        // Environment::ApplyWheater disables the sun only for ewNight.
+        race.environment.directionalLightEnabled =
+            weather != Weather::Night;
     };
     switch (weather)
     {
@@ -3247,6 +3303,7 @@ void applyPlanetEnvironment(
     TiXmlElement* planet, Race& race)
 {
     auto* weatherItems = child(planet, "wheaters");
+    race.environment.weatherChances.clear();
     TiXmlElement* selected = nullptr;
     float maximumChance = -1.0F;
     if (weatherItems != nullptr)
@@ -3255,6 +3312,10 @@ void applyPlanetEnvironment(
              item != nullptr; item = item->NextSiblingElement())
         {
             const float chance = optionalScalar(item, "chance", 0.0F);
+            race.environment.weatherChances.push_back(
+                {weatherFromToken(text(item, "type",
+                                      "tournamet.xml/wheaters")),
+                 chance});
             if (chance > maximumChance)
             {
                 maximumChance = chance;
@@ -3651,14 +3712,25 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
              vector3(point, "pos", race.levelPath),
              scalar(point, "size", race.levelPath)});
     }
-    auto* path = require(map, "trace/pathes/path0", race.levelPath);
-    for (auto* node = path->FirstChildElement(); node != nullptr;
-         node = node->NextSiblingElement())
+    auto* paths = require(map, "trace/pathes", race.levelPath);
+    for (auto* path = paths->FirstChildElement(); path != nullptr;
+         path = path->NextSiblingElement())
     {
-        if (node->GetText() != nullptr)
-            race.tracePath.push_back(unsignedValue(node->GetText(),
-                                                   race.levelPath));
+        std::vector<std::uint32_t> tracePath;
+        for (auto* node = path->FirstChildElement(); node != nullptr;
+             node = node->NextSiblingElement())
+        {
+            if (node->GetText() != nullptr)
+                tracePath.push_back(unsignedValue(
+                    node->GetText(), race.levelPath));
+        }
+        if (tracePath.size() > 1U)
+            race.tracePaths.push_back(std::move(tracePath));
     }
+    if (race.tracePaths.empty())
+        throw resource::ResourceError(
+            race.levelPath + ": trace has no paths");
+    race.tracePath = race.tracePaths.front();
     race.environment.sunPosition =
         vector3(map, "sunPos", race.levelPath);
     race.environment.sunRotation =
@@ -3802,6 +3874,54 @@ Race loadOriginalRace(const resource::ResourceFileSystem& resources,
                  result.trackCatalog[trackIndex].racePass,
                  result.vehicle.record);
     return result;
+}
+
+void selectOriginalWeather(
+    const resource::ResourceFileSystem& resources, Race& race,
+    bool allowNight, bool mostProbable, float randomUnit)
+{
+    // Planet::GenerateWheater: night is removed when middle lighting is not
+    // available or a night race already occurred in this tournament. During
+    // the tutorial the largest chance wins; afterwards selection is weighted.
+    const auto& chances = race.environment.weatherChances;
+    if (chances.empty())
+        return;
+    const WeatherChance* maximum = nullptr;
+    float maximumChance = 0.0F;
+    float chanceSum = 0.0F;
+    for (const auto& item : chances)
+    {
+        if (item.weather == Weather::Night && !allowNight)
+            continue;
+        if (maximum == nullptr || maximumChance < item.chance)
+        {
+            maximum = &item;
+            maximumChance = item.chance;
+        }
+        chanceSum += item.chance;
+    }
+    if (maximum == nullptr)
+        return;
+    const WeatherChance* selected = maximum;
+    if (!mostProbable && chanceSum > 0.0F)
+    {
+        const float wanted = chanceSum *
+            std::clamp(randomUnit, 0.0F, 1.0F);
+        float accumulated = 0.0F;
+        for (const auto& item : chances)
+        {
+            if (item.weather == Weather::Night && !allowNight)
+                continue;
+            if (wanted >= accumulated &&
+                wanted <= accumulated + item.chance)
+            {
+                selected = &item;
+                break;
+            }
+            accumulated += item.chance;
+        }
+    }
+    applyWeatherDescription(resources, race, selected->weather);
 }
 
 Race loadOriginalGarageScene(
@@ -4511,6 +4631,9 @@ bool runOriginalRaceResourceSmokeTest(
         std::size_t fixedPlaneCount = 0U;
         std::size_t billboardCount = 0U;
         bool invalidBillboard = false;
+        std::size_t inheritedVelocityEmitterCount = 0U;
+        bool sawFire2Emitter = false;
+        bool invalidParticleBehavior = false;
         const auto auditVisual = [&](const VisualNode& visual) {
             invalidBillboard =
                 invalidBillboard || (visual.billboard && !visual.plane) ||
@@ -4523,6 +4646,17 @@ bool runOriginalRaceResourceSmokeTest(
         const auto auditDefinition = [&](const ObjectDefinition& definition) {
             for (const auto& visual : definition.visualNodes)
                 auditVisual(visual);
+            for (const auto& emitter : definition.particleEmitters)
+            {
+                const bool fire2 = emitter.sourceRecord == "fire2";
+                sawFire2Emitter = sawFire2Emitter || fire2;
+                if (emitter.inheritSourceVelocity)
+                    ++inheritedVelocityEmitterCount;
+                invalidParticleBehavior = invalidParticleBehavior ||
+                    (emitter.inheritSourceVelocity != fire2) ||
+                    (emitter.inheritSourceVelocity &&
+                     !emitter.waitForParticleEnd);
+            }
             for (const auto& piece : definition.destructionPieces)
             {
                 for (const auto& visual : piece.visualNodes)
@@ -4562,6 +4696,14 @@ bool runOriginalRaceResourceSmokeTest(
         auditDefinition(race.wheelTrailEffect);
         auditDefinition(race.wheelSmokeEffect);
         auditDefinition(race.contactEffect);
+        if (!sawFire2Emitter || inheritedVelocityEmitterCount == 0U ||
+            invalidParticleBehavior)
+        {
+            error =
+                "source FxSystemSrcSpeed/FxSystemWaitingEnd provenance "
+                "mismatch";
+            return false;
+        }
         if (invalidBillboard || fixedPlaneCount == 0U ||
             billboardCount == 0U)
         {

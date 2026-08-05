@@ -782,6 +782,7 @@ void applyWeather(
 {
     using r3d::game::originalrace::Weather;
     environment.rain = false;
+    environment.directionalLightEnabled = weather != "night";
     if (weather == "night")
     {
         environment.weather = Weather::Night;
@@ -924,6 +925,7 @@ int main(int argc, char** argv)
         activeLanguage = profileState.config.language;
     std::size_t selectedTrack =
         options->trackSelected ? options->trackIndex : 0U;
+    bool weatherNightPassed = false;
     const std::string selectedCar =
         options->carSelected ? options->car
                              : profileState.player.currentCar;
@@ -952,6 +954,19 @@ int main(int argc, char** argv)
                     r3d::game::originalrace::loadOriginalRace(
                         *resources, selectedTrack, selectedCar));
             }
+        }
+        if (!options->physicsSmokeTest)
+        {
+            r3d::game::originalrace::selectOriginalWeather(
+                *resources, *originalRace,
+                profileState.config.quality.light >= 1U &&
+                    !weatherNightPassed,
+                profileState.tutorialStage < 3U,
+                static_cast<float>(std::rand()) /
+                    static_cast<float>(RAND_MAX));
+            weatherNightPassed =
+                originalRace->environment.weather ==
+                r3d::game::originalrace::Weather::Night;
         }
         if (options->weatherSelected)
             applyWeather(originalRace->environment, options->weather);
@@ -4407,6 +4422,16 @@ int main(int argc, char** argv)
                 r3d::game::originalrace::loadOriginalRace(
                     *resources, selectedTrack,
                     profileState.player.currentCar);
+            r3d::game::originalrace::selectOriginalWeather(
+                *resources, *originalRace,
+                profileState.config.quality.light >= 1U &&
+                    !weatherNightPassed,
+                profileState.tutorialStage < 3U,
+                static_cast<float>(std::rand()) /
+                    static_cast<float>(RAND_MAX));
+            weatherNightPassed = weatherNightPassed ||
+                originalRace->environment.weather ==
+                    r3d::game::originalrace::Weather::Night;
             if (options->weatherSelected)
                 applyWeather(
                     originalRace->environment, options->weather);

@@ -159,6 +159,9 @@ enum class ParticleMaximumAction
 
 struct ParticleEmitterDefinition
 {
+    // Leaf database record which owns this emitter. Includes are flattened,
+    // so retain the provenance needed by source behaviors and diagnostics.
+    std::string sourceRecord;
     Transform transform;
     std::vector<MaterialDefinition> materials;
     std::uint32_t maximumParticles = 0;
@@ -193,6 +196,17 @@ struct ParticleEmitterDefinition
     Vec3 accelerationMaximum;
     Vec3 gravity;
     bool worldCoordinates = true;
+    // FxSystemSrcSpeed is attached to the GameObject which owns this
+    // emitter.  Keep the flag per emitter because included effect objects
+    // are flattened into one portable ObjectDefinition.
+    bool inheritSourceVelocity = false;
+    // FxSystemWaitingEnd switches the source system to fading and keeps the
+    // object alive until the last emitted particle has expired.
+    bool waitForParticleEnd = false;
+    // Positive GameObject::maxTimeLife at which this leaf emitter receives
+    // Death and enters fading. Includes have their own serialized lifetime,
+    // independent of the flattened root ObjectDefinition.
+    float emissionDuration = -1.0F;
     bool autoRotate = false;
     bool distanceTriggered = false;
     bool fixedDirection = false;
@@ -531,6 +545,12 @@ enum class EnvironmentSurface
     Magma,
 };
 
+struct WeatherChance
+{
+    Weather weather = Weather::Fair;
+    float chance = 0.0F;
+};
+
 struct EnvironmentLamp
 {
     Vec3 position;
@@ -567,6 +587,9 @@ struct EnvironmentDescription
     bool directionalLightEnabled = true;
     bool dynamicReflectionsEnabled = true;
     std::array<EnvironmentLamp, 3> lamps;
+    // Planet::Wheaters retained so Tournament::SetCurTrack can perform the
+    // original weighted selection after profile/tutorial state is known.
+    std::vector<WeatherChance> weatherChances;
 };
 
 struct PresentationCamera
@@ -676,6 +699,9 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources);
 Race loadOriginalRace(const resource::ResourceFileSystem& resources,
                       std::size_t trackIndex,
                       std::string_view playerCar = {});
+void selectOriginalWeather(
+    const resource::ResourceFileSystem& resources, Race& race,
+    bool allowNight, bool mostProbable, float randomUnit);
 // Builds the exact RaceMenu2::CarFrame scene from db.xml and the already
 // parsed garage vehicle/weapon definitions.  It deliberately contains no
 // invented track geometry or menu backdrop.

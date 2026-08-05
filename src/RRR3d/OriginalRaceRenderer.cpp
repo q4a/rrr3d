@@ -2700,7 +2700,7 @@ void OriginalRaceRenderer::draw(
         [&](const ObjectAsset& asset,
             const r3d::game::originalrace::ObjectDefinition& definition,
             const r3d::physics::Transform& parent, float age,
-            float sourceSpeed,
+            const r3d::physics::Vec3& sourceVelocity,
             const std::vector<r3d::physics::Vec3>*
                 trailOverride,
             float opacity, bool forceNoDepth,
@@ -2732,16 +2732,25 @@ void OriginalRaceRenderer::draw(
                 };
                 std::vector<ScheduledGroup> scheduledGroups;
                 std::vector<LiveGroup> liveGroups;
-                const float distanceSpeed =
-                    std::max(sourceSpeed, 0.0F);
+                const float distanceSpeed = std::sqrt(
+                    sourceVelocity.x * sourceVelocity.x +
+                    sourceVelocity.y * sourceVelocity.y +
+                    sourceVelocity.z * sourceVelocity.z);
                 const float scheduleAge =
                     emitter.distanceTriggered
                         ? age * distanceSpeed
                         : age;
+                float emitterEmissionEnd = emissionEndSeconds;
+                if (emitter.emissionDuration > 0.0F)
+                {
+                    emitterEmissionEnd = std::min(
+                        emitterEmissionEnd,
+                        emitter.emissionDuration);
+                }
                 const float scheduleEnd =
                     emitter.distanceTriggered
-                        ? emissionEndSeconds * distanceSpeed
-                        : emissionEndSeconds;
+                        ? emitterEmissionEnd * distanceSpeed
+                        : emitterEmissionEnd;
                 const float effectiveScheduleAge =
                     std::min(scheduleAge, scheduleEnd);
                 const std::uint32_t sourceMaximum =
@@ -2993,19 +3002,19 @@ void OriginalRaceRenderer::draw(
                                     1.0F)),
                             particle.rotation);
                         auto world = compose(emitterWorld, particle);
-                        if (emitter.worldCoordinates)
+                        if (emitter.inheritSourceVelocity)
                         {
-                            const auto sourceDirection =
-                                rotateX(parent.rotation);
-                            world.position.x -= sourceDirection.x *
-                                                sourceSpeed *
-                                                particleAge;
-                            world.position.y -= sourceDirection.y *
-                                                sourceSpeed *
-                                                particleAge;
-                            world.position.z -= sourceDirection.z *
-                                                sourceSpeed *
-                                                particleAge;
+                            // FxFlowEmitter adds FxSystem::srcSpeed to the
+                            // particle velocity at birth.  SrcSpeed is the
+                            // owning PhysX actor's full linear velocity; it
+                            // is not a backwards scalar correction and is
+                            // only set by FxSystemSrcSpeed.
+                            world.position.x +=
+                                sourceVelocity.x * particleAge;
+                            world.position.y +=
+                                sourceVelocity.y * particleAge;
+                            world.position.z +=
+                                sourceVelocity.z * particleAge;
                         }
                         auto direction = rotate(
                             emitterWorld.rotation,
@@ -3273,7 +3282,7 @@ void OriginalRaceRenderer::draw(
             nullptr;
         r3d::physics::Transform parent;
         float age = 0.0F;
-        float sourceSpeed = 0.0F;
+        r3d::physics::Vec3 sourceVelocity;
         const std::vector<r3d::physics::Vec3>* trailOverride =
             nullptr;
         float opacity = 1.0F;
@@ -3287,7 +3296,7 @@ void OriginalRaceRenderer::draw(
         [&](const ObjectAsset& asset,
             const r3d::game::originalrace::ObjectDefinition& definition,
             const r3d::physics::Transform& parent, float age,
-            float sourceSpeed,
+            const r3d::physics::Vec3& sourceVelocity,
             const std::vector<r3d::physics::Vec3>*
                 trailOverride = nullptr,
             float opacity = 1.0F,
@@ -3313,7 +3322,7 @@ void OriginalRaceRenderer::draw(
                 const float dz =
                     parent.position.z - cameraPosition_.z;
                 deferredParticles.push_back(
-                    {&asset, &definition, parent, age, sourceSpeed,
+                    {&asset, &definition, parent, age, sourceVelocity,
                      trailOverride, opacity, emissionEndSeconds,
                      renderStage(definition.graphOrder,
                                  cullOpacityActor),
@@ -3333,7 +3342,8 @@ void OriginalRaceRenderer::draw(
                 : 1.0F;
         drawDefinition(
             tracks_.at(instance.definition), definition,
-            instance.transform, elapsedSeconds, 0.0F, nullptr,
+            instance.transform, elapsedSeconds,
+            r3d::physics::Vec3{}, nullptr,
             opacity);
     }
 
@@ -3383,7 +3393,8 @@ void OriginalRaceRenderer::draw(
                 : 1.0F;
         drawDefinition(
             decorations_.at(instance.definition), definition,
-            instance.transform, elapsedSeconds, 0.0F, nullptr,
+            instance.transform, elapsedSeconds,
+            r3d::physics::Vec3{}, nullptr,
             opacity);
     }
 
@@ -3397,7 +3408,8 @@ void OriginalRaceRenderer::draw(
         // appear detached from the visible object.
         drawDefinition(
             bonuses_.at(index), race.bonuses[index].visual,
-            race.bonuses[index].transform, elapsedSeconds, 0.0F);
+            race.bonuses[index].transform, elapsedSeconds,
+            r3d::physics::Vec3{});
     }
 
     const std::size_t racerCount =
@@ -3515,7 +3527,7 @@ void OriginalRaceRenderer::draw(
                         slowAssets.tertiaryVisual,
                         slowDefinition.tertiaryVisual, state.body,
                         std::max(total - runtime.slowSeconds, 0.0F),
-                        std::abs(state.speed));
+                        state.linearVelocity);
                 }
             }
             for (std::size_t slot = 0;
@@ -3666,7 +3678,7 @@ void OriginalRaceRenderer::draw(
                 drawDefinition(
                     wheelTrailEffect_, race.wheelTrailEffect,
                     trailParent, elapsedSeconds,
-                    std::abs(state.speed),
+                    state.linearVelocity,
                     trailPath);
             }
             if (wheelEffectEnabled &&
@@ -3693,7 +3705,7 @@ void OriginalRaceRenderer::draw(
                     drawDefinition(
                         wheelSmokeEffect_, race.wheelSmokeEffect,
                         smokeParent, elapsedSeconds - smokeStart,
-                        std::abs(state.speed), nullptr, 1.0F,
+                        state.linearVelocity, nullptr, 1.0F,
                         smokeEnd >= 0.0F
                             ? smokeEnd
                             : std::numeric_limits<float>::infinity());
@@ -3711,7 +3723,7 @@ void OriginalRaceRenderer::draw(
                 definition.lowLifeEffect,
                 compose(state.body, local),
                 racerRuntime[racer].lowLifeEffectSeconds,
-                std::abs(state.speed));
+                state.linearVelocity);
         }
     }
 
@@ -3773,13 +3785,7 @@ void OriginalRaceRenderer::draw(
         }
         drawDefinition(
             asset, definition.visual, parent,
-            projectile.ageSeconds,
-            std::sqrt(projectile.velocity.x *
-                          projectile.velocity.x +
-                      projectile.velocity.y *
-                          projectile.velocity.y +
-                      projectile.velocity.z *
-                          projectile.velocity.z));
+            projectile.ageSeconds, projectile.velocity);
         if (projectile.attached)
         {
             const float distance =
@@ -3804,7 +3810,7 @@ void OriginalRaceRenderer::draw(
                 drawDefinition(
                     projectileAssets.secondaryVisual,
                     definition.secondaryVisual, impact,
-                    projectile.ageSeconds, 0.0F);
+                    projectile.ageSeconds, r3d::physics::Vec3{});
             }
         }
     }
@@ -3847,14 +3853,15 @@ void OriginalRaceRenderer::draw(
             parent.scale = {scale, scale, scale};
         }
         drawDefinition(*asset, *visual, parent, mine.seconds,
-                       std::sqrt(
-                           mine.velocity.x * mine.velocity.x +
-                           mine.velocity.y * mine.velocity.y +
-                           mine.velocity.z * mine.velocity.z));
+                       mine.velocity);
     }
 
     for (const auto& effect : effects)
     {
+        const float effectEmissionEnd =
+            effect.emissionEndSeconds >= 0.0F
+                ? effect.emissionEndSeconds
+                : std::numeric_limits<float>::infinity();
         if (effect.kind ==
             r3d::game::originalrace::RaceEventKind::ContactImpact)
         {
@@ -3862,8 +3869,8 @@ void OriginalRaceRenderer::draw(
             parent.position = effect.origin;
             drawDefinition(
                 contactEffect_, race.contactEffect, parent,
-                effect.ageSeconds, 0.0F, nullptr, 1.0F,
-                effect.emissionEndSeconds);
+                effect.ageSeconds, r3d::physics::Vec3{}, nullptr, 1.0F,
+                effectEmissionEnd);
             continue;
         }
         if (effect.kind ==
@@ -3883,7 +3890,8 @@ void OriginalRaceRenderer::draw(
                 vehicle.energyDamageEffect,
                 vehicles[effect.racer].body,
                 effect.totalSeconds - effect.seconds,
-                std::abs(vehicles[effect.racer].speed));
+                vehicles[effect.racer].linearVelocity,
+                nullptr, 1.0F, effectEmissionEnd);
             continue;
         }
         if (effect.kind ==
@@ -3921,7 +3929,9 @@ void OriginalRaceRenderer::draw(
                 vehicleDeathEffects_[effect.racer]
                                     [effect.vehicleEffect],
                 definition, parent,
-                effect.totalSeconds - effect.seconds, 0.0F);
+                effect.totalSeconds - effect.seconds,
+                r3d::physics::Vec3{}, nullptr, 1.0F,
+                effectEmissionEnd);
             continue;
         }
         if (effect.kind ==
@@ -3941,7 +3951,9 @@ void OriginalRaceRenderer::draw(
             drawDefinition(
                 bonusDeathEffects_[effect.bonus],
                 race.bonuses[effect.bonus].deathEffect.visual, parent,
-                effect.totalSeconds - effect.seconds, 0.0F);
+                effect.totalSeconds - effect.seconds,
+                r3d::physics::Vec3{}, nullptr, 1.0F,
+                effectEmissionEnd);
             continue;
         }
         if (effect.kind ==
@@ -3958,7 +3970,9 @@ void OriginalRaceRenderer::draw(
                     drawDefinition(
                         weaponShotEffects_[effect.weapon], definition,
                         effect.transform,
-                        effect.totalSeconds - effect.seconds, 0.0F);
+                        effect.totalSeconds - effect.seconds,
+                        r3d::physics::Vec3{}, nullptr, 1.0F,
+                        effectEmissionEnd);
                 }
             }
             continue;
@@ -4016,7 +4030,9 @@ void OriginalRaceRenderer::draw(
                 }
                 drawDefinition(
                     *asset, *definition, parent,
-                    effect.totalSeconds - effect.seconds, 0.0F);
+                    effect.totalSeconds - effect.seconds,
+                    r3d::physics::Vec3{}, nullptr, 1.0F,
+                    effectEmissionEnd);
                 continue;
             }
             if (effect.kind ==
@@ -4092,7 +4108,7 @@ void OriginalRaceRenderer::draw(
         r3d::physics::Transform rainParent;
         rainParent.position = cameraPosition_;
         drawDefinition(rainEffect_, race.rainEffect, rainParent,
-                       elapsedSeconds, 0.0F);
+                       elapsedSeconds, r3d::physics::Vec3{});
     }
 
     // GraphManager::RenderScenes renders surfaces, material-opacity actors,
@@ -4151,7 +4167,7 @@ void OriginalRaceRenderer::draw(
                 continue;
             drawParticles(*deferred.asset, *deferred.definition,
                           deferred.parent, deferred.age,
-                          deferred.sourceSpeed,
+                          deferred.sourceVelocity,
                           deferred.trailOverride,
                           deferred.opacity, forceNoDepth,
                           deferred.emissionEndSeconds);

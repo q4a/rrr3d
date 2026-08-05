@@ -28,6 +28,41 @@ Vec3 multiply(Vec3 value, float scale)
     return {value.x * scale, value.y * scale, value.z * scale};
 }
 
+struct EffectTiming
+{
+    float emissionSeconds = 0.0F;
+    float visibleSeconds = 0.0F;
+};
+
+EffectTiming sourceEffectTiming(const ObjectDefinition& definition,
+                                float fallbackEmissionSeconds)
+{
+    EffectTiming result;
+    result.emissionSeconds =
+        definition.maximumTimeLife > 0.0F
+            ? definition.maximumTimeLife
+            : std::max(fallbackEmissionSeconds, 0.0F);
+    result.visibleSeconds = result.emissionSeconds;
+    for (const auto& emitter : definition.particleEmitters)
+    {
+        if (!emitter.waitForParticleEnd)
+            continue;
+        const float emissionEnd =
+            emitter.emissionDuration > 0.0F
+                ? emitter.emissionDuration
+                : result.emissionSeconds;
+        const float lastBirth =
+            emitter.startDuration > 0.0F
+                ? std::min(emissionEnd, emitter.startDuration)
+                : emissionEnd;
+        const float particleLife = std::max(
+            emitter.lifeMaximum + emitter.rangeLifeMaximum, 0.0F);
+        result.visibleSeconds = std::max(
+            result.visibleSeconds, lastBirth + particleLife);
+    }
+    return result;
+}
+
 Vec3 cross(Vec3 first, Vec3 second)
 {
     return {first.y * second.z - first.z * second.y,
@@ -2831,11 +2866,10 @@ void OriginalRaceSession::destroyRacer(
         effect.kind = RaceEventKind::VehicleDestroyed;
         effect.origin = add(vehicle.body.position, source.position);
         effect.target = add(effect.origin, {1.0F, 0.0F, 0.0F});
-        effect.totalSeconds =
-            source.visual.maximumTimeLife > 0.0F
-                ? source.visual.maximumTimeLife
-                : 0.7F;
+        const auto timing = sourceEffectTiming(source.visual, 0.7F);
+        effect.totalSeconds = timing.visibleSeconds;
         effect.seconds = effect.totalSeconds;
+        effect.emissionEndSeconds = timing.emissionSeconds;
         effect.ignoreRotation = source.ignoreRotation;
         effect.racer = racer;
         effect.vehicleEffect = index;
@@ -3243,11 +3277,10 @@ void OriginalRaceSession::updateGameplay(
             effect.kind = RaceEventKind::VehicleEnergyDamage;
             effect.racer = target;
             effect.origin = position;
-            effect.totalSeconds =
-                visual.maximumTimeLife > 0.0F
-                    ? visual.maximumTimeLife
-                    : 0.5F;
+            const auto timing = sourceEffectTiming(visual, 0.5F);
+            effect.totalSeconds = timing.visibleSeconds;
             effect.seconds = effect.totalSeconds;
+            effect.emissionEndSeconds = timing.emissionSeconds;
             effects_.push_back(std::move(effect));
         };
     auto applyRacerDamage =
@@ -3492,17 +3525,17 @@ void OriginalRaceSession::updateGameplay(
                     if (visual.visualNodes.empty() &&
                         visual.particleEmitters.empty())
                         return;
-                    const float duration =
-                        visual.maximumTimeLife > 0.0F
-                            ? visual.maximumTimeLife
-                            : 0.9F;
+                    const auto timing =
+                        sourceEffectTiming(visual, 0.9F);
                     RaceEffect impact;
                     impact.kind = RaceEventKind::ProjectileImpact;
                     impact.origin = add(position, offset);
                     impact.target =
                         add(impact.origin, projectile.direction);
-                    impact.seconds = duration;
-                    impact.totalSeconds = duration;
+                    impact.seconds = timing.visibleSeconds;
+                    impact.totalSeconds = timing.visibleSeconds;
+                    impact.emissionEndSeconds =
+                        timing.emissionSeconds;
                     impact.weapon = projectile.weapon;
                     impact.projectile = projectile.projectile;
                     impact.visualVariant = variant;
@@ -4181,8 +4214,11 @@ void OriginalRaceSession::updateGameplay(
                 effect.origin,
                 rotate(effect.transform.rotation,
                        {1.0F, 0.0F, 0.0F}));
-            effect.totalSeconds = source.duration;
-            effect.seconds = source.duration;
+            const auto timing = sourceEffectTiming(
+                source.visual, source.duration);
+            effect.totalSeconds = timing.visibleSeconds;
+            effect.seconds = timing.visibleSeconds;
+            effect.emissionEndSeconds = timing.emissionSeconds;
             effect.weapon = weapon;
             effect.ignoreRotation = source.ignoreRotation;
             effects_.push_back(std::move(effect));
@@ -4376,11 +4412,10 @@ void OriginalRaceSession::updateGameplay(
         impact.kind = RaceEventKind::ProjectileImpact;
         impact.origin = add(mine.position, death->position);
         impact.target = add(impact.origin, {0.0F, 0.0F, 1.0F});
-        impact.totalSeconds =
-            death->visual.maximumTimeLife > 0.0F
-                ? death->visual.maximumTimeLife
-                : 0.7F;
+        const auto timing = sourceEffectTiming(death->visual, 0.7F);
+        impact.totalSeconds = timing.visibleSeconds;
         impact.seconds = impact.totalSeconds;
+        impact.emissionEndSeconds = timing.emissionSeconds;
         impact.weapon = mine.weapon;
         impact.projectile = mine.projectile;
         impact.visualVariant = deathVariant;
@@ -4655,11 +4690,10 @@ void OriginalRaceSession::updateGameplay(
             bonus.deathEffect.position);
         impact.target = add(
             bonus.transform.position, {0.0F, 0.0F, 2.0F});
-        impact.totalSeconds =
-            visual.maximumTimeLife > 0.0F
-                ? visual.maximumTimeLife
-                : 0.7F;
+        const auto timing = sourceEffectTiming(visual, 0.7F);
+        impact.totalSeconds = timing.visibleSeconds;
         impact.seconds = impact.totalSeconds;
+        impact.emissionEndSeconds = timing.emissionSeconds;
         impact.weapon = race_.weapons.size();
         impact.bonus = bonusIndex;
         impact.ignoreRotation =
@@ -7379,8 +7413,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                    RaceEventKind::WeaponShotEffect &&
                                effect.weapon == weaponIndex &&
                                std::abs(
-                                   effect.totalSeconds -
-                                   sourceWeapon->shotEffect.duration) <
+                               effect.totalSeconds -
+                                   sourceEffectTiming(
+                                       sourceWeapon->shotEffect.visual,
+                                       sourceWeapon->shotEffect.duration)
+                                       .visibleSeconds) <
                                    0.001F;
                     });
                 if (!emitted)
