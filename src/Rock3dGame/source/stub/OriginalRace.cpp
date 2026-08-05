@@ -2325,6 +2325,21 @@ std::vector<DeathEffectDefinition> deathEffectDefinitions(
                 std::string_view(ignore->GetText()) == "true" ||
                 std::string_view(ignore->GetText()) == "1";
         }
+        if (auto* targetChild = child(behavior, "targetChild");
+            targetChild != nullptr && targetChild->GetText() != nullptr)
+        {
+            result.targetChild =
+                std::string_view(targetChild->GetText()) == "true" ||
+                std::string_view(targetChild->GetText()) == "1";
+        }
+        if (auto* ignoreSender =
+                child(behavior, "effectPxIgnoreSenderCar");
+            ignoreSender != nullptr && ignoreSender->GetText() != nullptr)
+        {
+            result.effectPhysicsIgnoreSenderCar =
+                std::string_view(ignoreSender->GetText()) == "true" ||
+                std::string_view(ignoreSender->GetText()) == "1";
+        }
         results.push_back(std::move(result));
     }
     return results;
@@ -5031,6 +5046,7 @@ bool runOriginalRaceResourceSmokeTest(
         const auto* turel = weaponNamed("turel");
         const auto* drobilka = weaponNamed("drobilka");
         const auto* tankLaser = weaponNamed("tankLaser");
+        const auto* mortar = weaponNamed("mortira");
         const bool bulletShotMatchesSource =
             bulletGun != nullptr &&
             recordEndsWith(
@@ -5068,12 +5084,23 @@ bool runOriginalRaceResourceSmokeTest(
             near(
                 tankLaser->projectiles.front().sizeAddPx.z,
                 -0.3F);
+        const bool deathEffectFlagsMatchSource =
+            bulletGun != nullptr &&
+            !bulletGun->projectiles.empty() &&
+            bulletGun->projectiles.front().deathEffect.targetChild &&
+            !bulletGun->projectiles.front().deathEffect
+                 .effectPhysicsIgnoreSenderCar &&
+            mortar != nullptr && !mortar->projectiles.empty() &&
+            !mortar->projectiles.front().deathEffect.targetChild &&
+            mortar->projectiles.front().deathEffect.ignoreRotation &&
+            mortar->projectiles.front().deathEffect
+                .effectPhysicsIgnoreSenderCar;
         if (!bulletShotMatchesSource || !sphereSoundMatchesSource ||
             !turelShotMatchesSource || !silentWeaponMatchesSource ||
-            !laserRayMatchesSource)
+            !laserRayMatchesSource || !deathEffectFlagsMatchSource)
         {
             error =
-                "source ctWeapon ShotEffect/effect/sounds provenance "
+                "source ctWeapon ShotEffect/DeathEffect/sounds provenance "
                 "mismatch";
             return false;
         }

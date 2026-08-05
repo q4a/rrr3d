@@ -4403,18 +4403,30 @@ void OriginalRaceRenderer::draw(
                                ? &projectileAssets.tertiaryVisual
                                : &projectileAssets.secondaryVisual))));
                 r3d::physics::Transform parent;
-                parent.position = effect.origin;
-                if (!effect.ignoreRotation)
+                r3d::physics::Vec3 parentVelocity;
+                if (effect.parentRacer < vehicles.size())
                 {
-                    parent.rotation = directionRotation(
-                        {effect.target.x - effect.origin.x,
-                         effect.target.y - effect.origin.y,
-                         effect.target.z - effect.origin.z});
+                    parent = compose(
+                        vehicles[effect.parentRacer].body,
+                        effect.transform);
+                    parentVelocity =
+                        vehicles[effect.parentRacer].linearVelocity;
+                }
+                else
+                {
+                    parent.position = effect.origin;
+                    if (!effect.ignoreRotation)
+                    {
+                        parent.rotation = directionRotation(
+                            {effect.target.x - effect.origin.x,
+                             effect.target.y - effect.origin.y,
+                             effect.target.z - effect.origin.z});
+                    }
                 }
                 drawDefinition(
                     *asset, *definition, parent,
                     effect.totalSeconds - effect.seconds,
-                    r3d::physics::Vec3{}, nullptr, 1.0F,
+                    parentVelocity, nullptr, 1.0F,
                     effectEmissionEnd);
                 continue;
             }

@@ -370,6 +370,12 @@ struct DeathEffectDefinition
     Vec3 position;
     Vec3 impulse;
     bool ignoreRotation = false;
+    // DeathEffect::OnDeath can parent the created MapObj to the contact
+    // target.  The serialized position is then added in target-local space.
+    bool targetChild = false;
+    // PhysX NX_IGNORE_PAIR between a spawned physics effect (the mortar
+    // crater in shipped data) and the car which fired its parent projectile.
+    bool effectPhysicsIgnoreSenderCar = false;
 };
 
 struct ShotEffectDefinition

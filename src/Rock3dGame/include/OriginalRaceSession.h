@@ -211,6 +211,9 @@ struct RaceEffect
     std::size_t racer = RacerRuntime::invalidWeapon;
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
     Transform transform;
+    // DeathEffect::targetChild stores the effect in the contacted car's
+    // include list.  transform is target-local while this index is valid.
+    std::size_t parentRacer = RacerRuntime::invalidWeapon;
     std::size_t mountSlot = RacerRuntime::invalidWeapon;
     // PairPxContactEffect state. The source groups contacts by actor pair,
     // keeps no more than two points and stops emitting 0.1 seconds after a
@@ -242,6 +245,9 @@ struct MineRuntime
     // Weapon-created mines retain their source car pointer during the
     // 0.25-second MineUpdate arming window.  AutoProj fragments do not.
     bool linkedToOwner = true;
+    // DeathEffect::effectPxIgnoreSenderCar is permanent for the spawned
+    // effect actor, unlike the ordinary mine arming delay.
+    bool ignoreOwnerCollision = false;
     bool active = true;
 };
 

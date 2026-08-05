@@ -3506,7 +3506,8 @@ void OriginalRaceSession::updateGameplay(
         cooldown = std::max(0.0F, cooldown - seconds);
 
     auto spawnProjectileImpact =
-        [&](const ProjectileRuntime& projectile, const Vec3& position) {
+        [&](const ProjectileRuntime& projectile, const Vec3& position,
+            std::size_t targetRacer) {
             if (projectile.weapon >= race_.weapons.size() ||
                 projectile.projectile >=
                     race_.weapons[projectile.weapon]
@@ -3518,9 +3519,38 @@ void OriginalRaceSession::updateGameplay(
             auto addVisual =
                 [&](const ObjectDefinition& visual,
                     std::uint8_t variant, Vec3 offset = {},
-                    bool ignoreRotation = false) {
+                    bool ignoreRotation = false,
+                    bool targetChild = false) {
+                    Transform effectTransform;
+                    Vec3 effectOrigin = add(position, offset);
+                    if (targetChild && targetRacer < vehicles.size())
+                    {
+                        const Transform& parent =
+                            vehicles[targetRacer].body;
+                        const Quat inverseRotation{
+                            -parent.rotation.x, -parent.rotation.y,
+                            -parent.rotation.z, parent.rotation.w};
+                        const Vec3 unscaled = rotate(
+                            inverseRotation,
+                            subtract(position, parent.position));
+                        const auto removeScale = [](float value,
+                                                    float scale) {
+                            return std::abs(scale) > 0.000001F
+                                       ? value / scale
+                                       : value;
+                        };
+                        effectTransform.position = {
+                            removeScale(unscaled.x, parent.scale.x) +
+                                offset.x,
+                            removeScale(unscaled.y, parent.scale.y) +
+                                offset.y,
+                            removeScale(unscaled.z, parent.scale.z) +
+                                offset.z};
+                        effectOrigin =
+                            compose(parent, effectTransform).position;
+                    }
                     pushEffectSound(
-                        visual.soundPaths, add(position, offset),
+                        visual.soundPaths, effectOrigin,
                         projectile.owner);
                     if (visual.visualNodes.empty() &&
                         visual.particleEmitters.empty())
@@ -3529,7 +3559,7 @@ void OriginalRaceSession::updateGameplay(
                         sourceEffectTiming(visual, 0.9F);
                     RaceEffect impact;
                     impact.kind = RaceEventKind::ProjectileImpact;
-                    impact.origin = add(position, offset);
+                    impact.origin = effectOrigin;
                     impact.target =
                         add(impact.origin, projectile.direction);
                     impact.seconds = timing.visibleSeconds;
@@ -3540,13 +3570,19 @@ void OriginalRaceSession::updateGameplay(
                     impact.projectile = projectile.projectile;
                     impact.visualVariant = variant;
                     impact.ignoreRotation = ignoreRotation;
+                    if (targetChild && targetRacer < vehicles.size())
+                    {
+                        impact.parentRacer = targetRacer;
+                        impact.transform = effectTransform;
+                    }
                     effects_.push_back(std::move(impact));
                 };
             addVisual(definition.secondaryVisual, 1U);
             addVisual(definition.tertiaryVisual, 2U);
             addVisual(definition.deathEffect.visual, 3U,
                       definition.deathEffect.position,
-                      definition.deathEffect.ignoreRotation);
+                      definition.deathEffect.ignoreRotation,
+                      definition.deathEffect.targetChild);
 
             if (definition.deathProjectile ==
                     ProjectileDefinition::invalidProjectile ||
@@ -3570,6 +3606,9 @@ void OriginalRaceSession::updateGameplay(
             crater.collision = spawned.collision;
             crater.type = spawned.type;
             crater.impulseSpeed = spawned.speed;
+            crater.ignoreOwnerCollision =
+                definition.deathEffect
+                    .effectPhysicsIgnoreSenderCar;
             mines_.push_back(crater);
         };
 
@@ -4077,7 +4116,7 @@ void OriginalRaceSession::updateGameplay(
                     ++projectile.hitCount > 2U)
                 {
                     spawnProjectileImpact(
-                        projectile, projectile.position);
+                        projectile, projectile.position, target);
                     projectile.active = false;
                     break;
                 }
@@ -4096,7 +4135,7 @@ void OriginalRaceSession::updateGameplay(
                 if (nextTarget == RacerRuntime::invalidWeapon)
                 {
                     spawnProjectileImpact(
-                        projectile, projectile.position);
+                        projectile, projectile.position, target);
                     projectile.active = false;
                     break;
                 }
@@ -4105,7 +4144,7 @@ void OriginalRaceSession::updateGameplay(
                 break;
             }
             spawnProjectileImpact(
-                projectile, projectile.position);
+                projectile, projectile.position, target);
             projectile.active = false;
             break;
         }
@@ -4129,14 +4168,16 @@ void OriginalRaceSession::updateGameplay(
                      projectile.damage, projectile.owner))
         {
             spawnProjectileImpact(
-                projectile, projectile.position);
+                projectile, projectile.position,
+                RacerRuntime::invalidWeapon);
             projectile.active = false;
         }
         if (projectile.active &&
             projectile.lifeSeconds <= 0.0F)
         {
             spawnProjectileImpact(
-                projectile, projectile.position);
+                projectile, projectile.position,
+                RacerRuntime::invalidWeapon);
             projectile.active = false;
         }
     }
@@ -4523,6 +4564,8 @@ void OriginalRaceSession::updateGameplay(
              racer < vehicles.size() && racer < racers_.size(); ++racer)
         {
             if (racers_[racer].destroyed)
+                continue;
+            if (mine.ignoreOwnerCollision && racer == mine.owner)
                 continue;
             const bool armingOwner =
                 mine.linkedToOwner &&
@@ -8462,6 +8505,117 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
         }
 
+        const auto childDeathWeapon = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return recordName(weapon.record) == "bulletGun";
+            });
+        if (childDeathWeapon == race.weapons.end() ||
+            childDeathWeapon->projectiles.empty() ||
+            !childDeathWeapon->projectiles.front()
+                 .deathEffect.targetChild)
+        {
+            throw std::runtime_error(
+                "source projectile targetChild DeathEffect was not loaded");
+        }
+        if (vehicles.size() > 1U)
+        {
+            OriginalRaceSession childEffectSession(race);
+            PlayerProfile childEffectProfile;
+            auto& childEffectSlot = childEffectProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            childEffectSlot.record = childDeathWeapon->record;
+            childEffectSlot.charge = 2U;
+            childEffectSlot.hasCharge = true;
+            childEffectSession.applyPlayerProfile(childEffectProfile);
+            auto childEffectVehicles = vehicles;
+            RaceControl childEffectInput;
+            for (int frame = 0; frame < 190; ++frame)
+            {
+                childEffectSession.update(
+                    1.0F / 60.0F, childEffectVehicles,
+                    childEffectInput);
+            }
+            childEffectInput.useWeapon = true;
+            childEffectSession.update(
+                1.0F / 60.0F, childEffectVehicles,
+                childEffectInput);
+            childEffectInput.useWeapon = false;
+            const std::size_t childEffectWeapon =
+                static_cast<std::size_t>(
+                    childDeathWeapon - race.weapons.begin());
+            const auto launchedChildProjectile = std::find_if(
+                childEffectSession.projectiles().begin(),
+                childEffectSession.projectiles().end(),
+                [childEffectWeapon](
+                    const ProjectileRuntime& projectile) {
+                    return projectile.owner == 0U &&
+                           projectile.weapon == childEffectWeapon &&
+                           projectile.projectile == 0U &&
+                           projectile.active;
+                });
+            if (launchedChildProjectile ==
+                childEffectSession.projectiles().end())
+            {
+                throw std::runtime_error(
+                    "source targetChild test projectile was not launched");
+            }
+            const auto launched = *launchedChildProjectile;
+            constexpr float contactStep = 1.0F / 600.0F;
+            Vec3 nextVelocity = launched.velocity;
+            if (launched.ballistic)
+                nextVelocity.z -= 20.0F * contactStep;
+            const Vec3 movement =
+                launched.ballistic
+                    ? multiply(nextVelocity, contactStep)
+                    : multiply(
+                          launched.direction,
+                          std::max(launched.speed, 1.0F) *
+                              contactStep);
+            Transform expectedProjectile;
+            expectedProjectile.position =
+                add(launched.position, movement);
+            expectedProjectile.rotation = launched.rotation;
+            const auto projectileBox = orientedBox(
+                expectedProjectile,
+                childDeathWeapon->projectiles.front().collision);
+            const auto& childTargetDefinition =
+                race.racers[1].hasConfiguredVehicle
+                    ? race.racers[1].configuredVehicle
+                    : race.vehicles.at(race.racers[1].vehicle);
+            childEffectVehicles[1].body.rotation = {};
+            childEffectVehicles[1].body.position = subtract(
+                projectileBox.center,
+                childTargetDefinition.physics.shapePosition);
+            childEffectSession.update(
+                contactStep, childEffectVehicles, childEffectInput);
+            const auto attachedDeath = std::find_if(
+                childEffectSession.effects().begin(),
+                childEffectSession.effects().end(),
+                [childEffectWeapon](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::ProjectileImpact &&
+                           effect.weapon == childEffectWeapon &&
+                           effect.visualVariant == 3U;
+                });
+            if (attachedDeath == childEffectSession.effects().end() ||
+                attachedDeath->parentRacer != 1U)
+            {
+                throw std::runtime_error(
+                    "source DeathEffect targetChild did not attach to the "
+                    "contacted car");
+            }
+            const Vec3 attachedWorld = compose(
+                childEffectVehicles[1].body,
+                attachedDeath->transform).position;
+            if (length3(subtract(
+                    attachedWorld, attachedDeath->origin)) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source DeathEffect target-local transform mismatch");
+            }
+        }
+
         const auto mortar = std::find_if(
             race.weapons.begin(), race.weapons.end(),
             [](const WeaponDefinition& weapon) {
@@ -8498,6 +8652,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         if (vehicles.size() > 1U)
         {
             OriginalRaceSession mortarSession(race);
+            auto mortarVehicles = vehicles;
             PlayerProfile mortarProfile;
             auto& mortarSlot = mortarProfile.slots[
                 PlayerProfile::firstWeaponSlot];
@@ -8508,10 +8663,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             RaceControl mortarInput;
             for (int frame = 0; frame < 190; ++frame)
                 mortarSession.update(
-                    1.0F / 60.0F, vehicles, mortarInput);
+                    1.0F / 60.0F, mortarVehicles, mortarInput);
             mortarInput.useWeapon = true;
             mortarSession.update(
-                1.0F / 60.0F, vehicles, mortarInput);
+                1.0F / 60.0F, mortarVehicles, mortarInput);
             mortarInput.useWeapon = false;
             const auto launchedProjectile = std::find_if(
                 mortarSession.projectiles().begin(),
@@ -8545,8 +8700,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 race.racers[1].hasConfiguredVehicle
                     ? race.racers[1].configuredVehicle
                     : race.vehicles.at(race.racers[1].vehicle);
-            vehicles[1].body.rotation = {};
-            vehicles[1].body.position = subtract(
+            mortarVehicles[1].body.rotation = {};
+            mortarVehicles[1].body.position = subtract(
                 nextProjectileCenter,
                 targetDefinition.physics.shapePosition);
             Transform expectedProjectileTransform;
@@ -8559,11 +8714,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     expectedProjectileTransform,
                     mortar->projectiles.front().collision),
                 vehicleBox(
-                    vehicles[1], targetDefinition.physics));
+                    mortarVehicles[1], targetDefinition.physics));
             const float lifeBeforeCrater =
                 mortarSession.racers()[1].life;
             mortarSession.update(
-                1.0F / 60.0F, vehicles, mortarInput);
+                1.0F / 60.0F, mortarVehicles, mortarInput);
             const auto crater = std::find_if(
                 mortarSession.mines().begin(),
                 mortarSession.mines().end(),
@@ -8572,6 +8727,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 });
             if (crater == mortarSession.mines().end() ||
                 crater->projectile != craterIndex ||
+                !crater->ignoreOwnerCollision ||
                 std::abs(crater->maximumLife - 3.0F) > 0.001F ||
                 std::abs(crater->collision.halfExtents.x - 3.0F) >
                     0.001F ||
@@ -8617,13 +8773,20 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             const float firstCraterLife =
                 mortarSession.racers()[1].life;
+            const float ownerLifeBeforeCrater =
+                mortarSession.racers()[0].life;
+            mortarVehicles[0].body = mortarVehicles[1].body;
             mortarSession.update(
-                1.0F / 60.0F, vehicles, mortarInput);
+                1.0F / 60.0F, mortarVehicles, mortarInput);
             if (mortarSession.mines().empty() ||
-                mortarSession.racers()[1].life >= firstCraterLife)
+                mortarSession.racers()[1].life >= firstCraterLife ||
+                std::abs(
+                    mortarSession.racers()[0].life -
+                    ownerLifeBeforeCrater) > 0.001F)
             {
                 throw std::runtime_error(
-                    "source ptCrater did not apply continuous contact damage");
+                    "source ptCrater continuous damage/owner ignore-pair "
+                    "mismatch");
             }
         }
 
