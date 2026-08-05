@@ -38,7 +38,8 @@ public:
     void draw(r3d::renderer::GraphicsDevice& device,
               r3d::renderer::Mesh quad,
               r3d::renderer::Shader shader,
-              r3d::renderer::Shader meshShader) const;
+              r3d::renderer::Shader meshShader,
+              bool enableRaceState = true) const;
 
 private:
     struct ImageAsset

@@ -11232,8 +11232,11 @@ int main(int argc, char** argv)
             raceHud.update(*device, *originalRace, raceSession,
                            raceVehicles, raceCamera, raceRenderSeconds);
             device->beginOverlay(camera);
-            if (profileState.config.enableHud)
-                raceHud.draw(*device, quad, shader, raceShader);
+            // PlayerStateFrame::OnInvalidate hides only _raceState when
+            // enableHUD is false; MiniMapFrame likewise hides only its lap
+            // widgets. Event overlays, the map and the countdown remain.
+            raceHud.draw(*device, quad, shader, raceShader,
+                         profileState.config.enableHud);
             drawAcceptDialog();
 #ifdef RRR3D_AUDIO
             drawOriginalMusicDialog();

@@ -88,26 +88,26 @@ Windows target не компилируется.
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
 | Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
 | Vehicle simulation | PhysX 2.8.4 `NxWheelShape` | Jolt custom vehicle adapter | Частично | Нативная замена работает; `GameCar::LockSpring` теперь подавляет airborne pitch как в source, но полная численная эквивалентность PhysX tire/suspension/solver не доказана |
-| Car-to-track/car contacts | PhysX filters/reports | Jolt contacts → session | Частично | Основной damage path есть; все group/mask/callback/force branches исходного `Logic`/`GameObject` отсутствуют |
+| Car-to-track/car contacts | `GameCar::OnContactModify`, `GameCar::OnContact`, PhysX reports | Jolt contacts → source-derived session dispatch | Перенесено с backend-адаптацией | Сохранены surface groups, normal/friction force, до двух manifold points, border/car damage, energy owner и spring-border redirect. PhysX solver заменён Jolt, но `sumFrictionForce` теперь передаётся и как вектор, а не только как величина |
 | Bonus/mine/crater contacts | `Proj::ComputeAABB`, `MineContact`, `MasloContact`, `MineRipUpdate` | source AABB/OBB, lock/contact state и nested-projectile runtime | Частично | Удалены сферы и hardcode осколков; source boxes, 0.25/0.4 lock rules, `ptMineProton`, impulse, oil clutch, nested lifetime/death effects перенесены. Динамика осколков остаётся адаптацией к Jolt, не численной копией PhysX |
 | Mine placement | `Proj::MinePrepare` PhysX track raycast | source triangle raycast в `OriginalRaceSession` | Перенесено | Используются serialized `proj.pos`, ray `+2/-Z`, только `TrackPlane`, `max(-AABB.min.z, 0.01)`, hit normal; miss не расходует заряд |
 | Countdown/checkpoints/laps/place | `Race.cpp`, `Trace.cpp`, `Player.cpp` | `OriginalRaceSession.cpp` | Частично | Основная гонка работает; это ручной state machine, все special race modes/edge cases не сопоставлены |
 | Reset/respawn | `Player::OnProgress`, `ResetCar`, map `TouchDeath` | source tile-coordinate/multi-ray requests + death/restore lifecycle | Перенесено с backend-адаптацией | Death plane уничтожает любую машину, сохраняет 3-second touch attribution и ждёт source 2 seconds; `ResetCar` хранит `lastNodeCoordX`, проверяет source `0/-2/+2` rays, до пяти раз отступает на 6 м и переходит на предыдущий tile. PhysX closest-shape заменён тем же запросом к portable collision data |
-| AI | `AICar.cpp`, `AIPlayer.cpp`, `Player::CheatUpdate` | source-derived path/control/attack states в session | Частично | Перенесены four-track chain/lock masks, `ComputeTrackInd`, `edgeLine/edgeNorm` inner-corner switch, turn braking, blocked recovery/reset, retained front/back targets, exact line/Z shot gates (back shot только `ptTorpeda`), range/ammo/random/readiness policy, hyper, mines и difficulty rubber-banding; остаются secret-path branch (в Windows закомментирован), debug visualization и численная PhysX-зависимость |
-| Weapons/projectiles | `Weapon.cpp`, `Player.cpp`, `Logic.cpp` | type-switch runtime в `OriginalRaceSession` | Частично | Source boxes/ray, homing, contacts, `ptHyper` и `ptSpring` перенесены; остальные type-specific forces, timing, groups и callbacks ещё частичны |
+| AI | `AICar.cpp`, `AIPlayer.cpp`, `Player::CheatUpdate` | source-derived path/control/attack states в session | Перенесено с backend-адаптацией | Перенесены four-track chain/lock masks, `ComputeTrackInd`, `edgeLine/edgeNorm`, turn braking, blocked recovery/reset, retained targets, line/Z shot gates, range/ammo/random/readiness, hyper, mines и difficulty rubber-banding. Неигровая debug visualization исключена, secret-path branch в Windows закомментирован |
+| Weapons/projectiles | `Weapon.cpp`, `Player.cpp`, `Logic.cpp` | source type-switch runtime в `OriginalRaceSession` | Перенесено с backend-адаптацией | Сопоставлены все enum types 0–24 и все активные workshop/projectile records: source boxes/rays, forces, timing, groups, homing, attached/ray weapons, mines, nested projectiles, `ptHyper`, `ptSpring` и death effects; rigid-body solver остаётся Jolt |
 | Weapon shot effects | `Weapon::CreateShot`, `ShotEffect`, serialized `ctWeapon` behaviors | `mapObj` → behavior type 10 → source effect graph | Перенесено | Effect record, local position, ignore-rotation и effective nested lifetime читаются из `db.xml`; отдельный `WeaponShotEffect` создаётся один раз для каждого созданного projectile |
 | Weapon shot sounds | `ShotEffect::GiveSource3d`, serialized sound refs | source `ctWeapon/behaviors/items/*[@type=10]/sounds` | Перенесено | Удалено угадывание по имени; 24 source refs читаются напрямую, `drobilka` корректно остаётся без придуманного звука |
 | Damage/support/shield | `GameObject::Damage`, `Logic::Damage`, `TouchDeath`, `DroidItem`, `ReflectorItem`, behaviors | source-typed central dispatch в session | Частично | Перенесены damage types, first-reflector rule, reflector-before-immortality, immortal incoming-damage event, 3-second touch attribution, Z=0 death plane, mine kill exclusion и фактический Droid heal 5; полный object listener graph ещё не закрыт |
 | Bonuses | `Proj` types 4–10, `Player::TakeBonus` | source boxes, serialized values/DeathEffect и сопоставленные contact branches | Частично | Перенесены persistent speed/lusha/oil, одноразовый `Death()`, medpack/charge/money/immortal, Windows `Round((N-1)*Random())`, charge truncation и source pickup sounds; остаётся ручной portable dispatch вместо исходных объектов/PhysX callbacks |
 | Destructible decorations | `DestrObj`, `GameBase` | life flags, source fragments/debris и collision meshes | Частично | Все map destructibles обязаны иметь serialized `destrList` и source collider; OBB–triangle contact заменил proximity sphere, `explosion2.dds` fallback удалён; полный PhysX body/death lifecycle ещё отсутствует |
 | Achievements | все 9 `AchievmentCondition*` classes, `AchievmentModel`, `AchievmentFrame`, `PlayerStateFrame` | definitions + source-matched counters + source reward frame | Частично | Сопоставлены Bonus/SpeedKill/RaceKill/LapPass/Dodge/LapBreak/Survival/FirstKill/TouchKill и exact record counts; campaign начисляет `Floor(reward × 1/1.2/1.5)`, skirmish не начисляет points и скрывает points HUD. Девять reward cards, state/price, purchase/points и навигация перенесены; generic legacy event/model object graph не компилируется |
-| HUD | `HudMenu.cpp` | `OriginalRaceHud.cpp` с исходными images/strings | Частично | Основные indicators, notifications и mini-map есть; исходный widget/animation object graph и все состояния не компилируются |
-| Mini-map | `HudMenu`, `TraceGfx` | trace-derived bgfx geometry | Частично | Работает по source trace; exact clipping/transforms/all markers требуют дальнейшего сопоставления |
-| Camera | `CameraManager.cpp`, `View.cpp` | source-derived formulas в renderer | Частично | Два режима есть; исходный manager, collision/culling transitions и все modes не перенесены |
+| HUD | `PlayerStateFrame`, `MiniMapFrame`, `HudMenu` | `OriginalRaceHud.cpp` с исходными images/strings | Перенесено для offline race | Сопоставлены единственное активное состояние `msMain`, slots/life/place/lap, countdown, pick/kill/achievement, opponent/life overlays и finish. `enableHUD` скрывает только `_raceState` и lap, сохраняя map/event siblings как Windows |
+| Mini-map | `MiniMapFrame`, `TraceGfx` | source trace-path geometry | Перенесено | Перенесены все pathes, Align/ComputeNode/smoothing, 320×320 align, start marker, 20×20 car markers/colors и `CarState::GetMapPos`-совместимая удерживаемая trace projection |
+| Camera | `CameraManager.cpp`, `View.cpp`, `ActorManager::PullInRayTargetGroup` | source formulas и cull-opacity runtime в renderer | Перенесено для offline race | Release-переключение содержит только `csThirdPerson`/`csIsometric`; перенесены velocity pose, pull-back, ortho lead/teleport compensation, profile distance, projection и 0.25 s `gpCullOpacity` transitions. Debug/editor modes исключены |
 | Scene graph/render queues | `GraphManager`, `Actor`, `SceneManager` | custom queues в `OriginalRaceRenderer` | Частично | Основные order buckets есть; generic actor/proxy/octree graph не перенесён |
-| Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | parsed records + ручные mappings | Частично | Opaque/alpha/additive/bump/reflection реализованы; direct-name heuristics/fallback mappings остаются |
+| Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | source-derived material catalog + bgfx mappings | Перенесено с renderer-адаптацией | Проверены все 238 активных `Load*LibMat` records; два отсутствующих texture records являются source no-texture projectiles, ещё два — закомментированные `World2/track2` calls. Opaque/alpha/additive/bump/reflection и material flags сопоставлены без active name fallback |
 | Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes | Частично | Реализованы directional race passes и отдельные source shadow maps всех двух Garage/до трёх Angar spot-lamps с исходными cone/near/far и per-light diffuse/specular application; bit-for-bit и полное graph state parity не доказаны |
-| Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Частично | Значимая часть serialized graph читается; не все node/emitter/action types и lifetime semantics перенесены |
+| Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Перенесено для active catalog | В фактическом `db.xml` покрыты все 8 manager classes, все 37 `ntParticleSystem`, единственный активный `FxFlowEmitter`, все 14 `partDesc` и 5 `flowDesc` fields, child systems, distributions, lifetime/fading и `ntIVBMesh`/`ntSprite`/`ntPlane`; D3D sorting заменён bgfx |
 | Weather/water/magma/sky | `Environment.cpp`, graph effects | source records + bgfx passes | Частично | Все world variants загружаются; exact D3D shader/fixed-pipeline result не доказан |
 | Intro/video | `VideoPlayer.cpp`, DirectShow playback | AVPlayer/AVPlayerLayer, 14 lossless-remuxed MP4 | Замена платформы | Все исходные H.264/MP3 потоки проигрываются нативно; Difficulty `Main`, Gamers `Intaria`, planet и final transitions подключены |
 | LAN/network | `NetGame`, `NetRace`, `NetPlayer`, NetLib | выключено | Не перенесено | Offline acceptance не требует сеть, но это часть Windows-продукта |
@@ -135,13 +135,12 @@ animation/event object graph также не компилируется.
 им поведение должно считаться частичным до сопоставления каждой ветви с
 Windows-кодом.
 
-Оставшиеся явные приближения:
-
-- type-specific projectile contact groups/callbacks ещё не полностью заменяют
-  исходный PhysX dispatch;
-- trace-following AI вместо `AICar`/`AIPlayer`;
-- часть фиксированных timing/force/visual branches для сложных weapons;
-- ручные achievement counters.
+Type-specific projectile dispatch, AI control/attack branches и все девять
+achievement conditions уже сопоставлены с активным Windows call graph.
+Оставшаяся граница здесь архитектурная: legacy component/listener objects
+скомпилированы в typed portable state machine, а PhysX rigid bodies/callback
+order заменены Jolt. Это не следует повторно описывать как отсутствующие
+игровые ветви без конкретного source counterexample.
 
 ### 3. Render/audio mapping
 
@@ -152,8 +151,9 @@ sound refs. Если source behavior или visual отсутствует (`drob
 `droid`/`reflector`), порт больше не создаёт fallback-вспышку, луч, сферу или
 звук.
 
-Оставшиеся fallback/direct material mappings всё ещё требуют записи о
-происхождении для каждого исключения.
+Отдельная ревизия material catalog сопоставила все активные литералы
+`ResourceManager`/`DataBase`; неразрешённых active fallback/direct mappings
+в normal race path не осталось.
 
 Общие звуки подбора `pickup_up`/`acception`, ранее подставлявшиеся вместо
 игрового эффекта бонуса, удалены из race path. `Proj` model record теперь
@@ -861,21 +861,27 @@ Network, video и Steam явно выключены.
    При этом
    legacy animation/widget classes всё ещё заменены immediate-mode bgfx
    backend.
-2. Завершить исходные type-specific projectile contact groups, forces,
-   callbacks и lifetime transitions поверх уже перенесённых shapes/raycasts.
+2. Завершить dynamic `DestrObj` body/death lifecycle: точное движение частей,
+   collision-response removal и lifetime вместо оставшихся Jolt-adapted
+   debris branches.
 3. Разделить `OriginalRaceSession` по исходным обязанностям и последовательно
    перенести `GameObject`, `Logic`, `Player`, `Race`, `Weapon`.
-4. Продолжить точное сопоставление `AICar`/`AIPlayer`: оставшиеся
-   PhysX-зависимые branches, avoidance, tactics и weapon decisions.
+4. Искать дальнейшие gameplay-разрывы только через конкретные активные
+   Windows branches или воспроизводимое отличие, не по отсутствию legacy
+   class graph как такового.
 5. Перенести оставшиеся исходные offline UI transitions и вызываемые dialog
    branches, найденные следующей ревизией Windows call graph.
 
 ### P1 — visual/audio parity
 
-1. Закрыть все material mapping fallbacks provenance-тестами.
-2. Сопоставить все graph node, particle и effect behavior types.
-3. Перенести оставшиеся HUD states, camera transitions и culling semantics.
-4. Сопоставить все source sound behaviors и event triggers.
+1. Продолжить shader-level parity для D3D9 fixed pipeline/HDR/reflection,
+   где backend-замена всё ещё даёт визуально измеримое отличие.
+2. Сопоставлять новые graph/effect types только если они обнаружены в
+   активном resource catalog; текущий catalog закрыт полностью.
+3. Проверить offline HUD/camera на всех aspect ratios; активные source states
+   и culling semantics перенесены.
+4. Сопоставлять новые sound behaviors только по конкретному active record;
+   текущие menu/race/UI/voice/weapon/effect triggers покрыты.
 5. Провести покадровое сравнение каждой world/weather/car комбинации после
    переноса логики, а не использовать сравнение как замену переносу.
 

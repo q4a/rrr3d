@@ -292,6 +292,7 @@ private:
     void recordOne(std::size_t vehicle, const JPH::Body& body,
                    const JPH::Body& other, JPH::Vec3Arg outwardNormal,
                    float estimatedForce, float estimatedFrictionForce,
+                   JPH::Vec3Arg estimatedFrictionForceVector,
                    const JPH::ContactManifold& manifold)
     {
         const JPH::Vec3 bodyVelocity = body.GetLinearVelocity();
@@ -331,6 +332,8 @@ private:
         contact.otherActor =
             other.GetID().GetIndexAndSequenceNumber();
         contact.frictionForce = estimatedFrictionForce;
+        contact.frictionForceVector =
+            fromJolt(estimatedFrictionForceVector);
         const auto pointCount = std::min<std::size_t>(
             {manifold.mRelativeContactPointsOn1.size(),
              manifold.mRelativeContactPointsOn2.size(), 2U});
@@ -376,6 +379,8 @@ private:
             if (contact.frictionForce > found->frictionForce)
             {
                 found->frictionForce = contact.frictionForce;
+                found->frictionForceVector =
+                    contact.frictionForceVector;
                 found->point = contact.point;
                 found->points = std::move(contact.points);
                 found->hasPoint = contact.hasPoint;
@@ -408,19 +413,29 @@ private:
                 frictionImpulse1 * frictionImpulse1 +
                 frictionImpulse2 * frictionImpulse2) /
             originalContactStep;
+        // EstimateCollisionResponse stores the impulse applied against
+        // body 1 along its two contact tangents.  Body 2 receives the
+        // opposite impulse.  PhysX exposed the corresponding vector as
+        // sumFrictionForce and GameCar consumes its Z sign at borders.
+        const JPH::Vec3 estimatedFrictionForceVector =
+            -(frictionImpulse1 * estimation.mTangent1 +
+              frictionImpulse2 * estimation.mTangent2) /
+            originalContactStep;
         std::size_t firstVehicle = 0;
         std::size_t secondVehicle = 0;
         if (vehicleIndex(first.GetUserData(), firstVehicle))
         {
             recordOne(firstVehicle, first, second,
                       -manifold.mWorldSpaceNormal, estimatedForce,
-                      estimatedFrictionForce, manifold);
+                      estimatedFrictionForce,
+                      estimatedFrictionForceVector, manifold);
         }
         if (vehicleIndex(second.GetUserData(), secondVehicle))
         {
             recordOne(secondVehicle, second, first,
                       manifold.mWorldSpaceNormal, estimatedForce,
-                      estimatedFrictionForce, manifold);
+                      estimatedFrictionForce,
+                      -estimatedFrictionForceVector, manifold);
         }
     }
 
@@ -2384,7 +2399,21 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                        contact.hasPoint &&
                        !contact.points.empty() &&
                        std::isfinite(contact.frictionForce) &&
-                       contact.frictionForce >= 0.0F;
+                       contact.frictionForce >= 0.0F &&
+                       std::isfinite(contact.frictionForceVector.x) &&
+                       std::isfinite(contact.frictionForceVector.y) &&
+                       std::isfinite(contact.frictionForceVector.z) &&
+                       std::abs(
+                           std::sqrt(
+                               contact.frictionForceVector.x *
+                                   contact.frictionForceVector.x +
+                               contact.frictionForceVector.y *
+                                   contact.frictionForceVector.y +
+                               contact.frictionForceVector.z *
+                                   contact.frictionForceVector.z) -
+                           contact.frictionForce) <=
+                           std::max(1.0F,
+                                    contact.frictionForce * 0.001F);
             });
     }
     if (!sawBorderContact)

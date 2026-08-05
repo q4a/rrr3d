@@ -3547,13 +3547,6 @@ void OriginalRaceSession::updateGameplay(
             {
                 const Vec3 normal = normalized3(contact.normal);
                 const Vec3 velocity = vehicles[racer].linearVelocity;
-                Vec3 tangent = subtract(
-                    velocity, multiply(normal, dot3(normal, velocity)));
-                const float tangentLength = length3(tangent);
-                if (tangentLength > 0.0001F)
-                    tangent = multiply(tangent, 1.0F / tangentLength);
-                else
-                    tangent = {};
                 const Vec3 travel = normalized3(velocity);
                 const float tangentDot =
                     std::abs(dot3(travel, normal));
@@ -3566,6 +3559,27 @@ void OriginalRaceSession::updateGameplay(
                     (directionDot < 0.707F ||
                      directionTravelDot < -0.707F))
                 {
+                    Vec3 tangent{};
+                    if (tangentDot < 0.995F)
+                    {
+                        // GameCar::OnContact first uses norm x travel only
+                        // to choose the vertical sign.  It then applies that
+                        // sign to PhysX sumFrictionForce and crosses the
+                        // normalized result with the contact normal.
+                        const Vec3 binormal = cross(normal, travel);
+                        tangent = contact.frictionForceVector;
+                        tangent.z = binormal.z > 0.0F
+                                        ? std::abs(tangent.z)
+                                        : -std::abs(tangent.z);
+                        if (length3(tangent) <= 0.0001F)
+                        {
+                            // A resting/first-frame Jolt manifold can have
+                            // no solved friction impulse. Preserve the same
+                            // geometric direction without inventing force.
+                            tangent = binormal;
+                        }
+                        tangent = cross(normalized3(tangent), normal);
+                    }
                     const float normalVelocity = std::clamp(
                         std::abs(dot3(normal, velocity)), 4.0F, 14.0F);
                     const float tangentVelocity =
@@ -7357,11 +7371,26 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {r3d::physics::CollisionSurface::TrackBorder,
              std::numeric_limits<std::size_t>::max(),
              {1.0F, 0.0F, 0.0F}, 25.0F, 4000000.0F}};
+        vehicles[0].bodyContacts.front().frictionForceVector =
+            {0.0F, 1.0F, 2.0F};
         session.update(1.0F / 60.0F, vehicles, input);
-        if (session.takeVelocityRequests().empty() ||
+        const auto springBorderRequests =
+            session.takeVelocityRequests();
+        const bool hasFrictionVectorRedirect = std::any_of(
+            springBorderRequests.begin(), springBorderRequests.end(),
+            [](const VelocityRequest& request) {
+                // Source clears the final Z velocity after using the
+                // friction vector to choose its tangent.  For this fixture
+                // that vector produces wanted Y=2 (delta Y=-3), whereas the
+                // former velocity projection produced delta Y=-2.5.
+                return request.racer == 0U &&
+                       request.delta.y < -2.75F &&
+                       request.delta.y > -3.25F;
+            });
+        if (!hasFrictionVectorRedirect ||
             session.racers().front().life >= lifeBeforeBorder)
             throw std::runtime_error(
-                "source spring-border contact transition failed");
+                "source friction-vector spring-border transition failed");
 
         session.setSpringBorders(false);
         session.update(1.0F / 60.0F, vehicles, input);

@@ -176,6 +176,10 @@ struct BodyContact
     std::uint32_t otherActor =
         std::numeric_limits<std::uint32_t>::max();
     float frictionForce = 0.0F;
+    // GameCar::OnContact uses sumFrictionForce as a vector when spring
+    // borders redirect a fast car.  Keeping only its magnitude is enough
+    // for PairPxContactEffect, but loses the source rebound direction.
+    Vec3 frictionForceVector{};
     Vec3 point{};
     std::vector<Vec3> points{};
     bool hasPoint = false;

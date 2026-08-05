@@ -1277,32 +1277,69 @@ void OriginalRaceHud::update(
                         worldY * viewProjection[7] +
                         worldZ * viewProjection[11] +
                         viewProjection[15];
+        float projectedX =
+            std::abs(w) > 0.000001F ? x / w : x;
+        float projectedY =
+            std::abs(w) > 0.000001F ? y / w : y;
+        // PlayerStateFrame keeps a point behind the camera on the edge of
+        // the viewport while fading it.  It normalizes the projected vector
+        // to sqrt(2), then clamps both coordinates to [-1, 1].
         if (w <= 0.001F)
-            return false;
-        screenX = (x / w * 0.5F + 0.5F) * menu::virtualWidth;
-        screenY = (-y / w * 0.5F + 0.5F) * menu::virtualHeight;
-        return screenX >= 0.0F && screenX <= menu::virtualWidth &&
-               screenY >= 0.0F && screenY <= menu::virtualHeight;
+        {
+            const float length = std::sqrt(
+                projectedX * projectedX +
+                projectedY * projectedY);
+            if (length > 0.000001F)
+            {
+                constexpr float diagonal =
+                    1.4142135623730950488F;
+                projectedX = projectedX / length * diagonal;
+                projectedY = projectedY / length * diagonal;
+            }
+            else
+            {
+                projectedX = 1.0F;
+            }
+        }
+        projectedX = std::clamp(projectedX, -1.0F, 1.0F);
+        projectedY = std::clamp(projectedY, -1.0F, 1.0F);
+        const bool atEdge =
+            std::abs(projectedX) >= 0.999999F ||
+            std::abs(projectedY) >= 0.999999F;
+        screenX =
+            (projectedX * 0.5F + 0.5F) * menu::virtualWidth;
+        screenY =
+            (-projectedY * 0.5F + 0.5F) * menu::virtualHeight;
+        return atEdge;
     };
 
     for (auto& overlay : carLifeOverlays_)
     {
-        overlay.visible =
+        const bool hasRacer =
             overlay.racer < session.racers().size() &&
             overlay.racer < vehicles.size() &&
-            elapsed < overlay.visibleUntil &&
-            project(vehicles[overlay.racer].body.position, {},
-                    overlay.x, overlay.y);
-        if (!overlay.visible)
+            !session.racers()[overlay.racer].destroyed;
+        if (!hasRacer)
         {
-            overlay.alpha = 0.0F;
+            overlay.alpha = std::max(
+                overlay.alpha - seconds / 0.3F, 0.0F);
+            overlay.visible = overlay.alpha > 0.0F;
             continue;
         }
-        const float remaining = overlay.visibleUntil - elapsed;
-        const float age = overlay.duration - remaining;
-        overlay.alpha = std::min(
-            {1.0F, std::max(age, 0.0F) / 0.3F,
-             std::max(remaining, 0.0F) / 0.3F});
+        const bool atEdge = project(
+            vehicles[overlay.racer].body.position, {},
+            overlay.x, overlay.y);
+        const float targetAlpha =
+            elapsed < overlay.visibleUntil && !atEdge ? 1.0F : 0.0F;
+        const float alphaStep = seconds / 0.3F;
+        if (targetAlpha > overlay.alpha)
+            overlay.alpha =
+                std::min(overlay.alpha + alphaStep, targetAlpha);
+        else
+            overlay.alpha =
+                std::max(overlay.alpha - alphaStep, targetAlpha);
+        overlay.visible =
+            elapsed < overlay.visibleUntil || overlay.alpha > 0.0F;
         const auto& runtime = session.racers()[overlay.racer];
         overlay.life = std::clamp(
             runtime.life / std::max(runtime.maximumLife, 1.0F),
@@ -1328,16 +1365,18 @@ void OriginalRaceHud::update(
         setText(device, label.name,
                 formatNamePlace(namePlaceFormat_, runtime.place, name),
                 15.0F, true, white);
-        label.visible = project(
+        const bool atEdge = project(
             vehicles[racerIndex].body.position,
             {1.0F, -0.5F, 0.0F}, label.x, label.y);
+        label.visible = !runtime.destroyed;
+        bool hasLifeOverlay = false;
         if (label.visible)
         {
             for (const auto& overlay : carLifeOverlays_)
             {
                 if (overlay.visible && overlay.racer == racerIndex)
                 {
-                    label.visible = false;
+                    hasLifeOverlay = true;
                     break;
                 }
             }
@@ -1348,7 +1387,13 @@ void OriginalRaceHud::update(
                              menu::virtualHeight - 11.5F);
         label.radius =
             std::max({label.name.width, label.name.height, 1.0F});
-        label.alpha = label.visible ? 1.0F : 0.0F;
+        if (!label.visible)
+            label.alpha = 0.0F;
+        else if (atEdge || hasLifeOverlay)
+            label.alpha = std::max(
+                label.alpha - 4.0F * seconds, 0.0F);
+        else
+            label.alpha = 1.0F;
     }
     std::vector<std::size_t> labelOrder(opponentCount);
     std::iota(labelOrder.begin(), labelOrder.end(), 0U);
@@ -1361,8 +1406,9 @@ void OriginalRaceHud::update(
     for (std::size_t order = 0; order < labelOrder.size(); ++order)
     {
         auto& opponent = opponentLabels_[labelOrder[order]];
-        if (!opponent.visible)
+        if (!opponent.visible || opponent.alpha <= 0.0F)
             continue;
+        const float targetAlpha = opponent.alpha;
         float alpha = 1.0F;
         for (std::size_t previous = 0; previous < order; ++previous)
         {
@@ -1377,7 +1423,7 @@ void OriginalRaceHud::update(
             alpha = std::min(
                 alpha, radius > 0.0F ? distance / radius : 0.0F);
         }
-        opponent.alpha = alpha;
+        opponent.alpha = std::min(alpha, targetAlpha);
     }
 
     if (session.phase() == originalrace::RacePhase::Finished &&
@@ -1438,7 +1484,8 @@ void OriginalRaceHud::update(
 }
 
 void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
-                           Shader shader, Shader meshShader) const
+                           Shader shader, Shader meshShader,
+                           bool enableRaceState) const
 {
     PipelineState pipeline;
     pipeline.faceCulling = PipelineState::FaceCulling::None;
@@ -1664,63 +1711,74 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
             overlay.y, 34.0F, pipeline, tint);
     }
 
-    // PlayerStateFrame layout, retaining the original parent/child
-    // positions and sizes from HudMenu.cpp.
-    drawAsset(device, quad, shader, placeFrame_.texture,
-              placeFrame_.width, placeFrame_.height,
-              placeFrame_.width * 0.5F,
-              placeFrame_.height * 0.5F,
-              38.0F, pipeline);
-    drawAsset(device, quad, shader, place_.texture, place_.width,
-              place_.height, 105.0F, 88.0F, 28.0F, pipeline);
-    drawAsset(device, quad, shader, lifeBack_.texture, lifeBack_.width,
-              lifeBack_.height, 165.0F + lifeBack_.width * 0.5F,
-              lifeBack_.height * 0.5F, 28.0F, pipeline);
-    const float lifeWidth = lifeBar_.width * lifeFraction_;
-    drawAsset(device, quad, shader, lifeBar_.texture, lifeWidth,
-              lifeBar_.height,
-              165.0F + lifeBack_.width * 0.5F -
-                  lifeBar_.width * 0.5F + lifeWidth * 0.5F,
-              lifeBack_.height * 0.5F,
-              18.0F, pipeline);
-
-    for (std::size_t slot = 0; slot < weaponAmmo_.size(); ++slot)
+    // PlayerStateFrame::_raceState and MiniMapFrame's lap widgets obey
+    // enableHUD. Their sibling widgets (map, markers, event overlays and
+    // countdown) deliberately remain visible in the Windows implementation.
+    if (enableRaceState)
     {
-        if (!weaponVisible_[slot])
-            continue;
-        const bool selected = slot == selectedWeaponSlot_;
-        const auto& image =
-            selected ? weaponSlotSelected_ : weaponSlot_;
-        const float centerX =
-            155.0F + image.width * 0.5F +
-            static_cast<float>(slot) * (image.width - 25.0F);
-        const float centerY = 50.0F + image.height * 0.5F;
-        drawAsset(device, quad, shader, image.texture, image.width,
-                  image.height, centerX, centerY, 34.0F, pipeline);
-        drawWeaponVisual(weaponVisualIndices_[slot],
-                         centerX + 5.0F, centerY - 15.0F, 28.0F);
-        drawAsset(device, quad, shader, weaponAmmo_[slot].texture,
-                  weaponAmmo_[slot].width, weaponAmmo_[slot].height,
-                  centerX - 10.0F, centerY + 26.0F, 22.0F, pipeline);
-    }
-    drawAsset(device, quad, shader, mineSlot_.texture, mineSlot_.width,
-              mineSlot_.height, 30.0F, 140.0F, 34.0F, pipeline);
-    drawWeaponVisual(mineVisualIndex_, 30.0F, 140.0F, 28.0F);
-    drawAsset(device, quad, shader, mineAmmo_.texture, mineAmmo_.width,
-              mineAmmo_.height, 105.0F, 159.0F, 22.0F, pipeline);
-    drawAsset(device, quad, shader, hyperSlot_.texture,
-              hyperSlot_.width, hyperSlot_.height, 30.0F, 32.0F,
-              34.0F, pipeline);
-    drawWeaponVisual(hyperVisualIndex_, 30.0F, 32.0F, 28.0F);
-    drawAsset(device, quad, shader, hyperAmmo_.texture, hyperAmmo_.width,
-              hyperAmmo_.height, 105.0F, 15.0F, 22.0F, pipeline);
+        drawAsset(device, quad, shader, placeFrame_.texture,
+                  placeFrame_.width, placeFrame_.height,
+                  placeFrame_.width * 0.5F,
+                  placeFrame_.height * 0.5F,
+                  38.0F, pipeline);
+        drawAsset(device, quad, shader, place_.texture, place_.width,
+                  place_.height, 105.0F, 88.0F, 28.0F, pipeline);
+        drawAsset(device, quad, shader, lifeBack_.texture,
+                  lifeBack_.width, lifeBack_.height,
+                  165.0F + lifeBack_.width * 0.5F,
+                  lifeBack_.height * 0.5F, 28.0F, pipeline);
+        const float lifeWidth = lifeBar_.width * lifeFraction_;
+        drawAsset(device, quad, shader, lifeBar_.texture, lifeWidth,
+                  lifeBar_.height,
+                  165.0F + lifeBack_.width * 0.5F -
+                      lifeBar_.width * 0.5F + lifeWidth * 0.5F,
+                  lifeBack_.height * 0.5F,
+                  18.0F, pipeline);
 
-    drawAsset(device, quad, shader, lapBack_.texture, lapBack_.width,
-              lapBack_.height, lapBack_.width * 0.5F, 200.0F,
-              34.0F, pipeline);
-    drawAsset(device, quad, shader, lap_.texture, lap_.width,
-              lap_.height, lapBack_.width * 0.5F - 10.0F, 201.0F,
-              22.0F, pipeline);
+        for (std::size_t slot = 0; slot < weaponAmmo_.size(); ++slot)
+        {
+            if (!weaponVisible_[slot])
+                continue;
+            const bool selected = slot == selectedWeaponSlot_;
+            const auto& image =
+                selected ? weaponSlotSelected_ : weaponSlot_;
+            const float centerX =
+                155.0F + image.width * 0.5F +
+                static_cast<float>(slot) * (image.width - 25.0F);
+            const float centerY = 50.0F + image.height * 0.5F;
+            drawAsset(device, quad, shader, image.texture, image.width,
+                      image.height, centerX, centerY, 34.0F, pipeline);
+            drawWeaponVisual(weaponVisualIndices_[slot],
+                             centerX + 5.0F, centerY - 15.0F,
+                             28.0F);
+            drawAsset(device, quad, shader, weaponAmmo_[slot].texture,
+                      weaponAmmo_[slot].width,
+                      weaponAmmo_[slot].height,
+                      centerX - 10.0F, centerY + 26.0F, 22.0F,
+                      pipeline);
+        }
+        drawAsset(device, quad, shader, mineSlot_.texture,
+                  mineSlot_.width, mineSlot_.height, 30.0F, 140.0F,
+                  34.0F, pipeline);
+        drawWeaponVisual(mineVisualIndex_, 30.0F, 140.0F, 28.0F);
+        drawAsset(device, quad, shader, mineAmmo_.texture,
+                  mineAmmo_.width, mineAmmo_.height, 105.0F, 159.0F,
+                  22.0F, pipeline);
+        drawAsset(device, quad, shader, hyperSlot_.texture,
+                  hyperSlot_.width, hyperSlot_.height, 30.0F, 32.0F,
+                  34.0F, pipeline);
+        drawWeaponVisual(hyperVisualIndex_, 30.0F, 32.0F, 28.0F);
+        drawAsset(device, quad, shader, hyperAmmo_.texture,
+                  hyperAmmo_.width, hyperAmmo_.height, 105.0F, 15.0F,
+                  22.0F, pipeline);
+
+        drawAsset(device, quad, shader, lapBack_.texture,
+                  lapBack_.width, lapBack_.height,
+                  lapBack_.width * 0.5F, 200.0F, 34.0F, pipeline);
+        drawAsset(device, quad, shader, lap_.texture, lap_.width,
+                  lap_.height, lapBack_.width * 0.5F - 10.0F,
+                  201.0F, 22.0F, pipeline);
+    }
 
     for (const auto& item : notifications_)
     {
