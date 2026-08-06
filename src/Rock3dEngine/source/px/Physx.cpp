@@ -862,7 +862,7 @@ void PlaneShape::SetNormal(const D3DXVECTOR3& value)
 	_normal = value;
 	
 	if (GetNxShape())	
-		GetNxShape()->setPlane(NxVec3(value), _dist);
+		GetNxShape()->setPlane(NxVec3(_normal), _dist);
 }
 
 float PlaneShape::GetDist() const
@@ -875,7 +875,7 @@ void PlaneShape::SetDist(float value)
 	_dist = value;
 	
 	if (GetNxShape())	
-		GetNxShape()->setPlane(NxVec3(value), _dist);
+		GetNxShape()->setPlane(NxVec3(_normal), _dist);
 }
 
 
