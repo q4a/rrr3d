@@ -38,7 +38,7 @@ if (MSVC)
         ${CMAKE_SOURCE_DIR}/extern/directx/include
     )
     target_link_libraries(${PROJECT_NAME} PRIVATE
-        ${CMAKE_SOURCE_DIR}/extern/directx/lib/d3dx9.lib
+        ${CMAKE_SOURCE_DIR}/extern/directx/lib${LIBSUFFIX}/d3dx9.lib
     )
 else()
     find_package(PkgConfig REQUIRED)

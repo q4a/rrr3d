@@ -22,6 +22,12 @@
       "hidden": true,
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
+    {
+      "name": "use_physx28_shim",
+      "hidden": true,
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": { "RRR3D_PHYSX28_SHIM": true }
+    },
 
     {
       "name": "msvc-x86",
@@ -39,14 +45,49 @@
       }
     },
     {
-      "name": "msvc-x86-debug",
-      "displayName": "MSVC x86 Debug",
+      "name": "msvc-x64",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "architecture": { "value": "x64", "strategy": "external" },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl"
+      }
+    },
+    {
+      "name": "msvc-x86-physx28-debug",
+      "displayName": "MSVC x86 PhysX 2.8 Debug",
       "inherits": ["msvc-x86", "debug"]
     },
     {
-      "name": "msvc-x86-release",
-      "displayName": "MSVC x86 Release",
+      "name": "msvc-x86-physx28-release",
+      "displayName": "MSVC x86 PhysX 2.8 Release",
       "inherits": ["msvc-x86", "release"]
+    },
+    {
+      "name": "msvc-x86-shim-debug",
+      "displayName": "MSVC x86 shim Debug",
+      "inherits": ["msvc-x86", "debug", "use_physx28_shim"]
+    },
+    {
+      "name": "msvc-x86-shim-release",
+      "displayName": "MSVC x86 shim Release",
+      "inherits": ["msvc-x86", "release", "use_physx28_shim"]
+    },
+    {
+      "name": "msvc-x64-shim-debug",
+      "displayName": "MSVC x64 shim Debug",
+      "inherits": ["msvc-x64", "debug", "use_physx28_shim"]
+    },
+    {
+      "name": "msvc-x64-shim-release",
+      "displayName": "MSVC x64 shim Release",
+      "inherits": ["msvc-x64", "release", "use_physx28_shim"]
     },
 
     {
@@ -86,8 +127,12 @@
     }
   ],
   "buildPresets": [
-    { "name": "msvc-x86-debug", "configurePreset": "msvc-x86-debug" },
-    { "name": "msvc-x86-release", "configurePreset": "msvc-x86-release" },
+    { "name": "msvc-x86-physx28-debug", "configurePreset": "msvc-x86-physx28-debug" },
+    { "name": "msvc-x86-physx28-release", "configurePreset": "msvc-x86-physx28-release" },
+    { "name": "msvc-x86-shim-debug", "configurePreset": "msvc-x86-shim-debug" },
+    { "name": "msvc-x86-shim-release", "configurePreset": "msvc-x86-shim-release" },
+    { "name": "msvc-x64-shim-debug", "configurePreset": "msvc-x64-shim-debug" },
+    { "name": "msvc-x64-shim-release", "configurePreset": "msvc-x64-shim-release" },
     { "name": "macos-arm64-debug", "configurePreset": "macos-arm64-debug" },
     { "name": "macos-arm64-release", "configurePreset": "macos-arm64-release" },
     { "name": "macos-arm64-asan", "configurePreset": "macos-arm64-asan" }

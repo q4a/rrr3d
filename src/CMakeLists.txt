@@ -17,6 +17,13 @@ if (MSVC)
     # defines _DEBUG, so match it everywhere rather than only where it happens
     # to arrive by accident.
     add_compile_definitions("$<$<CONFIG:Debug>:_DEBUG>")
+
+    if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(LIBSUFFIX "")
+    else()
+        set(LIBSUFFIX "64")
+    endif()
+    message(STATUS "LIBSUFFIX=${LIBSUFFIX}")
 else()
     add_compile_options(-fPIC)
 
