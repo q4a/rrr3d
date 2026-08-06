@@ -145,9 +145,6 @@ public:
 private:
 	Wheels* _wheels;
 
-	MapObjRec* _hyperDrive;
-	MapObj* _hyper;
-
 	float _clutchStrength;
 	float _clutchTime;
 	float _springTime;
