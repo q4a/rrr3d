@@ -22,6 +22,11 @@
       "hidden": true,
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
+    {
+      "name": "use_bullet",
+      "hidden": true,
+      "cacheVariables": { "RRR3D_PHYSX28_SHIM": true }
+    },
 
     {
       "name": "msvc-x86",
@@ -39,14 +44,49 @@
       }
     },
     {
-      "name": "msvc-x86-debug",
-      "displayName": "MSVC x86 Debug",
+      "name": "msvc-x64",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "architecture": { "value": "x64", "strategy": "external" },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl"
+      }
+    },
+    {
+      "name": "msvc-x86-physx28-debug",
+      "displayName": "MSVC x86 PhysX 2.8 Debug",
       "inherits": ["msvc-x86", "debug"]
     },
     {
-      "name": "msvc-x86-release",
-      "displayName": "MSVC x86 Release",
+      "name": "msvc-x86-physx28-release",
+      "displayName": "MSVC x86 PhysX 2.8 Release",
       "inherits": ["msvc-x86", "release"]
+    },
+    {
+      "name": "msvc-x86-bullet-debug",
+      "displayName": "MSVC x86 Bullet Debug",
+      "inherits": ["msvc-x86", "debug", "use_bullet"]
+    },
+    {
+      "name": "msvc-x86-bullet-release",
+      "displayName": "MSVC x86 Bullet Release",
+      "inherits": ["msvc-x86", "release", "use_bullet"]
+    },
+    {
+      "name": "msvc-x64-bullet-debug",
+      "displayName": "MSVC x64 Bullet Debug",
+      "inherits": ["msvc-x64", "debug", "use_bullet"]
+    },
+    {
+      "name": "msvc-x64-bullet-release",
+      "displayName": "MSVC x64 Bullet Release",
+      "inherits": ["msvc-x64", "release", "use_bullet"]
     },
 
     {
@@ -86,8 +126,12 @@
     }
   ],
   "buildPresets": [
-    { "name": "msvc-x86-debug", "configurePreset": "msvc-x86-debug" },
-    { "name": "msvc-x86-release", "configurePreset": "msvc-x86-release" },
+    { "name": "msvc-x86-physx28-debug", "configurePreset": "msvc-x86-physx28-debug" },
+    { "name": "msvc-x86-physx28-release", "configurePreset": "msvc-x86-physx28-release" },
+    { "name": "msvc-x86-bullet-debug", "configurePreset": "msvc-x86-bullet-debug" },
+    { "name": "msvc-x86-bullet-release", "configurePreset": "msvc-x86-bullet-release" },
+    { "name": "msvc-x64-bullet-debug", "configurePreset": "msvc-x64-bullet-debug" },
+    { "name": "msvc-x64-bullet-release", "configurePreset": "msvc-x64-bullet-release" },
     { "name": "macos-arm64-debug", "configurePreset": "macos-arm64-debug" },
     { "name": "macos-arm64-release", "configurePreset": "macos-arm64-release" },
     { "name": "macos-arm64-asan", "configurePreset": "macos-arm64-asan" }

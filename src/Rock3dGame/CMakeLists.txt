@@ -100,7 +100,7 @@ if (MSVC)
     )
 
     target_link_libraries(${PROJECT_NAME} PRIVATE
-        libogg_static.lib
+        libogg.lib
         libvorbis_static.lib
         libvorbisfile_static.lib
         dxerr.lib
@@ -124,12 +124,12 @@ if (MSVC)
     endif()
 
     target_link_directories(${PROJECT_NAME} PRIVATE
-        "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/ogg/lib/release>"
-        "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/ogg/lib/debug>"
-        "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/vorbis/lib/release>"
-        "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/vorbis/lib/debug>"
+        "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/ogg/lib${LIBSUFFIX}/release>"
+        "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/ogg/lib${LIBSUFFIX}/debug>"
+        "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/vorbis/lib${LIBSUFFIX}/release>"
+        "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/vorbis/lib${LIBSUFFIX}/debug>"
         ${CMAKE_SOURCE_DIR}/extern/physx/lib
-        ${CMAKE_SOURCE_DIR}/extern/directx/lib
+        ${CMAKE_SOURCE_DIR}/extern/directx/lib${LIBSUFFIX}
     )
 else()
     # Ogg and Vorbis are ordinary portable C libraries and are the same ones

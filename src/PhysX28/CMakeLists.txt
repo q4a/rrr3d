@@ -31,9 +31,24 @@ add_library(${PROJECT_NAME} STATIC
 # PRIVATE so no Bullet header, type or macro can reach a consumer -- the whole
 # point of the abstract interfaces in include/ is that Rock3dGame's 52
 # translation units never see a backend.
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(BULLET REQUIRED IMPORTED_TARGET bullet)
-target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::BULLET)
+if (MSVC)
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/extern/bullet/include
+    )
+    set(BULLET_LIBRARIES
+        "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/bullet/lib${LIBSUFFIX}/release/BulletCollision.lib>"
+        "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/bullet/lib${LIBSUFFIX}/release/BulletDynamics.lib>"
+        "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/bullet/lib${LIBSUFFIX}/release/LinearMath.lib>"
+        "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/bullet/lib${LIBSUFFIX}/debug/BulletCollision_Debug.lib>"
+        "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/bullet/lib${LIBSUFFIX}/debug/BulletDynamics_Debug.lib>"
+        "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/bullet/lib${LIBSUFFIX}/debug/LinearMath_Debug.lib>"
+    )
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${BULLET_LIBRARIES})
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(BULLET REQUIRED IMPORTED_TARGET bullet)
+    target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::BULLET)
+endif()
 
 # PUBLIC: consumers include <NxPhysics.h> and friends by those names, exactly as
 # they do against the real SDK.
@@ -66,4 +81,11 @@ target_link_libraries(PhysX28Tests PRIVATE ${PROJECT_NAME})
 add_executable(PhysX28Harness
     harness/Px28Harness.cpp
 )
-target_link_libraries(PhysX28Harness PRIVATE ${PROJECT_NAME} PkgConfig::BULLET)
+if(MSVC)
+    target_include_directories(PhysX28Harness PRIVATE
+        ${CMAKE_SOURCE_DIR}/extern/bullet/include
+    )
+    target_link_libraries(PhysX28Harness PRIVATE ${PROJECT_NAME} ${BULLET_LIBRARIES})
+else()
+    target_link_libraries(PhysX28Harness PRIVATE ${PROJECT_NAME} PkgConfig::BULLET)
+endif()

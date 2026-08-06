@@ -27,6 +27,7 @@
  * and why the game, which stores quaternions as xyzw, uses the former.
  */
 
+#define _USE_MATH_DEFINES
 #include "NxSimpleTypes.h"
 #include "NxVec3.h"
 
