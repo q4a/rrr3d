@@ -1409,6 +1409,8 @@ int main(int argc, char** argv)
         *resources, "Data/GUI/optionsBg.png");
     const auto startOptionsBackgroundImage = menu::loadOriginalImage(
         *resources, "Data/GUI/startMenuBg.png");
+    const auto loadingFrameImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/loadingFrame.dds");
     const auto optionsRowImage = menu::loadOriginalImage(
         *resources, "Data/GUI/labelBg1.png");
     const auto controlsRowImage = menu::loadOriginalImage(
@@ -1439,6 +1441,8 @@ int main(int argc, char** argv)
         createImageTexture(*device, optionsBackgroundImage);
     const Texture startOptionsBackground =
         createImageTexture(*device, startOptionsBackgroundImage);
+    const Texture loadingFrame =
+        createImageTexture(*device, loadingFrameImage);
     const Texture optionsRow =
         createImageTexture(*device, optionsRowImage);
     const Texture controlsRow =
@@ -2712,6 +2716,7 @@ int main(int argc, char** argv)
             gamersBossTextures.begin(), gamersBossTextures.end(),
             [](Texture texture) { return valid(texture); }) &&
         valid(optionsBackground) && valid(startOptionsBackground) &&
+        valid(loadingFrame) &&
         valid(startOptionsButton) && valid(optionsRow) &&
         valid(controlsRow) && valid(optionsArrow) &&
         valid(optionsArrowSelected) &&
@@ -2959,6 +2964,7 @@ int main(int argc, char** argv)
         device->destroy(optionsArrow);
         device->destroy(controlsRow);
         device->destroy(optionsRow);
+        device->destroy(loadingFrame);
         device->destroy(startOptionsBackground);
         device->destroy(optionsBackground);
         device->destroy(acceptButtonSelected);
@@ -4258,6 +4264,8 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_PHYSICS
     bool inRace = false;
+    bool raceLoadingActive = false;
+    std::uint32_t raceLoadingPresentedFrames = 0U;
     bool exitRaceDialogVisible = false;
     bool exitRaceYesFocused = true;
     r3d::physics::VehicleInput raceInput;
@@ -4294,6 +4302,8 @@ int main(int argc, char** argv)
         raceVehicles[index] = physicsWorld->vehicle(index);
     float raceElapsedSeconds = 0.0F;
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
+    bool raceLoadingFrameObserved = !options->raceRenderSmokeTest;
+    bool raceLoadingDeferredObserved = !options->raceRenderSmokeTest;
     bool gameModeFrameObserved = !options->raceRenderSmokeTest;
     bool tournamentFrameObserved = !options->raceRenderSmokeTest;
     bool profileFrameObserved = !options->raceRenderSmokeTest;
@@ -4796,7 +4806,11 @@ int main(int argc, char** argv)
         refreshProfilePage();
         return true;
     };
-    auto startCurrentRace = [&]() {
+    auto doStartCurrentRace = [&]() {
+        raceLoadingDeferredObserved =
+            raceLoadingDeferredObserved ||
+            raceLoadingPresentedFrames >= 2U;
+        raceLoadingActive = false;
         if (!reloadCurrentRace())
         {
             runtimeSmokeFailed = true;
@@ -4833,6 +4847,22 @@ int main(int argc, char** argv)
 #endif
         std::cout << "MainMenu2 -> original race: "
                   << originalRace->levelPath << '\n';
+    };
+    auto startCurrentRace = [&]() {
+        if (inRace || raceLoadingActive)
+            return;
+        // GameMode::StartRace sets _startRace=0 and Menu::msInfo.
+        // OnFrame invokes DoStartRace only when (++_startRace)>1, ensuring
+        // loadingFrame.dds reaches the display before synchronous world load.
+        raceLoadingActive = true;
+        raceLoadingPresentedFrames = 0U;
+#ifdef RRR3D_AUDIO
+        musicDialogTime = -1.0F;
+        musicDialogVisible = false;
+#endif
+        previousFrameTicks = SDL_GetTicksNS();
+        std::cout
+            << "Original GameMode::StartRace -> Menu::msInfo\n";
     };
     auto clearRaceControls = [&]() {
         raceInput = {};
@@ -7612,6 +7642,16 @@ int main(int argc, char** argv)
             }
 #ifdef RRR3D_GAMEPAD_INPUT
 #ifdef RRR3D_PHYSICS
+            if (raceLoadingActive &&
+                event.type != SDL_EVENT_QUIT &&
+                event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
+                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+            {
+                // Menu::msInfo is modal, hides the cursor, and does not
+                // dispatch menu/gameplay actions while the world is loaded.
+                input.processEvent(event);
+                continue;
+            }
             if (sourceStartOptionsActive &&
                 event.type != SDL_EVENT_QUIT &&
                 event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
@@ -11903,6 +11943,36 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef RRR3D_PHYSICS
+        if (raceLoadingActive &&
+            raceLoadingPresentedFrames >= 2U)
+        {
+            doStartCurrentRace();
+        }
+        if (raceLoadingActive)
+        {
+            const float aspect =
+                static_cast<float>(loadingFrameImage.width) /
+                static_cast<float>(loadingFrameImage.height);
+            const float width = std::min(
+                menu::virtualWidth,
+                menu::virtualHeight * aspect);
+            const float height = width / aspect;
+            device->beginFrame(camera, 0x000000ffU);
+            drawQuad(
+                *device, quad, shader, loadingFrame,
+                width, height, menu::virtualWidth * 0.5F,
+                menu::virtualHeight * 0.5F, 10.0F, opaque);
+            device->endFrame();
+            raceLoadingFrameObserved =
+                raceLoadingFrameObserved ||
+                (loadingFrameImage.width == 1920U &&
+                 loadingFrameImage.height == 900U &&
+                 width <= menu::virtualWidth &&
+                 height <= menu::virtualHeight);
+            ++raceLoadingPresentedFrames;
+            ++renderedFrames;
+            continue;
+        }
         if (inRace)
         {
             const float raceRenderSeconds =
@@ -15719,6 +15789,8 @@ int main(int argc, char** argv)
                         passObserved(
                             r3d::renderer::RenderPass::Water);
                 if (!integratedRaceStartObserved || !inRace ||
+                    !raceLoadingFrameObserved ||
+                    !raceLoadingDeferredObserved ||
                     !gameModeFrameObserved ||
                     !tournamentFrameObserved ||
                     !profileFrameObserved ||
@@ -15762,7 +15834,10 @@ int main(int argc, char** argv)
                         << "Milestone 9 integrated Single Player/race render "
                            "verification failed: started="
                         << integratedRaceStartObserved << ", inRace="
-                        << inRace << ", gameMode/tournament="
+                        << inRace << ", loading="
+                        << raceLoadingFrameObserved << '/'
+                        << raceLoadingDeferredObserved
+                        << ", gameMode/tournament="
                         << gameModeFrameObserved << '/'
                         << tournamentFrameObserved
                         << ", profile/dialog="
@@ -15826,6 +15901,7 @@ int main(int argc, char** argv)
                         << maximumRaceSmokeContacts
                         << ", renderer passes cube6/shadow2/scene/HDR64-1/"
                            "adapt/bloom/composite/HUD"
+                        << "/loadingFrame"
                         << (expectsReflection ? "/reflection" : "")
                         << (expectsWater ? "/water" : "")
                         << (expectsVolumeSurface ? "/volume-surface" : "")

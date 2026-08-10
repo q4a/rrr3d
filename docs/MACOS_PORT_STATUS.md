@@ -1142,3 +1142,20 @@ game-side audio behaviors. Release hardening
   строки, SDL-навигацию, сохранение и повторную загрузку XML во временном
   каталоге и переход в `MainMenu2`. Также прошли resource audit,
   physics/session smoke и повторный startup bgfx/Metal smoke.
+
+### Source InfoMenu / race loading follow-up
+
+- Кнопка Start race больше не выполняет тяжёлый `reloadCurrentRace` внутри
+  обработчика ввода. Перенесена последовательность
+  `GameMode::StartRace -> Menu::msInfo -> (++_startRace)>1 -> DoStartRace`:
+  сначала модальный экран получает два представленных кадра, затем загружается
+  world/Jolt/renderer/audio state и только после этого включается HUD.
+- `InfoMenu::msLoading` использует оригинальный 1920×900
+  `Data/GUI/loadingFrame.dds`, фильтрацию DDS backend-а, чёрный clear и
+  `Menu::GetImageAspectSize` fit без растяжения. Во время загрузки mouse,
+  keyboard и gamepad actions не протекают в скрытый `RaceMenu2`.
+- 300-frame integrated bgfx/Metal smoke теперь требует и loading-frame draw,
+  и фактическую двухкадровую отсрочку. После неё подтверждены шесть машин,
+  четыре wheel contacts, физика/звук/HUD, оба camera mode и полный
+  cube6/shadow2/scene/HDR/refraction render graph. Resource и physics smokes
+  также прошли.
