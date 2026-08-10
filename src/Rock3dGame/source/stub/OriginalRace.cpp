@@ -645,8 +645,6 @@ MaterialDefinition materialDefinition(
         {
             material.blend = MaterialBlend::Additive;
             setAlphaRange(0.7F, 0.7F);
-            material.emissive = 1.0F;
-            material.ignoreFog = true;
         }
         if (record == "GUI\\question")
         {
@@ -655,10 +653,21 @@ MaterialDefinition materialDefinition(
             material.specular = 1.0F;
             material.shininess = 64.0F;
         }
-        if (record == "Bonus\\shield")
+        // These are the non-Effect records for which ResourceManager passes
+        // sprite=true or explicitly disables lighting/fog.  ComplexMatLib
+        // also disables Z writes for the five Bonus sprites.
+        const bool bonusSprite =
+            record == "Bonus\\speedArrow" ||
+            record == "Bonus\\strelkaAnim" ||
+            record == "Bonus\\lusha" ||
+            record == "Bonus\\snowLusha" ||
+            record == "Bonus\\hellLusha";
+        if (bonusSprite || record == "GUI\\space2")
         {
             material.emissive = 1.0F;
             material.ignoreFog = true;
+            if (bonusSprite)
+                material.writeDepth = false;
         }
         if (record == "Bonus\\maslo")
         {
@@ -700,6 +709,36 @@ MaterialDefinition materialDefinition(
         {
             material.atlasColumns = atlas->columns;
             material.atlasRows = atlas->rows;
+            if (record == "Effect\\gunEff2")
+                material.textureCoordinateMaximum.y = 0.25F;
+
+            // Sampler2d::BuildAnimByOff uses the source image dimensions to
+            // inset the atlas region by half a texel.  All animated source
+            // materials are DDS files, whose height/width live at offsets
+            // 12/16 in the standard header.
+            const auto bytes = resources.readBinary(material.texturePath);
+            if (bytes.size() < 20U || bytes[0] != 'D' ||
+                bytes[1] != 'D' || bytes[2] != 'S' || bytes[3] != ' ')
+            {
+                throw resource::ResourceError(
+                    "Animated original material is not a DDS texture: " +
+                    material.texturePath);
+            }
+            const auto littleEndian32 = [&](std::size_t offset) {
+                return static_cast<std::uint32_t>(bytes[offset]) |
+                       (static_cast<std::uint32_t>(bytes[offset + 1U]) << 8U) |
+                       (static_cast<std::uint32_t>(bytes[offset + 2U]) << 16U) |
+                       (static_cast<std::uint32_t>(bytes[offset + 3U]) << 24U);
+            };
+            const auto height = littleEndian32(12U);
+            const auto width = littleEndian32(16U);
+            if (width == 0U || height == 0U)
+                throw resource::ResourceError(
+                    "Animated original DDS has zero dimensions: " +
+                    material.texturePath);
+            material.textureCoordinateInset = {
+                0.5F / static_cast<float>(width),
+                0.5F / static_cast<float>(height), 0.0F};
         }
         // ResourceManager::LoadWorld2 calls LoadBumpLibMat for exactly these
         // two materials. Do not infer bump mapping from filenames.
@@ -5167,6 +5206,45 @@ bool runOriginalRaceResourceSmokeTest(
         const auto near = [](float first, float second) {
             return std::abs(first - second) <= 0.0001F;
         };
+        const auto gunFlashMaterial =
+            materialDefinition(resources, "Effect\\gunEff2");
+        const auto speedArrowMaterial =
+            materialDefinition(resources, "Bonus\\speedArrow");
+        const auto shieldBonusMaterial =
+            materialDefinition(resources, "Bonus\\shield");
+        const auto garageSpaceMaterial =
+            materialDefinition(resources, "GUI\\space2");
+        const auto carBlendMaterial =
+            materialDefinition(resources, "Car\\blend");
+        const bool sourceMaterialLibraryMatches =
+            gunFlashMaterial.blend == MaterialBlend::Additive &&
+            gunFlashMaterial.atlasColumns == 4U &&
+            gunFlashMaterial.atlasRows == 1U &&
+            near(gunFlashMaterial.textureCoordinateMaximum.y, 0.25F) &&
+            near(gunFlashMaterial.textureCoordinateInset.x,
+                 0.5F / 256.0F) &&
+            near(gunFlashMaterial.textureCoordinateInset.y,
+                 0.5F / 256.0F) &&
+            speedArrowMaterial.emissive > 0.999F &&
+            speedArrowMaterial.ignoreFog &&
+            !speedArrowMaterial.writeDepth &&
+            shieldBonusMaterial.emissive < 0.001F &&
+            !shieldBonusMaterial.ignoreFog &&
+            shieldBonusMaterial.writeDepth &&
+            garageSpaceMaterial.emissive > 0.999F &&
+            garageSpaceMaterial.ignoreFog &&
+            garageSpaceMaterial.writeDepth &&
+            carBlendMaterial.blend == MaterialBlend::Additive &&
+            near(carBlendMaterial.alphaMinimum, 0.7F) &&
+            near(carBlendMaterial.alphaMaximum, 0.7F) &&
+            carBlendMaterial.emissive < 0.001F &&
+            !carBlendMaterial.ignoreFog;
+        if (!sourceMaterialLibraryMatches)
+        {
+            error =
+                "source ComplexMatLib sprite/atlas provenance mismatch";
+            return false;
+        }
         const auto definitionNamed = [&](std::string_view name) {
             const auto found = std::find_if(
                 race.decorationDefinitions.begin(),

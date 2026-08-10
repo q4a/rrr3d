@@ -1064,34 +1064,47 @@ float cullOpacity(float time) noexcept
                (1.0F - minimumOpacity);
 }
 
-std::array<float, 4> atlasFrame(std::uint16_t columns,
-                                std::uint16_t rows,
-                                std::uint32_t frame)
+std::array<float, 4> materialTextureTransform(
+    const r3d::game::originalrace::MaterialDefinition& material,
+    float frame)
 {
-    columns = std::max<std::uint16_t>(columns, 1);
-    rows = std::max<std::uint16_t>(rows, 1);
+    const auto columns =
+        std::max<std::uint16_t>(material.atlasColumns, 1);
+    const auto rows = std::max<std::uint16_t>(material.atlasRows, 1);
     const std::uint32_t count =
         static_cast<std::uint32_t>(columns) * rows;
-    frame %= count;
-    const float scaleX = 1.0F / static_cast<float>(columns);
-    const float scaleY = 1.0F / static_cast<float>(rows);
-    return {scaleX, scaleY,
-            static_cast<float>(frame % columns) * scaleX,
-            static_cast<float>(frame / columns) * scaleY};
-}
-
-std::array<float, 4> normalizedAtlas(std::uint16_t columns,
-                                    std::uint16_t rows, float frame)
-{
-    const std::uint32_t count =
-        std::max<std::uint32_t>(
-            static_cast<std::uint32_t>(columns) * rows, 1U);
     const float normalized = std::clamp(frame, 0.0F, 1.0F);
-    const auto index =
+    const std::uint32_t index =
         normalized >= 1.0F
             ? count - 1U
             : static_cast<std::uint32_t>(normalized * count);
-    return atlasFrame(columns, rows, index);
+    const float scaleX =
+        (material.textureCoordinateMaximum.x -
+         material.textureCoordinateMinimum.x -
+         material.textureCoordinateInset.x * 2.0F) /
+        static_cast<float>(columns);
+    const float scaleY =
+        (material.textureCoordinateMaximum.y -
+         material.textureCoordinateMinimum.y -
+         material.textureCoordinateInset.y * 2.0F) /
+        static_cast<float>(rows);
+    std::array<float, 4> result{
+        scaleX, scaleY,
+        material.textureCoordinateMinimum.x +
+            material.textureCoordinateInset.x +
+            static_cast<float>(index % columns) * scaleX,
+        material.textureCoordinateMinimum.y +
+            material.textureCoordinateInset.y +
+            static_cast<float>(index / columns) * scaleY};
+    result[2] +=
+        material.textureOffsetMinimum.x +
+        (material.textureOffsetMaximum.x -
+         material.textureOffsetMinimum.x) * normalized;
+    result[3] +=
+        material.textureOffsetMinimum.y +
+        (material.textureOffsetMaximum.y -
+         material.textureOffsetMinimum.y) * normalized;
+    return result;
 }
 
 float sourceAnimationFrame(
@@ -1428,17 +1441,9 @@ void drawGroups(GraphicsDevice& device,
             if (materialIndex < asset.normalTextures.size())
                 state.normalTexture =
                     asset.normalTextures[materialIndex];
-            state.textureTransform = normalizedAtlas(
-                material.atlasColumns, material.atlasRows, frame);
-            state.textureTransform[2] +=
-                material.textureOffsetMinimum.x +
-                (material.textureOffsetMaximum.x -
-                 material.textureOffsetMinimum.x) * frame +
-                textureOffsetX;
-            state.textureTransform[3] +=
-                material.textureOffsetMinimum.y +
-                (material.textureOffsetMaximum.y -
-                 material.textureOffsetMinimum.y) * frame;
+            state.textureTransform =
+                materialTextureTransform(material, frame);
+            state.textureTransform[2] += textureOffsetX;
             return state;
         };
     auto materialPipeline = [&](std::size_t index) {
@@ -1611,16 +1616,7 @@ void drawShadowGroups(GraphicsDevice& device,
             node != nullptr
                 ? visualAnimationFrame(*node, elapsedSeconds)
                 : 0.0F;
-        state.textureTransform = normalizedAtlas(
-            material.atlasColumns, material.atlasRows, frame);
-        state.textureTransform[2] +=
-            material.textureOffsetMinimum.x +
-            (material.textureOffsetMaximum.x -
-             material.textureOffsetMinimum.x) * frame;
-        state.textureTransform[3] +=
-            material.textureOffsetMinimum.y +
-            (material.textureOffsetMaximum.y -
-             material.textureOffsetMinimum.y) * frame;
+        state.textureTransform = materialTextureTransform(material, frame);
         state.receivesShadow = false;
         return state;
     };
@@ -4139,19 +4135,9 @@ void OriginalRaceRenderer::draw(
                         material.shininess = sourceMaterial.shininess;
                         material.ignoreFog = sourceMaterial.ignoreFog;
                         material.receivesShadow = false;
-                        material.textureTransform = normalizedAtlas(
-                            sourceMaterial.atlasColumns,
-                            sourceMaterial.atlasRows, materialFrame);
-                        material.textureTransform[2] +=
-                            sourceMaterial.textureOffsetMinimum.x +
-                            (sourceMaterial.textureOffsetMaximum.x -
-                             sourceMaterial.textureOffsetMinimum.x) *
-                                materialFrame;
-                        material.textureTransform[3] +=
-                            sourceMaterial.textureOffsetMinimum.y +
-                            (sourceMaterial.textureOffsetMaximum.y -
-                             sourceMaterial.textureOffsetMinimum.y) *
-                                materialFrame;
+                        material.textureTransform =
+                            materialTextureTransform(
+                                sourceMaterial, materialFrame);
                         auto particlePipeline = pipeline;
                         if (forceNoDepth)
                             particlePipeline.writeDepth = false;

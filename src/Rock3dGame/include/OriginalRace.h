@@ -67,6 +67,12 @@ struct MaterialDefinition
     std::uint16_t atlasColumns = 1;
     std::uint16_t atlasRows = 1;
     float animationRate = 24.0F;
+    // Sampler2d::BuildAnimByOff first restricts animation to texCoord and
+    // then applies a half-texel inset before splitting it into tiles.  Most
+    // source atlases cover the full image; gunEff2 uses only its top quarter.
+    Vec3 textureCoordinateMinimum{};
+    Vec3 textureCoordinateMaximum{1.0F, 1.0F, 0.0F};
+    Vec3 textureCoordinateInset{};
     // Optional second sampler from LibMaterial (the source bump/normal map).
     std::string normalTexturePath{};
     // Bonus\\maslo uses its second 2D sampler with

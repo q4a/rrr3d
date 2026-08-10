@@ -1084,3 +1084,21 @@ game-side audio behaviors. Release hardening
 - Новые provenance assertions, arm64 Debug build, physics smoke и 300-frame
   World1 Metal/audio smoke прошли; последний завершился с шестью машинами,
   четырьмя wheel contacts и 1414 FxTrail submissions.
+
+### Source ComplexMatLib sampler follow-up
+
+- Прямая material table подтверждена как перенос создаваемой в рантайме
+  `ResourceManager::ComplexMatLib`, а не как замена отсутствующего файла.
+  При сверке найдены и удалены ошибочно придуманные render states:
+  `Bonus\\shield` и `Car\\blend` снова освещаются и туманятся так же, как
+  в Windows.
+- Перенесены пропущенные source sprite states пяти Bonus-материалов и
+  отключение lighting/fog у `GUI\\space2`; у sprite-бонусов также сохранён
+  независимый от blending флаг `moZWrite=false`.
+- `Sampler2d::BuildAnimByOff` теперь представлен полным UV region и
+  half-texel inset из размеров исходного DDS. Это исправляет все атласные
+  эффекты и отдельно `gunEff2`, который использует только верхнюю четверть
+  256x256 texture, а не всю её высоту.
+- Resource provenance, physics/session smoke и последовательный 300-frame
+  World1 bgfx/Metal smoke прошли: четыре wheel contacts, шесть машин,
+  1414 FxTrail submissions и полный HDR/HUD/refraction render graph.
