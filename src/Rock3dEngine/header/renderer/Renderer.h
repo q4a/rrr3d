@@ -222,6 +222,11 @@ struct MaterialState
     };
 
     std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
+    // ReflMappShader obtains alphaBlendColor from texture-stage constant 0,
+    // independently from the D3D material diffuse color.  The fourth
+    // component carries LightShader::texDiffK, which GraphManager derives
+    // from IActor::vec1/vec3 for sloped track pieces.
+    std::array<float, 4> mappingColor{1.0F, 1.0F, 1.0F, 1.0F};
     // xy scales source UVs and zw offsets them.  Original LibMaterial uses
     // this for animated texture atlases and scrolling effect materials.
     std::array<float, 4> textureTransform{1.0F, 1.0F, 0.0F, 0.0F};

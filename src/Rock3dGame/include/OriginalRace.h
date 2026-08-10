@@ -352,6 +352,11 @@ struct ObjectDefinition
     // IActor::gpCullOpacity: fade this actor when it obscures the player in
     // the original isometric camera.
     bool cullOpacity = false;
+    // GraphManager::BuildOctree uses these serialized IActor scratch
+    // vectors to adjust texDiffK on inclined track actors.  They are source
+    // render data, despite their generic legacy names.
+    Vec3 graphVector1;
+    Vec3 graphVector3;
     LightingMode lighting = LightingMode::Standard;
     GraphOrder graphOrder = GraphOrder::Default;
 };

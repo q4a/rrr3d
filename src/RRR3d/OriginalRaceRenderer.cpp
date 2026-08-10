@@ -1285,6 +1285,58 @@ PipelineState nodePipeline(
     return result;
 }
 
+r3d::game::originalrace::LightingMode lightingForQuality(
+    r3d::game::originalrace::LightingMode lighting,
+    std::uint32_t quality) noexcept
+{
+    using Lighting = r3d::game::originalrace::LightingMode;
+    quality = std::min(quality, 2U);
+    if (quality == 0U)
+    {
+        if (lighting == Lighting::Pixel ||
+            lighting == Lighting::Reflection ||
+            lighting == Lighting::Bump ||
+            lighting == Lighting::PlanarReflection)
+            return Lighting::Standard;
+    }
+    else if (quality == 1U)
+    {
+        if (lighting == Lighting::Bump ||
+            lighting == Lighting::PlanarReflection)
+            return Lighting::Pixel;
+    }
+    return lighting;
+}
+
+float sourceTextureDiffuseScale(
+    const OriginalRaceRenderer::ObjectAsset& asset,
+    const r3d::physics::Transform& actor,
+    const std::array<float, 4>& lightDirection) noexcept
+{
+    const auto& adjustment = asset.graphVector3;
+    if (lightDirection[3] < 0.5F ||
+        std::abs(adjustment.y) + std::abs(adjustment.z) <= 0.0F)
+        return 1.0F;
+    const auto& localNormal = asset.graphVector1;
+    if (localNormal.z >= 0.99F)
+        return 1.0F;
+    const auto worldNormal = normalize(rotate(actor.rotation, localNormal));
+    const auto worldRight =
+        normalize(rotate(actor.rotation, {0.0F, 1.0F, 0.0F}));
+    const r3d::physics::Vec3 binormal{
+        worldRight.y, -worldRight.x, 0.0F};
+    const float normalSide =
+        binormal.x * worldNormal.x +
+        binormal.y * worldNormal.y +
+        binormal.z * worldNormal.z;
+    const float lightSide =
+        binormal.x * lightDirection[0] +
+        binormal.y * lightDirection[1] +
+        binormal.z * lightDirection[2];
+    const bool side = (normalSide > 0.0F) == (lightSide > 0.0F);
+    return 1.0F + (side ? adjustment.z : adjustment.y);
+}
+
 void drawGroups(GraphicsDevice& device,
                 const OriginalRaceRenderer::Asset& asset, Shader shader,
                 const Transform& model, const PipelineState& pipeline,
@@ -1296,14 +1348,15 @@ void drawGroups(GraphicsDevice& device,
                 const r3d::game::originalrace::VisualNode* node = nullptr,
                 float opacity = 1.0F,
                 const std::array<float, 4>* tint = nullptr,
-                float textureOffsetX = 0.0F)
+                float textureOffsetX = 0.0F,
+                float textureDiffuseScale = 1.0F)
 {
     if (asset.textures.empty())
         return;
     const auto geometryPipeline = nodePipeline(pipeline, node);
     auto materialState =
         [&asset, elapsedSeconds, reflectionStrength, lighting, node,
-         opacity, tint, textureOffsetX](
+         opacity, tint, textureOffsetX, textureDiffuseScale](
             const auto& material, std::size_t materialIndex) {
             MaterialState state;
             const float frame =
@@ -1311,7 +1364,19 @@ void drawGroups(GraphicsDevice& device,
                     ? visualAnimationFrame(*node, elapsedSeconds)
                     : 0.0F;
             state.color = materialColor(material, frame);
-            if (tint != nullptr)
+            if (tint != nullptr &&
+                lighting ==
+                    r3d::game::originalrace::LightingMode::Reflection)
+            {
+                // Player::SetColor writes D3DTSS_CONSTANT. reflMapp.fx uses
+                // that value only to fill transparent body-texture texels;
+                // it does not multiply the complete car material.
+                state.mappingColor[0] = (*tint)[0];
+                state.mappingColor[1] = (*tint)[1];
+                state.mappingColor[2] = (*tint)[2];
+                state.color[3] *= (*tint)[3];
+            }
+            else if (tint != nullptr)
             {
                 state.color[0] *= (*tint)[0];
                 state.color[1] *= (*tint)[1];
@@ -1319,6 +1384,7 @@ void drawGroups(GraphicsDevice& device,
                 state.color[3] *= (*tint)[3];
             }
             state.color[3] *= opacity;
+            state.mappingColor[3] = textureDiffuseScale;
             state.alphaReference = material.alphaReference;
             state.emissive = material.emissive;
             state.specular = material.specular;
@@ -1347,6 +1413,14 @@ void drawGroups(GraphicsDevice& device,
             {
                 state.postParameters[0] =
                     material.reflectionTextureCoordinates ? 1.0F : 0.0F;
+            }
+            if (lighting == r3d::game::originalrace::
+                                LightingMode::PlanarReflection)
+            {
+                state.reflectionTextureFilter =
+                    MaterialState::TextureFilter::Linear;
+                state.reflectionTextureAddress =
+                    MaterialState::TextureAddress::Mirror;
             }
             state.receivesShadow =
                 !isBlended(material.blend) &&
@@ -2074,6 +2148,8 @@ bool OriginalRaceRenderer::initialize(
                     definition) {
                 asset.planarReflection = definition.planarReflection;
                 asset.castsShadow = definition.castsShadow;
+                asset.graphVector1 = definition.graphVector1;
+                asset.graphVector3 = definition.graphVector3;
                 asset.lighting = definition.lighting;
                 loadObject(asset, definition.visualNodes);
                 loadParticleTextures(
@@ -2672,6 +2748,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     activeCameraFarDistance_ = 120.0F;
     perspectiveFarDistance_ = 120.0F;
     activeEnvironmentQuality_ = 2U;
+    activeLightQuality_ = 2U;
     sunShaftResourcesEnabled_ = false;
 }
 
@@ -3278,6 +3355,7 @@ void OriginalRaceRenderer::draw(
         const r3d::game::originalrace::VisualNode* node = nullptr;
         Transform model;
         float reflectionStrength = 0.0F;
+        float textureDiffuseScale = 1.0F;
         r3d::game::originalrace::LightingMode lighting =
             r3d::game::originalrace::LightingMode::Standard;
         float distanceSquared = 0.0F;
@@ -3302,6 +3380,8 @@ void OriginalRaceRenderer::draw(
             objectAnimationSeconds >= 0.0F
                 ? objectAnimationSeconds
                 : elapsedSeconds;
+        const float textureDiffuseScale = sourceTextureDiffuseScale(
+            asset, parent, sceneLighting.lightDirection);
         const std::size_t count = std::min(asset.nodes.size(), nodes.size());
         for (std::size_t index = 0; index < count; ++index)
         {
@@ -3310,15 +3390,17 @@ void OriginalRaceRenderer::draw(
             {
                 continue;
             }
-            const auto nodeLighting =
+            const auto sourceNodeLighting =
                 nodes[index].overridesLighting
                     ? nodes[index].lighting
                     : asset.lighting;
             const bool nodeIsRefraction =
-                nodeLighting ==
+                sourceNodeLighting ==
                 r3d::game::originalrace::LightingMode::Refraction;
             if (nodeIsRefraction != refractionPass)
                 continue;
+            const auto nodeLighting = lightingForQuality(
+                sourceNodeLighting, activeLightQuality_);
             const auto nodeGraphOrder =
                 nodes[index].overridesGraphOrder
                     ? nodes[index].graphOrder
@@ -3340,11 +3422,10 @@ void OriginalRaceRenderer::draw(
                     nodes[index].fixedDirection ? &fixed : nullptr);
             }
             const float reflectionStrength =
-                (asset.planarReflection ||
-                 nodeLighting == r3d::game::originalrace::
-                                     LightingMode::PlanarReflection) &&
+                nodeLighting == r3d::game::originalrace::
+                                    LightingMode::PlanarReflection &&
                         !reflectionPass
-                    ? 0.58F
+                    ? 0.4F
                     : 0.0F;
             const bool deferredActor =
                 cullOpacityActor ||
@@ -3355,7 +3436,8 @@ void OriginalRaceRenderer::draw(
                 drawGroups(device, asset.nodes[index], shader, model,
                            pipeline, animationSeconds, reflectionStrength,
                            nodeLighting, DrawLayer::Opaque,
-                           &nodes[index], 1.0F, tint);
+                           &nodes[index], 1.0F, tint, 0.0F,
+                           textureDiffuseScale);
             }
             if (deferredActor ||
                 std::any_of(
@@ -3373,7 +3455,7 @@ void OriginalRaceRenderer::draw(
                     model.matrix[14] - cameraPosition_.z;
                 deferredVisuals.push_back(
                     {&asset.nodes[index], &nodes[index], model,
-                     reflectionStrength, nodeLighting,
+                     reflectionStrength, textureDiffuseScale, nodeLighting,
                      dx * dx + dy * dy + dz * dz, opacity,
                      renderStage(nodeGraphOrder, cullOpacityActor),
                      deferredActor ? DrawLayer::All
@@ -3968,7 +4050,10 @@ void OriginalRaceRenderer::draw(
                                     device, (*nodeAssets)[node], shader,
                                     transform(nodeWorld),
                                     particlePipeline, particleAge, 0.0F,
-                                    asset.lighting, DrawLayer::All,
+                                    lightingForQuality(
+                                        asset.lighting,
+                                        activeLightQuality_),
+                                    DrawLayer::All,
                                     &emitter.nodeVisuals[node], opacity);
                             }
                             continue;
@@ -4447,7 +4532,9 @@ void OriginalRaceRenderer::draw(
                     device, animatedAsset.nodes[index], shader,
                     transform(compose(state.body, node.transform)),
                     pipeline, elapsedSeconds, 0.0F,
-                    animatedAsset.lighting, DrawLayer::All, &node,
+                    lightingForQuality(animatedAsset.lighting,
+                                       activeLightQuality_),
+                    DrawLayer::All, &node,
                     1.0F, &race.racers[racer].color,
                     sourceTextureOffset);
             }
@@ -4485,7 +4572,9 @@ void OriginalRaceRenderer::draw(
                 drawGroups(
                     device, animatedAsset.nodes[index], shader,
                     transform(compose(state.body, local)), pipeline,
-                    elapsedSeconds, 0.0F, animatedAsset.lighting,
+                    elapsedSeconds, 0.0F,
+                    lightingForQuality(animatedAsset.lighting,
+                                       activeLightQuality_),
                     DrawLayer::All, &node, 1.0F,
                     &race.racers[racer].color);
             }
@@ -5168,7 +5257,8 @@ void OriginalRaceRenderer::draw(
                        deferred.reflectionStrength,
                        deferred.lighting, deferred.layer,
                        deferred.node, deferred.opacity,
-                       deferred.hasTint ? &deferred.tint : nullptr);
+                       deferred.hasTint ? &deferred.tint : nullptr,
+                       0.0F, deferred.textureDiffuseScale);
         }
         for (const auto& deferred : deferredParticles)
         {
@@ -5725,6 +5815,7 @@ void OriginalRaceRenderer::renderFrame(
 
     device.resetRenderTelemetry();
     activeEnvironmentQuality_ = std::min(quality.environment, 2U);
+    activeLightQuality_ = std::min(quality.light, 2U);
     // Environment.cpp maps the three original quality levels to graph
     // options.  Keep those thresholds here instead of silently rendering the
     // high-quality graph for every profile.
@@ -5886,7 +5977,9 @@ void OriginalRaceRenderer::renderFrame(
     {
         RenderPassState reflectionState;
         reflectionState.environmentTexture =
-            environmentReflectionTarget_.texture;
+            trueReflectionsEnabled
+                ? environmentReflectionTarget_.texture
+                : skyTexture_;
         reflectionState.clipPlane = {
             0.0F, 0.0F, 1.0F, -race.environment.surfaceHeight};
         reflectionState.clipPlaneEnabled = true;
@@ -5903,10 +5996,12 @@ void OriginalRaceRenderer::renderFrame(
     }
 
     RenderPassState sceneState;
-    if (trueReflectionsEnabled)
+    if (activeLightQuality_ >= 1U)
     {
         sceneState.environmentTexture =
-            environmentReflectionTarget_.texture;
+            trueReflectionsEnabled
+                ? environmentReflectionTarget_.texture
+                : skyTexture_;
     }
     if (hasReflection)
     {

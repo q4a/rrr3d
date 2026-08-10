@@ -37,6 +37,8 @@ public:
         std::vector<std::vector<Asset>> particleNodes;
         bool planarReflection = false;
         bool castsShadow = false;
+        r3d::physics::Vec3 graphVector1;
+        r3d::physics::Vec3 graphVector3;
         r3d::game::originalrace::LightingMode lighting =
             r3d::game::originalrace::LightingMode::Standard;
     };
@@ -241,6 +243,7 @@ private:
     float perspectiveFarDistance_ = 120.0F;
     float activeCameraFarDistance_ = 120.0F;
     std::uint32_t activeEnvironmentQuality_ = 2U;
+    std::uint32_t activeLightQuality_ = 2U;
     // FxPointSpritesManager multiplies the particle scale length by 0.75
     // for the orthographic camera and by 0.25 for perspective cameras.
     float pointSpriteScale_ = 0.25F;

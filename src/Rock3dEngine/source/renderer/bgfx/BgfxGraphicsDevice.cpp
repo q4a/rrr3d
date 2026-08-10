@@ -98,6 +98,8 @@ public:
                 bgfx::destroy(scene_camera_);
             if (bgfx::isValid(material_color_))
                 bgfx::destroy(material_color_);
+            if (bgfx::isValid(material_mapping_color_))
+                bgfx::destroy(material_mapping_color_);
             if (bgfx::isValid(material_parameters_))
                 bgfx::destroy(material_parameters_);
             if (bgfx::isValid(material_options_))
@@ -213,6 +215,8 @@ public:
             "u_sceneCamera", bgfx::UniformType::Vec4);
         material_color_ = bgfx::createUniform(
             "u_materialColor", bgfx::UniformType::Vec4);
+        material_mapping_color_ = bgfx::createUniform(
+            "u_materialMappingColor", bgfx::UniformType::Vec4);
         material_parameters_ = bgfx::createUniform(
             "u_materialParams", bgfx::UniformType::Vec4);
         material_options_ = bgfx::createUniform(
@@ -247,6 +251,7 @@ public:
             !bgfx::isValid(scene_fog_) ||
             !bgfx::isValid(scene_camera_) ||
             !bgfx::isValid(material_color_) ||
+            !bgfx::isValid(material_mapping_color_) ||
             !bgfx::isValid(material_parameters_) ||
             !bgfx::isValid(material_options_) ||
             !bgfx::isValid(texture_transform_) ||
@@ -946,6 +951,8 @@ private:
                 : 0.0F,
             pass_state_.clipPlaneEnabled ? 1.0F : 0.0F};
         bgfx::setUniform(material_color_, material.color.data());
+        bgfx::setUniform(material_mapping_color_,
+                         material.mappingColor.data());
         bgfx::setUniform(material_parameters_,
                          materialParameters.data());
         bgfx::setUniform(material_options_, materialOptions.data());
@@ -1029,6 +1036,7 @@ private:
     bgfx::UniformHandle scene_fog_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle scene_camera_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle material_color_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle material_mapping_color_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle material_parameters_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle material_options_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle texture_transform_ = BGFX_INVALID_HANDLE;

@@ -108,6 +108,20 @@ Vec3 vector3(TiXmlElement* parent, std::string_view path,
     return result;
 }
 
+std::array<float, 4> vector4(TiXmlElement* parent,
+                            std::string_view path,
+                            std::string_view source)
+{
+    const std::string value = text(parent, path, source);
+    std::istringstream stream(value);
+    std::array<float, 4> result{};
+    if (!(stream >> result[0] >> result[1] >> result[2] >> result[3]) ||
+        (stream >> std::ws && !stream.eof()))
+        throw resource::ResourceError(std::string(source) + ": invalid " +
+                                      std::string(path));
+    return result;
+}
+
 std::array<float, 2> vector2(TiXmlElement* parent, std::string_view path,
                             std::string_view source)
 {
@@ -2154,6 +2168,16 @@ ObjectDefinition objectDefinition(
             graphProperties.find("gpShadowCast") != std::string_view::npos;
         result.cullOpacity =
             graphProperties.find("gpCullOpacity") != std::string_view::npos;
+    }
+    if (child(dbRecord, "grActor/vec1") != nullptr)
+    {
+        const auto value = vector4(dbRecord, "grActor/vec1", source);
+        result.graphVector1 = {value[0], value[1], value[2]};
+    }
+    if (child(dbRecord, "grActor/vec3") != nullptr)
+    {
+        const auto value = vector4(dbRecord, "grActor/vec3", source);
+        result.graphVector3 = {value[0], value[1], value[2]};
     }
     if (auto* order = child(dbRecord, "grActor/graphOrder");
         order != nullptr && order->GetText() != nullptr)
@@ -5915,16 +5939,30 @@ bool runOriginalRaceResourceSmokeTest(
                  0.3F) &&
             race.wheelTrailEffect.particleEmitters.front()
                 .trailFixedUpEnabled;
+        const auto slopedTrack = std::find_if(
+            race.trackDefinitions.begin(), race.trackDefinitions.end(),
+            [&](const ObjectDefinition& definition) {
+                return recordEndsWith(definition.record,
+                                      "World1\\tramp2");
+            });
+        const bool actorLightingVectorsMatchSource =
+            slopedTrack != race.trackDefinitions.end() &&
+            slopedTrack->lighting == LightingMode::Pixel &&
+            near(slopedTrack->graphVector1.x, -0.258819F) &&
+            near(slopedTrack->graphVector1.z, 0.965926F) &&
+            near(slopedTrack->graphVector3.y, -0.15F) &&
+            near(slopedTrack->graphVector3.z, 0.075F);
         if (!trackMatchesSource(guseniza) ||
             !trackMatchesSource(gusenizaBoss) ||
             !cushionMatchesSource(podushka) ||
             !cushionMatchesSource(podushkaBoss) ||
             !motorRangesMatchSource || !smokeMatchesSource ||
-            !trailMatchesSource)
+            !trailMatchesSource || !actorLightingVectorsMatchSource)
         {
             error =
                 "source GusenizaAnim/PodushkaAnim/SoundMotor/"
-                "PxWheelSlipEffect/FxTrailManager provenance mismatch";
+                "PxWheelSlipEffect/FxTrailManager/GraphManager texDiffK "
+                "provenance mismatch";
             return false;
         }
         if (race.levelPath != "Data/Map/World1/map1.r3dMap" ||

@@ -18,6 +18,8 @@ uniform vec4 u_sceneAmbient;
 uniform vec4 u_sceneFog;
 uniform vec4 u_sceneCamera;
 uniform vec4 u_materialColor;
+// rgb = ReflMappShader::alphaBlendColor, w = LightShader::texDiffK.
+uniform vec4 u_materialMappingColor;
 // x = alpha reference, y = emissive mix, z = specular strength,
 // w = specular exponent. This is the portable form of LibMaterial state.
 uniform vec4 u_materialParams;
@@ -51,16 +53,52 @@ void main()
     }
     vec3 lightDirection = normalize(u_sceneLightDirection.xyz);
     float directionalEnabled = u_sceneLightDirection.w;
-    float diffuse =
+    float directionalDiffuse =
         max(dot(normal, lightDirection), 0.0) *
-        directionalEnabled;
-    vec3 lighting = u_sceneAmbient.rgb;
-    vec4 albedo = texture2D(s_texColor, v_texcoord0) * u_materialColor;
+        directionalEnabled * 0.6;
+    // Environment::EnableSun explicitly assigns clrGray60 to both ambient
+    // and diffuse; the global scene ambient remains an independent term.
+    vec3 lighting =
+        u_sceneAmbient.rgb + vec3_splat(directionalEnabled * 0.6);
+    vec4 textureColor = texture2D(s_texColor, v_texcoord0);
+    vec3 mappedColor = textureColor.rgb;
+    vec3 viewDirection =
+        normalize(u_sceneCamera.xyz - v_worldPosition);
+    if (abs(mappingMode - 3.0) < 0.5)
+    {
+        // reflMapp.fx fills transparent texels with the player texture-stage
+        // constant, reserves 40% for the cube, then lights the combined
+        // color.  model.fx reflects viewPos-worldPos without negating it.
+        vec3 diffuseColor =
+            textureColor.rgb * textureColor.a +
+            u_materialMappingColor.rgb * (1.0 - textureColor.a);
+        vec3 reflected = textureCube(
+            s_texEnvironment,
+            reflect(viewDirection, normal)).rgb;
+        mappedColor = diffuseColor * 0.6 + reflected * 0.4;
+    }
+    if (abs(mappingMode - 6.0) < 0.5 &&
+        u_materialOptions.y > 0.0 &&
+        v_reflectionPosition.w > 0.0001)
+    {
+        vec3 reflectionNdc =
+            v_reflectionPosition.xyz / v_reflectionPosition.w;
+        vec2 reflectionUv =
+            reflectionNdc.xy * vec2(0.5, -0.5) +
+            vec2(0.5, 0.5);
+        // planarReflMapp.fx uses MIRROR addressing and reflection alpha;
+        // sampling outside [0,1] is therefore intentional.
+        vec4 reflected = texture2D(s_texReflection, reflectionUv);
+        float reflection =
+            clamp(u_materialOptions.y * reflected.a, 0.0, 1.0);
+        mappedColor = mix(mappedColor, reflected.rgb, reflection);
+    }
+    vec4 albedo = vec4(
+        mappedColor * u_materialColor.rgb,
+        textureColor.a * u_materialColor.a);
     if (u_materialParams.x > 0.0 &&
         albedo.a <= u_materialParams.x)
         discard;
-    vec3 viewDirection =
-        normalize(u_sceneCamera.xyz - v_worldPosition);
     if (u_postParams.x > 0.5)
     {
         // Bonus\\maslo's second fixed-function stage uses
@@ -93,7 +131,7 @@ void main()
         float distanceToLamp = length(fromLamp);
         float range = u_sceneLampPositions[lamp].w;
         if (enabled > 0.5 && distanceToLamp > 0.0001 &&
-            distanceToLamp < range)
+            range > 0.0001)
         {
             vec3 lampRay = fromLamp / distanceToLamp;
             vec3 lampDirection =
@@ -101,10 +139,21 @@ void main()
             float coneCosine = dot(lampDirection, lampRay);
             float outerCosine = u_sceneLampCones[lamp].x;
             float innerCosine = u_sceneLampCones[lamp].y;
-            float spot = clamp(
-                (coneCosine - outerCosine) /
-                    max(innerCosine - outerCosine, 0.0001),
-                0.0, 1.0);
+            float spot = 0.0;
+            if (coneCosine >= outerCosine)
+            {
+                // lighting.fx ComputeSpot: falloff is 1 for every source
+                // lamp.  spotK is deliberately not saturated, and farAtt
+                // fades from range to range * (1 + spotK).
+                float spotK =
+                    (coneCosine - outerCosine) /
+                    max(innerCosine - outerCosine, 0.0001);
+                float farAtt = 1.0 - clamp(
+                    (distanceToLamp - range) /
+                        max(range * spotK, 0.0001),
+                    0.0, 1.0);
+                spot = spotK * farAtt;
+            }
             vec3 toLamp = -lampRay;
             float lampDiffuse =
                 max(dot(normal, toLamp), 0.0) * spot;
@@ -222,9 +271,6 @@ void main()
                 pow(max(dot(normal, lampHalf), 0.0),
                     max(u_materialParams.w, 1.0)) *
                 u_materialParams.z * spot *
-                max(max(u_sceneLampColors[lamp].r,
-                        u_sceneLampColors[lamp].g),
-                    u_sceneLampColors[lamp].b) *
                 lampShadowFactor;
         }
     }
@@ -284,48 +330,18 @@ void main()
     }
     // lighting.fx applies the shadow texture to this light's diffuse and
     // specular terms, never to global ambient or to other lights.
-    lighting += vec3_splat(diffuse * 0.82 * shadowFactor);
+    lighting += vec3_splat(directionalDiffuse * shadowFactor);
     specular += directionalSpecular * shadowFactor;
     vec3 lit =
         mappingMode < 0.5
             ? albedo.rgb
-            : albedo.rgb * lighting + vec3_splat(specular);
-    if (abs(mappingMode - 3.0) < 0.5)
-    {
-        vec3 reflected = textureCube(
-            s_texEnvironment,
-            reflect(-viewDirection, normal)).rgb;
-        lit = mix(lit, reflected, 0.4);
-    }
-    else if (abs(mappingMode - 5.0) < 0.5)
-    {
-        float fresnel =
-            clamp(1.0 - dot(viewDirection, normal), 0.0, 1.0);
-        lit = mix(lit, u_sceneFog.rgb, 0.22 * fresnel);
-    }
-    if (u_materialOptions.y > 0.0 &&
-        v_reflectionPosition.w > 0.0001)
-    {
-        vec3 reflectionNdc =
-            v_reflectionPosition.xyz / v_reflectionPosition.w;
-        vec2 reflectionUv =
-            reflectionNdc.xy * vec2(0.5, -0.5) +
-            vec2(0.5, 0.5);
-        if (reflectionUv.x >= 0.0 && reflectionUv.x <= 1.0 &&
-            reflectionUv.y >= 0.0 && reflectionUv.y <= 1.0)
-        {
-            vec3 reflected =
-                texture2D(s_texReflection, reflectionUv).rgb;
-            lit = mix(lit, reflected,
-                      clamp(u_materialOptions.y, 0.0, 0.72));
-        }
-    }
+            : albedo.rgb * u_materialMappingColor.w * lighting +
+                  vec3_splat(specular);
     lit = mix(lit, albedo.rgb, clamp(u_materialParams.y, 0.0, 1.0));
-    float distanceToCamera = length(v_worldPosition - u_sceneCamera.xyz);
     float fogFar = max(u_sceneCamera.w, 1.0);
     float fogStart = fogFar * (1.0 - clamp(u_sceneFog.a, 0.0, 1.0));
     float fog = clamp(
-                    (distanceToCamera - fogStart) /
+                    (abs(v_linearDepth) - fogStart) /
                         max(fogFar - fogStart, 0.0001),
                     0.0, 1.0) *
                 (1.0 - clamp(u_materialOptions.x, 0.0, 1.0));

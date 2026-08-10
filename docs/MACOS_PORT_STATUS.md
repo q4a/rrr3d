@@ -1041,3 +1041,26 @@ video backend, включая Intaria transition, также подключен�
 game-side audio behaviors. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
 функциональных расхождений; он не является заменой переноса.
+
+### Source material mapping follow-up
+
+- `pixLight.fx`, `bumpMap.fx`, `reflMapp.fx` и
+  `planarReflMapp.fx` теперь сведены в Metal shader с исходным порядком
+  операций: reflection/planar color формируется до `CompSpotLight`,
+  reflectivity равна `0.4`, planar alpha участвует в коэффициенте, а
+  `model.fx` reflection vector сохраняет знак `viewPos - worldPos`.
+- `Player::SetColor` больше не умножает всю текстуру кузова: цвет передаётся
+  как независимый `D3DTSS_CONSTANT`/`alphaBlendColor` и заполняет только
+  прозрачную долю car texture, как в Windows.
+- Перенесены `IActor::vec1/vec3` и вычисление `GraphManager::BuildOctree`
+  `texDiffK` для наклонных track actors. Spotlight использует несжатый
+  `spotK` и исходное дальнее затухание после `range`; солнечные ambient и
+  diffuse равны `clrGray60`, specular остаётся белым.
+- Light quality снова управляет исходным графом: Low отключает pixel/refl/
+  bump/planar mapping, Middle оставляет pixel и static-sky reflection,
+  High включает bump, planar и true cube reflection.
+- arm64 Debug build, resource audit и physics smoke прошли. Последовательные
+  240-frame Metal smokes подтвердили World1 standard/reflection, World2
+  water/reflection и 768 normal-map submissions, World5 planar reflection,
+  а также World4 magma/volume-surface; во всех случаях сохранились четыре
+  wheel contacts, шесть машин и полный HDR/HUD render graph.
