@@ -98,6 +98,7 @@ struct Options
     bool raceRenderSmokeTest = false;
     bool finishMenuSmokeTest = false;
     bool gamersFrameSmokeTest = false;
+    bool startOptionsSmokeTest = false;
     std::uint32_t trackIndex = 0;
     bool trackSelected = false;
     std::string car;
@@ -386,6 +387,13 @@ std::optional<Options> parseOptions(int argc, char** argv)
             options.gamersFrameSmokeTest = true;
             if (options.smokeFrames == 0)
                 options.smokeFrames = 120;
+            continue;
+        }
+        if (argument == "--start-options-smoke-test")
+        {
+            options.startOptionsSmokeTest = true;
+            if (options.smokeFrames == 0)
+                options.smokeFrames = 90;
             continue;
         }
 #endif
@@ -901,7 +909,8 @@ int main(int argc, char** argv)
                      "[--weather=fair|night|cloudy|rainy|sahara|hell|snow] "
                      "[--physics-smoke-test] [--race-render-smoke-test] "
                      "[--finish-menu-smoke-test] "
-                     "[--gamers-frame-smoke-test]"
+                     "[--gamers-frame-smoke-test] "
+                     "[--start-options-smoke-test]"
 #endif
                      "\n";
         return EXIT_FAILURE;
@@ -946,6 +955,23 @@ int main(int argc, char** argv)
         profileState =
             r3d::game::originalrace::makeOriginalDefaultProfileState();
     }
+    // GameMode::LoadGameOpt does not treat pcIsometric as proof that the
+    // player selected a camera: an absent prefCamera field opens the
+    // mandatory StartOptionsMenu.  Other regression fixtures intentionally
+    // start at their target screen; the dedicated fixture forces this path.
+    bool sourcePreferredCameraAutodetect =
+        options->startOptionsSmokeTest ||
+        (options->smokeFrames == 0U &&
+         !profileState.preferredCameraSerialized);
+    // Metal on Apple Silicon is one capable unified GPU.  Report it through
+    // the source's "discrete" compatibility bit so CheckStartupMenu keeps
+    // sfrFixed without showing a misleading Windows hybrid-GPU warning.
+    constexpr bool sourceCurrentDiscreteVideoCard = true;
+    bool sourceDiscreteVideoChanged =
+        options->smokeFrames == 0U &&
+        (!profileState.discreteVideoCardSerialized ||
+         profileState.config.discreteVideoCard !=
+             sourceCurrentDiscreteVideoCard);
     if (options->languageSelected)
         profileState.config.language = options->language;
     else
@@ -1381,6 +1407,8 @@ int main(int argc, char** argv)
     }
     const auto optionsBackgroundImage = menu::loadOriginalImage(
         *resources, "Data/GUI/optionsBg.png");
+    const auto startOptionsBackgroundImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/startMenuBg.png");
     const auto optionsRowImage = menu::loadOriginalImage(
         *resources, "Data/GUI/labelBg1.png");
     const auto controlsRowImage = menu::loadOriginalImage(
@@ -1397,6 +1425,8 @@ int main(int argc, char** argv)
         *resources, "Data/GUI/buttonBg4.png");
     const auto optionsButtonSelectedImage = menu::loadOriginalImage(
         *resources, "Data/GUI/buttonBgSel4.png");
+    const auto startOptionsButtonImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/buttonBg5.png");
     const auto optionsKeyImage = menu::loadOriginalImage(
         *resources, "Data/GUI/keyBg.png");
     const auto optionsKeySelectedImage = menu::loadOriginalImage(
@@ -1407,6 +1437,8 @@ int main(int argc, char** argv)
         *resources, "Data/GUI/ctGamepad.png");
     const Texture optionsBackground =
         createImageTexture(*device, optionsBackgroundImage);
+    const Texture startOptionsBackground =
+        createImageTexture(*device, startOptionsBackgroundImage);
     const Texture optionsRow =
         createImageTexture(*device, optionsRowImage);
     const Texture controlsRow =
@@ -1423,6 +1455,8 @@ int main(int argc, char** argv)
         createImageTexture(*device, optionsButtonImage);
     const Texture optionsButtonSelected =
         createImageTexture(*device, optionsButtonSelectedImage);
+    const Texture startOptionsButton =
+        createImageTexture(*device, startOptionsButtonImage);
     const Texture optionsKey =
         createImageTexture(*device, optionsKeyImage);
     const Texture optionsKeySelected =
@@ -1850,6 +1884,10 @@ int main(int argc, char** argv)
     MenuPageVisual optionsHeaderPage;
     MenuPageVisual optionsStatePage;
     MenuPageVisual optionsActionPage;
+    MenuPageVisual startOptionsLabelPage;
+    MenuPageVisual startOptionsValuePage;
+    MenuPageVisual startOptionsActionPage;
+    std::vector<TextVisual> startOptionsInfoLines;
 #endif
     std::string resolvedFont;
     auto createPage = [&](std::vector<std::string> pageLabels) {
@@ -1955,6 +1993,52 @@ int main(int argc, char** argv)
             return first.first * first.second <
                    second.first * second.second;
         });
+    // Literal order from Data/game.xml, consumed by
+    // StartOptionsMenu::StartOptionsMenu.
+    constexpr std::array<std::string_view, 6> sourceLanguages{
+        "english", "russian", "portuguese", "french", "spain",
+        "german"};
+    constexpr std::array<std::string_view, 2> sourceCommentators{
+        "russian", "english"};
+    auto sourceListIndex = [](const auto& values,
+                              std::string_view selected) {
+        const auto found =
+            std::find(values.begin(), values.end(), selected);
+        return found == values.end()
+                   ? std::size_t{0}
+                   : static_cast<std::size_t>(
+                         found - values.begin());
+    };
+    std::size_t startOptionsCameraIndex = 2U;
+    std::size_t startOptionsResolutionIndex =
+        static_cast<std::size_t>(std::distance(
+            originalDisplayModes.begin(),
+            std::find(
+                originalDisplayModes.begin(),
+                originalDisplayModes.end(), configuredDisplayMode)));
+    if (startOptionsResolutionIndex >= originalDisplayModes.size())
+        startOptionsResolutionIndex = 0U;
+    std::size_t startOptionsLanguageIndex = sourceListIndex(
+        sourceLanguages, optionsDraftConfig.language);
+    std::size_t startOptionsCommentatorIndex = sourceListIndex(
+        sourceCommentators, optionsDraftConfig.commentatorStyle);
+    std::size_t startOptionsFocus = 0U;
+    bool startOptionsApplyEnabled = false;
+    auto startOptionsValues = [&]() {
+        const auto& resolution =
+            originalDisplayModes[startOptionsResolutionIndex];
+        return std::vector<std::string>{
+            startOptionsCameraIndex == 0U
+                ? localized("svCameraSecView")
+                : startOptionsCameraIndex == 1U
+                      ? localized("svCameraOrtho")
+                      : localized("svSelectItem"),
+            std::to_string(resolution.first) + " x " +
+                std::to_string(resolution.second),
+            std::string(sourceLanguages[startOptionsLanguageIndex]),
+            std::string(
+                sourceCommentators[startOptionsCommentatorIndex])};
+    };
     auto onOff = [&](bool value) {
         return localized(value ? "svOn" : "svOff");
     };
@@ -2300,6 +2384,51 @@ int main(int argc, char** argv)
         optionsActionPage = createStyledPage(
             labels({"svBack", "svApply"}), menu::headerFontHeight,
             optionsTextColor, menu::selectedTextColor);
+        startOptionsLabelPage = createStyledPage(
+            labels(
+                {"svCamera", "svResolution", "svLanguage",
+                 "svCommentator"}),
+            menu::smallFontHeight, optionsTextColor,
+            menu::selectedTextColor);
+        startOptionsValuePage = createStyledPage(
+            startOptionsValues(), menu::smallFontHeight,
+            optionsTextColor, menu::selectedTextColor);
+        startOptionsActionPage = createStyledPage(
+            labels({"svApply"}), menu::headerFontHeight,
+            optionsTextColor, menu::selectedTextColor);
+        {
+            std::istringstream words(
+                localized("svStartOptionsInfo"));
+            std::string word;
+            std::string line;
+            std::vector<std::string> wrapped;
+            while (words >> word)
+            {
+                const std::string candidate =
+                    line.empty() ? word : line + " " + word;
+                const auto measured = rrr3d::macos::rasterizeText(
+                    candidate, menu::fontFace,
+                    menu::smallFontHeight, false,
+                    optionsTextColor);
+                if (!line.empty() && measured.width > 750U)
+                {
+                    wrapped.push_back(line);
+                    line = word;
+                }
+                else
+                {
+                    line = candidate;
+                }
+            }
+            if (!line.empty())
+                wrapped.push_back(line);
+            for (const auto& infoLine : wrapped)
+            {
+                startOptionsInfoLines.push_back(createText(
+                    *device, infoLine, menu::smallFontHeight,
+                    false, optionsTextColor, resolvedFont));
+            }
+        }
 #endif
     }
     catch (const std::exception& exception)
@@ -2552,6 +2681,16 @@ int main(int argc, char** argv)
         pageValid(optionsHeaderPage) &&
         pageValid(optionsStatePage) &&
         pageValid(optionsActionPage) &&
+        pageValid(startOptionsLabelPage) &&
+        pageValid(startOptionsValuePage) &&
+        pageValid(startOptionsActionPage) &&
+        !startOptionsInfoLines.empty() &&
+        std::all_of(
+            startOptionsInfoLines.begin(),
+            startOptionsInfoLines.end(),
+            [](const TextVisual& line) {
+                return valid(line.texture);
+            }) &&
         valid(finishLeftFrame) && valid(finishRightFrame) &&
         valid(finishLineFrame) &&
         std::all_of(
@@ -2572,7 +2711,8 @@ int main(int argc, char** argv)
         std::all_of(
             gamersBossTextures.begin(), gamersBossTextures.end(),
             [](Texture texture) { return valid(texture); }) &&
-        valid(optionsBackground) && valid(optionsRow) &&
+        valid(optionsBackground) && valid(startOptionsBackground) &&
+        valid(startOptionsButton) && valid(optionsRow) &&
         valid(controlsRow) && valid(optionsArrow) &&
         valid(optionsArrowSelected) &&
         valid(optionsBarBackground) && valid(optionsBar) &&
@@ -2673,6 +2813,11 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_PHYSICS
         clearFinishRows();
+        for (const auto& line : startOptionsInfoLines)
+            device->destroy(line.texture);
+        destroyPage(startOptionsActionPage);
+        destroyPage(startOptionsValuePage);
+        destroyPage(startOptionsLabelPage);
         destroyPage(raceMainStatsPage);
         device->destroy(finishPointsTitle.texture);
         device->destroy(finishMoneyTitle.texture);
@@ -2807,12 +2952,14 @@ int main(int argc, char** argv)
         device->destroy(optionsKey);
         device->destroy(optionsButtonSelected);
         device->destroy(optionsButton);
+        device->destroy(startOptionsButton);
         device->destroy(optionsBar);
         device->destroy(optionsBarBackground);
         device->destroy(optionsArrowSelected);
         device->destroy(optionsArrow);
         device->destroy(controlsRow);
         device->destroy(optionsRow);
+        device->destroy(startOptionsBackground);
         device->destroy(optionsBackground);
         device->destroy(acceptButtonSelected);
         device->destroy(acceptButton);
@@ -3528,6 +3675,28 @@ int main(int argc, char** argv)
     bool startupMenuTransitionObserved = !options->startupSmokeTest;
     bool startupEscapeQueued = false;
     bool startupEscapeObserved = !options->startupSmokeTest;
+#ifdef RRR3D_PHYSICS
+    bool sourceStartOptionsActive =
+        !sourceStartupRequested && sourcePreferredCameraAutodetect;
+    if (sourceStartOptionsActive)
+        sourcePreferredCameraAutodetect = false;
+    const auto startOptionsConfigBefore = profileState.config;
+    bool startOptionsFrameObserved =
+        !options->startOptionsSmokeTest;
+    bool startOptionsSelectGateObserved =
+        !options->startOptionsSmokeTest;
+    bool startOptionsAllRowsObserved =
+        !options->startOptionsSmokeTest;
+    bool startOptionsCameraAppliedObserved =
+        !options->startOptionsSmokeTest;
+    bool startOptionsSavedObserved =
+        !options->startOptionsSmokeTest;
+    bool startOptionsMainTransitionObserved =
+        !options->startOptionsSmokeTest;
+    bool startOptionsReloadDialogPending = false;
+    std::uint32_t startOptionsSmokeStep = 0U;
+    std::uint32_t startOptionsSmokeNextFrame = 1U;
+#endif
     enum class MenuScreen
     {
         Main,
@@ -6197,6 +6366,199 @@ int main(int argc, char** argv)
             return 0U;
         }
     };
+    auto refreshStartOptionsValues = [&]() {
+        auto replacement = createStyledPage(
+            startOptionsValues(), menu::smallFontHeight,
+            optionsTextColor, menu::selectedTextColor);
+        destroyPage(startOptionsValuePage);
+        startOptionsValuePage = std::move(replacement);
+    };
+    auto cycleStartOptionsIndex = [](std::size_t index,
+                                     std::size_t count,
+                                     int direction) {
+        if (count == 0U)
+            return std::size_t{0};
+        if (direction < 0)
+            return index == 0U ? count - 1U : index - 1U;
+        return (index + 1U) % count;
+    };
+    auto adjustStartOption = [&](int direction) {
+#ifdef RRR3D_AUDIO
+        playOriginalMenuSound(
+            rrr3d::audio::OriginalMenuSound::ChangeOption);
+#endif
+        switch (startOptionsFocus)
+        {
+        case 0U:
+            // StartOptionsMenu::OnSelect always resolves the initial
+            // cPrefCameraEnd/"Select" sentinel to pcIsometric.  Subsequent
+            // arrow presses loop between the two real values.
+            if (startOptionsCameraIndex >= 2U)
+                startOptionsCameraIndex = 1U;
+            else
+                startOptionsCameraIndex = cycleStartOptionsIndex(
+                    startOptionsCameraIndex, 2U, direction);
+            startOptionsApplyEnabled = true;
+            break;
+        case 1U:
+            startOptionsResolutionIndex = cycleStartOptionsIndex(
+                startOptionsResolutionIndex,
+                originalDisplayModes.size(), direction);
+            break;
+        case 2U:
+            startOptionsLanguageIndex = cycleStartOptionsIndex(
+                startOptionsLanguageIndex,
+                sourceLanguages.size(), direction);
+            break;
+        case 3U:
+            startOptionsCommentatorIndex = cycleStartOptionsIndex(
+                startOptionsCommentatorIndex,
+                sourceCommentators.size(), direction);
+            break;
+        default:
+            return;
+        }
+        refreshStartOptionsValues();
+    };
+    auto finishStartOptions = [&]() {
+        sourceStartOptionsActive = false;
+        startOptionsReloadDialogPending = false;
+        startOptionsMainTransitionObserved = true;
+        if (sourceDiscreteVideoChanged)
+        {
+            // CheckStartupMenu's Apple-Silicon branch: a capable current GPU
+            // retains the original fixed-frame scheduling mode.
+            profileState.config.quality.frameRateMode = "sfrFixed";
+            sourceDiscreteVideoChanged = false;
+        }
+        const auto& resolution =
+            originalDisplayModes[startOptionsResolutionIndex];
+        std::cout
+            << "Original StartOptionsMenu -> MainMenu2: camera="
+            << (startOptionsCameraIndex == 0U
+                    ? "pcThirdPerson"
+                    : "pcIsometric")
+            << ", resolution=" << resolution.first << 'x'
+            << resolution.second << ", language="
+            << sourceLanguages[startOptionsLanguageIndex]
+            << ", commentator="
+            << sourceCommentators[startOptionsCommentatorIndex]
+            << '\n';
+    };
+    auto applyStartOptions = [&]() {
+        if (!startOptionsApplyEnabled ||
+            startOptionsCameraIndex >= 2U)
+        {
+            return;
+        }
+        const auto previous = profileState.config;
+        const auto& resolution =
+            originalDisplayModes[startOptionsResolutionIndex];
+        profileState.config.preferredCamera =
+            startOptionsCameraIndex == 0U
+                ? r3d::game::originalrace::
+                      PreferredCamera::ThirdPerson
+                : r3d::game::originalrace::
+                      PreferredCamera::Isometric;
+        profileState.config.resolutionWidth = resolution.first;
+        profileState.config.resolutionHeight = resolution.second;
+        profileState.config.language =
+            sourceLanguages[startOptionsLanguageIndex];
+        profileState.config.commentatorStyle =
+            sourceCommentators[startOptionsCommentatorIndex];
+        profileState.config.discreteVideoCard =
+            sourceCurrentDiscreteVideoCard;
+        profileState.preferredCameraSerialized = true;
+        profileState.discreteVideoCardSerialized = true;
+        raceRenderer.resetCamera();
+        if (!profileState.config.fullScreen &&
+            (profileState.config.resolutionWidth !=
+                 previous.resolutionWidth ||
+             profileState.config.resolutionHeight !=
+                 previous.resolutionHeight))
+        {
+            SDL_SetWindowSize(
+                window,
+                static_cast<int>(
+                    profileState.config.resolutionWidth),
+                static_cast<int>(
+                    profileState.config.resolutionHeight));
+        }
+#ifdef RRR3D_AUDIO
+        if (profileState.config.commentatorStyle !=
+            previous.commentatorStyle)
+        {
+            commentator.shutdown();
+            if (!commentator.initialize(
+                    profileState.config.commentatorStyle,
+                    audioError))
+            {
+                std::cerr
+                    << "Unable to apply StartOptionsMenu commentator: "
+                    << audioError << '\n';
+            }
+        }
+#endif
+        startOptionsCameraAppliedObserved =
+            profileState.config.preferredCamera ==
+            r3d::game::originalrace::PreferredCamera::Isometric;
+        if (options->startOptionsSmokeTest)
+        {
+            const auto smokeDirectory =
+                std::filesystem::temp_directory_path() /
+                ("rrr3d-start-options-smoke-" +
+                 std::to_string(reinterpret_cast<std::uintptr_t>(
+                     &profileState)));
+            std::error_code fileError;
+            std::filesystem::remove_all(smokeDirectory, fileError);
+            r3d::game::originalrace::OriginalProfileStore smokeStore(
+                smokeDirectory);
+            std::string smokeError;
+            if (smokeStore.save(profileState, smokeError))
+            {
+                std::string smokeWarning;
+                const auto reloaded = smokeStore.load(smokeWarning);
+                startOptionsSavedObserved =
+                    smokeWarning.empty() &&
+                    reloaded.preferredCameraSerialized &&
+                    reloaded.discreteVideoCardSerialized &&
+                    reloaded.config.preferredCamera ==
+                        profileState.config.preferredCamera;
+            }
+            else
+            {
+                std::cerr
+                    << "StartOptionsMenu smoke save failed: "
+                    << smokeError << '\n';
+            }
+            std::filesystem::remove_all(smokeDirectory, fileError);
+            profileState.config = startOptionsConfigBefore;
+            profileState.preferredCameraSerialized = true;
+            profileState.discreteVideoCardSerialized = true;
+        }
+        else
+        {
+            saveRaceProfile();
+            startOptionsSavedObserved = true;
+        }
+        if (!options->startOptionsSmokeTest &&
+            profileState.config.language != previous.language)
+        {
+            // StartOptionsMenu::OnClick keeps the modal frame alive until
+            // the original reload warning is acknowledged.
+            showInfoDialog(
+                localized("svWarning"),
+                localized("svHintNeedReload"),
+                localized("svOk"),
+                menu::virtualWidth * 0.5F,
+                menu::virtualHeight * 0.5F);
+            startOptionsReloadDialogPending = true;
+        }
+        else
+        {
+            finishStartOptions();
+        }
+    };
     auto setOptionsState = [&](std::size_t state) {
         menuStack.back() =
             std::array{
@@ -6900,6 +7262,37 @@ int main(int argc, char** argv)
     while (running)
     {
 #if defined(RRR3D_PHYSICS) && defined(RRR3D_GAMEPAD_INPUT)
+        if (options->startOptionsSmokeTest &&
+            sourceStartOptionsActive &&
+            startOptionsSmokeStep < 6U &&
+            renderedFrames >= startOptionsSmokeNextFrame)
+        {
+            constexpr std::array<SDL_Scancode, 6>
+                startOptionsSmokeKeys{
+                    SDL_SCANCODE_RIGHT,
+                    SDL_SCANCODE_DOWN, SDL_SCANCODE_DOWN,
+                    SDL_SCANCODE_DOWN, SDL_SCANCODE_DOWN,
+                    SDL_SCANCODE_RETURN};
+            SDL_Event press{};
+            press.key.type = SDL_EVENT_KEY_DOWN;
+            press.key.down = true;
+            press.key.scancode =
+                startOptionsSmokeKeys[startOptionsSmokeStep];
+            SDL_Event release = press;
+            release.key.type = SDL_EVENT_KEY_UP;
+            release.key.down = false;
+            if (!SDL_PushEvent(&press) ||
+                !SDL_PushEvent(&release))
+            {
+                std::cerr
+                    << "Unable to queue StartOptionsMenu smoke step "
+                    << startOptionsSmokeStep << ": "
+                    << SDL_GetError() << '\n';
+                runtimeSmokeFailed = true;
+            }
+            ++startOptionsSmokeStep;
+            startOptionsSmokeNextFrame = renderedFrames + 2U;
+        }
         if (options->gamersFrameSmokeTest && !inRace &&
             menuStack.back() == MenuScreen::Gamers &&
             gamersSmokeStep < 4U &&
@@ -7219,6 +7612,155 @@ int main(int argc, char** argv)
             }
 #ifdef RRR3D_GAMEPAD_INPUT
 #ifdef RRR3D_PHYSICS
+            if (sourceStartOptionsActive &&
+                event.type != SDL_EVENT_QUIT &&
+                event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
+                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+            {
+                if (startOptionsReloadDialogPending &&
+                    infoDialog.visible)
+                {
+                    const auto dialogEvents = input.processEvent(event);
+                    const bool acknowledged = std::any_of(
+                        dialogEvents.begin(), dialogEvents.end(),
+                        [](const rrr3d::input::ActionEvent& inputEvent) {
+                            return inputEvent.active &&
+                                   !inputEvent.repeated &&
+                                   inputEvent.action ==
+                                       rrr3d::input::Action::MenuConfirm;
+                        });
+                    if (acknowledged)
+                    {
+                        hideInfoDialog();
+                        finishStartOptions();
+                    }
+                    continue;
+                }
+                if (event.type == SDL_EVENT_MOUSE_MOTION ||
+                    (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                     event.button.button == SDL_BUTTON_LEFT))
+                {
+                    int windowWidth = 0;
+                    int windowHeight = 0;
+                    const float pointerX =
+                        event.type == SDL_EVENT_MOUSE_MOTION
+                            ? event.motion.x
+                            : event.button.x;
+                    const float pointerY =
+                        event.type == SDL_EVENT_MOUSE_MOTION
+                            ? event.motion.y
+                            : event.button.y;
+                    if (SDL_GetWindowSize(
+                            window, &windowWidth, &windowHeight) &&
+                        windowWidth > 0 && windowHeight > 0)
+                    {
+                        const float virtualX =
+                            pointerX * menu::virtualWidth /
+                            static_cast<float>(windowWidth);
+                        const float virtualY =
+                            pointerY * menu::virtualHeight /
+                            static_cast<float>(windowHeight);
+                        const float centerX =
+                            menu::virtualWidth * 0.5F;
+                        const float centerY =
+                            menu::virtualHeight * 0.5F;
+                        bool pointerHandled = false;
+                        for (std::size_t row = 0U; row < 4U; ++row)
+                        {
+                            const float rowY = centerY - 145.0F +
+                                static_cast<float>(row) * 50.0F;
+                            if (std::abs(virtualY - rowY) <= 23.0F &&
+                                std::abs(
+                                    virtualX - (centerX + 100.0F)) <=
+                                    145.0F)
+                            {
+                                startOptionsFocus = row;
+                                pointerHandled = true;
+                                if (event.type ==
+                                    SDL_EVENT_MOUSE_BUTTON_DOWN)
+                                {
+                                    adjustStartOption(
+                                        virtualX < centerX + 100.0F
+                                            ? -1
+                                            : 1);
+                                }
+                                break;
+                            }
+                        }
+                        const float applyX = centerX - 10.0F;
+                        const float applyY = centerY + 138.0F;
+                        if (!pointerHandled &&
+                            std::abs(virtualX - applyX) <=
+                                static_cast<float>(
+                                    startOptionsButtonImage.width) *
+                                    0.5F &&
+                            std::abs(virtualY - applyY) <=
+                                static_cast<float>(
+                                    startOptionsButtonImage.height) *
+                                    0.5F)
+                        {
+                            startOptionsFocus = 4U;
+                            if (event.type ==
+                                SDL_EVENT_MOUSE_BUTTON_DOWN)
+                            {
+#ifdef RRR3D_AUDIO
+                                playMainButtonClick();
+#endif
+                                applyStartOptions();
+                            }
+                        }
+                    }
+                    // Do not pass modal pointer activity to MainMenu2.
+                    input.processEvent(event);
+                    continue;
+                }
+                const auto startOptionEvents = input.processEvent(event);
+                for (const auto& inputEvent : startOptionEvents)
+                {
+                    if (!inputEvent.active || inputEvent.repeated)
+                        continue;
+                    if (inputEvent.action ==
+                        rrr3d::input::Action::MenuUp)
+                    {
+                        startOptionsFocus =
+                            startOptionsFocus == 0U
+                                ? 4U
+                                : startOptionsFocus - 1U;
+                    }
+                    else if (inputEvent.action ==
+                             rrr3d::input::Action::MenuDown)
+                    {
+                        startOptionsFocus =
+                            (startOptionsFocus + 1U) % 5U;
+                    }
+                    else if (
+                        startOptionsFocus < 4U &&
+                        (inputEvent.action ==
+                             rrr3d::input::Action::TurnLeft ||
+                         inputEvent.action ==
+                             rrr3d::input::Action::TurnRight))
+                    {
+                        adjustStartOption(
+                            inputEvent.action ==
+                                    rrr3d::input::Action::TurnLeft
+                                ? -1
+                                : 1);
+                    }
+                    else if (
+                        inputEvent.action ==
+                            rrr3d::input::Action::MenuConfirm &&
+                        startOptionsFocus == 4U)
+                    {
+#ifdef RRR3D_AUDIO
+                        playMainButtonClick();
+#endif
+                        applyStartOptions();
+                    }
+                    // StartOptionsMenu is deliberately modal.  Escape and
+                    // every unrelated game action are consumed.
+                }
+                continue;
+            }
             if (!inRace && bindingCaptureAction)
             {
                 std::optional<std::string> bindingName;
@@ -11324,6 +11866,19 @@ int main(int argc, char** argv)
             {
                 sourceStartupActive = false;
                 startupMenuTransitionObserved = true;
+#ifdef RRR3D_PHYSICS
+                if (sourcePreferredCameraAutodetect)
+                {
+                    sourceStartOptionsActive = true;
+                    sourcePreferredCameraAutodetect = false;
+                }
+                else if (sourceDiscreteVideoChanged)
+                {
+                    profileState.config.quality.frameRateMode =
+                        "sfrFixed";
+                    sourceDiscreteVideoChanged = false;
+                }
+#endif
 #ifdef RRR3D_AUDIO
                 showOriginalMusicInfo(
                     OriginalMusicDialogSource::Menu,
@@ -11437,6 +11992,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         const bool drawingOriginalProfiles =
             menuStack.back() == MenuScreen::Profiles;
+        const bool drawingSourceStartOptions =
+            sourceStartOptionsActive;
         const bool drawingOriginalOptions =
             isOriginalOptionsScreen(menuStack.back());
         const bool drawingOriginalGamers =
@@ -11829,6 +12386,120 @@ int main(int argc, char** argv)
             finalBackFrameObserved = true;
         }
 #ifdef RRR3D_PHYSICS
+        else if (drawingSourceStartOptions)
+        {
+            const float centerX = menu::virtualWidth * 0.5F;
+            const float centerY = menu::virtualHeight * 0.5F;
+            drawQuad(
+                *device, quad, shader, optionsMask,
+                menu::virtualWidth, menu::virtualHeight,
+                centerX, centerY, 65.0F, transparent);
+            drawQuad(
+                *device, quad, shader, startOptionsBackground,
+                static_cast<float>(
+                    startOptionsBackgroundImage.width),
+                static_cast<float>(
+                    startOptionsBackgroundImage.height),
+                centerX, centerY, 60.0F, transparent);
+
+            for (std::size_t row = 0U; row < 4U; ++row)
+            {
+                const float rowY = centerY - 145.0F +
+                    static_cast<float>(row) * 50.0F;
+                const bool selected = startOptionsFocus == row;
+                drawQuad(
+                    *device, quad, shader, optionsRow,
+                    static_cast<float>(optionsRowImage.width),
+                    static_cast<float>(optionsRowImage.height),
+                    centerX - 235.0F, rowY, 50.0F,
+                    transparent);
+                const auto& label =
+                    selected
+                        ? startOptionsLabelPage.selected[row]
+                        : startOptionsLabelPage.normal[row];
+                drawQuad(
+                    *device, quad, shader, label.texture,
+                    label.width, label.height,
+                    centerX - 360.0F + label.width * 0.5F,
+                    rowY, 25.0F, transparent);
+                const auto& value =
+                    selected
+                        ? startOptionsValuePage.selected[row]
+                        : startOptionsValuePage.normal[row];
+                drawQuad(
+                    *device, quad, shader, value.texture,
+                    value.width, value.height,
+                    centerX + 100.0F, rowY, 20.0F,
+                    transparent);
+                const Texture arrow =
+                    selected ? optionsArrowSelected : optionsArrow;
+                const auto& arrowImage =
+                    selected ? optionsArrowSelectedImage
+                             : optionsArrowImage;
+                drawQuad(
+                    *device, quad, shader, arrow,
+                    static_cast<float>(arrowImage.width),
+                    static_cast<float>(arrowImage.height),
+                    centerX - 20.0F, rowY, 20.0F,
+                    transparent);
+                drawQuadRotated(
+                    *device, quad, shader, arrow,
+                    static_cast<float>(arrowImage.width),
+                    static_cast<float>(arrowImage.height),
+                    centerX + 220.0F, rowY, 20.0F,
+                    bx::kPi, transparent);
+            }
+
+            constexpr float infoLineStep = 27.0F;
+            const float firstInfoY =
+                centerY + 70.0F -
+                static_cast<float>(
+                    startOptionsInfoLines.size() - 1U) *
+                    infoLineStep * 0.5F;
+            for (std::size_t line = 0U;
+                 line < startOptionsInfoLines.size(); ++line)
+            {
+                const auto& info = startOptionsInfoLines[line];
+                drawQuad(
+                    *device, quad, shader, info.texture,
+                    info.width, info.height, centerX,
+                    firstInfoY +
+                        static_cast<float>(line) * infoLineStep,
+                    18.0F, transparent);
+            }
+
+            const float applyX = centerX - 10.0F;
+            const float applyY = centerY + 138.0F;
+            drawQuad(
+                *device, quad, shader, startOptionsButton,
+                static_cast<float>(startOptionsButtonImage.width),
+                static_cast<float>(startOptionsButtonImage.height),
+                applyX, applyY, 35.0F, transparent);
+            const auto& apply =
+                !startOptionsApplyEnabled
+                    ? startOptionsActionPage.disabled.front()
+                    : startOptionsFocus == 4U
+                          ? startOptionsActionPage.selected.front()
+                          : startOptionsActionPage.normal.front();
+            drawQuad(
+                *device, quad, shader, apply.texture,
+                apply.width, apply.height, applyX, applyY,
+                15.0F, transparent);
+
+            startOptionsFrameObserved = true;
+            startOptionsSelectGateObserved =
+                startOptionsSelectGateObserved ||
+                (startOptionsCameraIndex == 2U &&
+                 !startOptionsApplyEnabled);
+            startOptionsAllRowsObserved =
+                startOptionsAllRowsObserved ||
+                (startOptionsLabelPage.labels.size() == 4U &&
+                 startOptionsValuePage.labels.size() == 4U &&
+                 valid(startOptionsBackground) &&
+                 valid(startOptionsButton) &&
+                 valid(optionsRow) && valid(optionsArrow) &&
+                 valid(optionsArrowSelected));
+        }
         else if (drawingOriginalProfiles)
         {
             profileFrameObserved =
@@ -14552,7 +15223,8 @@ int main(int argc, char** argv)
         }
         if (!drawingOriginalFinal
 #ifdef RRR3D_PHYSICS
-            && !drawingOriginalOptions && !drawingOriginalGamers &&
+            && !drawingSourceStartOptions &&
+            !drawingOriginalOptions && !drawingOriginalGamers &&
             !drawingOriginalRaceMenu &&
             !drawingOriginalGarage && !drawingOriginalWorkshop &&
             !drawingOriginalAngar && !drawingOriginalAchievements &&
@@ -14683,6 +15355,47 @@ int main(int argc, char** argv)
                            "AVFoundation audio/video playback, display, "
                            "seek, cVideoStopped and tournament callback "
                            "verified\n";
+                }
+            }
+            else
+#endif
+#ifdef RRR3D_PHYSICS
+            if (options->startOptionsSmokeTest)
+            {
+                if (sourceStartOptionsActive ||
+                    !startOptionsFrameObserved ||
+                    !startOptionsSelectGateObserved ||
+                    !startOptionsAllRowsObserved ||
+                    !startOptionsCameraAppliedObserved ||
+                    !startOptionsSavedObserved ||
+                    !startOptionsMainTransitionObserved ||
+                    startOptionsSmokeStep != 6U ||
+                    menuStack.back() != MenuScreen::Main)
+                {
+                    std::cerr
+                        << "Source StartOptionsMenu smoke failed: active="
+                        << sourceStartOptionsActive
+                        << ", frame/gate/rows="
+                        << startOptionsFrameObserved << '/'
+                        << startOptionsSelectGateObserved << '/'
+                        << startOptionsAllRowsObserved
+                        << ", camera/save="
+                        << startOptionsCameraAppliedObserved << '/'
+                        << startOptionsSavedObserved
+                        << ", transition="
+                        << startOptionsMainTransitionObserved
+                        << ", steps=" << startOptionsSmokeStep
+                        << '\n';
+                    runtimeSmokeFailed = true;
+                }
+                else
+                {
+                    std::cout
+                        << "Source StartOptionsMenu smoke passed after "
+                        << renderedFrames
+                        << " frames: Select camera gate, four source "
+                           "steppers, Apply persistence and MainMenu2 "
+                           "transition verified\n";
                 }
             }
             else

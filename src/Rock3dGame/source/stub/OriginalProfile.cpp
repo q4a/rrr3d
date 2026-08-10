@@ -199,8 +199,12 @@ void readControlMap(TiXmlNode* controls, const char* controller,
     }
 }
 
-void loadConfig(const std::filesystem::path& path, UserConfig& config)
+void loadConfig(const std::filesystem::path& path, UserConfig& config,
+                bool& preferredCameraSerialized,
+                bool& discreteVideoCardSerialized)
 {
+    preferredCameraSerialized = false;
+    discreteVideoCardSerialized = false;
     TiXmlDocument document(path.string());
     if (!document.LoadFile() || document.RootElement() == nullptr)
         return;
@@ -257,8 +261,12 @@ void loadConfig(const std::filesystem::path& path, UserConfig& config)
         parseBool(value(root, "disableVideo"), config.disableVideo);
     config.fullScreen =
         parseBool(value(root, "fullScreen"), config.fullScreen);
-    config.discreteVideoCard = parseBool(
-        value(root, "discreteVideoCard"), config.discreteVideoCard);
+    if (const char* token = value(root, "discreteVideoCard"))
+    {
+        config.discreteVideoCard =
+            parseBool(token, config.discreteVideoCard);
+        discreteVideoCardSerialized = true;
+    }
     if (const char* token = value(root, "language"))
         config.language = token;
     if (const char* token = value(root, "commentatorStyle"))
@@ -269,6 +277,7 @@ void loadConfig(const std::filesystem::path& path, UserConfig& config)
             std::string(token) == "pcThirdPerson"
                 ? PreferredCamera::ThirdPerson
                 : PreferredCamera::Isometric;
+        preferredCameraSerialized = true;
     }
     config.cameraDistance = std::clamp(
         parseFloat(value(root, "cameraDistance"), config.cameraDistance),
@@ -761,7 +770,10 @@ ProfileState OriginalProfileStore::load(std::string& warning) const
     warning.clear();
     try
     {
-        loadConfig(loadPath("user.xml"), state.config);
+        loadConfig(
+            loadPath("user.xml"), state.config,
+            state.preferredCameraSerialized,
+            state.discreteVideoCardSerialized);
         loadRaceLibrary(loadPath("race.xml"), state);
         if (!state.player.name.empty())
         {

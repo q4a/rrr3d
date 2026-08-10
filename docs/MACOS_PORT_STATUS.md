@@ -1121,3 +1121,24 @@ game-side audio behaviors. Release hardening
   паузы, обработку `Escape`, кадр `startLogo` и переход в меню. После него
   прошли resource audit, physics/session smoke и 120-frame bgfx/Metal
   menu/audio regression.
+
+### Source StartOptionsMenu follow-up
+
+- `OriginalProfile` больше не смешивает default `pcIsometric` с реально
+  прочитанным `prefCamera`. При отсутствии поля обычный запуск повторяет
+  `GameMode::CheckStartupMenu` и после заставок открывает обязательный
+  `StartOptionsMenu`, а не молча принимает придуманное значение.
+- Перенесены `startMenuBg.png`, `labelBg1.png`, `buttonBg5.png`, source
+  coordinates и четыре циклических stepper: камера с начальным `Select`,
+  системные display modes, все шесть языков из `game.xml` и два стиля
+  комментатора. Apply остаётся недоступным, пока игрок явно не выбрал камеру;
+  Escape и остальные игровые действия поглощаются модальным экраном.
+- Apply записывает исходные `prefCamera`, resolution, language,
+  commentatorStyle и compatibility-флаг GPU; смена языка сохраняет исходное
+  предупреждение `svHintNeedReload` до возврата в главное меню. Apple Silicon
+  считается одним пригодным unified GPU: последовательная discrete-video проверка сохраняет
+  `sfrFixed`, не показывая неверное Windows-предупреждение о hybrid GPU.
+- `--start-options-smoke-test` проверяет camera gate, все четыре визуальные
+  строки, SDL-навигацию, сохранение и повторную загрузку XML во временном
+  каталоге и переход в `MainMenu2`. Также прошли resource audit,
+  physics/session smoke и повторный startup bgfx/Metal smoke.

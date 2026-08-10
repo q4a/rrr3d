@@ -125,6 +125,11 @@ struct AchievementConditionProfile
 struct ProfileState
 {
     UserConfig config;
+    // GameMode::LoadGameOpt distinguishes an absent serialized camera from
+    // the pcIsometric default.  The distinction drives StartOptionsMenu on
+    // first launch and must survive the portable XML adapter.
+    bool preferredCameraSerialized = false;
+    bool discreteVideoCardSerialized = false;
     PlayerProfile player;
     std::vector<std::string> profiles{"profile1"};
     std::vector<std::string> networkProfiles;
