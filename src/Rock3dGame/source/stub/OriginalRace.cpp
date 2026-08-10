@@ -1621,6 +1621,33 @@ bool hasBehaviorType(TiXmlElement* record, std::string_view wanted)
     return false;
 }
 
+void appendBehaviorSounds(
+    const resource::ResourceFileSystem& resources,
+    TiXmlElement* record, std::string_view wanted,
+    std::vector<std::string>& output)
+{
+    auto* behaviors = child(record, "behaviors/items");
+    if (behaviors == nullptr)
+        return;
+    for (auto* behavior = behaviors->FirstChildElement();
+         behavior != nullptr; behavior = behavior->NextSiblingElement())
+    {
+        const char* type = behavior->Attribute("type");
+        if (type == nullptr || std::string_view(type) != wanted)
+            continue;
+        auto* sounds = child(behavior, "sounds");
+        if (sounds == nullptr)
+            continue;
+        for (auto* sound = sounds->FirstChildElement(); sound != nullptr;
+             sound = sound->NextSiblingElement())
+        {
+            const char* path = sound->Attribute("item");
+            if (path != nullptr)
+                output.push_back(canonicalDataPath(resources, path));
+        }
+    }
+}
+
 float positiveTimeLife(TiXmlElement* record)
 {
     return std::max(optionalScalar(record, "maxTimeLife", -1.0F),
@@ -2048,12 +2075,15 @@ void appendIncludedEffects(
          include != nullptr; include = include->NextSiblingElement())
     {
         auto* reference = child(include, "record");
-        if (reference == nullptr || reference->GetText() == nullptr)
-            continue;
         const Transform includeTransform =
             compose(parentTransform, elementTransform(include, source));
+        // IncludeList can contain either a record instance or a complete
+        // anonymous MapObj. rifleProj's source trail is the shipped example
+        // of the latter; skipping it drops the complete particle system.
         auto* includedRecord =
-            databaseRecord(database, reference->GetText());
+            reference != nullptr && reference->GetText() != nullptr
+                ? databaseRecord(database, reference->GetText())
+                : include;
         const float includeTimeLife =
             optionalScalar(include, "maxTimeLife", -1.0F) > 0.0F
                 ? optionalScalar(include, "maxTimeLife", -1.0F)
@@ -2103,9 +2133,39 @@ void appendIncludedEffects(
             node.maximumTimeLife = ownerMaximumTimeLife;
             definition.visualNodes.push_back(std::move(node));
         }
+        const std::size_t firstEmitter =
+            definition.particleEmitters.size();
         appendParticleEmitters(
             resources, includedRecord, includeTransform, definition,
             source, ownerMaximumTimeLife);
+        // Serialized include instances carry their own Behavior list.  It
+        // is authoritative for anonymous objects and can add runtime
+        // behaviors to a referenced record (rocket/smoke2 is one such
+        // source instance). Preserve the behavior on every flattened leaf.
+        const bool inlineWaitingEnd = hasBehaviorType(include, "2");
+        const bool inlineSourceSpeed = hasBehaviorType(include, "3");
+        for (std::size_t emitter = firstEmitter;
+             emitter < definition.particleEmitters.size(); ++emitter)
+        {
+            definition.particleEmitters[emitter].waitForParticleEnd =
+                definition.particleEmitters[emitter].waitForParticleEnd ||
+                inlineWaitingEnd;
+            definition.particleEmitters[emitter].inheritSourceVelocity =
+                definition.particleEmitters[emitter]
+                    .inheritSourceVelocity || inlineSourceSpeed;
+        }
+
+        // Only LifeEffect (BehaviorType 7) starts its sound by itself when
+        // the included object begins progressing. Death/Shot/Immortal
+        // behaviors are dispatched by their owning callback elsewhere.
+        auto* inlineBehaviors = child(include, "behaviors/items");
+        const bool hasInlineBehaviors =
+            inlineBehaviors != nullptr &&
+            inlineBehaviors->FirstChildElement() != nullptr;
+        appendBehaviorSounds(
+            resources,
+            hasInlineBehaviors ? include : includedRecord,
+            "7", definition.soundPaths);
         appendIncludedEffects(
             resources, database, includedRecord, includeTransform,
             definition, source, depth + 1U,
@@ -2203,27 +2263,10 @@ ObjectDefinition objectDefinition(
     appendIncludedEffects(
         resources, database, dbRecord, Transform{}, result, source, 0U,
         rootMaximumTimeLife);
-    if (auto* behaviors = child(dbRecord, "behaviors/items"))
-    {
-        for (auto* behavior = behaviors->FirstChildElement();
-             behavior != nullptr;
-             behavior = behavior->NextSiblingElement())
-        {
-            auto* sounds = child(behavior, "sounds");
-            if (sounds == nullptr)
-                continue;
-            for (auto* sound = sounds->FirstChildElement(); sound != nullptr;
-                 sound = sound->NextSiblingElement())
-            {
-                const char* path = sound->Attribute("item");
-                if (path != nullptr)
-                {
-                    result.soundPaths.push_back(
-                        canonicalDataPath(resources, path));
-                }
-            }
-        }
-    }
+    // LifeEffect is the only serialized object behavior which begins
+    // playback merely because this object exists. Event-driven behavior
+    // sounds are read by their specific callback definitions.
+    appendBehaviorSounds(resources, dbRecord, "7", result.soundPaths);
     if (result.visualNodes.empty())
     {
         // gotDestrObj records keep their intact render pieces in destrList.
@@ -5315,6 +5358,8 @@ bool runOriginalRaceResourceSmokeTest(
                        : &*found;
         };
         const auto* bulletGun = weaponNamed("bulletGun");
+        const auto* rifleWeapon = weaponNamed("rifleWeapon");
+        const auto* rocketLauncher = weaponNamed("rocketLauncher");
         const auto* sphereGun = weaponNamed("sphereGun");
         const auto* turel = weaponNamed("turel");
         const auto* drobilka = weaponNamed("drobilka");
@@ -5357,6 +5402,40 @@ bool runOriginalRaceResourceSmokeTest(
             near(
                 tankLaser->projectiles.front().sizeAddPx.z,
                 -0.3F);
+        const bool anonymousIncludeMatchesSource =
+            rifleWeapon != nullptr &&
+            !rifleWeapon->projectiles.empty() &&
+            std::any_of(
+                rifleWeapon->projectiles.front()
+                    .visual.particleEmitters.begin(),
+                rifleWeapon->projectiles.front()
+                    .visual.particleEmitters.end(),
+                [&](const ParticleEmitterDefinition& emitter) {
+                    return emitter.sourceRecord == "obj0" &&
+                           emitter.waitForParticleEnd &&
+                           emitter.distanceTriggered &&
+                           !emitter.worldCoordinates &&
+                           near(emitter.transform.position.x, -0.4F) &&
+                           near(emitter.lifeMinimum, 0.5F) &&
+                           near(emitter.startTimeMinimum, 0.25F) &&
+                           near(emitter.velocityMinimum.x, -5.0F) &&
+                           !emitter.materials.empty() &&
+                           recordEndsWith(
+                               emitter.materials.front().texturePath,
+                               "flare1.dds");
+                });
+        const bool inlineBehaviorMatchesSource =
+            rocketLauncher != nullptr &&
+            !rocketLauncher->projectiles.empty() &&
+            std::any_of(
+                rocketLauncher->projectiles.front()
+                    .visual.particleEmitters.begin(),
+                rocketLauncher->projectiles.front()
+                    .visual.particleEmitters.end(),
+                [](const ParticleEmitterDefinition& emitter) {
+                    return emitter.sourceRecord == "smoke2" &&
+                           emitter.waitForParticleEnd;
+                });
         const bool deathEffectFlagsMatchSource =
             bulletGun != nullptr &&
             !bulletGun->projectiles.empty() &&
@@ -5368,13 +5447,34 @@ bool runOriginalRaceResourceSmokeTest(
             mortar->projectiles.front().deathEffect.ignoreRotation &&
             mortar->projectiles.front().deathEffect
                 .effectPhysicsIgnoreSenderCar;
+        const bool nestedLifeSoundMatchesSource =
+            mortar != nullptr && !mortar->projectiles.empty() &&
+            std::any_of(
+                mortar->projectiles.front()
+                    .deathEffect.visual.soundPaths.begin(),
+                mortar->projectiles.front()
+                    .deathEffect.visual.soundPaths.end(),
+                [&](const std::string& path) {
+                    return recordEndsWith(path, "carcrash05.ogg");
+                });
         if (!bulletShotMatchesSource || !sphereSoundMatchesSource ||
             !turelShotMatchesSource || !silentWeaponMatchesSource ||
-            !laserRayMatchesSource || !deathEffectFlagsMatchSource)
+            !laserRayMatchesSource || !anonymousIncludeMatchesSource ||
+            !inlineBehaviorMatchesSource ||
+            !deathEffectFlagsMatchSource ||
+            !nestedLifeSoundMatchesSource)
         {
             error =
-                "source ctWeapon ShotEffect/DeathEffect/sounds provenance "
-                "mismatch";
+                "source ctWeapon/include behaviors/ShotEffect/DeathEffect/"
+                "sounds provenance mismatch: anonymous=" +
+                std::string(anonymousIncludeMatchesSource ? "true" :
+                                                           "false") +
+                ", inlineBehavior=" +
+                std::string(inlineBehaviorMatchesSource ? "true" :
+                                                         "false") +
+                ", nestedLifeSound=" +
+                std::string(nestedLifeSoundMatchesSource ? "true" :
+                                                          "false");
             return false;
         }
         if (!recordEndsWith(

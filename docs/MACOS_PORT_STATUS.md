@@ -1064,3 +1064,23 @@ game-side audio behaviors. Release hardening
   water/reflection и 768 normal-map submissions, World5 planar reflection,
   а также World4 magma/volume-surface; во всех случаях сохранились четыре
   wheel contacts, шесть машин и полный HDR/HUD render graph.
+
+### Source include-instance effect graph follow-up
+
+- `MapObj::includeList` теперь переносит не только ссылки на DB records, но
+  и полностью сериализованные anonymous objects. Это вернуло потерянный
+  `rifleProj/obj0`: локальный distance-triggered smoke emitter с исходными
+  `-0.4` offset, `0.25` start interval, `0.5` lifetime и `flare1.dds`.
+- Behavior list принадлежит конкретному include instance. Inline
+  `FxSystemWaitingEnd` теперь применяется к flattened emitters у
+  `rocket/smoke2`, `rocketAir/smoke4`, `thunder/smoke5`,
+  `phaserBolt/smoke8` и `shotBall/fireTrail`, поэтому их уже испущенные
+  частицы доживают после смерти owner object.
+- Звуки object graph больше не собираются без разбора из каждого behavior:
+  автозапуск оставлен только за исходным `LifeEffect` (type 7), тогда как
+  Death/Shot/Immortal dispatch остаётся в своих callbacks. Благодаря чтению
+  inline behaviors `mortiraBallDeath/death30` снова создаёт оригинальный
+  spatial `carcrash05.ogg`.
+- Новые provenance assertions, arm64 Debug build, physics smoke и 300-frame
+  World1 Metal/audio smoke прошли; последний завершился с шестью машинами,
+  четырьмя wheel contacts и 1414 FxTrail submissions.
