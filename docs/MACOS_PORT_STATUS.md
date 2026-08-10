@@ -1102,3 +1102,22 @@ game-side audio behaviors. Release hardening
 - Resource provenance, physics/session smoke и последовательный 300-frame
   World1 bgfx/Metal smoke прошли: четыре wheel contacts, шесть машин,
   1414 FxTrail submissions и полный HDR/HUD/refraction render graph.
+
+### Source GameMode startup follow-up
+
+- Обычный запуск больше не открывает `MainMenu2` немедленно. Перенесён
+  release-путь `World::RunGame -> GameMode::Run(true)` и временной автомат
+  `GameMode::OnFrame` с оригинальными `yardLogo.png`, `laboratoria24.png` и
+  `startLogo.dds`.
+- Сохранены исходные интервалы: начальная чёрная секунда, fade-in/hold/
+  fade-out первой заставки, секундная пауза, такой же цикл второй заставки и
+  отдельный полноэкранный кадр `startLogo` перед созданием `MainMenu2`.
+  Логотипы центрируются без растяжения, а стартовый кадр сохраняет aspect.
+- Во время заставок игровой ввод не протекает в меню. `Escape` повторяет
+  Windows-контракт: пропускает оставшуюся анимацию, но не пропускает
+  обязательный кадр `startLogo`; музыка меню запускается только при реальном
+  переходе в `MainMenu2`.
+- Новый `--startup-smoke-test` проверяет все временные состояния, обе чёрные
+  паузы, обработку `Escape`, кадр `startLogo` и переход в меню. После него
+  прошли resource audit, physics/session smoke и 120-frame bgfx/Metal
+  menu/audio regression.

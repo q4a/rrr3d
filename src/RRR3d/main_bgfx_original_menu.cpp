@@ -88,6 +88,7 @@ struct Options
     std::string language;
     bool languageSelected = false;
     bool verifyResources = false;
+    bool startupSmokeTest = false;
     bool finalMenuSmokeTest = false;
 #ifdef RRR3D_VIDEO
     bool videoSmokeTest = false;
@@ -301,6 +302,13 @@ std::optional<Options> parseOptions(int argc, char** argv)
         if (argument == "--verify-resources")
         {
             options.verifyResources = true;
+            continue;
+        }
+        if (argument == "--startup-smoke-test")
+        {
+            options.startupSmokeTest = true;
+            if (options.smokeFrames == 0)
+                options.smokeFrames = 60;
             continue;
         }
         if (argument == "--final-menu-smoke-test")
@@ -877,6 +885,7 @@ int main(int argc, char** argv)
         std::cerr << "Usage: RRR3d [--data-dir=PATH] "
                      "[--language=english|russian] [--verify-resources] "
                      "[--smoke-test-frames=N] "
+                     "[--startup-smoke-test] "
                      "[--final-menu-smoke-test]"
 #ifdef RRR3D_VIDEO
                      " [--video-smoke-test]"
@@ -897,6 +906,11 @@ int main(int argc, char** argv)
                      "\n";
         return EXIT_FAILURE;
     }
+    // World::RunGame calls GameMode::Run(true) in the shipped build.  Keep
+    // renderer/test fixtures immediate, but preserve the release startup
+    // sequence for an ordinary launch and for its dedicated regression.
+    const bool sourceStartupRequested =
+        options->startupSmokeTest || options->smokeFrames == 0U;
 
     std::string directoryError;
     if (!rrr3d::platform::ensure_application_directories(directoryError))
@@ -1247,6 +1261,18 @@ int main(int argc, char** argv)
     const Texture selection =
         createImageTexture(*device, model->selectionImage);
     const Texture cursor = createImageTexture(*device, model->cursorImage);
+    const auto startupYardImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/yardLogo.png");
+    const auto startupLabImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/laboratoria24.png");
+    const auto startupLoadImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/startLogo.dds");
+    const Texture startupYard =
+        createImageTexture(*device, startupYardImage);
+    const Texture startupLab =
+        createImageTexture(*device, startupLabImage);
+    const Texture startupLoad =
+        createImageTexture(*device, startupLoadImage);
 #ifdef RRR3D_AUDIO
     const auto musicDialogFrameImage = menu::loadOriginalImage(
         *resources, "Data/GUI/dlgFrame2.png");
@@ -2456,6 +2482,8 @@ int main(int argc, char** argv)
 #endif
         valid(quad) && valid(background) && valid(topPanel) &&
         valid(bottomPanel) && valid(selection) && valid(cursor) &&
+        valid(startupYard) && valid(startupLab) &&
+        valid(startupLoad) &&
 #ifdef RRR3D_AUDIO
         valid(musicDialogFrame) &&
         std::all_of(
@@ -2811,6 +2839,9 @@ int main(int argc, char** argv)
         destroyPage(tournamentPage);
         destroyPage(gameModePage);
         destroyPage(mainPage);
+        device->destroy(startupLoad);
+        device->destroy(startupLab);
+        device->destroy(startupYard);
         device->destroy(cursor);
         device->destroy(selection);
         device->destroy(bottomPanel);
@@ -3196,8 +3227,12 @@ int main(int argc, char** argv)
             if (musicDialogTime == -1.0F)
                 musicDialogTime = -0.999F;
         };
-    showOriginalMusicInfo(
-        OriginalMusicDialogSource::Menu, lastMenuMusicTrack);
+    // GameMode::StartGame shows the current track only after FreeIntro.
+    if (!sourceStartupRequested)
+    {
+        showOriginalMusicInfo(
+            OriginalMusicDialogSource::Menu, lastMenuMusicTrack);
+    }
 
     std::cout << "Original MusicCat: background decode, shuffled playlist, "
                  "auto Next, pause/resume, state "
@@ -3481,6 +3516,18 @@ int main(int argc, char** argv)
     bool running = true;
     bool runtimeSmokeFailed = false;
     std::uint32_t renderedFrames = 0;
+    bool sourceStartupActive = sourceStartupRequested;
+    float sourceStartupSeconds = 0.0F;
+    bool startupYardFadeObserved = !options->startupSmokeTest;
+    bool startupYardHoldObserved = !options->startupSmokeTest;
+    bool startupLabFadeObserved = !options->startupSmokeTest;
+    bool startupLabHoldObserved = !options->startupSmokeTest;
+    bool startupInitialBlankObserved = !options->startupSmokeTest;
+    bool startupInterlogoBlankObserved = !options->startupSmokeTest;
+    bool startupLoadFrameObserved = !options->startupSmokeTest;
+    bool startupMenuTransitionObserved = !options->startupSmokeTest;
+    bool startupEscapeQueued = false;
+    bool startupEscapeObserved = !options->startupSmokeTest;
     enum class MenuScreen
     {
         Main,
@@ -7068,6 +7115,25 @@ int main(int argc, char** argv)
             ++racePauseSmokeStep;
         }
 #endif
+        if (options->startupSmokeTest && sourceStartupActive &&
+            startupLabHoldObserved && !startupEscapeQueued)
+        {
+            SDL_Event press{};
+            press.key.type = SDL_EVENT_KEY_DOWN;
+            press.key.down = true;
+            press.key.scancode = SDL_SCANCODE_ESCAPE;
+            SDL_Event release = press;
+            release.key.type = SDL_EVENT_KEY_UP;
+            release.key.down = false;
+            if (!SDL_PushEvent(&press) || !SDL_PushEvent(&release))
+            {
+                std::cerr
+                    << "Unable to queue source startup Escape: "
+                    << SDL_GetError() << '\n';
+                runtimeSmokeFailed = true;
+            }
+            startupEscapeQueued = true;
+        }
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
@@ -7120,6 +7186,37 @@ int main(int argc, char** argv)
                 continue;
             }
 #endif
+            if (sourceStartupActive &&
+                event.type != SDL_EVENT_QUIT &&
+                event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
+                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+            {
+                bool skipIntro =
+                    event.type == SDL_EVENT_KEY_DOWN &&
+                    !event.key.repeat &&
+                    event.key.scancode == SDL_SCANCODE_ESCAPE;
+#ifdef RRR3D_GAMEPAD_INPUT
+                const auto startupInputEvents =
+                    input.processEvent(event);
+                skipIntro = skipIntro || std::any_of(
+                    startupInputEvents.begin(),
+                    startupInputEvents.end(),
+                    [](const rrr3d::input::ActionEvent& inputEvent) {
+                        return inputEvent.active &&
+                               !inputEvent.repeated &&
+                               inputEvent.action ==
+                                   rrr3d::input::Action::MenuBack;
+                    });
+#endif
+                if (skipIntro)
+                {
+                    // GameMode::OnHandleInput changes _startUpTime to -2:
+                    // one startLogo frame is still presented before menu.
+                    sourceStartupSeconds = 12.0F;
+                    startupEscapeObserved = true;
+                }
+                continue;
+            }
 #ifdef RRR3D_GAMEPAD_INPUT
 #ifdef RRR3D_PHYSICS
             if (!inRace && bindingCaptureAction)
@@ -10361,7 +10458,13 @@ int main(int argc, char** argv)
             static_cast<float>(currentFrameTicks - previousFrameTicks) /
                 1000000000.0F,
             0.0F, 0.1F);
-        if (options->finalMenuSmokeTest)
+        if (options->startupSmokeTest)
+        {
+            // Exercise the complete twelve-second source timeline without
+            // turning the regression into a wall-clock delay.
+            frameSeconds = 0.25F;
+        }
+        else if (options->finalMenuSmokeTest)
         {
 #ifdef RRR3D_AUDIO
             frameSeconds =
@@ -10387,6 +10490,11 @@ int main(int argc, char** argv)
             frameSeconds = 0.0F;
 #endif
         previousFrameTicks = currentFrameTicks;
+        if (sourceStartupActive)
+        {
+            sourceStartupSeconds = std::min(
+                sourceStartupSeconds + frameSeconds, 12.25F);
+        }
         if (menuStack.back() == MenuScreen::Credits)
         {
             finalMenuSeconds += frameSeconds;
@@ -11073,9 +11181,12 @@ int main(int argc, char** argv)
         if (currentMenuMusicTrack != lastMenuMusicTrack)
         {
             lastMenuMusicTrack = currentMenuMusicTrack;
-            showOriginalMusicInfo(
-                OriginalMusicDialogSource::Menu,
-                currentMenuMusicTrack);
+            if (!sourceStartupActive)
+            {
+                showOriginalMusicInfo(
+                    OriginalMusicDialogSource::Menu,
+                    currentMenuMusicTrack);
+            }
         }
 #ifdef RRR3D_PHYSICS
         if (inRace)
@@ -11116,6 +11227,114 @@ int main(int argc, char** argv)
             }
         }
 #endif
+
+        if (sourceStartupActive)
+        {
+            constexpr float logoDelay = 1.0F;
+            constexpr float logoFade = 1.0F;
+            constexpr float logoHold = 3.0F;
+            const float yardAlpha =
+                std::clamp(
+                    (sourceStartupSeconds - logoDelay) / logoFade,
+                    0.0F, 1.0F) -
+                std::clamp(
+                    (sourceStartupSeconds -
+                     (logoDelay + logoFade + logoHold)) /
+                        logoFade,
+                    0.0F, 1.0F);
+            // Literal GameMode::OnFrame logo2Delay:
+            // fade + hold + fade + two one-second blank delays = 7 s.
+            constexpr float secondLogoDelay =
+                logoFade + logoHold + logoFade +
+                logoDelay + logoDelay;
+            const float labAlpha =
+                std::clamp(
+                    (sourceStartupSeconds - secondLogoDelay) /
+                        logoFade,
+                    0.0F, 1.0F) -
+                std::clamp(
+                    (sourceStartupSeconds -
+                     (secondLogoDelay + logoFade + logoHold)) /
+                        logoFade,
+                    0.0F, 1.0F);
+
+            startupYardFadeObserved = startupYardFadeObserved ||
+                (yardAlpha > 0.05F && yardAlpha < 0.95F);
+            startupYardHoldObserved = startupYardHoldObserved ||
+                yardAlpha > 0.99F;
+            startupLabFadeObserved = startupLabFadeObserved ||
+                (labAlpha > 0.05F && labAlpha < 0.95F);
+            startupLabHoldObserved = startupLabHoldObserved ||
+                labAlpha > 0.99F;
+            startupInitialBlankObserved =
+                startupInitialBlankObserved ||
+                (sourceStartupSeconds < 1.0F &&
+                 yardAlpha <= 0.0F && labAlpha <= 0.0F);
+            startupInterlogoBlankObserved =
+                startupInterlogoBlankObserved ||
+                (sourceStartupSeconds >= 6.0F &&
+                 sourceStartupSeconds < 7.0F &&
+                 yardAlpha <= 0.0F && labAlpha <= 0.0F);
+
+            device->beginFrame(camera, 0x000000ffU);
+            if (sourceStartupSeconds < 12.0F)
+            {
+                if (yardAlpha > 0.0F)
+                {
+                    drawQuadTinted(
+                        *device, quad, shader, startupYard,
+                        static_cast<float>(startupYardImage.width),
+                        static_cast<float>(startupYardImage.height),
+                        menu::virtualWidth * 0.5F,
+                        menu::virtualHeight * 0.5F, 10.0F,
+                        transparent,
+                        {1.0F, 1.0F, 1.0F, yardAlpha});
+                }
+                if (labAlpha > 0.0F)
+                {
+                    drawQuadTinted(
+                        *device, quad, shader, startupLab,
+                        static_cast<float>(startupLabImage.width),
+                        static_cast<float>(startupLabImage.height),
+                        menu::virtualWidth * 0.5F,
+                        menu::virtualHeight * 0.5F, 10.0F,
+                        transparent,
+                        {1.0F, 1.0F, 1.0F, labAlpha});
+                }
+            }
+            else
+            {
+                const float aspect =
+                    static_cast<float>(startupLoadImage.width) /
+                    static_cast<float>(startupLoadImage.height);
+                const float width = std::min(
+                    menu::virtualWidth,
+                    menu::virtualHeight * aspect);
+                const float height = width / aspect;
+                drawQuad(
+                    *device, quad, shader, startupLoad,
+                    width, height, menu::virtualWidth * 0.5F,
+                    menu::virtualHeight * 0.5F, 10.0F, opaque);
+                startupLoadFrameObserved = true;
+            }
+            device->endFrame();
+            ++renderedFrames;
+
+            if (sourceStartupSeconds >= 12.25F)
+            {
+                sourceStartupActive = false;
+                startupMenuTransitionObserved = true;
+#ifdef RRR3D_AUDIO
+                showOriginalMusicInfo(
+                    OriginalMusicDialogSource::Menu,
+                    music.currentTrack());
+#endif
+                previousFrameTicks = SDL_GetTicksNS();
+                std::cout
+                    << "Original GameMode::Run startup -> MainMenu2\n";
+            }
+            continue;
+        }
 
 #ifdef RRR3D_VIDEO
         if (originalMovieActive)
@@ -14468,7 +14687,49 @@ int main(int argc, char** argv)
             }
             else
 #endif
-            if (options->finalMenuSmokeTest)
+            if (options->startupSmokeTest)
+            {
+                if (sourceStartupActive ||
+                    !startupYardFadeObserved ||
+                    !startupYardHoldObserved ||
+                    !startupLabFadeObserved ||
+                    !startupLabHoldObserved ||
+                    !startupInitialBlankObserved ||
+                    !startupInterlogoBlankObserved ||
+                    !startupLoadFrameObserved ||
+                    !startupMenuTransitionObserved ||
+                    !startupEscapeObserved ||
+                    menuStack.back() != MenuScreen::Main)
+                {
+                    std::cerr
+                        << "Source GameMode startup smoke failed: active="
+                        << sourceStartupActive
+                        << ", yard=" << startupYardFadeObserved << '/'
+                        << startupYardHoldObserved
+                        << ", lab=" << startupLabFadeObserved << '/'
+                        << startupLabHoldObserved
+                        << ", blanks="
+                        << startupInitialBlankObserved << '/'
+                        << startupInterlogoBlankObserved
+                        << ", load=" << startupLoadFrameObserved
+                        << ", escape=" << startupEscapeObserved
+                        << ", menu="
+                        << startupMenuTransitionObserved << '/'
+                        << (menuStack.back() == MenuScreen::Main)
+                        << '\n';
+                    runtimeSmokeFailed = true;
+                }
+                else
+                {
+                    std::cout
+                        << "Source GameMode startup smoke passed after "
+                        << renderedFrames
+                        << " frames: yardLogo/laboratoria24 fade/hold, "
+                           "blank delays, startLogo aspect frame, Escape "
+                           "contract and MainMenu2 transition verified\n";
+                }
+            }
+            else if (options->finalMenuSmokeTest)
             {
                 const bool allSlidesObserved =
                     std::all_of(
