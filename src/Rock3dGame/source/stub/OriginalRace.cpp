@@ -385,8 +385,11 @@ void selectRacers(Race& race,
             "garage.xml: tournament player car is missing");
 
     race.racers.clear();
-    race.racers.push_back(
-        {"Human", {}, humanVehicle->second, true, {}, {}, false});
+    Racer human;
+    human.name = "Human";
+    human.vehicle = humanVehicle->second;
+    human.human = true;
+    race.racers.push_back(std::move(human));
     race.racers.back().configuredVehicle =
         race.vehicles[humanVehicle->second];
     race.racers.back().hasConfiguredVehicle = true;
@@ -418,6 +421,9 @@ void selectRacers(Race& race,
             throw resource::ResourceError(
                 "garage.xml: AI tournament car is missing: " + record);
         Racer racer;
+        racer.gamerId = unsignedValue(
+            text(opponent, "id", "tournamet.xml/player"),
+            "tournamet.xml/player/id");
         racer.name = text(opponent, "name", "tournamet.xml/player");
         if (auto* photo = child(opponent, "photo");
             photo != nullptr && photo->Attribute("item") != nullptr)
@@ -2860,6 +2866,16 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
         definition.collision = projectileCollisionBox(
             resources, definition.visual, definition.size,
             definition.offset, definition.modelSize);
+        if (definition.modelSize)
+        {
+            const auto visualBounds =
+                objectLocalBounds(resources, definition.visual);
+            if (visualBounds.valid)
+            {
+                definition.surfacePlacementOffset =
+                    std::max(-visualBounds.minimum.z, 0.01F);
+            }
+        }
         auto nestedProjectile =
             [&](std::string_view elementName,
                 const ObjectDefinition& visual) {
@@ -4809,12 +4825,18 @@ void applyOriginalPlayerProfile(
                              "workshop.xml");
     auto& human = race.racers.front();
     human.color = profile.color;
+    human.gamerId = profile.gamerId;
     auto tournamentDocument = parseXml(resources, "tournamet.xml");
     if (auto* gamers =
             child(tournamentDocument.RootElement(), "gamers"))
     {
-        TiXmlElement* fallback = nullptr;
-        bool matchedPlayer = false;
+        struct GamerIdentity
+        {
+            std::uint32_t id = 0U;
+            std::string name;
+            std::string photoPath;
+        };
+        std::vector<GamerIdentity> identities;
         for (auto* gamer = gamers->FirstChildElement(); gamer != nullptr;
              gamer = gamer->NextSiblingElement())
         {
@@ -4825,30 +4847,68 @@ void applyOriginalPlayerProfile(
                  player != nullptr;
                  player = player->NextSiblingElement())
             {
-                if (fallback == nullptr)
-                    fallback = player;
-                const auto id = unsignedValue(
+                GamerIdentity identity;
+                identity.id = unsignedValue(
                     text(player, "id", "tournamet.xml/gamer"),
                     "tournamet.xml/gamer/id");
-                if (id != profile.gamerId && id != profile.playerId)
-                    continue;
-                fallback = player;
-                matchedPlayer = true;
-                break;
+                identity.name =
+                    text(player, "name", "tournamet.xml/gamer");
+                if (auto* photo = child(player, "photo");
+                    photo != nullptr &&
+                    photo->Attribute("item") != nullptr)
+                {
+                    identity.photoPath = canonicalDataPath(
+                        resources, photo->Attribute("item"));
+                }
+                identities.push_back(std::move(identity));
             }
-            if (matchedPlayer)
-                break;
         }
-        if (fallback != nullptr)
+
+        // Race::StartRace assigns each ordinary computer its numeric player
+        // id, then replaces a duplicate gamer id with the first unused entry
+        // from Tournament::GetGamers().  This matters when the human selected
+        // Snake/Tarquin and prevents two copies of that character.
+        for (std::size_t index = 1U; index < race.racers.size(); ++index)
         {
-            human.name =
-                text(fallback, "name", "tournamet.xml/gamer");
-            if (auto* photo = child(fallback, "photo");
-                photo != nullptr &&
-                photo->Attribute("item") != nullptr)
+            auto& racer = race.racers[index];
+            if (racer.human)
+                continue;
+            const bool duplicate = std::any_of(
+                race.racers.begin(), race.racers.end(),
+                [&](const Racer& other) {
+                    return &other != &racer &&
+                           other.gamerId == racer.gamerId;
+                });
+            if (!duplicate)
+                continue;
+            const auto replacement = std::find_if(
+                identities.begin(), identities.end(),
+                [&](const GamerIdentity& candidate) {
+                    return std::none_of(
+                        race.racers.begin(), race.racers.end(),
+                        [&](const Racer& other) {
+                            return other.gamerId == candidate.id;
+                        });
+                });
+            if (replacement != identities.end())
+                racer.gamerId = replacement->id;
+        }
+
+        // Tournament::GetPlayerData searches the global gamer catalog before
+        // the current planet.  IDs 4 and 5 therefore mean Snake and Tarquin;
+        // scComp4/scComp5 are only fallback car/loadout records and must never
+        // leak into HUD or FinishMenu.
+        for (auto& racer : race.racers)
+        {
+            const auto identity = std::find_if(
+                identities.begin(), identities.end(),
+                [&](const GamerIdentity& candidate) {
+                    return candidate.id == racer.gamerId;
+                });
+            if (identity != identities.end())
             {
-                human.photoPath = canonicalDataPath(
-                    resources, photo->Attribute("item"));
+                racer.name = identity->name;
+                racer.photoPath = identity->photoPath;
             }
         }
     }
@@ -5144,6 +5204,67 @@ bool runOriginalRaceResourceSmokeTest(
         if (race.racers.size() < 2U)
         {
             error = "source Player::ApplyMobility role regression has no AI";
+            return false;
+        }
+        const auto unresolvedComputer = std::find_if(
+            race.racers.begin(), race.racers.end(),
+            [](const Racer& racer) {
+                return racer.name == "scComp4" ||
+                       racer.name == "scComp5";
+            });
+        const auto snake = std::find_if(
+            race.racers.begin(), race.racers.end(),
+            [](const Racer& racer) {
+                return racer.gamerId == 4U;
+            });
+        const auto tarquin = std::find_if(
+            race.racers.begin(), race.racers.end(),
+            [](const Racer& racer) {
+                return racer.gamerId == 5U;
+            });
+        if (unresolvedComputer != race.racers.end() ||
+            snake == race.racers.end() || snake->name != "scSnake" ||
+            snake->photoPath.find("snake.png") == std::string::npos ||
+            tarquin == race.racers.end() ||
+            tarquin->name != "scTarquin" ||
+            tarquin->photoPath.find("tarquin.png") == std::string::npos)
+        {
+            error =
+                "source Tournament::GetPlayerData computer identity "
+                "priority was not preserved";
+            return false;
+        }
+        auto duplicateIdentityRace = race;
+        auto snakeProfile = makeOriginalDefaultProfileState().player;
+        snakeProfile.gamerId = 4U;
+        applyOriginalPlayerProfile(
+            duplicateIdentityRace, resources, snakeProfile);
+        const bool uniqueGamerIds = std::all_of(
+            duplicateIdentityRace.racers.begin(),
+            duplicateIdentityRace.racers.end(),
+            [&](const Racer& racer) {
+                return std::count_if(
+                           duplicateIdentityRace.racers.begin(),
+                           duplicateIdentityRace.racers.end(),
+                           [&](const Racer& other) {
+                               return other.gamerId == racer.gamerId;
+                           }) == 1;
+            });
+        const auto replacement = std::find_if(
+            duplicateIdentityRace.racers.begin() + 1,
+            duplicateIdentityRace.racers.end(),
+            [](const Racer& racer) {
+                return racer.gamerId == 10U &&
+                       racer.name == "svTyler" &&
+                       racer.photoPath.find("tyler.png") !=
+                           std::string::npos;
+            });
+        if (!uniqueGamerIds ||
+            replacement == duplicateIdentityRace.racers.end())
+        {
+            error =
+                "source Race::StartRace duplicate gamer replacement was "
+                "not preserved";
             return false;
         }
         auto humanEasy = race.vehicles.at(race.racers.front().vehicle);

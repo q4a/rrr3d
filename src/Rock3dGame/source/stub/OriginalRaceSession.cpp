@@ -4883,10 +4883,10 @@ void OriginalRaceSession::updateGameplay(
             race_, add(rayPosition, {0.0F, 0.0F, 2.0F}));
         if (!hit.hit)
             return;
-        const float minimumZ =
-            projectile->collision.center.z -
-            projectile->collision.halfExtents.z;
-        const float offset = std::max(-minimumZ, 0.01F);
+        // Source MinePrepare uses ComputeAABB(true), while CreatePxBox uses
+        // ComputeAABB(false).  Using the contact box here lifted the maslo
+        // plane by 0.85 m even though its source model offset is only 0.05 m.
+        const float offset = projectile->surfacePlacementOffset;
         const Vec3 position =
             replicatedPosition != nullptr
                 ? *replicatedPosition
@@ -10800,10 +10800,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             const auto sourceHit = raycastTrackPlane(
                 race,
                 add(sourceRayPosition, {0.0F, 0.0F, 2.0F}));
-            const float sourceOffset = std::max(
-                -(sourceProjectile.collision.center.z -
-                  sourceProjectile.collision.halfExtents.z),
-                0.01F);
+            const float sourceOffset =
+                sourceProjectile.surfacePlacementOffset;
             const Vec3 expectedMinePosition =
                 add(sourceHit.position,
                     {0.0F, 0.0F, sourceOffset});
@@ -10903,7 +10901,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 3000.0F) > 0.001F ||
             oilMine == race.weapons.end() ||
             oilMine->projectiles.empty() ||
-            oilMine->projectiles.front().type != 10U)
+            oilMine->projectiles.front().type != 10U ||
+            std::abs(
+                oilMine->projectiles.front().surfacePlacementOffset -
+                0.05F) > 0.0001F ||
+            oilMine->projectiles.front().collision.halfExtents.z < 0.8F)
         {
             throw std::runtime_error(
                 "source mine/oil workshop records were not preserved");

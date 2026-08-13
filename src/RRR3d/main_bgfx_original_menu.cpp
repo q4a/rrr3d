@@ -5626,6 +5626,8 @@ int main(int argc, char** argv)
                                                              1U);
                         auto racer = sourceRacers[baseIndex];
                         racer.human = player.playerId == 0U;
+                        racer.gamerId = static_cast<std::uint32_t>(
+                            std::max(player.gamerId, 0));
                         racer.color = player.color;
                         if (!player.car.empty())
                         {

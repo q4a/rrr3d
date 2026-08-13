@@ -532,6 +532,10 @@ struct ProjectileDefinition
     Vec3 offset;
     Quat rotation;
     ProjectileCollisionBox collision;
+    // Proj::MinePrepare rests the rendered model on the ray-cast surface
+    // using ComputeAABB(true).  This is intentionally independent of the
+    // much taller ComputeAABB(false) contact box stored above.
+    float surfacePlacementOffset = 0.05F;
     float speed = 0.0F;
     float relativeSpeedMinimum = 13.0F;
     bool relativeSpeed = false;
@@ -715,6 +719,9 @@ struct Racer
 {
     std::string name;
     std::string photoPath;
+    // Player::GetName/GetPhoto resolve this through Tournament::GetPlayerData
+    // instead of displaying the service scComp4/scComp5 planet records.
+    std::uint32_t gamerId = 0U;
     std::size_t vehicle = 0;
     bool human = false;
     std::vector<RacerSlot> loadout;
