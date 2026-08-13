@@ -85,6 +85,7 @@ public:
     bool startMatch(const NetworkMatchState& match,
                     const NetworkPlayerState& localPlayer,
                     std::string& error);
+    bool exitMatch(std::string& error);
     bool startRace(std::string& error);
     bool exitRace(std::int32_t track, std::int32_t weather,
                   const std::vector<NetworkRaceResult>& results,

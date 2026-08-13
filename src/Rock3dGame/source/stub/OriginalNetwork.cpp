@@ -290,6 +290,19 @@ bool OriginalNetworkSession::startMatch(
     return true;
 }
 
+bool OriginalNetworkSession::exitMatch(std::string& error)
+{
+    if (!impl_->init)
+    {
+        error = "NetLib is not initialized";
+        return false;
+    }
+    if (!impl_->models.exitMatch(error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
 bool OriginalNetworkSession::startRace(std::string& error)
 {
     if (!impl_->models.startRace(error))

@@ -46,6 +46,32 @@ int main()
         return 6;
     }
 
+    NetworkMatchState match;
+    match.maxPlayers = 4U;
+    match.maxComputers = 2U;
+    NetworkPlayerState localPlayer;
+    localPlayer.gamerId = 7;
+    localPlayer.car = "marauder";
+    if (!session.startMatch(match, localPlayer, error) ||
+        !session.snapshot().models.matchActive ||
+        session.snapshot().models.players.size() != 1U)
+    {
+        std::cerr << "session NetRace::StartMatch failed: " << error << '\n';
+        return 13;
+    }
+    if (!session.exitMatch(error))
+    {
+        std::cerr << "session NetRace::ExitMatch failed: " << error << '\n';
+        return 14;
+    }
+    state = session.snapshot();
+    if (state.models.matchActive || state.models.raceActive ||
+        !state.models.players.empty())
+    {
+        std::cerr << "session NetRace::DoExitMatch left player models\n";
+        return 14;
+    }
+
     error.clear();
     if (session.disconnectPlayer(serverOwnerId + 1U, error) ||
         error.empty())

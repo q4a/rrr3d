@@ -568,6 +568,83 @@ int main()
             }, clock, 4000U))
             return 18;
 
+        if (!clientModels.exitMatch(error))
+        {
+            std::cerr << error << '\n';
+            return 24;
+        }
+        if (!pump(server, client, [&]() {
+                const auto serverState = serverModels.snapshot();
+                const auto clientState2 = clientModels.snapshot();
+                const auto exited = [](const auto& state) {
+                    return std::any_of(
+                        state.events.begin(), state.events.end(),
+                        [](const NetworkEvent& event) {
+                            return event.kind ==
+                                   NetworkEventKind::MatchExited;
+                        });
+                };
+                return !serverState.matchActive &&
+                       !serverState.raceActive &&
+                       serverState.players.empty() &&
+                       !clientState2.matchActive &&
+                       !clientState2.raceActive &&
+                       clientState2.players.empty() &&
+                       exited(serverState) && exited(clientState2);
+            }, clock, 4000U))
+        {
+            std::cerr << "NetRace::ExitMatch model cleanup timeout\n";
+            return 24;
+        }
+
+        // ExitMatch keeps the class-ID-1 NetRace alive until FinalizateNet.
+        // Starting another match proves that DoExitMatch deleted only the
+        // copied NetPlayer list and did not corrupt the model allocator.
+        const bool restartedMatch =
+            serverModels.startMatch(match, hostPlayer, error);
+        const bool restoredHumans =
+            restartedMatch && pump(server, client, [&]() {
+                const auto serverState = serverModels.snapshot();
+                const auto clientState2 = clientModels.snapshot();
+                return serverState.matchActive &&
+                       clientState2.matchActive &&
+                       serverState.players.size() == 2U &&
+                       clientState2.players.size() == 2U;
+            }, clock, 4000U);
+        const bool restartedRace =
+            restoredHumans && serverModels.startRace(error);
+        const bool restoredComputers =
+            restartedRace && pump(server, client, [&]() {
+                const auto expectedPlayers =
+                    2U + static_cast<std::size_t>(match.maxComputers);
+                return serverModels.snapshot().players.size() ==
+                           expectedPlayers &&
+                       clientModels.snapshot().players.size() ==
+                           expectedPlayers;
+            }, clock, 4000U);
+        if (!restoredComputers)
+        {
+            const auto serverState = serverModels.snapshot();
+            const auto clientState2 = clientModels.snapshot();
+            std::cerr
+                << "post-ExitMatch restart failed: startMatch="
+                << restartedMatch << ", humans=" << restoredHumans
+                << ", startRace=" << restartedRace
+                << ", computers=" << restoredComputers
+                << ", serverMatch/players="
+                << serverState.matchActive << '/'
+                << serverState.players.size()
+                << ", clientMatch/players="
+                << clientState2.matchActive << '/'
+                << clientState2.players.size()
+                << ", error=" << error << '\n';
+            client.Close();
+            server.Close();
+            client.Finalizate();
+            server.Finalizate();
+            return 25;
+        }
+
         auto* clientConnection =
             server.GetConnectionById(net::cServerPlayer + 1U);
         if (clientConnection == nullptr)
@@ -596,6 +673,7 @@ int main()
         << "Original NetRace/NetPlayer class IDs, RPC order, match/state, "
            "host options, gamer/color authority, vehicle BitStream, "
            "damage/shot/bonus/mine/chat, "
-           "ExitRace results, repeated-race and host kick loopback passed\n";
+           "ExitRace results, repeated-race, ExitMatch cleanup/restart and "
+           "host kick loopback passed\n";
     return 0;
 }

@@ -3996,6 +3996,7 @@ int main(int argc, char** argv)
     std::uint64_t networkLastMineEventSequence = 0U;
     std::uint64_t networkLastChatEventSequence = 0U;
     std::uint64_t networkLastIdentityEventSequence = 0U;
+    std::uint64_t networkLastLifecycleEventSequence = 0U;
     std::int32_t networkAppliedPlanet =
         std::numeric_limits<std::int32_t>::min();
     std::int32_t networkAppliedTrack =
@@ -4492,6 +4493,7 @@ int main(int argc, char** argv)
             networkLastMineEventSequence = 0U;
             networkLastChatEventSequence = 0U;
             networkLastIdentityEventSequence = 0U;
+            networkLastLifecycleEventSequence = 0U;
             networkPublishedPlayer.reset();
             networkRaceModelOrder.clear();
 #ifdef RRR3D_PHYSICS
@@ -5915,6 +5917,8 @@ int main(int argc, char** argv)
             networkSnapshot.models.events.empty()
                 ? 0U
                 : networkSnapshot.models.events.back().sequence;
+        networkLastLifecycleEventSequence =
+            networkLastIdentityEventSequence;
         networkPendingGamerId.reset();
         std::cout
             << "Original NetRace::StartMatch: classId=1, playerClassId=2, "
@@ -6143,7 +6147,64 @@ int main(int argc, char** argv)
                 physicsWorld->vehicle().body.position;
         racePauseDialogObserved = true;
     };
-    auto leaveCurrentRace = [&]() {
+#ifdef RRR3D_NETWORK
+    auto collectNetworkRaceResults = [&]() {
+        const auto toSourceInt = [](std::uint32_t value) {
+            return static_cast<std::int32_t>(
+                std::min<std::uint32_t>(
+                    value,
+                    static_cast<std::uint32_t>(
+                        std::numeric_limits<std::int32_t>::max())));
+        };
+        std::vector<r3d::game::originalnetwork::NetworkRaceResult>
+            results;
+        const auto count = std::min(
+            networkRaceModelOrder.size(),
+            raceSession.racers().size());
+        results.reserve(count);
+        for (std::size_t index = 0U; index < count; ++index)
+        {
+            const auto& racer = raceSession.racers()[index];
+            if (racer.disconnected)
+                continue;
+            r3d::game::originalnetwork::NetworkRaceResult result;
+            result.playerModelId = networkRaceModelOrder[index];
+            result.playerPoints = toSourceInt(racer.points);
+            result.playerMoney = toSourceInt(racer.money);
+            result.money = toSourceInt(racer.rewardMoney);
+            result.pickedMoney = toSourceInt(racer.pickedMoney);
+            result.place = racer.place;
+            result.points = toSourceInt(racer.rewardPoints);
+            results.push_back(result);
+        }
+        return results;
+    };
+#endif
+    auto leaveCurrentRace = [&](bool publishNetworkRaceExit = true) {
+#ifdef RRR3D_NETWORK
+        if (publishNetworkRaceExit && networkMatchStarted &&
+            networkHostRequested && networkRaceStarted &&
+            !networkRaceExitApplied)
+        {
+            std::string error;
+            if (!networkSession.exitRace(
+                    networkSnapshot.models.match.track,
+                    networkSnapshot.models.match.weather,
+                    collectNetworkRaceResults(), error))
+            {
+                std::cerr << "Original NetRace::ExitRace failed: "
+                          << error << '\n';
+            }
+            else
+            {
+                networkRaceExitApplied = true;
+                networkRaceStarted = false;
+                refreshNetworkRuntimePages();
+            }
+        }
+#else
+        static_cast<void>(publishNetworkRaceExit);
+#endif
         saveRaceProfile();
         raceSession.setPaused(false);
         exitRaceDialogVisible = false;
@@ -6359,17 +6420,27 @@ int main(int argc, char** argv)
         infoDialog.dismissable = false;
     };
 #ifdef RRR3D_NETWORK
-    auto exitFailedNetworkMatch = [&]() {
+    auto exitNetworkMatch = [&](bool publishExitRpc) {
         networkFailureDialogAction =
             NetworkFailureDialogAction::None;
         if (inRace)
-            leaveCurrentRace();
+            leaveCurrentRace(false);
         else
         {
             raceSession.setPaused(false);
             raceLoadingActive = false;
             clearRaceControls();
             saveRaceProfile();
+        }
+        if (publishExitRpc && networkSession.initialized() &&
+            (networkMatchStarted || networkClientMatchEntered))
+        {
+            std::string error;
+            if (!networkSession.exitMatch(error))
+            {
+                std::cerr << "Original NetRace::ExitMatch failed: "
+                          << error << '\n';
+            }
         }
         raceLoadingActive = false;
         clearNetworkRacePlayerVisuals();
@@ -6393,6 +6464,7 @@ int main(int argc, char** argv)
         networkLastMineEventSequence = 0U;
         networkLastChatEventSequence = 0U;
         networkLastIdentityEventSequence = 0U;
+        networkLastLifecycleEventSequence = 0U;
         networkPublishedPlayer.reset();
         networkRaceModelOrder.clear();
         networkWeatherOverride.reset();
@@ -6410,8 +6482,10 @@ int main(int argc, char** argv)
         menuStack = {MenuScreen::Main};
         menuSelection = 0U;
         refreshSharedMenuAvailability(MenuScreen::Main);
-        std::cout
-            << "Original Menu::MyDisconnectEvent -> ExitRace/ExitMatch\n";
+        std::cout << (publishExitRpc
+                          ? "Original Menu::ExitMatch -> NetRace::ExitMatch\n"
+                          : "Original Menu::MyDisconnectEvent/OnExitMatch -> "
+                            "ExitRace/ExitMatch\n");
     };
     auto presentNetworkFailure = [&]() {
         using SessionFailure =
@@ -7117,6 +7191,27 @@ int main(int argc, char** argv)
                     menu::virtualHeight * 0.5F);
             }
         }
+    };
+    auto processNetworkLifecycleEvents = [&]() {
+        for (const auto& event : networkSnapshot.models.events)
+        {
+            if (event.sequence <= networkLastLifecycleEventSequence)
+                continue;
+            networkLastLifecycleEventSequence = std::max(
+                networkLastLifecycleEventSequence, event.sequence);
+            if (event.kind != r3d::game::originalnetwork::
+                                  NetworkEventKind::MatchExited ||
+                (!networkMatchStarted && !networkClientMatchEntered))
+            {
+                continue;
+            }
+            std::cout
+                << "Original NetRace::OnExitMatch: sender="
+                << event.sender << '\n';
+            exitNetworkMatch(false);
+            return true;
+        }
+        return false;
     };
 #endif
     auto refreshWorkshopPage = [&]() {
@@ -8181,6 +8276,8 @@ int main(int argc, char** argv)
             networkSnapshot.models.events.empty()
                 ? 0U
                 : networkSnapshot.models.events.back().sequence;
+        networkLastLifecycleEventSequence =
+            networkLastIdentityEventSequence;
         networkPendingGamerId.reset();
         hideInfoDialog();
         networkFailureDialogAction =
@@ -9359,7 +9456,12 @@ int main(int argc, char** argv)
             refreshNetworkRuntimePages();
 #ifdef RRR3D_PHYSICS
             presentNetworkFailure();
-            if (networkSnapshot.state !=
+            const bool networkMatchExited =
+                networkSnapshot.state !=
+                    r3d::game::originalnetwork::SessionState::Failed &&
+                processNetworkLifecycleEvents();
+            if (!networkMatchExited &&
+                networkSnapshot.state !=
                 r3d::game::originalnetwork::SessionState::Failed)
             {
                 if (!enterConnectedNetworkMatch())
@@ -9462,21 +9564,7 @@ int main(int argc, char** argv)
                     infoDialog.visible && networkMatchStarted &&
                     networkRacePlayerVisuals.empty();
                 hideInfoDialog();
-                clearNetworkRacePlayerVisuals();
-                networkSession.close();
-                networkSession.finalize();
-                networkHostRequested = false;
-                networkMatchStarted = false;
-                networkRaceStarted = false;
-                networkLocalReadyPublished = false;
-                networkPublishedPlayer.reset();
-                networkLastIdentityEventSequence = 0U;
-                networkPendingGamerId.reset();
-                networkSnapshot = {};
-                renderedNetworkRevision =
-                    std::numeric_limits<std::uint64_t>::max();
-                menuStack = {MenuScreen::Main};
-                menuSelection = 0U;
+                exitNetworkMatch(true);
 #else
                 networkHostReadyGateObserved = true;
 #endif
@@ -11696,7 +11784,7 @@ int main(int argc, char** argv)
                         if (networkAction ==
                             NetworkFailureDialogAction::ExitMatch)
                         {
-                            exitFailedNetworkMatch();
+                            exitNetworkMatch(false);
                         }
 #endif
                     }
@@ -11783,7 +11871,21 @@ int main(int argc, char** argv)
                             !pointerTargetsItem)
                             continue;
                         if (exitRaceYesFocused)
-                            leaveCurrentRace();
+                        {
+#ifdef RRR3D_NETWORK
+                            // HudMenu::OnClick exits only the race for a
+                            // host, but a client also leaves the whole match.
+                            if (networkMatchStarted &&
+                                !networkHostRequested)
+                            {
+                                exitNetworkMatch(true);
+                            }
+                            else
+#endif
+                            {
+                                leaveCurrentRace();
+                            }
+                        }
                         else
                         {
                             closeExitRaceDialog();
@@ -13607,42 +13709,14 @@ int main(int argc, char** argv)
                     }
                     else
                     {
-                        saveRaceProfile();
 #ifdef RRR3D_NETWORK
                         if (networkMatchStarted)
                         {
-                            networkSession.close();
-                            networkSession.finalize();
-                            networkHostRequested = false;
-                            networkMatchStarted = false;
-                            networkRaceStarted = false;
-                            networkClientMatchEntered = false;
-                            networkLocalCarSelected = true;
-                            networkHostRaceGoSeconds = -1.0F;
-                            networkAppliedRaceGoStage = -1;
-                            networkLocalReadyPublished = false;
-                            networkLocalGoWaitPublished = false;
-                            networkLocalFinishPublished = false;
-                            networkHostFinishTimerStarted = false;
-                            networkRaceExitApplied = false;
-                            networkLastGameplayEventSequence = 0U;
-                            networkLastShotEventSequence = 0U;
-                            networkLastBonusEventSequence = 0U;
-                            networkLastMineEventSequence = 0U;
-                            networkLastChatEventSequence = 0U;
-                            networkLastIdentityEventSequence = 0U;
-                            networkPublishedPlayer.reset();
-                            networkRaceModelOrder.clear();
-                            networkWeatherOverride.reset();
-                            networkPendingGamerId.reset();
-                            networkSnapshot = {};
-                            renderedNetworkRevision =
-                                std::numeric_limits<std::uint64_t>::max();
-                            handledNetworkFailureRevision = 0U;
-                            networkFailureDialogAction =
-                                NetworkFailureDialogAction::None;
+                            exitNetworkMatch(true);
+                            break;
                         }
 #endif
+                        saveRaceProfile();
                         if (!restoreChampionshipProfile())
                         {
                             runtimeSmokeFailed = true;
@@ -15373,40 +15447,11 @@ int main(int argc, char** argv)
                 networkRaceStarted && !networkRaceExitApplied &&
                 raceSession.finishPresentationReady())
             {
-                const auto toSourceInt = [](std::uint32_t value) {
-                    return static_cast<std::int32_t>(
-                        std::min<std::uint32_t>(
-                            value,
-                            static_cast<std::uint32_t>(
-                                std::numeric_limits<std::int32_t>::max())));
-                };
-                std::vector<r3d::game::originalnetwork::
-                                NetworkRaceResult>
-                    results;
-                const auto count = std::min(
-                    networkRaceModelOrder.size(),
-                    raceSession.racers().size());
-                results.reserve(count);
-                for (std::size_t index = 0U; index < count; ++index)
-                {
-                    const auto& racer = raceSession.racers()[index];
-                    if (racer.disconnected)
-                        continue;
-                    r3d::game::originalnetwork::NetworkRaceResult result;
-                    result.playerModelId = networkRaceModelOrder[index];
-                    result.playerPoints = toSourceInt(racer.points);
-                    result.playerMoney = toSourceInt(racer.money);
-                    result.money = toSourceInt(racer.rewardMoney);
-                    result.pickedMoney = toSourceInt(racer.pickedMoney);
-                    result.place = racer.place;
-                    result.points = toSourceInt(racer.rewardPoints);
-                    results.push_back(result);
-                }
                 std::string error;
                 if (!networkSession.exitRace(
                         networkSnapshot.models.match.track,
                         networkSnapshot.models.match.weather,
-                        results, error))
+                        collectNetworkRaceResults(), error))
                 {
                     std::cerr << "Original NetRace::ExitRace failed: "
                               << error << '\n';

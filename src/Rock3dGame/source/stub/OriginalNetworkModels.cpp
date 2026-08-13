@@ -376,6 +376,7 @@ public:
     bool makeHuman(std::string& error);
     bool makeComputers(std::string& error);
     void beginRace();
+    void clearPlayersLocally(net::INetPlayer& player);
 
     void applyMatch(NetworkMatchState match, std::uint32_t sender)
     {
@@ -453,8 +454,15 @@ public:
 
     void sendExitMatch()
     {
+        // NetRace::DoExitMatch copies NetGame::_players and deletes every
+        // NetPlayer locally before GameMode::ExitMatch. Deleting from the
+        // live map directly would invalidate the model destructors' walk.
+        context_.clearPlayersLocally(*player());
         context_.value.matchActive = false;
         context_.value.raceActive = false;
+        context_.value.paused = false;
+        context_.value.raceGoStage = -1;
+        context_.value.results.clear();
         context_.event({NetworkEventKind::MatchExited, player()->id()});
         MakeRPC(net::cNetTargetOthers, &PortableNetRace::OnExitMatch);
     }
@@ -739,8 +747,16 @@ private:
     void OnExitMatch(const net::NetMessage& msg,
                      const net::NetCmdHeader&, std::istream&)
     {
+        // The Windows host consumes a client's ExitMatch instead of
+        // forwarding it, then closes the match for all local players.
+        if (context_.service.isServer())
+            msg.Discard();
+        context_.clearPlayersLocally(*player());
         context_.value.matchActive = false;
         context_.value.raceActive = false;
+        context_.value.paused = false;
+        context_.value.raceGoStage = -1;
+        context_.value.results.clear();
         context_.event({NetworkEventKind::MatchExited, msg.sender});
     }
 
@@ -1392,6 +1408,18 @@ void PortableNetRace::applyLocalState(PortableNetPlayer& model,
 }
 
 } // namespace
+
+void OriginalNetworkModels::Impl::clearPlayersLocally(
+    net::INetPlayer& player)
+{
+    std::vector<PortableNetPlayer*> copy;
+    copy.reserve(players.size());
+    for (const auto& entry : players)
+        if (entry.second != nullptr)
+            copy.push_back(entry.second);
+    for (auto* model : copy)
+        player.DeleteModel(model, true);
+}
 
 void OriginalNetworkModels::Impl::beginRace()
 {

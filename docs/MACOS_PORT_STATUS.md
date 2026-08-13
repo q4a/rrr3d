@@ -1434,3 +1434,20 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   death теперь ожидается из фактического serialized maximum life, а не из
   неверного предположения, что первый destructible обязательно переживёт
   единицу урона.
+
+### Source NetRace ExitMatch / orderly match exit follow-up
+
+- Вместо прежней смены `matchActive/raceActive` перенесён
+  `NetRace::DoExitMatch`: список class-ID-2 `NetPlayer` копируется, все модели
+  локально удаляются штатным `DeleteModel(..., true)`, очищаются race flags и
+  results, после чего отправляется исходный reliable `OnExitMatch` RPC.
+- Active runtime обрабатывает `MatchExited` отдельно от сетевой ошибки,
+  очищает Jolt/renderer/HUD/audio state и возвращает оба процесса в MainMenu
+  без ложного `svHintDisconnect`.
+- Восстановлено различие `HudMenu::OnClick`: client делает локальный
+  `ExitRace` и завершает match, host отправляет `ExitRace` с текущим списком
+  результатов и возвращается в `RaceMenu2`; пункт Exit сетевого RaceMenu
+  отправляет `ExitMatch` до `FinalizateNet`.
+- Loopback проверяет client-to-host `OnExitMatch`, отсутствие оставшихся
+  player models на обеих сторонах и повторный StartMatch/StartRace тем же
+  живым class-ID-1 `NetRace`.

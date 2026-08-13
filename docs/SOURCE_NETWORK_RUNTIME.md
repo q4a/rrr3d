@@ -86,6 +86,17 @@ by `Race::DelPlayer`. `PlayerStateFrame::RemoveOpponent` and
 map marker immediately; an ordinarily destroyed car retains the original
 temporary death/respawn behavior.
 
+`NetRace::ExitMatch` is no longer represented by two cleared booleans. Its
+original `DoExitMatch` ownership boundary copies the live player-model list,
+deletes every class-ID-2 model locally through NetLib and then publishes the
+reliable `OnExitMatch` RPC. Both peers consume `MatchExited`, clear the active
+race/HUD/audio state and return to `MainMenu`; this orderly path is kept
+separate from host-loss and critical-error dialogs. The source HUD split is
+also preserved: a client confirming Exit Race performs local `ExitRace` plus
+`ExitMatch`, while a host publishes `ExitRace` with the current result list
+and returns to `RaceMenu2`. Selecting Exit there publishes `ExitMatch` before
+NetLib finalization.
+
 ## Verification
 
 The non-rendering regressions `rrr3d_original_network_session_smoke`,
@@ -97,8 +108,8 @@ close/finalization, all eight host-option RPCs and their client gate, model
 RPC, remote and local-host gamer/color conflicts with authoritative rollback,
 generated identity selection, same-value gamer confirmation, host-side peer
 removal, disconnected-racer input/respawn exclusion, Cyrillic chat wire
-format and the source chat
-history/fade model. The
+format, `ExitMatch` player-model cleanup on both peers, restart after cleanup,
+and the source chat history/fade model. The
 Metal regressions exercise all five source LAN menu frames, the asynchronous
 loading/failure dialog lifecycle and the chat overlay in a live race:
 
