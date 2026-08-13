@@ -4,8 +4,6 @@
 #include "targetver.h"
 
 #include <boost/asio.hpp>
-#include <boost/bind.hpp>
-#include <boost/thread/thread.hpp>
 
 #include "net/NetLib.h"
 

@@ -83,7 +83,7 @@ void NetClient::OnReceiveCmd(const NetMessage& msg, const NetCmdHeader& header, 
 
 	ProcessCmd(msg, header, bufs);
 
-	_net->OnReceiveCmd(msg, header, buffer_cast<const void*>(bufs), buffer_size(bufs));
+	_net->OnReceiveCmd(msg, header, buffer_cast<const void*>(bufs), header.size);
 }
 
 void NetClient::OnProcess(unsigned time)
@@ -106,6 +106,7 @@ bool NetClient::Connect(const Endpoint& endpoint)
 void NetClient::Disconnect()
 {
 	DeleteModels(true);
+	_connected = false;
 
 	NetConnection* connection = _connection;
 	_connection = NULL;

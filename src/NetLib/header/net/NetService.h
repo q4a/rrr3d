@@ -25,6 +25,7 @@ private:
 	bool _netAcceptorImplCreated;
 
 	bool _init;
+	bool _closePending;
 	unsigned _time;
 	unsigned _lastSyncTime;
 	unsigned _syncRate;

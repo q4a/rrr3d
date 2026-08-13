@@ -70,7 +70,7 @@ struct NetCmdHeader
 	unsigned rpc: 5;
 	unsigned size: 12;
 
-	NetCmdHeader(): datagram(0) {}
+	NetCmdHeader(): datagram(0), id(0), target(0), rpc(0), size(0) {}
 };
 
 struct NetStateHeader
@@ -83,6 +83,8 @@ struct NetStateHeader
 	unsigned size: 9;
 	unsigned reserved2: 11;
 
+	NetStateHeader(): time(0), reserved1(0), id(0), sender(0), size(0), reserved2(0) {}
+
 	static unsigned SizeOf() {return sizeof(NetStateHeader);}
 };
 
@@ -92,6 +94,8 @@ struct ModelHeader
 	unsigned id: 12;
 	unsigned ownerId: 3;
 	unsigned descSize: 10;
+
+	ModelHeader(): modelId(0), id(0), ownerId(0), descSize(0) {}
 };
 
 struct Endpoint
@@ -100,8 +104,8 @@ struct Endpoint
 	unsigned addressLong;
 	unsigned port;
 
-	Endpoint() {}
-	Endpoint(const std::string& mAddress, unsigned mPort): addressLong(0), address(mAddress), port(mPort) {}
+	Endpoint(): addressLong(0), port(0) {}
+	Endpoint(const std::string& mAddress, unsigned mPort): address(mAddress), addressLong(0), port(mPort) {}
 	Endpoint(unsigned mAddress, unsigned mPort): addressLong(mAddress), port(mPort) {}
 
 	bool operator==(const Endpoint& ref) const
@@ -128,6 +132,10 @@ struct Endpoint
 		}
 	}
 };
+
+static_assert(sizeof(NetCmdHeader) == 4, "NetCmdHeader wire layout changed");
+static_assert(sizeof(NetStateHeader) == 8, "NetStateHeader wire layout changed");
+static_assert(sizeof(ModelHeader) == 4, "ModelHeader wire layout changed");
 
 const unsigned cMaxRPC = 32;
 

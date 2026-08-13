@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace net
 {
 
@@ -25,7 +27,7 @@ struct BitValue
 		bool boolVal;
 		unsigned uintVal;
 		int intVal;
-		long lVal;
+		std::int32_t lVal;
 		long long llVal;
 		float fltVal;
 		double dblVal;
@@ -45,17 +47,62 @@ struct BitValue
 		char* str;
 	};
 
-	BitValue(): _w1(0), _w2(0), _w3(0), _w4(0), type(cBitTypeEnd), size(0) {}
+	BitValue(): _w1(0), _w2(0), _w3(0), _w4(0), size(0), type(cBitTypeEnd) {}
+
+	BitValue(const BitValue& ref): _w1(0), _w2(0), _w3(0), _w4(0), size(0), type(cBitTypeEnd)
+	{
+		*this = ref;
+	}
+
+	BitValue& operator=(const BitValue& ref)
+	{
+		if (this == &ref)
+			return *this;
+
+		if (ref.SafePtr() != NULL)
+		{
+			ptr = realloc(SafePtr(), ref.size);
+			memmove(ptr, ref.SafePtr(), ref.size);
+		}
+		else
+		{
+			if (SafePtr() != NULL)
+				free(ptr);
+			_w1 = ref._w1;
+			_w2 = ref._w2;
+			_w3 = ref._w3;
+			_w4 = ref._w4;
+		}
+		size = ref.size;
+		type = ref.type;
+		return *this;
+	}
 
 	~BitValue()
 	{
-		if (SafePtr())
-			free(ptr);
+		Release();
 	}
 
 	void* SafePtr()
 	{
 		return type == btData || type == btStr ? ptr : NULL;
+	}
+
+	const void* SafePtr() const
+	{
+		return type == btData || type == btStr ? ptr : NULL;
+	}
+
+	void Release()
+	{
+		if (SafePtr() != NULL)
+			free(ptr);
+		_w1 = 0;
+		_w2 = 0;
+		_w3 = 0;
+		_w4 = 0;
+		size = 0;
+		type = cBitTypeEnd;
 	}
 
 	void NewData(unsigned size)
@@ -94,7 +141,9 @@ struct BitValue
 		case btInt:
 			return sizeof(int);
 		case btLong:
-			return sizeof(long);
+			// Windows uses a four-byte long. Keep the original wire format on
+			// LP64 hosts such as macOS, where sizeof(long) is eight.
+			return sizeof(std::int32_t);
 		case btLongLong:
 			return sizeof(long long);
 		case btFloat:

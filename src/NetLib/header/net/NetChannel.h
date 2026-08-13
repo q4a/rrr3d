@@ -9,7 +9,7 @@ typedef std::list<udp::endpoint> EndpointUdpList;
 struct NetState
 {
 	NetStateHeader header;
-	shared_ptr<BYTE> data;
+	std::vector<BYTE> data;
 	unsigned size;
 	EndpointList endpointList;
 
@@ -18,25 +18,20 @@ struct NetState
 	streambuf::mutable_buffers_type Prepare(unsigned size)
 	{
 		if (this->size != size)
-		{
-			this->size = size;
-
-			if (size > 0)
-				data.reset((BYTE*)malloc(size));
-			else
-				Release();
-		}
+			data.resize(size);
+		this->size = size;
 
 		return bufs();
 	}
 
 	void Release()
 	{
-		data.reset();
+		data.clear();
+		size = 0;
 	}
 
-	streambuf::mutable_buffers_type bufs() {return streambuf::mutable_buffers_type(data.get(), size);}
-	streambuf::const_buffers_type bufs() const {return streambuf::const_buffers_type(data.get(), size);}
+	streambuf::mutable_buffers_type bufs() {return streambuf::mutable_buffers_type(size ? data.data() : NULL, size);}
+	streambuf::const_buffers_type bufs() const {return streambuf::const_buffers_type(size ? data.data() : NULL, size);}
 };
 
 typedef std::map<unsigned, NetState> NetStates;
@@ -57,7 +52,6 @@ private:
 	NetService* _net;
 	INetChannelUser* _user;
 	INetChannelImpl* _impl;
-	bool _broadcast;
 
 	unsigned _ping;
 	unsigned _pingTime;

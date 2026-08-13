@@ -31,7 +31,8 @@ void NetAcceptorTCP::Close()
 		return;
 	_isOpen = false;
 
-	_acceptor.close();
+	error_code error;
+	_acceptor.close(error);
 }
 
 INetConnectionImpl* NetAcceptorTCP::NewConnection()
@@ -59,7 +60,7 @@ tcp::acceptor& NetAcceptorTCP::acceptor()
 	return _acceptor;
 }
 
-NetConnectionTCP::NetConnectionTCP(NetAcceptorTCP* owner): _owner(owner), _socket(owner->acceptor().get_io_service()), _isOpen(false), _beep(false), _beepCount(0), _isConnected(false)
+NetConnectionTCP::NetConnectionTCP(NetAcceptorTCP* owner): _owner(owner), _socket(owner->acceptor().get_executor()), _isOpen(false), _beep(false), _beepCount(0), _isConnected(false), _lastError(0)
 {
 }
 
@@ -75,12 +76,14 @@ void NetConnectionTCP::OnAccepted(const error_code& error)
 
 	if (error)
 	{
+		_lastError = error.value();
 		LSL_LOG("OnAccepted failed " + error.message());
 
 		NotifyAccepted(false);
 	}
 	else
 	{
+		_lastError = 0;
 		_isConnected = true;
 		NotifyAccepted(true);
 	}
@@ -95,12 +98,14 @@ void NetConnectionTCP::OnConnected(const error_code& error)
 
 	if (error)
 	{
+		_lastError = error.value();
 		LSL_LOG("OnConnected failed " + error.message());
 
 		NotifyConnected(false);
 	}
 	else
 	{
+		_lastError = 0;
 		_isConnected = true;
 		NotifyConnected(true);
 	}
@@ -135,7 +140,11 @@ void NetConnectionTCP::OnReceiveBeep(const error_code& error, std::size_t numByt
 
 bool NetConnectionTCP::Send(const void* data, unsigned size)
 {
-	_socket.async_send(buffer(data, size), boost::bind(&NetConnectionTCP::OnSendCmd, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+	async_write(_socket, buffer(data, size),
+		[this](const error_code& error, std::size_t numBytes)
+		{
+			OnSendCmd(error, numBytes);
+		});
 
 	return true;
 }
@@ -168,7 +177,11 @@ bool NetConnectionTCP::IsAvailable(unsigned& size)
 	{
 		_beepCount = 0;
 		_beep = true;
-		_socket.async_receive(buffer(&_beep, 1), tcp::socket::message_peek, boost::bind(&NetConnectionTCP::OnReceiveBeep, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+		_socket.async_receive(buffer(&_beep, 1), tcp::socket::message_peek,
+			[this](const error_code& error, std::size_t numBytes)
+			{
+				OnReceiveBeep(error, numBytes);
+			});
 	}
 
 	return true;
@@ -180,7 +193,11 @@ void NetConnectionTCP::Accept()
 
 	_isOpen = true;
 
-	_owner->acceptor().async_accept(_socket, boost::bind(&NetConnectionTCP::OnAccepted, this, boost::asio::placeholders::error));
+	_owner->acceptor().async_accept(_socket,
+		[this](const error_code& error)
+		{
+			OnAccepted(error);
+		});
 }
 
 bool NetConnectionTCP::Connect(const Endpoint& endpoint)
@@ -193,7 +210,11 @@ bool NetConnectionTCP::Connect(const Endpoint& endpoint)
 
 	_isOpen = true;
 
-	_socket.async_connect(endpointTCP, boost::bind(&NetConnectionTCP::OnConnected, this, boost::asio::placeholders::error));
+	_socket.async_connect(endpointTCP,
+		[this](const error_code& error)
+		{
+			OnConnected(error);
+		});
 
 	return true;
 }
@@ -215,7 +236,8 @@ void NetConnectionTCP::Close()
 				LSL_LOG(error.message());
 		}
 
-		_socket.close();
+		error_code error;
+		_socket.close(error);
 	}
 }
 
@@ -243,7 +265,12 @@ lsl::string NetConnectionTCP::userName() const
 	return "";
 }
 
-NetChannelTCP::NetChannelTCP(NetAcceptorTCP* owner): _owner(owner), _socketReader(owner->acceptor().get_io_service()), _socketWriter(owner->acceptor().get_io_service()), _isOpen(false), _isBind(false), _broadcast(false)
+unsigned NetConnectionTCP::lastError() const
+{
+	return _lastError;
+}
+
+NetChannelTCP::NetChannelTCP(NetAcceptorTCP* owner): _socketReader(owner->acceptor().get_executor()), _socketWriter(owner->acceptor().get_executor()), _isOpen(false), _isBind(false), _broadcast(false)
 {
 }
 
@@ -263,12 +290,9 @@ void NetChannelTCP::CloseWriter()
 	if (_socketWriter.is_open())
 	{
 		error_code error;
-		_socketWriter.shutdown(tcp::socket::shutdown_both, error);
-		if (error)
-			LSL_LOG(error.message());
+		_socketWriter.cancel(error);
+		_socketWriter.close(error);
 	}
-
-	_socketWriter.close();
 }
 
 void NetChannelTCP::OnSend(const error_code& error, std::size_t numBytes)
@@ -291,9 +315,14 @@ void NetChannelTCP::OnSend(const error_code& error, std::size_t numBytes)
 bool NetChannelTCP::Send(const Endpoint& endpoint, const void* data, unsigned size)
 {
 	tcp::endpoint tcpEndpoint;
-	GetEndpointTCP(endpoint, tcpEndpoint);
+	if (!GetEndpointTCP(endpoint, tcpEndpoint))
+		return false;
 
-	_socketWriter.async_send_to(buffer(data, size), udp::endpoint(tcpEndpoint.address(), endpoint.port), boost::bind(&NetChannelTCP::OnSend, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+	_socketWriter.async_send_to(buffer(data, size), udp::endpoint(tcpEndpoint.address(), endpoint.port),
+		[this](const error_code& error, std::size_t numBytes)
+		{
+			OnSend(error, numBytes);
+		});
 
 	return true;
 }
@@ -371,12 +400,9 @@ void NetChannelTCP::Unbind()
 	if (_socketReader.is_open())
 	{
 		error_code error;
-		_socketReader.shutdown(tcp::socket::shutdown_both, error);
-		if (error)
-			LSL_LOG(error.message());
+		_socketReader.cancel(error);
+		_socketReader.close(error);
 	}
-
-	_socketReader.close();
 }
 
 void NetChannelTCP::Close()

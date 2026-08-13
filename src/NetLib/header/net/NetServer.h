@@ -15,7 +15,7 @@ private:
 	struct CmdInst
 	{
 		NetCmdHeader header;
-		shared_ptr<BYTE> data;
+		std::vector<BYTE> data;
 		unsigned size;
 
 		CmdInst(const NetCmdHeader& mHeader, const streambuf::const_buffers_type& mBufs): header(mHeader)
@@ -23,13 +23,13 @@ private:
 			size = buffer_size(mBufs);
 			if (size > 0)
 			{
-				data.reset((BYTE*)malloc(size));
+				data.resize(size);
 				buffer_copy(bufs(), mBufs, size);
 			}
 		}
 
-		streambuf::mutable_buffers_type bufs() {return streambuf::mutable_buffers_type(data.get(), size);}
-		streambuf::const_buffers_type bufs() const {return streambuf::const_buffers_type(data.get(), size);}
+		streambuf::mutable_buffers_type bufs() {return streambuf::mutable_buffers_type(size ? data.data() : NULL, size);}
+		streambuf::const_buffers_type bufs() const {return streambuf::const_buffers_type(size ? data.data() : NULL, size);}
 	};
 	typedef std::vector<CmdInst> CmdList;
 public:

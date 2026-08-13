@@ -3,7 +3,7 @@
 namespace net
 {
 
-class NetAcceptorTCP: public INetAcceptorImpl
+class NetAcceptorTCP final: public INetAcceptorImpl
 {
 private:
 	tcp::acceptor _acceptor;
@@ -24,7 +24,7 @@ public:
 	tcp::acceptor& acceptor();
 };
 
-class NetConnectionTCP: public INetConnectionImpl
+class NetConnectionTCP final: public INetConnectionImpl
 {
 private:
 	NetAcceptorTCP* _owner;
@@ -33,6 +33,7 @@ private:
 	bool _beep;
 	int _beepCount;
 	bool _isConnected;
+	unsigned _lastError;
 
 	void OnAccepted(const error_code& error);
 	void OnConnected(const error_code& error);
@@ -54,15 +55,14 @@ public:
 	virtual Endpoint localEndpoint();
 	virtual Endpoint remoteEndpoint();
 	virtual lsl::string userName() const;
+	virtual unsigned lastError() const;
 };
 
 //udp::socket::protocol_type protocol = udp::v4()
 
-class NetChannelTCP: public INetChannelImpl
+class NetChannelTCP final: public INetChannelImpl
 {
 private:
-	NetAcceptorTCP* _owner;
-
 	udp::socket _socketReader;
 	udp::socket _socketWriter;
 	bool _isOpen;

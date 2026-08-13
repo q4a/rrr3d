@@ -176,15 +176,19 @@ portable world — текущая API-заглушка мир не создаё�
 
 ## 7. Network
 
-Прямой `winsock` include находится в `src/NetLib/source/NetService.cpp`;
-Windows network types/API дополнительно проходят через `NetCommon.h` и
-связанные файлы. По API-инвентаризации семейство `socket` встречается 16 раз.
-Также линкуется `Iphlpapi` для получения сетевых интерфейсов/IP.
+Низкоуровневый `NetLib` оказался уже построен поверх Boost.Asio; Windows-only
+частью была прежде всего `GetAdaptersAddresses`/`Iphlpapi`. В follow-up он
+собирается arm64 как static library с pinned Boost 1.85.0/GLM 1.0.1,
+использует `getifaddrs` для IPv4 adapters и современный Asio executor/restart
+contract. Исправлены исходные дефекты dynamic `BitStream`, LP64 `long`,
+command size, reconnect и инициализации wire headers.
 
-`RRR3D_ENABLE_NETWORK=OFF` исключает `NetLib` на macOS-базовом preset. Для
-переноса нужны POSIX sockets или SDL_net-подобная абстракция, portable address
-enumeration, неблокирующий режим и нормализация error codes. Steam P2P следует
-оставить отдельным backend, а не смешивать с socket portability.
+Preset `macos-arm64-network` проверяет настоящий TCP connect/command/reconnect,
+UDP datagram и Windows-compatible размеры/layout заголовков на loopback.
+Финальные M9/M10/Release presets пока оставляют `RRR3D_ENABLE_NETWORK=OFF`:
+portable runtime не подключил исходные `NetGame`, `NetRace`, LAN browser и
+модели репликации. Steam P2P остаётся отдельным backend и не смешивается с
+socket portability.
 
 ## 8. Physics
 

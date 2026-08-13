@@ -186,3 +186,19 @@ codesign -d --verbose=4 RRR3d.app
 Known runtime and distribution limitations are tracked in
 `docs/MACOS_PORT_STATUS.md`. The completed bundle acceptance record, archive
 hashes and moved-application launch result are in `docs/MILESTONE_10.md`.
+
+## Исходный NetLib transport
+
+Нативный перенос TCP/UDP transport проверяется отдельно от ещё не
+подключённого LAN game/UI runtime:
+
+```bash
+cmake --preset macos-arm64-network
+cmake --build --preset macos-arm64-network --parallel 8
+ctest --test-dir build/macos-arm64-network --output-on-failure
+```
+
+Тест создаёт локальные UDP и TCP endpoints, выполняет command handshake,
+повторное подключение и проверяет совместимость исходного wire layout с
+Windows. Успех этого preset не означает, что LAN browser и `NetRace` уже
+доступны в `RRR3d.app`.

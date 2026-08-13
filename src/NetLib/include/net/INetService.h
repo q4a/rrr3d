@@ -21,6 +21,8 @@ public:
 class IStreamBuf
 {
 public:
+	virtual ~IStreamBuf() {}
+
 	virtual BYTE* Prepare(unsigned n) = 0;
 	virtual void Commit(unsigned n) = 0;
 	virtual void Consume(unsigned n) = 0;
@@ -80,7 +82,7 @@ public:
 
 	virtual bool GetAdapterAddresses(lsl::StringVec& addrVec) const = 0;
 
-	virtual IStreamBuf* CreateStreamBuf(unsigned maxSize = (std::numeric_limits<std::size_t>::max)(), const std::allocator<char>& allocator = std::allocator<char>()) = 0;
+	virtual IStreamBuf* CreateStreamBuf(unsigned maxSize = (std::numeric_limits<unsigned>::max)(), const std::allocator<char>& allocator = std::allocator<char>()) = 0;
 	virtual void ReleaseStreamBuf(IStreamBuf* inst) = 0;
 };
 

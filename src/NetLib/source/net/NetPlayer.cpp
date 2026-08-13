@@ -6,7 +6,7 @@
 namespace net
 {
 
-NetPlayer::NetPlayer(NetService* net, unsigned id): _net(net), _id(id), _cmdIndex(0)
+NetPlayer::NetPlayer(NetService* net, unsigned id): _id(id), _cmdIndex(0), _net(net)
 {
 }
 

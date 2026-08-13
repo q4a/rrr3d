@@ -4,8 +4,10 @@
 > bundle и source-driven vertical slice на оригинальных ресурсах, но не
 > доказали полный перенос Windows-игры. Исходные `Rock3dGame/source/game`
 > классы в macOS target не компилируются; меню, session, AI, weapons, HUD и
-> renderer частично воспроизведены новыми adapters, а network/video/Steam
-> выключены. Каноническая матрица «перенесено / частично / суррогат / не
+> renderer частично воспроизведены новыми adapters. Video имеет native
+> backend, исходный NetLib transport перенесён отдельно, но LAN gameplay/UI
+> ещё не подключены; Steam выключен. Каноническая матрица «перенесено /
+> частично / суррогат / не
 > перенесено» находится в
 > [`MACOS_PORT_COMPLETENESS_AUDIT.md`](MACOS_PORT_COMPLETENESS_AUDIT.md).
 > Приведённые ниже milestone-отчёты описывают реализованное покрытие и историю
@@ -1035,10 +1037,11 @@ SDL_AUDIO_DRIVER=dummy \
 Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` и workshop
 `WeaponDialog`, вызываемые offline `InfoDialog`/`AcceptDialog` и `GamersFrame` теперь
 source-derived. Source finish progression, planet/final movies и нативный
-video backend, включая Intaria transition, также подключены. Следующий P0-блок:
-продолжить source-by-source ревизию projectile callbacks и убрать оставшиеся
-неподтверждённые direct material mappings; затем проверить graph effect и
-game-side audio behaviors. Release hardening
+video backend, включая Intaria transition, также подключены; projectile,
+material graph и game-side audio follow-ups ниже закрыты. Следующий большой
+продуктовый разрыв после отдельного переноса NetLib transport — подключение
+исходных `NetGame`/`NetRace`, LAN browser и race replication к portable
+runtime. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
 функциональных расхождений; он не является заменой переноса.
 
@@ -1193,3 +1196,21 @@ game-side audio behaviors. Release hardening
   прикреплённым визуальным эффектом без телепорта к центру автомобиля.
 - Race-session smoke теперь проверяет identity/surface контактного audio
   source и положительный source lifetime pickup/death sounds.
+
+### Source NetLib TCP/UDP transport follow-up
+
+- Исходный Boost.Asio `NetLib` теперь компилируется в arm64 static library,
+  не используя Windows `extern/boost`/`extern/glm` или Homebrew dylib. Для
+  network preset закреплены Boost 1.85.0 и GLM 1.0.1 с SHA-256.
+- Перенесены modern Asio executor/restart semantics и `getifaddrs` adapter
+  enumeration. TCP control channel, UDP state datagram, reconnect и полный
+  service player-id/command handshake выполняются на macOS.
+- Исправлены выявленные регрессией исходные ошибки: dynamic `BitStream`
+  записывал адрес вместо данных и имел shallow ownership, Windows `long`
+  расширялся до восьми байт на LP64, command callback захватывал следующий
+  datagram header, client state не сбрасывался, а часть wire fields была
+  неинициализирована.
+- `macos-arm64-network` и `rrr3d_net_loopback_smoke` проверяют TCP/UDP,
+  повторное подключение, dynamic state и Windows-compatible 4/8-byte header
+  layout. Финальный `.app` пока не включает сеть: `NetGame`, `NetRace`, LAN
+  browser и portable race replication остаются следующим отдельным этапом.

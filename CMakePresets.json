@@ -241,6 +241,31 @@
         "RRR3D_ENABLE_DXVK_NATIVE": "OFF",
         "RRR3D_MACOS_CODESIGN_IDENTITY": "-"
       }
+    },
+    {
+      "name": "macos-arm64-network",
+      "displayName": "macOS arm64 source NetLib TCP/UDP transport",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-arm64-network",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RRR3D_BUILD_GAME": "OFF",
+        "RRR3D_BUILD_MAP_EDITOR": "OFF",
+        "RRR3D_BUILD_SDL_SHELL": "OFF",
+        "RRR3D_BUILD_DXVK_MOLTENVK_TEST": "OFF",
+        "RRR3D_BUILD_BGFX_SCENE": "OFF",
+        "RRR3D_BUILD_PORTABLE_MENU": "OFF",
+        "RRR3D_BUILD_ORIGINAL_MENU": "OFF",
+        "RRR3D_ENABLE_RENDERER": "OFF",
+        "RRR3D_ENABLE_NETWORK": "ON",
+        "RRR3D_ENABLE_VIDEO": "OFF",
+        "RRR3D_ENABLE_PHYSICS": "OFF",
+        "RRR3D_ENABLE_STEAM": "OFF",
+        "RRR3D_ENABLE_GAMEPAD": "OFF",
+        "RRR3D_ENABLE_AUDIO": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -347,6 +372,14 @@
         "Rock3dGame",
         "RRR3d",
         "RRR3dBundle"
+      ]
+    },
+    {
+      "name": "macos-arm64-network",
+      "configurePreset": "macos-arm64-network",
+      "targets": [
+        "NetLib",
+        "rrr3d_net_loopback_smoke"
       ]
     }
   ]

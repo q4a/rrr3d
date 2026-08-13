@@ -6,7 +6,7 @@
 namespace net
 {
 
-NetConnection::NetConnection(NetService* net, unsigned id, INetConnectionUser* user): _net(net), _id(id), _user(user), _ping(0), _pingTime(0), _bytesSend(0), _bytesReceived(0), _cmdIsWrite(false), _cmdIsRead(false)
+NetConnection::NetConnection(NetService* net, unsigned id, INetConnectionUser* user): _net(net), _id(id), _user(user), _impl(NULL), _ping(0), _pingTime(0), _bytesSend(0), _bytesReceived(0), _cmdIsWrite(false), _cmdIsRead(false)
 {
 	_impl = _net->acceptorImpl()->NewConnection();
 	_impl->RegUser(this);
@@ -94,7 +94,7 @@ void NetConnection::OnConnected(bool success)
 	{
 		if (_user)
 		{
-			error_code error;
+			error_code error(_impl->lastError(), system_category());
 			_user->OnConnectionFailed(this, error);
 		}
 	}

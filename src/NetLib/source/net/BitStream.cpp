@@ -136,7 +136,7 @@ void BitStream::Read(std::istream& stream)
 
 		Val& val = _values[header.pos];
 
-		if (header.typeHeader.type == btData)
+		if (header.typeHeader.type == btData || header.typeHeader.type == btStr)
 		{
 			net::Read(stream, header.size);
 			val.bit.NewData(header.size);
@@ -145,7 +145,8 @@ void BitStream::Read(std::istream& stream)
 		else
 		{
 			header.size = BitValue::GetSize((BitType)header.typeHeader.type);
-			net::Read(stream, &val, header.size);
+			val.bit.Release();
+			net::Read(stream, &val.bit, header.size);
 		}
 		val.bit.type = (BitType)header.typeHeader.type;
 		val.bit.size = header.size;
@@ -181,7 +182,7 @@ void BitStream::Write(std::ostream& stream, bool diff, bool changed, bool update
 		header.pos = i;
 		header.size = _values[i].bit.size;
 
-		if (header.typeHeader.type == btData)
+		if (header.typeHeader.type == btData || header.typeHeader.type == btStr)
 		{
 			net::Write(stream, &header, sizeof(header));
 		}
@@ -191,7 +192,10 @@ void BitStream::Write(std::ostream& stream, bool diff, bool changed, bool update
 			net::Write(stream, header.pos);
 		}
 
-		net::Write(stream, &_values[i].bit, _values[i].bit.size);
+		const void* value = header.typeHeader.type == btData || header.typeHeader.type == btStr
+			? _values[i].bit.ptr
+			: static_cast<const void*>(&_values[i].bit);
+		net::Write(stream, value, _values[i].bit.size);
 	}
 
 	TypeHeader typeHeader;
@@ -253,7 +257,11 @@ void BitStream::Serialize(int& value)
 
 void BitStream::Serialize(long& value)
 {
-	Serialize(value, btLong, Get().bit.lVal == value);
+	std::int32_t wireValue = static_cast<std::int32_t>(value);
+	const bool equal = Get().bit.lVal == wireValue;
+	Serialize(wireValue, btLong, equal);
+	if (_isReading && !equal)
+		value = wireValue;
 }
 
 void BitStream::Serialize(long long& value)

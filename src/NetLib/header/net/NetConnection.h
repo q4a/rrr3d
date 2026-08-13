@@ -8,8 +8,10 @@ struct NetDatagramHeader
 	unsigned datagram: 1;
 	unsigned time: 31;
 
-	NetDatagramHeader(): datagram(1) {}
+	NetDatagramHeader(): datagram(1), time(0) {}
 };
+
+static_assert(sizeof(NetDatagramHeader) == 4, "NetDatagramHeader wire layout changed");
 
 class NetConnection;
 

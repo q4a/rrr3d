@@ -8,7 +8,7 @@
 namespace net
 {
 
-NetChannel::NetChannel(NetService* net, INetChannelUser* user): _net(net), _user(user), _ping(0), _pingTime(0), _bytesSend(0), _bytesReceived(0), _dataIsWrite(false), _dataIsRead(false), _broadcast(false), _dataIsReadOutStart(false)
+NetChannel::NetChannel(NetService* net, INetChannelUser* user): _net(net), _user(user), _impl(NULL), _ping(0), _pingTime(0), _bytesSend(0), _bytesReceived(0), _dataIsRead(false), _dataIsReadOutStart(false), _dataIsWrite(false)
 {
 	_impl = _net->acceptorImpl()->NewChannel();
 	_impl->RegUser(this);

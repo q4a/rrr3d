@@ -31,6 +31,10 @@ option(RRR3D_ENABLE_DXVK_NATIVE "Use DXVK Native renderer" OFF)
 option(RRR3D_MACOS_HARDENED_RUNTIME
     "Enable the hardened runtime when signing a macOS bundle" OFF)
 
+if(RRR3D_ENABLE_NETWORK AND NOT WIN32)
+    enable_testing()
+endif()
+
 set(RRR3D_RENDERER_BACKEND "none" CACHE STRING
     "Portable renderer backend (none or bgfx)")
 set_property(CACHE RRR3D_RENDERER_BACKEND PROPERTY STRINGS none bgfx)

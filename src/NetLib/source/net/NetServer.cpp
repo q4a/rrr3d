@@ -6,7 +6,7 @@
 namespace net
 {
 
-NetServer::NetServer(NetService* net): NetPlayer(net, cServerPlayer), _started(false), _port(0), _lastModelId(0), _processCmdRef(0), _newConnection(NULL)
+NetServer::NetServer(NetService* net): NetPlayer(net, cServerPlayer), _port(0), _started(false), _lastModelId(0), _newConnection(NULL), _processCmdRef(0)
 {
 }
 
@@ -241,7 +241,7 @@ void NetServer::OnReceiveCmd(const NetMessage& msg, const NetCmdHeader& header, 
 
 	ProcessCmd(msg, header, bufs);
 
-	_net->OnReceiveCmd(msg, header, buffer_cast<const void*>(bufs), buffer_size(bufs));
+	_net->OnReceiveCmd(msg, header, buffer_cast<const void*>(bufs), header.size);
 }
 
 void NetServer::OnProcess(unsigned time)

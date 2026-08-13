@@ -6,6 +6,10 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <Iphlpapi.h>
+#else
+#include <arpa/inet.h>
+#include <ifaddrs.h>
+#include <net/if.h>
 #endif
 
 namespace net
@@ -27,7 +31,7 @@ public:
 	unsigned maxSize() const { return _inst.max_size(); }
 };
 
-NetService::NetService(): _init(false), _ioService(0), _netChannel(NULL), _netServer(NULL), _netClient(NULL), _time(0), _syncRate(70), _lastSyncTime(0), _pingPort(0), _pingTime(0), _pingSendPeriod(0), _bufConnectionTick(0), _bufChannelTick(0), _user(NULL), _netAcceptorImpl(NULL), _netAcceptorImplCreated(false)
+NetService::NetService(): _user(NULL), _netAcceptorImpl(NULL), _netAcceptorImplCreated(false), _init(false), _closePending(false), _time(0), _lastSyncTime(0), _syncRate(70), _pingPort(0), _pingTime(0), _pingSendPeriod(0), _pingStartTime(0), _pingSendTime(0), _bufConnectionTick(0), _bufChannelTick(0), _netChannel(NULL), _netServer(NULL), _netClient(NULL), _ioService(0)
 {
 }
 
@@ -53,10 +57,14 @@ void NetService::AllocProtocols()
 
 void NetService::ReleaseProtocols()
 {
+	if (_ioService.stopped())
+		_ioService.restart();
 	_ioService.poll();
 #ifdef _WIN32 // FIX_LINUX Sleep
 	Sleep(0);
 #endif
+	if (_ioService.stopped())
+		_ioService.restart();
 	_ioService.poll();
 
 	DeleteConnections();
@@ -74,6 +82,10 @@ void NetService::ReleaseProtocols()
 void NetService::protocolImpl(INetAcceptorImpl* acceptor)
 {
 	ReleaseProtocols();
+	// poll() enters the stopped state when the previous protocol graph has no
+	// work. New accept/connect operations posted below would otherwise never
+	// dispatch on modern Boost.Asio until the io_context is restarted.
+	_ioService.restart();
 
 	_netAcceptorImpl = acceptor;
 
@@ -175,7 +187,10 @@ bool NetService::OnDisconnected(INetConnection* sender)
 		_user->OnDisconnected(sender);
 
 	if (isClient())
-		Close();
+	{
+		_closePending = true;
+		return false;
+	}
 
 	return !IsClosed();
 }
@@ -186,7 +201,10 @@ bool NetService::OnConnectionFailed(INetConnection* sender, unsigned error)
 		_user->OnConnectionFailed(sender, error);
 
 	if (isClient())
-		Close();
+	{
+		_closePending = true;
+		return false;
+	}
 
 	return !IsClosed();
 }
@@ -250,9 +268,16 @@ void NetService::Process(unsigned time)
 
 	//receive async events (may immediately dispatched or collected depends from current async model)
 	error_code error;
+	if (_ioService.stopped())
+		_ioService.restart();
 	_ioService.poll(error);
 	if (error)
 		lsl::appLog.Append(error.message());
+	if (_closePending)
+	{
+		_closePending = false;
+		Close();
+	}
 
 	if (_connections.size() > 0)
 		++_bufConnectionTick;
@@ -315,6 +340,7 @@ void NetService::Finalizate()
 		return;
 
 	_init = false;
+	_closePending = false;
 	_endpointList.clear();
 	_pingTime = 0;
 
@@ -353,9 +379,10 @@ bool NetService::Connect(const Endpoint& endpoint, INetAcceptorImpl* acceptor)
 
 void NetService::Close()
 {
+	_closePending = false;
 	if (!IsClosed())
 	{
-		_ioService.reset();
+		_ioService.restart();
 
 		lsl::SafeDelete(_netClient);
 		lsl::SafeDelete(_netServer);
@@ -430,7 +457,7 @@ unsigned NetService::connectionCount() const
 	if (_netClient)
 		return 1;
 
-	return NULL;
+	return 0;
 }
 
 bool NetService::isConnecting() const
@@ -582,6 +609,29 @@ bool NetService::GetAdapterAddresses(lsl::StringVec& addrVec) const
 	}
 
 	free(addresses);
+#else
+	ifaddrs* addresses = NULL;
+	if (getifaddrs(&addresses) != 0)
+		return false;
+
+	for (ifaddrs* address = addresses; address != NULL; address = address->ifa_next)
+	{
+		if (address->ifa_addr == NULL || address->ifa_addr->sa_family != AF_INET)
+			continue;
+		if ((address->ifa_flags & IFF_UP) == 0 || (address->ifa_flags & IFF_LOOPBACK) != 0)
+			continue;
+
+		char buffer[INET_ADDRSTRLEN] = {};
+		const sockaddr_in* ipv4 = reinterpret_cast<const sockaddr_in*>(address->ifa_addr);
+		if (inet_ntop(AF_INET, &ipv4->sin_addr, buffer, sizeof(buffer)) != NULL)
+		{
+			const lsl::string value(buffer);
+			if (std::find(addrVec.begin(), addrVec.end(), value) == addrVec.end())
+				addrVec.push_back(value);
+		}
+	}
+
+	freeifaddrs(addresses);
 #endif
 
 	return true;

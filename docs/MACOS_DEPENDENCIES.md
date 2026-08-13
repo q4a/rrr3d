@@ -9,7 +9,8 @@
 
 | Имя | Зафиксированная/проверенная версия | Источник | Лицензия | CMake target | Включать в `.app` |
 | --- | --- | --- | --- | --- | --- |
-| GLM | требуется >= 1.0; проверена 1.0.3 arm64 | Homebrew `glm` или `glm_DIR`; Windows fallback `extern/glm` | MIT | `glm::glm-header-only` на macOS; `glm::glm` / `rrr3d_glm` на остальных платформах | нет, header-only |
+| GLM | 1.0.1 для network preset; в основном runtime требуется >= 1.0 и проверена 1.0.3 arm64 | pinned GitHub archive SHA-256 `9f3174561fd26904b23f0db5e560971cbf9b3cbda0b280f04d5c379d03bf234c` при network; иначе Homebrew `glm`/`glm_DIR`; Windows fallback `extern/glm` | MIT | `rrr3d_glm_headers` либо `glm::glm-header-only` | нет, header-only |
+| Boost | 1.85.0; SHA-256 `7009fe1faa1697476bdc7027703a2badb84e849b7b0baad5086b087b971f8617` | официальный `archives.boost.io` source archive через `FetchContent` | Boost Software License 1.0 | `rrr3d_boost_headers`; Asio/System header-only | нет, header-only |
 | TinyXML 1 | 2.6.2; SHA-256 `15bdfdcec58a7da30adc87ac2b078e4417dbe5392f3afb719f9ba6d062645593` | [официальный архив SourceForge](https://sourceforge.net/projects/tinyxml/files/tinyxml/2.6.2/) через `FetchContent`; Windows fallback `extern/tinyxml` | zlib | `rrr3d_tinyxml` | статически, notice/license при дистрибуции |
 | SDL3 | 3.4.12; SHA-256 `f07b958a9ac5020fb7a44cadb957f658b2149c3c8abb4f63145fac9303249db7` | [официальный release `libsdl-org/SDL`](https://github.com/libsdl-org/SDL/releases/tag/release-3.4.12), собирается через `FetchContent` | zlib | `SDL3::SDL3-static` | статически; добавить license notice при дистрибуции |
 | libogg | 1.3.5; SHA-256 `c4d91be36fc8e54deae7575241e03f4211eb102afb3fc0775fbbc1b740016705` | [официальный Xiph release](https://downloads.xiph.org/releases/ogg/) через `FetchContent` | BSD-3-Clause | `rrr3d_ogg` / `Ogg::ogg` | статически; добавить license notice |
@@ -104,7 +105,7 @@ Homebrew 1.4.341.0 тоже не входит в target: DXVK открывает
 | --- | --- | --- | --- | --- | --- |
 | MoltenVK | Homebrew 1.4.1 arm64 | Apache-2.0 | package-specific Vulkan/MoltenVK target | dylib/framework + licenses либо static | проверен в M4; не выбран для DXVK backend |
 | Vulkan Loader | Homebrew 1.4.341.0 arm64 | Apache-2.0 | `Vulkan::Vulkan` | loader policy проверить вместе с MoltenVK | только будущий renderer spike |
-| Boost | Homebrew 1.90.0_1 arm64 | Boost Software License 1.0 | `Boost::*` | предпочесть static/минимум компонентов | пока не требуется базовым target |
+| Boost | Homebrew 1.90.0_1 arm64 | Boost Software License 1.0 | не используется | не bundle | source NetLib preset использует pinned header-only 1.85.0 |
 | libogg | Homebrew 1.3.6 arm64 | BSD-3-Clause | не используется | не bundle | M8 собирает pinned 1.3.5 из source |
 | libvorbis | Homebrew 1.3.7 arm64 | BSD-3-Clause | не используется | не bundle | M8 собирает pinned 1.3.7 из source |
 | DXVK Native | v2.7.1 / `c3dd74b...` | zlib; vendored header licenses сохранить | отдельный imported target | только feasibility staging | отклонён, renderer integration выключена |

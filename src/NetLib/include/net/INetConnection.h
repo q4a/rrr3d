@@ -55,6 +55,7 @@ public:
 	virtual Endpoint localEndpoint() = 0;
 	virtual Endpoint remoteEndpoint() = 0;
 	virtual lsl::string userName() const = 0;
+	virtual unsigned lastError() const {return 0;}
 
 	void RegUser(INetConnectionImplUser* user)
 	{

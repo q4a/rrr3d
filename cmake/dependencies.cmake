@@ -1,5 +1,65 @@
 include(FetchContent)
 
+# The Windows tree historically expected a prebuilt Boost SDK below
+# extern/boost.  That directory is intentionally not part of the repository,
+# so enabling the original Asio-based NetLib on macOS used to fail before its
+# first source file was compiled.  Networking only needs Boost's headers
+# (Asio, System and smart pointers); use a pinned source distribution and keep
+# it header-only instead of introducing a host/Homebrew dylib dependency.
+if(RRR3D_ENABLE_NETWORK AND NOT WIN32)
+    FetchContent_Declare(rrr3d_boost_source
+        URL "https://archives.boost.io/release/1.85.0/source/boost_1_85_0.tar.bz2"
+        URL_HASH "SHA256=7009fe1faa1697476bdc7027703a2badb84e849b7b0baad5086b087b971f8617"
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    if(POLICY CMP0169)
+        cmake_policy(PUSH)
+        cmake_policy(SET CMP0169 OLD)
+    endif()
+    FetchContent_GetProperties(rrr3d_boost_source)
+    if(NOT rrr3d_boost_source_POPULATED)
+        FetchContent_Populate(rrr3d_boost_source)
+    endif()
+    if(POLICY CMP0169)
+        cmake_policy(POP)
+    endif()
+
+    add_library(rrr3d_boost_headers INTERFACE)
+    target_include_directories(rrr3d_boost_headers SYSTEM INTERFACE
+        "${rrr3d_boost_source_SOURCE_DIR}"
+    )
+    target_compile_definitions(rrr3d_boost_headers INTERFACE
+        BOOST_ERROR_CODE_HEADER_ONLY=1
+        BOOST_SYSTEM_NO_DEPRECATED=1
+    )
+    set(RRR3D_BOOST_TARGET rrr3d_boost_headers)
+
+    # NetLib's public serialization model exposes glm vectors through the
+    # original MathLib headers.  The Windows checkout supplied GLM through
+    # extern/glm; provide the same header dependency for native builds.
+    FetchContent_Declare(rrr3d_glm_source
+        URL "https://github.com/g-truc/glm/archive/refs/tags/1.0.1.tar.gz"
+        URL_HASH "SHA256=9f3174561fd26904b23f0db5e560971cbf9b3cbda0b280f04d5c379d03bf234c"
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    if(POLICY CMP0169)
+        cmake_policy(PUSH)
+        cmake_policy(SET CMP0169 OLD)
+    endif()
+    FetchContent_GetProperties(rrr3d_glm_source)
+    if(NOT rrr3d_glm_source_POPULATED)
+        FetchContent_Populate(rrr3d_glm_source)
+    endif()
+    if(POLICY CMP0169)
+        cmake_policy(POP)
+    endif()
+    add_library(rrr3d_glm_headers INTERFACE)
+    target_include_directories(rrr3d_glm_headers SYSTEM INTERFACE
+        "${rrr3d_glm_source_SOURCE_DIR}"
+    )
+    set(RRR3D_GLM_TARGET rrr3d_glm_headers)
+endif()
+
 # PhysX 2.8.4 remains untouched on Windows.  The native macOS race backend
 # uses a pinned Jolt release; only the backend adapter sees Jolt types.
 if(RRR3D_ENABLE_PHYSICS AND NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
@@ -208,24 +268,26 @@ endif()
 
 # glm is header-only. Prefer a package-manager installation on Unix-like hosts,
 # while retaining compatibility with the dependency archive used by Windows CI.
-find_package(glm 1.0 CONFIG QUIET)
-if(APPLE AND TARGET glm::glm-header-only)
-    # Homebrew GLM 1.0.3 also exports a compiled dylib built for the host OS.
-    # The project uses only headers, so keep the macOS 13 link graph clean.
-    set(RRR3D_GLM_TARGET glm::glm-header-only)
-elseif(TARGET glm::glm)
-    set(RRR3D_GLM_TARGET glm::glm)
-elseif(EXISTS "${CMAKE_SOURCE_DIR}/extern/glm/include/glm/glm.hpp")
-    add_library(rrr3d_glm INTERFACE)
-    target_include_directories(rrr3d_glm INTERFACE
-        "${CMAKE_SOURCE_DIR}/extern/glm/include"
-    )
-    set(RRR3D_GLM_TARGET rrr3d_glm)
-else()
-    message(FATAL_ERROR
-        "glm 1.0 or newer was not found. On macOS install it with "
-        "'brew install glm', or provide glm_DIR to CMake."
-    )
+if(NOT RRR3D_GLM_TARGET)
+    find_package(glm 1.0 CONFIG QUIET)
+    if(APPLE AND TARGET glm::glm-header-only)
+        # Homebrew GLM 1.0.3 also exports a compiled dylib built for the host OS.
+        # The project uses only headers, so keep the macOS 13 link graph clean.
+        set(RRR3D_GLM_TARGET glm::glm-header-only)
+    elseif(TARGET glm::glm)
+        set(RRR3D_GLM_TARGET glm::glm)
+    elseif(EXISTS "${CMAKE_SOURCE_DIR}/extern/glm/include/glm/glm.hpp")
+        add_library(rrr3d_glm INTERFACE)
+        target_include_directories(rrr3d_glm INTERFACE
+            "${CMAKE_SOURCE_DIR}/extern/glm/include"
+        )
+        set(RRR3D_GLM_TARGET rrr3d_glm)
+    else()
+        message(FATAL_ERROR
+            "glm 1.0 or newer was not found. On macOS install it with "
+            "'brew install glm', or provide glm_DIR to CMake."
+        )
+    endif()
 endif()
 
 # The codebase uses the original TinyXML 1 API, not TinyXML-2. On Windows the
