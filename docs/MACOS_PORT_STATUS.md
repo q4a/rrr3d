@@ -933,6 +933,11 @@ SDL_AUDIO_DRIVER=dummy \
   отправляет после анимации трёх призовых строк для последнего результата.
   Finish smoke теперь завершает весь исходный состав и проверяет отправку
   этой четвёртой, не привязанной к видимой строке, реплики.
+- Исправлена отдельная ошибка `Race::OnLapPass`: для 4-го и 5-го места из
+  шести порт раньше ошибочно повторял `cPlayerLeadFinish`. Теперь, как в
+  Windows if/else-if chain, события существуют только для первых трёх и
+  последнего участника; physics regression проверяет последовательность
+  `Lead/Second/Third/none/none/Last`.
 - Generic Authors/Credits заменён исходным `FinalMenu.cpp`: чёрный фон,
   девять `GUI/Slides/slide1..9.dds`, секции `svCredits` с красными captions
   и светлыми body-lines, source root `vp.x - 250`, 107-second scroll и

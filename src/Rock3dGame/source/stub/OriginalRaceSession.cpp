@@ -6,12 +6,30 @@
 #include <cstdlib>
 #include <iterator>
 #include <numeric>
+#include <optional>
 #include <stdexcept>
 
 namespace r3d::game::originalrace
 {
 namespace
 {
+
+std::optional<RaceEventKind> sourceFinishEvent(
+    std::size_t finishCount, std::size_t racerCount)
+{
+    // Race::OnLapPass is an if/else-if chain: it reports the first three
+    // finishers, then the final finisher.  Intermediate places deliberately
+    // produce no commentator event.
+    if (finishCount == 1U)
+        return RaceEventKind::LeadFinish;
+    if (finishCount == 2U)
+        return RaceEventKind::SecondFinish;
+    if (finishCount == 3U)
+        return RaceEventKind::ThirdFinish;
+    if (finishCount == racerCount)
+        return RaceEventKind::LastFinish;
+    return std::nullopt;
+}
 
 Vec3 subtract(Vec3 first, Vec3 second)
 {
@@ -2553,19 +2571,18 @@ void OriginalRaceSession::updateProgress(
                            vehicle.body.position, runtime.finishTime});
         const std::size_t finishCount =
             static_cast<std::size_t>(finishedBefore) + 1U;
-        RaceEventKind finishKind = RaceEventKind::LeadFinish;
-        if (finishCount == 2U)
-            finishKind = RaceEventKind::SecondFinish;
-        else if (finishCount == 3U)
-            finishKind = RaceEventKind::ThirdFinish;
-        else if (finishCount == static_cast<std::size_t>(std::count_if(
-                     racers_.begin(), racers_.end(),
-                     [](const RacerRuntime& candidate) {
-                         return !candidate.disconnected;
-                     })))
-            finishKind = RaceEventKind::LastFinish;
-        events_.push_back({finishKind, racer, 0U,
-                           vehicle.body.position, runtime.finishTime});
+        const auto racerCount = static_cast<std::size_t>(std::count_if(
+            racers_.begin(), racers_.end(),
+            [](const RacerRuntime& candidate) {
+                return !candidate.disconnected;
+            }));
+        if (const auto finishKind =
+                sourceFinishEvent(finishCount, racerCount))
+        {
+            events_.push_back({*finishKind, racer, 0U,
+                               vehicle.body.position,
+                               runtime.finishTime});
+        }
         if (racer == 0)
         {
             runtime.money += runtime.rewardMoney + runtime.pickedMoney;
@@ -6943,6 +6960,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
 {
     try
     {
+        if (sourceFinishEvent(1U, 6U) != RaceEventKind::LeadFinish ||
+            sourceFinishEvent(2U, 6U) != RaceEventKind::SecondFinish ||
+            sourceFinishEvent(3U, 6U) != RaceEventKind::ThirdFinish ||
+            sourceFinishEvent(4U, 6U).has_value() ||
+            sourceFinishEvent(5U, 6U).has_value() ||
+            sourceFinishEvent(6U, 6U) != RaceEventKind::LastFinish)
+        {
+            throw std::runtime_error(
+                "source Race::OnLapPass finish-event sequence failed");
+        }
         if (sourceUniformRandomIndex(4U, 0.0) != 0U ||
             sourceUniformRandomIndex(4U, 0.249999) != 0U ||
             sourceUniformRandomIndex(4U, 0.25) != 1U ||
