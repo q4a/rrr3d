@@ -118,6 +118,8 @@ int main()
     {
         OriginalNetworkModels serverModels(server);
         OriginalNetworkModels clientModels(client);
+        serverModels.setGamerCatalog({7, 8, 9});
+        clientModels.setGamerCatalog({7, 8, 9});
         server.Initializate();
         client.Initializate();
         server.StartServer(port, nullptr);
@@ -184,9 +186,13 @@ int main()
             clientState.match.planet != 2 || clientState.match.track != 1)
             return 7;
         const auto* hostOnClient = remotePlayer(clientState, net::cServerPlayer);
+        const auto* generatedClient = ownedPlayer(clientState);
         if (hostOnClient == nullptr || hostOnClient->car != "marauder" ||
             hostOnClient->gamerId != 7 ||
-            hostOnClient->slots[0].record != "marauderWheel")
+            hostOnClient->slots[0].record != "marauderWheel" ||
+            generatedClient == nullptr || generatedClient->gamerId != 8 ||
+            generatedClient->color !=
+                std::array<float, 4>{1.0F, 1.0F, 1.0F, 1.0F})
             return 8;
 
         NetworkPlayerState clientPlayer;
@@ -205,6 +211,32 @@ int main()
                        remote->car == "buggi";
             }, clock, 4000U))
             return 10;
+
+        const auto sameGamerBaseline = clientModels.snapshot();
+        const std::uint64_t sameGamerSequence =
+            sameGamerBaseline.events.empty()
+                ? 0U
+                : sameGamerBaseline.events.back().sequence;
+        if (!clientModels.setLocalPlayerGamerId(
+                clientPlayer.gamerId, error) ||
+            !pump(server, client, [&]() {
+                const auto state = clientModels.snapshot();
+                const auto* owner = ownedPlayer(state);
+                return owner != nullptr &&
+                       std::any_of(
+                           state.events.begin(), state.events.end(),
+                           [&](const NetworkEvent& event) {
+                               return event.sequence > sameGamerSequence &&
+                                      event.kind == NetworkEventKind::
+                                                        PlayerGamerId &&
+                                      event.playerModelId == owner->modelId &&
+                                      !event.flag;
+                           });
+            }, clock, 4000U))
+        {
+            std::cerr << "unchanged NetPlayer gamer event timeout\n";
+            return 23;
+        }
 
         const auto conflictBaseline = clientModels.snapshot();
         const std::uint64_t conflictSequence =

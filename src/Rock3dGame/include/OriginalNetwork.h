@@ -62,6 +62,7 @@ public:
     bool initialize(std::string& error);
     void finalize() noexcept;
     void process(std::uint32_t milliseconds);
+    void setGamerCatalog(std::vector<std::int32_t> gamerIds);
 
     bool beginLanSearch(std::string& error);
     void cancelLanSearch() noexcept;
@@ -101,6 +102,8 @@ public:
     bool pushLine(std::string_view text, std::string& error);
     bool setLocalPlayerState(const NetworkPlayerState& state,
                              std::string& error);
+    bool setLocalPlayerGamerId(std::int32_t gamerId,
+                               std::string& error);
     bool setLocalPlayerReady(bool ready, std::string& error);
     bool setLocalPlayerGoWait(bool waiting, std::string& error);
     bool setLocalPlayerFinished(bool finished, std::string& error);

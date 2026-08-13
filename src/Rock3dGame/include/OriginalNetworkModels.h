@@ -213,6 +213,10 @@ public:
     OriginalNetworkModels(const OriginalNetworkModels&) = delete;
     OriginalNetworkModels& operator=(const OriginalNetworkModels&) = delete;
 
+    // Tournament::GetGamers order used by NetPlayer::GenerateGamerId.
+    // Configure it before allocating human player models.
+    void setGamerCatalog(std::vector<std::int32_t> gamerIds);
+
     bool createHostRace(std::string& error);
     bool startMatch(const NetworkMatchState& match,
                     const NetworkPlayerState& localPlayer,
@@ -247,6 +251,8 @@ public:
     bool pushLine(std::string_view text, std::string& error);
     bool setLocalPlayerState(const NetworkPlayerState& state,
                              std::string& error);
+    bool setLocalPlayerGamerId(std::int32_t gamerId,
+                               std::string& error);
     bool setLocalPlayerReady(bool ready, std::string& error);
     bool setLocalPlayerGoWait(bool waiting, std::string& error);
     bool setLocalPlayerFinished(bool finished, std::string& error);

@@ -197,6 +197,12 @@ void OriginalNetworkSession::process(std::uint32_t milliseconds)
     impl_->refreshModels();
 }
 
+void OriginalNetworkSession::setGamerCatalog(
+    std::vector<std::int32_t> gamerIds)
+{
+    impl_->models.setGamerCatalog(std::move(gamerIds));
+}
+
 bool OriginalNetworkSession::beginLanSearch(std::string& error)
 {
     error.clear();
@@ -467,6 +473,15 @@ bool OriginalNetworkSession::setLocalPlayerState(
     const NetworkPlayerState& state, std::string& error)
 {
     if (!impl_->models.setLocalPlayerState(state, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setLocalPlayerGamerId(
+    std::int32_t gamerId, std::string& error)
+{
+    if (!impl_->models.setLocalPlayerGamerId(gamerId, error))
         return false;
     impl_->refreshModels();
     return true;

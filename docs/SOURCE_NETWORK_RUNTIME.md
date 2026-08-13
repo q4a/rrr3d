@@ -57,6 +57,17 @@ validated gamer event arrives, enters Garage only on success and displays
 `svHintSetGamerFailed` on refusal. A refused Garage color restores the
 host-returned color and displays `svHintSetColorFailed`.
 
+New human `NetPlayer` models now run the original `GenerateGamerId` and
+`GenerateColor` policy before their first state replication. Gamer IDs are
+tested in the order loaded from `tournamet.xml`; colors are tested in the
+exact left-then-right order of the fourteen `Player.cpp` palette entries.
+Both generators skip values already owned by another human model. The active
+Gamers and Garage frames apply the matching `CheckGamerId`/`CheckColor`
+visibility rules, preserving empty palette positions instead of moving the
+source widgets. `NetPlayer::SetGamerId` also sends its RPC when the generated
+ID already equals the chosen ID, because the Windows frame waits for that
+authoritative event before advancing.
+
 ## Verification
 
 The non-rendering regressions `rrr3d_original_network_session_smoke`,
@@ -65,7 +76,8 @@ The non-rendering regressions `rrr3d_original_network_session_smoke`,
 initialization, adapter enumeration, LAN search/cancel, source-port hosting,
 close/finalization, all eight host-option RPCs and their client gate, model
 RPC, remote and local-host gamer/color conflicts with authoritative rollback,
-host-side peer removal, Cyrillic chat wire format and the source chat
+generated identity selection, same-value gamer confirmation, host-side peer
+removal, Cyrillic chat wire format and the source chat
 history/fade model. The
 Metal regressions exercise all five source LAN menu frames and the chat
 overlay in a live race:

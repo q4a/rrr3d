@@ -30,6 +30,23 @@ static_assert(std::endian::native == std::endian::little,
 class PortableNetRace;
 class PortableNetPlayer;
 
+constexpr std::array<std::array<float, 4>, 14> sourcePlayerColors{{
+    {1.0F, 1.0F, 1.0F, 1.0F},
+    {0.0F, 0.0F, 1.0F, 1.0F},
+    {1.0F, 0.0F, 0.0F, 1.0F},
+    {0.0F, 1.0F, 0.0F, 1.0F},
+    {1.0F, 1.0F, 0.0F, 1.0F},
+    {1.0F, 144.0F / 255.0F, 0.0F, 1.0F},
+    {51.0F / 255.0F, 51.0F / 255.0F, 51.0F / 255.0F, 1.0F},
+    {6.0F / 255.0F, 175.0F / 255.0F, 250.0F / 255.0F, 1.0F},
+    {183.0F / 255.0F, 11.0F / 255.0F, 174.0F / 255.0F, 1.0F},
+    {177.0F / 255.0F, 201.0F / 255.0F, 3.0F / 255.0F, 1.0F},
+    {169.0F / 255.0F, 57.0F / 255.0F, 0.0F, 1.0F},
+    {48.0F / 255.0F, 55.0F / 255.0F, 61.0F / 255.0F, 1.0F},
+    {0.0F, 159.0F / 255.0F, 21.0F / 255.0F, 1.0F},
+    {112.0F / 255.0F, 118.0F / 255.0F, 156.0F / 255.0F, 1.0F},
+}};
+
 std::map<net::INetService*, OriginalNetworkModels::Impl*>& contexts()
 {
     static std::map<net::INetService*, OriginalNetworkModels::Impl*> values;
@@ -316,6 +333,7 @@ public:
     NetworkModelSnapshot value;
     PortableNetRace* race = nullptr;
     std::map<std::uint32_t, PortableNetPlayer*> players;
+    std::vector<std::int32_t> gamerCatalog;
     std::uint64_t nextEventSequence = 1U;
 
     void touch() noexcept { ++value.revision; }
@@ -351,6 +369,8 @@ public:
     void unregisterPlayer(PortableNetPlayer* model);
     void updatePlayer(const NetworkPlayerState& state);
     PortableNetPlayer* localPlayer() const;
+    std::int32_t generateGamerId(std::uint32_t modelId) const;
+    std::array<float, 4> generateColor(std::uint32_t modelId) const;
     bool makePlayer(std::uint8_t playerId, std::uint32_t netSlot,
                     std::string& error);
     bool makeHuman(std::string& error);
@@ -932,6 +952,11 @@ public:
         state_.modelId = id();
         state_.ownerId = ownerId();
         state_.owner = owner();
+        if (state_.playerId == 0U)
+        {
+            state_.gamerId = context_.generateGamerId(id());
+            state_.color = context_.generateColor(id());
+        }
         context_.registerPlayer(this, state_);
         syncState(ssDelta);
     }
@@ -939,6 +964,14 @@ public:
     ~PortableNetPlayer() override { context_.unregisterPlayer(this); }
 
     const NetworkPlayerState& state() const noexcept { return state_; }
+
+    void setGamerId(std::int32_t value)
+    {
+        // NetPlayer::SetGamerId always emits cNetTargetAll, even if the
+        // requested ID equals the current generated value. GamersFrame waits
+        // for that authoritative event before entering Garage.
+        sendGamerId(value, false, net::cNetTargetAll);
+    }
 
     void applyLocalState(const NetworkPlayerState& value)
     {
@@ -1436,6 +1469,47 @@ PortableNetPlayer* OriginalNetworkModels::Impl::localPlayer() const
     return nullptr;
 }
 
+std::int32_t OriginalNetworkModels::Impl::generateGamerId(
+    std::uint32_t modelId) const
+{
+    for (const auto gamerId : gamerCatalog)
+    {
+        const bool available = std::none_of(
+            value.players.begin(), value.players.end(),
+            [&](const auto& player) {
+                return player.playerId == 0U &&
+                       player.modelId != modelId &&
+                       player.gamerId == gamerId;
+            });
+        if (available)
+            return gamerId;
+    }
+    return -1;
+}
+
+std::array<float, 4> OriginalNetworkModels::Impl::generateColor(
+    std::uint32_t modelId) const
+{
+    for (const auto& color : sourcePlayerColors)
+    {
+        const bool available = std::none_of(
+            value.players.begin(), value.players.end(),
+            [&](const auto& player) {
+                if (player.playerId != 0U ||
+                    player.modelId == modelId)
+                    return false;
+                for (std::size_t index = 0U; index < color.size(); ++index)
+                    if (std::abs(player.color[index] - color[index]) >=
+                        0.001F)
+                        return false;
+                return true;
+            });
+        if (available)
+            return color;
+    }
+    return {1.0F, 1.0F, 1.0F, 1.0F};
+}
+
 bool OriginalNetworkModels::Impl::makePlayer(
     std::uint8_t playerId, std::uint32_t netSlot, std::string& error)
 {
@@ -1521,6 +1595,12 @@ OriginalNetworkModels::OriginalNetworkModels(net::INetService& service)
 }
 
 OriginalNetworkModels::~OriginalNetworkModels() = default;
+
+void OriginalNetworkModels::setGamerCatalog(
+    std::vector<std::int32_t> gamerIds)
+{
+    impl_->gamerCatalog = std::move(gamerIds);
+}
 
 bool OriginalNetworkModels::createHostRace(std::string& error)
 {
@@ -1805,6 +1885,20 @@ bool OriginalNetworkModels::setLocalPlayerState(
         return false;
     }
     model->applyLocalState(state);
+    return true;
+}
+
+bool OriginalNetworkModels::setLocalPlayerGamerId(
+    std::int32_t gamerId, std::string& error)
+{
+    error.clear();
+    auto* model = impl_->localPlayer();
+    if (model == nullptr)
+    {
+        error = "source local NetPlayer model is not active";
+        return false;
+    }
+    model->setGamerId(gamerId);
     return true;
 }
 

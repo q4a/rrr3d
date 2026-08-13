@@ -1376,3 +1376,21 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Loopback с двумя игроками проверяет одновременный конфликт gamer/color,
   оба failed-event, откат состояния на клиенте и host, а также отдельную
   локальную конфликтную попытку host.
+
+### Source NetPlayer generated identity / menu filtering follow-up
+
+- Конструктор human `NetPlayer` больше не начинает с придуманной пары
+  `gamerId=-1`/white: до первой синхронизации перенесены исходные
+  `GenerateGamerId` и `GenerateColor`. Персонаж выбирается в порядке
+  `tournamet.xml`, цвет — в точном порядке 14 констант двух палитр
+  `Player.cpp`; уже занятые другими human-моделями значения пропускаются.
+- `GamersFrame::GetNext/GetPrev` и `GarageFrame::RefreshColorList` получили
+  сетевые `CheckGamerId`/`CheckColor`: занятые персонажи не участвуют в
+  навигации, занятые color-box скрываются с сохранением исходной геометрии и
+  пропускаются клавиатурой, gamepad и mouse hit-test.
+- `NetPlayer::SetGamerId` вынесен из общего state-diff пути и, как в Windows,
+  всегда отправляет RPC даже для совпадающего с generated-state ID. Поэтому
+  `GamersFrame` гарантированно получает success-event и не остаётся навсегда
+  в `svHintPleaseWait`.
+- Двухсторонний loopback фиксирует автоматически выбранный следующий gamer,
+  первую свободную source-палитру и успешный same-value gamer round-trip.

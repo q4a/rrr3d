@@ -4102,6 +4102,11 @@ int main(int argc, char** argv)
             menu::smallFontHeight);
     };
     auto initializeNetwork = [&]() {
+        std::vector<std::int32_t> gamerIds;
+        gamerIds.reserve(originalGarage->gamers.size());
+        for (const auto& gamer : originalGarage->gamers)
+            gamerIds.push_back(static_cast<std::int32_t>(gamer.bossId));
+        networkSession.setGamerCatalog(std::move(gamerIds));
         std::string error;
         if (!networkSession.initialize(error))
         {
@@ -6564,11 +6569,73 @@ int main(int argc, char** argv)
         garageStatsPage = std::move(statsReplacement);
 
     };
+    auto garageColorAvailable = [&](std::size_t colorIndex) {
+        if (colorIndex >= garageColorPixels.size())
+            return false;
+#ifdef RRR3D_NETWORK
+        if (networkMatchStarted)
+        {
+            for (const auto& player : networkSnapshot.models.players)
+            {
+                if (player.owner || player.playerId != 0U)
+                    continue;
+                bool same = true;
+                for (std::size_t component = 0U;
+                     component < player.color.size(); ++component)
+                {
+                    const float color = static_cast<float>(
+                                            garageColorPixels[colorIndex]
+                                                              [component]) /
+                                        255.0F;
+                    same = same &&
+                           std::abs(player.color[component] - color) <
+                               0.001F;
+                }
+                if (same)
+                    return false;
+            }
+        }
+#endif
+        return true;
+    };
+    auto moveGarageFocus = [&](int direction) {
+        constexpr std::size_t focusCount = 18U;
+        for (std::size_t step = 0U; step < focusCount; ++step)
+        {
+            menuSelection = direction < 0
+                                ? (menuSelection + focusCount - 1U) %
+                                      focusCount
+                                : (menuSelection + 1U) % focusCount;
+            if (menuSelection < 4U ||
+                garageColorAvailable(menuSelection - 4U))
+            {
+                return;
+            }
+        }
+    };
     auto gamerUnlocked = [&](std::size_t index) {
-        return index < originalGarage->gamers.size() &&
-               r3d::game::originalrace::originalGamerUnlocked(
-                   profileState,
-                   originalGarage->gamers[index].bossId);
+        if (index >= originalGarage->gamers.size() ||
+            !r3d::game::originalrace::originalGamerUnlocked(
+                profileState, originalGarage->gamers[index].bossId))
+        {
+            return false;
+        }
+#ifdef RRR3D_NETWORK
+        if (networkMatchStarted)
+        {
+            const auto gamerId = static_cast<std::int32_t>(
+                originalGarage->gamers[index].bossId);
+            for (const auto& player : networkSnapshot.models.players)
+            {
+                if (!player.owner && player.playerId == 0U &&
+                    player.gamerId == gamerId)
+                {
+                    return false;
+                }
+            }
+        }
+#endif
+        return true;
     };
     auto adjacentGamerIndex =
         [&](std::size_t from, int direction)
@@ -6682,20 +6749,13 @@ int main(int argc, char** argv)
         }
         else
         {
-            const auto first = std::find_if(
-                originalGarage->gamers.begin(),
-                originalGarage->gamers.end(),
-                [&](const auto& gamer) {
-                    return r3d::game::originalrace::
-                        originalGamerUnlocked(
-                            profileState, gamer.bossId);
-                });
-            if (first != originalGarage->gamers.end())
-            {
-                gamerPlanetIndex = static_cast<std::size_t>(
-                    std::distance(
-                        originalGarage->gamers.begin(), first));
-            }
+            for (std::size_t index = 0U;
+                 index < originalGarage->gamers.size(); ++index)
+                if (gamerUnlocked(index))
+                {
+                    gamerPlanetIndex = index;
+                    break;
+                }
         }
         gamersFocus = GamersFocus::Next;
         gamersSceneSeconds = 0.0F;
@@ -6746,16 +6806,11 @@ int main(int argc, char** argv)
 #ifdef RRR3D_NETWORK
         if (networkMatchStarted)
         {
-            auto requested = makeLocalNetworkPlayer();
-            requested.gamerId = static_cast<std::int32_t>(gamer.bossId);
-            if (!networkLocalCarSelected)
-            {
-                requested.car.clear();
-                requested.money = 0;
-                requested.slots = {};
-            }
             std::string error;
-            if (!networkSession.setLocalPlayerState(requested, error))
+            const auto requestedGamerId =
+                static_cast<std::int32_t>(gamer.bossId);
+            if (!networkSession.setLocalPlayerGamerId(
+                    requestedGamerId, error))
             {
                 std::cerr << "Original NetPlayer::SetGamerId failed: "
                           << error << '\n';
@@ -6766,7 +6821,7 @@ int main(int argc, char** argv)
                     menu::virtualHeight * 0.5F);
                 return;
             }
-            networkPendingGamerId = requested.gamerId;
+            networkPendingGamerId = requestedGamerId;
             renderedNetworkRevision =
                 std::numeric_limits<std::uint64_t>::max();
             showLoadingInfoDialog();
@@ -10441,7 +10496,15 @@ int main(int argc, char** argv)
                                         11U + index;
                                 }
                                 if (hoveredGarageItem)
+                                {
+                                    if (*hoveredGarageItem >= 4U &&
+                                        !garageColorAvailable(
+                                            *hoveredGarageItem - 4U))
+                                    {
+                                        hoveredGarageItem.reset();
+                                    }
                                     break;
+                                }
                             }
                         }
                 }
@@ -12014,18 +12077,13 @@ int main(int argc, char** argv)
                     if (inputEvent.action ==
                         rrr3d::input::Action::MenuUp)
                     {
-                        menuSelection =
-                            menuSelection == 0U
-                                ? garageFocusCount - 1U
-                                : menuSelection - 1U;
+                        moveGarageFocus(-1);
                         continue;
                     }
                     if (inputEvent.action ==
                         rrr3d::input::Action::MenuDown)
                     {
-                        menuSelection =
-                            (menuSelection + 1U) %
-                            garageFocusCount;
+                        moveGarageFocus(1);
                         continue;
                     }
                     if (inputEvent.action ==
@@ -12155,6 +12213,8 @@ int main(int argc, char** argv)
                     {
                         const std::size_t colorIndex =
                             menuSelection - 4U;
+                        if (!garageColorAvailable(colorIndex))
+                            continue;
                         for (std::size_t component = 0U;
                              component < 4U; ++component)
                         {
@@ -17499,6 +17559,8 @@ int main(int argc, char** argv)
                         side * 7U + index;
                     const std::size_t focusIndex =
                         4U + colorIndex;
+                    if (!garageColorAvailable(colorIndex))
+                        continue;
                     const bool focused =
                         menuSelection == focusIndex;
                     bool activeColor = true;
