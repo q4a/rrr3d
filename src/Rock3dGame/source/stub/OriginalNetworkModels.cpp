@@ -1188,10 +1188,12 @@ private:
         CloseRPC();
     }
 
-    void playerEvent(NetworkEventKind kind, const net::NetMessage& msg)
+    void playerEvent(NetworkEventKind kind, const net::NetMessage& msg,
+                     bool failed = false)
     {
         NetworkEvent event{kind, msg.sender};
         event.playerModelId = id();
+        event.flag = failed;
         context_.event(std::move(event));
     }
 
@@ -1205,12 +1207,20 @@ private:
         if (net()->isServer() && !gamerIdAvailable(value))
         {
             msg.Discard();
-            sendGamerId(state_.gamerId, true, msg.sender);
-            return;
+            value = state_.gamerId;
+            failed = true;
+            // NetPlayer::OnSetGamerId applies a failed local-host request
+            // and emits its event in place.  Only a remote owner receives a
+            // directed authoritative rollback RPC.
+            if (player()->id() != msg.sender)
+            {
+                sendGamerId(value, failed, msg.sender);
+                return;
+            }
         }
         state_.gamerId = value;
         context_.updatePlayer(state_);
-        playerEvent(NetworkEventKind::PlayerIdentity, msg);
+        playerEvent(NetworkEventKind::PlayerGamerId, msg, failed);
     }
 
     void OnSetColor(const net::NetMessage& msg,
@@ -1229,7 +1239,7 @@ private:
         }
         state_.color = value;
         context_.updatePlayer(state_);
-        playerEvent(NetworkEventKind::PlayerIdentity, msg);
+        playerEvent(NetworkEventKind::PlayerColor, msg, failed);
     }
 
     void OnSetCar(const net::NetMessage& msg, const net::NetCmdHeader&,

@@ -249,6 +249,7 @@ struct InfoDialogVisual
     float centerX = 0.0F;
     float centerY = 0.0F;
     bool visible = false;
+    bool dismissable = true;
 };
 
 struct AcceptDialogVisual
@@ -3985,6 +3986,7 @@ int main(int argc, char** argv)
     std::uint64_t networkLastBonusEventSequence = 0U;
     std::uint64_t networkLastMineEventSequence = 0U;
     std::uint64_t networkLastChatEventSequence = 0U;
+    std::uint64_t networkLastIdentityEventSequence = 0U;
     std::int32_t networkAppliedPlanet =
         std::numeric_limits<std::int32_t>::min();
     std::int32_t networkAppliedTrack =
@@ -3997,6 +3999,7 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     std::optional<r3d::game::originalrace::Weather>
         networkWeatherOverride;
+    std::optional<std::int32_t> networkPendingGamerId;
     bool networkLeaverStartDialogVisible = false;
     bool networkLeaverStartYesFocused = true;
     std::optional<std::uint32_t> networkKickHoverOwner;
@@ -4470,10 +4473,12 @@ int main(int argc, char** argv)
             networkLastBonusEventSequence = 0U;
             networkLastMineEventSequence = 0U;
             networkLastChatEventSequence = 0U;
+            networkLastIdentityEventSequence = 0U;
             networkPublishedPlayer.reset();
             networkRaceModelOrder.clear();
 #ifdef RRR3D_PHYSICS
             networkWeatherOverride.reset();
+            networkPendingGamerId.reset();
 #endif
             networkSession.finalize();
             networkSnapshot = {};
@@ -5885,6 +5890,11 @@ int main(int argc, char** argv)
         renderedNetworkRevision =
             std::numeric_limits<std::uint64_t>::max();
         refreshNetworkRuntimePages();
+        networkLastIdentityEventSequence =
+            networkSnapshot.models.events.empty()
+                ? 0U
+                : networkSnapshot.models.events.back().sequence;
+        networkPendingGamerId.reset();
         std::cout
             << "Original NetRace::StartMatch: classId=1, playerClassId=2, "
             << "planet=" << match.planet << ", track=" << match.track
@@ -6310,12 +6320,23 @@ int main(int argc, char** argv)
             infoDialog.centerX = centerX;
             infoDialog.centerY = centerY;
             infoDialog.visible = true;
+            infoDialog.dismissable = true;
             hideWorkshopWeaponDialog();
 #ifdef RRR3D_AUDIO
             playOriginalMenuSound(
                 rrr3d::audio::OriginalMenuSound::Warning);
 #endif
         };
+    auto showLoadingInfoDialog = [&]() {
+        showInfoDialog(
+            localized("svWarning"), localized("svHintPleaseWait"),
+            localized("svOk"), menu::virtualWidth * 0.5F,
+            menu::virtualHeight * 0.5F);
+        if (valid(infoDialog.ok.texture))
+            device->destroy(infoDialog.ok.texture);
+        infoDialog.ok = {};
+        infoDialog.dismissable = false;
+    };
     auto activateRaceMenuStart = [&]() {
 #ifdef RRR3D_NETWORK
         if (networkMatchStarted)
@@ -6722,6 +6743,36 @@ int main(int argc, char** argv)
             return;
         const auto& gamer =
             originalGarage->gamers[gamerPlanetIndex];
+#ifdef RRR3D_NETWORK
+        if (networkMatchStarted)
+        {
+            auto requested = makeLocalNetworkPlayer();
+            requested.gamerId = static_cast<std::int32_t>(gamer.bossId);
+            if (!networkLocalCarSelected)
+            {
+                requested.car.clear();
+                requested.money = 0;
+                requested.slots = {};
+            }
+            std::string error;
+            if (!networkSession.setLocalPlayerState(requested, error))
+            {
+                std::cerr << "Original NetPlayer::SetGamerId failed: "
+                          << error << '\n';
+                showInfoDialog(
+                    localized("svWarning"),
+                    localized("svHintHostConnectionFailed"),
+                    localized("svOk"), menu::virtualWidth * 0.5F,
+                    menu::virtualHeight * 0.5F);
+                return;
+            }
+            networkPendingGamerId = requested.gamerId;
+            renderedNetworkRevision =
+                std::numeric_limits<std::uint64_t>::max();
+            showLoadingInfoDialog();
+            return;
+        }
+#endif
         profileState.player.gamerId = gamer.bossId;
         if (!reloadCurrentRace())
         {
@@ -6749,6 +6800,78 @@ int main(int argc, char** argv)
 #endif
         showOriginalGarageAfterGamers();
     };
+#ifdef RRR3D_NETWORK
+    auto processNetworkIdentityEvents = [&]() {
+        for (const auto& event : networkSnapshot.models.events)
+        {
+            if (event.sequence <= networkLastIdentityEventSequence)
+                continue;
+            networkLastIdentityEventSequence = std::max(
+                networkLastIdentityEventSequence, event.sequence);
+            if (event.kind != r3d::game::originalnetwork::
+                                  NetworkEventKind::PlayerGamerId &&
+                event.kind != r3d::game::originalnetwork::
+                                  NetworkEventKind::PlayerColor)
+            {
+                continue;
+            }
+            const auto owner = std::find_if(
+                networkSnapshot.models.players.begin(),
+                networkSnapshot.models.players.end(),
+                [&](const auto& player) {
+                    return player.owner &&
+                           player.modelId == event.playerModelId;
+                });
+            if (owner == networkSnapshot.models.players.end())
+                continue;
+
+            if (event.kind == r3d::game::originalnetwork::
+                                  NetworkEventKind::PlayerGamerId)
+            {
+                profileState.player.gamerId =
+                    static_cast<std::uint32_t>(
+                        std::max(owner->gamerId, 0));
+                networkPublishedPlayer = makeLocalNetworkPlayer();
+                if (!networkPendingGamerId)
+                    continue;
+
+                networkPendingGamerId.reset();
+                hideInfoDialog();
+                if (event.flag)
+                {
+                    showInfoDialog(
+                        localized("svWarning"),
+                        localized("svHintSetGamerFailed"),
+                        localized("svOk"),
+                        menu::virtualWidth * 0.5F,
+                        menu::virtualHeight * 0.5F);
+                    continue;
+                }
+                if (!reloadCurrentRace())
+                {
+                    runtimeSmokeFailed = true;
+                    running = false;
+                    return;
+                }
+                showOriginalGarageAfterGamers();
+                continue;
+            }
+
+            profileState.player.color = owner->color;
+            networkPublishedPlayer = makeLocalNetworkPlayer();
+            refreshGaragePage();
+            if (event.flag)
+            {
+                showInfoDialog(
+                    localized("svWarning"),
+                    localized("svHintSetColorFailed"),
+                    localized("svOk"),
+                    menu::virtualWidth * 0.5F,
+                    menu::virtualHeight * 0.5F);
+            }
+        }
+    };
+#endif
     auto refreshWorkshopPage = [&]() {
         workshopGoods.clear();
         for (const auto& item : originalGarage->workshop)
@@ -7807,6 +7930,11 @@ int main(int argc, char** argv)
         networkLocalReadyPublished = owner->raceReady;
         networkLocalCarSelected = !owner->car.empty();
         networkPublishedPlayer = *owner;
+        networkLastIdentityEventSequence =
+            networkSnapshot.models.events.empty()
+                ? 0U
+                : networkSnapshot.models.events.back().sequence;
+        networkPendingGamerId.reset();
         menuStack = {MenuScreen::Main};
         if (owner->car.empty())
             showOriginalGamers();
@@ -8986,6 +9114,7 @@ int main(int argc, char** argv)
                 running = false;
             }
             synchronizeReplicatedNetworkOptions();
+            processNetworkIdentityEvents();
             if (networkClientMatchEntered &&
                 networkSnapshot.models.raceActive &&
                 !networkRaceStarted && !inRace &&
@@ -9085,6 +9214,8 @@ int main(int argc, char** argv)
                 networkRaceStarted = false;
                 networkLocalReadyPublished = false;
                 networkPublishedPlayer.reset();
+                networkLastIdentityEventSequence = 0U;
+                networkPendingGamerId.reset();
                 networkSnapshot = {};
                 renderedNetworkRevision =
                     std::numeric_limits<std::uint64_t>::max();
@@ -9932,7 +10063,7 @@ int main(int argc, char** argv)
             bool workshopPointerSlotPlane = false;
 #ifdef RRR3D_PHYSICS
             std::optional<bool> pointerAcceptChoice;
-            if (infoDialog.visible &&
+            if (infoDialog.visible && infoDialog.dismissable &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
@@ -11232,6 +11363,8 @@ int main(int argc, char** argv)
                 if (infoDialog.visible)
                 {
                     if (!inputEvent.active || inputEvent.repeated)
+                        continue;
+                    if (!infoDialog.dismissable)
                         continue;
                     if (inputEvent.action ==
                         rrr3d::input::Action::MenuConfirm)
@@ -13169,9 +13302,11 @@ int main(int argc, char** argv)
                             networkLastBonusEventSequence = 0U;
                             networkLastMineEventSequence = 0U;
                             networkLastChatEventSequence = 0U;
+                            networkLastIdentityEventSequence = 0U;
                             networkPublishedPlayer.reset();
                             networkRaceModelOrder.clear();
                             networkWeatherOverride.reset();
+                            networkPendingGamerId.reset();
                             networkSnapshot = {};
                             renderedNetworkRevision =
                                 std::numeric_limits<std::uint64_t>::max();
@@ -18951,22 +19086,25 @@ int main(int argc, char** argv)
                             infoLineStep,
                     4.0F, transparent);
             }
-            drawQuad(
-                *device, quad, shader,
-                infoDialogButtonSelected,
-                static_cast<float>(
-                    infoDialogButtonSelectedImage.width),
-                static_cast<float>(
-                    infoDialogButtonSelectedImage.height),
-                infoDialog.centerX,
-                infoDialog.centerY + 105.0F, 3.0F,
-                transparent);
-            drawQuad(
-                *device, quad, shader, infoDialog.ok.texture,
-                infoDialog.ok.width, infoDialog.ok.height,
-                infoDialog.centerX,
-                infoDialog.centerY + 105.0F, 2.0F,
-                transparent);
+            if (infoDialog.dismissable)
+            {
+                drawQuad(
+                    *device, quad, shader,
+                    infoDialogButtonSelected,
+                    static_cast<float>(
+                        infoDialogButtonSelectedImage.width),
+                    static_cast<float>(
+                        infoDialogButtonSelectedImage.height),
+                    infoDialog.centerX,
+                    infoDialog.centerY + 105.0F, 3.0F,
+                    transparent);
+                drawQuad(
+                    *device, quad, shader, infoDialog.ok.texture,
+                    infoDialog.ok.width, infoDialog.ok.height,
+                    infoDialog.centerX,
+                    infoDialog.centerY + 105.0F, 2.0F,
+                    transparent);
+            }
             raceInfoDialogObserved =
                 valid(infoDialog.title.texture) &&
                 !infoDialog.info.empty() &&

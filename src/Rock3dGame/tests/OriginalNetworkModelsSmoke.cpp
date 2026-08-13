@@ -87,6 +87,15 @@ const r3d::game::originalnetwork::NetworkPlayerState* remotePlayer(
     return nullptr;
 }
 
+const r3d::game::originalnetwork::NetworkPlayerState* ownedPlayer(
+    const r3d::game::originalnetwork::NetworkModelSnapshot& snapshot)
+{
+    for (const auto& player : snapshot.players)
+        if (player.owner)
+            return &player;
+    return nullptr;
+}
+
 } // namespace
 
 int main()
@@ -196,6 +205,81 @@ int main()
                        remote->car == "buggi";
             }, clock, 4000U))
             return 10;
+
+        const auto conflictBaseline = clientModels.snapshot();
+        const std::uint64_t conflictSequence =
+            conflictBaseline.events.empty()
+                ? 0U
+                : conflictBaseline.events.back().sequence;
+        NetworkPlayerState conflictingPlayer = clientPlayer;
+        conflictingPlayer.gamerId = hostPlayer.gamerId;
+        conflictingPlayer.color = hostPlayer.color;
+        if (!clientModels.setLocalPlayerState(conflictingPlayer, error))
+            return 21;
+        const auto hasFailedIdentityEvent =
+            [&](const NetworkModelSnapshot& snapshot,
+                NetworkEventKind kind, std::uint32_t modelId) {
+                return std::any_of(
+                    snapshot.events.begin(), snapshot.events.end(),
+                    [&](const NetworkEvent& event) {
+                        return event.sequence > conflictSequence &&
+                               event.kind == kind &&
+                               event.playerModelId == modelId &&
+                               event.flag;
+                    });
+            };
+        if (!pump(server, client, [&]() {
+                const auto clientState2 = clientModels.snapshot();
+                const auto serverState = serverModels.snapshot();
+                const auto* owner = ownedPlayer(clientState2);
+                const auto* remote =
+                    remotePlayer(serverState, net::cServerPlayer + 1U);
+                if (owner == nullptr || remote == nullptr)
+                    return false;
+                const bool gamerRejected = hasFailedIdentityEvent(
+                    clientState2, NetworkEventKind::PlayerGamerId,
+                    owner->modelId);
+                const bool colorRejected = hasFailedIdentityEvent(
+                    clientState2, NetworkEventKind::PlayerColor,
+                    owner->modelId);
+                return owner->gamerId == clientPlayer.gamerId &&
+                       owner->color == clientPlayer.color &&
+                       remote->gamerId == clientPlayer.gamerId &&
+                       remote->color == clientPlayer.color &&
+                       gamerRejected && colorRejected;
+            }, clock, 4000U))
+        {
+            std::cerr << "NetPlayer gamer/color conflict rollback timeout\n";
+            return 21;
+        }
+
+        const auto hostConflictBaseline = serverModels.snapshot();
+        const std::uint64_t hostConflictSequence =
+            hostConflictBaseline.events.empty()
+                ? 0U
+                : hostConflictBaseline.events.back().sequence;
+        NetworkPlayerState conflictingHost = hostPlayer;
+        conflictingHost.gamerId = clientPlayer.gamerId;
+        if (!serverModels.setLocalPlayerState(conflictingHost, error))
+            return 22;
+        const auto hostConflictState = serverModels.snapshot();
+        const auto* hostOwner = ownedPlayer(hostConflictState);
+        if (hostOwner == nullptr ||
+            hostOwner->gamerId != hostPlayer.gamerId ||
+            !std::any_of(
+                hostConflictState.events.begin(),
+                hostConflictState.events.end(),
+                [&](const NetworkEvent& event) {
+                    return event.sequence > hostConflictSequence &&
+                           event.kind ==
+                               NetworkEventKind::PlayerGamerId &&
+                           event.playerModelId == hostOwner->modelId &&
+                           event.flag;
+                }))
+        {
+            std::cerr << "host-local NetPlayer gamer conflict failed\n";
+            return 22;
+        }
 
         std::string clientOptionError;
         if (clientModels.setLapsCount(8U, clientOptionError) ||
@@ -478,7 +562,8 @@ int main()
 
     std::cout
         << "Original NetRace/NetPlayer class IDs, RPC order, match/state, "
-           "host options, vehicle BitStream, damage/shot/bonus/mine/chat, "
+           "host options, gamer/color authority, vehicle BitStream, "
+           "damage/shot/bonus/mine/chat, "
            "ExitRace results, repeated-race and host kick loopback passed\n";
     return 0;
 }

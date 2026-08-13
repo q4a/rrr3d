@@ -44,6 +44,19 @@ requires at least one ready opponent, shows the source warning otherwise,
 uses `NetGame::DisconnectPlayer` for the kick button, and preserves the
 `NetRace::GetLeaverList` confirmation before a repeated race.
 
+`NetPlayer::OnSetGamerId` and `OnSetColor` now retain their two distinct
+source events and the serialized `failed` bit. The host rejects a duplicate
+gamer or color, discards the attempted broadcast and directs the previous
+authoritative value back to the remote owner. The local-host gamer-conflict
+branch emits its failure in place, exactly as the Windows code does, rather
+than recursively addressing the server itself.
+
+The active `GamersFrame` also restores the source asynchronous boundary: a
+network selection displays `svHintPleaseWait`, remains in the frame until the
+validated gamer event arrives, enters Garage only on success and displays
+`svHintSetGamerFailed` on refusal. A refused Garage color restores the
+host-returned color and displays `svHintSetColorFailed`.
+
 ## Verification
 
 The non-rendering regressions `rrr3d_original_network_session_smoke`,
@@ -51,7 +64,8 @@ The non-rendering regressions `rrr3d_original_network_session_smoke`,
 `rrr3d_original_user_chat_smoke` verify
 initialization, adapter enumeration, LAN search/cancel, source-port hosting,
 close/finalization, all eight host-option RPCs and their client gate, model
-RPC, host-side peer removal, Cyrillic chat wire format and the source chat
+RPC, remote and local-host gamer/color conflicts with authoritative rollback,
+host-side peer removal, Cyrillic chat wire format and the source chat
 history/fade model. The
 Metal regressions exercise all five source LAN menu frames and the chat
 overlay in a live race:

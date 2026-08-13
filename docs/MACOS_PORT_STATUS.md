@@ -1354,3 +1354,23 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Loopback regression завершает активного клиента со стороны хоста и
   проверяет удаление его `NetPlayer`; session smoke проверяет ошибку для
   отсутствующего peer.
+
+### Source NetPlayer gamer/color authority follow-up
+
+- Разделены исходные `cNetPlayerSetGamerId` и `cNetPlayerSetColor`; поле
+  `NetEventData::failed` больше не теряется между RPC и portable menu event.
+- `NetPlayer::OnSetGamerId` повторяет обе Windows-ветки конфликта: remote
+  owner получает направленный ответ с прежним gamer ID, а локальный host
+  применяет прежнее значение и публикует failed-event без рекурсивной
+  отправки самому себе. `OnSetColor` возвращает клиенту прежний host-owned
+  цвет.
+- Сетевой `GamersFrame` снова асинхронный: после confirm показывает исходные
+  `svWarning/svHintPleaseWait` без кнопки, ждёт авторитетный event и только
+  после успеха открывает Garage. Отказ оставляет пользователя в выборе и
+  показывает `svHintSetGamerFailed`.
+- `RaceMenu::OnProcessNetEvent`-эквивалент синхронизирует профиль с
+  авторитетным `NetPlayer`; конфликт цвета немедленно возвращает окраску
+  Garage/CarFrame и показывает `svHintSetColorFailed`.
+- Loopback с двумя игроками проверяет одновременный конфликт gamer/color,
+  оба failed-event, откат состояния на клиенте и host, а также отдельную
+  локальную конфликтную попытку host.
