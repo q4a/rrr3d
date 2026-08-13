@@ -75,6 +75,17 @@ source widgets. `NetPlayer::SetGamerId` also sends its RPC when the generated
 ID already equals the chosen ID, because the Windows frame waits for that
 authoritative event before advancing.
 
+`NetPlayer::~NetPlayer` is connected to the live race rather than only to
+the replicated model list. When the host loses or kicks a remote owner, the
+corresponding stable portable racer slot is marked disconnected, its Jolt
+vehicle body and car-owned audio/effects are removed, and it no longer
+participates in AI, contacts, places, finish completion or result RPCs. This
+is the indexed-backend equivalent of Windows `Player::FreeCar(true)` followed
+by `Race::DelPlayer`. `PlayerStateFrame::RemoveOpponent` and
+`MiniMapFrame::DelPlayer` are preserved by removing its name/life overlay and
+map marker immediately; an ordinarily destroyed car retains the original
+temporary death/respawn behavior.
+
 ## Verification
 
 The non-rendering regressions `rrr3d_original_network_session_smoke`,
@@ -85,7 +96,8 @@ asynchronous connection refusal classification, error reset,
 close/finalization, all eight host-option RPCs and their client gate, model
 RPC, remote and local-host gamer/color conflicts with authoritative rollback,
 generated identity selection, same-value gamer confirmation, host-side peer
-removal, Cyrillic chat wire format and the source chat
+removal, disconnected-racer input/respawn exclusion, Cyrillic chat wire
+format and the source chat
 history/fade model. The
 Metal regressions exercise all five source LAN menu frames, the asynchronous
 loading/failure dialog lifecycle and the chat overlay in a live race:

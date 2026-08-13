@@ -930,8 +930,10 @@ Network, video и Steam явно выключены.
    planet authority и
    `RaceMainFrame` ready/start warning/kick/leaver UI и раздельные
    `OnConnectionFailed`/host-disconnect/`OnFailed` dialog/exit branches уже
-   связаны с active portable race; следующий исходный разрыв — прочие legacy
-   model/event listeners вне фактически подключённых branches.
+   связаны с active portable race. `NetPlayer` destruction также удаляет
+   remote car из Jolt, renderer, HUD/mini-map, place и result state;
+   следующий исходный разрыв — прочие legacy model/event listeners вне
+   фактически подключённых branches.
 3. Steam integration, если требуется целевая дистрибуция.
 
 ## Критерий закрытия пункта

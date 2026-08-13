@@ -157,6 +157,10 @@ struct RacerRuntime
     bool wrongWay = false;
     bool finished = false;
     bool destroyed = false;
+    // NetPlayer::~NetPlayer removes its Player/Car from the Windows race.
+    // Portable arrays keep stable model-to-racer indices, so retain the
+    // slot but exclude it from physics/gameplay/HUD once its model leaves.
+    bool disconnected = false;
     bool lowLife = false;
 };
 
@@ -389,6 +393,7 @@ public:
     // host applies it and clients later consume the returned life/death.
     void setNetworkGameplayRole(bool enabled, bool host,
                                 std::vector<bool> ownedRacers);
+    bool disconnectNetworkRacer(std::size_t racer) noexcept;
     NetworkDamageResult applyNetworkPlayerDamage(
         std::size_t target, std::size_t attacker, Vec3 position,
         float value, DamageType damageType,

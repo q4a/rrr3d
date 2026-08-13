@@ -1233,7 +1233,8 @@ int main(int argc, char** argv)
                      " airborne/stabilization, suspension/tire contacts,"
                      " trace reset, countdown, checkpoint/lap/finish,"
                      " source border/car contacts, weapon/damage, bonus,"
-                     " garage/workshop, and respawn state passed\n";
+                     " garage/workshop, NetPlayer disconnect removal,"
+                     " and respawn state passed\n";
         return EXIT_SUCCESS;
     }
 #endif
@@ -6463,6 +6464,75 @@ int main(int argc, char** argv)
                       NetworkFailureDialogAction::ExitMatch)
                   << '\n';
     };
+    auto reconcileDisconnectedNetworkRacers = [&]() {
+        if (!networkMatchStarted || !networkRaceStarted || !inRace)
+            return;
+        for (std::size_t racer = 0U;
+             racer < networkRaceModelOrder.size() &&
+             racer < raceSession.racers().size(); ++racer)
+        {
+            const auto modelId = networkRaceModelOrder[racer];
+            const bool modelPresent = std::any_of(
+                networkSnapshot.models.players.begin(),
+                networkSnapshot.models.players.end(),
+                [modelId](const auto& player) {
+                    return player.modelId == modelId;
+                });
+            if (modelPresent ||
+                !raceSession.disconnectNetworkRacer(racer))
+            {
+                continue;
+            }
+
+            // NetPlayer::~NetPlayer calls Player::FreeCar(true) and then
+            // Race::DelPlayer for a remote model. Stable portable indices
+            // retain the slot, but its Jolt body must leave the simulation.
+            physicsWorld->setVehicleEnabled(racer, false);
+#ifdef RRR3D_AUDIO
+            if (racer < engineAudio.size())
+            {
+                audio.stop(engineAudio[racer].idleVoice);
+                audio.stop(engineAudio[racer].rpmVoice);
+                engineAudio[racer].idleVoice =
+                    r3d::audio::invalidVoice;
+                engineAudio[racer].rpmVoice =
+                    r3d::audio::invalidVoice;
+            }
+            if (racer < wheelSlipVoices.size())
+            {
+                for (auto& wheel : wheelSlipVoices[racer])
+                {
+                    audio.stop(wheel.voice);
+                    wheel = {};
+                }
+            }
+            std::erase_if(
+                shotEffectAudio, [&](const auto& source) {
+                    if (source.owner != racer)
+                        return false;
+                    audio.stop(source.voice);
+                    return true;
+                });
+            std::erase_if(
+                contactEffectAudio, [&](const auto& source) {
+                    if (source.racer != racer)
+                        return false;
+                    audio.stop(source.voice);
+                    return true;
+                });
+            std::erase_if(
+                timedEffectAudio, [&](const auto& source) {
+                    if (source.followRacer != racer)
+                        return false;
+                    audio.stop(source.voice);
+                    return true;
+                });
+#endif
+            std::cout
+                << "Original NetPlayer::~NetPlayer -> FreeCar/DelPlayer: "
+                << "model=" << modelId << ", racer=" << racer << '\n';
+        }
+    };
 #endif
     auto activateRaceMenuStart = [&]() {
 #ifdef RRR3D_NETWORK
@@ -9299,6 +9369,7 @@ int main(int argc, char** argv)
                 }
                 synchronizeReplicatedNetworkOptions();
                 processNetworkIdentityEvents();
+                reconcileDisconnectedNetworkRacers();
                 if (networkClientMatchEntered &&
                     networkSnapshot.models.raceActive &&
                     !networkRaceStarted && !inRace &&
@@ -15319,6 +15390,8 @@ int main(int argc, char** argv)
                 for (std::size_t index = 0U; index < count; ++index)
                 {
                     const auto& racer = raceSession.racers()[index];
+                    if (racer.disconnected)
+                        continue;
                     r3d::game::originalnetwork::NetworkRaceResult result;
                     result.playerModelId = networkRaceModelOrder[index];
                     result.playerPoints = toSourceInt(racer.points);

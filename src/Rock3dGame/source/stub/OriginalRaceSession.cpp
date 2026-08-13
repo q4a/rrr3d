@@ -1441,6 +1441,48 @@ void OriginalRaceSession::setNetworkGameplayRole(
     networkOwnedRacers_.resize(racers_.size(), false);
 }
 
+bool OriginalRaceSession::disconnectNetworkRacer(
+    std::size_t racer) noexcept
+{
+    if (racer >= racers_.size() || racers_[racer].disconnected)
+        return false;
+
+    auto& runtime = racers_[racer];
+    runtime.disconnected = true;
+    runtime.destroyed = true;
+    runtime.finished = false;
+    runtime.life = 0.0F;
+    runtime.lowLife = false;
+    runtime.restoreSeconds = 0.0F;
+    runtime.shieldSeconds = 0.0F;
+    runtime.shieldEffectSeconds = 0.0F;
+    runtime.shieldFadeInSeconds = -1.0F;
+    runtime.shieldFadeOutSeconds = -1.0F;
+    runtime.shieldDamageSeconds = -1.0F;
+    runtime.touchAttacker = RacerRuntime::invalidWeapon;
+    runtime.touchAttributionSeconds = 0.0F;
+    if (racer < vehicleInputs_.size())
+        vehicleInputs_[racer] = {};
+    if (racer < networkOwnedRacers_.size())
+        networkOwnedRacers_[racer] = false;
+
+    std::erase_if(respawns_, [racer](const auto& request) {
+        return request.racer == racer;
+    });
+    std::erase_if(velocityRequests_, [racer](const auto& request) {
+        return request.racer == racer;
+    });
+    std::erase_if(angularVelocityRequests_, [racer](const auto& request) {
+        return request.racer == racer;
+    });
+    // FreeCar removes car-owned listener/effect objects. Independent fired
+    // projectiles and mines remain world objects in the source.
+    std::erase_if(effects_, [racer](const RaceEffect& effect) {
+        return effect.racer == racer || effect.parentRacer == racer;
+    });
+    return true;
+}
+
 void OriginalRaceSession::pushDamageEvent(
     std::size_t target, std::size_t attacker, const Vec3& position,
     float damage, DamageType damageType, bool networkReplicated)
@@ -2485,7 +2527,8 @@ void OriginalRaceSession::updateProgress(
         const auto finishedBefore = std::count_if(
             racers_.begin(), racers_.end(),
             [&](const RacerRuntime& candidate) {
-                return &candidate != &runtime && candidate.finished;
+                return &candidate != &runtime &&
+                       !candidate.disconnected && candidate.finished;
             });
         runtime.place =
             static_cast<std::uint32_t>(finishedBefore + 1U);
@@ -2505,7 +2548,11 @@ void OriginalRaceSession::updateProgress(
             finishKind = RaceEventKind::SecondFinish;
         else if (finishCount == 3U)
             finishKind = RaceEventKind::ThirdFinish;
-        else if (finishCount == racers_.size())
+        else if (finishCount == static_cast<std::size_t>(std::count_if(
+                     racers_.begin(), racers_.end(),
+                     [](const RacerRuntime& candidate) {
+                         return !candidate.disconnected;
+                     })))
             finishKind = RaceEventKind::LastFinish;
         events_.push_back({finishKind, racer, 0U,
                            vehicle.body.position, runtime.finishTime});
@@ -3048,20 +3095,29 @@ void OriginalRaceSession::updatePlaces(
 {
     const auto oldLeaderFound = std::find_if(
         racers_.begin(), racers_.end(),
-        [](const RacerRuntime& racer) { return racer.place == 1U; });
+        [](const RacerRuntime& racer) {
+            return !racer.disconnected && racer.place == 1U;
+        });
     const std::size_t oldLeader =
         oldLeaderFound == racers_.end()
             ? 0U
             : static_cast<std::size_t>(oldLeaderFound - racers_.begin());
     const auto oldThirdFound = std::find_if(
         racers_.begin(), racers_.end(),
-        [](const RacerRuntime& racer) { return racer.place == 3U; });
+        [](const RacerRuntime& racer) {
+            return !racer.disconnected && racer.place == 3U;
+        });
     const std::size_t oldThird =
         oldThirdFound == racers_.end()
             ? RacerRuntime::invalidWeapon
             : static_cast<std::size_t>(oldThirdFound - racers_.begin());
-    std::vector<std::size_t> order(racers_.size());
-    std::iota(order.begin(), order.end(), 0U);
+    std::vector<std::size_t> order;
+    order.reserve(racers_.size());
+    for (std::size_t racer = 0U; racer < racers_.size(); ++racer)
+    {
+        if (!racers_[racer].disconnected)
+            order.push_back(racer);
+    }
     auto score = [&](std::size_t racer) {
         const auto& runtime = racers_[racer];
         if (runtime.finished)
@@ -3080,12 +3136,21 @@ void OriginalRaceSession::updatePlaces(
     for (std::size_t place = 0; place < order.size(); ++place)
         racers_[order[place]].place =
             static_cast<std::uint32_t>(place + 1U);
+    std::uint32_t disconnectedPlace =
+        static_cast<std::uint32_t>(order.size() + 1U);
+    for (auto& racer : racers_)
+    {
+        if (racer.disconnected)
+            racer.place = disconnectedPlace++;
+    }
 
     if (order.empty())
         return;
     const bool hasResults = std::any_of(
         racers_.begin(), racers_.end(),
-        [](const RacerRuntime& racer) { return racer.finished; });
+        [](const RacerRuntime& racer) {
+            return !racer.disconnected && racer.finished;
+        });
     auto onMainPath = [&](std::size_t racer) {
         return racer < lastTraceNodes_.size() &&
                lastTraceNodes_[racer].valid() &&
@@ -3413,6 +3478,8 @@ void OriginalRaceSession::updateGameplay(
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
         auto& runtime = racers_[racer];
+        if (runtime.disconnected)
+            continue;
         if (!runtime.destroyed)
             continue;
         vehicleInputs_[racer] = {};
@@ -6543,7 +6610,11 @@ void OriginalRaceSession::updateAchievements(float seconds)
                             race_.lapCount &&
                         static_cast<int>(achievementPreviousLapPlace_) -
                                 static_cast<int>(newPlace) >=
-                            static_cast<int>(racers_.size()) - 1)
+                            static_cast<int>(std::count_if(
+                                racers_.begin(), racers_.end(),
+                                [](const RacerRuntime& candidate) {
+                                    return !candidate.disconnected;
+                                })) - 1)
                         completeAchievement(index);
                 }
                 break;
@@ -6590,7 +6661,7 @@ void OriginalRaceSession::completeRemainingRacers(
     remaining.reserve(racers_.size());
     for (std::size_t racer = 0U; racer < racers_.size(); ++racer)
     {
-        if (!racers_[racer].finished)
+        if (!racers_[racer].disconnected && !racers_[racer].finished)
             remaining.push_back(racer);
     }
     std::stable_sort(
@@ -6608,7 +6679,9 @@ void OriginalRaceSession::completeRemainingRacers(
         });
     std::size_t completed = static_cast<std::size_t>(std::count_if(
         racers_.begin(), racers_.end(),
-        [](const RacerRuntime& racer) { return racer.finished; }));
+        [](const RacerRuntime& racer) {
+            return !racer.disconnected && racer.finished;
+        }));
     for (const std::size_t racer : remaining)
     {
         auto& runtime = racers_[racer];
@@ -6758,6 +6831,9 @@ void OriginalRaceSession::update(
              candidate < vehicles.size(); ++candidate)
         {
             if (candidate == racer)
+                continue;
+            if (racers_[candidate].destroyed ||
+                racers_[candidate].disconnected)
                 continue;
             const float lapDistance =
                 this->lapPosition(candidate, vehicles[candidate]) -
@@ -11078,9 +11154,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 mapHost.applyNetworkMapObjectDamage(
                     destructible->mapObjectId, 0U, 1.0F,
                     DamageType::Simple);
+            const float decorationExpected =
+                decorationInitial - 1.0F;
+            const bool decorationExpectedDeath =
+                decorationExpected <= 0.0F;
             if (std::abs(mapAuthoritative.life -
-                         (decorationInitial - 1.0F)) > 0.001F ||
-                mapAuthoritative.death)
+                         decorationExpected) > 0.001F ||
+                mapAuthoritative.death != decorationExpectedDeath)
             {
                 throw std::runtime_error(
                     "source host NetRace::Damage2 authority failed");
@@ -11112,6 +11192,27 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "remote human received local AI control");
+            }
+            if (!networkSession.disconnectNetworkRacer(1U) ||
+                networkSession.disconnectNetworkRacer(1U) ||
+                !networkSession.racers()[1].disconnected ||
+                !networkSession.racers()[1].destroyed)
+            {
+                throw std::runtime_error(
+                    "NetPlayer destructor racer removal state failed");
+            }
+            networkSession.update(
+                1.0F / 60.0F, vehicles, networkInput);
+            const auto& disconnectedInput =
+                networkSession.vehicleInputs()[1];
+            if (std::abs(disconnectedInput.throttle) > 0.0001F ||
+                std::abs(disconnectedInput.reverse) > 0.0001F ||
+                std::abs(disconnectedInput.brake) > 0.0001F ||
+                std::abs(disconnectedInput.steering) > 0.0001F ||
+                !networkSession.takeRespawns().empty())
+            {
+                throw std::runtime_error(
+                    "disconnected NetPlayer resumed gameplay");
             }
 
             OriginalRaceSession shotSource(networkRace);

@@ -1413,3 +1413,24 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   закрывающийся transport. Session regression проверяет реальный
   asynchronous connection refusal, а 330-кадровый Metal smoke — wait-dialog,
   source failure hint и финализацию.
+
+### Source NetPlayer disconnect / race removal follow-up
+
+- Перенесён активный путь `NetPlayer::~NetPlayer`: удаление remote model на
+  host теперь вызывает эквивалент `Player::FreeCar(true)`/`Race::DelPlayer`,
+  а не оставляет последнюю принятую машину в мире. Для сохранения стабильных
+  model-to-racer индексов slot помечается disconnected, но его Jolt body
+  действительно удаляется из simulation/contact solver.
+- Остановлены car-owned idle/RPM, wheel-slip, contact и attached effect
+  voices. Независимые уже выпущенные projectiles/mines сохраняются, как и в
+  исходном `FreeCar`, который удаляет MapObj машины, но не очищает список
+  bonus projectiles.
+- `HudMenu::PlayerStateFrame::RemoveOpponent` и
+  `MiniMapFrame::DelPlayer` восстановлены в active bgfx HUD: исчезают имя,
+  life overlay и точка карты. Renderer не рисует body/wheels/shadow, session
+  не запускает AI/respawn и исключает игрока из place/finish/result logic.
+- Race-session regression проверяет idempotent removal, нулевой control и
+  отсутствие respawn. Существовавшая проверка `Damage2` также исправлена:
+  death теперь ожидается из фактического serialized maximum life, а не из
+  неверного предположения, что первый destructible обязательно переживёт
+  единицу урона.

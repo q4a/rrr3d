@@ -1238,6 +1238,11 @@ void OriginalRaceHud::update(
     for (std::size_t index = 0;
          index < vehicles.size() && index < race.racers.size(); ++index)
     {
+        if (index < session.racers().size() &&
+            session.racers()[index].disconnected)
+        {
+            continue;
+        }
         // MiniMapFrame::UpdatePlayers uses CarState::GetMapPos(), which is a
         // trace projection and retains the last valid tile coordinate while
         // a car is off-road. A raw body coordinate makes an AI reset look
@@ -1368,7 +1373,7 @@ void OriginalRaceHud::update(
         const bool atEdge = project(
             vehicles[racerIndex].body.position,
             {1.0F, -0.5F, 0.0F}, label.x, label.y);
-        label.visible = !runtime.destroyed;
+        label.visible = !runtime.destroyed && !runtime.disconnected;
         bool hasLifeOverlay = false;
         if (label.visible)
         {
@@ -1436,8 +1441,14 @@ void OriginalRaceHud::update(
         setText(device, finishMoneyPoints_,
                 moneyName_ + "\n" + pointsName_, 30.0F, true,
                 {225, 225, 225, 255});
-        std::vector<std::size_t> order(session.racers().size());
-        std::iota(order.begin(), order.end(), 0U);
+        std::vector<std::size_t> order;
+        order.reserve(session.racers().size());
+        for (std::size_t racer = 0U;
+             racer < session.racers().size(); ++racer)
+        {
+            if (!session.racers()[racer].disconnected)
+                order.push_back(racer);
+        }
         std::stable_sort(
             order.begin(), order.end(),
             [&](std::size_t first, std::size_t second) {
