@@ -111,7 +111,7 @@ Windows target не компилируется.
 | Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Перенесено для active catalog | В фактическом `db.xml` покрыты все 8 manager classes, все 37 `ntParticleSystem`, единственный активный `FxFlowEmitter`, все 14 `partDesc` и 5 `flowDesc` fields, child systems, distributions, lifetime/fading и `ntIVBMesh`/`ntSprite`/`ntPlane`. Flattened include сохраняет собственные lighting/order/lifetime каждого child Actor; D3D sorting заменён bgfx |
 | Weather/water/magma/sky | `Environment.cpp`, `GraphManager`, `WaterPlane`, `FogPlane`, `GrassField`, source `.fx` | source graph + bgfx/Metal shader equivalents | Перенесено с backend-адаптацией | Перенесены шесть world branches, weather fog/ambient/sky/far, quality gates, rain/isometric exclusions, scene AABB +300, UV scale 4/25/50, Low/volume paths, water reflection, depth reconstruction, cloud animation/color/intensity, source grass atlas/density/scale и sky без camera translation; D3D9 заменён Metal |
 | Intro/video | `VideoPlayer.cpp`, DirectShow playback | AVPlayer/AVPlayerLayer, 14 lossless-remuxed MP4 | Замена платформы | Все исходные H.264/MP3 потоки проигрываются нативно; Difficulty `Main`, Gamers `Intaria`, planet и final transitions подключены |
-| LAN/network | `NetGame`, `NetRace`, `NetPlayer`, NetLib | native Boost.Asio TCP/UDP transport + отдельный loopback preset | Частично | Исходный `NetLib` компилируется arm64, TCP control, UDP state channel, reconnect, adapter enumeration и Windows-compatible wire layout проверены. `NetGame`/`NetRace`, browser UI и репликация portable race ещё не вызывают backend из финального preset |
+| LAN/network | `NetGame`, `NetRace`, `NetPlayer`, NetLib | native Boost.Asio transport + `OriginalNetworkSession` в game runtime | Частично | Исходный `NetLib`, TCP/UDP, reconnect, adapter enumeration и wire layout проверены. Финальные presets вызывают `NetGame` lifecycle, порт 58213, LAN browser, ручной IP и source menu frames. `NetRace`/`NetPlayer` class IDs и репликация portable race ещё не подключены |
 | Steam | `SteamService`, auth | выключено | Не перенесено | Не относится к offline race, но не должно называться перенесённым |
 | Editor | `source/edit`, MapEditor | не входит в `.app` | Не переносился | Редактор не является обязательной частью пользовательской игры |
 
@@ -926,9 +926,10 @@ Network, video и Steam явно выключены.
 1. Оставшиеся startup/intros, обнаруженные source call-graph ревизией;
    `GameMode::Run(true)`, три startup images и последовательный
    `CheckStartupMenu -> StartOptionsMenu` уже перенесены.
-2. Подключить уже перенесённый `NetLib` transport к portable `NetGame`/
-   `NetRace`, browser UI и race replication; standalone transport сам по себе
-   ещё не является готовым LAN-режимом.
+2. Продолжить уже подключённый `NetLib`/`OriginalNetworkSession`: перенести
+   исходные class ID 1/2 `NetRace`/`NetPlayer` и связать их RPC/state sync с
+   portable race. Transport lifecycle и browser UI уже вызываются финальным
+   runtime, но сами по себе ещё не являются готовой сетевой гонкой.
 3. Steam integration, если требуется целевая дистрибуция.
 
 ## Критерий закрытия пункта

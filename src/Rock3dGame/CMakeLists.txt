@@ -69,6 +69,12 @@ else()
             include/PortableRace.h
         )
     endif()
+    if(RRR3D_ENABLE_NETWORK)
+        list(APPEND _rrr3d_portable_game_sources
+            source/stub/OriginalNetwork.cpp
+            include/OriginalNetwork.h
+        )
+    endif()
     add_library(${PROJECT_NAME} STATIC ${_rrr3d_portable_game_sources})
 endif()
 
@@ -83,6 +89,21 @@ target_link_libraries(${PROJECT_NAME} PUBLIC Rock3dEngine)
 
 if(TARGET NetLib)
     target_link_libraries(${PROJECT_NAME} PRIVATE NetLib)
+endif()
+
+if(NOT WIN32 AND RRR3D_ENABLE_NETWORK)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC RRR3D_NETWORK=1)
+    add_executable(rrr3d_original_network_session_smoke
+        tests/OriginalNetworkSessionSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_network_session_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(rrr3d_original_network_session_smoke)
+    add_test(
+        NAME rrr3d_original_network_session_smoke
+        COMMAND rrr3d_original_network_session_smoke
+    )
 endif()
 
 if(WIN32)

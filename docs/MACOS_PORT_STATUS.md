@@ -5,8 +5,9 @@
 > доказали полный перенос Windows-игры. Исходные `Rock3dGame/source/game`
 > классы в macOS target не компилируются; меню, session, AI, weapons, HUD и
 > renderer частично воспроизведены новыми adapters. Video имеет native
-> backend, исходный NetLib transport перенесён отдельно, но LAN gameplay/UI
-> ещё не подключены; Steam выключен. Каноническая матрица «перенесено /
+> backend; NetLib lifecycle и исходные LAN menu/browser/IP frames подключены
+> к финальному runtime, но `NetRace`/`NetPlayer` replication ещё нет. Steam
+> выключен. Каноническая матрица «перенесено /
 > частично / суррогат / не
 > перенесено» находится в
 > [`MACOS_PORT_COMPLETENESS_AUDIT.md`](MACOS_PORT_COMPLETENESS_AUDIT.md).
@@ -1039,8 +1040,8 @@ Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` и workshop
 source-derived. Source finish progression, planet/final movies и нативный
 video backend, включая Intaria transition, также подключены; projectile,
 material graph и game-side audio follow-ups ниже закрыты. Следующий большой
-продуктовый разрыв после отдельного переноса NetLib transport — подключение
-исходных `NetGame`/`NetRace`, LAN browser и race replication к portable
+продуктовый разрыв после подключения NetLib transport/session и LAN UI —
+перенос исходных `NetRace`/`NetPlayer` class ID и race replication в portable
 runtime. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
 функциональных расхождений; он не является заменой переноса.
@@ -1212,5 +1213,10 @@ runtime. Release hardening
   неинициализирована.
 - `macos-arm64-network` и `rrr3d_net_loopback_smoke` проверяют TCP/UDP,
   повторное подключение, dynamic state и Windows-compatible 4/8-byte header
-  layout. Финальный `.app` пока не включает сеть: `NetGame`, `NetRace`, LAN
-  browser и portable race replication остаются следующим отдельным этапом.
+  layout.
+- M9/M10/Release включают `OriginalNetworkSession`: финальный executable
+  вызывает source `Initializate/Process/Close/Finalizate`, использует порт
+  58213 и sync rate 70, показывает adapters, ServerType/ClientType,
+  broadcast browser и ручной IP. Отдельные session и Metal menu smoke прошли.
+- `NetRace`/`NetPlayer` class ID и portable race replication остаются
+  следующим этапом; connected transport намеренно не запускает fake match.

@@ -173,7 +173,7 @@
         "RRR3D_ENABLE_RENDERER": "ON",
         "RRR3D_RENDERER_BACKEND": "bgfx",
         "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",
-        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_NETWORK": "ON",
         "RRR3D_ENABLE_VIDEO": "ON",
         "RRR3D_ENABLE_PHYSICS": "ON",
         "RRR3D_ENABLE_STEAM": "OFF",
@@ -202,7 +202,7 @@
         "RRR3D_ENABLE_RENDERER": "ON",
         "RRR3D_RENDERER_BACKEND": "bgfx",
         "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",
-        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_NETWORK": "ON",
         "RRR3D_ENABLE_VIDEO": "ON",
         "RRR3D_ENABLE_PHYSICS": "ON",
         "RRR3D_ENABLE_STEAM": "OFF",
@@ -232,7 +232,7 @@
         "RRR3D_ENABLE_RENDERER": "ON",
         "RRR3D_RENDERER_BACKEND": "bgfx",
         "RRR3D_BGFX_ROOT": "${sourceDir}/build/bgfx-macos",
-        "RRR3D_ENABLE_NETWORK": "OFF",
+        "RRR3D_ENABLE_NETWORK": "ON",
         "RRR3D_ENABLE_VIDEO": "ON",
         "RRR3D_ENABLE_PHYSICS": "ON",
         "RRR3D_ENABLE_STEAM": "OFF",
@@ -345,6 +345,8 @@
         "MathLib",
         "Rock3dEngine",
         "Rock3dGame",
+        "rrr3d_net_loopback_smoke",
+        "rrr3d_original_network_session_smoke",
         "RRR3d"
       ]
     },
@@ -357,6 +359,8 @@
         "MathLib",
         "Rock3dEngine",
         "Rock3dGame",
+        "rrr3d_net_loopback_smoke",
+        "rrr3d_original_network_session_smoke",
         "RRR3d",
         "RRR3dBundle"
       ]
@@ -370,6 +374,8 @@
         "MathLib",
         "Rock3dEngine",
         "Rock3dGame",
+        "rrr3d_net_loopback_smoke",
+        "rrr3d_original_network_session_smoke",
         "RRR3d",
         "RRR3dBundle"
       ]

@@ -592,6 +592,13 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                     "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>"
                 COMMAND /usr/bin/codesign ${_rrr3d_codesign_arguments}
                     "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>"
+                # macOS may attach com.apple.macl/provenance while codesign
+                # writes the bundle. They are not part of the signature but
+                # strict verification rejects them as filesystem detritus.
+                COMMAND /usr/bin/xattr -cr
+                    "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>"
+                COMMAND /usr/bin/codesign --verify --deep --strict --verbose=2
+                    "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>"
                 COMMAND ${CMAKE_COMMAND} -E touch
                     "${_rrr3d_bundle_stamp}"
                 DEPENDS

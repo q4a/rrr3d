@@ -189,8 +189,7 @@ hashes and moved-application launch result are in `docs/MILESTONE_10.md`.
 
 ## Исходный NetLib transport
 
-Нативный перенос TCP/UDP transport проверяется отдельно от ещё не
-подключённого LAN game/UI runtime:
+Низкоуровневый TCP/UDP transport по-прежнему можно проверить отдельно:
 
 ```bash
 cmake --preset macos-arm64-network
@@ -200,5 +199,8 @@ ctest --test-dir build/macos-arm64-network --output-on-failure
 
 Тест создаёт локальные UDP и TCP endpoints, выполняет command handshake,
 повторное подключение и проверяет совместимость исходного wire layout с
-Windows. Успех этого preset не означает, что LAN browser и `NetRace` уже
-доступны в `RRR3d.app`.
+Windows. Основные M9/M10/Release presets дополнительно включают
+`OriginalNetworkSession`, LAN browser и ручной IP; их regression запускается
+через `ctest --test-dir build/macos-arm64-m9 --output-on-failure` и
+`--network-menu-smoke-test`. `NetRace`/`NetPlayer` replication ещё не
+подключена, поэтому наличие browser не означает готовую сетевую гонку.

@@ -185,10 +185,12 @@ command size, reconnect и инициализации wire headers.
 
 Preset `macos-arm64-network` проверяет настоящий TCP connect/command/reconnect,
 UDP datagram и Windows-compatible размеры/layout заголовков на loopback.
-Финальные M9/M10/Release presets пока оставляют `RRR3D_ENABLE_NETWORK=OFF`:
-portable runtime не подключил исходные `NetGame`, `NetRace`, LAN browser и
-модели репликации. Steam P2P остаётся отдельным backend и не смешивается с
-socket portability.
+M9/M10/Release presets теперь включают transport и source-derived
+`OriginalNetworkSession`: перенесены `NetGame` lifecycle, порт/sync rate,
+adapter list, `NetworkFrame`, server/client type frames, LAN browser и ручной
+IP. `NetRace`/`NetPlayer` модели репликации всё ещё не подключены, поэтому TCP
+handshake не выдаётся за готовую сетевую гонку. Steam P2P остаётся отдельным
+backend и не смешивается с socket portability.
 
 ## 8. Physics
 

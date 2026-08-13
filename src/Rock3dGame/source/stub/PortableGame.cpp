@@ -11,7 +11,14 @@ namespace r3d::portable
 
 GameCapabilities game_capabilities() noexcept
 {
-    return {false, false, false, false, false};
+    return {
+        false,
+#ifdef RRR3D_NETWORK
+        true,
+#else
+        false,
+#endif
+        false, false, false};
 }
 
 void log_game_capabilities() noexcept
@@ -25,8 +32,14 @@ void log_game_capabilities() noexcept
         "Rock3dGame", "portable target linked; gameplay world unavailable");
 #endif
     log_engine_capabilities();
+#ifdef RRR3D_NETWORK
+    rrr3d::platform::report_error(
+        "Rock3dGame",
+        "source NetLib LAN transport/session enabled; race models pending");
+#else
     rrr3d::platform::report_error(
         "Rock3dGame", "network disabled (RRR3D_ENABLE_NETWORK=OFF)");
+#endif
     rrr3d::platform::report_error(
         "Rock3dGame", "video disabled (RRR3D_ENABLE_VIDEO=OFF)");
     rrr3d::platform::report_error(
