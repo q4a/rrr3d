@@ -1316,3 +1316,23 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   и кириллический wire text, а integrated Metal race smoke открывает поле,
   вводит/отправляет строку, проверяет gamer name, labels и возвращение
   управления машине.
+
+### Source NetRace options / planet authority follow-up
+
+- Восстановлен отсутствовавший исходящий путь восьми RPC из
+  `NetRace.cpp`: `SetUpgradeMaxLevel`, `SetWeaponMaxLevel`,
+  `SetCurrentDifficulty`, `SetLapsCount`, `SetMaxPlayers`,
+  `SetMaxComputers`, `SetSpringBorders` и `SetEnableMineBug`. Хост меняет
+  локальное source-state только при новом значении и отправляет тот же
+  scalar wire payload в исходном RPC order; клиентские вызовы отклоняются.
+- `OptionsMenu::GameFrame::LoadCfg/ApplyChanges` снова соблюдает source
+  ownership: на клиенте host-owned строки 3..10 отключены, приглушены и
+  пропускаются навигацией, а Apply хоста публикует все восемь значений через
+  активный `OriginalNetworkSession`. Входящие значения обновляют profile,
+  race borders/mine behavior и открытый OptionsMenu без локальной подмены.
+- Подключены `NetRace::ChangePlanet/OnSetPlanet`: клиент не может нажать
+  planet travel slot, хост передаёт исходные planet/track/weather indices,
+  клиент разрешает их через оригинальный `trackCatalog`, применяет weather
+  override и только затем перезагружает выбранный source world.
+- Loopback теперь проверяет все восемь RPC, host-only gate, динамические
+  лимиты AI/игроков и последующий `StartRace`; четыре CTest проходят.

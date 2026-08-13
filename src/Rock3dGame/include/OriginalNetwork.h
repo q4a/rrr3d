@@ -77,6 +77,18 @@ public:
                   const std::vector<NetworkRaceResult>& results,
                   std::string& error);
     bool setRaceGoStage(std::int32_t stage, std::string& error);
+    bool setPlanet(std::int32_t planet, std::int32_t track,
+                   std::int32_t weather, std::string& error);
+    bool setTrack(std::int32_t track, std::string& error);
+    bool setUpgradeMaxLevel(std::int32_t level, std::string& error);
+    bool setWeaponMaxLevel(std::int32_t level, std::string& error);
+    bool setCurrentDifficulty(std::int32_t difficulty,
+                              std::string& error);
+    bool setLapsCount(std::uint32_t laps, std::string& error);
+    bool setMaxPlayers(std::uint32_t players, std::string& error);
+    bool setMaxComputers(std::uint32_t computers, std::string& error);
+    bool setSpringBorders(bool enabled, std::string& error);
+    bool setEnableMineBug(bool enabled, std::string& error);
     bool sendPlayerDamage(std::uint32_t senderModelId,
                           std::uint32_t targetModelId, float value,
                           std::int32_t damageType, float targetLife,

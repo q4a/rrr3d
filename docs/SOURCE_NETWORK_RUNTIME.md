@@ -27,15 +27,25 @@ race. `DialogMenu2::UserChat` sends the original UTF-16 `PushLine`, resolves
 the sender by owner ID/gamer ID and renders in the race menu/HUD; no separate
 replacement multiplayer protocol is used.
 
+`OptionsMenu::GameFrame` now uses the source host boundary as well. Its eight
+NetRace-owned rows publish the original `SetUpgradeMaxLevel`,
+`SetWeaponMaxLevel`, `SetCurrentDifficulty`, `SetLapsCount`, `SetMaxPlayers`,
+`SetMaxComputers`, `SetSpringBorders`, and `SetEnableMineBug` RPCs. They are
+disabled on a client, and incoming values update the active profile and race.
+`ChangePlanet` also publishes the source planet/track/weather indices; a
+client resolves them through the original track catalog before reloading the
+world.
+
 ## Verification
 
 The non-rendering regressions `rrr3d_original_network_session_smoke`,
 `rrr3d_original_network_models_smoke` and
 `rrr3d_original_user_chat_smoke` verify
 initialization, adapter enumeration, LAN search/cancel, source-port hosting,
-close/finalization, model RPC, Cyrillic chat wire format and the source chat
-history/fade model. The Metal regressions exercise all five source LAN menu
-frames and the chat overlay in a live race:
+close/finalization, all eight host-option RPCs and their client gate, model
+RPC, Cyrillic chat wire format and the source chat history/fade model. The
+Metal regressions exercise all five source LAN menu frames and the chat
+overlay in a live race:
 
 ```bash
 cmake --preset macos-arm64-m9

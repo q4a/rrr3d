@@ -359,11 +359,14 @@ public:
 
     void applyMatch(NetworkMatchState match, std::uint32_t sender)
     {
+        const bool newMatch = !value.matchActive;
         value.match = std::move(match);
         value.matchActive = true;
         value.raceActive = false;
         value.paused = false;
         value.raceGoStage = -1;
+        if (newMatch)
+            value.currentDifficultySet = false;
         value.results.clear();
         event({NetworkEventKind::MatchStarted, sender});
     }
@@ -510,6 +513,114 @@ public:
         std::ostream& stream =
             NewRPC(net::cNetTargetOthers, &PortableNetRace::OnSetTrack);
         writeScalar(stream, track);
+        CloseRPC();
+    }
+
+    void sendUpgradeMaxLevel(std::int32_t level)
+    {
+        if (context_.value.match.upgradeMaxLevel == level)
+            return;
+        context_.value.match.upgradeMaxLevel = level;
+        context_.touch();
+        std::ostream& stream = NewRPC(
+            net::cNetTargetOthers,
+            &PortableNetRace::OnSetUpgradeMaxLevel);
+        writeScalar(stream, level);
+        CloseRPC();
+    }
+
+    void sendWeaponMaxLevel(std::int32_t level)
+    {
+        if (context_.value.match.weaponMaxLevel == level)
+            return;
+        context_.value.match.weaponMaxLevel = level;
+        context_.touch();
+        std::ostream& stream = NewRPC(
+            net::cNetTargetOthers,
+            &PortableNetRace::OnSetWeaponMaxLevel);
+        writeScalar(stream, level);
+        CloseRPC();
+    }
+
+    void sendCurrentDifficulty(std::int32_t difficulty)
+    {
+        if (context_.value.currentDifficulty == difficulty)
+        {
+            if (context_.value.currentDifficultySet)
+                return;
+        }
+        context_.value.currentDifficulty = difficulty;
+        context_.value.currentDifficultySet = true;
+        context_.touch();
+        std::ostream& stream = NewRPC(
+            net::cNetTargetOthers,
+            &PortableNetRace::OnSetCurrentDifficulty);
+        writeScalar(stream, difficulty);
+        CloseRPC();
+    }
+
+    void sendLapsCount(std::uint32_t laps)
+    {
+        if (context_.value.match.lapsCount == laps)
+            return;
+        context_.value.match.lapsCount = laps;
+        context_.touch();
+        std::ostream& stream = NewRPC(
+            net::cNetTargetOthers,
+            &PortableNetRace::OnSetLapsCount);
+        writeScalar(stream, laps);
+        CloseRPC();
+    }
+
+    void sendMaxPlayers(std::uint32_t players)
+    {
+        if (context_.value.match.maxPlayers == players)
+            return;
+        context_.value.match.maxPlayers = players;
+        context_.touch();
+        std::ostream& stream = NewRPC(
+            net::cNetTargetOthers,
+            &PortableNetRace::OnSetMaxPlayers);
+        writeScalar(stream, players);
+        CloseRPC();
+    }
+
+    void sendMaxComputers(std::uint32_t computers)
+    {
+        if (context_.value.match.maxComputers == computers)
+            return;
+        context_.value.match.maxComputers = computers;
+        context_.touch();
+        std::ostream& stream = NewRPC(
+            net::cNetTargetOthers,
+            &PortableNetRace::OnSetMaxComputers);
+        writeScalar(stream, computers);
+        CloseRPC();
+    }
+
+    void sendSpringBorders(bool enabled)
+    {
+        if (context_.value.match.springBorders == enabled)
+            return;
+        context_.value.match.springBorders = enabled;
+        context_.touch();
+        std::ostream& stream = NewRPC(
+            net::cNetTargetOthers,
+            &PortableNetRace::OnSetSpringBorders);
+        writeScalar(stream, enabled);
+        CloseRPC();
+    }
+
+    void sendEnableMineBug(bool enabled)
+    {
+        if (context_.value.match.enableMineBug == enabled)
+            return;
+        context_.value.match.enableMineBug = enabled;
+        context_.touch();
+        std::ostream& stream = NewRPC(
+            net::cNetTargetOthers,
+            &PortableNetRace::OnSetEnableMineBug);
+        writeScalar(stream, enabled);
         CloseRPC();
     }
 
@@ -747,7 +858,10 @@ private:
                                 std::istream& stream)
     {
         if (readScalar(stream, context_.value.currentDifficulty))
+        {
+            context_.value.currentDifficultySet = true;
             context_.touch();
+        }
     }
 
     void OnSetLapsCount(const net::NetMessage&,
@@ -1510,6 +1624,100 @@ bool OriginalNetworkModels::setTrack(std::int32_t track, std::string& error)
         return false;
     }
     impl_->race->sendTrack(track);
+    return true;
+}
+
+namespace
+{
+
+bool requireHostMatch(OriginalNetworkModels::Impl& impl,
+                      std::string& error)
+{
+    error.clear();
+    if (impl.race == nullptr || !impl.value.matchActive)
+    {
+        error = "source NetRace match is not active";
+        return false;
+    }
+    if (!impl.service.isServer())
+    {
+        error = "only the NetRace host can change match options";
+        return false;
+    }
+    return true;
+}
+
+} // namespace
+
+bool OriginalNetworkModels::setUpgradeMaxLevel(
+    std::int32_t level, std::string& error)
+{
+    if (!requireHostMatch(*impl_, error))
+        return false;
+    impl_->race->sendUpgradeMaxLevel(level);
+    return true;
+}
+
+bool OriginalNetworkModels::setWeaponMaxLevel(
+    std::int32_t level, std::string& error)
+{
+    if (!requireHostMatch(*impl_, error))
+        return false;
+    impl_->race->sendWeaponMaxLevel(level);
+    return true;
+}
+
+bool OriginalNetworkModels::setCurrentDifficulty(
+    std::int32_t difficulty, std::string& error)
+{
+    if (!requireHostMatch(*impl_, error))
+        return false;
+    impl_->race->sendCurrentDifficulty(difficulty);
+    return true;
+}
+
+bool OriginalNetworkModels::setLapsCount(
+    std::uint32_t laps, std::string& error)
+{
+    if (!requireHostMatch(*impl_, error))
+        return false;
+    impl_->race->sendLapsCount(laps);
+    return true;
+}
+
+bool OriginalNetworkModels::setMaxPlayers(
+    std::uint32_t players, std::string& error)
+{
+    if (!requireHostMatch(*impl_, error))
+        return false;
+    impl_->race->sendMaxPlayers(players);
+    return true;
+}
+
+bool OriginalNetworkModels::setMaxComputers(
+    std::uint32_t computers, std::string& error)
+{
+    if (!requireHostMatch(*impl_, error))
+        return false;
+    impl_->race->sendMaxComputers(computers);
+    return true;
+}
+
+bool OriginalNetworkModels::setSpringBorders(
+    bool enabled, std::string& error)
+{
+    if (!requireHostMatch(*impl_, error))
+        return false;
+    impl_->race->sendSpringBorders(enabled);
+    return true;
+}
+
+bool OriginalNetworkModels::setEnableMineBug(
+    bool enabled, std::string& error)
+{
+    if (!requireHostMatch(*impl_, error))
+        return false;
+    impl_->race->sendEnableMineBug(enabled);
     return true;
 }
 

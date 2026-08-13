@@ -196,6 +196,37 @@ int main()
                        remote->car == "buggi";
             }, clock, 4000U))
             return 10;
+
+        std::string clientOptionError;
+        if (clientModels.setLapsCount(8U, clientOptionError) ||
+            clientOptionError.empty())
+            return 11;
+        if (!serverModels.setUpgradeMaxLevel(1, error) ||
+            !serverModels.setWeaponMaxLevel(4, error) ||
+            !serverModels.setCurrentDifficulty(2, error) ||
+            !serverModels.setLapsCount(6U, error) ||
+            !serverModels.setMaxPlayers(5U, error) ||
+            !serverModels.setMaxComputers(2U, error) ||
+            !serverModels.setSpringBorders(false, error) ||
+            !serverModels.setEnableMineBug(false, error))
+        {
+            std::cerr << error << '\n';
+            return 11;
+        }
+        if (!pump(server, client, [&]() {
+                const auto state = clientModels.snapshot();
+                return state.match.upgradeMaxLevel == 1 &&
+                       state.match.weaponMaxLevel == 4 &&
+                       state.currentDifficultySet &&
+                       state.currentDifficulty == 2 &&
+                       state.match.lapsCount == 6U &&
+                       state.match.maxPlayers == 5U &&
+                       state.match.maxComputers == 2U &&
+                       !state.match.springBorders &&
+                       !state.match.enableMineBug;
+            }, clock, 4000U))
+            return 11;
+
         if (!serverModels.setPlanet(4, 0, 2, error) ||
             !serverModels.setTrack(2, error) ||
             !serverModels.startRace(error) ||
@@ -222,8 +253,8 @@ int main()
                        clientOnServer->car == "buggi" &&
                        host != nullptr &&
                        host->vehicle.position[0] == 12.0F &&
-                       replicatedComputers == 3 &&
-                       clientState2.players.size() == 5U &&
+                       replicatedComputers == 2 &&
+                       clientState2.players.size() == 4U &&
                        clientState2.raceActive && clientState2.paused &&
                        clientState2.raceGoStage == 3 &&
                        clientState2.match.planet == 4 &&
@@ -429,7 +460,7 @@ int main()
 
     std::cout
         << "Original NetRace/NetPlayer class IDs, RPC order, match/state, "
-           "vehicle BitStream, damage/shot/bonus/mine/chat, ExitRace results "
-           "and repeated-race loopback passed\n";
+           "host options, vehicle BitStream, damage/shot/bonus/mine/chat, "
+           "ExitRace results and repeated-race loopback passed\n";
     return 0;
 }

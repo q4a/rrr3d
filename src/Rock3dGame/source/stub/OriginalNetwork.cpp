@@ -307,6 +307,97 @@ bool OriginalNetworkSession::setRaceGoStage(
     return true;
 }
 
+bool OriginalNetworkSession::setPlanet(
+    std::int32_t planet, std::int32_t track,
+    std::int32_t weather, std::string& error)
+{
+    if (!impl_->models.setPlanet(planet, track, weather, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setTrack(
+    std::int32_t track, std::string& error)
+{
+    if (!impl_->models.setTrack(track, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setUpgradeMaxLevel(
+    std::int32_t level, std::string& error)
+{
+    if (!impl_->models.setUpgradeMaxLevel(level, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setWeaponMaxLevel(
+    std::int32_t level, std::string& error)
+{
+    if (!impl_->models.setWeaponMaxLevel(level, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setCurrentDifficulty(
+    std::int32_t difficulty, std::string& error)
+{
+    if (!impl_->models.setCurrentDifficulty(difficulty, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setLapsCount(
+    std::uint32_t laps, std::string& error)
+{
+    if (!impl_->models.setLapsCount(laps, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setMaxPlayers(
+    std::uint32_t players, std::string& error)
+{
+    if (!impl_->models.setMaxPlayers(players, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setMaxComputers(
+    std::uint32_t computers, std::string& error)
+{
+    if (!impl_->models.setMaxComputers(computers, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setSpringBorders(
+    bool enabled, std::string& error)
+{
+    if (!impl_->models.setSpringBorders(enabled, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setEnableMineBug(
+    bool enabled, std::string& error)
+{
+    if (!impl_->models.setEnableMineBug(enabled, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
 bool OriginalNetworkSession::sendPlayerDamage(
     std::uint32_t senderModelId, std::uint32_t targetModelId,
     float value, std::int32_t damageType, float targetLife,

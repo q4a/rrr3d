@@ -2055,6 +2055,19 @@ int main(int argc, char** argv)
     constexpr menu::Rgba8 raceInfoColor{214, 184, 164, 255};
     auto optionsDraftConfig = profileState.config;
     auto optionsDraftDifficulty = profileState.player.difficulty;
+    auto sourceDifficultyIndex = [](std::string_view difficulty) {
+        if (difficulty == "gdEasy")
+            return 0;
+        if (difficulty == "gdHard")
+            return 2;
+        return 1;
+    };
+    auto sourceDifficultyName = [](std::int32_t difficulty) {
+        return std::array<std::string_view, 3>{
+            "gdEasy", "gdNormal", "gdHard"}
+            [static_cast<std::size_t>(
+                std::clamp(difficulty, 0, 2))];
+    };
     std::vector<std::pair<std::uint32_t, std::uint32_t>>
         originalDisplayModes;
     int displayModeCount = 0;
@@ -3913,6 +3926,12 @@ int main(int argc, char** argv)
     std::uint64_t networkLastBonusEventSequence = 0U;
     std::uint64_t networkLastMineEventSequence = 0U;
     std::uint64_t networkLastChatEventSequence = 0U;
+    std::int32_t networkAppliedPlanet =
+        std::numeric_limits<std::int32_t>::min();
+    std::int32_t networkAppliedTrack =
+        std::numeric_limits<std::int32_t>::min();
+    std::int32_t networkAppliedWeather =
+        std::numeric_limits<std::int32_t>::min();
     std::vector<std::uint32_t> networkRaceModelOrder;
     std::optional<r3d::game::originalnetwork::NetworkPlayerState>
         networkPublishedPlayer;
@@ -7124,6 +7143,10 @@ int main(int argc, char** argv)
         saveRaceProfile();
     };
     auto changeAngarPlanet = [&](std::size_t index) {
+#ifdef RRR3D_NETWORK
+        if (networkClientMatchEntered)
+            return;
+#endif
         const auto count = std::min(
             originalGarage->planets.size(),
             profileState.player.planets.size());
@@ -7149,6 +7172,46 @@ int main(int argc, char** argv)
         raceTournamentAdvance = {};
         racePlanetChampion = false;
         persistAngarProfile();
+#ifdef RRR3D_NETWORK
+        if (networkMatchStarted && networkHostRequested)
+        {
+            if (!reloadCurrentRace())
+            {
+                runtimeSmokeFailed = true;
+                running = false;
+                return;
+            }
+            const auto& entry =
+                originalRace->trackCatalog[selectedTrack];
+            const auto track = static_cast<std::int32_t>(
+                std::count_if(
+                    originalRace->trackCatalog.begin(),
+                    originalRace->trackCatalog.begin() +
+                        static_cast<std::ptrdiff_t>(selectedTrack),
+                    [&](const auto& candidate) {
+                        return candidate.planetIndex ==
+                               entry.planetIndex;
+                    }));
+            std::string networkError;
+            if (!networkSession.setPlanet(
+                    static_cast<std::int32_t>(entry.planetIndex),
+                    track,
+                    static_cast<std::int32_t>(
+                        originalRace->environment.weather),
+                    networkError))
+            {
+                std::cerr
+                    << "Original NetRace::ChangePlanet failed: "
+                    << networkError << '\n';
+                runtimeSmokeFailed = true;
+                running = false;
+                return;
+            }
+            renderedNetworkRevision =
+                std::numeric_limits<std::uint64_t>::max();
+            refreshNetworkRuntimePages();
+        }
+#endif
         angarTravelDialogVisible = false;
 #ifdef RRR3D_VIDEO
         if (newPlanet && championshipMode &&
@@ -7172,6 +7235,10 @@ int main(int argc, char** argv)
     };
     auto requestAngarTravel =
         [&](std::size_t index, bool fromPlanetSlot = true) {
+#ifdef RRR3D_NETWORK
+        if (networkClientMatchEntered)
+            return;
+#endif
         angarTravelTarget = index;
         angarTravelYesFocused = true;
         const auto key =
@@ -7348,13 +7415,13 @@ int main(int argc, char** argv)
         const auto& match = networkSnapshot.models.match;
         championshipMode = match.mode == 0;
         profileState.config.upgradeMaxLevel = static_cast<std::uint32_t>(
-            std::max(match.upgradeMaxLevel, 0));
+            std::clamp(match.upgradeMaxLevel, 0, 2));
         profileState.config.weaponMaxLevel = static_cast<std::uint32_t>(
-            std::max(match.weaponMaxLevel, 0));
+            std::clamp(match.weaponMaxLevel, 1, 4));
         profileState.config.lapsCount =
             std::clamp<std::uint32_t>(match.lapsCount, 1U, 8U);
         profileState.config.maxPlayers =
-            std::clamp<std::uint32_t>(match.maxPlayers, 1U, 10U);
+            std::clamp<std::uint32_t>(match.maxPlayers, 2U, 6U);
         profileState.config.maxComputers =
             std::min<std::uint32_t>(match.maxComputers, 5U);
         profileState.config.springBorders = match.springBorders;
@@ -7440,6 +7507,9 @@ int main(int argc, char** argv)
 
         if (!reloadCurrentRace())
             return false;
+        networkAppliedPlanet = match.planet;
+        networkAppliedTrack = match.track;
+        networkAppliedWeather = match.weather;
         networkMatchStarted = true;
         networkClientMatchEntered = true;
         networkLocalCarSelected = !owner->car.empty();
@@ -7462,6 +7532,21 @@ int main(int argc, char** argv)
         case MenuScreen::GameOptions:
             replaceOptionsPage(
                 gameOptionsPage, gameOptionsLabels());
+#ifdef RRR3D_NETWORK
+            if (networkMatchStarted && !networkHostRequested)
+            {
+                // OptionsMenu::GameFrame::LoadCfg disables every setting
+                // owned by NetRace when this peer is not the host. Camera,
+                // HUD and video remain local exactly as in Menu.cpp.
+                for (std::size_t index = 3U; index <= 10U; ++index)
+                    gameOptionsPage.enabled[index] = false;
+                if (menuSelection < gameOptionsPage.enabled.size() &&
+                    !gameOptionsPage.enabled[menuSelection])
+                {
+                    menuSelection = 2U;
+                }
+            }
+#endif
             break;
         case MenuScreen::GraphicsOptions:
             replaceOptionsPage(
@@ -7485,6 +7570,118 @@ int main(int argc, char** argv)
             break;
         }
     };
+#ifdef RRR3D_NETWORK
+    auto synchronizeReplicatedNetworkOptions = [&]() {
+        if (!networkClientMatchEntered ||
+            !networkSnapshot.models.matchActive)
+        {
+            return;
+        }
+
+        const auto& match = networkSnapshot.models.match;
+        const bool selectionChanged =
+            match.planet != networkAppliedPlanet ||
+            match.track != networkAppliedTrack ||
+            match.weather != networkAppliedWeather;
+        if (selectionChanged && !inRace && !raceLoadingActive)
+        {
+            const auto requestedPlanet = static_cast<std::uint32_t>(
+                std::max(match.planet, 0));
+            const auto requestedTrack = static_cast<std::uint32_t>(
+                std::max(match.track, 0));
+            std::uint32_t localTrack = 0U;
+            bool trackFound = false;
+            for (std::size_t index = 0U;
+                 index < originalRace->trackCatalog.size(); ++index)
+            {
+                const auto& entry = originalRace->trackCatalog[index];
+                if (entry.planetIndex != requestedPlanet)
+                    continue;
+                if (localTrack == requestedTrack)
+                {
+                    selectedTrack = index;
+                    trackFound = true;
+                    break;
+                }
+                ++localTrack;
+            }
+            if (!trackFound || match.weather < 0 || match.weather > 6)
+            {
+                std::cerr
+                    << "Original NetRace::OnSetPlanet invalid "
+                       "planet/track/weather: "
+                    << match.planet << '/' << match.track << '/'
+                    << match.weather << '\n';
+                runtimeSmokeFailed = true;
+                running = false;
+                return;
+            }
+            networkWeatherOverride =
+                static_cast<r3d::game::originalrace::Weather>(
+                    match.weather);
+            if (!reloadCurrentRace())
+            {
+                runtimeSmokeFailed = true;
+                running = false;
+                return;
+            }
+            networkAppliedPlanet = match.planet;
+            networkAppliedTrack = match.track;
+            networkAppliedWeather = match.weather;
+            refreshRaceMainPages();
+        }
+        const auto upgrade = static_cast<std::uint32_t>(
+            std::clamp(match.upgradeMaxLevel, 0, 2));
+        const auto weapons = static_cast<std::uint32_t>(
+            std::clamp(match.weaponMaxLevel, 1, 4));
+        const auto laps =
+            std::clamp<std::uint32_t>(match.lapsCount, 1U, 8U);
+        const auto players =
+            std::clamp<std::uint32_t>(match.maxPlayers, 2U, 6U);
+        const auto computers =
+            std::min<std::uint32_t>(match.maxComputers, 5U);
+        const auto difficulty =
+            networkSnapshot.models.currentDifficultySet
+                ? std::string(sourceDifficultyName(
+                      networkSnapshot.models.currentDifficulty))
+                : profileState.player.difficulty;
+        const bool changed =
+            profileState.config.upgradeMaxLevel != upgrade ||
+            profileState.config.weaponMaxLevel != weapons ||
+            profileState.config.lapsCount != laps ||
+            profileState.config.maxPlayers != players ||
+            profileState.config.maxComputers != computers ||
+            profileState.config.springBorders != match.springBorders ||
+            profileState.config.enableMineBug != match.enableMineBug ||
+            profileState.player.difficulty != difficulty;
+        if (!changed)
+            return;
+
+        profileState.config.upgradeMaxLevel = upgrade;
+        profileState.config.weaponMaxLevel = weapons;
+        profileState.config.lapsCount = laps;
+        profileState.config.maxPlayers = players;
+        profileState.config.maxComputers = computers;
+        profileState.config.springBorders = match.springBorders;
+        profileState.config.enableMineBug = match.enableMineBug;
+        profileState.player.difficulty = difficulty;
+        optionsDraftConfig.upgradeMaxLevel = upgrade;
+        optionsDraftConfig.weaponMaxLevel = weapons;
+        optionsDraftConfig.lapsCount = laps;
+        optionsDraftConfig.maxPlayers = players;
+        optionsDraftConfig.maxComputers = computers;
+        optionsDraftConfig.springBorders = match.springBorders;
+        optionsDraftConfig.enableMineBug = match.enableMineBug;
+        optionsDraftDifficulty = difficulty;
+        raceSession.setSpringBorders(match.springBorders);
+        raceSession.setEnableMineBug(match.enableMineBug);
+        if (menuStack.back() == MenuScreen::GameOptions ||
+            menuStack.back() == MenuScreen::GraphicsOptions ||
+            menuStack.back() == MenuScreen::SoundOptions ||
+            menuStack.back() == MenuScreen::ControlsOptions)
+            refreshCurrentOptionsPage();
+    };
+#endif
     auto isOriginalOptionsScreen = [](MenuScreen screen) {
         return screen == MenuScreen::GameOptions ||
                screen == MenuScreen::GraphicsOptions ||
@@ -7772,6 +7969,69 @@ int main(int argc, char** argv)
             profileState.config.springBorders);
         raceSession.setEnableMineBug(
             profileState.config.enableMineBug);
+#ifdef RRR3D_NETWORK
+        if (networkMatchStarted && networkHostRequested)
+        {
+            std::string networkError;
+            bool published = true;
+            auto publishOption =
+                [&](bool result, std::string_view sourceFunction) {
+                    if (result)
+                        return;
+                    published = false;
+                    std::cerr << "Original NetRace::"
+                              << sourceFunction << " failed: "
+                              << networkError << '\n';
+                };
+            publishOption(
+                networkSession.setUpgradeMaxLevel(
+                    static_cast<std::int32_t>(
+                        profileState.config.upgradeMaxLevel),
+                    networkError),
+                "SetUpgradeMaxLevel");
+            publishOption(
+                networkSession.setWeaponMaxLevel(
+                    static_cast<std::int32_t>(
+                        profileState.config.weaponMaxLevel),
+                    networkError),
+                "SetWeaponMaxLevel");
+            publishOption(
+                networkSession.setCurrentDifficulty(
+                    sourceDifficultyIndex(
+                        profileState.player.difficulty),
+                    networkError),
+                "SetCurrentDifficulty");
+            publishOption(
+                networkSession.setLapsCount(
+                    profileState.config.lapsCount, networkError),
+                "SetLapsCount");
+            publishOption(
+                networkSession.setMaxPlayers(
+                    profileState.config.maxPlayers, networkError),
+                "SetMaxPlayers");
+            publishOption(
+                networkSession.setMaxComputers(
+                    profileState.config.maxComputers, networkError),
+                "SetMaxComputers");
+            publishOption(
+                networkSession.setSpringBorders(
+                    profileState.config.springBorders, networkError),
+                "SetSpringBorders");
+            publishOption(
+                networkSession.setEnableMineBug(
+                    profileState.config.enableMineBug, networkError),
+                "SetEnableMineBug");
+            if (published)
+            {
+                renderedNetworkRevision =
+                    std::numeric_limits<std::uint64_t>::max();
+                refreshNetworkRuntimePages();
+                std::cout
+                    << "Original OptionsMenu::ApplyChanges -> "
+                       "NetRace host options\n";
+            }
+        }
+#endif
 #ifdef RRR3D_AUDIO
         audio.setBusVolume(
             r3d::audio::Bus::Music,
@@ -7818,6 +8078,12 @@ int main(int argc, char** argv)
     };
     auto adjustCurrentOption = [&](int direction) {
         direction = direction < 0 ? -1 : 1;
+        const auto& optionPage = activeMenuPage();
+        if (menuSelection >= optionPage.enabled.size() ||
+            !optionPage.enabled[menuSelection])
+        {
+            return;
+        }
 #ifdef RRR3D_AUDIO
         // Options steppers and volume bars emit SoundSheme::selectItem.
         playOriginalMenuSound(
@@ -8426,6 +8692,7 @@ int main(int argc, char** argv)
                 runtimeSmokeFailed = true;
                 running = false;
             }
+            synchronizeReplicatedNetworkOptions();
             if (networkClientMatchEntered &&
                 networkSnapshot.models.raceActive &&
                 !networkRaceStarted && !inRace &&
@@ -15521,6 +15788,9 @@ int main(int argc, char** argv)
             {
                 const std::size_t index = firstVisible + slot;
                 const bool selectedRow = index == menuSelection;
+                const bool rowEnabled =
+                    index < activePage.enabled.size() &&
+                    activePage.enabled[index];
                 const float rowY =
                     firstRowY + static_cast<float>(slot) * 50.0F;
                 const bool controls =
@@ -15537,8 +15807,9 @@ int main(int argc, char** argv)
                     optionsCenterX - 235.0F, rowY, 45.0F,
                     transparent);
                 const auto& name =
-                    selectedRow ? names->selected[index]
-                                : names->normal[index];
+                    !rowEnabled ? names->disabled[index]
+                    : selectedRow ? names->selected[index]
+                                  : names->normal[index];
                 drawTextAt(
                     name,
                     controls ? optionsCenterX - 374.0F
@@ -15631,7 +15902,9 @@ int main(int argc, char** argv)
                 else
                 {
                     const auto& value =
-                        selectedRow
+                        !rowEnabled
+                            ? activePage.disabled[index]
+                        : selectedRow
                             ? activePage.selected[index]
                             : activePage.normal[index];
                     drawQuad(
@@ -15640,33 +15913,36 @@ int main(int argc, char** argv)
                         optionsCenterX + 260.0F, rowY, 12.0F,
                         transparent);
                 }
-                const Texture arrow =
-                    selectedRow ? optionsArrowSelected
-                                : optionsArrow;
-                drawQuad(
-                    *device, quad, shader, arrow,
-                    static_cast<float>(
-                        selectedRow
-                            ? optionsArrowSelectedImage.width
-                            : optionsArrowImage.width),
-                    static_cast<float>(
-                        selectedRow
-                            ? optionsArrowSelectedImage.height
-                            : optionsArrowImage.height),
-                    optionsCenterX + 140.0F, rowY, 20.0F,
-                    transparent);
-                drawQuadRotated(
-                    *device, quad, shader, arrow,
-                    static_cast<float>(
-                        selectedRow
-                            ? optionsArrowSelectedImage.width
-                            : optionsArrowImage.width),
-                    static_cast<float>(
-                        selectedRow
-                            ? optionsArrowSelectedImage.height
-                            : optionsArrowImage.height),
-                    optionsCenterX + 380.0F, rowY, 20.0F,
-                    bx::kPi, transparent);
+                if (rowEnabled)
+                {
+                    const Texture arrow =
+                        selectedRow ? optionsArrowSelected
+                                    : optionsArrow;
+                    drawQuad(
+                        *device, quad, shader, arrow,
+                        static_cast<float>(
+                            selectedRow
+                                ? optionsArrowSelectedImage.width
+                                : optionsArrowImage.width),
+                        static_cast<float>(
+                            selectedRow
+                                ? optionsArrowSelectedImage.height
+                                : optionsArrowImage.height),
+                        optionsCenterX + 140.0F, rowY, 20.0F,
+                        transparent);
+                    drawQuadRotated(
+                        *device, quad, shader, arrow,
+                        static_cast<float>(
+                            selectedRow
+                                ? optionsArrowSelectedImage.width
+                                : optionsArrowImage.width),
+                        static_cast<float>(
+                            selectedRow
+                                ? optionsArrowSelectedImage.height
+                                : optionsArrowImage.height),
+                        optionsCenterX + 380.0F, rowY, 20.0F,
+                        bx::kPi, transparent);
+                }
             }
 
             if (firstVisible > 0U)
