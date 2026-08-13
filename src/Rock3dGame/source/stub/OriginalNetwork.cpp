@@ -288,10 +288,55 @@ bool OriginalNetworkSession::startRace(std::string& error)
     return true;
 }
 
+bool OriginalNetworkSession::exitRace(
+    std::int32_t track, std::int32_t weather,
+    const std::vector<NetworkRaceResult>& results, std::string& error)
+{
+    if (!impl_->models.exitRace(track, weather, results, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
 bool OriginalNetworkSession::setRaceGoStage(
     std::int32_t stage, std::string& error)
 {
     if (!impl_->models.setRaceGoStage(stage, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::sendPlayerDamage(
+    std::uint32_t senderModelId, std::uint32_t targetModelId,
+    float value, std::int32_t damageType, float targetLife,
+    bool death, std::string& error)
+{
+    if (!impl_->models.sendPlayerDamage(
+            senderModelId, targetModelId, value, damageType,
+            targetLife, death, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::sendMapObjectDamage(
+    std::uint32_t senderModelId, std::uint32_t targetObjectId,
+    float value, std::int32_t damageType, float targetLife,
+    bool death, std::string& error)
+{
+    if (!impl_->models.sendMapObjectDamage(
+            senderModelId, targetObjectId, value, damageType,
+            targetLife, death, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::pushLine(
+    std::string_view text, std::string& error)
+{
+    if (!impl_->models.pushLine(text, error))
         return false;
     impl_->refreshModels();
     return true;
@@ -328,6 +373,64 @@ bool OriginalNetworkSession::setLocalPlayerFinished(
     bool finished, std::string& error)
 {
     if (!impl_->models.setLocalPlayerFinished(finished, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setOwnedPlayerFinished(
+    std::uint32_t modelId, bool finished, std::string& error)
+{
+    if (!impl_->models.setOwnedPlayerFinished(
+            modelId, finished, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::sendLocalShot(
+    std::uint32_t targetObjectId, std::uint8_t slotMask,
+    std::uint32_t projectileId,
+    const std::vector<std::array<float, 3>>& coordinates,
+    std::string& error)
+{
+    if (!impl_->models.sendLocalShot(
+            targetObjectId, slotMask, projectileId, coordinates,
+            error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::sendLocalBonus(
+    std::uint32_t bonusObjectId, std::int32_t bonusType, float value,
+    std::string& error)
+{
+    if (!impl_->models.sendLocalBonus(
+            bonusObjectId, bonusType, value, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::sendLocalMineContactPlayer(
+    std::uint32_t projectileOwnerModelId,
+    std::uint32_t projectileId,
+    const std::array<float, 3>& point, std::string& error)
+{
+    if (!impl_->models.sendLocalMineContactPlayer(
+            projectileOwnerModelId, projectileId, point, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::sendLocalMineContactMap(
+    std::uint32_t projectileObjectId,
+    const std::array<float, 3>& point, std::string& error)
+{
+    if (!impl_->models.sendLocalMineContactMap(
+            projectileObjectId, point, error))
         return false;
     impl_->refreshModels();
     return true;

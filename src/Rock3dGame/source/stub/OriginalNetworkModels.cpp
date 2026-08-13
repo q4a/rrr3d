@@ -243,6 +243,58 @@ bool readWindowsWideString(std::istream& stream, std::string& value)
     return true;
 }
 
+std::vector<std::uint16_t> utf8ToUtf16(std::string_view input)
+{
+    std::vector<std::uint16_t> result;
+    for (std::size_t index = 0U; index < input.size();)
+    {
+        const auto first = static_cast<std::uint8_t>(input[index++]);
+        std::uint32_t code = first;
+        unsigned continuation = 0U;
+        if ((first & 0xe0U) == 0xc0U)
+        {
+            code = first & 0x1fU;
+            continuation = 1U;
+        }
+        else if ((first & 0xf0U) == 0xe0U)
+        {
+            code = first & 0x0fU;
+            continuation = 2U;
+        }
+        else if ((first & 0xf8U) == 0xf0U)
+        {
+            code = first & 0x07U;
+            continuation = 3U;
+        }
+        for (unsigned part = 0U;
+             part < continuation && index < input.size(); ++part)
+        {
+            const auto next =
+                static_cast<std::uint8_t>(input[index++]);
+            code = (code << 6U) | (next & 0x3fU);
+        }
+        if (code <= 0xffffU)
+        {
+            if (code >= 0xd800U && code <= 0xdfffU)
+                code = 0xfffdU;
+            result.push_back(static_cast<std::uint16_t>(code));
+        }
+        else if (code <= 0x10ffffU)
+        {
+            code -= 0x10000U;
+            result.push_back(static_cast<std::uint16_t>(
+                0xd800U | (code >> 10U)));
+            result.push_back(static_cast<std::uint16_t>(
+                0xdc00U | (code & 0x3ffU)));
+        }
+        else
+        {
+            result.push_back(0xfffdU);
+        }
+    }
+    return result;
+}
+
 unsigned setBitCount(std::uint8_t value)
 {
     unsigned result = 0U;
@@ -264,11 +316,13 @@ public:
     NetworkModelSnapshot value;
     PortableNetRace* race = nullptr;
     std::map<std::uint32_t, PortableNetPlayer*> players;
+    std::uint64_t nextEventSequence = 1U;
 
     void touch() noexcept { ++value.revision; }
 
     void event(NetworkEvent event)
     {
+        event.sequence = nextEventSequence++;
         if (value.events.size() == maximumRememberedEvents)
             value.events.erase(value.events.begin());
         value.events.push_back(std::move(event));
@@ -301,6 +355,7 @@ public:
                     std::string& error);
     bool makeHuman(std::string& error);
     bool makeComputers(std::string& error);
+    void beginRace();
 
     void applyMatch(NetworkMatchState match, std::uint32_t sender)
     {
@@ -309,6 +364,7 @@ public:
         value.raceActive = false;
         value.paused = false;
         value.raceGoStage = -1;
+        value.results.clear();
         event({NetworkEventKind::MatchStarted, sender});
     }
 };
@@ -384,10 +440,40 @@ public:
     {
         if (!context_.makeComputers(error))
             return false;
+        context_.beginRace();
         context_.value.raceActive = true;
         context_.event({NetworkEventKind::RaceStarted, player()->id()});
         MakeRPC(net::cNetTargetOthers, &PortableNetRace::OnStartRace);
         return true;
+    }
+
+    void sendExitRace(
+        std::int32_t track, std::int32_t weather,
+        const std::vector<NetworkRaceResult>& results)
+    {
+        context_.value.match.track = track;
+        context_.value.match.weather = weather;
+        context_.value.results = results;
+        context_.value.raceActive = false;
+        context_.value.raceGoStage = -1;
+        context_.event({NetworkEventKind::RaceExited, player()->id()});
+        std::ostream& stream =
+            NewRPC(net::cNetTargetOthers, &PortableNetRace::OnExitRace);
+        writeScalar(stream, track);
+        writeScalar(stream, weather);
+        writeScalar(stream, static_cast<std::uint32_t>(results.size()));
+        for (const auto& result : results)
+        {
+            writeScalar(stream, result.playerModelId);
+            writeScalar(stream, result.playerPoints);
+            writeScalar(stream, result.playerMoney);
+            writeScalar(stream, result.money);
+            writeScalar(stream, result.pickedMoney);
+            writeScalar(stream, result.place);
+            writeScalar(stream, result.points);
+            writeScalar(stream, result.voiceNameDuration);
+        }
+        CloseRPC();
     }
 
     void sendRaceGo(std::int32_t stage)
@@ -437,6 +523,49 @@ public:
             NewRPC(net::cNetTargetOthers, &PortableNetRace::OnPause);
         writeScalar(stream, paused);
         CloseRPC();
+    }
+
+    void sendDamage(
+        NetworkEventKind kind, std::uint32_t senderModelId,
+        std::uint32_t targetId, float value, std::int32_t damageType,
+        float targetLife, bool death)
+    {
+        const unsigned target = context_.service.isClient()
+                                    ? net::cNetTargetAll
+                                    : net::cNetTargetOthers;
+        std::ostream& stream =
+            kind == NetworkEventKind::PlayerDamage
+                ? NewRPC(target, &PortableNetRace::OnDamagePlayer)
+                : NewRPC(target, &PortableNetRace::OnDamageMapObject);
+        writeScalar(stream, senderModelId);
+        writeScalar(stream, targetId);
+        writeScalar(stream, value);
+        writeScalar(stream, damageType);
+        writeScalar(stream, targetLife);
+        writeScalar(
+            stream, static_cast<std::uint8_t>(death ? 1U : 0U));
+        CloseRPC();
+    }
+
+    bool sendLine(std::string_view text)
+    {
+        const auto units = utf8ToUtf16(text);
+        if (sizeof(std::uint32_t) +
+                units.size() * sizeof(std::uint16_t) >
+            maximumCommandBytes)
+            return false;
+        std::ostream& stream =
+            NewRPC(net::cNetTargetOthers, &PortableNetRace::OnPushLine);
+        writeScalar(stream, static_cast<std::uint32_t>(units.size()));
+        if (!units.empty())
+        {
+            stream.write(
+                reinterpret_cast<const char*>(units.data()),
+                static_cast<std::streamsize>(
+                    units.size() * sizeof(units.front())));
+        }
+        CloseRPC();
+        return true;
     }
 
 protected:
@@ -503,6 +632,7 @@ private:
     void OnStartRace(const net::NetMessage& msg,
                      const net::NetCmdHeader&, std::istream&)
     {
+        context_.beginRace();
         context_.value.raceActive = true;
         context_.event({NetworkEventKind::RaceStarted, msg.sender});
     }
@@ -533,6 +663,7 @@ private:
         context_.value.match.weather = weather;
         context_.value.results = std::move(results);
         context_.value.raceActive = false;
+        context_.value.raceGoStage = -1;
         context_.event({NetworkEventKind::RaceExited, msg.sender});
     }
 
@@ -577,6 +708,11 @@ private:
         event.playerModelId = sender;
         event.intValue = damageType;
         event.flag = death != 0U;
+        // NetRace::OnDamage1/2 makes the server authoritative: the incoming
+        // client command is not forwarded unchanged. The host applies it,
+        // computes targetLife/death, then emits a new cNetTargetOthers RPC.
+        if (net()->isServer())
+            msg.Discard();
         context_.event(std::move(event));
     }
 
@@ -758,6 +894,79 @@ public:
         std::ostream& stream =
             NewRPC(net::cNetTargetOthers, &PortableNetPlayer::OnRaceFinish);
         writeScalar(stream, finished);
+        CloseRPC();
+    }
+
+    void resetRaceFlags()
+    {
+        state_.raceReady = false;
+        state_.raceGoWait = false;
+        state_.raceFinish = false;
+        context_.updatePlayer(state_);
+    }
+
+    bool sendShot(
+        std::uint32_t targetObjectId, std::uint8_t slotMask,
+        std::uint32_t projectileId,
+        const std::vector<std::array<float, 3>>& coordinates)
+    {
+        if ((slotMask & 0xc0U) != 0U ||
+            coordinates.size() != setBitCount(slotMask))
+            return false;
+        std::ostream& stream =
+            NewRPC(net::cNetTargetOthers, &PortableNetPlayer::OnShot);
+        writeScalar(stream, targetObjectId);
+        writeScalar(stream, slotMask);
+        writeScalar(stream, projectileId);
+        for (const auto& coordinate : coordinates)
+        {
+            stream.write(
+                reinterpret_cast<const char*>(coordinate.data()),
+                sizeof(float) * coordinate.size());
+        }
+        CloseRPC();
+        return true;
+    }
+
+    void sendBonus(std::uint32_t bonusObjectId,
+                   std::int32_t bonusType, float value)
+    {
+        std::ostream& stream = NewRPC(
+            net::cNetTargetAll,
+            &PortableNetPlayer::OnTakeBonus);
+        writeScalar(stream, bonusObjectId);
+        writeScalar(stream, bonusType);
+        writeScalar(stream, value);
+        CloseRPC();
+    }
+
+    void sendMineContactPlayer(
+        std::uint32_t projectileOwnerModelId,
+        std::uint32_t projectileId,
+        const std::array<float, 3>& point)
+    {
+        std::ostream& stream = NewRPC(
+            net::cNetTargetAll,
+            &PortableNetPlayer::OnMineContactPlayerProjectile);
+        writeScalar(stream, projectileOwnerModelId);
+        writeScalar(stream, projectileId);
+        stream.write(
+            reinterpret_cast<const char*>(point.data()),
+            sizeof(float) * point.size());
+        CloseRPC();
+    }
+
+    void sendMineContactMap(
+        std::uint32_t projectileObjectId,
+        const std::array<float, 3>& point)
+    {
+        std::ostream& stream = NewRPC(
+            net::cNetTargetAll,
+            &PortableNetPlayer::OnMineContactMapProjectile);
+        writeScalar(stream, projectileObjectId);
+        stream.write(
+            reinterpret_cast<const char*>(point.data()),
+            sizeof(float) * point.size());
         CloseRPC();
     }
 
@@ -965,6 +1174,7 @@ private:
             return;
         event.playerModelId = id();
         event.intValue = static_cast<std::int32_t>(projectile);
+        event.slotMask = slots;
         const auto count = setBitCount(slots);
         event.coordinates.resize(count);
         for (auto& coordinate : event.coordinates)
@@ -998,6 +1208,7 @@ private:
             return;
         event.playerModelId = id();
         event.intValue = static_cast<std::int32_t>(projectile);
+        event.flag = true;
         event.coordinates.push_back(point);
         context_.event(std::move(event));
     }
@@ -1024,6 +1235,20 @@ void PortableNetRace::applyLocalState(PortableNetPlayer& model,
 }
 
 } // namespace
+
+void OriginalNetworkModels::Impl::beginRace()
+{
+    value.paused = false;
+    value.raceGoStage = -1;
+    value.results.clear();
+    for (const auto& entry : players)
+    {
+        auto* model = entry.second;
+        if (model != nullptr)
+            model->resetRaceFlags();
+    }
+    touch();
+}
 
 OriginalNetworkModels::Impl::Impl(net::INetService& source)
     : service(source)
@@ -1228,6 +1453,26 @@ bool OriginalNetworkModels::startRace(std::string& error)
     return impl_->race->sendStartRace(error);
 }
 
+bool OriginalNetworkModels::exitRace(
+    std::int32_t track, std::int32_t weather,
+    const std::vector<NetworkRaceResult>& results, std::string& error)
+{
+    error.clear();
+    if (impl_->race == nullptr || !impl_->service.isServer() ||
+        !impl_->value.raceActive)
+    {
+        error = "only the active NetRace host can exit a race";
+        return false;
+    }
+    if (results.size() > 64U)
+    {
+        error = "source NetRace result payload exceeds 64 players";
+        return false;
+    }
+    impl_->race->sendExitRace(track, weather, results);
+    return true;
+}
+
 bool OriginalNetworkModels::setRaceGoStage(std::int32_t stage,
                                             std::string& error)
 {
@@ -1277,6 +1522,57 @@ bool OriginalNetworkModels::setPaused(bool paused, std::string& error)
         return false;
     }
     impl_->race->sendPause(paused);
+    return true;
+}
+
+bool OriginalNetworkModels::sendPlayerDamage(
+    std::uint32_t senderModelId, std::uint32_t targetModelId,
+    float value, std::int32_t damageType, float targetLife,
+    bool death, std::string& error)
+{
+    error.clear();
+    if (impl_->race == nullptr || !impl_->value.raceActive)
+    {
+        error = "source NetRace race is not active";
+        return false;
+    }
+    impl_->race->sendDamage(
+        NetworkEventKind::PlayerDamage, senderModelId,
+        targetModelId, value, damageType, targetLife, death);
+    return true;
+}
+
+bool OriginalNetworkModels::sendMapObjectDamage(
+    std::uint32_t senderModelId, std::uint32_t targetObjectId,
+    float value, std::int32_t damageType, float targetLife,
+    bool death, std::string& error)
+{
+    error.clear();
+    if (impl_->race == nullptr || !impl_->value.raceActive)
+    {
+        error = "source NetRace race is not active";
+        return false;
+    }
+    impl_->race->sendDamage(
+        NetworkEventKind::MapObjectDamage, senderModelId,
+        targetObjectId, value, damageType, targetLife, death);
+    return true;
+}
+
+bool OriginalNetworkModels::pushLine(
+    std::string_view text, std::string& error)
+{
+    error.clear();
+    if (impl_->race == nullptr)
+    {
+        error = "source NetRace model is not active";
+        return false;
+    }
+    if (!impl_->race->sendLine(text))
+    {
+        error = "source NetRace UTF-16 line exceeds the command limit";
+        return false;
+    }
     return true;
 }
 
@@ -1333,6 +1629,90 @@ bool OriginalNetworkModels::setLocalPlayerFinished(bool finished,
         return false;
     }
     model->setFinished(finished);
+    return true;
+}
+
+bool OriginalNetworkModels::setOwnedPlayerFinished(
+    std::uint32_t modelId, bool finished, std::string& error)
+{
+    error.clear();
+    const auto found = impl_->players.find(modelId);
+    if (found == impl_->players.end() || found->second == nullptr ||
+        !found->second->owner())
+    {
+        error = "source owned NetPlayer model is not active";
+        return false;
+    }
+    found->second->setFinished(finished);
+    return true;
+}
+
+bool OriginalNetworkModels::sendLocalShot(
+    std::uint32_t targetObjectId, std::uint8_t slotMask,
+    std::uint32_t projectileId,
+    const std::vector<std::array<float, 3>>& coordinates,
+    std::string& error)
+{
+    error.clear();
+    auto* model = impl_->localPlayer();
+    if (model == nullptr)
+    {
+        error = "source local NetPlayer model is not active";
+        return false;
+    }
+    if (!model->sendShot(
+            targetObjectId, slotMask, projectileId, coordinates))
+    {
+        error = "source NetPlayer shot slot/coordinate payload is invalid";
+        return false;
+    }
+    return true;
+}
+
+bool OriginalNetworkModels::sendLocalBonus(
+    std::uint32_t bonusObjectId, std::int32_t bonusType, float value,
+    std::string& error)
+{
+    error.clear();
+    auto* model = impl_->localPlayer();
+    if (model == nullptr)
+    {
+        error = "source local NetPlayer model is not active";
+        return false;
+    }
+    model->sendBonus(bonusObjectId, bonusType, value);
+    return true;
+}
+
+bool OriginalNetworkModels::sendLocalMineContactPlayer(
+    std::uint32_t projectileOwnerModelId,
+    std::uint32_t projectileId,
+    const std::array<float, 3>& point, std::string& error)
+{
+    error.clear();
+    auto* model = impl_->localPlayer();
+    if (model == nullptr)
+    {
+        error = "source local NetPlayer model is not active";
+        return false;
+    }
+    model->sendMineContactPlayer(
+        projectileOwnerModelId, projectileId, point);
+    return true;
+}
+
+bool OriginalNetworkModels::sendLocalMineContactMap(
+    std::uint32_t projectileObjectId,
+    const std::array<float, 3>& point, std::string& error)
+{
+    error.clear();
+    auto* model = impl_->localPlayer();
+    if (model == nullptr)
+    {
+        error = "source local NetPlayer model is not active";
+        return false;
+    }
+    model->sendMineContactMap(projectileObjectId, point);
     return true;
 }
 

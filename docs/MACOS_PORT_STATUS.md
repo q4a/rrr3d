@@ -1218,5 +1218,26 @@ runtime. Release hardening
   вызывает source `Initializate/Process/Close/Finalizate`, использует порт
   58213 и sync rate 70, показывает adapters, ServerType/ClientType,
   broadcast browser и ручной IP. Отдельные session и Metal menu smoke прошли.
-- `NetRace`/`NetPlayer` class ID и portable race replication остаются
-  следующим этапом; connected transport намеренно не запускает fake match.
+- `NetRace`/`NetPlayer` перенесены поверх connected transport с исходными
+  class ID 1/2, порядком RPC, сериализацией match/player state и профилями.
+  Меню хоста и клиента использует реплицированный roster, а не fake match.
+
+### Source network gameplay / finish follow-up
+
+- Перенесены gameplay RPC исходных `NetRace`/`NetPlayer`: `Shot`, `Damage`,
+  `Bonus`, оба варианта `MineContact`, UTF-16 `PushLine`, `RaceFinish` и
+  `ExitRace`. Wire layout сохраняет Windows-размеры полей, slot mask и
+  исходный порядок координат; входящий client `Damage` сервер отбрасывает,
+  как в оригинале, вместо доверия неавторитетному изменению жизни.
+- `StartRace` теперь сбрасывает готовность, ожидание старта и финиш всех
+  моделей. Флаги локального игрока сохраняются в последующих UDP state
+  update, поэтому движение машины больше не отменяет уже отправленные
+  `RaceGoWait`/`RaceFinish`.
+- Перенесён сервер-авторитетный финиш: хост ждёт `RaceFinish` только живых
+  human-моделей, запускает исходный трёхсекундный finish timer, формирует
+  результаты в model order и рассылает `ExitRace`; клиент применяет места,
+  деньги и очки из серверного результата и открывает FinishMenu без локальной
+  подмены прогресса.
+- Loopback regression проверяет полный цикл ready/start/countdown, все новые
+  packet types, кириллический chat, finish/result, повторный `StartRace` и
+  reset флагов. Все три CTest и 180-кадровый LAN `bgfx/Metal` smoke проходят.

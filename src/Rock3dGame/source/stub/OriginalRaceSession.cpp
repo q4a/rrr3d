@@ -1007,6 +1007,7 @@ void OriginalRaceSession::reset()
     countdownSeconds_ = 3.0F;
     countdownDisplay_ = 3;
     networkCountdownControlled_ = false;
+    networkFinishControlled_ = false;
     elapsedSeconds_ = 0.0F;
     finishSecondsRemaining_ = -1.0F;
     racers_.assign(race_.racers.size(), {});
@@ -1554,6 +1555,44 @@ void OriginalRaceSession::synchronizeNetworkCountdown(
             {RaceEventKind::CountdownChanged, 0, 0, {},
              static_cast<float>(display)});
     }
+}
+
+void OriginalRaceSession::setNetworkFinishControlled(
+    bool controlled) noexcept
+{
+    networkFinishControlled_ = controlled;
+    if (controlled && phase_ == RacePhase::Finished)
+        finishSecondsRemaining_ = -1.0F;
+}
+
+void OriginalRaceSession::startNetworkFinishTimer() noexcept
+{
+    if (networkFinishControlled_ && phase_ == RacePhase::Finished &&
+        finishSecondsRemaining_ < 0.0F)
+        finishSecondsRemaining_ = 3.0F;
+}
+
+void OriginalRaceSession::synchronizeNetworkFinishResults(
+    const std::vector<ReplicatedRaceResult>& results) noexcept
+{
+    networkFinishControlled_ = true;
+    phase_ = RacePhase::Finished;
+    phaseBeforePause_ = phase_;
+    for (const auto& result : results)
+    {
+        if (result.racer >= racers_.size())
+            continue;
+        auto& racer = racers_[result.racer];
+        racer.finished = true;
+        racer.place = result.place;
+        racer.rewardMoney = static_cast<std::uint32_t>(
+            std::max(result.rewardMoney, 0));
+        racer.pickedMoney = static_cast<std::uint32_t>(
+            std::max(result.pickedMoney, 0));
+        racer.rewardPoints = static_cast<std::uint32_t>(
+            std::max(result.rewardPoints, 0));
+    }
+    finishSecondsRemaining_ = 0.0F;
 }
 
 RacePhase OriginalRaceSession::phase() const noexcept
@@ -2138,7 +2177,8 @@ void OriginalRaceSession::updateProgress(
             // GameMode::RunFinishTimer waits three seconds before Menu
             // exits the race and Race::CompleteRace ranks all remaining
             // cars for FinishMenu.
-            finishSecondsRemaining_ = 3.0F;
+            finishSecondsRemaining_ =
+                networkFinishControlled_ ? -1.0F : 3.0F;
         }
     }
 }
@@ -6396,6 +6436,22 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         {
             throw std::runtime_error(
                 "network cGoRace did not release vehicle control");
+        }
+        std::vector<ReplicatedRaceResult> networkResults{
+            {0U, 300, 25, 1U, 10},
+            {1U, 200, 0, 2U, 7}};
+        networkCountdownSession.setNetworkFinishControlled(true);
+        networkCountdownSession.synchronizeNetworkFinishResults(
+            networkResults);
+        if (!networkCountdownSession.finishPresentationReady() ||
+            !networkCountdownSession.racers()[0].finished ||
+            networkCountdownSession.racers()[0].place != 1U ||
+            networkCountdownSession.racers()[0].rewardMoney != 300U ||
+            networkCountdownSession.racers()[0].pickedMoney != 25U ||
+            networkCountdownSession.racers()[1].place != 2U)
+        {
+            throw std::runtime_error(
+                "network ExitRace results were not applied to FinishMenu");
         }
 
         {

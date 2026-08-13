@@ -215,6 +215,15 @@ struct RaceEvent
     std::size_t soundFollowRacer = RacerRuntime::invalidWeapon;
 };
 
+struct ReplicatedRaceResult
+{
+    std::size_t racer = 0U;
+    std::int32_t rewardMoney = 0;
+    std::int32_t pickedMoney = 0;
+    std::uint32_t place = 0U;
+    std::int32_t rewardPoints = 0;
+};
+
 struct RaceEffect
 {
     RaceEventKind kind = RaceEventKind::WeaponFired;
@@ -325,6 +334,10 @@ public:
     // holds the red semaphore while peers load, stages 1..3 advance the
     // countdown, and stage 4 releases vehicle control.
     void synchronizeNetworkCountdown(std::int32_t stage) noexcept;
+    void setNetworkFinishControlled(bool controlled) noexcept;
+    void startNetworkFinishTimer() noexcept;
+    void synchronizeNetworkFinishResults(
+        const std::vector<ReplicatedRaceResult>& results) noexcept;
     void update(float seconds,
                 const std::vector<r3d::physics::VehicleState>& vehicles,
                 const RaceControl& humanControl);
@@ -448,6 +461,7 @@ private:
     float finishSecondsRemaining_ = -1.0F;
     int countdownDisplay_ = 3;
     bool networkCountdownControlled_ = false;
+    bool networkFinishControlled_ = false;
     std::vector<RacerRuntime> racers_;
     std::vector<r3d::physics::VehicleInput> vehicleInputs_;
     std::vector<bool> decorationActive_;

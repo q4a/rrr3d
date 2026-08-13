@@ -73,12 +73,41 @@ public:
                     const NetworkPlayerState& localPlayer,
                     std::string& error);
     bool startRace(std::string& error);
+    bool exitRace(std::int32_t track, std::int32_t weather,
+                  const std::vector<NetworkRaceResult>& results,
+                  std::string& error);
     bool setRaceGoStage(std::int32_t stage, std::string& error);
+    bool sendPlayerDamage(std::uint32_t senderModelId,
+                          std::uint32_t targetModelId, float value,
+                          std::int32_t damageType, float targetLife,
+                          bool death, std::string& error);
+    bool sendMapObjectDamage(std::uint32_t senderModelId,
+                             std::uint32_t targetObjectId, float value,
+                             std::int32_t damageType, float targetLife,
+                             bool death, std::string& error);
+    bool pushLine(std::string_view text, std::string& error);
     bool setLocalPlayerState(const NetworkPlayerState& state,
                              std::string& error);
     bool setLocalPlayerReady(bool ready, std::string& error);
     bool setLocalPlayerGoWait(bool waiting, std::string& error);
     bool setLocalPlayerFinished(bool finished, std::string& error);
+    bool setOwnedPlayerFinished(std::uint32_t modelId, bool finished,
+                                std::string& error);
+    bool sendLocalShot(
+        std::uint32_t targetObjectId, std::uint8_t slotMask,
+        std::uint32_t projectileId,
+        const std::vector<std::array<float, 3>>& coordinates,
+        std::string& error);
+    bool sendLocalBonus(std::uint32_t bonusObjectId,
+                        std::int32_t bonusType, float value,
+                        std::string& error);
+    bool sendLocalMineContactPlayer(
+        std::uint32_t projectileOwnerModelId,
+        std::uint32_t projectileId,
+        const std::array<float, 3>& point, std::string& error);
+    bool sendLocalMineContactMap(
+        std::uint32_t projectileObjectId,
+        const std::array<float, 3>& point, std::string& error);
 
     [[nodiscard]] bool initialized() const noexcept;
     [[nodiscard]] SessionSnapshot snapshot() const;

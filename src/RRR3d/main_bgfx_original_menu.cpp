@@ -3869,6 +3869,10 @@ int main(int argc, char** argv)
     bool networkLocalCarSelected = true;
     float networkHostRaceGoSeconds = -1.0F;
     std::int32_t networkAppliedRaceGoStage = -1;
+    bool networkLocalGoWaitPublished = false;
+    bool networkLocalFinishPublished = false;
+    bool networkHostFinishTimerStarted = false;
+    bool networkRaceExitApplied = false;
     std::vector<std::uint32_t> networkRaceModelOrder;
     std::optional<r3d::game::originalnetwork::NetworkPlayerState>
         networkPublishedPlayer;
@@ -4329,6 +4333,10 @@ int main(int argc, char** argv)
             networkLocalCarSelected = true;
             networkHostRaceGoSeconds = -1.0F;
             networkAppliedRaceGoStage = -1;
+            networkLocalGoWaitPublished = false;
+            networkLocalFinishPublished = false;
+            networkHostFinishTimerStarted = false;
+            networkRaceExitApplied = false;
             networkPublishedPlayer.reset();
             networkRaceModelOrder.clear();
 #ifdef RRR3D_PHYSICS
@@ -5271,6 +5279,8 @@ int main(int argc, char** argv)
                 profileState.player.money,
                 static_cast<std::uint32_t>(
                     std::numeric_limits<std::int32_t>::max())));
+        state.raceGoWait = networkLocalGoWaitPublished;
+        state.raceFinish = networkLocalFinishPublished;
         for (std::size_t index = 0U;
              index < state.slots.size() &&
              index < profileState.player.slots.size(); ++index)
@@ -5424,8 +5434,11 @@ int main(int argc, char** argv)
             // host does not start its one-second-lagged countdown until every
             // human NetPlayer has acknowledged that loading is complete.
             raceSession.synchronizeNetworkCountdown(0);
+            raceSession.setNetworkFinishControlled(true);
             networkHostRaceGoSeconds = -1.0F;
             networkAppliedRaceGoStage = 0;
+            networkHostFinishTimerStarted = false;
+            networkRaceExitApplied = false;
             if (!publishLocalNetworkPlayer())
             {
                 runtimeSmokeFailed = true;
@@ -5436,6 +5449,8 @@ int main(int argc, char** argv)
             if (!networkSession.setLocalPlayerGoWait(true, error))
                 std::cerr << "Original NetPlayer::RaceGoWait failed: "
                           << error << '\n';
+            else
+                networkLocalGoWaitPublished = true;
         }
 #endif
         raceRenderer.resetCamera();
@@ -5490,6 +5505,11 @@ int main(int argc, char** argv)
                 running = false;
                 return;
             }
+            networkLocalGoWaitPublished = false;
+            networkLocalFinishPublished = false;
+            networkHostFinishTimerStarted = false;
+            networkRaceExitApplied = false;
+            networkPublishedPlayer.reset();
             networkRaceStarted = true;
             renderedNetworkRevision =
                 std::numeric_limits<std::uint64_t>::max();
@@ -8106,6 +8126,11 @@ int main(int argc, char** argv)
                 !raceLoadingActive)
             {
                 networkRaceStarted = true;
+                networkLocalGoWaitPublished = false;
+                networkLocalFinishPublished = false;
+                networkHostFinishTimerStarted = false;
+                networkRaceExitApplied = false;
+                networkPublishedPlayer.reset();
                 startCurrentRace();
             }
             if (networkMatchStarted && !inRace &&
@@ -11897,6 +11922,10 @@ int main(int argc, char** argv)
                             networkLocalCarSelected = true;
                             networkHostRaceGoSeconds = -1.0F;
                             networkAppliedRaceGoStage = -1;
+                            networkLocalGoWaitPublished = false;
+                            networkLocalFinishPublished = false;
+                            networkHostFinishTimerStarted = false;
+                            networkRaceExitApplied = false;
                             networkPublishedPlayer.reset();
                             networkRaceModelOrder.clear();
                             networkWeatherOverride.reset();
@@ -12159,6 +12188,38 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         if (inRace)
         {
+#ifdef RRR3D_NETWORK
+            if (networkMatchStarted && !networkHostRequested &&
+                networkRaceStarted &&
+                !networkSnapshot.models.raceActive &&
+                !networkSnapshot.models.results.empty() &&
+                !networkRaceExitApplied)
+            {
+                std::vector<r3d::game::originalrace::
+                                ReplicatedRaceResult>
+                    results;
+                results.reserve(
+                    networkSnapshot.models.results.size());
+                for (const auto& source :
+                     networkSnapshot.models.results)
+                {
+                    const auto model = std::find(
+                        networkRaceModelOrder.begin(),
+                        networkRaceModelOrder.end(),
+                        source.playerModelId);
+                    if (model == networkRaceModelOrder.end())
+                        continue;
+                    results.push_back(
+                        {static_cast<std::size_t>(std::distance(
+                             networkRaceModelOrder.begin(), model)),
+                         source.money, source.pickedMoney,
+                         source.place, source.points});
+                }
+                raceSession.synchronizeNetworkFinishResults(results);
+                networkRaceExitApplied = true;
+                networkRaceStarted = false;
+            }
+#endif
             // Windows ControlManager::GetGameActionState is polled every
             // update.  Keeping only KEY_DOWN/KEY_UP events here lost an
             // already-held accelerator across menu/race, countdown, pause,
@@ -12283,6 +12344,48 @@ int main(int argc, char** argv)
             }
 #endif
             raceSession.update(frameSeconds, raceVehicles, control);
+#ifdef RRR3D_NETWORK
+            if (networkMatchStarted &&
+                !raceSession.racers().empty() &&
+                raceSession.racers().front().finished &&
+                !networkLocalFinishPublished)
+            {
+                std::string error;
+                if (!networkSession.setLocalPlayerFinished(true, error))
+                {
+                    std::cerr
+                        << "Original NetPlayer::RaceFinish failed: "
+                        << error << '\n';
+                    runtimeSmokeFailed = true;
+                    running = false;
+                }
+                else
+                {
+                    networkLocalFinishPublished = true;
+                    refreshNetworkRuntimePages();
+                }
+            }
+            if (networkMatchStarted && networkHostRequested &&
+                !networkHostFinishTimerStarted &&
+                !raceSession.racers().empty() &&
+                raceSession.racers().front().finished)
+            {
+                const bool allHumansFinished =
+                    !networkSnapshot.models.players.empty() &&
+                    std::none_of(
+                        networkSnapshot.models.players.begin(),
+                        networkSnapshot.models.players.end(),
+                        [](const auto& player) {
+                            return player.playerId == 0U &&
+                                   !player.raceFinish;
+                        });
+                if (allHumansFinished)
+                {
+                    raceSession.startNetworkFinishTimer();
+                    networkHostFinishTimerStarted = true;
+                }
+            }
+#endif
             if (options->raceRenderSmokeTest &&
                 !raceSession.racers().empty())
                 minimumRacePlayerLife = std::min(
@@ -13057,9 +13160,67 @@ int main(int argc, char** argv)
             maximumRaceSmokeContacts = std::max(
                 maximumRaceSmokeContacts,
                 physicsWorld->vehicle().contactCount);
+#ifdef RRR3D_NETWORK
+            if (networkMatchStarted && networkHostRequested &&
+                networkRaceStarted && !networkRaceExitApplied &&
+                raceSession.finishPresentationReady())
+            {
+                const auto toSourceInt = [](std::uint32_t value) {
+                    return static_cast<std::int32_t>(
+                        std::min<std::uint32_t>(
+                            value,
+                            static_cast<std::uint32_t>(
+                                std::numeric_limits<std::int32_t>::max())));
+                };
+                std::vector<r3d::game::originalnetwork::
+                                NetworkRaceResult>
+                    results;
+                const auto count = std::min(
+                    networkRaceModelOrder.size(),
+                    raceSession.racers().size());
+                results.reserve(count);
+                for (std::size_t index = 0U; index < count; ++index)
+                {
+                    const auto& racer = raceSession.racers()[index];
+                    r3d::game::originalnetwork::NetworkRaceResult result;
+                    result.playerModelId = networkRaceModelOrder[index];
+                    result.playerPoints = toSourceInt(racer.points);
+                    result.playerMoney = toSourceInt(racer.money);
+                    result.money = toSourceInt(racer.rewardMoney);
+                    result.pickedMoney = toSourceInt(racer.pickedMoney);
+                    result.place = racer.place;
+                    result.points = toSourceInt(racer.rewardPoints);
+                    results.push_back(result);
+                }
+                std::string error;
+                if (!networkSession.exitRace(
+                        networkSnapshot.models.match.track,
+                        networkSnapshot.models.match.weather,
+                        results, error))
+                {
+                    std::cerr << "Original NetRace::ExitRace failed: "
+                              << error << '\n';
+                    runtimeSmokeFailed = true;
+                    running = false;
+                }
+                else
+                {
+                    networkRaceExitApplied = true;
+                    networkRaceStarted = false;
+                    refreshNetworkRuntimePages();
+                }
+            }
+#endif
             if (!raceSession.racers().empty() &&
                 raceSession.finishPresentationReady())
+            {
+#ifdef RRR3D_NETWORK
+                showFinishMenu(
+                    !networkMatchStarted || networkHostRequested);
+#else
                 showFinishMenu();
+#endif
+            }
         }
 #endif
 

@@ -188,12 +188,20 @@ int main()
         if (!clientModels.setLocalPlayerState(clientPlayer, error) ||
             !clientModels.setLocalPlayerReady(true, error))
             return 9;
+        if (!pump(server, client, [&]() {
+                const auto state2 = serverModels.snapshot();
+                const auto* remote =
+                    remotePlayer(state2, net::cServerPlayer + 1U);
+                return remote != nullptr && remote->raceReady &&
+                       remote->car == "buggi";
+            }, clock, 4000U))
+            return 10;
         if (!serverModels.setPlanet(4, 0, 2, error) ||
             !serverModels.setTrack(2, error) ||
             !serverModels.startRace(error) ||
             !serverModels.setRaceGoStage(3, error) ||
             !serverModels.setPaused(true, error))
-            return 10;
+            return 11;
 
         if (!pump(server, client, [&]() {
                 const auto serverState = serverModels.snapshot();
@@ -210,7 +218,7 @@ int main()
                                player.playerId <= 5U;
                     });
                 return clientOnServer != nullptr &&
-                       clientOnServer->raceReady &&
+                       !clientOnServer->raceReady &&
                        clientOnServer->car == "buggi" &&
                        host != nullptr &&
                        host->vehicle.position[0] == 12.0F &&
@@ -221,7 +229,174 @@ int main()
                        clientState2.match.planet == 4 &&
                        clientState2.match.track == 2;
             }, clock, 4000U))
-            return 11;
+        {
+            const auto serverState = serverModels.snapshot();
+            const auto clientState2 = clientModels.snapshot();
+            const auto* clientOnServer =
+                remotePlayer(serverState, net::cServerPlayer + 1U);
+            const auto* host =
+                remotePlayer(clientState2, net::cServerPlayer);
+            std::cerr
+                << "race replication timeout: serverPlayers="
+                << serverState.players.size() << " clientPlayers="
+                << clientState2.players.size() << " ready="
+                << (clientOnServer ? clientOnServer->raceReady : false)
+                << " car="
+                << (clientOnServer ? clientOnServer->car : "missing")
+                << " hostX="
+                << (host ? host->vehicle.position[0] : -999.0F)
+                << " active/paused/stage=" << clientState2.raceActive
+                << '/' << clientState2.paused << '/'
+                << clientState2.raceGoStage << " planet/track="
+                << clientState2.match.planet << '/'
+                << clientState2.match.track << '\n';
+            client.Close();
+            server.Close();
+            client.Finalizate();
+            server.Finalizate();
+            return 12;
+        }
+
+        const auto raceServerState = serverModels.snapshot();
+        const auto raceClientState = clientModels.snapshot();
+        const auto* clientOnServer =
+            remotePlayer(raceServerState, net::cServerPlayer + 1U);
+        const auto* hostOnClient2 =
+            remotePlayer(raceClientState, net::cServerPlayer);
+        if (clientOnServer == nullptr || hostOnClient2 == nullptr)
+            return 12;
+        const std::uint32_t clientModelId = clientOnServer->modelId;
+        const std::uint32_t hostModelId = hostOnClient2->modelId;
+        const std::vector<std::array<float, 3>> shotCoordinates{
+            {1.0F, 2.0F, 3.0F}, {4.0F, 5.0F, 6.0F}};
+        if (!clientModels.sendLocalShot(
+                77U, 0x05U, 42U, shotCoordinates, error) ||
+            !clientModels.sendLocalBonus(88U, 2, 4.5F, error) ||
+            !clientModels.sendLocalMineContactPlayer(
+                hostModelId, 9U, {7.0F, 8.0F, 9.0F}, error) ||
+            !clientModels.sendLocalMineContactMap(
+                91U, {10.0F, 11.0F, 12.0F}, error) ||
+            !clientModels.pushLine("Привет Motor Rock", error) ||
+            !clientModels.setLocalPlayerFinished(true, error) ||
+            !serverModels.sendPlayerDamage(
+                hostModelId, clientModelId, 12.5F, 1, 47.5F,
+                false, error) ||
+            !serverModels.sendMapObjectDamage(
+                hostModelId, 123U, 20.0F, 2, 0.0F,
+                true, error))
+        {
+            std::cerr << error << '\n';
+            return 13;
+        }
+
+        const auto hasEvent = [](const NetworkModelSnapshot& snapshot,
+                                 NetworkEventKind kind,
+                                 const auto& predicate) {
+            return std::any_of(
+                snapshot.events.begin(), snapshot.events.end(),
+                [&](const NetworkEvent& event) {
+                    return event.kind == kind && predicate(event);
+                });
+        };
+        if (!pump(server, client, [&]() {
+                const auto serverState = serverModels.snapshot();
+                const auto clientState2 = clientModels.snapshot();
+                const auto* finished =
+                    remotePlayer(serverState, net::cServerPlayer + 1U);
+                const bool shot = hasEvent(
+                    serverState, NetworkEventKind::Shot,
+                    [&](const NetworkEvent& event) {
+                        return event.playerModelId == clientModelId &&
+                               event.target == 77U &&
+                               event.slotMask == 0x05U &&
+                               event.intValue == 42 &&
+                               event.coordinates == shotCoordinates;
+                    });
+                const bool bonus = hasEvent(
+                    serverState, NetworkEventKind::Bonus,
+                    [](const NetworkEvent& event) {
+                        return event.target == 88U &&
+                               event.intValue == 2 &&
+                               event.value == 4.5F;
+                    });
+                const bool playerMine = hasEvent(
+                    serverState, NetworkEventKind::MineContact,
+                    [&](const NetworkEvent& event) {
+                        return event.flag && event.target == hostModelId &&
+                               event.intValue == 9;
+                    });
+                const bool mapMine = hasEvent(
+                    serverState, NetworkEventKind::MineContact,
+                    [](const NetworkEvent& event) {
+                        return !event.flag && event.target == 91U;
+                    });
+                const bool chat = hasEvent(
+                    serverState, NetworkEventKind::ChatLine,
+                    [](const NetworkEvent& event) {
+                        return event.text == "Привет Motor Rock";
+                    });
+                const bool playerDamage = hasEvent(
+                    clientState2, NetworkEventKind::PlayerDamage,
+                    [&](const NetworkEvent& event) {
+                        return event.playerModelId == hostModelId &&
+                               event.target == clientModelId &&
+                               event.value == 12.5F &&
+                               event.targetLife == 47.5F && !event.flag;
+                    });
+                const bool mapDamage = hasEvent(
+                    clientState2, NetworkEventKind::MapObjectDamage,
+                    [](const NetworkEvent& event) {
+                        return event.target == 123U && event.flag;
+                    });
+                return finished != nullptr && finished->raceFinish &&
+                       shot && bonus && playerMine && mapMine && chat &&
+                       playerDamage && mapDamage;
+            }, clock, 4000U))
+            return 14;
+
+        std::vector<NetworkRaceResult> results(2U);
+        results[0].playerModelId = hostModelId;
+        results[0].playerPoints = 110;
+        results[0].playerMoney = 1200;
+        results[0].money = 300;
+        results[0].pickedMoney = 25;
+        results[0].place = 1U;
+        results[0].points = 10;
+        results[0].voiceNameDuration = 1.25F;
+        results[1].playerModelId = clientModelId;
+        results[1].playerPoints = 95;
+        results[1].playerMoney = 850;
+        results[1].money = 200;
+        results[1].place = 2U;
+        results[1].points = 7;
+        if (!serverModels.exitRace(3, 5, results, error))
+            return 15;
+        if (!pump(server, client, [&]() {
+                const auto state2 = clientModels.snapshot();
+                return !state2.raceActive &&
+                       state2.raceGoStage == -1 &&
+                       state2.match.track == 3 &&
+                       state2.match.weather == 5 &&
+                       state2.results.size() == 2U &&
+                       state2.results[1].playerModelId == clientModelId &&
+                       state2.results[1].place == 2U;
+            }, clock, 4000U))
+            return 16;
+
+        if (!serverModels.startRace(error))
+            return 17;
+        if (!pump(server, client, [&]() {
+                const auto state2 = clientModels.snapshot();
+                return state2.raceActive && state2.results.empty() &&
+                       std::all_of(
+                           state2.players.begin(), state2.players.end(),
+                           [](const NetworkPlayerState& player) {
+                               return !player.raceReady &&
+                                      !player.raceGoWait &&
+                                      !player.raceFinish;
+                           });
+            }, clock, 4000U))
+            return 18;
 
         client.Close();
         server.Close();
@@ -230,7 +405,8 @@ int main()
     }
 
     std::cout
-        << "Original NetRace/NetPlayer class IDs, RPC order, match/state "
-           "payloads, host-created AI and vehicle BitStream loopback passed\n";
+        << "Original NetRace/NetPlayer class IDs, RPC order, match/state, "
+           "vehicle BitStream, damage/shot/bonus/mine/chat, ExitRace results "
+           "and repeated-race loopback passed\n";
     return 0;
 }
