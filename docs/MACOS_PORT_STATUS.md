@@ -196,6 +196,10 @@ Portable core Milestone 3 не изменил поведение обычног�
   wrong-way, reset/respawn, пять AI, life/damage/shield, bonuses,
   achievements, четыре workshop slots, projectiles/mines/hyper/support и
   destructible decoration state.
+- Countdown больше не сводится к придуманным трём секундам: восстановлены
+  `cGoRaceWait`, `cGoRace1..3`, финальный `cGoRace`, соответствующие
+  `tablo0..tablo4` и исходное переключение submesh 1/2/3 стартового семафора
+  красным, жёлтым и зелёным цветом.
 - Оригинальные HUD images/layout, mini-map trace, обе race cameras и
   notifications работают через bgfx/Metal. SDL actions управляют машиной,
   четырьмя слотами, mine/hyper, камерой, reset и pause.

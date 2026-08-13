@@ -3084,7 +3084,8 @@ void OriginalRaceRenderer::draw(
     const std::vector<r3d::game::originalrace::MineRuntime>& mines,
     const std::vector<
         r3d::game::originalrace::ProjectileRuntime>& projectiles,
-    float elapsedSeconds, bool reflectionPass,
+    float elapsedSeconds, std::int32_t countdownStage,
+    bool reflectionPass,
     bool omitEnvironmentSurface, bool refractionPass)
 {
     SceneLighting sceneLighting;
@@ -3371,7 +3372,10 @@ void OriginalRaceRenderer::draw(
                           bool cullOpacityActor,
                           float opacity,
                           const std::array<float, 4>* tint,
-                          float objectAnimationSeconds = -1.0F) {
+                          float objectAnimationSeconds = -1.0F,
+                          const std::array<
+                              std::array<float, 4>, 4>*
+                              nodeTints = nullptr) {
         const float animationSeconds =
             objectAnimationSeconds >= 0.0F
                 ? objectAnimationSeconds
@@ -3427,12 +3431,16 @@ void OriginalRaceRenderer::draw(
                 cullOpacityActor ||
                 nodeGraphOrder !=
                     r3d::game::originalrace::GraphOrder::Default;
+            const auto* nodeTint =
+                nodeTints != nullptr && index < nodeTints->size()
+                    ? &(*nodeTints)[index]
+                    : tint;
             if (!deferredActor)
             {
                 drawGroups(device, asset.nodes[index], shader, model,
                            pipeline, animationSeconds, reflectionStrength,
                            nodeLighting, DrawLayer::Opaque,
-                           &nodes[index], 1.0F, tint, 0.0F,
+                           &nodes[index], 1.0F, nodeTint, 0.0F,
                            textureDiffuseScale);
             }
             if (deferredActor ||
@@ -3457,11 +3465,11 @@ void OriginalRaceRenderer::draw(
                      deferredActor ? DrawLayer::All
                                    : DrawLayer::Transparency,
                      animationSeconds,
-                     tint != nullptr
-                         ? *tint
+                     nodeTint != nullptr
+                         ? *nodeTint
                          : std::array<float, 4>{
                                1.0F, 1.0F, 1.0F, 1.0F},
-                     tint != nullptr});
+                     nodeTint != nullptr});
             }
         }
     };
@@ -4355,6 +4363,21 @@ void OriginalRaceRenderer::draw(
         float distanceSquared = 0.0F;
     };
     std::vector<DeferredParticleDraw> deferredParticles;
+    // GameMode::GoRace treats the four semaphore graph nodes as the base,
+    // red, yellow and green sections.  The source writes white to every
+    // inactive node and colors just the active lamp for the current stage.
+    std::array<std::array<float, 4>, 4> semaphoreNodeTints{};
+    semaphoreNodeTints.fill({1.0F, 1.0F, 1.0F, 1.0F});
+    const auto sourceCountdownStage = std::clamp(countdownStage, 0, 4);
+    const std::size_t semaphoreNode =
+        sourceCountdownStage <= 1 ? 1U
+                                  : sourceCountdownStage <= 3 ? 2U : 3U;
+    semaphoreNodeTints[semaphoreNode] =
+        sourceCountdownStage <= 1
+            ? std::array<float, 4>{1.0F, 0.0F, 0.0F, 1.0F}
+            : sourceCountdownStage <= 3
+                  ? std::array<float, 4>{1.0F, 1.0F, 0.0F, 1.0F}
+                  : std::array<float, 4>{0.0F, 1.0F, 0.0F, 1.0F};
     auto drawDefinition =
         [&](const ObjectAsset& asset,
             const r3d::game::originalrace::ObjectDefinition& definition,
@@ -4373,9 +4396,13 @@ void OriginalRaceRenderer::draw(
             const bool cullOpacityActor =
                 !reflectionPass && definition.cullOpacity &&
                 opacity < 0.999F;
+            const auto* nodeTints =
+                recordName(definition.record) == "semaphore"
+                    ? &semaphoreNodeTints
+                    : nullptr;
             drawObject(asset, definition.visualNodes, parent,
                        definition.graphOrder, cullOpacityActor, opacity,
-                       nullptr, age);
+                       nullptr, age, nodeTints);
             if (!refractionPass &&
                 !definition.particleEmitters.empty())
             {
@@ -5493,7 +5520,8 @@ void OriginalRaceRenderer::renderFrame(
     const std::vector<
         r3d::game::originalrace::ProjectileRuntime>& projectiles,
     float elapsedSeconds,
-    const r3d::game::originalrace::QualityConfig& quality)
+    const r3d::game::originalrace::QualityConfig& quality,
+    std::int32_t countdownStage)
 {
     const bool resetVehicleAnimation =
         vehicleAnimationUpdateSeconds_ < 0.0F ||
@@ -5955,7 +5983,7 @@ void OriginalRaceRenderer::renderFrame(
                  decorationActive, decorationFragments,
                  vehicleDeathFragments, bonusActive,
                  racerRuntime, effects, mines, projectiles,
-                 elapsedSeconds, true, true);
+                 elapsedSeconds, countdownStage, true, true);
         }
     }
 
@@ -5978,7 +6006,7 @@ void OriginalRaceRenderer::renderFrame(
              decorationActive, decorationFragments,
              vehicleDeathFragments, bonusActive,
              racerRuntime, effects, mines, projectiles,
-             elapsedSeconds, true);
+             elapsedSeconds, countdownStage, true);
     }
 
     RenderPassState sceneState;
@@ -6039,6 +6067,7 @@ void OriginalRaceRenderer::renderFrame(
          decorationActive, decorationFragments,
          vehicleDeathFragments, bonusActive,
          racerRuntime, effects, mines, projectiles, elapsedSeconds,
+         countdownStage,
          false, usesSceneDepthSurface);
 
     Camera postCamera;
@@ -6087,7 +6116,8 @@ void OriginalRaceRenderer::renderFrame(
              decorationActive, decorationFragments,
              vehicleDeathFragments, bonusActive,
              racerRuntime, effects, mines, projectiles,
-             elapsedSeconds, false, usesSceneDepthSurface, true);
+             elapsedSeconds, countdownStage, false,
+             usesSceneDepthSurface, true);
     }
 
     if (usesSceneDepthSurface)

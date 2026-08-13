@@ -95,7 +95,7 @@ public:
                   r3d::game::originalrace::MineRuntime>& mines,
               const std::vector<
                   r3d::game::originalrace::ProjectileRuntime>& projectiles,
-              float elapsedSeconds,
+              float elapsedSeconds, std::int32_t countdownStage,
               bool reflectionPass = false,
               bool omitEnvironmentSurface = false,
               bool refractionPass = false);
@@ -124,7 +124,8 @@ public:
         const std::vector<
             r3d::game::originalrace::ProjectileRuntime>& projectiles,
         float elapsedSeconds,
-        const r3d::game::originalrace::QualityConfig& quality);
+        const r3d::game::originalrace::QualityConfig& quality,
+        std::int32_t countdownStage = 4);
 
 private:
     bool createFrameTargets(r3d::renderer::GraphicsDevice& device,

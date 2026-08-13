@@ -1004,8 +1004,12 @@ void OriginalRaceSession::reset()
 {
     phase_ = RacePhase::Countdown;
     phaseBeforePause_ = phase_;
-    countdownSeconds_ = 3.0F;
+    // GameMode::DoStartRace first emits cGoRaceWait. GoRaceTimer then uses
+    // cGoRaceLag=1 and advances cGoRace1..cGoRace in one-second steps. The
+    // car is therefore blocked for four seconds, not three.
+    countdownSeconds_ = 4.0F;
     countdownDisplay_ = 3;
+    countdownStage_ = 0;
     networkCountdownControlled_ = false;
     networkFinishControlled_ = false;
     networkGameplayEnabled_ = false;
@@ -1887,8 +1891,9 @@ void OriginalRaceSession::synchronizeNetworkCountdown(
 
     const int display = stage <= 1 ? 3 : 4 - stage;
     countdownSeconds_ = static_cast<float>(display);
-    if (countdownDisplay_ != display || stage == 1 || stage == 4)
+    if (countdownStage_ != stage || stage == 1 || stage == 4)
     {
+        countdownStage_ = stage;
         countdownDisplay_ = display;
         events_.push_back(
             {RaceEventKind::CountdownChanged, 0, 0, {},
@@ -1942,6 +1947,11 @@ RacePhase OriginalRaceSession::phase() const noexcept
 float OriginalRaceSession::countdownSeconds() const noexcept
 {
     return countdownSeconds_;
+}
+
+std::int32_t OriginalRaceSession::countdownStage() const noexcept
+{
+    return countdownStage_;
 }
 
 float OriginalRaceSession::elapsedSeconds() const noexcept
@@ -6725,21 +6735,24 @@ void OriginalRaceSession::update(
     {
         if (networkCountdownControlled_)
             return;
-        countdownSeconds_ -= seconds;
-        const int display =
-            std::max(0, static_cast<int>(std::ceil(countdownSeconds_)));
-        if (display != countdownDisplay_)
+        countdownSeconds_ = std::max(0.0F, countdownSeconds_ - seconds);
+        const std::int32_t stage = countdownSeconds_ <= 0.0F
+            ? 4
+            : std::clamp(
+                  4 - static_cast<std::int32_t>(
+                          std::ceil(countdownSeconds_)),
+                  0, 3);
+        const int display = stage <= 1 ? 3 : 4 - stage;
+        if (stage != countdownStage_)
         {
+            countdownStage_ = stage;
             countdownDisplay_ = display;
             events_.push_back({RaceEventKind::CountdownChanged, 0, 0, {},
                                static_cast<float>(display)});
         }
         if (countdownSeconds_ <= 0.0F)
         {
-            countdownSeconds_ = 0.0F;
             phase_ = RacePhase::Racing;
-            events_.push_back(
-                {RaceEventKind::CountdownChanged, 0, 0, {}, 0.0F});
         }
         return;
     }
@@ -6964,7 +6977,50 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
         RaceControl input;
         input.driving.throttle = 1.0F;
-        for (int frame = 0; frame < 190; ++frame)
+        if (session.countdownStage() != 0 ||
+            session.countdownSeconds() != 4.0F)
+        {
+            throw std::runtime_error(
+                "offline cGoRaceWait source stage was not initialized");
+        }
+        for (int frame = 0; frame < 11; ++frame)
+            session.update(0.1F, vehicles, input);
+        if (session.countdownStage() != 1 ||
+            session.phase() != RacePhase::Countdown ||
+            session.vehicleInputs().front().throttle != 0.0F)
+        {
+            throw std::runtime_error(
+                "offline cGoRace1 source stage was not applied");
+        }
+        for (int frame = 0; frame < 10; ++frame)
+            session.update(0.1F, vehicles, input);
+        if (session.countdownStage() != 2 ||
+            session.phase() != RacePhase::Countdown)
+        {
+            throw std::runtime_error(
+                "offline cGoRace2 source stage was not applied");
+        }
+        for (int frame = 0; frame < 10; ++frame)
+            session.update(0.1F, vehicles, input);
+        if (session.countdownStage() != 3 ||
+            session.phase() != RacePhase::Countdown)
+        {
+            throw std::runtime_error(
+                "offline cGoRace3 source stage was not applied");
+        }
+        for (int frame = 0; frame < 10; ++frame)
+            session.update(0.1F, vehicles, input);
+        session.update(0.1F, vehicles, input);
+        if (session.countdownStage() != 4 ||
+            session.phase() != RacePhase::Racing ||
+            session.vehicleInputs().front().throttle < 0.9F)
+        {
+            throw std::runtime_error(
+                "offline cGoRace did not release vehicle control");
+        }
+
+        session.reset();
+        for (int frame = 0; frame < 250; ++frame)
             session.update(1.0F / 60.0F, vehicles, input);
         if (session.phase() != RacePhase::Racing ||
             session.vehicleInputs().empty() ||
@@ -7025,7 +7081,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         {
             OriginalRaceSession traceSession(race);
             auto traceVehicles = vehicles;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 traceSession.update(
                     1.0F / 60.0F, traceVehicles, input);
             const Vec3 direction = normalized2(subtract(
@@ -7089,7 +7145,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 OriginalRaceSession skipSession(race);
                 auto skipVehicles = vehicles;
-                for (int frame = 0; frame < 190; ++frame)
+                for (int frame = 0; frame < 250; ++frame)
                     skipSession.update(
                         1.0F / 60.0F, skipVehicles, input);
                 const Vec3 skippedStart = point(2U).position;
@@ -7173,7 +7229,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             };
 
             OriginalRaceSession branchSession(branchRace);
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 branchSession.update(
                     1.0F / 60.0F, branchVehicles, input);
             placeOnBranch(branchSession, 0U, 0U, 0U, 0.5F, false);
@@ -7202,7 +7258,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
 
             OriginalRaceSession branchWrongWay(branchRace);
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 branchWrongWay.update(
                     1.0F / 60.0F, branchVehicles, input);
             placeOnBranch(
@@ -7238,7 +7294,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     laneVehicle.body.rotation = laneRotation;
                     laneVehicle.speed = 0.0F;
                 }
-                for (int frame = 0; frame < 190; ++frame)
+                for (int frame = 0; frame < 250; ++frame)
                     laneSession.update(
                         1.0F / 60.0F, laneVehicles, input);
                 laneSession.update(
@@ -7302,7 +7358,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 auto cornerVehicles = vehicles;
                 for (auto& state : cornerVehicles)
                     state.speed = 5.0F;
-                for (int frame = 0; frame < 190; ++frame)
+                for (int frame = 0; frame < 250; ++frame)
                 {
                     cornerSession.update(
                         1.0F / 60.0F, cornerVehicles, input);
@@ -7383,7 +7439,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         100000.0F, 1000.0F};
                     brakeHyperVehicles[racer].speed = 0.0F;
                 }
-                for (int frame = 0; frame < 190; ++frame)
+                for (int frame = 0; frame < 250; ++frame)
                 {
                     brakeHyperSession.update(
                         1.0F / 60.0F,
@@ -7428,7 +7484,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         100000.0F, 1000.0F};
                     offTraceAttackVehicles[racer].speed = 0.0F;
                 }
-                for (int frame = 0; frame < 190; ++frame)
+                for (int frame = 0; frame < 250; ++frame)
                 {
                     offTraceAttackSession.update(
                         1.0F / 60.0F,
@@ -7495,7 +7551,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     state.body.rotation = rotation;
                     state.speed = 0.0F;
                 }
-                for (int frame = 0; frame < 190; ++frame)
+                for (int frame = 0; frame < 250; ++frame)
                     backTargetSession.update(
                         1.0F / 60.0F,
                         backTargetVehicles, input);
@@ -7551,7 +7607,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         100000.0F, 1000.0F};
                     pitchedTargetVehicles[racer].speed = 5.0F;
                 }
-                for (int frame = 0; frame < 190; ++frame)
+                for (int frame = 0; frame < 250; ++frame)
                 {
                     pitchedTargetSession.update(
                         1.0F / 60.0F,
@@ -7598,7 +7654,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
 
             OriginalRaceSession aiControlSession(race);
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 aiControlSession.update(
                     1.0F / 60.0F, vehicles, input);
             for (int frame = 0; frame < 61; ++frame)
@@ -7622,7 +7678,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
 
             OriginalRaceSession aiOffTraceSession(race);
             auto offTraceVehicles = vehicles;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 aiOffTraceSession.update(
                     1.0F / 60.0F, offTraceVehicles, input);
@@ -7653,7 +7709,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
 
             OriginalRaceSession aiCheatSession(race);
             auto cheatVehicles = vehicles;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 aiCheatSession.update(
                     1.0F / 60.0F, cheatVehicles, input);
             cheatVehicles[0].body.position = point(1U).position;
@@ -7686,7 +7742,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         100000.0F, 1000.0F};
                     fieldCheatVehicles[racer].speed = 5.0F;
                 }
-                for (int frame = 0; frame < 190; ++frame)
+                for (int frame = 0; frame < 250; ++frame)
                 {
                     fieldCheatSession.update(
                         1.0F / 60.0F,
@@ -7744,7 +7800,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         {
             OriginalRaceSession destructionSession(race);
             RaceControl destructionInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 destructionSession.update(
                     1.0F / 60.0F, vehicles, destructionInput);
             const std::size_t instance = static_cast<std::size_t>(
@@ -7925,7 +7981,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             OriginalRaceSession hazardSession(race);
             RaceControl hazardInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 hazardSession.update(
                     1.0F / 60.0F, vehicles, hazardInput);
             vehicles[0].body.position = mapMine->transform.position;
@@ -7996,7 +8052,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             pickupVehicles[0].speed = 0.0F;
             pickupVehicles[0].linearVelocity = {};
             pickupVehicles[0].bodyContacts.clear();
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 pickupSession.update(
                     1.0F / 60.0F, pickupVehicles, pickupInput);
             pickupVehicles[0].body.position =
@@ -8075,7 +8131,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             achievementVehicles[0].speed = 0.0F;
             achievementVehicles[0].linearVelocity = {};
             achievementVehicles[0].bodyContacts.clear();
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 achievementSession.update(
                     1.0F / 60.0F, achievementVehicles,
                     achievementInput);
@@ -8109,7 +8165,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             achievementVehicles[0].speed = 0.0F;
             achievementVehicles[0].linearVelocity = {};
             achievementVehicles[0].bodyContacts.clear();
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 skirmishSession.update(
                     1.0F / 60.0F, achievementVehicles,
                     achievementInput);
@@ -8179,7 +8235,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             RaceControl contactInput;
             for (auto& vehicle : contactVehicles)
                 vehicle.bodyContacts.clear();
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 contactSession.update(
                     1.0F / 60.0F, contactVehicles,
@@ -8274,7 +8330,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             OriginalRaceSession lowLifeSession(race);
             auto lowLifeVehicles = vehicles;
             RaceControl lowLifeInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 lowLifeSession.update(
                     1.0F / 60.0F, lowLifeVehicles, lowLifeInput);
             const auto& sourceRacer = race.racers.front();
@@ -8353,7 +8409,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             shieldVehicles[0].speed = 0.0F;
             shieldVehicles[0].linearVelocity = {};
             shieldVehicles[0].bodyContacts.clear();
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 shieldSession.update(
                     1.0F / 60.0F, shieldVehicles, shieldInput);
             shieldVehicles[0].body.position =
@@ -8451,7 +8507,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             OriginalRaceSession deathSession(race);
             auto deathVehicles = vehicles;
             RaceControl deathInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 deathSession.update(
                     1.0F / 60.0F, deathVehicles, deathInput);
             deathVehicles[0].speed = 25.0F;
@@ -8550,7 +8606,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 OriginalRaceSession overboardSession(race);
                 auto overboardVehicles = vehicles;
                 RaceControl overboardInput;
-                for (int frame = 0; frame < 190; ++frame)
+                for (int frame = 0; frame < 250; ++frame)
                     overboardSession.update(
                         1.0F / 60.0F, overboardVehicles,
                         overboardInput);
@@ -8623,7 +8679,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             vehicle.speed = 0.0F;
             vehicle.linearVelocity = {};
         }
-        for (int frame = 0; frame < 190; ++frame)
+        for (int frame = 0; frame < 250; ++frame)
             lapSession.update(
                 1.0F / 60.0F, lapVehicles, input);
         auto placeOnMainSegment = [&](std::size_t segment) {
@@ -8704,7 +8760,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             reloadVehicles[0].speed = 0.0F;
             reloadVehicles[0].linearVelocity = {};
             RaceControl reloadInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 reloadSession.update(
                     1.0F / 60.0F,
@@ -8780,7 +8836,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 state.linearVelocity = {};
             }
             RaceControl finishInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 finishImmortalSession.update(
                     1.0F / 60.0F,
@@ -8901,7 +8957,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             weaponSession.applyPlayerProfile(weaponProfile);
             RaceControl weaponInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 weaponSession.update(
                     1.0F / 60.0F, vehicles, weaponInput);
             weaponInput.changeWeapon = true;
@@ -9039,7 +9095,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             slot.hasCharge = true;
             hyperSession.applyPlayerProfile(hyperProfile);
             RaceControl hyperInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 hyperSession.update(
                     1.0F / 60.0F, hyperVehicles, hyperInput);
             hyperSession.takeVelocityRequests();
@@ -9104,7 +9160,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             hyperVehicles[0].contactCount =
                 static_cast<std::uint32_t>(
                     playerDefinition.physics.wheels.size());
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 springSession.update(
                     1.0F / 60.0F, hyperVehicles, springInput);
             springSession.takeVelocityRequests();
@@ -9138,7 +9194,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             airborneSpringSession.applyPlayerProfile(springProfile);
             RaceControl springInput;
             hyperVehicles[0].contactCount = 0U;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 airborneSpringSession.update(
                     1.0F / 60.0F, hyperVehicles, springInput);
             airborneSpringSession.takeVelocityRequests();
@@ -9190,7 +9246,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             drobilkaSession.applyPlayerProfile(drobilkaProfile);
             auto drobilkaVehicles = vehicles;
             RaceControl drobilkaInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 drobilkaSession.update(
                     1.0F / 60.0F, drobilkaVehicles,
@@ -9417,7 +9473,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 0.0F, std::sin(sourcePitch * 0.5F), 0.0F,
                 std::cos(sourcePitch * 0.5F)};
             RaceControl thunderInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 thunderSession.update(
                     1.0F / 60.0F, outsideVehicles,
@@ -9541,7 +9597,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 outsideVehicles[index].linearVelocity = {};
             }
             RaceControl resonatorInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 resonatorSession.update(
                     1.0F / 60.0F, outsideVehicles,
@@ -9627,7 +9683,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     100000.0F, 1000.0F};
             }
             RaceControl rocketInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 rocketSession.update(
                     1.0F / 60.0F, rocketVehicles,
@@ -9721,7 +9777,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             impulseVehicles[3].body.position = {
                 base.x + 20.0F, base.y, base.z};
             RaceControl impulseInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 impulseSession.update(
                     1.0F / 60.0F, impulseVehicles,
@@ -9813,7 +9869,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             torpedaVehicles[1].body.position = {
                 base.x + 100.0F, base.y + 100.0F, base.z};
             RaceControl torpedaInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 torpedaSession.update(
                     1.0F / 60.0F, torpedaVehicles,
@@ -9973,7 +10029,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 0.0F, std::sin(sourcePitch * 0.5F), 0.0F,
                 std::cos(sourcePitch * 0.5F)};
             RaceControl frostInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 frostSession.update(
                     1.0F / 60.0F, frostVehicles, frostInput);
@@ -10101,7 +10157,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 lifetimeVehicles[index].linearVelocity = {};
             }
             RaceControl lifetimeInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 lifetimeSession.update(
                     1.0F / 60.0F, lifetimeVehicles,
@@ -10177,7 +10233,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             childEffectSession.applyPlayerProfile(childEffectProfile);
             auto childEffectVehicles = vehicles;
             RaceControl childEffectInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 childEffectSession.update(
                     1.0F / 60.0F, childEffectVehicles,
@@ -10308,7 +10364,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             mortarSlot.hasCharge = true;
             mortarSession.applyPlayerProfile(mortarProfile);
             RaceControl mortarInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 mortarSession.update(
                     1.0F / 60.0F, mortarVehicles, mortarInput);
             mortarInput.useWeapon = true;
@@ -10526,7 +10582,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             mineSlot.hasCharge = true;
             mineSession.applyPlayerProfile(mineProfile);
             RaceControl mineInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
                 mineSession.update(
                     1.0F / 60.0F, mineVehicles, mineInput);
             mineInput.useMine = true;
@@ -10608,7 +10664,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             outsideVehicles[0].body.position = {
                 100000.0F, 100000.0F, 10.0F};
             RaceControl mineInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 rejectedMineSession.update(
                     1.0F / 60.0F, outsideVehicles, mineInput);
@@ -10687,7 +10743,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                std::vector<r3d::physics::VehicleState>&
                    sourceVehicles) {
                 RaceControl sourceInput;
-                for (int frame = 0; frame < 190; ++frame)
+                for (int frame = 0; frame < 250; ++frame)
                 {
                     sourceSession.update(
                         1.0F / 60.0F, sourceVehicles,
@@ -11005,7 +11061,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             OriginalRaceSession resetSession(race);
             auto resetVehicles = vehicles;
             RaceControl resetInput;
-            for (int frame = 0; frame < 190; ++frame)
+            for (int frame = 0; frame < 250; ++frame)
             {
                 resetSession.update(
                     1.0F / 60.0F, resetVehicles, resetInput);

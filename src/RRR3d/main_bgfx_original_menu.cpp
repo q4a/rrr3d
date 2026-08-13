@@ -15929,7 +15929,8 @@ int main(int argc, char** argv)
                 raceSession.racers(),
                 raceSession.effects(), raceSession.mines(),
                 raceSession.projectiles(), raceElapsedSeconds,
-                profileState.config.quality);
+                profileState.config.quality,
+                raceSession.countdownStage());
             raceHud.update(*device, *originalRace, raceSession,
                            raceVehicles, raceCamera, raceRenderSeconds);
             device->beginOverlay(camera);

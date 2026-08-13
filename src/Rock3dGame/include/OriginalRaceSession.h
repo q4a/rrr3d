@@ -414,6 +414,7 @@ public:
 
     RacePhase phase() const noexcept;
     float countdownSeconds() const noexcept;
+    std::int32_t countdownStage() const noexcept;
     float elapsedSeconds() const noexcept;
     bool finishPresentationReady() const noexcept;
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
@@ -546,10 +547,11 @@ private:
     const Race& race_;
     RacePhase phase_ = RacePhase::Countdown;
     RacePhase phaseBeforePause_ = RacePhase::Countdown;
-    float countdownSeconds_ = 3.0F;
+    float countdownSeconds_ = 4.0F;
     float elapsedSeconds_ = 0.0F;
     float finishSecondsRemaining_ = -1.0F;
     int countdownDisplay_ = 3;
+    std::int32_t countdownStage_ = 0;
     bool networkCountdownControlled_ = false;
     bool networkFinishControlled_ = false;
     bool networkGameplayEnabled_ = false;

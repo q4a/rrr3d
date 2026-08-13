@@ -1211,9 +1211,10 @@ void OriginalRaceHud::update(
     countdownGrowthSeconds_ = 0.0F;
     if (session.phase() == originalrace::RacePhase::Countdown)
     {
-        const int value = std::max(
-            1, static_cast<int>(std::ceil(session.countdownSeconds())));
-        countdownImage_ = std::clamp(value, 0, 4);
+        // PlayerStateFrame selects tablo0 for cRaceStartWait and then
+        // tablo1..tablo3 for the three timed stages. countdownSeconds alone
+        // cannot represent the distinct wait and first-red-light states.
+        countdownImage_ = std::clamp(session.countdownStage(), 0, 3);
     }
     else if (session.phase() == originalrace::RacePhase::Racing &&
              elapsed < countdownFinishUntil_)
