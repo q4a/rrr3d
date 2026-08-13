@@ -1059,6 +1059,8 @@ void OriginalRaceSession::reset()
                 : -1.0F);
     }
     bonusActive_.assign(race_.bonuses.size(), true);
+    bonusNetworkPendingContact_.assign(
+        race_.bonuses.size(), RacerRuntime::invalidWeapon);
     events_.clear();
     effects_.clear();
     mines_.clear();
@@ -1068,6 +1070,7 @@ void OriginalRaceSession::reset()
     angularVelocityRequests_.clear();
     pendingNetworkShots_.clear();
     pendingNetworkBonuses_.clear();
+    pendingNetworkMineContacts_.clear();
     achievementPoints_ = initialAchievementPoints_;
     achievementIterations_.assign(race_.achievements.size(), 0U);
     achievementConditionCounters_.assign(
@@ -1508,6 +1511,24 @@ bool OriginalRaceSession::applyRacerDamageInternal(
 {
     if (target >= racers_.size() || racers_[target].destroyed)
         return false;
+    if (networkGameplayEnabled_ && !networkReplicated)
+    {
+        // NetRace::Damage rejects AI/opponent senders. On a client it also
+        // accepts only damage produced by that peer's owned NetPlayer.
+        if (attacker == RacerRuntime::invalidWeapon)
+        {
+            if (!networkGameplayHost_)
+                return false;
+        }
+        else if (attacker >= race_.racers.size() ||
+                 !race_.racers[attacker].human ||
+                 (!networkGameplayHost_ &&
+                  (attacker >= networkOwnedRacers_.size() ||
+                   !networkOwnedRacers_[attacker])))
+        {
+            return false;
+        }
+    }
     const bool touch = damageType == DamageType::Touch;
     // Logic::Damage applies the first reflector before entering NetRace.
     // Consequently authoritative RPC values must not pass through the
@@ -1584,6 +1605,19 @@ NetworkDamageResult OriginalRaceSession::applyNetworkPlayerDamage(
     return {racers_[target].life, racers_[target].destroyed};
 }
 
+NetworkDamageResult OriginalRaceSession::applyNetworkMapObjectDamage(
+    std::uint32_t targetObjectId, std::size_t attacker,
+    float value, DamageType damageType,
+    bool synchronizeState, float targetLife, bool death)
+{
+    const auto target = decorationForMapObjectId(targetObjectId);
+    if (target == RacerRuntime::invalidWeapon)
+        return {};
+    return applyDecorationDamageInternal(
+        target, value, attacker, damageType, synchronizeState,
+        targetLife, death, true);
+}
+
 void OriginalRaceSession::queueNetworkShot(ReplicatedShot shot)
 {
     if (shot.racer >= racers_.size() || shot.slotMask == 0U)
@@ -1597,6 +1631,17 @@ void OriginalRaceSession::queueNetworkBonus(ReplicatedBonus bonus)
         bonus.bonus >= race_.bonuses.size())
         return;
     pendingNetworkBonuses_.push_back(std::move(bonus));
+}
+
+void OriginalRaceSession::queueNetworkMineContact(
+    ReplicatedMineContact contact)
+{
+    if (contact.racer >= racers_.size() || contact.projectileId == 0U)
+        return;
+    if (!contact.mapProjectile &&
+        contact.projectileOwner >= racers_.size())
+        return;
+    pendingNetworkMineContacts_.push_back(std::move(contact));
 }
 
 bool OriginalRaceSession::damageDecorationWithBox(
@@ -1683,16 +1728,92 @@ bool OriginalRaceSession::damageDecoration(
         hit >= race_.decorationInstances.size() ||
         !decorationActive_[hit])
         return false;
-    decorationLife_[hit] -= std::max(damage, 0.0F);
-    if (decorationLife_[hit] > 0.0F)
-        return true;
+    const auto definition = race_.decorationInstances[hit].definition;
+    if (definition >= race_.decorationDefinitions.size() ||
+        !race_.decorationDefinitions[definition].destructible)
+        return false;
+    applyDecorationDamageInternal(
+        hit, damage, attacker, DamageType::Simple,
+        false, 0.0F, false, false);
+    return true;
+}
+
+NetworkDamageResult
+OriginalRaceSession::applyDecorationDamageInternal(
+    std::size_t hit, float damage, std::size_t attacker,
+    DamageType damageType, bool synchronizeState,
+    float targetLife, bool death, bool networkReplicated)
+{
+    if (hit >= decorationActive_.size() ||
+        hit >= race_.decorationInstances.size() ||
+        !decorationActive_[hit])
+        return {};
+    const auto& instance = race_.decorationInstances[hit];
+    if (instance.definition >= race_.decorationDefinitions.size() ||
+        !race_.decorationDefinitions[instance.definition].destructible)
+        return {decorationLife_[hit], false};
+
+    // Logic::Damage in a network race accepts map damage only from a human
+    // NetPlayer. A client sends its local request without mutating the
+    // object; AI damage is deliberately ignored by NetRace::Damage.
+    if (networkGameplayEnabled_ && !networkReplicated)
+    {
+        if (attacker >= race_.racers.size() ||
+            !race_.racers[attacker].human)
+            return {decorationLife_[hit], false};
+        if (!networkGameplayHost_)
+        {
+            if (attacker >= networkOwnedRacers_.size() ||
+                !networkOwnedRacers_[attacker])
+                return {decorationLife_[hit], false};
+            RaceEvent request;
+            request.kind = RaceEventKind::MapObjectDamage;
+            request.racer = attacker;
+            request.target = hit;
+            request.position = instance.transform.position;
+            request.value = std::max(damage, 0.0F);
+            request.damageType = damageType;
+            events_.push_back(std::move(request));
+            return {decorationLife_[hit], false};
+        }
+    }
+
+    const float appliedDamage = std::max(damage, 0.0F);
+    if (synchronizeState)
+        decorationLife_[hit] = targetLife;
+    else
+        decorationLife_[hit] -= appliedDamage;
+    const bool destroyed = synchronizeState
+                               ? death
+                               : decorationLife_[hit] <= 0.0F;
+
+    RaceEvent damageEvent;
+    damageEvent.kind = RaceEventKind::MapObjectDamage;
+    damageEvent.racer = attacker;
+    damageEvent.target = hit;
+    damageEvent.position = instance.transform.position;
+    damageEvent.value = appliedDamage;
+    damageEvent.damageType = damageType;
+    damageEvent.authoritativeLife = decorationLife_[hit];
+    damageEvent.authoritativeDeath = destroyed;
+    damageEvent.networkReplicated = networkReplicated;
+    events_.push_back(std::move(damageEvent));
+    if (!destroyed)
+        return {decorationLife_[hit], false};
+
     decorationActive_[hit] = false;
     const Vec3 position =
         race_.decorationInstances[hit].transform.position;
-    events_.push_back(
-        {RaceEventKind::DecorationDestroyed, attacker, hit,
-         position, damage});
-    return true;
+    RaceEvent destroyedEvent;
+    destroyedEvent.kind = RaceEventKind::DecorationDestroyed;
+    destroyedEvent.racer = attacker;
+    destroyedEvent.target = hit;
+    destroyedEvent.position = position;
+    destroyedEvent.value = appliedDamage;
+    destroyedEvent.damageType = damageType;
+    destroyedEvent.networkReplicated = networkReplicated;
+    events_.push_back(std::move(destroyedEvent));
+    return {decorationLife_[hit], true};
 }
 
 void OriginalRaceSession::setPaused(bool paused) noexcept
@@ -1813,9 +1934,55 @@ const std::vector<bool>& OriginalRaceSession::decorationActive() const noexcept
     return decorationActive_;
 }
 
+const std::vector<float>& OriginalRaceSession::decorationLife() const noexcept
+{
+    return decorationLife_;
+}
+
 const std::vector<bool>& OriginalRaceSession::bonusActive() const noexcept
 {
     return bonusActive_;
+}
+
+std::size_t OriginalRaceSession::racerForMapObjectId(
+    std::uint32_t mapObjectId) const noexcept
+{
+    const auto found = std::find_if(
+        race_.racers.begin(), race_.racers.end(),
+        [mapObjectId](const Racer& racer) {
+            return racer.mapObjectId == mapObjectId;
+        });
+    return found == race_.racers.end()
+               ? RacerRuntime::invalidWeapon
+               : static_cast<std::size_t>(found - race_.racers.begin());
+}
+
+std::size_t OriginalRaceSession::decorationForMapObjectId(
+    std::uint32_t mapObjectId) const noexcept
+{
+    const auto found = std::find_if(
+        race_.decorationInstances.begin(),
+        race_.decorationInstances.end(),
+        [mapObjectId](const ObjectInstance& instance) {
+            return instance.mapObjectId == mapObjectId;
+        });
+    return found == race_.decorationInstances.end()
+               ? RacerRuntime::invalidWeapon
+               : static_cast<std::size_t>(
+                     found - race_.decorationInstances.begin());
+}
+
+std::size_t OriginalRaceSession::bonusForMapObjectId(
+    std::uint32_t mapObjectId) const noexcept
+{
+    const auto found = std::find_if(
+        race_.bonuses.begin(), race_.bonuses.end(),
+        [mapObjectId](const BonusInstance& bonus) {
+            return bonus.mapObjectId == mapObjectId;
+        });
+    return found == race_.bonuses.end()
+               ? RacerRuntime::invalidWeapon
+               : static_cast<std::size_t>(found - race_.bonuses.begin());
 }
 
 const std::vector<RaceEvent>& OriginalRaceSession::events() const noexcept
@@ -4653,6 +4820,7 @@ void OriginalRaceSession::updateGameplay(
         mine.damage = projectile->damage;
         mine.impulseSpeed = projectile->speed;
         mine.type = projectile->type;
+        mine.networkProjectileId = networkProjectileId;
         mine.collision = projectile->collision;
         if (projectile->minimumLife > 0.0F)
         {
@@ -4846,6 +5014,105 @@ void OriginalRaceSession::updateGameplay(
         impact.ignoreRotation = death->ignoreRotation;
         effects_.push_back(std::move(impact));
     };
+    auto applyMineContact = [&](MineRuntime& mine, std::size_t racer,
+                                const Vec3& contactPoint) {
+        if (!mine.active || racer >= vehicles.size() ||
+            racer >= racers_.size() || racers_[racer].destroyed)
+            return false;
+        const auto& vehicleDefinition =
+            race_.racers[racer].hasConfiguredVehicle
+                ? race_.racers[racer].configuredVehicle
+                : race_.vehicles.at(race_.racers[racer].vehicle);
+        if (mine.type == 10U)
+        {
+            if (racers_[racer].clutchSeconds > 0.0F ||
+                length3(vehicles[racer].linearVelocity) <= 3.0F ||
+                clutchImmune(racer))
+                return false;
+            const Vec3 direction = normalized2(
+                forward(vehicles[racer].body.rotation));
+            const Vec3 right{-direction.y, direction.x, 0.0F};
+            const float side = dot2(
+                right,
+                subtract(mine.position,
+                         vehicles[racer].body.position));
+            const float strength =
+                std::abs(side) > 0.1F && side > 0.0F
+                    ? -mine.damage
+                    : mine.damage;
+            racers_[racer].clutchSeconds = 0.38F;
+            angularVelocityRequests_.push_back(
+                {racer, {0.0F, 0.0F, strength}});
+            return true;
+        }
+        applyRacerDamage(
+            racer, mine.owner, contactPoint,
+            std::max(
+                mine.type == 20U ? mine.damage * seconds : mine.damage,
+                0.0F),
+            DamageType::Mine);
+        if (mine.type != 20U && mine.impulseSpeed != 0.0F)
+        {
+            const float targetMass =
+                std::max(vehicleDefinition.physics.mass, 1.0F);
+            const Vec3 impulse{0.0F, 0.0F, mine.impulseSpeed};
+            velocityRequests_.push_back(
+                {racer, multiply(impulse, 1.0F / targetMass)});
+            const Vec3 lever = subtract(
+                contactPoint, vehicles[racer].body.position);
+            const Vec3 worldTorque = cross(lever, impulse);
+            const Quat inverseRotation{
+                -vehicles[racer].body.rotation.x,
+                -vehicles[racer].body.rotation.y,
+                -vehicles[racer].body.rotation.z,
+                vehicles[racer].body.rotation.w};
+            const Vec3 localTorque =
+                rotate(inverseRotation, worldTorque);
+            const Vec3 half = vehicleDefinition.physics.halfExtents;
+            const Vec3 inertia{
+                targetMass *
+                    (half.y * half.y + half.z * half.z) / 3.0F,
+                targetMass *
+                    (half.x * half.x + half.z * half.z) / 3.0F,
+                targetMass *
+                    (half.x * half.x + half.y * half.y) / 3.0F};
+            const Vec3 localAngularDelta{
+                localTorque.x / std::max(inertia.x, 0.001F),
+                localTorque.y / std::max(inertia.y, 0.001F),
+                localTorque.z / std::max(inertia.z, 0.001F)};
+            angularVelocityRequests_.push_back(
+                {racer,
+                 rotate(vehicles[racer].body.rotation,
+                        localAngularDelta)});
+        }
+        if (mine.type != 20U)
+        {
+            spawnMineDeathEffect(mine);
+            mine.active = false;
+        }
+        return true;
+    };
+
+    std::vector<ReplicatedMineContact> pendingMapMineContacts;
+    for (const auto& contact : pendingNetworkMineContacts_)
+    {
+        if (contact.mapProjectile)
+        {
+            pendingMapMineContacts.push_back(contact);
+            continue;
+        }
+        const auto found = std::find_if(
+            mines_.begin(), mines_.end(),
+            [&](const MineRuntime& mine) {
+                return mine.active &&
+                       mine.owner == contact.projectileOwner &&
+                       mine.networkProjectileId == contact.projectileId;
+            });
+        if (found == mines_.end())
+            continue;
+        found->networkPendingContact = RacerRuntime::invalidWeapon;
+        applyMineContact(*found, contact.racer, contact.point);
+    }
     for (auto& mine : mines_)
     {
         if (!mine.active)
@@ -4991,96 +5258,33 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             const Vec3 contactPoint =
                 closestPoint(targetBox, mineBox.center);
-            if (mine.type == 10U)
+            if (networkGameplayEnabled_)
             {
-                if (racers_[racer].clutchSeconds > 0.0F ||
-                    length3(
-                        vehicles[racer].linearVelocity) <= 3.0F)
+                if (racer >= networkOwnedRacers_.size() ||
+                    !networkOwnedRacers_[racer] ||
+                    mine.networkPendingContact !=
+                        RacerRuntime::invalidWeapon)
                     continue;
-                if (clutchImmune(racer))
+                // Logic::MineContact is owned by the contacted NetPlayer.
+                // It broadcasts the projectile identity and all peers call
+                // Proj::MineContact only after that reliable RPC arrives.
+                if (mine.owner == RacerRuntime::invalidWeapon ||
+                    mine.networkProjectileId == 0U)
                     continue;
-                const Vec3 direction = normalized2(
-                    forward(vehicles[racer].body.rotation));
-                const Vec3 right{-direction.y, direction.x, 0.0F};
-                const float side = dot2(
-                    right,
-                    subtract(mine.position,
-                             vehicles[racer].body.position));
-                const float strength =
-                    std::abs(side) > 0.1F && side > 0.0F
-                        ? -mine.damage
-                        : mine.damage;
-                racers_[racer].clutchSeconds = 0.38F;
-                angularVelocityRequests_.push_back(
-                    {racer, {0.0F, 0.0F, strength}});
+                mine.networkPendingContact = racer;
+                RaceEvent contact;
+                contact.kind = RaceEventKind::MineContact;
+                contact.racer = racer;
+                contact.target = mine.owner;
+                contact.position = contactPoint;
+                contact.networkProjectileId =
+                    mine.networkProjectileId;
+                events_.push_back(std::move(contact));
                 continue;
             }
-            applyRacerDamage(
-                racer, mine.owner, contactPoint,
-                std::max(
-                    mine.type == 20U
-                        ? mine.damage * seconds
-                        : mine.damage,
-                    0.0F),
-                DamageType::Mine);
-            if (mine.type != 20U &&
-                mine.impulseSpeed != 0.0F)
-            {
-                const float targetMass =
-                    std::max(
-                        vehicleDefinition.physics.mass, 1.0F);
-                const Vec3 impulse{
-                    0.0F, 0.0F, mine.impulseSpeed};
-                velocityRequests_.push_back(
-                    {racer,
-                     multiply(impulse, 1.0F / targetMass)});
-                const Vec3 lever = subtract(
-                    contactPoint,
-                    vehicles[racer].body.position);
-                const Vec3 worldTorque =
-                    cross(lever, impulse);
-                const Quat inverseRotation{
-                    -vehicles[racer].body.rotation.x,
-                    -vehicles[racer].body.rotation.y,
-                    -vehicles[racer].body.rotation.z,
-                    vehicles[racer].body.rotation.w};
-                const Vec3 localTorque =
-                    rotate(inverseRotation, worldTorque);
-                const Vec3 half =
-                    vehicleDefinition.physics.halfExtents;
-                const Vec3 inertia{
-                    targetMass *
-                        (half.y * half.y +
-                         half.z * half.z) /
-                        3.0F,
-                    targetMass *
-                        (half.x * half.x +
-                         half.z * half.z) /
-                        3.0F,
-                    targetMass *
-                        (half.x * half.x +
-                         half.y * half.y) /
-                        3.0F};
-                const Vec3 localAngularDelta{
-                    localTorque.x /
-                        std::max(inertia.x, 0.001F),
-                    localTorque.y /
-                        std::max(inertia.y, 0.001F),
-                    localTorque.z /
-                        std::max(inertia.z, 0.001F)};
-                angularVelocityRequests_.push_back(
-                    {racer,
-                     rotate(
-                         vehicles[racer].body.rotation,
-                         localAngularDelta)});
-            }
-            if (mine.type != 20U)
-                spawnMineDeathEffect(mine);
-            if (mine.type != 20U)
-            {
-                mine.active = false;
+            applyMineContact(mine, racer, contactPoint);
+            if (!mine.active)
                 break;
-            }
         }
     }
     mines_.insert(mines_.end(), spawnedMines.begin(),
@@ -5126,6 +5330,74 @@ void OriginalRaceSession::updateGameplay(
             bonus.deathEffect.ignoreRotation;
         effects_.push_back(std::move(impact));
     };
+    auto applyMapMineContact = [&](std::size_t bonusIndex,
+                                   std::size_t racer,
+                                   const Vec3& contactPoint) {
+        if (bonusIndex >= race_.bonuses.size() ||
+            bonusIndex >= bonusActive_.size() ||
+            !bonusActive_[bonusIndex] ||
+            racer >= racers_.size() || racer >= vehicles.size() ||
+            racers_[racer].destroyed)
+            return false;
+        const auto& bonus = race_.bonuses[bonusIndex];
+        if (bonus.kind != BonusKind::MineHazard ||
+            (enableMineBug_ && racers_[racer].mineLockSeconds > 0.0F))
+            return false;
+        const auto& racerDefinition = race_.racers[racer];
+        const auto& vehicleDefinition =
+            racerDefinition.hasConfiguredVehicle
+                ? racerDefinition.configuredVehicle
+                : race_.vehicles.at(racerDefinition.vehicle);
+        applyRacerDamage(
+            racer, RacerRuntime::invalidWeapon, contactPoint,
+            std::max(bonus.value, 0.0F), DamageType::Mine);
+        spawnBonusDeathEffect(bonusIndex);
+        const float mass =
+            std::max(vehicleDefinition.physics.mass, 1.0F);
+        if (bonus.speed > 0.0F)
+        {
+            const Vec3 impulse{0.0F, 0.0F, bonus.speed};
+            velocityRequests_.push_back(
+                {racer, multiply(impulse, 1.0F / mass)});
+            const Vec3 lever = subtract(
+                contactPoint, vehicles[racer].body.position);
+            const Vec3 worldTorque = cross(lever, impulse);
+            const Quat inverseRotation{
+                -vehicles[racer].body.rotation.x,
+                -vehicles[racer].body.rotation.y,
+                -vehicles[racer].body.rotation.z,
+                vehicles[racer].body.rotation.w};
+            const Vec3 localTorque =
+                rotate(inverseRotation, worldTorque);
+            const Vec3 half = vehicleDefinition.physics.halfExtents;
+            const Vec3 inertia{
+                mass * (half.y * half.y + half.z * half.z) / 3.0F,
+                mass * (half.x * half.x + half.z * half.z) / 3.0F,
+                mass * (half.x * half.x + half.y * half.y) / 3.0F};
+            const Vec3 localAngularDelta{
+                localTorque.x / std::max(inertia.x, 0.001F),
+                localTorque.y / std::max(inertia.y, 0.001F),
+                localTorque.z / std::max(inertia.z, 0.001F)};
+            angularVelocityRequests_.push_back(
+                {racer,
+                 rotate(vehicles[racer].body.rotation,
+                        localAngularDelta)});
+        }
+        bonusActive_[bonusIndex] = false;
+        return true;
+    };
+
+    for (const auto& contact : pendingMapMineContacts)
+    {
+        const auto bonus = bonusForMapObjectId(contact.projectileId);
+        if (bonus == RacerRuntime::invalidWeapon ||
+            bonus >= bonusNetworkPendingContact_.size())
+            continue;
+        bonusNetworkPendingContact_[bonus] =
+            RacerRuntime::invalidWeapon;
+        applyMapMineContact(bonus, contact.racer, contact.point);
+    }
+    pendingNetworkMineContacts_.clear();
 
     auto takeBonus = [&](
         std::size_t racer, std::size_t bonusIndex, BonusKind kind,
@@ -5334,62 +5606,25 @@ void OriginalRaceSession::updateGameplay(
                 if (enableMineBug_ &&
                     runtime.mineLockSeconds > 0.0F)
                     continue;
-                applyRacerDamage(
-                    racer, RacerRuntime::invalidWeapon,
-                    contactPoint,
-                    std::max(bonus.value, 0.0F),
-                    DamageType::Mine);
-                spawnBonusDeathEffect(bonusIndex);
-                const float mass =
-                    std::max(vehicleDefinition.physics.mass, 1.0F);
-                if (bonus.speed > 0.0F)
+                if (networkGameplayEnabled_)
                 {
-                    const Vec3 impulse{
-                        0.0F, 0.0F, bonus.speed};
-                    velocityRequests_.push_back(
-                        {racer,
-                         multiply(impulse, 1.0F / mass)});
-                    const Vec3 lever = subtract(
-                        contactPoint,
-                        vehicles[racer].body.position);
-                    const Vec3 worldTorque =
-                        cross(lever, impulse);
-                    const Quat inverseRotation{
-                        -vehicles[racer].body.rotation.x,
-                        -vehicles[racer].body.rotation.y,
-                        -vehicles[racer].body.rotation.z,
-                        vehicles[racer].body.rotation.w};
-                    const Vec3 localTorque =
-                        rotate(inverseRotation, worldTorque);
-                    const Vec3 half =
-                        vehicleDefinition.physics.halfExtents;
-                    const Vec3 inertia{
-                        mass *
-                            (half.y * half.y +
-                             half.z * half.z) /
-                            3.0F,
-                        mass *
-                            (half.x * half.x +
-                             half.z * half.z) /
-                            3.0F,
-                        mass *
-                            (half.x * half.x +
-                             half.y * half.y) /
-                            3.0F};
-                    const Vec3 localAngularDelta{
-                        localTorque.x /
-                            std::max(inertia.x, 0.001F),
-                        localTorque.y /
-                            std::max(inertia.y, 0.001F),
-                        localTorque.z /
-                            std::max(inertia.z, 0.001F)};
-                    angularVelocityRequests_.push_back(
-                        {racer,
-                         rotate(
-                             vehicles[racer].body.rotation,
-                             localAngularDelta)});
+                    if (bonusIndex >=
+                            bonusNetworkPendingContact_.size() ||
+                        bonusNetworkPendingContact_[bonusIndex] !=
+                            RacerRuntime::invalidWeapon)
+                        continue;
+                    bonusNetworkPendingContact_[bonusIndex] = racer;
+                    RaceEvent contact;
+                    contact.kind = RaceEventKind::MineContact;
+                    contact.racer = racer;
+                    contact.target = bonusIndex;
+                    contact.position = contactPoint;
+                    contact.networkMapObject = true;
+                    contact.networkProjectileId = bonus.mapObjectId;
+                    events_.push_back(std::move(contact));
+                    continue;
                 }
-                bonusActive_[bonusIndex] = false;
+                applyMapMineContact(bonusIndex, racer, contactPoint);
                 break;
             }
 
@@ -10816,6 +11051,54 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "source client authoritative targetLife sync failed");
             }
 
+            const auto destructible = std::find_if(
+                networkRace.decorationInstances.begin(),
+                networkRace.decorationInstances.end(),
+                [&](const ObjectInstance& instance) {
+                    return instance.definition <
+                               networkRace.decorationDefinitions.size() &&
+                           networkRace.decorationDefinitions[
+                               instance.definition].destructible &&
+                           instance.mapObjectId != 0U;
+                });
+            if (destructible ==
+                networkRace.decorationInstances.end())
+            {
+                throw std::runtime_error(
+                    "source network Damage2 regression has no MapObj");
+            }
+            const auto decorationIndex = static_cast<std::size_t>(
+                destructible -
+                networkRace.decorationInstances.begin());
+            OriginalRaceSession mapHost(networkRace);
+            mapHost.setNetworkGameplayRole(true, true, hostOwned);
+            const float decorationInitial =
+                mapHost.decorationLife()[decorationIndex];
+            const auto mapAuthoritative =
+                mapHost.applyNetworkMapObjectDamage(
+                    destructible->mapObjectId, 0U, 1.0F,
+                    DamageType::Simple);
+            if (std::abs(mapAuthoritative.life -
+                         (decorationInitial - 1.0F)) > 0.001F ||
+                mapAuthoritative.death)
+            {
+                throw std::runtime_error(
+                    "source host NetRace::Damage2 authority failed");
+            }
+            OriginalRaceSession mapClient(networkRace);
+            mapClient.setNetworkGameplayRole(
+                true, false, clientOwned);
+            const auto mapSynchronized =
+                mapClient.applyNetworkMapObjectDamage(
+                    destructible->mapObjectId, 0U, 1.0F,
+                    DamageType::Energy, true, 0.0F, true);
+            if (!mapSynchronized.death ||
+                mapClient.decorationActive()[decorationIndex])
+            {
+                throw std::runtime_error(
+                    "source client NetRace::Damage2 death sync failed");
+            }
+
             RaceControl networkInput;
             networkSession.synchronizeNetworkCountdown(4);
             networkSession.update(
@@ -10952,6 +11235,74 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source NetPlayer::OnTakeBonus replay failed");
+            }
+
+            OriginalRaceSession mineTarget(networkRace);
+            mineTarget.applyPlayerProfile(
+                mineProfileFor(*mineSpike));
+            std::vector<bool> targetOwned(
+                networkRace.racers.size(), false);
+            targetOwned[1] = true;
+            mineTarget.setNetworkGameplayRole(
+                true, false, targetOwned);
+            mineTarget.synchronizeNetworkCountdown(4);
+            auto mineVehicles = isolatedMineVehicles();
+            const auto mineTransform = expectedMineTransform(
+                *mineSpike, mineVehicles);
+            const auto& mineTargetRacer = networkRace.racers[1];
+            const auto& mineTargetDefinition =
+                mineTargetRacer.hasConfiguredVehicle
+                    ? mineTargetRacer.configuredVehicle
+                    : networkRace.vehicles.at(
+                          mineTargetRacer.vehicle);
+            const Vec3 mineCenter = add(
+                mineTransform.position,
+                rotate(
+                    mineTransform.rotation,
+                    mineSpike->projectiles.front().collision.center));
+            mineVehicles[1].body.rotation = {};
+            mineVehicles[1].body.position = subtract(
+                add(mineCenter, {0.0F, 0.25F, 0.0F}),
+                mineTargetDefinition.physics.shapePosition);
+            ReplicatedShot replicatedMine;
+            replicatedMine.racer = 0U;
+            replicatedMine.slotMask = 0x02U;
+            replicatedMine.projectileId = 77U;
+            replicatedMine.coordinates.push_back(
+                mineTransform.position);
+            mineTarget.queueNetworkShot(std::move(replicatedMine));
+            mineTarget.update(
+                1.0F / 60.0F, mineVehicles, noShotInput);
+            mineTarget.update(
+                1.0F / 60.0F, mineVehicles, noShotInput);
+            const auto mineContact = std::find_if(
+                mineTarget.events().begin(),
+                mineTarget.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::MineContact &&
+                           event.racer == 1U && event.target == 0U &&
+                           event.networkProjectileId == 77U &&
+                           !event.networkMapObject;
+                });
+            if (mineContact == mineTarget.events().end() ||
+                mineTarget.mines().size() != 1U)
+            {
+                throw std::runtime_error(
+                    "source target-owned MineContact request failed");
+            }
+            ReplicatedMineContact replicatedContact;
+            replicatedContact.racer = 1U;
+            replicatedContact.projectileOwner = 0U;
+            replicatedContact.projectileId = 77U;
+            replicatedContact.point = mineContact->position;
+            mineTarget.queueNetworkMineContact(
+                std::move(replicatedContact));
+            mineTarget.update(
+                1.0F / 60.0F, mineVehicles, noShotInput);
+            if (!mineTarget.mines().empty())
+            {
+                throw std::runtime_error(
+                    "source NetPlayer::OnMineContact replay failed");
             }
         }
 

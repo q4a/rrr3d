@@ -3764,6 +3764,60 @@ std::vector<r3d::physics::TriangleMesh> loadCollisionMeshes(
     return result;
 }
 
+std::uint32_t mapItemCount(TiXmlElement* map, std::string_view category,
+                           std::string_view source)
+{
+    const std::string path = std::string(category) + "/items";
+    auto* items = require(map, path, source);
+    std::uint32_t count = 0U;
+    for (auto* item = items->FirstChildElement(); item != nullptr;
+         item = item->NextSiblingElement())
+        ++count;
+    return count;
+}
+
+void assignStaticMapObjectIds(TiXmlElement* map, Race& race)
+{
+    // Map::Load visits MapObjLib::Category in this exact enum order and
+    // MapObjList::InsertItem increments _lastId for every object.  Rebuild
+    // the same global identity even for categories the portable renderer
+    // does not otherwise need to materialize.
+    std::uint32_t next = 1U;
+    next += mapItemCount(map, "ctEffects", race.levelPath);
+    const auto decorationCount =
+        mapItemCount(map, "ctDecoration", race.levelPath);
+    if (decorationCount != race.decorationInstances.size())
+        throw resource::ResourceError(
+            race.levelPath + ": ctDecoration MapObj count mismatch");
+    for (auto& instance : race.decorationInstances)
+        instance.mapObjectId = next++;
+
+    const auto trackCount = mapItemCount(map, "ctTrack", race.levelPath);
+    if (trackCount != race.trackInstances.size())
+        throw resource::ResourceError(
+            race.levelPath + ": ctTrack MapObj count mismatch");
+    for (auto& instance : race.trackInstances)
+        instance.mapObjectId = next++;
+
+    next += mapItemCount(map, "ctWeapon", race.levelPath);
+    next += mapItemCount(map, "ctCar", race.levelPath);
+    next += mapItemCount(map, "ctWaypoint", race.levelPath);
+    const auto bonusCount = mapItemCount(map, "ctBonus", race.levelPath);
+    if (bonusCount != race.bonuses.size())
+        throw resource::ResourceError(
+            race.levelPath + ": ctBonus MapObj count mismatch");
+    for (auto& bonus : race.bonuses)
+        bonus.mapObjectId = next++;
+    race.firstDynamicMapObjectId = next;
+}
+
+void assignRacerMapObjectIds(Race& race)
+{
+    std::uint32_t next = race.firstDynamicMapObjectId;
+    for (auto& racer : race.racers)
+        racer.mapObjectId = next++;
+}
+
 void loadMap(const resource::ResourceFileSystem& resources,
              TiXmlElement* database, Race& race)
 {
@@ -3873,6 +3927,7 @@ void loadMap(const resource::ResourceFileSystem& resources,
         bonus.value = scalar(bonusRecord, "proj/damage", "db.xml/bonus");
         race.bonuses.push_back(std::move(bonus));
     }
+    assignStaticMapObjectIds(map, race);
 
     auto* points = require(map, "trace/points", race.levelPath);
     for (auto* point = points->FirstChildElement(); point != nullptr;
@@ -4061,6 +4116,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
         bonus.value = scalar(bonusRecord, "proj/damage", "db.xml/bonus");
         race.bonuses.push_back(std::move(bonus));
     }
+    assignStaticMapObjectIds(map, race);
 
     auto* points = require(map, "trace/points", race.levelPath);
     for (auto* point = points->FirstChildElement(); point != nullptr;
@@ -4172,6 +4228,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
             "garage.xml: tournament player car is missing");
     race.vehicle = race.vehicles[humanVehicle->second];
     selectRacers(race, resources, firstPlanet, 1U, carRecord);
+    assignRacerMapObjectIds(race);
     race.collisionMeshes = loadCollisionMeshes(
         race, resources, race.collisionMeshDecorationInstances);
     if (race.trackInstances.empty() || race.tracePath.size() < 2 ||
@@ -4236,6 +4293,7 @@ Race loadOriginalRace(const resource::ResourceFileSystem& resources,
     selectRacers(result, resources, selectedPlanet,
                  result.trackCatalog[trackIndex].racePass,
                  result.vehicle.record);
+    assignRacerMapObjectIds(result);
     return result;
 }
 
@@ -6151,6 +6209,17 @@ bool runOriginalRaceResourceSmokeTest(
             race.tracePath.size() != 6 ||
             race.decorationInstances.size() != 234 ||
             race.bonuses.size() != 7 ||
+            race.decorationInstances.front().mapObjectId != 1U ||
+            race.decorationInstances.back().mapObjectId != 234U ||
+            race.trackInstances.front().mapObjectId != 235U ||
+            race.trackInstances.back().mapObjectId != 286U ||
+            race.bonuses.front().mapObjectId != 287U ||
+            race.bonuses.back().mapObjectId != 293U ||
+            race.firstDynamicMapObjectId != 294U ||
+            race.racers.empty() ||
+            race.racers.front().mapObjectId != 294U ||
+            race.racers.back().mapObjectId !=
+                293U + race.racers.size() ||
             race.trackCatalog.size() != 88 ||
             physics.collisionMeshes.empty() || borderMeshCount == 0 ||
             triangleCount < 591 ||

@@ -3876,6 +3876,7 @@ int main(int argc, char** argv)
     std::uint64_t networkLastGameplayEventSequence = 0U;
     std::uint64_t networkLastShotEventSequence = 0U;
     std::uint64_t networkLastBonusEventSequence = 0U;
+    std::uint64_t networkLastMineEventSequence = 0U;
     std::vector<std::uint32_t> networkRaceModelOrder;
     std::optional<r3d::game::originalnetwork::NetworkPlayerState>
         networkPublishedPlayer;
@@ -4343,6 +4344,7 @@ int main(int argc, char** argv)
             networkLastGameplayEventSequence = 0U;
             networkLastShotEventSequence = 0U;
             networkLastBonusEventSequence = 0U;
+            networkLastMineEventSequence = 0U;
             networkPublishedPlayer.reset();
             networkRaceModelOrder.clear();
 #ifdef RRR3D_PHYSICS
@@ -5470,6 +5472,8 @@ int main(int argc, char** argv)
             networkLastShotEventSequence =
                 networkLastGameplayEventSequence;
             networkLastBonusEventSequence =
+                networkLastGameplayEventSequence;
+            networkLastMineEventSequence =
                 networkLastGameplayEventSequence;
             networkHostRaceGoSeconds = -1.0F;
             networkAppliedRaceGoStage = 0;
@@ -11965,6 +11969,7 @@ int main(int argc, char** argv)
                             networkLastGameplayEventSequence = 0U;
                             networkLastShotEventSequence = 0U;
                             networkLastBonusEventSequence = 0U;
+                            networkLastMineEventSequence = 0U;
                             networkPublishedPlayer.reset();
                             networkRaceModelOrder.clear();
                             networkWeatherOverride.reset();
@@ -12400,22 +12405,13 @@ int main(int argc, char** argv)
                     if (shooterModel ==
                         networkRaceModelOrder.end())
                         continue;
-                    const auto targetModel = std::find(
-                        networkRaceModelOrder.begin(),
-                        networkRaceModelOrder.end(), event.target);
                     r3d::game::originalrace::ReplicatedShot shot;
                     shot.racer = static_cast<std::size_t>(
                         std::distance(
                             networkRaceModelOrder.begin(),
                             shooterModel));
                     shot.target =
-                        targetModel == networkRaceModelOrder.end()
-                            ? r3d::game::originalrace::
-                                  RacerRuntime::invalidWeapon
-                            : static_cast<std::size_t>(
-                                  std::distance(
-                                      networkRaceModelOrder.begin(),
-                                      targetModel));
+                        raceSession.racerForMapObjectId(event.target);
                     shot.slotMask = event.slotMask;
                     shot.projectileId =
                         static_cast<std::uint32_t>(
@@ -12470,11 +12466,68 @@ int main(int argc, char** argv)
                     default:
                         break;
                     }
+                    const auto bonus =
+                        raceSession.bonusForMapObjectId(event.target);
+                    if (bonus == r3d::game::originalrace::
+                                     RacerRuntime::invalidWeapon)
+                        continue;
                     raceSession.queueNetworkBonus(
                         {static_cast<std::size_t>(std::distance(
                              networkRaceModelOrder.begin(), playerModel)),
-                         static_cast<std::size_t>(event.target - 1U),
-                         kind, event.value});
+                         bonus, kind, event.value});
+                }
+                for (const auto& event :
+                     networkSnapshot.models.events)
+                {
+                    if (event.sequence <=
+                        networkLastMineEventSequence)
+                        continue;
+                    networkLastMineEventSequence = std::max(
+                        networkLastMineEventSequence,
+                        event.sequence);
+                    if (event.kind !=
+                            r3d::game::originalnetwork::
+                                NetworkEventKind::MineContact ||
+                        event.coordinates.empty())
+                        continue;
+                    const auto targetModel = std::find(
+                        networkRaceModelOrder.begin(),
+                        networkRaceModelOrder.end(),
+                        event.playerModelId);
+                    if (targetModel == networkRaceModelOrder.end())
+                        continue;
+                    r3d::game::originalrace::ReplicatedMineContact
+                        contact;
+                    contact.racer = static_cast<std::size_t>(
+                        std::distance(networkRaceModelOrder.begin(),
+                                      targetModel));
+                    contact.point = {
+                        event.coordinates.front()[0],
+                        event.coordinates.front()[1],
+                        event.coordinates.front()[2]};
+                    contact.mapProjectile = !event.flag;
+                    if (contact.mapProjectile)
+                    {
+                        contact.projectileId = event.target;
+                    }
+                    else
+                    {
+                        const auto ownerModel = std::find(
+                            networkRaceModelOrder.begin(),
+                            networkRaceModelOrder.end(),
+                            event.target);
+                        if (ownerModel == networkRaceModelOrder.end() ||
+                            event.intValue <= 0)
+                            continue;
+                        contact.projectileOwner =
+                            static_cast<std::size_t>(std::distance(
+                                networkRaceModelOrder.begin(),
+                                ownerModel));
+                        contact.projectileId =
+                            static_cast<std::uint32_t>(event.intValue);
+                    }
+                    raceSession.queueNetworkMineContact(
+                        std::move(contact));
                 }
             }
 #endif
@@ -12506,14 +12559,11 @@ int main(int argc, char** argv)
                             networkLastGameplayEventSequence,
                             event.sequence);
                     if (event.kind !=
-                        r3d::game::originalnetwork::
-                            NetworkEventKind::PlayerDamage)
-                    {
-                        continue;
-                    }
-                    const auto target = racerForModel(event.target);
-                    if (target >= raceVehicles.size() ||
-                        target >= raceSession.racers().size())
+                            r3d::game::originalnetwork::
+                                NetworkEventKind::PlayerDamage &&
+                        event.kind !=
+                            r3d::game::originalnetwork::
+                                NetworkEventKind::MapObjectDamage)
                         continue;
                     const auto attacker =
                         racerForModel(event.playerModelId);
@@ -12521,24 +12571,60 @@ int main(int argc, char** argv)
                         static_cast<r3d::game::originalrace::
                                         DamageType>(
                             std::clamp(event.intValue, 0, 4));
+                    if (event.kind ==
+                        r3d::game::originalnetwork::
+                            NetworkEventKind::PlayerDamage)
+                    {
+                        const auto target = racerForModel(event.target);
+                        if (target >= raceVehicles.size() ||
+                            target >= raceSession.racers().size())
+                            continue;
+                        const auto result =
+                            raceSession.applyNetworkPlayerDamage(
+                                target, attacker,
+                                raceVehicles[target].body.position,
+                                event.value, damageType,
+                                raceVehicles[target],
+                                !networkHostRequested,
+                                event.targetLife, event.flag);
+                        if (networkHostRequested)
+                        {
+                            std::string error;
+                            if (!networkSession.sendPlayerDamage(
+                                    event.playerModelId, event.target,
+                                    event.value, event.intValue,
+                                    result.life, result.death, error))
+                            {
+                                std::cerr
+                                    << "Original NetRace::Damage1 host "
+                                       "response failed: "
+                                    << error << '\n';
+                                runtimeSmokeFailed = true;
+                                running = false;
+                            }
+                        }
+                        continue;
+                    }
+                    if (raceSession.decorationForMapObjectId(
+                            event.target) ==
+                        r3d::game::originalrace::
+                            RacerRuntime::invalidWeapon)
+                        continue;
                     const auto result =
-                        raceSession.applyNetworkPlayerDamage(
-                            target, attacker,
-                            raceVehicles[target].body.position,
-                            event.value, damageType,
-                            raceVehicles[target],
-                            !networkHostRequested,
+                        raceSession.applyNetworkMapObjectDamage(
+                            event.target, attacker, event.value,
+                            damageType, !networkHostRequested,
                             event.targetLife, event.flag);
                     if (networkHostRequested)
                     {
                         std::string error;
-                        if (!networkSession.sendPlayerDamage(
+                        if (!networkSession.sendMapObjectDamage(
                                 event.playerModelId, event.target,
                                 event.value, event.intValue,
                                 result.life, result.death, error))
                         {
                             std::cerr
-                                << "Original NetRace::Damage1 host "
+                                << "Original NetRace::Damage2 host "
                                    "response failed: "
                                 << error << '\n';
                             runtimeSmokeFailed = true;
@@ -12627,8 +12713,9 @@ int main(int argc, char** argv)
                     if (owner != networkSnapshot.models.players.end())
                     {
                         const std::uint32_t targetObjectId =
-                            event.target < networkRaceModelOrder.size()
-                                ? networkRaceModelOrder[event.target]
+                            event.target < originalRace->racers.size()
+                                ? originalRace->racers[event.target]
+                                      .mapObjectId
                                 : 0U;
                         std::vector<std::array<float, 3>> coordinates;
                         coordinates.reserve(
@@ -12696,8 +12783,8 @@ int main(int argc, char** argv)
                             std::string error;
                             if (!networkSession.sendOwnedPlayerBonus(
                                     networkRaceModelOrder[event.racer],
-                                    static_cast<std::uint32_t>(
-                                        event.target + 1U),
+                                    originalRace->bonuses[event.target]
+                                        .mapObjectId,
                                     bonusType, event.value, error))
                             {
                                 std::cerr
@@ -12707,6 +12794,52 @@ int main(int argc, char** argv)
                                 runtimeSmokeFailed = true;
                                 running = false;
                             }
+                        }
+                    }
+                }
+                if (networkMatchStarted &&
+                    event.kind ==
+                        r3d::game::originalrace::RaceEventKind::
+                            MineContact &&
+                    !event.networkReplicated &&
+                    event.racer < networkRaceModelOrder.size())
+                {
+                    const auto owner = std::find_if(
+                        networkSnapshot.models.players.begin(),
+                        networkSnapshot.models.players.end(),
+                        [&](const auto& candidate) {
+                            return candidate.modelId ==
+                                       networkRaceModelOrder[event.racer] &&
+                                   candidate.owner;
+                        });
+                    if (owner != networkSnapshot.models.players.end())
+                    {
+                        const std::array<float, 3> point{
+                            event.position.x, event.position.y,
+                            event.position.z};
+                        std::string error;
+                        const bool sent = event.networkMapObject
+                            ? networkSession
+                                  .sendOwnedPlayerMineContactMap(
+                                      networkRaceModelOrder[event.racer],
+                                      event.networkProjectileId, point,
+                                      error)
+                            : (event.target <
+                                       networkRaceModelOrder.size() &&
+                               networkSession
+                                   .sendOwnedPlayerMineContactPlayer(
+                                       networkRaceModelOrder[event.racer],
+                                       networkRaceModelOrder[event.target],
+                                       event.networkProjectileId, point,
+                                       error));
+                        if (!sent)
+                        {
+                            std::cerr
+                                << "Original NetPlayer::MineContact "
+                                   "failed: "
+                                << error << '\n';
+                            runtimeSmokeFailed = true;
+                            running = false;
                         }
                     }
                 }
@@ -12754,6 +12887,51 @@ int main(int argc, char** argv)
                         {
                             std::cerr
                                 << "Original NetRace::Damage1 failed: "
+                                << error << '\n';
+                            runtimeSmokeFailed = true;
+                            running = false;
+                        }
+                    }
+                }
+                if (networkMatchStarted &&
+                    event.kind ==
+                        r3d::game::originalrace::RaceEventKind::
+                            MapObjectDamage &&
+                    !event.networkReplicated &&
+                    event.racer < networkRaceModelOrder.size() &&
+                    event.target <
+                        originalRace->decorationInstances.size())
+                {
+                    bool publishDamage = networkHostRequested;
+                    if (!publishDamage)
+                    {
+                        const auto owner = std::find_if(
+                            networkSnapshot.models.players.begin(),
+                            networkSnapshot.models.players.end(),
+                            [&](const auto& candidate) {
+                                return candidate.modelId ==
+                                           networkRaceModelOrder[
+                                               event.racer] &&
+                                       candidate.owner;
+                            });
+                        publishDamage =
+                            owner != networkSnapshot.models.players.end();
+                    }
+                    if (publishDamage)
+                    {
+                        std::string error;
+                        if (!networkSession.sendMapObjectDamage(
+                                networkRaceModelOrder[event.racer],
+                                originalRace->decorationInstances[
+                                    event.target].mapObjectId,
+                                event.value,
+                                static_cast<std::int32_t>(
+                                    event.damageType),
+                                event.authoritativeLife,
+                                event.authoritativeDeath, error))
+                        {
+                            std::cerr
+                                << "Original NetRace::Damage2 failed: "
                                 << error << '\n';
                             runtimeSmokeFailed = true;
                             running = false;

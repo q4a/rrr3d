@@ -1740,6 +1740,24 @@ bool OriginalNetworkModels::sendLocalMineContactPlayer(
     return true;
 }
 
+bool OriginalNetworkModels::sendOwnedPlayerMineContactPlayer(
+    std::uint32_t modelId, std::uint32_t projectileOwnerModelId,
+    std::uint32_t projectileId,
+    const std::array<float, 3>& point, std::string& error)
+{
+    error.clear();
+    const auto found = impl_->players.find(modelId);
+    if (found == impl_->players.end() || found->second == nullptr ||
+        !found->second->owner())
+    {
+        error = "source owned NetPlayer model is not active";
+        return false;
+    }
+    found->second->sendMineContactPlayer(
+        projectileOwnerModelId, projectileId, point);
+    return true;
+}
+
 bool OriginalNetworkModels::sendLocalMineContactMap(
     std::uint32_t projectileObjectId,
     const std::array<float, 3>& point, std::string& error)
@@ -1752,6 +1770,22 @@ bool OriginalNetworkModels::sendLocalMineContactMap(
         return false;
     }
     model->sendMineContactMap(projectileObjectId, point);
+    return true;
+}
+
+bool OriginalNetworkModels::sendOwnedPlayerMineContactMap(
+    std::uint32_t modelId, std::uint32_t projectileObjectId,
+    const std::array<float, 3>& point, std::string& error)
+{
+    error.clear();
+    const auto found = impl_->players.find(modelId);
+    if (found == impl_->players.end() || found->second == nullptr ||
+        !found->second->owner())
+    {
+        error = "source owned NetPlayer model is not active";
+        return false;
+    }
+    found->second->sendMineContactMap(projectileObjectId, point);
     return true;
 }
 

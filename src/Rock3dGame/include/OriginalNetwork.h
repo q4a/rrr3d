@@ -113,8 +113,16 @@ public:
         std::uint32_t projectileOwnerModelId,
         std::uint32_t projectileId,
         const std::array<float, 3>& point, std::string& error);
+    bool sendOwnedPlayerMineContactPlayer(
+        std::uint32_t modelId,
+        std::uint32_t projectileOwnerModelId,
+        std::uint32_t projectileId,
+        const std::array<float, 3>& point, std::string& error);
     bool sendLocalMineContactMap(
         std::uint32_t projectileObjectId,
+        const std::array<float, 3>& point, std::string& error);
+    bool sendOwnedPlayerMineContactMap(
+        std::uint32_t modelId, std::uint32_t projectileObjectId,
         const std::array<float, 3>& point, std::string& error);
 
     [[nodiscard]] bool initialized() const noexcept;

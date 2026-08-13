@@ -35,11 +35,13 @@ enum class RaceEventKind
     ContactImpact,
     WeaponShotEffect,
     Damage,
+    MapObjectDamage,
     Kill,
     Bonus,
     SpeedArrow,
     DecorationDestroyed,
     MinePlaced,
+    MineContact,
     HyperActivated,
     Achievement,
     ProjectileImpact,
@@ -219,6 +221,7 @@ struct RaceEvent
     // GameObject listener graph, but must not send the resulting local event
     // back over the wire a second time.
     bool networkReplicated = false;
+    bool networkMapObject = false;
     std::uint8_t networkSlotMask = 0U;
     std::uint32_t networkProjectileId = 0U;
     std::vector<Vec3> networkCoordinates{};
@@ -245,6 +248,15 @@ struct ReplicatedBonus
     std::size_t bonus = RacerRuntime::invalidWeapon;
     BonusKind kind = BonusKind::Unknown;
     float value = 0.0F;
+};
+
+struct ReplicatedMineContact
+{
+    std::size_t racer = RacerRuntime::invalidWeapon;
+    std::size_t projectileOwner = RacerRuntime::invalidWeapon;
+    std::uint32_t projectileId = 0U;
+    Vec3 point;
+    bool mapProjectile = false;
 };
 
 struct ReplicatedRaceResult
@@ -302,6 +314,8 @@ struct MineRuntime
     float impulseSpeed = 0.0F;
     float maximumLife = -1.0F;
     std::uint32_t type = 11U;
+    std::uint32_t networkProjectileId = 0U;
+    std::size_t networkPendingContact = RacerRuntime::invalidWeapon;
     // Weapon-created mines retain their source car pointer during the
     // 0.25-second MineUpdate arming window.  AutoProj fragments do not.
     bool linkedToOwner = true;
@@ -381,8 +395,14 @@ public:
         const r3d::physics::VehicleState& vehicle,
         bool synchronizeState = false, float targetLife = 0.0F,
         bool death = false);
+    NetworkDamageResult applyNetworkMapObjectDamage(
+        std::uint32_t targetObjectId, std::size_t attacker,
+        float value, DamageType damageType,
+        bool synchronizeState = false, float targetLife = 0.0F,
+        bool death = false);
     void queueNetworkShot(ReplicatedShot shot);
     void queueNetworkBonus(ReplicatedBonus bonus);
+    void queueNetworkMineContact(ReplicatedMineContact contact);
     void update(float seconds,
                 const std::vector<r3d::physics::VehicleState>& vehicles,
                 const RaceControl& humanControl);
@@ -396,7 +416,14 @@ public:
     const std::vector<RacerRuntime>& racers() const noexcept;
     Vec3 mapPosition(std::size_t racer) const noexcept;
     const std::vector<bool>& decorationActive() const noexcept;
+    const std::vector<float>& decorationLife() const noexcept;
     const std::vector<bool>& bonusActive() const noexcept;
+    std::size_t racerForMapObjectId(
+        std::uint32_t mapObjectId) const noexcept;
+    std::size_t decorationForMapObjectId(
+        std::uint32_t mapObjectId) const noexcept;
+    std::size_t bonusForMapObjectId(
+        std::uint32_t mapObjectId) const noexcept;
     const std::vector<RaceEvent>& events() const noexcept;
     const std::vector<RaceEffect>& effects() const noexcept;
     const std::vector<MineRuntime>& mines() const noexcept;
@@ -502,6 +529,10 @@ private:
         Vec3* contactPoint = nullptr);
     bool damageDecoration(std::size_t instance, float damage,
                           std::size_t attacker);
+    NetworkDamageResult applyDecorationDamageInternal(
+        std::size_t instance, float damage, std::size_t attacker,
+        DamageType damageType, bool synchronizeState,
+        float targetLife, bool death, bool networkReplicated);
     void updateAchievements(float seconds);
     void completeAchievement(std::size_t achievement);
     void completeRemainingRacers(
@@ -524,6 +555,7 @@ private:
     std::vector<bool> decorationActive_;
     std::vector<float> decorationLife_;
     std::vector<bool> bonusActive_;
+    std::vector<std::size_t> bonusNetworkPendingContact_;
     std::vector<std::array<float, PlayerProfile::weaponSlotCount>>
         weaponCooldown_;
     std::vector<float> mineCooldown_;
@@ -575,6 +607,7 @@ private:
     std::vector<AngularVelocityRequest> angularVelocityRequests_;
     std::vector<ReplicatedShot> pendingNetworkShots_;
     std::vector<ReplicatedBonus> pendingNetworkBonuses_;
+    std::vector<ReplicatedMineContact> pendingNetworkMineContacts_;
     PlayerProfile initialPlayerProfile_;
     std::uint32_t initialAchievementPoints_ = 0;
     std::map<std::string, std::uint32_t>

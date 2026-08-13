@@ -450,12 +450,36 @@ bool OriginalNetworkSession::sendLocalMineContactPlayer(
     return true;
 }
 
+bool OriginalNetworkSession::sendOwnedPlayerMineContactPlayer(
+    std::uint32_t modelId, std::uint32_t projectileOwnerModelId,
+    std::uint32_t projectileId,
+    const std::array<float, 3>& point, std::string& error)
+{
+    if (!impl_->models.sendOwnedPlayerMineContactPlayer(
+            modelId, projectileOwnerModelId, projectileId, point,
+            error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
 bool OriginalNetworkSession::sendLocalMineContactMap(
     std::uint32_t projectileObjectId,
     const std::array<float, 3>& point, std::string& error)
 {
     if (!impl_->models.sendLocalMineContactMap(
             projectileObjectId, point, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::sendOwnedPlayerMineContactMap(
+    std::uint32_t modelId, std::uint32_t projectileObjectId,
+    const std::array<float, 3>& point, std::string& error)
+{
+    if (!impl_->models.sendOwnedPlayerMineContactMap(
+            modelId, projectileObjectId, point, error))
         return false;
     impl_->refreshModels();
     return true;

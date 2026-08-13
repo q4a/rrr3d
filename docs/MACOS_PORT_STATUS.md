@@ -1267,3 +1267,32 @@ runtime. Release hardening
 - Race-session regression проверяет deferred/authoritative damage, точный
   targetLife, отсутствие AI input у remote human, сериализацию/replay
   projectile origin и сетевой pickup lifecycle.
+
+### Source MapObj identity / Damage2 / MineContact follow-up
+
+- Удалён временный сетевой адаптер `bonusIndex + 1`. Перенесён исходный
+  `Map::MapObjList::InsertItem`: единый ID растёт в порядке категорий
+  `ctEffects, ctDecoration, ctTrack, ctWeapon, ctCar, ctWaypoint, ctBonus`.
+  На исходной `World1/map1` это даёт decoration `1..234`, track `235..286`,
+  bonus `287..293` и первый car ID `294`; resource smoke фиксирует эти
+  значения непосредственно из оригинального `r3dMap`.
+- `NetPlayer::Shot` теперь передаёт MapObj ID цели-машины, а
+  `OnTakeBonus` разрешает глобальный MapObj ID обратно в оригинальный bonus.
+  Индексы локальных renderer/runtime массивов больше не выходят в wire
+  protocol.
+- Подключён активный `Logic::Damage -> NetRace::Damage2` для разрушаемых
+  `ctDecoration`: клиент посылает запрос без локального изменения, хост
+  вычисляет точные `targetLife/death`, остальные peer применяют их без
+  повторного reflector/damage и в тот же кадр отключают collision body и
+  создают исходные destruction-list fragments.
+- Перенесён порядок `Logic::MineContact -> NetPlayer::OnMineContact1/2`.
+  Контакт публикует владелец поражённой машины; placed mine идентифицируется
+  парой owner-model/projectile-id, map mine — глобальным MapObj ID. Взрыв,
+  вертикальный impulse, death effect и последующий host-authoritative
+  `Damage1` выполняются только после надёжного RPC, без раннего локального
+  уничтожения и повторных contact packets.
+- Race-session regression проверяет MapObj Damage2 host/client state,
+  target-owned MineContact request и replay; три NetLib CTest проходят.
+- TCP acceptor сохраняет Windows-поведение немедленного повторного запуска
+  хоста через `reuse_address`; macOS `TIME_WAIT` больше не превращает второй
+  CreateHost/resource-test в ложный `Address already in use`.

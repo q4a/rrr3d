@@ -276,6 +276,12 @@ int main()
                 hostModelId, 9U, {7.0F, 8.0F, 9.0F}, error) ||
             !clientModels.sendLocalMineContactMap(
                 91U, {10.0F, 11.0F, 12.0F}, error) ||
+            !serverModels.sendOwnedPlayerMineContactPlayer(
+                hostModelId, clientModelId, 19U,
+                {13.0F, 14.0F, 15.0F}, error) ||
+            !serverModels.sendOwnedPlayerMineContactMap(
+                hostModelId, 92U,
+                {16.0F, 17.0F, 18.0F}, error) ||
             !clientModels.pushLine("Привет Motor Rock", error) ||
             !clientModels.setLocalPlayerFinished(true, error) ||
             !serverModels.sendPlayerDamage(
@@ -330,6 +336,20 @@ int main()
                     [](const NetworkEvent& event) {
                         return !event.flag && event.target == 91U;
                     });
+                const bool ownedPlayerMine = hasEvent(
+                    clientState2, NetworkEventKind::MineContact,
+                    [&](const NetworkEvent& event) {
+                        return event.playerModelId == hostModelId &&
+                               event.flag &&
+                               event.target == clientModelId &&
+                               event.intValue == 19;
+                    });
+                const bool ownedMapMine = hasEvent(
+                    clientState2, NetworkEventKind::MineContact,
+                    [&](const NetworkEvent& event) {
+                        return event.playerModelId == hostModelId &&
+                               !event.flag && event.target == 92U;
+                    });
                 const bool chat = hasEvent(
                     serverState, NetworkEventKind::ChatLine,
                     [](const NetworkEvent& event) {
@@ -349,7 +369,8 @@ int main()
                         return event.target == 123U && event.flag;
                     });
                 return finished != nullptr && finished->raceFinish &&
-                       shot && bonus && playerMine && mapMine && chat &&
+                       shot && bonus && playerMine && mapMine &&
+                       ownedPlayerMine && ownedMapMine && chat &&
                        playerDamage && mapDamage;
             }, clock, 4000U))
             return 14;

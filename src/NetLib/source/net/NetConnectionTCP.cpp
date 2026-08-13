@@ -21,6 +21,10 @@ void NetAcceptorTCP::Listen(const Endpoint& endpoint)
 	_isOpen = true;
 
 	_acceptor.open(tcp::v4());
+	// The Windows listener can be restarted immediately after a race/server
+	// closes.  On macOS a just-closed TCP endpoint otherwise remains blocked
+	// by TIME_WAIT, making the next CreateHost fail with EADDRINUSE.
+	_acceptor.set_option(tcp::acceptor::reuse_address(true));
 	_acceptor.bind(tcp::endpoint(tcp::v4(), endpoint.port));
 	_acceptor.listen();
 }
