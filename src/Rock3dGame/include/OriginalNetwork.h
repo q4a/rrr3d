@@ -24,6 +24,17 @@ enum class SessionState
     Failed,
 };
 
+// The Windows UI has three distinct failure callbacks.  Keep that source
+// distinction at the portable session boundary instead of forcing the menu
+// to infer it from an operating-system error number.
+enum class SessionFailure
+{
+    None,
+    HostDisconnected,
+    ConnectionFailed,
+    Critical,
+};
+
 struct Endpoint
 {
     std::string address;
@@ -41,6 +52,7 @@ struct SessionSnapshot
     std::vector<std::string> adapterAddresses;
     std::vector<Endpoint> discoveredHosts;
     std::uint32_t peerCount = 0U;
+    SessionFailure failure = SessionFailure::None;
     std::uint32_t lastError = 0U;
     std::string lastErrorMessage;
     NetworkModelSnapshot models;

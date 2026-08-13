@@ -37,13 +37,15 @@ public:
 
     void clearError()
     {
+        value.failure = SessionFailure::None;
         value.lastError = 0U;
         value.lastErrorMessage.clear();
     }
 
-    void fail(std::uint32_t error)
+    void fail(std::uint32_t error, SessionFailure failure)
     {
         value.state = SessionState::Failed;
+        value.failure = failure;
         value.lastError = error;
         value.lastErrorMessage = errorMessage(error);
         if (value.lastErrorMessage.empty())
@@ -69,6 +71,8 @@ public:
         if (service.isClient())
         {
             value.state = SessionState::Failed;
+            value.failure = SessionFailure::HostDisconnected;
+            value.lastError = 0U;
             value.lastErrorMessage = "host disconnected";
         }
         changed();
@@ -76,7 +80,7 @@ public:
 
     void OnConnectionFailed(net::INetConnection*, unsigned error) override
     {
-        fail(error);
+        fail(error, SessionFailure::ConnectionFailed);
     }
 
     void OnPingComplete() override
@@ -87,7 +91,7 @@ public:
 
     void OnFailed(unsigned error) override
     {
-        fail(error);
+        fail(error, SessionFailure::Critical);
     }
 
     void refreshAdapters()
@@ -254,13 +258,13 @@ bool OriginalNetworkSession::createHost(std::string& error)
     if (!impl_->service.isServer())
     {
         error = "NetLib did not create the LAN server";
-        impl_->fail(0U);
+        impl_->fail(0U, SessionFailure::Critical);
         return false;
     }
     if (!impl_->models.createHostRace(error))
     {
         impl_->service.Close();
-        impl_->fail(0U);
+        impl_->fail(0U, SessionFailure::Critical);
         return false;
     }
     impl_->value.state = SessionState::Hosting;
@@ -647,7 +651,7 @@ bool OriginalNetworkSession::connect(
             net::Endpoint(endpoint.address, port), nullptr))
     {
         error = "NetLib rejected the host endpoint";
-        impl_->fail(0U);
+        impl_->fail(0U, SessionFailure::ConnectionFailed);
         return false;
     }
     impl_->value.state = SessionState::Connecting;

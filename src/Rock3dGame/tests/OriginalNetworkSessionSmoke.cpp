@@ -55,10 +55,41 @@ int main()
     }
 
     session.close();
+    if (session.snapshot().failure != SessionFailure::None)
+        return 8;
+
+    // MainMenu::OnConnectionFailed is asynchronous in the original code.
+    // Connecting to the source port immediately after closing our listener
+    // gives the portable callback bridge the same deterministic refusal.
+    if (!session.connect({"127.0.0.1", defaultPort}, error))
+    {
+        std::cerr << "refused connection did not start: " << error << '\n';
+        return 9;
+    }
+    for (std::uint32_t attempt = 0U; attempt < 200U; ++attempt)
+    {
+        session.process(attempt + 100U);
+        state = session.snapshot();
+        if (state.state == SessionState::Failed)
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    if (state.state != SessionState::Failed ||
+        state.failure != SessionFailure::ConnectionFailed ||
+        state.lastErrorMessage.empty())
+    {
+        std::cerr << "connection failure state=" << stateName(state.state)
+                  << " message=" << state.lastErrorMessage << '\n';
+        return 10;
+    }
+
+    session.close();
+    if (session.snapshot().failure != SessionFailure::None)
+        return 11;
     session.finalize();
     if (session.initialized() ||
         session.snapshot().state != SessionState::Stopped)
-        return 8;
+        return 12;
 
     std::cout << "Original NetGame lifecycle smoke passed on port "
               << defaultPort << '\n';

@@ -15,8 +15,15 @@ behavior, not a replacement multiplayer mechanic.
 - `ServerTypeFrame` exposes the original local-server branch.
 - `ClientTypeFrame` exposes LAN broadcast discovery and manual IPv4 entry.
 - `NetBrowserFrame` shows real `endpointList()` results and connects through
-  `NetService::Connect`; connection/refusal/disconnect callbacks update the
-  source hint state.
+  `NetService::Connect`. The non-dismissable `svHintPleaseWait` remains until
+  the replicated owner `NetPlayer` arrives or a source failure callback ends
+  the operation.
+- `MainMenu::OnConnectionFailed` and its pre-match disconnect branch now hide
+  that loading message and display `svHintHostConnectionFailed`.
+  `Menu::OnDisconnectedPlayer` distinguishes loss of the host during a match,
+  pauses the race and displays `svHintDisconnect`; `Menu::OnFailed` uses
+  `svCriticalNetError`. Confirming either in-match failure executes the
+  original `MyDisconnectEvent` transition through `ExitRace`/`ExitMatch`.
 - Leaving browser/IP closes the connection; leaving `NetworkFrame` finalizes
   NetLib, matching the Windows menu ownership boundary.
 
@@ -74,13 +81,14 @@ The non-rendering regressions `rrr3d_original_network_session_smoke`,
 `rrr3d_original_network_models_smoke` and
 `rrr3d_original_user_chat_smoke` verify
 initialization, adapter enumeration, LAN search/cancel, source-port hosting,
+asynchronous connection refusal classification, error reset,
 close/finalization, all eight host-option RPCs and their client gate, model
 RPC, remote and local-host gamer/color conflicts with authoritative rollback,
 generated identity selection, same-value gamer confirmation, host-side peer
 removal, Cyrillic chat wire format and the source chat
 history/fade model. The
-Metal regressions exercise all five source LAN menu frames and the chat
-overlay in a live race:
+Metal regressions exercise all five source LAN menu frames, the asynchronous
+loading/failure dialog lifecycle and the chat overlay in a live race:
 
 ```bash
 cmake --preset macos-arm64-m9

@@ -1394,3 +1394,22 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   в `svHintPleaseWait`.
 - Двухсторонний loopback фиксирует автоматически выбранный следующий gamer,
   первую свободную source-палитру и успешный same-value gamer round-trip.
+
+### Source network failure lifecycle follow-up
+
+- `OriginalNetworkSession` больше не схлопывает три Windows callback в один
+  безымянный `Failed`: snapshot различает `OnConnectionFailed`, отключение
+  host-owner и критический `OnFailed`; `Close` очищает как OS error, так и
+  тип причины.
+- LAN browser и ручной IP показывают исходный недоступный для закрытия
+  `svHintPleaseWait` на время асинхронного connect. Создание owner `NetPlayer`
+  снимает его через `MainMenu::OnConnectedPlayer`; отказ/раннее отключение
+  заменяет его на `svHintHostConnectionFailed`.
+- Потеря хоста в RaceMenu/HUD использует `svHintDisconnect`, а критическая
+  ошибка — `svCriticalNetError`. Гонка ставится на паузу; подтверждение
+  повторяет `Menu::MyDisconnectEvent`: снимает паузу, завершает race/match,
+  закрывает NetLib, очищает replicated state и возвращает MainMenu.
+- После failure portable loop больше не публикует player/options events в уже
+  закрывающийся transport. Session regression проверяет реальный
+  asynchronous connection refusal, а 330-кадровый Metal smoke — wait-dialog,
+  source failure hint и финализацию.

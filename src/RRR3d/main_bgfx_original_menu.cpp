@@ -373,7 +373,7 @@ std::optional<Options> parseOptions(int argc, char** argv)
         {
             options.networkMenuSmokeTest = true;
             if (options.smokeFrames == 0)
-                options.smokeFrames = 270;
+                options.smokeFrames = 330;
             continue;
         }
 #endif
@@ -3968,6 +3968,14 @@ int main(int argc, char** argv)
     r3d::game::originalnetwork::SessionSnapshot networkSnapshot;
     std::uint64_t renderedNetworkRevision =
         std::numeric_limits<std::uint64_t>::max();
+    std::uint64_t handledNetworkFailureRevision = 0U;
+    enum class NetworkFailureDialogAction
+    {
+        None,
+        ExitMatch,
+    };
+    NetworkFailureDialogAction networkFailureDialogAction =
+        NetworkFailureDialogAction::None;
     std::string networkIpInput = "_";
     bool networkHostRequested = false;
     bool networkMatchStarted = false;
@@ -4010,6 +4018,7 @@ int main(int argc, char** argv)
     bool networkBrowserObserved = !options->networkMenuSmokeTest;
     bool networkIpObserved = !options->networkMenuSmokeTest;
     bool networkHostReadyGateObserved = !options->networkMenuSmokeTest;
+    bool networkFailureDialogObserved = !options->networkMenuSmokeTest;
     std::uint32_t networkSmokeStep = 0U;
     std::uint32_t networkSmokeNextFrame = 1U;
 
@@ -4116,6 +4125,9 @@ int main(int argc, char** argv)
         }
         renderedNetworkRevision =
             std::numeric_limits<std::uint64_t>::max();
+        handledNetworkFailureRevision = 0U;
+        networkFailureDialogAction =
+            NetworkFailureDialogAction::None;
         refreshNetworkRuntimePages();
         std::cout << "Original NetGame initialized: port "
                   << r3d::game::originalnetwork::defaultPort
@@ -4489,6 +4501,9 @@ int main(int argc, char** argv)
             networkSnapshot = {};
             renderedNetworkRevision =
                 std::numeric_limits<std::uint64_t>::max();
+            handledNetworkFailureRevision = 0U;
+            networkFailureDialogAction =
+                NetworkFailureDialogAction::None;
         }
 #endif
 #ifdef RRR3D_PHYSICS
@@ -6342,6 +6357,113 @@ int main(int argc, char** argv)
         infoDialog.ok = {};
         infoDialog.dismissable = false;
     };
+#ifdef RRR3D_NETWORK
+    auto exitFailedNetworkMatch = [&]() {
+        networkFailureDialogAction =
+            NetworkFailureDialogAction::None;
+        if (inRace)
+            leaveCurrentRace();
+        else
+        {
+            raceSession.setPaused(false);
+            raceLoadingActive = false;
+            clearRaceControls();
+            saveRaceProfile();
+        }
+        raceLoadingActive = false;
+        clearNetworkRacePlayerVisuals();
+        networkSession.close();
+        networkSession.finalize();
+        networkHostRequested = false;
+        networkMatchStarted = false;
+        networkRaceStarted = false;
+        networkClientMatchEntered = false;
+        networkLocalCarSelected = true;
+        networkHostRaceGoSeconds = -1.0F;
+        networkAppliedRaceGoStage = -1;
+        networkLocalReadyPublished = false;
+        networkLocalGoWaitPublished = false;
+        networkLocalFinishPublished = false;
+        networkHostFinishTimerStarted = false;
+        networkRaceExitApplied = false;
+        networkLastGameplayEventSequence = 0U;
+        networkLastShotEventSequence = 0U;
+        networkLastBonusEventSequence = 0U;
+        networkLastMineEventSequence = 0U;
+        networkLastChatEventSequence = 0U;
+        networkLastIdentityEventSequence = 0U;
+        networkPublishedPlayer.reset();
+        networkRaceModelOrder.clear();
+        networkWeatherOverride.reset();
+        networkPendingGamerId.reset();
+        networkSnapshot = {};
+        renderedNetworkRevision =
+            std::numeric_limits<std::uint64_t>::max();
+        handledNetworkFailureRevision = 0U;
+        if (!restoreChampionshipProfile())
+        {
+            runtimeSmokeFailed = true;
+            running = false;
+            return;
+        }
+        menuStack = {MenuScreen::Main};
+        menuSelection = 0U;
+        refreshSharedMenuAvailability(MenuScreen::Main);
+        std::cout
+            << "Original Menu::MyDisconnectEvent -> ExitRace/ExitMatch\n";
+    };
+    auto presentNetworkFailure = [&]() {
+        using SessionFailure =
+            r3d::game::originalnetwork::SessionFailure;
+        using SessionState =
+            r3d::game::originalnetwork::SessionState;
+        if (networkSnapshot.state != SessionState::Failed ||
+            networkSnapshot.revision == handledNetworkFailureRevision)
+        {
+            return;
+        }
+        handledNetworkFailureRevision = networkSnapshot.revision;
+        const bool matchActive =
+            networkMatchStarted || networkClientMatchEntered ||
+            inRace || raceLoadingActive;
+        const bool critical =
+            networkSnapshot.failure == SessionFailure::Critical;
+        const bool lostActiveHost =
+            networkSnapshot.failure ==
+                SessionFailure::HostDisconnected &&
+            matchActive;
+
+        hideInfoDialog();
+        networkFailureDialogAction =
+            critical || lostActiveHost
+                ? NetworkFailureDialogAction::ExitMatch
+                : NetworkFailureDialogAction::None;
+        if (networkFailureDialogAction ==
+            NetworkFailureDialogAction::ExitMatch)
+        {
+            raceSession.setPaused(true);
+            clearRaceControls();
+        }
+        const auto message =
+            critical
+                ? localized("svCriticalNetError")
+                : (lostActiveHost
+                       ? localized("svHintDisconnect")
+                       : localized("svHintHostConnectionFailed"));
+        showInfoDialog(
+            localized("svWarning"), message, localized("svOk"),
+            menu::virtualWidth * 0.5F,
+            menu::virtualHeight * 0.5F);
+        networkFailureDialogObserved =
+            infoDialog.visible && infoDialog.dismissable;
+        std::cout << "Original network failure callback: failure="
+                  << static_cast<int>(networkSnapshot.failure)
+                  << ", exitMatch="
+                  << (networkFailureDialogAction ==
+                      NetworkFailureDialogAction::ExitMatch)
+                  << '\n';
+    };
+#endif
     auto activateRaceMenuStart = [&]() {
 #ifdef RRR3D_NETWORK
         if (networkMatchStarted)
@@ -7990,6 +8112,9 @@ int main(int argc, char** argv)
                 ? 0U
                 : networkSnapshot.models.events.back().sequence;
         networkPendingGamerId.reset();
+        hideInfoDialog();
+        networkFailureDialogAction =
+            NetworkFailureDialogAction::None;
         menuStack = {MenuScreen::Main};
         if (owner->car.empty())
             showOriginalGamers();
@@ -9163,39 +9288,44 @@ int main(int argc, char** argv)
                 static_cast<std::uint32_t>(SDL_GetTicks()));
             refreshNetworkRuntimePages();
 #ifdef RRR3D_PHYSICS
-            if (!enterConnectedNetworkMatch())
+            presentNetworkFailure();
+            if (networkSnapshot.state !=
+                r3d::game::originalnetwork::SessionState::Failed)
             {
-                runtimeSmokeFailed = true;
-                running = false;
+                if (!enterConnectedNetworkMatch())
+                {
+                    runtimeSmokeFailed = true;
+                    running = false;
+                }
+                synchronizeReplicatedNetworkOptions();
+                processNetworkIdentityEvents();
+                if (networkClientMatchEntered &&
+                    networkSnapshot.models.raceActive &&
+                    !networkRaceStarted && !inRace &&
+                    !raceLoadingActive)
+                {
+                    networkRaceStarted = true;
+                    networkLocalReadyPublished = false;
+                    networkLocalGoWaitPublished = false;
+                    networkLocalFinishPublished = false;
+                    networkHostFinishTimerStarted = false;
+                    networkRaceExitApplied = false;
+                    networkPublishedPlayer.reset();
+                    startCurrentRace();
+                }
+                if (networkMatchStarted && !inRace &&
+                    !publishLocalNetworkPlayer())
+                {
+                    runtimeSmokeFailed = true;
+                    running = false;
+                }
+                refreshNetworkRacePlayerVisuals();
             }
-            synchronizeReplicatedNetworkOptions();
-            processNetworkIdentityEvents();
-            if (networkClientMatchEntered &&
-                networkSnapshot.models.raceActive &&
-                !networkRaceStarted && !inRace &&
-                !raceLoadingActive)
-            {
-                networkRaceStarted = true;
-                networkLocalReadyPublished = false;
-                networkLocalGoWaitPublished = false;
-                networkLocalFinishPublished = false;
-                networkHostFinishTimerStarted = false;
-                networkRaceExitApplied = false;
-                networkPublishedPlayer.reset();
-                startCurrentRace();
-            }
-            if (networkMatchStarted && !inRace &&
-                !publishLocalNetworkPlayer())
-            {
-                runtimeSmokeFailed = true;
-                running = false;
-            }
-            refreshNetworkRacePlayerVisuals();
 #endif
         }
         if (options->networkMenuSmokeTest &&
             renderedFrames >= networkSmokeNextFrame &&
-            networkSmokeStep < 8U)
+            networkSmokeStep < 10U)
         {
             std::string error;
             switch (networkSmokeStep)
@@ -9278,6 +9408,51 @@ int main(int argc, char** argv)
                 menuSelection = 0U;
 #else
                 networkHostReadyGateObserved = true;
+#endif
+                break;
+            case 8U:
+#ifdef RRR3D_PHYSICS
+                if (!initializeNetwork())
+                {
+                    runtimeSmokeFailed = true;
+                    break;
+                }
+                showLoadingInfoDialog();
+                if (!networkSession.connect(
+                        {"127.0.0.1",
+                         r3d::game::originalnetwork::defaultPort},
+                        error))
+                {
+                    std::cerr
+                        << "Network menu smoke refused-connect start: "
+                        << error << '\n';
+                }
+#endif
+                break;
+            case 9U:
+#ifdef RRR3D_PHYSICS
+                networkFailureDialogObserved =
+                    networkFailureDialogObserved &&
+                    networkSnapshot.state ==
+                        r3d::game::originalnetwork::
+                            SessionState::Failed &&
+                    networkSnapshot.failure ==
+                        r3d::game::originalnetwork::
+                            SessionFailure::ConnectionFailed &&
+                    infoDialog.visible && infoDialog.dismissable;
+                hideInfoDialog();
+                networkFailureDialogAction =
+                    NetworkFailureDialogAction::None;
+                networkSession.close();
+                networkSession.finalize();
+                networkSnapshot = {};
+                renderedNetworkRevision =
+                    std::numeric_limits<std::uint64_t>::max();
+                handledNetworkFailureRevision = 0U;
+                menuStack = {MenuScreen::Main};
+                menuSelection = 0U;
+#else
+                networkFailureDialogObserved = true;
 #endif
                 break;
             default:
@@ -11441,7 +11616,18 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
                         playMainButtonClick();
 #endif
+#ifdef RRR3D_NETWORK
+                        const auto networkAction =
+                            networkFailureDialogAction;
+#endif
                         hideInfoDialog();
+#ifdef RRR3D_NETWORK
+                        if (networkAction ==
+                            NetworkFailureDialogAction::ExitMatch)
+                        {
+                            exitFailedNetworkMatch();
+                        }
+#endif
                     }
                     continue;
                 }
@@ -13234,6 +13420,13 @@ int main(int argc, char** argv)
                                 << "Original NetGame::Connect failed: "
                                 << error << '\n';
                         }
+                        else
+                        {
+                            // MainMenu keeps its non-dismissable wait
+                            // message until OnConnectedPlayer or a failure
+                            // callback resolves the asynchronous connect.
+                            showLoadingInfoDialog();
+                        }
                         renderedNetworkRevision =
                             std::numeric_limits<std::uint64_t>::max();
                         refreshNetworkRuntimePages();
@@ -13254,6 +13447,10 @@ int main(int argc, char** argv)
                             std::cerr
                                 << "Original NetGame::Connect(IP) failed: "
                                 << error << '\n';
+                        }
+                        else
+                        {
+                            showLoadingInfoDialog();
                         }
                         renderedNetworkRevision =
                             std::numeric_limits<std::uint64_t>::max();
@@ -13370,6 +13567,9 @@ int main(int argc, char** argv)
                             networkSnapshot = {};
                             renderedNetworkRevision =
                                 std::numeric_limits<std::uint64_t>::max();
+                            handledNetworkFailureRevision = 0U;
+                            networkFailureDialogAction =
+                                NetworkFailureDialogAction::None;
                         }
 #endif
                         if (!restoreChampionshipProfile())
@@ -19326,7 +19526,8 @@ int main(int argc, char** argv)
                     !networkBrowserObserved ||
                     !networkIpObserved ||
                     !networkHostReadyGateObserved ||
-                    networkSmokeStep != 8U ||
+                    !networkFailureDialogObserved ||
+                    networkSmokeStep != 10U ||
                     networkSession.initialized() || !returnedToMain)
                 {
                     std::cerr
@@ -19340,6 +19541,8 @@ int main(int argc, char** argv)
                         << ", ip=" << networkIpObserved
                         << ", hostReadyGate="
                         << networkHostReadyGateObserved
+                        << ", failureDialog="
+                        << networkFailureDialogObserved
                         << ", steps=" << networkSmokeStep
                         << ", finalized="
                         << !networkSession.initialized()
@@ -19354,7 +19557,8 @@ int main(int argc, char** argv)
                         << " frames: NetworkFrame, ServerTypeFrame, "
                            "ClientTypeFrame, LAN browser, manual IP, "
                            "adapter list, NetGame lifecycle and host "
-                           "AllPlayersReady gate verified\n";
+                           "AllPlayersReady gate plus source connection-"
+                           "failure dialog verified\n";
                 }
             }
 #endif

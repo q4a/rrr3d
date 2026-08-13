@@ -928,9 +928,10 @@ Network, video и Steam явно выключены.
 2. Проверить полный двухмашинный LAN race вручную. Class ID 1/2,
    state/gameplay/finish/chat, gamer/color conflict rollback, host options,
    planet authority и
-   `RaceMainFrame` ready/start warning/kick/leaver UI уже связаны с active
-   portable race; следующий исходный разрыв — прочие legacy model/event
-   listeners вне фактически подключённых branches.
+   `RaceMainFrame` ready/start warning/kick/leaver UI и раздельные
+   `OnConnectionFailed`/host-disconnect/`OnFailed` dialog/exit branches уже
+   связаны с active portable race; следующий исходный разрыв — прочие legacy
+   model/event listeners вне фактически подключённых branches.
 3. Steam integration, если требуется целевая дистрибуция.
 
 ## Критерий закрытия пункта
