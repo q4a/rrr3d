@@ -98,7 +98,9 @@ public:
               float elapsedSeconds, std::int32_t countdownStage,
               bool reflectionPass = false,
               bool omitEnvironmentSurface = false,
-              bool refractionPass = false);
+              bool refractionPass = false,
+              bool environmentReflectionPass = false,
+              const r3d::renderer::Camera* cullingCamera = nullptr);
     void renderFrame(
         r3d::renderer::GraphicsDevice& device,
         r3d::renderer::Shader sceneShader,

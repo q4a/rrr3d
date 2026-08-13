@@ -868,6 +868,47 @@ WorldBounds objectBounds(
     return result;
 }
 
+bool boundsVisible(
+    const WorldBounds& bounds,
+    const std::array<float, 16>& viewProjectionMatrix,
+    bool homogeneousDepth) noexcept
+{
+    if (!bounds.valid)
+        return true;
+    const auto& m = viewProjectionMatrix;
+    // ActorManager::Culling tests an actor AABB against the active scene
+    // frustum before OctreeRender submits it. Use the positive vertex of the
+    // world-space AABB for the same conservative plane test.
+    auto outside = [&](float a, float b, float c, float d) {
+        const float x = a >= 0.0F ? bounds.maximum.x : bounds.minimum.x;
+        const float y = b >= 0.0F ? bounds.maximum.y : bounds.minimum.y;
+        const float z = c >= 0.0F ? bounds.maximum.z : bounds.minimum.z;
+        return a * x + b * y + c * z + d < -0.01F;
+    };
+    const auto planeOutside = [&](std::size_t row, float sign) {
+        return outside(
+            m[3] + sign * m[row],
+            m[7] + sign * m[4U + row],
+            m[11] + sign * m[8U + row],
+            m[15] + sign * m[12U + row]);
+    };
+    if (planeOutside(0U, 1.0F) || planeOutside(0U, -1.0F) ||
+        planeOutside(1U, 1.0F) || planeOutside(1U, -1.0F))
+    {
+        return false;
+    }
+    if (homogeneousDepth)
+    {
+        if (planeOutside(2U, 1.0F))
+            return false;
+    }
+    else if (outside(m[2], m[6], m[10], m[14]))
+    {
+        return false;
+    }
+    return !planeOutside(2U, -1.0F);
+}
+
 struct GrassFieldGeometry
 {
     std::vector<StaticMeshVertex> vertices;
@@ -3086,7 +3127,8 @@ void OriginalRaceRenderer::draw(
         r3d::game::originalrace::ProjectileRuntime>& projectiles,
     float elapsedSeconds, std::int32_t countdownStage,
     bool reflectionPass,
-    bool omitEnvironmentSurface, bool refractionPass)
+    bool omitEnvironmentSurface, bool refractionPass,
+    bool environmentReflectionPass, const Camera* cullingCamera)
 {
     SceneLighting sceneLighting;
     const auto sourceSunRay = normalize(rotate(
@@ -3364,6 +3406,9 @@ void OriginalRaceRenderer::draw(
         bool hasTint = false;
     };
     std::vector<DeferredVisualDraw> deferredVisuals;
+    const auto cullingViewProjection =
+        cullingCamera != nullptr ? viewProjection(*cullingCamera)
+                                 : identityMatrix();
     auto drawObject = [&](const ObjectAsset& asset,
                           const std::vector<
                               r3d::game::originalrace::VisualNode>& nodes,
@@ -3376,6 +3421,13 @@ void OriginalRaceRenderer::draw(
                           const std::array<
                               std::array<float, 4>, 4>*
                               nodeTints = nullptr) {
+        if (cullingCamera != nullptr &&
+            !boundsVisible(
+                objectBounds(asset, nodes, parent),
+                cullingViewProjection, device.usesHomogeneousDepth()))
+        {
+            return false;
+        }
         const float animationSeconds =
             objectAnimationSeconds >= 0.0F
                 ? objectAnimationSeconds
@@ -3405,6 +3457,15 @@ void OriginalRaceRenderer::draw(
                 nodes[index].overridesGraphOrder
                     ? nodes[index].graphOrder
                     : graphOrder;
+            // Included gtEffect records are flattened into the owning
+            // ObjectDefinition by the portable loader, but remained separate
+            // actors without gpReflScene/gpReflWater in the source graph.
+            if (reflectionPass &&
+                nodeGraphOrder ==
+                    r3d::game::originalrace::GraphOrder::Effect)
+            {
+                continue;
+            }
             const auto world = compose(
                 parent,
                 sourceAnimatedNodeTransform(
@@ -3472,6 +3533,7 @@ void OriginalRaceRenderer::draw(
                      nodeTint != nullptr});
             }
         }
+        return true;
     };
     auto unitNoise = [](std::uint32_t seed) {
         seed ^= seed >> 16U;
@@ -4416,6 +4478,18 @@ void OriginalRaceRenderer::draw(
             float opacity = 1.0F,
             float emissionEndSeconds =
                 std::numeric_limits<float>::infinity()) {
+            // DataBase::AddToGraph gives gtEffect only gpColor. It never
+            // registers effect actors in either osViewCubeMap or
+            // osReflWater, so GraphManager does not render their geometry or
+            // advance their stateful particle systems for reflection passes.
+            // Replaying every wheel-smoke/trail emitter for six cube faces
+            // multiplied the CPU work as soon as all racers began moving.
+            if (reflectionPass &&
+                definition.graphOrder ==
+                    r3d::game::originalrace::GraphOrder::Effect)
+            {
+                return;
+            }
             // gpCullOpacity only makes an actor a RayUser after the
             // camera-to-player cast hits it.  ActorManager renders every
             // other actor through its normal graph-order/depth pass.
@@ -4428,10 +4502,13 @@ void OriginalRaceRenderer::draw(
                 recordName(definition.record) == "semaphore"
                     ? &semaphoreNodeTints
                     : nullptr;
-            drawObject(asset, definition.visualNodes, parent,
-                       definition.graphOrder, cullOpacityActor, opacity,
-                       nullptr, age, nodeTints);
-            if (!refractionPass &&
+            const bool actorVisible = drawObject(
+                asset, definition.visualNodes, parent,
+                definition.graphOrder, cullOpacityActor, opacity,
+                nullptr, age, nodeTints);
+            if (!actorVisible)
+                return;
+            if (!refractionPass && !reflectionPass &&
                 !definition.particleEmitters.empty())
             {
                 const float dx =
@@ -4542,6 +4619,10 @@ void OriginalRaceRenderer::draw(
         if (racer < racerRuntime.size() &&
             racerRuntime[racer].destroyed)
             continue;
+        // HumanPlayer disables gpReflScene on the source car. AI cars remain
+        // in the cube map, and every car remains eligible for gpReflWater.
+        if (environmentReflectionPass && race.racers[racer].human)
+            continue;
         const auto vehicleIndex = race.racers[racer].vehicle;
         if (vehicleIndex >= race.vehicles.size() ||
             racer >= vehicleBodies_.size())
@@ -4551,10 +4632,13 @@ void OriginalRaceRenderer::draw(
                 ? race.racers[racer].configuredVehicle
                 : race.vehicles[vehicleIndex];
         const auto& state = vehicles[racer];
-        drawObject(vehicleBodies_[racer],
-                   definition.bodyVisuals, state.body,
-                   r3d::game::originalrace::GraphOrder::Default,
-                   false, 1.0F, &race.racers[racer].color);
+        if (!drawObject(
+                vehicleBodies_[racer], definition.bodyVisuals, state.body,
+                r3d::game::originalrace::GraphOrder::Default,
+                false, 1.0F, &race.racers[racer].color))
+        {
+            continue;
+        }
         if (!refractionPass &&
             racer < vehicleTrackVisuals_.size() &&
             racer < vehicleTrackAnimationOffsets_.size())
@@ -5996,6 +6080,8 @@ void OriginalRaceRenderer::renderFrame(
     {
         for (std::size_t face = 0; face < environmentPasses.size(); ++face)
         {
+            const auto faceCamera =
+                environmentCamera(device, environmentCenter, face);
             RenderPassState environmentState;
             // Prevent feedback while the dynamic cube is being populated.
             // This matches InitRefl's source sky sampler before InitTrueRefl
@@ -6005,13 +6091,14 @@ void OriginalRaceRenderer::renderFrame(
             device.beginPass(
                 environmentPasses[face],
                 environmentReflectionTarget_.faces[face],
-                environmentCamera(device, environmentCenter, face),
+                faceCamera,
                 clearRgba, true, true);
             draw(device, sceneShader, race, vehicles, pipeline,
                  decorationActive, decorationFragments,
                  vehicleDeathFragments, bonusActive,
                  racerRuntime, effects, mines, projectiles,
-                 elapsedSeconds, countdownStage, true, true);
+                 elapsedSeconds, countdownStage, true, true, false, true,
+                 &faceCamera);
         }
     }
 
@@ -6034,7 +6121,8 @@ void OriginalRaceRenderer::renderFrame(
              decorationActive, decorationFragments,
              vehicleDeathFragments, bonusActive,
              racerRuntime, effects, mines, projectiles,
-             elapsedSeconds, countdownStage, true);
+             elapsedSeconds, countdownStage, true, false, false, false,
+             &reflectionCamera);
     }
 
     RenderPassState sceneState;
@@ -6100,7 +6188,7 @@ void OriginalRaceRenderer::renderFrame(
          vehicleDeathFragments, bonusActive,
          racerRuntime, effects, mines, projectiles, elapsedSeconds,
          countdownStage,
-         false, usesSceneDepthSurface);
+         false, usesSceneDepthSurface, false, false, &camera);
 
     Camera postCamera;
     postCamera.view = identityMatrix();
@@ -6149,7 +6237,7 @@ void OriginalRaceRenderer::renderFrame(
              vehicleDeathFragments, bonusActive,
              racerRuntime, effects, mines, projectiles,
              elapsedSeconds, countdownStage, false,
-             usesSceneDepthSurface, true);
+             usesSceneDepthSurface, true, false, &camera);
     }
 
     if (usesSceneDepthSurface)
