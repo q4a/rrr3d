@@ -4866,6 +4866,7 @@ int main(int argc, char** argv)
         !options->finishMenuSmokeTest;
     float finishAnimationSeconds = 0.0F;
     std::size_t finishVoiceIndex = 0U;
+    bool finishLastVoiceDispatched = false;
     std::uint32_t raceSmokeMenuStep = 0;
     std::uint32_t raceSmokeNextMenuFrame = 0;
     bool raceSmokeAccelerateQueued = false;
@@ -6041,6 +6042,7 @@ int main(int argc, char** argv)
         raceProgressSaved = false;
         finishMenuShown = false;
         finishVoiceIndex = 0U;
+        finishLastVoiceDispatched = false;
         raceVehicles.resize(physicsWorld->vehicleCount());
         for (std::size_t index = 0;
              index < physicsWorld->vehicleCount(); ++index)
@@ -9094,6 +9096,7 @@ int main(int argc, char** argv)
         finishMenuShown = true;
         finishAnimationSeconds = 0.0F;
         finishVoiceIndex = 0U;
+        finishLastVoiceDispatched = false;
         if (persistProgress)
             saveRaceProfile();
 #ifdef RRR3D_AUDIO
@@ -9208,6 +9211,7 @@ int main(int argc, char** argv)
         finishMenuShown = false;
         finishAnimationSeconds = 0.0F;
         finishVoiceIndex = 0U;
+        finishLastVoiceDispatched = false;
         const auto raceMenuPath = [&]() {
             return championshipMode
                        ? std::vector<MenuScreen>{
@@ -9321,15 +9325,16 @@ int main(int argc, char** argv)
             const_cast<std::vector<
                 r3d::game::originalrace::RacerRuntime>&>(
                 raceSession.racers());
-        const auto count = std::min<std::size_t>(
-            3U, smokeRacers.size());
+        const auto count = smokeRacers.size();
         for (std::size_t index = 0U; index < count; ++index)
         {
             auto& racer = smokeRacers[index];
             racer.finished = true;
             racer.place = static_cast<std::uint32_t>(index + 1U);
-            racer.rewardMoney = originalRace->rewardMoney[index];
-            racer.rewardPoints = originalRace->rewardPoints[index];
+            const auto reward = std::min(
+                index, originalRace->rewardMoney.size() - 1U);
+            racer.rewardMoney = originalRace->rewardMoney[reward];
+            racer.rewardPoints = originalRace->rewardPoints[reward];
             racer.pickedMoney = index == 0U ? 25U : 0U;
         }
         showFinishMenu(false);
@@ -13961,6 +13966,13 @@ int main(int argc, char** argv)
         previousFrameTicks = currentFrameTicks;
 #ifdef RRR3D_PHYSICS
         userChat.update(frameSeconds);
+#endif
+#ifdef RRR3D_AUDIO
+        // Windows GameMode::Commentator::OnProgress is active in every menu,
+        // not just while Race is being simulated.  Keeping one global tick
+        // lets multi-part and queued FinishMenu utterances reach their next
+        // stream after the race world has been left.
+        commentator.progress(frameSeconds, audioError);
 #endif
         if (sourceStartupActive)
         {
@@ -19118,6 +19130,47 @@ int main(int argc, char** argv)
                 boxDelay;
             if (finishAnimationSeconds >= totalDuration)
             {
+#ifdef RRR3D_AUDIO
+                // FinishMenu.cpp emits the first three place events as their
+                // boxes appear, then emits cPlayerFinishLast for the final
+                // Race::Result after the reveal if at least four racers took
+                // part.  The fourth event is deliberately not tied to a row.
+                if (!finishLastVoiceDispatched)
+                {
+                    const auto finishedCount = std::count_if(
+                        raceSession.racers().begin(),
+                        raceSession.racers().end(),
+                        [](const auto& racer) {
+                            return !racer.disconnected && racer.finished;
+                    });
+                    if (finishedCount >= 4)
+                    {
+                        std::size_t lastRacer =
+                            raceSession.racers().size();
+                        for (std::size_t racer = 0U;
+                             racer < raceSession.racers().size(); ++racer)
+                        {
+                            const auto& candidate =
+                                raceSession.racers()[racer];
+                            if (candidate.disconnected ||
+                                !candidate.finished)
+                                continue;
+                            if (lastRacer == raceSession.racers().size() ||
+                                candidate.place >
+                                    raceSession.racers()[lastRacer].place)
+                                lastRacer = racer;
+                        }
+                        if (lastRacer < raceSession.racers().size())
+                        {
+                            commentator.finishPlace(
+                                *originalRace, lastRacer,
+                                raceSession.racers()[lastRacer].place,
+                                audioError);
+                        }
+                    }
+                    finishLastVoiceDispatched = true;
+                }
+#endif
                 finishAnimationSeconds = totalDuration;
                 finishMenuFrameObserved =
                     !finishRows.empty() &&
@@ -20122,12 +20175,21 @@ int main(int argc, char** argv)
             else if (options->finishMenuSmokeTest)
             {
                 if (!finishMenuFrameObserved ||
-                    finishRows.size() != 3U)
+                    finishRows.size() != 3U
+#ifdef RRR3D_AUDIO
+                    || !finishLastVoiceDispatched
+#endif
+                )
                 {
                     std::cerr
                         << "Source FinishMenu renderer smoke failed: "
                         << "observed=" << finishMenuFrameObserved
-                        << ", rows=" << finishRows.size() << '\n';
+                        << ", rows=" << finishRows.size()
+#ifdef RRR3D_AUDIO
+                        << ", lastVoice="
+                        << finishLastVoiceDispatched
+#endif
+                        << '\n';
                     runtimeSmokeFailed = true;
                 }
                 else
@@ -20136,8 +20198,9 @@ int main(int argc, char** argv)
                         << "Source FinishMenu renderer smoke passed after "
                         << renderedFrames
                         << " frames: player frames, photos, cups, "
-                           "Money/Points, picked-money and alternating "
-                           "reveal verified without profile writes\n";
+                           "Money/Points, picked-money, alternating reveal, "
+                           "global commentator queue and last-place event "
+                           "verified without profile writes\n";
                 }
             }
 #endif

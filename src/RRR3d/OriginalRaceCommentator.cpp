@@ -358,18 +358,29 @@ void OriginalRaceCommentator::playNext(std::string& error)
     voice_ = audio_.play(sound, options, error);
 }
 
-void OriginalRaceCommentator::update(
-    const r3d::game::originalrace::Race& race,
-    const r3d::game::originalrace::OriginalRaceSession& session,
-    float seconds,
-    std::string& error)
+void OriginalRaceCommentator::progress(
+    float seconds, std::string& error)
 {
-    using namespace r3d::game::originalrace;
     if (!initialized_)
         return;
     const float elapsed = std::max(seconds, 0.0F);
     timeSeconds_ += elapsed;
     silenceSeconds_ += elapsed;
+    // The Windows Source3d report calls Commentator::OnStreamEnd, which
+    // immediately starts the next queued sound.  AudioBackend is polled, so
+    // do the equivalent once per application frame.
+    playNext(error);
+}
+
+void OriginalRaceCommentator::update(
+    const r3d::game::originalrace::Race& race,
+    const r3d::game::originalrace::OriginalRaceSession& session,
+    float,
+    std::string& error)
+{
+    using namespace r3d::game::originalrace;
+    if (!initialized_)
+        return;
     for (const auto& event : session.events())
     {
         std::string_view name;

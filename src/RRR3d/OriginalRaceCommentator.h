@@ -33,6 +33,10 @@ public:
     bool initialize(std::string_view style, std::string& error);
     void shutdown() noexcept;
     void reset();
+    // GameMode::Commentator is a registered game user in the Windows
+    // implementation, so its clock and end-of-stream queue keep advancing
+    // outside Race as well (notably while FinishMenu is visible).
+    void progress(float seconds, std::string& error);
     void update(
         const r3d::game::originalrace::Race& race,
         const r3d::game::originalrace::OriginalRaceSession& session,

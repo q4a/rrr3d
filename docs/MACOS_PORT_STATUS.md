@@ -926,6 +926,13 @@ SDL_AUDIO_DRIVER=dummy \
   photo/cup textures, Money/Points, picked-money и полную анимацию без записи
   профиля. Ручная проверка подтвердила итоговый кадр и Return-переход; найденная
   при ней склейка multiline CoreText label устранена отдельными line layers.
+- Исправлен жизненный цикл исходного `GameMode::Commentator`: его таймер и
+  очередь по окончании потока теперь обновляются каждый кадр, включая
+  `FinishMenu`, поэтому составные реплики и очередь мест не обрываются после
+  первого OGG. Перенесён отдельный `cPlayerFinishLast`, который Windows
+  отправляет после анимации трёх призовых строк для последнего результата.
+  Finish smoke теперь завершает весь исходный состав и проверяет отправку
+  этой четвёртой, не привязанной к видимой строке, реплики.
 - Generic Authors/Credits заменён исходным `FinalMenu.cpp`: чёрный фон,
   девять `GUI/Slides/slide1..9.dds`, секции `svCredits` с красными captions
   и светлыми body-lines, source root `vp.x - 250`, 107-second scroll и
