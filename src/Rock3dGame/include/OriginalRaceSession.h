@@ -321,6 +321,10 @@ public:
     void setEnableMineBug(bool enabled) noexcept;
     void setSpringBorders(bool enabled) noexcept;
     void setPaused(bool paused) noexcept;
+    // GameMode::GoRace is server-authoritative in a network match. Stage 0
+    // holds the red semaphore while peers load, stages 1..3 advance the
+    // countdown, and stage 4 releases vehicle control.
+    void synchronizeNetworkCountdown(std::int32_t stage) noexcept;
     void update(float seconds,
                 const std::vector<r3d::physics::VehicleState>& vehicles,
                 const RaceControl& humanControl);
@@ -443,6 +447,7 @@ private:
     float elapsedSeconds_ = 0.0F;
     float finishSecondsRemaining_ = -1.0F;
     int countdownDisplay_ = 3;
+    bool networkCountdownControlled_ = false;
     std::vector<RacerRuntime> racers_;
     std::vector<r3d::physics::VehicleInput> vehicleInputs_;
     std::vector<bool> decorationActive_;

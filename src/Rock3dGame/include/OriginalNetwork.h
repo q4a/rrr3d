@@ -1,5 +1,7 @@
 #pragma once
 
+#include "OriginalNetworkModels.h"
+
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -41,12 +43,13 @@ struct SessionSnapshot
     std::uint32_t peerCount = 0U;
     std::uint32_t lastError = 0U;
     std::string lastErrorMessage;
+    NetworkModelSnapshot models;
     std::uint64_t revision = 0U;
 };
 
-// Portable ownership/lifecycle boundary for the original Boost.Asio NetLib.
-// Race models deliberately remain outside this class: a TCP handshake is not
-// reported as a completed game match until NetRace/NetPlayer are available.
+// Portable ownership/lifecycle boundary for the original Boost.Asio NetLib
+// and its source-compatible NetRace/NetPlayer graph. A TCP handshake is not
+// reported as a completed match until those replicated models exist.
 class OriginalNetworkSession final
 {
 public:
@@ -65,6 +68,17 @@ public:
     bool createHost(std::string& error);
     bool connect(const Endpoint& endpoint, std::string& error);
     void close() noexcept;
+
+    bool startMatch(const NetworkMatchState& match,
+                    const NetworkPlayerState& localPlayer,
+                    std::string& error);
+    bool startRace(std::string& error);
+    bool setRaceGoStage(std::int32_t stage, std::string& error);
+    bool setLocalPlayerState(const NetworkPlayerState& state,
+                             std::string& error);
+    bool setLocalPlayerReady(bool ready, std::string& error);
+    bool setLocalPlayerGoWait(bool waiting, std::string& error);
+    bool setLocalPlayerFinished(bool finished, std::string& error);
 
     [[nodiscard]] bool initialized() const noexcept;
     [[nodiscard]] SessionSnapshot snapshot() const;

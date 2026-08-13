@@ -357,13 +357,10 @@ void loadRaceLibrary(const std::filesystem::path& path,
         parseUnsigned(value(root, "tutorialStage"), state.tutorialStage);
 }
 
-void loadProfile(const std::filesystem::path& path,
-                 PlayerProfile& profile)
+void loadProfileRoot(TiXmlElement* root, PlayerProfile& profile)
 {
-    TiXmlDocument document(path.string());
-    if (!document.LoadFile() || document.RootElement() == nullptr)
+    if (root == nullptr)
         return;
-    auto* root = document.RootElement();
     profile.carChanged =
         parseBool(value(root, "carChanged"), profile.carChanged);
     profile.minimumDifficulty = parseUnsigned(
@@ -438,6 +435,15 @@ void loadProfile(const std::filesystem::path& path,
             profile.slots[index].hasCharge = true;
         }
     }
+}
+
+void loadProfile(const std::filesystem::path& path,
+                 PlayerProfile& profile)
+{
+    TiXmlDocument document(path.string());
+    if (!document.LoadFile() || document.RootElement() == nullptr)
+        return;
+    loadProfileRoot(document.RootElement(), profile);
 }
 
 void loadAchievements(const std::filesystem::path& path,
@@ -629,6 +635,111 @@ PlayerProfile makeOriginalSkirmishProfile(
     return player;
 }
 
+std::string serializeOriginalNetworkProfile(
+    const PlayerProfile& player, bool championship)
+{
+    TiXmlDocument document;
+    document.LinkEndChild(new TiXmlDeclaration("1.0", "UTF-8", ""));
+    auto* profile = new TiXmlElement("profile");
+    document.LinkEndChild(profile);
+
+    if (championship)
+    {
+        append(*profile, "carChanged", player.carChanged);
+        append(*profile, "minDifficulty", player.minimumDifficulty);
+        for (std::size_t index = 0; index < player.planets.size(); ++index)
+        {
+            auto* planet = new TiXmlElement(
+                ("planet" + std::to_string(index)).c_str());
+            profile->LinkEndChild(planet);
+            append(*planet, "state", player.planets[index].state);
+            append(*planet, "pass", player.planets[index].pass);
+        }
+        append(*profile, "planet", player.currentPlanet);
+        append(*profile, "track", player.currentTrack);
+        auto* humans = new TiXmlElement("humans");
+        profile->LinkEndChild(humans);
+        auto* human = new TiXmlElement("human0");
+        humans->LinkEndChild(human);
+        auto* car = new TiXmlElement("car");
+        car->SetAttribute("lib", "world\\db\\ctCar");
+        car->LinkEndChild(new TiXmlText(player.currentCar));
+        human->LinkEndChild(car);
+        append(*human, "plrId", player.playerId);
+        append(*human, "gamerId", player.gamerId);
+        append(*human, "netSlot", player.networkSlot);
+        std::ostringstream color;
+        color.precision(8);
+        color << player.color[0] << ' ' << player.color[1] << ' '
+              << player.color[2] << ' ' << player.color[3];
+        append(*human, "color", color.str());
+        append(*human, "money", player.money);
+        append(*human, "points", player.points);
+        for (std::size_t index = 0; index < player.slots.size(); ++index)
+        {
+            if (player.slots[index].record.empty())
+                continue;
+            appendReference(
+                *human, ("slot" + std::to_string(index)).c_str(),
+                player.slots[index]);
+        }
+    }
+    append(*profile, "dfficulty", player.difficulty);
+
+    TiXmlPrinter printer;
+    printer.SetIndent("");
+    printer.SetLineBreak("");
+    document.Accept(&printer);
+    return printer.CStr();
+}
+
+bool deserializeOriginalNetworkProfile(
+    std::string_view xml, bool championship, PlayerProfile& profile,
+    std::string& error)
+{
+    error.clear();
+    if (xml.empty())
+    {
+        error = "NetRace profile XML is empty";
+        return false;
+    }
+
+    const std::string source(xml);
+    TiXmlDocument document;
+    document.Parse(source.c_str(), nullptr, TIXML_ENCODING_UTF8);
+    auto* root = document.RootElement();
+    if (document.Error() || root == nullptr ||
+        std::string_view(root->Value()) != "profile")
+    {
+        error = document.ErrorDesc() != nullptr
+                    ? document.ErrorDesc()
+                    : "NetRace profile XML has no profile root";
+        return false;
+    }
+
+    const auto name = profile.name;
+    auto decoded = makeOriginalDefaultProfileState().player;
+    decoded.name = name.empty() ? "netClient" : name;
+    if (championship)
+    {
+        // SnProfile::LoadGame restores tournament and the serialized human.
+        loadProfileRoot(root, decoded);
+    }
+    else
+    {
+        // SkProfile::LoadGame calls EnterGame and Profile::LoadGame then reads
+        // only the common, intentionally misspelled difficulty value.
+        decoded.planets.front() = {0U, 1U};
+        decoded.currentPlanet = 0U;
+        decoded.currentTrack = 0U;
+        decoded.currentPass = 1U;
+        if (const char* token = value(root, "dfficulty"))
+            decoded.difficulty = token;
+    }
+    profile = std::move(decoded);
+    return true;
+}
+
 ProfileState makeOriginalSkirmishPersistenceState(
     const ProfileState& runtimeState,
     const PlayerProfile& championshipPlayer)
@@ -647,6 +758,57 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     state.player.money = 999U;
     state.player.points = 123U;
     state.planetsCompleted = {2U, 4U, 99U};
+
+    auto wireSource = state.player;
+    wireSource.name = "hostProfile";
+    wireSource.difficulty = "gdHard";
+    wireSource.carChanged = true;
+    wireSource.minimumDifficulty = 2U;
+    wireSource.currentPlanet = 2U;
+    wireSource.currentTrack = 1U;
+    wireSource.planets[2] = {0U, 2U};
+    wireSource.currentPass = 2U;
+    wireSource.gamerId = 14U;
+    wireSource.money = 1777U;
+    wireSource.slots[6] =
+        {workshopReference("rocketGun"), 3U, true};
+    const auto wireXml =
+        serializeOriginalNetworkProfile(wireSource, true);
+    PlayerProfile wireDecoded;
+    wireDecoded.name = "netClient";
+    if (!deserializeOriginalNetworkProfile(
+            wireXml, true, wireDecoded, error) ||
+        wireDecoded.name != "netClient" ||
+        wireDecoded.difficulty != wireSource.difficulty ||
+        wireDecoded.carChanged != wireSource.carChanged ||
+        wireDecoded.minimumDifficulty != wireSource.minimumDifficulty ||
+        wireDecoded.currentPlanet != wireSource.currentPlanet ||
+        wireDecoded.currentTrack != wireSource.currentTrack ||
+        wireDecoded.currentPass != wireSource.currentPass ||
+        wireDecoded.currentCar != wireSource.currentCar ||
+        wireDecoded.gamerId != wireSource.gamerId ||
+        wireDecoded.money != wireSource.money ||
+        wireDecoded.slots[6].record != wireSource.slots[6].record ||
+        wireDecoded.slots[6].charge != wireSource.slots[6].charge)
+    {
+        if (error.empty())
+            error = "NetRace SnProfile XML round-trip changed source state";
+        return false;
+    }
+    const auto skirmishWire =
+        makeOriginalSkirmishProfile(state, "gdEasy");
+    PlayerProfile skirmishDecoded;
+    if (!deserializeOriginalNetworkProfile(
+            serializeOriginalNetworkProfile(skirmishWire, false), false,
+            skirmishDecoded, error) ||
+        skirmishDecoded.difficulty != "gdEasy" ||
+        skirmishDecoded.currentPlanet != 0U ||
+        skirmishDecoded.currentPass != 1U)
+    {
+        if (error.empty())
+            error = "NetRace SkProfile XML round-trip changed source state";
+        return false;
+    }
 
     const auto campaignBeforeSkirmish = state.player;
     const auto skirmish =

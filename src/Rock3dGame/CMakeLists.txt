@@ -72,7 +72,9 @@ else()
     if(RRR3D_ENABLE_NETWORK)
         list(APPEND _rrr3d_portable_game_sources
             source/stub/OriginalNetwork.cpp
+            source/stub/OriginalNetworkModels.cpp
             include/OriginalNetwork.h
+            include/OriginalNetworkModels.h
         )
     endif()
     add_library(${PROJECT_NAME} STATIC ${_rrr3d_portable_game_sources})
@@ -103,6 +105,22 @@ if(NOT WIN32 AND RRR3D_ENABLE_NETWORK)
     add_test(
         NAME rrr3d_original_network_session_smoke
         COMMAND rrr3d_original_network_session_smoke
+    )
+    add_executable(rrr3d_original_network_models_smoke
+        tests/OriginalNetworkModelsSmoke.cpp
+    )
+    target_include_directories(rrr3d_original_network_models_smoke PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/NetLib/header
+    )
+    target_link_libraries(rrr3d_original_network_models_smoke PRIVATE
+        ${PROJECT_NAME}
+        NetLib
+        ${RRR3D_BOOST_TARGET}
+    )
+    rrr3d_set_common_target_options(rrr3d_original_network_models_smoke)
+    add_test(
+        NAME rrr3d_original_network_models_smoke
+        COMMAND rrr3d_original_network_models_smoke
     )
 endif()
 

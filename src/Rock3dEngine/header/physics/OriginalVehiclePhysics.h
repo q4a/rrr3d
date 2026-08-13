@@ -204,6 +204,10 @@ struct VehicleState
     std::vector<float> wheelAngularSpeeds;
     std::vector<WheelContactState> wheelContacts;
     Vec3 linearVelocity;
+    // PhysX NetPlayer::ResponseStream publishes momentum rather than angular
+    // velocity. Preserve the backend's world-space rigid-body value so the
+    // source seven-field BitStream can be reproduced without approximation.
+    Vec3 angularMomentum;
     float speed = 0.0F;
     // GameCar::GetDrivenWheelSpeed is the axle speed of the first wheel
     // outside GetLeadGroup multiplied by its radius. CameraManager uses its
@@ -250,6 +254,12 @@ public:
                                    Vec3 delta) noexcept = 0;
     virtual void addAngularVelocity(std::size_t index,
                                     Vec3 delta) noexcept = 0;
+    // Active NetPlayer::ResponseStream receive path: snap position beyond
+    // four source units, bias momentum for smaller divergence, snap a
+    // sufficiently divergent rotation, then install both momenta.
+    virtual void synchronizeNetworkVehicle(
+        std::size_t index, Vec3 position, Quat rotation,
+        Vec3 linearMomentum, Vec3 angularMomentum) noexcept = 0;
     virtual void setWheelTractionEnabled(std::size_t index,
                                          bool enabled) noexcept = 0;
     virtual void clampLinearSpeed(std::size_t index,

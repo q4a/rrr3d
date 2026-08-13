@@ -1006,6 +1006,7 @@ void OriginalRaceSession::reset()
     phaseBeforePause_ = phase_;
     countdownSeconds_ = 3.0F;
     countdownDisplay_ = 3;
+    networkCountdownControlled_ = false;
     elapsedSeconds_ = 0.0F;
     finishSecondsRemaining_ = -1.0F;
     racers_.assign(race_.racers.size(), {});
@@ -1527,6 +1528,31 @@ void OriginalRaceSession::setPaused(bool paused) noexcept
     else if (!paused && phase_ == RacePhase::Paused)
     {
         phase_ = phaseBeforePause_;
+    }
+}
+
+void OriginalRaceSession::synchronizeNetworkCountdown(
+    std::int32_t stage) noexcept
+{
+    if (stage < 0 || stage > 4)
+        return;
+
+    networkCountdownControlled_ = true;
+    const RacePhase targetPhase =
+        stage == 4 ? RacePhase::Racing : RacePhase::Countdown;
+    if (phase_ == RacePhase::Paused)
+        phaseBeforePause_ = targetPhase;
+    else
+        phase_ = targetPhase;
+
+    const int display = stage <= 1 ? 3 : 4 - stage;
+    countdownSeconds_ = static_cast<float>(display);
+    if (countdownDisplay_ != display || stage == 1 || stage == 4)
+    {
+        countdownDisplay_ = display;
+        events_.push_back(
+            {RaceEventKind::CountdownChanged, 0, 0, {},
+             static_cast<float>(display)});
     }
 }
 
@@ -6098,6 +6124,8 @@ void OriginalRaceSession::update(
         effects_.end());
     if (phase_ == RacePhase::Countdown)
     {
+        if (networkCountdownControlled_)
+            return;
         countdownSeconds_ -= seconds;
         const int display =
             std::max(0, static_cast<int>(std::ceil(countdownSeconds_)));
@@ -6334,6 +6362,41 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.vehicleInputs().empty() ||
             session.vehicleInputs().front().throttle < 0.9F)
             throw std::runtime_error("countdown/control transition failed");
+
+        OriginalRaceSession networkCountdownSession(race);
+        networkCountdownSession.synchronizeNetworkCountdown(0);
+        for (int frame = 0; frame < 300; ++frame)
+        {
+            networkCountdownSession.update(
+                1.0F / 60.0F, vehicles, input);
+        }
+        if (networkCountdownSession.phase() != RacePhase::Countdown ||
+            networkCountdownSession.countdownSeconds() != 3.0F ||
+            networkCountdownSession.vehicleInputs().empty() ||
+            networkCountdownSession.vehicleInputs().front().throttle !=
+                0.0F)
+        {
+            throw std::runtime_error(
+                "network cGoRaceWait did not hold vehicle control");
+        }
+        networkCountdownSession.synchronizeNetworkCountdown(1);
+        networkCountdownSession.synchronizeNetworkCountdown(2);
+        if (networkCountdownSession.countdownSeconds() != 2.0F)
+            throw std::runtime_error("network cGoRace2 was not applied");
+        networkCountdownSession.synchronizeNetworkCountdown(3);
+        if (networkCountdownSession.countdownSeconds() != 1.0F)
+            throw std::runtime_error("network cGoRace3 was not applied");
+        networkCountdownSession.synchronizeNetworkCountdown(4);
+        networkCountdownSession.update(
+            1.0F / 60.0F, vehicles, input);
+        if (networkCountdownSession.phase() != RacePhase::Racing ||
+            networkCountdownSession.countdownSeconds() != 0.0F ||
+            networkCountdownSession.vehicleInputs().front().throttle <
+                0.9F)
+        {
+            throw std::runtime_error(
+                "network cGoRace did not release vehicle control");
+        }
 
         {
             OriginalRaceSession traceSession(race);

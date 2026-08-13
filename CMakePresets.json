@@ -347,6 +347,7 @@
         "Rock3dGame",
         "rrr3d_net_loopback_smoke",
         "rrr3d_original_network_session_smoke",
+        "rrr3d_original_network_models_smoke",
         "RRR3d"
       ]
     },
@@ -361,6 +362,7 @@
         "Rock3dGame",
         "rrr3d_net_loopback_smoke",
         "rrr3d_original_network_session_smoke",
+        "rrr3d_original_network_models_smoke",
         "RRR3d",
         "RRR3dBundle"
       ]
@@ -376,6 +378,7 @@
         "Rock3dGame",
         "rrr3d_net_loopback_smoke",
         "rrr3d_original_network_session_smoke",
+        "rrr3d_original_network_models_smoke",
         "RRR3d",
         "RRR3dBundle"
       ]

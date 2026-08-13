@@ -158,6 +158,18 @@ std::string beginOriginalChampionshipProfile(
     ProfileState& state, std::string_view difficulty);
 PlayerProfile makeOriginalSkirmishProfile(
     const ProfileState& state, std::string_view difficulty);
+// In-memory equivalent of Race::Profile::SaveGame used by NetRace::WriteMatch.
+// SkProfile writes only dfficulty; SnProfile writes the tournament/human
+// subtree before that intentionally misspelled source key.
+std::string serializeOriginalNetworkProfile(
+    const PlayerProfile& profile, bool championship);
+// In-memory counterpart of Race::Profile::LoadGame used by
+// NetRace::ReadMatch. The Windows protocol appends this XML directly to the
+// fixed match fields, so the client must load it before its NetPlayer is
+// exposed to MainMenu::OnConnectedPlayer.
+bool deserializeOriginalNetworkProfile(
+    std::string_view xml, bool championship, PlayerProfile& profile,
+    std::string& error);
 ProfileState makeOriginalSkirmishPersistenceState(
     const ProfileState& runtimeState,
     const PlayerProfile& championshipPlayer);

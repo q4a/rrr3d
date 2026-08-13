@@ -131,6 +131,11 @@ Vec3 fromJolt(JPH::Vec3Arg value)
     return {value.GetX(), value.GetZ(), value.GetY()};
 }
 
+Vec3 fromJoltAngular(JPH::Vec3Arg value)
+{
+    return {-value.GetX(), -value.GetZ(), -value.GetY()};
+}
+
 Quat fromJolt(JPH::QuatArg value)
 {
     // Changing from game Z-up to Jolt Y-up is a reflection. Quaternion
@@ -792,6 +797,78 @@ public:
             vehicles_[index].body, JPH::Vec3::sZero(),
             toJoltAngular(delta));
         bodies.ActivateBody(vehicles_[index].body);
+    }
+
+    void synchronizeNetworkVehicle(
+        std::size_t index, Vec3 position, Quat rotation,
+        Vec3 linearMomentum, Vec3 angularMomentum) noexcept override
+    {
+        if (index >= vehicles_.size() || !vehicles_[index].enabled)
+            return;
+        auto& vehicle = vehicles_[index];
+        JPH::BodyLockRead lock(
+            system_.GetBodyLockInterface(), vehicle.body);
+        if (!lock.Succeeded())
+            return;
+        const JPH::Body& body = lock.GetBody();
+        const Vec3 currentPosition = fromJolt(body.GetPosition());
+        const auto currentRotation = body.GetRotation();
+        const auto targetRotation = toJolt(rotation);
+        const float quaternionDot = std::abs(
+            currentRotation.GetX() * targetRotation.GetX() +
+            currentRotation.GetY() * targetRotation.GetY() +
+            currentRotation.GetZ() * targetRotation.GetZ() +
+            currentRotation.GetW() * targetRotation.GetW());
+        const float rotationDifference =
+            2.0F * std::acos(std::clamp(quaternionDot, 0.0F, 1.0F));
+        lock.ReleaseLock();
+
+        auto& bodies = system_.GetBodyInterface();
+        const Vec3 positionDifference{
+            position.x - currentPosition.x,
+            position.y - currentPosition.y,
+            position.z - currentPosition.z};
+        const float positionDistance = std::sqrt(
+            positionDifference.x * positionDifference.x +
+            positionDifference.y * positionDifference.y +
+            positionDifference.z * positionDifference.z);
+        if (positionDistance > 4.0F)
+        {
+            bodies.SetPosition(
+                vehicle.body, toJolt(position),
+                JPH::EActivation::Activate);
+        }
+        else if (positionDistance > 0.1F)
+        {
+            const float correction =
+                2.0F * vehicle.spawn.vehicle.mass;
+            linearMomentum.x += positionDifference.x * correction;
+            linearMomentum.y += positionDifference.y * correction;
+            linearMomentum.z += positionDifference.z * correction;
+        }
+        if (rotationDifference >
+            3.14159265358979323846F / 24.0F)
+        {
+            bodies.SetRotation(
+                vehicle.body, targetRotation,
+                JPH::EActivation::Activate);
+        }
+
+        JPH::BodyLockRead momentumLock(
+            system_.GetBodyLockInterface(), vehicle.body);
+        if (!momentumLock.Succeeded())
+            return;
+        const auto angularVelocity =
+            momentumLock.GetBody().GetInverseInertia().Multiply3x3(
+                toJoltAngular(angularMomentum));
+        momentumLock.ReleaseLock();
+        bodies.SetLinearAndAngularVelocity(
+            vehicle.body,
+            toJolt(linearMomentum) /
+                std::max(vehicle.spawn.vehicle.mass, 0.001F),
+            angularVelocity);
+        bodies.ActivateBody(vehicle.body);
+        updateState(vehicle);
     }
 
     void setWheelTractionEnabled(std::size_t index,
@@ -1815,6 +1892,7 @@ private:
         if (!vehicle.enabled)
         {
             vehicle.state.linearVelocity = {};
+            vehicle.state.angularMomentum = {};
             vehicle.state.speed = 0.0F;
             vehicle.state.drivenWheelSpeed = 0.0F;
             vehicle.state.engineRpm = 0.0F;
@@ -1835,6 +1913,10 @@ private:
         state.body.rotation = fromJolt(body.GetRotation());
         state.body.scale = {1.0F, 1.0F, 1.0F};
         state.linearVelocity = fromJolt(body.GetLinearVelocity());
+        state.angularMomentum = fromJoltAngular(
+            body.GetInverseInertia()
+                .Inversed3x3()
+                .Multiply3x3(body.GetAngularVelocity()));
         state.speed = body.GetLinearVelocity().Length();
         state.drivenWheelSpeed = 0.0F;
         state.engineRpm = vehicle.engineRpm;
@@ -2020,6 +2102,91 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 "position=" + std::to_string(settled.body.position.x) + "," +
                 std::to_string(settled.body.position.y) + "," +
                 std::to_string(settled.body.position.z);
+        return false;
+    }
+    auto networkWorld =
+        createOriginalVehicleWorld(drivetrainDescription, error);
+    if (!networkWorld)
+        return false;
+    for (int step = 0; step < 240; ++step)
+        networkWorld->step(1.0F / 120.0F, VehicleInput{});
+    const Vec3 networkPosition =
+        networkWorld->vehicle().body.position;
+    constexpr float networkYaw = 0.5F;
+    const Quat networkRotation{
+        0.0F, 0.0F, std::sin(networkYaw * 0.5F),
+        std::cos(networkYaw * 0.5F)};
+    const Vec3 networkLinearMomentum{
+        sourceVehicle.mass * 2.0F, 0.0F, 0.0F};
+    const Vec3 networkAngularMomentum{0.0F, 0.0F, 100.0F};
+    networkWorld->synchronizeNetworkVehicle(
+        0U, networkPosition, networkRotation, networkLinearMomentum,
+        networkAngularMomentum);
+    const auto synchronized = networkWorld->vehicle();
+    const float synchronizedRotationDot = std::abs(
+        synchronized.body.rotation.x * networkRotation.x +
+        synchronized.body.rotation.y * networkRotation.y +
+        synchronized.body.rotation.z * networkRotation.z +
+        synchronized.body.rotation.w * networkRotation.w);
+    if (std::abs(synchronized.body.position.x - networkPosition.x) >
+            0.001F ||
+        std::abs(synchronized.body.position.y - networkPosition.y) >
+            0.001F ||
+        std::abs(synchronized.body.position.z - networkPosition.z) >
+            0.001F ||
+        synchronizedRotationDot < 0.999F ||
+        std::abs(synchronized.linearVelocity.x - 2.0F) > 0.01F ||
+        std::abs(synchronized.angularMomentum.z -
+                 networkAngularMomentum.z) > 0.1F)
+    {
+        error = "active NetPlayer::ResponseStream momentum/rotation "
+                "synchronization diverged from the source path: pos=" +
+                std::to_string(synchronized.body.position.x) + "," +
+                std::to_string(synchronized.body.position.y) + "," +
+                std::to_string(synchronized.body.position.z) +
+                " base=" + std::to_string(networkPosition.x) + "," +
+                std::to_string(networkPosition.y) + "," +
+                std::to_string(networkPosition.z) +
+                " qdot=" + std::to_string(synchronizedRotationDot) +
+                " velocity=" +
+                std::to_string(synchronized.linearVelocity.x) + "," +
+                std::to_string(synchronized.linearVelocity.y) + "," +
+                std::to_string(synchronized.linearVelocity.z) +
+                " angularMomentum=" +
+                std::to_string(synchronized.angularMomentum.x) + "," +
+                std::to_string(synchronized.angularMomentum.y) + "," +
+                std::to_string(synchronized.angularMomentum.z);
+        return false;
+    }
+    const Vec3 nearNetworkPosition{
+        synchronized.body.position.x + 1.0F,
+        synchronized.body.position.y,
+        synchronized.body.position.z};
+    networkWorld->synchronizeNetworkVehicle(
+        0U, nearNetworkPosition, networkRotation,
+        networkLinearMomentum, networkAngularMomentum);
+    const auto nearSynchronized = networkWorld->vehicle();
+    if (std::abs(nearSynchronized.body.position.x -
+                 synchronized.body.position.x) > 0.001F ||
+        std::abs(nearSynchronized.linearVelocity.x - 4.0F) > 0.01F)
+    {
+        error = "NetPlayer near-position momentum correction did not "
+                "match dPos * 2 * mass";
+        return false;
+    }
+    const Vec3 farNetworkPosition{
+        synchronized.body.position.x + 5.0F,
+        synchronized.body.position.y,
+        synchronized.body.position.z};
+    networkWorld->synchronizeNetworkVehicle(
+        0U, farNetworkPosition, networkRotation, {}, {});
+    const auto farSynchronized = networkWorld->vehicle();
+    if (std::abs(farSynchronized.body.position.x -
+                 farNetworkPosition.x) > 0.001F ||
+        std::abs(farSynchronized.linearVelocity.x) > 0.001F)
+    {
+        error = "NetPlayer far-position snap did not match the source "
+                "four-unit threshold";
         return false;
     }
     world->setWheelTractionEnabled(0U, false);

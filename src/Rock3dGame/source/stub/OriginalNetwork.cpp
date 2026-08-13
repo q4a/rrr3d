@@ -25,8 +25,10 @@ class OriginalNetworkSession::Impl final : public net::INetServiceUser
 {
 public:
     net::INetService& service = net::GetNetService();
+    OriginalNetworkModels models{service};
     SessionSnapshot value;
     bool init = false;
+    std::uint64_t modelRevision = 0U;
 
     void changed() noexcept
     {
@@ -51,6 +53,8 @@ public:
 
     bool OnConnected(net::INetConnection*) override
     {
+        if (service.isServer() && !models.acceptsConnections())
+            return false;
         if (service.isClient())
             value.state = SessionState::Connected;
         value.peerCount = service.connectionCount();
@@ -126,6 +130,16 @@ public:
             changed();
         }
     }
+
+    void refreshModels()
+    {
+        auto snapshot = models.snapshot();
+        if (snapshot.revision == modelRevision)
+            return;
+        modelRevision = snapshot.revision;
+        value.models = std::move(snapshot);
+        changed();
+    }
 };
 
 OriginalNetworkSession::OriginalNetworkSession()
@@ -158,6 +172,7 @@ bool OriginalNetworkSession::initialize(std::string& error)
     impl_->value.state = SessionState::Idle;
     impl_->clearError();
     impl_->refreshAdapters();
+    impl_->refreshModels();
     impl_->changed();
     return true;
 }
@@ -179,6 +194,7 @@ void OriginalNetworkSession::process(std::uint32_t milliseconds)
     impl_->service.Process(milliseconds);
     impl_->value.peerCount = impl_->service.connectionCount();
     impl_->refreshEndpoints();
+    impl_->refreshModels();
 }
 
 bool OriginalNetworkSession::beginLanSearch(std::string& error)
@@ -191,6 +207,7 @@ bool OriginalNetworkSession::beginLanSearch(std::string& error)
     }
 
     impl_->service.Close();
+    impl_->refreshModels();
     impl_->clearError();
     impl_->value.discoveredHosts.clear();
     impl_->value.state = SessionState::Searching;
@@ -234,9 +251,85 @@ bool OriginalNetworkSession::createHost(std::string& error)
         impl_->fail(0U);
         return false;
     }
+    if (!impl_->models.createHostRace(error))
+    {
+        impl_->service.Close();
+        impl_->fail(0U);
+        return false;
+    }
     impl_->value.state = SessionState::Hosting;
     impl_->value.peerCount = 0U;
+    impl_->refreshModels();
     impl_->changed();
+    return true;
+}
+
+bool OriginalNetworkSession::startMatch(
+    const NetworkMatchState& match,
+    const NetworkPlayerState& localPlayer,
+    std::string& error)
+{
+    if (!impl_->init)
+    {
+        error = "NetLib is not initialized";
+        return false;
+    }
+    if (!impl_->models.startMatch(match, localPlayer, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::startRace(std::string& error)
+{
+    if (!impl_->models.startRace(error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setRaceGoStage(
+    std::int32_t stage, std::string& error)
+{
+    if (!impl_->models.setRaceGoStage(stage, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setLocalPlayerState(
+    const NetworkPlayerState& state, std::string& error)
+{
+    if (!impl_->models.setLocalPlayerState(state, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setLocalPlayerReady(
+    bool ready, std::string& error)
+{
+    if (!impl_->models.setLocalPlayerReady(ready, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setLocalPlayerGoWait(
+    bool waiting, std::string& error)
+{
+    if (!impl_->models.setLocalPlayerGoWait(waiting, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::setLocalPlayerFinished(
+    bool finished, std::string& error)
+{
+    if (!impl_->models.setLocalPlayerFinished(finished, error))
+        return false;
+    impl_->refreshModels();
     return true;
 }
 
@@ -257,6 +350,7 @@ bool OriginalNetworkSession::connect(
 
     impl_->service.CancelPing();
     impl_->service.Close();
+    impl_->refreshModels();
     impl_->clearError();
     const unsigned port = endpoint.port == 0U
                               ? defaultPort
@@ -280,6 +374,7 @@ void OriginalNetworkSession::close() noexcept
         return;
     impl_->service.CancelPing();
     impl_->service.Close();
+    impl_->refreshModels();
     impl_->value.state = SessionState::Idle;
     impl_->value.peerCount = 0U;
     impl_->clearError();
