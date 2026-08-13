@@ -1474,3 +1474,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   Loopback фиксирует zero-before-control round-trip, реальную UDP-репликацию,
   секундный timeout и безопасную финализацию; четыре CTest и Metal menu/race
   smoke проходят.
+
+### Source NetRace repeated-race reconciliation follow-up
+
+- `NetRace::StartRace` теперь не только добавляет недостающие AI-модели, но и
+  повторяет второй Windows-цикл: при уменьшении `MaxComputers`/`MaxPlayers`
+  удаляет последние лишние class-ID-2 модели через исходный reliable
+  `cDelModelRPC`. Поэтому между повторными заездами не остаются лишние Jolt
+  машины, HUD-строки и точки мини-карты.
+- Удалён придуманный portable Pause sender. В Windows `NetRace::Pause`
+  закомментирован целиком; порт сохраняет его зарегистрированный RPC slot и
+  receive-handler для совместимости wire order, но больше не выдаёт
+  отсутствующую в исходнике отправку за перенесённую механику.
+- Двухсторонний loopback уменьшает число компьютеров между двумя гонками и
+  требует одинаковый состав моделей на host/client до следующего старта.

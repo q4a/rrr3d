@@ -394,8 +394,7 @@ int main()
         if (!serverModels.setPlanet(4, 0, 2, error) ||
             !serverModels.setTrack(2, error) ||
             !serverModels.startRace(error) ||
-            !serverModels.setRaceGoStage(3, error) ||
-            !serverModels.setPaused(true, error))
+            !serverModels.setRaceGoStage(3, error))
             return 11;
 
         if (!pump(server, client, [&]() {
@@ -419,7 +418,7 @@ int main()
                        host->vehicle.position[0] == 12.0F &&
                        replicatedComputers == 2 &&
                        clientState2.players.size() == 4U &&
-                       clientState2.raceActive && clientState2.paused &&
+                       clientState2.raceActive && !clientState2.paused &&
                        clientState2.raceGoStage == 3 &&
                        clientState2.match.planet == 4 &&
                        clientState2.match.track == 2;
@@ -650,11 +649,19 @@ int main()
             }, clock, 4000U))
             return 16;
 
-        if (!serverModels.startRace(error))
+        // NetRace::StartRace must also remove _aiPlayers.back() when the host
+        // lowers the computer limit between races. This catches stale model
+        // cars that previously survived into physics, HUD and the mini-map.
+        if (!serverModels.setMaxComputers(1U, error) ||
+            !serverModels.startRace(error))
             return 17;
         if (!pump(server, client, [&]() {
                 const auto state2 = clientModels.snapshot();
+                const auto serverState2 = serverModels.snapshot();
                 return state2.raceActive && state2.results.empty() &&
+                       state2.match.maxComputers == 1U &&
+                       state2.players.size() == 3U &&
+                       serverState2.players.size() == 3U &&
                        std::all_of(
                            state2.players.begin(), state2.players.end(),
                            [](const NetworkPlayerState& player) {
@@ -663,7 +670,10 @@ int main()
                                       !player.raceFinish;
                            });
             }, clock, 4000U))
+        {
+            std::cerr << "NetRace AI count reconciliation timeout\n";
             return 18;
+        }
 
         if (!clientModels.exitMatch(error))
         {

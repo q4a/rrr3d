@@ -243,7 +243,6 @@ public:
     bool setMaxComputers(std::uint32_t computers, std::string& error);
     bool setSpringBorders(bool enabled, std::string& error);
     bool setEnableMineBug(bool enabled, std::string& error);
-    bool setPaused(bool paused, std::string& error);
     bool sendPlayerDamage(std::uint32_t senderModelId,
                           std::uint32_t targetModelId, float value,
                           std::int32_t damageType, float targetLife,

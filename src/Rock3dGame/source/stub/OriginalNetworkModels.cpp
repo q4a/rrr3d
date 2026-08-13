@@ -663,18 +663,6 @@ public:
         CloseRPC();
     }
 
-    void sendPause(bool paused)
-    {
-        context_.value.paused = paused;
-        NetworkEvent event{NetworkEventKind::Pause, player()->id()};
-        event.flag = paused;
-        context_.event(std::move(event));
-        std::ostream& stream =
-            NewRPC(net::cNetTargetOthers, &PortableNetRace::OnPause);
-        writeScalar(stream, paused);
-        CloseRPC();
-    }
-
     void sendDamage(
         NetworkEventKind kind, std::uint32_t senderModelId,
         std::uint32_t targetId, float value, std::int32_t damageType,
@@ -1657,6 +1645,28 @@ bool OriginalNetworkModels::Impl::makeComputers(std::string& error)
     const auto computerCount = std::min(
         maxComputers,
         maxPlayers > humanCount ? maxPlayers - humanCount : 0U);
+
+    // NetRace::StartRace reconciles both sides of the AI count. Its second
+    // loop repeatedly deletes _aiPlayers.back() when the host lowered
+    // MaxComputers/MaxPlayers between races. Keeping those class-ID-2 models
+    // alive would leave extra cars in physics, rendering and the mini-map.
+    // NetServer processes this reliable cDelModelRPC locally as well as
+    // forwarding it, matching DeleteModel(model, false) in the source.
+    std::vector<PortableNetPlayer*> computers;
+    computers.reserve(players.size());
+    for (const auto& [id, model] : players)
+    {
+        static_cast<void>(id);
+        if (model != nullptr && model->state().playerId != 0U)
+            computers.push_back(model);
+    }
+    while (computers.size() > computerCount)
+    {
+        auto* model = computers.back();
+        computers.pop_back();
+        service.player()->DeleteModel(model, false);
+    }
+
     for (std::uint32_t index = 0U; index < computerCount; ++index)
     {
         if (!makePlayer(
@@ -1895,18 +1905,6 @@ bool OriginalNetworkModels::setEnableMineBug(
     if (!requireHostMatch(*impl_, error))
         return false;
     impl_->race->sendEnableMineBug(enabled);
-    return true;
-}
-
-bool OriginalNetworkModels::setPaused(bool paused, std::string& error)
-{
-    error.clear();
-    if (impl_->race == nullptr)
-    {
-        error = "source NetRace model is not active";
-        return false;
-    }
-    impl_->race->sendPause(paused);
     return true;
 }
 
