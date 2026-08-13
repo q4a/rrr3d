@@ -592,12 +592,13 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                     "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>"
                 COMMAND /usr/bin/codesign ${_rrr3d_codesign_arguments}
                     "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>"
-                # macOS may attach com.apple.macl/provenance while codesign
-                # writes the bundle. They are not part of the signature but
-                # strict verification rejects them as filesystem detritus.
+                # A file-provider-backed build folder may immediately attach
+                # FinderInfo/provenance again after xattr clears it. Verify
+                # the exact signed contents through the same xattr-free
+                # transport copy used by the release packager.
                 COMMAND /usr/bin/xattr -cr
                     "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>"
-                COMMAND /usr/bin/codesign --verify --deep --strict --verbose=2
+                COMMAND "${CMAKE_SOURCE_DIR}/scripts/verify_macos_bundle.sh"
                     "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>"
                 COMMAND ${CMAKE_COMMAND} -E touch
                     "${_rrr3d_bundle_stamp}"
@@ -606,6 +607,7 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                     ${_rrr3d_game_data_files}
                     ${_rrr3d_video_cache_files}
                     "${CMAKE_SOURCE_DIR}/cmake/copy_catalog_game_data.cmake"
+                    "${CMAKE_SOURCE_DIR}/scripts/verify_macos_bundle.sh"
                     "${_rrr3d_bundle_icon}"
                     ${_rrr3d_bundle_licenses}
                 COMMENT

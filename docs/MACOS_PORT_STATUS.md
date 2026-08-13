@@ -161,9 +161,11 @@ Portable core Milestone 3 не изменил поведение обычног�
   `/tmp` и получает resource root относительно собственного executable.
 - Добавлена original-derived многоразмерная `RRR3d.icns`; статические
   SDL3/Ogg/Vorbis/bgfx/bx/bimg оставляют `Contents/Frameworks` пустым.
-- Post-build очищает extended attributes и выполняет ad-hoc codesign. CMake
-  также принимает Developer ID identity и hardened-runtime option для будущей
-  notarized сборки.
+- Post-build очищает extended attributes, выполняет ad-hoc codesign и строго
+  проверяет подписанное содержимое через xattr-free transport copy, поэтому
+  повторно добавленный File Provider атрибут `com.apple.FinderInfo` не ломает
+  корректную Release-сборку. CMake также принимает Developer ID identity и
+  hardened-runtime option для будущей notarized сборки.
 - `verify_macos_bundle.sh` проверяет plist, arm64/minos, resources, strict
   signature и запрещённые dependencies на чистой transport-копии;
   `package_macos_bundle.sh` создаёт проверенный ZIP.

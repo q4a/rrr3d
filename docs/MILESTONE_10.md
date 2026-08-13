@@ -52,6 +52,11 @@ following are true:
 - valid icon/notices/catalog/manifest and exactly 1200 game-data files;
 - exactly 14 cached MP4 movies and no unexpected files in `video-cache`.
 
+The Release post-build invokes this verifier through its xattr-free transport
+copy. This is deliberate for File Provider-backed workspaces, which can
+reattach `com.apple.FinderInfo` to the build-directory `.app` immediately
+after `xattr -cr`; the signed bundle contents are still verified strictly.
+
 Both Debug and Release bundles pass this verifier. Both also pass:
 
 - original resource/MainMenu2 and selected-race provenance audit;
