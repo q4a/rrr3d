@@ -5,8 +5,8 @@
 > доказали полный перенос Windows-игры. Исходные `Rock3dGame/source/game`
 > классы в macOS target не компилируются; меню, session, AI, weapons, HUD и
 > renderer частично воспроизведены новыми adapters. Video имеет native
-> backend; NetLib lifecycle и исходные LAN menu/browser/IP frames подключены
-> к финальному runtime, но `NetRace`/`NetPlayer` replication ещё нет. Steam
+> backend; NetLib lifecycle, исходные LAN menu/browser/IP frames и
+> `NetRace`/`NetPlayer` replication подключены к финальному runtime. Steam
 > выключен. Каноническая матрица «перенесено /
 > частично / суррогат / не
 > перенесено» находится в
@@ -1003,9 +1003,9 @@ SDL_AUDIO_DRIVER=dummy \
   callback. `--video-smoke-test` подтвердил отображённый кадр `Main_eng`,
   near-end seek, completion и этот callback.
 - В исходном offline-коде нет ввода имени профиля:
-  `Race::MakeProfileName` создаёт `profileN`; `UserChat` и `NetIPAddress`
-  принадлежат только сетевым экранам и не должны переноситься как выдуманный
-  offline widget.
+  `Race::MakeProfileName` создаёт `profileN`; `NetIPAddress` принадлежит
+  сетевому экрану, а `UserChat` — race menu/HUD. Оба теперь перенесены, но не
+  используются как выдуманный редактор имени offline-профиля.
 - Перенесён `RaceMenu2::GamersFrame`, который раньше полностью пропускался.
   Новый championship и Skirmish теперь проходят выбор одного из семи
   персонажей из `tournamet.xml`; Tyler выбран по source default `gamerId=10`,
@@ -1040,9 +1040,9 @@ Difficulty/Profile/FinishMenu/FinalMenu, а также `MusicDialog` и workshop
 source-derived. Source finish progression, planet/final movies и нативный
 video backend, включая Intaria transition, также подключены; projectile,
 material graph и game-side audio follow-ups ниже закрыты. Следующий большой
-продуктовый разрыв после подключения NetLib transport/session и LAN UI —
-перенос исходных `NetRace`/`NetPlayer` class ID и race replication в portable
-runtime. Release hardening
+продуктовый разрыв после подключения NetLib transport/session, LAN UI,
+`NetRace`/`NetPlayer` class ID, race replication и `UserChat` — оставшиеся
+source RPC/UI branches и ручной двухмашинный LAN acceptance. Release hardening
 (Developer ID, notarization, clean-Mac test) нужен только после закрытия этих
 функциональных расхождений; он не является заменой переноса.
 
@@ -1296,3 +1296,23 @@ runtime. Release hardening
 - TCP acceptor сохраняет Windows-поведение немедленного повторного запуска
   хоста через `reuse_address`; macOS `TIME_WAIT` больше не превращает второй
   CreateHost/resource-test в ложный `Address already in use`.
+
+### Source UserChat / network HUD follow-up
+
+- Перенесён renderer-independent `DialogMenu2::UserChat`: newest-first
+  история, объявленный предел 50 строк, исходные 10 секунд показа и одна
+  секунда alpha fade. CoreText/bgfx labels используют `VerySmall`, белый
+  текст, цвет имени игрока и исходное правое расположение у mini-map.
+- `Menu::OnHandleInput` подключён к SDL: Enter открывает ввод, повторный Enter
+  локально добавляет непустую строку и вызывает исходный UTF-16
+  `NetRace::PushLine`; Backspace удаляет один UTF-8 code point. Во время
+  ввода `HumanPlayer`-эквивалент блокирует движение, оружие, mine/hyper,
+  reset и pause actions.
+- Входящий `cNetRacePushLine` разрешает отправителя по `ownerId`, цвету
+  `NetPlayer` и точному `Tournament::GetPlayerData(gamerId)` из семи
+  оригинальных gamer-записей. Локальная строка не получает сетевого echo,
+  как в Windows.
+- Добавлен отдельный regression модели чата. Loopback проверяет owner sender
+  и кириллический wire text, а integrated Metal race smoke открывает поле,
+  вводит/отправляет строку, проверяет gamer name, labels и возвращение
+  управления машине.

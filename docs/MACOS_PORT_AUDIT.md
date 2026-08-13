@@ -188,9 +188,11 @@ UDP datagram и Windows-compatible размеры/layout заголовков н
 M9/M10/Release presets теперь включают transport и source-derived
 `OriginalNetworkSession`: перенесены `NetGame` lifecycle, порт/sync rate,
 adapter list, `NetworkFrame`, server/client type frames, LAN browser и ручной
-IP. `NetRace`/`NetPlayer` модели репликации всё ещё не подключены, поэтому TCP
-handshake не выдаётся за готовую сетевую гонку. Steam P2P остаётся отдельным
-backend и не смешивается с socket portability.
+IP. Последующие source follow-up подключили `NetRace`/`NetPlayer` class ID
+1/2, match/player state, ready/start/countdown/finish, gameplay authority,
+глобальные MapObj IDs и `UserChat` к активной гонке. Loopback проверяет
+кириллический UTF-16 chat, damage/shot/bonus/mine и повторный race cycle.
+Steam P2P остаётся отдельным backend и не смешивается с socket portability.
 
 ## 8. Physics
 

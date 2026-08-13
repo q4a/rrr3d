@@ -20,18 +20,22 @@ behavior, not a replacement multiplayer mechanic.
 - Leaving browser/IP closes the connection; leaving `NetworkFrame` finalizes
   NetLib, matching the Windows menu ownership boundary.
 
-`NetRace` and `NetPlayer` are deliberately not replaced by a new protocol in
-this stage. A successful TCP handshake is shown as transport-connected and
-waits for those source model class IDs instead of entering a fake multiplayer
-race. The local host listener is created at the same later StartMatch boundary;
-portable race replication is the next network slice.
+Later source follow-ups preserve this transport boundary and now instantiate
+the original `NetRace`/`NetPlayer` model class IDs 1/2. Match/player state,
+ready/start/countdown/finish, vehicle state and gameplay RPC feed the active
+race. `DialogMenu2::UserChat` sends the original UTF-16 `PushLine`, resolves
+the sender by owner ID/gamer ID and renders in the race menu/HUD; no separate
+replacement multiplayer protocol is used.
 
 ## Verification
 
-The non-rendering regression `rrr3d_original_network_session_smoke` verifies
+The non-rendering regressions `rrr3d_original_network_session_smoke`,
+`rrr3d_original_network_models_smoke` and
+`rrr3d_original_user_chat_smoke` verify
 initialization, adapter enumeration, LAN search/cancel, source-port hosting,
-close, and finalization. The Metal regression exercises all five source LAN
-menu frames:
+close/finalization, model RPC, Cyrillic chat wire format and the source chat
+history/fade model. The Metal regressions exercise all five source LAN menu
+frames and the chat overlay in a live race:
 
 ```bash
 cmake --preset macos-arm64-m9

@@ -76,8 +76,8 @@ Windows target не компилируется.
 | Spatial race audio | X3DAudio game integration | source-derived `m3dFlat` voices поверх SDL | Частично | Перенесены fixed master 0.1, category/source/resource multiplication, 30/45 м, отсутствие pan/Doppler, motor/wheel/ShotEffect, pair-owned `PairPxContactEffect` и lifetime/target-child `LifeEffect` Source3d; общий legacy emitter/priority object graph ещё не компилируется |
 | Commentator | `GameMode::Commentator`, serialized `game.xml/commentator/comments` | исходная таблица и state machine поверх SDL Voice bus | Перенесено | Загружаются доступные файлы выбранного языка; chance/delay/busy/repeatPlayer, weighted choice, prefix/suffix имён и все offline race events повторяют source semantics |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-derived shared frame поверх bgfx | Частично | Фон, панели, selection, координаты GameMode/Tournament/Difficulty и отдельная позиция Back перенесены; полный widget tree и animation object graph не компилируются |
-| Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared/profile/gamer/final navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty, Profile, Gamers и FinalMenu имеют исходные item order, NavElement/input branches, disabled skip и actions; Network и общий legacy event object graph ещё не завершены |
-| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, `AcceptDialog`, `MusicDialog`, `WeaponDialog` и offline `InfoDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, все вызываемые offline confirmations, popup текущего track, hover-dialog товара/слота и Workshop/Angar/Achievement warnings перенесены. Offline-профили по исходнику автоматически называются `profileN`; `UserChat` и `NetIPAddress` относятся только к пока отключённой сети |
+| Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `GameMode` | source-matched shared/profile/gamer/final navigation поверх `MenuScreen` | Частично | GameMode/Tournament/Difficulty, Profile, Gamers, Network и FinalMenu имеют исходные item order, input branches, disabled skip и actions; общий legacy event/widget object graph ещё не завершён |
+| Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-derived `ProfileFrame`, `AcceptDialog`, `MusicDialog`, `WeaponDialog`, `UserChat` и offline `InfoDialog` | Частично | Четыре visible rows, scroll arrows, per-row close, вызываемые confirmations и workshop warnings перенесены. `UserChat` имеет source input, player color/name, newest-first 50-line history и 10+1 s fade; offline-профили по исходнику автоматически называются `profileN` |
 | Race menu | `RaceMenu2.cpp` | source-derived `GamersFrame`/`RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Gamers, главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/portraits/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, семь gamer planets, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms и shadow maps, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph ещё не воспроизведён |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Первый запуск также использует отдельный `StartOptionsMenu`: sentinel `Select`, четыре source stepper, camera gate и Apply persistence. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp`, `Menu::OnFinishClose` | source-derived FinishMenu, finish transition и FinalMenu | Перенесено | Активные экраны используют исходные assets/layout/timing/input; pass fail/complete, planet unlock и final movie branches сопоставлены с Windows source |
@@ -111,7 +111,7 @@ Windows target не компилируется.
 | Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Перенесено для active catalog | В фактическом `db.xml` покрыты все 8 manager classes, все 37 `ntParticleSystem`, единственный активный `FxFlowEmitter`, все 14 `partDesc` и 5 `flowDesc` fields, child systems, distributions, lifetime/fading и `ntIVBMesh`/`ntSprite`/`ntPlane`. Flattened include сохраняет собственные lighting/order/lifetime каждого child Actor; D3D sorting заменён bgfx |
 | Weather/water/magma/sky | `Environment.cpp`, `GraphManager`, `WaterPlane`, `FogPlane`, `GrassField`, source `.fx` | source graph + bgfx/Metal shader equivalents | Перенесено с backend-адаптацией | Перенесены шесть world branches, weather fog/ambient/sky/far, quality gates, rain/isometric exclusions, scene AABB +300, UV scale 4/25/50, Low/volume paths, water reflection, depth reconstruction, cloud animation/color/intensity, source grass atlas/density/scale и sky без camera translation; D3D9 заменён Metal |
 | Intro/video | `VideoPlayer.cpp`, DirectShow playback | AVPlayer/AVPlayerLayer, 14 lossless-remuxed MP4 | Замена платформы | Все исходные H.264/MP3 потоки проигрываются нативно; Difficulty `Main`, Gamers `Intaria`, planet и final transitions подключены |
-| LAN/network | `NetGame`, `NetRace`, `NetPlayer`, NetLib | native Boost.Asio transport + `OriginalNetworkSession` в game runtime | Частично | Исходный `NetLib`, TCP/UDP, reconnect, adapter enumeration и wire layout проверены. Финальные presets вызывают `NetGame` lifecycle, порт 58213, LAN browser, ручной IP и source menu frames. `NetRace`/`NetPlayer` class IDs и репликация portable race ещё не подключены |
+| LAN/network | `NetGame`, `NetRace`, `NetPlayer`, NetLib | native Boost.Asio transport + `OriginalNetworkSession` в game runtime | Частично | Исходный `NetLib`, TCP/UDP, reconnect, adapters, class ID 1/2, match/player/vehicle state, gameplay authority, finish/results и `PushLine` подключены и проверены loopback. Steam backend и полный legacy model/event object graph не перенесены |
 | Steam | `SteamService`, auth | выключено | Не перенесено | Не относится к offline race, но не должно называться перенесённым |
 | Editor | `source/edit`, MapEditor | не входит в `.app` | Не переносился | Редактор не является обязательной частью пользовательской игры |
 
@@ -893,9 +893,8 @@ Network, video и Steam явно выключены.
    `InfoDialog`/`AcceptDialog` и `GamersFrame` уже source-derived. Следующий
    конкретный offline-разрыв нужно выбирать по source-аудиту оставшихся
    `RaceMenu2`/HUD/gameplay callbacks. Отдельного ввода имени offline-профиля
-   в Windows source нет:
-   `Race::MakeProfileName` создаёт `profileN`; `UserChat`/`NetIPAddress`
-   принадлежат только сетевым экранам.
+   в Windows source нет: `Race::MakeProfileName` создаёт `profileN`.
+   Сетевой `NetIPAddress` и используемый гонкой `UserChat` уже перенесены.
    При этом
    legacy animation/widget classes всё ещё заменены immediate-mode bgfx
    backend.
@@ -926,10 +925,10 @@ Network, video и Steam явно выключены.
 1. Оставшиеся startup/intros, обнаруженные source call-graph ревизией;
    `GameMode::Run(true)`, три startup images и последовательный
    `CheckStartupMenu -> StartOptionsMenu` уже перенесены.
-2. Продолжить уже подключённый `NetLib`/`OriginalNetworkSession`: перенести
-   исходные class ID 1/2 `NetRace`/`NetPlayer` и связать их RPC/state sync с
-   portable race. Transport lifecycle и browser UI уже вызываются финальным
-   runtime, но сами по себе ещё не являются готовой сетевой гонкой.
+2. Продолжить уже подключённые `NetRace`/`NetPlayer` и `UserChat`: проверить
+   полный двухмашинный LAN race вручную и переносить оставшиеся source RPC/UI
+   branches, найденные сравнением с Windows call graph. Class ID 1/2,
+   state/gameplay/finish/chat уже связаны с active portable race.
 3. Steam integration, если требуется целевая дистрибуция.
 
 ## Критерий закрытия пункта

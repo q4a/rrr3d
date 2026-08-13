@@ -49,7 +49,9 @@ else()
     if(RRR3D_BUILD_ORIGINAL_MENU)
         list(APPEND _rrr3d_portable_game_sources
             source/stub/OriginalMainMenu.cpp
+            source/stub/OriginalUserChat.cpp
             include/OriginalMainMenu.h
+            include/OriginalUserChat.h
         )
     endif()
     if(RRR3D_ENABLE_PHYSICS AND RRR3D_BUILD_ORIGINAL_MENU)
@@ -78,6 +80,20 @@ else()
         )
     endif()
     add_library(${PROJECT_NAME} STATIC ${_rrr3d_portable_game_sources})
+endif()
+
+if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
+    add_executable(rrr3d_original_user_chat_smoke
+        tests/OriginalUserChatSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_user_chat_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(rrr3d_original_user_chat_smoke)
+    add_test(
+        NAME rrr3d_original_user_chat_smoke
+        COMMAND rrr3d_original_user_chat_smoke
+    )
 endif()
 
 target_include_directories(${PROJECT_NAME}

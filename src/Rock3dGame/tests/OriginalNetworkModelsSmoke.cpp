@@ -353,7 +353,9 @@ int main()
                 const bool chat = hasEvent(
                     serverState, NetworkEventKind::ChatLine,
                     [](const NetworkEvent& event) {
-                        return event.text == "Привет Motor Rock";
+                        return event.sender ==
+                                   net::cServerPlayer + 1U &&
+                               event.text == "Привет Motor Rock";
                     });
                 const bool playerDamage = hasEvent(
                     clientState2, NetworkEventKind::PlayerDamage,

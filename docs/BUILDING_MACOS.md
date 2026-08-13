@@ -202,5 +202,6 @@ ctest --test-dir build/macos-arm64-network --output-on-failure
 Windows. Основные M9/M10/Release presets дополнительно включают
 `OriginalNetworkSession`, LAN browser и ручной IP; их regression запускается
 через `ctest --test-dir build/macos-arm64-m9 --output-on-failure` и
-`--network-menu-smoke-test`. `NetRace`/`NetPlayer` replication ещё не
-подключена, поэтому наличие browser не означает готовую сетевую гонку.
+`--network-menu-smoke-test`. Активная сетевая гонка также использует
+`NetRace`/`NetPlayer` class ID 1/2, gameplay/finish RPC и исходный `UserChat`;
+их loopback regressions входят в тот же CTest набор.

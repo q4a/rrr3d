@@ -11,6 +11,7 @@
 #include "OriginalRaceHud.h"
 #include "OriginalRaceRenderer.h"
 #include "OriginalRaceSession.h"
+#include "OriginalUserChat.h"
 #include "OriginalWorkshopRenderer.h"
 #include "physics/OriginalVehiclePhysics.h"
 #endif
@@ -203,6 +204,20 @@ struct TextVisual
 };
 
 #ifdef RRR3D_PHYSICS
+struct UserChatLineVisual
+{
+    TextVisual name;
+    std::vector<TextVisual> text;
+};
+
+struct UserChatVisual
+{
+    std::vector<UserChatLineVisual> lines;
+    TextVisual inputName;
+    TextVisual inputText;
+    std::uint64_t revision = std::numeric_limits<std::uint64_t>::max();
+};
+
 struct WorkshopWeaponDialogVisual
 {
     TextVisual name;
@@ -698,6 +713,24 @@ TextVisual createText(GraphicsDevice& device, std::string_view text,
 }
 
 #ifdef RRR3D_PHYSICS
+void destroyUserChatVisual(GraphicsDevice& device, UserChatVisual& visual)
+{
+    for (auto& line : visual.lines)
+    {
+        if (valid(line.name.texture))
+            device.destroy(line.name.texture);
+        for (auto& text : line.text)
+            if (valid(text.texture))
+                device.destroy(text.texture);
+    }
+    if (valid(visual.inputName.texture))
+        device.destroy(visual.inputName.texture);
+    if (valid(visual.inputText.texture))
+        device.destroy(visual.inputText.texture);
+    visual = {};
+    visual.revision = std::numeric_limits<std::uint64_t>::max();
+}
+
 void destroyWorkshopWeaponDialog(
     GraphicsDevice& device, WorkshopWeaponDialogVisual& dialog)
 {
@@ -3153,6 +3186,8 @@ int main(int argc, char** argv)
     rrr3d::race::OriginalRaceRenderer angarRenderer;
     rrr3d::race::OriginalWorkshopRenderer workshopRenderer;
     rrr3d::race::OriginalRaceHud raceHud;
+    r3d::game::originalui::OriginalUserChat userChat;
+    UserChatVisual userChatVisual;
     if (!physicsWorld ||
         !raceRenderer.initialize(*device, *resources, *originalRace,
                                  static_cast<std::uint32_t>(pixelWidth),
@@ -3877,6 +3912,7 @@ int main(int argc, char** argv)
     std::uint64_t networkLastShotEventSequence = 0U;
     std::uint64_t networkLastBonusEventSequence = 0U;
     std::uint64_t networkLastMineEventSequence = 0U;
+    std::uint64_t networkLastChatEventSequence = 0U;
     std::vector<std::uint32_t> networkRaceModelOrder;
     std::optional<r3d::game::originalnetwork::NetworkPlayerState>
         networkPublishedPlayer;
@@ -4345,6 +4381,7 @@ int main(int argc, char** argv)
             networkLastShotEventSequence = 0U;
             networkLastBonusEventSequence = 0U;
             networkLastMineEventSequence = 0U;
+            networkLastChatEventSequence = 0U;
             networkPublishedPlayer.reset();
             networkRaceModelOrder.clear();
 #ifdef RRR3D_PHYSICS
@@ -4684,6 +4721,8 @@ int main(int argc, char** argv)
     bool racePauseDialogObserved = !options->raceRenderSmokeTest;
     bool racePauseResumeObserved = !options->raceRenderSmokeTest;
     bool racePauseFrozenObserved = !options->raceRenderSmokeTest;
+    bool raceChatInputObserved = !options->raceRenderSmokeTest;
+    bool raceChatLineObserved = !options->raceRenderSmokeTest;
     bool racePlayerDestroyedObserved = false;
     float minimumRacePlayerLife =
         std::numeric_limits<float>::max();
@@ -4711,6 +4750,8 @@ int main(int argc, char** argv)
     std::uint32_t raceSmokeMenuStep = 0;
     std::uint32_t raceSmokeNextMenuFrame = 0;
     bool raceSmokeAccelerateQueued = false;
+    std::uint32_t raceChatSmokeStep = 0U;
+    std::uint32_t raceChatSmokeNextFrame = 0U;
     r3d::game::originalrace::TournamentAdvance
         raceTournamentAdvance;
     bool racePlanetChampion = false;
@@ -4800,6 +4841,231 @@ int main(int argc, char** argv)
                 lines.emplace_back(" ");
             return lines;
         };
+#ifdef RRR3D_PHYSICS
+    auto chatColor = [](const std::array<float, 4>& value) {
+        auto channel = [](float component) {
+            return static_cast<std::uint8_t>(std::lround(
+                std::clamp(component, 0.0F, 1.0F) * 255.0F));
+        };
+        return menu::Rgba8{
+            channel(value[0]), channel(value[1]),
+            channel(value[2]), channel(value[3])};
+    };
+    auto sourceGamerName = [&](std::int32_t gamerId) {
+        if (gamerId < 0)
+            return std::string{};
+        const auto gamer = std::find_if(
+            originalGarage->gamers.begin(),
+            originalGarage->gamers.end(),
+            [&](const auto& value) {
+                return value.bossId ==
+                       static_cast<std::uint32_t>(gamerId);
+            });
+        return gamer == originalGarage->gamers.end()
+                   ? std::string{}
+                   : localized(gamer->bossName);
+    };
+    auto sourceLocalChatName = [&]() {
+        auto name = sourceGamerName(static_cast<std::int32_t>(
+            profileState.player.gamerId));
+        if (name.empty() && !originalRace->racers.empty())
+            name = localized(originalRace->racers.front().name);
+        if (name.empty())
+            name = profileState.player.name;
+        return name;
+    };
+    auto wrapChatText = [&](std::string_view value, float maximumWidth) {
+        constexpr menu::Rgba8 white{255U, 255U, 255U, 255U};
+        std::vector<std::string> lines;
+        std::istringstream words{std::string(value)};
+        std::string line;
+        std::string word;
+        while (words >> word)
+        {
+            std::string candidate = line;
+            if (!candidate.empty())
+                candidate.push_back(' ');
+            candidate += word;
+            const auto measured = rrr3d::macos::rasterizeText(
+                candidate, menu::fontFace, menu::smallFontHeight,
+                false, white);
+            if (!line.empty() &&
+                static_cast<float>(measured.width) > maximumWidth)
+            {
+                lines.push_back(std::move(line));
+                line = std::move(word);
+            }
+            else
+            {
+                line = std::move(candidate);
+            }
+        }
+        if (!line.empty())
+            lines.push_back(std::move(line));
+        if (lines.empty())
+            lines.emplace_back(" ");
+        return lines;
+    };
+    auto refreshUserChatVisual = [&]() {
+        if (userChatVisual.revision == userChat.revision())
+            return;
+        destroyUserChatVisual(*device, userChatVisual);
+        userChatVisual.lines.reserve(userChat.lines().size());
+        constexpr menu::Rgba8 white{255U, 255U, 255U, 255U};
+        for (const auto& line : userChat.lines())
+        {
+            UserChatLineVisual visual;
+            visual.name = createText(
+                *device, line.name, menu::smallFontHeight, false,
+                chatColor(line.nameColor), resolvedFont);
+            const float maximumTextWidth = std::max(
+                menu::virtualWidth / 3.0F - visual.name.width,
+                menu::smallFontHeight * 4.0F);
+            for (const auto& text :
+                 wrapChatText(line.text, maximumTextWidth))
+            {
+                visual.text.push_back(createText(
+                    *device, text, menu::smallFontHeight, false,
+                    white, resolvedFont));
+            }
+            userChatVisual.lines.push_back(std::move(visual));
+        }
+        if (userChat.inputVisible())
+        {
+            userChatVisual.inputName = createText(
+                *device, userChat.inputName(), menu::smallFontHeight,
+                false, chatColor(userChat.inputNameColor()),
+                resolvedFont);
+            if (!userChat.inputText().empty())
+            {
+                userChatVisual.inputText = createText(
+                    *device, userChat.inputText(),
+                    menu::smallFontHeight, false, white,
+                    resolvedFont);
+            }
+        }
+        userChatVisual.revision = userChat.revision();
+    };
+    auto drawUserChat = [&]() {
+        if (!userChat.visible() ||
+            (!inRace &&
+             (menuStack.empty() ||
+              menuStack.back() != MenuScreen::RaceMenu)))
+            return;
+        refreshUserChatVisual();
+        if (options->raceRenderSmokeTest)
+        {
+            raceChatInputObserved =
+                raceChatInputObserved ||
+                (userChat.inputVisible() &&
+                 userChat.inputName() ==
+                     sourceLocalChatName() + ": " &&
+                 valid(userChatVisual.inputName.texture));
+            raceChatLineObserved =
+                raceChatLineObserved ||
+                (!userChat.lines().empty() &&
+                 userChat.lines().front().name ==
+                     "<" + sourceLocalChatName() &&
+                 !userChatVisual.lines.empty() &&
+                 valid(userChatVisual.lines.front().name.texture) &&
+                 !userChatVisual.lines.front().text.empty() &&
+                 valid(userChatVisual.lines.front().text.front().texture));
+        }
+
+        const float linesRight = menu::virtualWidth - 10.0F;
+        const float linesTop = inRace
+                                   ? 320.0F
+                                   : static_cast<float>(
+                                         raceTopPanelImage.height);
+        const float maximumTextWidth = menu::virtualWidth / 3.0F;
+        float lineY = linesTop;
+        const auto& lines = userChat.lines();
+        for (std::size_t index = 0U;
+             index < lines.size() &&
+             index < userChatVisual.lines.size(); ++index)
+        {
+            const auto& source = lines[index];
+            const auto& visual = userChatVisual.lines[index];
+            const float alpha = source.alpha();
+            if (alpha <= 0.0F)
+                continue;
+            const std::array<float, 4> tint{1.0F, 1.0F, 1.0F, alpha};
+            drawQuadTinted(
+                *device, quad, shader, visual.name.texture,
+                visual.name.width, visual.name.height,
+                linesRight - visual.name.width * 0.5F,
+                lineY + visual.name.height * 0.5F,
+                1.0F, transparent, tint);
+            float textY = lineY;
+            for (const auto& text : visual.text)
+            {
+                const float available = std::max(
+                    maximumTextWidth - visual.name.width,
+                    menu::smallFontHeight * 4.0F);
+                const float scale = std::min(
+                    1.0F, available / std::max(text.width, 1.0F));
+                drawQuadTinted(
+                    *device, quad, shader, text.texture,
+                    text.width * scale, text.height * scale,
+                    linesRight - visual.name.width -
+                        text.width * scale * 0.5F,
+                    textY + text.height * scale * 0.5F,
+                    1.0F, transparent, tint);
+                textY += std::max(
+                    text.height * scale, menu::smallFontHeight);
+            }
+            lineY += std::max(
+                textY - lineY,
+                std::max(visual.name.height,
+                         menu::smallFontHeight));
+        }
+
+        if (!userChat.inputVisible())
+            return;
+        const float inputLeft = inRace
+                                    ? 300.0F
+                                    : static_cast<float>(
+                                          raceStatsImage.width);
+        const float inputBottom = inRace
+                                      ? menu::virtualHeight - 10.0F
+                                      : menu::virtualHeight -
+                                            static_cast<float>(
+                                                raceBottomPanelImage.height) -
+                                            10.0F;
+        drawQuad(
+            *device, quad, shader, userChatVisual.inputName.texture,
+            userChatVisual.inputName.width,
+            userChatVisual.inputName.height,
+            inputLeft + userChatVisual.inputName.width * 0.5F,
+            inputBottom - userChatVisual.inputName.height * 0.5F,
+            1.0F, transparent);
+        if (valid(userChatVisual.inputText.texture))
+        {
+            const float maximumInputWidth =
+                inRace
+                    ? menu::virtualWidth - 600.0F -
+                          userChatVisual.inputName.width
+                    : menu::virtualWidth -
+                          static_cast<float>(raceStatsImage.width) -
+                          static_cast<float>(raceMoneyImage.width) -
+                          userChatVisual.inputName.width;
+            const float scale = std::min(
+                1.0F,
+                maximumInputWidth /
+                    std::max(userChatVisual.inputText.width, 1.0F));
+            drawQuad(
+                *device, quad, shader,
+                userChatVisual.inputText.texture,
+                userChatVisual.inputText.width * scale,
+                userChatVisual.inputText.height * scale,
+                inputLeft + userChatVisual.inputName.width +
+                    userChatVisual.inputText.width * scale * 0.5F,
+                inputBottom -
+                    userChatVisual.inputText.height * scale * 0.5F,
+                1.0F, transparent);
+        }
+    };
+#endif
     auto showAcceptDialog =
         [&](std::string_view message, std::string_view yesText,
             std::string_view noText, float centerX, float centerY,
@@ -8476,6 +8742,48 @@ int main(int argc, char** argv)
                 closeExitRaceDialog();
             ++racePauseSmokeStep;
         }
+        if (options->raceRenderSmokeTest && inRace &&
+            racePauseSmokeStep == 3U &&
+            raceChatSmokeStep < 4U &&
+            renderedFrames >= raceChatSmokeNextFrame)
+        {
+            SDL_Event smokeEvent{};
+            SDL_Event release{};
+            bool queued = false;
+            if (raceChatSmokeStep == 1U)
+            {
+                smokeEvent.text.type = SDL_EVENT_TEXT_INPUT;
+                smokeEvent.text.text = "source UserChat";
+                queued = SDL_PushEvent(&smokeEvent);
+            }
+            else
+            {
+                smokeEvent.key.type = SDL_EVENT_KEY_DOWN;
+                smokeEvent.key.down = true;
+                smokeEvent.key.scancode =
+                    raceChatSmokeStep == 3U
+                        ? SDL_SCANCODE_UP
+                        : SDL_SCANCODE_RETURN;
+                queued = SDL_PushEvent(&smokeEvent);
+                if (raceChatSmokeStep != 3U)
+                {
+                    release = smokeEvent;
+                    release.key.type = SDL_EVENT_KEY_UP;
+                    release.key.down = false;
+                    queued = queued && SDL_PushEvent(&release);
+                }
+            }
+            if (!queued)
+            {
+                std::cerr
+                    << "Unable to queue source UserChat smoke step "
+                    << raceChatSmokeStep << ": "
+                    << SDL_GetError() << '\n';
+                runtimeSmokeFailed = true;
+            }
+            ++raceChatSmokeStep;
+            raceChatSmokeNextFrame = renderedFrames + 2U;
+        }
 #endif
         if (options->startupSmokeTest && sourceStartupActive &&
             startupLabHoldObserved && !startupEscapeQueued)
@@ -8496,6 +8804,89 @@ int main(int argc, char** argv)
             }
             startupEscapeQueued = true;
         }
+#ifdef RRR3D_PHYSICS
+        const bool sourceChatVisible =
+            inRace ||
+            (!raceLoadingActive && !menuStack.empty() &&
+             menuStack.back() == MenuScreen::RaceMenu);
+        if (sourceChatVisible != userChat.visible())
+        {
+            const bool inputWasVisible = userChat.inputVisible();
+            userChat.show(sourceChatVisible);
+            if (inputWasVisible && !sourceChatVisible)
+                SDL_StopTextInput(window);
+        }
+#ifdef RRR3D_NETWORK
+        if (networkMatchStarted)
+        {
+            std::uint64_t lastSequence =
+                networkLastChatEventSequence;
+            for (const auto& networkEvent :
+                 networkSnapshot.models.events)
+            {
+                if (networkEvent.sequence <=
+                    networkLastChatEventSequence)
+                {
+                    continue;
+                }
+                lastSequence = std::max(
+                    lastSequence, networkEvent.sequence);
+                if (networkEvent.kind !=
+                    r3d::game::originalnetwork::
+                        NetworkEventKind::ChatLine)
+                {
+                    continue;
+                }
+
+                std::string senderName;
+                std::array<float, 4> senderColor{
+                    1.0F, 1.0F, 1.0F, 1.0F};
+                const auto sender = std::find_if(
+                    networkSnapshot.models.players.begin(),
+                    networkSnapshot.models.players.end(),
+                    [&](const auto& player) {
+                        return player.ownerId == networkEvent.sender;
+                    });
+                if (sender != networkSnapshot.models.players.end())
+                {
+                    senderColor = sender->color;
+                    // Player::GetName first uses connection userName (empty
+                    // for the original TCP backend), then resolves the exact
+                    // Tournament::GetPlayerData(gamerId) character.
+                    senderName = sourceGamerName(sender->gamerId);
+                    if (senderName.empty())
+                    {
+                        const auto model = std::find(
+                            networkRaceModelOrder.begin(),
+                            networkRaceModelOrder.end(),
+                            sender->modelId);
+                        if (model != networkRaceModelOrder.end())
+                        {
+                            const auto racer = static_cast<std::size_t>(
+                                std::distance(
+                                    networkRaceModelOrder.begin(), model));
+                            if (racer < originalRace->racers.size())
+                            {
+                                senderName = localized(
+                                    originalRace->racers[racer].name);
+                            }
+                        }
+                    }
+                    if (senderName.empty() &&
+                        sender->playerId < originalRace->racers.size())
+                    {
+                        senderName = localized(originalRace->racers[
+                            sender->playerId].name);
+                    }
+                }
+                userChat.pushLine(
+                    "<" + senderName, networkEvent.text,
+                    senderColor);
+            }
+            networkLastChatEventSequence = lastSequence;
+        }
+#endif
+#endif
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
@@ -8579,6 +8970,104 @@ int main(int argc, char** argv)
                 }
                 continue;
             }
+#ifdef RRR3D_PHYSICS
+            const bool chatEnter =
+                event.type == SDL_EVENT_KEY_DOWN &&
+                !event.key.repeat &&
+                (event.key.scancode == SDL_SCANCODE_RETURN ||
+                 event.key.scancode == SDL_SCANCODE_KP_ENTER);
+            bool chatInteractive = inRace;
+#ifdef RRR3D_NETWORK
+            chatInteractive = chatInteractive || networkMatchStarted;
+#endif
+            if (userChat.visible() && chatInteractive && chatEnter)
+            {
+#ifdef RRR3D_GAMEPAD_INPUT
+                static_cast<void>(input.processEvent(event));
+#endif
+                if (userChat.inputVisible())
+                {
+                    const std::string text = userChat.inputText();
+                    if (!text.empty())
+                    {
+                        const std::string playerName =
+                            sourceLocalChatName();
+                        userChat.pushLine(
+                            "<" + playerName, text,
+                            profileState.player.color);
+#ifdef RRR3D_NETWORK
+                        if (networkMatchStarted)
+                        {
+                            std::string error;
+                            if (!networkSession.pushLine(text, error))
+                            {
+                                std::cerr
+                                    << "Original NetRace::PushLine failed: "
+                                    << error << '\n';
+                            }
+                        }
+#endif
+                    }
+                    const std::string playerName =
+                        sourceLocalChatName();
+                    userChat.showInput(
+                        false, playerName + ": ", {},
+                        profileState.player.color);
+                    SDL_StopTextInput(window);
+                }
+                else
+                {
+                    const std::string playerName =
+                        sourceLocalChatName();
+                    userChat.showInput(
+                        true, playerName + ": ", {},
+                        profileState.player.color);
+                    clearRaceControls();
+                    if (!SDL_StartTextInput(window))
+                    {
+                        std::cerr
+                            << "SDL_StartTextInput for source UserChat "
+                               "failed: "
+                            << SDL_GetError() << '\n';
+                    }
+                }
+                continue;
+            }
+            if (userChat.inputVisible())
+            {
+                if (event.type == SDL_EVENT_TEXT_INPUT)
+                {
+                    userChat.appendInput(event.text.text);
+                    continue;
+                }
+                if (event.type == SDL_EVENT_KEY_DOWN &&
+                    !event.key.repeat &&
+                    event.key.scancode == SDL_SCANCODE_BACKSPACE)
+                {
+#ifdef RRR3D_GAMEPAD_INPUT
+                    static_cast<void>(input.processEvent(event));
+#endif
+                    userChat.backspaceInput();
+                    continue;
+                }
+                const bool gameplayInput =
+                    event.type == SDL_EVENT_KEY_DOWN ||
+                    event.type == SDL_EVENT_KEY_UP ||
+                    event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
+                    event.type == SDL_EVENT_GAMEPAD_BUTTON_UP ||
+                    event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION;
+                if (gameplayInput)
+                {
+#ifdef RRR3D_GAMEPAD_INPUT
+                    static_cast<void>(input.processEvent(event));
+#endif
+                    // HumanPlayer::OnHandleInput returns before every race
+                    // action while Menu::IsChatInputVisible is true.
+                    clearRaceControls();
+                    continue;
+                }
+            }
+#endif
 #ifdef RRR3D_NETWORK
             if (menuStack.back() == MenuScreen::NetworkIpAddress)
             {
@@ -11970,6 +12459,7 @@ int main(int argc, char** argv)
                             networkLastShotEventSequence = 0U;
                             networkLastBonusEventSequence = 0U;
                             networkLastMineEventSequence = 0U;
+                            networkLastChatEventSequence = 0U;
                             networkPublishedPlayer.reset();
                             networkRaceModelOrder.clear();
                             networkWeatherOverride.reset();
@@ -12215,6 +12705,9 @@ int main(int argc, char** argv)
             frameSeconds = 0.0F;
 #endif
         previousFrameTicks = currentFrameTicks;
+#ifdef RRR3D_PHYSICS
+        userChat.update(frameSeconds);
+#endif
         if (sourceStartupActive)
         {
             sourceStartupSeconds = std::min(
@@ -14209,6 +14702,7 @@ int main(int argc, char** argv)
             // widgets. Event overlays, the map and the countdown remain.
             raceHud.draw(*device, quad, shader, raceShader,
                          profileState.config.enableHud);
+            drawUserChat();
             drawAcceptDialog();
 #ifdef RRR3D_AUDIO
             drawOriginalMusicDialog();
@@ -17588,6 +18082,7 @@ int main(int argc, char** argv)
                 versionY, 25.0F, transparent);
         }
 #ifdef RRR3D_PHYSICS
+        drawUserChat();
         drawAcceptDialog();
         if (infoDialog.visible)
         {
@@ -18125,6 +18620,9 @@ int main(int argc, char** argv)
                     !racePauseDialogObserved ||
                     !racePauseResumeObserved ||
                     !racePauseFrozenObserved ||
+                    !raceChatInputObserved ||
+                    !raceChatLineObserved ||
+                    raceChatSmokeStep != 4U ||
                     racePlayerDestroyedObserved ||
                     minimumRacePlayerLife <= 0.0F ||
                     maximumRaceSmokeContacts == 0 ||
@@ -18179,7 +18677,10 @@ int main(int argc, char** argv)
                         << ", pause="
                         << racePauseDialogObserved << '/'
                         << racePauseResumeObserved << '/'
-                        << racePauseFrozenObserved << ", destroyed="
+                        << racePauseFrozenObserved << ", chat="
+                        << raceChatInputObserved << '/'
+                        << raceChatLineObserved << '/'
+                        << raceChatSmokeStep << ", destroyed="
                         << racePlayerDestroyedObserved << ", minLife="
                         << minimumRacePlayerLife << ", contacts="
                         << maximumRaceSmokeContacts << ", maxSpeed="
@@ -18231,6 +18732,7 @@ int main(int argc, char** argv)
                            "life "
                         << minimumRacePlayerLife << "), "
                            "source HudMenu pause/accept/frozen-world, "
+                           "source UserChat Enter/input/history/fade, "
                            "source GameModeFrame/TournamentFrame layout, "
                            "source ProfileFrame/delete dialog, "
                            "source RaceMain portraits/boss/loadout/stats, "
@@ -18325,6 +18827,9 @@ int main(int argc, char** argv)
         !options->gamersFrameSmokeTest &&
         !options->finalMenuSmokeTest)
         saveRaceProfile();
+    if (userChat.inputVisible())
+        SDL_StopTextInput(window);
+    destroyUserChatVisual(*device, userChatVisual);
     physicsWorld.reset();
     raceHud.shutdown(*device);
     workshopRenderer.shutdown(*device);
