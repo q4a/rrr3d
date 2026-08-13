@@ -1504,3 +1504,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   проявлялось рывками машины и телепортацией точки мини-карты.
 - Loopback требует неизменную revision между snapshot без transport dispatch
   и её увеличение после следующего фактически принятого состояния.
+
+### Source Player::ApplyMobility armor-role follow-up
+
+- Удалено portable-отклонение, из-за которого коэффициент
+  `Player::cHumanArmorK` выбранной сложности применялся ко всем машинам.
+  Windows `Player::ApplyMobility` умножает суммарный `maxLife` только для
+  `IsHuman() || IsOpponent()`; обычные `Computer1..Computer5` теперь снова
+  получают базовую броню из своих tournament slots.
+- В сетевом roster существующий `Racer::human` сохраняет обе управляемые
+  человеком source-роли: owner Human и remote Opponent. Поэтому исправление
+  не меняет wire format и не лишает удалённых игроков коэффициента сложности.
+- Resource smoke отдельно прогоняет Easy/Normal/Hard для Human и Easy/Hard
+  для Computer: ожидает точные отношения `2.0/1.75/1.5` только у человека и
+  неизменный `maximumLife` обычного AI.

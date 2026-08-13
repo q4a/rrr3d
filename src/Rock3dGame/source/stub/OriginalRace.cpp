@@ -261,7 +261,7 @@ bool optionalBoolean(TiXmlElement* parent, std::string_view path,
 void applyMobilityLoadout(
     Vehicle& vehicle, TiXmlElement* workshop,
     const std::vector<RacerSlot>& loadout,
-    std::string_view difficulty)
+    std::string_view difficulty, bool humanOrOpponent)
 {
     const float baseMaximumSpeed = vehicle.physics.maximumSpeed;
     const float baseTireSpring = vehicle.physics.tireSpring;
@@ -347,11 +347,19 @@ void applyMobilityLoadout(
     vehicle.physics.maximumTorque = maximumTorque;
     vehicle.physics.maximumSpeed = baseMaximumSpeed + maximumSpeed;
     vehicle.physics.tireSpring = baseTireSpring + tireSpring;
-    float armorScale = 1.75F;
-    if (difficulty == "gdEasy")
-        armorScale = 2.0F;
-    else if (difficulty == "gdHard")
-        armorScale = 1.5F;
+    // Player::ApplyMobility applies cHumanArmorK only to the local Human and
+    // network Opponent roles. Tournament Computer1..Computer5 cars retain
+    // the unscaled sum of their installed armor. Racer::human deliberately
+    // represents both human-controlled source roles in the portable roster.
+    float armorScale = 1.0F;
+    if (humanOrOpponent)
+    {
+        armorScale = 1.75F;
+        if (difficulty == "gdEasy")
+            armorScale = 2.0F;
+        else if (difficulty == "gdHard")
+            armorScale = 1.5F;
+    }
     vehicle.maximumLife = maximumLife * armorScale;
     for (auto& wheel : vehicle.physics.wheels)
     {
@@ -4860,7 +4868,8 @@ void applyOriginalPlayerProfile(
     }
     human.loadout = humanLoadout;
     applyMobilityLoadout(human.configuredVehicle, workshop,
-                         human.loadout, profile.difficulty);
+                         human.loadout, profile.difficulty,
+                         human.human);
     race.vehicle = human.configuredVehicle;
 
     for (std::size_t index = 1; index < race.racers.size(); ++index)
@@ -4869,7 +4878,8 @@ void applyOriginalPlayerProfile(
         racer.configuredVehicle = race.vehicles[racer.vehicle];
         racer.hasConfiguredVehicle = true;
         applyMobilityLoadout(racer.configuredVehicle, workshop,
-                             racer.loadout, profile.difficulty);
+                             racer.loadout, profile.difficulty,
+                             racer.human);
     }
 }
 
@@ -5128,6 +5138,59 @@ bool runOriginalRaceResourceSmokeTest(
 {
     try
     {
+        auto workshopDocument = parseXml(resources, "workshop.xml");
+        auto* workshop = require(
+            workshopDocument.RootElement(), "workshop", "workshop.xml");
+        if (race.racers.size() < 2U)
+        {
+            error = "source Player::ApplyMobility role regression has no AI";
+            return false;
+        }
+        auto humanEasy = race.vehicles.at(race.racers.front().vehicle);
+        auto humanNormal = humanEasy;
+        auto humanHard = humanEasy;
+        applyMobilityLoadout(
+            humanEasy, workshop, race.racers.front().loadout,
+            "gdEasy", true);
+        applyMobilityLoadout(
+            humanNormal, workshop, race.racers.front().loadout,
+            "gdNormal", true);
+        applyMobilityLoadout(
+            humanHard, workshop, race.racers.front().loadout,
+            "gdHard", true);
+        auto computerEasy = race.vehicles.at(race.racers[1].vehicle);
+        auto computerHard = computerEasy;
+        applyMobilityLoadout(
+            computerEasy, workshop, race.racers[1].loadout,
+            "gdEasy", false);
+        applyMobilityLoadout(
+            computerHard, workshop, race.racers[1].loadout,
+            "gdHard", false);
+        const auto nearMobility = [](float first, float second) {
+            return std::abs(first - second) <= 0.0001F;
+        };
+        const bool sourceArmorRoleScaling =
+            humanHard.maximumLife > 0.0F &&
+            computerHard.maximumLife > 0.0F &&
+            nearMobility(
+                humanEasy.maximumLife,
+                humanHard.maximumLife * (2.0F / 1.5F)) &&
+            nearMobility(
+                humanNormal.maximumLife,
+                humanHard.maximumLife * (1.75F / 1.5F)) &&
+            nearMobility(
+                computerEasy.maximumLife,
+                computerHard.maximumLife) &&
+            race.racers[1].hasConfiguredVehicle &&
+            nearMobility(
+                race.racers[1].configuredVehicle.maximumLife,
+                computerHard.maximumLife);
+        if (!sourceArmorRoleScaling)
+        {
+            error =
+                "source Player::ApplyMobility cHumanArmorK role mismatch";
+            return false;
+        }
         const auto physics = makePhysicsDescription(race, resources);
         const auto playerWheel = resource::loadR3DMeshAsset(
             resources, race.vehicle.wheelMeshPath);

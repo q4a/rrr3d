@@ -881,6 +881,20 @@ Network, video и Steam явно выключены.
    собственные `glRefr`, `goDefault`, `amOnce`, lifetime 0.5 s и scale
    velocity 100, поэтому sprite больше не растёт все 10 s жизни родителя.
 
+### Source Player::ApplyMobility armor-role follow-up
+
+- Повторно сопоставлен активный `Player::ApplyMobility`: mobility-параметры
+  суммируются у всех участников, но `cHumanArmorK[difficulty]` применяется
+  только при `IsHuman() || IsOpponent()`. Прежний portable-код ошибочно
+  умножал `maximumLife` также у `Computer1..Computer5`, делая AI существенно
+  прочнее исходной турнирной конфигурации.
+- `applyOriginalPlayerProfile` теперь передаёт source-роль каждого racer.
+  Обычные campaign/skirmish AI сохраняют множитель `1.0`; локальный Human и
+  сетевые Opponent используют `2.0`, `1.75` или `1.5`. Это восстанавливает
+  исходную зависимость damage/death/respawn от уровня сложности.
+- Regression вычисляет все три human-варианта из одних и тех же serialized
+  slots и одновременно доказывает независимость Computer armor от сложности.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
