@@ -293,7 +293,10 @@ template<class _Type> void BitStream::Serialize(_Type& value, BitType type, bool
 	if (_isWriting)
 		BitValue::Make(bitVal, value, type);
 
-	Serialize(bitVal, equal);
+	// A freshly grown slot has cBitTypeEnd and zero-filled storage. Treating a
+	// first zero value as equal leaves that end marker in the middle of the
+	// stream, so Read() stops and silently drops every following field.
+	Serialize(bitVal, equal && Get().bit.type == type);
 
 	if (_isReading && !equal)
 		BitValue::Get(bitVal, value);

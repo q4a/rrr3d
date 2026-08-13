@@ -15178,7 +15178,8 @@ int main(int argc, char** argv)
                             input.steering = 1.0F;
                         else if (player->vehicle.steerState == 2U)
                             input.steering = -1.0F;
-                        if (index < physicsDescription->spawns.size())
+                        if (player->vehicle.steerState != 0U &&
+                            index < physicsDescription->spawns.size())
                         {
                             const float maximum =
                                 physicsDescription->spawns[index]

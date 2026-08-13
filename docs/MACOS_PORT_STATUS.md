@@ -1451,3 +1451,26 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Loopback проверяет client-to-host `OnExitMatch`, отсутствие оставшихся
   player models на обеих сторонах и повторный StartMatch/StartRace тем же
   живым class-ID-1 `NetRace`.
+
+### Source NetPlayer control stream / freshness follow-up
+
+- Исправлен общий `NetLib::BitStream`: первый нулевой scalar/vector теперь
+  получает фактический wire type. Раньше zero-valued angular momentum мог
+  остаться `cBitTypeEnd`, из-за чего reader завершал пакет до `moveState`,
+  `steerState` и `steerWheelsAngle`; это давало неподвижные/телепортирующиеся
+  remote-машины и скачки точек mini-map.
+- Перенесён `NetPlayer::Process` с исходным `_dAlpha=1.0`: через секунду без
+  нового `ResponseStream` удалённая машина отпускает прежние gas/reverse и
+  steering. Jolt adapter больше не восстанавливает steering из старого
+  `steerWheelsAngle`, когда `steerState == swNone`.
+- `ResponseStream` снова игнорирует server echo для client owner и входящие
+  vehicle states завершившего гонщика, как условие Windows-кода. Формат семи
+  полей не изменён.
+- Закрыт старый use-after-free teardown: поздние деструкторы моделей NetLib
+  не обращаются к уже уничтоженному `OriginalNetworkModels` context.
+- `lsl::appLog` на macOS перенаправлен из текущего каталога bundle в
+  `~/Library/Logs/RRR3d/appLog.txt`; runtime больше не изменяет sealed
+  `Contents/Resources` и не инвалидирует подпись после сетевого smoke/run.
+  Loopback фиксирует zero-before-control round-trip, реальную UDP-репликацию,
+  секундный timeout и безопасную финализацию; четыре CTest и Metal menu/race
+  smoke проходят.

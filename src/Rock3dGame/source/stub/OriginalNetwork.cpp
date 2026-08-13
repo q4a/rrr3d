@@ -196,6 +196,7 @@ void OriginalNetworkSession::process(std::uint32_t milliseconds)
     if (!impl_->init)
         return;
     impl_->service.Process(milliseconds);
+    impl_->models.process(milliseconds);
     impl_->value.peerCount = impl_->service.connectionCount();
     impl_->refreshEndpoints();
     impl_->refreshModels();

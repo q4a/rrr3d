@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <sstream>
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
@@ -101,6 +102,53 @@ const r3d::game::originalnetwork::NetworkPlayerState* ownedPlayer(
 int main()
 {
     using namespace r3d::game::originalnetwork;
+
+    {
+        net::BitStream writer;
+        writer.Reset(true, false, 1U);
+        glm::vec3 position(1.0F, 2.0F, 3.0F);
+        glm::quat rotation(1.0F, 0.0F, 0.0F, 0.0F);
+        glm::vec3 linear(4.0F, 5.0F, 6.0F);
+        // The original defect appeared when this zero slot preceded controls.
+        glm::vec3 angular(0.0F);
+        BYTE move = 3U;
+        BYTE steer = 1U;
+        float angle = 0.3F;
+        writer.Serialize(position);
+        writer.Serialize(rotation);
+        writer.Serialize(linear);
+        writer.Serialize(angular);
+        writer.Serialize(move);
+        writer.Serialize(steer);
+        writer.Serialize(angle);
+        std::stringstream wire;
+        writer.Write(wire, true, false, false);
+        net::BitStream reader;
+        reader.Reset(false, true, 1U);
+        reader.Read(wire);
+        glm::vec3 readPosition{};
+        glm::quat readRotation{};
+        glm::vec3 readLinear{};
+        glm::vec3 readAngular{};
+        BYTE readMove = 0U;
+        BYTE readSteer = 0U;
+        float readAngle = 0.0F;
+        reader.Serialize(readPosition);
+        reader.Serialize(readRotation);
+        reader.Serialize(readLinear);
+        reader.Serialize(readAngular);
+        reader.Serialize(readMove);
+        reader.Serialize(readSteer);
+        reader.Serialize(readAngle);
+        if (readMove != move || readSteer != steer || readAngle != angle)
+        {
+            std::cerr << "BitStream vehicle control roundtrip mismatch: "
+                      << static_cast<int>(readMove) << '/'
+                      << static_cast<int>(readSteer) << '/' << readAngle
+                      << '\n';
+            return 27;
+        }
+    }
 
     const unsigned port = reservePort();
     if (port == 0U)
@@ -404,6 +452,55 @@ int main()
             return 12;
         }
 
+        auto movingHost = *ownedPlayer(serverModels.snapshot());
+        movingHost.vehicle.position[0] += 1.0F;
+        movingHost.vehicle.moveState = 3U;
+        movingHost.vehicle.steerState = 1U;
+        movingHost.vehicle.steerWheelsAngle = 0.3F;
+        const auto receivedBeforeMoving = client.channel()->bytesReceived();
+        if (!serverModels.setLocalPlayerState(movingHost, error) ||
+            !pump(server, client, [&]() {
+                const auto state = clientModels.snapshot();
+                const auto* remote =
+                    remotePlayer(state, net::cServerPlayer);
+                if (remote != nullptr &&
+                    remote->vehicle.moveState == 3U &&
+                    remote->vehicle.steerState == 1U)
+                {
+                    return true;
+                }
+                // Source gameplay publishes changing poses every frame. Keep
+                // doing so here because the state channel is intentionally
+                // UDP and a single delta is not guaranteed delivery.
+                movingHost.vehicle.position[0] += 0.02F;
+                serverModels.setLocalPlayerState(movingHost, error);
+                return false;
+            }, clock, 4000U))
+        {
+            std::cerr << "NetPlayer moving host vehicle sync timeout\n";
+            std::cerr << "client state bytes before/after="
+                      << receivedBeforeMoving << '/'
+                      << client.channel()->bytesReceived() << '\n';
+            return 26;
+        }
+
+        // Windows NetGame invokes NetPlayer::Process once per frame. After a
+        // second without a new ResponseStream it releases stale gas/steering
+        // while retaining the last physical wheel-angle snapshot.
+        const unsigned staleGameClock = clock + 1001U;
+        clientModels.process(staleGameClock);
+        const auto staleState = clientModels.snapshot();
+        const auto* staleRemote =
+            remotePlayer(staleState, net::cServerPlayer);
+        if (staleRemote == nullptr ||
+            staleRemote->vehicle.moveState != 0U ||
+            staleRemote->vehicle.steerState != 0U ||
+            staleRemote->vehicle.steerWheelsAngle != 0.3F)
+        {
+            std::cerr << "NetPlayer stale control timeout mismatch\n";
+            return 26;
+        }
+
         const auto raceServerState = serverModels.snapshot();
         const auto raceClientState = clientModels.snapshot();
         const auto* clientOnServer =
@@ -661,7 +758,16 @@ int main()
                                       net::cServerPlayer + 1U;
                            });
             }, clock, 4000U))
+        {
+            std::cerr << "host disconnect cleanup timeout: connections="
+                      << server.connectionCount() << ", players="
+                      << serverModels.snapshot().players.size() << '\n';
+            client.Close();
+            server.Close();
+            client.Finalizate();
+            server.Finalizate();
             return 20;
+        }
 
         client.Close();
         server.Close();

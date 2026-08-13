@@ -53,12 +53,18 @@ std::map<net::INetService*, OriginalNetworkModels::Impl*>& contexts()
     return values;
 }
 
-OriginalNetworkModels::Impl& contextFor(net::INetService* service)
+OriginalNetworkModels::Impl* findContext(net::INetService* service) noexcept
 {
     const auto found = contexts().find(service);
-    if (found == contexts().end() || found->second == nullptr)
+    return found == contexts().end() ? nullptr : found->second;
+}
+
+OriginalNetworkModels::Impl& contextFor(net::INetService* service)
+{
+    auto* context = findContext(service);
+    if (context == nullptr)
         throw std::runtime_error("original network model context is absent");
-    return *found->second;
+    return *context;
 }
 
 bool readBytes(std::istream& stream, void* value, std::size_t size)
@@ -400,7 +406,8 @@ class PortableNetRace final : public net::NetModelRPC<PortableNetRace>
 {
 public:
     explicit PortableNetRace(const Desc& desc)
-        : NetModelRPC(desc), context_(contextFor(desc.player->net()))
+        : NetModelRPC(desc), context_(contextFor(desc.player->net())),
+          service_(desc.player->net())
     {
         RegRPC(&PortableNetRace::OnStartMatch);
         RegRPC(&PortableNetRace::OnExitMatch);
@@ -424,7 +431,11 @@ public:
         context_.registerRace(this);
     }
 
-    ~PortableNetRace() override { context_.unregisterRace(this); }
+    ~PortableNetRace() override
+    {
+        if (auto* context = findContext(service_))
+            context->unregisterRace(this);
+    }
 
     bool sendStartMatch(const NetworkMatchState& match,
                         const NetworkPlayerState& local,
@@ -729,6 +740,7 @@ protected:
 
 private:
     OriginalNetworkModels::Impl& context_;
+    net::INetService* service_ = nullptr;
 
     static void applyLocalState(PortableNetPlayer& model,
                                 const NetworkPlayerState& state);
@@ -948,7 +960,8 @@ class PortableNetPlayer final : public net::NetModelRPC<PortableNetPlayer>
 {
 public:
     explicit PortableNetPlayer(const Desc& desc)
-        : NetModelRPC(desc), context_(contextFor(desc.player->net()))
+        : NetModelRPC(desc), context_(contextFor(desc.player->net())),
+          service_(desc.player->net())
     {
         RegRPC(&PortableNetPlayer::OnSetGamerId);
         RegRPC(&PortableNetPlayer::OnSetColor);
@@ -977,9 +990,36 @@ public:
         syncState(ssDelta);
     }
 
-    ~PortableNetPlayer() override { context_.unregisterPlayer(this); }
+    ~PortableNetPlayer() override
+    {
+        if (auto* context = findContext(service_))
+            context->unregisterPlayer(this);
+    }
 
     const NetworkPlayerState& state() const noexcept { return state_; }
+
+    void process(std::uint32_t milliseconds)
+    {
+        if (!vehicleControlFresh_ ||
+            milliseconds - lastVehicleUpdateMilliseconds_ < 1000U)
+        {
+            return;
+        }
+
+        vehicleControlFresh_ = false;
+        if (state_.vehicle.moveState == 0U &&
+            state_.vehicle.steerState == 0U)
+        {
+            return;
+        }
+
+        // Original NetPlayer::Process clears the requested movement states
+        // after _dAlpha's one-second grace period. The received physical
+        // wheel angle remains a snapshot value; swNone stops driving it.
+        state_.vehicle.moveState = 0U;
+        state_.vehicle.steerState = 0U;
+        context_.updatePlayer(state_);
+    }
 
     void setGamerId(std::int32_t value)
     {
@@ -1178,6 +1218,10 @@ protected:
         stream.Serialize(angle);
         if (!stream.isReading())
             return;
+        // NetPlayer::ResponseStream deliberately ignores the owner's echoed
+        // stream on a client and all vehicle streams after the racer finishes.
+        if ((owner() && context_.service.isClient()) || state_.raceFinish)
+            return;
         state_.vehicle.position = {position.x, position.y, position.z};
         state_.vehicle.rotation =
             {rotation.x, rotation.y, rotation.z, rotation.w};
@@ -1186,12 +1230,17 @@ protected:
         state_.vehicle.moveState = move;
         state_.vehicle.steerState = steer;
         state_.vehicle.steerWheelsAngle = angle;
+        lastVehicleUpdateMilliseconds_ = context_.service.time();
+        vehicleControlFresh_ = true;
         context_.updatePlayer(state_);
     }
 
 private:
     OriginalNetworkModels::Impl& context_;
+    net::INetService* service_ = nullptr;
     NetworkPlayerState state_;
+    std::uint32_t lastVehicleUpdateMilliseconds_ = 0U;
+    bool vehicleControlFresh_ = false;
 
     bool gamerIdAvailable(std::int32_t value) const
     {
@@ -1628,6 +1677,16 @@ void OriginalNetworkModels::setGamerCatalog(
     std::vector<std::int32_t> gamerIds)
 {
     impl_->gamerCatalog = std::move(gamerIds);
+}
+
+void OriginalNetworkModels::process(std::uint32_t milliseconds)
+{
+    for (const auto& [id, player] : impl_->players)
+    {
+        static_cast<void>(id);
+        if (player != nullptr)
+            player->process(milliseconds);
+    }
 }
 
 bool OriginalNetworkModels::createHostRace(std::string& error)

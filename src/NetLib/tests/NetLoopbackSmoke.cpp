@@ -108,11 +108,15 @@ bool TestBitStreamOwnershipAndWindowsLongLayout()
 	const unsigned marker = 0x4d525252u;
 	void* source = const_cast<unsigned*>(&marker);
 	long sourceLong = 0x12345678L;
+	glm::vec3 zeroVector(0.0F);
+	BYTE sourceMove = 3U;
 
 	net::BitStream writer;
 	writer.Reset(true, false, 1);
 	writer.Serialize(source, sizeof(marker), false);
 	writer.Serialize(sourceLong);
+	writer.Serialize(zeroVector);
+	writer.Serialize(sourceMove);
 
 	boost::asio::streambuf packet;
 	std::ostream output(&packet);
@@ -125,12 +129,17 @@ bool TestBitStreamOwnershipAndWindowsLongLayout()
 
 	void* decoded = NULL;
 	long decodedLong = 0;
+	glm::vec3 decodedZero(1.0F);
+	BYTE decodedMove = 0U;
 	reader.Serialize(decoded, sizeof(marker), false);
 	reader.Serialize(decodedLong);
+	reader.Serialize(decodedZero);
+	reader.Serialize(decodedMove);
 
 	const bool passed = decoded != NULL &&
 		std::memcmp(decoded, &marker, sizeof(marker)) == 0 &&
 		decodedLong == sourceLong &&
+		decodedZero == zeroVector && decodedMove == sourceMove &&
 		net::BitValue::GetSize(net::btLong) == 4;
 	if (!passed)
 	{
@@ -139,6 +148,9 @@ bool TestBitStreamOwnershipAndWindowsLongLayout()
 			std::memcpy(&decodedMarker, decoded, sizeof(decodedMarker));
 		std::cerr << "BitStream detail: marker=" << std::hex << decodedMarker
 			<< " long=" << decodedLong << " expected=" << sourceLong
+			<< " zero=" << decodedZero.x << ',' << decodedZero.y << ','
+			<< decodedZero.z << " move="
+			<< static_cast<unsigned>(decodedMove)
 			<< std::dec << " wireLongSize=" << net::BitValue::GetSize(net::btLong)
 			<< '\n';
 	}

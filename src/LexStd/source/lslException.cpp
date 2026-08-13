@@ -6,7 +6,12 @@
 namespace lsl
 {
 
+#ifdef __APPLE__
+AppLog appLog(
+    (rrr3d::platform::log_directory() / "appLog.txt").string());
+#else
 AppLog appLog("appLog.txt");
+#endif
 
 AppLog::AppLog(const std::string& mFileName): _destroy(false), fileName(mFileName)
 {

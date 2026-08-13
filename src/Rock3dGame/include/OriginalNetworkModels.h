@@ -217,6 +217,10 @@ public:
     // Configure it before allocating human player models.
     void setGamerCatalog(std::vector<std::int32_t> gamerIds);
 
+    // NetGame calls NetPlayer::Process every frame independently of NetLib.
+    // Keep that source-side control freshness timer in this portable owner.
+    void process(std::uint32_t milliseconds);
+
     bool createHostRace(std::string& error);
     bool startMatch(const NetworkMatchState& match,
                     const NetworkPlayerState& localPlayer,
