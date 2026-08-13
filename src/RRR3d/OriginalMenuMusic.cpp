@@ -139,6 +139,7 @@ struct OriginalMenuMusic::Impl
 			}
 		}
 
+		trimDecodedCache();
 		if (!startCurrent(error) || !scheduleDecode(error))
 			return false;
 
@@ -227,6 +228,7 @@ struct OriginalMenuMusic::Impl
 			return false;
 		}
 		++transitions;
+		trimDecodedCache();
 		if (!writeState(error))
 			return false;
 		return startCurrent(error) && scheduleDecode(error);
@@ -324,7 +326,14 @@ struct OriginalMenuMusic::Impl
 		std::optional<std::size_t> candidate;
 		if (const auto current = music.currentTrack(); current && loaded[*current].state == LoadState::Unloaded)
 			candidate = current;
-		if (!candidate)
+		// The SDL backend stores decoded stereo-float PCM.  Normal gameplay
+		// therefore keeps only the current track and, once playback has
+		// started, the next playlist entry warm.  The old eager scan retained
+		// all 14 menu/race tracks (hundreds of MiB) and caused memory pressure
+		// and severe slowdown after the background worker caught up.  The
+		// persistence smoke fixture deliberately keeps the eager policy so it
+		// can continue auditing every source container.
+		if (!candidate && (trackStarted || persistState))
 		{
 			for (auto track = music.playlist().rbegin(); track != music.playlist().rend(); ++track)
 			{
@@ -335,7 +344,7 @@ struct OriginalMenuMusic::Impl
 				}
 			}
 		}
-		if (!candidate)
+		if (!candidate && persistState)
 		{
 			for (std::size_t index = 0; index < loaded.size(); ++index)
 			{
@@ -375,6 +384,28 @@ struct OriginalMenuMusic::Impl
 		return true;
 	}
 
+	void trimDecodedCache() noexcept
+	{
+		if (persistState)
+			return;
+		const auto current = music.currentTrack();
+		std::optional<std::size_t> next;
+		if (trackStarted && !music.playlist().empty())
+			next = music.playlist().back();
+		for (std::size_t index = 0; index < loaded.size(); ++index)
+		{
+			if ((current && index == *current) ||
+			    (next && index == *next) ||
+			    loaded[index].state == LoadState::Loading)
+			{
+				continue;
+			}
+			if (loaded[index].sound != r3d::audio::invalidSound)
+				audio.unloadSound(loaded[index].sound);
+			loaded[index] = {};
+		}
+	}
+
 	bool startCurrent(std::string &error)
 	{
 		if (trackStarted)
@@ -391,6 +422,7 @@ struct OriginalMenuMusic::Impl
 				return false;
 			}
 			++transitions;
+			trimDecodedCache();
 			return true;
 		}
 

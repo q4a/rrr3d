@@ -3479,7 +3479,12 @@ int main(int argc, char** argv)
         audio, *resources, musicStatePath,
         options->audioSmokeTest ? 0x4d75736963436174ULL
                                 : rrr3d::platform::steady_nanoseconds(),
-        true);
+        options->audioSmokeTest,
+        musicTracks(originalaudio::menuTracks),
+        options->audioSmokeTest
+            ? std::vector<std::size_t>{}
+            : musicPlaylist(profileState.config.menuMusicPlaylist,
+                            originalaudio::menuTracks.size()));
     if (!music.initialize(audioError))
     {
         std::cerr << "Original MusicCat initialization failed: "
@@ -3530,7 +3535,7 @@ int main(int argc, char** argv)
         audio, *resources, gameMusicStatePath,
         rrr3d::platform::steady_nanoseconds() ^
             0x47616d654d757369ULL,
-        true, musicTracks(originalaudio::gameTracks),
+        false, musicTracks(originalaudio::gameTracks),
         musicPlaylist(profileState.config.gameMusicPlaylist,
                       originalaudio::gameTracks.size()));
     if (!gameMusic.initialize(audioError) ||
@@ -5962,6 +5967,12 @@ int main(int argc, char** argv)
             raceLoadingDeferredObserved ||
             raceLoadingPresentedFrames >= 2U;
         raceLoadingActive = false;
+        // An explicit command-line track is a diagnostic/runtime override.
+        // ProfileFrame selection in the integrated menu fixture reloads the
+        // profile's campaign cursor, but must not silently discard that
+        // override before the requested race is constructed.
+        if (options->trackSelected)
+            selectedTrack = options->trackIndex;
         if (!reloadCurrentRace())
         {
             runtimeSmokeFailed = true;
@@ -16691,7 +16702,13 @@ int main(int argc, char** argv)
                         selectedState
                             ? optionsButtonSelectedImage.height
                             : optionsButtonImage.height),
-                    buttonX, buttonY, 45.0F, transparent);
+                    buttonX +
+                        static_cast<float>(
+                            selectedState
+                                ? optionsButtonSelectedImage.width
+                                : optionsButtonImage.width) *
+                            0.5F,
+                    buttonY, 45.0F, transparent);
                 drawQuad(
                     *device, quad, shader, stateText.texture,
                     stateText.width, stateText.height,
@@ -16785,7 +16802,13 @@ int main(int argc, char** argv)
                     static_cast<float>(
                         controls ? controlsRowImage.height
                                  : optionsRowImage.height),
-                    optionsCenterX - 235.0F, rowY, 45.0F,
+                    optionsCenterX - 235.0F +
+                        (controls
+                             ? 0.0F
+                             : static_cast<float>(
+                                   optionsRowImage.width) *
+                                   0.5F),
+                    rowY, 45.0F,
                     transparent);
                 const auto& name =
                     !rowEnabled ? names->disabled[index]
@@ -16968,7 +16991,13 @@ int main(int argc, char** argv)
                         selectedAction
                             ? optionsButtonSelectedImage.height
                             : optionsButtonImage.height),
-                    buttonX, buttonY, 40.0F, transparent);
+                    buttonX +
+                        static_cast<float>(
+                            selectedAction
+                                ? optionsButtonSelectedImage.width
+                                : optionsButtonImage.width) *
+                            0.5F,
+                    buttonY, 40.0F, transparent);
                 const auto& actionText =
                     selectedAction
                         ? optionsActionPage.selected[action]

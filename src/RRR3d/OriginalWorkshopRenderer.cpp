@@ -203,6 +203,16 @@ Transform sourceViewTransform(
         -scaleZ * (2.0F * (yz - wx)),
         scaleZ * (1.0F - 2.0F * (xx + yy)), 0.0F,
         centerX, centerY, 40.0F, 1.0F};
+
+    // ContextInfo's csViewPort projection maps the source -500..500 camera
+    // range into depth.  The portable overlay camera instead spans 0..100.
+    // Compress the completed transform's output Z row, not the model's local
+    // Z scale: Planet applies a 90-degree X rotation, so scaling local Z
+    // flattens the sphere vertically instead of reducing viewport depth.
+    result.matrix[2] *= 0.1F;
+    result.matrix[6] *= 0.1F;
+    result.matrix[10] *= 0.1F;
+    result.matrix[14] = 50.0F;
     return result;
 }
 

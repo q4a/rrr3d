@@ -4323,6 +4323,34 @@ void OriginalRaceRenderer::draw(
                     trailTransform.matrix = identityMatrix();
                     static constexpr std::array<std::uint32_t, 6>
                         trailIndices{0U, 1U, 2U, 1U, 3U, 2U};
+                    if (trailStyles.empty())
+                    {
+                        // FxTrailManager submits one strip for a wheel trail.
+                        // Submitting every one of its (up to 100) segments as
+                        // an individual bgfx draw made the command count grow
+                        // for ten seconds on every slipping wheel and caused
+                        // the severe mid-race slowdown.  Wheel-trail
+                        // overrides have one source material, so preserve the
+                        // same geometry in one transient triangle list.
+                        std::vector<std::uint32_t> indices;
+                        indices.reserve(
+                            (trailPoints.size() - 1U) *
+                            trailIndices.size());
+                        for (std::size_t segment = 0;
+                             segment + 1U < trailPoints.size(); ++segment)
+                        {
+                            const auto base = static_cast<std::uint32_t>(
+                                segment * 2U);
+                            for (const auto index : trailIndices)
+                                indices.push_back(base + index);
+                        }
+                        device.drawTransient(
+                            trailVertices.data(), trailVertices.size(),
+                            indices.data(), indices.size(), shader,
+                            trailTexture, trailTransform, trailPipeline,
+                            trailMaterial);
+                        continue;
+                    }
                     for (std::size_t segment = 0;
                          segment + 1U < trailPoints.size(); ++segment)
                     {
@@ -6042,8 +6070,12 @@ void OriginalRaceRenderer::renderFrame(
             spotShadowsEnabled ? 1.0F : 0.62F;
         sceneState.shadowSplitDistance = shadowSplitDistance;
         sceneState.shadowMapSize = 2048.0F;
-        sceneState.shadowDepthBias =
-            spotShadowsEnabled ? 0.0F : 0.0015F;
+        // The D3D9 spot-light path first projected its shadow caster pass
+        // into a filtered light map.  Comparing the portable depth target
+        // directly needs the same receiver separation as the directional
+        // path; zero bias produces the dense self-shadow grid visible on
+        // garage cars and barrels.
+        sceneState.shadowDepthBias = 0.0015F;
         if (spotShadowsEnabled)
         {
             // Garage/Angar never enable planar reflection, so the original
