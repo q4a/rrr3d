@@ -58,10 +58,24 @@ gameplay consumer belongs to the race port.
 
 The original automatic category gains are retained:
 
+- Mastering voice: 0.1
 - Music: 1.2
 - Effects: 0.8
 - Voice: 1.2
 - supported range: 0..2, matching the original options UI
+
+The 0.1 mastering gain is the fixed `snd::Engine::Init` stage, not a fourth
+user option. SDL applies it before the category, source and serialized sound
+resource gains, matching the XAudio2 graph and preventing the ten-times-hot
+mix and hard clipping produced by the earlier portable runtime.
+
+The active race adapter also preserves the source `m3dFlat` path: 30 metre
+linear attenuation, no pan or Doppler, and the 45 metre stop lag. Weapon
+`ShotEffect` selects across every serialized sound with the legacy uniform
+`RandomRange` rule once per successfully prepared projectile. Its per-car,
+per-equipped-slot, per-sound `Source3d` state ignores a repeated `Play` while
+active, can defer a far shot until the owner enters 30 metres, pauses beyond
+45 metres without rewinding, and resumes from the same sample on approach.
 
 ## Backend
 

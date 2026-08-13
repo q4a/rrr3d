@@ -195,6 +195,11 @@ struct RaceEvent
     // Exact EventEffect/LifeEffect sound selected when its source object is
     // created. Empty for non-audio race events.
     std::string soundPath{};
+    // ShotEffect owns one persistent Source3d per serialized sound on each
+    // equipped slot. A valid index identifies that source owner so repeated
+    // Play calls can be ignored while it is already active, and a shot made
+    // outside the audible radius can start when its owner approaches later.
+    std::size_t soundSource = RacerRuntime::invalidWeapon;
 };
 
 struct RaceEffect

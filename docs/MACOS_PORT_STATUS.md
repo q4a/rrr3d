@@ -1159,3 +1159,20 @@ game-side audio behaviors. Release hardening
   четыре wheel contacts, физика/звук/HUD, оба camera mode и полный
   cube6/shadow2/scene/HDR/refraction render graph. Resource и physics smokes
   также прошли.
+
+### Source audio graph / ShotEffect follow-up
+
+- Исправлен десятикратный уровень всего portable mix: как и
+  `snd::Engine::Init`, SDL mastering stage теперь равен `0.1`, после чего
+  применяются исходные Music/Effects/Voice, Source и resource gains.
+- Удалена придуманная схема «первый звук на одно событие WeaponFired».
+  `Weapon::CreateShot -> Behaviors::OnShot -> ShotEffect::GiveSource3d`
+  теперь выполняется для каждого успешно созданного projectile и выбирает
+  один из всех сериализованных sound refs по исходному `RandomRange`.
+- Для каждой машины, установленного weapon-slot и sound variant хранится
+  собственный ShotEffect Source3d: повторный `Play` во время активности
+  игнорируется, далёкий запрос ждёт входа в радиус 30 м, после выхода за 45 м
+  PCM cursor приостанавливается и затем продолжается без перемотки.
+- Spatial smoke фиксирует итоговые коэффициенты master/category/resource и
+  30/45-метровую state machine; race-session smoke требует реального
+  сериализованного ShotEffect sound event вместе с визуальным эффектом.

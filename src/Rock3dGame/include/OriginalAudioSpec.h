@@ -46,6 +46,12 @@ inline constexpr char mainButtonClick[] = "Sounds\\UI\\click.ogg";
 inline constexpr char rollover[] = "Sounds\\UI\\navedenie.ogg";
 inline constexpr char fireGun[] = "Sounds\\fireGun.ogg";
 
+// snd::Engine::Init applies this gain to the XAudio2 mastering voice before
+// any Logic category, Source or per-resource volume.  Keeping it separate
+// from the user-facing 0..2 controls is essential: the shipped defaults can
+// exceed unity precisely because the final mastering stage is one tenth.
+inline constexpr float masteringVoiceVolume = 0.1F;
+
 // Logic::AutodetectVolume defaults. The legacy sound API permits gain above
 // unity, and the options UI exposes the 0..2 range.
 inline constexpr float defaultMusicVolume = 1.2F;

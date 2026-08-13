@@ -4352,12 +4352,31 @@ void OriginalRaceSession::updateGameplay(
     }
 
     auto pushShotEffect =
-        [&](std::size_t weapon,
+        [&](std::size_t owner, std::size_t weapon,
+            std::size_t soundSource,
             const Transform& weaponTransform,
             const ProjectileDefinition& projectile) {
             if (weapon >= race_.weapons.size())
                 return;
             const auto& source = race_.weapons[weapon].shotEffect;
+            // Weapon::CreateShot calls Behaviors::OnShot once for every
+            // projectile which PrepareProj accepted. ShotEffect then uses
+            // GiveSource3d(), whose RandomRange chooses one of the serialized
+            // sounds independently of whether a visual effect exists.
+            if (!source.soundPaths.empty())
+            {
+                RaceEvent sound;
+                sound.kind = RaceEventKind::EffectSound;
+                sound.racer = owner;
+                sound.target = weapon;
+                sound.position = weaponTransform.position;
+                sound.soundPath = source.soundPaths[
+                    sourceUniformRandomIndex(
+                        source.soundPaths.size(),
+                        sourceUniformRandomUnit())];
+                sound.soundSource = soundSource;
+                events_.push_back(std::move(sound));
+            }
             if ((source.visual.visualNodes.empty() &&
                  source.visual.particleEmitters.empty()) ||
                 source.duration <= 0.0F)
@@ -4436,7 +4455,9 @@ void OriginalRaceSession::updateGameplay(
                 projectile->minimumLife,
                 projectile->maximumLife);
         }
-        pushShotEffect(weapon, weaponTransform, *projectile);
+        pushShotEffect(
+            owner, weapon, PlayerProfile::weaponSlotCount + 1U,
+            weaponTransform, *projectile);
         mines_.push_back(mine);
         events_.push_back({RaceEventKind::MinePlaced, owner, weapon,
                            weaponTransform.position, 0.0F});
@@ -4533,7 +4554,8 @@ void OriginalRaceSession::updateGameplay(
             {RaceEventKind::HyperActivated, owner,
              racers_[owner].hyperWeapon, position, duration});
         pushShotEffect(
-            racers_[owner].hyperWeapon,
+            owner, racers_[owner].hyperWeapon,
+            PlayerProfile::weaponSlotCount,
             weaponTransform,
             projectile);
     };
@@ -5325,7 +5347,7 @@ void OriginalRaceSession::updateGameplay(
                  RacerRuntime::invalidWeapon,
                  RacerRuntime::invalidWeapon, {}});
             pushShotEffect(
-                firedWeapon,
+                shooter, firedWeapon, firedSlot,
                 weaponWorldTransform(
                     shooter, firedWeapon, firedSlot),
                 projectile);
@@ -8188,11 +8210,33 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             for (const auto* sourceWeapon : primaryWeapons)
             {
+                const auto weaponIndex = static_cast<std::size_t>(
+                    sourceWeapon - race.weapons.data());
+                if (!sourceWeapon->shotEffect.soundPaths.empty())
+                {
+                    const bool emittedSound = std::any_of(
+                        weaponSession.events().begin(),
+                        weaponSession.events().end(),
+                        [&](const RaceEvent& event) {
+                            return event.kind ==
+                                       RaceEventKind::EffectSound &&
+                                   event.racer == 0U &&
+                                   event.target == weaponIndex &&
+                                   std::find(
+                                       sourceWeapon->shotEffect.soundPaths.begin(),
+                                       sourceWeapon->shotEffect.soundPaths.end(),
+                                       event.soundPath) !=
+                                       sourceWeapon->shotEffect.soundPaths.end();
+                        });
+                    if (!emittedSound)
+                    {
+                        throw std::runtime_error(
+                            "source ctWeapon ShotEffect sound was not emitted");
+                    }
+                }
                 if (sourceWeapon->shotEffect.visual.visualNodes.empty() &&
                     sourceWeapon->shotEffect.visual.particleEmitters.empty())
                     continue;
-                const auto weaponIndex = static_cast<std::size_t>(
-                    sourceWeapon - race.weapons.data());
                 const bool emitted = std::any_of(
                     weaponSession.effects().begin(),
                     weaponSession.effects().end(),

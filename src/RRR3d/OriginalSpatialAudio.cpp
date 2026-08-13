@@ -1,5 +1,7 @@
 #include "OriginalSpatialAudio.h"
 
+#include "OriginalAudioSpec.h"
+
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -86,6 +88,11 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
     const auto stopped = originalSource3dFlatMix(45.001F, true);
     const auto staysStopped = originalSource3dFlatMix(35.0F, false);
     const auto resumed = originalSource3dFlatMix(29.999F, false);
+    const float sourceMissileMix =
+        r3d::game::originalaudio::masteringVoiceVolume *
+        r3d::game::originalaudio::defaultEffectsVolume *
+        originalSoundVolume("Data/Sounds/missile_launch.ogg") *
+        initial.gain;
     return initial.started && initial.proxyPlaying &&
            nearlyEqual(initial.gain, 1.0F) &&
            audible.proxyPlaying && nearlyEqual(audible.gain, 0.5F) &&
@@ -98,7 +105,19 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
                        2.0F) &&
            nearlyEqual(originalSoundVolume(
                            "Data/Sounds/cluster_rocket.ogg"),
-                       1.0F);
+                       1.0F) &&
+           // XAudio2 output is MasteringVoice * Logic category * Source *
+           // Sound resource * the flat output matrix.  This catches the
+           // former port regression where the master was ten times louder.
+           nearlyEqual(sourceMissileMix, 0.16F) &&
+           nearlyEqual(
+               r3d::game::originalaudio::masteringVoiceVolume *
+                   r3d::game::originalaudio::defaultMusicVolume,
+               0.12F) &&
+           nearlyEqual(
+               r3d::game::originalaudio::masteringVoiceVolume *
+                   r3d::game::originalaudio::defaultVoiceVolume,
+               0.12F);
 }
 
 } // namespace rrr3d::audio

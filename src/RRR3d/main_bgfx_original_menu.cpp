@@ -3230,7 +3230,11 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    audio.setMasterVolume(1.0F);
+    // snd::Engine::Init sets the XAudio2 mastering voice to 0.1 before the
+    // three Logic submix/category gains. The previous 1.0 made the portable
+    // game mix ten times hotter than the Windows source and hard-clipped
+    // simultaneous race effects in the final SDL mixer.
+    audio.setMasterVolume(originalaudio::masteringVoiceVolume);
 #ifdef RRR3D_PHYSICS
     audio.setBusVolume(r3d::audio::Bus::Music,
                        profileState.config.musicVolume);
@@ -3430,13 +3434,22 @@ int main(int argc, char** argv)
         r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
         bool spatialProxyPlaying = false;
     };
+    struct ShotEffectAudio
+    {
+        std::size_t owner = 0;
+        std::size_t source = 0;
+        std::string path;
+        r3d::physics::Vec3 position;
+        r3d::audio::SoundHandle sound = r3d::audio::invalidSound;
+        r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
+        bool spatialProxyPlaying = false;
+    };
     std::map<std::string, r3d::audio::SoundHandle> engineSounds;
     std::map<r3d::audio::SoundHandle, float> engineSoundVolumes;
     std::vector<EngineAudio> engineAudio(originalRace->racers.size());
     std::vector<std::vector<WheelSlipAudio>>
         wheelSlipVoices(originalRace->racers.size());
-    std::vector<r3d::audio::SoundHandle> weaponAudio(
-        originalRace->weapons.size(), r3d::audio::invalidSound);
+    std::vector<ShotEffectAudio> shotEffectAudio;
     auto loadEngineSound = [&](const std::string& path) {
         const auto found = engineSounds.find(path);
         if (found != engineSounds.end())
@@ -3475,19 +3488,6 @@ int main(int argc, char** argv)
             engineAudio[racer].idle != r3d::audio::invalidSound &&
             engineAudio[racer].rpm != r3d::audio::invalidSound;
     }
-    for (std::size_t weapon = 0;
-         weapon < originalRace->weapons.size(); ++weapon)
-    {
-        const auto& sounds =
-            originalRace->weapons[weapon].shotEffect.soundPaths;
-        if (!sounds.empty())
-        {
-            weaponAudio[weapon] = loadEngineSound(sounds.front());
-            engineAudioValid =
-                engineAudioValid &&
-                weaponAudio[weapon] != r3d::audio::invalidSound;
-        }
-    }
     auto preloadEffectAudio = [&]() {
         bool valid = true;
         const auto preloadDefinition = [&](const auto& definition) {
@@ -3518,6 +3518,13 @@ int main(int argc, char** argv)
         }
         for (const auto& weapon : originalRace->weapons)
         {
+            for (const auto& path : weapon.shotEffect.soundPaths)
+            {
+                valid =
+                    loadEngineSound(path) !=
+                        r3d::audio::invalidSound &&
+                    valid;
+            }
             preloadDefinition(weapon.shotEffect.visual);
             for (const auto& projectile : weapon.projectiles)
             {
@@ -3601,6 +3608,9 @@ int main(int argc, char** argv)
             OriginalMusicDialogSource::Game, lastGameMusicTrack);
         commentator.pause(false);
         commentator.reset();
+        for (const auto& source : shotEffectAudio)
+            audio.stop(source.voice);
+        shotEffectAudio.clear();
         for (std::size_t racer = 0; racer < engineAudio.size();
              ++racer)
         {
@@ -3641,6 +3651,9 @@ int main(int argc, char** argv)
                 voice = {};
             }
         }
+        for (const auto& source : shotEffectAudio)
+            audio.stop(source.voice);
+        shotEffectAudio.clear();
         commentator.pause(true);
         gameMusic.pause(true, audioError);
         if (advanceGameTrack)
@@ -11262,40 +11275,96 @@ int main(int argc, char** argv)
                 for (const auto& event : raceSession.events())
                 {
                     if (event.kind ==
-                            r3d::game::originalrace::RaceEventKind::
-                                WeaponFired &&
-                        event.racer < raceSession.racers().size())
-                    {
-                        const auto weapon = event.weapon;
-                        if (weapon < weaponAudio.size())
-                            playSpatial(weaponAudio[weapon],
-                                        event.position);
-                    }
-                    else if (event.kind ==
-                                 r3d::game::originalrace::RaceEventKind::
-                                     MinePlaced &&
-                             event.target < weaponAudio.size())
-                    {
-                        playSpatial(weaponAudio[event.target],
-                                    event.position);
-                    }
-                    else if (event.kind ==
-                                 r3d::game::originalrace::RaceEventKind::
-                                     HyperActivated &&
-                             event.target < weaponAudio.size())
-                    {
-                        playSpatial(weaponAudio[event.target],
-                                    event.position);
-                    }
-                    else if (event.kind ==
                                  r3d::game::originalrace::RaceEventKind::
                                      EffectSound &&
                              !event.soundPath.empty())
                     {
-                        playSpatial(
-                            loadEngineSound(event.soundPath),
-                            event.position);
+                        const auto sound =
+                            loadEngineSound(event.soundPath);
+                        if (event.soundSource ==
+                            r3d::game::originalrace::RacerRuntime::
+                                invalidWeapon)
+                        {
+                            playSpatial(sound, event.position);
+                        }
+                        else
+                        {
+                            // ShotEffect::GiveSource3d chooses an existing
+                            // Source3d. Source3d::Play ignores the call while
+                            // that exact source is already requested/playing.
+                            const auto active = std::find_if(
+                                shotEffectAudio.begin(),
+                                shotEffectAudio.end(),
+                                [&](const ShotEffectAudio& source) {
+                                    return source.owner == event.racer &&
+                                           source.source == event.soundSource &&
+                                           source.path == event.soundPath;
+                                });
+                            if (active == shotEffectAudio.end() &&
+                                sound != r3d::audio::invalidSound)
+                            {
+                                shotEffectAudio.push_back(
+                                    {event.racer, event.soundSource,
+                                     event.soundPath, event.position,
+                                     sound});
+                            }
+                        }
                     }
+                }
+                for (auto source = shotEffectAudio.begin();
+                     source != shotEffectAudio.end();)
+                {
+                    if (source->voice != r3d::audio::invalidVoice &&
+                        !audio.isVoiceActive(source->voice))
+                    {
+                        source = shotEffectAudio.erase(source);
+                        continue;
+                    }
+                    // EventEffect::OnProgress moves all initialized
+                    // ShotEffect sources with their owning weapon/car.
+                    if (source->owner < raceVehicles.size())
+                        source->position =
+                            raceVehicles[source->owner].body.position;
+                    const float dx = source->position.x - listener.x;
+                    const float dy = source->position.y - listener.y;
+                    const float dz = source->position.z - listener.z;
+                    const auto spatial =
+                        rrr3d::audio::originalSource3dFlatMix(
+                            std::sqrt(dx * dx + dy * dy + dz * dz),
+                            source->spatialProxyPlaying);
+                    source->spatialProxyPlaying = spatial.proxyPlaying;
+                    const auto resourceVolume =
+                        engineSoundVolumes.find(source->sound);
+                    const float volume =
+                        spatial.gain *
+                        (resourceVolume != engineSoundVolumes.end()
+                             ? resourceVolume->second
+                             : 1.0F);
+                    if (source->voice == r3d::audio::invalidVoice &&
+                        spatial.started)
+                    {
+                        r3d::audio::PlayOptions options;
+                        options.bus = r3d::audio::Bus::Effects;
+                        options.volume = volume;
+                        source->voice = audio.play(
+                            source->sound, options, audioError);
+                        if (source->voice == r3d::audio::invalidVoice)
+                            source->spatialProxyPlaying = false;
+                    }
+                    if (source->voice != r3d::audio::invalidVoice)
+                    {
+                        audio.setVoiceParameters(
+                            source->voice, volume, 1.0F, 0.0F);
+                        // Proxy::Stop does not rewind Streaming. The SDL
+                        // paused voice therefore resumes at the same sample
+                        // after Source3d's 30/45 metre hysteresis restarts it.
+                        audio.setVoicePaused(
+                            source->voice,
+                            raceSession.phase() ==
+                                    r3d::game::originalrace::RacePhase::Paused ||
+                                !source->spatialProxyPlaying);
+                    }
+                    ++source;
                 }
                 commentator.update(
                     *originalRace, raceSession, frameSeconds, audioError);
