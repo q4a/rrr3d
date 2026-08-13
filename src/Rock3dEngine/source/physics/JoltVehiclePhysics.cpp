@@ -1917,7 +1917,17 @@ private:
             body.GetInverseInertia()
                 .Inversed3x3()
                 .Multiply3x3(body.GetAngularVelocity()));
-        state.speed = body.GetLinearVelocity().Length();
+        // Player::CarState::Update obtains GameCar::GetSpeed(actor, dir),
+        // i.e. the signed projection on the car's local +X axis, and applies
+        // its one-metre-per-second dead zone.  Feeding total velocity length
+        // here made AICar think a vehicle sliding sideways against a border
+        // was still moving forward, so its source blocking/reverse/reset
+        // state machine never recovered and opponents accumulated on walls.
+        const float longitudinalSpeed = body.GetLinearVelocity().Dot(
+            body.GetRotation() * JPH::Vec3::sAxisX());
+        state.speed = std::abs(longitudinalSpeed) < 1.0F
+                          ? 0.0F
+                          : longitudinalSpeed;
         state.drivenWheelSpeed = 0.0F;
         state.engineRpm = vehicle.engineRpm;
         state.gear = vehicle.currentGear;
@@ -2156,6 +2166,20 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 std::to_string(synchronized.angularMomentum.x) + "," +
                 std::to_string(synchronized.angularMomentum.y) + "," +
                 std::to_string(synchronized.angularMomentum.z);
+        return false;
+    }
+    // Player::CarState exposes signed longitudinal GameCar::GetSpeed, not
+    // total rigid-body velocity.  A purely lateral slide must therefore hit
+    // the source one-metre dead zone so AICar can enter blocking recovery.
+    networkWorld->synchronizeNetworkVehicle(
+        0U, synchronized.body.position, {},
+        {0.0F, sourceVehicle.mass * 8.0F, 0.0F}, {});
+    const auto lateralSlide = networkWorld->vehicle();
+    if (lateralSlide.speed != 0.0F ||
+        std::abs(lateralSlide.linearVelocity.y - 8.0F) > 0.01F)
+    {
+        error = "Player::CarState signed longitudinal speed contract was "
+                "not preserved for lateral motion";
         return false;
     }
     const Vec3 nearNetworkPosition{

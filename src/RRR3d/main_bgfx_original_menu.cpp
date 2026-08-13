@@ -4855,6 +4855,11 @@ int main(int argc, char** argv)
     float racePauseElapsedSnapshot = -1.0F;
     r3d::physics::Vec3 racePausePositionSnapshot;
     float maximumRaceSmokeSpeed = 0.0F;
+    std::vector<float> maximumRaceAiSpeeds(raceVehicles.size(), 0.0F);
+    std::vector<float> maximumRaceAiProgress(raceVehicles.size(), 0.0F);
+    std::vector<std::uint32_t> raceAiThrottleFrames(raceVehicles.size(), 0U);
+    std::vector<std::uint32_t> raceAiBrakeFrames(raceVehicles.size(), 0U);
+    std::vector<std::uint32_t> raceAiReverseFrames(raceVehicles.size(), 0U);
     std::uint32_t maximumRaceSmokeContacts = 0;
     std::array<std::uint32_t, r3d::renderer::renderPassCount>
         maximumRacePassBegins{};
@@ -6056,6 +6061,11 @@ int main(int argc, char** argv)
         finishVoiceIndex = 0U;
         finishLastVoiceDispatched = false;
         raceVehicles.resize(physicsWorld->vehicleCount());
+        maximumRaceAiSpeeds.assign(raceVehicles.size(), 0.0F);
+        maximumRaceAiProgress.assign(raceVehicles.size(), 0.0F);
+        raceAiThrottleFrames.assign(raceVehicles.size(), 0U);
+        raceAiBrakeFrames.assign(raceVehicles.size(), 0U);
+        raceAiReverseFrames.assign(raceVehicles.size(), 0U);
         for (std::size_t index = 0;
              index < physicsWorld->vehicleCount(); ++index)
             raceVehicles[index] = physicsWorld->vehicle(index);
@@ -15173,6 +15183,21 @@ int main(int argc, char** argv)
                         physicsWorld->clampLinearSpeed(racer, 20.0F);
                 }
                 auto vehicleInputs = raceSession.vehicleInputs();
+                if (options->raceRenderSmokeTest)
+                {
+                    for (std::size_t index = 1U;
+                         index < vehicleInputs.size() &&
+                         index < raceVehicles.size() &&
+                         index < raceSession.racers().size(); ++index)
+                    {
+                        raceAiThrottleFrames[index] +=
+                            vehicleInputs[index].throttle > 0.5F ? 1U : 0U;
+                        raceAiBrakeFrames[index] +=
+                            vehicleInputs[index].brake > 0.5F ? 1U : 0U;
+                        raceAiReverseFrames[index] +=
+                            vehicleInputs[index].reverse > 0.5F ? 1U : 0U;
+                    }
+                }
 #ifdef RRR3D_NETWORK
                 if (networkMatchStarted)
                 {
@@ -15236,7 +15261,24 @@ int main(int argc, char** argv)
                 physicsWorld->step(frameSeconds, vehicleInputs);
                 for (std::size_t index = 0;
                      index < physicsWorld->vehicleCount(); ++index)
+                {
                     raceVehicles[index] = physicsWorld->vehicle(index);
+                    if (options->raceRenderSmokeTest && index > 0U &&
+                        index < raceSession.racers().size())
+                    {
+                        maximumRaceAiSpeeds[index] = std::max(
+                            maximumRaceAiSpeeds[index],
+                            std::abs(raceVehicles[index].speed));
+                        maximumRaceAiProgress[index] = std::max(
+                            maximumRaceAiProgress[index],
+                            static_cast<float>(
+                                raceSession.racers()[index].completedLaps) +
+                                static_cast<float>(
+                                    raceSession.racers()[index].nextPathNode) /
+                                    static_cast<float>(std::max<std::size_t>(
+                                        originalRace->tracePath.size(), 1U)));
+                    }
+                }
 #ifdef RRR3D_NETWORK
                 if (networkMatchStarted &&
                     !publishLocalNetworkPlayer())
@@ -15474,7 +15516,14 @@ int main(int argc, char** argv)
             }
 #endif
             maximumRaceSmokeSpeed = std::max(
-                maximumRaceSmokeSpeed, physicsWorld->vehicle().speed);
+                maximumRaceSmokeSpeed,
+                std::sqrt(
+                    physicsWorld->vehicle().linearVelocity.x *
+                        physicsWorld->vehicle().linearVelocity.x +
+                    physicsWorld->vehicle().linearVelocity.y *
+                        physicsWorld->vehicle().linearVelocity.y +
+                    physicsWorld->vehicle().linearVelocity.z *
+                        physicsWorld->vehicle().linearVelocity.z));
             maximumRaceSmokeContacts = std::max(
                 maximumRaceSmokeContacts,
                 physicsWorld->vehicle().contactCount);
@@ -20032,7 +20081,42 @@ int main(int argc, char** argv)
                     "Data/Map/World1/map1.r3dMap";
                 const bool expectsHeadlights =
                     originalRace->environment.weather ==
-                    r3d::game::originalrace::Weather::Night;
+                        r3d::game::originalrace::Weather::Night;
+                const std::size_t competitiveAiCount =
+                    static_cast<std::size_t>(std::count_if(
+                        maximumRaceAiSpeeds.begin() +
+                            std::min<std::size_t>(
+                                1U, maximumRaceAiSpeeds.size()),
+                        maximumRaceAiSpeeds.end(),
+                        [](float speed) { return speed >= 25.0F; }));
+                const std::size_t progressingAiCount =
+                    static_cast<std::size_t>(std::count_if(
+                        maximumRaceAiProgress.begin() +
+                            std::min<std::size_t>(
+                                1U, maximumRaceAiProgress.size()),
+                        maximumRaceAiProgress.end(),
+                        [](float progress) { return progress >= 0.5F; }));
+                const std::size_t expectedCompetitiveAi =
+                    options->smokeFrames >= 1800U &&
+                            originalRace->levelPath ==
+                                "Data/Map/World1/map1.r3dMap" &&
+                            maximumRaceAiSpeeds.size() > 1U
+                        ? std::min<std::size_t>(
+                              3U, maximumRaceAiSpeeds.size() - 1U)
+                        : 0U;
+                const std::size_t aheadAiCount =
+                    raceSession.racers().empty()
+                        ? 0U
+                        : static_cast<std::size_t>(std::count_if(
+                              raceSession.racers().begin() + 1U,
+                              raceSession.racers().end(),
+                              [&](const auto& racer) {
+                                  return !racer.disconnected &&
+                                         racer.place <
+                                             raceSession.racers().front().place;
+                              }));
+                const std::size_t expectedAheadAi =
+                    expectedCompetitiveAi > 0U ? 1U : 0U;
                 const auto expectedHeadlightCount =
                     static_cast<std::uint32_t>(
                         originalRace->racers.size() +
@@ -20084,6 +20168,9 @@ int main(int argc, char** argv)
                     minimumRacePlayerLife <= 0.0F ||
                     maximumRaceSmokeContacts == 0 ||
                     maximumRaceSmokeSpeed < 0.2F ||
+                    competitiveAiCount < expectedCompetitiveAi ||
+                    progressingAiCount < expectedCompetitiveAi ||
+                    aheadAiCount < expectedAheadAi ||
                     raceVehicles.size() < 2U ||
                     !raceCameraStylesObserved[0] ||
                     !raceCameraStylesObserved[1] ||
@@ -20142,6 +20229,12 @@ int main(int argc, char** argv)
                         << minimumRacePlayerLife << ", contacts="
                         << maximumRaceSmokeContacts << ", maxSpeed="
                         << maximumRaceSmokeSpeed
+                        << ", competitive/progressing AI="
+                        << competitiveAiCount << '/'
+                        << progressingAiCount << '/'
+                        << expectedCompetitiveAi
+                        << ", AI ahead=" << aheadAiCount << '/'
+                        << expectedAheadAi
                         << ", renderGraph="
                         << renderGraphComplete
                         << ", envMapped="
@@ -20169,6 +20262,20 @@ int main(int argc, char** argv)
                         << renderedFrames << " frames; max speed "
                         << maximumRaceSmokeSpeed << ", wheel contacts "
                         << maximumRaceSmokeContacts
+                        << ", AI=";
+                    for (std::size_t index = 1U;
+                         index < maximumRaceAiSpeeds.size(); ++index)
+                    {
+                        std::cout << (index == 1U ? "" : ";")
+                                  << index << ':'
+                                  << maximumRaceAiSpeeds[index] << '/'
+                                  << maximumRaceAiProgress[index] << '/'
+                                  << raceAiThrottleFrames[index] << '/'
+                                  << raceAiBrakeFrames[index] << '/'
+                                  << raceAiReverseFrames[index];
+                    }
+                    std::cout
+                        << ", ahead=" << aheadAiCount
                         << ", renderer passes cube6/shadow2/scene/HDR64-1/"
                            "adapt/bloom/composite/HUD"
                         << "/loadingFrame"

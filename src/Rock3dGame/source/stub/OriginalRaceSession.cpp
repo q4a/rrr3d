@@ -2822,7 +2822,6 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
         3.14159265358979323846F / 128.0F;
     constexpr float maximumSpeedBlocking = 0.5F;
     constexpr float maximumTimeBlocking = 1.0F;
-    constexpr float steerControl = 1.0F;
 
     const bool sourceTileMissing =
         racer >= currentTraceNodes_.size() ||
@@ -3043,8 +3042,9 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
         const float rotation =
             1.0F - std::max(dot2(carForward, brakeDirection), 0.0F);
         const float demand =
-            vehicle.speed * vehicle.speed * steerControl *
-            steerControl * rotation;
+            vehicle.speed * vehicle.speed *
+            vehicleDefinition.physics.steeringControl *
+            vehicleDefinition.physics.steeringControl * rotation;
         if (!aiBrake_[racer] && demand > 1.5F * brakeDistance)
             aiBrake_[racer] = true;
         else if (aiBrake_[racer] && demand < brakeDistance)
@@ -7477,6 +7477,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 const Vec3 incoming = normalized2(subtract(
                     point(cornerNode).position,
                     point(cornerNode - 1U).position));
+                const Vec3 outgoing = normalized2(subtract(
+                    point(cornerNode + 1U).position,
+                    point(cornerNode).position));
                 brakeHyperVehicles[1].body.position = subtract(
                     point(cornerNode).position,
                     multiply(incoming, 30.0F));
@@ -7484,7 +7487,28 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     point(cornerNode).position.z + 2.0F;
                 brakeHyperVehicles[1].body.rotation =
                     shortestArcFromX(incoming);
-                brakeHyperVehicles[1].speed = 10.0F;
+                const Vec3 middleDirection = normalized2(
+                    add(incoming, outgoing));
+                const float brakeDistance =
+                    30.0F * dot2(middleDirection, incoming) +
+                    point(cornerNode).width;
+                const float brakeRotation =
+                    1.0F - std::max(dot2(incoming, outgoing), 0.0F);
+                const auto& brakeRacer = brakeHyperRace.racers[1];
+                const auto& brakeVehicle =
+                    brakeRacer.hasConfiguredVehicle
+                        ? brakeRacer.configuredVehicle
+                        : brakeHyperRace.vehicles.at(brakeRacer.vehicle);
+                const float brakeCoefficient = std::max(
+                    brakeVehicle.physics.steeringControl *
+                        brakeVehicle.physics.steeringControl *
+                        brakeRotation,
+                    0.000001F);
+                // Cross AICar's serialized 1.5 * kBreak threshold using the
+                // source kSteerControl, rather than assuming it equals one.
+                brakeHyperVehicles[1].speed = std::sqrt(
+                    1.6F * std::max(brakeDistance, 0.0F) /
+                    brakeCoefficient);
                 brakeHyperSession.update(
                     1.0F / 60.0F,
                     brakeHyperVehicles, input);
