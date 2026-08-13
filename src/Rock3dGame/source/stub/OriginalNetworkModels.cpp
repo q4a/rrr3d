@@ -1218,6 +1218,7 @@ protected:
         state_.vehicle.moveState = move;
         state_.vehicle.steerState = steer;
         state_.vehicle.steerWheelsAngle = angle;
+        state_.vehicle.receivedRevision = ++receivedVehicleRevision_;
         lastVehicleUpdateMilliseconds_ = context_.service.time();
         vehicleControlFresh_ = true;
         context_.updatePlayer(state_);
@@ -1228,6 +1229,7 @@ private:
     net::INetService* service_ = nullptr;
     NetworkPlayerState state_;
     std::uint32_t lastVehicleUpdateMilliseconds_ = 0U;
+    std::uint64_t receivedVehicleRevision_ = 0U;
     bool vehicleControlFresh_ = false;
 
     bool gamerIdAvailable(std::int32_t value) const

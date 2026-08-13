@@ -4004,6 +4004,8 @@ int main(int argc, char** argv)
     std::int32_t networkAppliedWeather =
         std::numeric_limits<std::int32_t>::min();
     std::vector<std::uint32_t> networkRaceModelOrder;
+    std::map<std::uint32_t, std::uint64_t>
+        networkAppliedVehicleRevisions;
     std::optional<r3d::game::originalnetwork::NetworkPlayerState>
         networkPublishedPlayer;
 #ifdef RRR3D_PHYSICS
@@ -4496,6 +4498,7 @@ int main(int argc, char** argv)
             networkLastLifecycleEventSequence = 0U;
             networkPublishedPlayer.reset();
             networkRaceModelOrder.clear();
+            networkAppliedVehicleRevisions.clear();
 #ifdef RRR3D_PHYSICS
             networkWeatherOverride.reset();
             networkPendingGamerId.reset();
@@ -5590,6 +5593,7 @@ int main(int argc, char** argv)
                         sourceRacers.size());
                     originalRace->racers.resize(count);
                     networkRaceModelOrder.clear();
+                    networkAppliedVehicleRevisions.clear();
                     networkRaceModelOrder.reserve(count);
                     static constexpr std::array<
                         std::string_view, 10> slotTypes{
@@ -6467,6 +6471,7 @@ int main(int argc, char** argv)
         networkLastLifecycleEventSequence = 0U;
         networkPublishedPlayer.reset();
         networkRaceModelOrder.clear();
+        networkAppliedVehicleRevisions.clear();
         networkWeatherOverride.reset();
         networkPendingGamerId.reset();
         networkSnapshot = {};
@@ -14109,6 +14114,13 @@ int main(int argc, char** argv)
                     {
                         continue;
                     }
+                    auto& appliedRevision =
+                        networkAppliedVehicleRevisions[player->modelId];
+                    if (player->vehicle.receivedRevision == 0U ||
+                        player->vehicle.receivedRevision == appliedRevision)
+                    {
+                        continue;
+                    }
                     physicsWorld->synchronizeNetworkVehicle(
                         index,
                         {player->vehicle.position[0],
@@ -14126,6 +14138,7 @@ int main(int argc, char** argv)
                          player->vehicle.angularMomentum[2]});
                     raceVehicles[index] =
                         physicsWorld->vehicle(index);
+                    appliedRevision = player->vehicle.receivedRevision;
                 }
                 for (const auto& event :
                      networkSnapshot.models.events)

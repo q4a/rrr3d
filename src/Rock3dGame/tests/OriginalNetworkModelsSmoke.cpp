@@ -483,6 +483,74 @@ int main()
             return 26;
         }
 
+        auto stableVehicleRevision = std::uint64_t{0U};
+        unsigned stableVehicleFrames = 0U;
+        for (unsigned idle = 0U;
+             idle < 1000U && stableVehicleFrames < 30U; ++idle)
+        {
+            ++clock;
+            server.Process(clock);
+            client.Process(clock);
+            const auto state = clientModels.snapshot();
+            const auto* remote =
+                remotePlayer(state, net::cServerPlayer);
+            if (remote == nullptr ||
+                remote->vehicle.receivedRevision == 0U)
+            {
+                stableVehicleFrames = 0U;
+                continue;
+            }
+            if (remote->vehicle.receivedRevision != stableVehicleRevision)
+            {
+                stableVehicleRevision =
+                    remote->vehicle.receivedRevision;
+                stableVehicleFrames = 0U;
+            }
+            else
+            {
+                ++stableVehicleFrames;
+            }
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(1));
+        }
+        if (stableVehicleRevision == 0U || stableVehicleFrames < 30U)
+        {
+            std::cerr << "NetPlayer vehicle revision never stabilized\n";
+            return 28;
+        }
+        const auto repeatedVehiclePacket = clientModels.snapshot();
+        const auto* repeatedRemoteVehicle =
+            remotePlayer(repeatedVehiclePacket, net::cServerPlayer);
+        if (repeatedRemoteVehicle == nullptr ||
+            repeatedRemoteVehicle->vehicle.receivedRevision !=
+                stableVehicleRevision)
+        {
+            std::cerr << "NetPlayer snapshot changed vehicle revision "
+                         "without dispatch\n";
+            return 28;
+        }
+        movingHost.vehicle.position[0] += 0.5F;
+        if (!serverModels.setLocalPlayerState(movingHost, error) ||
+            !pump(server, client, [&]() {
+                const auto state = clientModels.snapshot();
+                const auto* remote =
+                    remotePlayer(state, net::cServerPlayer);
+                if (remote != nullptr &&
+                    remote->vehicle.receivedRevision >
+                        stableVehicleRevision)
+                {
+                    return true;
+                }
+                movingHost.vehicle.position[0] += 0.02F;
+                serverModels.setLocalPlayerState(movingHost, error);
+                return false;
+            }, clock, 4000U))
+        {
+            std::cerr << "NetPlayer vehicle revision did not advance for a "
+                         "new ResponseStream\n";
+            return 28;
+        }
+
         // Windows NetGame invokes NetPlayer::Process once per frame. After a
         // second without a new ResponseStream it releases stale gas/steering
         // while retaining the last physical wheel-angle snapshot.

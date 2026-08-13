@@ -103,6 +103,12 @@ struct NetworkVehicleState
     std::uint8_t steerState = 0U;
     float steerWheelsAngle = 0.0F;
 
+    // Portable dispatch marker only; it is never serialized. Windows applies
+    // ResponseStream's pose/momenta inside NetPlayer::OnSerialize exactly
+    // once for every newly dispatched UDP state. The active runtime uses this
+    // revision to avoid reapplying an old packet on every render frame.
+    std::uint64_t receivedRevision = 0U;
+
     bool operator==(const NetworkVehicleState&) const = default;
 };
 
