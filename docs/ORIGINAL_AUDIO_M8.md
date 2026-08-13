@@ -77,6 +77,15 @@ per-equipped-slot, per-sound `Source3d` state ignores a repeated `Play` while
 active, can defer a far shot until the owner enters 30 metres, pauses beyond
 45 metres without rewinding, and resumes from the same sample on approach.
 
+The same ownership model now covers the other active race emitters.
+`PairPxContactEffect` chooses one of the five serialized impact sounds with
+its original `floor(size * Random())` rule, owns one source per actor pair,
+tracks the first manifold point, and destroys the voice after the source
+0.1-second contact release. `LifeEffect` voices on projectile impacts,
+vehicle explosions and bonus pickup effects remain pending only for the
+spawned object's source-derived lifetime, stop when it dies, and keep the
+target-local attachment when a `DeathEffect` is parented to a moving car.
+
 ## Backend
 
 `Rock3dEngine/header/audio/AudioBackend.h` has no SDL or Windows types. It

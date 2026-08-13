@@ -200,6 +200,19 @@ struct RaceEvent
     // Play calls can be ignored while it is already active, and a shot made
     // outside the audible radius can start when its owner approaches later.
     std::size_t soundSource = RacerRuntime::invalidWeapon;
+    // PairPxContactEffect owns one Source3d for an actor pair and destroys
+    // it as soon as the pair has had no live point for 0.1 seconds. These
+    // fields preserve that identity independently from ShotEffect slots.
+    std::uint32_t soundContactActor =
+        std::numeric_limits<std::uint32_t>::max();
+    r3d::physics::CollisionSurface soundContactSurface =
+        r3d::physics::CollisionSurface::TrackPlane;
+    // LifeEffect's Source3d belongs to the spawned effect object. It may
+    // start late while that object exists, but must stop when the object's
+    // source-derived visible lifetime ends. target-child effects follow the
+    // contacted racer for that lifetime.
+    float soundLifetimeSeconds = -1.0F;
+    std::size_t soundFollowRacer = RacerRuntime::invalidWeapon;
 };
 
 struct RaceEffect

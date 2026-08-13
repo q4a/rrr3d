@@ -153,6 +153,23 @@ constexpr std::size_t originalAchievementBack =
 constexpr std::size_t originalAchievementNoTarget =
     originalAchievementBack + 1U;
 
+r3d::physics::Vec3 rotateRaceVector(
+    const r3d::physics::Quat& rotation,
+    const r3d::physics::Vec3& value) noexcept
+{
+    const r3d::physics::Vec3 twiceCross{
+        2.0F * (rotation.y * value.z - rotation.z * value.y),
+        2.0F * (rotation.z * value.x - rotation.x * value.z),
+        2.0F * (rotation.x * value.y - rotation.y * value.x)};
+    return {
+        value.x + rotation.w * twiceCross.x +
+            rotation.y * twiceCross.z - rotation.z * twiceCross.y,
+        value.y + rotation.w * twiceCross.y +
+            rotation.z * twiceCross.x - rotation.x * twiceCross.z,
+        value.z + rotation.w * twiceCross.z +
+            rotation.x * twiceCross.y - rotation.y * twiceCross.x};
+}
+
 // Menu::NavDir order is left, right, up, down.  This is the literal
 // AchievmentFrame navigation graph; locked buttons are skipped by following
 // the same direction, as Menu::NavElementFind did on Windows.
@@ -3444,12 +3461,36 @@ int main(int argc, char** argv)
         r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
         bool spatialProxyPlaying = false;
     };
+    struct ContactEffectAudio
+    {
+        std::size_t racer = 0;
+        std::uint32_t actor = 0;
+        r3d::physics::CollisionSurface surface =
+            r3d::physics::CollisionSurface::TrackPlane;
+        r3d::physics::Vec3 position;
+        r3d::audio::SoundHandle sound = r3d::audio::invalidSound;
+        r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
+        bool spatialProxyPlaying = false;
+    };
+    struct TimedEffectAudio
+    {
+        std::size_t followRacer =
+            r3d::game::originalrace::RacerRuntime::invalidWeapon;
+        float remainingSeconds = 0.0F;
+        r3d::physics::Vec3 position;
+        r3d::physics::Vec3 followOffset;
+        r3d::audio::SoundHandle sound = r3d::audio::invalidSound;
+        r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
+        bool spatialProxyPlaying = false;
+    };
     std::map<std::string, r3d::audio::SoundHandle> engineSounds;
     std::map<r3d::audio::SoundHandle, float> engineSoundVolumes;
     std::vector<EngineAudio> engineAudio(originalRace->racers.size());
     std::vector<std::vector<WheelSlipAudio>>
         wheelSlipVoices(originalRace->racers.size());
     std::vector<ShotEffectAudio> shotEffectAudio;
+    std::vector<ContactEffectAudio> contactEffectAudio;
+    std::vector<TimedEffectAudio> timedEffectAudio;
     auto loadEngineSound = [&](const std::string& path) {
         const auto found = engineSounds.find(path);
         if (found != engineSounds.end())
@@ -3611,6 +3652,12 @@ int main(int argc, char** argv)
         for (const auto& source : shotEffectAudio)
             audio.stop(source.voice);
         shotEffectAudio.clear();
+        for (const auto& source : contactEffectAudio)
+            audio.stop(source.voice);
+        contactEffectAudio.clear();
+        for (const auto& source : timedEffectAudio)
+            audio.stop(source.voice);
+        timedEffectAudio.clear();
         for (std::size_t racer = 0; racer < engineAudio.size();
              ++racer)
         {
@@ -3654,6 +3701,12 @@ int main(int argc, char** argv)
         for (const auto& source : shotEffectAudio)
             audio.stop(source.voice);
         shotEffectAudio.clear();
+        for (const auto& source : contactEffectAudio)
+            audio.stop(source.voice);
+        contactEffectAudio.clear();
+        for (const auto& source : timedEffectAudio)
+            audio.stop(source.voice);
+        timedEffectAudio.clear();
         commentator.pause(true);
         gameMusic.pause(true, audioError);
         if (advanceGameTrack)
@@ -11281,13 +11334,32 @@ int main(int argc, char** argv)
                     {
                         const auto sound =
                             loadEngineSound(event.soundPath);
-                        if (event.soundSource ==
+                        if (event.soundContactActor !=
+                            std::numeric_limits<std::uint32_t>::max())
+                        {
+                            const auto active = std::find_if(
+                                contactEffectAudio.begin(),
+                                contactEffectAudio.end(),
+                                [&](const ContactEffectAudio& source) {
+                                    return source.racer == event.racer &&
+                                           source.actor ==
+                                               event.soundContactActor &&
+                                           source.surface ==
+                                               event.soundContactSurface;
+                                });
+                            if (active == contactEffectAudio.end() &&
+                                sound != r3d::audio::invalidSound)
+                            {
+                                contactEffectAudio.push_back(
+                                    {event.racer,
+                                     event.soundContactActor,
+                                     event.soundContactSurface,
+                                     event.position, sound});
+                            }
+                        }
+                        else if (event.soundSource !=
                             r3d::game::originalrace::RacerRuntime::
                                 invalidWeapon)
-                        {
-                            playSpatial(sound, event.position);
-                        }
-                        else
                         {
                             // ShotEffect::GiveSource3d chooses an existing
                             // Source3d. Source3d::Play ignores the call while
@@ -11308,6 +11380,48 @@ int main(int argc, char** argv)
                                      event.soundPath, event.position,
                                      sound});
                             }
+                        }
+                        else if (event.soundLifetimeSeconds > 0.0F)
+                        {
+                            if (sound != r3d::audio::invalidSound)
+                            {
+                                TimedEffectAudio source;
+                                source.followRacer =
+                                    event.soundFollowRacer;
+                                source.remainingSeconds =
+                                    event.soundLifetimeSeconds;
+                                source.position = event.position;
+                                source.sound = sound;
+                                if (source.followRacer <
+                                    raceVehicles.size())
+                                {
+                                    const auto& body = raceVehicles[
+                                        source.followRacer].body;
+                                    const r3d::physics::Quat inverse{
+                                        -body.rotation.x,
+                                        -body.rotation.y,
+                                        -body.rotation.z,
+                                        body.rotation.w};
+                                    auto local = rotateRaceVector(
+                                        inverse,
+                                        {event.position.x - body.position.x,
+                                         event.position.y - body.position.y,
+                                         event.position.z - body.position.z});
+                                    if (std::abs(body.scale.x) > 0.000001F)
+                                        local.x /= body.scale.x;
+                                    if (std::abs(body.scale.y) > 0.000001F)
+                                        local.y /= body.scale.y;
+                                    if (std::abs(body.scale.z) > 0.000001F)
+                                        local.z /= body.scale.z;
+                                    source.followOffset = local;
+                                }
+                                timedEffectAudio.push_back(
+                                    std::move(source));
+                            }
+                        }
+                        else
+                        {
+                            playSpatial(sound, event.position);
                         }
                     }
                 }
@@ -11358,6 +11472,148 @@ int main(int argc, char** argv)
                         // Proxy::Stop does not rewind Streaming. The SDL
                         // paused voice therefore resumes at the same sample
                         // after Source3d's 30/45 metre hysteresis restarts it.
+                        audio.setVoicePaused(
+                            source->voice,
+                            raceSession.phase() ==
+                                    r3d::game::originalrace::RacePhase::Paused ||
+                                !source->spatialProxyPlaying);
+                    }
+                    ++source;
+                }
+                for (auto source = timedEffectAudio.begin();
+                     source != timedEffectAudio.end();)
+                {
+                    if (raceSession.phase() !=
+                        r3d::game::originalrace::RacePhase::Paused)
+                    {
+                        source->remainingSeconds -= frameSeconds;
+                    }
+                    if (source->remainingSeconds <= 0.0F)
+                    {
+                        audio.stop(source->voice);
+                        source = timedEffectAudio.erase(source);
+                        continue;
+                    }
+                    if (source->voice != r3d::audio::invalidVoice &&
+                        !audio.isVoiceActive(source->voice))
+                    {
+                        source = timedEffectAudio.erase(source);
+                        continue;
+                    }
+                    if (source->followRacer < raceVehicles.size())
+                    {
+                        const auto& body =
+                            raceVehicles[source->followRacer].body;
+                        const auto offset = rotateRaceVector(
+                            body.rotation,
+                            {source->followOffset.x * body.scale.x,
+                             source->followOffset.y * body.scale.y,
+                             source->followOffset.z * body.scale.z});
+                        source->position = {
+                            body.position.x + offset.x,
+                            body.position.y + offset.y,
+                            body.position.z + offset.z};
+                    }
+                    const float dx = source->position.x - listener.x;
+                    const float dy = source->position.y - listener.y;
+                    const float dz = source->position.z - listener.z;
+                    const auto spatial =
+                        rrr3d::audio::originalSource3dFlatMix(
+                            std::sqrt(dx * dx + dy * dy + dz * dz),
+                            source->spatialProxyPlaying);
+                    source->spatialProxyPlaying = spatial.proxyPlaying;
+                    const auto resourceVolume =
+                        engineSoundVolumes.find(source->sound);
+                    const float volume =
+                        spatial.gain *
+                        (resourceVolume != engineSoundVolumes.end()
+                             ? resourceVolume->second
+                             : 1.0F);
+                    if (source->voice == r3d::audio::invalidVoice &&
+                        spatial.started)
+                    {
+                        r3d::audio::PlayOptions options;
+                        options.bus = r3d::audio::Bus::Effects;
+                        options.volume = volume;
+                        source->voice = audio.play(
+                            source->sound, options, audioError);
+                        if (source->voice == r3d::audio::invalidVoice)
+                            source->spatialProxyPlaying = false;
+                    }
+                    if (source->voice != r3d::audio::invalidVoice)
+                    {
+                        audio.setVoiceParameters(
+                            source->voice, volume, 1.0F, 0.0F);
+                        audio.setVoicePaused(
+                            source->voice,
+                            raceSession.phase() ==
+                                    r3d::game::originalrace::RacePhase::Paused ||
+                                !source->spatialProxyPlaying);
+                    }
+                    ++source;
+                }
+                for (auto source = contactEffectAudio.begin();
+                     source != contactEffectAudio.end();)
+                {
+                    const auto contact = std::find_if(
+                        raceSession.effects().begin(),
+                        raceSession.effects().end(),
+                        [&](const auto& effect) {
+                            return effect.kind ==
+                                       r3d::game::originalrace::
+                                           RaceEventKind::ContactImpact &&
+                                   effect.racer == source->racer &&
+                                   effect.contactActor == source->actor &&
+                                   effect.contactSurface == source->surface &&
+                                   effect.emissionEndSeconds >=
+                                       effect.ageSeconds;
+                        });
+                    if (contact == raceSession.effects().end())
+                    {
+                        audio.stop(source->voice);
+                        source = contactEffectAudio.erase(source);
+                        continue;
+                    }
+                    if (source->voice != r3d::audio::invalidVoice &&
+                        !audio.isVoiceActive(source->voice))
+                    {
+                        // PairPxContactEffect never rewinds its Source3d;
+                        // after pmOnce reaches EOF the pair-owned source is
+                        // silent until this actor pair is released/recreated.
+                        source = contactEffectAudio.erase(source);
+                        continue;
+                    }
+                    source->position = contact->origin;
+                    const float dx = source->position.x - listener.x;
+                    const float dy = source->position.y - listener.y;
+                    const float dz = source->position.z - listener.z;
+                    const auto spatial =
+                        rrr3d::audio::originalSource3dFlatMix(
+                            std::sqrt(dx * dx + dy * dy + dz * dz),
+                            source->spatialProxyPlaying);
+                    source->spatialProxyPlaying = spatial.proxyPlaying;
+                    const auto resourceVolume =
+                        engineSoundVolumes.find(source->sound);
+                    const float volume =
+                        spatial.gain *
+                        (resourceVolume != engineSoundVolumes.end()
+                             ? resourceVolume->second
+                             : 1.0F);
+                    if (source->voice == r3d::audio::invalidVoice &&
+                        spatial.started)
+                    {
+                        r3d::audio::PlayOptions options;
+                        options.bus = r3d::audio::Bus::Effects;
+                        options.volume = volume;
+                        source->voice = audio.play(
+                            source->sound, options, audioError);
+                        if (source->voice == r3d::audio::invalidVoice)
+                            source->spatialProxyPlaying = false;
+                    }
+                    if (source->voice != r3d::audio::invalidVoice)
+                    {
+                        audio.setVoiceParameters(
+                            source->voice, volume, 1.0F, 0.0F);
                         audio.setVoicePaused(
                             source->voice,
                             raceSession.phase() ==

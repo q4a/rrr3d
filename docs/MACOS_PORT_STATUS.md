@@ -1176,3 +1176,20 @@ game-side audio behaviors. Release hardening
 - Spatial smoke фиксирует итоговые коэффициенты master/category/resource и
   30/45-метровую state machine; race-session smoke требует реального
   сериализованного ShotEffect sound event вместе с визуальным эффектом.
+
+### Source PairPxContactEffect / LifeEffect audio follow-up
+
+- Контактный звук больше не является безымянным one-shot. Перенесён
+  `PairPxContactEffect::ContactMap`: отдельный Source3d на actor pair,
+  исходный `floor(soundCount * Random())`, позиция первого manifold point и
+  освобождение источника вместе с парой через 0.1 секунды без контакта.
+- Звуки `LifeEffect` у vehicle/projectile/mine death и bonus pickup теперь
+  принадлежат породившему их effect object. Далёкий источник может стартовать
+  только пока объект жив, активный voice принудительно заканчивается при его
+  смерти, а pause гонки замораживает и PCM cursor, и остаток lifetime.
+- Для `DeathEffect::targetChild` сохранена полная target-local позиция:
+  world point переводится в local scale/rotation машины и каждый кадр снова
+  собирается из актуального body transform, поэтому звук движется вместе с
+  прикреплённым визуальным эффектом без телепорта к центру автомобиля.
+- Race-session smoke теперь проверяет identity/surface контактного audio
+  source и положительный source lifetime pickup/death sounds.

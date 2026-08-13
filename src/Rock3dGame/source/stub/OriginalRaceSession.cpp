@@ -2930,6 +2930,7 @@ void OriginalRaceSession::destroyRacer(
          index < definition.deathEffects.size(); ++index)
     {
         const auto& source = definition.deathEffects[index];
+        const auto timing = sourceEffectTiming(source.visual, 0.7F);
         if (!source.visual.soundPaths.empty())
         {
             RaceEvent sound;
@@ -2940,13 +2941,13 @@ void OriginalRaceSession::destroyRacer(
                 sourceUniformRandomIndex(
                     source.visual.soundPaths.size(),
                     sourceUniformRandomUnit())];
+            sound.soundLifetimeSeconds = timing.visibleSeconds;
             events_.push_back(std::move(sound));
         }
         RaceEffect effect;
         effect.kind = RaceEventKind::VehicleDestroyed;
         effect.origin = add(vehicle.body.position, source.position);
         effect.target = add(effect.origin, {1.0F, 0.0F, 0.0F});
-        const auto timing = sourceEffectTiming(source.visual, 0.7F);
         effect.totalSeconds = timing.visibleSeconds;
         effect.seconds = effect.totalSeconds;
         effect.emissionEndSeconds = timing.emissionSeconds;
@@ -2979,7 +2980,10 @@ void OriginalRaceSession::updateGameplay(
     };
     const auto pushEffectSound =
         [&](const std::vector<std::string>& sounds,
-            const Vec3& position, std::size_t racer) {
+            const Vec3& position, std::size_t racer,
+            float lifetimeSeconds = -1.0F,
+            std::size_t followRacer =
+                RacerRuntime::invalidWeapon) {
             if (sounds.empty())
                 return;
             RaceEvent event;
@@ -2988,6 +2992,8 @@ void OriginalRaceSession::updateGameplay(
             event.position = position;
             event.soundPath = sounds[sourceUniformRandomIndex(
                 sounds.size(), sourceUniformRandomUnit())];
+            event.soundLifetimeSeconds = lifetimeSeconds;
+            event.soundFollowRacer = followRacer;
             events_.push_back(std::move(event));
         };
     for (std::size_t racer = 0;
@@ -3478,8 +3484,28 @@ void OriginalRaceSession::updateGameplay(
                 });
             if (activePair == effects_.end())
             {
-                pushEffectSound(
-                    race_.contactSoundPaths, points[0], racer);
+                // PairPxContactEffect::GetOrCreateContact selects one Sound
+                // with floor(size * Random()) and keeps that Source3d until
+                // the actor-pair node is released. This differs subtly from
+                // the RAND_MAX+1 RandomRange used by EventEffect sound lists.
+                if (!race_.contactSoundPaths.empty())
+                {
+                    const auto soundIndex = std::min(
+                        static_cast<std::size_t>(
+                            static_cast<float>(
+                                race_.contactSoundPaths.size()) *
+                            sourceRandomUnit()),
+                        race_.contactSoundPaths.size() - 1U);
+                    RaceEvent sound;
+                    sound.kind = RaceEventKind::EffectSound;
+                    sound.racer = racer;
+                    sound.position = points[0];
+                    sound.soundPath =
+                        race_.contactSoundPaths[soundIndex];
+                    sound.soundContactActor = contact.otherActor;
+                    sound.soundContactSurface = contact.surface;
+                    events_.push_back(std::move(sound));
+                }
             }
             for (std::size_t index = 0; index < pointCount; ++index)
             {
@@ -3645,14 +3671,17 @@ void OriginalRaceSession::updateGameplay(
                         effectOrigin =
                             compose(parent, effectTransform).position;
                     }
+                    const auto timing =
+                        sourceEffectTiming(visual, 0.9F);
                     pushEffectSound(
                         visual.soundPaths, effectOrigin,
-                        projectile.owner);
+                        projectile.owner, timing.visibleSeconds,
+                        targetChild && targetRacer < vehicles.size()
+                            ? targetRacer
+                            : RacerRuntime::invalidWeapon);
                     if (visual.visualNodes.empty() &&
                         visual.particleEmitters.empty())
                         return;
-                    const auto timing =
-                        sourceEffectTiming(visual, 0.9F);
                     RaceEffect impact;
                     impact.kind = RaceEventKind::ProjectileImpact;
                     impact.origin = effectOrigin;
@@ -4585,9 +4614,12 @@ void OriginalRaceSession::updateGameplay(
             death = &definition.tertiaryProjectile.deathEffect;
             deathVariant = 6U;
         }
+        const auto timing =
+            sourceEffectTiming(death->visual, 0.7F);
         pushEffectSound(
             death->visual.soundPaths,
-            add(mine.position, death->position), mine.owner);
+            add(mine.position, death->position), mine.owner,
+            timing.visibleSeconds);
         if (death->visual.visualNodes.empty() &&
             death->visual.particleEmitters.empty())
             return;
@@ -4595,7 +4627,6 @@ void OriginalRaceSession::updateGameplay(
         impact.kind = RaceEventKind::ProjectileImpact;
         impact.origin = add(mine.position, death->position);
         impact.target = add(impact.origin, {0.0F, 0.0F, 1.0F});
-        const auto timing = sourceEffectTiming(death->visual, 0.7F);
         impact.totalSeconds = timing.visibleSeconds;
         impact.seconds = impact.totalSeconds;
         impact.emissionEndSeconds = timing.emissionSeconds;
@@ -4863,11 +4894,12 @@ void OriginalRaceSession::updateGameplay(
             visual.particleEmitters.empty() &&
             visual.soundPaths.empty())
             return;
+        const auto timing = sourceEffectTiming(visual, 0.7F);
         pushEffectSound(
             visual.soundPaths,
             add(bonus.transform.position,
                 bonus.deathEffect.position),
-            RacerRuntime::invalidWeapon);
+            RacerRuntime::invalidWeapon, timing.visibleSeconds);
         RaceEffect impact;
         impact.kind = RaceEventKind::ProjectileImpact;
         impact.origin = add(
@@ -4875,7 +4907,6 @@ void OriginalRaceSession::updateGameplay(
             bonus.deathEffect.position);
         impact.target = add(
             bonus.transform.position, {0.0F, 0.0F, 2.0F});
-        const auto timing = sourceEffectTiming(visual, 0.7F);
         impact.totalSeconds = timing.visibleSeconds;
         impact.seconds = impact.totalSeconds;
         impact.emissionEndSeconds = timing.emissionSeconds;
@@ -7305,6 +7336,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 pickupSession.events().end(),
                 [&](const RaceEvent& event) {
                     return event.kind == RaceEventKind::EffectSound &&
+                           event.soundLifetimeSeconds > 0.0F &&
                            std::find(
                                sourcePickup->deathEffect.visual.soundPaths.begin(),
                                sourcePickup->deathEffect.visual.soundPaths.end(),
@@ -7498,6 +7530,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 contactSession.events().end(),
                 [&](const RaceEvent& event) {
                     return event.kind == RaceEventKind::EffectSound &&
+                           event.soundContactActor == 77U &&
+                           event.soundContactSurface ==
+                               r3d::physics::CollisionSurface::TrackBorder &&
                            std::find(
                                race.contactSoundPaths.begin(),
                                race.contactSoundPaths.end(),
@@ -7765,6 +7800,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     deathSession.events().end(),
                     [](const RaceEvent& event) {
                         return event.kind == RaceEventKind::EffectSound &&
+                               event.soundLifetimeSeconds > 0.0F &&
                                event.soundPath.find("carcrash05.ogg") !=
                                    std::string::npos;
                     }));
