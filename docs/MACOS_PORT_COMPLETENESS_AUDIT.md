@@ -895,6 +895,17 @@ Network, video и Steam явно выключены.
 - Regression вычисляет все три human-варианта из одних и тех же serialized
   slots и одновременно доказывает независимость Computer armor от сложности.
 
+### Source Player::TakeBonus value/slot-order follow-up
+
+- Активная ветка `Player::TakeBonus` повторно сверена с `GameObject::Healt`
+  и `WeaponItem` state. Удалён synthetic full-heal для medpack с нулевым
+  `proj/damage`: порт теперь применяет serialized value буквально.
+- Ammunition candidates снова строятся в enum-порядке
+  `stHyper, stMine, stWeapon1..stWeapon4`. Ранее основные weapons шли до
+  Hyper/Mine, поэтому исходный rounded-random index выбирал другой slot.
+- Поведенческий regression проверяет повреждённую машину, точное лечение,
+  pickup death/event и тот же результат через `NetPlayer::OnTakeBonus` replay.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

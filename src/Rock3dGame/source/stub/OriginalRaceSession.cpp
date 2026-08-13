@@ -5494,8 +5494,7 @@ void OriginalRaceSession::updateGameplay(
             break;
         case BonusKind::Medpack:
             runtime.life = std::min(
-                runtime.life +
-                    (value > 0.0F ? value : runtime.maximumLife),
+                runtime.life + value,
                 runtime.maximumLife);
             break;
         case BonusKind::Ammunition:
@@ -5508,20 +5507,9 @@ void OriginalRaceSession::updateGameplay(
                 PickSlot pickSlot = PickSlot::None;
             };
             std::vector<RechargeTarget> targets;
-            for (std::size_t slot = 0;
-                 slot < runtime.weaponSlots.size(); ++slot)
-            {
-                const auto weapon = runtime.weaponSlots[slot];
-                if (weapon == RacerRuntime::invalidWeapon ||
-                    weapon >= race_.weapons.size() ||
-                    runtime.weaponCharges[slot] >=
-                        runtime.weaponCapacity[slot])
-                    continue;
-                targets.push_back(
-                    {&runtime.weaponCharges[slot],
-                     runtime.weaponCapacity[slot], weapon,
-                     PickSlot::Primary});
-            }
+            // Player::TakeBonus enumerates the contiguous source SlotType
+            // range stHyper..stWeapon4. Preserve that order because its
+            // rounded random index chooses a concrete slot from this list.
             if (runtime.hyperWeapon != RacerRuntime::invalidWeapon &&
                 runtime.hyperWeapon < race_.weapons.size() &&
                 runtime.hyperCharge < runtime.hyperCapacity)
@@ -5537,6 +5525,20 @@ void OriginalRaceSession::updateGameplay(
                 targets.push_back(
                     {&runtime.mines, runtime.mineCapacity,
                      runtime.mineWeapon, PickSlot::Mine});
+            }
+            for (std::size_t slot = 0;
+                 slot < runtime.weaponSlots.size(); ++slot)
+            {
+                const auto weapon = runtime.weaponSlots[slot];
+                if (weapon == RacerRuntime::invalidWeapon ||
+                    weapon >= race_.weapons.size() ||
+                    runtime.weaponCharges[slot] >=
+                        runtime.weaponCapacity[slot])
+                    continue;
+                targets.push_back(
+                    {&runtime.weaponCharges[slot],
+                     runtime.weaponCapacity[slot], weapon,
+                     PickSlot::Primary});
             }
             if (!targets.empty())
             {
@@ -8093,6 +8095,147 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source Player::TakeBonus DeathEffect sound/transition failed");
             }
+        }
+
+        const auto sourceMedpack = std::find_if(
+            race.bonuses.begin(), race.bonuses.end(),
+            [](const BonusInstance& bonus) {
+                return bonus.kind == BonusKind::Medpack;
+            });
+        if (sourceMedpack == race.bonuses.end())
+        {
+            throw std::runtime_error(
+                "source medpack is missing for TakeBonus regression");
+        }
+        {
+            Race medpackRace = race;
+            medpackRace.bonuses.assign(1U, *sourceMedpack);
+            medpackRace.bonuses.front().transform.position =
+                vehicles.front().body.position;
+            medpackRace.bonuses.front().transform.position.z +=
+                100.0F;
+            OriginalRaceSession medpackSession(medpackRace);
+            auto medpackVehicles = vehicles;
+            RaceControl medpackInput;
+            medpackVehicles[0].speed = 0.0F;
+            medpackVehicles[0].linearVelocity = {};
+            medpackVehicles[0].bodyContacts.clear();
+            for (int frame = 0; frame < 250; ++frame)
+                medpackSession.update(
+                    1.0F / 60.0F, medpackVehicles, medpackInput);
+            medpackSession.applyNetworkPlayerDamage(
+                0U, RacerRuntime::invalidWeapon,
+                medpackVehicles[0].body.position, 5.0F,
+                DamageType::Simple, medpackVehicles[0]);
+            const float lifeBefore =
+                medpackSession.racers().front().life;
+            const float expectedLife = std::min(
+                lifeBefore + sourceMedpack->value,
+                medpackSession.racers().front().maximumLife);
+            medpackVehicles[0].body.position =
+                medpackRace.bonuses.front().transform.position;
+            medpackSession.update(
+                1.0F / 60.0F, medpackVehicles, medpackInput);
+            const bool picked = std::any_of(
+                medpackSession.events().begin(),
+                medpackSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::Bonus &&
+                           event.target == 0U;
+                });
+            if (medpackSession.bonusActive().front() || !picked ||
+                std::abs(
+                    medpackSession.racers().front().life -
+                    expectedLife) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source Player::TakeBonus medpack Healt(value) failed");
+            }
+        }
+
+        const auto sourceAmmunition = std::find_if(
+            race.bonuses.begin(), race.bonuses.end(),
+            [](const BonusInstance& bonus) {
+                return bonus.kind == BonusKind::Ammunition;
+            });
+        if (sourceAmmunition == race.bonuses.end())
+        {
+            throw std::runtime_error(
+                "source ammunition is missing for TakeBonus regression");
+        }
+        {
+            Race ammunitionRace = race;
+            ammunitionRace.racers.resize(1U);
+            ammunitionRace.bonuses.assign(1U, *sourceAmmunition);
+            ammunitionRace.bonuses.front().transform.position =
+                vehicles.front().body.position;
+            ammunitionRace.bonuses.front().transform.position.z +=
+                100.0F;
+            OriginalRaceSession ammunitionSession(ammunitionRace);
+            auto ammunitionVehicles = vehicles;
+            ammunitionVehicles.resize(1U);
+            RaceControl ammunitionInput;
+            ammunitionVehicles[0].speed = 0.0F;
+            ammunitionVehicles[0].linearVelocity = {};
+            ammunitionVehicles[0].bodyContacts.clear();
+            for (int frame = 0; frame < 250; ++frame)
+                ammunitionSession.update(
+                    1.0F / 60.0F, ammunitionVehicles,
+                    ammunitionInput);
+            auto& ammunitionRuntime = const_cast<RacerRuntime&>(
+                ammunitionSession.racers().front());
+            if (ammunitionRuntime.hyperWeapon ==
+                    RacerRuntime::invalidWeapon ||
+                ammunitionRuntime.mineWeapon ==
+                    RacerRuntime::invalidWeapon ||
+                ammunitionRuntime.weaponSlots[0] ==
+                    RacerRuntime::invalidWeapon ||
+                ammunitionRuntime.hyperCapacity == 0U ||
+                ammunitionRuntime.mineCapacity == 0U ||
+                ammunitionRuntime.weaponCapacity[0] == 0U)
+            {
+                throw std::runtime_error(
+                    "source TakeBonus slot-order regression lacks loadout");
+            }
+            ammunitionRuntime.hyperCharge = 0U;
+            ammunitionRuntime.mines = 0U;
+            ammunitionRuntime.weaponCharges[0] = 0U;
+            unsigned sourceSeed = 0U;
+            for (; sourceSeed < 4096U; ++sourceSeed)
+            {
+                std::srand(sourceSeed);
+                if (sourceRoundedRandomIndex(
+                        3U, sourceRandomUnit()) == 0U)
+                    break;
+            }
+            if (sourceSeed == 4096U)
+            {
+                throw std::runtime_error(
+                    "source TakeBonus rounded RNG seed was not found");
+            }
+            std::srand(sourceSeed);
+            ammunitionVehicles[0].body.position =
+                ammunitionRace.bonuses.front().transform.position;
+            ammunitionSession.update(
+                1.0F / 60.0F, ammunitionVehicles,
+                ammunitionInput);
+            const auto ammunitionEvent = std::find_if(
+                ammunitionSession.events().begin(),
+                ammunitionSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::Bonus &&
+                           event.target == 0U;
+                });
+            if (ammunitionEvent == ammunitionSession.events().end() ||
+                ammunitionEvent->pickSlot != PickSlot::Hyper ||
+                ammunitionRuntime.hyperCharge == 0U ||
+                ammunitionRuntime.mines != 0U ||
+                ammunitionRuntime.weaponCharges[0] != 0U)
+            {
+                throw std::runtime_error(
+                    "source Player::TakeBonus stHyper..stWeapon4 order failed");
+            }
+            std::srand(1);
         }
 
         const auto sourceMoney = std::find_if(
@@ -11356,10 +11499,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 networkRace.bonuses.begin(),
                 networkRace.bonuses.end(),
                 [](const BonusInstance& bonus) {
-                    return bonus.kind == BonusKind::Money ||
-                           bonus.kind == BonusKind::Medpack ||
-                           bonus.kind == BonusKind::Ammunition ||
-                           bonus.kind == BonusKind::Shield;
+                    return bonus.kind == BonusKind::Medpack;
                 });
             if (sourceBonus == networkRace.bonuses.end())
             {
@@ -11373,6 +11513,19 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             bonusTarget.setNetworkGameplayRole(
                 true, false, clientOwned);
             bonusTarget.synchronizeNetworkCountdown(4);
+            const float synchronizedLife = std::max(
+                bonusTarget.racers().front().maximumLife - 5.0F,
+                1.0F);
+            bonusTarget.applyNetworkPlayerDamage(
+                0U, RacerRuntime::invalidWeapon,
+                vehicles[0].body.position, 5.0F,
+                DamageType::Simple, vehicles[0], true,
+                synchronizedLife, false);
+            const float lifeBeforeBonus =
+                bonusTarget.racers().front().life;
+            const float expectedBonusLife = std::min(
+                lifeBeforeBonus + sourceBonus->value,
+                bonusTarget.racers().front().maximumLife);
             bonusTarget.queueNetworkBonus(
                 {0U, bonusIndex, sourceBonus->kind,
                  sourceBonus->value});
@@ -11388,7 +11541,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            event.networkReplicated;
                 });
             if (bonusEvent == bonusTarget.events().end() ||
-                bonusTarget.bonusActive()[bonusIndex])
+                bonusTarget.bonusActive()[bonusIndex] ||
+                std::abs(
+                    bonusTarget.racers().front().life -
+                    expectedBonusLife) > 0.001F)
             {
                 throw std::runtime_error(
                     "source NetPlayer::OnTakeBonus replay failed");

@@ -1518,3 +1518,18 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Resource smoke отдельно прогоняет Easy/Normal/Hard для Human и Easy/Hard
   для Computer: ожидает точные отношения `2.0/1.75/1.5` только у человека и
   неизменный `maximumLife` обычного AI.
+
+### Source Player::TakeBonus value/slot-order follow-up
+
+- Удалена придуманная семантика medpack: portable-код при serialized
+  `damage <= 0` полностью восстанавливал машину. Windows всегда вызывает
+  `GameObject::Healt(value)`, поэтому теперь прибавляется ровно исходное
+  значение, включая ноль из штатного `ctBonus/medpack`.
+- Восстановлен порядок кандидатов ammunition pickup из непрерывного source
+  диапазона `stHyper..stWeapon4`: Hyper, Mine, затем Weapon1–Weapon4. Это
+  существенно для `Round((count-1)*Random())`, поскольку перестановка списка
+  меняла конкретный пополняемый слот при том же результате RNG.
+- Session smoke повреждает машину перед offline и сетевым medpack pickup и
+  проверяет точный `min(life + value, maxLife)`, уничтожение pickup и событие
+  HUD/achievement; сетевой enum `Money/Charge/Medpack/Immortal = 0/1/2/3`
+  сохранён без изменений.
